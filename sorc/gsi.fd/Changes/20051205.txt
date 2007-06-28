@@ -1,0 +1,94 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+---------------------------------
+Author(s)   :  Wei Gu, Jing Guo, Meta Sienkiewicz, R. Todling
+Reviewer(s) :  R. Todling
+Date        :  05 December 2005
+GMAO CVS tag:  gmao-gsi-2005_10
+NCEP CVS tag:  
+
+
+
+REASON FOR CHANGES
+------------------
+
+
+SPECIAL NOTES
+-------------
+
+
+
+EXPECTED DIFFERENCES
+--------------------
+
+
+
+FILES REMOVED
+-------------
+ NONE
+
+FILES ADDED
+-----------
+ NONE
+
+
+FILES MODIFIED
+-------------- 
+  berror.f90               - native grid implementation, merged w/ ncep-gsi_2005_10
+  get_derivatives.f90      - removed redundant lines
+  glbsoi.f90               - delayed destroy of sfc fields after main loop; merged w/ ncep-gsi_2005_10
+  gmao_global_convinfo.txt - merged w/ ncep-gsi_2005_10
+  gsisub.f90               - moved call to gengrid_vars to ncep initialization part; merged w/ ncep-gsi_2005_10
+  m_fvAnaGrid.F90          - native grid implementation
+  m_gsiCheck.F90           - native grid implementation
+  m_gsiGuess.F90           - native grid implementation
+  prewgt.f90               - native grid implementation; merged w/ ncep-gsi_2005_10
+  qcssmi.f90               - removed redundant lines
+  read_l2bufr_mod.f90      - merged w/ ncep-gsi_2005_10
+  retrieval_mi.f90         - bug fix: move tb22v test to avoid negative log evaluation
+  setupdw.f90              - bug fix: lat/lon arrays were inverted to diag file
+  setupps.f90              - bug fix: lat/lon arrays were inverted to diag file
+  setuppw.f90              - bug fix: lat/lon arrays were inverted to diag file
+  setupq.f90               - bug fix: lat/lon arrays were inverted to diag file
+  setuprw.f90              - bug fix: lat/lon arrays were inverted to diag file
+  setupspd.f90             - bug fix: lat/lon arrays were inverted to diag file
+  setupsrw.f90             - bug fix: lat/lon arrays were inverted to diag file
+  setupsst.f90             - bug fix: lat/lon arrays were inverted to diag file
+  setupt.f90               - bug fix: lat/lon arrays were inverted to diag file
+  setupw.f90               - bug fix: lat/lon arrays were inverted to diag file
+  smoothrf.f90             - square hzscl in totwgt calculation
+
+
+MAKEFILE CHANGES
+----------------
+  Makefile                       - export of gmao_global_convinfo.txt added, merge w/ ncep-gsi-2005_10
+  Makefile.conf.Linux.IA64.efc   - added read_ssmi target
+  Makefile.conf.Linux.IA64.ifort - added read_ssmi target
+  Makefile.conf.OSF1             - added read_ssmi target
+  Makefile.dependency            - fixed dependencies for m_fvAnaGrid; merge w/ ncep-gsi-2005_10
+
+
+SCRIPT CHANGES
+--------------
+
+  a) analyzer - modified to point to latest version of fixed files;
+                also to accommnodate changes due to native grid analysis
+
+
+FIX FILE CHANGES
+----------------
+
+GLOBAL NCEP T254L64 TEST
+------------------------
+
+REGIONAL NCEP NMM BINARY TEST
+-----------------------------
+
+REGIONAL NCEP NMM NETCDF TEST
+-----------------------------
+
+REGIONAL NCEP MASS BINARY TEST
+------------------------------
+
+
+REGIONAL NCEP MASS NETCDF TEST
+------------------------------

@@ -1,0 +1,609 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+---------------------------------
+Author(s)   :  John Derber, Dezso Devenyi, Jing Guo, Daryl Kleist, 
+               Jaccques Middlecoff, Dave Parrish, Meta Sienkiewicz, 
+               Ricardo Todling, Russ Treadon, Wan-Shu Wu
+Reviewer(s) :  Ricardo Todling and Russ Treadon
+Date        :  01 August 2005
+GMAO CVS tag:  gmao-gsi-2005_08   (21 Jul 2005)
+NCEP CVS tag:  ncep-gsi-2005_08   (15 Aug 2005)
+
+
+
+REASON FOR CHANGES
+------------------
+Changes are made to the gsi code for the following reasons:  
+(listing  below not given in any particular order)
+
+ a) Added modules to interface with GMAO horizontal grid. In all
+    platforms this adds dependency on other GMAO libraries (hermes,
+    mpeu, transf, gfio, hdf, etc), except on AIX. This is a zero
+    diff addition in the sense of when NCEP grid is used the code
+    reproduces original result.
+
+ b) Bug fix that now allows GSI to read two or more prepbufr files
+    correctly. Tested by splitting a prepbufr file into two and 
+    making sure results are as for when the single file is used 
+    (zero diff change).
+
+ c) Modify to use NOAA-18 and EARS data.  Remove satellite dependent 
+    thinning criterion from read_bufrtovs, read_airs, and read_goesndr.  
+    Changes made to thinning of AMSU-B observations.
+
+ d) Modify to allow monitoring of observations (qc and compute innovations
+    but do not assimilate).  Observations with quality marks of 9 and 14 
+    will be monitored.  Changes printout to reflect stats for rejected 
+    observations.
+
+ e) In order to apply background error covariances calculated from 
+    central NMM forecasts to the whole NA domain, sin(lat) is separated 
+    from the balance projection
+
+ f) Include both qoption=1 and =2 background error statistics in 
+    single regional background error statistics file.
+
+ g) Add OMI total ozone data as a data type that may be assimilated
+
+ h) Update PINT: 3d non-hydrostatic pressure field, in regional NMM output
+
+ i) Bug fix; allow regional background error statistics from a smaller
+    domain to be used in a larger domain.
+
+ j) Add preliminary code for dynamic constraint term
+
+ k) Modify to allow specification of conventional data use through 
+    convinfo file.  This file will control the use of observations 
+    and specify gross and variational quality control quantities 
+    for each observation type.  See file global_convinfo.txt file 
+    for more information.
+
+ l) Added capability to process level2 radar bufr files.
+
+
+
+SPECIAL NOTES
+-------------
+The following points should be noted with regards to the above
+code changes.  
+
+   ****PLEASE NOTE THE FOLLOWING****
+   =================================
+   With this update the name of the GSI executable is changed from 
+   global_anl to gsi_anl.  The same GSI executable may be used for
+   both regional and global applications.  The name "global_anl" 
+   is not consistent with this generality.  The rungsi*sh scripts 
+   included with the ncep-gsi-2005_08 CVS tag use the gsi_anl 
+   executable name
+
+The lettering below corresponds to the "REASON FOR CHANGES" for 
+lettering above:
+
+ a) Source code files m_utest.F90 and ut_fvAnaGrid.F90 are NOT
+    REQUIRED to compile the GSI code.  These codes provide unit
+    testing for the GMAO gsi interface routines (m_fvAnaGrid 
+    and m_gsiGuess.
+    
+ f) With this update, regional gsi developers must use a new regional 
+    background error statistics file --> one that includes statistics
+    for both qoption = 1 and = 2.
+
+ g) To use OMI data, 
+       - namelist SETUP variable ndat must be increased by 1 
+       - namelist SETUP variable jpch_oz must be increased
+         from 52 to 53
+       - namelist OBS_INPUT need an addtional line, "dfile()='omto3',...
+       - rungsi script must copy OMI data to working directory
+
+     ***WARNING TO GMAO USERS***
+     gmao_global_ozinfo.txt assumes jpch_oz=52, not 53 (the new default)
+     If gmao_global_ozinfo.txt is used at the input file, namelist SETUP 
+     variable jpch_oz MUST be explicitly set to 53.
+
+ j) With the addition of a dynamical constraint term, the number of
+    penalty terms printed from stpcalc.f90 via the line
+       write(iout_iter,100) (pbc1(i,1),i=1,ipen)
+    is increased by one.  More significantly, the order of elements
+    in the pbc1 array has changed from the previous gsi release.
+    Values related to surface pressure have moved to the 20th position
+    in the pen_bc and pbc1 arrays.  The 4th position of these arrays
+    now contains values related to the dynamic constraint.  The table 
+    below compares the previous and new ordering.
+
+        term        previous ordering         new ordering
+        ====        =================         ============
+     pen_bc(1,*)    background                same as before
+     pen_bc(2,*)    Tb biascor background     same as before
+     pen_bc(3,*)    Pcp biascor background    same as before
+     PEN_BC(4,*)    SURFACE PRESSURE OBS      DYNAMIC CONSTRAINT
+     pen_bc(5,*)    wind obs                  same as before
+     pen_bc(6,*)    Tb (radiance) obs         same as before
+     pen_bc(7,*)    temperature obs           same as before
+     pen_bc(8,*)    precipitable water obs    same as before
+     pen_bc(9,*)    specific humidity obs     same as before
+     pen_bc(10,*)   ozone obs                 same as before
+     pen_bc(11,*)   doppler lidar wind        same as before
+     pen_bc(12,*)   doppler radar wind        same as before
+     pen_bc(13,*)   radar superob wind        same as before
+     pen_bc(14,*)   GPS local refractivity    same as before
+     pen_bc(15,*)   conventional sst          same as before
+     pen_bc(16,*)   wind speed obs. term      same as before
+     pen_bc(17,*)   precipitation term        same as before
+     pen_bc(18,*)   neg moisture constraint   same as before
+     pen_bc(19,*)   excess moisture term      same as before
+     PEN_BC(20,*)   NOTHING HERE              SURFACE PRESSURE OBS
+    
+ k) Fix file global_convinfo.txt is a required input.  Please see SCRIPT
+    CHANGES and FIX FILE CHANGES below
+
+ l) Currently, at NCEP, the level 2 radar bufr files are very
+    large (5-10Gb).  It is much too expensive to read and process these
+    files using existing bufrlib routines.  Some new routines have
+    been created which use mpi-io to read the files.  At the moment
+    these routines are not mature enough to include in the operational
+    bufrlib, but they are adaquate for the requirements of GSI.
+
+    With this update, level2 radar data, if available, is processed near 
+    the beginning of GSI execution, and converted to superobs which are 
+    written in a format consistent with the already existing capability 
+    for processing radar superobs from a binary input file.  If there is 
+    no level2 file, the code will attempt to read superobs anyway, which 
+    can be generated from older software already in use.
+
+
+
+EXPECTED DIFFERENCES
+--------------------
+The following differences are expected when comparing GSI output from
+this release from that from previous releases.  The lettering below 
+corresponds to the "REASON FOR CHANGES" for lettering above:
+
+ c) Differences in thinning of satellite data and thus differences
+    in number of satellite data (usually more) that get through QC.
+    Changes in AMSU-B thinning should allow more AMSU-B obs in system
+
+ f) No differences in canned cases if the same background statistics 
+    are used.  ("same" means using berror=regional_glb_berror.f77)
+
+ j) Even if the dynamical constraint turn is turned off, differences
+    in the order in which terms used in the step size calculation are
+    summed, may lead to roundoff differences.  This roundoff error
+    accumulated over the course of the analysis.  
+ 
+ l) No differenc, unless a level 2 bufr file is provided.  Then differences 
+    are common to those expected when adding a new data source.
+
+
+
+FILES REMOVED
+-------------
+   NONE
+
+
+
+FILES ADDED
+-----------
+ intjc.f90           - int routine for dynamic constraint
+ jcmod.f90           - module containing variables and subroutines 
+                       for dynamic constraint
+ m_fvAnaGrid.F90     - GMAO highest level interface between fvgrid and gsi
+ m_gsiCheck.F90      - print out info on GSI background fields
+ m_gsiGuess.F90      - GMAO interface to the GSI guess_grids
+ m_utests.F90        - unit tester for gmao gridded component interface
+ mpi_bufr_mod.f90    - contains new mpi-io routines to process bufr files.
+ mytrace.H           - trace back/debug controlling include file
+ pstend.f90          - file contains routines (non-lin, tlm, and adj) 
+                       for calculating time tendency of ln(ps)
+ read_l2bufr_mod.f90 - remainder of new code to read level 2 bufr file
+                       and convert to binary file of superobs
+ setupjc.f90         - setup routine for dynamic constraint
+ stpjc.f90           - stp routine for dynamic constraint
+ ut_fvAnaGrid.F90    - unit tester for m_fvAnaGrid
+
+
+
+FILES MODIFIED
+-------------- 
+ balmod.f90          - include fstat=.T. sin(lat) separated from balance 
+                       projection matrix, bug fix
+ berror.f90          - add and initialize logical fstat; initialize mr,nr,nf
+ bkgvar.f90          - add max bound to l2
+ compact_diffs.f90   - bug fix in loop/array usage
+ dtast.f90           - modify to monitor data and print rejected data stats;
+                       fix bug in printout
+ dvast.f90           - modify to monitor data and print rejected data stats
+ emiss.f90           - modify to handle mhs data
+ get_derivatives.f90 - bug fix, clean up
+ glbsoi.f90          - move destroy_sfc_grids; add calls related to dynamic
+                       constraint (and those associated with memory 
+                       reorganization)
+ gsimain.F90         - add fstat to namelist (logical to seperate f from 
+                       balance projection); add logical variable update_pint;
+                       add dynamic constraint term related items;
+                       remove gross and variational qc conventional 
+                       values from namelists; add new namelist 
+                       "SUPEROB_RADAR" containing superob parameters;
+                       add read of new namelist and call to radar_bufr_read_
+                       all which processes a level 2 bufr file and writes 
+                       out superobs.
+ gsisub.f90          - added new interface for GMAO grided fields;
+                       fix bug in gmao read code
+ guess_grids.f90     - add update_pint, arrays ges_pint, ges_pd; 
+                       add array to hold roughness length array;
+                       initialize nfldsig and nfldsfc
+ intall.f90          - add dynamic constraint related call
+ intdw.f90           - modify to move var. qc calculations inside loop
+ intoz.f90           - add OMI total ozone
+ intps.f90           - modify to move var. qc calculations inside loop
+ intpw.f90           - modify to move var. qc calculations inside loop
+ intq.f90            - modify to move var. qc calculations inside loop
+ intref.f90          - modify to move var. qc calculations inside loop
+ intrp3oz.f90        - change for use of OMI total ozone
+ intrw.f90           - modify to move var. qc calculations inside loop
+ intspd.f90          - modify to move var. qc calculations inside loop
+ intsrw.f90          - modify to move var. qc calculations inside loop
+ intsst.f90          - modify to move var. qc calculations inside loop
+ intt.f90            - modify to move var. qc calculations inside loop
+ intw.f90            - modify to move var. qc calculations inside loop
+ jfunc.f90           - remove unused module from create_jfunc
+ mpimod.F90          - added a couple more exports from m_mpif
+ obs_para.f90        - add OMI total ozone
+ obsmod.f90          - multiple prepbufr reader fix; add OMI ozone (ozo);
+                       add b_ and pg_ parameters to conventional obs files
+ ozinfo.f90          - increase default number of ozone data types 
+                       from 52 to 53
+ prepdw.f90          - modify to monitor data
+ prepp.f90           - modify to monitor data
+ preppw.f90          - modify to monitor data
+ prepq.f90           - modify to monitor data
+ preprw.f90          - modify to monitor data
+ prepsrw.f90         - modify to monitor data
+ prepsst.f90         - modify to monitor data; add qc to ensure obs is
+                       surrounded by water on model grid
+ prept.f90           - modify to monitor data
+ prepw.f90           - modify to monitor data
+ prewgt_reg.f90      - add gmao surface interface
+ prewgt_reg.f90      - remove old print out, add max bound to lp
+ qcmod.f90           - remove variational qc and gross check parameters
+                       for conventional observations
+ rdgstat_reg.f90     - read in stats for both qoption=1 and 2 and use 
+                       the chosen set
+ read_airs.f90       - clean up; remove satellite dependent constants
+ read_bufrtovs.f90   - clean up and include ears/NOAA-18 data; remove 
+                       satellite dependent constants; modify thinning 
+                       for amsu-a data
+ read_goesndr.f90    - clean up; remove satellite dependent constants
+ read_gps_ref.f90    - modify to add use/monitor parameter; modify to 
+                       read convinfo file and specify qc values from file
+ read_guess.f90      - added new interface for GMAO grided fields
+ read_lidar.f90      - modify to add use/monitor parameter; modify to read 
+                       convinfo file and specify qc values from file
+ read_obs.f90        - include mhs and hirs4 data; add OMI total ozone;
+                       remove computational load parameters from call to
+                       read routines for conventional data
+ read_ozone.F90      - correct bug in printout; add OMI ozone
+ read_pcp.f90        - add gmao surface interface
+ read_prepbufr.f90   - modify to allow monitoring data - allow qcmarks of 9 
+                       and 14 for monitoring; modify to read convinfo file 
+                       and specify qc values from file
+ read_radar.f90      - modify to add use/monitor parameter; modify to read 
+                       convinfo file and specify qc values from file
+ read_superwinds.f90 - modify to add use/monitor parameter; modify 
+                       to read convinfo file and specify qc values 
+                       from file
+ read_wrf_nmm_guess.F90 - add changes to read pint if available 
+                       (update_pint=.true.); add changes to read 
+                       surface roughness length
+ regional_io.f90     - add variable update_pint
+ satthin.F90         - add gmao surface interface
+ setupdw.f90         - modify to monitor data
+ setupoz.f90         - add use of OMI total ozone data
+ setuppcp.f90        - increase size of character variable containing 
+                       diagnostic filename; remove mype and add idate 
+                       to diagnostic file output
+ setupps.f90         - modify to monitor data
+ setuppw.f90         - modify to monitor data
+ setupq.f90          - modify to monitor data
+ setuprad.f90        - modify to handle mhs and hirs4 data; modify tnoise
+                       initialization, add varinv_use variable
+ setupref.f90        - modify to monitor data					   
+ setuprhsall.f90     - include mhs and hirs4 data; modify to monitor data; 
+                       add OMI ozone
+ setuprw.f90         - modify to monitor data
+ setupspd.f90        - modify to monitor data
+ setupsrw.f90        - modify to monitor data
+ setupsst.f90        - modify to monitor data
+ setupt.f90          - modify to monitor data
+ setupw.f90          - modify to monitor data; add qc code for Modis winds
+ smoothzrf.f90       - add upper bound to l2
+ sprdw.f90           - multiple prepbufr reader fix; modify to monitor data;
+                       modify to move var. qc calculations and gross 
+                       check inside loop
+ sproz.f90           - multiple prepbufr reader fix; add OMI ozone
+ sprp.f90            - multiple prepbufr reader fix; modify to monitor data;
+                       modify to move var. qc calculations and gross 
+                       check inside loop; lower huge error limit
+ sprpw.f90           - multiple prepbufr reader fix; modify to monitor data;
+                       modify to move var. qc calculations and gross check 
+                       inside loop
+ sprq.f90            - multiple prepbufr reader fix; modify to monitor data;
+                       modify to move var. qc calculations and gross check 
+                       inside loop; lower huge_error limit
+ sprref.f90          - multiple prepbufr reader fix; modify to monitor data;
+                       modify to move var. qc calculations and gross check 
+                       inside loop
+ sprrw.f90           - multiple prepbufr reader fix; modify to monitor data;
+                       modify to move var. qc calculations and gross check 
+                       inside loop
+ sprspd.f90          - multiple prepbufr reader fix; modify to monitor data;
+                       modify to move var. qc calculations and gross check 
+                       inside loop
+ sprsrw.f90          - multiple prepbufr reader fix; modify to monitor data;
+                       modify to move var. qc calculations and gross check 
+                       inside loop
+ sprsst.f90          - multiple prepbufr reader fix; modify to monitor data;
+                       modify to move var. qc calculations and gross check 
+                       inside loop
+ sprt.f90            - multiple prepbufr reader fix; modify to monitor data;
+                       modify to move var. qc calculations and gross check 
+                       inside loop
+ spruv.f90           - multiple prepbufr reader fix; modify to monitor data;
+                       modify to move var. qc calculations and gross check 
+                       inside loop
+ statsconv.f90       - modify to monitor data; modify to change print
+ statsrad.f90        - include mhs and hirs4 data
+ stpcalc.f90         - add dynamic constraint term
+ stpdw.f90           - modify to move var. qc calculations inside loop
+ stpoz.f90           - add OMI toz
+ stpps.f90           - modify to move var. qc calculations inside loop
+ stppw.f90           - modify to move var. qc calculations inside loop
+ stpq.f90            - modify to move var. qc calculations inside loop
+ stpref.f90          - modify to move var. qc calculations inside loop
+ stprw.f90           - modify to move var. qc calculations inside loop
+ stpspd.f90          - modify to move var. qc calculations inside loop
+ stpsrw.f90          - modify to move var. qc calculations inside loop
+ stpsst.f90          - modify to move var. qc calculations inside loop
+ stpt.f90            - modify to move var. qc calculations inside loop
+ stpw.f90            - modify to move var. qc calculations inside loop
+ t_init_var.f90      - add OMI toz
+ t_obsmod.f90        - add OMI toz data
+ update_guess.f90    - added new interface for GMAO grided fields
+ wrf_binary_interface.F90 - add read of pint byte address;
+                            add code to read roughness length
+ wrf_netcdf_interface.F90 - add read of pint byte address
+ write_all.f90       - added new interface for GMAO grided fields
+ wrwrfmassa.F90      - remove unnecessary loop counter
+ wrwrfnmma.F90       - add update and write of pint if update_pint=.true.
+
+
+
+MAKEFILE CHANGES
+----------------
+The following changes are made to Makefiles:
+
+  a) Makefile
+       - Add files under "FILES ADDED" list
+       - Change executable name from global_anl to gsi_anl
+       - Add variables pointing to GMAO libraries transf, hermes, gfio
+       - Add variables pointing to HDF include and library files
+
+  b) Makefile.conf.IRIX64, Makefile.conf.Linux, Makefile.conf.Linux.IA64.efc
+     Makefile.conf.Linux.IA64.ifort, Makefile.conf.OSF1
+       - Add (LIBhermes) $(LIBgfio) $(LIBmpeu) and corresponding includes
+
+  c) Makefile.conf.AIX 
+       - point to operational NCEP versions of SFCIO, CRTM, and IRSSE
+         modules and libraries
+       - directly point to operational NCEP netcdf library
+       - undeclare Libs used in GMAO build
+
+  d) Makefile.dependency 
+       - adjust dependences related to new and modified
+
+
+
+SCRIPT CHANGES
+--------------
+The folowing changes are made to script files:
+
+  a) analyzer 
+       - modified to accommodate new GMAO interface for gridded fields
+       - add assign for conventional observation info file 
+         (gmao_global_convinfo.txt)
+
+  b) Two new namelists are added for both regional and global gsi runs.
+        JCOPTS - control dynamical constraint term (under development)
+        SUPEROB_RADAR - control superobing of level 2 radar wind data 
+     Please see comments in gsimain.F90 for further details
+
+  c) With this release of the code, an additional "fix" file is needed
+     to control the use of the conventional data within the analysis.
+     The name of the conventional observation information file is
+     global_convinfo.txt.  Comments at the head of this file explain 
+     the contents of this file.  The GSI looks for a file named
+     "convinfo" in the local working directory when run.  Both regional
+     and global gsi runs need the conventional observation information
+     file.
+
+  d) Related to item c) above, the variational quality control parameters
+     b_* and pg_* for conventional data are no longer specified via 
+     namelist OBSQC.  Instead, these parameters are now set in the 
+     conventional observation info file (convinfo).
+
+  e) If running the gsi with level 2 radar wind data, the following
+     line must be added to the script prior to executing the gsi
+
+        ln -sf nexrad.bufr_d  l2rwbufr
+
+     where  nexrad.bufr_d is a generic name representing the level 2 bufr 
+     radar file that is to be processed by GSI.
+
+     The internal file name expected in GSI is
+
+        l2rwbufr for the bufr file
+
+
+
+FIX FILE CHANGES
+----------------
+The following changes are made to fix files:
+
+  a) regional_nmm_berror.f77 and regional_glb_berror.f77
+      - regional gsi background error statistics file containing
+        error statistics for both moisture analysis variables
+        (qoption=1 and =2).  Note that the real words in this 
+        file are of size 4-bytes, as the code expects
+      - "nmm" statistics computed from NCEP NMN  
+        "glb" statistics computed from NCEP GFS
+
+  b) global_ozinfo.txt  
+      - an extra line is added to the file for OMI data
+      - NOAA-15 sbuv is removed and NOAA-18 sbuv is added
+      - NOAA-17 sbuv data is turned on
+
+  c) global_satinfo.txt 
+      - update errors for all AMSU-A channels, AMSU-B channel 1,
+        and all NOAA-18 MHS channels
+
+  d) global_convinfo.txt
+      - NEW file specifying information regarding conventional
+        data
+
+  e) gmao_global_convinfo.txt
+      - NEW file specifying information regarding conventional
+        data
+      - identical with global_convinfo.txt for ncep-gsi-2005_08 tag
+      
+  e) gsi.rc.sample
+      - add namelists JCOPTS and SUPEROB_RADAR
+      - remove grossp from namelist OBSQC 
+
+
+
+GLOBAL NCEP T254L64 TEST
+------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200506/rungsi_global.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_global.sh
+
+Maximum resident set size
+old :  694440 Kbytes
+new :  689400 Kbytes
+
+Wall clock (48 tasks, nodes=12)
+old :  1047.353012 seconds
+new :  1141.417613 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.767094534457785776E+06 0.462727283930157125E+08 0.802839791043856357E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.779230727348954068E+06 0.474469199393988326E+08 0.828147169142438443E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old   penalty,grad ,a,b= 2 100 0.347582650222095952E+06 0.207601275195880764E+06 0.311500234722926733E-03 0.122005311644099446E+01
+new   penalty,grad ,a,b= 2 100 0.353320388167537807E+06 0.330057203126036155E+06 0.261886191806355703E-03 0.115706921885003200E+01
+
+NOTES:
+   a) initial differences in penalty and gradient between old and new runs are
+      due to differences in brightness temperature (Tb) thinning algorithms.  For 
+      old run the total Tb penalty is 522324.059346757538 -vs 534460.252237925190
+      for the new code (2.32% increase).  This is not unexpected since the new
+      code also assimilates more Tb observations (old=861529 obs -vs new=891468, 
+      an increase of 3.47%)
+
+
+
+REGIONAL NCEP NMM BINARY TEST
+-----------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200506/rungsi_regional_nmm_binary.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_nmm_binary.sh
+
+Maximum resident set size
+old :  396480 Kbytes
+new :  273640 Kbytes
+
+Wall clock (24 tasks, nodes=6)
+old :  427.099565 seconds
+new :  380.480221 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.299735286835050902E+05 0.228949868580084032E+06 0.146411611251866559E-01 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.299322442926179247E+05 0.227124496524172893E+06 0.147164347027354397E-01 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old   penalty,grad ,a,b= 2 72 0.220752602287036643E+05 0.162264666309188722E-04 0.229467755059119573E-01 0.484184230925352677E+00
+new   penalty,grad ,a,b= 2 71 0.220698977934911200E+05 0.155715503933562918E-04 0.300816192879530299E-01 0.662943551604689207E+00
+
+NOTES:
+   a) initial differences in penalty and gradient between old and new runs are
+      due to differences in brightness temperature (Tb) thinning algorithms.  For
+      old run the total Tb penalty is 11244.6928521646041 -vs- 11203.4084612774295
+      for the new code (0.37% decrease).  At the same time, the new code assimilates 
+      slightly more Tb observations (old=8148 obs -vs new=8177, an increase of 0.36%)
+
+
+
+REGIONAL NCEP NMM NETCDF TEST
+-----------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200506/rungsi_regional_nmm_netcdf.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_nmm_netcdf.sh
+
+Maximum resident set size
+old :  378048 Kbytes
+new :  271428 Kbytes
+
+Wall clock (24 tasks, nodes=6)
+old :  434.266582 seconds
+new :  389.346874 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.311826441980267809E+05 0.339466315414264682E+06 0.717331176469610150E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.311363690123548367E+05 0.332997199777763861E+06 0.731190776389914997E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old   penalty,grad ,a,b= 2 74 0.231127221868578417E+05 0.335125099890208966E-04 0.228618057114534645E-01 0.448455839113499455E+00
+new   penalty,grad ,a,b= 2 73 0.230990335010982599E+05 0.297720153556761208E-04 0.225105671632890858E-01 0.853399960623162479E+00
+
+
+
+REGIONAL NCEP MASS BINARY TEST
+------------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200506/rungsi_regional_mass_binary.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_mass_binary.sh
+
+Maximum resident set size
+old :  324420 Kbytes
+new :  313400 Kbytes
+
+Wall clock (24 tasks, nodes=6)
+old :  515.075642 seconds
+new :  501.351366 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.294107072070430768E+05 0.176065357926226743E+08 0.265114722954809512E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.295708413395382267E+05 0.177693834072201662E+08 0.263374308856419365E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old   penalty,grad ,a,b= 2 100 0.148766969004308485E+05 0.280556368971887991E+03 0.996203283041633509E-03 0.103890253287999901E+01
+new   penalty,grad ,a,b= 2 100 0.148905451253869323E+05 0.135348209743035397E+03 0.245624754993448635E-02 0.471558652493639263E+00
+
+
+
+REGIONAL NCEP MASS NETCDF TEST
+------------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200506/rungsi_regional_mass_netcdf.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_mass_netcdf.sh
+
+Maximum resident set size
+old :  320560 Kbytes
+new :  322848 Kbytes
+
+Wall clock (24 tasks, nodes=6)
+old :  354.66538 seconds
+new :  358.976919 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.382161676051671893E+05 0.292220793719437264E+06 0.127935628241275037E-01 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.381714300711230608E+05 0.292342854173447238E+06 0.127713591746008749E-01 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 65 0.279507657358856195E+05 0.225642562904738181E-04 0.215008394663727849E-01 0.645672639785446756E+00
+new : penalty,grad ,a,b= 2 66 0.279185613218692088E+05 0.261406595128282237E-04 0.185420723119234035E-01 0.852641490116071932E+00
+

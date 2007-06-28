@@ -1,0 +1,479 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+-------------------------------------------
+Author(s)   :  John Derber, Daryl Kleist, Dave Parrish, 
+               Paul van Delst, Wan-Shu Wu
+Reviewer(s) :  Russ Treadon
+Date        :  4 November 2004
+GMAO CVS tag:
+NCEP CVS tag:  ncep-gsi-2004_11
+
+
+
+REASON FOR CHANGES
+------------------
+ Changes are made to the gsi code for the following reasons:  
+ (listing  below not given in any particular order)
+
+ a) Regional data assimilation cycle failed due to problem with 
+    reading of the first guess date/time.  The solution was to
+    read the first guess date/time from the proper variable.
+
+ b) The regional results from gsi version (tag ncep-gsi-2004_09) differed
+    from results from the previous version (ncep-gsi-2004_08).  The
+    solution was to fix a bug fixed in setting up the recursive filter
+    table.
+
+ c) Add option for nonlinear quality control of observations
+
+ d) Update IRSSE and CRTM libraries.  Split single IRSSE + CRTM + profile
+    utilty library into three separate libraries.
+
+ e) Clean up code to eliminate confusion regarding use of u,v versus st,vp
+
+ f) Fix sign error for global mode, because of update to get correct
+    background error statistics (specifically the sign of the balance
+    projections)
+
+ g) Modify manipulation of some observation errors
+
+ h) Modify thinning and quality control for infrared brightness temperatures
+
+ i) Correct array bound problems in ice and smow surface microwave 
+    emissivity routines 
+
+ j) Replace parameter for "small" positive number with smallest machine
+    representable positive value (obtained via intrinsic TINY function)
+
+ k) Move horizontal scale weighting factors to namelist SETUP
+
+
+
+SPECIAL NOTES
+-------------
+ PLEASE note the following items as they may affect your build/running of and/or 
+ results from the updated gsi code:
+
+ a) Nonlinear qc routines have been written for radiances, but these are not
+    currently used, because there is significant differences between no qc and
+    nonlinear qc with zero probability of gross error.  There should only be 
+    roundoff errors between these cases.  The reason for the larger than 
+    expected difference is under investigation.
+
+ b) Given the changes to the CRTM and IRSSE fix files (see FIX FILE CHANGES
+    below), this code will NOT run when using the old (previous version) CRTM
+    and IRSSE fix files.
+
+ c) Global runs must make use of the new background error files (see FIX FILE
+    CHANGES below).  Failure to use the new files will result in erroneous
+    results and/or core dumps.
+
+
+
+EXPECTED DIFFERENCES
+--------------------
+ Expected differences when comparing results from the updated gsi code with the
+ previous version include the following:
+
+ a) No difference is expected when running with the nonlinear qc turned off
+
+ b) Roundoff error differences if nonlinear qc turned on, but
+    probability of gross error parameters pg_* = 0 (default).
+    In this case, code goes through the motions of nonlinear
+    qc calculations, but the result is equivalent to no nonlin
+    qc.  The roundoff error differences are due to computing
+    arg = log(exp(arg)) repeatedly and using nonlinear step
+    size estimator for all obs types. (not true for radiance,
+    so currently no nonlin qc option for this--see note above).
+
+ c) Non-trival differences as a function of the magnitude of the nonlinear 
+    qc parameters.  Default values for these parameters are supplied, but 
+    tuning will be necessary to obtain optimal performance.
+
+ d) Changes to prepw and qcmod have an impact on the observation errors,
+    resulting in a change to the initial penalty and onward.  Differences
+    due to the change in errormod (found in qcmod.f90) can be significant.
+ 
+ e) Changes regarding st,vp and u,v have no impact on the analysis
+    apart from differences due to numerical roundoff.
+
+ f) Improved use of infrared satellite data - some improvement in forecast skill
+    found
+
+ g) Replacement of "tiny" and "small" parameters with the smallest machine 
+    representable positive number has the potential to alter the final
+    analysis to the extent that the value for logical statements may vary,
+    thereby sending code executation down a different path.  However, the
+    overall effect of this has (in the tests thus far) been very slight.
+
+
+
+FILES REMOVED
+-------------
+ none
+
+
+
+FILES ADDED
+-----------
+ getstvp.f90              - performs setup, and makes call to transpose of sf,vp to u,v
+                            routine
+ getuv.f90                - performs setup, calls routine to get u,v from st,vp
+ intall_qc.F90            - modified version of intall, used when nonlinear qc is
+                            activated.  radiances and ozone remain linear for now
+                            (no nonlinear qc option for radiancce and ozone data).
+ stpcalc_qc.f90           - modified version of stpcalc, used when nonlinear qc 
+                            is activated.  change order of data processing so 
+                            radiance and ozone data are always run without
+                            nonlinear qc.  These data types need further study
+                            before invoking nonlinear qc.
+
+
+
+FILES MODIFIED
+-------------- 
+ balance.f90              - remove u,v from bkerror computations, modified surface pressure
+                            constraint for global mode (* medium for global)
+ berror.f90               - replace "small" parameter with smallest machine representable
+                            positive value; add horizontal scale weighting factor
+ bkerror.f90              - remove u,v from internals from multiplication of background error
+ bkgcov.f90               - u,v removed from background error, perform periodicity on st,vp;
+                            move definition of horizontal scale weighting factors to namelist
+ constants.f90            - replace parameter "tiny" with smallest machine representable
+                            positive values (tiny_r_kind, tiny_single) 
+ dtast.f90                - increase dimension of work1 to allow for output of nonlin 
+                            qc penalty diagnostic info.
+ dvast.f90                - increase dimension of vwork1 to allow for output of nonlin 
+                            qc penalty diagnostic info.
+ grid2sub.f90             - u,v removed; periodicity applied to st,vp
+ gsimain.F90              - add namelist variables niter_no_qc, and nonlin qc parameters 
+                            b_t,pg_t, etc. (one pair for each variable type); add
+                            horizontal scale weighting factors to namelist
+ guess_grids.f90          - replace parameter tiny with smallest machine representable 
+                            positive value
+ hopers.f90               - sign error, separate vector to update u,v guess
+ iceem_amsu.f90           - correct error in bounds for array "coe"
+ intall.F90               - separate u,v out of control vector; convert the int computed for
+                            u,v into st,vp via the getstvp routine
+ intdw.f90                - add subroutine intdw_qc, which includes nonlinear qc in 
+                          - gradient computation for lidar winds.
+ intoz.f90                - see intdw
+ intpcp.f90               - see intdw
+ intps.f90                - see intdw
+ intpw.f90                - see intdw
+ intq.f90                 - see intdw
+ intrad.f90               - see intdw
+ intref.f90               - see intdw
+ intrw.f90                - see intdw
+ intspd.f90               - see intdw
+ intsrw.f90               - see intdw
+ intsst.f90               - see intdw
+ intt.f90                 - see intdw
+ intw.f90                 - see intdw
+ jfunc.f90                - add niter_no_qc; change structure of control vector and pointers
+ nlmsas_ad.f90            - replace parameters qsmall and tiny with smallest machine 
+                            representable positive value
+ pcgsoi.f90               - add call to intall_qc, stpcalc_qc, with decision to call
+                            intall and stpcalc if iter < niter_no_qc(jiter), otherwise
+                            to call intall_qc, stpcalc_qc.  intall_qc computes the
+                            gradient including nonlinear qc operators, and stpcalc_qc
+                            computes stepsize including nonlinear qc operators; separate
+                            control vector for u,v
+ prepw.f90                - decrease observation error inflation for those which are presumed
+                            or estimated to be below the surface (*)
+ prewgt.f90               - include "hzscl" in RF table setup.(**)
+ prewgt_reg.f90           - include "hzscl" in RF table setup.(**)
+ qcmod.f90                - add nonlin qc parameters b_t,pg_t, etc and initialize with
+                            default values (b_* = 10., pg_* = 0.); include 0.5 factor in 
+                            error mod for half layers (**)
+ rdgesig.f90              - correct div,vor --> u,v comment that was wrong
+ read_airs.f90            - modify thinning algorithm to allow more data through later 
+                            quality control
+ read_bufrtovs.f90        - modify thinning algorithm to allow more data through later 
+                            quality control
+ read_pcp.f90             - replace parameter tiny with smallest machine representable 
+                            positive value
+ read_prepbufr.f90        - fix array index bug in loop creating pressure values for 
+                            hybrid coordinate (*, hybrid only)
+ rfdpar.f90               - replace parameter small with smallest machine representable
+                            positive value
+ setupdw.f90              - increase size of dwork to include nonlin qc diagnostics.
+ setupoz.f90              - increase size of stats_oz to include nonlin qc diagnostics.
+                            add nonlin qc penalty computation and count of obs failing
+                            nonlin qc.
+ setuppcp.f90             - same as setupoz; replace tiny with smallest machine 
+                            representable positive value
+ setupps.f90              - increase size of pwork to include nonlin qc diagnostics.
+ setuppw.f90              - same as setupps
+ setupq.f90               - same as setupps
+ setuprad.f90             - same as setupoz; modify quality control algorithm for IR data;
+                            remove 0.25*error for IR (**)
+ setupref.f90             - same as setupps
+ setuprhsall.f90          - same as setupps
+ setuprw.f90              - same as setupps
+ setupspd.f90             - same as setupps
+ setupsrw.f90             - same as setupps
+ setupsst.f90             - same as setupps
+ setupt.f90               - same as setupps
+ setupw.f90               - same as setupps
+ smoothrf.f90             - half weight regional wind variables for smallest RF(*);
+                            pass horizontal scale weighting factors through berror
+ snwem_amsu.f90           - correct problem in declared dimensions for array coe
+ sprdw.f90                - increase size of dwork to include nonlin qc diagnostics.
+                            add nonlin qc penalty computation and count of obs failing
+                            nonlin qc.
+ sprp.f90                 - same as sprdw
+ sprpw.f90                - same as sprdw
+ sprq.f90                 - same as sprdw
+ sprref.f90               - same as sprdw
+ sprrw.f90                - same as sprdw
+ sprspd.f90               - same as sprdw
+ sprsrw.f90               - same as sprdw
+ sprsst.f90               - same as sprdw
+ sprt.f90                 - same as sprdw
+ spruv.f90                - same as sprdw
+ statsconv.f90            - increase size of various diagnostics arrays and add nonlin qc
+                            diagnostics output
+ statsoz.f90              - same as statsconv
+ statspcp.f90             - same as statsconv
+ statsrad.f90             - same as statsconv
+ stpcalc.f90              - separate control vector for wind components, get search direction
+                            for u,v from dir for st,vp (via getuv subroutine)
+ stpdw.f90                - add subroutine stpdw_qc which gets stepsize contribution from
+                            nonlinear qc operator
+ stpoz.f90                - same as stpdw
+ stppcp.f90               - same as stpdw
+ stpps.f90                - same as stpdw
+ stppw.f90                - same as stpdw
+ stpq.f90                 - same as stpdw
+ stprad.f90               - same as stpdw
+ stpref.f90               - same as stpdw
+ stprw.f90                - same as stpdw
+ stpspd.f90               - same as stpdw
+ stpsrw.f90               - same as stpdw
+ stpsst.f90               - same as stpdw
+ stpt.f90                 - same as stpdw
+ stpw.f90                 - same as stpdw
+ stvp2uv.f90              - fix sign error
+ sub2grid.f90             - u,v removed; periodicity applied to st,vp
+ tbalance.f90             - reflects changes to balance.f90
+ tstvp2uv.f90             - fix sign error
+ update_ggrid.f90         - update solution for u,v using input work array
+ wrf_binary_interface.f90 - "datestr" from the field (T) instead of START_DATE.
+
+
+
+MAKEFILE CHANGES
+----------------
+ Makefile - The following changes are made:
+  a) files included in the FILES ADDED list above are added
+
+  b) IRSSE and profile utility routines are taken out of the CRTM library
+     - redefine variable LIBcrtm to ONLY point to CRTM library (libcrtm.a)
+     - add variable LIBirsse for IRSSE library (libirsse.a)
+     - add variable LIButil for profile utility library (libutil.a)
+
+
+ Makefile.conf.AIX
+  a) add variables INCirsse and INCutil to point to directories
+     containing IRSSE and profile utility modules
+  b) change path to netcdf library so code will compile on snow,frost,blue
+
+
+ Makefile.dependency - The following changes are made:
+  a) files included in the FILES ADDED list above are added
+
+
+ Please NOTE the following:
+ a) The configure files (Makefile*conf) for other platforms (IRIX,
+    IRIX64, and OSF1) have NOT BEEN UPDATED to reflect the above changes to 
+    Makefile.conf.AIX.  Since the above changes depend on local environments, it
+    was felt best to leave modification of these files to external users.  External
+    users are welcome to submit modifications to the IRIX, IRIX64 and/or OSF1
+    Makefile.conf files for inclusion in future gsi updates.
+
+ b) Users wishing to run gsi versions prior to this update, MUST link library
+    libcrtm_irsse_util.a and include modules from include/crtm_irsse_util/
+    Makefile and Makefile.conf.AIX in /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200409 
+    have been edited accordingly to point at the correct libraries and 
+    include the correct modules.  Users running the previous version of 
+    CRTM and IRSSE must use the CRTM and IRSSE fix files from /nwprod/fix
+
+ c) If compiling on the NCEP machine "blue" it is recommended that variable
+    CF in Makefile.conf.AIX be changed from mpxlf95 to ncepxlf95
+
+
+
+SCRIPT CHANGES
+--------------
+ The following changes are made to scripts which run the gsi:
+   a) by default the nonlinear quality control is turned off.  As an example of 
+      turning on nonlinear qc, the following parameters could be specified in 
+      gsi namelist SETUP:
+
+       niter_no_qc(1)=30,niter_no_qc(2)=0,
+       pg_t=0.01,pg_w=0.01
+
+      In this case, nonlinear quality control is not turned on until the 30th
+      inner iteration of the first outer iteration, and is on for all iteations
+      of the second outer iteration.  The only observations affected here are
+      temperatures and winds.  pg_t=0.01 means that it is assumed gross errors occur
+      with a probability of 0.01.  The default for all pg_* parameters is 0.0
+      Tuning experiments will be required to decide on optimal values for the
+      above parameters.
+
+   b) The empirical weighting factors for the horizontal scales (see array hswgt
+      in smoothrf.f90) may be specified via namelist SETUP.  The default values,
+      set in berror.f90, are 1/3 for each of the three scales.
+
+
+
+FIX FILE CHANGES
+----------------
+ a) With the update to the CRTM and IRSSE the following fix files changed
+     1) global_spectral_coefs.f77      - CRTM spectral coefficients
+     2) global_transmittance_coefs.f77 - CRTM transmittance coefficients
+     3) global_emissivity_coefs.f77    - IRSSE coefficients
+
+    On the NCEP CCS the above coefficient files are found in 
+    /nfsuser/g01/wx20rt/global_gsi/fix/.  Previous to this gsi release, the
+    code used verisons of the above fix files from /nwprod/fix/
+
+
+ b) For GLOBAL runs, new background error stats are required because of 
+    a sign change in the code and statistics file.  Statistics HAVE NOT
+    yet been created for all global gsi resolutions.  The following 
+    statistics files are available with this gsi release
+
+    SIGMA T62L64  :  global_berror.l64y96.sig.f77
+    SIGMA T254L64 :  global_berror.l64y258.sig.f77
+
+    HYBRID T62L64 :  global_berror.l64y96.hyb.f77
+    HYBRID T254L64:  global_berror.l64y258.hyb.f77
+
+    The above statistics files are found on the NCEP CCS in 
+    /nfsuser/g01/wx20rt/global_gsi/fix/global
+
+    Please note:  Background error statistics that work with gsi 
+     versions prior to this release are also found in the above
+     directory.  Look for and use files with the string "sst" in 
+     the filename.  
+
+
+
+TEST RESULTS
+------------
+Old code:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200409/
+New code:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/
+Machine :  NCEP IBM (blue)
+
+
+
+GLOBAL T254L64 TEST
+-------------------
+Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_global.sh
+
+Max memory
+   old:  780200 Kbytes (32 mpi tasks, blocking=unlimited)
+   new:  719712 Kbytes
+
+Wall clock
+   old:  1429.595889 seconds
+   new:  1407.278410 seconds
+
+Output from the first iteration of the minimization
+old:  0: penalty,grad ,a,b=   1   0 0.375101623895946192E+06 0.977635568922423385E+07 0.210151389223872534E-02 0.000000000000000000E+00
+new:  0: penalty,grad ,a,b=   1   0 0.409226154495135299E+06 0.737270369430979155E+07 0.415846756416764479E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old:  0: penalty,grad ,a,b=   3   1 0.216109387123158085E+06 0.945728839618553866E+04 0.989324949604650531E-03 0.984591518632121243E+00
+new:  0: penalty,grad ,a,b=   3   1 0.220482545529829542E+06 0.232117266538671975E+05 0.160842435779733387E-02 0.156118054658878114E+01
+
+
+
+REGIONAL NMM BINARY TEST
+------------------------
+Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_nmm_binary.sh
+
+Max memory
+   old:  511400 Kbytes (24 mpi tasks, blocking=unlimited)
+   new:  509152 Kbytes
+
+Wall clock
+   old:  556.52442 seconds
+   new:  528.364974 seconds
+
+Output from the first iteration of the minimization
+old:  0: penalty,grad ,a,b=   1   0 0.383500643210975468E+05 0.320365497346813907E+06 0.424743164698680731E-02 0.000000000000000000E+00
+new:  0: penalty,grad ,a,b=   1   0 0.401061189427129138E+05 0.520079195960925950E+06 0.269958768088938332E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old:  0: penalty,grad ,a,b=   3   1 0.319201038736869850E+05 0.260775310526384055E+05 0.959424236738535066E-02 0.216112440420228868E+00
+new:  0: penalty,grad ,a,b=   3   1 0.329509225333884096E+05 0.118257860613835626E+06 0.151048232746914821E-02 0.317517630461349731E+00 
+
+
+
+REGIONAL NMM NETCDF TEST
+------------------------
+Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_nmm_netcdf.sh
+
+Max memory
+   old:  511404 Kbytes (24 mpi tasks, blocking=unlimited)
+   new:  509144 Kbytes
+
+Wall clock
+   old:  569.378595 seconds
+   new:  540.917355 seconds
+
+Output from the first iteration of the minimization
+old:  0: penalty,grad ,a,b=   1   0 0.406171569596309782E+05 0.576897820438568713E+06 0.345915036218752067E-02 0.000000000000000000E+00
+new:  0: penalty,grad ,a,b=   1   0 0.434856108067335008E+05 0.971521955496094888E+06 0.184144347270626682E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old:  0: penalty,grad ,a,b=   3   1 0.330573199128244305E+05 0.403404168312865950E+05 0.476795929955793011E-02 0.902275754864169555E+00
+new:  0: penalty,grad ,a,b=   3   1 0.354765374049383463E+05 0.208297783683200018E+06 0.101990556933870789E-02 0.108458716386790610E+01
+
+
+
+REGIONAL MASS BINARY TEST
+-------------------------
+Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_mass_binary.sh
+
+Max memory
+   old:  539368 Kbytes (24 mpi tasks, blocking=unlimited)
+   new:  532864 Kbytes
+
+Wall clock
+   old:  539.88148 seconds
+   new:  518.827027 seconds
+
+Output from the first iteration of the minimization
+old:  0: penalty,grad ,a,b=   1   0 0.419010570044062551E+05 0.114746409641415197E+08 0.429445761461241262E-03 0.000000000000000000E+00
+new:  0: penalty,grad ,a,b=   1   0 0.494185336918565081E+05 0.371636278829111904E+08 0.125371761799441931E-03 0.000000000000000000E+00
+ 
+Output from the final iteration of the minimization
+old:  0: penalty,grad ,a,b=   3   1 0.193988550339368776E+05 0.143643959742531617E+06 0.502750362888871455E-03 0.206210548490486312E+00
+new:  0: penalty,grad ,a,b=   3   1 0.238995439920104291E+05 0.145185006515976624E+06 0.378141400281192168E-03 0.106623224745615711E+00
+
+
+
+REGIONAL MASS NETCDF TEST
+-------------------------
+Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_mass_netcdf.sh
+
+Max memory
+   old:  550856 Kbytes (24 mpi tasks, blocking=unlimited)
+   new:  542956 Kbytes
+
+Wall clock
+   old:  415.408885 seconds
+   new:  490.279526 seconds
+
+Output from the first iteration of the minimization
+old:  0: penalty,grad ,a,b=   1   0 0.461825113568168817E+05 0.468286171393012162E+06 0.102909086120343534E-01 0.000000000000000000E+00
+new:  0: penalty,grad ,a,b=   1   0 0.496156729273343226E+05 0.467930322082468891E+06 0.853369983105661291E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old:  0: penalty,grad ,a,b=   3   1 0.352567841870585762E+05 0.243024304355971326E+05 0.125768510449499136E-01 0.385906084075487155E+00
+new:  0: penalty,grad ,a,b=   3   1 0.383767115934001122E+05 0.707503608737142931E+05 0.561133566118554410E-02 0.465576783934556315E+00
+
+

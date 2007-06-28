@@ -1,0 +1,392 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+---------------------------------
+Author(s)   :  John Derber, Daryl Kleist, Dave Parrish, Russ Treadon
+Reviewer(s) :  Russ Treadon
+Date        :  20 October 2005
+GMAO CVS tag:  
+NCEP CVS tag:  ncep-gsi-2005_10   (20 Oct 2005)
+
+
+
+REASON FOR CHANGES
+------------------
+Changes are made to the gsi code for the following reasons:  
+(listing  below not given in any particular order)
+
+ a) Fix problems with diagnostic files.
+    1) The header record for ozone, radiance, and precipitation
+       diagnostic files was not correctly generated in all 
+       situations.  The problem arose from changes in how 
+       mype_diaghdr was loaded in the revised version of 
+       obs_para.f90.  Both global and regional diagnostic files
+       were affected.  
+    2) Observation locations in regional diagnostic files were
+       in grid relative units.  These coordinates are changed
+       to be earth relative longitude and latitude (units of degrees).
+
+ b) Related to change a.1, the read* and setup* routines are
+    modified to pass/receive both grid relative and earth
+    relative representations of the observation latitude and
+    longitude.  The earth to grid relative conversion in obs_para
+    is removed since it is no longer needed.
+
+ c) Replace domain decomposition algorithm based on observational
+    density with an equi-size algorithm.  The new algorithm 
+    decomposes the full grid domain such that each sub-domain 
+    contains approximately the same number of analysis grid points.
+    This change was motivated by the fact that most of the 
+    computational work in the analysis is related to grid space
+    calculations (Jc term).  Another factor was the observation
+    that the previous algorithm, one based on data distribution, 
+    did not yield optimal results.    
+
+ d) Related to c) all references to dload and aload were removed
+    from the code.  The OBS_INPUT namelist is simplified (dload
+    is no longer present).  Routine sumload.f90 is removed.  Fix
+    files global_* and regional_convinfo.txt are modified.
+
+ e) Replace dynamic constraint routines with computationally more
+    efficient versions.
+
+ f) Fix bug in OMI data array allocation.  The wrong dimension
+    was used for array ipos_ozo.
+
+
+
+SPECIAL NOTES
+-------------
+The following points should be noted with regards to the above
+code changes.  The lettering below corresponds to the
+"REASON FOR CHANGES" for lettering above:
+
+ d) GSI namelists for previous releases will NOT WORK with the code 
+    provided in this release.  Users must remove all references to 
+    dload in the OBS_INPUT namelist.
+
+
+
+EXPECTED DIFFERENCES
+--------------------
+The following differences are expected when comparing GSI output from
+this release from that from previous releases.  The lettering below
+corresponds to the "REASON FOR CHANGES" for lettering above:
+
+ a) NO differences are to be expected in terms of the analysis.
+    This change corrects problems (features) in the diagnostic files.
+
+ c) Sub-domains now contain approximately the same number of analysis
+    grid points.  This changes how observations are mapped to mpi tasks.
+    As a result, slight (roundoff level) changes are noted in the final
+    analysis results.  
+
+    The approximate equi-size nature of the subdomains improves the
+    load balancing of the runs as evidenced by reductions in the maximum
+    resident set size as well as the wall clock time.  The table below
+    quantifies the reduction in memory usage and wall clock time.  (The
+    negative sign indicates a reduction from the previous GSI code)
+
+                         max memory   wall clock
+                           usage         time
+       T254L64 global      -3.9%         -6.5%
+       nmm binary         -24.2%        -13.8%
+       nmm netcdf         -19.4%        -25.2%
+       mass binary        -24.4%        -14.7%
+       mass netcdf        -26.0%        -26.1%
+
+    Please bear in mind that the above percentages are with respect to 
+    the current set of GSI test cases.  Also note that wall clock times
+    on the NCEP CCS are subject to large variability unless nodes are
+    run not_shared.  All GSI test cases runs are made with the nodes
+    shared.
+
+ e) Changes in the order and nature of operations due to the optimization
+    of the constraint code leads to small (roundoff level) differences
+    when running the code with the constraint term turned on.
+
+    The percentage difference in constraint_off -versus- constraint_on
+    maximum resident set sizes and wall clock times are shown below
+    for the old (previous) and new (this release) constraint code.
+
+       OLD (previous GSI version) constraint code
+                        max memory    wall clock
+                           usage         time
+       T254L64 global     +20.4%       +193.6%
+       nmm binary         +50.9%       +235.0%
+
+       NEW (this release GSI version) constraint code
+                        max memory    wall clock
+                           usage         time
+       T254L64 global     +10.0%        +36.4%
+       nmm binary         +43.4%        +53.3%
+ 
+    While running with the dynamic constraint term on obviously increases
+    the wall clock and memory usage, the revised constraint code is 
+    significantly more efficient.  When interpreting the changes in 
+    the memory usage, it should be noted that the reduction in the
+    increase of memory usage between the old and new code is more
+    more reflective the improvements made in the domain decomposition.
+
+
+
+FILES REMOVED
+-------------
+ sumload.f90         - no longer needed
+
+
+
+FILES ADDED
+-----------
+ NONE
+
+
+
+FILES MODIFIED
+-------------- 
+ calctends.f90       - changes to improve computational efficiency
+ calctends_adj.f90   - changes to improve computational efficiency
+ calctends_tlm.f90   - changes to improve computational efficiency
+ deter_subdomain.f90 - completely new domain decomposition algorithm which
+                       yields subdomains with approximately the same number
+                       of analysis grid points
+ gsimain.F90         - remove dload from OBS_INPUT namelist, add ctph0,
+                       stph0,tlm0 to call convert_regional_guess
+ gsisub.f90          - remove obs_load and dload, move deter_subdomain 
+                       before read_obs
+ intjc.f90           - fix bug in i loop index
+ jcmod.f90           - add arrays to improve Jc computational efficiency
+ obs_para.f90        - fix mype_diaghdr bug, remove earth-->grid conversion
+                       in disobs
+ obsmod.f90          - fix bug in OMI data array allocation
+ read_airs.f90       - add grid and earth relative obs location to local 
+                       output file, remove references to load arrays
+ read_amsre.f90      - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_avhrr_navy.f90 - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_bufrtovs.f90   - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_goesimg.f90    - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_goesndr.f90    - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_gps_ref.f90    - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_ieeetovs.f90   - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_lidar.f90      - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_obs.f90        - remove references to load arrays
+ read_ozone.F90      - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_pcp.f90        - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_prepbufr.f90   - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_radar.f90      - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_ssmi.f90       - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_ssmis.f90      - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ read_superwinds.f90 - add grid and earth relative obs location to local
+                       output file, remove references to load arrays
+ regional_io.f90     - add ctph0,stph0,tlm0
+ satthin.F90         - variable name change (dlat0,dlon0) --> d*_earth
+ setupdw.f90         - input grid location and fix regional lat/lon
+ setupjc.f90         - changes to improve computational efficiency
+ setupoz.f90         - input grid location and fix regional lat/lon
+ setuppcp.f90        - input grid location and fix regional lat/lon, 
+                       generalize accessing of elements from obs array
+ setupps.f90         - input grid location and fix regional lat/lon
+ setuppw.f90         - input grid location and fix regional lat/lon
+ setupq.f90          - input grid location and fix regional lat/lon
+ setuprad.f90        - input grid location and fix regional lat/lon,
+                       generalize accessing of elements from obs array
+ setupref.f90        - input grid location and fix regional lat/lon
+ setuprw.f90         - input grid location and fix regional lat/lon
+ setupspd.f90        - input grid location and fix regional lat/lon
+ setupsrw.f90        - input grid location and fix regional lat/lon
+ setupsst.f90        - input grid location and fix regional lat/lon
+ setupt.f90          - input grid location and fix regional lat/lon
+ setupw.f90          - input grid location and fix regional lat/lon
+ wrf_binary_interface.F90 - add ctph0,stph0,tlm0
+ wrf_netcdf_interface.F90 - add ctph0,stph0,tlm0
+
+
+
+MAKEFILE CHANGES
+----------------
+The following changes are made to Makefiles:
+
+ a) Makefile
+     - Remove sumload.f90
+
+ b) Makefile.dependency
+     - Remove dependencies for sumload.f90
+
+
+
+SCRIPT CHANGES
+--------------
+The folowing changes are made to all rungsi_*.sh script files:
+
+ a) Namelist OBS_INPUT has one fewer entry --> dload is removed.
+    Variable dload is no longer needed in the GSI code due to
+    the use of a new domain decomposition algorithm.  With this
+    update all references to dload in namelist OBS_INPUT are
+    removed.
+
+
+
+FIX FILE CHANGES
+----------------
+The following changes are made to fix files:
+
+ a) global_convinfo.txt and regional_convinfo.txt
+     - remove all reference to dload (remove one column) due to 
+       the change in the domain decomposition algorithm
+
+ b) gsi.rc.sample
+     - remove all reference to dload in namelist OBS_INPUT
+
+
+
+GLOBAL NCEP T254L64 TEST
+------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200510/rungsi_global.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_global.sh
+
+Maximum resident set size
+old :  688868 Kbytes
+new :  661812 Kbytes
+new*:  727872 Kbytes
+
+Wall clock (48 tasks, nodes=12)
+old : 1081.517072 seconds
+new : 1010.857013 seconds    
+new*: 1378.648644 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.808209150336014107E+06 0.493672453465749696E+08 0.852002768862968117E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.808209150336013874E+06 0.493672453465748355E+08 0.852002768862967792E-03 0.000000000000000000E+00
+new*: penalty,grad ,a,b= 1 0 0.808209150336013874E+06 0.493672453465748355E+08 0.849321010113791635E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 100 0.366370073559809185E+06 0.294309987555066065E+06 0.839968287114482734E-04 0.128480644234528962E+01
+new : penalty,grad ,a,b= 2 100 0.366370154300883762E+06 0.294310531780590303E+06 0.839966055772694556E-04 0.128480915244266858E+01
+new*: penalty,grad ,a,b= 2 100 0.394310716172920540E+06 0.422819796912366699E+06 0.150757936503172110E-03 0.792951001417229295E+00
+
+NOTES:
+   a) run new* tests the constraint term.  This run used the following JCOPTS settings
+            &JCOPTS
+              jcterm=.true., bamp_pse=10000000.0, bamp_uve=1000000.0,
+              bamp_uvi=100000.0, bamp_tin=100000.0, damptend=1.0,
+
+      Please note that the bamp* values above are not tunned.  They are simply
+      nonzero values used to exercise the code.
+
+
+
+REGIONAL NCEP NMM BINARY TEST
+-----------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200508/rungsi_regional_nmm_binary.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_nmm_binary.sh
+
+Maximum resident set size
+old :  280228 Kbytes
+new :  212320 Kbytes
+new*:  304460 Kbytes
+
+Wall clock (24 tasks, nodes=6)
+old :  379.069711 seconds
+new :  326.752514 seconds
+new*:  500.994709 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.310183678617356709E+05 0.405991533323205775E+06 0.759212125937830818E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.310183678617356745E+05 0.405991533323204843E+06 0.759212125937823619E-02 0.000000000000000000E+00
+new*: penalty,grad ,a,b= 1 0 0.310183678617356745E+05 0.405991533323204843E+06 0.759206122651409805E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 80 0.216318996235809609E+05 0.369435582048450401E-04 0.849472494863406404E-02 0.686311573644188821E+00
+new : penalty,grad ,a,b= 2 80 0.216318996642692000E+05 0.369332506533242007E-04 0.849853651107488131E-02 0.685854882257050491E+00
+new*: penalty,grad ,a,b= 2 84 0.216333706509360163E+05 0.197799553243070999E-04 0.210430836220277875E-01 0.166785170264878352E+00
+
+NOTES:
+   a) run new* tests the constraint term.  This run used the following JCOPTS settings
+            &JCOPTS
+              jcterm=.true., bamp_pse=30.0, bamp_uve=30.0,
+              bamp_uvi=4.0, bamp_tin=10.0, damptend=1.0,
+
+      Please note that the bamp* values above are not tunned.  They are simply
+      nonzero values used to exercise the code.  
+
+
+
+REGIONAL NCEP NMM NETCDF TEST
+-----------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200508/rungsi_regional_nmm_netcdf.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_nmm_netcdf.sh
+
+Maximum resident set size
+old :  268856 Kbytes
+new :  216720 Kbytes
+
+Wall clock (24 tasks, nodes=6)
+old :  479.15998 seconds
+new :  358.193601 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.312530062813417935E+05 0.650831302941312897E+06 0.421774970384380856E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.312530062813417899E+05 0.650831302941311616E+06 0.421774970384380856E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 84 0.223644415603044836E+05 0.438234474133745482E-04 0.128865736252214945E-01 0.392926471427772650E+00
+new : penalty,grad ,a,b= 2 84 0.223644415817814479E+05 0.438247927213246646E-04 0.128852490241350946E-01 0.392953844848334899E+00
+
+
+
+REGIONAL NCEP MASS BINARY TEST
+------------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200508/rungsi_regional_mass_binary.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_mass_binary.sh
+
+Maximum resident set size
+old :  313668 Kbytes
+new :  237180 Kbytes
+
+Wall clock (24 tasks, nodes=6)
+old :  535.761388 seconds
+new :  457.159865 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.297895327611723551E+05 0.159979741571810991E+08 0.270361508771306059E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.297895327611723551E+05 0.159979741571810208E+08 0.270361508771306005E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 100 0.153430267154863286E+05 0.354081958473994689E+03 0.895925444411342685E-03 0.402073217764596036E+00
+new : penalty,grad ,a,b= 2 100 0.153430266860274005E+05 0.354079743409249204E+03 0.895934332749832819E-03 0.402068176210905959E+00
+
+
+
+REGIONAL NCEP MASS NETCDF TEST
+------------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200508/rungsi_regional_mass_netcdf.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_mass_netcdf.sh
+
+Maximum resident set size
+old :  326168 Kbytes
+new :  241424 Kbytes
+
+Wall clock (24 tasks, nodes=6)
+old :  413.793261 seconds
+new :  305.913446 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.403134184768802879E+05 0.369794515315015917E+06 0.101632854821499287E-01 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.403134184768802952E+05 0.369794515315015451E+06 0.101632854821499270E-01 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 73 0.286133033114404243E+05 0.270661314966425794E-04 0.212011700277663570E-01 0.492722335426204583E+00
+new : penalty,grad ,a,b= 2 73 0.286133032737688627E+05 0.270650583231057605E-04 0.212016924799458169E-01 0.492630702418475119E+00
+

@@ -1,0 +1,119 @@
+# This config file contains the compile options for compilation
+# of the GSI code on the NCEP IBM SP.  All production builds
+# on NCEP IBM SP are 64-bit
+
+# ----------------------------------
+# Redefine variables for NCEP IBM SP
+# ----------------------------------
+COREINC  = /nwprod/lib/incmod
+INCsfcio = $(COREINC)/sfcio_4
+INCsigio = $(COREINC)/sigio_4
+INCcrtm  = $(COREINC)/crtm2
+
+WRFPATH=/nwprod/sorc/nam_nmm_real_fcst.fd
+
+LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
+LIBwrfio_netcdf = $(WRFPATH)/external/io_netcdf/libwrfio_nf.a
+INCnetcdf       = /nwprod/lib/sorc/netcdf/netcdf-3.5.0/include
+OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
+
+WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk)
+
+MPITRACE = /usrx/local/mpi_trace/lib/libmpitrace_smp.a
+
+
+# Empty out definition of libs use by GMAO GSI building structure
+LIBtransf = #-L$(CORELIB) -ltransf
+LIBhermes = #-L$(CORELIB) -lhermes
+LIBgfio   = #-L$(CORELIB) -lgfio
+INChdf    = #-I$(BASEDIR)/$(ARCH)/include/hdf
+LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
+
+# ---------------------------
+# General targets/definitions
+# ---------------------------
+
+  AR     = ar -X64 -v -q
+
+# ----------------------------
+# Fortran compiler and options
+# ----------------------------
+
+  CF            = mpxlf95_r
+  FC            = $(CF)
+
+#--- Normal mode options
+
+  FFLAGS_F90    = -qfree=f90 -qsuffix=f=f90:cpp=F90 -WF,-Dibm_sp,-DWRF \
+                  -btextpsize=64K -bdatapsize=64K -bstackpsize=64K
+
+  FFLAGS_COM_N  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
+                  -I $(INCnetcdf) -qarch=auto -O3 -qsmp=noauto \
+                  -qmaxmem=-1 -qfullpath -qdbg -qstrict -q64 
+
+  FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N)
+  FFLAGS_f  = -qfixed       $(FFLAGS_COM_N)
+  FFLAGS    = $(FFLAGS_N)
+
+
+
+#--- Debug mode options
+
+  FFLAGS_COM_D  =  -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
+          -I $(INCnetcdf) -qarch=pwr5 \
+          -qmaxmem=-1 -qfullpath -qdbg -qstrict -q64 \
+          -O0 \
+          -qsigtrap=xl__trcedump \
+          -qflttrap=overflow:zero:enable \
+          -qinitauto=7FF7FFFF \
+          -qcheck \
+          -qwarn64 \
+          -qflag=i:u \
+          -qsave \
+          -qlistopt \
+          -qsource
+
+  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
+
+
+
+# ----------------------
+# C Compiler and options
+# ----------------------
+
+  CC            = /usr/vac/bin/cc_r
+
+#--- Normal mode options
+
+  CFLAGS_N      = -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3
+
+#--- Debug mode options
+
+  CFLAGS_D      = -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -g
+
+
+# ------------------
+# Linker and options
+# ------------------
+
+  LD            = $(CF)
+
+#--- Normal mode options
+
+  LIBS_N        = -L/nwprod/lib -lsp_d -lw3_d -lbufr_d_64 -lbacio_4 \
+                  -lcrtm2 -lsigio_4 -lsfcio_4 -lnetcdf_64 $(WRFLIB) \
+                  $(MPITRACE)
+						 
+  LDFLAGS_N     = -lessl_r -lmass -bloadmap:loadmap.txt -qsmp=noauto
+
+  LDFLAGS       = $(LDFLAGS_N)
+
+#--- Debug mode options
+
+  LIBS_D        = $(LIBS_N) -lhmd
+
+  LDFLAGS_D     = $(LDFLAGS_N)
+
+#--- Empty out mpi library definition: embedded in compiler
+
+  LIBmpi	= 

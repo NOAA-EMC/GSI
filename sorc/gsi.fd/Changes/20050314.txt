@@ -1,0 +1,588 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+-------------------------------------------
+Author(s)   :  Lidia Cucurull, Dick Dee, John Derber, Daryl Kleist, 
+               Dan Kokron, LP Chang, Wei Gu, Xu Li, Dave Parrish, Ricardo Todling, 
+               Russ Treadon, Jack Woollen, Wan-Shu Wu
+Reviewer(s) :  Ricardo Todling and Russ Treadon
+Date        :  14 March 2005
+GMAO CVS tag:  gmao-gsi-2005_04   (04 April 2005)
+NCEP CVS tag:  ncep-gsi-2005_03   (14 March 2005)
+
+
+
+REASON FOR CHANGES
+------------------
+Changes are made to the gsi code for the following reasons:  
+(listing  below not given in any particular order)
+
+ a) Modify algorithm for determining surface type in setuprad
+ b) Make some changes to quality control for satellite data
+ c) Update prepp to make it less likely for observations with  
+    large height differences to pass quality control
+ d) Modify surface emissivity adjoint routines to simplify
+ e) Clean up qcssmi routine
+ f) Add option (qoption=2) for normalized RH variable in place 
+    of current pseudo RH (qoption=1)
+ g) Add option for anisotropic background errors.
+ h) Correct error in intref.f90 which caused NaNQ's to appear when
+    nonlinear qc turned on
+ i) Modify statspcp.f90 to include printout of number of precip obs
+    rejected by nonlinear qc
+ j) Change nonlinear qc to account for inflation of observation errors
+ k) Read GPS radio occultation (ro) observations from BUFR format files
+ l) Modify the QC checks for the GPS ro observations
+ m) Reduce the value of the gross error for GPS ro observations
+ n) Reorganize and clean up portions of code related to sst retrieval
+ o) Correct error in horizontal scale weights (hzscl)
+ p) Clean up diagnostic output 
+ q) Add #ifdef to isolate sections of code which require WRF library and / or
+    module files
+ r) Clean up code, correct variable declaration sections, correct allocate /
+    deallocate errors
+ s) Honor METAR surface pressure quality flags and observation errors
+
+
+
+SPECIAL NOTES
+-------------
+ 1) When running the code on the NCEP IBM SP, users must remember to 
+    specify the number of threads.  See the script changes section
+    for further details.  When running the code without threads,
+    the user must specify a single thread.  Failure to set thread
+    related environment variables will cause the job to fail on the
+    NCEP IBM SP
+
+ 2) The moisture variable option is controlled by a new input parameter,
+    "qoption", located in namelist SETUP.  The default is qoption=1,
+    which retains the current moisture variable, pseudo RH.  Setting
+    qoption=2 activates the new normalized RH variable.  To use qoption=2,
+    it is recommended that the nonlinear moisture constraint be turned off,
+    by setting factqmin=factqmax=0 (also parameters in namelist SETUP).
+    Also, running with qoption=2 requires a new background error file.  Thus
+    far, qoption=2 has only been tested with the nmm core.  The new stats file
+    is distributed with this update as file regional_berror_nmm_qoption2.f77.  
+    For details regarding the new moisture variable, see section 6 of ECMWF 
+    Tech Memo 383, "Assimilation and Modelling of the Hydrological Cycle".
+
+ 3) The anisotropic option is turned on when the input parameter
+    "anisotropic" in namelist ANBKGERR is set to .true.  The default is .false., 
+    in which case, the current isotropic background error is used.  The 
+    anisotropic option is currently only available for regional mode, and there
+    is no actual anisotropic coupling provided yet.  The code is still
+    under development.  This version exercises the anisotropic filtering
+    routines, but the correlations are still isotropic.
+
+ 4) The nonlinear qc change works well for global runs with all observation
+    types.  However, for the regional standard test cases, nonlinear qc is
+    very unstable for radiance data, with or without the change to account for
+    observation error inflation.  This will need to be investigated.  It might
+    be related to the model top being too low.  In any case, nonlinear qc will
+    need to be tested carefully for each model and each data type.
+
+ 5) With this update all GPS ro observation files MUST BE IN BUFR.  The ASCII
+    option is totally removed.  Please note that the errors for the ro observations
+    are computed as before rather than being read in the bufr file. This is because
+    these values are not avaialable yet in the BUFR format. These values will be 
+    provided soon though.
+
+ 6) The squaring of hzscl in smoothrf dramatically changes analysis results.
+    This change means other parameters related to the background error
+    should / must be retuned in this gsi release.  Users may approximate the 
+    behaviour of the previous (20050202) gsi release by setting hzscl values 
+    to be sqrt(previous hzscl) values.  Doing so is NOT advocated, apart from
+    an initial curiosity check.  Rather, the background error parameters 
+    should be retuned.
+
+ 7) With the transition from the NCEP frost/snow CCS to blue/white, data
+    preprocessing for METAR surface pressure changed.  Previously all METAR
+    surface pressure observations had "reject" quality marks.  Previous
+    versions of GSI routine read_prepbufr.f90, however, ignored the reject 
+    quality flag and assigned each METAR ps observation an error of 1.0 hPa.  
+    METAR ps data are now quality controlled on blue/white.  GSI routine 
+    read_prepbufr.f90 is modified with this update to honor the qc quality 
+    flags and assigned observation error.  Since the GSI test cases come 
+    from the older frost/snow system, this change mean no METAR ps data
+    are used in the test case analyses.  
+
+
+
+EXPECTED DIFFERENCES
+--------------------
+ a) Different surface types near boundaries likely for satellite data.  This
+    may lead to different quality control (qc) decisions.
+ b) Different qc decisions likely for satellite data
+ c) Different qc decisions possible for surface pressure data
+ d) No impact
+ e) No impact
+ f) No impact if qoption=1.  Significant impact for qoption=2
+ g) No impact, if anisotropic='.false.'
+ h) No impact unless nonlinear qc turned on
+ i) No impact apart from additional information in printout
+ j) Trivial impact (roundoff errors) when nonlinear qc not turned on.
+    Significant impact when nonlinear qc turned on (more observations
+    rejected by nonlinear qc in new version relative to old for same
+    probability of gross error parameter).
+ k) No impact if given same data in both BUFR (new) and ASCII (previous) format
+ l) Impact only when assimilating GPS ro data
+ m) Impact only when assimilating GPS ro data
+ n) Impact only when running code in sst retrieval mode
+ o) Significant impact as noted above
+ p) Reduce size of diagnostic file, clean up output
+ q) No impact on NCEP IBM SP.  On other platforms result may be executable
+    that can not handle WRF-compliant input/output
+ r) Allow code to run in debug mode
+ s) Significant impact since METAR surface pressure observations will no
+    longer be assimilated in test case.  Test case prepbufr file sets 
+    qc flags to "bad" for METAR ps data.  Previous GSI releases over-rode
+    reject flag and set observation error to 1.0 hPa.  prepbufr files
+    produced on new IBM SP (white/blue) assign non-reject flags to METAR
+    ps data based on data pre-processing quality control decisions.  Will
+    update test cases to new prepbufr file at a later date.
+
+
+
+FILES REMOVED
+-------------
+ emis_uv_k.f90            - no longer needed combined with emiss.f90
+ emis_spd_k.f90           - no longer needed combined with emiss.f90
+ read_wrf_mass_guess.f90  - renamed as read_wrf_mass_guess.F90
+ read_wrf_nmm_guess.f90   - renamed as read_wrf_nmm_guess.F90
+ wrf_binary_interface.f90 - renamed as wrf_binary_interface.F90
+ wrwrfmassa.f90           - renamed as wrwrfmassa.F90
+ wrwrfnmma.f90            - renamed as wrwrfnmma.F90
+
+
+
+FILES ADDED
+-----------
+ anberror.f90             - analogue of berror, but for anisotropic error covariance
+ anbkerror_reg.f90        - several routines for applying regional anisotropic background
+                            error from pcgsoi
+ anprewgt_reg.f90         - similar to prewgt_reg, but for anisotropic error
+ coarse2fine_mod.f90      - anisotropic error applied on coarse grid.  This module contains
+                            coarse to fine interpolation, adjoint interpolation and
+                            initialization routines
+ normal_rh_to_q.f90       - tangent linear and adjoint of forward model for getting 
+                            specific humidity from normalized rh, which is a function 
+                            of normalized rh, T, and surface pressure
+ plib8.f90                - supplemental library of routines used by anisotropic recursive
+                            filters
+ raflib.F90               - anisotropic recursive filter library (uses 4 byte arithmetic);
+                            GMAO renamed to *.F90 added __osf__ dtime
+ raflib_d.F90             - repeat parts of raflib.f90 for 8 byte arithmetic; GMAO rename to *.F90
+                            added __osf__ dtime
+ read_wrf_mass_guess.F90  - replace read_wrf_mass_guess.f90; add pre-processor commands 
+                            to exclude wrf code for compile on certain machines; add 
+                            changes for qoption=2 and output stats for RH
+ read_wrf_nmm_guess.F90   - same changes as read_wrf_mass_guess.F90
+ wrf_binary_interface.F90 - replace wrf_binary_interface.f90; include ifdef to 
+                            exclude wrf code for compile on certain machines
+ wrwrfmassa.F90           - replace wrwrfmassa.f90; include ifdef to exclude wrf code for
+                            compile on certain machines; replace "use mpi" with 
+                            "use mpimod"
+ wrwrfnmma.F90            - replace wrwrfnmma.f90; include ifdef to exclude wrf code for 
+                            compile on certain machines
+
+
+
+FILES MODIFIED
+-------------- 
+ balmod.f90               - add variable conversion for normalized relative humidity 
+                            (qoption=2); modify so that for qoption=2, moisture variable 
+                            remains unchanged; correct deallocate error
+ berror.f90               - add subroutine set_nrh_var, which computes background error
+                            variance for normalized RH when qoption=2; add implicit none 
+                            to some routines; replace 1. with one and 20. with 20.0_r_kind
+ compact_diffs.f90        - add implicit none
+ constants.f90            - add implicit none
+ emiss.f90                - clean up and modify for new surface types and add adjoint 
+                            of surface emissivity
+ genqsat.f90              - change to output sensitivity of qsat to virtual temperature
+ glbsoi.f90               - add calls to anberror module routines; for qoption=2, 
+                            add call to set_nrh_var to compute normalized RH 
+                            background variance  
+ grdcrd.f90               - add documentation for function isrchf; add implicit none
+ gridmod.f90              - modify for cleaned up surface emissivity sensitivity
+ gsimain.F90              - add qoption namelist variable.  Add new namelist parameters 
+                            for new namelist ANBKGERR, which has new background error 
+                            parameters reserved for anisotropic errors
+ gsisub.f90               - add deallocate sst analysis array
+ hopers.f90               - for qoption=2, add call to normal_rh_to_q to convert input
+                            moisture variable from normalized RH to specific humidity
+ intall.f90               - for qoption=2, add call to normal_rh_to_q to convert 
+                            normalized RH to specific humidity.  Also add call to 
+                            adjoint ad_normal_rh_to_q to get contribution to gradient
+                            of normalized RH, T, and psfc from observations involving
+                            moisture
+ intall_qc.f90            - same as for intall.f90
+ intdw.f90                - nonlinear qc change to account for inflated obs error
+ intoz.f90                - nonlinear qc change to account for inflated obs error
+ intpcp.f90               - nonlinear qc change to account for inflated obs error
+ intps.f90                - nonlinear qc change to account for inflated obs error
+ intpw.f90                - nonlinear qc change to account for inflated obs error
+ intq.f90                 - nonlinear qc change to account for inflated obs error
+ intrad.f90               - nonlinear qc change to account for inflated obs error; 
+                            modify for cleaned up surface emissivity sensitivity
+ intref.f90               - correct bug in intref_qc, nonlinear qc change as above
+ intrppx.f90              - replace with new surface type algorithms and change 
+                            for emiss mods
+ intrw.f90                - nonlinear qc change to account for inflated obs error
+ intspd.f90               - nonlinear qc change to account for inflated obs error
+ intsrw.f90               - nonlinear qc change to account for inflated obs error
+ intsst.f90               - nonlinear qc change to account for inflated obs error
+ intt.f90                 - nonlinear qc change to account for inflated obs error
+ intw.f90                 - nonlinear qc change to account for inflated obs error
+ jfunc.f90                - add changes for qoption, and add arrays needed to 
+                            define tangent linear model for normalized RH to q;
+                            pass iadate via obsmod to routine write_guess_solution
+ mpimod.F90               - add use m_mpif, only for mpi_integer4, mpi_offset_kind, 
+                            ... (only applies to non IBM SP machines)
+ oneobmod.F90             - renamed from original *.f90 name; added little endian 
+                            conversion of prepqc file
+ obsmod.f90               - nonlinear qc change to account for inflated obs error; 
+                            modify for cleaned up surface emissivity sensitivity
+ pcgsoi.f90               - add call to anisotropic background error routine
+                            anbkerror_reg. (global not available yet)
+ polcarf.f90              - fix irp incrementing bug in 400, 402 continue block
+ prepp.f90                - modify to reduce weight for large surface height differences
+ prepq.f90                - add dummy array to account for change in argument list
+                            of subroutine genqsat
+ prepref.f90              - declare nrefdata before used (compiler issue)
+ prewgt.f90               - modifications to setup background variance for qoption=2
+ prewgt_reg.f90           - modifications to setup background variance for qoption=2
+ qcmod.f90                - change ps gross check limit from 10.0 to 5.0; change gps ro
+                            gross check limit from 10.0 to 3.0
+ qcssmi.f90               - clean up routine to make it more efficient
+ radinfo.f90              - move two subroutines from sst_retrieval into to this module
+ rdgesfc.f90              - die gracefully when return error from sfcio
+ rdgstat_reg.f90          - add deallocate rsigo
+ rdsfull.f90              - added protection to dealloc() of sfc-data array
+ read_bufrtovs.f90        - correct spelling in comment; add implicit none; specify
+                            _r_kind precision for real constants
+ read_files.f90           - only read surface file header to get date information
+ read_gps_ref.f90         - read bufr data file instead of ascii format.  ASCII FORMAT
+                            IS NO LONGER ACCEPTABLE
+ read_guess.f90           - add changes for qoption=2 and output stats for RH
+ read_ozone.F90           - change cpp tokens to add support for ifort compiler
+                            efc does not have a convert option so it should use
+                            the other 'open'; define numeric constants to r_kind precision
+read_prepbufr.f90         - remove hardwired reset of METAR ps quality mark and observation
+                            error - code now honors qc mark and obs error in prepbufr file;
+                            add call to destroygrids for obstype=sst
+ setupdw.f90              - nonlinear qc change to account for inflated obs error; remove
+                            garbage from diagnostic file
+ setupoz.f90              - nonlinear qc change to account for inflated obs error; 
+                            reorganize diagnostic file writes so that concatenated 
+                            files are self-contained
+ setuppcp.f90             - nonlinear qc change to account for inflated obs error
+ setupps.f90              - nonlinear qc change to account for inflated obs error; remove
+                            garbage from diagnostic file
+ setuppw.f90              - nonlinear qc change to account for inflated obs error; remove
+                            garbage from diagnostic file; more dp_pw initialization 
+                            to sprpw
+ setupq.f90               - nonlinear qc change to account for inflated obs error; remove
+                            garbage from diagnostic file
+ setuprad.f90             - nonlinear qc change to account for inflated obs error; 
+                            modify call for SST interpolation; modify use of surface flags
+                            and quality control and adjoint of surface emissivity; place
+                            lower bound in sum2
+ setupref.f90             - nonlinear qc change to account for inflated obs error; correct
+                            array index error in termtk calculation 
+ setuprw.f90              - nonlinear qc change to account for inflated obs error; 
+                            remove garbage from diagnostic file
+ setupspd.f90             - nonlinear qc change to account for inflated obs error;
+                            remove garbage from diagnostic file
+ setupsrw.f90             - nonlinear qc change to account for inflated obs error;
+                            remove garbage from diagnostic file
+ setupsst.f90             - nonlinear qc change to account for inflated obs error;
+                            remove garbage from diagnostic file
+ setupt.f90               - nonlinear qc change to account for inflated obs error;
+                            remove garbage from diagnostic file
+ setupw.f90               - nonlinear qc change to account for inflated obs error;
+                            remove garbage from diagnostic file
+ setuprhsall.f90          - statsoz call was passing ozmz var unnecessarily (GMAO)
+ smoothrf.f90             - square hzscl in totwgt calculation
+ snwem_amsu.f90           - correct code bug -> was using undefined "depth", should 
+                            use "snow_depth"
+ sprdw.f90                - nonlinear qc change to account for inflated obs error
+ sproz.f90                - nonlinear qc change to account for inflated obs error
+ sprp.f90                 - nonlinear qc change to account for inflated obs error
+ sprpw.f90                - nonlinear qc change to account for inflated obs error;
+                            move initialization of dp_pw into sprpw
+ sprq.f90                 - nonlinear qc change to account for inflated obs error
+ sprref.f90               - nonlinear qc change to account for inflated obs error;
+                            modify qc checks to better adapt to gps ro observations;
+                            reorder variable declaration lines; deallocate array dup
+ sprrw.f90                - nonlinear qc change to account for inflated obs error
+ sprspd.f90               - nonlinear qc change to account for inflated obs error
+ sprsrw.f90               - nonlinear qc change to account for inflated obs error
+ sprsst.f90               - nonlinear qc change to account for inflated obs error
+ sprt.f90                 - nonlinear qc change to account for inflated obs error
+ spruv.f90                - nonlinear qc change to account for inflated obs error
+ sst_retrieval.f90        - modify way read sst bufr file; move two subroutines to radinfo
+ statspcp.f90             - add output of count of precip obs rejected by nonlinear qc
+ stpcalc.f90              - add call to normal_rh_to_q to convert normalized RH to q
+ stpcalc_qc.f90           - add call to normal_rh_to_q to convert normalized RH to q;
+                            add u,v to stprad_qc
+ stpdw.f90                - nonlinear qc change to account for inflated obs error
+ stpoz.f90                - nonlinear qc change to account for inflated obs error
+ stppcp.f90               - nonlinear qc change to account for inflated obs error
+ stpps.f90                - nonlinear qc change to account for inflated obs error
+ stppw.f90                - nonlinear qc change to account for inflated obs error
+ stpq.f90                 - nonlinear qc change to account for inflated obs error
+ stprad.f90               - nonlinear qc change to account for inflated obs error;
+                            modify for cleaned up surface emissivity sensitivity
+ stpref.f90               - nonlinear qc change to account for inflated obs error
+ stprw.f90                - nonlinear qc change to account for inflated obs error
+ stpspd.f90               - nonlinear qc change to account for inflated obs error
+ stpsrw.f90               - nonlinear qc change to account for inflated obs error
+ stpsst.f90               - nonlinear qc change to account for inflated obs error
+ stpt.f90                 - nonlinear qc change to account for inflated obs error
+ stpw.f90                 - nonlinear qc change to account for inflated obs error
+ update_ggrid.f90         - add call to normal_rh_to_q to convert normalized RH to q
+ write_all.f90            - remove open and close for iosfc; remove iadate and igdate
+ wrsfca.f90               - clean up unit number and filename for updated surface
+                            file; die gracefully when return from sfcio error; 
+                            pass iadate via obsmod module instead of calling list
+ wrsiga.f90               - pass iadate via obsmod module instead of calling list;
+                            bug fix in header gmao hybrid opt (GMAO)
+
+
+
+MAKEFILE CHANGES
+----------------
+ Makefile
+   a) remove emis_uv_k.f90 and emis_spd_k.f90
+   b) add anberror.f90, anbkerror_reg.f90 anprewgt_reg.f90, coarse2fine_mod.f90,
+      normal_rh_to_q.f90, plib8.f90, rablib.F90, raflib_d.F90
+   c) rename read_wrf_mass_guess.f90, read_wrf_nmm_guess.f90, wrf_binary_interface.f90,
+      wrf_netcdf_interface.f90, wrwrfmassa.f90, wrwrfnmma.f90 to *F90 filenames for
+      compiler pre-processing
+
+
+ Makefile.dependency
+   a) Changes in dependencies are made in accord with changes to the above listed
+      Makefile changes
+   b) Addition of the qoption=2 moisture variable resulted in some new
+      dependencies for exisiting routines
+
+
+ Makefile.conf.AIX, AIX.omp
+   - With this update Makefile.conf.AIX.omp (AIX build with OpenMP) is
+    merged with Makefile.conf.AIX (standard AIX build).  This merger
+     entailed two changes:  a) add -qsmp=no_auto to FFLAGS_COM_N,
+     and b) replace -lessl with -lessl_r in LDFLAGS_N
+
+     Makefile.conf.AIX.omp is, thus, removed, leaving only Makefile.conf.AIX 
+     for AIX builds.  
+
+   - In conjunction with this change script the optional parameter which 
+     script configure used to toggle between the AIX and AIX.omp configuration
+     file is removed.  The only valid way to now execute script configure is 
+     to simply type "./configure"
+
+
+
+SCRIPT CHANGES
+--------------
+The following changes are made to both global and regional scripts
+
+ a) NCEP IBM SP users must include the following lines in their
+    run scripts when running the updated gsi code
+
+     # Set environment variables for threads
+     export SPINLOOPTIME=10000
+     export YIELDLOOPTIME=40000
+     export AIXTHREAD_SCOPE=S
+     export MALLOCMULTIHEAP=true
+     export XLSMPOPTS="parthds=1:spins=0:yields=0:stack=128000000"
+
+    These lines inform loadleveler to run the code with a single
+    thread (as is done in the non-threaded version).  If users
+    are intersted in running the code with threads, changes
+    need to be made to the parthds option as well as LoadLevler
+    parameters.  Contact Russ Treadon for further details.
+
+ b) Add new namelist ANBKGERR after namelist BKGERR.  As currently
+    setup, anisotropic=.false. --> run code as done in previous gsi updates
+    (i.e., in isotropic mode)
+
+ c) If running with the new normalized RH moisture variable (qoption=2),
+    the script must copy a consistent (new) background error file.  Currently
+    only the regional nmm core has a background error file containing 
+    the normalized RH variable (fix filed regional_berror_nmm_qoption2.f77).
+    The global gsi CAN NOT be currently run using qoption=2.
+ 
+ d) The squaring of hzscl in smoothrf dramatically changes the analysis.
+    Users can loosely mimic the behavior in previous gsi releases by
+    taking the square root of the exisitng hzscl values.  This is not
+    recommended apart from a simple check.  Users should / must retune
+    the system given the correction the smoothrf.f90
+
+    To maintain roughly comparable results in the test cases the hzscl 
+    values in all rungsi*sh scripts are reset to approximately 
+    sqrt(previous hzscl) values.  
+
+ e) When running gsi in sst retrieval mode (retrieval=.true.), the
+    code reads SST bufr table.  A new script variable, bftab_sst, 
+    is added to point this new fix file.
+
+
+ f) The GPS ro observation file NOW MUST BE BUFR.  A BUFR GFS ro
+    file for the 20040415212 T254L64 global case was not available.  
+    Rather, GPS ro data for 2005092100 was available.  Thus, the
+    global T254L64 test case is changed from 2004041512 to 
+    2004092100.  Subsequent updates will use this test case.
+
+    An aside:  Please note that at some future date both regional 
+               and global test cases will be updated to files 
+               produced on the new NCEP CCS (white/blue) in order 
+               to get METAR surface pressure data back into the 
+               test cases
+
+ g) The gross check limit for surface pressure is reduced from 
+    grossp=10.0 to grossp=5.0.  This was done in light of work 
+    with the T382L64 ssi which should suspiciously large surface
+    pressure increments around the coastline of Antarctica.
+
+
+
+FIX FILE CHANGES
+----------------
+ a) If regional gsi users running the NMM core want to experiment with
+    the new normalized RH analysis variable (qoption=2), they must
+    use a new background error file.  This file, named, 
+    regional_berror_nmm_qoption2.f77, is available in the fix file
+    directory for this update.
+
+ b) A SST bufr table, needed when running the gsi in sst retrieval
+    mode, is added to the gsi fix directory.  The SST bufr table 
+    file is named sst_bufrtab.012
+
+
+
+
+
+GLOBAL T254L64 TEST
+-------------------
+Old script :  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200502/rungsi_global.sh
+New script :  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_global.sh
+
+Maximum resident set size
+old :  709760 Kbytes
+new :  621540 Kbytes
+
+Wall clock (48 tasks, blocking=unlimited)
+old :  1201.20568 seconds
+new :  1121.45437 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.797460534550165874E+06 0.409078460795667171E+08 0.127829182656906165E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.803419206859000260E+06 0.399086268356613219E+08 0.135078085504929633E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 100 0.353673486133872007E+06 0.115274295116016013E+07 0.150902686543773857E-03 0.145703595430121235E+01
+new : penalty,grad ,a,b= 2 100 0.356704264686482667E+06 0.153283887417254213E+06 0.137761503125068325E-03 0.232515369122768734E+01
+
+*NOTE* The "old" run above differs from that ran in preceding updates.  In the current "old" run,
+       AQUA AIRS and EOS AMSU-A brightness temperatures are assimilated while METAR ps observations
+       were NOT assimilated.  The old (200502) version of the GSI code can not read BUFR gps files,
+       so this data is not present in the above "old" run.  Please recall that the date for the test
+       case has changed from 2004041512 to 2004092100.
+
+
+REGIONAL NMM BINARY TEST
+------------------------
+Old Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200502/rungsi_regional_nmm_binary.sh
+New Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_nmm_binary.sh
+
+Maximum resident set size
+old :  361480 Kbytes
+new :  371380 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  578.822016 seconds
+new :  471.564673 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.315613490741382484E+05 0.493218250191513042E+06 0.327943150547495071E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.299207859908384453E+05 0.228531888096803130E+06 0.146770704917381523E-01 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 100 0.227825942950839126E+05 0.102676616360194289E-02 0.129575925392490746E-01 0.550662820955092558E+00
+new : penalty,grad ,a,b= 2  72 0.220379486188298288E+05 0.170942822620361685E-04 0.223902477852757215E-01 0.496779592669269410E+00
+
+*NOTE*  The updated (new) gsi code converges much more quickly for the given nmm_binary test case.
+        The first outer loop reduces the gradient 10 orders of magnitude by the 81st iteration.  
+        The second outer loop reaches a 10 order reduction in the gradient by the 72nd iteration.
+        The improved convergence is due to the removal of non-quality controlled METAR ps obs
+        in the new run.  Redoing the old run with METAR ps removed yields a similarly quick
+        convergence rate
+
+
+REGIONAL NMM NETCDF TEST
+------------------------
+Old Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200502/rungsi_regional_nmm_netcdf.sh
+New Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_nmm_netcdf.sh
+
+Maximum resident set size
+old :  346400 Kbytes
+new :  355828 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  590.017588 seconds
+new :  513.319689 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.342729640396153336E+05 0.793568783286188031E+06 0.242921793032905772E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.325858399231100375E+05 0.353223853575914225E+06 0.727412954159234112E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 100 0.248288191386970393E+05 0.407764500205135775E-02 0.211198566458325986E-01 0.464135505092889145E+00
+new : penalty,grad ,a,b= 2  76 0.246313318063928018E+05 0.266024232898619091E-04 0.287211618554589106E-01 0.344956026723660991E+00
+
+
+REGIONAL MASS BINARY TEST
+-------------------------
+Old Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200502/rungsi_regional_mass_binary.sh
+New Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_mass_binary.sh
+
+Maximum resident set size
+old :  305144 Kbytes
+new :  312540 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  562.115570 seconds
+new :  565.244422 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.301911311590128062E+05 0.322939976159549393E+08 0.142352896897779809E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.294107072070430841E+05 0.176065350123421475E+08 0.265114739443384287E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 100 0.147972875453954002E+05 0.139987327755951878E+04 0.335889545729618202E-03 0.494574726080702654E+01
+new : penalty,grad ,a,b= 2 100 0.148729992083436664E+05 0.710829455376922851E+03 0.161294804704174285E-03 0.325532765574464955E+01
+
+
+
+REGIONAL MASS NETCDF TEST
+-------------------------
+Old Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200502/rungsi_regional_mass_netcdf.sh
+New Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_mass_netcdf.sh
+
+Maximum resident set size
+old :  301952 Kbytes
+new :  309472 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  492.710779 seconds
+new :  438.595609 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.416686687943892975E+05 0.417162963845398393E+06 0.109233283785624743E-01 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.383528104232559272E+05 0.293136248022102751E+06 0.127918033215824907E-01 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 86 0.277208311046765448E+05 0.296844828044379923E-04 0.195665192677150594E-01 0.651670910526039204E+00
+new : penalty,grad ,a,b= 2 66 0.280933917211121843E+05 0.209888191358644608E-04 0.240550188195554418E-01 0.680843593476895270E+00
+

@@ -1,0 +1,7 @@
+FC	=xlf90_r
+INCS	=-I /nwprod/lib/incmod/sigio_4
+FOPTS	=-qsuffix=f=f90 -qnosave -qsmp=noauto -O2 -qarch=auto -qmaxmem=-1
+LOPTS	=
+LIBS	=-L/nwprod/lib -lbacio_4 -lw3_4 -lsp_4 -lsigio_4 -lessl
+readsig:	readsig.f90
+	xlf90_r $(INCS) $(FOPTS) $(LOPTS) readsig.f90 $(LIBS) -o readsig
