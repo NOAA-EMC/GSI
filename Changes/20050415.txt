@@ -1,0 +1,445 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+-------------------------------------------
+Author(s)   :  Lidia Cucurull, John Derber, Daryl Kleist,
+               Xu Li, Russ Treadon, Wan-Shu Wu
+Reviewer(s) :  Ricardo Todling and Russ Treadon
+Date        :  15 April 2005
+GMAO CVS tag:  gmao-gsi-2005_04   (04 April 2005)
+NCEP CVS tag:  ncep-gsi-2005_04   (18 April 2005)
+
+
+
+REASON FOR CHANGES
+------------------
+Changes are made to the gsi code for the following reasons:  
+(listing  below not given in any particular order)
+
+ a) Add observation time as quantity passed from read_*f90
+    routines to setup*f90 and spr*f90routines.  Observation 
+    time is stored in obsmod arrays for future use in 
+    minimization.
+
+ b) Replace mlath in regional background stats related code 
+    with mlat.  Change dimension of error variance variables in 
+    regional mode.  This change FORCES regional gsi users to
+    use the new regional background error files.  See FIX
+    FILE CHANGES for more information.
+
+ c) Address quality control issues with GPS refractivity data.  
+    Problem arose when observation was located in the first 
+    model layer.  GPS refractivity data files are now in WMO
+    approved format, converted to NCEP BUFR.
+
+ d) Replace spectral method to obtain vorticity and divergence
+    increments following inner loop with compact differencing
+    method.  This change only affects global gsi runs.  This
+    change allowed the merger of hopers.f90 and update_ggrid.f90
+    into a single, new routine, update_guess.f90.  Grid to spectral
+    transforms (global model only) are now confined to rdgesig.f90
+    and wrsiga.f90.
+
+ e) Merge functionality of linear and nonlinear quality control
+    versions of int and int*_qc routines into single int* routine
+    for each observation type.  Make the same merger for stp*f90
+    routines.  Routines intall_qc.f90 and stpcalc_qc.f90 replace
+    routines intall.f90 and stpcalc.f90
+
+ f) An error in the calculation of global background error statistics
+    for the qoption=1 moisture variable was noted and corrected.
+    The corrected qoption=1 moisture variances are larger.  In 
+    addition to this correction, qoption=2 statistics are now
+    also included in the global background error statistics file
+    See FIX FILE CHANGES for more information.  
+
+ g) Simplify code related to physical sst retrievals using AVHRR data
+
+
+
+SPECIAL NOTES
+-------------
+ 1) The change from mlath to mlat for the regional background error
+    statistics files FORCES regional gsi users to use the new
+    regional background error statistic files.
+
+ 2) The addition of qoption=2 statistics to the global background
+    error files and the associated code changes FORCES global
+    gsi users to use the new global background error statistic
+    files.
+
+
+
+EXPECTED DIFFERENCES
+--------------------
+ a) No difference.  Simply adding observation time as information 
+    available to int*90 and stp*90 routines.  Time information is
+    not yet used.
+
+ b) Only affects regional gsi  No difference for regional gsi results
+ 
+ c) Different treatment of GPS observation in first model layer leads to
+    different analysis results.  If not assimilating GPS data, no change
+    in results.  
+
+ d) Very slight differences in final analysis due to use of compact differences
+    instead of spectral methods to obtain vorticity and divergence increments.
+    This change only affects global gsi runs.  No change in regional gsi
+    results.
+
+ e) Slightly different analysis results due to changes in stpcalc.f90.  The
+    step size operators for all observation types are now treated as a 
+    nonlinear operators.  This leads to slightly different step size 
+    estimates.  The final penalties for pre- and post-change codes 
+    differ in the 8th or 9th decimal place.  
+
+ f) Use of the new global background error statistics file leads to a
+    larger reduction in the q penalties and smaller analysis-observation
+    moisture innovations.
+
+ g) Changes in the interpolation of the analyzed SST lead to very slight
+    differences in the physically retrieved sst values for some observations.
+    These differences are attributable to round off.
+
+
+
+FILES REMOVED
+-------------
+ hopers.f90              - no longer needed, functionality in update_guess.f90
+ intall_qc.f90           - no longer needed, functionality folded into intall.f90
+ oneobmod.f90            - replaced by oneobmod.F90
+ raflib.f90              - replaced by raflib.F90
+ raflib_d.f90            - replaced by raflib_d.F90
+ stpcalc_qc.f90          - no londer needed, functionality folded into stpcalc.f90
+ update_ggrid.f90        - no longer needed, functionality in update_guess.f90
+
+
+
+FILES ADDED
+-----------
+ oneobmod.F90            - replace oneobmod.f90, add directives to handle 
+ raflib.F90              - replace raflib.f90
+ raflib_d.F90            - replace raflib_d.f90
+ rdgrbsst.f90            - read hi-resolution NCEP SST analysis from GRIB file
+ update_guess.f90        - add inner loop increment to background (guess) state
+
+
+
+FILES MODIFIED
+-------------- 
+ anprewgt_reg.f90        - replace mlath with mlat and setup qoption=2
+ balmod.f90              - replace mlath with mlat and modify dim of corz, corp;
+                           add corq2 to berror_stats read in routine prebal
+ berror.f90              - bound factx by tiny_single to prevent underflow
+                           (done in routine set_ozone_var)
+ bkerror.f90             - add more comments to periodic block
+ compact_diffs.f90       - add subroutine uv2vordiv
+ gsimain.F90             - add call set_nlnqc_flags; update comments
+ gsisub.f90              - remove call to subroutine destroy_sst_an
+ intall.f90              - combine functionality of intall_qc into single routine
+ intdw.f90               - merge intdw and intdw_qc into single routine
+ intoz.f90               - merge intoz and intoz_qc into single routine
+ intpcp.f90              - merge intpcp and intpcp_qc into single routine
+ intps.f90               - merge intps and intps_qc into single routine
+ intpw.f90               - merge intpw and intpw_qc into single routine
+ intq.f90                - merge intq and intq_qc into single routine
+ intrad.f90              - merge intrad and intrad_qc into single routine
+ intref.f90              - correct bounds for obs below the second level;
+                           place bounds for k and k2; merge intref and 
+                           intref_qc into single routine
+ intrw.f90               - merge intrw and intrw_qc into single routine
+ intspd.f90              - merge intspd and intspd_qc into single routine
+ intsrw.f90              - merge intsrw and intsrw_qc into single routine
+ intsst.f90              - merge intsst and intsst_qc into single routine
+ intt.f90                - merge intt and intt_qc into single routine
+ intw.f90                - merge intw and intw_qc into single routine
+ jfunc.f90               - replace mlath with mlat, modify dim of varq
+ mpimod.F90              - replace itotsub with max(iglobal,itotsub) in work 
+                           dimension
+ normal_rh_to_q.f90      - reformat code (cosmetic change only)
+ obsmod.f90              - add arrays to hold observation time
+ pcgsoi.f90              - combine hopers.f90 and update_ggrid.f90 in 
+                           update_guess.f90; add logical flag for nonlinear 
+                           qc, remove calls to intall_qc and stpcalc_qc
+ prepref.f90             - clean up routine
+ prewgt.f90              - change loop index over varq; add corq2 for qoption=2
+ prewgt_reg.f90          - replace mlath with mlat and modify dim of corz, corp
+ qcmod.f90               - add logical flags to indicate nonlinear qc is on 
+                           (=.true.) or off (=.false.); add routine set_nlnqc_flags
+ radinfo.f90             - remove routine rdgrbsst.f90 (now in a separate file)
+ rdgesig.f90             - clean up formatting of write statements
+ rdgstat_reg.f90         - change dim of variance arrays and loop index
+ read_avhrr_navy.f90     - when running retrieval, read and interpolate NCEP SST analysis
+                           to observation location
+ read_files.f90          - clean up formatting of write statements
+ read_gps_ref.f90        - read satellite information from bufr file for diagnostics
+ read_guess.f90          - reformat code (cosmetic changes only)
+ read_wrf_mass_files.f90 - reformat code (cosmetic changes only)
+ read_wrf_mass_guess.F90 - add initialization of ges_oz, prsi_oz; comestic 
+                           format changes
+ read_wrf_nmm_files.f90  - reformat code (cosmetic changes only)
+ read_wrf_nmm_guess.F90  - add initialization of ges_oz, prsi_oz; comestic 
+                           format changes
+ rfdpar.f90              - define small = sqrt(tiny_r_kind) to prevent underflow
+ satthin.F90             - remove unused variable mlath
+ setupoz.f90             - change call sproz to save observation time; add logical
+                           to toggle on/off nonlinear quality control code
+ setuppcp.f90            - save observation time; add logical to toggle on/off
+                           nonlinear qc code
+ setuprad.f90            - save observation time; add logical to toggle on/off
+                           nonlinear qc code; change portions of code related to
+                           physical sst retrieval; reformat code (cosmetic changes)
+ setupref.f90            - correct bouds for obs below the second level;
+                           compute minimizations coeffs for 'acceptable' obs only;
+                           add code to collect data for and write diagnostic file
+ setuprhsall.f90         - remove ozmz from statsoz call; correct comments in 
+                           subroutine tran; deallocate fbias (retrieval mode only)
+ sprdw.f90               - save observation time; add logical to toggle on/off 
+                           nonlinear qc code
+ sproz.f90               - save observation time
+ sprp.f90                - save observation time; add logical to toggle on/off
+                           nonlinear qc code
+ sprpw.f90               - save observation time; add logical to toggle on/off
+                           nonlinear qc code
+ sprq.f90                - save observation time; add logical to toggle on/off
+                           nonlinear qc code
+ sprref.f90              - save observation time; add logical to toggle on/off
+                           nonlinear qc code
+ sprrw.f90               - save observation time; add logical to toggle on/off
+                           nonlinear qc code
+ sprspd.f90              - save observation time; add logical to toggle on/off
+                           nonlinear qc code
+ sprsrw.f90              - save observation time; add logical to toggle on/off
+                           nonlinear qc code
+ sprsst.f90              - save observation time; add logical to toggle on/off
+                           nonlinear qc code
+ sprt.f90                - save observation time; add logical to toggle on/off
+                           nonlinear qc code
+ spruv.f90               - save observation time; add logical to toggle on/off
+                           nonlinear qc code
+ sst_retrieval.f90       - add lextra to calling list
+ statsconv.f90           - cosmetic changes for refractivity print out
+ stpcalc.f90             - combine functionality of stpcalc_qc into single routine
+ stpdw.f90               - merge stpdw and stpdw_qc into single routine
+ stpoz.f90               - merge stpoz and stpoz_qc into single routine
+ stppcp.f90              - merge stppcp and stppcp_qc into single routine
+ stpps.f90               - merge stpps and stpps_qc into single routine
+ stppw.f90               - merge stppw and stppw_qc into single routine
+ stpq.f90                - merge stpq and stpq_qc into single routine
+ stprad.f90              - merge stprad and stprad_qc into single routine
+ stpref.f90              - correct bouds for obs below the second level;
+                           merge stpref and stpref_qc into single routine
+ stprw.f90               - merge stprw and stprw_qc into single routine
+ stpspd.f90              - merge stpspd and stpspd_qc into single routine
+ stpsrw.f90              - merge stpsrw and stpsrw_qc into single routine
+ stpsst.f90              - merge stpsst and stpsst_qc into single routine
+ stpt.f90                - merge stpt and stpt_qc into single routine
+ stpw.f90                - merge stpw and stpw_qc into single routine
+ sub2grid.f90            - change work1 dimension to max(iglobal,itotsub)
+ wrsiga.f90              - modified iadate, was not properly merge w/ gmao_intfc
+
+
+
+MAKEFILE CHANGES
+----------------
+ Makefile
+   a) remove hopers.f90 intall_qc.f90, stpcalc_qc.f90, update_ggrid.f90
+   b) add rdgrbsst.f90 and update_guess.f90
+   c) rename oneobmod.f90, raflib.f90 raflib_d.f90 to *F90 filenames for 
+      compiler pre-processing
+
+ Makefile.dependency
+   a) Changes in dependencies are made in accord with changes to the above listed
+      Makefile changes
+   b) Add qcmod dependency to most int*90, spr*90, and stp*90 routines.  Add
+      qcmod dpendency to some setup*90 routines.  Module qcmod contains
+      logical flags controlling activation of nonlinear quality control
+
+
+
+SCRIPT CHANGES
+--------------
+Regional gsi users MUST change the regional background error
+file to one of the two following options:
+
+  a) All regional cases may use file regional_glb_berror.q1.f77
+     Apart from the change from mlath to mlat in the header 
+     record this contents of this file are identical to the 
+     previous regional background error file (file regional_berror.f77)
+
+     Please note that this background error file contains moisture
+     errors only for qoption=1 (pseudo-RH).  This file should not
+     be used if qoption=2 (analyze normalized RH)
+
+
+  b) Additionally, NMM core regional runs over the Central 8km domain 
+     may use file regional_nmm_berror.cen8.q2.f77.  
+   
+     Please note that this background error file contains moisture
+     errors only for qoption=2 (normalized RH).  This file should
+     not be used if qoption=1 (pseudo-RH)
+
+
+
+FIX FILE CHANGES
+----------------
+The following changes are made to the global and regional
+background error files:
+
+ a) New global SIGMA coordinate background error files.  Please
+    note again that these files contain statistics for both
+    qoption=1 (pseudo-RH moisture variable, default) and 
+    qoption=2 (normalized RH moisture variable).  Files are
+    available for the following resolutions:
+
+    T62L64:   global_berror.l64y96.sig.f77
+    T254L64:  global_berror.l64y258.sig.f77
+    T382L64:  global_berror.l64y386.sig.f77
+
+    An error in the background error statistics code was
+    corrected.  Pseudo-RH (qoption=1) variances are larger 
+    compared to values in previous global_berror files.  
+
+
+ b) Header record change in regional berror file.  Previously
+    the regional berror files contained mlath.  The files now
+    contain mlat in the header record.  With this change 
+    header records in the global and regional berror files 
+    are now consistent.  Two regional berror files are now
+    available:
+    - qoption=1 (psuedo-RH moisture variable, default)
+      regional_glb_berror.q1.f77 - global statistics
+                                   which may be interpolated
+                                   to any regional domain
+    
+    - qoption=2 (normalized RH moisture variable)
+      regional_nmm_berror.cen8.q2.f77 - statistics cover central
+                                        8km NMM domain
+
+
+
+GLOBAL T254L64 TEST
+-------------------
+Old script :  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200502/rungsi_global.sh
+New script :  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_global.sh
+
+Maximum resident set size
+old :  621584 Kbytes
+new :  621480 Kbytes
+new*:  621552 Kbytes
+
+Wall clock (48 tasks, blocking=unlimited)
+old :  1138.141437 seconds
+new :  1103.693490 seconds
+new*:  1089.369018 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.803414794617011794E+06 0.399083001959802955E+08 0.135077201459886148E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.803414621171339881E+06 0.490972345104807168E+08 0.832225831406528172E-03 0.000000000000000000E+00
+new*: penalty,grad ,a,b= 1 0 0.803414621171339881E+06 0.274734013786172085E+08 0.547291582509253256E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 100 0.356706123293310578E+06 0.167436845282497146E+06 0.141298913198472341E-03 0.250867234656747895E+01
+new : penalty,grad ,a,b= 2 100 0.353508657498382614E+06 0.251915574405118095E+06 0.149541201903737839E-03 0.944954903614543928E+00
+new*: penalty,grad ,a,b= 2 100 0.358007449029545358E+06 0.462586011149169849E+03 0.160641351331416733E-02 0.918307174529847114E+00
+
+NOTES:  
+ a) Initial penalty difference is due to change in processing of GPS data
+ b) new  is the updated code with qoption=1
+ c) new* is the updated code with qoption=2
+
+
+REGIONAL NMM BINARY TEST
+------------------------
+Old Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200503/rungsi_regional_nmm_binary.sh
+New Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_nmm_binary.sh
+
+Maximum resident set size
+old :  360672 Kbytes
+new :  371404 Kbytes
+new*:  370176 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  437.267176 seconds
+new :  427.580548 seconds
+new*:  510.753240 seconds 
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.299207859908384453E+05 0.228531888096803101E+06 0.146770704917381523E-01 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.299207859908384453E+05 0.228531888096803130E+06 0.146770704917380951E-01 0.000000000000000000E+00
+new*: penalty,grad ,a,b= 1 0 0.299207859908384453E+05 0.816555458030105103E+06 0.229271986009437932E-02 0.000000000000000000E+00
+ 
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2  72 0.220379485674425996E+05 0.170726634222772022E-04 0.224221820441732854E-01 0.495316535552719761E+00
+new : penalty,grad ,a,b= 2  72 0.220379486466361850E+05 0.171040472289650262E-04 0.223744418232485129E-01 0.497489001972624523E+00
+new*: penalty,grad ,a,b= 2 100 0.236847644030836454E+05 0.741559342688443844E-03 0.470574770844788513E-02 0.182686897415375271E+01
+
+NOTE:  new* is the updated code with qoption=2 and uses berror file regional_nmm_berror.cen8_q2.f77.
+       Please note the new* run uses the same background error tunning parameter and limq
+       settings as the old and new runs.  Users may find it beneficial to adjust these
+       parameters if using qoption=2 with berror=regional_nmm_berror.cen8_q2.f77
+
+
+REGIONAL NMM NETCDF TEST
+------------------------
+Old Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200503/rungsi_regional_nmm_netcdf.sh
+New Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_nmm_netcdf.sh
+
+Maximum resident set size
+old :  355936 Kbytes
+new :  355868 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  440.263215 seconds
+new :  434.701125 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.325858399231100375E+05 0.353223853575914225E+06 0.727412954159233679E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.325858399231100375E+05 0.353223853575914225E+06 0.727412954159234112E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 76 0.246313318189886450E+05 0.266024297602916343E-04 0.287211440986175348E-01 0.344955076947649764E+00
+new : penalty,grad ,a,b= 2 76 0.246313317907112178E+05 0.266024842747087846E-04 0.287211534822906130E-01 0.344948313747211410E+00
+
+
+REGIONAL MASS BINARY TEST
+-------------------------
+Old Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200503/rungsi_regional_mass_binary.sh
+New Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_mass_binary.sh
+
+Maximum resident set size
+old :  309355 Kbytes
+new :  312868 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  536.216447 seconds
+new :  512.056386 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.294107072070430804E+05 0.176065350123421475E+08 0.265114739443384232E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.294107072070430804E+05 0.176065350123421475E+08 0.265114739443384178E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 100 0.148729993138788377E+05 0.710846216267856448E+03 0.161295559057536586E-03 0.325544738496679864E+01
+new : penalty,grad ,a,b= 2 100 0.148729992149709433E+05 0.710842529899750957E+03 0.161295261233951727E-03 0.325541509632219483E+01
+
+
+REGIONAL MASS NETCDF TEST
+-------------------------
+Old Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200503/rungsi_regional_mass_netcdf.sh
+New Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_mass_netcdf.sh
+
+Maximum resident set size
+old :  309556 Kbytes
+new :  309468 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  353.672566 seconds
+new :  358.674909 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.383528104232559272E+05 0.293136248022102751E+06 0.127918033215824872E-01 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.383528104232559344E+05 0.293136248022102751E+06 0.127918033215825011E-01 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 66 0.280933917249637670E+05 0.209888527383693201E-04 0.240548665075584096E-01 0.680844146403506656E+00
+new : penalty,grad ,a,b= 2 66 0.280933917280721143E+05 0.209887802605579428E-04 0.240555942330501309E-01 0.680838767132529665E+00
+

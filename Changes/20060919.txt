@@ -1,0 +1,653 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+-------------------------------------------
+Author(s)   :  Lidia Cucurull, John Derber, Masahiro Kazumori,
+               Quanhua Liu, Daryl Kleist, Dave Parrish, 
+               Xiujuan Su, Russ Treadon, Wan-Shu Wu
+Reviewer(s) :  Russ Treadon
+Date        :  19 September 2006
+NCEP CVS tag:  this release:  ncep-gsi-2006_09
+
+
+
+REASON FOR CHANGES
+------------------
+Changes are made to the gsi code, fix files, and script for the following
+reasons:  (listing  below not given in any particular order)
+
+ a) Modify handling of observation in inner loop to use data structures and
+    eliminate intermediate files
+ b) Modify handling of multiple conventional obs at same location
+ c) Add solar and satellite azimuth angles to satellite file reads 
+    (when available)
+ d) Unify nonlinear QC for all obs types
+ e) Add ability to use goes-9,11 and 13 sensor data
+ f) Include ges_tsen (sensible temperature) array in calculations (Tv 
+    still control variable)
+ g) Temporarily include modification to make satellite ID subtype for 
+    meteosat winds
+ h) Change of analysis variable from ln(ps) to ps.  Doing so cleans up 
+    handling of ps observation error, tendency calculations, and will 
+    help ease into a generalization of the GPS operators
+ i) Update anisotropic code with new routine
+ j) Modify AMSR-E data read and qc
+ k) Move constant wgtlim, variational qc "reject" limit, to constant module
+ l) Add noiqc logical flag in read_prepbufr subroutine, so that on/off of
+    noiqc option may be controlled from namelist OBSQC
+ m) Add option for nmm_binary to utilze multiple guess files (use FGAT = 
+    "first guess at (observation) time")
+ n) Introduce strong constraint for global runs only.  Based on
+    implicit normal mode initialization for spectral models.
+ o) Use mpi_io to read select observation data files in parallel
+
+
+
+SPECIAL NOTES
+-------------
+The following points should be noted with regards to the above
+code changes.  The lettering below, if any, corresponds to the
+"REASON FOR CHANGES" for lettering above:
+
+ h) For users interested in using the new code with and old background 
+    error statistics file, one can approximate the change in analysis 
+    variable units by multiplying the ln(ps) variances by 100. (to 
+    approximate conversion of ln(ps) to ps(cb) )...likewise, can multiply
+    the balanced surface pressure matrix (streamfunction to balances(lnps)) 
+    by 100., which will approximate pretty well a projection from 
+    streamfunction to balanced(ps(cb))
+    
+    PLEASE NOTE that global_berror files drop the "hyb" suffix with
+    this update.  Global berror files are only provided for the sigma-p
+    coordinate for two resolutions:  T382L64 and T62L64.  There are not
+    global_berror files for other resolutions or vertical coordinates.
+
+ n) The new strong constraint has several parameters, all controlled
+    using a new namelist, "STRONGOPTS".   The recommended
+    parameter settings for initial tests are as follows:
+      nstrong=1
+      nvmodes_keep=8
+      period_max=6
+      period_width=1.5
+      nstrong_end=1
+      update_end=.false.
+    With these settings, the cost of the strong constraint is comparable to
+    the second form of the weak constraint.
+    Using nstrong > 1 dramatically increases the cost, and the adjoint code
+    for this case is not quite correct yet.  However, it appears that
+    decent results are obtained already for nstrong=1.
+    If nstrong=0, the strong constraint is disabled, and results should be
+    unchanged from standard control runs where the strong constraint is
+    unavailable
+
+
+
+EXPECTED DIFFERENCES
+--------------------
+The following differences are expected when comparing GSI output from
+this release from that from previous releases.  The lettering below
+corresponds to the "REASON FOR CHANGES" for lettering above:
+
+ a) Differences due to changes in handling of multiple conventional
+    data at same location
+ c) Number of sat IR obs passing QC over ocean increase slightly
+ f) Small changes due to use of sensible temperature (primarily in genqsat 
+    and due to order of operation changes in setuprad)
+ h) Differences in initial penalty come from the interpolation of ges_ps 
+    instead of ges_lnps to the observation locations.   Differences in the 
+    minimization come from changes to the background error, improved
+    handling of the ps ob error (no longer a function of the value of the 
+    observation itself), and the removal of the linearization about 
+    ges_lnps to get a 3d pressure incrememnt in the computation of time 
+    tendencies of the increment
+ j) The number of AMSR-E data read and assimilated changes due to changes
+    in the reading and qc of the data
+
+
+
+FILES REMOVED
+-------------
+  anprewgt_reg.f90          - functionality moved to anisofilter.f90
+  compute_pcp_grad.f90      - no longer needed.  use tendencies
+                              from calctends in pcp_k
+
+
+
+FILES ADDED
+-----------
+   anisofilter.f90          - new routine for aniostropic calculations
+   combine_radobs.f90       - combine Tb obs read using mpi-io
+   mod_inmi.f90             - contains routines to implement implicit normal
+                              mode initialization for spectral shallow water 
+                              model
+   mod_vtrans.f90           - vertical mode computation and transform routines
+   spectral_transforms.f90  - special spherical harmonic transform routines to
+                              convert from grid u,v to spectral vort, div, and
+                              inverse and adjoint of these routines
+   strong_bal_correction.f90- implement strong constraint, routine called in 
+                              stpcalc and adjoint called in intall
+   strong_end.f90           - diagnostic routine to measure balance of analysis
+                              increment at end of each outer loop
+
+
+
+FILES MODIFIED
+--------------   
+   calctends.f90            - changes for ps instead of ln(ps)
+   calctends_ad.f90         - changes for ps instead of ln(ps)
+   calctends_tl.f90         - changes for ps instead of ln(ps)
+   compute_derived.f90      - use ges_ps array instead of ln(ps)
+   constants.f90            - introduce parameter r1000; add wgtlim
+   genqstat.f90             - use sensible temperature
+   genstats_gps.f90         - modify to use new inner loop obs data structure
+   getprs.f90               - analysis variable change to ps from ln(ps)
+   glbsoi.f90               - remove creation of obs inner data file name;
+                              add "use anisofilter, only: anprewgt_reg";
+                              add call to create_vtrans, which computes 
+                              everything necessary for doing vertical mode 
+                              transforms (required for strong constraint)
+   gsi_io.f90               - change lnps to ps
+   gsimain.F90              - add dfact1 namelist parameter, remove jppf;
+                              add noiqc flag; add new namelist STRONGOPTS 
+                              for controlling strong constraint option
+   guess_grids.f90          - clean up add_rtm_layers routine; use ges_ps 
+                              arrays instead of ln(ps); add sensible 
+                              temperature to guess array
+   init_var_tl.f90          - modify to use new inner loop obs data structure
+   intall.f90               - add adjoint of strong constraint, and modify 
+                              sequence of call to normal_rh_to_q_ad, to 
+                              correct error in tendency computations.  This
+                              error has no effect unless tendencies are being 
+                              used for time extrapolation (not available yet),
+                              or strong constraint is turned on.
+   intbend.f90              - modify to use new inner loop obs data structure
+                            - unify NL qc
+   intdw.f90                - modify to use new inner loop obs data structure
+                            - unify NL qc
+   intoz.f90                - modify to use new inner loop obs data structure
+                            - unify NL qc
+   intpcp.f90               - modify to use new inner loop obs data structure
+                            - unify NL qc
+   intps.f90                - modify to use new inner loop obs data structure
+   intpw.f90                - modify to use new inner loop obs data structure
+                            - unify NL qc
+   intq.f90                 - modify to use new inner loop obs data structure
+   intrad.f90               - modify to use new inner loop obs data structure
+                            - unify NL qc
+   intref.f90               - modify to use new inner loop obs data structure
+                            - unify NL qc
+   intrppx.f90              - interpolate from sensible temperature rather 
+                              than virtual; no longer get ln(ps) at obs 
+                              location
+   intrw.f90                - modify to use new inner loop obs data structure
+                            - unify NL qc
+   intspd.f90               - modify to use new inner loop obs data structure
+                            - unify NL qc
+   intsrw.f90               - modify to use new inner loop obs data structure
+                            - unify NL qc
+   intsst.f90               - modify to use new inner loop obs data structure
+                            - unify NL qc
+   intt.f90                 - modify to use new inner loop obs data structure
+                            - unify NL qc for surface model data
+   intw.f90                 - modify to use new inner loop obs data structure
+   mpi_bufr_mod.F90         - add mpi_ufbrep,mpi_ireadmg; make use of sub-
+                              communicator
+   mpimod.F90               - add mpi_itype
+   ncepgfs_io.f90           - convert ges_ps to ln(ps) and write out to 
+                              siganl file for GFS
+   normal_rh_to_q.f90       - analysis variable changed from ln(ps) to ps;
+                              when used with strong constraint, the adjoint
+                              of normal_rh_to_q is no longer correct and 
+                              needed to be fixed
+   obs_para.f90             - eliminate counting of data and clean up
+   obsmod.f90               - modify to use new inner loop obs data structure
+   obsmod_tl.f90            - modify to use new inner loop obs data structure 
+                             (note tl variables are not put into data 
+                              structures)
+   omegas_ad.f90            - change ln(ps) to ps
+   pcgsoi.f90               - remove calls to makeobs (not needed); add new
+                              arrays for balanced temperature and pressure
+                              when strong constraint is turned on.
+   pcp_k.f90                - rewrite to process one profile at a time; replace
+                              t,q,p advection with tendencies
+   prewgt.f90               - use r1000 from constants
+   qcmod.f90                - add dfact1 and noiqc; remove nlnqc_oz
+   qcssmi.f90               - modify AMSR-E qc and input of the subroutine
+   read_airs.f90            - add solar and satellite azimuth angles  
+                            - remove isflg from output file
+                            - read such that changes in bufr file dont change
+   read_amsre.f90           - add a selection of good fov for amsre 
+                              low channel data
+   read_avhrr.f90           - add solar and satellite azimuth angles  
+                            - remove isflg from output file
+   read_avhrr_navy.f90      - add solar and satellite azimuth angles  
+                            - remove isflg from output file
+   read_bufrtovs.f90        - add solar and satellite azimuth angles  
+                            - remove isflg from output file
+   read_goesimg.f90         - add solar and satellite azimuth angles  
+                            - remove isflg from output file
+   read_goesndr.f90         - add solar and satellite azimuth angles  
+                            - remove isflg from output file
+                            - add ability to process g9,g11,g13
+   read_gps.f90             - change bufr mnemonic to read COSMIC data
+   read_guess.f90           - include sensible temperature; change lnps to ps
+   read_lidar.f90           - move data read summary prinout to read_obs
+   read_l2bufr_mod.f90      - add communicator to mpi_openbf call
+   read_modsbufr.f90        - move data read summary prinout to read_obs
+   read_obs.f90             - add code for mpi_io read of select data file;
+                              move data read summary from read routines
+                              into this routine
+   read_ozone.F90           - move data read summary prinout to read_obs
+   read_pcp.f90             - move data read summary prinout to read_obs
+   read_prepbufr.f90        - add subtype for meteosat winds based on sat ID -
+                              this should be temporary change until subtypes
+                              in prepbufr file; changes to surface pressure 
+                              observation error (convert to cb); add noiqc
+                              flag; bug fix (deallocate etabl)
+   read_radar.f90           - use r1000 from constants
+   read_ssmi.f90            - add solar and satellite azimuth angles  
+                            - remove isflg from output file
+   read_ssmis.f90           - add solar and satellite azimuth angles  
+                            - remove isflg from output file
+   read_superwinds.f90      - move data read summary prinout to read_obs
+   read_wrf_mass_guess.F90  - include sensible temperatures; change to use
+                              ges_ps instead of ln(ps)
+   read_wrf_nmm_files.f90   - changes to allow use of multiple time level first
+                              guess
+   read_wrf_nmm_guess.F90   - include sensible temperatures; change to use
+                              ges_ps instead of ln(ps); changes for nfldsig=3
+   retrieval_amsre.f90      - modified bias correction of retrieval 
+                              and clean up the code
+   satthin.F90              - use r1000 from constants; remove map2grids;
+                              bug fix in map2tgrid
+   setupbend.f90            - modify to use new inner loop obs data structure;
+                              change to use ges_ps instead of ln(ps)
+   setupdw.f90              - modify to use new inner loop obs data structure;
+                              change to use ges_ps instead of ln(ps); modify 
+                              handling of multiple data at same 
+                              location; unify NL qc; move wgtlim to constants
+                              module
+   setupoz.f90              - modify to use new inner loop obs data structure;
+                              unify NL qc; move wgtlim to constants module
+   setuppcp.f90             - modify to use new inner loop obs data structure;
+                              unify NL qc; process one ob at a time; use ges_ps
+                              instead of ln(ps); move wgtlim to constants
+                              module
+   setupps.f90              - modify to use new inner loop obs data structure;
+                              modify handling of multiple data at same 
+                              location; analysis variable changed from ln(ps)
+                              to ps (cb); move wgtlim to constants module
+   setuppw.f90              - modify to use new inner loop obs data structure;
+                              modify handling of multiple data at same 
+                              location; move wgtlim to constants module; 
+                              unify NL qc
+   setupq.f90               - modify to use new inner loop obs data structure;
+                              modify handling of multiple data at same 
+                              location; move wgtlim to constants module
+   setuprad.f90             - use new inner loop obs data structure; unify
+                              NL qc; modify surface IR qc slightly; process 
+                              one ob at a time; add satellite azimuth and 
+                              solar azimuth angles; clean up code; change call
+                              to intrppx; modify the factor of BC 
+                              predictor(clw) for AMSR-E and input of qcssmi;
+                              move wgtlim to constants module
+   setupref.f90             - modify to use new inner loop obs data structure;
+                              unify NL qc; change to use ges_ps instead of 
+                              ln(ps)
+   setuprhsall.f90          - change call to atm arrays routines
+   setuprw.f90              - modify to use new inner loop obs data structure;
+                              unify NL qc; change to use ges_ps instead of 
+                              ln(ps); move wgtlim to constants module
+   setupspd.f90             - modify to use new inner loop obs data structure;
+                              modify handling of multiple data at same 
+                              location; unify NL qc; change to use ges_ps
+                              instead of ln(ps); move wgtlim to constants 
+                              module
+   setupsrw.f90             - modify to use new inner loop obs data structure;
+                              modify handling of multiple data at same 
+                              location; unify NL qc; change to use ges_ps
+                              instead of ln(ps); move wgtlim to constants
+                              module
+   setupsst.f90             - modify to use new inner loop obs data structure;
+                              modify handling of multiple data at same 
+                              location; unify NL qc; move wgtlim to constants
+                              module
+   setupt.f90               - modify to use new inner loop obs data structure;
+                              modify handling of multiple data at same 
+                              location; unify NL qc for surface model data;
+                              change to use ges_ps instead of ln(ps); move
+                              wgtlim to constants module
+   setupw.f90               - modify to use new inner loop obs data structure;
+                              modify handling of multiple data at same 
+                              location; change to use ges_ps instead of ln(ps);
+                              move wgtlim to constants module
+   sfc_model.f90            - use r1000 from constants; analysis variable
+                              changed from ln(ps) to ps (cb)
+   sst_retrieval.f90        - modify handling of lextra
+   statspcp.f90             - use r1000 from constants
+   stpbend.f90              - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stpcalc.f90              - add strong constraint code and modify sequence 
+                              of call to normal_rh_to_q to correct error in 
+                              tendency computations (see intall.f90 above)
+   stpdw.f90                - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stpoz.f90                - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stppcp.f90               - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stpps.f90                - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stppw.f90                - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stpq.f90                 - modify to use new inner loop obs data structure
+   stprad.f90               - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stpref.f90               - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stprw.f90                - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stpspd.f90               - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stpsrw.f90               - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stpsst.f90               - modify to use new inner loop obs data structure;
+                              unify NL qc
+   stpt.f90                 - modify to use new inner loop obs data structure;
+                              unify NL qc for surface model data
+   stpw.f90                 - modify to use new inner loop obs data structure
+   support_2dvar.f90        - include sensible temperature; change to use 
+                              ges_ps instead of ln(ps)
+   tpause.f90               - use sensible temperature rather than virtual;
+                              change to use ges_ps instead of ln(ps)
+   transform.f90            - bug fix to sptranf_v
+   update_guess.f90         - update sensible temperature; change to use 
+                              ges_ps instead of ln(ps)
+   wrf_binary_interface.F90 - changes to allow nfldsig=3 (multiple first guess)
+   wrf_netcdf_interface.F90 - use nhr_assimilation to build scratch file name;
+                              fix bug in wrf file mnemonic
+   write_all.f90            - change to use ges_ps instead of ln(ps)
+   wrwrfmassa.F90           - include sensible temperature; change to use
+                              ges_ps instead of ln(ps)
+   wrwrfnmma.F90            - include sensible temperature; change to use 
+                              ges_ps instead of ln(ps)
+
+
+
+MAKEFILE CHANGES
+----------------
+The following changes are made to Makefile and Makefile.dependencies:
+ a) Makefile
+     - add anisofilter.f90, combine_radobs.f90, mod_inmi.f90, mod_vtrans.f90, 
+       spectral_transforms.f90, strong_bal_correction.f90, strong_end.f90
+     - remove anprewgt_reg.f90, compute_pcp_grad.f90
+
+ b) Makefile.dependency
+     - update (add, remove, change) dependencies based on code changes above
+
+
+
+SCRIPT CHANGES
+---------------
+The folowing changes are made to the rungsi*sh scripts
+
+ a) Changes common to all scripts
+    - increase jpch from 592 to 844 to correspond to increase size of satinfo
+      file
+    - two input parameters now available in namelist qcmod for downweighting 
+      conventional obs at same location (dfact,dfact1)  Formula is 
+      1.-(1-dfact)*((delta Time between obs)/dfact1)**2.  
+      So if dfact = 1 or delta Time is zero, obs are averaged.  
+      As dfact gets less than one or the time between the obs increases, 
+      the downweighting decreases.  Default values for dfact and dfact1 
+      are 0. and 3..  Currently used values are 0.75 and 3.0
+    - Add noiqc logical flag to OBSQC.  Default value is .false. which
+      means to honor OIQC quality marks.  If running with variational 
+      qc on, suggested value for noiqc is .true.  That is, allow all 
+      data in regardless of OIQC flags.
+    - Add new namelist,STRONGOPTS to control strong constraint.
+
+Below are script specific changes in addition to the changes above
+ b) rungsi_global.sh
+    - change test case from 2005102312 to 2006091112
+    - change path to data directories, tmpdir, and savdir
+    - remove sigma coordinate option from script.  Option still exists in
+      GSI.  New test case is limited to sigma-p coordinate.  Remove coordinate
+      tag from global berror file.
+    - If using GFS guess files prior to 2006082212, user must uncomment
+      line "export LANDICE_OPT=5" in global_chgres block
+
+ c) rungsi_regional_nmm_binary.sh
+    - change test cast from 2006052200 to 2006091112
+    - reduce number of inner iteration from 75 to 50
+    - retain anisotropic flag as .false. (don't use), but add "reasonable" 
+      values for other parameters
+
+ d) rungsi_regional_nmm_netcdf.sh, rungsi_mass_binary.sh, and
+    rungsi_regional_mass_netcdf.sh
+    - reduce number of inner iteration from 75 to 50
+
+
+
+FIX FILE CHANGES
+----------------
+The following changes are made to fix files:
+
+ a) global_satinfo.txt and regional_satinfo.txt
+    - add specific sensors for GOES sounders
+    - modify the observation error of AMSR-E channels
+
+ b) global_satangbias.txt 
+    - add specific sensors for GOES sounders
+    - update angle dependent bias for AMSRE
+
+ c) CRTM_SpcCoeff.f77 and CRTM_TauCoeff.f77
+    - expanded to include specific sensors for GOES sounders
+    - coefficients for other satellite/sensors updated
+
+ d) Regional and global background error statistics files
+    - change stats file from ln(ps) to ps.  Files affected
+      are: global_berror.l64y386.f77, global_berror.l64y96.f77, 
+           regional_glb_berror.f77, regional_nmm_berror.f77
+           
+      NOTE:  The global_berror files are for the sigma-p 
+             vertical coordinate.  There are no sigma 
+             coordinate global_berror files.  Nor are there
+             sigma-p global_berror files for other resolutions.
+
+
+
+GLOBAL NCEP T382L64 TEST
+------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609/rungsi_global.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609
+
+Maximum resident set size
+old1:  1086036 Kbytes
+old2:  1100272 Kbytes
+new :  1195252 Kbytes
+
+Wall clock (64 tasks, blocking=unlimited)
+old1: 2629.565240 seconds
+old2: 2841.04028 seconds
+new : 2891.272016 seconds
+ 
+Output from the first iteration of the minimization
+old1: penalty,grad ,a,b= 1 0 0.730164444602629170E+06 0.226855228099335991E+08 0.375298275446486534E-02 0.000000000000000000E+00
+old2: penalty,grad ,a,b= 1 0 0.568006900951265125E+06 0.705380005787087232E+07 0.244222950907536538E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.513769751845629478E+06 0.482803701717827562E+07 0.526583457471973496E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old1: penalty,grad ,a,b= 2 100 0.392572883698153659E+06 0.103266436854558435E+03 0.185440692399350699E-02 0.109752565480032982E+01
+old2: penalty,grad ,a,b= 2 100 0.370751126846488216E+06 0.276340313891048822E+03 0.825731920164137498E-03 0.280315344819543766E+01
+new : penalty,grad ,a,b= 2 100 0.340684259504329762E+06 0.240653048423687199E+01 0.118330627164482997E-02 0.925069610484325067E-01
+
+NOTES:
+ a) Both old runs use the ncep-gsi-2006_06 gsi executable.  The
+    difference between old1 and old2 is the analysis date.  Run
+    old1 uses data for the 2005102312 while old2 uses data for 
+    2006091112.
+
+
+
+REGIONAL NCEP NMM BINARY TEST
+-----------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609/rungsi_regional_nmm_binary.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609
+
+Maximum resident set size
+old1:  663476 Kbytes
+old2:  690020 Kbytes
+new :  711260 Kbytes
+
+Wall clock (48 tasks, blocking=unlimited)
+old1:  946.338976 seconds
+old2:  705.843437 seconds
+new :  691.427917 seconds
+
+Output from the first iteration of the minimization
+old1: penalty,grad ,a,b= 1 0 0.219083950282765261E+06 0.608866869004852232E+07 0.385603787231588585E-02 0.000000000000000000E+00
+old2: penalty,grad ,a,b= 1 0 0.199626860431071837E+06 0.517319124613420945E+07 0.318535294786244545E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.187121845550963248E+06 0.486901693208664749E+07 0.303801340446610254E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old1: penalty,grad ,a,b= 2 75 0.105864011948106199E+06 0.221068666039354200E+01 0.727268335989659457E-02 0.563102823488586979E+00
+old2: penalty,grad ,a,b= 2 50 0.100195410061384304E+06 0.110690690263948727E+04 0.278292784353959119E-02 0.735084588356130886E+00
+new : penalty,grad ,a,b= 2 50 0.961010388520729612E+05 0.946062121390227162E+03 0.366808688383126868E-02 0.597624917243262055E+00
+
+NOTES:
+ a) Both old runs use the ncep-gsi-2006_06 gsi executable.  The
+    difference between old1 and old2 is the analysis date.  Run 
+    old1 uses data for the 2006052200 while old2 uses data for 
+    2006091112.
+ b) The new rungsi_regional_nmm_binary.sh script reduces the 
+    number of inner iterations from 75 to 50
+
+
+
+REGIONAL NCEP NMM NETCDF TEST
+-----------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609/rungsi_regional_nmm_netcdf.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609
+
+Maximum resident set size
+old1:  227132 Kbytes
+old2:  228576 Kbytes
+new :  234932 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old1:  377.556058 seconds
+old2:  269.188545 seconds
+new :  232.947283 seconds
+
+
+Output from the first iteration of the minimization
+old1: penalty,grad ,a,b= 1 0 0.263110330461506564E+05 0.405497803913162556E+07 0.373318784135248628E-03 0.000000000000000000E+00
+old2: penalty,grad ,a,b= 1 0 0.254265269982047248E+05 0.398785734171188110E+07 0.368831776839722127E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.205192011848016591E+05 0.217149646730662091E+07 0.540981131053192661E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old1: penalty,grad ,a,b= 2 75 0.138213590448311770E+05 0.894733082519532097E+01 0.378736790304338468E-02 0.702770170126097438E+00
+old2: penalty,grad ,a,b= 2 50 0.133397935101481125E+05 0.152149217262239262E+03 0.121075503002656261E-02 0.842972381558285799E+00
+new : penalty,grad ,a,b= 2 50 0.109487162595760219E+05 0.494052102393133268E+02 0.220802966207342844E-02 0.673391828173047435E+00
+
+NOTES:
+ a) old1 is run of ncep-gsi-2006_06 code with ncep-gsi-2006_06 script.  
+    old2 is run of ncep-gsi-2006_06 code with ncep-gsi_2006_09 script.
+ b) The new rungsi_regional_nmm_binary.sh script reduces the number of
+    inner iterations from 75 to 50
+
+
+
+REGIONAL NCEP MASS BINARY TEST
+------------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609/rungsi_regional_mass_binary.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609
+
+Maximum resident set size
+old1:  270208 Kbytes
+old2:  272440 Kbytes
+new :  283520 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old1:  326.309056 seconds
+old2:  298.575172 seconds
+new:   280.545920 seconds
+
+Output from the first iteration of the minimization
+old1: penalty,grad ,a,b= 1 0 0.102211542684841770E+05 0.150416597765437444E+07 0.342054714455291100E-03 0.000000000000000000E+00
+old2: penalty,grad ,a,b= 1 0 0.102903697678767057E+05 0.154528727011315944E+07 0.336378476253816410E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.863229450587879182E+04 0.145824940734291752E+07 0.317674743571259518E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old1: penalty,grad ,a,b= 2 75 0.407536660299927644E+04 0.186907678447296064E+03 0.493992871161029012E-03 0.134555897419256154E+01
+old2: penalty,grad ,a,b= 2 50 0.401467084246441118E+04 0.513876254522108297E+03 0.175606570805923322E-02 0.961456147129135408E+00
+new : penalty,grad ,a,b= 2 50 0.338761550295051165E+04 0.281357461818692741E+03 0.409692649509291792E-02 0.501426056443138535E+00
+
+NOTES:
+ a) old1 is run of ncep-gsi-2006_06 code with ncep-gsi-2006_06 script.  
+    old2 is run of ncep-gsi-2006_06 code with ncep-gsi_2006_09 script.
+ b) The new rungsi_regional_nmm_binary.sh script reduces the number of
+    inner iterations from 75 to 50
+
+
+
+REGIONAL NCEP MASS NETCDF TEST
+------------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609/rungsi_regional_mass_netcdf.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609
+
+Maximum resident set size
+old1:  266604 Kbytes
+old2:  267912 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old1:  351.287032 seconds
+old2:  353.015435 seconds
+
+Output from the first iteration of the minimization
+old1: penalty,grad ,a,b= 1 0 0.284241212928583191E+05 0.173467891161879268E+07 0.160411942560840506E-02 0.000000000000000000E+00
+old2: penalty,grad ,a,b= 1 0 0.280962479941265847E+05 0.173270177800921141E+07 0.159570638793565746E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old1: penalty,grad ,a,b= 2 75 0.137081878885917940E+05 0.127383844424418662E+02 0.346389857963500100E-02 0.101522060174628836E+01
+old2: penalty,grad ,a,b= 2 75 0.133883996128322688E+05 0.171758333774634089E+02 0.199479607825398409E-02 0.116666546347498601E+01
+
+NOTES:
+ a) old1 is run of ncep-gsi-2006_06 code with ncep-gsi-2006_06 script.  
+    old2 is run of ncep-gsi-2006_06 code with ncep-gsi_2006_09 script.
+ b) The new rungsi_regional_nmm_binary.sh script reduces the number of
+    inner iterations from 75 to 50
+
+
+
+REGIONAL NCEP TWODVAR BINARY TEST
+---------------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609/rungsi_regional_twodvar_binary.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200609
+
+Maximum resident set size
+old1:  312540 Kbytes
+old2:  312544 Kbytes
+new :  331872 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old1:  254.339821 seconds
+old2:  242.24339 seconds
+new :  365.504024 seconds
+
+Output from the first iteration of the minimization
+old1: penalty,grad ,a,b= 1 0 0.259450369270488736E+05 0.104530550648845194E+06 0.440001134828141294E-01 0.000000000000000000E+00
+old2: penalty,grad ,a,b= 1 0 0.259450369270488736E+05 0.104530550648845194E+06 0.440001134828141294E-01 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.236340780534119185E+05 0.168594147993461491E+06 0.197434615576350982E-01 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old1: penalty,grad ,a,b= 2 51 0.199494467684447154E+05 0.942225019606271642E-04 0.276747893959777835E-01 0.625344790222204017E+00
+old2: penalty,grad ,a,b= 2 51 0.199494467684447154E+05 0.942225019606271642E-04 0.276747893959777835E-01 0.625344790222204017E+00
+new : penalty,grad ,a,b= 2 100 0.131589287392896804E+05 0.411905590442568775E-01 0.110062936091677947E-01 0.113245822141035224E+01
+
+NOTES:

@@ -1,0 +1,623 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+---------------------------------
+Author(s)   :  John Derber, Daryl Kleist, Daniel Pawlak,
+               Dave Parrish, Russ Treadon, Wan-Shu Wu, 
+               Jianjun Xu
+Reviewer(s) :  Russ Treadon
+Date        :  14 October 2005
+GMAO CVS tag:  
+NCEP CVS tag:  ncep-gsi-2005_10   (14 Oct 2005)
+
+
+
+REASON FOR CHANGES
+------------------
+Changes are made to the gsi code for the following reasons:  
+(listing  below not given in any particular order)
+
+ a) Fix minor bugs and clean up (simplify) code
+
+ b) Add logic to identify and skip over bad NOAA-17 SBUV data
+
+ c) Simplify and make more efficient the data handling, setup, 
+    int and stp routines.  Specific changes: 
+     - Move cg_term into constants rather than qcmod.
+     - Make surface type consistent for satellite data throughout processing
+     - Update radinfo file to include more info and to be simpler
+     - Update ozinfo file to include more info and to be simpler
+     - Simplify data input and parallelization routines
+     - Update pcpinfo file to include more info and to be simpler
+     - Make obs time window included in read group data namelist and 
+       make consistent usage throughout code.
+     - Combine setup,prep and spr routines for conventional data and 
+       eliminate transpose.
+     - Combine location and weight arrays in obsmod into single arrays 
+       to improve efficiency.
+     - Fix bugs in set up of refractivity data.
+     - Some changes in data selection
+     - Temporarily fix regional problem for intelligent thinning of data
+
+ d) Tune regional observation error table based on adaptive tuning experiments.
+
+ e) Change time window in regional_convinfo.txt file to 1.5 hours (was
+    3.0 hours.  1.5 hours is consistent with 3 hourly cycle of regional
+    data assimilation system)
+
+ f) Regional mode bug fix --> set ozmz values
+
+ g) Turn off ozone channels in regional_satinfo.txt since regional model
+    does not carry ozone as a prognostic variable
+
+ h) Expand dynamic constraint term, making using of generalized tendency
+    routine.  Code may be applied in both global and wrf_nmm regional mode
+
+ i) Fix bug in update_guess routine
+
+ j) Fix bug in setupsrw which gave incorrect diagnostic output
+
+ k) Fix date handling in setupsrw to be same as other data type read routines
+
+ l) Add ability to read and process AMRSE and SSM/IS
+
+ m) Correct bug in vertical coordinate flag (IDVC) in NCEP sigma file header
+
+
+
+SPECIAL NOTES
+-------------
+The following points should be noted with regards to the above
+code changes.  The lettering below corresponds to the 
+"REASON FOR CHANGES" for lettering above:
+
+ c) New input files radinfo, ozinfo and pcpinfo.  For some obs types 
+    no test data was available, so it is possible that errors still 
+    exist for rw, srw, and dw data.  For diagnostic files for each 
+    conventional type, it was intended that there few changes.  
+    However some are possible, and complete testing of the diagnostic
+    files was not complete.  For the surface pressure data, the  
+    correction due to differences in surface height were added to 
+    the simulated ob rather than subtracting from the observation.
+
+ h) use the Jc term at your own risk, as it is yet to be fully tested
+     - turning the Jc term considerably increases the wall clock time
+       (average increase:  2x to 3x longer than no constraint run when
+        using same # of tasks)
+     - The memory requirement for the Jc term is significant, so 
+       attemping to run on large domains could be problematic, do 
+       so with this in mind.
+     - There is a significant impact on the minimization when the 
+       Jc term is on, more iterations than normal may be required
+     - For global gsi runs the constraint may be turned on when
+       using either the NCEP sigma or hybrid vertical coordinate.
+     - For regional gsi runs the constraint may only be turned on
+       when in the wrf nmm mode, not the mass core mode.
+
+***********WARNING WARNING WARNING***********
+***NCEP GSI USERS PLEASE NOTE THE FOLLOWING***
+
+The following changes have occurred in the name and location of
+GSI fix files:  
+
+ a) Global fix file "prepobs_errtable.global.short" has been renamed
+    "prepobs_errtable.global" in order to be consistent with the 
+    name that is used in NCEP operations
+
+ b) The GSI fix directory, /nfsuser/g01.1/weather/wx20rt/gsi_anl/fix,
+    now contains sub-directories from which you may pick up version
+    specific fix files.
+
+    The directory names found in /nfsuser/g01.1/weather/wx20rt/gsi_anl/fix
+    correspond with the source code directory names used in
+    /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc
+
+    For example, the latest GSI release is always found in 
+    /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.  The fix files
+    associated with this GSI release are found in 
+    /nfsuser/g01.1/weather/wx20rt/gsi_anl/fix/gsi_cvs
+
+    Source code for the GSI release dated YYYYMM is found in directory
+    /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.YYYYMM.  The
+    fix files corresponding to this version of the GSI code are in 
+    /nfsuser/g01.1/weather/wx20rt/gsi_anl/fix/gsi_cvs.YYYYMM
+
+    Fix file directories will NOT be maintained indefinitely.  Users
+    are encouraged to make personal copies of the appropriate fix file
+    directory if they will be working with a given version of the GSI 
+    code for an extended period of time (>12 months).
+
+    GSI source code and fix file directories for older version (more
+    than one year old) will be moved to the NCEP CCS tape storage 
+    system.
+
+    Starting with this release, NCEP GSI users will find the following
+    three GSI fix file directories
+      1. /nfsuser/g01.1/weather/wx20rt/gsi_anl/fix/gsi_cvs
+      2. /nfsuser/g01.1/weather/wx20rt/gsi_anl/fix/gsi_cvs.200508
+      3. /nfsuser/g01.1/weather/wx20rt/gsi_anl/fix/gsi_cvs.200510
+
+    The fix files in these directories correspond to source code in
+    /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/XXX as explained above.
+
+***NCEP GSI USERS PLEASE NOTE THE ABOVE***
+*********WARNING WARNING WARNING**********
+
+
+
+EXPECTED DIFFERENCES
+--------------------
+The following differences are expected when comparing GSI output from
+this release from that from previous releases.  The lettering below 
+corresponds to the "REASON FOR CHANGES" for lettering above:
+
+ c) Non- roundoff errors exist because of:
+     - bug fixes for refractivity data (previous version did not 
+       correctly minimize J_ref term, current version does so)
+     - small changes because of slight changes to numbers in ozinfo 
+       file (a few of the last digits were rounded off)
+     - Differences in land sea mask for satellite data
+     - Emissivities now handle percent surface types and mixed surfaces
+     - Some changes in radiance data selection for thinning
+     - For regional should be some change in use of satellite data due 
+       to temporary fix of surface field problem
+ d) New regional error file improves analysis quality and forecast
+    skill.
+ h) No impact if jcterm is set off.  Analysis obviously differs if
+    constraint is turned on
+
+
+
+FILES REMOVED
+-------------
+ prepdw.f90          - functionality moved into setupdw
+ prepp.f90           - functionality moved into setupps
+ preppw.f90          - functionality moved into setuppw
+ prepq.f90           - functionality moved into setupq
+ prepref.f90         - functionality moved into setupref
+ preprw.f90          - functionality moved into setuprw
+ prepsrw.f90         - functionality moved into setupsrw
+ prepsst.f90         - functionality moved into setupsst
+ prept.f90           - functionality moved into setupt
+ prepw.f90           - functionality moved into setupw
+ pstend.f90          - no longer needed, pressure tendency is part of
+                       new routines
+ sprdw.f90           - functionality moved into setupdw
+ sproz.f90           - functionality moved into setupoz
+ sprp.f90            - functionality moved into setupps
+ sprpw.f90           - functionality moved into setuppw
+ sprq.f90            - functionality moved into setupq
+ sprref.f90          - functionality moved into setupref
+ sprrw.f90           - functionality moved into setuprw
+ sprspd.f90          - functionality moved into setupspd
+ sprsrw.f90          - functionality moved into setupsrw
+ sprsst.f90          - functionality moved into setupsst
+ sprt.f90            - functionality moved into setupt
+ spruv.f90           - functionality moved into setupw
+
+
+
+FILES ADDED
+-----------
+ calctends.f90       - non-linear routine to calculate tendencies of u,v,Tv, 
+                       and pressure
+ calctends_adj.f90   - adjoint of calctends
+ calctends_tlm.f90   - tangent linear of calctends
+ getprs.f90          - nonlinear, tlm, and adjoint of routine that gets 3d
+                       pressure and its horizontal derivatives
+ read_amsre.f9       - read AMSRE bufr file
+ read_ssmis.f90      - read SSM/IS (ssmis_las,ssmis_uas,ssmis_env,ssmis_img)
+                       bufr file
+ ret_ssmis.f90       - retrieve various parameters for SSM/IS
+
+
+
+FILES MODIFIED
+-------------- 
+ berror.f90          - set ozmz=20 in regional mode
+ constants.f90       - move cg_term to constants since it is a constant
+ emiss.f90           - modify to handle percent surface type and mixed 
+                       conditions
+ get_derivatives.f90 - include routine to get derivatives of surface 
+                       terrain height; fix bug in computing derivatives
+                       in regional mode
+ glbsoi.f90          - simplify data handling; add logic to only allow 
+                       global or wrf nmm modes to use jc related 
+                       subroutines
+ gridmod.f90         - put grid calculation into get_ij and get_ijk
+ gsimain.F90         - modify use group time window; clean up; changes
+                       to namelist JCOPTS; modify namelist parameters 
+                       for radar wind superobs
+ gsisub.f90          - simplify data handling
+ guess_grids.f90     - add arrays for horizontal terrain derivatives
+ intall.f90          - changes to reflect expanded Jc term; add logic 
+                       to only allow global or wrf nmm modes to use
+                       jc related subroutines
+ intdw.f90           - consolidate location and weight arrays
+ intjc.f90           - Jc term expanded to include more terms
+ intoz.f90           - consolidate location and weight arrays
+ intpcp.f90          - modify var qc and change location and weight arrays
+ intps.f90           - consolidate location and weight arrays
+ intpw.f90           - consolidate location and weight arrays
+ intq.f90            - consolidate location and weight arrays
+ intrad.f90          - modify var qc and change location and weight arrays
+ intref.f90          - consolidate location and weight arrays
+ intrp3oz.f90        - modify to handle total column cleaner
+ intrppx.f90         - modify to use land states passed from read routines
+ intrw.f90           - consolidate location and weight arrays
+ intspd.f90          - consolidate location and weight arrays
+ intsrw.f90          - consolidate location and weight arrays
+ intsst.f90          - consolidate location and weight arrays
+ intt.f90            - consolidate location and weight arrays
+ intw.f90            - consolidate location and weight arrays
+ jcmod.f90           - more variables used in expanded Jc term
+ jfunc.f90           - add array pointers for time derivative arrays
+ obs_para.f90        - simplify data handling
+ obsmod.f90          - consolidate location and weight arrays
+ ozinfo.f90          - modify for new ozinfo file add var qc parameters 
+                       for each level; change ozinfo read to free format
+ pcgsoi.f90          - include *_t (time derivative) arrays similar to 
+                       _x and _y
+ pcpinfo.F90         - modify pcpinfo input and add qc parameters; change
+                       pcpinfo read to free format
+ psichi2uvt_reg.f90  - fix bug in computing derivatives
+ qcmod.f90           - remove qc parameters for pcp and rad, move cg_term 
+                       to constants
+ qcssmi.f90          - allow max error to change by channel; add ssm/is qc
+ rad_tran_k.f90      - simplify specification of ir/mw type
+ radinfo.f90         - modify satinfo input file and add ermax,pg, and b 
+                       for each channel; change satinfo read to free format;
+                       remove newchn_ir
+ read_airs.f90       - modify to produce consistent surface info and use 
+                       group time window and temporarily fix regional problem
+ read_avhrr_navy.f90 - modify to produce consistent surface info and use
+                       group time window and temporarily fix regional problem
+ read_bufrtovs.f90   - modify to produce consistent surface info and use
+                       group time window  and temporarily fix regional problem
+ read_goesimg.f90    - modify to produce consistent surface info and use 
+                       group time window and temporarily fix regional problem
+ read_goesndr.f90    - modify to produce consistent surface info and use 
+                       group time window and temporarily fix regional problem
+ read_gps_ref.90     - modify use group time window; change convinfo read to
+                       free format
+ read_guess.f90      - call routine to get horizontal terrain derivatives
+ read_ieeetovs.f90   - modify to produce consistent surface info and use 
+                       group time window and temporarily fix regional problem
+ read_l2bufr_mod.f90 - various changes, some cleanup of code
+ read_lidar.f90      - modify use group time window; change convinfo read to
+                       free format
+ read_obs.f90        - simplify data handling; include amsre and ssm/is
+ read_ozone.F90      - modify use group time window; clean up; add logic to
+                       check for bad NOAA-17 sbuv data
+ read_pcp.f90        - modify to produce consistent surface info and use 
+                       group time window
+ read_prepbufr.f90   - modify to use group time window and temporarily 
+                       fix regional problem; change convinfo read to 
+                       free format
+ read_radar.f90      - modify use group time window; change convinfo read
+                       to free format
+ read_ssmi.f90       - modify to produce consistent surface info and 
+                       fix temporarily fix regional problem
+ read_superwinds.f90 - modify use group time window; modify date 
+                       processing to correspond with other read data
+                       routines; change convinfo read to free format
+ read_wrf_nmm_guess.F90 - add call to get_zderivs
+ satthin.F90         - add routine destroy_sfc; rename getinfo to getsfc
+ setupdw.f90         - combine with prep, spr, remove tran and clean up
+ setupjc.f90         - changes to reflect expanded Jc term
+ setupoz.f90         - combine with prep, spr, remove tran and clean up
+ setuppcp.f90        - modify for new pcpinfo and surface info from 
+                       read routines; fix regional surface type problem
+ setupps.f90         - combine with prep, spr, remove tran and clean up
+ setuppw.f90         - combine with prep, spr, remove tran and clean up
+ setupq.f90          - combine with prep, spr, remove tran and clean up
+ setuprad.f90        - modify for new radinfo and surface info from
+                       read routines and fix regional surface problem;
+                       add code related to processing of amsre and ssm/is; 
+                       simplify specification of varinv_use
+ setupref.f90        - add missing space in character string written 
+                       to diagnostic file; replace "gps" with "ref" in  
+                       diagnostic file character string; combine with prep, 
+                       spr, fix bugs, remove tran and clean up
+ setuprhsall.f90     - simplify data file info handling; remove subroutine
+                       tran
+ setuprw.f90         - combine with prep, spr, remove tran and clean up
+ setupspd.f90        - combine with prep, spr, remove tran and clean up
+ setupsrw.f90        - add missing space in character string written to 
+                       diagnostic file; combine with prep, spr, remove 
+                       tran and clean up; correct error that gave 
+                       incorrect fit file for superobs
+ setupsst.f90        - combine with prep, spr, remove tran and clean up
+ setupt.f90          - combine with prep, spr, remove tran and clean up
+ setupw.f90          - combine with prep, spr, remove tran and clean up
+ sst_retrieval.f90   - modify to use correct land mask
+ statspcp.f90        - replace dtype parameter with obstype_all
+ statsrad.f90        - replace dtype parameter with obstype_all
+ stpcalc.f90         - expanded Jc term, inclusing of *_t vectors; 
+                       add logic to only allow global or wrf nmm modes
+                       to use jc related subroutines
+ stpdw.f90           - consolidate location and weight arrays
+ stpjc.f90           - Jc term expanded to include more terms
+ stpoz.f90           - consolidate location and weight arrays
+ stppcp.f90          - modify var qc and change location and weight arrays
+ stpps.f90           - consolidate location and weight arrays
+ stppw.f90           - consolidate location and weight arrays
+ stpq.f90            - consolidate location and weight arrays
+ stprad.f90          - modify var qc and change location and weight arrays
+ stpref.f90          - consolidate location and weight arrays
+ stprw.f90           - consolidate location and weight arrays
+ stpspd.f90          - consolidate location and weight arrays
+ stpsrw.f90          - consolidate location and weight arrays
+ stpsst.f90          - consolidate location and weight arrays
+ stpt.f90            - consolidate location and weight arrays
+ stpw.f90            - consolidate location and weight arrays
+ sumload.f90         - remove unnecessary parameters in call
+ tstvp2uv_reg.f90    - fix bug in computing derivatives
+ update_guess.f90    - fix bug in zeroing of regional xhat(noz)
+                       & xhat(ncw) arrays
+ wrsiga.f90          - output correct idvc value (=1) for sigma
+
+
+
+MAKEFILE CHANGES
+----------------
+The following changes are made to Makefiles:
+
+ a) Makefile
+     - Remove files from "FILES REMOVED" list
+     - Add files under "FILES ADDED" list
+
+ b) Makefile.dependency 
+     - adjust dependences related to removed, added, and modified files
+
+
+
+SCRIPT CHANGES
+--------------
+The folowing changes are made to rungsi_*.sh script files:
+
+ a) The namelist obs_input has an additional time_window namelist 
+    value for specifying the time window for each input obs group.
+    Quality control namelist values have been removed and put into 
+    *info input files.
+
+ b) AMRSE and SSM/IS changes
+     - increase jpch from 556 to 592
+     - increase ndat from 35 to 40
+     - add entries 36-40 in OBS_INPUT namelist for AMRSE and SSMI/S
+     - add copies of AMRSE and SSM/IS datasets.  Please note that 
+       neither AMRSE nor SSM/IS is available in the test cases
+     - expand concatenation of radiance diagnostic files to include
+       AMRSE and SSM/IS
+
+ c) new namelist variables for JCOPTS
+     - remove bamptend
+     - add bamp_pse, bamp_uve, bamp_uvi, bamp_tin
+
+ d) new location for GSI fix files as outlined in the SPECIAL NOTES
+    section above.  This change only affects NCEP GSI users.
+
+The following additional change is made to the rungsi_regional*sh scripts.
+ a) Make use of regional_satinfo.txt file.  This file is identical to 
+     global_satinfo.txt with the exception that the regional satinfo file
+     turns off (puts in monitoring mode) channels with a strong ozone 
+     sensitivity.  This is done because the current NCEP WRF NMM does
+     not carry ozone as a prognostic variable.
+
+The following additional change is made to the rungsi_global.sh script
+ a) Rename conventional observation error table from 
+    "prepobs_errtable.global.short" to "prepobs_errtable.global".
+    This change was made to be consistent with the name used in
+    NCEP operations.
+
+
+
+FIX FILE CHANGES
+----------------
+The following changes are made to fix files:
+
+ a) global_berror.l64y386.hyb.f77
+     - recompute T382L64 background error using more modes in 
+       singular value decomposition.  
+
+ b) global_convinfo.txt, global_ozinfo.txt, global_pcpinfo.txt
+     - usage, time window, observation error, gross limit, 
+       variational qc parameters now specified from the
+       *info files
+
+ c) global_satinfo.txt
+     - usage, time window, observation error, gross limit,
+       variational qc parameters now specified from the
+       global_satinfo file
+     - turn on assimilation of NOAA-18 AMSU-A and MHS
+     - modify observation error for certain AMSU-A channels
+     - add AMSRE and SSM/IS (in monitoring mode only)
+
+ d) gmao_global_*info.txt
+     - updated to be consistent with code changes and 
+       global_*info.txt files
+      
+ e) global_satangbias.txt
+    - expanded to include AMRSE and SSM/IS (bias correction
+      values are current all zero)
+
+ f) global_spectral_coefs.f77, global_transmittance_coefs.f77
+    - updated to include AMRSE and SSM/IS
+
+ g) nam_errtable.r3dv
+    - adjust observational errors based on adaptive tuning experiments
+
+ h) rename prepobs_errtable.global.short as prepobs_errtable.global
+    - set MODIS wind observation errors to realistic values
+
+ i) regional_convinfo.txt
+     - same changes as global_convinfo.txt
+     - set time window to +/- 1.5 hours (was +/- 3.0 hours)
+
+ j) regional_satinfo.txt
+    - same changes as global_satinfo.txt 
+    - turn off (usage = -1 --> monitoring only) for IR
+      channels with strong ozone sensitivity
+ 
+ k) gsi.rc.sample
+    - changes in namelist JCOPTS to be consistent with new code
+    - increase jpch to 592 and change ndat to 40 in namelist SETUP
+    - add AMRSE and SSM/IS to namelist OBS_INPUT
+
+
+
+GLOBAL NCEP T254L64 TEST
+------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200508/rungsi_global.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_global.sh
+
+Maximum resident set size
+old :  689436 Kbytes
+new :  688872 Kbytes
+new1:  829548 Kbytes (48 tasks, nodes=12)
+new2:  643012 Kbytes (72 tasks, nodes=18)
+new3:  540884 Kbytes (96 tasks, nodes=24)
+
+Wall clock (48 tasks, nodes=12)
+old : 1043.730593 seconds
+new : 1098.214248 seconds    
+new1: 3224.791303 seconds   (48 tasks, nodes=12)
+new2: 1622.316975 seconds   (72 tasks, nodes=18)
+new3: 1232.889948 seconds   (96 tasks, nodes=24)
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.779230727348954068E+06 0.474469199393988326E+08 0.828147169142438443E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.808209150336014107E+06 0.493672453465749696E+08 0.852002768862968117E-03 0.000000000000000000E+00
+new1: penalty,grad ,a,b= 1 0 0.808209150336014107E+06 0.493672453465749696E+08 0.849321010113791744E-03 0.000000000000000000E+00
+new2: penalty,grad ,a,b= 1 0 0.808209075469423900E+06 0.493672474150292799E+08 0.849321042731277062E-03 0.000000000000000000E+00
+new3: penalty,grad ,a,b= 1 0 0.808208873375889030E+06 0.493672493183054775E+08 0.849321070407376539E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 100 0.353320388167537807E+06 0.330057203126036155E+06 0.261886191806355703E-03 0.115706921885003200E+01
+new : penalty,grad ,a,b= 2 100 0.366370073559809185E+06 0.294309987555066065E+06 0.839968287114482734E-04 0.128480644234528962E+01
+new1: penalty,grad ,a,b= 2 100 0.394310699521827977E+06 0.422820438940497290E+06 0.150757695798576857E-03 0.792946738312311661E+00
+new2: penalty,grad ,a,b= 2 100 0.394310563629198004E+06 0.423151896947866597E+06 0.150930529874243163E-03 0.791594975858342154E+00
+new3: penalty,grad ,a,b= 2 100 0.394310897819364676E+06 0.422674814451025566E+06 0.151293924276672196E-03 0.793702429652257790E+00
+
+NOTES:
+   a) runs new1,2,3 test the constraint term.  These runs use the following
+      JCOPTS settings:  jcterm=.true., bamp_pse=10000000.0, bamp_uve=1000000.0,
+                        bamp_uvi=100000.0, bamp_tin=100000.0, damptend=1.0
+      Please note that the bamp* values above are not tunned.  They are simply
+      nonzero values used to exercise the code.  As expected, running with the
+      constraint increases the maximum resident set size and wall clock time.
+      Increasing the number of mpi tasks counters this.  Improvements to the
+      constraint code are already being tested and show noticeable reductions
+      in the wall clock time.
+   b) difference in initial total penalty is mostly due to changes related
+      use of brightness temperature data
+
+
+REGIONAL NCEP NMM BINARY TEST
+-----------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200508/rungsi_regional_nmm_binary.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_nmm_binary.sh
+
+Maximum resident set size
+old :  273652 Kbytes
+new :  280236 Kbytes
+new1:  422980 Kbytes (24 tasks, nodes=6)
+new2:  262520 Kbytes (48 tasks, nodes=12)
+
+Wall clock (24 tasks, nodes=6)
+old :  310.89884 seconds
+new :  347.291929 seconds
+new1:  1163.589903 seconds (24 tasks, nodes=6)
+new2:  791.371097 seconds  (48 tasks, nodes=12)
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.299322442926179247E+05 0.227124496524172893E+06 0.147164347027354397E-01 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.310183678617356709E+05 0.405991533323205775E+06 0.759212125937830818E-02 0.000000000000000000E+00
+new1: penalty,grad ,a,b= 1 0 0.310183678617356709E+05 0.405991533323205775E+06 0.759205197978151097E-02 0.000000000000000000E+00
+new2: penalty,grad ,a,b= 1 0 0.310183678617356745E+05 0.405991533323207288E+06 0.759205197978155000E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 71 0.220698977934911200E+05 0.155715503933562918E-04 0.300816192879530299E-01 0.662943551604689207E+00
+new : penalty,grad ,a,b= 2 80 0.216318996235809609E+05 0.369435582048450401E-04 0.849472494863406404E-02 0.686311573644188821E+00
+new1: penalty,grad ,a,b= 2 83 0.216333799059883713E+05 0.194113096981842841E-04 0.250310606871648328E-01 -.137531028632470104E+00
+new2: penalty,grad ,a,b= 2 83 0.216333798928144242E+05 0.194420440743071426E-04 0.244470836145366972E-01 -.134251854875114984E+00
+NOTES:
+   a) runs new1 and new2 test the constraint term.  These runs use the following
+      JCOPTS settings:  jcterm=.true., bamp_pse=30.0, bamp_uve=30.0, 
+                        bamp_uvi=4.0, bamp_tin=10.0, damptend=1.0
+      Please note that the bamp* values above are not tunned.  They are simply
+      nonzero values used to exercise the code.  As expected, running with the
+      constraint increases the maximum resident set size and wall clock time.  
+      Increasing the number of mpi tasks counters this.  Improvements to the
+      constraint code are already being tested and show noticeable reductions
+      in the wall clock time.
+   b) difference in initial total penalty are due to changes in the 
+      observational error table for conventional data and changes 
+      related to the use of brightness temperature data
+
+
+REGIONAL NCEP NMM NETCDF TEST
+-----------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200508/rungsi_regional_nmm_netcdf.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_nmm_netcdf.sh
+
+Maximum resident set size
+old :  271420 Kbytes
+new :  268852 Kbytes
+
+Wall clock (24 tasks, nodes=6)
+old :  365.85246 seconds
+new :  440.91566 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.311363690123548367E+05 0.332997199777763861E+06 0.731190776389914997E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.312530062813417935E+05 0.650831302941312897E+06 0.421774970384380856E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 73 0.230990335010982599E+05 0.297720153556761208E-04 0.225105671632890858E-01 0.853399960623162479E+00
+new : penalty,grad ,a,b= 2 84 0.223644415603044836E+05 0.438234474133745482E-04 0.128865736252214945E-01 0.392926471427772650E+00
+
+
+
+REGIONAL NCEP MASS BINARY TEST
+------------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200508/rungsi_regional_mass_binary.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_mass_binary.sh
+
+Maximum resident set size
+old :  313360 Kbytes
+new :  313688 Kbytes
+
+Wall clock (24 tasks, nodes=6)
+old :  482.907027 seconds
+new :  529.902814 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.295708413395382267E+05 0.177693834072201662E+08 0.263374308856419365E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.297895327611723551E+05 0.159979741571810991E+08 0.270361508771306059E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 100 0.148905451253869323E+05 0.135348209743035397E+03 0.245624754993448635E-02 0.471558652493639263E+00
+new : penalty,grad ,a,b= 2 100 0.153430267154863286E+05 0.354081958473994689E+03 0.895925444411342685E-03 0.402073217764596036E+00
+
+
+
+REGIONAL NCEP MASS NETCDF TEST
+------------------------------
+Old script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200508/rungsi_regional_mass_netcdf.sh
+New script :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs/rungsi_regional_mass_netcdf.sh
+
+Maximum resident set size
+old :  322880 Kbytes
+new :  326156 Kbytes
+
+Wall clock (24 tasks, nodes=6)
+old :  333.835338 seconds
+new :  349.855084 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.381714300711230608E+05 0.292342854173447238E+06 0.127713591746008749E-01 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.403134184768802879E+05 0.369794515315015917E+06 0.101632854821499287E-01 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 66 0.279185613218692088E+05 0.261406595128282237E-04 0.185420723119234035E-01 0.852641490116071932E+00
+new : penalty,grad ,a,b= 2 73 0.286133033114404243E+05 0.270661314966425794E-04 0.212011700277663570E-01 0.492722335426204583E+00
+

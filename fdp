@@ -1,0 +1,109 @@
+#!/bin/sh
+
+# make a file dependency list for .f files.  Assumed no nested
+# file inclusion.
+#
+# REVISION HISTORY:
+#
+# Dark Ages    J. Guo    Wrote it.
+# 23dec1999    da Silva  Added handling of external references through
+#                        file Externals.depend.
+
+c=`basename $0`
+if [ $# -eq 0 ]; then
+  echo "Usage: ${c} <*.[fF]>" 1>&2
+  exit 1
+fi
+
+EXTERNALS=Externals.depend
+
+tscr="${TMPDIR:-/tmp}/$$S"
+rscr="${TMPDIR:-/tmp}/$$R"
+tmp="${TMPDIR:-/tmp}/$$t"
+trap "rm -f ${tscr} ${rscr}; trap '' 0; exit 0" 0
+trap "rm -f ${tscr} ${rscr}; trap '' 1; exit 1" 1
+trap "rm -f ${tscr} ${rscr}; trap '' 2; exit 2" 2
+trap "rm -f ${tscr} ${rscr}; trap '' 3; exit 3" 3
+trap "rm -f ${tscr} ${rscr}; trap '' 15; exit 15" 15
+
+# Make sed script
+#=================
+cat <<'EOT' >$tscr
+#n
+
+/^\#include/{
+s/^[^"<]*["<]//
+s/[">].*$//
+s/^\#include[ 	]*//
+p
+b
+}
+
+/^[ 	]*[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/{
+s/^[ 	]*[Ii][Nn][Cc][Ll][Uu][Dd][Ee][ 	]*//
+s/\!.*$//
+s/['"]//g
+s/[ 	]*$//
+p
+b
+}
+
+/^[ 	]*[Uu][Ss][Ee][ 	]\b*/{
+s/^[ 	]*[Uu][Ss][Ee][ 	]*//
+s/[ 	]*\!.*$//
+s/[ 	]*,[	 ]*[Oo][Nn][Ll][Yy].*$//
+s/$/.o/
+p
+b
+}
+EOT
+
+# Include external dependencies
+
+    files=$@
+    if [ -r ${EXTERNALS} ]; then
+
+         touch $rscr
+         ext=`cut -f1 -d: ${EXTERNALS}`
+         set `cut -f2 -d: ${EXTERNALS}`
+         i=1
+         for old in $ext; do
+             new=`eval echo '$'{$i}` 
+             if [ "$new" = "IGNORE" ]; then
+                  new=""
+         fi 
+             echo s/$old/$new/ >> $rscr 
+             i=`expr $i + 1`
+         done
+
+    fi
+
+# Processing loop
+#=================
+for f in $files; do
+  if [ -f "$f" ]; then
+
+#   Instead of using basename, sed is used to reserve the fullname
+    o=`echo "$f" | /bin/sed -e "s:\.[fF]$:.o:" -e "s:\.[fF]90$:.o:"`
+
+    if [ -r ${EXTERNALS} ]; then
+
+      /bin/sed -f $tscr $f | /bin/sed -f $rscr | sort -u | \
+        ( tr "\012" " "; echo "") | \
+        /bin/sed -e "s;^;$o: ;" -e  "s/  *$//"
+
+    else
+
+      /bin/sed -f $tscr $f | sort -u | \
+        ( tr "\012" " "; echo "") | \
+        /bin/sed -e "s;^;$o: ;" -e  "s/  *$//"
+
+    fi
+  fi
+done
+
+
+#
+
+
+

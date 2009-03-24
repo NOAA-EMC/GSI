@@ -1,0 +1,131 @@
+subroutine enorm_state(xst,enorm,yst)
+
+!$$$  documentation block
+!
+! abstract: compute energy norm on GSI grid
+!
+! program history log:
+!   2007-10-19  tremolet - initial code
+!   2009-01-18  todling  - carry summation in quad precision
+!
+!$$$
+
+use kinds, only: r_kind,i_kind,r_quad
+use constants, only: zero,one,cp,rd,fv   ,pi,two
+use gridmod, only: nsig,nlat,nlon,lon2,lat2,istart,rlats,ak5,bk5
+use mpimod, only: mype
+use guess_grids, only: ges_ps,ntguessig
+use state_vectors
+
+implicit none
+
+type(state_vector), intent(in) :: xst
+real(r_quad), intent(out) :: enorm
+type(state_vector), optional, target, intent(inout) :: yst
+
+! Declare local variables
+real(r_kind) :: tfact, pfact, qfact, pref, tref, gridfac, zps
+real(r_kind) :: coslat(lat2), dsig(lat2,lon2,nsig), akk(nsig)
+integer(i_kind) :: ii,jj,kk,ijk,ilat
+type(state_vector), pointer :: aux
+type(state_vector), target  :: tmp
+real(r_kind), parameter :: Pa_per_kPa = 1000._r_kind
+
+! ----------------------------------------------------------------------
+tref=280.0_r_kind
+pref=1.0e5_r_kind
+
+tfact=cp/tref
+pfact=rd*tref/(pref*pref)
+gridfac=one/(nlat*nlon)
+
+do kk=1,nsig
+  akk(kk) = Pa_per_kPa * (ak5(kk)-ak5(kk+1))
+enddo
+dsig=HUGE(dsig)
+do jj=2,lon2-1
+  do ii=2,lat2-1
+    zps = Pa_per_kPa * ges_ps(ii,jj,ntguessig)
+    do kk=1,nsig
+      dsig(ii,jj,kk) = akk(kk) + (bk5(kk)-bk5(kk+1)) * zps
+    enddo
+    if (ANY(dsig(ii,jj,:)<=zero)) then
+      do kk=1,nsig
+        write(6,'(A,I3,4(2X,F18.8))')'enorm ak,bk,pk,dsig=',&
+          kk,1000.*ak5(kk),bk5(kk),1000.*ak5(kk)+bk5(kk)*pref,dsig(2,2,kk)
+      enddo
+      write(6,'(A,I3,4(2X,F18.8))')'enorm ak,bk,pk     =',&
+        nsig+1,1000.*ak5(nsig+1),bk5(nsig+1),1000.*ak5(nsig+1)+bk5(nsig+1)*pref
+      call abor1('enorm_state: negative dsig')
+    endif
+  enddo
+enddo
+
+coslat=HUGE(coslat)
+do ii=2,lat2-1
+  ilat=istart(mype+1)+ii-2
+  if (ilat<1.or.ilat>nlat) call abor1('enorm_state: error ilat')
+  coslat(ii)=cos(rlats(ilat))
+  if (coslat(ii)<zero) then
+    write(6,*)'enorm_state error coslat:',ii,ilat,rlats(ilat),pi/two,coslat(ii)
+    coslat(ii)=-coslat(ii)
+  endif
+enddo
+! ----------------------------------------------------------------------
+if (present(yst)) then
+  aux => yst
+else
+  call allocate_state(tmp)
+  aux => tmp
+endif
+aux=zero
+! ----------------------------------------------------------------------
+
+! U
+do kk=1,nsig
+  do jj=2,lon2-1
+    do ii=2,lat2-1
+      ijk=(kk-1)*lon2*lat2 + (jj-1)*lat2 + ii
+      aux%u(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst%u(ijk)
+    enddo
+  enddo
+enddo
+
+! V
+do kk=1,nsig
+  do jj=2,lon2-1
+    do ii=2,lat2-1
+      ijk=(kk-1)*lon2*lat2 + (jj-1)*lat2 + ii
+      aux%v(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst%v(ijk)
+    enddo
+  enddo
+enddo
+
+! T
+do kk=1,nsig
+  do jj=2,lon2-1
+    do ii=2,lat2-1
+      ijk=(kk-1)*lon2*lat2 + (jj-1)*lat2 + ii
+      aux%t(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*tfact*xst%t(ijk)
+    enddo
+  enddo
+enddo
+
+! P
+do jj=2,lon2-1
+  do ii=2,lat2-1
+    ijk= (jj-1)*lat2 + ii
+    aux%p(ijk)=gridfac*coslat(ii)*pfact*xst%p(ijk)
+  enddo
+enddo
+
+! ----------------------------------------------------------------------
+
+enorm=DOT_PRODUCT(aux,xst)
+
+! ----------------------------------------------------------------------
+if (.not.present(yst)) call deallocate_state(tmp)
+aux => NULL()
+
+return
+end subroutine enorm_state

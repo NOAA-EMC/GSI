@@ -1,0 +1,294 @@
+ &SETUP
+   miter=2,niter(1)=100,niter(2)=100,
+   niter_no_qc(1)=999,niter_no_qc(2)=999,
+   write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
+   qoption=1,
+   gencode=82,factqmin=0.8,factqmax=1.2,deltim=300,
+   ndat=53,npred=5,iguess=-1,
+   oneobtest=.false.,retrieval=.false.,l_foto=.false.,
+   use_pbl=.false.,
+   crtm_coeffs_path="CRTM_Coeffs/",
+!   berror_nvars=6,
+!   biascor=-0.10,bcoption=0,diurnalbc=1.0,
+!   nhr_assimilation=@VARWINDOW,
+ /
+ &GRIDOPTS
+!   JCAP=@JCAP,NLAT=@NLAT,NLON=@NLON,nsig=@NSIG,hybrid=@HYBRID,
+!   regional=.false.,gmao_intfc=@INTFC,
+   JCAP=62,NLAT=96,NLON=192,nsig=64,hybrid=.true.,
+   regional=.false.,gmao_intfc=.true.,
+ /
+ &BKGERR
+   as=0.555, 0.750, 0.600, 1.70, 0.599, 1.20,
+   hzscl=1.7,0.8,0.5,
+   hswgt=0.45,0.3,0.25,
+   vs=0.6,bw=0.0,norsp=4,
+   fpsproj=.false.,
+ /
+ &ANBKGERR
+   anisotropic=.false.,
+ /
+ &JCOPTS
+   jcterm=.false.,jcdivt=.false.,bamp_ext1=1.0e6,bamp_ext2=1.0e6,
+   bamp_int1=1.0e5,bamp_int2=1.0e4,
+ /
+ &STRONGOPTS
+   jcstrong=.false.,nstrong=0,nvmodes_keep=8,period_max=6.,period_width=1.5,
+   jcstrong_option=2,baldiag_full=.true.,baldiag_inc=.true.,
+!   nstrong_end=0,update_end=.false.,
+ /
+ &OBSQC
+   dfact=0.75,dfact1=3.0,noiqc=.false.,blacklst=.true.
+ /
+ &OBS_INPUT
+   dmesh(1)=180.,dmesh(2)=145.,dmesh(3)=240.,dmesh(4)=160.,dmesh(5)=180.,time_window_max=3.0,
+   dfile(01)='prepqc',    dtype(01)='ps',        dplat(01)=' ',         dsis(01)='ps',                  dval(01)=1.0,  dthin(01)=0,
+   dfile(02)='prepqc'     dtype(02)='t',         dplat(02)=' ',         dsis(02)='t',                   dval(02)=1.0,  dthin(02)=0,
+   dfile(03)='prepqc',    dtype(03)='q',         dplat(03)=' ',         dsis(03)='q',                   dval(03)=1.0,  dthin(03)=0,
+   dfile(04)='prepqc',    dtype(04)='uv',        dplat(04)=' ',         dsis(04)='uv',                  dval(04)=1.0,  dthin(04)=0,
+   dfile(05)='prepqc',    dtype(05)='spd',       dplat(05)=' ',         dsis(05)='spd',                 dval(05)=1.0,  dthin(05)=0,
+   dfile(06)='radarbufr', dtype(06)='rw',        dplat(06)=' ',         dsis(06)='rw',                  dval(06)=1.0,  dthin(06)=0,
+   dfile(07)='prepqc',    dtype(07)='dw',        dplat(07)=' ',         dsis(07)='dw',                  dval(07)=1.0,  dthin(07)=0,
+   dfile(08)='prepqc',    dtype(08)='sst',       dplat(08)=' ',         dsis(08)='sst',                 dval(08)=1.0,  dthin(08)=0,
+   dfile(09)='prepqc',    dtype(09)='pw',        dplat(09)=' ',         dsis(09)='pw',                  dval(09)=1.0,  dthin(09)=0,
+   dfile(10)='gpsrobufr', dtype(10)='gps_bnd',   dplat(10)=' ',         dsis(10)='gps_bnd',             dval(10)=1.0,  dthin(10)=0,
+   dfile(11)='ssmirrbufr',dtype(11)='pcp_ssmi',  dplat(11)='dmsp',      dsis(11)='pcp_ssmi',            dval(11)=1.0,  dthin(11)=-1,
+   dfile(12)='tmirrbufr', dtype(12)='pcp_tmi',   dplat(12)='trmm',      dsis(12)='pcp_tmi',             dval(12)=1.0,  dthin(12)=-1,
+   dfile(13)='sbuvbufr',  dtype(13)='sbuv2',     dplat(13)='n16',       dsis(13)='sbuv2_n16',           dval(13)=1.0,  dthin(13)=0,
+   dfile(14)='sbuvbufr',  dtype(14)='sbuv2',     dplat(14)='n17',       dsis(14)='sbuv2_n17',           dval(14)=1.0,  dthin(14)=0,
+   dfile(15)='sbuvbufr',  dtype(15)='sbuv2',     dplat(15)='n18',       dsis(15)='sbuv2_n18',           dval(15)=1.0,  dthin(15)=0,
+   dfile(16)='omi',       dtype(16)='omi',       dplat(16)='aura',      dsis(16)='omi_aura',            dval(16)=1.0,  dthin(16)=0,
+   dfile(17)='hirs2bufr', dtype(17)='hirs2',     dplat(17)='n14',       dsis(17)='hirs2_n14',           dval(17)=6.0,  dthin(17)=1,
+   dfile(18)='hirs3bufr', dtype(18)='hirs3',     dplat(18)='n16',       dsis(18)='hirs3_n16',           dval(18)=0.0,  dthin(18)=1,
+   dfile(19)='hirs3bufr', dtype(19)='hirs3',     dplat(19)='n17',       dsis(19)='hirs3_n17',           dval(19)=6.0,  dthin(19)=1,
+   dfile(20)='hirs4bufr', dtype(20)='hirs4',     dplat(20)='n18',       dsis(20)='hirs4_n18',           dval(20)=0.0,  dthin(20)=1,
+   dfile(21)='prepqc',    dtype(21)='sndr',      dplat(21)='g10_prep',  dsis(21)='sndr_g10',            dval(21)=6.0,  dthin(21)=1,
+   dfile(22)='prepqc',    dtype(22)='sndr',      dplat(22)='g12_prep',  dsis(22)='sndr_g12',            dval(22)=6.0,  dthin(22)=1,
+   dfile(23)='gimgrbufr', dtype(23)='goes_img',  dplat(23)='g10',       dsis(23)='imgr_g10',            dval(23)=0.0,  dthin(23)=1,
+   dfile(24)='gimgrbufr', dtype(24)='goes_img',  dplat(24)='g12',       dsis(24)='imgr_g12',            dval(24)=0.0,  dthin(24)=1,
+   dfile(25)='airsbufr',  dtype(25)='airs',      dplat(25)='aqua',      dsis(25)='airs281SUBSET_aqua',  dval(25)=20.0, dthin(25)=1,
+   dfile(26)='msubufr',   dtype(26)='msu',       dplat(26)='n14',       dsis(26)='msu_n14',             dval(26)=2.0,  dthin(26)=2,
+   dfile(27)='amsuabufr', dtype(27)='amsua',     dplat(27)='n15',       dsis(27)='amsua_n15',           dval(27)=10.0, dthin(27)=2,
+   dfile(28)='amsuabufr', dtype(28)='amsua',     dplat(28)='n16',       dsis(28)='amsua_n16',           dval(28)=10.0, dthin(28)=2,
+   dfile(29)='amsuabufr', dtype(29)='amsua',     dplat(29)='n17',       dsis(29)='amsua_n17',           dval(29)=10.0, dthin(29)=2,
+   dfile(30)='amsuabufr', dtype(30)='amsua',     dplat(30)='n18',       dsis(30)='amsua_n18',           dval(30)=10.0, dthin(30)=2,
+   dfile(31)='airsbufr',  dtype(31)='amsua',     dplat(31)='aqua',      dsis(31)='amsua_aqua',          dval(31)=10.0, dthin(31)=2,
+   dfile(32)='amsubbufr', dtype(32)='amsub',     dplat(32)='n15',       dsis(32)='amsub_n15',           dval(32)=3.0,  dthin(32)=3,
+   dfile(33)='amsubbufr', dtype(33)='amsub',     dplat(33)='n16',       dsis(33)='amsub_n16',           dval(33)=3.0,  dthin(33)=3,
+   dfile(34)='amsubbufr', dtype(34)='amsub',     dplat(34)='n17',       dsis(34)='amsub_n17',           dval(34)=3.0,  dthin(34)=3,
+   dfile(35)='mhsbufr',   dtype(35)='mhs',       dplat(35)='n18',       dsis(35)='mhs_n18',             dval(35)=3.0,  dthin(35)=3,
+   dfile(36)='smit13bufr',dtype(36)='ssmi',      dplat(36)='f13',       dsis(36)='ssmi_f13',            dval(36)=1.0,  dthin(36)=4,
+   dfile(37)='smit14bufr',dtype(37)='ssmi',      dplat(37)='f14',       dsis(37)='ssmi_f14',            dval(37)=1.0,  dthin(37)=4,
+   dfile(38)='smit15bufr',dtype(38)='ssmi',      dplat(38)='f15',       dsis(38)='ssmi_f15',            dval(38)=1.0,  dthin(38)=4,
+   dfile(39)='amsrebufr', dtype(39)='amsre_low', dplat(39)='aqua',      dsis(39)='amsre_aqua',          dval(39)=1.0,  dthin(39)=4,
+   dfile(40)='amsrebufr', dtype(40)='amsre_mid', dplat(40)='aqua',      dsis(40)='amsre_aqua',          dval(40)=1.0,  dthin(40)=4,
+   dfile(41)='amsrebufr', dtype(41)='amsre_hig', dplat(41)='aqua',      dsis(41)='amsre_aqua',          dval(41)=1.0,  dthin(41)=4,
+   dfile(42)='ssmisbufr', dtype(42)='ssmis_las', dplat(42)='f16',       dsis(42)='ssmis_f16',           dval(42)=1.0,  dthin(42)=4,
+   dfile(43)='ssmisbufr', dtype(43)='ssmis_uas', dplat(43)='f16',       dsis(43)='ssmis_f16',           dval(43)=1.0,  dthin(43)=4,
+   dfile(44)='ssmisbufr', dtype(44)='ssmis_img', dplat(44)='f16',       dsis(44)='ssmis_f16',           dval(44)=1.0,  dthin(44)=4,
+   dfile(45)='ssmisbufr', dtype(45)='ssmis_env', dplat(45)='f16',       dsis(45)='ssmis_f16',           dval(45)=1.0,  dthin(45)=4,
+   dfile(46)='gsnd1bufr', dtype(46)='sndrd1',    dplat(46)='g12',       dsis(46)='sndrD1_g12',          dval(46)=1.5,  dthin(46)=5,
+   dfile(47)='gsnd1bufr', dtype(47)='sndrd2',    dplat(47)='g12',       dsis(47)='sndrD2_g12',          dval(47)=1.5,  dthin(47)=5,
+   dfile(48)='gsnd1bufr', dtype(48)='sndrd3',    dplat(48)='g12',       dsis(48)='sndrD3_g12',          dval(48)=1.5,  dthin(48)=5,
+   dfile(49)='gsnd1bufr', dtype(49)='sndrd4',    dplat(49)='g12',       dsis(49)='sndrD4_g12',          dval(49)=1.5,  dthin(49)=5,
+   dfile(50)='gsnd1bufr', dtype(50)='sndrd1',    dplat(50)='g11',       dsis(50)='sndrD1_g11',          dval(50)=1.5,  dthin(50)=5,
+   dfile(51)='gsnd1bufr', dtype(51)='sndrd2',    dplat(51)='g11',       dsis(51)='sndrD2_g11',          dval(51)=1.5,  dthin(51)=5,
+   dfile(52)='gsnd1bufr', dtype(52)='sndrd3',    dplat(52)='g11',       dsis(52)='sndrD3_g11',          dval(52)=1.5,  dthin(52)=5,
+   dfile(53)='gsnd1bufr', dtype(53)='sndrd4',    dplat(53)='g11',       dsis(53)='sndrD4_g11',          dval(53)=1.5,  dthin(53)=5,
+   dfile(54)='mlsoz',     dtype(54)='mlsoz',     dplat(54)='aura',      dsis(54)='msl_aura_ozpc',       dval(54)=1.0,  dthin(54)=0,
+ / 
+ &SUPEROB_RADAR
+ /
+ &SINGLEOB_TEST
+   maginnov=0.1,magoberr=0.1,oneob_type='t',
+   oblat=45.,oblon=180.,obpres=1000.,obdattim=2004041512,
+   obhourset=0.,
+ /
+
+&gsiGuess_opts
+	! read by m_gsiGuess::gsiGuessGrid_nmlread()
+! hGrid_Type=@HGRIDTYPE
+hGrid_Type=0
+	! 0: automatic: (default)
+	!    - equal-spacing latitude grid if (nlon,nlat) given by
+	!      NAMELIST gsi.rc/&GRIDOPTS is the same as the sizes
+	!      declared in the background state fv-dyn.06;
+	!    - Gaussian latitude grid otherwise.
+	! 1: equal-spacing latitude grid
+	! 2: Gaussian spacing latitude grid
+
+vGrid_Type=0
+	! 0: automatic: (default)
+	!    - use (ak,bk) defined in fv-dyn.06, if nsig given by
+	!      NAMELIST gsi.rc/&GRIDOPTS is the same as the vertical
+	!      grid size declared in the background state fv-dyn.06;
+	!    - use user defined vertical levels otherwise.
+	! 1: user defined levels in (ak,bk) below.
+
+vGrid_size=64
+	! -1: no user defined vertical grid given (vGrid_type==0 .and.
+	!     nsig_gsi.rc/&GRIDOPTS == nsig_fv-dyn.06 (default)
+	! >=0: user defined vertical grid in term of (ak,bk)
+
+	! Note that this size is the count of vertical layers, while the
+	! size of ak or bk is the count of vertical levels.  i.e.
+	! vGrid_size+1 == size(ak or bk).
+
+!ak(1:) =
+!bk(1:) =
+
+  ak(  1)=       0.000000000000   bk(  1)=   1.000000000000
+  ak(  2)=       0.000000000000   bk(  2)=   0.994671165943
+  ak(  3)=       0.574999988079   bk(  3)=   0.988626599312
+  ak(  4)=       5.741000175476   bk(  4)=   0.981742262840
+  ak(  5)=      21.516000747681   bk(  5)=   0.973867595196
+  ak(  6)=      55.712001800537   bk(  6)=   0.964827597141
+  ak(  7)=     116.899002075195   bk(  7)=   0.954434096813
+  ak(  8)=     214.014999389648   bk(  8)=   0.942491054535
+  ak(  9)=     356.222991943359   bk(  9)=   0.928797304630
+  ak( 10)=     552.719970703125   bk( 10)=   0.913151025772
+  ak( 11)=     812.489013671875   bk( 11)=   0.895354986191
+  ak( 12)=    1143.988037109375   bk( 12)=   0.875223577023
+  ak( 13)=    1554.788940429688   bk( 13)=   0.852590680122
+  ak( 14)=    2051.149902343750   bk( 14)=   0.827318847179
+  ak( 15)=    2637.552978515625   bk( 15)=   0.799309730530
+  ak( 16)=    3316.217041015625   bk( 16)=   0.768514692783
+  ak( 17)=    4086.614013671875   bk( 17)=   0.734945237637
+  ak( 18)=    4945.028808593750   bk( 18)=   0.698682904243
+  ak( 19)=    5884.206054687500   bk( 19)=   0.659887015820
+  ak( 20)=    6893.117187500000   bk( 20)=   0.618799626827
+  ak( 21)=    7956.908203125000   bk( 21)=   0.575746655464
+  ak( 22)=    9057.050781250000   bk( 22)=   0.531134843826
+  ak( 23)=   10171.711914062500   bk( 23)=   0.485443323851
+  ak( 24)=   11276.347656250000   bk( 24)=   0.439210802317
+  ak( 25)=   12344.490234375000   bk( 25)=   0.393018245697
+  ak( 26)=   13348.670898437500   bk( 26)=   0.347468495369
+  ak( 27)=   14261.434570312500   bk( 27)=   0.303164124489
+  ak( 28)=   15056.341796875000   bk( 28)=   0.260685443878
+  ak( 29)=   15708.892578125000   bk( 29)=   0.220570191741
+  ak( 30)=   16197.315429687500   bk( 30)=   0.183296233416
+  ak( 31)=   16503.144531250000   bk( 31)=   0.149268776178
+  ak( 32)=   16611.603515625000   bk( 32)=   0.118812188506
+  ak( 33)=   16511.736328125000   bk( 33)=   0.092166908085
+  ak( 34)=   16197.966796875000   bk( 34)=   0.069474577904
+  ak( 35)=   15683.489257812500   bk( 35)=   0.050646841526
+  ak( 36)=   14993.074218750000   bk( 36)=   0.035441618413
+  ak( 37)=   14154.316406250000   bk( 37)=   0.023555880412
+  ak( 38)=   13197.065429687500   bk( 38)=   0.014637120068
+  ak( 39)=   12152.936523437500   bk( 39)=   0.008294019848
+  ak( 40)=   11054.852539062500   bk( 40)=   0.004106710199
+  ak( 41)=    9936.614257812500   bk( 41)=   0.001635910012
+  ak( 42)=    8832.537109375000   bk( 42)=   0.000431060005
+  ak( 43)=    7777.149902343750   bk( 43)=   0.000036969999
+  ak( 44)=    6804.874023437500   bk( 44)=   0.000000000000
+  ak( 45)=    5937.049804687500   bk( 45)=   0.000000000000
+  ak( 46)=    5167.145996093750   bk( 46)=   0.000000000000
+  ak( 47)=    4485.493164062500   bk( 47)=   0.000000000000
+  ak( 48)=    3883.052001953125   bk( 48)=   0.000000000000
+  ak( 49)=    3351.459960937500   bk( 49)=   0.000000000000
+  ak( 50)=    2883.038085937500   bk( 50)=   0.000000000000
+  ak( 51)=    2470.788085937500   bk( 51)=   0.000000000000
+  ak( 52)=    2108.365966796875   bk( 52)=   0.000000000000
+  ak( 53)=    1790.051025390625   bk( 53)=   0.000000000000
+  ak( 54)=    1510.711059570312   bk( 54)=   0.000000000000
+  ak( 55)=    1265.751953125000   bk( 55)=   0.000000000000
+  ak( 56)=    1051.079956054688   bk( 56)=   0.000000000000
+  ak( 57)=     863.057983398438   bk( 57)=   0.000000000000
+  ak( 58)=     698.456970214844   bk( 58)=   0.000000000000
+  ak( 59)=     554.424011230469   bk( 59)=   0.000000000000
+  ak( 60)=     428.433990478516   bk( 60)=   0.000000000000
+  ak( 61)=     318.265991210938   bk( 61)=   0.000000000000
+  ak( 62)=     221.957992553711   bk( 62)=   0.000000000000
+  ak( 63)=     137.789993286133   bk( 63)=   0.000000000000
+  ak( 64)=      64.247001647949   bk( 64)=   0.000000000000
+  ak( 65)=       0.000000000000   bk( 65)=   0.000000000000
+
+ak_unit=1.
+	! (ak,bk) specifies a hybrid vertical grid definition, based on
+        ! expression  p(i,j,k) = a(k) + b(k)*ps(i,j).
+	! unit of ak, if specified here.
+	!    1: in Pa
+	!  100: in hPa (default)
+	! 1000: in kPa
+
+!aincout = .true.
+	! Analysis increment (ainc) output in .hdf format is always on,
+	! combining with the background input as another description of
+	! the analysis output.  This default behavior can be turne off
+	! by setting nohdfainc=.true.  The filename of the output file
+	! for the gsi is "ai-dyn.99".
+
+!aincfile = ".none."
+	! set the filename to binary dump certain increment variables to
+	! support forecast using IAU.
+
+
+!phisfile = ".none."
+	! phisfile is the filename of the surface elevation on the
+	! analysis grid.  The default value is ".none.", then the
+	! surface elevation in geopotential is taken from the input
+	! fv-gridded background data.
+
+biasinpctrl = "biasinp.ctl"
+	! default GrADS bias input filename.  This is only the ".ctrl"
+	! meta data filename.  The actual filename of the binary data
+	! input is specified in the meta data file.  Users must make
+	! sure that both files, including this meta data file and the
+	! binary data file, are moved in to right location before this
+	! program can work properly.
+
+biasoutctrl = "biasout.ctl"
+	! default GrADS bias output filename.  This is only the ".ctrl"
+	! meta data filename.  The actual filename of the binary data
+	! output is in the form of "*.grads".  Users must make sure that
+	! both files, including this meta data file and the binary file
+	! for output, are moved to right archive location if they are
+	! to be kept.
+
+ init_bias_lnps = .true.
+ init_bias_ts   = .true.
+ init_bias_tv   = .true.
+ init_bias_wind = .true.	! including u, v, div, and vor.
+!init_bias_cwmr = .true.
+!init_bias_q    = .true.
+ init_bias_oz   = .true.
+ init_bias_byfile = .true.
+	! Configuration parameters for background bias correction which
+        ! re-initialize the biases to zeroes.  Note that as global
+        ! constants of biases, initial values other than zero might not
+        ! make any sense.  Also, vector u and v and their vorticity and
+        ! divergence are set together through force_bias_wind, to ensure
+        ! the corresponding bias fields are internally consistant with
+        ! their background error covariances.  (default values are
+        ! .false.)
+
+! End of &gsiGuess_opts
+/
+
+#
+# FILENAME TEMPLATE resource file.
+#
+# !REVISION HISTORY:
+#
+# 17Nov2003  Todling   Initial version.
+#
+#-----------------------------------------------------------------------------
+
+#                      -----------------
+#                        BKG/ANA FILES
+#                      -----------------
+surface_bkg_filename:   %s.bkg.sfc.%y4%m2%d2_%h2z.hdf
+upper-air_bkg_filename: %s.bkg.eta.%y4%m2%d2_%h2z.hdf
+upper-air_ana_filename: %s.ana.eta.%y4%m2%d2_%h2z.hdf
+forecast-bias_filename: %s.bias.eta.%y4%m2%d2_%h2z.hdf
+post-analysis_obs_filename: %s.ana.obs.%y4%m2%d2_%h2z.ods
+sfcexp_filename: %s.sfc_export.%y4%m2%d2_%h2z
+
+##
+
+#global_berror.l64y96.f77:	l64 y96  x192  t62
+#global_berror.l64y130.f77:	l64 y130 x256  t--
+#global_berror.l64y192.f77:	l64 y192 x384  t170
+#global_berror.l64y258.f77:	l64 y258 x512  t254
+#global_berror.l64y386.f77:	l64 y386 x768  t382
+#global_berror.l64y578.f77:	l64 y578 x1152 t---

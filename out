@@ -1,0 +1,35 @@
+119,120c119
+<       crtm_options_type,crtm_init,crtm_destroy,success,crtm_destroy_options, &
+<       crtm_allocate_options
+---
+>       crtm_options_type,crtm_init,crtm_destroy,success
+122c121
+<       crtm_destroy_rtsolution
+---
+>       crtm_destroy_rtsolution 
+125c124
+<       crtm_destroy_atmosphere,volume_mixing_ratio_units,crtm_zero_atmosphere &
+---
+>       crtm_destroy_atmosphere,volume_mixing_ratio_units,crtm_zero_atmosphere
+235c234
+<   integer(i_kind) err1,err2,err3,err4,err5,ich9
+---
+>   integer(i_kind) err1,err2,err3,err4,ich9
+558c557
+<   err1=0; err2=0; err3=0; err4=0; err5=0
+---
+>   err1=0; err2=0; err3=0; err4=0
+568d566
+<   err5 = crtm_allocate_options(nchanl,options)
+573d570
+<   if (err5/=success) write(6,*)' ***ERROR** allocating options.       err=',err5
+575d571
+< 
+2299c2295
+<   err1=0; err2=0; err3=0; err4=0; err5=0
+---
+>   err1=0; err2=0; err3=0; err4=0
+2304d2299
+<   err5 = crtm_destroy_options(options)
+2309d2303
+<   if (err5/=success) write(6,*)'***ERROR** destroy options.       err=',err5

@@ -1,0 +1,209 @@
+5a6
+> !
+36,40d36
+< !   2006-12-20  Sienkiewicz - add additional satellites f08 f10 f11
+< !                             set satellite zenith angle (avail. in Wentz data)
+< !                             85GHz workaround for f08
+< !   2007-03-01  Tremolet - tdiff definition had disappeared somehow
+< !   2007-03-01  tremolet - measure time from beginning of assimilation window
+42c38
+< !   2008-04-17  safford - rm unused vars
+---
+> !   2008-04-17  safford - rm unused vars and uses
+49c45
+< !     jsatid   - satellite to read  ex. 'f15'
+---
+> !     jsatid   - satellite to read  ex.15
+70c66,67
+< !$$$  end documentation block
+---
+> !$$$ end documentation block
+> 
+74c71
+<   use radinfo, only: iuse_rad,jpch_rad,nusis,nuchan
+---
+>   use radinfo, only: iuse_rad,jpch_rad,nusis
+79d75
+<   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,winbgn,winlen
+107c103
+<   integer(i_kind),parameter :: nloc=5       !location dat used for ufbint()
+---
+>   integer(i_kind),parameter :: nloc=4       !location dat used for ufbint()
+114c110
+<   character(40),parameter:: str1='CLAT CLON SFTG POSN SAZA'   !use for ufbint()
+---
+>   character(40),parameter:: str1='CLAT CLON SFTG POSN'   !use for ufbint()
+124,130c120,126
+<   integer ihh,i,k,idd,isc,ntest
+<   integer iret,idate,im,iy,nchanl
+<   integer isflg,nreal,idomsfc
+<   integer nmind,itx,nele,itt,iout
+<   integer iskip
+<   integer lnbufr
+<   integer ilat,ilon
+---
+>   integer(i_kind):: ihh,i,k,idd,isc,ntest
+>   integer(i_kind):: iret,idate,im,iy,nchanl
+>   integer(i_kind):: isflg,nreal,idomsfc
+>   integer(i_kind):: nmind,itx,nele,itt,iout
+>   integer(i_kind):: iskip
+>   integer(i_kind):: lnbufr
+>   integer(i_kind):: ilat,ilon
+135c131
+<   real(r_kind) sstime,tdiff,t4dv
+---
+>   real(r_kind) sstime,tdiff
+154c150
+<   real(r_kind):: tb19v,tb22v,tb85v,si85,flgch,q19
+---
+>   real(r_kind):: tb19v,tb22v,tb85v,si85,flgch
+164,166d159
+<   real(r_kind):: ssmi_def_ang,ssmi_zen_ang  ! default and obs SSM/I zenith ang
+<   logical  do85GHz, ch6, ch7
+<   real(r_kind):: bmiss=10.e10
+179d171
+<   ssmi_def_ang = 53.1_r_kind
+183a176,194
+> ! If all channels of a given sensor are set to monitor or not
+> ! assimilate mode (iuse_rad<1), reset relative weight to zero.
+> ! We do not want such observations affecting the relative
+> ! weighting between observations within a given thinning group.
+> 
+>   assim=.false.
+>   search: do i=1,jpch_rad
+>      if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
+>         assim=.true.
+>         exit search
+>      endif
+>   end do search
+>   if (.not.assim) val_ssmi=zero
+> 
+> 
+> ! Make thinning grids
+>   call makegrids(rmesh)
+> 
+> 
+193,195d203
+<      if(jsatid == 'f08')bufsat=241
+<      if(jsatid == 'f10')bufsat=243
+<      if(jsatid == 'f11')bufsat=244
+206,230d213
+< ! If all channels of a given sensor are set to monitor or not
+< ! assimilate mode (iuse_rad<1), reset relative weight to zero.
+< ! We do not want such observations affecting the relative
+< ! weighting between observations within a given thinning group.
+< 
+<   assim=.false.
+<   ch6=.false.
+<   ch7=.false.
+<   search: do i=1,jpch_rad
+<      if (nusis(i)==sis) then
+< 	if (iuse_rad(i)>=0) then
+<            if (iuse_rad(i)>0) assim=.true.
+< 	   if (nuchan(i)==6) ch6=.true.
+< 	   if (nuchan(i)==7) ch7=.true.
+< 	   if (assim.and.ch6.and.ch7) exit
+< 	endif
+<      endif
+<   end do search
+<   if (.not.assim) val_ssmi=zero
+< 
+<   do85GHz = .not. assim .or. (ch6.and.ch7)
+< 
+< ! Make thinning grids
+<   call makegrids(rmesh)
+< 
+270a254
+>   data_crit=1.e10
+299c283
+<         isc           = bfr1bhdr(7) !second
+---
+>         isc         = bfr1bhdr(7) !second
+301,308c285,287
+<         sstime=real(nmind,r_kind) + real(isc,r_kind)*oneover60
+<         t4dv = sstime*oneover60 - winbgn
+<         if (l4dvar) then
+<           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
+<         else
+<           tdiff=(sstime-gstime)*oneover60
+<           if(abs(tdiff) > twind)  cycle read_loop
+<         endif
+---
+>         sstime=float(nmind) + isc*oneover60
+>         tdiff=(sstime-gstime)*oneover60
+>         if(abs(tdiff) > twind)  cycle read_loop
+339c318
+<                 disterr=acosd(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+---
+>                 disterr = acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+355,362d333
+< !  If available, set value of ssmi zenith angle
+< !
+<           if (midat(5,js) < bmiss ) then
+<              ssmi_zen_ang = midat(5,js)
+<           else
+<              ssmi_zen_ang = ssmi_def_ang
+<           endif
+< 
+380c351
+<           if(iskip >= nchanl)  cycle scan_loop  !if all ch for any position is bad, skip 
+---
+>           if(iskip >= nchanl)  cycle scan_loop  !if all ch for any posion is bad, skip 
+382,388c353,355
+< 
+<           if (l4dvar) then
+<             crit1 = 0.01_r_kind+ flgch
+<           else
+<             timedif = 6.0_r_kind*abs(tdiff) ! range: 0 to 18
+<             crit1 = 0.01_r_kind+timedif + flgch
+<           endif
+---
+>           
+>           timedif = 6.0_r_kind*abs(tdiff) ! range: 0 to 18
+>           crit1 = 0.01_r_kind+timedif + flgch
+390c357
+<           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse)
+---
+>           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+408c375
+<          call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
+---
+>          call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,tdiff,isflg,idomsfc,sfcpct, &
+414,415d380
+< 
+<        if (do85GHz) then  ! do regular checks if 85 GHz available
+431,447d395
+< 
+<        else              ! otherwise do alternate check for rain
+< 
+<           if (isflg/=0) then     ! just try to scren out land pts.
+<              pred = 30
+<           else
+<              tb19v=tbob(1);  tb22v=tbob(3);
+<              if (tb19v < 288.0_r_kind .and. tb22v < 288.0_r_kind) then
+<                 q19 = -6.723_r_kind * ( log(290.0_r_kind - tb19v)  &
+<                      - 2.850_r_kind - 0.405_r_kind* log(290.0_r_kind - tb22v))
+<                 pred = 75._r_kind * q19  ! scale 0.4mm -> pred ~ 30
+<              endif
+<           endif
+<        endif
+< 
+< !         Compute final "score" for observation.  All scores>=0.0.  
+< !         Lowest score is "best"
+450c398
+<           call finalcheck(dist1,crit1,ndata,itx,iout,iuse,sis)
+---
+>           call finalcheck(dist1,crit1,itx,iuse)
+457c405
+<           data_all( 2,itx) = t4dv                !time diff between obs and anal (min)
+---
+>           data_all( 2,itx) = tdiff               !time diff between obs and anal (min)
+460c408
+<           data_all( 5,itx) = ssmi_zen_ang*deg2rad !local zenith angle (rad)
+---
+>           data_all( 5,itx) = 53.1_r_kind*deg2rad !local zenith angle (rad)
+505,506d452
+<   write(6,*) 'READ_SSMI: at end of mpi_loop, nread is ',nread
+< 
+554a501
+> 

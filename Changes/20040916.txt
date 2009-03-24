@@ -1,0 +1,836 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+-------------------------------------------
+Author(s)   :  John Derber, Daryl Kleist, Dave Parrish, Russ Treadon, 
+               Fuzhong Weng, Wan-Shu Wu, Banghua Yan
+Reviewer(s) :  Russ Treadon
+Date        :  16 September 2004
+GMAO CVS tag:
+NCEP CVS tag:  gmao4ncep-gsi-2004_09
+
+
+
+REASON FOR CHANGES
+------------------
+ Changes are made to the gsi code for the following reasons:  
+ (listing  below not given in any particular order)
+
+   a) Update documentation in landem.f90, correct program history logs
+      for setuprad.f90 and emiss.f90
+
+   b) Noisy wind increments were noted at the center of the regional horizontal 
+      domain.  The cause for this was traced back to the fact that the grid
+      spacing (dx, dy) is very sensitive to the acuracy of the grid latitude
+      and longitude through the great circle calculation.  The solution was
+      to read in/calculate dx and dy directly from WRF restart files.
+
+   c) Fix bugs in regional MPP gathering before writing out the analysis 
+      results.  fix bug in computation of mass core potential temperature
+      prior to writing analysis file.  code incorrectly used deallocated
+      array.
+
+   d) Fix bugs in the subdomain halo setup.  The periodic boundary condition
+      in the east/west direction should only be applied for global gsi runs.
+
+   e) Add option to read in observation error from error table for regional
+      gsi runs
+
+   f) Generalize code to accept background statistics derived from different
+      locations and resolutions for regional gsi runs.  This change was
+      prompted by a job failure when regional background statistics from 
+      the central8 domain were used in the eastern hurricane domain.
+   
+   g) Fix bugs in the use of conventional sst data
+
+   h) Speed up horizontal recursive filter calculations
+   
+   i) More logically combine/reorder background error calculation
+
+   j) Clean up code - add intent, use only, formatting, etc
+
+   k) Add interface to wrf library so that wrf netcdf and binary format restart 
+      files can be read directly by the regional gsi.  This eliminates the
+      external conversion interface and adds the required operational capability 
+      to process binary format restart files.
+
+   l) Fix bugs in mass core version related to land-sea flag.  Previous gsi 
+      versions had this flag backwards.  This error arose from the fact that
+      the nmm core uses 1 for sea and 0 for land.  The same convention was
+      assumed for the mass core.  The mass core actually uses the more 
+      conventional 0 for sea, 1 for land.
+
+   m) Create library which contains Community Radiative Transfer Model (CRTM, 
+      formerly OPTRAN).  The CRTM library also includes Paul van Delst's sea
+      surface infrared emissivity model (IRSSE) and various profile utilities
+      (specifically geopotential height calculation).  With creation of the 
+      library, CRTM, IRSSE, and profile utility source code files are removed
+      from the gsi source directory.  On the NCEP IBM SP, users will now find
+      these routines in /nfsuser/g01/wx20rt/global_gsi/sorc/crtm/  The CRTM 
+      library is in /nfsuser/g01/wx20rt/global_gsi/lib/ while required module
+      (include) files are found in /nfsuser/g01/wx20rt/global_gsi/include.  The 
+      gsi make points to both the CRTM library and modules in 
+      /nfsuser/g01/wx20rt/global_gsi.   NCEP users may maintain these paths or
+      install the CRTM library and modules in their own directories and edit 
+      the gsi make accordingly.  External users must follow this second option
+      (install and edit make).
+      
+   n) Replace variable kind definition module type_kinds.mod with kinds.mod
+      This was done because type_kinds.mod belongs to the CRTM which is now 
+      a library.  In doing this, user defined data types are redefined as
+      follows:
+
+      type_kinds    kinds      definition
+      ----------    -----      ----------
+      byte     -->  i_byte     1-byte integer
+      short    -->  i_short    2-byte integer
+      long     -->  i_long     4-byte integer
+      llong    -->  i_llong    8-byte integer
+      ip_kind  -->  i_kind     generic integer type (currently i_kind=i_long)
+      single   -->  r_single   4-byte real
+      double   -->  r_double   8-byte real 
+      quad     -->  r_quad     16-byte real  
+      fp_kind  -->  r_kind     generic real type (currently r_kind=r_double)
+
+      Please do not use type_kinds data type defintions in GSI code.  Instead
+      please use kinds data type definitions (e.g, use r_kind, NOT fp_kind).
+      After this update, any gsi code submitted for inclusion in future
+      updates must use kinds.mod type definitions.  
+      CODE CONTAINING type_kinds.mod DEFINITIONS WILL BE RETURNED TO THE 
+      DEVELOPER.
+
+   o) Replace grid <--> spectral routines with NCEP sp library routines
+
+   p) Remove -qrealsize=8 option from gsi make.  Users must explicity type
+      variables, parameters, and constants if double (r_kind) floating point
+      precision is desired
+
+   q) Remove factor of 4 reduction in observation errors for IR and MSU
+      brightness temperatures.  (code had new_varinv = 0.25*old_varinv,
+      this line is now removed)
+
+   r) Remove square from inverse observation error when running code in single
+      observation mode
+
+
+
+SPECIAL NOTES
+-------------
+ PLEASE note the following items as they may affect your build/running of and/or 
+ results from the updated gsi code:
+
+   a) The updated gsi links in WRF and NETCDF libraries.  Verision 3.5.0 of the 
+      NETCDF library is used.  The WRF library used in the code is a local 
+      EMC/NCEP build.  External users (i.e., outside the NCEP supercomputing 
+      environment, aka CCS) will need to provide these libraries.  Doing so 
+      may prove to be the greatest challenge in getting the updated GSI code 
+      to compile on other platforms.  The address for the WRF web site is 
+      http://www.wrf-model.org.  Users will need to register to gain access 
+      to WRF source code.  NETCDF code may be obtained by going to 
+      http://my.unidata.ucar.edu/content/software/netcdf/index.html
+
+   b) With this update, source code for the Community Radiative Transfer Model
+      (CRTM, formerly OPTRAN) is removed from the gsi directory.  The CRTM is
+      now compiled separately and the CRTM library is simply linked in during the
+      load step of the gsi make.  For users working on the NCEP CCS the existing
+      Makefile properly points to the CRTM library.  External users will need to
+      build the CRTM library and modify the Makefile accordingly.
+
+   c) Configuration files for IRIX, IRIX64, and OSF1 still include -r8 (double
+      real expansion).  Leaving the -r8 compile option MAY cause problems when 
+      compiling the updated code on these platforms.  Correcting the problem may 
+      be as simple as removing -r8 from the Makefile.conf file in question.  
+      However, without access to these platforms to test this, it is uncertain
+      what additional steps users may need to make to the Makefile.conf* files
+      Users who build the gsi on other platforms are encouraged to submit the
+      required Makefile.conf* changes for inclusion in future gsi updates.
+
+   d) With the removal of -qrealize=8 from the gsi make, users must explicitly type
+      variables, parameters, and constants if double (r_kind) floating point
+      precision is desired.  Extreme care was taken with this update to ensure
+      bitwise identical results whether or not -qrealsize=8 is included in the
+      gsi make.  Developers will need to ensure the precision at which 
+      calculations are done through proper typing of all variables, parameters,
+      and constants.
+
+   e) PLEASE DO NOT USE type_kinds.mod data type defintions in gsi code.
+      PLEASE USE kinds.mod data type definitions (e.g, use r_kind, NOT fp_kind)
+
+   f) The scaling parameters need to be increased relative to the values used in
+      the past since the weighting coefficients for the horizontal smoothing have
+      been reduced to be 1/3 for each of the 3 scales.  The new scaling parameters
+      in the updated run scripts have been adjusted to produce comparable analysis
+      increments when compared to previous gsi versions using the old scaling 
+      parameters.  "Comparable" does not equal "identical".  Users should note
+      this  difference.
+
+   g) Removal of the 0.25 factor from the inverse observation error for IR and
+      MSU brightness temperatures obviously alters the final analysis in a 
+      non-trivial manner.
+
+   g) More notes related to regional gsi and WRF I/O
+      - When running with WRF NETCDF restart files, the file can be updated in  
+        place (i.e., analysis updates written directly to input file).  To 
+        reduce confusion, however, the user might want to copy the input 
+        restart file into a file with the desired analysis file name before 
+        running the analysis.
+
+        There are additional namelist parameters, "wrf_ges_filename" and 
+        "wrf_anl_filename" which can be the same name in the netcdf case, or, 
+        if a copy is made, use the two different names.
+
+      - When running with WRF BINARY format restart files, the file is not updated 
+        in place.  A new file is created, which must be different from the input 
+        file name.  However, it is not necessary to copy the input file into the 
+        output file before running the analysis.
+
+      - This initial implementation of WRF I/O is probably the least efficient 
+        approach.  All that was done was to install the relevant parts of the 
+        old diffwrf code as subroutines called at the beginning and end of gsimain.  
+        They still create the same temporary binary file which is later read in.  
+        The difference is that this is now an internal process, making it easier 
+        for users familiar with wrf files to use the gsi code.  Later, changes 
+        can be made to eliminate the excessive i/o that this version contains.  
+        In the binary case, it should be possible to use MPI I/O for dramatic 
+        improvement in performance.  For the netcdf case, it is not so clear, 
+        but perhaps is of less importance, since NCEP operations will always be 
+        running with the binary format.
+
+   h) The SST analysis is still under development (even though many errors removed)
+   i) The Makefile has problems: it gets broken when COREROOT is redefined as in this
+      tag; this will be changed as I patch to the tag. Moreover, the various libraries
+      added to the Makefile should come from BASELIB; this will also change as a patch.
+   j) The packages: ieee_amsu and snwem_amsu have arrays that are out-of-bounds; will
+      be fixes in patch.
+
+
+
+EXPECTED DIFFERENCES
+--------------------
+ Expected differences when comparing results from the updated gsi code with the
+ previous version include the following:
+   a) Differences in analysis results from changes of dx and dy through horizontal
+      scales and psichi2uv calculations.
+
+   b) Standard pressure used to compute proxy pressure in read_prepbufr, which is 
+      then used to inflate observation error will lead to small differences
+
+   c) Coefficients for multi- horizontal scales sum to one, meaning background error
+      variance magnitudes no longer need to be reduced as much
+
+   d) Removal of 0.25 factor from inverse observation error for IR and MSU radiances
+      leads to larger influence from these data types
+
+   e) Use of sp lib routines for grid <--> spectral transforms leads to roundoff 
+      differences when compared to old transform routines
+
+
+
+FILES REMOVED
+-------------
+Atmospheric_Properties.f90     - moved to CRTM library (bundled with CRTM but not part
+                                 of CRTM; actually belongs to Profile_Utility package)
+Compare_Float_Numbers.f90      - Community Radiative Transfer Model (CRTM, formerly 
+                                 OPTRAN) routine moved to CRTM library
+EmisCoeff_Binary_IO.f90        - moved to CRTM library (bundled with CRTM but not part
+                                 of CRTM; actually belongs to IRSSE package)
+EmisCoeff_Define.f90           - moved to CRTM library (part of IRSSE package)
+Geopotential.f90               - moved to CRTM library (part of Profile_Utility package)
+IRSSE_Coefficients.f90         - moved to CRTM library (part of IRSSE package)
+IRSSE_Model.f90                - moved to CRTM library (part of IRSSE package)
+Level_Layer_Conversion.f90     - moved to CRTM library (part of Profile_Utility package)
+Profile_Utility_Parameters.f90 - moved to CRTM library (part of Profile_Utility package)
+SpcCoeff_Binary_IO.f90         - moved to CRTM library
+SpcCoeff_Define.f90            - moved to CRTM library
+TauCoeff_Binary_IO.f90         - moved to CRTM library
+TauCoeff_Define.f90            - moved to CRTM library
+Units_Conversion.f90           - moved to CRTM library (part of Profile_Utility package)
+absorber_profile.f90           - moved to CRTM library
+coefficient_utility.f90        - moved to CRTM library
+dgetmo.F90                     - obsolete due to use of splib routines
+error_handler.f90              - moved to CRTM library
+file_utility.f90               - moved to CRTM library
+forward_model.f90              - moved to CRTM library
+fundamental_constants.f90      - moved to CRTM library
+g2s1.F90                       - replaced by use of splib routines for  
+                                 grid <--> spectral transforms
+getlalo.F90                    - obsolete due to use of splib routines
+getpln.f90                     - obsolete due to use of splib routines
+hoper.f90                      - functionality replaced by bkgcov and bkgvar
+htoper.f90                     - functionality replaced by bkgcov and bkgvar
+inguesfc.F90                   - rewritten without IBM MPI extenstions (now named 
+                                 inguesfc.f90)
+initialize.f90                 - moved to CRTM library
+k_matrix_model.f90             - moved to CRTM library
+m1glat.f90                     - obsolete due to use of splib routines
+m1ipqr.f90                     - obsolete due to use of splib routines
+m1poly.f90                     - obsolete due to use of splib routines
+m1rcons.f90                    - obsolete due to use of splib routines
+parameters.f90                 - moved to CRTM library
+predictors.f90                 - moved to CRTM library
+radiance.f90                   - moved to CRTM library
+s2g1.F90                       - replaced by use of splib routines for  
+                                 grid <--> spectral transforms
+sensor_planck_routines.f90     - moved to CRTM library
+specmod.F90                    - remove IBM MPI extensions (now called specmod.f90)
+spectral_coefficients.f90      - moved to CRTM library
+transmittance.f90              - moved to CRTM library
+transmittance_coefficients.f90 - moved to CRTM library
+type_kinds.f90                 - moved to CRTM library
+
+
+
+FILES ADDED
+-----------
+bkgcov.f90               - apply background error (variances, vertical and horizontal
+                           smoothing)
+bkgvar.f90               - multiply by background error variances, and perform 
+                           appropriate manipulation of skint <--> sst,slndt,sicet 
+                           fields (replaces hoper & htoper)
+kinds.f90                - replace CRTM module type_kinds.f90
+transform.f90            - provide interface to sp lib routines for grid <--> spectral 
+                           transforms
+wrf_binary_interface.f90 - interface to binary wrf files
+wrf_netcdf_interface.f90 - interface to netcdf wrf files
+
+
+
+FILES MODIFIED
+-------------- 
+ajmpcp.f90               - use kinds.mod for type definitions; explicitly set constant
+                           type (e.g., instead of coding X = 0.5*Y 
+                                          --> rewrite as X = 0.5_r_kind*Y
+                           Adding r_kind was necessary to ensure bitwise identical 
+                           results after removing -qrealsize=8 from the GSI make)
+balance.f90              - use kinds.mod for type definitions
+berror.f90               - remove dx, dy (use region_dx, region_dy in gridmod instead);
+                           use hzscl parameter (hs/factor removed);
+                           use kinds.mod for type definitions
+bkerror.f90              - change calling sequence to reflect new background error 
+                           routines (*medium impact on resulting analysis -- when 
+                           ridding of 0.5 factor for SF/VP); use kinds.mod for type 
+                           definitions
+compute_pcp_grad.f90     - use kinds.mod for type definitions; remove 
+                           compute_pcp_grad_single routine
+constants.f90            - change standard atm pressure to units of Pa; add mass core 
+                           value for cp; use kinds.mod for type definitions
+deter_subdomain.f90      - use kinds.mod for type definitions
+deternpe.f90             - use kinds.mod for type definitions; explicitly set  
+                           constant type
+dprodx.F90               - use kinds.mod for type definitions
+dtast.f90                - add flexibility for number of possible types (for sst); 
+                           add intent; use kinds.mod for type definitions
+dvast.f90                - add flexibility for number of possible types, add intent;
+                           use kinds.mod for type definitions
+emiss.f90                - correct program history log; use kinds.mod for type 
+                           definitions; explicitly set constant type; alter calls 
+                           to certain intrinsic functions to mainain same precision 
+                           when remove -qrealsize=8 from GSI make
+emiss_ssmi.f90           - use kinds.mod for type definitions; explicitly set constant 
+                           type; alter calls to certain intrinsic
+fill_mass_grid2.f90      - add options for array arrangement; use kinds.mod for type  
+                           definitions; explicitly set constant type
+fill_nmm_grid2.f90       - add options for array arrangement; use kinds.mod for type
+                           definitions; explicitly set constant type
+fpvsx_ad.f90             - use kinds.mod for type definitions; explicitly set 
+                           constant type
+gaussian.f90             - use kinds.mod for type definitions; explicitly set 
+                           constant type
+gengrid_vars.f90         - remove sigll references; simplify global portion of code 
+                           due to generation of gaussian latitude, weights, and 
+                           related quantities using splib routines; use kinds.mod 
+                           for type definitions
+genqsat.f90              - use kinds.mod for type definitions; explicitly set 
+                           constant type
+glbsoi.f90               - use kinds.mod for type definitions
+grdcrd.f90               - use kinds.mod for type definitions
+grdsphdp.f90             - use kinds.mod for type definitions
+grid2sub.f90             - use kinds.mod for type definitions
+gridmod.f90              - read in dx and dy from nmm/mc files; no longer define 
+                           sigll array; use kinds.mod for type definitions; 
+                           explicitly set constant type; add routines fill_ns and 
+                           load_grid for use with splib transforms
+gscond_ad.f90            - use kinds.mod for type definitions; explicitly set 
+                           constant type
+gsimain.F90              - add hzscl variable to namelist; add new namelist variables
+                           "wrf_nmm_filename", "wrf_mass_filename", "netcdf", and calls
+                           to wrf interface routines; use kinds.mod for type definitions
+gsisub.f90               - no longer compute proxy sigl surfaces for hybrid; remove 
+                           obsolete call to getlalo; only call destroy_spec_vars for 
+                           global mode; use kinds.mod for type definitions
+guess_grids.f90          - use defined constant instead of local variable for kappa;
+                           remove double_ges and double_bias logical flags; add array
+                           prslk for use with wrf mass core; use kinds.mod for type 
+                           definitions; explicitly set constant type
+half_nmm_grid2.f90       - add options for array arrangement; use kinds.mod for type
+                           definitions; explicitly set constant type
+hopers.f90               - use kinds.mod for type definitions; explicitly set constant
+                           type; use splib routines for grid <--> spectral transforms
+iceem_amsu.f90           - use kinds.mod for type definitions; explicitly set constant
+                           type
+inguesfc.f90             - replace inguesfc.F90; use kinds.mod for type definitions;
+                           use different mpi strategy to distribute global grids to
+                           sub-domains
+inisph.f90               - use kinds.mod for type definitions
+init_commvars.f90        - different halo treatment for regional; use kinds.mod for 
+                           type definitions
+intall.F90               - use kinds.mod for type definitions
+intdw.f90                - use kinds.mod for type definitions
+intlimq.f90              - use kinds.mod for type definitions
+intoz.f90                - use kinds.mod for type definitions
+intpcp.f90               - use kinds.mod for type definitions
+intps.f90                - use kinds.mod for type definitions
+intpw.f90                - use kinds.mod for type definitions
+intq.f90                 - use kinds.mod for type definitions
+intrad.f90               - use kinds.mod for type definitions
+intref.f90               - use kinds.mod for type definitions
+intrp2a.f90              - use kinds.mod for type definitions
+intrp3.f90               - use kinds.mod for type definitions
+intrp3oz.f90             - use kinds.mod for type definitions
+intrppx.f90              - use kinds.mod for type definitions; explicitly set 
+                           constant type
+intrw.f90                - use kinds.mod for type definitions
+intspd.f90               - use kinds.mod for type definitions
+intsrw.f90               - use kinds.mod for type definitions
+intsst.f90               - use kinds.mod for type definitions
+intt.f90                 - use kinds.mod for type definitions
+intw.f90                 - use kinds.mod for type definitions
+jfunc.f90                - use kinds.mod for type definitions; explicitly set 
+                           constant type
+landem.f90               - update documentation, include references;  use kinds.mod
+                           for type definitions; explicitly set constant type; alter
+                           calls to certain intrinsic functions to mainain same
+                           precision when remove -qrealsize=8
+locatelat_reg.f90        - generalize to adapt various domain and resolution; 
+                           use kinds.mod  for type definitions
+mpimod.F90               - use kinds.mod for type definitions; remove routines 
+                           reorder_single, reorder2_single; and reload_single
+nlmsas_ad.f90            - use kinds.mod for type definitions; explicitly set 
+                           constant type
+obs_para.f90             - use kinds.mod for type definitions
+obsmod.f90               - use kinds.mod for type definitions; correct sst comments
+omegas_ad.f90            - use kinds.mod for type definitions
+oneobmod.f90             - use kinds.mod for type definitions; explicitly set 
+                           constant type
+ozinfo.f90               - use kinds.mod for type definitions
+pcgsoi.f90               - use kinds.mod for type definitions; explicitly set 
+                           constant type
+pcpinfo.F90              - use kinds.mod for type definitions; explicitly set 
+                           constant type
+polcarf.f90              - use kinds.mod for type definitions
+precpd_ad.f90            - use kinds.mod for type definitions
+prepdw.f90               - use kinds.mod for type definitions
+prepp.f90                - use kinds.mod for type definitions; explicitly set 
+                           constant type
+preppw.f90               - use kinds.mod for type definitions
+prepq.f90                - use kinds.mod for type definitions; explicitly set 
+                           constant type
+prepref.f90              - remove unused variable siglw; use kinds.mod for  
+                           type definitions
+preprw.f90               - remove unused variable siglrw; use kinds.mod for 
+                           type definitions
+prepsrw.f90              - use kinds.mod for type definitions
+prepsst.f90              - use kinds.mod for type definitions
+prept.f90                - use kinds.mod for type definitions; explicitly set 
+                           constant type
+prepw.f90                - use kinds.mod for type definitions
+prewgt.f90               - remove ks, variable 'hs' no longer applicable to 
+                           horizontal scales; use kinds.mod for type definitions; 
+                           explicitly set constant type
+prewgt_reg.f90           - remove dx, dy and use region_dx, region_dy (*); variable 'hs' 
+                           no longer applicable to horizontal scales; use kinds.mod for
+                           type definitions; explicitly set constant type
+psichi2uv_reg.f90        - use region_dx, region_dy (*); use kinds.mod for 
+                           type definitions
+psichi2uvt_reg.f90       - use region_dx, region_dy (*); use kinds.mod for 
+                           type definitions
+qcmod.f90                - use kinds.mod for type definitions; explicitly set 
+                           constant type
+rad_tran_k.f90           - use kinds.mod for type definitions; explicitly set 
+                           constant type
+radinfo.f90              - use kinds.mod for type definitions
+rdgesfc.f90              - use kinds.mod for type definitions
+rdgesig.f90              - use kinds.mod for type definitions; use splib routines for
+                           spectral --> grid transforms; fix mpi bug for case when
+                           number of mpi tasks > 2*nsig; remove routine rdgesig_single
+rdgstat_reg.f90          - use kinds.mod for type definitions
+rdsfull.f90              - use kinds.mod for type definitions
+read_airs.f90            - use kinds.mod for type definitions; explicitly set 
+                           constant type
+read_avhrr_navy.f90      - use kinds.mod for type definitions; explicitly set 
+                           constant type
+read_bufrtovs.f90        - use kinds.mod for type definitions; explicitly set 
+                           constant type
+read_files.F90           - use kinds.mod for type definitions; explicitly set 
+                           constant type
+read_goesimg.f90         - use kinds.mod for type definitions; explicitly set 
+                           constant type
+read_goesndr.f90         - use kinds.mod for type definitions; explicitly set 
+                           constant type
+read_gps_ref.f90         - use kinds.mod for type definitions; explicitly set 
+                           constant type
+read_guess.f90           - use kinds.mod for type definitions; remove code to call 
+                           rdgesig_single and compute_pcp_grad_single
+read_ieeetovs.f90        - use kinds.mod for type definitions
+read_lidar.f90           - use kinds.mod for type definitions
+read_obs.f90             - use kinds.mod for type definitions
+read_ozone.f90           - use kinds.mod for type definitions
+read_pcp.f90             - use kinds.mod for type definitions; explicitly set 
+                           constant type
+read_prepbufr.f90        - fix many errors in reading of sst data; use kinds.mod for 
+                           type definitions; explicitly set constant type
+                           modified calculation of proxy model pressure (*medium);
+                           for regional model use obs error from table
+read_radar.f90           - use kinds.mod for type definitions
+read_superwinds.f90      - use kinds.mod for type definitions
+read_wrf_mass_files.F90  - use kinds.mod for type definitions; explicitly set 
+                           constant type
+read_wrf_mass_guess.f90  - add arguments for changes in fill_mass_grid2; fix error in 
+                           land-sea mask; use kinds.mod for type definitions; explicitly 
+                           set constant type
+read_wrf_nmm_files.F90   - use kinds.mod for type definitions; explicitly set 
+                           constant type
+read_wrf_nmm_guess.f90   - add arguments for changes in fill/half_nmm_grid2; use 
+                           kinds.mod for type definitions; explicitly set constant 
+                           type
+rfdpar.f90               - add intent; remove complex numbers from rfdparv; use 
+                           kinds.mod for type definitions; alter calls to certain 
+                           intrinsic functions to mainain same precision when 
+                           remove -qrealsize=8 from GSI make
+rsearch.F90              - use kinds.mod for type definitions 
+satthin.F90              - use kinds.mod for type definitions; explicitly set 
+                           constant type
+setupdw.f90              - use kinds.mod for type definitions
+setupoz.f90              - use kinds.mod for type definitions
+setuppcp.f90             - use kinds.mod for type definitions
+setupps.f90              - use kinds.mod for type definitions; explicitly set constant 
+                           type; remove square from inverse observation error for single
+                           observation mode
+setuppw.f90              - change conversion of standard atmosphere pressure 
+                           consistent with change to constants.f90; use kinds.mod 
+                           for type definitions
+setupq.f90               - use kinds.mod for type definitions; explicitly set constant 
+                           type; remove square from inverse observation error for single
+                           observation mode
+setuprad.f90             - correct program history log; use kinds.mod for type 
+                           definitions; explicitly set constant type; remove 0.25 
+                           factor from weighting given to IR and MSU radiances
+setupref.f90             - use kinds.mod for type definitions
+setuprhsall.f90          - allow 201 possible types for sst; use kinds.mod for type 
+                           definitions
+setuprw.f90              - use kinds.mod for type definitions
+setupspd.f90             - use kinds.mod for type definitions
+setupsrw.f90             - use kinds.mod for type definitions
+setupsst.f90             - fix errors in using conventional sst data; use kinds.mod for  
+                           type definitions; remove square from inverse observation 
+                           error for single observation mode
+setupt.f90               - use kinds.mod for type definitions; explicitly set constant 
+                           type; remove square from inverse observation error for single
+                           observation mode
+setupw.f90               - use kinds.mod for type definitions; explicitly set constant
+                           type; remove square from inverse observation error for single
+                           observation mode
+simpin1.f90              - use kinds.mod for type definitions
+simpin1_init.f90         - use kinds.mod for type definitions
+smooth121.f90            - use kinds.mod for type definitions; explicitly set 
+                           constant type
+smoothrf.f90             - remove unnecessary computations from recursive filter, add
+                           routine rfhyt (from rfhy), add intent, index from 1-ny rather
+                           than 0-nym; changes reflect new variables being passed in;
+                           add in/out intent; use kinds.mod for type definitions
+smoothwwrf.f90           - use kinds.mod for type definitions; explicitly set 
+                           constant type
+smoothzrf.f90            - use kinds.mod for type definitions
+snwem_amsu.f90           - correct program history log; use kinds.mod for 
+                           type definitions;
+                           explicitly set constant type; alter calls to certain intrinsic
+                           functions to mainain same precision when remove -qrealsize=8
+                           from GSI make
+specmod.f90              - replaced specmod.F90; use kinds.mod for type definitions; use
+                           splib routine to initialize constants used in 
+                           grid <--> spectral transforms
+sprdw.f90                - use kinds.mod for type definitions
+sproz.f90                - use kinds.mod for type definitions
+sprp.f90                 - use kinds.mod for type definitions; explicitly set 
+                           constant type
+sprpw.f90                - use kinds.mod for type definitions
+sprq.f90                 - use kinds.mod for type definitions; explicitly set 
+                           constant type
+sprref.f90               - use kinds.mod for type definitions
+sprrw.f90                - use kinds.mod for type definitions
+sprspd.f90               - use kinds.mod for type definitions
+sprsrw.f90               - use kinds.mod for type definitions
+sprsst.f90               - fix errors in using conventional sst data; allow 201 
+                           possible types for sst; use kinds.mod for type definitions;
+                           explicitly set constant type
+sprt.f90                 - use kinds.mod for type definitions
+spruv.f90                - use kinds.mod for type definitions
+sst_retrieval.f90        - use kinds.mod for type definitions
+statsconv.f90            - use kinds.mod for type definitions; explicitly set 
+                           constant type;
+                           add variable ntype (= number of obs type) to dtast 
+                           and dvast calls
+statsoz.f90              - use kinds.mod for type definitions
+statspcp.f90             - use kinds.mod for type definitions; explicitly set 
+                           constant type
+statsrad.f90             - use kinds.mod for type definitions; explicitly set 
+                           constant type
+stop1.f90                - use kinds.mod for type definitions
+stpcalc.f90              - use kinds.mod for type definitions
+stpdw.f90                - use kinds.mod for type definitions
+stplimq.f90              - use kinds.mod for type definitions
+stpoz.f90                - use kinds.mod for type definitions
+stppcp.f90               - use kinds.mod for type definitions
+stpps.f90                - use kinds.mod for type definitions
+stppw.f90                - use kinds.mod for type definitions
+stpq.f90                 - use kinds.mod for type definitions
+stprad.f90               - use kinds.mod for type definitions
+stpref.f90               - use kinds.mod for type definitions
+stprw.f90                - use kinds.mod for type definitions
+stpspd.f90               - use kinds.mod for type definitions
+stpsrw.f90               - use kinds.mod for type definitions
+stpsst.f90               - use kinds.mod for type definitions
+stpt.f90                 - use kinds.mod for type definitions
+stpw.f90                 - use kinds.mod for type definitions
+stvp2uv.f90              - use kinds.mod for type definitions
+stvp2uv_reg.f90          - use kinds.mod for type definitions
+sub2grid.f90             - use kinds.mod for type definitions
+sumload.f90              - use kinds.mod for type definitions
+tbalance.f90             - use kinds.mod for type definitions
+tintrp2a.f90             - use kinds.mod for type definitions
+tintrp3.f90              - use kinds.mod for type definitions
+tpause.f90               - use kinds.mod for type definitions; explicitly 
+                           set constant type
+tpause_t.F90             - use kinds.mod for type definitions; explicitly set 
+                           constant type
+tstvp2uv.f90             - use kinds.mod for type definitions
+tstvp2uv_reg.f90         - use kinds.mod for type definitions
+unfill_mass_grid2.f90    - change array arrangement; use kinds.mod for type definitions; 
+                           explicitly set constant type
+unfill_nmm_grid2.f90     - add options for array arrangement; use kinds.mod for type 
+                           definitions
+unhalf_nmm_grid2.f90     - add options for array arrangement; use kinds.mod for type  
+                           definitions
+update_ggrid.f90         - use kinds.mod for type definitions
+write_all.f90            - use kinds.mod for type definition; remove calls to 
+                           wrsiga_single
+wrsfca.F90               - use kinds.mod for type definition
+wrsiga.f90               - use kinds.mod for type definition; use splib routines for
+                           grid --> spectral tranforms; remove routine wrsiga_single
+wrwrfmassa.f90           - fix mpp gathering; use kinds.mod for type definition;
+                           explicitly set constant type; use variable prslk from 
+                           guess_grids
+wrwrfnmma.f90            - fix mpp gathering; use kinds.mod for type definition;
+                           explicitly set constant type
+
+
+
+MAKEFILE CHANGES
+----------------
+ Makefile - The following changes are made:
+   a) files included in the FILES REMOVED list above are removed
+
+   b) files included in the FILES ADDED list above are added
+
+   c) redefine COREROOT=/nfsuser/g01/wx20rt/global_gsi to allow NCEP CCS users to 
+      automatically include CRTM and related modules and library.  
+      ***NOTE***  External users will need to change this to point to location
+                  where crtm library and modules reside on local machine
+
+   d) add variable LIBcrtm (points to libcrtm.a) to link in CRTM + IRSSE + profile
+      utility routines
+
+   e) add variables NETCDFPATH, NCDLIBS, WRFPATH, and WRFLIB, where
+       NETCDFPATH - path to netcdf library (currently using version 3.5.0)
+       NCDLIBS    - name given to netcdf library (libnetcdf_64.a)
+       WRFPATH    - path to WRF library
+       WRFLIB     - name given to WRF libraries plus the I/O object files.
+                    The WRFLIB files used are libwrfio_int.a, libwrfio_nf.a,
+                    header_util.o, and pack_utils.o
+
+
+ Makefile.dependency - The following changes are made:
+   a) files included in the FILES REMOVED list above are removed
+
+   b) files included in the FILES ADDED list above are added
+
+
+ Makefile.conf.AIX - The following changes are made:
+   a) add -I $(COREINC) to FFLAGS_COM_N FFLAGS_COM_D targets.  This is done 
+      to allow make to locate CRTM modules
+
+   b) add $(LIBcrtm) to LIBS_N target.  This is the CRTM library
+
+   c) add $(NCDLIBS) and $(WRFLIB) to LDFLAGS_N target.  These point to 
+      the netcdf and wrf libraries (+ include files)
+
+   d) add "-qsmp=noauto" option to LDFLAGS_N target.  Use of this option required
+      when linking in NCEP splib
+
+ Please note that the configure files (Makefile*conf) for other platforms (IRIX,
+ IRIX64, and OSF1) have NOT BEEN UPDATED to reflect the above changes to 
+ Makefile.conf.AIX.  Since the above changes depend on local environments, it
+ was felt best to leave modification of these files to external users.  External
+ users are welcome to submit modifications to the IRIX, IRIX64 and/or OSF1
+ Makefile.conf files for inclusion in future gsi updates.
+
+
+
+SCRIPT CHANGES
+--------------
+ The following changes are made to scripts which run the gsi:
+
+   a) in both regional and global gsi scripts, "hs" parameter is removed and
+      replaced with namelist variable "hzscl( )".  hzscl specifies the factor
+      by which to reduce horizontal scales for the multi-scale horizontal
+      smoothing (replaces coefhor and factor in old berror/bkerror routines)
+
+      Previously the following parameters were used
+       - global  :  as=0.4,0.4,0.3,0.6,1.0,0.6,1.0,1.0,vs=0.5,hs=1.0
+       - regional:  as=0.2,0.2,0.2,0.3,0.3,0.5,1.0,1.0,vs=0.5,hs=2.0
+
+      With this update the folllowing parameters should be use
+       - global  :  as=0.75,0.75,0.80,1.00,1.00,1.00,vs=0.7,hzscl=1.0,2.0,4.0
+       - regional:  as=0.35,0.35,0.35,0.50,0.50,0.80,1.0,1.0,vs=0.5,hzscl=0.5,1.0,2.0
+
+   b) scripts rungsi_regional_mass.sh and rungsi_regional_nmm.sh are replaced
+      by four scripts:  
+        1) rungsi_regional_mass_binary.sh - mass core gsi with WRF binary i/o
+        2) rungsi_regional_mass_netcdf.sh - mass core gsi with WRF netcdf i/o
+        3) rungsi_regional_nmm_binary.sh  - nmm core gsi with WRF binary i/o
+        4) rungsi_regional_nmm_netcdf.sh  - nmm core gsi with WRF netcdf i/o
+   
+   c) regional only:  add namelist variables to namelist 
+       - variable netcdf = .false. for binary input
+                  netcdf = .true.  for netcdf input
+       - variable wrf_nmm_ges_filename = 'user.wrf.restart.ges.filename'
+       - variable wrf_nmm_anl_filename = 'user.wrf.restart.anl.filename'
+
+   d) regional only, netcdf input only:  make copy of input restart file 
+      to output restart file, unless user doesn't want to keep original 
+      input file.  In netcdf, the output file is created by updating the 
+      input file in place.
+
+
+
+FIX FILE CHANGES
+----------------
+   none
+
+
+
+TEST RESULTS
+------------
+Old code:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs.200407/
+New code:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/
+Machine :  NCEP IBM SP (snow)
+
+
+
+GLOBAL T254L64 TEST
+-------------------
+Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_global.sh
+
+Max memory
+   old:  762868 Kbytes (33 mpi tasks, blocking=unlimited)
+   new:  776220 Kbytes
+
+Wall clock
+   old:  2004.276772 seconds
+   new:  1915.031904 seconds  
+
+Output from the first iteration of the minimization
+old:  0: penalty,grad ,a,b=   1   0 0.354065267633119132E+06 0.825849238258836698E+07 0.213195029427503758E-02 0.000000000000000000E+00
+new:  0: penalty,grad ,a,b=   1   0 0.375101633950118965E+06 0.917158963869817927E+07 0.266512029293313780E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old:  0: penalty,grad ,a,b=   3   1 0.196369876203221676E+06 0.922299678978382690E+04 0.762571854641385521E-03 0.110463689897665396E+01
+new:  0: penalty,grad ,a,b=   3   1 0.210217171836203692E+06 0.169486725006137931E+05 0.873917556348533420E-03 0.251572621449335276E+01
+
+
+
+REGIONAL NMM BINARY TEST
+------------------------
+Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_nmm_binary.sh
+
+Max memory
+   old:
+   new:  414240 Kbytes (24 mpi tasks, blocking=unlimited)
+
+Wall clock
+   old:
+   new:  831.081641 seconds
+
+Output from the first iteration of the minimization
+old:
+new:  0: penalty,grad ,a,b=   1   0 0.383500643210975468E+05 0.320365497346813907E+06 0.424743164698680557E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old:
+new:  0: penalty,grad ,a,b=   3   1 0.319201036747078215E+05 0.260775299593357886E+05 0.959424214900011021E-02 0.216112406400465556E+00
+
+
+
+REGIONAL NMM NETCDF TEST
+------------------------
+Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_nmm_netcdf.sh
+
+Max memory
+   old:
+   new:  414228 Kbytes (24 mpi tasks, blocking=unlimited)
+
+Wall clock
+   old:
+   new:  836.84133 seconds
+
+Output from the first iteration of the minimization
+old:
+new:  0: penalty,grad ,a,b=   1   0 0.406171569596309782E+05 0.576897820438568713E+06 0.345915036218752067E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old:
+new:  0: penalty,grad ,a,b=   3   1 0.330573197648030618E+05 0.403404138336744800E+05 0.476795973215881318E-02 0.902275748987760862E+00
+
+
+
+REGIONAL MASS BINARY TEST
+-------------------------
+Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_mass_binary.sh
+
+Max memory
+   old:
+   new:  349284 Kbytes (24 mpi tasks, blocking=unlimited)
+
+Wall clock
+   old:
+   new:  822.127744 seconds
+
+Output from the first iteration of the minimization
+old:
+new:  0: penalty,grad ,a,b=   1   0 0.419010570044062551E+05 0.114746409641415197E+08 0.429445761461241208E-03 0.000000000000000000E+00
+ 
+Output from the final iteration of the minimization
+old:
+new:  0: penalty,grad ,a,b=   3   1 0.193988550342551789E+05 0.143643954733790102E+06 0.502750373299840092E-03 0.206210539306052681E+00
+
+
+
+REGIONAL MASS NETCDF TEST
+-------------------------
+Script:  /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/rungsi_regional_mass_netcdf.sh
+
+Max memory
+   old:
+   new:  363928 Kbytes (24 mpi tasks, blocking=unlimited)
+
+Wall clock
+   old:
+   new:  554.149347 seconds
+
+Output from the first iteration of the minimization
+old:
+new:  0: penalty,grad ,a,b=   1   0 0.461825113568168817E+05 0.468286171393012162E+06 0.102909086120343569E-01 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old:
+new:  0: penalty,grad ,a,b=   3   1 0.352567833276851525E+05 0.243024221646153528E+05 0.125768492428096623E-01 0.385906265827063444E+00
+
+

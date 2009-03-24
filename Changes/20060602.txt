@@ -1,0 +1,1089 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+---------------------------------
+Author(s)   :  John Derber, Jim Jung, Masahiro Kazumori, Dennis Keyser, 
+               Bob Kistler, Daryl Kleist, Emily Liu, Jacques Middlecoff, 
+               Sei-Young Park, Dave Parrish, Xiujuan Su, 
+               Ricardo Todling, Russ Treadon, Wan-Shu Wu
+Reviewer(s) :  Russ Treadon
+Date        :  2 June 2006
+GMAO CVS tag:  starting tag:  gmao-gsi-2005_12
+NCEP CVS tag:  this release:  ncep-gsi-2006_06
+
+
+
+REASON FOR CHANGES
+------------------
+Changes are made to the gsi code, fix files, and script for the following
+reasons:  (listing  below not given in any particular order)
+
+ a) Bug fixes in
+     1) correct error in counting the number of AQUA, TOVS, GOES, and SSMI 
+        observations following thinning
+     2) change assignment of NMM 10 meter u and v winds from wind points
+       (intuitive, but wrong), to mass points (correct assignment)
+     3) correctly compute geopotential height when running in MASS core mode
+     4) bound SST correlations in global background error files to fall 
+        in the range 0.0 to 1.0, inclusive
+     5) satellite zenith angle used in read_airs for AQUA AMSUA before it 
+        was given a value.  Correct code to define value before use.
+     6) assign 10m reduction factor for wind observations above 10m but
+        below midpoint of 1st model layer.  This fix only affects those
+        observations which use height to locate the observation in the 
+        vertical.
+     7) correctly declare type of nsig_up variable in intbend and stpbend
+     8) add vertical index k in adjoint for precipitable water operator
+     9) fix bugs in surface model call to intt
+
+ b) Increase the maximum number of data (observation) files which may be
+    processed from 50 to 100
+
+ c) Consolidate processing of 1x1 and 5x5 goes sounder data.  Before the
+    processing was done in separate routines.  Now it is done in single 
+    routine with logic added to handle unique features of each data type.
+
+ d) Extend option to perturb observations to include brightness temperature,
+    precipitation rate, and ozone observations.
+
+ e) Change guess field bias correction i/o to utilize flat binary file
+    on analysis domain (perviously was spectral coefficient file).  Add
+    skin temperature to fields carried in bias correction file.
+
+ f) Generalize global model vertical coordinate specification to ak,bk,ck
+    forumlation.  Isolate explicit references of regional vertical 
+    coordinate to regional guess file I/O routines and subroutine 
+    load_prsges.
+
+ g) Move update of bias correction coefficients and skin temperature from
+    end of pcgsoi into routine update_guess
+
+ h) Related to change f) replace use of sigma (pseudo-sigma for sigma-p) 
+    coordinate information in precipitation forward and adjoint model.
+    Now calculuate pressure profile at observation location and compute
+    location specific sigma values to be used in precipitation operator.
+
+ i) Move switch to use/not use microwave Tb sensitivity to winds (via
+    emissivivity) from setuprad to GSI namelist SETUP.  Previously the
+    logical switch, emisjac, was hardwired to .true. (on).  The new logical 
+    switch, dtbduv_on, defaults to .true. (on).  Users may over-ride this
+    by setting dtbduv_on=.false. in GSI namelist SETUP.
+
+ j) Modify read_airs.f90 and read_avhrr_navy.f90 to accomodate changes 
+    made on 12 April 2006 to NCEP BUFR tables for AIRS and AVHRR data.
+
+ k) The following changes were made to the GSI code to port it to the ESRL
+    machines ijet and ejet (compiled with the ifort compiler).  No attempt
+    was made to port to the PG compiler.
+
+    1) Changed the unit numbers in many parts of the code so two unit
+       numbers (15 and 66) could be set at run time to little endian and
+       all other unit numbers left as big endian. This is for the ifort
+       compiler and would not work for the PG compiler.  Currently, unit 66
+       is reserved for little endian input.  Unit 15 is reserved for little
+       endian output.  The actual unit numbers use are specified in gsi_io.f90
+       via variables lendin_in (=15) and lendian_out (=66).  A message stating 
+       this fact is printed from task 0 at the start of each GSI run.
+
+    2) In specmod.f90 removed jc=ncpus() because jc is not used and 
+       ncpus is not available on all machines.
+
+    3) In wrf_netcdf_interface.F90 added read of SM and SICE to match the 
+       writes in wrwrfmassa.F90.  Also read in the rest of the fields to 
+       match the writes in wrwrfmassa.F90.  Also initialize character 
+       variable staggering.
+
+    4) In support_2dvar.f90 removed mpi_request_null because it was not 
+       used and not available on ESRL jet.
+
+    5) In wrf_binary_interface.F90 replaced the open and close statements 
+       with openfileread and closefile so the read statement in next_buf 
+       could be replaced by call getbytes.
+
+    6) In setupbend.f90 and setupref.f90 change IF test to avoid 
+       out-of-bounds reference on variable DATA
+
+    7) Added error handling to subroutine update_start_date search for 
+       START_DATE and changed the search loop increment from 1 to 4 so 
+       it would work for little endian and big endian.
+
+ l) Fix bugs in setupt related to virtual temperature.  Fix bugs in 
+    sfc_model related to near surface temperatures in surface forward
+    and tangent linear models
+ 
+ m) Fix bugs related to processing of AMSR-E data.  Clean up code and 
+    remove extra procesessing which is no longer needed
+
+ n) Expand dynamic constraint to include divergence tendency formulation
+ 
+ o) Add capability to perturb background error parameters
+
+ p) Reorganize setuprad.f90 and setuppcp.f90 to process observations one
+    profile at a time.
+
+ q) Modify algorithm used to sub-divide model (guess) layers when invoking
+    CRTM.
+
+ r) Modify radar radial wind processing sections of code to process
+    level 2, 2.5, and 3 radar radial winds
+
+ s) Change regional fix files to synchronize this GSI release with soon
+    to be implemented regional WRF NMM GSI.  The following regional fix
+    files are changed:  regional_nmm_berror.f77, nam_errtable.r3dv, 
+    regional_convinfo.txt
+
+ t) Modify read_prepbufr.f90 to process GPS integrated precipitable water
+
+ u) Add check in gsimain.F90 on time window.  Default time window remains
+    +/- three hour about analysis time.  User may now specify maximum time
+    window via namelist OBS_INPUT variable time_window_max in lieu of
+    specifying time window for each observation type.  gsimain.F90 compares
+    the observation specific time window against time_window_max.  If
+    an observation time window exceeds time_window_max, the time window is
+    reset to time_window_max
+
+ v) Turn off variational qc in rungsi*sh scripts pending further tuning.
+
+ w) Change uv wind observation forward model so that surface observations
+    reported with height use height and not pressure in the forward model.
+
+
+
+
+SPECIAL NOTES
+-------------
+The following points should be noted with regards to the above
+code changes.  The lettering below, if any, corresponds to the
+"REASON FOR CHANGES" for lettering above:
+
+ n) The 2nd formulation of the dynamic constraint is significantly slower 
+    and uses more memory.  Thus far, only neutral to slightly negative 
+    results have been found, relative to the first formulation.  This is 
+    still a work in progress and should be used with caution.
+
+ v) Turn off variational qc in all test scripts.  Experimental results 
+    from runs in which variational qc was on suggest need for more
+    tuning.  Sample gsi scripts will keep variational qc off until
+    this tuning is complete.
+
+ SCRIPT and FIX FILE CHANGES:
+   Users should pay careful attention to rungsi*sh scripts.  The rungsi*sh
+   scripts have changed significantly so that the GSI setup in the scripts 
+   mimics how the GSI is run in NCEP's pre-implementation global and 
+   regional (nmm binary) parallels.
+  
+   In addition to the script changes, there are fix files changes which users
+   should note.
+
+ DIAGNOSTIC FILE CHANGES:
+   PLEASE NOTE:  The contents of the conventional and brightness temperature 
+   diagnostic files have been significanly enlarged with this update.  Any
+   user codes which process conventional or Tb diagnostic files from previous
+   GSI releases must update their codes in order to read the new format of the
+   expanded diagnostic files.  
+
+   Of greatest importance is the Tb diagnostic file which is used in the NCEP
+   global and regional data assimilation systems to update the angle dependent
+   part of the Tb bias.  This code (e.g., global_angupdate.fd for the global 
+   update) must be modified to process the new format Tb diagnostic files.
+
+
+
+
+EXPECTED DIFFERENCES
+--------------------
+The following differences are expected when comparing GSI output from
+this release from that from previous releases.  The lettering below
+corresponds to the "REASON FOR CHANGES" for lettering above:
+
+ a) Bug fixes have the following impacts:
+    1) May change data counts but not results (no impact in test cases)
+    2) No impact in current code since NMM does not use u10 and v10
+    3) Noticeably improves VAD, profiler, and PIBAL fit to guess for MASS core
+    4) Improves convergence of T382L64 hybrid global GSI
+    5) Increases number of AQUA AMSUA observations assimilated for test case
+    6) Slightly increase wind penalty for global test case.  No impact in 
+       regional nmm binary test case.
+
+ k) Change 3) has a considerable impact but the regression test did not test
+    this path
+
+ n) If running using original formulation, differences arise after the 1st
+    outer loop, due to a change/simplification in how accumulated contributions
+    from multiple outer loops is computed.  Minimization will be impacted 
+    significantly when using new formulation, weighting parameters need to be 
+    tuned as such.
+
+ w) Switch of all surface wind data to use height instead of pressure in 
+    forward model changes initial bias, vrms, and/or penalty
+
+***PLEASE*** refer to the NOTES section following each of the regression
+test results below for additional information regarding expected 
+differences between this GSI release and the previous (ncep-gsi-2006_03) 
+GSI release.
+
+
+
+
+FILES REMOVED
+-------------
+ dvast.f90               - functionality incorporated into dtast.f90
+ rad_tran_k.f90          - functionality moved into setuprad.f90
+ read_l2bufr_mod.F90     - replaced by read_l2bufr_mod.f90
+ setupjc.f90             - functionality moved to update routines in jcmod.f90
+
+
+
+
+FILES ADDED
+-----------
+ blockIO.c               - This file contains routines openfileread, getbytes,
+                           and closefile.  These routines are used to emulate
+                           a direct access read statement
+ get_tend_derivs.f90     - gets horizontal derivatives of time tendencies for 
+                           constraint
+ gsi_io.f90              - module containing routines to read/write GSI guess
+                           field bias correction file; define unit numbers for
+                           little endian input and output
+ read_l2bufr_mod.f90     - replace read_l2bufr_mod.F90
+
+
+
+
+FILES MODIFIED
+-------------- 
+ anprewgt_reg.f90        - use rlsig from call rdgstat_reg; replace sigl with
+                           ges_prslavg/ges_psfcavg
+ balmod.f90              - remove global calculation of ke_vp (not used); 
+                           replace sigl with ges_prslavg/ges_psfcavg
+ berror.f90              - add capability to perturb background error 
+                           parameters
+ calctends.f90           - replace sigi with bk5; expand to include divergence 
+                           tendency
+ calctends_ad.f90        - replace sigi with bk5; expand to include divergence
+                           & ageostrophic vorticity tendencies
+ calctends_tl.f90        - replace sigi with bk5; expand to include divergence 
+                           & ageostrophic vorticity tendencies
+ compact_diffs.f90       - add routine and adjoint to compute laplacian
+ compute_derived.f90     - remove MASS core conversion of potential to sensible
+                           temperature (now done in read routine); remove 
+                           unused arrays for guess bias correction; update call
+                           to calctends
+ constants.f90           - add rd_over_cp_mass = rd / cp_mass, and huge_i_kind
+ dtast.f90               - merge functionality of dvast.f90 into this routine
+ gengrid_vars.f90        - remove nsig,sigl (not used)
+ gesinfo.f90             - remove sigi,sigl; add ntracer,ncloud; add ck5
+ getprs.f90              - replace sigi with bk5
+ glbsoi.f90              - remove mpimod (not used); remove call to setupjc;
+                           pass mype to get_jcwts
+ gridmod.f90             - remove global sigi,sigl; remove regional sigi_ll,
+                           sigl_ll; add ntracer,ncloud,ck5; change inges 
+                           from 21 to lendian_in 
+ gscond_ad.f90           - change sl from 1d to 2d array
+ gsimain.F90             - check number of observation data files, ndat, 
+                           against upper limit, ndatmax; rename namelist 
+                           variables used in observation perturbation option;
+                           add exit 24 state; namelist changes related to
+                           Jc term & optional perturbation of background error;
+                           add time_window_max to OBS_INPUT, modifications
+                           related to use of level 2 radar wind
+ gsisub.f90              - add call radar_bufr_read_all to read level 2 bufr
+                           format radar winds (bufr read uses mpi-io)
+ guess_grids.f90         - remove ges_prslk since it is no longer needed;
+                           add divergence and ageostrophic vorticity tendency 
+                           arrays; add bias_tskin, ges_psfcavg, ges_prslavg;
+                           modify how levels are added in topmost model layer
+ intall.f90              - correct error in call to intt: rval,sval --> 
+                           rvaluv,svaluv; include both Jc formulations
+ intbend.f90             - bug fix: nsig_up was declared as real
+ intjc.f90               - generalize and include both Jc formulations
+ intpw.f90               - bug fix - add vertical index k to i1,i2,i3,i4 in 
+                           adjoint 
+ intrad.f90              - remove unused variables; rearrange for efficiency
+ intrp2a.f90             - restructure code to improve efficiency
+ intrppx.f90             - add pressure interpolation; modify to process single
+                           profile
+ intt.f90                - correct indexing error for surface temperature 
+                           adjoint interpolation
+ jcmod.f90               - generalize for both Jc formulations
+ jfunc.f90               - include more pointers for expanded time tendency 
+                           control vector
+ jfunc_tl.f90            - change filename unit from 61 to lendian_out
+ m_gsiCheck.F90          - replace sigi with bk5
+ m_gsiGuess.F90          - correct typo in comment
+ m_utests.F90            - replace sigi with bk5; remove sigl
+ mpi_bufr_mod.F90        - correct typo in comment
+ mpimod.F90              - remove mpi_request_null since not used
+ ncepgfs_io.f90          - increase filename to 24 characters; changed lunges
+                           from 15 to 11 so it would be read as big endian
+ nlmsas_ad.f90           - change del and sl from 1d to 2d arrays
+ obs_para.f90            - change lunin from 15 to 11 so it would be read as
+                           big endian
+ obsmod.f90              - add parameter ndatmax; rename namelist variables 
+                           used in observation perturbation option; add logical
+                           dtbduv_on for emissivity jacobian (default=.true.);
+                           add time_window_max variable
+ omegas_ad.f90           - change del and sl from 1d to 2d arrays
+ oneobmod.F90            - change lumk from 52 to lendian_in
+ pcgsoi.f90              - move update of bias correction and skin temperature
+                           into update_guess; add call to update_jc routines;
+                           rearrange minimization loop to improve convergence
+                           testing
+ pcp_k.f90               - change del and sl from 1d to 2d arrays
+ pcpinfo.f90             - remove jppfp
+ precpd_ad.f90           - change del and sl from 1d to 2d arrays
+ prewgt.f90              - remove sigl (not used); add capability to perturb 
+                           background error parameters
+ prewgt_reg.f90          - use rlsig from call rdgstat_reg; replace sigl with
+                           ges_prslavg/ges_psfcavg
+ qcmod.f90               - add variable vadfile
+ qcssmi.f90              - change theshold of clw for AMSR-E; fix bug in 
+                           kchan variable; modify to process single profile
+ radinfo.f90             - remove jppf
+ rdgstat_reg.f90         - include rlsig as subroutine output
+ read_airs.f90           - correct error in nodata count; define satellite  
+                           zenith angle before using it (bug fix); add logic
+                           to handle pre/post 04/12/2006 change in NCEP bufr
+                           table affecting AIRS data
+ read_amsre.f90          - bug fix of order of polarization, timedif, tbmax;
+                           add logic to handle pre/post 04/12/2006 change in
+                           NCEP bufr table affecting AMSRE data
+ read_avhrr.f90          - clean up code to be more consistent with other Tb
+                           read_*90 routine
+ read_avhrr_navy.f90     - add logic to correctly set BUFR subset; clean up
+                           code
+ read_bufrtovs.f90       - correct error in nodata count; add ssu; clean up 
+                           code
+ read_goesimg.f90        - clean up code
+ read_goesndr.f90        - correct error in nodata count, generalize to process
+                           both 1x1 and 5x5 goes data
+ read_guess.f90          - increase filename to 24 characters; replace call
+                           read_gfsatm for guess bias correction with call
+                           read_bias
+ read_modsbufr.f90       - remove unused variables from gridmod module
+ read_obs.f90            - consolidate processing of 1x1 and 5x5 goesndr; add
+                           ssu; rename "goesimg" as "goes_img" and "pcp_ssm/i"
+                           as "pcp_ssmi"
+ read_ozone.F90          - change "read_ozone" to "READ_OZONE" is runtime print
+ read_pcp.f90            - replace obstype pcp_ssm/i with pcp_ssmi
+ read_prepbufr.f90       - changes to read in GPS IPW (type 153); modify to
+                           properly handle height of surface observations; 
+                           increase amount of information passed on to rest
+                           analysis code (mainly for diagnostic files); add
+                           huge_i_kind upper limit on nint
+ read_radar.f90          - modify to use level 2, 2.5, and/or 3 radar wind
+                           superobs
+ read_ssmi.f90           - correct error in nodata count; clean up code
+ read_ssmis.f90          - clean up code
+ read_wrf_mass_guess.F90 - convert MASS core potential temperature to virtual
+                           temperature (used in analysis); changed nfcst from 
+                           11 to lendian_in
+ read_wrf_nmm_guess.F90  - correct u10,v10 grid type flag, igtype.  should be
+                           1, not 2; changed nfcst from 11 to lendian_in
+                           set to little endian; add tuned fact10
+ retrieval_amsre.f90     - removed extra qc and comment changed
+ retreival_mi.f90        - clean up code
+ satthin.F90             - define iobsout for the case use_all=.true.; add
+                           zs_full (model terrain on full grid); add routines
+                           map2tgrid, checkob, finalcheck
+ setupbend.f90           - change IF test to avoid out-of-bounds reference 
+                           on variable DATA
+ setupdw.f90             - modify diagnostic file output
+ setupoz.f90             - add option to perturb observation
+ setuppcp.f90            - add option to perturb observation; replace 1d del
+                           and sl arrays with 2d del0 and sl0; modify code
+                           to write data for inner loop in jppf chunks
+ setupps.f90             - modify optional perturbation to observation; modify
+                           diagnostic file output
+ setuppw.f90             - modify diagnostic file output
+ setupq.f90              - modify optional perturbation to observation; remove
+                           unused arrays; modify diagnostic file output
+ setuprad.f90            - add option to perturb observation; add ssu; 
+                           add kchan to argument list for qcssmi; replace
+                           logical emissjac with dtbduv_on; remove rad_tran_k
+                           and process data one profile at time; add check on
+                           maximum number of levels for RTM; write data for
+                           use in inner loop in jppf chunks, modify diagnostic
+                           file output
+ setupref.f90            - change IF test to avoid out-of-bounds reference
+                           on variable DATA
+ setuprhsall.f90         - add code to generate optional observation 
+                           perturbations
+ setuprw.f90             - new forward model based on beam vertical 
+                           uncertainty; modify diagnostic file output
+ setupspd.f90            - add option to perturb observation; modify diagnostic
+                           file output
+ setupsrw.f90            - modify diagnostic file output
+ setupsst.f90            - modify diagnostic file output
+ setupt.f90              - modify optional perturbation to observation; 
+                           restructure code for improved performance; reset 
+                           land mask for surface data based on observation 
+                           type; remove unnecessary code; modify diagnostic
+                           file output
+ setupw.f90              - modify optional perturbation to observation; use
+                           height not pressure in forward model for surface
+                           data (twodvar_regional option retains use of
+                           pressure); modify diagnostic file output
+ sfc_model.f90           - clean up code; use sensible temperature for lowest
+                           two model layers and virtual temperature ground 
+                           temperature
+ specmod.f90             - remove jc=ncpus() because jc is not used
+ sst_retrieval.f90:      - change lundx from 20 to lendian_in; modify to 
+                           process single profile
+ statsconv.f90           - modify to incorporate processing done by dvast
+ stpbend.f90             - bug fix: nsig_up was declared as real
+ stpcalc.f90             - include both Jc formulations; add explicit 
+                           iteration over stepsize; changes to improve 
+                           convergence checking
+ stpjc.f90               - generalize and include both Jc formulations
+ stvp2uv_reg.f90         - add routine to compute laplacian
+ support_2dvar.f90       - change unit numbers to use lendian_in and 
+                           lendian_out as needed
+ tendsmod.f90            - additions for divergence & ageostrophic vorticity 
+                           tendencies
+ tintrp2a.f90            - rearrange code to improve efficiency
+ transform.f90           - remove jc since not used
+ tstvp2uv_reg.f90        - add adjoint of laplacian routine
+ unhalf_nmm_grid2.f90    - extrapolate full analysis result to points on 
+                           eastern edge of E grid not used by model to 
+                           eliminate problems with graphic output of model 
+                           fields
+ update_guess.f90        - bug fix - use xhat_q, not xhat(nq), to update 
+                           bias_q; add skin temperature to guess bias 
+                           correction
+ wrf_binary_interface.F90- change unit numbers as needed to handle little
+                           endian i/o; replace direct access read in next_buf
+                           with getbytes
+ wrf_netcdf_interface.F90- initialize character variable staggering; added 
+                           read of SM and SICE to match the writes in 
+                           wrwrfmass.F90
+ write_all.f90           - increase filename to 24 characters; replace call
+                           write_gfsatm with write_bias for guess bias
+                           correction
+ wrwrfmassa.F90          - convert analyzed virtual temperature to potential
+                           temperature, MASS core temperature variable
+                           specific humidity to model mixing ratio; change
+                           unit numbers as needed to handle little endian i/o;
+                           added error handling to subroutine 
+                           update_start_date search for START_DATE; also 
+                           changed the search loop in update_start_date to 
+                           increment by 1 instead of 4 so it would work for 
+                           little endian or big endian.
+ wrwrfnmma.F90           - change unit numbers to handle little endian i/o
+
+
+
+
+MAKEFILE CHANGES
+----------------
+The following changes are made to Makefiles:
+ a) Makefile
+     - add blockIO.c, gsi_io.f90, get_tend_derivs.f90
+     - remove dvast.f90, rad_tran_k.f90, setupjc.f90
+     - replace read_l2bufr_mod.F90 with read_l2bufr_mod.f90
+
+ b) Makefile.conf.AIX
+     - utilize new GFS sigio and sfcio modules and libraries
+     - add -DFortranByte=char -DFortranInt=int -DFortranIntLong=long to
+       CFLAGS_N and CFLAGS_D
+ 
+ c) Makefile.conf.Linux.jet
+     - new configuration file for GSI build on GSD/ESRL jet machines
+
+ d) Makefile.dependency
+     - update (add, remove) dependencies based on code changes above
+
+ ***PLEASE NOTE***  
+  The addition of blockIO.c to Makefile required changes to the CFLAGS_N
+  and CFLAGS_D lines in Makefile.conf.AIX (see item b above).  Users who
+  utilize Makefile.conf.IRIX, Makefile.conf.IRIX64, Makefile.conf.Linux, 
+  Makefile.conf.Linux.IA64.efc, Makefile.conf.Linux.IA64.ifort, or
+  Makefile.conf.OSF1 will need to make the appropriate changes to CFLAGS
+  in order to compile blockIO.c on their machine.
+
+
+
+
+SCRIPT CHANGES
+--------------
+The folowing changes are made to the indicated script files:
+ 
+ b) rungsi_global.sh
+     Numerous changes are made to the global gsi script so as to mimic
+     how the gsi is run NCEP's ongoing T382L64 GSI pre-implementation parallel.
+     The changes made in this release with respect to the ncep-gsi-2006_03 tag
+     are detailed below:
+     - LoadLeveler changes (only pertinent to NCEP CCS users)
+         1) increase tasks count from 48 to 64
+         2) add NCEP CCS job accounting information (account_no = GDAS-T2O)
+         3) reduce wall clock limit from 2 hours to 1 hour
+     - Change test case from sigma to sigma-p (hybrid) vertical coordinate.  
+       Test case is still for 2005102312 T382L64 analysis
+     - Turn off variational QC due to experimental results which show the
+       neeed for additional tuning at T382L64
+     - Change moisture anllysis variable to normalized RH (qoption=2)
+     - Change variance and horizontal scale parameters from
+          as=0.6,0.6,0.6,0.6,0.8,0.6,1.0,1.0,
+          hzscl=1.6666667,0.8333333,0.5,
+       to
+          as=0.6,0.6,0.75,0.75,0.75,0.75,1.0,1.0
+          hzscl=1.7,0.8,0.5,
+     - Generalize dynamical constraint namelist variables (namelist JCOPTS)
+       to be used by both formulations of the dynamical constraint.  No change
+       in weighting factors, just variable names.
+     - Remove "oberrflg=.true." from namelist $OBSQC; add vadfile='prepbufr' 
+       Variable vadfile points to the local file containing VAD wind data
+       which is used in the QC of radar radial winds (see read_radar.f90)
+     - Add "time_window_max=3.0" to namelist OBS_INPUT.  This addition does not
+       alter test case results.
+     - Replace the observation type script "pcp_ssm/i" with "pcp_ssmi.  This
+       affects the line dtype(11)='pcp_ssmi' in OBS_INPUT
+     - Set dval(19)=0.0 for NOAA-18 HIRS4 since this data is not assimilated.
+       A non-zero value of dval means that the given data type can, if present,
+       affect the relative weighting of Tb observations within the given 
+       thinning group.  Since N18 HIRS4 data is not assimilated, its presence
+       should not affect the relative weigthing over other IR sensors in the 
+       1st thinning group.
+     - Change source of GOES Sounder data (namelist OBS_INPUT dfile(20) and
+       dfile(21) from prepbufr file to GOES sounder bufr file (gsndrbufr)
+     - Change the GOES imager observation type from goesimg to goes_img.  Also
+       change the CRTM satellite/sensor id from goesimg_gXX to imgr_gXX.  This
+       change affects dtype(22,23) and dsis(22,23) in OBS_INPUT
+     - Add copy of GOES sounder bufr file to local working directory
+     - Modify diagnostic file list to include changes to GOES sensor names
+
+ b) rungsi_regional_nmm_binary.sh
+     Numerous changes are made to the regional nmm binary script so as to 
+     mimic how the WRF NMM GSI will be run in operations.  The changes made
+     in this release with respect to the ncep-gsi-2006_03 tage are detailed
+     below:
+     - Include NCEP CCS job accounting information in LL section; reduce 
+       wall clock time to 1 hour
+     - Change test case from 2005102312 to more recent case, 2006052200,
+       which includes radar radial winds 
+     - Reduce number of inner iterations from 100 to 75
+     - Change BKGERR namelist variables to following values
+          as=0.7,0.7,0.5 ,0.7,0.7,0.5,1.0,1.0,
+          hzscl=0.373,0.746,1.50,
+          vs=1.0,bw=0.,fstat=.true.,
+     - Turn off dynamical constraint; rename JCOPTS variables to be consistent
+       with new names
+     - Remove oberrflg=.true. from OBSQC since code forces oberrflg=.true.
+       when run in regional mode; add vadfile='prepbufr'.  Variable vadfile
+       points to local working directory file which contains VAD wind data
+       used in QC of radar radial winds
+     - Increase satellite thinning dmesh sizes to 60.0 km for all groups
+     - Add time_window_max=1.5 to OBS_INPUT namelist
+     - Replace the observation type script "pcp_ssm/i" with "pcp_ssmi.  This
+       affects the line dtype(11)='pcp_ssmi' in OBS_INPUT
+     - Change source of GOES Sounder data (namelist OBS_INPUT dfile(20) and
+       dfile(21) from prepbufr file to GOES sounder bufr file (gsndrbufr)
+     - Change the GOES imager observation type from goesimg to goes_img.  Also
+       change the CRTM satellite/sensor id from goesimg_gXX to imgr_gXX.  This
+       change affects dtype(22,23) and dsis(22,23) in OBS_INPUT
+     - Add variables to SUPEROB_RADAR namelist.  The following variables are
+       specified:
+          del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,
+          elev_angle_max=5.,minnum=50,range_max=100000.
+     - Add copy of GOES sounder, 1B AMSU-B and 1B MHS bufr files from data to 
+       to local working directory
+     - Add copy of radar radial wind bufr files from data to local working 
+       directory
+     - Change source name of satbias_in and satbias_angle files
+     - Modify diagnostic file list to include changes to GOES sensor names
+
+
+ c) Scripts rungsi_regional_nmm_netcdf.sh, rungsi_regional_mass_binary.sh, 
+    and rungsi_regional_mass_netcdf.sh are changed to be consistent with
+    the changes made to the rungsi_regional_nmm_binary.sh script.  The data
+    dumps used for the nmm_netcdf, mass_binary, and mass_netcdf test cases
+    have been changed from the global to eta dump.  The nmm_binary test case
+    already used data from the eta dump.
+
+ d) rungsi_regional_twodvar_binary.sh
+     Only a few changes are made to this script.  These changes are listed
+     below:
+     - Include NCEP CCS job accounting information in LL section
+     - Rename JCOPTS variables to be consistent with generalization of
+       dynamical constraint.  NOTE:  JC term is not turned on in 2DVAR mode
+     - Add vadfile='prepbufr' to OBSQC namelist
+     - Add time_window_max=1.5 to OBS_INPUT namelist; increase dmesh sizes
+       to be identical with those in rungsi_regional_nmm_binary.sh.
+     - Modify diagnostic file list to include changes to GOES sensor names
+
+
+
+
+FIX FILE CHANGES
+----------------
+The following changes are made to fix files:
+
+ a) global_berror.l64y258.sig.f77, global_berror.l64y386.hyb.f77, 
+    global_berror.l64y96.hyb.f77, global_berror.l64y96.sig.f77
+     - Place [0.0,1.0] limits on SST correlations
+
+ b) global_convinfo.txt, gmao_global_convinfo.txt
+     - Tune gross check limits and variational qc parameters
+     - Add observation type 153, GPS-IPW, in monitor mode
+     - Change usage flag for SST and GPS refractivity and bending angle
+       from 1 (assimilate) to -1 (monitor).  This was done to make
+       global_convinfo.txt file consistent with how NCEP runs the GSI
+       in an ongoing T382L62 pre-implementation parallel
+
+ c) global_satangbias.txt, global_satinfo.txt, gmao_global_satinfo.txt
+     - Change character string for GOES imager from goesimg_gXX to imgr_gXX
+       to make name consistent what that used by CRTM
+
+ d) nam_errtable.r3dv 
+     - Set GPS-IPW observation error from missing value (0.10000E+10)
+       to reasonable value (0.20000E+01)
+
+ e) regional_convinfo.txt
+     - Decrease time window for numerous observation types from +/- 1.5 hours
+       to +/- 0.25 hours
+     - Reduce (tighten) gross check limit from 10.0 to 7.0 for numerous
+       observation types       
+
+ f) regional_nmm_berror.f77
+     - Recompute background error using Monte Carlo approach
+
+
+
+
+***NOTE***
+   Due to changes in the runsgsi*sh scripts, the "old" (ncep-gsi-2006_03 tag)
+   run scripts were modifed to utilize the new scripts fix files and data 
+   dumps.  Thus, old run numbers posted below will not match the "new" run 
+   numbers from the change log from the previous release (20060303.txt).  
+
+   The decision to utilize new fix files and data was made to highlight 
+   differences arising from the old and new versions of the gsi code and not 
+   from differences in input to the GSI or how the GSI namelists are 
+   set up.
+
+
+
+GLOBAL NCEP T382L64 TEST
+------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606/rungsi_global.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200603
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+
+Maximum resident set size
+old :  1091544 Kbytes
+new :  1086036 Kbytes
+
+Wall clock (64 tasks, blocking=unlimited)
+old : 2634.454699 seconds
+new : 2629.565240 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.727397885293580126E+06 0.245045403152253740E+08 0.363921013824330042E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.730164444602629170E+06 0.226855228099335991E+08 0.375298275446486534E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 100 0.387359912707324722E+06 0.133294780901730832E+03 0.123458816334896110E-02 0.874513219180824697E+00
+new : penalty,grad ,a,b= 2 100 0.392572883698153659E+06 0.103266436854558435E+03 0.185440692399350699E-02 0.109752565480032982E+01
+
+NOTES:
+   a) The new run initial total penalty differs from the old run for the 
+      following reasons:
+
+       - Tightening of the gross limits in the updated global_convinfo.txt
+         file leads to a more surface pressure, uv wind, and temperature
+         observations being rejected in the new run.  The initial penalty
+         terms for these observations are reduced in the new run.
+
+       - Using height instead of pressure in the surface wind forward 
+         model reduces the initial obs-ges vector rms as shown in the 
+         table below:
+
+             obs type  old bias  new bias   old vrms  new vrms
+               280       -0.35    -0.03       4.01     3.91
+               282       -0.54    -0.27       2.70     2.62
+
+       - Use of GOES sounder buff file increases the number of GOES sounder
+         observations being assimilated in the new run.  This, in turn,
+         increases the initial radiance penalty.  The increase in the number
+         of GOES Tb observation assimilated is 67 or 1.7% with a 2.4% increase
+         in the GOES Tb penalty.
+
+       - Correction of a bug in a microwave Tb QC check leads to diferences
+         in the number of and penalty for MSU, AMSU-A, AMSU-B, and MHS Tb
+         as shown in the table below:
+
+           instrument  old #assim   new #assim   old penalty  new penalty
+           n14 msu        17133        13132      10424.      10414.
+           n15 amsua     131546       131546      59778.      59723.
+           n16 amsua      90652        90652      28821.      28816.
+           n18 amsua     149964       149959      57775.      57617.
+           aqua amsua    118693       118803      30795.      30961.
+           n15 amsub       9238         9318       1759.0      1798.8
+           n16 amsub      13144        13145       2041.6      2041.2
+           n17 amsub      13746        13747       3007.8      3006.9
+           n18 mhs        13856        13851       3844.0      3848.0
+                        -------      -------     --------    --------
+                         557972       558153     198245.4    198225.9
+
+         The increase in the number of AQUA AMSU-A observation is also
+         related to a bug fix in read_airs.f90.  Routine read_airs.f90
+         uses the satellite zenith angle in a "quality indicator" calculation.
+         In the old code, this angle was used before it was defined.  
+         Hence, results from this indicator were unreliable and affected
+         the "quality index" used to select the AQUA AMSU-A observation for
+         further processing.  The new read_airs.f90 corrects this bug.
+
+         With all this said, however, the overall changes in the microwave
+         data count and penalty are slight.  The new code allows 181 more  
+         microwave Tb observations to pass the initial qc.  This represents 
+         an increase of 0.03%.  At the same time, the microwave Tb penalty 
+         is basically unchanged (0.01% reduction).
+
+       - A change made to the manner in which the top most model layer is
+         divided into sub-layers (add_layers_rtm) leads to non-trivial changes 
+         in the forward model and jacobian calculations of certain sensors
+         and channels (primiarily IR and mostly but not exclusively high
+         peaking channels).  The new algorithm divides the layers using a
+         linear in pressure approach.  The old algorithm used this approach
+         in all layers except the uppermost model layer.  The topmost pressure
+         in the profile sent into the CRTM is set to the CRTM top of 
+         atmosphere. Previously it was sent to 0.0.  The change in how
+         to topmost model layer is sub-divided changes the number of IR 
+         observations passing the initial quality control as shown below:
+
+           instrument  old #assim   new #assim   old penalty  new penalty
+           n14 hirs2      15920        15887      7646.7      7196.1
+           n17 hirs3      30916        30848      9464.0      9332.3
+           aqua airs     645042       643153      221590.     228570.
+
+         The reduction in the number of HIRS Tb observation is 101 (0.2%)
+         with a corresponding decrease of about 3.4% in the penalty.  For
+         AQUA AIRS, the reduction in the number Tb observations assimilated
+         is slight (about 0.3%) but there is a sizeable jump in the penalty,
+         about 3.2%.  
+
+         Comparison of the pre- and post-bias correction observation - guess
+         differences shows that the new run yields a smaller pre-bias 
+         correction difference.  That is, the new code yields simulated AQUA 
+         AIRS Tb which are closer to the observations than the old code.  
+         However, the same difference increases significantly following the 
+         bias correction.  The bias correction used in both the old and new 
+         runs was spun up from Tb diagnostic files using the old code.  
+
+         Users shouldspin up their own angle dependent bias for AQUA AIRS
+         when switching over to the new code.  This change in bias is only a
+         factor when running the GSI with the nlayers option on.  If users
+         run the GSI without nlayers on, there will be little (if any) change
+         in the AQUA AIRS bias.
+
+       - Use of the interpolated pressure to compute profile specific
+         sigma-like coordinates in the precipitation forward model leads
+         to an improvement in the guess fit to observation, thereby 
+         reducing the initial penalty.  Even though 44 more precipitation 
+         observations are used (about 1% more) in the new run, the initial 
+         precipitation penalty is reduced by 6.4%
+
+
+
+
+REGIONAL NCEP NMM BINARY TEST
+-----------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606/rungsi_regional_nmm_binary.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200603
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+
+Maximum resident set size
+old :  629404 Kbytes
+new :  689120 Kbytes
+newr:  660404 Kbytes
+
+Wall clock (48 tasks, blocking=unlimited)
+old :  863.892144 seconds
+new :  959.841563 seconds
+newr:  992.405522 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.165955022030370776E+06 0.178220824946431024E+07 0.562928644695093790E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.162928912639718445E+06 0.181386383793374896E+07 0.544730326151495609E-02 0.000000000000000000E+00
+newr: penalty,grad ,a,b= 1 0 0.219083950282765261E+06 0.608866869004852232E+07 0.385603787231588585E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 75 0.944801937459487526E+05 0.930253077688869556E+00 0.505372633078915966E-02 0.988398140477827147E+00
+new : penalty,grad ,a,b= 2 75 0.921586316896322242E+05 0.145677963493879981E+01 0.597782725876448186E-02 0.797905388563571405E+00
+newr: penalty,grad ,a,b= 2 75 0.105864011948106199E+06 0.221068666039354200E+01 0.727268335989659457E-02 0.563102823488586979E+00
+
+
+NOTES:
+   a) Run new does not use the radar radial winds so that a comparison could
+      be made with the old run.  Run newr is the same as new with the addition
+      of the radar radial winds.  The addition of radar radial winds accounts
+      for the larger initial and final penalty and gradients in the newr run.
+
+      The gsi executable used in run old is identical to that from tag 
+      ncep-gsi-2006_03 (gsi_cvs.200603) except for the above mentioned bug 
+      fix to intpw.f90.  The new nmm binary test case has GPS-IPW.  The 
+      convinfo file for this test turns on  assimilation of this data.  
+      Without the bug fix to intpw.f90, the minimization using the 
+      ncep-gsi-2006_03 code fails.  The code runs but the minimization
+      does not converge.  Thus, intpw.f90 is corrected in the ncep-gsi-2006_03
+      source code for the purpose of the above old run.  
+
+   b) The initial total penalty is reduced in the new run due to a
+      reduction in the surface uv wind penalty.  The surface uv wind
+      penalty is reduced due to an increase in the obseration error.
+      The new surface uv wind forward model use height instead of 
+      pressure.  The observation error for these observations is
+      adjusted in proportion to the difference between the observing 
+      station elevation and the model (guess) surface elevation.  
+      Larger discrepancies increse the observation error, thereby 
+      reducing the overal uv penalty.
+
+      Also contributing to a reduction in the surface wind penalty
+      is the use of a bounded 10m wind reduction factor which.  The
+      old run uses fact10=1.0 (no reduction).
+
+   c) The initial penalty for brightness temperatures actually 
+      increases slightly in the new run.  This is due to the use
+      of the goes sounder bufr file instead of the prepbufr file
+      to obtain goes sounder brightness temperatures.  730 more
+      goes sounder Tb pass the initial quality control in the new
+      run.  This represent and increase of about 6.3% in the number
+      of goes Tb assimilated.  The GOES Tb penalty increases by 7.2%.
+
+      Correction of a bug in the quality control of microwave 
+      sensors also leads to a change in the total Tb penalty.  
+      The old code erroneously used channels not assimilated in
+      a QC check.  The new code excludes channels not assimilated
+      from this QC check.  For the given test case, the resulting
+      differences in the number and penalty of assimilated microwave
+      instruments in shown below (only those instruments for which
+      there is a change are shown):
+
+      instrument  old #assim   new #assim   old penalty  new penalty
+      n16 amsua      35495        35563       23933.       23864.
+      n15 amsub        659          773         237.98       308.09
+      n16 amsub      18593        18574        6592.5       6602.2
+      n17 amsub       6670         6645        1767.3       1754.8
+                   -------       ------       ---------    --------
+                     61417        61555       32530.78     32529.09
+
+      There is a slight (about 0.2%) increase in the number of Tb
+      observation assimilated with a negligable increase in the
+      penalty.
+
+
+
+
+REGIONAL NCEP NMM NETCDF TEST
+-----------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606/rungsi_regional_nmm_netcdf.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200603
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+
+Maximum resident set size
+old :  222808 Kbytes
+new :  227144 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  277.750514 seconds
+new :  296.089095 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.270054935236012134E+05 0.411319985712099960E+07 0.384310239451192339E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.257210370394011916E+05 0.414785929195019836E+07 0.378472765770292748E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 75 0.138297076167766954E+05 0.607045936785210305E+01 0.757134895692137015E-03 0.106062889760657675E+01
+new : penalty,grad ,a,b= 2 75 0.132918734963813677E+05 0.111933679308478151E+02 0.247469106777283400E-02 0.499301399511902111E+00
+
+NOTES:
+   a) The initial total penalty is reduced in the new run due to a
+      reduction in the surface uv wind penalty.  The surface uv wind
+      penalty is reduced due to an increase in the obseration error.
+      The new surface uv wind forward model use height instead of
+      pressure.  The observation error for these observations is
+      adjusted in proportion to the difference between the observing
+      station elevation and the model (guess) surface elevation.
+      Larger discrepancies increse the observation error, thereby
+      reducing the overal uv penalty.
+
+      Also contributing to a reduction in the surface wind penalty
+      is the use of a bounded 10m wind reduction factor which.  The
+      old run uses fact10=1.0 (no reduction).
+
+   b) The initial penalty for brightness temperatures actually 
+      increases slightly in the new run.  This is due to the use
+      of the goes sounder bufr file instead of the prepbufr file
+      to obtain goes sounder brightness temperatures.  152 more
+      goes sounder Tb pass the initial quality control in the new
+      run.  This represent and increase of about 25.0% in the number
+      of goes Tb assimilated.  The initial Tb penalty increases by
+      about 22.1%
+
+
+
+
+REGIONAL NCEP MASS BINARY TEST
+------------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606/rungsi_regional_mass_binary.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200603
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+
+Maximum resident set size
+old :  247268 Kbytes  (436952 Kbytes for 12 tasks, blocking=unlimited)
+new :  276132 Kbytes  (449808 Kbytes for 12 tasks, blocking=unlimited)
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  306.369647 seconds (579.325187 seconds for 12 tasks, blocking=unlimited)
+new :  322.079790 seconds (580.391775 seconds for 12 tasks, blocking=unlimited)
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.181690692179993712E+05 0.451521516320989002E+07 0.378963051886144209E-03 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.116716947884995607E+05 0.416465761220843624E+07 0.320573642055507822E-03 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 75 0.491687226078637195E+04 0.279469609850459619E+03 0.127895511367444445E-02 0.338723017584190766E+00
+new : penalty,grad ,a,b= 2 75 0.419789580737483811E+04 0.207325679682851671E+03 0.855843068440534068E-03 0.773220258780260350E+00
+
+NOTES:
+   a) The large decrease in the initial penalty is due a reduction
+      in the initial penalty for uv wind observations.  This 
+      reduction is related to two factors.  First, the correction
+      of a bug in the calculation of geopotential height when using 
+      the MASS core leads to a modest reduction in profiler (223)
+      and VAD (224) wind biases and vrms.  Geopotential height
+      is used in the forward model for PIBAL (221), profiler
+      (223), and VAD (224) winds.  The table below illustrates
+      this:
+
+      obs type  old bias  new bias   old vrms  new vrms
+        223        0.19     0.18        2.19     2.16
+        224        0.98     0.87        2.89     2.78
+
+      Secondly, the forward model surface wind observations is
+      changed in the new code to use height instead of pressure.
+      Associated with this change is an adjustment to the observation
+      error in proportion to the difference between the observing
+      station elevation and the model (guess) surface elevation.
+      Larger differences increase the observation error, thereby
+      reducing the initial uv penalty.
+
+   b) The number of GOES sounder brightness temperatures is increased
+      in the new run due to the use of the GOES sounder bufr file 
+      instead of getting the GOES sounder Tb from the prepbufr file.
+      217 more GOES Tb observations pass the initial quality control.
+      The respresent a 12.2% increase in the number of assimilated 
+      GOES Tb observations.  The increase in the initial Tb penalty
+      is 10.1%.
+
+
+
+
+REGIONAL NCEP MASS NETCDF TEST
+------------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606/rungsi_regional_mass_netcdf.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200603
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+
+Maximum resident set size
+old :  264476 Kbytes
+new :  266612 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  289.624191 seconds
+new :  334.194616 seconds
+
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.531773555346658613E+05 0.780169093047209922E+07 0.100062696442807853E-02 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.279902123366488304E+05 0.172705807003392535E+07 0.159417404550373540E-02 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 75 0.135379820908156216E+05 0.574378425885984782E+02 0.289684918453858315E-02 0.107880802430410294E+01
+new : penalty,grad ,a,b= 2 75 0.131339113965173165E+05 0.977490682015072032E+01 0.359718598024137129E-02 0.748775634108834853E+00
+
+NOTES:
+   a) The large decrease in the initial penalty is due to the
+      correction of a bug in the calculation of geopotential
+      height when using the MASS core.  Geopotential height
+      is used in the forward model for PIBAL (221), profiler
+      (223), and VAD (224) winds.  The reduction in bias and
+      vector rms is tabulated below:
+
+      obs type  old bias  new bias   old vrms  new vrms
+        221        7.56     0.13       11.75     4.19   
+        223        0.43     0.08        6.44     2.69
+        224        1.26     1.16        4.28     4.22
+
+   b) The number of GOES sounder brightness temperatures is increased
+      in the new run due to the use of the GOES sounder bufr file 
+      instead of getting the GOES sounder Tb from the prepbufr file.
+      141 more GOES Tb observations pass the initial quality control.
+      The respresent a 56.8% increase in the number of assimilated 
+      GOES Tb observations.  The increase in the initial Tb penalty
+      is 17.9%.
+
+
+
+
+REGIONAL NCEP TWODVAR BINARY TEST
+---------------------------------
+Script  :  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606/rungsi_regional_twodvar_binary.sh
+Old code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200603
+New code:  /nfsuser/g01.1/weather/wx20rt/gsi_anl/sorc/gsi_cvs.200606
+
+Maximum resident set size
+old :  299484 Kbytes
+new :  312568 Kbytes
+
+Wall clock (24 tasks, blocking=unlimited)
+old :  248.281778 seconds
+new :  233.083594 seconds
+
+Output from the first iteration of the minimization
+old : penalty,grad ,a,b= 1 0 0.257524120724941276E+05 0.102019695560771099E+06 0.462165538228751296E-01 0.000000000000000000E+00
+new : penalty,grad ,a,b= 1 0 0.259450369270488736E+05 0.104530550648845194E+06 0.440001134828141294E-01 0.000000000000000000E+00
+
+Output from the final iteration of the minimization
+old : penalty,grad ,a,b= 2 51 0.197836700374328320E+05 0.997242153391985763E-04 0.288020285755343913E-01 0.786440152120853053E+00
+new : penalty,grad ,a,b= 2 51 0.199494467684447154E+05 0.942225019606271642E-04 0.276747893959777835E-01 0.625344790222204017E+00
+
+NOTES:
+   a) The inital total penalty is larger in the new run due to
+      an increase in the uv wind observation penalty in the
+      new run.  This increase is related to two changes which 
+      are made in the new setupw.f90.  These changes pertain to
+      to wind observations processed using pressure in the
+      forward model.  
+        - In the old code the observation error for these 
+          observations was adjusted by a factor proportional 
+          to the difference between the observation pressure 
+          and a pressure computed hydrostatically from the 
+          observation height and the first layer model (guess) 
+          vritual temperature.  This observation error inflation 
+          is absent in the new code.  Hence a larger initial
+          uv penalty.
+
+        - In the old code, the above mentioned hydrostatically
+          computed observation pressure was used in the rest
+          of the forward model calculations for surface wind
+          observations.  In the new code the reported pressure 
+          is used for surface winds.  No adjustment is made.
+          For the given test case, this change appears beneficial.
+          For example, in the new code, the vrms for type 281
+          wind observation (adpupa) is reduce by 0.2 m/s.  The
+          penalty for these observations, however, actually
+          increases due to no adjustment being made to the
+          observation error:  592.12 in the new run versus
+          512.96 in the old run.
+
+          The reported pressure is only used for surface winds 
+          when running the GSI in regional 2DVAR mode.  The use 
+          of height for surface observation that was introduced 
+          with this update cannot be applied in 2DVAR mode since
+          no profile information exisits to compute a geopotential  
+          height profile.  It would be nice to restore consistency
+          between the 2D- and 3D-VAR surface uv wind forward models 
+          in future GSI updates
+
+      
+      
+

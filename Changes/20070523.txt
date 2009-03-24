@@ -1,0 +1,148 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+-------------------------------------------
+Author(s)   :  Daryl Kleist, David Parrish, Meta Sienkiewicz, 
+               Yannick Tremolet, Ricardo Todling, Wan-Shu Wu
+Reviewer(s) :  Ricardo Todling
+Date        :  23 May 2007
+NCEP CVS tag:  (baseline):      ncep-gsi-2006_09
+GMAO CVS tag:  (this release):  gmao-gsi-2006_09p5
+
+
+
+REASON FOR CHANGES
+------------------
+Changes are made to the gsi code,and script for the following
+reasons:  (listing  below not given in any particular order)
+
+NOTE: Code works in default 3d-var mode as it always did - expect
+      minor result changes due to binning of observations
+
+ a) Fixed issue w/ Level Ozone (MLS); needs tuning
+ b) Introduced obsevation vector
+ c) Add various flavors of minimization
+ d) Add opt to precondition w/ sqrt(B)
+ e) Add opt to run inner loop fully linear
+
+SPECIAL NOTES
+-------------
+
+EXPECTED DIFFERENCES
+--------------------
+The following differences are expected when comparing GSI output from
+this release from that from previous releases.  The lettering below
+corresponds to the "REASON FOR CHANGES" for lettering above:
+
+ b) round-off
+
+
+
+FILES REMOVED
+-------------
+  
+  
+FILES ADDED
+-----------
+   control2model.f90       - converts control variable to physical space
+   cvsection.f90           - sets a section of a control vector
+   eval3dvar.f90           - calculate 3dvar terms and contribution to gradient                  
+   evaljc.f90              - calculate Jc and contribution to gradient
+   evaljgrad.f90           - evaluate cost function and its gradient at point xhat
+   evalqlim.f90            - penalty from beyond-limit q
+   grtest.f90              - preforms test on the gradient
+   jomod.f90               - carries Jo variables
+   lanczos.f90             - contains variables and routines for preconditioned
+                             Lanczos minimizer following Mike Fisher's algorithm
+   model2control.f90       - converts variables from physical space to control space
+   mpl_bcast.f90           - simple interface for broadcast
+   observation_vectors.f90 - defines observation vector
+   pcgsqrt.f90             - solve inner loop of analysis equation using conjugate
+                             gradient preconditioned with sqrt(B)
+   qnewton.f90             - contains the LBFGS algorithm and supporting routines
+   setupjo.f90             - setup observation vectors for Jo computations
+   sqrtmin.f90             - minimize cost function using sqrt(B) preconditioner
+
+FILES MODIFIED
+--------------     
+   bias_predictors.f90     - interface to duplicate preditors
+   bkgcov.f90              - add ckgcov routine per Parrish
+   control2state.f90       - error protection
+   control_vectors.f90     - handling sqrt(B) pre-conditioner case
+   evaljo.f90              - modified wrt to new observation definition
+   glbsoi.F90              - add sqrt(B) pre-cond handle
+   gsi_4dvar.f90           - add opts for sqrt-precond and flavors of minimization
+   gsimod.F90              - add parameters controling minimization opts
+   int3dvar.f90            - mype lives in mpimod now
+   intall.f90              - mype, iter and obs bin updated
+   intbend.f90             - handling obs binning index
+   intdw.f90               - handling obs binning index
+   intjo.f90               - handling obs binning index; MLS addition
+   intoz.f90               - handling obs binning index; MLS fix
+   intpcp.f90              - handling obs binning index
+   intps.f90               - handling obs binning index
+   intpw.f90               - handling obs binning index
+   intq.f90                - handling obs binning index
+   intrad.f90              - handling obs binning index
+   intref.f90              - handling obs binning index
+   intrw.f90               - handling obs binning index
+   intspd.f90              - handling obs binning index
+   intsrw.f90              - handling obs binning index
+   intsst.f90              - handling obs binning index
+   intt.f90                - handling obs binning index
+   intw.f90                - handling obs binning index
+   jfunc.f90               - handling for sqrt(B) pre-cond
+   mpimod.F90              - mype lives here now
+   obsmod.f90              - removed departures
+   pcgsoi.f90              - changed various min-related diagnostics in light of various min opt
+   read_prepbufr.f90       - fixed blacklist bug
+   prt_guess.f90           - updated for of output
+   setupbend.f90           - removed departure
+   setupdw.f90             - removed departure
+   setupo3lv.f90           - removed departure
+   setupoz.f90             - removed departure
+   setuppcp.f90            - removed departure
+   setupps.f90             - removed departure
+   setuppw.f90             - removed departure
+   setupq.f90              - removed departure
+   setuprad.f90            - removed departure
+   setupref.f90            - removed departure
+   setuprhsall.f90         - removed departure
+   setuprw.f90             - removed departure
+   setupspd.f90            - removed departure
+   setupsrw.f90            - removed departure
+   setupsst.f90            - removed departure
+   setupt.f90              - removed departure
+   setupw.f90              - removed departure
+   setupyobs.f90           - removed departure; add level ozone component
+   smoothrf.f90            - add sqrt_smoothrf per NCEP
+   state2control.f90       - sqrt(B) handle
+   state_vectors.f90       - add dot_prod interface
+   stpcalc.f90             - limq stp call update
+   stppcp.f90              - add opt to run as linear procedure
+   stpspd.f90              - add opt to run as linear procedure
+   update_guess.f90        - mype in mpimod
+ 
+MAKEFILE CHANGES
+----------------
+The following changes are made to Makefile and Makefile.dependencies:
+ a) GNUmakefile
+     - add new files
+     
+ b) Makefile
+     - add: new files
+  
+ c) Makefile.dependency
+     - update (add, remove, change) dependencies based on code changes above
+
+
+SCRIPT CHANGES
+---------------
+
+
+
+FIX FILE CHANGES
+----------------
+
+
+
+
+

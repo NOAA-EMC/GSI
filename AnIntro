@@ -1,0 +1,644 @@
+!BOI
+
+!  !TITLE: The Grid-point Statistical Interpolation \\ Analysis Library Documentation \\ Version 0.00
+
+!  !AUTHORS: Staff
+
+!  !AFFILIATION: NCEP/NOAA and GMAO/NASA
+
+!  !DATE: May 2004
+
+!  !INTRODUCTION: Package Overview 
+\setcounter{secnumdepth}{5}
+\setlength{\parskip}{0.5em}
+This document describes the Grid-point Statistical Interpolation (GSI) 
+analysis system. This is a three-dimensional variational analysis system
+capable of producing either global or regional analyses updates.
+
+%....................................................................
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%   Useful latex abbreviations
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\def\calJ{{\cal J \{ }}
+%\def\xx{{\bf x}}
+%\def\yy{{\bf y}}
+%\def\BB{{\bf B}}
+%\def\RR{{\bf R}}
+\def\hh{\mbox{\boldmath $h$}}
+\def\xx{\mbox{\boldmath $x$}}
+\def\yy{\mbox{\boldmath $y$}}
+\def\BB{\mbox{\boldmath $B$}}
+\def\RR{\mbox{\boldmath $R$}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%....................................................................
+\subsection{Introduction}
+%           ------------
+\label{sec:Intro}
+
+The Grid-point Statistical Interpolation (GSI) analysis system has been
+introduced at NCEP as a candidate replacement for the Spectral-Statistical
+Interpolation (SSI) analysis system motivated by the following two main
+drivers: (i) to allow implementation of situation-dependent (flow-dependent)
+background error statistics; and (ii) to facilitate maintenance of a unified analysis
+system serving both the global and regional applications at NCEP. The GSI is a three-dimensional
+variation procedure designed to assimilate observations at any given time
+$t_k$ by minimizing the cost function
+\begin{equation} 
+ J(\xx_k) = ( \xx_k - \xx^b_k  )^T \BB^{-1} ( \xx_k - \xx^b_k )
+          + ( \yy_k - \hh_k(\xx) )^T \RR^{-1} ( \yy_k - \hh_k(\xx) )
+\end{equation} 
+where $\xx^b_k$ is the $n$-vector background state, $yy_k$ is the $p_k$-vector
+of observations, $\hh$ is the observation operator responsible for 
+converting the background state onto the observables, and $\BB$ and $\RR$ are
+the $n\times n$ background and $p_k\times p_k$ observation error covariance 
+matrices respectively. The high dimensionality (order $10^7$) of the control 
+$n$-vector $\xx_k$ is such that minimization of the cost function $J$ 
+can only be achieved with gradient-based methods. 
+
+%....................................................................
+\subsection{Algorithm Description}
+%           ---------------------
+\label{sec:Algorithm}
+
+\input About../symbols.tex
+
+In this section we provide a brief description of the optimization algorithm used in GSI.
+
+%  The following are the contents of About../gsisolver.tex (by JGuo) slightly modified to fit
+%  this file properly. (RTodling)
+\subsubsection{Conventions}
+
+The notation used here is selected to reflect a balanced consideration of
+\begin{enumerate}
+\item variable names used in the GSI software,
+\item symbols used in GEOS DAS literature,
+\item symbols used in related literature of optimization algorithms, and
+\item notation consistency throughout this note.
+\end{enumerate}
+
+In this document, a superscript often categorizes the symbol, such
+$()^b$ for background,
+$()^a$ for analysis, and
+$()^g$ for initial guess.
+Exceptions
+include $()^T$ for matrix-transpose and $()^{-1}$ for matrix-inverse,
+numbers for exponents, or otherwise being specified in the text.
+
+On the other hand, a subscript often denotes the instantiation of the
+symbol, {\it i.e.} symbols evaluated at specific locations or with
+respect to specific variables.
+
+\subsubsection{Cost Function $J(x)$}
+A variational data assimilation problem tries to minimize the
+cost function in the following form
+\begin{align}	\label{eq:cost-in-x}
+J(x) &= \onehalf
+  \Bigl\{
+	(x-x^b)^T
+	\bP^{-1}
+	(x-x^b)
+	+
+	\bigl[ \cH(x) - o \bigr]^T
+	\bR^{-1}
+	\bigl[ \cH(x) - o \bigr]
+  \Bigr\}
+\end{align}
+with respect to a gridded field $x$,
+where
+\begin{align*}
+  x^b &: \text{a given background field of $x$}		\\
+  o &: \text{observations}				\\
+  \bR &: \text{observation error covariance}		\\
+  \bP &: \text{background error covariance}		\\
+  \cH &: \text{observation operator}
+\end{align*}
+
+Define
+\begin{gather}
+\label{eq:xhatsave}
+\xhatsave \equiv x - x^b
+\end{gather}
+Then in term of $x$-increment $\xhatsave$,
+the cost function is
+\begin{subequations}
+\begin{align}
+\label{eq:cost-in-xhatsave}
+J(x) &= \onehalf
+  \Bigl\{
+	(\xhatsave)^T
+	\bP^{-1}
+	\xhatsave
+	+
+	\bigl[ \cH(x) - o \bigr]^T
+	\bR^{-1}
+	\bigl[ \cH(x) - o \bigr]
+  \Bigr\}		\\
+\label{eq:x-in-xhatsave}
+x &= x^b + \xhatsave
+\end{align}
+\end{subequations}
+
+Define a preconditioned increment vector
+\begin{align}
+  \yhatsave &\equiv \bP^{-1}\xhatsave
+\end{align}
+Then in term of $y$-increment $\yhatsave$, the cost function is
+\begin{subequations}
+\begin{align}
+\label{eq:cost-in-yhatsave}
+J(x) &= \onehalf
+  \Bigl\{
+	(\yhatsave)^T
+	\bP
+	\yhatsave
+	+
+	\bigl[ \cH(x) - o \bigr]^T
+	\bR^{-1}
+	\bigl[ \cH(x) - o \bigr]
+  \Bigr\}
+  \\
+\label{eq:x-in-yhatsave}
+x &= x^b + \bP \yhatsave
+\end{align}
+\end{subequations}
+
+The minimization of Eq. (\ref{eq:cost-in-x}) with respect to
+$x$ is equivalent to
+the minimization of Eq. (\ref{eq:cost-in-xhatsave}) with respect to
+$\xhatsave$, and in particular, is equivalent to
+the minimization of Eq. (\ref{eq:cost-in-yhatsave}) with respect to
+$\yhatsave$.
+
+\subsubsection{Gradient of Cost Function, $\nabla_\yhatsave J$}
+
+The first thing of an iterative optimization algorithm is
+to evaluate the gradient of the cost function.
+Denoted by $\nabla_\yhatsave J$, the
+gradient of the cost function $J(x)$ in Eq. (\ref{eq:cost-in-yhatsave})
+with respect to $\yhatsave$ at $x=x^b+\xhatsave$ is
+\begin{align}
+\label{eq:grad-in-yhatsave}
+  \nabla_\yhatsave J
+    &=	\xhatsave +
+	\bP\bH_x^T \bR^{-1}
+	\bigl[ \cH(x) - o \bigr]
+\end{align}
+where
+\begin{align*}
+  \bH_x &\equiv \left. \frac{\partial \cH(x)}{\partial x}
+  		\right|_{x}
+\end{align*}
+based on identities
+\begin{gather*}
+  \frac{\partial \cH(x(\yhatsave))}{\partial \yhatsave}
+    =	\frac{\partial \cH\bigl(x(\yhatsave)\bigr)}{\partial x}	\cdot
+	\frac{\partial          x(\yhatsave)      }{\partial \yhatsave}
+    =	\bH_x \bP	\\
+  \bP^T = \bP
+\end{gather*}
+
+For a cost function minimization process started with a given initial
+``guess'' field $x^g$, let
+\begin{gather}
+\label{eq:xhat}
+  \xhat \equiv x - x^g
+\end{gather}
+then
+\begin{align*}
+  x = x^b + \xhatsave = x^g + \xhat.
+\end{align*}
+Eq.~(\ref{eq:grad-in-yhatsave}) becomes
+\begin{align}
+\label{eq:grad-wrt-yhatsave-in-xhat}
+  \nabla_\yhatsave J
+    &=	\xhatsave +
+	\bP\bH_x^T \bR^{-1}
+	\bigl[ \cH(x^g+\xhat) - o \bigr]
+\end{align}
+Or correspondingly
+\begin{align}
+\label{eq:grad-wrt-xhatsave-in-xhat}
+  \nabla_\xhatsave J
+    &=	\yhatsave +
+	\bH_x^T \bR^{-1}
+	\bigl[ \cH(x^g+\xhat) - o \bigr]
+\end{align}
+
+
+\subsubsection{Minimization Algorithm}
+
+The objective of an iterative step in the cost function minimization
+process utilizing the gradient defined by
+Eq.~(\ref{eq:grad-wrt-yhatsave-in-xhat})
+is to find the next correction step $\delta x$ which reduces
+the cost function in $x$
+\begin{align*}
+  J(x+\delta x) < J(x);
+\end{align*}
+Or in $\xhat$
+\begin{align*}
+  J(\xhat+\delta\xhat) < J(\xhat).
+\end{align*}
+Note that $\delta\xhat \equiv \delta x$ by the definition of $\xhat$.
+
+This minimization objective can be achieved through the
+algorithm in the GSI system, shown in Fig.~\ref{alg:algo} in
+mathematical terms, and in Fig.~\ref{alg:code} in
+program terms.
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[scale=0.8]{About../algo-pcgsoi-math}
+\caption{Routine {\tt PCGSOI()} in mathematical terms.}
+\label{alg:algo}
+\end{center}
+\end{figure}
+
+In Fig.~\ref{alg:algo},
+the objective of code segment line 6-9 is to compute the gradient
+with respect to $\xhat$ ({\em i.e.} $\xhatsave$) and $\yhatsave$,
+respectively.  Line 10-13 is to compute the correction directions
+in $\xhat$ ($\xhatsave$) and $\yhatsave$, where line 11 for
+scalar $\beta$
+is in agreement with Eqs.~(106) and (107) in Navon and Legler (1987),
+in the ``one-step limited-memory BFGS quasi-Newton update'' form.
+Line 14 is to compute the step-size
+that minimize the cost function along the given correction direction
+$\dirx_i$ or $\diry_i$, which
+can also be noted as ``solve
+\begin{align*}
+0 &=(\dirx_i)^T\!\nabla_\xhat J	\\
+  &=(\dirx_i)^T\!\yhatsave +
+    (\dirx_i)^T\!\bH^T\Rinv
+	\bigl(\cH(x_j^g+\xhat_{i-1}+\alpha_i\dirx_i)-o\bigr)	\\
+  &=(\diry_i)^T\!\xhatsave +
+    (\dirx_i)^T\!\bH^T\Rinv
+	\bigl(\cH(x_j^g+\xhat_{i-1}+\alpha_i\dirx_i)-o\bigr)	\\
+  &=(\diry_i)^T\!\nabla_\yhatsave J
+\end{align*}
+for $\alpha_i$''.
+Line 15-17, is to compute the next values of $\xhat$ ($\xhatsave$)
+and $\yhatsave$.
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[scale=0.8]{About../algo-pcgsoi-code}
+\caption{Routine {\tt PCGSOI()} in program terms.
+Note two new operators ${\bm L}$ and ${\bm L}^{-1}$.} \label{alg:code}
+\end{center}
+\end{figure}
+
+The algorithm shown in Fig.~\ref{alg:algo} and Fig.~\ref{alg:code} is
+known as the ``inner-loop'' of the minimization process in the GSI, or
+\verb"SUBROUTINE PCGSOI()".  Note that beside that Fig.~\ref{alg:algo}
+is in mathematical terms and Fig.~\ref{alg:code} is in program terms,
+Fig.~\ref{alg:code} also identifies the difference between the source
+grid-space defining background state $q^b$ and analysis $q^a$, and the
+intermediate grid-space defining the guess state $x^g$ and the
+increment state $\xhat$, and two linear operators
+($\bL$ and $\bL^{-1}$) converting between
+the two spaces back-and-forth.
+
+The algorithm descriptions given in these two figures
+include neither some configuration steps for the ``inner-loop'', nor
+the so-called ``restart'' of the search directions.  Both are parts of
+the algorithm known as the ``outer-loop'' of the process in the GSI,
+or in \verb"SUBROUTINE GLBSOI()".
+
+Figure~\ref{alg:twoloops} describes
+the complete minimization process in its two level nested-loop form,
+for the algorithm in routine \verb"GLBSOI()" as well as
+its major lower level routines.
+For convenience, some of these lower level
+routines are marked as Fortran comments in the figure.
+Note that the description of line 4-6 is highly simplified,
+not an accurate representation of the complex details in this
+part of the whole algorithm.
+
+\begin{figure}[hb]
+\begin{center}
+\includegraphics[scale=0.8]{About../algo-glbsoi-code}
+\caption{Minimization in two level nested loops
+from routine {\tt GLBSOI()} down.
+} \label{alg:twoloops}
+\end{center}
+\end{figure}
+
+%\end{document}
+
+%....................................................................
+\subsection{General Input Datasets}
+%           ----------------------
+\label{sec:GenData}
+
+\begin{center}
+\begin{tabular}{|l|l|}\hline
+{\bf Filename} & {\bf Description} \\
+\hline
+\hline
+spectral\_coefficients      &   \\ 
+transmittance\_coefficients &   \\
+emissivity\_coefficients    &   \\
+pcpinfo                     &   \\
+satinfo                     &    \\
+ozinfo                      &   \\
+berror\_stats               & tuning parameters related to definition of background
+                             error covariance \\
+prepobs\_prep.bufrtable     & BUFR table for prepobs files \\
+\hline
+\end{tabular}
+\end{center}
+
+%....................................................................
+\subsection{Observational Data}
+%           ------------------
+\label{sec:ObsData}
+
+\begin{center}
+\begin{tabular}{|l|l|l|}\hline
+{\bf Instrument} & {\bf Satellite} & {\bf Description}\\
+\hline
+\hline
+AMSU-A & NOAA-14/15/16/17  & TBD \\
+AMSU-B & NOAA-14/15/16/17  & TBD \\
+HIRS/2 & NOAA-14/15/16/17  & TBD \\
+HIRS/3 & NOAA-14/15/16/17  & TBD \\
+SBUV   & NOAA-16           & TBD \\
+MSU    & NOAA-14           & TBD \\
+TMI    & TRMM              & TBD \\
+MODIS  & TERRA             & TBD \\
+AIRS   & TERRA             & TBD \\
+CERES  & TERRA             & TBD \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Header Information}
+%           ------------------
+\label{sec:HeaderInfo}
+
+%....................................................................
+\subsubsection{Storage requirements}
+%              --------------------
+
+%....................................................................
+\subsection{Overview of the application program interface (API)}
+%           ---------------------------------------------------
+\label{sec:API}
+\subsubsection{FORTRAN 90 interface}
+%              --------------------
+\label{sec:API90}
+
+\subsubsection{FORTRAN 77 interface}
+%              --------------------
+\label{sec:API77}
+
+\subsubsection{FORTRAN 77 write routines}
+%              -------------------------
+\label{sec:WriteGSI}
+
+\subsubsection{FORTRAN 77 read routines}
+%              -------------------------
+\label{sec:ReadGSI}
+
+\subsubsection{Query routines}
+%              --------------
+\label{sec:GSIQuery}
+
+\subsection{Compatibility with different versions}
+%           -------------------------------------
+
+%..................................................................
+
+\section{Software Installation and Usage}
+%        -------------------------------
+\label{sec:Software}
+\subsection{Availability}
+%           ------------
+\label{sec:Avail}
+A copy of this software can be obtained by from a CVS repository currently
+residing at NASA/Goddard Space Flight Center. A CVS command allowing 
+extraction of a copy of the GSI software has the general form: 
+\begin{verbatim}
+cvs -d ${UserID}@zeus.gsfc.nasa.gov:/CM/baseline/GEOS_DAS \
+       checkout -r ${TAG} -d ${Out_SubDir} MODULE_NAME
+\end{verbatim}
+where the C-shell variable, \verb|UserID|, is a valid user
+identification tag, \verb|TAG| is the CVS software tag version,
+\verb|Out_SubDir| is the destination subdirectory on the local 
+platform, and \verb|MODULE_NAME| is the name of the desired CVS
+module to be extracted.
+
+For example, a valid string for \verb|TAG| is 
+\begin{verbatim}
+ncep-gsi-1_2
+\end{verbatim}
+If the user identification name is \verb|ncep_nco| and the local
+destination directory is \verb|gsi|, a valid CVS command to extract
+a copy of the source code from the repository is
+\begin{verbatim}
+cvs -d ncep_nco@zeus.gsfc.nasa.gov:/CM/baseline/GEOS_DAS \
+       checkout -r ncep-gsi-1_2 -d gsi gsi
+\end{verbatim}
+where \verb|gsi| is the module name in this case.
+
+Once the software is copied to the user's local directory all valid
+tags can be listed for a given GSI file using the command,
+\begin{verbatim}
+    cvs status -v $(FILE)
+\end{verbatim}
+where \verb|FILE| is a file extracted from CVS.  To get all versions
+of the GSI library, the most logical choice for \verb|FILE| is
+\verb|Makefile|.  The software can be updated to the desired version
+by entering the command,
+\begin{verbatim}
+    cvs update -r ${TAG}
+\end{verbatim}
+
+\subsection{Dependencies and System Requirements}
+%           ------------------------------------
+\label{sec:System}
+
+\subsection{Installation Instructions}
+%           -------------------------
+\label{sec:Install}
+There are currently two ways the GSI executable can be built. 
+
+\begin{description}
+
+\item[Makefile] This file is used to compile using the make utility
+
+\item[Makefile.conf.{\em ARCH}] where {\em ARCH} is the result of the
+C-Shell UNIX command, {\tt uname~-s} or {\tt uname~-n}.  This include
+file for the file, Makefile, contains all the machine dependent
+configuration parameters necessary to build the software on the
+desired platform.  
+
+\item[Makefile.depend] This file contains the list of object files
+with each entry containing the corresponding source code and the
+header files that are referenced by the source code.
+
+\item[configure] Script to link the make file to the appropriate
+configuration file, Makefile.conf.{\em ARCH} (where ARCH is the result
+of the C-Shell UNIX command, {\tt uname~-s}).  The command,
+\begin{verbatim}
+
+            ./configure
+
+\end{verbatim}
+should be performed so that the proper link is created.
+
+\item   Enter:
+\begin{verbatim}
+             make lib
+\end{verbatim}
+The file will be slightly smaller than if the FORTRAN 90 modules are
+included.  For a list of additional targets, enter
+\begin{verbatim}
+             make help
+\end{verbatim}
+\end{description}
+
+\subsection{Library testing}
+%           ---------------
+\label{sec:Testing}
+
+\subsection{Compiling GSI application program}
+%           ----------------------------------
+
+%.........................................................................
+
+\newpage
+
+\centerline{\huge\bf References}
+
+\addcontentsline{toc}{section}{References}
+
+\begin{description}
+
+\item{}Derber, J., and Rosati
+
+\item{}Purser R.J., W.-S. Wu, D. F. Parrish, N. M. Roberts, 2003: Numerical 
+       aspects of the application of recursive filters to variational statistical 
+       analysis. Part I: Spatially homogeneous and isotropic Gaussian covariances.
+       {\it Mon. Wea. Rev.}, {\bf 131}, 1524-1535.
+
+\item{}Purser R.J., W.-S. Wu, D. F. Parrish, N. M. Roberts, 2003: Numerical 
+       aspects of the application of recursive filters to variational statistical 
+       analysis.  Part II: Spatially inhomogeneous and anisotropic general covariances.
+       {\it Mon. Wea. Rev.}, {\bf 131}, 1536-1548.
+
+\item{}Wan-Shu, W., R. J. Purser, and D. F. Parrish, 2002: Three-dimensional
+       variational analysis with spatially inhomogeneous covariances.
+       {\it Mon. Wea. Rev.}, {\bf 130}, 2905-2916.
+
+\end{description}
+
+%..........................................................................
+
+\newpage
+
+\addcontentsline{toc}{section}{Revision History}
+
+\vspace*{\fill}
+
+\centerline{\huge\bf Revision History}
+
+\bigskip
+
+\bigskip
+
+\begin{center}
+\begin{tabular}{|l|l|l|l|}\hline
+{\bf Version} & {\bf Version} & {\bf Pages Affected/}   & {\bf Aproval}\\
+{\bf Number}  & {\bf Date}    & {\bf Extent of Changes} & {\bf Authority}\\
+\hline
+\hline
+Version 0 & May  2004       & see  Changes/20040505.txt & ncep-gsi-2004\_05 \\
+Version 0 & June 2004       & see  Changes/20040602.txt & ncep-gsi-2004\_06 \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace*{\fill}
+
+\appendix
+
+\addcontentsline{toc}{part}{APPENDIX}
+
+\section{Resource Files}
+\label{sec:RCFiles}
+
+\begin{table}[h]
+\caption{\small Namelists necessary to setup parameters to run GSI.}
+\label{tab:namelist}
+\end{table}
+{\tiny
+\begin{verbatim}
+ &SETUP
+   JCAP=@JCAP,NLAT=@NLAT,NLON=@NLON,nsig=@NSIG,
+   miter=3,niter(1)=100,niter(2)=100,niter(3)=1,
+   as=0.4,0.4,0.3,0.6,1.0,0.6,1.0,1.0,vs=0.5,hs=1.0,bw=0.
+   grosst=10.0,grossw=10.0,grossrw=10.0,grossdw=10.0,grossp=10.0,grossq=10.0,
+   grosspw=10.0,gencode=78,
+   dfact=0.1,factqmin=0.05,deltim=300,
+   ndat=27,jpch=493,npred=5,iguess=-1,
+   hybrid=.false.,regional=.false.,oneobtest=.false.,
+ /
+ &OBS_INPUT
+   dmesh(1)=145.0,dmesh(2)=240.,dmesh(3)=180.,
+   dfile(1)='amsuabufr',dtype(1)='amsua',    id(1)=15, dload(1)=225.0, dval(1)=10.0, dthin(1)=1,
+   dfile(2)='amsubbufr',dtype(2)='amsub',    id(2)=15, dload(2)=75.0,  dval(2)=3.0, dthin(2)=2,
+   dfile(3)='hirs2bufr',dtype(3)='hirs/2',   id(3)=14, dload(3)=285.0, dval(3)=6.0, dthin(3)=3,
+   dfile(4)='msubufr',  dtype(4)='msu',      id(4)=14, dload(4)=60.0,  dval(4)=2.0, dthin(4)=1,
+   dfile(5)='prepqc',   dtype(5)='goes',     id(5)=10, dload(5)=270.0, dval(5)=6.0, dthin(5)=3
+   dfile(6)='prepqc',   dtype(6)='goes',     id(6)=12, dload(6)=270.0, dval(6)=6.0, dthin(6)=3,
+   dfile(7)='ssmi',     dtype(7)='pcp_ssm/i',id(7)=264,dload(7)=300.0, dval(7)=1.0, dthin(7)=-1,
+   dfile(8)='tmi',      dtype(8)='pcp_tmi',  id(8)=211,dload(8)=300.0, dval(8)=1.0, dthin(8)=-1,
+   dfile(9)='amsuabufr',dtype(9)='amsua',    id(9)=16, dload(9)=225.0, dval(9)=10.0, dthin(9)=1,
+   dfile(10)='amsubbufr',dtype(10)='amsub',  id(10)=16,dload(10)=75.0, dval(10)=3.0, dthin(10)=2,
+   dfile(11)='hirs3bufr',dtype(11)='hirs/3', id(11)=16,dload(11)=285.0,dval(11)=6.0, dthin(11)=3,
+   dfile(12)='sbuvbufr', dtype(12)='sbuv2',  id(12)=16,dload(12)=75.0, dval(12)=1.0, dthin(12)=0,
+   dfile(13)='amsuabufr',dtype(13)='amsua',  id(13)=17,dload(13)=225.0,dval(13)=10.0, dthin(13)=1,
+   dfile(14)='amsubbufr',dtype(14)='amsub',  id(14)=17,dload(14)=75.0, dval(14)=3.0, dthin(14)=2,
+   dfile(15)='hirs3bufr',dtype(15)='hirs/3', id(15)=17,dload(15)=285.0,dval(15)=6.0, dthin(15)=3,
+   dfile(16)='goesimg',  dtype(16)='goesimg',id(16)=10,dload(16)=15.0, dval(16)=1.0, dthin(16)=3,
+   dfile(17)='goesimg',  dtype(17)='goesimg',id(17)=12,dload(17)=15.0, dval(17)=1.0, dthin(17)=3,
+   dfile(18)='airs',     dtype(18)='airs',   id(18)=49,dload(18)=4215.,dval(18)=20.0, dthin(18)=3,
+   dfile(19)='airs',   dtype(19)='eos_amsua',id(19)=49,dload(19)=225.0,dval(19)=10.0, dthin(19)=1,
+   dfile(20)='prepqc',    dtype(20)='t',     id(20)=0, dload(20)=2.483,dval(20)=1.0, dthin(20)=0,
+   dfile(21)='prepqc',    dtype(21)='uv',    id(21)=0, dload(21)=3.478,dval(21)=1.0, dthin(21)=0,
+   dfile(22)='prepqc',    dtype(22)='ps',    id(22)=0, dload(22)=1.000,dval(22)=1.0, dthin(22)=0,
+   dfile(23)='prepqc',    dtype(23)='q',     id(23)=0, dload(23)=3.991,dval(23)=1.0, dthin(23)=0,
+   dfile(24)='prepqc',    dtype(24)='pw',    id(24)=0, dload(24)=3.000,dval(24)=1.0, dthin(24)=0,
+   dfile(25)='prepqc',    dtype(25)='dw',    id(25)=0, dload(25)=3.000,dval(25)=1.0, dthin(25)=0,
+   dfile(26)='radarbufr', dtype(26)='rw',    id(26)=0, dload(26)=2.000,dval(26)=1.0, dthin(26)=0,
+   dfile(27)='prepqc',    dtype(27)='spd',   id(27)=0, dload(27)=3.478,dval(27)=1.0, dthin(27)=0,
+ /
+ &SINGLEOB_TEST
+   maginnov=0.1,magoberr=0.1,oneob_type='t',
+   oblat=45.,oblon=180.,obpres=1000.,obdattim=2004041512,
+   obhourset=0.,
+ /
+\end{verbatim}
+}
+
+\subsection{Glossary}
+%           --------
+
+\begin{center}
+\begin{tabular}{ll}\hline
+AIRS   & Atmospheric Infrared Sounder \\ 
+AMSU   & Advanced Micorwave Sounding Unit \\
+CERES  & Clouds and Earth's Radiant Energy System \\
+HIRS   & High-Resolution Infrared Radiation Sounder \\
+MODIS  & Moderate-Resolution Imaging Spectrometer \\
+MSU    & Micorwave Sounding Unit \\
+SBUV   & Solar Backscatter Ultraviolet radiometer \\
+TMI    & TRMM Microwave Imager \\
+TRMM   & Tropical Rainfall Measuring Mission \\
+\hline
+\end{tabular}
+\end{center}
+
+!EOI

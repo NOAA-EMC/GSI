@@ -1,0 +1,61 @@
+\documentclass{article}
+\usepackage{fancybox}
+\usepackage{graphics}
+\usepackage{color}
+\usepackage{bm}
+\usepackage{amssymb,amsmath}
+\usepackage[
+figure,
+longend,
+boxed,
+linesnumbered,
+noline
+]{algorithm2e}
+\begin{document}
+\pagestyle{empty}
+\newcommand{\tc}[2]{\textcolor{#1}{#2}}
+\newcommand{\mc}[2]{{\color{#1}#2}}
+\input{symbols}
+\input{pseudo-Fortran}
+
+\begin{algorithm}[h]
+\KwData{$\bB, \cH(), \bH, \bR, o$, etc.}	\;
+\KwIn{$x^g_j$ : guess}						\;
+\KwIn{$\xhatsave_0 = x^g_j - x^b$ : $x$-increment}	\;
+\KwIn{$\yhatsave_0 = \bB \xhatsave_0$ : $y$-increment}	\;
+
+$\grady_0 = 0.$	\;
+$\dirx_0 = 0.$	\;
+$\diry_0 = 0.$	\;
+$\xhat_0 = 0.$	\;
+
+\Fdo{$i=1,\ldots $}{
+  $\ghatx_i =
+    {\bH^T \Rinv (\cH(x^g_j+{\red\xhat_{i-1}}) - o)}$	\;
+
+  $\ghaty_i = {\bB \ghatx_i}$				\;
+
+  $\gradx_i = {\red \yhatsave_{i-1}} + \ghatx_i$	\;
+  $\grady_i = {\red \xhatsave_{i-1}} + \ghaty_i$	\;
+
+  $\fhat_i = \grady_i - {\red \grady_{i-1}}$		\;
+  $\beta_i = {\fhat_i}^T\grady_i / {\fhat_i}^T{\red \dirx_{i-1}}$	\;
+
+  $\dirx_i = -\grady_i + \beta_i{\red \dirx_{i-1}}$	\;
+  $\diry_i = -\gradx_i + \beta_i{\red \diry_{i-1}}$	\;
+
+  minimize $J({\red\xhat_{i-1}}+\alpha_i\dirx_i)$ for $\alpha_i$\;
+%  \{solve
+%  	$0={\dirx_i}^T\!\bigl({\red\yhatsave_{i-1}}+\bH^T \Rinv (
+%		\cH(x^g_j+{\red\xhat_{i-1}}+\alpha_i\dirx_i) - o )
+%	\bigr)$ for $\alpha_i$\}			\;
+  
+  $\xhat_i = {\red \xhat_{i-1}} + \alpha_i \dirx_i$	\;
+  $\xhatsave_i = {\red \xhatsave_{i-1}} + \alpha_i \dirx_i$	\;
+  $\yhatsave_i = {\red \yhatsave_{i-1}} + \alpha_i \diry_i$	\;
+}
+\KwResult{$\xhatsave \longleftarrow \xhatsave_i $}	\;
+\KwResult{$\yhatsave \longleftarrow \yhatsave_i $}	\;
+\KwResult{$x^a_j     \longleftarrow x^g_j+\xhat_i $}		\;
+\end{algorithm}
+\end{document}

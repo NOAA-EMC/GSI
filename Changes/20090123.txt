@@ -1,0 +1,149 @@
+Current status of testing various options: (Merge w/ NCEP-Dec08-Q1FY10 version)
+------------------------------------------
+I) Default minimization: working and giving meaningful results
+
+II) sqrtmin-conjgr: working and giving meaningful results
+
+III) adjoint of sqrt-congjr working and giving meansingful results
+
+IV) observer is working
+
+V) 4dvar is working (w/ Lanczos)
+
+VI) FOTO works - results look somewhat suspicious.
+
+VII) strong constraint opt 1 (slow) works in the context of pcgsoi  - gmao bkg
+     strong constraint opt 2 (fast)       in the context of pcgsoi  - ncep bkg
+     strong constraint opt 2 (fast)       in the context of pcgsqrt - ncep bkg
+
+
+Various pending issues
+----------------------
+
+0) general remarks:
+   - both NCEP and GMAO have removed _tl routines related to previous gsi-adjoint;
+     To a large extent I picked GMAO's changes!
+   - as a general practice to add a comment line in the prologue saying: "merged code from John Doe"
+     is very uninformative!
+   - prologues: what happened to agreement about protex?
+
+1) quad: 
+    - default: min is not reproducible (I broke it and my attempts to fix it have not yet worked)
+    - sqrtmin: 
+         o pcgsqrt: reproducible with one outer iteration
+                not reproducible for two or more outer iterations (radiance bias correction suspect)
+                      (intjo is not exaclty as it should be for quad fix)
+         o congrad and all: not yet complete - lanczos/qnewton/qnewton3 will need minor change in
+                            calc of dot products
+
+2) routine-by-routine comments:
+   - iasi  (prologue of setup??!)
+   - stp3dvar/stpjo/stpcalc  need to clean redundant comments
+   - int3dvar/intjo/intall   need to clean redundant comments
+   - mp_compact_diffs_mod1.f90 somehow dec08 version gives me all sorts of 
+                                problems - upded back to older version
+   - smoothrf.f90  from dec08 not taked: I don't want to have to upd adj/sqrt accordingly
+                                        (I would not be able to test omp split at this point)
+   - GSI_gridmod.F90: must remove dependence on mpeu
+                      must use kinds
+   - setuprhsall.F90: Why does the setup routines depend on compute_derived? 
+                      I'd like to move the call from setuprhall back to gblsoi
+   - gsi_inquire in mpi_bufr_mod can be made smarter
+   - timermod needs ibm corresponding timing routines
+
+3) need to build consistency checks: l_foto/lsqrt, l_foto/l4dvar, ltlint, etc ...
+
+4) Must update ESMF main program to handle NCEP background files
+
+5) strong_bk and its adj need to be cleared from var transforms (such as calc 3dp, etc)
+
+6) precipitation: 
+    - read_pcp time (tdiff/t4dv) seems to be inconsitent w/ other reads
+      (somehow nobs change considerably in setuppcp - likely at time window error in the read_pcp)
+ 
+7) do I need mpl_allgather?
+
+8) both control and state vectors modules need some clean up
+
+9) double check time window of obs intake (particularly, read_prepbufr) in 4dvar
+
+10) need to teach write_gfs how to write increments
+
+11) OMI cannot be taken in 4dvar mode: read_obsdiags is the likely suspect
+
+Minors:
+======
+a) I am sure Jing can answer the question in inquire_obsdiag(obsmod) about precision ...
+
+b) took smoothrf from 4dvar - assuming smoorthrf changes in the May08 are simply computational
+
+c) Commiting temporary pcgsoi on the truck ... bypassing Jing's change for TLNMC - will need to 
+   bring it in later. Now, this entails a module m_tlnmc - which does not comply w/ module names in 
+   GSI - must be named tlnmcmod - sorry Jing.
+
+d) double check meaning of diagprefix replacement by dirname in light of adj/scripts
+
+TAGS:
+=====
+
+A. First functioning merged tag: rt-gsi-d215_6-may08-4
+    tested only for 2 outer 10/5 inner w/ TWPS raob 
+
+B. Further tested tag: rt-gsi-d215_6-may08-5
+    4dvar/observer working
+
+C. Further tested tag: rt-gsi-d215_6-may08-6
+    placed foto back
+
+D. Tentative quad-precistion fix: rt-gsi-d215_6-may08-7
+   also tested building gsi.x when ESMF not available
+ 
+E. Initial December tag after committing NCEP Q1FY10 (as is) into GMAO
+   repository: gmao4ncep-gsi-2008_12 (same as jg-gsi-nceptb_q1fy10-asis)
+
+   Mildly modified Q1FY10 to work on the machines at Goddard: gmao4ncep-gsi-2008_12-4gsfc
+     (this is the tag used for all comparisons below)
+
+   Merged with Dec2008 NCEP version of GSI: rt-gsi-d215_6-dec08-4
+     (missing O3)
+
+F. Dec2008-plus version tested for all options with GMAO bkg: rt-gsi-d215_6-dec08-5
+    (only strong constraint fast does not work - likely a pole issue)
+     (missing O3, still)
+
+G. Dec2008-plus version tested for all options with NCEP bkg: rt-gsi-d215_6-dec08-6
+     (missing O3, still)
+
+H. Dec2008-plus version tested for all options with NCEP bkg: rt-gsi-d215_6-dec08-7
+     (now w/ O3)
+     when using 100x100 iterations: sqrt converges, but default min has troubles
+     (level O3 tested by Meta - seems ok)
+
+F. rt-gsi-d215_6-dec08-9  this tag has pcgsqrt reproducible for single outer loop
+
+G. rt-gsi-d215_6-dec08-10 (as in 9, w/ some clean up) - same as: gmao-gsi-2009_01
+                                                                 pass to NCEP on 22Jan2009
+                                                        after compilation fixes on IBM:
+                                                                 gmao-gsi-2009_01p1
+
+H. gmao-gsi-2009_01p2 after fixes to get results to match closely those from NCEP
+   original code from Dec08. In this tag, results are very close for 1 outer iteration
+   w/o precipitation data. There is still an issue w/ precip (see item 7)
+    
+F. gmao-gsi-2009_01p3 same as in gmao-gsi-2009_01p2, but add level o3 - and trying to 
+   fix issues w/ precip (not done yet)
+
+G. gmao-gsi-2009_01p4: pass to back to NCEP on 26Jan2009 after verifying that results
+   reproduce very closely results from original code gotten from NCEP in Dec 2008 
+   (which was at the name named Q1FY10)
+
+I. gmao-gsi-2009_01p5: tested mls o3 and gps in 4dvar mode; 4dvar mode cannot 
+   handle single level ozone such as OMI (will check)
+
+J. gmao-gsi-2009_01p6: as above, but with original gmao interface removed
+
+K. gmao-gsi-2009_01p7: remove redundancy between glbsoi and observer
+        NOTES: (i) opt ltlint for pcgsoi is not given proper results  
+                   linearization of stp routines has a problem - to be revisited
+               (ii) pass to NCEP on 5Feb2009
+        

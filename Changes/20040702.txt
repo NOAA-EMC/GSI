@@ -1,0 +1,577 @@
+CHANGE LOG FOR UNIFIED 3DVAR CODE
+-------------------------------------------
+Author(s)   :  Lidia Cucurull, John Derber, Daryl Kleist, 
+               Dave Parrish, Ricardo Todling, Russ Treadon, 
+               Wan-Shu Wu
+Reviewer(s) :  Russ Treadon, Wan-Shu Wu
+Date        :  2 July 2004
+GMAO CVS tag:
+NCEP CVS tag:  ncep-gsi-2004_06
+
+
+
+REASON FOR CHANGES
+------------------
+  The following changes (in no particular order) are made to the gsi 
+  code in this update:
+     a) documentation of all routines.  While the level of thoroughness
+        in documentation may vary from routine to routine, each routine
+        has, at a minimum, a NCO (NCEP Central Operations)-compliant 
+        docblock.
+
+     b) clean up/reorganize code to make it more readable (e.g., changes
+        made to smoothzrf and smoothzrf_reg routines; replace ggrid_g3
+        array with separate ges_ arrays, simplify grid <--> spectral
+        routines)
+
+     c) remove routines/variables that are no longer needed (e.g., 
+        s2grad and s2gvec no longer used since grad(scalar) and u,v wind 
+        computations done using compact differencing on grid; "nmm" 
+        read/write routines are no longer needed since "wrf_nmm" routines 
+        handle regional i/o)
+
+     d) fix bugs (e.g., error in recursive filter call in prewgt_reg; 
+        correct errors in radar wind superob code)
+
+     e) update/improve code (e.g., add ability to read multiple gps 
+        refractivity profiles & improve quality control of this data)
+
+     f) add weak constraint for supersaturation
+
+     g) remove grid to spectral transform at end of global gsi inner loop.
+        Previously hopers tranformed the updated guess to spectral space
+        at the end of each inner loop.  Subroutine inguesig then converted
+        the spectral coefficients back to grid space at the start of each
+        outer loop.  With this update there is no grid --> spectral --> grid
+        operation between inner/outer loops.  Rather, all fields are kept
+        in grid space until the final analysis is written.  THIS CHANGE
+        ONLY AFFECTS THE GLOBAL GSI.
+
+     h) add code necessary to carry around guess and derived fields as 
+        real(4) instead of real(8).  This release maintains the guess and
+        derived fields as real(8) as in previous versions.  Using real(4)
+        for guess and guess-derived fields in the global gsi at T254L64 
+        reduces the maximum resident set size by 130 Mb (code run with 48 
+        MPI tasks).  Large maximum resident set sizes may become a 
+        performance issue at higher global and regional resolutions.  The 
+        code changes/additions made in this update should make it easier 
+        to examine memory/precision issues at a later date.
+
+     PLEASE note that some of the above changes pertain only to the global
+     or regional systems while other changes affect both systems.       
+
+
+
+SPECIAL NOTES
+-------------
+    With this update a constraint on supersaturated moisture values is added to
+    the cost function.  The magnitude of the upper "limq" constraint is controlled
+    via namelist variable factqmax.  Setting factqmax to 0.0 turns off the upper
+    limq constraint.  As factqmax increases, the constraint grows stronger.
+    Addition of the upper limq constraint obviously alters the final analysis.  
+    NCEP GDAS cycling experiments without this constraint revealed a slow but 
+    steady accumulation of supersaturated boundary layer air over time.  The 
+    supersaturation constraint was added to keep this aspect of the analysis 
+    within physically realistic bounds.
+
+
+
+EXPECTED DIFFERENCES
+--------------------
+    Code changes that alter the final analysis are indicated in the listings
+    below by an asterisk (*).  The amount of change in the results varies from 
+    MINOR round-off differences to MAJOR changes due to additional terms in 
+    the cost function.  Below is a list of expected differences sorted as a
+    function of which system (global, regional, both) the difference shows
+    up in.  Each difference is tagged with a string indicating how significant
+    the change is 
+       MINOR  - differences not much above round off level
+       MEDIUM - noticeable, but not significant, change in results
+       MAJOR  - significant change, affect all fields
+    
+    Please note that the MINOR, MEDIUM, MAJOR tags simply provide an indication
+    of the magnitude of the expected differences.  What one researcher calls
+    MAJOR may be MINOR to another.  
+
+
+    Both
+       - addition of supersaturation moisture constraint - affects all fields
+         through altering the path the minimization takes.  (MAJOR)
+       - use more precise value in virtual <--> sensible temperature conversion 
+         in setupt (MINOR)
+
+    Regional only
+       - inlining of certain calculations when reading/writing wrf_nmm guess/analysis
+         alters combination of real(4) and real(8) variables in computations (MINOR)
+       - correct bug in recursive filter call (MEDIUM)
+       - change units for background error vertical scales (MAJOR)
+
+    Global only
+       - compute horizontal gradients and u,v winds in grid space, not spectral (MEDIUM)
+       - remove grid --> spectral --> grid transform between inner/outer loops (MEDIUM)
+
+
+
+TEST RESULTS
+------------
+Old code :   /nfsuser/g01/wx20rt/global_gsi/sorc/gmao_cvs/global_anl
+New code :   /nfsuser/g01/wx20rt/global_gsi/sorc/gsi_cvs/global_anl
+Machine  :   NCEP IBM SP (frost)
+
+
+GLOBAL TEST
+-----------
+Test case:   /nfsuser/g01/wx20rt/global_gsi/cases/global/sigma/t254l64/2004041512
+Setup    :   48 mpi tasks, blocking=unlimited
+
+Max memory
+   old:  606504 Kbytes
+   new:  522508 Kbytes
+
+Wall clock
+   old:  1429.294497 seconds
+   new:  1428.877073 seconds
+
+Output from final iteration of minimization
+old:  0: penalty,grad ,a,b=   3   1 0.186868898468545493E+06 0.211171226127405316E+04 0.136313747279731209E-02 0.263998968993656380E+01
+new:  0: penalty,grad ,a,b=   3   1 0.186875403644287609E+06 0.237708161886532980E+04 0.163786319325480607E-02 0.339175821510993192E+01
+
+
+
+REGIONAL TEST
+-------------
+Test case:   /nfsuser/g01/wx20rt/global_gsi/cases/regional/wrfnmm/central_nest/2004041512
+Setup    :   48 mpi tasks, blocking=unlimited
+
+Max memory
+   old:  211468 Kbytes
+   new:  211404 Kbytes
+
+Wall clock
+   old:  428.296809 seconds
+   new:  405.354857 seconds
+
+Output from final iteration of minimization
+oldb: 0: penalty,grad ,a,b=   3   1 0.470705957624939183E+05 0.363880577275631222E+05 0.488987624937175375E-02 0.120423546785275004E+00
+oldf: 0: penalty,grad ,a,b=   3   1 0.482883281361895206E+05 0.198783242514903868E+05 0.102539313863632547E-01 0.120427333020697816E+00
+new : 0: penalty,grad ,a,b=   3   1 0.481136929519235637E+05 0.243962138507917771E+05 0.473986941454168382E-02 0.147916259128432398E+00
+
+NOTE:  There are two entries for the old code (old=previous gsi version) final 
+iteration numbers because the old code had a bug in prewgt_reg.  The first 
+"oldb" numbers are from the indicated source code WITH the bug.  The second 
+old numbers, "oldf" are from the same code with ONLY the bug in prewgt_reg 
+fixed.  
+
+
+
+FILES REMOVED
+-------------
+   g2s_all3.F90             - subroutine no longer used
+   genspec_vars.f90         - factsml & factvml initializations moved to specmod.f90; 
+                                other initializations no longer needed
+   get_regional_time.f90    - subroutine no longer used
+   hybrid_2_hybrid.f90      - subroutine no longer used
+   hybrid_2_hybrid_back.f90 - subroutine no longer used
+   hybrid_2_sigma.f90       - subroutine no longer used
+   inguesig.F90             - functionality moved to rdgesig.f90
+   interp_a2e.f90           - subroutine no longer used
+   interp_e2a.f90           - subroutine no longer used
+   nc1tonc.f90              - subroutine no longer used
+   nctonc1.f90              - subroutine no longer used
+   nmm_hybrid_2_hybrid.f90  - subroutine no longer used
+   read_nmm_files.F90       - subroutine no longer used
+   read_nmm_guess.f90       - subroutine no longer used
+   s2g.F90                  - subroutine no longer used
+   s2g_all3.F90             - subroutine no longer used
+   s2grad.F90               - subroutine no longer used (*)
+   s2gvec.F90               - subroutine no longer used (*)
+   sendroutinerf.f90        - subroutine no longer used
+   setcomm.f90              - subroutine no longer used
+   setcommrf.f90            - subroutine no longer used
+   sigma_2_hybrid.f90       - subroutine no longer used
+   smoothzrf_reg.f90        - combined with smoothzrf.f90
+   wrfnmm_hybrid_2_hybrid.f90      - calculation moved inline in read_wrf_nmm_guess.f90 (*)
+   wrfnmm_hybrid_2_hybrid_back.f90 - calculation moved inline in wrwrfnmma.f90 (*)
+   wrnmma.f90               - subroutine no longer used
+
+
+   NOTE:  The difference in results resulting from the removal of wrfnmm_hybrid_2_hybrid.f90
+          and wrfnmm_hybrid_2_hybrid_back.f90 is due to the different combination of real(8)
+          and real(4) variables in computations.
+
+          Removal of s2gvec.F90 affects the guess u- and v-wind component fields, thus 
+          leading to a difference in the final analysis results.  In previous versions 
+          of the gsi code, computation of u- and v-wind components from vorticity and
+          divergence was done spectrally in s2gvec.F90.  With this gsi release the 
+          conversion is now done in a three steps.  
+            1) spectral coefficients of vorticity and divergence are converted to stream
+               function (sf) and velocity potential (vp),
+            2) sf and vp coefficients are transformed to grid space, and
+            3) high-order compact differencing (stvp2uv.f90) is applied to grid space 
+               sf and vp to obtain u- and v-wind components.
+
+
+
+FILES ADDED
+-----------
+   compute_pcp_grad.f90 - compute gradient terms used in precipitation rate forward model (*)
+   g2s1.F90             - grid to spectral transform
+   grdsphdp.f90         - compute grad(scalar field) on spherical grid using high-order 
+                            compact differencing (*)
+
+   NOTE:  The difference in results from the addition of compute_pcp_grad.f90 is due to 
+          the calculation of the horizontal gradients of log(surface pressure), virtual
+          temperature, and specific humidity using high-order compact differencing 
+          (grdsphdp.f90).  Previous versions of the gsi code first computed these 
+          gradients in spectral space (s2grad.F90) and then transformed the spectral 
+          coefficients of the gradients to grid space.
+
+
+
+FILES MODIFIED
+--------------
+   Atmospheric_Properties.f90 - add NCEP docblock
+   Compare_Float_Numbers.f90- add NCEP docblock
+   EmisCoeff_Binary_IO.f90  - add NCEP docblock
+   EmisCoeff_Define.f90     - add NCEP docblock
+   Geopotential.f90         - add NCEP docblock
+   IRSSE_Coefficients.f90   - add NCEP docblock
+   IRSSE_Model.f90          - add NCEP docblock
+   Level_Layer_Conversion.f90 - add NCEP docblock
+   Profile_Utility_Parameters.f90 - add NCEP docblock
+   SpcCoeff_Binary_IO.f90   - add NCEP docblock
+   SpcCoeff_Define.f90      - add NCEP docblock
+   TauCoeff_Binary_IO.f90   - add NCEP docblock
+   TauCoeff_Define.f90      - add NCEP docblock
+   Units_Conversion.f90     - add NCEP docblock
+   absorber_profile.f90     - add NCEP docblock
+   ajmpcp.f90               - update documentation
+   balance.f90              - rename variable qsatg to qsatg_fix
+   berror.f90               - modify indexing of dssv and alv to be consistent global and regional
+   bkerror.f90              - update documentation; reformat code (indentation, spacing, etc)
+   coefficient_utility.f90  - add NCEP docblock
+   constants.f90            - update documentation; replace real(4) 1. and 180. with real(8) values
+   deter_subdomain.f90      - update documentation
+   deternpe.f90             - update documentation; reformat code (indentation, spacing, etc)
+   dgetmo.F90               - add NCEP docblock
+   dprodx.F90               - update documentation
+   dtast.f90                - update documentation; reformat code (indentation, spacing, etc)
+   dvast.f90                - update documentation; reformat code (indentation, spacing, etc)
+   emiss.f90                - update documentation; reformat code (indentation, spacing, etc)
+   error_handler.f90        - add NCEP docblock
+   file_utility.f90         - add NCEP docblock
+   fill_nmm_grid2.f90       - add documentation
+   forward_model.f90        - add NCEP docblock
+   fpvsx_ad.f90             - add NCEP docblock; reformat code (indentation, spacing, etc)
+   fundamental_constants.f90- add NCEP docblock
+   gaussian.f90             - add NCEP docblock
+   gengrid_vars.f90         - update documentation
+   genqsat.f90              - update documentation; replace ggrid_g3 with ges_; rename 
+                                logical icesat to ice
+   getlalo.F90              - update documentation; remove unused arrays; simplify calls to 
+                                low level routines
+   getpln.f90               - update documentation; simplify code and remove unused arrays
+   glbsoi.f90               - remove nmm_regional, calls to read_nmm_files,read_nmm_guess
+   grdcrd.f90               - update documentation
+   grid2sub.f90             - update documentation
+   gridmod.f90              - remove arrays max_sig,min_sig--not used anywhere.  also remove 
+                                nmm_regional variable
+   gscond_ad.f90            - add NCEP docblock; reformat code (indentation, spacing, etc)
+   gsimain.F90              - variable factqmax added to namelist for supersaturated constraint; 
+                                update documentation; alter obs data file listing code; make calls
+                                to initialization routines consistent with changes made to those 
+                                routines; remove nmm_regional variable 
+   gsisub.f90               - update documentation; remove nmm_regional variable; alter calls to 
+                                array creation/destruction routines
+   guess_grids.f90          - remove nmm_regional variable; replace ggrid_g3 with ges_ arrays; 
+                                add code and logical flag to determine precision (real(4) or real(8))
+                                of ges_ and bias_ arrays; alter array creation/destruction routines
+   half_nmm_grid2.f90       - add documentation
+   hoper.f90                - modify to move some of smoothzrf operations into hoper
+   hopers.f90               - remove grid --> spectral transform of guess fields (*)
+   htoper.f90               - modify to move some of smoothzrf operations to htoper
+   inguesfc.F90             - update documentation
+   inisph.f90               - add NCEP docblock; reformat code (indentation, spacing, etc)
+   init_commvars.f90        - add definition for global and subdomain array displacements (used by mpi)
+   initialize.f90           - add NCEP docbloc
+   intall.F90               - update documentation
+   intdw.f90                - update documentation
+   intlimq.f90              - add supersaturated constraint term (*)
+   intoz.f90                - update documentation
+   intpcp.f90               - update docimentation; reformat code (indentation, spacing, etc)
+   intps.f90                - update documentation
+   intpw.f90                - update documentation
+   intq.f90                 - update documentation; reformat code (indentation, spacing, etc)
+   intrad.f90               - update documentation
+   intref.f90               - update documentation
+   intrp2a.f90              - update documentation
+   intrp3.f90               - update documentation
+   intrp3oz.f90             - update documentation
+   intrppx.f90              - update documentation; replace ggrid_g3 with ges_ arrays
+   intrw.f90                - update documentation
+   intspd.f90               - update documentation
+   intsrw.f90               - add documentation
+   intt.f90                 - update documentation
+   intw.f90                 - update documentation
+   jfunc.f90                - added/rename variables used in moisture constraints
+   k_matrix_model.f90       - add NCEP docblock
+   landem.f90               - update documentation; replace local constants with those in 
+                                constants module
+   locatelat_reg.f90        - documentation and clean up
+   m1glat.f90               - update documentation
+   m1ipqr.f90               - simplify routine by removing unnecessary code, update doucmentation
+   m1poly.f90               - update documentation
+   m1rcons.f90              - simplify routine by removing unnecessary code, update doucmentation
+   mpimod.F90               - explicit declaration of vars used from mpeu module m_mpif (affects SGI);
+                                add routines to manipulate real(4) arrays
+   nlmsas_ad.f90            - update documentation; reformat code
+   obs_para.f90             - turn off excess moisture constraint if no obs available
+   obsmod.f90               - update documentation; reformat code (indentation, spacing, etc)
+   omegas_ad.f90            - update documentation; reformat code (indentation, spacing, etc)
+   oneobmod.f90             - update documentation
+   ozinfo.f90               - add NCEP docblock
+   parameters.f90           - add NCEP docblock
+   pcgsoi.f90               - update documentation
+   pcpinfo.F90              - update documentation; add create_pcp_vars & destroy_pcp_vars
+   polcarf.90               - update documentation; replace local constants with those in 
+                                constants module
+   precpd_ad.f90            - update documentation; reformat code (indentation, spacing, etc)
+   predictors.f90           - add NCEP docblock
+   prepdw.f90               - update documentation; clean up code
+   prepp.f90                - update documentation; replace ggrid_g3 with ges_ 
+   preppw.f90               - update documentation; clean up code 
+   prepq.f90                - update documentation; add check to remove observations above model top;
+                                replace ggrid_g3 with ges_
+   prepref.f90              - make changes to quality control of gps refractivity data; 
+                                replace ggrid_g3 with ges_
+   preprw.f90               - update documentation; replace ggrid_g3 with ges_
+   prepsrw.f90              - add documentation
+   prept.f90                - update documentation; add check to remove observations above model top
+   prepw.f90                - update documentation; replace ggrid_g3 with ges_; add check to 
+                                remove observations above model top
+   prewgt.f90               - modify for compatibility with changes to smoothzrf
+   prewgt_reg.f90           - modify for compatibility with changes to smoothzrf; bug fix; 
+                                improve documentation; clean up code; make changes related to 
+                                unit of vertical scale in background error (*)
+   psichi2uv_reg.f90        - update documentation; reformat code (indentation, spacing, etc)
+   psichi2uvt_reg.f90       - update documentation; reformat code (indentation, spacing, etc)
+   qcmod.f90                - update documentation
+   rad_tran_k.f90           - update documentation
+   radiance.f90             - add NCEP docblock
+   radinfo.f90              - update documentation
+   rdgesfc.f90              - update doucmentation
+   rdgesig.f90              - update documentation; convert spectral coefs to grid space;
+                                distribute global grids to subdomains
+   rdgstat_reg.f90          - documentation and clean up
+   rdsfull.f90              - update documentation; reformat code (indentation, spacing, etc)
+   read_airs.f90            - update documentation; reformat code (indentation, spacing, etc)
+   read_avhrr_navy.f90      - update documentation; reformat code (indentation, spacing, etc)
+   read_bufrtovs.f90        - update documentation
+   read_files.F90           - remove references to "regional", redundant
+   read_goesimg.f90         - update documentation
+   read_goesndr.f90         - update documentation
+   read_gps_ref.f90         - modify code to read multiple gps refractivity profiles
+   read_guess.f90           - add logic/code to handle real(8) or real(4) guess and bias
+                                correction fields; replace call to inguesig with rdgesig;
+                                replace ggrid_g3 with ges_ arrays; load moisture arrays 
+                                (update limq related arrays on outer loop) (*)
+   read_ieeetovs.f90        - update documentation
+   read_lidar.f90           - update documentation
+   read_obs.f90             - update documentation; reformat code (indentation, spacing, etc)
+   read_ozone.f90           - update documentation; reformat code (indentation, spacing, etc)
+   read_pcp.f90             - update documentation
+   read_prepbufr.f90        - update documentation; do not forcibly pass total precipitable water
+                                on in analysis.  (Previously was not assimilated, just monitored.  
+                                Now no longer monitored)
+   read_radar.f90           - update documentation
+   read_superwinds.f90      - add documentation, correct code errors (for future use)
+   read_wrf_nmm_files.F90   - add documentation, remove inges, ref to wrf_nmm_regional
+   read_wrf_nmm_guess.f90   - add documentation; remove max_sig, min_sig--not used anywhere; 
+                                inline calculation from subroutine wrfnmm_hybrid_2_hybrid.f90;
+                                load moisture arrays (update limq related arrays on outer loop);
+                                replace ggrid_g3 with ges_ arrays (*)
+   rfdpar.f90               - update documentation
+   rsearch.F90              - update doucmentation; reformat code (indentation, spacing, etc)
+   s2g1.F90                 - update doucmentation
+   satthin.F90              - update documentation; change local constants to real(8) precision
+   sensor_planck_routines.f90 - add NCEP docblock
+   setupdw.f90              - replace ggrid_g3 with ges_; update documentation
+   setupoz.f90              - replace ggrid_g3 with ges_; update documentation
+   setuppcp.f90             - replace ggrid_g3 with ges_; update documentation
+   setupps.f90              - update documentation; reformat code
+   setuppw.f90              - replace ggrid_g3 with ges_; update documentation
+   setupq.f90               - replace ggrid_g3 with ges_; update documentation
+   setuprad.f90             - update documentation
+   setupref.f90             - replace ggrid_g3 with ges_; update documentation
+   setuprhsall.f90          - replace ggrid_g3 with ges_; update documentation; remove  
+                                unnecessary code; make subroutine call lists consistent 
+                                with changes in subroutines
+   setuprw.f90              - replace ggrid_g3 with ges_; update documentation; reformat code
+   setupspd.f90             - replace ggrid_g3 with ges_; update documentation; reformat code
+   setupsrw.f90             - add documentation, correct code errors (for future use);
+                                replace ggrid_g3 with ges_; update documentation; reformat code
+   setupt.f90               - replace ggrid_g3 with ges_; update documentation; reformat code;
+                                use more precision constant in sensible --> virtual 
+                                temperature conversion
+   setupw.f90               - replace ggrid_g3 with ges_; update documentation; reformat code
+   simpin1.f90              - update documentation; reformat code
+   simpin1_init.f90         - update documentation; reformat code
+   smooth121.f90            - add NCEP docblock
+   smoothrf.f90             - update documentation
+   smoothwwrf.f90           - add NCEP docblock
+   smoothzrf.f90            - restructure and document
+   specmod.F90              - remove arrays not needed any more; simplify create/destroy
+                                routines; update documentation
+   spectral_coefficients.f90- add NCEP docblock
+   sprdw.f90                - update documentation; reformat code; accumulate statistics
+                                only from observations that are assimilated
+   sproz.f90                - update documentation; reformat code; accumulate statistics
+                                only from observations that are assimilated
+   sprp.f90                 - update documentation; reformat code; accumulate statistics
+                                only from observations that are assimilated
+   sprpw.f90                - update documentation; reformat code; accumulate statistics
+                                only from observations that are assimilated
+   sprq.f90                 - update documentation; reformat code; accumulate statistics
+                                only from observations that are assimilated
+   sprref.f90               - update documentation; reformat code; accumulate statistics
+                                only from observations that are assimilated
+   sprrw.f90                - update documentation; reformat code; accumulate statistics
+                                only from observations that are assimilated
+   sprspd.f90               - update documentation; reformat code; accumulate statistics
+                                only from observations that are assimilated
+   sprsrw.f90               - correct code errors (for future use)
+   sprt.f90                 - update documentation; reformat code; accumulate statistics
+                                only from observations that are assimilated
+   spruv.f90                - update documentation; reformat code; accumulate statistics
+                                only from observations that are assimilated
+   sst_retrieval.f90        - update documentation
+   statsconv.f90            - update documentation; reformat code
+   statsoz.f90              - update documentation
+   statspcp.f90             - update documentation; reformat code
+   statsrad.f90             - update documentation; reformat code
+   stop1.f90                - update documentation
+   stpcalc.f90              - add supersaturated constraint term (*)
+   stpdw.f90                - update documentation; reformat code
+   stplimq.f90              - add supersaturated constraint term (*)
+   stpoz.f90                - update documentation; reformat code
+   stppcp.f90               - update documentation; reformat code
+   stpps.f90                - update documentation; reformat code
+   stppw.f90                - update documentation; reformat code
+   stpq.f90                 - update documentation; reformat code
+   stprad.f90               - update documentation
+   stpref.f90               - update documentation; reformat code
+   stprw.f90                - update documentation; reformat code
+   stpspd.f90               - update documentation; reformat code
+   stpsrw.f90               - add documentation
+   stpt.f90                 - update documentation; reformat code
+   stpw.f90                 - update documentation; reformat code
+   stvp2uv.f90              - update documentation
+   stvp2uv_reg.f90          - update documentation
+   sub2grid.f90             - update documentation
+   sumload.f90              - update documentation
+   tbalance.f90             - update documentation
+   tintrp2a.f90             - update documentation
+   tintrp3.f90              - update documentation
+   tpause.f90               - update documentation; reformat code; replace ggrid_g3 with ges_
+                                arrays; use geopotential height computed by load_geop_hgt
+   tpause_t.F90             - update documentation
+   transmittance.f90        - add NCEP docblock
+   transmittance_coefficients.f90 - add NCEP docblock
+   tstvp2uv.f90             - update documentation
+   tstvp2uv_reg.f90         - update documentation
+   type_kinds.f90           - add NCEP docblock
+   unfill_nmm_grid2.f90     - add documentation
+   unhalf_nmm_grid2.f90     - add documentation
+   update_ggrid.f90         - replace ggrid_g3 with ges_ arrays
+   write_all.f90            - update documentation; remove nmm_regional; reformat code; add logic and
+                                calls to handle real(8) or real(4) guess and bias correction fields
+   wrsfca.F90               - update documentation
+   wrsiga.f90               - update documentation; gather subdomain grids to global grids; 
+                                transform grids to spectral coefficients 
+   wrwrfnmma.f90            - add documentation; replace ggrid_g3 with ges_ arrays; inline 
+                                calculation from subroutine wrfnmm_hybrid_2_hybrid_back.f90 (*)
+
+
+
+MAKEFILE CHANGES
+----------------
+   Makefile 
+      - add compute_pcp_grad.f90, g2s1.F90, grdsphdp.f90
+      - remove g2s_all3.F90, genspec_vars.f90 get_regional_time.f90, hybrid_2_hybrid.f90,
+          hybrid_2_hybrid_back.f90, hybrid_2_sigma.f90, inguesig.F90, interp_a2e.f90,
+          interp_e2a.f90, nc1tonc.f90, nctonc1.f90, nmm_hybrid_2_hybrid.f90,
+          read_nmm_files.F90, read_nmm_guess.f90, s2g.F90, s2g_all3.F90, s2grad.F90,
+          s2gvec.F90, sendroutinerf.f90, setcomm.f90, setcommrf.f90, sigma_2_hybrid.f90,
+          smoothzrf_reg.f90, wrfnmm_hybrid_2_hybrid.f90, wrfnmm_hybrid_2_hybrid_back.f90,
+          wrnmma.f90
+
+
+   Makefile.dependency 
+      - add and remove same files as listed above
+
+   Makefile.conf.AIX
+      - add "-qlistopt -qsource" to compile options for debug target.  
+         -qlistopt toggles on listing of compiler options in effect
+         -qsource toggles on generation of source code listing
+
+   Makefile.conf.IRIX64
+      - changes related to run environment at GMAO (use of mpeu)
+
+   Makefile.conf.OSF1
+      - changes related to run environment at GMAO (use of mpeu)
+
+
+
+SCRIPT CHANGES
+--------------
+
+   rungsi_global.sh and rungsi_regional.sh (ONLY AFFECTS IBM SP, NCEP)
+      - Namelist variable factqmax added.  factqmax scales the magnitude of the 
+        moisture supersaturation constraint.  The value to use for factqmax, just as
+        for factqmin (negative moisture constraint scaling parameter), is resolution/
+        case dependent.  Some tuning is likely to achieve desired results over many
+        cases.  At T62L64 resolution in the GFS, a value between 1-10 produces 
+        reasonable results.  A smaller value should be used at higher resolution, but
+        what range this value falls in is yet to be rigorously examined.
+      
+      - The scaling parameters for the negative (factqmin) and supersaturated 
+        (factqmax) moisture constraints are both set to a default value of 1.0.
+        Previously, factqmin=0.05
+
+      - A new option is added to the IBM XLF environment variable XLFRTEOPTS.   The 
+        new option, "nlwidth=80" limits the width of namelist prints to 80 characters.
+        This is done to prevent run-on lines which cause visualization problems in 
+        the vi editor.  This change alters the format of the namelist printed to
+        standard out but does not affect numerical results.
+
+ 
+   analyzer (ONLY AFFECTS GMAO)
+      - changes related to run environment at GMAO
+
+   gsi.rc.sample (ONLY AFFECTS GMAO)
+      - Namelist variable factqmax added.  See above for discussion.  
+        Previously, this file did not have namelist variable factqmax.
+        PLEASE NOTE THAT FACTQMAX WAS NOT ADDED TO gsi.rc_old.sample.
+
+      - The scaling parameters for the negative (factqmin) and supersaturated
+        (factqmax) moisture constraints are both set to a default value of 1.0.
+        Previously, factqmin=0.05
+
+
+
+
+FIX FILE CHANGES
+----------------
+   - NO fix file changes for global
+
+   - For the REGIONAL mode, a change is made in the vertical structure of the background
+     error statistics.  Subroutine prewgt_reg.f90 is modified accordingly to normalize 
+     the vertical scales by delta-sigma and convert to vertical grid units.
+
+     The previous (prior to this update) regional background error statistics are moved
+     to file /nfsuser/g01/wx20rt/global_gsi/fix/regional/regional_berror_20040428.f77.
+
+     The new (default as of this update) regional background error statistics are found
+     in file /nfsuser/g01/wx20rt/global_gsi/fix/regional/regional_berror.f77
+
+

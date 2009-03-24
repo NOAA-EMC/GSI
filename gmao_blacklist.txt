@@ -1,0 +1,148 @@
+! ERA-40 blacklist of 48 stations recieved from Saki 10/23/2006
+!  10/25/2006 - Sienkiewicz - removed one duplicate, added station names.
+ t       120 42101   Patiala, India
+ t       120 42314   Dibrugarh/Mohanbari, India
+ t       120 42397   Siliguri, India
+ t       120 42647   Ahmadabad, India
+ t       120 42667   Bhopal/Bairagarh, India
+ t       120 42700   (India)
+ t       120 42779   Pendra Road, India
+ t       120 42809   Calcutta/Dum Dum, India
+ t       120 42855   Khandwa, India
+ t       120 42867   Nagpur Sonegaron, India
+ t       120 42895   Balasore, India
+ t       120 42901   Digha, India
+ t       120 42971   Bhubaneswar, India
+ t       120 43001   Dahanu, India
+ t       120 43003   Bombay/Santacruz, India
+ t       120 43041   Jagdalpur, India
+ t       120 43049   Gopalpur, India
+ t       120 43128   Hyderabad Airport, India
+ t       120 43149   Vishakhapatnam, India
+ t       120 43150   CWC Vishkhapatnam/Waltair, India
+ t       120 43181   Vijayawada/Ganna, India
+ t       120 43185   Machilipatnam, India
+ t       120 43192   Goa/Panjim, India
+ t       120 43229   Shirali, India
+ t       120 43271   Arogyavaram, India
+ t       120 43279   Madras/Minambakkam, India
+ t       120 43285   Mangalore/Bajpe, India
+ t       120 43295   Bangalore, India
+ t       120 43311   M.O. Amini, India
+ t       120 43333   Port Blair, India
+ t       120 43346   Karaikal, India
+ t       120 43353   Cochin/Willingdon, India
+ t       120 43361   Tondi, India
+ t       120 43368   Car Nicobar, India
+ t       120 43369   Minicoy, India
+ t       120 43371   Thiruvanathapuram, India
+ t       120 43377   Kanniyakumari, India
+ t       120 43466   Colombo, Sri Lanka
+ t       120 76723   Isla Socorro, Col., Mexico
+ t       120 80241   Las Gaviotas, Colombia
+ t       120 42339   Jodhpur, India
+ t       120 42369   Lucknow/Amausi, India
+ t       120 42379   Gorakhpur, India
+ t       120 42492   Patna, India
+ t       120 42724   Agartala, India
+ t       120 42874   PBO Raipur, India
+ t       120 43014   Aurangabad Chikalthan, India
+ t       120 44212   Ulaangom, Mongolia
+ q       120 42101   Patiala, India
+ q       120 42314   Dibrugarh/Mohanbari, India
+ q       120 42397   Siliguri, India
+ q       120 42647   Ahmadabad, India
+ q       120 42667   Bhopal/Bairagarh, India
+ q       120 42700   (India)
+ q       120 42779   Pendra Road, India
+ q       120 42809   Calcutta/Dum Dum, India
+ q       120 42855   Khandwa, India
+ q       120 42867   Nagpur Sonegaron, India
+ q       120 42895   Balasore, India
+ q       120 42901   Digha, India
+ q       120 42971   Bhubaneswar, India
+ q       120 43001   Dahanu, India
+ q       120 43003   Bombay/Santacruz, India
+ q       120 43041   Jagdalpur, India
+ q       120 43049   Gopalpur, India
+ q       120 43128   Hyderabad Airport, India
+ q       120 43149   Vishakhapatnam, India
+ q       120 43150   CWC Vishkhapatnam/Waltair, India
+ q       120 43181   Vijayawada/Ganna, India
+ q       120 43185   Machilipatnam, India
+ q       120 43192   Goa/Panjim, India
+ q       120 43229   Shirali, India
+ q       120 43271   Arogyavaram, India
+ q       120 43279   Madras/Minambakkam, India
+ q       120 43285   Mangalore/Bajpe, India
+ q       120 43295   Bangalore, India
+ q       120 43311   M.O. Amini, India
+ q       120 43333   Port Blair, India
+ q       120 43346   Karaikal, India
+ q       120 43353   Cochin/Willingdon, India
+ q       120 43361   Tondi, India
+ q       120 43368   Car Nicobar, India
+ q       120 43369   Minicoy, India
+ q       120 43371   Thiruvanathapuram, India
+ q       120 43377   Kanniyakumari, India
+ q       120 43466   Colombo, Sri Lanka
+ q       120 76723   Isla Socorro, Col., Mexico
+ q       120 80241   Las Gaviotas, Colombia
+ q       120 42339   Jodhpur, India
+ q       120 42369   Lucknow/Amausi, India
+ q       120 42379   Gorakhpur, India
+ q       120 42492   Patna, India
+ q       120 42724   Agartala, India
+ q       120 42874   PBO Raipur, India
+ q       120 43014   Aurangabad Chikalthan, India
+ q       120 44212   Ulaangom, Mongolia
+ ps      120 42101   Patiala, India
+ ps      120 42314   Dibrugarh/Mohanbari, India
+ ps      120 42397   Siliguri, India
+ ps      120 42647   Ahmadabad, India
+ ps      120 42667   Bhopal/Bairagarh, India
+ ps      120 42700   (India)
+ ps      120 42779   Pendra Road, India
+ ps      120 42809   Calcutta/Dum Dum, India
+ ps      120 42855   Khandwa, India
+ ps      120 42867   Nagpur Sonegaron, India
+ ps      120 42895   Balasore, India
+ ps      120 42901   Digha, India
+ ps      120 42971   Bhubaneswar, India
+ ps      120 43001   Dahanu, India
+ ps      120 43003   Bombay/Santacruz, India
+ ps      120 43041   Jagdalpur, India
+ ps      120 43049   Gopalpur, India
+ ps      120 43128   Hyderabad Airport, India
+ ps      120 43149   Vishakhapatnam, India
+ ps      120 43150   CWC Vishkhapatnam/Waltair, India
+ ps      120 43181   Vijayawada/Ganna, India
+ ps      120 43185   Machilipatnam, India
+ ps      120 43192   Goa/Panjim, India
+ ps      120 43229   Shirali, India
+ ps      120 43271   Arogyavaram, India
+ ps      120 43279   Madras/Minambakkam, India
+ ps      120 43285   Mangalore/Bajpe, India
+ ps      120 43295   Bangalore, India
+ ps      120 43311   M.O. Amini, India
+ ps      120 43333   Port Blair, India
+ ps      120 43346   Karaikal, India
+ ps      120 43353   Cochin/Willingdon, India
+ ps      120 43361   Tondi, India
+ ps      120 43368   Car Nicobar, India
+ ps      120 43369   Minicoy, India
+ ps      120 43371   Thiruvanathapuram, India
+ ps      120 43377   Kanniyakumari, India
+ ps      120 43466   Colombo, Sri Lanka
+ ps      120 76723   Isla Socorro, Col., Mexico
+ ps      120 80241   Las Gaviotas, Colombia
+ ps      120 42339   Jodhpur, India
+ ps      120 42369   Lucknow/Amausi, India
+ ps      120 42379   Gorakhpur, India
+ ps      120 42492   Patna, India
+ ps      120 42724   Agartala, India
+ ps      120 42874   PBO Raipur, India
+ ps      120 43014   Aurangabad Chikalthan, India
+ ps      120 44212   Ulaangom, Mongolia
+!obstype kx stnid   station name (not read in) 
+!a8,    i3,1x,a8 
