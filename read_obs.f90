@@ -348,7 +348,7 @@ subroutine read_obs(ndata,mype)
        call mpi_allgatherv(prslsm,ijn(mype+1),mpi_rtype,&
             work1,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
        if(use_prsl_full)then
-         call reorder(work1,1)
+         call reorder(work1,1,1)
          do ii=1,iglobal
             i=ltosi(ii)
             j=ltosj(ii)

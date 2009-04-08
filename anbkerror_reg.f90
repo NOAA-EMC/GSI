@@ -27,7 +27,6 @@ subroutine anbkerror_reg(gradx,grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2
-  use jfunc, only: nclen,nt,np,nq,nst,nvp,noz,nsst,ncw,nrclen,nclen1
   use jfunc, only: nsclen,npclen
   use balmod, only: balance,tbalance,strong_bk,strong_bk_ad
   use berror, only: varprd,fpsproj
@@ -41,7 +40,7 @@ type(control_vector),intent(inout):: gradx
 type(control_vector),intent(inout):: grady
 
 ! Declare local variables
-  integer(i_kind) i,j,nnn,ii
+  integer(i_kind) i,j,ii
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
 
 ! Put things in grady first since operations change input variables
@@ -61,7 +60,7 @@ type(control_vector),intent(inout):: grady
 
 !   Transpose of strong balance constraint
     call strong_bk_ad(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%p, &
-                      grady%step(ii)%t,grady%step(ii)%oz,grady%step(ii)%cw)
+                      grady%step(ii)%t)
 
 !   Transpose of balance equation
     call tbalance(grady%step(ii)%t ,grady%step(ii)%p , &
@@ -78,7 +77,7 @@ type(control_vector),intent(inout):: grady
 
 !   Strong balance constraint
     call strong_bk(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%p, &
-                   grady%step(ii)%t,grady%step(ii)%oz,grady%step(ii)%cw)
+                   grady%step(ii)%t)
 
 end do
 

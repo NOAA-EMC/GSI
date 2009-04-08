@@ -2292,6 +2292,7 @@
 
 ! Jump here when there is no data to process for current satellite
 ! Deallocate arrays
+  deallocate(diagbufchan)
   error_status = crtm_destroy(channelinfo)
   if (error_status /= success) &
   write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status

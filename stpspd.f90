@@ -69,7 +69,7 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: spd_ob_type
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
@@ -89,7 +89,7 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges)
   real(r_kind) pen(3),pentl(3),spd(0:3),uu(0:3),vv(0:3)
   real(r_kind) pen1tl,pen2tl,pen3tl,penctl,cctl
   real(r_kind) cg_spd,pen1,pen2,pen3,pencur,wgross,wnotgross
-  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
+  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,pg_spd
   type(spd_ob_type), pointer :: spdptr
 
   out=zero_quad
@@ -177,9 +177,10 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges)
 !  Modify penalty term if nonlinear QC
        if (nlnqc_iter .and. spdptr%pg > tiny_r_kind .and. &
                             spdptr%b  > tiny_r_kind) then
+          pg_spd=spdptr%pg*varqc_iter
           cg_spd=cg_term/spdptr%b
-          wnotgross= one-spdptr%pg
-          wgross = spdptr%pg*cg_spd/wnotgross
+          wnotgross= one-pg_spd
+          wgross = pg_spd*cg_spd/wnotgross
           pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
           do i=1,3
              pen(i) = -two*log((exp(-half*pen(i)  ) + wgross)/(one+wgross))

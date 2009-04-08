@@ -78,10 +78,10 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: gps_ob_type
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,one,two,half,tiny_r_kind,cg_term,zero_quad,&
                        r3600
-  use gridmod, only: latlon1n,latlon11,nsig
+  use gridmod, only: latlon1n,latlon1n1,nsig
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
@@ -89,7 +89,7 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
   type(gps_ob_type),pointer,intent(in):: gpshead
   real(r_quad),dimension(6),intent(out):: out
   real(r_kind),dimension(latlon1n),intent(in):: rt,rq,st,sq
-  real(r_kind),dimension(latlon1n+latlon11),intent(in):: rp,sp
+  real(r_kind),dimension(latlon1n1),intent(in):: rp,sp
   real(r_kind),dimension(4),intent(in):: sges
 
 ! Declare local variables
@@ -102,7 +102,7 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
   type(gps_ob_type), pointer :: gpsptr
 
   real(r_kind) cg_gps,pen1,pen2,pen3,pencur,nref1,nref2,nref3,wgross,wnotgross
-  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,nref0
+  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,nref0,pg_gps
 
 ! Initialize penalty, b1, and b3 to zero
   out=zero_quad
@@ -175,9 +175,10 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
 
 !      Modify penalty term if nonlinear QC
       if (nlnqc_iter .and. gpsptr%pg > tiny_r_kind .and. gpsptr%b > tiny_r_kind) then
+         pg_gps=gpsptr%pg*varqc_iter
          cg_gps=cg_term/gpsptr%b
-         wnotgross= one-gpsptr%pg
-         wgross = gpsptr%pg*cg_gps/wnotgross
+         wnotgross= one-pg_gps
+         wgross = pg_gps*cg_gps/wnotgross
          pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
          pen1   = -two*log((exp(-half*pen1  ) + wgross)/(one+wgross))
          pen2   = -two*log((exp(-half*pen2  ) + wgross)/(one+wgross))

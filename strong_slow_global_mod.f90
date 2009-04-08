@@ -30,7 +30,7 @@ module strong_slow_global_mod
 
   use kinds, only: i_kind
   use gridmod, only: nsig
-  use mpimod, only: nuvlevs
+  use mpimod, only: nuvlevs,nnnuvlevs
   implicit none
 
   integer(i_kind),allocatable::mode_number(:),mode_number0(:)
@@ -585,8 +585,8 @@ subroutine inmi_sub2grid(utilde,utilde2,uwork,mype)
          mpi_comm_world,ierror)
 
 !   reorder work arrays and transfer to output array
-    call reorder(work3,nuvlevs)
-    do k=1,nuvlevs
+    call reorder(work3,nuvlevs,nnnuvlevs)
+    do k=1,nnnuvlevs
       do i=1,iglobal
         uwork(ltosi(i),ltosj(i),k)=work3(i,k)
       end do
@@ -644,13 +644,13 @@ subroutine inmi_grid2sub(utilde,utilde2,uwork,mype)
 ! Initialize variables
   isize=max(iglobal,itotsub)
 
-    do k=1,nuvlevs
+    do k=1,nnnuvlevs
       do i=1,itotsub
         work3(i,k)=uwork(ltosi_s(i),ltosj_s(i),k)
       end do
     end do
 !   reorder the work array for the mpi communication
-    call reorder2(work3,nuvlevs)
+    call reorder2(work3,nuvlevs,nnnuvlevs)
 
 !   get u back on subdomains
     call mpi_alltoallv(work3(1,1),iscuv_s,isduv_s,&

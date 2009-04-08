@@ -78,8 +78,8 @@ subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
 !$$$
   use kinds, only: r_kind,i_kind
   use obsmod, only: gps_ob_type,lsaveobsens,l_do_adjoint
-  use qcmod, only: nlnqc_iter
-  use gridmod, only: latlon1n,latlon11,nsig
+  use qcmod, only: nlnqc_iter,varqc_iter
+  use gridmod, only: latlon1n,nsig,latlon1n1
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
@@ -91,15 +91,15 @@ subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
   type(gps_ob_type),pointer,intent(in):: gpshead
   real(r_kind),dimension(latlon1n),intent(in):: st,sq
   real(r_kind),dimension(latlon1n),intent(inout):: rt,rq
-  real(r_kind),dimension(latlon1n+latlon11),intent(in):: sp
-  real(r_kind),dimension(latlon1n+latlon11),intent(inout):: rp
+  real(r_kind),dimension(latlon1n1),intent(in):: sp
+  real(r_kind),dimension(latlon1n1),intent(inout):: rp
 
 ! Declare local variables
   integer(i_kind) j
   integer(i_kind),dimension(nsig):: i1,i2,i3,i4
   real(r_kind) :: w1,w2,w3,w4
   real(r_kind) :: p_TL,p_AD,t_TL,t_AD,q_TL,q_AD
-  real(r_kind) :: val,time_gps
+  real(r_kind) :: val,time_gps,pg_gps
   real(r_kind) ::cg_gps,grad,p0,wnotgross,wgross
   type(gps_ob_type), pointer :: gpsptr
 
@@ -161,9 +161,10 @@ subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
 !        needed for gradient of nonlinear qc operator
          if (nlnqc_iter .and. gpsptr%pg > tiny_r_kind .and.  &
                               gpsptr%b  > tiny_r_kind) then
+           pg_gps=gpsptr%pg*varqc_iter
            cg_gps=cg_term/gpsptr%b
-           wnotgross= one-gpsptr%pg
-           wgross = gpsptr%pg*cg_gps/wnotgross
+           wnotgross= one-pg_gps
+           wgross = pg_gps*cg_gps/wnotgross
            p0   = wgross/(wgross+exp(-half*gpsptr%err2*val**2))
            val = val*(one-p0)
          endif

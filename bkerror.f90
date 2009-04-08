@@ -37,8 +37,8 @@ subroutine bkerror(gradx,grady)
   use balmod, only: balance,tbalance,strong_bk_ad,strong_bk
   use mpimod, only: levs_id,nvar_id
   use gsi_4dvar, only: nsubwin, lsqrtb
-  use gridmod, only: lat2,lon2,nlat,nlon,nsig1o,periodic
-  use jfunc, only: nvp,nst,np,nt,ncw,nsst,noz,nq,nsclen,npclen
+  use gridmod, only: lat2,lon2,nlat,nlon,nnnn1o,periodic
+  use jfunc, only: nsclen,npclen
   use constants, only:  zero,half,one,two,four
   use control_vectors
   use timermod, only: timer_ini,timer_fnl
@@ -49,8 +49,8 @@ subroutine bkerror(gradx,grady)
   type(control_vector),intent(inout):: grady
 
 ! Declare local variables
-  integer(i_kind) k,i,j,nnn,iflg,ii
-  real(r_kind),dimension(nlat,nlon,nsig1o):: work
+  integer(i_kind) k,i,j,iflg,ii
+  real(r_kind),dimension(nlat,nlon,nnnn1o):: work
   real(r_kind),dimension(lat2,lon2):: slndt,sicet
 
   if (lsqrtb) call abor1('bkerror: not for use with lsqrtb')
@@ -68,13 +68,6 @@ subroutine bkerror(gradx,grady)
 !            8 cw
 !            9 land skin temperature
 !           10 ice temperature
-
-! Determine how many vertical levels each mpi task will
-! handle in the horizontal smoothing  
-  nnn=0
-  do k=1,nsig1o
-     if (levs_id(k)/=0) nnn=nnn+1
-  end do
 
 ! If dealing with periodic (sub)domain, gather full domain grids,
 ! account for periodicity, and redistribute to subdomains.  This
@@ -106,7 +99,7 @@ subroutine bkerror(gradx,grady)
 
 !   Transpose of strong balance constraint
     call strong_bk_ad(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%p, &
-                      grady%step(ii)%t,grady%step(ii)%oz,grady%step(ii)%cw)
+                      grady%step(ii)%t)
 
 !   Transpose of balance equation
     call tbalance(grady%step(ii)%t ,grady%step(ii)%p , &
@@ -115,7 +108,7 @@ subroutine bkerror(gradx,grady)
 !   Apply variances, as well as vertical & horizontal parts of background error
     call bkgcov(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%t, &
                 grady%step(ii)%p ,grady%step(ii)%rh,grady%step(ii)%oz, &
-                grady%step(ii)%sst,grady%step(ii)%cw,nnn)
+                grady%step(ii)%sst,grady%step(ii)%cw,nnnn1o)
 
 !   Balance equation
     call balance(grady%step(ii)%t ,grady%step(ii)%p ,&
@@ -123,7 +116,7 @@ subroutine bkerror(gradx,grady)
 
 !   Strong balance constraint
     call strong_bk(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%p, &
-                   grady%step(ii)%t,grady%step(ii)%oz,grady%step(ii)%cw)
+                   grady%step(ii)%t)
 
   end do
 

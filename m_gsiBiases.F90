@@ -500,8 +500,7 @@ subroutine updateall_ (xhat,xhatuv,xhat_div,xhat_vor,xhat_q,hour)
 
 ! !USES:
 
-  use jfunc, only: ncw,nt,np,noz,nu,nv,nsst
-  use gridmod, only: lat2,lon2,nsig
+  use gridmod, only: lat2,lon2,nsig,latlon11,latlon1n
 
   implicit none
 
@@ -524,7 +523,7 @@ subroutine updateall_ (xhat,xhatuv,xhat_div,xhat_vor,xhat_q,hour)
 !
 !   1. check dims of input xhat arrays
 !       real(r_kind),dimension(nclen),intent(inout):: xhat
-!       real(r_kind),dimension(nuvlen),intent(in):: xhatuv
+!       real(r_kind),dimension(2*latlon1n),intent(in):: xhatuv
 !       real(r_kind),dimension(lat2,lon2,nsig):: xhat_vor,xhat_div,xhat_q
 !
 ! !REMARKS:
@@ -538,10 +537,24 @@ subroutine updateall_ (xhat,xhatuv,xhat_div,xhat_vor,xhat_q,hour)
 !-------------------------------------------------------------------------
 
   integer(i_kind) :: l2,l3
+  integer(i_kind) :: ncw,nt,np,noz,nsst,nq,nu,nv,nst,nvp
  
   l2=lat2*lon2-1
   l3=lat2*lon2*nsig-1
-                                                                                                               
+
+  nst=1                                  ! streamfunction
+  nvp=nst+latlon1n                       ! velocity potential
+  nt=nvp +latlon1n                       ! t
+  nq=nt  +latlon1n                       ! q
+  noz=nq +latlon1n                       ! oz
+  ncw=noz+latlon1n                       ! cloud water
+  np=ncw +latlon1n                       ! surface pressure
+  nsst=np+latlon11                       ! skin temperature
+
+! Define pointers for isolated u,v on subdomains work vector
+  nu=1                                   ! zonal wind
+  nv=nu+latlon1n                         ! meridional wind
+
   call update3d_  (bias_u    ,lat2,lon2,nsig,xhatuv(nu:nu+l3)  ,hour)
   call update3d_  (bias_v    ,lat2,lon2,nsig,xhatuv(nv:nv+l3)  ,hour)
   call update3d_  (bias_tv   ,lat2,lon2,nsig,xhat(nt:nt+l3)    ,hour)
@@ -618,7 +631,7 @@ subroutine correct_()
 
 ! !USES:
 
-  use gridmod, only: lat2,lon2,nsig
+  use gridmod, only: lat2,lon2,nsig,latlon1n
   use guess_grids, only: nfldsig,ntguessig
   use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,ges_vor,ges_div,&
                          ges_tv,ges_q,ges_oz,ges_cwmr,sfct
@@ -638,7 +651,7 @@ subroutine correct_()
 !
 !   1. check dims of input xhat arrays
 !       real(r_kind),dimension(nclen),intent(inout):: xhat
-!       real(r_kind),dimension(nuvlen),intent(in):: xhatuv
+!       real(r_kind),dimension(2*latlon1n),intent(in):: xhatuv
 !       real(r_kind),dimension(lat2,lon2,nsig):: xhat_vor,xhat_div,xhat_q
 !
 ! !REMARKS:

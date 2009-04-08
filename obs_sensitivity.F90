@@ -22,7 +22,7 @@ use obsmod, only: cobstype, nobs_type, obsdiags, obsptr, obscounts, &
                 & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                 & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                 & i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
-                & i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type
+                & i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type
 use mpimod, only: mype
 use control_vectors
 use state_vectors
@@ -166,6 +166,7 @@ cobtype( i_oz_ob_type)="oz "
 cobtype(i_o3l_ob_type)="o3l"
 cobtype(i_gps_ob_type)="gps"
 cobtype(i_rad_ob_type)="rad"
+cobtype(i_tcp_ob_type)="tcp"
 
 return
 end subroutine init_fc_sens

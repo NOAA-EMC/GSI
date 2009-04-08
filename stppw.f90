@@ -70,7 +70,7 @@ subroutine stppw(pwhead,rq,sq,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: pw_ob_type
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,tpwcon,half,one,two,tiny_r_kind,cg_term,zero_quad,&
        r3600
   use gridmod, only: latlon1n,latlon11,nsig
@@ -86,7 +86,7 @@ subroutine stppw(pwhead,rq,sq,out,sges)
 ! Declare local variables  
   integer(i_kind) i1,i2,i3,i4,k
   real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
-  real(r_kind) val,val2,w1,w2,w3,w4,time_pw
+  real(r_kind) val,val2,w1,w2,w3,w4,time_pw,pg_pw
   real(r_kind) cg_pw,pw0,pw1,pw2,pw3,pen1,pen2,pen3,pencur,wgross,wnotgross
   type(pw_ob_type), pointer :: pwptr
 
@@ -151,9 +151,10 @@ subroutine stppw(pwhead,rq,sq,out,sges)
 !  Modify penalty term if nonlinear QC
      if (nlnqc_iter .and. pwptr%pg > tiny_r_kind .and. &
                           pwptr%b  > tiny_r_kind) then
+        pg_pw=pwptr%pg*varqc_iter
         cg_pw=cg_term/pwptr%b
-        wnotgross= one-pwptr%pg
-        wgross = pwptr%pg*cg_pw/wnotgross
+        wnotgross= one-pg_pw
+        wgross = pg_pw*cg_pw/wnotgross
         pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
         pen1   = -two*log((exp(-half*pen1  ) + wgross)/(one+wgross))
         pen2   = -two*log((exp(-half*pen2  ) + wgross)/(one+wgross))

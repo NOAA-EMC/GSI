@@ -71,12 +71,9 @@ subroutine int3dvar(rval,rval_dt)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,levs_id,npe,mype
-  use jfunc, only: nclen,nclen1,nclen2,nrclen,nsclen,&
-       npclen,ncw,np,nt,nsst,noz,nq,nst,nvp,nu,nv,nuvlen,&
-       ntendlen,nut,nvt,ntt,nprst,nqt,nozt,ncwt,ndivt,nagvt,l_foto
-  use constants, only: zero
-  use gridmod, only: latlon1n,latlon11,lat2,lon2,nsig,nsig1o
+  use mpimod, only: mype
+  use jfunc, only: l_foto
+  use gridmod, only: nnnn1o
   use state_vectors
   implicit none
   
@@ -85,10 +82,7 @@ subroutine int3dvar(rval,rval_dt)
   type(state_vector),intent(inout):: rval_dt
 
 ! Declare local variables  	
-  logical:: tracer
-  integer(i_kind) i,k,nnn
-  real(r_kind),dimension(nclen):: rval_x,rval_y
-  integer(i_kind) istrong
+  integer(i_kind) i,k
 
 !******************************************************************************
 
@@ -96,33 +90,12 @@ subroutine int3dvar(rval,rval_dt)
 
 !   Adjoint of virtual to sensible temperature conversion
     call tv_to_tsen_ad(rval_dt%t,rval_dt%q,rval_dt%tsen)
-    nnn=0
-    do k=1,nsig1o
-       if (levs_id(k)/=0) nnn=nnn+1
-    end do
-    do i=1,nclen
-       rval_x(i)=zero
-       rval_y(i)=zero
-    end do
-    tracer=.true.
 
     call calctends_ad(rval%u,rval%v,rval%t,                               &
-                      rval%q,rval%oz,rval%cw,                             &
-                      rval_x(nst),rval_y(nst),rval_x(nvp),rval_y(nvp),    &
-                      rval_x(nt), rval_y(nt), rval_x(np), rval_y(np),     &
-                      rval_x(nq), rval_y(nq), rval_x(noz),rval_y(noz),    &
-                      rval_x(ncw),rval_y(ncw),mype,                       &
+                      rval%q,rval%oz,rval%cw,mype,nnnn1o,                    &
                       rval_dt%u,rval_dt%v,rval_dt%t,rval_dt%p3d,  &
-                      rval_dt%q,rval_dt%oz,rval_dt%cw,rval%p3d,tracer)  
+                      rval_dt%q,rval_dt%oz,rval_dt%cw,rval%p3d)  
 
-! add contributions from derivatives
-    call tget_derivatives( &
-         rval%u     ,rval%v     ,rval%t      ,rval%p    ,  &
-         rval%q     ,rval%oz    ,rval%sst    ,rval%cw   ,  &
-         rval_x(nst),rval_x(nvp),rval_x(nt)  ,rval_x(np),  &
-         rval_x(nq) ,rval_x(noz),rval_x(nsst),rval_x(ncw), &
-         rval_y(nst),rval_y(nvp),rval_y(nt)  ,rval_y(np),  &
-         rval_y(nq) ,rval_y(noz),rval_y(nsst),rval_y(ncw),nnn,mype)
   end if
 
   return

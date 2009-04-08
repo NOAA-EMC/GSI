@@ -67,7 +67,7 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
 !$$$
   use kinds, only: r_kind,i_kind
   use obsmod, only: spd_ob_type,lsaveobsens,l_do_adjoint
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero, half, one, two,tiny_r_kind,cg_term,r3600
   use gridmod, only: latlon1n
   use gsi_4dvar, only: ltlint
@@ -85,7 +85,7 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
 ! real(r_kind) penalty
   real(r_kind) uanl,vanl,spdanl,spd,valv,valu
   real(r_kind) uatl,vatl,spdatl,spdtra,grad
-  real(r_kind) cg_spd,p0,wnotgross,wgross
+  real(r_kind) cg_spd,p0,wnotgross,wgross,pg_spd
   type(spd_ob_type), pointer :: spdptr
 
 
@@ -169,9 +169,10 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
               valv=vanl/spdanl
               if (nlnqc_iter .and. spdptr%pg > tiny_r_kind .and.  &
                                    spdptr%b  > tiny_r_kind) then
+                 pg_spd=spdptr%pg*varqc_iter
                  cg_spd=cg_term/spdptr%b
-                 wnotgross= one-spdptr%pg
-                 wgross = spdptr%pg*cg_spd/wnotgross
+                 wnotgross= one-pg_spd
+                 wgross = pg_spd*cg_spd/wnotgross
                  p0 = wgross/(wgross+exp(-half*spdptr%err2*spd**2))
                  term = (one-p0)
                  grad = grad*term
@@ -179,10 +180,11 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
            end if
          endif ! < l_do_adjoint >
 
+         valu=valu*grad
+         valv=valv*grad
+
      endif ! < ltlint >
 
-     valu=valu*grad
-     valv=valv*grad
 
      if (l_do_adjoint) then
        ru(j1)=ru(j1)+w1*valu

@@ -21,7 +21,7 @@ use control_vectors
 use state_vectors
 use bias_predictors
 use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb
-use gridmod, only: lat2,lon2,nsig,nsig1o
+use gridmod, only: lat2,lon2,nsig,nnnn1o
 use jfunc, only: nsclen,npclen,nrclen
 use berror, only: varprd,fpsproj
 use balmod, only: balance,strong_bk
@@ -35,19 +35,12 @@ type(predictors)    , intent(inout) :: bval
 
 ! Declare local variables  	
 real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
-integer(i_kind) :: ii,jj,kk,nnn
+integer(i_kind) :: ii,jj,kk
 
 !******************************************************************************
 
 if (.not.lsqrtb) call abor1('control2model: assumes lsqrtb')
 if (nsubwin/=1 .and. .not.l4dvar) call abor1('control2model: error 3dvar')
-
-! Determine how many vertical levels each mpi task will
-! handle in the horizontal smoothing
-nnn=0
-do kk=1,nsig1o
-   if (levs_id(kk)/=0) nnn=nnn+1
-end do
 
 ! Loop over control steps
 do jj=1,nsubwin
@@ -58,13 +51,13 @@ do jj=1,nsubwin
 ! error
   call ckgcov(xhat%step(jj)%values(:),workst,workvp, &
               sval(jj)%t,sval(jj)%p,workrh,sval(jj)%oz, &
-              sval(jj)%sst,sval(jj)%cw,nnn)
+              sval(jj)%sst,sval(jj)%cw,nnnn1o)
 
 ! Balance equation
   call balance(sval(jj)%t,sval(jj)%p,workst,workvp,fpsproj)
 
 ! Apply strong balance constraint
-  call strong_bk(workst,workvp,sval(jj)%p,sval(jj)%t,sval(jj)%oz,sval(jj)%cw)
+  call strong_bk(workst,workvp,sval(jj)%p,sval(jj)%t)
 
 ! -----------------------------------------------------------------------------
 

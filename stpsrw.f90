@@ -66,7 +66,7 @@ subroutine stpsrw(srwhead,ru,rv,su,sv,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: srw_ob_type
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
@@ -83,7 +83,7 @@ subroutine stpsrw(srwhead,ru,rv,su,sv,out,sges)
   real(r_kind) valu,facu,valv,facv,w1,w2,w3,w4,w5,w6,w7,w8,time_srw
   real(r_kind) bigu11,bigu12,bigu21,bigu22,facsrw1,facsrw2,valsrw1,valsrw2
   real(r_kind) cg_srw,pen1,pen2,pen3,pencur,u0,u1,u2,u3,v0,v1,v2,v3,wgross,wnotgross
-  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
+  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,pg_srw
   type(srw_ob_type), pointer :: srwptr
 
   out=zero_quad
@@ -171,9 +171,10 @@ subroutine stpsrw(srwhead,ru,rv,su,sv,out,sges)
 !  Modify penalty term if nonlinear QC
      if (nlnqc_iter .and. srwptr%pg > tiny_r_kind .and.  &
                           srwptr%b  > tiny_r_kind) then
+        pg_srw=srwptr%pg*varqc_iter
         cg_srw=cg_term/srwptr%b
-        wnotgross= one-srwptr%pg
-        wgross = srwptr%pg*cg_srw/wnotgross
+        wnotgross= one-pg_srw
+        wgross = pg_srw*cg_srw/wnotgross
         pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
         pen1   = -two*log((exp(-half*pen1  ) + wgross)/(one+wgross))
         pen2   = -two*log((exp(-half*pen2  ) + wgross)/(one+wgross))

@@ -137,7 +137,6 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   do k=1,nsig
     do j=1,lon2
       do i=1,lat2
-        if(mype == 0 .and. i == 1)write(mype+300,*) i,j,k,balt(i,j,k),delpsi(i,j,k),ges_vor(i,j,k,1),ges_vor(i,j,k,nfldsig)
         deltv(i,j,k) = deltv(i,j,k) - balt(i,j,k)
         delchi(i,j,k) = delchi(i,j,k) - bald(i,j,k)
       end do
@@ -330,7 +329,7 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
   use gridmod, only: lat2,nsig,iglobal,lon1,itotsub,lon2,lat1,&
        nlat,nlon,ltosi,ltosj,ltosi_s,ltosj_s
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_s,isduv_g,iscuv_g,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
+       isduv_s,isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
        strip,reorder,reorder2
   use specmod, only: ncd2,nc,enn1
   implicit none
@@ -367,10 +366,10 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
        mpi_comm_world,ierror)
 
 ! Reorder work arrays
-  call reorder(work2,nuvlevs)
+  call reorder(work2,nuvlevs,nnnuvlevs)
 
 ! Perform scalar g2s on work array
-  do k=1,nuvlevs
+  do k=1,nnnuvlevs
     spc1=zero 
     work3=zero
 
@@ -399,7 +398,7 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
   end do  !end do nuvlevs
 
 ! Reorder the work array for the mpi communication
-  call reorder2(work1,nuvlevs)
+  call reorder2(work1,nuvlevs,nnnuvlevs)
 
 ! Get psi/chi back on subdomains
   call mpi_alltoallv(work1,iscuv_s,isduv_s,&
@@ -437,7 +436,7 @@ subroutine smooth2d(subd,nlevs,nsmooth,mype)
 !$$$
   use gridmod,only: nlat,nlon,lat2,lon2
   use kinds,only: r_kind,i_kind
-  use constants, only: one
+  use constants, only: one,zero
   implicit none
 
   integer(i_kind),intent(in):: nlevs,mype,nsmooth
@@ -445,7 +444,7 @@ subroutine smooth2d(subd,nlevs,nsmooth,mype)
 
   real(r_kind),dimension(nlat,nlon):: grd
   real(r_kind),dimension(nlat,0:nlon+1):: grd2
-  real(r_kind) corn,cent,side,temp,c2,c3,c4,rterm
+  real(r_kind) corn,cent,side,temp,c2,c3,c4,rterm,sums,sumn
   integer i,j,k,n,workpe
 
   workpe=0
@@ -482,20 +481,33 @@ subroutine smooth2d(subd,nlevs,nsmooth,mype)
           grd2(i,nlon+1)=grd(i,1)
         end do
 
-! Perform smoother on interior (no special treatment for near-poles)
-         do j=1,nlon
-           do i=2,nlat-1
-             temp = cent*grd2(i,j) + side*(grd2(i+1,j) + &
-                grd2(i-1,j) + grd2(i,j+1) + grd2(i,j-1)) + &
-                corn*(grd2(i+1,j+1) + grd2(i+1,j-1) + grd2(i-1,j-1) + &
-                grd2(i-1,j+1))
-             grd(i,j) = temp*rterm
-           end do
-         end do
-       end do    ! n smooth number of passes
-     end if    ! mype
-     call scatter_stuff2(grd,subd(1,1,k),mype,workpe)
-   end do  ! k levs
+! special treatment for near-poles
+        sumn=zero
+        sums=zero
+        do i=1,nlon
+          sumn=sumn+grd2(i,nlat)
+          sums=sums+grd2(i,1)
+        end do
+        sumn=sumn/(real(nlon,r_kind))
+        sums=sums/(real(nlon,r_kind))
+        do i=0,nlon
+          grd2(i,nlat)=sumn
+          grd2(i,1)=sums
+        end do
+! Perform smoother on interior 
+        do j=1,nlon
+          do i=2,nlat-1
+            temp = cent*grd2(i,j) + side*(grd2(i+1,j) + &
+               grd2(i-1,j) + grd2(i,j+1) + grd2(i,j-1)) + &
+               corn*(grd2(i+1,j+1) + grd2(i+1,j-1) + grd2(i-1,j-1) + &
+               grd2(i-1,j+1))
+            grd(i,j) = temp*rterm
+          end do
+        end do
+      end do    ! n smooth number of passes
+    end if    ! mype
+    call scatter_stuff2(grd,subd(1,1,k),mype,workpe)
+  end do  ! k levs
 
 ! Get back on subdomains
 
@@ -547,7 +559,7 @@ subroutine gather_stuff2(f,g,mype,outpe)
   call strip(f,fsm,1)
   call mpi_gatherv(fsm,ijn(mype+1),mpi_rtype, &
                   tempa,ijn,displs_g,mpi_rtype,outpe,mpi_comm_world,ierror)
-  call reorder(tempa,1)
+  call reorder(tempa,1,1)
 
   do ii=1,iglobal
     i=ltosi(ii)
@@ -590,7 +602,7 @@ subroutine scatter_stuff2(g,f,mype,inpe)
   use kinds, only: r_kind,i_kind
   use gridmod, only: iglobal,itotsub,nlat,nlon,lat2,lon2,ijn_s,displs_s,&
      ltosi_s,ltosj_s
-  use mpimod, only: mpi_rtype,mpi_comm_world,ierror,strip,reorder
+  use mpimod, only: mpi_rtype,mpi_comm_world,ierror,strip
   implicit none
   integer(i_kind),intent(in):: mype,inpe
 

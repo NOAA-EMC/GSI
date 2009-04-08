@@ -66,7 +66,7 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: rw_ob_type
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
@@ -82,7 +82,7 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges)
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
   real(r_kind) valrw,facrw,w1,w2,w3,w4,w5,w6,w7,w8,time_rw
   real(r_kind) cg_rw,rw0,rw1,rw2,rw3,pen1,pen2,pen3,pencur,wgross,wnotgross
-  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
+  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,pg_rw
   type(rw_ob_type), pointer :: rwptr
 
   out=zero_quad
@@ -151,9 +151,10 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges)
 !  Modify penalty term if nonlinear QC
      if (nlnqc_iter .and. rwptr%pg > tiny_r_kind .and.  &
                           rwptr%b  > tiny_r_kind) then
+        pg_rw=rwptr%pg*varqc_iter
         cg_rw=cg_term/rwptr%b
-        wnotgross= one-rwptr%pg
-        wgross = rwptr%pg*cg_rw/wnotgross
+        wnotgross= one-pg_rw
+        wgross = pg_rw*cg_rw/wnotgross
         pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
         pen1   = -two*log((exp(-half*pen1  ) + wgross)/(one+wgross))
         pen2   = -two*log((exp(-half*pen2  ) + wgross)/(one+wgross))

@@ -61,7 +61,8 @@ module gridmod
   logical half_grid         !
   logical update_regsfc     !
 
-  integer(i_kind) nsig1o            ! no. of levels distributed on each processor
+  integer(i_kind) nsig1o            ! max no. of levels distributed on each processor
+  integer(i_kind) nnnn1o            ! actual of levels distributed on current processor
   integer(i_kind) nlat              ! no. of latitudes
   integer(i_kind) nlon              ! no. of longitudes
   integer(i_kind) nlat_sfc          ! no. of latitudes surface files
@@ -375,6 +376,7 @@ contains
     vlevs=(6*nsig)+4
     nsig1o=vlevs/npe
     if(mod(vlevs,npe)/=0) nsig1o=nsig1o+1
+    nnnn1o=nsig1o                  ! temporarily set the number of levels to nsig1o
 
 ! Sum total number of vertical layers for RTM call
     msig = 0
@@ -493,6 +495,7 @@ contains
     deallocate(rlats,rlons,corlats,coslon,sinlon,wgtlats,rbs2)
     deallocate(ak5,bk5,ck5,tref5)
     if (allocated(cp5)) deallocate(cp5)
+    if (allocated(dx_gfs)) deallocate(dx_gfs)
     return
   end subroutine destroy_grid_vars
 

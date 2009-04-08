@@ -13,7 +13,7 @@ subroutine setupyobs()
 use kinds, only: i_kind
 use obsmod, only: pshead, thead, whead, qhead, spdhead, srwhead, rwhead, &
                 & dwhead, ssthead, radhead, pcphead, pwhead, gpshead, &
-                & ozhead, o3lhead, yobs
+                & ozhead, o3lhead, tcphead, yobs
 use gsi_4dvar, only: nobs_bins
 implicit none
 
@@ -38,6 +38,7 @@ do ii=1,nobs_bins
   yobs(ii)%sst => ssthead(ii)%head
   yobs(ii)%rad => radhead(ii)%head
   yobs(ii)%pcp => pcphead(ii)%head
+  yobs(ii)%tcp => tcphead(ii)%head
 end do
 
 return

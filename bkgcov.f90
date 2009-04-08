@@ -42,7 +42,7 @@ subroutine bkgcov(st,vp,t,p,q,oz,skint,cwmr,nlevs)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nsig1o
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
   implicit none
 
 ! Passed Variables
@@ -53,7 +53,7 @@ subroutine bkgcov(st,vp,t,p,q,oz,skint,cwmr,nlevs)
 ! Local Variables
   integer(i_kind) i,j,k,nsloop,iflg
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
-  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork
+  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
 
   nsloop=3
   iflg=1
@@ -149,7 +149,7 @@ subroutine ckgcov(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero, one, three
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nsig1o
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
   use jfunc,only: nval_lenz
   implicit none
 
@@ -162,7 +162,7 @@ subroutine ckgcov(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
 ! Local Variables
   integer(i_kind) i,j,k,nsloop
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
-  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork
+  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
 
   nsloop=3
 
@@ -239,7 +239,7 @@ subroutine ckgcov_ad(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero, one, three
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nsig1o
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
   use jfunc, only: nval_lenz
   implicit none
 
@@ -252,7 +252,7 @@ subroutine ckgcov_ad(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
 ! Local Variables
   integer(i_kind) i,j,k,nsloop,iflg
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
-  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork
+  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
 
   nsloop=3
   iflg=1

@@ -70,7 +70,7 @@ subroutine prewgt(mype)
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
   use jfunc, only: qoption,varq
   use gridmod, only: istart,jstart,lat2,lon2,rlats,nlat,nlon,nsig,&
-       nsig1o,lat1,lon1,itotsub,iglobal,ltosi,ltosj,ijn,displs_g
+       nnnn1o,lat1,lon1,itotsub,iglobal,ltosi,ltosj,ijn,displs_g
   use constants, only: zero,one_tenth,quarter,half,one,two,&
        rearth_equator,pi,izero,four,tiny_r_kind,r1000
   use guess_grids, only: isli2
@@ -82,7 +82,7 @@ subroutine prewgt(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local variables
-  integer(i_kind) nrr,iii,jjj,nxg,i2,im,jm,j2,nnn
+  integer(i_kind) nrr,iii,jjj,nxg,i2,im,jm,j2
   integer(i_kind) i,j,k,nbuf,nmix,nxe,nor,ndx,ndy
   integer(i_kind) nel,nlathh,mm1,nolp,mm,ir,k1
   integer(i_kind) ix,jx,mlat
@@ -501,18 +501,11 @@ subroutine prewgt(mype)
   s2u=(two*pi*rearth_equator)/float(nlon)
 
 
-! This first loop for nsig1o will be if we aren't dealing with
-! surface pressure, skin temperature, or ozone
-
-  nnn=0
-  do k=1,nsig1o
-    if (levs_id(k)/=0) nnn=nnn+1
-  end do
-  allocate(sli(ny,nx,2,nnn),sli1(-nf:nf,-nf:nf,2,nnn), &
-                            sli2(-nf:nf,-nf:nf,2,nnn))
+  allocate(sli(ny,nx,2,nnnn1o),sli1(-nf:nf,-nf:nf,2,nnnn1o), &
+                            sli2(-nf:nf,-nf:nf,2,nnnn1o))
 
 !$omp parallel do  schedule(dynamic,1) private(k,k1,j,iii,jjj,i,factx,fact1,fact2)
-  do k=1,nnn
+  do k=1,nnnn1o
     k1=levs_id(k)
     if (k1==izero) then
       do j=1,nlon
@@ -626,7 +619,7 @@ subroutine prewgt(mype)
 
 
 ! Load tables used in recursive filters
-  call init_rftable(mype,rate,nnn,sli,sli1,sli2)
+  call init_rftable(mype,rate,nnnn1o,sli,sli1,sli2)
   deallocate(sli,sli1,sli2)
 
   return

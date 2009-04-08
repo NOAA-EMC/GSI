@@ -30,7 +30,7 @@ subroutine getuv(u,v,st,vp)
   use constants, only: zero
   use gridmod, only: regional,lat2,nsig,iglobal,lon1,itotsub,lon2,lat1
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_s,isduv_g,iscuv_g,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
+       isduv_s,isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
        strip,reorder,reorder2
   use compact_diffs, only: stvp2uv
   implicit none
@@ -73,11 +73,11 @@ subroutine getuv(u,v,st,vp)
 
 ! reorder work arrays before calling of 
 ! st,vp --> u,v routine
-  call reorder(work3,nuvlevs)
-  call reorder(work4,nuvlevs)
+  call reorder(work3,nuvlevs,nnnuvlevs)
+  call reorder(work4,nuvlevs,nnnuvlevs)
 
 ! call st,vp --> u,v routine 
-  do k=1,nuvlevs
+  do k=1,nnnuvlevs
     if(regional) then
       call stvp2uv_reg(work3(1,k),work4(1,k))
     else
@@ -86,8 +86,8 @@ subroutine getuv(u,v,st,vp)
   end do
 
 ! reorder the work array for the mpi communication
-  call reorder2(work3,nuvlevs)
-  call reorder2(work4,nuvlevs)
+  call reorder2(work3,nuvlevs,nnnuvlevs)
+  call reorder2(work4,nuvlevs,nnnuvlevs)
 
 ! get u,v back on subdomains
   call mpi_alltoallv(work3(1,1),iscuv_s,isduv_s,&

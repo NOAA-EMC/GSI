@@ -90,7 +90,7 @@ subroutine qmpl_allreduce0(klen,pvals)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe
-  use constants, only: zero
+  use constants, only: zero,zero_quad
   implicit none
 
 ! Declare passed variables
@@ -119,9 +119,9 @@ subroutine qmpl_allreduce0(klen,pvals)
 
 !   Reproducible sum
     DO ii=1,klen
-      pvals(ii)=zwork2(ii,1,1)+zwork2(ii,1,2)
+      pvals(ii)=zero_quad
     ENDDO
-    DO jj=2,npe
+    DO jj=1,npe
       DO ii=1,klen
         pvals(ii)=pvals(ii)+zwork2(ii,jj,1)+zwork2(ii,jj,2)
       ENDDO
@@ -268,7 +268,7 @@ end subroutine qmpl_allreduce2d
 subroutine mpl_allgatherq(idim,jdim,zloc,zall)
   use kinds, only: i_kind,r_kind,r_quad
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe
-  use constants, only: zero
+  use constants, only: zero,zero_quad
   implicit none
   integer(i_kind),intent(in) :: idim,jdim
   real(r_quad), intent(in)  :: zloc(idim)
@@ -293,9 +293,9 @@ subroutine mpl_allgatherq(idim,jdim,zloc,zall)
 
 ! reintegrate quad precision number
   do i=1,idim
-      zall(i,1)=z2(i,1,1)+z2(i,1,2)
+      zall(i,1)=zero_quad
   end do
-  do j=2,jdim
+  do j=1,jdim
     do i=1,idim
         zall(i,j)=zall(i,j)+z2(i,j,1)+z2(i,j,2)
     end do

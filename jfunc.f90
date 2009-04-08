@@ -53,8 +53,6 @@ module jfunc
 !   def jiterend   - last outloop iteration number
 !   def iter       - do loop iteration integer
 !   def nclen      - length of control (x,y) vectors
-!   dev nuvlen     - length of special control vector for u,v
-!   dev ntendlen   - length of special control vector for ut,vt,tt,pst (tlm time tendencies)
 !   def nvals_levs - number of 2d (x/y) state-vector variables
 !   def nvals_len  - number of 2d state-vector variables * subdomain size (with buffer)
 !   def nval_levs  - number of 2d (x/y) control-vector variables
@@ -96,20 +94,18 @@ module jfunc
   logical first,last,switch_on_derivatives,tendsflag,l_foto
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
-  integer(i_kind) nt,nq,noz,ncw,np,nsst,nst,nvp,nu,nv
   integer(i_kind) nvals_len,nvals_levs
   integer(i_kind) nval_len,nval_lenz,nval_levs
-  integer(i_kind) nut,nvt,ntt,nprst,nqt,nozt,ncwt,ndivt,nagvt
   integer(i_kind) nstsm,nvpsm,npsm,ntsm,nqsm,nozsm,nsstsm,nsltsm,nsitsm,ncwsm
   integer(i_kind) nst2,nvp2,np2,nt2,nq2,noz2,nsst2,nslt2,nsit2,ncw2
-  integer(i_kind) nclen1,nclen2,nrclen,nsclen,npclen,nuvlen,ntendlen
+  integer(i_kind) nclen1,nclen2,nrclen,nsclen,npclen
   integer(i_kind) nval2d,nclenz
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
   real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc
   integer(i_kind) bcoption
   real(r_kind),allocatable,dimension(:,:,:):: qsatg,rhgues,qgues,dqdt,dqdrh,dqdp 
   real(r_kind),allocatable,dimension(:,:):: varq
-  type(control_vector),save :: xhatsave,yhatsave,xhatsave_r,yhatsave_r
+  type(control_vector),save :: xhatsave,yhatsave
   type(state_vector),save ::xhat_dt,dhat_dt
 
 contains
@@ -167,8 +163,6 @@ contains
     bcoption=1          ! 0=ibc; 1=sbc
     nclen=1
     nclenz=1
-    nuvlen=1
-    ntendlen=1
 
     penorig=zero
     gnormorig=zero
@@ -226,13 +220,6 @@ contains
     xhatsave=zero
     yhatsave=zero
 
-    if (iguess>0) then
-      call allocate_cv(xhatsave_r)
-      call allocate_cv(yhatsave_r)
-      xhatsave_r=zero
-      yhatsave_r=zero
-    endif
-
     do k=1,nsig
        do j=1,mlat
          varq(j,k)=zero
@@ -281,15 +268,10 @@ contains
     deallocate(varq)
     deallocate(dqdt,dqdrh,dqdp,qsatg,qgues,rhgues)
 
-! NOTE:  xhatsave_r and yhatsave_r are deallocated in
-!        pcgsoi following transfer of their contents
-!        to xhatsave and yhatsave.  The deallocate is
-!        releases this memory since it is no longer needed.
-
     return
   end subroutine destroy_jfunc
 
-  subroutine read_guess_solution(mype)
+  subroutine read_guess_solution(dirx,diry,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_guess_solution
@@ -328,6 +310,7 @@ contains
     real(r_single),dimension(max(iglobal,itotsub)):: fieldx,fieldy
     real(r_single),dimension(nlat,nlon):: xhatsave_g,yhatsave_g
     real(r_single),dimension(nclen):: xhatsave_r4,yhatsave_r4
+    type(control_vector) :: dirx,diry
     
     jiterstart = 1
     mm1=mype+1
@@ -371,8 +354,8 @@ contains
 !     Read radiance and precipitation bias correction terms
       read(12,end=1236) (xhatsave_r4(i),i=nclen1+1,nclen),(yhatsave_r4(i),i=nclen1+1,nclen)
       do i=1,nclen
-         xhatsave_r%values(i)=xhatsave_r4(i)
-         yhatsave_r%values(i)=yhatsave_r4(i)
+         dirx%values(i)=real(xhatsave_r4(i),r_kind)
+         diry%values(i)=real(yhatsave_r4(i),r_kind)
       end do
          
     else
@@ -572,7 +555,7 @@ contains
 !
 !$$$
     use gridmod, only: lat1,lon1,latlon11,latlon1n,nsig,lat2,lon2
-    use gridmod, only: nsig1o,regional,nlat,nlon
+    use gridmod, only: nnnn1o,regional,nlat,nlon
     use radinfo, only: npred,jpch_rad
     use pcpinfo, only: npredp,npcptype
     use gsi_4dvar, only: nsubwin, lsqrtb
@@ -594,8 +577,6 @@ contains
     nrclen=nsclen+npclen
     nclen1=nclen-nrclen
     nclen2=nclen1+nsclen
-    nuvlen=2*latlon1n
-    ntendlen=9*latlon1n+latlon11
   
     if(lsqrtb) then
       if(regional) then
@@ -613,35 +594,12 @@ contains
         nf=nr
         nval2d=(ny*nx + 2*(2*nf+1)*(2*nf+1))*3
       end if
-      nval_lenz=nval2d*nsig1o
+      nval_lenz=nval2d*nnnn1o
       nclenz=nsubwin*nval_lenz+nsclen+npclen
     else
       nval2d=latlon11
     end if
 
-    nst=1                                  ! streamfunction
-    nvp=nst+latlon1n                       ! velocity potential
-    nt=nvp +latlon1n                       ! t
-    nq=nt  +latlon1n                       ! q
-    noz=nq +latlon1n                       ! oz
-    ncw=noz+latlon1n                       ! cloud water
-    np=ncw +latlon1n                       ! surface pressure
-    nsst=np+latlon11                       ! skin temperature
-
-! Define pointers for isolated u,v on subdomains work vector
-    nu=1                                   ! zonal wind
-    nv=nu+latlon1n                         ! meridional wind
-
-! Define pointers for isolated ut,vt,tt,qt,ozt,cwt,pst on subdomains work vector
-    nut=1                                  ! zonal wind tend
-    nvt=nut+latlon1n                       ! meridional wind tend
-    ntt=nvt+latlon1n                       ! temperature tend
-    nprst=ntt+latlon1n                     ! 3d-pressure tend (nsig+1 levs)
-    nqt=nprst+latlon1n+latlon11            ! q tendency
-    nozt=nqt+latlon1n                      ! ozone tendency
-    ncwt=nozt+latlon1n                     ! cloud water tendency
-    ndivt=ncwt+latlon1n                    ! divergence tendency
-    nagvt=ndivt+latlon1n                   ! ageostrophic vorticity tendency
 
 !   For new mpi communication, define vector starting points
 !   for each variable type using the subdomains size without 

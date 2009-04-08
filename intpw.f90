@@ -73,7 +73,7 @@ subroutine intpw_(pwhead,rq,sq)
   use kinds, only: r_kind,i_kind
   use obsmod, only: pw_ob_type,lsaveobsens,l_do_adjoint
   use gridmod, only: latlon11,latlon1n,nsig
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,tpwcon,half,one,tiny_r_kind,cg_term,r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
@@ -88,7 +88,7 @@ subroutine intpw_(pwhead,rq,sq)
   integer(i_kind),dimension(nsig):: i1,i2,i3,i4
 ! real(r_kind) penalty
   real(r_kind) val,pwcon1,w1,w2,w3,w4,time_pw
-  real(r_kind) cg_pw,grad,p0,wnotgross,wgross
+  real(r_kind) cg_pw,grad,p0,wnotgross,wgross,pg_pw
   type(pw_ob_type), pointer :: pwptr
 
   time_pw = zero
@@ -143,9 +143,10 @@ subroutine intpw_(pwhead,rq,sq)
 !      needed for gradient of nonlinear qc operator
        if (nlnqc_iter .and. pwptr%pg > tiny_r_kind .and.  &
                             pwptr%b  > tiny_r_kind) then
+          pg_pw=pwptr%pg*varqc_iter
           cg_pw=cg_term/pwptr%b
-          wnotgross= one-pwptr%pg
-          wgross = pwptr%pg*cg_pw/wnotgross
+          wnotgross= one-pg_pw
+          wgross = pg_pw*cg_pw/wnotgross
           p0   = wgross/(wgross+exp(-half*pwptr%err2*val**2))
           val = val*(one-p0)
        endif

@@ -156,7 +156,7 @@ subroutine intall(sval,sbias,rval,rbias)
   use gridmod, only: lat2,lon2,nsig,latlon1n
   use gsi_4dvar, only: nobs_bins, ltlint
   use constants, only: zero
-  use jfunc, only: ntendlen,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: l_foto,dhat_dt
   use obsmod, only: yobs
   use intjomod, only: intjo
   use bias_predictors

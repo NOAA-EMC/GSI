@@ -73,14 +73,11 @@ subroutine update_guess(sval,sbias)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_g,iscuv_g,nuvlevs,irduv_g,ircuv_g,mpi_rtype,isduv_s,&
-       strip,reorder,reorder2,mype
+  use mpimod, only: mype
   use constants, only: zero, one, ozcon, fv, tiny_r_kind
-  use jfunc, only: ncw,nq,nt,iout_iter,biascor,np,noz,nclen,&
-       nvp,nst,nuvlen,nu,nv,nsst,nclen1,nclen2
-  use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,ltosi,ltosj,nlon,nlat,iglobal,&
-       ltosi_s,ltosj_s,regional,twodvar_regional
+  use jfunc, only: iout_iter,biascor
+  use gridmod, only: lat1,lon1,lat2,lon2,nsig,nlon,nlat,&
+       regional,twodvar_regional
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,nfldsig,hrdifsig,hrdifsfc,ges_prsi,&
        nfldsfc,dsfct
@@ -102,7 +99,6 @@ subroutine update_guess(sval,sbias)
 ! Declare local variables
   integer(i_kind) i,j,k,it,ij,ijk,i2,i2m1,ni1,ni2,kk,ii,jj
   real(r_kind),dimension(lat1,lon1,nsig):: usm,vsm
-  real(r_kind),dimension(itotsub,nuvlevs):: work1,work2
   real(r_kind),dimension(nlon,nlat):: grid_vor,grid_div
   real(r_kind) :: zt,zmin
 

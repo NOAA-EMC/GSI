@@ -2,11 +2,9 @@ module xhat_vordivmod
 
   use kinds, only: r_kind,i_kind
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_g,iscuv_g,nuvlevs,irduv_g,ircuv_g,mpi_rtype,isduv_s,&
+       isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,isduv_s,&
        strip,reorder,reorder2,mype
   use constants, only: zero, one, ozcon, fv, tiny_r_kind
-  use jfunc, only: ncw,nq,nt,iout_iter,biascor,np,noz,nclen,&
-       nvp,nst,nuvlen,nu,nv,nsst,nclen1,nclen2
   use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,ltosi,ltosj,nlon,nlat,iglobal,&
        ltosi_s,ltosj_s,regional,twodvar_regional
   use compact_diffs, only: uv2vordiv
@@ -131,17 +129,17 @@ subroutine calc_(sval)
           mpi_comm_world,ierror)
 
 !    Reorder work arrays before converting u,v to vor,div
-     call reorder(work1,nuvlevs)
-     call reorder(work2,nuvlevs)
+     call reorder(work1,nuvlevs,nnnuvlevs)
+     call reorder(work2,nuvlevs,nnnuvlevs)
 
 !    Call u,v --> vor,div routine (conversion uses compact differences)
-     do k=1,nuvlevs
+     do k=1,nnnuvlevs
         call uv2vordiv(work1(1,k),work2(1,k))
      end do
 
 !    Reorder work arrays for mpi communication
-     call reorder2(work1,nuvlevs)
-     call reorder2(work2,nuvlevs)
+     call reorder2(work1,nuvlevs,nnnuvlevs)
+     call reorder2(work2,nuvlevs,nnnuvlevs)
 
 !    Get vor,div on subdomains
 !    Note:  work1 --> vor, work2 --> div

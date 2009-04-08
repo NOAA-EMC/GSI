@@ -165,8 +165,11 @@ contains
     integer(i_kind) krad_map(max_num_radars)
     integer(i_kind),allocatable::histo_el(:)
     real(r_kind) timemax,timemin
+    real(r_kind) timemax1,timemin1
     integer(i_kind) nradials_in,nradials_fail_angmax,nradials_fail_time,nradials_fail_elb
+    integer(i_kind) nradials_in1,nradials_fail_angmax1,nradials_fail_time1,nradials_fail_elb1
     integer(i_kind) nobs_in,nobs_badvr,nobs_badsr,nobs_lrbin,nobs_hrbin,nrange_max
+    integer(i_kind) nobs_in1,nobs_badvr1,nobs_badsr1,nobs_lrbin1,nobs_hrbin1,nrange_max1
     integer(i_kind) num_radars_max,num_radars_min
     integer(i_kind) loops_total
     real(r_single) this_stalat,this_stalon,this_stahgt
@@ -429,21 +432,21 @@ contains
             'continue without level 2 data'
        return
     end if
-    call mpi_reduce(nradials_in,nradials_in,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
-    call mpi_reduce(nradials_fail_angmax,nradials_fail_angmax,1,&
+    call mpi_reduce(nradials_in,nradials_in1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
+    call mpi_reduce(nradials_fail_angmax,nradials_fail_angmax1,1,&
          mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
-    call mpi_reduce(nradials_fail_time,nradials_fail_time,1,&
+    call mpi_reduce(nradials_fail_time,nradials_fail_time1,1,&
          mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
-    call mpi_reduce(nradials_fail_elb,nradials_fail_elb,1,&
+    call mpi_reduce(nradials_fail_elb,nradials_fail_elb1,1,&
          mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
-    call mpi_reduce(nobs_in,nobs_in,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
-    call mpi_reduce(nobs_badvr,nobs_badvr,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
-    call mpi_reduce(nobs_badsr,nobs_badsr,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
-    call mpi_reduce(nobs_lrbin,nobs_lrbin,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
-    call mpi_reduce(nobs_hrbin,nobs_hrbin,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
-    call mpi_reduce(nrange_max,nrange_max,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
-    call mpi_reduce(timemax,timemax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierror)
-    call mpi_reduce(timemin,timemin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierror)
+    call mpi_reduce(nobs_in,nobs_in1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
+    call mpi_reduce(nobs_badvr,nobs_badvr1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
+    call mpi_reduce(nobs_badsr,nobs_badsr1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
+    call mpi_reduce(nobs_lrbin,nobs_lrbin1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
+    call mpi_reduce(nobs_hrbin,nobs_hrbin1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
+    call mpi_reduce(nrange_max,nrange_max1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
+    call mpi_reduce(timemax,timemax1,1,mpi_real8,mpi_max,0,mpi_comm_world,ierror)
+    call mpi_reduce(timemin,timemin1,1,mpi_real8,mpi_min,0,mpi_comm_world,ierror)
     
 !  Create master station list
 
@@ -584,17 +587,17 @@ contains
     
 !   Print out histogram of counts by ielbin to see where angles are
     if(rite) then
-       write(6,*)' timemin,max=',timemin,timemax
-       write(6,*)' nradials_in=',nradials_in
-       write(6,*)' nradials_fail_angmax=',nradials_fail_angmax
-       write(6,*)' nradials_fail_time=',nradials_fail_time
-       write(6,*)' nradials_fail_elb=',nradials_fail_elb
-       write(6,*)' nobs_in=',nobs_in
-       write(6,*)' nobs_badvr=',nobs_badvr
-       write(6,*)' nobs_badsr=',nobs_badsr
-       write(6,*)' nobs_lrbin=',nobs_lrbin
-       write(6,*)' nobs_hrbin=',nobs_hrbin
-       write(6,*)' nrange_max=',nrange_max
+       write(6,*)' timemin,max=',timemin1,timemax1
+       write(6,*)' nradials_in=',nradials_in1
+       write(6,*)' nradials_fail_angmax=',nradials_fail_angmax1
+       write(6,*)' nradials_fail_time=',nradials_fail_time1
+       write(6,*)' nradials_fail_elb=',nradials_fail_elb1
+       write(6,*)' nobs_in=',nobs_in1
+       write(6,*)' nobs_badvr=',nobs_badvr1
+       write(6,*)' nobs_badsr=',nobs_badsr1
+       write(6,*)' nobs_lrbin=',nobs_lrbin1
+       write(6,*)' nobs_hrbin=',nobs_hrbin1
+       write(6,*)' nrange_max=',nrange_max1
        allocate(histo_el(nelbin))
        histo_el=0
        do krad=1,num_radars_0

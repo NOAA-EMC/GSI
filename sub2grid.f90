@@ -41,7 +41,7 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
        ierror,mpi_comm_world,mpi_rtype,&
        strip,strip_periodic,reorder
   use gridmod, only: itotsub,lat1,lon1,lat2,lon2,iglobal,&
-       nlat,nlon,nsig,ltosi,ltosj,nsig1o,iglobal
+       nlat,nlon,nsig,ltosi,ltosj,nsig1o,nnnn1o
   use jfunc, only: nsstsm,nozsm,nsltsm,ncwsm,nsitsm,nvpsm,nstsm,&
        npsm,nqsm,ntsm
   use constants, only: zero
@@ -51,7 +51,7 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
   integer(i_kind),intent(in):: iflg
   real(r_kind),dimension(lat2,lon2),intent(in):: p,sst,slndt,sicet
   real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,q,oz,cwmr,vp,st
-  real(r_kind),dimension(nlat,nlon,nsig1o),intent(out):: workin
+  real(r_kind),dimension(nlat,nlon,nnnn1o),intent(out):: workin
 
 ! Declare local variables
   integer(i_kind) j,k,l,ni1,ni2
@@ -110,8 +110,8 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
        mpi_comm_world,ierror)
 
 ! reorder work1 array post communication
-  call reorder(work1,nsig1o)
-  do k=1,nsig1o
+  call reorder(work1,nsig1o,nnnn1o)
+  do k=1,nnnn1o
    do l=1,iglobal
       ni1=ltosi(l); ni2=ltosj(l)
       workin(ni1,ni2,k)=work1(l,k)

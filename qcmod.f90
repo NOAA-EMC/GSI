@@ -61,6 +61,7 @@ module qcmod
   character(10):: vadfile
   integer(i_kind) npres_print
   real(r_kind) dfact,dfact1,repe_dw,repe_gps,erradar_inflate,c_varqc
+  real(r_kind) varqc_iter
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
 
 contains
@@ -146,6 +147,7 @@ contains
     dfact1   = 3.0_r_kind
     repe_dw  = one
     repe_gps = one
+    varqc_iter=one
 
     erradar_inflate   = one
 

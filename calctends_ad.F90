@@ -1,5 +1,5 @@
-subroutine calctends_ad(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
-   q_x,q_y,oz_x,oz_y,cw_x,cw_y,mype,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri,tracer)
+subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
+                 u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    calctends_ad         adjoint of calctends_tl
@@ -35,20 +35,6 @@ subroutine calctends_ad(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 !     q        - q on subdomain
 !     oz       - ozone on subdomain
 !     cw       - cloud water mixing ratio on subdomain
-!     u_x      - zonal derivative of u
-!     u_y      - meridional derivative of u
-!     v_x      - zonal derivative of v
-!     v_y      - meridional derivative of v
-!     t_x      - zonal derivative of t
-!     t_y      - meridional derivative of t
-!     ps_x     - zonal derivative of ps
-!     ps_y     - meridional derivative of ps
-!     q_x      - zonal derivative of q
-!     q_y      - meridional derivative of q
-!     oz_x     - zonal derivative of ozone
-!     oz_y     - meridional derivative of ozone
-!     cw_x     - zonal derivative of cloud water
-!     cw_y     - meridional derivative of cloud water
 !     u_t      - time tendency of u
 !     v_t      - time tendency of v
 !     t_t      - time tendency of t
@@ -57,7 +43,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 !     oz_t     - time tendency of ozone
 !     cw_t     - time tendency of cloud water
 !     mype     - mpi integer task id
-!     tracer   - logical flag - if true tracer time derivatives calculated
+!     nnn      - number of levels on each processor
 !
 !   output argument list:
 !     u        - zonal wind on subdomain
@@ -66,20 +52,6 @@ subroutine calctends_ad(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 !     q        - q on subdomain
 !     oz       - ozone on subdomain
 !     cw       - cloud water mixing ratio on subdomain
-!     u_x      - zonal derivative of u
-!     u_y      - meridional derivative of u
-!     v_x      - zonal derivative of v
-!     v_y      - meridional derivative of v
-!     t_x      - zonal derivative of t
-!     t_y      - meridional derivative of t
-!     ps_x     - zonal derivative of ps
-!     ps_y     - meridional derivative of ps
-!     q_x      - zonal derivative of q
-!     q_y      - meridional derivative of q
-!     oz_x     - zonal derivative of ozone
-!     oz_y     - meridional derivative of ozone
-!     cw_x     - zonal derivative of cloud water
-!     cw_y     - meridional derivative of cloud water
 !
 !   notes:
 !     adjoint check performed succesfully on 2005-09-29 by d. kleist
@@ -102,21 +74,20 @@ subroutine calctends_ad(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: u_t,v_t
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: u_t,v_t,u,v,t,q,oz,cw
   real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t_t,q_t,oz_t,cw_t
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(in):: p_t
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: u,v,t,u_x,u_y,&
-     v_x,v_y,t_x,t_y,q,oz,cw,q_x,q_y,oz_x,oz_y,cw_x,cw_y
-  real(r_kind),dimension(lat2,lon2),intent(inout):: ps_x,ps_y
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout):: pri
-  integer(i_kind),intent(in):: mype
-  logical,intent(in)::tracer
+  integer(i_kind),intent(in):: mype,nnn
 
 ! Declare local variables
   real(r_kind),dimension(lat2,lon2,nsig+1):: pri_x,pri_y,prsth,what
   real(r_kind),dimension(lat2,lon2,nsig):: prsum,prdif,pr_xsum,pr_xdif,pr_ysum,&
        pr_ydif
 
+  real(r_kind),dimension(lat2,lon2,nsig):: u_x,u_y, v_x,v_y,t_x,t_y, &
+             q_x,q_y,oz_x,oz_y,cw_x,cw_y
+  real(r_kind),dimension(lat2,lon2):: ps_x,ps_y,sst_x,sst_y,sst
   real(r_kind),dimension(lat2,lon2,nsig):: t_thor9
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
   real(r_kind) tmp,tmp2,tmp3,var,sumk,sumvk,sum2k,sum2vk
@@ -155,6 +126,18 @@ subroutine calctends_ad(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
         pr_xdif(i,j,k)=zero
         pr_ysum(i,j,k)=zero
         pr_ydif(i,j,k)=zero
+        u_x(i,j,k)=zero
+        u_y(i,j,k)=zero
+        v_x(i,j,k)=zero
+        v_y(i,j,k)=zero
+        t_x(i,j,k)=zero
+        t_y(i,j,k)=zero
+        q_x(i,j,k)=zero
+        q_y(i,j,k)=zero
+        cw_x(i,j,k)=zero
+        cw_y(i,j,k)=zero
+        oz_x(i,j,k)=zero
+        oz_y(i,j,k)=zero
       end do
     end do
   end do
@@ -164,11 +147,14 @@ subroutine calctends_ad(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
       sumvkm1(i,j)=zero
       sum2km1(i,j)=zero
       sum2vkm1(i,j)=zero
+      sst_x(i,j)=zero
+      sst_y(i,j)=zero
+      ps_x(i,j)=zero
+      ps_y(i,j)=zero
     end do
   end do
 
-  if(tracer) then
-    do k=nsig,1,-1
+  do k=nsig,1,-1
       do j=jstart,jstop
         do i=1,lat2
           if(k < nsig) then
@@ -221,7 +207,6 @@ subroutine calctends_ad(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
         end do
       end do
     end do
-  end if
 
 ! 5) adjoint of sum 2d individual terms into 3d tendency arrays
 ! because of sum arrays/dependencies, have to go from nsig --> 1
@@ -499,6 +484,13 @@ jstop=lon2
   end do
 
   call getprs_horiz_ad(ps_x,ps_y,mype,pri,pri_x,pri_y)
+
+! add contributions from derivatives
+
+  call tget_derivatives( &
+         u ,v , t, pri ,q ,oz ,sst ,cw ,  &
+         u_x, v_x, t_x, ps_x, q_x, oz_x, sst_x, cw_x, &
+         u_y, v_y, t_y, ps_y, q_y, oz_y, sst_y, cw_y, nnn, mype)
 
   return
 end subroutine calctends_ad

@@ -1181,7 +1181,15 @@ subroutine wr2d_binary(mype)
   deallocate(all_loc)
   deallocate(all_loc_ps)
   deallocate(temp1_ps)
+  deallocate(temp1)
+  deallocate(tempa)
+  deallocate(tempb)
+  deallocate(temp1u)
+  deallocate(temp1v)
+  deallocate(temp1_prh)
   deallocate(all_loc_qsatg)
+  deallocate(all_loc_prh)
+  deallocate(strp)
   
 end subroutine wr2d_binary
 !----------------------------------------------------------------------------------

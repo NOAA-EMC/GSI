@@ -68,23 +68,22 @@ subroutine intps_(pshead,rp,sp)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
   use obsmod, only: ps_ob_type,lsaveobsens,l_do_adjoint
-  use qcmod, only: nlnqc_iter,c_varqc
-  use gridmod, only: latlon11
+  use qcmod, only: nlnqc_iter,varqc_iter
+  use gridmod, only: latlon1n1
   use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
   type(ps_ob_type),pointer,intent(in):: pshead
-  real(r_kind),dimension(latlon11),intent(in):: sp
-  real(r_kind),dimension(latlon11),intent(inout):: rp
+  real(r_kind),dimension(latlon1n1),intent(in):: sp
+  real(r_kind),dimension(latlon1n1),intent(inout):: rp
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4
 ! real(r_kind) penalty
-  real(r_kind) cg_ps,val,p0,grad,wnotgross,wgross,ps_pg,varqc_iter
+  real(r_kind) cg_ps,val,p0,grad,wnotgross,wgross,ps_pg
   real(r_kind) w1,w2,w3,w4,time_ps
   type(ps_ob_type), pointer :: psptr
-
   psptr => pshead
   do while (associated(psptr))
      j1=psptr%ij(1)
@@ -120,16 +119,9 @@ subroutine intps_(pshead,rp,sp)
          val=val-psptr%res
 
 !        gradient of nonlinear operator
-!        Gradually turn on variational qc to avoid possible convergence problems
-         if(jiter == jiterstart .and. nlnqc_iter .and. psptr%pg >tiny_r_kind) then
-            varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
-            if(varqc_iter >=one) varqc_iter= one
-            ps_pg=psptr%pg*varqc_iter
-         else
-            ps_pg=psptr%pg
-         endif
          if (nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
                               psptr%b  > tiny_r_kind) then
+            ps_pg=psptr%pg*varqc_iter
             cg_ps=cg_term/psptr%b                           ! b is d in Enderson
             wnotgross= one-ps_pg                            ! pg is A in Enderson
             wgross =ps_pg*cg_ps/wnotgross                   ! wgross is gama in Enderson

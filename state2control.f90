@@ -33,7 +33,6 @@ type(control_vector), intent(inout) :: grad
 
 ! Declare local variables
 integer(i_kind) :: ii,jj
-real(r_quad) :: zwork(nrclen)
 
 !******************************************************************************
 
@@ -70,21 +69,11 @@ do jj=1,nsubwin
 
 end do
 
-! Bias predictors are duplicated
 do ii=1,nsclen
-  zwork(ii)=bval%predr(ii)
+  grad%predr(ii)=bval%predr(ii)
 enddo
 do ii=1,npclen
-  zwork(nsclen+ii)=bval%predp(ii)
-enddo
-
-call mpl_allreduce(nrclen,zwork)
-
-do ii=1,nsclen
-  grad%predr(ii)=zwork(ii)
-enddo
-do ii=1,npclen
-  grad%predp(ii)=zwork(nsclen+ii)
+  grad%predp(ii)=bval%predp(ii)
 enddo
 
 return

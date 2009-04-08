@@ -92,7 +92,8 @@ module mpimod
   integer(i_kind) ierror
   integer(i_kind) :: npe         ! total num of MPI tasks
   integer(i_kind) :: mype        ! number of MPI task
-  integer(i_kind)    nuvlevs     ! num levs per task, for dist. of uv/stvp         
+  integer(i_kind)    nuvlevs     ! max num levs per task, for dist. of uv/stvp         
+  integer(i_kind)    nnnuvlevs   ! num levs current task, for dist. of uv/stvp         
 
 ! Optional ESMF-like layout information: nxPE is the number of
 ! processors used to decompose the longitudinal dimensional, while nyPE 
@@ -169,6 +170,7 @@ contains
 
     use kinds, only: i_kind
     use constants, only: izero,ione
+    use gridmod, only: nnnn1o
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -239,6 +241,7 @@ contains
         levscnt=levscnt+ione
 	if ( n==mm1 .and. levscnt.le.nsig ) then
 	  levsuv_id(k)=levscnt
+          nnnuvlevs=kk
         end if
       end do
     end do
@@ -339,6 +342,13 @@ contains
       end do ! enddo over levs
     end do ! enddo over npe
 
+
+    nnnn1o=0
+    do k=1,nsig1o
+       if (levs_id(k)/=0) nnnn1o=nnnn1o+1
+    end do
+
+
     return
   end subroutine init_mpi_vars
 
@@ -401,7 +411,7 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine reorder(work,k_in)
+  subroutine reorder(work,k_in,k_use)
 
 ! !USES:
 
@@ -412,7 +422,7 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   integer(i_kind), intent(in) ::  k_in    ! number of levs in work array
+   integer(i_kind), intent(in) ::  k_in, k_use    ! number of levs in work array
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -441,17 +451,17 @@ contains
 !-------------------------------------------------------------------------
 
     integer(i_kind) iloc,iskip,i,k,n
-    real(r_kind),dimension(max(iglobal,itotsub),k_in):: temp
+    real(r_kind),dimension(max(iglobal,itotsub),k_use):: temp
 
 ! Zero out temp array
-    do k=1,k_in
+    do k=1,k_use
        do i=1,itotsub
           temp(i,k)=zero
        end do
     end do
  
 ! Load temp array in desired order
-    do k=1,k_in
+    do k=1,k_use
       iskip=0
       iloc=0
       do n=1,npe
@@ -467,7 +477,7 @@ contains
 
 ! Load the temp array back into work
     iloc=0
-    do k=1,k_in
+    do k=1,k_use
       do i=1,itotsub
         iloc=iloc+1
         work(iloc)=temp(i,k)
@@ -487,7 +497,7 @@ contains
 ! !INTERFACE:
 !
 
-  subroutine reorder2(work,k_in)
+  subroutine reorder2(work,k_in,k_use)
 
 ! !USES:
 
@@ -499,7 +509,7 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   integer(i_kind), intent(in) ::  k_in    ! number of levs in work array
+   integer(i_kind), intent(in) ::  k_in,k_use    ! number of levs in work array
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -538,12 +548,13 @@ contains
     iskip=0
     do n=1,npe
 
-      do k=1,k_in
+      do k=1,k_use
         do i=1,ijn_s(n)
-          iloc=iloc+1
-          temp(iloc)=work(iskip+i,k)
+          temp(iloc+i)=work(iskip+i,k)
         end do
+        iloc=iloc+ijn_s(n)
       end do
+      iloc=iloc+(k_in-k_use)*ijn_s(n)
       iskip=iskip+ijn_s(n)
     end do
 

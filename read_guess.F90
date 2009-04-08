@@ -78,7 +78,7 @@ subroutine read_guess(mype)
        bias_vor,bias_u,bias_div,bias_tskin,bias_u,bias_v
   use gsi_io, only: read_bias
   use guess_grids, only: ntguessfc
-  use gridmod, only: lat2,lon2,nsig1o
+  use gridmod, only: lat2,lon2
   use gridmod, only: jstart,jlon1
   use gridmod, only: istart,ilat1
   use gridmod, only: nsig,lat1,lon1

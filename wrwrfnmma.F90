@@ -510,6 +510,14 @@ subroutine wrwrfnmma_binary(mype)
   end do
 
   deallocate(ibuf)
+  deallocate(offset)
+  deallocate(igtype)
+  deallocate(kdim)
+  deallocate(kord)
+  deallocate(length)
+  deallocate(tempa)
+  deallocate(tempb)
+  deallocate(temp1)
 
   call mpi_file_close(mfcst,ierror)
   
@@ -931,6 +939,10 @@ subroutine wrwrfnmma_netcdf(mype)
   endif
   
   deallocate(all_loc)
+  deallocate(strp)
+  deallocate(temp1)
+  deallocate(tempa)
+  deallocate(tempb)
   
 end subroutine wrwrfnmma_netcdf
 #else /* Start no WRF-library block */

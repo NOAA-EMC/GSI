@@ -31,6 +31,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   use convinfo, only: nconvtype,ictype,icuse
   use obsmod, only: iadate,offtime_data
   use tcv_mod, only: get_storminfo,numstorms,stormlat,stormlon,stormpsmin,stormdattim
+  use gsi_4dvar, only: time_4dvar
   implicit none
 
 ! Declare passed variables
@@ -48,7 +49,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 ! Declare local variables
   real(r_kind) time,dlat,dlon,dlat_earth,dlon_earth
   real(r_kind),allocatable,dimension(:,:):: cdata_all
-  real(r_kind) ohr,olat,olon,psob,pob,oberr,usage
+  real(r_kind) ohr,olat,olon,psob,pob,oberr,usage,toff
 
   integer(i_kind) i,k,n,iy,im,idd,ihh,iret,lunin,nc,ianldate
   integer(i_kind) ilat,ilon,ikx,nreal,nchanl,nmrecs
@@ -99,7 +100,10 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 
 ! Observation occurs at analysis time as per date check above
 ! Set observation lat, lon, mslp, and default obs-error
-    ohr=0.0
+    call time_4dvar(ianldate,toff)
+    write(6,*)'READ_PREPBUFR: bufr file date is ',ianldate
+    write(6,*)'READ_PREPBUFR: time offset is ',toff,' hours.'
+    ohr=toff
     olat=stormlat(i)
     olon=stormlon(i)
     psob=stormpsmin(i)
@@ -131,7 +135,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
     cdata_all(2,ndata)=dlon                  ! grid relative longitude
     cdata_all(3,ndata)=dlat                  ! grid relative latitude
     cdata_all(4,ndata)=pob                   ! pressure in cb 
-    cdata_all(5,ndata)=time                  ! obs time (analyis relative hour)
+    cdata_all(5,ndata)=toff                  ! obs time (analyis relative hour)
     cdata_all(6,ndata)=ikx                   ! obs type
     cdata_all(7,ndata)=dlon_earth*rad2deg    ! earth relative longitude (degrees)
     cdata_all(8,ndata)=dlat_earth*rad2deg    ! earth relative latitude (degrees)

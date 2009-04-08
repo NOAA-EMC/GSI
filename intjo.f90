@@ -161,7 +161,7 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias)
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero,zero_quad
 use obsmod, only: obs_handle, ref_obs
-use jfunc, only: ntendlen,nrclen,nsclen,npclen,l_foto,xhat_dt
+use jfunc, only: nrclen,nsclen,npclen,l_foto,xhat_dt
 use gridmod, only: latlon1n
 use state_vectors
 use bias_predictors
@@ -171,6 +171,7 @@ use intpsmod
 use intpwmod
 use intqmod
 use intradmod
+use inttcpmod
 use intgpsmod
 use intrwmod
 use intspdmod
@@ -201,7 +202,7 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 ! RHS for conventional temperatures
   call intt(yobs%t, &
             rval%tsen,sval%tsen,rval%t,sval%t,rval%q,sval%q, &
-            rval%u,sval%u,rval%v,sval%v,rval%p,sval%p, &
+            rval%u,sval%u,rval%v,sval%v,rval%p3d,sval%p3d, &
             rval%sst,sval%sst )
 
 ! RHS for precipitable water
@@ -229,10 +230,10 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
   call intoz(yobs%oz,yobs%o3l,rval%oz,sval%oz)
 
 ! RHS for surface pressure observations
-  call intps(yobs%ps,rval%p,sval%p)
+  call intps(yobs%ps,rval%p3d,sval%p3d)
 
 ! RHS for MSLP obs for TCs
-  call inttcp(yobs%tcp,rval%p,sval%p)
+  call inttcp(yobs%tcp,rval%p3d,sval%p3d)
 
 ! RHS for conventional sst observations
   call intsst(yobs%sst,rval%sst,sval%sst)
@@ -254,7 +255,9 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
               qpred(nsclen+1:nrclen),sbias%predp)
 
 ! Take care of background error for bias correction terms
-! RT: this really does not yet address the reproducibility issue
+
+  call mpl_allreduce(nrclen,qpred)
+
   do i=1,nsclen
     rbias%predr(i)=qpred(i)
   end do

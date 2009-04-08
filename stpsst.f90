@@ -63,7 +63,7 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: sst_ob_type
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
   implicit none
@@ -79,7 +79,7 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges)
   real(r_kind) w1,w2,w3,w4
   real(r_kind) val,val2
   real(r_kind) cg_sst,pen1,pen2,pen3,pencur,sst0,sst1,sst2,sst3,wgross,wnotgross
-  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
+  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,pg_sst
   type(sst_ob_type), pointer :: sstptr
 
   out=zero_quad
@@ -116,9 +116,10 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges)
 !  Modify penalty term if nonlinear QC
      if (nlnqc_iter .and. sstptr%pg > tiny_r_kind .and.  &
                           sstptr%b  > tiny_r_kind) then
+        pg_sst=sstptr%pg*varqc_iter
         cg_sst=cg_term/sstptr%b
-        wnotgross= one-sstptr%pg
-        wgross = sstptr%pg*cg_sst/wnotgross
+        wnotgross= one-pg_sst
+        wgross = pg_sst*cg_sst/wnotgross
         pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
         pen1   = -two*log((exp(-half*pen1  ) + wgross)/(one+wgross))
         pen2   = -two*log((exp(-half*pen2  ) + wgross)/(one+wgross))

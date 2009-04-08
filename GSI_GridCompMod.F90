@@ -132,23 +132,7 @@
    ! from mpimod
    use mpimod,     only: npe,nxpe,nype,  & ! num of MPI tasks (total, along x, along y)
                                            ! (nxpe, nype new for ESMF)
-                         mpi_comm_world, & ! MPI communicator
-                         mpi_rtype,      & ! mpi_real8
-                         mpi_sum,        & ! used in mpi_allreduce operations
-                                           ! comm. array, count ...
-                         iscuv_s,        & !  for send from nuvlevs slabs    
-                         ircuv_s,        & !  for receive from nuvlevs slabs
-                         iscuv_g,        & !  for send to nuvlevs slabs
-                         ircuv_g,        & !  for receive from nuvlevs slabs
-                                           ! comm. array, displacement ...
-                         isduv_g,        & !  for send to nuvlevs slabs
-                         irduv_g,        & !  for receive from nuvlevs slabs
-                         isduv_s,        & !  for send from nuvlevs slabs
-                         irduv_s,        & !  for receive from nuvlevs slabs
-                         nuvlevs,        & ! num levs per task, for dist. of uv/stvp routines
-                         strip,          &
-                         reorder,        &
-                         reorder2
+                         mpi_comm_world    ! MPI communicator
 
    use gsi_4dvar, only: ibdate, iedate, iadatebgn, iadateend, iwinbgn, &
                          nhr_assimilation,& ! size of assimilation window (hrs)

@@ -68,7 +68,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nsig1o
+  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nnnn1o
   use compact_diffs, only: compact_dlat,compact_dlon
   use mpimod, only: nvar_id
 
@@ -89,15 +89,15 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   real(r_kind),dimension(lat2,lon2):: slndt,sicet
   real(r_kind),dimension(lat2,lon2):: slndt_x,sicet_x
   real(r_kind),dimension(lat2,lon2):: slndt_y,sicet_y
-  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork,hworkd
+  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork,hworkd
   logical vector
 
   iflg=1
   slndt=zero
   sicet=zero
 
-  if(nsig1o > nlevs)then
-    do k=nlevs+1,nsig1o
+  if(nnnn1o > nlevs)then
+    do k=nlevs+1,nnnn1o
       do j=1,nlon
         do i=1,nlat
           hworkd(i,j,k) = zero
@@ -201,7 +201,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nsig1o
+  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nnnn1o
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
   use mpimod, only: nvar_id
   implicit none
@@ -220,7 +220,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   integer(i_kind) iflg,k,i,j
   real(r_kind),dimension(lat2,lon2):: slndt_x,sicet_x
   real(r_kind),dimension(lat2,lon2):: slndt_y,sicet_y
-  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork,hworkd
+  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork,hworkd
   logical vector
 
   iflg=1

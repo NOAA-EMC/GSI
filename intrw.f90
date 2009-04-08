@@ -69,7 +69,7 @@ subroutine intrw_(rwhead,ru,rv,su,sv)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,two,zero,tiny_r_kind,cg_term,r3600
   use obsmod, only: rw_ob_type,lsaveobsens,l_do_adjoint
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
@@ -83,7 +83,7 @@ subroutine intrw_(rwhead,ru,rv,su,sv)
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
 ! real(r_kind) penalty
   real(r_kind) val,valu,valv,w1,w2,w3,w4,w5,w6,w7,w8
-  real(r_kind) cg_rw,p0,grad,wnotgross,wgross,time_rw
+  real(r_kind) cg_rw,p0,grad,wnotgross,wgross,time_rw,pg_rw
   type(rw_ob_type), pointer :: rwptr
 
 
@@ -141,9 +141,10 @@ subroutine intrw_(rwhead,ru,rv,su,sv)
 !      gradient of nonlinear operator
        if (nlnqc_iter .and. rwptr%pg > tiny_r_kind .and. &
                             rwptr%b  > tiny_r_kind) then
+          pg_rw=rwptr%pg*varqc_iter
           cg_rw=cg_term/rwptr%b
-          wnotgross= one-rwptr%pg
-          wgross = rwptr%pg*cg_rw/wnotgross
+          wnotgross= one-pg_rw
+          wgross = pg_rw*cg_rw/wnotgross
           p0   = wgross/(wgross+exp(-half*rwptr%err2*val**2))
           val = val*(one-p0)
        endif

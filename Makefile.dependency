@@ -18,6 +18,8 @@ calc_fov_crosstrk.o : calc_fov_crosstrk.f90 constants.o kinds.o
 calctends.o : calctends.f90 mpimod.o tendsmod.o constants.o gridmod.o kinds.o 
 calctends_ad.o : calctends_ad.F90 guess_grids.o tendsmod.o constants.o gridmod.o kinds.o 
 calctends_tl.o : calctends_tl.F90 guess_grids.o tendsmod.o constants.o gridmod.o kinds.o 
+calctends_no_ad.o : calctends_ad.F90 guess_grids.o tendsmod.o constants.o gridmod.o kinds.o 
+calctends_no_tl.o : calctends_tl.F90 guess_grids.o tendsmod.o constants.o gridmod.o kinds.o 
 combine_radobs.o : combine_radobs.f90 mpimod.o constants.o kinds.o 
 compact_diffs.o : compact_diffs.f90 constants.o gridmod.o kinds.o 
 compute_derived.o : compute_derived.f90 constants.o obsmod.o mod_strong.o balmod.o berror.o gridmod.o guess_grids.o mpimod.o jfunc.o kinds.o 
@@ -75,7 +77,7 @@ int3dvar.o : int3dvar.f90 state_vectors.o gridmod.o constants.o jfunc.o mpimod.o
 intall.o : intall.f90 timermod.o intlimq.o state_vectors.o bias_predictors.o intjo.o obsmod.o jfunc.o constants.o gsi_4dvar.o gridmod.o kinds.o 
 intdw.o : intdw.f90 jfunc.o gridmod.o qcmod.o obsmod.o constants.o kinds.o 
 intgps.o : intgps.f90 jfunc.o constants.o gridmod.o qcmod.o obsmod.o kinds.o 
-intjo.o : intjo.f90 intoz.o intpcp.o intdw.o intsst.o intsrw.o intspd.o intrw.o intgps.o intrad.o intq.o intpw.o intps.o intw.o intt.o bias_predictors.o state_vectors.o gridmod.o jfunc.o obsmod.o constants.o kinds.o mpl_allreduce.o 
+intjo.o : intjo.f90 inttcp.o intoz.o intpcp.o intdw.o intsst.o intsrw.o intspd.o intrw.o intgps.o intrad.o intq.o intpw.o intps.o intw.o intt.o bias_predictors.o state_vectors.o gridmod.o jfunc.o obsmod.o constants.o kinds.o mpl_allreduce.o 
 intlimq.o : intlimq.f90 jfunc.o gridmod.o constants.o kinds.o 
 intoz.o : intoz.f90 constants.o jfunc.o ozinfo.o gridmod.o obsmod.o kinds.o 
 intpcp.o : intpcp.f90 jfunc.o gsi_4dvar.o gridmod.o constants.o pcpinfo.o qcmod.o obsmod.o kinds.o 

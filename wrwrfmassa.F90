@@ -284,8 +284,8 @@ subroutine wrwrfmassa_binary(mype)
        write(6,*)' kbegin=',kbegin
        write(6,*)' kend= ',kend
   end if
-  num_j_groups=(jm+1)/npe
-  jextra=(jm+1)-num_j_groups*npe
+  num_j_groups=jm/npe
+  jextra=jm-num_j_groups*npe
   jbegin(0)=1
   if(jextra > 0) then
      do j=1,jextra
@@ -546,6 +546,18 @@ subroutine wrwrfmassa_binary(mype)
   end do
 
   deallocate(ibuf)
+  deallocate(offset)
+  deallocate(igtype)
+  deallocate(kdim)
+  deallocate(kord)
+  deallocate(length)
+  deallocate(mub)
+  deallocate(tempa)
+  deallocate(tempb)
+  deallocate(temp1)
+  deallocate(itemp1)
+  deallocate(temp1u)
+  deallocate(temp1v)
   call mpi_file_close(mfcst,ierror)
 
 end subroutine wrwrfmassa_binary
@@ -1290,6 +1302,12 @@ subroutine wrwrfmassa_netcdf(mype)
   endif
 
   deallocate(all_loc)
+  deallocate(strp)
+  deallocate(temp1)
+  deallocate(temp1u)
+  deallocate(temp1v)
+  deallocate(tempa)
+  deallocate(tempb)
   
 end subroutine wrwrfmassa_netcdf
 

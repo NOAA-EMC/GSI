@@ -1,4 +1,29 @@
-subroutine inttcp(tcphead,rp,sp)
+module inttcpmod
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    inttcpmod    module for intps and its tangent linear intps_tl
+!
+! abstract: module for inttcp 
+!
+! program history log:
+!   2005-05-12  Yanqiu zhu - wrap intps and its tangent linear intps_tl into one module
+!   2005-11-16  Derber - remove interfaces
+!   2008-11-26  Todling - remove intps_tl; add interface back
+!
+
+implicit none
+
+PRIVATE
+PUBLIC inttcp
+
+interface inttcp; module procedure &
+          inttcp_
+end interface
+
+contains
+
+subroutine inttcp_(tcphead,rp,sp)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    inttcp       apply nonlin qc obs operator for tcps
@@ -26,20 +51,20 @@ subroutine inttcp(tcphead,rp,sp)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,two,zero,tiny_r_kind,cg_term,r3600
   use obsmod, only: tcp_ob_type,lsaveobsens,l_do_adjoint
-  use qcmod, only: nlnqc_iter,c_varqc
-  use gridmod, only: latlon11
+  use qcmod, only: nlnqc_iter,varqc_iter
+  use gridmod, only: latlon1n1
   use jfunc, only: iter,jiter,niter_no_qc,jiterstart,xhat_dt,dhat_dt,l_foto
   implicit none
 
 ! Declare passed variables
   type(tcp_ob_type),pointer,intent(in):: tcphead
-  real(r_kind),dimension(latlon11),intent(in):: sp
-  real(r_kind),dimension(latlon11),intent(inout):: rp
+  real(r_kind),dimension(latlon1n1),intent(in):: sp
+  real(r_kind),dimension(latlon1n1),intent(inout):: rp
 
 ! Declare local variables
   integer(i_kind) i,j1,j2,j3,j4
 ! real(r_kind) penalty
-  real(r_kind) cg_ps,val,p0,grad,wnotgross,wgross,ps_pg,varqc_iter
+  real(r_kind) cg_ps,val,p0,grad,wnotgross,wgross,ps_pg
   real(r_kind) w1,w2,w3,w4,time_tcp
   type(tcp_ob_type), pointer :: tcpptr
 
@@ -76,9 +101,10 @@ subroutine inttcp(tcphead,rp,sp)
        else
          val=val-tcpptr%res
 !        gradient of nonlinear operator
-!        Gradually turn on variational qc to avoid possible convergence problems
+
          if (nlnqc_iter .and. tcpptr%pg > tiny_r_kind .and.  &
                               tcpptr%b  > tiny_r_kind) then
+            ps_pg=tcpptr%pg*varqc_iter
             cg_ps=cg_term/tcpptr%b                           ! b is d in Enderson
             wnotgross= one-ps_pg                            ! pg is A in Enderson
             wgross =ps_pg*cg_ps/wnotgross                   ! wgross is gama in Enderson
@@ -107,4 +133,6 @@ subroutine inttcp(tcphead,rp,sp)
      tcpptr => tcpptr%llpoint
   end do
   return
-end subroutine inttcp
+end subroutine inttcp_
+
+end module inttcpmod

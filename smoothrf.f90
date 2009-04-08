@@ -31,7 +31,7 @@ subroutine smoothrf(work,nsc,nlevs)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,nsig1o,regional
+  use gridmod, only: nlat,nlon,regional
   use constants, only:  zero,half
   use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
        ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,nlath,hswgt
@@ -41,7 +41,7 @@ subroutine smoothrf(work,nsc,nlevs)
 
 ! Declare passed variables
   integer(i_kind),intent(in):: nsc,nlevs
-  real(r_kind),dimension(nlat,nlon,nsig1o),intent(inout):: work
+  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout):: work
 
 ! Declare local variables
   integer(i_kind) ndx,ndy,nxe,nmix,nfg
@@ -1010,7 +1010,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,nsig1o,regional
+  use gridmod, only: nlat,nlon,regional,nsig1o
   use jfunc,only: nval_lenz
   use constants, only:  zero,half
   use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
@@ -1022,7 +1022,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 ! Declare passed variables
   integer(i_kind),intent(in):: nsc,nlevs
   real(r_kind),dimension(nval_lenz),intent(in)::z
-  real(r_kind),dimension(nlat,nlon,nsig1o),intent(inout):: work
+  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout):: work
 
 ! Declare local variables
   integer(i_kind) ndx,ndy,nxe,nmix,nfg
@@ -1264,7 +1264,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 ! Declare passed variables
   integer(i_kind),intent(in):: nsc,nlevs
   real(r_kind),dimension(nval_lenz),intent(inout)::z
-  real(r_kind),dimension(nlat,nlon,nsig1o),intent(inout):: work
+  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout):: work
 
 ! Declare local variables
   integer(i_kind) ndx,ndy,nxe,nmix,nfg

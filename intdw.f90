@@ -70,7 +70,7 @@ subroutine intdw_(dwhead,ru,rv,su,sv)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
   use obsmod, only: dw_ob_type,lsaveobsens,l_do_adjoint
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
@@ -83,7 +83,7 @@ subroutine intdw_(dwhead,ru,rv,su,sv)
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
 ! real(r_kind) penalty
-  real(r_kind) val,valu,valv,w1,w2,w3,w4,w5,w6,w7,w8
+  real(r_kind) val,valu,valv,w1,w2,w3,w4,w5,w6,w7,w8,pg_dw
   real(r_kind) cg_dw,p0,grad,wnotgross,wgross,time_dwi
   type(dw_ob_type), pointer :: dwptr
 
@@ -145,9 +145,10 @@ subroutine intdw_(dwhead,ru,rv,su,sv)
 !      gradient of nonlinear operator
        if (nlnqc_iter .and. dwptr%pg > tiny_r_kind .and. &
                             dwptr%b  > tiny_r_kind) then
+          pg_dw=varqc_iter*dwptr%pg
           cg_dw=cg_term/dwptr%b
-          wnotgross= one-dwptr%pg
-          wgross = dwptr%pg*cg_dw/wnotgross
+          wnotgross= one-pg_dw
+          wgross = pg_dw*cg_dw/wnotgross
           p0   = wgross/(wgross+exp(-half*dwptr%err2*val**2))
           val = val*(one-p0)
        endif

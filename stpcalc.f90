@@ -185,7 +185,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use constants, only:  zero,one_tenth,one,zero_quad
   use gsi_4dvar, only: nobs_bins, ltlint
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
-       ntendlen,ntt,nqt,l_foto,xhat_dt,dhat_dt,nvals_len
+       l_foto,xhat_dt,dhat_dt,nvals_len
   use gridmod, only: latlon1n
   use obsmod, only: yobs,nobs_type
   use stplimqmod, only: stplimq
@@ -272,6 +272,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    pbc(*,17) contribution from o3l observation  term (Jo)(not used)
 !    pbc(*,18) contribution from gps observation  term (Jo)
 !    pbc(*,19) contribution from rad observation  term (Jo)
+!    pbc(*,20) contribution from tcp observation  term (Jo)
 !
 !
 
@@ -285,15 +286,15 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   pbc(6,1)  = dot_product(dirx,diry,r_quad)
 
   if(mype /= 0)then
-    pstart(1)=zero
-    pbc(5,1)=zero
-    pbc(6,1)=zero
+    pstart(1)=zero_quad
+    pbc(5,1)=zero_quad
+    pbc(6,1)=zero_quad
   end if
 ! Contraint and 3dvar terms
   if(l_foto )then
     call allocate_state(dhat_dt)
     call assign_scalar2state(dhat_dt,zero)
-    call stp3dvar(pbc(5,2),pstart(2),dval(1),dhat_dt)
+    call stp3dvar(dval(1),dhat_dt)
 
   end if
 

@@ -257,6 +257,8 @@ end subroutine read_bal
     call stop2(ERRCODE)
   endif
 
+  inerr=default_unit_
+
 ! Open background error statistics file
   open(inerr,file=berror_stats,form='unformatted',status='old')
 
@@ -447,7 +449,7 @@ end subroutine setcoroz_
     subroutine sethwlloz_(hwlloz,mype)
       use kinds,   only: r_single,r_kind,i_kind
       use mpimod,  only: levs_id
-      use gridmod, only: nsig1o,nsig,nlon
+      use gridmod, only: nnnn1o,nsig,nlon
       use constants,only: two,pi,rearth_equator
       implicit none
       real(r_single),dimension(:,:),intent(out) :: hwlloz
@@ -474,7 +476,7 @@ end subroutine setcoroz_
     endif
 
     s2u=(two*pi*rearth_equator)/nlon
-    do k=1,nsig1o
+    do k=1,nnnn1o
       k1=levs_id(k)
       if(k1>0) then
         if(k1.le.nsig*3/4)then

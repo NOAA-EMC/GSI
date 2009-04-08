@@ -738,10 +738,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   if(lll == 2)then
 ! deallocate crtm info
+     deallocate(data1b8x)
      error_status = crtm_destroy(channelinfo)
      if (error_status /= success) &
        write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
   end if
+  deallocate(data1b8)
 
 
   call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
@@ -804,15 +806,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   end if
 
 ! Deallocate local arrays
-  deallocate(data_all,data1b8)
-  if(lll ==2)deallocate(data1b8x)
+  deallocate(data_all)
 
 ! Deallocate satthin arrays
   call destroygrids
 
-  if (isfcalc == 1) then
-    call fov_cleanup
-  endif
+  if (isfcalc == 1) call fov_cleanup
 
   if(diagnostic_reg.and.ntest.gt.0) write(6,*)'READ_BUFRTOVS:  ',&
        'mype,ntest,disterrmax=',mype,ntest,disterrmax

@@ -79,7 +79,7 @@ subroutine glbsoi(mype)
   use constants, only: rearth
   use mpimod, only: npe
   use jfunc, only: miter,jiter,jiterstart,jiterend,iguess,biascor,&
-       set_pointer,create_jfunc,read_guess_solution,write_guess_solution,&
+       set_pointer,create_jfunc,write_guess_solution,&
        tendsflag,xhatsave
   use anberror, only: anisotropic,create_anberror_vars,destroy_anberror_vars,&
        destroy_anberror_vars_reg
@@ -194,9 +194,6 @@ subroutine glbsoi(mype)
     call read_cv(xhatsave,clfile)
     zgg=dot_product(xhatsave,xhatsave)
     if (mype==0) write(6,*)'Norm xhatsave=',sqrt(zgg)
-  else
-  ! If requested and if available, read guess solution.
-    if (iguess==1 .or. iguess==2) call read_guess_solution(mype)
   endif
 
 ! Set error (variance) for predictors (only use guess)

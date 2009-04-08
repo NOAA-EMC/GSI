@@ -301,7 +301,6 @@ contains
 !
 !   other important variables
 !     nsig     - number of sigma levels
-!     nsig1o   - number of sigma levels distributed in each processor
 !   agv,wgv,bv - balance correlation matrix for t,p,div
 
 ! attributes:
@@ -891,7 +890,7 @@ contains
     return
   end subroutine locatelat_reg
   
-subroutine strong_bk(st,vp,p,t,oz,cw)
+subroutine strong_bk(st,vp,p,t)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -910,16 +909,12 @@ subroutine strong_bk(st,vp,p,t,oz,cw)
 !     vp       - input control vector, velocity potential
 !     p        - input control vector, surface pressure
 !     t        - input control vector, temperature
-!     oz       - input control vector, ozone
-!     cw       - input control vector, cloud water
 !
 !   output argument list:
 !     st       - output control vector, stream function
 !     vp       - output control vector, velocity potential
 !     p        - output control vector, surface pressure
 !     t        - output control vector, temperature
-!     oz       - output control vector, ozone
-!     cw       - output control vector, cloud water
 !
 !
 ! attributes:
@@ -930,102 +925,43 @@ subroutine strong_bk(st,vp,p,t,oz,cw)
   use kinds, only: r_kind,i_kind
   use mpimod, only: levs_id,mype
   use constants, only:  zero
-  use jfunc, only: noz,nq,nt,nsst,ncw,np,nst,nvp,nclen,&
-       nuvlen,nu,nv,iter,ntendlen,nut,nvt,ntt,nprst,&
-       nqt,nozt,ncwt
-  use gridmod, only: latlon1n,latlon11,nsig1o
+  use gridmod, only: latlon1n,latlon11,nnnn1o
   use mod_vtrans,only: nvmodes_keep
   use mod_strong,only: nstrong
-  use control_vectors
   implicit none
 
 ! Declare passed variables
   real(r_kind),dimension(latlon1n),intent(inout):: st,vp
   real(r_kind),dimension(latlon11),intent(inout):: p
-  real(r_kind),dimension(latlon1n),intent(inout):: t,oz,cw
+  real(r_kind),dimension(latlon1n),intent(inout):: t
 
-  logical:: fullfield, tracer
-  integer(i_kind) i,k,nnn,mm1
+  logical:: fullfield
+  integer(i_kind) i,k
   integer(i_kind) istrong
-  real(r_kind),dimension(nclen)::x_x,x_y,x_t
-  real(r_kind),dimension(nuvlen)::xuv
-  real(r_kind),dimension(latlon1n):: x_q
-  real(r_kind),dimension(latlon1n+latlon11):: x3dp
+  real(r_kind),dimension(latlon1n)::u_t,v_t,t_t
   real(r_kind),dimension(latlon11):: ps_t
 
 !************************************************************************************  
 ! Initialize variable
   if(nvmodes_keep <= 0 .or. nstrong <= 0) return
-  mm1=mype+1
-  nnn=0
-  do k=1,nsig1o
-    if (levs_id(k)/=0) nnn=nnn+1
-  end do
-
-! Convert search direction for st/vp to u/v for derivative calculations
-  call getuv(xuv(nu),xuv(nv),st,vp)
-
-! get 3d pressure 
-  call getprs_tl(p,t,x3dp)
 
 ! compute derivatives
-  call get_derivatives2( &
-       xuv(nu) ,xuv(nv) ,t      ,p      ,  &
-       x_x(nst),x_x(nvp),x_x(nt),x_x(np),  &
-       x_y(nst),x_y(nvp),x_y(nt),x_y(np),  &
-       nnn,mype,1)
-
-  tracer=.false.
-  call calctends_tl( &
-       xuv(nu) ,xuv(nv)  ,t       ,            &
-       x_q     ,oz       ,cw      ,            &
-       x_x(nst),x_y(nst) ,x_x(nvp),x_y(nvp),   &
-       x_x(nt) ,x_y(nt)  ,x_x(np) ,x_y(np),    &
-       x_x(nq) ,x_y(nq)  ,x_x(noz),x_y(noz),   &
-       x_x(ncw),x_y(ncw) ,     mype,          &
-       x_t(nut),x_t(nvt) ,x_t(ntt),x_t(nprst), &
-       x_t(nqt),x_t(nozt),x_t(ncwt),x3dp,tracer)
+  call calctends_no_tl(st,vp,t,p,mype,nnnn1o,u_t,v_t,t_t,ps_t)
 
   fullfield=.false.
   do istrong=1,nstrong
-     do i=1,latlon11
-       ps_t(i)=x_t(nprst+i-1)
-     end do
-     do i=1,latlon11+latlon1n
-       x_t(nprst+i-1)=zero
-     end do
-     call strong_bal_correction(x_t(nut),x_t(nvt),x_t(ntt), &
+     call strong_bal_correction(u_t,v_t,t_t, &
           ps_t,mype,st,vp,t,p,.false.,fullfield,.true.)
 
      if(istrong < nstrong) then
-       call getuv(xuv(nu),xuv(nv),st,vp)
-! update dirx3dp to be consistent with new grady
-       call getprs_tl(p,t,x3dp)
-       call getprs_tl(ps_t,x_t(ntt),x_t(nprst))
-
-!    
-       call get_derivatives2( &
-          xuv(nu) ,xuv(nv) ,t      ,p      ,  &
-          x_x(nst),x_x(nvp),x_x(nt),x_x(np),  &
-          x_y(nst),x_y(nvp),x_y(nt),x_y(np),  &
-          nnn,mype,1)
-
-       call calctends_tl( &
-          xuv(nu) ,xuv(nv)  ,t       ,            &
-          x_q     ,oz       ,cw      ,            &
-          x_x(nst),x_y(nst) ,x_x(nvp),x_y(nvp),   &
-          x_x(nt) ,x_y(nt)  ,x_x(np) ,x_y(np),    &
-          x_x(nq) ,x_y(nq)  ,x_x(noz),x_y(noz),   &
-          x_x(ncw),x_y(ncw) ,mype,          &
-          x_t(nut),x_t(nvt) ,x_t(ntt),x_t(nprst), &
-          x_t(nqt),x_t(nozt),x_t(ncwt),x3dp,tracer)
+       call calctends_no_tl(st,vp,t,p,mype,nnnn1o,u_t,v_t,t_t,ps_t)
      end if
    end do
 
   return
 end subroutine strong_bk
 
-subroutine strong_bk_ad(st,vp,p,t,oz,cw)
+subroutine strong_bk_ad(st,vp,p,t)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    strong_bk_ad   apply adjoint of strong balance constraint
@@ -1043,16 +979,12 @@ subroutine strong_bk_ad(st,vp,p,t,oz,cw)
 !     vp       - input control vector, velocity potential
 !     p        - input control vector, surface pressure
 !     t        - input control vector, temperature
-!     oz       - input control vector, ozone
-!     cw       - input control vector, cloud water
 !
 !   output argument list:
 !     st       - output control vector, stream function
 !     vp       - output control vector, velocity potential
 !     p        - output control vector, surface pressure
 !     t        - output control vector, temperature
-!     oz       - output control vector, ozone
-!     cw       - output control vector, cloud water
 !
 !
 ! attributes:
@@ -1062,128 +994,55 @@ subroutine strong_bk_ad(st,vp,p,t,oz,cw)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: levs_id,mype
-  use jfunc, only: nclen,&
-       ncw,np,nt,nsst,noz,nq,nst,nvp,nu,nv,nuvlen,&
-       ntendlen,nut,nvt,ntt,nprst,nqt,nozt,ncwt
   use constants, only: zero
-  use gridmod, only: latlon1n,latlon11,nsig1o
+  use gridmod, only: latlon1n,latlon11,nnnn1o,latlon1n1
   use mod_vtrans,only: nvmodes_keep
   use mod_strong,only: nstrong
-  use control_vectors
   implicit none
   
 ! Declare passed variables  
   real(r_kind),dimension(latlon1n),intent(inout):: st,vp
   real(r_kind),dimension(latlon11),intent(inout):: p
-  real(r_kind),dimension(latlon1n),intent(inout):: t,oz,cw
+  real(r_kind),dimension(latlon1n),intent(inout):: t
 
 ! Declare local variables  	
-  logical:: tracer
-  integer(i_kind) i,k,nnn,mm1
-  real(r_kind),dimension(nuvlen):: yuv
-  real(r_kind),dimension(latlon1n):: y_q
-  real(r_kind),dimension(nclen):: y_x,y_y
-  real(r_kind),dimension(ntendlen):: y_t
-  real(r_kind),dimension(latlon1n+latlon11) :: y3dp
+  integer(i_kind) i,k
+  real(r_kind),dimension(latlon1n):: u_t,v_t,t_t
   real(r_kind),dimension(latlon11):: ps_t
   integer(i_kind) istrong
 
 !******************************************************************************
 
   if(nvmodes_keep <= 0 .or. nstrong <= 0) return
-  mm1=mype+1
-  tracer=.false.
-  nnn=0
-  do k=1,nsig1o
-     if (levs_id(k)/=0) nnn=nnn+1
-  end do
 
 ! Zero gradient arrays
-  do i=1,nclen
-     y_x(i)=zero
-     y_y(i)=zero
-  end do
-  do i=1,ntendlen
-     y_t(i)=zero
-  end do
-  do i=1,nuvlen
-     yuv(i)=zero
+  do i=1,latlon1n
+     u_t(i)=zero
+     v_t(i)=zero
+     t_t(i)=zero
   end do
   do i=1,latlon11
      ps_t(i)=zero
   end do
-  do i=1,latlon1n
-     y_q(i)=zero
-  end do
-  do i=1,latlon1n+latlon11
-     y3dp(i)=zero
-  end do
      
   do istrong=nstrong,1,-1
     if(istrong < nstrong) then
-      call calctends_ad(yuv(nu),yuv(nv),t,                      &
-                        y_q,oz,cw,                              &
-                        y_x(nst),y_y(nst),y_x(nvp),y_y(nvp),    &
-                        y_x(nt), y_y(nt), y_x(np), y_y(np),     &
-                        y_x(nq), y_y(nq), y_x(noz),y_y(noz),    &
-                        y_x(ncw),y_y(ncw),mype,                &
-                        y_t(nut),y_t(nvt),y_t(ntt),y_t(nprst),  &
-                        y_t(nqt),y_t(nozt),y_t(ncwt),y3dp,tracer)
-      do i=1,ntendlen
-         y_t(i)=zero
+      call calctends_no_ad(st,vp,t,p,mype,nnnn1o,u_t,v_t,t_t,ps_t)  
+      do i=1,latlon1n
+         u_t(i)=zero
+         v_t(i)=zero
+         t_t(i)=zero
       end do
-      call tget_derivatives2( &
-           yuv(nu) ,yuv(nv),t         ,p      ,  &
-           y_x(nst),y_x(nvp),y_x(nt)  ,y_x(np),  &
-           y_y(nst),y_y(nvp),y_y(nt)  ,y_y(np),  &
-           nnn,mype)
-      do i=1,nclen
-         y_x(i)=zero
-         y_y(i)=zero
+      do i=1,latlon11
+         ps_t(i)=zero
       end do
-
-
-      call getprs_ad(p,t,y3dp)
-      call getprs_ad(ps_t,y_t(ntt),y_t(nprst))
-      call getstvp(yuv(nu),yuv(nv),st,vp)
 
     end if
-    call strong_bal_correction_ad(y_t(nut),y_t(nvt),y_t(ntt),ps_t,&
-                mype,st,vp,t,p)
+    call strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,st,vp,t,p)
 !
-    do i=nprst,nprst+latlon11+latlon1n-1
-       y_t(i)=zero
-    end do
-    do i=1,latlon11
-       y_t(nprst+i-1)=ps_t(i)
-    end do
-
   end do
 
-  call calctends_ad(yuv(nu),yuv(nv),t,                        &
-                      y_q,oz,cw,                              &
-                      y_x(nst),y_y(nst),y_x(nvp),y_y(nvp),    &
-                      y_x(nt), y_y(nt), y_x(np), y_y(np),     &
-                      y_x(nq), y_y(nq), y_x(noz),y_y(noz),    &
-                      y_x(ncw),y_y(ncw),mype,                       &
-                      y_t(nut),y_t(nvt),y_t(ntt),y_t(nprst),  &
-                      y_t(nqt),y_t(nozt),y_t(ncwt),y3dp,tracer)  
-
-! add contributions from derivatives
-  call tget_derivatives2( &
-         yuv(nu) ,yuv(nv), t        ,p      ,  &
-         y_x(nst),y_x(nvp),y_x(nt)  ,y_x(np),  &
-         y_y(nst),y_y(nvp),y_y(nt)  ,y_y(np),  &
-         nnn,mype)
-
-  call getprs_ad(p,t,y3dp)
-
-!  adjoint of load dirxt and dirxp
-
-! Convert RHS calculations for u,v to st/vp for application of
-! background error
-
-  call getstvp(yuv(nu),yuv(nv),st,vp)
+  call calctends_no_ad(st,vp,t,p,mype,nnnn1o,u_t,v_t,t_t,ps_t)  
 
   return
   end subroutine strong_bk_ad

@@ -30,7 +30,7 @@ subroutine getstvp(u,v,st,vp)
   use constants, only: zero,one
   use gridmod, only: itotsub,lon1,lat1,regional,iglobal,lon2,lat2,nsig
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_s,isduv_g,iscuv_g,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
+       isduv_s,isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
        strip,reorder,reorder2
   use compact_diffs, only: tstvp2uv
   implicit none
@@ -73,12 +73,12 @@ subroutine getstvp(u,v,st,vp)
 
 !   reorder work arrays before calling adjoint of 
 !   st,vp --> u,v routine
-    call reorder(work3,nuvlevs)
-    call reorder(work4,nuvlevs)
+    call reorder(work3,nuvlevs,nnnuvlevs)
+    call reorder(work4,nuvlevs,nnnuvlevs)
 
 !   call transpose of st,vp --> u,v routine
 !$omp parallel do private(k)
-    do k=1,nuvlevs
+    do k=1,nnnuvlevs
       if(regional) then
         call tstvp2uv_reg(work3(1,k),work4(1,k))
       else
@@ -88,8 +88,8 @@ subroutine getstvp(u,v,st,vp)
 !$omp end parallel do
 
 !   reorder work3/work4 arrays for mpi communication
-    call reorder2(work3,nuvlevs)
-    call reorder2(work4,nuvlevs)
+    call reorder2(work3,nuvlevs,nnnuvlevs)
+    call reorder2(work4,nuvlevs,nnnuvlevs)
 
 !   get st/vp back on subdomains
     call mpi_alltoallv(work3(1,1),iscuv_s,isduv_s,&

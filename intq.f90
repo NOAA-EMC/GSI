@@ -69,7 +69,7 @@ subroutine intq_(qhead,rq,sq)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
   use obsmod, only: q_ob_type,lsaveobsens,l_do_adjoint
-  use qcmod, only: nlnqc_iter,c_varqc
+  use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
   implicit none
@@ -83,9 +83,8 @@ subroutine intq_(qhead,rq,sq)
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_q
 ! real(r_kind) penalty
-  real(r_kind) cg_q,val,p0,grad,wnotgross,wgross,q_pg,varqc_iter
+  real(r_kind) cg_q,val,p0,grad,wnotgross,wgross,q_pg
   type(q_ob_type), pointer :: qptr
-
 
   qptr => qhead
   do while (associated(qptr))
@@ -132,17 +131,10 @@ subroutine intq_(qhead,rq,sq)
        val=val-qptr%res
 
 !      gradient of nonlinear operator
-!      Gradually turn on variational qc to avoid possible convergence problems
-       if(jiter == jiterstart .and. nlnqc_iter .and. qptr%pg > tiny_r_kind) then
-          varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
-          if(varqc_iter >=one) varqc_iter= one
-          q_pg=qptr%pg*varqc_iter
-       else
-          q_pg=qptr%pg
-       endif
 
        if (nlnqc_iter .and. qptr%pg > tiny_r_kind .and.  &
                             qptr%b  > tiny_r_kind) then
+          q_pg=qptr%pg*varqc_iter
           cg_q=cg_term/qptr%b
           wnotgross= one-q_pg
           wgross =q_pg*cg_q/wnotgross              ! wgross is gama in the reference by Enderson

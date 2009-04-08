@@ -158,8 +158,6 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo)
   use kinds, only: r_kind,i_kind,r_quad
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,levs_id,npe,mype
   use constants, only:  zero_quad
-  use jfunc, only: noz,nq,nt,nsst,ncw,np,nst,nvp,&
-       xhatsave,yhatsave,ntendlen,nut,nvt,ntt,nprst,nqt,nozt,ncwt,xhat_dt,dhat_dt
   use gridmod, only: latlon1n
   use obsmod, only: obs_handle, ref_obs, &
                   & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
@@ -221,7 +219,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo)
     call stpt(yobs%t,&
               dval%tsen,xval%tsen,dval%t,xval%t,dval%q,xval%q, &
               dval%u,xval%u,dval%v,xval%v, &
-              dval%p,xval%p,dval%sst,xval%sst, &
+              dval%p3d,xval%p3d,dval%sst,xval%sst, &
               pbcjo(1,i_t_ob_type),sges) 
 
 !$omp section
@@ -275,11 +273,11 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo)
 
 !$omp section
 !   penalty, b, and c for surface pressure
-    call stpps(yobs%ps,dval%p,xval%p,pbcjo(1,i_ps_ob_type),sges)
+    call stpps(yobs%ps,dval%p3d,xval%p3d,pbcjo(1,i_ps_ob_type),sges)
 
 !$omp section
 !   penalty, b, and c for MSLP TC obs
-    call stptcp(yobs%tcp,dval%p,xval%p,pbcjo(1,i_tcp_ob_type),sges)
+    call stptcp(yobs%tcp,dval%p3d,xval%p3d,pbcjo(1,i_tcp_ob_type),sges)
 
 
 !_$omp section

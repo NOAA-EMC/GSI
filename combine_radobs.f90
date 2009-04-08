@@ -59,6 +59,7 @@ subroutine combine_radobs(mype,mype_sub,mype_root,&
   integer(i_kind):: ncounts,ncounts1
 
   real(r_kind),dimension(itxmax):: data_crit_min
+  real(r_kind),dimension(nele,itxmax):: data_all_in
 
   ndata=0
   if(npe_sub > 1)then
@@ -81,51 +82,47 @@ subroutine combine_radobs(mype,mype_sub,mype_root,&
 
     ndata=0
     ndata1=0
+    data_all_in=zero
     do k=1,itxmax
       if(data_crit_min(k) < 5.e9_r_kind)then
          ndata=ndata+1
          if(data_crit_min(k) /= data_crit(k)) then
             data_crit(ndata)=1.e10_r_kind
             do l=1,nele
-               data_all(l,ndata)=zero
+               data_all_in(l,ndata)=zero
             end do
          else
             ndata1=ndata1+1
             data_crit(ndata)=data_crit(k)
             do l=1,nele
-               data_all(l,ndata)=data_all(l,k)
+               data_all_in(l,ndata)=data_all(l,k)
             end do
          end if
        end if
     end do
-    call mpi_allreduce(ndata1,ndata1,1,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
+    call mpi_allreduce(ndata1,ndata2,1,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
 
 !  Following code only in the unlikely circumstance that 2 min crit's in one grid box are identical
-    if(ndata /= ndata1)then
+    if(ndata /= ndata2)then
       do i=1,ndata
         data_crit(i)=data_crit(i)+float(mype_sub)
       end do
       call mpi_allreduce(data_crit,data_crit_min,ndata,mpi_rtype,mpi_min,mpi_comm_sub,ierror)
 
-      ndata2=0
       do k=1,ndata
         if(data_crit_min(k) < 5.e9_r_kind)then
            if(data_crit_min(k) /= data_crit(k)) then
               do l=1,nele
-                 data_all(l,k)=zero
+                 data_all_in(l,k)=zero
               end do
-           else
-              ndata2=ndata2+1
            end if
          end if
        end do
-       call mpi_allreduce(ndata2,ndata2,1,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
-       if(mype_sub == 0)write(6,*) 'ndata2',ndata,ndata1,ndata2
       
     end if
 
 !  get all data on process mype_root
-    call mpi_reduce(data_all,data_all,nele*ndata,mpi_rtype,mpi_sum,&
+    call mpi_reduce(data_all_in,data_all,nele*ndata,mpi_rtype,mpi_sum,&
          mype_root,mpi_comm_sub,ierror)
   else
 

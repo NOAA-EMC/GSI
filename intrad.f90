@@ -90,7 +90,7 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gridmod, only: latlon11,latlon1n,nsig,nsig2,&
        nsig3p1,nsig3p2,nsig3p3
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,tiny_r_kind,cg_term,r3600
   implicit none
 
@@ -237,8 +237,8 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
           if (nlnqc_iter .and. pg_rad(ic) > tiny_r_kind .and. &
                                b_rad(ic)  > tiny_r_kind) then
              cg_rad=cg_term/b_rad(ic)
-             wnotgross= one-pg_rad(ic)
-             wgross = pg_rad(ic)*cg_rad/wnotgross
+             wnotgross= one-pg_rad(ic)*varqc_iter
+             wgross = varqc_iter*pg_rad(ic)*cg_rad/wnotgross
              p0   = wgross/(wgross+exp(-half*radptr%err2(nn)*valx*valx))
              valx = valx*(one-p0)
           endif
@@ -330,7 +330,7 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
      end do
     endif ! < l_do_adjoint >
 
-     radptr => radptr%llpoint
+    radptr => radptr%llpoint
   end do
 
 ! Return predictors in its original shape

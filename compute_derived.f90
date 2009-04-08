@@ -72,7 +72,7 @@ subroutine compute_derived(mype)
   use guess_grids, only: ges_qlon    ,ges_qlat
   use guess_grids, only: ges_tvlon   ,ges_tvlat
   use guess_grids, only: ges_prslavg,ges_psfcavg
-  use gridmod, only: lat2,lon2,nsig,nsig1o,aeta2_ll
+  use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll
   use gridmod, only: jstart,jlon1,regional
   use gridmod, only: istart,ilat1,twodvar_regional,bk5,eta2_ll
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional
@@ -92,7 +92,7 @@ subroutine compute_derived(mype)
 
 ! Declare local variables
   logical ice,fullfield
-  integer(i_kind) i,j,k,it,nnn,k150,kpres,n,np,l,l2
+  integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2
   
   real(r_kind) drh,d,dl1,dl2,psfc015,dn1,dn2
   real(r_kind),dimension(5):: stat,stat1
@@ -111,10 +111,6 @@ subroutine compute_derived(mype)
 !       and for getting time derivatives of prognostic variables for
 !       time extrapolation and non-linear balance constraints.
 
-        nnn=0
-        do k=1,nsig1o
-           if (levs_id(k)/=0) nnn=nnn+1
-        end do
         
         call get_derivatives(ges_u,ges_v,ges_tv,ges_ps,ges_q,&
              ges_oz,sfct,ges_cwmr, &
@@ -122,7 +118,7 @@ subroutine compute_derived(mype)
              ges_ozlon,sfct_lon,ges_cwmr_lon, &
              ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,&
              ges_ozlat,sfct_lat,ges_cwmr_lat, &
-             nnn,mype,nfldsig)
+             nnnn1o,mype,nfldsig)
 
         if(.not. wrf_mass_regional .and. tendsflag)then
 

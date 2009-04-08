@@ -27,7 +27,7 @@ subroutine linbal(psi,phib)
   use gridmod, only: lat2,nsig,iglobal,lon1,itotsub,lon2,lat1,&
        nlat,nlon,ltosi,ltosj,ltosi_s,ltosj_s,corlats
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_s,isduv_g,iscuv_g,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
+       isduv_s,isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
        strip,reorder,reorder2
   use specmod, only: enn1,ncd2,nc
   use compact_diffs, only: compact_grad,compact_div
@@ -66,11 +66,11 @@ subroutine linbal(psi,phib)
          mpi_rtype,work1(1,1),ircuv_g,irduv_g,mpi_rtype,&
          mpi_comm_world,ierror)
 
-    call reorder(work1,nuvlevs)
+    call reorder(work1,nuvlevs,nnnuvlevs)
 
 ! work 1 contains global slaps of streamfunction increment now
 !   perform scalar g2s on work array
-    do k=1,nuvlevs
+    do k=1,nnnuvlevs
       spc1=zero ; work3=zero ; psix=zero ; psiy=zero
       
       do kk=1,iglobal
@@ -108,7 +108,7 @@ subroutine linbal(psi,phib)
     end do  !end do nuvlevs
 
 !   reorder the work array for the mpi communication
-    call reorder2(work1,nuvlevs)
+    call reorder2(work1,nuvlevs,nnnuvlevs)
 
 !   get u,v back on subdomains
     call mpi_alltoallv(work1(1,1),iscuv_s,isduv_s,&
@@ -149,7 +149,7 @@ subroutine linbal_ad(psitmp,phib)
   use gridmod, only: lat2,nsig,iglobal,lon1,itotsub,lon2,lat1,&
        nlat,nlon,ltosi,ltosj,ltosi_s,ltosj_s,corlats
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_s,isduv_g,iscuv_g,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
+       isduv_s,isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
        strip,reorder,reorder2
   use specmod, only: enn1,ncd2,nc
   use compact_diffs, only: compact_grad_ad,compact_div_ad
@@ -187,10 +187,10 @@ subroutine linbal_ad(psitmp,phib)
        mpi_comm_world,ierror)
 
 !   reorder work arrays before calling of
-  call reorder(work1,nuvlevs)
+  call reorder(work1,nuvlevs,nnnuvlevs)
 
 !   perform scalar g2s on work array
-  do k=1,nuvlevs
+  do k=1,nnnuvlevs
     spc1=zero ; work3=zero
 
     do kk=1,iglobal
@@ -227,7 +227,7 @@ subroutine linbal_ad(psitmp,phib)
 
   end do  !end do nuvlevs
 
-  call reorder2(work1,nuvlevs)
+  call reorder2(work1,nuvlevs,nnnuvlevs)
 
 !   get back on subdomains
   call mpi_alltoallv(work1(1,1),iscuv_s,isduv_s,&

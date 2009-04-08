@@ -24,7 +24,7 @@ module observermod
 
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use jfunc, only: miter,jiter,jiterstart,iguess,biascor,destroy_jfunc,&
+  use jfunc, only: miter,jiter,jiterstart,biascor,destroy_jfunc,&
        set_pointer,read_guess_solution,&
        switch_on_derivatives,tendsflag,xhatsave,create_jfunc
   use gridmod, only: nlat,nlon,rlats,regional,twodvar_regional
@@ -135,7 +135,6 @@ subroutine guess_init_
    if (l4dvar.and.jiterstart>1) then
   else
   ! If requested and if available, read guess solution.
-    if (iguess==1 .or. iguess==2) call read_guess_solution(mype)
   endif
 
   fg_initialized_ = .true.

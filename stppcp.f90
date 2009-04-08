@@ -81,7 +81,7 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
   use pcpinfo, only: npcptype,npredp,b_pcp,pg_pcp,tinym1_obs
   use obsmod, only: pcp_ob_type
   use constants, only: zero,one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11,nsig,latlon1n
   use gsi_4dvar, only: ltlint
   use jfunc, only: l_foto,xhat_dt,dhat_dt
@@ -243,8 +243,8 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
      if (nlnqc_iter .and. pg_pcp(kx) > tiny_r_kind .and.  &
                           b_pcp(kx)  > tiny_r_kind) then
         cg_pcp=cg_term/b_pcp(kx)
-        wnotgross= one-pg_pcp(kx)
-        wgross = pg_pcp(kx)*cg_pcp/wnotgross
+        wnotgross= one-pg_pcp(kx)*varqc_iter
+        wgross = varqc_iter*pg_pcp(kx)*cg_pcp/wnotgross
         pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
         pen(1) = -two*log((exp(-half*pen(1)) + wgross)/(one+wgross))
         pen(2) = -two*log((exp(-half*pen(2)) + wgross)/(one+wgross))

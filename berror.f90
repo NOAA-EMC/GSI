@@ -213,7 +213,7 @@ contains
 !
 !$$$
   use balmod, only: llmin,llmax
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nsig1o
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
   use jfunc, only: nrclen
   implicit none
   
@@ -247,12 +247,12 @@ contains
   allocate(inaxs(nf,nlon/8), &
            inxrs(nlon/8,mr:nr) )
 
-  allocate(slw(ny*nx,nsig1o),&
-           slw1((2*nf+1)*(2*nf+1),nsig1o),&
-           slw2((2*nf+1)*(2*nf+1),nsig1o))
-  allocate(ii(ny,nx,3,nsig1o),jj(ny,nx,3,nsig1o),&
-           ii1(2*nf+1,2*nf+1,3,nsig1o),jj1(2*nf+1,2*nf+1,3,nsig1o),&
-           ii2(2*nf+1,2*nf+1,3,nsig1o),jj2(2*nf+1,2*nf+1,3,nsig1o))
+  allocate(slw(ny*nx,nnnn1o),&
+           slw1((2*nf+1)*(2*nf+1),nnnn1o),&
+           slw2((2*nf+1)*(2*nf+1),nnnn1o))
+  allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o),&
+           ii1(2*nf+1,2*nf+1,3,nnnn1o),jj1(2*nf+1,2*nf+1,3,nnnn1o),&
+           ii2(2*nf+1,2*nf+1,3,nnnn1o),jj2(2*nf+1,2*nf+1,3,nnnn1o))
 
   return
  end subroutine create_berror_vars
@@ -603,7 +603,7 @@ contains
 !$$$
     use kinds, only: i_kind
     use balmod, only: llmin,llmax
-    use gridmod, only: nlat,nlon,nsig,nsig1o,lat2,lon2
+    use gridmod, only: nlat,nlon,nsig,nnnn1o,lat2,lon2
     use jfunc, only: nrclen
     implicit none
     
@@ -624,8 +624,8 @@ contains
     
     allocate(varprd(max(1,nrclen) ) )     
 
-    allocate(slw(ny*nx,nsig1o) )
-    allocate(ii(ny,nx,3,nsig1o),jj(ny,nx,3,nsig1o) )
+    allocate(slw(ny*nx,nnnn1o) )
+    allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o) )
     
     
     return

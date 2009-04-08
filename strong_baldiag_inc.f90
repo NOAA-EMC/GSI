@@ -25,61 +25,42 @@ subroutine strong_baldiag_inc(sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: levs_id,mype
-  use jfunc, only: noz,nq,nt,nsst,ncw,np,nst,nvp,&
-       nclen,nuvlen,ntendlen,nu,nv,nut,nvt,ntt,nprst,&
-       nqt,nozt,ncwt
-  use gridmod, only: latlon1n,latlon11,nsig1o
+  use gridmod, only: latlon1n,latlon11,nnnn1o
   use gsi_4dvar, only: nsubwin
   use mod_vtrans,only: nvmodes_keep
   use state_vectors
   use control_vectors
+  use constants, only: zero
   implicit none
 
 ! Declare passed variables
   type(state_vector),intent(inout)::sval(nsubwin)
 
 ! Declare local variables
-  integer(i_kind) k,nnn,mm1,ii
+  integer(i_kind) k,ii
   logical fullfield,tracer
-  real(r_kind),dimension(ntendlen)::xhat_t
-  real(r_kind),dimension(nclen)::xhat_x,xhat_y
+  type(state_vector) dhat_dt
 
 !************************************************************************************  
 ! Initialize variable
-  mm1=mype+1
 
 !     compute derivatives
 ! Determine how many vertical levels each mpi task will
 ! handle in computing horizontal derivatives
-  nnn=0
-  do k=1,nsig1o
-    if (levs_id(k)/=0) nnn=nnn+1
-  end do
+  call allocate_state(dhat_dt)
+  call assign_scalar2state(dhat_dt,zero)
 
   do ii=1,nsubwin
 
-   call get_derivatives( &
-     sval(ii)%u,sval(ii)%v ,sval(ii)%t  ,sval(ii)%p ,  &
-     sval(ii)%q,sval(ii)%oz,sval(ii)%sst,sval(ii)%cw, &
-     xhat_x(nst),xhat_x(nvp),xhat_x(nt)  ,xhat_x(np),  &
-     xhat_x(nq) ,xhat_x(noz),xhat_x(nsst),xhat_x(ncw), &
-     xhat_y(nst),xhat_y(nvp),xhat_y(nt)  ,xhat_y(np),  &
-     xhat_y(nq) ,xhat_y(noz),xhat_y(nsst),xhat_y(ncw), &
-     nnn,mype,1)
-
-   tracer=.false.
    call calctends_tl( &
      sval(ii)%u,sval(ii)%v ,sval(ii)%t   ,               &
      sval(ii)%q,sval(ii)%oz,sval(ii)%cw  ,               &
-     xhat_x(nst),xhat_y(nst) ,xhat_x(nvp),xhat_y(nvp),   &
-     xhat_x(nt) ,xhat_y(nt)  ,xhat_x(np) ,xhat_y(np),    &
-     xhat_x(nq) ,xhat_y(nq)  ,xhat_x(noz),xhat_y(noz),   &
-     xhat_x(ncw),xhat_y(ncw) ,mype,          &
-     xhat_t(nut),xhat_t(nvt) ,xhat_t(ntt),xhat_t(nprst), &
-     xhat_t(nqt),xhat_t(nozt),xhat_t(ncwt),sval(ii)%p3d,tracer)
+     mype, nnnn1o,          &
+     dhat_dt%u,dhat_dt%v ,dhat_dt%t,dhat_dt%p3d, &
+     dhat_dt%q,dhat_dt%oz,dhat_dt%cw,sval(ii)%p3d)
    if(nvmodes_keep.gt.0) then
       fullfield=.false.
-      call strong_bal_correction(xhat_t(nut),xhat_t(nvt),xhat_t(ntt),xhat_t(nprst),&
+      call strong_bal_correction(dhat_dt%u,dhat_dt%v,dhat_dt%t,dhat_dt%p3d,&
                   mype,sval(ii)%u,sval(ii)%v,sval(ii)%t,sval(ii)%p,.true.,fullfield,.false.)
    end if
 

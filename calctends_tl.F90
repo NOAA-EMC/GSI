@@ -1,5 +1,4 @@
-subroutine calctends_tl(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
-   q_x,q_y,oz_x,oz_y,cw_x,cw_y,mype,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri,tracer)
+subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    calctends_tl       tlm of calctends
@@ -34,21 +33,8 @@ subroutine calctends_tl(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 !     q        - q on subdomain
 !     oz       - ozone on subdomain
 !     cw       - cloud water mixing ratio on subdomain 
-!     u_x      - zonal derivative of u
-!     u_y      - meridional derivative of u
-!     v_x      - zonal derivative of v
-!     v_y      - meridional derivative of v
-!     t_x      - zonal derivative of t
-!     t_y      - meridional derivative of t
-!     ps_x     - zonal derivative of ps
-!     ps_y     - meridional derivative of ps
-!     q_x      - zonal derivative of q
-!     q_y      - meridional derivative of q
-!     oz_x     - zonal derivative of ozone
-!     oz_y     - meridional derivative of ozone
-!     cw_x     - zonal derivative of cloud water
-!     cw_y     - meridional derivative of cloud water
 !     mype     - task id
+!     nnn      - number of levels on each processor
 !     tracer   - logical flag if true tracer time derivatives calculated
 !
 !   output argument list:
@@ -81,18 +67,16 @@ subroutine calctends_tl(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: u,v,t,u_x,u_y,&
-     v_x,v_y,t_x,t_y
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: q,oz,cw,q_x,q_y,&
-     oz_x,oz_y,cw_x,cw_y
-  real(r_kind),dimension(lat2,lon2),intent(in):: ps_x,ps_y
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in):: mype,nnn
   real(r_kind),dimension(lat2,lon2,nsig),intent(out):: u_t,v_t,t_t,q_t,oz_t,cw_t
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(out):: p_t
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(in):: pri
-  logical,intent(in):: tracer
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: u,v,t,q,oz,cw
 
 ! Declare local variables
+  real(r_kind),dimension(lat2,lon2,nsig):: u_x,u_y,v_x,v_y,t_x,t_y
+  real(r_kind),dimension(lat2,lon2,nsig):: q_x,q_y,oz_x,oz_y,cw_x,cw_y
+  real(r_kind),dimension(lat2,lon2):: ps_x,ps_y,sst_x,sst_y,sst
   real(r_kind),dimension(lat2,lon2,nsig+1):: pri_x,pri_y
   real(r_kind),dimension(lat2,lon2,nsig+1):: prsth,what
   real(r_kind),dimension(lat2,lon2,nsig):: prsum,prdif,pr_xsum,pr_xdif,&
@@ -111,6 +95,13 @@ subroutine calctends_tl(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
   jstop=lon2
 
 ! preliminaries:
+  sst=zero
+
+  call get_derivatives( &
+     u ,v ,t ,pri ,q ,oz ,sst ,cw , &
+     u_x, v_x, t_x , ps_x, q_x, oz_x, sst_x, cw_x, &
+     u_y, v_y, t_y , ps_y, q_y, oz_y, sst_y, cw_y, &
+     nnn,mype,1)
 
   call getprs_horiz_tl(ps_x,ps_y,mype,pri,pri_x,pri_y)
 
@@ -349,7 +340,6 @@ subroutine calctends_tl(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 
     end do  !end do k 
   end if
-  if(tracer)then
     do k=1,nsig
       do j=jstart,jstop
         do i=1,lat2
@@ -389,7 +379,6 @@ subroutine calctends_tl(u,v,t,q,oz,cw,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
         end do
       end do
     end do
-  end if
 !!!$omp end parallel
 
   return

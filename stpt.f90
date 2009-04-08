@@ -81,9 +81,9 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: t_ob_type
-  use qcmod, only: nlnqc_iter,c_varqc
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
-  use gridmod, only: latlon1n,latlon11
+  use gridmod, only: latlon1n,latlon11,latlon1n1
   use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
   implicit none
 
@@ -91,13 +91,14 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges)
   type(t_ob_type),pointer,intent(in):: thead
   real(r_quad),dimension(6),intent(out):: out
   real(r_kind),dimension(latlon1n),intent(in):: rt,st,rtv,stv,rq,sq,ru,su,rv,sv
-  real(r_kind),dimension(latlon11),intent(in):: rsst,ssst,rp,sp
+  real(r_kind),dimension(latlon11),intent(in):: rsst,ssst
+  real(r_kind),dimension(latlon1n1),intent(in):: rp,sp
   real(r_kind),dimension(4),intent(in):: sges
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
-  real(r_kind) cg_t,pen1,pen2,pen3,pencur,t1,t2,t3,val,val2,wgross,wnotgross,t_pg,varqc_iter
+  real(r_kind) cg_t,pen1,pen2,pen3,pencur,t1,t2,t3,val,val2,wgross,wnotgross,t_pg
   real(r_kind) tg_prime0,tg_prime1,tg_prime2,tg_prime3
   real(r_kind) ts_prime0,ts_prime1,ts_prime2,ts_prime3
   real(r_kind) qs_prime0,qs_prime1,qs_prime2,qs_prime3
@@ -113,6 +114,7 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges)
   ccoef=half*alpha*alpha
   bcoef1=half*half*alpha
   bcoef2=sges(3)*ccoef
+
   tptr => thead
   do while (associated(tptr))
 
@@ -266,16 +268,9 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges)
       pen3   = t3*t3*tptr%err2
 
 !  Modify penalty term if nonlinear QC
-!     Variational qc is gradually increased to avoid possible convergence problems
-      if(jiter == jiterstart .and. nlnqc_iter .and. tptr%pg > tiny_r_kind) then
-         varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
-         if(varqc_iter >=one) varqc_iter= one
-         t_pg=tptr%pg*varqc_iter
-      else
-         t_pg=tptr%pg
-      endif
 
       if (nlnqc_iter .and. tptr%pg > tiny_r_kind .and. tptr%b >tiny_r_kind) then
+        t_pg=tptr%pg*varqc_iter
         cg_t=cg_term/tptr%b
         wnotgross= one-t_pg
         wgross =t_pg*cg_t/wnotgross

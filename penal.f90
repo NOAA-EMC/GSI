@@ -32,7 +32,7 @@ subroutine penal(xhat)
   use obsmod, only: qhead,qptr,thead,tptr,whead,wptr,pshead,psptr
   use converr, only:etabl
   use gridmod, only: latlon1n,latlon11
-  use jfunc, only: nt,jiterstart,jiter
+  use jfunc, only: jiterstart,jiter
   use convinfo, only:ictype,nconvtype,ioctype
   use state_vectors
   implicit none

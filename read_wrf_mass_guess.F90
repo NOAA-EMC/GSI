@@ -91,7 +91,7 @@ subroutine read_wrf_mass_binary_guess(mype)
 
 
 ! Declare local variables
-  integer(i_kind) kt,kq,ku,kv,nnn
+  integer(i_kind) kt,kq,ku,kv
 
 ! MASS variable names stuck in here
   logical run
@@ -142,7 +142,6 @@ subroutine read_wrf_mass_binary_guess(mype)
 !          jm -- number of y-points on C-grid
 !          lm -- number of vertical levels ( = nsig for now)
 
-
      num_doubtful_sfct=0
 
 
@@ -150,6 +149,12 @@ subroutine read_wrf_mass_binary_guess(mype)
      im=nlon_regional
      jm=nlat_regional
      lm=nsig
+     if(jm.le.npe)then
+       write(6,*)' in read_wrf_mass_binary_guess, jm <= npe, ',&
+                  'so program will end.'
+       call stop2(1)
+     endif
+
      if(mype.eq.0) write(6,*)' in read_wrf_mass_binary_guess, im,jm,lm=',im,jm,lm
 
 !    Following is for convenient WRF MASS input
@@ -412,12 +417,8 @@ subroutine read_wrf_mass_binary_guess(mype)
            write(6,*)' kbegin=',kbegin
            write(6,*)' kend= ',kend
         end if
-!!        num_j_groups=(jm+1)/npe
-!!        jextra=(jm+1)-num_j_groups*npe
         num_j_groups=jm/npe
         jextra=jm-num_j_groups*npe
-
-
         jbegin(0)=1
         if(jextra > 0) then
            do j=1,jextra
@@ -762,7 +763,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   real(r_kind),parameter:: r100=100.0_r_kind
 
 ! Declare local variables
-  integer(i_kind) kt,kq,ku,kv,nnn
+  integer(i_kind) kt,kq,ku,kv
 
 ! MASS variable names stuck in here
   logical run

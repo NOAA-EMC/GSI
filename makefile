@@ -201,6 +201,8 @@ clean:
 	calctends.f90 \
 	calctends_ad.F90 \
 	calctends_tl.F90 \
+	calctends_no_ad.F90 \
+	calctends_no_tl.F90 \
 	combine_radobs.f90 \
 	compact_diffs.f90 \
 	compute_derived.f90 \
@@ -274,7 +276,6 @@ clean:
 	intsst.f90 \
 	intt.f90 \
 	intw.f90 \
-	jcdivtends.f90 \
 	jcmod.f90 \
 	jfunc.f90 \
 	kinds.f90 \

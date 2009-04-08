@@ -37,7 +37,6 @@ subroutine prewgt_reg(mype)
 !
 !   other important variables
 !     nsig     - number of sigma levels
-!     nsig1o   - number of sigma levels distributed in each processor
 !     nx       - number of gaussian lats in one hemisphere
 !     ny       - number of longitudes
 !     dx       - cos of grid latitudes (radians)
@@ -56,7 +55,7 @@ subroutine prewgt_reg(mype)
        init_rftable,hzscl,tsfc_sdv,slw
   use mpimod, only: nvar_id,levs_id
   use jfunc, only: qoption,varq          
-  use gridmod, only: lon2,nsig,nsig1o,&
+  use gridmod, only: lon2,nsig,nnnn1o,&
        region_dx,region_dy
   use constants, only: izero,zero,half,one,two,four
   use guess_grids, only: ges_prslavg,ges_psfcavg
@@ -80,10 +79,10 @@ subroutine prewgt_reg(mype)
 ! Declare local variables
   integer(i_kind) k,i
   integer(i_kind) n
-  integer(i_kind) j,k1,nnn
+  integer(i_kind) j,k1
   integer(i_kind) inerr,l,lp
   integer(i_kind) msig,mlat              ! stats dimensions
-  integer(i_kind),dimension(nsig1o):: ks
+  integer(i_kind),dimension(nnnn1o):: ks
 
   real(r_kind) samp2,dl1,dl2
   real(r_kind) samp,hwl
@@ -230,7 +229,7 @@ subroutine prewgt_reg(mype)
 ! loop l for diff variable of each PE.
 
   psfc015=r015*ges_psfcavg
-  do l=1,nsig1o
+  do l=1,nnnn1o
     ks(l)=nsig+1
     if(nvar_id(l)<3)then
       k_loop: do k=1,nsig
@@ -242,11 +241,7 @@ subroutine prewgt_reg(mype)
     endif
   end do
 
-  nnn=0
-  do k=1,nsig1o
-    if (levs_id(k)/=0) nnn=nnn+1
-  end do
-  allocate(sli(ny,nx,2,nnn))
+  allocate(sli(ny,nx,2,nnnn1o))
 
 ! sli in scale  unit (can add in sea-land mask)
   samp2=samp*samp
@@ -263,9 +258,9 @@ subroutine prewgt_reg(mype)
 ! Set up scales
 
 
-! This first loop for nsig1o will be if we aren't dealing with
+! This first loop for nnnn1o will be if we aren't dealing with
 ! surface pressure, skin temperature, or ozone
-  do k=nnn,1,-1
+  do k=nnnn1o,1,-1
     k1=levs_id(k)
      if (nvar_id(k)==1) then
 ! streamfunction
@@ -486,7 +481,7 @@ subroutine prewgt_reg(mype)
 
 
 ! Load tables used in recursive filters
-  call init_rftable(mype,rate,nnn,sli)
+  call init_rftable(mype,rate,nnnn1o,sli)
 
   deallocate( sli) 
 

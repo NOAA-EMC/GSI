@@ -82,7 +82,7 @@ subroutine stprad(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst, &
   use kinds, only: r_kind,i_kind,r_quad
   use radinfo, only: npred1,npred,jpch_rad,b_rad,pg_rad
   use obsmod, only: rad_ob_type
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,r3600,zero_quad
   use gridmod, only: nsig,nsig2,nsig3p1,nsig3p2,nsig3p3,&
        latlon11,latlon1n
@@ -246,8 +246,8 @@ subroutine stprad(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst, &
         if(nlnqc_iter .and. pg_rad(ic) > tiny_r_kind .and. &
                             b_rad(ic)  > tiny_r_kind)then
            cg_rad=cg_term/b_rad(ic)
-           wnotgross= one-pg_rad(ic)
-           wgross = pg_rad(ic)*cg_rad/wnotgross
+           wnotgross= one-pg_rad(ic)*varqc_iter
+           wgross = varqc_iter*pg_rad(ic)*cg_rad/wnotgross
            term  = -two*log((exp(-half*term ) + wgross)/(one+wgross))
            term1 = -two*log((exp(-half*term1) + wgross)/(one+wgross))
            term2 = -two*log((exp(-half*term2) + wgross)/(one+wgross))

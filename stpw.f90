@@ -70,7 +70,7 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: w_ob_type
-  use qcmod, only: nlnqc_iter,c_varqc
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
@@ -85,7 +85,7 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges)
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
   real(r_kind) valu,facu,valv,facv,w1,w2,w3,w4,w5,w6,w7,w8,time_w
-  real(r_kind) cg_w,pen1,pen2,pen3,pencur,u1,u2,u3,v1,v2,v3,wgross,wnotgross,w_pg,varqc_iter
+  real(r_kind) cg_w,pen1,pen2,pen3,pencur,u1,u2,u3,v1,v2,v3,wgross,wnotgross,w_pg
   real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,u0,v0
   type(w_ob_type), pointer :: wptr
 
@@ -94,7 +94,7 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges)
   ccoef=half*alpha*alpha
   bcoef1=half*half*alpha
   bcoef2=sges(3)*ccoef
-  
+
   wptr => whead
   do while (associated(wptr))
     if(wptr%luse)then
@@ -161,17 +161,10 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges)
      pen3   = (u3*u3+v3*v3)*wptr%err2
 
 !  Modify penalty term if nonlinear QC
-!    Variational qc is gradually increased to avoid possible convergence problems
-     if(jiter == jiterstart .and. nlnqc_iter .and. wptr%pg > tiny_r_kind) then
-        varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
-        if(varqc_iter >=one) varqc_iter= one
-        w_pg=wptr%pg*varqc_iter
-     else
-        w_pg=wptr%pg
-     endif
 
      if (nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
                           wptr%b  > tiny_r_kind) then
+        w_pg=wptr%pg*varqc_iter
         cg_w=cg_term/wptr%b
         wnotgross= one-w_pg
         wgross =w_pg*cg_w/wnotgross

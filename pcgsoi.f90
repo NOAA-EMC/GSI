@@ -82,14 +82,13 @@ subroutine pcgsoi()
   use kinds, only: r_kind,i_kind,r_quad
   use radinfo, only: npred
   use pcpinfo, only: npredp
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
   use obsmod, only: destroyobs,oberror_tune
   use jfunc, only: iter,jiter,jiterstart,niter,iout_iter,&
        nclen,nclen1,penorig,gnormorig,xhatsave,yhatsave,&
-       xhatsave_r,yhatsave_r,nsst,iguess,nst,np,nuvlen,ntendlen,&
-       niter_no_qc,switch_on_derivatives,nu,nv,nst,nvp,&
-       nt,nq,noz,nsst,ncw,nut,nvt,ntt,nqt,nprst,ndivt,nagvt,nozt,ncwt,l_foto, &
-       xhat_dt
+       iguess,read_guess_solution, &
+       niter_no_qc,switch_on_derivatives,&
+       l_foto,xhat_dt
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, lwrtinc
   use gridmod, only: lat2,lon2,regional,twodvar_regional,latlon1n
   use constants, only: zero,izero,one,five,tiny_r_kind
@@ -119,7 +118,7 @@ subroutine pcgsoi()
   real(r_kind) stp,b,converge,gsave
   real(r_kind) gnormx,penx,penalty,pennorm
   real(r_quad) zjo
-  real(r_kind),dimension(3):: gnorm
+  real(r_kind),dimension(2):: gnorm
   real(r_kind) :: zgini,zfini,fjcost(4),zgend,zfend
   type(control_vector) :: xhat,gradx,grady,dirx,diry,ydiff
   type(state_vector) :: sval(nobs_bins), rval(nobs_bins)
@@ -165,6 +164,15 @@ subroutine pcgsoi()
 
 ! Perform inner iteration
   inner_iteration: do iter=izero,niter(jiter)
+
+! Gradually turn on variational qc to avoid possible convergence problems
+     if(jiter == jiterstart) then
+         varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
+         if(varqc_iter >=one) varqc_iter= one
+     else
+         varqc_iter=one
+     endif
+
      do ii=1,nobs_bins
        rval(ii)=zero
      end do
@@ -254,11 +262,10 @@ subroutine pcgsoi()
      if (iter>0) gsave=gnorm(1)
      gnorm(1)=dot_product(gradx,grady,r_quad)
      gnorm(2)=dot_product(ydiff,grady,r_quad)
-     gnorm(3)=zero
      b=zero
      if (gsave>1.e-16 .and. iter>0) b=gnorm(2)/gsave
      if (b>five) b=zero
-     if (mype==0) write(6,888)'pcgsoi: gnorm(1:3),b=',gnorm,b
+     if (mype==0) write(6,888)'pcgsoi: gnorm(1:2),b=',gnorm,b
 
 !    Calculate new search direction
      if (.not. restart) then
@@ -271,12 +278,8 @@ subroutine pcgsoi()
 !$omp end parallel do
      else
 !    If previous solution available, transfer into local arrays.
-!    Compute horizontal derivatives.  Always need
         ydiff=zero
-        dirx=xhatsave_r
-        diry=yhatsave_r
-        call deallocate_cv(xhatsave_r)
-        call deallocate_cv(yhatsave_r)
+        call read_guess_solution(dirx,diry,mype)
         stp=one
      endif
 
@@ -386,8 +389,6 @@ subroutine pcgsoi()
      call penal(sval(1))
      xhatsave=zero
      yhatsave=zero
-     xhatsave_r=zero
-     yhatsave_r=zero
      call clean_
      return
   endif
@@ -423,7 +424,20 @@ subroutine pcgsoi()
     call state2control(rval,rbias,gradx)
   end if
 
-  call bkerror(gradx,grady)
+! Multiply by background error
+  if(anisotropic) then
+    if(regional) then
+      call anbkerror_reg(gradx,grady)
+    else
+  !     NOT AVAILABLE YET
+  !   call anbkerror(gradx,grady)
+       write(6,*)'PCGSOI:  ***ERROR*** global anisotropic option new yet available'
+       call stop2(-1)
+    end if
+  else
+    call bkerror(gradx,grady)
+  end if
+
   zgend=dot_product(gradx,grady,r_quad)
 
 ! Print final Jo table

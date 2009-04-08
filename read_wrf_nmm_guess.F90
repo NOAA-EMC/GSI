@@ -100,7 +100,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
   real(r_kind),parameter:: r100  = 100.0_r_kind
 
 ! Declare local variables
-  integer(i_kind) kpint,kt,kq,ku,kv,nnn
+  integer(i_kind) kpint,kt,kq,ku,kv
 
 ! NMM variable names stuck in here
   logical run
@@ -742,7 +742,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   real(r_kind),parameter:: r100=100.0_r_kind
 
 ! Declare local variables
-  integer(i_kind) kpint,kt,kq,ku,kv,nnn
+  integer(i_kind) kpint,kt,kq,ku,kv
 
 ! NMM variable names stuck in here
   logical run

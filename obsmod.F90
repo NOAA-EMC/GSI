@@ -201,7 +201,7 @@ module obsmod
   integer(i_kind),parameter:: i_o3l_ob_type=13 ! o3l_ob_type
   integer(i_kind),parameter:: i_gps_ob_type=14 ! gps_ob_type
   integer(i_kind),parameter:: i_rad_ob_type=15 ! rad_ob_type
-  integer(i_kind),parameter:: i_tcp_ob_type=16 ! rad_ob_type
+  integer(i_kind),parameter:: i_tcp_ob_type=16 ! tcp_ob_type
 
   integer(i_kind),parameter:: nobs_type = 16   ! number of observation types
 
@@ -890,6 +890,7 @@ contains
     cobstype(i_o3l_ob_type)="level ozone         " ! o3l_ob_type
     cobstype(i_gps_ob_type)="gps                 " ! gps_ob_type
     cobstype(i_rad_ob_type)="radiance            " ! rad_ob_type
+    cobstype(i_tcp_ob_type)="tcp (tropic cyclone)" ! tcp_ob_type
 
     return
   end subroutine init_obsmod_dflts
@@ -1297,6 +1298,16 @@ contains
         deallocate(pcptail(ii)%head,stat=istatus)
         if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pcp, istatus=',istatus
         pcptail(ii)%head => pcphead(ii)%head
+      end do
+    end do
+
+    do ii=1,nobs_bins
+      tcptail(ii)%head => tcphead(ii)%head
+      do while (associated(tcptail(ii)%head))
+        tcphead(ii)%head => tcptail(ii)%head%llpoint
+        deallocate(tcptail(ii)%head,stat=istatus)
+        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for tcp, istatus=',istatus
+        tcptail(ii)%head => tcphead(ii)%head
       end do
     end do
 

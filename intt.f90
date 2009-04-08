@@ -89,8 +89,8 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,two,zero,tiny_r_kind,cg_term,r3600
   use obsmod, only: t_ob_type,lsaveobsens,l_do_adjoint
-  use qcmod, only: nlnqc_iter,c_varqc
-  use gridmod, only: latlon1n,latlon11
+  use qcmod, only: nlnqc_iter,varqc_iter
+  use gridmod, only: latlon1n,latlon11,latlon1n1
   use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
   implicit none
   
@@ -98,15 +98,17 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
 ! Declare passed variables
   type(t_ob_type),pointer,intent(in):: thead
   real(r_kind),dimension(latlon1n),intent(in):: st,stv,sq,su,sv
-  real(r_kind),dimension(latlon11),intent(in):: ssst,sp
+  real(r_kind),dimension(latlon11),intent(in):: ssst
+  real(r_kind),dimension(latlon1n1),intent(in):: sp
   real(r_kind),dimension(latlon1n),intent(inout):: rt,rtv,rq,ru,rv
-  real(r_kind),dimension(latlon11),intent(inout):: rsst,rp
+  real(r_kind),dimension(latlon11),intent(inout):: rsst
+  real(r_kind),dimension(latlon1n1),intent(inout):: rp
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_t
 ! real(r_kind) penalty
-  real(r_kind) cg_t,val,p0,grad,wnotgross,wgross,t_pg,varqc_iter
+  real(r_kind) cg_t,val,p0,grad,wnotgross,wgross,t_pg
   real(r_kind) psfc_grad,tg_grad
   real(r_kind) ts_grad,us_grad,vs_grad,qs_grad
   real(r_kind) qs_prime0,tg_prime0,ts_prime0,psfc_prime0
@@ -213,17 +215,10 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
          val=val-tptr%res
 
 !        gradient of nonlinear operator
-!        Gradually turn on variational qc to avoid possible convergence problems
-         if(jiter == jiterstart .and. nlnqc_iter .and. tptr%pg > tiny_r_kind) then
-            varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
-            if(varqc_iter >=one ) varqc_iter= one
-            t_pg=tptr%pg*varqc_iter
-         else
-            t_pg=tptr%pg
-         endif
 
          if (nlnqc_iter .and. tptr%pg > tiny_r_kind .and.  &
                               tptr%b  > tiny_r_kind) then
+            t_pg=tptr%pg*varqc_iter
             cg_t=cg_term/tptr%b
             wnotgross= one-t_pg
             wgross =t_pg*cg_t/wnotgross

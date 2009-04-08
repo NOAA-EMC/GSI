@@ -1,4 +1,4 @@
-subroutine stp3dvar(pbc,pstart,dirx,dir_dt)
+subroutine stp3dvar(dirx,dir_dt)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -83,55 +83,27 @@ subroutine stp3dvar(pbc,pstart,dirx,dir_dt)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use mpimod, only: levs_id,npe,mype
-  use constants, only:  zero,one_tenth,quarter,half,one,two,zero_quad
-  use jfunc, only: noz,nq,nt,nsst,ncw,np,iout_iter,nst,nvp,&
-       nclen,nclen1,nclen2,nsclen,npclen,xhatsave,yhatsave,factqmin,factqmax,&
-       nuvlen,nu,nv,iter,ntendlen,nut,nvt,ntt,nprst,&
-       nqt,nozt,ncwt,ndivt,nagvt
-  use gridmod, only: latlon1n,latlon11,lat2,lon2,nsig,nsig1o
+  use mpimod, only: mype
+  use gridmod, only: nnnn1o
   use state_vectors
   implicit none
 
 ! Declare passed variables
-  real(r_quad),dimension(2),intent(inout):: pbc
-  real(r_quad),intent(inout):: pstart   
   type(state_vector), intent(inout) :: dirx
   type(state_vector),intent(out)::dir_dt
 
 ! Declare local variables
-  logical:: tracer
-  integer(i_kind) i,k,nnn
-  real(r_kind),dimension(nclen)::dirx_x,dirx_y
+  integer(i_kind) i,k
 
 !************************************************************************************  
 
-! Determine how many vertical levels each mpi task will
-! handle in computing horizontal derivatives
-  tracer=.true.
-  nnn=0
-  do k=1,nsig1o
-    if (levs_id(k)/=0) nnn=nnn+1
-  end do
-!   compute derivatives
-  call get_derivatives( &
-     dirx%u     ,dirx%v     ,dirx%t      ,dirx%p     , &
-     dirx%q     ,dirx%oz,    dirx%sst    ,dirx%cw    , &
-     dirx_x(nst),dirx_x(nvp),dirx_x(nt)  ,dirx_x(np),  &
-     dirx_x(nq) ,dirx_x(noz),dirx_x(nsst),dirx_x(ncw), &
-     dirx_y(nst),dirx_y(nvp),dirx_y(nt)  ,dirx_y(np),  &
-     dirx_y(nq) ,dirx_y(noz),dirx_y(nsst),dirx_y(ncw), &
-     nnn,mype,1)
 
   call calctends_tl( &
      dirx%u     ,dirx%v      ,dirx%t     ,               &
      dirx%q     ,dirx%oz     ,dirx%cw    ,               &
-     dirx_x(nst),dirx_y(nst) ,dirx_x(nvp),dirx_y(nvp),   &
-     dirx_x(nt) ,dirx_y(nt)  ,dirx_x(np) ,dirx_y(np),    &
-     dirx_x(nq) ,dirx_y(nq)  ,dirx_x(noz),dirx_y(noz),   &
-     dirx_x(ncw),dirx_y(ncw) ,     mype,          &
+     mype, nnnn1o,          &
      dir_dt%u,dir_dt%v ,dir_dt%t,dir_dt%p3d, &
-     dir_dt%q,dir_dt%oz,dir_dt%cw,dirx%p3d,tracer)
+     dir_dt%q,dir_dt%oz,dir_dt%cw,dirx%p3d)
 
 ! Convert virtual temperature to sensible temperature for time derivatives
 ! for search direction

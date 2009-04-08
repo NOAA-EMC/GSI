@@ -37,13 +37,13 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
   use kinds, only: r_kind,i_kind
   use mpimod, only: irdsp_s,ircnt_s,iscnt_s,isdsp_s,ierror,&
        mpi_comm_world,mpi_rtype,reorder2,vectosub
-  use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,nsig1o
+  use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,nsig1o,nnnn1o
   use jfunc, only: nsst2,noz2,nslt2,ncw2,nsit2,nvp2,nst2,np2,nq2,nt2
   use constants, only:  zero
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(nlat,nlon,nsig1o),intent(in):: workout
+  real(r_kind),dimension(nlat,nlon,nnnn1o),intent(in):: workout
   real(r_kind),dimension(lat2,lon2),intent(out):: p,sst,slndt,sicet
   real(r_kind),dimension(lat2,lon2,nsig),intent(out):: t,q,cwmr,oz,st,vp
 
@@ -54,7 +54,7 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
 
 
 ! Transfer input array to local work array
-  do k=1,nsig1o
+  do k=1,nnnn1o
      do l=1,itotsub
         ni1=ltosi_s(l); ni2=ltosj_s(l)
         work1(l,k)=workout(ni1,ni2,k)
@@ -62,7 +62,7 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
   end do
 
 ! reoder work1 global slab array for communications
-  call reorder2(work1,nsig1o)
+  call reorder2(work1,nsig1o,nnnn1o)
 
 ! zero xtmp work array
 ! do k=1,lat2*lon2*(nsig*6+4)

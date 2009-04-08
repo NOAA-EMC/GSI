@@ -83,64 +83,64 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   r0_005 = 0.005_r_kind
   r0_2=0.2_r_kind
   r2_5=2.5_r_kind
-	  half_tlapse=0.00325_r_kind  ! half of 6.5K/1km
-	  r0_001=0.001_r_kind
+  half_tlapse=0.00325_r_kind  ! half of 6.5K/1km
+  r0_001=0.001_r_kind
 
-	  do i=1,nobs
-	     muse(i)=nint(data(iuse,i)) <= jiter
-	  end do
+  do i=1,nobs
+     muse(i)=nint(data(iuse,i)) <= jiter
+  end do
 
-	  do i=1,nobs
-	    dlat=data(ilat,i)
-	    dlon=data(ilon,i)
-	    pob=data(ipres,i)
-	    dtime=data(itime,i)
-	    error=data(ier,i)
-	    ikx=nint(data(ikxx,i))
+  do i=1,nobs
+    dlat=data(ilat,i)
+    dlon=data(ilon,i)
+    pob=data(ipres,i)
+    dtime=data(itime,i)
+    error=data(ier,i)
+    ikx=nint(data(ikxx,i))
 
-	!   Link observation to appropriate observation bin
-	    if (nobs_bins>1) then
-	      ibin = NINT( dtime/hr_obsbin ) + 1
-	    else
-	      ibin = 1
-	    endif
-	    IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+!   Link observation to appropriate observation bin
+    if (nobs_bins>1) then
+      ibin = NINT( dtime/hr_obsbin ) + 1
+    else
+      ibin = 1
+    endif
+    IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 !     Link obs to diagnostics structure
-	    if (.not.lobsdiag_allocated) then
-	      if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%head)) then
-		allocate(obsdiags(i_tcp_ob_type,ibin)%head,stat=istat)
-		if (istat/=0) call abor1('setuptcp: failure to allocate obsdiags')
-		obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
-	      else
-		allocate(obsdiags(i_tcp_ob_type,ibin)%tail%next,stat=istat)
-		if (istat/=0) call abor1('setuptcp: failure to allocate obsdiags')
-		obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
-	      end if
-	      allocate(obsdiags(i_tcp_ob_type,ibin)%tail%muse(miter+1))
-	      allocate(obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(miter+1))
-	      allocate(obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(miter))
-	      allocate(obsdiags(i_tcp_ob_type,ibin)%tail%obssen(miter))
-	      obsdiags(i_tcp_ob_type,ibin)%tail%indxglb=i
-	      obsdiags(i_tcp_ob_type,ibin)%tail%nchnperobs=-99999
-	      obsdiags(i_tcp_ob_type,ibin)%tail%luse=.false.
-	      obsdiags(i_tcp_ob_type,ibin)%tail%muse(:)=.false.
-	      obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-	      obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(:)=zero
-	      obsdiags(i_tcp_ob_type,ibin)%tail%wgtjo=-huge(zero)
-	      obsdiags(i_tcp_ob_type,ibin)%tail%obssen(:)=zero
-	    else
-	      if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%tail)) then
-		obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
-	      else
-		obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
-	      end if
-	      if (obsdiags(i_tcp_ob_type,ibin)%tail%indxglb/=i) call abor1('setuptcp: index error')
-	    endif
+    if (.not.lobsdiag_allocated) then
+      if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%head)) then
+	allocate(obsdiags(i_tcp_ob_type,ibin)%head,stat=istat)
+	if (istat/=0) call abor1('setuptcp: failure to allocate obsdiags')
+	obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
+      else
+	allocate(obsdiags(i_tcp_ob_type,ibin)%tail%next,stat=istat)
+	if (istat/=0) call abor1('setuptcp: failure to allocate obsdiags')
+	obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
+      end if
+      allocate(obsdiags(i_tcp_ob_type,ibin)%tail%muse(miter+1))
+      allocate(obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(miter+1))
+      allocate(obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(miter))
+      allocate(obsdiags(i_tcp_ob_type,ibin)%tail%obssen(miter))
+      obsdiags(i_tcp_ob_type,ibin)%tail%indxglb=i
+      obsdiags(i_tcp_ob_type,ibin)%tail%nchnperobs=-99999
+      obsdiags(i_tcp_ob_type,ibin)%tail%luse=.false.
+      obsdiags(i_tcp_ob_type,ibin)%tail%muse(:)=.false.
+      obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+      obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(:)=zero
+      obsdiags(i_tcp_ob_type,ibin)%tail%wgtjo=-huge(zero)
+      obsdiags(i_tcp_ob_type,ibin)%tail%obssen(:)=zero
+    else
+      if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%tail)) then
+	obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
+      else
+	obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
+      end if
+      if (obsdiags(i_tcp_ob_type,ibin)%tail%indxglb/=i) call abor1('setuptcp: index error')
+    endif
 
-	! Get guess sfc hght at obs location
-	    call intrp2a(ges_z(1,1,ntguessig),zsges,dlat,dlon,1,1,mype)
+! Get guess sfc hght at obs location
+    call intrp2a(ges_z(1,1,ntguessig),zsges,dlat,dlon,1,1,mype)
 
-	! Interpolate to get log(ps) and log(pres) at mid-layers
+! Interpolate to get log(ps) and log(pres) at mid-layers
 ! at obs location/time
     call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
        1,1,mype,nfldsig)
@@ -281,6 +281,10 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
      end if
 
+     obsdiags(i_tcp_ob_type,ibin)%tail%luse=luse(i)
+     obsdiags(i_tcp_ob_type,ibin)%tail%muse(jiter)=muse(i)
+     obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(jiter)=ddiff
+     obsdiags(i_tcp_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
 
      if (.not. last .and. muse(i)) then
 

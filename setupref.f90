@@ -139,10 +139,9 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   real(r_kind),dimension(3,nobs):: gps2work
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: ratio_errors,cutoff,dpresl
-  real(r_kind),dimension(nsig):: tges,hges,hgesl
-  real(r_kind),dimension(nsig+1) :: prsltmp
+  real(r_kind),dimension(nsig):: tges,hgesl
+  real(r_kind),dimension(nsig+1) :: prsltmp,hges
   real(r_kind),dimension(nsig,nobs):: termtl,termpl1,termpl2
-  real(r_kind),dimension(lat2,lon2,nsig,nfldsig)::geop_height,geop_heightl
   real(r_kind),allocatable,dimension(:,:)::rdiagbuf
   real(r_single),dimension(nobs):: qcfail_loc,qcfail_high,qcfail_gross
   real(r_single),dimension(nobs):: qcfail_stats_1,qcfail_stats_2
@@ -193,18 +192,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   qcfail_high=zero 
   toss_gps_sub=zero
 
-! Convert model geopotential heights to msl units - only nsig levels
-  do jj=1,nfldsig
-     do j=1,lon2
-        do i=1,lat2
-           do k=1,nsig
-              geop_height(i,j,k,jj) = geop_hgti(i,j,k,jj)
-              geop_heightl(i,j,k,jj) = geop_hgtl(i,j,k,jj)
-           end do
-        end do
-     end do
-  end do
-
 ! Allocate arrays for output to diagnostic file
   mreal=19
   nreal=mreal
@@ -233,9 +220,9 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
           1,nsig+1,mype,nfldsig)
      call tintrp2a(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
           1,nsig,mype,nfldsig)
-     call tintrp2a(geop_height,hges,dlat,dlon,dtime,hrdifsig,&
-          1,nsig,mype,nfldsig)
-     call tintrp2a(geop_heightl,hgesl,dlat,dlon,dtime,hrdifsig,&
+     call tintrp2a(geop_hgti,hges,dlat,dlon,dtime,hrdifsig,&
+          1,nsig+1,mype,nfldsig)
+     call tintrp2a(geop_hgtl,hgesl,dlat,dlon,dtime,hrdifsig,&
           1,nsig,mype,nfldsig)
      call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
           1,1,mype,nfldsig)
@@ -460,6 +447,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
            endif
       
            if(abs(gps2work(3,i))> cutoff(i)) then
+              data(ier,i) = zero
+              ratio_errors(i) = zero
               qcfail(i)=.true.
               qcfail_stats_1(i)=one
            end if
@@ -529,9 +518,9 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
 ! Loop over observation profiles. Compute penalty
 ! terms, and accumulate statistics.
   do i=1,nobs
-     kprof = data(iprof,i)
      
      if(qcfail(i)) then
+        kprof = data(iprof,i)
         do j=1,nobs
            jprof = data(iprof,j)
            if( kprof == jprof .and. .not. qcfail(j))then
@@ -554,9 +543,9 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   end do
 
   do i=1,nobs
-     kprof = data(iprof,i)
      
      if(qcfail(i)) then
+        kprof = data(iprof,i)
         data(ier,i) = zero
         ratio_errors(i) = zero
         muse(i) = .false.

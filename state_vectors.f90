@@ -19,8 +19,9 @@ use mpimod, only: mype
 use mpl_allreducemod, only: mpl_allreduce,mpl_allgather
 
 implicit none
+
 save
-private
+private sum_mask,lat2,lon2,nsig,nval_len,latlon11,latlon1n
 public state_vector, allocate_state, deallocate_state, &
      assignment(=), self_add, self_mul, prt_state_norms, setup_state_vectors, &
      dot_product, set_random, inquire_state, assign_scalar2state
@@ -249,6 +250,24 @@ subroutine self_mul(yst,pa)
   return
 end subroutine self_mul
 ! ----------------------------------------------------------------------
+real(r_kind) function sum_mask(field,nlevs)
+  implicit none
+  integer(i_kind),intent(in):: nlevs
+  real(r_kind),dimension(lat2,lon2,nlevs),intent(in) :: field
+
+! local variables
+  integer(i_kind) :: i,j,k
+ 
+  sum_mask=zero
+  do k=1,nlevs
+    do j=2,lon2-1 
+      do i=2,lat2-1
+        sum_mask=sum_mask+field(i,j,k)
+      end do
+    end do
+  end do
+  return
+end function sum_mask
 subroutine norms_vars(xst,pmin,pmax,psum,pnum)
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe
   implicit none
@@ -260,16 +279,16 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
   integer(i_kind) :: ii
 
 ! Independent part of vector
-  zloc(1) = sum(xst%u(:))
-  zloc(2) = sum(xst%v(:))
-  zloc(3) = sum(xst%t(:))
-  zloc(4) = sum(xst%tsen(:))
-  zloc(5) = sum(xst%q(:))
-  zloc(6) = sum(xst%oz(:))
-  zloc(7) = sum(xst%cw(:))
-  zloc(8) = sum(xst%p3d(:))
-  zloc(9) = sum(xst%p(:))
-  zloc(10)= sum(xst%sst(:))
+  zloc(1) = sum_mask(xst%u,nsig)
+  zloc(2) = sum_mask(xst%v,nsig)
+  zloc(3) = sum_mask(xst%t,nsig)
+  zloc(4) = sum_mask(xst%tsen,nsig)
+  zloc(5) = sum_mask(xst%q,nsig)
+  zloc(6) = sum_mask(xst%oz,nsig)
+  zloc(7) = sum_mask(xst%cw,nsig)
+  zloc(8) = sum_mask(xst%p3d,nsig+1)
+  zloc(9) = sum_mask(xst%p,1)
+  zloc(10)= sum_mask(xst%sst,1)
   zloc(nvars+1) = minval(xst%u(:))
   zloc(nvars+2) = minval(xst%v(:))
   zloc(nvars+3) = minval(xst%t(:))
@@ -290,9 +309,9 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
   zloc(2*nvars+8) = maxval(xst%p3d(:))
   zloc(2*nvars+9) = maxval(xst%p(:))
   zloc(2*nvars+10)= maxval(xst%sst(:))
-  zloc(3*nvars+1) = real(latlon1n, r_kind)
-  zloc(3*nvars+2) = real(latlon1n1,r_kind)
-  zloc(3*nvars+3) = real(latlon11, r_kind)
+  zloc(3*nvars+1) = real((lat2-2)*(lon2-2)*nsig, r_kind)
+  zloc(3*nvars+2) = real((lat2-2)*(lon2-2)*(nsig+1),r_kind)
+  zloc(3*nvars+3) = real((lat2-2)*(lon2-2), r_kind)
 
 ! Gather contributions
   call mpi_allgather(zloc,3*nvars+3,mpi_rtype, &

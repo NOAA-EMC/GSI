@@ -50,23 +50,23 @@ subroutine stptcp(tcphead,rp,sp,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: tcp_ob_type
-  use qcmod, only: nlnqc_iter,c_varqc
+  use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
-  use gridmod, only: latlon11
+  use gridmod, only: latlon1n1
   use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
   type(tcp_ob_type),pointer,intent(in):: tcphead
   real(r_quad),dimension(6),intent(out):: out
-  real(r_kind),dimension(latlon11),intent(in):: rp,sp
+  real(r_kind),dimension(latlon1n1),intent(in):: rp,sp
   real(r_kind),dimension(4),intent(in):: sges
 
 ! Declare local variables
   integer(i_kind) i,j1,j2,j3,j4
   real(r_kind) val,val2,w1,w2,w3,w4,time_tcp
   real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,ps0
-  real(r_kind) cg_ps,pen1,pen2,pen3,pencur,ps1,ps2,ps3,wgross,wnotgross,ps_pg,varqc_iter
+  real(r_kind) cg_ps,pen1,pen2,pen3,pencur,ps1,ps2,ps3,wgross,wnotgross,ps_pg
   type(tcp_ob_type), pointer :: tcpptr
 
   out=zero_quad
@@ -107,17 +107,10 @@ subroutine stptcp(tcphead,rp,sp,out,sges)
      pen3   = ps3*ps3*tcpptr%err2
 
 !  Modify penalty term if nonlinear QC
-!    Variational qc is gradually increased to avoid possible convergence problems
-     if(jiter == jiterstart .and. nlnqc_iter .and. tcpptr%pg > tiny_r_kind) then
-        varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
-        if(varqc_iter >=one) varqc_iter= one
-        ps_pg=tcpptr%pg*varqc_iter
-     else
-        ps_pg=tcpptr%pg
-     endif
 
      if (nlnqc_iter .and. tcpptr%pg > tiny_r_kind .and.  &
                           tcpptr%b  > tiny_r_kind) then
+        ps_pg=tcpptr%pg*varqc_iter
         cg_ps=cg_term/tcpptr%b
         wnotgross= one-ps_pg
         wgross =ps_pg*cg_ps/wnotgross

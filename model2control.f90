@@ -22,7 +22,7 @@ use control_vectors
 use state_vectors
 use bias_predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
-use gridmod, only: lat2,lon2,nsig,nsig1o,periodic
+use gridmod, only: lat2,lon2,nsig,nnnn1o,periodic
 use berror, only: varprd,fpsproj
 use balmod, only: tbalance,strong_bk_ad
 use mpimod, only: levs_id
@@ -44,13 +44,6 @@ real(r_kind) :: gradz(nval_lenz)
 !******************************************************************************
 
 if (.not.lsqrtb) call abor1('model2control: assumes lsqrtb')
-
-! Determine how many vertical levels each mpi task will
-! handle in the horizontal smoothing
-nnn=0
-do kk=1,nsig1o
-   if (levs_id(kk)/=0) nnn=nnn+1
-end do
 
 ! Loop over control steps
 do jj=1,nsubwin
@@ -77,8 +70,7 @@ do jj=1,nsubwin
 ! -----------------------------------------------------------------------------
 
 ! Apply transpose of strong balance constraint
-  call strong_bk_ad(workst,workvp,rval(jj)%p, &
-                    rval(jj)%t,rval(jj)%oz,rval(jj)%cw)
+  call strong_bk_ad(workst,workvp,rval(jj)%p,rval(jj)%t)
 
 ! Transpose of balance equation
   call tbalance(rval(jj)%t,rval(jj)%p,workst,workvp,fpsproj)
@@ -87,7 +79,7 @@ do jj=1,nsubwin
   gradz(:)=zero
 
   call ckgcov_ad(gradz,workst,workvp,rval(jj)%t,rval(jj)%p,workrh,&
-                 rval(jj)%oz,rval(jj)%sst,rval(jj)%cw,nnn)
+                 rval(jj)%oz,rval(jj)%sst,rval(jj)%cw,nnnn1o)
 
   do ii=1,nval_lenz
     grad%step(jj)%values(ii)=grad%step(jj)%values(ii)+gradz(ii)

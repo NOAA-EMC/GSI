@@ -66,7 +66,7 @@ subroutine stpq(qhead,rq,sq,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: q_ob_type
-  use qcmod, only: nlnqc_iter,c_varqc
+  use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,dhat_dt,xhat_dt
@@ -80,7 +80,7 @@ subroutine stpq(qhead,rq,sq,out,sges)
 
 ! Declare local variables
   integer(i_kind) i,j1,j2,j3,j4,j5,j6,j7,j8
-  real(r_kind) cg_q,pen1,pen2,pen3,pencur,q0,q1,q2,q3,val,val2,wgross,wnotgross,q_pg,varqc_iter
+  real(r_kind) cg_q,pen1,pen2,pen3,pencur,q0,q1,q2,q3,val,val2,wgross,wnotgross,q_pg
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_q
   real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
   type(q_ob_type), pointer :: qptr
@@ -138,17 +138,10 @@ subroutine stpq(qhead,rq,sq,out,sges)
      pen3   = q3*q3*qptr%err2
 
 !  Modify penalty term if nonlinear QC
-!    Variational qc is gradually increased to avoid possible convergence problems
-     if(jiter == jiterstart .and. nlnqc_iter .and. qptr%pg > tiny_r_kind) then
-        varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
-        if(varqc_iter >=one) varqc_iter= one
-        q_pg=qptr%pg*varqc_iter
-     else
-        q_pg=qptr%pg
-     endif
 
      if (nlnqc_iter .and. qptr%pg > tiny_r_kind .and. &
                           qptr%b  > tiny_r_kind) then
+        q_pg=qptr%pg*varqc_iter
         cg_q=cg_term/qptr%b
         wnotgross= one-q_pg
         wgross = q_pg*cg_q/wnotgross

@@ -92,8 +92,8 @@ subroutine prt_guess(sgrep)
   zloc(2*nvars+10) = maxval(ges_prsl(2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(2*nvars+11) = maxval(ges_ps  (2:lat1+1,2:lon1+1,       ntsig))
   zloc(2*nvars+12) = maxval(sfct    (2:lat1+1,2:lon1+1,       ntsfc))
-  zloc(3*nvars+1)  = real(SIZE(ges_u ),r_kind)
-  zloc(3*nvars+2)  = real(SIZE(ges_ps),r_kind)
+  zloc(3*nvars+1)  = real(lat1*lon1*nsig*ntsig,r_kind)
+  zloc(3*nvars+2)  = real(lat1*lon1*ntsig,r_kind)
 
 ! Gather contributions
   call mpi_allgather(zloc,3*nvars+2,mpi_rtype, &

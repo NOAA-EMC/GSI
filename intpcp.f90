@@ -82,7 +82,7 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm,rpredp,spredp)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: pcp_ob_type,lsaveobsens,l_do_adjoint
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use pcpinfo, only: npcptype,npredp,b_pcp,pg_pcp,tinym1_obs
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
   use gridmod, only: nsig,latlon11,latlon1n,nsig5
@@ -197,8 +197,8 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm,rpredp,spredp)
       if (nlnqc_iter .and. pg_pcp(kx) > tiny_r_kind .and.  &
                            b_pcp(kx)  > tiny_r_kind) then
          cg_pcp=cg_term/b_pcp(kx)
-         wnotgross= one-pg_pcp(kx)
-         wgross = pg_pcp(kx)*cg_pcp/wnotgross
+         wnotgross= one-pg_pcp(kx)*varqc_iter
+         wgross = varqc_iter*pg_pcp(kx)*cg_pcp/wnotgross
          p0   = wgross/(wgross+exp(-half*pcpptr%err2*obsges**2))
          obsges = obsges*(one-p0)
       endif

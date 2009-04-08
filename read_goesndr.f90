@@ -354,6 +354,16 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
        timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
      endif
 
+     nread=nread+nchanl
+
+     crit1=0.01_r_kind+timedif
+     if(ifov < mfov .and. ifov > 0)then
+       crit1=crit1+2.0_r_kind*float(mfov-ifov)
+     end if
+
+     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+     if(.not. iuse)cycle read_loop
+
 !    Increment goes sounder data counter
 !    Extract brightness temperatures
      call mpi_ufbint(lnbufr,grad,1,18,levs,rbstr)
@@ -364,21 +374,10 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         if( grad(l) < tbmin .or. grad(l) > tbmax )then
            iskip = iskip + 1
            if(l == ich8)iskip = nchanl
-        else
-           nread=nread+1
         endif
      end do
 
      if( iskip >= nchanl )cycle read_loop
-
-     crit1=0.01_r_kind+timedif
-     if(ifov < mfov .and. ifov > 0)then
-       crit1=crit1+2.0_r_kind*float(mfov-ifov)
-     end if
-
-     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-     if(.not. iuse)cycle read_loop
-
 
 !    "Score" observation.   We use this information to id "best" obs.
 
@@ -465,8 +464,8 @@ end do mpi_loop
         tdiff = data_all(2,n)                ! time (hours)
         dlon=data_all(3,n)                   ! grid relative longitude
         dlat=data_all(4,n)                   ! grid relative latitude
-        dlon_earth = data_all(30,n)          ! earth relative longitude (degrees)
-        dlat_earth = data_all(31,n)          ! earth relative latitude (degrees)
+        dlon_earth = data_all(30,n)          ! earth relative longitude (rad)
+        dlat_earth = data_all(31,n)          ! earth relative latitude (rad)
 
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,tdiff,isflg,idomsfc,sfcpct, &
                 ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)

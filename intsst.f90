@@ -57,7 +57,7 @@ subroutine intsst(ssthead,rsst,ssst)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,two,zero,tiny_r_kind,cg_term
   use obsmod, only: sst_ob_type, lsaveobsens, l_do_adjoint
-  use qcmod, only: nlnqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
   implicit none
@@ -72,7 +72,7 @@ subroutine intsst(ssthead,rsst,ssst)
 ! real(r_kind) penalty
   real(r_kind) w1,w2,w3,w4
   real(r_kind) val
-  real(r_kind) cg_sst,p0,grad,wnotgross,wgross
+  real(r_kind) cg_sst,p0,grad,wnotgross,wgross,pg_sst
   type(sst_ob_type), pointer :: sstptr
 
   sstptr => ssthead
@@ -106,9 +106,10 @@ subroutine intsst(ssthead,rsst,ssst)
 !      gradient of nonlinear operator
        if (nlnqc_iter .and. sstptr%pg > tiny_r_kind .and. &
                             sstptr%b  > tiny_r_kind) then
+          pg_sst=sstptr%pg*varqc_iter
           cg_sst=cg_term/sstptr%b
-          wnotgross= one-sstptr%pg
-          wgross = sstptr%pg*cg_sst/wnotgross
+          wnotgross= one-pg_sst
+          wgross = pg_sst*cg_sst/wnotgross
           p0   = wgross/(wgross+exp(-half*sstptr%err2*val**2))
           val = val*(one-p0)
        endif
