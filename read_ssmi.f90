@@ -40,6 +40,8 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2007-04-24  derber - define tdiff (was undefined)
 !   2008-04-17  safford - rm unused vars
+!   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
+!   2009-04-21  derber  - add ithin to call to makegrids
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -77,8 +79,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   use constants, only: deg2rad,rad2deg,zero,one,two,three,four
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,nblocks,mpi_nextblock,&
-       mpi_readmg,mpi_ireadsb,mpi_ufbint,mpi_ufbrep
+  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
 
   implicit none
 
@@ -121,7 +122,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   character(10) date
   character(8) subset,subfgn
 
-  integer ihh,i,k,idd,isc,ntest
+  integer ihh,i,k,idd,isc,ntest,ireadsb
   integer iret,idate,im,iy,nchanl
   integer isflg,nreal,idomsfc
   integer nmind,itx,nele,itt,iout
@@ -150,6 +151,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
   integer(i_kind) :: nscan,jc,bufsat,js,ij,npos,n
   integer(i_kind),dimension(5):: iobsdate
+  integer(i_kind):: file_handle,ierror,nblocks
   real(r_kind):: tb19v,tb22v,tb85v,si85,flgch,q19
   real(r_kind),dimension(maxchanl):: tbob
   real(r_kind),dimension(0:3):: sfcpct
@@ -224,15 +226,14 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   do85GHz = .not. assim .or. (ch6.and.ch7)
 
 ! Make thinning grids
-  call makegrids(rmesh)
+  call makegrids(rmesh,ithin)
 
 ! Open unit to satellite bufr file
   open(lnbufr,file=infile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
-  call closbf(lnbufr)
-  close(lnbufr)
+  close(lnbufr)  ! this enables reading with mpi i/o
   if( subset /= subfgn) then
      write(6,*) 'READ_SSMI:  *** WARNING: ',&
           'THE FILE TITLE NOT MATCH DATA SUBSET'
@@ -269,24 +270,24 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
 
 ! Open up bufr file for mpi-io access
-  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub)
+  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub,file_handle,ierror,nblocks)
 
 ! Big loop to read data file
   mpi_loop: do mmblocks=0,nblocks-1,npe_sub
      if(mmblocks+mype_sub.gt.nblocks-1) then
         exit
      endif
-     call mpi_nextblock(mmblocks+mype_sub)
+     call mpi_nextblock(mmblocks+mype_sub,file_handle,ierror)
      block_loop: do
         call mpi_readmg(lnbufr,subset,idate,iret)
         if (iret /=0) exit
         read(subset,'(2x,i6)')isubset
-        read_loop: do while (mpi_ireadsb(lnbufr)==0)
+        read_loop: do while (ireadsb(lnbufr)==0)
 
 
 ! ----- Read header record to extract satid,time information  
 !       SSM/I data are stored in groups of nscan, hence the loop.  
-        call mpi_ufbint(lnbufr,bfr1bhdr,ntime,1,iret,hdr1b)
+        call ufbint(lnbufr,bfr1bhdr,ntime,1,iret,hdr1b)
 
 !       Extract satellite id.  If not the one we want, read next record
         if(bfr1bhdr(1) /= bufsat) cycle read_loop
@@ -308,13 +309,13 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 ! ----- Read header record to extract obs location information  
 !       SSM/I data are stored in groups of nscan, hence the loop.  
 
-        call mpi_ufbint(lnbufr,midat,nloc,nscan,iret,str1)
+        call ufbint(lnbufr,midat,nloc,nscan,iret,str1)
 
 
 !---    Extract brightness temperature data.  Apply gross check to data. 
 !       If obs fails gross check, reset to missing obs value.
 
-        call mpi_ufbrep(lnbufr,mirad,1,nchanl*nscan,iret,str2)
+        call ufbrep(lnbufr,mirad,1,nchanl*nscan,iret,str2)
 
 
         ij=0
@@ -481,6 +482,10 @@ end do mpi_loop
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
+! Close bufr file
+  call mpi_closbf(file_handle,ierror)
+  call closbf(lnbufr)
+
   call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
 
@@ -537,10 +542,6 @@ end do mpi_loop
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   
   endif
-
-! Close bufr file
-  call mpi_closbf
-  call closbf(lnbufr)
 
 ! Deallocate data arrays
   deallocate(data_all)

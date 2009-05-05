@@ -66,13 +66,14 @@ subroutine gsisub(mype)
        create_grid_vars,create_mapping,init_subdomain_vars,&
        destroy_mapping,destroy_grid_vars
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional
-  use mpimod, only: npe
+  use mpimod, only: npe,mpi_comm_world,ierror
   use radinfo, only: radinfo_read
   use pcpinfo, only: pcpinfo_read,create_pcp_random,&
        destroy_pcp_random
   use convinfo, only: convinfo_read
   use ozinfo, only: ozinfo_read
   use read_l2bufr_mod, only: radar_bufr_read_all
+  use oneobmod, only: oneobtest,oneobmakebufr
 
   implicit none
 
@@ -87,6 +88,12 @@ subroutine gsisub(mype)
 
 ! Get date, grid, and other information from model guess files
   call gesinfo(mype)
+
+! If single ob test, create prep.bufr file with single ob in it
+  if (oneobtest) then
+     if(mype==0)call oneobmakebufr
+     call mpi_barrier(mpi_comm_world,ierror)
+  end if
 
 ! Create analysis subdomains and initialize subdomain variables
   call create_mapping(nlat,nlon,npe)

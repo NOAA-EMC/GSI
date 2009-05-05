@@ -158,6 +158,7 @@ contains
 !$$$
     implicit none
     
+    if(.not. use_pbl)return
     allocate(dudz (lat2,lon2,nsig_hlf) )
     allocate(dvdz (lat2,lon2,nsig_hlf) )
     allocate(dodz (lat2,lon2,nsig_hlf) )
@@ -203,6 +204,7 @@ contains
 !$$$
     implicit none
 
+    if(.not. use_pbl)return
     deallocate(dudz  )
     deallocate(dvdz  )
     deallocate(dodz  )

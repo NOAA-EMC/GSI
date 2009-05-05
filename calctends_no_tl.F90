@@ -1,4 +1,4 @@
-subroutine calctends_no_tl(st,vp,t,p,mype,nnn,u_t,v_t,t_t,p_t)
+subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    calctends_tl       tlm of calctends
@@ -24,6 +24,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,nnn,u_t,v_t,t_t,p_t)
 !                          remove ps from argument list
 !   2007-08-08  derber - optimize
 !   2008-06-05  safford - rm unused uses
+!   2009-04-21  derber - remove call to getuv and modify get_derivatives to include uv
 !
 ! usage:
 !   input argument list:
@@ -60,7 +61,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,nnn,u_t,v_t,t_t,p_t)
 ! Declare passed variables
   real(r_kind),dimension(lat2,lon2,nsig),intent(in):: st,vp,t
   real(r_kind),dimension(lat2,lon2),intent(in):: p
-  integer(i_kind),intent(in):: mype,nnn
+  integer(i_kind),intent(in):: mype
   real(r_kind),dimension(lat2,lon2,nsig),intent(out):: u_t,v_t,t_t
   real(r_kind),dimension(lat2,lon2),intent(out):: p_t
 
@@ -88,14 +89,12 @@ subroutine calctends_no_tl(st,vp,t,p,mype,nnn,u_t,v_t,t_t,p_t)
 
 ! preliminaries:
 
-! Convert search direction for st/vp to u/v for derivative calculations
-  call getuv(u,v,st,vp)
-
 ! get 3d pressure
   call getprs_tl(p,t,pri)
 
-  call get_derivatives2(u,v,t,pri,u_x,v_x,t_x,pri_x, &
-                                  u_y,v_y,t_y,pri_y,nnn,mype)
+  call get_derivatives2(st,vp,t,pri,u,v,u_x,v_x,t_x,pri_x, &
+                                  u_y,v_y,t_y,pri_y,mype)
+
 
 !!!$omp parallel private(nth,tid,i,j,k,jstart,jstop,tmp,tmp2, &
 !!!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk,ix)
@@ -131,7 +130,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,nnn,u_t,v_t,t_t,p_t)
             ges_u(i,j,k,it)*pr_xdif(i,j,k) + v(i,j,k)*pr_ydif9(i,j,k) + &
             ges_v(i,j,k,it)*pr_ydif(i,j,k) + &
             (u_x(i,j,k) + v_y(i,j,k))*(prdif9(i,j,k)) + &
-            (ges_u_lon(i,j,k,it) + ges_v_lat(i,j,k,it))*(prdif(i,j,k)) )
+            (ges_u_lon(i,j,k) + ges_v_lat(i,j,k))*(prdif(i,j,k)) )
        end do
      end do
    end do
@@ -141,8 +140,8 @@ subroutine calctends_no_tl(st,vp,t,p,mype,nnn,u_t,v_t,t_t,p_t)
     do j=jstart,jstop
       do i=1,lat2
         tmp=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
-        t_t(i,j,k)=-u(i,j,k)*ges_tvlon(i,j,k,it) - ges_u(i,j,k,it)*t_x(i,j,k) - &
-           v(i,j,k)*ges_tvlat(i,j,k,it) - ges_v(i,j,k,it)*t_y(i,j,k) +          &
+        t_t(i,j,k)=-u(i,j,k)*ges_tvlon(i,j,k) - ges_u(i,j,k,it)*t_x(i,j,k) - &
+           v(i,j,k)*ges_tvlat(i,j,k) - ges_v(i,j,k,it)*t_y(i,j,k) +          &
            tmp*rcp*( ges_u(i,j,k,it)*pr_xsum(i,j,k) + &
            u(i,j,k)*pr_xsum9(i,j,k) + &
            ges_v(i,j,k,it)*pr_ysum(i,j,k) + &
@@ -166,8 +165,8 @@ subroutine calctends_no_tl(st,vp,t,p,mype,nnn,u_t,v_t,t_t,p_t)
         do i=1,lat2
           tmp=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
   
-          t_thor9(i,j,k)=-ges_u(i,j,k,it)*ges_tvlon(i,j,k,it) - &
-               ges_v(i,j,k,it)*ges_tvlat(i,j,k,it)
+          t_thor9(i,j,k)=-ges_u(i,j,k,it)*ges_tvlon(i,j,k) - &
+               ges_v(i,j,k,it)*ges_tvlat(i,j,k)
           t_thor9(i,j,k)=t_thor9(i,j,k) -tmp*rcp * ( ges_u(i,j,k,it)*pr_xsum9(i,j,k) + &
              ges_v(i,j,k,it)*pr_ysum9(i,j,k) + &
              prsth9(i,j,k) + prsth9(i,j,k+1) )
@@ -219,11 +218,11 @@ subroutine calctends_no_tl(st,vp,t,p,mype,nnn,u_t,v_t,t_t,p_t)
   do k=1,nsig
     do j=jstart,jstop
       do i=1,lat2
-        u_t(i,j,k)=-u(i,j,k)*ges_u_lon(i,j,k,it) - ges_u(i,j,k,it)*u_x(i,j,k) - &
-           v(i,j,k)*ges_u_lat(i,j,k,it) - ges_v(i,j,k,it)*u_y(i,j,k) + &
+        u_t(i,j,k)=-u(i,j,k)*ges_u_lon(i,j,k) - ges_u(i,j,k,it)*u_x(i,j,k) - &
+           v(i,j,k)*ges_u_lat(i,j,k) - ges_v(i,j,k,it)*u_y(i,j,k) + &
            coriolis(i,j)*v(i,j,k)
-        v_t(i,j,k)=-u(i,j,k)*ges_v_lon(i,j,k,it) - ges_u(i,j,k,it)*v_x(i,j,k) - &
-           v(i,j,k)*ges_v_lat(i,j,k,it) - ges_v(i,j,k,it)*v_y(i,j,k) - &
+        v_t(i,j,k)=-u(i,j,k)*ges_v_lon(i,j,k) - ges_u(i,j,k,it)*v_x(i,j,k) - &
+           v(i,j,k)*ges_v_lat(i,j,k) - ges_v(i,j,k,it)*v_y(i,j,k) - &
            coriolis(i,j)*u(i,j,k) - two*curvfct(i,j)*(ges_u(i,j,k,it)*u(i,j,k) + &
            ges_v(i,j,k,it)*v(i,j,k))
 
@@ -289,11 +288,11 @@ subroutine calctends_no_tl(st,vp,t,p,mype,nnn,u_t,v_t,t_t,p_t)
            prdif(i,j,k) - tmp3* prsum(i,j,k) )*r_prsum9(i,j,k) ) ) )
 
         sum2k = sum2km1(i,j) + t_x(i,j,k)*tmp3 + &
-           ges_tvlon(i,j,k,it)*( (prdif(i,j,k) - &
+           ges_tvlon(i,j,k)*( (prdif(i,j,k) - &
            tmp3*prsum(i,j,k))*r_prsum9(i,j,k))
 
         sum2vk = sum2vkm1(i,j) + t_y(i,j,k)*tmp3 + &
-           ges_tvlat(i,j,k,it)*( (prdif(i,j,k) - &
+           ges_tvlat(i,j,k)*( (prdif(i,j,k) - &
            tmp3*prsum(i,j,k))*r_prsum9(i,j,k))
 
         u_t(i,j,k) = u_t(i,j,k) - sumkm1(i,j) - rd*sum2km1(i,j) - &

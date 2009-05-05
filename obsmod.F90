@@ -967,8 +967,8 @@ contains
     ALLOCATE(ttail  (nobs_bins))
     ALLOCATE(pshead (nobs_bins))
     ALLOCATE(pstail (nobs_bins))
-    ALLOCATE(tcphead (nobs_bins))
-    ALLOCATE(tcptail (nobs_bins))
+    ALLOCATE(tcphead(nobs_bins))
+    ALLOCATE(tcptail(nobs_bins))
     ALLOCATE(whead  (nobs_bins))
     ALLOCATE(wtail  (nobs_bins))
     ALLOCATE(qhead  (nobs_bins))
@@ -1437,7 +1437,7 @@ implicit none
 integer(i_kind), intent(in) :: kiter
 
 real(r_kind) :: sizei, sizer, sizel, sizep, ziter, zsize, ztot
-integer(i_kind) :: ii,jj,iobs(2)
+integer(i_kind) :: ii,jj,iobsa(2),iobsb(2)
 
 ! Any better way to determine size or i_kind, r_kind, etc... ?
 sizei=4.0
@@ -1445,28 +1445,28 @@ sizer=8.0
 sizel=1.0
 sizep=4.0
 
-iobs(:)=0
+iobsa(:)=0
 do ii=1,size(obsdiags,2)
   do jj=1,size(obsdiags,1)
     obsptr => obsdiags(jj,ii)%head
     do while (associated(obsptr))
-      iobs(1)=iobs(1)+1
-      if (ANY(obsptr%muse(:))) iobs(2)=iobs(2)+1
+      iobsa(1)=iobsa(1)+1
+      if (ANY(obsptr%muse(:))) iobsa(2)=iobsa(2)+1
       obsptr => obsptr%next
     enddo
   enddo
 enddo
 
-call mpi_reduce(iobs,iobs,2,mpi_itype,mpi_max,0,mpi_comm_world,ierror)
+call mpi_reduce(iobsa,iobsb,2,mpi_itype,mpi_max,0,mpi_comm_world,ierror)
 
 if (mype==0) then
   ziter=real(kiter,r_kind)
   zsize = sizer*(three*ziter+two) + sizei + sizel*(ziter+one) + sizep*five
-  ztot=real(iobs(1),r_kind)*zsize
+  ztot=real(iobsb(1),r_kind)*zsize
   ztot=ztot/(1024.0*1024.0)
 
   write(6,*)'obsdiags: Bytes per element=',NINT(zsize)
-  write(6,*)'obsdiags: length total, used=',iobs(1),iobs(2)
+  write(6,*)'obsdiags: length total, used=',iobsb(1),iobsb(2)
   write(6,'(A,F8.1,A)')'obsdiags: Estimated memory usage= ',ztot,' Mb'
 endif
 

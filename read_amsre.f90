@@ -41,6 +41,8 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
 !   2006-10-22  kazumori - bug fix for the type of zensun subroutine argument
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-05-28  safford - rm unused vars
+!   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
+!   2009-04-21  derber  - add ithin to call to makegrids
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -76,8 +78,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
        tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,one,two,three,izero
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,nblocks,mpi_nextblock,mpi_readmg,&
-       mpi_ireadsb,mpi_ufbint,mpi_ufbrep
+  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
   implicit none
 
@@ -131,6 +132,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
   integer(i_kind)   :: itx, k, nele, itt, iobsout
   integer(i_kind)   :: ifov, ilat, ilon
   integer(i_kind)   :: i, l, n
+  integer(i_kind)   :: file_handle,ierror,nblocks
   integer(i_kind),dimension(n_amsrch) :: kchamsre
   real(r_kind)     :: sfcr
   real(r_kind)     :: dlon, dlat
@@ -261,7 +263,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
 ! Orbit
 ! logical :: remove_ovlporbit = .true. !looks like AMSRE overlap problem is not as bad as SSM/I 10/14/04  kozo
   logical :: first_scen
-  integer(i_kind) :: orbit, old_orbit, iorbit
+  integer(i_kind) :: orbit, old_orbit, iorbit, ireadsb
   integer(i_kind) :: nscen0_reject(20) 
   real(r_kind) :: saz
 
@@ -340,7 +342,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
 
 
 ! Make thinning grids
-  call makegrids(rmesh)
+  call makegrids(rmesh,ithin)
 
 
 ! Open BUFR file
@@ -350,7 +352,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
 
 ! Read headder
   call readmg(lnbufr,subset,idate,iret)
-  call closbf(lnbufr)
+  close(lnbufr) ! this enables reading with mpi i/o
   if( subset /= subfgn) then
      write(6,*) 'READ_AMSRE:  *** WARNING: ',&
           'THE FILE TITLE NOT MATCH DATA SUBSET'
@@ -374,23 +376,23 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
 
 
 ! Open up bufr file for mpi-io access
-  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub)
+  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub,file_handle,ierror,nblocks)
 
 ! Big loop to read data file
   mpi_loop: do mmblocks=0,nblocks-1,npe_sub
      if(mmblocks+mype_sub.gt.nblocks-1) then
         exit
      endif
-     call mpi_nextblock(mmblocks+mype_sub)
+     call mpi_nextblock(mmblocks+mype_sub,file_handle,ierror)
      block_loop: do
         call mpi_readmg(lnbufr,subset,idate,iret)
         if (iret /=0) exit
         read(subset,'(2x,i6)')isubset
-        read_loop: do while (mpi_ireadsb(lnbufr)==0)
+        read_loop: do while (ireadsb(lnbufr)==0)
 
 
 !    Retrieve bufr 1/4 :get aquaspot (said,orbn,soza)
-       call mpi_ufbint(lnbufr,aquaspot_d,3,1,iret,'SAID ORBN SOZA')
+       call ufbint(lnbufr,aquaspot_d,3,1,iret,'SAID ORBN SOZA')
        aquaspot%said=aquaspot_d(1)
        aquaspot%orbn=aquaspot_d(2)
        aquaspot%soza=aquaspot_d(3)
@@ -399,7 +401,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
         if(said /= AQUA_SAID)  cycle read_loop
 
 !    Retrieve bufr 2/4 :get amsrspot (siid,ymdhs,lat,lon)
-     call mpi_ufbrep(lnbufr,amsrspot_d,N_AMSRSPOT_LIST,1,iret, &
+     call ufbrep(lnbufr,amsrspot_d,N_AMSRSPOT_LIST,1,iret, &
          'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ FOVN')
      amsrspot%siid  = amsrspot_d(01)
      amsrspot%year  = amsrspot_d(02)
@@ -418,7 +420,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
         if(siid /= AMSRE_SIID)  cycle read_loop
 
 !    Retrieve bufr 3/4 : get amsrchan (chnm,tbb)
-     call mpi_ufbrep(lnbufr,amsrchan_d,N_AMSRCHAN_LIST,12,iret,'CHNM LOGRCW ACQF TMBR')
+     call ufbrep(lnbufr,amsrchan_d,N_AMSRCHAN_LIST,12,iret,'CHNM LOGRCW ACQF TMBR')
      do i=1,12
         amsrchan(i)%chnm  =amsrchan_d(1,i)
         amsrchan(i)%logrcw=amsrchan_d(2,i)
@@ -427,8 +429,8 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
      end do
 
 !    Retrieve bufr 4/4 : get amsrfovn (fovn)
-     call mpi_ufbrep(lnbufr,amsrdice_latlon,2, 5,iret,'CLATH CLONH')
-     call mpi_ufbrep(lnbufr,amsrdice_tmbr,  1,20,iret,'TMBR')
+     call ufbrep(lnbufr,amsrdice_latlon,2, 5,iret,'CLATH CLONH')
+     call ufbrep(lnbufr,amsrdice_tmbr,  1,20,iret,'TMBR')
 
      amsrdice(3)%d1_tmbr = amsrdice_tmbr(17)
      amsrdice(3)%d2_tmbr = amsrdice_tmbr(18)
@@ -675,6 +677,10 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
 end do block_loop
 end do mpi_loop
   
+! Close bufr file
+  call mpi_closbf(file_handle,ierror)
+  call closbf(lnbufr)
+
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
@@ -736,10 +742,6 @@ end do mpi_loop
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   
   endif
-
-! Close bufr file
-  call mpi_closbf
-  call closbf(lnbufr)
 
 ! Deallocate data arrays
   deallocate(data_all)

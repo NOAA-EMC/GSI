@@ -80,20 +80,17 @@ subroutine pcgsoi()
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use radinfo, only: npred
-  use pcpinfo, only: npredp
   use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
   use obsmod, only: destroyobs,oberror_tune
   use jfunc, only: iter,jiter,jiterstart,niter,iout_iter,&
        nclen,nclen1,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution, &
-       niter_no_qc,switch_on_derivatives,&
-       l_foto,xhat_dt
+       niter_no_qc,l_foto,xhat_dt,print_diag_pcg
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, lwrtinc
   use gridmod, only: lat2,lon2,regional,twodvar_regional,latlon1n
   use constants, only: zero,izero,one,five,tiny_r_kind
   use anberror, only: anisotropic
-  use mpimod, only: levs_id,mype
+  use mpimod, only: mype
   use intallmod
   use stpcalcmod
   use mod_strong, only: jcstrong,baldiag_inc
@@ -160,12 +157,13 @@ subroutine pcgsoi()
 
 ! Allocate required memory and initialize fields
   call init_
-  call prt_guess('guess')
+  if(print_diag_pcg)call prt_guess('guess')
 
 ! Perform inner iteration
   inner_iteration: do iter=izero,niter(jiter)
 
 ! Gradually turn on variational qc to avoid possible convergence problems
+     nlnqc_iter = iter >= niter_no_qc(jiter)
      if(jiter == jiterstart) then
          varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
          if(varqc_iter >=one) varqc_iter= one
@@ -178,8 +176,6 @@ subroutine pcgsoi()
      end do
      gradx=zero
      llprt=(mype==0).and.(iter<=1)
-
-     nlnqc_iter = iter >= niter_no_qc(jiter)
 
      if (l4dvar) then
 !      Convert from control space to model space
@@ -197,7 +193,7 @@ subroutine pcgsoi()
        call control2state(xhat,sval,sbias)
      end if
 
-     if (iter<=1) then
+     if (iter<=1 .and. print_diag_pcg) then
        do ii=1,nobs_bins
          call prt_state_norms(sval(ii),'sval')
        enddo
@@ -206,7 +202,7 @@ subroutine pcgsoi()
 !    Compare obs to solution and transpose back to grid
      call intall(sval,sbias,rval,rbias)
 
-     if (iter<=1) then
+     if (iter<=1 .and. print_diag_pcg) then
        do ii=1,nobs_bins
          call prt_state_norms(rval(ii),'rval')
        enddo
@@ -230,7 +226,7 @@ subroutine pcgsoi()
      end if
 
 !    Print initial Jo table
-     if (iter==0) then
+     if (iter==0 .and. print_diag_pcg) then
        nprt=2
        call evaljo(zjo,iobs,nprt,llouter)
        call prt_control_norms(gradx,'gradx')
@@ -257,6 +253,10 @@ subroutine pcgsoi()
      else
        call bkerror(gradx,grady)
      end if
+
+     if (iter==0 .and. print_diag_pcg) then
+       call prt_control_norms(grady,'grady3')
+     endif
 
 !    Calculate new norm of gradients
      if (iter>0) gsave=gnorm(1)
@@ -310,12 +310,12 @@ subroutine pcgsoi()
          write(6,888)'Initial cost function =',zfini
          write(6,888)'Initial gradient norm =',sqrt(zgini)
        endif
-     endif
-
-     if(iter == 0 .and. (jiter==jiterstart .or. oberror_tune)) then
+       if(jiter==jiterstart .or. oberror_tune) then
          gnormorig=gnorm(1)
          penorig=penalty
-     end if
+       end if
+     endif
+
      gnormx=gnorm(1)/gnormorig
      penx=penalty/penorig
 
@@ -438,35 +438,37 @@ subroutine pcgsoi()
     call bkerror(gradx,grady)
   end if
 
-  zgend=dot_product(gradx,grady,r_quad)
 
 ! Print final Jo table
-  nprt=2
-  call evaljo(zjo,iobs,nprt,llouter)
+  if(print_diag_pcg)then
+    zgend=dot_product(gradx,grady,r_quad)
+    nprt=2
+    call evaljo(zjo,iobs,nprt,llouter)
+    call prt_control_norms(gradx,'gradx')
 
-  fjcost(1) = dot_product(xhatsave,yhatsave,r_quad)
-  fjcost(2) = zjo
-  zfend=SUM(fjcost(:))
+    fjcost(1) = dot_product(xhatsave,yhatsave,r_quad)
+    fjcost(2) = zjo
+    zfend=SUM(fjcost(:))
 
-  call prt_control_norms(gradx,'gradx')
-  if (mype==0) then
-    write(6,999)'grepcost J,Jb,Jo,Jc,Jl =',jiter,iter,zfend,fjcost
-    if (zgini>tiny_r_kind) then
-        write(6,999)'grepgrad grad,reduction=',jiter,iter,sqrt(zgend),sqrt(zgend/zgini)
-    else
-        write(6,999)'grepgrad grad,reduction(N/A)=',jiter,iter,sqrt(zgend)
+    if (mype==0) then
+      write(6,999)'grepcost J,Jb,Jo,Jc,Jl =',jiter,iter,zfend,fjcost
+      if (zgini>tiny_r_kind) then
+          write(6,999)'grepgrad grad,reduction=',jiter,iter,sqrt(zgend),sqrt(zgend/zgini)
+      else
+          write(6,999)'grepgrad grad,reduction(N/A)=',jiter,iter,sqrt(zgend)
+      endif
     endif
-  endif
 
 ! Print final diagnostics
-  if (mype==0) then
-    write(6,888)'Final   cost function=',zfend
-    write(6,888)'Final   gradient norm=',sqrt(zgend)
-    write(6,888)'Final/Initial cost function=',zfend/zfini
-    if(zgini>tiny_r_kind) write(6,888)'Final/Initial gradient norm=',sqrt(zgend/zgini)
-  endif
+    if (mype==0) then
+      write(6,888)'Final   cost function=',zfend
+      write(6,888)'Final   gradient norm=',sqrt(zgend)
+      write(6,888)'Final/Initial cost function=',zfend/zfini
+      if(zgini>tiny_r_kind) write(6,888)'Final/Initial gradient norm=',sqrt(zgend/zgini)
+    endif
 888 format(A,5(1X,ES24.18))
 
+  end if
 ! Calcuate increments of vorticity/divergence
   call xhat_vordiv_init
   call xhat_vordiv_calc(sval)

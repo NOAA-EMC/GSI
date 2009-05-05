@@ -9,15 +9,16 @@ module timermod
 !
 ! program history log:
 !   2007-10-01  todling
+!   2009-02-26  todling - if-def from GMAO_FVGSI to GEOS_PERT
 !
 !$$$
 
 use kinds, only : i_kind
-#ifdef _GMAO_FVGSI_
+#ifdef GEOS_PERT
 use m_zeit, only : zeit_ci
 use m_zeit, only : zeit_co
 use m_zeit, only : zeit_flush
-#endif /* _GMAO_FVGSI_ */
+#endif /* GEOS_PERT */
 
 implicit none
 
@@ -58,9 +59,9 @@ subroutine init_ (str)
 
 implicit none
 character(len=*) str
-#ifdef _GMAO_FVGSI_
+#ifdef GEOS_PERT
 call zeit_ci(str)
-#endif /* _GMAO_FVGSI_ */
+#endif /* GEOS_PERT */
 end subroutine init_
 
 subroutine final_ (str)
@@ -82,9 +83,9 @@ subroutine final_ (str)
 
 implicit none
 character(len=*) str
-#ifdef _GMAO_FVGSI_
+#ifdef GEOS_PERT
 call zeit_co(str)
-#endif /* _GMAO_FVGSI_ */
+#endif /* GEOS_PERT */
 end subroutine final_
 
 subroutine flush_ (lu)
@@ -106,9 +107,9 @@ subroutine flush_ (lu)
 
 implicit none
 integer(i_kind) :: lu
-#ifdef _GMAO_FVGSI_
+#ifdef GEOS_PERT
 call zeit_flush(lu)
-#endif /* _GMAO_FVGSI_ */
+#endif /* GEOS_PERT */
 end subroutine flush_
 
 end module timermod

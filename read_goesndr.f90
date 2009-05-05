@@ -39,6 +39,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !   2006-09-21  treadon - replace serial bufr i/o with parallel bufr i/o (mpi_io)
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-04-21  safford - rm unused vars
+!   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
+!   2009-04-21  derber  - add ithin to call to makegrids
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -74,8 +76,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,izero,ione,rad2deg
   use obsmod, only: iadate,offtime_data
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,nblocks,mpi_nextblock,&
-       mpi_readmg,mpi_ireadsb,mpi_ufbint,mpi_ufbrep
+  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
   use gsi_4dvar, only: l4dvar,idmodel,iadatebgn,iadateend,time_4dvar,iwinbgn,winlen
 
   implicit none
@@ -119,7 +120,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   integer(i_kind) itx,k,i,itt,iskip,l,ifov,n
   integer(i_kind) ichan8,ich8
   integer(i_kind) nele,iscan,nmind
-  integer(i_kind) ntest
+  integer(i_kind) ntest,ireadsb
+  integer(i_kind)::  file_handle,ierror,nblocks
   integer(i_kind),dimension(5):: idate5
 
   real(r_kind) dlon,dlat,timedif,emiss,sfcr
@@ -179,7 +181,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 
 ! Make thinning grids
-  call makegrids(rmesh)
+  call makegrids(rmesh,ithin)
  
 !  check to see if prepbufr file
 
@@ -216,8 +218,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
-  call closbf(lnbufr)
-  close(lnbufr)
+  close(lnbufr)  ! this enables reading with mpi i/o
   if(iret/=0) goto 1000
 
 ! Time offset
@@ -246,25 +247,24 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 
 ! Open up bufr file for mpi-io access
-  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub)
-
+  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub,file_handle,ierror,nblocks)
 ! Big loop to read data file
   mpi_loop: do mmblocks=0,nblocks-1,npe_sub
      if(mmblocks+mype_sub.gt.nblocks-1) then
         exit mpi_loop
      endif
-     call mpi_nextblock(mmblocks+mype_sub)
+     call mpi_nextblock(mmblocks+mype_sub,file_handle,ierror)
      block_loop: do
         call mpi_readmg(lnbufr,subset,idate,iret)
         if (iret /=0) exit
 !       read(subset,'(2x,i6)')isubset
-        read_loop: do while (mpi_ireadsb(lnbufr)==0)
+        read_loop: do while (ireadsb(lnbufr)==0)
 
 
 !    Extract type, date, and location information
      if(g5x5)then
 !    Prepbufr file
-       call mpi_ufbint(lnbufr,hdr,11,1,iret,hdstr5)
+       call ufbint(lnbufr,hdr,11,1,iret,hdstr5)
        kx = hdr(8)
        if(kx /= 164 .and. kx /= 165 .and. kx /= 174 .and. kx /= 175)cycle read_loop
 !      If not goes data over ocean , read next bufr record
@@ -282,7 +282,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
        t4dv=toff+tdiff
      else
 !      GOES 1x1 or 5x5 file
-       call mpi_ufbint(lnbufr,hdr,15,1,iret,hdstr)
+       call ufbint(lnbufr,hdr,15,1,iret,hdstr)
 
        ksatid=hdr(7)   !bufr satellite id
 !      if not proper satellite/detector read next bufr record
@@ -366,7 +366,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 !    Increment goes sounder data counter
 !    Extract brightness temperatures
-     call mpi_ufbint(lnbufr,grad,1,18,levs,rbstr)
+     call ufbint(lnbufr,grad,1,18,levs,rbstr)
 
      iskip = 0
      do l=1,nchanl
@@ -440,6 +440,11 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 end do block_loop
 end do mpi_loop
 
+! Close bufr file
+  call mpi_closbf(file_handle,ierror)
+  call closbf(lnbufr)
+
+
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
@@ -498,10 +503,6 @@ end do mpi_loop
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   
   endif
-
-! Close bufr file
-  call mpi_closbf
-  call closbf(lnbufr)
 
 ! Deallocate data arrays
   deallocate(data_all)

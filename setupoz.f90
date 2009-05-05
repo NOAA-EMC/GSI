@@ -145,6 +145,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   integer(i_kind) i,nlev,ii,jj,iextra,istat,ibin
   integer(i_kind) k,j,nz,idate,jc,idia,irdim1,istatus
   integer(i_kind) ioff,itoss,ikeep,nkeep,ierror_toq,ierror_poq
+  integer(i_kind) isolz,isolaz,icldmnt,isnoc,iacidx,istko,ifovn
   integer(i_kind) mm1,itime,ilat,ilon,isd,ilate,ilone,itoq,ipoq
   integer(i_kind),dimension(iint,nobs):: idiagbuf
   integer(i_kind),dimension(nlevs):: ipos,iouse
@@ -256,6 +257,14 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   ilate=6     ! index of earth relative latitude (degrees)
   itoq=7      ! index of total ozone error flag (sbuv2 only)
   ipoq=8      ! index of profile ozone error flag (sbuv2 only)
+  isolz=8     ! index of solar zenith angle   (gome and omi only)
+  isolaz=9    ! index of solar azimuth angle   (gome only)
+  icldmnt=10  ! index of CLOUD AMOUNT IN SEGMENT (gome and omi only)
+  isnoc=11    ! index of snow cover (gome only)
+  iacidx=12   ! AEROSOL CONTAMINATION INDEX (gome and omi only)
+  istko=13    ! index of ASCENDING/DESCENDING ORBIT QUALIFIER (gome and omi only)
+  ifovn=14    ! index of scan position (gome and omi only)
+
 
 ! If requested, save data for diagnostic ouput
   if(ozone_diagsave)ii=izero

@@ -53,6 +53,12 @@ module specmod
   real(r_kind),allocatable,dimension(:),save :: clat,slat,wlat
   real(r_kind),allocatable,dimension(:,:),save :: pln,plntop
   real(r_double),allocatable,dimension(:),save :: afft
+  integer(i_kind) jcap_b,nc_b,ncd2_b
+  integer(i_kind) iromb_b,idrt_b
+  logical,allocatable,dimension(:):: factsml_b,factvml_b
+  real(r_kind),allocatable,dimension(:):: eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b
+  real(r_kind),allocatable,dimension(:,:):: pln_b,plntop_b
+
 
 contains
   
@@ -79,6 +85,7 @@ contains
 !
 !$$$
     jcap=62
+    jcap_b=62
 
     return
   end subroutine init_spec
@@ -126,9 +133,13 @@ contains
 !   Set constants
     nc=(jcap+1)*(jcap+2)
     ncd2=nc/2
+    nc_b=(jcap_b+1)*(jcap_b+2)
+    ncd2_b=nc_b/2
+
 
 !   Allocate more arrays related to transforms
     allocate(factsml(nc),factvml(nc))
+    allocate(factsml_b(nc_b),factvml_b(nc_b))
 
 
 !   Set up factsml and factvml
@@ -143,6 +154,18 @@ contains
        end do
     end do
     factvml(1)=.true.
+    factsml_b=.false.
+    factvml_b=.false.
+    ii1=izero
+    do l=izero,jcap_b
+       do m=izero,jcap_b-l
+          ii1=ii1+2
+          if(l == izero)factsml_b(ii1)=.true.
+          if(l == izero)factvml_b(ii1)=.true.
+       end do
+    end do
+    factvml_b(1)=.true.
+
 
 !   Set other constants used in transforms
     iromb=0
@@ -179,7 +202,22 @@ contains
     call sptranf0(iromb,jcap,idrt,imax,jmax,jb,je, &
        eps,epstop,enn1,elonn1,eon,eontop, &
        afft,clat,slat,wlat,pln,plntop)
-    
+    iromb_b=0
+    idrt_b=4
+    allocate( eps_b(ncd2_b) )
+    allocate( epstop_b(jcap_b+1) )
+    allocate( enn1_b(ncd2_b) )
+    allocate( elonn1_b(ncd2_b) )
+    allocate( eon_b(ncd2_b) )
+    allocate( eontop_b(jcap_b+1) )
+    allocate( pln_b(ncd2_b,jb:je) )
+    allocate( plntop_b(jcap_b+1,jb:je) )
+
+!   Initialize arrays used in transforms for background spectral truncation
+    call sptranf0(iromb_b,jcap_b,idrt_b,imax,jmax,jb,je, &
+       eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
+       afft,clat,slat,wlat,pln_b,plntop_b)
+
     return
   end subroutine init_spec_vars
 
@@ -204,9 +242,12 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    deallocate(factsml,factvml)
+    deallocate(factsml,factvml,factsml_b,factvml_b)
     deallocate(eps,epstop,enn1,elonn1,eon,eontop,afft,&
        clat,slat,wlat,pln,plntop)
+    deallocate(eps_b,epstop_b,enn1_b,elonn1_b,eon_b, &
+       eontop_b,pln_b,plntop_b)
+
     return
   end subroutine destroy_spec_vars
 

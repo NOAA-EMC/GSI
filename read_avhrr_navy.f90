@@ -39,6 +39,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !   2008-05-28  safford - rm unused vars and uses
 !   2008-10-10  derber  - modify to allow mpi_io
 !   2008-12-30  todling - memory leak fix (data_crit,idata_itx)
+!   2009-04-21  derber  - add ithin to call to makegrids
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -182,7 +183,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 
 ! Make thinning grids
-  call makegrids(rmesh)
+  call makegrids(rmesh,ithin)
 
 
 ! Read hi-res sst analysis

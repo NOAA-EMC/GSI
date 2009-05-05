@@ -139,7 +139,7 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
             ges_u(i,j,k,it)*pr_xdif(i,j,k) + v(i,j,k)*pr_ydif9(i,j,k) + &
             ges_v(i,j,k,it)*pr_ydif(i,j,k) + &
             (u_x(i,j,k) + v_y(i,j,k))*(prdif9(i,j,k)) + &
-            (ges_u_lon(i,j,k,it) + ges_v_lat(i,j,k,it))*(prdif(i,j,k)) )
+            (ges_u_lon(i,j,k) + ges_v_lat(i,j,k))*(prdif(i,j,k)) )
        end do
      end do
    end do
@@ -149,8 +149,8 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
     do j=jstart,jstop
       do i=1,lat2
         tmp=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
-        t_t(i,j,k)=-u(i,j,k)*ges_tvlon(i,j,k,it) - ges_u(i,j,k,it)*t_x(i,j,k) - &
-           v(i,j,k)*ges_tvlat(i,j,k,it) - ges_v(i,j,k,it)*t_y(i,j,k) +          &
+        t_t(i,j,k)=-u(i,j,k)*ges_tvlon(i,j,k) - ges_u(i,j,k,it)*t_x(i,j,k) - &
+           v(i,j,k)*ges_tvlat(i,j,k) - ges_v(i,j,k,it)*t_y(i,j,k) +          &
            tmp*rcp*( ges_u(i,j,k,it)*pr_xsum(i,j,k) + &
            u(i,j,k)*pr_xsum9(i,j,k) + &
            ges_v(i,j,k,it)*pr_ysum(i,j,k) + &
@@ -174,8 +174,8 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
         do i=1,lat2
           tmp=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
   
-          t_thor9(i,j,k)=-ges_u(i,j,k,it)*ges_tvlon(i,j,k,it) - &
-               ges_v(i,j,k,it)*ges_tvlat(i,j,k,it)
+          t_thor9(i,j,k)=-ges_u(i,j,k,it)*ges_tvlon(i,j,k) - &
+               ges_v(i,j,k,it)*ges_tvlat(i,j,k)
           t_thor9(i,j,k)=t_thor9(i,j,k) -tmp*rcp * ( ges_u(i,j,k,it)*pr_xsum9(i,j,k) + &
              ges_v(i,j,k,it)*pr_ysum9(i,j,k) + &
              prsth9(i,j,k) + prsth9(i,j,k+1) )
@@ -229,11 +229,11 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
   do k=1,nsig
     do j=jstart,jstop
       do i=1,lat2
-        u_t(i,j,k)=-u(i,j,k)*ges_u_lon(i,j,k,it) - ges_u(i,j,k,it)*u_x(i,j,k) - &
-           v(i,j,k)*ges_u_lat(i,j,k,it) - ges_v(i,j,k,it)*u_y(i,j,k) + &
+        u_t(i,j,k)=-u(i,j,k)*ges_u_lon(i,j,k) - ges_u(i,j,k,it)*u_x(i,j,k) - &
+           v(i,j,k)*ges_u_lat(i,j,k) - ges_v(i,j,k,it)*u_y(i,j,k) + &
            coriolis(i,j)*v(i,j,k)
-        v_t(i,j,k)=-u(i,j,k)*ges_v_lon(i,j,k,it) - ges_u(i,j,k,it)*v_x(i,j,k) - &
-           v(i,j,k)*ges_v_lat(i,j,k,it) - ges_v(i,j,k,it)*v_y(i,j,k) - &
+        v_t(i,j,k)=-u(i,j,k)*ges_v_lon(i,j,k) - ges_u(i,j,k,it)*v_x(i,j,k) - &
+           v(i,j,k)*ges_v_lat(i,j,k) - ges_v(i,j,k,it)*v_y(i,j,k) - &
            coriolis(i,j)*u(i,j,k) - two*curvfct(i,j)*(ges_u(i,j,k,it)*u(i,j,k) + &
            ges_v(i,j,k,it)*v(i,j,k))
 
@@ -299,11 +299,11 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
            prdif(i,j,k) - tmp3* prsum(i,j,k) )*r_prsum9(i,j,k) ) ) )
 
         sum2k = sum2km1(i,j) + t_x(i,j,k)*tmp3 + &
-           ges_tvlon(i,j,k,it)*( (prdif(i,j,k) - &
+           ges_tvlon(i,j,k)*( (prdif(i,j,k) - &
            tmp3*prsum(i,j,k))*r_prsum9(i,j,k))
 
         sum2vk = sum2vkm1(i,j) + t_y(i,j,k)*tmp3 + &
-           ges_tvlat(i,j,k,it)*( (prdif(i,j,k) - &
+           ges_tvlat(i,j,k)*( (prdif(i,j,k) - &
            tmp3*prsum(i,j,k))*r_prsum9(i,j,k))
 
         u_t(i,j,k) = u_t(i,j,k) - sumkm1(i,j) - rd*sum2km1(i,j) - &
@@ -344,12 +344,12 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
       do j=jstart,jstop
         do i=1,lat2
 ! tracer advection terms
-          q_t(i,j,k) = -u(i,j,k)*ges_qlon(i,j,k,it) - ges_u(i,j,k,it)*q_x(i,j,k) - &
-             v(i,j,k)*ges_qlat(i,j,k,it) - ges_v(i,j,k,it)*q_y(i,j,k)
-          oz_t(i,j,k) = -u(i,j,k)*ges_ozlon(i,j,k,it) - ges_u(i,j,k,it)*oz_x(i,j,k) - &
-             v(i,j,k)*ges_ozlat(i,j,k,it) - ges_v(i,j,k,it)*oz_y(i,j,k)
-          cw_t(i,j,k) = -u(i,j,k)*ges_cwmr_lon(i,j,k,it) - ges_u(i,j,k,it)*cw_x(i,j,k) - &
-             v(i,j,k)*ges_cwmr_lat(i,j,k,it) - ges_v(i,j,k,it)*cw_y(i,j,k)
+          q_t(i,j,k) = -u(i,j,k)*ges_qlon(i,j,k) - ges_u(i,j,k,it)*q_x(i,j,k) - &
+             v(i,j,k)*ges_qlat(i,j,k) - ges_v(i,j,k,it)*q_y(i,j,k)
+          oz_t(i,j,k) = -u(i,j,k)*ges_ozlon(i,j,k) - ges_u(i,j,k,it)*oz_x(i,j,k) - &
+             v(i,j,k)*ges_ozlat(i,j,k) - ges_v(i,j,k,it)*oz_y(i,j,k)
+          cw_t(i,j,k) = -u(i,j,k)*ges_cwmr_lon(i,j,k) - ges_u(i,j,k,it)*cw_x(i,j,k) - &
+             v(i,j,k)*ges_cwmr_lat(i,j,k) - ges_v(i,j,k,it)*cw_y(i,j,k)
           if(k > 1)then
             tmp=half*what(i,j,k)*r_prdif9(i,j,k)
             tmp2=half*what9(i,j,k)*r_prdif9(i,j,k)

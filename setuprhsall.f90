@@ -337,17 +337,16 @@ subroutine setuprhsall(ndata,mype)
 
 ! Setup observation vectors
   call setupyobs
-  call inquire_obsdiags(miter)
-
-! Get moisture diagnostics
-  call q_diag(mype)
-
 
 ! Finalize qc and accumulate statistics for GPSRO data
   call genstats_gps(bwork,awork(1,i_gps),toss_gps_sub,conv_diagsave,mype)
 
   if (conv_diagsave) close(7)
 
+  call inquire_obsdiags(miter)
+
+! Get moisture diagnostics
+! call q_diag(mype)
 
 ! Collect satellite and precip. statistics
   call mpi_reduce(aivals,aivals1,40*ndat,mpi_rtype,mpi_sum,mype_rad, &

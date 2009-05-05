@@ -23,6 +23,7 @@ subroutine obs_para(ndata,mype)
 !   2008-04-29  safford - rm unused vars and uses
 !   2008-06-30  derber  - optimize calculation of criterion
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
+!   2009-04-21  derber  - reformulate to remove communication
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -53,8 +54,8 @@ subroutine obs_para(ndata,mype)
 ! Declare local variables
   integer(i_kind) lunout,is,ii
   integer(i_kind) mm1
-  integer(i_kind) nobsp,ndatax_all
-  integer(i_kind),dimension(npe,ndat):: nobs_s,nobs_s1
+  integer(i_kind) ndatax_all
+  integer(i_kind),dimension(npe):: nobs_s
 
 !
 !****************************************************************
@@ -62,8 +63,6 @@ subroutine obs_para(ndata,mype)
 !
 ! Distribute observations as a function of pe number.
   nsat1=izero
-  nobs_s = izero
-  nobs_s1 = izero
   mype_diaghdr = -999
   mm1=mype+1
   ndatax_all=izero
@@ -78,10 +77,14 @@ subroutine obs_para(ndata,mype)
      if(dtype(is) /= ' ' .and. ndata(is,1) > izero)then
 
         ndatax_all=ndatax_all + ndata(is,1)
-        call disobs(ndata(is,1),nobsp,mm1,lunout,obsfile_all(is),dtype(is))
+        call disobs(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is), &
+              mype_diaghdr(is),nobs_s)
 
-        nobs_s(mm1,is)=nobsp
-        nsat1(is)=nobsp
+        nsat1(is)=nobs_s(mm1)
+        if(mm1 == npe)then
+            write(6,1000)dtype(is),dplat(is),(nobs_s(ii),ii=1,npe)
+1000        format('OBS_PARA: ',2A10,8I10,/,(10X,10I10))
+        end if
         
      end if
 
@@ -99,31 +102,11 @@ subroutine obs_para(ndata,mype)
           ' assimilated. reset factqmin,factqmax=',factqmin,factqmax
   endif
 
-  call mpi_allreduce(nobs_s,nobs_s1,ndat*npe,mpi_integer,mpi_sum, &
-       mpi_comm_world,ierror)
-
-! Determine first task with data for each observation type
-  do is=1,ndat
-    if(dtype(is) /= ' ' .and. ndata(is,1) > izero)then
-        do ii=1,npe
-           if (nobs_s1(ii,is)>izero) then
-              mype_diaghdr(is) = ii-1
-              exit
-           end if
-        end do
-        if(mype==izero)then
-          write(6,1000)dtype(is),dplat(is),(nobs_s1(ii,is),ii=1,npe)
-1000      format('OBS_PARA: ',2A10,8I10,/,(10X,10I10))
-
-        end if
-    end if
-  end do
-
 
   return
 end subroutine obs_para
 
-subroutine disobs(ndata,ndata_s,mm1,lunout,obsfile,obstypeall)
+subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -143,10 +126,10 @@ subroutine disobs(ndata,ndata_s,mm1,lunout,obsfile,obstypeall)
 !   2006-04-06  middlecoff - changed lunin from 15 to 11
 !   2008-04-29  safford - rm unused vars and uses
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
+!   2009-04-21  derber  - reformulate to remove communication
 !
 !   input argument list:
 !     nn_obs   - number of an observation data
-!     ndata_s  - number of observations in each pe sub-domain
 !     ndata    - number of observations
 !     lunin    - unit from which to read all obs of a given type
 !     lunout   - unit to which to write subdomain specific observations
@@ -162,29 +145,33 @@ subroutine disobs(ndata,ndata_s,mm1,lunout,obsfile,obstypeall)
   use kinds, only: r_kind,i_kind
   use constants, only: izero,one
   use gridmod, only: periodic_s,nlon,nlat,jlon1,ilat1,istart,jstart
+  use mpimod, only: npe
   implicit none
 
 ! Declare passed variables
   integer(i_kind),intent(in):: ndata,lunout,mm1
-  integer(i_kind),intent(inout):: ndata_s
+  integer(i_kind),intent(inout),dimension(npe):: nobs_s
+  integer(i_kind),intent(out):: mype_diag
   character(14),intent(in):: obsfile
   character(10),intent(in):: obstypeall
 
 ! Declare local variables
   integer(i_kind) j,lon,lat,lat_data,lon_data,n,k,lunin
   integer(i_kind) jj,nreal,nchanl,nn_obs,ndatax
-  integer(i_kind),dimension(mm1):: ibe,ibw,ibn,ibs
+  integer(i_kind) ndata_s,klim
+  integer(i_kind),dimension(npe):: ibe,ibw,ibn,ibs
   real(r_kind):: dlat,dlon
-  logical,allocatable,dimension(:):: luse,luse_s,luse_x
+  logical,allocatable,dimension(:):: luse,luse_s
   real(r_kind),allocatable,dimension(:,:):: obs_data,data1_s
+  integer(i_kind),allocatable,dimension(:):: nprocs
   character(10):: obstype
   character(20):: isis
 
-  ndata_s=0
+  mype_diag=npe
 
 ! Read and write header
 
-  do k=1,mm1
+  do k=1,npe
 
 !    ibw,ibe,ibs,ibn west,east,south and north boundaries of total region
      ibw(k)=jstart(k)-1
@@ -207,41 +194,36 @@ subroutine disobs(ndata,ndata_s,mm1,lunout,obsfile,obstypeall)
   read(lunin) obs_data
   close(lunin)
 
-  allocate(luse(ndata),luse_x(ndata))
+  allocate(luse(ndata),nprocs(ndata))
   luse=.false.
-  luse_x=.false.
+  nprocs=999999
+  nobs_s=izero
 
 ! Loop over all observations.  Locate each observation with respect
 ! to subdomains.
-  use: do n=1,ndata
-
+  do n=1,ndata
      lat=obs_data(lat_data,n)
      lat=min(max(1,lat),nlat)
 
-!    Does the observation belong to the subdomain for this task?
-
-     if(lat>=ibs(mm1).and.lat<=ibn(mm1)) then
+     klim=max(mm1,mype_diag)
+     do k=1,klim
+      if(lat>=ibs(k).and.lat<=ibn(k)) then
         lon=obs_data(lon_data,n)
         lon=min(max(0,lon),nlon)
-        if((lon >= ibw(mm1).and. lon <=ibe(mm1))  .or.  &
-              (lon == 0       .and. ibe(mm1) >=nlon) .or.  &
-              (lon == nlon    .and. ibw(mm1) <= 1)   .or. periodic_s(mm1)) then
-
-            ndata_s=ndata_s+1
-            luse(n)=.true.
-!           Does the observation belong to the subdomain for other tasks?
-            use_obs: do k=1,mm1-1
-              if(lat>=ibs(k).and.lat<=ibn(k)) then
-                if((lon>=  ibw(k).and. lon<=ibe(k))   .or.  &
-                   (lon == 0     .and. ibe(k) >=nlon) .or.  &
-                   (lon == nlon  .and. ibw(k) <= 1)   .or. periodic_s(k))  & 
-                      cycle use
-              end if
-            end do use_obs
-            luse_x(n)=.true.
+        if((lon >= ibw(k).and. lon <=ibe(k))  .or.  &
+              (lon == 0       .and. ibe(k) >=nlon) .or.  &
+              (lon == nlon    .and. ibw(k) <= 1)   .or. periodic_s(k)) then
+               nobs_s(k)=nobs_s(k)+1
+               nprocs(n)=min(nprocs(n),k)
+               mype_diag=min(mype_diag,k-1)
+               if(k == mm1)luse(n)=.true.
         end if
-     end if
-  end do use
+      end if
+     end do
+  end do 
+  ndata_s = nobs_s(mm1)
+     
+
   if(ndata_s > izero)then
      allocate(data1_s(nn_obs,ndata_s),luse_s(ndata_s))
      ndatax=0
@@ -250,7 +232,7 @@ subroutine disobs(ndata,ndata_s,mm1,lunout,obsfile,obstypeall)
        if(luse(n))then
 
           ndatax=ndatax+1
-          luse_s(ndatax)=luse_x(n)
+          luse_s(ndatax)= mm1 == nprocs(n)
 
           do jj= 1,nn_obs
             data1_s(jj,ndatax) = obs_data(jj,n)
@@ -266,7 +248,7 @@ subroutine disobs(ndata,ndata_s,mm1,lunout,obsfile,obstypeall)
      write(lunout) data1_s,luse_s
      deallocate(data1_s,luse_s)
   endif
-  deallocate(obs_data,luse,luse_x)
+  deallocate(obs_data,luse,nprocs)
 
 
   return

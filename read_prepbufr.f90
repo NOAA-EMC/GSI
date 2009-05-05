@@ -545,9 +545,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
          id=ictype(nc)
          if( id ==243 .or. id == 253 .or. id ==254 ) then
              call ufbint(lunin,satqc,4,1,iret,satqcstr)
-!!           if(satqc(3) <  85.0) cycle loop_readsb   ! QI w/o fcst (su's setup
+             if(satqc(3) <  85.0) cycle loop_readsb   ! QI w/o fcst (su's setup
  
-             if(satqc(2) <= 80.0) cycle loop_readsb   ! QI w/ fcst (old prepdata)
+!!           if(satqc(2) <= 80.0) cycle loop_readsb   ! QI w/ fcst (old prepdata)
 
          endif
        endif
@@ -617,9 +617,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !      If ASCAT data, determine primary surface type.  If not open sea,
 !      skip this observation.  This check must be done before thinning.
-       if (kx==290) then
+       if (kx==290 .or. kx==289 .or. kx==285) then
           call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
           if (isflg /= 0) cycle loop_readsb
+          if (tsavg <= 273.0_r_kind) cycle loop_readsb
        endif
 
 
@@ -823,7 +824,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !       Check qc marks to see if obs should be processed or skipped
         if (psob) then
            cat=nint(min(obsdat(8,k),qcmark_huge))
-           if ( obsdat(1,k)< r500 .or. cat /=0 ) cycle loop_k_levs
+           if ( cat /=0 ) cycle loop_k_levs
+           if ( obsdat(1,k)< r500) qm=100
            zqm=nint(qcmark(4,k))
            if (zqm>=lim_zqm .and. zqm/=15 .and. zqm/=9) qm=9
         endif

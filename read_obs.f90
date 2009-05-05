@@ -102,7 +102,7 @@ subroutine read_obs(ndata,mype)
     character(10):: obstype,platid
     character(13):: string,infile
     character(20):: sis
-    integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
+    integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithin,nread,npuse,nouse
     integer(i_kind) nprof_gps1,npem1,krsize,len4file
     integer(8) :: lenbytes
 !   integer(i_kind) isum
@@ -255,7 +255,7 @@ subroutine read_obs(ndata,mype)
             end if
           end if
           if (ditype(i) == 'rad' .and. nuse .and.           &
-                    platid /= 'aqua' .and. (obstype == 'amsua' .or.  &
+                    dplat(i)== 'aqua' .and. (obstype == 'amsua' .or.  &
                     obstype == 'amsub' .or.                          &
                     obstype == 'mhs' )) then
 !                   obstype == 'mhs'   .or. hirs )) then
@@ -323,7 +323,7 @@ subroutine read_obs(ndata,mype)
 
     end do
     do i=1,ndat
-       if(mype == 0)write(6,*)'READ_OBS:  read ',i,dtype(i),' using ntasks=',ntasks(i,1),ntasks(i,2),mype_root_sub(i),npe_sub(i) 
+       if(mype == 0)write(6,*)'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i,1),ntasks(i,2),mype_root_sub(i),npe_sub(i) 
     end do
 
 
@@ -358,7 +358,7 @@ subroutine read_obs(ndata,mype)
     end do
 !   Create full horizontal surface fields from local fields in guess_grids
     call getsfc(mype,use_sfc)
-    call prt_guessfc2('sfcges2')
+    if(use_sfc) call prt_guessfc2('sfcges2')
     call destroy_sfc_grids
 
 !   Loop over data files.  Each data file is read by a sub-communicator
@@ -372,8 +372,7 @@ subroutine read_obs(ndata,mype)
           sis=dsis(i)                        !     sensor/instrument/satellite indicator
           val_dat=dval(i)                    !     weighting factors applied to super obs
           ithin=dthin(i)                     !     ithin    - flags to thin data
-          ithinx=max(1,abs(ithin))
-          rmesh=dmesh(ithinx)                !     rmesh    - thinning mesh sizes (km)
+          rmesh=dmesh(ithin)                 !     rmesh    - thinning mesh sizes (km)
           twind=time_window(i)               !     time window (hours) for input group
           isfcalc=dsfcalc(i)                 !     method to calculate surface fields within fov
           nread=izero

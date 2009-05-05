@@ -1010,7 +1010,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,regional,nsig1o
+  use gridmod, only: nlat,nlon,regional,nnnn1o
   use jfunc,only: nval_lenz
   use constants, only:  zero,half
   use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
@@ -1053,7 +1053,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
         end if
 
         do j=1,nsc
-          iz=nlat*nlon*(k-1)+nlat*nlon*nsig1o*(j-1)
+          iz=nlat*nlon*(k-1)+nlat*nlon*nnnn1o*(j-1)
           do i=1,nlat*nlon
             zloc(i,j)=z(i+iz)
           end do
@@ -1098,7 +1098,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
         end do
         
         do j=1,nsc
-          iz=(ny*nx+2*nfnf)*(k-1)+(ny*nx+2*nfnf)*nsig1o*(j-1)
+          iz=(ny*nx+2*nfnf)*(k-1)+(ny*nx+2*nfnf)*nnnn1o*(j-1)
           do i=1,ny*nx
             zloc1(i,j)=z(i+iz)
           end do
@@ -1252,7 +1252,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,nsig1o,regional
+  use gridmod, only: nlat,nlon,nnnn1o,regional
   use jfunc,only: nval_lenz
   use constants, only:  zero,half
   use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
@@ -1299,7 +1299,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
              jj(1,1,1,k),slw(1,k),nsc,totwgt)
 
         do j=1,nsc
-          iz=nlat*nlon*(k-1)+nlat*nlon*nsig1o*(j-1)
+          iz=nlat*nlon*(k-1)+nlat*nlon*nnnn1o*(j-1)
           do i=1,nlat*nlon
             z(i+iz)=zloc(i,j)
           end do
@@ -1430,7 +1430,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
         call sqrt_rfxyyx_ad(zloc3,afg1,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
 
         do j=1,nsc
-          iz=(ny*nx+2*nfnf)*(k-1)+(ny*nx+2*nfnf)*nsig1o*(j-1)
+          iz=(ny*nx+2*nfnf)*(k-1)+(ny*nx+2*nfnf)*nnnn1o*(j-1)
           do i=1,ny*nx
             z(i+iz)=z(i+iz)+zloc1(i,j)
           end do

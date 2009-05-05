@@ -20,6 +20,7 @@ subroutine bkerror(gradx,grady)
 !   2007-04-13  tremolet - use control vectors
 !   2007-10-01  todling  - add timer
 !   2008-12-29  todling - update interface to strong_bk/bk_ad
+!   2009-04-13  derber - move strong_bk into balance
 !
 !   input argument list:
 !     gradx    - input field  
@@ -34,8 +35,7 @@ subroutine bkerror(gradx,grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use berror, only: varprd,fpsproj
-  use balmod, only: balance,tbalance,strong_bk_ad,strong_bk
-  use mpimod, only: levs_id,nvar_id
+  use balmod, only: balance,tbalance
   use gsi_4dvar, only: nsubwin, lsqrtb
   use gridmod, only: lat2,lon2,nlat,nlon,nnnn1o,periodic
   use jfunc, only: nsclen,npclen
@@ -97,10 +97,6 @@ subroutine bkerror(gradx,grady)
 ! Loop on control steps
   do ii=1,nsubwin
 
-!   Transpose of strong balance constraint
-    call strong_bk_ad(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%p, &
-                      grady%step(ii)%t)
-
 !   Transpose of balance equation
     call tbalance(grady%step(ii)%t ,grady%step(ii)%p , &
                   grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
@@ -113,10 +109,6 @@ subroutine bkerror(gradx,grady)
 !   Balance equation
     call balance(grady%step(ii)%t ,grady%step(ii)%p ,&
                  grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
-
-!   Strong balance constraint
-    call strong_bk(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%p, &
-                   grady%step(ii)%t)
 
   end do
 

@@ -39,9 +39,9 @@
 
  use kinds, only : i_kind, r_kind
 
- private
-
  implicit none
+
+ private
 
  integer(i_kind) , parameter, public    :: npoly = 30
  integer(i_kind) , parameter, private   :: maxinstr = 16

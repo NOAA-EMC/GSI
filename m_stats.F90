@@ -7,6 +7,7 @@ module m_stats
 !   2008-04.28  guo - initial code
 !   2008-12-09  todling - add comments/prologue
 !   2008-12-12  todling - remove dependence on mpeu
+!   2008-04-02  todling - mpi_allreduce cannot alias buffer
 !
 !$$$
 
@@ -82,6 +83,7 @@ subroutine allreduce_(vdot,vsum,vmin,vmax,vdim,comm)
   real(r_kind),intent(inout) :: vdot,vsum
   real(r_kind),intent(inout) :: vmin,vmax
   integer(i_kind),intent(inout) :: vdim
+  integer(i_kind):: vdim_local
   integer,intent(in) :: comm
 
   character(len=*),parameter :: myname_=myname//"::allreduce_"
@@ -99,7 +101,8 @@ subroutine allreduce_(vdot,vsum,vmin,vmax,vdim,comm)
   vmin=-bufr(1)
   vmax=+bufr(2)
 
-  call mpi_allreduce((vdim),vdim,1,mpi_rtype,mpi_sum,comm,ierror)
+  vdim_local=vdim
+  call mpi_allreduce(vdim_local,vdim,1,mpi_rtype,mpi_sum,comm,ierror)
 	if(ierror/=0) call abor1('m_stats: MPI_allreduce(dim)')
 
 end subroutine allreduce_

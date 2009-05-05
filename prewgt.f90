@@ -421,15 +421,19 @@ subroutine prewgt(mype)
 
     do i=1,lon2
       dssvp(j,i)=psvar(j,i)*as(3)             ! surface pressure
-      dssvt(j,i,2)= tsfc_sdv(1)               ! land surface temperature
-      dssvt(j,i,3)= tsfc_sdv(2)               ! ice surface temperature
 
-      ix=jstart(mm1)+i-2
-      if (ix==0) ix=nlon
-      ix=max(ix,1)
-      if (ix==nlon+1) ix=1
-      ix=min(nlon,ix)
-      dssvt(j,i,1)=corsst(jx,ix)*as(7)        ! sea surface temperature
+      if(isli2(j,i) == 1)then
+        dssvt(j,i,2)= tsfc_sdv(1)               ! land surface temperature
+      else if(isli2(j,i) == 2)then
+        dssvt(j,i,3)= tsfc_sdv(2)               ! ice surface temperature
+      else
+        ix=jstart(mm1)+i-2
+        if (ix==0) ix=nlon
+        ix=max(ix,1)
+        if (ix==nlon+1) ix=1
+        ix=min(nlon,ix)
+        dssvt(j,i,1)=corsst(jx,ix)*as(7)        ! sea surface temperature
+      end if
 
     end do
   end do

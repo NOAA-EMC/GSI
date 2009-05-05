@@ -1871,61 +1871,6 @@ subroutine mp_getuv1(u,v,st,vp,mype,nlev)
 
 end subroutine mp_getuv1
 
-subroutine mp_getstvp1(u,v,st,vp,mype,nlev)
-  use kinds, only: r_kind,i_kind
-  use constants, only: zero
-  use gridmod, only: lat2,lon2,nlat,nlon
-  use mp_compact_diffs_mod1, only: nlon_0,nlon_1,nlat_0,nlat_1,slow_pole, &
-                          mp_compact_dlon_ad,mp_compact_dlat_ad,mp_uv_pole_ad, &
-                    cdiff_sd2ew2,cdiff_ew2sd2,cdiff_sd2ns2,cdiff_ns2sd2
-  implicit none
-
-! Declare passed variables
-  integer(i_kind),intent(in):: mype,nlev
-  real(r_kind),dimension(lat2,lon2,nlev),intent(out):: st,vp
-  real(r_kind),dimension(lat2,lon2,nlev),intent(in):: u,v
-
-! Declare local variables
-  real(r_kind),dimension(2,nlon,nlat_0:nlat_1):: st_ew,vp_ew,stx_ew,vpx_ew
-  real(r_kind),dimension(2,nlat,nlon_0:nlon_1):: st_ns,vp_ns,sty_ns,vpy_ns
-  real(r_kind),dimension(lat2,lon2,nlev):: st_x,st_y,vp_x,vp_y
-  real(r_kind),dimension(lat2,lon2,nlev):: st2,vp2,u2,v2
-
-  if(slow_pole) then
-    st_ew=zero
-    vp_ew=zero
-    call cdiff_sd2ew2(u,v,st_ew,vp_ew,nlev,mype)
-    call mp_uv_pole_ad(st_ew,vp_ew)
-    u2=zero
-    v2=zero
-    call cdiff_ew2sd2(u2,v2,st_ew,vp_ew,nlev,mype)
-  else
-    u2=u
-    v2=v
-  end if
-  vp_x=u2 ; st_x=v2 ; stx_ew=zero ; vpx_ew=zero
-  call cdiff_sd2ew2(vp_x,st_x,vpx_ew,stx_ew,nlev,mype)
-  st_y=-u2 ; vp_y=v2 ; sty_ns=zero ; vpy_ns=zero
-  call cdiff_sd2ns2(st_y,vp_y,sty_ns,vpy_ns,nlev,mype)
-  vp_ns=zero
-  call mp_compact_dlat_ad(vp_ns,vpy_ns,.false.)
-  st_ns=zero
-  call mp_compact_dlat_ad(st_ns,sty_ns,.false.)
-  vp_ew=zero
-  call mp_compact_dlon_ad(vp_ew,vpx_ew,.false.)
-  st_ew=zero
-  call mp_compact_dlon_ad(st_ew,stx_ew,.false.)
-
-  st2=zero ; vp2=zero
-  call cdiff_ew2sd2(st2,vp2,st_ew,vp_ew,nlev,mype)
-  st=zero ; vp=zero
-  call cdiff_ns2sd2(st,vp,st_ns,vp_ns,nlev,mype)
-
-  st=st2+st
-  vp=vp2+vp
-
-end subroutine mp_getstvp1
-
 subroutine mp_compact_dlon1(b,dbdx,vector,nlev,mype)
   use kinds, only: r_kind,i_kind
   use constants, only: zero

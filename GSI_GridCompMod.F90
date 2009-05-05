@@ -31,9 +31,8 @@
    use ESMF_Mod              ! ESMF
    use MAPL_Mod              ! MAPL Generic
    use gsimod                ! GSI original interface
-   use m_StrTemplate         ! grads style templates
+   use mpeu_util, only: StrTemplate         ! grads style templates
    use constants, only : grav
-   use m_inpak90
    use specmod,only : init_spec_vars
    use specmod,only : destroy_spec_vars
    use m_tick, only: tick
@@ -141,7 +140,7 @@
                          l4dvar             ! when .t., will run 4d-var
 
    ! others...
-   use constants, only: pi, rearth, zero, one, half
+   use constants, only: pi, rearth, zero, one, half, izero
    use kinds,     only: r_kind,r_single,i_kind
    use obsmod,    only: iadate, ndat, ndatmax, ndat_times
 
@@ -264,21 +263,22 @@
 
 ! Set the Initialize, Run, Finalize entry points
 
-   call ESMF_GridCompSetEntryPoint ( gc, ESMF_SETINIT, GSI_GridCompInitialize, &
-                                     ESMF_SINGLEPHASE, STATUS)
+   call MAPL_GridCompSetEntryPoint ( gc, ESMF_SETINIT, GSI_GridCompInitialize, &
+                                                       STATUS)
    VERIFY_(STATUS)
 
-   call ESMF_GridCompSetEntryPoint ( gc, ESMF_SETRUN, GSI_GridCompRun,         &
-                                     ESMF_SINGLEPHASE, STATUS)
+   call MAPL_GridCompSetEntryPoint ( gc, ESMF_SETRUN, GSI_GridCompRun,         &
+                                                       STATUS)
    VERIFY_(STATUS)
 
-   call ESMF_GridCompSetEntryPoint ( gc, ESMF_SETFINAL, GSI_GridCompFinalize,  &
-                                     ESMF_SINGLEPHASE, STATUS)
+   call MAPL_GridCompSetEntryPoint ( gc, ESMF_SETFINAL, GSI_GridCompFinalize,  &
+                                                       STATUS)
    VERIFY_(STATUS)
 
 ! Set Import/Export Coupling SPECS through the Generic Internal State
 
-   call GSI_GridCompSetupSpecs (GC, rc=STATUS); VERIFY_(STATUS)
+   call GSI_GridCompSetupSpecs (GC, rc=STATUS) 
+   VERIFY_(STATUS)
 
 ! Set analysis timer
 
@@ -336,7 +336,6 @@
    integer                          :: STATUS    ! error code STATUS
    type(MAPL_MetaComp), pointer     :: GENSTATE  ! GEOS Generic state
    type(ESMF_Config)                :: CF        ! configuration data
-   type(ESMF_DELayout)              :: LAYOUT    ! DE layout
    type(ESMF_VM)                    :: VM        ! virtual machine
    type(ESMF_Grid)                  :: GSIGrid   ! this component's grid
    logical                          :: IamRoot
@@ -405,7 +404,6 @@
 ! used (no. of first guess time levels, interval).
 
    call GSI_GridCompGetBKGTimes_()
-   VERIFY_(STATUS)
 
 ! Allocate memory for GSI internal variables (first guess time levels)
 
@@ -485,15 +483,18 @@
 !
 !-------------------------------------------------------------------------
 
-   type (ESMF_Grid),  intent(out)   :: grid    ! component grid
+   type (ESMF_Grid),  intent(inout)   :: grid    ! component grid
 
 ! Local vars
 
    type(ESMF_Logical)  :: flip_poles
    type(ESMF_Logical)  :: flip_lons
-   integer, allocatable:: imxy(:), jmxy(:)
-   integer(kind(nlon)) :: i,j,k
+   type(ESMF_DELayout) :: LAYOUT    ! DE layout
+   integer, allocatable:: imxy(:), jmxy(:), lmxy(:)
+   integer(kind(nlon)) :: i,j,k,nzpe
+   integer(i_kind)     :: ROOT
    real                :: lon0, lat0
+   real                :: lon0d, lat0d
    real                :: pi, d2r
    real(ESMF_KIND_R8)  :: minCoord(3)
    real(ESMF_KIND_R8)  :: deltaZ
@@ -503,6 +504,7 @@
 
 ! start
 
+    rc  = 0
     pi  = 4.0 * atan ( 1.0 ) 
    d2r  = pi / 180.
 
@@ -521,18 +523,15 @@
    call ESMF_ConfigGetAttribute( CF, LAT0, label ='ORIGIN_CENTER_LAT:', rc = STATUS )
    VERIFY_(STATUS)
 
+   lon0d= lon0; lat0d=lat0
    lon0 = lon0 * d2r
    lat0 = lat0 * d2r
    dlon=(pi+pi)/nlon	! in radians
    dlat=pi/(nlat-1)
-   allocate(deltaX(nlon), deltaY(nlat), stat=STATUS)
-   VERIFY_(STATUS)
    deltaZ = 1.0
 
    if(GsiGridType==0) then  ! equally spaced dgrid
 
-      deltaX = 2.0*pi/nlon
-      deltaY = pi/(nlat-1)
 
 ! Set grid longitude array used by GSI.
       do i=1,nlon			! from 0 to 2pi
@@ -562,15 +561,6 @@
 ! Set Gaussian grid lon/lat arrays used by GSI.
       call gengrid_vars  
 
-! Set deltaX
-      deltaX = 2.0*pi/nlon
-
-! Set deltaY
-      do j=1,nlat-1
-         deltaY(j)=rlats(j+1)-rlats(j)
-      end do
-      deltaY(nlat) = rlats(nlat)-rlats(nlat-1)
-
   end if
  
 ! Re-Define South-West Corner of First Grid-Box
@@ -582,56 +572,23 @@
 !   |           |
 !   SW---------SE
 !
-! In ESMF the minimum coordinate is defined as the SW corner of the first
-! grid-box:
-!
-   minCoord(1) = lon0 - deltaX(1)/2 
-   minCoord(2) = lat0 - deltaY(1)/2 
 
 ! Create Grid. The deltas define whether is is uniform or non-uniform
 
-   grid = ESMF_GridCreateHorzLatLon(minGlobalCoordPerDim=minCoord(1:2), &
-        delta1=deltaX,                                                  &
-	delta2=deltaY,                                                  &
-        horzstagger=ESMF_GRID_HORZ_STAGGER_A,                           &
-        periodic=(/ESMF_TRUE, ESMF_FALSE/),                             &
-        name='GSI Grid', rc=STATUS)
+   grid = MAPL_LatLonGridCreate (Name='GSI Grid', vm=vm, Nx=nxpe, Ny=nype,           &
+                                 IM_World=nlon, BegLon=lon0d, &
+                                 JM_World=nlat, BegLat=lat0d, &
+                                 LM_World=nsig, &
+                                 RC=STATUS)
+!!                                IM_World, BegLon, DelLon, &
+!!                                JM_World, BegLat, DelLat, &
    VERIFY_(STATUS)
-
-   call ESMF_GridAddVertHeight(grid,            &
-        delta=(/(deltaZ, k=1,nsig) /),            &
-        vertStagger=ESMF_GRID_VERT_STAGGER_TOP, &
-        rc=STATUS)
-   VERIFY_(STATUS)
-
-! Get the IM-JMXY vectors
-! -----------------------
-   allocate( imxy(0:nxpe-1), jmxy(0:nype-1), stat=STATUS )
-   VERIFY_(STATUS)
-   call MAPL_DecomposeDim ( nlon, imxy, nxpe )
-   call MAPL_DecomposeDim ( nlat, jmxy, nype )
 
 ! distribute grid
 ! ---------------
 
-! create an nxpe*nype layout used to distribute the grid
-
-   LAYOUT = ESMF_DELayoutCreate(vm, deCountList=(/nxpe, nype/), rc=STATUS)
-   VERIFY_(STATUS)
-
-   call ESMF_GridDistribute(grid,               &
-        deLayout=LAYOUT,                        &
-        countsPerDEDim1=imxy,                   &
-        countsPerDEDim2=jmxy,                   &
-        rc=STATUS) 
-
-   deallocate(imxy, jmxy, stat=STATUS)
-   VERIFY_(STATUS)
-   deallocate(deltaX, deltaY, stat=STATUS)
-   VERIFY_(STATUS)
-
-   call ESMF_VMBroadcast(vm, rlons, size(rlons), ROOT, rc=status)
-   call ESMF_VMBroadcast(vm, rlats, size(rlats), ROOT, rc=status)
+   call ESMF_VMBroadcast(vm, rlons, size(rlons), MAPL_Root, RC=STATUS); VERIFY_(STATUS)
+   call ESMF_VMBroadcast(vm, rlats, size(rlats), MAPL_Root, RC=STATUS); VERIFY_(STATUS)
 
    ! Reinitialize specmod for spectral transformation whereever needed.
    if(GsiGridType==0) then 
@@ -651,22 +608,22 @@
       flip_lons  = ESMF_FALSE
       flip_poles = ESMF_TRUE
    end if   
-   call ESMF_GridSetAttribute(grid, "FLIP_LONS", flip_lons, rc=STATUS)
+   call ESMF_AttributeSet(grid, "FLIP_LONS", flip_lons, rc=STATUS)
    VERIFY_(STATUS)
-   call ESMF_GridSetAttribute(grid, "FLIP_POLES", flip_poles, rc=STATUS)
+   call ESMF_AttributeSet(grid, "FLIP_POLES", flip_poles, rc=STATUS)
    VERIFY_(STATUS)
 
 !!! TODO: Set some grid attributes to perform these actions during coupling:
 !!! GSI distributed fields are transposed from IJK to JIK
 !   index_order = 2-1-3  ! e.g.
-!   call ESMF_GridSetAttribute(grid, "GRID_INDEX_ORDER", index_order , rc= STATUS)
+!   call ESMF_AttributeSet(grid, "GRID_INDEX_ORDER", index_order , rc= STATUS)
 !   VERIFY_(STATUS)
 
-   call ESMF_GridSetAttribute(grid, 'ak', nsig+1, ak5, rc=STATUS)
+   call ESMF_AttributeSet(grid, 'ak', nsig+1, ak5, rc=STATUS)
    VERIFY_(STATUS)
-   call ESMF_GridSetAttribute(grid, 'bk', nsig+1, bk5, rc=STATUS)
+   call ESMF_AttributeSet(grid, 'bk', nsig+1, bk5, rc=STATUS)
    VERIFY_(STATUS)
-!  call ESMF_GridSetAttribute(grid, 'ck', nsig+1, ck5, rc=STATUS)
+!  call ESMF_AttributeSet(grid, 'ck', nsig+1, ck5, rc=STATUS)
 !  VERIFY_(STATUS)
 
    end subroutine GSI_GridCompGridCreate_
@@ -740,14 +697,10 @@
 
 ! these parameters are usually obtained for a first guess' file header:
 
-   CALL ESMF_ConfigGetAttribute(CF, tracers, label = 'tracers:', rc=STATUS)
-   VERIFY_(STATUS)
-   CALL ESMF_ConfigGetAttribute(CF, vtid   , label = 'vtid:'   , rc=STATUS)
-   VERIFY_(STATUS)
-   CALL ESMF_ConfigGetAttribute(CF, pdryini, label = 'pdryini:', rc=STATUS)
-   VERIFY_(STATUS)
-   CALL ESMF_ConfigGetAttribute(CF, xncld  , label = 'xncld:'  , rc=STATUS)
-   VERIFY_(STATUS)
+   CALL ESMF_ConfigGetAttribute(CF, tracers, label = 'tracers:', RC=STATUS); VERIFY_(STATUS)
+   CALL ESMF_ConfigGetAttribute(CF, vtid   , label = 'vtid:'   , RC=STATUS); VERIFY_(STATUS)
+   CALL ESMF_ConfigGetAttribute(CF, pdryini, label = 'pdryini:', RC=STATUS); VERIFY_(STATUS)
+   CALL ESMF_ConfigGetAttribute(CF, xncld  , label = 'xncld:'  , RC=STATUS); VERIFY_(STATUS)
 
    end subroutine GSI_GridCompGetVertParms_
 
@@ -831,6 +784,7 @@
 ! allocation of GSI internal state variables
 
    character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompAlloc'
+   integer(i_kind) ii,jj,kk,nn
 
    allocate( isli     (lat2,lon2,nfldsfc),&
              fact10   (lat2,lon2,nfldsfc),&
@@ -845,6 +799,22 @@
              sfc_rough(lat2,lon2,nfldsfc),&
              stat=STATUS)
    VERIFY_(STATUS)
+   do nn=1,nfldsfc
+      do jj=1,lon2
+         do ii=1,lat2
+            isli(ii,jj,nn)=izero
+            fact10(ii,jj,nn)=zero
+            sfct(ii,jj,nn)=zero
+            sno(ii,jj,nn)=zero
+            veg_type(ii,jj,nn)=zero
+            veg_frac(ii,jj,nn)=zero
+            soil_type(ii,jj,nn)=zero
+            soil_temp(ii,jj,nn)=zero
+            soil_moi(ii,jj,nn)=zero
+         end do
+      end do
+   end do
+
    allocate( ges_z   (lat2,lon2,nfldsig),     &
              ges_ps  (lat2,lon2,nfldsig),     &
              ges_u   (lat2,lon2,nsig,nfldsig),&
@@ -857,6 +827,30 @@
              ges_tv  (lat2,lon2,nsig,nfldsig),&
              stat=STATUS)
    VERIFY_(STATUS)
+    do nn=1,nfldsig
+       do jj=1,lon2
+          do ii=1,lat2
+             ges_z(ii,jj,nn)=zero
+             ges_ps(ii,jj,nn)=zero
+          end do
+       end do
+    end do
+    do nn=1,nfldsig
+       do kk=1,nsig
+          do jj=1,lon2
+             do ii=1,lat2
+                ges_u   (ii,jj,kk,nn)=zero
+                ges_v   (ii,jj,kk,nn)=zero
+                ges_vor (ii,jj,kk,nn)=zero
+                ges_div (ii,jj,kk,nn)=zero
+                ges_cwmr(ii,jj,kk,nn)=zero
+                ges_q   (ii,jj,kk,nn)=zero
+                ges_oz  (ii,jj,kk,nn)=zero
+                ges_tv  (ii,jj,kk,nn)=zero
+             end do
+          end do
+       end do
+    end do
 
 
    RETURN_(ESMF_SUCCESS)
@@ -909,7 +903,6 @@
    type(ESMF_Config)                 :: CF        ! coneiguration data
    type(ESMF_VM)                     :: VM        ! virtual machine
    type(ESMF_Grid)                   :: GSIGrid   ! this component's grid
-   type(ESMF_DELayout)               :: LAYOUT    ! DE layout
    type(ESMF_Alarm), pointer         :: ALARM(:)
    type(ESMF_Alarm)                  :: GSIALARM
    logical                           :: do_analysis
@@ -923,20 +916,23 @@
    real(4),dimension(:,:,:), pointer :: tp   ! virtual temp.
    real(4),dimension(:,:,:), pointer :: qp   ! spec. hum.
    real(4),dimension(:,:,:), pointer :: ozp  ! ozone
-   real(4),dimension(:,:,:), pointer :: cwmr ! cloud water mixing ratio
+   real(4),dimension(:,:,:), pointer :: qimr ! cloud ice    mixing ratio
+   real(4),dimension(:,:,:), pointer :: qlmr ! cloud liquid mixing ratio
    ! import state surface pointers
    real(4),dimension(:,:  ), pointer :: f10p ! 10m winf factors
    real(4),dimension(:,:  ), pointer :: tskp ! skin Temp.
    real(4),dimension(:,:  ), pointer :: snop ! snow depth
    real(4),dimension(:,:  ), pointer :: sotp ! soil Temp.
    real(4),dimension(:,:  ), pointer :: soqp ! soil moist. 
-   real(4),dimension(:,:  ), pointer :: slip ! S-L-I flag
+   real(4),dimension(:,:  ), pointer :: frland    ! land fraction
+   real(4),dimension(:,:  ), pointer :: frlandice ! land-ice fraction
+   real(4),dimension(:,:  ), pointer :: frlake    ! lake fraction
+   real(4),dimension(:,:  ), pointer :: frocean   ! ocean fraction
+   real(4),dimension(:,:  ), pointer :: frseaice  ! sea-ice fraction
    real(4),dimension(:,:  ), pointer :: vtyp ! veg. type
    real(4),dimension(:,:  ), pointer :: styp ! soil type
    real(4),dimension(:,:  ), pointer :: vfrp ! veg. frac.
    real(4),dimension(:,:  ), pointer :: sz0p ! surf roughness
-   ! derived from slip - but integer
-   integer, dimension(:,:  ), pointer:: islip
    ! u10m and v10m used to calculate 10m wind factors
    real(4),dimension(:,:  ), pointer :: u10p, v10p
    ! export state pointers - tendencies
@@ -951,7 +947,13 @@
    real(4),dimension(:,:,:), pointer :: dt    ! virtual Temp.
    real(4),dimension(:,:,:), pointer :: dq    ! spec. hum.
    real(4),dimension(:,:,:), pointer :: doz   ! ozone
-   real(4),dimension(:,:,:), pointer :: dcwmr ! cloud water mixing ratio
+   real(4),dimension(:,:,:), pointer :: dqimr ! cloud ice    mixing ratio
+   real(4),dimension(:,:,:), pointer :: dqlmr ! cloud liquid mixing ratio
+   real(4),dimension(:,:  ), pointer :: dfrland    ! land fraction
+   real(4),dimension(:,:  ), pointer :: dfrlandice ! land-ice fraction
+   real(4),dimension(:,:  ), pointer :: dfrlake    ! lake fraction
+   real(4),dimension(:,:  ), pointer :: dfrocean   ! ocean fraction
+   real(4),dimension(:,:  ), pointer :: dfrseaice  ! sea-ice fraction
    character(len=ESMF_MAXSTR)        :: aname
    character(len=ESMF_MAXSTR)        :: opt
    character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompRun'
@@ -968,8 +970,6 @@
    call ESMF_GridCompGet( gc, config=CF, RC=STATUS )
    VERIFY_(STATUS)
    call ESMF_GridCompGet( gc, grid=GSIgrid, RC=STATUS )
-   VERIFY_(STATUS)
-   call ESMF_GridGetDELayout(GSIgrid, layout, rc=status)
    VERIFY_(STATUS)
    call ESMF_ConfigGetAttribute( CF, GSIGridType, label ='GSIGridType:', rc = STATUS )
    VERIFY_(STATUS)
@@ -1006,7 +1006,7 @@
 !  L = (nthTimeIndex-1)/nbkgfreq + 1
    L =  nthTimeIndex
 
-!  Determine if it's time do actually do the analysis
+!  Determine if it's time to actually do the analysis
 !  --------------------------------------------------
    do_analysis = .false.
    call MAPL_StateAlarmGet(GENSTATE, GSIALARM, NAME='last-bkg', RC=STATUS); VERIFY_(STATUS)
@@ -1102,7 +1102,7 @@
 !-------------------------------------------------------------------------
 !BOPI
 
-! !IROUTINE: GSI_GridCompCopyDynImport2Internal  -- get pointers
+! !IROUTINE: GSI_GridCompGetPointers_  -- get pointers
 
 ! !INTERFACE:
 
@@ -1140,7 +1140,9 @@
    VERIFY_(STATUS)
    call ESMFL_StateGetPointerToData(import, ozp,   'ozone',   rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(import, cwmr,  'qctot',   rc=STATUS)
+   call ESMFL_StateGetPointerToData(import, qimr,  'qitot',   rc=STATUS)
+   VERIFY_(STATUS)
+   call ESMFL_StateGetPointerToData(import, qlmr,  'qltot',   rc=STATUS)
    VERIFY_(STATUS)
    call ESMFL_StateGetPointerToData(import, tskp,     'ts',   rc=STATUS)
    VERIFY_(STATUS)
@@ -1150,7 +1152,15 @@
    VERIFY_(STATUS)
    call ESMFL_StateGetPointerToData(import, sotp,  'TSOIL1',  rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(import, slip,     'ORO',  rc=STATUS)
+   call ESMFL_StateGetPointerToData(import, frland,   'frland',     rc=STATUS)
+   VERIFY_(STATUS)
+   call ESMFL_StateGetPointerToData(import, frlandice,'frlandice',  rc=STATUS)
+   VERIFY_(STATUS)
+   call ESMFL_StateGetPointerToData(import, frlake,   'frlake',     rc=STATUS)
+   VERIFY_(STATUS)
+   call ESMFL_StateGetPointerToData(import, frocean,  'frocean',    rc=STATUS)
+   VERIFY_(STATUS)
+   call ESMFL_StateGetPointerToData(import, frseaice,'frseaice',    rc=STATUS)
    VERIFY_(STATUS)
    call ESMFL_StateGetPointerToData(import, sz0p,     'Z0M',  rc=STATUS)
    VERIFY_(STATUS)
@@ -1167,29 +1177,37 @@
 ! exports
 ! -------
 
-   call ESMFL_StateGetPointerToData(export, df10,   'f10',  alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, dhs,             'phis',  alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(export, dsli,   'lwi',  alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, dps,               'ps',  alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(export, dts,     'ts',  alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, dts,               'ts',  alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(export, dhs,   'phis',  alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, dfrland,        'frland', alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(export, dps,     'ps',  alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, dfrlandice,  'frlandice', alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(export, ddp,   'delp',  alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, dfrlake,        'frlake', alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(export, du,       'u',  alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, dfrocean,      'frocean', alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(export, dv,       'v',  alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, dfrseaice,    'frseaice', alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(export, dt,       'tv', alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, ddp,             'delp',  alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(export, dq,    'sphu',  alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, du,                 'u',  alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(export, doz,   'ozone', alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, dv,                 'v',  alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
-   call ESMFL_StateGetPointerToData(export, dcwmr, 'qctot', alloc=.true., rc=STATUS)
+   call ESMFL_StateGetPointerToData(export, dt,                 'tv', alloc=.true., rc=STATUS)
+   VERIFY_(STATUS)
+   call ESMFL_StateGetPointerToData(export, dq,              'sphu',  alloc=.true., rc=STATUS)
+   VERIFY_(STATUS)
+   call ESMFL_StateGetPointerToData(export, doz,             'ozone', alloc=.true., rc=STATUS)
+   VERIFY_(STATUS)
+   call ESMFL_StateGetPointerToData(export, dqimr,           'qitot', alloc=.true., rc=STATUS)
+   VERIFY_(STATUS)
+   call ESMFL_StateGetPointerToData(export, dqlmr,           'qltot', alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
 
    end subroutine GSI_GridCompGetPointers_
@@ -1230,6 +1248,7 @@
 ! !REVISION HISTORY:
 !
 !   17Apr2007 Todling  Swap vertical on way in
+!   10Mar2009 Todling  Handle qi/qlmr instead of qctot
 !
 !EOPI
 !-------------------------------------------------------------------------
@@ -1278,9 +1297,14 @@
 
    call GSI_GridCompSwapIJ_(ozp,ges_oz(:,:,:,it))
 
-! Cloud liquid water content and cloud ice water content are copied into
-! the cloud condensate mixing ratio - internal GSI field
-   call GSI_GridCompSwapIJ_(cwmr,ges_cwmr(:,:,:,it))
+! Cloud liquid water content and cloud ice water content are added into
+! cloud condensate mixing ratio - internal GSI field
+   where(qimr.ne.MAPL_UNDEF .and. qlmr.ne.MAPL_UNDEF)
+         qimr=qimr+qlmr
+   elsewhere
+         qimr=MAPL_UNDEF
+   endwhere 
+   call GSI_GridCompSwapIJ_(qimr,ges_cwmr(:,:,:,it))
 
 ! simple statistics
 
@@ -1308,9 +1332,17 @@
 
    subroutine GSI_GridCompComputeVorDiv_(it)
 
+#ifdef _GMAO_FVGSI_
    use m_ggGradient,only : ggGradient
    use m_ggGradient,only : ggGradient_init,clean
    use m_ggGradient,only : ggDivo
+#else /* _GMAO_FVGSI_ */
+   use compact_diffs, only: create_cdiff_coefs
+   use compact_diffs, only: inisph
+   use compact_diffs, only: uv2vordiv
+   use compact_diffs, only: destroy_cdiff_coefs
+   use xhat_vordivmod, only: xhat_vordiv_calc2
+#endif /* _GMAO_FVGSI_ */
 
    implicit none
 
@@ -1320,31 +1352,27 @@
 !
 ! !REVSION HISTORY:
 !
+!  18Feb2009 Todling - let GSI calc of vor/div when GMAO util not available
+!
 !EOPI
 !-------------------------------------------------------------------------
 
 ! local variables
 
+   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompComputeVorDiv_'
+#ifdef _GMAO_FVGSI_
    type(ggGradient) :: gr
    integer :: iGdim,iGloc,iGlen
    integer :: jGdim,jGloc,jGlen
-   real(8),dimension(:,:,:), pointer :: up8
-   real(8),dimension(:,:,:), pointer :: vp8
-   character(len=ESMF_MAXSTR), parameter   :: &
-        IAm='GSI_GridCompComputeVorDiv_'
+   real(r_kind),dimension(:,:,:), pointer :: up8
+   real(r_kind),dimension(:,:,:), pointer :: vp8
+#endif /* _GMAO_FVGSI_ */
 
 ! start
 
    if(IamRoot.and.verbose) print *,trim(Iam),': Compute vorticity and divergence'
 
-   ges_vor(:,:,:,it) = zero
-   ges_div(:,:,:,it) = zero
-
-   iGloc=jstart(myPE+1)
-   iGlen=jlon1 (myPE+1)
-   jGloc=istart(myPE+1)
-   jGlen=ilat1 (myPE+1)
-
+#ifdef _GMAO_FVGSI_
    allocate(up8 (lat2,lon2,nsig), &
             vp8 (lat2,lon2,nsig), &
             stat=STATUS)
@@ -1354,6 +1382,14 @@
   
    call GSI_GridCompSwapIJ_(up,up8)
    call GSI_GridCompSwapIJ_(vp,vp8)
+
+   ges_vor(:,:,:,it) = zero
+   ges_div(:,:,:,it) = zero
+
+   iGloc=jstart(myPE+1)
+   iGlen=jlon1 (myPE+1)
+   jGloc=istart(myPE+1)
+   jGlen=ilat1 (myPE+1)
 
    call ggGradient_init(gr,nlon,rlats(1:nlat),	&
   	iGloc,iGlen,jGloc,jGlen,nsig, mpi_comm_world)
@@ -1366,16 +1402,23 @@
 	ges_vor(:,:,:,it),	&	! vor(u,v)
 	mpi_comm_world)		        ! communicator
 
+   call clean(gr)
+   deallocate(up8, vp8, stat=STATUS)
+   VERIFY_(STATUS)
+
+#else /* _GMAO_FVGSI_ */
+   call create_cdiff_coefs
+   call inisph(rearth,rlats(2),wgtlats(2),nlon,nlat-2)
+   call xhat_vordiv_calc2 (ges_u(:,:,:,it),ges_v(:,:,:,it),ges_vor(:,:,:,it),ges_div(:,:,:,it))
+   call destroy_cdiff_coefs
+#endif /* _GMAO_FVGSI_ */
+
 ! simple statistics
 
 #ifdef UPAverbose 
    call guess_grids_stats('GCges_vor', ges_vor(:,:,:,it), mype)
    call guess_grids_stats('GCges_div', ges_div(:,:,:,it), mype)
 #endif
-
-   call clean(gr)
-   deallocate(up8, vp8, stat=STATUS)
-   VERIFY_(STATUS)
 
    end subroutine GSI_GridCompComputeVorDiv_
 
@@ -1408,9 +1451,10 @@
 
 ! local variables
 
-   real                                  :: wspd
    character(len=ESMF_MAXSTR), parameter :: &
             IAm='GSI_GridCompCopyImportSfc2Internal_'
+   real                              :: wspd
+   integer,allocatable,dimension(:,:):: islip
 
 ! start
 
@@ -1429,10 +1473,6 @@
    dsfct(:,:,it) = zero
 
    call GSI_GridCompSwapIJ_(tskp,sfct(:,:,it))
-#ifdef SFCverbose
-!  print *,' tskp (PE,min,max,sum): ',mype,minval(tskp),maxval(tskp),sum(tskp)
-   print *,' sfct (PE,min,max,sum): ',mype,minval(sfct(:,:,it)),maxval(sfct(:,:,it)),sum(sfct(:,:,it))
-#endif
 
 ! Snow depth
    call undef_2ssi(snop,MAPL_UNDEF,trim(Iam),	&
@@ -1441,31 +1481,23 @@
         verb=.false.,vname='SNOWDP')
    where(snop==UNDEF_SSI_)
       snop=0.
-   elsewhere(snop <0.)
+   elsewhere(snop <zero)
       snop=0.
    endwhere
    call GSI_GridCompSwapIJ_(snop,sno(:,:,it))
-#ifdef SFCverbose
-!  print *,' snop (PE,min,max,sum): ',mype,minval(snop),maxval(snop),sum(snop)
-   print *,' snow (PE,min,max,sum): ',mype,minval(sno(:,:,it)),maxval(sno(:,:,it)),sum(sno(:,:,it))
-#endif
 
 ! Soil moisture
    call undef_2ssi(soqp,MAPL_UNDEF,trim(Iam),	&
         verb=.false.,vname='GWETTOP')
    where(soqp == UNDEF_SSI_)	! in case of any
       soqp=1.
-   elsewhere(soqp <=0.)		! why not <.05?
+   elsewhere(soqp <=zero)		! why not <.05?
       ! This block would undo any :=UNDEF_SSI_ == -9.99e33
       soqp=.05
-   elsewhere(soqp > 1.)
+   elsewhere(soqp > one)
       soqp=1.
    endwhere
    call GSI_GridCompSwapIJ_(soqp,soil_moi(:,:,it))
-#ifdef SFCverbose
-!  print *,' soqp  (PE,min,max,sum): ',mype,minval(soqp),maxval(soqp),sum(soqp)
-   print *,' soilq (PE,min,max,sum): ',mype,minval(soil_moi(:,:,it)),maxval(soil_moi(:,:,it)),sum(soil_moi(:,:,it))
-#endif
 
 ! Soil temperature
    call undef_2ssi(sotp,MAPL_UNDEF,trim(Iam),	&
@@ -1478,48 +1510,38 @@
    endwhere
 
    call GSI_GridCompSwapIJ_(sotp,soil_temp(:,:,it))
-#ifdef SFCverbose
-!  print *,' sotp  (PE,min,max,sum): ',mype,minval(sotp),maxval(sotp),sum(sotp)
-   print *,' soilt (PE,min,max,sum): ',mype,minval(soil_temp(:,:,it)),maxval(soil_temp(:,:,it)),sum(soil_temp(:,:,it))
-#endif
 
 ! Surface roughness
    call undef_2ssi(sz0p,MAPL_UNDEF,trim(Iam),	&
         verb=.false.,vname='Z0M')
 ! A hack solution to work around possible undesired undef values.
-   where(sz0p == UNDEF_SSI_)
+   where(sz0p == UNDEF_SSI_ .or. sz0p<zero)
       sz0p=0.
    endwhere
 
    call GSI_GridCompSwapIJ_(sz0p,sfc_rough(:,:,it))
-#ifdef SFCverbose
-!  print *,' sz0p  (PE,min,max,sum): ',mype,minval(sz0p),maxval(sz0p),sum(sz0p)
-   print *,' rough (PE,min,max,sum): ',mype,minval(sfc_rough(:,:,it)),maxval(sfc_rough(:,:,it)),sum(sfc_rough(:,:,it))
-#endif
 
-! SLI mask
+! SLI mask  (adaptation from L. Takacs change elsewhere)
    allocate(islip(lon2,lat2), stat=STATUS)
    VERIFY_(STATUS)
-   call undef_2ssi(slip,MAPL_UNDEF,trim(Iam),	&
-        verb=.false.,vname='ORO')
-   ! islip=max(0.,min(nint(slip),2.))	! set to (0., 1., 2.)
-   where(slip == UNDEF_SSI_)	        ! in case there is any
-      slip=0.
-   elsewhere(slip <.5)
-      slip=0.
-   elsewhere(slip>=.5 .and. slip <1.5)
-      slip=1.
-   elsewhere
-      slip=2.
-   endwhere
-   islip = nint(slip)
-   islip = min(max(0,islip),2)
+                                            islip = 1  ! Land
+   where (  frocean+frlake >= 0.6         ) islip = 0  ! Water
+   where (  islip==0 .and. frseaice > 0.5 ) islip = 2  ! Ice
+   where (  islip==0 .and.   tskp < 271.4 ) islip = 2  ! Ice
+
+! Set output (export) land/water/etc information
+! RT: Is there a more decent way to set outputs from inputs in ESMF?
+!     Why can't I use fr-arrays directly?
+   if ( it==ntguessfc ) then
+       dts        = tskp
+       dfrland    = frland
+       dfrlandice = frlandice
+       dfrlake    = frlake
+       dfrocean   = frocean
+       dfrseaice  = frseaice
+   endif
 
    call GSI_GridCompSwapIJ_(islip,isli(:,:,it))
-#ifdef SFCverbose
-!  print *,' slip (PE,min,max,sum): ',mype,minval(slip),maxval(slip),sum(slip)
-   print *,' isli (PE,min,max,sum): ',mype,minval(isli(:,:,it)),maxval(isli(:,:,it)),sum(isli(:,:,it))
-#endif
 
    deallocate(islip, stat = STATUS)
    VERIFY_(STATUS)
@@ -1570,10 +1592,6 @@
               endif
            end do
         end do
-#ifdef SFCverbose
-!  print *,' f10m (PE,min,max,sum): ',mype,minval(f10p),maxval(f10p),sum(f10p)
-   print *,' fc10 (PE,min,max,sum): ',mype,minval(fact10(:,:,it)),maxval(fact10(:,:,it)),sum(fact10(:,:,it))
-#endif
      deallocate(f10p, stat = STATUS)
      VERIFY_(STATUS)
 
@@ -1711,6 +1729,11 @@
    call ArrayScatter(styp, stybuf, GSIGrid, hw=hw, rc=STATUS)
    VERIFY_(STATUS)
 
+!  Dirty fix to get rid of complete insanity (but still not correct)
+!  -----------------------------------------
+   where(vtyp <= zero) vtyp = one
+   where(styp <= zero) styp = one
+
    call GSI_GridCompSwapIJ_(vtyp, veg_type(:,:,it))
    call GSI_GridCompSwapIJ_(styp,soil_type(:,:,it))   
    call GSI_GridCompSwapIJ_(vfrp, veg_frac(:,:,it))
@@ -1758,6 +1781,8 @@
 !   17Apr2007 Todling  Swap vertical on way out
 !   20Apr2007 Todling  Added phis(ges_z) to export state
 !   05Dec2008 Todling  Update SST before writing out
+!   10Mar2009 Todling  Place cwmr into qimr; zero out qltot
+!   12Mar2009 Todling  Revamp skin temperature imp/exp
 !
 !EOPI
 !-------------------------------------------------------------------------
@@ -1784,33 +1809,33 @@
    call guess_grids_stats('GCges_cwmr', ges_cwmr(:,:,:,it), mype)
 #endif
 
-!  SST needs to be updated before being written out 
-!  ------------------------------------------------
-   if ( lwrtinc ) then
-        sfct(:,:,it) = dsfct(:,:,it)
-   else
-        sfct(:,:,it) = sfct(:,:,it) + dsfct(:,:,it)
+!  If so, save full skin temperature field to work array
+!  -----------------------------------------------------
+   if ( .not. lwrtinc ) then
+       allocate(wrk(size(dts,1),size(dts,2)))
+       wrk = dts
    endif
 
-! Here we transpose each field  from JIK (GSI) to IJK (GEOS) ordering
-! Note we will need to set dps = dps*1000.0 (not just GsiGridType=1)
-
-   allocate ( wrk(size(isli,1),size(isli,2)) )
-   wrk(:,:) = real(isli(:,:,it))
-   call GSI_GridCompSwapJI_(dsli, wrk               )
-   deallocate (wrk)
-
-   call GSI_GridCompSwapJI_(df10,  fact10 (:,:,  it))
-
-   call GSI_GridCompSwapJI_(dts,  sfct    (:,:,  it))
    call GSI_GridCompSwapJI_(dhs,  ges_z   (:,:,  it))
    call GSI_GridCompSwapJI_(dps,  ges_ps  (:,:,  it))
+   call GSI_GridCompSwapJI_(dts,  dsfct   (:,:,  it))
    call GSI_GridCompSwapJI_(du,   ges_u   (:,:,:,it))
    call GSI_GridCompSwapJI_(dv,   ges_v   (:,:,:,it))
    call GSI_GridCompSwapJI_(dt,   ges_tv  (:,:,:,it))
    call GSI_GridCompSwapJI_(dq,   ges_q   (:,:,:,it))
    call GSI_GridCompSwapJI_(doz,  ges_oz  (:,:,:,it))
-   call GSI_GridCompSwapJI_(dcwmr,ges_cwmr(:,:,:,it))
+   call GSI_GridCompSwapJI_(dqimr,ges_cwmr(:,:,:,it))
+   dqlmr = zero
+
+!  SST needs to be updated before being written out 
+!  ------------------------------------------------
+   if ( .not. lwrtinc ) then
+       where (dts/=MAPL_UNDEF) dts = wrk + dts
+       deallocate(wrk)
+   endif
+#ifdef SFCverbose
+   print *,' dts (PE,min,max,sum): ',mype,minval(dts),maxval(dts),sum(dts)
+#endif
 
    call UnScale_Export_()
 
@@ -1831,9 +1856,6 @@
 
         if(sfcFirst_(Pa_per_kPa*ak5,bk5,maxval(dps))) ddp(:,:,:)=-ddp(:,:,:)
    endif
-
-
-   
 
    end subroutine GSI_GridCompCopyInternal2Export_
 
@@ -2031,6 +2053,13 @@
    subroutine RC_obstable_ ( nobfiles )
 
 !  01Oct2007 Todling initial code
+!  17Feb2009 Jing Guo	- removed mpeu dependency using m_inpak90
+!			- removed VERIFY_() reference, since this
+!			  code does not meet the requirements for
+!			  VERIFY_() macro and VERIFY(rc/=0) will
+!			  not produce an abort().
+!  18Feb2009 Jing Guo	- replaced mpeu dependency using m_strtemplate
+!			  with local module mpeu_util.
 
       implicit none
 
@@ -2038,7 +2067,6 @@
  
       character(len=*), parameter :: myname_   = 'RC_obstable_'
       character(len=*), parameter :: tablename = 'observation_files::'
-      character(len=*), parameter :: MYRC      = 'GSI_GridComp.rc'
 
       integer iret, ientry, iamroot
       character(len=ESMF_MAXSTR) :: token
@@ -2051,64 +2079,88 @@
 !     Allocate obs table array
 !     ------------------------
       allocate( obstab(ndatmax,2) )
-
-!     Load resources
-!     --------------
-      call i90_loadf (MYRC, iret)
-      if (iret/=0) then
-          write(6,'(2a,i5,2a)') myname_, ': I90_loadf error, iret =', iret, &
-                                             ': trying to load ', trim(MYRC)
-          VERIFY_(iret)
-      end if
+      obstab(:,:)=""
 
 !     Read table with paired datatypes:
 !     --------------------------------
-      call I90_label(tablename, iret)
-      if (iret/=0) then
-         write(6,'(2a,i5,2a)') myname_, ': I90_label error, iret=', iret, &
-                                            ': trying to read ', tablename
-         VERIFY_(iret)
-      end if
+      call ESMF_ConfigFindLabel(CF,trim(tablename),rc=iret)
+         if (iret/=0) then
+            write(6,'(2a,i5,3a)') myname_, ': ESMF_ConfigFindLabel error, iret=', iret, &
+                                           ': trying to read "', trim(tablename),'"'
+            call MAPL_Abort()
+         end if
+
       ientry   = 0
       nobfiles = 0
+
+      call getnexttoken1_(CF,token,myname_,iret)
       do while (iret==0)     ! read table entries
-         call I90_GLine ( iret ) ! iret=-1: end of file; +1: end of table
-         if (iret==0) then   ! OK, we have next row of table
-             ientry = ientry + 1
 
-             if(ientry>ndatmax) then
-                 write(6,'(2a,i5)') myname_, ': number of files in tabel exceed max allowed ', ndatmax
-                 iret = 99
-                 VERIFY_(iret)
-             endif
+         ientry=ientry+1
+	    if(ientry>ndatmax) then
+               write(6,'(2a,i5)') myname_, ': number of entries in tabel exceed max allowed ', ndatmax
+               write(6,'(2a,2a)') myname_, ': field #1 = "',trim(token),'"'
+               iret = 99
+	       call MAPL_Abort()
+	    endif
 
-             call I90_Gtoken ( token, iret )
-             if (iret/=0) then
-                 write(6,'(2a,i5)') myname_, ': I90_GInt error, iret=', iret
-                 VERIFY_(iret)
-             end if
-             if(token(1:1) == "#") cycle      ! skip lines that are commented out
-             obstab(ientry,1) = trim(token)
+	 	! Expect two tokens from this line
+	 obstab(ientry,1)=token
+	 call getnexttoken2_(CF,obstab(ientry,2),myname_)
 
-             call I90_Gtoken ( token, iret )
-             if (iret/=0) then
-                 write(6,'(2a,i5)') myname_, ': I90_GInt error, iret=', iret
-                 VERIFY_(iret)
-             end if
-             obstab(ientry,2) = trim(token)
-
+	     	! echo the input
              if (iamroot) write(6,'(5a)') myname_, &
                                          ': observation data entries: ', &
-                                          trim(obstab(ientry,1)), ' ', trim(obstab(ientry,2))
-         end if
-      end do
+                                          trim(obstab(ientry,1)), ' ',   &
+					  trim(obstab(ientry,2))
+
+	 	! try the next token
+	 call getnexttoken1_(CF,token,myname_,iret)
+      enddo
+
       nobfiles = ientry
 
 !     Release resource file:
 !     ---------------------
-      call I90_release()
 
    end subroutine RC_obstable_
+
+   subroutine getnexttoken1_(cf,token,myname,rc)
+     implicit none
+     type(ESMF_Config),intent(inout) :: cf
+     character(len=*),intent(out) :: token
+     character(len=*),intent(in ) :: myname
+     integer         ,intent(out) :: rc
+
+     token=""
+     call ESMF_ConfigNextLine(cf, rc=rc)
+       if(rc/=0) return           ! end-of-file is expected.  No error message is produced.
+
+     call ESMF_ConfigGetAttribute(cf, token, rc=rc)
+       if(rc/=0) then
+         write(6,'(2a,i5)') myname, ': ESMF_ConfigGetAttribute(field #1) error, rc=', rc
+         call MAPL_Abort()
+       endif
+
+     if(token=='::') rc=-1	! end-of-table is expected.  No error message is produced
+   end subroutine getnexttoken1_
+
+   subroutine getnexttoken2_(cf,token,myname)
+     implicit none
+     type(ESMF_Config),intent(inout) :: cf
+     character(len=*),intent(out) :: token
+     character(len=*),intent(in ) :: myname
+
+     integer :: rc
+
+     token=""
+     call ESMF_ConfigGetAttribute(cf, token, rc=rc)
+       if(rc/=0) then
+         write(6,'(2a,i5)') myname, ': ESMF_ConfigGetAttribute(field #2) error, rc=', rc
+         call MAPL_Abort()
+       endif
+   end subroutine getnexttoken2_
+
 
 !-------------------------------------------------------------------------
    subroutine setObsFile_(tmpl,gsiname,nymd,nhms,indx)
@@ -2124,7 +2176,7 @@
    character(len=ESMF_MAXSTR)            :: obsfile, obs_file
    character(len=ESMF_MAXSTR), parameter :: Iam='setObsFile_'
 
-   call StrTemplate ( obsfile, tmpl, 'GRADS', nymd=nymd, nhms=nhms, stat=STATUS )
+   call StrTemplate ( obsfile, tmpl, nymd=nymd, nhms=nhms, stat=STATUS )
    VERIFY_(STATUS)
    inquire(file=obsfile, exist=fexist)
    syscmd1 = 'rm -f '//trim(gsiname)
@@ -2208,6 +2260,7 @@
    call GSI_GridCompDealloc_()
 
    deallocate(ifilesig, ifilesfc, stat=STATUS)
+   VERIFY_(STATUS)
    deallocate(hrdifsig, hrdifsfc, stat=STATUS)
    VERIFY_(STATUS)
    
@@ -2277,7 +2330,7 @@
 ! !DESCRIPTION: Sets the import and export specs. The GSI expects (imports) 
 !       the following fields:
 !
-!       UPA: Hs, Ps, Tsk, u, v, Tv, vor, div, q, oz, Cwc
+!       UPA: Hs, Ps, Tsk, u, v, Tv, vor, div, q, oz, qi, ql
 !       SFC: F10m, Sno, qg, Tg, SLI, Vfrac, Vtyp, Styp, Sfc_rough
 ! 
 ! GEOS does not export vor, div - calculated from u,v by GSI
@@ -2293,12 +2346,154 @@
 !
 !  22Apr2007 Todling Properly naming u/v/tv fields
 !  24Apr2007 Todling Added delp to export state; tskin to ts from bkg.eta
+!  10Mar2009 Todling Add fraction (land/ice/etc) and replace qc w/ qi/qltot
 !
 !EOPI
 !-------------------------------------------------------------------------
 
    integer                               :: STATUS, local_hw
    character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompSetupSpecs'
+
+   integer(i_kind) ii
+
+!  Declare import 2d-fields
+!  ------------------------
+   integer, parameter :: nin2d=14
+   character(len=16), parameter :: insname2d(nin2d) = (/  &
+                                   'phis            ',    &
+                                   'ps              ',    &
+                                   'ts              ',    &
+                                   'U10M            ',    &
+                                   'V10M            ',    &
+                                   'SNOWDP          ',    &
+                                   'GWETTOP         ',    &
+                                   'TSOIL1          ',    &
+                                   'Z0M             ',    &
+                                   'frland          ',    &
+                                   'frlandice       ',    &
+                                   'frlake          ',    &
+                                   'frocean         ',    &
+                                   'frseaice        '    /)
+   character(len=32), parameter :: inlname2d(nin2d) = (/  &
+                      'geopotential height             ', &
+                      'surface pressure                ', &
+                      'skin temperature                ', &
+                      'u 10 m-wind                     ', &
+                      'v 10 m-wind                     ', &
+                      'snow depth                      ', &
+                      'surface soil wetness            ', &
+                      'soil temperature                ', &
+                      'roughness length                ', &
+                      'fraction of land                ', &
+                      'fraction of land ice            ', &
+                      'fraction of lake                ', &
+                      'fraction of ocean               ', &
+                      'fraction of sea ice             ' /)
+   character(len=16), parameter :: inunits2d(nin2d) = (/  &
+                                   'm**2/s**2       ',    &
+                                   'hPa             ',    &
+                                   'K               ',    &
+                                   'm/s             ',    &
+                                   'm/s             ',    &
+                                   'm               ',    &
+                                   '1               ',    &
+                                   'K               ',    &
+                                   'm               ',    &
+                                   '1               ',    &
+                                   '1               ',    &
+                                   '1               ',    &
+                                   '1               ',    &
+                                   '1               '    /)
+
+!  Declare import 3d-fields
+!  ------------------------
+   integer, parameter :: nin3d=7
+   character(len=16), parameter :: insname3d(nin3d) = (/  &
+                                   'u               ',    &
+                                   'v               ',    &
+                                   'tv              ',    &
+                                   'sphu            ',    &
+                                   'ozone           ',    &
+                                   'qitot           ',    &
+                                   'qltot           '    /)
+   character(len=40), parameter :: inlname3d(nin3d) = (/  &
+                      'eastward wind                           ', &
+                      'northward wind                          ', &
+                      'air virtual temperature                 ', &
+                      'specific humidity                       ', &
+                      'ozone mass mixing ratio                 ', &
+                      'mass fraction of cloud ice water        ', &
+                      'mass fraction of cloud liquid water     ' /)
+   character(len=16), parameter :: inunits3d(nin3d) = (/  &
+                                   'm/s             ',    &
+                                   'm/s             ',    &
+                                   'K               ',    &
+                                   'g/g             ',    &
+                                   'g/g             ',    &
+                                   '1               ',    &
+                                   '1               '    /)
+
+!  Declare export 2d-fields
+!  ------------------------
+   integer, parameter :: nex2d=8
+   character(len=16), parameter :: exsname2d(nex2d) = (/  &
+                                   'phis            ',    &
+                                   'ps              ',    &
+                                   'ts              ',    &
+                                   'frland          ',    &
+                                   'frlandice       ',    &
+                                   'frlake          ',    &
+                                   'frocean         ',    &
+                                   'frseaice        '    /)
+   character(len=32), parameter :: exlname2d(nex2d) = (/  &
+                      'geopotential height             ', &
+                      'surface pressure inc            ', &
+                      'skin temperature inc            ', &
+                      'fraction of land                ', &
+                      'fraction of land ice            ', &
+                      'fraction of lake                ', &
+                      'fraction of ocean               ', &
+                      'fraction of sea ice             ' /)
+   character(len=16), parameter :: exunits2d(nex2d) = (/  &
+                                   'm**2/s**2       ',    &
+                                   'hPa             ',    &
+                                   'K               ',    &
+                                   '1               ',    &
+                                   '1               ',    &
+                                   '1               ',    &
+                                   '1               ',    &
+                                   '1               '    /)
+
+!  Declare export 3d-fields
+!  ------------------------
+   integer, parameter :: nex3d=8
+   character(len=16), parameter :: exsname3d(nex3d) = (/  &
+                                   'u               ',    &
+                                   'v               ',    &
+                                   'tv              ',    &
+                                   'delp            ',    &
+                                   'sphu            ',    &
+                                   'ozone           ',    &
+                                   'qitot           ',    &
+                                   'qltot           '    /)
+   character(len=40), parameter :: exlname3d(nex3d) = (/  &
+                      'u-wind inc                              ', &
+                      'v-wind inc                              ', &
+                      'virtual temperature inc                 ', &
+                      'delta pressure inc                      ', &
+                      'specific humidity inc                   ', &
+                      'ozone mass mixing ratio inc             ', &
+                      'mass fraction of cloud ice water inc    ', &
+                      'mass fraction of cloud liquid water inc ' /)
+   character(len=16), parameter :: exunits3d(nex3d) = (/  &
+                                   'm/s             ',    &
+                                   'm/s             ',    &
+                                   'K               ',    &
+                                   'hPa             ',    &
+                                   'g/g             ',    &
+                                   'g/g             ',    &
+                                   '1               ',    &
+                                   '1               '    /)
 
 ! Begin
 
@@ -2308,421 +2503,51 @@
       local_hw=HW
    end if
 
-! Imports:
+! Imports
 
-! dynamics
+    do ii = 1, nin2d 
+       call MAPL_AddImportSpec(GC,        &
+         SHORT_NAME= trim(insname2d(ii)), &
+         LONG_NAME = trim(inlname2d(ii)), &
+         UNITS     = trim(inunits2d(ii)), &
+         DIMS      = MAPL_DimsHorzOnly,   &
+         VLOCATION = MAPL_VLocationNone,  &
+         HALOWIDTH = local_hw,            &
+         RC=STATUS  ); VERIFY_(STATUS)
+    enddo
+    do ii = 1, nin3d 
+     call MAPL_AddImportSpec(GC,           &
+         SHORT_NAME= trim(insname3d(ii)),  &
+         LONG_NAME = trim(inlname3d(ii)),  &
+         UNITS     = trim(inunits3d(ii)),  &
+         DIMS      = MAPL_DimsHorzVert,    &
+         VLOCATION = MAPL_VLocationCenter, &
+         HALOWIDTH = local_hw,             &
+         RC=STATUS  ); VERIFY_(STATUS)
+    enddo
 
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='phis' ,                     &
-         LONG_NAME ='geopotential height',       &
-         UNITS     ='m**2/s**2',                 &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
+! Exports
 
-! ps is in centi-bars
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='ps',                        &
-         LONG_NAME ='surface pressure',          &
-         UNITS     ='Pa',                        &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-! winds are on an A-grid
-
-     call MAPL_AddImportSpec(GC,                 &
-         SHORT_NAME='u',                         &
-         LONG_NAME ='eastward wind',             &
-         UNITS     ='m/s',                       &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='v',                         &
-         LONG_NAME ='northward wind',            &
-         UNITS     ='m/s',                       &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-   call MAPL_AddImportSpec(GC,                   &
-         SHORT_NAME='tv',                        &
-         LONG_NAME ='air virtual temperature',   &
-         UNITS     ='K',                         &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  ) 
-    VERIFY_(STATUS)
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='sphu',                         &
-         LONG_NAME ='specific humidity',         &
-         UNITS     ='g/g',                       &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='ozone',                        &
-         LONG_NAME ='ozone mass mixing ratio',   & 
-         UNITS     ='g/g',                       &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='qctot',                     &
-         LONG_NAME ='mass_fraction_of_cloud_water',&
-         UNITS     ='1',                         &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-! surface (2d) fields
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='ts',                        &
-         LONG_NAME ='skin temperature',          &
-         UNITS     ='K',                         &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-! F10M may be derived from U10M, V10M, UWND, and VWND
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='U10M',                      &
-         LONG_NAME ='u 10 m-wind',               &
-         UNITS     ='m/s',                       &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='V10M',                      &
-         LONG_NAME ='v 10 m-wind',               &
-         UNITS     ='m/s',                       &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='SNOWDP',                    &
-         LONG_NAME ='snow depth',                &
-         UNITS     ='m',                         &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='GWETTOP',                   &
-         LONG_NAME ='surface soil wetness',      &
-         UNITS     ='1',                         &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='TSOIL1',                    &
-         LONG_NAME ='soil temperature',          &
-         UNITS     ='K',                         &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                  RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='ORO',                       &
-         LONG_NAME ='land-water-ice flag',       &
-         UNITS     ='0-1-2',                     &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddImportSpec(GC,                  &
-         SHORT_NAME='Z0M',                       &
-         LONG_NAME ='roughness length',          &
-         UNITS     ='m',                         &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-! soil type, vegetation type and vegetation fraction are read from a 
-! "FIX" file (ncepsfc)
-
-! Exports:
-
-! dynamics (increments)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='f10',                       &
-         LONG_NAME ='10m wind factor',           &
-         UNITS     ='adimensional',              &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-!   call MAPL_AddExportSpec(GC,                  &
-!        SHORT_NAME='slt',                       &
-!        LONG_NAME ='soil temperature',          &
-!        UNITS     ='K',                         &
-!        DIMS      = MAPL_DimsHorzOnly,          &
-!        VLOCATION = MAPL_VLocationNone,         &
-!        HALOWIDTH = local_hw,                   &
-!                                                RC=STATUS  )
-!   VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='lwi',                       &
-         LONG_NAME ='land/water/ice mask',       &
-         UNITS     ='adimensional',              &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='phis',                      &
-         LONG_NAME ='geopotential height',       &
-         UNITS     ='m2/s2',                     &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='ps',                        &
-         LONG_NAME ='surface pressure increments',&
-         UNITS     ='Pa',                        &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='ts',                        &
-         LONG_NAME ='skin temperature',          &
-         UNITS     ='K',                         &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='delp',                      &
-         LONG_NAME ='delp increments',           &
-         UNITS     ='Pa',                        &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='u',                         &
-         LONG_NAME ='u-wind increments',         &
-         UNITS     ='m/s',                       &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='v',                         &
-         LONG_NAME ='v-wind increments',         &
-         UNITS     ='m/s',                       &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                   &
-         SHORT_NAME='tv',                         &
-         LONG_NAME ='virtual temperature increments',&
-         UNITS     ='K',                         &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-! not clear what the tracer names are. in GEOS_SuperdynGridCompMod
-! import specifies just TRACER
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='sphu',                        &
-         LONG_NAME ='specific humidity increments',&
-         UNITS     ='kg/kg',                     &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-   call MAPL_AddExportSpec(GC,                   &
-         SHORT_NAME='ozone',                     &
-         LONG_NAME ='ozone increments',          &
-         UNITS     ='kg/kg',                     &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='qctot',                     &
-         LONG_NAME ='cloud condensate mixing ratio increments',&
-         UNITS     ='kg/kg',                     &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-#ifdef ExportFullFields
-
-! dynamics (fields)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='PHIS',                      &
-         LONG_NAME ='geopotential height',       &
-         UNITS     ='m2/s2',                     &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='TS',                        &
-         LONG_NAME ='skin temperature',          &
-         UNITS     ='K',                         &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='PS',                        &
-         LONG_NAME ='surface pressure',          &
-         UNITS     ='Pa',                        &
-         DIMS      = MAPL_DimsHorzOnly,          &
-         VLOCATION = MAPL_VLocationNone,         &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='DELP',                      &
-         LONG_NAME ='pressure layers',           &
-         UNITS     ='Pa',                        &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='U',                         &
-         LONG_NAME ='eastward wind',             &
-         UNITS     ='m/s',                       &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='V',                         &
-         LONG_NAME ='northward wind',            &
-         UNITS     ='m/s',                       &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='TV',                        &
-         LONG_NAME ='air virtual temperature',   &
-         UNITS     ='K',                         &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='Q',                         &
-         LONG_NAME ='specific humidity',         &
-         UNITS     ='kg/kg',                     &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-   call MAPL_AddExportSpec(GC,                   &
-         SHORT_NAME='O3',                        &
-         LONG_NAME ='ozone mass mixing ratio',   &
-         UNITS     ='kg/kg',                     &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-    call MAPL_AddExportSpec(GC,                  &
-         SHORT_NAME='qctot',                     &
-         LONG_NAME ='cloud condensate mixing ratio',&
-         UNITS     ='kg/kg',                     &
-         DIMS      = MAPL_DimsHorzVert,          &
-         VLOCATION = MAPL_VLocationCenter,       &
-         HALOWIDTH = local_hw,                   &
-                                                 RC=STATUS  )
-    VERIFY_(STATUS)
-
-#endif
+    do ii = 1, nex2d
+       call MAPL_AddExportSpec(GC,         &
+         SHORT_NAME= trim(exsname2d(ii)),  &
+         LONG_NAME = trim(exlname2d(ii)),  &
+         UNITS     = trim(exunits2d(ii)),  &
+         DIMS      = MAPL_DimsHorzOnly,    &
+         VLOCATION = MAPL_VLocationNone,   &
+         HALOWIDTH = local_hw,             &
+         RC=STATUS  ); VERIFY_(STATUS)
+    enddo
+    do ii = 1, nex3d
+       call MAPL_AddExportSpec(GC,         &
+         SHORT_NAME= trim(exsname3d(ii)),  &
+         LONG_NAME = trim(exlname3d(ii)),  &
+         UNITS     = trim(exunits3d(ii)),  &
+         DIMS      = MAPL_DimsHorzVert,    &
+         VLOCATION = MAPL_VLocationCenter, &
+         HALOWIDTH = local_hw,             &
+         RC=STATUS  );  VERIFY_(STATUS)
+    enddo
 
    end subroutine GSI_GridCompSetupSpecs
 
@@ -3508,12 +3333,12 @@
 	   endif
         endif
         
-        if ( val_max_out .ne. abs(undef_out) ) then
+        if ( val_max_out .gt. abs(undef_out) ) then
            if (MAPL_AM_I_ROOT()) then
                write(6,*) &
-	       	     ' Largest  value on  input: ',  val_max_in
+	       	     ' Largest  abs(value) on  input: ',  val_max_in
                write(6,*) &
-	   	     ' Largest  value on output: ',  val_max_out
+	   	     ' Largest  abs(value) on output: ',  val_max_out
                write(6,*) &
 		     ' Undef_in     value spec.: ',  undef_in
                write(6,*) &
@@ -3524,5 +3349,5 @@
 
      return
    end subroutine udf2udf2d_
-   
+
    end module GSI_GridCompMod

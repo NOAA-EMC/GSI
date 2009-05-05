@@ -14,7 +14,7 @@
 
   use kinds, only: i_kind,r_kind
   use geos_pertmod, only: parallel_init
-  use obsmod, only: dmesh,dval,dthin,dtype,dfile,dplat,ndat,&
+  use obsmod, only: dmesh,dval,dthin,dtype,dfile,dplat,dsfcalc,ndat,&
      init_obsmod_dflts,create_obsmod_vars,write_diag,oberrflg,&
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,ndatmax,&
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune, &
@@ -44,21 +44,20 @@
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
-     bcoption,diurnalbc
+     bcoption,diurnalbc,print_diag_pcg
   use berror, only: norh,ndeg,vs,as,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
      bkgv_flowdep,bkgv_rewgtfct,bkgv_write,tsfc_sdv,fpsproj
   use anberror, only: anisotropic,init_anberror,npass,ifilt_ord,triad4, &
      binom,normal,ngauss,rgauss,an_amp,an_vs,&
      grid_ratio,an_flen_u,an_flen_t,an_flen_z
   use compact_diffs, only: noq,init_compact_diffs
-  use jcmod, only: jcterm,jcdivt,bamp_ext1,bamp_ext2,bamp_int1,bamp_int2,init_jcvars,&
-      ljcdfi,alphajc
+  use jcmod, only: init_jcvars,ljcdfi,alphajc
   use tendsmod, only: ctph0,stph0,tlm0
   use mod_vtrans, only: nvmodes_keep,init_vtrans
   use mod_strong, only: jcstrong,jcstrong_option,nstrong,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
 
-  use specmod, only: jcap,init_spec,init_spec_vars,destroy_spec_vars
+  use specmod, only: jcap,jcap_b,init_spec,init_spec_vars,destroy_spec_vars
   use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,&
@@ -120,6 +119,7 @@
 !  20Nov2008  Todling   Add lferrscale to scale OMF w/ Rinv (actual fcst not guess)
 !  08Dec2008  Todling   Placed switch_on_derivatives,tendsflag in jcopts namelist
 !  28Jan2009  Todling   Remove original GMAO interface
+!  04-21-2009 Derber    Ensure that ithin is positive if neg. set to zero
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -204,6 +204,7 @@
 !     oberror_tune - logical flag to tune oberror table  (true=on)
 !     perturb_fact -  magnitude factor for observation perturbation
 !     crtm_coeffs_path - path of directory w/ CRTM coeffs files
+!     print_diag_pcg - logical turn on of printing of GMAO diagnostics in pcgsoi.f90
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -226,7 +227,8 @@
        l4dvar,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        nwrvecs,ladtest,lgrtest,lobskeep,lsensrecompute, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
-       idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone,lferrscale
+       idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
+       lferrscale,print_diag_pcg
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -251,7 +253,7 @@
 !                  prior to calling radiative transfer model
 
 
-  namelist/gridopts/jcap,nsig,nlat,nlon,hybrid,nlat_regional,nlon_regional,&
+  namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,hybrid,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nlayers
 
@@ -327,20 +329,13 @@
        grid_ratio,nord_f2a,an_flen_u,an_flen_t,an_flen_z
 
 ! JCOPTS (Jc term)
-!     jcterm   - if .true., jc term turned on (linearized about outer loop for now_
-!     jcdivt    - if .true., uses divergence tendency formulation
 !                 if .false., uses original formulation based on wind, temp, and ps tends
-!     bamp_ext1 - multiplying factor for first external component to Jc
-!     bamp_ext2 - multiplying factor for second external component to Jc
-!     bamp_int1 - multiplying factor for first internal component to Jc
-!     bamp_int2 - multiplying factor for second internal component to Jc
 !     ljcdfi    - when .t. uses digital filter initialization of increments (4dvar)
 !     alphajc   - parameter for digital filter
 !
 !     NOTE: magnitudes of the terms differ greatly between the two formulations
 
-  namelist/jcopts/jcterm,jcdivt,bamp_ext1,bamp_ext2,bamp_int1,bamp_int2,ljcdfi,alphajc,&
-                  switch_on_derivatives,tendsflag
+  namelist/jcopts/ljcdfi,alphajc,switch_on_derivatives,tendsflag
 
 ! STRONGOPTS (strong dynamic constraint)
 !     jcstrong - if .true., strong contraint on
@@ -395,11 +390,15 @@
 !      dval(ndat)       - relative value of each profile within group
 !                         relative weight for observation = dval/sum(dval)
 !                         within grid box
+!      dsfcalc(ndat)    - specifies method to determine surface fields
+!                         within a FOV. when equal to one, integrate
+!                         model fields over FOV. when not one, bilinearly
+!                         interpolate model fields to FOV center.
 !      time_window(ndat)- time window for each input data file
 !      dmesh(max(dthin))- thinning mesh for each group
 !      time_window_max  - upper limit on time window for all input data
 
-  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,time_window,time_window_max
+  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
@@ -514,10 +513,7 @@
 
 ! 4D-Var setup
   call setup_4dvar(miter,mype)
-  if (l4dvar) then
-    jcterm=.false.
-    jcdivt=.false.
-  else
+  if (.not. l4dvar) then
     ljcdfi=.false.
   endif
   if (l4dvar.and.lsensrecompute) then
@@ -598,8 +594,7 @@
 
 ! Turn on derivatives if using dynamic constraint
 ! For now if wrf mass or 2dvar no dynamic constraint
-  if (wrf_mass_regional .or. twodvar_regional) jcterm = .false.
-  if (jcterm.or.jcstrong.or.l_foto) tendsflag=.true.
+  if (jcstrong.or.l_foto) tendsflag=.true.
   if (tendsflag) switch_on_derivatives=.true.
 
 ! Stop if TOO MANY observation input files
@@ -644,6 +639,7 @@
 #endif
      dtype(1)=oneob_type
      if(dtype(1)=='u' .or. dtype(1)=='v')dtype(1)='uv'
+     dsis(1)=dtype(1)
   endif
 
 
@@ -661,6 +657,7 @@
      write(6,obsqc)
      ngroup=0
      do i=1,ndat
+       dthin(i) = max(dthin(i),0)
        if(dthin(i) > ngroup)ngroup=dthin(i)
      end do
      if(ngroup>0)write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
@@ -690,13 +687,6 @@
   call init_rad_vars
 
 
-! If single ob test, create prep.bufr file with single ob in it
-  if (oneobtest) then
-     if(mype==0)call oneobmakebufr
-     call mpi_barrier(mpi_comm_world,ierror)
-  end if
-
- 
   end subroutine gsimain_initialize
 
 !-------------------------------------------------------------------------

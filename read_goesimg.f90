@@ -34,6 +34,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !   2006-07-28  derber  - add solar and satellite azimuth angles remove isflg from output
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-10-14  derber - allow mpi_io
+!   2009-04-21  derber  - add ithin to call to makegrids
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -161,7 +162,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 
 ! Make thinning grids
-  call makegrids(rmesh)
+  call makegrids(rmesh,ithin)
 
 
 ! Open bufr file.

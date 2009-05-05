@@ -8,6 +8,7 @@ subroutine state2control(rval,bval,grad)
 !   2007-04-16  tremolet - initial code
 !   2008-11-28  todling  - update to GSI May 2008: add tsen and p3d
 !   2009-01-15  todling  - handle predictors in quad precision
+!   2009-04-21  derber   - modify call to getstvp to call to getuv
 !
 !   input argument list:
 !     rval - State variable
@@ -55,7 +56,7 @@ do jj=1,nsubwin
 
 ! Convert RHS calculations for u,v to st/vp for application of
 ! background error
-  call getstvp(rval(jj)%u,rval(jj)%v,grad%step(jj)%st,grad%step(jj)%vp)
+  call getuv(rval(jj)%u,rval(jj)%v,grad%step(jj)%st,grad%step(jj)%vp,1)
 
 ! Calculate sensible temperature
   call tv_to_tsen_ad(grad%step(jj)%t,rval(jj)%q,rval(jj)%tsen)

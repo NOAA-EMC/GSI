@@ -41,6 +41,7 @@ else
    GSIGC_SRCS = GSI_GridCompMod.F90
 endif
 LIB_GMAO = $(LIB_TRANSF) $(LIB_HERMES)  $(LIB_GFIO) $(LIB_MPEU)
+LIB_GMAO = 
 
 # To deactivate GEOS_PERT-related routines
 # ----------------------------------------
@@ -49,15 +50,16 @@ GEOS_PERT =
 INC_FVGCM =
 LIB_FVGCM =
 
-RSRC =	gmao_blacklist.txt		\
-	gmao_convinfo.txt		\
-	gmao_ozinfo.txt			\
-	gmao_pcpinfo.txt		\
-	gmao_satangbias.txt		\
-	gmao_satinfo.txt		\
-	gmao_airs_bufr.tbl		\
-	gsi.rc.sample			\
-	tlmadj_parameter.rc.sample
+RSRC =	gmao_airs_bufr.tbl		\
+	gmao_global_blacklist.txt	\
+	gmao_global_convinfo.txt	\
+	gmao_global_ozinfo.txt		\
+	gmao_global_pcpinfo.txt		\
+	gmao_global_satinfo.txt		\
+	gsi_fdda.rc.tmpl 		\
+	gsi.rc.tmpl			\
+	gsi_sens.rc.tmpl		\
+	obs.rc.tmpl
 
 esma_install install: install_lib install_inc install_bin install_etc
 
@@ -69,11 +71,13 @@ install_inc: $(ESMAINC)/$(THIS)
 	@ echo "-- $@: *.mod --> $(ESMAINC)/ --"
 	$(CP) *.mod     $(ESMAINC)/$(THIS)
 
-install_bin: $(ESMABIN) $(BIN) analyzer
+install_bin: $(ESMABIN) $(BIN) analyzer gsidiags
 	@ echo "-- $@: $(BIN) --> $(ESMABIN)/ --"
 	$(CP) $(BIN)     $(ESMABIN)/
 	$(SED) -e "s^@DASPERL^$(PERL)^" < analyzer > $(ESMABIN)/analyzer
+	$(SED) -e "s^@DASPERL^$(PERL)^" < gsidiags > $(ESMABIN)/gsidiags
 	chmod 755 $(ESMABIN)/analyzer
+	chmod 755 $(ESMABIN)/gsidiags
 
 install_etc: $(ESMAETC) $(RSRC) mksi_install
 	@ echo "-- $@: $(RSRC) --> $(ESMAETC)/ --"
@@ -145,9 +149,13 @@ SRCS =	\
 	bkgvar.f90 \
 	bkgvar_rewgt.f90 \
 	blacklist.f90 \
+        calc_fov_conical.f90 \
+        calc_fov_crosstrk.f90 \
 	calctends.f90 \
 	calctends_ad.F90 \
 	calctends_tl.F90 \
+	calctends_no_ad.F90 \
+	calctends_no_tl.F90 \
 	combine_radobs.f90 \
 	compact_diffs.f90 \
 	compute_derived.f90 \
@@ -180,7 +188,6 @@ SRCS =	\
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
 	get_semimp_mats.f90 \
-	get_tend_derivs.f90 \
 	getprs.f90 \
 	getstvp.f90 \
 	getuv.f90 \
@@ -204,7 +211,6 @@ SRCS =	\
 	intall.f90 \
 	intdw.f90 \
 	intgps.f90 \
-	intjc.f90 \
 	intjo.f90 \
 	intlimq.f90 \
 	intoz.f90 \
@@ -221,20 +227,21 @@ SRCS =	\
 	intsrw.f90 \
 	intsst.f90 \
 	intt.f90 \
+        inttcp.f90 \
 	intw.f90 \
-	jcdivtends.f90 \
 	jcmod.f90 \
 	jfunc.f90 \
 	kinds.f90 \
 	lagmod.f90 \
         lanczos.f90 \
-	linbal.f90 \
         looplimits.f90 \
 	m_berror_stats.F90 \
 	m_dgeevx.F90 \
  	m_gsiBiases.F90 \
         m_stats.F90 \
         m_tick.F90 \
+        mpeu_mpif.F90 \
+        mpeu_util.F90 \
 	mod_inmi.f90 \
 	mod_strong.f90 \
 	mod_vtrans.f90 \
@@ -303,6 +310,7 @@ SRCS =	\
 	read_ssmi.f90 \
 	read_ssmis.f90 \
 	read_superwinds.f90 \
+        read_tcps.f90 \
 	read_wrf_mass_files.f90 \
 	read_wrf_mass_guess.F90 \
 	read_wrf_nmm_files.f90 \
@@ -330,6 +338,7 @@ SRCS =	\
 	setupsrw.f90 \
 	setupsst.f90 \
 	setupt.f90 \
+        setuptcp.f90 \
 	setupw.f90 \
 	setupyobs.f90 \
 	sfc_model.f90 \
@@ -354,7 +363,6 @@ SRCS =	\
 	stpcalc.f90 \
 	stpdw.f90 \
 	stpgps.f90 \
-	stpjc.f90 \
 	stpjo.f90 \
 	stplimq.f90 \
 	stpoz.f90 \
@@ -368,6 +376,7 @@ SRCS =	\
 	stpsrw.f90 \
 	stpsst.f90 \
 	stpt.f90 \
+        stptcp.f90 \
 	stpw.f90 \
 	strong_bal_correction.f90 \
 	strong_baldiag_inc.f90 \
@@ -376,6 +385,7 @@ SRCS =	\
 	stvp2uv_reg.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
+        tcv_mod.f90 \
 	tendsmod.f90 \
         test_obsens.F90 \
         timermod.F90 \
@@ -413,6 +423,7 @@ OBJS := $(addsuffix .o, $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(basename $(ALLSRCS)))
 
 _D = -D_GMAO_FVGSI_ -D_IGNORE_GRIDVERIFY_ $(GEOS_PERT)
+_D =                                      $(GEOS_PERT)
 
 ifeq ("$(FOPT)","-O3")
    FOPT += $(LOOP_VECT)
@@ -429,9 +440,9 @@ THIS_GFSIO = NCEP_gfsio
 LIB_GFSIO  = $(ESMADIR)/$(ARCH)/lib/lib$(THIS_GFSIO).a   # move to proper place
 INC_GFSIO  = $(ESMADIR)/$(ARCH)/include/$(THIS_GFSIO)   # move to proper place
 
-MOD_DIRS = . $(INC_ESMF) $(INC_MPEU) $(INC_HERMES) $(INC_CRTM) $(INC_IRSSE) \
+MOD_DIRS = . $(INC_ESMF) $(INC_HERMES) $(INC_CRTM) $(INC_IRSSE) \
 	     $(INC_SIGIO) $(INC_GFSIO) \
-             $(INC_SFCIO) $(INC_TRANSF) $(INC_IRUTIL) $(INC_RADTRANS) $(INC_GEOS)
+             $(INC_SFCIO) $(INC_TRANSF) $(INC_IRUTIL) $(INC_RADTRANS) $(INC_GEOS) $(INC_MPI)
 USER_FDEFS = $(_D) $(HAVE_ESMF)
 USER_FFLAGS = -CB $(BIG_ENDIAN) $(BYTERECLEN)
 USER_FFLAGS = $(BYTERECLEN)
@@ -505,8 +516,6 @@ $(OBJS_OPENBIG) :
 	$(FC) -c $(BIG_ENDIAN) $(f90FLAGS) $<
 
 FFLAGS_OPENBIG = $(BIG_ENDIAN) $(f90FLAGS)
-
-# m_mpif.mod: $(LIB_MPEU)
 
 # Hack to prevent remaking dep files during cleaning
 # --------------------------------------------------

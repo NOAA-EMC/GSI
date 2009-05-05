@@ -11,6 +11,8 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 !   2007-07-03  kleist
 !   2008-06-05  safford - rm unused uses
 !   2008-09-05  lueken - merged ed's changes into q1fy09 code
+!   2009-04-15  wgu - added fpsproj option
+!   2009-04-21  wgu - bug fix in routine smooth2d
 !
 !   input argument list:
 !     sfvar     - stream function variance
@@ -36,7 +38,7 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   use guess_grids, only: ges_div,ges_vor,ges_tv,ges_ps,nfldsig
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_sum,mpi_rtype,mpi_max
   use balmod, only: agvz,wgvz,bvz
-  use berror, only: bkgv_rewgtfct,bkgv_write
+  use berror, only: bkgv_rewgtfct,bkgv_write,fpsproj
   implicit none
 
 ! Declare passed variables
@@ -116,11 +118,28 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   do k=1,nsig
     do j=1,lon2
       do i=1,lat2
-        balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
         bald(i,j,k)=bvz(i,k)*delpsi(i,j,k)
       end do
     end do
   end do
+  if(fpsproj)then
+    do k=1,nsig
+      do j=1,lon2
+        do i=1,lat2
+          balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
+        end do
+      end do
+    end do
+  else
+    do j=1,lon2
+      do i=1,lat2
+        do k=1,nsig-1
+          balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
+        end do
+        balps(i,j)=balps(i,j)+wgvz(i,nsig)*(delchi(i,j,1)-bald(i,j,1))
+      end do
+    end do
+  endif
 
 ! Balanced temperature from delta stream function
   do k=1,nsig
@@ -485,14 +504,14 @@ subroutine smooth2d(subd,nlevs,nsmooth,mype)
         sumn=zero
         sums=zero
         do i=1,nlon
-          sumn=sumn+grd2(i,nlat)
-          sums=sums+grd2(i,1)
+          sumn=sumn+grd2(nlat-1,i)
+          sums=sums+grd2(2,i)
         end do
         sumn=sumn/(real(nlon,r_kind))
         sums=sums/(real(nlon,r_kind))
-        do i=0,nlon
-          grd2(i,nlat)=sumn
-          grd2(i,1)=sums
+        do i=0,nlon+1
+          grd2(nlat,i)=sumn
+          grd2(1,i)=sums
         end do
 ! Perform smoother on interior 
         do j=1,nlon
@@ -631,3 +650,4 @@ subroutine scatter_stuff2(g,f,mype,inpe)
 
   return
 end subroutine scatter_stuff2
+

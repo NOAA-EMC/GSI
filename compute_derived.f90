@@ -95,7 +95,6 @@ subroutine compute_derived(mype)
   integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2
   
   real(r_kind) drh,d,dl1,dl2,psfc015,dn1,dn2
-  real(r_kind),dimension(5):: stat,stat1
   real(r_kind),allocatable,dimension(:,:,:):: dlnesdtv,dmax
   real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
@@ -112,8 +111,10 @@ subroutine compute_derived(mype)
 !       time extrapolation and non-linear balance constraints.
 
         
-        call get_derivatives(ges_u,ges_v,ges_tv,ges_ps,ges_q,&
-             ges_oz,sfct,ges_cwmr, &
+        it=ntguessig
+        call get_derivatives(ges_u(1,1,1,it),ges_v(1,1,1,it), &
+             ges_tv(1,1,1,it),ges_ps,ges_q(1,1,1,it),&
+             ges_oz(1,1,1,it),sfct(1,1,it),ges_cwmr(1,1,1,it), &
              ges_u_lon,ges_v_lon,ges_tvlon,ges_ps_lon,ges_qlon,&
              ges_ozlon,sfct_lon,ges_cwmr_lon, &
              ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,&
@@ -123,21 +124,22 @@ subroutine compute_derived(mype)
         if(.not. wrf_mass_regional .and. tendsflag)then
 
 ! now that we have derivs, get time tendencies if necessary
-            it=ntguessig
 
             call getprs(ges_ps(1,1,it),ges_3dp)
+
             call calctends(ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it), &
                ges_q(1,1,1,it),ges_oz(1,1,1,it),ges_cwmr(1,1,1,it),&
                ges_teta(1,1,1,it),ges_z(1,1,it), &
-               ges_u_lon(1,1,1,it),ges_u_lat(1,1,1,it),ges_v_lon(1,1,1,it),&
-               ges_v_lat(1,1,1,it),ges_tvlon(1,1,1,it),ges_tvlat(1,1,1,it),ges_ps_lon(1,1,it), &
-               ges_ps_lat(1,1,it),ges_qlon(1,1,1,it),ges_qlat(1,1,1,it),ges_ozlon(1,1,1,it),&
-               ges_ozlat(1,1,1,it),ges_cwmr_lon(1,1,1,it),ges_cwmr_lat(1,1,1,it),&
+               ges_u_lon,ges_u_lat,ges_v_lon,&
+               ges_v_lat,ges_tvlon,ges_tvlat,ges_ps_lon(1,1,it), &
+               ges_ps_lat(1,1,it),ges_qlon,ges_qlat,ges_ozlon,&
+               ges_ozlat,ges_cwmr_lon,ges_cwmr_lat,&
                mype,ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
                ges_oz_ten,ges_cwmr_ten,ges_3dp)
 
             if(jcstrong .and. write_diag(jiter) .and. baldiag_full) then
                 fullfield=.true.
+
 
                 call strong_bal_correction(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,mype, &
                                            ges_u,ges_v,ges_tv,ges_ps,.true.,fullfield,.false.)
@@ -338,31 +340,7 @@ subroutine compute_derived(mype)
   
   deallocate(dlnesdtv,dmax)
 
-! Generate and output RH stats
-  stat1=zero
-  stat=zero
-  stat(5)=nsig*(lat2-2)*(lon2-2)
-  do k=1,nsig
-     do j=2,lon2-1
-        do i=2,lat2-1
-           drh=rhgues(i,j,k)
-           if(drh > one)then
-              stat(1)=stat(1)+one
-              stat(2)=stat(2)+(drh - one)**2
-           elseif(drh < zero)then
-              stat(3)=stat(3)+one
-              stat(4)=stat(4)+drh**2
-           endif
-        end do
-     end do
-  end do
-  call mpi_allreduce(stat,stat1,5,mpi_rtype,&
-       mpi_sum,mpi_comm_world,ierror)
-  if(stat1(1) > zero)   stat1(2)=sqrt(stat1(2)/stat1(1))
-  if(stat1(3) > zero)   stat1(4)=sqrt(stat1(4)/stat1(3))
-  if(mype==0)write(6,*)'COMPUTE_DERIVED:  stats of RH=',&
-       nint(stat1(1)),stat1(2),nint(stat1(3)),stat1(4),nint(stat1(5))
-  
+  call q_diag(mype)
   
 ! End of routine
   return

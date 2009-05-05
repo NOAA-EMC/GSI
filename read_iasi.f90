@@ -42,6 +42,8 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
 !                      - add solar and satellite azimuth angles remove isflg from output
 !   2006-08-25  treadon - replace serial bufr i/o with parallel bufr i/o (mpi_io)
 !   2008-11-28  todling - measure time from beginning of assimilation window
+!   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
+!   2009-04-21  derber  - add ithin to call to makegrids
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -81,8 +83,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
        tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,one,three,izero,ione,rad2deg
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,nblocks,mpi_nextblock,&
-       mpi_readmg,mpi_ireadsb,mpi_ufbint,mpi_ufbrep
+  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
 
   implicit none
 
@@ -133,7 +134,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   integer(i_kind)   :: nchanlr
-  integer(i_kind)   :: iret
+  integer(i_kind)   :: iret,ireadsb
 
 
 ! Work variables for time
@@ -174,6 +175,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind):: idomsfc
   integer(i_kind):: ntest
   integer(i_kind):: error_status
+  integer(i_kind):: file_handle,ierror,nblocks
   character(len=20),dimension(1):: sensorlist
 
 
@@ -263,7 +265,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
   if (.not.assim) val_iasi=zero
 
 ! Make thinning grids
-  call makegrids(rmesh)
+  call makegrids(rmesh,ithin)
 
 ! Open BUFR file
   open(lnbufr,file=infile,form='unformatted')
@@ -274,8 +276,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
 
 ! Read header
   call readmg(lnbufr,subset,idate,iret)
-  call closbf(lnbufr)
-  close(lnbufr)
+  close(lnbufr) ! this enables reading with mpi i/o
   if( iret /= 0 ) return     ! no data?
 
   write(date,'( i10)') idate
@@ -288,21 +289,21 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax))
 
 ! Open up bufr file for mpi-io access
-  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub)
+  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub,file_handle,ierror,nblocks)
   
 ! Big loop to read data file
   mpi_loop: do mmblocks=0,nblocks-1,npe_sub
      if(mmblocks+mype_sub.gt.nblocks-1) then
         exit
      endif
-     call mpi_nextblock(mmblocks+mype_sub)
+     call mpi_nextblock(mmblocks+mype_sub,file_handle,ierror)
      block_loop: do
         call mpi_readmg(lnbufr,subset,idate,iret)
         if (iret /=0) exit
-        read_loop: do while (mpi_ireadsb(lnbufr)==0)
+        read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Read IASI FOV information
-     call mpi_ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QGFQ MJFC SELV')
+     call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QGFQ MJFC SELV')
      if ( linele(3) /= 0.0) cycle read_loop  ! problem with profile (QGFQ)
 
      if ( bad_line == nint(linele(2))) then
@@ -312,7 +313,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
         bad_line = -1
      endif
 
-     call mpi_ufbint(lnbufr,allspot,13,1,iret,allspotlist)
+     call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
      if(iret /= 1) cycle read_loop
 
 !    Check observing position
@@ -430,7 +431,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
      timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
 
 !   Clear Amount  (percent clear)
-     call mpi_ufbrep(lnbufr,cloud_frac,1,6,iret,'FCPH')
+     call ufbrep(lnbufr,cloud_frac,1,6,iret,'FCPH')
      clr_amt = cloud_frac(1)
 !    if ( clr_amt < zero .or. clr_amt > 100.0_r_kind ) clr_amt = zero
      clr_amt=max(clr_amt,zero)
@@ -466,7 +467,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
      call checkob(dist1,crit1,itx,iuse)
      if(.not. iuse)cycle read_loop
 
-     call mpi_ufbrep(lnbufr,cscale,3,10,iret,'STCH ENCH CHSF')
+     call ufbrep(lnbufr,cscale,3,10,iret,'STCH ENCH CHSF')
      if(iret /= 10) then
        write(6,*) 'READ_IASI  read scale error ',iret
        cycle read_loop
@@ -484,7 +485,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
 
 !    Read IASI channel number(CHNM) and radiance (SCRA)
 
-     call mpi_ufbint(lnbufr,allchan,2,n_totchan,iret,'SCRA CHNM')
+     call ufbint(lnbufr,allchan,2,n_totchan,iret,'SCRA CHNM')
      if( iret /= n_totchan)then
         write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
              iret, ' CH DATA IS READ INSTEAD OF ',n_totchan
@@ -554,14 +555,14 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
  end do block_loop
 end do mpi_loop
 
+! Close bufr file
+  call mpi_closbf(file_handle,ierror)
+  call closbf(lnbufr)
+
 ! deallocate crtm info
   error_status = crtm_destroy(channelinfo)
   if (error_status /= success) &
     write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
-
-! Close bufr file
-  call mpi_closbf
-  call closbf(lnbufr)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together

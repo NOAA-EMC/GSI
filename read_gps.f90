@@ -44,6 +44,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !   2008-02-06 cucurull - modify to support move from DDS to GTS/NC gpsro data feed
 !   2008-04-21 safford  - rm unused vars and uses
 !   2008-09-25 treadon  - skip report if ref_obs=.t. but no refractivity data
+!   2009-02-05 cucurull - assing instrument error (ref) to a nominal value
+!   2009-04-01 cucurull - add QC for Metop/GRAS
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -97,6 +99,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 ! Declare local variables
   logical good,outside
   
+  character(10) date,nemo
   character(80) hdr1a
   character,dimension(8):: subset
   character(len=16),allocatable,dimension(:):: gpsro_ctype
@@ -110,11 +113,15 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   integer(i_kind),dimension(5):: idate5
   integer(i_kind)             :: ikx
   integer(i_kind):: ngpsro_type,ikx_unknown,igpsro_type
+  integer(i_kind),parameter:: mxib=31
+  integer(i_kind) ibit(mxib),nib
+  logical six
+
 
   integer(i_kind),allocatable,dimension(:):: gpsro_itype,gpsro_ikx,nmrecs_id
   
   real(r_kind) timeo,t4dv
-  real(r_kind) pcc,usage,dlat,dlat_earth,dlon,dlon_earth
+  real(r_kind) pcc,qfro,usage,dlat,dlat_earth,dlon,dlon_earth
   real(r_kind) height,rlat,rlon,ref,bend,impact,roc,geoid,&
                bend_error,ref_error,bend_pccf,ref_pccf
 
@@ -127,6 +134,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
  
   data lnbufr/10/
   data hdr1a / 'YEAR MNTH DAYS HOUR MINU PCCF ELRC SAID PTID GEODU' / 
+  data nemo /'QFRO'/
   
 !***********************************************************************************
 
@@ -202,6 +210,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
 ! Extract header information
    call ufbint(lnbufr,bfr1ahdr,n1ahdr,1,iret,hdr1a)
+   call ufbint(lnbufr,qfro,1,1,iret,nemo)
 
 ! observation time in minutes
    idate5(1) = bfr1ahdr(1) ! year
@@ -245,12 +254,40 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
      endif
    endif
 
+! Check profile quality flags
+   if ( (said > gpsro_itype(5)).and.(said < gpsro_itype(12)) ) then  !Cosmic
+     if(pcc==zero) then
+      write(6,*)'READ_GPS:  **WARNING** bad COSMIC SAID=',said,'PTID=',ptid,'profile',&
+          ' SKIP this report'
+      cycle read_loop
+     endif
+   endif
+
+   if (said == gpsro_itype(2)) then ! Gras
+     call upftbv(lnbufr,nemo,qfro,mxib,ibit,nib)
+     six = .false.
+     if(nib > 0) then
+      do i=1,nib
+       if(ibit(i)== 6) then
+          six = .true.
+          exit
+       endif
+      enddo
+     endif
+
+     if(six) then
+        write(6,*)'READ_GPS:  **WARNING** bad GRAS SAID=',said,'PTID=',ptid,'profile',&
+             ' SKIP this report'
+        cycle read_loop
+     endif
+   endif
+
 !  Check we have the same number of levels for ref and bending angle
 !  when ref_obs on
    call ufbseq(lnbufr,data1b,25,maxlevs,levs,'ROSEQ1')  ! bending angle
    call ufbseq(lnbufr,data2a,25,maxlevs,levsr,'ROSEQ3') ! refractivity
    if ((ref_obs).and.(levs/=levsr)) then
-      write(6,*) 'READ_GPS:  ***WARNING*** said,ptid=',said,ptid,&
+      write(6,*) 'READ_GPS:  **WARNING** said,ptid=',said,ptid,&
            ' with gps_bnd levs=',levs,&
            ' and gps_ref levsr=',levsr,&
            ' SKIP this report'
@@ -286,7 +323,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
 ! Preliminary (sanity) QC checks for bad and missing data
      good=.true.
-     if((rlat>=1.e+9_r_kind).or.(rlon>=1.e+9_r_kind).or.(height<=zero).or.(pcc<100.0_r_kind)) then
+     if((rlat>=1.e+9_r_kind).or.(rlon>=1.e+9_r_kind).or.(height<=zero)) then
       good=.false.
      endif
      if (ref_obs) then
@@ -302,43 +339,17 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 ! If observation is "good" load into output array
      if(good) then
 
-! Compute error for the refractivity based on Kuo et al. 2003
- 
-      if(ref_obs) then
-! Tropics
-       if((rlat>=-30.0_r_kind).and.(rlat<=30.0_r_kind)) then
-          if ((height .ge. r7000) .and. (height.le.r31000)) then
-             ref_error = (ref/r100)*(0.1125_r_kind+(1.25e-5_r_kind*height))
-          elseif (height.gt.r31000) then
-              ref_error = (ref/r100)*0.5_r_kind
-          elseif (height.lt.r7000) then
-              ref_error = (ref/r100)*(3.0_r_kind-(4.e-4_r_kind*height))
-          else
-             write(6,*)'READ_GPS:  ***ERROR***  problem with height=',height,' at lat=',rlat
-             call stop2(92)
-          endif
-       else
-! Mid-latitudes
-           if ((height .ge. r5000) .and. (height.le.r25000)) then
-              ref_error = (ref/r100)*0.3_r_kind
-           elseif ((height .ge. r25000) .and. (height.le.r31000)) then
-              ref_error = (ref/r100)*(-3.45_r_kind+(1.5e-4_r_kind*height))
-           elseif (height.gt.r31000) then
-              ref_error = (ref/r100)*1.2_r_kind
-           elseif (height.lt.r5000) then
-              ref_error = (ref/r100)*(0.75_r_kind-(9.e-5_r_kind*height))
-           else
-              write(6,*)'READ_GPS:  ***ERROR***  problem with height=',height,' at lat=',rlat
-              call stop2(92)
-           endif
+! Assign preliminary errors
+
+       if(ref_obs) then
+        ref_error = ref*0.01_r_kind
+       else                      ! bending angle
+        if((impact-roc) <= r10000) then
+         bend_error=(-bend*0.09_r_kind/r10000)*(impact-roc)+bend*1.e-1_r_kind
+        else
+         bend_error=max(7.e-6_r_kind,bend*1.e-2_r_kind)
+        endif
        endif
-      else                      ! bending angle
-       if((impact-roc) <= r10000) then 
-        bend_error=(-bend*0.09_r_kind/r10000)*(impact-roc)+bend*1.e-1_r_kind
-       else
-        bend_error=max(7.e-6_r_kind,bend*1.e-2_r_kind)
-       endif
-      endif
 
        if (rlon>=r360)  rlon=rlon-r360
        if (rlon<zero  ) rlon=rlon+r360

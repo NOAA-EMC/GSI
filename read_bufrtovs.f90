@@ -55,6 +55,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2008-10-14  derber  - properly use EARS data and use MPI_IO
 !   2009-01-02  todling - remove unused vars
 !   2009-01-09  gayno   - add new option to calculate surface fields within FOV
+!   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
+!   2009-04-21  derber  - add ithin to call to makegrids
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -98,8 +100,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
   use antcorr_application
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,nblocks,mpi_nextblock,&
-       mpi_readmg,mpi_ireadsb,mpi_ufbint,mpi_ufbrep,lenbuf
+  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
   implicit none
 
 ! Declare passed variables
@@ -135,7 +136,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   character(8) subset,subfgn
   character(80) hdr1b
 
-  integer(i_kind) i,j,k,ifov,ntest
+  integer(i_kind) i,j,k,ifov,ntest,ireadsb
   integer(i_kind) iret,idate,nchanl,n,idomsfc
   integer(i_kind) ich1,ich2,ich8,ich15,kidsat,instrument
   integer(i_kind) nmind,itx,nele,itt,iout,ninstruments
@@ -143,7 +144,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon,ifovmod,mmblocks
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind) instr,ichan
+  integer(i_kind) instr,ichan,file_handle,ierror,nblocks
   integer(i_kind):: error_status
   character(len=20),dimension(1):: sensorlist
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
@@ -184,7 +185,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   
 
 ! Make thinning grids
-  call makegrids(rmesh)
+  call makegrids(rmesh,ithin)
 
 ! Set various variables depending on type of data to be read
 
@@ -405,8 +406,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
    call openbf(lnbufr,'IN',lnbufr)
    call datelen(10)
    call readmg(lnbufr,subset,idate,iret)
-   call closbf(lnbufr)
-   close(lnbufr)
+   close(lnbufr) ! this enables reading with mpi i/o
    if( subset /= subfgn) then
       write(6,*) 'READ_BUFRTOVS:  *** WARNING: ',&
            'THE FILE TITLE DOES NOT MATCH DATA SUBSET'
@@ -458,7 +458,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
          write(6,*)' failure to find instrument in read_bufrtovs ',sis
       end if
    end if
-   call mpi_openbf(infile2,npe_sub_read,mype_sub_read,mpi_comm_sub_read)
+   call mpi_openbf(infile2,npe_sub_read,mype_sub_read,mpi_comm_sub_read,file_handle,ierror,nblocks)
 
    
 !  Loop to read bufr file
@@ -466,12 +466,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      if(mmblocks+mype_sub_read > nblocks-1) then
         exit
      end if
-     call mpi_nextblock(mmblocks+mype_sub_read)
+     call mpi_nextblock(mmblocks+mype_sub_read,file_handle,ierror)
      block_loop: do
        call mpi_readmg(lnbufr,subset,idate,iret)
        if(iret /=0) exit
 !      read(subset,'(2x,i6)') isubset
-       read_loop: do while (mpi_ireadsb(lnbufr)==0 .and. subset==subfgn)
+       read_loop: do while (ireadsb(lnbufr)==0 .and. subset==subfgn)
 
 !          Read header record.  (lll=1 is normal feed, 2=EARS data)
            if(lll == 1)then
@@ -479,7 +479,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            else
               hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA SOZA BEARAZ SOLAZI '
            end if
-           call mpi_ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
+           call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
 !          Extract satellite id.  If not the one we want, read next record
            rsat=bfr1bhdr(1) 
@@ -556,9 +556,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !          Read data record.  Increment data counter
            if(lll == 1)then
-              call mpi_ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
+              call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
            else
-              call mpi_ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
+              call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
               data1b8x=data1b8
               if(.not. hirs)then
                 call remove_antcorr(sc(instrument)%ac,ifov,data1b8)
@@ -731,18 +731,19 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
    end do mpi_loop
 900  continue
 
-    call mpi_closbf
-    close(lnbufr)
+    call mpi_closbf(file_handle,ierror)
+    call closbf(lnbufr)
+
+    if(lll == 2)then
+!   deallocate crtm info
+       deallocate(data1b8x)
+       error_status = crtm_destroy(channelinfo)
+       if (error_status /= success) &
+         write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
+    end if
+
 !   Jump here when there is a problem opening the bufr file
 500  continue
-
-  if(lll == 2)then
-! deallocate crtm info
-     deallocate(data1b8x)
-     error_status = crtm_destroy(channelinfo)
-     if (error_status /= success) &
-       write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
-  end if
   deallocate(data1b8)
 
 

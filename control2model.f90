@@ -8,6 +8,7 @@ subroutine control2model(xhat,sval,bval)
 !   2007-04-27  tremolet - multiply by sqrt(B) (from ckerror D. Parrish)
 !   2008-12-04  todling  - update interface to ckgcov; add tsen/p3d
 !   2008-12-29  todling  - add call to strong balance contraint
+!   2009-04-21  derber   - modify call to getuv to getuv(*,0)
 !
 !   input argument list:
 !     xhat - Control variable
@@ -24,7 +25,7 @@ use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb
 use gridmod, only: lat2,lon2,nsig,nnnn1o
 use jfunc, only: nsclen,npclen,nrclen
 use berror, only: varprd,fpsproj
-use balmod, only: balance,strong_bk
+use balmod, only: balance
 use mpimod, only: levs_id
 implicit none
   
@@ -56,9 +57,6 @@ do jj=1,nsubwin
 ! Balance equation
   call balance(sval(jj)%t,sval(jj)%p,workst,workvp,fpsproj)
 
-! Apply strong balance constraint
-  call strong_bk(workst,workvp,sval(jj)%p,sval(jj)%t)
-
 ! -----------------------------------------------------------------------------
 
 ! Get 3d pressure
@@ -71,7 +69,7 @@ do jj=1,nsubwin
   call tv_to_tsen(sval(jj)%t,sval(jj)%q,sval(jj)%tsen)
 
 ! Convert streamfunction and velocity potential to u,v
-  call getuv(sval(jj)%u,sval(jj)%v,workst,workvp)
+  call getuv(sval(jj)%u,sval(jj)%v,workst,workvp,0)
 
 end do
 

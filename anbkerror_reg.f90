@@ -13,6 +13,7 @@ subroutine anbkerror_reg(gradx,grady)
 !   2006-11-30  todling - add fpsproj as arg to (t)balance routine(s)
 !   2008-10-10  derber - add strong constraint to background error
 !   2008-12-29  todling - update interface to strong_bk/bk_ad
+!   2009-04-13  derber - move strong_bk into balance
 !
 !   input argument list:
 !     gradx    - input field  
@@ -28,7 +29,7 @@ subroutine anbkerror_reg(gradx,grady)
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2
   use jfunc, only: nsclen,npclen
-  use balmod, only: balance,tbalance,strong_bk,strong_bk_ad
+  use balmod, only: balance,tbalance
   use berror, only: varprd,fpsproj
   use constants, only: zero
   use control_vectors
@@ -58,10 +59,6 @@ type(control_vector),intent(inout):: grady
 ! Loop on control steps
   do ii=1,nsubwin
 
-!   Transpose of strong balance constraint
-    call strong_bk_ad(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%p, &
-                      grady%step(ii)%t)
-
 !   Transpose of balance equation
     call tbalance(grady%step(ii)%t ,grady%step(ii)%p , &
                   grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
@@ -74,10 +71,6 @@ type(control_vector),intent(inout):: grady
 !   Balance equation
     call balance(grady%step(ii)%t ,grady%step(ii)%p ,&
                  grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
-
-!   Strong balance constraint
-    call strong_bk(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%p, &
-                   grady%step(ii)%t)
 
 end do
 

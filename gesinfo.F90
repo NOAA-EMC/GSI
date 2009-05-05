@@ -37,7 +37,7 @@ subroutine gesinfo(mype)
        wrf_nmm_regional,wrf_mass_regional,twodvar_regional,&
        ntracer,ncloud,ncep_sigio,nlat,nlon,idvm5,&
        ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5
-  use specmod, only: jcap
+  use specmod, only: jcap_b
   use sigio_module, only: sigio_head,sigio_srhead,sigio_sclose,&
        sigio_sropen
   use gfsio_module, only: gfsio_gfile,gfsio_open,gfsio_close,&
@@ -172,10 +172,10 @@ subroutine gesinfo(mype)
            call sigio_sclose(lunges,iret)
 
 !          Check for consistency:  jcap, levs
-           if (gfshead%jcap/=jcap .or. gfshead%levs/=nsig) then
-              write(6,*)'GESINFO:  ***ERROR*** sigio (jcap,levs)=',&
+           if (gfshead%jcap/=jcap_b .or. gfshead%levs/=nsig) then
+              write(6,*)'GESINFO:  ***ERROR*** sigio (jcap_b,levs)=',&
                    gfshead%jcap,gfshead%levs, ' do not equal ',&
-                   ' user (jcap,nsig)=',jcap,nsig
+                   ' user (jcap_b,nsig)=',jcap_b,nsig
               call stop2(85)
            endif
 
@@ -277,10 +277,10 @@ subroutine gesinfo(mype)
         end do
 
 !       Check for consistency with namelist settings           
-        if ((gfshead%jcap/=jcap.and..not.regional) .or. gfshead%levs/=nsig) then
+        if ((gfshead%jcap/=jcap_b.and..not.regional) .or. gfshead%levs/=nsig) then
            write(6,*)'GESINFO:  ***ERROR*** guess res. inconsistent with namelist'
-           write(6,*)'      guess jcap,nsig=',gfshead%jcap,gfshead%levs
-           write(6,*)'   namelist jcap,nsig=',jcap,nsig
+           write(6,*)'      guess jcap_b,nsig=',gfshead%jcap,gfshead%levs
+           write(6,*)'   namelist jcap_b,nsig=',jcap_b,nsig
            call stop2(85)
         endif
 
@@ -290,7 +290,7 @@ subroutine gesinfo(mype)
            write(6,100) gfshead%jcap,gfshead%levs,gfshead%latb,gfshead%lonb,&
                 gfshead%ntrac,gfshead%ncldt,idvc5,gfshead%nvcoord,&
                 idvm5,idsl5,idpsfc5,idthrm5
-100        format('GESINFO:  jcap=',i4,', levs=',i3,', latb=',i5,&
+100        format('GESINFO:  jcap_b=',i4,', levs=',i3,', latb=',i5,&
                 ', lonb=',i5,', ntrac=',i3,', ncldt=',i3,', idvc=',i3,&
                 ', nvcoord=',i3,', idvm=',i3,', idsl=',i3,', idpsfc=',i3,&
                 ', idthrm=',i3)

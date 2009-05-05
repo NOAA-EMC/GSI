@@ -18,10 +18,10 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print,ptop,pbot,dfact,dfact1
   use oneobmod, only: oneobtest,oneob_type,magoberr,maginnov 
-  use gridmod, only: get_ijk,nsig,lat2,lon2,twodvar_regional
+  use gridmod, only: get_ijk,nsig,lat2,lon2,twodvar_regional,regional
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
   use guess_grids, only: ges_u,ges_v,tropprs,ges_ps,ges_z,sfcmod_mm5
-  use guess_grids, only: ges_tv,ges_lnprsl,comp_fact10
+  use guess_grids, only: ges_tv,ges_lnprsl,comp_fact10,pt_ll
   use constants, only: zero,half,one,tiny_r_kind,two,one_tenth,cg_term, &
            rad2deg,three,rd,grav,four,huge_single,r1000,wgtlim,huge_r_kind,izero
   use constants, only: grav_ratio,flattening,grav,zero,deg2rad, &
@@ -137,7 +137,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   real(r_kind) valqc,valu,valv,dx10,rlow,rhgh,drpx,prsfc
   real(r_kind) cg_w,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2
   real(r_kind) presw,factw,dpres,ugesin,vgesin,rwgt,dpressave
-  real(r_kind) sfcchk,prsln2,error,dtime,dlon,dlat,r0_001,rsig,thirty
+  real(r_kind) sfcchk,prsln2,error,dtime,dlon,dlat,r0_001,rsig,thirty,rsigp
   real(r_kind) ratio_errors,goverrd,spdges,spdob,ten,psges,zsges
   real(r_kind) slat,sin2,termg,termr,termrg,pobl,uob,vob
   real(r_kind) dz,zob,z1,z2,p1,p2,dz21,dlnp21,spdb,dstn
@@ -198,6 +198,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   thirty = 30.0_r_kind
   ten = 10.0_r_kind
   r0_001=0.001_r_kind
+  rsigp=rsig+one
   goverrd=grav/rd
 
 ! If requested, save select data for output to diagnostic file
@@ -499,7 +500,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 !   Checks based on observation location relative to model surface and top
     rlow=max(sfcchk-dpres,zero)
-    rhgh=max(dpres-r0_001-rsig,zero)
+    rhgh=max(dpres-r0_001-rsigp,zero)
     if(luse(i))then
        awork(1) = awork(1) + one
        if(rlow/=zero) awork(2) = awork(2) + one
@@ -512,7 +513,14 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 !   Check to see if observation below model surface or above model top.
 !   If so, don't use observation
-    if (dpres>rsig) ratio_errors=zero
+    if (dpres > rsig )then
+      if( regional .and. presw > pt_ll )then
+        dpres=rsig
+      else
+        ratio_errors=zero
+      endif
+    endif
+
     if ( (itype>=221 .and. itype<=229).and. (dpres<zero) ) ratio_errors=zero
 
 

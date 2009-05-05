@@ -52,9 +52,7 @@ gesinfo.o : gesinfo.F90 constants.o specmod.o gridmod.o mpimod.o gsi_4dvar.o obs
 get_derivatives.o : get_derivatives.f90 mpimod.o compact_diffs.o gridmod.o constants.o kinds.o 
 get_derivatives2.o : get_derivatives2.f90 mpimod.o compact_diffs.o gridmod.o constants.o kinds.o 
 get_semimp_mats.o : get_semimp_mats.f90 gridmod.o constants.o kinds.o 
-get_tend_derivs.o : get_tend_derivs.f90 tendsmod.o mpimod.o compact_diffs.o gridmod.o constants.o kinds.o 
 getprs.o : getprs.f90 guess_grids.o gridmod.o constants.o kinds.o 
-getstvp.o : getstvp.f90 compact_diffs.o mpimod.o gridmod.o constants.o kinds.o 
 getuv.o : getuv.f90 compact_diffs.o mpimod.o gridmod.o constants.o kinds.o 
 getvvel.o : getvvel.f90 guess_grids.o tendsmod.o gridmod.o constants.o kinds.o 
 glbsoi.o : glbsoi.F90 timermod.o observer.o mp_compact_diffs_mod1.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o mod_vtrans.o mod_strong.o converr.o pcpinfo.o radinfo.o control_vectors.o m_gsiBiases.o pcgsoi.o gsi_4dvar.o jcmod.o smooth_polcarf.o obs_sensitivity.o turblmod.o obsmod.o tendsmod.o guess_grids.o gridmod.o compact_diffs.o balmod.o berror.o anisofilter.o anberror.o jfunc.o mpimod.o constants.o kinds.o 
@@ -101,7 +99,6 @@ jfunc.o : jfunc.f90 state_vectors.o bias_predictors.o gsi_4dvar.o pcpinfo.o radi
 kinds.o : kinds.f90 
 lagmod.o : lagmod.f90 constants.o kinds.o 
 lanczos.o : lanczos.f90 timermod.o control_vectors.o jfunc.o constants.o kinds.o 
-linbal.o : linbal.f90 compact_diffs.o specmod.o mpimod.o gridmod.o constants.o kinds.o 
 looplimits.o : looplimits.f90 kinds.o 
 m_berror_stats.o : m_berror_stats.F90 guess_grids.o mpimod.o constants.o gridmod.o kinds.o 
 m_dgeevx.o : m_dgeevx.F90 constants.o kinds.o 
@@ -254,7 +251,6 @@ strong_bal_correction.o : strong_bal_correction.f90 gridmod.o strong_fast_global
 strong_baldiag_inc.o : strong_baldiag_inc.f90 control_vectors.o state_vectors.o mod_vtrans.o gsi_4dvar.o gridmod.o jfunc.o mpimod.o kinds.o 
 strong_fast_global_mod.o : strong_fast_global_mod.f90 mpimod.o constants.o mod_inmi.o mod_vtrans.o specmod.o gridmod.o kinds.o 
 strong_slow_global_mod.o : strong_slow_global_mod.f90 constants.o specmod.o mod_inmi.o mod_vtrans.o mpimod.o gridmod.o kinds.o 
-stvp2uv_reg.o : stvp2uv_reg.f90 gridmod.o kinds.o 
 sub2grid.o : sub2grid.f90 constants.o jfunc.o gridmod.o mpimod.o kinds.o 
 support_2dvar.o : support_2dvar.f90 jfunc.o obsmod.o constants.o gridmod.o guess_grids.o mpimod.o gsi_io.o gsi_4dvar.o kinds.o 
 tcv_mod.o : tcv_mod.f90 kinds.o
@@ -266,7 +262,6 @@ tintrp3.o : tintrp3.f90 constants.o gridmod.o kinds.o
 tpause.o : tpause.f90 gridmod.o guess_grids.o constants.o kinds.o 
 tpause_t.o : tpause_t.F90 constants.o kinds.o 
 transform.o : transform.f90 constants.o specmod.o kinds.o 
-tstvp2uv_reg.o : tstvp2uv_reg.f90 constants.o gridmod.o kinds.o 
 turbl.o : turbl.f90 turblmod.o gridmod.o constants.o kinds.o 
 turbl_ad.o : turbl_ad.f90 turblmod.o gridmod.o kinds.o constants.o 
 turbl_tl.o : turbl_tl.f90 turblmod.o gridmod.o kinds.o constants.o 

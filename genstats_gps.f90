@@ -24,6 +24,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !   2008-06-04 safford  - rm unused vars and uses
 !   2008-09-05 lueken   - merged ed's changes into q1fy09 code
 !   2008-25-08 todling  - adapt obs-binning change to GSI-May2008
+!   2009-02-05 cucurull - modify latitude range four statistics output
 !
 !   input argument list:
 !     toss_gps      - array of qc'd profile heights
@@ -73,7 +74,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   real(r_single),allocatable,dimension(:,:)::sdiag
   character(8),allocatable,dimension(:):: cdiag
   
-  real(r_kind),parameter:: r30 = 30.0_r_kind
+  real(r_kind),parameter:: r20 = 20.0_r_kind
   type(obs_diag), pointer :: obsptr => NULL()
   
 
@@ -225,9 +226,9 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
                rdiag(12,icnt) = -one
             endif
             if (luse) then
-               if(elat > r30) then
+               if(elat > r20) then
                   awork(22) = awork(22)+one
-               else if(elat< -r30)then
+               else if(elat< -r20)then
                   awork(23) = awork(23)+one
                else
                   awork(24) = awork(24)+one

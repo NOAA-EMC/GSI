@@ -6,6 +6,7 @@ subroutine control2state(xhat,sval,bval)
 ! program history log:
 !   2007-04-13  tremolet - initial code
 !   2008-11-28  todling  - add calc of 3dp; upd rh_to_q (Cucurull 2007-07-26)
+!   2009-04-21  derber   - modify call to getuv to getuv(*,0)
 !
 !   input argument list:
 !     xhat - Control variable
@@ -49,7 +50,7 @@ do jj=1,nsubwin
   call tv_to_tsen(xhat%step(jj)%t,sval(jj)%q,sval(jj)%tsen)
 
 ! Convert streamfunction and velocity potential to u,v
-  call getuv(sval(jj)%u,sval(jj)%v,xhat%step(jj)%st,xhat%step(jj)%vp)
+  call getuv(sval(jj)%u,sval(jj)%v,xhat%step(jj)%st,xhat%step(jj)%vp,0)
 
 ! Copy other variables
   do ii=1,latlon1n

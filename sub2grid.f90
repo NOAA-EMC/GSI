@@ -120,3 +120,106 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
 
   return
 end subroutine sub2grid
+subroutine sub2grid2(workin,st,vp,pri,t,iflg)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    sub2grid2 adjoint of grid2sub for bal
+!   prgmmr: parrish          org: np22                date: 1994-02-12
+!
+! abstract: adjoint of horizontal grid to subdomain for balance variables
+!
+! program history log:
+!   2008-04-21  derber, new mpi strategy
+!
+!   input argument list:
+!     st       - streamfunction grid values                     
+!     vp       - velocity potential grid values                     
+!     pri      - p surface grid values                   
+!     t        - t grid values                    
+!     iflg     = 1=not periodic, 2=periodic
+!
+!   output argument list:
+!     workin   - output grid values on full grid after vertical operations
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind
+  use mpimod, only: irdbal_g,ircbal_g,iscbal_g,isdbal_g,&
+       ierror,mpi_comm_world,mpi_rtype,&
+       strip,strip_periodic,reorder,nnnvsbal,nlevsbal,ku_gs,kv_gs, &
+       kp_gs,kt_gs
+  use gridmod, only: itotsub,lat1,lon1,lat2,lon2,iglobal,&
+       nlat,nlon,nsig,ltosi,ltosj,latlon1n,latlon11
+  use constants, only: zero
+  implicit none
+
+! Declare passed variables
+  integer(i_kind),intent(in):: iflg
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in):: pri
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,vp,st
+  real(r_kind),dimension(nlat,nlon,nnnvsbal),intent(out):: workin
+
+! Declare local variables
+  integer(i_kind) j,k,l,ni1,ni2,ioff
+  real(r_kind),dimension(lat1*lon1*(nsig*4+1)):: xhatsm
+  real(r_kind),dimension(max(iglobal,itotsub),nlevsbal):: work1  !  contain nsig1o slab of any variables
+
+
+! strip off boundary points and load vector for communication
+  if (iflg==1) then
+     do k=1,nsig
+       ioff=ku_gs(k)*lat1*lon1+1
+       call strip(st(1,1,k),xhatsm(ioff),1)
+       ioff=kv_gs(k)*lat1*lon1+1
+       call strip(vp(1,1,k),xhatsm(ioff),1)
+       ioff=kt_gs(k)*lat1*lon1+1
+       call strip(t(1,1,k),xhatsm(ioff),1)
+     end do
+     do k=1,nsig+1
+       ioff=kp_gs(k)*lat1*lon1+1
+       call strip(pri(1,1,k),xhatsm(ioff),1)
+     end do
+  elseif (iflg==2) then
+     do k=1,nsig
+       ioff=ku_gs(k)*lat1*lon1+1
+       call strip_periodic(st(1,1,k),xhatsm(ioff),1)
+       ioff=kv_gs(k)*lat1*lon1+1
+       call strip_periodic(vp(1,1,k),xhatsm(ioff),1)
+       ioff=kt_gs(k)*lat1*lon1+1
+       call strip_periodic(t(1,1,k),xhatsm(ioff),1)
+     end do
+     do k=1,nsig+1
+       ioff=kp_gs(k)*lat1*lon1+1
+       call strip_periodic(pri(1,1,k),xhatsm(ioff),1)
+     end do
+  else
+     write(6,*)'SUB2GRID:  ***ERROR*** iflg=',iflg,' is an illegal value'
+  endif
+
+
+! zero out work arrays
+  do k=1,nlevsbal
+    do j=1,itotsub
+      work1(j,k)=zero
+    end do
+  end do
+! send subdomain vector to global slabs
+  call mpi_alltoallv(xhatsm(1),iscbal_g,isdbal_g,&
+       mpi_rtype,work1(1,1),ircbal_g,irdbal_g,mpi_rtype,&
+       mpi_comm_world,ierror)
+
+! reorder work1 array post communication
+  call reorder(work1,nlevsbal,nnnvsbal)
+  do k=1,nnnvsbal
+   do l=1,iglobal
+      ni1=ltosi(l); ni2=ltosj(l)
+      workin(ni1,ni2,k)=work1(l,k)
+   end do
+  end do
+
+  return
+end subroutine sub2grid2
+

@@ -80,6 +80,7 @@ module jfunc
 !   def nsit2      - starting point for skin/ice temp. in control vector for comm.
 !   def ncw2       - starting point for cloud water in control vector for comm.
 !   def l_foto     - option for foto
+!   def print_diag_pcg - option for turning on GMAO diagnostics in pcgsoi
 !
 ! attributes:
 !   language: f90
@@ -91,7 +92,7 @@ module jfunc
   use state_vectors
   implicit none
 
-  logical first,last,switch_on_derivatives,tendsflag,l_foto
+  logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
   integer(i_kind) nvals_len,nvals_levs
@@ -145,6 +146,7 @@ contains
     switch_on_derivatives=.false.
     tendsflag=.false.
     l_foto=.false.
+    print_diag_pcg=.false.
 
     factqmin=one
     factqmax=one

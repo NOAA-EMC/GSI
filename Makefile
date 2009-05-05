@@ -237,9 +237,7 @@ clean:
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
 	get_semimp_mats.f90 \
-	get_tend_derivs.f90 \
 	getprs.f90 \
-	getstvp.f90 \
 	getuv.f90 \
 	getvvel.f90 \
 	glbsoi.F90 \
@@ -284,7 +282,6 @@ clean:
 	kinds.f90 \
 	lagmod.f90 \
         lanczos.f90 \
-	linbal.f90 \
         looplimits.f90 \
 	m_berror_stats.F90 \
 	m_dgeevx.F90 \
@@ -432,7 +429,6 @@ clean:
 	strong_baldiag_inc.f90 \
 	strong_fast_global_mod.f90 \
 	strong_slow_global_mod.f90 \
-	stvp2uv_reg.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
 	tendsmod.f90 \
@@ -444,7 +440,6 @@ clean:
 	tpause.f90 \
 	tpause_t.F90 \
 	transform.f90 \
-	tstvp2uv_reg.f90 \
 	turbl.f90 \
 	turbl_ad.f90 \
 	turbl_tl.f90 \

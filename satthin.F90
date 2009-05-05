@@ -27,6 +27,7 @@ module satthin
 !   2007-05-01  wu      - correct error in subroutine makegvals which incorrectly
 !                         defines longitude range on regional grid when domain
 !                         includes north pole.
+!   2009-04-21  derber  - add ithin to call to makegrids - account for negative ithin
 !
 ! Subroutines Included:
 !   sub makegvals      - set up for superob weighting
@@ -219,7 +220,7 @@ contains
   end subroutine makegvals
 
 
-  subroutine makegrids(rmesh)
+  subroutine makegrids(rmesh,ithin)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    makegrids                            
@@ -251,18 +252,20 @@ contains
 
     implicit none
 
+    real(r_kind),intent(in)::rmesh
+    integer(i_kind),intent(in)::ithin
     real(r_kind),parameter:: r360 = 360.0_r_kind
     integer(i_kind) i,j
     integer(i_kind) mlonx,mlonj
     real(r_kind) delonx,delat,dgv,halfpi,dx,dy
     real(r_kind) twopi
-    real(r_kind) factor,delon,rmesh
+    real(r_kind) factor,delon
     real(r_kind) rkm2dg,glatm
 
 
 !   If there is to be no thinning, simply return to calling routine
     use_all=.false.
-    if(abs(rmesh) <= one)then
+    if(abs(rmesh) <= one .or. ithin <= 0)then
       use_all=.true.
       itxmax=2.e7
       return
@@ -781,7 +784,7 @@ contains
 
 
 !   If using all data (no thinning), simply return to calling routine
-    if(use_all)then
+    if(use_all .or. ithin <= 0)then
        iuse=.true.
        itt=1
        if(itx < itxmax) then

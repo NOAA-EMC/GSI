@@ -130,28 +130,28 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_lnprsl! log(layer midpoint pressure)
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_lnprsi! log(interface pressure)
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_u     ! zonal wind
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_u_lat ! zonal wind/lat
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_u_lon ! zonal wind/lon
+  real(r_kind),allocatable,dimension(:,:,:):: ges_u_lat ! zonal wind/lat
+  real(r_kind),allocatable,dimension(:,:,:):: ges_u_lon ! zonal wind/lon
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_v     ! meridional wind
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_v_lat ! meridional wind/lat
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_v_lon ! meridional wind/lon
+  real(r_kind),allocatable,dimension(:,:,:):: ges_v_lat ! meridional wind/lat
+  real(r_kind),allocatable,dimension(:,:,:):: ges_v_lon ! meridional wind/lon
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_vor   ! vorticity
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_div   ! divergence
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_cwmr  ! cloud condensate mixing ratio 
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_cwmr_lat  ! cloud condensate mixing ratio/lat
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_cwmr_lon  ! cloud condensate mixing ratio/lon
+  real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_lat  ! cloud condensate mixing ratio/lat
+  real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_lon  ! cloud condensate mixing ratio/lon
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_q     ! specific humidity
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qlon  ! q/lat for pcp routine advection calc
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qlat  ! q/lon for pcp routine advection calc
+  real(r_kind),allocatable,dimension(:,:,:):: ges_qlon  ! q/lat for pcp routine advection calc
+  real(r_kind),allocatable,dimension(:,:,:):: ges_qlat  ! q/lon for pcp routine advection calc
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_oz    ! ozone mixing ratio
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_ozlat ! ozone mixing ratio/lat
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_ozlon ! ozone mixing ratio/lon
+  real(r_kind),allocatable,dimension(:,:,:):: ges_ozlat ! ozone mixing ratio/lat
+  real(r_kind),allocatable,dimension(:,:,:):: ges_ozlon ! ozone mixing ratio/lon
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_pint  ! pint variable (nmm only)
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_tv    ! virtual temperature
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_tsen  ! sensible temperature
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_teta  ! potential temperature
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_tvlat ! tv/lat for pcp routine advection calc
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_tvlon ! tv/lon for pcp routine advection calc 
+  real(r_kind),allocatable,dimension(:,:,:):: ges_tvlat ! tv/lat for pcp routine advection calc
+  real(r_kind),allocatable,dimension(:,:,:):: ges_tvlon ! tv/lon for pcp routine advection calc 
 
   real(r_kind),allocatable,dimension(:,:,:)::ges_pd        ! pdges (for nmm only)
   real(r_kind),allocatable,dimension(:,:,:):: ges_prs_ten  ! 3d pressure tendency
@@ -244,12 +244,12 @@ contains
        end do
     end do
 
+#ifndef HAVE_ESMF
     do it=1,nfldsfc
        do j=1,lon2
           do i=1,lat2
              isli(i,j,it)=izero
              fact10(i,j,it)=zero
-             dsfct(i,j,it)=zero
              sfct(i,j,it)=zero
              sno(i,j,it)=zero
              veg_type(i,j,it)=zero
@@ -257,6 +257,15 @@ contains
              soil_type(i,j,it)=zero
              soil_temp(i,j,it)=zero
              soil_moi(i,j,it)=zero
+          end do
+       end do
+    end do
+#endif
+
+    do it=1,nfldsfc
+       do j=1,lon2
+          do i=1,lat2
+             dsfct(i,j,it)=zero
              sno2(i,j,it)=zero
           end do
        end do
@@ -475,36 +484,36 @@ contains
 
 !   If derivatives option on, allocate and initialize derivatives arrays to 0.0
     if (.not.drv_initilized .and. switch_on_derivatives) then
-       allocate(ges_u_lat(lat2,lon2,nsig,nfldsig),ges_u_lon(lat2,lon2,nsig,nfldsig),&
-            ges_v_lat(lat2,lon2,nsig,nfldsig),ges_v_lon(lat2,lon2,nsig,nfldsig),&
-            ges_cwmr_lat(lat2,lon2,nsig,nfldsig),ges_cwmr_lon(lat2,lon2,nsig,nfldsig),&
-            ges_ozlat(lat2,lon2,nsig,nfldsig),ges_ozlon(lat2,lon2,nsig,nfldsig),&
+       allocate(ges_u_lat(lat2,lon2,nsig),ges_u_lon(lat2,lon2,nsig),&
+            ges_v_lat(lat2,lon2,nsig),ges_v_lon(lat2,lon2,nsig),&
+            ges_cwmr_lat(lat2,lon2,nsig),ges_cwmr_lon(lat2,lon2,nsig),&
+            ges_ozlat(lat2,lon2,nsig),ges_ozlon(lat2,lon2,nsig),&
             ges_ps_lat(lat2,lon2,nfldsig),ges_ps_lon(lat2,lon2,nfldsig),&
-            ges_tvlat(lat2,lon2,nsig,nfldsig),ges_tvlon(lat2,lon2,nsig,nfldsig),&
-            ges_qlat(lat2,lon2,nsig,nfldsig),ges_qlon(lat2,lon2,nsig,nfldsig),&
+            ges_tvlat(lat2,lon2,nsig),ges_tvlon(lat2,lon2,nsig),&
+            ges_qlat(lat2,lon2,nsig),ges_qlon(lat2,lon2,nsig),&
             stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS:  allocate error4, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
        drv_initilized = .true.
-       do n=1,nfldsig
-          do k=1,nsig
-             do j=1,lon2
-                do i=1,lat2
-                   ges_u_lat(i,j,k,n)=zero
-                   ges_u_lon(i,j,k,n)=zero
-                   ges_v_lat(i,j,k,n)=zero
-                   ges_v_lon(i,j,k,n)=zero
-                   ges_cwmr_lat(i,j,k,n)=zero
-                   ges_cwmr_lon(i,j,k,n)=zero
-                   ges_ozlat(i,j,k,n)=zero
-                   ges_ozlon(i,j,k,n)=zero
-                   ges_tvlat(i,j,k,n)=zero
-                   ges_tvlon(i,j,k,n)=zero
-                   ges_qlat(i,j,k,n)=zero
-                   ges_qlon(i,j,k,n)=zero
-                end do
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                ges_u_lat(i,j,k)=zero
+                ges_u_lon(i,j,k)=zero
+                ges_v_lat(i,j,k)=zero
+                ges_v_lon(i,j,k)=zero
+                ges_cwmr_lat(i,j,k)=zero
+                ges_cwmr_lon(i,j,k)=zero
+                ges_ozlat(i,j,k)=zero
+                ges_ozlon(i,j,k)=zero
+                ges_tvlat(i,j,k)=zero
+                ges_tvlon(i,j,k)=zero
+                ges_qlat(i,j,k)=zero
+                ges_qlon(i,j,k)=zero
              end do
           end do
+       end do
+       do n=1,nfldsig
           do j=1,lon2
              do i=1,lat2
                 ges_ps_lat(i,j,n)=zero

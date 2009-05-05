@@ -21,6 +21,7 @@ module constants
 !   2006-06-06       su  - add var-qc wgtlim, change value to 0.25 (ECMWF)
 !   2006-07-28  derber   - add r1000
 !   2007-03-20  rancic   - add r3600
+!   2009-02-05  cucurull - modify refractive indexes for gpsro data
 !
 ! Subroutines Included:
 !   sub init_constants  - compute derived constants, set regional/global constants
@@ -84,9 +85,10 @@ module constants
   real(r_quad),parameter::  one_quad  = 1.0_r_quad
 
 
-! Constants for gps refractivity
-  real(r_kind),parameter::  n_a = 77.6_r_kind     ! K/mb
-  real(r_kind),parameter::  n_b = 3.73e+5_r_kind  ! K^2/mb
+! Constants for gps refractivity (Bevis et al 1994)
+  real(r_kind),parameter::  n_a = 77.60_r_kind     ! K/mb
+  real(r_kind),parameter::  n_b = 3.739e+5_r_kind  ! K^2/mb
+  real(r_kind),parameter::  n_c = 70.4_r_kind      ! K/mb
 
 ! Parameters below from WGS-84 model software inside GPS receivers.
   real(r_kind),parameter::  semi_major_axis = 6378.1370e3_r_kind     !                     (m)

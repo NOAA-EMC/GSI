@@ -194,10 +194,10 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
             what(i,j,k) = what(i,j,k)+(half*tmp*r_prdif9(i,j,k))
           end if
 ! adjoint of tracer advective terms
-          u(i,j,k) = u(i,j,k) - q_t(i,j,k)*ges_qlon(i,j,k,it) -  &
-             oz_t(i,j,k)*ges_ozlon(i,j,k,it) - cw_t(i,j,k)*ges_cwmr_lon(i,j,k,it)
-          v(i,j,k) = v(i,j,k) - q_t(i,j,k)*ges_qlat(i,j,k,it) -  &
-             oz_t(i,j,k)*ges_ozlat(i,j,k,it) - cw_t(i,j,k)*ges_cwmr_lat(i,j,k,it)
+          u(i,j,k) = u(i,j,k) - q_t(i,j,k)*ges_qlon(i,j,k) -  &
+             oz_t(i,j,k)*ges_ozlon(i,j,k) - cw_t(i,j,k)*ges_cwmr_lon(i,j,k)
+          v(i,j,k) = v(i,j,k) - q_t(i,j,k)*ges_qlat(i,j,k) -  &
+             oz_t(i,j,k)*ges_ozlat(i,j,k) - cw_t(i,j,k)*ges_cwmr_lat(i,j,k)
           q_x(i,j,k) = q_x(i,j,k) - q_t(i,j,k)*ges_u(i,j,k,it)
           q_y(i,j,k) = q_y(i,j,k) - q_t(i,j,k)*ges_v(i,j,k,it)
           oz_x(i,j,k) = oz_x(i,j,k) - oz_t(i,j,k)*ges_u(i,j,k,it)
@@ -248,14 +248,14 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
         tmp3=prdif9(i,j,k)*r_prsum9(i,j,k)
         t_y(i,j,k) = t_y(i,j,k) + sum2vk*tmp3
         var=sum2vk*r_prsum9(i,j,k)
-        prdif(i,j,k) = prdif(i,j,k) + ges_tvlat(i,j,k,it)*var
-        prsum(i,j,k) = prsum(i,j,k) - ges_tvlat(i,j,k,it)*tmp3*var
+        prdif(i,j,k) = prdif(i,j,k) + ges_tvlat(i,j,k)*var
+        prsum(i,j,k) = prsum(i,j,k) - ges_tvlat(i,j,k)*tmp3*var
         sum2vkm1(i,j)=sum2vkm1(i,j)+sum2vk
 
         t_x(i,j,k) = t_x(i,j,k) + sum2k*tmp3
         var=sum2k*r_prsum9(i,j,k)
-        prdif(i,j,k) = prdif(i,j,k) + ges_tvlon(i,j,k,it)*var
-        prsum(i,j,k) = prsum(i,j,k) - ges_tvlon(i,j,k,it)*tmp3*var
+        prdif(i,j,k) = prdif(i,j,k) + ges_tvlon(i,j,k)*var
+        prsum(i,j,k) = prsum(i,j,k) - ges_tvlon(i,j,k)*tmp3*var
         sum2km1(i,j)=sum2km1(i,j) + sum2k    
 
         pr_ydif(i,j,k) = pr_ydif(i,j,k) + tmp2*sumvk
@@ -351,16 +351,16 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 
 ! load t_thor
 
-        u(i,j,k) = u(i,j,k) - v_t(i,j,k)*(ges_v_lon(i,j,k,it) + two*curvfct(i,j)* &
+        u(i,j,k) = u(i,j,k) - v_t(i,j,k)*(ges_v_lon(i,j,k) + two*curvfct(i,j)* &
            ges_u(i,j,k,it) + coriolis(i,j))
         v_x(i,j,k) = v_x(i,j,k) - v_t(i,j,k)*ges_u(i,j,k,it)
-        v(i,j,k) = v(i,j,k) - v_t(i,j,k)*(ges_v_lat(i,j,k,it) + two*curvfct(i,j)* &
+        v(i,j,k) = v(i,j,k) - v_t(i,j,k)*(ges_v_lat(i,j,k) + two*curvfct(i,j)* &
            ges_v(i,j,k,it))
         v_y(i,j,k) = v_y(i,j,k) - v_t(i,j,k)*ges_v(i,j,k,it)
 
-        u(i,j,k) = u(i,j,k) - u_t(i,j,k)*ges_u_lon(i,j,k,it)
+        u(i,j,k) = u(i,j,k) - u_t(i,j,k)*ges_u_lon(i,j,k)
         u_x(i,j,k) = u_x(i,j,k) - u_t(i,j,k)*ges_u(i,j,k,it)
-        v(i,j,k) = v(i,j,k) - u_t(i,j,k)*(ges_u_lat(i,j,k,it) - coriolis(i,j))
+        v(i,j,k) = v(i,j,k) - u_t(i,j,k)*(ges_u_lat(i,j,k) - coriolis(i,j))
         u_y(i,j,k) = u_y(i,j,k) - u_t(i,j,k)*ges_v(i,j,k,it)
 
       end do  !end do i
@@ -385,8 +385,8 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
       do j=jstart,jstop
         do i=1,lat2
           tmp=-rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
-          t_thor9(i,j,k)=-ges_u(i,j,k,it)*ges_tvlon(i,j,k,it) - &
-               ges_v(i,j,k,it)*ges_tvlat(i,j,k,it)
+          t_thor9(i,j,k)=-ges_u(i,j,k,it)*ges_tvlon(i,j,k) - &
+               ges_v(i,j,k,it)*ges_tvlat(i,j,k)
           t_thor9(i,j,k)=t_thor9(i,j,k) -tmp*rcp * ( ges_u(i,j,k,it)*pr_xsum9(i,j,k) + &
              ges_v(i,j,k,it)*pr_ysum9(i,j,k) + &
              prsth9(i,j,k) + prsth9(i,j,k+1) )
@@ -433,9 +433,9 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
         
         t(i,j,k) = t(i,j,k) + rd*tmp2*r_prsum9(i,j,k)
 
-        u(i,j,k) = u(i,j,k) - t_t(i,j,k)*ges_tvlon(i,j,k,it)
+        u(i,j,k) = u(i,j,k) - t_t(i,j,k)*ges_tvlon(i,j,k)
         t_x(i,j,k) = t_x(i,j,k) - t_t(i,j,k)*ges_u(i,j,k,it)
-        v(i,j,k) = v(i,j,k) - t_t(i,j,k)*ges_tvlat(i,j,k,it)
+        v(i,j,k) = v(i,j,k) - t_t(i,j,k)*ges_tvlat(i,j,k)
         t_y(i,j,k) = t_y(i,j,k) - t_t(i,j,k)*ges_v(i,j,k,it)
       end do
     end do
@@ -451,8 +451,8 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
         pr_ydif(i,j,k) = pr_ydif(i,j,k) - prsth(i,j,k)*ges_v(i,j,k,it)
         u_x(i,j,k) = u_x(i,j,k) - prsth(i,j,k)*(prdif9(i,j,k))
         v_y(i,j,k) = v_y(i,j,k) - prsth(i,j,k)*(prdif9(i,j,k))
-        prdif(i,j,k) = prdif(i,j,k) - prsth(i,j,k)*(ges_u_lon(i,j,k,it) + &
-           ges_v_lat(i,j,k,it))
+        prdif(i,j,k) = prdif(i,j,k) - prsth(i,j,k)*(ges_u_lon(i,j,k) + &
+           ges_v_lat(i,j,k))
         prsth(i,j,k+1) = prsth(i,j,k+1) + prsth(i,j,k)
       end do
     end do

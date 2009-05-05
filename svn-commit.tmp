@@ -1,0 +1,23 @@
+Includes latest GMAO updates and remove last of jc components.
+--This line, and those below, will be ignored--
+
+M    m_stats.F90
+M    compact_diffs.f90
+M    jfunc.f90
+M    stpcalc.f90
+M    pcgsoi.f90
+M    jcmod.f90
+M    mpimod.F90
+M    xhat_vordivmod.f90
+M    gsimod.F90
+M    GNUmakefile
+M    mpi_bufr_mod.F90
+M    read_obs.f90
+M    timermod.F90
+M    guess_grids.F90
+M    control_vectors.f90
+M    GSI_GridCompMod.F90
+M    out
+M    calc_fov_crosstrk.f90
+M    obsmod.F90
+M    state_vectors.f90

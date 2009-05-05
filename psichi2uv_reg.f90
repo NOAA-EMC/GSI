@@ -1,7 +1,4 @@
-subroutine psichi2uv_reg( psi, chi,  u, v, &
-     ids,ide, jds,jde, kds,kde,  &
-     ims,ime, jms,jme, kms,kme,  &
-     its,ite, jts,jte, kts,kte )
+subroutine psichi2uv_reg( psi, chi,  u, v)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    psichi2uv_reg
@@ -17,30 +14,11 @@ subroutine psichi2uv_reg( psi, chi,  u, v, &
 !   2003/10/17   wu, wanshu   - first index Y second X
 !   2004-06-22   treadon      - update documentation
 !   2008-04-23   safford      - rm unused vars
+!   2009-04-19   derber       - modify to fit gsi
 !
 !   input argument list:
 !     psi - streamfunction
 !     chi - velocity potential
-!     ids - starting index of first  dimension (latitude)  for full domain grid
-!     ide - ending   index of first  dimension (latitude)  for full domain grid
-!     jds - starting index of second dimension (longitude) for full domain grid
-!     jde - ending   index of second dimension (longitude) for full domain grid
-!     kds - starting index of third  dimension (vertical)  for full domain grid
-!     kde - ending   index of third  dimension (vertical)  for full domain grid
-!
-!     ims - starting index of first  dimension for memory allocation
-!     ime - ending   index of first  dimension for memory allocation
-!     jms - starting index of second dimension for memory allocation
-!     jme - ending   index of second dimension for memory allocation
-!     kms - starting index of third  dimension for memory allocation
-!     kme - ending   index of third  dimension for memory allocation
-!
-!     its - starting index of first  dimension for sub-domain (tile) grid
-!     ite - ending   index of first  dimension for sub-domain (tile) grid
-!     jts - starting index of second dimension for sub-domain (tile) grid
-!     jte - ending   index of second dimension for sub-domain (tile) grid
-!     kts - starting index of third  dimension for sub-domain (tile) grid
-!     kte - ending   index of third  dimension for sub-domain (tile) grid
 !
 !   output argument list:
 !     u - zonal wind component
@@ -64,45 +42,30 @@ subroutine psichi2uv_reg( psi, chi,  u, v, &
 
   use kinds, only: r_kind,i_kind
   use constants, only: half
-  use gridmod, only: coeffx,coeffy
+  use gridmod, only: coeffx,coeffy,nlat,nlon
   
   implicit none
   
-  integer(i_kind), intent(in):: ids,ide, jds,jde, kds,kde    ! domain dims.
-  integer(i_kind), intent(in):: ims,ime, jms,jme, kms,kme    ! memory dims.
-  integer(i_kind), intent(in):: its,ite, jts,jte, kts,kte    ! tile   dims.
-  
-  real(r_kind), intent(in)   :: psi(ims:ime,jms:jme,kms:kme) ! Stream function
-  real(r_kind), intent(in)   :: chi(ims:ime,jms:jme,kms:kme) ! Velocity potential
-  real(r_kind), intent(out)  :: u(ims:ime,jms:jme,kms:kme)   ! u wind comp (m/s)
-  real(r_kind), intent(out)  :: v(ims:ime,jms:jme,kms:kme)   ! v wind comp (m/s)
+  real(r_kind), intent(in)   :: psi(nlat,nlon) ! Stream function
+  real(r_kind), intent(in)   :: chi(nlat,nlon) ! Velocity potential
+  real(r_kind), intent(out)  :: u(nlat,nlon)   ! u wind comp (m/s)
+  real(r_kind), intent(out)  :: v(nlat,nlon)   ! v wind comp (m/s)
   
   integer(i_kind)            :: i, j, k                      ! Loop counters.
-  integer(i_kind)            :: is, ie                       ! 1st dim. end points.
-  integer(i_kind)            :: js, je                       ! 2nd dim. end points.
   
-!------------------------------------------------------------------------------
-!  [1.0] Initialise:
-!------------------------------------------------------------------------------
 
-!  Computation to check for edge of domain:
-  is = its; ie = ite; js = jts; je = jte
-  if ( its == ids ) is = ids+1; if ( ite == ide ) ie = ide-1
-  if ( jts == jds ) js = jds+1; if ( jte == jde ) je = jde-1
-
-  do k = kts, kte
 
 !------------------------------------------------------------------------------
 !  [2.0] Compute u, v at interior points (2nd order central finite diffs):
 !------------------------------------------------------------------------------
 
-     do j = js, je
-        do i = is, ie
-           u(i,j,k) = -( psi(i+1,j  ,k) - psi(i-1,j  ,k) )*coeffy(i,j) + &
-                ( chi(i  ,j+1,k) - chi(i  ,j-1,k) )*coeffx(i,j)
+     do j = 2,nlon-1
+        do i = 2,nlat-1
+           u(i,j) = -( psi(i+1,j  ) - psi(i-1,j  ) )*coeffy(i,j) + &
+                     ( chi(i  ,j+1) - chi(i  ,j-1) )*coeffx(i,j)
            
-           v(i,j,k) = ( psi(i  ,j+1,k) - psi(i  ,j-1,k) )*coeffx(i,j) + &
-                ( chi(i+1,j  ,k) - chi(i-1,j  ,k) ) * coeffy(i,j)
+           v(i,j) = ( psi(i  ,j+1) - psi(i  ,j-1) )*coeffx(i,j) + &
+                    ( chi(i+1,j  ) - chi(i-1,j  ) )*coeffy(i,j)
         end do
      end do
      
@@ -113,54 +76,46 @@ subroutine psichi2uv_reg( psi, chi,  u, v, &
 
 !    [3.1] Western boundaries:
 
-     if ( jts == jds ) then
-        j = jts
-        do i = is, ie
-           u(i,j,k) = -( psi(i+1,j  ,k) - psi(i-1,j  ,k) )*coeffy(i,j) + &
-                ( chi(i  ,j+2,k) - chi(i  ,j  ,k) )*coeffx(i,j)
-           v(i,j,k) = ( psi(i  ,j+2,k) - psi(i  ,j  ,k) )*coeffx(i,j) + &
-                ( chi(i+1,j  ,k) - chi(i-1,j  ,k) ) * coeffy(i,j)
+        j = 1
+        do i = 2,nlat-1
+           u(i,j) = -( psi(i+1,j ) - psi(i-1,j   ) )*coeffy(i,j) + &
+                     ( chi(i  ,j+2) - chi(i  ,j  ) )*coeffx(i,j)
+           v(i,j) = ( psi(i  ,j+2) - psi(i  ,j  ) )*coeffx(i,j) + &
+                    ( chi(i+1,j  ) - chi(i-1,j  ) )*coeffy(i,j)
         end do
-     end if
      
 !    [3.2] Eastern boundaries:
 
-     if ( jte == jde ) then
-        j = jte
-        do i = is, ie
-           u(i,j,k) = -( psi(i+1,j  ,k) - psi(i-1,j  ,k) )*coeffy(i,j) + &
-                ( chi(i  ,j  ,k) - chi(i  ,j-2,k) )*coeffx(i,j)
-           v(i,j,k) = ( psi(i  ,j  ,k) - psi(i  ,j-2,k) )*coeffx(i,j) + &
-                ( chi(i+1,j  ,k) - chi(i-1,j  ,k) ) * coeffy(i,j)
+        j = nlon
+        do i = 2,nlat-1
+           u(i,j) = -( psi(i+1,j  ) - psi(i-1,j  ) )*coeffy(i,j) + &
+                     ( chi(i  ,j  ) - chi(i  ,j-2) )*coeffx(i,j)
+           v(i,j) = ( psi(i  ,j  ) - psi(i  ,j-2) )*coeffx(i,j) + &
+                    ( chi(i+1,j  ) - chi(i-1,j  ) )*coeffy(i,j)
         end do
-     end if
      
 !    [3.3] Southern boundaries:
 
-     if ( its == ids ) then
-        i = its
-        do j = js, je
-           u(i,j,k) = -( psi(i+2,j  ,k) - psi(i  ,j  ,k) )*coeffy(i,j) + &
-                ( chi(i  ,j+1,k) - chi(i  ,j-1,k) )*coeffx(i,j)
+        i = 1
+        do j = 2,nlon-1
+           u(i,j) = -( psi(i+2,j  ) - psi(i  ,j  ) )*coeffy(i,j) + &
+                     ( chi(i  ,j+1) - chi(i  ,j-1) )*coeffx(i,j)
            
-           v(i,j,k) = ( psi(i  ,j+1,k) - psi(i  ,j-1,k) )*coeffx(i,j) + &
-                ( chi(i+2,j  ,k) - chi(i  ,j  ,k) ) * coeffy(i,j)
+           v(i,j) = ( psi(i  ,j+1) - psi(i  ,j-1) )*coeffx(i,j) + &
+                    ( chi(i+2,j  ) - chi(i  ,j  ) )*coeffy(i,j)
            
         end do
-     end if
      
 !    [3.4] Northern boundaries:
 
-     if ( ite == ide ) then
-        i = ite
-        do j = js, je
-           u(i,j,k) = -( psi(i  ,j  ,k) - psi(i-2,j  ,k) )*coeffy(i,j) + &
-                ( chi(i  ,j+1,k) - chi(i  ,j-1,k) )*coeffx(i,j)
+        i = nlat
+        do j = 2,nlon-1
+           u(i,j) = -( psi(i  ,j  ) - psi(i-2,j  ) )*coeffy(i,j) + &
+                     ( chi(i  ,j+1) - chi(i  ,j-1) )*coeffx(i,j)
            
-           v(i,j,k) = ( psi(i  ,j+1,k) - psi(i  ,j-1,k) )*coeffx(i,j) + &
-                ( chi(i  ,j  ,k) - chi(i-2,j  ,k) ) * coeffy(i,j)
+           v(i,j) = ( psi(i  ,j+1) - psi(i  ,j-1) )*coeffx(i,j) + &
+                    ( chi(i  ,j  ) - chi(i-2,j  ) )*coeffy(i,j)
         end do
-     end if
      
 !------------------------------------------------------------------------------
 !    [4.0] Corner points (assume average of surrounding points - poor?):
@@ -168,40 +123,28 @@ subroutine psichi2uv_reg( psi, chi,  u, v, &
 
 !    [4.1] Bottom-left point:
 
-     if ( its == ids .AND. jts == jds ) then
-        u(its,jts,k) = half * ( u(its+1,jts,k) + u(its,jts+1,k) )
-        v(its,jts,k) = half * ( v(its+1,jts,k) + v(its,jts+1,k) )
-     end if
+        u(1,1) = half * ( u(2,1) + u(1,2) )
+        v(1,1) = half * ( v(2,1) + v(1,2) )
   
 !    [4.2] Top-left point:
 
-     if ( ite == ide .AND. jts == jds ) then
-        u(ite,jts,k) = half * ( u(ite-1,jts,k) + u(ite,jts+1,k) )
-        v(ite,jts,k) = half * ( v(ite-1,jts,k) + v(ite,jts+1,k) )
-     end if
+        u(nlat,1) = half * ( u(nlat-1,1) + u(nlat,2) )
+        v(nlat,1) = half * ( v(nlat-1,1) + v(nlat,2) )
      
 !    [4.3] Bottom-right point:
 
-     if ( its == ids .AND. jte == jde ) then
-        u(its,jte,k) = half * ( u(its+1,jte,k) + u(its,jte-1,k) )
-        v(its,jte,k) = half * ( v(its+1,jte,k) + v(its,jte-1,k) )
-     end if
+        u(1,nlon) = half * ( u(2,nlon) + u(1,nlon-1) )
+        v(1,nlon) = half * ( v(2,nlon) + v(1,nlon-1) )
      
 !    [4.4] Top-right point:
 
-     if ( ite == ide .AND. jte == jde ) then
-        u(ite,jte,k) = half * ( u(ite-1,jte,k) + u(ite,jte-1,k) )
-        v(ite,jte,k) = half * ( v(ite-1,jte,k) + v(ite,jte-1,k) )
-     end if
+        u(nlat,nlon) = half * ( u(nlat-1,nlon) + u(nlat,nlon-1) )
+        v(nlat,nlon) = half * ( v(nlat-1,nlon) + v(nlat,nlon-1) )
      
-  end do
   
 end subroutine psichi2uv_reg
 
-subroutine delx_reg( chi,  u,  &
-     ids,ide, jds,jde, kds,kde,  &
-     ims,ime, jms,jme, kms,kme,  &
-     its,ite, jts,jte, kts,kte )
+subroutine delx_reg( chi,  u)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    psichi2uv_reg
@@ -216,39 +159,14 @@ subroutine delx_reg( chi,  u,  &
 !   2003/09/05   parrish      - adapted to unified NCEP 3dvar
 !   2003/10/17   wu, wanshu   - first index Y second X
 !   2004-06-22   treadon      - update documentation
+!   2009-04-19   derber       - modify to fit gsi
 !
 !   input argument list:
-!     psi - streamfunction
 !     chi - velocity potential
-!     ids - starting index of first  dimension (latitude)  for full domain grid
-!     ide - ending   index of first  dimension (latitude)  for full domain grid
-!     jds - starting index of second dimension (longitude) for full domain grid
-!     jde - ending   index of second dimension (longitude) for full domain grid
-!     kds - starting index of third  dimension (vertical)  for full domain grid
-!     kde - ending   index of third  dimension (vertical)  for full domain grid
-!
-!     ims - starting index of first  dimension for memory allocation
-!     ime - ending   index of first  dimension for memory allocation
-!     jms - starting index of second dimension for memory allocation
-!     jme - ending   index of second dimension for memory allocation
-!     kms - starting index of third  dimension for memory allocation
-!     kme - ending   index of third  dimension for memory allocation
-!
-!     its - starting index of first  dimension for sub-domain (tile) grid
-!     ite - ending   index of first  dimension for sub-domain (tile) grid
-!     jts - starting index of second dimension for sub-domain (tile) grid
-!     jte - ending   index of second dimension for sub-domain (tile) grid
-!     kts - starting index of third  dimension for sub-domain (tile) grid
-!     kte - ending   index of third  dimension for sub-domain (tile) grid
-!
-!   output argument list:
-!     u - zonal wind component
-!     v - meridional wind component
 !
 ! remarks:
 !    The method used is 
 !       u = ( -dpsi/dy + dchi/dx )
-!       v = (  dpsi/dx + dchi/dy )
 !
 !    The assumptions made in this routine are:
 !       - unstaggered grid,
@@ -262,16 +180,13 @@ subroutine delx_reg( chi,  u,  &
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half
-  use gridmod, only: coeffx,coeffy
+  use gridmod, only: coeffx,coeffy,nlat,nlon
   
   implicit none
   
-  integer(i_kind), intent(in):: ids,ide, jds,jde, kds,kde    ! domain dims.
-  integer(i_kind), intent(in):: ims,ime, jms,jme, kms,kme    ! memory dims.
-  integer(i_kind), intent(in):: its,ite, jts,jte, kts,kte    ! tile   dims.
   
-  real(r_kind), intent(in)   :: chi(ims:ime,jms:jme,kms:kme) ! Velocity potential
-  real(r_kind), intent(out)  :: u(ims:ime,jms:jme,kms:kme)   ! v wind comp (m/s)
+  real(r_kind), intent(in)   :: chi(nlat,nlon) ! Velocity potential
+  real(r_kind), intent(out)  :: u(nlat,nlon)   ! v wind comp (m/s)
   
   integer(i_kind)            :: i, j, k                      ! Loop counters.
   integer(i_kind)            :: js, je                       ! 2nd dim. end points.
@@ -280,19 +195,14 @@ subroutine delx_reg( chi,  u,  &
 !  [1.0] Initialise:
 !------------------------------------------------------------------------------
 
-!  Computation to check for edge of domain:
-  js = jts; je = jte
-  if ( jts == jds ) js = jds+1; if ( jte == jde ) je = jde-1
-
-  do k = kts, kte
 
 !------------------------------------------------------------------------------
 !  [2.0] Compute u, v at interior points (2nd order central finite diffs):
 !------------------------------------------------------------------------------
 
-     do j = js, je
-        do i = its, ite
-           u(i,j,k) =  ( chi(i  ,j+1,k) - chi(i  ,j-1,k) )*coeffx(i,j)
+     do j = 2,nlon
+        do i = 1,nlat
+           u(i,j) =  ( chi(i  ,j+1) - chi(i  ,j-1) )*coeffx(i,j)
            
         end do
      end do
@@ -304,21 +214,17 @@ subroutine delx_reg( chi,  u,  &
 
 !    [3.1] Western boundaries:
 
-     if ( jts == jds ) then
-        j = jts
-        do i = its, ite
-           u(i,j,k) = ( chi(i  ,j+2,k) - chi(i  ,j  ,k) )*coeffx(i,j)
+        j = 1
+        do i = 1,nlat
+           u(i,j) = ( chi(i  ,j+2) - chi(i  ,j  ) )*coeffx(i,j)
         end do
-     end if
      
 !    [3.2] Eastern boundaries:
 
-     if ( jte == jde ) then
-        j = jte
-        do i = its, ite
-           u(i,j,k) = ( chi(i  ,j  ,k) - chi(i  ,j-2,k) )*coeffx(i,j)
+        j = nlon
+        do i = 1,nlat
+           u(i,j) = ( chi(i  ,j  ) - chi(i  ,j-2) )*coeffx(i,j)
         end do
-     end if
      
 !------------------------------------------------------------------------------
 !    [4.0] Corner points (assume average of surrounding points - poor?):
@@ -326,36 +232,23 @@ subroutine delx_reg( chi,  u,  &
 
 !    [4.1] Bottom-left point:
 
-     if ( its == ids .AND. jts == jds ) then
-        u(its,jts,k) = half * ( u(its+1,jts,k) + u(its,jts+1,k) )
-     end if
+        u(1,1) = half * ( u(2,1) + u(1,2) )
   
 !    [4.2] Top-left point:
 
-     if ( ite == ide .AND. jts == jds ) then
-        u(ite,jts,k) = half * ( u(ite-1,jts,k) + u(ite,jts+1,k) )
-     end if
+        u(nlat,1) = half * ( u(nlat-1,1) + u(nlat,2) )
      
 !    [4.3] Bottom-right point:
 
-     if ( its == ids .AND. jte == jde ) then
-        u(its,jte,k) = half * ( u(its+1,jte,k) + u(its,jte-1,k) )
-     end if
+        u(1,nlon) = half * ( u(2,nlon) + u(1,nlon-1) )
      
 !    [4.4] Top-right point:
 
-     if ( ite == ide .AND. jte == jde ) then
-        u(ite,jte,k) = half * ( u(ite-1,jte,k) + u(ite,jte-1,k) )
-     end if
+        u(nlat,nlon) = half * ( u(nlat-1,nlon) + u(nlat,nlon-1) )
      
-  end do
-  
 end subroutine delx_reg
 
-subroutine dely_reg( chi,  v, &
-     ids,ide, jds,jde, kds,kde,  &
-     ims,ime, jms,jme, kms,kme,  &
-     its,ite, jts,jte, kts,kte )
+subroutine dely_reg( chi,  v) 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    psichi2uv_reg
@@ -370,30 +263,11 @@ subroutine dely_reg( chi,  v, &
 !   2003/09/05   parrish      - adapted to unified NCEP 3dvar
 !   2003/10/17   wu, wanshu   - first index Y second X
 !   2004-06-22   treadon      - update documentation
+!   2009-04-19   derber       - modify to fit gsi
 !
 !   input argument list:
 !     psi - streamfunction
 !     chi - velocity potential
-!     ids - starting index of first  dimension (latitude)  for full domain grid
-!     ide - ending   index of first  dimension (latitude)  for full domain grid
-!     jds - starting index of second dimension (longitude) for full domain grid
-!     jde - ending   index of second dimension (longitude) for full domain grid
-!     kds - starting index of third  dimension (vertical)  for full domain grid
-!     kde - ending   index of third  dimension (vertical)  for full domain grid
-!
-!     ims - starting index of first  dimension for memory allocation
-!     ime - ending   index of first  dimension for memory allocation
-!     jms - starting index of second dimension for memory allocation
-!     jme - ending   index of second dimension for memory allocation
-!     kms - starting index of third  dimension for memory allocation
-!     kme - ending   index of third  dimension for memory allocation
-!
-!     its - starting index of first  dimension for sub-domain (tile) grid
-!     ite - ending   index of first  dimension for sub-domain (tile) grid
-!     jts - starting index of second dimension for sub-domain (tile) grid
-!     jte - ending   index of second dimension for sub-domain (tile) grid
-!     kts - starting index of third  dimension for sub-domain (tile) grid
-!     kte - ending   index of third  dimension for sub-domain (tile) grid
 !
 !   output argument list:
 !     u - zonal wind component
@@ -401,8 +275,7 @@ subroutine dely_reg( chi,  v, &
 !
 ! remarks:
 !    The method used is 
-!       u = ( -dpsi/dy + dchi/dx )
-!       v = (  dpsi/dx + dchi/dy )
+!       u = ( dchi/dx )
 !
 !    The assumptions made in this routine are:
 !       - unstaggered grid,
@@ -416,38 +289,28 @@ subroutine dely_reg( chi,  v, &
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half
-  use gridmod, only: coeffy
+  use gridmod, only: coeffy,nlat,nlon
   
   implicit none
   
-  integer(i_kind), intent(in):: ids,ide, jds,jde, kds,kde    ! domain dims.
-  integer(i_kind), intent(in):: ims,ime, jms,jme, kms,kme    ! memory dims.
-  integer(i_kind), intent(in):: its,ite, jts,jte, kts,kte    ! tile   dims.
+  real(r_kind), intent(in)   :: chi(nlat,nlon) ! Velocity potential
+  real(r_kind), intent(out)  :: v(nlat,nlon)   ! v wind comp (m/s)
   
-  real(r_kind), intent(in)   :: chi(ims:ime,jms:jme,kms:kme) ! Velocity potential
-  real(r_kind), intent(out)  :: v(ims:ime,jms:jme,kms:kme)   ! v wind comp (m/s)
-  
-  integer(i_kind)            :: i, j, k                      ! Loop counters.
-  integer(i_kind)            :: is, ie                       ! 1st dim. end points.
+  integer(i_kind)            :: i, j                      ! Loop counters.
   
 !------------------------------------------------------------------------------
 !  [1.0] Initialise:
 !------------------------------------------------------------------------------
 
-!  Computation to check for edge of domain:
-  is = its; ie = ite
-  if ( its == ids ) is = ids+1; if ( ite == ide ) ie = ide-1
-
-  do k = kts, kte
 
 !------------------------------------------------------------------------------
 !  [2.0] Compute u, v at interior points (2nd order central finite diffs):
 !------------------------------------------------------------------------------
 
-     do j = jts, jte
-        do i = is, ie
+     do j = 1,nlon
+        do i = 2,nlat-1
            
-           v(i,j,k) =  ( chi(i+1,j  ,k) - chi(i-1,j  ,k) ) * coeffy(i,j)
+           v(i,j) =  ( chi(i+1,j  ) - chi(i-1,j  ) ) * coeffy(i,j)
         end do
      end do
      
@@ -458,24 +321,20 @@ subroutine dely_reg( chi,  v, &
 
 !    [3.3] Southern boundaries:
 
-     if ( its == ids ) then
-        i = its
-        do j = jts, jte
+        i = 1
+        do j = 1,nlon
            
-           v(i,j,k) = ( chi(i+2,j  ,k) - chi(i  ,j  ,k) ) * coeffy(i,j)
+           v(i,j) = ( chi(i+2,j  ) - chi(i  ,j  ) ) * coeffy(i,j)
            
         end do
-     end if
      
 !    [3.4] Northern boundaries:
 
-     if ( ite == ide ) then
-        i = ite
-        do j = jts, jte
+        i = nlat
+        do j = 1,nlon
            
-           v(i,j,k) = ( chi(i  ,j  ,k) - chi(i-2,j  ,k) ) * coeffy(i,j)
+           v(i,j) = ( chi(i  ,j  ) - chi(i-2,j  ) ) * coeffy(i,j)
         end do
-     end if
      
 !------------------------------------------------------------------------------
 !    [4.0] Corner points (assume average of surrounding points - poor?):
@@ -483,28 +342,19 @@ subroutine dely_reg( chi,  v, &
 
 !    [4.1] Bottom-left point:
 
-     if ( its == ids .AND. jts == jds ) then
-        v(its,jts,k) = half * ( v(its+1,jts,k) + v(its,jts+1,k) )
-     end if
+        v(1,1) = half * ( v(2,1) + v(1,2) )
   
 !    [4.2] Top-left point:
 
-     if ( ite == ide .AND. jts == jds ) then
-        v(ite,jts,k) = half * ( v(ite-1,jts,k) + v(ite,jts+1,k) )
-     end if
+        v(nlat,1) = half * ( v(nlat-1,1) + v(nlat,2) )
      
 !    [4.3] Bottom-right point:
 
-     if ( its == ids .AND. jte == jde ) then
-        v(its,jte,k) = half * ( v(its+1,jte,k) + v(its,jte-1,k) )
-     end if
+        v(1,nlon) = half * ( v(2,nlon) + v(1,nlon-1) )
      
 !    [4.4] Top-right point:
 
-     if ( ite == ide .AND. jte == jde ) then
-        v(ite,jte,k) = half * ( v(ite-1,jte,k) + v(ite,jte-1,k) )
-     end if
+        v(nlat,nlon) = half * ( v(nlat-1,nlon) + v(nlat,nlon-1) )
      
-  end do
   
 end subroutine dely_reg

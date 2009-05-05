@@ -18,29 +18,29 @@ module mpimod
 ! Include standard mpi includes file.
   use mpi
 #else
-  use m_mpif, only : mpi_rtype4 => mpi_real4
-  use m_mpif, only : mpi_rtype => mpi_real8
-  use m_mpif, only : mpi_itype => mpi_integer4
-  use m_mpif, only : mpi_real8
-  use m_mpif, only : mpi_real16
-  use m_mpif, only : mpi_status_size
-  use m_mpif, only : mpi_sum
-  use m_mpif, only : mpi_maxloc
-  use m_mpif, only : mpi_integer
-  use m_mpif, only : mpi_integer2
-  use m_mpif, only : mpi_integer4
-  use m_mpif, only : mpi_integer8
-  use m_mpif, only : mpi_real4
-  use m_mpif, only : mpi_max
-  use m_mpif, only : mpi_min
-  use m_mpif, only : mpi_offset_kind
-  use m_mpif, only : mpi_info_null
-  use m_mpif, only : mpi_mode_rdonly
-  use m_mpif, only : mpi_mode_rdwr
-  use m_mpif, only : mpi_byte
-  use m_mpif, only : mpi_seek_set
+  use mpeu_mpif, only : mpi_rtype4 => mpi_real4
+  use mpeu_mpif, only : mpi_rtype => mpi_real8
+  use mpeu_mpif, only : mpi_itype => mpi_integer4
+  use mpeu_mpif, only : mpi_real8
+  use mpeu_mpif, only : mpi_real16
+  use mpeu_mpif, only : mpi_status_size
+  use mpeu_mpif, only : mpi_sum
+  use mpeu_mpif, only : mpi_maxloc
+  use mpeu_mpif, only : mpi_integer
+  use mpeu_mpif, only : mpi_integer2
+  use mpeu_mpif, only : mpi_integer4
+  use mpeu_mpif, only : mpi_integer8
+  use mpeu_mpif, only : mpi_real4
+  use mpeu_mpif, only : mpi_max
+  use mpeu_mpif, only : mpi_min
+  use mpeu_mpif, only : mpi_offset_kind
+  use mpeu_mpif, only : mpi_info_null
+  use mpeu_mpif, only : mpi_mode_rdonly
+  use mpeu_mpif, only : mpi_mode_rdwr
+  use mpeu_mpif, only : mpi_byte
+  use mpeu_mpif, only : mpi_seek_set
 #ifndef HAVE_ESMF
-  use m_mpif, only : mpi_comm_world
+  use mpeu_mpif, only : mpi_comm_world
 #endif /* HAVE_ESMF */
 #endif
 
@@ -65,6 +65,9 @@ module mpimod
 !   2006-04-06  middlecoff - remove mpi_request_null since not used
 !   2006-06-20  treadon - add mpi_itype
 !   2006-06-28  da Silva - Added 2 integers represing a layout: nxPE and nyPE.
+!   2009-02-19  jing guo - replaced m_mpif of GMAO_mpeu with gmaogsi_mpif.
+!   2009-04-21  derber - add communications for strong balance constraint (bal)
+!                        and unified uv (vec) transformation
 !
 ! !REMARKS:
 !
@@ -94,6 +97,10 @@ module mpimod
   integer(i_kind) :: mype        ! number of MPI task
   integer(i_kind)    nuvlevs     ! max num levs per task, for dist. of uv/stvp         
   integer(i_kind)    nnnuvlevs   ! num levs current task, for dist. of uv/stvp         
+  integer(i_kind)    nlevsbal    ! max num levs per task, for dist. of balance         
+  integer(i_kind)    nnnvsbal    ! num levs current task, for dist. of balance         
+  integer(i_kind)    nlevsuv    ! max num levs per task, for dist. of balance         
+  integer(i_kind)    nnnvsuv     ! num levs current task, for dist. of balance         
 
 ! Optional ESMF-like layout information: nxPE is the number of
 ! processors used to decompose the longitudinal dimensional, while nyPE 
@@ -110,13 +117,12 @@ module mpimod
                                              !  of the nsig1o slabs (zero if
                                              !  empty, else can vary between 1-->nsig)
 
-  integer(i_kind),allocatable,dimension(:):: levsuv_id
 
   integer(i_kind),allocatable,dimension(:):: nvar_id ! variable id for each level 
                                              !   of the nsig1o slabs:
                                              !    1: streamfunction
                                              !    2: velocity potential
-                                             !    3: log surface pressure
+                                             !    3: surface pressure
                                              !    4: temperature
                                              !    5: q
                                              !    6: ozone
@@ -124,7 +130,15 @@ module mpimod
                                              !    8: cloud water
                                              !    9: land skin temperature
                                              !   10: sfc ice temperature
+  integer(i_kind),allocatable,dimension(:):: nvarbal_id ! variable id for each level 
+                                             !   of the nsig1o slabs:
+                                             !    1: streamfunction
+                                             !    2: velocity potential
+                                             !    3: pressure
+                                             !    4: temperature
   integer(i_kind),allocatable,dimension(:,:):: nvar_pe ! pe where each var is kept
+  integer(i_kind),allocatable,dimension(:):: ku_gs,kv_gs,kp_gs,kt_gs  ! pointers for balanced level reordering
+  integer(i_kind),allocatable,dimension(:):: lu_gs,lv_gs              ! pointers for balanced level reordering
 !
 
 ! Allocated in init_mpi_vars, defined by init_comm_vars
@@ -140,6 +154,29 @@ module mpimod
   integer(i_kind),allocatable,dimension(:):: ircnt_g !  for receive from nsig1o slabs
   integer(i_kind),allocatable,dimension(:):: iscnt_s !  for send from nsig1o slabs
   integer(i_kind),allocatable,dimension(:):: ircnt_s !  for receive from nsig1o slabs
+                                             ! comm. array, displacement ...
+  integer(i_kind),allocatable,dimension(:):: isdbal_g !  for send to nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: irdbal_g !  for receive from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: isdbal_s !  for send from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: irdbal_s !  for receive from nsig1o slabs
+
+                                             ! comm. array, count ...
+  integer(i_kind),allocatable,dimension(:):: iscbal_g !  for send to nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: ircbal_g !  for receive from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: iscbal_s !  for send from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: ircbal_s !  for receive from nsig1o slabs
+
+                                             ! comm. array, displacement ...
+  integer(i_kind),allocatable,dimension(:):: isdvec_g !  for send to nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: irdvec_g !  for receive from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: isdvec_s !  for send from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: irdvec_s !  for receive from nsig1o slabs
+
+                                             ! comm. array, count ...
+  integer(i_kind),allocatable,dimension(:):: iscvec_g !  for send to nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: ircvec_g !  for receive from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: iscvec_s !  for send from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: ircvec_s !  for receive from nsig1o slabs
 
                                              ! comm. array, displacement ...
   integer(i_kind),allocatable,dimension(:):: isduv_g !  for send to nuvlevs slabs
@@ -211,6 +248,12 @@ contains
     allocate(iscnt_g(npe),isdsp_g(npe),ircnt_g(npe),&
        irdsp_g(npe),iscnt_s(npe),isdsp_s(npe),ircnt_s(npe),&
        irdsp_s(npe))
+    allocate(iscbal_g(npe),isdbal_g(npe),ircbal_g(npe),&
+       irdbal_g(npe),iscbal_s(npe),isdbal_s(npe),ircbal_s(npe),&
+       irdbal_s(npe))
+    allocate(iscvec_g(npe),isdvec_g(npe),ircvec_g(npe),&
+       irdvec_g(npe),iscvec_s(npe),isdvec_s(npe),ircvec_s(npe),&
+       irdvec_s(npe))
     allocate(iscuv_g(npe),isduv_g(npe),ircuv_g(npe),&
        irduv_g(npe),iscuv_s(npe),isduv_s(npe),ircuv_s(npe),&
        irduv_s(npe))
@@ -219,8 +262,6 @@ contains
     nuvlevs=nsig/npe
     if(mod(nsig,npe)/=izero) nuvlevs=nuvlevs+1
 
-    allocate(levsuv_id(nuvlevs))
-    levsuv_id=izero
 
 ! redefine kchk for uv/stvp distribution
     if (mod(nsig,npe)==izero) then
@@ -240,7 +281,6 @@ contains
       do k=1,kk
         levscnt=levscnt+ione
 	if ( n==mm1 .and. levscnt.le.nsig ) then
-	  levsuv_id(k)=levscnt
           nnnuvlevs=kk
         end if
       end do
@@ -258,6 +298,24 @@ contains
       ircnt_s(n)   = izero
       irdsp_s(n)   = izero
 
+      iscbal_g(n)  = izero
+      isdbal_g(n)  = izero
+      ircbal_g(n)  = izero
+      irdbal_g(n)  = izero
+      iscbal_s(n)  = izero
+      isdbal_s(n)  = izero
+      ircbal_s(n)  = izero
+      irdbal_s(n)  = izero
+
+      iscvec_g(n)  = izero
+      isdvec_g(n)  = izero
+      ircvec_g(n)  = izero
+      irdvec_g(n)  = izero
+      iscvec_s(n)  = izero
+      isdvec_s(n)  = izero
+      ircvec_s(n)  = izero
+      irdvec_s(n)  = izero
+
       iscuv_g(n)   = izero
       isduv_g(n)   = izero
       ircuv_g(n)   = izero
@@ -268,6 +326,7 @@ contains
       irduv_s(n)   = izero
 
     end do
+    allocate(lu_gs(nsig),lv_gs(nsig),ku_gs(nsig),kv_gs(nsig),kt_gs(nsig),kp_gs(nsig+1))
 
 ! Distribute variables as evenly as possible over the tasks
 ! start by defining starting points for each variable
@@ -392,13 +451,19 @@ contains
     deallocate(levs_id)
     deallocate(nvar_id)
     deallocate(nvar_pe)
-    deallocate(levsuv_id)
     deallocate(iscnt_g,isdsp_g,ircnt_g,&
        irdsp_g,iscnt_s,isdsp_s,ircnt_s,&
        irdsp_s)
     deallocate(iscuv_g,isduv_g,ircuv_g,&
        irduv_g,iscuv_s,isduv_s,ircuv_s,&
        irduv_s)
+    deallocate(iscbal_g,isdbal_g,ircbal_g,&
+       irdbal_g,iscbal_s,isdbal_s,ircbal_s,&
+       irdbal_s)
+    deallocate(iscvec_g,isdvec_g,ircvec_g,&
+       irdvec_g,iscvec_s,isdvec_s,ircvec_s,&
+       irdvec_s)
+    deallocate(lu_gs,lv_gs,ku_gs,kv_gs,kt_gs,kp_gs)
     return
   end subroutine destroy_mpi_vars
 
@@ -709,21 +774,20 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine vectosub(fld_in,nz,fld_out)
+  subroutine vectosub(fld_in,npts,fld_out)
 
     use kinds, only: r_kind,i_kind
-    use gridmod, only: lat2,lon2
     implicit none
 
 ! !INPUT PARAMETERS:
 
-    integer(i_kind), intent(in) ::  nz    ! number of levs in subdomain array
-    real(r_kind),dimension(lat2*lon2*nz),intent(in):: fld_in ! subdomain array 
+    integer(i_kind), intent(in) ::  npts  ! number of levs in subdomain array
+    real(r_kind),dimension(npts),intent(in):: fld_in ! subdomain array 
                                                               !   in vector form
 
 ! !OUTPUT PARAMETERS:
 
-    real(r_kind),dimension(lat2,lon2,nz),intent(out):: fld_out ! three dimensional 
+    real(r_kind),dimension(npts),intent(out):: fld_out ! three dimensional 
                                                                 !  subdomain variable array
 
 ! !DESCRIPTION: Transform vector array into three dimensional subdomain
@@ -745,16 +809,10 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-    integer(i_kind) i,j,k,iloc
+    integer(i_kind) k
 
-    iloc=0
-    do k=1,nz
-      do j=1,lon2
-        do i=1,lat2
-          iloc=iloc+1
-          fld_out(i,j,k)=fld_in(iloc)
-        end do 
-      end do
+    do k=1,npts
+          fld_out(k)=fld_in(k)
     end do
 
     return

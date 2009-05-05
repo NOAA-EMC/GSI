@@ -47,6 +47,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2008-04-21  safford - rm unused vars and uses
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2009-01-09  gayno   - new option to calculate surface fields within FOV
+!   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
+!   2009-04-21  derber  - add ithin to call to makegrids
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -86,8 +88,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
        tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,one,three,izero,ione,rad2deg
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,nblocks,mpi_nextblock,&
-       mpi_readmg,mpi_ireadsb,mpi_ufbint,mpi_ufbrep
+  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock, mpi_readmg
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
 
@@ -129,7 +130,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     ,intent(inout) :: val_airs
 
 ! BUFR file sequencial number
-  character(len=255)  :: table_file
+  character(len=512)  :: table_file
   integer(i_kind)     :: lnbufr = 10
   integer(i_kind)     :: lnbufrtab = 11
 
@@ -137,14 +138,13 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(2) :: aquaspot
   real(r_double),dimension(12,3) :: allspot
   real(r_double),dimension(n_totchan) :: allchan
-! real(r_double)     :: scbtseqn
   
   real(r_kind)      :: step, start
   character(len=8)  :: subset
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   integer(i_kind)   :: nchanl,nchanlr
-  integer(i_kind)   :: iret
+  integer(i_kind)   :: iret, ireadsb
 
 
 ! Work variables for time
@@ -159,6 +159,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Other work variables
   integer(i_kind)  :: nreal, ichsst, ichansst, isflg,ioffset
   integer(i_kind)  :: itx, k, nele, itt, iout,n,iscbtseqn,ix
+  integer(i_kind)  :: file_handle,ierror,nblocks
   real(r_kind)     :: chsstf,chsst,sfcr
   real(r_kind)     :: ch15, ch3, df2, tt
   real(r_kind)     :: dlon, dlat
@@ -291,7 +292,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   if (.not.assim) val_airs=zero
 
 ! Make thinning grids
-  call makegrids(rmesh)
+  call makegrids(rmesh,ithin)
 
 ! Open BUFR file
   open(lnbufr,file=infile,form='unformatted')
@@ -311,8 +312,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Read header
   call readmg(lnbufr,subset,idate,iret)
-  call closbf(lnbufr)
-  close(lnbufr)
+  close(lnbufr)    ! this enables reading with mpi i/o
   if( iret /= 0 ) goto 1000     ! no data?
 
   write(date,'( i10)') idate
@@ -326,22 +326,22 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Open up bufr file for mpi-io access
-  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub)
+  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub,file_handle,ierror,nblocks)
 
 ! Big loop to read data file
   mpi_loop: do mmblocks=0,nblocks-1,npe_sub
      if(mmblocks+mype_sub.gt.nblocks-1) then
         exit
      endif
-     call mpi_nextblock(mmblocks+mype_sub)
+     call mpi_nextblock(mmblocks+mype_sub,file_handle,ierror)
      block_loop: do
         call mpi_readmg(lnbufr,subset,idate,iret)
         if (iret /=0) exit
-        read_loop: do while (mpi_ireadsb(lnbufr)==0)
+        read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Read AIRSSPOT , AMSUSPOT and HSBSPOT
 
-     call mpi_ufbrep(lnbufr,allspot,12,3,iret,allspotlist)
+     call ufbrep(lnbufr,allspot,12,3,iret,allspotlist)
 
      if(iret /= 3) cycle read_loop
 
@@ -445,7 +445,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! only done until they match for one record and ndata is updated
 
 !    if(ndata == 0)then
-!      call mpi_ufbint(lnbufr,scbtseqn,1,1,iscbtseqn,'(SCBTSEQN)')
+!      call ufbint(lnbufr,scbtseqn,1,1,iscbtseqn,'(SCBTSEQN)')
 !      iscbtseqn = nint(scbtseqn)
 !      if(iscbtseqn /= n_airschan)then
 !         write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' SEQUENCE:', &
@@ -456,7 +456,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !    Read AIRSCHAN or AMSUCHAN or HSBCHAN
 
-     call mpi_ufbrep(lnbufr,allchan,1,n_totchan,iret,'TMBR')
+     call ufbrep(lnbufr,allchan,1,n_totchan,iret,'TMBR')
 
      if( iret /= n_totchan)then
         write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
@@ -523,7 +523,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      sat_aziang  = allspot(11,ix)  
 
 !    Read AQUASPOT
-     call mpi_ufbint(lnbufr,aquaspot,2,1,iret,'SOZA SOLAZI')
+     call ufbint(lnbufr,aquaspot,2,1,iret,'SOZA SOLAZI')
      sol_zenang = aquaspot(1)
 
 
@@ -665,6 +665,10 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 end do mpi_loop
 
 
+! Close bufr file
+  call mpi_closbf(file_handle,ierror)
+  call closbf(lnbufr)
+
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
@@ -734,10 +738,6 @@ end do mpi_loop
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   
   endif
-
-! Close bufr file
-  call mpi_closbf
-  call closbf(lnbufr)
 
 ! Deallocate data arrays
   deallocate(data_all)

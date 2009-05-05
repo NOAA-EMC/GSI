@@ -24,7 +24,7 @@ save
 private
 public control_vector, allocate_cv, deallocate_cv, assignment(=), &
      & dot_product, prt_control_norms, axpy, random_cv, setup_control_vectors, &
-     & write_cv, read_cv, inquire_cv, maxval
+     & write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub
 
 type control_state
   real(r_kind), pointer :: values(:) => NULL()
@@ -47,7 +47,7 @@ type control_vector
   logical :: lallocated = .false.
 end type control_vector
 
-integer(i_kind) :: nclen,nsclen,npclen,nrclen,nsubwin,nval_len
+integer(i_kind) :: nclen,nclen1,nsclen,npclen,nrclen,nsubwin,nval_len
 integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig
 logical :: lsqrtb
 
@@ -94,6 +94,7 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   npclen=kpclen
   nrclen=nsclen+npclen
   nclen =kclen
+  nclen1=nclen-nrclen
   nsubwin=ksubwin
   nval_len=kval_len
   lsqrtb=ldsqrtb
@@ -288,68 +289,6 @@ real(r_quad) function dplevs(nlevs,dx,dy)
 return
 end function dplevs
 ! ----------------------------------------------------------------------
-!real(r_quad) function dplevs(nlevs,dx,dy)
-!  use gridmod, only:  lat1,lon1
-!  implicit none
-!  integer(i_kind),intent(in) :: nlevs
-!  real(r_kind),intent(in)::dx(lat2,lon2,nlevs),dy(lat2,lon2,nlevs)
-!
-!  integer(i_kind) :: ii,jj,kk,jp
-!
-!  dplevs=zero_quad
-!  do kk=1,nlevs
-!     do jj=1,lon1
-!        jp=jj+1
-!        do ii=1,lat1
-!           dplevs=dplevs+dx(ii,jp,kk)*dy(ii,jp,kk)
-!        end do
-!     end do
-!  end do
-!
-!return
-!end function dplevs
-! ----------------------------------------------------------------------
-real(r_quad) function qdplevs(nlevs,dx,dy)
-  use gridmod, only:  lat1,lon1,iglobal,ijn,displs_g
-  implicit none
-  integer(i_kind),intent(in) :: nlevs
-  real(r_kind),intent(in)::dx(lat2,lon2,nlevs),dy(lat2,lon2,nlevs)
-
-! Declare local variables
-  real(r_kind),dimension(iglobal):: work1
-  real(r_kind),dimension(lat1,lon1):: sum1
-
-  integer(i_kind) i,j,k,mm1,jp
- 
-  do j=1,lon1
-    do i=1,lat1
-      sum1(i,j)=zero
-    end do
-  end do
-
-! Note sum could be done in quad precision and then gathered.
-! This would result in slightly more accurate results
-  do k=1,nlevs
-     do j=1,lon1
-        jp=j+1
-        do i=1,lat1
-           sum1(i,j)=sum1(i,j)+dx(i+1,jp,k)*dy(i+1,jp,k)
-        end do
-     end do
-  end do
-
-  mm1=mype+1
-  call mpi_allgatherv(sum1,ijn(mm1),mpi_rtype,&
-     work1,ijn,displs_g,mpi_rtype,&
-     mpi_comm_world,ierror)
-
-  qdplevs=zero_quad
-  do k=1,iglobal
-     qdplevs=qdplevs+work1(k)
-  end do
-
-end function qdplevs
-! ----------------------------------------------------------------------
 subroutine ddot_prod_vars(xcv,ycv,prods)
   implicit none
   type(control_vector), intent(in) :: xcv, ycv
@@ -394,6 +333,44 @@ subroutine ddot_prod_vars(xcv,ycv,prods)
 
 return
 end subroutine ddot_prod_vars
+! ----------------------------------------------------------------------
+real(r_quad) function qdot_prod_sub(xcv,ycv)
+  implicit none
+  type(control_vector), intent(in) :: xcv, ycv
+  integer(i_kind) :: ii,j
+
+
+  qdot_prod_sub=zero_quad
+
+! Independent part of vector
+  if (lsqrtb) then
+!$omp parallel do
+    do ii=1,nsubwin
+      qdot_prod_sub=qdot_prod_sub+qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
+    end do
+!$omp end parallel do
+  else
+    do ii=1,nsubwin
+      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
+      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
+      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
+      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
+      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
+      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
+      qdot_prod_sub = qdot_prod_sub + dplevs(1   ,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
+      qdot_prod_sub = qdot_prod_sub + dplevs(1   ,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+    end do
+  end if
+
+! Duplicated part of vector
+  if(mype == 0)then
+    do j=nclen1+1,nclen
+      qdot_prod_sub=qdot_prod_sub+xcv%values(j)*ycv%values(j) 
+    end do
+  end if
+
+return
+end function qdot_prod_sub
 ! ----------------------------------------------------------------------
 subroutine qdot_prod_vars(xcv,ycv,prods)
   implicit none

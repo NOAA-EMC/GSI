@@ -1,7 +1,7 @@
-subroutine get_derivatives2(u,v,t,p3d, &
+subroutine get_derivatives2(st,vp,t,p3d,u,v, &
                  u_x,v_x,t_x,p3d_x, &
                  u_y,v_y,t_y,p3d_y, &
-                 nlevs,mype)
+                 mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_derivatives2  compute horizontal derivatives
@@ -12,8 +12,8 @@ subroutine get_derivatives2(u,v,t,p3d, &
 ! program history log:
 !   2005-06-06  parrish
 !   2005=07-10  kleist, clean up and fix skint
-!   2008-10-11  derber - modify from get_derivatives to minimize data movement 
-!               and work for mass and momentum only
+!   2009-04-21  derber - modify from get_derivatives to minimize data movement 
+!               and work for mass and momentum only and calculate uv
 !
 !   input argument list:
 !     u        - longitude velocity component
@@ -56,9 +56,9 @@ subroutine get_derivatives2(u,v,t,p3d, &
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nnnn1o,wrf_nmm_regional,eta2_ll
-  use compact_diffs, only: compact_dlat,compact_dlon
-  use mpimod, only: npe,nvar_id
+  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,wrf_nmm_regional,eta2_ll
+  use compact_diffs, only: compact_dlat,compact_dlon,stvp2uv
+  use mpimod, only: npe,nvarbal_id,nlevsbal,nnnvsbal
 
   implicit none
 
@@ -66,90 +66,69 @@ subroutine get_derivatives2(u,v,t,p3d, &
   integer(i_kind) mype
   integer(i_kind) nlevs
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(in):: p3d
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,u,v
-  real(r_kind),dimension(lat2,lon2,nsig+1),intent(out):: p3d_x
-  real(r_kind),dimension(lat2,lon2,nsig),intent(out):: t_x,u_x,v_x
-  real(r_kind),dimension(lat2,lon2,nsig),intent(out):: p3d_y
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,st,vp
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(out):: p3d_x,p3d_y
+  real(r_kind),dimension(lat2,lon2,nsig),intent(out):: t_x,u_x,v_x,u,v
   real(r_kind),dimension(lat2,lon2,nsig),intent(out):: t_y,u_y,v_y
 
 ! Local Variables
   integer(i_kind) iflg,k,i,j
-  real(r_kind),dimension(lat2,lon2):: dum1,dum2,ps,ps_x,ps_y
-  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork,hworkd
+  real(r_kind),dimension(nlat,nlon,nlevsbal):: hwork,hwork_x,hwork_y
+  real(r_kind),dimension(nlat,nlon):: stx,vpx
   logical vector
 
-  ps=zero
 
-  if(regional)then
-    do i=1,nlon
-      do j=1,nlat
-        ps(i,j)=p3d(i,j,1)
-      end do
-    end do
-  end if
     iflg=1
-    dum1=zero
-    dum2=zero
 
 !  substitute u for q, v for oz, t for cwmr and p for tskin
-    call sub2grid(hwork,t,ps,u,v,ps,dum1,dum2,t,u,v,iflg)
+    call sub2grid2(hwork,st,vp,p3d,t,iflg)
 !   x derivative
-!$omp parallel do private(vector)
-    do k=1,nlevs
-     if(nvar_id(k) <= 4)then
-      if(regional) then
-        call get_dlon_reg(hwork(1,1,k),hworkd(1,1,k))
-      else
-        vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
-        call compact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
-      end if
-     else
-      if(regional) then
-        call get_dlat_reg(hwork(1,1,k),hworkd(1,1,k))
-      else
-        vector = nvar_id(k) == 5 .or. nvar_id(k) == 6
-        call compact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
-      end if
-     end if
-    end do
-!$omp end parallel do
-    call grid2sub(hworkd,t_x,ps_x,u_y, &
-                  v_y,ps_y,dum1,dum2, &
-                  t_y,u_x,v_x)
-
-
-  if(regional)then
-    if(wrf_nmm_regional) then
-       do k=2,nsig+1
-         do j=1,lon2
-           do i=1,lat2
-               p3d_x(i,j,k)=eta2_ll(k)*ps_x(i,j)
-               p3d_y(i,j,k)=eta2_ll(k)*ps_y(i,j)
+    if(regional)then
+!$omp parallel do 
+      do k=1,nnnvsbal
+       if(nvarbal_id(k) ==1)then
+         do j=1,nlon
+           do i=1,nlat
+             stx(i,j)=hwork(i,j,k)
+             vpx(i,j)=hwork(i,j,k+1)
            end do
          end do
-       end do
+         call psichi2uv_reg(stx,vpx,hwork(1,1,k),hwork(1,1,k+1))
+       end if
+       call delx_reg(hwork(1,1,k),hwork_x(1,1,k))
+       call dely_reg(hwork(1,1,k),hwork_y(1,1,k))
+      end do
+!$omp end parallel do
     else
-      p3d_x=zero
-      p3d_y=zero
+!$omp parallel do private(vector)
+      do k=1,nnnvsbal
+       if(nvarbal_id(k) ==1)then
+        call stvp2uv(hwork(1,1,k),hwork(1,1,k+1))
+       end if
+       vector=.false.
+       if(nvarbal_id(k) <= 2)vector=.true.
+       call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),vector)
+       call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),vector)
+      end do
+!$omp end parallel do
     end if
-  else
-!   call mp_compact_dlon1(t,t_x,.false.,nsig,mype)
-!   call mp_compact_dlat1(t,t_y,.false.,nsig,mype)
-!   call mp_compact_dlon1(u,u_x,.true.,nsig,mype)
-!   call mp_compact_dlat1(u,v_y,.true.,nsig,mype)
-!   call mp_compact_dlon1(v,v_x,.true.,nsig,mype)
-!   call mp_compact_dlat1(v,v_y,.true.,nsig,mype)
-    call mp_compact_dlon1(p3d,p3d_x,.false.,nsig+1,mype)
-    call mp_compact_dlat1(p3d,p3d_y,.false.,nsig+1,mype)
-  
-  end if
+!  p3d_x and t_x are dummy arrays in first call
+    call grid2sub2(hwork,u,v,p3d_x,t_x)
+    call grid2sub2(hwork_x,u_x,v_x,p3d_x,t_x)
+    call grid2sub2(hwork_y,u_y,v_y,p3d_y,t_y)
+
+
+! if(.not. regional)then
+!   call mp_compact_dlon1(p3d,p3d_x,.false.,nsig+1,mype)
+!   call mp_compact_dlat1(p3d,p3d_y,.false.,nsig+1,mype)
+! end if
 
   return
 end subroutine get_derivatives2
 
-subroutine tget_derivatives2(u,v,t,p3d, &
+subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
                  u_x,v_x,t_x,p3d_x, &
-                 u_y,v_y,t_y,p3d_y,nlevs,mype)
+                 u_y,v_y,t_y,p3d_y,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    tget_derivatives2  adjoint of get_derivatives
@@ -160,8 +139,8 @@ subroutine tget_derivatives2(u,v,t,p3d, &
 ! program history log:
 !   2005-06-06  parrish
 !   2005-07-10  kleist, clean up
-!   2008-10-11  derber - modify from get_derivatives to minimize data movement 
-!               and work for mass and momentum only
+!   2009-04-21  derber - modify from get_derivatives to minimize data movement 
+!               and work for mass and momentum only and calculate uv
 !
 !   input argument list:
 !     u_x      - longitude derivative of u  (note: in global mode, undefined at pole points)
@@ -190,106 +169,98 @@ subroutine tget_derivatives2(u,v,t,p3d, &
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nnnn1o,wrf_nmm_regional,eta2_ll
-  use compact_diffs, only: tcompact_dlat,tcompact_dlon
-  use mpimod, only: npe,nvar_id
+  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,wrf_nmm_regional,eta2_ll
+  use compact_diffs, only: tcompact_dlat,tcompact_dlon,tstvp2uv
+  use mpimod, only: npe,nvarbal_id,nnnvsbal,nlevsbal
   implicit none
 
 ! Passed variables
   integer(i_kind) mype
   integer(i_kind) nlevs
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout):: p3d
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,u,v
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,st,vp
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout):: p3d_x
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t_x,u_x,v_x
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t_x,u_x,v_x,u,v
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout):: p3d_y
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t_y,u_y,v_y
 
 ! Local Variables
   integer(i_kind) iflg,k,i,j
-  real(r_kind),dimension(lat2,lon2):: dum1,dum2,ps,ps_x,ps_y
-  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork,hworkd
+  real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
+  real(r_kind),dimension(nlat,nlon):: ux,vx
   logical vector
 
-  ps=zero
 ! Adjoint of horizontal derivatives
-  if (regional) then
-    if(wrf_nmm_regional) then
-      do k=1,nsig+1
-        do j=1,lon2
-          do i=1,lat2
-            ps(i,j) = ps(i,j) + eta2_ll(k)*p3d_y(i,j,k)
-            ps(i,j) = ps(i,j) + eta2_ll(k)*p3d_x(i,j,k)
-          end do
-        end do
-      end do
-    end if
-  else
-    call mp_compact_dlon1_ad(p3d,p3d_x,.false.,nsig+1,mype)
-    call mp_compact_dlat1_ad(p3d,p3d_y,.false.,nsig+1,mype)
-!   call mp_compact_dlon1_ad(t,t_x,.false.,nsig,mype)
-!   call mp_compact_dlat1_ad(t,t_y,.false.,nsig,mype)
-!   call mp_compact_dlon1_ad(u,u_x,.true.,nsig,mype)
-!   call mp_compact_dlat1_ad(u,u_y,.true.,nsig,mype)
-!   call mp_compact_dlon1_ad(v,v_x,.true.,nsig,mype)
-!   call mp_compact_dlat1_ad(v,v_y,.true.,nsig,mype)
-  end if
+! if (.not. regional) then
+!   call mp_compact_dlon1_ad(p3d,p3d_x,.false.,nsig+1,mype)
+!   call mp_compact_dlat1_ad(p3d,p3d_y,.false.,nsig+1,mype)
+!   p3d_x=zero
+!   p3d_y=zero
+! end if
 
-    iflg=1
+  iflg=1
 
 !             initialize hwork to zero, so can accumulate contribution from
 !             all derivatives
-    hwork=zero
-!             for now zero out slndt,sicet
-    dum1=zero
-    dum2=zero
+  hwork=zero
 
-!   adjoint of y derivative
-
-    call sub2grid(hworkd,t_y,ps_y,u_x,v_x,ps_x,dum1,dum2,t_x, &
-                u_y,v_y,iflg)
-!$omp parallel do private(vector)
-    do k=1,nlevs
-     if(nvar_id(k) <= 4)then
-      if(regional) then
-        call tget_dlat_reg(hworkd(1,1,k),hwork(1,1,k))
-      else
-        vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
-        call tcompact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
-      end if
-     else
-      if(regional) then
-        call tget_dlon_reg(hworkd(1,1,k),hwork(1,1,k))
-      else
-        vector = nvar_id(k) == 5 .or. nvar_id(k) == 6
-        call tcompact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
-      end if
-     end if
-    end do
-!$omp end parallel do
-
-
-!       use t_x,etc since don't need to save contents
-    call grid2sub(hwork,t_y,ps_y,u_x,v_x,ps_x,dum1,dum2,t_x,u_y,v_y)
-
-!   accumulate to contents of t,p,etc (except st,vp, which are zero on input
-!$omp parallel do
-    do k=1,nsig
-      do j=1,lon2
-        do i=1,lat2
-          t(i,j,k)=t(i,j,k)+t_x(i,j,k)+t_y(i,j,k)
-          u(i,j,k)=u(i,j,k)+u_x(i,j,k)+u_y(i,j,k)
-          v(i,j,k)=v(i,j,k)+v_x(i,j,k)+v_y(i,j,k)
+  call sub2grid2(hwork_x,u_x,v_x,p3d_x,t_x,iflg)
+  call sub2grid2(hwork_y,u_y,v_y,p3d_y,t_y,iflg)
+  p3d_x=zero
+  t_x=zero
+  call sub2grid2(hwork,u,v,p3d_x,t_x,iflg)
+  if(regional)then
+      do k=nnnvsbal,1,-1
+       call tdelx_reg(hwork_x(1,1,k),hwork(1,1,k))
+       call tdely_reg(hwork_y(1,1,k),hwork(1,1,k))
+       if(nvarbal_id(k) ==1)then
+        do j=1,nlon
+          do i=1,nlat
+            ux(i,j)=hwork(i,j,k)
+            vx(i,j)=hwork(i,j,k+1)
+            hwork(i,j,k)=zero
+            hwork(i,j,k+1)=zero
+          end do
         end do
+        call psichi2uvt_reg(ux,vx,hwork(1,1,k),hwork(1,1,k+1))
+
+       end if
+      end do
+    else
+      do k=nnnvsbal,1,-1
+       vector=.false.
+       if(nvarbal_id(k) <= 2)vector=.true.
+       call tcompact_dlon(hwork(1,1,k),hwork_x(1,1,k),vector)
+       call tcompact_dlat(hwork(1,1,k),hwork_y(1,1,k),vector)
+       if(nvarbal_id(k) ==1)then
+        call tstvp2uv(hwork(1,1,k),hwork(1,1,k+1))
+       end if
+      end do
+    end if
+
+!     use t_x,etc since don't need to save contents
+    u_x=zero
+    v_x=zero
+    call grid2sub2(hwork,u_x,v_x,p3d_x,t_x)
+
+! accumulate to contents of t,p,etc (except st,vp, which are zero on input
+!$omp parallel do
+  do k=1,nsig
+    do j=1,lon2
+      do i=1,lat2
+        st(i,j,k)=st(i,j,k)+u_x(i,j,k)
+        vp(i,j,k)=vp(i,j,k)+v_x(i,j,k)
+        t(i,j,k)=t(i,j,k)+t_x(i,j,k)
       end do
     end do
+  end do
 !$omp end parallel do
-  if(regional)then
+  do k=1,nsig+1
     do j=1,lon2
-     do i=1,lat2
-         p3d(i,j,1)=p3d(i,j,1)+ps_x(i,j)+ps_y(i,j)
-     end do
+      do i=1,lat2
+        p3d(i,j,k)=p3d(i,j,k)+p3d_x(i,j,k)
+      end do
     end do
-  end if
+  end do
 
 end subroutine tget_derivatives2

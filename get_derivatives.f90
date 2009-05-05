@@ -68,7 +68,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nnnn1o
+  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nsig1o
   use compact_diffs, only: compact_dlat,compact_dlon
   use mpimod, only: nvar_id
 
@@ -77,27 +77,30 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 ! Passed variables
   integer(i_kind) mype
   integer(i_kind) nlevs,nfldsig
-  real(r_kind),dimension(lat2,lon2,nfldsig),intent(in):: p,skint
-  real(r_kind),dimension(lat2,lon2,nsig,nfldsig),intent(in):: t,q,cwmr,oz,u,v
-  real(r_kind),dimension(lat2,lon2,nfldsig),intent(out):: p_x,skint_x
-  real(r_kind),dimension(lat2,lon2,nsig,nfldsig),intent(out):: t_x,q_x,cwmr_x,oz_x,u_x,v_x
-  real(r_kind),dimension(lat2,lon2,nfldsig),intent(out):: p_y,skint_y
-  real(r_kind),dimension(lat2,lon2,nsig,nfldsig),intent(out):: t_y,q_y,cwmr_y,oz_y,u_y,v_y
+  real(r_kind),dimension(lat2,lon2,nfldsig),intent(in):: p
+  real(r_kind),dimension(lat2,lon2),intent(in):: skint
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,q,cwmr,oz,u,v
+  real(r_kind),dimension(lat2,lon2,nfldsig),intent(out):: p_x
+  real(r_kind),dimension(lat2,lon2),intent(out):: skint_x
+  real(r_kind),dimension(lat2,lon2,nsig),intent(out):: t_x,q_x,cwmr_x,oz_x,u_x,v_x
+  real(r_kind),dimension(lat2,lon2,nfldsig),intent(out):: p_y
+  real(r_kind),dimension(lat2,lon2),intent(out):: skint_y
+  real(r_kind),dimension(lat2,lon2,nsig),intent(out):: t_y,q_y,cwmr_y,oz_y,u_y,v_y
 
 ! Local Variables
   integer(i_kind) iflg,k,i,j,it
   real(r_kind),dimension(lat2,lon2):: slndt,sicet
   real(r_kind),dimension(lat2,lon2):: slndt_x,sicet_x
   real(r_kind),dimension(lat2,lon2):: slndt_y,sicet_y
-  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork,hworkd
+  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork,hworkd
   logical vector
 
   iflg=1
   slndt=zero
   sicet=zero
 
-  if(nnnn1o > nlevs)then
-    do k=nlevs+1,nnnn1o
+  if(nsig1o > nlevs)then
+    do k=nlevs+1,nsig1o
       do j=1,nlon
         do i=1,nlat
           hworkd(i,j,k) = zero
@@ -107,40 +110,40 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   end if
 
   do it=1,nfldsig
-    call sub2grid(hwork,t(1,1,1,it),p(1,1,it),q(1,1,1,it),oz(1,1,1,it), &
-                  skint(1,1,it),slndt,sicet,cwmr(1,1,1,it),u(1,1,1,it), &
-                  v(1,1,1,it),iflg)
+    call sub2grid(hwork,t,p(1,1,it),q,oz, &
+                  skint,slndt,sicet,cwmr,u, &
+                  v,iflg)
 
 
 !   x derivative
 !$omp parallel do private(vector)
     do k=1,nlevs
       if(regional) then
-        call get_dlon_reg(hwork(1,1,k),hworkd(1,1,k))
+        call delx_reg(hwork(1,1,k),hworkd(1,1,k))
       else
         vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
         call compact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
       end if
     end do
 !$omp end parallel do
-    call grid2sub(hworkd,t_x(1,1,1,it),p_x(1,1,it),q_x(1,1,1,it), &
-                  oz_x(1,1,1,it),skint_x(1,1,it),slndt_x,sicet_x, &
-                  cwmr_x(1,1,1,it),u_x(1,1,1,it),v_x(1,1,1,it))
+    call grid2sub(hworkd,t_x,p_x(1,1,it),q_x, &
+                  oz_x,skint_x,slndt_x,sicet_x, &
+                  cwmr_x,u_x,v_x)
 
 !   y derivative
 !$omp parallel do private(vector)
     do k=1,nlevs
       if(regional) then
-        call get_dlat_reg(hwork(1,1,k),hworkd(1,1,k))
+        call dely_reg(hwork(1,1,k),hworkd(1,1,k))
       else
         vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
         call compact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
       end if
     end do
 !$omp end parallel do
-    call grid2sub(hworkd,t_y(1,1,1,it),p_y(1,1,it),q_y(1,1,1,it), &
-                  oz_y(1,1,1,it),skint_y(1,1,it),slndt_y,sicet_y, &
-                  cwmr_y(1,1,1,it),u_y(1,1,1,it),v_y(1,1,1,it))
+    call grid2sub(hworkd,t_y,p_y(1,1,it),q_y, &
+                  oz_y,skint_y,slndt_y,sicet_y, &
+                  cwmr_y,u_y,v_y)
   end do  ! end do it
 
   return
@@ -201,7 +204,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nnnn1o
+  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nsig1o
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
   use mpimod, only: nvar_id
   implicit none
@@ -220,7 +223,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   integer(i_kind) iflg,k,i,j
   real(r_kind),dimension(lat2,lon2):: slndt_x,sicet_x
   real(r_kind),dimension(lat2,lon2):: slndt_y,sicet_y
-  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork,hworkd
+  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork,hworkd
   logical vector
 
   iflg=1
@@ -240,7 +243,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !$omp parallel do private(vector)
   do k=1,nlevs
     if(regional) then
-      call tget_dlat_reg(hworkd(1,1,k),hwork(1,1,k))
+      call dely_reg(hworkd(1,1,k),hwork(1,1,k))
     else
       vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
       call tcompact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
@@ -255,7 +258,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !$omp parallel do private(vector)
   do k=1,nlevs
     if(regional) then
-      call tget_dlon_reg(hworkd(1,1,k),hwork(1,1,k))
+      call delx_reg(hworkd(1,1,k),hwork(1,1,k))
     else
       vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
       call tcompact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
@@ -356,8 +359,8 @@ subroutine get_zderivs(z,z_x,z_y,mype)
       workh(i,j)=work1(k)
     end do
     if(regional) then
-      call get_dlon_reg(workh,workd1)
-      call get_dlat_reg(workh,workd2)
+      call delx_reg(workh,workd1)
+      call dely_reg(workh,workd2)
     else
       call compact_dlon(workh,workd1,(.false.))
       call compact_dlat(workh,workd2,(.false.))

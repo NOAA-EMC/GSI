@@ -100,7 +100,8 @@ contains
 !
 !$$$
     use constants, only: zero, one, five
-	use gsi_io, only: lendian_in
+    use gsi_io, only: lendian_in
+    use obsmod, only: offtime_data,iadate
     implicit none
 
     real(r_kind),parameter:: r0_01=0.01_r_kind
@@ -116,7 +117,7 @@ contains
     real(r_kind),dimension(1,1):: poe,qoe,toe,woe
     real(r_kind),dimension(1):: xob,yob,dhr
     real(r_kind),dimension(1,1):: pob
-    integer(i_kind) n,k,iret
+    integer(i_kind) i,n,k,iret
     real(r_kind):: bmiss=10.e10
     real(r_kind) hdr(10),obs(10,255),qms(10,255),err(10,255)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
@@ -127,7 +128,8 @@ contains
     xob=oblon
     yob=oblat
     dhr=obhourset
-    idate=obdattim
+    idate=iadate(1)*1000000+iadate(2)*10000+iadate(3)*100+iadate(4)
+    write(6,*)idate
     pob=obpres
 ! set default values for this routine
     ludx=22
@@ -145,6 +147,7 @@ contains
     tqm=one
     zqm=one
     wqm=one
+    offtime_data=.true.
     if (oneob_type.eq.'ps') then
       typ(1)=87.
       cat(1,1)=zero

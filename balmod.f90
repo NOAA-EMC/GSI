@@ -463,9 +463,8 @@ contains
     implicit none
     
 !   Declare passed variables
-    real(r_kind),dimension(lat2,lon2,nsig),intent(in):: st
     real(r_kind),dimension(lat2,lon2),intent(inout):: p
-    real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,vp
+    real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,vp,st
     logical, intent(in) :: fpsproj
 
 !   Declare local variables
@@ -585,6 +584,10 @@ contains
 !   End of REGIONAL/GLOBAL if-then block
     endif
 
+!   Strong balance constraint
+    call strong_bk(st,vp,p,t)
+
+
     return
   end subroutine balance
   
@@ -650,6 +653,9 @@ contains
 
     real(r_kind) dl1,dl2
   
+!  Adjoint of strong balance constraint
+    call strong_bk_ad(st,vp,p,t)
+
 !   Initialize variables
     igrid=lat2*lon2
     isize=max(iglobal,itotsub)
@@ -903,6 +909,7 @@ subroutine strong_bk(st,vp,p,t)
 ! program history log:
 !   2008-09-19  derber,j.
 !   2008-12-29  todling   - redefine interface
+!   2009-04-21  derber - modify interface with calctends_no
 !
 !   input argument list:
 !     st       - input control vector, stream function
@@ -923,7 +930,7 @@ subroutine strong_bk(st,vp,p,t)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: levs_id,mype
+  use mpimod, only: mype
   use constants, only:  zero
   use gridmod, only: latlon1n,latlon11,nnnn1o
   use mod_vtrans,only: nvmodes_keep
@@ -936,26 +943,23 @@ subroutine strong_bk(st,vp,p,t)
   real(r_kind),dimension(latlon1n),intent(inout):: t
 
   logical:: fullfield
-  integer(i_kind) i,k
   integer(i_kind) istrong
   real(r_kind),dimension(latlon1n)::u_t,v_t,t_t
   real(r_kind),dimension(latlon11):: ps_t
 
-!************************************************************************************  
-! Initialize variable
+!******************************************************************************  
   if(nvmodes_keep <= 0 .or. nstrong <= 0) return
 
 ! compute derivatives
-  call calctends_no_tl(st,vp,t,p,mype,nnnn1o,u_t,v_t,t_t,ps_t)
 
   fullfield=.false.
   do istrong=1,nstrong
+ 
+     call calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,ps_t)
+
      call strong_bal_correction(u_t,v_t,t_t, &
           ps_t,mype,st,vp,t,p,.false.,fullfield,.true.)
 
-     if(istrong < nstrong) then
-       call calctends_no_tl(st,vp,t,p,mype,nnnn1o,u_t,v_t,t_t,ps_t)
-     end if
    end do
 
   return
@@ -973,6 +977,7 @@ subroutine strong_bk_ad(st,vp,p,t)
 ! program history log:
 !   2008-09-19  derber,j.
 !   2008-12-29  todling   - redefine interface
+!   2009-04-21  derber - modify interface with calctends_no
 !
 !   input argument list:
 !     st       - input control vector, stream function
@@ -993,7 +998,7 @@ subroutine strong_bk_ad(st,vp,p,t)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: levs_id,mype
+  use mpimod, only: mype
   use constants, only: zero
   use gridmod, only: latlon1n,latlon11,nnnn1o,latlon1n1
   use mod_vtrans,only: nvmodes_keep
@@ -1014,35 +1019,23 @@ subroutine strong_bk_ad(st,vp,p,t)
 !******************************************************************************
 
   if(nvmodes_keep <= 0 .or. nstrong <= 0) return
-
-! Zero gradient arrays
-  do i=1,latlon1n
-     u_t(i)=zero
-     v_t(i)=zero
-     t_t(i)=zero
-  end do
-  do i=1,latlon11
-     ps_t(i)=zero
-  end do
      
-  do istrong=nstrong,1,-1
-    if(istrong < nstrong) then
-      call calctends_no_ad(st,vp,t,p,mype,nnnn1o,u_t,v_t,t_t,ps_t)  
-      do i=1,latlon1n
-         u_t(i)=zero
-         v_t(i)=zero
-         t_t(i)=zero
-      end do
-      do i=1,latlon11
-         ps_t(i)=zero
-      end do
+  do istrong=1,nstrong
+! Zero gradient arrays
+    do i=1,latlon1n
+       u_t(i)=zero
+       v_t(i)=zero
+       t_t(i)=zero
+    end do
+    do i=1,latlon11
+       ps_t(i)=zero
+    end do
 
-    end if
     call strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,st,vp,t,p)
+
+    call calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,ps_t)  
 !
   end do
-
-  call calctends_no_ad(st,vp,t,p,mype,nnnn1o,u_t,v_t,t_t,ps_t)  
 
   return
   end subroutine strong_bk_ad

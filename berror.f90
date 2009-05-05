@@ -215,6 +215,7 @@ contains
   use balmod, only: llmin,llmax
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
   use jfunc, only: nrclen
+  use constants, only: zero
   implicit none
   
   llmin=1
@@ -243,6 +244,7 @@ contains
            qvar3d(lat2,lon2,nsig),&
            dssvp(lat2,lon2),&
            dssvt(lat2,lon2,3))
+  dssvt = zero
   allocate(varprd(nrclen))
   allocate(inaxs(nf,nlon/8), &
            inxrs(nlon/8,mr:nr) )

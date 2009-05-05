@@ -480,7 +480,7 @@
 
    sensorlist(1)=isis
    if( crtm_coeffs_path /= "" ) then
-    if(mype==0) write(6,*)'GLBSOI: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
+    if(mype==0) write(6,*)'SETUPRAD: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
     error_status = crtm_init(channelinfo,SensorID=sensorlist,&
        Process_ID=mype,Output_Process_ID=0, &
        File_Path = crtm_coeffs_path )
@@ -489,7 +489,7 @@
        Process_ID=mype,Output_Process_ID=0)
    endif
    if (error_status /= success) then
-     write(6,*)'GLBSOI:  ***ERROR*** crtm_init error_status=',error_status,&
+     write(6,*)'SETUPRAD:  ***ERROR*** crtm_init error_status=',error_status,&
           '   TERMINATE PROGRAM EXECUTION'
      call stop2(71)
    endif
@@ -586,7 +586,11 @@
 
 ! Load surface sensor data structure
   surface(1)%sensordata%n_channels = channelinfo(sensorindex)%n_channels
-  surface(1)%sensordata%select_wmo_sensor_id  = channelinfo(sensorindex)%wmo_sensor_id
+!! REL-1.2 CRTM
+!!  surface(ione)%sensordata%select_wmo_sensor_id  = channelinfo(ione)%wmo_sensor_id
+!! RB-1.1.rev1855 CRTM
+  surface(1)%sensordata%sensor_id  = channelinfo(sensorindex)%wmo_sensor_id
+
 
   do i=1,nchanl
 
@@ -1862,6 +1866,7 @@
          end do
             
 !        Reduce qc bounds in tropics
+         cenlatx=abs(cenlat)*oneover25
          if (cenlatx < one) then
             if(luse(n))aivals(6,is) = aivals(6,is) + one
             efact = half*(cenlatx+one)

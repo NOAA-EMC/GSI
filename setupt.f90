@@ -23,12 +23,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use oneobmod, only: maginnov
   use oneobmod, only: magoberr
 
-  use gridmod, only: lat2, lon2, nsig,rlats,rlons,nlat,nlon,twodvar_regional
+  use gridmod, only: lat2, lon2, nsig,rlats,rlons,nlat,nlon,twodvar_regional,regional
   use gridmod, only: get_ijk
   use jfunc, only: jiter,first,last,jiterstart,miter
 
   use guess_grids, only: nfldsig, hrdifsig,ges_ps,ges_lnprsl,ges_tv,ges_q,&
-       ntguessig,ges_u,ges_v,geop_hgtl,ges_tsen
+       ntguessig,ges_u,ges_v,geop_hgtl,ges_tsen,pt_ll
 
   use constants, only: zero, one, fv, rad2deg,four,t0c,rd_over_cp,ione
   use constants, only: tiny_r_kind,half,two,one_tenth,cg_term,huge_r_kind
@@ -131,7 +131,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
   
   real(r_double) rstation_id
-  real(r_kind) rsig,drpx
+  real(r_kind) rsig,drpx,rsigp
   real(r_kind) psges,sfcchk,pres_diff,rlow,rhgh
   real(r_kind) tges
   real(r_kind) obserror,ratio,val2,obserrlm
@@ -227,6 +227,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   mm1=mype+1
 
 !  rsli=isli
+  rsigp=rsig+one
   do i=1,nobs
 ! Convert obs lats and lons to grid coordinates
      dlat=data(ilat,i)
@@ -366,7 +367,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      end if
      rlow=max(sfcchk-dpres,zero)
 
-     rhgh=max(zero,dpres-rsig-r0_001)
+     rhgh=max(zero,dpres-rsigp-r0_001)
 
      if(sfctype.and.sfcmodel)  dpres = one     ! place sfc T obs at the model sfc
 
@@ -378,7 +379,15 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      
      ratio_errors=error/(data(ier,i)+drpx+1.0e6*rhgh+r8*rlow)
      error=one/error
-     if (dpres > rsig) ratio_errors=zero
+!    if (dpres > rsig) ratio_errors=zero
+     if (dpres > rsig )then
+       if( regional .and. prest > pt_ll )then
+         dpres=rsig
+       else
+         ratio_errors=zero
+       endif
+     endif
+
 
 !     if(mype ==0 ) then
 !        write(6,*) itype,tob,tges

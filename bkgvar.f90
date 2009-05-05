@@ -90,17 +90,16 @@ subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
         end do
       enddo
       if(k == 1)then
+
+        if(iflg == 0) then
 ! Surface fields
-       do j=1,lon2
-         do i=1,lat2
-           l=int(rllat1(i,j))
-           l2=min0(l+1,llmax)
-           dl2=rllat1(i,j)-float(l)
-           dl1=one-dl2
-           p(i,j)=p(i,j)*(dl1*dssvp(l,j)+dl2*dssvp(l2,j))
-
-
-           if(iflg == 0) then
+         do j=1,lon2
+           do i=1,lat2
+             l=int(rllat1(i,j))
+             l2=min0(l+1,llmax)
+             dl2=rllat1(i,j)-float(l)
+             dl1=one-dl2
+             p(i,j)=p(i,j)*(dl1*dssvp(l,j)+dl2*dssvp(l2,j))
 ! Break skin temperature into components
 !          If land point
              if(isli2(i,j) == 1) then
@@ -112,8 +111,18 @@ subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
              else
                 sst(i,j)=skint(i,j)*(dl1*dssvt(l,j,1)+dl2*dssvt(l2,j,1))
              end if
+           end do
+         end do
 
-           else if (iflg.eq.1) then
+        else if (iflg.eq.1) then
+! Surface fields
+         do j=1,lon2
+           do i=1,lat2
+             l=int(rllat1(i,j))
+             l2=min0(l+1,llmax)
+             dl2=rllat1(i,j)-float(l)
+             dl1=one-dl2
+             p(i,j)=p(i,j)*(dl1*dssvp(l,j)+dl2*dssvp(l2,j))
 ! Combine sst,slndt, and sicet into skin temperature field
 !          Land point, load land sfc t into skint
              if(isli2(i,j) == 1) then
@@ -125,9 +134,9 @@ subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
              else
                 skint(i,j)=sst(i,j)*(dl1*dssvt(l,j,1)+dl2*dssvt(l2,j,1))
              end if
-           end if
+           end do
          end do
-       end do
+        end if
       end if
     enddo
 
@@ -153,35 +162,28 @@ subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
        do j=1,lon2
         do i=1,lat2
            p(i,j)=p(i,j)*dssvp(i,j)
-
-         if (iflg == 0) then
-! Break skin temperature into components
-!        Land point
-          if(isli2(i,j) == 1) then
-           slndt(i,j)=skint(i,j)*dssvt(i,j,2)
-!       Ice
-          else if(isli2(i,j) == 2) then
-             sicet(i,j)=skint(i,j)*dssvt(i,j,3)
-!       Treat as a water point
-          else
-             sst(i,j)=skint(i,j)*dssvt(i,j,1)
-          end if
-
-         else if (iflg == 1) then
-! Combine sst,slndt, and sicet into skin temperature field
-!        Land point, load land sfc t into skint
-          if(isli2(i,j) ==  1) then
-             skint(i,j)=slndt(i,j)*dssvt(i,j,2)
-!       Iice, load ice temp into skint
-          else if(isli2(i,j) == 2) then
-             skint(i,j)=sicet(i,j)*dssvt(i,j,3)
-!       Else treat as a water point, load sst into skint
-          else
-             skint(i,j)=sst(i,j)*dssvt(i,j,1)
-          end if
-         end if
         end do
        end do
+       if (iflg == 0) then
+! Break skin temperature into components
+         do j=1,lon2
+           do i=1,lat2
+             sst(i,j)  =skint(i,j)*dssvt(i,j,1)
+             slndt(i,j)=skint(i,j)*dssvt(i,j,2)
+             sicet(i,j)=skint(i,j)*dssvt(i,j,3)
+           end do
+         end do
+       else
+! Combine sst,slndt, and sicet into skin temperature field
+         do j=1,lon2
+           do i=1,lat2
+             skint(i,j)=sst(i,j)  *dssvt(i,j,1)+ &
+                        slndt(i,j)*dssvt(i,j,2)+ &
+                        sicet(i,j)*dssvt(i,j,3)
+
+           end do
+         end do
+       end if
       end if
     enddo
 

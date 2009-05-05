@@ -181,7 +181,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use mpimod, only: mype,ierror,mpi_comm_world,mpi_rtype,mpi_sum,npe
+  use mpimod, only: mype
   use constants, only:  zero,one_tenth,one,zero_quad
   use gsi_4dvar, only: nobs_bins, ltlint
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
@@ -218,12 +218,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 ! Declare local variables
   integer(i_kind) i,j,mm1,ii,ibin,k
   integer(i_kind) istp_use
-  real(r_quad),dimension(6,ipen):: pbc,pbcx
+  real(r_quad),dimension(6,ipen):: pbc
   real(r_quad),dimension(ipen):: bpen,cpen   
-  real(r_quad),dimension(ipenlin):: pstart   
+  real(r_quad),dimension(3,ipenlin):: pstart   
   real(r_quad) bx,cx
   real(r_kind),dimension(ipen):: stpx   
-  real(r_kind),dimension(4,ipen):: pen   
   real(r_kind) dels,delpen
   real(r_kind) outpensave,stprat
   real(r_kind),dimension(4)::sges
@@ -276,20 +275,15 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !
 !
 
-  pbc=zero_quad
   pstart=zero_quad
+  pbc=zero_quad
 
 ! penalty, b and c for background terms
 
-  pstart(1) = dot_product(xhatsave,yhatsave,r_quad)
-  pbc(5,1)  =-dot_product(dirx,yhatsave,r_quad)
-  pbc(6,1)  = dot_product(dirx,diry,r_quad)
+  pstart(1,1) = qdot_prod_sub(xhatsave,yhatsave)
+  pstart(2,1) =-qdot_prod_sub(dirx,yhatsave)
+  pstart(3,1) = qdot_prod_sub(dirx,diry)
 
-  if(mype /= 0)then
-    pstart(1)=zero_quad
-    pbc(5,1)=zero_quad
-    pbc(6,1)=zero_quad
-  end if
 ! Contraint and 3dvar terms
   if(l_foto )then
     call allocate_state(dhat_dt)
@@ -315,9 +309,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
     do i=1,ipenlin
       do j=1,4
-        pbc(j,i)=pstart(i)-2.0_r_quad*pbc(5,i)*sges(j)+ &
-                                      pbc(6,i)*sges(j)*sges(j)
+        pbc(j,i)=pstart(1,i)-2.0_r_quad*pstart(2,i)*sges(j)+ &
+                                        pstart(3,i)*sges(j)*sges(j)
       end do
+      pbc(5,i)=pstart(2,i)
+      pbc(6,i)=pstart(3,i)
     end do
 
 !   penalty, b, and c for moisture constraint
@@ -330,24 +326,18 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
     enddo
 
 !   Gather J contributions
-    pbcx=pbc
-    call mpl_allreduce(6,ipen,pbcx)
+    call mpl_allreduce(6,ipen,pbc)
 
 !   penalty and sum b and sum c
-    pen=zero
     bpen=zero_quad
     cpen=zero_quad
     do i=1,ipen
-      pen(1,i)=pbcx(1,i)
-      pen(2,i)=pbcx(2,i)
-      pen(3,i)=pbcx(3,i)
-      pen(4,i)=pbcx(4,i)
-      bpen(i)=bpen(i)+pbcx(5,i)
-      cpen(i)=cpen(i)+pbcx(6,i)
+      bpen(i)=bpen(i)+pbc(5,i)
+      cpen(i)=cpen(i)+pbc(6,i)
     end do
     do i=1,4
      do j=1,ipen
-      outpen((ii-1)*4+i) = outpen((ii-1)*4+i)+pen(i,j)
+      outpen((ii-1)*4+i) = outpen((ii-1)*4+i)+pbc(i,j)
      end do
      outstp((ii-1)*4+i) = sges(i)
     end do
@@ -369,20 +359,20 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
     delpen = stp(ii)*(bx - 0.5_r_quad*stp(ii)*cx ) 
 
     if(ii == 1)then
-      pjcost(1) = pbcx(1,1) ! Jb
-      pjcost(3) = pbcx(1,2) ! Jc
-      pjcost(4) = pbcx(1,4)+pbcx(1,3) ! Jl
+      pjcost(1) = pbc(1,1) ! Jb
+      pjcost(3) = pbc(1,2) ! Jc
+      pjcost(4) = pbc(1,4)+pbc(1,3) ! Jl
       pjcost(2) = zero
       do i=1,nobs_type
-        pjcost(2) = pjcost(2)+pbcx(1,4+i) ! Jo
+        pjcost(2) = pjcost(2)+pbc(1,4+i) ! Jo
       end do
+      penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)
     end if
 
-    penalty=outpen(1)
     stpinout=stp(ii)
     if(abs(delpen/penalty) < 1.e-17_r_kind) then
       if(mype == 0)then
-        if(ii == 1)write(iout_iter,100) (pen(1,i),i=1,ipen)
+        if(ii == 1)write(iout_iter,100) (pbc(1,i),i=1,ipen)
         write(iout_iter,140) ii,delpen,bx,cx,stp(ii)
         write(iout_iter,101) (stpx(i),i=1,ipen)
         write(iout_iter,105) (bpen(i),i=1,ipen)
@@ -417,7 +407,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 ! Write out detailed results to iout_iter
     if(ii == 1 .and. mype == 0) then
-      write(iout_iter,100) (pen(1,i),i=1,ipen)
+      write(iout_iter,100) (pbc(1,i),i=1,ipen)
       write(iout_iter,101) (stpx(i),i=1,ipen)
       write(iout_iter,105) (bpen(i),i=1,ipen)
       write(iout_iter,110) (cpen(i),i=1,ipen)

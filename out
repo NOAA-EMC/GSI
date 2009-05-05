@@ -1,35 +1,424 @@
-119,120c119
-<       crtm_options_type,crtm_init,crtm_destroy,success,crtm_destroy_options, &
-<       crtm_allocate_options
+55,56c55,58
+< !   2007-03-01 derber - add toss_gps_sub; simplify profile qc loop
+< !   2007-04-13 treadon - tighten data cutoff in tropics
 ---
->       crtm_options_type,crtm_init,crtm_destroy,success
-122c121
-<       crtm_destroy_rtsolution
----
->       crtm_destroy_rtsolution 
-125c124
-<       crtm_destroy_atmosphere,volume_mixing_ratio_units,crtm_zero_atmosphere &
----
->       crtm_destroy_atmosphere,volume_mixing_ratio_units,crtm_zero_atmosphere
-235c234
-<   integer(i_kind) err1,err2,err3,err4,err5,ich9
----
->   integer(i_kind) err1,err2,err3,err4,ich9
-558c557
-<   err1=0; err2=0; err3=0; err4=0; err5=0
----
->   err1=0; err2=0; err3=0; err4=0
-568d566
-<   err5 = crtm_allocate_options(nchanl,options)
-573d570
-<   if (err5/=success) write(6,*)' ***ERROR** allocating options.       err=',err5
-575d571
+> !   2007-03-01 derber   - add toss_gps_sub; simplify profile qc loop
+> !   2007-03-19 tremolet - binning of observations
+> !   2007-04-13 treadon  - tighten data cutoff in tropics
+> !   2007-06-05 tremolet - add observation diagnostics structure
+70,73c72,76
+< !  2008-05-23  safford  - rm uused vars and uses, comment out unused parameter
+< !  2009-02-05  cucurull - update qc, obs error and refractivity operator 
+< !  2009-04-27  cucurull - update qc to enable GRAS and GRACE assimilation
 < 
-2299c2295
-<   err1=0; err2=0; err3=0; err4=0; err5=0
 ---
->   err1=0; err2=0; err3=0; err4=0
-2304d2299
-<   err5 = crtm_destroy_options(options)
-2309d2303
-<   if (err5/=success) write(6,*)'***ERROR** destroy options.       err=',err5
+> !  2008-05-23  safford - rm unused vars and uses
+> !  2008-12-03  todling  - revisited Tremolet modifications in light of newer GSI
+> !                       - changed handle of tail%time
+> !  2009-02-05  cucurull - update qc, obs error and refractivity operator
+> !
+89c92,94
+<   use obsmod, only: nprof_gps,gpshead,gpstail,gps_allhead,gps_alltail
+---
+>   use obsmod, only: nprof_gps,gpshead,gpstail,gps_allhead,gps_alltail,&
+>        i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated
+>   use gsi_4dvar, only: nobs_bins,hr_obsbin
+97c102
+<        three,four,five,half,r3600
+---
+>        three,four,five,half
+99,100c104
+<   use jfunc, only: jiter,last
+<   use jfunc, only: l_foto
+---
+>   use jfunc, only: jiter,last,miter
+109,110d112
+<   real(r_kind),parameter:: r52_075 = 52.075_r_kind
+<   real(r_kind),parameter:: r240 = 240.0_r_kind
+113d114
+<   real(r_kind),parameter:: r30 = 30.0_r_kind
+114a116,118
+>   real(r_kind),parameter:: r30 = 30.0_r_kind
+>   real(r_kind),parameter:: r52_075 = 52.075_r_kind
+>   real(r_kind),parameter:: r240 = 240.0_r_kind
+117d120
+<   real(r_kind),parameter:: nine = 9.0_r_kind
+118a122
+>   real(r_kind),parameter:: nine = 9.0_r_kind
+121a126
+> 
+128a134
+>   real(r_kind) cutoff,cutoff1,cutoff2,cutoff3,cutoff12,cutoff23
+132d137
+<   real(r_kind) cutoff,cutoff1,cutoff2,cutoff3,cutoff12,cutoff23
+140,141c145,146
+<   real(r_kind),dimension(nsig):: tges,hges,hgesl
+<   real(r_kind),dimension(nsig+1) :: prsltmp
+---
+>   real(r_kind),dimension(nsig):: tges,hgesl
+>   real(r_kind),dimension(nsig+1) :: prsltmp,hges
+143d147
+<   real(r_kind),dimension(lat2,lon2,nsig,nfldsig)::geop_height,geop_heightl
+150,151c154,155
+<   integer(i_kind):: ilate,ilone,mm1
+<   integer(i_kind) i,j,k,k1,k2,n,nreal,jj
+---
+>   integer(i_kind):: ilate,ilone,mm1,ibin,ioff,idia
+>   integer(i_kind) i,j,k,k1,k2,n,nreal,mreal,jj
+194,205d197
+< ! Convert model geopotential heights to msl units - only nsig levels
+<   do jj=1,nfldsig
+<      do j=1,lon2
+<         do i=1,lat2
+<            do k=1,nsig
+<               geop_height(i,j,k,jj) = geop_hgti(i,j,k,jj)
+<               geop_heightl(i,j,k,jj) = geop_hgtl(i,j,k,jj)
+<            end do
+<         end do
+<      end do
+<   end do
+< 
+207c199,201
+<   nreal=19
+---
+>   mreal=19
+>   nreal=mreal
+>   if (lobsdiagsave) nreal=nreal+4*miter+1
+230c224,226
+<      call tintrp2a(geop_height,hges,dlat,dlon,dtime,hrdifsig,&
+---
+>      call tintrp2a(geop_hgti,hges,dlat,dlon,dtime,hrdifsig,&
+>           1,nsig+1,mype,nfldsig)
+>      call tintrp2a(geop_hgtl,hgesl,dlat,dlon,dtime,hrdifsig,&
+232,233d227
+<      call tintrp2a(geop_heightl,hgesl,dlat,dlon,dtime,hrdifsig,&
+<           1,nsig,mype,nfldsig)
+292c286
+<      if((data(ilate,i)>= r20).or.(data(ilate,i)<= -r20)) then 
+---
+>      if((data(ilate,i)>= r20).or.(data(ilate,i)<= -r20)) then
+293a288
+> 
+303d297
+<      
+306a301
+> 
+311d305
+< 
+352c346
+<      rdiagbuf (19,i)       = hobl           ! model vertical grid (midpoint)
+---
+>      rdiagbuf(19,i)        = hobl           ! model vertical grid  (midpoint)
+372a367,368
+> 
+>        rdiagbuf(5,i)   = (data(igps,i)-nrefges)/data(igps,i) ! incremental refractivity (x100 %)
+374c370
+<        rdiagbuf(18,i)  = trefges ! temperature at obs location in Kelvin
+---
+>        rdiagbuf(18,i)  = trefges       ! temperature at obs location in Kelvin
+378c374
+<        if(alt<= r30) then ! go into qc checks
+---
+>        if(alt <= r30) then ! go into qc checks
+396,397c392
+<            cutoff = zero
+< 
+---
+>            cutoff=zero
+400a396,397
+> 
+> 
+403,405c400,401
+<            endif 
+<            if((ictype(ikx)==41).or.(ictype(ikx)==722).or.(ictype(ikx)==723).or.&
+<                ictype(ikx)==4) then !CL
+---
+>            endif
+>            if((ictype(ikx)==41).or.(ictype(ikx)==722).or.(ictype(ikx)==723)) then !CL
+419c415
+<            if(alt<=four) cutoff=cutoff3 
+---
+>            if(alt<=four) cutoff=cutoff3
+421c417
+<            cutoff=three*cutoff*r0_01 
+---
+>            cutoff=three*cutoff*r0_01
+500d495
+<      kprof = data(iprof,i)
+502a498
+>         kprof = data(iprof,i)
+507c503
+< !          Remove data below   
+---
+> !          Remove data below
+509,514c505,507
+<                if((rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.(rdiagbuf(1,i)==723).or.&
+<                  (rdiagbuf(1,i)==4)) then
+<                      if(r1em3*rdiagbuf(7,i)<= ten) then
+<                        qcfail(j) = .true.
+<                        qcfail_stats_2(j)=one
+<                      endif
+---
+>                if((rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722)) then
+>                  qcfail(j) = .true.
+>                  qcfail_stats_2(j)=one
+528,529d520
+<      kprof = data(iprof,i)
+<      alt=r1em3*rdiagbuf(7,i) ! altitude in km
+530a522
+>      alt=r1em3*rdiagbuf(7,i) ! altitude in km
+531a524
+>         kprof = data(iprof,i)
+535,538c528,529
+<         if( ( kprof == 41).or.(kprof == 722).or.(kprof == 723).or.(kprof == 4)) then
+<           if(alt<=ten) then
+<            toss_gps_sub(kprof) = max(toss_gps_sub(kprof),data(ihgt,i))
+<           endif
+---
+>         if( ( kprof == 41).or.(kprof == 722)) then
+>           toss_gps_sub(kprof) = max(toss_gps_sub(kprof),data(ihgt,i))
+543c534
+<         endif 
+---
+>         end if
+544a536,537
+> 
+> 
+561a555
+>   idia=0
+564a559
+>      dtime=data(itime,i)
+603a599,605
+> !    Link observation to appropriate observation bin
+>      if (nobs_bins>1) then
+>        ibin = NINT( dtime/hr_obsbin ) + 1
+>      else
+>        ibin = 1
+>      endif
+>      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+604a607,640
+> !    Link obs to diagnostics structure
+>      if (.not.lobsdiag_allocated) then
+>        if (.not.associated(obsdiags(i_gps_ob_type,ibin)%head)) then
+>          allocate(obsdiags(i_gps_ob_type,ibin)%head,stat=istat)
+>          if (istat/=0) call abor1('setupbend: failure to allocate obsdiags')
+>          obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
+>        else
+>          allocate(obsdiags(i_gps_ob_type,ibin)%tail%next,stat=istat)
+>          if (istat/=0) call abor1('setupbend: failure to allocate obsdiags')
+>          obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
+>        end if
+>        allocate(obsdiags(i_gps_ob_type,ibin)%tail%muse(miter+1))
+>        allocate(obsdiags(i_gps_ob_type,ibin)%tail%nldepart(miter+1))
+>        allocate(obsdiags(i_gps_ob_type,ibin)%tail%tldepart(miter))
+>        allocate(obsdiags(i_gps_ob_type,ibin)%tail%obssen(miter))
+>        obsdiags(i_gps_ob_type,ibin)%tail%indxglb=i
+>        obsdiags(i_gps_ob_type,ibin)%tail%nchnperobs=-99999
+>        obsdiags(i_gps_ob_type,ibin)%tail%luse=.false.
+>        obsdiags(i_gps_ob_type,ibin)%tail%muse(:)=.false.
+>        obsdiags(i_gps_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+>        obsdiags(i_gps_ob_type,ibin)%tail%tldepart(:)=zero
+>        obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=-huge(zero)
+>        obsdiags(i_gps_ob_type,ibin)%tail%obssen(:)=zero
+>      else 
+>        if (.not.associated(obsdiags(i_gps_ob_type,ibin)%tail)) then
+>          obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
+>        else
+>          obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
+>        end if
+>        if (obsdiags(i_gps_ob_type,ibin)%tail%indxglb/=i) call abor1('setupbend: index error')
+>      endif
+> 
+>      if (nobskeep>0) muse(i)=obsdiags(i_gps_ob_type,ibin)%tail%muse(nobskeep)
+> 
+606,607c642,643
+<      if(.not. associated(gps_allhead))then
+<          allocate(gps_allhead,stat=istat)
+---
+>      if(.not. associated(gps_allhead(ibin)%head))then
+>          allocate(gps_allhead(ibin)%head,stat=istat)
+609c645
+<          gps_alltail => gps_allhead
+---
+>          gps_alltail(ibin)%head => gps_allhead(ibin)%head
+611,612c647
+<          allocate(gps_alltail%llpoint,stat=istat)
+<          gps_alltail => gps_alltail%llpoint
+---
+>          allocate(gps_alltail(ibin)%head%llpoint,stat=istat)
+613a649
+>          gps_alltail(ibin)%head => gps_alltail(ibin)%head%llpoint
+615c651
+<      allocate(gps_alltail%rdiag(nreal),stat=istat)
+---
+>      allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istat)
+618,628c654,664
+<      gps_alltail%ratio_err= ratio_errors(i)
+<      gps_alltail%obserr   = data(ier,i)
+<      gps_alltail%dataerr  = data(ier,i)*data(igps,i)
+<      gps_alltail%pg       = cvar_pg(ikx)
+<      gps_alltail%b        = cvar_b(ikx)
+<      gps_alltail%loc      = data(ihgt,i)
+<      gps_alltail%kprof    = data(iprof,i)
+<      gps_alltail%type     = data(ikxx,i)
+<      gps_alltail%luse     = luse(i) ! logical
+<      gps_alltail%muse     = muse(i) ! logical
+<      gps_alltail%cdiag    = cdiagbuf(i)
+---
+>      gps_alltail(ibin)%head%ratio_err= ratio_errors(i)
+>      gps_alltail(ibin)%head%obserr   = data(ier,i)
+>      gps_alltail(ibin)%head%dataerr  = data(ier,i)*data(igps,i)
+>      gps_alltail(ibin)%head%pg       = cvar_pg(ikx)
+>      gps_alltail(ibin)%head%b        = cvar_b(ikx)
+>      gps_alltail(ibin)%head%loc      = data(ihgt,i)
+>      gps_alltail(ibin)%head%kprof    = data(iprof,i)
+>      gps_alltail(ibin)%head%type     = data(ikxx,i)
+>      gps_alltail(ibin)%head%luse     = luse(i) ! logical
+>      gps_alltail(ibin)%head%muse     = muse(i) ! logical
+>      gps_alltail(ibin)%head%cdiag    = cdiagbuf(i)
+630c666
+<         gps_alltail%rdiag(j)= rdiagbuf(j,i)
+---
+>         gps_alltail(ibin)%head%rdiag(j)= rdiagbuf(j,i)
+632a669,673
+>      obsdiags(i_gps_ob_type,ibin)%tail%luse=luse(i)
+>      obsdiags(i_gps_ob_type,ibin)%tail%muse(jiter)=muse(i)
+>      obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jiter)=data(igps,i)
+>      obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=(data(ier,i)*ratio_errors(i))**2
+> 
+638,639c679,680
+<         if(.not. associated(gpshead))then
+<             allocate(gpshead,stat=istat)
+---
+>         if(.not. associated(gpshead(ibin)%head))then
+>             allocate(gpshead(ibin)%head,stat=istat)
+641c682
+<             gpstail => gpshead
+---
+>             gpstail(ibin)%head => gpshead(ibin)%head
+643,644c684
+<             allocate(gpstail%llpoint,stat=istat)
+<             gpstail => gpstail%llpoint
+---
+>             allocate(gpstail(ibin)%head%llpoint,stat=istat)
+645a686
+>             gpstail(ibin)%head => gpstail(ibin)%head%llpoint
+647,648c688,689
+<         allocate(gpstail%jac_t(nsig),gpstail%jac_q(nsig), &
+<                  gpstail%jac_p(nsig+1),gpstail%ij(4,nsig),stat=istat)
+---
+>         allocate(gpstail(ibin)%head%jac_t(nsig),gpstail(ibin)%head%jac_q(nsig), &
+>                  gpstail(ibin)%head%jac_p(nsig+1),gpstail(ibin)%head%ij(4,nsig),stat=istat)
+652c693
+<         gps_alltail%mmpoint => gpstail
+---
+>         gps_alltail(ibin)%head%mmpoint => gpstail(ibin)%head
+655c696
+<         call get_ij(mm1,data(ilat,i),data(ilon,i),gps_ij,gpstail%wij(1))
+---
+>         call get_ij(mm1,data(ilat,i),data(ilon,i),gps_ij,gpstail(ibin)%head%wij(1))
+658,661c699,702
+<           gpstail%ij(1,j)=gps_ij(1)+(j-1)*latlon11
+<           gpstail%ij(2,j)=gps_ij(2)+(j-1)*latlon11
+<           gpstail%ij(3,j)=gps_ij(3)+(j-1)*latlon11
+<           gpstail%ij(4,j)=gps_ij(4)+(j-1)*latlon11
+---
+>           gpstail(ibin)%head%ij(1,j)=gps_ij(1)+(j-1)*latlon11
+>           gpstail(ibin)%head%ij(2,j)=gps_ij(2)+(j-1)*latlon11
+>           gpstail(ibin)%head%ij(3,j)=gps_ij(3)+(j-1)*latlon11
+>           gpstail(ibin)%head%ij(4,j)=gps_ij(4)+(j-1)*latlon11
+664,666c705,707
+<            gpstail%jac_q(j)=zero
+<            gpstail%jac_t(j)=zero
+<            gpstail%jac_p(j)=zero
+---
+>            gpstail(ibin)%head%jac_q(j)=zero
+>            gpstail(ibin)%head%jac_t(j)=zero
+>            gpstail(ibin)%head%jac_p(j)=zero
+668c709
+<         gpstail%jac_p(nsig+1)=zero
+---
+>         gpstail(ibin)%head%jac_p(nsig+1)=zero
+673,674c714,715
+<         gpstail%jac_t(k1)=gpstail%jac_t(k1)+termtk(i)
+<         gpstail%jac_p(k1)=gpstail%jac_p(k1)+termpk(i)
+---
+>         gpstail(ibin)%head%jac_t(k1)=gpstail(ibin)%head%jac_t(k1)+termtk(i)
+>         gpstail(ibin)%head%jac_p(k1)=gpstail(ibin)%head%jac_p(k1)+termpk(i)
+676c717
+<           gpstail%jac_t(k1)=gpstail%jac_t(k1)+termtk(i)
+---
+>           gpstail(ibin)%head%jac_t(k1)=gpstail(ibin)%head%jac_t(k1)+termtk(i)
+678c719
+<           gpstail%jac_t(k1-1)=gpstail%jac_t(k1-1)+termtk(i)
+---
+>           gpstail(ibin)%head%jac_t(k1-1)=gpstail(ibin)%head%jac_t(k1-1)+termtk(i)
+680,682c721,723
+<             gpstail%jac_t(j-1)=gpstail%jac_t(j-1)+termtl(j,i)
+<             gpstail%jac_p(j-1)=gpstail%jac_p(j-1)+termpl1(j,i)
+<             gpstail%jac_p(j)=gpstail%jac_p(j)-termpl2(j,i)
+---
+>             gpstail(ibin)%head%jac_t(j-1)=gpstail(ibin)%head%jac_t(j-1)+termtl(j,i)
+>             gpstail(ibin)%head%jac_p(j-1)=gpstail(ibin)%head%jac_p(j-1)+termpl1(j,i)
+>             gpstail(ibin)%head%jac_p(j)=gpstail(ibin)%head%jac_p(j)-termpl2(j,i)
+691,705c732,743
+<         gpstail%jac_t(k1l)=gpstail%jac_t(k1l)+termt(i)*(one-delz)
+<         gpstail%jac_t(k2l)=gpstail%jac_t(k2l)+termt(i)*delz
+<         gpstail%jac_q(k1l)=gpstail%jac_q(k1l)+termq(i)*(one-delz)
+<         gpstail%jac_q(k2l)=gpstail%jac_q(k2l)+termq(i)*delz
+<         gpstail%res     = data(igps,i)
+<         gpstail%err2    = data(ier,i)**2
+<         gpstail%raterr2 = ratio_errors(i)**2    
+<         if(l_foto)then
+<           gpstail%time  = data(itime,i)*r3600
+<         else
+<           gpstail%time  = zero
+<         end if
+<         gpstail%b       = cvar_b(ikx)
+<         gpstail%pg      = cvar_pg(ikx)
+<         gpstail%luse    = luse(i)
+---
+>         gpstail(ibin)%head%jac_t(k1l)=gpstail(ibin)%head%jac_t(k1l)+termt(i)*(one-delz)
+>         gpstail(ibin)%head%jac_t(k2l)=gpstail(ibin)%head%jac_t(k2l)+termt(i)*delz
+>         gpstail(ibin)%head%jac_q(k1l)=gpstail(ibin)%head%jac_q(k1l)+termq(i)*(one-delz)
+>         gpstail(ibin)%head%jac_q(k2l)=gpstail(ibin)%head%jac_q(k2l)+termq(i)*delz
+>         gpstail(ibin)%head%res     = data(igps,i)
+>         gpstail(ibin)%head%err2    = data(ier,i)**2
+>         gpstail(ibin)%head%raterr2 = ratio_errors(i)**2    
+>         gpstail(ibin)%head%time    = data(itime,i)
+>         gpstail(ibin)%head%b       = cvar_b(ikx)
+>         gpstail(ibin)%head%pg      = cvar_pg(ikx)
+>         gpstail(ibin)%head%luse    = luse(i)
+>         gpstail(ibin)%head%diags   => obsdiags(i_gps_ob_type,ibin)%tail
+707a746,776
+> 
+>      if (lobsdiagsave.and.luse(i)) then
+>        idia=idia+1
+>        do j=1,mreal
+>          rdiagbuf(j,idia)=rdiagbuf(j,i)
+>        end do
+>        if (lobsdiagsave) then
+>          ioff=mreal
+>          do jj=1,miter
+>            ioff=ioff+1
+>            if (obsdiags(i_gps_ob_type,ibin)%tail%muse(jj)) then
+>              rdiagbuf(ioff,idia) = one
+>            else
+>              rdiagbuf(ioff,idia) = -one
+>            endif
+>          enddo
+>          do jj=1,miter+1
+>            ioff=ioff+1
+>            rdiagbuf(ioff,idia) = obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jj)
+>          enddo
+>          do jj=1,miter
+>            ioff=ioff+1
+>            rdiagbuf(ioff,idia) = obsdiags(i_gps_ob_type,ibin)%tail%tldepart(jj)
+>          enddo
+>          do jj=1,miter
+>            ioff=ioff+1
+>            rdiagbuf(ioff,idia) = obsdiags(i_gps_ob_type,ibin)%tail%obssen(jj)
+>          enddo
+>        endif
+>      endif
+> 

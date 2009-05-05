@@ -9,6 +9,7 @@ subroutine model2control(rval,bval,grad)
 !   2007-04-27  tremolet - multiply by sqrt(B)^T (from ckerror_ad D. Parrish)
 !   2008-12-04  todling  - update interface to ckgcov_ad; add tsen and p3d
 !   2008-12-29  todling  - add call to strong balance contraint
+!   2009-04-21  derber   - modify call to getstvp to getuv(*,1)
 !
 !   input argument list:
 !     rval - State variable
@@ -24,7 +25,7 @@ use bias_predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
 use gridmod, only: lat2,lon2,nsig,nnnn1o,periodic
 use berror, only: varprd,fpsproj
-use balmod, only: tbalance,strong_bk_ad
+use balmod, only: tbalance
 use mpimod, only: levs_id
 use jfunc, only: nsclen,npclen,nrclen,nval_lenz
 use mpl_allreducemod, only: mpl_allreduce
@@ -54,7 +55,7 @@ do jj=1,nsubwin
 
 ! Convert RHS calculations for u,v to st/vp for application of
 ! background error
-  call getstvp(rval(jj)%u,rval(jj)%v,workst,workvp)
+  call getuv(rval(jj)%u,rval(jj)%v,workst,workvp,1)
 
 ! Calculate sensible temperature
   call tv_to_tsen_ad(rval(jj)%t,rval(jj)%q,rval(jj)%tsen)
@@ -68,9 +69,6 @@ do jj=1,nsubwin
 
 ! Multiply by sqrt of background error adjoint (ckerror_ad)
 ! -----------------------------------------------------------------------------
-
-! Apply transpose of strong balance constraint
-  call strong_bk_ad(workst,workvp,rval(jj)%p,rval(jj)%t)
 
 ! Transpose of balance equation
   call tbalance(rval(jj)%t,rval(jj)%p,workst,workvp,fpsproj)
