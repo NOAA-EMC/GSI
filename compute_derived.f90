@@ -218,7 +218,9 @@ subroutine compute_derived(mype)
                     l2=min0(l+1,llmax)
                     dl2=rllat1(i,j)-float(l)
                     dl1=one-dl2
-                    qvar3d(i,j,k)=dl1*dssv(4,l,j,k)+dl2*dssv(4,l2,j,k)
+                    if(.not.twodvar_regional)then
+                       qvar3d(i,j,k)=dl1*dssv(4,l,j,k)+dl2*dssv(4,l2,j,k)
+                    endif
                  else
                     qvar3d(i,j,k)=dssv(4,i,j,k)
                  end if
@@ -251,8 +253,10 @@ subroutine compute_derived(mype)
                  l2=min0(l+1,llmax)
                  dl2=rllat1(i,j)-float(l)
                  dl1=one-dl2
-                 qvar3d(i,j,k)=(varq(n,k)*dn1 + varq(np,k)*dn2)* &
-                    (dl1*dssv(4,l,j,k)+dl2*dssv(4,l2,j,k)) 
+                 if(.not.twodvar_regional)then
+                    qvar3d(i,j,k)=(varq(n,k)*dn1 + varq(np,k)*dn2)* &
+                      (dl1*dssv(4,l,j,k)+dl2*dssv(4,l2,j,k))
+                 endif 
                else
                  qvar3d(i,j,k)=(varq(n,k)*dn1 + varq(np,k)*dn2)*dssv(4,i,j,k) 
                end if 

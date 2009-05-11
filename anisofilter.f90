@@ -363,14 +363,12 @@ subroutine get2berr_reg(mype)
 
   if(lreadnorm) normal=0
 
-  if (nvar_id(k) <= 5)  then
-     call init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,filter_all, &
-                 nvars,idvar,kvar_start,kvar_end,var_names, &
-                 ids, ide, jds, jde, kds, kde, &         ! domain indices
-                 ips, ipe, jps, jpe, kps, kpe, &         ! patch indices
-                 ims, ime, jms, jme, kms, kme, &         ! memory indices
-                 mype, npe)
-  endif
+  call init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,filter_all, &
+              nvars,idvar,kvar_start,kvar_end,var_names, &
+              ids, ide, jds, jde, kds, kde, &         ! domain indices
+              ips, ipe, jps, jpe, kps, kpe, &         ! patch indices
+              ims, ime, jms, jme, kms, kme, &         ! memory indices
+              mype, npe)
 
   do k=kps,kpe
     ivar=idvar(k)

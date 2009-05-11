@@ -8,14 +8,16 @@
 #@ job_name=gsi_global
 #@ error=gsi_global.e$(jobid)
 #@ job_type=parallel
-#@ network.MPI=csss,shared,us
-#@ node = 2
+#@ network.MPI=sn_all,shared,us
+#@ node = 1
 #@ node_usage=not_shared
-#@ tasks_per_node=16
-#@ class= devhigh
-#@ group= devonprod
+#@ tasks_per_node=32
+#@ task_affinity=core(1)
+#@ node_resources=ConsumableMemory(110 GB)
+#@ class= dev
+#@ group= dev
 #@ account_no = GDAS-T2O
-#@ wall_clock_limit = 1:00:00
+#@ wall_clock_limit = 0:15:00
 #@ startdate = 09/27/06 05:00
 #@ notification=error
 #@ queue
@@ -49,19 +51,22 @@ export MP_LABELIO=yes
 
 
 # Variables for debugging (don't always need)
-##export XLFRTEOPTS="buffering=disable_all"
-##export MP_COREFILE_FORMAT=lite
+export XLFRTEOPTS="buffering=disable_all"
+export MP_COREFILE_FORMAT=lite
 
 
 # Set experiment name and analysis date
 adate=2008082212
-exp=test17
+exp=gmao_gsi7.t62.subversion
+
 
 
 # Set path/file for gsi executable
 basedir=/global/save
 gsipath=$basedir/wx20rt/gsi_anl
-gsiexec=/global/save/wx23jd/gmao/gsi/global_gsi
+gsiexec=/global/save/wx20ml/workspace/gsi7/global_gsi
+##gsiexec=$gsipath/sorc/q1fy10/global_gsi
+
 
 
 
@@ -71,18 +76,18 @@ gsiexec=/global/save/wx23jd/gmao/gsi/global_gsi
 # All resolutions use LEVS=64
 export JCAP=62
 export LEVS=64
+export JCAP_B=62
 
 
 # Set runtime and save directories
-tmpdir=/ptmp/wx23jd/tmp${JCAP}_sigmap/${exp}
-savdir=/ptmp/wx23jd/out${JCAP}/sigmap/${exp}
+tmpdir=/ptmp/wx20ml/tmp${JCAP}_sigmap/${exp}
+savdir=/ptmp/wx20ml/out${JCAP}/sigmap/${exp}
 
 # Specify GSI fixed field and data directories.
 fixgsi=/nwprod/fix
 fixcrtm=/global/save/wx20rt/2jif/Q1FY10_DA/fix/crtm_gfsgsi
 fixjif09=/global/save/wx20rt/2jif/Q1FY09_DA/fix
 fixjif10=/global/save/wx20rt/2jif/Q1FY10_DA/fix
-
 
 
 
@@ -158,16 +163,22 @@ OBSINPUT=""
 SUPERRAD=""
 SINGLEOB=""
 
+GRIDOPTS="JCAP_B=$JCAP_B"
+
+##!   l4dvar=.false.,nhr_assimilation=6,nhr_obsbin=6,
+##!   lsqrtb=.true.,lcongrad=.false.,ltlint=.true.,
+##!   idmodel=.true.,lwrtinc=.false.,
+
 cat << EOF > gsiparm.anl
  &SETUP
-   miter=2,niter(1)=10,niter(2)=15,
+   miter=2,niter(1)=100,niter(2)=150,
    niter_no_qc(1)=50,niter_no_qc(2)=0,
    write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
-   gencode=82,qoption=2,
-   factqmin=0.005,factqmax=0.005,deltim=$DELTIM,
+   gencode=$IGEN,qoption=2,
+   factqmin=0.000,factqmax=0.000,deltim=$DELTIM,
    ndat=62,npred=5,iguess=-1,
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
-   use_pbl=.false.,
+   use_pbl=.false.,print_diag_pcg=.true.,
    $SETUP
  /
  &GRIDOPTS
@@ -190,8 +201,6 @@ cat << EOF > gsiparm.anl
    $ANBKGERR
  /
  &JCOPTS
-   jcterm=.false.,jcdivt=.false.,bamp_ext1=2.5e12,bamp_ext2=5.0e11,
-   bamp_int1=2.5e13,bamp_int2=2.5e12, 
    $JCOPTS
  /
  &STRONGOPTS
@@ -302,11 +311,11 @@ berror=$fixjif09/global_berror.l${LEVS}y${NLAT}.f77
 emiscoef=$fixcrtm/EmisCoeff/Big_Endian/EmisCoeff.bin
 aercoef=$fixcrtm/AerosolCoeff/Big_Endian/AerosolCoeff.bin
 cldcoef=$fixcrtm/CloudCoeff/Big_Endian/CloudCoeff.bin
-satinfo=$fixjif09/global_satinfo.txt
-satangl=$fixjif09/global_satangbias.txt
+satinfo=$fixjif10/global_satinfo.txt
+satangl=$fixjif10/global_satangbias.txt
 pcpinfo=$fixgsi/global_pcpinfo.txt
 ozinfo=$fixjif10/global_ozinfo.txt
-convinfo=$fixjif09/global_convinfo.txt
+convinfo=$fixjif10/global_convinfo.txt
 errtable=/nwprod/fix/prepobs_errtable.global
 
 
@@ -390,7 +399,6 @@ poe $tmpdir/gsi.x < gsiparm.anl > stdout
 rc=$?
 
 exit
-
 
 # Save output
 mkdir -p $savdir
