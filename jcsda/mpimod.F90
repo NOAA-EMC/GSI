@@ -1,0 +1,993 @@
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !MODULE:  mpimod --- GSI Module containing mpi related variables
+!
+! !INTERFACE:
+!
+
+module mpimod
+
+! !USES:
+
+  use kinds, only: i_kind
+
+#ifdef ibm_sp
+! Include standard mpi includes file.
+  use mpi
+#else
+  use mpeu_mpif, only : mpi_rtype4 => mpi_real4
+  use mpeu_mpif, only : mpi_rtype => mpi_real8
+  use mpeu_mpif, only : mpi_itype => mpi_integer4
+  use mpeu_mpif, only : mpi_real8
+  use mpeu_mpif, only : mpi_real16
+  use mpeu_mpif, only : mpi_status_size
+  use mpeu_mpif, only : mpi_sum
+  use mpeu_mpif, only : mpi_maxloc
+  use mpeu_mpif, only : mpi_integer
+  use mpeu_mpif, only : mpi_integer2
+  use mpeu_mpif, only : mpi_integer4
+  use mpeu_mpif, only : mpi_integer8
+  use mpeu_mpif, only : mpi_real4
+  use mpeu_mpif, only : mpi_max
+  use mpeu_mpif, only : mpi_min
+  use mpeu_mpif, only : mpi_offset_kind
+  use mpeu_mpif, only : mpi_info_null
+  use mpeu_mpif, only : mpi_mode_rdonly
+  use mpeu_mpif, only : mpi_mode_rdwr
+  use mpeu_mpif, only : mpi_byte
+  use mpeu_mpif, only : mpi_seek_set
+#ifndef HAVE_ESMF
+  use mpeu_mpif, only : mpi_comm_world
+#endif /* HAVE_ESMF */
+#endif
+
+  implicit none
+
+!
+! !DESCRIPTION: module containing mpi related variables
+!
+! !REVISION HISTORY:
+!
+!   2003-09-30  kleist
+!   2004-05-18  kleist, new variables and documentation
+!   2004-06-10  todling, explicitly declated var from m_mpif
+!   2004-07-15  todling, protex-compliant prologue
+!   2004-07-23  treadon - add routine strip_periodic
+!   2005-01-24  kleist - fix bug in array initialization
+!   2005-02-15  todling - add use m_mpif, only for mpi_integer4,
+!                         mpi_offset_kind, ... (only applies
+!                         to non IBM SP machines)    
+!   2005-07-25  todling - add a couple more exports from m_mpif
+!                         (only applies to non IBM SP machines)
+!   2006-04-06  middlecoff - remove mpi_request_null since not used
+!   2006-06-20  treadon - add mpi_itype
+!   2006-06-28  da Silva - Added 2 integers represing a layout: nxPE and nyPE.
+!   2009-02-19  jing guo - replaced m_mpif of GMAO_mpeu with gmaogsi_mpif.
+!   2009-04-21  derber - add communications for strong balance constraint (bal)
+!                        and unified uv (vec) transformation
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm RS/6000 SP, SGI Origin 2000; Compaq HP
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2003-09-30 
+!
+!EOP
+!-------------------------------------------------------------------------
+#ifdef HAVE_ESMF
+  integer :: mpi_comm_world
+#endif
+
+#ifdef ibm_sp
+! Define size for mpi_real
+  integer(i_kind), parameter :: mpi_rtype=mpi_real8
+  integer(i_kind), parameter :: mpi_rtype4=mpi_real4
+! integer(i_kind), parameter :: mpi_rtype=mpi_real4
+  integer(i_kind), parameter :: mpi_itype=mpi_integer4
+  integer(i_kind), parameter :: mpi_2rtype=mpi_2double_precision
+#endif
+
+  integer(i_kind) ierror
+  integer(i_kind) :: npe         ! total num of MPI tasks
+  integer(i_kind) :: mype        ! number of MPI task
+  integer(i_kind)    nuvlevs     ! max num levs per task, for dist. of uv/stvp         
+  integer(i_kind)    nnnuvlevs   ! num levs current task, for dist. of uv/stvp         
+  integer(i_kind)    nlevsbal    ! max num levs per task, for dist. of balance         
+  integer(i_kind)    nnnvsbal    ! num levs current task, for dist. of balance         
+  integer(i_kind)    nlevsuv    ! max num levs per task, for dist. of balance         
+  integer(i_kind)    nnnvsuv     ! num levs current task, for dist. of balance         
+
+! Optional ESMF-like layout information: nxPE is the number of
+! processors used to decompose the longitudinal dimensional, while nyPE 
+! the number of processors used to decompose the latitudinal dimension.
+! By construction, nPE = nxPE * nyPE.
+! 
+  integer(i_kind) :: nxpe=-1     ! optional layout information
+  integer(i_kind) :: nype=-1     ! optional layout information
+
+
+! communication arrays...set up in init_mpi_vars
+
+  integer(i_kind),allocatable,dimension(:):: levs_id ! vert lev id for each level 
+                                             !  of the nsig1o slabs (zero if
+                                             !  empty, else can vary between 1-->nsig)
+
+
+  integer(i_kind),allocatable,dimension(:):: nvar_id ! variable id for each level 
+                                             !   of the nsig1o slabs:
+                                             !    1: streamfunction
+                                             !    2: velocity potential
+                                             !    3: surface pressure
+                                             !    4: temperature
+                                             !    5: q
+                                             !    6: ozone
+                                             !    7: sea surface temperature
+                                             !    8: cloud water
+                                             !    9: land skin temperature
+                                             !   10: sfc ice temperature
+  integer(i_kind),allocatable,dimension(:):: nvarbal_id ! variable id for each level 
+                                             !   of the nsig1o slabs:
+                                             !    1: streamfunction
+                                             !    2: velocity potential
+                                             !    3: pressure
+                                             !    4: temperature
+  integer(i_kind),allocatable,dimension(:,:):: nvar_pe ! pe where each var is kept
+  integer(i_kind),allocatable,dimension(:):: ku_gs,kv_gs,kp_gs,kt_gs  ! pointers for balanced level reordering
+  integer(i_kind),allocatable,dimension(:):: lu_gs,lv_gs              ! pointers for balanced level reordering
+!
+
+! Allocated in init_mpi_vars, defined by init_comm_vars
+
+                                             ! comm. array, displacement ...
+  integer(i_kind),allocatable,dimension(:):: isdsp_g !  for send to nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: irdsp_g !  for receive from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: isdsp_s !  for send from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: irdsp_s !  for receive from nsig1o slabs
+
+                                             ! comm. array, count ...
+  integer(i_kind),allocatable,dimension(:):: iscnt_g !  for send to nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: ircnt_g !  for receive from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: iscnt_s !  for send from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: ircnt_s !  for receive from nsig1o slabs
+                                             ! comm. array, displacement ...
+  integer(i_kind),allocatable,dimension(:):: isdbal_g !  for send to nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: irdbal_g !  for receive from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: isdbal_s !  for send from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: irdbal_s !  for receive from nsig1o slabs
+
+                                             ! comm. array, count ...
+  integer(i_kind),allocatable,dimension(:):: iscbal_g !  for send to nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: ircbal_g !  for receive from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: iscbal_s !  for send from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: ircbal_s !  for receive from nsig1o slabs
+
+                                             ! comm. array, displacement ...
+  integer(i_kind),allocatable,dimension(:):: isdvec_g !  for send to nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: irdvec_g !  for receive from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: isdvec_s !  for send from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: irdvec_s !  for receive from nsig1o slabs
+
+                                             ! comm. array, count ...
+  integer(i_kind),allocatable,dimension(:):: iscvec_g !  for send to nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: ircvec_g !  for receive from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: iscvec_s !  for send from nsig1o slabs
+  integer(i_kind),allocatable,dimension(:):: ircvec_s !  for receive from nsig1o slabs
+
+                                             ! comm. array, displacement ...
+  integer(i_kind),allocatable,dimension(:):: isduv_g !  for send to nuvlevs slabs
+  integer(i_kind),allocatable,dimension(:):: irduv_g !  for receive from nuvlevs slabs
+  integer(i_kind),allocatable,dimension(:):: isduv_s !  for send from nuvlevs slabs
+  integer(i_kind),allocatable,dimension(:):: irduv_s !  for receive from nuvlevs slabs
+
+                                             ! comm. array, count ...
+  integer(i_kind),allocatable,dimension(:):: iscuv_g !  for send to nuvlevs slabs
+  integer(i_kind),allocatable,dimension(:):: ircuv_g !  for receive from nuvlevs slabs
+  integer(i_kind),allocatable,dimension(:):: iscuv_s !  for send from nuvlevs slabs
+  integer(i_kind),allocatable,dimension(:):: ircuv_s !  for receive from nuvlevs slabs
+
+contains
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  init_mpi_vars --- Initialize variables used in mpi communications
+!
+! !INTERFACE:
+!
+  subroutine init_mpi_vars(nsig,mype,nsig1o)
+
+! !USES:
+
+    use kinds, only: i_kind
+    use constants, only: izero,ione
+    use gridmod, only: nnnn1o
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    integer(i_kind),intent(in):: nsig    ! number of levels
+    integer(i_kind),intent(in):: mype    ! task identifier
+    integer(i_kind),intent(in):: nsig1o  ! no. of levels distributed on each processor
+
+! !OUTPUT PARAMETERS:
+
+! !DESCRIPTION: initialize variables used in mpi communications.
+!
+!     Much of this routine is leftover MPI bits from the SSI code.
+!
+! !REVISION HISTORY:
+!
+!   2003-09-30  kleist
+!   2004-05-18  kleist, new variables and documentation
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2003-09-30
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) k,kk,n,mm1
+    integer(i_kind) vps,pss,ts,qs,ozs,tss,tls,tis,cwms,varcnt,kchk
+    integer(i_kind) levscnt
+
+    allocate(levs_id(nsig1o),nvar_id(nsig1o))
+    allocate(nvar_pe(6*nsig+4,2))
+    allocate(iscnt_g(npe),isdsp_g(npe),ircnt_g(npe),&
+       irdsp_g(npe),iscnt_s(npe),isdsp_s(npe),ircnt_s(npe),&
+       irdsp_s(npe))
+    allocate(iscbal_g(npe),isdbal_g(npe),ircbal_g(npe),&
+       irdbal_g(npe),iscbal_s(npe),isdbal_s(npe),ircbal_s(npe),&
+       irdbal_s(npe))
+    allocate(iscvec_g(npe),isdvec_g(npe),ircvec_g(npe),&
+       irdvec_g(npe),iscvec_s(npe),isdvec_s(npe),ircvec_s(npe),&
+       irdvec_s(npe))
+    allocate(iscuv_g(npe),isduv_g(npe),ircuv_g(npe),&
+       irduv_g(npe),iscuv_s(npe),isduv_s(npe),ircuv_s(npe),&
+       irduv_s(npe))
+
+    mm1=mype+1
+    nuvlevs=nsig/npe
+    if(mod(nsig,npe)/=izero) nuvlevs=nuvlevs+1
+
+
+! redefine kchk for uv/stvp distribution
+    if (mod(nsig,npe)==izero) then
+      kchk=npe
+    else
+      kchk=mod(nsig,npe)
+    end if
+
+    levscnt=izero
+    do n=1,npe
+      if(n.le.kchk) then
+        kk=nuvlevs
+      else
+        kk=nuvlevs-1
+      end if
+
+      do k=1,kk
+        levscnt=levscnt+ione
+	if ( n==mm1 .and. levscnt.le.nsig ) then
+          nnnuvlevs=kk
+        end if
+      end do
+    end do
+
+! Initialize slab/subdomain communicators, redefined in
+! init_commvars
+    do n=1,npe
+      iscnt_g(n)   = izero
+      isdsp_g(n)   = izero
+      ircnt_g(n)   = izero
+      irdsp_g(n)   = izero
+      iscnt_s(n)   = izero
+      isdsp_s(n)   = izero
+      ircnt_s(n)   = izero
+      irdsp_s(n)   = izero
+
+      iscbal_g(n)  = izero
+      isdbal_g(n)  = izero
+      ircbal_g(n)  = izero
+      irdbal_g(n)  = izero
+      iscbal_s(n)  = izero
+      isdbal_s(n)  = izero
+      ircbal_s(n)  = izero
+      irdbal_s(n)  = izero
+
+      iscvec_g(n)  = izero
+      isdvec_g(n)  = izero
+      ircvec_g(n)  = izero
+      irdvec_g(n)  = izero
+      iscvec_s(n)  = izero
+      isdvec_s(n)  = izero
+      ircvec_s(n)  = izero
+      irdvec_s(n)  = izero
+
+      iscuv_g(n)   = izero
+      isduv_g(n)   = izero
+      ircuv_g(n)   = izero
+      irduv_g(n)   = izero
+      iscuv_s(n)   = izero
+      isduv_s(n)   = izero
+      ircuv_s(n)   = izero
+      irduv_s(n)   = izero
+
+    end do
+    allocate(lu_gs(nsig),lv_gs(nsig),ku_gs(nsig),kv_gs(nsig),kt_gs(nsig),kp_gs(nsig+1))
+
+! Distribute variables as evenly as possible over the tasks
+! start by defining starting points for each variable
+    vps=nsig+1
+    pss=vps+nsig
+    ts=pss+1
+    qs=ts+nsig
+    ozs=qs+nsig
+    tss=ozs+nsig
+    tls=tss+1
+    tis=tls+1
+    cwms=tis+1
+
+! Need to use a variable to know which tasks have a full nsig1o 
+! array, and which one have the last level irrelevant
+    if (mod((6*nsig)+4,npe)==izero) then
+      kchk=npe
+    else
+      kchk=mod((nsig*6)+4,npe)
+    end if
+
+    nvar_id=izero
+    levs_id=izero
+    nvar_pe=-999
+
+! Define which variable/level each task has for the
+! global slabs (levs_id,nvar_id)
+    varcnt=izero
+    do n=1,npe
+      if(n.le.kchk) then
+        kk=nsig1o
+      else
+        kk=nsig1o-1
+      end if
+      do k=1,kk
+        varcnt=varcnt+1
+        nvar_pe(varcnt,1)=n-1
+        nvar_pe(varcnt,2)=k
+        if (n==mm1) then
+          if (varcnt.lt.vps) then
+            nvar_id(k)=1
+            levs_id(k)=varcnt
+          else if (varcnt.ge.vps .and. varcnt.lt.pss) then
+            nvar_id(k)=2
+            levs_id(k)=varcnt-vps+1
+          else if (varcnt.eq.pss) then
+            nvar_id(k)=3
+            levs_id(k)=1
+          else if (varcnt.ge.ts .and. varcnt.lt.qs) then
+            nvar_id(k)=4
+            levs_id(k)=varcnt-ts+1
+          else if (varcnt.ge.qs .and. varcnt.lt.ozs) then
+            nvar_id(k)=5
+            levs_id(k)=varcnt-qs+1
+          else if (varcnt.ge.ozs .and. varcnt.lt.tss) then
+            nvar_id(k)=6
+            levs_id(k)=varcnt-ozs+1
+          else if (varcnt.eq.tss) then
+            nvar_id(k)=7
+            levs_id(k)=1
+          else if (varcnt.eq.tls) then
+            nvar_id(k)=9
+            levs_id(k)=1
+          else if (varcnt.eq.tis) then
+            nvar_id(k)=10
+            levs_id(k)=1
+          else
+            nvar_id(k)=8
+            levs_id(k)=varcnt-cwms+1
+          end if ! end if for varcnt
+        end if ! end if for task id
+      end do ! enddo over levs
+    end do ! enddo over npe
+
+
+    nnnn1o=0
+    do k=1,nsig1o
+       if (levs_id(k)/=0) nnnn1o=nnnn1o+1
+    end do
+
+
+    return
+  end subroutine init_mpi_vars
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  destroy_mpi_vars --- deallocate variables used in mpi communications
+!
+! !INTERFACE:
+!
+
+  subroutine destroy_mpi_vars
+
+! !USES:
+
+! !INPUT PARAMETERS:
+
+! !OUTPUT PARAMETERS:
+
+! !DESCRIPTION: deallocate variables used in mpi communications
+!
+! !REVISION HISTORY:
+!
+!   2003-09-30  kleist
+!   2004-05-13  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMAKRS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi orgin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2003-09-30
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    deallocate(levs_id)
+    deallocate(nvar_id)
+    deallocate(nvar_pe)
+    deallocate(iscnt_g,isdsp_g,ircnt_g,&
+       irdsp_g,iscnt_s,isdsp_s,ircnt_s,&
+       irdsp_s)
+    deallocate(iscuv_g,isduv_g,ircuv_g,&
+       irduv_g,iscuv_s,isduv_s,ircuv_s,&
+       irduv_s)
+    deallocate(iscbal_g,isdbal_g,ircbal_g,&
+       irdbal_g,iscbal_s,isdbal_s,ircbal_s,&
+       irdbal_s)
+    deallocate(iscvec_g,isdvec_g,ircvec_g,&
+       irdvec_g,iscvec_s,isdvec_s,ircvec_s,&
+       irdvec_s)
+    deallocate(lu_gs,lv_gs,ku_gs,kv_gs,kt_gs,kp_gs)
+    return
+  end subroutine destroy_mpi_vars
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  reorder --- reorder work array post mpi communication
+!
+! !INTERFACE:
+!
+  subroutine reorder(work,k_in,k_use)
+
+! !USES:
+
+    use kinds, only: r_kind,i_kind
+    use constants, only: zero
+    use gridmod, only: ijn,itotsub,iglobal
+    implicit none
+
+! !INPUT PARAMETERS:
+
+   integer(i_kind), intent(in) ::  k_in, k_use    ! number of levs in work array
+
+! !INPUT/OUTPUT PARAMETERS:
+
+    real(r_kind),dimension(max(iglobal,itotsub)*k_in),intent(inout):: work ! array to reorder
+
+! !OUTPUT PARAMETERS:
+
+! !DESCRIPTION: reorder work array post mpi communication
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!   2004-03-30  treadon - replace itotsub with max(iglobal,itotsub) in work dimension
+!
+! !REMAKRS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) iloc,iskip,i,k,n
+    real(r_kind),dimension(max(iglobal,itotsub),k_use):: temp
+
+! Zero out temp array
+    do k=1,k_use
+       do i=1,itotsub
+          temp(i,k)=zero
+       end do
+    end do
+ 
+! Load temp array in desired order
+    do k=1,k_use
+      iskip=0
+      iloc=0
+      do n=1,npe
+        if (n/=1) then
+          iskip=iskip+ijn(n-1)*k_in
+        end if
+        do i=1,ijn(n)
+          iloc=iloc+1
+          temp(iloc,k)=work(i + iskip + (k-1)*ijn(n))
+        end do
+      end do
+    end do
+
+! Load the temp array back into work
+    iloc=0
+    do k=1,k_use
+      do i=1,itotsub
+        iloc=iloc+1
+        work(iloc)=temp(i,k)
+      end do
+    end do
+
+    return
+  end subroutine reorder
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  reorder2 --- reorder work array post mpi communication
+!
+! !INTERFACE:
+!
+
+  subroutine reorder2(work,k_in,k_use)
+
+! !USES:
+
+    use kinds, only: r_kind,i_kind
+    use constants, only: zero
+    use gridmod, only: ijn_s,itotsub
+    implicit none
+
+
+! !INPUT PARAMETERS:
+
+   integer(i_kind), intent(in) ::  k_in,k_use    ! number of levs in work array
+
+! !INPUT/OUTPUT PARAMETERS:
+
+    real(r_kind),dimension(itotsub,k_in),intent(inout):: work
+
+! !OUTPUT PARAMETERS:
+
+! !DESCRIPTION: reorder work array pre mpi communication
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) iloc,iskip,i,k,n
+    real(r_kind),dimension(itotsub*k_in):: temp
+
+! Zero out temp array
+!   do k=1,itotsub*k_in
+!      temp(k)=zero
+!   end do
+
+! Load temp array in order of subdomains
+    iloc=0
+    iskip=0
+    do n=1,npe
+
+      do k=1,k_use
+        do i=1,ijn_s(n)
+          temp(iloc+i)=work(iskip+i,k)
+        end do
+        iloc=iloc+ijn_s(n)
+      end do
+      iloc=iloc+(k_in-k_use)*ijn_s(n)
+      iskip=iskip+ijn_s(n)
+    end do
+
+! Now load the tmp array back into work
+    iloc=0
+    do k=1,k_in
+      do i=1,itotsub
+        iloc=iloc+1
+        work(i,k)=temp(iloc)
+      end do
+    end do
+
+    return
+  end subroutine reorder2
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  strip_single --- strip off buffer points froms subdomains for 
+!                       mpi comm purposes (works with 4 byte reals)
+!
+! !INTERFACE:
+!
+  subroutine strip_single(field_in,field_out,nz)
+
+! !USES:
+
+    use kinds, only: r_single,i_kind
+    use gridmod, only: lat1,lon1,lat2,lon2
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    integer(i_kind), intent(in)::  nz        !  number of levs in subdomain array
+    real(r_single),dimension(lat2,lon2,nz),intent(in):: field_in   ! full subdomain 
+                                                                 !    array containing 
+                                                                 !    buffer points
+! !OUTPUT PARAMETERS:
+
+    real(r_single),dimension(lat1,lon1,nz),intent(out):: field_out ! subdomain array
+                                                                 !   with buffer points
+                                                                 !   stripped off
+
+! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+!               purposes
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,k,jp1
+
+    do k=1,nz
+      do j=1,lon1
+        jp1 = j+1
+        do i=1,lat1
+          field_out(i,j,k)=field_in(i+1,jp1,k)
+        end do
+      end do
+    end do
+
+    return
+  end subroutine strip_single
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  strip --- strip off buffer points froms subdomains for 
+!                       mpi comm purposes
+!
+! !INTERFACE:
+!
+  subroutine strip(field_in,field_out,nz)
+
+! !USES:
+
+    use kinds, only: r_kind,i_kind
+    use gridmod, only: lat1,lon1,lat2,lon2
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    integer(i_kind), intent(in)::  nz        !  number of levs in subdomain array
+    real(r_kind),dimension(lat2,lon2,nz),intent(in):: field_in   ! full subdomain 
+                                                                  !    array containing 
+                                                                  !    buffer points
+! !OUTPUT PARAMETERS:
+
+    real(r_kind),dimension(lat1,lon1,nz),intent(out):: field_out ! subdomain array
+                                                                  !   with buffer points
+                                                                  !   stripped off
+
+! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+!               purposes
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,k,jp1
+
+    do k=1,nz
+      do j=1,lon1
+        jp1 = j+1
+        do i=1,lat1
+          field_out(i,j,k)=field_in(i+1,jp1,k)
+        end do
+      end do
+    end do
+
+    return
+  end subroutine strip
+
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  vectosub --- transform vector array into three dimensional 
+!                          subdomain array
+!
+! !INTERFACE:
+!
+  subroutine vectosub(fld_in,npts,fld_out)
+
+    use kinds, only: r_kind,i_kind
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    integer(i_kind), intent(in) ::  npts  ! number of levs in subdomain array
+    real(r_kind),dimension(npts),intent(in):: fld_in ! subdomain array 
+                                                              !   in vector form
+
+! !OUTPUT PARAMETERS:
+
+    real(r_kind),dimension(npts),intent(out):: fld_out ! three dimensional 
+                                                                !  subdomain variable array
+
+! !DESCRIPTION: Transform vector array into three dimensional subdomain
+!               array
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!   kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) k
+
+    do k=1,npts
+          fld_out(k)=fld_in(k)
+    end do
+
+    return
+  end subroutine vectosub
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  reload --- Transfer contents of 2-d array to 3-d array
+!
+! !INTERFACE:
+!
+subroutine reload(work_in,work_out)
+
+! !USES:
+
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: lat2,lon2,nsig
+  implicit none
+
+! !INPUT PARAMETERS:
+
+  real(r_kind),dimension(lat2*lon2,nsig),intent(in):: work_in   ! 2-d array
+
+! !OUTPUT PARAMETERS:
+
+  real(r_kind),dimension(lat2,lon2,nsig),intent(out) :: work_out  ! 3-d array
+
+! !DESCRIPTION: Transfer contents of 2-d array to 3-d array
+!
+! !REVISION HISTORY:
+!   2004-05-14  treadon
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!   treadon          org: np23                date: 2004-05-14
+!
+!EOP
+!-------------------------------------------------------------------------
+
+  integer(i_kind) i,j,k,ij
+
+  do k=1,nsig
+     ij=0
+     do j=1,lon2
+        do i=1,lat2
+           ij=ij+1
+           work_out(i,j,k)=work_in(ij,k)
+        end do
+     end do
+  end do
+  return
+end subroutine reload
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  strip_periodic --- strip off buffer points from periodic
+!                       subdomains for mpi comm purposes
+!
+! !INTERFACE:
+!
+  subroutine strip_periodic(field_in,field_out,nz)
+
+! !USES:
+
+    use kinds, only: r_kind,i_kind
+    use gridmod, only: lat1,lon1,lat2,lon2
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    integer(i_kind), intent(in)::  nz        !  number of levs in subdomain array
+    real(r_kind),dimension(lat2,lon2,nz),intent(in):: field_in   ! full subdomain
+                                                                  !    array containing
+                                                                  !    buffer points
+! !OUTPUT PARAMETERS:
+
+    real(r_kind),dimension(lat1,lon1,nz),intent(out):: field_out ! subdomain array
+                                                                  !   with buffer points
+                                                                  !   stripped off
+
+! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+!               purposes
+!
+! !REVISION HISTORY:
+!
+!   2004-07-23  treadon
+!   2004-08-04  treadon - protex-compliant prologue
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR:
+!    treadon           org: np20                date: 2004-07-23
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,k,jp1
+
+    do k=1,nz
+      do j=1,lon1
+        jp1 = j+1
+        do i=1,lat1
+          field_out(i,j,k)=field_in(i+1,jp1,k)
+        end do
+      end do
+    end do
+    do k=1,nz
+       do i=1,lat1
+          field_out(i,1,k)    = field_out(i,1,k)    + field_in(i+1,lon2,k)
+          field_out(i,lon1,k) = field_out(i,lon1,k) + field_in(i+1,1,k)
+       end do
+    end do
+
+    return
+  end subroutine strip_periodic
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  setcomm ---  set mpi communicator
+!
+! !INTERFACE:
+!
+  subroutine setcomm(iworld,iworld_group,nsize,members,ncomma,ierr)
+
+! !USES:
+    implicit none
+
+! !DESCRIPTION: set mpi communicator
+!
+! !REVISION HISTORY:
+!
+!   2004-07-23  treadon
+!   2004-08-04  treadon - protex-compliant prologue
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR:
+!    treadon           org: np20                date: 2004-07-23
+!
+!EOP
+!-------------------------------------------------------------------------
+    integer(i_kind):: iworld,iworld_group,ncomma
+    integer(i_kind):: ncommva_group,ierr,nsize
+    integer(i_kind),dimension(nsize):: members
+
+    ncomma=mpi_comm_world
+    iworld=mpi_comm_world
+    call mpi_comm_group(iworld,iworld_group,ierr)
+
+    call mpi_group_incl(iworld_group,nsize,members,ncommva_group,ierr)
+    call mpi_comm_create(iworld,ncommva_group,ncomma,ierr)
+    call mpi_group_free(ncommva_group,ierr)
+    return
+  end subroutine setcomm
+
+end module mpimod
+
+
