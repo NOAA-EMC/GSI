@@ -1,0 +1,741 @@
+!-------------------------------------------------------------------------
+!  NASA/GSFC, Global Modeling and Assimilation Office, Code 610.3, GMAO  !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !MODULE: gsimod  ---
+
+!
+! !INTERFACE:
+!
+  module gsimod
+
+! !USES:
+
+  use kinds, only: i_kind,r_kind
+  use geos_pertmod, only: parallel_init
+  use obsmod, only: dmesh,dval,dthin,dtype,dfile,dplat,dsfcalc,ndat,&
+     init_obsmod_dflts,create_obsmod_vars,write_diag,oberrflg,&
+     time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,ndatmax,&
+     dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune, &
+     blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver
+  use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
+                             lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
+  use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,nhr_offset, &
+                       l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,&
+                       lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,lgrtest,&
+                       idmodel,clean_4dvar,lwrtinc,lanczosave
+  use obs_ferrscale, only: lferrscale
+  use mpimod, only: npe,mpi_comm_world,ierror,init_mpi_vars,destroy_mpi_vars,mype
+  use radinfo, only: retrieval,diag_rad,npred,init_rad,init_rad_vars
+  use radinfo, only: crtm_coeffs_path
+  use ozinfo, only: diag_ozone,init_oz
+  use convinfo, only: init_convinfo,npred_conv_max, &
+                      id_bias_ps,id_bias_t,id_bias_spd, &
+                      conv_bias_ps,conv_bias_t,conv_bias_spd, &
+                      stndev_conv_ps,stndev_conv_t,stndev_conv_spd,diag_conv
+  use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
+     oneobtest,magoberr,maginnov,init_oneobmod,oneobmakebufr
+  use balmod, only: fstat
+  use turblmod, only: use_pbl,init_turbl
+  use qcmod, only: dfact,dfact1,repe_gps,&
+      erradar_inflate,use_poq7,&
+      repe_dw,init_qcvars,vadfile,noiqc,c_varqc
+  use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
+  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,niter,niter_no_qc,biascor,&
+     init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
+     bcoption,diurnalbc,print_diag_pcg
+  use berror, only: norh,ndeg,vs,as,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
+     bkgv_flowdep,bkgv_rewgtfct,bkgv_write,tsfc_sdv,fpsproj
+  use anberror, only: anisotropic,init_anberror,npass,ifilt_ord,triad4, &
+     binom,normal,ngauss,rgauss,an_amp,an_vs,&
+     grid_ratio,an_flen_u,an_flen_t,an_flen_z
+  use compact_diffs, only: noq,init_compact_diffs
+  use jcmod, only: init_jcvars,ljcdfi,alphajc
+  use tendsmod, only: ctph0,stph0,tlm0
+  use mod_vtrans, only: nvmodes_keep,init_vtrans
+  use mod_strong, only: jcstrong,jcstrong_option,nstrong,&
+       period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
+
+  use specmod, only: jcap,jcap_b,init_spec,init_spec_vars,destroy_spec_vars
+  use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,&
+     filled_grid,half_grid,wrf_mass_regional,nsig1o,update_regsfc,&
+     diagnostic_reg,gencode,nlon_regional,nlat_regional,&
+     twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
+     nlayers
+  use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
+  use gsi_io, only: init_io,lendian_in
+  use regional_io, only: convert_regional_guess,update_pint
+  use constants, only: zero,one,init_constants,init_constants_derived,three
+  use fgrid2agrid_mod, only: nord_f2a,init_fgrid2agrid
+  use smooth_polcarf, only: norsp,init_smooth_polcas
+  use read_l2bufr_mod, only: minnum,del_azimuth,del_elev,del_range,del_time,&
+     range_max,elev_angle_max,initialize_superob_radar,l2superob_only
+  use m_berror_stats,only : berror_stats ! filename if other than "berror_stats"
+  use m_berror_stats,only : berror_nvars ! format parameter, if 5 instead of 6
+  implicit none
+
+  private
+
+! !PUBLIC ROUTINES:
+
+   public gsimain_initialize
+   public gsimain_run
+   public gsimain_finalize
+
+!
+! !DESCRIPTION: This module contains code originally in the GSI main program.
+! The main
+!               program has been split in initialize/run/finalize segments, and
+!               subroutines
+!  created for these steps: gsimain_initialize(), gsimain_run() and
+!  gsimain_finalize().
+!  In non-ESMF mode (see below) a main program is assembled by calling these 3
+!  routines in
+!  sequence.
+                                                                                                                         
+                    
+!  This file can be compiled in 2 different modes: an ESMF and a non-ESMF mode.
+!  When HAVE_ESMF
+!  is defined (ESMF mode), a few I/O related statements are skipped during
+!  initialize() and
+!  a main program is not provided. These is no dependency on the ESMF in this
+!  file and in the
+!  routines called from here. The ESMF interface is implemented in
+!  GSI_GridCompMod which in
+!  turn calls the initialize/run/finalize routines defined here.
+!
+! !REVISION HISTORY:
+!
+!  01Jul2006  Cruz      Initial code.
+!  19Oct2006  da Silva  Updated prologue.
+!  10Apr2007  Todling   Created from gsimain
+!  13Jan2007  Tremolet  Updated interface to setup_4dvar
+!  03Oct2007  Todling   Add lobserver
+!  03Oct2007  Tremolet  Add DFI and lanczos-save
+!  04Jan2008  Tremolet  Add forecast sensitivity to observations options
+!  10Sep2008  Guo       Add CRTM files directory path
+!  02Dec2008  Todling   Remove reference to old TLM of analysis  
+!  20Nov2008  Todling   Add lferrscale to scale OMF w/ Rinv (actual fcst not guess)
+!  08Dec2008  Todling   Placed switch_on_derivatives,tendsflag in jcopts namelist
+!  28Jan2009  Todling   Remove original GMAO interface
+!  04-21-2009 Derber    Ensure that ithin is positive if neg. set to zero
+!
+!EOP
+!-------------------------------------------------------------------------
+
+! Declare variables.
+  logical:: limit,writediag
+  integer(i_kind) i,ngroup
+
+
+! Declare namelists with run-time gsi options.
+!
+! Namelists:  setup,gridopts,jcopts,bkgerr,anbkgerr,obsqc,obs_input,
+!             singleob_test,superob_radar,emissjac
+!
+! SETUP (general control namelist) :
+!
+!     gencode  - source generation code
+!     factqmin - weighting factor for negative moisture constraint
+!     factqmax - weighting factor for supersaturated moisture constraint
+!     deltim   - model timestep
+!     dtphys   - physics timestep
+!     biascor  - background error bias correction coefficient
+!     bcoption - 0=ibc; 1=sbc
+!     diurnalbc- 1= diurnal bias; 0= persistent bias
+!     ndat     - number of observations datasets
+!     npred    - number of radiance biases predictors
+!     niter()  - number of inner interations for each outer iteration
+!     niter_no_qc() - number of inner interations without nonlinear qc for each outer iteration
+!     miter    - number of outer iterations
+!     qoption  - option of analysis variable; 1:q/qsatg 2:norm RH
+!     fstat    - logical to seperate f from balance projection
+!     nhr_assimilation - assimilation time interval (currently 6hrs for global, 3hrs for reg)
+!     nhr_offset       - time of analysis in assimilation window (default 3 hours)
+!     l4dvar           - turn 4D-Var on/off (default=off=3D-Var)
+!     idmodel          - uses identity model when running 4D-Var (test purposes)
+!     lwrtinc          - when .t., writes out increments instead of analysis
+!     nhr_obsbin       - length of observation bins
+!     nhr_subwin       - length of weak constraint 4d-Var sub-window intervals
+!     iout_iter- output file number for iteration information
+!     npredp   - number of predictors for precipitation bias correction
+!     retrieval- logical to turn off or on the SST physical retrieval
+!     diag_rad - logical to turn off or on the diagnostic radiance file true=on
+!     diag_conv-logical to turn off or on the diagnostic conventional file (true=on)
+!     diag_ozone - logical to turn off or on the diagnostic ozone file (true=on)
+!     write_diag - logical to write out diagnostic files on outer iteration
+!     lobsdiagsave - write out additional observation diagnostics
+!     lobskeep     - keep obs from first outer loop for subsequent OL
+!     lobsensfc    - compute forecast sensitivity to observations
+!     lobsensjb    - compute Jb sensitivity to observations
+!     lobsensincr  - compute increment sensitivity to observations
+!     lobsensadj   - use adjoint of approx. Hessian to compute obs sensitivity
+!     llancdone    - use to tell adjoint that Lanczos vecs have been pre-computed
+!     lsensrecompute - does adjoint by recomputing forward solution
+!     lobsensmin   - use minimisation to compute obs sensitivity
+!     iobsconv     - compute convergence test in observation space
+!                     =1 at final point, =2 at every iteration
+!     lobserver    - when .t., calculate departure vectors only
+!     lanczosave   - save lanczos vectors for forecast sensitivity computation
+!     lferrscale   - apply H'R^{-1}H to a forecast error vector read on the fly
+!     iguess   - flag for guess solution (currently not working)
+!                iguess = -1  do not use guess file
+!                iguess =  0  write only guess file
+!                iguess =  1  read and write guess file
+!                iguess =  2  read only guess file
+!     oneobtest- one ob test flag true=on
+!     switch_on_derivatives - if true, then compute horizontal derivatives of all state variables
+!                           (to be used eventually for time derivatives, dynamic constraints,
+!                            and observation forward models that need horizontal derivatives)
+!     tendsflag - if true, compute time tendencies
+!     l_foto   - option for First-Order Time extrapolation to Observation
+!     sfcmodel - if true, then use boundary layer forward model for surface temperature data.
+!     dtbduv_on - if true, use d(microwave brightness temperature)/d(uv wind) in inner loop
+!     ifact10 - flag for recomputing 10m wind factor
+!               ifact10 = 1 compute using GFS surface physics
+!               ifact10 = 2 compute using MM5 surface physics
+!               ifact10 = 0 or any other value - DO NOT recompute - use value from guess file
+!     offtime_data - if true, then allow use of obs files with ref time different
+!                        from analysis time.  default value = .false., in which case
+!                        analysis fails if obs file ref time is different from analysis time.
+!
+!     perturb_obs - logical flag to perutrb observation (true=on)
+!     oberror_tune - logical flag to tune oberror table  (true=on)
+!     perturb_fact -  magnitude factor for observation perturbation
+!     crtm_coeffs_path - path of directory w/ CRTM coeffs files
+!     print_diag_pcg - logical turn on of printing of GMAO diagnostics in pcgsoi.f90
+
+!     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
+!            add use of guess file later for regional mode.
+
+  namelist/setup/gencode,factqmin,factqmax,deltim,dtphys,&
+       biascor,bcoption,diurnalbc,&
+       ndat,npred,niter,niter_no_qc,miter,qoption,nhr_assimilation,&
+       nhr_offset, &
+       iout_iter,npredp,retrieval,&
+       diag_rad,diag_pcp,diag_conv,diag_ozone,iguess,write_diag,&
+       oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
+       npred_conv_max,&
+       id_bias_ps,id_bias_t,id_bias_spd, &
+       conv_bias_ps,conv_bias_t,conv_bias_spd, &
+       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,&
+       perturb_obs,perturb_fact,oberror_tune, &
+       crtm_coeffs_path, &
+       berror_stats,berror_nvars, &
+       lobsdiagsave, &
+       l4dvar,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
+       nwrvecs,ladtest,lgrtest,lobskeep,lsensrecompute, &
+       lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
+       idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
+       lferrscale,print_diag_pcg
+
+! GRIDOPTS (grid setup variables,including regional specific variables):
+!     jcap     - spectral resolution
+!     nsig     - number of sigma levels
+!     nlat     - number of latitudes
+!     nlon     - number of longitudes
+!     hybrid   - logical hybrid data file flag true=hybrid
+!     nlon_regional - 
+!     nlat_regional
+!     diagnostic_reg - logical for regional debugging
+!     update_regsfc - logical to write out updated surface fields to the
+!                     regional analysis file (default = false)
+!     netcdf            - if true, then wrf files are in netcdf format,
+!                       -   otherwise wrf files are in binary format.
+!     regional          - logical for regional GSI run
+!     wrf_nmm_regional  - logical for input from WRF NMM
+!     wrf_mass_regional - logical for input from WRF MASS-CORE
+!     twodvar_regional  - logical for regional 2d-var analysis
+!     filled_grid       - logical to fill in puts on WRF-NMM E-grid
+!     half_grid         - logical to use every other row of WRF-NMM E-Grid
+!     nlayers    - number of sub-layers to break indicated model layer into
+!                  prior to calling radiative transfer model
+
+
+  namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,hybrid,nlat_regional,nlon_regional,&
+       diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,&
+       wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nlayers
+
+! BKGERR (background error related variables):
+!     as()     - normalized scale factor for background error
+!                as(1) = streamfunction
+!                as(2) = velocity potential
+!                as(3) = log(ps)
+!                as(4) = temperature
+!                as(5) = specific humidity
+!                as(7) = skin temperature
+!                as(8) = cloud condensate mixing ratio
+!     vs       - scale factor for vertical correlation lengths for background error
+!     hzscl(n) - scale factor for horizontal smoothing, n=1,number of scales (3 for now)
+!                specifies factor by which to reduce horizontal scales (i.e. 2 would
+!                then apply 1/2 of the horizontal scale
+!     hswgt(n) - empirical weights to apply to each horizontal scale
+!     norh     - order of interpolation in smoothing
+!     ndeg     - degree of smoothing in recursive filters
+!     noq      - 1/4 of accuracy in compact finite differencing
+!     bw       - factor in background error calculation
+!     norsp    - order of interpolation for smooth polar cascade routine
+!                 default is norsp=0, in which case norh is used with original
+!                 polar cascade interpolation.
+!     pert_berror - logical to turn on random inflation/deflation of background error
+!                   tuning parameters
+!     pert_berr_fct - factor for increasing/decreasing berror parameters, this is multiplied
+!                     by random number
+!     bkgv_flowdep  - flag to turn on flow dependence to background error variances
+!     bkgv_rewgtfct - factor used to perform flow dependent reweighting of error variances
+!     bkgv_write - flag to turn on=.true. /off=.false. generation of binary file with reweighted variances
+!     tsfc_sdv  - standard deviation of surface temperature error over (1) land (and (2) ice
+!     fpsproj  - controls full nsig projection to surface pressure
+
+  namelist/bkgerr/as,vs,hzscl,hswgt,norh,ndeg,noq,bw,norsp,fstat,pert_berr,pert_berr_fct, &
+	bkgv_flowdep,bkgv_rewgtfct,bkgv_write,tsfc_sdv,fpsproj
+
+! ANBKGERR (anisotropic background error related variables):
+!     anisotropic - if true, then use anisotropic background error
+!     triad4      - for 2d variables, if true, use blended triad algorithm
+!     ifilt_ord   - filter order for anisotropic filters
+!     npass       - 2*npass = number of factors in background error
+!     normal      - number of random vectors to use for filter normalization
+!                     ( if < 0 then slightly slower, but results independent of
+!                       number of processors)
+!     binom       - if true, weight correlation lengths of factors using binomial
+!                      distribution, with shortest scales on outside, longest scales
+!                      on inside.  This can help to produce smoother correlations in the
+!                      presence of strong anisotrophy
+!     grid_ratio  - ratio of coarse to fine grid in fine grid units
+!     nord_f2a    - order of interpolation for transfer operators between filter grid and analysis grid
+!     ngauss      - number of gaussians to add together in each factor
+!     rgauss      - multipliers on reference aspect tensor for each gaussian factor
+!     an_amp      - multiplying factors on reference background error variances
+!                    an_amp(k, 1) - streamfunction          (k=1,ngauss)
+!                    an_amp(k, 2) - velocity potential
+!                    an_amp(k, 3) - log(ps)
+!                    an_amp(k, 4) - temperature
+!                    an_amp(k, 5) - specific humidity
+!                    an_amp(k, 6) - ozone
+!                    an_amp(k, 7) - sea surface temperature
+!                    an_amp(k, 8) - cloud condensate mixing ratio
+!                    an_amp(k, 9) - land surface temperature
+!                    an_amp(k,10) - ice surface temperature
+!     an_vs       - scale factor for background error vertical scales (temporary carry over from
+!                    isotropic inhomogeneous option)
+!     an_flen_u   -  coupling parameter for connecting horizontal wind to background error
+!     an_flen_t   -  coupling parameter for connecting grad(pot temp) to background error
+!     an_flen_z   -  coupling parameter for connecting grad(terrain) to background error
+
+  namelist/anbkgerr/anisotropic,triad4,ifilt_ord,npass,normal,binom,&
+       ngauss,rgauss,an_amp,an_vs, &
+       grid_ratio,nord_f2a,an_flen_u,an_flen_t,an_flen_z
+
+! JCOPTS (Jc term)
+!                 if .false., uses original formulation based on wind, temp, and ps tends
+!     ljcdfi    - when .t. uses digital filter initialization of increments (4dvar)
+!     alphajc   - parameter for digital filter
+!
+!     NOTE: magnitudes of the terms differ greatly between the two formulations
+
+  namelist/jcopts/ljcdfi,alphajc,switch_on_derivatives,tendsflag
+
+! STRONGOPTS (strong dynamic constraint)
+!     jcstrong - if .true., strong contraint on
+!     jcstrong_option - =1 for slow global strong constraint
+!                       =2 for fast global strong constraint
+!                       =3 for regional strong constraint
+!     nstrong  - if > 0, then number of iterations of implicit normal mode initialization
+!                   to apply for each inner loop iteration
+!     period_max     - cutoff period for gravity waves included in implicit normal mode
+!                    initialization (units = hours)
+!     period_width   - defines width of transition zone from included to excluded gravity waves
+!     period_max - cutoff period for gravity waves included in implicit normal mode
+!                   initialization (units = hours)
+!     period_width - defines width of transition zone from included to excluded gravity waves
+!     nvmodes_keep - number of vertical modes to use in implicit normal mode initialization
+!     baldiag_full 
+!     baldiag_inc
+
+  namelist/strongopts/jcstrong,jcstrong_option,nstrong, &
+                      period_max,period_width,nvmodes_keep, &
+		      baldiag_full,baldiag_inc
+
+! OBSQC (observation quality control variables):
+!
+!     Parameters used for gross error checks
+!        obserrx = max(ermin,min(ermax,obs error)
+!        if(abs(simulated)-observation)/obserrx > gross observation rejected
+!
+!
+!     Parameters below use for nonlinear (variational) quality control
+!     repe_dw  - factor for representativeness error in radar doppler winds
+!     repe_gps - factor for representativeness error in gps local observations
+!     dfact    - factor for duplicate obs at same location for conv. data
+!     dfact1   - time factor for duplicate obs at same location for conv. data
+!     erradar_inflate - radar error inflation factor
+!     oberrflg - logical for reading in new obs error table (if set to true)
+!     vadfile  - character(10) variable holding name of vadwnd bufr file
+!     noiqc    - logical flag to bypass OIQC (if set to true)
+!     c_varqc - constant number to control var. qc turnning on speed
+!     blacklst - logical for reading in raob blacklist (if set to true)
+!     use_poq7 - logical flag to accept (.true.) sbuv profile quality flag 7
+
+  namelist/obsqc/ repe_dw,repe_gps,dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
+       c_varqc,blacklst,use_poq7
+
+! OBS_INPUT (controls input data):
+!      dfile(ndat)      - input observation file name
+!      dtype(ndat)      - observation type
+!      dplat(ndat)      - satellite (platform) id (for satellite data)
+!      dsis(ndat)       - sensor/instrument/satellite flag from satinfo files
+!      dthin(ndat)      - satellite group
+!      dval(ndat)       - relative value of each profile within group
+!                         relative weight for observation = dval/sum(dval)
+!                         within grid box
+!      dsfcalc(ndat)    - specifies method to determine surface fields
+!                         within a FOV. when equal to one, integrate
+!                         model fields over FOV. when not one, bilinearly
+!                         interpolate model fields to FOV center.
+!      time_window(ndat)- time window for each input data file
+!      dmesh(max(dthin))- thinning mesh for each group
+!      time_window_max  - upper limit on time window for all input data
+
+  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max
+
+! SINGLEOB_TEST (one observation test case setup):
+!      maginnov   - magnitude of innovation for one ob
+!      magoberr   - magnitude of observational error
+!      oneob_type - observation type
+!      oblat      - observation latitude
+!      oblon      - observation longitude
+!      obpres     - observation pressure
+!      obdattim   - observation date
+!      obhourset  - observation delta time from analysis time
+
+  namelist/singleob_test/maginnov,magoberr,oneob_type,&
+       oblat,oblon,obpres,obdattim,obhourset
+
+! SUPEROB_RADAR (level 2 bufr file to radar wind superobs):
+!      del_azimuth     - azimuth range for superob box  (default 5 degrees)
+!      del_elev        - elevation angle range for superob box  (default .05 degrees)
+!      del_range       - radial range for superob box  (default 5 km)
+!      del_time        - 1/2 time range for superob box  (default .5 hours)
+!      elev_angle_max  - max elevation angle (default of 5 deg recommended by S. Liu)
+!      minnum                  - minimum number of samples needed to make a superob
+!      range_max       - max radial range to use in constructing superobs  (default 100km)
+!      l2superob_only  - if true, then process level 2 data creating superobs, then quit.
+!                          (added for easier retrospective testing, since level 2 bufr
+!                             files are very large and hard to work with)
+
+  namelist/superob_radar/del_azimuth,del_elev,del_range,del_time,&
+       elev_angle_max,minnum,range_max,l2superob_only
+
+!EOC
+
+!---------------------------------------------------------------------------
+
+   CONTAINS
+
+!-------------------------------------------------------------------------
+!  NASA/GSFC, Global Modeling and Assimilation Office, Code 610.3, GMAO  !
+!-------------------------------------------------------------------------
+!BOP
+
+! ! IROUTINE: gsimain_initialize
+
+! ! INTERFACE:
+
+  subroutine gsimain_initialize
+
+!*************************************************************
+! Begin gsi code
+!
+  call parallel_init
+
+  call mpi_comm_size(mpi_comm_world,npe,ierror)
+  call mpi_comm_rank(mpi_comm_world,mype,ierror)
+  if (mype==0) call w3tagb('GSI_ANL',1999,0232,0055,'NP23')
+
+
+! Initialize defaults of vars in modules
+  call init_4dvar
+  call init_constants_derived
+  call init_oneobmod
+  call init_qcvars
+  call init_obsmod_dflts
+  call init_directories(mype)
+  call init_pcp
+  call init_rad
+  call init_oz
+  call init_convinfo
+  call init_jfunc
+  call init_berror
+  call init_anberror
+  call init_fgrid2agrid
+  call init_grid
+  call init_spec
+  call init_turbl
+  call init_compact_diffs
+  call init_smooth_polcas  
+  call init_jcvars
+  call init_strongvars
+  call initialize_superob_radar
+  call init_io(mype)
+  call init_vtrans
+
+
+! Read user input from namelists.  All processor elements 
+! read the namelist input.  SGI MPI FORTRAN does not allow
+! all tasks to read from standard in (unit 5).  Hence, open
+! namelist to different unit number and have each task read 
+! namelist file.
+#ifdef ibm_sp
+  read(5,setup)
+  read(5,gridopts)
+  read(5,bkgerr)
+  read(5,anbkgerr)
+  read(5,jcopts)
+  read(5,strongopts)
+  read(5,obsqc)
+  read(5,obs_input)
+  read(5,superob_radar)
+#else
+  open(11,file='gsiparm.anl')
+  read(11,setup)
+  read(11,gridopts)
+  read(11,bkgerr)
+  read(11,anbkgerr)
+  read(11,jcopts)
+  read(11,strongopts)
+  read(11,obsqc)
+  read(11,obs_input)
+  read(11,superob_radar)
+  close(11)
+#endif
+
+! 4D-Var setup
+  call setup_4dvar(miter,mype)
+  if (.not. l4dvar) then
+    ljcdfi=.false.
+  endif
+  if (l4dvar.and.lsensrecompute) then
+    lobsensfc  =lobsensfc  .and.(jiterstart==jiterend)
+    lobsensjb  =lobsensjb  .and.(jiterstart==jiterend)
+    lobsensincr=lobsensincr.and.(jiterstart==jiterend)
+  endif
+  lobsensfc=lobsensfc.or.lobsensjb.or.lobsensincr
+  lsensrecompute=lsensrecompute.and.lobsensfc
+  if (lobsensadj .and. .not.lcongrad) &
+      call abor1('gsimain: adjoint computation requires congrad')
+
+! Check user input for consistency among parameters for given setups.
+
+! Set regional parameters
+  if(filled_grid.and.half_grid) filled_grid=.false.
+  regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional
+
+
+! Ensure time window specified in obs_input does not exceed 
+! specified maximum value
+  limit=.false.
+  do i=1,ndat
+     if (time_window(i)>time_window_max) then
+        time_window(i) = time_window_max
+        limit = .true.
+     endif
+  end do
+  writediag=.false.
+  do i=1,miter+1
+    if(write_diag(i))writediag=.true.
+  end do
+  if(.not. writediag)then
+     diag_rad=.false.
+     diag_conv=.false.
+     diag_ozone=.false.
+     diag_pcp=.false.
+   end if
+
+  if (mype==0 .and. limit) &
+       write(6,*)'GSIMOD:  reset time window for one or ',&
+       'more OBS_INPUT entries to ',time_window_max
+
+! Force use of perturb_obs for oberror_tune
+  if (oberror_tune ) then
+     perturb_obs=.true.
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** reset perturb_obs=',perturb_obs
+  endif
+
+! Finish initialization of observation setup
+  call init_obsmod_vars(mype)
+
+! Force use of external observation error table for regional runs
+  if (regional .and. .not.oberrflg) then
+     oberrflg=.true.
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** reset oberrflg=',oberrflg
+  endif
+
+! Set 10m wind factor logicals based on ifact10
+  if (ifact10==1 .or. ifact10==2) then
+     if (ifact10==1) sfcmod_gfs = .true.
+     if (ifact10==2) sfcmod_mm5 = .true.
+  endif
+
+
+! If strong constraint is turned off (jcstrong=.false.), 
+! force other strong constraint variables to zero
+  if ((.not.jcstrong) .and. nstrong/=0 ) then
+     nstrong=0
+     if (mype==0) write(6,*)'GSIMOD:  reset nstrong=',nstrong,&
+          ' because jcstrong=',jcstrong
+  endif
+  if (.not.jcstrong) then
+     baldiag_full=.false.
+     baldiag_inc =.false.
+  end if
+
+
+! Turn on derivatives if using dynamic constraint
+! For now if wrf mass or 2dvar no dynamic constraint
+  if (jcstrong.or.l_foto) tendsflag=.true.
+  if (tendsflag) switch_on_derivatives=.true.
+
+! Stop if TOO MANY observation input files
+  if (ndat>ndatmax) then
+     write(6,*)'GSIMOD:  ***ERROR*** ndat=',ndat,' > ndatmax'
+     call stop2(89)
+  endif
+
+
+! Ensure tendency flag is on if preciptation data listed as observation type.
+! NOTE: only applicable for global run when not using observer
+  if (.not.tendsflag .and. .not.regional) then
+     check_pcp: do i=1,ndat
+        if ( .not.tendsflag .and. index(dtype(i),'pcp') /=0 ) then
+           tendsflag = .true.
+           switch_on_derivatives=.true.
+           if (mype==0) write(6,*)'GSIMOD:  set tendsflag,switch_on_derivatives=',&
+                tendsflag,switch_on_derivatives,' for pcp data'
+           exit check_pcp
+        endif
+     end do check_pcp
+  endif
+
+! Optionally read in namelist for single observation run
+  if (oneobtest) then
+     miter=1
+     ndat=1
+     dfile(1)='prepqc'
+     time_window(1)=three
+     dplat='oneob'
+     dthin=1 
+     dval=one
+     dmesh=one
+     factqmin=zero
+     factqmax=zero
+#ifdef ibm_sp
+     read(5,singleob_test)
+#else
+     open(11,file='gsiparm.anl')
+     read(11,singleob_test)
+     close(11)
+#endif
+     dtype(1)=oneob_type
+     if(dtype(1)=='u' .or. dtype(1)=='v')dtype(1)='uv'
+     dsis(1)=dtype(1)
+  endif
+
+
+
+! Write namelist output to standard out
+  if(mype==0) then
+     write(6,200)
+200  format(' calling gsisub with following input parameters:',//)
+     write(6,setup)
+     write(6,gridopts)
+     write(6,bkgerr)
+     write(6,anbkgerr)
+     write(6,jcopts)
+     write(6,strongopts)
+     write(6,obsqc)
+     ngroup=0
+     do i=1,ndat
+       dthin(i) = max(dthin(i),0)
+       if(dthin(i) > ngroup)ngroup=dthin(i)
+     end do
+     if(ngroup>0)write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
+     do i=1,ndat
+        write(6,*)dfile(i),dtype(i),dplat(i),dsis(i),dval(i),dthin(i),time_window(i)
+     end do
+     write(6,superob_radar)
+     if (oneobtest) write(6,singleob_test)
+  endif
+
+
+! If this is a wrf regional run, then run interface with wrf
+  update_pint=.false.
+  if (regional) call convert_regional_guess(mype,ctph0,stph0,tlm0)
+
+
+! Initialize variables, create/initialize arrays
+  call init_constants(regional)
+  call init_reg_glob_ll(mype,lendian_in)
+  call init_grid_vars(jcap,npe)
+  if (.not.regional) call init_spec_vars(nlat,nlon,nsig)
+  call init_mpi_vars(nsig,mype,nsig1o)
+  call create_obsmod_vars
+
+  
+! Initialize values in radinfo
+  call init_rad_vars
+
+
+  end subroutine gsimain_initialize
+
+!-------------------------------------------------------------------------
+!  NASA/GSFC, Global Modeling and Assimilation Office, Code 610.3, GMAO  !
+!-------------------------------------------------------------------------
+!BOP
+
+! ! IROUTINE: gsimain_run
+
+! ! INTERFACE:
+
+  subroutine gsimain_run
+
+!EOC
+
+!---------------------------------------------------------------------------
+ 
+! Call the main gsi driver routine
+  call gsisub(mype)
+
+
+  end subroutine gsimain_run
+
+!-------------------------------------------------------------------------
+!  NASA/GSFC, Global Modeling and Assimilation Office, Code 610.3, GMAO  !
+!-------------------------------------------------------------------------
+!BOP
+
+! ! IROUTINE: gsimain_finalize
+
+ subroutine gsimain_finalize
+
+!EOC
+
+!---------------------------------------------------------------------------
+
+! Deallocate arrays
+  call clean_4dvar
+  if (.not.regional) call destroy_spec_vars
+  call destroy_obsmod_vars
+  call destroy_mpi_vars
+
+
+! Done with GSI.
+  if (mype==0)  call w3tage('GSI_ANL')
+  
+  call mpi_finalize(ierror)
+ 
+ end subroutine gsimain_finalize
+
+ end module gsimod
+
