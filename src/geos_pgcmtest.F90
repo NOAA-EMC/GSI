@@ -84,12 +84,24 @@ nhmsi  = (iadatebgn - 100*nymdi)*10000
 
 ! Checks
 zt=real(nstep,r_kind)*tstep
-if (ABS(winlen*R3600   -zt)>epsilon(zt)) call abor1('geos_pgcmtest: error nstep')
+if (ABS(winlen*R3600   -zt)>epsilon(zt)) then
+  write(6,*)'geos_pgcmtest: error nstep',winlen,zt
+  call stop2(127)
+end if
 zt=real(nfrctl,r_kind)*tstep
-if (ABS(winsub*R3600   -zt)>epsilon(zt)) call abor1('geos_pgcmtest: error nfrctl')
+if (ABS(winsub*R3600   -zt)>epsilon(zt)) then
+  write(6,*)'geos_pgcmtest: error nfrctl',winsub,zt
+  call stop2(128)
+end if
 zt=real(nfrobs,r_kind)*tstep
-if (ABS(hr_obsbin*R3600-zt)>epsilon(zt)) call abor1('geos_pgcmtest: error nfrobs')
-if (ndt<1)                               call abor1('geos_pgcmtest: error ndt')
+if (ABS(hr_obsbin*R3600-zt)>epsilon(zt)) then
+  write(6,*)'geos_pgcmtest: error nfrobs',hr_obsbin,zt
+  call stop2(129)
+end if
+if (ndt<1)then
+ write(6,*)'geos_pgcmtest: error ndt',ndt
+ call stop2(130)
+end if
 
 if (ldprt) write(6,*)'geos_pgcmtest: nstep,nfrctl,nfrobs=',nstep,nfrctl,nfrobs
 

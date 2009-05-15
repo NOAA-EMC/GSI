@@ -100,8 +100,14 @@ subroutine read_files(mype)
       inquire(file=filename,exist=fexist)
       if(fexist) nfldsfc=nfldsfc+1
   enddo
-  if(nfldsig==0) call abor1('0 atm fields; aborting')
-  if(nfldsfc==0) call abor1('0 sfc fields; aborting')
+  if(nfldsig==0) then
+    write(6,*)'0 atm fields; aborting'
+    call stop2(169)
+  end if
+  if(nfldsfc==0) then
+    write(6,*)'0 sfc fields; aborting'
+    call stop2(170)
+  end if
   allocate(time_atm(nfldsig,2),time_sfc(nfldsfc,2))
 
 ! Let a single task query the guess files.

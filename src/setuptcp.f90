@@ -109,11 +109,17 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
     if (.not.lobsdiag_allocated) then
       if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%head)) then
 	allocate(obsdiags(i_tcp_ob_type,ibin)%head,stat=istat)
-	if (istat/=0) call abor1('setuptcp: failure to allocate obsdiags')
+	if (istat/=0) then
+          write(6,*)'setuptcp: failure to allocate obsdiags',istat
+          call stop2(301)
+        end if
 	obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
       else
 	allocate(obsdiags(i_tcp_ob_type,ibin)%tail%next,stat=istat)
-	if (istat/=0) call abor1('setuptcp: failure to allocate obsdiags')
+	if (istat/=0) then
+          write(6,*)'setuptcp: failure to allocate obsdiags',istat
+          call stop2(302)
+        end if
 	obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
       end if
       allocate(obsdiags(i_tcp_ob_type,ibin)%tail%muse(miter+1))
@@ -134,7 +140,10 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
       else
 	obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
       end if
-      if (obsdiags(i_tcp_ob_type,ibin)%tail%indxglb/=i) call abor1('setuptcp: index error')
+      if (obsdiags(i_tcp_ob_type,ibin)%tail%indxglb/=i) then
+        write(6,*)'setuptcp: index error'
+        call stop2(303)
+      end if
     endif
 
 ! Get guess sfc hght at obs location

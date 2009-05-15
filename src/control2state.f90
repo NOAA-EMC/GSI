@@ -34,8 +34,14 @@ integer(i_kind) :: ii,jj
 
 !******************************************************************************
 
-if (lsqrtb) call abor1('control2state: not for sqrt(B)')
-if (nsubwin/=1 .and. .not.l4dvar) call abor1('control2state: error 3dvar')
+if (lsqrtb) then
+  write(6,*)'control2state: not for sqrt(B)'
+  call stop2(106)
+end if
+if (nsubwin/=1 .and. .not.l4dvar) then
+  write(6,*)'control2state: error 3dvar',nsubwin,l4dvar
+  call stop2(107)
+end if
 
 ! Loop over control steps
 do jj=1,nsubwin

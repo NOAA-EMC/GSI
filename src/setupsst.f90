@@ -190,11 +190,17 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
     if (.not.lobsdiag_allocated) then
       if (.not.associated(obsdiags(i_sst_ob_type,ibin)%head)) then
         allocate(obsdiags(i_sst_ob_type,ibin)%head,stat=istat)
-        if (istat/=0) call abor1('setupsst: failure to allocate obsdiags')
+        if (istat/=0) then
+          write(6,*)'setupsst: failure to allocate obsdiags',istat
+          call stop2(295)
+        end if
         obsdiags(i_sst_ob_type,ibin)%tail => obsdiags(i_sst_ob_type,ibin)%head
       else
         allocate(obsdiags(i_sst_ob_type,ibin)%tail%next,stat=istat)
-        if (istat/=0) call abor1('setupsst: failure to allocate obsdiags')
+        if (istat/=0) then
+          write(6,*)'setupsst: failure to allocate obsdiags',istat
+          call stop2(295)
+        end if
         obsdiags(i_sst_ob_type,ibin)%tail => obsdiags(i_sst_ob_type,ibin)%tail%next
       end if
       allocate(obsdiags(i_sst_ob_type,ibin)%tail%muse(miter+1))
@@ -215,7 +221,10 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
       else
         obsdiags(i_sst_ob_type,ibin)%tail => obsdiags(i_sst_ob_type,ibin)%tail%next
       end if
-      if (obsdiags(i_sst_ob_type,ibin)%tail%indxglb/=i) call abor1('setupsst: index error')
+      if (obsdiags(i_sst_ob_type,ibin)%tail%indxglb/=i) then
+        write(6,*)'setupsst: index error'
+        call stop2(297)
+      end if
     endif
 
 ! Interpolate to get sst at obs location/time

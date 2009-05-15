@@ -170,8 +170,6 @@ subroutine getprs_horiz(ps_x,ps_y,mype,prs,prs_x,prs_y)
     vp=zero
     t=zero
     hwork=zero
-    hwork_x=zero
-    hwork_y=zero
     call sub2grid2(hwork,st,vp,prs,t,iflg)
     do k=1,nnnvsbal
      if(nvarbal_id(k) == 3)then

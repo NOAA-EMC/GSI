@@ -277,7 +277,10 @@ subroutine mpl_allgatherq(idim,jdim,zloc,zall)
   integer(i_kind) :: i,j
   real(r_kind) :: z1(idim,2),z2(idim,jdim,2)
 
-  if(jdim/=npe) call abor1('state_vectors: troubled jdim/npe')
+  if(jdim/=npe) then
+    write(6,*)'state_vectors: troubled jdim/npe',jdim,npe
+    call stop2(153)
+  end if
 
 ! break up quad precision number into 2 double precision numbers
   z1=zero

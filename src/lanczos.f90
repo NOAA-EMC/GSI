@@ -152,7 +152,10 @@ character(len=17) :: clfile
 kminit = kmaxit
 kmaxevecs = kmaxit
 lldone=.false.
-if (kmaxit>maxiter) call abor1('congrad: kamxit>maxiter')
+if (kmaxit>maxiter) then
+  write(6,*)'setup_congrad: kmaxit>maxiter',kmaxit,maxiter
+  call stop2(138)
+end if
 
 if (mype==0) write(6,*) '---- Lanczos Solver ----'
 
@@ -568,12 +571,14 @@ if (r_kind == N_DEFAULT_REAL_KIND) then
 ELSEIF (r_kind == N_DOUBLE_KIND) then
   call DSTEQR ('I',iter,zlancs(1,4),zlancs,zv,kmaxit+1,zsstwrk,info)
 else
-  call ABOR1 ('r_kind is neither default real nor double precision')
+  write(6,*)'steqr: r_kind is neither default real nor double precision'
+  call stop2(319)
 endif
 
 if (info /= 0) then
   write (6,*) 'Error in congrad: SSTEQR/DSTEQR returned info=',info
-  call ABOR1 ('CONGRAD: SSTEQR/DSTEQR returned non-zero info')
+  write(6,*) 'steqr: SSTEQR/DSTEQR returned non-zero info'
+  call stop2(320)
 endif
 
 end subroutine steqr
@@ -590,12 +595,14 @@ if (r_kind == N_DEFAULT_REAL_KIND) then
 ELSEIF (r_kind == N_DOUBLE_KIND) then
   call DPTSV (iter,1,zlancs(1,1),zlancs(2,2),zlancs(1,3),kmaxit+1,info)
 else
-  call ABOR1 ('r_kind is neither default real nor double precision')
+  write(6,*) 'r_kind is neither default real nor double precision'
+  call stop2(321)
 endif
 
 if (info /= 0) then
   write (6,*) 'Error in congrad: SPTSV/DPTSV returned ',info
-  call ABOR1 ('CONGRAD: SPTSV/DPTSV returned non-zero info')
+  write(6,*)'CONGRAD: SPTSV/DPTSV returned non-zero info'
+  call stop2(322)
 endif
 
 end subroutine ptsv
@@ -710,7 +717,10 @@ if (ldsave) then
 
   if (mype==0) write(6,*)'save_precond: NVCGLPC,NVCGLEV,npcvecs,ii=', &
                                         NVCGLPC,NVCGLEV,npcvecs,ii
-  if (ii/=npcvecs) call abor1('save_precond: error number of vectors')
+  if (ii/=npcvecs) then
+    write(6,*)'save_precond: error number of vectors',ii,npcvecs
+    call stop2(139)
+  end if
 
 !---  form the inner matrix for the Shermann-Morrison-Woodbury inversion
 
@@ -730,13 +740,14 @@ if (ldsave) then
   ELSEIF (r_kind==N_DOUBLE_KIND) then
     call DPOTRF('L',npcvecs,zmat,npcvecs,info)
   else
-    call ABOR1('save_precond: r_kind is neither default real nor double precision')
+    write(6,*)'save_precond: r_kind is neither default real nor double precision'
+    call stop2(323)
   endif
 
   if (info/=0) then
     write(6,*)'save_precond: error computing Cholesky decomposition'
     write(6,*)'SPOTRF/DPOTRF returns info=',info
-    call ABOR1('save_precond: error computing Cholesky decomposition')
+    call stop2(324)
   endif
 
 !--- transform vectors
@@ -813,7 +824,10 @@ if (l4dvar) then
   read(iunit,*)npcvecs
   close(iunit)
 
-  if (npcvecs<1) call abor1('setup_precond: no vectors for preconditioner')
+  if (npcvecs<1) then
+    write(6,*)'setup_precond: no vectors for preconditioner',npcvecs
+    call stop2(140)
+  end if
 
   ALLOCATE(YVCGLWK(npcvecs))
   DO ii=1,npcvecs
@@ -897,12 +911,14 @@ if (r_kind==N_DEFAULT_REAL_KIND) then
 ELSEIF (r_kind==N_DOUBLE_KIND) then
   call DSYEV('V','L',npcvecs,zUUT,npcvecs,zlam,zwork,SIZE(zwork),info)
 else
-  call ABOR1('setup_precond: r_kind is neither default real nor double precision')
+  write(6,*)'setup_precond: r_kind is neither default real nor double precision'
+  call stop2(325)
 endif
 
 if (info/=0) then
   write(6,*)'setup_precond: SSYEV/DSYEV returned with info=',info
-  call ABOR1('setup_precond: SSYEV/DSYEV returned non-zero return code')
+  write(6,*)'setup_precond: SSYEV/DSYEV returned non-zero return code'
+  call stop2(326)
 endif
 
 !--- convert to eigenvalues of the preconditioner
@@ -1030,7 +1046,8 @@ ELSEIF (kmat==-2) then
   zevals(1:NVCGLPC) = one/sqrt(RCGLPC(:))
 else
   write(6,*)'Error: invalid value for kmat in precond: ',kmat
-  call ABOR1('PRECOND: invalid value for kmat' )
+  write(6,*)'PRECOND: invalid value for kmat' 
+  call stop2(327)
 endif
 
 do jk=1,NVCGLPC
@@ -1053,7 +1070,10 @@ integer(i_kind) , intent(inout) :: kmaxit
 integer(i_kind) :: jj, iunit, kiter, ilen
 character(len=17) :: clfile
 
-if (kmaxit>maxiter) call abor1('congrad: kamxit>maxiter')
+if (kmaxit>maxiter) then
+  write(6,*) 'read_lanczos: kmaxit>maxiter',kmaxit,maxiter
+  call stop2(141)
+end if
 
 do jj=1,kmaxit
   clfile='lanczvec.XXX.YYYY'
@@ -1070,7 +1090,10 @@ if (mype==0) then
 
   open(iunit,file=trim(clfile),form='unformatted')
   read(iunit)kiter
-  if (kiter>maxiter) call abor1('congrad: kiter>maxiter')
+  if (kiter>maxiter) then
+     write(6,*)'read_laczos: kiter>maxiter',kiter,maxiter
+     call stop2(142)
+  end if
   read(iunit)zlancs(1:kiter+1,1:4)
   close(iunit)
 endif

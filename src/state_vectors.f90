@@ -121,7 +121,10 @@ subroutine allocate_state(yst)
   type(state_vector), intent(out) :: yst
   integer(i_kind) :: ii
 
-  if (yst%lallocated) call abor1('allocate_state: state already allocated')
+  if (yst%lallocated) then
+    write(6,*)'allocate_state: state already allocated'
+    call stop2(312)
+  end if
 
   yst%lallocated = .true.
   ALLOCATE(yst%values(nval_len))
@@ -148,7 +151,10 @@ subroutine allocate_state(yst)
   yst%sst => yst%values(ii+1:ii+latlon11)
   ii=ii+latlon11
 
-  if (ii/=nval_len) CALL abor1("allocate_state: error length")
+  if (ii/=nval_len) then
+    write(6,*)'allocate_state: error length'
+    call stop2(313)
+  end if
 
   m_st_alloc=m_st_alloc+1
   if (m_st_alloc>max_st_alloc) max_st_alloc=m_st_alloc

@@ -277,7 +277,10 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      dtime=data(itime,i)
 
      if (obstype == 'sbuv2' ) then
-        if (nobskeep>0) call abor1('setupoz: nobskeep')
+        if (nobskeep>0) then
+           write(6,*)'setupoz: nobskeep',nobskeep
+           call stop2(259)
+        end if
 
         ierror_toq = nint(data(itoq,i))
         ierror_poq = nint(data(ipoq,i))
@@ -464,11 +467,17 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
           if (.not.lobsdiag_allocated) then
             if (.not.associated(obsdiags(i_oz_ob_type,ibin)%head)) then
               allocate(obsdiags(i_oz_ob_type,ibin)%head,stat=istat)
-              if (istat/=0) call abor1('setupoz: failure to allocate obsdiags')
+              if (istat/=0) then
+                write(6,*)'setupoz: failure to allocate obsdiags',istat
+                call stop2(260)
+              end if
               obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%head
             else
               allocate(obsdiags(i_oz_ob_type,ibin)%tail%next,stat=istat)
-              if (istat/=0) call abor1('setupoz: failure to allocate obsdiags')
+              if (istat/=0) then
+                write(6,*)'setupoz: failure to allocate obsdiags',istat
+                call stop2(261)
+              end if
               obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%tail%next
             end if
             allocate(obsdiags(i_oz_ob_type,ibin)%tail%muse(miter+1))
@@ -489,7 +498,10 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
             else
               obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%tail%next
             end if
-            if (obsdiags(i_oz_ob_type,ibin)%tail%indxglb/=i) call abor1('setupoz: index error')
+            if (obsdiags(i_oz_ob_type,ibin)%tail%indxglb/=i) then
+              write(6,*)'setupoz: index error'
+              call stop2(262)
+            end if
           endif
           obsdiags(i_oz_ob_type,ibin)%tail%luse=luse(i)
           obsdiags(i_oz_ob_type,ibin)%tail%muse(jiter)= (ikeep==1)

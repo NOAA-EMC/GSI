@@ -26,7 +26,10 @@ type(control_vector) :: gwork
 integer(i_kind) :: nprt
 logical :: lupdfgs
 
-if (.not.(lobsensincr.or.iobsconv>0)) call abor1('test_obsens: only for validation')
+if (.not.(lobsensincr.or.iobsconv>0)) then
+  write(6,*)'test_obsens: only for validation',lobsensincr,iobsconv
+  call stop2(315)
+end if
 
 ! Apply R^{-1} H and save output in obsdiags
 if (iobsconv>0) then

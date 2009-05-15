@@ -53,7 +53,10 @@ subroutine bkerror(gradx,grady)
   real(r_kind),dimension(nlat,nlon,nnnn1o):: work
   real(r_kind),dimension(lat2,lon2):: slndt,sicet
 
-  if (lsqrtb) call abor1('bkerror: not for use with lsqrtb')
+  if (lsqrtb) then
+    write(6,*)'bkerror: not for use with lsqrtb'
+    call stop2(317)
+  end if
 
 ! Initialize timer
   call timer_ini('bkerror')

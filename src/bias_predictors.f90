@@ -55,7 +55,10 @@ subroutine allocate_preds(yst)
   type(predictors), intent(inout) :: yst
   integer(i_kind) :: ii
 
-  if (yst%lallocated) call abor1('allocate_preds: vector already allocated')
+  if (yst%lallocated) then
+    write(6,*) ' allocate_preds: vector already allocated'
+    call stop2(102)
+  end if
 
   ALLOCATE(yst%values(nrclen))
   yst%values = zero
@@ -66,7 +69,10 @@ subroutine allocate_preds(yst)
   yst%predp => yst%values(ii+1:ii+npclen)
   ii=ii+npclen
 
-  if (ii/=nrclen) CALL abor1("allocate_preds: error length")
+  if (ii/=nrclen) then
+     write(6,*)' allocate_preds: error length',ii,nrclen
+     call stop2(103)
+  end if
   yst%lallocated = .true.
 
   return

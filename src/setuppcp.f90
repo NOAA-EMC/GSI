@@ -442,11 +442,17 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
      if (.not.lobsdiag_allocated) then
        if (.not.associated(obsdiags(i_pcp_ob_type,ibin)%head)) then
          allocate(obsdiags(i_pcp_ob_type,ibin)%head,stat=istat)
-         if (istat/=0) call abor1('setuppcp: failure to allocate obsdiags')
+         if (istat/=0) then
+           write(6,*)'setuppcp: failure to allocate obsdiags',istat
+           call stop2(263)
+         end if
          obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%head
        else
          allocate(obsdiags(i_pcp_ob_type,ibin)%tail%next,stat=istat)
-         if (istat/=0) call abor1('setuppcp: failure to allocate obsdiags')
+         if (istat/=0) then
+           write(6,*)'setuppcp: failure to allocate obsdiags',istat
+           call stop2(264)
+         end if
          obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%tail%next
        end if
        allocate(obsdiags(i_pcp_ob_type,ibin)%tail%muse(miter+1))
@@ -467,7 +473,10 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
        else
          obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%tail%next
        end if
-       if (obsdiags(i_pcp_ob_type,ibin)%tail%indxglb/=i) call abor1('setuppcp: index error')
+       if (obsdiags(i_pcp_ob_type,ibin)%tail%indxglb/=i) then
+          write(6,*)'setuppcp: index error'
+          call stop2(265)
+       end if
      endif
 
 

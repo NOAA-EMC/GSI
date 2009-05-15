@@ -239,8 +239,6 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
     end if
 
 !     use t_x,etc since don't need to save contents
-    u_x=zero
-    v_x=zero
     call grid2sub2(hwork,u_x,v_x,p3d_x,t_x)
 
 ! accumulate to contents of t,p,etc (except st,vp, which are zero on input

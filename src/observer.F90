@@ -287,7 +287,8 @@ subroutine run_
   if (l4dvar) then
     jiterlast=jiterstart
   else
-    call abor1('observer should only be called in 4dvar')
+    write(6,*)'observer should only be called in 4dvar'
+    call stop2(157)
   endif
   if (mype==0) write(6,*)'OBSERVER: jiterstart,jiterlast=',jiterstart,jiterlast
 

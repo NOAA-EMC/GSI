@@ -37,7 +37,10 @@ integer(i_kind) :: ii,jj
 
 !******************************************************************************
 
-if (lsqrtb) call abor1('state2control: not for sqrt(B)')
+if (lsqrtb) then
+  write(6,*)'state2control: not for sqrt(B)'
+  call stop2(311)
+end if
 
 ! Loop over control steps
 do jj=1,nsubwin

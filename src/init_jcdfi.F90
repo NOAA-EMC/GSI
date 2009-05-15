@@ -93,7 +93,10 @@ zs=zero
 DO jj=1,nobs_bins
   zs=zs+wgtdfi(jj)
 ENDDO
-if (ABS(zs-one)>EPSILON(zs)) call abor1('init_jcdfi: Sum of weights is not 1')
+if (ABS(zs-one)>EPSILON(zs)) then
+  write(6,*)'init_jcdfi: Sum of weights is not 1',zs
+  call stop2(318)
+end if
 
 !----------------------------------------------------------------------
 contains

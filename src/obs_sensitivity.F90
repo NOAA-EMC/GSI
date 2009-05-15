@@ -91,7 +91,10 @@ endif
 call allocate_cv(fcsens)
 fcsens=zero
 
-if (lobsensadj.and.lobsensmin) call abor1('init_fc_sens: unknown method')
+if (lobsensadj.and.lobsensmin) then
+  write(6,*)'init_fc_sens: unknown method',lobsensadj,lobsensmin
+  call stop2(155)
+end if
 
 if (iobsconv>=2) then
   allocate(sensincr(nobs_bins,nobs_type,niter(jiter)))
@@ -191,7 +194,10 @@ if (mype==0) then
   enddo
   write(6,'(A,2X,I4)')'Obs bins:',nobs_bins
   write(6,*)'Obs Count Begin'
-  if (.not.allocated(obscounts)) call abor1('save_fc_sens: obscounts not allocated')
+  if (.not.allocated(obscounts)) then
+     write(6,*)'save_fc_sens: obscounts not allocated'
+     call stop2(156)
+  end if
   do jj=1,nobs_type
     write(6,'((1X,I12))')(obscounts(jj,ii),ii=1,nobs_bins)
   enddo

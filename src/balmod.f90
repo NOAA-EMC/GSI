@@ -242,7 +242,10 @@ contains
 
     call berror_read_bal(agvin,bvin,wgvin,mype)
     call berror_get_dims(msig,mlat)
-    if(msig/=nsig) call abor1('prebal: levs in file inconsistent with GSI')
+    if(msig/=nsig) then
+      write(6,*) 'prebal: levs in file inconsistent with GSI',msig,nsig
+      call stop2(101)
+    end if
 
 !   Set ke_vp=nsig (note:  not used in global)
     ke_vp=nsig

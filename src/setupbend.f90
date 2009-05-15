@@ -648,11 +648,17 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub)
     if (.not.lobsdiag_allocated) then
       if (.not.associated(obsdiags(i_gps_ob_type,ibin)%head)) then
         allocate(obsdiags(i_gps_ob_type,ibin)%head,stat=istat)
-        if (istat/=0) call abor1('setupbend: failure to allocate obsdiags')
+        if (istat/=0) then
+          write(6,*)'setupbend: failure to allocate obsdiags',istat
+          call stop2(250)
+        end if
         obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
       else
         allocate(obsdiags(i_gps_ob_type,ibin)%tail%next,stat=istat)
-        if (istat/=0) call abor1('setupbend: failure to allocate obsdiags')
+        if (istat/=0) then
+           write(6,*)'setupbend: failure to allocate obsdiags',istat
+           call stop2(251)
+        end if
         obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
       end if
       allocate(obsdiags(i_gps_ob_type,ibin)%tail%muse(miter+1))
@@ -673,7 +679,10 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub)
       else
         obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
       end if
-      if (obsdiags(i_gps_ob_type,ibin)%tail%indxglb/=i) call abor1('setupbend: index error')
+      if (obsdiags(i_gps_ob_type,ibin)%tail%indxglb/=i) then
+         write(6,*)'setupbend: index error'
+         call stop2(252)
+      end if
     endif
 !    Save values needed for generate of statistics for all observations
 

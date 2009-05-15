@@ -115,7 +115,10 @@ subroutine allocate_cv(ycv)
   type(control_vector), intent(out) :: ycv
   integer(i_kind) :: ii,jj
 
-  if (ycv%lallocated) call abor1('allocate_cv: vector already allocated')
+  if (ycv%lallocated) then
+    write(6,*)'allocate_cv: vector already allocated'
+    call stop2(108)
+  end if
 
   ycv%lallocated=.true.
   ycv%lencv = nclen
@@ -161,7 +164,10 @@ subroutine allocate_cv(ycv)
   ycv%predp => ycv%values(ii+1:ii+npclen)
   ii=ii+npclen
 
-  if (ii/=nclen) CALL abor1("allocate_mods: error length")
+  if (ii/=nclen) then
+    write(6,*)'allocate_mods: error length',ii,nclen
+    call stop2(109)
+  end if
 
   m_allocs=m_allocs+1
   m_vec_alloc=m_vec_alloc+1
@@ -222,8 +228,10 @@ subroutine assign_cv2cv(ycv,xcv)
   type(control_vector), intent(in) :: xcv
   integer(i_kind) :: ii
 
-  if (xcv%lencv/=ycv%lencv) &
-    & call abor1('control_vectors:assign_cv2cv: error length')
+  if (xcv%lencv/=ycv%lencv) then
+      write(6,*)'assign_cv2cv: error length',xcv%lencv,ycv%lencv
+      call stop2(110)
+  end if
 
 !$omp parallel do
   DO ii=1,ycv%lencv
@@ -240,8 +248,11 @@ subroutine assign_array2cv(ycv,parray)
   real(r_kind), intent(in) :: parray(:)
   integer(i_kind) :: ii
 
-  if (size(parray)/=ycv%lencv) &
-    & call abor1('control_vectors:assign_array2cv: array wrong length')
+  if (size(parray)/=ycv%lencv) then
+      write(6,*)'assign_array2cv: array wrong length',size(parray),ycv%lencv
+      call stop2(111)
+  end if
+
 
 !$omp parallel do
   DO ii=1,ycv%lencv
@@ -258,8 +269,10 @@ subroutine assign_cv2array(parray,ycv)
   type(control_vector), intent(in) :: ycv
   integer(i_kind) :: ii
 
-  if (size(parray)/=ycv%lencv) &
-    & call abor1('control_vectors:assign_array2cv: array wrong length')
+  if (size(parray)/=ycv%lencv) then
+      write(6,*)'assign_cv2array: array wrong length',size(parray),ycv%lencv
+      call stop2(112)
+  end if
 
 !$omp parallel do
   DO ii=1,ycv%lencv
@@ -425,8 +438,10 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
   real(r_kind) :: zz(nsubwin+1)
   integer(i_kind) :: ii
 
-  if (xcv%lencv/=ycv%lencv) &
-    & call abor1('control_vectors:dot_prod_cv: error length')
+  if (xcv%lencv/=ycv%lencv) then
+      write(6,*)'dot_prod_cv: error length',xcv%lencv,ycv%lencv
+      call stop2(113)
+  end if
 
   call dot_prod_vars(xcv,ycv,zz)
 
@@ -447,8 +462,10 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
   real(r_quad) :: zz(nsubwin+1)
   integer(i_kind) :: ii
 
-  if (xcv%lencv/=ycv%lencv) &
-    & call abor1('control_vectors:qdot_prod_cv: error length')
+  if (xcv%lencv/=ycv%lencv) then
+      write(6,*)'qdot_prod_cv: error length',xcv%lencv,ycv%lencv
+      call stop2(114)
+  end if
 
   call qdot_prod_vars(xcv,ycv,zz)
 
@@ -541,8 +558,10 @@ subroutine axpy(alpha,xcv,ycv)
   type(control_vector), intent(inout) :: ycv
   integer(i_kind) :: ii
 
-  if (xcv%lencv/=ycv%lencv) &
-    & call abor1('control_vectors:axpy: error length')
+  if (xcv%lencv/=ycv%lencv) then
+      write(6,*)'axpy: error length',xcv%lencv,ycv%lencv
+      call stop2(115)
+  end if
 
   DO ii=1,ycv%lencv
     ycv%values(ii) = ycv%values(ii) + alpha * xcv%values(ii)
@@ -644,7 +663,10 @@ subroutine read_cv(xcv,cdfile)
 
   open(iunit,file=trim(clfile),form='unformatted')
   read(iunit)ilen
-  if (ilen/=xcv%lencv) call abor1('read_cv: wrong length')
+  if (ilen/=xcv%lencv) then
+     write(6,*)'read_cv: wrong length',ilen,xcv%lencv
+     call stop2(116)
+  end if
   read(iunit)xcv%values(1:xcv%lencv)
   close(iunit)
 
@@ -675,7 +697,10 @@ real(r_kind) :: zloc(1),zglo(1)
 zloc(1)=maxval(ycv%values(:))
 
 call mpi_allreduce(zloc,zglo,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-if (ierror/=0) call abor1('maxval_cv: MPI error')
+if (ierror/=0) then
+  write(6,*)'maxval_cv: MPI error',ierror
+  call stop2(117)
+end if
 
 maxval_cv=zglo(1)
 
@@ -689,7 +714,10 @@ real(r_quad) function qdot_product(x,y)
   integer(i_kind) :: nx,ny,i
   nx=size(x)
   ny=size(y)
-  if(nx/=ny) call abor1('qdot_product: inconsistent dims')
+  if(nx/=ny) then
+    write(6,*)'qdot_product: inconsistent dims',nx,ny
+    call stop2(118)
+  end if
   zz=zero_quad
 !$omp parallel do
   do i=1,nx

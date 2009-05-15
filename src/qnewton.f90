@@ -236,8 +236,14 @@ logical :: lldone, lsavinc
 !     INITIALIZE
 !     ----------
 !
-IF (maxvecs<=0) call abor1('LBFGS: maxvecs is not positive.')
-IF (GTOL<1.0e-04) call abor1('LBFGS: GTOL is smaller than 1.0e-4.')
+IF (maxvecs<=0) then
+  write(6,*)'LBFGS: maxvecs is not positive.',maxvecs
+  call stop2(158)
+end if
+IF (GTOL<1.0e-04) then
+  write(6,*)'LBFGS: GTOL is smaller than 1.0e-4.'
+  call stop2(159)
+end if
 
 call allocate_cv(diag)
 call allocate_cv(ww)
@@ -328,7 +334,8 @@ main_loop: DO WHILE (.not.lldone)
 
   IF (INFO/=1.and.info/=3) then
     WRITE(6,200) INFO
-    call abor1('LBFGS: line search failed')
+    write(6,*)'LBFGS: line search failed'
+    call stop2(160)
   endif
   NFUN= NFUN + NFEV
 !
@@ -535,7 +542,8 @@ INFOC = 1
 IF (STP<=ZERO .OR. FTOL<ZERO .OR. &
   & GTOL<ZERO .OR. XTOL<ZERO .OR. STPMIN<ZERO &
   & .OR. STPMAX<STPMIN .OR. MAXFEV<=0) then
-  call abor1('MCSRCH: Error input')
+  write(6,*)'MCSRCH: Error input',stp,ftol,gtol,xtol,stpmin,stpmax,maxfev
+  call stop2(161)
 endif
 !
 !     COMPUTE THE INITIAL GRADIENT IN THE SEARCH DIRECTION
@@ -544,7 +552,8 @@ endif
 dginit = dot_product(g,s)
 
 IF (DGINIT>=ZERO) then
-  call abor1('MCSRCH: THE SEARCH DIRECTION IS NOT A DESCENT DIRECTION')
+  write(6,*)'MCSRCH: THE SEARCH DIRECTION IS NOT A DESCENT DIRECTION',dginit
+  call stop2(162)
 ENDIF
 !
 !     INITIALIZE LOCAL VARIABLES.
@@ -759,7 +768,8 @@ INFO = 0
 IF ((BRACKT .AND. (STP<=MIN(STX,STY) .OR. &
   &  STP>=MAX(STX,STY))) .OR. &
   &  DX*(STP-STX)>=zero .OR. STPMAX<STPMIN) then
-  call abor1('MCSTEP')
+  write(6,*)'MCSTEP: error in input values',BRACKT,STP,STX,STY,DX,STPMAX,STPMIN
+  call stop2(163)
 end if
 !
 !     DETERMINE IF THE DERIVATIVES HAVE OPPOSITE SIGN.

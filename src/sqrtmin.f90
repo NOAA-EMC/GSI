@@ -45,7 +45,10 @@ character(len=12) :: clfile
 
 !**********************************************************************
 
-if (.not.lsqrtb) call abor1('sqrtmin: lsqrtb false')
+if (.not.lsqrtb) then
+  write(6,*)'sqrtmin: lsqrtb false'
+  call stop2(307)
+end if
 
 ! Initialize timer
   call timer_ini('sqrtmin')
@@ -95,7 +98,10 @@ if (lbfgsmin) then
 
 elseif (lcongrad) then
 ! Setup CONGRAD
-  if (.not.ltlint) call abor1('sqrtmin: congrad requires ltlint')
+  if (.not.ltlint) then
+    write(6,*)'sqrtmin: congrad requires ltlint'
+    call stop2(308)
+  end if
   call setup_congrad(mype,nprt,jiter,jiterstart,itermax,nwrvecs, &
                      l4dvar,lanczosave)
   lsavev=(.not.lobsensfc).and.(jiter<miter)
@@ -128,7 +134,10 @@ elseif (lcongrad) then
   call save_precond(lsavev)
 
 else  ! plain conjugate gradient
-  if (.not.ltlint) call abor1('sqrtmin: pcgsqrt requires ltlint')
+  if (.not.ltlint) then
+    write(6,*)'sqrtmin: pcgsqrt requires ltlint'
+    call stop2(309)
+  end if
   call pcgsqrt(xhat,costf,gradx,eps,itermax,nprt)
 endif
 
@@ -213,7 +222,10 @@ else
     if (mype==0) write(6,*)'*** sqrtmin: error estimated gradient ***'
 !   With conjugate gradient, estimated gradient norm will differ from
 !   actual gradient norm without re-orthogonalisation so don't abort.
-!yt    if (lcongrad.or.lbfgsmin) call abor1('sqrtmin: error estimated gradient')
+!yt    if (lcongrad.or.lbfgsmin) then
+!         write(6,*)'sqrtmin: error estimated gradient',lcongrad,lbfgsmin
+!         call stop2(310)
+!      end if
   endif
   
   if (ladtest) call adtest(xhat)

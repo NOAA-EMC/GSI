@@ -45,7 +45,10 @@ clfile=trim(cdfile)//clmype
 if (mype==0) write(6,*)'Start writing obsdiags to file ',clfile
 
 open(iunit,file=trim(clfile),form='unformatted',action='write',iostat=ierr)
-if (ierr/=0) call abor1('write_obsdiags: error open')
+if (ierr/=0) then
+  write(6,*)'write_obsdiags: error open',ierr
+  call stop2(316)
+end if
 
 icount = 0
 do ii=1,nobs_bins

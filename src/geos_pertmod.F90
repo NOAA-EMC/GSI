@@ -1383,7 +1383,8 @@
              print*,'bk5',bk5
              print*,'bk',bk
           endif
-          call abor1('check_bks: troubled vertical coord system')
+          write(6,*)'check_bks: troubled vertical coord system'
+          call stop2(126)
        endif
     enddo
 #endif /* GEOS_PERT */

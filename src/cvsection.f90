@@ -23,8 +23,14 @@ type(control_vector), intent(inout) :: ydcv
 integer(i_kind) :: indx,ival,iloc,iend,ilen,ioff,jj
 
 ! Look for starting index
-if (kbgn<1.or.kbgn>(6*nsig+4)*nval2d) call abor1('set_cvsection: kbgn out of range')
-if (kend<1.or.kend>(6*nsig+4)*nval2d) call abor1('set_cvsection: kend out of range')
+if (kbgn<1.or.kbgn>(6*nsig+4)*nval2d) then
+  write(6,*)'set_cvsection: kbgn out of range',kbgn
+  call stop2(119)
+end if
+if (kend<1.or.kend>(6*nsig+4)*nval2d) then
+  write(6,*)'set_cvsection: kend out of range',kend
+  call stop2(120)
+end if
 
 indx=kbgn
 do while (indx<=kend)
@@ -74,8 +80,14 @@ integer(i_kind) :: indx,ival,iloc,iend,ilen,ioff,jj
 real(r_kind) :: work(nval2d)
 
 ! Look for starting index
-if (kbgn<1.or.kbgn>(6*nsig+4)*nval2d) call abor1('all_cvsection: kbgn out of range')
-if (kend<1.or.kend>(6*nsig+4)*nval2d) call abor1('all_cvsection: kend out of range')
+if (kbgn<1.or.kbgn>(6*nsig+4)*nval2d) then
+  write(6,*)'all_cvsection: kbgn out of range',kbgn
+  call stop2(121)
+end if
+if (kend<1.or.kend>(6*nsig+4)*nval2d) then
+  write(6,*)'all_cvsection: kend out of range',kend
+  call stop2(122)
+end if
 
 indx=kbgn
 do while (indx<=kend)

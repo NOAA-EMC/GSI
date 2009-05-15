@@ -62,7 +62,8 @@ if (mype==0) then
 endif
 
 if ((niter(jiter)<=0).or.(nsim<=0).or.(maxvecs<=0).or.(dxmin<=zero).or.(epsg<=zero).or.(epsg>one)) then
-  call abor1('m1qn3: inconsistent call')
+  write(6,*)'m1qn3: inconsistent call',niter(jiter),nsim,maxvecs,dxmin,epsg,epsg
+  call stop2(164)
 endif
 !
 !---- initialisation
@@ -88,7 +89,10 @@ tmax=1.e+20
 ps = dot_product(g,g)
 gnorm=sqrt(ps)
 
-if (gnorm<sqrt(EPSILON(gnorm))) call abor1('m1qn3: initial gradient is too small')
+if (gnorm<sqrt(EPSILON(gnorm))) then
+  write(6,*)'m1qn3: initial gradient is too small',gnorm
+  call stop2(165)
+end if
 !
 ! --- initialisation pour dd
 !
@@ -115,7 +119,8 @@ iter_loop:do
   if (hp0>=zero) then
     write(6,*)'m1qn3 iteration',iter, &
               'd is not a descent direction: (g,d) =',hp0
-    call abor1('m1qn3: d is not a descent direction')
+    write(6,*)'m1qn3: d is not a descent direction'
+    call stop2(166)
   endif
 !
   iter=iter+1
@@ -171,7 +176,8 @@ iter_loop:do
   if (mype==0) write(6,*)'m1qn3: iteration=',iter,' ys,yy,ss =',ys,yy,ss
   if (ys<=zero) then
     write(6,*)'m1qn3: iteration=',iter,' (y,s) =',ys
-    call abor1('m1qn3: the scalar product (y,s) is not positive')
+    write(6,*)'m1qn3: the scalar product (y,s) is not positive'
+    call stop2(167)
   endif
 !
 ! --- ybar et sbar
@@ -331,7 +337,8 @@ logical :: lsavinc
 if (.not.(fpn.lt.zero .and. t.gt.zero &
          .and. tmax.gt.zero .and. ftol.gt.zero &
          .and. gtol.gt.ftol .and. gtol.lt.one)) then
-  call abor1('mlis0: error input parameters')
+  write(6,*)'mlis0: error input parameters',fpn,t,tmax,ftol,gtol
+  call stop2(168)
 endif
 
 tesf=ftol*fpn

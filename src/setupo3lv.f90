@@ -200,11 +200,17 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
      if (.not.lobsdiag_allocated) then
        if (.not.associated(obsdiags(i_o3l_ob_type,ibin)%head)) then
          allocate(obsdiags(i_o3l_ob_type,ibin)%head,stat=istat)
-         if (istat/=0) call abor1('setupo3l: failure to allocate obsdiags')
+         if (istat/=0) then
+            write(6,*)'setupo3l: failure to allocate obsdiags',istat
+            call stop2(256)
+         end if
          obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%head
        else
          allocate(obsdiags(i_o3l_ob_type,ibin)%tail%next,stat=istat)
-         if (istat/=0) call abor1('setupo3l: failure to allocate obsdiags')
+         if (istat/=0) then
+            write(6,*)'setupo3l: failure to allocate obsdiags',istat
+            call stop2(257)
+         end if
          obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%tail%next
        end if
        allocate(obsdiags(i_o3l_ob_type,ibin)%tail%muse(miter+1))
@@ -225,7 +231,10 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
        else
          obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%tail%next
        end if
-       if (obsdiags(i_o3l_ob_type,ibin)%tail%indxglb/=i) call abor1('setupo3l: index error')
+       if (obsdiags(i_o3l_ob_type,ibin)%tail%indxglb/=i) then
+         write(6,*)'setupo3l: index error'
+         call stop2(258)
+       end if
      endif
 
 ! Interpolate ps & log(pres) at mid-layers to obs locations/times

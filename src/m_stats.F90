@@ -91,19 +91,28 @@ subroutine allreduce_(vdot,vsum,vmin,vmax,vdim,comm)
 
   call mpi_allreduce((/vdot,vsum/),bufr,size(bufr),mpi_rtype, &
   		     mpi_sum,comm,ierror)
-	if(ierror/=0) call abor1('m_stats: MPI_allreduce(dot-sum)')
+	if(ierror/=0) then
+            write(6,*)'m_stats: MPI_allreduce(dot-sum)'
+            call stop2(143)
+        end if
   vdot=bufr(1)
   vsum=bufr(2)
 
   call mpi_allreduce((/-vmin,vmax/),bufr,size(bufr),mpi_rtype, &
   		     mpi_max,comm,ierror)
-	if(ierror/=0) call abor1('m_stats: MPI_allreduce(min-max)')
+	if(ierror/=0) then
+          write(6,*)'m_stats: MPI_allreduce(min-max)'
+          call stop2(144)
+        end if
   vmin=-bufr(1)
   vmax=+bufr(2)
 
   vdim_local=vdim
   call mpi_allreduce(vdim_local,vdim,1,mpi_rtype,mpi_sum,comm,ierror)
-	if(ierror/=0) call abor1('m_stats: MPI_allreduce(dim)')
+	if(ierror/=0) then
+          write(6,*)'m_stats: MPI_allreduce(dim)'
+          call stop2(145)
+        end if
 
 end subroutine allreduce_
 end module m_stats

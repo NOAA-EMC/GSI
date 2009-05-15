@@ -99,7 +99,10 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges)
   bcoef2=sges(3)*ccoef
   time_spd=zero
 
-  if(ltlint.and.l_foto) call abor1('ltlint & foto not compatible at this time')
+  if(ltlint.and.l_foto) then
+    write(6,*)'ltlint & foto not compatible at this time',ltlint,l_foto
+    call stop2(314)
+  end if
 
   spdptr => spdhead
   do while (associated(spdptr))

@@ -27,6 +27,9 @@ subroutine stop2(ierror_code)
   implicit none
   integer(i_kind) ierror_code
   write(6,*)'****STOP2****  ABORTING EXECUTION w/code=',ierror_code
+  write(0,*)'****STOP2****  ABORTING EXECUTION w/code=',ierror_code
+  flush(6)
+  flush(0)
   call mpi_abort(mpi_comm_world,ierror_code,ierror)
   stop
   return

@@ -140,7 +140,8 @@ IF (hr_obsbin<winlen) THEN
   ibin = NINT(winlen/hr_obsbin)
   IF (NINT(ibin*hr_obsbin)/=nhr_assimilation) THEN
     write(6,*)'SETUP_4DVAR: Error=',ibin,hr_obsbin,nhr_assimilation
-    call abor1('SETUP_4DVAR: Error in observation binning')
+    write(6,*)'SETUP_4DVAR: Error in observation binning'
+    call stop2(132)
   ENDIF
 ELSE
   ibin = 0
@@ -156,7 +157,8 @@ IF (nhr_subwin<nhr_assimilation) THEN
   nsubwin = nhr_assimilation/nhr_subwin
   IF (nsubwin*nhr_subwin/=nhr_assimilation) THEN
     write(6,*)'SETUP_4DVAR: Error=',nsubwin,nhr_subwin,nhr_assimilation
-    call abor1('SETUP_4DVAR: Error in sub-windows definition')
+    write(6,*)'SETUP_4DVAR: Error in sub-windows definition'
+    call stop2(133)
   ENDIF
 ELSE
   nsubwin = 1
@@ -171,10 +173,14 @@ endif
 !if (lwrtinc) then
 !    if (miter>1) then
 !        write(6,*) 'SETUP_4DVAR: Not able to write increment when miter>1, lwrtinc,miter=',lwrtinc,miter
-!        call abor1('SETUP_4DVAR: Unable to fullfil request for increment output')
+!        write(6,*)'SETUP_4DVAR: Unable to fullfil request for increment output'
+!        call stop2(134)
 !    endif
 !endif
-if (lwrtinc .neqv. l4dvar) call abor1('SETUP_4DVAR: lwrtinc l4dvar inconsistent')
+if (lwrtinc .neqv. l4dvar) then
+  write(6,*)'SETUP_4DVAR: lwrtinc l4dvar inconsistent',lwrtinc,l4dvar
+  call stop2(135)
+end if
 
 ! Prints
 if (mype==0) then
@@ -212,7 +218,10 @@ ihr=ihr-10000*imo
 idy=ihr/100
 ihr=ihr-100*idy
 call w3fs21((/iyr,imo,idy,ihr,0/),nmin_obs)
-if (MOD(nmin_obs,60)/=0) call abor1('time_4dvar: minutes should be 0')
+if (MOD(nmin_obs,60)/=0) then
+  write(6,*)'time_4dvar: minutes should be 0',nmin_obs
+  call stop2(136)
+end if
 
 nhrobs=nmin_obs/60
 nhrbgn=NINT(real(iwinbgn,r_kind)/60._r_kind)

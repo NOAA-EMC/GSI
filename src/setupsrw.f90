@@ -208,11 +208,17 @@ subroutine setupsrw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
        if (.not.lobsdiag_allocated) then
          if (.not.associated(obsdiags(i_srw_ob_type,ibin)%head)) then
            allocate(obsdiags(i_srw_ob_type,ibin)%head,stat=istat)
-           if (istat/=0) call abor1('setupsrw: failure to allocate obsdiags')
+           if (istat/=0) then
+             write(6,*)'setupsrw: failure to allocate obsdiags',istat
+             call stop2(292)
+           end if
            obsdiags(i_srw_ob_type,ibin)%tail => obsdiags(i_srw_ob_type,ibin)%head
          else
            allocate(obsdiags(i_srw_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=0) call abor1('setupsrw: failure to allocate obsdiags')
+           if (istat/=0) then
+             write(6,*)'setupsrw: failure to allocate obsdiags',istat
+             call stop2(293)
+           end if
            obsdiags(i_srw_ob_type,ibin)%tail => obsdiags(i_srw_ob_type,ibin)%tail%next
          end if
          allocate(obsdiags(i_srw_ob_type,ibin)%tail%muse(miter+1))
@@ -233,7 +239,10 @@ subroutine setupsrw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
          else
            obsdiags(i_srw_ob_type,ibin)%tail => obsdiags(i_srw_ob_type,ibin)%tail%next
          end if
-         if (obsdiags(i_srw_ob_type,ibin)%tail%indxglb/=i) call abor1('setupsrw: index error')
+         if (obsdiags(i_srw_ob_type,ibin)%tail%indxglb/=i) then
+           write(6,*)'setupsrw: index error'
+           call stop2(294)
+         end if
        endif
        if (jj==1) obsptr => obsdiags(i_srw_ob_type,ibin)%tail
      enddo

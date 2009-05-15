@@ -185,7 +185,10 @@ subroutine setuprhsall(ndata,mype)
     endif
   endif
 
-  if (allocated(obscounts)) call abor1('setruprhsall: obscounts allocated')
+  if (allocated(obscounts)) then
+     write(6,*)'setuprhsall: obscounts allocated'
+     call stop2(285)
+  end if
   allocate(obscounts(nobs_type,nobs_bins))
 
   if (jiter>1.and.lobskeep) then

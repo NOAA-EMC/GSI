@@ -44,7 +44,10 @@ real(r_kind) :: gradz(nval_lenz)
 
 !******************************************************************************
 
-if (.not.lsqrtb) call abor1('model2control: assumes lsqrtb')
+if (.not.lsqrtb) then
+  write(6,*)'model2control: assumes lsqrtb'
+  call stop2(146)
+end if
 
 ! Loop over control steps
 do jj=1,nsubwin

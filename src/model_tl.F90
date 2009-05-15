@@ -100,12 +100,24 @@ xx=zero
 
 ! Checks
 zz=real(nstep,r_kind)*tstep
-if (ABS(winlen*R3600   -zz)>epsilon(zz)) call abor1('model_tl: error nstep')
+if (ABS(winlen*R3600   -zz)>epsilon(zz)) then
+  write(6,*)'model_tl: error nstep',winlen,zz
+  call stop2(147)
+end if
 zz=real(nfrctl,r_kind)*tstep
-if (ABS(winsub*R3600   -zz)>epsilon(zz)) call abor1('model_tl: error nfrctl')
+if (ABS(winsub*R3600   -zz)>epsilon(zz)) then
+  write(6,*)'model_tl: error nfrctl',winsub,zz
+  call stop2(148)
+end if
 zz=real(nfrobs,r_kind)*tstep
-if (ABS(hr_obsbin*R3600-zz)>epsilon(zz)) call abor1('model_tl: error nfrobs')
-if (ndt<1)                               call abor1('model_tl: error ndt')
+if (ABS(hr_obsbin*R3600-zz)>epsilon(zz)) then
+  write(6,*)'model_tl: error nfrobs',hr_obsbin,zz
+  call stop2(149)
+end if
+if (ndt<1)then
+  write(6,*)'model_tl: error ndt',ndt
+  call stop2(150)
+end if
 
 if (ldprt) write(6,'(a,3(1x,i4))')'model_tl: nstep,nfrctl,nfrobs=',nstep,nfrctl,nfrobs
 
@@ -124,7 +136,10 @@ do istep=0,nstep-1
   if (MOD(istep,nfrctl)==0) then
     ii=istep/nfrctl+1
     if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: adding WC nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
-    if (ii<1.or.ii>nsubwin) call abor1('model_tl: error xini')
+    if (ii<1.or.ii>nsubwin) then
+      write(6,*)'model_tl: error xini',ii,nsubwin
+      call stop2(151)
+    end if
     call self_add(xx,xini(ii))
   endif
 
@@ -132,7 +147,10 @@ do istep=0,nstep-1
   if (MOD(istep,nfrobs)==0) then
     ii=istep/nfrobs+1
     if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: saving state nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
-    if (ii<1.or.ii>nobs_bins) call abor1('model_tl: error xobs')
+    if (ii<1.or.ii>nobs_bins) then
+      write(6,*)'model_tl: error xobs',ii,nobs_bins
+      call stop2(152)
+    end if
     xobs(ii) = xx
     d0=d0+dot_product(xx,xx)
   endif

@@ -144,7 +144,10 @@ call mpi_allreduce(iobsgrp,iobsglb,ilen, &
     endif
   ENDIF
 
-if (.not.allocated(obscounts)) call abor1('evaljo: obscounts not allocated')
+if (.not.allocated(obscounts)) then
+  write(6,*)'evaljo: obscounts not allocated'
+  call stop2(125)
+end if
 obscounts(:,:)=iobsglb(:,:)
 
 100 format(a20,2x,i3,2x,i8,2x,es24.16,2x,f10.3)

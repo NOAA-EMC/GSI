@@ -670,7 +670,10 @@
 ! Load data array for current satellite
   read(lunin) data_s,luse
 
-  if (nobskeep>0) call abor1('setuprad: nobskeep')
+  if (nobskeep>0) then
+     write(6,*)'setuprad: nobskeep',nobskeep
+     call stop2(275)
+  end if
 
 ! PROCESSING OF SATELLITE DATA
 
@@ -2119,11 +2122,17 @@
          if (.not.lobsdiag_allocated) then
            if (.not.associated(obsdiags(i_rad_ob_type,ibin)%head)) then
              allocate(obsdiags(i_rad_ob_type,ibin)%head,stat=istat)
-             if (istat/=0) call abor1('setuprad: failure to allocate obsdiags')
+             if (istat/=0) then
+               write(6,*)'setuprad: failure to allocate obsdiags',istat
+               call stop2(276)
+             end if
              obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%head
            else
              allocate(obsdiags(i_rad_ob_type,ibin)%tail%next,stat=istat)
-             if (istat/=0) call abor1('setuprad: failure to allocate obsdiags')
+             if (istat/=0) then
+               write(6,*)'setuprad: failure to allocate obsdiags',istat
+               call stop2(277)
+             end if
              obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
            end if
            allocate(obsdiags(i_rad_ob_type,ibin)%tail%muse(miter+1))
@@ -2145,7 +2154,8 @@
              obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
            end if
            if (obsdiags(i_rad_ob_type,ibin)%tail%indxglb/=(n-1)*nchanl+ii) then
-             call abor1('setuprad: index error')
+             write(6,*)'setuprad: index error'
+             call stop2(278)
            endif
          endif
          if (ii==1) obsptr => obsdiags(i_rad_ob_type,ibin)%tail
@@ -2173,7 +2183,8 @@
          endif
        enddo
        if(.not. retrieval.and.(iii/=icc)) then
-         call abor1('setuprad: error iii icc')
+         write(6,*)'setuprad: error iii icc',iii,icc
+         call stop2(279)
        endif
 
 !    End of l_may_be_passive block
@@ -2244,9 +2255,14 @@
         if (lobsdiagsave) then
           if (l_may_be_passive) then
             do ii=1,nchanl
-              if (.not.associated(obsptr)) call abor1('setuprad: error obsptr')
-              if (obsptr%indxglb/=(n-1)*nchanl+ii) &
-                call abor1('setuprad: error writing diagnostics')
+              if (.not.associated(obsptr)) then
+                write(6,*)'setuprad: error obsptr'
+                call stop2(280)
+              end if
+              if (obsptr%indxglb/=(n-1)*nchanl+ii) then
+                write(6,*)'setuprad: error writing diagnostics'
+                call stop2(281)
+              end if
   
               ioff=7+npred+1
               do jj=1,miter

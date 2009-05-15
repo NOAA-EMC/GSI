@@ -53,7 +53,8 @@ logical :: lsavinc
 if (mype==0) write(6,*)'grtest: starting'
 if (pdx<=EPSILON(pdx)) then
   if (mype==0) write(6,*)'grtest, pdx=',pdx
-  call abor1('grtest: pdx too small')
+  write(6,*)'grtest: pdx too small',pdx
+  call stop2(131)
 endif
 lsavinc=.false.
 nprt=1

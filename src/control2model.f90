@@ -40,8 +40,14 @@ integer(i_kind) :: ii,jj,kk
 
 !******************************************************************************
 
-if (.not.lsqrtb) call abor1('control2model: assumes lsqrtb')
-if (nsubwin/=1 .and. .not.l4dvar) call abor1('control2model: error 3dvar')
+if (.not.lsqrtb) then
+  write(6,*)'control2model: assumes lsqrtb'
+  call stop2(104)
+end if
+if (nsubwin/=1 .and. .not.l4dvar) then
+  write(6,*)'control2model: error 3dvar',nsubwin
+  call stop2('control2model: error 3dvar')
+end if
 
 ! Loop over control steps
 do jj=1,nsubwin

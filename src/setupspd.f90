@@ -209,11 +209,17 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
     if (.not.lobsdiag_allocated) then
       if (.not.associated(obsdiags(i_spd_ob_type,ibin)%head)) then
         allocate(obsdiags(i_spd_ob_type,ibin)%head,stat=istat)
-        if (istat/=0) call abor1('setupspd: failure to allocate obsdiags')
+        if (istat/=0) then
+          write(6,*)'setupspd: failure to allocate obsdiags',istat
+          call stop2(289)
+        end if
         obsdiags(i_spd_ob_type,ibin)%tail => obsdiags(i_spd_ob_type,ibin)%head
       else
         allocate(obsdiags(i_spd_ob_type,ibin)%tail%next,stat=istat)
-        if (istat/=0) call abor1('setupspd: failure to allocate obsdiags')
+        if (istat/=0) then
+          write(6,*)'setupspd: failure to allocate obsdiags',istat
+          call stop2(290)
+        end if
         obsdiags(i_spd_ob_type,ibin)%tail => obsdiags(i_spd_ob_type,ibin)%tail%next
       end if
       allocate(obsdiags(i_spd_ob_type,ibin)%tail%muse(miter+1))
@@ -234,7 +240,10 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
       else
         obsdiags(i_spd_ob_type,ibin)%tail => obsdiags(i_spd_ob_type,ibin)%tail%next
       end if
-      if (obsdiags(i_spd_ob_type,ibin)%tail%indxglb/=i) call abor1('setupspd: index error')
+      if (obsdiags(i_spd_ob_type,ibin)%tail%indxglb/=i) then
+        write(6,*)'setupspd: index error'
+        call stop2(291)
+      end if
     endif
 
 

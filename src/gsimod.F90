@@ -523,8 +523,10 @@
   endif
   lobsensfc=lobsensfc.or.lobsensjb.or.lobsensincr
   lsensrecompute=lsensrecompute.and.lobsensfc
-  if (lobsensadj .and. .not.lcongrad) &
-      call abor1('gsimain: adjoint computation requires congrad')
+  if (lobsensadj .and. .not.lcongrad) then
+      write(6,*)'gsimod: adjoint computation requires congrad',lobsensadj,lcongrad
+      call stop2(137)
+  end if
 
 ! Check user input for consistency among parameters for given setups.
 

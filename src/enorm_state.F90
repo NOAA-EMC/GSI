@@ -56,7 +56,8 @@ do jj=2,lon2-1
       enddo
       write(6,'(A,I3,4(2X,F18.8))')'enorm ak,bk,pk     =',&
         nsig+1,1000.*ak5(nsig+1),bk5(nsig+1),1000.*ak5(nsig+1)+bk5(nsig+1)*pref
-      call abor1('enorm_state: negative dsig')
+      write(6,*)'enorm_state: negative dsig'
+      call stop2(123)
     endif
   enddo
 enddo
@@ -64,7 +65,10 @@ enddo
 coslat=HUGE(coslat)
 do ii=2,lat2-1
   ilat=istart(mype+1)+ii-2
-  if (ilat<1.or.ilat>nlat) call abor1('enorm_state: error ilat')
+  if (ilat<1.or.ilat>nlat) then
+    write(6,*)'enorm_state: error ilat',ilat
+    call stop2(124)
+  end if
   coslat(ii)=cos(rlats(ilat))
   if (coslat(ii)<zero) then
     write(6,*)'enorm_state error coslat:',ii,ilat,rlats(ilat),pi/two,coslat(ii)

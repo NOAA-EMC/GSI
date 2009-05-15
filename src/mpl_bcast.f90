@@ -24,7 +24,10 @@ real(r_kind),intent(inout) :: pvals(klen)
 
 if (npe>1.and.klen>0) then
   call mpi_bcast(pvals,klen,mpi_rtype,root,mpi_comm_world,ierror)
-  if (ierror/=0) call abor1('mpl_bcast: MPI error')
+  if (ierror/=0) then
+     write(6,*)'mpl_bcast: MPI error'
+     call stop2(154)
+  end if
 endif
 
 ! ----------------------------------------------------------

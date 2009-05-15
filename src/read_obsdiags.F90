@@ -54,32 +54,56 @@ gogetit = .true.
 if(lobserver .and. jiter==1) gogetit = .false.
 
 open(iunit,file=trim(clfile),form='unformatted',action='read',iostat=ierr)
-if (ierr/=0) call abor1('read_obsdiags: error open')
+if (ierr/=0) then
+  write(6,*)'read_obsdiags: error open'
+  call stop2(171)
+end if
 
 do ii=1,nobs_bins
   do jj=1,nobs_type
 
     read(iunit)ki,kj,kobs,kiter
-    if (ki/=ii) call abor1('read_obsdiags: error ii')
-    if (kj/=jj) call abor1('read_obsdiags: error jj')
+    if (ki/=ii) then
+      write(6,*)'read_obsdiags: error ii',ii,ki
+      call stop2(172)
+    end if
+    if (kj/=jj) then
+      write(6,*)'read_obsdiags: error jj',jj,kj
+      call stop2(173)
+    end if
     if (lobsensfc.and..not.lsensrecompute) then
-      if (kiter/=miter) call abor1('read_obsdiags: error kiter')
+      if (kiter/=miter) then
+         write(6,*)'read_obsdiags: error kiter',kiter,miter
+         call stop2(174)
+      end if
     else
       if (lobserver) then
-        if (kiter/=jiter-1) call abor1('read_obsdiags: error kiter')
+        if (kiter/=jiter-1) then
+          write(6,*)'read_obsdiags: error kiter',kiter,jiter-1
+          call stop2(175)
+        end if
       else
-        if (kiter/=jiter)   call abor1('read_obsdiags: error kiter')
+        if (kiter/=jiter) then
+          write(6,*)'read_obsdiags: error kiter',kiter,jiter
+          call stop2(176)
+        end if
       endif
     endif
 
     do kk=1,kobs
       if (.not.associated(obsdiags(jj,ii)%head)) then
         allocate(obsdiags(jj,ii)%head,stat=ierr)
-        if (ierr/=0) call abor1('setupt: fail to allocate obsdiags')
+        if (ierr/=0) then
+          write(6,*)'read_obsdiags: fail to allocate obsdiags',ierr
+          call stop2(177)
+        end if
         obsdiags(jj,ii)%tail => obsdiags(jj,ii)%head
       else
         allocate(obsdiags(jj,ii)%tail%next,stat=ierr)
-        if (ierr/=0) call abor1('setupt: fail to allocate next obsdiags')
+        if (ierr/=0) then
+          write(6,*)'read_obsdiags: fail to allocate next obsdiags',ierr
+          call stop2(178)
+        end if
         obsdiags(jj,ii)%tail => obsdiags(jj,ii)%tail%next
       end if
       allocate(obsdiags(jj,ii)%tail%muse(miter+1))
@@ -136,8 +160,14 @@ do ii=1,nobs_bins
     endif
 
     read(iunit)ki,kj
-    if (ki/=ii) call abor1('read_obsdiags: error ii')
-    if (kj/=jj) call abor1('read_obsdiags: error jj')
+    if (ki/=ii) then
+      write(6,*)'read_obsdiags: error ii',ii,ki
+      call stop2(179)
+    end if
+    if (kj/=jj) then
+      write(6,*)'read_obsdiags: error jj',jj,kj
+      call stop2(180)
+    end if
   enddo
 enddo
 
@@ -186,7 +216,10 @@ subroutine read_pshead_ ()
 !   Read in obs-specific entries
 !   ----------------------------   
     read(iunit) mobs,jread
-    if(jj/=jread) call abor1('read_pshead_: unmatched ob type')
+    if(jj/=jread) then
+      write(6,*)'read_pshead_: unmatched ob type',jj,jread
+      call stop2(181)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     do kk=1,mobs
@@ -202,7 +235,10 @@ subroutine read_pshead_ ()
        read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
                                  ztime, zb,       zpg, &
                                  zluse, zppertb,  zkx, zwij, zij
-         if (iostat/=0) call abor1('read_pshead_: error reading record')
+       if (iostat/=0) then
+           write(6,*)'read_pshead_: error reading record',iostat
+           call stop2(182)
+       end if
        pstail(ii)%head%res      = zres
        pstail(ii)%head%err2     = zerr2
        pstail(ii)%head%raterr2  = zraterr2
@@ -243,7 +279,10 @@ subroutine read_pshead_ ()
        enddo
 !   enddo
 !   if(mobs>0) print *, 'Read ps from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
-    if(icount.ne.mobs) call abor1('read_pshead_: error counting ob')
+    if(icount.ne.mobs) then
+      write(6,*)'read_pshead_: error counting ob',icount,mobs
+      call stop2(183)
+    end if
 end subroutine read_pshead_
 
 subroutine read_thead_ ()
@@ -284,7 +323,10 @@ subroutine read_thead_ ()
     logical         :: mymuse   
 
     read(iunit) mobs,jread
-    if(jj/=jread) call abor1('read_thead_: unmatched ob type')
+    if(jj/=jread) then
+      write(6,*)'read_thead_: unmatched ob type',jj,jread
+      call stop2(184)
+    end if
     if(kobs<=0.or.mobs<=0) return
     do kk=1,mobs
          if(.not. associated(thead(ii)%head))then
@@ -301,7 +343,10 @@ subroutine read_thead_ ()
                                    zuse_sfc_model,  ztlm_tsfc, &
                                    zluse, ztpertb,  ztv_ob, &
                                    zk1,   zkx,      zwij, zij
-         if (iostat/=0) call abor1('read_thead_: error reading record')
+         if (iostat/=0) then
+           write(6,*)'read_thead_: error reading record',iostat
+           call stop2(185)
+         end if
          ttail(ii)%head%res      = zres
          ttail(ii)%head%err2     = zerr2
          ttail(ii)%head%raterr2  = zraterr2
@@ -347,7 +392,10 @@ subroutine read_thead_ ()
 !   enddo
 
 !   if(mobs>0) print *, 'Read t from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
-    if(icount.ne.mobs) call abor1('read_thead_: error counting ob')
+    if(icount.ne.mobs) then
+      write(6,*)'read_thead_: error counting ob',icount,mobs
+      call stop2(186)
+    end if
 end subroutine read_thead_
 
 subroutine read_whead_ ()
@@ -386,7 +434,10 @@ subroutine read_whead_ ()
     logical         :: mymuse
    
     read(iunit) mobs,jread
-    if(jj/=jread) call abor1('read_whead_: unmatched ob type')
+    if(jj/=jread) then
+       write(6,*)'read_whead_: unmatched ob type',jj,jread
+       call stop2(187)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     do kk=1,mobs
@@ -403,7 +454,10 @@ subroutine read_whead_ ()
                                    ztime, zb,    zpg, &
                                    zluse, zupertb, zvpertb, &
                                    zk1,   zkx,   zwij,  zij
-         if (iostat/=0) call abor1('read_whead_: error reading record')
+         if (iostat/=0) then
+           write(6,*)'read_whead_: error reading record',iostat
+           call stop2(188)
+         end if
          wtail(ii)%head%ij       = zij
          wtail(ii)%head%wij      = zwij
          wtail(ii)%head%ures     = zures
@@ -455,7 +509,10 @@ subroutine read_whead_ ()
     enddo
 !   enddo
 
-    if(icount.ne.mobs) call abor1('read_whead_: error counting ob')
+    if(icount.ne.mobs) then
+       write(6,*)'read_whead_: error counting ob',icount,mobs
+       call stop2(189)
+    end if
 !   if(mobs>0) print *, 'Read w from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_whead_
 
@@ -493,7 +550,10 @@ subroutine read_qhead_ ()
     logical         :: mymuse   
    
     read(iunit) mobs,jread
-    if(jj/=jread) call abor1('read_qhead_: unmatched ob type')
+    if(jj/=jread) then
+      write(6,*)'read_qhead_: unmatched ob type',jj,jread
+      call stop2(190)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     do kk=1,mobs
@@ -511,7 +571,10 @@ subroutine read_qhead_ ()
                                    ztime, zb,      zpg, &
                                    zluse, zqpertb, zk1, zkx, &
                                    zwij, zij
-         if(iostat/=0) call abor1('read_qhead_: error reading record')
+         if(iostat/=0) then
+           write(6,*)'read_qhead_: error reading record',iostat
+           call stop2(191)
+         end if
          qtail(ii)%head%ij       = zij
          qtail(ii)%head%wij      = zwij
          qtail(ii)%head%res      = zres
@@ -558,7 +621,10 @@ subroutine read_qhead_ ()
     enddo
 !   enddo
 
-    if(icount.ne.mobs) call abor1('read_qhead_: error counting ob')
+    if(icount.ne.mobs) then
+      write(6,*)'read_qhead_: error counting ob',icount,mobs
+      call stop2(192)
+    end if
 !   if(mobs>0) print *, 'Read q from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_qhead_
 
@@ -594,7 +660,10 @@ subroutine read_spdhead_ ()
     logical         :: mymuse   
    
     read(iunit) mobs,jread
-    if(jj/=jread) call abor1('read_spdhead_: unmatched ob type')
+    if(jj/=jread) then
+       write(6,*)'read_spdhead_: unmatched ob type',jj,jread
+       call stop2(193)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     do kk=1,mobs
@@ -612,7 +681,10 @@ subroutine read_spdhead_ ()
                                    ztime, zb,       zpg, &
                                    zuges, zvges, &
                                    zluse, zwij, zij
-         if (iostat/=0) call abor1('read_spdhead_: error reading record')
+         if (iostat/=0) then
+           write(6,*)'read_spdhead_: error reading record',iostat
+           call stop2(194)
+         end if
          spdtail(ii)%head%ij       = zij
          spdtail(ii)%head%wij      = zwij
          spdtail(ii)%head%res      = zres
@@ -654,7 +726,10 @@ subroutine read_spdhead_ ()
     enddo
 !   enddo
 
-    if(icount.ne.mobs) call abor1('read_spdhead_: error counting ob')
+    if(icount.ne.mobs) then
+       write(6,*)'read_spdhead_: error counting ob',icount,mobs
+       call stop2(195)
+    end if
 !   if(mobs>0) print *, 'Read spd from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_spdhead_
 
@@ -693,7 +768,10 @@ subroutine read_srwhead_ ()
    
     icount=0
     read(iunit) mobs,jread
-    if(jj/=jread) call abor1('read_srwhead_: unmatched ob type')
+    if(jj/=jread) then
+      write(6,*)'read_srwhead_: unmatched ob type',jj,jread
+      call stop2(196)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     do kk=1,mobs
@@ -711,7 +789,10 @@ subroutine read_srwhead_ ()
                                     ztime, zb,    zpg, &
                                     zges1, zges2, &
                                     zluse, zrsrw, zwij, zij
-          if (iostat/=0) call abor1('read_srwhead_: error reading record')
+          if (iostat/=0) then
+            write(6,*)'read_srwhead_: error reading record',iostat
+            call stop2(197)
+          end if
           srwtail(ii)%head%res1     = zres1
           srwtail(ii)%head%res2     = zres2
           srwtail(ii)%head%err2     = zerr2
@@ -762,7 +843,10 @@ subroutine read_srwhead_ ()
     enddo
 !   enddo
 
-    if(icount.ne.mobs) call abor1('read_srwhead_: error counting ob')
+    if(icount.ne.mobs) then
+       write(6,*)'read_srwhead_: error counting ob',icount,mobs
+       call stop2(198)
+    end if
 !   if(mobs>0) print *, 'Read srw from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_srwhead_
 
@@ -798,7 +882,10 @@ subroutine read_rwhead_ ()
     logical         :: mymuse   
    
     read(iunit) mobs,jread
-    if(jj/=jread) call abor1('read_rwhead_: unmatched ob type')
+    if(jj/=jread) then
+       write(6,*)'read_rwhead_: unmatched ob type',jj,jread
+       call stop2(199)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     do kk=1,mobs
@@ -815,7 +902,10 @@ subroutine read_rwhead_ ()
                                  ztime, zb,   zpg, &
                                  zcosazm,     zsinazm, &
                                  zluse, zwij, zij
-       if (iostat/=0) call abor1('read_rwhead_: error reading record')
+       if (iostat/=0) then
+          write(6,*)'read_rwhead_: error reading record',iostat
+          call stop2(200)
+       end if
        rwtail(ii)%head%res      = zres
        rwtail(ii)%head%err2     = zerr2
        rwtail(ii)%head%raterr2  = zraterr2
@@ -856,7 +946,10 @@ subroutine read_rwhead_ ()
     enddo
 !   enddo
 
-    if(icount.ne.mobs) call abor1('read_rwhead_: error counting ob')
+    if(icount.ne.mobs) then
+       write(6,*)'read_rwhead_: error counting ob',icount,mobs
+       call stop2(201)
+    end if
 !   if(mobs>0) print *, 'Read rw from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_rwhead_
 
@@ -892,7 +985,10 @@ subroutine read_dwhead_ ()
     logical         :: mymuse   
    
     read(iunit) mobs,jread
-    if(jj/=jread) call abor1('read_dwhead_: unmatched ob type')
+    if(jj/=jread) then
+       write(6,*)'read_dwhead_: unmatched ob type',jj,jread
+       call stop2(202)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     do kk=1,mobs
@@ -909,7 +1005,10 @@ subroutine read_dwhead_ ()
                                  ztime, zb,   zpg, &
                                  zcosazm,     zsinazm, &
                                  zluse, zwij, zij
-       if (iostat/=0) call abor1('read_dwhead_: error reading record')
+       if (iostat/=0) then
+         write(6,*)'read_dwhead_: error reading record',iostat
+         call stop2(203)
+       end if
        dwtail(ii)%head%ij       = zij
        dwtail(ii)%head%wij      = zwij
        dwtail(ii)%head%res      = zres
@@ -950,7 +1049,10 @@ subroutine read_dwhead_ ()
     enddo
 !   enddo
 
-     if(icount.ne.mobs) call abor1('read_dwhead_: error counting ob')
+     if(icount.ne.mobs) then
+       write(6,*)'read_dwhead_: error counting ob',icount,mobs
+       call stop2(204)
+     end if
 !   if(mobs>0) print *, 'Read dw from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_dwhead_
 
@@ -984,7 +1086,10 @@ subroutine read_ssthead_ ()
     logical         :: mymuse   
    
     read(iunit) mobs,jread
-    if(jj/=jread) call abor1('read_ssthead_: unmatched ob type')
+    if(jj/=jread) then
+      write(6,*)'read_ssthead_: unmatched ob type',jj,jread
+      call stop2(205)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     do kk=1,mobs
@@ -1000,7 +1105,10 @@ subroutine read_ssthead_ ()
        read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
                                  ztime, zb,       zpg, &
                                  zluse, zwij, zij
-       if (iostat/=0) call abor1('read_ssthead_: error reading record')
+       if (iostat/=0) then
+         write(6,*)'read_ssthead_: error reading record',iostat
+         call stop2(206)
+       end if
        ssttail(ii)%head%res      = zres
        ssttail(ii)%head%err2     = zerr2
        ssttail(ii)%head%raterr2  = zraterr2
@@ -1039,7 +1147,10 @@ subroutine read_ssthead_ ()
     enddo
 !   enddo
   
-    if(icount.ne.mobs) call abor1('read_ssthead_: error counting ob')
+    if(icount.ne.mobs) then
+       write(6,*)'read_ssthead_: error counting ob',icount,mobs
+       call stop2(207)
+    end if
 !   if(mobs>0) print *, 'Read sst from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_ssthead_
 
@@ -1075,8 +1186,14 @@ subroutine read_pwhead_ ()
     logical         :: mymuse   
    
     read(iunit) mobs,jread,znsig
-    if(jj/=jread) call abor1('read_pwhead_: unmatched ob type')
-    if(nsig /=znsig) call abor1('read_pwhead_: unmatched nsig')
+    if(jj/=jread) then
+       write(6,*)'read_pwhead_: unmatched ob type',jj,jread
+       call stop2(208)
+    end if
+    if(nsig /=znsig) then
+       write(6,*)'read_pwhead_: unmatched nsig',nsig,znsig
+       call stop2(209)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     allocate(zdp(nsig),stat=istatus)
@@ -1097,7 +1214,10 @@ subroutine read_pwhead_ ()
        read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
                                  ztime, zb,       zpg, &
                                  zluse, zwij, zij, zdp
-       if (iostat/=0) call abor1('read_pwhead_: error reading record')
+       if (iostat/=0) then
+          write(6,*)'read_pwhead_: error reading record',iostat
+          call stop2(210)
+       end if
        pwtail(ii)%head%ij       = zij
        pwtail(ii)%head%wij      = zwij
        pwtail(ii)%head%res      = zres
@@ -1140,7 +1260,10 @@ subroutine read_pwhead_ ()
     enddo
 !   enddo
 
-    if(icount.ne.mobs) call abor1('read_pwhead_: error counting ob')
+    if(icount.ne.mobs) then
+       write(6,*)'read_pwhead_: error counting ob',icount,mobs
+       call stop2(211)
+    end if
 !   if(mobs>0) print *, 'Read pw from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_pwhead_
 
@@ -1177,7 +1300,10 @@ subroutine read_ozhead_ ()
     logical         :: first,mymuse   
    
     read(iunit) mobs,jread
-    if(  jj/=jread) call abor1('read_ozhead_: unmatched ob type')
+    if(  jj/=jread) then
+      write(6,*)'read_ozhead_: unmatched ob type',jj,jread
+      call stop2(212)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     do kk=1,mobs
@@ -1205,7 +1331,10 @@ subroutine read_ozhead_ ()
 
        read(iunit,iostat=iostat) zres,  zerr2, zraterr2, ztime, &
                                  zluse, zwij, zij, zprs, zipos
-       if (iostat/=0) call abor1('read_ozhead_: error reading record')
+       if (iostat/=0) then
+          write(6,*)'read_ozhead_: error reading record',iostat
+          call stop2(213)
+       end if
        oztail(ii)%head%nloz     = nloz
        oztail(ii)%head%time     = ztime
        oztail(ii)%head%luse     = zluse
@@ -1252,7 +1381,10 @@ subroutine read_ozhead_ ()
           if ( mymuse ) then
             if(first) then
                icount = icount + 1
-               if(icount>mobs) call abor1('read_ozhead_: error large counter')
+               if(icount>mobs) then
+                  write(6,*)'read_ozhead_: error large counter',icount,mobs
+                  call stop2(213)
+               end if
                first=.false.
             endif
             oztail(ii)%head%diags(k)%ptr => obsptr
@@ -1262,7 +1394,10 @@ subroutine read_ozhead_ ()
 
     enddo
 !   enddo
-    if(icount.ne.mobs) call abor1('read_ozhead_: error counting ob')
+    if(icount.ne.mobs) then
+      write(6,*)'read_ozhead_: error counting ob',icount,mobs
+      call stop2(214)
+    end if
 
 end subroutine read_ozhead_
 
@@ -1296,7 +1431,10 @@ subroutine read_o3lhead_ ()
     logical         :: mymuse   
    
     read(iunit) mobs,jread
-    if(jj/=jread) call abor1('read_o3lhead_: unmatched ob type')
+    if(jj/=jread) then
+       write(6,*)'read_o3lhead_: unmatched ob type',jj,jread
+       call stop2(215)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     do kk=1,mobs
@@ -1313,7 +1451,10 @@ subroutine read_o3lhead_ ()
        read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
                                  ztime, zb,       zpg, &
                                  zluse, zwij, zij
-       if (iostat/=0) call abor1('read_o3lhead_: error reading record')
+       if (iostat/=0) then
+          write(6,*)'read_o3lhead_: error reading record',iostat
+          call stop2(216)
+       end if
        o3ltail(ii)%head%res      = zres
        o3ltail(ii)%head%err2     = zerr2
        o3ltail(ii)%head%raterr2  = zraterr2
@@ -1352,6 +1493,10 @@ subroutine read_o3lhead_ ()
        endif
     enddo
 !   enddo
+    if(icount.ne.mobs) then
+      write(6,*)'read_o3lhead_: error counting ob',icount,mobs
+      call stop2(217)
+    end if
 
 end subroutine read_o3lhead_
 
@@ -1389,9 +1534,18 @@ subroutine read_pcphead_ ()
     logical         :: mymuse   
    
     read(iunit) mobs,jread,mpredp,msig5
-    if(    jj/=jread ) call abor1('read_pcphead_: unmatched ob type')
-    if(npredp/=mpredp) call abor1('read_pcphead_: unmatched number of predictors')
-    if( nsig5/=msig5 ) call abor1('read_pcphead_: unmatched number of layers')
+    if(    jj/=jread ) then
+       write(6,*)'read_pcphead_: unmatched ob type',jj,jread
+       call stop2(218)
+    end if
+    if(npredp/=mpredp) then
+      write(6,*)'read_pcphead_: unmatched number of predictors',npredp,mpredp
+      call stop2(219)
+    end if
+    if( nsig5/=msig5 ) then
+      write(6,*)'read_pcphead_: unmatched number of layers',nsig5,msig5
+      call stop2(220)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     allocate(zpredp(npredp),zdpcp_dvar(nsig5),stat=istatus)
@@ -1416,7 +1570,10 @@ subroutine read_pcphead_ ()
                                    ztime, zges, zicxp, &
                                    zluse, zwij, zij, &
                                    zpredp, zdpcp_dvar
-         if (iostat/=0) call abor1('read_pcphead_: error reading record')
+         if (iostat/=0) then
+           write(6,*)'read_pcphead_: error reading record',iostat
+           call stop2(221)
+         end if
          pcptail(ii)%head%obs      = zobs
          pcptail(ii)%head%err2     = zerr2
          pcptail(ii)%head%raterr2  = zraterr2
@@ -1460,6 +1617,10 @@ subroutine read_pcphead_ ()
        endif
     enddo
 !   enddo
+    if(icount.ne.mobs) then
+      write(6,*)'read_pcphead_: error counting ob',icount,mobs
+      call stop2(222)
+    end if
 
 !   if(mobs>0) print *, 'Read pcp from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_pcphead_
@@ -1498,8 +1659,14 @@ subroutine read_gpshead_ ()
     logical         :: mymuse   
    
     read(iunit) mobs,jread,msig
-    if(   jj/=jread ) call abor1('read_gpshead_: unmatched ob type')
-    if( nsig/=msig  ) call abor1('read_gpshead_: unmatched number of layers')
+    if(   jj/=jread ) then
+      write(6,*)'read_gpshead_: unmatched ob type',jj,jread
+      call stop2(223)
+    end if
+    if( nsig/=msig  ) then
+       write(6,*)'read_gpshead_: unmatched number of layers',nsig,msig
+       call stop2(224)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     allocate(zjac_t(nsig),zjac_q(nsig),zjac_p(nsig+1),zij(4,nsig),stat=istatus)
@@ -1523,7 +1690,10 @@ subroutine read_gpshead_ ()
          read(iunit,iostat=iostat) zjac_t,zjac_q,zjac_p,&
                                    zres, zerr2, zraterr2, ztime,&
                                    zb, zpg, zij, zwij, zluse
-         if (iostat/=0) call abor1('read_gpshead_: error reading record')
+         if (iostat/=0) then
+           write(6,*)'read_gpshead_: error reading record',iostat
+           call stop2(225)
+         end if
          gpstail(ii)%head%jac_t    = zjac_t
          gpstail(ii)%head%jac_q    = zjac_q
          gpstail(ii)%head%jac_p    = zjac_p
@@ -1569,6 +1739,10 @@ subroutine read_gpshead_ ()
     enddo
 !   enddo
 
+    if(icount.ne.mobs) then
+      write(6,*)'read_gpshead_: error counting ob',icount,mobs
+      call stop2(226)
+    end if
 !   if(mobs>0) print *, 'Read gps from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_gpshead_
 
@@ -1612,29 +1786,50 @@ subroutine read_radhead_ ()
     integer(i_kind) :: i,j,iii,kkk,mm,mobs,jread,k,mpred,msig3p3,iostat
     logical         :: mymuse   
 
-    if(retrieval) call abor1('read_radhead: cannot handle retrieval')
+    if(retrieval) then
+        write(6,*)'read_radhead: cannot handle retrieval'
+        call stop2(227)
+    end if
 
 !   Read in radhead
 !   ----------------
     read(iunit) mobs,jread,mpred,msig3p3
 
-    if(   jj/=jread      ) call abor1('read_radhead_: unmatched ob type')
-    if(   npred/=mpred   ) call abor1('read_radhead_: unmatched number of predictors')
-    if( nsig3p3/=msig3p3 ) call abor1('read_radhead_: unmatched levels')
+    if(   jj/=jread      ) then
+       write(6,*)'read_radhead_: unmatched ob type',jj,jread
+       call stop2(228)
+    end if
+    if(   npred/=mpred   ) then
+      write(6,*)'read_radhead_: unmatched number of predictors',npred,mpred
+      call stop2(229)
+    end if
+    if( nsig3p3/=msig3p3 ) then
+      write(6,*)'read_radhead_: unmatched levels',nsig3p3,msig3p3
+      call stop2(230)
+    end if
     if(kobs<=0.or.mobs<=0) return
 
     kkk=0
     do kk=1,mobs
        read(iunit,iostat=iostat) nchan
-         if (iostat/=0) call abor1('read_radhead_: error reading record nchan')
+         if (iostat/=0) then
+           write(6,*)'read_radhead_: error reading record nchan',iostat
+           call stop2(231)
+         end if
 
        if(.not. associated(radhead(ii)%head))then
           allocate(radhead(ii)%head,stat=ierr)
-            if(ierr/=0) call abor1('read_radhead_: alloc(radhead)')
+            if(ierr/=0) then
+               write(6,*)'read_radhead_: alloc(radhead)',ierr
+               call stop2(232)
+            end if
           radtail(ii)%head => radhead(ii)%head
        else
           allocate(radtail(ii)%head%llpoint,stat=ierr)
-            if(ierr/=0) call abor1('read_radhead_: alloc(radtail%llpoint)')
+            if(ierr/=0) then
+               write(6,*)'read_radhead_: alloc(radtail%llpoint)',ierr
+               call stop2(233)
+            end if
           radtail(ii)%head => radtail(ii)%head%llpoint
        end if
        radtail(ii)%head%nchan = nchan
@@ -1643,31 +1838,61 @@ subroutine read_radhead_ ()
                 pred1(npred-2),pred2(nchan), &
                 dtb_dvar(nsig3p3,nchan),icx(nchan), &
                 stat=ierr)
-          if(ierr/=0) call abor1(' fail to alloc various ')
+          if(ierr/=0) then
+             write(6,*)' fail to alloc various ',ierr
+             call stop2(234)
+          end if
 
        read(iunit,iostat=iostat) time, luse, wij, ij
-         if (iostat/=0) call abor1('read_radhead_: error reading record time, etc')
+       if (iostat/=0) then
+          write(6,*)'read_radhead_: error reading record time, etc',iostat
+          call stop2(235)
+       end if
        read(iunit,iostat=iostat) res
-         if (iostat/=0) call abor1('read_radhead_: error reading record res')
+       if (iostat/=0) then
+         write(6,*)'read_radhead_: error reading record res',iostat
+         call stop2(236)
+       end if
        read(iunit,iostat=iostat) err2
-         if (iostat/=0) call abor1('read_radhead_: error reading record err2')
+       if (iostat/=0) then
+         write(6,*)'read_radhead_: error reading record err2',iostat
+         call stop2(237)
+       end if
        read(iunit,iostat=iostat) raterr2
-         if (iostat/=0) call abor1('read_radhead_: error reading record raterr2')
+       if (iostat/=0) then
+          write(6,*)'read_radhead_: error reading record raterr2',iostat
+          call stop2(238)
+       end if
        read(iunit,iostat=iostat) pred1
-         if (iostat/=0) call abor1('read_radhead_: error reading record pred1')
+       if (iostat/=0) then
+          write(6,*)'read_radhead_: error reading record pred1',iostat
+          call stop2(239)
+       end if
        read(iunit,iostat=iostat) pred2
-         if (iostat/=0) call abor1('read_radhead_: error reading record pred2')
+       if (iostat/=0) then
+         write(6,*)'read_radhead_: error reading record pred2',iostat
+         call stop2(240)
+       end if
        read(iunit,iostat=iostat) icx
-         if (iostat/=0) call abor1('read_radhead_: error reading record icx')
+       if (iostat/=0) then
+          write(6,*)'read_radhead_: error reading record icx',iostat
+          call stop2(241)
+       end if
        read(iunit,iostat=iostat) dtb_dvar
-         if (iostat/=0) call abor1('read_radhead_: error reading record dtb_dvar')
+       if (iostat/=0) then
+         write(6,*)'read_radhead_: error reading record dtb_dvar',iostat
+         call stop2(242)
+       end if
 
        allocate(radtail(ii)%head%res(nchan), radtail(ii)%head%diags(nchan), &
                 radtail(ii)%head%err2(nchan),radtail(ii)%head%raterr2(nchan), &
                 radtail(ii)%head%pred1(npred-2),radtail(ii)%head%pred2(nchan), &
                 radtail(ii)%head%dtb_dvar(nsig3p3,nchan),radtail(ii)%head%icx(nchan), &
                 stat=ierr)
-          if(ierr/=0) call abor1('fail to alloc radtail%various ')
+       if(ierr/=0) then
+         write(6,*)'fail to alloc radtail%various ',ierr
+         call stop2(243)
+       end if
 
        radtail(ii)%head%time = time
        radtail(ii)%head%luse = luse
@@ -1689,7 +1914,10 @@ subroutine read_radhead_ ()
        enddo
 
        deallocate(res,err2,raterr2,pred1,pred2,dtb_dvar,icx, stat=ierr)
-          if(ierr/=0) call abor1('fail to dealloc various ')
+       if(ierr/=0) then
+         write(6,*)'fail to dealloc various ',ierr
+         call stop2(244)
+       end if
 
     enddo
 
@@ -1726,20 +1954,35 @@ subroutine read_radhead_ ()
                 radtail(ii)%head%diags(iii)%ptr => obsptr  ! ?? obsdiags(jj,ii)%tail
              endif
              kk=kk+1
-             if(kk>kobs) call abor1('read_radhead_: error troubled obs counter 1')
+             if(kk>kobs) then
+               write(6,*)'read_radhead_: error troubled obs counter 1',kk,kobs
+               call stop2(245)
+             end if
              obsptr => obsptr%next
           enddo
-          if(iii/=nchan) call abor1('read_radhead_: unmatched iii/nchan')
+          if(iii/=nchan) then
+            write(6,*)'read_radhead_: unmatched iii/nchan',iii,nchan
+            call stop2(246)
+          end if
        else
           kk=kk+1
-          if(kk>kobs) call abor1('read_radhead_: error troubled obs counter 2')
+          if(kk>kobs) then
+               write(6,*)'read_radhead_: error troubled obs counter 2',kk,kobs
+               call stop2(247)
+          end if
           obsptr => obsptr%next
        end if
 
     enddo
 !   enddo
-    if(mm/=mobs) call abor1('read_radhead_: error radtail final obs counter')
-    if(kk/=kobs) call abor1('read_radhead_: error obsdiag final obs counter')
+    if(mm/=mobs) then
+       write(6,*)'read_radhead_: error radtail final obs counter',mm,mobs
+       call stop2(248)
+    end if
+    if(kk/=kobs) then
+       write(6,*)'read_radhead_: error obsdiag final obs counter',kk,kobs
+       call stop2(249)
+    end if
     
 end subroutine read_radhead_
 
