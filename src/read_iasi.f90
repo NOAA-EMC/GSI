@@ -83,7 +83,6 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
        tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,one,three,izero,ione,rad2deg
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
 
   implicit none
 
@@ -134,7 +133,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   integer(i_kind)   :: nchanlr
-  integer(i_kind)   :: iret,ireadsb
+  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,isub,next
 
 
 ! Work variables for time
@@ -171,7 +170,6 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, iout,n
   integer(i_kind):: iexponent
-  integer(i_kind):: mmblocks
   integer(i_kind):: idomsfc
   integer(i_kind):: ntest
   integer(i_kind):: error_status
@@ -274,33 +272,16 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
-! Read header
-  call readmg(lnbufr,subset,idate,iret)
-  close(lnbufr) ! this enables reading with mpi i/o
-  if( iret /= 0 ) return     ! no data?
-
-  write(date,'( i10)') idate
-  read(date,'(i4,3i2)') iy,im,idd,ihh
-  if (mype_sub==mype_root) &
-       write(6,*) 'READ_IASI:     bufr file date is ',iy,im,idd,ihh
-  
 ! Allocate arrays to hold data
   nele=nreal+nchanl
   allocate(data_all(nele,itxmax))
 
-! Open up bufr file for mpi-io access
-  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub,file_handle,ierror,nblocks)
-  
 ! Big loop to read data file
-  mpi_loop: do mmblocks=0,nblocks-1,npe_sub
-     if(mmblocks+mype_sub.gt.nblocks-1) then
-        exit
-     endif
-     call mpi_nextblock(mmblocks+mype_sub,file_handle,ierror)
-     block_loop: do
-        call mpi_readmg(lnbufr,subset,idate,iret)
-        if (iret /=0) exit
-        read_loop: do while (ireadsb(lnbufr)==0)
+  next=mype_sub+1
+  do while(ireadmg(lnbufr,subset,idate)>=0)
+  call ufbcnt(lnbufr,irec,isub)
+  if(irec<>next)cycle; next=next+npe_sub
+  read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Read IASI FOV information
      call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QGFQ MJFC SELV')
@@ -551,12 +532,8 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
      end do
 
 
-    enddo read_loop
- end do block_loop
-end do mpi_loop
-
-! Close bufr file
-  call mpi_closbf(file_handle,ierror)
+  enddo read_loop
+  enddo
   call closbf(lnbufr)
 
 ! deallocate crtm info
@@ -573,7 +550,7 @@ end do mpi_loop
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -623,17 +600,12 @@ end do mpi_loop
   endif
 
 
-! Deallocate data arrays
-  deallocate(data_all)
-
-
-! Deallocate satthin arrays
-  call destroygrids
+  deallocate(data_all) ! Deallocate data arrays
+  call destroygrids    ! Deallocate satthin arrays
 
   if(diagnostic_reg .and. ntest > 0 .and. mype_sub==mype_root) &
        write(6,*)'READ_IASI:  mype,ntest,disterrmax=',&
        mype,ntest,disterrmax
   
   return
-
 end subroutine read_iasi

@@ -198,6 +198,8 @@ clean:
 	bkgvar.f90 \
 	bkgvar_rewgt.f90 \
 	blacklist.f90 \
+        calc_fov_conical.f90 \
+        calc_fov_crosstrk.f90 \
 	calctends.f90 \
 	calctends_ad.F90 \
 	calctends_tl.F90 \
@@ -273,6 +275,7 @@ clean:
 	intsrw.f90 \
 	intsst.f90 \
 	intt.f90 \
+	inttcp.f90 \
 	intw.f90 \
 	jcmod.f90 \
 	jfunc.f90 \
@@ -285,7 +288,7 @@ clean:
  	m_gsiBiases.F90 \
         m_stats.F90 \
         m_tick.F90 \
-    missing_routines.f90 \
+        missing_routines.f90 \
 	mod_inmi.f90 \
 	mod_strong.f90 \
 	mod_vtrans.f90 \
@@ -294,7 +297,6 @@ clean:
         model2control.f90 \
 	mp_compact_diffs_mod1.f90 \
 	mp_compact_diffs_support.f90 \
-	mpi_bufr_mod.F90 \
 	mpimod.F90 \
         mpl_allreduce.f90 \
         mpl_bcast.f90 \
@@ -345,7 +347,7 @@ clean:
 	read_l2bufr_mod.f90 \
 	read_lidar.f90 \
 	read_modsbufr.f90 \
-	read_obs.f90 \
+	read_obs.F90 \
 	read_obsdiags.F90 \
 	read_ozone.F90 \
 	read_pcp.f90 \
@@ -354,6 +356,7 @@ clean:
 	read_ssmi.f90 \
 	read_ssmis.f90 \
 	read_superwinds.f90 \
+	read_tcps.f90 \
 	read_wrf_mass_files.f90 \
 	read_wrf_mass_guess.F90 \
 	read_wrf_nmm_files.f90 \
@@ -381,6 +384,7 @@ clean:
 	setupsrw.f90 \
 	setupsst.f90 \
 	setupt.f90 \
+	setuptcp.f90 \
 	setupw.f90 \
 	setupyobs.f90 \
 	sfc_model.f90 \
@@ -405,7 +409,6 @@ clean:
 	stpcalc.f90 \
 	stpdw.f90 \
 	stpgps.f90 \
-	stpjc.f90 \
 	stpjo.f90 \
 	stplimq.f90 \
 	stpoz.f90 \
@@ -419,6 +422,7 @@ clean:
 	stpsrw.f90 \
 	stpsst.f90 \
 	stpt.f90 \
+	stptcp.f90 \
 	stpw.f90 \
 	strong_bal_correction.f90 \
 	strong_baldiag_inc.f90 \
@@ -428,6 +432,7 @@ clean:
 	support_2dvar.f90 \
 	tendsmod.f90 \
         test_obsens.F90 \
+        tcv_mod.f90 \
         timermod.F90 \
 	tintrp2a.f90 \
 	tintrp3.f90 \

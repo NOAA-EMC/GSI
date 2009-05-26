@@ -79,7 +79,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   use constants, only: deg2rad,rad2deg,zero,one,two,three,four
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
 
   implicit none
 
@@ -122,13 +121,13 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   character(10) date
   character(8) subset,subfgn
 
-  integer ihh,i,k,idd,isc,ntest,ireadsb
-  integer iret,idate,im,iy,nchanl
-  integer isflg,nreal,idomsfc
-  integer nmind,itx,nele,itt,iout
-  integer iskip
-  integer lnbufr
-  integer ilat,ilon
+  integer(i_kind):: ihh,i,k,idd,isc,ntest,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind):: iret,idate,im,iy,nchanl
+  integer(i_kind):: isflg,nreal,idomsfc
+  integer(i_kind):: nmind,itx,nele,itt,iout
+  integer(i_kind):: iskip
+  integer(i_kind):: lnbufr
+  integer(i_kind):: ilat,ilon
 
   real(r_kind) sfcr
 
@@ -137,7 +136,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind) crit1,dist1
   real(r_kind) timedif
   real(r_kind),allocatable,dimension(:,:):: data_all
-  integer(i_kind):: mmblocks
   integer(i_kind):: isubset
 
   real(r_kind) disterr,disterrmax,dlon00,dlat00
@@ -232,58 +230,17 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   open(lnbufr,file=infile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
-  call readmg(lnbufr,subset,idate,iret)
-  close(lnbufr)  ! this enables reading with mpi i/o
-  if( subset /= subfgn) then
-     write(6,*) 'READ_SSMI:  *** WARNING: ',&
-          'THE FILE TITLE NOT MATCH DATA SUBSET'
-     write(6,*) '  infile=', lnbufr, infile,' subset=',&
-          subset, ' subfgn=',subfgn
-     write(6,*) 'SKIP PROCESSING OF THIS 1B FILE'
-     go to 1000
-  end if
-
-  iy=0; im=0; idd=0; ihh=0
-  write(date,'( i10)') idate
-  read(date,'(i4,3i2)') iy,im,idd,ihh
-  if (mype_sub==mype_root) &
-       write(6,*) 'READ_SSMI: bufr file data is ',iy,im,idd,ihh,infile
-  if(im/=iadate(2).or.idd/=iadate(3)) then
-     if(offtime_data) then
-       write(6,*)'***READ_SSMI analysis and data file date differ, but use anyway'
-     else
-       write(6,*)'***READ_SSMI ERROR*** ',&
-          'incompatable analysis and observation date/time'
-     end if
-     write(6,*)' year  anal/obs ',iadate(1),iy
-     write(6,*)' month anal/obs ',iadate(2),im
-     write(6,*)' day   anal/obs ',iadate(3),idd
-     write(6,*)' hour  anal/obs ',iadate(4),ihh
-     if(.not.offtime_data) go to 1000
-  end if
-
-
 
 ! Allocate arrays to hold data
   nele=nreal+nchanl
   allocate(data_all(nele,itxmax))
 
-
-! Open up bufr file for mpi-io access
-  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub,file_handle,ierror,nblocks)
-
 ! Big loop to read data file
-  mpi_loop: do mmblocks=0,nblocks-1,npe_sub
-     if(mmblocks+mype_sub.gt.nblocks-1) then
-        exit
-     endif
-     call mpi_nextblock(mmblocks+mype_sub,file_handle,ierror)
-     block_loop: do
-        call mpi_readmg(lnbufr,subset,idate,iret)
-        if (iret /=0) exit
-        read(subset,'(2x,i6)')isubset
-        read_loop: do while (ireadsb(lnbufr)==0)
-
+  next=mype_sub+1
+  do while(ireadmg(lnbufr,subset,idate)>=0)
+  call ufbcnt(lnbufr,irec,isub)
+  if(irec<>next)cycle; next=next+npe_sub
+  read_loop: do while (ireadsb(lnbufr)==0)
 
 ! ----- Read header record to extract satid,time information  
 !       SSM/I data are stored in groups of nscan, hence the loop.  
@@ -471,20 +428,12 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
         end do  scan_loop    !js_loop end
 
-     end do read_loop
-  end do block_loop
-end do mpi_loop
+  end do read_loop
+  end do
+  call closbf(lnbufr)
 
-  write(6,*) 'READ_SSMI: at end of mpi_loop, nread is ',nread
-
-  write(6,*) 'READ_SSMI: at end of mpi_loop ',mype,mype_sub,mype_root,npe_sub,nele, &
-         itxmax,ndata
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
-
-! Close bufr file
-  call mpi_closbf(file_handle,ierror)
-  call closbf(lnbufr)
 
   call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
@@ -493,7 +442,7 @@ end do mpi_loop
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -554,7 +503,6 @@ end do mpi_loop
   if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
        write(6,*)'READ_SSMI:  mype,ntest,disterrmax=',&
        mype,ntest,disterrmax
-
 
 ! End of routine
  return

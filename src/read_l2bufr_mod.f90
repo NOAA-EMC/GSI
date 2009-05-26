@@ -107,7 +107,6 @@ contains
     use constants, only: zero,half,one,two,rearth,deg2rad,rad2deg
     use mpimod, only: mpi_comm_world,mpi_min,mpi_sum,mpi_real4,mpi_real8,ierror
     use mpimod, only: mpi_max,mpi_integer4
-    use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
     use gridmod,only: regional_time
     implicit none
 
@@ -130,12 +129,12 @@ contains
 !            var  rbin azbin elbin rad#
 
     integer(i_kind) nazbin,nrbin,nelbin
-    integer(i_kind) i,ibyte,idate,inbufr,iret,isubset,krad,levs,lundx,mmblocks,n_gates
+    integer(i_kind) i,ibyte,idate,inbufr,iret,isubset,krad,levs,lundx,n_gates
     integer(i_kind) k,ii,iii,j,jjj,numzzzz,num_radars_0
     integer(i_kind) iyref,imref,idref,ihref
     integer(i_kind) iazbin,irbin,ielbin
     integer(i_kind) nminref,nminthis
-    integer(i_kind) num_radars,ireadsb
+    integer(i_kind) num_radars,ireadsb,ireadmg,irec,isub,next
     integer(i_kind) idate5(5)
     real(r_double) hdr(14),rwnd(3,n_gates_max),rdisttest(n_gates_max)
     character(8) chdr
@@ -172,7 +171,6 @@ contains
     integer(i_kind) nobs_in1,nobs_badvr1,nobs_badsr1,nobs_lrbin1,nobs_hrbin1,nrange_max1
     integer(i_kind) num_radars_max,num_radars_min
     integer(i_kind) loops_total
-    integer(i_kind):: file_handle,ier,nblocks
     real(r_single) this_stalat,this_stalon,this_stahgt
     real(r_kind) rlon0,clat0,slat0,rlonglob,rlatglob,clat1,caz0,saz0,cdlon,sdlon,caz1,saz1
     real(r_kind) this_stalatr,thisazimuthr,thistiltr
@@ -234,13 +232,6 @@ contains
     lundx=inbufr
     call openbf(inbufr,'IN',lundx)
     call datelen(10)
-    call readmg(inbufr,subset,idate,iret)
-    if(iret.ne.0) then
-       if(rite) write(6,*)'RADAR_BUFR_READ_ALL:  problem reading level 2 bufr file "l2rwbufr"'
-       deallocate(bins)
-       call closbf(inbufr)
-       return
-    end if
     if(l2superob_only) then
       write(date,'( i10)') idate
       read (date,'(i4,3i2)') iyref,imref,idref,ihref
@@ -259,10 +250,6 @@ contains
     idate5(4)=ihref
     idate5(5)=0             ! minutes
     call w3fs21(idate5,nminref)
-    close(inbufr)  ! this enables reading with mpi i/o
-
-!   Now reopen file for mpi-io
-    call mpi_openbf('l2rwbufr',npe,mype,mpi_comm_world,file_handle,ier,nblocks)
 
 !    Do an initial read of a bit of data to infer what multiplying factor is for 
 !    radial distance.  There is a possible ambiguity, where the scaling is either 
@@ -271,29 +258,26 @@ contains
 
     idups=0
     ddiffmin=huge(ddiffmin)
-    do mmblocks=0,nblocks-1,npe
-       if(mmblocks+mype.gt.min(npe,nblocks-1)) exit
-       call mpi_nextblock(mmblocks+mype,file_handle,ier)
-       do
-          call mpi_readmg(inbufr,subset,idate,iret)
-          if(iret /= 0) exit
-          read(subset,'(2x,i6)')isubset
-          if(isubset.gt.6033) then
-             iret=6034
-             exit
+    next=mype+1
+    do while(ireadmg(inbufr,subset,idate)>=0)
+    call ufbcnt(inbufr,irec,isub)
+    if(irec<>next)cycle; next=next+npe
+       read(subset,'(2x,i6)')isubset
+       if(isubset.gt.6033) then
+          iret=6034
+          exit
+       end if
+       do while (ireadsb(inbufr).eq.0)
+          call ufbint(inbufr,rdisttest,1,n_gates_max,n_gates,'DIST125M')
+          if(n_gates.gt.1) then
+             do i=1,n_gates-1
+                if(nint(abs(rdisttest(i+1)-rdisttest(i))).eq.0) then
+                   idups=idups+1
+                else
+                   ddiffmin=min(abs(rdisttest(i+1)-rdisttest(i)),ddiffmin)
+                end if
+             end do
           end if
-          do while (ireadsb(inbufr).eq.0)
-             call ufbint(inbufr,rdisttest,1,n_gates_max,n_gates,'DIST125M')
-             if(n_gates.gt.1) then
-                do i=1,n_gates-1
-                   if(nint(abs(rdisttest(i+1)-rdisttest(i))).eq.0) then
-                      idups=idups+1
-                   else
-                      ddiffmin=min(abs(rdisttest(i+1)-rdisttest(i)),ddiffmin)
-                   end if
-                end do
-             end if
-          end do
        end do
     end do
     call mpi_barrier(mpi_comm_world,ierror)
@@ -322,12 +306,17 @@ contains
     nobs_lrbin=0
     nobs_hrbin=0
     nrange_max=0
-    do mmblocks=0,nblocks-1,npe
-       if(mmblocks+mype.gt.nblocks-1) exit
-       call mpi_nextblock(mmblocks+mype,file_handle,ier)
-       do
-          call mpi_readmg(inbufr,subset,idate,iret)
-          if(iret.ne.0) exit
+
+! reopen and reread the file for data this time
+
+    call closbf(inbufr)
+    open(inbufr,file='l2rwbufr',form='unformatted')
+    call openbf(inbufr,'IN',inbufr)
+
+    next=mype+1
+    do while(ireadmg(inbufr,subset,idate)>=0)
+    call ufbcnt(inbufr,irec,isub)
+    if(irec<>next)cycle; next=next+npe
           read(subset,'(2x,i6)')isubset
           if(isubset.gt.6033) then
              iret=6034
@@ -421,9 +410,7 @@ contains
              end do
              
           end do          !  end do while
-       end do            !  end loop over messages in one block
     end do              !  loop over blocks
-    call mpi_closbf(file_handle,ier)
     call closbf(inbufr)
     call mpi_barrier(mpi_comm_world,ierror)
     call mpi_allreduce(num_radars,num_radars_max,1,&
@@ -760,7 +747,7 @@ contains
              call mpi_finalize(ierror)
              stop
           end if
-  
+
   end subroutine radar_bufr_read_all
 
 end module read_l2bufr_mod

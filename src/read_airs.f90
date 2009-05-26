@@ -88,7 +88,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
        tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,one,three,izero,ione,rad2deg
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock, mpi_readmg
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
 
@@ -133,6 +132,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=512)  :: table_file
   integer(i_kind)     :: lnbufr = 10
   integer(i_kind)     :: lnbufrtab = 11
+  integer(i_kind)     :: irec,isub,next
 
 ! Variables for BUFR IO    
   real(r_double),dimension(2) :: aquaspot
@@ -144,7 +144,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   integer(i_kind)   :: nchanl,nchanlr
-  integer(i_kind)   :: iret, ireadsb
+  integer(i_kind)   :: iret, ireadmg,ireadsb
 
 
 ! Work variables for time
@@ -177,7 +177,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  :: i, l, ll, iskip
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) :: dlat_earth_deg, dlon_earth_deg
-  integer(i_kind):: mmblocks
   integer(i_kind):: idomsfc
 
 
@@ -310,34 +309,16 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   endif
   call datelen(10)
 
-! Read header
-  call readmg(lnbufr,subset,idate,iret)
-  close(lnbufr)    ! this enables reading with mpi i/o
-  if( iret /= 0 ) goto 1000     ! no data?
-
-  write(date,'( i10)') idate
-  read(date,'(i4,3i2)') iy,im,idd,ihh
-  if (mype_sub==mype_root) &
-       write(6,*) 'READ_AIRS:     bufr file date is ',iy,im,idd,ihh
-  
 ! Allocate arrays to hold data
   nele=nreal+nchanl
   allocate(data_all(nele,itxmax))
 
-
-! Open up bufr file for mpi-io access
-  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub,file_handle,ierror,nblocks)
-
 ! Big loop to read data file
-  mpi_loop: do mmblocks=0,nblocks-1,npe_sub
-     if(mmblocks+mype_sub.gt.nblocks-1) then
-        exit
-     endif
-     call mpi_nextblock(mmblocks+mype_sub,file_handle,ierror)
-     block_loop: do
-        call mpi_readmg(lnbufr,subset,idate,iret)
-        if (iret /=0) exit
-        read_loop: do while (ireadsb(lnbufr)==0)
+  next=mype_sub+1
+  do while(ireadmg(lnbufr,subset,idate)>=0)
+  call ufbcnt(lnbufr,irec,isub)
+  if(irec<>next)cycle;next=next+npe_sub
+  read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Read AIRSSPOT , AMSUSPOT and HSBSPOT
 
@@ -661,13 +642,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
     enddo read_loop
- end do block_loop
-end do mpi_loop
-
-
-! Close bufr file
-  call mpi_closbf(file_handle,ierror)
-  call closbf(lnbufr)
+  enddo
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
@@ -678,7 +653,7 @@ end do mpi_loop
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -739,21 +714,19 @@ end do mpi_loop
   
   endif
 
-! Deallocate data arrays
-  deallocate(data_all)
+1000 continue
+
+  deallocate(data_all) ! Deallocate data arrays
+  call destroygrids    ! Deallocate satthin arrays
+  call closbf(lnbufr)  ! Close bufr file
 
   if (isfcalc == 1) then
     call fov_cleanup
   endif
 
-
-! Deallocate satthin arrays
-1000 continue
-  call destroygrids
-
   if(diagnostic_reg .and. ntest > 0 .and. mype_sub==mype_root) &
        write(6,*)'READ_AIRS:  mype,ntest,disterrmax=',&
        mype,ntest,disterrmax
-  
+
   return
 end subroutine read_airs

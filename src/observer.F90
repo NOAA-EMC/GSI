@@ -39,6 +39,7 @@ module observermod
   use converr, only: converr_destroy
   use m_berror_stats, only: berror_get_dims
   use timermod, only: timer_ini, timer_fnl
+  use read_obsmod, only: read_obs
 
   implicit none
 

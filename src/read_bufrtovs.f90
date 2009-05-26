@@ -100,7 +100,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
   use antcorr_application
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
   implicit none
 
 ! Declare passed variables
@@ -136,7 +135,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   character(8) subset,subfgn
   character(80) hdr1b
 
-  integer(i_kind) i,j,k,ifov,ntest,ireadsb
+  integer(i_kind) ireadsb,ireadmg,irec,isub,next
+  integer(i_kind) i,j,k,ifov,ntest
   integer(i_kind) iret,idate,nchanl,n,idomsfc
   integer(i_kind) ich1,ich2,ich8,ich15,kidsat,instrument
   integer(i_kind) nmind,itx,nele,itt,iout,ninstruments
@@ -406,7 +406,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
    call openbf(lnbufr,'IN',lnbufr)
    call datelen(10)
    call readmg(lnbufr,subset,idate,iret)
-   close(lnbufr) ! this enables reading with mpi i/o
    if( subset /= subfgn) then
       write(6,*) 'READ_BUFRTOVS:  *** WARNING: ',&
            'THE FILE TITLE DOES NOT MATCH DATA SUBSET'
@@ -417,7 +416,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
    end if
 
 !  Extract date and check for consistency with analysis date     
-   write(6,*)'READ_BUFRTOVS: bufr file date is ',idate,infile2
+   write(6,*)'READ_BUFRTOVS: bufr file date is ',idate,infile2,jsatid
    IF (idate<iadatebgn.OR.idate>iadateend) THEN
       if(offtime_data) then
         write(6,*)'***READ_BUFRTOVS analysis and data file date differ, but use anyway'
@@ -458,20 +457,18 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
          write(6,*)' failure to find instrument in read_bufrtovs ',sis
       end if
    end if
-   call mpi_openbf(infile2,npe_sub_read,mype_sub_read,mpi_comm_sub_read,file_handle,ierror,nblocks)
 
+!  Reopen unit to satellite bufr file
+   call closbf(lnbufr)
+   open(lnbufr,file=infile2,form='unformatted',status = 'old',err = 500)
+   call openbf(lnbufr,'IN',lnbufr)
    
 !  Loop to read bufr file
-   mpi_loop: do mmblocks=0,nblocks-1,npe_sub_read
-     if(mmblocks+mype_sub_read > nblocks-1) then
-        exit
-     end if
-     call mpi_nextblock(mmblocks+mype_sub_read,file_handle,ierror)
-     block_loop: do
-       call mpi_readmg(lnbufr,subset,idate,iret)
-       if(iret /=0) exit
-!      read(subset,'(2x,i6)') isubset
-       read_loop: do while (ireadsb(lnbufr)==0 .and. subset==subfgn)
+   next=mype_sub_read+1
+   do while(ireadmg(lnbufr,subset,idate)>=0)
+   call ufbcnt(lnbufr,irec,isub)
+   if(irec<>next)cycle; next=next+npe_sub_read
+   read_loop: do while (ireadsb(lnbufr)==0 .and. subset==subfgn)
 
 !          Read header record.  (lll=1 is normal feed, 2=EARS data)
            if(lll == 1)then
@@ -726,13 +723,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 
 !       End of bufr read loops
-        end do read_loop
-     end do block_loop
-   end do mpi_loop
-900  continue
-
-    call mpi_closbf(file_handle,ierror)
+    enddo read_loop
+    enddo
     call closbf(lnbufr)
+
+900 continue
 
     if(lll == 2)then
 !   deallocate crtm info
@@ -819,6 +814,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 ! End of routine
   return
+
 end subroutine read_bufrtovs
 
 subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &

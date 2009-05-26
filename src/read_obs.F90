@@ -1,3 +1,82 @@
+module read_obsmod
+!$$$   module documentation block
+!                .      .    .                                       .
+! module:    read_obsmod extra inquire routine for reading obs
+!   prgmmr: parrish          org: np22                date: 2005-06-06
+!
+! abstract:
+!
+! program history log:
+!   2009-01-05  todling - add gsi_inquire
+!
+! subroutines included:
+!   sub gsi_inquire   -  inquire statement supporting fortran earlier than 2003
+!   sub read_obs      -  read, select, reformat obs data
+!
+! Variable Definitions:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+contains
+
+subroutine gsi_inquire (lbytes,lexist,filename,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    gsi_inquire        inquire file presence and size
+!   prgmmr: todling      org: np22                date: 2009-01-05
+!
+! abstract:  Inquire file presence and size; to be used when fortran
+!            2003 not available or non-compliant.
+!
+! program history log:
+!   2009-01-05  todling
+!
+!   input argument list:
+!     mype     - mpi task id
+!    filename  - input filename
+!
+!   output argument list:
+!    lexist     - file presence flag
+!    lbytes     - file size (bytes)
+!
+! attributes:
+!   language: f90
+!   machine:  Linux-cluster
+!
+!$$$  end documentation block
+
+  use kinds, only: i_kind
+  implicit none
+  integer(8),intent(out) :: lbytes
+  logical,intent(out) :: lexist
+  character(len=*),intent(in) :: filename
+  integer(i_kind),intent(in) :: mype
+
+  integer(i_kind) :: lenb
+  character(len=256) command, fname
+
+#ifdef ibm_sp
+  inquire(file=trim(filename),exist=lexist,size=lbytes)
+#else
+  lenb=0; lbytes = lenb
+  inquire(file=trim(filename),exist=lexist)
+  if(lexist)then
+    write(fname,'(2a,i4.4)') 'fsize_',trim(filename),mype
+   write(command,'(4a)') 'wc -c ', trim(filename),' > ', trim(fname)
+    call system(command)
+    open(unit=999,file=trim(fname),form='formatted')
+    read(999,*) lenb
+    close(999)
+    lbytes=lenb
+  endif
+#endif
+  return
+  end subroutine gsi_inquire
+
 subroutine read_obs(ndata,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -65,7 +144,7 @@ subroutine read_obs(ndata,mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$  end documentation block
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind,i_kind,i_llong
     use gridmod, only: nlon,nlat,nsig,iglobal,ijn,itotsub,lat1,lon1,&
          ltosi,ltosj,displs_g
     use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
@@ -75,7 +154,6 @@ subroutine read_obs(ndata,mype)
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
          strip,reorder,setcomm
-    use mpi_bufr_mod, only: lenbuf,gsi_inquire
     use constants, only: izero,half
     use converr, only: converr_read
     use guess_grids, only: ges_prsl,ntguessig,destroy_sfc_grids
@@ -95,6 +173,9 @@ subroutine read_obs(ndata,mype)
     integer(i_kind),intent(in):: mype
     integer(i_kind),dimension(ndat,3),intent(out):: ndata
 
+!   Declare local parameters
+    integer(i_llong),parameter:: lenbuf=8388608  ! lenbuf=8*1024*1024
+
 !   Declare local variables
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full
     logical :: use_sfc,nuse
@@ -102,7 +183,7 @@ subroutine read_obs(ndata,mype)
     character(10):: obstype,platid
     character(13):: string,infile
     character(20):: sis
-    integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithin,nread,npuse,nouse
+    integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
     integer(i_kind) nprof_gps1,npem1,krsize,len4file
     integer(8) :: lenbytes
 !   integer(i_kind) isum
@@ -255,7 +336,7 @@ subroutine read_obs(ndata,mype)
             end if
           end if
           if (ditype(i) == 'rad' .and. nuse .and.           &
-                    dplat(i)== 'aqua' .and. (obstype == 'amsua' .or.  &
+                    dplat(i) /= 'aqua' .and. (obstype == 'amsua' .or.  &
                     obstype == 'amsub' .or.                          &
                     obstype == 'mhs' )) then
 !                   obstype == 'mhs'   .or. hirs )) then
@@ -372,7 +453,8 @@ subroutine read_obs(ndata,mype)
           sis=dsis(i)                        !     sensor/instrument/satellite indicator
           val_dat=dval(i)                    !     weighting factors applied to super obs
           ithin=dthin(i)                     !     ithin    - flags to thin data
-          rmesh=dmesh(ithin)                 !     rmesh    - thinning mesh sizes (km)
+          ithinx=max(1,abs(ithin))
+          rmesh=dmesh(ithinx)                !     rmesh    - thinning mesh sizes (km)
           twind=time_window(i)               !     time window (hours) for input group
           isfcalc=dsfcalc(i)                 !     method to calculate surface fields within fov
           nread=izero
@@ -590,3 +672,6 @@ subroutine read_obs(ndata,mype)
 !   End of routine
     return
   end subroutine read_obs
+
+
+end module read_obsmod

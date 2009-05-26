@@ -78,7 +78,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
        tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,half,two,izero
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
   use calc_fov_conical, only: instrument_init
   
@@ -119,7 +118,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=8)  :: subset,subfgn
   integer(i_kind) :: ihh,i,k,ifov,ifovoff,idd,isc,ntest
   integer(i_kind) :: iret,nlv,idate,im,iy,nchanl,nreal
-  integer(i_kind) :: n,ireadsb
+  integer(i_kind) :: n,ireadsb,ireadmg,irec,isub,next
   integer(i_kind) :: nmind,itx,nele,itt,iout
   integer(i_kind) :: iskip
   integer(i_kind) :: lnbufr,isflg,idomsfc
@@ -140,7 +139,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind),allocatable,dimension(:,:):: data_all
-  integer(i_kind):: mmblocks
   real(r_kind) disterr,disterrmax,dlon00,dlat00
   real(r_kind) :: fovn
 
@@ -277,24 +275,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
-! Read header
-  call readmg(lnbufr,subset,idate,iret)
-  close(lnbufr) ! this enables reading with mpi i/o
-  if( iret /= 0 ) goto 1000     ! no data?
-
-  write(date,'( i10)') idate
-  read(date,'(i4,3i2)') iy,im,idd,ihh
-  if (mype_sub==mype_root) &
-       write(6,*) 'READ_SSMIS:     bufr file date is ',iy,im,idd,ihh
-
 ! Write header record to scratch file.  Also allocate array
 ! to hold all data for given satellite
   nele=nreal+nchanl
   allocate(data_all(nele,itxmax))
-
-
-! Open up bufr file for mpi-io access
-  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub,file_handle,ierror,nblocks)
 
   if (isfcalc == 1) then
     if (trim(jsatid) == 'f16') instr=26
@@ -309,17 +293,12 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Big loop to read data file
-  mpi_loop: do mmblocks=0,nblocks-1,npe_sub
-
-     if(mmblocks+mype_sub.gt.nblocks-1) exit
-     call mpi_nextblock(mmblocks+mype_sub,file_handle,ierror)
-
-     block_loop: do 
-
-        call mpi_readmg(lnbufr,subset,idate,iret)
-        if (iret /=0) exit
-
-        read_loop: do while (ireadsb(lnbufr)==0 .and. subset==subfgn)
+  next=mype_sub+1
+  do while(ireadmg(lnbufr,subset,idate)>=0)
+  call ufbcnt(lnbufr,irec,isub)
+  if(irec<>next    ) cycle; next=next+npe_sub
+  if(subset<>subfgn) cycle
+  read_loop: do while(ireadsb(lnbufr)==0)
 
 !       BUFR read 1/3
         call ufbint(lnbufr,bufrinit,7,1,nlv, &
@@ -510,11 +489,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         end do
 
      end do read_loop
-  end do block_loop
-end do mpi_loop
-  
-! Close bufr file
-  call mpi_closbf(file_handle,ierror)
+  end do
   call closbf(lnbufr)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
@@ -526,7 +501,7 @@ end do mpi_loop
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location

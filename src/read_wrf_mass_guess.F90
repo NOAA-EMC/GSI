@@ -371,9 +371,6 @@ subroutine read_wrf_mass_binary_guess(mype)
                                                              i,igtype(i),offset(i),kord(i)
         do k=2,ksize
            i=i+1
-	write(6,*)' ksize,k,i=',ksize,k,i
-	write(6,*)' memoryorder=',trim(memoryorder)
-
            if(trim(memoryorder).eq.'XZY') then
              iadd=0
              kord(i)=ksize
@@ -635,9 +632,6 @@ subroutine read_wrf_mass_binary_guess(mype)
         do i=1,lon2
            do j=1,lat2
               fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
-!!test
-              sfc_rough(j,i,it)=zero
-!!test
               veg_type(j,i,it)=all_loc(j,i,i_ivgtyp)
               veg_frac(j,i,it)=r0_01*all_loc(j,i,i_vegfrac)
               soil_type(j,i,it)=all_loc(j,i,i_isltyp)
@@ -1067,9 +1061,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         do i=1,lon2
            do j=1,lat2
               fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
-!!test
-              sfc_rough(j,i,it)=zero
-!!test
               veg_type(j,i,it)=all_loc(j,i,i_0+i_ivgtyp)
               veg_frac(j,i,it)=r0_01*all_loc(j,i,i_0+i_vegfrac)
               soil_type(j,i,it)=all_loc(j,i,i_0+i_isltyp)

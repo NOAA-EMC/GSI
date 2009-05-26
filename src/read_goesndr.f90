@@ -76,7 +76,6 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,izero,ione,rad2deg
   use obsmod, only: iadate,offtime_data
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
   use gsi_4dvar, only: l4dvar,idmodel,iadatebgn,iadateend,time_4dvar,iwinbgn,winlen
 
   implicit none
@@ -120,7 +119,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   integer(i_kind) itx,k,i,itt,iskip,l,ifov,n
   integer(i_kind) ichan8,ich8
   integer(i_kind) nele,iscan,nmind
-  integer(i_kind) ntest,ireadsb
+  integer(i_kind) ntest,ireadsb,ireadmg,irec,isub,next
   integer(i_kind)::  file_handle,ierror,nblocks
   integer(i_kind),dimension(5):: idate5
 
@@ -136,7 +135,6 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
 
   real(r_kind),allocatable,dimension(:,:):: data_all
-  integer(i_kind):: mmblocks
 
   real(r_double),dimension(15):: hdr
   real(r_double),dimension(18):: grad
@@ -217,49 +215,20 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   open(lnbufr,file=infile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
-  call readmg(lnbufr,subset,idate,iret)
-  close(lnbufr)  ! this enables reading with mpi i/o
-  if(iret/=0) goto 1000
 
 ! Time offset
   call time_4dvar(idate,toff)
-
-! Compare obs time to analysis date.
-  write(6,*)'READ_GOESNDR: bufr file date is ',idate
-  write(6,*)'READ_GOESNDR: time offset is ',toff,' hours.'
-  IF (idate<iadatebgn.OR.idate>iadateend) THEN
-     if(offtime_data) then
-       write(6,*)'***READ_GOESNDR analysis and data file date differ, but use anyway'
-     else
-       write(6,*)'***READ_GOESNDR ERROR*** ',&
-          'incompatable analysis and observation date/time'
-     end if
-     write(6,*)'Analysis start  :',iadatebgn
-     write(6,*)'Analysis end    :',iadateend
-     write(6,*)'Observation time:',idate
-     if(.not.offtime_data) goto 1000
-  ENDIF
-
 
 ! Allocate arrays to hold data
   nele=nreal+nchanl
   allocate(data_all(nele,itxmax))
 
-
-! Open up bufr file for mpi-io access
-  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub,file_handle,ierror,nblocks)
 ! Big loop to read data file
-  mpi_loop: do mmblocks=0,nblocks-1,npe_sub
-     if(mmblocks+mype_sub.gt.nblocks-1) then
-        exit mpi_loop
-     endif
-     call mpi_nextblock(mmblocks+mype_sub,file_handle,ierror)
-     block_loop: do
-        call mpi_readmg(lnbufr,subset,idate,iret)
-        if (iret /=0) exit
-!       read(subset,'(2x,i6)')isubset
-        read_loop: do while (ireadsb(lnbufr)==0)
-
+  next=mype_sub+1
+  do while(ireadmg(lnbufr,subset,idate)>=0)
+  call ufbcnt(lnbufr,irec,isub)
+  if(irec<>next)cycle; next=next+npe_sub
+  read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Extract type, date, and location information
      if(g5x5)then
@@ -437,11 +406,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 
   end do read_loop
-end do block_loop
-end do mpi_loop
-
-! Close bufr file
-  call mpi_closbf(file_handle,ierror)
+  end do
   call closbf(lnbufr)
 
 
@@ -454,7 +419,7 @@ end do mpi_loop
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -504,19 +469,13 @@ end do mpi_loop
   
   endif
 
-! Deallocate data arrays
-  deallocate(data_all)
-
-
-! Deallocate satthin arrays
-1000 continue
-  call destroygrids
+  deallocate(data_all) ! Deallocate data arrays
+  call destroygrids    ! Deallocate satthin arrays
 
   if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
        write(6,*)'READ_GOESNDR:  mype,ntest,disterrmax=',&
        mype,ntest,disterrmax
 
-! End of routine
   return
 
 end subroutine read_goesndr

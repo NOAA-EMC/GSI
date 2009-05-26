@@ -78,7 +78,6 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
        tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,one,two,three,izero
-  use mpi_bufr_mod, only: mpi_openbf,mpi_closbf,mpi_nextblock,mpi_readmg
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
   implicit none
 
@@ -139,7 +138,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
   real(r_kind)     :: dlon_earth,dlat_earth
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind),allocatable,dimension(:,:):: data_all
-  integer(i_kind):: isubset,mmblocks
+  integer(i_kind):: isubset,irec,isub,next
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: ts
@@ -263,7 +262,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
 ! Orbit
 ! logical :: remove_ovlporbit = .true. !looks like AMSRE overlap problem is not as bad as SSM/I 10/14/04  kozo
   logical :: first_scen
-  integer(i_kind) :: orbit, old_orbit, iorbit, ireadsb
+  integer(i_kind) :: orbit, old_orbit, iorbit, ireadsb, ireadmg
   integer(i_kind) :: nscen0_reject(20) 
   real(r_kind) :: saz
 
@@ -350,46 +349,16 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
-! Read headder
-  call readmg(lnbufr,subset,idate,iret)
-  close(lnbufr) ! this enables reading with mpi i/o
-  if( subset /= subfgn) then
-     write(6,*) 'READ_AMSRE:  *** WARNING: ',&
-          'THE FILE TITLE NOT MATCH DATA SUBSET'
-     write(6,*) '  infile=', lnbufr, infile,' subset=',&
-          subset, ' subfgn=',subfgn
-     write(6,*) 'SKIP PROCESSING OF THIS BUFR FILE'
-     go to 900
-  end if
-
-  iy = 0; im = 0;  idd = 0; ihh = 0
-  if( iret /= 0 ) goto 900     ! no data?
-
-  write(date,'( i10)') idate
-  read(date,'(i4,3i2)') iy,im,idd,ihh
-  if (mype_sub==mype_root) &
-       write(6,*) 'READ_AMSRE:     bufr file date is ',iy,im,idd,ihh
-
 ! Allocate local array to contain observation information
   nele=nreal+nchanl
   allocate(data_all(nele,itxmax))
 
-
-! Open up bufr file for mpi-io access
-  call mpi_openbf(infile,npe_sub,mype_sub,mpi_comm_sub,file_handle,ierror,nblocks)
-
 ! Big loop to read data file
-  mpi_loop: do mmblocks=0,nblocks-1,npe_sub
-     if(mmblocks+mype_sub.gt.nblocks-1) then
-        exit
-     endif
-     call mpi_nextblock(mmblocks+mype_sub,file_handle,ierror)
-     block_loop: do
-        call mpi_readmg(lnbufr,subset,idate,iret)
-        if (iret /=0) exit
-        read(subset,'(2x,i6)')isubset
-        read_loop: do while (ireadsb(lnbufr)==0)
-
+  next=mype_sub+1
+  do while(ireadmg(lnbufr,subset,idate)>=0)
+  call ufbcnt(lnbufr,irec,isub)
+  if(irec<>next)cycle; next=next+npe_sub
+  read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Retrieve bufr 1/4 :get aquaspot (said,orbn,soza)
        call ufbint(lnbufr,aquaspot_d,3,1,iret,'SAID ORBN SOZA')
@@ -674,11 +643,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
 
 
   enddo read_loop
-end do block_loop
-end do mpi_loop
-  
-! Close bufr file
-  call mpi_closbf(file_handle,ierror)
+  enddo
   call closbf(lnbufr)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
@@ -690,7 +655,7 @@ end do mpi_loop
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -743,16 +708,13 @@ end do mpi_loop
   
   endif
 
-! Deallocate data arrays
-  deallocate(data_all)
-
-! Deallocate satthin arrays
-900 continue
-  call destroygrids
+  deallocate(data_all) ! Deallocate data arrays
+  call destroygrids    ! Deallocate satthin arrays
 
   if(diagnostic_reg.and.ntest.gt.0 .and. mype_sub==mype_root) &
        write(6,*)'READ_AMSRE:  ',&
        'mype,ntest,disterrmax=',mype,ntest,disterrmax
+
   return
 end subroutine read_amsre
 

@@ -297,7 +297,6 @@ clean:
         model2control.f90 \
 	mp_compact_diffs_mod1.f90 \
 	mp_compact_diffs_support.f90 \
-	mpi_bufr_mod.F90 \
 	mpimod.F90 \
         mpl_allreduce.f90 \
         mpl_bcast.f90 \
@@ -348,7 +347,7 @@ clean:
 	read_l2bufr_mod.f90 \
 	read_lidar.f90 \
 	read_modsbufr.f90 \
-	read_obs.f90 \
+	read_obs.F90 \
 	read_obsdiags.F90 \
 	read_ozone.F90 \
 	read_pcp.f90 \

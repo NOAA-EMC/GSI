@@ -27,8 +27,8 @@ subroutine read_wrf_mass_files(mype)
 
   use kinds, only: r_kind,r_single,i_kind
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
-  use guess_grids, only: nfldsig,nfldsfc,ntguessfc,ntguessig,&
-       ifilesfc,ifilesig,hrdifsig,hrdifsfc
+  use guess_grids, only: nfldsig,nfldsfc,ntguessig,ntguessfc,&
+       ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
   use gsi_4dvar, only: nhr_assimilation
   use gridmod, only: regional_time,regional_fhr
   use constants, only: izero,zero,one,zero_single
@@ -60,16 +60,6 @@ subroutine read_wrf_mass_files(mype)
   nhr_half=nhr_assimilation/2
   if(nhr_half*2 < nhr_assimilation) nhr_half=nhr_half+1
   npem1=npe-1
-
-  do i=1,nfldsig
-     ifilesig(i) = -100
-     hrdifsig(i) = zero
-  end do
-
-  do i=1,nfldsfc
-     ifilesfc(i) = -100
-     hrdifsfc(i) = zero
-  end do
 
   do i=1,202
      time_ges(i,1) = 999
@@ -184,11 +174,25 @@ subroutine read_wrf_mass_files(mype)
 ! Broadcast guess file information to all tasks
   call mpi_bcast(time_ges,404,mpi_rtype,npem1,mpi_comm_world,ierror)
 
+  nfldsig   = nint(time_ges(201,1))
+!!nfldsfc   = nint(time_ges(201,2))
+  nfldsfc   = 1
+
+! Allocate space for guess information files
+  call create_gesfinfo
+
+  do i=1,nfldsig
+     ifilesig(i) = -100
+     hrdifsig(i) = zero
+  end do
+
+  do i=1,nfldsfc
+     ifilesfc(i) = -100
+     hrdifsfc(i) = zero
+  end do
 
 ! Load time information for sigma guess field sinfo into output arrays
   ntguessig = nint(time_ges(202,1))
-  nfldsig   = nint(time_ges(201,1))
-  allocate(hrdifsig(nfldsig),ifilesig(nfldsig))
   do i=1,nfldsig
      hrdifsig(i) = time_ges(i,1)
      ifilesig(i) = nint(time_ges(i+100,1))
@@ -199,7 +203,6 @@ subroutine read_wrf_mass_files(mype)
   
 ! Load time information for surface guess field info into output arrays
   ntguessfc = nint(time_ges(202,2))
-  nfldsfc   = nint(time_ges(201,2))
   do i=1,nfldsfc
      hrdifsfc(i) = time_ges(i,2)
      ifilesfc(i) = nint(time_ges(i+100,2))
@@ -214,8 +217,7 @@ subroutine read_wrf_mass_files(mype)
 ! it is, the fix below gets around the above mentioned problem.
 
   ntguessfc = ntguessig
-  nfldsfc   = 1
-  allocate(hrdifsfc(nfldsfc),ifilesfc(nfldsfc))
+!!nfldsfc   = 1
   do i=1,nfldsfc
      hrdifsfc(i) = hrdifsig(ntguessig)
      ifilesfc(i) = ifilesig(ntguessig)
