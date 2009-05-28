@@ -98,6 +98,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   real(r_kind),parameter:: r76  = 76.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
   real(r_kind),parameter:: rmiss = -9999.9_r_kind
+  real(r_kind),parameter:: badoz = 10000.0_r_kind
 
 ! Declare passed variables
   character(len=*),intent(in):: obstype,infile,jsatid
@@ -362,28 +363,28 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
        if (poq/=0 .and. poq/=1 .and. poq/=ipoq7) goto 110
      endif
 
+!    Check ozone layer values.  If any layer value is bad, toss entire profile
+     do k=1,nloz
+        if (poz(k)>badoz) goto 110
+     end do
+     
+!    Write ozone record to output file
+     ndata=min(ndata+1,maxobs)
+     nodata=nodata+nloz+1
+     ozout(1,ndata)=rsat
+     ozout(2,ndata)=t4dv
+     ozout(3,ndata)=dlon               ! grid relative longitude
+     ozout(4,ndata)=dlat               ! grid relative latitude
+     ozout(5,ndata)=dlon_earth*rad2deg ! earth relative longitude (degrees)
+     ozout(6,ndata)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+     ozout(7,ndata)=toq                ! total ozone error flag
+     ozout(8,ndata)=poq                ! profile ozone error flag
+     ozout(9,ndata)=solzen             ! solar zenith angle
+     do k=1,nloz+1
+        ozout(k+9,ndata)=poz(k)
+     end do
 
-!    If 1st layer value is missing, toss entire observation
-     if (poz(1)<10000) then
-
-!       Write ozone record to output file
-        ndata=min(ndata+1,maxobs)
-        nodata=nodata+nloz+1
-        ozout(1,ndata)=rsat
-        ozout(2,ndata)=t4dv
-        ozout(3,ndata)=dlon               ! grid relative longitude
-        ozout(4,ndata)=dlat               ! grid relative latitude
-        ozout(5,ndata)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-        ozout(6,ndata)=dlat_earth*rad2deg ! earth relative latitude (degrees)
-        ozout(7,ndata)=toq                ! total ozone error flag
-        ozout(8,ndata)=poq                ! profile ozone error flag
-        ozout(9,ndata)=solzen             ! solar zenith angle
-        do k=1,nloz+1
-           ozout(k+9,ndata)=poz(k)
-        end do
-        
-     endif
-  
+!    Loop back to read next profile
      goto 110
 
 !    End of bufr ozone block

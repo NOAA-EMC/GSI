@@ -27,7 +27,7 @@ subroutine q_diag(mype)
   use guess_grids, only: ges_q,ntguessig,ges_cwmr,ges_ps,ges_prsi
   use jfunc, only: qsatg,iout_iter,rhgues
   use mpimod, only: mpi_rtype,mpi_comm_world,mpi_sum,strip,ierror
-  use constants,only: zero,two,one,half,grav
+  use constants,only: zero,two,one,half
   use gridmod, only: lat2,lon2,nsig,nlat,nlon,lat1,lon1,iglobal,&
        displs_g,ijn,wgtlats,itotsub,load_grid
 
@@ -124,7 +124,7 @@ subroutine q_diag(mype)
         globpw=globpw+fmeanpw*wgtlats(jj)*half
      enddo
      globps=globps
-     globpw=globpw/grav
+     globpw=globpw
      pdryini=globps-globpw
      write(iout_iter,110) globps,globpw,pdryini
 110  format(' Q_DIAG:  mean_ps, mean_pw, pdryini=',3(g12.6,1x))

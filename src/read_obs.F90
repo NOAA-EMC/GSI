@@ -341,7 +341,7 @@ subroutine read_obs(ndata,mype)
                     obstype == 'mhs' )) then
 !                   obstype == 'mhs'   .or. hirs )) then
 
-              call gsi_inquire(lenbytes,lexistears,dfile(i)//'ears',mype)
+              call gsi_inquire(lenbytes,lexistears,trim(dfile(i))//'ears',mype)
 
               if(lexistears)then
                 len4file=lenbytes/4

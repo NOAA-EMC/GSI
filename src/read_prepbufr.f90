@@ -546,9 +546,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
          if( id ==243 .or. id == 253 .or. id ==254 ) then
              call ufbint(lunin,satqc,4,1,iret,satqcstr)
              if(satqc(3) <  85.0) cycle loop_readsb   ! QI w/o fcst (su's setup
- 
 !!           if(satqc(2) <= 80.0) cycle loop_readsb   ! QI w/ fcst (old prepdata)
-
          endif
        endif
                  
@@ -830,15 +828,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if (zqm>=lim_zqm .and. zqm/=15 .and. zqm/=9) qm=9
         endif
 
-!!  PLEASE NOTE:  A new prepbufr file is coming which will
-!!                remove the need for the code below.  As
-!!                such, the code is commented out.
-
-!       Using all EUMETSAT winds
-!!        if( kx == 243 .or. kx == 244 .or. kx == 254) then
-!!           if(qm  >= 7) qm =2.0
-!!        endif
-        
 !       if(convobs .and. pqm(k) >=lim_qm .and. qm/=15 .and. qm/=9 )cycle loop_k_levs
 !       if(qm >=lim_qm .and. qm /=15 .and. qm /=9)cycle loop_k_levs
         if(qm > 15 .or. qm < 0) cycle loop_k_levs
@@ -942,7 +931,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            ntmp=ndata  ! counting moved to map3gridS
            
 !          Set data quality index for thinning
-           timedif=abs(t4dv)
+           if (l4dvar) then
+              timedif = zero
+           else
+              timedif=abs(t4dv-toff)
+           endif
            if(kx == 243 .or. kx == 253 .or. kx ==254) then
               crit1 = timedif/r6+half + four*(one-satqc(3)/r100)*r3_33
            else
@@ -965,7 +958,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if (.not. luse) cycle loop_readsb
 
         else
-!!           luse=.true.
            ndata=ndata+1
            nodata=nodata+1
            if(uvob)nodata=nodata+1
@@ -977,7 +969,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            ndata = maxobs
         end if
 
-!!	if (.not. luse) cycle loop_readsb
 
 ! Get information from surface file necessary for conventional data here
         call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr)
