@@ -529,7 +529,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
         data(ier,i) = zero
         ratio_errors(i) = zero
         muse(i) = .false.
-        if((kprof == 41).or.(kprof == 722).or.(kprof == 723).or.(kprof == 4)) then
+        if ( (rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.(rdiagbuf(1,i)==723).or.&
+             (rdiagbuf(1,i)==4) ) then
           if(alt<=ten) then
            toss_gps_sub(kprof) = max(toss_gps_sub(kprof),data(ihgt,i))
           endif
