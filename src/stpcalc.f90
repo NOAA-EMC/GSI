@@ -149,6 +149,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   2007-08-08  derber - optimize, ensure that only necessary time derivatives are calculated
 !   2007-10-01  todling - add timers
 !   2008-11-28  todling - revisited Tremolet's split in light of changes from May08 version
+!   2009-06-02  derber - modify the calculation of the b term for the background to increase accuracy
 !
 !   input argument list:
 !     stpinout - guess stepsize
@@ -281,7 +282,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 ! penalty, b and c for background terms
 
   pstart(1,1) = qdot_prod_sub(xhatsave,yhatsave)
-  pstart(2,1) =-qdot_prod_sub(dirx,yhatsave)
+!  two terms in next line should be the same, but roundoff makes average more accurate.
+  pstart(2,1) =-0.5_r_quad*(qdot_prod_sub(dirx,yhatsave)+qdot_prod_sub(diry,xhatsave))
   pstart(3,1) = qdot_prod_sub(dirx,diry)
 
 ! Contraint and 3dvar terms
