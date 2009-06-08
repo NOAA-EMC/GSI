@@ -34,6 +34,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-04-17  safford - rm unused vars and uses
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
+!   2009-06-08  parrish - remove erroneous call to cosd, sind
 !
 !   input argument list:
 !     infile   - file from which to read BUFR data
@@ -1022,7 +1023,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
            end if
            thiserr = radar_obs(7,k)
            thiswgt=one/max(r4_single,thiserr**2)
-           thisfit2=(vadu(ivad,ivadz)*cosd(azm_earth*deg2rad)+vadv(ivad,ivadz)*sind(azm_earth*deg2rad)-rwnd)**2
+           thisfit2=(vadu(ivad,ivadz)*cos(azm_earth*deg2rad)+vadv(ivad,ivadz)*sin(azm_earth*deg2rad)-rwnd)**2
            thisfit=sqrt(thisfit2)
            thisvadspd=sqrt(vadu(ivad,ivadz)**2+vadv(ivad,ivadz)**2)
            if(loop.eq.1) then
