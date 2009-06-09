@@ -296,7 +296,7 @@ subroutine wrwrfmassa_binary(mype)
      jbegin(j)=jbegin(j-1)+num_j_groups
   end do
   do j=0,npe-1
-   jend(j)=jbegin(j+1)-1
+   jend(j)=min(jbegin(j+1)-1,jm)
   end do
   if(mype == 0) then
        write(6,*)' jbegin=',jbegin
@@ -421,7 +421,7 @@ subroutine wrwrfmassa_binary(mype)
     if(mype == npe-1) jend2=jend(mype)+1
     allocate(jbuf(im,lm,jbegin(mype):jend2))
     this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
-    this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+    this_length=(jend2-jbegin(mype)+1)*im*lm
     call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
     call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                        jbegin,jend,kbegin,kend,mype,npe,im,jm+1,lm,im+1,jm+1,i_v,i_v+lm-1)
