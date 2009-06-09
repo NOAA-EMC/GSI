@@ -200,7 +200,7 @@ subroutine delx_reg( chi,  u)
 !  [2.0] Compute u, v at interior points (2nd order central finite diffs):
 !------------------------------------------------------------------------------
 
-     do j = 2,nlon
+     do j = 2,nlon-1
         do i = 1,nlat
            u(i,j) =  ( chi(i  ,j+1) - chi(i  ,j-1) )*coeffx(i,j)
            

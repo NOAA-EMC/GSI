@@ -297,7 +297,7 @@ subroutine tdelx_reg( u,  chi)
 
         j = nlon
         
-        do i = 1,nlon
+        do i = 1,nlat
            coeffx_u = coeffx(i,j) * u(i,j)
            
            chi(i,j  ) = chi(i,j  ) + coeffx_u
@@ -308,7 +308,7 @@ subroutine tdelx_reg( u,  chi)
 !    [3.1] Western boundaries:
         j = 1
         
-        do i = 1,nlon
+        do i = 1,nlat
            coeffx_u = coeffx(i,j) * u(i,j)
            
            chi(i,j+2) = chi(i,j+2) + coeffx_u
