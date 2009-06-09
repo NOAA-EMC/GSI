@@ -77,7 +77,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   use radinfo, only: iuse_rad,jpch_rad,nusis
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
        tll2xy,txy2ll
-  use constants, only: deg2rad,rad2deg,zero,half,two,izero
+  use constants, only: deg2rad,rad2deg,zero,half,two,izero,r60inv
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
   use calc_fov_conical, only: instrument_init
   
@@ -116,7 +116,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical :: outside,iuse,assim
   character(len=10) :: date
   character(len=8)  :: subset,subfgn
-  integer(i_kind) :: ihh,i,k,ifov,ifovoff,idd,isc,ntest
+  integer(i_kind) :: ihh,i,k,ifov,ifovoff,idd,ntest
   integer(i_kind) :: iret,nlv,idate,im,iy,nchanl,nreal
   integer(i_kind) :: n,ireadsb,ireadmg,irec,isub,next
   integer(i_kind) :: nmind,itx,nele,itt,iout
@@ -133,7 +133,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) pred
   real(r_kind) rsat,sstime,tdiff,t4dv
   real(r_kind) crit1,dist1
-  real(r_kind) timedif,oneover60
+  real(r_kind) timedif
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: ts
@@ -165,7 +165,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !----------------------------------------------------------------------
 ! Initialize variables
   lnbufr = 15
-  oneover60=1./60._r_kind
   disterrmax=0._r_kind
   ntest  = 0
   nreal  = maxinfo
@@ -340,14 +339,13 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Calc obs seqential time  If time outside window, skip this obs
         iobsdate(1:3) = bufrymd(1:3,1) !year,month,day for scan start time  kozo
         iobsdate(4:5) = bufrhm(1:2,1)  !hour,min for scan start time  kozo
-        isc         = bufrinit(2) !second for scan start time kozo
         call w3fs21(iobsdate,nmind)
-        t4dv=(real(nmind-iwinbgn,r_kind) + real(isc,r_kind)*oneover60)*oneover60
+        t4dv=(real(nmind-iwinbgn,r_kind) + real(bufrinit(2),r_kind)*r60inv)*r60inv
         if (l4dvar) then
           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-          sstime=real(nmind,r_kind) + real(isc,r_kind)*oneover60
-          tdiff=(sstime-gstime)*oneover60
+          sstime=real(nmind,r_kind) + real(bufrinit(2),r_kind)*r60inv
+          tdiff=(sstime-gstime)*r60inv
           if(abs(tdiff) > twind)  then 
              write(6,*) 'READ_SSMIS(',obstype,'): time check fail: obstime=',iobsdate
              cycle read_loop

@@ -57,7 +57,6 @@ subroutine gesinfo(mype)
 
 
 ! Declare local variables
-  real(r_kind),parameter :: R60 = 60.0_r_kind
 
   logical fexist
   character(6) filename

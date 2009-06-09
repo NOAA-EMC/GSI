@@ -63,7 +63,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
             checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
-  use constants, only: deg2rad,zero,one,izero,ione,rad2deg
+  use constants, only: deg2rad,zero,one,izero,ione,rad2deg,r60inv
   use obsmod, only: iadate,offtime_data
   use radinfo, only: iuse_rad,jpch_rad,nusis
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
@@ -89,7 +89,6 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
-  real(r_kind),parameter:: R60=60.0_r_kind
   character(80),parameter:: hdrgoes  = &            ! goes imager header
         'SAID YEAR MNTH DAYS HOUR MINU SECO CLAT CLON SAZA SOZA BEARAZ SOLAZI'
 
@@ -99,7 +98,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   character(8) subset,subfgn
 
   integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah
-  integer(i_kind) isc,nmind,lnbufr,idate,ilat,ilon
+  integer(i_kind) nmind,lnbufr,idate,ilat,ilon
   integer(i_kind) ireadmg,ireadsb,iret,nele,itt
   integer(i_kind) itx,i,k,iout,isflg,kidsat,n,iscan,idomsfc
   integer(i_kind) idate5(5)
@@ -228,14 +227,13 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         idate5(3) = hdrgoesarr(4)     ! day
         idate5(4) = hdrgoesarr(5)     ! hours
         idate5(5) = hdrgoesarr(6)     ! minutes
-        isc       = hdrgoesarr(7)     ! second
         call w3fs21(idate5,nmind)
-        t4dv = (real((nmind-iwinbgn),r_kind) + real(isc,r_kind)/r60)/r60
+        t4dv = (real((nmind-iwinbgn),r_kind) + real(hdrgoesarr(7),r_kind)*r60inv)*r60inv
         if (l4dvar) then
           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-          sstime = real(nmind,r_kind) + real(isc,r_kind)/R60
-          tdiff=(sstime-gstime)/R60
+          sstime = real(nmind,r_kind) + real(hdrgoesarr(7),r_kind)*r60inv
+          tdiff=(sstime-gstime)*r60inv
           if (abs(tdiff)>twind) cycle read_loop
         endif
 

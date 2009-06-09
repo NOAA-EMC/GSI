@@ -31,7 +31,7 @@ subroutine read_wrf_mass_files(mype)
        ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
   use gsi_4dvar, only: nhr_assimilation
   use gridmod, only: regional_time,regional_fhr
-  use constants, only: izero,zero,one,zero_single
+  use constants, only: izero,zero,one,zero_single,r60inv
   use obsmod, only: iadate
   implicit none
 
@@ -40,7 +40,6 @@ subroutine read_wrf_mass_files(mype)
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_001=0.001_r_kind
-  real(r_kind),parameter:: r60=60.0_r_kind
 
 ! Declare local variables
   logical(4) fexist
@@ -95,7 +94,7 @@ subroutine read_wrf_mass_files(mype)
            ndiff=nming2-nminanl
            if(abs(ndiff) > 60*nhr_half ) go to 110
            iwan=iwan+1
-           time_ges(iwan,1) = (nming2-nminanl)/r60
+           time_ges(iwan,1) = (nming2-nminanl)*r60inv
            time_ges(iwan+100,1)=i+r0_001
         end if
 110     continue
@@ -145,7 +144,7 @@ subroutine read_wrf_mass_files(mype)
            ndiff=nming2-nminanl
            if(abs(ndiff) > 60*nhr_half ) go to 210
            iwan=iwan+1
-           time_ges(iwan,2) = (nming2-nminanl)/r60
+           time_ges(iwan,2) = (nming2-nminanl)*r60inv
            time_ges(iwan+100,2)=i+r0_001
         end if
 210     continue

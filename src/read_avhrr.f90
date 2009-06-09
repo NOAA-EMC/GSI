@@ -57,7 +57,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad, zero, one, two,half, rad2deg
+  use constants, only: deg2rad, zero, one, two,half, rad2deg, r60inv
   use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
   implicit none
@@ -83,7 +83,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind),parameter:: mlat_sst = 3000
   integer(i_kind),parameter:: mlon_sst = 5000
   real(r_kind),parameter:: r6=6.0_r_kind
-  real(r_kind),parameter:: r60=60.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
@@ -102,7 +101,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) idate
   integer(i_kind) ilat,ilon
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind) nmind,isc,isflg,idomsfc
+  integer(i_kind) nmind,isflg,idomsfc
   integer(i_kind) itx,k,i,bufsat,iout,n
   integer(i_kind) nele,itt
   integer(i_kind) nlat_sst,nlon_sst
@@ -223,15 +222,14 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
       idate5(3) = nint(hdr(3))    !day
       idate5(4) = nint(hdr(4))    !hour
       idate5(5) = nint(hdr(5))    !minute
-      isc       = nint(hdr(6))    !second in integer
       rsc       = hdr(6)          !second in real
       call w3fs21(idate5,nmind)
-      t4dv=(real((nmind-iwinbgn),r_kind) + rsc/r60)/r60
+      t4dv=(real((nmind-iwinbgn),r_kind) + rsc*r60inv)*r60inv
       if (l4dvar) then
         if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
       else
-        sstime=real(nmind,r_kind) + rsc/r60
-        tdiff=(sstime-gstime)/r60
+        sstime=real(nmind,r_kind) + rsc*r60inv
+        tdiff=(sstime-gstime)*r60inv
         if(abs(tdiff) > twind) cycle read_loop
       endif
 

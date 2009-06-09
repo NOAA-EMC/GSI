@@ -77,7 +77,7 @@ subroutine update_guess(sval,sbias)
   use constants, only: zero, one, ozcon, fv, tiny_r_kind
   use jfunc, only: iout_iter,biascor
   use gridmod, only: lat1,lon1,lat2,lon2,nsig,nlon,nlat,&
-       regional,twodvar_regional
+       regional,twodvar_regional,istart,jstart
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,nfldsig,hrdifsig,hrdifsfc,ges_prsi,&
        nfldsfc,dsfct

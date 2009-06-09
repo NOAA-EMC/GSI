@@ -38,7 +38,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !$$$
   use kinds, only: r_kind,r_double,i_kind,r_single
   use constants, only: izero,zero,one_tenth,one,deg2rad,&
-       three,rad2deg
+       three,rad2deg,r60inv
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
        tll2xy,txy2ll,rlats,rlons,twodvar_regional
   use convinfo, only: nconvtype,ctwind, &
@@ -58,7 +58,6 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_double),parameter:: d250 = 250.0_r_double
   real(r_double),parameter:: d400 = 400.0_r_double
   real(r_kind),parameter:: r0_5 = 0.5_r_kind
-  real(r_kind),parameter:: r60  = 60.0_r_kind
   real(r_kind),parameter:: r100 = 100.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
 
@@ -261,12 +260,12 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
       if(ikx == izero) go to 10             ! not ob type used
 
       call w3fs21(idate5,nmind)
-      t4dv=real((nmind-iwinbgn),r_kind)/r60
+      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
 !
       if (l4dvar) then
         if (t4dv<zero .OR. t4dv>winlen) go to 10
       else
-        tdiff=(sstime-gstime)/r60
+        tdiff=(sstime-gstime)*r60inv
         if(abs(tdiff)>twindin .or. abs(tdiff)>ctwind(ikx)) go to 10  ! outside time window
       endif
 

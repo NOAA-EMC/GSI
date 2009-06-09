@@ -210,7 +210,7 @@ subroutine read_obs(ndata,mype)
 
 !   Set analysis time and allocate/initialize arrays and variables
     call w3fs21(iadate,nmind)
-    gstime=float(nmind)
+    gstime=real(nmind,r_kind)
 
     call makegvals
     do ii=1,ndat

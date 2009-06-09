@@ -43,7 +43,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use obsmod, only: mype_diaghdr,nobskeep,lobsdiag_allocated,dirname
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   
-  use constants, only: rd,cp,pi,deg2rad,zero,quarter,&
+  use constants, only: rd,cp,pi,deg2rad,zero,quarter,r60, &
        half,one,two,tiny_r_kind,one_tenth,izero,cg_term,r1000,wgtlim,fv,r3600
 
   use jfunc, only: jiter,miter
@@ -215,7 +215,6 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   real(r_kind),parameter::  r25     = 25.0_r_kind
 ! real(r_kind),parameter::  r40     = 40.0_r_kind
   real(r_kind),parameter::  r45     = 45.0_r_kind
-  real(r_kind),parameter::  r60     = 60.0_r_kind
 ! real(r_kind),parameter::  r272_16 = 272.16_r_kind
   real(r_kind),parameter::  r10000  = 10000.0_r_kind
 

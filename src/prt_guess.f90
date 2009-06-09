@@ -29,7 +29,7 @@ subroutine prt_guess(sgrep)
 
 ! Declare local variables
   integer(i_kind), parameter :: nvars=12
-  integer(i_kind) ii
+  integer(i_kind) ii,i,j,k
   integer(i_kind) ntsig
   integer(i_kind) ntsfc
   real(r_kind) :: zloc(3*nvars+2),zall(3*nvars+2,npe),zz
@@ -97,34 +97,37 @@ subroutine prt_guess(sgrep)
 
 ! Gather contributions
   call mpi_allgather(zloc,3*nvars+2,mpi_rtype, &
-                   & zall,3*nvars+2,mpi_rtype, mpi_comm_world,ierror)
-
-  zz=SUM(zall(3*nvars+1,:))
-  do ii=1,nvars-2
-    zavg(ii)=SUM(zall(ii,:))/zz
-  enddo
-  zz=SUM(zall(3*nvars+2,:))
-  do ii=nvars-1,nvars
-    zavg(ii)=SUM(zall(ii,:))/zz
-  enddo
-  do ii=1,nvars
-    zmin(ii)=MINVAL(zall(  nvars+ii,:))
-    zmax(ii)=MAXVAL(zall(2*nvars+ii,:))
-  enddo
-
-! Duplicated part of vector
-  if (nsclen>0) then
-    zmin(nvars+1)  = minval(predx(:,:))
-    zmax(nvars+1)  = maxval(predx(:,:))
-    zavg(nvars+1)  = sum(predx(:,:))/nsclen
-  endif
-  if (npclen>0) then
-    zmin(nvars+2) = minval(predxp(:,:))
-    zmax(nvars+2) = maxval(predxp(:,:))
-    zavg(nvars+2) = sum(predxp(:,:))/npclen
-  endif
+                   & zall,3*nvars+2,mpi_rtype, 0, mpi_comm_world,ierror)
 
   if (mype==0) then
+    zmin=zero
+    zmax=zero
+    zavg=zero
+    zz=SUM(zall(3*nvars+1,:))
+    do ii=1,nvars-2
+      zavg(ii)=SUM(zall(ii,:))/zz
+    enddo
+    zz=SUM(zall(3*nvars+2,:))
+    do ii=nvars-1,nvars
+      zavg(ii)=SUM(zall(ii,:))/zz
+    enddo
+    do ii=1,nvars
+      zmin(ii)=MINVAL(zall(  nvars+ii,:))
+      zmax(ii)=MAXVAL(zall(2*nvars+ii,:))
+    enddo
+
+!   Duplicated part of vector
+    if (nsclen>0) then
+      zmin(nvars+1)  = minval(predx(:,:))
+      zmax(nvars+1)  = maxval(predx(:,:))
+      zavg(nvars+1)  = sum(predx(:,:))/nsclen
+    endif
+    if (npclen>0) then
+      zmin(nvars+2) = minval(predxp(:,:))
+      zmax(nvars+2) = maxval(predxp(:,:))
+      zavg(nvars+2) = sum(predxp(:,:))/npclen
+    endif
+
     write(6,'(80a)') ('=',ii=1,80)
     write(6,'(a,2x,a,10x,a,17x,a,20x,a)') 'Status ', 'Var', 'Mean', 'Min', 'Max'
     do ii=1,nvars+2

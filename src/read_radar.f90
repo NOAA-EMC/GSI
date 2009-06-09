@@ -55,7 +55,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 !$$$  end documentation block
   use kinds, only: r_kind,r_single,r_double,i_kind,i_byte
   use constants, only: izero,zero,half,one,deg2rad,rearth,rad2deg, &
-                       one_tenth,r1000
+                       one_tenth,r1000,r60inv
   use qcmod, only: erradar_inflate,vadfile
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: l4dvar,idmodel,iadatebgn,iadateend,iwinbgn,winlen,time_4dvar
@@ -84,7 +84,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   real(r_kind),parameter:: r3_5 = 3.5_r_kind
   real(r_kind),parameter:: r6 = 6.0_r_kind
   real(r_kind),parameter:: r8 = 8.0_r_kind
-  real(r_kind),parameter:: r60 = 60.0_r_kind
   real(r_kind),parameter:: r90 = 90.0_r_kind
   real(r_kind),parameter:: r100 = 100.0_r_kind
   real(r_kind),parameter:: r200 = 200.0_r_kind
@@ -102,7 +101,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   
   integer(i_kind) lnbufr,i,k,maxobs
   integer(i_kind) nmrecs,ibadazm,ibadwnd,ibaddist,ibadheight,ibadvad,kthin
-  integer(i_kind) iyr,imo,idy,ihr,imn,isc
+  integer(i_kind) iyr,imo,idy,ihr,imn
   integer(i_kind) ibadstaheight,ibaderror,notgood,idate,iheightbelowsta,ibadfit
   integer(i_kind) notgood0
   integer(i_kind) novadmatch,ioutofvadrange
@@ -870,7 +869,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
      idy = hdr(7)
      ihr = hdr(8)
      imn = hdr(9)
-     isc = izero
 
      idate5(1) = iyr
      idate5(2) = imo
@@ -883,11 +881,11 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
      end do
      if(ikx.eq.0) go to 50
      call w3fs21(idate5,minobs)
-     t4dv=real(minobs-iwinbgn,r_kind)/r60
+     t4dv=real(minobs-iwinbgn,r_kind)*r60inv
      if (l4dvar) then
        if (t4dv<zero .OR. t4dv>winlen) goto 50
      else
-       timeb = real(minobs-mincy,r_kind)/r60
+       timeb = real(minobs-mincy,r_kind)*r60inv
 !      if (abs(timeb)>twind .or. abs(timeb) > ctwind(ikx)) then
        if (abs(timeb)>half .or. abs(timeb) > ctwind(ikx)) then 
 !         write(6,*)'READ_RADAR:  time outside window ',timeb,' skip this obs'
@@ -908,7 +906,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
         if(loop.eq.1) nsuper2_5_in=nsuper2_5_in+1
         if(loop.eq.2) nsuper3_in=nsuper3_in+1
         nread=nread+1
-        t4dvo=real(minobs+radar_obs(1,k)-iwinbgn,r_kind)/r60
+        t4dvo=real(minobs+radar_obs(1,k)-iwinbgn,r_kind)*r60inv
         timemax=max(timemax,t4dvo)
         timemin=min(timemin,t4dvo)
         if(loop==2 .and. ivad> 0 .and. level2_5(ivad)/=0) then
@@ -922,7 +920,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
           if (t4dvo<zero .OR. t4dvo>winlen) cycle
           timeo=t4dv
         else
-          timeo=(real(minobs-mincy,r_kind)+real(radar_obs(1,k),r_kind))/r60
+          timeo=(real(minobs-mincy,r_kind)+real(radar_obs(1,k),r_kind))*r60inv
           if(abs(timeo)>twind .or. abs(timeo) > ctwind(ikx)) then
 !            write(6,*)'READ_RADAR:  time outside window ',timeo,&
 !               ' skip obs ',nread,' at lev=',k

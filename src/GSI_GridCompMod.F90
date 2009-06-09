@@ -1877,7 +1877,6 @@
    character(len=6)             :: chms
    real(r_single)               :: hourg4
    real(r_kind),dimension(5)    :: fha
-   real(r_kind),parameter       :: R60 = 60.0_r_kind
 
 ! start
 

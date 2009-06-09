@@ -84,7 +84,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use satthin, only: makegrids,map2tgrid,destroygrids, &
                checkob,finalcheck,itxmax
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: deg2rad,zero,rad2deg,one_tenth
+  use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv
   use obsmod, only: iadate,offtime_data,nloz_v6,nloz_v8
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
@@ -93,7 +93,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   implicit none
 
 ! Declare local parameters
-  real(r_kind),parameter:: r60  = 60.0_r_kind
   real(r_kind),parameter:: r6   = 6.0_r_kind
   real(r_kind),parameter:: r76  = 76.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
@@ -308,12 +307,12 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      idate5(4) = hdroz(7)  !hour
      idate5(5) = hdroz(8)  !minute
      call w3fs21(idate5,nmind)
-     t4dv=real((nmind-iwinbgn),r_kind)/r60
+     t4dv=real((nmind-iwinbgn),r_kind)*r60inv
      if (l4dvar) then
        if(t4dv<zero .OR. t4dv>winlen) goto 110
      else
        sstime=real(nmind,r_kind)
-       tdiff=(sstime-gstime)/r60
+       tdiff=(sstime-gstime)*r60inv
        if(abs(tdiff) > twind) goto 110
      end if
      
@@ -481,12 +480,12 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      idate5(4) = hdrozg(6)  !hour
      idate5(5) = hdrozg(7)  !minute
      call w3fs21(idate5,nmind)
-     t4dv=real((nmind-iwinbgn),r_kind)/r60
+     t4dv=real((nmind-iwinbgn),r_kind)*r60inv
      if (l4dvar) then
        if(t4dv<zero .OR. t4dv>winlen) goto 120
      else
        sstime=real(nmind,r_kind)
-       tdiff=(sstime-gstime)/r60
+       tdiff=(sstime-gstime)*r60inv
        if(abs(tdiff) > twind) goto 120
      end if
 
@@ -642,12 +641,12 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      idate5(5) = hdrozo(8)  !minute
      call w3fs21(idate5,nmind)
 
-     t4dv=real((nmind-iwinbgn),r_kind)/r60
+     t4dv=real((nmind-iwinbgn),r_kind)*r60inv
      if (l4dvar) then
        if (t4dv<zero .OR. t4dv>winlen) go to 130
      else
        sstime=real(nmind,r_kind)
-       tdiff=(sstime-gstime)/r60
+       tdiff=(sstime-gstime)*r60inv
        if(abs(tdiff) > twind) go to 130
      end if
 
@@ -783,16 +782,16 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            idate5(4) = ihh !hour
            idate5(5) = imin !minute
            call w3fs21(idate5,nmind)
-           t4dv=real((nmind-iwinbgn),r_kind)/r60
+           t4dv=real((nmind-iwinbgn),r_kind)*r60inv
            if (l4dvar) then
              if (t4dv<zero .OR. t4dv>winlen) then
                write(6,*)'READ_OZONE: mls obs time idate5=',idate5,', t4dv=',&
-                    t4dv,' is outside time window, sstime=',sstime/R60
+                    t4dv,' is outside time window, sstime=',sstime*r60inv
                cycle
              end if
            else
              sstime=real(nmind,r_kind)
-             tdiff=(sstime-gstime)/r60
+             tdiff=(sstime-gstime)*r60inv
              if(abs(tdiff) > twind)then
                write(6,*)'READ_OZONE: mls obs time idate5=',idate5,', tdiff=',&
                     tdiff,' is outside time window=',twind

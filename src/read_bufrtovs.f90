@@ -92,7 +92,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad
   use radinfo, only: crtm_coeffs_path
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,zero,one,three,izero,ione,rad2deg,t0c,two
+  use constants, only: deg2rad,zero,one,three,izero,ione,rad2deg,t0c,two,r60inv
   use obsmod, only: iadate,offtime_data
   use crtm_parameters, only: MAX_SENSOR_ZENITH_ANGLE
   use crtm_spccoeff, only: sc
@@ -125,7 +125,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
-  real(r_kind),parameter:: R60=60.0_r_kind
 
 ! Declare local variables
   logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu
@@ -528,12 +527,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            idate5(4) = bfr1bhdr(6) !hour
            idate5(5) = bfr1bhdr(7) !minute
            call w3fs21(idate5,nmind)
-           t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)/R60)/r60    ! add in seconds
+           t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
            if (l4dvar) then
              if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
            else
-             sstime= real(nmind,r_kind) + bfr1bhdr(8)/R60    ! add in seconds
-             tdiff=(sstime-gstime)/R60
+             sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
+             tdiff=(sstime-gstime)*r60inv
              if(abs(tdiff) > twind) cycle read_loop
            endif
 

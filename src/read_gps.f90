@@ -66,7 +66,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_double
-  use constants, only: izero,deg2rad,zero,rad2deg
+  use constants, only: izero,deg2rad,zero,rad2deg,r60inv
   use obsmod, only: iadate,ref_obs,offtime_data
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
@@ -86,7 +86,6 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   integer(i_kind),parameter:: maxlevs=500
   integer(i_kind),parameter:: maxinfo=16
   integer(i_kind),parameter:: said_unknown=401
-  real(r_kind),parameter:: r60=60.0_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r10000=10000.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
@@ -237,7 +236,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
    if (ikx==0) ikx=ikx_unknown
    
 ! check time window in subset
-   t4dv=real((minobs-iwinbgn),r_kind)/r60
+   t4dv=real((minobs-iwinbgn),r_kind)*r60inv
    if (l4dvar) then
      if (t4dv<zero .OR. t4dv>winlen) then
         write(6,*)'READ_GPS:      time outside window ',&
@@ -246,7 +245,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
      endif
    else
      call w3fs21(iadate,mincy) ! analysis time in minutes
-     timeo=real(minobs-mincy,r_kind)/r60
+     timeo=real(minobs-mincy,r_kind)*r60inv
      if (abs(timeo)>ctwind(ikx) .or. abs(timeo) > twind) then
         write(6,*)'READ_GPS:      time outside window ',&
              timeo,' skip this report'

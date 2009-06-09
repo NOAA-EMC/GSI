@@ -73,8 +73,8 @@ subroutine compute_derived(mype)
   use guess_grids, only: ges_tvlon   ,ges_tvlat
   use guess_grids, only: ges_prslavg,ges_psfcavg
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll
-  use gridmod, only: jstart,jlon1,regional
-  use gridmod, only: istart,ilat1,twodvar_regional,bk5,eta2_ll
+  use gridmod, only: regional
+  use gridmod, only: twodvar_regional,bk5,eta2_ll
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional
   use berror, only: qvar3d,dssv
   use balmod, only: rllat1,llmax
@@ -284,7 +284,6 @@ subroutine compute_derived(mype)
               exit
            endif
         end do
-
 
 !       For mass core, decouple T and p above 150 hPa
         if (wrf_mass_regional) then

@@ -74,7 +74,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
              checkob,finalcheck,score_crit
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,zero,one,izero,ione,rad2deg
+  use constants, only: deg2rad,zero,one,izero,ione,rad2deg, r60inv
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: l4dvar,idmodel,iadatebgn,iadateend,time_4dvar,iwinbgn,winlen
 
@@ -100,7 +100,6 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
-  real(r_kind),parameter:: R60=60.0_r_kind
   character(80),parameter:: hdstr = &
                'CLON CLAT ELEV SOEL BEARAZ SOLAZI SAID DINU YEAR MNTH DAYS HOUR MINU SECO ACAV' 
   character(80),parameter:: hdstr5 = &
@@ -275,9 +274,9 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
        idate5(4) = hdr(12) !hour
        idate5(5) = hdr(13) !minute
        call w3fs21(idate5,nmind)
-       sstime=real(nmind,r_kind) + hdr(14)/R60
-       tdiff=(sstime-gstime)/R60
-       t4dv=(real(nmind-iwinbgn,r_kind) + hdr(14)/r60)/r60
+       sstime=real(nmind,r_kind) + hdr(14)*r60inv
+       tdiff=(sstime-gstime)*r60inv
+       t4dv=(real(nmind-iwinbgn,r_kind) + hdr(14)*r60inv)*r60inv
      end if
 
 !    If not within analysis window, skip obs

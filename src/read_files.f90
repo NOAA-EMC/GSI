@@ -42,7 +42,7 @@ subroutine read_files(mype)
        ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen, nhr_assimilation
   use gridmod, only: ncep_sigio,nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs
-  use constants, only: izero,zero,one
+  use constants, only: izero,zero,one,r60inv
   use obsmod, only: iadate
   use sfcio_module, only: sfcio_head,sfcio_sropen,&
        sfcio_sclose,sfcio_srhead
@@ -61,7 +61,6 @@ subroutine read_files(mype)
   integer(i_kind),parameter:: lunatm=12
   integer(i_kind),parameter:: num_lpl=2000
   real(r_kind),parameter:: r0_001=0.001_r_kind
-  real(r_kind),parameter:: r60=60.0_r_kind
 
 ! Declare local variables
   logical(4) fexist
@@ -144,7 +143,7 @@ subroutine read_files(mype)
            call w3fs21(idate5,nmings)
            nming2=nmings+60*hourg
            write(6,*)'READ_FILES:  atm guess file, nming2 ',hourg,idateg,nming2
-           t4dv=real((nming2-iwinbgn),r_kind)/r60
+           t4dv=real((nming2-iwinbgn),r_kind)*r60inv
            if (l4dvar) then
              if (t4dv<zero .OR. t4dv>winlen) go to 110
            else
@@ -185,7 +184,7 @@ subroutine read_files(mype)
            call w3fs21(idate5,nmings)
            nming2=nmings+60*hourg
            write(6,*)'READ_FILES:  sfc guess file, nming2 ',hourg,idateg,nming2
-           t4dv=real((nming2-iwinbgn),r_kind)/r60 
+           t4dv=real((nming2-iwinbgn),r_kind)*r60inv
            if (l4dvar) then
              if (t4dv<zero .OR. t4dv>winlen) go to 210
            else

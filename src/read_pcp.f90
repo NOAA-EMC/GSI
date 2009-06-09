@@ -62,7 +62,7 @@
 !$$$  end documentation block
   use kinds, only: r_kind,r_double,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: izero,zero,deg2rad,tiny_r_kind,rad2deg
+  use constants, only: izero,zero,deg2rad,tiny_r_kind,rad2deg,r60inv
   use obsmod, only: offtime_data
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
 
@@ -78,7 +78,6 @@
   real(r_kind),intent(in):: twind
 
 ! Declare local parameters
-  real(r_kind),parameter:: r60=60.0_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: r3600=3600.0_r_kind
@@ -94,7 +93,7 @@
   integer(i_kind) imn,k,i,iyr,lnbufr,maxobs,isflg,idomsfc
   integer(i_kind) ihh,idd,im,kx,jdate
   integer(i_kind) mincy,ndatout,nreal,nchanl,iy,iret,idate,itype,ihr,idy,imo
-  integer(i_kind) minobs,isc,lndsea,ilat,ilon
+  integer(i_kind) minobs,lndsea,ilat,ilon
   integer(i_kind) idate5(5)
 
   real(r_kind) scli,sclw,dlon,dlat,scnt,sfcr
@@ -196,7 +195,6 @@
      idy = hdr7(4)
      ihr = hdr7(5)
      imn = hdr7(6)
-     isc = hdr7(7)
      
      idate5(1) = iyr
      idate5(2) = imo
@@ -204,15 +202,13 @@
      idate5(4) = ihr
      idate5(5) = imn
      call w3fs21(idate5,minobs)
-     t4dv=real(minobs-iwinbgn,r_kind)/r60
+     t4dv=real(minobs-iwinbgn,r_kind)*r60inv
      if (l4dvar) then
        if (t4dv<zero .OR. t4dv>winlen) goto 10
      else
        sstime=real(minobs,r_kind)
-       tdiff = (sstime-gstime)/r60
+       tdiff = (sstime-gstime)*r60inv
        if (abs(tdiff) > twind) goto 10
-!      t4dv=tdiff ! _RT REVISIT:  this line should not be here; 
-                  ! _RT but only way code nearly reproduces original
      endif
 
      if (pcp_ssmi)   kx = 264

@@ -93,7 +93,7 @@ subroutine glbsoi(mype)
   use gridmod, only: nlat,nlon,nsig,rlats,regional,wrf_mass_regional,&
        wrf_nmm_regional,twodvar_regional,wgtlats,netcdf
   use guess_grids, only: sfct,create_ges_grids,create_sfc_grids,&
-       nfldsig
+       nfldsig,ges_q
   use tendsmod, only: create_tendvars,destroy_tendvars
   use obsmod, only: write_diag,obs_setup,ndat,perturb_obs,dirname
   use turblmod, only: create_turblvars,destroy_turblvars
@@ -309,7 +309,7 @@ subroutine glbsoi(mype)
       if(mype == 0) call radinfo_write
       if(mype == npe-1) call pcpinfo_write
     else
-      if ( jiter==miter+1 ) then
+      if (jiter==miter+1 ) then
          if(mype == 0) call radinfo_write
          if(mype == npe-1) call pcpinfo_write
       endif

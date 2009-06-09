@@ -77,7 +77,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
   use radinfo, only: iuse_rad,cbias,nusis,jpch_rad
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
        tll2xy,txy2ll
-  use constants, only: deg2rad,rad2deg,zero,one,two,three,izero
+  use constants, only: deg2rad,rad2deg,zero,one,two,three,izero,r60inv
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
   implicit none
 
@@ -157,7 +157,6 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
 ! real(r_kind),parameter :: POINT01  =   0.01_r_kind
 ! real(r_kind),parameter :: TEN      =  10._r_kind
 ! real(r_kind),parameter :: R45      =  45._r_kind
-  real(r_kind),parameter :: R60      =  60._r_kind
   real(r_kind),parameter :: R90      =  90._r_kind
 ! real(r_kind),parameter :: R180     = 180._r_kind
   real(r_kind),parameter :: R360     = 360._r_kind
@@ -447,12 +446,12 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
              cycle read_loop
            endif
            call w3fs21(idate5,nmind)
-           t4dv = (real((nmind-iwinbgn),r_kind) + real(idate5(5),r_kind)/r60)/r60 ! add in seconds
+           t4dv = (real((nmind-iwinbgn),r_kind) + real(idate5(5),r_kind)*r60inv)*r60inv ! add in seconds
            if (l4dvar) then
              if (t4dv<zero .OR. t4dv>winlen) exit
            else
-             sstime = real(nmind,r_kind) + real(idate5(5),r_kind)/R60 ! add in seconds
-             tdiff  = (sstime - gstime)/R60
+             sstime = real(nmind,r_kind) + real(idate5(5),r_kind)*r60inv ! add in seconds
+             tdiff  = (sstime - gstime)*r60inv
              if (abs(tdiff)>twind) exit
            endif
 

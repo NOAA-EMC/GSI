@@ -45,7 +45,7 @@ module constants
   real(r_kind):: el2orc, g_over_rd, rd_over_cp, cpr, omeps, epsm1, factor2
   real(r_kind):: factor1, huge_r_kind, tiny_r_kind, deg2rad, pi, rad2deg, cg_term
   real(r_kind):: eccentricity_linear, cv, rv, rd_over_cp_mass, cliq, rd, cp_mass
-  real(r_kind):: eccentricity, grav, rearth
+  real(r_kind):: eccentricity, grav, rearth, r60inv
 
 
 ! Define constants common to global and regional applications
@@ -78,6 +78,7 @@ module constants
   real(r_kind),parameter::  three     = 3.0_r_kind
   real(r_kind),parameter::  four      = 4.0_r_kind
   real(r_kind),parameter::  five      = 5.0_r_kind
+  real(r_kind),parameter::  r60       = 60._r_kind
   real(r_kind),parameter::  r1000     = 1000.0_r_kind
   real(r_kind),parameter::  r3600     = 3600.0_r_kind
 
@@ -191,6 +192,7 @@ contains
     tiny_single = tiny(zero_single)
     huge_single = huge(zero_single)
     huge_i_kind = huge(izero)
+    r60inv=one/r60
 
 !   Geophysical parameters used in conversion of geopotential to
 !   geometric height

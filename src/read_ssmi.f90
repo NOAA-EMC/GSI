@@ -76,7 +76,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   use radinfo, only: iuse_rad,jpch_rad,nusis,nuchan
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
        tll2xy,txy2ll
-  use constants, only: deg2rad,rad2deg,zero,one,two,three,four
+  use constants, only: deg2rad,rad2deg,zero,one,two,three,four,r60inv
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
 
@@ -121,7 +121,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   character(10) date
   character(8) subset,subfgn
 
-  integer(i_kind):: ihh,i,k,idd,isc,ntest,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind):: ihh,i,k,idd,ntest,ireadsb,ireadmg,irec,isub,next
   integer(i_kind):: iret,idate,im,iy,nchanl
   integer(i_kind):: isflg,nreal,idomsfc
   integer(i_kind):: nmind,itx,nele,itt,iout
@@ -157,7 +157,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
 
-  real(r_kind):: oneover60
   real(r_kind):: dlat,dlon,dlon_earth,dlat_earth
   real(r_kind):: ssmi_def_ang,ssmi_zen_ang  ! default and obs SSM/I zenith ang
   logical  do85GHz, ch6, ch7
@@ -173,7 +172,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   ndata  = 0
   nodata  = 0
   nread  = 0
-  oneover60 = one/60._r_kind
   ssmi_def_ang = 53.1_r_kind
 
   ilon=3
@@ -252,14 +250,13 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
 !       calc obs seqential time  If time outside window, skip this obs
         iobsdate(1:5) = bfr1bhdr(2:6) !year,month,day,hour,min
-        isc           = bfr1bhdr(7) !second
         call w3fs21(iobsdate,nmind)
-        t4dv=(real(nmind-iwinbgn,r_kind) + real(isc,r_kind)*oneover60)*oneover60
+        t4dv=(real(nmind-iwinbgn,r_kind) + real(bfr1bhdr(7),r_kind)*r60inv)*r60inv
         if (l4dvar) then
           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-          sstime=real(nmind,r_kind) + real(isc,r_kind)*oneover60
-          tdiff=(sstime-gstime)*oneover60
+          sstime=real(nmind,r_kind) + real(bfr1bhdr(7),r_kind)*r60inv
+          tdiff=(sstime-gstime)*r60inv
           if(abs(tdiff) > twind)  cycle read_loop
         endif
 

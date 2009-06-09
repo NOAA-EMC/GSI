@@ -87,7 +87,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
        tll2xy,txy2ll,rlats,rlons
-  use constants, only: zero,deg2rad,one,three,izero,ione,rad2deg
+  use constants, only: zero,deg2rad,one,three,izero,ione,rad2deg,r60inv
   use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
 
@@ -184,7 +184,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
   real(r_kind),parameter:: expansion=2.9_r_kind
-  real(r_kind),parameter:: R60    =  60._r_kind
   real(r_kind),parameter:: R90    =  90._r_kind
   real(r_kind),parameter:: R360   = 360._r_kind
   real(r_kind),parameter:: d1     = 0.754_r_kind
@@ -402,12 +401,12 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !    Retrieve obs time
      call w3fs21(idate5,nmind)
-     t4dv = (real((nmind-iwinbgn),r_kind) + real(allspot(7,ix),r_kind)/r60)/r60 ! add in seconds
+     t4dv = (real((nmind-iwinbgn),r_kind) + real(allspot(7,ix),r_kind)*r60inv)*r60inv ! add in seconds
      if (l4dvar) then
        if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
      else
-       sstime = real(nmind,r_kind) + real(allspot(7,ix),r_kind)/R60 ! add in seconds
-       tdiff = (sstime - gstime)/R60
+       sstime = real(nmind,r_kind) + real(allspot(7,ix),r_kind)*r60inv ! add in seconds
+       tdiff = (sstime - gstime)*r60inv
        if (abs(tdiff)>twind) cycle read_loop
      endif
      

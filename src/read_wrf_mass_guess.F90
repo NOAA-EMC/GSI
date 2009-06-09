@@ -122,7 +122,7 @@ subroutine read_wrf_mass_binary_guess(mype)
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
   real(r_kind) deltasigma,drh
   integer(i_llong) n_position
-  integer(i_kind) iskip,ksize,jextra,nextra
+  integer(i_kind) iskip,ksize,jextra,nextra,jend2
   integer(i_kind) status(mpi_status_size)
   integer(i_kind) jbegin(0:npe),jend(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
@@ -426,7 +426,7 @@ subroutine read_wrf_mass_binary_guess(mype)
            jbegin(j)=jbegin(j-1)+num_j_groups
         end do
         do j=0,npe-1
-           jend(j)=jbegin(j+1)-1
+           jend(j)=min(jbegin(j+1)-1,jm)
         end do
         if(mype == 0) then
            write(6,*)' jbegin=',jbegin
@@ -438,10 +438,9 @@ subroutine read_wrf_mass_binary_guess(mype)
         
 !                                    read geopotential
         if(kord(i_fis).ne.1) then
-          allocate(jbuf(im,lm+1,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,lm+1,jbegin(mype):jend(mype)))
           this_offset=offset(i_fis)+(jbegin(mype)-1)*4*im*(lm+1)
           this_length=(jend(mype)-jbegin(mype)+1)*im*(lm+1)
-          if(mype.eq.npe-1) this_length=this_length-im*(lm+1)
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
                                 mpi_integer,status,ierror)
           call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
@@ -451,10 +450,9 @@ subroutine read_wrf_mass_binary_guess(mype)
         
 !                                    read temps
         if(kord(i_t).ne.1) then
-          allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
           this_offset=offset(i_t)+(jbegin(mype)-1)*4*im*lm
           this_length=(jend(mype)-jbegin(mype)+1)*im*lm
-          if(mype.eq.npe-1) this_length=this_length-im*lm
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
                                 mpi_integer,status,ierror)
           call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
@@ -464,10 +462,9 @@ subroutine read_wrf_mass_binary_guess(mype)
 
 !                                    read q
         if(kord(i_q).ne.1) then
-          allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
           this_offset=offset(i_q)+(jbegin(mype)-1)*4*im*lm
           this_length=(jend(mype)-jbegin(mype)+1)*im*lm
-          if(mype.eq.npe-1) this_length=this_length-im*lm
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
                                 mpi_integer,status,ierror)
           call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
@@ -477,10 +474,9 @@ subroutine read_wrf_mass_binary_guess(mype)
         
 !                                    read u
         if(kord(i_u).ne.1) then
-          allocate(jbuf(im+1,lm,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im+1,lm,jbegin(mype):jend(mype)))
           this_offset=offset(i_u)+(jbegin(mype)-1)*4*(im+1)*lm
           this_length=(jend(mype)-jbegin(mype)+1)*(im+1)*lm
-          if(mype.eq.npe-1) this_length=this_length-(im+1)*lm
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
                                 mpi_integer,status,ierror)
           call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
@@ -490,9 +486,12 @@ subroutine read_wrf_mass_binary_guess(mype)
         
 !                                    read v
         if(kord(i_v).ne.1) then
-          allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+          jend2=jend(mype)
+!  Account for extra lat for v
+          if(mype.eq. npe-1) jend2=jend(mype)+1
+          allocate(jbuf(im,lm,jbegin(mype):jend2))
           this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
-          this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+          this_length=(jend2-jbegin(mype)+1)*im*lm
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
                                 mpi_integer,status,ierror)
           call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
@@ -502,10 +501,9 @@ subroutine read_wrf_mass_binary_guess(mype)
         
 !                                    read smois
         if(kord(i_smois).ne.1) then
-          allocate(jbuf(im,ksize,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,ksize,jbegin(mype):jend(mype)))
           this_offset=offset(i_smois)+(jbegin(mype)-1)*4*im*ksize
           this_length=(jend(mype)-jbegin(mype)+1)*im*ksize
-          if(mype.eq.npe-1) this_length=this_length-im*ksize
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
                                 mpi_integer,status,ierror)
           call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
@@ -515,10 +513,9 @@ subroutine read_wrf_mass_binary_guess(mype)
 
 !                                    read tslb
         if(kord(i_tslb).ne.1) then
-          allocate(jbuf(im,ksize,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,ksize,jbegin(mype):jend(mype)))
           this_offset=offset(i_tslb)+(jbegin(mype)-1)*4*im*ksize
           this_length=(jend(mype)-jbegin(mype)+1)*im*ksize
-          if(mype.eq.npe-1) this_length=this_length-im*ksize
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
                                 mpi_integer,status,ierror)
           call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
@@ -1387,18 +1384,26 @@ subroutine transfer_jbuf2ibuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
   implicit none
   
   integer(i_kind) jbegin_loc,jend_loc,kbegin_loc,kend_loc,mype,npe,im_jbuf,jm_jbuf,lm_jbuf
-  integer(i_kind) im_ibuf,jm_ibuf,k_start,k_end
+  integer(i_kind) im_ibuf,jm_ibuf,k_start,k_end,jend_loc2
   
   integer(i_long) jbuf(im_jbuf,lm_jbuf,jbegin_loc:jend_loc)
   integer(i_long) ibuf(im_ibuf,jm_ibuf,kbegin_loc:kend_loc)
-  integer(i_kind) jbegin(0:npe),jend(0:npe-1)
+  integer(i_kind) jbegin(0:npe),jend(0:npe-1),jend2(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
   
-  integer(i_long) sendbuf(im_jbuf*lm_jbuf*(min(jend_loc,jm_jbuf)-jbegin_loc+1))
+  integer(i_long) sendbuf(im_jbuf*lm_jbuf*(jend_loc-jbegin_loc+2))
   integer(i_long) recvbuf(im_jbuf*jm_jbuf*(kend_loc-kbegin_loc+1))
   integer(i_long) recvcounts(0:npe-1),displs(0:npe)
   integer(i_kind) i,ipe,j,ierror,k,n,ii,k_t_start,k_t_end,sendcount
   
+  jend_loc2=jend_loc
+  do ipe=0,npe-1
+    jend2(ipe)=jend(ipe)
+  end do
+  if(jm_jbuf == jm_ibuf)then
+    jend2(npe-1)=jend2(npe-1)+1
+    if(mype == npe-1)jend_loc2=jend_loc2+1
+  end if
   do ipe=0,npe-1
      k_t_start=max(k_start,kbegin(ipe))
      k_t_end=  min(k_end,kend(ipe))
@@ -1406,7 +1411,7 @@ subroutine transfer_jbuf2ibuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
      
      displs(0)=0
      do i=0,npe-1
-        recvcounts(i)=im_jbuf*(k_t_end-k_t_start+1)*(min(jend(i),jm_jbuf)-jbegin(i)+1)
+        recvcounts(i)=im_jbuf*(k_t_end-k_t_start+1)*(jend2(i)-jbegin(i)+1)
         displs(i+1)=displs(i)+recvcounts(i)
      end do
      
@@ -1414,7 +1419,7 @@ subroutine transfer_jbuf2ibuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
      
      ii=0
      do k=k_t_start,k_t_end
-        do j=jbegin_loc,min(jend_loc,jm_jbuf)
+        do j=jbegin_loc,jend_loc2
            do i=1,im_jbuf
               ii=ii+1
               sendbuf(ii)=jbuf(i,k-k_start+1,j)
@@ -1428,7 +1433,7 @@ subroutine transfer_jbuf2ibuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
         ii=0
         do n=0,npe-1
            do k=k_t_start,k_t_end
-              do j=jbegin(n),min(jend(n),jm_jbuf)
+              do j=jbegin(n),jend2(n)
                  do i=1,im_jbuf
                     ii=ii+1
                     ibuf(i,j,k)=recvbuf(ii)

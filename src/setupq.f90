@@ -77,7 +77,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: oneobtest,maginnov,magoberr
   use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps
-  use gridmod, only: lat2,lon2,nsig,get_ijk
+  use gridmod, only: lat2,lon2,nsig,get_ijk,istart,jstart
   use constants, only: zero,one,r1000
   use constants, only: huge_single,wgtlim
   use constants, only: tiny_r_kind,five,half,two,huge_r_kind,cg_term
@@ -473,6 +473,9 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !       Set (i,j,k) indices of guess gridpoint that bound obs location
         call get_ijk(mm1,dlat,dlon,dpres,qtail(ibin)%head%ij(1),qtail(ibin)%head%wij(1))
         
+        if(dlat > 11.49 .and. dlon < 11.50 .and. dlon > 9.52 .and. dlon < 9.53)then
+           write(mype+300,*) 'get_ijk',(qtail(ibin)%head%ij(i),qtail(ibin)%head%wij(l),l=1,8)
+        end if
         qtail(ibin)%head%res    = ddiff
         qtail(ibin)%head%err2   = error**2
         qtail(ibin)%head%raterr2= ratio_errors**2   

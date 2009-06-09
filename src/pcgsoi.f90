@@ -82,11 +82,12 @@ subroutine pcgsoi()
   use kinds, only: r_kind,i_kind,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
   use obsmod, only: destroyobs,oberror_tune
-  use jfunc, only: iter,jiter,jiterstart,niter,iout_iter,&
+  use jfunc, only: iter,jiter,jiterstart,jiterend,niter,iout_iter,&
        nclen,nclen1,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution, &
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, lwrtinc
+  use guess_grids, only: ges_q
   use gridmod, only: lat2,lon2,regional,twodvar_regional,latlon1n
   use constants, only: zero,izero,one,five,tiny_r_kind
   use anberror, only: anisotropic
@@ -469,19 +470,18 @@ subroutine pcgsoi()
 888 format(A,5(1X,ES24.18))
 
   end if
-! Calcuate increments of vorticity/divergence
+! Calculate increments of vorticity/divergence
   call xhat_vordiv_init
   call xhat_vordiv_calc(sval)
 
 ! Update guess (model background, bias correction) fields
   if (mype==0) write(6,*)'pcgsoi: Updating guess'
   call update_guess(sval,sbias)
-
- if(l_foto) call update_geswtend(xhat_dt%u,xhat_dt%v,xhat_dt%t,&
-                                 xhat_dt%q,xhat_dt%oz,xhat_dt%cw,&
-                                 xhat_dt%p)
+  if(l_foto) call update_geswtend(xhat_dt%u,xhat_dt%v,xhat_dt%t,&
+                                  xhat_dt%q,xhat_dt%oz,xhat_dt%cw,&
+                                  xhat_dt%p)
 ! Write output analysis files
-  call write_all(.false.,mype)
+  if(jiter == jiterend)call write_all(.false.,mype)
   call prt_guess('analysis')
 
 ! Overwrite guess with increment (4d-var only, for now)
