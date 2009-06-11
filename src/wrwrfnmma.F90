@@ -292,7 +292,7 @@ subroutine wrwrfnmma_binary(mype)
      jbegin(j)=jbegin(j-1)+num_j_groups
   end do
   do j=0,npe-1
-   jend(j)=jbegin(j+1)-1
+   jend(j)=min(jbegin(j+1)-1,jm)
   end do
   if(mype == 0) then
        write(6,*)' jbegin=',jbegin

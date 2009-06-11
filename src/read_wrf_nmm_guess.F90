@@ -427,7 +427,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
            jbegin(j)=jbegin(j-1)+num_j_groups
         end do
         do j=0,npe-1
-           jend(j)=jbegin(j+1)-1
+           jend(j)=min(jbegin(j+1)-1,jm)
         end do
         if(mype == 0) then
            write(6,*)' jbegin=',jbegin
@@ -440,7 +440,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         
 !                                    read pint
         if(update_pint.and.kord(i_pint).ne.1) then
-          allocate(jbuf(im,lm+1,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,lm+1,jbegin(mype):jend(mype)))
           this_offset=offset(i_pint)+(jbegin(mype)-1)*4*im*(lm+1)
           this_length=(jend(mype)-jbegin(mype)+1)*im*(lm+1)
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
@@ -452,7 +452,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         
 !                                    read temps
         if(kord(i_t).ne.1) then
-          allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
           this_offset=offset(i_t)+(jbegin(mype)-1)*4*im*lm
           this_length=(jend(mype)-jbegin(mype)+1)*im*lm
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
@@ -464,7 +464,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 
 !                                    read q
         if(kord(i_q).ne.1) then
-          allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
           this_offset=offset(i_q)+(jbegin(mype)-1)*4*im*lm
           this_length=(jend(mype)-jbegin(mype)+1)*im*lm
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
@@ -476,7 +476,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 
 !                                    read u
         if(kord(i_u).ne.1) then
-          allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
           this_offset=offset(i_u)+(jbegin(mype)-1)*4*im*lm
           this_length=(jend(mype)-jbegin(mype)+1)*im*lm
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
@@ -488,7 +488,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 
 !                                    read v
         if(kord(i_v).ne.1) then
-          allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
           this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
           this_length=(jend(mype)-jbegin(mype)+1)*im*lm
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
@@ -500,8 +500,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 
 !                                    read smc
         if(kord(i_smc).ne.1) then
-!???????????????????????????????????????????might be an error here, because jbuf had wrong dimensions
-          allocate(jbuf(im,ksize,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,ksize,jbegin(mype):jend(mype)))
           this_offset=offset(i_smc)+(jbegin(mype)-1)*4*im*ksize
           this_length=(jend(mype)-jbegin(mype)+1)*im*ksize
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
@@ -513,8 +512,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 
 !                                    read stc
         if(kord(i_stc).ne.1) then
-!???????????????????????????????????????????might be an error here, because jbuf had wrong dimensions
-          allocate(jbuf(im,ksize,jbegin(mype):min(jend(mype),jm)))
+          allocate(jbuf(im,ksize,jbegin(mype):jend(mype)))
           this_offset=offset(i_stc)+(jbegin(mype)-1)*4*im*ksize
           this_length=(jend(mype)-jbegin(mype)+1)*im*ksize
           call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &

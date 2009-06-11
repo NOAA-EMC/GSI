@@ -90,7 +90,7 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_kind) iskip,ksize,jextra,nextra
   integer(i_kind) status(mpi_status_size)
   integer(i_kind) request
-  integer(i_kind) jbegin(0:npe),jend(0:npe-1)
+  integer(i_kind) jbegin(0:npe),jend(0:npe-1),jend2(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
   integer(i_long),allocatable:: ibuf(:,:)
   integer(i_long),allocatable:: jbuf(:,:,:)
@@ -101,7 +101,7 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_long) iyear,imonth,iday,ihour,iminute,isecond,dummy3(3)
   real(r_single) pt_regional_single
   real(r_kind) deltasigma
-  integer(i_kind) this_count,this_elements,ip1,jp1,jend2
+  integer(i_kind) this_count,this_elements,ip1,jp1
   character(1) chdrbuf(2048)
   integer(i_kind) iadd
   character(132) memoryorder
@@ -417,14 +417,14 @@ subroutine wrwrfmassa_binary(mype)
 
 !                                    read v
   if(kord(i_v).ne.1) then
-    jend2=jend(mype)
-    if(mype == npe-1) jend2=jend(mype)+1
-    allocate(jbuf(im,lm,jbegin(mype):jend2))
+    jend2=jend
+    jend2(npe-1)=jend2(npe-1)+1
+    allocate(jbuf(im,lm,jbegin(mype):jend2(mype)))
     this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
-    this_length=(jend2-jbegin(mype)+1)*im*lm
+    this_length=(jend2(mype)-jbegin(mype)+1)*im*lm
     call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-    call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm+1,lm,im+1,jm+1,i_v,i_v+lm-1)
+    call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend2(mype),ibuf,kbegin(mype),kend(mype), &
+                       jbegin,jend2,kbegin,kend,mype,npe,im,jm+1,lm,im+1,jm+1,i_v,i_v+lm-1)
     deallocate(jbuf)
   end if
 
@@ -521,11 +521,11 @@ subroutine wrwrfmassa_binary(mype)
 
 !                                    write v
   if(kord(i_v).ne.1) then
-    jend2=jend(mype)
-    if(mype == npe-1) jend2=jend(mype)+1
-    allocate(jbuf(im,lm,jbegin(mype):jend2))
-    call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm+1,lm,im+1,jm+1,i_v,i_v+lm-1)
+    jend2=jend
+    jend2(npe-1)=jend2(npe-1)+1
+    allocate(jbuf(im,lm,jbegin(mype):jend2(mype)))
+    call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend2(mype),ibuf,kbegin(mype),kend(mype), &
+                       jbegin,jend2,kbegin,kend,mype,npe,im,jm+1,lm,im+1,jm+1,i_v,i_v+lm-1)
     this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
     this_length=(jend(mype)-jbegin(mype)+1)*im*lm
     call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
@@ -849,11 +849,11 @@ subroutine transfer_ibuf2jbuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
   implicit none
 
   integer(i_kind) jbegin_loc,jend_loc,kbegin_loc,kend_loc,mype,npe,im_jbuf,jm_jbuf,lm_jbuf
-  integer(i_kind) im_ibuf,jm_ibuf,k_start,k_end,jend_loc2
+  integer(i_kind) im_ibuf,jm_ibuf,k_start,k_end
 
   integer(i_long) jbuf(im_jbuf,lm_jbuf,jbegin_loc:jend_loc)
   integer(i_long) ibuf(im_ibuf,jm_ibuf,kbegin_loc:kend_loc)
-  integer(i_kind) jbegin(0:npe),jend(0:npe-1),jend2(0:npe-1)
+  integer(i_kind) jbegin(0:npe),jend(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
 
   integer(i_long) sendbuf(im_jbuf*lm_jbuf*(min(jend_loc,jm_jbuf)-jbegin_loc+1))
@@ -861,14 +861,6 @@ subroutine transfer_ibuf2jbuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
   integer(i_long) recvcounts(0:npe-1),displs(0:npe)
   integer(i_kind) i,ipe,j,ierror,k,n,ii,k_t_start,k_t_end,sendcount
 
-  jend_loc2=jend_loc
-  do ipe=0,npe-1
-    jend2(ipe)=jend(ipe)
-  end do
-  if(jm_jbuf == jm_ibuf)then
-    jend2(npe-1)=jend2(npe-1)+1
-    if(mype == npe-1)jend_loc2=jend_loc2+1
-  end if
   do ipe=0,npe-1
     k_t_start=max(k_start,kbegin(ipe))
     k_t_end=  min(k_end,kend(ipe))
@@ -876,7 +868,7 @@ subroutine transfer_ibuf2jbuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
 
     displs(0)=0
     do i=0,npe-1
-       recvcounts(i)=im_jbuf*(k_t_end-k_t_start+1)*(jend2(i)-jbegin(i)+1)
+       recvcounts(i)=im_jbuf*(k_t_end-k_t_start+1)*(jend(i)-jbegin(i)+1)
        displs(i+1)=displs(i)+recvcounts(i)
     end do
 
@@ -884,7 +876,7 @@ subroutine transfer_ibuf2jbuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
        ii=0
        do n=0,npe-1
           do k=k_t_start,k_t_end
-             do j=jbegin(n),jend2(n)
+             do j=jbegin(n),jend(n)
                 do i=1,im_jbuf
                    ii=ii+1
                    recvbuf(ii)=ibuf(i,j,k)
@@ -895,7 +887,7 @@ subroutine transfer_ibuf2jbuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
     end if
     ii=0
     do k=k_t_start,k_t_end
-       do j=jbegin_loc,jend_loc2
+       do j=jbegin_loc,jend_loc
           do i=1,im_jbuf
              ii=ii+1
           end do
@@ -906,7 +898,7 @@ subroutine transfer_ibuf2jbuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
                       sendbuf,sendcount,mpi_integer4,ipe,mpi_comm_world,ierror)
     ii=0
     do k=k_t_start,k_t_end
-       do j=jbegin_loc,jend_loc2
+       do j=jbegin_loc,jend_loc
           do i=1,im_jbuf
              ii=ii+1
              jbuf(i,k-k_start+1,j)=sendbuf(ii)

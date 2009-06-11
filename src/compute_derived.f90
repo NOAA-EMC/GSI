@@ -197,6 +197,7 @@ subroutine compute_derived(mype)
      do j=1,lon2
         do i=1,lat2
            rhgues(i,j,k)=qgues(i,j,k)/qsatg(i,j,k)
+           if(rhgues(i,j,k) <= zero) write(mype+300,*) i,j,k,rhgues(i,j,k),qgues(i,j,k),qsatg(i,j,k)
         end do
      end do
   end do
