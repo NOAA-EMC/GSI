@@ -1283,6 +1283,7 @@ contains
 !   2007-05-07  treadon - add gfsio
 !   2007-05-08  kleist  - add options for ps or lnps
 !   2008-05-28  safford - rm unused vars and uses
+!   2009-06-11  kleist  - add sppad for multiple spectral resolutions
 !
 !   input argument list:
 !     filename  - file to open and write to
@@ -1344,8 +1345,8 @@ contains
     
     use obsmod, only: iadate
     
-    use specmod, only: nc_b
-    use specmod, only: jcap_b
+    use specmod, only: nc_b,nc
+    use specmod, only: jcap_b,jcap
     use specmod, only: factsml_b
     use specmod, only: factvml_b
     
@@ -1399,7 +1400,9 @@ contains
     real(r_kind),dimension(max(iglobal,itotsub),nsig):: work1_k
     real(r_kind),dimension(nlon,nlat-2):: grid,grid2
     real(r_kind),dimension(nc_b):: spec_work
-    
+    real(r_kind),dimension(nc):: spec_work_sm
+
+
     type(sigio_head):: sighead
     type(sigio_data):: sigdata
     type(gfsio_gfile) :: gfilei,gfileo
@@ -1692,7 +1695,8 @@ contains
           end do
           call sptez_s_bkg(spec_work,grid2,1)
           grid=grid-grid2
-          call sptez_s_bkg(spec_work,grid,-1)
+          call sptez_s(spec_work_sm,grid,-1)
+          call sppad(0,jcap,spec_work_sm,0,jcap_b,spec_work)
           do i=1,nc_b
              sigdata%hs(i)=sigdata%hs(i)+spec_work(i)
              if(factsml_b(i))sigdata%hs(i)=zero_single
@@ -1730,7 +1734,8 @@ contains
           end do
           call sptez_s_bkg(spec_work,grid2,1)
           grid=grid-grid2
-          call sptez_s_bkg(spec_work,grid,-1)
+          call sptez_s(spec_work_sm,grid,-1)
+          call sppad(0,jcap,spec_work_sm,0,jcap_b,spec_work)
           do i=1,nc_b
              sigdata%ps(i)=sigdata%ps(i)+spec_work(i)
              if(factsml_b(i))sigdata%ps(i)=zero_single
@@ -1759,7 +1764,8 @@ contains
              end do
              call sptez_s_bkg(spec_work,grid2,1)
              grid=grid-grid2
-             call sptez_s_bkg(spec_work,grid,-1)
+             call sptez_s(spec_work_sm,grid,-1)
+             call sppad(0,jcap,spec_work_sm,0,jcap_b,spec_work)
              do i=1,nc_b
                 temp(i,k)=temp(i,k)+spec_work(i)
                 if(factsml_b(i))temp(i,k)=zero_single
@@ -1802,7 +1808,8 @@ contains
              call sptez_s_bkg(spec_work,grid2,1)
              call load_grid(work1_k(1,k),grid)
              grid=grid-grid2
-             call sptez_s_bkg(spec_work,grid,-1)
+             call sptez_s(spec_work_sm,grid,-1)
+             call sppad(0,jcap,spec_work_sm,0,jcap_b,spec_work)
              do i=1,nc_b
                 temp(i,k) =temp(i,k)+spec_work(i)
                 if(factsml_b(i))temp(i,k)=zero_single
@@ -1846,7 +1853,8 @@ contains
              call sptez_s_bkg(spec_work,grid2,1)
              call load_grid(work1_k(1,k),grid)
              grid=grid-grid2
-             call sptez_s_bkg(spec_work,grid,-1)
+             call sptez_s(spec_work_sm,grid,-1)
+             call sppad(0,jcap,spec_work_sm,0,jcap_b,spec_work)
              do i=1,nc_b
                 temp(i,k) =temp(i,k) + spec_work(i)
                 if(factsml_b(i))temp(i,k)=zero_single
@@ -1891,7 +1899,8 @@ contains
                 call sptez_s_bkg(spec_work,grid2,1)
                 call load_grid(work1_k(1,k),grid)
                 grid=grid-grid2
-                call sptez_s_bkg(spec_work,grid,-1)
+                call sptez_s(spec_work_sm,grid,-1)
+                call sppad(0,jcap,spec_work_sm,0,jcap_b,spec_work)
                 do i=1,nc_b
                    temp(i,k) =temp(i,k)+spec_work(i)
                    if(factsml_b(i))temp(i,k)=zero_single
@@ -1936,7 +1945,8 @@ contains
              call sptez_s_bkg(spec_work,grid2,1)
              call load_grid(work1_k(1,k),grid)
              grid=grid-grid2
-             call sptez_s_bkg(spec_work,grid,-1)
+             call sptez_s(spec_work_sm,grid,-1)
+             call sppad(0,jcap,spec_work_sm,0,jcap_b,spec_work)
              do i=1,nc_b
                 temp(i,k) = temp(i,k) + spec_work(i)
                 if(factvml_b(i))temp(i,k)=zero_single
@@ -1958,7 +1968,8 @@ contains
              call sptez_s_bkg(spec_work,grid2,1)
              call load_grid(work1_k(1,k),grid)
              grid=grid-grid2
-             call sptez_s_bkg(spec_work,grid,-1)
+             call sptez_s(spec_work_sm,grid,-1)
+             call sppad(0,jcap,spec_work_sm,0,jcap_b,spec_work)
              do i=1,nc_b
                 temp(i,k) =temp(i,k) + spec_work(i)
                 if(factvml_b(i))temp(i,k)=zero_single
