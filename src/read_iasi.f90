@@ -279,7 +279,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
   next=mype_sub+1
   do while(ireadmg(lnbufr,subset,idate)>=0)
   call ufbcnt(lnbufr,irec,isub)
-  if(irec<>next)cycle; next=next+npe_sub
+  if(irec/=next)cycle; next=next+npe_sub
   read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Read IASI FOV information

@@ -466,7 +466,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
    next=mype_sub_read+1
    do while(ireadmg(lnbufr,subset,idate)>=0)
    call ufbcnt(lnbufr,irec,isub)
-   if(irec<>next)cycle; next=next+npe_sub_read
+   if(irec/=next)cycle; next=next+npe_sub_read
    read_loop: do while (ireadsb(lnbufr)==0 .and. subset==subfgn)
 
 !          Read header record.  (lll=1 is normal feed, 2=EARS data)

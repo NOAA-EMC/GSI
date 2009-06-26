@@ -226,7 +226,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   next=mype_sub+1
   do while(ireadmg(lnbufr,subset,idate)>=0)
   call ufbcnt(lnbufr,irec,isub)
-  if(irec<>next)cycle; next=next+npe_sub
+  if(irec/=next)cycle; next=next+npe_sub
   read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Extract type, date, and location information

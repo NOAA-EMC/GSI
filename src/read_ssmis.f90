@@ -295,8 +295,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   next=mype_sub+1
   do while(ireadmg(lnbufr,subset,idate)>=0)
   call ufbcnt(lnbufr,irec,isub)
-  if(irec<>next    ) cycle; next=next+npe_sub
-  if(subset<>subfgn) cycle
+  if(irec/=next    ) cycle; next=next+npe_sub
+  if(subset/=subfgn) cycle
   read_loop: do while(ireadsb(lnbufr)==0)
 
 !       BUFR read 1/3

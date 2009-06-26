@@ -316,7 +316,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   next=mype_sub+1
   do while(ireadmg(lnbufr,subset,idate)>=0)
   call ufbcnt(lnbufr,irec,isub)
-  if(irec<>next)cycle;next=next+npe_sub
+  if(irec/=next)cycle;next=next+npe_sub
   read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Read AIRSSPOT , AMSUSPOT and HSBSPOT

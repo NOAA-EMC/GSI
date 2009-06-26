@@ -261,7 +261,7 @@ contains
     next=mype+1
     do while(ireadmg(inbufr,subset,idate)>=0)
     call ufbcnt(inbufr,irec,isub)
-    if(irec<>next)cycle; next=next+npe
+    if(irec=/next)cycle; next=next+npe
        read(subset,'(2x,i6)')isubset
        if(isubset.gt.6033) then
           iret=6034
@@ -316,7 +316,7 @@ contains
     next=mype+1
     do while(ireadmg(inbufr,subset,idate)>=0)
     call ufbcnt(inbufr,irec,isub)
-    if(irec<>next)cycle; next=next+npe
+    if(irec/=next)cycle; next=next+npe
           read(subset,'(2x,i6)')isubset
           if(isubset.gt.6033) then
              iret=6034
