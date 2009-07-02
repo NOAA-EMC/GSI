@@ -89,6 +89,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !   2007-08-28      su - modify the gross check error 
 !   2008-05-23  safford - rm unused vars
 !   2008-12-03  todling - changed handle of tail%time
+!   2009-03-19  mccarty - set initial obs error to that from bufr
 !
 ! !REMARKS:
 !   language: f90
@@ -350,10 +351,14 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
       if(rlow/=zero) awork(3)=awork(3)+one
     end if
 
-! Adjust observation error.
-! Variable repe_dw contains a value which should be tuned to
-! account for representativeness error.
-
+! Set initial obs error to that supplied in BUFR stream.
+    error = data(ier,i)
+! Add Representativeness Error via variable repe_dw .
+! Currently hardcoded in qcmod.f90 (as of 3-19-09), 
+!                 repe_dw = 1.0 .
+! This variable should be tuned/adjusted to better
+! characterize the representativeness error of the 
+! DWL observations.
     error = error + repe_dw
     ratio_errors = error/abs(error + 1.0e6*rhgh + r8*rlow)
     error = one/error

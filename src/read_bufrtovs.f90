@@ -55,6 +55,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2008-10-14  derber  - properly use EARS data and use MPI_IO
 !   2009-01-02  todling - remove unused vars
 !   2009-01-09  gayno   - add new option to calculate surface fields within FOV
+!   2009-04-17  todling - zero out azimuth angle when unavailable (otherwise can't use old files)
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
 !
@@ -494,8 +495,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            
            sat_aziang=bfr1bhdr(13)
            if (abs(sat_aziang) > r360) then
-             write(6,*) 'READ_BUFRTOVS: bad azimuth angle ',sat_aziang
-             cycle read_loop
+             sat_aziang=zero
+!_RT         write(6,*) 'READ_BUFRTOVS: bad azimuth angle ',sat_aziang
+!_RT         cycle read_loop
            endif
 
 !          Regional case

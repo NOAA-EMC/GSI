@@ -587,7 +587,7 @@
 ! Load surface sensor data structure
   surface(1)%sensordata%n_channels = channelinfo(sensorindex)%n_channels
 !! REL-1.2 CRTM
-!!  surface(ione)%sensordata%select_wmo_sensor_id  = channelinfo(ione)%wmo_sensor_id
+!!  surface(1)%sensordata%select_wmo_sensor_id  = channelinfo(1)%wmo_sensor_id
 !! RB-1.1.rev1855 CRTM
   surface(1)%sensordata%sensor_id  = channelinfo(sensorindex)%wmo_sensor_id
 

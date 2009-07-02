@@ -15,7 +15,7 @@ use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
 use gsi_4dvar, only: iadateend,idmodel
 use jfunc, only: nclen1
-use constants, only: zero,one
+use constants, only: zero,one,izero
 use state_vectors
 use geos_pertmod, only: ndtpert
 use m_tick, only: tick
@@ -33,6 +33,13 @@ use m_model_ad, only: initial_ad
 use m_model_ad, only: amodel_ad
 use m_model_ad, only: final_ad
 #endif /* GEOS_PERT */
+
+use lag_fields, only: nlocal_orig_lag, ntotal_orig_lag
+use lag_fields, only: lag_ad_vec,lag_tl_spec_i,lag_tl_spec_r
+use lag_fields, only: lag_u_full,lag_v_full
+use lag_fields, only: lag_ADscatter_stateuv
+use lag_traj, only: lag_rk2iter_ad
+! use lag_traj, only: lag_rk4iter_ad
 
 implicit none
 
@@ -53,6 +60,7 @@ type(state_vector), intent(inout) :: xini(nsubwin)   ! Adjoint state variable at
 !  29May2007  todling  - add actual calls to interface and AGCM AD model
 !  29Jun2007  todling  - adm verified against tlm
 !  30Sep2007  todling  - add timer
+!  30Apr2009  meunier  - add trajectory model for lagrangian data
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -62,10 +70,13 @@ character(len=*), parameter :: myname = 'model_ad'
 real(r_kind),     parameter :: R3600  = 3600.0_r_kind
 
 type(state_vector) :: xx
-integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ii,ierr
+integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ii,jj,ierr
 integer(i_kind)    :: nymdi,nhmsi,ndt,dt
 integer(i_kind)    :: nymdb,nhmsb
 real(r_kind)       :: d0,tstep
+
+! Temporary vector for lagrangian backward integration
+real(r_kind),dimension(3):: ad_tmp_locvect
 
 #ifdef GEOS_PERT
 type(dyn_prog) :: xpert
@@ -128,6 +139,28 @@ do istep=nstep-1,0,-1
      call pgcm2gsi  (xpert,xx,'adm',ierr)                          ! T'
   endif
 #endif /* GEOS_PERT */
+
+! Apply AD trajectory model (same time steps as obsbin)
+  if (MOD(istep,nfrobs)==0 .and. ntotal_orig_lag>izero) then
+    ii=istep/nfrobs+1
+    if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_ad: trajectory model nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
+    if (ii<1.or.ii>nobs_bins) call abor1('model_ad: error xobs')
+    ! Execute AD model for each balloon (loop step insensitive)
+    do jj=1,nlocal_orig_lag
+      ad_tmp_locvect = lag_ad_vec(jj,ii+1,:)
+      ! if (.not.idmodel) then
+        call lag_rk2iter_ad(lag_tl_spec_i(jj,ii,:),lag_tl_spec_r(jj,ii,:),&
+          &ad_tmp_locvect(1),ad_tmp_locvect(2),ad_tmp_locvect(3),&
+          &lag_u_full(:,:,ii),lag_v_full(:,:,ii))
+        print '(A,I3,A,F16.6,F16.6)',"ADiter: ",ii," location",lag_ad_vec(jj,ii,1),lag_ad_vec(jj,ii,2)
+      ! end if
+      lag_ad_vec(jj,ii,:)=lag_ad_vec(jj,ii,:)+ad_tmp_locvect
+    end do
+    ! Give the sensitivity back to the GCM
+    call lag_ADscatter_stateuv(xx%u,xx%v,ii)
+    ! To not add the contribution 2 times
+    lag_u_full(:,:,ii)=zero; lag_v_full(:,:,ii)=zero;
+  endif
 
 ! Post-process x_{istep}
   if (MOD(istep,nfrobs)==0) then

@@ -97,7 +97,7 @@ subroutine prt_guess(sgrep)
 
 ! Gather contributions
   call mpi_allgather(zloc,3*nvars+2,mpi_rtype, &
-                   & zall,3*nvars+2,mpi_rtype, 0, mpi_comm_world,ierror)
+                   & zall,3*nvars+2,mpi_rtype, mpi_comm_world,ierror)
 
   if (mype==0) then
     zmin=zero

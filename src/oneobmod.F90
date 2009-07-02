@@ -11,6 +11,7 @@ module oneobmod
 !   2003-10-20  kleist
 !   2004-05-13  kleist, documentation
 !   2005-04-04  todling, fixed little endian ouput of prepqc file
+!   2009-04-28  sienkiewicz - add text output for ozone level obs testing
 !
 ! subroutines included:
 !   init_oneobmod
@@ -27,6 +28,8 @@ module oneobmod
 !   def obdattim   - observation date for one ob exp
 !   def oneob_type - observation type for one ob exp
 !   def oneobtest  - single observation test flag (true=on)
+!   def pctswitch  - if true, innovation and error expressed as percentage
+!                        of background value
 !
 !$$$
   use kinds, only: r_kind,i_kind
@@ -34,8 +37,9 @@ module oneobmod
   real(r_kind) maginnov, magoberr, oblat, oblon,&
     obhourset, obpres
   integer(i_kind) obdattim
-  character(2) oneob_type
+  character(10) oneob_type
   logical oneobtest
+  logical pctswitch
 
 contains
 
@@ -72,6 +76,7 @@ contains
     obpres=1000.0_r_kind
     obdattim=2000010100
     obhourset=zero
+    pctswitch=.false.
 
     return
   end subroutine init_oneobmod
@@ -124,6 +129,11 @@ contains
     character(80):: obsstr='POB QOB TOB ZOB UOB VOB CAT'
     character(80):: qmsstr='PQM QQM TQM ZQM WQM'
     character(80):: errstr='POE QOE TOE WOE'
+
+    if (oneob_type .eq. 'o3lev') then
+       call oneobo3lv
+       return
+    end if
 ! set values from parameter list
     xob=oblon
     yob=oblat
@@ -228,5 +238,67 @@ contains
 
     return
   end subroutine oneobmakebufr
+
+  subroutine oneobo3lv
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    oneobmls
+!
+! abstract: create ozone level text file for single ob experiment
+!
+! program history log:
+!   2007-09-11  Sienkiewicz - extend to create MLS text file on request
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ?
+!
+!$$$
+    implicit none
+
+    integer(i_kind) lumk                          ! output unit
+    integer(i_kind) ilev, isnd
+    integer(i_kind) ildat(8),jldat(8)             ! "local" date/time
+    real(r_kind)    rsec,rlnc(5)
+    real(r_kind)    ppmv
+
+2   format(i5,4i3,f6.2,i7,i5,f10.4,f11.4,e16.7,i7,i5,g16.7,g15.7,f6.3)
+
+    lumk = 22
+    ilev = 1                  ! ilev > 24 is passive
+    isnd = 1
+    ppmv = 1.0                ! dummy value 
+
+!    obdattim=2000010100
+
+    rlnc = 0.0
+    rlnc(2) = obhourset
+    ildat(1) = obdattim  / 1000000            ! year
+    ildat(2) = mod(obdattim,1000000)/10000    ! month
+    ildat(3) = mod(obdattim,10000)/100        ! day
+    ildat(4) = 0
+    ildat(5) = mod(obdattim,100)              ! hour
+
+    ildat(6:8) = 0                            ! (no minute/sec in obdattim)
+
+    call w3movdat(rlnc,ildat,jldat)
+
+    rsec = jldat(7)+jldat(8)*1.e-3_r_kind
+
+! open data file for output.  for oneobtype gsimain sets the dfile(1) 
+! to be prepqc
+    open(unit=lumk,file='prepqc',form='formatted')
+
+    write(lumk,2) jldat(1),jldat(2),jldat(3),jldat(5),jldat(6),rsec,isnd,&
+         ilev,oblat,oblon,ppmv,isnd,isnd,magoberr,obpres,magoberr
+    close(lumk)
+
+    return
+
+  end subroutine oneobo3lv
 
 end module oneobmod

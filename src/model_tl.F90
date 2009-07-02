@@ -16,7 +16,7 @@ use mpimod, only: mype
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
 use gsi_4dvar, only: iadatebgn,idmodel
 use jfunc, only: nclen1
-use constants, only: zero,one
+use constants, only: zero,one,izero
 use state_vectors
 use geos_pertmod, only: ndtpert
 use m_tick, only: tick
@@ -33,6 +33,13 @@ use m_model_tl, only: initial_tl
 use m_model_tl, only: amodel_tl
 use m_model_tl, only: final_tl
 #endif /* GEOS_PERT */
+
+use lag_fields, only: nlocal_orig_lag, ntotal_orig_lag
+use lag_fields, only: lag_tl_vec,lag_ad_vec,lag_tl_spec_i,lag_tl_spec_r
+use lag_fields, only: lag_u_full,lag_v_full
+use lag_fields, only: lag_gather_stateuv
+use lag_traj, only: lag_rk2iter_tl
+! use lag_traj, only: lag_rk4iter_tl
 
 implicit none
 
@@ -54,6 +61,7 @@ type(state_vector), intent(inout) :: xobs(nobs_bins) ! State variable at observa
 !  19Apr2007  tremolet - initial code
 !  29May2007  todling  - add actual calls to interface and AGCM TL model
 !  30Sep2007  todling  - add timer
+!  30Apr2009  meunier  - add trajectory model for lagrangian data
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -63,7 +71,7 @@ character(len=*), parameter :: myname = 'model_tl'
 real(r_kind),     parameter :: R3600  = 3600.0_r_kind
 
 type(state_vector) :: xx
-integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ii,ierr
+integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ii,jj,ierr
 integer(i_kind)    :: nymdi,nhmsi,ndt,dt
 integer(i_kind)    :: nymdt,nhmst
 real(r_kind)       :: tstep,zz,d0
@@ -129,6 +137,10 @@ if (.not.idmodel) then
 endif
 #endif /* GEOS_PERT */
 
+! Initialize trajectory TLM and vectors
+lag_tl_vec(:,:,:)=0
+lag_ad_vec(:,:,:)=0
+
 ! Run TL model
 do istep=0,nstep-1
 
@@ -153,6 +165,25 @@ do istep=0,nstep-1
     end if
     xobs(ii) = xx
     d0=d0+dot_product(xx,xx)
+  endif
+
+! Apply TL trajectory model (same time steps as obsbin)
+  if (MOD(istep,nfrobs)==0 .and. ntotal_orig_lag>izero) then
+    ii=istep/nfrobs+1
+    if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: trajectory model nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
+    if (ii<1.or.ii>nobs_bins) call abor1('model_tl: error xobs')
+    ! Gather winds from the increment
+    call lag_gather_stateuv(xx%u,xx%v,ii)
+    ! Execute TL model
+    do jj=1,nlocal_orig_lag
+      lag_tl_vec(jj,ii+1,:)=lag_tl_vec(jj,ii,:)
+      ! if (.not.idmodel) then
+        call lag_rk2iter_tl(lag_tl_spec_i(jj,ii,:),lag_tl_spec_r(jj,ii,:),&
+              &lag_tl_vec(jj,ii+1,1),lag_tl_vec(jj,ii+1,2),lag_tl_vec(jj,ii+1,3),&
+              &lag_u_full(:,:,ii),lag_v_full(:,:,ii))
+        print '(A,I3,A,F14.6,F14.6)',"TLiter: ",ii+1," location",lag_tl_vec(jj,ii+1,1),lag_tl_vec(jj,ii+1,2)
+      ! endif
+    end do
   endif
 
 ! Apply TL model

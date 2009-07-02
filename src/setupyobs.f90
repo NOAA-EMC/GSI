@@ -8,12 +8,13 @@ subroutine setupyobs()
 ! program history log:
 !   2007-04-17  tremolet - initial code
 !   2009-01-08  todling  - remove reference to ozohead
+!   2009-03-05  meunier  - add pointer to lagrangean data
 !
 !$$$
 use kinds, only: i_kind
 use obsmod, only: pshead, thead, whead, qhead, spdhead, srwhead, rwhead, &
                 & dwhead, ssthead, radhead, pcphead, pwhead, gpshead, &
-                & ozhead, o3lhead, tcphead, yobs
+                & ozhead, o3lhead, tcphead, laghead, yobs
 use gsi_4dvar, only: nobs_bins
 implicit none
 
@@ -39,6 +40,7 @@ do ii=1,nobs_bins
   yobs(ii)%rad => radhead(ii)%head
   yobs(ii)%pcp => pcphead(ii)%head
   yobs(ii)%tcp => tcphead(ii)%head
+  yobs(ii)%lag => laghead(ii)%head
 end do
 
 return

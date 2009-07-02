@@ -40,6 +40,8 @@ module observermod
   use m_berror_stats, only: berror_get_dims
   use timermod, only: timer_ini, timer_fnl
   use read_obsmod, only: read_obs
+  use lag_fields, only: lag_guessini
+
 
   implicit none
 
@@ -92,6 +94,7 @@ subroutine guess_init_
 !   1990-10-06  parrish
 !   2007-10-03  todling - created this file from slipt of glbsoi
 !   2009-01-28  todling - split observer into init/set/run/finalize
+!   2009-03-10  meunier - read in the original position of balloons
 !
 !   input argument list:
 !     mype - mpi task id
@@ -132,6 +135,9 @@ subroutine guess_init_
   call berror_get_dims(msig,mlat)  ! _RT: observer should not depend on B
   call create_jfunc(mlat)
 
+! Intialize lagrangian data assimilation and read in initial position of balloons
+  call lag_guessini()
+ 
 ! Read output from previous min.
    if (l4dvar.and.jiterstart>1) then
   else

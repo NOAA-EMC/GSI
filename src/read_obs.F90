@@ -130,6 +130,7 @@ subroutine read_obs(ndata,mype)
 !   2008-12-30  todling - handle inquire for diff versions of fortran
 !   2009-01-05  todling - need tendency alloc in observer mode
 !   2009-01-23  todling - echo surface state info 
+!   2009-03-18  meunier - add a if statement to read lagrangian data
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -256,7 +257,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
            obstype == 'sst'.or. obstype == 'srw'.or. &
-           obstype == 'tcp'.or.                      &
+           obstype == 'tcp'.or. obstype == "lag".or. &
            obstype == 'dw' .or. obstype == 'rw' ) then
            ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  &
@@ -269,7 +270,7 @@ subroutine read_obs(ndata,mype)
                obstype == 'ssu' ) then
             ditype(i) = 'rad'
        else if (obstype == 'sbuv2' .or. obstype == 'omi' &
-           .or. obstype == 'gome'  .or. obstype == 'mlsoz') then
+           .or. obstype == 'gome'  .or. obstype == 'o3lev') then
             ditype(i) = 'ozone'
        else if (index(obstype,'pcp')/=0 )then
             ditype(i) = 'pcp'
@@ -299,9 +300,15 @@ subroutine read_obs(ndata,mype)
          end do
        else if(ditype(i) == 'ozone')then
          if(diag_ozone)minuse=-2
-         do j=1,jpch_oz
-          if(trim(dsis(i)) == trim(nusis_oz(j)) .and. iuse_oz(j) > minuse)nuse=.true.
-         end do
+         if (dtype(i) == 'o3lev') then
+           do j=1,nconvtype
+             if(trim(dtype(i)) == trim(ioctype(j)) .and. icuse(j) > minuse)nuse=.true.
+           end do
+         else
+           do j=1,jpch_oz
+             if(trim(dsis(i)) == trim(nusis_oz(j)) .and. iuse_oz(j) > minuse)nuse=.true.
+           end do
+         endif
        else if(ditype(i) == 'pcp')then
          if(diag_pcp)minuse=-2
          do j=1,npcptype
@@ -491,6 +498,12 @@ subroutine read_obs(ndata,mype)
              else if (obstype == 'rw') then
                 call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis)
                 string='READ_RADAR'
+
+!            Process lagrangian data
+              else if (obstype == 'lag') then
+                  call read_lag(nread,npuse,nouse,infile,lunout,obstype,&
+                  &twind,gstime,sis)
+                  string='READ_LAG'
 
 !            Process lidar winds
              else if (obstype == 'dw') then

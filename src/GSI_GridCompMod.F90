@@ -240,8 +240,8 @@
 
 ! !ARGUMENTS:
 
-   type(ESMF_GridComp), intent(INOUT) :: gc  ! gridded component
-   integer, optional                  :: rc  ! return code
+   type(ESMF_GridComp)               :: gc  ! gridded component
+   integer            , intent(out ) :: rc
 
 ! !DESCRIPTION: This version uses the MAPL_GenericSetServices,
 !        which sets the Run, Initialize, and Finalize services, 

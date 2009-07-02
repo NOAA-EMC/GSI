@@ -12,7 +12,8 @@ contains
 ! Inpuit/Output:
       integer nymd                    ! CURRENT YYYYMMDD
       integer nhms                    ! CURRENT HHMMSS
-      integer :: incymd
+! Local:
+      integer :: NSECF, NHMSF, NSEC, N
 
 ! Origin:     L.L. Takacs
 ! Revision:   S.-J. Lin Mar 2000
@@ -56,8 +57,9 @@ contains
 
       INTEGER NDPM(12)
       DATA    NDPM /31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31/
-      logical :: leap_year
+      INTEGER NY00
       DATA    NY00     / 1900 /
+      INTEGER NYMD, M, NY, NM, ND
 
       NY = NYMD / 10000
       NM = MOD(NYMD,10000) / 100

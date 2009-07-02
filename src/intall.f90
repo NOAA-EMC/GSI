@@ -193,7 +193,7 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for Jo
   do ibin=1,nobs_bins
-    call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias)
+    call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
   end do
 
 ! RHS for moisture constraint

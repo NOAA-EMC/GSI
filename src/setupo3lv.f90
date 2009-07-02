@@ -16,7 +16,7 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 
   use obsmod, only: o3ltail,o3lhead,iadate,dplat,i_o3l_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,dirname
-  use oneobmod, only: oneobtest,maginnov,magoberr
+  use oneobmod, only: oneobtest,maginnov,magoberr,pctswitch
   use guess_grids, only: ges_lnprsl,ges_oz,hrdifsig,nfldsig,ges_ps,&
        ges_prsi, ntguessig
   use gridmod, only: nlat,nlon,lat2,lon2,nsig
@@ -73,6 +73,7 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 !  2008-12-06  todling      - replace prefix with dirname
 !  2008-12-30  todling      - remove unused vars
 !  2009-01-20  Sienkiewicz  - adjust for new analysis (g/g not Dobson units)
+!  2009-04-28  Sienkiewicz  - adjust 'one-ob' test, add pctswitch option
 !
 ! !REMARKS:
 !   language: f90
@@ -88,7 +89,7 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 
 ! Declare local variables    
 
-  real(r_kind) o3ges
+  real(r_kind) o3ges, o3ppmv
   real(r_kind) ratio_errors,dlat,dlon,dtime,dpres,error,rwgt
   real(r_kind) rsig,rlow,rhgh,preso3l,tfact
   real(r_kind) psges,sfcchk,ddiff
@@ -283,13 +284,18 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 ! Compute innovations - background o3ges in g/g so adjust units
 ! Leave increment in ppmv for gross checks,  etc.
 
-     ddiff=  data(io3ob,i) - (o3ges * constoz)
+     o3ppmv = o3ges * constoz
+     ddiff=  data(io3ob,i) - o3ppmv
 
 ! If requested, setup for single obs test.   (code not tested)
      if (oneobtest) then
-        ddiff=maginnov*1.e-3_r_kind
-        error=one/(magoberr*1.e-3_r_kind)
+        ddiff = maginnov
+        error=one/magoberr
         ratio_errors=one
+        if (pctswitch) then
+           ddiff = maginnov * o3ppmv
+           error = one/(magoberr*o3ppmv)
+        endif
      end if
 
 ! Gross error checks

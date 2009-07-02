@@ -35,7 +35,7 @@
                       conv_bias_ps,conv_bias_t,conv_bias_spd, &
                       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,diag_conv
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
-     oneobtest,magoberr,maginnov,init_oneobmod,oneobmakebufr
+     oneobtest,magoberr,maginnov,init_oneobmod,oneobmakebufr,pctswitch
   use balmod, only: fstat
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,repe_gps,&
@@ -73,6 +73,10 @@
      range_max,elev_angle_max,initialize_superob_radar,l2superob_only
   use m_berror_stats,only : berror_stats ! filename if other than "berror_stats"
   use m_berror_stats,only : berror_nvars ! format parameter, if 5 instead of 6
+  use lag_fields,only : infile_lag,lag_nmax_bal,&
+                        &lag_vorcore_stderr_a,lag_vorcore_stderr_b,lag_modini
+  use lag_interp,only : lag_accur
+  use lag_traj,only   : lag_stepduration
   implicit none
 
   private
@@ -119,6 +123,7 @@
 !  20Nov2008  Todling   Add lferrscale to scale OMF w/ Rinv (actual fcst not guess)
 !  08Dec2008  Todling   Placed switch_on_derivatives,tendsflag in jcopts namelist
 !  28Jan2009  Todling   Remove original GMAO interface
+!  06Mar2009  Meunier   Add initialisation for lagrangian data
 !  04-21-2009 Derber    Ensure that ithin is positive if neg. set to zero
 !
 !EOP
@@ -409,9 +414,11 @@
 !      obpres     - observation pressure
 !      obdattim   - observation date
 !      obhourset  - observation delta time from analysis time
+!      pctswitch  - if .true. innovation & oberr are relative (%) of background value
+!                      (level ozone only)
 
   namelist/singleob_test/maginnov,magoberr,oneob_type,&
-       oblat,oblon,obpres,obdattim,obhourset
+       oblat,oblon,obpres,obdattim,obhourset,pctswitch
 
 ! SUPEROB_RADAR (level 2 bufr file to radar wind superobs):
 !      del_azimuth     - azimuth range for superob box  (default 5 degrees)
@@ -427,6 +434,16 @@
 
   namelist/superob_radar/del_azimuth,del_elev,del_range,del_time,&
        elev_angle_max,minnum,range_max,l2superob_only
+
+! LAG_DATA (lagrangian data assimilation related variables):
+!     lag_accur - Accuracy used to decide whether or not a balloon is on the grid
+!     infile_lag- File containing the initial position of the balloon
+!     lag_stepduration- Duration of one time step for the propagation model
+!     lag_nmax_bal- Maximum number of balloons at starting time
+!     lag_vorcore_stderr_a - Observation error for vorcore balloon
+!     lag_vorcore_stderr_b -   error = b + a*timestep(in hours)
+  namelist/lag_data/lag_accur,infile_lag,lag_stepduration,lag_nmax_bal,&
+      lag_vorcore_stderr_a,lag_vorcore_stderr_b
 
 !EOC
 
@@ -497,6 +514,7 @@
   read(5,obsqc)
   read(5,obs_input)
   read(5,superob_radar)
+  read(5,lag_data)
 #else
   open(11,file='gsiparm.anl')
   read(11,setup)
@@ -508,6 +526,7 @@
   read(11,obsqc)
   read(11,obs_input)
   read(11,superob_radar)
+  read(11,lag_data)
   close(11)
 #endif
 
@@ -598,6 +617,10 @@
 ! For now if wrf mass or 2dvar no dynamic constraint
   if (jcstrong.or.l_foto) tendsflag=.true.
   if (tendsflag) switch_on_derivatives=.true.
+
+! Initialize lagrangian data assimilation - must be called after gsi_4dvar
+  call lag_modini()
+
 
 ! Stop if TOO MANY observation input files
   if (ndat>ndatmax) then

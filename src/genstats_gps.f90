@@ -85,6 +85,8 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
      return
   endif
 
+  scale=one
+
 ! Reduce sub-domain specific QC'd profile height cutoff values to
 ! maximum global value for each profile
   toss_gps=zero

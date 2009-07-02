@@ -67,6 +67,7 @@ module obsmod
 !   2009-01-08  todling  - remove reference to ozohead/tail-structure
 !   2009-01-09  gayno    - add variable dsfcalc
 !   2009-02-02  kleist   - add variables for synthetic tc-mslp observations
+!   2009-03-05  meunier  - add lagrangean observation type
 
 ! 
 ! Subroutines Included:
@@ -131,6 +132,8 @@ module obsmod
 !   def radtail      - radiance linked list tail
 !   def pcphead      - precipitation linked list head
 !   def pcptail      - precipitation linked list tail
+!   def laghead      - lagrangian data linked list head
+!   def lagtail      - lagrangian data linked list tail
 !   def lunobs_obs   - unit to save satellite observation
 !   def iout_rad     - output unit for satellite stats
 !   def iout_pcp     - output unit for precipitation stats
@@ -145,6 +148,7 @@ module obsmod
 !   def iout_srw     - output unit for radar superob wind stats
 !   def iout_gps     - output unit for gps refractivity or bending angle stats
 !   def iout_sst     - output unit for conventional sst stats
+!   def iout_lag     - output unit for conventional lag stats
 !   def mype_t       - task to handle temperature stats
 !   def mype_q       - task to handle moisture stats
 !   def mype_uv      - task to handle wind stats
@@ -155,6 +159,7 @@ module obsmod
 !   def mype_srw     - task to handle radar superob wind stats
 !   def mype_gps     - task to handle gps observation stats
 !   def mype_sst     - task to handle conventional sst stats
+!   def mype_lag     - task to handle conventional lag stats
 !   def oberrflg     - logical for reading in new observation error table
 !                      .true.  will read in obs errors from file 'errtable'
 !                      .false. will not read in new obs errors
@@ -202,8 +207,9 @@ module obsmod
   integer(i_kind),parameter:: i_gps_ob_type=14 ! gps_ob_type
   integer(i_kind),parameter:: i_rad_ob_type=15 ! rad_ob_type
   integer(i_kind),parameter:: i_tcp_ob_type=16 ! tcp_ob_type
+  integer(i_kind),parameter:: i_lag_ob_type=17 ! lag_ob_type
 
-  integer(i_kind),parameter:: nobs_type = 16   ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 17   ! number of observation types
 
 ! Structure for diagnostics
 
@@ -633,6 +639,36 @@ module obsmod
   type pcp_ob_head
      type(pcp_ob_type),pointer :: head => NULL()
   end type pcp_ob_head
+ 
+
+  type lag_ob_type
+    sequence
+     type(lag_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diag_lon => NULL()
+     type(obs_diag), pointer :: diag_lat => NULL()
+     real(r_kind)    :: res_lon       ! residual
+     real(r_kind)    :: res_lat       ! residual
+     real(r_kind)    :: err2_lon      ! error squared
+     real(r_kind)    :: err2_lat      ! error squared
+     real(r_kind)    :: raterr2       ! square of ratio of final obs error 
+                                      !  to original obs error
+     real(r_kind)    :: obslon        ! observed longitude (rad)
+     real(r_kind)    :: obslat        ! observed latitude  (rad)
+     real(r_kind)    :: geslon        ! guessed longitude (rad)
+     real(r_kind)    :: geslat        ! guessed latitude  (rad)
+     integer(i_kind) :: intnum        ! internal number of balloon
+     integer(i_kind),dimension(:),allocatable :: speci  ! TL parameter
+     real(r_kind)   ,dimension(:),allocatable :: specr  ! TL parameter
+     real(r_kind)    :: time          ! observation time in sec     
+     real(r_kind)    :: b             ! variational quality control parameter
+     real(r_kind)    :: pg            ! variational quality control parameter
+     logical         :: luse          ! flag indicating if ob is used in pen.
+  end type lag_ob_type
+
+  type lag_ob_head
+     type(lag_ob_type),pointer :: head => NULL()
+  end type lag_ob_head
+  ! lfm --------------------------------------------------------------------
 
   type obs_handle
     sequence
@@ -652,6 +688,7 @@ module obsmod
      type(rad_ob_type),pointer :: rad => NULL()
      type(pcp_ob_type),pointer :: pcp => NULL()
      type(tcp_ob_type),pointer :: tcp => NULL()
+     type(lag_ob_type),pointer :: lag => NULL()
   end type obs_handle
 
 ! Declare types
@@ -707,6 +744,9 @@ module obsmod
   type(rad_ob_head),dimension(:),pointer :: radhead
   type(rad_ob_head),dimension(:),pointer :: radtail
   type(rad_ob_type),pointer :: radptr => NULL()
+  type(lag_ob_head),dimension(:),pointer :: laghead
+  type(lag_ob_head),dimension(:),pointer :: lagtail
+  type(lag_ob_type),pointer :: lagptr => NULL()
 
   type(obs_handle),dimension(:),pointer :: yobs
 
@@ -726,10 +766,10 @@ module obsmod
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep
   integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &
                   iout_oz,iout_ps,iout_pw,iout_rw
-  integer(i_kind) iout_dw,iout_srw,iout_gps,iout_sst,iout_tcp
+  integer(i_kind) iout_dw,iout_srw,iout_gps,iout_sst,iout_tcp,iout_lag
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_srw,mype_gps,mype_sst, &
-                  mype_tcp
+                  mype_tcp,mype_lag
   integer(i_kind),dimension(5):: iadate
   integer(i_kind),dimension(ndatmax):: dsfcalc,dthin,ipoint
   integer(i_kind),allocatable,dimension(:)::  nsat1,mype_diaghdr
@@ -831,6 +871,7 @@ contains
     iout_gps=212   ! gps refractivity or bending angle
     iout_sst=213   ! conventional sst
     iout_tcp=214   ! synthetic tc-mslp
+    iout_lag=215   ! lagrangian tracers
 
     mype_ps = npe-1          ! surface pressure
     mype_uv = max(0,npe-2)   ! u,v wind components
@@ -842,7 +883,8 @@ contains
     mype_srw= max(0,npe-8)   ! radar superob wind
     mype_gps= max(0,npe-9)   ! gps refractivity or bending angle
     mype_sst= max(0,npe-10)  ! conventional sst
-    mype_tcp= max(0,npe-11)  ! conventional sst
+    mype_tcp= max(0,npe-11)  ! synthetic tc-mslp
+    mype_lag= max(0,npe-12)  ! lagrangian tracers
     
 !   Initialize arrays used in namelist obs_input 
     ndat = ndatmax          ! number of observation types (files)
@@ -891,6 +933,7 @@ contains
     cobstype(i_gps_ob_type)="gps                 " ! gps_ob_type
     cobstype(i_rad_ob_type)="radiance            " ! rad_ob_type
     cobstype(i_tcp_ob_type)="tcp (tropic cyclone)" ! tcp_ob_type
+    cobstype(i_lag_ob_type)="lagrangian tracer   " ! lag_ob_type
 
     return
   end subroutine init_obsmod_dflts
@@ -997,6 +1040,8 @@ contains
     ALLOCATE(gpstail(nobs_bins))
     ALLOCATE(gps_allhead(nobs_bins))
     ALLOCATE(gps_alltail(nobs_bins))
+    ALLOCATE(laghead(nobs_bins))
+    ALLOCATE(lagtail(nobs_bins))
 
     ALLOCATE(yobs(nobs_bins))
 
@@ -1308,6 +1353,18 @@ contains
         deallocate(tcptail(ii)%head,stat=istatus)
         if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for tcp, istatus=',istatus
         tcptail(ii)%head => tcphead(ii)%head
+      end do
+    end do
+
+    do ii=1,nobs_bins
+      lagtail(ii)%head => laghead(ii)%head
+      do while (associated(lagtail(ii)%head))
+        laghead(ii)%head => lagtail(ii)%head%llpoint
+        deallocate(lagtail(ii)%head%speci,lagtail(ii)%head%specr,stat=istatus)
+        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for lag arrays, istatus=',istatus
+        deallocate(lagtail(ii)%head,stat=istatus)
+        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for lag, istatus=',istatus
+        lagtail(ii)%head => laghead(ii)%head
       end do
     end do
 

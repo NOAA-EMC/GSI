@@ -260,6 +260,7 @@ clean:
 	intdw.f90 \
 	intgps.f90 \
 	intjo.f90 \
+	intlag.F90 \
 	intlimq.f90 \
 	intoz.f90 \
 	intpcp.f90 \
@@ -280,6 +281,9 @@ clean:
 	jcmod.f90 \
 	jfunc.f90 \
 	kinds.f90 \
+        lag_fields.F90 \
+        lag_interp.F90 \
+        lag_traj.F90 \
 	lagmod.f90 \
         lanczos.f90 \
         looplimits.f90 \
@@ -288,10 +292,12 @@ clean:
  	m_gsiBiases.F90 \
         m_stats.F90 \
         m_tick.F90 \
+        mpeu_mpif.F90 \
+        mpeu_util.F90 \
         missing_routines.f90 \
 	mod_inmi.f90 \
 	mod_strong.f90 \
-	mod_vtrans.f90 \
+	mod_vtrans.F90 \
         model_ad.F90 \
         model_tl.F90 \
         model2control.f90 \
@@ -345,6 +351,7 @@ clean:
 	read_guess.F90 \
 	read_iasi.f90 \
 	read_l2bufr_mod.f90 \
+        read_lag.F90 \
 	read_lidar.f90 \
 	read_modsbufr.f90 \
 	read_obs.F90 \
@@ -371,6 +378,7 @@ clean:
         setupbend.f90 \
 	setupdw.f90 \
         setupo3lv.f90 \
+        setuplag.F90 \
 	setupoz.f90 \
 	setuppcp.f90 \
 	setupps.f90 \

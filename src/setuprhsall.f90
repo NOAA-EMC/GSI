@@ -59,6 +59,7 @@ subroutine setuprhsall(ndata,mype)
 !   2008-05-23  safford - rm unused vars and uses
 !   2008-12-08  todling - move 3dprs/geop-hght calculation from compute_derivate into here
 !   2009-01-17  todling - update interface to intjo
+!   2009-03-05  meunier - add call to lagragean operator
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -97,6 +98,7 @@ subroutine setuprhsall(ndata,mype)
   use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success
   use convinfo, only: nconvtype,diag_conv
   use timermod, only: timer_ini,timer_fnl
+  use lag_fields, only: lag_presetup,lag_state_write,lag_state_read,lag_destroy_uv
   implicit none
 
 ! Declare passed variables
@@ -114,7 +116,7 @@ subroutine setuprhsall(ndata,mype)
   character(len=12) :: clfile
 
   integer(i_kind) lunin,nobs,nchanl,nreal,nele,&
-       is,idate,i_dw,i_rw,i_srw,i_sst,i_tcp,i_gps,i_uv,i_ps,&
+       is,idate,i_dw,i_rw,i_srw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,&
        i_t,i_pw,i_q,i_o3,iobs,nprt,ii,jj
 
   real(r_quad):: zjo
@@ -122,7 +124,7 @@ subroutine setuprhsall(ndata,mype)
   real(r_kind),dimension(7,jpch_rad):: stats,stats1
   real(r_kind),dimension(9,jpch_oz):: stats_oz,stats_oz1
   real(r_kind),dimension(npres_print,nconvtype,5,3):: bwork,bwork1
-  real(r_kind),dimension(7*nsig+100,12)::awork,awork1
+  real(r_kind),dimension(7*nsig+100,13)::awork,awork1
   real(r_kind),dimension(max(1,nprof_gps)):: toss_gps_sub
   integer(i_kind) error_status
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
@@ -161,6 +163,7 @@ subroutine setuprhsall(ndata,mype)
   i_sst= 10
   i_o3 = 11
   i_tcp= 12
+  i_lag= 13
 
   awork=zero
   bwork=zero
@@ -215,6 +218,20 @@ subroutine setuprhsall(ndata,mype)
 ! Compute derived quantities on grid
   if(.not. lobserver) call compute_derived(mype)
 
+! Initialize observer for Lagrangian data
+  if ( (l4dvar.and.lobserver) .or. .not.l4dvar ) then
+    ! Init for Lagrangian data assimilation (gather winds and NL integration)
+    call lag_presetup()
+    ! Save state for inner loop if in 4Dvar observer mode
+    if (l4dvar.and.lobserver) then
+      call lag_state_write()
+    end if
+  else
+    ! Init for Lagrangian data assimilation (read saved parameters)
+    call lag_state_read()
+  end if
+  ! ------------------------------------------------------------------------
+
   if ( (l4dvar.and.lobserver) .or. .not.l4dvar ) then
 
 ! Reset observation pointers
@@ -250,7 +267,7 @@ subroutine setuprhsall(ndata,mype)
        read(lunin,end=125) obstype,isis,nreal,nchanl
        nele=nreal+nchanl
 
-!      Se up for radiance data
+!      Set up for radiance data
        if(ditype(is) == 'rad')then
 
           call setuprad(lunin,&
@@ -306,9 +323,14 @@ subroutine setuprhsall(ndata,mype)
 !         Set up conventional sst data
           else if(obstype=='sst') then 
              call setupsst(lunin,mype,bwork,awork(1,i_sst),nele,nobs,conv_diagsave)
+
+!         Set up conventional lagrangian data
+          else if(obstype=='lag') then 
+             call setuplag(lunin,mype,bwork,awork(1,i_lag),nele,nobs,conv_diagsave)
+
           end if
 
-!      Set up ozone (sbuv/omi/msl) data
+!      Set up ozone (sbuv/omi/mls) data
        else if(ditype(is) == 'ozone')then
           if (obstype == 'mlsoz') then
              call setupo3lv(lunin,mype,bwork,awork(1,i_o3),nele,nobs,&
@@ -338,6 +360,9 @@ subroutine setuprhsall(ndata,mype)
   endif ! < lobserver >
   lobsdiag_allocated=.true.
 
+! Deallocate wind field array for Lagrangian data assimilation
+  call lag_destroy_uv()
+
 ! Setup observation vectors
   call setupyobs
 
@@ -366,7 +391,7 @@ subroutine setuprhsall(ndata,mype)
   call mpi_allreduce(bwork,bwork1,npres_print*nconvtype*5*3,mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)
   
-  call mpi_allreduce(awork,awork1,12*(7*nsig+100),mpi_rtype,mpi_sum, &
+  call mpi_allreduce(awork,awork1,13*(7*nsig+100),mpi_rtype,mpi_sum, &
        mpi_comm_world,ierror)
 
 ! Compute and print statistics for radiance, precipitation, and ozone data.
@@ -390,7 +415,7 @@ subroutine setuprhsall(ndata,mype)
 
 ! Compute and print statistics for "conventional" data
   call statsconv(mype,&
-       i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp, &
+       i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
        bwork1,awork1,ndata)
 
   endif  ! < .not. lobserver >

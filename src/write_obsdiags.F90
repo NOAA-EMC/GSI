@@ -23,7 +23,7 @@ use obsmod, only: gpsptr
 use obsmod, only: i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
-                  i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type
+                  i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_lag_ob_type
 use gsi_4dvar, only: nobs_bins,l4dvar
 use mpimod, only: mype
 use jfunc, only: jiter, miter, last
@@ -85,6 +85,7 @@ do ii=1,nobs_bins
       if(jj==i_pcp_ob_type) call write_pcphead_ ()
       if(jj==i_gps_ob_type) call write_gpshead_ ()
       if(jj==i_rad_ob_type) call write_radhead_ ()
+      if(jj==i_lag_ob_type) call write_laghead_ ()
     endif
 
     write(iunit)ii,jj
@@ -660,5 +661,40 @@ subroutine write_radhead_ ()
     enddo
 !   if (mobs>0) write(6,*)'Wrote rad to obsdiag file, ii=', ii, ' mobs =', mobs
 end subroutine write_radhead_
+
+subroutine write_laghead_ ()
+!$$$  subprogram documentation block
+!
+! abstract: Write obs-specific data structure to file (for lagrangian data).
+!
+! program history log:
+!   2009-04-02  meunier
+!
+!   input argument list:
+!
+!$$$
+    use obsmod, only: laghead,lagptr
+    implicit none
+
+    integer(i_kind)::mobs
+
+    lagptr   => laghead(ii)%head
+    mobs=0
+    do while (associated(lagptr))
+      lagptr => lagptr%llpoint
+      mobs=mobs+1
+    enddo
+    write(iunit) mobs,jj
+    icount(jj,ii) = mobs
+    if(mobs==0) return
+    lagptr   => laghead(ii)%head
+    do while (associated(lagptr))
+       write(iunit) lagptr%res_lon, lagptr%res_lat, lagptr%err2_lon,&
+         lagptr%err2_lat, lagptr%raterr2, lagptr%obslon, lagptr%obslat,&
+         lagptr%geslon, lagptr%geslat, lagptr%intnum, lagptr%speci,&
+         lagptr%specr, lagptr%time, lagptr%b, lagptr%pg, lagptr%luse
+       lagptr => lagptr%llpoint
+    enddo
+end subroutine write_laghead_
 
 end subroutine write_obsdiags

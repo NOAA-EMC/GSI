@@ -10,6 +10,7 @@ subroutine read_obsdiags(cdfile)
 !   2007-10-03  todling  - expanded to account for full observer 
 !   2009-01-08  todling  - remove reference to ozohead
 !   2009-01-23  todling  - add read_gpshead
+!   2009-04-02  meunier  - add read_laghead
 !
 !   input argument list:
 !     cdfile - filename to read data from
@@ -25,7 +26,7 @@ use obsmod, only: destroyobs
 use obsmod, only: i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
-                  i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type
+                  i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_lag_ob_type
 
 use obs_sensitivity, only: lobsensfc, lsensrecompute
 use gsi_4dvar, only: l4dvar, nobs_bins
@@ -33,6 +34,7 @@ use mpimod, only: mype
 use constants, only: zero
 use jfunc, only: jiter, miter
 use file_utility, only : get_lun
+use lag_traj, only : lag_rk2itenpara_r,lag_rk2itenpara_i
 
 implicit none
 character(len=*), intent(in) :: cdfile
@@ -157,6 +159,7 @@ do ii=1,nobs_bins
       if(jj==i_pcp_ob_type) call read_pcphead_ ()
       if(jj==i_gps_ob_type) call read_gpshead_ ()
       if(jj==i_rad_ob_type) call read_radhead_ ()
+      if(jj==i_lag_ob_type) call read_laghead_ ()
     endif
 
     read(iunit)ki,kj
@@ -1985,5 +1988,135 @@ subroutine read_radhead_ ()
     end if
     
 end subroutine read_radhead_
+
+subroutine read_laghead_ ()
+!$$$  subprogram documentation block
+!
+! abstract: Read obs-specific data structure from file (lagrangian data).
+!
+! program history log:
+!   2009-04-02  meunier
+!
+!   input argument list:
+!
+!$$$
+
+    use obsmod, only: laghead,lagtail
+    implicit none
+
+    real(r_kind)    :: res_lon       ! residual
+    real(r_kind)    :: res_lat       ! residual
+    real(r_kind)    :: err2_lon      ! error squared
+    real(r_kind)    :: err2_lat      ! error squared
+    real(r_kind)    :: raterr2       ! square of ratio of final obs error 
+                                     !  to original obs error
+    real(r_kind)    :: obslon        ! observed longitude (rad)
+    real(r_kind)    :: obslat        ! observed latitude  (rad)
+    real(r_kind)    :: geslon        ! guessed longitude (rad)
+    real(r_kind)    :: geslat        ! guessed latitude  (rad)
+    integer(i_kind) :: intnum        ! internal number of balloon
+    integer(i_kind),dimension(:),allocatable :: speci  ! TL parameter
+    real(r_kind)   ,dimension(:),allocatable :: specr  ! TL parameter
+    real(r_kind)    :: time          ! observation time in sec     
+    real(r_kind)    :: b             ! variational quality control parameter
+    real(r_kind)    :: pg            ! variational quality control parameter
+    logical         :: luse          ! flag indicating if ob is used in pen.
+
+    integer         :: j,mm,mobs,jread,icount,iostat
+    logical         :: mymuse
+
+    allocate(speci(lag_rk2itenpara_i),stat=ierr)
+    if(ierr /= 0)write(6,*)' failure to allocate temporary speci '
+    allocate(specr(lag_rk2itenpara_r),stat=ierr)
+    if(ierr /= 0)write(6,*)' failure to allocate temporary specr '
+   
+    read(iunit) mobs,jread
+    if(jj/=jread)then
+       write(6,*) 'read_laghead_: unmatched ob type jj,jread', jj,jread
+       call stop2(250)
+    endif
+    if(kobs<=0.or.mobs<=0) return
+
+    do kk=1,mobs
+      if(.not. associated(laghead(ii)%head))then
+        allocate(laghead(ii)%head,stat=ierr)
+        if(ierr /= 0)write(6,*)' fail to alloc whead '
+        lagtail(ii)%head => laghead(ii)%head
+      else
+        allocate(lagtail(ii)%head%llpoint,stat=ierr)
+        if(ierr /= 0)write(6,*)' fail to alloc wtail%llpoint '
+        lagtail(ii)%head => lagtail(ii)%head%llpoint
+      end if
+      allocate(lagtail(ii)%head%speci(lag_rk2itenpara_i),stat=ierr)
+      if(ierr /= 0)write(6,*)' failure to allocate lagtail%speci '
+      allocate(lagtail(ii)%head%specr(lag_rk2itenpara_r),stat=ierr)
+      if(ierr /= 0)write(6,*)' failure to allocate lagtail%specr '
+
+      read(iunit,iostat=iostat) res_lon, res_lat, err2_lon, err2_lat,&
+        raterr2, obslon, obslat, geslon, geslat, intnum, speci, specr,&
+        time, b, pg, luse 
+
+      if (iostat/=0) then
+         write(6,*) 'read_laghead_: error reading record, iostat=', iostat
+         call stop2(251)
+      endif
+      lagtail(ii)%head%res_lon = res_lon
+      lagtail(ii)%head%res_lat = res_lat
+      lagtail(ii)%head%err2_lon = err2_lon
+      lagtail(ii)%head%err2_lat = err2_lat
+      lagtail(ii)%head%raterr2 = raterr2
+      lagtail(ii)%head%obslon = obslon
+      lagtail(ii)%head%obslat = obslat
+      lagtail(ii)%head%geslon = geslon
+      lagtail(ii)%head%geslat = geslat
+      lagtail(ii)%head%intnum = intnum
+      lagtail(ii)%head%speci = speci
+      lagtail(ii)%head%specr = specr
+      lagtail(ii)%head%time = time
+      lagtail(ii)%head%b =  b
+      lagtail(ii)%head%pg = pg
+      lagtail(ii)%head%luse = luse
+    enddo
+    if(lobserver) return
+
+!   Now set obsdiag pointer properly
+!   --------------------------------
+    icount=0
+    j=kiter
+    lagtail(ii)%head => NULL()
+    obsdiags(jj,ii)%tail => NULL()
+
+    do kk=1,kobs/2
+
+       do mm=1,2
+         if (.not.associated(obsdiags(jj,ii)%tail)) then
+           obsdiags(jj,ii)%tail => obsdiags(jj,ii)%head
+         else
+           obsdiags(jj,ii)%tail => obsdiags(jj,ii)%tail%next
+         end if
+         if (mm==1) obsptr => obsdiags(jj,ii)%tail
+       enddo
+
+       mymuse =  obsdiags(jj,ii)%tail%muse(j)
+       if ( mymuse ) then
+         if(.not. associated(lagtail(ii)%head))then
+            lagtail(ii)%head => laghead(ii)%head
+         else
+            lagtail(ii)%head => lagtail(ii)%head%llpoint
+         end if
+
+         lagtail(ii)%head%diag_lon => obsptr
+         lagtail(ii)%head%diag_lat => obsdiags(jj,ii)%tail
+         icount = icount + 1
+       endif
+
+    enddo
+
+    if(icount.ne.mobs) then
+       write(6,*) 'read_laghead_: error counting ob, icount,mobs=',icount,mobs
+       call stop2(252)
+    endif
+!   if(mobs>0) print *, 'Read lag from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
+end subroutine read_laghead_
 
 end subroutine read_obsdiags

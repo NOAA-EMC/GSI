@@ -29,6 +29,34 @@ THIS = $(shell basename `pwd`)
 LIB  = lib$(THIS).a
 BIN  = prepbykx.x
 
+#                  --------------------------------
+#                   Recurse Make in Sub-directories
+#                  --------------------------------
+
+ALLDIRS = mksi
+
+SUBDIRS = $(wildcard $(ALLDIRS))
+
+TARGETS = esma_install esma_clean esma_distclean esma_doc \
+          install clean distclean doc 
+
+.PHONY: install local_install install_lib install_inc install_bin install_etc
+
+export ESMADIR BASEDIR ARCH SITE
+
+$(TARGETS): 
+	@ t=$@; argv="$(SUBDIRS)" ;\
+	  for d in $$argv; do                    \
+	    ( cd $$d                            ;\
+	      echo ""; echo Making $$t in `pwd`          ;\
+	      $(MAKE) -e $$t ) \
+	  done
+	$(MAKE) local_$@
+
+#                  ----------------------
+#                   User Defined Targets
+#                  ----------------------
+
 ifeq ( $(wildcard $(LIB_MAPL_BASE)),$(null))
    HAVE_ESMF  =
    INC_ESMF   =
@@ -61,7 +89,11 @@ RSRC =	gmao_airs_bufr.tbl		\
 	gsi_sens.rc.tmpl		\
 	obs.rc.tmpl
 
-esma_install install: install_lib install_inc install_bin install_etc
+local_esma_install local_install:
+	$(MAKE) install_lib
+	$(MAKE) install_inc
+	$(MAKE) install_bin
+	$(MAKE) install_etc
 
 install_lib: $(ESMALIB) $(LIB)
 	@ echo "-- $@: $(LIB) --> $(ESMALIB)/ --"
@@ -79,7 +111,7 @@ install_bin: $(ESMABIN) $(BIN) analyzer gsidiags
 	chmod 755 $(ESMABIN)/analyzer
 	chmod 755 $(ESMABIN)/gsidiags
 
-install_etc: $(ESMAETC) $(RSRC) mksi_install
+install_etc: $(ESMAETC) $(RSRC)
 	@ echo "-- $@: $(RSRC) --> $(ESMAETC)/ --"
 	@ for f in $(RSRC); do \
 	    ( case $$f in \
@@ -91,20 +123,17 @@ install_etc: $(ESMAETC) $(RSRC) mksi_install
 	      $(CP) $$f $(ESMAETC)/$$F )\
 	  done
 
-mksi_install: ./mksi
-	( cd ./mksi; $(MAKE) esma_install )
-
 $(ESMALIB) $(ESMABIN) $(ESMAINC)/$(THIS) $(ESMAETC):
 	@ echo "$@: making directory $@ ..."
 	$(MKDIR) $@
-	
-esma_clean clean:
+
+local_esma_clean local_clean:
 	$(RM) *~ *.[aox] *.[Mm][Oo][Dd]
 
-esma_distclean distclean:
+local_esma_distclean local_distclean:
 	$(RM) *~ *.[aoxd] *.[Mm][Oo][Dd]
 
-esma_doc doc:
+local_esma_doc local_doc:
 	@echo "Target $@ not implemented yet in `pwd`"
 
 
@@ -134,7 +163,7 @@ show_fflags:
 #                  User Defined Targets
 #                  --------------------
 
-SRCS =	\
+SRCS =	$(wildcard \
 	abor1.f90 \
         adjtest.f90 \
 	anberror.f90 \
@@ -189,7 +218,6 @@ SRCS =	\
 	get_derivatives2.f90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
-	getstvp.f90 \
 	getuv.f90 \
 	getvvel.f90 \
 	glbsoi.F90 \
@@ -212,6 +240,7 @@ SRCS =	\
 	intdw.f90 \
 	intgps.f90 \
 	intjo.f90 \
+	intlag.F90 \
 	intlimq.f90 \
 	intoz.f90 \
 	intpcp.f90 \
@@ -232,25 +261,27 @@ SRCS =	\
 	jcmod.f90 \
 	jfunc.f90 \
 	kinds.f90 \
+        lag_fields.F90 \
+        lag_interp.F90 \
+        lag_traj.F90 \
 	lagmod.f90 \
         lanczos.f90 \
         looplimits.f90 \
 	m_berror_stats.F90 \
 	m_dgeevx.F90 \
- 	m_gsiBiases.F90 \
+	m_gsiBiases.F90 \
         m_stats.F90 \
         m_tick.F90 \
         mpeu_mpif.F90 \
         mpeu_util.F90 \
 	mod_inmi.f90 \
 	mod_strong.f90 \
-	mod_vtrans.f90 \
+	mod_vtrans.F90 \
         model_ad.F90 \
         model_tl.F90 \
         model2control.f90 \
 	mp_compact_diffs_mod1.f90 \
 	mp_compact_diffs_support.f90 \
-	mpi_bufr_mod.F90 \
 	mpimod.F90 \
         mpl_allreduce.f90 \
         mpl_bcast.f90 \
@@ -299,9 +330,10 @@ SRCS =	\
 	read_guess.F90 \
 	read_iasi.f90 \
 	read_l2bufr_mod.f90 \
+        read_lag.F90 \
 	read_lidar.f90 \
 	read_modsbufr.f90 \
-	read_obs.f90 \
+	read_obs.F90 \
 	read_obsdiags.F90 \
 	read_ozone.F90 \
 	read_pcp.f90 \
@@ -325,6 +357,7 @@ SRCS =	\
         setupbend.f90 \
 	setupdw.f90 \
         setupo3lv.f90 \
+        setuplag.F90 \
 	setupoz.f90 \
 	setuppcp.f90 \
 	setupps.f90 \
@@ -382,7 +415,6 @@ SRCS =	\
 	strong_baldiag_inc.f90 \
 	strong_fast_global_mod.f90 \
 	strong_slow_global_mod.f90 \
-	stvp2uv_reg.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
         tcv_mod.f90 \
@@ -394,7 +426,6 @@ SRCS =	\
 	tpause.f90 \
 	tpause_t.F90 \
 	transform.f90 \
-	tstvp2uv_reg.f90 \
 	turbl.f90 \
 	turbl_ad.f90 \
 	turbl_tl.f90 \
@@ -414,7 +445,7 @@ SRCS =	\
 	wrwrfnmma.F90 \
         xhat_vordivmod.f90 \
 	zrnmi_mod.f90 \
-	blockIO.c $(GSIGC_SRCS)
+	blockIO.c $(GSIGC_SRCS) )
 
 
 ALLSRCS = $(SRCS) gsimain.F90 prepbykx.f
@@ -453,7 +484,7 @@ USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir))
 
 vpath % $(MOD_DIRS)
 
-$(LIB) lib : $(DEPS) $(OBJS)
+$(LIB) lib : $(OBJS)
 	$(RM) $(LIB)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
 
@@ -524,5 +555,4 @@ FFLAGS_OPENBIG = $(BIG_ENDIAN) $(f90FLAGS)
   endif
 
   -include $(ESMADIR)/Config/ESMA_post.mk  # ESMA additional targets, macros
-
 #.

@@ -24,6 +24,7 @@ subroutine obs_para(ndata,mype)
 !   2008-06-30  derber  - optimize calculation of criterion
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2009-04-21  derber  - reformulate to remove communication
+!   2008-05-10  meunier - handle for lagrangian data
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -77,9 +78,14 @@ subroutine obs_para(ndata,mype)
      if(dtype(is) /= ' ' .and. ndata(is,1) > izero)then
 
         ndatax_all=ndatax_all + ndata(is,1)
-        call disobs(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is), &
-              mype_diaghdr(is),nobs_s)
 
+        if (dtype(is)=='lag') then    ! lagrangian data
+          call dislag(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is),&
+               nobs_s)
+        else                          ! classical observations
+          call disobs(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is), &
+                mype_diaghdr(is),nobs_s)
+        end if
         nsat1(is)=nobs_s(mm1)
         if(mm1 == npe)then
             write(6,1000)dtype(is),dplat(is),(nobs_s(ii),ii=1,npe)
@@ -253,3 +259,114 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
 
   return
 end subroutine disobs
+
+! ------------------------------------------------------------------------
+subroutine dislag(ndata,mm1,lunout,obsfile,obstypeall,ndata_s)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    dislag  distribute lagrangian observations into each pe 
+!                subdomain
+!   prgmmr: lmeunier                                  date: 2009-03-12
+!
+! abstract: distribute lagrangian observations into each pe subdomain
+!           (based on disobs). All observations of one balloon are
+!           are associated with a given processor
+!
+! program history log:
+!   2009-03-12  lmeunier
+!
+!   input argument list:
+!     ndata_s  - number of observations in each pe sub-domain
+!     ndata    - number of observations
+!     obsfile  - unit from which to read all obs of a given type
+!     lunout   - unit to which to write subdomain specific observations
+!     mm1      - mpi task number + 1
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind
+  use constants, only: izero,one
+  use gridmod, only: periodic_s,nlon,nlat,jlon1,ilat1,istart,jstart
+  use lag_fields, only: ntotal_orig_lag,orig_lag_num
+  implicit none
+
+! Declare passed variables
+  integer(i_kind),intent(in):: ndata,lunout,mm1
+  integer(i_kind),intent(inout):: ndata_s
+  character(14),intent(in):: obsfile
+  character(10),intent(in):: obstypeall
+
+! Declare local variables
+  integer(i_kind) j,num_data,n,k,lunin,num
+  integer(i_kind) jj,nreal,nchanl,nn_obs,ndatax
+  real(r_kind):: dlat,dlon
+  logical,allocatable,dimension(:):: luse,luse_s,luse_x
+  real(r_kind),allocatable,dimension(:,:):: obs_data,data1_s
+  character(10):: obstype
+  character(20):: isis
+
+  ndata_s=0
+
+  lunin=11
+  open(lunin,file=obsfile,form='unformatted')
+  read(lunin)obstype,isis,nreal,nchanl,num_data
+  if(obstype /=obstypeall) &
+        write(6,*)'DISLAG:  ***ERROR***   obstype,obstypeall=',obstype,obstypeall
+
+  nn_obs = nreal + nchanl
+
+  allocate(obs_data(nn_obs,ndata))
+! Read in all observations of a given type along with subdomain flags
+  read(lunin) obs_data
+  close(lunin)
+
+  allocate(luse(ndata),luse_x(ndata))
+  luse=.false.
+  luse_x=.false.
+
+! Loop over all observations.  Locate each observation with respect
+! to subdomains.
+  use: do n=1,ndata
+
+!   Does the observation belong to the subdomain for this task?
+    num=int(obs_data(num_data,n),i_kind)  
+    if ((mm1-1)==orig_lag_num(num,2)) then
+      ndata_s=ndata_s+1
+      luse(n)=.true.
+      luse_x(n)=.true.  ! Never on another subdomain
+    end if
+
+  end do use
+
+  if(ndata_s > izero)then
+     allocate(data1_s(nn_obs,ndata_s),luse_s(ndata_s))
+     ndatax=0
+     do n=1,ndata
+
+       if(luse(n))then
+
+          ndatax=ndatax+1
+          luse_s(ndatax)=luse_x(n)
+
+          do jj= 1,nn_obs
+            data1_s(jj,ndatax) = obs_data(jj,n)
+          end do
+
+       end if
+
+     end do
+
+!    Write observations for given task to output file
+     write(lunout) obstypeall,isis,nreal,nchanl
+     write(lunout) data1_s,luse_s
+     deallocate(data1_s,luse_s)
+  endif
+  deallocate(obs_data,luse,luse_x)
+
+  return
+end subroutine dislag

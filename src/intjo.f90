@@ -22,7 +22,7 @@ end interface
 
 contains
 
-subroutine intjo_(yobs,rval,rbias,sval,sbias)
+subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -134,6 +134,7 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias)
 !   2007-06-04  derber  - use quad precision to get reproducibility over number of processors
 !   2008-11-27  todling  - add tendencies for FOTO support and new interface to int's
 !   2009-01-08  todling  - remove reference to ozohead
+!   2009-03-23  meunier  - Add call to intlag (lagrangian observations)
 !
 !   input argument list:
 !     sval     - solution on grid
@@ -180,9 +181,11 @@ use intsstmod
 use intdwmod
 use intpcpmod
 use intozmod
+use intlagmod
 implicit none
 
 ! Declare passed variables
+integer(i_kind),    intent(in)    :: ibin
 type(obs_handle),   intent(in)    :: yobs
 type(state_vector), intent(in)    :: sval
 type(predictors)  , intent(in)    :: sbias
@@ -239,8 +242,11 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
   call intsst(yobs%sst,rval%sst,sval%sst)
 
 ! RHS for GPS local observations
-   call intgps(yobs%gps, &
-               rval%t,rval%q,rval%p3d,sval%t,sval%q,sval%p3d)
+  call intgps(yobs%gps, &
+              rval%t,rval%q,rval%p3d,sval%t,sval%q,sval%p3d)
+
+! RHS for conventional lag observations
+  call intlag(yobs%lag,rval%u,rval%v,sval%u,sval%v,ibin)
 
 ! RHS calculation for radiances
   call intrad(yobs%rad, &

@@ -273,7 +273,7 @@ end do
 
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
 do ibin=1,nobs_bins
-  call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias)
+  call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
 end do
 
 ! Evaluate Jo
