@@ -247,6 +247,9 @@ subroutine convert_binary_2d
 
   close(in_unit)
   close(lendian_out)
+
+  deallocate(field2,field2b,field2c)
+  deallocate(ifield2)
 end subroutine convert_binary_2d
 
 !----------------------------------------------------------------------------------

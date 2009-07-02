@@ -278,9 +278,9 @@ subroutine get2berr_reg(mype)
           asp3=asp30f(i,j)
            
           if(i.eq.nlatf/2.and.j.eq.nlonf/2) then
-             write(6,*)'("at domain center, var,k1,asp1,asp2,asp3 =",2i4,3f11.3)', &
+             write(6,'("at domain center, var,k1,asp1,asp2,asp3 =",2i4,3f11.3)') &
                     nvar_id(k),k1,asp1,asp2,asp3
-             write(6,*)'("at domain center, var,k1,hwll_loc,dxf,dyf =",2i4,3f11.3)', &
+             write(6,'("at domain center, var,k1,hwll_loc,dxf,dyf =",2i4,3f11.3)') &
                     nvar_id(k),k1,hwll_loc,dxf(i,j),dyf(i,j)
           end if
 
@@ -921,7 +921,7 @@ subroutine read_bckgstats(mype)
      
    if(mype.eq.0) then
       do k=1,nsig
-        write(6,*)'(" var,k,max,min,avg vert corlen =",2i4,3f11.3)', & 
+        write(6,'(" var,k,max,min,avg vert corlen =",2i4,3f11.3)') & 
                n,k,vzimax(k,n),vzimin(k,n),vziavg(k,n)
        end do
     end if

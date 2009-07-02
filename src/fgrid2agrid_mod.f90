@@ -438,6 +438,8 @@ module fgrid2agrid_mod
       f2a%iwin=0
       f2a%nwin=0
       f2a%win=zero
+
+      !$omp parallel do private (k,j)
       do i=1,nf
         f2a%nwin(i)=nwin(i)
         do k=1,nwin(i)
@@ -445,6 +447,8 @@ module fgrid2agrid_mod
           f2a%win(k,i)=win(k,i)
         end do
       end do
+
+
       deallocate(f2a%itwin,f2a%ntwin,f2a%twin)
       deallocate(f2a%iswin,f2a%nswin,f2a%swin)
       allocate(f2a%itwin(ntwinmax,nc))
@@ -459,6 +463,8 @@ module fgrid2agrid_mod
       f2a%iswin=0
       f2a%nswin=0
       f2a%swin=zero
+
+      !$omp parallel do private (k,j)
       do j=1,nc
         f2a%ntwin(j)=ntwin(j)
         f2a%nswin(j)=nswin(j)
@@ -486,6 +492,8 @@ module fgrid2agrid_mod
       f2a%iwin=0
       f2a%nwin=0
       f2a%win=zero
+
+      !$omp parallel do private (k,j)
       do j=1,nc
         f2a%nwin(j)=nswin(j)
         do k=1,nswin(j)
@@ -493,6 +501,7 @@ module fgrid2agrid_mod
           f2a%win(k,j)=swin(k,j)
         end do
       end do
+
       deallocate(f2a%itwin,f2a%ntwin,f2a%twin)
       deallocate(f2a%iswin,f2a%nswin,f2a%swin)
       allocate(f2a%itwin(iord+1,nf))
@@ -507,6 +516,8 @@ module fgrid2agrid_mod
       f2a%iswin=0
       f2a%nswin=0
       f2a%swin=zero
+
+      !$omp parallel do private (k,j)
       do i=1,nf
         f2a%ntwin(i)=ntswin(i)
         f2a%nswin(i)=nwin(i)
