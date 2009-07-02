@@ -14,7 +14,6 @@ module ncepgfs_io
 !                           on grid to analysis subdomains
 !   sub read_gfssfc       - read ncep gfs surface file, scatter on grid to 
 !                           analysis subdomains
-!   sub read_gfssfc_full  - read ncep gfs surface file, keep on full model grid
 !   sub sfc_interpolate   - interpolate from gfs atm grid to gfs sfc grid
 !   sub write_gfs         - driver to write ncep gfs atmospheric and surface
 !                           analysis files
@@ -32,8 +31,6 @@ module ncepgfs_io
   private
   public read_gfsatm
   public read_gfssfc
-  public read_gfssfc2
-  public read_gfssfc_full
   public write_gfs
   public write_gfsatm
   public write_gfssfc
@@ -646,210 +643,8 @@ contains
   end subroutine read_gfsatm
 
 
+
   subroutine read_gfssfc(filename,mype,fact10,sfct,sno,veg_type,&
-       veg_frac,soil_type,soil_temp,soil_moi,isli,isli_gl,sfc_rough)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    read_gfssfc     read gfs surface file
-!   prgmmr: treadon          org: np23                date: 2003-04-10
-!
-! abstract: read gfs surface file
-!
-! program history log:
-!   2003-04-10  treadon
-!   2004-05-18  kleist, add global isli & documentation
-!   2004-09-07  treadon fix mpi bug when npe > nsfc
-!   2005-01-27  treadon - rewrite to make use of sfcio module
-!   2005-03-07  todling - die gracefully when return error from sfcio
-!   2006-09-28  treadon - pull out surface roughness
-!   2008-05-28  safford - rm unused vars
-!
-!   input argument list:
-!     filename - name of surface guess file
-!     mype     - mpi task id
-!
-!   output argument list:
-!     fact10    - 10 meter wind factor
-!     sfct      - surface temperature (skin temp)
-!     sno       - snow depth
-!     veg_type  - vegetation type
-!     veg_frac  - vegetation fraction
-!     soil_type - soil type
-!     soil_temp - soil temperature of first layer
-!     soil_moi  - soil moisture of first layer
-!     isli      - sea/land/ice mask (subdomain)
-!     isli_g    - global sea/land/ice mask
-!     sfc_rough - surface roughness
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-    use kinds, only: r_kind,i_kind
-    use mpimod, only: ierror,mpi_rtype,mpi_comm_world,npe
-    use gridmod, only: ijn_s,ird_s,irc_s,displs_s,ltosj_s,nlat,lon2,&
-         lat2,ltosi_s,itotsub,nlon
-    use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
-         sfcio_srohdc,sfcio_axdata
-    use constants, only: izero,zero
-    implicit none
-
-!   Declare passed variables
-    character(24),intent(in):: filename
-    integer(i_kind),intent(in):: mype
-    integer(i_kind),dimension(lat2*lon2),intent(out):: isli
-    integer(i_kind),dimension(nlat,nlon),intent(out):: isli_gl
-    real(r_kind),dimension(lat2*lon2),intent(out):: fact10,sfct,sno,&
-         veg_type,veg_frac,soil_type,soil_temp,soil_moi,sfc_rough
-    
-!   Declare local parameters
-    integer(sfcio_intkind):: lunges = 11
-    integer(i_kind),parameter:: nsfc=10
-
-!   Declare local variables
-    integer(i_kind) ni1,ni2,i,j,k,icount,icount_prev,latb,lonb
-    integer(sfcio_intkind):: irets
-    real(r_kind) sumn,sums
-    real(r_kind),dimension(itotsub):: buff
-    real(r_kind),dimension(lat2*lon2,max(2*nsfc,npe)):: sfcsub
-    real(r_kind),dimension(itotsub,nsfc):: sfcges
-    real(r_kind),allocatable,dimension(:,:,:):: work
-    
-    type(sfcio_head):: sfc_head
-    type(sfcio_data):: sfc_data
-
-!-----------------------------------------------------------------------------
-!   Read surface file
-    call sfcio_srohdc(lunges,filename,sfc_head,sfc_data,irets)
-
-
-!   Check for possible problems
-    if (irets /= izero) then
-       write(6,*)'READ_GFSSFC:  ***ERROR*** problem reading ',filename,&
-            ', irets=',irets
-       call sfcio_axdata(sfc_data,irets)
-       call stop2(80)
-    endif
-    latb=sfc_head%latb
-    lonb=sfc_head%lonb
-    if ( (latb /= nlat-2) .or. &
-         (lonb /= nlon) ) then
-       write(6,*)'READ_GFSSFC:  ***ERROR*** inconsistent grid dimensions.  ',&
-            ', nlon,nlat-2=',nlon,nlat-2,' -vs- sfc file lonb,latb=',&
-            lonb,latb
-       call sfcio_axdata(sfc_data,irets)
-       call stop2(80)
-    endif
-
-
-!   Load surface fields into local work array
-    allocate(work(lonb,latb,nsfc))
-    do k=1,nsfc
-       do j=1,latb
-          do i=1,lonb
-             work(i,j,k) = zero
-          end do
-       end do
-    end do
-    do j=1,latb
-       do i=1,lonb
-          work(i,j,1) = sfc_data%tsea(i,j)     ! skin temperature
-          work(i,j,2) = sfc_data%smc(i,j,1)    ! soil moisture
-          work(i,j,3) = sfc_data%sheleg(i,j)   ! snow depth
-          work(i,j,4) = sfc_data%stc(i,j,1)    ! soil temperature
-          work(i,j,5) = sfc_data%slmsk(i,j)    ! sea/land/ice mask
-          work(i,j,6) = sfc_data%vfrac(i,j)    ! vegetation cover
-          work(i,j,7) = sfc_data%f10m(i,j)     ! 10m wind factor
-          work(i,j,8) = sfc_data%vtype(i,j)    ! vegetation type
-          work(i,j,9) = sfc_data%stype(i,j)    ! soil type
-          work(i,j,10) = sfc_data%zorl(i,j)    ! surface roughness length (cm)
-       end do
-    end do
-    
-!   Fill surface guess array
-    do k=1,nsfc
-
-!      Compute mean for southern- and northern-most rows 
-!      of surface guess array
-       sumn = zero
-       sums = zero
-       do i=1,nlon
-          sumn = work(i,1,k)    + sumn
-          sums = work(i,latb,k) + sums
-       end do
-       sumn = sumn/nlon
-       sums = sums/nlon
-
-!      Transfer from local work array to surface guess array
-       do i = 1,itotsub
-          sfcges(i,k) = zero
-          ni1=ltosi_s(i)
-          ni2=ltosj_s(i)
-          if (ni1>1 .and. ni1<nlat) sfcges(i,k) = work(ni2,nlat-ni1,k)
-          if (ni1==1) sfcges(i,k)=sums
-          if (ni1==nlat) sfcges(i,k)=sumn
-       end do
-       
-!   End of loop over data records
-    end do
-
-!   Deallocate local work arrays
-    deallocate(work)
-    call sfcio_axdata(sfc_data,irets)
-
-
-!   Load the sea/land/ice mask into nlat x nlon array
-    do i=1,itotsub
-       ni1=ltosi_s(i); ni2=ltosj_s(i)
-       isli_gl(ni1,ni2)=sfcges(i,5)
-    end do
-    
-
-!   Scatter these fields to all tasks
-    sfcsub=0
-    icount=0
-    icount_prev=1
-    do k=1,nsfc
-       icount=icount+1
-       if (mype==mod(icount-1,npe)) then
-          do i=1,itotsub
-             buff(i)=sfcges(i,k)
-          end do
-       endif
-       if (mod(icount,npe)==0 .or. icount==nsfc) then
-          call mpi_alltoallv(buff,ijn_s,displs_s,mpi_rtype,&
-               sfcsub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-               mpi_comm_world,ierror)
-          icount_prev=icount+1
-       endif
-    end do
-    
-!   Load data into output arrays
-    do k=1,lat2*lon2
-       sfct(k)      = sfcsub(k,1)
-       soil_moi(k)  = sfcsub(k,2)
-       sno(k)       = sfcsub(k,3)
-       soil_temp(k) = sfcsub(k,4)
-       isli(k)      = nint(sfcsub(k,5)+0.0000001)
-       veg_frac(k)  = sfcsub(k,6)
-       fact10(k)    = sfcsub(k,7)
-       veg_type(k)  = sfcsub(k,8)
-       soil_type(k) = sfcsub(k,9)
-       sfc_rough(k) = sfcsub(k,10)
-    end do
-
-!   Print date/time stamp
-    if(mype==izero) then
-       write(6,700) nlat,nlon,sfc_head%fhour,sfc_head%idate
-700    format('READ_GFSSFC:  ges read/scatter, nlat,nlon=',&
-            2i6,', hour=',f10.1,', idate=',4i5)
-    end if
-    
-    return
-  end subroutine read_gfssfc
-
-  subroutine read_gfssfc2(filename,mype,fact10,sfct,sno,veg_type,&
        veg_frac,soil_type,soil_temp,soil_moi,isli,sfc_rough,terrain)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -938,7 +733,7 @@ contains
       lonb=sfc_head%lonb
       if ( (latb /= nlat_sfc-2) .or. &
            (lonb /= nlon_sfc) ) then
-         write(6,*)'READ_GFSSFC2:  ***ERROR*** inconsistent grid dimensions.  ',&
+         write(6,*)'READ_GFSSFC:  ***ERROR*** inconsistent grid dimensions.  ',&
               ', nlon,nlat-2=',nlon_sfc,nlat_sfc-2,' -vs- sfc file lonb,latb=',&
               lonb,latb
          call sfcio_axdata(sfc_data,irets)
@@ -1024,165 +819,9 @@ contains
     end if
 
     return
-  end subroutine read_gfssfc2
+  end subroutine read_gfssfc
 
 
-  subroutine read_gfssfc_full(field_g,tag)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    rdbges                     read and reorder bges file   
-!   prgmmr: derber           org: np23                date: 1992-09-08
-!
-! abstract:  This routine extracts a specified record from a GFS
-!            surface file.  
-!
-! program history log:
-!   1992-09-08  derber 
-!   1995-07-17  derber
-!   1998-04-17  weiyu yang
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2004-06-22  treadon - update documentation
-!   2004-08-03  treadon - add only to module use, add intent in/out
-!   2004-12-23  treadon - remove write(6,*) of hour & date information
-!   2005-01-27  treadon - rewrite to make use of sfcio module
-!   2005-02-18  todling - added protection to dealloc() of sfc-data array
-!   2006-04-06  middlecoff - change lunges from 15 to 11
-!
-!   input argument list:
-!     tag     - character string idenfying field to extract
-!
-!   output argument list:
-!     field_g - irec-th record from GFS surface file.  The suffix
-!                 "_g" indicates that the extracted record is on
-!                  the global (full domain) grid.
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-    use kinds, only: i_kind,r_kind,r_single
-    use constants, only: zero
-    use gridmod, only: nlat,nlon
-    use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
-         sfcio_srohdc,sfcio_axdata
-    implicit none
-  
-!   Declare local parameters
-    character(6),parameter:: sfcfile = 'sfcf06'  ! name of surface guess file
-    integer(sfcio_intkind),parameter:: lunges=11 ! unit for surface file
-
-
-!   Below are names of fields that may currently be extracted
-!   from surface file.  There are more fields in surface file.
-!   The three fields below are the only ones currently used
-
-    character(6),parameter:: tsea   = 'tsea'     ! skin 
-    character(6),parameter:: slmsk  = 'slmsk'
-    character(6),parameter:: sheleg = 'sheleg'
-
-!   Declare passed variables
-    character(6),intent(in):: tag
-    real(r_kind),dimension(nlat,nlon),intent(out):: field_g
-
-!   Declare local variables  
-    integer(sfcio_intkind):: iret
-    integer(i_kind) latb,lonb,i,j
-    real(r_kind) sums,sumn
-    real(r_kind),allocatable,dimension(:,:):: work
-    
-    type(sfcio_head):: sfc_head
-    type(sfcio_data):: sfc_data
-
-!-----------------------------------------------------------------------------
-!   Zero output array
-    field_g=zero
-
-!   Read surface file
-    call sfcio_srohdc(lunges,sfcfile,sfc_head,sfc_data,iret)
-
-!   Check for possible problems
-    if (iret /= 0) then
-       write(6,*)'READ_GFSSFC_FULL:  ***ERROR*** problem reading ',sfcfile,&
-            ', iret=',iret
-       call stop2(80)
-    endif
-    latb=sfc_head%latb
-    lonb=sfc_head%lonb
-    if ( (latb /= nlat-2) .or. &
-         (lonb /= nlon) ) then
-       write(6,*)'READ_GFSSFC_FULL:  ***ERROR*** inconsistent grid dimensions.  ',&
-            ', nlon,nlat=',nlon,nlat-2,' -vs- sfc file lonb,latb=',&
-            lonb,latb
-       call stop2(80)
-    endif
-    
-!   Allocate work array and extract requested field
-    allocate(work(lonb,latb))
-    if (trim(adjustl(tag)) == tsea) then
-       do j=1,latb
-          do i=1,lonb
-             work(i,j) = sfc_data%tsea(i,j)
-          end do
-       end do
-       
-    elseif (trim(adjustl(tag)) == sheleg) then
-       do j=1,latb
-          do i=1,lonb
-             work(i,j) = sfc_data%sheleg(i,j)
-          end do
-       end do
-       
-    elseif (trim(adjustl(tag)) == slmsk) then
-       do j=1,latb
-          do i=1,lonb
-             work(i,j) = sfc_data%slmsk(i,j)
-          end do
-       end do
-       
-    else
-       write(6,*)'READ_GFSSFC_FULL:  ***ERROR*** passed tag = ',tag,&
-            ' is not yet supported'
-       call stop2(81)
-    endif
-
-!   Fill in southern and northern rows of output array
-    sumn = zero
-    sums = zero
-    do i=1,nlon
-       sumn = work(i,1)    + sumn
-       sums = work(i,latb) + sums
-    end do
-    sumn = sumn/nlon
-    sums = sums/nlon
-    
-!   Load output array
-    do j=1,nlon
-       do i=1,nlat-2
-          field_g(i+1,j) = work(j,nlat-1-i)
-       end do
-    end do
-    
-    do j=1,nlon
-       field_g(1,j)    = sums
-       field_g(nlat,j) = sumn
-    end do
-    
-!   Deallocate work arrays
-    deallocate(work)
-    call sfcio_axdata(sfc_data,iret)
-
-!   Check for possible problems
-    if (iret /= 0) then
-       write(6,*)'READ_GFSSFC_FULL:  ***ERROR*** ',&
-            'problem dealloc mem for sfc-data iret=',iret
-       call stop2(80)
-    endif
-    
-    return    
-  end subroutine read_gfssfc_full
- 
- 
   subroutine write_gfs(increment,mype,mype_atm,mype_sfc)
 !$$$  subprogram documentation block
 !                .      .    .

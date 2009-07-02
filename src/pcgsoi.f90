@@ -87,7 +87,6 @@ subroutine pcgsoi()
        iguess,read_guess_solution, &
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, lwrtinc
-  use guess_grids, only: ges_q
   use gridmod, only: lat2,lon2,regional,twodvar_regional,latlon1n
   use constants, only: zero,izero,one,five,tiny_r_kind
   use anberror, only: anisotropic

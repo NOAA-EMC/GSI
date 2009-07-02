@@ -89,7 +89,7 @@ subroutine read_guess(mype)
      ltosi,ltosj,iglobal,itotsub,ijn,displs_g
 
   use constants, only: izero,zero,one,fv
-  use ncepgfs_io, only: read_gfsatm,read_gfssfc
+  use ncepgfs_io, only: read_gfsatm
 
   implicit none
 
@@ -158,30 +158,6 @@ subroutine read_guess(mype)
 !       End of loop over atmospheric guess files
         end do
 
-!       Read surface fields
-!        do it=1,nfldsfc
-!           write(filename,200)ifilesfc(it)
-!200        format('sfcf',i2.2)
-!           call read_gfssfc(filename,mype,&
-!                fact10(1,1,it),sfct(1,1,it),sno(1,1,it),veg_type(1,1,it),&
-!                veg_frac(1,1,it),soil_type(1,1,it),soil_temp(1,1,it),&
-!                soil_moi(1,1,it),isli(1,1,it),isli_g(1,1,it),sfc_rough(1,1,it))
-
-!          If requested and read in and add bias correction to guess fields
-!          if (biascor > zero .and. iret_bias==izero) then
-!             if (mype==0) write(6,*)'READ_GUESS:   add bias correction to guess
-!             field ',&
-!                  filename
-!             do j=1,lon2
-!                do i=1,lat2
-!                   sfct(i,j,it)= sfct(i,j,it) + bias_tskin(i,j)
-!                end do
-!             end do
-!          endif
-
-!        end do
-
-        
 !    End of non-GMAO global interfaces
      endif
         

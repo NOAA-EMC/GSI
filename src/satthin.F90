@@ -369,7 +369,7 @@ contains
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
     use constants, only: zero,izero,half,pi,two
-    use ncepgfs_io, only: read_gfsatm,read_gfssfc2,sfc_interpolate
+    use ncepgfs_io, only: read_gfsatm,read_gfssfc,sfc_interpolate
     use sfcio_module, only: sfcio_realfill
 
     implicit none
@@ -447,7 +447,7 @@ contains
         do it=1,nfldsfc
           write(filename,200)ifilesfc(it)
 200       format('sfcf',i2.2)
-          call read_gfssfc2(filename,mype,&
+          call read_gfssfc(filename,mype,&
              fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
              veg_type_full(1,1),veg_frac_full(1,1,it), &
              soil_type_full(1,1),soil_temp_full(1,1,it),&
@@ -456,7 +456,7 @@ contains
       else
         do it=1,nfldsfc
           write(filename,200)ifilesfc(it)
-          call read_gfssfc2(filename,mype,&
+          call read_gfssfc(filename,mype,&
              fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
              dum,dum,dum,dum,dum,isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
         end do

@@ -251,7 +251,6 @@ strong_bal_correction.o : strong_bal_correction.f90 gridmod.o strong_fast_global
 strong_baldiag_inc.o : strong_baldiag_inc.f90 constants.o control_vectors.o state_vectors.o mod_vtrans.o gsi_4dvar.o gridmod.o mpimod.o kinds.o 
 strong_fast_global_mod.o : strong_fast_global_mod.f90 mpimod.o constants.o mod_inmi.o mod_vtrans.o specmod.o gridmod.o kinds.o 
 strong_slow_global_mod.o : strong_slow_global_mod.f90 constants.o specmod.o mod_inmi.o mod_vtrans.o mpimod.o gridmod.o kinds.o 
-stvp2uv_reg.o : stvp2uv_reg.f90 gridmod.o kinds.o 
 sub2grid.o : sub2grid.f90 constants.o jfunc.o gridmod.o mpimod.o kinds.o 
 support_2dvar.o : support_2dvar.f90 jfunc.o obsmod.o constants.o gridmod.o guess_grids.o mpimod.o gsi_io.o gsi_4dvar.o kinds.o 
 tcv_mod.o : tcv_mod.f90 kinds.o 
@@ -263,7 +262,6 @@ tintrp3.o : tintrp3.f90 constants.o gridmod.o kinds.o
 tpause.o : tpause.f90 gridmod.o guess_grids.o constants.o kinds.o 
 tpause_t.o : tpause_t.F90 constants.o kinds.o 
 transform.o : transform.f90 constants.o specmod.o kinds.o 
-tstvp2uv_reg.o : tstvp2uv_reg.f90 constants.o gridmod.o kinds.o 
 turbl.o : turbl.f90 turblmod.o gridmod.o constants.o kinds.o 
 turbl_ad.o : turbl_ad.f90 turblmod.o gridmod.o kinds.o constants.o 
 turbl_tl.o : turbl_tl.f90 turblmod.o gridmod.o kinds.o constants.o 
