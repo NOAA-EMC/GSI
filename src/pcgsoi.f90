@@ -82,7 +82,7 @@ subroutine pcgsoi()
   use kinds, only: r_kind,i_kind,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
   use obsmod, only: destroyobs,oberror_tune
-  use jfunc, only: iter,jiter,jiterstart,jiterend,niter,iout_iter,&
+  use jfunc, only: iter,jiter,jiterstart,jiterend,niter,miter,iout_iter,&
        nclen,nclen1,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution, &
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg
@@ -480,7 +480,7 @@ subroutine pcgsoi()
                                   xhat_dt%q,xhat_dt%oz,xhat_dt%cw,&
                                   xhat_dt%p)
 ! Write output analysis files
-  if(jiter == jiterend)call write_all(.false.,mype)
+  if(jiter == miter)call write_all(.false.,mype)
   call prt_guess('analysis')
 
 ! Overwrite guess with increment (4d-var only, for now)
