@@ -241,6 +241,7 @@ clean:
 	getuv.f90 \
 	getvvel.f90 \
 	glbsoi.F90 \
+	global_mean.f90 \
         grtest.f90 \
 	grdcrd.f90 \
 	grid2sub.f90 \
@@ -259,6 +260,7 @@ clean:
 	intall.f90 \
 	intdw.f90 \
 	intgps.f90 \
+	intjcpdry.f90 \
 	intjo.f90 \
 	intlag.F90 \
 	intlimq.f90 \
@@ -418,6 +420,7 @@ clean:
 	stpdw.f90 \
 	stpgps.f90 \
 	stpjo.f90 \
+	stpjcpdry.f90 \
 	stplimq.f90 \
 	stpoz.f90 \
 	stppcp.f90 \

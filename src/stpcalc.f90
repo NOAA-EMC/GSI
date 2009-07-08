@@ -188,6 +188,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
        l_foto,xhat_dt,dhat_dt,nvals_len
   use gridmod, only: latlon1n
+  use jcmod, only: ljcpdry
   use obsmod, only: yobs,nobs_type
   use stplimqmod, only: stplimq
   use bias_predictors
@@ -211,9 +212,9 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 
 ! Declare local parameters
-  integer(i_kind),parameter:: ipen = 4+nobs_type
+  integer(i_kind),parameter:: ipen = 5+nobs_type
   integer(i_kind),parameter:: istp_iter = 5
-  integer(i_kind),parameter:: ipenlin = 2
+  integer(i_kind),parameter:: ipenlin = 3
   integer(i_kind),parameter:: ioutpen = istp_iter*4
 
 ! Declare local variables
@@ -221,7 +222,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   integer(i_kind) istp_use
   real(r_quad),dimension(6,ipen):: pbc
   real(r_quad),dimension(ipen):: bpen,cpen   
-  real(r_quad),dimension(3,ipenlin):: pstart   
+  real(r_quad),dimension(3,ipenlin):: pstart 
+  real(r_quad) pstart2  
   real(r_quad) bx,cx
   real(r_kind),dimension(ipen):: stpx   
   real(r_kind) dels,delpen
@@ -253,30 +255,31 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    linear terms -> pbc(*:1:2)
 !    pbc(*,1)  contribution from background, sat rad bias, and precip bias
 !    pbc(*,2)  contribution from dynamic constraint term (Jc)
+!    pbc(*,3)  contribution from dry pressure constraint term (Jc)
 !
-!    nonlinear terms -> pbc(*:3:ipen)
-!    pbc(*,3)  contribution from negative moisture constraint term (Jl/Jq)
-!    pbc(*,4)  contribution from excess moisture term (Jl/Jq)
-!    pbc(*,5)  contribution from ps observation  term (Jo)
-!    pbc(*,6)  contribution from t observation  term (Jo)
-!    pbc(*,7)  contribution from w observation  term (Jo)
-!    pbc(*,8)  contribution from q observation  term (Jo)
-!    pbc(*,9)  contribution from spd observation  term (Jo)
-!    pbc(*,10) contribution from srw observation  term (Jo)
-!    pbc(*,11) contribution from rw observation  term (Jo)
-!    pbc(*,12) contribution from dw observation  term (Jo)
-!    pbc(*,13) contribution from sst observation  term (Jo)
-!    pbc(*,14) contribution from pw observation  term (Jo)
-!    pbc(*,15) contribution from pcp observation  term (Jo)
-!    pbc(*,16) contribution from oz observation  term (Jo)
-!    pbc(*,17) contribution from o3l observation  term (Jo)(not used)
-!    pbc(*,18) contribution from gps observation  term (Jo)
-!    pbc(*,19) contribution from rad observation  term (Jo)
-!    pbc(*,20) contribution from tcp observation  term (Jo)
-!
+!    nonlinear terms -> pbc(*:3:ipen-1)
+!    pbc(*,4)  contribution from negative moisture constraint term (Jl/Jq)
+!    pbc(*,5)  contribution from excess moisture term (Jl/Jq)
+!    pbc(*,6)  contribution from ps observation  term (Jo)
+!    pbc(*,7)  contribution from t observation  term (Jo)
+!    pbc(*,8)  contribution from w observation  term (Jo)
+!    pbc(*,9)  contribution from q observation  term (Jo)
+!    pbc(*,10)  contribution from spd observation  term (Jo)
+!    pbc(*,11) contribution from srw observation  term (Jo)
+!    pbc(*,12) contribution from rw observation  term (Jo)
+!    pbc(*,13) contribution from dw observation  term (Jo)
+!    pbc(*,14) contribution from sst observation  term (Jo)
+!    pbc(*,15) contribution from pw observation  term (Jo)
+!    pbc(*,16) contribution from pcp observation  term (Jo)
+!    pbc(*,17) contribution from oz observation  term (Jo)
+!    pbc(*,18) contribution from o3l observation  term (Jo)(not used)
+!    pbc(*,19) contribution from gps observation  term (Jo)
+!    pbc(*,20) contribution from rad observation  term (Jo)
+!    pbc(*,21) contribution from tcp observation  term (Jo)
 !
 
-  pstart=zero_quad
+
+  pstart=zero_quad ; pstart2=zero_quad
   pbc=zero_quad
 
 ! penalty, b and c for background terms
@@ -294,6 +297,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
   end if
 
+
+! Penalty, b, c for dry pressure
+  if (ljcpdry) call stpjcpdry(dval(1)%q,dval(1)%cw,dval(1)%p,sval(1)%q,sval(1)%cw,sval(1)%p,mype, &
+                 pstart2,pbc(5,3),pbc(6,3) )
+
 ! iterate over number of stepsize iterations (istp_iter - currently set to 2)
   stepsize: do ii=1,istp_iter
 
@@ -309,7 +317,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
       sges(1)=0.5_r_kind*sges(2)
     end if
 
-    do i=1,ipenlin
+    do i=1,ipenlin-1
       do j=1,4
         pbc(j,i)=pstart(1,i)-2.0_r_quad*pstart(2,i)*sges(j)+ &
                                         pstart(3,i)*sges(j)*sges(j)
@@ -317,6 +325,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
       pbc(5,i)=pstart(2,i)
       pbc(6,i)=pstart(3,i)
     end do
+    do j=1,4
+      pbc(j,ipenlin)=pstart2-2.0_r_quad*pbc(5,ipenlin)*sges(j)+ &
+               pbc(6,ipenlin)*sges(j)*sges(j)
+    end do
+
 
 !   penalty, b, and c for moisture constraint
     if(.not.ltlint) call stplimq(dval(1)%q,sval(1)%q,dval(1)%cw,sval(1)%cw,sges, &
@@ -324,7 +337,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !   stepsize and background for Jo
     do ibin=1,nobs_bins
-      call stpjo(yobs(ibin),dval(ibin),dbias,sval(ibin),sbias,sges,pbc(1,5))
+      call stpjo(yobs(ibin),dval(ibin),dbias,sval(ibin),sbias,sges,pbc(1,6))
     enddo
 
 !   Gather J contributions
@@ -362,11 +375,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
     if(ii == 1)then
       pjcost(1) = pbc(1,1) ! Jb
-      pjcost(3) = pbc(1,2) ! Jc
-      pjcost(4) = pbc(1,4)+pbc(1,3) ! Jl
+      pjcost(3) = pbc(1,2) + pbc(1,3)! Jc
+      pjcost(4) = pbc(1,5)+pbc(1,4) ! Jl
       pjcost(2) = zero
       do i=1,nobs_type
-        pjcost(2) = pjcost(2)+pbc(1,4+i) ! Jo
+        pjcost(2) = pjcost(2)+pbc(1,5+i) ! Jo
       end do
       penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)
     end if

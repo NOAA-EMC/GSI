@@ -51,7 +51,7 @@
      binom,normal,ngauss,rgauss,an_amp,an_vs,&
      grid_ratio,an_flen_u,an_flen_t,an_flen_z
   use compact_diffs, only: noq,init_compact_diffs
-  use jcmod, only: init_jcvars,ljcdfi,alphajc
+  use jcmod, only: init_jcvars,ljcdfi,alphajc,ljcpdry,bamp_jcpdry
   use tendsmod, only: ctph0,stph0,tlm0
   use mod_vtrans, only: nvmodes_keep,init_vtrans
   use mod_strong, only: jcstrong,jcstrong_option,nstrong,&
@@ -335,12 +335,13 @@
 
 ! JCOPTS (Jc term)
 !                 if .false., uses original formulation based on wind, temp, and ps tends
-!     ljcdfi    - when .t. uses digital filter initialization of increments (4dvar)
-!     alphajc   - parameter for digital filter
+!     ljcdfi      - when .t. uses digital filter initialization of increments (4dvar)
+!     alphajc     - parameter for digital filter
+!     ljpdry      - when .t. uses dry pressure constraint on increment
+!     bamp_jcpdry - parameter for pdry_jc
 !
-!     NOTE: magnitudes of the terms differ greatly between the two formulations
 
-  namelist/jcopts/ljcdfi,alphajc,switch_on_derivatives,tendsflag
+  namelist/jcopts/ljcdfi,alphajc,switch_on_derivatives,tendsflag,ljcpdry,bamp_jcpdry
 
 ! STRONGOPTS (strong dynamic constraint)
 !     jcstrong - if .true., strong contraint on
@@ -612,11 +613,13 @@
      baldiag_inc =.false.
   end if
 
-
 ! Turn on derivatives if using dynamic constraint
 ! For now if wrf mass or 2dvar no dynamic constraint
   if (jcstrong.or.l_foto) tendsflag=.true.
   if (tendsflag) switch_on_derivatives=.true.
+
+! Turn off Jc-pdry weak constraint if regional application
+  if (regional) ljcpdry=.false.
 
 ! Initialize lagrangian data assimilation - must be called after gsi_4dvar
   call lag_modini()

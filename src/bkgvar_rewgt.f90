@@ -636,7 +636,7 @@ subroutine scatter_stuff2(g,f,mype,inpe)
 
   mm1=mype+1
 
-  if (mype==0) then
+  if (mype==inpe) then
     do ii=1,itotsub
       i=ltosi_s(ii) ; j=ltosj_s(ii)
       tempa(ii)=g(i,j)

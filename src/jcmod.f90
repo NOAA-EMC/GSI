@@ -35,8 +35,8 @@ module jcmod
   use kinds, only: r_kind,i_kind
   implicit none
 
-  logical ljcdfi
-  real(r_kind) alphajc
+  logical ljcdfi,ljcpdry
+  real(r_kind) alphajc,bamp_jcpdry
   real(r_kind),allocatable :: wgtdfi(:)
 
 contains
@@ -68,7 +68,9 @@ contains
 
 ! load defaults for non-allocatable arrays
     ljcdfi=.false.
+    ljcpdry=.false.
     alphajc=10.0_r_kind
+    bamp_jcpdry=0._r_kind
 
     return
   end subroutine init_jcvars

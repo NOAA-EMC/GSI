@@ -156,6 +156,7 @@ subroutine intall(sval,sbias,rval,rbias)
   use gridmod, only: lat2,lon2,nsig,latlon1n
   use gsi_4dvar, only: nobs_bins, ltlint
   use constants, only: zero
+  use jcmod, only: ljcpdry
   use jfunc, only: l_foto,dhat_dt
   use obsmod, only: yobs
   use intjomod, only: intjo
@@ -198,6 +199,9 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for moisture constraint
   if (.not.ltlint) call intlimq(rval(1)%q,sval(1)%q)
+
+! RHS for dry ps constraint
+  if (ljcpdry) call intjcpdry(rval(1)%q,rval(1)%cw,rval(1)%p,sval(1)%q,sval(1)%cw,sval(1)%p,mype)
 
 ! RHS calculation for Jc and other 3D-Var terms
   call int3dvar(rval(1),dhat_dt)
