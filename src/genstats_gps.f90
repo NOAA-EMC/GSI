@@ -75,6 +75,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   character(8),allocatable,dimension(:):: cdiag
   
   real(r_kind),parameter:: r20 = 20.0_r_kind
+  real(r_kind),parameter:: r100 = 100.0_r_kind
   type(obs_diag), pointer :: obsptr => NULL()
   
 
@@ -85,7 +86,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
      return
   endif
 
-  scale=one
+  scale=r100
 
 ! Reduce sub-domain specific QC'd profile height cutoff values to
 ! maximum global value for each profile
