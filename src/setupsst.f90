@@ -58,7 +58,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
   use guess_grids, only: dsfct
   use obsmod, only: ssthead,ssttail,rmiss_single,i_sst_ob_type,obsdiags,&
-                    lobsdiagsave,nobskeep,lobsdiag_allocated
+                    lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nlat,nlon,istart,jstart,lon1,nsig
@@ -373,7 +373,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
         rdiagbuf(6,ii)  = rmiss_single       ! observation pressure (hPa)
         rdiagbuf(7,ii)  = data(idepth,i)     ! observation height (meters)
-        rdiagbuf(8,ii)  = dtime              ! obs time (hours relative to analysis time)
+        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
         rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark

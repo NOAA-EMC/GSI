@@ -32,7 +32,7 @@ module lag_interp
   implicit none
 
   ! Accuracy of localisation to determine wether or not a point is on the grid
-  real(r_kind)::lag_accur = 1e-6
+  real(r_kind)::lag_accur = 1.0e-6_r_kind
 
   ! to store the constant pressure grid
   real(r_kind),dimension(:),allocatable::lag_logcte_p

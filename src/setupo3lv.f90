@@ -15,7 +15,8 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
   use kinds, only: r_kind,r_single,i_kind
 
   use obsmod, only: o3ltail,o3lhead,iadate,dplat,i_o3l_ob_type,obsdiags,&
-                    lobsdiagsave,nobskeep,lobsdiag_allocated,dirname
+                    lobsdiagsave,nobskeep,lobsdiag_allocated,dirname,&
+                    ianldate,time_offset,mype_diaghdr
   use oneobmod, only: oneobtest,maginnov,magoberr,pctswitch
   use guess_grids, only: ges_lnprsl,ges_oz,hrdifsig,nfldsig,ges_ps,&
        ges_prsi, ntguessig
@@ -109,7 +110,6 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
   integer(i_kind) jsig,k
   integer(i_kind) ier,ilon,ilat,ipres,io3ob,id,itime,ikx, &
        iuse,ilate,ilone,istat,iqual,iprec,isat,ikxx,ibin,ioff
-  integer(i_kind) idate
 
   logical,dimension(nobs):: luse,muse
 
@@ -417,7 +417,7 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
         rdiagbuf(2,ii)= data(ilate,i)            ! lat
         rdiagbuf(3,ii)= data(ilone,i)            ! lon
         rdiagbuf(4,ii)= preso3l                  ! pressure (hPa)
-        rdiagbuf(5,ii)= dtime                    ! time
+        rdiagbuf(5,ii)= dtime-time_offset        ! time
         rdiagbuf(6,ii)= rwgt                     ! relative weight
         rdiagbuf(7,ii)= error                    ! 1/obserror
         rdiagbuf(8,ii)= data(io3ob,i)            ! ozone ob 
@@ -463,14 +463,19 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 ! Write information to diagnostic file
   if(ozone_diagsave)then
      filex = obstype
-     idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
      write(string,'(''_'',i2.2,''.'',i4.4)') jiter,mype
      diag_o3lev_file = trim(dirname) // trim(filex) // '_' // trim(dplat(is)) // string
      open(4,file=trim(diag_o3lev_file),form='unformatted')
      rewind(4)
-     write(4) isis, dplat(is), obstype,jiter,idate,ii,nreal
-     write(4)rdiagbuf(:,1:ii)
+     if (mype==mype_diaghdr(is)) then
+        write(4) isis, dplat(is),obstype,jiter,ianldate,nreal
+        write(6,*)'SETUPO3LV:   write header record for ',&
+             isis,nreal,' to file ',trim(diag_o3lev_file),' ',ianldate
+     endif
+     write(4) ii
+     write(4) rdiagbuf(:,1:ii)
      deallocate(rdiagbuf)
+     close(4)
   end if
 
 ! End of routine

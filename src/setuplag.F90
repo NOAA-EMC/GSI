@@ -27,7 +27,8 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !$$$
   use kinds, only: r_kind,r_single,r_double,i_kind
   use obsmod, only: laghead,lagtail,rmiss_single,i_lag_ob_type,obsdiags,&
-                    obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated
+                    obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+                    time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use guess_grids, only: nfldsig,hrdifsig
   use gridmod, only: nsig
@@ -281,7 +282,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
     error_lat = one/error_lat
 
     if (iv_debug>=1) then
-      print '(A,I2.2,A,I4.4,A,I)','mype ',mype,' data ',i,' guess used',fieldindex
+      print '(A,I2.2,A,I4.4,A,I4)','mype ',mype,' data ',i,' guess used',fieldindex
       print '(A,I2.2,A,I4.4,A,F12.2)','mype ',mype,' data ',i,' timestep ',hsteptime
       print '(A,I2.2,A,I4.4,A,F12.6)','mype ',mype,' data ',i,' obs lon  ',dlon
       print '(A,I2.2,A,I4.4,A,F12.6)','mype ',mype,' data ',i,' obs lat  ',dlat
@@ -328,7 +329,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
     if (iv_debug>=1) then
       print '(A,I2.2,A,I4.4,A,F12.6,F12.6)','mype ',mype,' data ',i,' ratios ',ratio_lon,ratio_lat
-      print '(A,I2.2,A,I4.4,A,L)','mype ',mype,' data ',i,' muse ' ,muse(i)
+      print '(A,I2.2,A,I4.4,A,L7)','mype ',mype,' data ',i,' muse ' ,muse(i)
     end if
 
 !   Compute penalty terms
@@ -454,7 +455,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
       rdiagbuf(4,ii)  = dlon*rad2deg       ! observation longitude (degrees)
       rdiagbuf(5,ii)  = dlat*rad2deg       ! observation latitude (degrees)
       rdiagbuf(6,ii)  = dpres              ! observation pressure (hPa)
-      rdiagbuf(7,ii)  = dtime              ! obs time (hours relative to analysis time)
+      rdiagbuf(7,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
       if(muse(i)) then
          rdiagbuf(8,ii) = one             ! analysis usage flag (1=use, -1=not used)

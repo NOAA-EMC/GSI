@@ -58,7 +58,7 @@ module lag_traj
   integer(i_kind),parameter::lag_rk2stepnpara_r=29  ! real numbers
   integer(i_kind),parameter::lag_rk2stepnpara_i=16  ! integer numbers
 
-  real(r_kind)::lag_stepduration= 900  ! Duration in sec. of 1 step
+  real(r_kind)::lag_stepduration= 900.0_r_kind  ! Duration in sec. of 1 step
 
   real(r_kind)::lag_iteduration   ! Duration in sec. of 1 iteration (composed
                                   ! of several steps)

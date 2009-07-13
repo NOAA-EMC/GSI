@@ -29,7 +29,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   use gridmod, only: nlat,nlon,rlats,rlons
   use constants, only: deg2rad,rad2deg,zero
   use convinfo, only: nconvtype,ictype,icuse
-  use obsmod, only: iadate,offtime_data
+  use obsmod, only: ianldate,offtime_data
   use tcv_mod, only: get_storminfo,numstorms,stormlat,stormlon,stormpsmin,stormdattim
   use gsi_4dvar, only: time_4dvar
   implicit none
@@ -76,7 +76,6 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 
   call get_storminfo(lunin)
 
-  ianldate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
   write(6,*) 'READ_TCPS:  IANLDATE = ',ianldate
 
   do i=1,numstorms
@@ -101,8 +100,8 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 ! Observation occurs at analysis time as per date check above
 ! Set observation lat, lon, mslp, and default obs-error
     call time_4dvar(ianldate,toff)
-    write(6,*)'READ_PREPBUFR: bufr file date is ',ianldate
-    write(6,*)'READ_PREPBUFR: time offset is ',toff,' hours.'
+    write(6,*)'READ_TCPS: bufr file date is ',ianldate
+    write(6,*)'READ_TCPS: time offset is ',toff,' hours.'
     ohr=toff
     olat=stormlat(i)
     olon=stormlon(i)

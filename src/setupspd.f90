@@ -66,7 +66,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !$$$
   use kinds, only: r_kind,r_single,r_double,i_kind
   use obsmod, only: spdhead,spdtail,rmiss_single,i_spd_ob_type,obsdiags,&
-                    lobsdiagsave,nobskeep,lobsdiag_allocated
+                    lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_u,ges_v,nfldsig,hrdifsig,ges_tv,ges_lnprsl, &
            ges_ps,comp_fact10,sfcmod_gfs,sfcmod_mm5
@@ -449,7 +449,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
         rdiagbuf(6,ii)  = presw              ! observation pressure (hPa)
         rdiagbuf(7,ii)  = data(ihgt,i)       ! observation height (meters)
-        rdiagbuf(8,ii)  = dtime              ! obs time (hours relative to analysis time)
+        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
         rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark

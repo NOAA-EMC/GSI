@@ -24,11 +24,11 @@ module lag_fields
   ! File(s) containing the initial positions of balloons
   character(255) ::infile_lag='inistate_lag.dat'
   ! Maximum number of balloon in reference state
-  integer(i_kind)::lag_nmax_bal=1000
+  integer(i_kind)::lag_nmax_bal=1000_i_kind
   ! Observation error for vorcore balloon
   !   error = b + a * timestep(in hours)
-  real(r_kind)::lag_vorcore_stderr_a=2e3
-  real(r_kind)::lag_vorcore_stderr_b=0
+  real(r_kind)::lag_vorcore_stderr_a=2.0e3_r_kind
+  real(r_kind)::lag_vorcore_stderr_b=0.0_r_kind
 
   integer(i_kind)::lag_kfirst,lag_klast ! First and last level use
   integer(i_kind)::lag_kcount           ! Number of levels use

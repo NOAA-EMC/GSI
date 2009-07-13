@@ -28,8 +28,8 @@ subroutine gesinfo(mype)
 !
 !$$$
   use kinds, only: i_kind,r_kind,r_single
-  use obsmod, only: iadate
-  use gsi_4dvar, only: ibdate, iedate, iadatebgn, iadateend, iwinbgn
+  use obsmod, only: iadate,ianldate,time_offset
+  use gsi_4dvar, only: ibdate, iedate, iadatebgn, iadateend, iwinbgn,time_4dvar
   use gsi_4dvar, only: nhr_assimilation,nhr_offset
   use mpimod, only: mpi_comm_world,npe
   use gridmod, only: idvc5,ak5,bk5,ck5,tref5,&
@@ -335,7 +335,7 @@ subroutine gesinfo(mype)
      iadate(3)=jda(3) ! day
      iadate(4)=jda(5) ! hour
      iadate(5)=0      ! minute
-     
+     ianldate =jda(1)*1000000+jda(2)*10000+jda(3)*100+jda(5)
 
 !  Determine date and time at start of assimilation window
    ida(:)=0
@@ -368,6 +368,9 @@ subroutine gesinfo(mype)
    iedate(1:5)=(/jda(1),jda(2),jda(3),jda(5),jda(6)/)
    iadateend=jda(1)*1000000+jda(2)*10000+jda(3)*100+jda(5)
 
+!  Get time offset
+   call time_4dvar(ianldate,time_offset)
+
 !    Get information about date/time and number of guess files
      if (regional) then
         if(wrf_nmm_regional) then
@@ -384,7 +387,7 @@ subroutine gesinfo(mype)
 
   if(mype==mype_out) then
      write(6,*)'GESINFO:  Guess date is ',idate4,hourg
-     write(6,*)'GESINFO:  Analysis date is ',iadate
+     write(6,*)'GESINFO:  Analysis date is ',iadate,ianldate,time_offset
   endif
 
   return

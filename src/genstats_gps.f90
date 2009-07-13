@@ -65,7 +65,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   logical:: luse,muse
   integer(i_kind):: k,jsig,icnt,khgt,kprof,ikx,nn,j,nchar,nreal,ii,iii
   real(r_kind):: pressure,arg,wgross,wgt,term,cg_gps,valqc,ressw2
-  real(r_kind):: scale,ress,val,ratio_errors,val2
+  real(r_kind):: ress,val,ratio_errors,val2
   real(r_kind):: exp_arg,data_ikx,data_rinc,cg_term,rat_err2,elat
   real(r_kind):: wnotgross,data_ipg,data_ier,data_ib,factor,super_gps_up,rhgt
   real(r_kind),dimension(nsig,max(1,nprof_gps),nobs_bins):: super_gps_sub,super_gps
@@ -75,7 +75,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   character(8),allocatable,dimension(:):: cdiag
   
   real(r_kind),parameter:: r20 = 20.0_r_kind
-  real(r_kind),parameter:: r100 = 100.0_r_kind
+  real(r_kind),parameter:: scale = 100.0_r_kind
   type(obs_diag), pointer :: obsptr => NULL()
   
 
@@ -86,7 +86,6 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
      return
   endif
 
-  scale=r100
 
 ! Reduce sub-domain specific QC'd profile height cutoff values to
 ! maximum global value for each profile

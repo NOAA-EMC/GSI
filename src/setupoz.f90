@@ -86,7 +86,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use constants, only : rozcon,cg_term,wgtlim
 
   use obsmod, only : ozhead,oztail,i_oz_ob_type,dplat,nobskeep
-  use obsmod, only : iadate,mype_diaghdr,dirname
+  use obsmod, only : iadate,mype_diaghdr,dirname,time_offset,ianldate
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -143,7 +143,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
 
   integer(i_kind) i,nlev,ii,jj,iextra,istat,ibin
-  integer(i_kind) k,j,nz,idate,jc,idia,irdim1,istatus
+  integer(i_kind) k,j,nz,jc,idia,irdim1,istatus
   integer(i_kind) ioff,itoss,ikeep,nkeep,ierror_toq,ierror_poq
   integer(i_kind) isolz,isolaz,icldmnt,isnoc,iacidx,istko,ifovn
   integer(i_kind) mm1,itime,ilat,ilon,isd,ilate,ilone,itoq,ipoq
@@ -309,7 +309,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         idiagbuf(1,ii)=mype                  ! mpi task number
         diagbuf(1,ii) = data(ilate,i)        ! lat (degree)
         diagbuf(2,ii) = data(ilone,i)        ! lon (degree)
-        diagbuf(3,ii) = data(itime,i)        ! time (hours relative to analysis)
+        diagbuf(3,ii) = data(itime,i)-time_offset ! time (hours relative to analysis)
      endif
 
 !    Interpolate interface pressure to obs location
@@ -558,21 +558,21 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      write(string,100) jiter
 100  format('_',i2.2)
      diag_ozone_file = trim(dirname) // trim(filex) // '_' // trim(dplat(is)) // (string)
-     idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
+     open(4,file=trim(diag_ozone_file),form='unformatted')     
+     rewind(4)
      iextra=0
      if (mype==mype_diaghdr(is)) then
+        write(4) isis,dplat(is),obstype,jiter,nlevs,ianldate,iint,ireal,iextra
         write(6,*)'SETUPOZ:   write header record for ',&
-             isis,iint,ireal,iextra,' to file ',trim(diag_ozone_file),' ',iadate
+             isis,iint,ireal,iextra,' to file ',trim(diag_ozone_file),' ',ianldate
+        do i=1,nlevs
+           pob4(i)=pobs(i)
+           grs4(i)=gross(i)
+           err4(i)=tnoise(i)
+        end do
+        write(4) pob4,grs4,err4,iouse
      endif
-     do i=1,nlevs
-        pob4(i)=pobs(i)
-        grs4(i)=gross(i)
-        err4(i)=tnoise(i)
-     end do
-     open(4,file=diag_ozone_file,form='unformatted')
-     rewind(4)
-     write(4) isis,dplat(is),obstype,jiter,nlevs,ii,idate,iint,ireal,iextra
-     write(4) pob4,grs4,err4,iouse
+     write(4) ii
      write(4) idiagbuf(:,1:ii),diagbuf(:,1:ii),rdiagbuf(:,:,1:ii)
      close(4)
   endif

@@ -38,8 +38,8 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use guess_grids, only: ges_prsl,ges_prsi,ges_div,ges_cwmr,ges_tsen,ges_u,ges_v
   use guess_grids, only: ges_q,ges_tv_ten,ges_q_ten,ges_prs_ten,isli2
 
-  use obsmod, only: ndat,iadate,dplat,pcp_ob_type,pcphead,pcptail
-  use obsmod, only: i_pcp_ob_type,obsdiags,lobsdiagsave
+  use obsmod, only: ndat,dplat,pcp_ob_type,pcphead,pcptail,time_offset
+  use obsmod, only: i_pcp_ob_type,obsdiags,lobsdiagsave,ianldate
   use obsmod, only: mype_diaghdr,nobskeep,lobsdiag_allocated,dirname
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   
@@ -158,7 +158,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   character(12) string        
   character(128) diag_pcp_file
 
-  integer(i_kind) km1,mm1,iiflg,idate,iextra,ireal
+  integer(i_kind) km1,mm1,iiflg,iextra,ireal
   integer(i_kind) ii,i,j,k,m,n,ibin,ioff
   integer(i_kind) ipt,npassv
   integer(i_kind) nsphys,ixp,iyp,ixx,iyy
@@ -192,7 +192,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   real(r_kind),dimension(4):: wgrd
   real(r_kind),dimension(npredp):: pred
   real(r_kind),dimension(2):: dpcpmag
-  real(r_kind) errf,varinv,error0,obstime,slats,slons,satpcp,pcpsdv, &
+  real(r_kind) errf,varinv,error0,dtime,slats,slons,satpcp,pcpsdv, &
        pcpnum,cenlat,cenlon,satclw,satcli,obserr,pcpnbc,varinvint, &
        pcpbc,pcpsas,pcplrg4,pcpsas4,xkt4,rbs0,rmask0,psexp4,satcnv, &
        plon0,plat0,pcplrg,rn1_ad,rn4,psexp,cldwrk,cldwrk4,xkt2
@@ -278,10 +278,9 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 ! Initialize/write parameters for precip. diagnostic file on
 ! first outer iteration.
    if (mype==mype_diaghdr(is)) then
-      idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
-      write(4) isis,dplat(is),obstype,jiter,idate,iint,ireal,iextra
+      write(4) isis,dplat(is),obstype,jiter,ianldate,iint,ireal,iextra
       write(6,*)'SETUPPCP:  write header record for ',&
-           isis,iint,ireal,iextra,' to file ',trim(diag_pcp_file),' ',iadate
+           isis,iint,ireal,iextra,' to file ',trim(diag_pcp_file),' ',ianldate
    endif
    idiagbuf= izero
    diagbuf = rmiss
@@ -350,7 +349,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
      error0 = varchp(kx)
 !
 !    Extract obs date/time.
-     obstime = data_p(itime,n)
+     dtime = data_p(itime,n)
 !
 !    Extract obs lon and lat.
      slons  = data_p(ilon,n) ! grid relative longitude
@@ -431,7 +430,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
 !    Link observation to appropriate observation bin
      if (nobs_bins>1) then
-       ibin = NINT( obstime/hr_obsbin ) + 1
+       ibin = NINT( dtime/hr_obsbin ) + 1
      else
        ibin = 1
      endif
@@ -517,15 +516,15 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
      pcpsas = zero
      pcplrg = zero
 
-     if(obstime > hrdifsig(1) .and. obstime < hrdifsig(nfldsig))then
+     if(dtime > hrdifsig(1) .and. dtime < hrdifsig(nfldsig))then
       do jj=1,nfldsig-1
-       if(obstime > hrdifsig(jj) .and. obstime <= hrdifsig(jj+1))then
+       if(dtime > hrdifsig(jj) .and. dtime <= hrdifsig(jj+1))then
         itim=jj
         itimp=jj+1
-        delt=((hrdifsig(jj+1)-obstime)/(hrdifsig(jj+1)-hrdifsig(jj)))
+        delt=((hrdifsig(jj+1)-dtime)/(hrdifsig(jj+1)-hrdifsig(jj)))
        end if
       end do
-     else if(obstime <=hrdifsig(1))then
+     else if(dtime <=hrdifsig(1))then
        itim=1
        itimp=1
        delt=one
@@ -868,7 +867,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 !
 !       Reduce weight and tighten obs-ges bound as function of obs time.
         if(.not. l4dvar)then
-          term  = cos(sixthpi*(obstime-half*hr_obsbin))
+          term  = cos(sixthpi*(dtime-half*hr_obsbin))
           term  = term**3
           term  = max(zero,min(term,one))
           efact = term*efact
@@ -950,7 +949,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
         end do
         pcptail(ibin)%head%obs=log(one+satpcp)
         pcptail(ibin)%head%ges=pcpbc
-        pcptail(ibin)%head%time=obstime
+        pcptail(ibin)%head%time=dtime
         do m=1,nsig
           pcptail(ibin)%head%dpcp_dvar(m)=t0_ad(m)
           pcptail(ibin)%head%dpcp_dvar(m+nsig)=q0_ad(m)
@@ -980,7 +979,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
          diagbuf(1)  = cenlat
          diagbuf(2)  = cenlon
-         diagbuf(3)  = obstime/three
+         diagbuf(3)  = dtime-time_offset
          diagbuf(4)  = pcpnum
          diagbuf(5)  = satpcp
          diagbuf(6)  = pcpsdv

@@ -133,10 +133,10 @@
        crtm_coeffs_path
   use guess_grids, only: add_rtm_layers,sfcmod_gfs,sfcmod_mm5,&
        comp_fact10
-  use obsmod, only: iadate,ndat,mype_diaghdr,lunobs_obs,nchan_total, &
+  use obsmod, only: iadate,ianldate,ndat,mype_diaghdr,lunobs_obs,nchan_total, &
            dplat,dtbduv_on,rmiss_single,rad_ob_type,radhead,radtail,&
            i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
-           dirname
+           dirname,time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use gridmod, only: istart,jstart,jlon1,nlon,nsig,nlat,nsig2,nsig3,nsig3p1,&
        lat2,regional,nsig4,nsig5,nsig3p2,nsig3p3,msig,nlayers,get_ij
@@ -246,7 +246,7 @@
   integer(i_kind) mm1
   integer(i_kind) ixx
   integer(i_kind) kk,n,nlev,kval,kk2,ibin,ioff,iii
-  integer(i_kind) ii,jj,lcloud,idate,idiag
+  integer(i_kind) ii,jj,lcloud,idiag
   integer(i_kind) nadir
   integer(i_kind) kraintype,ierrret
   integer(i_kind) sensorindex
@@ -641,10 +641,9 @@
 !    Initialize/write parameters for satellite diagnostic file on
 !    first outer iteration.
      if (mype==mype_diaghdr(is)) then
-        idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
-        write(4) isis,dplat(is),obstype,jiter,nchanl,npred,idate,ireal,ipchan,iextra,jextra
+        write(4) isis,dplat(is),obstype,jiter,nchanl,npred,ianldate,ireal,ipchan,iextra,jextra
         write(6,*)'SETUPRAD:  write header record for ',&
-             isis,ireal,iextra,' to file ',trim(diag_rad_file),' ',iadate
+             isis,ireal,iextra,' to file ',trim(diag_rad_file),' ',ianldate
         do i=1,nchanl
            n=ich(i)
            if( n < 1 )cycle
@@ -2196,7 +2195,7 @@
         diagbuf(2)  = cenlon                         ! observation longitude (degrees)
         diagbuf(3)  = zsges                          ! model (guess) elevation at observation location
 
-        diagbuf(4)  = dtime                          ! observation time (hours relative to analysis time)
+        diagbuf(4)  = dtime-time_offset              ! observation time (hours relative to analysis time)
 
         diagbuf(5)  = data_s(iscan_pos,n)            ! sensor scan position
         diagbuf(6)  = zasat*rad2deg                  ! satellite zenith angle (degrees)

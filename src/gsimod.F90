@@ -693,6 +693,7 @@
         write(6,*)dfile(i),dtype(i),dplat(i),dsis(i),dval(i),dthin(i),time_window(i)
      end do
      write(6,superob_radar)
+     write(6,lag_data)
      if (oneobtest) write(6,singleob_test)
   endif
 

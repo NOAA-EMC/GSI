@@ -100,6 +100,8 @@ module obsmod
 !   def ndat         - total number of data types
 !   def ipoint       - pointer to input namelist for particular processor
 !   def iadate       - analysis date and time array
+!   def ianldate     - analysis date in YYYYMMDDHH variable
+!   def time_offset  - analysis relative time offset
 !   def dplat        - satellite (platform) id
 !   def dthin        - satellite group
 !   def nsat1        - number of observations of satellites in each pe
@@ -758,10 +760,10 @@ module obsmod
 
 ! Declare global variables
 
-  real(r_kind) perturb_fact,time_window_max
+  real(r_kind) perturb_fact,time_window_max,time_offset
   real(r_kind),dimension(ndatmax):: dval,dmesh,time_window
 
-  integer(i_kind) grids_dim,nchan_total
+  integer(i_kind) grids_dim,nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep
   integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &

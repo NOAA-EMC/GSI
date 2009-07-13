@@ -14,7 +14,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
 
   use obsmod, only: ttail,thead,sfcmodel,rmiss_single,perturb_obs,oberror_tune,&
-       i_t_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated
+       i_t_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
   use qcmod, only: npres_print,dfact,dfact1,ptop,pbot
@@ -569,7 +569,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
         rdiagbuf(6,ii)  = prest              ! observation pressure (hPa)
         rdiagbuf(7,ii)  = data(iobshgt,i)    ! observation height (meters)
-        rdiagbuf(8,ii)  = dtime              ! obs time (hours relative to analysis time)
+        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
         rdiagbuf(10,ii) = data(iqt,i)        ! setup qc or event mark (currently qtflg only)

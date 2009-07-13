@@ -91,7 +91,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use obsmod, only: nprof_gps,gpshead,gpstail,gps_allhead,gps_alltail,&
-       i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated
+       i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+       time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig,&
        ges_z,ges_tv,ges_q
@@ -328,7 +329,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
 !    occultation identification
      satellite_id         = data(isatid,i) ! receiver occ id 
      transmitter_id       = data(iptid,i)  ! transmitter occ id 
-     write(cdiagbuf(i),'(2(i4))') satellite_id,transmitter_id
+     write(cdiagbuf(i),'(2(i4.4))') satellite_id,transmitter_id
 
      rdiagbuf(:,i)         = zero
 
@@ -340,7 +341,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
      rdiagbuf(4,i)         = data(ilone,i)  ! lon in degrees
      rdiagbuf(6,i)         = pressure(i)    ! guess observation pressure (hPa)
      rdiagbuf(7,i)         = elev           ! height in meters
-     rdiagbuf(8,i)         = dtime          ! obs time (hours relative to analysis time)
+     rdiagbuf(8,i)         = dtime-time_offset ! obs time (hours relative to analysis time)
 !    rdiagbuf(9,i)         = data(ipctc,i)  ! input bufr qc - index of per cent confidence    
      rdiagbuf(9,i)         = elev-zsges     ! height above model terrain (m)      
      rdiagbuf(11,i)        = data(iuse,i)   ! data usage flag
