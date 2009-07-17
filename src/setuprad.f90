@@ -514,7 +514,7 @@
      iclavr        = 32 ! index CLAVR cloud flag with AVHRR data
      isst_hires    = 31 ! index of interpolated hires sst (K)
   elseif (amsre) then
-     isgnt_ang     = 30 ! index of sun glint angle (degrees)
+     isgnt_ang     = 32 ! index of sun glint angle (degrees)
   endif
 
 ! Set number of extra pieces of information to write to diagnostic file
