@@ -215,8 +215,8 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         call ufbrep(lnbufr,dataimg,3,6,iret,'TMBRST NCLDMNT SDTB')
         nread=nread+nchanl
 !      first step QC filter out data with less clear sky fraction
-        if (hdrgoesarr(1) ==12 .and. dataimg(2,3) < 70.0_r_kind) cycle read_loop
-        if (hdrgoesarr(1) ==10 .and. dataimg(2,3) < 40.0_r_kind) cycle read_loop
+        if (hdrgoesarr(1) == 256 .and. dataimg(2,3) < 70.0_r_kind) cycle read_loop
+        if (hdrgoesarr(1) == 254 .and. dataimg(2,3) < 40.0_r_kind) cycle read_loop
         if (hdrgoesarr(ilzah) >60.0_r_kind) cycle read_loop
 
 
@@ -309,7 +309,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         if(.not. iuse) cycle read_loop
 
 !       Map obs to grids
-        if(hdrgoesarr(1) == 12) then
+        if(hdrgoesarr(1) == 256) then
          dataimg(1,5)=dataimg(1,6)              ! use  brightness tem. 6 not 5
          dataimg(3,5)=dataimg(3,6)              ! use BT tem. var. 6 not 5 
         endif
@@ -325,7 +325,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         data_all( 7,itx) = dataimg(2,1)               ! clear sky amount
         data_all( 8,itx) = iscan                      ! integer scan position
         data_all( 9,itx) = hdrgoesarr(iszah)          ! solar zenith angle
-        data_all(10,itx) = hdrgoesarr(12)             ! solar azimuth angle
+        data_all(10,itx) = hdrgoesarr(13)             ! solar azimuth angle
         data_all(30,itx) = dlon_earth                 ! earth relative longitude (degrees)
         data_all(31,itx) = dlat_earth                 ! earth relative latitude (degrees)
 
