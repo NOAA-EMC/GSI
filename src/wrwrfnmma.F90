@@ -522,6 +522,204 @@ subroutine wrwrfnmma_binary(mype)
   call mpi_file_close(mfcst,ierror)
   
 end subroutine wrwrfnmma_binary
+
+subroutine wrnemsnmma_binary(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    wrwrfnmma              write out wrf NMM restart file
+!   prgmmr: parrish          org: np22                date: 2004-06-23
+!
+! abstract:  read wrf NMM guess restart interface file, add analysis
+!            increment, and write out wrf NMM analysis restart 
+!            interface file.
+!
+! program history log:
+!   2004-06-23  parrish, document
+!   2004-08-03  treadon - add only to module use, add intent in/out
+!   2004-11-22  parrish - rewrite for mpi-io
+!   2004-12-15  treadon - write analysis to file "wrf_inout"
+!   2005-07-06  parrish - update and write out pint if update_pint=.true.
+!   2006-04-06  middlecoff - changed nfcst from 11 to lendian_in
+!   2006-07-28  derber - include sensible temperature
+!   2006-07-31  kleist - change to use ges_ps instead of lnps
+!   2007-04-12  parrish - add modifications to allow any combination of ikj or ijk
+!                          grid ordering for input 3D fields
+!   2007-05-02  parrish - fix bug to prevent out of memory reference when pint missing
+!   2008-04-01  safford - rm unused uses
+!   2008-12-05  todling - adjustment for dsfct time dimension addition
+!
+!   input argument list:
+!     mype     - pe number
+!
+!   output argument list:
+!     no output arguments
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,r_single,i_kind
+  use regional_io, only: update_pint
+  use guess_grids, only: ges_ps,ges_pint,ges_pd,ges_u,ges_v,ges_q,&
+        ntguessfc,ntguessig,ges_tsen,ifilesig,dsfct,isli
+  use gridmod, only: pt_ll,update_regsfc,pdtop_ll,nsig,lat2,lon2,eta2_ll,nmmb_verttype
+  use constants, only: zero
+  use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read,gsi_nemsio_write
+  use gsi_nemsio_mod, only: gsi_nemsio_update
+
+  implicit none
+
+! Declare passed variables
+  integer(i_kind),intent(in):: mype
+
+! Declare local constants
+  real(r_kind),parameter:: r10=10.0_r_kind
+  real(r_kind),parameter:: r100=100.0_r_kind
+  real(r_kind),parameter:: r225=225.0_r_kind
+
+! Declare local variables
+
+  character(255) wrfanl
+  logical add_saved
+
+  integer(i_kind) i,it,j,k,kr,mype_input
+  real(r_kind) pd,psfc_this,pd_to_ps
+  real(r_kind),dimension(lat2,lon2):: work_sub,pd_new
+
+!     get conversion factor for pd to psfc
+
+  if(nmmb_verttype.eq.'OLD') then
+    pd_to_ps=pdtop_ll+pt_ll
+  else
+    pd_to_ps=pt_ll
+  end if
+
+  it=ntguessig
+  mype_input=0
+  add_saved=.true.
+
+  if(mype.eq.mype_input) wrfanl = 'wrf_inout'
+
+!   update date info so start time is analysis time, and forecast time = 0
+  call gsi_nemsio_update(wrfanl,'WRNEMSNMMA_BINARY:  problem with update of wrfanl',mype,mype_input)
+
+!   open output file for read-write so we can update fields.
+  call gsi_nemsio_open(wrfanl,'rdwr','WRNEMSNMMA_BINARY:  problem with wrfanl',mype,mype_input)
+
+  do kr=1,nsig
+
+    k=nsig+1-kr
+                                   !   u
+
+    call gsi_nemsio_read('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input)
+    do i=1,lon2
+      do j=1,lat2
+        work_sub(j,i)=ges_u(j,i,k,it)-work_sub(j,i)
+      end do
+    end do
+    call gsi_nemsio_write('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+                                   !   v
+
+    call gsi_nemsio_read('vgrd','mid layer','V',kr,work_sub(:,:),mype,mype_input)
+    do i=1,lon2
+      do j=1,lat2
+        work_sub(j,i)=ges_v(j,i,k,it)-work_sub(j,i)
+      end do
+    end do
+    call gsi_nemsio_write('vgrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+                                   !   q
+
+    call gsi_nemsio_read('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input)
+    do i=1,lon2
+      do j=1,lat2
+        work_sub(j,i)=ges_q(j,i,k,it)-work_sub(j,i)
+      end do
+    end do
+    call gsi_nemsio_write('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+                                   !   tsen
+
+    call gsi_nemsio_read('tmp','mid layer','H',kr,work_sub(:,:),mype,mype_input)
+    do i=1,lon2
+      do j=1,lat2
+        work_sub(j,i)=ges_tsen(j,i,k,it)-work_sub(j,i)
+      end do
+    end do
+    call gsi_nemsio_write('tmp','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+  end do
+
+                             ! pd
+  do i=1,lon2
+     do j=1,lat2
+        psfc_this=r10*ges_ps(j,i,it)   ! convert from mb to cb
+        pd=psfc_this-pd_to_ps
+        pd_new(j,i)=r100*pd
+     end do
+  end do
+
+  call gsi_nemsio_read('dpres','hybrid sig lev','H',1,work_sub(:,:),mype,mype_input)
+  do i=1,lon2
+    do j=1,lat2
+      work_sub(j,i)=pd_new(j,i)-work_sub(j,i)
+    end do
+  end do
+  call gsi_nemsio_write('dpres','hybrid sig lev','H',1,work_sub(:,:),mype,mype_input,add_saved)
+
+
+!                    update pint by adding eta2(k)*pdinc
+  if(update_pint) then
+    do kr=1,nsig+1
+      k=nsig+2-kr
+      call gsi_nemsio_read('pres','layer','H',kr,work_sub(:,:),mype,mype_input)
+
+      do i=1,lon2
+        do j=1,lat2
+          work_sub(j,i)=eta2_ll(k)*(pd_new(j,i)-ges_pd(j,i,it))   ! pint analysis increment
+        end do
+      end do
+      call gsi_nemsio_write('pres','layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+    end do
+  end if
+
+  if(update_regsfc) then
+!              land points first
+    call gsi_nemsio_read('tg'   ,'sfc','H',1,work_sub(:,:),mype,mype_input)
+    do i=1,lon2
+      do j=1,lat2
+        if(isli(j,i,it).ne.0) then
+!               land points--
+          work_sub(j,i)=dsfct(j,i,ntguessfc)
+        else
+!               water points
+          work_sub(j,i)=zero
+        end if
+      end do
+    end do
+    call gsi_nemsio_write('tg','sfc','H',1,work_sub(:,:),mype,mype_input,add_saved)
+!          now water points
+    call gsi_nemsio_read('tsea' ,'sfc','H',1,work_sub(:,:),mype,mype_input)
+    do i=1,lon2
+       do j=1,lat2
+         if(isli(j,i,it).ne.0) then
+!               land points--
+           work_sub(j,i)=zero
+         else
+!               water points
+           work_sub(j,i)=dsfct(j,i,ntguessfc)
+         end if
+       end do
+    end do
+    call gsi_nemsio_write('tsea','sfc','H',1,work_sub(:,:),mype,mype_input,add_saved)
+  end if
+
+  call gsi_nemsio_close(wrfanl,'WRNEMSNMMA_BINARY',mype,mype_input)
+  
+end subroutine wrnemsnmma_binary
+
 subroutine wrwrfnmma_netcdf(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .

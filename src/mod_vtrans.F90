@@ -503,7 +503,7 @@ contains
     use kinds,only: r_kind,i_kind
     use constants,only: zero,one_tenth
     use gridmod,only: nsig,ak5,bk5,ck5,tref5
-    use gridmod,only: wrf_nmm_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll
+    use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll
     implicit none
 
 !   Declare passed variables
@@ -512,7 +512,7 @@ contains
 !   Declare local variables
     integer(i_kind) k
 
-    if(wrf_nmm_regional) then
+    if(wrf_nmm_regional.or.nems_nmmb_regional) then
       do k=1,nsig+1
         ahat(k)=eta1_ll(k)*pdtop_ll-eta2_ll(k)*(pdtop_ll+pt_ll)+pt_ll
         bhat(k)=eta2_ll(k)

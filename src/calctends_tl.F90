@@ -56,7 +56,7 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
 !$$$
   use kinds,only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,istart,nlat,idvc5,bk5,&
-      wrf_nmm_regional,eta2_ll,regional
+      wrf_nmm_regional,nems_nmmb_regional,eta2_ll,regional
   use constants, only: zero,half,two,rd,rcp
   use tendsmod, only: what9,prsth9,r_prsum9,prdif9,r_prdif9,pr_xsum9,pr_xdif9,&
       pr_ysum9,pr_ydif9,curvfct,coriolis
@@ -187,7 +187,7 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
     do k=2,nsig
       do j=jstart,jstop
         do i=1,lat2
-          if(wrf_nmm_regional) then
+          if(wrf_nmm_regional.or.nems_nmmb_regional) then
             what(i,j,k)=prsth(i,j,k)-eta2_ll(k)*prsth(i,j,1)
           else
             what(i,j,k)=prsth(i,j,k)-bk5(k)*prsth(i,j,1)
@@ -324,7 +324,7 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
   call turbl_tl(ges_prsi(1,1,1,it),ges_tv  (1,1,1,it),ges_teta(1,1,1,it),&
                u,v,pri,t,u_t,v_t,t_t,jstart,jstop)
 
-  if(.not.wrf_nmm_regional)then
+  if(.not.wrf_nmm_regional.and..not.nems_nmmb_regional)then
     do k=1,nsig
 
 ! 5) Zero out time derivatives at poles

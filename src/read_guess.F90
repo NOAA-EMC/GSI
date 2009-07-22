@@ -83,7 +83,7 @@ subroutine read_guess(mype)
   use gridmod, only: istart,ilat1
   use gridmod, only: nsig,lat1,lon1
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,&
-       twodvar_regional,netcdf,regional
+       twodvar_regional,netcdf,regional,nems_nmmb_regional
   use gridmod, only: aeta1_ll,aeta2_ll,pdtop_ll,pt_ll
   use gridmod, only:  nlat,nlon,&
      ltosi,ltosj,iglobal,itotsub,ijn,displs_g
@@ -127,6 +127,8 @@ subroutine read_guess(mype)
            end if
         else if(twodvar_regional) then
            call read_2d_guess(mype)
+        else if (nems_nmmb_regional) then
+           call read_nems_nmmb_guess(mype)
         end if
      
 

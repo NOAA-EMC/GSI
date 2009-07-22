@@ -75,7 +75,7 @@ subroutine compute_derived(mype)
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll
   use gridmod, only: regional
   use gridmod, only: twodvar_regional,bk5,eta2_ll
-  use gridmod, only: wrf_nmm_regional,wrf_mass_regional
+  use gridmod, only: wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional
   use berror, only: qvar3d,dssv
   use balmod, only: rllat1,llmax
   use mod_strong, only: jcstrong,baldiag_full
@@ -297,7 +297,7 @@ subroutine compute_derived(mype)
            end do
 
 !       Decouple T and p at different levels for nmm core
-        elseif (wrf_nmm_regional) then
+        elseif (wrf_nmm_regional.or.nems_nmmb_regional) then
            kpres = nsig
            do k=1,nsig
               if (aeta2_ll(k)==zero) then

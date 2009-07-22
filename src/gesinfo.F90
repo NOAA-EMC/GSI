@@ -34,7 +34,7 @@ subroutine gesinfo(mype)
   use mpimod, only: mpi_comm_world,npe
   use gridmod, only: idvc5,ak5,bk5,ck5,tref5,&
        regional,nsig,regional_fhr,regional_time,&
-       wrf_nmm_regional,wrf_mass_regional,twodvar_regional,&
+       wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,&
        ntracer,ncloud,ncep_sigio,nlat,nlon,idvm5,&
        ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5
   use specmod, only: jcap_b
@@ -375,6 +375,8 @@ subroutine gesinfo(mype)
      if (regional) then
         if(wrf_nmm_regional) then
            call read_wrf_nmm_files(mype)
+        else if(nems_nmmb_regional) then
+           call read_nems_nmmb_files(mype)
         else if(wrf_mass_regional) then
            call read_wrf_mass_files(mype)
         else if(twodvar_regional) then

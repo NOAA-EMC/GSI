@@ -58,14 +58,15 @@
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
 
   use specmod, only: jcap,jcap_b,init_spec,init_spec_vars,destroy_spec_vars
-  use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,&
+  use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,nems_nmmb_regional,&
+     nmmb_reference_grid,grid_ratio_nmmb,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
   use gsi_io, only: init_io,lendian_in
-  use regional_io, only: convert_regional_guess,update_pint
+  use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
   use constants, only: zero,one,init_constants,init_constants_derived,three
   use fgrid2agrid_mod, only: nord_f2a,init_fgrid2agrid
   use smooth_polcarf, only: norsp,init_smooth_polcas
@@ -210,6 +211,7 @@
 !     perturb_fact -  magnitude factor for observation perturbation
 !     crtm_coeffs_path - path of directory w/ CRTM coeffs files
 !     print_diag_pcg - logical turn on of printing of GMAO diagnostics in pcgsoi.f90
+!     preserve_restart_date - if true, then do not update regional restart file date.
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -225,7 +227,7 @@
        id_bias_ps,id_bias_t,id_bias_spd, &
        conv_bias_ps,conv_bias_t,conv_bias_spd, &
        stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,&
-       perturb_obs,perturb_fact,oberror_tune, &
+       perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path, &
        berror_stats,berror_nvars, &
        lobsdiagsave, &
@@ -251,6 +253,10 @@
 !     regional          - logical for regional GSI run
 !     wrf_nmm_regional  - logical for input from WRF NMM
 !     wrf_mass_regional - logical for input from WRF MASS-CORE
+!     nems_nmmb_regional- logical for input from NEMS NMMB
+!     nmmb_reference_grid= 'H', then analysis grid covers H grid domain
+!                                = 'V', then analysis grid covers V grid domain
+!     grid_ratio_nmmb   - ratio of analysis grid to nmmb model grid in nmmb model grid units.
 !     twodvar_regional  - logical for regional 2d-var analysis
 !     filled_grid       - logical to fill in puts on WRF-NMM E-grid
 !     half_grid         - logical to use every other row of WRF-NMM E-Grid
@@ -259,8 +265,9 @@
 
 
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,hybrid,nlat_regional,nlon_regional,&
-       diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,&
-       wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nlayers
+       diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
+       wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nlayers,&
+       nmmb_reference_grid,grid_ratio_nmmb
 
 ! BKGERR (background error related variables):
 !     as()     - normalized scale factor for background error
@@ -498,6 +505,7 @@
   call initialize_superob_radar
   call init_io(mype)
   call init_vtrans
+  preserve_restart_date=.false.
 
 
 ! Read user input from namelists.  All processor elements 
@@ -552,7 +560,7 @@
 
 ! Set regional parameters
   if(filled_grid.and.half_grid) filled_grid=.false.
-  regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional
+  regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional
 
 
 ! Ensure time window specified in obs_input does not exceed 

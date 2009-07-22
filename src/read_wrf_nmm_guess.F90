@@ -1101,6 +1101,250 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 
 
 end subroutine read_wrf_nmm_netcdf_guess
+
+subroutine read_nems_nmmb_guess(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_nems_nmmb_guess             read nems_nmmb guess file
+!   prgmmr: parrish          org: np22                date: 2003-09-05
+!
+! abstract: in place of read_guess for global application, read guess
+!             from regional model, in this case the nems nmmb (non-hydrostatic
+!             mesoscale model).  This version reads directly from the nems input file
+!             using nemsio routines.  Each horizontal input field is interpolated
+!             from the b-grid to the a-grid with different resolution, determined
+!             by parameter grid_ratio_nmmb.
+!
+! program history log:
+!   2009-03-18  parrish
+!
+!   input argument list:
+!     mype     - pe number
+!
+!     NOTES:  need to pay special attention to various surface fields to make sure
+!             they are correct (check units).  fact10 needs to be computed from 
+!             10m wind, which is included in wrf nmm interface file.
+!
+!             Cloud water currently set to zero.  Need to fix before doing precip
+!             assimilation--wait until global adopts Brad Ferrier's multi-species 
+!             scheme??
+!
+!             Ozone currently set to zero.  No ozone variable in wrf nmm--climatology
+!             instead.  Do we use climatology?
+!
+!             No background bias yet. (biascor ignored)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,r_single,i_kind
+  use mpimod, only: ierror,mpi_comm_world,mpi_integer,mpi_sum
+  use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,&
+       fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
+       isli,nfldsig,ges_tsen
+  use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype
+  use constants, only: zero,one,fv,rd_over_cp
+  use regional_io, only: update_pint
+  use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read
+  implicit none
+
+! Declare passed variables here
+  integer(i_kind),intent(in):: mype
+
+! Declare local parameters
+  real(r_kind),parameter:: r0_01 = 0.01_r_kind
+  real(r_kind),parameter:: r0_1  = 0.1_r_kind
+  real(r_kind),parameter:: r100  = 100.0_r_kind
+
+! Declare local variables
+
+! other internal variables
+  character(255) wrfges
+  integer(i_kind) i,it,j,k,kr,mype_input
+  integer(i_kind) isli_this
+  real(r_kind) pd,psfc_this,wmag,pd_to_ps
+  integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
+  real(r_kind),dimension(lat2,lon2):: smthis,sicethis,u10this,v10this,sstthis,tskthis
+
+!     get conversion factor for pd to psfc
+
+  if(nmmb_verttype.eq.'OLD') then
+    pd_to_ps=pdtop_ll+pt_ll
+  else
+    pd_to_ps=pt_ll
+  end if
+
+!        do serial input for now, with mpi_send to put on appropriate processor.
+
+     mype_input=0 
+     do it=1,nfldsig
+       num_doubtful_sfct=0
+       
+       if(mype.eq.mype_input) then
+         if(it==1)then
+           wrfges = 'wrf_inout'
+         else
+           write(wrfges,'("wrf_inou",i1.1)')it
+         endif
+       end if
+       call gsi_nemsio_open(wrfges,'READ', &
+                            'READ_NEMS_NMMB_GUESS:  problem with wrfges',mype,mype_input)
+
+!                            ! pd
+
+       call gsi_nemsio_read('dpres','hybrid sig lev','H',1,ges_pd(:,:,it),mype,mype_input)
+       do i=1,lon2
+         do j=1,lat2
+!               convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
+           pd=r0_01*ges_pd(j,i,it)
+           psfc_this=pd+pd_to_ps
+           ges_ps(j,i,it)=r0_1*psfc_this
+         end do
+       end do
+
+!                          !   fis
+
+       call gsi_nemsio_read('hgt','sfc','H',1,ges_z(:,:,it),mype,mype_input)
+
+!                          !   u,v,q,tsen,tv
+       do kr=1,nsig
+         k=nsig+1-kr
+         call gsi_nemsio_read('ugrd','mid layer','V',kr,ges_u(:,:,k,it),   mype,mype_input)
+         call gsi_nemsio_read('vgrd','mid layer','V',kr,ges_v(:,:,k,it),   mype,mype_input)
+         call gsi_nemsio_read('spfh','mid layer','H',kr,ges_q(:,:,k,it),   mype,mype_input)
+         call gsi_nemsio_read('tmp' ,'mid layer','H',kr,ges_tsen(:,:,k,it),mype,mype_input)
+         do i=1,lon2
+           do j=1,lat2
+               ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
+           end do
+         end do
+       end do
+
+                                   !   pint
+       if(update_pint) then
+
+         do kr=1,nsig+1
+           k=nsig+2-kr
+           call gsi_nemsio_read('pres' ,'layer','H',kr,ges_pint(:,:,k,it),mype,mype_input)
+         end do
+
+       end if
+
+!                            ! sno
+       call gsi_nemsio_read('sno' ,'sfc','H',1,sno(:,:,it),mype,mype_input)
+
+!                            ! surface roughness
+       call gsi_nemsio_read('zorl' ,'sfc','H',1,sfc_rough(:,:,it),mype,mype_input)
+
+!                            ! soil_moisture
+       call gsi_nemsio_read('smc' ,'soil layer','H',1,soil_moi(:,:,it),mype,mype_input)
+
+!                            ! soil_temp
+       call gsi_nemsio_read('stc' ,'soil layer','H',1,soil_temp(:,:,it),mype,mype_input)
+
+!                            ! veg type
+       call gsi_nemsio_read('vgtyp' ,'sfc','H',1,veg_type(:,:,it),mype,mype_input)
+
+    !           because veg_type is integer quantity, do an nint operation to remove fractional values
+    !           due to interpolation
+       do i=1,lon2
+         do j=1,lat2
+           veg_type(j,i,it)=float(nint(veg_type(j,i,it)))
+         end do
+       end do
+!                            ! veg frac
+       call gsi_nemsio_read('vegfrc' ,'sfc','H',1,veg_frac(:,:,it),mype,mype_input)
+
+
+!                            ! soil type
+       call gsi_nemsio_read('sltyp' ,'sfc','H',1,soil_type(:,:,it),mype,mype_input)
+
+    !           because soil_type is integer quantity, do an nint operation to remove fractional values
+    !           due to interpolation
+       do i=1,lon2
+         do j=1,lat2
+           soil_type(j,i,it)=float(nint(soil_type(j,i,it)))
+         end do
+       end do
+
+!                            ! sm
+       call gsi_nemsio_read('sm' ,'sfc','H',1,smthis(:,:),mype,mype_input)
+
+    !           because sm is integer quantity, do an nint operation to remove fractional values
+    !           due to interpolation
+       do i=1,lon2
+         do j=1,lat2
+           smthis(j,i)=float(nint(smthis(j,i)))
+         end do
+       end do
+
+!                            ! sice
+       call gsi_nemsio_read('sice' ,'sfc','H',1,sicethis(:,:),mype,mype_input)
+
+    !           because sice is integer quantity, do an nint operation to remove fractional values
+    !           due to interpolation
+       do i=1,lon2
+         do j=1,lat2
+           sicethis(j,i)=float(nint(sicethis(j,i)))
+         end do
+       end do
+
+!                            ! sst
+       call gsi_nemsio_read('tsea' ,'sfc','H',1,sstthis(:,:),mype,mype_input)
+
+!                            ! tsk
+       call gsi_nemsio_read('ths' ,'sfc','H',1,tskthis(:,:),mype,mype_input)
+!                 convert tsk from potential to virtual temperature
+              if(mype.eq.0) write(6,*)' in read_nems_nmmb_guess, rd_over_cp=',rd_over_cp
+       do i=1,lon2
+         do j=1,lat2
+           tskthis(j,i)=tskthis(j,i)*(ges_ps(j,i,it)/r100)**rd_over_cp
+         end do
+       end do
+
+!                            ! u10,v10
+       call gsi_nemsio_read('u10' ,'10 m above gnd','H',1,u10this(:,:),mype,mype_input)
+       call gsi_nemsio_read('v10' ,'10 m above gnd','H',1,v10this(:,:),mype,mype_input)
+
+       do i=1,lon2
+         do j=1,lat2
+           fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
+           wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
+           if(wmag > zero)fact10(j,i,it)=sqrt(u10this(j,i)**2+v10this(j,i)**2)/wmag
+           fact10(j,i,it)=min(max(fact10(j,i,it),0.5_r_kind),0.95_r_kind)
+
+           if(smthis(j,i).ne.zero) smthis(j,i)=one
+           if(sicethis(j,i).ne.zero) sicethis(j,i)=one
+           isli_this=0
+           if(sicethis(j,i).eq.one) isli_this=2
+           if(sicethis(j,i).eq.zero.and.smthis(j,i).eq.zero) isli_this=1
+           isli(j,i,it)=isli_this
+
+           sfct(j,i,it)=sstthis(j,i)
+           if(isli(j,i,it).ne.0) sfct(j,i,it)=tskthis(j,i)
+           if(sfct(j,i,it).lt.one) then
+
+!             For now, replace missing skin temps with 1st sigma level temp
+               sfct(j,i,it)=ges_tsen(j,i,1,it)
+               num_doubtful_sfct=num_doubtful_sfct+1
+               if(num_doubtful_sfct <= 100) &
+                    write(6,*)' doubtful skint replaced with 1st sigma level t, j,i,mype,sfct=',&
+                    j,i,mype,sfct(j,i,it)
+           end if
+         end do
+       end do
+
+       call gsi_nemsio_close(wrfges,'READ_NEMS_NMMB_GUESS',mype,mype_input)
+       call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
+                       0,mpi_comm_world,ierror)
+       if(mype == 0) write(6,*)' in read_nems_nmmb_binary_guess, num_doubtful_sfct_all = ', &
+                                                             num_doubtful_sfct_all
+     end do ! enddo it
+
+   return 
+end subroutine read_nems_nmmb_guess
 #else /* Start no WRF-library block */
 subroutine read_wrf_nmm_binary_guess()
   write(6,*)'READ_WRF_NMM_BINARY_GUESS:  dummy routine, does nothing!'
@@ -1108,4 +1352,7 @@ end subroutine read_wrf_nmm_binary_guess
 subroutine read_wrf_nmm_netcdf_guess()
   write(6,*)'READ_WRF_NMM_NETCDF_GUESS:  dummy routine, does nothing!'
 end subroutine read_wrf_nmm_netcdf_guess
+subroutine read_nems_nmmb_guess()
+  write(6,*)'READ_NEMS_NMMB_GUESS:  dummy routine, does nothing!'
+end subroutine read_nems_nmmb_guess
 #endif /* End no WRF-library block */

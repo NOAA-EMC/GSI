@@ -64,7 +64,7 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 !$$$
   use kinds,only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,istart,rlats,nlat,idvc5,bk5,&
-     jstart,region_lat,region_lon,eta2_ll,wrf_nmm_regional,nlon,regional
+     jstart,region_lat,region_lon,eta2_ll,wrf_nmm_regional,nems_nmmb_regional,nlon,regional
   use constants, only: zero,half,one,two,rearth,rd,rcp,omega,grav
   use tendsmod, only: what9,prsth9,r_prsum9,r_prdif9,prdif9,pr_xsum9,pr_xdif9,pr_ysum9,&
      pr_ydif9,curvfct,coriolis,ctph0,stph0,tlm0,t_over_pbar,dp_over_pbar
@@ -101,7 +101,7 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
   what9=zero
 
 ! constants
-  if(wrf_nmm_regional) then
+  if(wrf_nmm_regional.or.nems_nmmb_regional) then
     do j=1,lon2
       jx=j+jstart(mype+1)-2
       jx=min(max(1,jx),nlon)
@@ -191,7 +191,7 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
     do k=2,nsig
       do j=1,lon2
         do i=1,lat2
-          if(wrf_nmm_regional) then
+          if(wrf_nmm_regional.or.nems_nmmb_regional) then
             what9(i,j,k)=prsth9(i,j,k)-eta2_ll(k)*prsth9(i,j,1)
           else
             what9(i,j,k)=prsth9(i,j,k)-bk5(k)*prsth9(i,j,1)
@@ -291,7 +291,7 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 
   call turbl(u,v,pri,t,teta,z,u_t,v_t,t_t)
 
-  if(.not.wrf_nmm_regional)then
+  if(.not.wrf_nmm_regional.and..not.nems_nmmb_regional)then
     do k=1,nsig
 
       do j=1,lon2

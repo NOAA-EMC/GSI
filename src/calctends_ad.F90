@@ -63,7 +63,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 !$$$
   use kinds,only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,istart,rlats,nlat,idvc5,bk5,&
-      eta2_ll,wrf_nmm_regional,regional
+      eta2_ll,wrf_nmm_regional,nems_nmmb_regional,regional
   use constants, only: zero,half,two,rd,rcp
   use tendsmod, only: what9,prsth9,r_prsum9,prdif9,r_prdif9,pr_xsum9,pr_xdif9,&
       pr_ysum9,pr_ydif9,curvfct,coriolis
@@ -211,7 +211,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 ! 5) adjoint of sum 2d individual terms into 3d tendency arrays
 ! because of sum arrays/dependencies, have to go from nsig --> 1
 
-  if(.not.wrf_nmm_regional)then
+  if(.not.wrf_nmm_regional.and..not.nems_nmmb_regional)then
     do k=1,nsig
       do j=jstart,jstop
         do i=1,lat2
@@ -398,7 +398,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
     do k=2,nsig
       do j=jstart,jstop
         do i=1,lat2
-          if (wrf_nmm_regional) then
+          if (wrf_nmm_regional.or.nems_nmmb_regional) then
             prsth(i,j,1) = prsth(i,j,1)-eta2_ll(k)*what(i,j,k)
             prsth(i,j,k) = prsth(i,j,k) + what(i,j,k)
           else

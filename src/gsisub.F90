@@ -65,7 +65,7 @@ subroutine gsisub(mype)
   use gridmod, only: nlat,nlon,twodvar_regional,regional,&
        create_grid_vars,create_mapping,init_subdomain_vars,&
        destroy_mapping,destroy_grid_vars
-  use gridmod, only: wrf_mass_regional,wrf_nmm_regional
+  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional
   use mpimod, only: npe,mpi_comm_world,ierror
   use radinfo, only: radinfo_read
   use pcpinfo, only: pcpinfo_read,create_pcp_random,&
@@ -103,7 +103,7 @@ subroutine gsisub(mype)
 #endif /* HAVE_ESMF */
 
 ! Process any level 2 bufr format land doppler radar winds and create radar wind superob file
-  if(wrf_nmm_regional.or.wrf_mass_regional) call radar_bufr_read_all(npe,mype)
+  if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional) call radar_bufr_read_all(npe,mype)
 
 ! Read info files for assimilation of various obs
   if (.not.twodvar_regional) then

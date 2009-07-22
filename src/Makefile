@@ -249,6 +249,7 @@ clean:
 	gscond_ad.f90 \
 	gsi_4dvar.f90 \
 	gsi_io.f90 \
+        gsi_nemsio_mod.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
 	guess_grids.F90 \
@@ -298,6 +299,7 @@ clean:
         mpeu_util.F90 \
         missing_routines.f90 \
 	mod_inmi.f90 \
+        mod_nmmb_to_a.f90 \
 	mod_strong.f90 \
 	mod_vtrans.F90 \
         model_ad.F90 \
@@ -309,6 +311,7 @@ clean:
         mpl_allreduce.f90 \
         mpl_bcast.f90 \
 	ncepgfs_io.f90 \
+        nemsio_module.f90 \
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
         obs_ferrscale.F90 \

@@ -25,13 +25,14 @@ module regional_io
 !
 !$$$ end documentation block
 
-  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,&
+  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional,&
        twodvar_regional,netcdf
   use mpimod, only: mpi_comm_world,ierror
   implicit none
 
   logical update_pint        !  if true, then this is nmm run with pint variable, so update pint
                              !    (where pint is non-hydrostatic 3-d pressure variable)
+  logical preserve_restart_date  !  if true, then do not update date information on restart file
 
 contains
 
@@ -100,6 +101,18 @@ contains
           end if
        end if
        call mpi_barrier(mpi_comm_world,ierror)
+
+!   Convert nems nmmb guess file to internal gsi format.
+
+    elseif (nems_nmmb_regional) then
+       if (mype==0) then
+         call convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
+       end if
+       call mpi_barrier(mpi_comm_world,ierror)
+       call mpi_bcast(update_pint,1,mpi_integer4,0,mpi_comm_world,ierror)
+       call mpi_bcast(ctph0,1,mpi_rtype,0,mpi_comm_world,ierror)
+       call mpi_bcast(stph0,1,mpi_rtype,0,mpi_comm_world,ierror)
+       call mpi_bcast(tlm0,1,mpi_rtype,0,mpi_comm_world,ierror)
 
 !   Convert binary twodvar guess file to internal gsi format.
 
@@ -170,6 +183,10 @@ contains
           call wrwrfmassa_binary(mype)
        end if
     end if
+
+!   Write nems nmmb analysis file.
+
+    if (nems_nmmb_regional) call wrnemsnmma_binary(mype)
 
 !   Write 2d analysis file
 !   output format: binary

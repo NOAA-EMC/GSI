@@ -52,6 +52,7 @@ module gridmod
 
   logical eta_regional      !
   logical wrf_nmm_regional  !
+  logical nems_nmmb_regional! .t. to run with NEMS NMMB model
   logical wrf_mass_regional !
   logical twodvar_regional  ! .t. to run code in regional 2D-var mode
   logical netcdf            ! .t. for regional netcdf i/o
@@ -60,6 +61,14 @@ module gridmod
   logical filled_grid       ! 
   logical half_grid         !
   logical update_regsfc     !
+
+  character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
+                                        ! ='V': use nmmb V grid as reference for analysis grid
+  real(r_kind) grid_ratio_nmmb ! ratio of analysis grid to nmmb model grid in nmmb model grid units.
+  character(3) nmmb_verttype   !   'OLD' for old vertical coordinate definition
+                               !                old def: p = eta1*pdtop+eta2*(psfc-pdtop-ptop)+ptop
+                               !   'NEW' for new vertical coordinate definition
+                               !                new def: p = eta1*pdtop+eta2*(psfc-ptop)+ptop
 
   integer(i_kind) nsig1o            ! max no. of levels distributed on each processor
   integer(i_kind) nnnn1o            ! actual of levels distributed on current processor
@@ -271,6 +280,7 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
+    use constants, only: two
     implicit none
 
     integer k
@@ -292,11 +302,15 @@ contains
     periodic = .false.
     wrf_nmm_regional = .false.
     wrf_mass_regional = .false.
+    nems_nmmb_regional = .false.
     twodvar_regional = .false. 
     netcdf = .false.
     hybrid = .false.
     filled_grid = .false.
     half_grid = .false.
+    grid_ratio_nmmb=sqrt(two)
+    nmmb_reference_grid='H'
+    nmmb_verttype='OLD'
     lat1 = nlat
     lon1 = nlon
     lat2 = lat1+2
@@ -618,6 +632,7 @@ contains
 
     use kinds, only: r_kind,r_single,i_kind
     use constants, only: zero, one, three, deg2rad,pi,half, two
+    use mod_nmmb_to_a, only: init_nmmb_to_a,nxa,nya,nmmb_h_to_a
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -692,6 +707,7 @@ contains
     character(6) filename
     integer(i_kind) ihr
     real(r_kind),allocatable::gxtemp(:,:),gytemp(:,:)
+    real(r_single),allocatable::gxtemp4(:,:),gytemp4(:,:)
     real(r_kind),allocatable::gxtemp_an(:,:),gytemp_an(:,:)
     real(r_kind) rtemp
     real(r_kind) rlon_min_ll,rlon_max_ll,rlat_min_ll,rlat_max_ll
@@ -999,8 +1015,178 @@ contains
       deallocate(aeta1,eta1,glat,glon,glat_an,glon_an)
       deallocate(dx_mc,dy_mc)
 
-    end if   ! end if wrf_nmm section
+    end if   ! end if wrf mass core section
 
+    if(nems_nmmb_regional) then     ! begin nems nmmb section
+! This is a nems_nmmb regional run.
+      if(diagnostic_reg.and.mype.eq.0)  &
+        write(6,*)' in init_reg_glob_ll, initializing for nems nmmb regional run'
+
+! Get regional constants
+      ihr=-999
+      do i=0,12
+        write(filename,'("sigf",i2.2)')i
+        inquire(file=filename,exist=fexist)
+        if(fexist) then
+          ihr=i
+          exit
+        end if
+      end do
+      if(ihr.lt.0) then
+        write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (NEMS NMMB) ANALYSIS.  PROGRAM STOPS'
+        call stop2(99)
+      end if
+
+      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
+      open(lendian_in,file=filename,form='unformatted')
+      rewind lendian_in
+      read(lendian_in) regional_time,regional_fhr,nlon_regional,nlat_regional,nsig, &
+                  dlmd,dphd,pt,pdtop
+
+      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
+               regional_time
+      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
+               nlon_regional
+      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
+               nlat_regional
+      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig
+
+      call init_nmmb_to_a(nmmb_reference_grid,grid_ratio_nmmb,nlon_regional,nlat_regional)
+      nlon=nxa ; nlat=nya
+
+      rlon_min_ll=1
+      rlat_min_ll=1
+      rlon_max_ll=nlon
+      rlat_max_ll=nlat
+   !  rlat_min_dd=rlat_min_ll+three/grid_ratio_nmmb
+   !  rlat_max_dd=rlat_max_ll-three/grid_ratio_nmmb
+   !  rlon_min_dd=rlon_min_ll+six/grid_ratio_nmmb
+   !  rlon_max_dd=rlon_max_ll-six/grid_ratio_nmmb
+      rlat_min_dd=rlat_min_ll+r1_5*1.412/grid_ratio_nmmb
+      rlat_max_dd=rlat_max_ll-r1_5*1.412/grid_ratio_nmmb
+      rlon_min_dd=rlon_min_ll+three*1.412/grid_ratio_nmmb
+      rlon_max_dd=rlon_max_ll-three*1.412/grid_ratio_nmmb
+
+      if(diagnostic_reg.and.mype.eq.0) then
+        write(6,*)' in init_reg_glob_ll, rlat_min_dd=',rlat_min_dd
+        write(6,*)' in init_reg_glob_ll, rlat_max_dd=',rlat_max_dd
+        write(6,*)' in init_reg_glob_ll, rlon_min_dd=',rlon_min_dd
+        write(6,*)' in init_reg_glob_ll, rlon_max_dd=',rlon_max_dd
+        write(6,*)' in init_reg_glob_ll, rlat_min_ll=',rlat_min_ll
+        write(6,*)' in init_reg_glob_ll, rlat_max_ll=',rlat_max_ll
+        write(6,*)' in init_reg_glob_ll, rlon_min_ll=',rlon_min_ll
+        write(6,*)' in init_reg_glob_ll, rlon_max_ll=',rlon_max_ll
+        write(6,*)' in init_reg_glob_ll, nmmb_reference_grid=',nmmb_reference_grid
+        write(6,*)' in init_reg_glob_ll, grid_ratio_nmmb=',grid_ratio_nmmb
+        write(6,*)' in init_reg_glob_ll, nlon,nlat=',nlon,nlat
+      end if
+
+! Get vertical info for hybrid coordinate and sigma coordinate we will interpolate to
+      allocate(aeta1_ll(nsig),eta1_ll(nsig+1),aeta2_ll(nsig),eta2_ll(nsig+1))
+      allocate(deta1(nsig),aeta1(nsig),eta1(nsig+1),deta2(nsig),aeta2(nsig),eta2(nsig+1))
+      allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
+      allocate(dx_nmm(nlon_regional,nlat_regional),dy_nmm(nlon_regional,nlat_regional))
+      read(lendian_in) deta1
+      read(lendian_in) aeta1
+      read(lendian_in) eta1
+      read(lendian_in) deta2
+      read(lendian_in) aeta2
+      read(lendian_in) eta2
+!----------------------------------------detect if new nmmb coordinate:
+      nmmb_verttype='OLD'
+      if(aeta1(1).lt..6_r_single) then
+        if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, detect new nmmb vert coordinate'
+        aeta1=aeta1+aeta2
+        eta1=eta1+eta2
+        nmmb_verttype='NEW'
+      end if
+
+      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, pdtop,pt=',pdtop,pt
+      if(diagnostic_reg.and.mype.eq.0) then
+        write(6,*)' in init_reg_glob_ll, aeta1 aeta2 follow:'
+        do k=1,nsig
+          write(6,'(" k,aeta1,aeta2=",i3,2f10.4)') k,aeta1(k),aeta2(k)
+        end do
+        write(6,*)' in init_reg_glob_ll, deta1 deta2 follow:'
+        do k=1,nsig
+          write(6,'(" k,deta1,deta2=",i3,2f10.4)') k,deta1(k),deta2(k)
+        end do
+        write(6,*)' in init_reg_glob_ll, deta1 deta2 follow:'
+        do k=1,nsig+1
+          write(6,'(" k,eta1,eta2=",i3,2f10.4)') k,eta1(k),eta2(k)
+        end do
+      end if
+
+      pdtop_ll=r0_01*pdtop                    !  check units--this converts to mb
+      pt_ll=r0_01*pt                          !  same here
+
+      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, pdtop_ll,pt_ll=',pdtop_ll,pt_ll
+      eta1_ll=eta1
+      aeta1_ll=aeta1
+      eta2_ll=eta2
+      aeta2_ll=aeta2
+      read(lendian_in) glat,dx_nmm
+      read(lendian_in) glon,dy_nmm
+      close(lendian_in)
+
+      allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
+      allocate(region_dy(nlat,nlon),region_dx(nlat,nlon))
+      allocate(coeffy(nlat,nlon),coeffx(nlat,nlon))
+
+!   generate earth lats and lons on analysis grid
+
+      allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
+      allocate(dx_an(nlat,nlon),dy_an(nlat,nlon))
+
+      allocate(gxtemp4(nlon_regional,nlat_regional))
+      allocate(gytemp4(nlon_regional,nlat_regional))
+      allocate(gxtemp_an(nlat,nlon))
+      allocate(gytemp_an(nlat,nlon))
+      sign_pole=-one
+      pihalf=half*pi
+      if(maxval(glat)/deg2rad.lt.zero) sign_pole=one
+      do j=1,nlat_regional
+       do i=1,nlon_regional
+        rtemp=pihalf-sign_pole*glat(i,j)
+        gxtemp4(i,j)=rtemp*cos(one*glon(i,j))
+        gytemp4(i,j)=rtemp*sin(one*glon(i,j))
+       end do
+      end do
+      call nmmb_h_to_a(gxtemp4,gxtemp_an)
+      call nmmb_h_to_a(gytemp4,gytemp_an)
+      do i=1,nlon
+        do j=1,nlat
+        rtemp=sqrt(gxtemp_an(j,i)**2+gytemp_an(j,i)**2)
+        glat_an(i,j)=sign_pole*(pihalf-rtemp)
+        glon_an(i,j)=atan2(gytemp_an(j,i),gxtemp_an(j,i))
+       end do
+      end do
+      gxtemp4=dx_nmm
+      gytemp4=dy_nmm
+      call nmmb_h_to_a(gxtemp4,dx_an)
+      call nmmb_h_to_a(gytemp4,dy_an)
+      dx_an=grid_ratio_nmmb*dx_an
+      dy_an=grid_ratio_nmmb*dy_an
+      deallocate(gxtemp4,gytemp4,gxtemp_an,gytemp_an)
+
+      do k=1,nlon
+        do i=1,nlat
+          region_lat(i,k)=glat_an(k,i)
+          region_lon(i,k)=glon_an(k,i)
+          region_dy(i,k)=dy_an(i,k)
+          region_dx(i,k)=dx_an(i,k)
+          coeffy(i,k)=half/dy_an(i,k)
+          coeffx(i,k)=half/dx_an(i,k)
+        end do
+      end do
+
+! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
+      call init_general_transform(glat_an,glon_an,mype)
+
+      deallocate(deta1,aeta1,eta1,deta2,aeta2,eta2,glat,glon,glat_an,glon_an)
+      deallocate(dx_nmm,dy_nmm,dx_an,dy_an)
+
+    end if   ! end if nems nmmb section
 
 !   Begin surface analysis section (regional 2D-var)
     if(twodvar_regional) then 

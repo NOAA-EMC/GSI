@@ -1039,6 +1039,422 @@ enddo n_loop
 
 end subroutine convert_binary_nmm
 
+subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_nems_nmmb     read nems nmmb restart 
+!   prgmmr: parrish          org: np22                date: 2009-03-17
+!
+! abstract: using nemsio library routines, read nems nmmb restart file
+!             write the result to temporary binary
+!             file expected by read_wrf_nmm_guess.
+!
+! program history log:
+!   2004-09-10  parrish
+!   2004-11-05  wu - add check on input wrf guess file, stop code if problem
+!   2004-11-11  parrish - change so byte offset information is written, instead
+!                            of a whole new binary file--this done so mpi-io
+!                            can be used later to read/write directly from
+!                            the wrf mass core binary file.  also, do inventory
+!                            of whole file, so offsets are general--not dependent
+!                            on type of file.
+!   2004-12-15  treadon - remove get_lun, read guess from file "wrf_inout"
+!   2005-07-06  parrish - add read of pint byte address
+!   2005-10-17  parrish - add ctph0,stph0,tlm0
+!   2006-04-06  middlecoff - changed out_unit from 55 to lendian_out
+!   2006-06-19  wu - changes to allow nfldsig=3 (multiple first guess)
+!   2007-04-12  parrish - add modifications to allow any combination of ikj or ijk
+!                          grid ordering for input 3D fields
+!
+!   input argument list:
+!     update_pint:   false on input
+!
+!   output argument list:
+!     update_pint:   true on output if field pint (non-hydrostatic pressure in nmm model)
+!                     is available, in which case pint gets updated by analysis increment of pd,
+!                      the nmm hydrostatic pressure thickness variable.
+!     ctph0,stph0:   cos and sin thp0, earth lat of center of nmm grid 
+!                    (0 deg lat in rotated nmm coordinate)
+!                      (used by calctends routines)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_single,i_llong,r_kind,i_kind
+  use constants, only: deg2rad,rad2deg
+  use gsi_4dvar, only: nhr_assimilation
+  use gsi_io, only: lendian_out
+  use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
+  use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar,nemsio_readrecv
+  implicit none
+
+  integer(i_kind),parameter:: in_unit = 15
+  real(r_kind),parameter:: r0_01 = 0.01_r_kind
+  real(r_kind),parameter:: r0_1  = 0.1_r_kind
+  real(r_kind),parameter:: r100  = 100.0_r_kind
+  real(r_kind),parameter:: rd_over_cp = 0.285725661955006982_r_kind
+
+  logical update_pint
+  real(r_kind) ctph0,stph0,tlm0
+
+  type(nemsio_gfile) :: gfile
+  character(255) wrfges,fileout
+  
+  integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
+  integer(i_kind) nlon_regional,nlat_regional,nsig_regional
+  real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
+  real(r_single) dy_nmm
+  integer(i_kind) i,j,ii,k,n
+  real(r_single),allocatable::field1(:),field1p(:),field2(:),field2b(:),field2c(:)
+  integer(i_kind) idate(7),nrec,iret
+  character(4) gdatatype,modelname
+  character(32) gtype
+  integer(i_kind) nfhour,nfminute,nfsecondn,nfsecondd,nframe,ntrac,nsoil,nmeta
+  logical extrameta
+  real(r_single),allocatable,dimension(:):: dsg1,sgml1,sg1,dsg2,sgml2,sg2
+  real(r_single),allocatable,dimension(:,:):: glat,glon,dx,dy
+  real(r_single),allocatable,dimension(:):: glata,glona,dxa,dya
+  character(8),allocatable:: recname(:)
+  character(16),allocatable  :: reclevtyp(:)
+  integer(i_kind),allocatable:: reclev(:)
+  real(r_kind) date6,date7,second,fhour
+  character(3) nmmb_verttype   !   'OLD' for old vertical coordinate definition
+                               !                old def: p = eta1*pdtop+eta2*(psfc-pdtop-ptop)+ptop
+                               !   'NEW' for new vertical coordinate definition
+                               !                new def: p = eta1*pdtop+eta2*(psfc-ptop)+ptop
+  real(r_kind) pd,pd_to_ps,psfc_this
+  real(r_kind) factor,ratio
+
+  call nemsio_init(iret=iret)
+  if(iret.ne.0) then
+    write(6,*)'CONVERT_NEMS_NMMB: problem with nemsio_init, Status = ',iret
+     call stop2(74)
+  end if
+  
+  n_loop: do n=1,3
+
+     if(n==1)then
+      wrfges = 'wrf_inout'
+     else
+      write(wrfges,'("wrf_inou",i1.1)')n
+     endif
+     call nemsio_open(gfile,wrfges,'READ',iret=iret)
+     write(6,*)' convert_nems_nmmb: nemsio_open, file name, iret=',trim(wrfges),iret
+     if(n.eq.1) then
+       if(iret.ne.0) then
+         write(6,*)'CONVERT_NEMS_NMMB:  problem with wrfges = ',&
+               trim(wrfges),', Status = ',iret
+          call stop2(74)
+       end if
+     else
+       if(iret.ne.0) then
+         write(6,*)'CONVERT_NEMS_NMMB:  no off hour guess = ',trim(wrfges)
+         call nemsio_close(gfile,iret=iret)
+         write(6,*)' close nemsio file, iret=',iret
+         cycle n_loop
+       end if
+     end if
+     write(fileout,'("sigf",i2.2)')n+nhr_assimilation-1
+     write(6,*)' convert_binary_nmm: in_unit,out_unit=',trim(wrfges),',',trim(fileout)
+     open(lendian_out,file=trim(fileout),form='unformatted')
+     rewind lendian_out
+
+!     obtain model info (date, grid dims, etc.)
+
+!     idate(1) = year
+!     idate(2) = month
+!     idate(3) = day
+!     idate(4) = hour
+!     idate(5) = minute
+!     idate(6) = seconds*idate(7)
+!     idate(7) = scale factor for seconds
+     call nemsio_getfilehead(gfile,iret=iret,nrec=nrec,dimx=nlon_regional,dimy=nlat_regional, &
+       dimz=nsig_regional,idate=idate,gdatatype=gdatatype,gtype=gtype,modelname=modelname, &
+       nfhour=nfhour,nfminute=nfminute,nfsecondn=nfsecondn,nfsecondd=nfsecondd, &
+       nframe=nframe,ntrac=ntrac,nsoil=nsoil,extrameta=extrameta,nmeta=nmeta)
+     write(6,*)' nemsio_getfilehead, iret=',iret,'nrec=',nrec
+     write(6,*)' nlon_regional=',nlon_regional,' nlat_regional=',nlat_regional,' nsig_regional=',nsig_regional
+     write(6,*)' idate=',idate
+     write(6,*)' gdatatype=',gdatatype,' gtype=',trim(gtype)
+     write(6,*)' nfhour=',nfhour,' nfminute=',nfminute,' nfsecondn=',nfsecondn,' nfsecondd=',nfsecondd
+     write(6,*)' modelname=',modelname,' extrameta=',extrameta,' nframe=',nframe,' nmeta=',nmeta
+
+!   start with date record for date forecast was started
+
+!                   y,m,d,h,m,s
+     iyear=  idate(1)
+     imonth= idate(2)
+     iday=   idate(3)
+     ihour=  idate(4)
+     iminute=idate(5)
+     date6=idate(6) ; date7=idate(7)
+     second=date6/date7
+     isecond=nint(second)
+           write(6,*)' convert_nems_nmmb: START_DATE =',&
+                iyear,imonth,iday,ihour,iminute,isecond
+  
+  
+!                  dlmd_regional
+
+     call nemsio_getheadvar(gfile,'DLMD',dlmd_regional,iret)
+           write(6,*)' convert_nems_nmmb: dlmd_regional,iret=',dlmd_regional,iret
+  
+!                  dphd_regional
+
+     call nemsio_getheadvar(gfile,'DPHD',dphd_regional,iret)
+           write(6,*)' convert_nems_nmmb: dphd_regional,iret=',dphd_regional,iret
+
+!                  pt_regional
+     call nemsio_getheadvar(gfile,'PT',pt_regional,iret)
+           write(6,*)' convert_nems_nmmb: pt_regional,iret=',pt_regional,iret
+
+!                  pdtop_regional
+     call nemsio_getheadvar(gfile,'PDTOP',pdtop_regional,iret)
+           write(6,*)' convert_nems_nmmb: pdtop_regional,iret=',pdtop_regional,iret
+
+     fhour=nfhour
+     write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond,fhour, &
+          nlon_regional,nlat_regional,nsig_regional, &
+          dlmd_regional,dphd_regional,pt_regional,pdtop_regional
+  
+  
+!                  dsg1 (used to be deta1) 
+
+     allocate(dsg1(nsig_regional),field1(nsig_regional))
+     call nemsio_getheadvar(gfile,'DSG1',dsg1,iret)
+           write(6,*)' convert_nems_nmmb: retrieve dsg1,iret=',iret
+
+           do k=1,nsig_regional
+              field1(k)=dsg1(nsig_regional+1-k)
+              write(6,*)' convert_nems_nmmb: k,dsg1 (deta1)(k)=',k,field1(k)
+           end do
+
+     write(lendian_out)field1             !  DETA1
+
+!                  sgml1    (used to be aeta1)
+
+     allocate(sgml1(nsig_regional))
+     call nemsio_getheadvar(gfile,'SGML1',sgml1,iret)
+           write(6,*)' convert_nems_nmmb: retrieve sgml1,iret=',iret
+
+           do k=1,nsig_regional
+              field1(k)=sgml1(nsig_regional+1-k)
+              write(6,*)' convert_nems_nmmb: k,sgml1 (aeta1)(k)=',k,field1(k)
+           end do
+      nmmb_verttype='OLD'
+      if(field1(1).lt..6_r_single) then
+        nmmb_verttype='NEW'
+      end if
+
+  write(lendian_out)field1             !  AETA1
+  
+!                  sg1       (used to be eta1)
+
+     allocate(sg1(nsig_regional+1),field1p(nsig_regional+1))
+     call nemsio_getheadvar(gfile,'SG1',sg1,iret)
+           write(6,*)' convert_nems_nmmb: retrieve sg1,iret=',iret
+
+           do k=1,nsig_regional+1
+              field1p(k)=sg1(nsig_regional+2-k)
+              write(6,*)' convert_nems_nmmb: k,sg1 (eta1)(k)=',k,field1p(k)
+           end do
+
+     write(lendian_out)field1p            !  ETA1
+
+!                  dsg2 (used to be deta2) 
+
+     allocate(dsg2(nsig_regional))
+     call nemsio_getheadvar(gfile,'DSG2',dsg2,iret)
+           write(6,*)' convert_nems_nmmb: retrieve dsg2,iret=',iret
+
+           do k=1,nsig_regional
+              field1(k)=dsg2(nsig_regional+1-k)
+              write(6,*)' convert_nems_nmmb: k,dsg2 (deta2)(k)=',k,field1(k)
+           end do
+
+     write(lendian_out)field1             !  DETA2
+
+!                  sgml2    (used to be aeta2)
+
+     allocate(sgml2(nsig_regional))
+     call nemsio_getheadvar(gfile,'SGML2',sgml2,iret)
+           write(6,*)' convert_nems_nmmb: retrieve sgml2,iret=',iret
+
+           do k=1,nsig_regional
+              field1(k)=sgml2(nsig_regional+1-k)
+              write(6,*)' convert_nems_nmmb: k,sgml2 (aeta2)(k)=',k,field1(k)
+           end do
+
+     write(lendian_out)field1             !  AETA2
+
+!                  sg2       (used to be eta2)
+
+     allocate(sg2(nsig_regional+1))
+     call nemsio_getheadvar(gfile,'SG2',sg2,iret)
+           write(6,*)' convert_nems_nmmb: retrieve sg2,iret=',iret
+
+           do k=1,nsig_regional+1
+              field1p(k)=sg2(nsig_regional+2-k)
+              write(6,*)' convert_nems_nmmb: k,sg2 (eta2)(k)=',k,field1p(k)
+           end do
+
+     write(lendian_out)field1p            !  ETA2
+
+         write(6,*)' NEW NMMB EQUIVALENT VERTICAL COORDINATE PARAMETERS FOLLOW:'
+
+          do k=1,nsig_regional
+            write(6,'(" k,dsg1,sgml1,sg1,dsg2,sgml2,sg2=",i3,6f12.7)') &
+                      k,dsg1(k),sgml1(k),sg1(k),dsg2(k),sgml2(k),sg2(k)
+          end do
+            k=nsig_regional+1
+            write(6,'(" k,           sg1,           sg2=",i3,24x,f12.7,24x,f12.7)') &
+                      k,                   sg1(k),                   sg2(k)
+
+     deallocate(field1,field1p,sg1,sg2,sgml1,sgml2,dsg1,dsg2)
+     allocate(field2(nlon_regional*nlat_regional))
+     allocate(field2b(nlon_regional*nlat_regional))
+     allocate(field2c(nlon_regional*nlat_regional))
+     allocate(recname(nrec),reclevtyp(nrec),reclev(nrec))
+
+     allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
+     allocate(  dx(nlon_regional,nlat_regional),  dy(nlon_regional,nlat_regional))
+     allocate(glata(nlon_regional*nlat_regional),glona(nlon_regional*nlat_regional))
+     allocate(  dxa(nlon_regional*nlat_regional),  dya(nlon_regional*nlat_regional))
+     call nemsio_getfilehead(gfile,iret=iret,recname=recname,reclevtyp=reclevtyp, &
+           reclev=reclev,lat=glata(:),lon=glona(:),dx=dxa(:),dy=dya(:))
+     ii=0
+     do j=1,nlat_regional
+       do i=1,nlon_regional
+         ii=ii+1
+         glat(i,j)=glata(ii)*deg2rad       ! input lat in degrees
+         glon(i,j)=glona(ii)*deg2rad       ! input lon in degrees
+         dx  (i,j)=    dxa  (ii)
+         dy  (i,j)=    dya  (ii)
+       end do
+     end do
+  
+!                  GLAT
+
+           write(6,*)' convert_nems_nmmb: max,min GLAT=', &
+                        rad2deg*maxval(glat),rad2deg*minval(glat)
+           write(6,*)' convert_nems_nmmb: glat(1,1),glat(nlon,1)=', &
+                       rad2deg*glat(1,1),rad2deg*glat(nlon_regional,1)
+           write(6,*)' convert_nems_nmmb: glat(1,nlat),glat(nlon,nlat)=', &
+                rad2deg*glat(1,nlat_regional),rad2deg*glat(nlon_regional,nlat_regional)
+           write(6,*)' convert_nems_nmmb: my guess at tph0d = ', &
+                rad2deg*glat(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
+           ctph0=cos(glat(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+           stph0=sin(glat(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+
+!                  DX_NMM
+
+           write(6,*)' convert_nems_nmmb: max,min DX_NMM=', &
+                maxval(dx),minval(dx)
+           write(6,*)' convert_nems_nmmb: dx_nmm(1,1),dx_nmm(nlon,1)=', &
+                     dx(1,1),     dx(nlon_regional,1)
+           write(6,*)' convert_nems_nmmb: dx_nmm(1,nlat),dx_nmm(nlon,nlat)=', &
+                     dx(1,nlat_regional),     dx(nlon_regional,nlat_regional)
+
+     write(lendian_out)glat,dx            !  GLAT,DX_NMM  !?????????????check to see if dx, dy backwards
+                                                          !?????????????? in existing wrf nmm ????????
+
+!                  GLON
+
+           write(6,*)' convert_nems_nmmb: max,min GLON=',rad2deg*maxval(  glon),rad2deg*minval(  glon)
+           write(6,*)' convert_nems_nmmb: glon(1,1),glon(nlon,1)=',rad2deg*glon(1,1),rad2deg*glon(nlon_regional,1)
+           write(6,*)' convert_nems_nmmb: glon(1,nlat),glon(nlon,nlat)=', &
+                                          rad2deg*glon(1,nlat_regional),rad2deg*glon(nlon_regional,nlat_regional)
+           write(6,*)' convert_nems_nmmb: my guess at tlm0d = ', &
+                .5*rad2deg*(  glon(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
+                          glon(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+           tlm0=.5*(  glon(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
+                          glon(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+
+!                  DY_NMM
+
+           write(6,*)' convert_nems_nmmb: max,min DY_NMM=', &
+                maxval(dy),minval(dy)
+           write(6,*)' convert_nems_nmmb: dy_nmm(1,1),dy_nmm(nlon,1)=', &
+                     dy(1,1),     dy(nlon_regional,1)
+           write(6,*)' convert_nems_nmmb: dy_nmm(1,nlat),dy_nmm(nlon,nlat)=', &
+                     dy(1,nlat_regional),     dy(nlon_regional,nlat_regional)
+
+     write(lendian_out)glon,dy            !  GLON,DY_NMM
+
+     write(lendian_out) wrfges
+
+!                   PINT               
+
+     call nemsio_readrecv(gfile,'pres','layer',1,field2(:),iret=iret)
+     update_pint=.false.
+     if(iret.eq.0) update_pint=.true.
+     write(6,*)' convert_nems_nmmb: pint, iret,update_pint=',iret,update_pint
+
+!????????????????????????????????????????????????????????????????read z0 here to see what it looks like
+     call nemsio_readrecv(gfile,'zorl','sfc',1,field2b(:),iret=iret)
+           write(6,*)' convert_nems_nmmb: iret,max,min Z0=',iret, &
+                maxval(field2b),minval(field2b)
+     write(lendian_out)field2b     !  Z0 (?)  ask if zorl is same as z0
+!?????????????????????????????????????????????????????????????????
+     call nemsio_readrecv(gfile,'tsea','sfc',1,field2b(:),iret=iret)
+           write(6,*)' convert_nems_nmmb: iret,max,min SST=',iret, &
+                maxval(field2b),minval(field2b)
+     write(lendian_out)field2b     !  SST
+!????????????????????????????????????????????
+     call nemsio_readrecv(gfile,'tg','sfc',1,field2b(:),iret=iret)
+           write(6,*)' convert_nems_nmmb: iret,max,min TG=',iret, &
+                maxval(field2b),minval(field2b)
+     call nemsio_readrecv(gfile,'ths','sfc',1,field2b(:),iret=iret)
+           write(6,*)' convert_nems_nmmb: iret,max,min THS=',iret, &
+                maxval(field2b),minval(field2b)
+     call nemsio_readrecv(gfile,'dpres','hybrid sig lev',1,field2c(:),iret=iret)
+           write(6,*)' convert_nems_nmmb: iret,max,min PD=',iret, &
+                maxval(field2c),minval(field2c)
+  if(nmmb_verttype.eq.'OLD') then
+    pd_to_ps=r0_01*(pdtop_regional+pt_regional)
+  else
+    pd_to_ps=r0_01*pt_regional
+  end if
+             write(6,*)' pdtop_regional,pt_regional,pd_to_ps=',pdtop_regional,pt_regional,pd_to_ps
+     do i=1,nlon_regional*nlat_regional
+           pd=r0_01*field2c(i)
+           psfc_this=pd+pd_to_ps
+           ratio=(r0_1*psfc_this/r100)
+           factor=ratio**rd_over_cp
+           field2c(i)=field2b(i)*factor
+     end do
+           write(6,*)' nmmb_verttype=',nmmb_verttype
+           write(6,*)' max diff ths-ts=',maxval(field2b-field2c)
+           write(6,*)' min diff ths-ts=',minval(field2b-field2c)
+           write(6,*)' convert_nems_nmmb: iret,max,min TS=',iret, &
+                maxval(field2c),minval(field2c)
+
+     write(lendian_out)field2c     !  TSK   (ths converted to ts)
+!????????????????????????????????????????sm
+     call nemsio_readrecv(gfile,'sm','sfc',1,field2b(:),iret=iret)
+           write(6,*)' convert_nems_nmmb: iret,max,min SM=',iret, &
+                maxval(field2b),minval(field2b)
+     write(lendian_out)field2b     !  SM
+     call nemsio_readrecv(gfile,'sice','sfc',1,field2b(:),iret=iret)
+           write(6,*)' convert_nems_nmmb: iret,max,min SICE=',iret, &
+                maxval(field2b),minval(field2b)
+     write(lendian_out)field2b     !  SICE
+     call nemsio_readrecv(gfile,'sno','sfc',1,field2b(:),iret=iret)
+           write(6,*)' convert_nems_nmmb: iret,max,min SNO=',iret, &
+                maxval(field2b),minval(field2b)
+     write(lendian_out)field2b     !  SNO
+     deallocate(field2,field2b,field2c,recname,reclevtyp,reclev,glat,glon,dx,dy)
+  
+    call nemsio_close(gfile,iret=iret)
+    write(6,*)' close nemsio file, iret=',iret
+    close(lendian_out)
+enddo n_loop
+
+end subroutine convert_nems_nmmb
+
 #ifdef WRF
 subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
 !$$$  subprogram documentation block
