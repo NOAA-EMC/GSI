@@ -658,12 +658,12 @@ module obsmod
      real(r_kind)    :: obslat        ! observed latitude  (rad)
      real(r_kind)    :: geslon        ! guessed longitude (rad)
      real(r_kind)    :: geslat        ! guessed latitude  (rad)
-     integer(i_kind) :: intnum        ! internal number of balloon
-     integer(i_kind),dimension(:),allocatable :: speci  ! TL parameter
      real(r_kind)   ,dimension(:),allocatable :: specr  ! TL parameter
      real(r_kind)    :: time          ! observation time in sec     
      real(r_kind)    :: b             ! variational quality control parameter
      real(r_kind)    :: pg            ! variational quality control parameter
+     integer(i_kind),dimension(:),allocatable :: speci  ! TL parameter
+     integer(i_kind) :: intnum        ! internal number of balloon
      logical         :: luse          ! flag indicating if ob is used in pen.
   end type lag_ob_type
 

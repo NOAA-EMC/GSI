@@ -51,7 +51,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   real(r_kind) ohr,olat,olon,psob,pob,oberr,usage,toff
 
-  integer(i_kind) i,k,n,iy,im,idd,ihh,iret,lunin,nc,ianldate
+  integer(i_kind) i,k,n,iy,im,idd,ihh,iret,lunin,nc
   integer(i_kind) ilat,ilon,ikx,nreal,nchanl,nmrecs
 
   logical endfile
