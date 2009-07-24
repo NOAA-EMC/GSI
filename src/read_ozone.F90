@@ -51,6 +51,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2009-01-20  sienkiewicz - merge in changes for MLS ozone
 !   2009-04-21  derber  - add ithin to call to makegrids
 !   2009-3-05   h.liu   - read in OMI bufr, QC GOME2 and OMI
+!   2009-7-02   h.liu   - toss the OMI data with AFBO=3 (c-pair correction) and clean up codes
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -95,6 +96,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 ! Declare local parameters
   real(r_kind),parameter:: r6   = 6.0_r_kind
   real(r_kind),parameter:: r76  = 76.0_r_kind
+  real(r_kind),parameter:: r84  = 84.0_r_kind
+
   real(r_kind),parameter:: r360 = 360.0_r_kind
   real(r_kind),parameter:: rmiss = -9999.9_r_kind
   real(r_kind),parameter:: badoz = 10000.0_r_kind
@@ -117,7 +120,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   character(63) lozstr
   character(51) ozgstr
   character(27) ozgstr2
-  character(37) ozostr2
+  character(42) ozostr2
 
   integer(i_kind) maxobs,nozdat,nloz
   integer(i_kind) idate,jdate,ksatid,kk,iy,iret,im,ihh,idd,lunin
@@ -147,7 +150,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   real(r_double),dimension(10):: hdrozg
   real(r_double),dimension(5):: hdrozg2
   real(r_double),dimension(10):: hdrozo
-  real(r_double),dimension(7) :: hdrozo2
+  real(r_double),dimension(8) :: hdrozo2
 
   real(r_double) totoz
 
@@ -163,7 +166,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
        / 'SAID CLAT CLON YEAR MNTH DAYS HOUR MINU SECO SOZA' /
 ! since 2009020412, the omi bufr contains fovn
   data ozostr2 &
-       / 'CLDMNT ACIDX STKO VZAN TOQC TOQF FOVN' /
+       / 'CLDMNT ACIDX STKO VZAN TOQC TOQF FOVN AFBO' /
 
 
   data lunin / 10 /
@@ -446,8 +449,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
      if (ksatid /= kidsat) go to 120
 
-!    toss the obs when solar zenith angle larger than 65 or azimuth angle largerthan 160 degree
-!    if ( (hdrozg(9) > r65) .or. (hdrozg(10) > r160) ) go to 120
+!    NESDIS does not put a flag for high SZA gome-2 data (SZA > 84 degree)
+     if ( hdrozg(9) > r84 ) go to 120
 
      nmrecs=nmrecs+nloz+1
     
@@ -493,7 +496,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    extract total ozone
      call ufbint(lunin,totoz,1,1,iret,'OZON')
 
-     if (totoz > 1.0e+8 ) goto 120
+     if (totoz > badoz ) goto 120
 
 !    only accept flag 0 (good) data
      toq=zero
@@ -606,7 +609,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 !    extract header information
      call ufbint(lunin,hdrozo,10,1,iret,ozostr)
-     call ufbint(lunin,hdrozo2,7,1,iret,ozostr2)
+     call ufbint(lunin,hdrozo2,8,1,iret,ozostr2)
      rsat = hdrozo(1); ksatid=rsat
 
      if(jsatid == 'aura')kidsat = 785
@@ -652,23 +655,17 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 !    extract total ozone
      call ufbint(lunin,totoz,1,1,iret,'OZON')
+     if (totoz > badoz ) goto 130
 
-!    only accept flag 0 1 2
+!    only accept flag 0 1, flag 2 is high SZA data which is not used for now
      toq=hdrozo2(5)
-!    if (toq/=0 .and. toq/=1 .and. toq/=2) goto 130
      if (toq/=0 .and. toq/=1) goto 130
 
-!    remove the bad scan position data: fovn between 28 and 45
-     if (hdrozo2(7) >=28.0 .and. hdrozo2(7) <=45.0 ) goto 130
+!    remove the bad scan position data: fovn beyond 28
+     if (hdrozo2(7) >=28.0) goto 130
 
-!    further QC the data
-     if ( abs(hdrozo(2))>=30.0 .and. (hdrozo2(7)<=1.0 .or. hdrozo2(7)>=58.0) ) goto 130
-     if ( abs(hdrozo(2))>=35.0 .and. (hdrozo2(7)<=2.0 .or. hdrozo2(7)>=57.0) ) goto 130
-     if ( abs(hdrozo(2))>=40.0 .and. (hdrozo2(7)<=3.0 .or. hdrozo2(7)>=56.0) ) goto 130
-     if ( abs(hdrozo(2))>=45.0 .and. (hdrozo2(7)<=4.0 .or. hdrozo2(7)>=55.0) ) goto 130
-     if ( abs(hdrozo(2))>=50.0 .and. (hdrozo2(7)<=5.0 .or. hdrozo2(7)>=54.0) ) goto 130
-     if ( abs(hdrozo(2))>=55.0 .and. hdrozo2(7)>=55.0 ) goto 130
-     if ( abs(hdrozo(2))>=60.0 .and. hdrozo2(7)>=55.0 ) goto 130
+!    remove the data in which the C-pair algorithm ((331 and 360 nm) is used. 
+     if (hdrozo2(8) == 3 .or. hdrozo2(8) == 13) goto 130
 
 
 !    thin OMI data
@@ -688,8 +685,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      nodata=ndata
 
 
-!   only read one obs
-!   if (ndata > 0) go to 130
 
     ozout(1,itx)=rsat
     ozout(2,itx)=t4dv
