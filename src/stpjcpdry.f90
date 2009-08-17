@@ -29,8 +29,8 @@
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
-  use constants, only: zero,two,one,half,grav
+  use kinds, only: r_kind,i_kind,r_quad
+  use constants, only: zero,two,one,half,grav,zero_quad
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
   use guess_grids, only:  ges_prsi,ntguessig
   use jcmod, only: bamp_jcpdry
@@ -39,7 +39,7 @@
 ! Declare passed variables
   real(r_kind),dimension(lat2,lon2,nsig),intent(in):: rq,sq,rc,sc
   real(r_kind),dimension(lat2,lon2),intent(in):: rp,sp
-  real(r_kind),intent(out):: pen,b,c
+  real(r_quad),intent(out):: pen,b,c
   integer(i_kind),intent(in):: mype
 
 ! Declare local variables
@@ -47,7 +47,7 @@
   real(r_kind) spave,rpave,sqave,rqave,sdmass,rdmass
   integer(i_kind) i,j,k,it
 
-  pen=zero ; b=zero ; c=zero
+  pen=zero_quad ; b=zero_quad ; c=zero_quad
   sqint=zero ; rqint=zero
   it=ntguessig
 

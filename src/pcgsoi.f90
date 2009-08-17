@@ -338,7 +338,7 @@ subroutine pcgsoi()
 110     format(' penalty,grad ,a,b= ',i3,i4,1x,4(e24.18,1x),2(g12.6,1x))
 120     format(' pnorm,gnorm, step? ',i3,i4,1x,2(e24.18,1x),a5)
      endif
-999  format(A,2(1X,I3),5(1X,ES24.18))
+999  format(A,2(1X,I3),5(1X,ES25.18))
 
 !    Check for convergence or failure of algorithm
      if(gnormx < converge .or. penalty < converge  .or.  &
@@ -466,7 +466,7 @@ subroutine pcgsoi()
       write(6,888)'Final/Initial cost function=',zfend/zfini
       if(zgini>tiny_r_kind) write(6,888)'Final/Initial gradient norm=',sqrt(zgend/zgini)
     endif
-888 format(A,5(1X,ES24.18))
+888 format(A,5(1X,ES25.18))
 
   end if
 ! Calculate increments of vorticity/divergence

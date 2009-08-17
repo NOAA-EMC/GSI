@@ -223,7 +223,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_quad),dimension(6,ipen):: pbc
   real(r_quad),dimension(ipen):: bpen,cpen   
   real(r_quad),dimension(3,ipenlin):: pstart 
-  real(r_quad) pstart2  
   real(r_quad) bx,cx
   real(r_kind),dimension(ipen):: stpx   
   real(r_kind) dels,delpen
@@ -252,19 +251,19 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    pbc(5,*) - contribution to numerator b
 !    pbc(6,*) - contribution to denomonator c
 !
-!    linear terms -> pbc(*:1:2)
+!    linear terms -> pbc(*,1:ipenlin=3)
 !    pbc(*,1)  contribution from background, sat rad bias, and precip bias
-!    pbc(*,2)  contribution from dynamic constraint term (Jc)
+!    pbc(*,2)  placeholder for future linear linear term
 !    pbc(*,3)  contribution from dry pressure constraint term (Jc)
 !
-!    nonlinear terms -> pbc(*:3:ipen-1)
+!    nonlinear terms -> pbc(*,4:ipen)
 !    pbc(*,4)  contribution from negative moisture constraint term (Jl/Jq)
 !    pbc(*,5)  contribution from excess moisture term (Jl/Jq)
 !    pbc(*,6)  contribution from ps observation  term (Jo)
 !    pbc(*,7)  contribution from t observation  term (Jo)
 !    pbc(*,8)  contribution from w observation  term (Jo)
 !    pbc(*,9)  contribution from q observation  term (Jo)
-!    pbc(*,10)  contribution from spd observation  term (Jo)
+!    pbc(*,10) contribution from spd observation  term (Jo)
 !    pbc(*,11) contribution from srw observation  term (Jo)
 !    pbc(*,12) contribution from rw observation  term (Jo)
 !    pbc(*,13) contribution from dw observation  term (Jo)
@@ -279,7 +278,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !
 
 
-  pstart=zero_quad ; pstart2=zero_quad
+  pstart=zero_quad
   pbc=zero_quad
 
 ! penalty, b and c for background terms
@@ -300,7 +299,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 ! Penalty, b, c for dry pressure
   if (ljcpdry) call stpjcpdry(dval(1)%q,dval(1)%cw,dval(1)%p,sval(1)%q,sval(1)%cw,sval(1)%p,mype, &
-                 pstart2,pbc(5,3),pbc(6,3) )
+                 pstart(1,3),pstart(2,3),pstart(3,3))
 
 ! iterate over number of stepsize iterations (istp_iter - currently set to 2)
   stepsize: do ii=1,istp_iter
@@ -317,7 +316,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
       sges(1)=0.5_r_kind*sges(2)
     end if
 
-    do i=1,ipenlin-1
+    do i=1,ipenlin
       do j=1,4
         pbc(j,i)=pstart(1,i)-2.0_r_quad*pstart(2,i)*sges(j)+ &
                                         pstart(3,i)*sges(j)*sges(j)
@@ -325,15 +324,10 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
       pbc(5,i)=pstart(2,i)
       pbc(6,i)=pstart(3,i)
     end do
-    do j=1,4
-      pbc(j,ipenlin)=pstart2-2.0_r_quad*pbc(5,ipenlin)*sges(j)+ &
-               pbc(6,ipenlin)*sges(j)*sges(j)
-    end do
-
 
 !   penalty, b, and c for moisture constraint
     if(.not.ltlint) call stplimq(dval(1)%q,sval(1)%q,dval(1)%cw,sval(1)%cw,sges, &
-                                 pbc(1,3),pbc(1,4))
+                                 pbc(1,4),pbc(1,5))
 
 !   stepsize and background for Jo
     do ibin=1,nobs_bins
