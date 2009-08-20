@@ -13,6 +13,8 @@ module tendsmod
 !   2006-02-24  kleist - additions for divergence and ageostrophic vorticity tendencies
 !   2006-12-15  todling - protection against over-initizing
 !   2007-05-08  kleist - add arrays for generalized coordinate
+!   2009-08-20  parrish - replace curvfct with curvx, curvy.  this allows tendency computation to
+!                          work for any general orthogonal coordinate.
 !
 ! subroutines included:
 !   sub create_tendvars        - allocate load Jc related variables
@@ -28,7 +30,7 @@ module tendsmod
 !   def pr_xdif9             - basic state value of p_x(k)-p_x(k+1)
 !   def pr_ysum9             - basic state value of p_y(k)+p_y(k+1)
 !   def pr_ydif9             - basic state value of p_y(k)-p_y(k+1)
-!   def curvfct              - factor for curvature term in wind tendencies
+!   def curvx,curvy          - factors for curvature terms in wind tendencies
 !   def coriolis             - coriolis parameter
 !   def t_over_pbar          - horizontal mean Tv/p for calculation of mass variable tendency
 !   def dp_over_pbar         - horizontal mean dp/p for calculation of mass variable tendency
@@ -53,7 +55,7 @@ module tendsmod
 
   real(r_kind),allocatable,dimension(:,:,:):: what9,prsth9,r_prsum9,prdif9,r_prdif9,&
      pr_xsum9,pr_xdif9,pr_ysum9,pr_ydif9
-  real(r_kind),allocatable,dimension(:,:):: curvfct,coriolis
+  real(r_kind),allocatable,dimension(:,:):: curvx,curvy,coriolis
   real(r_kind),allocatable,dimension(:,:,:):: factk9,adiag9,bdiag9,cdiag9,wint9,wint9_f,&
        r_bdiag9
   real(r_kind),allocatable,dimension(:):: t_over_pbar,dp_over_pbar
@@ -98,7 +100,7 @@ contains
              bdiag9(lat2,lon2,nsig),cdiag9(lat2,lon2,nsig),&
              r_bdiag9(lat2,lon2,nsig),&
              wint9_f(lat2,lon2,nsig+1),wint9(lat2,lon2,nsig+1))
-    allocate(coriolis(lat2,lon2),curvfct(lat2,lon2))
+    allocate(coriolis(lat2,lon2),curvx(lat2,lon2),curvy(lat2,lon2))
 
     allocate(t_over_pbar(nsig),dp_over_pbar(nsig))
 
@@ -132,7 +134,7 @@ contains
     deallocate(what9,prsth9,r_prsum9,r_prdif9,prdif9,pr_xsum9,&
        pr_xdif9,pr_ysum9,pr_ydif9)
     deallocate(factk9,adiag9,bdiag9,r_bdiag9,cdiag9,wint9_f,wint9)
-    deallocate(curvfct,coriolis)
+    deallocate(curvx,curvy,coriolis)
     deallocate(t_over_pbar,dp_over_pbar)
 
     return

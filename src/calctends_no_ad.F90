@@ -26,6 +26,8 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
 !   2007-08-08  derber - optimize
 !   2008-06-05  safford - rm unused var "nnn" and unused uses
 !   2009-04-21  derber - remove call to getstvp and modify get_derivatives to include uv
+!   2009-08-20  parrish - replace curvfct with curvx, curvy.  this allows tendency computation to
+!                          work for any general orthogonal coordinate.
 !
 ! usage:
 !   input argument list:
@@ -59,7 +61,7 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
       eta2_ll,wrf_nmm_regional,nems_nmmb_regional,regional
   use constants, only: zero,half,two,rd,rcp
   use tendsmod, only: what9,prsth9,r_prsum9,prdif9,r_prdif9,pr_xsum9,pr_xdif9,&
-      pr_ysum9,pr_ydif9,curvfct,coriolis
+      pr_ysum9,pr_ydif9,curvx,curvy,coriolis
   use guess_grids, only: ntguessig,ges_u,&
       ges_u_lon,ges_u_lat,ges_v,ges_v_lon,ges_v_lat,ges_tv,ges_tvlat,ges_tvlon,&
       ges_q,ges_qlon,ges_qlat,ges_oz,ges_ozlon,ges_ozlat,ges_cwmr,ges_cwmr_lon,&
@@ -283,16 +285,18 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
 
 ! load t_thor
 
-        u(i,j,k) = u(i,j,k) - v_t(i,j,k)*(ges_v_lon(i,j,k) + two*curvfct(i,j)* &
+        u(i,j,k) = u(i,j,k) - v_t(i,j,k)*(ges_v_lon(i,j,k) - two*curvy(i,j)* &
            ges_u(i,j,k,it) + coriolis(i,j))
         v_x(i,j,k) = v_x(i,j,k) - v_t(i,j,k)*ges_u(i,j,k,it)
-        v(i,j,k) = v(i,j,k) - v_t(i,j,k)*(ges_v_lat(i,j,k) + two*curvfct(i,j)* &
+        v(i,j,k) = v(i,j,k) - v_t(i,j,k)*(ges_v_lat(i,j,k) - two*curvy(i,j)* &
            ges_v(i,j,k,it))
         v_y(i,j,k) = v_y(i,j,k) - v_t(i,j,k)*ges_v(i,j,k,it)
 
-        u(i,j,k) = u(i,j,k) - u_t(i,j,k)*ges_u_lon(i,j,k)
+        u(i,j,k) = u(i,j,k) - u_t(i,j,k)*(ges_u_lon(i,j,k) - two*curvx(i,j)* &
+           ges_u(i,j,k,it))
         u_x(i,j,k) = u_x(i,j,k) - u_t(i,j,k)*ges_u(i,j,k,it)
-        v(i,j,k) = v(i,j,k) - u_t(i,j,k)*(ges_u_lat(i,j,k) - coriolis(i,j))
+        v(i,j,k) = v(i,j,k) - u_t(i,j,k)*(ges_u_lat(i,j,k) - two*curvx(i,j)* &
+           ges_v(i,j,k,it) - coriolis(i,j))
         u_y(i,j,k) = u_y(i,j,k) - u_t(i,j,k)*ges_v(i,j,k,it)
 
       end do  !end do i

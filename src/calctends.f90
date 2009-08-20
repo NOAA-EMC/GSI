@@ -25,6 +25,8 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 !                         remove ps from argument list
 !   2007-08-08  derber - optimize, remove calculation of t_over* and dp_over* unless needed.
 !   2008-06-05  safford - rm unused vars and uses
+!   2009-08-20  parrish - replace curvfct with curvx, curvy.  this allows tendency computation to 
+!                          work for any general orthogonal coordinate.
 !
 ! usage:
 !   input argument list:
@@ -64,10 +66,11 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 !$$$
   use kinds,only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,istart,rlats,nlat,idvc5,bk5,&
-     jstart,region_lat,region_lon,eta2_ll,wrf_nmm_regional,nems_nmmb_regional,nlon,regional
+     jstart,region_lat,region_lon,eta2_ll,wrf_nmm_regional,nems_nmmb_regional,nlon,regional,&
+     region_dx,region_dy
   use constants, only: zero,half,one,two,rearth,rd,rcp,omega,grav
   use tendsmod, only: what9,prsth9,r_prsum9,r_prdif9,prdif9,pr_xsum9,pr_xdif9,pr_ysum9,&
-     pr_ydif9,curvfct,coriolis,ctph0,stph0,tlm0,t_over_pbar,dp_over_pbar
+     pr_ydif9,curvx,curvy,coriolis,t_over_pbar,dp_over_pbar
   use mpimod, only: mpi_rtype,mpi_sum,mpi_comm_world,ierror
   implicit none
 
@@ -87,8 +90,8 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
   real(r_kind),dimension(nsig):: t_over_p,dp_over_p
   real(r_kind) tmp,tmp2,count,count0
-  integer(i_kind) i,j,k,ix,jx
-  real(r_kind) relm,crlm,aph,sph,cph,cc,tph,sumk,sumvk,sum2k,sum2vk
+  integer(i_kind) i,j,k,ix,ixm,ixp,jx,jxm,jxp,nnn
+  real(r_kind) sumk,sumvk,sum2k,sum2vk,uuvv
 
 
 ! NOTES:
@@ -105,18 +108,30 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
     do j=1,lon2
       jx=j+jstart(mype+1)-2
       jx=min(max(1,jx),nlon)
+      jxp=jx+1
+      jxm=jx-1
+      if(jx.eq.1) then
+        jxp=2
+        jxm=1
+      elseif(jx.eq.nlon) then
+        jxp=nlon
+        jxm=nlon-1
+      end if
       do i=1,lat2
         ix=istart(mype+1)+i-2
         ix=min(max(ix,1),nlat)
+        ixp=ix+1
+        ixm=ix-1
+        if(ix.eq.1) then
+          ixp=2
+          ixm=1
+        elseif(ix.eq.nlat) then
+          ixp=nlat
+          ixm=nlat-1
+        end if
         coriolis(i,j)=two*omega*sin(region_lat(ix,jx))
-        relm=region_lon(ix,jx)-tlm0
-        crlm=cos(relm)
-        aph=region_lat(ix,jx)
-        sph=sin(aph)
-        cph=cos(aph)
-        cc=cph*crlm
-        tph=asin(ctph0*sph-stph0*cc)
-        curvfct(i,j)=tan(tph)/rearth
+        curvx(i,j)=(region_dy(ix,jxp)-region_dy(ix,jxm))/((jxp-jxm)*region_dx(ix,jx)*region_dy(ix,jx))
+        curvy(i,j)=(region_dx(ixp,jx)-region_dx(ixm,jx))/((ixp-ixm)*region_dx(ix,jx)*region_dy(ix,jx))
       end do
     end do
   else
@@ -125,7 +140,8 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
         ix=istart(mype+1)+i-2
         ix=min(max(ix,2),nlat-1)
         coriolis(i,j)=two*omega*sin(rlats(ix))
-        curvfct(i,j)=tan(rlats(ix))/rearth
+        curvx(i,j)=zero
+        curvy(i,j)=-tan(rlats(ix))/rearth
       end do
     end do
   end if
@@ -227,13 +243,13 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
     do j=1,lon2
       do i=1,lat2
         tmp=-rd*t(i,j,k)*r_prsum9(i,j,k)
+        uuvv=u(i,j,k)*u(i,j,k)+v(i,j,k)*v(i,j,k)
         u_t(i,j,k)=-u(i,j,k)*u_x(i,j,k) - v(i,j,k)*u_y(i,j,k) + &
-           coriolis(i,j)*v(i,j,k)
+           coriolis(i,j)*v(i,j,k) + curvx(i,j)*uuvv
         u_t(i,j,k)=u_t(i,j,k) + pr_xsum9(i,j,k)*tmp - grav*z_x(i,j)
 
         v_t(i,j,k)=-u(i,j,k)*v_x(i,j,k) - v(i,j,k)*v_y(i,j,k) - &
-           coriolis(i,j)*u(i,j,k) - curvfct(i,j)*(u(i,j,k)*u(i,j,k) + &
-           v(i,j,k)*v(i,j,k))
+           coriolis(i,j)*u(i,j,k) + curvy(i,j)*uuvv
         v_t(i,j,k)=v_t(i,j,k) + pr_ysum9(i,j,k)*tmp - grav*z_y(i,j)
 
 ! horizontal advection of "tracer" quantities

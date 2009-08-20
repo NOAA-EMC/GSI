@@ -25,6 +25,8 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
 !   2007-08-08  derber - optimize
 !   2008-06-05  safford - rm unused uses
 !   2009-04-21  derber - remove call to getuv and modify get_derivatives to include uv
+!   2009-08-20  parrish - replace curvfct with curvx, curvy.  this allows tendency computation to
+!                          work for any general orthogonal coordinate.
 !
 ! usage:
 !   input argument list:
@@ -52,7 +54,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
       wrf_nmm_regional,nems_nmmb_regional,eta2_ll,regional
   use constants, only: zero,half,two,rd,rcp
   use tendsmod, only: what9,prsth9,r_prsum9,prdif9,r_prdif9,pr_xsum9,pr_xdif9,&
-      pr_ysum9,pr_ydif9,curvfct,coriolis
+      pr_ysum9,pr_ydif9,curvx,curvy,coriolis
   use guess_grids, only: ntguessig,ges_u,&
       ges_u_lon,ges_u_lat,ges_v,ges_v_lon,ges_v_lat,ges_tv,ges_tvlat,ges_tvlon,&
       ges_teta,ges_prsi
@@ -77,7 +79,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
   real(r_kind),dimension(lat2,lon2,nsig):: u_x,u_y,v_x,v_y,t_x,t_y
   real(r_kind),dimension(lat2,lon2,nsig+1):: p3d_x,p3d_y
 
-  real(r_kind) tmp,tmp2,tmp3,sumk,sumvk,sum2k,sum2vk
+  real(r_kind) tmp,tmp2,tmp3,sumk,sumvk,sum2k,sum2vk,uduvdv
   integer(i_kind) i,j,k,ix,it
   integer(i_kind) :: jstart,jstop
   integer(i_kind) :: nth,tid,omp_get_num_threads,omp_get_thread_num
@@ -218,13 +220,13 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
   do k=1,nsig
     do j=jstart,jstop
       do i=1,lat2
+        uduvdv=two*(ges_u(i,j,k,it)*u(i,j,k) + ges_v(i,j,k,it)*v(i,j,k))
         u_t(i,j,k)=-u(i,j,k)*ges_u_lon(i,j,k) - ges_u(i,j,k,it)*u_x(i,j,k) - &
            v(i,j,k)*ges_u_lat(i,j,k) - ges_v(i,j,k,it)*u_y(i,j,k) + &
-           coriolis(i,j)*v(i,j,k)
+           coriolis(i,j)*v(i,j,k) + curvx(i,j)*uduvdv
         v_t(i,j,k)=-u(i,j,k)*ges_v_lon(i,j,k) - ges_u(i,j,k,it)*v_x(i,j,k) - &
            v(i,j,k)*ges_v_lat(i,j,k) - ges_v(i,j,k,it)*v_y(i,j,k) - &
-           coriolis(i,j)*u(i,j,k) - two*curvfct(i,j)*(ges_u(i,j,k,it)*u(i,j,k) + &
-           ges_v(i,j,k,it)*v(i,j,k))
+           coriolis(i,j)*u(i,j,k) + curvy(i,j)*uduvdv
 
         tmp=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
         tmp2=rd*t(i,j,k)*r_prsum9(i,j,k)
