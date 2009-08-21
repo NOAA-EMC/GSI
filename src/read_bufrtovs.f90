@@ -121,7 +121,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   character(8),parameter:: fov_flag="crosstrk"
   real(r_kind),parameter:: expansion=2.9_r_kind  ! do not make larger than 3
-  integer(i_kind),parameter:: n1bhdr=15
+  integer(i_kind),parameter:: n1bhdr=13
+  integer(i_kind),parameter:: n2bhdr=14
   integer(i_kind),parameter:: maxinfo=33
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
@@ -133,7 +134,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   character(14):: infile2
   character(8) subset,subfgn
-  character(80) hdr1b
+  character(80) hdr1b,hdr2b
 
   integer(i_kind) ireadsb,ireadmg,irec,isub,next
   integer(i_kind) i,j,k,ifov,ntest
@@ -167,6 +168,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   real(r_double),allocatable,dimension(:):: data1b8,data1b8x
   real(r_double),dimension(n1bhdr):: bfr1bhdr
+  real(r_double),dimension(n2bhdr):: bfr2bhdr
 
   real(r_kind) disterr,disterrmax,dlon00,dlat00
 
@@ -471,11 +473,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
    read_loop: do while (ireadsb(lnbufr)==0 .and. subset==subfgn)
 
 !          Read header record.  (lll=1 is normal feed, 2=EARS data)
-           if(lll == 1)then
-              hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON SAZA SOZA BEARAZ SOLAZI HOLS '
-           else
-              hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA SOZA BEARAZ SOLAZI '
-           end if
+           hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HOLS'
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
 !          Extract satellite id.  If not the one we want, read next record
@@ -484,8 +482,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if(ksatid /= kidsat) cycle read_loop
 
 !          Extract observation location and other required information
-           dlat_earth = bfr1bhdr(9)
-           dlon_earth = bfr1bhdr(10)
+           if(abs(bfr1bhdr(11)) <= 91._r_kind .and. abs(bfr1bhdr(12)) <= 361._r_kind)then
+             dlat_earth = bfr1bhdr(11)
+             dlon_earth = bfr1bhdr(12)
+           else
+             dlat_earth = bfr1bhdr(9)
+             dlon_earth = bfr1bhdr(10)
+           end if
            if(dlon_earth<zero)  dlon_earth = dlon_earth+r360
            if(dlon_earth>=r360) dlon_earth = dlon_earth-r360
            dlat_earth_deg = dlat_earth
@@ -493,12 +496,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            dlat_earth = dlat_earth*deg2rad
            dlon_earth = dlon_earth*deg2rad
            
-           sat_aziang=bfr1bhdr(13)
-           if (abs(sat_aziang) > r360) then
-             sat_aziang=zero
-!_RT         write(6,*) 'READ_BUFRTOVS: bad azimuth angle ',sat_aziang
-!_RT         cycle read_loop
-           endif
 
 !          Regional case
            if(regional)then
@@ -543,14 +540,25 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if (msu .and. (ifov==1 .or. ifov==11)) cycle read_loop
 
            nread=nread+nchanl
+
            if (l4dvar) then
              timedif = 0.0_r_kind
            else
              timedif = 2.0_r_kind*abs(tdiff)        ! range:  0 to 6
            endif
            terrain = 50._r_kind
-           if(lll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(15))                   
+           if(lll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
            crit1 = 0.01_r_kind+terrain + (lll-1)*500.0_r_kind + timedif 
+
+           hdr2b ='SAZA SOZA BEARAZ SOLAZI'
+           call ufbint(lnbufr,bfr2bhdr,n2bhdr,1,iret,hdr2b)
+
+           sat_aziang=bfr2bhdr(3)
+           if (abs(sat_aziang) > r360) then
+             sat_aziang=zero
+!_RT         write(6,*) 'READ_BUFRTOVS: bad azimuth angle ',sat_aziang
+!_RT         cycle read_loop
+           endif
 
 !          Read data record.  Increment data counter
            if(lll == 1)then
@@ -627,7 +635,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if( msu .or. hirs2 .or. ssu)then
               lza = lzaest
            else
-              lza = bfr1bhdr(11)*deg2rad      ! local zenith angle
+              lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
               if((amsua .and. ifovmod <= 15) .or.        &
                  (amsub .and. ifovmod <= 45) .or.        &
                  (mhs   .and. ifovmod <= 45) .or.        &
@@ -642,7 +650,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            end if
 
            if(abs(lza)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
-              write(6,*)'READ_BUFRTOVS WARNING lza error ',bfr1bhdr(11),panglr
+              write(6,*)'READ_BUFRTOVS WARNING lza error ',bfr2bhdr(1),panglr
               cycle read_loop
            end if
 
@@ -715,11 +723,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            data_all(3 ,itx)= dlon                      ! grid relative longitude
            data_all(4 ,itx)= dlat                      ! grid relative latitude
            data_all(5 ,itx)= lza                       ! local zenith angle
-           data_all(6 ,itx)= bfr1bhdr(13)              ! local azimuth angle
+           data_all(6 ,itx)= bfr2bhdr(3)              ! local azimuth angle
            data_all(7 ,itx)= panglr                    ! look angle
            data_all(8 ,itx)= ifov                      ! scan position
-           data_all(9 ,itx)= bfr1bhdr(12)              ! solar zenith angle
-           data_all(10,itx)= bfr1bhdr(14)              ! solar azimuth angle
+           data_all(9 ,itx)= bfr2bhdr(2)              ! solar zenith angle
+           data_all(10,itx)= bfr2bhdr(4)               ! solar azimuth angle
            data_all(11,itx) = sfcpct(0)                ! sea percentage of
            data_all(12,itx) = sfcpct(1)                ! land percentage
            data_all(13,itx) = sfcpct(2)                ! sea ice percentage

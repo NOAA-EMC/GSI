@@ -358,6 +358,7 @@ subroutine read_obs(ndata,mype)
 
               if(lexistears)then
                 len4file=lenbytes/4
+                ntasks1(i,2)=1
 !  Allow up to 16 processors/file increase loop bounds to increase number of processors allowed
                 do j=1,4
                    if(len4file < lenbuf)exit
