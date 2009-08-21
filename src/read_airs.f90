@@ -410,6 +410,15 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
        if (abs(tdiff)>twind) cycle read_loop
      endif
      
+     if (l4dvar) then
+       crit1 = 0.01_r_kind
+     else
+       timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
+       crit1 = 0.01_r_kind+timedif 
+     endif
+     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+     if(.not. iuse)cycle read_loop
+
 !    Check observational info
      sat_zenang  = allspot(10,ix) 
      ifov = nint( allspot(12,ix) )
@@ -420,6 +429,33 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         cycle read_loop
 
      endif
+
+!   "Score" observation.  We use this information to identify "best" obs
+!    Locate the observation on the analysis grid.  Get sst and land/sea/ice
+!    mask.  
+!     isflg    - surface flag
+!                0 sea
+!                1 land
+!                2 sea ice
+!                3 snow
+!                4 mixed 
+     if (isfcalc == 1) then
+        call fov_check(ifov,instr,valid)
+        if (.not. valid) cycle read_loop
+     endif
+
+     if (isfcalc == 1) then
+       call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg, &
+                         dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
+                        sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
+     else
+       call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg, &
+             idomsfc,sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+     endif
+
+     crit1=crit1 + rlndsea(isflg)
+     call checkob(dist1,crit1,itx,iuse)
+     if(.not. iuse)cycle read_loop
 
 ! Check that number of airs channel equals n_airschan
 ! only done until they match for one record and ndata is updated
@@ -469,34 +505,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
      if( iskip >= nchanl )cycle read_loop
 
-     if (l4dvar) then
-       crit1 = 0.01_r_kind
-     else
-       timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-       crit1 = 0.01_r_kind+timedif 
-     endif
-     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-     if(.not. iuse)cycle read_loop
 
-!   "Score" observation.  We use this information to identify "best" obs
-!    Locate the observation on the analysis grid.  Get sst and land/sea/ice
-!    mask.  
-!     isflg    - surface flag
-!                0 sea
-!                1 land
-!                2 sea ice
-!                3 snow
-!                4 mixed 
-     if (isfcalc == 1) then
-        call fov_check(ifov,instr,valid)
-        if (.not. valid) cycle read_loop
-     endif
-
-     call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
-
-     crit1=crit1 + rlndsea(isflg)
-     call checkob(dist1,crit1,itx,iuse)
-     if(.not. iuse)cycle read_loop
 !    Set common predictor parameters
 
      sat_zenang  = sat_zenang  * deg2rad
@@ -629,9 +638,27 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      data_all(8,itx) = ifov                ! fov number
      data_all(9,itx) = sol_zenang          ! solar zenith angle (deg)
      data_all(10,itx)= sol_aziang          ! solar azimuth angle (deg)
-
-     data_all(30,itx)= dlon_earth          ! earth relative longitude (rad)
-     data_all(31,itx)= dlat_earth          ! earth relative latitude (rad)
+     data_all(11,itx) = sfcpct(0)          ! sea percentage of
+     data_all(12,itx) = sfcpct(1)          ! land percentage
+     data_all(13,itx) = sfcpct(2)          ! sea ice percentage
+     data_all(14,itx) = sfcpct(3)          ! snow percentage
+     data_all(15,itx)= ts(0)               ! ocean skin temperature
+     data_all(16,itx)= ts(1)               ! land skin temperature
+     data_all(17,itx)= ts(2)               ! ice skin temperature
+     data_all(18,itx)= ts(3)               ! snow skin temperature
+     data_all(19,itx)= tsavg               ! average skin temperature
+     data_all(20,itx)= vty                 ! vegetation type
+     data_all(21,itx)= vfr                 ! vegetation fraction
+     data_all(22,itx)= sty                 ! soil type
+     data_all(23,itx)= stp                 ! soil temperature
+     data_all(24,itx)= sm                  ! soil moisture
+     data_all(25,itx)= sn                  ! snow depth
+     data_all(26,itx)= zz                  ! surface height
+     data_all(27,itx)= idomsfc + 0.001     ! dominate surface type
+     data_all(28,itx)= sfcr                ! surface roughness
+     data_all(29,itx)= ff10                ! ten meter wind factor
+     data_all(30,itx)= dlon_earth_deg      ! earth relative longitude (degrees)
+     data_all(31,itx)= dlat_earth_deg      ! earth relative latitude (degrees)
 
      data_all(32,itx)= val_airs
      data_all(33,itx)= itt
@@ -664,47 +691,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         end do
         itt=nint(data_all(nreal,n))
         super_val(itt)=super_val(itt)+val_airs
-        t4dv = data_all(2,n)                ! time (hours)
-        dlon=data_all(3,n)                   ! grid relative longitude
-        dlat=data_all(4,n)                   ! grid relative latitude
-        dlon_earth = data_all(30,n)          ! earth relative longitude (degrees)
-        dlat_earth = data_all(31,n)          ! earth relative latitude (degrees)
-
-
-        if (isfcalc == 1) then
-          ifov =  data_all(8 ,n)                     ! scan position
-          sat_aziang = data_all(6 ,n)                ! local azimuth angle
-          dlat_earth_deg = data_all(31,n)*rad2deg
-          dlon_earth_deg = data_all(30,n)*rad2deg
-          call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg, &
-                            dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
-                           sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
-        else
-          call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg, &
-                idomsfc,sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        endif
-        data_all(11,n) = sfcpct(0)           ! sea percentage of
-        data_all(12,n) = sfcpct(1)           ! land percentage
-        data_all(13,n) = sfcpct(2)           ! sea ice percentage
-        data_all(14,n) = sfcpct(3)           ! snow percentage
-        data_all(15,n)= ts(0)                ! ocean skin temperature
-        data_all(16,n)= ts(1)                ! land skin temperature
-        data_all(17,n)= ts(2)                ! ice skin temperature
-        data_all(18,n)= ts(3)                ! snow skin temperature
-        data_all(19,n)= tsavg                ! average skin temperature
-        data_all(20,n)= vty                  ! vegetation type
-        data_all(21,n)= vfr                  ! vegetation fraction
-        data_all(22,n)= sty                  ! soil type
-        data_all(23,n)= stp                  ! soil temperature
-        data_all(24,n)= sm                   ! soil moisture
-        data_all(25,n)= sn                   ! snow depth
-        data_all(26,n)= zz                   ! surface height
-        data_all(27,n)= idomsfc + 0.001      ! dominate surface type
-        data_all(28,n)= sfcr                 ! surface roughness
-        data_all(29,n)= ff10                 ! ten meter wind factor
-        data_all(30,n)= data_all(30,n)*rad2deg  ! earth relative longitude (degrees)
-        data_all(31,n)= data_all(31,n)*rad2deg  ! earth relative latitude (degrees)
-
      end do
 
 !    Write final set of "best" observations to output file

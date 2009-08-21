@@ -185,14 +185,14 @@ subroutine read_obs(ndata,mype)
     character(13):: string,infile
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
-    integer(i_kind) nprof_gps1,npem1,krsize,len4file
+    integer(i_kind) nprof_gps1,npem1,krsize,len4file,npemax,ilarge,nlarge,npestart
     integer(8) :: lenbytes
-!   integer(i_kind) isum
-    integer(i_kind):: iworld,iworld_group,next_mype,mm1
+    integer(i_kind):: npetot,npeextra,mmdat
+    integer(i_kind):: iworld,iworld_group,next_mype,mm1,iix
     integer(i_kind):: mype_root,ntask_read,mpi_comm_sub_read,lll
     integer(i_kind):: mype_sub_read,minuse
     integer(i_kind):: iworld_group_r1,iworld_r1,iworld_group_r2,iworld_r2
-    integer(i_kind),dimension(ndat):: npe_sub,mpi_comm_sub,mype_root_sub
+    integer(i_kind),dimension(ndat):: npe_sub,npe_sub3,mpi_comm_sub,mype_root_sub,npe_order
     integer(i_kind),dimension(ndat):: mpi_comm_sub_r1,mpi_comm_sub_r2
     integer(i_kind),dimension(ndat,2):: ntasks1,ntasks
     integer(i_kind),dimension(ndat,3):: ndata1
@@ -327,7 +327,7 @@ subroutine read_obs(ndata,mype)
        ii=ii+1
        if (ii>npem1) ii=0
        if(mype==ii)then
-          call gsi_inquire(lenbytes,lexist,dfile(i),mype)
+           call gsi_inquire(lenbytes,lexist,dfile(i),mype)
 
 !      Initialize number of reader tasks to 1.  For the time being
 !      only allow number of reader tasks >= 1 for select obstype.
@@ -338,8 +338,14 @@ subroutine read_obs(ndata,mype)
                  .not. avhrr)) then
 
                  len4file=lenbytes/4
-                 ntasks1(i,1)=len4file/lenbuf
-                 if(ntasks1(i,1)*lenbuf < len4file) ntasks1(i,1)=ntasks1(i,1)+1
+!  Allow up to 16 processors/file increase loop bounds to increase number of processors allowed
+                 do j=1,4
+                   if(len4file < lenbuf)exit
+                   ntasks1(i,1)=2*ntasks1(i,1)
+                   len4file=len4file/2
+                 end do
+!                ntasks1(i,1)=len4file/lenbuf
+!                if(ntasks1(i,1)*lenbuf < len4file) ntasks1(i,1)=ntasks1(i,1)+1
             end if
           end if
           if (ditype(i) == 'rad' .and. nuse .and.           &
@@ -352,8 +358,14 @@ subroutine read_obs(ndata,mype)
 
               if(lexistears)then
                 len4file=lenbytes/4
-                ntasks1(i,2)=len4file/lenbuf
-                if(ntasks1(i,2)*lenbuf < len4file) ntasks1(i,2)=ntasks1(i,2)+1
+!  Allow up to 16 processors/file increase loop bounds to increase number of processors allowed
+                do j=1,4
+                   if(len4file < lenbuf)exit
+                   ntasks1(i,2)=2*ntasks1(i,2)
+                   len4file=len4file/2
+                end do
+!               ntasks1(i,2)=len4file/lenbuf
+!               if(ntasks1(i,2)*lenbuf < len4file) ntasks1(i,2)=ntasks1(i,2)+1
                 lexist=lexist .or. lexistears
               end if
           end if
@@ -364,12 +376,73 @@ subroutine read_obs(ndata,mype)
 !   Distribute optimal number of reader tasks to all mpi tasks
     call mpi_allreduce(ntasks1,ntasks,2*ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror)
 
+    npemax=0
+    npetot=izero
     do i=1,ndat
        npe_sub(i)=ntasks(i,1)+ntasks(i,2)
+       npetot=npetot+npe_sub(i)
+       npemax=max(npemax,npe_sub(i))
     end do
 
     if(l4dvar.and.(.not.lobserver)) return
+    
+    npeextra=npe-npetot
+    if(npeextra > 0)then
+    if(mype == 0)write(6,*) ' number of extra processors ',npeextra
+    npe_sub3=npe_sub
+    extraloop: do j=1,npeextra
+     iix = 1
+     do ii=1,4
+      do i=1,ndat
+       if(iix == npe_sub3(i) .and. ditype(i) == 'rad')then
+        obstype=dtype(i)                   !     obstype  - observation types to process
+        avhrr = index(obstype,'avhrr') /= 0
+         if(.not. obstype=='goes_img' .and. .not. avhrr) then
+          if(ntasks(i,1) > 0 .and. ntasks(i,1) <= npeextra)then
+            npeextra=npeextra-ntasks(i,1)
+            npe_sub(i)=npe_sub(i)+ntasks(i,1)
+            ntasks(i,1)=2*ntasks(i,1)
+            if(npeextra == 0)exit extraloop
+          end if
+          if(ntasks(i,2) > 0 .and. ntasks(i,2) <= npeextra)then
+            npeextra=npeextra-ntasks(i,2)
+            npe_sub(i)=npe_sub(i)+ntasks(i,2)
+            ntasks(i,2)=2*ntasks(i,2)
+            if(npeextra == 0)exit extraloop
+          end if
+        end if
+       end if
+      end do
+      iix=2*iix 
+     end do
+    end do extraloop
+    end if
 
+!   Set up locations of first processor
+
+    ilarge=0
+    npestart=0
+    npe_sub3=npe_sub
+    mype_root_sub=0
+    mmdat=0
+    loopx: do j=1,ndat
+     nlarge=0
+     do i=1,ndat
+      if(npe_sub3(i) > nlarge .and. npe_sub3(i)+npestart <= npe)then
+         ilarge=i
+         nlarge=npe_sub3(i)
+      end if
+     end do
+     if(nlarge == 0)exit loopx
+     npe_order(j)=ilarge
+     mype_root_sub(ilarge)=npestart
+     npestart=npestart+npe_sub3(ilarge)
+     mmdat=mmdat+1
+     if(npestart == npe)npestart=0
+     npe_sub3(ilarge)=0
+    end do loopx
+
+        
 !   Define sub-communicators for each data file
     mm1=mype+1
     belong=.false.
@@ -378,11 +451,11 @@ subroutine read_obs(ndata,mype)
     mype_sub_r2=-999
     mype_root=0
     next_mype=0
-    mype_root_sub=0
-    do i=1,ndat
+    do ii=1,mmdat
+      i=npe_order(ii)
       if(npe_sub(i) > izero)then
+         next_mype=mype_root_sub(i)
          do k=1,npe_sub(i)
-            if(k == 1) mype_root_sub(i)=next_mype
             mype_work(k,i) = next_mype
             mype_sub(mype_work(k,i)+1,i)=k-1
             if(k > ntasks(i,1)) then
@@ -410,8 +483,9 @@ subroutine read_obs(ndata,mype)
       end if
 
     end do
-    do i=1,ndat
-       if(mype == 0)write(6,*)'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i,1),ntasks(i,2),mype_root_sub(i),npe_sub(i) 
+    do ii=1,mmdat
+       i=npe_order(ii)
+       if(mype == 0 .and. npe_sub(i) > 0)write(6,*)'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i,1),ntasks(i,2),mype_root_sub(i),npe_sub(i) 
     end do
 
 
@@ -423,9 +497,7 @@ subroutine read_obs(ndata,mype)
         if(obstype /= 'dw' .and. obstype /= 'rw' .and. obstype /= 'srw')then
           use_prsl_full=.true.
         end if
-      else if(belong(i) .and. (ditype(i) == 'rad' .or. ditype(i)=='pcp') .and. &
-              mype_root_sub(i)==mype)then
-!     else if(belong(i) .and. (ditype(i) == 'rad' .or. ditype(i)=='pcp'))then
+      else if(belong(i) .and. (ditype(i) == 'rad' .or. ditype(i)=='pcp'))then
          use_sfc=.true.
       end if
     end do
@@ -450,9 +522,10 @@ subroutine read_obs(ndata,mype)
     call destroy_sfc_grids
 
 !   Loop over data files.  Each data file is read by a sub-communicator
-    do i=1,ndat
+    do ii=1,mmdat
 
-       if (belong(i)) then
+       i=npe_order(ii)
+       if (i > izero .and. belong(i)) then
 
           platid=dplat(i)                    !     platid   - satellites to read
           obstype=dtype(i)                   !     obstype  - observation types to process

@@ -437,19 +437,30 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                 (1) - land percentage
 !                 (2) - sea ice percentage
 !                 (3) - snow percentage
-        if (isfcalc/=1) then
-          call deter_sfc_type(dlat_earth+r07,dlon_earth+r07,t4dv,isflg_1,tsavg)
-          call deter_sfc_type(dlat_earth+r07,dlon_earth-r07,t4dv,isflg_2,tsavg)
-          call deter_sfc_type(dlat_earth-r07,dlon_earth+r07,t4dv,isflg_3,tsavg)
-          call deter_sfc_type(dlat_earth-r07,dlon_earth-r07,t4dv,isflg_4,tsavg)
-          isflg=4 ! defaults
-          if(isflg_1==0 .and. isflg_2==0 .and. isflg_3==0 .and. isflg_4==0)isflg=0
-          if(isflg_1==1 .and. isflg_2==1 .and. isflg_3==1 .and. isflg_4==1)isflg=1
-          if(isflg_1==2 .and. isflg_2==2 .and. isflg_3==2 .and. isflg_4==2)isflg=2
-          if(isflg_1==3 .and. isflg_2==3 .and. isflg_3==3 .and. isflg_4==3)isflg=3
+        if (isfcalc==1) then
+
+          call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
+                             dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
+                             sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
         else
-          call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
-        end if
+          call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth+r07,t4dv,isflg_1, &
+             idomsfc,sfcpct_1,ts,sstx_1,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+          call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth-r07,t4dv,isflg_2, &
+             idomsfc,sfcpct_2,ts,sstx_2,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+          call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth+r07,t4dv,isflg_3, &
+             idomsfc,sfcpct_3,ts,sstx_3,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+          call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth-r07,t4dv,isflg_4, &
+             idomsfc,sfcpct_4,ts,sstx_4,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+
+          call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
+                  ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+
+
+          sfcpct(0)= (sfcpct_1(0)+ sfcpct_2(0)+ sfcpct_3(0)+ sfcpct_4(0))/4.0_r_kind
+          sfcpct(1)= (sfcpct_1(1)+ sfcpct_2(1)+ sfcpct_3(1)+ sfcpct_4(1))/4.0_r_kind
+          sfcpct(2)= (sfcpct_1(2)+ sfcpct_2(2)+ sfcpct_3(2)+ sfcpct_4(2))/4.0_r_kind
+          sfcpct(3)= (sfcpct_1(3)+ sfcpct_2(3)+ sfcpct_3(3)+ sfcpct_4(3))/4.0_r_kind
+        endif ! isfcalc==1
 
 
 
@@ -466,19 +477,37 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         call finalcheck(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
-        data_all( 1,itx)= rsat                 !satellite id
-        data_all( 2,itx)= t4dv                 !time diff between obs and anal (min)
-        data_all( 3,itx)= dlon                 !grid relative longitude
-        data_all( 4,itx)= dlat                 !grid relative latitude
-        data_all( 5,itx)= incangl*deg2rad      !local zenith angle (rad)
-        data_all( 6,itx)= zero                 !local azimuth angle (missing)
-        data_all( 7,itx)= zero                 !look angle (rad)
-        data_all( 8,itx)= ifov                 !FOV scan position
-        data_all( 9,itx)= zero                 !solar zenith angle (deg) : not used for MW-RT calc
-        data_all(10,itx)= zero                 !solar azimuth angle (deg) : not used for MW-RT calc
-
-        data_all(30,itx)= dlon_earth           ! earth relative longitude (rad)
-        data_all(31,itx)= dlat_earth           ! earth relative latitude (rad)
+        data_all( 1,itx)= rsat                 ! satellite id
+        data_all( 2,itx)= t4dv                 ! time diff between obs and anal (min)
+        data_all( 3,itx)= dlon                 ! grid relative longitude
+        data_all( 4,itx)= dlat                 ! grid relative latitude
+        data_all( 5,itx)= incangl*deg2rad      ! local zenith angle (rad)
+        data_all( 6,itx)= zero                 ! local azimuth angle (missing)
+        data_all( 7,itx)= zero                 ! look angle (rad)
+        data_all( 8,itx)= ifov                 ! FOV scan position
+        data_all( 9,itx)= zero                 ! solar zenith angle (deg) : not used for MW-RT calc
+        data_all(10,itx)= zero                 ! solar azimuth angle (deg) : not used for MW-RT calc
+        data_all(11,itx) = sfcpct(0)           ! sea percentage of
+        data_all(12,itx) = sfcpct(1)           ! land percentage
+        data_all(13,itx) = sfcpct(2)           ! sea ice percentage
+        data_all(14,itx) = sfcpct(3)           ! snow percentage
+        data_all(15,itx)= ts(0)                ! ocean skin temperature
+        data_all(16,itx)= ts(1)                ! land skin temperature
+        data_all(17,itx)= ts(2)                ! ice skin temperature
+        data_all(18,itx)= ts(3)                ! snow skin temperature
+        data_all(19,itx)= tsavg                ! average skin temperature
+        data_all(20,itx)= vty                  ! vegetation type
+        data_all(21,itx)= vfr                  ! vegetation fraction
+        data_all(22,itx)= sty                  ! soil type
+        data_all(23,itx)= stp                  ! soil temperature
+        data_all(24,itx)= sm                   ! soil moisture
+        data_all(25,itx)= sn                   ! snow depth
+        data_all(26,itx)= zz                   ! surface height
+        data_all(27,itx)= idomsfc + 0.001      ! dominate surface type
+        data_all(28,itx)= sfcr                 ! surface roughness
+        data_all(29,itx)= ff10                 ! ten meter wind factor
+        data_all(30,itx)= dlon_earth_deg       ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth_deg       ! earth relative latitude (degrees)
 
         data_all(nreal-1,itx)=val_ssmis
         data_all(nreal,itx)=itt
@@ -511,62 +540,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         end do
         itt=nint(data_all(nreal,n))
         super_val(itt)=super_val(itt)+val_ssmis
-        t4dv = data_all(2,n)                ! time (hours)
-        dlon=data_all(3,n)                   ! grid relative longitude
-        dlat=data_all(4,n)                   ! grid relative latitude
-        dlon_earth = data_all(30,n)  ! earth relative longitude (degrees)
-        dlat_earth = data_all(31,n)  ! earth relative latitude (degrees)
 
-        if (isfcalc==1) then
-          ifov =  data_all(8 ,n)                     ! scan position
-          sat_aziang = data_all(6 ,n)                ! local azimuth angle
-          dlat_earth_deg = data_all(31,n)*rad2deg
-          dlon_earth_deg = data_all(30,n)*rad2deg
-
-
-          call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
-                             dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
-                             sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
-        else
-          call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth+r07,t4dv,isflg_1, &
-             idomsfc,sfcpct_1,ts,sstx_1,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-          call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth-r07,t4dv,isflg_2, &
-             idomsfc,sfcpct_2,ts,sstx_2,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-          call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth+r07,t4dv,isflg_3, &
-             idomsfc,sfcpct_3,ts,sstx_3,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-          call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth-r07,t4dv,isflg_4, &
-             idomsfc,sfcpct_4,ts,sstx_4,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-
-          call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-                  ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-
-
-          sfcpct(0)= (sfcpct_1(0)+ sfcpct_2(0)+ sfcpct_3(0)+ sfcpct_4(0))/4.0_r_kind
-          sfcpct(1)= (sfcpct_1(1)+ sfcpct_2(1)+ sfcpct_3(1)+ sfcpct_4(1))/4.0_r_kind
-          sfcpct(2)= (sfcpct_1(2)+ sfcpct_2(2)+ sfcpct_3(2)+ sfcpct_4(2))/4.0_r_kind
-          sfcpct(3)= (sfcpct_1(3)+ sfcpct_2(3)+ sfcpct_3(3)+ sfcpct_4(3))/4.0_r_kind
-        endif ! isfcalc==1
-        data_all(11,n) = sfcpct(0)           ! sea percentage of
-        data_all(12,n) = sfcpct(1)           ! land percentage
-        data_all(13,n) = sfcpct(2)           ! sea ice percentage
-        data_all(14,n) = sfcpct(3)           ! snow percentage
-        data_all(15,n)= ts(0)                ! ocean skin temperature
-        data_all(16,n)= ts(1)                ! land skin temperature
-        data_all(17,n)= ts(2)                ! ice skin temperature
-        data_all(18,n)= ts(3)                ! snow skin temperature
-        data_all(19,n)= tsavg                ! average skin temperature
-        data_all(20,n)= vty                  ! vegetation type
-        data_all(21,n)= vfr                  ! vegetation fraction
-        data_all(22,n)= sty                  ! soil type
-        data_all(23,n)= stp                  ! soil temperature
-        data_all(24,n)= sm                   ! soil moisture
-        data_all(25,n)= sn                   ! snow depth
-        data_all(26,n)= zz                   ! surface height
-        data_all(27,n)= idomsfc + 0.001      ! dominate surface type
-        data_all(28,n)= sfcr                 ! surface roughness
-        data_all(29,n)= ff10                 ! ten meter wind factor
-        data_all(30,n)= data_all(30,n)*rad2deg  ! earth relative longitude (degrees)
-        data_all(31,n)= data_all(31,n)*rad2deg  ! earth relative latitude (degrees)
 
      end do
 
