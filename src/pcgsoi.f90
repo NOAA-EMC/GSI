@@ -264,7 +264,13 @@ subroutine pcgsoi()
      gnorm(2)=dot_product(ydiff,grady,r_quad)
      b=zero
      if (gsave>1.e-16 .and. iter>0) b=gnorm(2)/gsave
-     if (b>five) b=zero
+     if (b<zero .or. b>five) then
+        if (mype==izero) then
+           if (iout_6) write(6,105) gnorm(2),gsave,b
+           write(iout_iter,105) gnorm(2),gsave,b
+        endif
+        b=zero
+     endif
      if (mype==0) write(6,888)'pcgsoi: gnorm(1:2),b=',gnorm,b
 
 !    Calculate new search direction
@@ -372,6 +378,7 @@ subroutine pcgsoi()
         end if
 101     format(' PCGSOI: WARNING **** Stopping inner iteration ***')
 100     format(' Penalty increase or constant ',I3,1x,i4,1x,2(e24.18,1x))
+105     format(' PCGSOI: WARNING **** Reset to steepest descent, gnorm(2),gsave,b= ',3(e24.18,1x))
 130     format(' gnorm ', e24.18,' less than ',e24.18)
 131     format(' penalty ', e24.18,' less than ',e24.18)
 140     format(' Stepsize calculation terminates inner iteration - probable convergence')
