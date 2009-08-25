@@ -177,6 +177,8 @@ module gridmod
   real(r_kind),allocatable::region_lat(:,:)       !
   real(r_kind),allocatable::region_dx(:,:)        !
   real(r_kind),allocatable::region_dy(:,:)        !
+  real(r_kind),allocatable::region_dxi(:,:)       !
+  real(r_kind),allocatable::region_dyi(:,:)       !
   real(r_kind),allocatable::coeffx(:,:)           !
   real(r_kind),allocatable::coeffy(:,:)           !
 
@@ -838,6 +840,7 @@ contains
 
       allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
       allocate(region_dy(nlat,nlon),region_dx(nlat,nlon))
+      allocate(region_dyi(nlat,nlon),region_dxi(nlat,nlon))
       allocate(coeffy(nlat,nlon),coeffx(nlat,nlon))
 
 !   generate earth lats and lons on analysis grid
@@ -891,6 +894,8 @@ contains
           region_lon(i,k)=glon_an(k,i)
           region_dy(i,k)=dy_an(k,i)
           region_dx(i,k)=dx_an(k,i)
+          region_dyi(i,k)=one/dy_an(k,i)
+          region_dxi(i,k)=one/dx_an(k,i)
           coeffy(i,k)=half/dy_an(k,i)
           coeffx(i,k)=half/dx_an(k,i)
         end do
@@ -991,6 +996,7 @@ contains
 
       allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
       allocate(region_dy(nlat,nlon),region_dx(nlat,nlon))
+      allocate(region_dyi(nlat,nlon),region_dxi(nlat,nlon))
       allocate(coeffy(nlat,nlon),coeffx(nlat,nlon))
 
 !   trasfer earth lats and lons to arrays region_lat, region_lon
@@ -1004,6 +1010,8 @@ contains
           region_lon(i,k)=glon(k,i)
           region_dx(i,k)=dx_mc(k,i)
           region_dy(i,k)=dy_mc(k,i)
+          region_dxi(i,k)=one/dx_mc(k,i)
+          region_dyi(i,k)=one/dy_mc(k,i)
           coeffx(i,k)=half/dx_mc(k,i)
           coeffy(i,k)=half/dy_mc(k,i)
         end do
@@ -1131,6 +1139,7 @@ contains
 
       allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
       allocate(region_dy(nlat,nlon),region_dx(nlat,nlon))
+      allocate(region_dyi(nlat,nlon),region_dxi(nlat,nlon))
       allocate(coeffy(nlat,nlon),coeffx(nlat,nlon))
 
 !   generate earth lats and lons on analysis grid
@@ -1175,6 +1184,8 @@ contains
           region_lon(i,k)=glon_an(k,i)
           region_dy(i,k)=dy_an(i,k)
           region_dx(i,k)=dx_an(i,k)
+          region_dyi(i,k)=one/dy_an(i,k)
+          region_dxi(i,k)=one/dx_an(i,k)
           coeffy(i,k)=half/dy_an(i,k)
           coeffx(i,k)=half/dx_an(i,k)
         end do
@@ -1266,6 +1277,7 @@ contains
 
       allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
       allocate(region_dy(nlat,nlon),region_dx(nlat,nlon))
+      allocate(region_dyi(nlat,nlon),region_dxi(nlat,nlon))
       allocate(coeffy(nlat,nlon),coeffx(nlat,nlon))
 
 !   transfer earth lats and lons to arrays region_lat, region_lon
@@ -1279,6 +1291,8 @@ contains
           region_lon(i,k)=glon(k,i)
           region_dx(i,k)=dx_mc(k,i)
           region_dy(i,k)=dy_mc(k,i)
+          region_dxi(i,k)=one/dx_mc(k,i)
+          region_dyi(i,k)=one/dy_mc(k,i)
           coeffx(i,k)=half/dx_mc(k,i)
           coeffy(i,k)=half/dy_mc(k,i)
         end do

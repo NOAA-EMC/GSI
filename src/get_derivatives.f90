@@ -118,10 +118,10 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   x derivative
 !$omp parallel do private(vector)
     do k=1,nlevs
+      vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
       if(regional) then
-        call delx_reg(hwork(1,1,k),hworkd(1,1,k))
+        call delx_reg(hwork(1,1,k),hworkd(1,1,k),vector)
       else
-        vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
         call compact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
       end if
     end do
@@ -133,10 +133,10 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   y derivative
 !$omp parallel do private(vector)
     do k=1,nlevs
+      vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
       if(regional) then
-        call dely_reg(hwork(1,1,k),hworkd(1,1,k))
+        call dely_reg(hwork(1,1,k),hworkd(1,1,k),vector)
       else
-        vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
         call compact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
       end if
     end do
@@ -242,10 +242,10 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
                 u_y,v_y,iflg)
 !$omp parallel do private(vector)
   do k=1,nlevs
+    vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
     if(regional) then
-      call dely_reg(hworkd(1,1,k),hwork(1,1,k))
+      call dely_reg(hworkd(1,1,k),hwork(1,1,k),vector)
     else
-      vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
       call tcompact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
     end if
   end do
@@ -257,10 +257,10 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
                 u_x,v_x,iflg)
 !$omp parallel do private(vector)
   do k=1,nlevs
+    vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
     if(regional) then
-      call delx_reg(hworkd(1,1,k),hwork(1,1,k))
+      call delx_reg(hworkd(1,1,k),hwork(1,1,k),vector)
     else
-      vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
       call tcompact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
     end if
   end do
@@ -359,8 +359,8 @@ subroutine get_zderivs(z,z_x,z_y,mype)
       workh(i,j)=work1(k)
     end do
     if(regional) then
-      call delx_reg(workh,workd1)
-      call dely_reg(workh,workd2)
+      call delx_reg(workh,workd1,(.false.))
+      call dely_reg(workh,workd2,(.false.))
     else
       call compact_dlon(workh,workd1,(.false.))
       call compact_dlat(workh,workd2,(.false.))

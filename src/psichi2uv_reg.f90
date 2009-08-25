@@ -144,7 +144,7 @@ subroutine psichi2uv_reg( psi, chi,  u, v)
   
 end subroutine psichi2uv_reg
 
-subroutine delx_reg( chi,  u)
+subroutine delx_reg( chi,  u,vector)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    psichi2uv_reg
@@ -180,21 +180,25 @@ subroutine delx_reg( chi,  u)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half
-  use gridmod, only: coeffx,coeffy,nlat,nlon
+  use gridmod, only: coeffx,coeffy,nlat,nlon,region_dy,region_dyi
   
   implicit none
   
   
+  logical, intent(in):: vector
   real(r_kind), intent(in)   :: chi(nlat,nlon) ! Velocity potential
   real(r_kind), intent(out)  :: u(nlat,nlon)   ! v wind comp (m/s)
   
   integer(i_kind)            :: i, j, k                      ! Loop counters.
   integer(i_kind)            :: js, je                       ! 2nd dim. end points.
-  
-!------------------------------------------------------------------------------
-!  [1.0] Initialise:
-!------------------------------------------------------------------------------
+  real(r_kind)               :: ch2(nlat,nlon)
 
+  if(vector) then
+    do j=1,nlon
+      do i=1,nlat
+        ch2(i,j)=chi(i,j)*region_dy(i,j)
+      end do
+    end do
 
 !------------------------------------------------------------------------------
 !  [2.0] Compute u, v at interior points (2nd order central finite diffs):
@@ -202,7 +206,7 @@ subroutine delx_reg( chi,  u)
 
      do j = 2,nlon-1
         do i = 1,nlat
-           u(i,j) =  ( chi(i  ,j+1) - chi(i  ,j-1) )*coeffx(i,j)
+           u(i,j) =  ( ch2(i  ,j+1) - ch2(i  ,j-1) )*coeffx(i,j)
            
         end do
      end do
@@ -216,16 +220,50 @@ subroutine delx_reg( chi,  u)
 
         j = 1
         do i = 1,nlat
-           u(i,j) = ( chi(i  ,j+2) - chi(i  ,j  ) )*coeffx(i,j)
+           u(i,j) = ( ch2(i  ,j+2) - ch2(i  ,j  ) )*coeffx(i,j)
         end do
      
 !    [3.2] Eastern boundaries:
 
         j = nlon
         do i = 1,nlat
+           u(i,j) = ( ch2(i  ,j  ) - ch2(i  ,j-2) )*coeffx(i,j)
+        end do
+
+  else
+     
+!------------------------------------------------------------------------------
+!  [2.0] Compute u, v at interior points (2nd order central finite diffs):
+!------------------------------------------------------------------------------
+
+     do j = 2,nlon-1
+        do i = 1,nlat
+           u(i,j) =  ( chi(i  ,j+1) - chi(i  ,j-1) )*coeffx(i,j)
+
+        end do
+     end do
+
+
+!------------------------------------------------------------------------------
+!  [3.0] Compute u, v at domain boundaries:
+!------------------------------------------------------------------------------
+
+!    [3.1] Western boundaries:
+
+        j = 1
+        do i = 1,nlat
+           u(i,j) = ( chi(i  ,j+2) - chi(i  ,j  ) )*coeffx(i,j)
+        end do
+
+!    [3.2] Eastern boundaries:
+
+        j = nlon
+        do i = 1,nlat
            u(i,j) = ( chi(i  ,j  ) - chi(i  ,j-2) )*coeffx(i,j)
         end do
-     
+
+  end if
+
 !------------------------------------------------------------------------------
 !    [4.0] Corner points (assume average of surrounding points - poor?):
 !------------------------------------------------------------------------------
@@ -245,10 +283,18 @@ subroutine delx_reg( chi,  u)
 !    [4.4] Top-right point:
 
         u(nlat,nlon) = half * ( u(nlat-1,nlon) + u(nlat,nlon-1) )
+
+  if(vector) then
+    do j=1,nlon
+      do i=1,nlat
+        u(i,j)=u(i,j)*region_dyi(i,j)
+      end do
+    end do
+  end if
      
 end subroutine delx_reg
 
-subroutine dely_reg( chi,  v) 
+subroutine dely_reg( chi,  v,vector) 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    psichi2uv_reg
@@ -289,19 +335,23 @@ subroutine dely_reg( chi,  v)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half
-  use gridmod, only: coeffy,nlat,nlon
+  use gridmod, only: coeffy,nlat,nlon,region_dx,region_dxi
   
   implicit none
   
+  logical, intent(in):: vector
   real(r_kind), intent(in)   :: chi(nlat,nlon) ! Velocity potential
   real(r_kind), intent(out)  :: v(nlat,nlon)   ! v wind comp (m/s)
   
   integer(i_kind)            :: i, j                      ! Loop counters.
+  real(r_kind)               :: ch2(nlat,nlon)
   
-!------------------------------------------------------------------------------
-!  [1.0] Initialise:
-!------------------------------------------------------------------------------
-
+  if(vector) then
+    do j=1,nlon
+      do i=1,nlat
+        ch2(i,j)=chi(i,j)*region_dx(i,j)
+      end do
+    end do
 
 !------------------------------------------------------------------------------
 !  [2.0] Compute u, v at interior points (2nd order central finite diffs):
@@ -310,7 +360,7 @@ subroutine dely_reg( chi,  v)
      do j = 1,nlon
         do i = 2,nlat-1
            
-           v(i,j) =  ( chi(i+1,j  ) - chi(i-1,j  ) ) * coeffy(i,j)
+           v(i,j) =  ( ch2(i+1,j  ) - ch2(i-1,j  ) ) * coeffy(i,j)
         end do
      end do
      
@@ -324,7 +374,7 @@ subroutine dely_reg( chi,  v)
         i = 1
         do j = 1,nlon
            
-           v(i,j) = ( chi(i+2,j  ) - chi(i  ,j  ) ) * coeffy(i,j)
+           v(i,j) = ( ch2(i+2,j  ) - ch2(i  ,j  ) ) * coeffy(i,j)
            
         end do
      
@@ -333,9 +383,46 @@ subroutine dely_reg( chi,  v)
         i = nlat
         do j = 1,nlon
            
-           v(i,j) = ( chi(i  ,j  ) - chi(i-2,j  ) ) * coeffy(i,j)
+           v(i,j) = ( ch2(i  ,j  ) - ch2(i-2,j  ) ) * coeffy(i,j)
         end do
      
+  else
+
+!------------------------------------------------------------------------------
+!  [2.0] Compute u, v at interior points (2nd order central finite diffs):
+!------------------------------------------------------------------------------
+
+     do j = 1,nlon
+        do i = 2,nlat-1
+
+           v(i,j) =  ( chi(i+1,j  ) - chi(i-1,j  ) ) * coeffy(i,j)
+        end do
+     end do
+
+
+!------------------------------------------------------------------------------
+!  [3.0] Compute u, v at domain boundaries:
+!------------------------------------------------------------------------------
+
+!    [3.3] Southern boundaries:
+
+        i = 1
+        do j = 1,nlon
+
+           v(i,j) = ( chi(i+2,j  ) - chi(i  ,j  ) ) * coeffy(i,j)
+
+        end do
+
+!    [3.4] Northern boundaries:
+
+        i = nlat
+        do j = 1,nlon
+
+           v(i,j) = ( chi(i  ,j  ) - chi(i-2,j  ) ) * coeffy(i,j)
+        end do
+
+  end if
+
 !------------------------------------------------------------------------------
 !    [4.0] Corner points (assume average of surrounding points - poor?):
 !------------------------------------------------------------------------------
@@ -356,5 +443,12 @@ subroutine dely_reg( chi,  v)
 
         v(nlat,nlon) = half * ( v(nlat-1,nlon) + v(nlat,nlon-1) )
      
+  if(vector) then
+    do j=1,nlon
+      do i=1,nlat
+        v(i,j)=v(i,j)*region_dxi(i,j)
+      end do
+    end do
+  end if
   
 end subroutine dely_reg

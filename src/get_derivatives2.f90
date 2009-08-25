@@ -95,8 +95,10 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
          end do
          call psichi2uv_reg(stx,vpx,hwork(1,1,k),hwork(1,1,k+1))
        end if
-       call delx_reg(hwork(1,1,k),hwork_x(1,1,k))
-       call dely_reg(hwork(1,1,k),hwork_y(1,1,k))
+       vector=.false.
+       if(nvarbal_id(k) <= 2)vector=.true.
+       call delx_reg(hwork(1,1,k),hwork_x(1,1,k),vector)
+       call dely_reg(hwork(1,1,k),hwork_y(1,1,k),vector)
       end do
 !$omp end parallel do
     else
@@ -211,8 +213,10 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   call sub2grid2(hwork,u,v,p3d_x,t_x,iflg)
   if(regional)then
       do k=nnnvsbal,1,-1
-       call tdelx_reg(hwork_x(1,1,k),hwork(1,1,k))
-       call tdely_reg(hwork_y(1,1,k),hwork(1,1,k))
+       vector=.false.
+       if(nvarbal_id(k) <= 2)vector=.true.
+       call tdelx_reg(hwork_x(1,1,k),hwork(1,1,k),vector)
+       call tdely_reg(hwork_y(1,1,k),hwork(1,1,k),vector)
        if(nvarbal_id(k) ==1)then
         do j=1,nlon
           do i=1,nlat
