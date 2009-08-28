@@ -477,7 +477,7 @@ clean:
 
   SRCSF77 =
 
-  SRCSC = blockIO.c
+  SRCSC = blockIO.c bacio.v1.4.c
 
   SRCS = $(SRCSF90C) $(GSIGC_SRCS) $(SRCSF77) $(SRCSC) $(XSRCSC)
 
