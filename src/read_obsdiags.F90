@@ -1774,10 +1774,8 @@ subroutine read_radhead_ ()
                                      !  ratio of error variances squared (nchan)
     real(r_kind)    :: time          !  observation time
     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
-    real(r_kind),dimension(:),allocatable :: pred1
+    real(r_kind),dimension(:,:),allocatable :: pred
                                      !  predictors (not channel dependent)(npred-2)
-    real(r_kind),dimension(:),allocatable :: pred2
-                                     !  predictors (channel dependent) (nchan)
     real(r_kind),dimension(:,:),allocatable :: dtb_dvar
                                      !  error variances squared (nsig3p3,nchan)
     integer(i_kind) :: nchan         !  number of channels for this profile
@@ -1838,7 +1836,7 @@ subroutine read_radhead_ ()
        radtail(ii)%head%nchan = nchan
 
        allocate(res(nchan),err2(nchan),raterr2(nchan), &
-                pred1(npred-2),pred2(nchan), &
+                pred(npred,nchan), &
                 dtb_dvar(nsig3p3,nchan),icx(nchan), &
                 stat=ierr)
           if(ierr/=0) then
@@ -1866,15 +1864,10 @@ subroutine read_radhead_ ()
           write(6,*)'read_radhead_: error reading record raterr2',iostat
           call stop2(238)
        end if
-       read(iunit,iostat=iostat) pred1
+       read(iunit,iostat=iostat) pred
        if (iostat/=0) then
-          write(6,*)'read_radhead_: error reading record pred1',iostat
+          write(6,*)'read_radhead_: error reading record pred',iostat
           call stop2(239)
-       end if
-       read(iunit,iostat=iostat) pred2
-       if (iostat/=0) then
-         write(6,*)'read_radhead_: error reading record pred2',iostat
-         call stop2(240)
        end if
        read(iunit,iostat=iostat) icx
        if (iostat/=0) then
@@ -1889,7 +1882,7 @@ subroutine read_radhead_ ()
 
        allocate(radtail(ii)%head%res(nchan), radtail(ii)%head%diags(nchan), &
                 radtail(ii)%head%err2(nchan),radtail(ii)%head%raterr2(nchan), &
-                radtail(ii)%head%pred1(npred-2),radtail(ii)%head%pred2(nchan), &
+                radtail(ii)%head%pred(npred,nchan),&
                 radtail(ii)%head%dtb_dvar(nsig3p3,nchan),radtail(ii)%head%icx(nchan), &
                 stat=ierr)
        if(ierr/=0) then
@@ -1901,7 +1894,6 @@ subroutine read_radhead_ ()
        radtail(ii)%head%luse = luse
        radtail(ii)%head%wij  = wij
        radtail(ii)%head%ij   = ij
-       radtail(ii)%head%pred1(1:npred-2) = pred1(1:npred-2)
 
        iii=0
        do i=1,nchan
@@ -1909,14 +1901,16 @@ subroutine read_radhead_ ()
          radtail(ii)%head%res(iii)    = res(iii)
          radtail(ii)%head%err2(iii)   = err2(iii)
          radtail(ii)%head%raterr2(iii)= raterr2(iii)
-         radtail(ii)%head%pred2(iii)  = pred2(iii)
          radtail(ii)%head%icx(iii)    = icx(iii)
+         do k=1,npred
+            radtail(ii)%head%pred(k,iii)  = pred(k,iii)
+         end do
          do k=1,nsig3p3 
             radtail(ii)%head%dtb_dvar(k,iii) = dtb_dvar(k,iii)
          enddo
        enddo
 
-       deallocate(res,err2,raterr2,pred1,pred2,dtb_dvar,icx, stat=ierr)
+       deallocate(res,err2,raterr2,pred,dtb_dvar,icx, stat=ierr)
        if(ierr/=0) then
          write(6,*)'fail to dealloc various ',ierr
          call stop2(244)

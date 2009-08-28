@@ -104,26 +104,15 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
   real(r_quad),dimension(npred*jpch_rad),intent(inout):: rpred
 
 ! Declare local variables
-  integer(i_kind) j,j1,j2,j3,j4,i1,i2,i3,i4,n,n_1,n_2,k,ic,nn,jn
+  integer(i_kind) j,j1,j2,j3,j4,i1,i2,i3,i4,n,n_1,n_2,k,ic,ix,nn,jn
   integer(i_kind),dimension(nsig) :: i1n,i2n,i3n,i4n
   real(r_kind) valx,val
   real(r_kind) tlap,tlap2,w1,w2,w3,w4
 ! real(r_kind) penalty,p1
   real(r_kind),dimension(nsig3p3):: tval,tdir
   real(r_kind) cg_rad,p0,wnotgross,wgross,time_rad
-  real(r_kind),dimension(npred,jpch_rad):: spred_loc
-  real(r_quad),dimension(npred,jpch_rad):: rpred_loc
   type(rad_ob_type), pointer :: radptr
 
-! Make local copy of predictors to accmmodate interface change
-  jn=0
-  do j=1,jpch_rad
-    do n=1,npred
-       jn=jn+1
-       spred_loc(n,j) = spred(jn)
-       rpred_loc(n,j) = rpred(jn)
-    end do
-  end do
 
   radptr => radhead
   do while (associated(radptr))
@@ -204,11 +193,13 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
 !  begin channel specific calculations
      do nn=1,radptr%nchan
         ic=radptr%icx(nn)
+        ix=(ic-1)*npred
 
 !       include observation increment and lapse rate contributions to bias correction
-        tlap=radptr%pred2(nn)
-        tlap2=tlap*tlap
-        valx=spred_loc(npred,ic)*tlap+spred_loc(npred1,ic)*tlap2
+        tlap=radptr%pred(npred,nn)
+!       tlap2=tlap*tlap
+        tlap2=radptr%pred(npred1,nn)
+        valx=spred(ix+npred)*tlap+spred(ix+npred1)*tlap2
 
 !       Include contributions from atmospheric jacobian
         do k=1,nsig3p3
@@ -217,7 +208,7 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
 
 !       Include contributions from remaining bias correction terms
         do n=1,npred-2
-           valx=valx+spred_loc(n,ic)*radptr%pred1(n)
+           valx=valx+spred(ix+n)*radptr%pred(n,nn)
         end do
 
         if (lsaveobsens) then
@@ -258,10 +249,10 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
 !       use compensated summation
         if(radptr%luse)then
           do n=1,npred-2
-             rpred_loc(n,ic)=rpred_loc(n,ic)+radptr%pred1(n)*val
+             rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val
           end do
-          rpred_loc(npred,ic) =rpred_loc(npred,ic) +val*tlap
-          rpred_loc(npred1,ic)=rpred_loc(npred1,ic)+val*tlap2
+          rpred(ix+npred) =rpred(ix+npred) +val*tlap
+          rpred(ix+npred1)=rpred(ix+npred1)+val*tlap2
         end if
        endif
      end do
@@ -331,15 +322,6 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
     endif ! < l_do_adjoint >
 
     radptr => radptr%llpoint
-  end do
-
-! Return predictors in its original shape
-  jn=0
-  do j=1,jpch_rad
-    do n=1,npred
-       jn=jn+1
-       rpred(jn)=rpred_loc(n,j)
-    end do
   end do
 
   return

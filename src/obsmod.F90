@@ -603,10 +603,8 @@ module obsmod
                                       !  ratio of error variances squared (nchan)
      real(r_kind)    :: time          !  observation time in sec     
      real(r_kind)    :: wij(4)        !  horizontal interpolation weights
-     real(r_kind),dimension(:),pointer :: pred1 => NULL()
-                                      !  predictors (not channel dependent)(npred-2)
-     real(r_kind),dimension(:),pointer :: pred2 => NULL()
-                                      !  predictors (channel dependent) (nchan)
+     real(r_kind),dimension(:,:),pointer :: pred => NULL()
+                                      !  predictors (npred,nchan)
      real(r_kind),dimension(:,:),pointer :: dtb_dvar => NULL()
                                       !  error variances squared (nsig3p3,nchan)
      integer(i_kind),dimension(:),pointer :: icx  => NULL()
@@ -1326,8 +1324,8 @@ contains
       do while (associated(radtail(ii)%head))
         radhead(ii)%head => radtail(ii)%head%llpoint
         deallocate(radtail(ii)%head%res,radtail(ii)%head%err2, &
-                   radtail(ii)%head%raterr2,radtail(ii)%head%pred1, &
-                   radtail(ii)%head%pred2,radtail(ii)%head%dtb_dvar, &
+                   radtail(ii)%head%raterr2,radtail(ii)%head%pred, &
+                   radtail(ii)%head%dtb_dvar, &
                    radtail(ii)%head%icx,stat=istatus)
         if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rad arrays, istatus=',istatus
         deallocate(radtail(ii)%head,stat=istatus)

@@ -116,7 +116,7 @@ subroutine statsrad(aivals,stats,ndata)
      iasim = nint(stats(1,i))
      if (iasim > 0) then
         svar = varch(i)
-        if (iuse_rad(i)/=1) svar=-svar
+        if (iuse_rad(i) < 1) svar=-svar
         rsum = one/float(iasim)
         icerr = nint(stats(2,i))
         do j=3,6   ! j=3=obs-mod(w_biascor)

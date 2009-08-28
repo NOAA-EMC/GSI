@@ -62,12 +62,23 @@ module radinfo
   real(r_kind),allocatable,dimension(:):: b_rad       ! variational b value
   real(r_kind),allocatable,dimension(:):: pg_rad      ! variational pg value
   real(r_kind),allocatable,dimension(:):: tlapmean    ! mean lapse rate (fixed from input file)
+  real(r_kind),allocatable,dimension(:):: ang_rad     ! 0 or 1 depending on iuse_rad (1 - use angle bias correction)
+  real(r_kind),allocatable,dimension(:):: air_rad     ! 0 or 1 depending on iuse_rad (1 - use air mass bias correction)          
   real(r_kind),allocatable,dimension(:,:):: fbias     ! bias for AVHRR siumulated radiance
   real(r_kind),allocatable,dimension(:,:):: cbias     ! angle dependent bias for satellite channels
   real(r_kind),allocatable,dimension(:,:):: predx     ! coefficients for predictor part of bias correction
 
   integer(i_kind),allocatable,dimension(:):: nuchan    ! satellite channel
   integer(i_kind),allocatable,dimension(:):: iuse_rad  ! use to turn off satellite radiance data
+!                                                    = -2 do not use
+!                                                    = -1 monitor if diagnostics produced
+!                                                    =  0 monitor and use in QC only
+!                                                    =  1 use data with complete quality control
+!                                                    =  2 use data with no airmass bias correction
+!                                                    =  3 use data with no angle dependent bias correction
+!                                                    =  4 use data with no bias correction
+
+
   integer(i_kind),allocatable,dimension(:):: ifactq    ! scaling parameter for d(Tb)/dq sensitivity
 
   character(len=20),allocatable,dimension(:):: nusis   ! sensor/instrument/satellite indicator
@@ -202,7 +213,7 @@ contains
 ! !USES:
 
     use obsmod, only: iout_rad
-    use constants, only: zero
+    use constants, only: zero,one
     use mpimod, only: mype
     implicit none
 
@@ -255,10 +266,13 @@ contains
 
     allocate(nuchan(jpch_rad),nusis(jpch_rad),&
          iuse_rad(0:jpch_rad),ifactq(jpch_rad),varch(jpch_rad),&
-         ermax_rad(jpch_rad),b_rad(jpch_rad),pg_rad(jpch_rad))
+         ermax_rad(jpch_rad),b_rad(jpch_rad),pg_rad(jpch_rad), &
+         ang_rad(jpch_rad),air_rad(jpch_rad))
     allocate(satsenlist(jpch_rad),nfound(jpch_rad))
     iuse_rad(0)=-999
     ifactq=0
+    air_rad=one
+    ang_rad=one
 
 
 !   All mpi tasks open and read radiance information file.
@@ -276,6 +290,8 @@ contains
        j=j+1
        read(crecord,*) nusis(j),nuchan(j),iuse_rad(j),&
             varch(j),ermax_rad(j),b_rad(j),pg_rad(j)
+       if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2)air_rad(j)=zero
+       if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3)ang_rad(j)=zero
        if (mype==mype_rad) write(iout_rad,110) j,nusis(j), &
             nuchan(j),varch(j),iuse_rad(j),ermax_rad(j), &
             b_rad(j),pg_rad(j)
@@ -468,7 +484,7 @@ contains
 
 !   Deallocate data arrays for bias correction and those which hold
 !   information from satinfo file.
-    deallocate (predx,cbias,tlapmean,nuchan,nusis,iuse_rad, &
+    deallocate (predx,cbias,tlapmean,nuchan,nusis,iuse_rad,air_rad,ang_rad, &
          ifactq,varch)
     return
   end subroutine radinfo_write

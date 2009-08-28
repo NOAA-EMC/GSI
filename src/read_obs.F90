@@ -387,7 +387,7 @@ subroutine read_obs(ndata,mype)
 
     if(l4dvar.and.(.not.lobserver)) return
     
-    npeextra=npe-npetot
+    npeextra=npe-mod(npetot,npe)
     if(npeextra > 0)then
     if(mype == 0)write(6,*) ' number of extra processors ',npeextra
     npe_sub3=npe_sub

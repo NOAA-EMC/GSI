@@ -72,7 +72,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
              checkob,finalcheck,score_crit
-  use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis
+  use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad 
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,izero,ione,rad2deg, r60inv
   use obsmod, only: iadate,offtime_data
@@ -372,7 +372,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 !    Set data quality predictor
      iscan   = nint(hdr(3))+0.001_r_kind   ! "scan" position
-     ch8     = grad(ich8) -cbias(iscan,ichan8) - r01*predx(1,ichan8)
+     ch8     = grad(ich8) -ang_rad(ichan8)*cbias(iscan,ichan8) -  &
+                           r01*predx(1,ichan8)*air_rad(ichan8)
      emiss=0.992-0.013*(hdr(3)/65.)**3.5-0.026*(hdr(3)/65.)**7.0
      pred = abs(ch8-tsavg*emiss)
 

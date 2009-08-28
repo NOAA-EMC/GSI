@@ -130,7 +130,7 @@
   use message_handler, only: success
   use radinfo, only: nuchan,tlapmean,ifactq,predx,cbias,ermax_rad,&
        npred,jpch_rad,varch,iuse_rad,nusis,fbias,retrieval,b_rad,pg_rad,&
-       crtm_coeffs_path
+       crtm_coeffs_path,air_rad,ang_rad
   use guess_grids, only: add_rtm_layers,sfcmod_gfs,sfcmod_mm5,&
        comp_fact10
   use obsmod, only: iadate,ianldate,ndat,mype_diaghdr,lunobs_obs,nchan_total, &
@@ -616,7 +616,7 @@
   if (ssmi) then
     if (iuse_rad(ich(6)) < 1 .or. iuse_rad(ich(7)) < 1 ) then
        do j = 1,5
-         if (iuse_rad(ich(j)) == 1) then
+         if (iuse_rad(ich(j)) >= 1) then
             no85GHz = .true.
             cycle
          endif
@@ -1015,8 +1015,8 @@
        if (amsua) then
 
          if(tsavg5>t0c)then
-           tbcx1=rtsolution(1,1)%brightness_temperature+cbias(nadir,ich(1))
-           tbcx2=rtsolution(2,1)%brightness_temperature+cbias(nadir,ich(2))
+           tbcx1=rtsolution(1,1)%brightness_temperature+cbias(nadir,ich(1))*ang_rad(ich(1))
+           tbcx2=rtsolution(2,1)%brightness_temperature+cbias(nadir,ich(2))*ang_rad(ich(2))
            if (tbcx1 <=r284 .and. tbcx2<=r284 .and. tb_obs(1) > zero &
                 .and. tb_obs(2) > zero) &
               clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
@@ -1062,9 +1062,11 @@
      end if
 
 !    Apply bias correction
+     predterms=zero
      do i=1,nchanl
         mm=ich(i)
 
+        predterms(1,i) = cbias(nadir,mm)*ang_rad(mm)             !global_satangbias
         tlapchn(i)= (ptau5(2,i)-ptau5(1,i))*(tsavg5-temp5(2))
         do k=2,nsig-1
            tlapchn(i)=tlapchn(i)+&
@@ -1073,11 +1075,10 @@
         tlapchn(i) = r0_01*tlapchn(i)
         tlap = tlapchn(i)-tlapmean(mm)
 
-        predterms(1,i) = cbias(nadir,mm)             !global_satangbias
-        predterms(2,i) = tlap*predx(npred,mm)        !tlap
-        predterms(3,i) = tlap*tlap*predx(npred-1,mm) !tlap*tlap
+        predterms(2,i) = tlap*predx(npred,mm)*air_rad(mm)        !tlap
+        predterms(3,i) = tlap*tlap*predx(npred-1,mm)*air_rad(mm) !tlap*tlap
         do j = 1,npred-2
-           predterms(j+3,i) = predx(j,mm)*pred(j)
+           predterms(j+3,i) = predx(j,mm)*pred(j)*air_rad(mm)
         end do
 
 !       Apply SST dependent bias correction with cubic spline
@@ -1528,7 +1529,7 @@
 !                Adjust observation error based on magnitude of liquid
 !                water correction.  0.2 is empirical factor
 
-                 term=term+0.2_r_kind*(predx(3,ich(i))*pred(3))**2
+                 term=term+0.2_r_kind*(predx(3,ich(i))*pred(3)*air_rad(ich(i)))**2
 
                  errf(i)   = efactmc*errf(i)
                  varinv(i) = vfactmc*varinv(i)
@@ -1932,7 +1933,7 @@
         kval=izero
         do i=2,nlev
 !       do i=1,nlev
-           if (varinv(i)<tiny_r_kind .and. iuse_rad(ich(i))==1) then
+           if (varinv(i)<tiny_r_kind .and. iuse_rad(ich(i))>=1) then
               kval=max(i-1,kval)
               if(amsub .or. hsb .or. mhs)kval=nlev
               if(amsua .and. i <= 3)kval = zero
@@ -1996,7 +1997,7 @@
            end if
            
 !          Only "good" obs are included in J calculation.
-           if (iuse_rad(m) == 1)then
+           if (iuse_rad(m) >= 1)then
               if(luse(n))then
                  aivals(40,is) = aivals(40,is) + tbc(i)*varrad
                  aivals(39,is) = aivals(39,is) -two*(error0(i)**2)*varinv(i)*term
@@ -2101,17 +2102,34 @@
 
             allocate(radtail(ibin)%head%res(icc),radtail(ibin)%head%err2(icc), &
                      radtail(ibin)%head%diags(icc),&
-                     radtail(ibin)%head%raterr2(icc),radtail(ibin)%head%pred1(npred-2), &
-                     radtail(ibin)%head%pred2(icc),radtail(ibin)%head%dtb_dvar(nsig3p3,icc), &
+                     radtail(ibin)%head%raterr2(icc),radtail(ibin)%head%pred(npred,icc), &
+                     radtail(ibin)%head%dtb_dvar(nsig3p3,icc), &
                      radtail(ibin)%head%icx(icc))
              
             radtail(ibin)%head%nchan  = icc         ! profile observation count
             call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(1),radtail(ibin)%head%wij(1))
             radtail(ibin)%head%time=dtime
             radtail(ibin)%head%luse=luse(n)
-            do m=1,npred-2
-              radtail(ibin)%head%pred1(m)=pred(m)
-            end do
+            iii=0
+            do ii=1,nchanl
+              m=ich(ii)
+              if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
+
+                iii=iii+1
+                radtail(ibin)%head%res(iii)=radinv(iii)
+                radtail(ibin)%head%err2(iii)=var(iii)
+                radtail(ibin)%head%raterr2(iii)=ratio_raderr(iii)
+                radtail(ibin)%head%icx(iii)=icxx(iii)
+                radtail(ibin)%head%pred(npred,iii)=pred_tlap(iii)*air_rad(m)
+                radtail(ibin)%head%pred(npred-1,iii)=pred_tlap(iii)*pred_tlap(iii)*air_rad(m)
+                do k=1,npred-2
+                   radtail(ibin)%head%pred(k,iii)=pred(k)*air_rad(m)
+                end do
+                do k=1,nsig3p3
+                  radtail(ibin)%head%dtb_dvar(k,iii)=htlto(k,iii)
+                end do
+               end if
+             end do
           end if
        endif ! <.not. retrieval>
 
@@ -2165,17 +2183,9 @@
 
 !        Load data into output arrays
          m=ich(ii)
-         if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)==1) then
+         if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
            if(.not. retrieval)then
              iii=iii+1
-             radtail(ibin)%head%res(iii)=radinv(iii)
-             radtail(ibin)%head%err2(iii)=var(iii)
-             radtail(ibin)%head%raterr2(iii)=ratio_raderr(iii)
-             radtail(ibin)%head%pred2(iii)=pred_tlap(iii)
-             radtail(ibin)%head%icx(iii)=icxx(iii)
-             do k=1,nsig3p3
-               radtail(ibin)%head%dtb_dvar(k,iii)=htlto(k,iii)
-             end do
              radtail(ibin)%head%diags(iii)%ptr => obsdiags(i_rad_ob_type,ibin)%tail
              obsdiags(i_rad_ob_type,ibin)%tail%muse(jiter) = .true.
            endif
@@ -2241,7 +2251,7 @@
            errinv = sqrt(varinv(i))
            diagbufchan(4,i)=errinv          ! inverse observation error
            useflag=one
-           if (iuse_rad(ich(i))/=1) useflag=-one
+           if (iuse_rad(ich(i)) < 1) useflag=-one
            diagbufchan(5,i)= id_qc(i)*useflag! quality control mark or event indicator
 
            diagbufchan(6,i)=emissivity(i)   ! surface emissivity

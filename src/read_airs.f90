@@ -84,7 +84,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                finalcheck,checkob,score_crit
-  use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad
+  use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad 
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
        tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,one,three,izero,ione,rad2deg,r60inv
@@ -519,10 +519,14 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      if(amsua)then
 
          if(ifov <= 15)sat_zenang = -sat_zenang
-         ch1    = allchan(ichsst)-cbias(ifov,ichansst)+cbias(15,ichansst)
-         ch2    = allchan(ichsst+1)-cbias(ifov,ichansst+1)+cbias(15,ichansst+1)
-         ch3    = allchan(ichsst+2)-cbias(ifov,ichansst+2)+cbias(15,ichansst+2)
-         ch15   = allchan(ichsst+14)-cbias(ifov,ichansst+14)+cbias(15,ichansst+14)
+         ch1    = allchan(ichsst)-ang_rad(ichansst)* &
+                                  (cbias(ifov,ichansst)-cbias(15,ichansst))
+         ch2    = allchan(ichsst+1)-ang_rad(ichansst+1)* &
+                                  (cbias(ifov,ichansst+1)-cbias(15,ichansst+1))
+         ch3    = allchan(ichsst+2)-ang_rad(ichansst+2)* &
+                                  (cbias(ifov,ichansst+2)-cbias(15,ichansst+2))
+         ch15   = allchan(ichsst+14)-ang_rad(ichansst+14)* &
+                                  (cbias(ifov,ichansst+14)-cbias(15,ichansst+14))
          if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
             cosza = cos(sat_zenang)
             d0  =8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza

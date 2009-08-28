@@ -74,7 +74,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
               checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,cbias,nusis,jpch_rad
+  use radinfo, only: iuse_rad,nusis,jpch_rad
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
        tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,one,two,three,izero,r60inv

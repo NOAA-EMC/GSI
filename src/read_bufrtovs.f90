@@ -90,7 +90,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
            finalcheck,map2tgrid,score_crit
-  use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad
+  use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad
   use radinfo, only: crtm_coeffs_path
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,three,izero,ione,rad2deg,t0c,two,r60inv
@@ -656,7 +656,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !          Set data quality predictor
            if (msu) then
-              ch1    = data1b8(ich1)-cbias(ifov,ichan1)-r01*predx(1,ichan1)
+              ch1    = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+                       r01*predx(1,ichan1)*air_rad(ichan1)
               ch1flg = tsavg-ch1
               if(isflg == 0)then
                  pred = 100.-min(ch1flg,100.0_r_kind)
@@ -664,21 +665,26 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                  pred = abs(ch1flg)
               end if
            else if (hirs) then
-              ch8    = data1b8(ich8) -cbias(ifov,ichan8)-r01*predx(1,ichan8)
+              ch8    = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
+                       r01*predx(1,ichan8)*air_rad(ichan8)
               ch8flg = tsavg-ch8
               pred   = 10.0_r_kind*max(zero,ch8flg)
            else if (amsua) then
 !   Remove angle dependent pattern (not mean)
-              ch1 = data1b8(ich1)-cbias(ifov,ichan1)+cbias(15,ichan1)
-              ch2 = data1b8(ich2)-cbias(ifov,ichan2)+cbias(15,ichan2)   
+              ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
+                    air_rad(ichan1)*cbias(15,ichan1)
+              ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
+                    air_rad(ichan2)*cbias(15,ichan2)   
               if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
                  cosza = cos(lza)
                  d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
                  qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
                  pred  = max(zero,qval)*100.0_r_kind
               else
-                 ch3  = data1b8(ich3)-cbias(ifov,ichan3)+cbias(15,ichan3)   
-                 ch15 = data1b8(ich15)-cbias(ifov,ichan15)+cbias(15,ichan15)
+                 ch3  = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)+ &
+                        air_rad(ichan3)*cbias(15,ichan3)   
+                 ch15 = data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)+ &
+                        air_rad(ichan15)*cbias(15,ichan15)
                  pred = abs(ch1-ch15)
                  if(ch1-ch15 >= 3._r_kind)then
                     df2  = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
@@ -695,8 +701,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
            else if (amsub .or. mhs) then
               cosza = cos(lza)
-              ch1 = data1b8(ich1)-cbias(ifov,ichan1)-r01*predx(1,ichan1)
-              ch2 = data1b8(ich2)-cbias(ifov,ichan2)-r01*predx(1,ichan2)
+              ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+                    r01*predx(1,ichan1)*air_rad(ichan1)
+              ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
+                    r01*predx(1,ichan2)*air_rad(ichan2)
               if(isflg == 0)then
 !                pred = (ch1-ch2)/cosza+30.0_r_kind
                  if(ch2 < 300.)then 

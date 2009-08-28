@@ -215,14 +215,15 @@ subroutine stprad(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst, &
         ic=radptr%icx(nn)
 
 !       contribution from bias corection
-        tlap=radptr%pred2(nn)
-        tlap2=tlap*tlap
+        tlap=radptr%pred(npred,nn)
+!       tlap2=tlap*tlap
+        tlap2=radptr%pred(npred1,nn)
         val2=-radptr%res(nn)+spred(npred,ic)*tlap+spred(npred1,ic)*tlap2
         val=                 rpred(npred,ic)*tlap+rpred(npred1,ic)*tlap2
 
         do nx=1,npred-2
-           val2=val2+spred(nx,ic)*radptr%pred1(nx)
-           val =val +rpred(nx,ic)*radptr%pred1(nx)
+           val2=val2+spred(nx,ic)*radptr%pred(nx,nn)
+           val =val +rpred(nx,ic)*radptr%pred(nx,nn)
         end do
 
 !       contribution from atmosphere

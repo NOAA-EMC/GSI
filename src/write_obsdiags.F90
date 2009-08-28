@@ -648,13 +648,12 @@ subroutine write_radhead_ ()
        write(iunit) radptr%res
        write(iunit) radptr%err2
        write(iunit) radptr%raterr2
-       write(iunit) radptr%pred1
-       write(iunit) radptr%pred2
+       write(iunit) radptr%pred
        write(iunit) radptr%icx
        write(iunit) radptr%dtb_dvar
 
 !      write(iunit) radptr%res,  radptr%err2, radptr%raterr2,&
-!                   radptr%time, radptr%pred1,radptr%pred2,&
+!                   radptr%time, radptr%pred,&
 !                   radptr%luse, radptr%wij,  radptr%ij, &
 !                   radptr%icx,  radptr%dtb_dvar
        radptr => radptr%llpoint
