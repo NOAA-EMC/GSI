@@ -47,9 +47,10 @@ module raflib
 !$$$ end documentation block
 
 use kinds,only: r_double,r_quad,r_single,i_byte,i_long,i_llong,i_short
-use mpimod,only: mpi_comm_world,mpi_integer,mpi_integer2,mpi_integer4, &
+use mpimod,only: mpi_comm_world,mpi_integer,mpi_integer1,mpi_integer2,mpi_integer4, &
               mpi_integer8,mpi_max,mpi_min,mpi_real4,mpi_real8,mpi_real16,mpi_sum
 use constants, only: zero_quad, one_quad,zero_single
+
 implicit none
 
 !  declare type structure for recursive anisotropic filter constants
@@ -57,6 +58,7 @@ implicit none
          type filter_cons
 
            sequence
+           logical         new_factorization
            integer(i_long) ngauss
            integer(i_long) npass
            integer(i_long) ifilt_ord
@@ -65,28 +67,298 @@ implicit none
            integer(i_long) npoints_send
            integer(i_long) npoints_recv
            integer(i_long) nstrings
-           integer(i_long),pointer::istart(:)
-           integer(i_long),pointer::ib(:)
-           integer(i_long),pointer::nrecv(:)
-           integer(i_long),pointer::ndrecv(:)
-           integer(i_long),pointer::nsend(:)
-           integer(i_long),pointer::ndsend(:)
-           real(r_single),pointer::lnf(:,:,:,:)
-           real(r_single),pointer::bnf(:,:,:)
-           real(r_single),pointer::amp(:,:,:,:)
-           integer(i_short),pointer::ia(:)
-           integer(i_short),pointer::ja(:)
-           integer(i_short),pointer::ka(:)
+           integer(i_long) nsmooth
+           integer(i_long) nsmooth_shapiro
+           integer(i_long) nrows
+           integer(i_long) nsend_halox_loc
+           integer(i_long) nrecv_halox_loc
+           integer(i_long) nsend_haloy_loc
+           integer(i_long) nrecv_haloy_loc
+           integer(i_long),pointer:: nrecv_halox(:) => NULL()
+           integer(i_long),pointer:: ndrecv_halox(:) => NULL()
+           integer(i_long),pointer:: nsend_halox(:) => NULL()
+           integer(i_long),pointer:: ndsend_halox(:) => NULL()
+           integer(i_long),pointer:: info_send_halox(:,:) => NULL()
+           integer(i_long),pointer:: info_recv_halox(:,:) => NULL()
+           integer(i_long),pointer:: nrecv_haloy(:) => NULL()
+           integer(i_long),pointer:: ndrecv_haloy(:) => NULL()
+           integer(i_long),pointer:: nsend_haloy(:) => NULL()
+           integer(i_long),pointer:: ndsend_haloy(:) => NULL()
+           integer(i_long),pointer:: info_send_haloy(:,:) => NULL()
+           integer(i_long),pointer:: info_recv_haloy(:,:) => NULL()
+           integer(i_long),pointer::istart(:) => NULL()
+           integer(i_long),pointer::ib(:) => NULL()
+           integer(i_long),pointer::nrecv(:) => NULL()
+           integer(i_long),pointer::ndrecv(:) => NULL()
+           integer(i_long),pointer::nsend(:) => NULL()
+           integer(i_long),pointer::ndsend(:) => NULL()
+           real(r_single),pointer:: gnorm_halox(:) => NULL()
+           real(r_single),pointer:: gnorm_haloy(:) => NULL()
+           real(r_single),pointer::lnf(:,:,:,:) => NULL()
+           real(r_single),pointer::bnf(:,:,:) => NULL()
+           real(r_single),pointer::fmat(:,:,:,:,:) => NULL()
+           real(r_single),pointer::fmat0(:,:,:,:) => NULL()
+           real(r_single),pointer::amp(:,:,:,:) => NULL()
+           integer(i_short),pointer::ia(:) => NULL()
+           integer(i_short),pointer::ja(:) => NULL()
+           integer(i_short),pointer::ka(:) => NULL()
 
          end type filter_cons
 
+!---------------------------------------------------------------
+! Type valiable to simplify the subroutine interfaces
+!---------------------------------------------------------------
+         type filter_indices
+           integer(i_long)::ids, ide, jds, jde, kds, kde, &   ! domain indices
+                            ips, ipe, jps, jpe, kps, kpe      ! patch indices
+         end type filter_indices
+
 contains
 
-subroutine adjoint_check4(filter,ngauss, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
+subroutine set_indices(indices, &
+                       ids, ide, jds, jde, kds, kde, &
+                       ips, ipe, jps, jpe, kps, kpe  )
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    set_indices
+!
+!   prgrmmr: sato
+!
+! abstract:  initialize type_indices
+!
+! program history log:
+!   2008-11-03  sato
+!
+!   input argument list:
+!     ids, ide, jds, jde, kds, kde      - domain indices
+!     ips, ipe, jps, jpe, kps, kpe      - patch indices
+!
+!   output argument list:
+!     indices - type variable which contains all indices
+!
+! attributes:
+!   language:  f90
+!   machine:
+!
+!$$$ end documentation block
+
+  type(filter_indices):: indices
+  integer(i_long),intent(in)::ids, ide, jds, jde, kds, kde, &   ! domain indices
+                              ips, ipe, jps, jpe, kps, kpe      ! patch indices
+
+  indices%ids=ids; indices%ide=ide
+  indices%jds=jds; indices%jde=jde
+  indices%kds=kds; indices%kde=kde
+  indices%ips=ips; indices%ipe=ipe
+  indices%jps=jps; indices%jpe=jpe
+  indices%kps=kps; indices%kpe=kpe
+
+end subroutine set_indices
+
+subroutine init_raf4_wrap(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,filter, &
+                          nsmooth,nsmooth_shapiro, &
+                          nvars,idvar,kvar_start,kvar_end,var_names,idx,mype,npes)
+  implicit none
+
+  type(filter_cons)   :: filter(7)
+  type(filter_indices):: idx
+
+  real(r_single) :: aspect(7, &
+                          idx%ips:idx%ipe, &
+                          idx%jps:idx%jpe, &
+                          idx%kps:idx%kpe)
+
+  logical,intent(in)          :: triad4,binom
+  integer(i_long),intent(in)  :: ngauss,normal,npass,ifilt_ord,nvars
+  real(r_double),intent(in)   :: rgauss(ngauss)
+  integer(i_long),intent(in)  :: idvar(idx%kds:idx%kde)
+  integer(i_long),intent(in)  :: kvar_start(nvars)
+  integer(i_long),intent(in)  :: kvar_end(nvars)
+  character(len=80),intent(in):: var_names(nvars)
+  integer(i_long),intent(in)  :: mype, npes
+
+  integer(i_long), intent(inout) :: nsmooth
+  integer(i_long), intent(in) :: nsmooth_shapiro   !  number of 2nd moment preserving shapiro smoothers
+
+  call init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,filter, &
+                 nsmooth,nsmooth_shapiro, &
+                 nvars,idvar,kvar_start,kvar_end,var_names, &
+                 idx%ids, idx%ide, idx%jds, idx%jde, idx%kds, idx%kde, & ! domain idx
+                 idx%ips, idx%ipe, idx%jps, idx%jpe, idx%kps, idx%kpe, & ! patch idx
+                 mype, npes)
+
+end subroutine init_raf4_wrap
+
+subroutine raf4_ad_wrap(g,filter,ngauss,idx,mype, npes)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    raf4_ad_wrap
+!
+!   prgrmmr: sato
+!
+! abstract:  interface for raf4_ad with type_indices
+!
+! program history log:
+!   2008-11-03  sato
+!
+!   input argument list:
+!     indices
+!
+!   output argument list:
+!     g
+!
+! attributes:
+!   language:  f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+
+  type(filter_cons)   ,intent(in):: filter(7)
+  type(filter_indices),intent(in):: idx
+  integer(i_long)     ,intent(in):: ngauss, mype, npes
+
+  real(r_single) :: g( ngauss, &
+                       idx%ips:idx%ipe, &
+                       idx%jps:idx%jpe, &
+                       idx%kps:idx%kpe )
+
+  call raf4_ad(g,filter,ngauss, &
+               idx%ids, idx%ide, idx%jds, idx%jde, & ! domain idx
+               idx%ips, idx%ipe, idx%jps, idx%jpe, idx%kps, idx%kpe, & ! patch idx
+               mype, npes)
+
+end subroutine raf4_ad_wrap
+
+
+subroutine raf_sm4_ad_wrap(g,filter,ngauss,idx,mype,npes)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    raf4_ad_wrap
+!
+!   prgrmmr: sato
+!
+! abstract:  interface for raf4_ad_sm4 with type_indices
+!
+! program history log:
+!   2008-11-03  sato
+!
+!   input argument list:
+!     indices
+!
+!   output argument list:
+!     g
+!
+! attributes:
+!   language:  f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+
+  type(filter_cons)   ,intent(in):: filter(7)
+  type(filter_indices),intent(in):: idx
+  integer(i_long)     ,intent(in):: ngauss, mype, npes
+
+  real(r_single) :: g( ngauss, &
+                       idx%ips:idx%ipe, &
+                       idx%jps:idx%jpe, &
+                       idx%kps:idx%kpe )
+
+  call raf_sm4_ad(g,filter,ngauss, &
+                  idx%ips, idx%ipe, idx%jps, idx%jpe, idx%kps, idx%kpe, & ! patch idx
+                  mype, npes)
+
+end subroutine raf_sm4_ad_wrap
+
+subroutine raf4_wrap(g,filter,ngauss,idx,mype,npes)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    raf4_wrap
+!
+!   prgrmmr: sato
+!
+! abstract:  interface for raf4 with type_indices
+!
+! program history log:
+!   2008-11-03  sato
+!
+!   input argument list:
+!     indices
+!
+!   output argument list:
+!     g
+!
+! attributes:
+!   language:  f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+
+  type(filter_cons)   ,intent(in):: filter(7)
+  type(filter_indices),intent(in):: idx
+  integer(i_long)     ,intent(in):: ngauss, mype, npes
+
+  real(r_single) :: g( ngauss, &
+                       idx%ips:idx%ipe, &
+                       idx%jps:idx%jpe, &
+                       idx%kps:idx%kpe )
+
+  call raf4(g,filter,ngauss, &
+            idx%ids, idx%ide, idx%jds, idx%jde, & ! domain idx
+            idx%ips, idx%ipe, idx%jps, idx%jpe, idx%kps, idx%kpe, & ! patch idx
+            mype, npes)
+
+end subroutine raf4_wrap
+
+
+subroutine raf_sm4_wrap(g,filter,ngauss,idx,mype,npes)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    raf_sm4_wrap
+!
+!   prgrmmr: sato
+!
+! abstract:  interface for raf_sm4 with type_indices
+!
+! program history log:
+!   2008-11-03  sato
+!
+!   input argument list:
+!     indices
+!
+!   output argument list:
+!     g
+!
+! attributes:
+!   language:  f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+
+  type(filter_cons)   ,intent(in):: filter(7)
+  type(filter_indices),intent(in):: idx
+  integer(i_long)     ,intent(in):: ngauss, mype, npes
+
+  real(r_single) :: g( ngauss, &
+                       idx%ips:idx%ipe, &
+                       idx%jps:idx%jpe, &
+                       idx%kps:idx%kpe )
+
+  call raf_sm4(g,filter,ngauss, &
+               idx%ips, idx%ipe, idx%jps, idx%jpe, idx%kps, idx%kpe, & ! patch idx
+               mype, npes)
+
+end subroutine raf_sm4_wrap
+
+
+subroutine adjoint_check4(filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    adjoint_check4
@@ -99,12 +371,10 @@ subroutine adjoint_check4(filter,ngauss, &
 !   2008-04-22  safford -- add subprogram doc block
 !
 !   input argument list:
-!     ids, ide, jds, jde, kds, kde      - domain indices
 !     ips, ipe, jps, jpe, kps, kpe      - patch indices
-!     ims, ime, jms, jme, kms, kme      - memory indices
-!     mype                              - mpi task id 
-!     npes                              -
-!     ngauss                            -
+!     mype                              - mpi task id
+!     npes                              - total num of mpi tasks
+!     ngauss                            - num of Gaussian
 !
 !   output argument list:
 !
@@ -115,41 +385,29 @@ subroutine adjoint_check4(filter,ngauss, &
 !$$$ end documentation block
 
 
-
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
-
-  INTEGER(i_long), INTENT(IN) :: &
-     mype, npes,ngauss
+  INTEGER(i_long), INTENT(IN) :: ips,ipe,jps,jpe,kps,kpe
+  INTEGER(i_long), INTENT(IN) :: mype,npes,ngauss
 
   TYPE(filter_cons) filter(7)            ! structure defining recursive filter
 
-  real(r_single) xvec( ngauss,ims:ime, jms:jme, kms:kme )
-  real(r_single) yvec( ngauss,ims:ime, jms:jme, kms:kme )
-  real(r_single) zvec( ngauss,ims:ime, jms:jme, kms:kme )
+  real(r_single) xvec( ngauss,ips:ipe, jps:jpe, kps:kpe )
+  real(r_single) yvec( ngauss,ips:ipe, jps:jpe, kps:kpe )
+  real(r_single) zvec( ngauss,ips:ipe, jps:jpe, kps:kpe )
 
   integer(i_long) i,igauss,j,k
-  real(r_quad) yty,xtz
+  real(r_quad) yty,xtz,one_quad
   real(r_quad) yty0(npes),xtz0(npes)
   integer(i_long) ierror
 
+  one_quad=zero_quad
   xvec=zero_single
   yvec=zero_single
   zvec=zero_single
   call random_number(xvec)
   yvec=xvec
-  call raf_sm4(yvec,filter,ngauss, & 
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
+  call raf_sm4(yvec,filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
   zvec=yvec
-  call raf_sm4_ad(zvec,filter,ngauss, & 
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
+  call raf_sm4_ad(zvec,filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
 
   yty=zero_quad
   xtz=zero_quad
@@ -177,11 +435,7 @@ subroutine adjoint_check4(filter,ngauss, &
 
 end subroutine adjoint_check4
 
-SUBROUTINE raf4_ad(g,filter,ngauss, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
+SUBROUTINE raf4_ad(g,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    raf4_ad
@@ -194,12 +448,11 @@ SUBROUTINE raf4_ad(g,filter,ngauss, &
 !   2008-04-22  safford -- add subprogram doc block
 !
 !   input argument list:
-!     ids, ide, jds, jde, kds, kde      - domain indices
+!     ids, ide, jds, jde                - domain indices
 !     ips, ipe, jps, jpe, kps, kpe      - patch indices
-!     ims, ime, jms, jme, kms, kme      - memory indices
-!     ngauss                            -
+!     ngauss                            - num of Gaussian
 !     mype                              - mpi task id
-!     npes                              -
+!     npes                              - total num of mpi tasks
 !
 !   output argument list:
 !
@@ -209,39 +462,51 @@ SUBROUTINE raf4_ad(g,filter,ngauss, &
 !
 !$$$ end documentation block
 
+
   implicit none
 
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
+  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, ips, ipe, jps, jpe, kps, kpe
 
-  INTEGER(i_long), INTENT(IN) :: &
-     ngauss,mype, npes
+  INTEGER(i_long), INTENT(IN) :: ngauss,mype, npes
 
-  real(r_single), DIMENSION( ngauss,ims:ime, jms:jme, kms:kme ), INTENT(INOUT) :: &
+  real(r_single), DIMENSION( ngauss,ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field to be filtered, output--filtered field
 
   TYPE(filter_cons) filter(7)            ! structure defining recursive filter
 
-  integer(i_long) i,icolor,igauss,ipass,j,k
-
+  integer(i_long) i,icolor,igauss,ipass,j,k,iadvance,iback
+  INTEGER(i_long) nsmooth,nsmooth_shapiro
 
   if(filter(1)%npass.gt.0) then
    do ipass=filter(1)%npass,1,-1
 
     do icolor=1,7
 
-     if(filter(icolor)%npointsmaxall.gt.0) &
-         call one_color4(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
+     if(filter(icolor)%npointsmaxall.gt.0) then
+       if(filter(1)%new_factorization) then
+         iadvance=2
+         iback=1
+         call one_color4_new_factorization(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
              filter(icolor)%nstrings,filter(icolor)%istart, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
-   
+             ips,ipe,jps,jpe,kps,kpe,mype,npes,iadvance,iback)
+       else
+         call one_color4(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
+             filter(icolor)%nstrings,filter(icolor)%istart,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+       end if
+     end if
+
     end do
 
    end do
+  end if
+
+!    apply smoothing if nsmooth or nsmooth_shapiro > 0
+  if(kps.le.kpe) then
+    do i=1,max(filter(1)%nsmooth,filter(1)%nsmooth_shapiro)
+      call smther(filter(1),g,filter(1)%nrows,ngauss,filter(1)%nsmooth,filter(1)%nsmooth_shapiro, &
+                 ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe, &
+                 mype,npes,filter(1)%gnorm_halox,filter(1)%gnorm_haloy,.true.)
+    end do
   end if
 
 !   finally multiply by amp
@@ -258,11 +523,8 @@ SUBROUTINE raf4_ad(g,filter,ngauss, &
 
 end subroutine raf4_ad
 
-SUBROUTINE raf_sm4_ad(g,filter,ngauss, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
+SUBROUTINE raf_sm4_ad(g,filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+!
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    raf_sm4_ad
@@ -275,9 +537,7 @@ SUBROUTINE raf_sm4_ad(g,filter,ngauss, &
 !   2008-04-22  safford -- add subprogram doc block
 !
 !   input argument list:
-!     ids, ide, jds, jde, kds, kde      - domain indices
 !     ips, ipe, jps, jpe, kps, kpe      - patch indices
-!     ims, ime, jms, jme, kms, kme      - memory indices
 !     mype                              - mpi task id
 !     npes                              -
 !     ngauss                            -
@@ -290,38 +550,37 @@ SUBROUTINE raf_sm4_ad(g,filter,ngauss, &
 !
 !$$$ end documentation block
 
-!  2nd half of recursive anisotropic self-adjoint filter (full-strings version)
-!        (no amplitude factor--used only for local weighted averages)
+ implicit none
 
-  implicit none
+  INTEGER(i_long), INTENT(IN) :: ips, ipe, jps, jpe, kps, kpe      ! patch indices
 
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
+  INTEGER(i_long), INTENT(IN) :: mype, npes,ngauss
 
-  INTEGER(i_long), INTENT(IN) :: &
-     mype, npes,ngauss
-
-  real(r_single), DIMENSION( ngauss,ims:ime, jms:jme, kms:kme ), INTENT(INOUT) :: &
+  real(r_single), DIMENSION( ngauss,ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field to be filtered, output--filtered field
 
   TYPE(filter_cons) filter(7)            ! structure defining recursive filter
 
-  integer(i_long) icolor,ipass
+  integer(i_long) icolor,ipass,iadvance,iback
 
   if(filter(1)%npass.gt.0) then
    do ipass=filter(1)%npass,1,-1
 
     do icolor=1,7
 
-     if(filter(icolor)%npointsmaxall.gt.0) &
-         call one_color4(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
+     if(filter(icolor)%npointsmaxall.gt.0) then
+       if(filter(1)%new_factorization) then
+         iadvance=2
+         iback=1
+         call one_color4_new_factorization(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
              filter(icolor)%nstrings,filter(icolor)%istart, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
-   
+             ips,ipe,jps,jpe,kps,kpe,mype,npes,iadvance,iback)
+       else
+         call one_color4(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
+             filter(icolor)%nstrings,filter(icolor)%istart,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+       end if
+     end if
+
     end do
 
    end do
@@ -329,11 +588,7 @@ SUBROUTINE raf_sm4_ad(g,filter,ngauss, &
 
 end subroutine raf_sm4_ad
 
-SUBROUTINE rad_sm24_ad(g,filter,ngauss, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
+SUBROUTINE rad_sm24_ad(g,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    rad_sm24_ad
@@ -348,11 +603,10 @@ SUBROUTINE rad_sm24_ad(g,filter,ngauss, &
 !   2008-04-22  safford -- add subprogram doc block
 !
 !   input argument list:
-!     ids, ide, jds, jde, kds, kde      - domain indices
+!     ids, ide, jds, jde                - domain indices
 !     ips, ipe, jps, jpe, kps, kpe      - patch indices
-!     ims, ime, jms, jme, kms, kme      - memory indices
 !     mype                              - mpi task id
-!     npes                              - 
+!     npes                              -
 !     ngauss                            -
 !
 !   output argument list:
@@ -365,47 +619,76 @@ SUBROUTINE rad_sm24_ad(g,filter,ngauss, &
 
   implicit none
 
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
+  INTEGER(i_long), INTENT(IN) :: ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe
 
-  INTEGER(i_long), INTENT(IN) :: &
-     mype, npes,ngauss
+  INTEGER(i_long), INTENT(IN) :: mype,npes,ngauss
 
-  real(r_single), DIMENSION(2,ngauss,ims:ime, jms:jme, kms:kme ), INTENT(INOUT) :: &
+  real(r_single), DIMENSION(2,ngauss,ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field to be filtered, output--filtered field
 
   TYPE(filter_cons) filter(7)            ! structure defining recursive filter
 
-  integer(i_long) icolor,ipass
+  integer(i_long) icolor,ipass,i,ii,j,k,kk,n,iadvance,iback
+  real(r_single) gwork(ngauss,ips:ipe,jps:jpe,kps:kpe)
 
   if(filter(1)%npass.gt.0) then
    do ipass=filter(1)%npass,1,-1
 
     do icolor=1,7
 
-     if(filter(icolor)%npointsmaxall.gt.0) &
-         call one_color24(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
+     if(filter(icolor)%npointsmaxall.gt.0) then
+       if(filter(1)%new_factorization) then
+         iadvance=2
+         iback=1
+         call one_color24_new_factorization(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
              filter(icolor)%nstrings,filter(icolor)%istart, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
-   
+             ips,ipe,jps,jpe,kps,kpe,mype,npes,iadvance,iback)
+       else
+         call one_color24(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
+             filter(icolor)%nstrings,filter(icolor)%istart,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+       end if
+     end if
+
+
     end do
 
    end do
+  end if
+
+!    apply smoothing if nsmooth or nsmooth_shapiro > 0
+  if(max(filter(1)%nsmooth,filter(1)%nsmooth_shapiro) > 0.and.kps.le.kpe) then
+    do kk=1,2
+      do k=kps,kpe
+        do j=jps,jpe
+          do i=ips,ipe
+            do n=1,ngauss
+              gwork(n,i,j,k)=g(kk,n,i,j,k)
+            end do
+          end do
+        end do
+      end do
+      do ii=1,max(filter(1)%nsmooth,filter(1)%nsmooth_shapiro)
+        call smther(filter(1),gwork,filter(1)%nrows,ngauss,filter(1)%nsmooth,filter(1)%nsmooth_shapiro, &
+                   ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe, &
+                   mype,npes,filter(1)%gnorm_halox,filter(1)%gnorm_haloy,.true.)
+      end do
+      do k=kps,kpe
+        do j=jps,jpe
+          do i=ips,ipe
+            do n=1,ngauss
+              g(kk,n,i,j,k)=gwork(n,i,j,k)
+            end do
+          end do
+        end do
+      end do
+    end do
   end if
 
 end subroutine rad_sm24_ad
 
 subroutine alpha_beta4(info_string,aspect_full,rgauss,lnf,bnf,igauss,ngauss, &
                      istart_out,npoints_mype,binomial,npass,ifilt_ord, &
-                     lenbar,lenmax,lenmin,npoints1, &
-                     ids, ide, jds, jde, kds, kde, &                          ! domain indices
-                     ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-                     ims, ime, jms, jme, kms, kme, &                          ! memory indices
-                     mype, npes,nvars)
+                     lenbar,lenmax,lenmin,npoints1,mype,npes,nvars)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    alpha_beta4
@@ -418,12 +701,6 @@ subroutine alpha_beta4(info_string,aspect_full,rgauss,lnf,bnf,igauss,ngauss, &
 !   2008-04-22  safford -- add subprogram doc block
 !
 !   input argument list:
-!     ids, ide, jds, jde, kds, kde      - domain indices
-!     ips, ipe, jps, jpe, kps, kpe      - patch indices
-!     ims, ime, jms, jme, kms, kme      - memory indices
-!     mype                              - mpi task id
-!     npes                              -
-!     nvars                             -
 !
 !   output argument list:
 !
@@ -435,11 +712,7 @@ subroutine alpha_beta4(info_string,aspect_full,rgauss,lnf,bnf,igauss,ngauss, &
 
   IMPLICIT NONE
 
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
-  INTEGER(i_long), INTENT(IN) :: &
-     mype, npes,nvars
+  INTEGER(i_long), INTENT(IN) :: mype,npes,nvars
 
   INTEGER(i_long), INTENT(IN) :: npoints_mype,npass,ifilt_ord
 
@@ -491,7 +764,7 @@ subroutine alpha_beta4(info_string,aspect_full,rgauss,lnf,bnf,igauss,ngauss, &
       call alpha_betaa4(aspect_full(istart),rgauss,iend-istart+1,binomial(ipass,npass), &
                      lnf(1,istart,ipass,igauss),bnf(istart,ipass,igauss),ifilt_ord,nstrings)
      end do
-     
+
      istart=iend+1
     end if
    end do
@@ -598,7 +871,6 @@ subroutine count_strings(info_string,nstrings,nstrings_var,nvars,npoints_mype)
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-
 
   IMPLICIT NONE
 
@@ -761,7 +1033,7 @@ SUBROUTINE GETHEX(UTARGET,LGUESS,LHEXAD,LUI,WHEXAD,KT)
   integer(i_long) kp(6,6),ksg(6,6)
   real(r_double) bcmin,bcmins,u,w1
   integer(i_long) i,it,j,k,k1or3,kfirst,ksign,l
-  
+
       DATA KP /1,2,6,3,4,5, 2,1,4,6,5,3 & ! Permutation code.
               ,3,4,2,5,6,1, 4,3,6,2,1,5 & ! This line is previous + 2 (modulo 6)
               ,5,6,4,1,2,3, 6,5,2,4,3,1/  ! This line is previous + 2 (modulo 6)
@@ -804,7 +1076,7 @@ SUBROUTINE GETHEX(UTARGET,LGUESS,LHEXAD,LUI,WHEXAD,KT)
       ENDDO
       K1OR3=1              !  At iteration 1, WHEXAD(1) and (2) might be < 0.
 
-      DO IT=1,4000          !  this should be ample
+      DO IT=1,100! 4000          !  this should be ample
        KT=IT               !  report back how many iterations were needed
        L=0
        BCMIN=BCMINS
@@ -863,7 +1135,7 @@ SUBROUTINE GETHEX(UTARGET,LGUESS,LHEXAD,LUI,WHEXAD,KT)
        ENDDO
        KFIRST=3 ! After iteration 1, WHEXAD(1) and (2) are always > 0.
       ENDDO
-      write(6,*)'INDEXXI4:  ALL ITERATIONS USED UP.  This should never happen'
+      write(6,*)'GETHEX:  ALL ITERATIONS USED UP.  This should never happen'
       call stop2(68)
       END subroutine gethex
 
@@ -1018,10 +1290,10 @@ subroutine indexxi8(n,arrin8,indx)
 end subroutine indexxi8
 
 SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,filter, &
+                 nsmooth,nsmooth_shapiro, &
                  nvars,idvar,kvar_start,kvar_end,var_names, &
                  ids, ide, jds, jde, kds, kde, &         ! domain indices
                  ips, ipe, jps, jpe, kps, kpe, &         ! patch indices
-                 ims, ime, jms, jme, kms, kme, &                     ! memory indices
                  mype, npes)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1031,8 +1303,8 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 !
 ! abstract:  Obtain filtering constants for recursive anisotropic filter.
 !     This form is based on assembling full strings, distributed evenly over processors.
-!     No attempt is made in this version to treat any points specially when gathering 
-!     the full strings required for each stage of the filter.  This is the simplest and 
+!     No attempt is made in this version to treat any points specially when gathering
+!     the full strings required for each stage of the filter.  This is the simplest and
 !     probably least efficient parallel version of the recursive anisotropic filter.
 !
 ! program history log:
@@ -1040,7 +1312,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 !
 !   input argument list:
 !     aspect                           - aspect tensor for each point (destroyed)
-!     triad4                           - switch to turn on 4 color triad smoothing 
+!     triad4                           - switch to turn on 4 color triad smoothing
 !                                         for 2-dim variables
 !     ngauss                           - number of gaussians to be added together
 !     rgauss(ngauss)                   - multipying factors on aspect tensor for each term
@@ -1056,7 +1328,6 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 !     var_names(nvars)                 - descriptive name of each variable
 !     ids, ide, jds, jde, kds, kde     - domain indices
 !     ips, ipe, jps, jpe, kps, kpe     - patch indices
-!     ims, ime, jms, jme, kms, kme     - memory indices
 !     mype                             - mpi task id
 !     npes                             -
 !
@@ -1073,8 +1344,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 !$$$ end documentation block
 
   INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
+                            ips, ipe, jps, jpe, kps, kpe      ! patch indices
   INTEGER(i_long), INTENT(IN) :: &
      mype, npes
 
@@ -1088,10 +1358,17 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
   real(r_double), intent(in) ::    rgauss(ngauss)  ! multipying factors on aspect tensor for each term
   INTEGER(i_long), INTENT(IN) :: npass     ! 1/2 num of binomial weighted filter apps--npass <= 10
   integer(i_long), intent(in) :: normal    ! number of stocastic samples to use for normalization
-                                           !  (if < 0, then use more expensive form which is 
+                                           !  (if < 0, then use more expensive form which is
                                            !   independent of number of processors)
                                            !  (if = 0, then bypass normalization)
   integer(i_long), intent(in) :: ifilt_ord ! filter order
+                                           !  NOTE:  if ifilt_ord = -4, this is the special case
+                                           !   of a new approximate 4th order factorization that
+                                           !   only requires 2nd order amount of work.
+                                           !   In this case, must multiply binomial by 2 to account
+                                           !   for only doing half as many passes.
+  integer(i_long), intent(inout) :: nsmooth   !  number of 1-2-1 smoothing passes to apply
+  integer(i_long), intent(in) :: nsmooth_shapiro   !  number of 2nd moment preserving shapiro smoothers
   logical, intent(in) :: binom        !   .false., then uniform factors,
                                       !   .true., then binomial weighted factors
 
@@ -1148,10 +1425,41 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
   real(r_single) aspect_max(nvars,3),aspect_min(nvars,3)
   real(r_single) aspect_max_all(nvars,3),aspect_min_all(nvars,3)
   real(r_single) srgauss_min,srgauss_max
+  integer(i_long) istat
+! DEBUG
+  logical:: ldebug
+  real(r_single),allocatable:: rout(:,:),routa(:,:)
+
+!    nsmooth_shapiro has priority over nsmooth
+  if(nsmooth_shapiro.gt.0) nsmooth=0
+!      set up halo update (only if nsmooth and/or nsmooth_shapiro > 0)
+  filter(1)%nrows=0
+  if(nsmooth.gt.0) filter(1)%nrows=1
+  if(nsmooth_shapiro.gt.0) filter(1)%nrows=3
+  filter(1)%nsmooth=nsmooth
+  filter(1)%nsmooth_shapiro=nsmooth_shapiro
+  call add_halox0(filter(1),filter(1)%nrows,ids,ide,jds,jde,ips,ipe,jps,jpe,mype,npes)
+  call add_haloy0(filter(1),filter(1)%nrows,ids,ide,jds,jde,ips,ipe,jps,jpe,mype,npes)
+  deallocate(filter(1)%gnorm_halox,stat=istat)
+  allocate(filter(1)%gnorm_halox(ips:ipe))
+  filter(1)%gnorm_halox=1.
+  deallocate(filter(1)%gnorm_haloy,stat=istat)
+  allocate(filter(1)%gnorm_haloy(jps:jpe))
+  filter(1)%gnorm_haloy=1.
+  if(nsmooth_shapiro.gt.0) then
+    call smther_two_gnorm(filter(1)%gnorm_halox,ids,ide,ips,ipe)
+    call smther_two_gnorm(filter(1)%gnorm_haloy,jds,jde,jps,jpe)
+  end if
 
   filter(1)%ngauss=ngauss
   filter(1)%npass=npass
-  filter(1)%ifilt_ord=ifilt_ord
+  if(ifilt_ord.eq.-4) then
+    filter(1)%ifilt_ord=2
+    filter(1)%new_factorization=.true.
+  else
+    filter(1)%ifilt_ord=ifilt_ord
+    filter(1)%new_factorization=.false.
+  end if
 
 !  compute binomial coefficients
 
@@ -1182,6 +1490,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
    kk=kk+1
    binomial(1:kk,kk)=binomial0(1:kk,k)
   end do
+  if(ifilt_ord.eq.-4) binomial=2._r_double*binomial
         if(mype.eq.0) write(6,*)'INIT_RAF4:  binomial weightings used:',binomial(1:npass,npass)
 
 !  gather some stats on input aspect tensor for informational purposes
@@ -1331,8 +1640,10 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
       if(jumpx.ne.0.or.jumpy.ne.0.or.jumpz.ne.0) then
        im=max(ips-1,min(i-jumpx,ipe+1))
        jm=max(jps-1,min(j-jumpy,jpe+1))
-       if(lhexadx(im,jm,km,icolor).ne.jumpx.or.lhexady(im,jm,km,icolor).ne.jumpy.or. &
-             lhexadz(im,jm,km,icolor).ne.jumpz) then
+       km=max(kps-1,min(km     ,kpe+1))
+       if(lhexadx(im,jm,km,icolor).ne.jumpx.or. &
+          lhexady(im,jm,km,icolor).ne.jumpy.or. &
+          lhexadz(im,jm,km,icolor).ne.jumpz) then
         m=m+1
         i1filter(1,m)=jumpx ; i1filter(2,m)=jumpy ; i1filter(3,m)=jumpz
         i2filter(1,m)=i ; i2filter(2,m)=j ; i2filter(3,m)=k ; i2filter(5,m)=ivar
@@ -1385,6 +1696,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
        end if
        itest=max(ips-1,min(i+jumpx,ipe+1))
        jtest=max(jps-1,min(j+jumpy,jpe+1))
+       ktest=max(kps-1,min(ktest  ,kpe+1))
        if(jumpx.ne.lhexadx(itest,jtest,ktest,icolor).or. &
               jumpy.ne.lhexady(itest,jtest,ktest,icolor).or. &
                  jumpz.ne.lhexadz(itest,jtest,ktest,icolor)) then
@@ -1411,7 +1723,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
                      nvars,idvar,kvar_start,kvar_end, &
                      ids, ide, jds, jde, kds, kde, &         ! domain indices
                      ips, ipe, jps, jpe, kps, kpe, &         ! patch indices
-                     ims, ime, jms, jme, kms, kme,mype,npes,icolor)          ! memory indices
+                     mype,npes,icolor)
 
     filter(icolor)%npointsmax=max(npoints_recv(mype),npoints_send)
     if(npes.eq.1) then
@@ -1427,9 +1739,13 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 
 !       assemble full strings
 
-    deallocate(filter(icolor)%nsend,filter(icolor)%ndsend)
-    deallocate(filter(icolor)%nrecv,filter(icolor)%ndrecv)
-    deallocate(filter(icolor)%ia,filter(icolor)%ja,filter(icolor)%ka)
+    deallocate(filter(icolor)%nsend,stat=istat)
+    deallocate(filter(icolor)%ndsend,stat=istat)
+    deallocate(filter(icolor)%nrecv,stat=istat)
+    deallocate(filter(icolor)%ndrecv,stat=istat)
+    deallocate(filter(icolor)%ia,stat=istat)
+    deallocate(filter(icolor)%ja,stat=istat)
+    deallocate(filter(icolor)%ka,stat=istat)
     allocate(filter(icolor)%nsend(0:npes-1))
     allocate(filter(icolor)%ndsend(0:npes))
     allocate(filter(icolor)%nrecv(0:npes-1))
@@ -1443,49 +1759,50 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
                      filter(icolor)%nsend,filter(icolor)%ndsend, &
                      filter(icolor)%nrecv,filter(icolor)%ndrecv, &
                      filter(icolor)%ia,filter(icolor)%ja,filter(icolor)%ka, &
-                     ids, ide, jds, jde, kds, kde, &                          ! domain indices
-                     ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-                     ims, ime, jms, jme, kms, kme, &                          ! memory indices
-                     mype, npes)
+                     ips,ipe,jps,jpe,kps,kpe,mype,npes)
 
 !       organize full strings for processing
 
-    deallocate(filter(icolor)%ib)
+    deallocate(filter(icolor)%ib,stat=istat)
     allocate(filter(icolor)%ib(max(1,npoints_recv(mype))))
     if(npoints_recv(mype).gt.0) then
-     call sort_strings4(info_string,aspect_full, &
-                     npoints_recv(mype),filter(icolor)%ib, &
-                     ids, ide, jds, jde, kds, kde, &                          ! domain indices
-                     ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-                     ims, ime, jms, jme, kms, kme, &                          ! memory indices
-                     mype, npes)
+      call sort_strings4(info_string,aspect_full,npoints_recv(mype),filter(icolor)%ib,mype,npes,nvars)
 
 !      count number of strings
 
-    call count_strings(info_string,filter(icolor)%nstrings,nstrings_var,nvars,npoints_recv(mype))
+      call count_strings(info_string,filter(icolor)%nstrings,nstrings_var,nvars,npoints_recv(mype))
 
 !      compute desired alpha and beta for final filter
 
-    deallocate(filter(icolor)%istart,filter(icolor)%lnf,filter(icolor)%bnf)
+      deallocate(filter(icolor)%istart,stat=istat)
+      allocate(filter(icolor)%istart(filter(icolor)%nstrings+1))
 
-    allocate(filter(icolor)%istart(filter(icolor)%nstrings+1))
-    allocate(filter(icolor)%lnf(ifilt_ord,max(1,npoints_recv(mype)),npass,ngauss))
-    allocate(filter(icolor)%bnf(max(1,npoints_recv(mype)),npass,ngauss))
-    do igauss=1,ngauss
-     if(npoints_recv(mype).gt.0) &
-      call alpha_beta4(info_string,aspect_full,rgauss(igauss), &
-                     filter(icolor)%lnf,filter(icolor)%bnf,igauss,ngauss, &
-                     filter(icolor)%istart,npoints_recv(mype),binomial,npass, &
-                     ifilt_ord, &
-                     lenbar,lenmax,lenmin,npoints1, &
-                     ids, ide, jds, jde, kds, kde, &                          ! domain indices
-                     ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-                     ims, ime, jms, jme, kms, kme, &                          ! memory indices
-                     mype, npes,nvars)
+      if(filter(1)%new_factorization) then
+        deallocate(filter(icolor)%fmat,stat=istat)
+        deallocate(filter(icolor)%fmat0,stat=istat)
+        allocate(filter(icolor)%fmat(2,npoints_recv(mype),npass,ngauss,2))
+        allocate(filter(icolor)%fmat0(npoints_recv(mype),npass,ngauss,2))
+        do igauss=1,ngauss
+          call new_alpha_beta4(info_string,aspect_full,rgauss(igauss), &
+                       filter(icolor)%fmat,filter(icolor)%fmat0,igauss,ngauss, &
+                       filter(icolor)%istart,npoints_recv(mype),binomial,npass, &
+                       lenbar,lenmax,lenmin,npoints1,mype,npes,nvars)
 
-    end do
-            
-            
+        end do
+      else
+        deallocate(filter(icolor)%lnf,stat=istat)
+        deallocate(filter(icolor)%bnf,stat=istat)
+        allocate(filter(icolor)%lnf(ifilt_ord,npoints_recv(mype),npass,ngauss))
+        allocate(filter(icolor)%bnf(npoints_recv(mype),npass,ngauss))
+        do igauss=1,ngauss
+          call alpha_beta4(info_string,aspect_full,rgauss(igauss), &
+                       filter(icolor)%lnf,filter(icolor)%bnf,igauss,ngauss, &
+                       filter(icolor)%istart,npoints_recv(mype),binomial,npass, &
+                       ifilt_ord,lenbar,lenmax,lenmin,npoints1,mype,npes,nvars)
+
+        end do
+      end if
+
     end if
     deallocate(info_string)
     deallocate(aspect_full)
@@ -1554,18 +1871,44 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
     end do
   end if
 
-!     get filter normalization
+      !       call adjoint_check4(filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+ call normalize2_raf4(filter,filter(1)%ngauss,normal, &
+                      ids, ide, jds, jde, kds, kde, &                    ! domain indices
+                      ips, ipe, jps, jpe, kps, kpe, &                    ! patch indices
+                      mype, npes)
 
-      !       call adjoint_check4(filter, &
-      !              ids, ide, jds, jde, kds, kde, &                    ! domain indices
-      !              ips, ipe, jps, jpe, kps, kpe, &                    ! patch indices
-      !              ims, ime, jms, jme, kms, kme, &                    ! memory indices
-      !              mype, npes)
-  call normalize_raf4(filter,filter(1)%ngauss,normal, &
-                     ids, ide, jds, jde, kds, kde, &                    ! domain indices
-                     ips, ipe, jps, jpe, kps, kpe, &                    ! patch indices
-                     ims, ime, jms, jme, kms, kme, &                    ! memory indices
-                     mype, npes)
+!DEBUG test output
+  ldebug=.false.
+  if(ldebug) then
+    if(mype==0) write(6,*) 'normalization finished'
+    allocate(rout (ips:ipe,jps:jpe))
+    allocate(routa(ips:ipe,jps:jpe))
+    if(mype==0) open(32,form='unformatted')
+    do k=kds,kde
+      if(k>=kps.and.k<=kpe) then
+        kk=k-kps+1
+        do j=jps,jpe
+        do i=ips,ipe
+          rout(i,j)=filter(1)%amp(1,i,j,k)
+        end do
+        end do
+      else
+        rout=0.0
+      end if
+      call mpi_reduce(rout,routa,(ipe-ips+1)*(jpe-jps+1), &
+                      mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
+      if(mype==0) then
+        write(32) routa
+        write(6,*) 'amp:',k,maxval(routa),minval(routa)
+      end if
+    end do
+    if(mype==0) close(32)
+    deallocate(rout)
+    deallocate(routa)
+  end if
+!DEBUG
+
+!     get filter normalization
 
 
 return
@@ -1574,7 +1917,6 @@ end subroutine init_raf4
 subroutine normalize_raf4(filter,ngauss,normal, &
                          ids, ide, jds, jde, kds, kde, &                ! domain indices
                          ips, ipe, jps, jpe, kps, kpe, &                ! patch indices
-                         ims, ime, jms, jme, kms, kme, &                ! memory indices
                          mype, npes)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1592,7 +1934,6 @@ subroutine normalize_raf4(filter,ngauss,normal, &
 !     normal                        -
 !     ids, ide, jds, jde, kds, kde  - domain indices
 !     ips, ipe, jps, jpe, kps, kpe  - patch indices
-!     ims, ime, jms, jme, kms, kme  - memory indices
 !     mype                          - mpi task id
 !     npes                          -
 !
@@ -1604,32 +1945,29 @@ subroutine normalize_raf4(filter,ngauss,normal, &
 !
 !$$$ end documentation block
 
-
   INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
+                            ips, ipe, jps, jpe, kps, kpe      ! patch indices
 
   INTEGER(i_long), INTENT(IN) :: &
      ngauss,normal,mype, npes
 
   TYPE(filter_cons) filter(7)
 
-  real(r_single) ranvec(2, ngauss,ims:ime, jms:jme, kms:kme )
-  real(r_single) bigg( ngauss,ims:ime, jms:jme, kms:kme )
+  real(r_single) ranvec(2, ngauss,ips:ipe, jps:jpe, kps:kpe )
+  real(r_single) bigg( ngauss,ips:ipe, jps:jpe, kps:kpe )
 
   integer(i_long) i,igauss,j,k,loop,nsamples,ierror
-! real(r_double) timef
-! real(r_double) t0,t1,timerand,timetot,timerand0,timetot0
   integer(i_long) kbegin,kend
   logical independent_of_npes
   real(4) this_one1,this_one2
-                 real(4) work(2,ips:ipe,jps:jpe)
+                 real(4) work(2,ids:ide,jds:jde)
 
   real(8) seeds(5,0:npes-1)
   integer nseeds
   integer(i_long) jseeds(5,0:npes-1)
+  integer(i_long) istat
 
-  deallocate(filter(1)%amp)
+  deallocate(filter(1)%amp,stat=istat)
   allocate(filter(1)%amp(ngauss,ips:ipe,jps:jpe,kps:kpe))
 
   if(normal.eq.0) then
@@ -1654,11 +1992,8 @@ subroutine normalize_raf4(filter,ngauss,normal, &
    kbegin=kds ; kend=kde
   end if
   bigg=0._r_double
-! timerand=0._r_double
-! t0=timef()
   do loop=1,nsamples
    ranvec=0._r_single
-!  t1=timef()
    do k=kbegin,kend
     call random_number(work)
     if(k.lt.kps.or.k.gt.kpe) cycle
@@ -1676,13 +2011,7 @@ subroutine normalize_raf4(filter,ngauss,normal, &
     end do
    end do
 
-!  timerand=timerand+timef()-t1
-  
-   call rad_sm24_ad(ranvec,filter,ngauss, &
-            ids, ide, jds, jde, kds, kde, &                          ! domain indices
-            ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-            ims, ime, jms, jme, kms, kme, &                          ! memory indices
-            mype, npes)
+   call rad_sm24_ad(ranvec,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes)
    do k=kps,kpe
     do j=jps,jpe
      do i=ips,ipe
@@ -1693,11 +2022,6 @@ subroutine normalize_raf4(filter,ngauss,normal, &
     end do
    end do
   end do
-! timetot=timef()-t0
-! call mpi_reduce(timetot,timetot0,1,mpi_real8,mpi_max,0,mpi_comm_world,ierror)
-! call mpi_reduce(timerand,timerand0,1,mpi_real8,mpi_max,0,mpi_comm_world,ierror)
-! if(mype.eq.0) write(6,'(" total time for normalization = ",f15.3)').001_8*timetot0
-! if(mype.eq.0) write(6,'(" total time for random_number = ",f15.3)').001_8*timerand0
 
   do k=kps,kpe
    do j=jps,jpe
@@ -1711,12 +2035,150 @@ subroutine normalize_raf4(filter,ngauss,normal, &
 
 end subroutine normalize_raf4
 
+subroutine normalize2_raf4(filter,ngauss,normal, &
+                         ids, ide, jds, jde, kds, kde, &                ! domain indices
+                         ips, ipe, jps, jpe, kps, kpe, &                ! patch indices
+                         mype, npes)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    normalize2_raf4
+!
+!   prgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2008-04-22  safford -- add subprogram doc block, rm unused vars
+!
+!   input argument list:
+!     ngauss                        -
+!     normal                        -
+!     ids, ide, jds, jde, kds, kde  - domain indices
+!     ips, ipe, jps, jpe, kps, kpe  - patch indices
+!     mype                          - mpi task id
+!     npes                          -
+!
+!   output argument list:
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+
+  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
+                            ips, ipe, jps, jpe, kps, kpe      ! patch indices
+
+  INTEGER(i_long), INTENT(IN) :: &
+     ngauss,normal,mype, npes
+
+  TYPE(filter_cons) filter(7)
+
+  real(r_single) ranvec(2, ngauss,ips:ipe, jps:jpe, kps:kpe )
+  real(r_single) bigg( ngauss,ips:ipe, jps:jpe, kps:kpe )
+
+  integer(i_long) i,igauss,j,k,loop,nsamples,ierror
+  real(4) this_one1,this_one2
+
+  integer(i_long) istat,ii
+  integer(i_llong) jj,j1,j2,j3
+  integer(1) flips(2**27-8)
+
+  logical:: independent_of_npes
+
+  deallocate(filter(1)%amp,stat=istat)
+  allocate(filter(1)%amp(ngauss,ips:ipe,jps:jpe,kps:kpe))
+
+  if(normal.eq.0) then
+   filter(1)%amp=1.
+   return
+  end if
+
+!   read in fixed set of random flips
+  if(mype.eq.0) then
+    open(997433,file='random_flips',form='unformatted')
+    read(997433) flips
+    close(997433)
+  end if
+  call mpi_bcast(flips,2**27-8,mpi_integer1,0,mpi_comm_world,ierror)
+
+  nsamples=abs(normal)/2
+  independent_of_npes=normal.lt.0
+
+  bigg=0._r_double
+  ii=-1
+
+  if(independent_of_npes) then;  jj= 0
+  else;                          jj=(2**27-8)*mype/npes
+  end if
+
+  do loop=1,nsamples
+    if(mype==0.and.mod(loop-1,10)==0) write(6,*) 'normalization step:',loop,'/',nsamples
+    j1=(int(loop,i_llong)-1)*kde
+    ranvec=0._r_single
+    do k=kps,kpe
+      j2=(j1+k-1)*jde
+      do j=jps,jpe
+        j3=(j2+j-1)*ide
+        do i=ips,ipe
+
+          if(independent_of_npes) then
+            jj=(j3+i-1)*2+8
+            ii=mod(jj,8_i_llong)
+            jj=mod(jj/8_i_llong,2_i_llong**27-8)
+          else
+            ii=mod(ii+1,8)
+            if(ii.eq.0) jj=jj+1
+            if(jj.gt.2**27-8) jj=1
+          end if
+
+          this_one1=-1.
+          if(btest(flips(jj),ii)) this_one1=1.
+
+          ii=mod(ii+1,8)
+          if(.not.independent_of_npes) then
+            if(ii.eq.0) jj=jj+1
+            if(jj.gt.2**27-8) jj=1
+          end if
+
+          this_one2=-1.
+          if(btest(flips(jj),ii)) this_one2=1.
+
+          do igauss=1,ngauss
+            ranvec(1,igauss,i,j,k)=this_one1
+            ranvec(2,igauss,i,j,k)=this_one2
+          end do
+        end do
+      end do
+    end do
+
+    call rad_sm24_ad(ranvec,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+    do k=kps,kpe
+    do j=jps,jpe
+    do i=ips,ipe
+    do igauss=1,ngauss
+      bigg(igauss,i,j,k)=bigg(igauss,i,j,k)+ranvec(1,igauss,i,j,k)**2+ranvec(2,igauss,i,j,k)**2
+    end do
+    end do
+    end do
+    end do
+  end do
+
+  do k=kps,kpe
+  do j=jps,jpe
+  do i=ips,ipe
+  do igauss=1,ngauss
+    filter(1)%amp(igauss,i,j,k)=1._r_double/sqrt(bigg(igauss,i,j,k)/(2._r_double*nsamples))
+  end do
+  end do
+  end do
+  end do
+
+end subroutine normalize2_raf4
+
 subroutine one_color4(g,filter,ngauss,ipass,ifilt_ord, &
-             nstrings,istart, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
+                      nstrings,istart,ips,ipe,jps,jpe,kps,kpe,mype,npes)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    one_color4
@@ -1736,9 +2198,7 @@ subroutine one_color4(g,filter,ngauss,ipass,ifilt_ord, &
 !     ifilt_ord                     -
 !     nstrings                      -
 !     istart                        -
-!     ids, ide, jds, jde, kds, kde  - domain indices
 !     ips, ipe, jps, jpe, kps, kpe  - patch indices
-!     ims, ime, jms, jme, kms, kme  - memory indices
 !     mype                          - mpi task id
 !     npes                          -
 !
@@ -1751,9 +2211,7 @@ subroutine one_color4(g,filter,ngauss,ipass,ifilt_ord, &
 !
 !$$$ end documentation block
 
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
+  INTEGER(i_long), INTENT(IN) :: ips, ipe, jps, jpe, kps, kpe
 
   INTEGER(i_long), INTENT(IN) :: &
      mype, npes,ngauss
@@ -1762,7 +2220,7 @@ subroutine one_color4(g,filter,ngauss,ipass,ifilt_ord, &
             ipass          !  total number of contiguous string points
   integer(i_long),intent(in):: ifilt_ord
 
-  real(r_single), DIMENSION( ngauss,ims:ime, jms:jme, kms:kme ), INTENT(INOUT) :: &
+  real(r_single), DIMENSION( ngauss,ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field on grid, output--filtered field on grid
 
   integer(i_long),intent(in):: nstrings
@@ -1854,11 +2312,7 @@ subroutine one_color4(g,filter,ngauss,ipass,ifilt_ord, &
 end subroutine one_color4
 
 subroutine one_color24(g,filter,ngauss,ipass,ifilt_ord, &
-             nstrings,istart, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
+             nstrings,istart,ips,ipe,jps,jpe,kps,kpe,mype,npes)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    one_color24
@@ -1878,9 +2332,7 @@ subroutine one_color24(g,filter,ngauss,ipass,ifilt_ord, &
 !     ifilt_ord                     -
 !     nstrings                      -
 !     istart                        -
-!     ids, ide, jds, jde, kds, kde  - domain indices
 !     ips, ipe, jps, jpe, kps, kpe  - patch indices
-!     ims, ime, jms, jme, kms, kme  - memory indices
 !     mype                          - mpi task id
 !     npes                          -
 !
@@ -1893,9 +2345,7 @@ subroutine one_color24(g,filter,ngauss,ipass,ifilt_ord, &
 !
 !$$$ end documentation block
 
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
+  INTEGER(i_long), INTENT(IN) :: ips, ipe, jps, jpe, kps, kpe      ! patch indices
 
   INTEGER(i_long), INTENT(IN) :: &
      mype, npes,ngauss
@@ -1904,7 +2354,7 @@ subroutine one_color24(g,filter,ngauss,ipass,ifilt_ord, &
             ipass          !  total number of contiguous string points
   integer(i_long),intent(in):: ifilt_ord
 
-  real(r_single), DIMENSION(2,ngauss, ims:ime, jms:jme, kms:kme ), INTENT(INOUT) :: &
+  real(r_single), DIMENSION(2,ngauss, ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field on grid, output--filtered field on grid
 
   integer(i_long),intent(in):: nstrings
@@ -2002,11 +2452,7 @@ subroutine one_color24(g,filter,ngauss,ipass,ifilt_ord, &
 
 end subroutine one_color24
 
-SUBROUTINE raf4(g,filter,ngauss, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
+SUBROUTINE raf4(g,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    raf4
@@ -2022,8 +2468,7 @@ SUBROUTINE raf4(g,filter,ngauss, &
 !     g                             -  input--field on grid, output--filtered field on grid
 !     filter                        -
 !     ngauss                        -
-!     ids, ide, jds, jde, kds, kde  - domain indices
-!     ips, ipe, jps, jpe, kps, kpe  - patch indices
+!     ips, ipe, jps, jpe            - patch indices
 !     ims, ime, jms, jme, kms, kme  - memory indices
 !     mype                          - mpi task id
 !     npes                          -
@@ -2037,30 +2482,22 @@ SUBROUTINE raf4(g,filter,ngauss, &
 !
 !$$$ end documentation block
 
-
   implicit none
 
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
+  INTEGER(i_long), INTENT(IN) :: ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe
 
-  INTEGER(i_long), INTENT(IN) :: &
-     mype, npes,ngauss
+  INTEGER(i_long), INTENT(IN) :: mype, npes,ngauss
 
-  real(r_single), DIMENSION(ngauss, ims:ime, jms:jme, kms:kme ), INTENT(INOUT) :: &
+  real(r_single), DIMENSION(ngauss, ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field to be filtered, output--filtered field
 
   TYPE(filter_cons) filter(7)             !  structure defining recursive filter
 
-  integer(i_long) i,icolor,ipass,igauss,j,k
+  integer(i_long) i,icolor,ipass,igauss,j,k,iadvance,iback
 
 !   multiply by amp first
 
-           !  write(6,*)' at 1 in raf4, ngauss,npass,i,j,kps,pe=',ngauss,filter(1)%npass,&
-           !            ips,ipe,jps,jpe,kps,kpe
   do k=kps,kpe
-        ! write(6,*)' k,min,max g=',k,minval(g(1:ngauss,ips:ipe,jps:jpe,k)), &
-        !                             maxval(g(1:ngauss,ips:ipe,jps:jpe,k))
    do j=jps,jpe
     do i=ips,ipe
      do igauss=1,ngauss
@@ -2070,21 +2507,33 @@ SUBROUTINE raf4(g,filter,ngauss, &
    end do
   end do
 
+!    apply smoothing if nsmooth or nsmooth_shapiro > 0
+  if(kps.le.kpe) then
+    do i=1,max(filter(1)%nsmooth,filter(1)%nsmooth_shapiro)
+      call smther(filter(1),g,filter(1)%nrows,ngauss,filter(1)%nsmooth,filter(1)%nsmooth_shapiro, &
+                 ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe, &
+                 mype,npes,filter(1)%gnorm_halox,filter(1)%gnorm_haloy,.false.)
+    end do
+  end if
+
   if(filter(1)%npass.gt.0) then
    do ipass=1,filter(1)%npass
 
     do icolor=7,1,-1
 
-        !     if(mype.eq.0) write(6,*)' at 2 in raf4, icolor,npointsmaxall=', &
-        !               icolor,filter(icolor)%npointsmaxall
-     if(filter(icolor)%npointsmaxall.gt.0) &
-         call one_color4(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
+     if(filter(icolor)%npointsmaxall.gt.0) then
+       if(filter(1)%new_factorization) then
+         iadvance=1
+         iback=2
+         call one_color4_new_factorization(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
              filter(icolor)%nstrings,filter(icolor)%istart, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
-   
+             ips,ipe,jps,jpe,kps,kpe,mype,npes,iadvance,iback)
+       else
+         call one_color4(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
+             filter(icolor)%nstrings,filter(icolor)%istart,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+       end if
+     end if
+
     end do
 
    end do
@@ -2092,11 +2541,7 @@ SUBROUTINE raf4(g,filter,ngauss, &
 
 end subroutine raf4
 
-SUBROUTINE raf_sm4(g,filter,ngauss, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
+SUBROUTINE raf_sm4(g,filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    raf_sm4
@@ -2112,9 +2557,7 @@ SUBROUTINE raf_sm4(g,filter,ngauss, &
 !     g                             -  input--field on grid, output--filtered field on grid
 !     filter                        -
 !     ngauss                        -
-!     ids, ide, jds, jde, kds, kde  - domain indices
 !     ips, ipe, jps, jpe, kps, kpe  - patch indices
-!     ims, ime, jms, jme, kms, kme  - memory indices
 !     mype                          - mpi task id
 !     npes                          -
 !
@@ -2129,33 +2572,36 @@ SUBROUTINE raf_sm4(g,filter,ngauss, &
 
   implicit none
 
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
+  INTEGER(i_long), INTENT(IN) :: ips, ipe, jps, jpe, kps, kpe      ! patch indices
 
   INTEGER(i_long), INTENT(IN) :: &
      mype, npes,ngauss
 
-  real(r_single), DIMENSION( ngauss,ims:ime, jms:jme, kms:kme ), INTENT(INOUT) :: &
+  real(r_single), DIMENSION( ngauss,ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field to be filtered, output--filtered field
 
   TYPE(filter_cons) filter(7)             !  structure defining recursive filter
 
-  integer(i_long) icolor,ipass
+  integer(i_long) icolor,ipass,iadvance,iback
 
   if(filter(1)%npass.gt.0) then
    do ipass=1,filter(1)%npass
 
     do icolor=7,1,-1
 
-     if(filter(icolor)%npointsmaxall.gt.0) &
-         call one_color4(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
+     if(filter(icolor)%npointsmaxall.gt.0) then
+       if(filter(1)%new_factorization) then
+         iadvance=1
+         iback=2
+         call one_color4_new_factorization(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
              filter(icolor)%nstrings,filter(icolor)%istart, &
-             ids, ide, jds, jde, kds, kde, &                          ! domain indices
-             ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-             ims, ime, jms, jme, kms, kme, &                          ! memory indices
-             mype, npes)
-   
+             ips,ipe,jps,jpe,kps,kpe,mype,npes,iadvance,iback)
+       else
+         call one_color4(g,filter(icolor),ngauss,ipass,filter(1)%ifilt_ord, &
+             filter(icolor)%nstrings,filter(icolor)%istart,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+       end if
+     end if
+
     end do
 
    end do
@@ -2163,12 +2609,7 @@ SUBROUTINE raf_sm4(g,filter,ngauss, &
 
 end subroutine raf_sm4
 
-subroutine sort_strings4(info_string,aspect_full, &
-                     npoints_recv,ib, &
-                     ids, ide, jds, jde, kds, kde, &                          ! domain indices
-                     ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-                     ims, ime, jms, jme, kms, kme, &                          ! memory indices
-                     mype, npes)
+subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,mype,npes,nvars)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    sort_strings4
@@ -2186,9 +2627,6 @@ subroutine sort_strings4(info_string,aspect_full, &
 !                                     5,6,7,8 - jumpx,jumpy,jumpz,ivar for this string
 !     aspect_full                   -
 !     npoints_recv                  -
-!     ids, ide, jds, jde, kds, kde  - domain indices
-!     ips, ipe, jps, jpe, kps, kpe  - patch indices
-!     ims, ime, jms, jme, kms, kme  - memory indices
 !     mype                          - mpi task id
 !     npes                          -
 !
@@ -2202,15 +2640,10 @@ subroutine sort_strings4(info_string,aspect_full, &
 !
 !$$$ end documentation block
 
-  !   sort strings by string id and distance
-
   IMPLICIT NONE
 
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
-  INTEGER(i_long), INTENT(IN) :: &
-     mype, npes
+  INTEGER(i_long), INTENT(IN) :: mype, npes
+  integer(i_long),intent(in):: nvars
 
   INTEGER(i_long), INTENT(IN) :: npoints_recv
 
@@ -2222,21 +2655,57 @@ subroutine sort_strings4(info_string,aspect_full, &
   real(r_single), DIMENSION( npoints_recv ) , INTENT(INOUT) :: &
             aspect_full
 
-  integer(i_long) ib(npoints_recv)
+  integer(i_long),intent(out):: ib(npoints_recv)
 
-  integer(i_long) ij_origin(npoints_recv)
+  integer(i_long) ib0(npoints_recv),ib1(npoints_recv)
+  integer(i_llong) ij_origin(npoints_recv)
   integer(i_short) iwork(npoints_recv)
-  real(r_single) work(npoints_recv)
+  integer(i_short) info2(8,npoints_recv)
+  integer(i_long) istart(npoints_recv+1)
+  integer(i_long) numvar
+  integer(i_long) icountvar(nvars),istartvar(nvars)
+  real(r_single) aspect2(npoints_recv)
 
-  integer(i_long) i,idist,idistlen,idistmax,idistmin,idjxlen,idjxylen,idjxyzlen,idjxyzx0len,idjxyzxy0len
-  integer(i_long) idjxyzxyz0len
-  integer(i_long) ivar,ivarmax,ivarmin
-  integer(i_long) ix0,ix0len,ix0max,ix0min,iy0,iy0len,iy0max,iy0min,iz0,iz0len,iz0max
-  integer(i_long) iz0min,j,jumpx,jumpxlen,jumpxmax,jumpxmin,jumpy,jumpylen,jumpymax,jumpymin
-  integer(i_long) jumpz,jumpzlen,jumpzmax,jumpzmin
+  integer(i_long) i,j
+  integer(i_llong) idist,idistlen,idistmax,idistmin,idjxlen,idjxylen,idjxyzlen,idjxyzx0len,idjxyzxy0len
+  integer(i_llong) idjxyzxyz0len
+  integer(i_long) ii,k
+  integer(i_llong) ix0,ix0len,ix0max,ix0min,iy0,iy0len,iy0max,iy0min,iz0,iz0len,iz0max
+  integer(i_llong) iz0min,jumpx,jumpxlen,jumpxmax,jumpxmin,jumpy,jumpylen,jumpymax,jumpymin
+  integer(i_llong) jumpz,jumpzlen,jumpzmax,jumpzmin
+
+!  sort by var first (but not with indexxi8, because destroys order of points within a subgroup)
+
+  ii=0
+  icountvar=0
+  istartvar=0
+  ib0=0
+  do k=1,nvars
+    do i=1,npoints_recv
+      if(info_string(8,i).eq.k) then
+        icountvar(k)=icountvar(k)+1
+        ii=ii+1
+        if(icountvar(k).eq.1) istartvar(k)=ii
+        ib0(ii)=i
+        do j=1,8
+          info2(j,ii)=info_string(j,i)
+        end do
+        aspect2(ii)=aspect_full(i)
+      end if
+    end do
+  end do
+          if(minval(ib0).eq.0) then
+                 write(6,*)' error in sort_strings4, problem with ib0'
+                   call stop2(68)
+          end if
+
+!  now sort each section in usual way
 
 !   obtain range of jumpx,jumpy,originx,originy
 
+ ij_origin=0
+ do k=1,nvars
+  if(icountvar(k).eq.0) cycle
   jumpxmin=huge(jumpxmin) ; jumpxmax=-jumpxmin
   jumpymin=jumpxmin ; jumpymax=jumpxmax
   jumpzmin=jumpxmin ; jumpzmax=jumpxmax
@@ -2244,15 +2713,13 @@ subroutine sort_strings4(info_string,aspect_full, &
   iy0min=jumpxmin ; iy0max=jumpxmax
   iz0min=jumpxmin ; iz0max=jumpxmax
   idistmin=jumpxmin ; idistmax=jumpxmax
-  ivarmin=jumpxmin ; ivarmax=jumpxmax
-  do i=1,npoints_recv
-   jumpx=info_string(5,i) ; jumpy=info_string(6,i) ; jumpz=info_string(7,i)
-   ix0=info_string(2,i) ; iy0=info_string(3,i) ; iz0=info_string(4,i)
-   idist=info_string(1,i) ; ivar=info_string(8,i)
+  do i=istartvar(k),istartvar(k)+icountvar(k)-1
+   jumpx=info2(5,i) ; jumpy=info2(6,i) ; jumpz=info2(7,i)
+   ix0=info2(2,i) ; iy0=info2(3,i) ; iz0=info2(4,i)
+   idist=info2(1,i)
    jumpxmin=min(jumpx,jumpxmin) ; jumpxmax=max(jumpx,jumpxmax)
    jumpymin=min(jumpy,jumpymin) ; jumpymax=max(jumpy,jumpymax)
    jumpzmin=min(jumpz,jumpzmin) ; jumpzmax=max(jumpz,jumpzmax)
-   ivarmin=min(ivar,ivarmin)
    ix0min=min(ix0,ix0min) ; ix0max=max(ix0,ix0max)
    iy0min=min(iy0,iy0min) ; iy0max=max(iy0,iy0max)
    iz0min=min(iz0,iz0min) ; iz0max=max(iz0,iz0max)
@@ -2266,48 +2733,40 @@ subroutine sort_strings4(info_string,aspect_full, &
   idjxyzlen=idjxylen*jumpzlen
   idjxyzx0len=idjxyzlen*ix0len
   idjxyzxy0len=idjxyzx0len*iy0len
-  idjxyzxyz0len=idjxyzxy0len*iz0len
 
-  do i=1,npoints_recv
-   jumpx=info_string(5,i) ; jumpy=info_string(6,i) ; jumpz=info_string(7,i)
-   ix0=info_string(2,i) ; iy0=info_string(3,i) ; iz0=info_string(4,i)
-   idist=info_string(1,i) ; ivar=info_string(8,i)
+  do i=istartvar(k),istartvar(k)+icountvar(k)-1
+   jumpx=info2(5,i) ; jumpy=info2(6,i) ; jumpz=info2(7,i)
+   ix0=info2(2,i) ; iy0=info2(3,i) ; iz0=info2(4,i)
+   idist=info2(1,i)
    ij_origin(i)=idist-idistmin &
                   +idistlen*(jumpx-jumpxmin) &
                      +idjxlen*(jumpy-jumpymin) &
                         +idjxylen*(jumpz-jumpzmin) &
                            +idjxyzlen*(ix0-ix0min) &
                               +idjxyzx0len*(iy0-iy0min) &
-                                 +idjxyzxy0len*(iz0-iz0min) &
-                                 +idjxyzxyz0len*(ivar-ivarmin)
+                                 +idjxyzxy0len*(iz0-iz0min)
   end do
-  call indexxi4(npoints_recv,ij_origin,ib)
-
-  do j=1,8
-   do i=1,npoints_recv
-    iwork(i)=info_string(j,ib(i))
-   end do
-   do i=1,npoints_recv
-    info_string(j,i)=iwork(i)
-   end do
+  call indexxi8(icountvar(k),ij_origin(istartvar(k)),ib1(istartvar(k)))
+  do i=istartvar(k),istartvar(k)+icountvar(k)-1
+    ib1(i)=ib1(i)+istartvar(k)-1
+  end do
+ end do
+  do i=1,npoints_recv
+    ib(i)=ib0(ib1(i))
   end do
   do i=1,npoints_recv
-   work(i)=aspect_full(ib(i))
-  end do
-  do i=1,npoints_recv
-   aspect_full(i)=work(i)
+    do j=1,8
+      info_string(j,i)=info2(j,ib1(i))
+    end do
+    aspect_full(i)=aspect2(ib1(i))
   end do
 
 end subroutine sort_strings4
 
-
 SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
                      npoints_send,npoints_recv,aspect,icolor, &
                      info_string,aspect_full,nsend,ndsend,nrecv,ndrecv,ia,ja,ka, &
-                     ids, ide, jds, jde, kds, kde, &                          ! domain indices
-                     ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-                     ims, ime, jms, jme, kms, kme, &                          ! memory indices
-                     mype, npes)
+                     ips,ipe,jps,jpe,kps,kpe,mype,npes)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    string_assemble4
@@ -2328,9 +2787,7 @@ SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
 !     npoints_recv                 -  number of points for assembled strings
 !     aspect                       - aspect tensor numbers
 !     icolor                       -
-!     ids, ide, jds, jde, kds, kde - domain indices
 !     ips, ipe, jps, jpe, kps, kpe - patch indices
-!     ims, ime, jms, jme, kms, kme - memory indices
 !     mype                         - mpi task id
 !     npes                         -
 !
@@ -2346,14 +2803,8 @@ SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
 !
 !$$$ end documentation block
 
-!   assemble groups of unbroken strings approximately evenly distributed over all processors
-
-
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
-  INTEGER(i_long), INTENT(IN) :: &
-     mype, npes
+  INTEGER(i_long), INTENT(IN) :: ips, ipe, jps, jpe, kps, kpe      ! patch indices
+  INTEGER(i_long), INTENT(IN) :: mype, npes
 
   INTEGER(i_long), INTENT(IN) :: nstrings,icolor
 
@@ -2384,13 +2835,11 @@ SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
   integer(i_long) nsend(0:npes-1),ndsend(0:npes),nrecv(0:npes-1),ndrecv(0:npes)
   integer(i_short) ia(npoints_send),ja(npoints_send),ka(npoints_send)
 
-  integer(i_long) idest(npoints_send)
-  integer(i_long) indx(npoints_send)
-  integer(i_short) iwork(npoints_send)
   integer(i_short) string_info(8,npoints_send)
   real(r_single) full_aspect(npoints_send),work(npoints_send)
 
   integer(i_long) i,i0,idestpe,idist,ierr,ivar,j,j0,jumpx,jumpy,jumpz,k,k0,kk,len,m,mbuf,mpe,mpi_string1
+  integer(i_long) idestlast
 
   mbuf=0
 
@@ -2398,6 +2847,7 @@ SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
 
   nsend=0
   if(nstrings.gt.0) then
+    idestlast=-1
    do m=1,nstrings
     len=i2filter(4,m)
     jumpx=i1filter(1,m) ; jumpy=i1filter(2,m) ; jumpz=i1filter(3,m)
@@ -2405,6 +2855,11 @@ SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
     i0=label_string(1,m) ; j0=label_string(2,m) ; k0=label_string(3,m)
     idist=label_string(4,m)
     idestpe=label_string(5,m)
+       if(idestpe.lt.idestlast) then
+          write(6,*)'STRING_ASSEMBLE4:  ***PROBLEM*** destination pes out of order for label_string'
+             call stop2(68)
+        end if
+    idestlast=idestpe
     do kk=1,len
      mbuf=mbuf+1
      string_info(1,mbuf)=idist
@@ -2412,7 +2867,6 @@ SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
      string_info(5,mbuf)=jumpx ; string_info(6,mbuf)=jumpy ; string_info(7,mbuf)=jumpz
      string_info(8,mbuf)=ivar
      ia(mbuf)=i ; ja(mbuf)=j ; ka(mbuf)=k
-     idest(mbuf)=idestpe
      nsend(idestpe)=nsend(idestpe)+1
      full_aspect(mbuf)=aspect(icolor,i,j,k)
      i=i+jumpx ; j=j+jumpy ; k=k+jumpz
@@ -2426,55 +2880,13 @@ SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
            call stop2(68)
         end if
 
-!    sort destination pe numbers from smallest to largest
-
-  if(mbuf.gt.0) then
-   call indexxi4(mbuf,idest,indx)
-
-!     use sort index to reorder everything
-
-   do j=1,8
-    do i=1,mbuf
-     iwork(i)=string_info(j,indx(i))
-    end do
-    do i=1,mbuf
-     string_info(j,i)=iwork(i)
-    end do
-   end do
-   do i=1,mbuf
-    iwork(i)=ia(indx(i))
-   end do
-   do i=1,mbuf
-    ia(i)=iwork(i)
-   end do
-   do i=1,mbuf
-    iwork(i)=ja(indx(i))
-   end do
-   do i=1,mbuf
-    ja(i)=iwork(i)
-   end do
-   do i=1,mbuf
-    iwork(i)=ka(indx(i))
-   end do
-   do i=1,mbuf
-    ka(i)=iwork(i)
-   end do
-
-   do i=1,mbuf
-    work(i)=full_aspect(indx(i))
-   end do
-   do i=1,mbuf
-    full_aspect(i)=work(i)
-   end do
-  end if
-
 !  now get remaining info necessary for using alltoall command
 
   ndsend(0)=0
   do mpe=1,npes
    ndsend(mpe)=ndsend(mpe-1)+nsend(mpe-1)
   end do
-   
+
   if(npes.eq.1) then
    nrecv(0)=nsend(0)
   else
@@ -2508,7 +2920,8 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
                      nvars,idvar,kvar_start,kvar_end, &
                      ids, ide, jds, jde, kds, kde, &                          ! domain indices
                      ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
-                     ims, ime, jms, jme, kms, kme, mype, npes,icolor )               ! memory indices
+                     mype, npes,icolor )
+
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    string_label
@@ -2530,7 +2943,6 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
 !     icolor                       -
 !     ids, ide, jds, jde, kds, kde - domain indices
 !     ips, ipe, jps, jpe, kps, kpe - patch indices
-!     ims, ime, jms, jme, kms, kme - memory indices
 !     mype                         - mpi task id
 !     npes                         -
 !
@@ -2545,17 +2957,17 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
 !
 !$$$ end documentation block
 
+
               integer(i_long) icolor
   INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe, &   ! patch indices
-                            ims, ime, jms, jme, kms, kme      ! memory indices
+                            ips, ipe, jps, jpe, kps, kpe      ! patch indices
 
   INTEGER(i_long) nstrings
 
-  INTEGER(i_short), DIMENSION( 3, * ), INTENT(IN) :: &
+  INTEGER(i_short), DIMENSION( 3, * ), INTENT(INout) :: &
             i1filter                       !  i1filter(1-3,.)=jumpx,jumpy,jumpz
 
-  INTEGER(i_short), DIMENSION( 5, * ), INTENT(IN) :: &
+  INTEGER(i_short), DIMENSION( 5, * ), INTENT(INout) :: &
             i2filter                       !  i2filter(1-5,.)=beginx,beginy,beginz,lenstring,ivar
 
   INTEGER(i_short), DIMENSION( 6, * ), INTENT(OUT) :: &
@@ -2571,13 +2983,15 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
   integer(i_long), intent(out):: npoints_recv(0:npes-1)
   integer(i_long) nvars
   integer(i_long) idvar(kds:kde),kvar_start(nvars),kvar_end(nvars)
+  INTEGER(i_short), DIMENSION( 6, (ipe-ips+1)*(jpe-jps+1)*(kpe-kps+1) ) :: label_string2
+  INTEGER(i_short), DIMENSION( 3, (ipe-ips+1)*(jpe-jps+1)*(kpe-kps+1) ) :: i1filter2
+  INTEGER(i_short), DIMENSION( 5, (ipe-ips+1)*(jpe-jps+1)*(kpe-kps+1) ) :: i2filter2
 
   integer(i_llong) labelijk(max(1,nstrings))
   integer(i_long) nrecv(0:npes-1),ndrecv(0:npes)
   integer(i_llong),allocatable::labelijk0(:)
   integer(i_long),allocatable::index(:)
 
-     !  if(mype.eq.0.and.icolor.eq.3) write(6,*)' at 1 in string_label, nstrings=',nstrings
   if(nstrings.gt.0) then
    do n=1,nstrings
 
@@ -2586,31 +3000,31 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
     ivar_start=kvar_start(ivar)
     ivar_end=kvar_end(ivar)
     idist=0
-    do 
+    do
      idisttest=idist+1
      ktest=k-jumpz
      if(ktest.lt.ivar_start) then
-      label_string(1,n)=i ; label_string(2,n)=j ; label_string(3,n)=k
-      label_string(4,n)=idist ; label_string(6,n)=ivar
+      label_string2(1,n)=i ; label_string2(2,n)=j ; label_string2(3,n)=k
+      label_string2(4,n)=idist ; label_string2(6,n)=ivar
       exit
      end if
      itest=i-jumpx
      if(itest.lt.ids.or.itest.gt.ide) then
-      label_string(1,n)=i ; label_string(2,n)=j ; label_string(3,n)=k
-      label_string(4,n)=idist ; label_string(6,n)=ivar
+      label_string2(1,n)=i ; label_string2(2,n)=j ; label_string2(3,n)=k
+      label_string2(4,n)=idist ; label_string2(6,n)=ivar
       exit
      end if
      jtest=j-jumpy
      if(jtest.lt.jds.or.jtest.gt.jde) then
-      label_string(1,n)=i ; label_string(2,n)=j ; label_string(3,n)=k
-      label_string(4,n)=idist ; label_string(6,n)=ivar
+      label_string2(1,n)=i ; label_string2(2,n)=j ; label_string2(3,n)=k
+      label_string2(4,n)=idist ; label_string2(6,n)=ivar
       exit
      end if
      i=itest ; j=jtest ; k=ktest
      idist=idisttest
     end do
-    ivar=label_string(6,n)
-    labelijk(n)=label_string(1,n)+(ide-ids+1)*(label_string(2,n)-1+(jde-jds+1)*(label_string(3,n)-1 &
+    ivar=label_string2(6,n)
+    labelijk(n)=label_string2(1,n)+(ide-ids+1)*(label_string2(2,n)-1+(jde-jds+1)*(label_string2(3,n)-1 &
                             +(kde-kds+1)*(ivar-1)))
 
    end do
@@ -2660,7 +3074,7 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
   end if
 
 !---- now scatter pe destination numbers back
- 
+
   if(npes.eq.1) then
    do i=1,nstrings0
     labelijk(i)=labelijk0(i)
@@ -2678,8 +3092,32 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
    do i=1,nstrings
     mpe=labelijk(i)
     nrecv(mpe)=nrecv(mpe)+i2filter(4,i)
-    label_string(5,i)=mpe
+    label_string2(5,i)=mpe
    end do
+
+!---- reorder label_string in order of increasing pe number
+   allocate(index(nstrings))
+   call indexxi8(nstrings,labelijk,index)
+   do i=1,nstrings
+     do j=1,6
+       label_string(j,i)=label_string2(j,index(i))
+     end do
+     do j=1,3
+       i1filter2(j,i)=i1filter(j,index(i))
+     end do
+     do j=1,5
+       i2filter2(j,i)=i2filter(j,index(i))
+     end do
+   end do
+   do i=1,nstrings
+     do j=1,3
+       i1filter(j,i)=i1filter2(j,i)
+     end do
+     do j=1,5
+       i2filter(j,i)=i2filter2(j,i)
+     end do
+   end do
+   deallocate(index)
   end if
   if(npes.eq.1) then
    npoints_recv=nrecv
@@ -2782,7 +3220,7 @@ subroutine what_color_is(i1,i2,i3,color)
 !   2008-03-25  safford -- add subprogram doc block, rm unused uses
 !
 !   input argument list:
-!     i1, i2, i3 -          
+!     i1, i2, i3 -
 !
 !   output argument list:
 !     color      -
@@ -2812,6 +3250,774 @@ v=modulo(v,2)
 color=dot_product(v,b124)
 end subroutine what_color_is
 
+subroutine add_halox0(filter,nrows,ids,ide,jds,jde,ips,ipe,jps,jpe,mype,npes)
+
+!  setup everything needed for adding halo rows when required
+
+  implicit none
+
+  TYPE(filter_cons), INTENT(inOUT) :: filter
+  integer(i_long), intent(in):: nrows
+  integer(i_long), intent(in):: ids,ide,jds,jde,ips,ipe,jps,jpe,mype,npes
+
+  integer(i_long) ijglob_pe(ids:ide,jds:jde),ijglob_pe0(ids:ide,jds:jde)
+  integer(i_long) nrecv_halo(0:npes-1),ndrecv_halo(0:npes)
+  integer(i_long) nsend_halo(0:npes-1),ndsend_halo(0:npes)
+  integer(i_long) i,i0,ii,ir,istat,j,mpe
+  integer(i_long) info_recv_halo(2,npes*2*nrows*(ide-ids+1))
+  integer(i_long) info_send_halo(2,npes*2*nrows*(ide-ids+1))
+  integer(i_long) iorigin(npes*2*nrows*(ide-ids+1))
+  integer(i_long) indx(npes*2*nrows*(ide-ids+1))
+  integer(i_long) iwork(npes*2*nrows*(ide-ids+1))
+  integer(i_long) nrecv_halo_loc,nsend_halo_loc,mpi_string1,ierror
+
+  if(npes.eq.1.or.nrows.eq.0) return
+  if(ips.eq.ids.and.ipe.eq.ide) return
+
+  ijglob_pe0=0
+  do j=jps,jpe
+    do i=ips,ipe
+      ijglob_pe0(i,j)=mype
+    end do
+  end do
+  call mpi_allreduce(ijglob_pe0,ijglob_pe,(ide-ids+1)*(jde-jds+1),mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+
+!  create list of all points to be recieved
+  ii=0
+  nrecv_halo=0
+  do i0=ips-nrows,ipe+1,ipe+1-ips+nrows
+   do ir=0,nrows-1
+    i=i0+ir
+    if(i.lt.ids.or.i.gt.ide) cycle
+    do j=jps,jpe
+      ii=ii+1
+      info_recv_halo(1,ii)=i ; info_recv_halo(2,ii)=j
+      iorigin(ii)=ijglob_pe(i,j)
+      nrecv_halo(ijglob_pe(i,j))=nrecv_halo(ijglob_pe(i,j))+1
+    end do
+   end do
+  end do
+
+  ndrecv_halo(0)=0
+  do mpe=1,npes
+    ndrecv_halo(mpe)=ndrecv_halo(mpe-1)+nrecv_halo(mpe-1)
+  end do
+
+  call mpi_alltoall(nrecv_halo,1,mpi_integer4,nsend_halo,1,mpi_integer4,mpi_comm_world,ierror)
+  ndsend_halo(0)=0
+  do mpe=1,npes
+    ndsend_halo(mpe)=ndsend_halo(mpe-1)+nsend_halo(mpe-1)
+  end do
+  nsend_halo_loc=ndsend_halo(npes)
+  nrecv_halo_loc=ndrecv_halo(npes)
+
+!   sort origin pe numbers from smallest to largest
+  if(ii.gt.0) then
+    call indexxi4(ii,iorigin,indx)
+
+!     use sort index to reorder
+    do j=1,2
+      do i=1,ii
+        iwork(i)=info_recv_halo(j,indx(i))
+      end do
+      do i=1,ii
+        info_recv_halo(j,i)=iwork(i)
+      end do
+    end do
+  end if
+
+  call mpi_type_contiguous(2,mpi_integer4,mpi_string1,ierror)
+  call mpi_type_commit(mpi_string1,ierror)
+  call mpi_alltoallv(info_recv_halo,nrecv_halo,ndrecv_halo,mpi_string1, &
+                     info_send_halo,nsend_halo,ndsend_halo,mpi_string1,mpi_comm_world,ierror)
+  call mpi_type_free(mpi_string1,ierror)
+
+  filter%nsend_halox_loc=nsend_halo_loc
+  filter%nrecv_halox_loc=nrecv_halo_loc
+  deallocate(filter%nrecv_halox,stat=istat)
+  allocate(filter%nrecv_halox(0:npes-1))
+  do i=0,npes-1
+    filter%nrecv_halox(i)=nrecv_halo(i)
+  end do
+  deallocate(filter%ndrecv_halox,stat=istat)
+  allocate(filter%ndrecv_halox(0:npes))
+  do i=0,npes
+    filter%ndrecv_halox(i)=ndrecv_halo(i)
+  end do
+  deallocate(filter%nsend_halox,stat=istat)
+  allocate(filter%nsend_halox(0:npes-1))
+  do i=0,npes-1
+    filter%nsend_halox(i)=nsend_halo(i)
+  end do
+  deallocate(filter%ndsend_halox,stat=istat)
+  allocate(filter%ndsend_halox(0:npes))
+  do i=0,npes
+    filter%ndsend_halox(i)=ndsend_halo(i)
+  end do
+  deallocate(filter%info_send_halox,stat=istat)
+  allocate(filter%info_send_halox(2,nsend_halo_loc))
+  do i=1,nsend_halo_loc
+    do j=1,2
+      filter%info_send_halox(j,i)=info_send_halo(j,i)
+    end do
+  end do
+  deallocate(filter%info_recv_halox,stat=istat)
+  allocate(filter%info_recv_halox(2,nrecv_halo_loc))
+  do i=1,nrecv_halo_loc
+    do j=1,2
+      filter%info_recv_halox(j,i)=info_recv_halo(j,i)
+    end do
+  end do
+
+end subroutine add_halox0
+
+subroutine add_haloy0(filter,nrows,ids,ide,jds,jde,ips,ipe,jps,jpe,mype,npes)
+
+!  setup everything needed for adding halo rows when required
+
+  implicit none
+
+  TYPE(filter_cons), INTENT(inOUT) :: filter
+  integer(i_long), intent(in):: nrows
+  integer(i_long), intent(in):: ids,ide,jds,jde,ips,ipe,jps,jpe,mype,npes
+
+  integer(i_long) ijglob_pe(ids:ide,jds:jde),ijglob_pe0(ids:ide,jds:jde)
+  integer(i_long) nrecv_halo(0:npes-1),ndrecv_halo(0:npes)
+  integer(i_long) nsend_halo(0:npes-1),ndsend_halo(0:npes)
+  integer(i_long) i,ii,istat,j,j0,jr,mpe
+  integer(i_long) info_recv_halo(2,npes*2*nrows*(jde-jds+1))
+  integer(i_long) info_send_halo(2,npes*2*nrows*(jde-jds+1))
+  integer(i_long) iorigin(npes*2*nrows*(jde-jds+1))
+  integer(i_long) indx(npes*2*nrows*(jde-jds+1))
+  integer(i_long) iwork(npes*2*nrows*(jde-jds+1))
+  integer(i_long) nrecv_halo_loc,nsend_halo_loc,mpi_string1,ierror
+
+  if(npes.eq.1.or.nrows.eq.0) return
+  if(jps.eq.jds.and.jpe.eq.jde) return
+
+  ijglob_pe0=0
+  do j=jps,jpe
+    do i=ips,ipe
+      ijglob_pe0(i,j)=mype
+    end do
+  end do
+  call mpi_allreduce(ijglob_pe0,ijglob_pe,(ide-ids+1)*(jde-jds+1),mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+
+!  create list of all points to be recieved
+  ii=0
+  nrecv_halo=0
+  do j0=jps-nrows,jpe+1,jpe+1-jps+nrows
+   do jr=0,nrows-1
+    j=j0+jr
+    if(j.lt.jds.or.j.gt.jde) cycle
+    do i=ips,ipe
+      ii=ii+1
+      info_recv_halo(1,ii)=i ; info_recv_halo(2,ii)=j
+      iorigin(ii)=ijglob_pe(i,j)
+      nrecv_halo(ijglob_pe(i,j))=nrecv_halo(ijglob_pe(i,j))+1
+    end do
+   end do
+  end do
+
+  ndrecv_halo(0)=0
+  do mpe=1,npes
+    ndrecv_halo(mpe)=ndrecv_halo(mpe-1)+nrecv_halo(mpe-1)
+  end do
+
+  call mpi_alltoall(nrecv_halo,1,mpi_integer4,nsend_halo,1,mpi_integer4,mpi_comm_world,ierror)
+  ndsend_halo(0)=0
+  do mpe=1,npes
+    ndsend_halo(mpe)=ndsend_halo(mpe-1)+nsend_halo(mpe-1)
+  end do
+  nsend_halo_loc=ndsend_halo(npes)
+  nrecv_halo_loc=ndrecv_halo(npes)
+
+!   sort origin pe numbers from smallest to largest
+  if(ii.gt.0) then
+    call indexxi4(ii,iorigin,indx)
+
+!     use sort index to reorder
+    do j=1,2
+      do i=1,ii
+        iwork(i)=info_recv_halo(j,indx(i))
+      end do
+      do i=1,ii
+        info_recv_halo(j,i)=iwork(i)
+      end do
+    end do
+  end if
+
+  call mpi_type_contiguous(2,mpi_integer4,mpi_string1,ierror)
+  call mpi_type_commit(mpi_string1,ierror)
+  call mpi_alltoallv(info_recv_halo,nrecv_halo,ndrecv_halo,mpi_string1, &
+                     info_send_halo,nsend_halo,ndsend_halo,mpi_string1,mpi_comm_world,ierror)
+  call mpi_type_free(mpi_string1,ierror)
+
+  filter%nsend_haloy_loc=nsend_halo_loc
+  filter%nrecv_haloy_loc=nrecv_halo_loc
+  deallocate(filter%nrecv_haloy,stat=istat)
+  allocate(filter%nrecv_haloy(0:npes-1))
+  do i=0,npes-1
+    filter%nrecv_haloy(i)=nrecv_halo(i)
+  end do
+  deallocate(filter%ndrecv_haloy,stat=istat)
+  allocate(filter%ndrecv_haloy(0:npes))
+  do i=0,npes
+    filter%ndrecv_haloy(i)=ndrecv_halo(i)
+  end do
+  deallocate(filter%nsend_haloy,stat=istat)
+  allocate(filter%nsend_haloy(0:npes-1))
+  do i=0,npes-1
+    filter%nsend_haloy(i)=nsend_halo(i)
+  end do
+  deallocate(filter%ndsend_haloy,stat=istat)
+  allocate(filter%ndsend_haloy(0:npes))
+  do i=0,npes
+    filter%ndsend_haloy(i)=ndsend_halo(i)
+  end do
+  deallocate(filter%info_send_haloy,stat=istat)
+  allocate(filter%info_send_haloy(2,nsend_halo_loc))
+  do i=1,nsend_halo_loc
+    do j=1,2
+      filter%info_send_haloy(j,i)=info_send_halo(j,i)
+    end do
+  end do
+  deallocate(filter%info_recv_haloy,stat=istat)
+  allocate(filter%info_recv_haloy(2,nrecv_halo_loc))
+  do i=1,nrecv_halo_loc
+    do j=1,2
+      filter%info_recv_haloy(j,i)=info_recv_halo(j,i)
+    end do
+  end do
+
+end subroutine add_haloy0
+
+subroutine add_halo_x(f,g,filter,ngauss,nrows,ids,ide,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+
+  implicit none
+
+  TYPE(filter_cons), INTENT(in) :: filter
+  integer(i_long), intent(in):: ngauss,nrows
+  integer(i_long), intent(in):: ids,ide,ips,ipe,jps,jpe,kps,kpe,mype,npes
+  real(r_single),intent(in):: f(ngauss,ips:ipe,jps:jpe,kps:kpe)
+  real(r_single),intent(out):: g(ngauss,max(ids,ips-nrows):min(ide,ipe+nrows),jps:jpe,kps:kpe)
+
+  integer(i_long) i,j,k,mpi_string2,n,ierror
+  real(r_single),allocatable:: bufsend(:,:,:),bufrecv(:,:,:)
+
+  do k=kps,kpe
+    do j=jps,jpe
+      do i=ips,ipe
+        do n=1,ngauss
+          g(n,i,j,k)=f(n,i,j,k)
+        end do
+      end do
+    end do
+  end do
+
+  if(npes.eq.1.or.nrows.eq.0.or.(ips.eq.ids.and.ipe.eq.ide)) return
+
+!   now gather up points to send
+
+  allocate(bufsend(ngauss,kps:kpe,filter%nsend_halox_loc),bufrecv(ngauss,kps:kpe,filter%nrecv_halox_loc))
+  do i=1,filter%nsend_halox_loc
+    do k=kps,kpe
+      do n=1,ngauss
+        bufsend(n,k,i)=f(n,filter%info_send_halox(1,i),filter%info_send_halox(2,i),k)
+      end do
+    end do
+  end do
+  call mpi_type_contiguous(ngauss*(kpe-kps+1),mpi_real4,mpi_string2,ierror)
+  call mpi_type_commit(mpi_string2,ierror)
+  call mpi_alltoallv(bufsend,filter%nsend_halox,filter%ndsend_halox,mpi_string2, &
+                     bufrecv,filter%nrecv_halox,filter%ndrecv_halox,mpi_string2,mpi_comm_world,ierror)
+  call mpi_type_free(mpi_string2,ierror)
+!   finally distribute points back
+  do i=1,filter%nrecv_halox_loc
+    do k=kps,kpe
+      do n=1,ngauss
+        g(n,filter%info_recv_halox(1,i),filter%info_recv_halox(2,i),k)=bufrecv(n,k,i)
+      end do
+    end do
+  end do
+  deallocate(bufsend,bufrecv)
+
+end subroutine add_halo_x
+
+subroutine add_halo_y(f,g,filter,ngauss,nrows,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+
+  implicit none
+
+  TYPE(filter_cons), INTENT(in) :: filter
+  integer(i_long), intent(in):: ngauss,nrows
+  integer(i_long), intent(in):: jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes
+  real(r_single),intent(in):: f(ngauss,ips:ipe,jps:jpe,kps:kpe)
+  real(r_single),intent(out):: g(ngauss,ips:ipe,max(jds,jps-nrows):min(jde,jpe+nrows),kps:kpe)
+
+  integer(i_long) i,j,k,mpi_string2,n,ierror
+  real(r_single),allocatable:: bufsend(:,:,:),bufrecv(:,:,:)
+
+  do k=kps,kpe
+    do j=jps,jpe
+      do i=ips,ipe
+        do n=1,ngauss
+          g(n,i,j,k)=f(n,i,j,k)
+        end do
+      end do
+    end do
+  end do
+
+  if(npes.eq.1.or.nrows.eq.0.or.(jps.eq.jds.and.jpe.eq.jde)) return
+
+!   now gather up points to send
+
+  allocate(bufsend(ngauss,kps:kpe,filter%nsend_haloy_loc),bufrecv(ngauss,kps:kpe,filter%nrecv_haloy_loc))
+  do i=1,filter%nsend_haloy_loc
+    do k=kps,kpe
+      do n=1,ngauss
+        bufsend(n,k,i)=f(n,filter%info_send_haloy(1,i),filter%info_send_haloy(2,i),k)
+      end do
+    end do
+  end do
+  call mpi_type_contiguous(ngauss*(kpe-kps+1),mpi_real4,mpi_string2,ierror)
+  call mpi_type_commit(mpi_string2,ierror)
+  call mpi_alltoallv(bufsend,filter%nsend_haloy,filter%ndsend_haloy,mpi_string2, &
+                     bufrecv,filter%nrecv_haloy,filter%ndrecv_haloy,mpi_string2,mpi_comm_world,ierror)
+  call mpi_type_free(mpi_string2,ierror)
+!   finally distribute points back
+  do i=1,filter%nrecv_haloy_loc
+    do k=kps,kpe
+      do n=1,ngauss
+        g(n,filter%info_recv_haloy(1,i),filter%info_recv_haloy(2,i),k)=bufrecv(n,k,i)
+      end do
+    end do
+  end do
+  deallocate(bufsend,bufrecv)
+
+end subroutine add_halo_y
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!  following is new code for implementation of approximate 4th order factorization
+!!!!!!!!!!!!!!!!!!!!!!!!!!!      which yields almost a 4th order result for the cost of a 2nd order filter.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!  this is because the approximate factorization breaks the 4th order operator
+!!!!!!!!!!!!!!!!!!!!!!!!!!!    into 4 factors, which are then recombined in such a way that the last
+
+!???????????? -- there may still be a bug in the new factorization code, because there is
+!????????????     bad behaviour at the boundaries for homogeneous, isotropic run.
+!???????????      however, in the interior, new filter matches very well with exact 4th order.
+
+subroutine one_color4_new_factorization(g,filter,ngauss,ipass,ifilt_ord, &
+             nstrings,istart,ips,ipe,jps,jpe,kps,kpe,mype,npes,iadvance,iback)
+
+!   apply one forward-backward recursive filter for one color.
+!     use new approximate 4th order factorization
+
+
+  INTEGER(i_long), INTENT(IN) :: ips, ipe, jps, jpe, kps, kpe      ! patch indices
+
+  INTEGER(i_long), INTENT(IN) :: &
+     mype, npes,ngauss,iadvance,iback
+
+  INTEGER(i_long), INTENT(IN) :: &
+            ipass          !  total number of contiguous string points
+  integer(i_long),intent(in):: ifilt_ord
+
+  real(r_single), DIMENSION( ngauss,ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
+            g                      !  input--field on grid, output--filtered field on grid
+
+  integer(i_long),intent(in):: nstrings
+  integer(i_long),intent(in):: istart(nstrings+1)
+  type(filter_cons) filter
+
+  real(r_single) work(ngauss,max(1,filter%npointsmax),2)
+  real(r_single) work2(max(1,filter%npointsmax))
+
+  integer(i_long) i,ierr,igauss,ishort_end,j,l,mpi_string
+
+!-- gather up strings
+
+  call mpi_type_contiguous(ngauss,mpi_real4,mpi_string,ierr)
+  call mpi_type_commit(mpi_string,ierr)
+
+  if(filter%npoints_send.gt.0) then
+   do i=1,filter%npoints_send
+    do igauss=1,ngauss
+     work(igauss,i,1)=g(igauss,filter%ia(i),filter%ja(i),filter%ka(i))
+    end do
+   end do
+  end if
+  if(npes.eq.1.and.filter%npoints_recv.gt.0) then
+   do i=1,filter%npoints_recv
+    do igauss=1,ngauss
+     work(igauss,i,2)=work(igauss,i,1)
+    end do
+   end do
+  else
+   call mpi_alltoallv(work(1,1,1),filter%nsend,filter%ndsend,mpi_string, &
+                   work(1,1,2),filter%nrecv,filter%ndrecv,mpi_string,mpi_comm_world,ierr)
+  end if
+  if(filter%npoints_recv.gt.0) then
+   do igauss=1,ngauss
+    do i=1,filter%npoints_recv
+     work2(i)=work(igauss,filter%ib(i),2)
+    end do
+
+    do j=1,nstrings
+     do i=istart(j),istart(j+1)-1
+      do l=1,min(ifilt_ord,i-istart(j))
+       work2(i)=work2(i)-filter%fmat(l,i,ipass,igauss,iadvance)*work2(i-l)
+      end do
+      work2(i)=filter%fmat0(i,ipass,igauss,iadvance)*work2(i)
+     end do
+     do i=istart(j+1)-1,istart(j),-1
+      do l=1,min(ifilt_ord,istart(j+1)-i-1)
+       work2(i)=work2(i)-filter%fmat(l,i+l,ipass,igauss,iback)*work2(i+l)
+      end do
+      work2(i)=filter%fmat0(i,ipass,igauss,iback)*work2(i)
+     end do
+    end do
+
+    do i=1,filter%npoints_recv
+     work(igauss,i,1)=work2(i)
+    end do
+   end do
+
+!-- send strings back
+
+   do i=1,filter%npoints_recv
+    do igauss=1,ngauss
+     work(igauss,filter%ib(i),2)=work(igauss,i,1)
+    end do
+   end do
+  end if
+  if(npes.eq.1.and.filter%npoints_recv.gt.0) then
+   do i=1,filter%npoints_recv
+    do igauss=1,ngauss
+     work(igauss,i,1)=work(igauss,i,2)
+    end do
+   end do
+  else
+   call mpi_alltoallv(work(1,1,2),filter%nrecv,filter%ndrecv,mpi_string, &
+                     work(1,1,1),filter%nsend,filter%ndsend,mpi_string,mpi_comm_world,ierr)
+  end if
+  if(filter%npoints_send.gt.0) then
+   do i=1,filter%npoints_send
+    do igauss=1,ngauss
+     g(igauss,filter%ia(i),filter%ja(i),filter%ka(i))=work(igauss,i,1)
+    end do
+   end do
+  end if
+
+  call mpi_type_free(mpi_string,ierr)
+
+end subroutine one_color4_new_factorization
+
+subroutine one_color24_new_factorization(g,filter,ngauss,ipass,ifilt_ord, &
+             nstrings,istart,ips,ipe,jps,jpe,kps,kpe,mype,npes,iadvance,iback)
+
+!   apply one forward-backward recursive filter for one color
+
+
+  INTEGER(i_long), INTENT(IN) :: ips, ipe, jps, jpe, kps, kpe      ! patch indices
+
+  INTEGER(i_long), INTENT(IN) :: &
+     mype, npes,ngauss,iadvance,iback
+
+  INTEGER(i_long), INTENT(IN) :: &
+            ipass          !  total number of contiguous string points
+  integer(i_long),intent(in):: ifilt_ord
+
+  real(r_single), DIMENSION(2,ngauss, ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
+            g                      !  input--field on grid, output--filtered field on grid
+
+  integer(i_long),intent(in):: nstrings
+  integer(i_long),intent(in):: istart(nstrings+1)
+  type(filter_cons) filter
+
+  real(r_single) work(2,ngauss,max(1,filter%npointsmax),2)
+  real(r_single) work2(max(1,filter%npointsmax))
+
+  integer(i_long) i,ierr,igauss,ii,ishort_end,j,l,mpi_string
+
+!-- gather up strings
+
+  call mpi_type_contiguous(2*ngauss,mpi_real4,mpi_string,ierr)
+  call mpi_type_commit(mpi_string,ierr)
+
+  if(filter%npoints_send.gt.0) then
+   do i=1,filter%npoints_send
+    do igauss=1,ngauss
+     work(1,igauss,i,1)=g(1,igauss,filter%ia(i),filter%ja(i),filter%ka(i))
+     work(2,igauss,i,1)=g(2,igauss,filter%ia(i),filter%ja(i),filter%ka(i))
+    end do
+   end do
+  end if
+  if(npes.eq.1.and.filter%npoints_recv.gt.0) then
+   do i=1,filter%npoints_recv
+    do igauss=1,ngauss
+     work(1,igauss,i,2)=work(1,igauss,i,1)
+     work(2,igauss,i,2)=work(2,igauss,i,1)
+    end do
+   end do
+  else
+   call mpi_alltoallv(work(1,1,1,1),filter%nsend,filter%ndsend,mpi_string, &
+                   work(1,1,1,2),filter%nrecv,filter%ndrecv,mpi_string,mpi_comm_world,ierr)
+  end if
+  if(filter%npoints_recv.gt.0) then
+   do igauss=1,ngauss
+    do ii=1,2
+     do i=1,filter%npoints_recv
+      work2(i)=work(ii,igauss,filter%ib(i),2)
+     end do
+
+     do j=1,nstrings
+      do i=istart(j),istart(j+1)-1
+       do l=1,min(ifilt_ord,i-istart(j))
+        work2(i)=work2(i)-filter%fmat(l,i,ipass,igauss,iadvance)*work2(i-l)
+       end do
+       work2(i)=filter%fmat0(i,ipass,igauss,iadvance)*work2(i)
+      end do
+      do i=istart(j+1)-1,istart(j),-1
+       do l=1,min(ifilt_ord,istart(j+1)-i-1)
+        work2(i)=work2(i)-filter%fmat(l,i+l,ipass,igauss,iback)*work2(i+l)
+       end do
+       work2(i)=filter%fmat0(i,ipass,igauss,iback)*work2(i)
+      end do
+     end do
+
+     do i=1,filter%npoints_recv
+      work(ii,igauss,i,1)=work2(i)
+     end do
+    end do
+   end do
+
+!-- send strings back
+
+   do i=1,filter%npoints_recv
+    do igauss=1,ngauss
+     work(1,igauss,filter%ib(i),2)=work(1,igauss,i,1)
+     work(2,igauss,filter%ib(i),2)=work(2,igauss,i,1)
+    end do
+   end do
+  end if
+  if(npes.eq.1.and.filter%npoints_recv.gt.0) then
+   do i=1,filter%npoints_recv
+    do igauss=1,ngauss
+     work(1,igauss,i,1)=work(1,igauss,i,2)
+     work(2,igauss,i,1)=work(2,igauss,i,2)
+    end do
+   end do
+  else
+   call mpi_alltoallv(work(1,1,1,2),filter%nrecv,filter%ndrecv,mpi_string, &
+                     work(1,1,1,1),filter%nsend,filter%ndsend,mpi_string,mpi_comm_world,ierr)
+  end if
+  if(filter%npoints_send.gt.0) then
+   do i=1,filter%npoints_send
+    do igauss=1,ngauss
+     g(1,igauss,filter%ia(i),filter%ja(i),filter%ka(i))=work(1,igauss,i,1)
+     g(2,igauss,filter%ia(i),filter%ja(i),filter%ka(i))=work(2,igauss,i,1)
+    end do
+   end do
+  end if
+
+  call mpi_type_free(mpi_string,ierr)
+
+end subroutine one_color24_new_factorization
+
+subroutine new_alpha_beta4(info_string,aspect_full,rgauss,fmat,fmat0,igauss,ngauss, &
+                     istart_out,npoints_mype,binomial,npass, &
+                     lenbar,lenmax,lenmin,npoints1,mype,npes,nvars)
+
+
+  !   compute recursion constants alpha and beta along unbroken strings
+
+  IMPLICIT NONE
+
+  INTEGER(i_long), INTENT(IN) :: mype, npes,nvars
+
+  INTEGER(i_long), INTENT(IN) :: npoints_mype,npass
+
+  REAL(r_double), DIMENSION( 10, 10 ), INTENT(IN) :: binomial
+
+  INTEGER(i_short), DIMENSION( 8, npoints_mype ), INTENT(IN) ::  &
+            info_string      !      1---- distance from origin to current point
+                             !      2,3,4-- origin coordinates
+                             !      5,6,7,8-- jumpx,jumpy,jumpz,ivar for this string
+  real(r_single), DIMENSION( npoints_mype ) , INTENT(IN) :: &
+            aspect_full
+  integer(i_long) igauss,ngauss
+  real(r_double) rgauss
+  real(r_single) fmat(2,npoints_mype,npass,ngauss,2),fmat0(npoints_mype,npass,ngauss,2)
+  integer(i_long) istart_out(*)
+  integer(i_long)  lenmax(nvars),lenmin(nvars),npoints1(nvars) !  diagnostic output--to look at string
+  real(r_double) lenbar(nvars)
+
+  integer(i_long) i,iend,ipass,istart,ivar
+  integer(i_long) nstrings
+
+  nstrings=0
+
+  istart=1
+  if(npoints_mype.gt.1) then
+   do i=2,npoints_mype
+    if(info_string(1,i).ne.info_string(1,i-1)+1.or. &
+           info_string(2,i).ne.info_string(2,i-1).or. &
+               info_string(3,i).ne.info_string(3,i-1).or. &
+                   info_string(4,i).ne.info_string(4,i-1).or. &
+                       info_string(5,i).ne.info_string(5,i-1).or. &
+                           info_string(6,i).ne.info_string(6,i-1).or. &
+                               info_string(7,i).ne.info_string(7,i-1).or. &
+                                   info_string(8,i).ne.info_string(8,i-1)) then
+     iend=i-1
+        if(igauss.eq.1) then
+          ivar=info_string(8,iend)
+          lenbar(ivar)=lenbar(ivar)+(iend-istart+1)
+          lenmax(ivar)=max(iend-istart+1,lenmax(ivar))
+          lenmin(ivar)=min(iend-istart+1,lenmin(ivar))
+          if(iend.eq.istart) npoints1(ivar)=npoints1(ivar)+1
+        end if
+     nstrings=nstrings+1
+     istart_out(nstrings)=istart
+     istart_out(nstrings+1)=iend+1
+
+     do ipass=1,npass
+      call new_alpha_betaa4(aspect_full(istart),rgauss,iend-istart+1,binomial(ipass,npass), &
+                       fmat(1,istart,ipass,igauss,1),fmat0(istart,ipass,igauss,1), &
+                       fmat(1,istart,ipass,igauss,2),fmat0(istart,ipass,igauss,2))
+     end do
+
+     istart=iend+1
+    end if
+   end do
+  end if
+  iend=npoints_mype
+       if(igauss.eq.1) then
+          ivar=info_string(8,iend)
+          lenbar(ivar)=lenbar(ivar)+(iend-istart+1)
+          lenmax(ivar)=max(iend-istart+1,lenmax(ivar))
+          lenmin(ivar)=min(iend-istart+1,lenmin(ivar))
+          if(iend.eq.istart) npoints1(ivar)=npoints1(ivar)+1
+       end if
+  nstrings=nstrings+1
+  istart_out(nstrings)=istart
+  istart_out(nstrings+1)=iend+1
+  do ipass=1,npass
+
+   call new_alpha_betaa4(aspect_full(istart),rgauss,iend-istart+1,binomial(ipass,npass), &
+                       fmat(1,istart,ipass,igauss,1),fmat0(istart,ipass,igauss,1), &
+                       fmat(1,istart,ipass,igauss,2),fmat0(istart,ipass,igauss,2))
+  end do
+
+end subroutine new_alpha_beta4
+
+subroutine new_alpha_betaa4(aspect,rgauss,ng,binomial,fmat1,fmat01,fmat2,fmat02)
+
+  !  compute constants for special Purser 4th order factorization
+
+  !   --> aspect:   correlation scale (squared, i think), grid units
+  !   --> rgauss:   multiplier of aspect, for multiple gaussians--used for fat-tail filter
+  !   --> ng:       length of string
+  !   --> binomial: weighting factors (perhaps not needed with high-order filter)
+  !  <--  fmat1,fmat01,fmat2,fmat02 : filter parameters for special factorization
+  !
+
+  IMPLICIT NONE
+
+  INTEGER(i_long), INTENT(IN) :: ng
+
+  REAL(r_double), INTENT(IN) :: binomial
+
+  real(r_single), DIMENSION( ng ), INTENT(IN) :: aspect
+  real(r_double) rgauss
+  real(r_single) fmat1(2,ng),fmat01(ng)
+  real(r_single) fmat2(2,ng),fmat02(ng)
+
+  real(r_double) sig(0:ng-1)
+  real(r_double) fmat(0:ng-1,-2:0,2)
+  integer(i_long) i,j
+
+  do i=1,ng
+   sig(i-1)=sqrt(rgauss*aspect(i)*binomial)
+  end do
+  call stringop(ng-1,sig,fmat)
+
+  do i=1,ng
+    fmat1(2,i)=fmat(i-1,-2,1)
+    fmat1(1,i)=fmat(i-1,-1,1)
+    fmat01(i)=1._r_double/fmat(i-1,0,1)
+    fmat2(2,i)=fmat(i-1,-2,2)
+    fmat2(1,i)=fmat(i-1,-1,2)
+    fmat02(i)=1._r_double/fmat(i-1,0,2)
+  end do
+
+end subroutine new_alpha_betaa4
+
+!=============================================================================
+subroutine stringop(n,sig,fmat)
+!=============================================================================
+implicit none
+integer(4),                    intent(IN ):: n
+real(8),dimension(0:n),       intent(IN ):: sig
+real(8),dimension(0:n,-2:0,2),intent(OUT):: fmat
+!----------------------------------------------------------------------------
+complex(8),dimension(2)                  :: rts
+real(8),   dimension(0:n,-1:1)           :: dmat
+real(8)                                  :: dmatt
+integer(4)                                :: i,im
+data rts/ &
+ (-3.4588884621354108_8,  1.7779487522437312_8), &
+ (-0.54111153786458903_8, 5.0095518087248694_8)/
+!=============================================================================
+dmat=0
+do i=1,n
+   im=i-1
+   dmatt=sig(im)*sig(i)
+   dmat(im,1)=-dmatt
+   dmat(i,-1)=-dmatt
+   dmat(im,0)= dmat(im,0)+dmatt
+   dmat(i,0 )= dmat(i,0 )+dmatt
+enddo
+do i=1,2
+   call quadfil(n,dmat,rts(i),fmat(:,:,i))
+enddo
+end subroutine stringop
+
+!=============================================================================
+subroutine quadfil(n,dmat,rts,fmat)
+!=============================================================================
+use module_pmat2,only: mulbb,l1lb
+implicit none
+integer(4),                  intent(IN ):: n
+real(8),dimension(0:n,-1:1),intent(IN ):: dmat
+complex(8),                 intent(IN ):: rts
+real(8),dimension(0:n,-2:0),intent(OUT):: fmat
+!-----------------------------------------------------------------------------
+real(8),dimension(0:n,-1:1)            :: tmat
+real(8),dimension(0:n,-2:2)            :: umat
+real(8)                                :: a1,a2,rrtsi,qrtsi
+complex(8)                             :: rtsi
+integer                                 :: np
+!=============================================================================
+np=n+1
+rtsi=1/rts
+rrtsi=real(rtsi)
+qrtsi=imag(rtsi)
+a1=-2*rrtsi
+a2=rrtsi**2+qrtsi**2
+tmat(0:n,-1:1)=a2*dmat
+tmat(0:n,0)=tmat(0:n,0)+a1
+call mulbb(dmat,tmat(0:n,-1:1),umat(0:n,-2:2), np,np, 1,1, 1,1, 2,2)
+umat(0:n,0)=umat(0:n,0)+1
+if(n.eq.0) then
+  fmat=0
+  fmat(0,0)=umat(0,0)
+else
+  call l1lb(umat,fmat,np,2)
+end if
+
+end subroutine quadfil
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! end of added code for new factorization
+
 end module raflib
 
 
@@ -2820,7 +4026,7 @@ SUBROUTINE EIGEN(A,R,N,MV)
 !                .      .    .
 ! subprogram:    EIGEN
 !
-!   prgrmmr:     R. J. Purser, NCEP 2005 
+!   prgrmmr:     R. J. Purser, NCEP 2005
 !
 ! abstract:  COMPUTE EIGENVALUES AND EIGENVECTORS OF A REAL SYMMETRIC
 !            MATRIX
@@ -2860,7 +4066,7 @@ SUBROUTINE EIGEN(A,R,N,MV)
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-
+!
 !     REAL(4) A(1),R(1)
 !
 !        ...............................................................
@@ -3188,7 +4394,7 @@ DO i=1,3
    ENDDO
 ENDDO
 
-DO it=1,4000       !  this should be ample
+DO it=1,100 ! 4000       !  this should be ample
    DO l=1,3
       IF(wtriad(l)<bcmins)THEN
 	 k=kl(l)
@@ -3367,4 +4573,387 @@ same4=.TRUE.
 DO i=1,n; IF(v1(i) /= v2(i))same4=.FALSE.; ENDDO
 END FUNCTION same4
 
+subroutine smther(filter,g,nrows,ngauss,nsmooth,nsmooth_shapiro, &
+               ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes,gnormx,gnormy,adjoint)
 
+  use kinds,only: r_single,i_long
+  use raflib,only: add_halo_x,add_halo_y,filter_cons
+  implicit none
+
+  TYPE(filter_cons) filter                               ! structure defining recursive filter
+  integer(i_long) nrows,ngauss,nsmooth,nsmooth_shapiro
+  logical adjoint
+  integer(i_long) ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes
+  real(r_single),intent(inout):: g(ngauss,ips:ipe,jps:jpe,kps:kpe)
+  real(r_single) gnormx(ips:ipe),gnormy(jps:jpe)
+
+  integer(i_long) i,j,k,n
+  real(r_single),allocatable:: gt(:,:,:,:)
+
+!   smoothing in x direction
+  allocate(gt(ngauss,max(ids,ips-nrows):min(ide,ipe+nrows),jps:jpe,kps:kpe))
+  if(nsmooth_shapiro.gt.0.and..not.adjoint) then
+    do k=kps,kpe
+      do j=jps,jpe
+        do i=ips,ipe
+          do n=1,ngauss
+            g(n,i,j,k)=gnormx(i)*g(n,i,j,k)
+          end do
+        end do
+      end do
+    end do
+  end if
+  call add_halo_x(g,gt,filter,ngauss,nrows,ids,ide,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+
+  if(nsmooth.gt.0) &
+      call smther_one_x(gt,g,ngauss,ids,ide,ips,ipe,jps,jpe,kps,kpe)
+  if(nsmooth_shapiro.gt.0) &
+      call smther_two_x(gt,g,ngauss,ids,ide,ips,ipe,jps,jpe,kps,kpe)
+  deallocate(gt)
+  if(nsmooth_shapiro.gt.0.and.adjoint) then
+    do k=kps,kpe
+      do j=jps,jpe
+        do i=ips,ipe
+          do n=1,ngauss
+            g(n,i,j,k)=gnormx(i)*g(n,i,j,k)
+          end do
+        end do
+      end do
+    end do
+  end if
+
+!   smoothing in y direction
+  allocate(gt(ngauss,ips:ipe,max(jds,jps-nrows):min(jde,jpe+nrows),kps:kpe))
+  if(nsmooth_shapiro.gt.0.and..not.adjoint) then
+    do k=kps,kpe
+      do j=jps,jpe
+        do i=ips,ipe
+          do n=1,ngauss
+            g(n,i,j,k)=gnormy(j)*g(n,i,j,k)
+          end do
+        end do
+      end do
+    end do
+  end if
+  call add_halo_y(g,gt,filter,ngauss,nrows,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes)
+  if(nsmooth.gt.0) &
+      call smther_one_y(gt,g,ngauss,jds,jde,ips,ipe,jps,jpe,kps,kpe)
+  if(nsmooth_shapiro.gt.0) &
+      call smther_two_y(gt,g,ngauss,jds,jde,ips,ipe,jps,jpe,kps,kpe)
+  deallocate(gt)
+  if(nsmooth_shapiro.gt.0.and.adjoint) then
+    do k=kps,kpe
+      do j=jps,jpe
+        do i=ips,ipe
+          do n=1,ngauss
+            g(n,i,j,k)=gnormy(j)*g(n,i,j,k)
+          end do
+        end do
+      end do
+    end do
+  end if
+
+end subroutine smther
+
+subroutine smther_one_x(gx,g,ngauss,ids,ide,ips,ipe,jps,jpe,kps,kpe)
+
+  use kinds,only: r_single,i_long
+  implicit none
+
+  integer(i_long) ngauss
+  integer(i_long) ids,ide,ips,ipe,jps,jpe,kps,kpe
+  real(r_single),intent(in):: gx(ngauss,max(ids,ips-1):min(ide,ipe+1),jps:jpe,kps:kpe)
+  real(r_single),intent(out):: g(ngauss,ips:ipe,jps:jpe,kps:kpe)
+
+  integer(i_long) i,im,ip,j,k,n
+
+  do k=kps,kpe
+    do j=jps,jpe
+      do i=ips,ipe
+        ip=min(i+1,ide) ; im=max(ids,i-1)
+        do n=1,ngauss
+          g(n,i,j,k)=.25*(gx(n,ip,j,k)+gx(n,im,j,k)) +.5*gx(n,i,j,k)
+        end do
+      end do
+    end do
+  end do
+
+end subroutine smther_one_x
+
+subroutine smther_one_y(gy,g,ngauss,jds,jde,ips,ipe,jps,jpe,kps,kpe)
+
+  use kinds,only: r_single,i_long
+  implicit none
+
+  integer(i_long) ngauss
+  integer(i_long) jds,jde,ips,ipe,jps,jpe,kps,kpe
+  real(r_single),intent(in):: gy(ngauss,ips:ipe,max(jds,jps-1):min(jde,jpe+1),kps:kpe)
+  real(r_single),intent(out):: g(ngauss,ips:ipe,jps:jpe,kps:kpe)
+
+  integer(i_long) i,j,jm,jp,k,n
+
+  do k=kps,kpe
+    do j=jps,jpe
+      jp=min(j+1,jde) ; jm=max(jds,j-1)
+      do i=ips,ipe
+        do n=1,ngauss
+          g(n,i,j,k)=.25*(gy(n,i,jp,k)+gy(n,i,jm,k)) +.5*gy(n,i,j,k)
+        end do
+      end do
+    end do
+  end do
+
+end subroutine smther_one_y
+
+subroutine smther_two_x(gx,g,ngauss,ids,ide,ips,ipe,jps,jpe,kps,kpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:   smther_two
+! prgmmr: pondeca          org: np22                date: 2006-08-01
+!
+! abstract: apply second moment preserving "shapiro smoother"
+! in each direction of data slab
+!
+! program history log:
+!   2006-08-01  pondeca
+!
+!   input argument list:
+!    g1        - 2d array of field to be smoothed
+!    is,ie     - first and last i values of data slab
+!    js,je     - first and last j values of data slab
+!    ns        - number of passes
+!
+!   output argument list:
+!    g1        - smoothed 2d field
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+
+  use kinds,only: r_single,i_long
+  implicit none
+
+  integer(i_long) ngauss
+  integer(i_long) ids,ide,ips,ipe,jps,jpe,kps,kpe
+
+  real(r_single) gx(ngauss,max(ids,ips-3):min(ide,ipe+3),jps:jpe,kps:kpe)
+  real(r_single) g(ngauss,ips:ipe,jps:jpe,kps:kpe)
+                                   !  on input: original data slab
+                                   !  on ouput: filtered data slab
+
+  integer(i_long) i,im,im3,ip,ip3,istart,iend,j,k,n
+
+  istart=ips ; iend=ipe
+  if(ips.eq.ids) then
+    i=ids ; ip=i+1 ; ip3=i+3
+    do k=kps,kpe
+      do j=jps,jpe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gx(n,i,j,k)+.28125*gx(n,ip,j,k)-.03125*gx(n,ip3,j,k)
+        end do
+      end do
+    end do
+    i=ids+1 ; ip=i+1 ; ip3=i+3 ; im=i-1
+    do k=kps,kpe
+      do j=jps,jpe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gx(n,i,j,k)+.28125*(gx(n,ip,j,k)+gx(n,im,j,k))-.03125*gx(n,ip3,j,k)
+        end do
+      end do
+    end do
+    i=ids+2 ; ip=i+1 ; ip3=i+3 ; im=i-1
+    do k=kps,kpe
+      do j=jps,jpe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gx(n,i,j,k)+.28125*(gx(n,ip,j,k)+gx(n,im,j,k))-.03125*gx(n,ip3,j,k)
+        end do
+      end do
+    end do
+    istart=ids+3
+  end if
+  if(ipe.eq.ide) then
+    i=ide-2 ; ip=i+1 ; im3=i-3 ; im=i-1
+    do k=kps,kpe
+      do j=jps,jpe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gx(n,i,j,k)+.28125*(gx(n,ip,j,k)+gx(n,im,j,k))-.03125*gx(n,im3,j,k)
+        end do
+      end do
+    end do
+    i=ide-1 ; ip=i+1 ; im3=i-3 ; im=i-1
+    do k=kps,kpe
+      do j=jps,jpe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gx(n,i,j,k)+.28125*(gx(n,ip,j,k)+gx(n,im,j,k))-.03125*gx(n,im3,j,k)
+        end do
+      end do
+    end do
+    i=ide ; im3=i-3 ; im=i-1
+    do k=kps,kpe
+      do j=jps,jpe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gx(n,i,j,k)+.28125*gx(n,im,j,k)-.03125*gx(n,im3,j,k)
+        end do
+      end do
+    end do
+    iend=ide-3
+  end if
+  do k=kps,kpe
+    do j=jps,jpe
+      do i=istart,iend
+       ip=i+1 ; im=i-1 ; ip3=i+3 ; im3=i-3
+       do n=1,ngauss
+        g(n,i,j,k)=.28125*(gx(n,ip,j,k)+gx(n,im,j,k))+.5*gx(n,i,j,k)-.03125*(gx(n,ip3,j,k)+gx(n,im3,j,k))
+       end do
+      end do
+    end do
+  end do
+
+end subroutine smther_two_x
+
+subroutine smther_two_y(gy,g,ngauss,jds,jde,ips,ipe,jps,jpe,kps,kpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:   smther_two
+! prgmmr: pondeca          org: np22                date: 2006-08-01
+!
+! abstract: apply second moment preserving "shapiro smoother"
+! in each direction of data slab
+!
+! program history log:
+!   2006-08-01  pondeca
+!
+!   input argument list:
+!    g1        - 2d array of field to be smoothed
+!    is,ie     - first and last i values of data slab
+!    js,je     - first and last j values of data slab
+!    ns        - number of passes
+!
+!   output argument list:
+!    g1        - smoothed 2d field
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+
+  use kinds,only: r_single,i_long
+  implicit none
+
+  integer(i_long) ngauss
+  integer(i_long) jds,jde,ips,ipe,jps,jpe,kps,kpe
+
+  real(r_single) gy(ngauss,ips:ipe,max(jds,jps-3):min(jde,jpe+3),kps:kpe)
+  real(r_single) g(ngauss,ips:ipe,jps:jpe,kps:kpe)
+                                   !  on input: original data slab
+                                   !  on ouput: filtered data slab
+
+  integer(i_long) i,jm,jm3,jp,jp3,jstart,jend,j,k,n
+
+  jstart=jps ; jend=jpe
+  if(jps.eq.jds) then
+    j=jds ; jp=j+1 ; jp3=j+3
+    do k=kps,kpe
+      do i=ips,ipe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gy(n,i,j,k)+.28125*gy(n,i,jp,k)-.03125*gy(n,i,jp3,k)
+        end do
+      end do
+    end do
+    j=jds+1 ; jp=j+1 ; jp3=j+3 ; jm=j-1
+    do k=kps,kpe
+      do i=ips,ipe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gy(n,i,j,k)+.28125*(gy(n,i,jp,k)+gy(n,i,jm,k))-.03125*gy(n,i,jp3,k)
+        end do
+      end do
+    end do
+    j=jds+2 ; jp=j+1 ; jp3=j+3 ; jm=j-1
+    do k=kps,kpe
+      do i=ips,ipe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gy(n,i,j,k)+.28125*(gy(n,i,jp,k)+gy(n,i,jm,k))-.03125*gy(n,i,jp3,k)
+        end do
+      end do
+    end do
+    jstart=jds+3
+  end if
+  if(jpe.eq.jde) then
+    j=jde-2 ; jp=j+1 ; jm3=j-3 ; jm=j-1
+    do k=kps,kpe
+      do i=ips,ipe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gy(n,i,j,k)+.28125*(gy(n,i,jp,k)+gy(n,i,jm,k))-.03125*gy(n,i,jm3,k)
+        end do
+      end do
+    end do
+    j=jde-1 ; jp=j+1 ; jm3=j-3 ; jm=j-1
+    do k=kps,kpe
+      do i=ips,ipe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gy(n,i,j,k)+.28125*(gy(n,i,jp,k)+gy(n,i,jm,k))-.03125*gy(n,i,jm3,k)
+        end do
+      end do
+    end do
+    j=jde ; jm3=j-3 ; jm=j-1
+    do k=kps,kpe
+      do i=ips,ipe
+        do n=1,ngauss
+          g(n,i,j,k)=.5*gy(n,i,j,k)+.28125*gy(n,i,jm,k)-.03125*gy(n,i,jm3,k)
+        end do
+      end do
+    end do
+    jend=jde-3
+  end if
+  do k=kps,kpe
+    do j=jstart,jend
+      jp=j+1 ; jm=j-1 ; jp3=j+3 ; jm3=j-3
+      do i=ips,ipe
+        do n=1,ngauss
+          g(n,i,j,k)=.28125*(gy(n,i,jp,k)+gy(n,i,jm,k))+.5*gy(n,i,j,k)-.03125*(gy(n,i,jp3,k)+gy(n,i,jm3,k))
+        end do
+      end do
+    end do
+  end do
+
+end subroutine smther_two_y
+
+subroutine smther_two_gnorm(gnorm,ids,ide,ips,ipe)
+
+  use kinds,only: r_single,r_double,i_long
+  implicit none
+
+  integer(i_long) ids,ide,ips,ipe
+
+  real(r_single) gnorm(ips:ipe)
+
+  integer(i_long) i,ip,ip3,istart,iend
+  real(r_double) const81,const82
+
+  const81=4._8/3._8
+  const82=32._8/33._8
+  istart=ips ; iend=ipe
+  if(ips.eq.ids) then
+    i=ids
+    gnorm(i)=const81     !  1./(.5+.28125-.03125)
+    i=ids+1
+    gnorm(i)=const82     !  1./(.5+.28125*2.-.03125)
+    i=ids+2
+    gnorm(i)=const82     !  1./(.5+.28125*2.-.03125)
+    istart=ids+3
+  end if
+  if(ipe.eq.ide) then
+    i=ide-2
+    gnorm(i)=const82     !  1./(.5+.28125*2.-.03125)
+    i=ide-1
+    gnorm(i)=const82     !  1./(.5+.28125*2.-.03125)
+    i=ide
+    gnorm(i)=const81     !  1./(.5+.28125-.03125)
+    iend=ide-3
+  end if
+  do i=istart,iend
+    gnorm(i)=1.          !  1./(.28125*2.+.5-.03125*2.)
+  end do
+
+end subroutine smther_two_gnorm

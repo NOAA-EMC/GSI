@@ -108,7 +108,7 @@ contains
 !   input argument list:
 !
 !   output argument list:
-! 
+!
 ! attributes:
 !   language:  f90
 !   machine:   ibm RS/6000 SP
@@ -141,7 +141,7 @@ contains
   dlon=two*pi/nlon
 
 
-!   compute interpolation weights:  
+!   compute interpolation weights:
 
 !  first define xgrid, ygrid, and various other things
 
@@ -239,7 +239,7 @@ contains
 ! subprogram:    smooth_polcas 2d smoothing spline interpolation
 !   prgmmr: parrish          org: np22                date: 2005-04-22
 !
-! abstract: Interpolate polar stereo field fxy(-nf:nf,-nf:nf) to 
+! abstract: Interpolate polar stereo field fxy(-nf:nf,-nf:nf) to
 !            corresponding lat-lon field hlatlon(0:nr,nlon), where
 !            fxy(0,0) is pole point, and hlatlon(0,:) is also nlon copies of
 !            pole point, using smoothing splines.
@@ -247,7 +247,7 @@ contains
 ! program history log:
 !   2005-05-14  parrish
 !   2008-04-11  safford - rm unused uses
-! 
+!
 !   input argument list:
 !     fxy    - input data on cartesian grid, dimensions [-nf:nf,-nf:nf].
 !
@@ -342,13 +342,126 @@ contains
   end do
   end subroutine smooth_polcasa
 
+
+subroutine smooth_caspol(fxy,hlatlon)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    smooth_caspol
+!   prgmmr: sato             org: np23                date: 2008-11-03
+!
+! abstract:  reverse conversion of smooth_polcas()
+!
+! program history log:
+!   2008-11-03  sato
+!
+!   input argument list:
+!     hlatlon - output data on polar grid, dimensions [0:nlon,0:nr]
+!
+!   output argument list:
+!     fxy    - input data on cartesian grid, dimensions [-nf:nf,-nf:nf].
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!$$$
+  use kinds, only: r_kind,i_kind
+  use constants, only: zero
+  use berror, only: nf,nr
+  use gridmod, only: nlon
+  implicit none
+
+  real(r_kind),intent(out),dimension(-nf:nf,-nf:nf):: fxy
+  real(r_kind),intent(in),dimension(nlon+1,0:nr):: hlatlon
+
+! Declare local arrays variables:
+  integer(i_kind) i,ii,j,jj,i0,j0
+  real(r_kind),dimension(-nf:nf,-nf:nf):: rwgt
+
+  rwgt=zero
+
+  do i=0,nr
+  do j=1,nlon
+    do jj=0,nywtxys(j,i)
+      j0=iywtxys(jj,j,i)
+      do ii=0,nxwtxys(j,i)
+        i0=ixwtxys(ii,j,i)
+        rwgt(i0,j0)=rwgt(i0,j0)+ywtxys(jj,j,i)*xwtxys(ii,j,i)
+      end do
+    end do
+  end do
+  end do
+  call smooth_polcasa(fxy,hlatlon)
+  where(rwgt>0.0) fxy=fxy/rwgt
+
+end subroutine smooth_caspol
+
+
+  subroutine smooth_polcasv(fxy,hlatlon)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    smooth_polcas 2d smoothing spline interpolation
+!   prgmmr: sato             org: np23                date: 2008-11-03
+!
+! abstract: almost same as smooth_polcas, but output is not sum but average
+!
+! program history log:
+!   2008-11-03 sato
+!
+!   input argument list:
+!     fxy    - input data on cartesian grid, dimensions [-nf:nf,-nf:nf].
+!
+!   output argument list:
+!     hlatlon_out - output data on polar grid, dimensions [0:nlon,0:nr]
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!$$$
+
+  use kinds, only: r_kind,i_kind
+  use constants, only: zero
+  use berror, only: nf,nr
+  use gridmod, only: nlon
+  implicit none
+
+  real(r_kind),intent(in),dimension(-nf:nf,-nf:nf):: fxy
+  real(r_kind),intent(out),dimension(nlon+1,0:nr):: hlatlon
+
+! Declare local arrays variables:
+  integer(i_kind) i,ii,j,jj,jjj
+  real(r_kind) sum,ywgt,xywgt,sumwgt
+
+  hlatlon=zero
+  do i=0,nr
+    do j=1,nlon
+      sumwgt=zero
+      sum=zero
+      do jj=0,nywtxys(j,i)
+        ywgt=ywtxys(jj,j,i)
+        jjj=iywtxys(jj,j,i)
+        do ii=0,nxwtxys(j,i)
+          xywgt=ywgt*xwtxys(ii,j,i)
+          sum=sum+xywgt*fxy(ixwtxys(ii,j,i),jjj)
+          sumwgt=sumwgt+xywgt
+        end do
+      end do
+      if(sumwgt>zero) then
+        hlatlon(j,i)=sum/sumwgt
+      else
+        hlatlon(j,i)=sum
+      end if
+    end do
+  end do
+  end subroutine smooth_polcasv
+
+
 subroutine bspline(tin,k,wout)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    bspline 
-!   prgmmr: 
+! subprogram:    bspline
+!   prgmmr:
 !
-! abstract: 
+! abstract:
 !
 ! program history log:
 !   2008-04-12  safford - add documentation block
@@ -357,7 +470,7 @@ subroutine bspline(tin,k,wout)
 !     tin   -
 !     k     -
 !   output argument list:
-!     wout  - 
+!     wout  -
 !
 ! attributes:
 !   language: f90

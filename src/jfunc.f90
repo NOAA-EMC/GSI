@@ -25,6 +25,9 @@ module jfunc
 !   2008-05-22  guo, j - merge GMAO MERRA changes with NCEP 2008-04-22
 !                      - defer GMAO diurnal bias correction changes.
 !   2008-12-01  todling - bring in Tremolet's changes
+!   2009-06-01  pondeca,sato - add tsensible initialization. used in 2dvar mode only
+!   2009-06-01  pondeca - add lgschmidt initalization. this variable controls the B-norm
+!                         re-orthogonalization of the gradx vectors in 2dvar mode
 !
 ! Subroutines Included:
 !   init_jfunc           - set defaults for cost function variables
@@ -81,6 +84,11 @@ module jfunc
 !   def ncw2       - starting point for cloud water in control vector for comm.
 !   def l_foto     - option for foto
 !   def print_diag_pcg - option for turning on GMAO diagnostics in pcgsoi
+!   def tsensible  - option to use sensible temperature as the control variable. applicable
+!                    to the 2dvar mode only
+!   def lgschmidt  - option to re-biorthogonalyze the gradx and grady vectors during the
+!                    inner iteration using the modified gram-schmidt method. useful for
+!                    estimatinng the analysis error via the projection method. 
 !
 ! attributes:
 !   language: f90
@@ -92,7 +100,7 @@ module jfunc
   use state_vectors
   implicit none
 
-  logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg
+  logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
   integer(i_kind) nvals_len,nvals_levs
@@ -147,6 +155,8 @@ contains
     tendsflag=.false.
     l_foto=.false.
     print_diag_pcg=.false.
+    tsensible=.false.
+    lgschmidt=.false.
 
     factqmin=one
     factqmax=one

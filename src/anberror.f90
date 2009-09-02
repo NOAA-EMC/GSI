@@ -12,41 +12,27 @@ module anberror
 !                         in create_anberror_vars_reg
 !   2005-11-29  derber - remove anset_ozone_var (included in anprewgt_reg)
 !   2007-08-21  pondeca - add qvar3d allocate (bug fix)
+!   2008-11-03  sato - update for global mode and sub-domain mode
 !
 ! subroutines included:
 !   sub init_anberror             - initialize extra anisotropic background error
 !                                       related variables
 !   sub create_anberror_vars      - allocate global anisotropic background error
 !                                       related variables
-!   sub destroy_anberror_vars     - deallocate global anisotropic background error 
+!   sub destroy_anberror_vars     - deallocate global anisotropic background error
 !                                       related variables
-!   sub create_anberror_vars_reg  - allocate regional anisotropic background error 
+!   sub create_anberror_vars_reg  - allocate regional anisotropic background error
 !                                       related variables
-!   sub destroy_anberror_vars_reg - deallocate regional anisotropic background error 
+!   sub destroy_anberror_vars_reg - deallocate regional anisotropic background error
 !                                       related variables
 !
 ! Variable Definitions:
-!   def anisotropic - if true, then use anisotropic background error
-!   def ids         -
-!   def ide         -
-!   def ims         -
-!   def ime         -
-!   def ips         -
-!   def ipe         -
-!   def jds         -
-!   def jde         -
-!   def jms         -
-!   def jme         -
-!   def jps         -
-!   def jpe         -
-!   def kds         -
-!   def kde         -
-!   def jms         -
-!   def kme         -
-!   def kps         -
-!   def kpe         -
+!   def anisotropic - if true, then use anisotropic background error\
+!   def ancovmdl    - covariance model settings - 0: pt-based, 1: ensemble-based
+!   def indices     - rf-indices for zonal patch
+!   def indices_p   - rf-indices for polar patches
 !   def nvars       - number of analysis variables
-!   def idvar       - used by anisotropic filter code 
+!   def idvar       - used by anisotropic filter code
 !   def jdvar       -  to apply filter simultaneously
 !   def kvar_start  -  to all variables, when stored
 !   def kvar_end    -  in horizontal slab mode.
@@ -61,7 +47,7 @@ module anberror
 !   def ifilt_ord   - filter order for anisotropic filters
 !   def npass       - 2*npass = number of factors in background error
 !   def normal      - number of random vectors to use for filter normalization
-!                       ( if < 0 then slightly slower, but results independent of 
+!                       ( if < 0 then slightly slower, but results independent of
 !                         number of processors)
 !   def binom       - if true, weight correlation lengths of factors using binomial
 !                      distribution, with shortest scales on outside, longest scales
@@ -74,12 +60,13 @@ module anberror
 !                      an_amp(k, 2) - velocity potential
 !                      an_amp(k, 3) - log(ps)
 !                      an_amp(k, 4) - temperature
-!                      an_amp(k, 5) - specific humidity
+!                      an_amp(k, 5) - water vapor mixing ratio
 !                      an_amp(k, 6) - ozone
 !                      an_amp(k, 7) - sea surface temperature
 !                      an_amp(k, 8) - cloud condensate mixing ratio
 !                      an_amp(k, 9) - land surface temperature
 !                      an_amp(k,10) - ice surface temperature
+!   def an_amp0     - 1-dimension an_amp, the omitted dimension is for ngauss
 !   def an_vs       - scale factor for background error vertical scales (temporary carry over from
 !                      isotropic inhomogeneous option)
 !   def grid_ratio  - ratio of coarse to fine grid, in fine grid units (coarse grid
@@ -87,6 +74,9 @@ module anberror
 !   def an_flen_u   - coupling parameter for connecting horizontal wind to background error
 !   def an_flen_t   - coupling parameter for connecting potential temperature gradient to background error
 !   def an_flen_z   - coupling parameter for connecting terrain gradient to background error
+!   def rtma_subdomain_option - if true, then apply recursive filters in subdomain space
+!                                (currently constructed to work only when running 2d analysis
+!                                 and analysis and filter grid are the same)
 !
 !
 ! attributes:
@@ -95,29 +85,49 @@ module anberror
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind,i_long,r_double
-  use raflib, only: filter_cons
+  use kinds, only: r_kind,r_single,i_kind,i_long,r_double
+  use raflib, only: filter_cons, filter_indices
   use berror, only: qvar3d
-  use gridmod, only: lat2,lon2,nsig 
+  use gridmod, only: lat2,lon2,nsig,twodvar_regional
+  use fgrid2agrid_mod, only: fgrid2agrid_parm
   implicit none
 
+  integer(i_kind),parameter:: max_ngauss=20
+
   logical anisotropic
-  integer(i_kind) ids,ide,jds,jde,kds,kde ! full domain lat, lon, vert grid indices
-  integer(i_kind) ips,ipe,jps,jpe,kps,kpe ! subdomain lat, lon, vert grid indices (full units)
-  integer(i_kind) ims,ime,jms,jme,kms,kme ! subdomain + halo lat, lon, vert grid indices (full units)
+  integer(i_kind):: ancovmdl
+
+  integer(i_kind) nx,ny,mr,nr,nf
+
+  type(filter_indices):: indices
+  type(filter_indices):: indices_p
+
   integer(i_kind) nvars
-  integer(i_kind),allocatable::idvar(:),jdvar(:),kvar_start(:),kvar_end(:)
+
+  integer(i_kind),allocatable::idvar(:),jdvar(:),kvar_start(:),kvar_end(:),levs_jdvar(:)
   character(80),allocatable::var_names(:)
   real(r_kind) clenmax,clenmaxi,smooth_len
-  type(filter_cons) filter_all(7)
+  type(filter_cons),save:: filter_all(7), filter_p2(7), filter_p3(7)
+!                          for full/zonal_patch, and polar_patches
   logical triad4,binom
-  integer(i_long) ifilt_ord,npass,ngauss,normal
-  real(r_double) rgauss(20)
-  real(r_double) an_amp(20,10)
+  integer(i_long) ifilt_ord,npass,ngauss,normal,nsmooth,nsmooth_shapiro
+  real(r_kind):: anhswgt(max_ngauss)
+  real(r_double) rgauss(max_ngauss)
+  real(r_double) an_amp(max_ngauss,10), an_amp0(10)
   real(r_double) an_vs
-  real(r_kind) grid_ratio
+  real(r_kind) grid_ratio, grid_ratio_p
   real(r_double) an_flen_u,an_flen_t,an_flen_z
+  type(fgrid2agrid_parm):: pf2aP1,pf2aP2,pf2aP3
+!                          for full/zonal_patch, and polar_patches
+  real(r_single):: afact0(10)
+  logical:: covmap         ! flag for covariance map
+  logical:: lreadnorm      ! flag for normalization operation
 
+!--- for subdomain option
+  logical rtma_subdomain_option
+  integer(i_kind),allocatable:: nrecv_halo(:),ndrecv_halo(:),nsend_halo(:),ndsend_halo(:)
+  integer(i_kind) nrecv_halo_loc,nsend_halo_loc
+  integer(i_kind),allocatable:: info_send_halo(:,:),info_recv_halo(:,:)
 
 contains
 
@@ -127,11 +137,12 @@ contains
 ! subprogram:    init_anberror    set constants for anisotropic background error
 !   prgmmr: parrish          org: np23                date: 2005-02-08
 !
-! abstract: intializes extra constants needed for the anisotropic 
+! abstract: intializes extra constants needed for the anisotropic
 !               global mode background error
 !
 ! program history log:
 !   2005-02-08  parrish
+!   2008-11-03  sato - update for global mode
 !
 !   input argument list:
 !
@@ -145,27 +156,44 @@ contains
 
     use kinds, only: i_kind
     use constants, only:  zero,half,one,two,three
+    use raflib, only: set_indices
     implicit none
 
     integer(i_kind) k
 
     anisotropic=.false.
+    ancovmdl=0
     clenmax=120.0_r_kind
     clenmaxi=one/clenmax
     smooth_len=4._r_kind
-    ids=0 ; ide=0 ; ims=0 ; ime=0 ; ips=0 ; ipe=0
-    jds=0 ; jde=0 ; jms=0 ; jme=0 ; jps=0 ; jpe=0
-    kds=0 ; kde=0 ; kms=0 ; kme=0 ; kps=0 ; kpe=0
+
+    call set_indices(indices,   0,0,0,0,0,0, 0,0,0,0,0,0 )
+    call set_indices(indices_p, 0,0,0,0,0,0, 0,0,0,0,0,0 )
 
 !   allocate filter_all:
 
     do k=1,7
+
       allocate(filter_all(k)%istart(2),filter_all(k)%ib(2))
       allocate(filter_all(k)%nrecv(2),filter_all(k)%ndrecv(2))
       allocate(filter_all(k)%nsend(2),filter_all(k)%ndsend(2))
       allocate(filter_all(k)%lnf(2,2,2,2),filter_all(k)%bnf(2,2,2))
       allocate(filter_all(k)%amp(2,2,2,2),filter_all(k)%ia(2))
       allocate(filter_all(k)%ja(2),filter_all(k)%ka(2))
+
+      allocate(filter_p2(k)%istart(2),filter_p2(k)%ib(2))
+      allocate(filter_p2(k)%nrecv(2),filter_p2(k)%ndrecv(2))
+      allocate(filter_p2(k)%nsend(2),filter_p2(k)%ndsend(2))
+      allocate(filter_p2(k)%lnf(2,2,2,2),filter_p2(k)%bnf(2,2,2))
+      allocate(filter_p2(k)%amp(2,2,2,2),filter_p2(k)%ia(2))
+      allocate(filter_p2(k)%ja(2),filter_p2(k)%ka(2))
+
+      allocate(filter_p3(k)%istart(2),filter_p3(k)%ib(2))
+      allocate(filter_p3(k)%nrecv(2),filter_p3(k)%ndrecv(2))
+      allocate(filter_p3(k)%nsend(2),filter_p3(k)%ndsend(2))
+      allocate(filter_p3(k)%lnf(2,2,2,2),filter_p3(k)%bnf(2,2,2))
+      allocate(filter_p3(k)%amp(2,2,2,2),filter_p3(k)%ia(2))
+      allocate(filter_p3(k)%ja(2),filter_p3(k)%ka(2))
 
     end do
 
@@ -176,17 +204,28 @@ contains
     triad4=.true.
     binom=.true.
     normal=-200
+    nsmooth=0
+    nsmooth_shapiro=0
     ngauss=3
     rgauss=zero
     an_amp=one/three
+    an_amp0=one/three
     an_vs=one
     grid_ratio=2._r_kind
+    grid_ratio_p=zero
     an_flen_u=-one      ! this turns off anisotropic coupling to horizontal wind
     an_flen_t=-one      ! this turns off anisotropic coupling to grad(pot temp)
     an_flen_z=-one      ! this turns off anisotropic coupling to grad(terrain)
     rgauss(1)=half
     rgauss(2)=one
     rgauss(3)=two
+    anhswgt(:)=1.0
+
+    rtma_subdomain_option=.false.
+
+    afact0=zero
+    covmap=.false.
+    lreadnorm=.false.
 
   end subroutine init_anberror
 
@@ -201,6 +240,7 @@ contains
 !
 ! program history log:
 !   2004-01-01  parrish
+!   2008-11-03  sato - add actual procedures
 !
 !   input argument list:
 !    mype     - mpi task id!
@@ -213,17 +253,82 @@ contains
 !
 !$$$ end documentation block
 
+    use kinds, only: i_kind
+    use constants, only:  zero
+    use fgrid2agrid_mod, only: create_fgrid2agrid
     use jfunc, only: nrclen
-    use berror, only: varprd
+    use berror, only: varprd,bnf=>nf,bnr=>nr
+    use gridmod, only: nlat,nlon
     implicit none
 
     integer(i_kind),intent(in):: mype
-  
-    allocate(varprd(nrclen))
+
+    allocate(varprd(max(1,nrclen)))
 
 !  compute vertical partition variables used by anisotropic filter code
 
     call anberror_vert_partition(mype)
+
+! Grid constant to transform to 3 pieces
+
+    nx=nlon*3/2
+    nx=nx/2*2
+    ny=nlat*8/9
+    ny=ny/2*2
+    if(mod(nlat,2)/=0) ny=ny+1
+    mr=0
+    nr=nlat/4
+    nf=nr
+    bnr=nr
+    bnf=nf
+
+!   initialize fgrid2agrid interpolation constants
+
+    pf2aP1%grid_ratio=grid_ratio
+    pf2aP1%nlona     =nx
+    pf2aP1%nlata     =ny
+    call create_fgrid2agrid(pf2aP1)
+    if(mype==0) then
+      write(6,*) 'set up pf2aP1', &
+        pf2aP1%nlona,pf2aP1%nlata, &
+        pf2aP1%nlonf,pf2aP1%nlatf
+    end if
+
+    indices%ids=1 ; indices%ide=pf2aP1%nlatf
+    indices%jds=1 ; indices%jde=pf2aP1%nlonf
+    indices%ips=indices%ids ; indices%ipe=indices%ide
+    indices%jps=indices%jds ; indices%jpe=indices%jde
+
+    if( grid_ratio_p > zero ) then
+      pf2aP2%grid_ratio=grid_ratio_p
+    else
+      pf2aP2%grid_ratio=grid_ratio
+    end if
+    pf2aP2%nlona     = nf*2+1
+    pf2aP2%nlata     = nf*2+1
+    call create_fgrid2agrid(pf2aP2)
+    if(mype==0) then
+      write(6,*) 'set up pf2aP2', &
+        pf2aP2%nlona,pf2aP2%nlata, &
+        pf2aP2%nlonf,pf2aP2%nlatf
+    end if
+
+    pf2aP3%grid_ratio=pf2aP2%grid_ratio
+    pf2aP3%nlona     =pf2aP2%nlona
+    pf2aP3%nlata     =pf2aP2%nlata
+    call create_fgrid2agrid(pf2aP3)
+    if(mype==0) then
+      write(6,*) 'set up pf2aP3', &
+        pf2aP3%nlona,pf2aP3%nlata, &
+        pf2aP3%nlonf,pf2aP3%nlatf
+    end if
+
+    indices_p%ids=1 ; indices_p%ide=pf2aP3%nlatf
+    indices_p%jds=1 ; indices_p%jde=pf2aP3%nlonf
+    indices_p%ips=indices_p%ids ; indices_p%ipe=indices_p%ide
+    indices_p%jps=indices_p%jds ; indices_p%jpe=indices_p%jde
+
+    allocate(qvar3d(lat2,lon2,nsig))
 
   end subroutine create_anberror_vars
 
@@ -238,6 +343,7 @@ contains
 !
 ! program history log:
 !   2005-02-08  parrish
+!   2007-09-04  sato - add actual procedures
 !
 !   input argument list:
 !
@@ -248,6 +354,14 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+    use fgrid2agrid_mod, only: destroy_fgrid2agrid
+
+    deallocate(qvar3d)
+
+    call destroy_fgrid2agrid(pf2aP1)
+    call destroy_fgrid2agrid(pf2aP2)
+    call destroy_fgrid2agrid(pf2aP3)
+
   end subroutine destroy_anberror_vars
 
 
@@ -274,28 +388,50 @@ contains
 !
 !$$$
     use kinds, only: i_kind
-    use fgrid2agrid_mod, only: nlatf,nlonf, &
-        create_fgrid2agrid
+    use constants, only: one,ione
+    use fgrid2agrid_mod, only: create_fgrid2agrid
     use jfunc, only: nrclen
     use berror, only: varprd
+    use gridmod, only: nlat,nlon,istart,jstart
     implicit none
-  
+
     integer(i_kind),intent(in):: mype
-    
+
     allocate(varprd(max(1,nrclen)))
 
-!   compute vertical partition variables used by anisotropic filter code
-
-    call anberror_vert_partition(mype)
-
 !   initialize fgrid2agrid interpolation constants
+    if(rtma_subdomain_option) grid_ratio=one
 
-    call create_fgrid2agrid(grid_ratio)
+    pf2aP1%grid_ratio=grid_ratio
+    pf2aP1%nlata=nlat
+    pf2aP1%nlona=nlon
+    call create_fgrid2agrid(pf2aP1)
 
-    ids=1 ; ide=nlatf
-    jds=1 ; jde=nlonf
-    ims=ids ; ime=ide ; ips=ids ; ipe=ide
-    jms=jds ; jme=jde ; jps=jds ; jpe=jde
+!   compute vertical partition variables used by anisotropic filter code
+    if(rtma_subdomain_option) then
+      call halo_update_reg0(mype)
+      call anberror_vert_partition_subdomain_option(mype)
+
+      indices%ids=1 ; indices%ide=pf2aP1%nlatf
+      indices%jds=1 ; indices%jde=pf2aP1%nlonf
+
+!   following without halo
+
+      indices%ips=max(indices%ids,min(istart(mype+1)       ,indices%ide))
+      indices%ipe=max(indices%ids,min(lat2+istart(mype+1)-3,indices%ide))
+      indices%jps=max(indices%jds,min(jstart(mype+1)       ,indices%jde))
+      indices%jpe=max(indices%jds,min(lon2+jstart(mype+1)-3,indices%jde))
+
+    else
+
+      call anberror_vert_partition(mype)
+
+      indices%ids=ione        ; indices%ide=pf2aP1%nlatf
+      indices%jds=ione        ; indices%jde=pf2aP1%nlonf
+      indices%ips=indices%ids ; indices%ipe=indices%ide
+      indices%jps=indices%jds ; indices%jpe=indices%jde
+
+    end if
 
     allocate(qvar3d(lat2,lon2,nsig))
 
@@ -309,7 +445,7 @@ contains
 !
 !   prgrmmr:
 !
-! abstract:      using existing vertical ordering of variables, create 
+! abstract:      using existing vertical ordering of variables, create
 !                modified indexing compatable with anisotropic filter code.
 !
 ! program history log:
@@ -338,13 +474,15 @@ contains
     integer(i_kind) nlevs0(0:npe-1),nlevs1(0:npe-1),nvar_id0(nsig1o*npe),nvar_id1(nsig1o*npe)
 
     vlevs=6*nsig+4       !  all variables
-    kds=1 ; kde=vlevs
+    indices%kds=  1 ; indices%kde=vlevs
+    indices_p%kds=1 ; indices_p%kde=vlevs
 
 !  initialize nvars,idvar,kvar_start,kvar_end
 ! Determine how many vertical levels each mpi task will
 ! handle in the horizontal smoothing
     nvars=10
-    allocate(idvar(kds:kde),jdvar(kds:kde),kvar_start(nvars),kvar_end(nvars))
+
+    allocate(idvar(indices%kds:indices%kde),jdvar(indices%kds:indices%kde),kvar_start(nvars),kvar_end(nvars))
     allocate(var_names(nvars))
     var_names( 1)="st"
     var_names( 2)="vp"
@@ -371,9 +509,10 @@ contains
 
     nlevs0=0
     do k=1,nsig1o
-       if (levs_id(k)/=0) nlevs0(mype)=nlevs0(mype)+1
-             if(k.eq.1.or.k.ge.nsig1o-2) write(6,*)' k,levs_id(k)=',k,levs_id(k)
+      if(levs_id(k)/=0) nlevs0(mype)=nlevs0(mype)+1
+      if(k.eq.1.or.k.ge.nsig1o-2) write(6,*)' k,levs_id(k)=',k,levs_id(k)
     end do
+
     call mpi_allreduce(nlevs0,nlevs1,npe,mpi_integer4,mpi_max,mpi_comm_world,ierror)
     nvar_id0=0
     do k=1,nsig1o
@@ -390,7 +529,7 @@ contains
     end do
     idvar_last=0
     kk=0
-    do k=kds,kde
+    do k=indices%kds,indices%kde
      if(jdvar(k).ne.idvar_last) then
       idvar_last=jdvar(k)
       kk=kk+1
@@ -398,14 +537,14 @@ contains
      idvar(k)=kk
     end do
     idvar_last=0
-    do k=kds,kde
+    do k=indices%kds,indices%kde
      if(idvar(k).ne.idvar_last) then
       idvar_last=idvar(k)
       kvar_start(idvar_last)=k
      end if
     end do
     idvar_last=0
-    do k=kde,kds,-1
+    do k=indices%kde,indices%kds,-1
      if(idvar(k).ne.idvar_last) then
       idvar_last=idvar(k)
       kvar_end(idvar_last)=k
@@ -413,20 +552,22 @@ contains
     end do
 
           if(mype.eq.0) then
-              do k=kds,kde
+              do k=indices%kds,indices%kde
                write(6,*)' in anberror_vert_partition, k,idvar(k),jdvar(k)=',k,idvar(k),jdvar(k)
               end do
               do k=1,nvars
                write(6,*)' k,kvar_start,end(k)=',k,kvar_start(k),kvar_end(k)
               end do
           end if
-    kpe=0
+    indices%kpe=0
+    indices_p%kpe=0
     do k=0,mype
-     kpe=kpe+nlevs1(k)
+     indices%kpe  =indices%kpe  +nlevs1(k)
+     indices_p%kpe=indices_p%kpe+nlevs1(k)
     end do
-    kps=kpe-nlevs1(mype)+1
-    kms=kps ; kme=kpe
-            write(6,*)' in anberror_vert_partition, kps,kms,kpe,kme=',kps,kms,kpe,kme
+    indices%kps=indices%kpe-nlevs1(mype)+1
+    indices_p%kps=indices_p%kpe-nlevs1(mype)+1
+    write(6,*)' in anberror_vert_partition, kps,kpe=',indices%kps,indices%kpe
 
   end subroutine anberror_vert_partition
 
@@ -434,8 +575,8 @@ contains
   subroutine destroy_anberror_vars_reg
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    destroy_berror_vars_reg  deallocate reg anisotropic background 
-!                                         error arrays
+! subprogram:    destroy_anberror_vars_reg  deallocate reg anisotropic
+!                                           background error arrays
 !   prgmmr: parrish          org: np23                date: 2005-02-08
 !
 ! abstract: deallocates regional anisotropic background error arrays
@@ -455,7 +596,282 @@ contains
 !
 !$$$ end documentation block
 
+    use fgrid2agrid_mod, only: destroy_fgrid2agrid
+    integer(i_kind) k
+
     deallocate(qvar3d)
+    call destroy_fgrid2agrid(pf2aP1)
+
   end subroutine destroy_anberror_vars_reg
+
+
+  subroutine anberror_vert_partition_subdomain_option(mype)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    anberror_vert_partition_subdomain_option
+!
+!   prgrmmr:
+!
+! abstract:      using existing vertical ordering of variables, create
+!                modified indexing compatable with anisotropic filter code.
+!
+! program history log:
+!   2008-06-05  safford -- add subprogram doc block
+!
+!   input argument list:
+!     mype     - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+    use kinds, only: i_kind
+    use gridmod, only: nsig
+    implicit none
+
+    integer(i_kind),intent(in):: mype
+
+    integer(i_kind) idvar_last,k,kk,vlevs
+
+  ! vlevs=6*nsig+4       !  all variables
+    vlevs=4*nsig+1                          !  for rtma, currently do only u,v,psfc,t,q
+    indices%kds=1           ; indices%kde=vlevs
+    indices%kps=indices%kds ; indices%kpe=indices%kde
+
+!  initialize nvars,idvar,kvar_start,kvar_end
+! Determine how many vertical levels each mpi task will
+! handle in the horizontal smoothing
+  ! nvars=10
+    nvars=5
+    allocate(idvar(indices%kds:indices%kde),jdvar(indices%kds:indices%kde),kvar_start(nvars),kvar_end(nvars))
+    allocate(var_names(nvars),levs_jdvar(indices%kds:indices%kde))
+    var_names( 1)="st"
+    var_names( 2)="vp"
+    var_names( 3)="ps"
+    var_names( 4)="tv"
+    var_names( 5)="q"
+  ! var_names( 6)="oz"
+  ! var_names( 7)="sst"
+  ! var_names( 8)="stl"
+  ! var_names( 9)="sti"
+  ! var_names(10)="cw"
+
+!                     idvar  jdvar
+!                       1      1       stream function
+!                       2      2       velocity potential
+!                       3      3       surface pressure
+!                       4      4       virtual temperature
+!                       5      5       specific humidity
+!!                      6      6       ozone
+!!                      7      7       sst
+!!                     10      8       cloud water
+!!                      8      9       surface temp (land)
+!!                      9     10       surface temp (ice)
+
+    idvar(1       :nsig  )  =1  ! st
+    idvar(nsig+1  :2*nsig)  =2  ! vp
+    idvar(2*nsig+1)         =3  ! ps
+    idvar(2*nsig+2:3*nsig+1)=4  ! tv
+    idvar(3*nsig+2:4*nsig+1)=5  ! q
+    jdvar=idvar
+
+    kk=0
+    do k=1,nsig
+      kk=kk+1
+      levs_jdvar(kk)=k     ! st
+    end do
+    do k=1,nsig
+      kk=kk+1
+      levs_jdvar(kk)=k     ! vp
+    end do
+    kk=kk+1
+    levs_jdvar(kk)=1       ! ps
+    do k=1,nsig
+      kk=kk+1
+      levs_jdvar(kk)=k     ! tv
+    end do
+    do k=1,nsig
+      kk=kk+1
+      levs_jdvar(kk)=k     ! q
+    end do
+
+    kvar_start(1) =1
+    kvar_end(1)   =nsig
+    kvar_start(2) =kvar_end(1)+1
+    kvar_end(2)   =kvar_end(1)+nsig
+    kvar_start(3) =kvar_end(2)+1
+    kvar_end(3)   =kvar_end(2)+1
+    kvar_start(4) =kvar_end(3)+1
+    kvar_end(4)   =kvar_end(3)+nsig
+    kvar_start(5) =kvar_end(4)+1
+    kvar_end(5)   =kvar_end(4)+nsig
+
+      if(mype.eq.0) then
+          do k=indices%kds,indices%kde
+           write(6,*)' in anberror_vert_partition_subdomain_option, k,idvar,jdvar,levs_jdvar=', &
+                       k,idvar(k),jdvar(k),levs_jdvar(k)
+          end do
+          do k=1,nvars
+           write(6,*)' k,kvar_start,end(k)=',k,kvar_start(k),kvar_end(k)
+          end do
+      end if
+        write(6,*)' in anberror_vert_partition_subdomain_option, kps,kpe=',indices%kps,indices%kpe
+
+  end subroutine anberror_vert_partition_subdomain_option
+
+
+subroutine halo_update_reg0(mype)
+
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: lat2,lon2,istart,jstart,nlat,nlon
+  use mpimod, only: npe,mpi_integer4,mpi_sum,mpi_comm_world,ierror
+  use raflib, only: indexxi4
+  implicit none
+
+  integer(i_kind),intent(in):: mype
+
+  integer(i_kind) i,ii,j,k,mm1,mpe,iglob,jglob,mpi_string1
+  integer(i_kind) ijglob_pe(nlat,nlon),ijglob_pe0(nlat,nlon)
+  integer(i_kind) iorigin(3*(lat2+lon2)),indx(3*(lat2+lon2)),iwork(3*(lat2+lon2))
+
+  allocate(nrecv_halo(0:npe-1),ndrecv_halo(0:npe),nsend_halo(0:npe-1),ndsend_halo(0:npe))
+  allocate(info_send_halo(2,3*(lat2+lon2)),info_recv_halo(2,3*(lat2+lon2)))
+
+
+  if(npe.eq.1) return
+  mm1=mype+1
+
+  ijglob_pe0=0
+  do j=2,lon2-1
+    jglob=j+jstart(mm1)-2
+    do i=2,lat2-1
+      iglob=i+istart(mm1)-2
+      ijglob_pe0(iglob,jglob)=mype
+    end do
+  end do
+  call mpi_allreduce(ijglob_pe0,ijglob_pe,nlat*nlon,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+
+!  create list of all points to be received with global i,j coordinates
+  ii=0
+  nrecv_halo=0
+                      !ierror=0
+  do j=1,lon2,lon2-1
+    jglob=j+jstart(mm1)-2
+    if(jglob.lt.1.or.jglob.gt.nlon) cycle
+    do i=1,lat2
+      iglob=i+istart(mm1)-2
+      if(iglob.lt.1.or.iglob.gt.nlat) cycle
+      ii=ii+1
+      info_recv_halo(1,ii)=iglob ; info_recv_halo(2,ii)=jglob
+      iorigin(ii)=ijglob_pe(iglob,jglob)
+      nrecv_halo(ijglob_pe(iglob,jglob))=nrecv_halo(ijglob_pe(iglob,jglob))+1
+                      ! if(iorigin(ii).eq.mype) ierror=ierror+1
+    end do
+  end do
+  do i=1,lat2,lat2-1
+    iglob=i+istart(mm1)-2
+    if(iglob.lt.1.or.iglob.gt.nlat) cycle
+    do j=2,lon2-1                                ! already have corner points
+      jglob=j+jstart(mm1)-2
+      if(jglob.lt.1.or.jglob.gt.nlon) cycle
+      ii=ii+1
+      info_recv_halo(1,ii)=iglob ; info_recv_halo(2,ii)=jglob
+      iorigin(ii)=ijglob_pe(iglob,jglob)
+      nrecv_halo(ijglob_pe(iglob,jglob))=nrecv_halo(ijglob_pe(iglob,jglob))+1
+                      ! if(iorigin(ii).eq.mype) ierror=ierror+1
+    end do
+  end do
+
+  ndrecv_halo(0)=0
+  do mpe=1,npe
+    ndrecv_halo(mpe)=ndrecv_halo(mpe-1)+nrecv_halo(mpe-1)
+  end do
+
+  call mpi_alltoall(nrecv_halo,1,mpi_integer4,nsend_halo,1,mpi_integer4,mpi_comm_world,ierror)
+  ndsend_halo(0)=0
+  do mpe=1,npe
+    ndsend_halo(mpe)=ndsend_halo(mpe-1)+nsend_halo(mpe-1)
+  end do
+  nsend_halo_loc=ndsend_halo(npe)
+  nrecv_halo_loc=ndrecv_halo(npe)
+
+!   sort origin pe numbers from smallest to largest
+  if(ii.gt.0) then
+    call indexxi4(ii,iorigin,indx)
+
+!     use sort index to reorder
+    do j=1,2
+      do i=1,ii
+        iwork(i)=info_recv_halo(j,indx(i))
+      end do
+      do i=1,ii
+        info_recv_halo(j,i)=iwork(i)
+      end do
+    end do
+  end if
+
+  call mpi_type_contiguous(2,mpi_integer4,mpi_string1,ierror)
+  call mpi_type_commit(mpi_string1,ierror)
+  call mpi_alltoallv(info_recv_halo,nrecv_halo,ndrecv_halo,mpi_string1, &
+                     info_send_halo,nsend_halo,ndsend_halo,mpi_string1,mpi_comm_world,ierror)
+  call mpi_type_free(mpi_string1,ierror)
+
+!   convert info arrays back to local coordinate units
+
+  do i=1,nsend_halo_loc
+    iglob=info_send_halo(1,i)
+    info_send_halo(1,i)=iglob-istart(mm1)+2
+    jglob=info_send_halo(2,i)
+    info_send_halo(2,i)=jglob-jstart(mm1)+2
+  end do
+
+  do i=1,nrecv_halo_loc
+    iglob=info_recv_halo(1,i)
+    info_recv_halo(1,i)=iglob-istart(mm1)+2
+    jglob=info_recv_halo(2,i)
+    info_recv_halo(2,i)=jglob-jstart(mm1)+2
+  end do
+
+end subroutine halo_update_reg0
+
+
+subroutine halo_update_reg(f,nvert)
+
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: lat2,lon2
+  use mpimod, only: npe,mpi_rtype,mpi_comm_world,ierror
+  implicit none
+
+  integer(i_kind),intent(in):: nvert
+  real(r_kind),intent(inout):: f(lat2,lon2,nvert)
+
+  integer(i_kind) i,k,mpi_string2
+  real(r_kind) bufsend(nvert,nsend_halo_loc),bufrecv(nvert,nrecv_halo_loc)
+
+  if(npe.eq.1) return
+
+!   now gather up points to send
+  do i=1,nsend_halo_loc
+    do k=1,nvert
+      bufsend(k,i)=f(info_send_halo(1,i),info_send_halo(2,i),k)
+    end do
+  end do
+  call mpi_type_contiguous(nvert,mpi_rtype,mpi_string2,ierror)
+  call mpi_type_commit(mpi_string2,ierror)
+  call mpi_alltoallv(bufsend,nsend_halo,ndsend_halo,mpi_string2, &
+                     bufrecv,nrecv_halo,ndrecv_halo,mpi_string2,mpi_comm_world,ierror)
+  call mpi_type_free(mpi_string2,ierror)
+!   finally distribute points back
+  do i=1,nrecv_halo_loc
+    do k=1,nvert
+      f(info_recv_halo(1,i),info_recv_halo(2,i),k)=bufrecv(k,i)
+    end do
+  end do
+
+end subroutine halo_update_reg
 
 end module anberror

@@ -61,6 +61,7 @@ subroutine glbsoi(mype)
 !   2007-10-25  todling - obsdiag files now written by observer
 !   2007-11-12  todling - write sat bias moved from write_all here (ESMF-interface support)
 !   2008-01-04  tremolet- outer loop for sensitivity computations
+!   2008-11-03  sato    - enable use of global anisotropic mode
 !   2008-12-02  todling - remove references to pcgsoi_tl and old obs_sen
 !   2009-01-28  todling - move write_all to pcgsoi (for consistency w/ 4dvar branch of code)
 !                       - use observer to avoid redundant code
@@ -81,9 +82,11 @@ subroutine glbsoi(mype)
   use jfunc, only: miter,jiter,jiterstart,jiterend,iguess,biascor,&
        set_pointer,create_jfunc,write_guess_solution,&
        tendsflag,xhatsave
-  use anberror, only: anisotropic,create_anberror_vars,destroy_anberror_vars,&
-       destroy_anberror_vars_reg
+  use anberror, only: anisotropic, ancovmdl, &
+       create_anberror_vars_reg,destroy_anberror_vars_reg,&
+       create_anberror_vars,destroy_anberror_vars
   use anisofilter, only: anprewgt_reg
+  use anisofilter_glb, only: anprewgt
   use berror, only: create_berror_vars_reg,create_berror_vars,&
        set_predictors_var,destroy_berror_vars_reg,&
        destroy_berror_vars,bkgv_flowdep
@@ -153,12 +156,16 @@ subroutine glbsoi(mype)
 ! Create/setup background error and background error balance
   if (regional)then
      call create_balance_vars_reg(mype)
-     if(.not.anisotropic) call create_berror_vars_reg
+     if(anisotropic) then
+       call create_anberror_vars_reg(mype)
+     else
+       call create_berror_vars_reg
+     end if
      call prebal_reg(mlat)
      if(anisotropic) then
         call anprewgt_reg(mype)
      else
-        call prewgt_reg(mype)
+        call prewgt_reg
      end if
   else
      call create_balance_vars
@@ -180,8 +187,7 @@ subroutine glbsoi(mype)
 
 !    Load background error arrays used by recursive filters
      if(anisotropic) then
-   !     NOT AVAILABLE YET
-   !   call anprewgt(mype)
+        call anprewgt(mype)
      else
         call prewgt(mype)
      end if

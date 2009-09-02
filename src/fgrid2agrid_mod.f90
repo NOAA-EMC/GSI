@@ -7,17 +7,19 @@ module fgrid2agrid_mod
 ! abstract: When using the anisotropic recursive filter in regional mode,
 !             it is desirable to have a different grid to apply the filter.
 !             In 3D applications, it is often necessary to run the anisotropic
-!             filter on a coarser grid to keep run time and memory usage 
+!             filter on a coarser grid to keep run time and memory usage
 !             reasonable.  For 2D applications, related to the high resolution
 !             NDFD surface analysis, it may be necessary to run the filter
 !             on a finer grid to sufficiently resolve terrain features that
-!             are incorporated in the anisotropic filter.  This module 
+!             are incorporated in the anisotropic filter.  This module
 !             includes the setup, interpolation and adjoint routines that
 !             are necessary for general interpolation between the analysis
 !             grid and the desired filter grid.
 !
 ! program history log:
 !   2005-06-06  parrish
+!   2008-11-03  sato - eliminate global varibables except for nord_f2a
+!                      for multi-filter-space in global mode
 !
 ! subroutines included:
 !   sub init_fgrid2agrid         - initialize interpolation variables and constants to defaults
@@ -29,10 +31,11 @@ module fgrid2agrid_mod
 !   sub agrid2fgrid              - interpolate from analysis grid to filter grid
 !
 ! Variable Definitions:
+!   def nord_f2a       - order of interpolation
+!
 !   def nlatf          - number of lats on filter grid
 !   def nlonf          - number of lons on filter grid
-!   def nord_f2a       - order of interpolation
-!   def identity       - if true, then filter grid is same as analysis grid, 
+!   def identity       - if true, then filter grid is same as analysis grid,
 !                         so no interpolation required
 !   def grid_ratio_lon - ratio of filter grid to analysis grid in longitude direction
 !   def grid_ratio_lat - ratio of filter grid to analysis grid in latitude direction
@@ -40,7 +43,7 @@ module fgrid2agrid_mod
 !                         direction between filter and analysis grids
 !   def f2a_lat        - structure variable containing interpolation info in latitude
 !                         direction between filter and analysis grids
-!   
+!
 !
 ! attributes:
 !   language: f90
@@ -49,8 +52,10 @@ module fgrid2agrid_mod
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon
+
   implicit none
+
+  integer(i_kind):: nord_f2a
 
   type fgrid2agrid_cons
 
@@ -73,95 +78,112 @@ module fgrid2agrid_mod
 
   end type fgrid2agrid_cons
 
-  integer(i_kind) nlatf,nlonf,nord_f2a
-  logical identity
-  real(r_kind) grid_ratio_lon,grid_ratio_lat
-  type(fgrid2agrid_cons) f2a_lon,f2a_lat
+  type fgrid2agrid_parm
+    integer(i_kind):: nlata,nlona,nlatf,nlonf
+    logical:: identity
+    real(r_kind):: grid_ratio,grid_ratio_lon,grid_ratio_lat
+    type(fgrid2agrid_cons):: f2a_lon,f2a_lat
+  end type fgrid2agrid_parm
 
   contains
 
 
-  subroutine init_fgrid2agrid
+  subroutine init_fgrid2agrid(p)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    init_fgrid2agrid  initialize interpolation variables and 
+! subprogram:    init_fgrid2agrid  initialize interpolation variables and
 !                                  constants to defaults
-!   prgmmr:      parrish          org: np22                date: 2005-06-06
+!   prgmmr: parrish          org: np22                date: 2005-06-06
 !
-! abstract:      initialize structure variable designed to contain interpolation 
-!                details, and also various other constants to defaults.
+! abstract: initialize structure variable designed to contain interpolation
+!           details, and also various other constants to defaults.
 !
 ! program history log:
 !   2005-06-06  parrish
+!   2008-11-03  sato - eliminate global varibables except for nord_f2a
+!                      for multi-filter-space in global mode
 !
 !   input argument list:
 !
 !   output argument list:
+!     p --- parameters for fgrid2agrid
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-!$$$ end documentation block
+!$$$
     use constants, only: one
+    type(fgrid2agrid_parm),intent(out):: p
 
 !    initialize fgrid2agrid interpolation structure variables and other constants to defaults
 
-    nlatf=1
-    nlonf=1
+    p%nlatf=1
+    p%nlonf=1
+    p%grid_ratio_lon=one
+    p%grid_ratio_lat=one
+    p%identity=.false.
+    p%f2a_lon%nfgrid=1
+    p%f2a_lon%nagrid=1
+    p%f2a_lon%mfgrid=1
+    p%f2a_lon%magrid=1
+    p%f2a_lon%grid_ratio=one
+    allocate(p%f2a_lon%iwin(2,2))
+    allocate(p%f2a_lon%nwin(2))
+    allocate(p%f2a_lon%itwin(2,2))
+    allocate(p%f2a_lon%ntwin(2))
+    allocate(p%f2a_lon%iswin(2,2))
+    allocate(p%f2a_lon%nswin(2))
+    allocate(p%f2a_lon%win(2,2))
+    allocate(p%f2a_lon%twin(2,2))
+    allocate(p%f2a_lon%swin(2,2))
+    p%f2a_lat%nfgrid=1
+    p%f2a_lat%nagrid=1
+    p%f2a_lat%mfgrid=1
+    p%f2a_lat%magrid=1
+    p%f2a_lat%grid_ratio=one
+    allocate(p%f2a_lat%iwin(2,2))
+    allocate(p%f2a_lat%nwin(2))
+    allocate(p%f2a_lat%itwin(2,2))
+    allocate(p%f2a_lat%ntwin(2))
+    allocate(p%f2a_lat%iswin(2,2))
+    allocate(p%f2a_lat%nswin(2))
+    allocate(p%f2a_lat%win(2,2))
+    allocate(p%f2a_lat%twin(2,2))
+    allocate(p%f2a_lat%swin(2,2))
+
+! NOTE:
+! Global variable nord_f2a should be initialized. So I added this line.
+! Since nord_f2a was a namelist parameter in gsi_main,
+! Please don't call this routine (init_fgrid2agrid()) after that.
     nord_f2a=4
-    identity=.true.
-    grid_ratio_lon=one
-    grid_ratio_lat=one
-    identity=.false.
-    f2a_lon%nfgrid=1
-    f2a_lon%nagrid=1
-    f2a_lon%mfgrid=1
-    f2a_lon%magrid=1
-    f2a_lon%grid_ratio=one
-    allocate(f2a_lon%iwin(2,2))
-    allocate(f2a_lon%nwin(2))
-    allocate(f2a_lon%itwin(2,2))
-    allocate(f2a_lon%ntwin(2))
-    allocate(f2a_lon%iswin(2,2))
-    allocate(f2a_lon%nswin(2))
-    allocate(f2a_lon%win(2,2))
-    allocate(f2a_lon%twin(2,2))
-    allocate(f2a_lon%swin(2,2))
-    f2a_lat%nfgrid=1
-    f2a_lat%nagrid=1
-    f2a_lat%mfgrid=1
-    f2a_lat%magrid=1
-    f2a_lat%grid_ratio=one
-    allocate(f2a_lat%iwin(2,2))
-    allocate(f2a_lat%nwin(2))
-    allocate(f2a_lat%itwin(2,2))
-    allocate(f2a_lat%ntwin(2))
-    allocate(f2a_lat%iswin(2,2))
-    allocate(f2a_lat%nswin(2))
-    allocate(f2a_lat%win(2,2))
-    allocate(f2a_lat%twin(2,2))
-    allocate(f2a_lat%swin(2,2))
 
   end subroutine init_fgrid2agrid
 
-
-  subroutine create_fgrid2agrid(grid_ratio)
+  subroutine create_fgrid2agrid(p)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    create_fgrid2agrid  create interpolation variables
-!   prgmmr:      parrish          org: np22                date: 2005-06-06
+!   prgmmr: parrish          org: np22                date: 2005-06-06
 !
-! abstract:      fill up structure variable with interpolation information 
-!                for specified grid ratio.
+! abstract: fill up structure variable with interpolation information for specified grid ratio.
+!
 !
 ! program history log:
 !   2005-06-06  parrish
+!   2008-11-03  sato - eliminate global varibables except for nord_f2a
+!                      for multi-filter-space in global mode
 !
 !   input argument list:
-!     grid_ratio - ratio of filter grid resolution to analysis grid resolution
+!     p%grid_ratio - ratio of filter grid resolution to analysis grid resolution
+!     p%nlata - array size of the original data
+!     p%nlona - array size of the original data
 !
 !   output argument list:
+!     p%nlatf
+!     p%nlonf
+!     p%identity
+!     p%...
 !
 ! attributes:
 !   language: f90
@@ -180,22 +202,26 @@ module fgrid2agrid_mod
 !       are the same.
 
     use constants, only: one
-    real(r_kind),intent(in):: grid_ratio
+    type(fgrid2agrid_parm),intent(inout):: p
 
-    if(grid_ratio.le.1.001_r_kind.and.grid_ratio.ge..999_r_kind) then
-      nlatf=nlat
-      nlonf=nlon 
-      identity=.true.
-      grid_ratio_lon=one
-      grid_ratio_lat=one
+    if(p%grid_ratio.le.1.001_r_kind.and.p%grid_ratio.ge..999_r_kind) then
+      p%nlatf=p%nlata
+      p%nlonf=p%nlona
+      p%identity=.true.
+      p%grid_ratio_lon=one
+      p%grid_ratio_lat=one
       return
     else
 
-      identity=.false.
+      p%identity=.false.
 
-      call get_3ops(f2a_lon,grid_ratio,grid_ratio_lon,nlon,nlonf,nord_f2a)
-      call get_3ops(f2a_lat,grid_ratio,grid_ratio_lat,nlat,nlatf,nord_f2a)
-     
+      call get_3ops(p%f2a_lon, &
+                  & p%grid_ratio, p%grid_ratio_lon, &
+                  & p%nlona, p%nlonf, nord_f2a)
+      call get_3ops(p%f2a_lat, &
+                  & p%grid_ratio, p%grid_ratio_lat, &
+                  & p%nlata, p%nlatf, nord_f2a)
+
     end if
 
   end subroutine create_fgrid2agrid
@@ -205,14 +231,14 @@ module fgrid2agrid_mod
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_3ops          compute interpolation operators
-!   prgmmr:      parrish          org: np22                date: 2005-06-06
+!   prgmmr: parrish          org: np22                date: 2005-06-06
 !
-! abstract:      obtain one-dimensional interpolation operators.
+! abstract: obtain one-dimensional interpolation operators.
 !
 !
 ! program history log:
 !   2005-06-06  parrish
-!   2006-02-28  parrish - correct upper limit for j loop for adjoint of 
+!   2006-02-28  parrish - correct upper limit for j loop for adjoint of
 !                         smoothing interpolation
 !
 !   input argument list:
@@ -317,27 +343,27 @@ module fgrid2agrid_mod
     iwin=0
     nwin=0
     do jord=1,iord
-     lbig=jord+1
-     call simpin1_init(ixi,tl,alocal,blocal,jord,lbig,gridc,nc)
-     call simpin1(wgts,wgts,wgts,iwgts,iflag,grid,nf,jord,lbig,gridc,nc,1,0,0,ixi,tl,alocal,blocal)
-     do i=1,nf
-      if(iflag(i).eq.1) then
-       nwin(i)=lbig
-       do k=1,lbig
-        win(k,i)=wgts(i,k)
-        iwin(k,i)=iwgts(i,k)
-       end do
-      end if
-     end do
+      lbig=jord+1
+      call simpin1_init(ixi,tl,alocal,blocal,jord,lbig,gridc,nc)
+      call simpin1(wgts,wgts,wgts,iwgts,iflag,grid,nf,jord,lbig,gridc,nc,1,0,0,ixi,tl,alocal,blocal)
+      do i=1,nf
+        if(iflag(i).eq.1) then
+          nwin(i)=lbig
+          do k=1,lbig
+            win(k,i)=wgts(i,k)
+            iwin(k,i)=iwgts(i,k)
+          end do
+        end if
+      end do
     end do
     if(minval(nwin).eq.0) then
-         write(6,*)'GET_3OPS: ***ERROR*** while getting coarse to fine ', &
-              'interpolation operator'
-         call stop2(33)
+      write(6,*)'GET_3OPS: ***ERROR*** while getting coarse to fine ', &
+                'interpolation operator'
+      call stop2(33)
     end if
 
 !--------------------------------------------------------
-!   next get adjoint weights and addresses by brute force 
+!   next get adjoint weights and addresses by brute force
 !--------------------------------------------------------
 
     allocate(workc(nc),hbig(nf,nc))
@@ -375,13 +401,13 @@ module fgrid2agrid_mod
     itwin=0
     twin=zero
     do j=1,nc
-     ntwin(j)=ipmax(j)-ipmin(j)+1
-     ii=0
-     do i=ipmin(j),ipmax(j)
-      ii=ii+1
-      itwin(ii,j)=i
-      twin(ii,j)=hbig(i,j)
-     end do
+      ntwin(j)=ipmax(j)-ipmin(j)+1
+      ii=0
+      do i=ipmin(j),ipmax(j)
+        ii=ii+1
+        itwin(ii,j)=i
+        twin(ii,j)=hbig(i,j)
+      end do
     end do
 
 !--------------------------------------------------------
@@ -393,29 +419,29 @@ module fgrid2agrid_mod
     iswin=0
     nswin=0
     do j=1,nc
-     workc(j)=zero
-     do i=1,ntwin(j)
-      workc(j)=workc(j)+twin(i,j)
-     end do
-     workc(j)=one/workc(j)
-     nswin(j)=ntwin(j)
-     do i=1,ntwin(j)
-      swin(i,j)=workc(j)*twin(i,j)
-      iswin(i,j)=itwin(i,j)
-     end do
+      workc(j)=zero
+      do i=1,ntwin(j)
+        workc(j)=workc(j)+twin(i,j)
+      end do
+      workc(j)=one/workc(j)
+      nswin(j)=ntwin(j)
+      do i=1,ntwin(j)
+        swin(i,j)=workc(j)*twin(i,j)
+        iswin(i,j)=itwin(i,j)
+      end do
     end do
 
 !--------------------------------------------------------
 !   finally get adjoint of smoothing interpolation (coarse to fine)
 !--------------------------------------------------------
-    
+
     allocate(tswin(iord+1,nf),itswin(iord+1,nf),ntswin(nf))
     do i=1,nf
-     ntswin(i)=nwin(i)
-     do j=1,nwin(i)
-      itswin(j,i)=iwin(j,i)
-      tswin(j,i)=workc(iwin(j,i))*win(j,i)
-     end do
+      ntswin(i)=nwin(i)
+      do j=1,nwin(i)
+        itswin(j,i)=iwin(j,i)
+        tswin(j,i)=workc(iwin(j,i))*win(j,i)
+      end do
     end do
 
 !--------------------------------------------------------
@@ -438,8 +464,7 @@ module fgrid2agrid_mod
       f2a%iwin=0
       f2a%nwin=0
       f2a%win=zero
-
-      !$omp parallel do private (k,j)
+!$omp parallel do private(i,k)
       do i=1,nf
         f2a%nwin(i)=nwin(i)
         do k=1,nwin(i)
@@ -447,8 +472,6 @@ module fgrid2agrid_mod
           f2a%win(k,i)=win(k,i)
         end do
       end do
-
-
       deallocate(f2a%itwin,f2a%ntwin,f2a%twin)
       deallocate(f2a%iswin,f2a%nswin,f2a%swin)
       allocate(f2a%itwin(ntwinmax,nc))
@@ -463,12 +486,11 @@ module fgrid2agrid_mod
       f2a%iswin=0
       f2a%nswin=0
       f2a%swin=zero
-
-      !$omp parallel do private (k,j)
+!$omp parallel do private(j,k)
       do j=1,nc
         f2a%ntwin(j)=ntwin(j)
         f2a%nswin(j)=nswin(j)
-        do k=1,ntwin(j)
+        do k=1,f2a%ntwin(j)
           f2a%itwin(k,j)=itwin(k,j)
           f2a%iswin(k,j)=iswin(k,j)
           f2a%twin(k,j)=twin(k,j)
@@ -492,7 +514,6 @@ module fgrid2agrid_mod
       f2a%iwin=0
       f2a%nwin=0
       f2a%win=zero
-
       !$omp parallel do private (k,j)
       do j=1,nc
         f2a%nwin(j)=nswin(j)
@@ -501,7 +522,6 @@ module fgrid2agrid_mod
           f2a%win(k,j)=swin(k,j)
         end do
       end do
-
       deallocate(f2a%itwin,f2a%ntwin,f2a%twin)
       deallocate(f2a%iswin,f2a%nswin,f2a%swin)
       allocate(f2a%itwin(iord+1,nf))
@@ -516,12 +536,11 @@ module fgrid2agrid_mod
       f2a%iswin=0
       f2a%nswin=0
       f2a%swin=zero
-
-      !$omp parallel do private (k,j)
+      !$omp parallel do private (i,k)
       do i=1,nf
         f2a%ntwin(i)=ntswin(i)
         f2a%nswin(i)=nwin(i)
-        do k=1,ntswin(i)
+        do k=1,f2a%ntwin(i)
           f2a%itwin(k,i)=itswin(k,i)
           f2a%iswin(k,i)=iwin(k,i)
           f2a%twin(k,i)=tswin(k,i)
@@ -538,21 +557,25 @@ module fgrid2agrid_mod
   end subroutine get_3ops
 
 
-  subroutine destroy_fgrid2agrid
+  subroutine destroy_fgrid2agrid(p)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    destroy_fgrid2agrid   release space used by fgrid2agrid
-!   prgmmr:      parrish          org: np22                date: 2005-06-06
+!   prgmmr: parrish          org: np22                date: 2005-06-06
 !
-! abstract:      release space used by fgrid2agrid.
+! abstract: release space used by fgrid2agrid.
 !
 !
 ! program history log:
 !   2005-06-06  parrish
+!   2008-11-03  sato - eliminate global varibables except for nord_f2a
+!                      for multi-filter-space in global mode
 !
 !   input argument list:
+!     p --- parameters for fgrid2agrid
 !
 !   output argument list:
+!     p --- parameters for fgrid2agrid
 !
 ! attributes:
 !   language: f90
@@ -561,31 +584,35 @@ module fgrid2agrid_mod
 !$$$ end documentation block
 
 ! free space used by interpolation structures
+    type(fgrid2agrid_parm),intent(inout):: p
 
-    deallocate(f2a_lon%iwin,f2a_lon%nwin,f2a_lon%itwin)
-    deallocate(f2a_lon%ntwin,f2a_lon%iswin,f2a_lon%nswin)
-    deallocate(f2a_lon%win,f2a_lon%twin,f2a_lon%swin)
-    deallocate(f2a_lat%iwin,f2a_lat%nwin,f2a_lat%itwin)
-    deallocate(f2a_lat%ntwin,f2a_lat%iswin,f2a_lat%nswin)
-    deallocate(f2a_lat%win,f2a_lat%twin,f2a_lat%swin)
-    call init_fgrid2agrid
+    deallocate(p%f2a_lon%iwin,p%f2a_lon%nwin,p%f2a_lon%itwin)
+    deallocate(p%f2a_lon%ntwin,p%f2a_lon%iswin,p%f2a_lon%nswin)
+    deallocate(p%f2a_lon%win,p%f2a_lon%twin,p%f2a_lon%swin)
+    deallocate(p%f2a_lat%iwin,p%f2a_lat%nwin,p%f2a_lat%itwin)
+    deallocate(p%f2a_lat%ntwin,p%f2a_lat%iswin,p%f2a_lat%nswin)
+    deallocate(p%f2a_lat%win,p%f2a_lat%twin,p%f2a_lat%swin)
+    call init_fgrid2agrid(p)
 
   end subroutine destroy_fgrid2agrid
 
 
-  subroutine fgrid2agrid(f,a)
+  subroutine fgrid2agrid(p,f,a)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    fgrid2agrid   interpolate from filter to analysis grid
-!   prgmmr:      parrish          org: np22                date: 2005-06-06
+!   prgmmr: parrish          org: np22                date: 2005-06-06
 !
-! abstract:      interpolate from filter to analysis grid
+! abstract: interpolate from filter to analysis grid
 !
 ! program history log:
 !   2005-06-06  parrish
+!   2008-11-03  sato - eliminate global varibables except for nord_f2a
+!                      for multi-filter-space in global mode
 !
 !   input argument list:
-!     f             - filter grid
+!     p              - parameters for fgrid2agrid
+!     f              - filter grid
 !
 !   output argument list:
 !     a              - analysis grid
@@ -595,39 +622,41 @@ module fgrid2agrid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-    real(r_kind),intent(in):: f(nlatf,nlonf)
-    real(r_kind),intent(out):: a(nlat,nlon)
+
+    type(fgrid2agrid_parm),intent(in):: p
+    real(r_kind),intent(in):: f(p%nlatf,p%nlonf)
+    real(r_kind),intent(out)::a(p%nlata,p%nlona)
 
     integer i,j,j1,k
-    real(r_kind) w1,w(nlat,nlonf)
+    real(r_kind) w1,w(p%nlata,p%nlonf)
 
-    if(identity) then
-      do j=1,nlonf
-       do i=1,nlatf
+    if(p%identity) then
+      do j=1,p%nlonf
+      do i=1,p%nlatf
         a(i,j)=f(i,j)
-       end do
+      end do
       end do
     else
-      do j=1,nlonf
-        do i=1,nlat
-          w(i,j)=f2a_lat%win(1,i)*f(f2a_lat%iwin(1,i),j)
-          do k=2,f2a_lat%nwin(i)
-            w(i,j)=w(i,j)+f2a_lat%win(k,i)*f(f2a_lat%iwin(k,i),j)
-          end do
+      do j=1,p%nlonf
+      do i=1,p%nlata
+        w(i,j)=p%f2a_lat%win(1,i)*f(p%f2a_lat%iwin(1,i),j)
+        do k=2,p%f2a_lat%nwin(i)
+          w(i,j)=w(i,j)+p%f2a_lat%win(k,i)*f(p%f2a_lat%iwin(k,i),j)
         end do
       end do
-      do j=1,nlon
-        j1=f2a_lon%iwin(1,j)
-        w1=f2a_lon%win(1,j)
-        do i=1,nlat
+      end do
+      do j=1,p%nlona
+        j1=p%f2a_lon%iwin(1,j)
+        w1=p%f2a_lon%win(1,j)
+        do i=1,p%nlata
           a(i,j)=w1*w(i,j1)
         end do
-        do k=2,f2a_lon%nwin(j)
-         j1=f2a_lon%iwin(k,j)
-         w1=f2a_lon%win(k,j)
-         do i=1,nlat
-           a(i,j)=a(i,j)+w1*w(i,j1)
-         end do
+        do k=2,p%f2a_lon%nwin(j)
+          j1=p%f2a_lon%iwin(k,j)
+          w1=p%f2a_lon%win(k,j)
+          do i=1,p%nlata
+            a(i,j)=a(i,j)+w1*w(i,j1)
+          end do
         end do
       end do
     end if
@@ -635,19 +664,22 @@ module fgrid2agrid_mod
   end subroutine fgrid2agrid
 
 
-  subroutine tfgrid2agrid(a,f)
+  subroutine tfgrid2agrid(p,a,f)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    tfgrid2agrid  adjoint of fgrid2agrid
-!   prgmmr:      parrish          org: np22                date: 2005-06-06
+!   prgmmr: parrish          org: np22                date: 2005-06-06
 !
-! abstract:      adjoint of fgrid2agrid
+! abstract: adjoint of fgrid2agrid
 !
 ! program history log:
 !   2005-06-06  parrish
 !   2008-06-04  safford - rm unused use "one"
+!   2008-11-03  sato - eliminate global varibables except for nord_f2a
+!                      for multi-filter-space in global mode
 !
 !   input argument list:
+!     p              - parameters for fgrid2agrid
 !     a              - analysis grid
 !
 !   output argument list:
@@ -659,38 +691,39 @@ module fgrid2agrid_mod
 !
 !$$$ end documentation block
 
-    real(r_kind),intent(out):: f(nlatf,nlonf)
-    real(r_kind),intent(in):: a(nlat,nlon)
+    type(fgrid2agrid_parm),intent(in):: p
+    real(r_kind),intent(out)::f(p%nlatf,p%nlonf)
+    real(r_kind),intent(in):: a(p%nlata,p%nlona)
 
     integer i,j,j1,k
-    real(r_kind) w1,w(nlat,nlonf)
+    real(r_kind) w1,w(p%nlata,p%nlonf)
 
-    if(identity) then
-      do j=1,nlonf
-        do i=1,nlatf
+    if(p%identity) then
+      do j=1,p%nlonf
+        do i=1,p%nlatf
           f(i,j)=a(i,j)
         end do
       end do
     else
-      do j=1,nlonf
-        j1=f2a_lon%itwin(1,j)
-        w1=f2a_lon%twin(1,j)
-        do i=1,nlat
+      do j=1,p%nlonf
+        j1=p%f2a_lon%itwin(1,j)
+        w1=p%f2a_lon%twin(1,j)
+        do i=1,p%nlata
           w(i,j)=w1*a(i,j1)
         end do
-        do k=2,f2a_lon%ntwin(j)
-         j1=f2a_lon%itwin(k,j)
-         w1=f2a_lon%twin(k,j)
-         do i=1,nlat
-           w(i,j)=w(i,j)+w1*a(i,j1)
-         end do
+        do k=2,p%f2a_lon%ntwin(j)
+          j1=p%f2a_lon%itwin(k,j)
+          w1=p%f2a_lon%twin(k,j)
+          do i=1,p%nlata
+            w(i,j)=w(i,j)+w1*a(i,j1)
+          end do
         end do
       end do
-      do j=1,nlonf
-        do i=1,nlatf
-          f(i,j)=f2a_lat%twin(1,i)*w(f2a_lat%itwin(1,i),j)
-          do k=2,f2a_lat%ntwin(i)
-            f(i,j)=f(i,j)+f2a_lat%twin(k,i)*w(f2a_lat%itwin(k,i),j)
+      do j=1,p%nlonf
+        do i=1,p%nlatf
+          f(i,j)=p%f2a_lat%twin(1,i)*w(p%f2a_lat%itwin(1,i),j)
+          do k=2,p%f2a_lat%ntwin(i)
+            f(i,j)=f(i,j)+p%f2a_lat%twin(k,i)*w(p%f2a_lat%itwin(k,i),j)
           end do
         end do
       end do
@@ -699,20 +732,23 @@ module fgrid2agrid_mod
   end subroutine tfgrid2agrid
 
 
-  subroutine agrid2fgrid(a,f)
+  subroutine agrid2fgrid(p,a,f)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    agrid2fgrid  interpolate from agrid to fgrid
-!   prgmmr:      parrish          org: np22                date: 2005-06-06
+!   prgmmr: parrish          org: np22                date: 2005-06-06
 !
-! abstract:      interpolate from agrid to fgrid
+! abstract: interpolate from agrid to fgrid
 !
 !
 ! program history log:
 !   2005-06-06  parrish
 !   2008-06-04  safford - rm unused use "one"
+!   2008-11-03  sato - eliminate global varibables except for nord_f2a
+!                      for multi-filter-space in global mode
 !
 !   input argument list:
+!     p              - parameters for fgrid2agrid
 !     a              - analysis grid
 !
 !   output argument list:
@@ -724,38 +760,39 @@ module fgrid2agrid_mod
 !
 !$$$ end documentation block
 
-    real(r_kind),intent(out):: f(nlatf,nlonf)
-    real(r_kind),intent(in):: a(nlat,nlon)
+    type(fgrid2agrid_parm),intent(in):: p
+    real(r_kind),intent(out)::f(p%nlatf,p%nlonf)
+    real(r_kind),intent(in):: a(p%nlata,p%nlona)
 
     integer i,j,j1,k
-    real(r_kind) w1,w(nlat,nlonf)
+    real(r_kind) w1,w(p%nlata,p%nlonf)
 
-    if(identity) then
-      do j=1,nlonf
-        do i=1,nlatf
+    if(p%identity) then
+      do j=1,p%nlonf
+        do i=1,p%nlatf
           f(i,j)=a(i,j)
         end do
       end do
     else
-      do j=1,nlonf
-        j1=f2a_lon%iswin(1,j)
-        w1=f2a_lon%swin(1,j)
-        do i=1,nlat
+      do j=1,p%nlonf
+        j1=p%f2a_lon%iswin(1,j)
+        w1=p%f2a_lon%swin(1,j)
+        do i=1,p%nlata
           w(i,j)=w1*a(i,j1)
         end do
-        do k=2,f2a_lon%nswin(j)
-         j1=f2a_lon%iswin(k,j)
-         w1=f2a_lon%swin(k,j)
-         do i=1,nlat
+        do k=2,p%f2a_lon%nswin(j)
+         j1=p%f2a_lon%iswin(k,j)
+         w1=p%f2a_lon%swin(k,j)
+         do i=1,p%nlata
            w(i,j)=w(i,j)+w1*a(i,j1)
          end do
         end do
       end do
-      do j=1,nlonf
-        do i=1,nlatf
-          f(i,j)=f2a_lat%swin(1,i)*w(f2a_lat%iswin(1,i),j)
-          do k=2,f2a_lat%nswin(i)
-            f(i,j)=f(i,j)+f2a_lat%swin(k,i)*w(f2a_lat%iswin(k,i),j)
+      do j=1,p%nlonf
+        do i=1,p%nlatf
+          f(i,j)=p%f2a_lat%swin(1,i)*w(p%f2a_lat%iswin(1,i),j)
+          do k=2,p%f2a_lat%nswin(i)
+            f(i,j)=f(i,j)+p%f2a_lat%swin(k,i)*w(p%f2a_lat%iswin(k,i),j)
           end do
         end do
       end do

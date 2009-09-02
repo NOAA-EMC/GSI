@@ -74,6 +74,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2008-09-08  lueken  - merged ed's changges into q1fy09 code
 !   2008-21-25  todling - adapted Tremolet 2007-03-01 change of time window
 !                       - remove unused vars
+!   2009-07-08  pondeca - add ability to convert virtual temperature
+!                         obs into sensible temperature for 2dvar
+!   2009-07-08  pondeca - move handling of "provider use_list" for mesonet winds 
+!                         to the new module sfcobsqc
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -113,6 +117,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
+  use sfcobsqc,only: init_rjlists,get_usagerj,destroy_rjlists
+  use jfunc, only: tsensible
 
   implicit none
 
@@ -147,7 +153,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Declare local variables
   logical tob,qob,uvob,spdob,sstob,pwob,psob
   logical outside,driftl,convobs,inflate_error
-  logical listexist,lprov,asort
+  logical sfctype
+  logical asort
 
   character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr
   character(80) obstr
@@ -156,8 +163,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   character(8) prvstr,sprvstr     
   character(8) c_prvstg,c_sprvstg 
-  character(16) cprovider(200)    
-  character(80) cstring           
+  character(8) c_station_id
 
   integer(i_kind) lunin,i,maxobs,j,idomsfc,itemp
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
@@ -206,6 +212,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   real(r_kind),dimension(255):: tvflg
   real(r_double),dimension(255,20):: tpc
+  real(r_double),dimension(2,255,20):: tobaux
   real(r_double) vtcd
   real(r_kind) bmiss/10.e10/
   
@@ -226,6 +233,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   equivalence(r_prvstg(1,1),c_prvstg) 
   equivalence(r_sprvstg(1,1),c_sprvstg) 
+  equivalence(rstation_id,c_station_id)
 
   data hdstr  /'SID XOB YOB DHR TYP ELV SAID '/
   data obstr  /'POB QOB TOB ZOB UOB VOB PWO CAT PRSS' /
@@ -289,25 +297,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(perturb_obs .and. uvob )nreal=nreal+2
 
   qcmark_huge = huge_i_kind
-
-
-! Read in mesonet provider names from the uselist
- nprov=0
- inquire(file='mesonetuselist',exist=listexist)
- if(listexist) then
-     open (88,file='mesonetuselist',form='formatted')
-     do m=1,3
-      read(88,*,end=135) cstring
-     enddo
-     nprov=0
-130  continue
-     nprov=nprov+1
-     read(88,*,end=135) cprovider(nprov)
-     goto 130
-135  continue
-     nprov=nprov-1
-     close(88)
-  endif
 
   if (blacklst) call blacklist_read(obstype)
 
@@ -404,10 +393,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        call ufbint(lunin,hdr,7,1,iret,hdstr)
        kx=hdr(5)
 
+       sfctype=(kx>179.and.kx<190).or.(kx>279.and.kx<290)
+
 !      If running in 2d-var (surface analysis) mode, check to see if observation
 !      is surface type.  If not, read next observation report from bufr file
-       if ( twodvar_regional .and. &
-            (kx<180 .or. kx>289 .or. (kx>189 .and. kx<280)) ) cycle loop_report
+       if ( twodvar_regional .and. .not.sfctype ) cycle loop_report
 
        iobsub = 0           ! temporary until put in bufr file
        if(kx == 243 .or. kx == 253 .or. kx == 254) iobsub = hdr(7)
@@ -454,6 +444,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   write(6,*)'READ_PREPBUFR: messages/reports = ',nmsg,'/',ntb,' ntread = ',ntread
 
 !------------------------------------------------------------------------
+
+  call init_rjlists
 
 ! loop over convinfo file entries; operate on matches
   
@@ -621,24 +613,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
           if (tsavg <= 273.0_r_kind) cycle loop_readsb
        endif
 
-
-!      For mesonet winds, check to see if mesonet provider is in the
-!      uselist. If not, read next observation report from bufr file
-       if (kx == 288 .and. listexist) then
-          call ufbint(lunin,r_prvstg,1,1,iret,prvstr)
-          call ufbint(lunin,r_sprvstg,1,1,iret,sprvstr)
-
-          lprov=.false.
-          do m=1,nprov
-           if (trim(c_prvstg//c_sprvstg) == trim(cprovider(m))) then
-            lprov=.true.
-           endif
-          enddo
-          if (.not.lprov) cycle loop_readsb
-!         write(6,*)'READ_PREPBUFR:  kx,prvstg=',kx,c_prvstg
-!         write(6,*)'READ_PREPBUFR:  kx,sprvstg=',kx,c_sprvstg
-       endif
-
 !    Balloon drift information available for these data
      driftl=kx==120.or.kx==220.or.kx==221
 
@@ -743,14 +717,29 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !    If temperature ob, extract information regarding virtual
 !    versus sensible temperature
      if(tob) then
-        call ufbevn(lunin,tpc,1,255,20,levs,'TPC')
-        do k=1,levs
+       call ufbevn(lunin,tpc,1,255,20,levs,'TPC')
+       if (.not. twodvar_regional .or. .not.tsensible) then
+         do k=1,levs
            tvflg(k)=one                               ! initialize as sensible
            do j=1,20
-              if (tpc(k,j)==vtcd) tvflg(k)=zero       ! reset flag if virtual
-              if (tpc(k,j)>=bmiss) exit               ! end of stack
+             if (tpc(k,j)==vtcd) tvflg(k)=zero       ! reset flag if virtual
+             if (tpc(k,j)>=bmiss) exit               ! end of stack
            end do
-        end do
+         end do
+       else         !peel back events to store sensible temp in case temp is virtual
+         call ufbevn(lunin,tobaux,2,255,20,levs,'TOB TQM')
+         do k=1,levs
+           tvflg(k)=one                              ! initialize as sensible
+           do j=1,20
+             if (tpc(k,j)==vtcd) then
+               obsdat(3,k)=tobaux(1,k,j+1)
+               qcmark(3,k)=min(tobaux(2,k,j+1),qcmark_huge)
+               tqm(k)=nint(qcmark(3,k))
+             end if
+             if (tpc(k,j)>=bmiss) exit              ! end of stack
+           end do
+         end do
+       end if
      end if
 
      rstation_id=hdr(1)
@@ -838,11 +827,18 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         usage = 0.
         if(icuse(nc) <= 0)usage=100.
         if(qm == 15 .or. qm == 9)usage=100.
+        if(qm >=lim_qm )usage=101.
+        if(convobs .and. pqm(k) >=lim_qm )usage=102.
+
+        if (sfctype) then
+          call ufbint(lunin,r_prvstg,1,1,iret,prvstr)
+          call ufbint(lunin,r_sprvstg,1,1,iret,sprvstr)
+          call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage)
+        endif
+
         if(ncnumgrp(nc) > 0 )then                     ! cross validation on
           if(mod(ndata+1,ncnumgrp(nc))== ncgroup(nc)-1)usage=ncmiter(nc)
         end if
-        if(qm >=lim_qm )usage=101.
-        if(convobs .and. pqm(k) >=lim_qm )usage=102.
 
 
 !       If needed, extract drift information.   
@@ -1313,6 +1309,8 @@ enddo loop_convinfo! loops over convinfo entry matches
   endif
 
   close(lunin)
+
+  call destroy_rjlists
 
 ! End of routine
   return

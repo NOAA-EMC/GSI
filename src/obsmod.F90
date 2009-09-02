@@ -68,7 +68,8 @@ module obsmod
 !   2009-01-09  gayno    - add variable dsfcalc
 !   2009-02-02  kleist   - add variables for synthetic tc-mslp observations
 !   2009-03-05  meunier  - add lagrangean observation type
-
+!   2009-07-09  park,purser,pondeca - add logical variable hilbert_curve for
+!                                     cross-validation in 2dvar
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -179,6 +180,8 @@ module obsmod
 !   def offtime_data - logical, if .true., then allow use of obs files with ref time
 !                      different from analysis time.
 !
+!   def hilbert_curve - logical, if .true., then generate hilbert curve based
+!                      cross-validation datasets in 2dvar mode.
 !
 !$$$ end documentation block
 
@@ -789,6 +792,7 @@ module obsmod
   logical lobserver,l_do_adjoint
   logical,dimension(0:50):: write_diag
   logical offtime_data
+  logical hilbert_curve
 
 contains
 
@@ -934,6 +938,8 @@ contains
     cobstype(i_rad_ob_type)="radiance            " ! rad_ob_type
     cobstype(i_tcp_ob_type)="tcp (tropic cyclone)" ! tcp_ob_type
     cobstype(i_lag_ob_type)="lagrangian tracer   " ! lag_ob_type
+
+    hilbert_curve=.false.
 
     return
   end subroutine init_obsmod_dflts

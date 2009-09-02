@@ -42,6 +42,7 @@ subroutine compute_derived(mype)
 !   2007-08-08  derber - pass ges_teta to calctends rather than calculate seperately
 !   2008-06-05  safford - rm unused uses
 !   2008-10-10  derber  - add calculation of fact_tv
+!   2008-11-03  sato - add anisotropic mode procedures
 !   2008-12-08  todling - move 3dprs/geop-hght calculation from here into setuprhsall
 !
 !   input argument list:
@@ -72,16 +73,26 @@ subroutine compute_derived(mype)
   use guess_grids, only: ges_qlon    ,ges_qlat
   use guess_grids, only: ges_tvlon   ,ges_tvlat
   use guess_grids, only: ges_prslavg,ges_psfcavg
-  use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll
+  use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
   use gridmod, only: regional
   use gridmod, only: twodvar_regional,bk5,eta2_ll
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional
-  use berror, only: qvar3d,dssv
+  use berror, only: qvar3d,dssv,hswgt
   use balmod, only: rllat1,llmax
   use mod_strong, only: jcstrong,baldiag_full
   use obsmod, only: write_diag
 
   use constants, only: zero,one,one_tenth,half,fv
+
+! for anisotropic mode
+  use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab
+  use anberror, only: anisotropic, idvar, kvar_start, an_amp0, ngauss, indices, indices_p, &
+                    & filter_all,   filter_p2,   filter_p3, &
+                    & pf2aP1, pf2aP2, pf2aP3, rtma_subdomain_option
+  use anisofilter, only: rh0f, corz, ensamp, mlat, rllatf, fact_qopt2
+  use anisofilter_glb, only: rh2f, rh3f, ensamp0f, ensamp2f, ensamp3f, &
+                             p0ilatf, p2ilatf, p3ilatf, p2ilatfm, p3ilatfm, get_stat_factk
+
   implicit none
 
 ! Declare local parameters
@@ -98,6 +109,10 @@ subroutine compute_derived(mype)
   real(r_kind),allocatable,dimension(:,:,:):: dlnesdtv,dmax
   real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
+
+! for anisotropic mode
+  integer(i_kind):: k1,ivar,kvar,igauss
+  real(r_kind):: factor,factk,hswgtsum
 
 !-----------------------------------------------------------------------------------
 ! Compute derivatives for .not. twodvar_regional case
@@ -267,6 +282,114 @@ subroutine compute_derived(mype)
            end do
         end do
      end do
+
+! variance update for anisotropic mode
+     if( anisotropic .and. .not.rtma_subdomain_option ) then
+       hswgtsum=sum(hswgt(1:ngauss))
+       call setup_sub2fslab
+       if( regional ) then
+         allocate(rh0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o))
+         call sub2fslab(rhgues,rh0f)
+         do k=indices%kps,indices%kpe
+           ivar=idvar(k)
+           if(ivar==5) then
+             kvar=k-kvar_start(ivar)+1
+             do k1=1,nsig1o
+               if(levs_id(k1)==kvar) exit
+             end do
+             do j=indices%jps,indices%jpe
+             do i=indices%ips,indices%ipe
+               l =max(min(int(rllatf(i,j)),mlat),1)
+               l2=min((l+1),mlat)
+               dl2=rllatf(i,j)-float(l)
+               dl1=one-dl2
+
+               factk=dl1*corz(l,kvar,4)+dl2*corz(l2,kvar,4)
+               call fact_qopt2(factk,rh0f(i,j,k1),kvar)
+
+               do igauss=1,ngauss
+                 factor=hswgt(igauss)*factk*an_amp0(ivar)/sqrt(hswgtsum)
+                 filter_all(1)%amp(igauss,i,j,k)=factor*filter_all(2)%amp(igauss,i,j,k)
+                 if (allocated(ensamp)) then
+                   filter_all(1)%amp(igauss,i,j,k)=filter_all(1)%amp(igauss,i,j,k)*ensamp(i,j,k1)
+                 end if
+               end do
+             end do
+             end do
+           end if
+         end do
+         deallocate(rh0f)
+       else
+         allocate(rh0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o))
+         allocate(rh2f(pf2aP2%nlatf,pf2aP2%nlonf,nsig1o))
+         allocate(rh3f(pf2aP3%nlatf,pf2aP3%nlonf,nsig1o))
+
+         call sub2fslab_glb (rhgues,rh0f,rh2f,rh3f)
+         do k=indices%kps,indices%kpe
+           ivar=idvar(k)
+           if(ivar==5) then
+             kvar=k-kvar_start(ivar)+1
+             do k1=1,nsig1o
+               if(levs_id(k1)==kvar) exit
+             end do
+             ! zonal patch
+             do j=indices%jps,indices%jpe
+             do i=indices%ips,indices%ipe
+               call get_stat_factk(p0ilatf(i),ivar,kvar,factk, &
+                                   rh0f(i,j,k1),one)
+               do igauss=1,ngauss
+                 factor=hswgt(igauss)*factk*an_amp0(ivar)/sqrt(hswgtsum)
+                 filter_all(1)%amp(igauss,i,j,k)=factor*filter_all(2)%amp(igauss,i,j,k)
+                 if (allocated(ensamp0f)) then
+                   filter_all(1)%amp(igauss,i,j,k)=filter_all(1)%amp(igauss,i,j,k)*ensamp0f(i,j,k1)
+                 end if
+               end do
+
+             end do
+             end do
+             ! polar patches
+             do j=indices_p%jps,indices_p%jpe
+             do i=indices_p%ips,indices_p%ipe
+               ! north polar
+               if(p2ilatf(i,j).ne.zero) then
+                 call get_stat_factk(p2ilatf(i,j),ivar,kvar,factk, &
+                                     rh2f(i,j,k1),one)
+               else
+                 call get_stat_factk(p2ilatfm    ,ivar,kvar,factk, &
+                                     rh2f(i,j,k1),one)
+               end if
+               do igauss=1,ngauss
+                 factor=hswgt(igauss)*factk*an_amp0(ivar)/sqrt(hswgtsum)
+                 filter_p2(1)%amp(igauss,i,j,k)=factor*filter_p2(2)%amp(igauss,i,j,k)
+                 if(allocated(ensamp2f)) then
+                   filter_p2(1)%amp(igauss,i,j,k)=filter_p2(1)%amp(igauss,i,j,k)*sqrt(ensamp2f(i,j,k))
+                 end if
+               end do
+               ! south polar
+               if(p3ilatf(i,j).ne.zero) then
+                 call get_stat_factk(p3ilatf(i,j),ivar,kvar,factk, &
+                                     rh3f(i,j,k1),one)
+               else
+                 call get_stat_factk(p3ilatfm    ,ivar,kvar,factk, &
+                                     rh3f(i,j,k1),one)
+               end if
+               do igauss=1,ngauss
+                 factor=factk*an_amp0(ivar)/sqrt(real(ngauss,r_kind))
+                 filter_p3(1)%amp(igauss,i,j,k)=factor*filter_p3(2)%amp(igauss,i,j,k)
+                 if(allocated(ensamp3f)) then
+                   filter_p3(1)%amp(igauss,i,j,k)=filter_p3(1)%amp(igauss,i,j,k)*sqrt(ensamp3f(i,j,k))
+                 end if
+               end do
+
+             end do
+             end do
+
+           end if
+         end do
+         deallocate(rh0f,rh2f,rh3f)
+       end if
+       call destroy_sub2fslab
+     end if
 
 !    Special block to decouple temperature and pressure from moisture
 !    above specified levels.  For mass core decouple T and p above 

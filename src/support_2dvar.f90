@@ -5,8 +5,8 @@ subroutine convert_binary_2d
 !   prgmmr: pondeca           org: np20                date: 2004-12-13
 !
 ! abstract:
-! Read in from restart file of 2dvar-only surface analysis and write 
-! the result to temporary binary file expected by read_2d_guess. 
+! Read in from restart file of 2dvar-only surface analysis and write
+! the result to temporary binary file expected by read_2d_guess.
 !
 ! program history log:
 !   2004-12-13  pondeca
@@ -15,6 +15,12 @@ subroutine convert_binary_2d
 !   2006-09-15  treadon - use nhr_assimilation to build local guess filename
 !   2007-03-13  derber - remove unused qsinv2 from jfunc use list
 !   2008-04-03  safford - remove unused vars
+!   2008-11-04  pondeca - add utility routines for 2dvar applications 
+!                         on ndfd grid, ie., rtma applications
+!   2008-11-04  pondeca - add routines for hilbert-curve based cross-validation
+!   2008-11-04  pondeca - add routines for dew-point computation at
+!                         station location. used for qc purposes in 2dvar.
+!   2009-02-27  pondeca - add fgat to 2dvar
 !
 ! input argument list:
 !
@@ -35,9 +41,10 @@ subroutine convert_binary_2d
 
   character(6) filename
   character(9) wrfges
-  
+
   integer(i_kind) in_unit,status_hdr
   integer(i_kind) hdrbuf(512)
+  integer(i_kind) n
 
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
@@ -45,28 +52,39 @@ subroutine convert_binary_2d
   real(r_single),allocatable::field2c(:,:)
   integer(i_kind),allocatable::ifield2(:,:)
   real(r_single) rad2deg_single
-  
+
   data in_unit / 11 /
 
+  n_loop: do n=1,3
+
+  if(n==1)then
   wrfges = 'wrf_inout'
-  open(in_unit,file=wrfges,form='unformatted')
-  write(filename,100) nhr_assimilation
-100 format('sigf',i2.2)
-  open(lendian_out,file=filename,form='unformatted')
-
-
+  else
+   write(wrfges,'("wrf_inou",i1.1)')n
+  endif
+  open(in_unit,file=trim(wrfges),form='unformatted')
   write(6,*)' convert_binary_2d: in_unit,lendian_out=',in_unit,lendian_out
-  rewind lendian_out
-
 
 ! Check for valid input file
   read(in_unit,iostat=status_hdr)hdrbuf
-  if(status_hdr /= 0) then
-     write(6,*)'CONVERT_BINARY_2D:  problem with wrfges = ',&
-          trim(wrfges),', Status = ',status_hdr
-     call stop2(74)
+  if(n==1)then
+    if(status_hdr /= 0) then
+       write(6,*)'CONVERT_BINARY_2D:  problem with wrfges = ',&
+            trim(wrfges),', Status = ',status_hdr
+       call stop2(74)
+    endif
+  else
+    if(status_hdr /= 0) then
+       write(6,*)'CONVERT_BINARY_2D:  no off hour guess  ', trim(wrfges)
+       close(in_unit)
+     cycle n_loop
+    endif
   endif
 
+  write(filename,'("sigf",i2.2)')n+nhr_assimilation-1
+  write(6,*)' CONVERT_BINARY_2D: in_unit,out_unit=',wrfges,',',filename
+  open(lendian_out,file=filename,form='unformatted')
+  rewind lendian_out
 
   read(in_unit) iyear,imonth,iday,ihour,iminute,isecond, &
                 nlon_regional,nlat_regional,nsig_regional
@@ -97,7 +115,7 @@ subroutine convert_binary_2d
    write(6,*)' convert_binary_2d: xlat(1,nlat),xlat(nlon,nlat)=', &
                field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
    field2=field2/rad2deg_single
-   write(lendian_out)field2,field2b    !XLAT,DX_MC    
+   write(lendian_out)field2,field2b    !XLAT,DX_MC
 
 
 !                  XLONG
@@ -111,145 +129,148 @@ subroutine convert_binary_2d
   write(6,*)' convert_binary_2d: xlong(1,nlat),xlong(nlon,nlat)=', &
               field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
   field2=field2/rad2deg_single
-  write(lendian_out)field2,field2c   !  XLONG,DY_MC         
+  write(lendian_out)field2,field2c   !  XLONG,DY_MC
 
 
   read(in_unit)field2             !  psfc0
   write(6,*)' convert_binary_2d: max,min psfc0=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid psfc0=', & 
+  write(6,*)' convert_binary_2d: mid psfc0=', &
               field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2           
-   
+  write(lendian_out)field2
+
 
   read(in_unit)field2             !  PHB (zsfc*g)
   write(6,*)' convert_binary_2d: max,min,mid PHB=', &
               maxval(field2),minval(field2), &
               field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  T  ! POT TEMP (sensible??)
   write(6,*)' convert_binary_2d: max,min,mid T=',&
               maxval(field2),minval(field2), &
               field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
-  
+  write(lendian_out)field2
+
 
   read(in_unit)field2             !  Q
   write(6,*)' convert_binary_2d: max,min,mid Q=',&
               maxval(field2),minval(field2), &
               field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  U
   write(6,*)' convert_binary_2d: max,min,mid U=',&
               maxval(field2),minval(field2), &
               field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  V
   write(6,*)' convert_binary_2d: max,min,mid V=',&
               maxval(field2),minval(field2), &
               field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  LANDMASK  (1=land, 0=water)
-  write(6,*)' convert_binary_2d: max,min landmask=', & 
+  write(6,*)' convert_binary_2d: max,min landmask=', &
               maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid landmask=', & 
+  write(6,*)' convert_binary_2d: mid landmask=', &
               field2(nlon_regional/2,nlat_regional/2)
   write(6,*)' convert_binary_2d: landmask(1,1),landmask(nlon,1)=', &
               field2(1,1),field2(nlon_regional,1)
   write(6,*)' convert_binary_2d: landmask(1,nlat),landmask(nlon,nlat)=', &
               field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  XICE
   write(6,*)' convert_binary_2d: max,min XICE=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid XICE=', & 
+  write(6,*)' convert_binary_2d: mid XICE=', &
               field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  SST
   write(6,*)' convert_binary_2d: max,min SST=',&
               maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid SST=', & 
+  write(6,*)' convert_binary_2d: mid SST=', &
               field2(nlon_regional/2,nlat_regional/2)
   write(6,*)' convert_binary_2d: sst(1,1),sst(nlon,1)=',&
               field2(1,1),field2(nlon_regional,1)
   write(6,*)' convert_binary_2d: sst(1,nlat),sst(nlon,nlat)=', &
               field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)ifield2            !  IVGTYP
-  write(6,*)' convert_binary_2d: max,min IVGTYP=', & 
+  write(6,*)' convert_binary_2d: max,min IVGTYP=', &
               maxval(ifield2),minval(ifield2)
-  write(6,*)' convert_binary_2d: mid IVGTYP=', & 
+  write(6,*)' convert_binary_2d: mid IVGTYP=', &
               ifield2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)ifield2    
+  write(lendian_out)ifield2
 
 
   read(in_unit)ifield2            !  ISLTYP
-  write(6,*)' convert_binary_2d: max,min ISLTYP=', & 
+  write(6,*)' convert_binary_2d: max,min ISLTYP=', &
               maxval(ifield2),minval(ifield2)
-  write(6,*)' convert_binary_2d: mid ISLTYP=', & 
+  write(6,*)' convert_binary_2d: mid ISLTYP=', &
               ifield2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)ifield2    
+  write(lendian_out)ifield2
 
 
   read(in_unit)field2             !  VEGFRA
   write(6,*)' convert_binary_2d: max,min VEGFRA=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid VEGFRA=', & 
+  write(6,*)' convert_binary_2d: mid VEGFRA=', &
               field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  SNOW
   write(6,*)' convert_binary_2d: max,min SNO=',maxval(field2),minval(field2)
   write(6,*)' convert_binary_2d: mid SNO=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  U10
   write(6,*)' convert_binary_2d: max,min U10=',maxval(field2),minval(field2)
   write(6,*)' convert_binary_2d: mid U10=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  V10
   write(6,*)' convert_binary_2d: max,min V10=',maxval(field2),minval(field2)
   write(6,*)' convert_binary_2d: mid V10=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  SMOIS
   write(6,*)' convert_binary_2d: max,min SMOIS=',maxval(field2),minval(field2)
   write(6,*)' convert_binary_2d: mid SMOIS=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  TSLB
   write(6,*)' convert_binary_2d: max,min TSLB=',maxval(field2),minval(field2)
   write(6,*)' convert_binary_2d: mid TSLB=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
 
   read(in_unit)field2             !  TSK
   write(6,*)' convert_binary_2d: max,min TSK=',maxval(field2),minval(field2)
   write(6,*)' convert_binary_2d: mid TSK=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2    
+  write(lendian_out)field2
 
   close(in_unit)
   close(lendian_out)
 
-  deallocate(field2,field2b,field2c)
+  deallocate(field2)
+  deallocate(field2b)
+  deallocate(field2c)
   deallocate(ifield2)
+enddo n_loop
 end subroutine convert_binary_2d
 
 !----------------------------------------------------------------------------------
@@ -294,10 +315,11 @@ subroutine read_2d_files(mype)
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_001=0.001_r_kind
-  
+
 ! Declare local variables
   logical(4) fexist
   character(6) filename
+  integer(i_kind) in_unit
   integer(i_kind) i,j,iwan,npem1
   integer(i_kind) nhr_half
   integer(i_kind) nminanl,nmings,nming2,ndiff
@@ -326,23 +348,21 @@ subroutine read_2d_files(mype)
      write(6,*)'READ_2d_ FILES:  analysis date,minutes ',iadate,nminanl
 
 !    Check for consistency of times from sigma guess files.
+     in_unit=15
      iwan=izero
      do i=0,99
         write(filename,100)i
 100     format('sigf',i2.2)
         inquire(file=filename,exist=fexist)
         if(fexist)then
-           idateg(1)=regional_time(4)  !  hour
-           idateg(2)=regional_time(2)  !  month
-           idateg(3)=regional_time(3)  !  day
-           idateg(4)=regional_time(1)  !  year
-           hourg4= regional_fhr        !  fcst hour
-           hourg = hourg4
-           idate5(1)=idateg(4); idate5(2)=idateg(2)
-           idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=izero
+           open(in_unit,file=filename,form='unformatted')
+           read(in_unit) idate5
+           close(in_unit)
+           idate5(5)=izero
            call w3fs21(idate5,nmings)
+           hourg=0.
            nming2=nmings+60*hourg
-           write(6,*)' READ_2d_FILES:  sigma guess file, nming2 ',hourg,idateg,nming2
+           write(6,*)' READ_2d_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2
            ndiff=nming2-nminanl
            if(abs(ndiff) > 60*nhr_half ) go to 110
            iwan=iwan+1
@@ -355,7 +375,7 @@ subroutine read_2d_files(mype)
      time_ges(202)=one
      if(iwan > 1)then
         do i=1,iwan
-           do j=i+1,iwan 
+           do j=i+1,iwan
               if(time_ges(j) < time_ges(i))then
                  temp=time_ges(i+100)
                  time_ges(i+100)=time_ges(j+100)
@@ -398,18 +418,17 @@ subroutine read_2d_files(mype)
   end do
   if(mype == 0) write(6,*)' READ_2d_FILES:  sigma fcst files used in analysis  :  ',&
        (ifilesig(i),i=1,nfldsig),(hrdifsig(i),i=1,nfldsig),ntguessig
-  
-  
+
+
 ! Think of guess sfcf files as coinciding with guess sigf files
   ntguessfc = ntguessig
   do i=1,nfldsig
-     ntguessfc = ntguessig
      hrdifsfc(i) = hrdifsig(i)
      ifilesfc(i) = ifilesig(i)
   end do
   if(mype == 0) write(6,*)' READ_2d_FILES:  surface fcst files used in analysis:  ',&
        (ifilesfc(i),i=1,nfldsfc),(hrdifsfc(i),i=1,nfldsfc),ntguessfc
-  
+
 !
 ! End of routine
   return
@@ -428,7 +447,7 @@ subroutine read_2d_guess(mype)
 !             that interfaces with the restart file which may be
 !             written in a different format. The a-grid is assumed.
 !             The guess is read in by complete horizontal fields, one field
-!             per processor, in parallel.  
+!             per processor, in parallel.
 !
 ! program history log:
 !   2005-01-06  pondeca
@@ -437,7 +456,7 @@ subroutine read_2d_guess(mype)
 !   2006-04-06  middlecoff - changed nfcst from 11 to 15 so nfcst could be used as little endian
 !   2006-07-30  kleist - make change to ges_ps from ln(ps)
 !   2006-07-28  derber  - include sensible temperature
-!   2008-04-02  safford - rm unused vars and uses     
+!   2008-04-02  safford - rm unused vars and uses
 !
 !   input argument list:
 !     mype     - pe number
@@ -473,13 +492,15 @@ subroutine read_2d_guess(mype)
   integer(i_kind) nfcst
 
 ! other internal variables
+  logical ice
   real(r_single) tempa(itotsub)
   real(r_single),allocatable::temp1(:,:),temp1u(:,:),temp1v(:,:)
   real(r_single),allocatable::all_loc(:,:,:)
+  real(r_kind),allocatable,dimension(:,:,:):: dlnesdtv ! 13April2005 / M.Pondeca
   integer(i_kind),allocatable::itemp1(:,:)
   integer(i_kind),allocatable::igtype(:),jsig_skip(:)
   character(60),allocatable::identity(:)
-  character(6) filename 
+  character(6) filename
   integer(i_kind) irc_s_reg(npe),ird_s_reg(npe)
   integer(i_kind) ifld,im,jm,lm,num_2d_fields
   integer(i_kind) num_all_fields,num_loc_groups,num_all_pad
@@ -520,7 +541,7 @@ subroutine read_2d_guess(mype)
      if(mype==0) write(6,'(" at 1 in read_2d_guess, num_all_fields=",i6)')num_all_fields
      if(mype==0) write(6,'(" at 1 in read_2d_guess, npe           =",i6)')npe
      if(mype==0) write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
-     do 
+     do
         num_all_pad=num_loc_groups*npe
         if(num_all_pad >= num_all_fields) exit
         num_loc_groups=num_loc_groups+1
@@ -547,7 +568,7 @@ subroutine read_2d_guess(mype)
      igtype(i)=1
      i=i+1 ; i_fis=i                                               ! sfc geopotential
      write(identity(i),'("record ",i3,"--fis")')i
-     jsig_skip(i)=0 
+     jsig_skip(i)=0
      igtype(i)=1
      i_t=i+1
      do k=1,lm
@@ -614,7 +635,7 @@ subroutine read_2d_guess(mype)
 !    End of stuff from 2D restart file
 
      allocate(temp1(im,jm),itemp1(im,jm),temp1u(im+1,jm),temp1v(im,jm+1))
-     
+
      do i=1,npe
         irc_s_reg(i)=ijn_s(mype+1)
      end do
@@ -622,10 +643,10 @@ subroutine read_2d_guess(mype)
      do i=1,npe
         if(i /= 1) ird_s_reg(i)=ird_s_reg(i-1)+irc_s_reg(i-1)
      end do
-     
+
 !    Read fixed format input file created from external interface
 !    This is done by reading in parallel from every pe, and redistributing
-!    to local domains once for every npe fields read in, using 
+!    to local domains once for every npe fields read in, using
 !    mpi_all_to_allv
 
      nfcst=15
@@ -700,7 +721,7 @@ subroutine read_2d_guess(mype)
                  ges_v(j,i,k,it) = all_loc(j,i,kv)
                  ges_vor(j,i,k,it) = zero
                  ges_q(j,i,k,it)   = all_loc(j,i,kq)
-                 ges_tsen(j,i,k,it)  = all_loc(j,i,kt) 
+                 ges_tsen(j,i,k,it)  = all_loc(j,i,kt)
               end do
            end do
         end do
@@ -709,7 +730,7 @@ subroutine read_2d_guess(mype)
               ges_z(j,i,it)    = all_loc(j,i,i_0+i_fis)/grav ! surface elevation multiplied by g
 
 !             convert input psfc to psfc in mb, and then to log(psfc) in cb
-              
+
               psfc_this=r0_01*all_loc(j,i,i_0+i_psfc)
               ges_ps(j,i,it)=r0_1*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_0+i_sno)
@@ -717,14 +738,14 @@ subroutine read_2d_guess(mype)
               soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
            end do
         end do
-        
+
         if(mype==10) write(6,*)' in read_2d_guess, min,max(soil_moi)=', &
              minval(soil_moi),maxval(soil_moi)
         if(mype==10) write(6,*)' in read_2d_guess, min,max(soil_temp)=', &
              minval(soil_temp),maxval(soil_temp)
 
 
-!       Convert sensible temp to virtual temp  
+!       Convert sensible temp to virtual temp
         do k=1,nsig
            do i=1,lon1+2
               do j=1,lat1+2
@@ -734,7 +755,7 @@ subroutine read_2d_guess(mype)
         end do
      end do
 
-     
+
 !    Zero out fields not used
      ges_div=zero
      ges_cwmr=zero
@@ -743,7 +764,7 @@ subroutine read_2d_guess(mype)
      ges_qlat=zero
      ges_qlon=zero
 
-     
+
 !    Transfer surface fields
      do it=1,nfldsig
         i_0=(it-1)*num_2d_fields
@@ -757,18 +778,18 @@ subroutine read_2d_guess(mype)
               if(all_loc(j,i,i_0+i_sm) /= zero_single) sm_this=one
               xice_this=zero
               if(all_loc(j,i,i_0+i_xice) /= zero_single) xice_this=one
-              
+
               isli_this=0
               if(xice_this==one) isli_this=2
               if(xice_this==zero.and.sm_this==one) isli_this=1
               isli(j,i,it)=isli_this
-              
+
               sfct(j,i,it)=all_loc(j,i,i_0+i_sst)
               if(isli(j,i,it) /= 0) sfct(j,i,it)=all_loc(j,i,i_0+i_tsk)
               if(sfct(j,i,it) < one) then
 
 !             For now, replace missing skin temps with 1st sigma level temp
-                 sfct(j,i,it)=all_loc(j,i,i_0+i_t) 
+                 sfct(j,i,it)=all_loc(j,i,i_0+i_t)
 !                write(6,*)' doubtful skint replaced with 1st sigma level t, j,i,mype,sfct=',&
 !                     j,i,mype,sfct(j,i,it)
                  num_doubtful_sfct=num_doubtful_sfct+1
@@ -776,7 +797,7 @@ subroutine read_2d_guess(mype)
            end do
         end do
      end do
-     
+
      call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
           0,mpi_comm_world,ierror)
      if(mype==0) write(6,*)' in read_2d_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
@@ -790,7 +811,7 @@ subroutine read_2d_guess(mype)
           minval(soil_type),maxval(soil_type)
      if(mype==10) write(6,*)' in read_2d_guess, min,max(isli)=', &
           minval(isli),maxval(isli)
-     
+
      deallocate(all_loc,jsig_skip,igtype,identity)
      deallocate(temp1,itemp1,temp1u,temp1v)
 
@@ -848,6 +869,7 @@ subroutine wr2d_binary(mype)
   real(r_kind),parameter:: r225=225.0_r_kind
 
 ! Declare local variables
+
   integer(i_kind) im,jm,lm
   real(r_single),allocatable::temp1(:),temp1u(:),temp1v(:),tempa(:),tempb(:)
   real(r_single),allocatable::all_loc(:,:,:)
@@ -882,7 +904,7 @@ subroutine wr2d_binary(mype)
   i_v=i_u+lm
   i_sst=i_v+lm
   i_skt=i_sst+1
-  
+
   allocate(temp1(im*jm),temp1u((im+1)*jm),temp1v(im*(jm+1)))
   allocate(temp1_ps(im*jm))
   allocate(temp1_prh(im*jm))
@@ -900,7 +922,7 @@ subroutine wr2d_binary(mype)
 
 ! Convert analysis variables to 2D variables
   it=ntguessig
-  
+
 ! Create all_loc from ges_*
   if(mype == 0) write(6,*)' at 3 in wr2d_binary'
   all_loc=zero_single
@@ -931,7 +953,7 @@ subroutine wr2d_binary(mype)
         all_loc_ps(j,i)=ges_ps(j,i,it)
      end do
   end do
-  
+
   if(mype == 0) then
      read(iog) regional_time0,nlon_regional0,nlat_regional0,nsig0
      write(ioan) regional_time0,nlon_regional0,nlat_regional0,nsig0
@@ -940,7 +962,7 @@ subroutine wr2d_binary(mype)
      read(iog) glon0,dy_mc0
      write(ioan) glon0,dy_mc0
   end if
-  
+
 ! Update psfc
   if(mype == 0) write(6,*)' at 6 in wr2d_binary'
 
@@ -1000,7 +1022,7 @@ subroutine wr2d_binary(mype)
 ! Update q
   kq=i_q-1
   do k=1,nsig
-     kq=kq+1 
+     kq=kq+1
      if(mype == 0) then
        read(iog)temp1
        temp1_prh=temp1
@@ -1041,7 +1063,7 @@ subroutine wr2d_binary(mype)
 ! Update u
   ku=i_u-1
   do k=1,nsig
-     ku=ku+1   
+     ku=ku+1
      if(mype == 0) read(iog)temp1
      call strip_single(all_loc(1,1,ku),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
@@ -1078,7 +1100,7 @@ subroutine wr2d_binary(mype)
      write(ioan)temp1_ps !increment of ps
      write(ioan)temp1_prh  !increment of pseudo RH
   endif
-  
+
 ! Load updated skin temperature array if writing out to analysis file
   if (update_regsfc) then ! set to .false.
      do i=1,lon1+2
@@ -1126,7 +1148,7 @@ subroutine wr2d_binary(mype)
         write(ioan)temp1
      end if
   end if   !end if check updatesfc
-  
+
 ! REST OF FIELDS
   if (mype == 0) then
      do k=4,11
@@ -1134,7 +1156,7 @@ subroutine wr2d_binary(mype)
         write(ioan)temp1
      end do
   end if
-  
+
 ! Update SKIN TEMP
   if(update_regsfc) then
      if(mype == 0) read(iog)temp1
@@ -1147,7 +1169,7 @@ subroutine wr2d_binary(mype)
         do i=1,iglobal
            if(tempb(i) < (r225)) then
               tempa(i)=zero_single
-           else 
+           else
               tempa(i)=tempa(i)-tempb(i)
            end if
         end do
@@ -1192,6 +1214,724 @@ subroutine wr2d_binary(mype)
   deallocate(all_loc_qsatg)
   deallocate(all_loc_prh)
   deallocate(strp)
-  
+
 end subroutine wr2d_binary
 !----------------------------------------------------------------------------------
+module ndfdgrids
+!$$$  module documentation block
+!                .      .    .                                       .
+! module:    ndfdgrids
+! prgmmr: pondeca          org: np23                date: 2008-11-04
+!
+! abstract: get navigational information pertaining to ndfd grid and
+!           initialize other variables used with the rtma applications
+!           of the gsi.
+!
+! program history log:
+!   2008-11-04  pondeca - consolidate scattered routines into current
+!                         module
+!
+! Uses:
+  use kinds, only: i_kind,r_single,r_kind
+
+  implicit none
+
+  character(60) cgrid
+  integer(i_kind) nx,ny
+  real(r_single),allocatable::slmask(:,:)
+  real(r_single),allocatable::terrain(:,:)
+  real(r_kind) da8,alat18,elon18,elonv8,alatan8,xx8,yy8
+
+  real(r_kind) oberrinflfact
+  integer(i_kind) ineighbour,jneighbour
+  logical ladjusterr
+  logical fexist
+
+!PRIVATE
+!PUBLIC init_ndfdgrid
+!PUBLIC ndfdgrid_info
+!PUBLIC latlon_to_grid0
+!PUBLIC terrain_slmask
+!PUBLIC adjust_error
+ PRIVATE nx,ny
+
+contains
+
+subroutine init_ndfdgrid
+!$$$  subprogram documentation block
+!
+!   prgmmr: pondeca           org: np20                date: 2008-11-04
+!
+! abstract: get navigational information pertaining to ndfd grid and
+!           initialize other variables used with the rtma applications
+!           of the gsi.
+!
+! program history log:
+!   2008-11-04  pondeca
+!
+! input argument list:
+!
+! output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+! Uses:
+
+  implicit none
+
+  namelist/parmcardreadprepb/cgrid,ladjusterr,oberrinflfact, & 
+                             ineighbour,jneighbour 
+
+  cgrid='conus'
+  ladjusterr=.false.
+  oberrinflfact=5.0
+  ineighbour=3
+  jneighbour=3
+
+  inquire(file='parmcard_input',exist=fexist)
+  if (fexist) then
+     open(55,file='parmcard_input',form='formatted')
+     read(55,parmcardreadprepb)
+     close(55)
+  endif
+
+  print*,'in init_ndfdgrid: cgrid=',cgrid
+  print*,'in init_ndfdgrid: ladjusterr =',ladjusterr
+  print*,'in init_ndfdgrid: oberrinflfact=',oberrinflfact
+  print*,'in init_ndfdgrid: ineighbour=',ineighbour
+  print*,'in init_ndfdgrid: jneighbour=',jneighbour
+
+  call ndfdgrid_info
+
+  print*,'in init_ndfdgrid: nx,ny,gridspacing=',nx,ny,da8
+  print*,'in init_ndfdgrid: alat18,elon18,elonv8,alatan=',& 
+                            alat18,elon18,elonv8,alatan8
+
+  allocate(slmask(nx,ny))
+  open (55,file='rtma_slmask.dat',form='unformatted')
+  read(55) slmask
+  close(55)
+
+  allocate(terrain(nx,ny))
+  open (55,file='rtma_terrain.dat',form='unformatted')
+  read(55) terrain
+  close(55)
+
+end subroutine init_ndfdgrid
+
+subroutine ndfdgrid_info
+!$$$  subprogram documentation block
+!
+!   prgmmr: pondeca           org: np20                date: 2008-11-04
+!
+! abstract: contains navigational information pertaining to ndfd grid
+!
+! program history log:
+!   2008-11-04  pondeca  
+!
+! input argument list:
+!   cgrid  - grid name (can be 'conus','alaska','hawaii','prico', or 'guam')
+!
+! output argument list:
+!    nx - number of grid points in the x-direction
+!    ny - number of grid points in the y-direction
+!    da8 - grid spacing in km
+!    alat18 - latitude of first grid point (lower-left point)
+!    elon18 - east longitude of first grid point (lower-left point)
+!    elonv8 - east longitude at each y-axis is parallel to meridian 
+!    alatan8 - true latitude of the projection
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+! Uses:
+  use kinds, only: r_kind
+
+  implicit none
+       
+  if (trim(cgrid) == 'conus') then
+    nx=1073
+    ny=689
+    alat18=20.192_r_kind
+    elon18=238.446_r_kind
+    da8=5079.406_r_kind
+    elonv8=265.000_r_kind
+    alatan8=25.000_r_kind
+
+   elseif (trim(cgrid) == 'alaska') then 
+    nx=825
+    ny=553
+    alat18=40.530101_r_kind
+    elon18=181.429000_r_kind
+    da8=5953.125_r_kind
+    elonv8=210.000000_r_kind
+    alatan8=60.000000_r_kind
+
+   elseif (trim(cgrid) == 'hawaii') then 
+    nx=321
+    ny=225
+    alat18=18.066780_r_kind
+    elon18=198.374755_r_kind
+    da8=2500.000_r_kind
+    elonv8=9999._r_kind
+    alatan8=20.000000_r_kind
+
+   elseif (trim(cgrid) == 'prico') then 
+    nx=177
+    ny=129
+    alat18=16.828685_r_kind
+    elon18=291.804687_r_kind
+    da8=2500.000_r_kind
+    elonv8=9999._r_kind
+    alatan8=20.000000_r_kind
+
+   elseif (trim(cgrid) == 'guam') then 
+    nx=193
+    ny=193
+    alat18=12.349884_r_kind
+    elon18=143.686538_r_kind
+    da8=2500.000_r_kind
+    elonv8=9999._r_kind
+    alatan8=20.000000_r_kind
+
+   else
+      print*,'in ndfdgrid_info: unknown grid ',cgrid,'...aborting'
+      call abort
+  endif
+
+end subroutine ndfdgrid_info
+!****************************************************************
+subroutine latlon_to_grid0(rlat8,rlon8,xx8,yy8)
+!$$$  subprogram documentation block
+!
+!   prgmmr: pondeca           org: np20                date: 2008-11-04
+!
+! abstract: given the earth (lat,lon) for a selected point on the ndfd grid,
+! use w3 subroutines to compute the (x,y) coordinates on the
+! projected cartesian grid
+!
+! program history log:
+!   2008-11-04  pondeca  
+!
+! input argument list:
+!   rlon8  - east longitude in degrees
+!   rlat8  - latitude in degrees
+!
+! output argument list:
+!    xx8 - x coordinate on the plane projected grid 
+!    yy8 - y coordinate on the plane projected grid
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+! Uses:
+  use kinds, only: r_kind
+
+  implicit none
+
+  real(r_kind),intent(in)::rlat8,rlon8
+  real(r_kind),intent(out)::xx8,yy8
+
+  if (trim(cgrid)=='conus') then
+   call w3fb11(rlat8,rlon8,alat18,elon18,da8,elonv8,alatan8,xx8,yy8)
+  endif
+
+  if (trim(cgrid)=='alaska') then
+   call w3fb06(rlat8,rlon8,alat18,elon18,da8,elonv8,xx8,yy8) 
+  endif
+
+  if (trim(cgrid)=='hawaii' .or. trim(cgrid)=='guam' .or. trim(cgrid)=='prico') then
+   call w3fb08(rlat8,rlon8,alat18,elon18,alatan8,da8,xx8,yy8)
+  endif
+
+end subroutine latlon_to_grid0
+!****************************************************************
+subroutine terrain_slmask(radrlat8,radrlon8,hgt0,slm0)
+!$$$  subprogram documentation block
+!
+!   prgmmr: pondeca           org: np20                date: 2008-11-04
+!
+! abstract: given the earth (lat,lon) for a selected point on the ndfd grid,
+! find the interpolated terrain value and the slmask value 
+! of the nearest grid point.
+!
+! program history log:
+!   2008-11-04  pondeca  
+!
+! input argument list:
+!   radrlon8  - east longitude in radians
+!   radrlat8  - latitude in radians
+!
+! output argument list:
+!    hgt0 - interpolated terrain value
+!    slm0 - slmask value of nearest point
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+! Uses:
+  use kinds, only: i_kind,r_single,r_kind
+  use constants, only: zero,one,rad2deg
+
+  implicit none
+
+  real(r_kind),intent(in):: radrlat8,radrlon8
+  real(r_kind),intent(out):: hgt0,slm0
+
+! Declare local variables
+  real(r_single) hgt04
+  integer(i_kind) ii,jj
+  real(r_kind) rlon8,rlat8,xx8,yy8
+  real(r_single) xx,yy
+
+  rlon8=radrlon8*rad2deg
+  if (rlon8 .lt. zero) rlon8=rlon8+360._r_kind
+  rlat8=radrlat8*rad2deg
+
+  call latlon_to_grid0(rlat8,rlon8,xx8,yy8)
+
+  xx=xx8
+  yy=yy8
+
+  hgt04=hgt0
+  call bilinear_2d0(terrain,nx,ny,hgt04,yy,xx)!Note the reverse order "yy,xx"
+  hgt0=hgt04*one
+
+  ii=max(1,min(nx,nint(xx)))
+  jj=max(1,min(ny,nint(yy)))
+
+  slm0=slmask(ii,jj)*one
+
+end subroutine terrain_slmask
+!****************************************************************
+subroutine adjust_error(alon,alat,oberr,oberr2,iobtype)
+!$$$  subprogram documentation block
+!
+!   prgmmr: pondeca           org: np20                date: 2008-11-04
+!
+! abstract: Inflate the observation error is the ob is near a land-water
+! boundary
+!
+! program history log:
+!   2008-11-04  pondeca  
+!
+! input argument list:
+!   alon  - observation east longitude in radians 
+!   alat  - observation latitude in radians
+!   oberr  - observation error
+!   oberr2  - observation error
+!
+! output argument list:
+!   oberr  - observation error
+!   oberr2  - observation error
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+! Uses:
+  use kinds, only: r_kind,r_single,i_kind
+  use constants, only: zero
+
+  implicit none
+
+
+! Declare passed variables
+  integer(i_kind), intent(in)::iobtype
+  real (r_kind), intent(in)::alon,alat
+  real (r_kind), intent(inout)::oberr,oberr2
+
+! Declare local variables
+  integer(i_kind) i,j,istart,jstart,is,ie,js,je
+  real (r_single) rsign1,rsign2
+  real(r_kind) rlat8,rlon8,xx8,yy8
+  logical lcase1 !handle exception for Islands off of Southern California
+ 
+  if (.not.ladjusterr) return
+
+  rlon8=real(alon,r_kind)
+  rlat8=real(alat,r_kind)
+
+  if (rlon8.gt.180._r_kind) rlon8=rlon8-360._r_kind
+
+  lcase1=(rlon8.ge.-122._r_kind .and. rlon8.le.-117._r_kind & 
+            .and. rlat8.ge.32._r_kind .and. rlat8.le.35._r_kind)
+
+  if (trim(cgrid)=='conus') then
+    if(lcase1) return
+  endif
+
+  if (rlon8 .lt. zero) rlon8=rlon8+360._r_kind
+
+  call latlon_to_grid0(rlat8,rlon8,xx8,yy8)
+
+  istart=floor(xx8)
+  jstart=floor(yy8)
+
+! print*,'in adjust_error: alon,rlon8,alat,rlat8,istart,jstart=', & 
+!                          alon,rlon8,alat,rlat8,istart,jstart
+! print*,'in adjust_error: slmask,min,max=',minval(slmask),maxval(slmask)
+! print*,'in adjust_error: before, oberr,oberr2=',oberr,oberr2
+  
+  is=max(1,(istart-ineighbour))
+  ie=min((istart+ineighbour),nx)
+  js=max(1,(jstart-jneighbour))
+  je=min((jstart+jneighbour),ny)
+
+  if (slmask(is,js) .le. 0.5_r_single) rsign1=-1.
+  if (slmask(is,js) .gt. 0.5_r_single) rsign1=+1.
+
+  do j=js,je
+  do i=is,ie
+     if (slmask(i,j) .le. 0.5_r_single) rsign2=-1.
+     if (slmask(i,j) .gt. 0.5_r_single) rsign2=+1.
+     if (rsign1*rsign2 .lt.0._r_single) then
+       oberr=oberr*oberrinflfact
+       oberr2=oberr2*oberrinflfact
+       goto 100 
+     endif
+  enddo 
+  enddo 
+100 continue
+! print*,'in adjust_error: after, oberr,oberr2=',oberr,oberr2
+end subroutine adjust_error
+
+subroutine  destroy_ndfdgrid
+  implicit none
+
+  deallocate(slmask)
+  deallocate(terrain)
+end subroutine destroy_ndfdgrid
+
+end module ndfdgrids
+!************************************************************
+!************************************************************
+module hilbertcurve
+!$$$  module documentation block
+!                .      .    .                                       .
+! module:    hilbertcurve
+! prgmmr: park             org: kma                 date: 2006-09-29
+!
+! abstract: contains subroutines to compute cross-validation datasets
+!           using jim purser's hilbert curve approach
+!
+! program history log:
+!   2006-09-29  park 
+!   2008-11-04  pondeca - consolidate code by putting subroutines
+!                         in a module. note: code is designed to handle
+!                         each ob-type (eg. T, uv, q, etc) separately.
+!                         The following restrictions apply: 
+!                         (i) in convinfo, the number of cross-validating
+!                         groups should be the same for all ob-subtypes
+!                         of a given ob type such as T. In other words, it must
+!                         be the same for subtypes 180, 181, etc. of the T-obs.
+!                         If they are not the same, then the number of
+!                         cross-validating subsets used by purser's hilbert curve 
+!                         routine will be equal to the last number
+!                         of groups that the code reads in for that ob type in
+!                         read_prepbufr.f90; 
+!                         (ii) the code will not work properly if there is more 
+!                         than one processor handling the same ob type or if the
+!                         same processor handles more than one ob-type. This
+!                         poses no threat to the RTMA so far, but nonetheless it is
+!                         something that will have to be dealt with in the future. 
+!                        
+!
+! Uses:
+  use kinds, only: i_kind,r_kind
+
+  implicit none
+
+  integer(i_kind) ncross
+  real(r_kind),allocatable,dimension(:):: hil_dlon
+  real(r_kind),allocatable,dimension(:):: hil_dlat
+  integer(i_kind),allocatable,dimension(:):: hil_ikx
+  integer(i_kind),allocatable,dimension(:):: hil_kx
+  integer(i_kind),allocatable,dimension(:):: hil_i
+  integer(i_kind),allocatable,dimension(:):: test_set
+
+
+!PRIVATE
+!PUBLIC init_hilbertcurve
+!PUBLIC accum_hilbertcurve
+!PUBLIC apply_hilbertcurve
+
+contains
+
+subroutine init_hilbertcurve(maxobs)
+
+  implicit none
+
+  integer(i_kind),intent(in):: maxobs
+
+  ncross=0
+
+  allocate(hil_dlon(maxobs))
+  allocate(hil_dlat(maxobs))
+  allocate(hil_ikx(maxobs))
+  allocate(hil_kx(maxobs))
+  allocate(hil_i(maxobs))
+
+end subroutine init_hilbertcurve
+
+subroutine accum_hilbertcurve(usage,dlat,dlon,ikx,kx,ndata)
+!Uses:
+  use kinds, only: i_kind,r_kind
+  use convinfo, only: ncnumgrp,ncgroup
+  use  gridmod, only: nlon,nlat
+
+  implicit none
+
+  real(r_kind),intent(in)::usage,dlat,dlon
+  integer(i_kind),intent(in)::ikx,kx,ndata
+
+      if(ncnumgrp(ikx) > 0 .and. usage < 6._r_kind) then
+         ncross=ncross+1
+         hil_dlat(ncross)=dlat/nlat
+         hil_dlon(ncross)=dlon/nlon
+         hil_ikx(ncross)=ikx
+         hil_kx(ncross)=kx
+         hil_i(ncross)=ndata
+
+!        write(6,*) 'CHECK0:',ndata,ncross,hil_ikx(ncross),hil_kx(ncross), & 
+!                    ncnumgrp(hil_ikx(ncross)),ncgroup(hil_ikx(ncross))
+      endif
+
+end subroutine accum_hilbertcurve
+
+subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdob, & 
+                              psob,kpsob,qob,kqob,pwob,kpwob,sstob,ksstob)
+
+!Uses:
+  use convinfo, only:  ncmiter,ncgroup,ncnumgrp
+
+  implicit none
+
+
+!Declare passed variables
+  logical,intent(in):: tob,uvob,spdob,psob,qob,pwob,sstob
+  integer(i_kind),intent(in):: ktob,kuvob,kspdob,kpsob,kqob,kpwob,ksstob
+  integer(i_kind),intent(in):: maxobs,k1,k2
+  real(r_kind),intent(inout):: cdata(k1:k2,maxobs)
+
+!Declare local variables
+  integer(i_kind) i,n,ncnumgrp0,ncgroup0
+  real(r_kind) usage
+  character(60) outfile
+  character(2) clun
+
+  
+
+      if(ncross.gt.0) then
+
+        allocate(test_set(ncross))
+
+        ncnumgrp0=ncnumgrp(hil_ikx(ncross)) ! number of cross-validating datasets is
+                                            ! chosen to be the last "number of groups" 
+                                            ! specified in convinfo for that ob type. 
+                                            ! there is no particular reason to do so.
+
+        call hilbert(ncnumgrp0,ncross,hil_dlon(1:ncross),hil_dlat(1:ncross),test_set)
+
+        do i=1,ncross
+
+          ncgroup0=ncgroup(hil_ikx(i))      !note: convinfo must be set up so that this 
+                                            !is the same group element for all ob subtypes 
+                                            !of a given ob type 
+
+          if (test_set(i).eq.ncgroup0) then
+
+            usage=ncmiter(hil_ikx(i))
+
+            if(tob)   cdata(ktob,hil_i(i))=usage
+
+            if(uvob)  cdata(kuvob,hil_i(i))=usage
+
+            if(spdob) cdata(kspdob,hil_i(i))=usage
+
+            if(psob)  cdata(kpsob,hil_i(i))=usage
+
+            if(qob)   cdata(kqob,hil_i(i))=usage
+
+            if(pwob)  cdata(kpwob,hil_i(i))=usage
+
+            if(sstob) cdata(ksstob,hil_i(i))=usage
+
+          endif
+
+!         write(6,*) 'CHECK2:',i,test_set(i),ncgroup(hil_ikx(i)),ncross
+        end do
+
+      endif
+
+!       do n=1,ncnumgrp0
+!          write(clun,"(i2.2)") n
+!          if(tob)   outfile='tobs_cvalidation_group_'//clun
+!          if(uvob)  outfile='uvobs_cvalidation_group_'//clun
+!          if(spdob) outfile='spdobs_cvalidation_group_'//clun
+!          if(psob)  outfile='psobs_cvalidation_group_'//clun
+!          if(qob)   outfile='qobs_cvalidation_group_'//clun
+!          open (92,file=trim(outfile),form='unformatted')
+!          close(92)
+!       enddo
+
+end subroutine apply_hilbertcurve
+
+subroutine destroy_hilbertcurve
+  implicit none
+
+  deallocate(hil_dlon)
+  deallocate(hil_dlat)
+  deallocate(hil_ikx)
+  deallocate(hil_kx)
+  deallocate(hil_i)
+  if (ncross .gt. 0) deallocate(test_set)
+
+end subroutine destroy_hilbertcurve
+end module hilbertcurve
+!************************************************************
+subroutine mkheader_madis_and_time_rejects(cobtype,lun)
+
+  use kinds, only: i_kind
+  implicit none
+
+  character(10),intent(in)::cobtype
+  integer(i_kind),intent(in)::lun
+
+  character(96) cheader
+
+  cheader='stnname   obtype   lat(dg)  lon(dg E)   dtime      ob          qctype'
+
+  if (trim(cobtype)=='t') then
+     write(lun,*)   'RTMA TEMPERATURE OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
+     write(lun,*)   'OB UNITS are K'
+  endif
+
+  if (trim(cobtype)=='q') then
+     write(lun,*)   'RTMA SPECIFIC HUMIDITY OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
+     write(lun,*)   'OB UNITS are g/Kg'
+  endif
+
+  if (trim(cobtype)=='ps') then
+     write(lun,*)   'RTMA SURFACE PRESSURE OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
+     write(lun,*)   'OB UNITS are Pa'
+  endif
+
+  if (trim(cobtype)=='uv') then
+     write(lun,*)   'RTMA WIND OBS (sqrt(u**2+v**2)) FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
+     write(lun,*)   'OB UNITS are m/s'
+  endif
+
+  if (trim(cobtype)=='spd') then
+     write(lun,*)   'RTMA WIND SPEED OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
+     write(lun,*)   'OB UNITS are m/s'
+  endif
+
+  write(lun,*)   'dtime is the hour relative to the analysis time. For example, dtime=-0.1'
+  write(lun,*)   '             means 0.1h (i.e. 6 minutes) before the analysis time'
+  write(lun,*)   'qctype=1 ==> ob lies outside assimilation time window'
+  write(lun,*)   'qctype=2 ==> MADIS QC related reject'
+  write(lun,*)   'qctype=3 ==> MADIS QC related reject'
+  write(lun,*)   'qctype=4 ==> MADIS QC related reject'
+  write(lun,*)   '                              '
+  write(lun,*)   cheader
+
+end subroutine mkheader_madis_and_time_rejects
+!------------------------------------------------------
+!------------------------------------------------------
+subroutine get_stndewpt(p,q,t,td,lboundtd)
+!
+!==> input variables
+!    q-specific humidity ; p-pressure in Pa
+
+!==> output variable
+!  td-dewpoint in K
+!
+  use kinds, only: r_kind
+  use constants, only: one
+  implicit none
+
+! Declare local parameters
+  real(r_kind),parameter::eps=0.62197    !=Rd/Rv
+  real(r_kind),parameter::a=243.5_r_kind
+  real(r_kind),parameter::b=440.8_r_kind
+  real(r_kind),parameter::c=19.48_r_kind
+  real(r_kind),parameter::c2k=273.15_r_kind
+  real(r_kind),parameter:: r100=100.0_r_kind
+
+! Declare passed variables
+  real(r_kind),intent(in):: p,q,t
+  real(r_kind),intent(out):: td
+  logical,intent(in):: lboundtd
+
+! Declare local variables
+  real(r_kind)  e, qv, eln
+
+  qv=q/(one-q)
+  e=p/r100*qv/(eps+qv)
+  eln=log(e)
+  td = (a*eln-b)/(c-eln)+c2k
+  if (lboundtd) td = min(t,td)
+
+end subroutine get_stndewpt
+!************************************************************
+!------------------------------------------------------
+      subroutine bilinear_2d0(rffcst,ix,jx,rfobs,xx,yy)
+!
+!      input: rffcst (model grid value.)
+!      output: rfobs (interpolated value)
+!      const: xx,yy (define coordinates in grid units
+!                    of point for which interpolation is
+!                    performed)
+!
+!
+!     i+1,j |          | i+1,j+1
+!         --+----------+---
+!           |          | dym
+!           |    *     + -
+!           |   x,y    | dy
+!           |          |
+!         --+----+-----+---
+!        i,j|<dx>|<dxm>| i,j+1
+!*******************************************************************
+      use kinds, only: r_single,i_kind
+
+      implicit none
+
+!declare passed variables
+      integer(i_kind),intent(in):: ix,jx
+      real(r_single),intent(in)::rffcst(ix,jx)
+      real(r_single),intent(out):: rfobs
+
+!declare local variables
+      integer(i_kind) i,j
+      real(r_single) xx,yy,dx,dy,dxm,dym
+
+      i  = ifix(yy)
+      j  = ifix(xx)
+      if((i.ge.1) .and. (i.le.(ix-1)) .and. &
+         (j.ge.1) .and. (j.le.(jx-1)) ) then
+        dx = xx - float(j)
+        dy = yy - float(i)
+        dxm= 1.0-dx
+        dym= 1.0-dy
+          rfobs=dxm*(dym*rffcst(i,j)+dy*rffcst(i+1,j)) &
+                   + dx *(dym*rffcst(i,j+1)+dy*rffcst(i+1,j+1))
+      else
+        rfobs=1.e+39
+      endif
+
+      return
+      end
+!------------------------------------------------------

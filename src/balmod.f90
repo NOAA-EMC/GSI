@@ -396,11 +396,11 @@ contains
 
 !   Alternatively, zero out all balance correlation matrices
 !   for univariate surface analysis
-!    if (twodvar_regional) then
-!       bvz(:,:)=zero
-!       agvz(:,:,:)=zero
-!       wgvz(:,:)=zero
-!    endif
+     if (twodvar_regional) then
+        bvz(:,:)=zero
+        agvz(:,:,:)=zero
+        wgvz(:,:)=zero
+     endif
     
     deallocate ( corz,corp,hwll,hwllp,vz,agvi,bvi,wgvi)
     

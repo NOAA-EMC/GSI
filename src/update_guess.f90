@@ -58,6 +58,7 @@ subroutine update_guess(sval,sbias)
 !   2007-05-30  h.liu - remove ozone units conversion
 !   2008-10-10  derber  - flip indices for predx and predxp
 !   2009-01-28  todling - remove reference to original GMAO interface
+!   2009-07-08  pondeca - add logical 'tsensible' for use with 2dvar only
 !
 !   input argument list:
 !     xhat     - analysis increment in grid space
@@ -75,7 +76,7 @@ subroutine update_guess(sval,sbias)
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
   use constants, only: zero, one, ozcon, fv, tiny_r_kind
-  use jfunc, only: iout_iter,biascor
+  use jfunc, only: iout_iter,biascor,tsensible
   use gridmod, only: lat1,lon1,lat2,lon2,nsig,nlon,nlat,&
        regional,twodvar_regional
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
@@ -138,11 +139,17 @@ subroutine update_guess(sval,sbias)
               ijk=ijk+1
               ges_u(i,j,k,it)    =                 ges_u(i,j,k,it)    + sval(ii)%u(ijk)
               ges_v(i,j,k,it)    =                 ges_v(i,j,k,it)    + sval(ii)%v(ijk)
-              ges_tv(i,j,k,it)   =                 ges_tv(i,j,k,it)   + sval(ii)%t(ijk)
 !_RT          ges_q(i,j,k,it)    = max(tiny_r_kind,ges_q(i,j,k,it)    + sval(ii)%q(ijk))
               ges_q(i,j,k,it)    =                 ges_q(i,j,k,it)    + sval(ii)%q(ijk) 
+              if (.not.twodvar_regional .or. .not.tsensible) then
+                ges_tv(i,j,k,it)   =                ges_tv(i,j,k,it)   + sval(ii)%t(ijk)
 !  produce sensible temperature
-              ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*max(zero,ges_q(i,j,k,it)))
+                ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*max(zero,ges_q(i,j,k,it)))
+              else
+                ges_tsen(i,j,k,it) =                ges_tsen(i,j,k,it)   + sval(ii)%t(ijk)
+!  produce virtual temperature
+                ges_tv(i,j,k,it)   = ges_tsen(i,j,k,it)*(one+fv*max(zero,ges_q(i,j,k,it)))
+              endif
 
 !             Note:  Below variables only used in NCEP GFS model
 !_RT          ges_oz(i,j,k,it)   = max(tiny_r_kind,ges_oz(i,j,k,it)   + sval(ii)%oz(ijk))

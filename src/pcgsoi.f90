@@ -61,9 +61,12 @@ subroutine pcgsoi()
 !   2007-07-05  todling - allow 4dvar to write out increment
 !   2007-09-30  todling - add timer
 !   2008-03-24  wu      - oberror tuning
+!   2008-11-03  sato - enables to use global anisotropic mode
 !   2008-12-01  todling - add init_/clean_ to allow clean way out from obs-error tuning
 !                       - updated interface to penal
 !   2009-01-28  todling - move write_all from glbsoi to here (consistent w/ 4dvar mods)
+!   2009-02-06  pondeca - add option to re-biorthogonalize the gradx and and grady vectors.
+!                         hardwired to work for 2dvar only
 !
 ! input argument list:
 !
@@ -85,10 +88,10 @@ subroutine pcgsoi()
   use jfunc, only: iter,jiter,jiterstart,jiterend,niter,miter,iout_iter,&
        nclen,nclen1,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution, &
-       niter_no_qc,l_foto,xhat_dt,print_diag_pcg
+       niter_no_qc,l_foto,xhat_dt,print_diag_pcg,lgschmidt
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, lwrtinc
   use gridmod, only: lat2,lon2,regional,twodvar_regional,latlon1n
-  use constants, only: zero,izero,one,five,tiny_r_kind
+  use constants, only: zero,izero,one,five,tiny_r_kind,ione
   use anberror, only: anisotropic
   use mpimod, only: mype
   use intallmod
@@ -99,6 +102,8 @@ subroutine pcgsoi()
   use bias_predictors
   use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
   use timermod, only: timer_ini,timer_fnl
+  use projmethod_support, only: init_mgram_schmidt, &
+                                mgram_schmidt,destroy_mgram_schmidt
 
   implicit none
 
@@ -121,6 +126,8 @@ subroutine pcgsoi()
   type(state_vector) :: sval(nobs_bins), rval(nobs_bins)
   type(state_vector) :: mval(nsubwin)
   type(predictors) :: sbias, rbias
+  logical:: lanlerr
+  
 
 !    note that xhatt,dirxt,xhatp,dirxp are added to carry corrected grid fields
 !      of t and p from implicit normal mode initialization (strong constraint option)
@@ -158,6 +165,10 @@ subroutine pcgsoi()
 ! Allocate required memory and initialize fields
   call init_
   if(print_diag_pcg)call prt_guess('guess')
+
+  lanlerr=.false.
+  if ( twodvar_regional .and. jiter==ione ) lanlerr=.true.
+  if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
 
 ! Perform inner iteration
   inner_iteration: do iter=izero,niter(jiter)
@@ -236,22 +247,29 @@ subroutine pcgsoi()
 !$omp parallel do
      do i=1,nclen
        gradx%values(i)=gradx%values(i)+yhatsave%values(i)
-       ydiff%values(i)=gradx%values(i)-ydiff%values(i)
      end do
 !$omp end parallel do
 
 !    Multiply by background error
      if(anisotropic) then
-       if(regional) then
-         call anbkerror_reg(gradx,grady)
-       else
-     !     NOT AVAILABLE YET
-     !   call anbkerror(gradx,grady)
-          write(6,*)'PCGSOI:  ***ERROR*** global anisotropic option new yet available'
-          call stop2(-1)
-       end if
+        call anbkerror(gradx,grady)
+        if(lanlerr .and. lgschmidt) call mgram_schmidt(gradx,grady)
      else
        call bkerror(gradx,grady)
+     end if
+
+     if (lanlerr) then
+!$omp parallel do
+       do i=1,nclen
+          ydiff%values(i)=gradx%values(i)
+       end do
+!$omp end parallel do
+     else
+!$omp parallel do
+       do i=1,nclen
+          ydiff%values(i)=gradx%values(i)-ydiff%values(i)
+       end do
+!$omp end parallel do
      end if
 
      if (iter==0 .and. print_diag_pcg) then
@@ -307,6 +325,8 @@ subroutine pcgsoi()
 !    Calculate stepsize
      call stpcalc(stp,sval,sbias,xhat,dirx,rval,rbias, &
                   diry,penalty,fjcost,end_iter)
+
+     if (lanlerr) call writeout_gradients(gradx,grady,niter(jiter),stp,b,mype)
 
 !    Diagnostic calculations
      if (iter==0) then
@@ -389,6 +409,8 @@ subroutine pcgsoi()
 
   end do inner_iteration
 
+  if (lanlerr .and. lgschmidt) call destroy_mgram_schmidt
+
 ! Calculate adjusted observation error factor
   if( oberror_tune .and. (.not.l4dvar) ) then
      if (mype == 0) write(6,*) 'PCGSOI:  call penal for obs perturbation'
@@ -433,14 +455,7 @@ subroutine pcgsoi()
 
 ! Multiply by background error
   if(anisotropic) then
-    if(regional) then
-      call anbkerror_reg(gradx,grady)
-    else
-  !     NOT AVAILABLE YET
-  !   call anbkerror(gradx,grady)
-       write(6,*)'PCGSOI:  ***ERROR*** global anisotropic option new yet available'
-       call stop2(-1)
-    end if
+    call anbkerror(gradx,grady)
   else
     call bkerror(gradx,grady)
   end if

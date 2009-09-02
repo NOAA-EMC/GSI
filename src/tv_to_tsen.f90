@@ -10,6 +10,7 @@ subroutine tv_to_tsen(tv,q,tsen)
 !   2006-07-17  derber
 !   2008-03-31  safford - rm unused uses
 !   2008-10-14  derber - modify to use fact_tv
+!   2008-11-03  sato - change for twodvar_regional
 !   2008-11-28  todling - no longer does tendencies (need to call twice)
 !
 !   input argument list:
@@ -25,9 +26,10 @@ subroutine tv_to_tsen(tv,q,tsen)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nsig
+  use gridmod, only: lat2,lon2,nsig,twodvar_regional
   use constants, only: zero,fv,one
   use guess_grids, only: ges_tv,ges_q,ges_tsen,fact_tv,ntguessig
+  use jfunc, only: tsensible
 
   implicit none
 
@@ -35,19 +37,23 @@ subroutine tv_to_tsen(tv,q,tsen)
   real(r_kind),intent(in):: q(lat2,lon2,nsig)
 
   real(r_kind),intent(out):: tsen(lat2,lon2,nsig)
-  
+
 ! local arrays
   integer(i_kind) i,j,k
 
 ! Convert normalized tv to tsen
-  do k=1,nsig
-     do j=1,lon2
+  if (twodvar_regional .and. tsensible) then
+    tsen=tv
+  else
+    do k=1,nsig
+      do j=1,lon2
         do i=1,lat2
           tsen(i,j,k)=(tv(i,j,k)-fv*ges_tsen(i,j,k,ntguessig)*q(i,j,k))*fact_tv(i,j,k)
 
         end do
-     end do
-  end do
+      end do
+    end do
+  end if
 
 end subroutine tv_to_tsen
 
@@ -67,6 +73,7 @@ subroutine tv_to_tsen_ad(tv,q,tsen)
 !   2006-01-09  derber move sigsum calculation to compute_derived and clean up
 !   2008-03-31  safford - rm unused uses
 !   2008-10-14  derber - modify to use fact_tv
+!   2008-11-03  sato - change for twodvar_regional
 !   2008-11-28  todling - no longer does tendencies (need to call twice)
 !
 !   input argument list:
@@ -84,28 +91,33 @@ subroutine tv_to_tsen_ad(tv,q,tsen)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nsig
+  use gridmod, only: lat2,lon2,nsig,twodvar_regional
   use constants, only: zero,fv,one
   use guess_grids, only: ges_q,ges_tsen,fact_tv,ntguessig
+  use jfunc, only: tsensible
 
   implicit none
 
   real(r_kind),intent(inout):: tv(lat2,lon2,nsig)
   real(r_kind),intent(inout):: q(lat2,lon2,nsig)
   real(r_kind),intent(in):: tsen(lat2,lon2,nsig)
-  
+
 ! local variables:
   integer(i_kind) i,j,k
-  
+
 ! Adjoint of convert tv to t sensible
-  do k=1,nsig
-     do j=1,lon2
+  if (twodvar_regional .and. tsensible) then
+     tv=tv+tsen
+  else
+    do k=1,nsig
+      do j=1,lon2
         do i=1,lat2
           tv(i,j,k)=tv(i,j,k)+tsen(i,j,k)*fact_tv(i,j,k)
           q(i,j,k)=q(i,j,k)-tsen(i,j,k)*fv*ges_tsen(i,j,k,ntguessig)*fact_tv(i,j,k)
 
         end do
-     end do
-  end do
-  
+      end do
+    end do
+  end if
+
 end subroutine tv_to_tsen_ad

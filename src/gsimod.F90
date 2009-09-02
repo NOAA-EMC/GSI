@@ -18,7 +18,7 @@
      init_obsmod_dflts,create_obsmod_vars,write_diag,oberrflg,&
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,ndatmax,&
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune, &
-     blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver
+     blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,nhr_offset, &
@@ -44,12 +44,14 @@
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
-     bcoption,diurnalbc,print_diag_pcg
+     bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt
   use berror, only: norh,ndeg,vs,as,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
      bkgv_flowdep,bkgv_rewgtfct,bkgv_write,tsfc_sdv,fpsproj
-  use anberror, only: anisotropic,init_anberror,npass,ifilt_ord,triad4, &
-     binom,normal,ngauss,rgauss,an_amp,an_vs,&
-     grid_ratio,an_flen_u,an_flen_t,an_flen_z
+  use anberror, only: anisotropic,ancovmdl,init_anberror,npass,ifilt_ord,triad4, &
+     binom,normal,ngauss,rgauss,anhswgt,an_amp0,an_vs,&
+     grid_ratio,grid_ratio_p,an_flen_u,an_flen_t,an_flen_z, &
+     rtma_subdomain_option,nsmooth,nsmooth_shapiro,&
+     pf2aP1,pf2aP2,pf2aP3,afact0,covmap,lreadnorm
   use compact_diffs, only: noq,init_compact_diffs
   use jcmod, only: init_jcvars,ljcdfi,alphajc,ljcpdry,bamp_jcpdry
   use tendsmod, only: ctph0,stph0,tlm0
@@ -126,6 +128,7 @@
 !  28Jan2009  Todling   Remove original GMAO interface
 !  06Mar2009  Meunier   Add initialisation for lagrangian data
 !  04-21-2009 Derber    Ensure that ithin is positive if neg. set to zero
+!  07-08-2009 Sato      Update for anisotropic mode (global/ensemble based)
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -212,6 +215,12 @@
 !     crtm_coeffs_path - path of directory w/ CRTM coeffs files
 !     print_diag_pcg - logical turn on of printing of GMAO diagnostics in pcgsoi.f90
 !     preserve_restart_date - if true, then do not update regional restart file date.
+!     tsensible - option to use sensible temperature as the analysis variable. works
+!                 only for twodvar_regional=.true.
+!     lgschmidt - option for re-biorthogonalization of the {gradx} and {grady} sets
+!                 from pcgsoi when twodvar_regional=.true.
+!     hilbert_curve - option for hilbert-curve based cross-validation. works only
+!                     with twodvar_regional=.true.
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -235,7 +244,7 @@
        nwrvecs,ladtest,lgrtest,lobskeep,lsensrecompute, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
-       lferrscale,print_diag_pcg
+       lferrscale,print_diag_pcg,tsensible,lgschmidt
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -305,6 +314,7 @@
 
 ! ANBKGERR (anisotropic background error related variables):
 !     anisotropic - if true, then use anisotropic background error
+!     ancovmdl    - covariance model settings - 0: pt-based, 1: ensemble based
 !     triad4      - for 2d variables, if true, use blended triad algorithm
 !     ifilt_ord   - filter order for anisotropic filters
 !     npass       - 2*npass = number of factors in background error
@@ -316,29 +326,47 @@
 !                      on inside.  This can help to produce smoother correlations in the
 !                      presence of strong anisotrophy
 !     grid_ratio  - ratio of coarse to fine grid in fine grid units
+!     grid_ratio_p- ratio of coarse to fine grid in fine grid units for polar patches
 !     nord_f2a    - order of interpolation for transfer operators between filter grid and analysis grid
 !     ngauss      - number of gaussians to add together in each factor
 !     rgauss      - multipliers on reference aspect tensor for each gaussian factor
+!     anhswgt     - empirical weights to apply to each gaussian
 !     an_amp      - multiplying factors on reference background error variances
-!                    an_amp(k, 1) - streamfunction          (k=1,ngauss)
-!                    an_amp(k, 2) - velocity potential
-!                    an_amp(k, 3) - log(ps)
-!                    an_amp(k, 4) - temperature
-!                    an_amp(k, 5) - specific humidity
-!                    an_amp(k, 6) - ozone
-!                    an_amp(k, 7) - sea surface temperature
-!                    an_amp(k, 8) - cloud condensate mixing ratio
-!                    an_amp(k, 9) - land surface temperature
-!                    an_amp(k,10) - ice surface temperature
+!                    an_amp0( 1) - streamfunction
+!                    an_amp0( 2) - velocity potential
+!                    an_amp0( 3) - ps
+!                    an_amp0( 4) - temperature
+!                    an_amp0( 5) - moisture
+!                    an_amp0( 6) - ozone
+!                    an_amp0( 7) - sea surface temperature
+!                    an_amp0( 8) - cloud condensate mixing ratio
+!                    an_amp0( 9) - land surface temperature
+!                    an_amp0(10) - ice surface temperature
 !     an_vs       - scale factor for background error vertical scales (temporary carry over from
 !                    isotropic inhomogeneous option)
 !     an_flen_u   -  coupling parameter for connecting horizontal wind to background error
 !     an_flen_t   -  coupling parameter for connecting grad(pot temp) to background error
 !     an_flen_z   -  coupling parameter for connecting grad(terrain) to background error
+!     afact0      - anistropy effect parameter, the range must be in 0.0-1.0.
+!     covmap      - if true, covariance map would be drawn
+!     rtma_subdomain_option - if true, then call alternative code which calls recursive filter
+!                              directly from subdomain mode, bypassing transition to/from
+!                              horizontal slabs.  This is mainly to improve efficiency for
+!                              2d rtma analysis.  at the moment, this only works for
+!                              twodvar_regional=.true.  rtma_subdomain_option will be forced
+!                              to false when twodvar_regional=.false.
+!     lreadnorm   -  if true, then read normalization from fixed files
+!     nsmooth     -  number of 1-2-1 smoothing passes before and after background error application
+!     nsmooth_shapiro - number of 2nd moment preserving (shapiro) smoothing passes before and after
+!                       background error application.
+!                        NOTE:  default for nsmooth and nsmooth_shapiro is 0.
+!                               if both are > 0, then nsmooth will be forced to zero.
 
-  namelist/anbkgerr/anisotropic,triad4,ifilt_ord,npass,normal,binom,&
-       ngauss,rgauss,an_amp,an_vs, &
-       grid_ratio,nord_f2a,an_flen_u,an_flen_t,an_flen_z
+  namelist/anbkgerr/anisotropic,ancovmdl,triad4,ifilt_ord,npass,normal,binom,&
+       ngauss,rgauss,anhswgt,an_amp0,an_vs, &
+       grid_ratio,grid_ratio_p,nord_f2a,an_flen_u,an_flen_t,an_flen_z, &
+       rtma_subdomain_option,lreadnorm,nsmooth,nsmooth_shapiro, &
+       afact0,covmap
 
 ! JCOPTS (Jc term)
 !                 if .false., uses original formulation based on wind, temp, and ps tends
@@ -392,7 +420,7 @@
 !     use_poq7 - logical flag to accept (.true.) sbuv profile quality flag 7
 
   namelist/obsqc/ repe_dw,repe_gps,dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
-       c_varqc,blacklst,use_poq7
+       c_varqc,blacklst,use_poq7,hilbert_curve
 
 ! OBS_INPUT (controls input data):
 !      dfile(ndat)      - input observation file name
@@ -494,7 +522,9 @@
   call init_jfunc
   call init_berror
   call init_anberror
-  call init_fgrid2agrid
+  call init_fgrid2agrid(pf2aP1)
+  call init_fgrid2agrid(pf2aP2)
+  call init_fgrid2agrid(pf2aP3)
   call init_grid
   call init_spec
   call init_turbl

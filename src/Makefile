@@ -187,9 +187,13 @@ clean:
 	abor1.f90 \
         adjtest.f90 \
 	anberror.f90 \
-	anbkerror_reg.f90 \
+	anbkerror.f90 \
+	aniso_ens_util.f90 \
 	anisofilter.f90 \
+	anisofilter_glb.f90 \
         antcorr_application.f90 \
+	antest_maps0.f90 \
+	antest_maps0_glb.f90 \
 	balmod.f90 \
 	berror.f90 \
         bias_predictors.f90 \
@@ -254,6 +258,7 @@ clean:
 	gsisub.F90 \
 	guess_grids.F90 \
 	half_nmm_grid2.f90 \
+	hilbert_curve.f90 \
         inc2guess.f90 \
 	init_commvars.f90 \
         init_jcdfi.F90 \
@@ -322,17 +327,21 @@ clean:
 	omegas_ad.f90 \
 	oneobmod.F90 \
 	ozinfo.f90 \
+	patch2grid_mod.f90 \
 	pcgsoi.f90 \
 	pcgsqrt.f90 \
 	pcp_k.f90 \
 	pcpinfo.f90 \
         penal.f90 \
+	phil.f90 \
+	phil1.f90 \
 	plib8.f90 \
 	polcarf.f90 \
-        prt_guess.f90 \
 	precpd_ad.f90 \
 	prewgt.f90 \
 	prewgt_reg.f90 \
+	projmethod_support.f90 \
+        prt_guess.f90 \
 	psichi2uv_reg.f90 \
 	psichi2uvt_reg.f90 \
 	q_diag.f90 \
@@ -401,6 +410,7 @@ clean:
 	setupw.f90 \
 	setupyobs.f90 \
 	sfc_model.f90 \
+	sfcobsqc.f90 \
 	simpin1.f90 \
 	simpin1_init.f90 \
 	smooth_polcarf.f90 \
@@ -442,6 +452,7 @@ clean:
 	strong_baldiag_inc.f90 \
 	strong_fast_global_mod.f90 \
 	strong_slow_global_mod.f90 \
+	sub2fslab_mod.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
 	tendsmod.f90 \
@@ -463,6 +474,7 @@ clean:
 	unhalf_nmm_grid2.f90 \
 	update_guess.f90 \
 	update_geswtend.f90 \
+	wind_fft.f90 \
 	wrf_binary_interface.F90 \
 	wrf_netcdf_interface.F90 \
 	write_all.F90 \
