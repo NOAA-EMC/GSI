@@ -388,6 +388,7 @@ clean:
 	retrieval_mi.f90 \
 	rfdpar.f90 \
 	rsearch.F90 \
+        rtlnmc_version3.f90 \
 	satthin.F90 \
         setupbend.f90 \
 	setupdw.f90 \

@@ -15,6 +15,7 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 !               jcstrong_option = 1   -- then call original slow global application
 !                               = 2   -- then call faster global applicatioin
 !                               = 3   -- then call regional application
+!                               = 4   -- then call version 3 regional application
 !           
 !
 ! program history log:
@@ -82,6 +83,15 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 
     call zrnmi_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnostic,fullfield,update,mype)
 
+  elseif(jcstrong_option.eq.4) then
+
+!    version 3 regional option
+
+   !call fmg_strong_bal_correction_ad_test(u_t,v_t,t_t,ps_t,psi,chi,t,ps,mype)
+   !call zrnmi_filter_uvm_ad_test(mype)
+
+    call fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnostic,fullfield,update,mype)
+
   end if
 
 end subroutine strong_bal_correction
@@ -102,6 +112,7 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 !               jcstrong_option = 1   -- then call original slow global application
 !                               = 2   -- then call faster global applicatioin
 !                               = 3   -- then call regional application
+!                               = 4   -- then call version 3 regional application
 !           
 !
 ! program history log:
@@ -168,6 +179,12 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 
     update=.true.
     call zrnmi_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
+
+  elseif(jcstrong_option.eq.4) then
+
+!    version 3 regional option
+
+    call fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
 
   end if
 

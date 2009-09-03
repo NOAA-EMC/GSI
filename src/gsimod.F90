@@ -129,6 +129,7 @@
 !  06Mar2009  Meunier   Add initialisation for lagrangian data
 !  04-21-2009 Derber    Ensure that ithin is positive if neg. set to zero
 !  07-08-2009 Sato      Update for anisotropic mode (global/ensemble based)
+!  08-31-2009 Parrish   Add changes for version 3 regional tangent linear normal mode constraint
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -383,6 +384,7 @@
 !     jcstrong_option - =1 for slow global strong constraint
 !                       =2 for fast global strong constraint
 !                       =3 for regional strong constraint
+!                       =4 version 3 of regional strong constraint
 !     nstrong  - if > 0, then number of iterations of implicit normal mode initialization
 !                   to apply for each inner loop iteration
 !     period_max     - cutoff period for gravity waves included in implicit normal mode
@@ -592,6 +594,24 @@
   if(filled_grid.and.half_grid) filled_grid=.false.
   regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional
 
+! Check that regional=.true. if jcstrong_option > 2
+  if(jcstrong_option.gt.2.and..not.regional) then
+     if(mype.eq.0) then
+       write(6,*) ' jcstrong_option>2 not allowed except for regional=.true.'
+       write(6,*) ' ERROR EXIT FROM GSI'
+     end if
+     call stop2(328)
+  end if
+
+!  jcstrong_option=4 currently requires that 2*nvmodes_keep <= npe
+  if(jcstrong_option.eq.4) then
+    if(2*nvmodes_keep.gt.npe) then
+      if(mype.eq.0) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
+      if(mype.eq.0) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
+      nvmodes_keep=npe/2
+      if(mype.eq.0) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
+    end if
+  end if
 
 ! Ensure time window specified in obs_input does not exceed 
 ! specified maximum value

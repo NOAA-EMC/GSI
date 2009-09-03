@@ -1850,6 +1850,87 @@ contains
  
   end subroutine zrnmi_pcmhat2uvm
 
+  subroutine zrnmi_pcmhat2uvm_orig(u,v,m,phat,chat,mhat,mype)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    zrnmi_pcmhat2uvm
+!
+!   prgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2008-03-25  safford -- add subprogram doc block, rm unused uses
+!
+!   input argument list:
+!     mype     - mpi task id
+!     phat     -
+!     chat     -
+!     mhat     -
+!
+!   output argument list:
+!     p        -
+!     c        -
+!     m        -
+!     phat     -
+!     chat     -
+!     mhat     -
+!
+! attributes:
+!   language:  f90
+!   machine:
+!
+!$$$
+
+    use gridmod, only: lon2,lat2
+
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(inout)::phat,chat,mhat
+
+    real(r_kind),dimension(lat2,lon2,nvert):: p,c
+    real(r_kind),dimension(nx,ny_0:ny_1):: p_x,c_x,m_x
+    real(r_kind),dimension(nx,ny_0:ny_1):: p4_x,c4_x,m4_x
+    real(r_kind),dimension(ny,mx_0:mx_1):: p_y,c_y,m_y
+
+    call zrnmi_y_strans(phat,p_y)
+    call zrnmi_y_strans(chat,c_y)
+    call zrnmi_y_strans(mhat,m_y)
+    call zrnmi_y2x3(p4_x,c4_x,m4_x,p_y,c_y,m_y,mype)
+    call zrnmi_x_strans(p4_x,p_x)
+    call zrnmi_x_strans(c4_x,c_x)
+    call zrnmi_x_strans(m4_x,m_x)
+    call zrnmi_x2sd3(p,c,m,p_x,c_x,m_x,mype)
+    call zrnmi_pc2uv_orig(p,c,u,v,mype)
+
+  end subroutine zrnmi_pcmhat2uvm_orig
+
+  subroutine zrnmi_pcmhat2uvm_ad_orig(u,v,m,phat,chat,mhat,mype)
+
+    use constants, only: zero
+    use gridmod, only: lon2,lat2
+
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(out)::phat,chat,mhat
+
+    real(r_kind),dimension(lat2,lon2,nvert):: p,c
+    real(r_kind),dimension(nx,ny_0:ny_1):: p_x,c_x,m_x
+    real(r_kind),dimension(nx,ny_0:ny_1):: p4_x,c4_x,m4_x
+    real(r_kind),dimension(ny,mx_0:mx_1):: p_y,c_y,m_y
+
+    call zrnmi_pc2uv_ad_orig(p,c,u,v,mype)
+    call zrnmi_sd2x3(p,c,m,p_x,c_x,m_x,mype)
+    call zrnmi_x_strans(p_x,p4_x)
+    call zrnmi_x_strans(c_x,c4_x)
+    call zrnmi_x_strans(m_x,m4_x)
+    call zrnmi_x2y3(p4_x,c4_x,m4_x,p_y,c_y,m_y,mype)
+    call zrnmi_y_strans(p_y,phat)
+    call zrnmi_y_strans(c_y,chat)
+    call zrnmi_y_strans(m_y,mhat)
+
+  end subroutine zrnmi_pcmhat2uvm_ad_orig
+
   subroutine zrnmi_pcmhat2uvm_ad(p,c,m,phat,chat,mhat,mype)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -2573,6 +2654,54 @@ contains
 
   end subroutine zrnmi_y_strans
 
+  subroutine zrnmi_delx_general(f_x,fx_x,vector,iord)
+
+    use gridmod, only: region_dy,region_dyi
+
+    real(r_kind),intent(in)::  f_x(nx,ny_0:ny_1)
+    real(r_kind),intent(out):: fx_x(nx,ny_0:ny_1)
+    logical,intent(in):: vector
+    integer(i_kind),intent(in):: iord
+
+    real(r_kind) work1(nx,ny_0:ny_1)
+    real(r_kind) work2(nx,ny_0:ny_1)
+    integer(i_kind) i,j,iy
+
+    if(vector) then
+      do i=ny_0,ny_1
+        iy=list_sd2x(1,i)
+        do j=1,nx
+          work1(j,i)=f_x(j,i)*region_dy(iy,j)
+        end do
+      end do
+    else
+      do i=ny_0,ny_1
+        do j=1,nx
+          work1(j,i)=f_x(j,i)
+        end do
+      end do
+    end if
+
+    if(iord.eq.2) call zrnmi_delx(work1,work2)
+   !if(iord.eq.4) call zrnmi_delx_4th_ord(work1,work2)
+
+    if(vector) then
+      do i=ny_0,ny_1
+        iy=list_sd2x(1,i)
+        do j=1,nx
+          fx_x(j,i)=work2(j,i)*region_dyi(iy,j)
+        end do
+      end do
+    else
+      do i=ny_0,ny_1
+        do j=1,nx
+          fx_x(j,i)=work2(j,i)
+        end do
+      end do
+    end if
+
+  end subroutine zrnmi_delx_general
+
   subroutine zrnmi_delx(f_x,fx_x)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -2661,6 +2790,54 @@ contains
     end do
 
   end subroutine zrnmi_delx_ad
+
+  subroutine zrnmi_dely_general(f_y,fy_y,vector,iord)
+
+    use gridmod, only: region_dx,region_dxi
+
+    real(r_kind),intent(in)::  f_y(ny,nx_0:nx_1)
+    real(r_kind),intent(out):: fy_y(ny,nx_0:nx_1)
+    logical,intent(in):: vector
+    integer(i_kind) iord
+
+    real(r_kind) work1(ny,nx_0:nx_1)
+    real(r_kind) work2(ny,nx_0:nx_1)
+    integer(i_kind) i,j,ix
+
+    if(vector) then
+      do i=nx_0,nx_1
+        ix=list_sd2y(1,i)
+        do j=1,ny
+          work1(j,i)=f_y(j,i)*region_dx(j,ix)
+        end do
+      end do
+    else
+      do i=nx_0,nx_1
+        do j=1,ny
+          work1(j,i)=f_y(j,i)
+        end do
+      end do
+    end if
+
+    if(iord.eq.2) call zrnmi_dely(work1,work2)
+   !if(iord.eq.4) call zrnmi_dely_4th_ord(work1,work2)
+
+    if(vector) then
+      do i=nx_0,nx_1
+        ix=list_sd2y(1,i)
+        do j=1,ny
+          fy_y(j,i)=work2(j,i)*region_dxi(j,ix)
+        end do
+      end do
+    else
+      do i=nx_0,nx_1
+        do j=1,ny
+          fy_y(j,i)=work2(j,i)
+        end do
+      end do
+    end if
+
+  end subroutine zrnmi_dely_general
 
   subroutine zrnmi_dely(f_y,fy_y)
 !$$$  subprogram documentation block
@@ -2798,13 +2975,13 @@ contains
     u_y=zero ; v_y=zero
     call zrnmi_sd2y2(u,v,u_y,v_y,mype)
     ux_x=zero
-    call zrnmi_delx(u_x,ux_x)
+    call zrnmi_delx_general(u_x,ux_x,.true.,2)
     vx_x=zero
-    call zrnmi_delx(v_x,vx_x)
+    call zrnmi_delx_general(v_x,vx_x,.true.,2)
     uy_y=zero
-    call zrnmi_dely(u_y,uy_y)
+    call zrnmi_dely_general(u_y,uy_y,.true.,2)
     vy_y=zero
-    call zrnmi_dely(v_y,vy_y)
+    call zrnmi_dely_general(v_y,vy_y,.true.,2)
     ux=zero ; vx=zero
     call zrnmi_x2sd2(ux,vx,ux_x,vx_x,mype)
     uy=zero ; vy=zero
@@ -2882,6 +3059,119 @@ contains
 
   end subroutine zrnmi_uv2dz_ad
 
+  subroutine zrnmi_pc2uv(psi,chi,u,v,mype)
+
+    use kinds, only: r_kind,i_kind
+    use constants, only: zero
+    use gridmod, only: lat2,lon2
+    implicit none
+
+! Declare passed variables
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in):: psi,chi
+    real(r_kind),dimension(lat2,lon2,nvert),intent(out):: u,v
+
+! Declare local variables
+    real(r_kind),dimension(nx,ny_0:ny_1)::p_x,c_x,px_x,cx_x
+    real(r_kind),dimension(ny,nx_0:nx_1)::p_y,c_y,py_y,cy_y
+    real(r_kind),dimension(lat2,lon2,nvert)::px,cx,py,cy
+
+    p_x=zero ; c_x=zero
+    call zrnmi_sd2x2(psi,chi,p_x,c_x,mype)
+    p_y=zero ; c_y=zero
+    call zrnmi_sd2y2(psi,chi,p_y,c_y,mype)
+    px_x=zero
+    call zrnmi_delx_general(p_x,px_x,.false.,2)
+    cx_x=zero
+    call zrnmi_delx_general(c_x,cx_x,.false.,2)
+    py_y=zero
+    call zrnmi_dely_general(p_y,py_y,.false.,2)
+    cy_y=zero
+    call zrnmi_dely_general(c_y,cy_y,.false.,2)
+    px=zero ; cx=zero
+    call zrnmi_x2sd2(px,cx,px_x,cx_x,mype)
+    py=zero ; cy=zero
+    call zrnmi_y2sd2(py,cy,py_y,cy_y,mype)
+    u=cx-py
+    v=px+cy
+
+  end subroutine zrnmi_pc2uv
+
+  subroutine zrnmi_pc2uv_orig(psi,chi,u,v,mype)
+
+    use kinds, only: r_kind,i_kind
+    use constants, only: zero
+    use gridmod, only: lat2,lon2
+    implicit none
+
+! Declare passed variables
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in):: psi,chi
+    real(r_kind),dimension(lat2,lon2,nvert),intent(out):: u,v
+
+! Declare local variables
+    real(r_kind),dimension(nx,ny_0:ny_1)::p_x,c_x,px_x,cx_x
+    real(r_kind),dimension(ny,nx_0:nx_1)::p_y,c_y,py_y,cy_y
+    real(r_kind),dimension(lat2,lon2,nvert)::px,cx,py,cy
+
+    p_x=zero ; c_x=zero
+    call zrnmi_sd2x2(psi,chi,p_x,c_x,mype)
+    p_y=zero ; c_y=zero
+    call zrnmi_sd2y2(psi,chi,p_y,c_y,mype)
+    px_x=zero
+    call zrnmi_delx(p_x,px_x)
+    cx_x=zero
+    call zrnmi_delx(c_x,cx_x)
+    py_y=zero
+    call zrnmi_dely(p_y,py_y)
+    cy_y=zero
+    call zrnmi_dely(c_y,cy_y)
+    px=zero ; cx=zero
+    call zrnmi_x2sd2(px,cx,px_x,cx_x,mype)
+    py=zero ; cy=zero
+    call zrnmi_y2sd2(py,cy,py_y,cy_y,mype)
+    u=cx-py
+    v=px+cy
+
+  end subroutine zrnmi_pc2uv_orig
+
+  subroutine zrnmi_pc2uv_ad_orig(psi,chi,u,v,mype)
+
+    use kinds, only: r_kind,i_kind
+    use constants, only: zero
+    use gridmod, only: lat2,lon2
+    implicit none
+
+! Declare passed variables
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(out):: psi,chi
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout):: u,v
+
+! Declare local variables
+    real(r_kind),dimension(nx,ny_0:ny_1)::p_x,c_x,px_x,cx_x
+    real(r_kind),dimension(ny,nx_0:nx_1)::p_y,c_y,py_y,cy_y
+    real(r_kind),dimension(lat2,lon2,nvert)::px,cx,py,cy
+
+    cx=u ; cy=v ; px=v ; py=-u
+    py_y=zero ; cy_y=zero
+    call zrnmi_sd2y2(py,cy,py_y,cy_y,mype)
+    px_x=zero ; cx_x=zero
+    call zrnmi_sd2x2(px,cx,px_x,cx_x,mype)
+    c_y=zero
+    call zrnmi_dely_ad(c_y,cy_y)
+    p_y=zero
+    call zrnmi_dely_ad(p_y,py_y)
+    c_x=zero
+    call zrnmi_delx_ad(c_x,cx_x)
+    p_x=zero
+    call zrnmi_delx_ad(p_x,px_x)
+    py=zero ; cy=zero
+    call zrnmi_y2sd2(py,cy,p_y,c_y,mype)
+    px=zero ; cx=zero
+    call zrnmi_x2sd2(px,cx,p_x,c_x,mype)
+    psi=px+py ; chi=cx+cy
+
+  end subroutine zrnmi_pc2uv_ad_orig
 
   subroutine zrnmi_constants(mype)
 !$$$  subprogram documentation block
@@ -3100,15 +3390,17 @@ real(r_kind) pmaskmax(nvert),pmaskmin(nvert),pmaskmax0(nvert),pmaskmin0(nvert)
 
     if(update) then
 !      compute gravity projected corrections:
-      chat2=f_sm2_am2*zhat+sm2*mhat
+    ! chat2=f_sm2_am2*zhat+sm2*mhat                     !  original, similar to bourke-mcgregor scheme B
+      chat2=               sm2*mhat                     !  emulate bourke-mcgregor scheme A
       phat2=-f_sm2_am2*dhat
       mhat2=p0_sm2*dhat
 
 !   transform to grid space
-      call zrnmi_pcmhat2uvm(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
+      if(update)         call zrnmi_pcmhat2uvm(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
       call vtrans_inv(utilde,vtilde,mtilde,dpsi,dchi,dt,dps)
 
-      psi=psi-dpsi ; chi=chi-dchi ; t=t-dt ; ps=ps-dps
+      t=t-dt ; ps=ps-dps
+      psi=psi-dpsi ; chi=chi-dchi
     end if
 
 
@@ -3219,7 +3511,6 @@ real(r_kind) pmaskmax(nvert),pmaskmin(nvert),pmaskmax0(nvert),pmaskmin0(nvert)
       call vtrans_inv_ad(utilde,vtilde,mtilde,dpsi,dchi,dt,dps)
       phat2=zero ; chat2=zero ; mhat2=zero
       call zrnmi_pcmhat2uvm_ad(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
-
 !       adjoint of gravity projected corrections
       dhat=p0_sm2*mhat2-f_sm2_am2*phat2
       zhat=f_sm2_am2*chat2
@@ -3240,5 +3531,397 @@ real(r_kind) pmaskmax(nvert),pmaskmin(nvert),pmaskmax0(nvert),pmaskmin0(nvert)
     call vtrans_ad(ut,vt,tt,pst,utilde,vtilde,mtilde)
 
   end subroutine zrnmi_strong_bal_correction_ad
+
+  subroutine zrnmi_filter_uvm(utilde,vtilde,mtilde,mype)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    filter low frequency scales from input
+!
+!   prgrmmr: parrish
+!
+! abstract:      
+!
+! program history log:
+!   2009-08-28  parrish
+!
+!   input argument list:
+!     mype     - mpi task id
+!     utilde   - 
+!     vtilde   - 
+!     mtilde   - 
+!
+!   output argument list:
+!     utilde   - 
+!     vtilde   - 
+!     mtilde   - 
+!
+! attributes:
+!   language:  f90
+!   machine:   
+!
+!$$$
+
+    use constants, only: zero
+    use gridmod, only: lat2,lon2
+
+!   initially just generate projections and make maps
+
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::utilde,vtilde,mtilde
+
+    real(r_kind),dimension(ny,mx_0:mx_1)::dhat,zhat,mhat
+
+!      transform to spectral space
+
+    call zrnmi_uvm2dzmhat(utilde,vtilde,mtilde,dhat,zhat,mhat,mype)
+
+!      apply mask to input spectral fields to limit periods considered
+    dhat=pmask*dhat*am2
+    zhat=pmask*zhat*am2
+    mhat=pmask*mhat
+
+!      transform back to grid space
+    call zrnmi_pcmhat2uvm_orig(utilde,vtilde,mtilde,zhat,dhat,mhat,mype)
+
+  end subroutine zrnmi_filter_uvm
+
+  subroutine zrnmi_filter_uvm_ad(utilde,vtilde,mtilde,mype)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    zrnmi_filter_uvm_ad
+!
+!   prgrmmr:  parrish
+!
+! abstract:      
+!
+! program history log:
+!   2009-08-28  parrish
+!
+!   input argument list:
+!     mype     - mpi task id
+!     utilde   - 
+!     vtilde   - 
+!     mtilde   - 
+!
+!   output argument list:
+!     utilde   - 
+!     vtilde   - 
+!     mtilde   - 
+!
+! attributes:
+!   language:  f90
+!   machine:   
+!
+!$$$
+
+    use gridmod, only: lat2,lon2
+    use constants, only: zero
+
+!   initially just generate projections and make maps
+
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::utilde,vtilde,mtilde
+
+    real(r_kind),dimension(ny,mx_0:mx_1)::dhat,zhat,mhat
+
+    dhat=zero ; zhat=zero ; mhat=zero
+    call zrnmi_pcmhat2uvm_ad_orig(utilde,vtilde,mtilde,zhat,dhat,mhat,mype)
+
+!      adjoint of apply mask to input spectral fields to limit periods considered
+    dhat=pmask*dhat*am2
+    zhat=pmask*zhat*am2
+    mhat=pmask*mhat
+
+!      adjoint of transform to spectral space
+    utilde=zero ; vtilde=zero ; mtilde=zero
+    call zrnmi_uvm2dzmhat_ad(utilde,vtilde,mtilde,dhat,zhat,mhat,mype)
+
+  end subroutine zrnmi_filter_uvm_ad
+
+  subroutine zrnmi_filter_uvm2(utilde,vtilde,mtilde,mype)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    filter low frequency scales from input
+!
+!   prgrmmr: parrish
+!
+! abstract:      
+!
+! program history log:
+!   2009-08-28  parrish
+!
+!   input argument list:
+!     mype     - mpi task id
+!     utilde   - 
+!     vtilde   - 
+!     mtilde   - 
+!
+!   output argument list:
+!     utilde   - 
+!     vtilde   - 
+!     mtilde   - 
+!
+! attributes:
+!   language:  f90
+!   machine:   
+!
+!$$$
+
+    use constants, only: zero
+    use gridmod, only: lat2,lon2
+
+!   initially just generate projections and make maps
+
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::utilde,vtilde,mtilde
+
+    real(r_kind),dimension(ny,mx_0:mx_1)::uhat,vhat,mhat
+
+!      transform to spectral space
+
+    call zrnmi_uvm2uvmhat(utilde,vtilde,mtilde,uhat,vhat,mhat,mype)
+
+!      apply mask to input spectral fields to limit periods considered
+    uhat=pmask*uhat
+    vhat=pmask*vhat
+    mhat=pmask*mhat
+
+!      transform back to grid space
+    call zrnmi_uvmhat2uvm(utilde,vtilde,mtilde,uhat,vhat,mhat,mype)
+
+  end subroutine zrnmi_filter_uvm2
+
+  subroutine zrnmi_filter_uvm2_ad(utilde,vtilde,mtilde,mype)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    zrnmi_filter_uvm_ad
+!
+!   prgrmmr:  parrish
+!
+! abstract:      
+!
+! program history log:
+!   2009-08-28  parrish
+!
+!   input argument list:
+!     mype     - mpi task id
+!     utilde   - 
+!     vtilde   - 
+!     mtilde   - 
+!
+!   output argument list:
+!     utilde   - 
+!     vtilde   - 
+!     mtilde   - 
+!
+! attributes:
+!   language:  f90
+!   machine:   
+!
+!$$$
+
+    use gridmod, only: lat2,lon2
+    use constants, only: zero
+
+!   initially just generate projections and make maps
+
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::utilde,vtilde,mtilde
+
+    real(r_kind),dimension(ny,mx_0:mx_1)::uhat,vhat,mhat
+
+    uhat=zero ; vhat=zero ; mhat=zero
+    call zrnmi_uvmhat2uvm_ad(utilde,vtilde,mtilde,uhat,vhat,mhat,mype)
+
+!      adjoint of apply mask to input spectral fields to limit periods considered
+    uhat=pmask*uhat
+    vhat=pmask*vhat
+    mhat=pmask*mhat
+
+!      adjoint of transform to spectral space
+    utilde=zero ; vtilde=zero ; mtilde=zero
+    call zrnmi_uvm2uvmhat_ad(utilde,vtilde,mtilde,uhat,vhat,mhat,mype)
+
+  end subroutine zrnmi_filter_uvm2_ad
+ 
+  subroutine zrnmi_uvm2uvmhat(u,v,m,uhat,vhat,mhat,mype)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    zrnmi_uvm2uvmhat
+!
+!   prgrmmr: 
+!
+! abstract:      
+!
+! program history log:
+!   2008-03-25  safford -- add subprogram doc block, rm unused uses
+!
+!   input argument list:
+!     mype     - mpi task id
+!     u        - 
+!     v        - 
+!     m        - 
+!
+!   output argument list:
+!     dhat     - 
+!     zhat     - 
+!     mhat     - 
+!
+! attributes:
+!   language:  f90
+!   machine:   
+!
+!$$$
+
+    use gridmod, only: lon2,lat2
+
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in)::u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(out)::uhat,vhat,mhat
+
+    real(r_kind),dimension(nx,ny_0:ny_1):: u_x,v_x,m_x
+    real(r_kind),dimension(nx,ny_0:ny_1):: u4_x,v4_x,m4_x
+    real(r_kind),dimension(ny,mx_0:mx_1):: u_y,v_y,m_y
+
+    call zrnmi_sd2x3(u,v,m,u_x,v_x,m_x,mype)
+    call zrnmi_x_strans(u_x,u4_x)
+    call zrnmi_x_strans(v_x,v4_x)
+    call zrnmi_x_strans(m_x,m4_x)
+    call zrnmi_x2y3(u4_x,v4_x,m4_x,u_y,v_y,m_y,mype)
+    call zrnmi_y_strans(u_y,uhat)
+    call zrnmi_y_strans(v_y,vhat)
+    call zrnmi_y_strans(m_y,mhat)
+
+  end subroutine zrnmi_uvm2uvmhat
+
+  subroutine zrnmi_uvm2uvmhat_ad(u,v,m,uhat,vhat,mhat,mype)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    zrnmi_uvm2uvmhat_ad
+!
+!   prgrmmr: 
+!
+! abstract:      
+!
+! program history log:
+!   2008-03-25  safford -- add subprogram doc block, rm unused uses
+!
+!   input argument list:
+!     mype     - mpi task id
+!     dhat     - 
+!     zhat     - 
+!     mhat     - 
+!
+!   output argument list:
+!     u        - 
+!     v        - 
+!     m        - 
+!     dhat     - 
+!     zhat     - 
+!     mhat     - 
+!
+! attributes:
+!   language:  f90
+!   machine:   
+!
+!$$$
+
+    use gridmod, only: lon2,lat2
+
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(inout)::uhat,vhat,mhat
+
+    real(r_kind),dimension(nx,ny_0:ny_1):: u_x,v_x,m_x
+    real(r_kind),dimension(nx,ny_0:ny_1):: u4_x,v4_x,m4_x
+    real(r_kind),dimension(ny,mx_0:mx_1):: u_y,v_y,m_y
+
+    call zrnmi_y_strans(mhat,m_y)
+    call zrnmi_y_strans(vhat,v_y)
+    call zrnmi_y_strans(uhat,u_y)
+    call zrnmi_y2x3(u4_x,v4_x,m4_x,u_y,v_y,m_y,mype)
+    call zrnmi_x_strans(m4_x,m_x)
+    call zrnmi_x_strans(v4_x,v_x)
+    call zrnmi_x_strans(u4_x,u_x)
+    call zrnmi_x2sd3(u,v,m,u_x,v_x,m_x,mype)
+
+  end subroutine zrnmi_uvm2uvmhat_ad
+
+  subroutine zrnmi_uvmhat2uvm(u,v,m,uhat,vhat,mhat,mype)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    zrnmi_uvmhat2uvm
+!
+!   prgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2008-03-25  safford -- add subprogram doc block, rm unused uses
+!
+!   input argument list:
+!     mype     - mpi task id
+!     phat     -
+!     chat     -
+!     mhat     -
+!
+!   output argument list:
+!     p        -
+!     c        -
+!     m        -
+!     phat     -
+!     chat     -
+!     mhat     -
+!
+! attributes:
+!   language:  f90
+!   machine:
+!
+!$$$
+
+    use gridmod, only: lon2,lat2
+
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(inout)::uhat,vhat,mhat
+
+    real(r_kind),dimension(nx,ny_0:ny_1):: u_x,v_x,m_x
+    real(r_kind),dimension(nx,ny_0:ny_1):: u4_x,v4_x,m4_x
+    real(r_kind),dimension(ny,mx_0:mx_1):: u_y,v_y,m_y
+
+    call zrnmi_y_strans(uhat,u_y)
+    call zrnmi_y_strans(vhat,v_y)
+    call zrnmi_y_strans(mhat,m_y)
+    call zrnmi_y2x3(u4_x,v4_x,m4_x,u_y,v_y,m_y,mype)
+    call zrnmi_x_strans(u4_x,u_x)
+    call zrnmi_x_strans(v4_x,v_x)
+    call zrnmi_x_strans(m4_x,m_x)
+    call zrnmi_x2sd3(u,v,m,u_x,v_x,m_x,mype)
+
+  end subroutine zrnmi_uvmhat2uvm
+
+  subroutine zrnmi_uvmhat2uvm_ad(u,v,m,uhat,vhat,mhat,mype)
+
+    use constants, only: zero
+    use gridmod, only: lon2,lat2
+
+    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(out)::uhat,vhat,mhat
+
+    real(r_kind),dimension(nx,ny_0:ny_1):: u_x,v_x,m_x
+    real(r_kind),dimension(nx,ny_0:ny_1):: u4_x,v4_x,m4_x
+    real(r_kind),dimension(ny,mx_0:mx_1):: u_y,v_y,m_y
+
+    call zrnmi_sd2x3(u,v,m,u_x,v_x,m_x,mype)
+    call zrnmi_x_strans(u_x,u4_x)
+    call zrnmi_x_strans(v_x,v4_x)
+    call zrnmi_x_strans(m_x,m4_x)
+    call zrnmi_x2y3(u4_x,v4_x,m4_x,u_y,v_y,m_y,mype)
+    call zrnmi_y_strans(u_y,uhat)
+    call zrnmi_y_strans(v_y,vhat)
+    call zrnmi_y_strans(m_y,mhat)
+
+  end subroutine zrnmi_uvmhat2uvm_ad
 
 end module zrnmi_mod

@@ -496,6 +496,7 @@
 !          = 325 - setup_precond: r_kind is neither default real nor double precision
 !          = 326 - setup_precond:  SSYEV/DSYEV returned non-zero return code
 !          = 327 - PRECOND: invalid value for kmat
+!          = 328 - jcstrong_option > 2 not allowed except for regional=.true.
 !
 !
 ! remarks: resolution, unit numbers and several constants are

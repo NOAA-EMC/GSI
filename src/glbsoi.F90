@@ -65,6 +65,9 @@ subroutine glbsoi(mype)
 !   2008-12-02  todling - remove references to pcgsoi_tl and old obs_sen
 !   2009-01-28  todling - move write_all to pcgsoi (for consistency w/ 4dvar branch of code)
 !                       - use observer to avoid redundant code
+!   2009-08-31  parrish - add call to fmg_initialize_e when jcstrong_option=4.  Initializes
+!                          alternative regional tangent linear normal mode constraint which
+!                          allows for variation of coriolis parameter and map factor.
 !
 !   input argument list:
 !     mype - mpi task id
@@ -214,6 +217,7 @@ subroutine glbsoi(mype)
      if(jcstrong_option.eq.1) call init_strongvars_1(mype)
      if(jcstrong_option.eq.2) call init_strongvars_2(mype)
      if(jcstrong_option.eq.3) call zrnmi_initialize(mype)
+     if(jcstrong_option.eq.4) call fmg_initialize_e(mype)
   end if
 
 ! Set errors and create variables for dynamical constraint

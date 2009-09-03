@@ -209,6 +209,7 @@ retrieval_amsre.o : retrieval_amsre.f90 constants.o kinds.o
 retrieval_mi.o : retrieval_mi.f90 constants.o kinds.o 
 rfdpar.o : rfdpar.f90 constants.o kinds.o 
 rsearch.o : rsearch.F90 kinds.o 
+rtlnmc_version3.o : rtlnmc_version3.f90 kinds.o constants.o mpimod.o gridmod.o mod_vtrans.o jfunc.o zrnmi_mod.o
 satthin.o : satthin.F90 ncepgfs_io.o mpimod.o jfunc.o m_gsiBiases.o guess_grids.o gridmod.o obsmod.o constants.o kinds.o 
 setupbend.o : setupbend.f90 convinfo.o jfunc.o lagmod.o qcmod.o constants.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o 
 setupdw.o : setupdw.f90 convinfo.o jfunc.o gsi_4dvar.o obsmod.o constants.o guess_grids.o gridmod.o qcmod.o kinds.o 
@@ -271,7 +272,7 @@ stpsst.o : stpsst.f90 gridmod.o constants.o qcmod.o obsmod.o kinds.o
 stpt.o : stpt.f90 jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
 stptcp.o : stptcp.f90 jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
 stpw.o : stpw.f90 jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
-strong_bal_correction.o : strong_bal_correction.f90 gridmod.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o mod_strong.o kinds.o 
+strong_bal_correction.o : strong_bal_correction.f90 gridmod.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o mod_strong.o kinds.o constants.o mpimod.o
 strong_baldiag_inc.o : strong_baldiag_inc.f90 constants.o control_vectors.o state_vectors.o mod_vtrans.o gsi_4dvar.o gridmod.o mpimod.o kinds.o 
 strong_fast_global_mod.o : strong_fast_global_mod.f90 mpimod.o constants.o mod_inmi.o mod_vtrans.o specmod.o gridmod.o kinds.o 
 strong_slow_global_mod.o : strong_slow_global_mod.f90 constants.o specmod.o mod_inmi.o mod_vtrans.o mpimod.o gridmod.o kinds.o 
