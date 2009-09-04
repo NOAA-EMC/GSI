@@ -1,7 +1,7 @@
 subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
      cwm_in, t_in, q_out, cwm_out, t_out, rn_out, q_in_ad, cwm_in_ad, &
      t_in_ad, q_out_ad, cwm_out_ad, t_out_ad, rn_out_ad, &
-     adjoint,mype)
+     adjoint)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    precpd_ad    compute precipitation processes from suspended cloud water/ice
@@ -41,7 +41,6 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
 !       t_out_ad   - temperature perturbation
 !       rn_out_ad  - precipitation perturbation
 !       adjoint   - logical flag (.false.=forward model only, .true.=forward and ajoint)
-!       mype      - mpi task id
 !
 !   output argument list:
 !       q_out     - q following grid scale precipitation
@@ -73,7 +72,6 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
 ! define arguments
 !==============================================
   logical,intent(in):: adjoint
-  integer(i_kind),intent(in):: mype
   integer(i_kind),intent(in):: ix
   integer(i_kind),intent(in):: km
   integer(i_kind),intent(in):: im

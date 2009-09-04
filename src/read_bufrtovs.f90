@@ -2,7 +2,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
      mype_root,mype_sub,npe_sub,mpi_comm_sub, &
-     mype_sub_read,npe_sub_read,mpi_comm_sub_read,lll)
+     mype_sub_read,npe_sub_read,lll)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_bufrtovs                  read bufr tovs 1b data
@@ -76,6 +76,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
+!     mype_sub_read
+!     npe_sub_read
+!     lll
 !
 !   output argument list:
 !     nread    - number of BUFR TOVS 1b observations read
@@ -93,13 +96,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad
   use radinfo, only: crtm_coeffs_path
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,zero,one,three,izero,ione,rad2deg,t0c,two,r60inv
-  use obsmod, only: iadate,offtime_data
+  use constants, only: deg2rad,zero,one,two,three,five,izero,rad2deg,r60inv,r1000,h300
+  use obsmod, only: offtime_data
   use crtm_parameters, only: MAX_SENSOR_ZENITH_ANGLE
   use crtm_spccoeff, only: sc
   use crtm_module, only: crtm_destroy,crtm_init,success,crtm_channelinfo_type
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
+  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
   use antcorr_application
   implicit none
 
@@ -114,7 +117,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind),intent(in) :: mype_root
   integer(i_kind),intent(in) :: mype_sub,mype_sub_read
   integer(i_kind),intent(in) :: npe_sub,npe_sub_read
-  integer(i_kind),intent(in) :: mpi_comm_sub,mpi_comm_sub_read
+  integer(i_kind),intent(in) :: mpi_comm_sub
   integer(i_kind),intent(in) :: lll
 
 ! Declare local parameters
@@ -140,12 +143,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) i,j,k,ifov,ntest
   integer(i_kind) iret,idate,nchanl,n,idomsfc
   integer(i_kind) ich1,ich2,ich8,ich15,kidsat,instrument
-  integer(i_kind) nmind,itx,nele,itt,iout,ninstruments
+  integer(i_kind) nmind,itx,nele,itt,ninstruments
   integer(i_kind) iskip,ichan2,ichan1,ichan15
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
-  integer(i_kind) ilat,ilon,ifovmod,mmblocks
+  integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind) instr,ichan,file_handle,ierror,nblocks
+  integer(i_kind) instr,ichan
   integer(i_kind):: error_status
   character(len=20),dimension(1):: sensorlist
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
@@ -249,7 +252,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      start  = -49.5_r_kind
      nchanl=19
 !   Set rlndsea for types we would prefer selecting
-     rlndsea(0) = 0._r_kind
+     rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
      rlndsea(2) = 10._r_kind
      rlndsea(3) = 15._r_kind
@@ -286,7 +289,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      nchanl=4
      if (isfcalc==1) instr=10
 !   Set rlndsea for types we would prefer selecting
-     rlndsea(0) = 0._r_kind
+     rlndsea(0) = zero
      rlndsea(1) = 20._r_kind
      rlndsea(2) = 15._r_kind
      rlndsea(3) = 20._r_kind
@@ -298,7 +301,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      nchanl=15
      if (isfcalc==1) instr=11
 !   Set rlndsea for types we would prefer selecting
-     rlndsea(0) = 0._r_kind
+     rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
      rlndsea(2) = 10._r_kind
      rlndsea(3) = 15._r_kind
@@ -309,7 +312,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      nchanl=5
      if (isfcalc==1) instr=12
 !   Set rlndsea for types we would prefer selecting
-     rlndsea(0) = 0._r_kind
+     rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
      rlndsea(2) = 20._r_kind
      rlndsea(3) = 15._r_kind
@@ -320,7 +323,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      nchanl=5
      if (isfcalc==1) instr=13
 !   Set rlndsea for types we would prefer selecting
-     rlndsea(0) = 0._r_kind
+     rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
      rlndsea(2) = 20._r_kind
      rlndsea(3) = 15._r_kind
@@ -331,7 +334,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      nchanl=3
      if (isfcalc==1) instr=9
 !   Set rlndsea for types we would prefer selecting
-     rlndsea(0) = 0._r_kind
+     rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
      rlndsea(2) = 10._r_kind
      rlndsea(3) = 15._r_kind
@@ -542,9 +545,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            nread=nread+nchanl
 
            if (l4dvar) then
-             timedif = 0.0_r_kind
+             timedif = zero
            else
-             timedif = 2.0_r_kind*abs(tdiff)        ! range:  0 to 6
+             timedif = two*abs(tdiff)        ! range:  0 to 6
            endif
            terrain = 50._r_kind
            if(lll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
@@ -569,7 +572,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               if(.not. hirs)then
                 call remove_antcorr(sc(instrument)%ac,ifov,data1b8)
                 do j=1,nchanl
-                   if(data1b8x(j) > 1000._r_kind)data1b8(j) = 1000000._r_kind
+                   if(data1b8x(j) > r1000)data1b8(j) = 1000000._r_kind
                 end do
               end if
            end if
@@ -686,7 +689,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                  ch15 = data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)+ &
                         air_rad(ichan15)*cbias(15,ichan15)
                  pred = abs(ch1-ch15)
-                 if(ch1-ch15 >= 3._r_kind)then
+                 if(ch1-ch15 >= three) then
                     df2  = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
                     tt   = 168._r_kind-0.49_r_kind*ch15
                     if(ch1 > 261._r_kind .or. ch1 >= tt .or. & 
@@ -707,9 +710,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                     r01*predx(1,ichan2)*air_rad(ichan2)
               if(isflg == 0)then
 !                pred = (ch1-ch2)/cosza+30.0_r_kind
-                 if(ch2 < 300.)then 
-                    pred = (0.13_r_kind*(ch1+33.58_r_kind*log(300._r_kind-ch2)- &
-                         341.17_r_kind))*5.0_r_kind
+                 if(ch2 < h300)then 
+                    pred = (0.13_r_kind*(ch1+33.58_r_kind*log(h300-ch2)- &
+                         341.17_r_kind))*five
                  else
                     pred = 100._r_kind
                  end if
@@ -786,7 +789,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   deallocate(data1b8)
 
 
-  call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
+  call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
 
 ! 
@@ -838,23 +841,29 @@ subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
 !   2006-02-01 parrish  - change names of sno,isli,sst
 !
 !   input argument list:
-!     dlat   - grid relative latitude
-!     dlon   - grid relative longitude
+!     alat
+!     alon
 !     obstime- observation time relative to analysis time
+!     dlat_earth
+!     dlon_earth
 !
 !   output argument list:
-!     isflg    - surface flag
-!                0 sea
-!                1 land
-!                2 sea ice
-!                3 snow
-!                4 mixed
+!      isflg    - surface flag
+!                 0 sea
+!                 1 land
+!                 2 sea ice
+!                 3 snow
+!                 4 mixed
 !      sfcpct(0:3)- percentage of 4 surface types
 !                 (0) - sea percentage
 !                 (1) - land percentage
 !                 (2) - sea ice percentage
 !                 (3) - snow percentage
 !      tsavg - sea surface temperature
+!      idomsfc
+!      ts
+!      dfcr
+!      vty,vfr,sty,stp,sm,sn,zz,ff10
 !
 ! attributes:
 !   language: f90
@@ -865,11 +874,11 @@ subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
      use satthin, only: sno_full,isli_full,sst_full,soil_moi_full, &
            soil_temp_full,soil_type_full,veg_frac_full,veg_type_full, &
            fact10_full,zs_full,sfc_rough_full
-     use constants, only: zero,one
-     use gridmod, only: rlats,rlons,nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
-     use guess_grids, only: ntguessfc,nfldsfc,nfldsig,hrdifsig,hrdifsfc
+     use constants, only: zero,one,one_tenth
+     use gridmod, only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
+     use guess_grids, only: nfldsfc,hrdifsfc
      implicit none
-     real(r_kind),parameter:: minsnow=0.1_r_kind
+     real(r_kind),parameter:: minsnow=one_tenth
 
      integer(i_kind),intent(out):: isflg,idomsfc
      real(r_kind),intent(in) :: dlat_earth,dlon_earth,obstime,alat,alon
@@ -1174,8 +1183,9 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
 !   2006-02-01 parrish  - change names of sno,isli,sst
 !
 !   input argument list:
-!     dlat   - grid relative latitude
-!     dlon   - grid relative longitude
+!     dlat_earth
+!     dlon_earth
+!     obstime
 !
 !   output argument list:
 !     isflg    - surface flag
@@ -1184,6 +1194,7 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
 !                2 sea ice
 !                3 snow
 !                4 mixed
+!     tsavg
 !
 ! attributes:
 !   language: f90
@@ -1192,8 +1203,8 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
 !$$$
      use kinds, only: r_kind,i_kind
      use satthin, only: isli_full,sst_full,sno_full
-     use constants, only: zero,one
-     use gridmod, only: rlats,rlons,nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
+     use constants, only: zero,one,one_tenth
+     use gridmod, only: regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
      use guess_grids, only: nfldsfc,hrdifsfc
      implicit none
      integer(i_kind),intent(out):: isflg
@@ -1201,17 +1212,16 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
      real(r_kind),intent(out) :: tsavg
 
      integer(i_kind) istyp00,istyp01,istyp10,istyp11
-     integer(i_kind):: it
      integer(i_kind):: ix,iy,ixp,iyp,j,itsfc,itsfcp
-     real(r_kind):: dx,dy,dx1,dy1,w00,w10,w01,w11,wgtmin,dtsfc
-     real(r_kind):: dlat,dlon,alat,alon,dtsfcp
+     real(r_kind):: dx,dy,dx1,dy1,w00,w10,w01,w11,dtsfc
+     real(r_kind):: dlat,dlon,dtsfcp
      real(r_kind):: sst00,sst01,sst10,sst11
      real(r_kind):: sno00,sno01,sno10,sno11
 
-     real(r_kind),parameter:: minsnow=0.1_r_kind
+     real(r_kind),parameter:: minsnow=one_tenth
 
      real(r_kind),dimension(0:3):: sfcpct
-     logical :: sea,land,ice,outside
+     logical :: outside
 
 
      if(regional)then
@@ -1315,12 +1325,15 @@ subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr)
 !   2006-02-01 parrish  - change names of sno,isli,sst
 !
 !   input argument list:
-!     dlat   - grid relative latitude
-!     dlon   - grid relative longitude
+!     dlat_earth
+!     dlon_earth
 !     obstime- observation time relative to analysis time
 !
 !   output argument list:
-!      tsavg - sea surface temperature
+!     tsavg - sea surface temperature
+!     idomsfc
+!     sfcr
+!     ff10
 !
 ! attributes:
 !   language: f90
@@ -1329,9 +1342,9 @@ subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr)
 !$$$
      use kinds, only: r_kind,i_kind
      use satthin, only: isli_full,sst_full,fact10_full,sfc_rough_full
-     use constants, only: zero,one
-     use gridmod, only: rlats,rlons,nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
-     use guess_grids, only: ntguessfc,nfldsfc,hrdifsfc
+     use constants, only: one
+     use gridmod, only: regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
+     use guess_grids, only: nfldsfc,hrdifsfc
      implicit none
      integer(i_kind),intent(out):: idomsfc
      real(r_kind),intent(in) :: dlat_earth,dlon_earth,obstime
@@ -1497,7 +1510,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
   use calc_fov_crosstrk, only    : npoly, fov_ellipse_crosstrk, inside_fov_crosstrk
   use calc_fov_conical, only : fov_ellipse_conical, inside_fov_conical
   use constants, only   : deg2rad, rad2deg, one, zero, two
-  use gridmod, only     : nlat_sfc, rlats_sfc, lpl_gfs, dx_gfs, regional, tll2xy, txy2ll
+  use gridmod, only     : nlat_sfc, rlats_sfc, dx_gfs, regional, tll2xy, txy2ll
   use guess_grids, only : nfldsfc, hrdifsfc
   use kinds, only       : i_kind, r_kind
 
@@ -1618,7 +1631,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
 ! expansion factor.
 
   if (fov_flag=="crosstrk")then
-    call fov_ellipse_crosstrk(ifov,instr,sat_aziang,dlat_earth_deg,dlon_earth_deg, &
+    call fov_ellipse_crosstrk(ifov,sat_aziang,dlat_earth_deg,dlon_earth_deg, &
                               lats_edge_fov,lons_edge_fov)
   elseif(fov_flag=="conical")then
     call fov_ellipse_conical(ichan,sat_aziang,dlat_earth_deg,dlon_earth_deg, &
@@ -2109,7 +2122,7 @@ subroutine accum_sfc(i,j,power,sfc_mdl,sfc_sum)
 !
 !$$$
 
-  use constants, only : zero
+  use constants, only : zero,one_tenth
   use gridmod, only   : regional
   use satthin, only   : isli_full,soil_type_full,veg_type_full,zs_full,zs_full_gfs
   use kinds, only     : i_kind, r_kind
@@ -2151,7 +2164,7 @@ subroutine accum_sfc(i,j,power,sfc_mdl,sfc_sum)
   type(surface), intent(inout) :: sfc_sum
 
 ! Declare local parameters.
-  real(r_kind),parameter:: minsnow=0.1_r_kind
+  real(r_kind),parameter:: minsnow=one_tenth
 
 ! Declare local variables.
   integer(i_kind)             :: mask, sty, vty

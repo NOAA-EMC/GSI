@@ -82,8 +82,8 @@ subroutine glbsoi(mype)
   use kinds, only: r_kind,i_kind
   use constants, only: rearth
   use mpimod, only: npe
-  use jfunc, only: miter,jiter,jiterstart,jiterend,iguess,biascor,&
-       set_pointer,create_jfunc,write_guess_solution,&
+  use jfunc, only: miter,jiter,jiterstart,jiterend,iguess,&
+       write_guess_solution,&
        tendsflag,xhatsave
   use anberror, only: anisotropic, ancovmdl, &
        create_anberror_vars_reg,destroy_anberror_vars_reg,&
@@ -96,12 +96,11 @@ subroutine glbsoi(mype)
   use balmod, only: create_balance_vars_reg,create_balance_vars, &
        destroy_balance_vars_reg,destroy_balance_vars,prebal,prebal_reg
   use compact_diffs, only: create_cdiff_coefs,inisph,destroy_cdiff_coefs
-  use gridmod, only: nlat,nlon,nsig,rlats,regional,wrf_mass_regional,&
-       wrf_nmm_regional,twodvar_regional,wgtlats,netcdf
-  use guess_grids, only: sfct,create_ges_grids,create_sfc_grids,&
-       nfldsig,ges_q
+  use gridmod, only: nlat,nlon,nsig,rlats,regional,&
+       twodvar_regional,wgtlats
+  use guess_grids, only: nfldsig
   use tendsmod, only: create_tendvars,destroy_tendvars
-  use obsmod, only: write_diag,obs_setup,ndat,perturb_obs,dirname
+  use obsmod, only: write_diag,perturb_obs
   use turblmod, only: create_turblvars,destroy_turblvars
   use obs_sensitivity, only: lobsensfc, iobsconv, lsensrecompute, &
                              init_fc_sens, save_fc_sens
@@ -109,7 +108,6 @@ subroutine glbsoi(mype)
   use jcmod, only: ljcdfi
   use gsi_4dvar, only: l4dvar, lsqrtb, lanczosave
   use pcgsoimod, only: pcgsoi
-  use m_gsiBiases, only: create_bias_grids
   use control_vectors
   use radinfo, only: radinfo_write
   use pcpinfo, only: pcpinfo_write
@@ -131,7 +129,7 @@ subroutine glbsoi(mype)
 ! Declare local variables
   logical slow_pole_in
 
-  integer(i_kind) error_status,i,nlev_mp,jiterlast,mlat
+  integer(i_kind) nlev_mp,jiterlast,mlat
   real(r_kind) :: zgg
   character(len=12) :: clfile
 

@@ -50,7 +50,6 @@ module gridmod
 
   logical ncep_sigio        ! .t. if using ncep sgio format file
 
-  logical eta_regional      !
   logical wrf_nmm_regional  !
   logical nems_nmmb_regional! .t. to run with NEMS NMMB model
   logical wrf_mass_regional !
@@ -106,7 +105,6 @@ module gridmod
   integer(i_kind) ncloud            ! number of cloud types
 
   integer(i_kind) ns1               ! 2 times number of levels plus 1
-  integer(i_kind) n1                ! no. of levels plus 1
   integer(i_kind) lat1              ! no. of lats on subdomain (no buffer)
   integer(i_kind) lon1              ! no. of lons on subdomain (no buffer)
   integer(i_kind) lat2              ! no. of lats on subdomain (buffer points on ends)
@@ -150,7 +148,6 @@ module gridmod
 
 
 
-  real(r_kind) dlm0,dph0
   real(r_kind) gencode
 
   real(r_kind),allocatable,dimension(:):: dx_gfs  ! resolution of GFS grid in degrees
@@ -167,10 +164,8 @@ module gridmod
   real(r_kind),allocatable,dimension(:):: rbs2    ! 1./sin(grid latitudes))**2
 
 ! additional variables for regional mode
-  real(r_kind),allocatable:: deta1_ll(:)          !
   real(r_kind),allocatable::  eta1_ll(:)          !
   real(r_kind),allocatable:: aeta1_ll(:)          !
-  real(r_kind),allocatable:: deta2_ll(:)          !
   real(r_kind),allocatable::  eta2_ll(:)          !
   real(r_kind),allocatable:: aeta2_ll(:)          !
   real(r_kind),allocatable::region_lon(:,:)       !
@@ -182,17 +177,11 @@ module gridmod
   real(r_kind),allocatable::coeffx(:,:)           !
   real(r_kind),allocatable::coeffy(:,:)           !
 
-  real(r_kind) dlon_ll,dlat_ll,dlon_regional,dlat_regional
   real(r_kind) rlon_min_ll,rlon_max_ll,rlat_min_ll,rlat_max_ll
   real(r_kind) rlon_min_dd,rlon_max_dd,rlat_min_dd,rlat_max_dd
-  real(r_kind) rlon_min_regional,rlon_max_regional
-  real(r_kind) rlat_min_regional,rlat_max_regional
-  real(r_kind) rlon0_origin_ll,rlat0_origin_ll,clat0_origin_ll,slat0_origin_ll,pi_reg_glob_ll
   real(r_kind) dt_ll,pdtop_ll,pt_ll
 
-  integer(i_kind) nlon_regional,nlat_regional,nsoil_regional
-  integer(i_kind) itb_regional,jtb_regional
-  integer(i_kind) order_a2e,order_e2a
+  integer(i_kind) nlon_regional,nlat_regional
   real(r_kind) regional_fhr
   integer(i_kind) regional_time(6)
 
@@ -285,7 +274,7 @@ contains
     use constants, only: two
     implicit none
 
-    integer k
+    integer(i_kind) k
 
     nsig = 42
     nsig1o = 7
@@ -524,7 +513,7 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine create_mapping(nlat,nlon,npe)
+  subroutine create_mapping(npe)
 
 ! !USES:
 
@@ -533,8 +522,6 @@ contains
 
 ! !INPUT PARAMETERS:
 
-    integer(i_kind),intent(in):: nlat  ! number of latitudes
-    integer(i_kind),intent(in):: nlon  ! number of longitudes
     integer(i_kind),intent(in):: npe   ! number of mpi tasks
 
 ! !DESCRIPTION: allocate and initialize variables that create mapping
@@ -632,7 +619,6 @@ contains
 
 ! !USES:
 
-    use kinds, only: r_kind,r_single,i_kind
     use constants, only: zero, one, three, deg2rad,pi,half, two
     use mod_nmmb_to_a, only: init_nmmb_to_a,nxa,nya,nmmb_h_to_a
     implicit none
@@ -702,7 +688,6 @@ contains
     real(r_kind),parameter:: six=6.0_r_kind
     real(r_kind),parameter:: r90=90.0_r_kind
     real(r_kind),parameter:: r360=360.0_r_kind
-    real(r_kind),parameter:: r1013=1013.0_r_kind
 
     real(r_kind),allocatable::glat_an(:,:),glon_an(:,:)
     real(r_kind),allocatable:: dx_an(:,:),dy_an(:,:)
@@ -712,7 +697,6 @@ contains
     real(r_single),allocatable::gxtemp4(:,:),gytemp4(:,:)
     real(r_kind),allocatable::gxtemp_an(:,:),gytemp_an(:,:)
     real(r_kind) rtemp
-    real(r_kind) rlon_min_ll,rlon_max_ll,rlat_min_ll,rlat_max_ll
 
     if(.not.regional) then
 ! This is global run
@@ -1310,11 +1294,32 @@ contains
   end subroutine init_reg_glob_ll
 
  subroutine init_general_transform(glats,glons,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_general_transform
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    glons,glats - lons,lats of input grid points of dimesion nlon,nlat
+!    mype        - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   use constants, only: zero,one,half,pi,deg2rad,two
   implicit none
-  real(r_kind) glats(nlon,nlat),glons(nlon,nlat)
-  integer(i_kind) mype
+  real(r_kind),intent(in):: glats(nlon,nlat),glons(nlon,nlat)
+  integer(i_kind),intent(in):: mype
 
   real(r_kind),parameter:: r0_01=0.01_r_kind
   real(r_kind),parameter:: rbig =1.0e30_r_kind
@@ -1438,7 +1443,6 @@ contains
 
 ! !USES:
 
-    use kinds, only: r_kind,i_kind
     use constants, only: one
     implicit none
 
@@ -1538,7 +1542,6 @@ contains
 
 ! !USES:
 
-    use kinds, only: r_kind,i_kind
     use constants, only: one
     implicit none
 
@@ -1632,6 +1635,32 @@ contains
  end subroutine txy2ll
 
  subroutine nearest_3(ilast,jlast,i0,j0,ip,jp,x,y,nx0,ny0,x0,y0)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    nearest_3
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ilast,jlast
+!    nx0,ny0
+!    x,y
+!    x0,y0
+!
+!   output argument list:
+!    ilast,jlast
+!    i0,j0
+!    ip,jp
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !   find closest 3 points to (x,y) on grid defined by x0,y0
 
@@ -1704,6 +1733,29 @@ contains
 
  subroutine get_xytilde_domain(nx0,ny0,rlons0,rlats0, &
                                   nx,ny,xminout,xmaxout,yminout,ymaxout)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_xytilde_domain
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nx0,ny0
+!    rlons0,rlats0
+!
+!   output argument list:
+!    nx,ny
+!    xminout,xmaxout,yminout,ymaxout
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
    use constants, only: one, deg2rad,half,zero
 !  define parameters for xy domain which optimally overlays input grid
@@ -1888,9 +1940,9 @@ contains
 !$$$
   use constants, only: quarter
   implicit none
-  integer(i_kind) nx,ny,igtype
-  real(r_single) gin(nx,ny)
-  real(r_kind) gout(nx,*)
+  integer(i_kind),intent(in):: nx,ny,igtype
+  real(r_single),intent(in):: gin(nx,ny)
+  real(r_kind),intent(out):: gout(nx,*)
 
   integer(i_kind) i,i0,im,j,jj,jm,jp
 
@@ -1919,11 +1971,33 @@ contains
  end subroutine half_nmm_grid2a
 
  subroutine fill_nmm_grid2a3(gin,nx,ny,gout)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    fill_nmm_grid2a3
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nx,ny
+!    gin
+!
+!   output argument list:
+!    gout
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   implicit none
-  integer(i_kind) nx,ny
-  real(r_kind) gin(nx,ny)
-  real(r_kind) gout(2*nx-1,ny)
+  integer(i_kind),intent(in):: nx,ny
+  real(r_kind),intent(in):: gin(nx,ny)
+  real(r_kind),intent(out):: gout(2*nx-1,ny)
 
   integer(i_kind) i,j
   integer(i_kind) i1a(2*nx-1),i2a(2*nx-1)
@@ -2040,18 +2114,17 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine rotate_wind_ll2xy(u0,v0,u,v,rlon0,rlat0,x,y)
+  subroutine rotate_wind_ll2xy(u0,v0,u,v,rlon0,x,y)
 
 ! !USES:
 
-    use kinds, only: r_kind,i_kind
-    use constants, only: one,two,pi,rad2deg
+    use constants, only: one,two,pi,rad2deg,one_tenth
     implicit none
 
 ! !INPUT PARAMETERS:
 
     real(r_kind),intent(in)::u0,v0        ! earth wind component
-    real(r_kind),intent(in)::rlon0,rlat0  ! earth   lon/lat (radians)
+    real(r_kind),intent(in)::rlon0        ! earth   lon (radians)
     real(r_kind),intent(in)::x,y          ! local x,y coordinate (grid units)
 
 ! !OUTPUT PARAMETERS:
@@ -2102,7 +2175,7 @@ contains
   do k=-6,6
     thisdiff=min(abs(beta-beta_old+k*two_pi),thisdiff)
   end do
-  if(thisdiff*rad2deg.gt.0.1_r_kind) then
+  if(thisdiff*rad2deg.gt.one_tenth) then
     count_beta_diff_gt_20=count_beta_diff_gt_20 + one
     beta_diff_max_gt_20=max(beta_diff_max_gt_20,thisdiff)
   else
@@ -2128,18 +2201,17 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine rotate_wind_xy2ll(u,v,u0,v0,rlon0,rlat0,x,y)
+  subroutine rotate_wind_xy2ll(u,v,u0,v0,rlon0,x,y)
 
 ! !USES:
 
-    use kinds, only: r_kind,i_kind
     use constants, only: one
     implicit none
 
 ! !INPUT PARAMETERS:
 
     real(r_kind),intent(in)::u,v         ! rotated coordinate winds
-    real(r_kind),intent(in)::rlon0,rlat0 ! earth   lon/lat (radians)
+    real(r_kind),intent(in)::rlon0       ! earth   lon     (radians)
     real(r_kind),intent(in)::x,y         ! rotated lon/lat (radians)
 
 ! !OUTPUT PARAMETERS:
@@ -2205,7 +2277,6 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,i_kind
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -2276,7 +2347,6 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,i_kind
    use constants, only: zero,one
    implicit none
 
@@ -2382,8 +2452,7 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,i_kind
-   use constants, only: zero,one
+   use constants, only: zero
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -2434,7 +2503,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 !  Declare local variables
-   integer(i_kind) i,j,k,jj,nlatm2
+   integer(i_kind) i,j,k,jj
    real(r_kind) polnu,polnv,polsu,polsv
    real(r_kind),dimension(nlon,nlat):: grid,grid2
 
@@ -2495,7 +2564,6 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,i_kind
    use constants, only: one
    implicit none
 
@@ -2582,7 +2650,6 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,i_kind
    use constants, only: one
    implicit none
 
@@ -2675,6 +2742,27 @@ contains
 
 
  subroutine check_rotate_wind(string)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    check_rotate_wind
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    string
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block 
+
    use constants, only: zero,one,rad2deg
    implicit none
    character(len=*),intent(in):: string

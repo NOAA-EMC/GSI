@@ -34,6 +34,7 @@ module strong_slow_global_mod
   implicit none
 
   integer(i_kind),allocatable::mode_number(:),mode_number0(:)
+
 contains
 
   subroutine init_strongvars_1(mype)
@@ -58,8 +59,7 @@ contains
 !   machine:   ibm RS/6000 SP
 !
 !$$$
-
-    use kinds, only: i_kind
+    implicit none
 
     integer(i_kind),intent(in):: mype
 
@@ -89,8 +89,8 @@ subroutine initialize_strong_slow_global(mype)
 !   machine:   ibm RS/6000 SP
 !
 !$$$
+  implicit none
 
-  use kinds, only: i_kind
   integer(i_kind),intent(in):: mype
 
   allocate(mode_number(nuvlevs),mode_number0(nsig))
@@ -146,10 +146,10 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use mod_vtrans, only: depths,nvmodes_keep,vtrans,vtrans_inv
   use mod_inmi, only: m,gspeed,mmax,dinmi,gproj
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig
+  use gridmod, only: nlat,nlon,lat2,lon2
   use specmod, only: jcap,nc
   use constants, only: zero
   implicit none
@@ -174,8 +174,6 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind),dimension(nuvlevs)::rmstend_loc_f,rmstend_g_loc_f
   real(r_kind),dimension(nc)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
   real(r_kind) rmstend_all_uf,rmstend_all_g_uf,rmstend_all_f,rmstend_all_g_f
-  real(r_kind),dimension(lat2,lon2,nsig)::u_t_g,v_t_g,t_t_g
-  real(r_kind),dimension(lat2,lon2)::ps_t_g
 
   integer(i_kind) i,j,k,kk,iad,mode
   logical filtered
@@ -190,9 +188,9 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   call vtrans(u_t,v_t,t_t,ps_t,utilde_t,vtilde_t,mtilde_t)
 
                       
-  call inmi_sub2grid(utilde_t,utilde_t,uwork,mype)
-  call inmi_sub2grid(vtilde_t,vtilde_t,vwork,mype)
-  call inmi_sub2grid(mtilde_t,mtilde_t,mwork,mype)
+  call inmi_sub2grid(utilde_t,utilde_t,uwork)
+  call inmi_sub2grid(vtilde_t,vtilde_t,vwork)
+  call inmi_sub2grid(mtilde_t,mtilde_t,mwork)
 
   rmstend_loc_uf=zero
   rmstend_g_loc_uf=zero
@@ -298,9 +296,9 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   delutilde=0
   delvtilde=0
   delmtilde=0
-  call inmi_grid2sub(delutilde,utilde_t_g,uwork,mype)
-  call inmi_grid2sub(delvtilde,vtilde_t_g,vwork,mype)
-  call inmi_grid2sub(delmtilde,mtilde_t_g,mwork,mype)
+  call inmi_grid2sub(delutilde,utilde_t_g,uwork)
+  call inmi_grid2sub(delvtilde,vtilde_t_g,vwork)
+  call inmi_grid2sub(delmtilde,mtilde_t_g,mwork)
  
 !   7.  delutilde,delvtilde,delmtilde  -->  delu,delv,delt,delps   (vertical mode inverse transform)
 !       (subdomains)                      (subdomains)
@@ -367,10 +365,10 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use mod_vtrans, only: depths,nvmodes_keep,vtrans_ad,vtrans_inv_ad
   use mod_inmi, only: m,gspeed,mmax,dinmi_ad,gproj_ad
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig
+  use gridmod, only: nlat,nlon,lat2,lon2
   use specmod, only: jcap,nc
   use constants, only: zero
   implicit none
@@ -389,8 +387,6 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t_g,vtilde_t_g,mtilde_t_g
   real(r_kind),dimension(nlat,nlon,nuvlevs)::uwork,vwork,mwork
   real(r_kind),dimension(nc)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
-  real(r_kind),dimension(lat2,lon2,nsig)::u_t_g,v_t_g,t_t_g
-  real(r_kind),dimension(lat2,lon2)::ps_t_g
 
   integer(i_kind) mode,iad
   integer(i_kind) i,j,k,kk
@@ -422,9 +418,9 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   utilde_t_g=zero ; vtilde_t_g=zero ; mtilde_t_g=zero
   call vtrans_inv_ad(delutilde,delvtilde,delmtilde,delu,delv,delt,delps)
 
-  call inmi_sub2grid(delutilde,utilde_t_g,uwork,mype)
-  call inmi_sub2grid(delvtilde,vtilde_t_g,vwork,mype)
-  call inmi_sub2grid(delmtilde,mtilde_t_g,mwork,mype)
+  call inmi_sub2grid(delutilde,utilde_t_g,uwork)
+  call inmi_sub2grid(delvtilde,vtilde_t_g,vwork)
+  call inmi_sub2grid(delmtilde,mtilde_t_g,mwork)
 
   do kk=1,nuvlevs
     mode=mode_number(kk)
@@ -472,9 +468,9 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 
 !???????????????????????this part needs some thought--probably need to have two distinct arrays,
 !  which are then added together after these calls
-  call inmi_grid2sub(utilde_t,utilde_t2,uwork,mype)
-  call inmi_grid2sub(vtilde_t,vtilde_t2,vwork,mype)
-  call inmi_grid2sub(mtilde_t,mtilde_t2,mwork,mype)
+  call inmi_grid2sub(utilde_t,utilde_t2,uwork)
+  call inmi_grid2sub(vtilde_t,vtilde_t2,vwork)
+  call inmi_grid2sub(mtilde_t,mtilde_t2,mwork)
   utilde_t=utilde_t+utilde_t2
   vtilde_t=vtilde_t+vtilde_t2
   mtilde_t=mtilde_t+mtilde_t2
@@ -486,7 +482,7 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 
 end subroutine strong_bal_correction_slow_global_ad
 
-subroutine inmi_sub2grid(utilde,utilde2,uwork,mype)
+subroutine inmi_sub2grid(utilde,utilde2,uwork)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -504,7 +500,6 @@ subroutine inmi_sub2grid(utilde,utilde2,uwork,mype)
 !   input argument list:
 !     utilde   - vertical tranformed variable on subdomains
 !     utilde2  - vertical tranformed variable on subdomains
-!     mype     - current processor number
 !
 !   output argument list:
 !     uwork    - output fields in horizontal slab mode
@@ -515,9 +510,9 @@ subroutine inmi_sub2grid(utilde,utilde2,uwork,mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use constants, only: zero
-  use gridmod, only: lat2,nsig,iglobal,lon1,itotsub,lon2,lat1,ltosi,ltosj,nlon,nlat
+  use gridmod, only: lat2,iglobal,lon1,itotsub,lon2,lat1,ltosi,ltosj,nlon,nlat
   use mpimod, only: ierror,mpi_comm_world,&
        isduv_g,iscuv_g,irduv_g,ircuv_g,mpi_rtype,&
        strip,reorder
@@ -525,7 +520,6 @@ subroutine inmi_sub2grid(utilde,utilde2,uwork,mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind) mype
   real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in):: utilde,utilde2
   real(r_kind),dimension(nlat,nlon,nuvlevs),intent(out)::uwork
 
@@ -594,7 +588,7 @@ subroutine inmi_sub2grid(utilde,utilde2,uwork,mype)
 
 end subroutine inmi_sub2grid
 
-subroutine inmi_grid2sub(utilde,utilde2,uwork,mype)
+subroutine inmi_grid2sub(utilde,utilde2,uwork)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -609,7 +603,6 @@ subroutine inmi_grid2sub(utilde,utilde2,uwork,mype)
 !
 !   input argument list:
 !     uwork    - input fields in horizontal slab mode
-!     mype     - current processor number
 !
 !   output argument list:
 !     utilde   - vertical tranformed variable on subdomains
@@ -621,16 +614,14 @@ subroutine inmi_grid2sub(utilde,utilde2,uwork,mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
-  use constants, only: zero
-  use gridmod, only: lat2,nsig,iglobal,lon1,itotsub,lon2,lat1,nlat,nlon,ltosi_s,ltosj_s
+  use kinds, only: r_kind
+  use gridmod, only: lat2,iglobal,itotsub,lon2,nlat,nlon,ltosi_s,ltosj_s
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
        isduv_s,mpi_rtype,reorder2
   use mod_vtrans, only: nvmodes_keep
   implicit none
 
 ! Declare passed variables
-  integer(i_kind) mype
   real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(out):: utilde,utilde2
   real(r_kind),dimension(nlat,nlon,nuvlevs),intent(in)::uwork
 
@@ -700,10 +691,9 @@ subroutine get_mode_number(mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_integer,npe
   use mod_vtrans, only: nvmodes_keep
-  use gridmod, only: nsig
   use constants, only: izero
   implicit none
 
@@ -776,10 +766,9 @@ subroutine gather_rmstends(rmstend_loc,rmstend,mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_integer,mpi_rtype,npe
   use mod_vtrans, only: nvmodes_keep
-  use gridmod, only: nsig
   use constants, only: izero
   implicit none
 

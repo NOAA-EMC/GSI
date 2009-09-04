@@ -42,6 +42,7 @@ module ozinfo
 !$$$ end documentation block
 
   use kinds, only:r_kind,i_kind
+  implicit none
 
   logical diag_ozone
   integer(i_kind) mype_oz,jpch_oz
@@ -75,6 +76,7 @@ contains
 !
 !$$$
     use mpimod, only: npe       ! contains the number of mpi tasks, variable "npe"
+    implicit none
 
     jpch_oz = 0                 ! number of enteries read from ozinfo
     diag_ozone = .true.         ! default is to generate ozone diagnostic file

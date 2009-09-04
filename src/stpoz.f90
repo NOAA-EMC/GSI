@@ -1,8 +1,9 @@
 module stpozmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stpozmod    module for stpoz and its tangent linear stpoz_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stpozmod    module for stpoz and its tangent linear stpoz_tl
+!  prgmmr:
 !
 ! abstract: module for stpoz and its tangent linear stpoz_tl
 !
@@ -11,7 +12,18 @@ module stpozmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stpoz_tl
 !   2009-01-21  Sienkiewicz - add stpo3l (level ozone) again
+!   2009-08-12  lueken - update documentation
 !
+! subroutines included:
+!   sub stpoz
+!   sub stpozlay_
+!   sub stpozlev_
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -35,6 +47,8 @@ subroutine stpoz(ozhead,o3lhead,roz,soz,out,sges)
 !   2009-01-22  Sienkiewicz - incorporation of level ozone routine
 !
 !   input argument list:
+!     ozhead
+!     o3lhead
 !     roz  - search direction for ozone
 !     soz  - input ozone correction field
 !     sges - step size estimates (4)
@@ -49,12 +63,13 @@ subroutine stpoz(ozhead,o3lhead,roz,soz,out,sges)
 !
 ! attributes:
 !   language: f90
-!   machine:  
-  use kinds, only: r_kind,i_kind,r_quad
+!   machine:
+!
+!$$$  
+  use kinds, only: r_kind,r_quad
   use obsmod, only: oz_ob_type,o3l_ob_type
   use gridmod, only: latlon1n
   use constants, only: zero_quad
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
@@ -126,9 +141,7 @@ subroutine stpozlay_(ozhead,roz,soz,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: oz_ob_type
-  use ozinfo, only: b_oz,pg_oz
-  use qcmod, only: nlnqc_iter
-  use constants, only: zero,one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: one,half,two,zero_quad,r3600
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
@@ -342,8 +355,7 @@ subroutine stpozlev_(o3lhead,roz1d,soz1d,out,sges)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: o3l_ob_type
-  use qcmod, only: nlnqc_iter
-  use constants, only: zero,one,half,two,tiny_r_kind,cg_term,r3600
+  use constants, only: zero,one,half,two,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
@@ -355,8 +367,8 @@ subroutine stpozlev_(o3lhead,roz1d,soz1d,out,sges)
   real(r_kind),dimension(4),intent(in):: sges
 
 ! Declare local variables
-  integer(i_kind) i,j1,j2,j3,j4,j5,j6,j7,j8
-  real(r_kind) cg_oz,pen1,pen2,pen3,pencur,oz0,oz1,oz2,oz3,wgross,wnotgross
+  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
+  real(r_kind) pen1,pen2,pen3,pencur,oz0,oz1,oz2,oz3
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,val,val2, time_oz
   real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
   type(o3l_ob_type), pointer :: o3lptr

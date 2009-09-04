@@ -476,7 +476,7 @@ subroutine zds2pcg(zsp,dsp,pgrd,cgrd)
 !
 !$$$
 
-  use specmod, only: nc,factvml,ncd2,enn1
+  use specmod, only: nc,ncd2,enn1
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlat,nlon
@@ -532,7 +532,7 @@ subroutine zds2pcg_ad(zsp,dsp,pgrd,cgrd)
 !
 !$$$
 
-  use specmod, only: nc,factvml,ncd2,enn1
+  use specmod, only: nc,ncd2,enn1
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlat,nlon
@@ -595,7 +595,7 @@ subroutine zds2uvg(zsp,dsp,ugrd,vgrd)
   use specmod, only: nc,factvml
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: nlat,nlon,sinlon,coslon
+  use gridmod, only: nlat,nlon
   implicit none
 
 ! Passed variables
@@ -670,7 +670,7 @@ subroutine zds2uvg_ad(zsp,dsp,ugrd,vgrd)
   use specmod, only: nc,factvml,wlat,jb,je,jcap,ncd2,enn1
   use kinds, only: r_kind,i_kind
   use constants, only: zero,two
-  use gridmod, only: nlat,nlon,sinlon,coslon
+  use gridmod, only: nlat,nlon
   implicit none
 
 ! Passed variables
@@ -949,7 +949,7 @@ subroutine spectra_pole_wind (ufield,vfield,vort,divg)
 !$$$
  use specmod, only: nc,jcap
  use kinds, only: r_kind,i_kind
- use constants, only: zero,one,two,three,rearth,pi
+ use constants, only: zero,two,three,rearth,pi
  use gridmod, only: nlat,nlon
      
       implicit none  
@@ -1123,7 +1123,7 @@ subroutine spectra_pole_wind_ad (ufield,vfield,vort,divg)
 !$$$
  use specmod, only: nc,jcap
  use kinds, only: r_kind,i_kind
- use constants, only: zero,one,two,three,rearth,pi
+ use constants, only: zero,two,three,rearth,pi
  use gridmod, only: nlat,nlon
      
       implicit none  
@@ -1251,9 +1251,9 @@ subroutine test_inverses(mype)
 ! subprogram: test_inverses
 !   prgmmr: kleist           org: np23                date: 2006-07-15
 !
-! abstract: test that corresponding invserse routines for spectral transforms
+! abstract: test that corresponding inverse routines for spectral transforms
 !           are indeed the inverses of each other (up to roundoff error) and 
-!           that corresponding adjoints are indeed adjouts (up to roundoff 
+!           that corresponding adjoints are indeed adjoints (up to roundoff 
 !           error)           
 !
 ! program history log:
@@ -1289,16 +1289,16 @@ subroutine test_inverses(mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind,r_single
+  use kinds, only: r_single,r_kind,i_kind
   use gridmod, only:  nlat,nlon
-  use guess_grids, only: ges_u,ges_tv,ges_v,ntguessig
+  use guess_grids, only: ges_tv,ntguessig
   use specmod, only: nc,jcap
-  use constants, only: zero,one,two
+  use constants, only: zero,one
   implicit none
 
   integer(i_kind),intent(in):: mype
   integer(i_kind) :: index (5)
-  integer i,j,n,ig,ncstep
+  integer(i_kind) :: i,j,n,ig,ncstep
   real(r_kind),dimension(nlat,nlon):: u1,v1,u2,u3,v2,t1,t2
   real(r_kind),dimension(nc):: s1,s2,s3
   real(r_kind),dimension(nc):: d1,d2,d3
@@ -1358,7 +1358,7 @@ subroutine test_inverses(mype)
     s2=zero; s3=zero
     d2=zero; d3=zero
     s1(1)=zero  ! this component is always zero
-    d1=0.1*s1 
+    d1=0.1_r_single*s1 
     call zds2uvg(s1,d1,u1,v1)  
     call uvg2zds(s2,d2,u1,v1) 
 !
@@ -1425,7 +1425,7 @@ subroutine test_inverses(mype)
     u1=zero; v1=zero
     s2=zero; d2=zero
     s1(1)=zero
-    d1=0.1*s1 
+    d1=0.1_r_single*s1 
     call uvg2zds_ad(s1,d1,u1,v1) 
     call zds2uvg_ad(s2,d2,u1,v1)
 !

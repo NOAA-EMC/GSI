@@ -10,6 +10,7 @@
 ! !INTERFACE:
 
     module mpeu_util
+      use kinds, only: i_kind
       implicit none
       private	! except
 
@@ -18,12 +19,12 @@
       public :: stdin, stdout, stderr
       public :: strTemplate
 
-    integer,parameter :: STDIN = 5
-    integer,parameter :: STDOUT= 6
+    integer(i_kind),parameter :: STDIN = 5
+    integer(i_kind),parameter :: STDOUT= 6
 #ifdef sysHP_UX
-    integer,parameter :: STDERR= 7
+    integer(i_kind),parameter :: STDERR= 7
 #else
-    integer,parameter :: STDERR= 0
+    integer(i_kind),parameter :: STDERR= 0
 #endif
     interface luavail; module procedure luavail_; end interface
 
@@ -74,18 +75,36 @@
   integer,parameter :: SP=kind(R4)
   integer,parameter :: DP=kind(R8)
 
-  integer,parameter :: PAGESIZE_=64
   integer,parameter :: MAX_LUNIT=1024
 
 contains
 function luavail_() result(lu)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    luavail_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
-  integer :: lu
+  integer(i_kind) :: lu
 
   character(len=*),parameter :: myname_=myname//'::luavail_'
-  integer ios
+  integer(i_kind) ios
   logical inuse
-  character*8 attr
 
   lu=-1
   ios=0
@@ -113,6 +132,26 @@ function luavail_() result(lu)
 end function luavail_
 
 subroutine perr_(who,what)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    perr_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
   write(stderr,'(1x,4a)',advance='no') &
@@ -124,6 +163,26 @@ subroutine perr_(who,what)
   write(stdout,*)
 end subroutine perr_
 subroutine perr_chr_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    perr_chr_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what,val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what,val
   write(stderr,'(1x,4a)',advance='no') &
@@ -135,9 +194,30 @@ subroutine perr_chr_(who,what,val)
   write(stdout,'(1x,3a)') '"',trim(val),'"'
 end subroutine perr_chr_
 subroutine perr_int_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    perr_int_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
-  integer,intent(in) :: val
+  integer(i_kind),intent(in) :: val
   write(stderr,'(1x,4a)',advance='no') &
     trim(who),'(): >>> ERROR <<< ',trim(what),' '
   write(stderr,*) val
@@ -147,6 +227,27 @@ subroutine perr_int_(who,what,val)
   write(stdout,*) val
 end subroutine perr_int_
 subroutine perr_flt_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    perr_flt_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
   real(SP),intent(in) :: val
@@ -159,6 +260,27 @@ subroutine perr_flt_(who,what,val)
   write(stdout,*) val
 end subroutine perr_flt_
 subroutine perr_dbl_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    perr_dbl_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
   real(DP),intent(in) :: val
@@ -172,6 +294,26 @@ subroutine perr_dbl_(who,what,val)
 end subroutine perr_dbl_
 
 subroutine warn_(who,what)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    warn_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
   write(stdout,'(1x,4a)',advance='no') &
@@ -179,6 +321,26 @@ subroutine warn_(who,what)
   write(stdout,*)
 end subroutine warn_
 subroutine warn_chr_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    warn_chr_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what,val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what,val
   write(stdout,'(1x,4a)',advance='no') &
@@ -186,14 +348,56 @@ subroutine warn_chr_(who,what,val)
   write(stdout,'(1x,3a)') '"',trim(val),'"'
 end subroutine warn_chr_
 subroutine warn_int_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    warn_int_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
-  integer,intent(in) :: val
+  integer(i_kind),intent(in) :: val
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): >>> WARNING <<< ',trim(what),' '
   write(stdout,*) val
 end subroutine warn_int_
 subroutine warn_flt_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    warn_flt_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
   real(SP),intent(in) :: val
@@ -211,6 +415,26 @@ subroutine warn_dbl_(who,what,val)
 end subroutine warn_dbl_
 
 subroutine tell_(who,what)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    tell_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
   write(stdout,'(1x,4a)',advance='no') &
@@ -218,6 +442,26 @@ subroutine tell_(who,what)
   write(stdout,*)
 end subroutine tell_
 subroutine tell_chr_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    tell_chr_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what,val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what,val
   write(stdout,'(1x,4a)',advance='no') &
@@ -225,14 +469,56 @@ subroutine tell_chr_(who,what,val)
   write(stdout,'(1x,3a)') '"',trim(val),'"'
 end subroutine tell_chr_
 subroutine tell_int_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    tell_int_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
-  integer,intent(in) :: val
+  integer(i_kind),intent(in) :: val
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): ',trim(what),' '
   write(stdout,*) val
 end subroutine tell_int_
 subroutine tell_flt_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    tell_flt_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
   real(SP),intent(in) :: val
@@ -241,6 +527,27 @@ subroutine tell_flt_(who,what,val)
   write(stdout,*) val
 end subroutine tell_flt_
 subroutine tell_dbl_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    tell_dbl_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
   real(DP),intent(in) :: val
@@ -250,6 +557,25 @@ subroutine tell_dbl_(who,what,val)
 end subroutine tell_dbl_
 
 subroutine dropdead_()
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    dropdead_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   	! this is a GSI_GridComp::abort()
   call abor1(myname//"dropdead_()")
@@ -257,31 +583,133 @@ subroutine dropdead_()
 end subroutine dropdead_
 
 subroutine die_(who)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    die_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who
   call perr_(who,'presence of a fatal condition')
   call dropdead_()
 end subroutine die_
 subroutine die2_(who,what)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    die2_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
   call perr_(who,what)
   call dropdead_()
 end subroutine die2_
 subroutine die_chr_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    die_chr_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what,val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what,val
   call perr_chr_(who,what,val)
   call dropdead_()
 end subroutine die_chr_
 subroutine die_int_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    die_int_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
-  integer,intent(in) :: val
+  integer(i_kind),intent(in) :: val
   call perr_int_(who,what,val)
   call dropdead_()
 end subroutine die_int_
 subroutine die_flt_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    die_flt_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
   real(SP),intent(in) :: val
@@ -289,6 +717,27 @@ subroutine die_flt_(who,what,val)
   call dropdead_()
 end subroutine die_flt_
 subroutine die_dbl_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    die_dbl_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: who,what
   real(DP),intent(in) :: val
@@ -296,17 +745,61 @@ subroutine die_dbl_(who,what,val)
   call dropdead_()
 end subroutine die_dbl_
 subroutine assert_(str,from,line)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    assert_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    str
+!    from
+!    line
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: str	! a message of assert_()
   character(len=*),intent(in) :: from	! where assert_() is invoked.
-  integer,         intent(in) :: line	! where assert_() is invoked.
+  integer(i_kind),intent(in)  :: line	! where assert_() is invoked.
   character(len=*),parameter :: myname_='ASSERT_'
   call perr_(myname_,'failed: "'//str//'"')
   call die(myname_,from,line)
 end subroutine assert_
 subroutine assert_GE_(m,n,who,str)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    assert_GE_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    m,n
+!    who
+!    str
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
-  integer,intent(in) :: m,n
+  integer(i_kind),intent(in) :: m,n
   character(len=*),intent(in) :: who	! where assert_GE_() is invoked.
   character(len=*),intent(in) :: str	! a message of assert_GE_()
   character(len=*),parameter :: myname_='ASSERT_GE_'
@@ -327,7 +820,7 @@ end subroutine assert_GE_
 ! !DESCRIPTION:
 !
 !	A template resolver formatting a string with string, time, and
-!   dimensioin variables.  The format descriptors are similar to those
+!   dimension variables.  The format descriptors are similar to those
 !   used in the GrADS, with some extensions.
 !
 !	"${E}"	substitute environment variable ${E}
@@ -362,22 +855,22 @@ end subroutine assert_GE_
 
       character(len=*),intent(in ) :: tmpl	! a "format"
 
-      integer,intent(in ),optional :: nymd
+      integer(i_kind),intent(in ),optional :: nymd
 			! yyyymmdd, substituting "%y4", "%y2", "%m1",
 			! "%m2", "%mc", "%Mc', and "%MC"
 
-      integer,intent(in ),optional :: nhms
+      integer(i_kind),intent(in ),optional :: nhms
 			! hhmmss, substituting "%h1", "%h2", "%h3",
 			! and "%n2"
 
-      integer,dimension(:),intent(in ),optional :: dims
+      integer(i_kind),dimension(:),intent(in ),optional :: dims
 			! integers, substituing "%i", "%j", "%k", "%l"
 
       character(len=*),intent(in ),optional :: xid
 			! a string substituting a "%s".  Trailing
 			! spaces will be ignored
 
-      integer,intent(out),optional :: stat
+      integer(i_kind),intent(out),optional :: stat
 			! error code
 
 ! !REVISION HISTORY:
@@ -410,12 +903,12 @@ end subroutine assert_GE_
 	'JUL','AUG','SEP','OCT','NOV','DEC'	/)
 
 
-  integer :: iy4,iy2,imo,idy
-  integer :: ihr,imn
-  integer :: i,i1,i2,m,k
-  integer :: ln_tmpl,ln_str
-  integer :: istp,kstp
-  integer :: ier
+  integer(i_kind) :: iy4,iy2,imo,idy
+  integer(i_kind) :: ihr,imn
+  integer(i_kind) :: i,i1,i2,m,k
+  integer(i_kind) :: ln_tmpl,ln_str
+  integer(i_kind) :: istp,kstp
+  integer(i_kind) :: ier
 
   character(len=1) :: c0,c1,c2
   character(len=8) :: sbuf
@@ -732,18 +1225,47 @@ end do
 
 contains
 subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    genv_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    tmpl
+!    lnt
+!    i
+!    str
+!    lns
+!    k
+!
+!   output argument list:
+!    istp
+!    str
+!    k
+!    ier
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   character(len=*),intent(in) :: tmpl
-  integer,intent(in)  :: lnt
-  integer,intent(in)  :: i
-  integer,intent(out) :: istp
+  integer(i_kind),intent(in)  :: lnt
+  integer(i_kind),intent(in)  :: i
+  integer(i_kind),intent(out) :: istp
   character(len=*),intent(inout) :: str
-  integer         ,intent(in)    :: lns
-  integer         ,intent(inout) :: k
-  integer,intent(out) :: ier
+  integer(i_kind),intent(in)    :: lns
+  integer(i_kind),intent(inout) :: k
+  integer(i_kind),intent(out) :: ier
 
-  integer :: j,jb,je
-  integer :: l,m
+  integer(i_kind) :: j,jb,je
+  integer(i_kind) :: l,m
   logical :: bracket,more
   character(len=256) :: env
 

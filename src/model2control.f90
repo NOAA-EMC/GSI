@@ -23,10 +23,9 @@ use control_vectors
 use state_vectors
 use bias_predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
-use gridmod, only: lat2,lon2,nsig,nnnn1o,periodic
+use gridmod, only: lat2,lon2,nsig,nnnn1o
 use berror, only: varprd,fpsproj
 use balmod, only: tbalance
-use mpimod, only: levs_id
 use jfunc, only: nsclen,npclen,nrclen,nval_lenz
 use mpl_allreducemod, only: mpl_allreduce
 implicit none
@@ -38,7 +37,7 @@ type(control_vector), intent(inout) :: grad
 
 ! Declare local variables
 real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
-integer(i_kind) :: ii,jj,kk,nnn,iflg
+integer(i_kind) :: ii,jj
 real(r_kind) :: zwork(nrclen)
 real(r_kind) :: gradz(nval_lenz)
 

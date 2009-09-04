@@ -1,8 +1,9 @@
 module intrwmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intrwmod    module for intrw and its tangent linear intrw_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intrwmod    module for intrw and its tangent linear intrw_tl
+!  prgmmr:
 !
 ! abstract: module for intrw and its tangent linear intrw_tl
 !
@@ -10,7 +11,18 @@ module intrwmod
 !   2005-05-13  Yanqiu zhu - wrap intrw and its tangent linear intrw_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intrw_tl; add interface back
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intrw_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -55,9 +67,10 @@ subroutine intrw_(rwhead,ru,rv,su,sv)
 !     rwhead   - obs type pointer to obs structure     
 !     su       - current u solution increment 
 !     sv       - current v solution increment 
+!     ru
+!     rv
 !
 !   output argument list:
-!     rwhead   - obs type pointer to obs structure     
 !     ru       - u results from observation operator 
 !     rv       - v results from observation operator 
 !
@@ -67,7 +80,7 @@ subroutine intrw_(rwhead,ru,rv,su,sv)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,two,zero,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,tiny_r_kind,cg_term,r3600
   use obsmod, only: rw_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n

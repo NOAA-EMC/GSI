@@ -19,6 +19,7 @@ subroutine rdgrbsst(file_sst,mlat_sst,mlon_sst,&
 !
 !   input argument list:
 !     file_sst - file name of GRIB SST file
+!     mlat_sst,mlon_sst
 !
 !   argument list defined by this reading:
 !     sst_an - SST field (for 0.5 x 0.5 resolution)

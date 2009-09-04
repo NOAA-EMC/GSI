@@ -2,6 +2,7 @@ module convthin
 !$$$   module documentation block
 !                .      .    .                                   .
 ! module:  convthin
+!  prgmmr:
 !
 ! abstract:
 !
@@ -34,7 +35,7 @@ module convthin
 
 contains
 
-  subroutine make3grids(rmesh,pmesh,nlevp)
+  subroutine make3grids(rmesh,nlevp)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    make3grids                            
@@ -55,7 +56,6 @@ contains
 !     rmesh - mesh size (km) of thinning grid.  If (rmesh <= one), 
 !             then no thinning of the data will occur.  Instead,
 !             all data will be used without thinning.
-!     pmesh - vertical mesh size (mb) 
 !     nlevp -  vertical levels
 !
 ! attributes:
@@ -70,7 +70,7 @@ contains
 
     real(r_kind),parameter:: r360 = 360.0_r_kind
 
-    real(r_kind),intent(in):: rmesh,pmesh
+    real(r_kind),intent(in):: rmesh
     integer(i_kind),intent(in):: nlevp
 
     integer(i_kind) i,j
@@ -197,7 +197,6 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use kinds, only: r_kind,i_kind
     use constants, only: one, half,two,three,ione
     implicit none
     

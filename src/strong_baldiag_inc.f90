@@ -18,18 +18,20 @@ subroutine strong_baldiag_inc(sval)
 !   input argument list:
 !     sval    - current solution in state space
 !
+!   output argument list:
+!     sval
+!
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
-  use mpimod, only: levs_id,mype
-  use gridmod, only: latlon1n,latlon11,nnnn1o
+  use kinds, only: i_kind
+  use mpimod, only: mype
+  use gridmod, only: nnnn1o
   use gsi_4dvar, only: nsubwin
   use mod_vtrans,only: nvmodes_keep
   use state_vectors
-  use control_vectors
   use constants, only: zero
   implicit none
 
@@ -37,8 +39,8 @@ subroutine strong_baldiag_inc(sval)
   type(state_vector),intent(inout)::sval(nsubwin)
 
 ! Declare local variables
-  integer(i_kind) k,ii
-  logical fullfield,tracer
+  integer(i_kind) ii
+  logical fullfield
   type(state_vector) dhat_dt
 
 !************************************************************************************  

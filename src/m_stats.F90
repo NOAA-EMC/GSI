@@ -13,7 +13,7 @@ module m_stats
 
 use kinds,only : r_kind
 use kinds,only : i_kind
-use mpimod, only: ierror,mpi_rtype,mype,npe,mpi_sum,mpi_max
+use mpimod, only: ierror,mpi_rtype,mpi_sum,mpi_max
 
 implicit none
 private
@@ -52,6 +52,34 @@ contains
 !	
 
 subroutine sum_(v,vdot,vsum,vmin,vmax,vdim,add)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    sum_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    v
+!    vdot,vsum
+!    vmin,vmax
+!    vdim
+!    add
+!
+!   output argument list:
+!    vdot,vsum
+!    vmin,vmax
+!    vdim
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   real(r_kind),dimension(:),intent(in) :: v
   real(r_kind),intent(inout) :: vdot,vsum
@@ -79,6 +107,33 @@ subroutine sum_(v,vdot,vsum,vmin,vmax,vdim,add)
 end subroutine sum_
 
 subroutine allreduce_(vdot,vsum,vmin,vmax,vdim,comm)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    allreduce_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    vdot,vsum
+!    vmin,vmax
+!    vdim
+!    comm
+!
+!   output argument list:
+!    vdot,vsum
+!    vmin,vmax
+!    vdim
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   real(r_kind),intent(inout) :: vdot,vsum
   real(r_kind),intent(inout) :: vmin,vmax

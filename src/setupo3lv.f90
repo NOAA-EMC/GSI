@@ -14,18 +14,17 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 
   use kinds, only: r_kind,r_single,i_kind
 
-  use obsmod, only: o3ltail,o3lhead,iadate,dplat,i_o3l_ob_type,obsdiags,&
+  use obsmod, only: o3ltail,o3lhead,dplat,i_o3l_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,dirname,&
                     ianldate,time_offset,mype_diaghdr
   use oneobmod, only: oneobtest,maginnov,magoberr,pctswitch
-  use guess_grids, only: ges_lnprsl,ges_oz,hrdifsig,nfldsig,ges_ps,&
-       ges_prsi, ntguessig
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig
+  use guess_grids, only: ges_lnprsl,ges_oz,hrdifsig,nfldsig,ges_ps
+  use gridmod, only: nsig
   use gridmod, only: get_ijk
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use constants, only: zero,one,four,r1000,wgtlim
-  use constants, only: tiny_r_kind,half,one_tenth,two,cg_term
-  use constants, only: constoz,ozcon
+  use constants, only: tiny_r_kind,half,two,cg_term
+  use constants, only: constoz
   use qcmod, only: npres_print,ptopo3,pboto3,dfact,dfact1
   use jfunc, only: jiter,last, miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
@@ -103,8 +102,6 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig):: prsltmp
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
-  real(r_kind),dimension(lat2,lon2,nsig,nfldsig)::grid1
-  real(r_kind),dimension(8) ::  dobsconv
 
   integer(i_kind) i,nreal,j,ii,l,jj,mm1,nn
   integer(i_kind) jsig,k

@@ -16,25 +16,19 @@ subroutine geos_pgcmtest(xini,xobs,ldprt)
 use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
 use gsi_4dvar, only: iadatebgn,idmodel
-use jfunc, only: nclen1
-use constants, only: zero,one,tiny_r_kind
+use constants, only: zero,one,tiny_r_kind,r3600
 #ifdef GEOS_PERT
 use prognostics, only: dyn_prog
 use prognostics, only: prognostics_initial
 use prognostics, only: prognostics_final
-use prognostics, only: prognostics_zero
 use prognostics, only: prognostics_dotp
 use prognostics, only: prognostics_dup
 use prognostics, only: prognostics_cnst
 use geos_pertmod, only: gsi2pgcm
 use geos_pertmod, only: pgcm2gsi
 use geos_pertmod, only: ndtpert
-use m_model_tl, only: initial_tl
 use m_model_tl, only: amodel_tl
-use m_model_tl, only: final_tl
-use m_model_ad, only: initial_ad
 use m_model_ad, only: amodel_ad
-use m_model_ad, only: final_ad
 #endif /* GEOS_PERT */
 use state_vectors
 implicit none
@@ -46,8 +40,7 @@ logical, intent(in) :: ldprt
 
 #ifdef GEOS_PERT
 ! Declare local variables
-real(r_kind), parameter :: R3600 = 3600.0_r_kind
-integer(i_kind) :: i,j,ij,nstep,istep,nfrctl,nfrobs,ii,ierr
+integer(i_kind) :: i,nstep,nfrctl,nfrobs,ierr
 integer(i_kind) :: nymdi,nhmsi,ndt
 integer(i_kind) :: nymdt,nhmst
 type(state_vector) :: ww
@@ -71,30 +64,30 @@ if ( mycount==-1 ) then  ! not active on purpose
 
 ! Initialize variables
 if (idmodel) then
-   tstep  = R3600
+   tstep  = r3600
 else
    tstep  = REAL(ndtpert,r_kind)
 endif
-nstep  = NINT(winlen*R3600/tstep)
-nfrctl = NINT(winsub*R3600/tstep)
-nfrobs = NINT(hr_obsbin*R3600/tstep)
-ndt    = NINT(R3600/ndtpert)
+nstep  = NINT(winlen*r3600/tstep)
+nfrctl = NINT(winsub*r3600/tstep)
+nfrobs = NINT(hr_obsbin*r3600/tstep)
+ndt    = NINT(r3600/ndtpert)
 nymdi  =  iadatebgn/100
 nhmsi  = (iadatebgn - 100*nymdi)*10000
 
 ! Checks
 zt=real(nstep,r_kind)*tstep
-if (ABS(winlen*R3600   -zt)>epsilon(zt)) then
+if (ABS(winlen*r3600   -zt)>epsilon(zt)) then
   write(6,*)'geos_pgcmtest: error nstep',winlen,zt
   call stop2(127)
 end if
 zt=real(nfrctl,r_kind)*tstep
-if (ABS(winsub*R3600   -zt)>epsilon(zt)) then
+if (ABS(winsub*r3600   -zt)>epsilon(zt)) then
   write(6,*)'geos_pgcmtest: error nfrctl',winsub,zt
   call stop2(128)
 end if
 zt=real(nfrobs,r_kind)*tstep
-if (ABS(hr_obsbin*R3600-zt)>epsilon(zt)) then
+if (ABS(hr_obsbin*r3600-zt)>epsilon(zt)) then
   write(6,*)'geos_pgcmtest: error nfrobs',hr_obsbin,zt
   call stop2(129)
 end if

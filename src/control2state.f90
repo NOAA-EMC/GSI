@@ -1,5 +1,8 @@
 subroutine control2state(xhat,sval,bval)
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    control2state
+!   prgmmr: tremolet
 !
 ! abstract:  Converts control variable to physical space
 !
@@ -7,14 +10,18 @@ subroutine control2state(xhat,sval,bval)
 !   2007-04-13  tremolet - initial code
 !   2008-11-28  todling  - add calc of 3dp; upd rh_to_q (Cucurull 2007-07-26)
 !   2009-04-21  derber   - modify call to getuv to getuv(*,0)
+!   2009-08-14  lueken   - update documentation
 !
 !   input argument list:
 !     xhat - Control variable
+!     sval - State variable
+!     bval - Bias predictors
+!
 !   output argument list:
 !     sval - State variable
 !     bval - Bias predictors
 !
-!$$$
+!$$$ end documentation block
 use kinds, only: r_kind,i_kind
 use control_vectors
 use state_vectors

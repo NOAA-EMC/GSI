@@ -63,7 +63,7 @@ subroutine prewgt(mype)
   use kinds, only: r_kind,i_kind,r_single
   use berror, only: dssvp,dssvt,wtaxs,&
        bw,wtxrs,inaxs,inxrs,as,nr,ny,nx,mr,ndeg,&
-       nf,vs,be,dssv,norh,bl2,bl,init_rftable,nlath,hzscl,&
+       nf,vs,be,dssv,norh,bl2,bl,init_rftable,hzscl,&
        pert_berr,bkgv_flowdep,tsfc_sdv,slw,slw1,slw2
   use m_berror_stats,only : berror_read_wgt
   use mpimod, only: nvar_id,levs_id
@@ -71,8 +71,8 @@ subroutine prewgt(mype)
   use jfunc, only: qoption,varq
   use gridmod, only: istart,jstart,lat2,lon2,rlats,nlat,nlon,nsig,&
        nnnn1o,lat1,lon1,itotsub,iglobal,ltosi,ltosj,ijn,displs_g
-  use constants, only: zero,one_tenth,quarter,half,one,two,&
-       rearth_equator,pi,izero,four,tiny_r_kind,r1000
+  use constants, only: zero,quarter,half,one,two,three,&
+       rearth_equator,pi,izero,r1000
   use guess_grids, only: isli2
   use smooth_polcarf, only: norsp,setup_smooth_polcas
 
@@ -84,7 +84,7 @@ subroutine prewgt(mype)
 ! Declare local variables
   integer(i_kind) nrr,iii,jjj,nxg,i2,im,jm,j2
   integer(i_kind) i,j,k,nbuf,nmix,nxe,nor,ndx,ndy
-  integer(i_kind) nel,nlathh,mm1,nolp,mm,ir,k1
+  integer(i_kind) nlathh,mm1,nolp,mm,ir,k1
   integer(i_kind) ix,jx,mlat
   integer(i_kind) kd,kt,kq,kc,koz,nf2p
   integer(i_kind),dimension(0:40):: iblend
@@ -120,12 +120,11 @@ subroutine prewgt(mype)
   real(r_kind),dimension(lat2,lon2):: psvar
 
 ! real(r_kind),parameter:: eight_tenths = 0.8_r_kind
-  real(r_kind),parameter:: three        = 3.0_r_kind
 ! real(r_kind),parameter:: six          = 6.0_r_kind
 ! real(r_kind),parameter:: r400         = 400.0_r_kind
 ! real(r_kind),parameter:: r800         = 800.0_r_kind
 ! real(r_kind),parameter:: r40000       = 40000.0_r_kind
-! real(r_kind),parameter:: r25          = 1.0_r_kind/25.0_r_kind
+! real(r_kind),parameter:: r25          = one/25.0_r_kind
 
 ! Initialize local variables
   pi2=two*pi
@@ -213,33 +212,6 @@ subroutine prewgt(mype)
         if(sl(i,j) > one)sl(i,j)=zero
       enddo
     enddo
-!   nel=nlath/3
-!   do j=1,nlon
-!     do i=1,nel
-!       sl(i,j)=one
-!     enddo
-!   enddo
-! 
-!   do j=1,nlon
-!               ! The first index range of sl(:,j) is 1:nlat, where nlat
-!               ! can be either even (Gaussian) or odd (other grid).
-!               ! nlath*7/9:nlath*11/9 is not symmetric about the
-!               ! Equaitor.  For a symmetric grid band, one should
-!               ! use i=nlat*7/18,nlat+1-nlat*7/18.  No fix is made 
-!               ! until further verification.  (Jing Guo)
-!     do i=nlath*7/9,nlath*11/9
-!       sl(i,j)=one
-!     enddo
-!   enddo
-  
-!   nel=nlath/3
-!   do j=1,nlon
-!               ! I believe for sl(nlat-i,j), the range of i should be
-!               ! i=0,nel-1, not i=1,nel, thus this fix.  (Jing Guo)
-!     do i=0,nel-1
-!       sl(nlat-i,j)=one
-!     enddo
-!   enddo
     call smoothww(nlat,nlon,sl,half,2,1)
     do j=1,nlon
       do i=1,nlat
@@ -295,7 +267,7 @@ subroutine prewgt(mype)
   if (pert_berr) then
     allocate(randfct(12))
 
-    call get_randoms(12,randfct,mype)
+    call get_randoms(12,randfct)
     do i=1,8
       as(i)=as(i)+as(i)*randfct(i)
     end do
@@ -698,7 +670,7 @@ subroutine blend(n,iblend)
   return
 end subroutine blend
 
-subroutine get_randoms(count,randnums,mype)
+subroutine get_randoms(count,randnums)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_randoms
@@ -712,7 +684,6 @@ subroutine get_randoms(count,randnums,mype)
 !
 !   input argument list:
 !     count    - number or random numbers to generate
-!     mype     - mpi task id
 !
 !   output argument list:
 !     randnums - array of scaled random numbers
@@ -729,7 +700,7 @@ subroutine get_randoms(count,randnums,mype)
   use constants, only: one, two
   implicit none
 
-  integer(i_kind),intent(in):: count,mype
+  integer(i_kind),intent(in):: count
   real(r_kind),dimension(count),intent(out):: randnums
 
   integer(i_kind),allocatable,dimension(:):: numrnds

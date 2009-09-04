@@ -38,6 +38,7 @@
 
  use kinds, only : i_kind, r_kind
  use calc_fov_crosstrk, only : npoly
+ implicit none
 
  private
 
@@ -92,7 +93,6 @@ subroutine instrument_init(instr,satid,expansion)
 
  use calc_fov_crosstrk, only : get_sat_height
  use constants, only  : pi, one, two, half
- use kinds, only      : i_kind
 
  implicit none
 
@@ -197,7 +197,6 @@ subroutine fovconicalanglessizes(instr,chan,height,alongtrackangle, &
 !$$$
 
  use constants, only : half, two, deg2rad, rad2deg, zero
- use kinds, only     : i_kind, r_kind
 
  implicit none
 
@@ -333,7 +332,6 @@ subroutine fov_ellipse_conical(ichan,satellite_azimuth,lat,lon,elats,elons)
 !$$$
 
  use constants, only : one, rad2deg
- use kinds, only : i_kind, r_kind
 
  implicit none
 
@@ -438,8 +436,7 @@ subroutine inside_fov_conical(instr,ichan,satellite_azimuth,lat,lon, &
 !
 !$$$
 
- use constants, only : one, half, two, zero, deg2rad, rad2deg, pi
- use kinds, only     : i_kind, r_kind
+ use constants, only : one, half, two, zero, deg2rad, rad2deg, pi, one_tenth
 
  implicit none
 
@@ -700,7 +697,7 @@ subroutine inside_fov_conical(instr,ichan,satellite_azimuth,lat,lon, &
 
    ! convert to fraction of max power
 
-    p = 10._r_kind**(-p*0.1_r_kind)
+    p = 10._r_kind**(-p*one_tenth)
 
     inside = p  
     if(inside > one) inside = one

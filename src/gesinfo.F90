@@ -27,11 +27,11 @@ subroutine gesinfo(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: i_kind,r_kind,r_single
+  use kinds, only: i_kind,r_kind
   use obsmod, only: iadate,ianldate,time_offset
   use gsi_4dvar, only: ibdate, iedate, iadatebgn, iadateend, iwinbgn,time_4dvar
   use gsi_4dvar, only: nhr_assimilation,nhr_offset
-  use mpimod, only: mpi_comm_world,npe
+  use mpimod, only: npe
   use gridmod, only: idvc5,ak5,bk5,ck5,tref5,&
        regional,nsig,regional_fhr,regional_time,&
        wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,&
@@ -43,7 +43,7 @@ subroutine gesinfo(mype)
   use gfsio_module, only: gfsio_gfile,gfsio_open,gfsio_close,&
        gfsio_init,gfsio_finalize,gfsio_getfilehead
 
-  use constants, only: izero,zero
+  use constants, only: izero,zero,h300
 
   implicit none
 
@@ -66,7 +66,6 @@ subroutine gesinfo(mype)
   integer(i_kind) mype_out,iret,iret2,intype
   integer(i_kind),dimension(4):: idate4
   integer(i_kind),dimension(8):: ida,jda
-  integer(i_kind) :: imo,idy,ihr
   integer(i_kind) :: nmin_an
 
   real(r_kind) hourg
@@ -260,7 +259,7 @@ subroutine gesinfo(mype)
            
 !       Load reference temperature array (used by general coordinate)        
         do k=1,nsig
-           tref5(k)=300.0_r_kind
+           tref5(k)=h300
         end do
 
 !       Load surface pressure and thermodynamic variable ids

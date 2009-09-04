@@ -117,13 +117,13 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: deg2rad,rearth_equator,zero,two,pi,half,one,quarter,&
+    use constants, only: deg2rad,rearth_equator,zero,two,pi,half,one,&
        rad2deg,r1000
     use obsmod, only: dmesh,dthin,ndat
-    use gridmod, only: regional,region_lat,region_lon,nlat,nlon,txy2ll
+    use gridmod, only: regional,nlat,nlon,txy2ll
     implicit none
 
-	real(r_kind),parameter:: r90   = 90.0_r_kind
+    real(r_kind),parameter:: r90   = 90.0_r_kind
     real(r_kind),parameter:: r360  = 360.0_r_kind
     real(r_kind),parameter:: r999  = 999.0_r_kind
 
@@ -248,7 +248,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: rearth_equator,two,deg2rad,zero,half,one,quarter,pi
+    use constants, only: rearth_equator,two,deg2rad,zero,half,one,pi
 
     implicit none
 
@@ -357,19 +357,19 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use kinds, only: r_kind,i_kind,r_single
+    use kinds, only: r_single
     use gridmod, only:  nlat,nlon,lat2,lon2,lat1,lon1,jstart,&
        ltosi,ltosj,iglobal,itotsub,ijn,displs_g,regional,istart, &
        rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
-    use guess_grids, only: ntguessig,isli,sfct,sno,fact10,ges_u,ges_v,ges_z, &
-       nfldsfc,ntguessfc,nfldsig,soil_moi,soil_temp,veg_type,soil_type, &
+    use guess_grids, only: ntguessig,isli,sfct,sno,fact10,ges_z, &
+       nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
        veg_frac,sfc_rough,ifilesfc,isli2,sno2
     use m_gsiBiases, only: bias_tskin,compress_bias,bias_hour
     use jfunc, only: biascor
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
-    use constants, only: zero,izero,half,pi,two
-    use ncepgfs_io, only: read_gfsatm,read_gfssfc,sfc_interpolate
+    use constants, only: zero,half,pi,two,one
+    use ncepgfs_io, only: read_gfssfc,sfc_interpolate
     use sfcio_module, only: sfcio_realfill
 
     implicit none
@@ -685,7 +685,7 @@ contains
 !   therefore, need to interpolate the terrain from the atm
 !   grid to the surface grid, which may not be the same.
     if (.not. regional) then
-      missing = sfcio_realfill + 1.0_r_kind
+      missing = sfcio_realfill + one
       if (maxval(zs_full_gfs) < missing) then
         if (nlon == nlon_sfc .and. nlat == nlat_sfc) then
           zs_full_gfs = zs_full
@@ -769,7 +769,6 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use kinds, only: r_kind,i_kind
     use constants, only: one, half
     implicit none
     logical,intent(out):: iuse
@@ -860,7 +859,6 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use kinds, only: r_kind,i_kind
     implicit none
     logical,intent(inout):: iuse
     integer(i_kind),intent(in):: itx
@@ -899,7 +897,6 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use kinds, only: r_kind,i_kind
     implicit none
     logical,intent(inout):: iuse
     integer(i_kind),intent(in):: itx
@@ -1022,14 +1019,16 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use kinds, only: r_kind,r_double,i_kind
+    use kinds, only: r_double
     implicit none
 
     integer(i_kind) maxblock
     parameter (maxblock=1000)
 
-    integer(i_kind) n,indx(n)
-    real(r_kind) arr(n)
+    integer(i_kind),intent(in) :: n
+    real(r_kind),intent(in)    :: arr(n)
+
+    integer(i_kind),intent(out):: indx(n)
 
 #ifdef ibm_sp
     real(r_kind),dimension(maxblock)::work

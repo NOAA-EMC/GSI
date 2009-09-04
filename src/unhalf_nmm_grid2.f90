@@ -24,6 +24,7 @@ subroutine unhalf_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 !                  (mass point for nmm)
 !              - =2, then (1,1) is staggered (wind point for nmm, 
 !                  see illustration below)
+!     iorder
 !
 !   output argument list
 !     gin      - output on staggered E grid (contains input values + 

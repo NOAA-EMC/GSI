@@ -1,8 +1,9 @@
 module stppwmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stppwmod    module for stppw and its tangent linear stppw_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stppwmod    module for stppw and its tangent linear stppw_tl
+!  prgmmr:
 !
 ! abstract: module for stppw and its tangent linear stppw_tl
 !
@@ -10,7 +11,16 @@ module stppwmod
 !   2005-05-19  Yanqiu zhu - wrap stppw and its tangent linear stppw_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stppw_tl
+!   2009-08-12  lueken - update documentation
 !
+! subroutines included:
+!   sub stppw
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -49,6 +59,7 @@ subroutine stppw(pwhead,rq,sq,out,sges)
 !   2008-12-03  todling - changed handling of ptr%time
 !
 !   input argument list:
+!     pwhead
 !     rq       - search direction for q
 !     sq       - analysis increment for q
 !     sges     - stepsize estimates(4)

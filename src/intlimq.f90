@@ -1,8 +1,9 @@
 module intlimqmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intlimqmod    module for intlimq and its tangent linear intlimq_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intlimqmod    module for intlimq and its tangent linear intlimq_tl
+!  prgmmr:
 !
 ! abstract: module for intlimq and its tangent linear intlimq_tl
 !
@@ -11,7 +12,18 @@ module intlimqmod
 !   2005-11-16  Derber - remove interfaces
 !   2005-11-22  Wu - return if factq's = zero
 !   2008-11-26  Todling - remove intlimq_tl
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intlimq
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -53,7 +65,7 @@ subroutine intlimq(rq,sq)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,one
+  use constants, only: zero
   use gridmod, only: lat2,lon2,nsig,lat1,lon1
   use jfunc, only: factqmin,factqmax,qgues,qsatg
   implicit none

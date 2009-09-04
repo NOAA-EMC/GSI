@@ -34,6 +34,8 @@ module oneobmod
 !$$$
   use kinds, only: r_kind,i_kind
 
+  implicit none
+
   real(r_kind) maginnov, magoberr, oblat, oblon,&
     obhourset, obpres
   integer(i_kind) obdattim
@@ -64,7 +66,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: zero, one
+    use constants, only: zero, one, r1000
     implicit none
 
     oneobtest=.false.
@@ -73,7 +75,7 @@ contains
     oneob_type=' '
     oblat=zero
     oblon=zero
-    obpres=1000.0_r_kind
+    obpres=r1000
     obdattim=2000010100
     obhourset=zero
     pctswitch=.false.
@@ -104,13 +106,12 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: zero, one, five
+    use constants, only: zero, one, five, one_tenth
     use gsi_io, only: lendian_in
     use obsmod, only: offtime_data,iadate
     implicit none
 
     real(r_kind),parameter:: r0_01=0.01_r_kind
-    real(r_kind),parameter:: r0_1=0.1_r_kind
     real(r_kind),parameter:: r20=20.0_r_kind
     real(r_kind),parameter:: r100=100.0_r_kind
 
@@ -122,7 +123,7 @@ contains
     real(r_kind),dimension(1,1):: poe,qoe,toe,woe
     real(r_kind),dimension(1):: xob,yob,dhr
     real(r_kind),dimension(1,1):: pob
-    integer(i_kind) i,n,k,iret
+    integer(i_kind) n,k,iret
     real(r_kind):: bmiss=10.e10
     real(r_kind) hdr(10),obs(10,255),qms(10,255),err(10,255)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
@@ -167,9 +168,9 @@ contains
     endif
 ! keep errs small so the single ob passes the QC check
     poe=r0_01
-    qoe=r0_1
-    toe=r0_1
-    woe=r0_1
+    qoe=one_tenth
+    toe=one_tenth
+    woe=one_tenth
 
     open(ludx,file='prepobs_prep.bufrtable',action='read')
 #if defined(__osf__) || defined(__ia64__) && (__INTEL_COMPILER>799)
@@ -258,6 +259,7 @@ contains
 !   machine:  ?
 !
 !$$$
+    use constants, only: zero, one
     implicit none
 
     integer(i_kind) lumk                          ! output unit
@@ -271,11 +273,11 @@ contains
     lumk = 22
     ilev = 1                  ! ilev > 24 is passive
     isnd = 1
-    ppmv = 1.0                ! dummy value 
+    ppmv = one                ! dummy value 
 
 !    obdattim=2000010100
 
-    rlnc = 0.0
+    rlnc = zero
     rlnc(2) = obhourset
     ildat(1) = obdattim  / 1000000            ! year
     ildat(2) = mod(obdattim,1000000)/10000    ! month

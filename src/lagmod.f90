@@ -35,6 +35,7 @@ module lagmod
 !============================================================================
 use kinds, only: r_kind,i_kind
 use constants, only: zero,one
+implicit none
 contains
 
 

@@ -83,13 +83,13 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: makegrids,map2tgrid,destroygrids, &
-               checkob,finalcheck,itxmax
+               finalcheck,itxmax
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv
+  use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv,two
   use obsmod, only: iadate,offtime_data,nloz_v6,nloz_v8
-  use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
+  use convinfo, only: nconvtype, &
+        icuse,ictype,ioctype
+  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
   use qcmod, only: use_poq7
   implicit none
 
@@ -125,7 +125,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   integer(i_kind) maxobs,nozdat,nloz
   integer(i_kind) idate,jdate,ksatid,kk,iy,iret,im,ihh,idd,lunin
   integer(i_kind) nmind,i
-  integer(i_kind) imin,isec
+  integer(i_kind) imin
   integer(i_kind) nmrecs,k,ilat,ilon,nreal,nchanl
 ! integer(i_kind) ithin,kidsat
   integer(i_kind) kidsat
@@ -138,7 +138,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   integer(i_kind) itx,itt,ipoq7
 
   real(r_kind) tdiff,sstime,slons,slats,dlon,dlat,t4dv,toq,poq,timedif,crit1,dist1
-  real(r_kind) slons0,slats0,rsat,toto3,solzen,solzenp,dlat_earth,dlon_earth
+  real(r_kind) slons0,slats0,rsat,solzen,solzenp,dlat_earth,dlon_earth
   real(r_kind) rsec, ppmv, prec, pres, pob, obserr, usage
   real(r_kind),allocatable,dimension(:):: poz
 
@@ -504,7 +504,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      if (toq/=0) goto 120
 
 !    only accept scan positions from 2 to 25
-     if( hdrozg2(5) < 2.0_r_kind .or. hdrozg2(5) > 25.0_r_kind ) goto 120
+     if( hdrozg2(5) < two .or. hdrozg2(5) > 25.0_r_kind ) goto 120
 
 !    thin GOME data
 !    GOME data has bias when the satellite looks to the east. Consider QC out this data.
@@ -513,9 +513,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      crit1 = 0.01_r_kind+timedif
      call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
      if(.not. iuse) goto 120
-
-!    call checkob(dist1,crit1,itx,iuse)
-!    if(.not. iuse) goto 120
 
      call finalcheck(dist1,crit1,itx,iuse)
      if(.not. iuse) goto 120
@@ -675,9 +672,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
      if(.not. iuse)go to 130
  
-!    call checkob(dist1,crit1,itx,iuse)
-!    if(.not. iuse)go to 130
-
      call finalcheck(dist1,crit1,itx,iuse)
      if(.not. iuse)go to 130
    

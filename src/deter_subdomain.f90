@@ -159,7 +159,7 @@ end subroutine deter_subdomain_noLayout
 ! !USES:
 
   use kinds, only: i_kind
-  use gridmod, only: periodic,periodic_s,lon1,lat1,nlon,nlat,&
+  use gridmod, only: lon1,lat1,nlon,nlat,&
        ilat1,istart,jlon1,jstart
 
   implicit none
@@ -280,10 +280,34 @@ end subroutine deter_subdomain_noLayout
   CONTAINS
 
   subroutine GET_LOCAL_DIMS ( dim_world,dim,NDEs )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    GET_LOCAL_DIMS
+!   prgmmr:                  org                      date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    dim_world
+!    NDEs
+!    dim
+!
+!   output argument list:
+!    dim
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit   none
-  integer    dim_world, NDEs
-  integer    dim(0:NDEs-1)
-  integer    n,im,rm
+  integer(i_kind),intent(in)::    dim_world, NDEs
+  integer(i_kind),intent(inout):: dim(0:NDEs-1)
+  integer(i_kind)    n,im,rm
   im = dim_world/NDEs
   rm = dim_world-NDEs*im
   do n=0,NDEs-1

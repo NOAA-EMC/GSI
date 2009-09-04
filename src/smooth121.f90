@@ -35,9 +35,14 @@ subroutine smooth121(npassh,npassv,lat1,lon1,nlev,fld0,fld2)
 
   real(r_kind),parameter:: eigth=0.125_r_kind
 
-  integer(i_kind) npassh,npassv,lat1,lon1,nlev,i,j,k,ipass,ip1,im1
+  integer(i_kind),intent(in):: npassh,npassv,lat1,lon1,nlev
+  real(r_kind),dimension(lat1,lon1,nlev),intent(in):: fld0
+
+  real(r_kind),dimension(lat1,lon1,nlev),intent(out):: fld2
+
+  integer(i_kind) i,j,k,ipass,ip1,im1
   integer(i_kind) kp1,km1,jm1,jp1
-  real(r_kind),dimension(lat1,lon1,nlev):: fld0,fld2,work
+  real(r_kind),dimension(lat1,lon1,nlev):: work
 
 ! Apply 1-2-1 smoother to guess fld in horizontal
   do k=1,nlev

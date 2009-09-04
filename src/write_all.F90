@@ -12,33 +12,28 @@ subroutine write_all(increment,mype)
 
 ! !USES:
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
   
   use mpimod, only: npe
-  use mpimod, only: MPI_comm_world
 
-  use gridmod, only: regional,wrf_mass_regional,wrf_nmm_regional,netcdf,&
-       twodvar_regional
-  use gridmod, only: lon2, lat2, nsig
+  use gridmod, only: regional
 
   use constants, only: zero, izero
   
   use jfunc, only: biascor
-  use jfunc, only: write_guess_solution
   
-  use guess_grids, only: ntguessig, ntguessfc, ifilesig, nfldsig
-  use guess_grids, only: ges_z, ges_vor, ges_div, ges_u, ges_v
-  use guess_grids, only: ges_tv, ges_oz, ges_ps, ges_q, ges_cwmr, sfct
+  use guess_grids, only: ntguessig
+  use guess_grids, only: ges_z
 
   use m_gsibiases, only: bias_tv, bias_q, bias_oz, bias_cwmr, bias_tskin
   use m_gsibiases, only: bias_ps, bias_vor, bias_div, bias_u, bias_v
-  use m_gsibiases ,only : bias_hour,nbc,compress_bias
+  use m_gsibiases ,only : nbc
 
   use gsi_io, only: write_bias
 
   use regional_io, only: write_regional_analysis
 
-  use ncepgfs_io, only: write_gfs,write_gfsatm
+  use ncepgfs_io, only: write_gfs
   
   implicit none
 
@@ -105,19 +100,7 @@ subroutine write_all(increment,mype)
 ! Declare local variables
   character(24):: filename
   integer(i_kind) mype_atm,mype_bias,mype_sfc,iret_bias
-  real(r_kind),dimension(lat2,lon2):: work_lnps
   
-  real(r_kind),allocatable,dimension(:,:)  :: b_ps
-  real(r_kind),allocatable,dimension(:,:)  :: b_tskin
-  real(r_kind),allocatable,dimension(:,:,:):: b_vor
-  real(r_kind),allocatable,dimension(:,:,:):: b_div
-  real(r_kind),allocatable,dimension(:,:,:):: b_cwmr
-  real(r_kind),allocatable,dimension(:,:,:):: b_q
-  real(r_kind),allocatable,dimension(:,:,:):: b_oz
-  real(r_kind),allocatable,dimension(:,:,:):: b_tv
-  real(r_kind),allocatable,dimension(:,:,:):: b_u
-  real(r_kind),allocatable,dimension(:,:,:):: b_v
-
 !********************************************************************
 
 

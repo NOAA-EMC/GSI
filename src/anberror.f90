@@ -154,8 +154,8 @@ contains
 !
 !$$$ end documentation block
 
-    use kinds, only: i_kind
-    use constants, only:  zero,half,one,two,three
+    use constants, only:  zero,half,one,two,three,four
+    use raflib, only: set_indices
     use raflib, only: set_indices
     implicit none
 
@@ -165,7 +165,7 @@ contains
     ancovmdl=0
     clenmax=120.0_r_kind
     clenmaxi=one/clenmax
-    smooth_len=4._r_kind
+    smooth_len=four
 
     call set_indices(indices,   0,0,0,0,0,0, 0,0,0,0,0,0 )
     call set_indices(indices_p, 0,0,0,0,0,0, 0,0,0,0,0,0 )
@@ -211,7 +211,8 @@ contains
     an_amp=one/three
     an_amp0=one/three
     an_vs=one
-    grid_ratio=2._r_kind
+    grid_ratio=two
+    grid_ratio_p=zero
     grid_ratio_p=zero
     an_flen_u=-one      ! this turns off anisotropic coupling to horizontal wind
     an_flen_t=-one      ! this turns off anisotropic coupling to grad(pot temp)
@@ -355,6 +356,7 @@ contains
 !
 !$$$
     use fgrid2agrid_mod, only: destroy_fgrid2agrid
+    implicit none
 
     deallocate(qvar3d)
 
@@ -387,7 +389,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: i_kind
     use constants, only: one,ione
     use fgrid2agrid_mod, only: create_fgrid2agrid
     use jfunc, only: nrclen
@@ -462,7 +463,6 @@ contains
 !
 !$$$ end documentation block
 
-    use kinds, only: i_kind
     use gridmod, only: nsig,nsig1o
     use mpimod, only: levs_id,nvar_id,npe,ierror,mpi_comm_world, &
            mpi_max,mpi_integer4
@@ -597,6 +597,8 @@ contains
 !$$$ end documentation block
 
     use fgrid2agrid_mod, only: destroy_fgrid2agrid
+    implicit none
+
     integer(i_kind) k
 
     deallocate(qvar3d)

@@ -1,5 +1,8 @@
 subroutine prt_guess(sgrep)
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    prt_guess
+!  prgmmr:       tremolet
 !
 ! abstract: Print some diagnostics about the guess arrays
 !
@@ -8,18 +11,25 @@ subroutine prt_guess(sgrep)
 !   2007-04-17  todling  - time index to summarize; bound in arrays
 !   2009-01-17  todling  - update tv/tsen names
 !
-! argument list:
-!   sgrep  - prefix for write statement
-!$$$
+!   input argument list:
+!    sgrep  - prefix for write statement
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mype
-  use constants, only: zero, one
-  use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,ltosi,ltosj,nlon,nlat
+  use constants, only: zero
+  use gridmod, only: lat1,lon1,itotsub,nsig
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
-       ges_tsen,ges_oz,ges_u,ges_v,nfldsig,ges_prsl,sfct
+       ges_tsen,ges_oz,ges_u,ges_v,ges_prsl,sfct
   use guess_grids, only: ntguessig,ntguessfc
-  use radinfo, only: npred,predx
-  use pcpinfo, only: npredp,predxp
+  use radinfo, only: predx
+  use pcpinfo, only: predxp
   use jfunc, only: npclen,nsclen
 
   implicit none
@@ -29,7 +39,7 @@ subroutine prt_guess(sgrep)
 
 ! Declare local variables
   integer(i_kind), parameter :: nvars=12
-  integer(i_kind) ii,i,j,k
+  integer(i_kind) ii
   integer(i_kind) ntsig
   integer(i_kind) ntsfc
   real(r_kind) :: zloc(3*nvars+2),zall(3*nvars+2,npe),zz
@@ -142,19 +152,28 @@ end subroutine prt_guess
 
 subroutine prt_guessfc(sgrep)
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    prt_guessfc
+!   prgmmr:      todling
 !
 ! abstract: Print some diagnostics about the guess arrays
 !
 ! program history log:
 !   2009-01-23  todling - create based on prt_guess
 !
-! argument list:
-!   sgrep  - prefix for write statement
-!$$$
+!   input argument list:
+!    sgrep  - prefix for write statement
+!
+!   output argument list
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mype
-  use constants, only: zero, one
-  use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,ltosi,ltosj,nlon,nlat
+  use gridmod, only: lat1,lon1
   use guess_grids, only: isli,fact10,veg_type,veg_frac,sfc_rough,&
         soil_type,soil_temp,soil_moi
   use guess_grids, only: ntguessfc
@@ -240,20 +259,27 @@ end subroutine prt_guessfc
 
 subroutine prt_guessfc2(sgrep)
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    prt_guessfc2
+!   pgrmmr:      todling
 !
 ! abstract: Print some diagnostics about the guess arrays
 !
 ! program history log:
 !   2009-01-23  todling  - create based on prt_guess
 !
-! argument list:
-!   sgrep  - prefix for write statement
-!$$$
+!   input argument list:
+!    sgrep  - prefix for write statement
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mype
-  use constants, only: zero, one
-  use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,ltosi,ltosj,nlon,nlat
-! use satthin, only: nlat_sfc,nlon_sfc
+  use mpimod, only: mype
   use satthin, only: isli_full,fact10_full,soil_moi_full,soil_temp_full,veg_frac_full,&
        soil_type_full,veg_type_full,sfc_rough_full,sst_full,sno_full
   use guess_grids, only: ntguessfc

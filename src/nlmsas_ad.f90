@@ -5,7 +5,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      cldwrk,kbot,ktop,jmin,kuo,kb, &
      t0_ad,q0_ad,cwm0_ad,u0_ad,v0_ad,dot0_ad, &
      t1_ad,q1_ad,cwm1_ad,u1_ad,v1_ad,rn1_ad, &
-     adjoint,mype)
+     adjoint)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    nlmsas_ad    forward and adjoint model for GFS SASCNV
@@ -58,7 +58,6 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !     v1_ad    - meridional wind perturbation
 !     rn1_ad   - convective rain rate perturbation
 !     adjoint  - logical flag (.false.=forward model only, .true.=forward and ajoint)
-!     mype     - mpi task id
 !
 !   output argument list:
 !     t1      - temperature adjusted by convective processes
@@ -88,9 +87,9 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: c0,tiny_r_kind,el2orc,factor1,factor2,pcpeff3,&
-       elocp,pcpeff2,pcpeff0,pcpeff1,epsm1,delta,eps,zero,one,cp,hvap,&
-       half,rd,grav,r3600
+  use constants, only: c0,tiny_r_kind,el2orc,factor1,factor2,pcpeff3,h300,&
+       elocp,pcpeff2,pcpeff0,pcpeff1,epsm1,delta,eps,zero,one_tenth,one,two,three,cp,hvap,&
+       half,rd,grav,r1000,r3600
   implicit none  
 
   integer(i_kind) ix,km
@@ -204,7 +203,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   real(r_kind) etau_ad(km,ix),xlamdet1_ad(ix),xlamdet0_ad(ix)
   real(r_kind) sumz_ad(km,ix),sumh_ad(km,ix),qol0_ad(km,ix)
   
-  integer(i_kind) k,ncloud,indx,jmn,i,im,mype,jcap
+  integer(i_kind) k,ncloud,indx,jmn,i,im,jcap
   integer(i_kind),dimension(ix):: kbmax,kbm,kmax
   
   real(r_kind) rterm,fjcap
@@ -234,7 +233,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   save pcrit, acritt
   data pcrit/850._r_kind,800._r_kind,750._r_kind,700._r_kind,&
        650._r_kind,600._r_kind,550._r_kind,500._r_kind,&
-       450._r_kind,400._r_kind,350._r_kind,300._r_kind,&
+       450._r_kind,400._r_kind,350._r_kind,h300,&
        250._r_kind,200._r_kind,150._r_kind/
   data acritt/.0633_r_kind,.0445_r_kind,.0553_r_kind,.0664_r_kind,&
        .075_r_kind,.1082_r_kind,.1521_r_kind,.2216_r_kind,&
@@ -499,9 +498,9 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      dwnflg(i)  = .true.
      dwnflg2(i) = .true.
      flg(i)     = .true.
-     dtconv(i)  = 3600._r_kind
+     dtconv(i)  = r3600
      dtconv0(i) = dtconv(i)
-     xmbmax(i)  = 0.1_r_kind
+     xmbmax(i)  = one_tenth
   enddo
   do k = 1, 15
      acrit(k) = acritt(k) * (975._r_kind - pcrit(k))
@@ -514,8 +513,8 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   mbdt    = 10._r_kind
   edtmaxl = 0.3_r_kind
   edtmaxs = 0.3_r_kind
-  alphal  = 0.5_r_kind
-  alphas  = 0.5_r_kind
+  alphal  = half
+  alphas  = half
   betal   = 0.15_r_kind
   betas   = 0.15_r_kind
   betal   = 0.05_r_kind
@@ -1145,7 +1144,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      if (abs(dz) > tiny_r_kind) then
         term   = 1.e3_r_kind * vshear(i) / dz
         e1     = pcpeff0 + pcpeff1*term + pcpeff2*term**2 + pcpeff3*term**3
-        edt(i) = 0.1_r_kind
+        edt(i) = one_tenth
      else
         edt(i) = zero
      endif
@@ -1854,13 +1853,13 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            if (rn0  >  zero .and. qcond <  zero) then
               qevap = -qcond * (one-exp(-.32_r_kind*sqrt(dt2*rn0)))
               
-              if ( qevap  >  rn0*1000._r_kind*grav/dp ) then
-                 qevap = rn0*1000._r_kind*grav/dp
+              if ( qevap  >  rn0*r1000*grav/dp ) then
+                 qevap = rn0*r1000*grav/dp
               endif
               
               delq2 = delqev + .001_r_kind * qevap * dp / grav
               if (delq2 > rntot(i)) then
-                 qevap  = 1000._r_kind* grav * (rntot(i)-delqev) / dp
+                 qevap  = r1000* grav * (rntot(i)-delqev) / dp
                  flg(i) = .false.
               endif
            endif
@@ -2024,13 +2023,13 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                if (rn0 >  zero .and. qcond < zero) then
                   qevap  = -qcond * (one-exp(-.32_r_kind*sqrt(dt2*rn0)))
                   qevap0 = qevap
-                  if ( qevap  >  (rn0*1000._r_kind*grav/dp) ) then
-                     qevap = rn0*1000._r_kind*grav/dp
+                  if ( qevap  >  (rn0*r1000*grav/dp) ) then
+                     qevap = rn0*r1000*grav/dp
                   endif
                   delq2 = delqev + 0.001_r_kind * qevap * dp / grav
                   qevap1 = qevap
                   if (delq2 > rntot(i)) then
-                    qevap  = 1000._r_kind* grav * (rntot(i)-delqev) / dp
+                    qevap  = r1000* grav * (rntot(i)-delqev) / dp
                  endif
                endif
 !
@@ -2055,12 +2054,12 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !              Adjoint of qevap calculation
                if (rn0 > zero .and. qcond < zero) then
                   if (delq2 > rntot(i)) then
-                     delqev_ad = delqev_ad - 1000.0_r_kind*grav*qevap_ad/dp
-                     rntot_ad(i) = rntot_ad(i) + 1000.0_r_kind*grav*qevap_ad/dp
+                     delqev_ad = delqev_ad - r1000*grav*qevap_ad/dp
+                     rntot_ad(i) = rntot_ad(i) + r1000*grav*qevap_ad/dp
                   endif
                   
-                  if (qevap0  >  rn0*1000.0_r_kind*grav/dp) then
-                     rn0_ad = rn0_ad + qevap_ad*1000.0_r_kind*grav/dp
+                  if (qevap0  >  rn0*r1000*grav/dp) then
+                     rn0_ad = rn0_ad + qevap_ad*r1000*grav/dp
                   endif
 
                   rn0_ad = rn0_ad &
@@ -2084,7 +2083,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                term3_ad = term3_ad - one/(one+term3)**2 * term4_ad
                
                to2_ad(k,i) = to2_ad(k,i) &
-                    - 2.0_r_kind*el2orc*qeso2(k,i)/to2(k,i)**3 * term3_ad
+                    - two*el2orc*qeso2(k,i)/to2(k,i)**3 * term3_ad
                qeso2_ad(k,i) = qeso2_ad(k,i) &
                     + el2orc*term3_ad/to2(k,i)**2
 
@@ -2442,7 +2441,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                xtol_ad(k+1,i) = xtol_ad(k+1,i) + dt_ad
                xhcd_ad(i)     = xhcd_ad(i)   + dhh_ad
                xtol_ad(k+1,i) = xtol_ad(k+1,i) &
-                    - 2.0_r_kind*el2orc*xqesol(k+1,i)/xtol(k+1,i)**3 &
+                    - two*el2orc*xqesol(k+1,i)/xtol(k+1,i)**3 &
                     * gamma_ad
                xqesol_ad(k+1,i) = xqesol_ad(k+1,i) + &
                     el2orc*gamma_ad/xtol(k+1,i)**2
@@ -2538,7 +2537,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                xheso_ad(k,i) = xheso_ad(k,i) - dh_ad
                xhcd_ad(i)  = xhcd_ad(i) + dh_ad
 
-               dt_ad = dt_ad - 2.0_r_kind*el2orc*dq/dt**3 * gamma_ad
+               dt_ad = dt_ad - two*el2orc*dq/dt**3 * gamma_ad
                dq_ad = dq_ad + el2orc*gamma_ad/dt**2
 
                xtol_ad(k,i) = xtol_ad(k,i) + dt_ad
@@ -2617,7 +2616,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                     + (delta*cp/hvap)*rfact_ad*xtol(k-1,i)
 
                xtol_ad(k-1,i) = xtol_ad(k-1,i) &
-                    - 2.0_r_kind*el2orc*xqesol(k-1,i)/(xtol(k-1,i)**3) &
+                    - two*el2orc*xqesol(k-1,i)/(xtol(k-1,i)**3) &
                     * gamma_ad
                xqesol_ad(k-1,i) = xqesol_ad(k-1,i) &
                     + el2orc*gamma_ad/xtol(k-1,i)**2
@@ -2719,7 +2718,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                   xdby_ad  = xdby_ad + gamma*xqrch_ad/(hvap*(one+gamma))
                   gamma_ad = gamma_ad + xqrch_ad*xdby/(hvap*(one+gamma))
                   xtol_ad(k,i) = xtol_ad(k,i) &
-                       - 2.0_r_kind*el2orc*xqesol(k,i)/xtol(k,i)**3 &
+                       - two*el2orc*xqesol(k,i)/xtol(k,i)**3 &
                        * gamma_ad
                   xqesol_ad(k,i) = xqesol_ad(k,i) &
                        + el2orc*gamma_ad/xtol(k,i)**2
@@ -2887,7 +2886,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
             dz_ad    = dz_ad + grav*dt_ad/(cp*(one+gamma))
 
             xto_ad(k+1,i) = xto_ad(k+1,i) - &
-                 2.0_r_kind*el2orc*xqeso(k+1,i)/(xto(k+1,i)**3) * gamma_ad
+                 two*el2orc*xqeso(k+1,i)/(xto(k+1,i)**3) * gamma_ad
             xqeso_ad(k+1,i) = xqeso_ad(k,i) + &
                  el2orc*gamma_ad/(xto(k+1,i)**2)
 
@@ -2902,7 +2901,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
             es_ad = es_ad + &
                  desdt_ad*(factor1/xto(k+1,i) + factor2/(xto(k+1,i)**2))
             xto_ad(k+1,i) = xto_ad(k+1,i) - desdt_ad * &
-                 (es/(xto(k+1,i)**2)) * (factor1+2.0_r_kind*factor2/xto(k+1,i))
+                 (es/(xto(k+1,i)**2)) * (factor1+two*factor2/xto(k+1,i))
 
             pprime_ad = pprime_ad + (qs/(pprime**2))*dqsdp_ad
             qs_ad     = qs_ad - dqsdp_ad/pprime
@@ -3320,7 +3319,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                tol_ad(k+1,i)  = tol_ad(k+1,i) + dt_ad
                hcdo_ad(i)     = hcdo_ad(i) + dhh_ad
                tol_ad(k+1,i)  = tol_ad(k+1,i) &
-                    - 2.0_r_kind*el2orc*qesol(k+1,i)/tol(k+1,i)**3 * gamma_ad
+                    - two*el2orc*qesol(k+1,i)/tol(k+1,i)**3 * gamma_ad
                qesol_ad(k+1,i)= qesol_ad(k+1,i) + &
                     el2orc*gamma_ad/tol(k+1,i)**2
             endif
@@ -3409,7 +3408,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                hcdo_ad(i) = hcdo_ad(i) + dh_ad
                dh_ad = zero
 
-               dt_ad = -2.0_r_kind*el2orc*dq/dt**3 * gamma_ad
+               dt_ad = -two*el2orc*dq/dt**3 * gamma_ad
                dq_ad = dq_ad + el2orc*gamma_ad/dt**2
                gamma_ad = zero
 
@@ -3521,8 +3520,8 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !           Adjoint code
             e1_ad   = e1_ad - edt_ad(i)
 
-            term_ad = term_ad + pcpeff3*3.0_r_kind*term**2 * e1_ad
-            term_ad = term_ad + pcpeff2*2.0_r_kind*term * e1_ad
+            term_ad = term_ad + pcpeff3*three*term**2 * e1_ad
+            term_ad = term_ad + pcpeff2*two*term * e1_ad
             term_ad = term_ad + pcpeff1 * e1_ad
 
             dz_ad = dz_ad - 1.e3_r_kind*vshear(i)/(dz*dz) * term_ad
@@ -3565,14 +3564,14 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                endif
 
                vol_ad(k,i)   = vol_ad(k,i) &
-                    - 2.0_r_kind*(vol(k+1,i)-vol(k,i))*termv_ad
+                    - two*(vol(k+1,i)-vol(k,i))*termv_ad
                vol_ad(k+1,i) = vol_ad(k+1,i) &  
-                    + 2.0_r_kind*(vol(k+1,i)-vol(k,i))*termv_ad
+                    + two*(vol(k+1,i)-vol(k,i))*termv_ad
 
                uol_ad(k,i)   = uol_ad(k,i) &
-                    - 2.0_r_kind*(uol(k+1,i)-uol(k,i))*termu_ad
+                    - two*(uol(k+1,i)-uol(k,i))*termu_ad
                uol_ad(k+1,i) = uol_ad(k+1,i) &  
-                    + 2.0_r_kind*(uol(k+1,i)-uol(k,i))*termu_ad
+                    + two*(uol(k+1,i)-uol(k,i))*termu_ad
 
             endif
          end do
@@ -3642,7 +3641,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                      delta*cp*rfact_ad*tol(k-1,i)/hvap
 
                 tol_ad(k-1,i) = tol_ad(k-1,i) - &
-                     2.0_r_kind*el2orc*qesol(k-1,i)/(tol(k-1,i)**3)* &
+                     two*el2orc*qesol(k-1,i)/(tol(k-1,i)**3)* &
                      gamma_ad
                 qesol_ad(k-1,i) = qesol_ad(k-1,i) + &
                      el2orc*gamma_ad/(tol(k-1,i)**2)
@@ -3686,7 +3685,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                 qesol_ad(k,i) = qesol_ad(k,i) + qrch_ad
 
                 tol_ad(k,i) = tol_ad(k,i) - gamma_ad * &
-                     2.0_r_kind*el2orc*qesol(k,i)/(tol(k,i)**3)
+                     two*el2orc*qesol(k,i)/(tol(k,i)**3)
                 qesol_ad(k,i) = qesol_ad(k,i) + &
                      el2orc*gamma_ad/(tol(k,i)**2)
              endif
@@ -4123,7 +4122,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !        Adjoint of tlm code.
          dz_ad = zero
          if (kbcon(i).ne.kb(i)) then
-            dz_ad = dz_ad + 2.0_r_kind*log(alpha)/(dz*dz) * xlamb_ad(i)
+            dz_ad = dz_ad + two*log(alpha)/(dz*dz) * xlamb_ad(i)
          else
             dz_ad = zero
          endif
@@ -4261,7 +4260,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
             dz_ad    = dz_ad + grav*dt_ad/(cp*(one+gamma))
 
             to_ad(k+1,i) = to_ad(k+1,i) - &
-                 2.0_r_kind*el2orc*qeso(k+1,i)/(to(k+1,i)**3) * gamma_ad
+                 two*el2orc*qeso(k+1,i)/(to(k+1,i)**3) * gamma_ad
             qeso_ad(k+1,i) = qeso_ad(k,i) + & 
                  el2orc*gamma_ad/(to(k+1,i)**2)
 
@@ -4274,7 +4273,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
             qs_ad     = qs_ad + p(k+1,i)*dqsdt_ad*desdt*rterm
 
             to_ad(k+1,i) = to_ad(k+1,i) + desdt_ad * es * &
-                 (-one*factor1/(to(k+1,i)**2) - 2.0_r_kind*factor2/(to(k+1,i)**3))
+                 (-one*factor1/(to(k+1,i)**2) - two*factor2/(to(k+1,i)**3))
             es_ad = es_ad + desdt_ad * &
                  (factor1/to(k+1,i) + factor2/(to(k+1,i)**2))
 
@@ -4379,14 +4378,54 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Define internal functions
 contains
   real(r_kind) function ftanh(x)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    ftanh
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!    x
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     implicit none
-    real(r_kind) x
+    real(r_kind),intent(in):: x
     ftanh = half*(one + tanh(x))
   end function ftanh
 
   real(r_kind) function dftanh(x)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    dftanh
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!    x
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     implicit none
-    real(r_kind) x
+    real(r_kind),intent(in):: x
     dftanh = half/(cosh(x)**2)
   end function dftanh
 

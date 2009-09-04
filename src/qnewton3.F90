@@ -1,11 +1,32 @@
 module qnewton3
-
-! ------------------------------------------------------------------------------
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   qnewton3
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-10  lueken - added module doc block
+!
+! subroutines included:
+!   sub m1qn3
+!   sub dd
+!   sub mlis0
+!   sub ecube
+!
+! Notes:
+!
 !     This file contains the M1QN3 algorithm and supporting routines.
 !     Modified routines from:
 !     J.Ch. Gilbert and C. Lemarechal (1989). Some numerical experiments with
 !     variable-storage quasi-Newton algorithms. Mathematical Programming 45, 407-435.
-! ------------------------------------------------------------------------------
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero, one
@@ -19,16 +40,40 @@ public m1qn3
 
 real(r_kind), parameter :: GTOL = 0.9_r_kind
 real(r_kind), parameter :: FTOL = 1.0e-4_r_kind
-real(r_kind), parameter :: XTOL = 1.0e-8_r_kind
-real(r_kind), parameter :: STPMIN = 1.0e-20_r_kind
-real(r_kind), parameter :: STPMAX = 1.0e+20_r_kind
 
 ! ------------------------------------------------------------------------------
 CONTAINS
 ! ------------------------------------------------------------------------------
 subroutine m1qn3(x,f,g,epsg,nsim,nprt,maxvecs)
 ! ------------------------------------------------------------------------------
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    m1qn3
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-10  lueken - added subprogram doc block
+!
+!   input argument list:
+!    x,g
+!    f
+!    epsg
+!    nsim
+!    maxvecs
+!    nprt
+!
+!   output argument list:
+!    x,g
+!    f
+!    epsg
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 use qcmod, only: nlnqc_iter
 use jfunc, only: iter,jiter,niter,niter_no_qc
 
@@ -44,7 +89,7 @@ integer(i_kind), intent(in) :: nprt
 type(control_vector) :: ybar(maxvecs), sbar(maxvecs)
 type(control_vector) :: d,gg,aux,ztemp
 integer(i_kind) :: isim,jcour,jmin,jmax,ii,jj
-real(r_kind) :: r1,t,tmin,tmax,gnorm,eps1,ff,preco,precos,ys,ps,hp0,dxmin,df1
+real(r_kind) :: r1,t,tmin,tmax,gnorm,eps1,ff,precos,ys,ps,hp0,dxmin,df1
 real(r_kind) :: yy,ss
 !
 !---- impressions initiales et controle des arguments
@@ -83,7 +128,7 @@ call inquire_cv
 !
 iter=0
 isim=1
-eps1=1.0
+eps1=one
 tmax=1.e+20
 !
 ps = dot_product(g,g)
@@ -245,6 +290,26 @@ return
 end subroutine m1qn3
 ! ------------------------------------------------------------------------------
 subroutine dd(maxvecs,ycv,jmin,jmax,precos,ybar,sbar)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    dd
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-10  lueken - added subprogram doc block
+!
+!   input argument list:
+!    maxvecs,jmin,jmax
+!    precos
+!    ycv
+!    ybar,sbar
+!
+!   output argument list:
+!    ycv
+!
+! Notes:
 !
 !     calcule le produit H.g ou
 !         H est une matrice construite par la formule de bfgs inverse
@@ -253,6 +318,12 @@ subroutine dd(maxvecs,ycv,jmin,jmax,precos,ybar,sbar)
 !
 !     la matrice H est memorisee par les vecteurs des tableaux
 !     ybar, sbar et les pointeurs jmin, jmax
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -302,7 +373,33 @@ return
 end subroutine dd
 ! ------------------------------------------------------------------------------
 subroutine mlis0(xn,fn,fpn,t,tmin,tmax,d,g,imp,nap,napmax,x,ztemp)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mlis0
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-01-18 Todling - minimal change to interface w/ evaljgrad (quad) properly
+!                        NOTE: no attempt made to make code reproduce across pe's yet
+!   2009-08-10  lueken - added subprogram doc block
+!
+!   input argument list:
+!    imp,napmax
+!    nap
+!    fn,fpn,t,tmin,tmax
+!    xn,g,x
+!    d
+!    ztemp
+!
+!   output argument list:
+!    nap
+!    fn,fpn,t,tmin,tmax
+!    xn,g,x
+!    ztemp
+!
+! Notes:
 !        en sortie logic =
 !
 !        0          descente serieuse
@@ -312,12 +409,13 @@ subroutine mlis0(xn,fn,fpn,t,tmin,tmax,d,g,imp,nap,napmax,x,ztemp)
 !        6          fonction et gradient pas d'accord
 !        < 0        contrainte implicite active
 !
-! REVISION HISTORY:
+! attributes:
+!   language: f90
+!   machine:
 !
-!  2009-01-18 Todling - minimal change to interface w/ evaljgrad (quad) properly
-!                       NOTE: no attempt made to make code reproduce across pe's yet
-!
+!$$$ end documentation block
 
+use constants, only: five
 implicit none
 
 integer(i_kind), intent(in) :: imp,napmax
@@ -331,7 +429,7 @@ real(r_quad) :: fquad
 real(r_kind) :: tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd,fpd, &
      z,test,barmin,barmul,barmax,barr,gauche,droite, &
      taa,zmaxp
-integer(i_kind) :: ii,jj,io,logic
+integer(i_kind) :: jj,io,logic
 logical :: lsavinc
 
 if (.not.(fpn.lt.zero .and. t.gt.zero &
@@ -344,7 +442,7 @@ endif
 tesf=ftol*fpn
 tesd=gtol*fpn
 barmin=0.01_r_kind
-barmul=5.0_r_kind
+barmul=five
 barmax=0.3_r_kind
 barr=barmin
 td=zero
@@ -544,7 +642,29 @@ return
 end subroutine mlis0
 ! ------------------------------------------------------------------------------
 subroutine ecube(t,f,fp,ta,fa,fpa,tlower,tupper)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    ecube
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-10  lueken - added subprogram doc block
+!
+!   input argument list:
+!    t,f,fp,ta,fa,fpa,tlower,tupper
+!
+!   output argument list:
+!    t,f,fp,ta,fa,fpa,tlower,tupper
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
+use constants, only: three
 implicit none
 real(r_kind), intent(inout) :: t,f,fp,ta,fa,fpa,tlower,tupper
 real(r_kind) :: z1,b,discri,sign,den,anum
@@ -552,7 +672,7 @@ real(r_kind) :: z1,b,discri,sign,den,anum
 !  Using f and fp at t and ta, computes new t by cubic formula
 !  safeguarded inside [tlower,tupper].
 !
-z1=fp+fpa-3.0*(fa-f)/(ta-t)
+z1=fp+fpa-three*(fa-f)/(ta-t)
 b=z1+fp
 !
 !  first compute the discriminant (without overflow)
@@ -571,7 +691,7 @@ if (abs(z1).le.1.) then
         discri=sqrt(-z1)*sqrt(-discri)
         go to 120
     endif
-    discri=-1.0
+    discri=-one
 endif
 if (discri.lt.0.0) then
     if (fp.lt.0.) t=tupper

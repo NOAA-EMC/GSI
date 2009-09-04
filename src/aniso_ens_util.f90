@@ -106,7 +106,7 @@ subroutine ens_uv_to_psichi(u,v,truewind,mype)
      dlat=float(i)*one
      ue=u(i,j)
      ve=v(i,j)
-     call rotate_wind_ll2xy(ue,ve,ug,vg,rlon,rlat,dlon,dlat)
+     call rotate_wind_ll2xy(ue,ve,ug,vg,rlon,dlon,dlat)
      u(i,j)=ug
      v(i,j)=vg
   enddo

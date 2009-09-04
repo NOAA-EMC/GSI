@@ -84,13 +84,15 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
+    implicit none
+
     jcap=62
     jcap_b=62
 
     return
   end subroutine init_spec
 
-  subroutine init_spec_vars(nlat,nlon,nsig,eqspace)
+  subroutine init_spec_vars(nlat,nlon,eqspace)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_spec_vars
@@ -109,7 +111,7 @@ contains
 !   input argument list:
 !     nlat    - number of Gaussian latitudes
 !     nlon    - number of longitudes
-!     nsig    - number of vertical levels
+!     eqspace
 !
 !   output argument list:
 !
@@ -122,7 +124,7 @@ contains
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),intent(in):: nlat,nlon,nsig
+    integer(i_kind),intent(in):: nlat,nlon
     logical,optional,intent(in) :: eqspace
 
 !   Declare local variables    
@@ -242,6 +244,8 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
+    implicit none
+
     deallocate(factsml,factvml,factsml_b,factvml_b)
     deallocate(eps,epstop,enn1,elonn1,eon,eontop,afft,&
        clat,slat,wlat,pln,plntop)

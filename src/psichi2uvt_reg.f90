@@ -228,7 +228,7 @@ subroutine tdelx_reg( u,  chi,vector)
 !
 !   input argument list:
 !     u - adjoint of zonal wind component
-!
+!     vector
 !
 !   output argument list:
 !     chi - adjoint of x derivative
@@ -248,7 +248,7 @@ subroutine tdelx_reg( u,  chi,vector)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero,half
-  use gridmod, only:  coeffx,coeffy,nlat,nlon,region_dy,region_dyi
+  use gridmod, only:  coeffx,nlat,nlon,region_dy,region_dyi
   implicit none
   
   
@@ -257,7 +257,7 @@ subroutine tdelx_reg( u,  chi,vector)
   real(r_kind),intent(inout):: chi(nlat,nlon) ! Velocity potential
   
   integer(i_kind)           :: i, j                       ! Loop counters.
-  real(r_kind)      :: coeffx_u                      ! Multiplicative coefficient.
+  real(r_kind)              :: coeffx_u                   ! Multiplicative coefficient.
   real(r_kind)              :: ch2(nlat,nlon)
   real(r_kind)              :: u2(nlat,nlon)
   
@@ -387,6 +387,7 @@ subroutine tdely_reg( v,  chi,vector)
 !
 !   input argument list:
 !     v - adjoint of meridional wind component
+!     vector
 !
 !   output argument list:
 !     chi - adjoint of y derivative
@@ -407,7 +408,7 @@ subroutine tdely_reg( v,  chi,vector)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero,half
-  use gridmod, only:  coeffx,coeffy,nlat,nlon,region_dx,region_dxi
+  use gridmod, only: coeffy,nlat,nlon,region_dx,region_dxi
   implicit none
   
   logical,intent(in)::vector
@@ -415,7 +416,7 @@ subroutine tdely_reg( v,  chi,vector)
   real(r_kind),intent(inout):: chi(nlat,nlon) ! Velocity potential
   
   integer(i_kind)           :: i, j                       ! Loop counters.
-  real(r_kind)      :: coeffy_v                      ! Multiplicative coefficient.
+  real(r_kind)              :: coeffy_v                   ! Multiplicative coefficient.
   real(r_kind)              :: ch2(nlat,nlon)
   real(r_kind)              :: v2(nlat,nlon)
   

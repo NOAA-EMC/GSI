@@ -29,12 +29,11 @@ subroutine inc2guess(sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,ltosi,ltosj,nlon,nlat,iglobal,&
-       ltosi_s,ltosj_s,regional,twodvar_regional
+  use gridmod, only: lat2,lon2,nsig
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
-       ges_tsen,ges_oz,ges_u,ges_v,nfldsig,ntguessig,hrdifsig,ges_prsi,&
+       ges_oz,ges_u,ges_v,nfldsig,hrdifsig,&
        nfldsfc,sfct
-  use gsi_4dvar, only: nobs_bins, hr_obsbin, winlen
+  use gsi_4dvar, only: nobs_bins, hr_obsbin
   use xhat_vordivmod, only: xhat_vor,xhat_div
   use state_vectors
 
@@ -44,8 +43,8 @@ subroutine inc2guess(sval)
   type(state_vector), intent(in) :: sval(nobs_bins)
 
 ! Declare local variables
-  integer(i_kind) i,j,k,it,ij,ijk,i2,ii
-  real(r_kind) :: zt,zmin
+  integer(i_kind) i,j,k,it,ij,ijk,ii
+  real(r_kind) :: zt
 
 !*******************************************************************************
 

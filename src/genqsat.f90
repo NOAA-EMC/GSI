@@ -41,7 +41,7 @@ subroutine genqsat(qsat,ice,itime,dlnesdtv,dmax)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_single,r_kind,i_kind
   use constants, only: xai,tmix,xb,omeps,eps,xbi,one,zero,&
        xa,psat,ttp
   use gridmod, only: nsig,lon2,lat2
@@ -118,7 +118,7 @@ subroutine genqsat(qsat,ice,itime,dlnesdtv,dmax)
 
           esmax = es
           if(lmint(i,j) < k)then
-             esmax=0.1*pw
+             esmax=0.1_r_single*pw
              esmax=min(esmax,estmax(i,j))
           end if
 
@@ -165,7 +165,7 @@ subroutine genqsat(qsat,ice,itime,dlnesdtv,dmax)
           es = psat * (tr**xa) * exp(xb*(one-tr))
           esmax = es
           if(lmint(i,j) < k)then
-             esmax=0.1*pw
+             esmax=0.1_r_single*pw
              esmax=min(esmax,estmax(i,j))
           end if
           if(es <= esmax)then

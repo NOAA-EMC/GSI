@@ -482,6 +482,23 @@ subroutine dsbvr(d,a,s,m,na)
 !            by using the dot_product intrinsic in the routine that calls this
 !            one.)
 !
+! program history log:
+!   1998-01-01  purser
+!   2009-08-10  lueken updated subprogram doc block
+!
+!   input argument list:
+!    na,m
+!    s
+!    d
+!    a
+!
+!   output argument list:
+!    s
+!
+! attributes:
+!   language: f90
+!   machine:
+!
 !$$$
   use kinds, only: r_kind,i_kind
   implicit none

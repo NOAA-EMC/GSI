@@ -13,7 +13,7 @@ module blacklist
 ! !USES:
 
   use kinds, only: i_kind
-
+  implicit none
 !
 ! !DESCRIPTION:  This module contains variables and routines related
 !                 to the assimilation of conventional observations 
@@ -58,7 +58,6 @@ contains
 
 ! !USES:
 
-    use kinds, only: i_kind
     implicit none
 
 ! !DESCRIPTION:  This routine reads the conventional information file
@@ -86,7 +85,7 @@ contains
     character(len=1)cflg
     character(len=7) iotype
     character(len=120) crecord
-    integer(i_kind) lunin,i,nc
+    integer(i_kind) i
     integer(i_kind) iblktbl,ier,ios,ikx
     character(len=8) stnid
     logical eof
@@ -165,7 +164,7 @@ contains
 !     prgmmr:    todling    org: np2                date: 2006-12-01
 !EOP
 !-------------------------------------------------------------------------
-
+    implicit none
     integer(i_kind) ier
 
      deallocate(blkstns,blkkx,stat=ier)

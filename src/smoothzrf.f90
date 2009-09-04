@@ -43,10 +43,13 @@ subroutine frfhvo(p1,iv)
 ! nsig  = number of model levels 
 ! ndeg  = degree of smoothing (ndeg=4)
 
-  integer(i_kind) kmod2,j,i,k,kr,ki,i1,iv,l,l2
+  integer(i_kind),intent(in)                          :: iv
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: p1
+
+  integer(i_kind) kmod2,j,i,k,kr,ki,i1,l,l2
   real(r_kind) dl1,dl2,alvl,alvr,alvi,alvi1,alvr1
   real(r_kind) gaki,gakr,dekr,deki,bekr,beki
-  real(r_kind),dimension(lat2,lon2,nsig):: p1,p2
+  real(r_kind),dimension(lat2,lon2,nsig):: p2
   real(r_kind),dimension(lat2,lon2,ndeg):: ga,de
   real(r_kind) newr,  newi,  oldr,  oldi
   real(r_kind) newr0, newi0, oldr0, oldi0
@@ -531,11 +534,14 @@ subroutine smoothzo(vx,samp,rate,iv,jx)
   use gridmod, only: nsig,lon2
   use berror, only: dssv,alv,ndeg
   implicit none
-  
-  integer(i_kind) i,k,jx,iv,m
-  real(r_kind) samp
-  real(r_kind),dimension(ndeg):: rate
-  real(r_kind),dimension(nsig):: dss,vx
+ 
+  integer(i_kind),intent(in)             :: jx,iv
+  real(r_kind),dimension(nsig),intent(in):: vx
+  real(r_kind),intent(in)                :: samp
+  real(r_kind),dimension(ndeg),intent(in):: rate
+ 
+  integer(i_kind) i,k,m
+  real(r_kind),dimension(nsig):: dss
   real(r_kind),dimension(nsig,nsig):: p1
   real(r_kind),dimension(nsig,ndeg):: al
 
@@ -593,11 +599,14 @@ subroutine rfhvo(p1,nc,n,al)
   use constants, only:  zero
   use berror, only: be,ndeg
   implicit none
-  
-  integer(i_kind) n,nc,i,j,kmod2,kr,ki
+ 
+  integer(i_kind),intent(in)                :: n,nc
+  real(r_kind),dimension(n,ndeg),intent(in) :: al
+  real(r_kind),dimension(nc,n),intent(inout):: p1
+ 
+  integer(i_kind) i,j,kmod2,kr,ki
   real(r_kind) gaki,dekr,deki,gakr
-  real(r_kind),dimension(nc,n):: p1,p2
-  real(r_kind),dimension(n,ndeg):: al
+  real(r_kind),dimension(nc,n):: p2
   real(r_kind),dimension(nc,ndeg):: ga,de
 
   kmod2=mod(ndeg,2)

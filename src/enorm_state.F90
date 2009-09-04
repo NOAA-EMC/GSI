@@ -1,17 +1,33 @@
 subroutine enorm_state(xst,enorm,yst)
 
-!$$$  documentation block
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    enorm_state
+!   prgmmr: tremolet
 !
 ! abstract: compute energy norm on GSI grid
 !
 ! program history log:
 !   2007-10-19  tremolet - initial code
 !   2009-01-18  todling  - carry summation in quad precision
+!   2009-08-14  lueken   - update documentation
 !
-!$$$
+!   input argument list:
+!    xst
+!    yst
+!
+!   output argument list:
+!    enorm
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero,one,cp,rd,fv   ,pi,two
+use constants, only: zero,one,cp,rd,pi,two,r1000
 use gridmod, only: nsig,nlat,nlon,lon2,lat2,istart,rlats,ak5,bk5
 use mpimod, only: mype
 use guess_grids, only: ges_ps,ntguessig
@@ -24,12 +40,12 @@ real(r_quad), intent(out) :: enorm
 type(state_vector), optional, target, intent(inout) :: yst
 
 ! Declare local variables
-real(r_kind) :: tfact, pfact, qfact, pref, tref, gridfac, zps
+real(r_kind) :: tfact, pfact, pref, tref, gridfac, zps
 real(r_kind) :: coslat(lat2), dsig(lat2,lon2,nsig), akk(nsig)
 integer(i_kind) :: ii,jj,kk,ijk,ilat
 type(state_vector), pointer :: aux
 type(state_vector), target  :: tmp
-real(r_kind), parameter :: Pa_per_kPa = 1000._r_kind
+real(r_kind), parameter :: Pa_per_kPa = r1000
 
 ! ----------------------------------------------------------------------
 tref=280.0_r_kind
@@ -52,10 +68,10 @@ do jj=2,lon2-1
     if (ANY(dsig(ii,jj,:)<=zero)) then
       do kk=1,nsig
         write(6,'(A,I3,4(2X,F18.8))')'enorm ak,bk,pk,dsig=',&
-          kk,1000.*ak5(kk),bk5(kk),1000.*ak5(kk)+bk5(kk)*pref,dsig(2,2,kk)
+          kk,r1000*ak5(kk),bk5(kk),r1000*ak5(kk)+bk5(kk)*pref,dsig(2,2,kk)
       enddo
       write(6,'(A,I3,4(2X,F18.8))')'enorm ak,bk,pk     =',&
-        nsig+1,1000.*ak5(nsig+1),bk5(nsig+1),1000.*ak5(nsig+1)+bk5(nsig+1)*pref
+        nsig+1,r1000*ak5(nsig+1),bk5(nsig+1),r1000*ak5(nsig+1)+bk5(nsig+1)*pref
       write(6,*)'enorm_state: negative dsig'
       call stop2(123)
     endif

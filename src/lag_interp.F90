@@ -1,6 +1,6 @@
 module lag_interp
-!$$$  module documentation block
-!                .      .    .                                       .
+!$$$ module documentation block
+!           .      .    .                                       .
 ! module:   lag_interp
 !   prgmmr: meunier          org:                     date: 2009-03-11
 !
@@ -18,6 +18,21 @@ module lag_interp
 !
 ! module history log:
 !   2009-03-11  meunier
+!
+! subroutines included:
+!   sub lag_inipgrid
+!   sub lag_delpgrid
+!   sub lag_gridrel_ijk
+!   sub lag_retr_3d
+!   sub lag_int3d_ad
+!
+! functions included:
+!   lag_index_h
+!   lag_index_3d
+!   lag_int3d_nl
+!   lag_int3d_tl
+!
+! variable definitions:
 !
 ! attributes:
 !   language: f90
@@ -50,6 +65,27 @@ module lag_interp
   ! Set the constant pressure grid for interpolatin
   ! ------------------------------------------------------------------------
   subroutine lag_inipgrid(newgrid)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_inipgrid
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    newgrid
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     real(r_kind),dimension(:),intent(in)::newgrid
 
     call lag_delpgrid()
@@ -63,6 +99,26 @@ module lag_interp
   ! deallocate the constant pressure grid
   ! ------------------------------------------------------------------------
   subroutine lag_delpgrid()
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_delpgrid
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
 
     if (allocated(lag_logcte_p)) &
       & deallocate(lag_logcte_p)
@@ -74,6 +130,28 @@ module lag_interp
   ! Give grid relative coordinates for lon,lat and level (use the GSI routine)
   ! ------------------------------------------------------------------------
   subroutine lag_gridrel_ijk(lon,lat,p,i,j,k)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_gridrel_ijk
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lat,lon,p
+!
+!   output argument list:
+!    i,j,k
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     real(r_kind),intent(in)::lon,lat,p
     real(r_kind),intent(out)::i,j,k
 
@@ -91,6 +169,27 @@ module lag_interp
   ! Give the global array index number for a grid point on horizontal dimension
   ! ------------------------------------------------------------------------
   function lag_index_h(lon,lat)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_index_h
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lat,lon
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     integer(i_kind),intent(in)::lon,lat
     integer(i_kind)::lag_index_h
 
@@ -100,6 +199,27 @@ module lag_interp
   ! Give the global array index number for a grid point on 3D grid
   ! ------------------------------------------------------------------------
   function lag_index_3d(lonlat,sig)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_index_3d
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lonlat,sig
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     integer(i_kind),intent(in)::lonlat,sig
     integer(i_kind)::lag_index_3d
 
@@ -109,6 +229,28 @@ module lag_interp
   ! Retrieve horizontal index and sigma level from a 3D index number
   ! ------------------------------------------------------------------------
   subroutine lag_retr_3d(i3d,lonlat,sig)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_retr_3d
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    i3d
+!
+!   output argument list:
+!    lonlat,sig
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     integer(i_kind),intent(in)::i3d
     integer(i_kind),intent(out)::lonlat,sig
  
@@ -121,6 +263,31 @@ module lag_interp
   ! 3D interpolation : non linear version
   ! ------------------------------------------------------------------------
   function lag_int3d_nl(field,lon,lat,p,lspec_i,lspec_r)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_int3d_nl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    field
+!    lat,lon,p
+!
+!   output argument list:
+!    lspec_i
+!    lspec_r
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    use constants, only: half
+    implicit none
     ! field = Field from which to interpolate : two dimensions
     !  1st : horizontal location (see lag_index_h above)
     !  2nd : vertical location
@@ -221,12 +388,12 @@ module lag_interp
         i1m11=i111; i1m11(2)=i111(2)-1; if (i1m11(2)<1) i1m11(2)=nlat
         im112=i112; im112(1)=i112(1)-1; if (im112(1)<1) im112(1)=nlon
         i1m12=i112; i1m12(2)=i112(2)-1; if (i1m12(2)<1) i1m12(2)=nlat
-        rcx=0.5_r_kind*( &
+        rcx=half*( &
           (1-rdz)*(field(lag_index_h(i211(1),i211(2)),i211(3))- &
             field(lag_index_h(im111(1),im111(2)),im111(3))) + &
           rdz*(field(lag_index_h(i212(1),i212(2)),i212(3))- &
             field(lag_index_h(im112(1),im112(2)),im112(3))) )
-        rcy=0.5_r_kind*( &
+        rcy=half*( &
           (1-rdz)*(field(lag_index_h(i121(1),i121(2)),i121(3))- &
             field(lag_index_h(i1m11(1),i1m11(2)),i1m11(3))) + &
           rdz*(field(lag_index_h(i122(1),i122(2)),i122(3))- &
@@ -238,7 +405,7 @@ module lag_interp
         im112=i112; im112(1)=i112(1)-1; if (im112(1)<1) im112(1)=nlon
         im121=i121; im121(1)=i121(1)-1; if (im121(1)<1) im121(1)=nlon
         im122=i122; im122(1)=i122(1)-1; if (im122(1)<1) im122(1)=nlon
-        rcx=0.5_r_kind*( &
+        rcx=half*( &
           (1-rdz)*(field(lag_index_h(i211(1),i211(2)),i211(3))-&
                    field(lag_index_h(im111(1),im111(2)),im111(3))+&
                    rdy*(field(lag_index_h(im111(1),im111(2)),im111(3)) -&
@@ -266,7 +433,7 @@ module lag_interp
                      field(lag_index_h(i111(1),i111(2)),i111(3))) +&
             (  rdz)*(field(lag_index_h(i212(1),i212(2)),i212(3))-&
                      field(lag_index_h(i112(1),i112(2)),i112(3)))
-        rcy=0.5_r_kind*( &
+        rcy=half*( &
           (1-rdz)*(field(lag_index_h(i121(1),i121(2)),i121(3))-&
                    field(lag_index_h(i1m11(1),i1m11(2)),i1m11(3))+&
                    rdx*(field(lag_index_h(i1m11(1),i1m11(2)),i1m11(3)) -&
@@ -329,6 +496,30 @@ module lag_interp
   ! 3D interpolation : linearised
   ! ------------------------------------------------------------------------
   function lag_int3d_tl(lspec_i,lspec_r,dlon,dlat,dfield)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_int3d_tl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_i
+!    lspec_r
+!    dlat,dlon
+!    dfield
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     integer(i_kind),dimension(8),intent(in) ::lspec_i
     real(r_kind)   ,dimension(10),intent(in)::lspec_r
     real(r_kind),intent(in)::dlat,dlon
@@ -352,6 +543,33 @@ module lag_interp
   ! 3D interpolation : adjoint
   ! ------------------------------------------------------------------------
   subroutine lag_int3d_ad(lspec_i,lspec_r,adint3d,adlon,adlat,adfield)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_inipgrid
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_i
+!    lspec_r
+!    adint3d
+!    adlat,adlon
+!    adfield
+!
+!   output argument list:
+!    adlat,adlon
+!    adfield
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     integer(i_kind),dimension(8) ,intent(in)::lspec_i
     real(r_kind)   ,dimension(10),intent(in)::lspec_r
     real(r_kind),intent(in)::adint3d

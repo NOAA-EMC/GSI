@@ -1,4 +1,47 @@
 module mp_compact_diffs_mod1
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   mp_compact_diffs_mod1
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added module doc block
+!
+! subroutines included:
+!   sub init_mp_compact_diffs1
+!   sub destroy_mp_compact_diffs1
+!   sub cdiff_sd2ew0
+!   sub cdiff_sd2ew1
+!   sub cdiff_ew2sd1
+!   sub cdiff_sd2ew
+!   sub cdiff_sd2ew2
+!   sub cdiff_sd2ew3
+!   sub cdiff_ew2sd
+!   sub cdiff_ew2sd2
+!   sub cdiff_ew2sd3
+!   sub cdiff_sd2ns0
+!   sub cdiff_sd2ns1
+!   sub cdiff_ns2sd1
+!   sub cdiff_sd2ns
+!   sub cdiff_sd2ns2
+!   sub cdiff_sd2ns3
+!   sub cdiff_ns2sd
+!   sub cdiff_ns2sd2
+!   sub cdiff_ns2sd3
+!   sub mp_compact_dlon
+!   sub mp_compact_dlon_ad
+!   sub mp_compact_dlat
+!   sub mp_compact_dlat_ad
+!   sub mp_uv_pole
+!   sub mp_uv_pole_ad
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   use kinds,only: r_kind,i_kind
   implicit none
@@ -36,6 +79,29 @@ module mp_compact_diffs_mod1
 contains
 
 subroutine init_mp_compact_diffs1(nlev,mype,slow_pole_in)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_mp_compact_diffs1
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    slow_pole_in
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
 
   integer(i_kind),intent(in):: nlev,mype
   logical,intent(in):: slow_pole_in
@@ -43,14 +109,34 @@ subroutine init_mp_compact_diffs1(nlev,mype,slow_pole_in)
   slow_pole=slow_pole_in
   call cdiff_sd2ew0(nlev,mype)
   call cdiff_sd2ew1(nlev,mype)
-  call cdiff_ew2sd1(nlev,mype)
+  call cdiff_ew2sd1(mype)
   call cdiff_sd2ns0(nlev,mype)
   call cdiff_sd2ns1(nlev,mype)
-  call cdiff_ns2sd1(nlev,mype)
+  call cdiff_ns2sd1(mype)
 
 end subroutine init_mp_compact_diffs1
 
 subroutine destroy_mp_compact_diffs1
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroy_mp_compact_diffs1
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
 
   deallocate(list_sd2ew,nsend_sd2ew,nrecv_sd2ew,ndsend_sd2ew,ndrecv_sd2ew)
   deallocate(info_send_sd2ew,info_recv_sd2ew,nsend_ew2sd,nrecv_ew2sd)
@@ -63,6 +149,27 @@ subroutine destroy_mp_compact_diffs1
 end subroutine destroy_mp_compact_diffs1
 
 subroutine cdiff_sd2ew0(nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_sd2ew0
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  create ew (lat strips) subdivision for use in global spectral transform
 
@@ -91,6 +198,7 @@ subroutine cdiff_sd2ew0(nlev,mype)
 
   use gridmod, only: nlat
   use mpimod, only: npe
+  implicit none
 
   integer(i_kind),intent(in)::nlev,mype
 
@@ -175,12 +283,32 @@ subroutine cdiff_sd2ew0(nlev,mype)
 end subroutine cdiff_sd2ew0
 
 subroutine cdiff_sd2ew1(nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_sd2ew1
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  continue with setup for subdomain to lat strip interchanges
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4,mpi_rtype
+  use gridmod, only: nlat,lon2,lat2,jstart,istart
+  use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
   implicit none
 
   integer(i_kind),intent(in)::nlev,mype
@@ -188,7 +316,6 @@ subroutine cdiff_sd2ew1(nlev,mype)
   integer(i_kind) list2(nlat,nlev)
   integer(i_kind) i,ii,ii0,ilat,ilat_1,ilat_2,ivert,j,mm1,nn,nlonloc,ipe,ilatm,ilon,mpi_string1
   integer(i_kind) isig,nlat_tot,i12
-  integer(i_kind) ibad
 
   allocate(nsend_sd2ew(npe),nrecv_sd2ew(npe),ndsend_sd2ew(npe+1),ndrecv_sd2ew(npe+1))
   mm1=mype+1
@@ -238,7 +365,6 @@ subroutine cdiff_sd2ew1(nlev,mype)
   nallsend_sd2ew=ndsend_sd2ew(npe+1)
   allocate(info_send_sd2ew(4,nallsend_sd2ew))
   nsend_sd2ew=0
-! ibad=0
   do ivert=1,nlev
     do i=2,lat2-1
       ilat=i+istart(mm1)-2
@@ -248,10 +374,6 @@ subroutine cdiff_sd2ew1(nlev,mype)
       i12=0
       if(ilat_1.eq.ilat) i12=1
       if(ilat_2.eq.ilat) i12=2
-  !        if(i12.eq.0) then
-  !          ibad=ibad+1
-  !          cycle
-  !        end if
       isig =list_sd2ew(3,ilatm)
       ipe=list_sd2ew(4,ilatm)
       do ii=2,lon2-1
@@ -265,7 +387,6 @@ subroutine cdiff_sd2ew1(nlev,mype)
       end do
     end do
   end do
-  ! write(0,*)' at 1 in cdiff_sd2ew1, ibad=',ibad
 
   call mpi_alltoall(nsend_sd2ew,1,mpi_integer4,nrecv_sd2ew,1,mpi_integer4,mpi_comm_world,ierror)
   ndrecv_sd2ew(1)=0
@@ -282,18 +403,37 @@ subroutine cdiff_sd2ew1(nlev,mype)
 
 end subroutine cdiff_sd2ew1
 
-subroutine cdiff_ew2sd1(nlev,mype)
+subroutine cdiff_ew2sd1(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_ew2sd1
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    mype       - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart,ilat1,jlon1
+  use gridmod, only: nlon,jstart,istart,ilat1,jlon1
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
   implicit none
 
 
-  integer(i_kind),intent(in)::nlev,mype
-  integer(i_kind) i,i12,i1,i2,ilat,ilat_1,ilat_2,ivert,j,k,mm1,ipe,ilatm,ilon,mpi_string1,nn,ilonloc
+  integer(i_kind),intent(in)::mype
+  integer(i_kind) i,i1,i2,ilat_1,ilat_2,ivert,j,k,mm1,ipe,ilon,mpi_string1,nn
 
   allocate(nsend_ew2sd(npe),nrecv_ew2sd(npe),ndsend_ew2sd(npe+1),ndrecv_ew2sd(npe+1))
   mm1=mype+1
@@ -381,12 +521,34 @@ subroutine cdiff_ew2sd1(nlev,mype)
 end subroutine cdiff_ew2sd1
 
 subroutine cdiff_sd2ew(u_sd,u_ew,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_sd2ew
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u_sd
+!
+!   output argument list:
+!    u_ew
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_sd (subdomains) to u_ew (lat strips)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
+  use gridmod, only: nlon,lon2,lat2,jstart,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
   integer(i_kind),intent(in)::nlev,mype
@@ -394,7 +556,7 @@ subroutine cdiff_sd2ew(u_sd,u_ew,nlev,mype)
   real(r_kind),dimension(lat2,lon2,nlev),intent(in)::u_sd
   real(r_kind),dimension(2,nlon,nlat_0:nlat_1),intent(out)::u_ew
 
-  integer(i_kind) i12,ilat,ilatm,ilat_1,ilat_2,ilon,ivert,j,mm1,mpi_string1
+  integer(i_kind) i12,ilat,ilatm,ilon,ivert,j,mm1
   real(r_kind),allocatable::sendbuf(:),recvbuf(:)
 
   mm1=mype+1
@@ -424,12 +586,34 @@ subroutine cdiff_sd2ew(u_sd,u_ew,nlev,mype)
 end subroutine cdiff_sd2ew
 
 subroutine cdiff_sd2ew2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_sd2ew2
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u1_sd,u2_sd
+!
+!   output argument list:
+!    u1_ew,u2_ew
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_sd (subdomains) to u_ew (lat strips)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
+  use gridmod, only: nlon,lon2,lat2,jstart,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
   integer(i_kind),intent(in)::nlev,mype
@@ -439,7 +623,7 @@ subroutine cdiff_sd2ew2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
   real(r_kind),dimension(2,nlon,nlat_0:nlat_1),intent(out)::u1_ew
   real(r_kind),dimension(2,nlon,nlat_0:nlat_1),intent(out)::u2_ew
 
-  integer(i_kind) i12,ilat,ilatm,ilat_1,ilat_2,ilon,ivert,j,mm1,mpi_string1
+  integer(i_kind) i12,ilat,ilatm,ilon,ivert,j,mm1,mpi_string1
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
   mm1=mype+1
@@ -474,12 +658,34 @@ subroutine cdiff_sd2ew2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
 end subroutine cdiff_sd2ew2
 
 subroutine cdiff_sd2ew3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_sd2ew3
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u1_sd,u2_sd,u3_sd
+!
+!   output argument list:
+!    u1_ew,u2_ew,u3_ew
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_sd (subdomains) to u_ew (lat strips)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
+  use gridmod, only: nlon,lon2,lat2,jstart,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
   integer(i_kind),intent(in)::nlev,mype
@@ -487,7 +693,7 @@ subroutine cdiff_sd2ew3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
   real(r_kind),dimension(lat2,lon2,nlev),intent(in)::u1_sd,u2_sd,u3_sd
   real(r_kind),dimension(2,nlon,nlat_0:nlat_1),intent(out)::u1_ew,u2_ew,u3_ew
 
-  integer(i_kind) i12,ilat,ilatm,ilat_1,ilat_2,ilon,ivert,j,mm1,mpi_string1
+  integer(i_kind) i12,ilat,ilatm,ilon,ivert,j,mm1,mpi_string1
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
   mm1=mype+1
@@ -524,12 +730,34 @@ subroutine cdiff_sd2ew3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
 end subroutine cdiff_sd2ew3
 
 subroutine cdiff_ew2sd(u_sd,u_ew,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_ew2sd
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u_ew
+!
+!   output argument list:
+!    u_sd
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart,ilat1,jlon1
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4,mpi_rtype
+  use gridmod, only: nlat,nlon,lon2,lat2,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
 
@@ -538,7 +766,7 @@ subroutine cdiff_ew2sd(u_sd,u_ew,nlev,mype)
   real(r_kind),dimension(2,nlon,nlat_0:nlat_1),intent(in)::u_ew
 
   real(r_kind),allocatable::sendbuf(:),recvbuf(:)
-  integer(i_kind) i,i12,ilat,ivert,j,k,mm1,ipe,ilatm,ilon,nn,ilonloc
+  integer(i_kind) i12,ilat,ivert,j,mm1,ilatm,ilon,ilonloc
 
   mm1=mype+1
 
@@ -573,12 +801,34 @@ subroutine cdiff_ew2sd(u_sd,u_ew,nlev,mype)
 end subroutine cdiff_ew2sd
 
 subroutine cdiff_ew2sd2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_ew2sd2
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u1_sd,u2_sd
+!
+!   output argument list:
+!    u1_ew,u2_ew
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart,ilat1,jlon1
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4,mpi_rtype
+  use gridmod, only: nlat,nlon,lon2,lat2,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
 
@@ -587,7 +837,7 @@ subroutine cdiff_ew2sd2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
   real(r_kind),dimension(2,nlon,nlat_0:nlat_1),intent(in)::u1_ew,u2_ew
 
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
-  integer(i_kind) i,i12,ilat,ivert,j,k,mm1,ipe,ilatm,ilon,nn,ilonloc,mpi_string1
+  integer(i_kind) i12,ilat,ivert,j,mm1,ilatm,ilon,ilonloc,mpi_string1
 
   mm1=mype+1
 
@@ -628,12 +878,34 @@ subroutine cdiff_ew2sd2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
 end subroutine cdiff_ew2sd2
 
 subroutine cdiff_ew2sd3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_ew2sd3
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u1_ew,u2,ew,u3_ew
+!
+!   output argument list:
+!    u1_sd,u2_sd,u3_sd
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart,ilat1,jlon1
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4,mpi_rtype
+  use gridmod, only: nlat,nlon,lon2,lat2,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
 
@@ -642,7 +914,7 @@ subroutine cdiff_ew2sd3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
   real(r_kind),dimension(2,nlon,nlat_0:nlat_1),intent(in)::u1_ew,u2_ew,u3_ew
 
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
-  integer(i_kind) i,i12,ilat,ivert,j,k,mm1,ipe,ilatm,ilon,nn,ilonloc,mpi_string1
+  integer(i_kind) i12,ilat,ivert,j,mm1,ilatm,ilon,ilonloc,mpi_string1
 
   mm1=mype+1
 
@@ -686,6 +958,27 @@ subroutine cdiff_ew2sd3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
 end subroutine cdiff_ew2sd3
 
 subroutine cdiff_sd2ns0(nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_sd2ns0
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  create ns (lon strips) subdivision for use with compact differences in latitude
 
@@ -712,6 +1005,7 @@ subroutine cdiff_sd2ns0(nlev,mype)
 
   use gridmod, only: nlon
   use mpimod, only: npe
+  implicit none
 
   integer(i_kind),intent(in)::nlev,mype
 
@@ -777,12 +1071,32 @@ subroutine cdiff_sd2ns0(nlev,mype)
 end subroutine cdiff_sd2ns0
 
 subroutine cdiff_sd2ns1(nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_sd2ns1
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  continue with setup for subdomain to lat strip interchanges
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4,mpi_rtype
+  use gridmod, only: nlon,lon2,lat2,jstart,istart
+  use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
   implicit none
 
   integer(i_kind),intent(in)::nlev,mype
@@ -878,18 +1192,37 @@ subroutine cdiff_sd2ns1(nlev,mype)
 
 end subroutine cdiff_sd2ns1
 
-subroutine cdiff_ns2sd1(nlev,mype)
+subroutine cdiff_ns2sd1(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_ns2sd1
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    mype       - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_ns (lon strips) to u_sd (subdomains)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart,ilat1,jlon1
+  use gridmod, only: nlat,nlon,jstart,istart,ilat1,jlon1
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
   implicit none
 
 
-  integer(i_kind),intent(in)::nlev,mype
-  integer(i_kind) i,i12,i1,i2,ilat,ilon_1,ilon_2,ivert,j,k,mm1,ipe,ilatm,ilon,mpi_string1,nn,ilonloc
+  integer(i_kind),intent(in)::mype
+  integer(i_kind) i,i1,i2,ilat,ilon_1,ilon_2,ivert,j,k,mm1,ipe,mpi_string1,nn
   integer(i_kind) iloop
 
   allocate(nsend_ns2sd(npe),nrecv_ns2sd(npe),ndsend_ns2sd(npe+1),ndrecv_ns2sd(npe+1))
@@ -986,12 +1319,34 @@ subroutine cdiff_ns2sd1(nlev,mype)
 end subroutine cdiff_ns2sd1
 
 subroutine cdiff_sd2ns(u_sd,u_ns,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_sd2ns
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u_sd
+!
+!   output argument list:
+!    u_ns
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_sd (subdomains) to u_ns (lat strips)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
+  use gridmod, only: nlat,lon2,lat2,jstart,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
   integer(i_kind),intent(in)::nlev,mype
@@ -999,7 +1354,7 @@ subroutine cdiff_sd2ns(u_sd,u_ns,nlev,mype)
   real(r_kind),dimension(lat2,lon2,nlev),intent(in)::u_sd
   real(r_kind),dimension(2,nlat,nlon_0:nlon_1),intent(out)::u_ns
 
-  integer(i_kind) i12,ilat,ilonm,ilon_1,ilon_2,ilon,ivert,j,mm1,mpi_string1
+  integer(i_kind) i12,ilat,ilonm,ilon,ivert,j,mm1
   real(r_kind),allocatable::sendbuf(:),recvbuf(:)
 
   mm1=mype+1
@@ -1029,12 +1384,34 @@ subroutine cdiff_sd2ns(u_sd,u_ns,nlev,mype)
 end subroutine cdiff_sd2ns
 
 subroutine cdiff_sd2ns2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_sd2ns2
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u1_sd,u2_sd
+!
+!   output argument list:
+!    u1_ns,u2_ns
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_sd (subdomains) to u_ns (lat strips)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
+  use gridmod, only: nlat,lon2,lat2,jstart,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
   integer(i_kind),intent(in)::nlev,mype
@@ -1042,7 +1419,7 @@ subroutine cdiff_sd2ns2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
   real(r_kind),dimension(lat2,lon2,nlev),intent(in)::u1_sd,u2_sd
   real(r_kind),dimension(2,nlat,nlon_0:nlon_1),intent(out)::u1_ns,u2_ns
 
-  integer(i_kind) i12,ilat,ilonm,ilon_1,ilon_2,ilon,ivert,j,mm1,mpi_string1
+  integer(i_kind) i12,ilat,ilonm,ilon,ivert,j,mm1,mpi_string1
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
   mm1=mype+1
@@ -1077,12 +1454,34 @@ subroutine cdiff_sd2ns2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
 end subroutine cdiff_sd2ns2
 
 subroutine cdiff_sd2ns3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_sd2ns3
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u1_sd,u2_sd,u3_sd
+!
+!   output argument list:
+!    u1_ns,u2_ns,u3_ns
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_sd (subdomains) to u_ns (lat strips)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
+  use gridmod, only: nlat,lon2,lat2,jstart,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
   integer(i_kind),intent(in)::nlev,mype
@@ -1090,7 +1489,7 @@ subroutine cdiff_sd2ns3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
   real(r_kind),dimension(lat2,lon2,nlev),intent(in)::u1_sd,u2_sd,u3_sd
   real(r_kind),dimension(2,nlat,nlon_0:nlon_1),intent(out)::u1_ns,u2_ns,u3_ns
 
-  integer(i_kind) i12,ilat,ilonm,ilon_1,ilon_2,ilon,ivert,j,mm1,mpi_string1
+  integer(i_kind) i12,ilat,ilonm,ilon,ivert,j,mm1,mpi_string1
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
   mm1=mype+1
@@ -1127,12 +1526,34 @@ subroutine cdiff_sd2ns3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
 end subroutine cdiff_sd2ns3
 
 subroutine cdiff_ns2sd(u_sd,u_ns,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_ns2sd
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u_ns
+!
+!   output argument list:
+!    u_sd
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_ns (lat strips) to u_sd (subdomains)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart,ilat1,jlon1
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4,mpi_rtype
+  use gridmod, only: nlat,lon2,lat2,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
 
@@ -1141,7 +1562,7 @@ subroutine cdiff_ns2sd(u_sd,u_ns,nlev,mype)
   real(r_kind),dimension(2,nlat,nlon_0:nlon_1),intent(in)::u_ns
 
   real(r_kind),allocatable::sendbuf(:),recvbuf(:)
-  integer(i_kind) i,i12,ilat,ivert,j,k,mm1,ipe,ilonm,ilon,nn,ilonloc
+  integer(i_kind) i12,ilat,ivert,j,k,mm1,ilonm,ilonloc
 
   mm1=mype+1
 
@@ -1184,12 +1605,34 @@ subroutine cdiff_ns2sd(u_sd,u_ns,nlev,mype)
 end subroutine cdiff_ns2sd
 
 subroutine cdiff_ns2sd2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_mp_compact_diffs1
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u1_ns,u2_ns
+!
+!   output argument list:
+!    u1_sd,u2_sd
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_ns (lat strips) to u_sd (subdomains)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart,ilat1,jlon1
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4,mpi_rtype
+  use gridmod, only: nlat,lon2,lat2,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
 
@@ -1198,7 +1641,7 @@ subroutine cdiff_ns2sd2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
   real(r_kind),dimension(2,nlat,nlon_0:nlon_1),intent(in)::u1_ns,u2_ns
 
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
-  integer(i_kind) i,i12,ilat,ivert,j,k,mm1,ipe,ilonm,ilon,nn,ilonloc,mpi_string1
+  integer(i_kind) i12,ilat,ivert,j,k,mm1,ilonm,ilonloc,mpi_string1
 
   mm1=mype+1
 
@@ -1248,12 +1691,34 @@ subroutine cdiff_ns2sd2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
 end subroutine cdiff_ns2sd2
 
 subroutine cdiff_ns2sd3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cdiff_ns2sd3
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    u1_ns,u2_ns,u3_ns
+!
+!   output argument list:
+!    u1_sd,u2_sd,u3_sd
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  use mpi_alltoallv to move u_ns (lat strips) to u_sd (subdomains)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart,ilat1,jlon1
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4,mpi_rtype
+  use gridmod, only: nlat,lon2,lat2,istart
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
 
@@ -1262,7 +1727,7 @@ subroutine cdiff_ns2sd3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
   real(r_kind),dimension(2,nlat,nlon_0:nlon_1),intent(in)::u1_ns,u2_ns,u3_ns
 
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
-  integer(i_kind) i,i12,ilat,ivert,j,k,mm1,ipe,ilonm,ilon,nn,ilonloc,mpi_string1
+  integer(i_kind) i12,ilat,ivert,j,k,mm1,ilonm,ilonloc,mpi_string1
 
   mm1=mype+1
 
@@ -1316,8 +1781,29 @@ subroutine cdiff_ns2sd3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
 end subroutine cdiff_ns2sd3
 
 subroutine mp_compact_dlon(b,dbdx,vector)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mp_compact_dlon
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    vector
+!    b
+!
+!   output argument list:
+!    dbdx
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlon,nlat,sinlon,coslon
   use compact_diffs, only: coef,noq
@@ -1421,8 +1907,30 @@ subroutine mp_compact_dlon(b,dbdx,vector)
 end subroutine mp_compact_dlon
 
 subroutine mp_compact_dlon_ad(b,dbdx,vector)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mp_compact_dlon_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    vector
+!    b
+!    dbdx
+!
+!   output argument list:
+!    b
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlon,nlat,sinlon,coslon
   use compact_diffs, only: coef,noq
@@ -1521,10 +2029,31 @@ subroutine mp_compact_dlon_ad(b,dbdx,vector)
 end subroutine mp_compact_dlon_ad
 
 subroutine mp_compact_dlat(b,dbdy,vector)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mp_compact_dlat
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    vector
+!    b
+!
+!   output argument list:
+!    dbdy
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
   use constants, only: zero,half
-  use gridmod, only: nlon,nlat,sinlon,coslon
+  use gridmod, only: nlon,nlat
   use compact_diffs, only: coef,noq
   implicit none
 
@@ -1532,8 +2061,8 @@ subroutine mp_compact_dlat(b,dbdy,vector)
   real(r_kind),dimension(2,nlat,nlon_0:nlon_1),intent(in)::  b
   real(r_kind),dimension(2,nlat,nlon_0:nlon_1),intent(out):: dbdy
 
-  integer(i_kind) nx,ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
-  integer(i_kind) lbcoy2,lacoy2,iy,ix,kk,i,j,lcy,k
+  integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
+  integer(i_kind) lbcoy2,lacoy2,iy,i,lcy,k
   real(r_kind),dimension(2,nlat-2):: work2,grid4
   real(r_kind) grid4n,grid4s
 
@@ -1613,10 +2142,32 @@ subroutine mp_compact_dlat(b,dbdy,vector)
 end subroutine mp_compact_dlat
 
 subroutine mp_compact_dlat_ad(b,dbdy,vector)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mp_compact_dlat_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    vector
+!    b
+!    dbdy
+!
+!   output argument list:
+!    b
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
   use constants, only: zero,half
-  use gridmod, only: nlon,nlat,sinlon,coslon
+  use gridmod, only: nlon,nlat
   use compact_diffs, only: coef,noq
   implicit none
 
@@ -1624,8 +2175,8 @@ subroutine mp_compact_dlat_ad(b,dbdy,vector)
   real(r_kind),dimension(2,nlat,nlon_0:nlon_1),intent(inout)::  b
   real(r_kind),dimension(2,nlat,nlon_0:nlon_1),intent(in):: dbdy
 
-  integer(i_kind) nx,ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
-  integer(i_kind) lbcoy2,lacoy2,iy,ix,kk,i,j,lcy,k
+  integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
+  integer(i_kind) lbcoy2,lacoy2,iy,i,lcy,k
   real(r_kind),dimension(2,nlat-2):: work2,grid4
   real(r_kind) grid4n,grid4s
 
@@ -1703,8 +2254,28 @@ subroutine mp_compact_dlat_ad(b,dbdy,vector)
 end subroutine mp_compact_dlat_ad
 
 subroutine mp_uv_pole(u,v)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mp_uv_pole
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    u,v
+!
+!   output argument list:
+!    u,v
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
@@ -1759,8 +2330,28 @@ subroutine mp_uv_pole(u,v)
 end subroutine mp_uv_pole
 
 subroutine mp_uv_pole_ad(u,v)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mp_uv_pole_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    u,v
+!
+!   output argument list:
+!    u,v
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
@@ -1821,6 +2412,30 @@ end subroutine mp_uv_pole_ad
 end module mp_compact_diffs_mod1
 
 subroutine mp_getuv1(u,v,st,vp,mype,nlev)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mp_getuv1
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    st,vp
+!
+!   output argument list:
+!    u,v
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: lat2,lon2,nlat,nlon
@@ -1872,6 +2487,31 @@ subroutine mp_getuv1(u,v,st,vp,mype,nlev)
 end subroutine mp_getuv1
 
 subroutine mp_compact_dlon1(b,dbdx,vector,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mp_compact_dlon1
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    b
+!    vector
+!
+!   output argument list:
+!    dbdx
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: lat2,lon2,nlon
@@ -1900,6 +2540,32 @@ subroutine mp_compact_dlon1(b,dbdx,vector,nlev,mype)
 end subroutine mp_compact_dlon1
 
 subroutine mp_compact_dlon1_ad(b,dbdx,vector,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mp_compact_dlon1_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    b
+!    dbdx
+!    vector
+!
+!   output argument list:
+!    b
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: lat2,lon2,nlon
@@ -1928,6 +2594,31 @@ subroutine mp_compact_dlon1_ad(b,dbdx,vector,nlev,mype)
 end subroutine mp_compact_dlon1_ad
 
 subroutine mp_compact_dlat1(b,dbdy,vector,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mp_compact_dlat1
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    b
+!    vector
+!
+!   output argument list:
+!    dbdy
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: lat2,lon2,nlat,nlon
@@ -1965,6 +2656,32 @@ subroutine mp_compact_dlat1(b,dbdy,vector,nlev,mype)
 end subroutine mp_compact_dlat1
 
 subroutine mp_compact_dlat1_ad(b,dbdy,vector,nlev,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mp_compact_dlat1_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!    b
+!    dbdy
+!    vector
+!
+!   output argument list:
+!    b
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: lat2,lon2,nlat,nlon

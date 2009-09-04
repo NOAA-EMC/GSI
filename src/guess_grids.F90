@@ -23,6 +23,7 @@ module guess_grids
   use gridmod, only: pdtop_ll
   use gridmod, only: pt_ll
   use regional_io, only: update_pint
+  implicit none
 
 ! !DESCRIPTION: module containing variables related to the guess fields
 !
@@ -539,7 +540,6 @@ contains
 
 ! !USES:
 
-    use constants,only:zero
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -983,7 +983,7 @@ contains
 ! !USES:
 
     use constants, only: rd, grav, half
-    use gridmod, only: nlat, nlon, lat2, lon2, nsig, istart, rlats, &
+    use gridmod, only: lat2, lon2, nsig, &
          twodvar_regional
 
     implicit none
@@ -1013,9 +1013,6 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-
-!   Declare local parameter
-    real(r_kind),parameter:: ten = 10.0_r_kind
 
     integer(i_kind) i,j,k,jj
     real(r_kind) h,dz,rdog
@@ -1087,7 +1084,7 @@ contains
 
 ! !USES:
 
-    use constants, only: zero,half
+    use constants, only: half
     use gridmod, only: nsig,msig,nlayers
     use crtm_parameters, only: toa_pressure
 
@@ -1176,8 +1173,7 @@ contains
 
 ! !USES:
 
-    use gridmod, only: iglobal,nlat,nlon,ijn,displs_g,itotsub,&
-         lat1,lon1,lat2,lon2
+    use gridmod, only: lat2,lon2
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -1196,9 +1192,6 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-
-!   Declare local parameters
-    logical,parameter:: gfs_sfcmod = .true.
 
 !   Declare local variables
     logical iqtflg
@@ -1265,8 +1258,8 @@ contains
 
 ! !USES:
 
-    use gridmod, only: iglobal,nlat,nlon,ijn,displs_g,itotsub,&
-         lat1,lon1,lat2,lon2,nsig,istart,jstart
+    use gridmod, only: nlat,nlon,&
+         lon1,istart,jstart
     use constants, only: zero,one
     implicit none
 
@@ -1464,8 +1457,30 @@ contains
 !-------------------------------------------------------------------------
    subroutine guess_grids_stats3d_(name,a,mype)
 !-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    guess_grids_stats3d_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    a
+!    mype     - mpi task id
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-   use constants, only: zero, one
+   use constants, only: zero
    use mpimod, only: ierror,mpi_rtype,mpi_sum,mpi_comm_world
    use gridmod, only: lon1,lat1,nsig
 
@@ -1473,11 +1488,11 @@ contains
 
    character(len=*), intent(in) :: name
    real(r_kind), intent(in), dimension(:,:,:) :: a
-   integer, intent(in)                      :: mype
+   integer(i_kind), intent(in)                      :: mype
 
 
 ! local variables
-   integer :: i,j,k
+   integer(i_kind) :: i,j,k
    real(r_kind),dimension(nsig+1):: work_a,work_a1
    real(r_kind),dimension(nsig):: amz ! global mean profile of a
    real(r_kind) :: rms
@@ -1513,8 +1528,30 @@ contains
 !-------------------------------------------------------------------------
    subroutine guess_grids_stats2d_(name,a,mype)
 !-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    guess_grids_stats2d_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    a
+!    mype     - mpi task id
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-   use constants, only: zero, one
+   use constants, only: zero
    use mpimod, only: ierror,mpi_rtype,mpi_sum,mpi_comm_world
    use gridmod, only: lon1,lat1
 
@@ -1522,11 +1559,11 @@ contains
 
    character(len=*), intent(in) :: name
    real(r_kind), intent(in), dimension(:,:) :: a
-   integer, intent(in)                      :: mype
+   integer(i_kind), intent(in)                      :: mype
 
 
 ! local variables
-   integer :: i,j
+   integer(i_kind) :: i,j
    real(r_kind),dimension(2):: work_a,work_a1
    real(r_kind) :: amz, rms
 
@@ -1557,18 +1594,39 @@ contains
 !-------------------------------------------------------------------------
    subroutine pstats_(a,amiss,avg,rms)
 !-------------------------------------------------------------------------
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    pstats_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    amiss
+!    a
+!
+!   output argument log:
+!    avg,rms
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
    use constants, only: zero
    implicit none
 
    real(r_kind), intent(in), dimension(:,:) :: a      ! array var
-   real, intent(in)                         :: amiss  ! undef
-   real, intent(out)                        :: avg,rms
+   real(r_kind), intent(in)                 :: amiss  ! undef
+   real(r_kind), intent(out)                :: avg,rms
 
 
 ! local variables
-   integer :: i,j
-   integer :: allcnt,cnt
+   integer(i_kind) :: i,j
+   integer(i_kind) :: allcnt,cnt
 
 ! start
 
@@ -1593,10 +1651,32 @@ contains
 !-------------------------------------------------------------------------
    subroutine print1r8_(name,fld,undef)
 !-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    print1r8_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    fld 
+!    undef
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
    implicit none
    character(len=*), intent(in) :: name
    real(r_kind),intent(in),dimension(:) :: fld
-   real, intent(in)                :: undef
+   real(r_kind),intent(in)              :: undef
 ! 
    write(6,100) trim(name),minval(fld),maxval(fld),sum(fld),undef
 100 format(a,': range,sum = ',1P3E16.4)
@@ -1605,12 +1685,35 @@ contains
 !-------------------------------------------------------------------------
    subroutine print2r8_(name,fld,undef)
 !-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    print2r8_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    fld
+!    undef
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
    implicit none
    character(len=*), intent(in) :: name
    real(r_kind),intent(in),dimension(:,:) :: fld
-   real, intent(in)                :: undef
+   real(r_kind),intent(in)                :: undef
 ! 
-   real avg,rms
+   real(r_kind) avg,rms
    write(6,100) trim(name),minval(fld),maxval(fld),sum(fld)
    call pstats_(fld,UNDEF,avg,rms)
    write(6,99) trim(name),avg,rms
@@ -1621,15 +1724,38 @@ contains
 !-------------------------------------------------------------------------
    subroutine print3r8_(name,fld,undef,allk)
 !-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    print3r8_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    fld
+!    undef
+!    allk
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
    implicit none
    character(len=*), intent(in) :: name
    real(r_kind),intent(in),dimension(:,:,:) :: fld
-   real, intent(in)                :: undef
+   real(r_kind),intent(in)                  :: undef
    logical, intent(in), optional :: allk
 ! 
    logical prntlevs
-   integer k
-   real avg,rms
+   integer(i_kind) k
+   real(r_kind) avg,rms
    if(present(allk)) prntlevs=allk
    if(prntlevs) then
       do k=1,size(fld,3)
@@ -1648,15 +1774,39 @@ contains
 !-------------------------------------------------------------------------
    subroutine print4r8_(name,fld,undef,allk)
 !-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    print4r8_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    fld
+!    undef
+!    allk
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
    implicit none
    character(len=*), intent(in) :: name
    real(r_kind),intent(in),dimension(:,:,:,:) :: fld
-   real, intent(in)                :: undef
+   real(r_kind),intent(in)                    :: undef
    logical, intent(in), optional :: allk
 ! 
    logical prntlevs
-   integer k,it
-   real avg,rms
+   integer(i_kind) k,it
+   real(r_kind) avg,rms
    if(present(allk)) prntlevs=allk
    if(prntlevs) then
       do it=1,size(fld,4)

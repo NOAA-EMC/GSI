@@ -17,9 +17,8 @@ module obs_ferrscale
 
 ! ------------------------------------------------------------------------------
 use kinds, only: r_kind,i_kind
-use constants, only: zero, two
+use constants, only: zero
 use gsi_4dvar, only: nobs_bins, idmodel, lsqrtb
-use jfunc, only: jiter, miter, niter, iter
 use mpimod, only: mype
 use state_vectors
 use bias_predictors
@@ -45,6 +44,26 @@ character(len=*), parameter :: fnerro = 'ferr_rm1.eta'
 contains
 ! ------------------------------------------------------------------------------
 subroutine init_ferr_scale
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_ferr_scale
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 implicit none
 
 integer(i_kind) :: ierr
@@ -59,6 +78,26 @@ lsqrtb=.false.
 
 end subroutine init_ferr_scale
 subroutine clean_ferr_scale
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    clean_ferr_scale
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 implicit none
 
 #ifdef GEOS_PERT
@@ -70,6 +109,26 @@ lsqrtb=lthis_sqrt
 end subroutine clean_ferr_scale
 ! ------------------------------------------------------------------------------
 subroutine apply_hrm1h (nprt)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    apply_hrm1h
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nprt
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -98,19 +157,36 @@ call clean_ferr_scale
 end subroutine apply_hrm1h
 ! ------------------------------------------------------------------------------
 subroutine get_ferr_scale (ferrin,nymd,nhms)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_ferr_scale
+!   prgmmr:      todling
+!
 ! abstract: Read forecast error
 !
 ! program history log:
 !   2008-11-16  todling - initial code
+!   2009-08-07  lueken  - updated documentation
+!
+!   input argument list:
+!    ferrin
+!    nymd,nhms
+!
+!   output argument list:
+!    ferrin
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
-type(state_vector) :: ferrin
-integer(i_kind) :: nymd,nhms
+type(state_vector),intent(inout) :: ferrin ! not yet implemented
+integer(i_kind),intent(in) :: nymd,nhms
 
-character(len=12) :: clfile
 real(r_kind) :: zjx
-integer(i_kind) :: ii,ierr
+integer(i_kind) :: ierr
 
 if (mype==0) then
   write(6,*)'get_ferr_scale: read forecast error vector'
@@ -120,11 +196,9 @@ ferrin = zero ! not yet implemented
 
 ! Read in forecast error
 if (lferrscale) then
-! if (jiter==miter .and. jiter==1) then
 #ifdef GEOS_PERT
       call pgcm2gsi(ferrin,'tlm',ierr,nymd_in=nymd,nhms_in=nhms,filename=fnerri)
 #endif /* GEOS_PERT */
-! endif
   zjx=dot_product(ferrin,ferrin)
   if (mype==0) write(6,888)'get_ferr_scale: Norm ferrin=',sqrt(zjx)
 endif
@@ -134,19 +208,35 @@ return
 end subroutine get_ferr_scale
 ! ------------------------------------------------------------------------------
 subroutine put_ferr_scale (ferrout,nymd,nhms)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_ferr_scale
+!   prgmmr:      todling
+!
 ! abstract: Write out scaled forecast error
 !
 ! program history log:
 !   2008-11-16  todling - initial code
+!   2009-08-07  lueken  - updated documentation
+!
+!   input argument list:
+!    ferrout
+!    nymd,nhms
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
-type(state_vector) :: ferrout
-integer(i_kind) :: nymd,nhms
+type(state_vector),intent(in) :: ferrout
+integer(i_kind),intent(in) :: nymd,nhms
 
-character(len=12) :: clfile
 real(r_kind) :: zjx
-integer(i_kind) :: ii,ierr
+integer(i_kind) :: ierr
 
 if (mype==0) then
   write(6,*)'put_ferr_scale: store scaled forecast error vector'
@@ -156,11 +246,9 @@ endif
 if (lferrscale) then
   zjx=dot_product(ferrout,ferrout)
   if (mype==0) write(6,888)'put_ferr_scale: Norm ferrout=',sqrt(zjx)
-! if (jiter==miter .and. jiter==1) then
 #ifdef GEOS_PERT
       call gsi2pgcm(nymd,nhms,ferrout,'adm',ierr,filename=fnerro)
 #endif /* GEOS_PERT */
-! endif
 endif
 888 format(A,3(1X,ES24.18))
 
@@ -170,6 +258,9 @@ end subroutine put_ferr_scale
 subroutine hrm1h_ferr_scale(xin,xout,nprt,calledby)
 
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    hrm1h_ferr_scale
+!   pgrmmr:      todling
 !
 ! abstract: Apply H'R^{-1}H to xhat.
 !
@@ -177,26 +268,27 @@ subroutine hrm1h_ferr_scale(xin,xout,nprt,calledby)
 !   2007-11-17 todling - stripped off version of Tremolet's evaljgrad
 !   2008-12-06 todling - intjo is now a module
 !   2009-01-18 todling - quad precision passed to evaljo
+!   2009-08-07 lueken  - updated documentation
 !
-! input argument list:
-!   xin  - state vector to be scaled
-!   nprt - print level
+!   input argument list:
+!    xin  - state vector to be scaled
+!    nprt - print level
 !
-! output argument list:
-!   xout - scaled state vector
+!   output argument list:
+!    xout - scaled state vector
 !
-!$$$
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-use kinds, only: r_kind,i_kind,r_quad
-use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, lwrtinc
-use constants, only: zero,zero_quad
+use kinds, only: r_quad
+use gsi_4dvar, only: nsubwin, l4dvar
+use constants, only: zero_quad
 use mpimod, only: mype
-use jfunc, only: xhatsave
-use gridmod, only: lat2,lon2,nsig
 use obsmod, only: yobs
 use intjomod, only: intjo
-use state_vectors
-use bias_predictors
 
 implicit none
 
@@ -213,7 +305,6 @@ type(state_vector) :: mval(nsubwin)
 type(predictors) :: sbias, rbias
 real(r_quad) :: zjb,zjo,zjc,zjl
 integer(i_kind) :: ii,iobs,ibin
-real(r_kind) :: zdummy(lat2,lon2,nsig)
 logical :: llprt,llouter
 character(len=255) :: seqcalls
 
@@ -282,11 +373,6 @@ call evaljo(zjo,iobs,nprt,llouter)
 if (l_do_adjoint) then
 ! Moisture constraint
   zjl=zero_quad
-! if (.not.ltlint) then
-!   do ibin=1,nobs_bins
-!     call evalqlim(sval(ibin)%q,zjl,rval(ibin)%q)
-!   enddo
-! endif
 
   zjc=zero_quad
 

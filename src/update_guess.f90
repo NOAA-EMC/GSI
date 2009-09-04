@@ -61,10 +61,12 @@ subroutine update_guess(sval,sbias)
 !   2009-07-08  pondeca - add logical 'tsensible' for use with 2dvar only
 !
 !   input argument list:
-!     xhat     - analysis increment in grid space
-!     xhatuv    - u,v increment in grid space
+!    sval
+!    sbias
 !
 !   output argument list:
+!    sval
+!    sbias
 !
 !   comments:
 !
@@ -75,16 +77,15 @@ subroutine update_guess(sval,sbias)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use constants, only: zero, one, ozcon, fv, tiny_r_kind
+  use constants, only: zero, one, fv
   use jfunc, only: iout_iter,biascor,tsensible
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig,nlon,nlat,&
+  use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
-       ges_tsen,ges_oz,ges_u,ges_v,nfldsig,hrdifsig,hrdifsfc,ges_prsi,&
+       ges_tsen,ges_oz,ges_u,ges_v,nfldsig,hrdifsig,hrdifsfc,&
        nfldsfc,dsfct
   use xhat_vordivmod, only: xhat_vor,xhat_div
-  use compact_diffs, only: uv2vordiv
-  use gsi_4dvar, only: nobs_bins, hr_obsbin, winlen
+  use gsi_4dvar, only: nobs_bins, hr_obsbin
   use radinfo, only: npred,jpch_rad,predx
   use pcpinfo, only: npredp,npcptype,predxp
   use m_gsiBiases,only : bias_hour, update_bias
@@ -98,10 +99,8 @@ subroutine update_guess(sval,sbias)
   type(predictors)  , intent(inout) :: sbias
 
 ! Declare local variables
-  integer(i_kind) i,j,k,it,ij,ijk,i2,i2m1,ni1,ni2,kk,ii,jj
-  real(r_kind),dimension(lat1,lon1,nsig):: usm,vsm
-  real(r_kind),dimension(nlon,nlat):: grid_vor,grid_div
-  real(r_kind) :: zt,zmin
+  integer(i_kind) i,j,k,it,ij,ijk,ii
+  real(r_kind) :: zt
 
 !*******************************************************************************
 ! In 3dvar, nobs_bins=1 is smaller than nfldsig. This subroutine is
@@ -139,7 +138,6 @@ subroutine update_guess(sval,sbias)
               ijk=ijk+1
               ges_u(i,j,k,it)    =                 ges_u(i,j,k,it)    + sval(ii)%u(ijk)
               ges_v(i,j,k,it)    =                 ges_v(i,j,k,it)    + sval(ii)%v(ijk)
-!_RT          ges_q(i,j,k,it)    = max(tiny_r_kind,ges_q(i,j,k,it)    + sval(ii)%q(ijk))
               ges_q(i,j,k,it)    =                 ges_q(i,j,k,it)    + sval(ii)%q(ijk) 
               if (.not.twodvar_regional .or. .not.tsensible) then
                 ges_tv(i,j,k,it)   =                ges_tv(i,j,k,it)   + sval(ii)%t(ijk)
@@ -152,8 +150,6 @@ subroutine update_guess(sval,sbias)
               endif
 
 !             Note:  Below variables only used in NCEP GFS model
-!_RT          ges_oz(i,j,k,it)   = max(tiny_r_kind,ges_oz(i,j,k,it)   + sval(ii)%oz(ijk))
-!_RT          ges_cwmr(i,j,k,it) = max(tiny_r_kind,ges_cwmr(i,j,k,it) + sval(ii)%cw(ijk))
               ges_oz(i,j,k,it)   =                 ges_oz(i,j,k,it)   + sval(ii)%oz(ijk)
               ges_cwmr(i,j,k,it) =                 ges_cwmr(i,j,k,it) + sval(ii)%cw(ijk)
               ges_div(i,j,k,it)  =                 ges_div(i,j,k,it)  + xhat_div(i,j,k,ii)

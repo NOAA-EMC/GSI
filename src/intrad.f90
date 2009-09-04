@@ -1,16 +1,28 @@
 module intradmod
 
-!$$$  subprogram documentation block
+!$$$ module documentation block
 !                .      .    .                                       .
-! subprogram:    intradmod    module for intrad and its tangent linear intrad_tl
+! module:    intradmod    module for intrad and its tangent linear intrad_tl
+!  prgmmr:
 !
 ! abstract: module for intrad and its tangent linear intrad_tl
 !
 ! program history log:
 !   2005-05-16  Yanqiu zhu - wrap intrad and its tangent linear intrad_tl into one module
 !   2005-11-16  Derber - remove interfaces
-!   2008-11-26  TOdling - remove intrad_tl; add interface back
+!   2008-11-26  Todling - remove intrad_tl; add interface back
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intrad_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -68,12 +80,18 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
 !     sv       - input v correction field
 !     spred    - input predictor values
 !     sst      - input skin temp. vector
+!     rt
+!     rq
+!     roz
+!     ru
+!     rv
+!     rpred
+!     rst
 !
 !   output argument list:
-!     radhead  - obs type pointer to obs structure
 !     rt       - output t vector after inclusion of radiance info.
 !     rq       - output q vector after inclusion of radiance info.
-!     ro       - output ozone vector after inclusion of radiance info.
+!     roz      - output ozone vector after inclusion of radiance info.
 !     ru       - output u vector after inclusion of radiance info.
 !     rv       - output v vector after inclusion of radiance info.
 !     rpred    - output predictor vector after inclusion of radiance info.

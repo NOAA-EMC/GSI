@@ -110,7 +110,7 @@
 !
 !$$$
 
- use constants, only                 : pi, one, two
+ use constants, only                 : pi, half, one, two
 
  implicit none
 
@@ -155,8 +155,8 @@
    crosstrackfovsize(ifov) = ctf
  enddo  ! ifov
 
- rmax = 0.5_r_kind * crosstrackangle * expansion ! remember, these are semiaxes
- rmin = 0.5_r_kind * alongtrackangle * expansion
+ rmax = half * crosstrackangle * expansion ! remember, these are semiaxes
+ rmin = half * alongtrackangle * expansion
 
  do i = 1 , maxfov(instr)
    ratio = rmin(i)**2/rmax(i)**2
@@ -199,7 +199,7 @@
  if(allocated(eccen))             deallocate (eccen)
 
  end subroutine fov_cleanup
- subroutine fov_ellipse_crosstrk (fov, instr, satellite_azimuth,  &
+ subroutine fov_ellipse_crosstrk (fov, satellite_azimuth,  &
                                   lat, lon, elats, elons )
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -229,23 +229,6 @@
 !		       90 = AMSU-B
 !		       90 = AIRS
 !                      96 = ATMS
-!   instr           - instrument number
-!                      1 = AVHRR-2 LAC/HRPT
-!                      2 = AVHRR-3 LAC/HRPT
-!		       3 = AVHRR-3 LAC/HRPT on NOAA-16
-!                      4 = HIRS-2
-!		       5 = HIRS-2I
-!		       6 = HIRS-3 NOAA-K
-!                      7 = HIRS-3 NOAA-L,M
-!		       8 = HIRS-4
-!		       9 = SSU
-!		      10 = MSU
-!		      11 = AMSU-A
-!		      12 = AMSU-B, AIRS, HSB
-!		      13 = MHS
-!                     14 = ATMS 5.2 DEG
-!		      15 = ATMS 2.2 DEG
-!                     16 = ATMS 1.1 DEG
 !   satellite_azimuth - satellite azimuth angle
 !   lat               - latitude of center of fov 
 !   lon               - longitude of center of fov
@@ -280,7 +263,6 @@
 
 ! Declare passed variables
  integer(i_kind), intent(in):: fov
- integer(i_kind), intent(in):: instr
  real(r_kind), intent(in):: satellite_azimuth
  real(r_kind), intent(in):: lat
  real(r_kind), intent(in):: lon
@@ -378,7 +360,7 @@
 !
 !$$$
 
- use constants, only  :  pi, rad2deg, two
+ use constants, only  :  pi, rad2deg, zero, half, one, two, three
 
  implicit none
 
@@ -404,7 +386,7 @@
  real(r_kind) , dimension(maxinstr) :: degscan   = (/ 0.0541e0_r_kind, 0.0541e0_r_kind, 0.053981436e0_r_kind, &
                                                       1.8e0_r_kind, 1.8e0_r_kind, 1.8e0_r_kind, &
                                                       1.8e0_r_kind, 1.8e0_r_kind, 10.0e0_r_kind, &
-                                                      9.4737e0_r_kind, 3.e0_r_kind+1._r_kind/3._r_kind, &
+                                                      9.4737e0_r_kind, 3.e0_r_kind+one/three, &
                                                       1.1e0_r_kind , 10.e0_r_kind/9.e0_r_kind , 1.1e0_r_kind, &
                                                       1.1e0_r_kind, 1.1e0_r_kind /)
  real(r_kind) , dimension(maxinstr) :: fovangle  = (/ 0.0745_r_kind,   0.0745_r_kind,  0.0745_r_kind,  &
@@ -415,12 +397,12 @@
  real(r_kind) , dimension(maxinstr) :: halfscan  = (/ 55.37_r_kind,  55.37_r_kind,  55.25_r_kind,  49.5_r_kind, &
                                                       49.5_r_kind,  49.5_r_kind,  49.5_r_kind,  49.5_r_kind, &
                                                       35.0_r_kind,  47.3685_r_kind,  &
-                                                      48._r_kind+1._r_kind/3._r_kind,  48.95_r_kind, &
+                                                      48._r_kind+one/three,  48.95_r_kind, &
                                                       48.95_r_kind, 52.73_r_kind, 52.73_r_kind, 52.73_r_kind /)
- real(r_kind) , dimension(maxinstr) :: assymetry = (/ 0.0_r_kind,   0.0_r_kind,   0.0_r_kind,   0.0_r_kind,  &
-                                                      0.0_r_kind,   0.0_r_kind,  -1.8_r_kind,   0.0_r_kind,  &
-                                                      0.0_r_kind,   0.0_r_kind,   0.0_r_kind,   0.0_r_kind,  &
-                                                      0.0_r_kind,   0.0_r_kind,   0.0_r_kind,   0.0_r_kind /)
+ real(r_kind) , dimension(maxinstr) :: assymetry = (/ zero,         zero,         zero,         zero,  &
+                                                      zero,         zero,        -1.8_r_kind,   zero,  &
+                                                      zero,         zero,         zero,         zero,  &
+                                                      zero,         zero,         zero,         zero /)
 
 ! declare local variables
  real(r_kind) nadirangle, nadirangle_m, nadirangle_p
@@ -432,8 +414,8 @@
 
 !Nadir angles of center and crosstrack extremes of fov
  nadirangle   = halfscan(instr) - (fov-1)*degscan(instr) + assymetry(instr)
- nadirangle_m = nadirangle - fovangle(instr)*0.5_r_kind 
- nadirangle_p = nadirangle + fovangle(Instr)*0.5_r_kind 
+ nadirangle_m = nadirangle - fovangle(instr)*half
+ nadirangle_p = nadirangle + fovangle(Instr)*half
 
 !Complement of zenith angle for center and crosstrack extremes of fov
  compzacenter = 180._r_kind - asin((radius+height)/radius * sin(nadirangle  /rad2deg))*rad2deg
@@ -452,7 +434,7 @@
  
 !along track fov size in km
 ! the following is an approximation, but it is close.  It underestimates the FOV by a smidge
- alongtrackfovsize = two*distancetofov*tan(fovangle(instr)*0.5_r_kind/rad2deg)
+ alongtrackfovsize = two*distancetofov*tan(fovangle(instr)*half/rad2deg)
 
 !along track angle of the fov as viewed from center of the earth
  alongtrackangle = 360._r_kind * alongtrackfovsize/(two*pi*radius)
@@ -575,7 +557,7 @@
 !
 !$$$
 
- use constants, only  : one, zero, half, two, pi, deg2rad, rad2deg
+ use constants, only  : one, zero, half, two, pi, deg2rad, rad2deg, one_tenth
 
  implicit none
 
@@ -607,7 +589,6 @@
        (/ 8,2 /) )
 
 ! Declare local variables.
- integer(i_kind) :: i   ! loop counters
  real(r_kind)  :: dellon ! longitude difference from fov center to test location
  real(r_kind)  :: dellat ! latitude difference from fov center to test location
  real(r_kind)  :: fovanglesize
@@ -672,7 +653,7 @@
     py     = coeff(0,2) + coeff(1,2)*y + coeff(2,2)*y**2 + coeff(3,2)*y**3 + coeff(4,2)*y**4 &
                                        + coeff(5,2)*y**5 + coeff(6,2)*y**6 + coeff(7,2)*y**7   
     p      = -(px+py) ! power in dB (positive)
-    p      = 10._r_kind**(-p*0.1_r_kind)  ! convert to fraction of max power
+    p      = 10._r_kind**(-p*one_tenth)  ! convert to fraction of max power
     inside = p  
    else
     inside = one

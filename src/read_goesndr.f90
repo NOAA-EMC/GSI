@@ -74,9 +74,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
              checkob,finalcheck,score_crit
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad 
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,zero,one,izero,ione,rad2deg, r60inv
-  use obsmod, only: iadate,offtime_data
-  use gsi_4dvar, only: l4dvar,idmodel,iadatebgn,iadateend,time_4dvar,iwinbgn,winlen
+  use constants, only: deg2rad,zero,rad2deg, r60inv,two
+  use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
 
   implicit none
 
@@ -113,13 +112,12 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
   integer(i_kind) kx,levs,ldetect
   integer(i_kind) lnbufr,nchanl,nreal,iret,ksatid,lsatid
-  integer(i_kind) idate,iout
+  integer(i_kind) idate
   integer(i_kind) ilat,ilon,isflg,idomsfc
   integer(i_kind) itx,k,i,itt,iskip,l,ifov,n
   integer(i_kind) ichan8,ich8
   integer(i_kind) nele,iscan,nmind
   integer(i_kind) ntest,ireadsb,ireadmg,irec,isub,next
-  integer(i_kind)::  file_handle,ierror,nblocks
   integer(i_kind),dimension(5):: idate5
 
   real(r_kind) dlon,dlat,timedif,emiss,sfcr
@@ -156,7 +154,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   ilon=3
   ilat=4
 
-  rlndsea(0) = 0._r_kind
+  rlndsea(0) = zero
   rlndsea(1) = 15._r_kind
   rlndsea(2) = 10._r_kind
   rlndsea(3) = 15._r_kind
@@ -317,7 +315,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !    Set common predictor parameters
 
      if (l4dvar) then
-       timedif = 0.0
+       timedif = zero
      else
        timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
      endif
@@ -326,7 +324,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
      crit1=0.01_r_kind+timedif
      if(ifov < mfov .and. ifov > 0)then
-       crit1=crit1+2.0_r_kind*float(mfov-ifov)
+       crit1=crit1+two*float(mfov-ifov)
      end if
 
      call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
@@ -434,7 +432,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
-  call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
+  call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
 
 

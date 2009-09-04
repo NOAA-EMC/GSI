@@ -1,5 +1,8 @@
 subroutine state2control(rval,bval,grad)
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    state2control
+!   prgmmr: tremolet
 !
 ! abstract:  Converts variables from physical space to control space
 !            This is also the adjoint of control2state
@@ -9,22 +12,22 @@ subroutine state2control(rval,bval,grad)
 !   2008-11-28  todling  - update to GSI May 2008: add tsen and p3d
 !   2009-01-15  todling  - handle predictors in quad precision
 !   2009-04-21  derber   - modify call to getstvp to call to getuv
+!   2009-08-12  lueken   - update documentation
 !
 !   input argument list:
 !     rval - State variable
+!     bval
 !   output argument list:
 !     grad - Control variable
 !
 !$$$
-use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero
+use kinds, only: i_kind
 use control_vectors
 use state_vectors
 use bias_predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
 use gridmod, only: latlon1n,latlon11
-use jfunc, only: nsclen,npclen,nrclen
-use mpl_allreducemod, only: mpl_allreduce
+use jfunc, only: nsclen,npclen
 implicit none
 
 ! Declare passed variables

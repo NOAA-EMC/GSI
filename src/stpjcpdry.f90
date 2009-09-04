@@ -1,3 +1,34 @@
+module stpjcpdrymod
+
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stpjcpdrymod    module for stpps and its tangent linear stpps_tl
+!  prgmmr:
+!
+! abstract: module for stpps and its tangent linear stpps_tl
+!
+! program history log:
+!   2005-05-18  Yanqiu zhu - wrap stpps and its tangent linear stpps_tl into one module
+!   2005-11-16  Derber - remove interfaces
+!   2008-12-02  Todling - remove stpps_tl
+!   2009-08-12  lueken - update documentation
+!
+! subroutines included:
+!   sub stpjcpdry
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+implicit none
+
+PRIVATE
+PUBLIC stpjcpdry
+
+contains
+
  subroutine stpjcpdry(rq,rc,rp,sq,sc,sp,mype,pen,b,c)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -29,9 +60,9 @@
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_quad
-  use constants, only: zero,two,one,half,grav,zero_quad
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use kinds, only: r_quad,r_kind,i_kind
+  use constants, only: zero,zero_quad
+  use gridmod, only: lat2,lon2,nsig
   use guess_grids, only:  ges_prsi,ntguessig
   use jcmod, only: bamp_jcpdry
   implicit none
@@ -83,3 +114,5 @@
 
   return
 end subroutine stpjcpdry
+
+end module stpjcpdrymod

@@ -26,12 +26,11 @@ subroutine penal(xhat)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,levs_id,npe,mype
+  use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mype
   use constants, only: one,zero
   use gsi_4dvar, only: nobs_bins
   use obsmod, only: qhead,qptr,thead,tptr,whead,wptr,pshead,psptr
   use converr, only:etabl
-  use gridmod, only: latlon1n,latlon11
   use jfunc, only: jiterstart,jiter
   use convinfo, only:ictype,nconvtype,ioctype
   use state_vectors

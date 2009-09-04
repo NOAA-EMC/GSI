@@ -179,17 +179,15 @@ contains
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: iglobal,itotsub,ltosi,ltosj,ltosi_s,ltosj_s,&
-       nlon,nlat,sinlon,coslon
+  use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
 ! Declare passed variables
   real(r_kind),dimension(nlat,nlon),intent(inout):: work1,work2
 
 ! Declare local variables  
-  integer(i_kind) lbcoy2,lcy,lbcoy1,lacoy1,lacoy2,kk,ix,iy,ni1,ni2,nbp,nya
+  integer(i_kind) lbcoy2,lcy,lbcoy1,lacoy1,lacoy2,ix,iy,nbp,nya
   integer(i_kind) nxh,nxa,lacox2,lbcox2,lacox1,lbcox1,ny,i,j
   real(r_kind) polsu,polnu,polnv,polsv
   real(r_kind),dimension(nlon):: grid3n,grid3s,grid1n,grid1s
@@ -302,7 +300,6 @@ contains
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use kinds, only: r_kind,i_kind
   use constants, only: zero,one
   use gridmod, only: iglobal,itotsub,ltosi,ltosj,ltosi_s,ltosj_s,&
        nlon,nlat
@@ -467,7 +464,6 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use kinds, only: r_kind,i_kind
   implicit none
 
 ! Declare passed variables
@@ -542,7 +538,6 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
   implicit none
 
@@ -610,7 +605,6 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use kinds, only: r_kind,i_kind
   implicit none
 
 ! Declare passed variables
@@ -676,9 +670,7 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: sinlon,coslon,ltosj_s,ltosi_s,ltosj,ltosi,&
-       itotsub,iglobal,nlat,nlon
+  use gridmod, only: sinlon,coslon,nlat,nlon
   use constants, only: zero
   implicit none
 
@@ -687,7 +679,7 @@ end subroutine uv2vordiv
 
 ! Declare local scalars,arrays
   integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
-  integer(i_kind) lacoy2,lbcoy2,lcy,iy,ix,ni1,ni2,kk,i,j
+  integer(i_kind) lacoy2,lbcoy2,lcy,iy,ix,i,j
   real(r_kind) polsu,polsv,polnu,polnv
   real(r_kind),dimension(nlon):: grid3n,grid3s,grid1n,grid1s
   real(r_kind),dimension(nlat-2,nlon):: a,b,grid2,grid3,grid1,grid4
@@ -823,7 +815,6 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use kinds, only: r_kind,i_kind
   implicit none
 
 ! Declare passed variables
@@ -897,7 +888,6 @@ end subroutine uv2vordiv
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
   implicit none
 
@@ -960,7 +950,6 @@ end subroutine uv2vordiv
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use kinds, only: r_kind,i_kind
   implicit none
 
 ! Declare passed variables
@@ -1043,7 +1032,6 @@ end subroutine uv2vordiv
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use kinds, only: r_kind,i_kind
   implicit none
 
 ! Declare passed variables
@@ -1117,7 +1105,6 @@ end subroutine uv2vordiv
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use kinds, only: r_kind,i_kind
   implicit none
 
 ! Declare passed variables
@@ -1200,14 +1187,13 @@ end subroutine uv2vordiv
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
   implicit none
 
 ! Delcare passed variables
   integer(i_kind),intent(in):: n1y,n2y,nbh1,nbh2,nx,na,nv1,nv2
   real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(n1y,nv2),intent(in):: v1
+  real(r_kind),dimension(n1y,nv1),intent(in):: v1
   real(r_kind),dimension(n2y,nv2),intent(out):: v2
 
 ! Declare local variables
@@ -1268,7 +1254,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use constants, only: zero,half,one,two,pi
   use gridmod, only: nlat
   implicit none
@@ -1398,7 +1383,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use constants, only: zero,two
   implicit none
 
@@ -1528,7 +1512,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use constants, only: zero,one
   implicit none
 
@@ -1625,7 +1608,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use constants, only: zero,one
   implicit none
 
@@ -1695,7 +1677,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   implicit none
 
 ! Declare passed variables
@@ -1745,7 +1726,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use constants, only: zero,one
   implicit none
 
@@ -1831,7 +1811,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   implicit none
 
 ! Declare passed variables
@@ -1892,7 +1871,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
@@ -2019,7 +1997,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
@@ -2136,7 +2113,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
@@ -2271,7 +2247,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
@@ -2392,7 +2367,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use gridmod, only: nlon,nlat
   implicit none
 
@@ -2444,7 +2418,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use gridmod, only: nlon,nlat
   use constants, only: zero
   implicit none
@@ -2507,7 +2480,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind
     use constants, only: zero
     use gridmod, only: nlon, nlat
     implicit none
@@ -2605,7 +2577,6 @@ end subroutine uv2vordiv
 !
 !$$$ end documentation block
 
-    use kinds, only: r_kind,i_kind
     use constants, only: zero
     use gridmod, only: nlon, nlat
     implicit none
@@ -2638,8 +2609,8 @@ end subroutine uv2vordiv
       do i=1,ny
         grid1(i,j) = dadx(i+1,j)
         grid2(i,j) = dady(i+1,j)
-        work1(i,j)=0.
-        work2(i,j)=0.
+        work1(i,j)=zero
+        work2(i,j)=zero
       end do
     end do
 
@@ -2660,7 +2631,7 @@ end subroutine uv2vordiv
          coef(lacox1),coef(lbcox1),coef(lacox2),coef(lbcox2),&
          nlon,ny,noq,nxh)
 
-! Load results into ouptut arrays
+! Load results into output arrays
     a=zero
     do j=1,nlon
       do i=1,ny
@@ -2696,7 +2667,7 @@ end subroutine uv2vordiv
 !
 !$$$ end documentation block
 
-    use kinds, only: r_kind,i_kind
+    use constants, only: zero
     use gridmod, only: nlon,nlat
     implicit none
 
@@ -2726,7 +2697,7 @@ end subroutine uv2vordiv
 ! Initialize output arrays to zero
     do j=1,nlon
       do i=1,nlat
-        div(i,j)=0.0
+        div(i,j)=zero
       end do
     end do
 
@@ -2736,8 +2707,8 @@ end subroutine uv2vordiv
       do i=1,ny
         work1(i,j) = uin(i+1,j)
         work2(i,j) = vin(i+1,j)
-        grid1(i,j)=0.0
-        grid2(i,j)=0.0
+        grid1(i,j)=zero
+        grid2(i,j)=zero
       end do
     end do
 
@@ -2805,7 +2776,6 @@ end subroutine uv2vordiv
 !
 !$$$ end documentation block
 
-    use kinds, only: r_kind,i_kind
     use constants, only: zero
     use gridmod, only: nlat,nlon
     implicit none
@@ -2840,8 +2810,8 @@ end subroutine uv2vordiv
       do i=1,ny
         grid1(i,j) = ddiv(i+1,j)
         grid2(i,j) = ddiv(i+1,j)
-        work1(i,j) = 0.0
-        work2(i,j) = 0.0
+        work1(i,j) = zero
+        work2(i,j) = zero
       end do
     end do
 

@@ -70,8 +70,7 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
      region_dx,region_dy
   use constants, only: zero,half,one,two,rearth,rd,rcp,omega,grav
   use tendsmod, only: what9,prsth9,r_prsum9,r_prdif9,prdif9,pr_xsum9,pr_xdif9,pr_ysum9,&
-     pr_ydif9,curvx,curvy,coriolis,t_over_pbar,dp_over_pbar
-  use mpimod, only: mpi_rtype,mpi_sum,mpi_comm_world,ierror
+     pr_ydif9,curvx,curvy,coriolis
   implicit none
 
 ! Declare passed variables
@@ -88,8 +87,7 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
   real(r_kind),dimension(lat2,lon2):: z_x,z_y
   real(r_kind),dimension(lat2,lon2,nsig+1):: pri_x,pri_y
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
-  real(r_kind),dimension(nsig):: t_over_p,dp_over_p
-  real(r_kind) tmp,tmp2,count,count0
+  real(r_kind) tmp,tmp2
   integer(i_kind) i,j,k,ix,ixm,ixp,jx,jxm,jxp,nnn
   real(r_kind) sumk,sumvk,sum2k,sum2vk,uuvv
 
@@ -148,7 +146,7 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 
   call get_zderivs(z,z_x,z_y,mype)
 ! preliminaries
-  call getprs_horiz(ps_x,ps_y,mype,pri,pri_x,pri_y)
+  call getprs_horiz(ps_x,ps_y,pri,pri_x,pri_y)
 
   do k=1,nsig
     do j=1,lon2

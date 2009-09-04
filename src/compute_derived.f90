@@ -56,26 +56,24 @@ subroutine compute_derived(mype)
 !
 !$$$
 
-  use kinds, only: r_kind,r_single,i_kind
+  use kinds, only: r_kind,i_kind
   use jfunc, only: qsatg,qgues,rhgues,jiter,jiterstart,&
        dqdt,dqdrh,dqdp,qoption,switch_on_derivatives,&
        tendsflag,varq
-  use mpimod, only: ierror,mpi_rtype,mpi_sum,mpi_comm_world,levs_id
+  use mpimod, only: levs_id
   use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,&
        ges_tv,ges_q,ges_oz,ges_cwmr,sfct,&
-       tropprs,ges_prsi,ges_prsl,ntguessig,&
-       nfldsig,sfcmod_gfs,sfcmod_mm5,&
-       geop_hgtl,geop_hgti,ges_teta,fact_tv, &
+       tropprs,ges_prsl,ntguessig,&
+       nfldsig,&
+       ges_teta,fact_tv, &
        ges_u_lon,ges_v_lon,ges_tvlon,ges_ps_lon,ges_qlon,ges_ozlon,ges_cwmr_lon, &
        ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,ges_ozlat,ges_cwmr_lat
   use guess_grids, only: ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
        ges_oz_ten,ges_cwmr_ten
-  use guess_grids, only: ges_qlon    ,ges_qlat
-  use guess_grids, only: ges_tvlon   ,ges_tvlat
   use guess_grids, only: ges_prslavg,ges_psfcavg
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
   use gridmod, only: regional
-  use gridmod, only: twodvar_regional,bk5,eta2_ll
+  use gridmod, only: twodvar_regional
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional
   use berror, only: qvar3d,dssv,hswgt
   use balmod, only: rllat1,llmax
@@ -105,7 +103,7 @@ subroutine compute_derived(mype)
   logical ice,fullfield
   integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2
   
-  real(r_kind) drh,d,dl1,dl2,psfc015,dn1,dn2
+  real(r_kind) d,dl1,dl2,psfc015,dn1,dn2
   real(r_kind),allocatable,dimension(:,:,:):: dlnesdtv,dmax
   real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
@@ -134,7 +132,7 @@ subroutine compute_derived(mype)
              ges_ozlon,sfct_lon,ges_cwmr_lon, &
              ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,&
              ges_ozlat,sfct_lat,ges_cwmr_lat, &
-             nnnn1o,mype,nfldsig)
+             nnnn1o,nfldsig)
 
         if(.not. wrf_mass_regional .and. tendsflag)then
 

@@ -87,8 +87,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad 
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
        tll2xy,txy2ll,rlats,rlons
-  use constants, only: zero,deg2rad,one,three,izero,ione,rad2deg,r60inv
-  use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
+  use constants, only: zero,deg2rad,one,three,five,izero,rad2deg,r60inv
+  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
 
   implicit none
@@ -150,16 +150,13 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Work variables for time
   integer(i_kind)   :: idate
   integer(i_kind)   :: idate5(5)
-  character(len=10) :: date
   real(r_kind)      :: sstime, tdiff, t4dv
   integer(i_kind)   :: nmind
-  integer(i_kind)   :: iy, im, idd, ihh
 
 
 ! Other work variables
   integer(i_kind)  :: nreal, ichsst, ichansst, isflg,ioffset
-  integer(i_kind)  :: itx, k, nele, itt, iout,n,iscbtseqn,ix
-  integer(i_kind)  :: file_handle,ierror,nblocks
+  integer(i_kind)  :: itx, k, nele, itt, n,iscbtseqn,ix
   real(r_kind)     :: chsstf,chsst,sfcr
   real(r_kind)     :: ch15, ch3, df2, tt
   real(r_kind)     :: dlon, dlat
@@ -536,7 +533,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
             tt=168.-0.49*ch15
             df2 = 5.10_r_kind +0.78*ch1-0.96*ch3
             pred=zero
-            if(ch1-ch15 >= 3._r_kind)then
+            if(ch1-ch15 >= three)then
               if(ch1 > 261._r_kind .or. ch1 >= tt .or. &
                   (ch15 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
                  pred=100._r_kind
@@ -587,8 +584,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            chsst = allchan(128+ioffset)
            ch8ch18 = allchan(119+ioffset) - allchan(157+ioffset)
            ch8ch19 = allchan(129+ioffset) - allchan(157+ioffset)
-           if (ch8ch18 > -.05 .and. ch8ch18 < 1.0 .and. &
-               ch8ch19 > -.05 .and. ch8ch19 < 1.0 .and. &
+           if (ch8ch18 > -.05 .and. ch8ch18 < one .and. &
+               ch8ch19 > -.05 .and. ch8ch19 < one .and. &
                chsst < 263.0) then
                  chsst = tsavg
            endif
@@ -604,7 +601,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
                        l = k
                   endif
                 end do
-                if ( tmpinv > allchan(125+ioffset) + 5.0) then
+                if ( tmpinv > allchan(125+ioffset) + five) then
                        chsst = tsavg
                  endif
              endif
@@ -677,7 +674,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
-  call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
+  call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
 
 

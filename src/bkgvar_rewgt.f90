@@ -49,7 +49,6 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 ! Declare local variables
   real(r_kind),dimension(lat2,lon2,nsig):: bald,balt
   real(r_kind),dimension(lat2,lon2,nsig):: delpsi,delchi,deltv
-  real(r_kind),dimension(lat2,lon2,nsig):: zresc,dresc,tresc
   real(r_kind),dimension(lat2,lon2):: delps,psresc,balps
 
   real(r_quad),dimension(nsig):: mean_dz,mean_dd,mean_dt
@@ -455,7 +454,7 @@ subroutine smooth2d(subd,nlevs,nsmooth,mype)
 !$$$
   use gridmod,only: nlat,nlon,lat2,lon2
   use kinds,only: r_kind,i_kind
-  use constants, only: one,zero
+  use constants, only: zero,half,one,two,three,four
   implicit none
 
   integer(i_kind),intent(in):: nlevs,mype,nsmooth
@@ -472,11 +471,11 @@ subroutine smooth2d(subd,nlevs,nsmooth,mype)
 
 ! Set weights for nine point smoother
   corn=0.3_r_kind
-  cent=1.0_r_kind
-  side=0.5_r_kind
-  c4=4.0_r_kind
-  c3=3.0_r_kind
-  c2=2.0_r_kind
+  cent=one
+  side=half
+  c4=four
+  c3=three
+  c2=two
   rterm = one/(cent + c4*side + c4*corn)
 
 
@@ -568,7 +567,7 @@ subroutine gather_stuff2(f,g,mype,outpe)
   real(r_kind),intent(out):: g(nlat,nlon)
   real(r_kind) fsm(lat1,lon1)
   real(r_kind),allocatable:: tempa(:)
-  integer(i_kind) i,ii,isize,j,k
+  integer(i_kind) i,ii,isize,j
 
   isize=max(iglobal,itotsub)
   allocate(tempa(isize))
@@ -621,7 +620,7 @@ subroutine scatter_stuff2(g,f,mype,inpe)
   use kinds, only: r_kind,i_kind
   use gridmod, only: iglobal,itotsub,nlat,nlon,lat2,lon2,ijn_s,displs_s,&
      ltosi_s,ltosj_s
-  use mpimod, only: mpi_rtype,mpi_comm_world,ierror,strip
+  use mpimod, only: mpi_rtype,mpi_comm_world,ierror
   implicit none
   integer(i_kind),intent(in):: mype,inpe
 
@@ -629,7 +628,7 @@ subroutine scatter_stuff2(g,f,mype,inpe)
   real(r_kind),intent(out):: f(lat2,lon2)
 
   real(r_kind),allocatable:: tempa(:)
-  integer(i_kind) i,ii,isize,j,k,mm1
+  integer(i_kind) i,ii,isize,j,mm1
 
   isize=max(iglobal,itotsub)
   allocate(tempa(isize))

@@ -1,8 +1,9 @@
 module intpsmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intpsmod    module for intps and its tangent linear intps_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intpsmod    module for intps and its tangent linear intps_tl
+!  prgmmr:
 !
 ! abstract: module for intps and its tangent linear intps_tl
 !
@@ -10,7 +11,18 @@ module intpsmod
 !   2005-05-12  Yanqiu zhu - wrap intps and its tangent linear intps_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intps_tl; add interface back
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intps_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -55,9 +67,9 @@ subroutine intps_(pshead,rp,sp)
 !   input argument list:
 !     pshead  - obs type pointer to obs structure
 !     sp      - ps increment in grid space
+!     rp
 !
 !   output argument list:
-!     pshead  - obs type pointer to obs structure
 !     rp      - ps results from observation operator 
 !
 ! attributes:
@@ -66,11 +78,11 @@ subroutine intps_(pshead,rp,sp)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,tiny_r_kind,cg_term,r3600
   use obsmod, only: ps_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n1
-  use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables

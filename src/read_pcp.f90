@@ -1,4 +1,4 @@
-  subroutine read_pcp(nread,ndata,nodata,mype,jsatid,gstime,infile,lunout,obstype, &
+  subroutine read_pcp(nread,ndata,nodata,gstime,infile,lunout,obstype, &
               twind,sis)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -42,8 +42,6 @@
 !   2008-04-18  safford - rm unused vars
 !
 !   input argument list:
-!     mype     - mpi task id
-!     jsatid   - satellite ide to read
 !     infile   - unit from which to read BUFR data
 !     lunout   - unit to which to write data for further processing
 !     obstype  - observation type to process
@@ -62,16 +60,16 @@
 !$$$  end documentation block
   use kinds, only: r_kind,r_double,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: izero,zero,deg2rad,tiny_r_kind,rad2deg,r60inv
+  use constants, only: izero,zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600
   use obsmod, only: offtime_data
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
+  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
 
   implicit none
 
 ! Declare passed variables
-  character(len=*),intent(in):: obstype,infile,jsatid
+  character(len=*),intent(in):: obstype,infile
   character(len=*),intent(in):: sis
-  integer(i_kind),intent(in):: lunout,mype
+  integer(i_kind),intent(in):: lunout
   integer(i_kind),intent(inout):: nread
   integer(i_kind),intent(inout):: ndata,nodata
   real(r_kind),intent(in):: gstime
@@ -80,7 +78,6 @@
 ! Declare local parameters
   real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
-  real(r_kind),parameter:: r3600=3600.0_r_kind
 
 ! Declare local variables
   logical pcp_ssmi,pcp_tmi,pcp_amsu,pcp_stage3,outside
@@ -92,7 +89,7 @@
 
   integer(i_kind) imn,k,i,iyr,lnbufr,maxobs,isflg,idomsfc
   integer(i_kind) ihh,idd,im,kx,jdate
-  integer(i_kind) mincy,ndatout,nreal,nchanl,iy,iret,idate,itype,ihr,idy,imo
+  integer(i_kind) ndatout,nreal,nchanl,iy,iret,idate,itype,ihr,idy,imo
   integer(i_kind) minobs,lndsea,ilat,ilon
   integer(i_kind) idate5(5)
 
@@ -231,8 +228,8 @@
         if(min(pcpprd(2,1),pcpprd(2,2)).ge.bmiss) &
          call ufbrep(lnbufr,pcpprd,2,2,iret,strsmi2)
         spcp = bmiss
-        if (nint(pcpprd(1,1))==4)  spcp=pcpprd(2,1)*3600.
-        if (nint(pcpprd(1,2))==10) stdv=pcpprd(2,2)*3600.
+        if (nint(pcpprd(1,1))==4)  spcp=pcpprd(2,1)*r3600
+        if (nint(pcpprd(1,2))==10) stdv=pcpprd(2,2)*r3600
 
 !       Check for negative, very large, or missing pcp.
 !       If any case is found, skip this observation.

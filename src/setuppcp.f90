@@ -28,23 +28,23 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use pcpinfo, only: ibias
   use pcpinfo, only: nupcp
 
-  use gridmod, only: nlat, nlon     ! no. lat/lon
+  use gridmod, only: nlat           ! no. lat
   use gridmod, only: nsig,nsig2,nsig3,nsig4,nsig5       ! no. levels
   use gridmod, only: rbs2           ! 1./sin(grid latitudes))**2
-  use gridmod, only: istart, jstart ! start lat/lon of the whole array on each pe
+  use gridmod, only: istart         ! start lat of the whole array on each pe
   use gridmod, only: get_ij
 
   use guess_grids, only: geop_hgtl,hrdifsig,nfldsig,ges_ps,ges_ps_lon,ges_ps_lat
   use guess_grids, only: ges_prsl,ges_prsi,ges_div,ges_cwmr,ges_tsen,ges_u,ges_v
   use guess_grids, only: ges_q,ges_tv_ten,ges_q_ten,ges_prs_ten,isli2
 
-  use obsmod, only: ndat,dplat,pcp_ob_type,pcphead,pcptail,time_offset
+  use obsmod, only: ndat,dplat,pcphead,pcptail,time_offset
   use obsmod, only: i_pcp_ob_type,obsdiags,lobsdiagsave,ianldate
   use obsmod, only: mype_diaghdr,nobskeep,lobsdiag_allocated,dirname
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   
-  use constants, only: rd,cp,pi,deg2rad,zero,quarter,r60, &
-       half,one,two,tiny_r_kind,one_tenth,izero,cg_term,r1000,wgtlim,fv,r3600
+  use constants, only: rd,cp,pi,zero,quarter,r60, &
+       half,one,two,three,tiny_r_kind,one_tenth,izero,cg_term,r1000,wgtlim,fv,r3600
 
   use jfunc, only: jiter,miter
 
@@ -160,7 +160,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
   integer(i_kind) km1,mm1,iiflg,iextra,ireal
   integer(i_kind) ii,i,j,k,m,n,ibin,ioff
-  integer(i_kind) ipt,npassv
+  integer(i_kind) ipt
   integer(i_kind) nsphys,ixp,iyp,ixx,iyy
   integer(i_kind) km,ncnt
   integer(i_kind) kx,jj
@@ -168,17 +168,17 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   integer(i_kind) ncloud
   integer(i_kind),dimension(4):: jgrd
   integer(i_kind),dimension(iint):: idiagbuf
-  integer(i_kind)kbcon,jmin,ktcon,kuo,kbcon4,jmin4,ktcon4
-  integer ksatid,isflg
+  integer(i_kind) kbcon,jmin,ktcon,kuo,kbcon4,jmin4,ktcon4
+  integer(i_kind) ksatid,isflg
 
 
   real(r_kind) avg,sdv,rterm1,rterm2,rterm
-  real(r_kind) error,a0,a1,simerr
+  real(r_kind) error,a0,a1
   real(r_kind) errlog
   real(r_kind) rdocp,frain,dtp,dtf,sum,sixthpi
   real(r_kind) drad,vfact,efact,fhour,rtime
   real(r_kind) xlo,xhi
-  real(r_kind) obserr_wgt,simerr_wgt,wgtij
+  real(r_kind) wgtij
   real(r_kind) rmiss,pterm,delt,deltp
   real(r_kind) rmmhr,term,detect_threshold
   real(r_kind) dzmax,dtdz,dqdz,dudz,dvdz,dcwmdz
@@ -186,7 +186,6 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
   real(r_single),allocatable,dimension(:):: diagbuf
 
-  real(r_kind),dimension(nsig):: worki,worko
   real(r_kind),dimension(nsig):: sl
   real(r_kind),dimension(nsig+1):: si
   real(r_kind),dimension(4):: wgrd
@@ -208,7 +207,6 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   real(r_kind),dimension(nsig+1):: prsi0
 
   real(r_kind),parameter::  zero_7  = 0.7_r_kind
-  real(r_kind),parameter::  three   = 3.0_r_kind
   real(r_kind),parameter::  r1em6   = 0.000001_r_kind
   real(r_kind),parameter::  r10     = 10.0_r_kind
   real(r_kind),parameter::  r15     = 15.0_r_kind
@@ -645,7 +643,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
              tlrg,qlrg,pcplrg4, &
              t1,q1,cwm1,u1,v1,rn4,&
              t4_ad,q4_ad,cwm4_ad,u4_ad,v4_ad,div4_ad,&
-             t1_ad,q1_ad,cwm1_ad,u1_ad,v1_ad,rn1_ad,mype)
+             t1_ad,q1_ad,cwm1_ad,u1_ad,v1_ad,rn1_ad)
 
 !       Based on bilinear interpolation weights, accumulate rain rates
 !       and sensitivity over four surrounding analysis gridpoints.        

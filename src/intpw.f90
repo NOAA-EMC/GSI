@@ -1,8 +1,9 @@
 module intpwmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intpwmod    module for intpw and its tangent linear intpw_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intpwmod    module for intpw and its tangent linear intpw_tl
+!  prgmmr:
 !
 ! abstract: module for intpw and its tangent linear intpw_tl
 !
@@ -10,7 +11,18 @@ module intpwmod
 !   2005-05-16  Yanqiu zhu - wrap intpw and its tangent linear intpw_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intpw_tl; add interface back
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intpw_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -58,9 +70,9 @@ subroutine intpw_(pwhead,rq,sq)
 !   input argument list:
 !     pwhead   - obs type pointer to obs structure
 !     sq       - q increment in grid space
+!     rq
 !
 !   output argument list:
-!     pwhead   - obs type pointer to obs structure
 !     rq       - results from q observation operator 
 !
 !   comments:

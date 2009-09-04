@@ -44,7 +44,7 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
   use turblmod, only: kar0my20
   use turblmod, only: a0my20,b0my20,c0my20,d0my20,f1my20,f2my20, &
                       f3my20,f4my20,f5my20,f6my20,f7my20,f8my20,b1my20, &
-                      karmy20,l0my20,alf0my20
+                      karmy20,l0my20
   use turblmod, only: ricmy20,rfcmy20,shcmy20,smcmy20,eps_m
   use turblmod, only: ri_int
   implicit none
@@ -95,19 +95,8 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
         rdzi(i,j,k)=one/(zi(i,j,k+1)-zi(i,j,k))
       end do
 
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-!      upl0=zero
-!      nml0=zero
-!      do k=1,nsig
-!        kterm=dzl(k)*( uloc(k)**2+vloc(k)**2 )
-!        upl0=upl0+(zl(k)-zi(i,j,1))*kterm
-!        nml0=nml0+              kterm
-!      end do
-!      l0=alf0my20*upl0/nml0
-!      if(l0>l0my20) l0=l0my20
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 !m      l0=l0my20 *0.1   !  8 m
-      l0=l0my20 *0.15  !  12 m
+      l0=l0my20 *0.15_r_kind  !  12 m
 !m      l0=l0my20 *0.20  !  16 m
 !m      l0=l0my20 *0.25  !  20 m
 !m      l0=l0my20 *0.5   !  40 m

@@ -43,7 +43,7 @@ subroutine wrwrfnmma_binary(mype)
        mpi_offset_kind,mpi_info_null,mpi_mode_rdwr,mpi_status_size
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
-       nsig,lat2,lon2,lat1,lon1,eta2_ll
+       nsig,lat1,lon1,eta2_ll
   use constants, only: zero_single
   use gsi_io, only: lendian_in
   implicit none
@@ -52,18 +52,14 @@ subroutine wrwrfnmma_binary(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local constants
-  integer(i_kind),parameter:: lunin = 21
   real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r225=225.0_r_kind
 
 ! Declare local variables
-  logical run,first
-  integer(i_long) idat(3),ihrst,ntsd,iout,nshde
-  character(32) label 
   character(9) wrfanl
 
-  integer(i_kind) im,jm,lb,lm,len_short,len_long
+  integer(i_kind) im,jm,lm
   real(r_single),allocatable::temp1(:),tempa(:,:),tempb(:,:)
   real(r_single),allocatable::all_loc(:,:,:)
   integer(i_kind),allocatable::igtype(:),kdim(:),kord(:)
@@ -71,22 +67,14 @@ subroutine wrwrfnmma_binary(mype)
   integer(kind=mpi_offset_kind) this_offset,offset_start_date
   integer(i_kind),allocatable::length(:)
   integer(i_kind) this_length,length_start_date
-  real(r_single),allocatable::strp(:)
   character(6) filename
-  integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_fis,i_pint,i_t,i_q,i_u,i_v
+  integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_pint,i_t,i_q,i_u,i_v
   integer(i_kind) i_sst,i_tsk
-  integer(i_kind) igtypeh,igtypev,num_nmm_fields,num_j_groups,num_loc_groups
-  integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
+  integer(i_kind) num_nmm_fields,num_j_groups,num_loc_groups
   real(r_kind) pd,psfc_this
-  real(r_single) dlmd0,dphd0,pt0,pdtop0
-  real(r_single) deta10(nsig),aeta10(nsig),eta10(nsig+1),deta20(nsig),&
-       aeta20(nsig),eta20(nsig+1)
-  real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
-  real(r_single) dx0_nmm(nlon_regional,nlat_regional),dy0_nmm(nlon_regional,nlat_regional)
   integer(i_llong) n_position
-  integer(i_kind) iskip,ksize,jextra,nextra
+  integer(i_kind) iskip,jextra,nextra
   integer(i_kind) status(mpi_status_size)
-  integer(i_kind) request
   integer(i_kind) jbegin(0:npe),jend(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
   integer(i_long),allocatable:: ibuf(:,:)
@@ -559,10 +547,10 @@ subroutine wrnemsnmma_binary(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_single,i_kind
+  use kinds, only: r_kind,i_kind
   use regional_io, only: update_pint
-  use guess_grids, only: ges_ps,ges_pint,ges_pd,ges_u,ges_v,ges_q,&
-        ntguessfc,ntguessig,ges_tsen,ifilesig,dsfct,isli
+  use guess_grids, only: ges_ps,ges_pd,ges_u,ges_v,ges_q,&
+        ntguessfc,ntguessig,ges_tsen,dsfct,isli
   use gridmod, only: pt_ll,update_regsfc,pdtop_ll,nsig,lat2,lon2,eta2_ll,nmmb_verttype
   use constants, only: zero
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read,gsi_nemsio_write
@@ -576,7 +564,6 @@ subroutine wrnemsnmma_binary(mype)
 ! Declare local constants
   real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
-  real(r_kind),parameter:: r225=225.0_r_kind
 
 ! Declare local variables
 
@@ -752,7 +739,7 @@ subroutine wrwrfnmma_netcdf(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_single,i_long,i_kind
+  use kinds, only: r_kind,r_single,i_kind
   use regional_io, only: update_pint
   use guess_grids, only: ges_ps,ges_pint,ges_pd,ges_u,ges_v,ges_q,&
        ntguessfc,ntguessig,ifilesig,dsfct,ges_tsen
@@ -773,16 +760,12 @@ subroutine wrwrfnmma_netcdf(mype)
   real(r_kind),parameter:: r225=225.0_r_kind
 
 ! Declare local variables
-  logical run,first
-  integer(i_long) idat(3),ihrst,ntsd,iout,nshde
-  character(32) label 
-
-  integer(i_kind) im,jm,lb,lm,len_short,len_long
+  integer(i_kind) im,jm,lm
   real(r_single),allocatable::temp1(:),tempa(:),tempb(:)
   real(r_single),allocatable::all_loc(:,:,:)
   real(r_single),allocatable::strp(:)
   character(6) filename
-  integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_fis,i_pint,i_t,i_q,i_u,i_v
+  integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_pint,i_t,i_q,i_u,i_v
   integer(i_kind) i_sst,i_skt
   integer(i_kind) igtypeh,igtypev,num_nmm_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
@@ -1173,6 +1156,36 @@ subroutine  wrwrfnmma_binary(mype)
   implicit none
   integer(i_kind),intent(in)::mype
     if (mype==0) write(6,*)'WRWRFNMMA_BINARY:  enter dummy call, do nothing'
+end subroutine  wrwrfnmma_binary
+
+subroutine wrnemsnmma_binary(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    wrwrfnmma              write out wrf NMM restart file
+!   prgmmr: parrish          org: np22                date: 2004-06-23
+!
+! abstract:  dummy call to read wrf NMM guess restart interface file, add analysis
+!            increment, and write out wrf NMM analysis restart
+!            interface file.
+!
+! program history log:
+!   2009-08-14  lueken - added dummy subroutine to skip over wrf code
+!
+!   input argument list:
+!     mype     - pe number
+!
+!   output argument list:
+!     no output arguments
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: i_kind
+  implicit none
+  integer(i_kind),intent(in)::mype
+    if (mype==0) write(6,*)'WRNEMSNMMA_BINARY:  enter dummy call, do nothing'
 end subroutine  wrwrfnmma_binary
 
 subroutine wrwrfnmma_netcdf(mype)

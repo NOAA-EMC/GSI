@@ -28,7 +28,7 @@ subroutine init_commvars(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
   use gridmod, only: displs_s,ird_s,istart,ltosj,&
        jstart,regional,itotsub,nsig,nsig1o,nlon,ltosi_s,ltosj_s,nlat,&
        ijn_s,irc_s,ijn,ilat1,jlon1,displs_g,&

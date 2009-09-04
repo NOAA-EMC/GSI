@@ -36,8 +36,8 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
                         ps2_in,tvs2,qs2, hs, roughness, iland, &
                         f10, u10, v10, t2, q2, regime, iqtflg)
 !$$$ subprogram documentation block
-!
-! subprogram:  SFC_WTQ_FWD
+!               .      .    .                                       .
+! subprogram:   SFC_WTQ_FWD
 !
 !   prgrmmr:
 !
@@ -91,7 +91,7 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
   
       use kinds, only: r_kind,i_kind   
 
-      use constants, only: grav,fv,rd_over_cp,zero,quarter,half,one,two,four,five,r1000,izero
+      use constants, only: grav,fv,rd_over_cp,zero,quarter,one,two,four,five,r1000,izero
 
       IMPLICIT NONE
 
@@ -113,7 +113,7 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 !        moisture observed.
 
       REAL(r_kind), PARAMETER :: h10 = 10.0_r_kind
-      real(r_kind), parameter :: h2  = 2.0_r_kind
+      real(r_kind), parameter :: h2  = two
 !
 ! Default roughness over the land
 
@@ -441,8 +441,8 @@ END SUBROUTINE SFC_WTQ_FWD
 SUBROUTINE DA_TP_To_Qs( t, p, es, qs )
 
 !$$$ subprogram documentation block
-!
-! subprogram:  DA_TP_To_Qs
+!               .      .    .                                       .
+! subprogram:   DA_TP_To_Qs
 !
 !   prgrmmr:
 !
@@ -469,7 +469,7 @@ SUBROUTINE DA_TP_To_Qs( t, p, es, qs )
 !
 !$$$ end documentation block
 
-   use kinds, only: r_kind,i_kind  
+   use kinds, only: r_kind
    use constants, only: eps,omeps,t0c
 
    IMPLICIT NONE
@@ -517,8 +517,8 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
                        u10_prime,v10_prime,t2_prime,q2_prime,iqtflg) 
 
 !$$$ subprogram documentation block
-!
-! subprogram:  sfc_wtq_Lin
+!               .      .    .                                       .
+! subprogram:   sfc_wtq_Lin
 !
 !   prgrmmr:
 !
@@ -595,7 +595,7 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
 !        moisture observed.
 
       REAL(r_kind), PARAMETER :: h10 = 10.0_r_kind
-      real(r_kind), parameter :: h2  = 2.0_r_kind
+      real(r_kind), parameter :: h2  = two
 !
 ! Default roughness over the land
 
@@ -1094,8 +1094,8 @@ END SUBROUTINE sfc_wtq_Lin
 SUBROUTINE DA_TP_To_Qs_Lin( t, p, es, t_prime, p_prime, &
                              qs_prime_over_qs )
 !$$$ subprogram documentation block
-!               .      .    .
-! subprogram:  DA_TP_To_Qs_Lin
+!               .      .    .                                       .
+! subprogram:   DA_TP_To_Qs_Lin
 !
 !   prgrmmr:
 !
@@ -1170,8 +1170,8 @@ END SUBROUTINE DA_TP_To_Qs_Lin
 subroutine get_tlm_tsfc(tlm_tsfc,psges2,tgges,prsltmp2, &
                   tvtmp,qtmp,utmp,vtmp,hsges,roges,msges,regime,iqtflg)
 !$$$ subprogram documentation block
-!
-! subprogram:  get_tlm_tsfc
+!               .      .    .                                       .
+! subprogram:   get_tlm_tsfc
 !
 !   prgrmmr:
 !

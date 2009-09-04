@@ -1,5 +1,8 @@
 module state_vectors
 !$$$  module documentation block
+!            .      .    .                                       .
+! module:    state_vectors
+!  prgmmr: tremolet
 !
 ! abstract: define state vectors and basic operators
 !
@@ -10,13 +13,40 @@ module state_vectors
 !   2008-04-28  guo      - add norms1 for more detailed info
 !   2008-11-27  todling  - add tsen and p3d for Map-2008 update
 !   2009-01-27  todling  - rename prt_norms to prevent IBM compiler confusion
+!   2009-08-12  lueken   - update documentation
+!
+! subroutines included:
+!   sub setup_state_vectors
+!   sub allocate_state
+!   sub deallocate_state
+!   sub assign_scalar2state
+!   sub assign_state2state
+!   sub self_add_st
+!   sub self_add_scal
+!   sub self_mul
+!   sub norm_vars
+!   sub prt_norms1
+!   sub prt_norms0
+!   sub set_random_st
+!   sub inquire_state
+!
+! functions included:
+!   sum_mask
+!   dplevs
+!   dot_prod_st
+!   rsum
+!   qsum
+!
+! attributes:
+!   language: f90
+!   machine:
 !
 !$$$
 
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero,zero_quad
 use mpimod, only: mype
-use mpl_allreducemod, only: mpl_allreduce,mpl_allgather
+use mpl_allreducemod, only: mpl_allreduce
 
 implicit none
 
@@ -84,6 +114,27 @@ END INTERFACE
 contains
 ! ----------------------------------------------------------------------
 subroutine setup_state_vectors(katlon11,katlon1n,kval_len,kat2,kon2,ksig)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    setup_state_vectors
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!     katlon11,katlon1n,kval_len,kat2,kon2,ksig
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   integer(i_kind), intent(in) :: katlon11,katlon1n,kval_len,kat2,kon2,ksig
 
@@ -117,6 +168,26 @@ subroutine setup_state_vectors(katlon11,katlon1n,kval_len,kat2,kon2,ksig)
 end subroutine setup_state_vectors
 ! ----------------------------------------------------------------------
 subroutine allocate_state(yst)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    allocate_state
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(state_vector), intent(out) :: yst
   integer(i_kind) :: ii
@@ -164,6 +235,27 @@ subroutine allocate_state(yst)
 end subroutine allocate_state
 ! ----------------------------------------------------------------------
 subroutine deallocate_state(yst)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    deallocate_state
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    yst
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(state_vector), intent(inout) :: yst
 
@@ -191,6 +283,28 @@ subroutine deallocate_state(yst)
 end subroutine deallocate_state
 ! ----------------------------------------------------------------------
 subroutine assign_scalar2state(yst,pval)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    assign_scalar2state
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    yst
+!    pval
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(state_vector), intent(inout) :: yst
   real(r_kind), intent(in) :: pval
@@ -204,6 +318,28 @@ subroutine assign_scalar2state(yst,pval)
 end subroutine assign_scalar2state
 ! ----------------------------------------------------------------------
 subroutine assign_state2state(yst,xst)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    assign_state2state
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    yst
+!    xst
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(state_vector), intent(inout) :: yst
   type(state_vector), intent(in) :: xst
@@ -217,6 +353,28 @@ subroutine assign_state2state(yst,xst)
 end subroutine assign_state2state
 ! ----------------------------------------------------------------------
 subroutine self_add_st(yst,xst)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    self_add_st
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    yst
+!    xst
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(state_vector), intent(inout) :: yst
   type(state_vector), intent(in) :: xst
@@ -230,6 +388,29 @@ subroutine self_add_st(yst,xst)
 end subroutine self_add_st
 ! ----------------------------------------------------------------------
 subroutine self_add_scal(yst,pa,xst)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    self_add_scal
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    yst
+!    pa
+!    xst
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(state_vector), intent(inout) :: yst
   real(r_kind),       intent(in) :: pa
@@ -244,6 +425,28 @@ subroutine self_add_scal(yst,pa,xst)
 end subroutine self_add_scal
 ! ----------------------------------------------------------------------
 subroutine self_mul(yst,pa)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    self_mul
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    yst
+!    pa
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(state_vector), intent(inout) :: yst
   real(r_kind),       intent(in) :: pa
@@ -257,6 +460,27 @@ subroutine self_mul(yst,pa)
 end subroutine self_mul
 ! ----------------------------------------------------------------------
 real(r_kind) function sum_mask(field,nlevs)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    sum_mask
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlevs
+!    field
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   integer(i_kind),intent(in):: nlevs
   real(r_kind),dimension(lat2,lon2,nlevs),intent(in) :: field
@@ -274,7 +498,29 @@ real(r_kind) function sum_mask(field,nlevs)
   end do
   return
 end function sum_mask
+
 subroutine norms_vars(xst,pmin,pmax,psum,pnum)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    norm_vars
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xst
+!
+!   output argument list:
+!    pmin,pmax,psum,pnum
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block 
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe
   implicit none
   type(state_vector), intent(in) :: xst
@@ -322,7 +568,6 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
 ! Gather contributions
   call mpi_allgather(zloc,3*nvars+3,mpi_rtype, &
                    & zall,3*nvars+3,mpi_rtype, mpi_comm_world,ierror)
-! call mpl_allgather (3*nvars+3,npe,zloc,zall)
 
   zz=SUM(zall(3*nvars+1,:))
   do ii=1,7
@@ -348,6 +593,27 @@ return
 end subroutine norms_vars
 ! ----------------------------------------------------------------------
 subroutine prt_norms1(xst,sgrep)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    prt_norms1
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xst
+!    sgrep
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(state_vector),dimension(:),intent(in) :: xst
   character(len=256), intent(in) :: sgrep
@@ -355,7 +621,7 @@ subroutine prt_norms1(xst,sgrep)
   character(len=8) :: bindx,bform
   character(len=len(sgrep)+len(bindx)+2) :: bgrep
   
-  integer :: nx,ix
+  integer(i_kind) :: nx,ix
 
   nx=size(xst)
   ix=1;
@@ -374,6 +640,27 @@ subroutine prt_norms1(xst,sgrep)
 end subroutine prt_norms1
 ! ----------------------------------------------------------------------
 subroutine prt_norms0(xst,sgrep)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    prt_norms0
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xst
+!    sgrep
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(state_vector), intent(in) :: xst
   character(len=*), intent(in) :: sgrep
@@ -396,6 +683,27 @@ subroutine prt_norms0(xst,sgrep)
 end subroutine prt_norms0
 ! ----------------------------------------------------------------------
 real(r_quad) function dplevs(nlevs,dx,dy)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    dplevs
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlevs
+!    dx,dy
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   integer(i_kind),intent(in) :: nlevs
   real(r_kind),intent(in)::dx(lat2,lon2,nlevs),dy(lat2,lon2,nlevs)
@@ -415,6 +723,27 @@ return
 end function dplevs
 ! ----------------------------------------------------------------------
 real(r_quad) function dot_prod_st(xst,yst,which)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    dot_prod_st
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xst,yst
+!    which
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(state_vector), intent(in) :: xst, yst
   character(len=*),   intent(in), optional :: which  ! in the form: "var1+var2+..."
@@ -462,6 +791,27 @@ return
 end function dot_prod_st
 ! ----------------------------------------------------------------------
 subroutine set_random_st ( xst )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    set_random_st
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xst
+!
+!   output argument list:
+!    xst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(state_vector), intent(inout) :: xst
   call random ( xst%u   )
@@ -478,6 +828,26 @@ return
 end subroutine set_random_st
 ! ----------------------------------------------------------------------
 subroutine inquire_state
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    inquire_state
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+implicit none
 real(r_kind) :: zz
 
 if (mype==0) then
@@ -495,6 +865,26 @@ endif
 end subroutine inquire_state
 ! ----------------------------------------------------------------------
 real(r_quad) function rsum(x)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    rsum
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    x
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   real(r_kind), intent(in) :: x(:)
   integer(i_kind) :: idim,i
@@ -508,6 +898,26 @@ real(r_quad) function rsum(x)
 end function rsum
 ! ----------------------------------------------------------------------
 real(r_quad) function qsum(x)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    qsum
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-12  lueken - added subprogram doc block
+!
+!   input argument list:
+!    x
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   real(r_quad), intent(in) :: x(:)
   integer(i_kind) :: idim,i

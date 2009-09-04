@@ -74,13 +74,13 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
-  use constants, only: deg2rad,rad2deg,zero
+  use constants, only: deg2rad,rad2deg,zero,r60inv
   use gridmod, only: regional,nlat,nlon,tll2xy,rotate_wind_ll2xy,rlats,rlons
   use gridmod, only: check_rotate_wind
-  use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
+  use convinfo, only: nconvtype,ctwind, &
+        ncmiter,ncgroup,ncnumgrp,icuse,ioctype
   use obsmod, only: iadate,offtime_data
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,winlen,time_4dvar
+  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,winlen,time_4dvar
   implicit none
 
 ! Declare local parameters
@@ -95,13 +95,13 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   
 ! Declare local variables  
   logical outside
-  integer(i_kind) ndata_in,iord_in,iuvw_in,nbar_in,ithin
+  integer(i_kind) ndata_in,iord_in,iuvw_in,nbar_in
   integer(i_kind) iyref,imref,idref,ihref,idate
   real(r_single)suplon0,suplat0,suphgt,suptime0,supyhat(2),suprhat(2),supbigu(2,2)
   real(r_single)suptime,supid(2)
   real(r_kind) supid8
   equivalence(supid(1),supid8)
-  real(r_kind) rstation_id,rmesh,usage
+  real(r_kind) rstation_id,usage
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   integer(i_kind) lnbufr,i,maxobs,ikx,idomsfc
   integer(i_kind) ilon,ilat,k,icount,nchanl,nreal
@@ -113,8 +113,6 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   real(r_kind) time_correction
 
 
-  data ithin / -9 /
-  data rmesh / -99.999/  
 
 !**************************************************************************
 ! Initialize variables
@@ -155,7 +153,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 
 !     add obs reference time, then subtract analysis time to get obs time relative to analysis
 
-     time_correction=float(minobs-minan)/60._r_kind
+     time_correction=float(minobs-minan)*r60inv
 
   else
      time_correction=zero
@@ -248,7 +246,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
         do i=1,2
            u0=supbigu(i,1)
            v0=supbigu(i,2)
-           call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlat_earth,dlon,dlat)
+           call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
            supbigu(i,1)=uob
            supbigu(i,2)=vob
         end do

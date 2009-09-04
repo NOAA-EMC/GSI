@@ -1,7 +1,6 @@
 subroutine get_derivatives2(st,vp,t,p3d,u,v, &
                  u_x,v_x,t_x,p3d_x, &
-                 u_y,v_y,t_y,p3d_y, &
-                 mype)
+                 u_y,v_y,t_y,p3d_y)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_derivatives2  compute horizontal derivatives
@@ -20,8 +19,6 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 !     v        - latitude velocity component
 !     t        - virtual temperature
 !     p        - ln(psfc)
-!     nlevs    - number of levs on current processor in horizontal slab mode
-!     mype     - current processor number
 !
 !   output argument list:
 !     u_x      - longitude derivative of u  (note: in global mode, undefined at pole points)
@@ -55,16 +52,13 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 !     f_y:  (df/dlat)/a
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,wrf_nmm_regional,eta2_ll
+  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: compact_dlat,compact_dlon,stvp2uv
-  use mpimod, only: npe,nvarbal_id,nlevsbal,nnnvsbal
+  use mpimod, only: nvarbal_id,nlevsbal,nnnvsbal
 
   implicit none
 
 ! Passed variables
-  integer(i_kind) mype
-  integer(i_kind) nlevs
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(in):: p3d
   real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,st,vp
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(out):: p3d_x,p3d_y
@@ -120,17 +114,12 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
     call grid2sub2(hwork_y,u_y,v_y,p3d_y,t_y)
 
 
-! if(.not. regional)then
-!   call mp_compact_dlon1(p3d,p3d_x,.false.,nsig+1,mype)
-!   call mp_compact_dlat1(p3d,p3d_y,.false.,nsig+1,mype)
-! end if
-
   return
 end subroutine get_derivatives2
 
 subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
                  u_x,v_x,t_x,p3d_x, &
-                 u_y,v_y,t_y,p3d_y,mype)
+                 u_y,v_y,t_y,p3d_y)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    tget_derivatives2  adjoint of get_derivatives
@@ -153,8 +142,6 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
 !     v_x      - latitude derivative of v  (note: in global mode, undefined at pole points)
 !     t_y      - latitude derivative of t
 !     p_y      - latitude derivative of ln(psfc)
-!     nlevs    - number of levs on current processor in horizontal slab mode
-!     mype     - current processor number
 !
 !   output argument list:
 !     u        - longitude velocity component
@@ -171,14 +158,12 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,wrf_nmm_regional,eta2_ll
+  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: tcompact_dlat,tcompact_dlon,tstvp2uv
-  use mpimod, only: npe,nvarbal_id,nnnvsbal,nlevsbal
+  use mpimod, only: nvarbal_id,nnnvsbal
   implicit none
 
 ! Passed variables
-  integer(i_kind) mype
-  integer(i_kind) nlevs
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout):: p3d
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,st,vp
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout):: p3d_x
@@ -191,14 +176,6 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
   real(r_kind),dimension(nlat,nlon):: ux,vx
   logical vector
-
-! Adjoint of horizontal derivatives
-! if (.not. regional) then
-!   call mp_compact_dlon1_ad(p3d,p3d_x,.false.,nsig+1,mype)
-!   call mp_compact_dlat1_ad(p3d,p3d_y,.false.,nsig+1,mype)
-!   p3d_x=zero
-!   p3d_y=zero
-! end if
 
   iflg=1
 

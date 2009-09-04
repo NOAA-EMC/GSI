@@ -70,11 +70,11 @@ subroutine read_wrf_mass_binary_guess(mype)
   use mpimod, only: mpi_sum,mpi_integer,mpi_comm_world,npe,ierror, &
        mpi_offset_kind,mpi_info_null,mpi_mode_rdonly,mpi_status_size
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
-       fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
+       fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,eta1_ll,pt_ll,itotsub,aeta1_ll
-  use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass
+  use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300
   use gsi_io, only: lendian_in
   implicit none
 
@@ -82,27 +82,21 @@ subroutine read_wrf_mass_binary_guess(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  integer(i_kind),parameter:: lunin = 21
   real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r0_1  = 0.1_r_kind
   real(r_kind),parameter:: r10   = 10.0_r_kind
   real(r_kind),parameter:: r100  = 100.0_r_kind
-  real(r_kind),parameter:: r300  = 300.0_r_kind
 
 
 ! Declare local variables
   integer(i_kind) kt,kq,ku,kv
 
 ! MASS variable names stuck in here
-  logical run
-  integer(i_kind) idat(3),ihrst,ntsd,mfcst
+  integer(i_kind) mfcst
 
 ! other internal variables
-  logical ice
   real(r_single),allocatable::tempa(:,:)
   real(r_single),allocatable::temp1(:,:),temp1u(:,:),temp1v(:,:)
   real(r_single),allocatable::all_loc(:,:,:)
-  real(r_kind),allocatable::dlnesdtv(:,:,:),dmax(:,:,:)
   integer(i_kind),allocatable::igtype(:),kdim(:),kord(:)
   integer(kind=mpi_offset_kind),allocatable::offset(:)
   integer(kind=mpi_offset_kind) this_offset
@@ -110,9 +104,9 @@ subroutine read_wrf_mass_binary_guess(mype)
   integer(i_kind) this_length
   character(6) filename 
   character(9) wrfges
-  integer(i_kind) ifld,jfld,im,jm,lm,num_mass_fields
+  integer(i_kind) ifld,im,jm,lm,num_mass_fields
   integer(i_kind) num_loc_groups,num_j_groups
-  integer(i_kind) i,it,j,k,k1,levtempmax
+  integer(i_kind) i,it,j,k
   integer(i_kind) i_mub,i_mu,i_fis,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smois,i_tslb
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) isli_this
@@ -120,7 +114,7 @@ subroutine read_wrf_mass_binary_guess(mype)
   real(r_kind),dimension(lat2,lon2):: q_integral
   real(r_kind),dimension(lat2,lon2,nsig):: ges_pot
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
-  real(r_kind) deltasigma,drh
+  real(r_kind) deltasigma
   integer(i_llong) n_position
   integer(i_kind) iskip,ksize,jextra,nextra
   integer(i_kind) status(mpi_status_size)
@@ -132,7 +126,6 @@ subroutine read_wrf_mass_binary_guess(mype)
   real(r_single) pt_regional_single
   real(r_kind):: work_prsl,work_prslk
 
-  real(r_kind),dimension(5):: stat,stat1
   integer(i_kind) iadd
   character(132) memoryorder
 
@@ -589,7 +582,7 @@ subroutine read_wrf_mass_binary_guess(mype)
                  ges_q(j,i,k,it) = ges_q(j,i,k,it)/(one+ges_q(j,i,k,it))
 
 !                Add offset to get guess potential temperature
-                 ges_pot(j,i,k)  = all_loc(j,i,kt) + r300
+                 ges_pot(j,i,k)  = all_loc(j,i,kt) + h300
 
               end do
            end do
@@ -603,7 +596,7 @@ subroutine read_wrf_mass_binary_guess(mype)
 !             Convert psfc units of mb and then convert to log(psfc) in cb
               psfc_this_dry=r0_01*(all_loc(j,i,i_mub)+all_loc(j,i,i_mu)+pt_regional_single)
               psfc_this=(psfc_this_dry-pt_ll)*q_integral(j,i)+pt_ll
-              ges_ps(j,i,it)=r0_1*psfc_this   ! convert from mb to cb
+              ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_smois)
               soil_temp(j,i,it)=all_loc(j,i,i_tslb)
@@ -616,7 +609,7 @@ subroutine read_wrf_mass_binary_guess(mype)
         do k=1,nsig
            do i=1,lon2
               do j=1,lat2
-                 work_prsl  = r0_1*(aeta1_ll(k)*(r10*ges_ps(j,i,it)-pt_ll)+pt_ll)
+                 work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(j,i,it)-pt_ll)+pt_ll)
                  work_prslk = (work_prsl/r100)**rd_over_cp_mass
                  ges_tsen(j,i,k,it)= ges_pot(j,i,k)*work_prslk
                  ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
@@ -736,11 +729,11 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   use kinds, only: r_kind,r_single,i_kind
   use mpimod, only: mpi_sum,mpi_integer,mpi_real4,mpi_comm_world,npe,ierror
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
-       fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
+       fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll
-  use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass
+  use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth
   use gsi_io, only: lendian_in
   implicit none
 
@@ -749,7 +742,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_01=0.01_r_kind
-  real(r_kind),parameter:: r0_1=0.1_r_kind
   real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
 
@@ -757,23 +749,19 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   integer(i_kind) kt,kq,ku,kv
 
 ! MASS variable names stuck in here
-  logical run
-  integer(i_kind) idat(3),ihrst,ntsd
 
 ! other internal variables
-  logical ice
   real(r_single) tempa(itotsub)
   real(r_single),allocatable::temp1(:,:),temp1u(:,:),temp1v(:,:)
   real(r_single),allocatable::all_loc(:,:,:)
-  real(r_kind),allocatable::dlnesdtv(:,:,:),dmax(:,:,:)
   integer(i_kind),allocatable::itemp1(:,:)
   integer(i_kind),allocatable::igtype(:),jsig_skip(:)
   character(60),allocatable::identity(:)
   character(6) filename 
-  integer(i_kind) irc_s_reg(npe),ird_s_reg(npe),npts
+  integer(i_kind) irc_s_reg(npe),ird_s_reg(npe)
   integer(i_kind) ifld,im,jm,lm,num_mass_fields
   integer(i_kind) num_all_fields,num_loc_groups,num_all_pad
-  integer(i_kind) i,icount,icount_prev,it,j,k,k1,levtempmax
+  integer(i_kind) i,icount,icount_prev,it,j,k
   integer(i_kind) i_0,i_psfc,i_fis,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smois,i_tslb
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) isli_this
@@ -781,8 +769,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   real(r_kind),dimension(lat2,lon2):: q_integral
   real(r_kind),dimension(lat2,lon2,nsig):: ges_pot
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
-  real(r_kind) deltasigma,drh
-  real(r_kind),dimension(5):: stat,stat1
+  real(r_kind) deltasigma
   real(r_kind):: work_prsl,work_prslk
 
 
@@ -1026,7 +1013,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !             Convert psfc units of mb and then convert to log(psfc) in cb
               psfc_this_dry=r0_01*all_loc(j,i,i_0+i_psfc)
               psfc_this=(psfc_this_dry-pt_ll)*q_integral(j,i)+pt_ll
-              ges_ps(j,i,it)=r0_1*psfc_this   ! convert from mb to cb
+              ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_0+i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_0+i_smois)
               soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
@@ -1042,7 +1029,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         do k=1,nsig
            do i=1,lon2
               do j=1,lat2
-                 work_prsl  = r0_1*(aeta1_ll(k)*(r10*ges_ps(j,i,it)-pt_ll)+pt_ll)
+                 work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(j,i,it)-pt_ll)+pt_ll)
                  work_prslk = (work_prsl/r100)**rd_over_cp_mass
                  ges_tsen(j,i,k,it)     = ges_pot(j,i,k)*work_prslk
                  ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
@@ -1157,10 +1144,10 @@ subroutine generic_grid2sub(tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,n
   use kinds, only: r_single,i_kind
   implicit none
   
-  integer(i_kind) kbegin_loc,kend_loc,mype,num_fields
-  integer(i_kind) kbegin(0:npe),kend(0:npe-1)
-  real(r_single) tempa(itotsub,kbegin_loc:kend_loc)
-  real(r_single) all_loc(lat2*lon2*num_fields)
+  integer(i_kind),intent(in):: kbegin_loc,kend_loc,mype,num_fields
+  integer(i_kind),intent(in):: kbegin(0:npe),kend(0:npe-1)
+  real(r_single),intent(in):: tempa(itotsub,kbegin_loc:kend_loc)
+  real(r_single),intent(out):: all_loc(lat2*lon2*num_fields)
   
   integer(i_kind) k
   integer(i_kind) sendcounts(0:npe-1),sdispls(0:npe),recvcounts(0:npe-1),rdispls(0:npe)
@@ -1383,13 +1370,13 @@ subroutine transfer_jbuf2ibuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
   use kinds, only: i_long,i_kind
   implicit none
   
-  integer(i_kind) jbegin_loc,jend_loc,kbegin_loc,kend_loc,mype,npe,im_jbuf,jm_jbuf,lm_jbuf
-  integer(i_kind) im_ibuf,jm_ibuf,k_start,k_end
+  integer(i_kind),intent(in):: jbegin_loc,jend_loc,kbegin_loc,kend_loc,mype,npe,im_jbuf,jm_jbuf,lm_jbuf
+  integer(i_kind),intent(in):: im_ibuf,jm_ibuf,k_start,k_end
   
-  integer(i_long) jbuf(im_jbuf,lm_jbuf,jbegin_loc:jend_loc)
-  integer(i_long) ibuf(im_ibuf,jm_ibuf,kbegin_loc:kend_loc)
-  integer(i_kind) jbegin(0:npe),jend(0:npe-1)
-  integer(i_kind) kbegin(0:npe),kend(0:npe-1)
+  integer(i_long),intent(in):: jbuf(im_jbuf,lm_jbuf,jbegin_loc:jend_loc)
+  integer(i_long),intent(out):: ibuf(im_ibuf,jm_ibuf,kbegin_loc:kend_loc)
+  integer(i_kind),intent(in):: jbegin(0:npe),jend(0:npe-1)
+  integer(i_kind),intent(in):: kbegin(0:npe),kend(0:npe-1)
   
   integer(i_long) sendbuf(im_jbuf*lm_jbuf*(jend_loc-jbegin_loc+2))
   integer(i_long) recvbuf(im_jbuf*jm_jbuf*(kend_loc-kbegin_loc+1))

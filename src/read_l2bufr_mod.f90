@@ -68,12 +68,14 @@ contains
 !   machine:
 !
 !$$$
+    use constants, only: quarter,half,five
+    implicit none
 
-    del_azimuth=5._r_kind       !   (5 degrees)
-    del_elev=.25_r_kind         !   (.25 degrees for elevation angle bin)
+    del_azimuth=five            !   (5 degrees)
+    del_elev=quarter            !   (.25 degrees for elevation angle bin)
     del_range=5000._r_kind      !  (5 km)
-    del_time=.5_r_kind          !   (hours)
-    elev_angle_max=5._r_kind    !  recommended by S. Liu to avoid heavy convection problems
+    del_time=half               !   (hours)
+    elev_angle_max=five         !  recommended by S. Liu to avoid heavy convection problems
     minnum=50
     range_max=100000._r_kind    !  (100km)
     l2superob_only=.false.
@@ -94,6 +96,7 @@ contains
 !
 !   input argument list:
 !     mype     - mpi task id
+!     npe
 !
 !   output argument list:
 !
@@ -110,7 +113,7 @@ contains
     use gridmod,only: regional_time
     implicit none
 
-    integer(i_kind) npe,mype
+    integer(i_kind),intent(in):: npe,mype
 
     integer(i_kind),parameter:: max_num_radars=150
     integer(i_kind),parameter:: n_gates_max=4000
@@ -406,7 +409,7 @@ contains
                 bins(4,irbin,iazbin,ielbin,krad)=bins(4,irbin,iazbin,ielbin,krad)+rwnd(2,i)
                 bins(5,irbin,iazbin,ielbin,krad)=bins(5,irbin,iazbin,ielbin,krad)+rwnd(2,i)**2
                 bins(6,irbin,iazbin,ielbin,krad)=bins(6,irbin,iazbin,ielbin,krad)+t
-                bins(7,irbin,iazbin,ielbin,krad)=bins(7,irbin,iazbin,ielbin,krad)+1._r_kind
+                bins(7,irbin,iazbin,ielbin,krad)=bins(7,irbin,iazbin,ielbin,krad)+one
              end do
              
           end do          !  end do while

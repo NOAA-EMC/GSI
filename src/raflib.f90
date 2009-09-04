@@ -46,10 +46,11 @@ module raflib
 !
 !$$$ end documentation block
 
-use kinds,only: r_double,r_quad,r_single,i_byte,i_long,i_llong,i_short
+use kinds,only: r_double,r_quad,r_single,i_long,i_llong,i_short
 use mpimod,only: mpi_comm_world,mpi_integer,mpi_integer1,mpi_integer2,mpi_integer4, &
               mpi_integer8,mpi_max,mpi_min,mpi_real4,mpi_real8,mpi_real16,mpi_sum
-use constants, only: zero_quad, one_quad,zero_single
+use constants, only: zero,half,one,two,zero_quad, one_quad,zero_single
+
 
 implicit none
 
@@ -375,20 +376,23 @@ subroutine adjoint_check4(filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
 !     mype                              - mpi task id
 !     npes                              - total num of mpi tasks
 !     ngauss                            - num of Gaussian
+!     filter
 !
 !   output argument list:
+!     filter
 !
 ! attributes:
 !   language:  f90
 !   machine:
 !
 !$$$ end documentation block
+  implicit none
 
 
   INTEGER(i_long), INTENT(IN) :: ips,ipe,jps,jpe,kps,kpe
   INTEGER(i_long), INTENT(IN) :: mype,npes,ngauss
 
-  TYPE(filter_cons) filter(7)            ! structure defining recursive filter
+  TYPE(filter_cons),intent(inout) :: filter(7)            ! structure defining recursive filter
 
   real(r_single) xvec( ngauss,ips:ipe, jps:jpe, kps:kpe )
   real(r_single) yvec( ngauss,ips:ipe, jps:jpe, kps:kpe )
@@ -451,10 +455,12 @@ SUBROUTINE raf4_ad(g,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,
 !     ids, ide, jds, jde                - domain indices
 !     ips, ipe, jps, jpe, kps, kpe      - patch indices
 !     ngauss                            - num of Gaussian
-!     mype                              - mpi task id
 !     npes                              - total num of mpi tasks
+!     g
+!     filter
 !
 !   output argument list:
+!     g
 !
 ! attributes:
 !   language:  f90
@@ -472,7 +478,7 @@ SUBROUTINE raf4_ad(g,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,
   real(r_single), DIMENSION( ngauss,ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field to be filtered, output--filtered field
 
-  TYPE(filter_cons) filter(7)            ! structure defining recursive filter
+  TYPE(filter_cons),intent(in) :: filter(7)            ! structure defining recursive filter
 
   integer(i_long) i,icolor,igauss,ipass,j,k,iadvance,iback
   INTEGER(i_long) nsmooth,nsmooth_shapiro
@@ -538,11 +544,13 @@ SUBROUTINE raf_sm4_ad(g,filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
 !
 !   input argument list:
 !     ips, ipe, jps, jpe, kps, kpe      - patch indices
-!     mype                              - mpi task id
 !     npes                              -
 !     ngauss                            -
+!     g
+!     filter
 !
 !   output argument list:
+!     g
 !
 ! attributes:
 !   language:  f90
@@ -559,7 +567,7 @@ SUBROUTINE raf_sm4_ad(g,filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
   real(r_single), DIMENSION( ngauss,ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field to be filtered, output--filtered field
 
-  TYPE(filter_cons) filter(7)            ! structure defining recursive filter
+  TYPE(filter_cons),intent(in) :: filter(7)            ! structure defining recursive filter
 
   integer(i_long) icolor,ipass,iadvance,iback
 
@@ -605,11 +613,13 @@ SUBROUTINE rad_sm24_ad(g,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,m
 !   input argument list:
 !     ids, ide, jds, jde                - domain indices
 !     ips, ipe, jps, jpe, kps, kpe      - patch indices
-!     mype                              - mpi task id
 !     npes                              -
 !     ngauss                            -
+!     g
+!     filter
 !
 !   output argument list:
+!     g
 !
 ! attributes:
 !   language:  f90
@@ -626,7 +636,7 @@ SUBROUTINE rad_sm24_ad(g,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,m
   real(r_single), DIMENSION(2,ngauss,ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field to be filtered, output--filtered field
 
-  TYPE(filter_cons) filter(7)            ! structure defining recursive filter
+  TYPE(filter_cons),intent(in) :: filter(7)            ! structure defining recursive filter
 
   integer(i_long) icolor,ipass,i,ii,j,k,kk,n,iadvance,iback
   real(r_single) gwork(ngauss,ips:ipe,jps:jpe,kps:kpe)
@@ -648,7 +658,6 @@ SUBROUTINE rad_sm24_ad(g,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,m
              filter(icolor)%nstrings,filter(icolor)%istart,ips,ipe,jps,jpe,kps,kpe,mype,npes)
        end if
      end if
-
 
     end do
 
@@ -701,8 +710,20 @@ subroutine alpha_beta4(info_string,aspect_full,rgauss,lnf,bnf,igauss,ngauss, &
 !   2008-04-22  safford -- add subprogram doc block
 !
 !   input argument list:
+!     npoints_mype,npass,ifilt_ord
+!     binomial
+!     info_string
+!     aspect_full
+!     igauss,ngauss
+!     rgauss
+!     lnf,bnf
+!     nvars
 !
 !   output argument list:
+!     istart_out
+!     lenmax,lenmin,npoints1
+!     lenbar
+!     lnf,bnf
 !
 ! attributes:
 !   language:  f90
@@ -725,12 +746,12 @@ subroutine alpha_beta4(info_string,aspect_full,rgauss,lnf,bnf,igauss,ngauss, &
                              !      5,6,7,8-- jumpx,jumpy,jumpz,ivar for this string
   real(r_single), DIMENSION( npoints_mype ) , INTENT(IN) :: &
             aspect_full
-  integer(i_long) igauss,ngauss
-  real(r_double) rgauss
-  real(r_single) lnf(ifilt_ord,npoints_mype,npass,ngauss),bnf(npoints_mype,npass,ngauss)
-  integer(i_long) istart_out(*)
-  integer(i_long)  lenmax(nvars),lenmin(nvars),npoints1(nvars) !  diagnostic output--to look at string
-  real(r_double) lenbar(nvars)
+  integer(i_long),intent(in) :: igauss,ngauss
+  real(r_double), intent(in) :: rgauss
+  real(r_single),intent(inout) :: lnf(ifilt_ord,npoints_mype,npass,ngauss),bnf(npoints_mype,npass,ngauss)
+  integer(i_long),intent(out) :: istart_out(*)
+  integer(i_long),intent(out) ::  lenmax(nvars),lenmin(nvars),npoints1(nvars) !  diagnostic output--to look at string
+  real(r_double),intent(out) :: lenbar(nvars)
 
   integer(i_long) i,iend,ipass,istart,ivar
   integer(i_long) nstrings
@@ -762,7 +783,7 @@ subroutine alpha_beta4(info_string,aspect_full,rgauss,lnf,bnf,igauss,ngauss, &
 
      do ipass=1,npass
       call alpha_betaa4(aspect_full(istart),rgauss,iend-istart+1,binomial(ipass,npass), &
-                     lnf(1,istart,ipass,igauss),bnf(istart,ipass,igauss),ifilt_ord,nstrings)
+                     lnf(1,istart,ipass,igauss),bnf(istart,ipass,igauss),ifilt_ord)
      end do
 
      istart=iend+1
@@ -783,12 +804,12 @@ subroutine alpha_beta4(info_string,aspect_full,rgauss,lnf,bnf,igauss,ngauss, &
   do ipass=1,npass
 
    call alpha_betaa4(aspect_full(istart),rgauss,iend-istart+1,binomial(ipass,npass), &
-                  lnf(1,istart,ipass,igauss),bnf(istart,ipass,igauss),ifilt_ord,nstrings)
+                  lnf(1,istart,ipass,igauss),bnf(istart,ipass,igauss),ifilt_ord)
   end do
 
 end subroutine alpha_beta4
 
-subroutine alpha_betaa4(aspect,rgauss,ng,binomial,lnf,bnf,m,nstrings)
+subroutine alpha_betaa4(aspect,rgauss,ng,binomial,lnf,bnf,m)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    alpha_betaa4
@@ -819,13 +840,12 @@ subroutine alpha_betaa4(aspect,rgauss,ng,binomial,lnf,bnf,m,nstrings)
   IMPLICIT NONE
 
   INTEGER(i_long), INTENT(IN) :: ng,m
-         integer(i_long) nstrings
 
   REAL(r_double), INTENT(IN) :: binomial
 
   real(r_single), DIMENSION( ng ), INTENT(IN) :: aspect
-  real(r_double) rgauss
-  real(r_single) lnf(m,ng),bnf(ng)
+  real(r_double),intent(in) :: rgauss
+  real(r_single), intent(out) :: lnf(m,ng),bnf(ng)
 
   real(r_double) sig(ng),snu(ng)
   real(r_double) lnf8(m,ng),bnf8(ng)
@@ -833,7 +853,7 @@ subroutine alpha_betaa4(aspect,rgauss,ng,binomial,lnf,bnf,m,nstrings)
 
   do i=1,ng
    sig(i)=sqrt(rgauss*aspect(i)*binomial)
-   snu(i)=1._r_double
+   snu(i)=one
   end do
   call coefrf(sig,snu,ng,m,bnf8,lnf8)
   do i=1,ng
@@ -865,6 +885,7 @@ subroutine count_strings(info_string,nstrings,nstrings_var,nvars,npoints_mype)
 !     npoints_mype                   -
 !
 !   output argument list:
+!     nstrings,nstrings_var
 !
 ! attributes:
 !   language:  f90
@@ -880,7 +901,7 @@ subroutine count_strings(info_string,nstrings,nstrings_var,nvars,npoints_mype)
             info_string      !      1---- distance from origin to current point
                              !      2,3,4-- origin coordinates
                              !      5,6,7,8-- jumpx,jumpy,jumpz,ivar for this string
-  integer(i_long) nstrings,nstrings_var(nvars)
+  integer(i_long),intent(out) :: nstrings,nstrings_var(nvars)
 
   integer(i_long) i,iend,istart,ivar
 
@@ -1022,10 +1043,11 @@ SUBROUTINE GETHEX(UTARGET,LGUESS,LHEXAD,LUI,WHEXAD,KT)
 
   implicit none
 
-  real(r_double) utarget(6),whexad(6)
-  integer(i_long) lguess
-  integer(i_long) lhexad(3,6),lui(6,6)
-  integer(i_long) kt
+  real(r_double),intent(in) :: utarget(6)
+  integer(i_long),intent(in) :: lguess
+  real(r_double),intent(out) :: whexad(6)
+  integer(i_long),intent(inout) :: lhexad(3,6),lui(6,6)
+  integer(i_long),intent(out) :: kt
 
   integer(i_long) ihexad(3,6),ilui(6,6)        ! defaults
   integer(i_long) newlhex(3,2:6),newlui(6,2:6),lui1(6)
@@ -1066,7 +1088,7 @@ SUBROUTINE GETHEX(UTARGET,LGUESS,LHEXAD,LUI,WHEXAD,KT)
 ! Use initial estimate of hexad to compute implied weights directly.
 ! (Subsequent updates of these weights are done perturbatively to save time).
       DO I=1,6
-        WHEXAD(I)=0._r_double
+        WHEXAD(I)=zero
       ENDDO
       DO I=1,6
         U=UTARGET(I)
@@ -1140,6 +1162,29 @@ SUBROUTINE GETHEX(UTARGET,LGUESS,LHEXAD,LUI,WHEXAD,KT)
       END subroutine gethex
 
 subroutine indexxi4(n,arrin4,indx)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    indexxi4
+!   prgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-26  lueken - added subprogram doc block
+!
+!   input argument list:
+!    n
+!    arrin4
+!    indx
+!
+!   output argument list:
+!    indx
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   !-------- indexes an array arrin of length n, i.e. outputs the array indx
   !-------- such that arrin(indx(j)) is in ascending order for j=1,2,...,n.  The
@@ -1147,9 +1192,9 @@ subroutine indexxi4(n,arrin4,indx)
 
   implicit none
 
-  integer(i_long) n
-  integer(i_long) arrin4(n)
-  integer(i_long) indx(n)
+  integer(i_long),intent(in) :: n
+  integer(i_long),intent(in) :: arrin4(n)
+  integer(i_long),intent(inout) :: indx(n)
 
   integer(i_long) i,indxt,ir,j,l,q4
 
@@ -1232,9 +1277,9 @@ subroutine indexxi8(n,arrin8,indx)
 
   implicit none
 
-  integer(i_long) n
-  integer(i_llong) arrin8(n)
-  integer(i_long) indx(n)
+  integer(i_long),intent(in) :: n
+  integer(i_llong),intent(in) :: arrin8(n)
+  integer(i_long),intent(out) :: indx(n)
 
   integer(i_llong) q8
   integer(i_long) i,indxt,ir,j,l
@@ -1353,7 +1398,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
                                       !     apply recursive anisotropic filter based on input
                                       !     aspect tensor
 
-  logical triad4                           !  switch to turn on 4 color triad smoothing for 2-dim variables
+  logical,intent(in) :: triad4             !  switch to turn on 4 color triad smoothing for 2-dim variables
   integer(i_long), intent(in) :: ngauss    ! number of gaussians to be added together
   real(r_double), intent(in) ::    rgauss(ngauss)  ! multipying factors on aspect tensor for each term
   INTEGER(i_long), INTENT(IN) :: npass     ! 1/2 num of binomial weighted filter apps--npass <= 10
@@ -1375,11 +1420,11 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
   real(r_single), DIMENSION( 7, ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             aspect                 ! aspect tensor for each point (destroyed)
                                    !    (1-xx,2--yy,3-zz,4-yz,5-xz,6-xy)
-  integer(i_long) nvars                       ! number of variables
-  integer(i_long) idvar(kds:kde)              ! variable number of each level
-  integer(i_long) kvar_start(nvars)           ! starting global vertical index for each variable
-  integer(i_long) kvar_end(nvars)             ! ending global vertical index for each variable
-  character(80) var_names(nvars)              ! descriptive name of each variable
+  integer(i_long),intent(in) :: nvars                       ! number of variables
+  integer(i_long),intent(in) :: idvar(kds:kde)              ! variable number of each level
+  integer(i_long),intent(in) :: kvar_start(nvars)           ! starting global vertical index for each variable
+  integer(i_long),intent(in) :: kvar_end(nvars)             ! ending global vertical index for each variable
+  character(80),intent(in) :: var_names(nvars)              ! descriptive name of each variable
 
   INTEGER(i_short), DIMENSION( 3, (ipe-ips+1)*(jpe-jps+1)*(kpe-kps+1) ) :: &
             i1filter              !  i1filter(1-3,.)=jumpx,jumpy,jumpz
@@ -1463,19 +1508,19 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 
 !  compute binomial coefficients
 
-  factor_binom=1._r_double
-  if(.not.binom) factor_binom=0._r_double
-  binomial0=0._r_double
-  binomial0(1,1)=1._r_double
-  binomial0(2,1)=1._r_double
-  sumbin(1)=2._r_double
+  factor_binom=one
+  if(.not.binom) factor_binom=zero
+  binomial0=zero
+  binomial0(1,1)=one
+  binomial0(2,1)=one
+  sumbin(1)=two
   do k=2,19
-   binomial0(1,k)=1._r_double
-   binomial0(k+1,k)=1._r_double
+   binomial0(1,k)=one
+   binomial0(k+1,k)=one
    do i=2,k
     binomial0(i,k)=binomial0(i-1,k-1)+binomial0(i,k-1)*factor_binom
    end do
-   sumbin(k)=0._r_double
+   sumbin(k)=zero
    do i=1,k+1
     sumbin(k)=sumbin(k)+binomial0(i,k)
    end do
@@ -1485,7 +1530,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
   end do
 
   kk=0
-  binomial=0._r_double
+  binomial=zero
   do k=1,19,2
    kk=kk+1
    binomial(1:kk,kk)=binomial0(1:kk,k)
@@ -1579,13 +1624,13 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
        lhexadlast(2,kk)=ltriadlast(2,kk)
        lhexadlast(3,kk)=0
       end do
-      whexad8(5)=0._8
-      whexad8(6)=0._8
+      whexad8(5)=zero
+      whexad8(6)=zero
      else
       aspect8(1:6)=aspect(1:6,i,j,k)
       call gethex(aspect8,lguess,lhexadlast,lui,whexad8,kt)
      end if
-     aspect(1:7,i,j,k)=0._r_double
+     aspect(1:7,i,j,k)=zero
      do kk=1,6
       if(whexad8(kk).gt.epstest) then
        jumpx=lhexadlast(1,kk)       !  make all directions positive and
@@ -1666,7 +1711,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
    filter(icolor)%npoints_recv=0
    filter(icolor)%npointsmax=0
    filter(icolor)%npointsmaxall=0
-   lenbar=0._r_double
+   lenbar=zero
    lenmax=-huge(lenmax)
    lenmin=huge(lenmin)
    npoints1=0
@@ -1720,7 +1765,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 !            (global label is starting i,j,k closest to edge of global domain)
 
     call string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
-                     nvars,idvar,kvar_start,kvar_end, &
+                     nvars,kvar_start,kvar_end, &
                      ids, ide, jds, jde, kds, kde, &         ! domain indices
                      ips, ipe, jps, jpe, kps, kpe, &         ! patch indices
                      mype,npes,icolor)
@@ -1910,7 +1955,6 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 
 !     get filter normalization
 
-
 return
 end subroutine init_raf4
 
@@ -1936,8 +1980,10 @@ subroutine normalize_raf4(filter,ngauss,normal, &
 !     ips, ipe, jps, jpe, kps, kpe  - patch indices
 !     mype                          - mpi task id
 !     npes                          -
+!     filter
 !
 !   output argument list:
+!     filter
 !
 ! attributes:
 !   language:  f90
@@ -1945,22 +1991,22 @@ subroutine normalize_raf4(filter,ngauss,normal, &
 !
 !$$$ end documentation block
 
-  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
-                            ips, ipe, jps, jpe, kps, kpe      ! patch indices
+  INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &    ! domain indices
+                            ips, ipe, jps, jpe, kps, kpe            ! patch indices
 
   INTEGER(i_long), INTENT(IN) :: &
      ngauss,normal,mype, npes
 
-  TYPE(filter_cons) filter(7)
+  TYPE(filter_cons),intent(inout) :: filter(7)
 
   real(r_single) ranvec(2, ngauss,ips:ipe, jps:jpe, kps:kpe )
   real(r_single) bigg( ngauss,ips:ipe, jps:jpe, kps:kpe )
 
-  integer(i_long) i,igauss,j,k,loop,nsamples,ierror
+  integer(i_long) i,igauss,j,k,loop,nsamples
   integer(i_long) kbegin,kend
   logical independent_of_npes
   real(4) this_one1,this_one2
-                 real(4) work(2,ids:ide,jds:jde)
+  real(4) work(2,ids:ide,jds:jde)
 
   real(8) seeds(5,0:npes-1)
   integer nseeds
@@ -1971,7 +2017,7 @@ subroutine normalize_raf4(filter,ngauss,normal, &
   allocate(filter(1)%amp(ngauss,ips:ipe,jps:jpe,kps:kpe))
 
   if(normal.eq.0) then
-   filter(1)%amp=1.
+   filter(1)%amp=one
    return
   end if
 
@@ -1991,18 +2037,18 @@ subroutine normalize_raf4(filter,ngauss,normal, &
   if(independent_of_npes) then
    kbegin=kds ; kend=kde
   end if
-  bigg=0._r_double
+  bigg=zero
   do loop=1,nsamples
-   ranvec=0._r_single
+   ranvec=zero
    do k=kbegin,kend
     call random_number(work)
     if(k.lt.kps.or.k.gt.kpe) cycle
     do j=jps,jpe
      do i=ips,ipe
       this_one1=1.
-      if(work(1,i,j).lt..5) this_one1=-1.
-      this_one2=1.
-      if(work(2,i,j).lt..5) this_one2=-1.
+      if(work(1,i,j).lt.half) this_one1=-one
+      this_one2=one
+      if(work(2,i,j).lt.half) this_one2=-one
       do igauss=1,ngauss
        ranvec(1,igauss,i,j,k)=this_one1
        ranvec(2,igauss,i,j,k)=this_one2
@@ -2027,7 +2073,7 @@ subroutine normalize_raf4(filter,ngauss,normal, &
    do j=jps,jpe
     do i=ips,ipe
      do igauss=1,ngauss
-      filter(1)%amp(igauss,i,j,k)=1._r_double/sqrt(bigg(igauss,i,j,k)/(2._r_double*nsamples))
+      filter(1)%amp(igauss,i,j,k)=one/sqrt(bigg(igauss,i,j,k)/(two*nsamples))
      end do
     end do
    end do
@@ -2214,7 +2260,7 @@ subroutine one_color4(g,filter,ngauss,ipass,ifilt_ord, &
   INTEGER(i_long), INTENT(IN) :: ips, ipe, jps, jpe, kps, kpe
 
   INTEGER(i_long), INTENT(IN) :: &
-     mype, npes,ngauss
+     npes,ngauss,mype
 
   INTEGER(i_long), INTENT(IN) :: &
             ipass          !  total number of contiguous string points
@@ -2225,7 +2271,7 @@ subroutine one_color4(g,filter,ngauss,ipass,ifilt_ord, &
 
   integer(i_long),intent(in):: nstrings
   integer(i_long),intent(in):: istart(nstrings+1)
-  type(filter_cons) filter
+  type(filter_cons),intent(in):: filter
 
   real(r_single) work(ngauss,max(1,filter%npointsmax),2)
   real(r_single) work2(max(1,filter%npointsmax))
@@ -2333,7 +2379,6 @@ subroutine one_color24(g,filter,ngauss,ipass,ifilt_ord, &
 !     nstrings                      -
 !     istart                        -
 !     ips, ipe, jps, jpe, kps, kpe  - patch indices
-!     mype                          - mpi task id
 !     npes                          -
 !
 !   output argument list:
@@ -2348,7 +2393,7 @@ subroutine one_color24(g,filter,ngauss,ipass,ifilt_ord, &
   INTEGER(i_long), INTENT(IN) :: ips, ipe, jps, jpe, kps, kpe      ! patch indices
 
   INTEGER(i_long), INTENT(IN) :: &
-     mype, npes,ngauss
+     npes,ngauss,mype
 
   INTEGER(i_long), INTENT(IN) :: &
             ipass          !  total number of contiguous string points
@@ -2359,12 +2404,12 @@ subroutine one_color24(g,filter,ngauss,ipass,ifilt_ord, &
 
   integer(i_long),intent(in):: nstrings
   integer(i_long),intent(in):: istart(nstrings+1)
-  type(filter_cons) filter
+  type(filter_cons),intent(in):: filter
 
   real(r_single) work(2,ngauss,max(1,filter%npointsmax),2)
   real(r_single) work2(max(1,filter%npointsmax))
 
-  integer(i_long) i,ierr,igauss,ii,ishort_end,j,l,mpi_string
+  integer(i_long) i,ierr,igauss,ii,j,l,mpi_string
 
 !-- gather up strings
 
@@ -2468,9 +2513,8 @@ SUBROUTINE raf4(g,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npe
 !     g                             -  input--field on grid, output--filtered field on grid
 !     filter                        -
 !     ngauss                        -
-!     ips, ipe, jps, jpe            - patch indices
-!     ims, ime, jms, jme, kms, kme  - memory indices
-!     mype                          - mpi task id
+!     ids, ide, jds, jde            - domain indices
+!     ips, ipe, jps, jpe, kps, kpe  - patch indices
 !     npes                          -
 !
 !   output argument list:
@@ -2491,7 +2535,7 @@ SUBROUTINE raf4(g,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npe
   real(r_single), DIMENSION(ngauss, ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field to be filtered, output--filtered field
 
-  TYPE(filter_cons) filter(7)             !  structure defining recursive filter
+  TYPE(filter_cons),intent(in) :: filter(7)             !  structure defining recursive filter
 
   integer(i_long) i,icolor,ipass,igauss,j,k,iadvance,iback
 
@@ -2558,7 +2602,6 @@ SUBROUTINE raf_sm4(g,filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
 !     filter                        -
 !     ngauss                        -
 !     ips, ipe, jps, jpe, kps, kpe  - patch indices
-!     mype                          - mpi task id
 !     npes                          -
 !
 !   output argument list:
@@ -2575,12 +2618,12 @@ SUBROUTINE raf_sm4(g,filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
   INTEGER(i_long), INTENT(IN) :: ips, ipe, jps, jpe, kps, kpe      ! patch indices
 
   INTEGER(i_long), INTENT(IN) :: &
-     mype, npes,ngauss
+     npes,ngauss,mype
 
   real(r_single), DIMENSION( ngauss,ips:ipe, jps:jpe, kps:kpe ), INTENT(INOUT) :: &
             g                      !  input--field to be filtered, output--filtered field
 
-  TYPE(filter_cons) filter(7)             !  structure defining recursive filter
+  TYPE(filter_cons),intent(in) :: filter(7)             !  structure defining recursive filter
 
   integer(i_long) icolor,ipass,iadvance,iback
 
@@ -2633,6 +2676,7 @@ subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,mype,npes,nvars
 !   output argument list:
 !     info_string                   -
 !     aspect_full                   -
+!     ib
 !
 ! attributes:
 !   language:  f90
@@ -2646,7 +2690,6 @@ subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,mype,npes,nvars
   integer(i_long),intent(in):: nvars
 
   INTEGER(i_long), INTENT(IN) :: npoints_recv
-
 
   INTEGER(i_short), DIMENSION( 8, npoints_recv ), INTENT(INOUT) ::  &
             info_string      !      1---- distance from origin to current point
@@ -2796,6 +2839,8 @@ SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
 !                                  - 2,3,4-- origin coordinates
 !                                  - 5,6,7,8-- jumpx,jumpy,jumpz,ivar for this string
 !     aspect_full                  -
+!     nsend,ndsend,nrecv,ndrecv
+!     ia,ja,ka
 !
 ! attributes:
 !   language:  f90
@@ -2832,8 +2877,8 @@ SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
                              !      5,6,7,8-- jumpx,jumpy,jumpz,ivar for this string
   real(r_single), DIMENSION( max(1,npoints_recv) ) , INTENT(OUT) :: &
             aspect_full
-  integer(i_long) nsend(0:npes-1),ndsend(0:npes),nrecv(0:npes-1),ndrecv(0:npes)
-  integer(i_short) ia(npoints_send),ja(npoints_send),ka(npoints_send)
+  integer(i_long),intent(out) :: nsend(0:npes-1),ndsend(0:npes),nrecv(0:npes-1),ndrecv(0:npes)
+  integer(i_short),intent(out) :: ia(npoints_send),ja(npoints_send),ka(npoints_send)
 
   integer(i_short) string_info(8,npoints_send)
   real(r_single) full_aspect(npoints_send),work(npoints_send)
@@ -2917,7 +2962,7 @@ SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
 end subroutine string_assemble4
 
 SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
-                     nvars,idvar,kvar_start,kvar_end, &
+                     nvars,kvar_start,kvar_end, &
                      ids, ide, jds, jde, kds, kde, &                          ! domain indices
                      ips, ipe, jps, jpe, kps, kpe, &                          ! patch indices
                      mype, npes,icolor )
@@ -2938,9 +2983,9 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
 !     i1filter                     - i1filter(1-3,.)=jumpx,jumpy,jumpz
 !     i2filter                     - i2filter(1-5,.)=beginx,beginy,beginz,lenstring,ivar
 !     nstrings                     -
-!     npoints_send                 -  number of points to send for assembling strings
 !     npoints_recv                 -  number of points for assembled strings
-!     icolor                       -
+!     nvars
+!     kvar_start,kvar_end
 !     ids, ide, jds, jde, kds, kde - domain indices
 !     ips, ipe, jps, jpe, kps, kpe - patch indices
 !     mype                         - mpi task id
@@ -2948,8 +2993,6 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
 !
 !   output argument list:
 !     label_string                 -  label_string(1-3,.)=originx,originy,originz
-!     aspect_full                  -
-!     mype     - mpi task id
 !
 ! attributes:
 !   language:  f90
@@ -2957,12 +3000,11 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
 !
 !$$$ end documentation block
 
-
-              integer(i_long) icolor
+  integer(i_long) icolor
   INTEGER(i_long), INTENT(IN) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
                             ips, ipe, jps, jpe, kps, kpe      ! patch indices
 
-  INTEGER(i_long) nstrings
+  INTEGER(i_long), intent(in) :: nstrings
 
   INTEGER(i_short), DIMENSION( 3, * ), INTENT(INout) :: &
             i1filter                       !  i1filter(1-3,.)=jumpx,jumpy,jumpz
@@ -2976,13 +3018,16 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
                                     !  label_string(5,.)=destination pe for string piece
                                     !  label_string(6,.)=ivar
 
+  integer(i_long), intent(in) :: mype,npes
+  integer(i_long), intent(out):: npoints_recv(0:npes-1)
+  integer(i_long), intent(in) :: nvars
+  integer(i_long), intent(in) :: kvar_start(nvars),kvar_end(nvars)
+
   integer(i_long) i,idist,idisttest,ierr,istring_pe,itest,ivar,ivar_end,ivar_start
-  integer(i_long) j,jtest,jumpx,jumpy,jumpz,k,ktest,mpe,mype,n,npes,nstrings0
+  integer(i_long) j,jtest,jumpx,jumpy,jumpz,k,ktest,mpe,n,nstrings0
   integer(i_llong) lastlabel
 
-  integer(i_long), intent(out):: npoints_recv(0:npes-1)
-  integer(i_long) nvars
-  integer(i_long) idvar(kds:kde),kvar_start(nvars),kvar_end(nvars)
+  integer(i_long) idvar(kds:kde)
   INTEGER(i_short), DIMENSION( 6, (ipe-ips+1)*(jpe-jps+1)*(kpe-kps+1) ) :: label_string2
   INTEGER(i_short), DIMENSION( 3, (ipe-ips+1)*(jpe-jps+1)*(kpe-kps+1) ) :: i1filter2
   INTEGER(i_short), DIMENSION( 5, (ipe-ips+1)*(jpe-jps+1)*(kpe-kps+1) ) :: i2filter2
@@ -3049,8 +3094,7 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
     labelijk0(i)=labelijk(i)
    end do
   else
-   call my_gatherv8(labelijk,nstrings,labelijk0,nstrings0,nrecv,ndrecv,mype,npes)
-!  call mpi_gatherv(labelijk,nstrings,mpi_integer8,labelijk0,nrecv,ndrecv,mpi_integer8,0,mpi_comm_world,ierr)
+   call my_gatherv8(labelijk,nstrings,labelijk0,nstrings0,nrecv,ndrecv,npes)
   end if
 
 !------ sort strings so strings with same labels are adjacent, then assign adjacent strings to same pe.
@@ -3080,8 +3124,7 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
     labelijk(i)=labelijk0(i)
    end do
   else
-   call my_scatterv8(labelijk0,nstrings0,labelijk,nstrings,nrecv,ndrecv,mype,npes)
-!  call mpi_scatterv(labelijk0,nrecv,ndrecv,mpi_integer8,labelijk,nstrings,mpi_integer8,0,mpi_comm_world,ierr)
+   call my_scatterv8(labelijk0,nstrings0,labelijk,nstrings,nrecv,ndrecv,npes)
   end if
   deallocate(labelijk0)
 
@@ -3127,14 +3170,41 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
 
 end subroutine string_label
 
-subroutine my_gatherv8(local,nlocal,global,nglobal,nrecv,ndrecv,mype,npes)
+subroutine my_gatherv8(local,nlocal,global,nglobal,nrecv,ndrecv,npes)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    my_gatherv8
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-27  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlocal
+!    npes
+!    nglobal
+!    local
+!    global
+!    nrecv
+!    ndrecv
+!
+!   output argument list:
+!    global
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !    workaround for possible problem with mpi_gatherv failure when nlocal = 0 for some processors
 
-integer(i_long) nlocal,mype,npes,nglobal
-integer(i_llong) local(max(1,nlocal))
-integer(i_llong) global(max(1,nglobal))
-integer(i_long) nrecv(0:npes-1),ndrecv(0:npes)
+integer(i_long), intent(in) :: nlocal,npes,nglobal
+integer(i_llong), intent(in) :: local(max(1,nlocal))
+integer(i_llong), intent(inout) :: global(max(1,nglobal))
+integer(i_long), intent(in) :: nrecv(0:npes-1),ndrecv(0:npes)
 
 integer(i_long) nrecv1(0:npes-1),ndrecv1(0:npes)
 integer(i_long) i,n,nlocal1,ierr
@@ -3165,14 +3235,41 @@ do n=0,npes-1
 end do
 
 end subroutine my_gatherv8
-subroutine my_scatterv8(global,nglobal,local,nlocal,nrecv,ndrecv,mype,npes)
+
+subroutine my_scatterv8(global,nglobal,local,nlocal,nrecv,ndrecv,npes)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    my_scatterv8
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-27  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlocal
+!    npes
+!    global
+!    nrecv
+!    ndrecv
+!    local
+!
+!   output argument list:
+!    local
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !    workaround for possible problem with mpi_scatterv failure when nlocal = 0 for some processors
 
-integer(i_long) nlocal,mype,npes,nglobal
-integer(i_llong) local(max(1,nlocal))
-integer(i_llong) global(max(1,nglobal))
-integer(i_long) nrecv(0:npes-1),ndrecv(0:npes)
+integer(i_long), intent(in) :: nlocal,npes,nglobal
+integer(i_llong), intent(inout) :: local(max(1,nlocal))
+integer(i_llong), intent(in) :: global(max(1,nglobal))
+integer(i_long), intent(in) :: nrecv(0:npes-1),ndrecv(0:npes)
 
 integer(i_long) nrecv1(0:npes-1),ndrecv1(0:npes)
 integer(i_long) i,n,nlocal1,ierr
@@ -4060,13 +4157,21 @@ SUBROUTINE EIGEN(A,R,N,MV)
 !             DIMENSIONED BUT MUST STILL APPEAR IN CALLING SEQUENCE)
 !
 !   output argument list:
+!     A - ORIGINAL MATRIX (SYMMETRIC), DESTROYED IN COMPUTATION.
+!         RESULTANT EIGENVALUES ARE DEVELOPED IN DIAGONAL OF
+!         MATRIX A IN DESCENDING ORDER.
+!     R - RESULTANT MATRIX OF EIGENVECTORS (STORED COLUMNWISE,
+!         IN SAME SEQUENCE AS EIGENVALUES)
 !
 ! attributes:
 !   language:  f90
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-!
+      use kinds, only: r_kind,i_kind
+      use constants, only: zero,half,one,two
+      implicit none
+
 !     REAL(4) A(1),R(1)
 !
 !        ...............................................................
@@ -4075,8 +4180,14 @@ SUBROUTINE EIGEN(A,R,N,MV)
 !        C IN COLUMN 1 SHOULD BE REMOVED FROM THE DOUBLE PRECISION
 !        STATEMENT WHICH FOLLOWS.
 !
-      REAL(8) A(1),R(1),ANORM,ANRMX,THR,X,Y,SINX,SINX2,COSX, &
-                       COSX2,SINCS,RANGE
+      real(r_kind), intent(inout) :: A(1), R(1)
+      integer(i_kind), intent(in) :: N, MV
+
+      REAL(r_kind) ANORM,ANRMX,THR,X,Y,SINX,SINX2,COSX, &
+                       COSX2,SINCS,RANGE,ONEMYY
+      integer(i_kind) I,J,K,IA,IQ,IJ,IL,IM,ILR,IMR,IND,L,M,MQ,LQ,LM, &
+                       JQ,MM,LL,ILQ,IMQ
+
 !
 !        THE C MUST ALSO BE REMOVED FROM DOUBLE PRECISION STATEMENTS
 !        APPEARING IN OTHER ROUTINES USED IN CONJUNCTION WITH THIS
@@ -4093,16 +4204,16 @@ SUBROUTINE EIGEN(A,R,N,MV)
 !        GENERATE IDENTITY MATRIX
 !
     5 continue
-      RANGE=1.0E-12_8
+      RANGE=1.0E-12_r_kind
       if(mv.eq.1) go to 25
       IQ=-N
       DO J=1,N
        IQ=IQ+N
        DO I=1,N
         IJ=IQ+I
-        R(IJ)=0.0
+        R(IJ)=zero
         if(i.ne.j) go to 20
-        R(IJ)=1.0_8
+        R(IJ)=one
    20   CONTINUE
        end do
       end do
@@ -4110,7 +4221,7 @@ SUBROUTINE EIGEN(A,R,N,MV)
 !        COMPUTE INITIAL AND FINAL NORMS (ANORM AND ANORMX)
 !
    25 continue
-      ANORM=0.0_8
+      ANORM=zero
       DO I=1,N
        DO J=I,N
         if(i.eq.j) go to 35
@@ -4119,8 +4230,8 @@ SUBROUTINE EIGEN(A,R,N,MV)
    35   CONTINUE
        end do
       end do
-      if(anorm.le.0.) go to 165
-      ANORM=1.414_8*SQRT(ANORM)
+      if(anorm.le.zero) go to 165
+      ANORM=1.414_r_kind*SQRT(ANORM)
       ANRMX=ANORM*RANGE/FLOAT(N)
 !
 !        INITIALIZE INDICATORS AND COMPUTE THRESHOLD, THR
@@ -4141,24 +4252,24 @@ SUBROUTINE EIGEN(A,R,N,MV)
       LQ=(L*L-L)/2
       LM=L+MQ
    62 continue
-      if(abs(a(lm))-thr.lt.0._8) go to 130
+      if(abs(a(lm))-thr.lt.zero) go to 130
       IND=1
       LL=L+LQ
       MM=M+MQ
-      X=0.5_8*(A(LL)-A(MM))
+      X=half*(A(LL)-A(MM))
    68 continue
       Y=-A(LM)/ SQRT(A(LM)*A(LM)+X*X)
-      if(x.ge.0._8) go to 75
+      if(x.ge.zero) go to 75
       Y=-Y
-!DP75 SINX=Y/ SQRT(2.0*(1.0+( SQRT(1.0-Y*Y))))
+!DP75 SINX=Y/ SQRT(two*(one+( SQRT(one-Y*Y))))
    75 continue
-      SINX=Y/ SQRT(2.0_8*(1.0_8+( SQRT(MAX(0._8,1.0_8-Y*Y)))))
-      ONEMYY=1.0_8-Y*Y
-      IF(1.0_8-Y*Y.LT.0._8) write(6,*)' IN EIGEN, 1-Y*Y=',ONEMYY
+      SINX=Y/ SQRT(two*(one+( SQRT(MAX(zero,one-Y*Y)))))
+      ONEMYY=one-Y*Y
+      IF(one-Y*Y.LT.zero) write(6,*)' IN EIGEN, 1-Y*Y=',ONEMYY
       SINX2=SINX*SINX
-!DP78 COSX= SQRT(1.0-SINX2)
+!DP78 COSX= SQRT(one-SINX2)
    78 continue
-      COSX= SQRT(MAX(0._8,1.0_8-SINX2))
+      COSX= SQRT(MAX(zero,one-SINX2))
       COSX2=COSX*COSX
       SINCS =SINX*COSX
 !
@@ -4193,7 +4304,7 @@ SUBROUTINE EIGEN(A,R,N,MV)
        R(IMR)=R(ILR)*SINX+R(IMR)*COSX
        R(ILR)=X
   125 CONTINUE
-      X=2.0_8*A(LM)*SINCS
+      X=two*A(LM)*SINCS
       Y=A(LL)*COSX2+A(MM)*SINX2-X
       X=A(LL)*SINX2+A(MM)*COSX2+X
       A(LM)=(A(LL)-A(MM))*SINCS+A(LM)*(COSX2-SINX2)
@@ -4286,22 +4397,24 @@ SUBROUTINE gettri4(us,lguess,lv,lui,w4)
 !
 !$$$ end documentation block
 
+use kinds, only: r_kind,i_kind
+use constants, only: quarter,half
 IMPLICIT NONE
-REAL(8),DIMENSION(3),  INTENT(IN   ):: us
-INTEGER,               INTENT(IN   ):: lguess
-INTEGER,DIMENSION(2,4),INTENT(INOUT):: lv
-INTEGER,DIMENSION(3,3),INTENT(INOUT):: lui
-REAL(8),DIMENSION(4)  ,INTENT(  OUT):: w4
+REAL(r_kind),DIMENSION(3),     INTENT(IN   ):: us
+INTEGER(i_kind),               INTENT(IN   ):: lguess
+INTEGER(i_kind),DIMENSION(2,4),INTENT(INOUT):: lv
+INTEGER(i_kind),DIMENSION(3,3),INTENT(INOUT):: lui
+REAL(r_kind),DIMENSION(4)  ,   INTENT(  OUT):: w4
 !-----------------------------------------------------------------------------
-REAL(8)                             :: c,aoc,boc,d,dlim
-REAL(8),DIMENSION(3)                :: v
-REAL(8),DIMENSION(4)                :: w4c
-REAL(8),DIMENSION(3,3)              :: b123
-REAL(8),DIMENSION(4,3)              :: w4l
-INTEGER                             :: kt
-DATA b123/.5d0,0.d0,.5d0,  -.5d0,0.d0,.5d0,  0.d0,1.d0,1.d0/
-DATA w4c/ 1.d0,1.d0,-.5d0,-.5d0/
-DATA w4l/ 1.d0,-1.d0,0.d0,0.d0, 0.d0,0.d0,.5d0,-.5d0, -1.d0,-1.d0,1.d0,1.d0/
+REAL(r_kind)                                :: c,aoc,boc,d,dlim
+REAL(r_kind),DIMENSION(3)                   :: v
+REAL(r_kind),DIMENSION(4)                   :: w4c
+REAL(r_kind),DIMENSION(3,3)                 :: b123
+REAL(r_kind),DIMENSION(4,3)                 :: w4l
+INTEGER(i_kind)                             :: kt
+DATA b123/.5_r_kind,0._r_kind,.5_r_kind,  -.5_r_kind,0._r_kind,.5_r_kind,  0._r_kind,1._r_kind,1._r_kind/
+DATA w4c/ 1._r_kind,1._r_kind,-.5_r_kind,-.5_r_kind/
+DATA w4l/ 1._r_kind,-1._r_kind,0._r_kind,0._r_kind, 0._r_kind,0._r_kind,.5_r_kind,-.5_r_kind, -1._r_kind,-1._r_kind,1._r_kind,1._r_kind/
 !=============================================================================
 CALL gettri3(us,lguess,lv(:,1:3),lui,v,kt)
 lv(:,4)=lv(:,1)-lv(:,2)
@@ -4312,9 +4425,9 @@ boc=v(2)/c
 d=boc/(2-boc)
 dlim=(1-abs(aoc))/(3+abs(aoc))
 IF(d<dlim)THEN
-   v(3)=(2+dlim+d*d/dlim)*.25d0
+   v(3)=(2+dlim+d*d/dlim)*quarter
 ELSE
-   v(3)=(1+d)*.5d0
+   v(3)=(1+d)*half
 ENDIF
 v(1)=aoc*v(3)
 v(2)=boc*v(3)
@@ -4353,20 +4466,22 @@ SUBROUTINE gettri3(utarget,lguess,ltriad,lui,wtriad,kt)
 !
 !$$$ end documentation block
 
+use kinds, only: r_kind,i_kind
+use constants, only: zero
 IMPLICIT NONE
-REAL(8),DIMENSION(3),  INTENT(IN   ):: utarget
-INTEGER,               INTENT(IN   ):: lguess
-INTEGER,DIMENSION(2,3),INTENT(INOUT):: ltriad
-INTEGER,DIMENSION(3,3),INTENT(INOUT):: lui
-REAL(8),DIMENSION(3),  INTENT(OUT  ):: wtriad
-INTEGER,               INTENT(OUT  ):: kt
+REAL(r_kind),DIMENSION(3),     INTENT(IN   ):: utarget
+INTEGER(i_kind),               INTENT(IN   ):: lguess
+INTEGER(i_kind),DIMENSION(2,3),INTENT(INOUT):: ltriad
+INTEGER(i_kind),DIMENSION(3,3),INTENT(INOUT):: lui
+REAL(r_kind),DIMENSION(3),     INTENT(OUT  ):: wtriad
+INTEGER(i_kind),               INTENT(OUT  ):: kt
 !-----------------------------------------------------------------------------
-INTEGER,DIMENSION(2,3):: itriad
-INTEGER,DIMENSION(3,3):: ilui,nj
-INTEGER,DIMENSION(3)  :: luil,kl,ml
-REAL(8),PARAMETER     :: bcmins=-1.d-14
-REAL(8)               :: u,wl
-INTEGER               :: i,j,k,l,m,n,it
+INTEGER(i_kind),DIMENSION(2,3):: itriad
+INTEGER(i_kind),DIMENSION(3,3):: ilui,nj
+INTEGER(i_kind),DIMENSION(3)  :: luil,kl,ml
+REAL(r_kind),PARAMETER        :: bcmins=-1.e-14_r_kind
+REAL(r_kind)                  :: u,wl
+INTEGER(i_kind)               :: i,j,k,l,m,n,it
 DATA itriad/ 1, 0,  0,1,	-1,-1/
 DATA kl/3,1,2/,ml/2,3,1/,nj/-2,2,2,2,-2,2,2,2,-2/
 DATA ilui/1, 0,-1,  0, 1,-1,  0, 0, 1/
@@ -4385,7 +4500,7 @@ ENDIF
 ! Use initial estimate of triad to compute implied weights directly.
 ! (Subsequent updates of these weights are done perturbatively to save time).
 DO i=1,3
-   wtriad(i)=0.
+   wtriad(i)=zero
 ENDDO
 DO i=1,3
    u=utarget(i)
@@ -4468,11 +4583,12 @@ SUBROUTINE getcol4(lv,color)
 !
 !$$$ end documentation block
 
+use kinds, only: i_kind
 IMPLICIT NONE
-INTEGER,DIMENSION(2,4),INTENT(IN ):: lv
-INTEGER,DIMENSION(4)  ,INTENT(OUT):: color
+INTEGER(i_kind),DIMENSION(2,4),INTENT(IN ):: lv
+INTEGER(i_kind),DIMENSION(4)  ,INTENT(OUT):: color
 !----------------------------------------------------------------------------
-INTEGER                           :: k
+INTEGER(i_kind)                           :: k
 !=============================================================================
 DO k=1,4
    CALL what_color_is_triad(lv(1,k),lv(2,k),color(k),3)
@@ -4506,13 +4622,14 @@ SUBROUTINE what_color_is_triad(i1,i2,color,p)
 !
 !$$$ end documentation block
 
+use kinds, only: i_kind
 IMPLICIT NONE
-INTEGER,INTENT(IN )   :: i1,i2,p
-INTEGER,INTENT(OUT)   :: color
+INTEGER(i_kind),INTENT(IN )   :: i1,i2,p
+INTEGER(i_kind),INTENT(OUT)   :: color
 !----------------------------------------------------------------
-INTEGER,DIMENSION(2)  :: v,vf,vfp,bxy2,bxy3,bxy5
-INTEGER,DIMENSION(8) :: color3
-INTEGER,DIMENSION(24):: color5
+INTEGER(i_kind),DIMENSION(2)  :: v,vf,vfp,bxy2,bxy3,bxy5
+INTEGER(i_kind),DIMENSION(8)  :: color3
+INTEGER(i_kind),DIMENSION(24) :: color5
 LOGICAL same4
 INTEGER:: itest
 DATA bxy2/1,2/,bxy3/1,3/,bxy5/1,5/
@@ -4564,10 +4681,13 @@ FUNCTION same4(v1,v2,n)
 !
 !$$$ end documentation block
 
-LOGICAL                        :: same4
-INTEGER,             INTENT(IN):: n
-INTEGER,DIMENSION(n),INTENT(IN):: v1,v2
-INTEGER                        :: i
+use kinds, only: i_kind
+implicit none
+
+LOGICAL                                :: same4
+INTEGER(i_kind),             INTENT(IN):: n
+INTEGER(i_kind),DIMENSION(n),INTENT(IN):: v1,v2
+INTEGER(i_kind)                        :: i
 !=============================================================================
 same4=.TRUE.
 DO i=1,n; IF(v1(i) /= v2(i))same4=.FALSE.; ENDDO

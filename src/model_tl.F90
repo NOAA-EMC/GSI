@@ -12,11 +12,9 @@ subroutine model_tl(xini,xobs,ldprt)
 ! !USES:
 
 use kinds, only: r_kind,i_kind
-use mpimod, only: mype
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
 use gsi_4dvar, only: iadatebgn,idmodel
-use jfunc, only: nclen1
-use constants, only: zero,one,izero
+use constants, only: zero,izero,r3600
 use state_vectors
 use geos_pertmod, only: ndtpert
 use m_tick, only: tick
@@ -26,7 +24,6 @@ use timermod, only: timer_ini,timer_fnl
 use prognostics, only: dyn_prog
 use prognostics, only: prognostics_initial
 use prognostics, only: prognostics_final
-use prognostics, only: prognostics_dotp
 use geos_pertmod, only: gsi2pgcm
 use geos_pertmod, only: pgcm2gsi
 use m_model_tl, only: initial_tl
@@ -68,12 +65,10 @@ type(state_vector), intent(inout) :: xobs(nobs_bins) ! State variable at observa
 
 ! Declare local variables
 character(len=*), parameter :: myname = 'model_tl'
-real(r_kind),     parameter :: R3600  = 3600.0_r_kind
 
 type(state_vector) :: xx
 integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ii,jj,ierr
 integer(i_kind)    :: nymdi,nhmsi,ndt,dt
-integer(i_kind)    :: nymdt,nhmst
 real(r_kind)       :: tstep,zz,d0
 
 #ifdef GEOS_PERT
@@ -88,18 +83,18 @@ type(dyn_prog) :: xpert
 ! Initialize variables
 d0=zero
 if (idmodel) then
-   tstep  = R3600
+   tstep  = r3600
    dt     = tstep
    ndt    = 1
 else
 !  tstep  = REAL(ndtpert,r_kind)
-   ndt    = NINT(hr_obsbin*R3600/ndtpert)
+   ndt    = NINT(hr_obsbin*r3600/ndtpert)
    dt     = ndt*ndtpert
    tstep  = dt
 endif
-nstep  = NINT(winlen*R3600/tstep)
-nfrctl = NINT(winsub*R3600/tstep)
-nfrobs = NINT(hr_obsbin*R3600/tstep)
+nstep  = NINT(winlen*r3600/tstep)
+nfrctl = NINT(winsub*r3600/tstep)
+nfrobs = NINT(hr_obsbin*r3600/tstep)
 nymdi  =  iadatebgn/100
 nhmsi  = (iadatebgn-100*nymdi)*10000
 
@@ -108,17 +103,17 @@ xx=zero
 
 ! Checks
 zz=real(nstep,r_kind)*tstep
-if (ABS(winlen*R3600   -zz)>epsilon(zz)) then
+if (ABS(winlen*r3600   -zz)>epsilon(zz)) then
   write(6,*)'model_tl: error nstep',winlen,zz
   call stop2(147)
 end if
 zz=real(nfrctl,r_kind)*tstep
-if (ABS(winsub*R3600   -zz)>epsilon(zz)) then
+if (ABS(winsub*r3600   -zz)>epsilon(zz)) then
   write(6,*)'model_tl: error nfrctl',winsub,zz
   call stop2(148)
 end if
 zz=real(nfrobs,r_kind)*tstep
-if (ABS(hr_obsbin*R3600-zz)>epsilon(zz)) then
+if (ABS(hr_obsbin*r3600-zz)>epsilon(zz)) then
   write(6,*)'model_tl: error nfrobs',hr_obsbin,zz
   call stop2(149)
 end if

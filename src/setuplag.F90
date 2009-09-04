@@ -26,15 +26,15 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !
 !$$$
   use kinds, only: r_kind,r_single,r_double,i_kind
-  use obsmod, only: laghead,lagtail,rmiss_single,i_lag_ob_type,obsdiags,&
+  use obsmod, only: laghead,lagtail,i_lag_ob_type,obsdiags,&
                     obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
                     time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use guess_grids, only: nfldsig,hrdifsig
   use gridmod, only: nsig
-  use qcmod, only: npres_print,dfact,dfact1,ptop,pbot
-  use constants, only: flattening,semi_major_axis,grav_ratio,wgtlim,&
-       zero,two,grav,grav_equator,one,eccentricity,somigliana,deg2rad,&
+  use qcmod, only: npres_print,ptop,pbot
+  use constants, only: wgtlim,&
+       zero,two,one,deg2rad,r3600,&
        tiny_r_kind,half,cg_term,huge_single,rearth,pi,rad2deg
   use jfunc, only: jiter,last,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
@@ -72,7 +72,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   real(r_kind):: ratio_errors
   real(r_kind):: cg_srw,wgross,wnotgross,wgt,arg,exp_arg,rwgt,term,rat_err2
   real(r_kind):: errinv_input,errinv_final_lon,errinv_final_lat
-  real(r_kind):: err_input,err_final_lon,err_final_lat,tfact
+  real(r_kind):: err_input,err_final_lon,err_final_lat
   real(r_single),allocatable,dimension(:,:):: rdiagbuf
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind):: dlat,dlon,dpres,dtime,dpresR
@@ -81,7 +81,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   real(r_kind),allocatable,dimension(:):: tlspecr
 
   integer(i_kind):: jsig,ibin,ioff
-  integer(i_kind):: i,nchar,nreal,k,j,ii,l,jj,istat,nn
+  integer(i_kind):: i,nchar,nreal,k,ii,jj,istat,nn
   integer(i_kind):: inum,itime,ilon,ilat,ilone,ilate,ipress,ikxx,ier
   integer(i_kind):: dnum,ikx,laglocnum,mm1
   integer(i_kind),allocatable,dimension(:):: tlspeci
@@ -216,7 +216,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         call abor1('setuplag: Inapropriate velocity guess fields')
       end if
 
-      hsteptime = (dtime - (ibin-1)*hr_obsbin)* 3600_r_kind
+      hsteptime = (dtime - (ibin-1)*hr_obsbin)* r3600
 
       lonfcst=lag_nl_vec(laglocnum,ibin,1)
       latfcst=lag_nl_vec(laglocnum,ibin,2)
@@ -237,7 +237,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         call abor1('setuplag: Inapropriate velocity guess fields')
       end if
 
-      hsteptime = (dtime - hrdifsig(fieldindex))* 3600_r_kind
+      hsteptime = (dtime - hrdifsig(fieldindex))* r3600
 
       lonfcst=lag_nl_vec(laglocnum,fieldindex,1)
       latfcst=lag_nl_vec(laglocnum,fieldindex,2)
@@ -272,7 +272,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
       if (l4dvar) then
         error=error + dtime *lag_vorcore_stderr_a  ! adjust it by the time step
       else
-        error=error + hsteptime/3600_r_kind *lag_vorcore_stderr_a
+        error=error + hsteptime/r3600 *lag_vorcore_stderr_a
       end if
     end if
     error_lon=error/(rearth*cos(dlat))

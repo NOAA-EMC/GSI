@@ -10,8 +10,8 @@
 #@ tasks_per_node=32
 #@ task_affinity=core(1)
 #@ node_resources=ConsumableMemory(110 GB)
-#@ class= dev
-#@ group= dev
+#@ class=dev
+#@ group=dev
 #@ account_no = GDAS-T2O
 #@ wall_clock_limit = 0:20:00
 #@ startdate = 09/27/06 05:00
@@ -27,8 +27,8 @@
 #@ tasks_per_node=32
 #@ task_affinity=core(1)
 #@ node_resources=ConsumableMemory(110 GB)
-#@ class= dev
-#@ group= dev
+#@ class=dev
+#@ group=dev
 #@ account_no = GDAS-T2O
 #@ wall_clock_limit = 0:20:00
 #@ startdate = 09/27/06 05:00
@@ -40,8 +40,8 @@
 #@ error=global_regression.e$(jobid)
 #@ job_type=serial
 #@ resources = consumablecpus(1) consumablememory(2000 MB)
-#@ class= dev
-#@ group= dev
+#@ class=dev
+#@ group=dev
 #@ wall_clock_limit = 00:10:00
 #@ account_no = GDAS-MTN
 #@ notification=error
@@ -689,7 +689,7 @@ list="$exp2"
 for exp in $list; do
    $ncp $savdir2/$exp/stdout ./stdout.$exp
    $ncp $savdir2/$exp/fort.220 ./fort.220.$exp
-   $ncp $savdir/$exp/siganl ./siganl.$exp
+   $ncp $savdir2/$exp/siganl ./siganl.$exp
 done
 
 # Grep out penalty/gradient information, run time, and maximum resident memory from stdout file
@@ -724,6 +724,7 @@ done
 list="$exp1_scale $exp2_scale"
 for exp_scale in $list; do
    grep 'The total amount of wall time' stdout.$exp_scale > runtime.$exp_scale.txt
+   grep 'The maximum resident set size' stdout.$exp_scale > memory.$exp_scale.txt
 done
 
 # Important values used to calculate timethresh and memthresh below
@@ -732,7 +733,7 @@ done
 
 timedif=10
 memdiff=8
-scaledif=4
+scaledif=10
 
 # timethresh = avgtime*timedif+avgtime
 # memthresh = avgmem*memdiff+avgmem
@@ -750,6 +751,8 @@ memthresh=$((mem / memdiff + mem))
 time_scale1=$(awk '{ print $8 }' runtime.$exp1_scale.txt)
 time_scale2=$(awk '{ print $8 }' runtime.$exp2_scale.txt)
 
+timethresh2=$((time_scale2 / timedif + time_scale2))
+
 # Now, figure out difference in time between two runs
 
 scale1=$((time1 - time_scale1))
@@ -757,7 +760,7 @@ scale2=$((time2 - time_scale2))
 
 # Calculate maximum allowable deviation for scalability
 
-timethresh2=$((time_scale2 / timedif + time_scale2))
+scale1thresh=$((scale1 / scaledif + scale1))
 
 # Begin applying threshold tests
 # First, wall time (both maximum allowable time and max/min allowable deviation)
@@ -905,12 +908,12 @@ fi
 
 {
 
-if [[ $scale1 -ge $scale2 ]]; then
+if [[ $scale1thresh -ge $scale2 ]]; then
    echo 'The case has passed the scalability regression test.'
-   echo 'The slope for the branch ('$scale1' seconds per node) is greater than or equal to that for the benchmark ('$scale2' seconds per node).'
+   echo 'The slope for the branch ('$scale1thresh' seconds per node) is greater than or equal to that for the benchmark ('$scale2' seconds per node).'
 else
    echo 'The case has failed the scalability test.'
-   echo 'The slope for the branch ('$scale1' seconds per node) is less than that for the benchmark ('$scale2' seconds per node).'
+   echo 'The slope for the branch ('$scale1thresh' seconds per node) is less than that for the benchmark ('$scale2' seconds per node).'
 fi
 
 } >> $output

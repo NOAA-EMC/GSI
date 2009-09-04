@@ -216,7 +216,6 @@ contains
 !$$$
     use constants, only: zero
     use gridmod, only: lat2,lon2,nsig
-    use m_berror_stats,only : berror_get_dims
     implicit none
     integer(i_kind),intent(in)::mlat
 
@@ -275,6 +274,8 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
+    implicit none
+
     call deallocate_cv(xhatsave)
     call deallocate_cv(yhatsave)
     deallocate(varq)
@@ -430,7 +431,7 @@ contains
 !
 !$$$
     use kinds, only: r_single
-    use mpimod, only: ierror, mpi_comm_world, mpi_rtype,mpi_real4
+    use mpimod, only: ierror, mpi_comm_world, mpi_real4
     use gridmod, only: ijn,latlon11,displs_g,ltosj,ltosi,nsig,&
          nlat,nlon,lat1,lon1,itotsub,iglobal
     use obsmod, only: iadate
@@ -529,8 +530,8 @@ contains
     implicit none
 
     integer(i_kind) i,j,jp1
-    real(r_single),dimension(lat1,lon1,2):: field_out
-    real(r_kind),dimension(lat2,lon2):: field_in1,field_in2
+    real(r_single),dimension(lat1,lon1,2),intent(out):: field_out
+    real(r_kind),dimension(lat2,lon2),intent(in):: field_in1,field_in2
 
     do j=1,lon1
       jp1 = j+1

@@ -1,14 +1,26 @@
 module intjomod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intjo    module for intjo
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intjo    module for intjo
+!  prgmmr:
 !
 ! abstract: module for H'R^{-1}H
 !
 ! program history log:
 !   2008-12-01  Todling - wrap in module
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intjo_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use mpl_allreducemod, only: mpl_allreduce
 implicit none
@@ -137,12 +149,16 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !   2009-03-23  meunier  - Add call to intlag (lagrangian observations)
 !
 !   input argument list:
+!     ibin
+!     yobs
 !     sval     - solution on grid
-!     sval_t   - optional time derivatives
+!     sbias
+!     rval
+!     rbias
 !
 !   output argument list:      
 !     rval     - RHS on grid
-!
+!     rbias
 !
 ! remarks:
 !     1) if strong initialization, then svalt, svalp, svaluv
@@ -160,10 +176,9 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !
 !$$$
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero,zero_quad
-use obsmod, only: obs_handle, ref_obs
+use constants, only: zero_quad
+use obsmod, only: obs_handle
 use jfunc, only: nrclen,nsclen,npclen,l_foto,xhat_dt
-use gridmod, only: latlon1n
 use state_vectors
 use bias_predictors
 use inttmod 
@@ -193,7 +208,7 @@ type(state_vector), intent(inout) :: rval
 type(predictors)  , intent(inout) :: rbias
 
 ! Declare local variables
-integer(i_kind) :: n,i
+integer(i_kind) :: i
 real(r_quad),dimension(max(1,nrclen)):: qpred
 
 !******************************************************************************
@@ -257,8 +272,7 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 ! RHS calculation for precipitation
   call intpcp(yobs%pcp, &
               rval%tsen,rval%q,rval%u,rval%v,rval%cw, &
-              sval%tsen,sval%q,sval%u,sval%v,sval%cw, &
-              qpred(nsclen+1:nrclen),sbias%predp)
+              sval%tsen,sval%q,sval%u,sval%v,sval%cw)
 
 ! Take care of background error for bias correction terms
 

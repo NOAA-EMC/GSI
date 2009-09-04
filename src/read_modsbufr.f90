@@ -37,14 +37,14 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !
 !$$$
   use kinds, only: r_kind,r_double,i_kind,r_single
-  use constants, only: izero,zero,one_tenth,one,deg2rad,&
+  use constants, only: izero,zero,one_tenth,quarter,half,one,deg2rad,&
        three,rad2deg,r60inv
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
-       tll2xy,txy2ll,rlats,rlons,twodvar_regional
+       tll2xy,txy2ll,rlats,rlons
   use convinfo, only: nconvtype,ctwind, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
+        ncmiter,ncgroup,ncnumgrp,icuse,ictype
   use obsmod, only: oberrflg
-  use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
+  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   implicit none
 
 ! Declare passed variables
@@ -57,7 +57,6 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 ! Declare local parameters
   real(r_double),parameter:: d250 = 250.0_r_double
   real(r_double),parameter:: d400 = 400.0_r_double
-  real(r_kind),parameter:: r0_5 = 0.5_r_kind
   real(r_kind),parameter:: r100 = 100.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
 
@@ -138,9 +137,9 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
      close(ietabl)
 
 !    Set lower limits for observation errors
-     terrmin=r0_5
+     terrmin=half
      werrmin=one
-     perrmin=r0_5
+     perrmin=half
      qerrmin=one_tenth
      pwerrmin=one
      
@@ -226,7 +225,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !
       if ( subset == 'SHIPS' ) then                                            ! ships
         kx = 180
-        sstoe = 1.0_r_kind
+        sstoe = one
       elseif ( subset == 'DBUOY' ) then
        
         kx = 181
@@ -237,15 +236,15 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
         sstoe = 0.75_r_kind
       elseif ( cid(3:3) == '0' .or. cid(3:3) == '1' .or. cid(3:3) == '2' .or. &
                cid(3:3) == '3' .or. cid(3:3) == '4' ) then                     ! fixed buoy
-        sstoe = 0.25_r_kind
+        sstoe = quarter
       endif
        
       elseif ( subset == 'MBUOY' ) then                                        ! fixed buoy
-        sstoe = 0.25_r_kind
+        sstoe = quarter
         kx = 181
       elseif ( subset == 'LCMAN' ) then                                        ! lcman
         kx = 181
-        sstoe = 1.0_r_kind
+        sstoe = one
       endif
 
 !
@@ -271,8 +270,6 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 
 !    If running in 2d-var (surface analysis) mode, check to see if observation
 !    is surface type.  If not, read next observation report from bufr file
-!    if ( twodvar_regional .and. &
-!         (kx<180 .or. kx>289 .or. (kx>189 .and. kx<280)) ) go to 10
 
       usage = zero
       if (   icuse(ikx) < izero ) usage = r100

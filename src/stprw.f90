@@ -1,8 +1,9 @@
 module stprwmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stprwmod    module for stprw and its tangent linear stprw_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stprwmod    module for stprw and its tangent linear stprw_tl
+!  prgmmr:
 !
 ! abstract: module for stprw and its tangent linear stprw_tl
 !
@@ -10,7 +11,16 @@ module stprwmod
 !   2005-05-19  Yanqiu zhu - wrap stprw and its tangent linear stprw_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stprw_tl
+!   2009-08-12  lueken - update documentation
 !
+! subroutines included:
+!   sub stprw
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -45,6 +55,7 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges)
 !   2008-12-03  todling - changed handling of ptr%time
 !
 !   input argument list:
+!     rwhead
 !     ru       - search direction for u
 !     rv       - search direction for v
 !     su       - analysis increment for u
@@ -67,7 +78,7 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: rw_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none

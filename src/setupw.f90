@@ -19,15 +19,15 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print,ptop,pbot,dfact,dfact1
   use oneobmod, only: oneobtest,oneob_type,magoberr,maginnov 
-  use gridmod, only: get_ijk,nsig,lat2,lon2,twodvar_regional,regional
+  use gridmod, only: get_ijk,nsig,twodvar_regional,regional
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
   use guess_grids, only: ges_u,ges_v,tropprs,ges_ps,ges_z,sfcmod_mm5
   use guess_grids, only: ges_tv,ges_lnprsl,comp_fact10,pt_ll
-  use constants, only: zero,half,one,tiny_r_kind,two,one_tenth,cg_term, &
-           rad2deg,three,rd,grav,four,huge_single,r1000,wgtlim,huge_r_kind,izero
-  use constants, only: grav_ratio,flattening,grav,zero,deg2rad, &
+  use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
+           three,rd,grav,four,five,huge_single,r1000,wgtlim,izero
+  use constants, only: grav_ratio,flattening,deg2rad, &
        grav_equator,somigliana,semi_major_axis,eccentricity
-  use jfunc, only: jiter,first,last,jiterstart,miter
+  use jfunc, only: jiter,last,jiterstart,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use converr, only: ptabl
@@ -117,7 +117,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !-------------------------------------------------------------------------
 
 ! Declare local parameters
-  real(r_kind),parameter:: r5=5.0_r_kind
   real(r_kind),parameter:: r6=6.0_r_kind
   real(r_kind),parameter:: r7=7.0_r_kind
   real(r_kind),parameter:: r10=10.0_r_kind
@@ -334,7 +333,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !      model elevation depending on how close to surface
        fact = zero
        if(dpres-dstn > 10._r_kind)then
-         if(dpres-dstn > 1000._r_kind)then
+         if(dpres-dstn > r1000)then
             fact = one
          else
             fact=(dpres-dstn)/990._r_kind
@@ -585,8 +584,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 ! QC ASCAT winds
      if (itype==290) then
-        qcu = r5
-        qcv = r5
+        qcu = five
+        qcv = five
         if ( abs(dudiff) > qcu  .or. &   ! u component check
              abs(dvdiff) > qcv ) then    ! v component check
            error = zero

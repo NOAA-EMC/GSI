@@ -1,6 +1,6 @@
 module lag_traj
-!$$$  module documentation block
-!                .      .    .                                       .
+!$$$ module documentation block
+!           .      .    .                                       .
 ! module:   lag_traj
 !   prgmmr: meunier          org:                     date: 2009-03-11
 !
@@ -32,6 +32,8 @@ module lag_traj
 !   - lag_rk2iter_ad : Adjoint model
 !
 ! Functions Included: (public)
+!
+! variable definitions:
 !
 ! Warnings:  The wind field need to be comformed to those used in lag_fields
 !
@@ -147,6 +149,26 @@ module lag_traj
   ! for iterations)
   ! ------------------------------------------------------------------------
   subroutine lag_initlparam
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_initlparam
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
 
     lag_nstepiter=ceiling(lag_iteduration/lag_stepduration)
 
@@ -164,6 +186,28 @@ module lag_traj
   ! between -pi/2 and pi/2, and 0 and 2pi
   ! ------------------------------------------------------------------------
   subroutine correct_position(lon,lat)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    correct_position
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lon,lat
+!
+!   output argument list:
+!    lon,lat
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     real(r_kind),intent(inout)::lon,lat
 
     ! When it cross the pole ...
@@ -190,6 +234,29 @@ module lag_traj
   ! the longitude to remain between 0 and 2pi)
   ! ------------------------------------------------------------------------
   subroutine add_position(lon,lat,dlon,dlat)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    add_position
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lon,lat
+!    dlon,dlat
+!
+!   output argument list:
+!    lon,lat
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     real(r_kind),intent(inout)::lon,lat
     real(r_kind),intent(in)::dlon,dlat
 
@@ -223,6 +290,27 @@ module lag_traj
   ! Convert a delta_y (meters) in a delta_latitude (radians) - linear operator
   ! ------------------------------------------------------------------------
   function m2lat_tl(rv_dy)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    m2lat_tl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    rv_dy
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     ! distance in meters along a latitude line
     real(r_kind),intent(in)::rv_dy
     ! equivalent distance in radians
@@ -235,6 +323,29 @@ module lag_traj
   ! Convert a delta_x (meters) in a delta_longitude (radians)
   ! ------------------------------------------------------------------------
   function m2lon_nl(rv_orig_lat,rv_dx,lspec_r)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    m2lon_nl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    rv_orig_lat
+!    rv_dx
+!
+!   output argument list:
+!    lspec_r
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     ! latitude of the starting point
     real(r_kind),intent(in)::rv_orig_lat
     ! distance in meters along a longitude line
@@ -265,6 +376,29 @@ module lag_traj
   ! Tangent linear version
   ! ------------------------------------------------------------------------
   function m2lon_tl(lspec_r,rv_dorig_lat,rv_dx)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    m2lon_tl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_r
+!    rv_dorig_lat
+!    rv_dx
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     real(r_kind),dimension(2),intent(in)::lspec_r
     real(r_kind),intent(in)::rv_dorig_lat
     real(r_kind),intent(in)::rv_dx
@@ -277,6 +411,32 @@ module lag_traj
   ! Adjoint version
   ! ------------------------------------------------------------------------
   subroutine m2lon_ad(lspec_r,ad_m2lon_l,ad_rv_dorig_lat,ad_rv_dx)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    m2lon_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_r
+!    ad_m2lon_l
+!    ad_rv_dorig_lat
+!    ad_rv_dx
+!
+!   output argument list:
+!    ad_rv_dorig_lat
+!    ad_rv_dx
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     real(r_kind),dimension(2),intent(in)::lspec_r
     real(r_kind),intent(in)::ad_m2lon_l
     real(r_kind),intent(inout)::ad_rv_dorig_lat
@@ -291,6 +451,27 @@ module lag_traj
   ! Haversine function
   ! ------------------------------------------------------------------------
   function lag_haversin(rv_theta)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_haversin
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    rv_theta
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     real(r_kind),intent(in)::rv_theta
     real(r_kind)::lag_haversin
     lag_haversin=sin(rv_theta/2)**2
@@ -299,6 +480,27 @@ module lag_traj
   ! Inverse-haversine function
   ! ------------------------------------------------------------------------
   function lag_haversin_inv(rv_z)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_haversin_inv
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    rv_z
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     real(r_kind),intent(in)::rv_z
     real(r_kind)::lag_haversin_inv
     lag_haversin_inv=2*asin(sqrt(rv_z))
@@ -308,6 +510,27 @@ module lag_traj
   ! Haversine Formula : Calculate the distance between 2 lat/lon points
   ! ------------------------------------------------------------------------
   function lag_d_haversin(rv_lon1,rv_lat1,rv_lon2,rv_lat2)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_d_haversin
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    rv_lon1,rv_lat1,rv_lon2,rv_lat2
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     real(r_kind),intent(in)::rv_lon1,rv_lat1,rv_lon2,rv_lat2
     real(r_kind)::lag_d_haversin
 
@@ -328,6 +551,27 @@ module lag_traj
   ! Give the distance in meters between two lattitude circles
   ! ------------------------------------------------------------------------
   function lag_d_lat(rv_lat1,rv_lat2)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_d_lat
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    rv_lat1,rv_lat2
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     real(r_kind),intent(in)::rv_lat1,rv_lat2
     real(r_kind)::lag_d_lat
 
@@ -345,6 +589,27 @@ module lag_traj
   ! latitude of the first point
   ! ------------------------------------------------------------------------
   function lag_d_lon(rv_lon1,rv_lon2,rv_lat1)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_d_lon
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    rv_lon1,rv_lon2,rv_lat1
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     real(r_kind),intent(in)::rv_lon1,rv_lon2,rv_lat1
     real(r_kind)::lag_d_lon
 
@@ -374,6 +639,32 @@ module lag_traj
   ! Implementation of the Runge-Kutta algorithm : Non linear
   ! ------------------------------------------------------------------------
   subroutine lag_rk4_nl(lon,lat,p,ufield,vfield,tstep,lspec_i,lspec_r)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk4_nl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lon,lat,p
+!    ufield,vfield
+!    tstep
+!
+!   output argument list:
+!    lon,lat,p
+!    lspec_i
+!    lspec_r
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     ! longitude, latitude, pressure of the balloon
     real(r_kind),intent(inout)::lon,lat,p
     ! components of the wind fields (2nd dimension for vertical level)
@@ -569,6 +860,31 @@ module lag_traj
   ! Implementation of the Runge-Kutta algorithm-> TLM
   ! ------------------------------------------------------------------------
   subroutine lag_rk4_tl(lspec_i,lspec_r,lon,lat,p,ufield,vfield)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk4_tl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_i
+!    lspec_r
+!    lon,lat,p
+!    ufield,vfield
+!
+!   output argument list:
+!    lon,lat,p
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     integer(i_kind),dimension(:),intent(in)::lspec_i
     real(r_kind)   ,dimension(:),intent(in)::lspec_r
     real(r_kind),intent(inout)::lon,lat,p
@@ -668,6 +984,33 @@ module lag_traj
   ! ------------------------------------------------------------------------
   subroutine lag_rk4_ad(lspec_i,lspec_r,&
     ad_lon,ad_lat,ad_p,ad_ufield,ad_vfield)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk4_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_i
+!    lspec_r
+!    ad_lon,ad_lat,ad_p
+!    ad_ufield,ad_vfield
+!
+!   output argument list:
+!    ad_lon,ad_lat,ad_p
+!    ad_ufield,ad_vfield
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    use constants, only: three
+    implicit none
     integer(i_kind),dimension(:),intent(in)::lspec_i
     real(r_kind)   ,dimension(:),intent(in)::lspec_r
     real(r_kind),intent(inout)::ad_lon,ad_lat,ad_p
@@ -713,17 +1056,17 @@ module lag_traj
     call m2lon_ad(lspec_r(irk4_lon_1_p:(irk4_lon_1_p+1)),ad_pos_1_pp(1),&
         &ad_pos_1_pp(2),rv_tmp)
     ad_rv_intu_0      =ad_rv_intu_0+lspec_r(irk4_tstep)/6_r_kind*rv_tmp
-    ad_rv_intu_half_p =ad_rv_intu_half_p+lspec_r(irk4_tstep)/3_r_kind*rv_tmp
-    ad_rv_intu_half_pp=ad_rv_intu_half_pp+lspec_r(irk4_tstep)/3_r_kind*rv_tmp
+    ad_rv_intu_half_p =ad_rv_intu_half_p+lspec_r(irk4_tstep)/three*rv_tmp
+    ad_rv_intu_half_pp=ad_rv_intu_half_pp+lspec_r(irk4_tstep)/three*rv_tmp
     ad_rv_intu_1_p    =ad_rv_intu_1_p+lspec_r(irk4_tstep)/6_r_kind*rv_tmp
     
     ad_lat=ad_lat+ad_pos_1_pp(2)
     ad_rv_intv_0      =ad_rv_intv_0+&
         &m2lat_tl(lspec_r(irk4_tstep)/6_r_kind*ad_pos_1_pp(2))
     ad_rv_intv_half_p =ad_rv_intv_half_p+&
-        &m2lat_tl(lspec_r(irk4_tstep)/3_r_kind*ad_pos_1_pp(2))
+        &m2lat_tl(lspec_r(irk4_tstep)/three*ad_pos_1_pp(2))
     ad_rv_intv_half_pp=ad_rv_intv_half_pp+&
-        &m2lat_tl(lspec_r(irk4_tstep)/3_r_kind*ad_pos_1_pp(2))
+        &m2lat_tl(lspec_r(irk4_tstep)/three*ad_pos_1_pp(2))
     ad_rv_intv_1_p    =ad_rv_intv_1_p+&
         &m2lat_tl(lspec_r(irk4_tstep)/6_r_kind*ad_pos_1_pp(2))
     
@@ -825,6 +1168,32 @@ module lag_traj
   ! Implementation for the RK4 non linear model
   ! ------------------------------------------------------------------------
   subroutine lag_rk4iter_nl(lon,lat,p,ufield,vfield,tstep,lspec_i,lspec_r)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk4iter_nl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lon,lat,p
+!    ufield,vfield
+!    tstep
+!
+!   output argument list:
+!    lon,lat,p
+!    lspec_i
+!    lspec_r
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     ! longitude, latitude, pressure of the balloon
     real(r_kind),intent(inout)::lon,lat,p
     ! components of the wind fields (2nd dimension for vertical level)
@@ -910,6 +1279,31 @@ module lag_traj
   ! Implementation for the RK4 tangent-linear model
   ! ------------------------------------------------------------------------
   subroutine lag_rk4iter_tl(lspec_i,lspec_r,lon,lat,p,ufield,vfield)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk4iter_tl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_i
+!    lspec_r
+!    lon,lat,p
+!    ufield,vfield
+!
+!   output argument list:
+!    lon,lat,p
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     integer(i_kind),dimension(:),intent(in)::lspec_i
     real(r_kind)   ,dimension(:),intent(in)::lspec_r
     real(r_kind),intent(inout)::lon,lat,p
@@ -940,6 +1334,32 @@ module lag_traj
   ! Implementation for the RK4 adjoint model
   ! ------------------------------------------------------------------------
   subroutine lag_rk4iter_ad(lspec_i,lspec_r,ad_lon,ad_lat,ad_p,ad_ufield,ad_vfield)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk4iter_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_i
+!    lspec_r
+!    ad_lon,ad_lat,ad_p
+!    ad_ufield,ad_vfield
+!
+!   output argument list:
+!    ad_lon,ad_lat,ad_p
+!    ad_ufield,ad_vfield
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     integer(i_kind),dimension(:),intent(in)::lspec_i
     real(r_kind)   ,dimension(:),intent(in)::lspec_r
     real(r_kind),intent(inout)::ad_lon,ad_lat,ad_p
@@ -975,6 +1395,32 @@ module lag_traj
   ! (Heun's Method)
   ! ------------------------------------------------------------------------
   subroutine lag_rk2_nl(lon,lat,p,ufield,vfield,tstep,lspec_i,lspec_r)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk2_nl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lon,lat,p
+!    ufield,vfield
+!    tstep
+!
+!   output argument list:
+!    lon,lat,p
+!    lspec_i
+!    lspec_r
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     ! longitude, latitude, pressure of the balloon
     real(r_kind),intent(inout)::lon,lat,p
     ! components of the wind fields (2nd dimension for vertical level)
@@ -1090,6 +1536,31 @@ module lag_traj
   ! (Heun's Method)
   ! ------------------------------------------------------------------------
   subroutine lag_rk2_tl(lspec_i,lspec_r,lon,lat,p,ufield,vfield)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk2_tl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_i
+!    lspec_r
+!    lon,lat,p
+!    ufield,vfield
+!
+!   output argument list:
+!    lon,lat,p
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     ! Parameters for the TL and Adjoint
     integer(i_kind),dimension(lag_rk2stepnpara_i),intent(in)::lspec_i
     real(r_kind)   ,dimension(lag_rk2stepnpara_r),intent(in)::lspec_r
@@ -1158,6 +1629,32 @@ module lag_traj
   ! ------------------------------------------------------------------------
   subroutine lag_rk2_ad(lspec_i,lspec_r,ad_lon,ad_lat,ad_p,&
     ad_ufield,ad_vfield)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk2_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_i
+!    lspec_r
+!    ad_lon,ad_lat,ad_p
+!    ad_ufield,ad_vfield
+!
+!   output argument list:
+!    ad_lon,ad_lat,ad_p
+!    ad_ufield,ad_vfield
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     ! Parameters for the TL and Adjoint
     integer(i_kind),dimension(lag_rk2stepnpara_i),intent(in)::lspec_i
     real(r_kind)   ,dimension(lag_rk2stepnpara_r),intent(in)::lspec_r
@@ -1258,6 +1755,32 @@ module lag_traj
   ! Implementation for the RK2 non linear model
   ! ------------------------------------------------------------------------
   subroutine lag_rk2iter_nl(lon,lat,p,ufield,vfield,tstep,lspec_i,lspec_r)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk2iter_nl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lon,lat,p
+!    ufield,vfield
+!    tstep
+!
+!   output argument list:
+!    lon,lat,p
+!    lspec_i
+!    lspec_r
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     ! longitude, latitude, pressure of the balloon
     real(r_kind),intent(inout)::lon,lat,p
     ! components of the wind fields (2nd dimension for vertical level)
@@ -1343,6 +1866,31 @@ module lag_traj
   ! Implementation for the RK2 tangent-linear model
   ! ------------------------------------------------------------------------
   subroutine lag_rk2iter_tl(lspec_i,lspec_r,lon,lat,p,ufield,vfield)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk2iter_tl
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_i
+!    lspec_r
+!    lon,lat,p
+!    ufield,vfield
+!
+!   output argument list:
+!    lon,lat,p
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     integer(i_kind),dimension(:),intent(in)::lspec_i
     real(r_kind)   ,dimension(:),intent(in)::lspec_r
     real(r_kind),intent(inout)::lon,lat,p
@@ -1373,6 +1921,32 @@ module lag_traj
   ! Implementation for the RK2 adjoint model
   ! ------------------------------------------------------------------------
   subroutine lag_rk2iter_ad(lspec_i,lspec_r,ad_lon,ad_lat,ad_p,ad_ufield,ad_vfield)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_rk2iter_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    lspec_i
+!    lspec_r
+!    ad_lon,ad_lat,ad_p
+!    ad_ufield,ad_vfield
+!
+!   output argument list:
+!    ad_lon,ad_lat,ad_p
+!    ad_ufield,ad_vfield
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     integer(i_kind),dimension(:),intent(in)::lspec_i
     real(r_kind)   ,dimension(:),intent(in)::lspec_r
     real(r_kind),intent(inout)::ad_lon,ad_lat,ad_p

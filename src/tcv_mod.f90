@@ -24,6 +24,10 @@ module tcv_mod
 !   def stormpsmin   - storm sea level pressure minimum
 !   def stormdattim  - storm dat/time 
 !
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   implicit none
@@ -35,28 +39,28 @@ module tcv_mod
   integer(i_kind),dimension(:),allocatable:: stormdattim
 
   type:: tcvcard ! Define a new type for a TC Vitals card
-    character*4:: tcv_center      ! Hurricane Center Acronym
-    character*3:: tcv_storm_id    ! Storm Identifier (03L, etc)
-    character*9:: tcv_storm_name  ! Storm name
-    integer    :: tcv_century     ! 2-digit century id (19 or 20)
-    integer    :: tcv_yymmdd      ! Date of observation
-    integer    :: tcv_hhmm        ! Time of observation (UTC)
-    integer    :: tcv_lat         ! Storm Lat (*10), always >0
-    character*1:: tcv_latns       ! 'N' or 'S'
-    integer    :: tcv_lon         ! Storm Lon (*10), always >0
-    character*1:: tcv_lonew       ! 'E' or 'W'
-    integer    :: tcv_stdir       ! Storm motion vector (in degr)
-    integer    :: tcv_stspd       ! Spd of storm movement (m/s*10)
-    integer    :: tcv_pcen        ! Min central pressure (mb)
-    integer    :: tcv_penv        ! val outrmost closed isobar(mb)
-    integer    :: tcv_penvrad     ! rad outrmost closed isobar(km)
-    integer    :: tcv_vmax        ! max sfc wind speed (m/s)
-    integer    :: tcv_vmaxrad     ! rad of max sfc wind spd (km)
-    integer    :: tcv_r15ne       ! NE rad of 15 m/s winds (km)
-    integer    :: tcv_r15se       ! SE rad of 15 m/s winds (km)
-    integer    :: tcv_r15sw       ! SW rad of 15 m/s winds (km)
-    integer    :: tcv_r15nw       ! NW rad of 15 m/s winds (km)
-    character*1:: tcv_depth       ! Storm depth (S,M,D) X=missing
+    character*4    :: tcv_center      ! Hurricane Center Acronym
+    character*3    :: tcv_storm_id    ! Storm Identifier (03L, etc)
+    character*9    :: tcv_storm_name  ! Storm name
+    integer(i_kind):: tcv_century     ! 2-digit century id (19 or 20)
+    integer(i_kind):: tcv_yymmdd      ! Date of observation
+    integer(i_kind):: tcv_hhmm        ! Time of observation (UTC)
+    integer(i_kind):: tcv_lat         ! Storm Lat (*10), always >0
+    character*1    :: tcv_latns       ! 'N' or 'S'
+    integer(i_kind):: tcv_lon         ! Storm Lon (*10), always >0
+    character*1    :: tcv_lonew       ! 'E' or 'W'
+    integer(i_kind):: tcv_stdir       ! Storm motion vector (in degr)
+    integer(i_kind):: tcv_stspd       ! Spd of storm movement (m/s*10)
+    integer(i_kind):: tcv_pcen        ! Min central pressure (mb)
+    integer(i_kind):: tcv_penv        ! val outrmost closed isobar(mb)
+    integer(i_kind):: tcv_penvrad     ! rad outrmost closed isobar(km)
+    integer(i_kind):: tcv_vmax        ! max sfc wind speed (m/s)
+    integer(i_kind):: tcv_vmaxrad     ! rad of max sfc wind spd (km)
+    integer(i_kind):: tcv_r15ne       ! NE rad of 15 m/s winds (km)
+    integer(i_kind):: tcv_r15se       ! SE rad of 15 m/s winds (km)
+    integer(i_kind):: tcv_r15sw       ! SW rad of 15 m/s winds (km)
+    integer(i_kind):: tcv_r15nw       ! NW rad of 15 m/s winds (km)
+    character*1    :: tcv_depth       ! Storm depth (S,M,D) X=missing
   end type tcvcard
   
 contains 
@@ -82,7 +86,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,r_single,i_kind
+    use kinds, only: r_single
     implicit none
 
     integer(i_kind),intent(in):: lunin
@@ -166,7 +170,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind
+    use constants, only: zero
     implicit none
 
     integer(i_kind),intent(in):: nums,lucard
@@ -180,7 +184,7 @@ contains
 
     integer(i_kind) ict,i,ii
 
-    slonfg = 0.0_r_kind; slatfg = 0.0_r_kind
+    slonfg = zero; slatfg = zero
 !
     rewind(lucard)
     ii=1

@@ -33,20 +33,18 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 !   machine:  
 !
 !$$$
-  use kinds, only: r_kind,r_double,i_kind
+  use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: deg2rad,zero,rad2deg
-  use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
-  use obsmod, only: iadate,offtime_data
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
+  use constants, only: deg2rad,zero,r60inv
+  use convinfo, only: nconvtype,ctwind, &
+        icuse,ictype,ioctype
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
 
   use lag_fields, only: ntotal_orig_lag,orig_lag_num
 
   implicit none
 
 ! Declare local parameters
-  real(r_kind),parameter:: r60 = 60.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
   integer(i_kind),parameter:: nmaxobs = 1e5
   integer(i_kind),parameter:: npara   = 10
@@ -82,8 +80,8 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
   real(r_kind):: rlon,rlat,rpress
   real(r_kind):: rlonrad,rlatrad,rlongrid,rlatgrid
   real(r_kind):: sstime,r4dtime,r3dtime
-  logical:: lerror,leof,lmax,lverif,lok
-  integer(i_kind):: i,j,k
+  logical:: lerror,leof,lmax,lok
+  integer(i_kind):: i,k
 
 ! Things for convinfo
 
@@ -174,7 +172,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
         idate5(4) = ihour   !hour
         idate5(5) = imin    !minute
         call w3fs21(idate5,nmind)
-        r4dtime=real(nmind-iwinbgn,r_kind)/r60
+        r4dtime=real(nmind-iwinbgn,r_kind)*r60inv
         if (l4dvar) then
           if (r4dtime<zero .OR. r4dtime>winlen) then
             write(6,*)'READ_LAG: obs time idate5=',idate5,', t4dv=',&
@@ -183,7 +181,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
           end if
         else
           sstime=real(nmind,r_kind)
-          r3dtime=(sstime-gstime)/r60
+          r3dtime=(sstime-gstime)*r60inv
           if(abs(r3dtime) > twind .or. abs(r3dtime) > ctwind(ikx)) then
             write(6,*)'READ_LAG: obs time idate5=',idate5,', t3dv=',&
                 r3dtime,' is outside time window, twind=',min(twind,ctwind(ikx))

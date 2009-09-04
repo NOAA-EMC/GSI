@@ -63,10 +63,10 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
             checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
-  use constants, only: deg2rad,zero,one,izero,ione,rad2deg,r60inv
-  use obsmod, only: iadate,offtime_data
+  use constants, only: deg2rad,zero,rad2deg,r60inv,r60
+  use obsmod, only: offtime_data
   use radinfo, only: iuse_rad,jpch_rad,nusis
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
+  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
   implicit none
 
 ! Declare passed variables
@@ -100,7 +100,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon
   integer(i_kind) ireadmg,ireadsb,iret,nele,itt
-  integer(i_kind) itx,i,k,iout,isflg,kidsat,n,iscan,idomsfc
+  integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
   integer(i_kind) idate5(5)
 
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
@@ -130,7 +130,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   ilon=3
   ilat=4
 
-  rlndsea(0) = 0._r_kind
+  rlndsea(0) = zero
   rlndsea(1) = 15._r_kind
   rlndsea(2) = 10._r_kind
   rlndsea(3) = 15._r_kind
@@ -217,7 +217,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !      first step QC filter out data with less clear sky fraction
         if (hdrgoesarr(1) == 256 .and. dataimg(2,3) < 70.0_r_kind) cycle read_loop
         if (hdrgoesarr(1) == 254 .and. dataimg(2,3) < 40.0_r_kind) cycle read_loop
-        if (hdrgoesarr(ilzah) >60.0_r_kind) cycle read_loop
+        if (hdrgoesarr(ilzah) >r60) cycle read_loop
 
 
 !       Compare relative obs time with window.  If obs 
@@ -364,7 +364,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
      enddo read_loop
   enddo
 
-  call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
+  call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
 
 ! If no observations read, jump to end of routine.

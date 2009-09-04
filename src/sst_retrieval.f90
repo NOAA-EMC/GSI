@@ -29,6 +29,8 @@ module sst_retrieval
   use kinds, only: r_kind,r_single,i_kind
   use radinfo, only: numt
 
+  implicit none
+
 ! Define parameters
   integer(i_kind),parameter,private:: lnbufr = 12
 
@@ -70,7 +72,7 @@ contains
 !
 !$$$ end documentation block
 
-    use constants, only: one,ttp
+    use constants, only: one,half,ttp
     use gsi_io, only: lendian_in
     implicit none
 
@@ -102,7 +104,7 @@ contains
 !   Assign error parameters for background (Ts, Ta, Qa)
 !
 !   Day time
-    e_ts(0) = 0.50_r_kind; e_ta(0) = 1.20_r_kind; e_qa(0) = 0.95_r_kind
+    e_ts(0) = half; e_ta(0) = 1.20_r_kind; e_qa(0) = 0.95_r_kind
 
 !   Night time
 !
@@ -112,7 +114,7 @@ contains
   subroutine avhrr_sst_retrieval(obstype,csatid,nchanl,&
        tnoise,varinv,ts5,sstnv,sstcu,temp,wmix,ts,tbc,obslat,obslon,zasat,&
        dtime,dtp_avh,tlapchn,predterms,emissivity,pangs,tbcnob,tb_obs, & 
-       rad_diagsave,sfcpct,id_qc,nadir,mype,ireal,ipchan,duse)
+       rad_diagsave,sfcpct,id_qc,nadir,ireal,ipchan,duse)
 !subprogram:    avhrr_sst_retrieval  compute sst retrieval from AVHRR radiances
 !   prgmmr: Xu Li, John Derber          org: w/nmc2     date: 04-12-29
 !
@@ -158,7 +160,7 @@ contains
     use radinfo, only: npred
     use gridmod, only: nsig
     use obsmod, only: iadate,rmiss_single
-    use constants, only: zero,one,two,tiny_r_kind,izero,rad2deg,ttp
+    use constants, only: zero,one,tiny_r_kind,izero,rad2deg,ttp,one_tenth
 
     implicit none
 
@@ -169,7 +171,7 @@ contains
     real(r_kind),parameter:: r360=360.0_r_kind
 
 !   Declare passed variables
-    integer(i_kind), intent(in) :: nchanl,mype,ireal,ipchan
+    integer(i_kind), intent(in) :: nchanl,ireal,ipchan
     integer(i_kind), intent(in):: nadir
     real(r_kind),dimension(nchanl), intent(in) :: tnoise
     real(r_kind),dimension(nchanl), intent(in) :: varinv,tbc,tb_obs,tbcnob,tlapchn
@@ -232,9 +234,9 @@ contains
     if (duse) then
 
     if (duse) then
-      nuse = 1.0
+      nuse = one
     else
-      nuse = 0.0
+      nuse = zero
     endif
 
      dsst = rmiss_single; dta = rmiss_single; dqa = rmiss_single
@@ -248,7 +250,7 @@ contains
 
      ws = one/e_ts(md)**2
      wa = one/e_ta(md)**2
-     wq = one/(e_qa(md)*(max((ts5-ttp)*0.03_r_kind,zero)+0.1_r_kind))**2
+     wq = one/(e_qa(md)*(max((ts5-ttp)*0.03_r_kind,zero)+one_tenth))**2
      
      a11 = ws                                      ! 1./tserr**2
      a22 = wa                                      ! 1./taerr**2
@@ -558,6 +560,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+    implicit none
 
     call closbf(lnbufr)
     return

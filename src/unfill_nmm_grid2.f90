@@ -28,6 +28,7 @@ subroutine unfill_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 !                 (mass point for nmm)
 !              - =2, then (1,1) is staggered (wind point for nmm, see 
 !                 illustration below)
+!     iorder
 !
 !   output argument list
 !     gin      - output result on staggered E grid
@@ -41,8 +42,9 @@ subroutine unfill_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
   use gridmod, only: itotsub,ltosi,ltosj,ltosi_s,ltosj_s,iglobal
   implicit none
   
-  integer(i_kind) nx,ny,igtype,iorder
-  real(r_single) gin(nx,ny),gout(itotsub)
+  integer(i_kind), intent(in)  :: nx,ny,igtype,iorder
+  real(r_single), intent(in)   :: gout(itotsub)
+  real(r_single), intent(inout):: gin(nx,ny)
   
   real(r_single) b(2*nx-1,ny)
   integer(i_kind) i,j

@@ -1,12 +1,43 @@
 module lag_fields
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   lag_fields
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added module doc block
+!
+! subroutines included:
+!   sub lag_modini
+!   sub lag_guessini
+!   sub lag_destroy
+!   sub lag_alloc_uv
+!   sub lag_destroy_uv
+!   sub lag_destroy_state
+!   sub lag_gather_gesuv
+!   sub lag_gather_stateuv
+!   sub lag_ADscatter_stateuv
+!   sub lag_presetup
+!   sub lag_state_write
+!   sub lag_state_read
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use gridmod, only: nlon,nlat,nsig,rlons,rlats,ak5,bk5
+  use gridmod, only: nsig,ak5,bk5
   use gridmod, only: lat1,lon1,latlon1n
-  use gridmod, only: ijn_s,ijn,displs_s,displs_g,ird_s,isd_g
+  use gridmod, only: ijn_s,ijn,displs_g,ird_s
   use gridmod, only: iglobal,itotsub,ltosi,ltosj,ltosi_s,ltosj_s
   use guess_grids, only: ges_u,ges_v,nfldsig,hrdifsig
-  use constants, only: izero,ione,zero,two,pi,deg2rad,rad2deg
+  use constants, only: izero,ione,zero,two,pi,deg2rad
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use state_vectors
 
@@ -28,7 +59,7 @@ module lag_fields
   ! Observation error for vorcore balloon
   !   error = b + a * timestep(in hours)
   real(r_kind)::lag_vorcore_stderr_a=2.0e3_r_kind
-  real(r_kind)::lag_vorcore_stderr_b=0.0_r_kind
+  real(r_kind)::lag_vorcore_stderr_b=zero
 
   integer(i_kind)::lag_kfirst,lag_klast ! First and last level use
   integer(i_kind)::lag_kcount           ! Number of levels use
@@ -100,9 +131,30 @@ module lag_fields
   ! ------------------------------------------------------------------------
   ! Initialise constants
   subroutine lag_modini
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_modini
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    use constants, only: r3600
+    implicit none
 
     ! Initialisation of the model module (lag_traj)
-    lag_iteduration=hr_obsbin*3600_r_kind
+    lag_iteduration=hr_obsbin*r3600
     call lag_initlparam()
     
     ! Not initialised at first
@@ -121,13 +173,32 @@ module lag_fields
   !   If these additional guess are missing, values will be calculated by
   !   lag_presetup (but the result of the assimilation won't be optimal)
   subroutine lag_guessini
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_guessini
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use mpimod, only: mype,npe
-    
+    implicit none   
     real(r_kind)::lon,lat,p
-    integer(i_kind)::num,nproc
+    integer(i_kind)::num
     real(r_kind),dimension(nsig+1)::pcalc
     real(r_kind),dimension(nsig+1)::tmp_press
-    integer(i_kind)::i,j,iferror,nread,nbal
+    integer(i_kind)::i,j,iferror,nread
     real(r_kind)   ,dimension(:,:),allocatable::tmp_inibal
     integer(i_kind),dimension(:,:),allocatable::tmp_ininum
     real(r_kind),dimension(:),allocatable  ::tmp_inisig
@@ -341,7 +412,27 @@ module lag_fields
   ! ------------------------------------------------------------------------
   ! Clean all the allocated arrays
   subroutine lag_destroy
-    
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_destroy
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none  
+ 
     call lag_destroy_state()
 
     call lag_delpgrid()
@@ -354,6 +445,26 @@ module lag_fields
   ! ------------------------------------------------------------------------
   ! Allocate the u and v fields
   subroutine lag_alloc_uv
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_alloc_uv
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     
     if (.not.lag_uv_alloc) then
       allocate(lag_u_full(iglobal,lag_kcount,max(nobs_bins,nfldsig)))
@@ -370,7 +481,27 @@ module lag_fields
   ! ------------------------------------------------------------------------
   ! Deallocate the u and v fields
   subroutine lag_destroy_uv
-    
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_destroy_uv
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
+
     if (lag_uv_alloc) then
       deallocate(lag_u_full)
       deallocate(lag_v_full)
@@ -384,6 +515,26 @@ module lag_fields
   ! ------------------------------------------------------------------------
   ! Deallocate the state parameters for the lagrangian assimilation
   subroutine lag_destroy_state
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_destroy_state
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+    implicit none
     
     if (allocated(lag_nl_vec)) deallocate(lag_nl_vec)
     if (allocated(lag_tl_vec)) deallocate(lag_tl_vec)
@@ -402,7 +553,29 @@ module lag_fields
   ! Gather the the guess fields for u and v, for obsbin time hrdifsig(t)
   ! (using global variables ges_u and ges_v).
   subroutine lag_gather_gesuv(itt)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_gather_gesuv
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    itt
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+ 
     use mpimod, only: mype,mpi_comm_world,mpi_rtype,strip,reorder
+    implicit none
     integer(i_kind),intent(in):: itt
 
     integer(i_kind):: k,i
@@ -448,7 +621,30 @@ module lag_fields
   ! Gather the increments fields for u and v, taking increments in the 
   ! subdomains state vectors svalu and svalv. for obsbin t.
   subroutine lag_gather_stateuv(svalu,svalv,itt)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_gather_stateuv
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    svalu,svalv
+!    itt
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
     use mpimod, only: mype,mpi_comm_world,mpi_rtype,strip,reorder
+    implicit none
     real(r_kind),dimension(latlon1n),intent(in):: svalu,svalv
     integer(i_kind),intent(in):: itt
 
@@ -497,13 +693,36 @@ module lag_fields
   !  - Adjoint increments are read in global domain arrays lag_u_full and 
   !    lag_v_full at obsbin t
   subroutine lag_ADscatter_stateuv(svalu,svalv,itt)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_ADscatter_stateuv
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    svalu,svalv
+!    itt
+!
+!   output argument list:
+!    svalu,svalv
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
     use mpimod, only: mype,mpi_comm_world,mpi_rtype,mpi_sum,reorder2
+    implicit none
     real(r_kind),dimension(latlon1n),intent(inout):: svalu, svalv
     integer(i_kind),intent(in):: itt
 
     integer(i_kind):: k,i
     integer(i_kind):: ierror
-    real(r_kind),dimension(lat1*lon1,nsig):: ustrip,vstrip
     real(r_kind),dimension(:,:),allocatable::  worku ,workv
     real(r_kind),dimension(:),allocatable::  worku2,workv2
 
@@ -569,10 +788,31 @@ module lag_fields
   ! affected to this processor only if the postion as not been read previously
   ! in guess files. (for an optimal 3Dvar, values should be read in guess files)
   subroutine lag_presetup
-    use mpimod, only: mype
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_presetup
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
+    use constants, only: r3600
+    use mpimod, only: mype
+    implicit none
     integer(i_kind)::i,j,k,itime
-    real(r_kind)::fieldtime,fieldstep
+    real(r_kind)::fieldtime
 
     ! If no balloons do nothing
     if (ntotal_orig_lag>izero) then
@@ -627,7 +867,7 @@ module lag_fields
               call lag_rk2iter_nl(&
                 &lag_nl_vec(j,i,1),lag_nl_vec(j,i,2),lag_nl_vec(j,i,3),&
                 &lag_u_full(:,:,i-1),lag_v_full(:,:,i-1),&
-                &(hrdifsig(i)-hrdifsig(i-1))*3600_r_kind)
+                &(hrdifsig(i)-hrdifsig(i-1))*r3600)
             end if
           end do
         end do
@@ -652,10 +892,30 @@ module lag_fields
   ! ------------------------------------------------------------------------
   ! Save all the lagrangian parameters in a file (1 file per task)
   subroutine lag_state_write()
-    use mpimod, only: mype
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_state_write
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
+    use mpimod, only: mype
+    implicit none
     character(len=255)::loc_filename
-    integer::istat
+    integer(i_kind)::istat
 
     ! Create the filename with the mype number    
     write(loc_filename,fmt="(A,'.',I4.4)") lag_filesave,mype
@@ -690,10 +950,30 @@ module lag_fields
   ! ------------------------------------------------------------------------
   ! Read all the lagrangian parameters in a file (1 file per task)
   subroutine lag_state_read()
-    use mpimod, only: mype
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    lag_state_read
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
+    use mpimod, only: mype
+    implicit none
     character(len=255)::loc_filename
-    integer::istat
+    integer(i_kind)::istat
     real(r_kind),dimension(:),allocatable::tmp_pgrid
 
     ! Create the filename with the mype number    

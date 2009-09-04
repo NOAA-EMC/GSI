@@ -502,7 +502,7 @@ contains
 !   
 !$$$ end documentation block
 
-    use constants, only: zero,half,one,rearth
+    use constants, only: zero,half,one,rearth,r3600
     use mod_strong, only: period_max,period_width
     implicit none
 
@@ -516,7 +516,7 @@ contains
       pmask(n)=zero
       if(n.eq.0) cycle
       thislength=2._8*pi*rearth/n
-      thisperiod=thislength/(gspeed*3600._8)
+      thisperiod=thislength/(gspeed*r3600)
       pmask(n)=half*(one-tanh((thisperiod-period_max)/period_width))
     end do
 

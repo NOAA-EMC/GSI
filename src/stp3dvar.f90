@@ -82,7 +82,6 @@ subroutine stp3dvar(dirx,dir_dt)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_quad
   use mpimod, only: mype
   use gridmod, only: nnnn1o
   use state_vectors
@@ -93,7 +92,6 @@ subroutine stp3dvar(dirx,dir_dt)
   type(state_vector),intent(out)::dir_dt
 
 ! Declare local variables
-  integer(i_kind) i,k
 
 !************************************************************************************  
 

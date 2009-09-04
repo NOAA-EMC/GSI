@@ -1,6 +1,9 @@
 subroutine write_obsdiags(cdfile)
 
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_obdiags  Write obsdiags data structure to file
+!   prgmmr: tremolet
 !
 ! abstract: Write obsdiags data structure to file.
 !
@@ -10,23 +13,28 @@ subroutine write_obsdiags(cdfile)
 !   2007-10-24  todling - add parameter nchnperobs to obsdiag 
 !   2009-01-08  todling - remove reference to ozohead
 !   2009-01-27  todling - add gps write
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !     cdfile - filename to write data
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-use kinds, only: r_kind,i_kind
-use obsmod, only: nobs_type,obsdiags,obsptr,lobserver
-use obsmod, only: gpshead
-use obsmod, only: gpsptr
+use kinds, only: i_kind
+use obsmod, only: nobs_type,obsdiags,obsptr
 use obsmod, only: i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
                   i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_lag_ob_type
 use gsi_4dvar, only: nobs_bins,l4dvar
 use mpimod, only: mype
-use jfunc, only: jiter, miter, last
+use jfunc, only: jiter
 
 implicit none
 character(len=*), intent(in) :: cdfile
@@ -35,7 +43,6 @@ character(len=100) :: clfile
 character(len=5) :: clmype
 integer(i_kind) :: iunit,ii,jj,iobs,ierr
 integer(i_kind) :: icount(nobs_type,nobs_bins)
-logical :: muse
 ! ----------------------------------------------------------
 
 iunit=77
@@ -102,16 +109,26 @@ contains
 
 subroutine write_pshead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_pshead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
 !   2008-12-08  todling - update to May08 version
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use obsmod, only: pshead, psptr
     implicit none 
     integer(i_kind) mobs
@@ -138,16 +155,26 @@ end subroutine write_pshead_
 
 subroutine write_thead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_thead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
 !   2008-12-08  todling - update to May08 version
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: thead,tptr
     implicit none
@@ -177,16 +204,26 @@ end subroutine write_thead_
 
 subroutine write_whead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_whead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
 !   2008-12-08  todling - update to May08 version
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: whead,wptr
     implicit none
@@ -215,16 +252,26 @@ end subroutine write_whead_
 
 subroutine write_qhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_qhead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
 !   2008-12-08  todling - update to May08 version
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: qhead,qptr
     implicit none
@@ -253,15 +300,25 @@ end subroutine write_qhead_
 
 subroutine write_spdhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_spdhead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
+!   2009-08-14  lueken
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: spdhead,spdptr
     implicit none
@@ -290,15 +347,25 @@ end subroutine write_spdhead_
 
 subroutine write_srwhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_srwhead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: srwhead,srwptr
     implicit none
@@ -327,15 +394,25 @@ end subroutine write_srwhead_
 
 subroutine write_rwhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_srwhead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: rwhead,rwptr
     implicit none
@@ -364,15 +441,25 @@ end subroutine write_rwhead_
 
 subroutine write_dwhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_dwhead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: dwhead,dwptr
     implicit none
@@ -401,15 +488,25 @@ end subroutine write_dwhead_
 
 subroutine write_ssthead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_ssthead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use obsmod, only: ssthead, sstptr
     implicit none 
     integer(i_kind) mobs
@@ -435,15 +532,25 @@ end subroutine write_ssthead_
 
 subroutine write_pwhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_pwhead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use gridmod, only: nsig
     use obsmod, only: pwhead, pwptr
     implicit none 
@@ -470,16 +577,26 @@ end subroutine write_pwhead_
 
 subroutine write_ozhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_ozhead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
 !   2008-11-25  todling - merged with NCEP-May-2008
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use obsmod, only: ozhead, ozptr
     implicit none 
     integer(i_kind) mobs
@@ -505,15 +622,25 @@ end subroutine write_ozhead_
 
 subroutine write_o3lhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_o3lhead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use obsmod, only: o3lhead, o3lptr
     implicit none 
     integer(i_kind) mobs
@@ -539,15 +666,25 @@ end subroutine write_o3lhead_
 
 subroutine write_gpshead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_gpshead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2009-01-27  todling
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use obsmod, only: gpshead, gpsptr
     use gridmod, only : nsig
     implicit none 
@@ -577,15 +714,25 @@ end subroutine write_gpshead_
 
 subroutine write_pcphead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_pcphead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use obsmod, only: pcphead, pcpptr
     use gridmod, only : nsig5
     use pcpinfo, only : npredp
@@ -614,22 +761,32 @@ end subroutine write_pcphead_
 
 subroutine write_radhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_radhead_  Write obs-specific data structure to file
+!   prgmmr: todling
 !
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
 !   2007-10-03  todling
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use obsmod, only: radhead, radptr
     use radinfo, only: npred
     use gridmod, only: nsig3p3
     implicit none 
     integer(i_kind) mobs
  
-    integer(i_kind) i,j,nchan
+    integer(i_kind) nchan
 
     radptr   => radhead(ii)%head
     mobs=0
@@ -663,15 +820,25 @@ end subroutine write_radhead_
 
 subroutine write_laghead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_laghead_  Write obs-specific data structure to file
+!   prgmmr: meunier
 !
 ! abstract: Write obs-specific data structure to file (for lagrangian data).
 !
 ! program history log:
 !   2009-04-02  meunier
+!   2009-08-14  lueken - update documentation
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use obsmod, only: laghead,lagptr
     implicit none
 

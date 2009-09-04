@@ -40,10 +40,10 @@ subroutine obs_para(ndata,mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
   use constants, only: zero,izero
   use jfunc, only: factqmin,factqmax
-  use mpimod, only: mpi_comm_world,ierror,mpi_sum,npe,mpi_integer
+  use mpimod, only: npe
   use obsmod, only: obs_setup,dtype,mype_diaghdr,ndat,nsat1, &
               obsfile_all,dplat
   implicit none
@@ -149,7 +149,7 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,one
+  use constants, only: izero
   use gridmod, only: periodic_s,nlon,nlat,jlon1,ilat1,istart,jstart
   use mpimod, only: npe
   implicit none
@@ -162,11 +162,10 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
   character(10),intent(in):: obstypeall
 
 ! Declare local variables
-  integer(i_kind) j,lon,lat,lat_data,lon_data,n,k,lunin
+  integer(i_kind) lon,lat,lat_data,lon_data,n,k,lunin
   integer(i_kind) jj,nreal,nchanl,nn_obs,ndatax
   integer(i_kind) ndata_s,klim
   integer(i_kind),dimension(npe):: ibe,ibw,ibn,ibs
-  real(r_kind):: dlat,dlon
   logical,allocatable,dimension(:):: luse,luse_s
   real(r_kind),allocatable,dimension(:,:):: obs_data,data1_s
   integer(i_kind),allocatable,dimension(:):: nprocs
@@ -290,9 +289,8 @@ subroutine dislag(ndata,mm1,lunout,obsfile,obstypeall,ndata_s)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,one
-  use gridmod, only: periodic_s,nlon,nlat,jlon1,ilat1,istart,jstart
-  use lag_fields, only: ntotal_orig_lag,orig_lag_num
+  use constants, only: izero
+  use lag_fields, only: orig_lag_num
   implicit none
 
 ! Declare passed variables
@@ -302,9 +300,8 @@ subroutine dislag(ndata,mm1,lunout,obsfile,obstypeall,ndata_s)
   character(10),intent(in):: obstypeall
 
 ! Declare local variables
-  integer(i_kind) j,num_data,n,k,lunin,num
+  integer(i_kind) num_data,n,lunin,num
   integer(i_kind) jj,nreal,nchanl,nn_obs,ndatax
-  real(r_kind):: dlat,dlon
   logical,allocatable,dimension(:):: luse,luse_s,luse_x
   real(r_kind),allocatable,dimension(:,:):: obs_data,data1_s
   character(10):: obstype

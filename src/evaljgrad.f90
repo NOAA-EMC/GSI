@@ -1,6 +1,9 @@
 subroutine evaljgrad(xhat,fjcost,gradx,lupdfgs,nprt,calledby)
 
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    evaljgrad
+!   prgmmr: tremolet
 !
 ! abstract: Evaluate cost function and its gradient at point xhat.
 !
@@ -11,16 +14,23 @@ subroutine evaljgrad(xhat,fjcost,gradx,lupdfgs,nprt,calledby)
 !   2008-12-04  todling - update interface to intjo
 !   2009-01-18  todling - calc dot-prods in quad precision
 !                       - add diagnostic call when using strong constraint
+!   2009-08-14  lueken  - update documentation
 !
-! input argument list:
-!   xhat - current state estimate (in control space)
-!   nprt - print level
+!   input argument list:
+!    xhat - current state estimate (in control space)
+!    nprt - print level
+!    lupdfgs
+!    calledby
 !
-! output argument list:
-!   fjcost - value of cost function
-!   gradx  - gradient (in control space)
+!   output argument list:
+!    fjcost - value of cost function
+!    gradx  - gradient (in control space)
 !
-!$$$
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
 use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, lwrtinc
@@ -55,7 +65,6 @@ type(state_vector) :: mval(nsubwin)
 type(predictors) :: sbias, rbias
 real(r_quad) :: zjb,zjo,zjc,zjl
 integer(i_kind) :: ii,iobs,ibin
-real(r_kind) :: zdummy(lat2,lon2,nsig)
 logical :: llprt,llouter
 character(len=255) :: seqcalls
 

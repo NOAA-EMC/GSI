@@ -68,9 +68,9 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   use kinds, only: r_kind,i_kind,r_double
   use constants, only: izero,deg2rad,zero,rad2deg,r60inv
   use obsmod, only: iadate,ref_obs,offtime_data
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
-  use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
+  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
+  use convinfo, only: nconvtype,ctwind,cermax, &
+        ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
   use gridmod, only: regional,nlon,nlat,tll2xy,rlats,rlons
   implicit none
 
@@ -98,7 +98,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 ! Declare local variables
   logical good,outside
   
-  character(10) date,nemo
+  character(10) nemo
   character(80) hdr1a
   character,dimension(8):: subset
   character(len=16),allocatable,dimension(:):: gpsro_ctype

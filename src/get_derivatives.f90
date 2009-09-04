@@ -1,7 +1,7 @@
 subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
                  u_x,v_x,t_x,p_x,q_x,oz_x,skint_x,cwmr_x, &
                  u_y,v_y,t_y,p_y,q_y,oz_y,skint_y,cwmr_y, &
-                 nlevs,mype,nfldsig)
+                 nlevs,nfldsig)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_derivatives  compute horizontal derivatives
@@ -24,7 +24,6 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !     skint    - skin temperature
 !     cwmr     - cloud water mixing ratio
 !     nlevs    - number of levs on current processor in horizontal slab mode
-!     mype     - current processor number
 !     nfldsig  - number of time levels
 !
 !   output argument list:
@@ -75,7 +74,6 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   implicit none
 
 ! Passed variables
-  integer(i_kind) mype
   integer(i_kind) nlevs,nfldsig
   real(r_kind),dimension(lat2,lon2,nfldsig),intent(in):: p
   real(r_kind),dimension(lat2,lon2),intent(in):: skint
@@ -152,7 +150,7 @@ end subroutine get_derivatives
 
 subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
                  u_x,v_x,t_x,p_x,q_x,oz_x,skint_x,cwmr_x, &
-                 u_y,v_y,t_y,p_y,q_y,oz_y,skint_y,cwmr_y,nlevs,mype)
+                 u_y,v_y,t_y,p_y,q_y,oz_y,skint_y,cwmr_y,nlevs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    tget_derivatives  adjoint of get_derivatives
@@ -183,7 +181,6 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !     skint_y  - latitude derivative of skin temperature
 !     cwmr_y   - latitude derivative of cwmr
 !     nlevs    - number of levs on current processor in horizontal slab mode
-!     mype     - current processor number
 !
 !   output argument list:
 !     u        - longitude velocity component
@@ -210,7 +207,6 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   implicit none
 
 ! Passed variables
-  integer(i_kind) mype
   integer(i_kind) nlevs
   real(r_kind),dimension(lat2,lon2),intent(inout):: p,skint
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,q,cwmr,oz,u,v
@@ -324,7 +320,7 @@ subroutine get_zderivs(z,z_x,z_y,mype)
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,lat1,lon1,&
+  use gridmod, only: regional,nlat,nlon,lat2,lon2,lat1,lon1,&
      displs_s,ltosj_s,ijn_s,ltosi,ltosj,iglobal,ltosi_s,itotsub,&
      ijn,displs_g
   use compact_diffs, only: compact_dlat,compact_dlon

@@ -1,6 +1,9 @@
 subroutine sqrtmin()
 
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    sqrtmin
+!   prgmmr: tremolet
 !
 ! abstract: Minimize cost function using sqrt(B) preconditioner
 !
@@ -9,21 +12,28 @@ subroutine sqrtmin()
 !   2007-11-23  todling  - add timers
 !   2008-01-04  tremolet - forecast sensitivity option
 !   2009-01-18  todling  - calc dot-prod in quad precision
+!   2009-08-12  lueken   - updated documentation
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
 !
 !$$$
 
-use kinds, only: r_kind,i_kind,r_quad
+use kinds, only: r_single,r_kind,i_kind,r_quad
 use gsi_4dvar, only: l4dvar, lsqrtb, lcongrad, lbfgsmin, ltlint, &
                      ladtest, lgrtest, lanczosave, nwrvecs
 use jfunc, only: jiter,miter,niter,xhatsave,jiterstart
 use qcmod, only: nlnqc_iter
-use constants, only: zero, one
+use constants, only: zero
 use mpimod, only: mype
 use obs_sensitivity, only: lobsensadj, lobsensmin, lobsensfc, lobsensincr, &
-                           iobsconv, fcsens, llancdone, dot_prod_obs, &
-                           lsensrecompute,lobsensjb
+                           iobsconv, fcsens, llancdone, dot_prod_obs
 use obsmod, only: lsaveobsens,l_do_adjoint
-use qnewton, only: lbfgs
 use qnewton3, only: m1qn3
 use lanczos, only: congrad,setup_congrad,save_precond,congrad_ad,read_lanczos
 use adjtest, only: adtest
@@ -36,7 +46,7 @@ implicit none
 
 character(len=*), parameter :: myname='sqrtmin'
 ! Declare local variables  
-type(control_vector) :: xhat, gradx, gradf, xsens
+type(control_vector) :: xhat, gradx, gradf
 real(r_kind) :: costf,eps,rdx,zeps,zy
 real(r_quad) :: zf0,zg0,zff,zgf,zge,zgg         
 integer(i_kind) :: nprt,itermax,ii,itest,jtermax
@@ -93,7 +103,6 @@ zeps=eps
 jtermax=itermax
 
 if (lbfgsmin) then
-! call lbfgs  (xhat,costf,gradx,eps,itermax,nprt,nwrvecs)
   call m1qn3  (xhat,costf,gradx,eps,itermax,nprt,nwrvecs)
 
 elseif (lcongrad) then
@@ -114,12 +123,6 @@ elseif (lcongrad) then
       call congrad(xhat,costf,gradx,eps,itermax,iobsconv,lsavev)
     endif
 
-!yt    if (lsensrecompute.and.lobsensjb.and.jiter==miter) then
-!yt      do ii=1,fcsens%lencv
-!yt        fcsens%values(ii) = xhatsave%values(ii) + xhat%values(ii)
-!yt      end do
-!yt    endif
-
 !   Compute sensitivity
     zgg=dot_product(fcsens,fcsens,r_quad)
     if (mype==0) write(6,888)trim(myname),': Norm fcsens=',sqrt(zgg)
@@ -138,7 +141,7 @@ else  ! plain conjugate gradient
     write(6,*)'sqrtmin: pcgsqrt requires ltlint'
     call stop2(309)
   end if
-  call pcgsqrt(xhat,costf,gradx,eps,itermax,nprt)
+  call pcgsqrt(xhat,costf,gradx,itermax,nprt)
 endif
 
 if (mype==0) write(6,*)trim(myname),': Minimization final diagnostics'
@@ -218,7 +221,7 @@ else
     write(6,888)trim(myname),': Gradient norm estimated,actual,error:',zge,zgf,zgg
   endif
 
-  if (zgg>0.1) then
+  if (zgg>0.1_r_single) then
     if (mype==0) write(6,*)'*** sqrtmin: error estimated gradient ***'
 !   With conjugate gradient, estimated gradient norm will differ from
 !   actual gradient norm without re-orthogonalisation so don't abort.

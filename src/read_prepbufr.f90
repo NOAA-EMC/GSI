@@ -100,7 +100,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use kinds, only: r_kind,r_double,i_kind
   use constants, only: zero,one_tenth,one,deg2rad,fv,t0c,half,&
        three,four,rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,&
-       izero
+       izero,r60inv
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
        rlats,rlons,twodvar_regional,check_rotate_wind
@@ -112,7 +112,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use obsmod, only: iadate,oberrflg,offtime_data,perturb_obs,perturb_fact,ran01dom
   use obsmod, only: blacklst
   use converr,only: etabl
-  use gsi_4dvar, only: l4dvar,idmodel,iadatebgn,iadateend,time_4dvar,winlen
+  use gsi_4dvar, only: l4dvar,iadatebgn,iadateend,time_4dvar,winlen
   use qcmod, only: errormod,noiqc
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
@@ -131,7 +131,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),dimension(nlat,nlon,nsig),intent(in):: prsl_full
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_5 = 0.5_r_kind
   real(r_kind),parameter:: r0_75 = 0.75_r_kind
   real(r_kind),parameter:: r0_7 = 0.7_r_kind
   real(r_kind),parameter:: r1_2 = 1.2_r_kind
@@ -183,16 +182,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) crit1,timedif,xmesh,pmesh
 
 ! solar angle variables
-  real(r_kind) dangl,sdgl,cdgl,tsnoon
-  integer(i_kind) idayr,idaysy
-
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
   real(r_kind) qtflg,tdry,rmesh,ediff,usage
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) qoe,qobcon,pwoe,pwmerr,dlnpob,ppb,poe,qmaxerr
   real(r_kind) toe,woe,errout,oelev,dlat,dlon,sstoe,dlat_earth,dlon_earth
   real(r_kind) selev,elev,stnelev
-  real(r_kind) :: tsavg,sty,ff10,sfcr
+  real(r_kind) :: tsavg,ff10,sfcr
   real(r_kind),dimension(nsig):: presl
   real(r_kind),dimension(nsig-1):: dpres
   real(r_kind),allocatable,dimension(:):: presl_thin
@@ -340,14 +336,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !    compute day of the year, # days in year, true solar noon for today's date
 
-!    call w3fs13(iadate(1),iadate(2),iadate(3),idayr)  ! day of year
-!    call w3fs13(iadate(1),12,31,idaysy)               ! #days in year
-!    dangl  = 6.2831853_r_kind * (real(idayr) - 79._r_kind)/real(idaysy)
-!    sdgl   = sin(dangl)
-!    cdgl   = cos(dangl)
-!    tsnoon = -.030_r_kind*sdgl-.120_r_kind*cdgl+.330_r_kind*sdgl*cdgl+ &
-!         .0016_r_kind*sdgl**2-.0008_r_kind
-
   end if
 
 
@@ -476,7 +464,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         endif
         xmesh=rmesh
 
-        call make3grids(xmesh,pmesh,nlevp)
+        call make3grids(xmesh,nlevp)
 
         if (.not.use_all) then
           allocate(presl_thin(nlevp))
@@ -590,7 +578,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !        Add obs reference time, then subtract analysis time to get obs time relative to analysis
 
-         time_correction=float(minobs-minan)/60._r_kind
+         time_correction=float(minobs-minan)*r60inv
             
        else
          time_correction=zero
@@ -641,9 +629,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      if(oberrflg)then
 
 !      Set lower limits for observation errors
-       terrmin=r0_5
+       terrmin=half
        werrmin=one
-       perrmin=r0_5
+       perrmin=half
        qerrmin=one_tenth
        pwerrmin=one
 
@@ -1033,9 +1021,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if(regional)then
               u0=uob
               v0=vob
-              call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlat_earth,dlon,dlat)
+              call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
               if(diagnostic_reg) then
-                 call rotate_wind_xy2ll(uob,vob,u00,v00,dlon_earth,dlat_earth,dlon,dlat)
+                 call rotate_wind_xy2ll(uob,vob,u00,v00,dlon_earth,dlon,dlat)
                  nvtest=nvtest+1
                  disterr=sqrt((u0-u00)**2+(v0-v00)**2)
                  vdisterrmax=max(vdisterrmax,disterr)
@@ -1189,7 +1177,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          mask at nearest analysis grid points.
 
            sstoe=r0_75
-!          sstoe=sstdat(5,k)
 
            cdata_all(1,iout)=sstoe                   ! sst error
            cdata_all(2,iout)=dlon                    ! grid relative longitude
@@ -1212,14 +1199,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
            cdata_all(20,iout)=stnelev                ! station elevation (m)
 
-
-!          if(kx == 120 .or. kx == 282)then
-!             write(6,*)'READ_PREPBUFR:  kx,rstation_id,sstq=',&
-!                  kx,rstation_id,sstq
-!             do i=1,10
-!                write(6,*)'READ_PREPBUFR:  i,cdata_all=',i,cdata_all(i,ndata)
-!             end do
-!          end if
 
 !          Measurement types
 !             0       Ship intake

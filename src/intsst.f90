@@ -1,8 +1,9 @@
 module intsstmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intsstmod    module for intsst and its tangent linear intsst_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intsstmod    module for intsst and its tangent linear intsst_tl
+!  prgmmr:
 !
 ! abstract: module for intsst and its tangent linear intsst_tl
 !
@@ -10,7 +11,18 @@ module intsstmod
 !   2005-05-16  Yanqiu zhu - wrap intsst and its tangent linear intsst_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intsst_tl
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intsst
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -44,7 +56,9 @@ subroutine intsst(ssthead,rsst,ssst)
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !
 !   input argument list:
+!     ssthead
 !     ssst    - increment in grid space
+!     rsst
 !
 !   output argument list:
 !     rsst    - results from observation operator (0 for no data)
@@ -55,7 +69,7 @@ subroutine intsst(ssthead,rsst,ssst)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,two,zero,tiny_r_kind,cg_term
+  use constants, only: half,one,tiny_r_kind,cg_term
   use obsmod, only: sst_ob_type, lsaveobsens, l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11

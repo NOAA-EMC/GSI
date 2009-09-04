@@ -32,7 +32,6 @@
       use prognostics, only : prognostics_final
       use prognostics, only : prognostics_dotp
       use prognostics, only : prognostics_dup
-      use prognostics, only : prognostics_cnst
       use m_iostate,   only : getstate_init
       use m_iostate,   only : getstate
       use m_iostate,   only : getstate_clean
@@ -65,10 +64,10 @@
 
 !  GSI entries
 !  -----------
-      use kinds,       only : r_kind,r_single,i_kind
+      use kinds,       only : r_kind,i_kind
       use mpimod,      only : mype,mpi_rtype,mpi_comm_world
       use mpimod,      only : strip
-      use gridmod,     only : displs_s,irc_s,ltosj_s,ijn_s,ird_s,fill_ns
+      use gridmod,     only : displs_s,ijn_s
       use gridmod,     only : nlat, nlon     ! no. lat/lon
       use gridmod,     only : lat1, lon1     ! no. lat/lon on subdomain (no buffer)
       use gridmod,     only : lat2, lon2     ! no. lat/lon on subdomain (buffer pnts on ends)
@@ -79,7 +78,7 @@
       use gridmod,     only : itotsub        ! no. of horizontal points of all subdomains combined
       use gridmod,     only : bk5
       use gsi_io,      only : reorder21,reorder12
-      use constants,   only : izero,zero,one,tiny_r_kind
+      use constants,   only : zero,one,r1000,r3600
       use state_vectors                      ! GSI state vector
 
       implicit none
@@ -157,8 +156,7 @@
       integer(i_kind), save :: mycount = 0
       real(r_kind), parameter :: PPMV2DU    = 1.657E-6_r_kind
       real(r_kind), parameter :: kPa_per_Pa = 0.001_r_kind
-      real(r_kind), parameter :: Pa_per_kPa = 1000._r_kind
-      real(r_kind), parameter :: R3600      = 3600.0_r_kind
+      real(r_kind), parameter :: Pa_per_kPa = r1000
 
       logical, parameter :: memtraj = .true.
       logical, parameter :: verbose = .false.
@@ -199,10 +197,10 @@
 
       type(state_vector),       intent(inout) :: xx       ! GSI increment
 
-      integer,                    intent(out) :: stat
+      integer(i-kind),                    intent(out) :: stat
 
-      integer,optional,           intent(out) :: nymd_in
-      integer,optional,           intent(out) :: nhms_in
+      integer(i_kind),optional,           intent(out) :: nymd_in
+      integer(i_kind),optional,           intent(out) :: nhms_in
 
 ! !DESCRIPTION: Convert GEOS-5 perturbation vector to GSI increment vector
 !               (as pgcm2gsi1_, but reads GCM perturbation from file)
@@ -344,7 +342,7 @@
 
       type(state_vector),       intent(inout) :: xx     ! GSI increment
 
-      integer,                    intent(out) :: stat
+      integer(i_kind),                    intent(out) :: stat
 
 ! !DESCRIPTION: Convert GEOS-5 perturbation vector to GSI increment vector
 !
@@ -365,7 +363,6 @@
 
       integer(i_kind) i,j,k,ij,ijk
       integer(i_kind) ierr
-      real(r_kind) factor
       logical      scaleit
 
       scaleit = .true.  ! default: scale input vector as original var from G-5 GCM
@@ -503,11 +500,30 @@
       CONTAINS
 
       subroutine delp2ps_ ( alpha )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    delp2ps_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    alpha
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 ! inverse
       implicit none
       real(r_kind), intent(in) :: alpha
-      real(r_kind) :: bkweight
-      integer(i_kind) i,j,k,ij
         xx%p = zero
         do k=1,nsig
            ij=0
@@ -521,11 +537,31 @@
       end subroutine delp2ps_
 
       subroutine ps2delp_ad_ ( alpha )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    ps2delp_ad_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    alpha
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 ! adm-only
       implicit none
       real(r_kind), intent(in) :: alpha
       real(r_kind) bkweight
-      integer(i_kind) i,j,k,ij
         xx%p=zero
         do k=1,nsig
            bkweight = alpha * ( bk5(k) - bk5(k+1) ) / ( bk5(1) - bk5(nsig+1) )
@@ -540,11 +576,35 @@
       end subroutine ps2delp_ad_
 
       subroutine pert2gsi_ ( fld, sub, ngd, ngs, stat_ )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    pert2gsi_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ngd,ngs
+!    fld
+!
+!   output argument list:
+!    sub
+!    stat_
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+      implicit none
 
-      integer, intent(in) :: ngd, ngs
-      real(r8),     intent(in)  :: fld(:,:,:)
-      real(r_kind), intent(out) :: sub(:,:,:)
-      integer, intent(out) :: stat_
+      integer(i_kind), intent(in)  :: ngd, ngs
+      real(r8),        intent(in)  :: fld(:,:,:)
+      real(r_kind),    intent(out) :: sub(:,:,:)
+      integer(i_kind), intent(out) :: stat_
 
       character(len=*), parameter :: myname_ = myname//'*pert2gsi_'
 
@@ -552,7 +612,7 @@
       real(r_kind), allocatable :: work3d(:,:,:)     ! auxliar 3d array
       real(r_kind), allocatable :: work2d(:,:)       ! auxliar 2d array
       real(r_kind), allocatable :: work(:)
-      integer(i_kind) i,j,k,mm1
+      integer(i_kind) mm1
 
       mm1 = mype+1 
       stat_ = 0
@@ -682,7 +742,7 @@
 ! !OUTPUT PARAMETERS:
 
       type(dyn_prog),optional,intent(out) :: xp
-      integer,            intent(out) :: stat
+      integer(i_kind),            intent(out) :: stat
 
 ! !DESCRIPTION: Convert GSI increment vector to GEOS-5 perturbation vector
 !               (as gsi2pgcm1_, but output GCM perturbation to file)
@@ -784,7 +844,7 @@
 ! !OUTPUT PARAMETERS:
 
       type(dyn_prog),     intent(out)   :: xpert ! GCM perturbation vector
-      integer,            intent(out)   :: stat  ! return error code
+      integer(i_kind),    intent(out)   :: stat  ! return error code
 
 ! !DESCRIPTION: Converts GSI increments in to ADM/TLM perturbations.
 !
@@ -805,7 +865,6 @@
 
       integer  i,j,k,ijk,ij
       integer  ierr
-      character(len=255) :: whatin
 
       stat = 0
 
@@ -934,12 +993,32 @@
 
       CONTAINS
 
-      subroutine ps2delp_ ( alpha ) 
+      subroutine ps2delp_ ( alpha )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    ps2delp_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    alpha
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+ 
 ! tlm-only
       implicit none
       real(r_kind), intent(in) :: alpha
       real(r_kind) bkweight
-      integer(i_kind) i,j,k,ij
         do k=1,nsig
            bkweight = alpha * ( bk5(k) - bk5(k+1) ) / ( bk5(1) - bk5(nsig) )
            ij=0
@@ -953,10 +1032,30 @@
       end subroutine ps2delp_
 
       subroutine delp2ps_ad_ ( alpha )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    delp2ps_ad_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    alpha
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 ! inverse-adm
       implicit none
       real(r_kind), intent(in) :: alpha
-      integer(i_kind) i,j,k,ij
         do k=1,nsig
            ij=0
            do j=1,lon2
@@ -969,11 +1068,35 @@
       end subroutine delp2ps_ad_
 
       subroutine gsi2pert_ ( sub, fld, ngd, ngs, stat_ )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    gsi2pert_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ngd,ngs
+!    sub
+!
+!   output argument list:
+!    fld
+!    stat_
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+      implicit none
 
-      integer,      intent(in)  :: ngd, ngs
-      real(r_kind), intent(in)  :: sub(:,:,:)
-      real(r8),     intent(out) :: fld(:,:,:)
-      integer,      intent(out) :: stat_
+      integer(i_kind),      intent(in)  :: ngd, ngs
+      real(r_kind),         intent(in)  :: sub(:,:,:)
+      real(r8),             intent(out) :: fld(:,:,:)
+      integer(i_kind),      intent(out) :: stat_
 
       character(len=*), parameter :: myname_ = myname//'*gsi2pert_'
 
@@ -982,7 +1105,7 @@
       real(r_kind), allocatable :: work3d(:,:,:)     ! auxliar 3d array
       real(r_kind), allocatable :: work(:)
 
-      integer(i_kind) i,j,k,mm1,ierr
+      integer(i_kind) mm1
 
       mm1 = mype+1 
       stat_ = 0
@@ -1101,14 +1224,14 @@
 
 ! !INPUT PARAMETERS:
 
-      integer,         intent(in) :: myimr,myjnp,mynl
+      integer(i_kind), intent(in) :: myimr,myjnp,mynl
       type(dyn_prog),  intent(in) :: ypert  ! incoming GCM perturbation vector
 
 ! !OUTPUT PARAMETERS:
 
       type(dyn_prog), intent(out) :: xpert  ! interpolated GCM perturbation vector
 
-      integer,        intent(out) :: stat
+      integer(i_kind),intent(out) :: stat
 
 ! !DESCRIPTION: Interpolate and convert GEOS-5 perturbation vector 
 !               into internal GEOS-5 perturbation vector.
@@ -1120,7 +1243,7 @@
 !EOP
 !-----------------------------------------------------------------------
 
-      integer n,ierr
+      integer(i_kind) n,ierr
 
       stat = 0
 
@@ -1137,12 +1260,37 @@
       CONTAINS
 
       subroutine pert2pert_ ( ngd,ngs, myimr,myjnp,mynl,fldi,  fldo, stat_ )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    pert2pert_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ngd,ngs
+!    myimr,myjnp,mynl
+!    fldi
+!
+!   output argument list:
+!    fldo
+!    stat_
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+      implicit none
 
-      integer,  intent(in)  :: ngd,ngs
-      integer,  intent(in)  :: myimr,myjnp,mynl
+      integer(i_kind),  intent(in)  :: ngd,ngs
+      integer(i_kind),  intent(in)  :: myimr,myjnp,mynl
       real(r8), intent(in)  :: fldi(:,:,:)
       real(r8), intent(out) :: fldo(:,:,:)
-      integer,  intent(out) :: stat_
+      integer(i_kind),  intent(out) :: stat_
 
       character(len=*), parameter :: myname_ = myname//'*pert2pert_'
 
@@ -1236,7 +1384,7 @@
       character(len=*), parameter :: myname_ = myname//'*init_'
 #ifdef GEOS_PERT
       type(dyn_prog) :: prog
-      integer m,n
+      integer(i_kind) m,n
 #endif /* GEOS_PERT */
 
       stat = 0
@@ -1290,7 +1438,7 @@
 
 !     Set public DUMMY time step of TL and AD models
 !     ----------------------------------------------
-      ndtpert = R3600
+      ndtpert = r3600
 
 #endif /* GEOS_PERT */
 
@@ -1325,7 +1473,6 @@
 !EOP
 !-----------------------------------------------------------------------
 
-      character(len=*), parameter :: myname_ = myname//'*init_'
 #ifdef GEOS_PERT
       type(dyn_prog) :: prog
 #endif /* GEOS_PERT */
@@ -1360,8 +1507,27 @@
       end subroutine clean_
 
       subroutine mpp_init_
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mpp_init_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
       implicit none
-      integer ierror
+      integer(i_kind) ierror
       logical already_init_mpi
 #ifdef GEOS_PERT
       call mp_init
@@ -1372,9 +1538,29 @@
       end subroutine mpp_init_
 
     subroutine check_bks
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    check_bks
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
     implicit none
 #ifdef GEOS_PERT
-    integer k,kk 
+    integer(i_kind) k,kk 
     if(bks_checked_) return
     do k = 1, nsig+1
        kk = nsig-k+2
@@ -1395,10 +1581,32 @@
 !-------------------------------------------------------------------------
    subroutine SwapV_(fld)
 !-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    SwapV_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    fld
+!
+!   output argument list:
+!    fld
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
    implicit none
    real(r_kind),intent(inout) ::  fld(:,:,:)
    real(r_kind),allocatable   :: work(:,:,:)
-   integer im, jm, km
+   integer(i_kind) im, jm, km
    im   = size(fld,1)
    jm   = size(fld,2)
    km   = size(fld,3)
@@ -1411,10 +1619,33 @@
    subroutine SwapIJK_(aij,aji)
 !-------------------------------------------------------------------------
 ! transpose IJK-ordered array to JIK-ordered array
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    SwapIJK_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    aij
+!    aji
+!
+!   output argument list:
+!    aji
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
    implicit none
    real(r_kind),dimension(:,:,:),intent(in)    :: aij
    real(r_kind),dimension(:,:,:),intent(inout) :: aji
-   integer :: i,k,isz,jsz,ksz,kk
+   integer(i_kind) :: i,k,isz,jsz,ksz,kk
 !
    isz=size(aij,1)
    jsz=size(aij,2)

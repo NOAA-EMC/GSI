@@ -31,8 +31,10 @@ subroutine statsrad(aivals,stats,ndata)
 !     ndata(*,1)- number of observation keep for processing
 !     ndata(*,2)- number of observation read
 !     ndata(*,3)- number of observations keep after read
+!     stats
 !
 !   output argument list:
+!     stats
 !
 ! attributes:
 !   language: f90

@@ -11,6 +11,7 @@
 
    use gsimod
    use timermod, only: timer_pri
+   implicit none
 
 !$$$  main program documentation block
 !                .      .    .                                       .

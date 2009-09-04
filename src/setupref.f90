@@ -96,21 +96,19 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig,&
        ges_z,ges_tv,ges_q
-  use gridmod, only: lat2,lon2,nsig
+  use gridmod, only: nsig
   use gridmod, only: latlon11,get_ij
-  use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind
+  use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,quarter
   use constants, only: zero,one,two,eccentricity,semi_major_axis,&
        grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,&
        three,four,five,half
   use qcmod, only: repe_gps
   use jfunc, only: jiter,last,miter
-  use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
+  use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   implicit none
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r0_1 = 0.1_r_kind
-  real(r_kind),parameter:: r0_25 = 0.25_r_kind
   real(r_kind),parameter:: r0_455 = 0.455_r_kind
   real(r_kind),parameter:: r2_5 = 2.5_r_kind
   real(r_kind),parameter:: ten = 10.0_r_kind
@@ -154,7 +152,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   integer(i_kind):: ier,ilon,ilat,ihgt,igps,itime,ikx,iuse,ikxx
   integer(i_kind):: iprof,ipctc,iroc,isatid,iptid
   integer(i_kind):: ilate,ilone,mm1,ibin,ioff,idia
-  integer(i_kind) i,j,k,k1,k2,n,nreal,mreal,jj
+  integer(i_kind) i,j,k,k1,k2,nreal,mreal,jj
   integer(i_kind) :: kl,k1l,k2l
   integer(i_kind) kprof,istat,jprof
   integer(i_kind),dimension(4):: gps_ij
@@ -334,7 +332,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
      rdiagbuf(:,i)         = zero
 
      rdiagbuf(1,i)         = ictype(ikx)    ! observation type
-!    rdiagbuf(2,i)         = icsubtype(ikx) ! observation subtype (not defined yet)
 !    rdiagbuf(2,i)         = zero           ! uses gps_ref (one=use of bending angle)
      rdiagbuf(2,i)         = data(iprof,i)  ! profile identifier
      rdiagbuf(3,i)         = data(ilate,i)  ! lat in degrees
@@ -391,7 +388,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
        else 
 !          Statistics QC check if obs passed gross error check 
            cutoff=zero
-           cutoff1=r0_25+half*cos(data(ilate,i)*deg2rad)
+           cutoff1=quarter+half*cos(data(ilate,i)*deg2rad)
            if(trefges<=r240) then
              cutoff2=half
 

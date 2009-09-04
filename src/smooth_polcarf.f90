@@ -17,7 +17,12 @@ module smooth_polcarf
 !   2005-04-28  parrish
 !
 ! subroutines included:
+!   sub init_smooth_polcas
+!   sub destroy_smooth_polcas
+!   sub setup_smooth_polcas
 !   sub smooth_polcas   - interpolate from x-y to lat-lon using smooth cascade interpolation.
+!   sub smooth_polcasa
+!   sub bspline
 !
 ! Variable Definitions:
 !   def norsp      - order of smooth cascade interpolation
@@ -83,12 +88,52 @@ module smooth_polcarf
 contains
 
   subroutine init_smooth_polcas
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_smooth_polcas  
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-11  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+    implicit none
 
     norsp=0
 
   end subroutine init_smooth_polcas
 
   subroutine destroy_smooth_polcas
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroy_smooth_polcas
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-11  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+    implicit none
 
     deallocate(xwtxys,ywtxys,ixwtxys,iywtxys,nxwtxys,nywtxys)
 
@@ -118,6 +163,7 @@ contains
   use gridmod, only: nlon,nlat,rlats
   use constants, only: zero,half,one,two,pi
   use berror, only: nf,nr
+  implicit none
 
   integer(i_kind) i,j,jj,nxgrid,nygrid
   real(r_kind) dlon,df,pi2
@@ -484,9 +530,12 @@ subroutine bspline(tin,k,wout)
 !      0 <= tin <= 1
 
   use constants, only: zero,one
+  implicit none
 
-  integer(i_kind) k
-  real(r_kind) tin,wout(0:k-1)
+  integer(i_kind),intent(in):: k
+  real(r_kind),intent(in)   :: tin
+
+  real(r_kind),intent(out)  :: wout(0:k-1)
 
   integer(i_kind) i,m
   real(r_kind) t,w(0:k),rmi(k)

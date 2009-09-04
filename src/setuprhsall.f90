@@ -65,7 +65,6 @@ subroutine setuprhsall(ndata,mype)
 !     ndata(*,1)- number of prefiles retained for further processing
 !     ndata(*,2)- number of observations read
 !     ndata(*,3)- number of observations keep after read
-!     channelinfo - structure containing satellite sensor information
 !     mype     - mpi task id
 !
 !   output argument list:
@@ -83,19 +82,17 @@ subroutine setuprhsall(ndata,mype)
   use guess_grids, only: load_prsges,load_geop_hgt
   use obsmod, only: nsat1,iadate,nobs_type,obscounts,&
        nchan_total,ndat,obs_setup,&
-       dirname,write_diag,nprof_gps,ditype,obsdiags,lobserver,dsis,&
+       dirname,write_diag,nprof_gps,ditype,obsdiags,lobserver,&
        destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated
   use obs_sensitivity, only: lobsensfc, lsensrecompute
   use radinfo, only: mype_rad,diag_rad,jpch_rad,retrieval,fbias
-  use radinfo, only: crtm_coeffs_path
   use pcpinfo, only: diag_pcp
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
-  use gridmod, only: lat1,lon1,nsig,twodvar_regional
+  use gridmod, only: nsig,twodvar_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
   use jfunc, only: jiter,jiterstart,miter,first,last
   use qcmod, only: npres_print
-  use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success
   use convinfo, only: nconvtype,diag_conv
   use timermod, only: timer_ini,timer_fnl
   use lag_fields, only: lag_presetup,lag_state_write,lag_state_read,lag_destroy_uv
@@ -126,8 +123,6 @@ subroutine setuprhsall(ndata,mype)
   real(r_kind),dimension(npres_print,nconvtype,5,3):: bwork,bwork1
   real(r_kind),dimension(7*nsig+100,13)::awork,awork1
   real(r_kind),dimension(max(1,nprof_gps)):: toss_gps_sub
-  integer(i_kind) error_status
-  type(crtm_channelinfo_type),dimension(1) :: channelinfo
   
 !******************************************************************************
 ! Initialize timer
@@ -298,7 +293,7 @@ subroutine setuprhsall(ndata,mype)
 
 !         Set up tc-mslp data
           else if(obstype=='tcp')then
-             call setuptcp(lunin,mype,bwork,awork(1,i_tcp),nele,nobs,conv_diagsave)
+             call setuptcp(lunin,mype,bwork,awork(1,i_tcp),nele,nobs)
 
 !         Set up moisture data
           else if(obstype=='q') then

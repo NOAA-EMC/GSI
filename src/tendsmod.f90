@@ -130,6 +130,8 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+    implicit none
+
     if(.not.tndvar_initilized) return
     deallocate(what9,prsth9,r_prsum9,r_prdif9,prdif9,pr_xsum9,&
        pr_xdif9,pr_ysum9,pr_ydif9)

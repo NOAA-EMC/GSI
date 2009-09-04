@@ -21,6 +21,10 @@ module gsi_io
 !   def lendian_in        - unit number reserved for little endian input
 !   def lendian_out       - unit number reserved for little endian output
 !
+! attributes:
+!   language: f90
+!   machine:
+!
 !$$$ end documentation block
 
   use kinds, only: i_kind
@@ -67,7 +71,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: i_kind
     implicit none
 
 !   Declare passed variables
@@ -122,7 +125,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,r_single,i_kind
+    use kinds, only: r_kind,r_single
     use gridmod, only: itotsub,nlon,nlat,lat2,lon2,nsig,displs_s,ijn_s,&
          ntracer,ncloud
     use constants, only: izero,zero
@@ -361,7 +364,7 @@ contains
 !
 ! !USES:
 !
-    use kinds, only: r_kind,i_kind,r_single
+    use kinds, only: r_kind,r_single
     
     use constants, only: izero
   
@@ -638,7 +641,7 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,i_kind,r_single
+   use kinds, only: r_kind,r_single
    use gridmod, only: itotsub,ltosi_s,ltosj_s,nlat,nlon
    implicit none
 
@@ -690,7 +693,7 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,i_kind,r_single
+   use kinds, only: r_kind,r_single
    use gridmod, only: itotsub,ltosi_s,ltosj_s,nlat,nlon
    implicit none
 
@@ -743,7 +746,7 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,i_kind,r_single
+   use kinds, only: r_kind,r_single
    use gridmod, only: itotsub,iglobal,ltosi,ltosj,nlat,nlon
    implicit none
 
@@ -794,7 +797,7 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,i_kind,r_single
+   use kinds, only: r_kind,r_single
    use gridmod, only: itotsub,iglobal,ltosi,ltosj,nlat,nlon
    implicit none
 

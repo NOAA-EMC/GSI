@@ -1,6 +1,9 @@
-subroutine pcgsqrt(xhat,costf,gradx,eps,itermax,nprt)
+subroutine pcgsqrt(xhat,costf,gradx,itermax,nprt)
 
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    pcgsqrt
+!   prgmmr:      tremolet
 !
 ! abstract: solve inner loop of analysis equation using conjugate
 !           gradient preconditioned with sqrt(B).
@@ -10,11 +13,24 @@ subroutine pcgsqrt(xhat,costf,gradx,eps,itermax,nprt)
 !   2009-01-14  todling  - zero-obs fix
 !   2009-01-18  todling  - carry summations in quad precision
 !
-!$$$
+!   input argument lits:
+!    xhat,gradx
+!    costf
+!    itermax,nprt
+!
+!   output argument list:
+!    xhat,gradx
+!    costf
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
 use jfunc, only: iter,jiter
-use constants, only: zero,zero_quad,tiny_r_kind,five
+use constants, only: zero,zero_quad,tiny_r_kind
 use mpimod, only: mype
 use control_vectors
 
@@ -23,7 +39,6 @@ implicit none
 ! Declare arguments
 type(control_vector), intent(inout) :: xhat,gradx
 real(r_kind), intent(inout) :: costf
-real(r_kind), intent(in)    :: eps
 integer(i_kind), intent(in) :: itermax,nprt
 
 ! Declare local variables

@@ -86,11 +86,11 @@ contains
 !
 !$$$
     use kinds, only: r_kind,r_single,i_kind
-    use gridmod, only: displs_s,irc_s,ltosj_s,ijn_s,ltosi,ltosj,&
-         ird_s,iglobal,nsig,nlat,nlon,lat2,lon2,hybrid,ltosi_s,&
+    use gridmod, only: displs_s,irc_s,ijn_s,&
+         ird_s,nsig,nlat,nlon,lat2,lon2,&
          itotsub,fill_ns,filluv_ns,ncep_sigio,ncepgfs_head,idpsfc5,idthrm5,&
          ntracer,idvc5,cp5,idvm5
-    use specmod, only: factsml_b,factvml_b,jcap_b,nc_b,idrt_b,imax,jmax
+    use specmod, only: factsml_b,factvml_b,jcap_b,nc_b
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype,reload
     use constants, only: izero,zero,one,fv
     use sigio_module, only: sigio_intkind,sigio_head,sigio_data,&
@@ -687,12 +687,9 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use mpimod, only: ierror,mpi_rtype,mpi_comm_world,npe
-    use gridmod, only: ijn_s,ird_s,irc_s,displs_s,ltosj_s,&
-         ltosi_s,itotsub,istart,jstart,nlat_sfc,nlon_sfc
+    use gridmod, only: nlat_sfc,nlon_sfc
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
          sfcio_srohdc,sfcio_axdata
-    use guess_grids, only: isli2,sno2
     use constants, only: izero,zero
     implicit none
 
@@ -851,12 +848,11 @@ contains
 !
 !$$$ end documentation block
 
-    use kinds, only: i_kind,r_kind
+    use kinds, only: i_kind
     use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
          ges_tv,ges_q,ges_oz,ges_cwmr,ges_prsl,&
          ges_u,ges_v,ges_prsi,dsfct
     use guess_grids, only: ntguessig,ntguessfc
-    use gridmod, only: lat2,lon2    
 
     implicit none
 
@@ -990,7 +986,6 @@ contains
     use specmod, only: factvml_b
     
     use sigio_module, only: sigio_intkind,sigio_head,sigio_data,&
-         sigio_sropen,sigio_srhead,sigio_sclose,sigio_aldata,&
          sigio_swopen,sigio_swhead,sigio_swdata,sigio_axdata,&
          sigio_srohdc,sigio_realkind
 

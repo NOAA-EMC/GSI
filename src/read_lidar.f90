@@ -47,11 +47,11 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
-  use constants, only: deg2rad,rad2deg,zero
+  use convinfo, only: nconvtype,ctwind, &
+        ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
+  use constants, only: deg2rad,rad2deg,zero,r60inv
   use obsmod, only: iadate,offtime_data
-  use gsi_4dvar, only: l4dvar,idmodel,iadatebgn,iadateend,time_4dvar,winlen
+  use gsi_4dvar, only: l4dvar,iadatebgn,iadateend,time_4dvar,winlen
   implicit none
 
 ! Declare passed variables
@@ -143,7 +143,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 
 !     add obs reference time, then subtract analysis time to get obs time relative to analysis
 
-     time_correction=float(minobs-minan)/60._r_kind
+     time_correction=float(minobs-minan)*r60inv
 
   else
      time_correction=zero

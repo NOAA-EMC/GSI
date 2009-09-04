@@ -1,8 +1,9 @@
 module intozmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intozmod    module for intoz and its tangent linear intoz_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intozmod    module for intoz and its tangent linear intoz_tl
+!  prgmmr:
 !
 ! abstract: module for intoz and its tangent linear intoz_tl
 !
@@ -10,7 +11,20 @@ module intozmod
 !   2005-05-13  Yanqiu zhu - wrap intoz and its tangent linear intoz_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intoz_tl; add interface back
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intoz_
+!   sub intozlay_
+!   sub intozlev_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -43,8 +57,6 @@ subroutine intoz_(ozhead,o3lhead,roz,soz)
 !     soz     - ozone increment in grid space
 !
 !   output argument list:
-!     ozhead  - layer ozone obs type pointer to obs structure
-!     o3lhead - level ozone obs type pointer to obs structure
 !     roz    - ozone results from observation operator 
 !
 ! attributes:
@@ -53,8 +65,8 @@ subroutine intoz_(ozhead,o3lhead,roz,soz)
 !
 !$$$
 !--------
-  use kinds, only: r_kind,i_kind
-  use obsmod, only: oz_ob_type,o3l_ob_type,lsaveobsens,l_do_adjoint
+  use kinds, only: r_kind
+  use obsmod, only: oz_ob_type,o3l_ob_type
   use gridmod, only: latlon1n
   implicit none
 
@@ -104,12 +116,10 @@ subroutine intozlay_(ozhead,roz,soz)
 !
 !   input argument list:
 !     ozhead  - layer ozone obs type pointer to obs structure
-!     o3lhead - level ozone obs type pointer to obs structure
 !     soz     - ozone increment in grid space
+!     roz
 !
 !   output argument list:
-!     ozhead  - layer ozone obs type pointer to obs structure
-!     o3lhead - level ozone obs type pointer to obs structure
 !     roz    - ozone results from observation operator 
 !
 ! attributes:
@@ -119,11 +129,10 @@ subroutine intozlay_(ozhead,roz,soz)
 !$$$
 !--------
   use kinds, only: r_kind,i_kind,r_quad
-  use ozinfo, only:b_oz,pg_oz
   use obsmod, only: oz_ob_type,lsaveobsens,l_do_adjoint
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
-  use constants, only: one,half,zero,tiny_r_kind,cg_term,r3600,zero_quad
+  use constants, only: one,zero,r3600,zero_quad
   implicit none
 
 ! Declare passed variables
@@ -352,9 +361,9 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
 !   input argument list:
 !     o3lhead - level ozone obs type pointer to obs structure
 !     soz1d   - ozone increment in grid space
+!     roz1d
 !
 !   output argument list:
-!     o3lhead - level ozone obs type pointer to obs structure
 !     roz1d   - results from observation operator (0 for no data)
 !
 ! attributes:
@@ -367,7 +376,7 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
   use kinds, only: r_kind,i_kind
   use obsmod, only: o3l_ob_type,lsaveobsens, l_do_adjoint
   use gridmod, only: latlon1n
-  use constants, only: one,half,zero,tiny_r_kind,cg_term,r3600
+  use constants, only: r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
 

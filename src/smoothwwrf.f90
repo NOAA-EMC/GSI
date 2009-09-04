@@ -30,11 +30,14 @@ subroutine smoothww(nx,ny,p,wl,nitr,mx)
   use constants, only: one
   implicit none
 
-  integer(i_kind) nx,ny,nitr,mx,nx1,nx2,ny1,ny2,n,kx
+  integer(i_kind),intent(in):: nx,ny,nitr,mx
+  real(r_kind),intent(in)   :: wl
+  real(r_kind),intent(inout):: p(nx,ny)
+
+  integer(i_kind) nx1,nx2,ny1,ny2,n,kx
   integer(i_kind) ky,im,jm,jp,j,ip,i
 
-  real(r_kind) hwl,hwl2,hwlx,wl
-  real(r_kind) p(nx,ny)
+  real(r_kind) hwl,hwl2,hwlx
 
 ! Initialize local variables
   hwl=wl/nitr

@@ -62,7 +62,7 @@ subroutine gsisub(mype)
   use kinds, only: i_kind
   use obsmod, only: iadate,lobserver
   use observermod, only: observer_init,observer_run,observer_finalize
-  use gridmod, only: nlat,nlon,twodvar_regional,regional,&
+  use gridmod, only: twodvar_regional,regional,&
        create_grid_vars,create_mapping,init_subdomain_vars,&
        destroy_mapping,destroy_grid_vars
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional
@@ -96,7 +96,7 @@ subroutine gsisub(mype)
   end if
 
 ! Create analysis subdomains and initialize subdomain variables
-  call create_mapping(nlat,nlon,npe)
+  call create_mapping(npe)
   call deter_subdomain(mype)
   call init_subdomain_vars
 

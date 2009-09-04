@@ -25,7 +25,6 @@ module mpimod
   use mpeu_mpif, only : mpi_real16
   use mpeu_mpif, only : mpi_status_size
   use mpeu_mpif, only : mpi_sum
-  use mpeu_mpif, only : mpi_maxloc
   use mpeu_mpif, only : mpi_integer
   use mpeu_mpif, only : mpi_integer2
   use mpeu_mpif, only : mpi_integer4
@@ -38,7 +37,6 @@ module mpimod
   use mpeu_mpif, only : mpi_mode_rdonly
   use mpeu_mpif, only : mpi_mode_rdwr
   use mpeu_mpif, only : mpi_byte
-  use mpeu_mpif, only : mpi_seek_set
 #ifndef HAVE_ESMF
   use mpeu_mpif, only : mpi_comm_world
 #endif /* HAVE_ESMF */
@@ -80,7 +78,7 @@ module mpimod
 !EOP
 !-------------------------------------------------------------------------
 #ifdef HAVE_ESMF
-  integer :: mpi_comm_world
+  integer(i_kind) :: mpi_comm_world
 #endif
 
 #ifdef ibm_sp
@@ -89,7 +87,6 @@ module mpimod
   integer(i_kind), parameter :: mpi_rtype4=mpi_real4
 ! integer(i_kind), parameter :: mpi_rtype=mpi_real4
   integer(i_kind), parameter :: mpi_itype=mpi_integer4
-  integer(i_kind), parameter :: mpi_2rtype=mpi_2double_precision
 #endif
 
   integer(i_kind) ierror
@@ -205,7 +202,6 @@ contains
 
 ! !USES:
 
-    use kinds, only: i_kind
     use constants, only: izero,ione
     use gridmod, only: nnnn1o
     implicit none
@@ -425,6 +421,8 @@ contains
 
 ! !USES:
 
+   implicit none
+
 ! !INPUT PARAMETERS:
 
 ! !OUTPUT PARAMETERS:
@@ -480,7 +478,7 @@ contains
 
 ! !USES:
 
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind
     use constants, only: zero
     use gridmod, only: ijn,itotsub,iglobal
     implicit none
@@ -566,8 +564,7 @@ contains
 
 ! !USES:
 
-    use kinds, only: r_kind,i_kind
-    use constants, only: zero
+    use kinds, only: r_kind
     use gridmod, only: ijn_s,itotsub
     implicit none
 
@@ -602,11 +599,6 @@ contains
 
     integer(i_kind) iloc,iskip,i,k,n
     real(r_kind),dimension(itotsub*k_in):: temp
-
-! Zero out temp array
-!   do k=1,itotsub*k_in
-!      temp(k)=zero
-!   end do
 
 ! Load temp array in order of subdomains
     iloc=0
@@ -649,7 +641,7 @@ contains
 
 ! !USES:
 
-    use kinds, only: r_single,i_kind
+    use kinds, only: r_single
     use gridmod, only: lat1,lon1,lat2,lon2
     implicit none
 
@@ -776,7 +768,7 @@ contains
 !
   subroutine vectosub(fld_in,npts,fld_out)
 
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -831,7 +823,7 @@ subroutine reload(work_in,work_out)
 
 ! !USES:
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use gridmod, only: lat2,lon2,nsig
   implicit none
 
@@ -888,7 +880,7 @@ end subroutine reload
 
 ! !USES:
 
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind
     use gridmod, only: lat1,lon1,lat2,lon2
     implicit none
 

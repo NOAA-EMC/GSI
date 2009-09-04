@@ -66,8 +66,8 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use obsmod, only: pwhead,pwtail,rmiss_single,i_pw_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use constants, only: zero,one,tpwcon,stndrd_atmos_ps,rad2deg,r1000, &
-       tiny_r_kind,three,half,two,one_tenth,three,cg_term,huge_single,&
+  use constants, only: zero,one,tpwcon,r1000, &
+       tiny_r_kind,three,half,two,cg_term,huge_single,&
        wgtlim
   use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1,npres_print
@@ -90,8 +90,8 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   real(r_double) rstation_id
   real(r_kind):: pwges,grsmlt,dlat,dlon,dtime,obserror, &
        obserrlm,residual,ratio,dpw
-  real(r_kind) dx1,dy1,error,ddiff
-  real(r_kind) ressw2,ress,scale,val2,dx,dy,val,valqc
+  real(r_kind) error,ddiff
+  real(r_kind) ressw2,ress,scale,val2,val,valqc
   real(r_kind) rat_err2,exp_arg,term,ratio_errors,rwgt
   real(r_kind) cg_pw,wgross,wnotgross,wgt,arg
   real(r_kind) errinv_input,errinv_adjst,errinv_final
@@ -102,8 +102,8 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
-  integer(i_kind) itype,jlat,jlon,ikxx,nn,istat,ibin,ioff
-  integer(i_kind) i,nchar,nreal,k,j,nz,n,jj,ii,l,mm1
+  integer(i_kind) ikxx,nn,istat,ibin,ioff
+  integer(i_kind) i,nchar,nreal,k,j,jj,ii,l,mm1
   integer(i_kind) ier,ilon,ilat,ipw,id,itime,ikx,ipwmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,iobsprs
   integer(i_kind) idomsfc,iskint,iff10,isfcr

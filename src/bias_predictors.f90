@@ -1,12 +1,29 @@
 module bias_predictors
-!$$$  module documentation block
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   bias_predictors
+!  prgmmr: tremolet
 !
 ! abstract: define predictors and basic operators
 !
 ! program history log:
 !   2007-04-16  tremolet - initial code
+!   2009-08-14  lueken - update documentation
 !
-!$$$
+! subroutines included:
+!   sub setup_predictors
+!   sub allocate_preds
+!   sub deallocate_preds
+!   sub assign_scalar2preds
+!   sub assign_preds2preds
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only: r_kind,i_kind
 use constants, only : zero
@@ -38,6 +55,29 @@ END INTERFACE
 contains
 ! ----------------------------------------------------------------------
 subroutine setup_predictors(krclen,ksclen,kpclen)
+!$$$  subprogram documentation block
+!                .      .    .                                      .
+! subprogram:    setup_predictors
+!   prgmmr:                  org:                    date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    krclen
+!    ksclen
+!    kpclen
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   integer(i_kind), intent(in) :: krclen,ksclen,kpclen
 
@@ -51,6 +91,27 @@ subroutine setup_predictors(krclen,ksclen,kpclen)
 end subroutine setup_predictors
 ! ----------------------------------------------------------------------
 subroutine allocate_preds(yst)
+!$$$  subprogram documentation block
+!                .      .    .                                      .
+! subprogram:    allocate_preds
+!   prgmmr:                  org:                    date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    yst
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(predictors), intent(inout) :: yst
   integer(i_kind) :: ii
@@ -79,6 +140,27 @@ subroutine allocate_preds(yst)
 end subroutine allocate_preds
 ! ----------------------------------------------------------------------
 subroutine deallocate_preds(yst)
+!$$$  subprogram documentation block
+!                .      .    .                                      .
+! subprogram:    deallocate_preds
+!   prgmmr:                  org:                    date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    yst
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(predictors), intent(inout) :: yst
 
@@ -95,6 +177,28 @@ subroutine deallocate_preds(yst)
 end subroutine deallocate_preds
 ! ----------------------------------------------------------------------
 subroutine assign_scalar2preds(yst,pval)
+!$$$  subprogram documentation block
+!                .      .    .                                      .
+! subprogram:    assign_scalar2preds
+!   prgmmr:                  org:                    date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    yst
+!    pval
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(predictors), intent(inout) :: yst
   real(r_kind), intent(in) :: pval
@@ -108,6 +212,28 @@ subroutine assign_scalar2preds(yst,pval)
 end subroutine assign_scalar2preds
 ! ----------------------------------------------------------------------
 subroutine assign_preds2preds(yst,xst)
+!$$$  subprogram documentation block
+!                .      .    .                                      .
+! subprogram:    assign_preds2preds
+!   prgmmr:                  org:                    date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    yst
+!    xst
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
   type(predictors), intent(inout) :: yst
   type(predictors), intent(in) :: xst

@@ -1,4 +1,8 @@
 module lanczos
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   lanczos
+!   prgmmr: tremolet
 !
 ! abstract: Contains variables and routines for preconditioned
 !           Lanczos minimizer following Mike Fisher's algorithm.
@@ -9,6 +13,7 @@ module lanczos
 !   2007-11-23  todling  - add timers
 !   2009-01-18  todling  - minimal changes to interface w/ quad-based evaljgrad
 !                          NOTE: no attempt made to reproduce across pe's yet
+!   2009-08-18  lueken   - update documentation
 !
 ! Subroutines Included:
 !   congrad       - Main minimization routine
@@ -33,9 +38,13 @@ module lanczos
 !
 !   YVCGLWK: work array of eigenvectors
 !
+! attributes:
+!   language: f90
+!   machine:
+!
 ! ------------------------------------------------------------------------------
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero, one, half, two
+use constants, only: zero, one, two, one_tenth
 use jfunc, only: iter
 use control_vectors
 use file_utility, only : get_lun
@@ -51,8 +60,8 @@ public congrad, setup_congrad, save_precond, congrad_ad, read_lanczos
 
 logical :: LMPCGL = .false.
 real(r_kind) :: R_MAX_CNUM_PC = 10.0_r_kind
-real(r_kind) :: xmin_ritz = 1.0_r_kind
-real(r_kind) :: pkappa = 0.1_r_kind
+real(r_kind) :: xmin_ritz = one
+real(r_kind) :: pkappa = one_tenth
 
 integer(i_kind) :: NPCVECS, NVCGLPC, NVCGLEV, NWRVECS
 REAL(r_kind), ALLOCATABLE :: RCGLPC(:)
@@ -81,6 +90,28 @@ contains
 ! ------------------------------------------------------------------------------
 subroutine setup_congrad(kpe,kprt,kiter,kiterstart,kmaxit,kwrvecs, &
                          ld4dvar,ldsave)
+!$$$  subprogram documentation block
+!                .      .    .                                         .
+! subprogram:    setup_congrad
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    kpe,kprt,kiter,kiterstart,kmaxit,kwrvecs
+!    ld4dvar,ldsave
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 implicit none
 integer(i_kind), intent(in) :: kpe,kprt,kiter,kiterstart,kmaxit,kwrvecs
 logical, intent(in) :: ld4dvar,ldsave
@@ -118,6 +149,35 @@ call inquire_cv
 end subroutine setup_congrad
 ! ------------------------------------------------------------------------------
 subroutine congrad(xhat,pcost,gradx,preduc,kmaxit,iobsconv,lsavevecs)
+!$$$  subprogram documentation block
+!                .      .    .                                         .
+! subprogram:    congrad
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xhat
+!    gradx
+!    preduc
+!    kmaxit
+!    iobsconv
+!
+!   output argument list:
+!    xhat
+!    pcost
+!    gradx
+!    preduc
+!    kmaxit
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 IMPLICIT NONE
 
@@ -136,10 +196,9 @@ real(r_quad)    :: pcostq
 real(r_kind)    :: zbeta(2:kmaxit+1),zdelta(kmaxit),zv(kmaxit+1,kmaxit+1),&
  & zbnds(kmaxit),zritz(kmaxit+1),zsave(kmaxit+1,4),&
  & zqg0(kmaxit+1), zsstwrk(2*kmaxit)
-real(r_kind)    :: zdla, zbetad, zz, zeta
-real(r_kind)    :: zbndlm, zgnorm, znorm2l1, zreqrd, ztheta1, za
-real(r_kind)    :: zcost, zgrad
-integer(i_kind) :: ing,ingood,itheta1,jm,imaxevecs,ii,jj,jk,isize
+real(r_kind)    :: zdla, zeta
+real(r_kind)    :: zbndlm, zgnorm, znorm2l1, zreqrd, ztheta1
+integer(i_kind) :: ingood,itheta1,jm,imaxevecs,ii,jj,jk,isize
 integer(i_kind) :: kminit, kmaxevecs,iunit
 logical :: lsavinc, lldone
 character(len=17) :: clfile
@@ -563,7 +622,26 @@ contains
 !   STEQR - Simplified interface to LAPACK routines SSTEQR/DSTEQR
 !-----------------------------------------------------------------------
 subroutine steqr
-
+!$$$  subprogram documentation block
+!                .      .    .                                         .
+! subprogram:    steqr
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+implicit none
 integer(i_kind) :: info
 
 if (r_kind == N_DEFAULT_REAL_KIND) then
@@ -587,7 +665,26 @@ end subroutine steqr
 !   PTSV - Simplified interface to LAPACK routines SPTSV/DPTSV
 !-----------------------------------------------------------------------
 subroutine ptsv
-
+!$$$  subprogram documentation block
+!                .      .    .                                         .
+! subprogram:    ptsv
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+implicit none
 integer(i_kind) :: info
 
 if (r_kind == N_DEFAULT_REAL_KIND) then
@@ -613,6 +710,28 @@ end subroutine congrad
 
 ! ------------------------------------------------------------------------------
 subroutine congrad_ad(xsens,kiter)
+!$$$  subprogram documentation block
+!                .      .    .                                         .
+! subprogram:    congrad_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xsens
+!    kiter
+!
+!   output argument list:
+!    xsens
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 ! abstract: Apply product of adjoint of estimated Hessian to a vector.
 
@@ -666,6 +785,26 @@ end subroutine congrad_ad
 !   SAVE_PRECOND - Save eigenvectors from CONGRAD for next minimization
 ! ------------------------------------------------------------------------------
 subroutine save_precond(ldsave)
+!$$$  subprogram documentation block
+!                .      .    .                                         .
+! subprogram:    save_precond
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ldsave
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 IMPLICIT NONE
 
@@ -805,6 +944,25 @@ end subroutine save_precond
 !   SETUP_PRECOND - Calculates the preconditioner for congrad
 ! ------------------------------------------------------------------------------
 subroutine setup_precond()
+!$$$  subprogram documentation block
+!                .      .    .                                         .
+! subprogram:    setup_precond
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 IMPLICIT NONE
 
@@ -1027,6 +1185,28 @@ end subroutine setup_precond
 !   PRECOND - Preconditioner for minimization
 ! ------------------------------------------------------------------------------
 subroutine precond(ycvx,kmat)
+!$$$  subprogram documentation block
+!                .      .    .                                         .
+! subprogram:    precond
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ycvx
+!    kmat
+!
+!   output argument list:
+!    ycvx
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 IMPLICIT NONE
 
@@ -1064,6 +1244,27 @@ return
 end subroutine precond
 ! ------------------------------------------------------------------------------
 subroutine read_lanczos(kmaxit)
+!$$$  subprogram documentation block
+!                .      .    .                                         .
+! subprogram:    read_lanczos
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-05  lueken - added subprogram doc block
+!
+!   input argument list:
+!    kmaxit
+!
+!   output argument list:
+!    kmaxit
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 IMPLICIT NONE
 integer(i_kind) , intent(inout) :: kmaxit

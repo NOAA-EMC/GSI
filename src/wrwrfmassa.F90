@@ -43,12 +43,12 @@ subroutine wrwrfmassa_binary(mype)
   use mpimod, only: mpi_byte,mpi_integer4,mpi_real4,mpi_comm_world,npe,ierror, &
        mpi_offset_kind,mpi_info_null,mpi_mode_rdwr,mpi_status_size
   use guess_grids, only: ges_ps,ges_q, ges_u,ges_v,&
-       sfct,sno,dsfct,&
-       isli,ntguessfc,ntguessig,ifilesig,ges_tsen
+       dsfct,&
+       ntguessfc,ntguessig,ifilesig,ges_tsen
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
-       nsig,eta1_ll,pt_ll,itotsub,iglobal,update_regsfc,lat2,lon2,&
+       nsig,eta1_ll,pt_ll,itotsub,iglobal,update_regsfc,&
        aeta1_ll
-  use constants, only: one,zero_single,rd_over_cp_mass
+  use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,h300
   use gsi_io, only: lendian_in
 
   implicit none
@@ -57,12 +57,9 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_kind),intent(in)::mype
 
 ! Declare local parameters
-  integer(i_kind),parameter:: lunin = 21
-  real(r_kind),parameter:: r0_1=0.1_r_kind
   real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r225=225.0_r_kind
-  real(r_kind),parameter:: r300=300.0_r_kind
 
 ! Declare local variables
   real(r_single),allocatable::tempa(:,:),tempb(:,:)
@@ -78,16 +75,14 @@ subroutine wrwrfmassa_binary(mype)
   character(9) wrfanl
   integer(i_kind) ifld,im,jm,lm,num_mass_fields
   integer(i_kind) num_loc_groups,num_j_groups
-  integer(i_kind) i,icount,icount_prev,it,j,k,k1,levtempmax
-  integer(i_kind) i_mub,i_mu,i_fis,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smois,i_tslb
-  integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
-  integer(i_kind) isli_this
-  real(r_kind) psfc_this,psfc_this_dry,sm_this,xice_this
+  integer(i_kind) i,it,j,k
+  integer(i_kind) i_mu,i_t,i_q,i_u,i_v
+  integer(i_kind) i_sst,i_tsk
+  real(r_kind) psfc_this,psfc_this_dry
   real(r_kind):: work_prsl,work_prslk
-  real(r_kind),dimension(lat1+2,lon1+2,nsig):: rdivs1
   real(r_kind),dimension(lat1+2,lon1+2):: q_integral
   integer(i_llong) n_position
-  integer(i_kind) iskip,ksize,jextra,nextra
+  integer(i_kind) iskip,jextra,nextra
   integer(i_kind) status(mpi_status_size)
   integer(i_kind) request
   integer(i_kind) jbegin(0:npe),jend(0:npe-1),jend2(0:npe-1)
@@ -101,7 +96,7 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_long) iyear,imonth,iday,ihour,iminute,isecond,dummy3(3)
   real(r_single) pt_regional_single
   real(r_kind) deltasigma
-  integer(i_kind) this_count,this_elements,ip1,jp1
+  integer(i_kind) ip1,jp1
   character(1) chdrbuf(2048)
   integer(i_kind) iadd
   character(132) memoryorder
@@ -329,13 +324,13 @@ subroutine wrwrfmassa_binary(mype)
 
 
 !          Convert sensible temperature to potential temperature
-           work_prsl  = r0_1*(aeta1_ll(k)*(r10*ges_ps(jp1,ip1,it)-pt_ll)+pt_ll)
+           work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(jp1,ip1,it)-pt_ll)+pt_ll)
            work_prslk = (work_prsl/r100)**rd_over_cp_mass
            all_loc(j,i,kt) = ges_tsen(jp1,ip1,k,it)/work_prslk
 
 
 !          Subtract offset to get output potential temperature
-           all_loc(j,i,kt)=all_loc(j,i,kt) - r300
+           all_loc(j,i,kt)=all_loc(j,i,kt) - h300
 
 
 !          Convert specific humidity to mixing ratio
@@ -631,10 +626,10 @@ subroutine generic_sub2grid(all_loc,tempa,kbegin_loc,kend_loc,kbegin,kend,mype,n
   use kinds, only: r_single,i_kind
   implicit none
 
-  integer(i_kind) kbegin_loc,kend_loc,mype,num_fields
-  integer(i_kind) kbegin(0:npe),kend(0:npe-1)
-  real(r_single) tempa(itotsub,kbegin_loc:kend_loc)
-  real(r_single) all_loc(lat1*lon1*num_fields)
+  integer(i_kind),intent(in):: kbegin_loc,kend_loc,mype,num_fields
+  integer(i_kind),intent(in):: kbegin(0:npe),kend(0:npe-1)
+  real(r_single),intent(out):: tempa(itotsub,kbegin_loc:kend_loc)
+  real(r_single),intent(in):: all_loc(lat1*lon1*num_fields)
 
   integer(i_kind) k
   integer(i_kind) sendcounts(0:npe-1),sdispls(0:npe),recvcounts(0:npe-1),rdispls(0:npe)
@@ -754,6 +749,8 @@ subroutine contract_ibuf(ibuf,im,jm,imp,jmp)
 !     ibuf     - input grid values in imp,jmp
 !     im       - first grid index
 !     jm       - second grid index
+!     imp
+!     jmp
 !
 !   output argument list:
 !     ibuf     - output grid values in im,jm
@@ -848,13 +845,13 @@ subroutine transfer_ibuf2jbuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
   use kinds, only: i_long,i_kind
   implicit none
 
-  integer(i_kind) jbegin_loc,jend_loc,kbegin_loc,kend_loc,mype,npe,im_jbuf,jm_jbuf,lm_jbuf
-  integer(i_kind) im_ibuf,jm_ibuf,k_start,k_end
+  integer(i_kind),intent(in):: jbegin_loc,jend_loc,kbegin_loc,kend_loc,mype,npe,im_jbuf,jm_jbuf,lm_jbuf
+  integer(i_kind),intent(in):: im_ibuf,jm_ibuf,k_start,k_end
 
-  integer(i_long) jbuf(im_jbuf,lm_jbuf,jbegin_loc:jend_loc)
-  integer(i_long) ibuf(im_ibuf,jm_ibuf,kbegin_loc:kend_loc)
-  integer(i_kind) jbegin(0:npe),jend(0:npe-1)
-  integer(i_kind) kbegin(0:npe),kend(0:npe-1)
+  integer(i_long),intent(out):: jbuf(im_jbuf,lm_jbuf,jbegin_loc:jend_loc)
+  integer(i_long),intent(in):: ibuf(im_ibuf,jm_ibuf,kbegin_loc:kend_loc)
+  integer(i_kind),intent(in):: jbegin(0:npe),jend(0:npe-1)
+  integer(i_kind),intent(in):: kbegin(0:npe),kend(0:npe-1)
 
   integer(i_long) sendbuf(im_jbuf*lm_jbuf*(min(jend_loc,jm_jbuf)-jbegin_loc+1))
   integer(i_long) recvbuf(im_jbuf*jm_jbuf*(kend_loc-kbegin_loc+1))
@@ -992,14 +989,14 @@ subroutine wrwrfmassa_netcdf(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_single,i_long,i_kind
+  use kinds, only: r_kind,r_single,i_kind
   use guess_grids, only: ntguessfc,ntguessig,ifilesig,dsfct,ges_ps,&
-       ges_tv,ges_q,ges_u,ges_v,ges_tsen
+       ges_q,ges_u,ges_v,ges_tsen
   use mpimod, only: mpi_comm_world,ierror,mpi_real4,strip_single
   use gridmod, only: pt_ll,eta1_ll,lat2,iglobal,itotsub,update_regsfc,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,&
        aeta1_ll
-  use constants, only: one,zero_single,rd_over_cp_mass
+  use constants, only: one,zero_single,rd_over_cp_mass,one_tenth
   use gsi_io, only: lendian_in, lendian_out
   implicit none
 
@@ -1007,7 +1004,6 @@ subroutine wrwrfmassa_netcdf(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_1=0.1_r_kind  
   real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r225=225.0_r_kind
@@ -1083,7 +1079,7 @@ subroutine wrwrfmassa_netcdf(mype)
            all_loc(j,i,kv)=ges_v(j,i,k,it)
 
 !          Convert sensible temperature to potential temperature
-           work_prsl  = r0_1*(aeta1_ll(k)*(r10*ges_ps(j,i,it)-pt_ll)+pt_ll)
+           work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(j,i,it)-pt_ll)+pt_ll)
            work_prslk = (work_prsl/r100)**rd_over_cp_mass
            all_loc(j,i,kt) = ges_tsen(j,i,k,it)/work_prslk
 

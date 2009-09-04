@@ -1,4 +1,4 @@
-subroutine combine_radobs(mype,mype_sub,mype_root,&
+subroutine combine_radobs(mype_sub,mype_root,&
      npe_sub,mpi_comm_sub,nele,itxmax,nread,ndata,&
      data_all,data_crit)
 
@@ -15,7 +15,6 @@ subroutine combine_radobs(mype,mype_sub,mype_root,&
 !   2008-06-21  derber - introduce new algorithm for merging data
 !
 !   input argument list:
-!     mype     - mpi task id for mpi_comm_world
 !     mype_sub - mpi task id for mpi_comm_sub
 !     mype_root - mpi task id for task which combines data
 !     npe_sub   - number of tasks in mpi_comm_sub
@@ -40,12 +39,12 @@ subroutine combine_radobs(mype,mype_sub,mype_root,&
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,izero,ione
+  use constants, only: zero,izero
   use mpimod, only: ierror,mpi_rtype,mpi_itype,mpi_sum,mpi_min
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype_sub,mype
+  integer(i_kind),intent(in):: mype_sub
   integer(i_kind),intent(in):: mype_root
   integer(i_kind),intent(in):: npe_sub,itxmax
   integer(i_kind),intent(in):: nele

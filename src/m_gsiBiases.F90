@@ -84,6 +84,25 @@ module m_gsiBiases
 contains
 
 subroutine init_()
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   use gridmod, only: lat2,lon2,nsig
   use constants, only: zero
@@ -138,6 +157,27 @@ initialized_ = .true.
 end subroutine init_
 
 subroutine clean_()
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    clean_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+   implicit none
    integer(i_kind):: istatus
    if (.not.initialized_) return 
    if ( nbc < 0 ) return
@@ -161,6 +201,7 @@ subroutine comp2d_(bias2d_,bias,hour)
 
 ! !USES:
 
+   use constants, only: one
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -192,9 +233,9 @@ subroutine comp2d_(bias2d_,bias,hour)
    real(r_kind) :: twopi
    real(r_kind) :: coshr,sinhr
 
-   twopi=8._r_kind*atan(1._r_kind)
-   coshr=1._r_kind*cos(twopi*hour/24._r_kind)*diurnalbc
-   sinhr=1._r_kind*sin(twopi*hour/24._r_kind)*diurnalbc
+   twopi=8._r_kind*atan(one)
+   coshr=one*cos(twopi*hour/24._r_kind)*diurnalbc
+   sinhr=one*sin(twopi*hour/24._r_kind)*diurnalbc
 
    bias2d_(:,:) = bias(:,:,1) + &
  		  bias(:,:,2)*coshr + &
@@ -216,6 +257,7 @@ subroutine comp3d_(bias3d_,bias,hour)
 
 ! USES:
 
+   use constants, only: one
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -247,9 +289,9 @@ subroutine comp3d_(bias3d_,bias,hour)
    real(r_kind) :: twopi
    real(r_kind) :: coshr,sinhr
 
-   twopi=8._r_kind*atan(1._r_kind)
-   coshr=1._r_kind*cos(twopi*hour/24._r_kind)*diurnalbc
-   sinhr=1._r_kind*sin(twopi*hour/24._r_kind)*diurnalbc
+   twopi=8._r_kind*atan(one)
+   coshr=one*cos(twopi*hour/24._r_kind)*diurnalbc
+   sinhr=one*sin(twopi*hour/24._r_kind)*diurnalbc
 
    bias3d_(:,:,:) = bias(:,:,:,1) + &
 	 	    bias(:,:,:,2)*coshr + &
@@ -271,6 +313,7 @@ subroutine update2d_(bias,lat2,lon2,xhat,hour)
 
 ! USES:
 
+  use constants, only: half,one,two
   implicit none
 
 ! !INPUT PARAMETERS:
@@ -306,14 +349,14 @@ subroutine update2d_(bias,lat2,lon2,xhat,hour)
   real   (r_kind) :: twopi,coshr,sinhr
   integer(i_kind) :: i,ib,ie
 
-  dumpcor_=1._r_kind
+  dumpcor_=one
   if (bcoption == 1) dumpcor_=0.98
-  if (bcoption == 2) dumpcor_=1.0-0.5*biascor
+  if (bcoption == 2) dumpcor_=one-half*biascor
 
   if(present(hour)) then
-    twopi=8._r_kind*atan(1._r_kind)
-    coshr=cos(twopi*hour/24._r_kind)*2._r_kind*biascor
-    sinhr=sin(twopi*hour/24._r_kind)*2._r_kind*biascor
+    twopi=8._r_kind*atan(one)
+    coshr=cos(twopi*hour/24._r_kind)*two*biascor
+    sinhr=sin(twopi*hour/24._r_kind)*two*biascor
 
     ib=0
     do i=1,lon2
@@ -349,6 +392,7 @@ subroutine update3d_(bias,lat2,lon2,nsig,xhat,hour)
 
 ! !USES:
 
+  use constants, only: half,one,two
   implicit none
 
 ! !INPUT PARAMETERS:
@@ -385,14 +429,14 @@ subroutine update3d_(bias,lat2,lon2,nsig,xhat,hour)
   real   (r_kind) :: twopi,coshr,sinhr
   integer(i_kind) :: k,i,ib,ie
 
-  dumpcor_=1._r_kind
+  dumpcor_=one
   if (bcoption == 1) dumpcor_=0.98
-  if (bcoption == 2) dumpcor_=1.0-0.5*biascor
+  if (bcoption == 2) dumpcor_=one-half*biascor
 
   if(present(hour)) then
-    twopi=8._r_kind*atan(1._r_kind)
-    coshr=cos(twopi*hour/24._r_kind)*2._r_kind*biascor
-    sinhr=sin(twopi*hour/24._r_kind)*2._r_kind*biascor
+    twopi=8._r_kind*atan(one)
+    coshr=cos(twopi*hour/24._r_kind)*two*biascor
+    sinhr=sin(twopi*hour/24._r_kind)*two*biascor
 
     ib=0
     do k=1,nsig
@@ -428,15 +472,15 @@ end subroutine update3d_
 ! !INTERFACE:
 !
 
-subroutine update3d3d_(bias,lat2,lon2,nsig,xhat,hour)
+subroutine update3d3d_(bias,xhat,hour)
 
 ! !USES:
 
+  use constants, only: half,one,two
   implicit none
 
 ! !INPUT PARAMETERS:
 
-  integer(i_kind),intent(in) :: lat2,lon2,nsig
   real   (r_kind),dimension(:,:,:),intent(in) :: xhat
   integer(i_kind),optional,intent(in) :: hour
 
@@ -465,16 +509,15 @@ subroutine update3d3d_(bias,lat2,lon2,nsig,xhat,hour)
 
   real   (r_kind) :: dumpcor_
   real   (r_kind) :: twopi,coshr,sinhr
-  integer(i_kind) :: k,i,ib,ie
                                                                                                                                                              
-  dumpcor_=1._r_kind
+  dumpcor_=one
   if (bcoption == 1) dumpcor_=0.98
-  if (bcoption == 2) dumpcor_=1.0-0.5*biascor
+  if (bcoption == 2) dumpcor_=one-half*biascor
                                                                                                                                                              
   if(present(hour)) then
-    twopi=8._r_kind*atan(1._r_kind)
-    coshr=cos(twopi*hour/24._r_kind)*2._r_kind*biascor
-    sinhr=sin(twopi*hour/24._r_kind)*2._r_kind*biascor
+    twopi=8._r_kind*atan(one)
+    coshr=cos(twopi*hour/24._r_kind)*two*biascor
+    sinhr=sin(twopi*hour/24._r_kind)*two*biascor
                                                                                                                                                              
       bias(:,:,:,1)=dumpcor_*bias(:,:,:,1) + biascor*xhat(:,:,:)
       bias(:,:,:,2)=dumpcor_*bias(:,:,:,2) +   coshr*xhat(:,:,:)
@@ -561,8 +604,8 @@ subroutine updateall_ (xhat,xhatuv,xhat_div,xhat_vor,xhat_q,hour)
   call update3d_  (bias_q    ,lat2,lon2,nsig,xhat_q            ,hour)
   call update3d_  (bias_oz   ,lat2,lon2,nsig,xhat(noz:noz+l3)  ,hour)
   call update3d_  (bias_cwmr ,lat2,lon2,nsig,xhat(ncw:ncw+l3)  ,hour)
-  call update3d3d_(bias_vor  ,lat2,lon2,nsig,xhat_div          ,hour)
-  call update3d3d_(bias_div  ,lat2,lon2,nsig,xhat_vor          ,hour)
+  call update3d3d_(bias_vor  ,               xhat_div          ,hour)
+  call update3d3d_(bias_div  ,               xhat_vor          ,hour)
   call update2d_  (bias_ps   ,lat2,lon2     ,xhat(np:np+l2)    ,hour)
   call update2d_  (bias_tskin,lat2,lon2     ,xhat(nsst:nsst+l2),hour)
 
@@ -609,8 +652,8 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
   call update3d_  (bias_q    ,lat2,lon2,nsig,xhat%q  ,hour)
   call update3d_  (bias_oz   ,lat2,lon2,nsig,xhat%oz ,hour)
   call update3d_  (bias_cwmr ,lat2,lon2,nsig,xhat%cw ,hour)
-  call update3d3d_(bias_vor  ,lat2,lon2,nsig,xhat_div,hour)
-  call update3d3d_(bias_div  ,lat2,lon2,nsig,xhat_vor,hour)
+  call update3d3d_(bias_vor  ,               xhat_div,hour)
+  call update3d3d_(bias_div  ,               xhat_vor,hour)
   call update2d_  (bias_ps   ,lat2,lon2     ,xhat%p  ,hour)
   call update2d_  (bias_tskin,lat2,lon2     ,xhat%sst,hour)
 
@@ -633,9 +676,9 @@ subroutine correct_()
 
   use gridmod, only: lat2,lon2,nsig,latlon1n
   use guess_grids, only: nfldsig,ntguessig
-  use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,ges_vor,ges_div,&
+  use guess_grids, only: ges_ps,ges_u,ges_v,ges_vor,ges_div,&
                          ges_tv,ges_q,ges_oz,ges_cwmr,sfct
-  use constants, only: zero,tiny_r_kind
+  use constants, only: tiny_r_kind
 
   implicit none
 

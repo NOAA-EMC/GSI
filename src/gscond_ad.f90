@@ -1,7 +1,7 @@
 subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
      advp, q_in, cwm_in, t_in, q_out, cwm_out, t_out, advt_ad, advq_ad, &
      advp_ad, q_in_ad, cwm_in_ad, t_in_ad, q_out_ad, cwm_out_ad, t_out_ad, &
-     adjoint, mype )
+     adjoint )
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gscond_ad    forward & adjoint model for GFS gridscale condensation
@@ -37,7 +37,6 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
 !     cwm_out_ad- cloud condesate mixing ratio perturbation
 !     t_out_ad  - temperature perturbation
 !     adjoint  - logical flag (.false.=forward model only, .true.=forward and ajoint)
-!     mype     - mpi task id
 !
 !   output argument list:
 !     q_out    - moisture following gridscale condensation
@@ -67,33 +66,32 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
 !==============================================
 ! define arguments
 !==============================================
-  logical adjoint
-  integer(i_kind) im
-  integer(i_kind) km
-  real(r_kind) advp_ad(km,im)
-  real(r_kind) advq_ad(km,im)
-  real(r_kind) advt_ad(km,im)
-  integer(i_kind) ix
-  integer(i_kind) mype
-  real(r_kind) cwm_in_ad(km,ix)
-  real(r_kind) cwm_out_ad(km,ix)
-  real(r_kind) q_in_ad(km,ix)
-  real(r_kind) q_out_ad(km,ix)
-  real(r_kind) t_in_ad(km,ix)
-  real(r_kind) t_out_ad(km,ix)
-  real(r_kind) advp(km,im)
-  real(r_kind) advq(km,im)
-  real(r_kind) advt(km,im)
-  real(r_kind) cwm_in(km,ix)
-  real(r_kind) cwm_out(km,ix)
-  real(r_kind) dt
-  real(r_kind) ps(im)
-  real(r_kind) q_in(km,ix)
-  real(r_kind) q_out(km,ix)
-  real(r_kind) rhc(km,ix)
-  real(r_kind) sl(km,ix)
-  real(r_kind) t_in(km,ix)
-  real(r_kind) t_out(km,ix)
+  logical,intent(in):: adjoint
+  integer(i_kind),intent(in):: im
+  integer(i_kind),intent(in):: km
+  real(r_kind),intent(inout):: advp_ad(km,im)
+  real(r_kind),intent(inout):: advq_ad(km,im)
+  real(r_kind),intent(inout):: advt_ad(km,im)
+  integer(i_kind),intent(in):: ix
+  real(r_kind),intent(out):: cwm_in_ad(km,ix)
+  real(r_kind),intent(inout):: cwm_out_ad(km,ix)
+  real(r_kind),intent(out):: q_in_ad(km,ix)
+  real(r_kind),intent(inout):: q_out_ad(km,ix)
+  real(r_kind),intent(out):: t_in_ad(km,ix)
+  real(r_kind),intent(inout):: t_out_ad(km,ix)
+  real(r_kind),intent(in):: advp(km,im)
+  real(r_kind),intent(in):: advq(km,im)
+  real(r_kind),intent(in):: advt(km,im)
+  real(r_kind),intent(in):: cwm_in(km,ix)
+  real(r_kind),intent(out):: cwm_out(km,ix)
+  real(r_kind),intent(in):: dt
+  real(r_kind),intent(in):: ps(im)
+  real(r_kind),intent(in):: q_in(km,ix)
+  real(r_kind),intent(out):: q_out(km,ix)
+  real(r_kind),intent(in):: rhc(km,ix)
+  real(r_kind),intent(in):: sl(km,ix)
+  real(r_kind),intent(in):: t_in(km,ix)
+  real(r_kind),intent(out):: t_out(km,ix)
 
 !==============================================
 ! define local variables

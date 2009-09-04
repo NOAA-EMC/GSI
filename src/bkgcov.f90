@@ -148,7 +148,7 @@ subroutine ckgcov(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero, one, three
+  use constants, only: zero
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
   use jfunc,only: nval_lenz
   implicit none
@@ -238,7 +238,7 @@ subroutine ckgcov_ad(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero, one, three
+  use constants, only: zero
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
   use jfunc, only: nval_lenz
   implicit none

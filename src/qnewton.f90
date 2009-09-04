@@ -1,5 +1,25 @@
 module qnewton
-
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   qnewton
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-10  lueken - added module doc block
+!
+! subroutines included:
+!   sub LBFGS
+!   sub MCSRCH
+!   sub MCSTEP
+!   sub matinv
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 ! ------------------------------------------------------------------------------
 !     This file contains the LBFGS algorithm and supporting routines
 ! ------------------------------------------------------------------------------
@@ -225,13 +245,11 @@ integer(i_kind), intent(in) :: nprt
 
 type(control_vector) :: diag, wy(maxvecs), ws(maxvecs), ww
 real(r_kind) :: rho(maxvecs),alpha(maxvecs)
-real(r_kind) :: zvec(2*maxvecs),zmat(2*maxvecs,2*maxvecs)
-real(r_kind) :: ykyk(maxvecs),skyk(maxvecs,maxvecs),sksk(maxvecs,maxvecs)
 
 real(r_kind) :: GNORM,STP1,STP,YS,YY,SQ,YR,BETA,XNORM
-integer(i_kind) :: NFUN,POINT,INFO,BOUND,NPT,CP,I,NFEV,ii,jj,iprt
-real(r_kind) :: gamk,delk,zz1,zz2,zz3
-logical :: lldone, lsavinc
+integer(i_kind) :: NFUN,POINT,INFO,BOUND,NPT,CP,I,NFEV,ii,jj
+real(r_kind) :: gamk
+logical :: lldone
 !
 !     INITIALIZE
 !     ----------
@@ -393,6 +411,7 @@ END SUBROUTINE LBFGS
 ! ------------------------------------------------------------------------------
 SUBROUTINE MCSRCH(X,F,G,S,STP,MAXFEV,INFO,NFEV,WA,nprt)
 
+use constants, only: half,four
 implicit none
 integer(i_kind), intent(in) :: MAXFEV,nprt
 integer(i_kind), intent(inout) :: NFEV,INFO
@@ -518,7 +537,7 @@ type(control_vector), intent(inout) :: X,G,S,WA
 !     ARGONNE NATIONAL LABORATORY. MINPACK PROJECT. JUNE 1983
 !     JORGE J. MORE', DAVID J. THUENTE
 !
-! REVSION HISTORY:
+! REVISION HISTORY:
 !
 !  2009-01-18 Todling - minimal change to interface w/ evaljgrad (quad) properly
 !                       NOTE: no attempt made to make code reproduce across pe's yet   
@@ -531,9 +550,8 @@ real(r_kind) :: FINIT,FTEST1,FM,FX,FXM,FY,FYM,STX,STY
 real(r_kind) :: STMIN,STMAX,WIDTH,WIDTH1
 real(r_quad) :: FQUAD
 
-real(r_kind), parameter :: p5 =0.5_r_kind
 real(r_kind), parameter :: p66=0.66_r_kind
-real(r_kind), parameter :: xtrapf=4.0_r_kind
+real(r_kind), parameter :: xtrapf=four
 
 INFOC = 1
 !
@@ -563,7 +581,7 @@ STAGE1 = .TRUE.
 FINIT = F
 DGTEST = FTOL*DGINIT
 WIDTH = STPMAX - STPMIN
-WIDTH1 = WIDTH/P5
+WIDTH1 = WIDTH/half
 wa = x
 !
 !     THE VARIABLES STX, FX, DGX CONTAIN THE VALUES OF THE STEP,
@@ -682,7 +700,7 @@ do ifev=1,maxfev
 !        INTERVAL OF UNCERTAINTY.
 !
   IF (BRACKT) THEN
-    IF (ABS(STY-STX)>=P66*WIDTH1) STP = STX + P5*(STY - STX)
+    IF (ABS(STY-STX)>=P66*WIDTH1) STP = STX + half*(STY - STX)
     WIDTH1 = WIDTH
     WIDTH = ABS(STY-STX)
   END IF
@@ -931,13 +949,37 @@ END SUBROUTINE MCSTEP
 !  MATINV - Simplified interface to LAPACK routines SGETRF+SGETRS/DGETRF+DGETRS
 ! ------------------------------------------------------------------------------
 subroutine matinv(pmat,pvec,kiter,kmaxit)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    matinv
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-10  lueken - added subprogram doc block
+!
+!   input argument list:
+!    kiter,kmaxit
+!    pmat
+!    pvec
+!
+!   output argument list:
+!    pmat
+!    pvec
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 integer(i_kind), intent(in) :: kiter,kmaxit
 real(r_kind), intent(inout) :: pmat(2*kmaxit,2*kmaxit)
 real(r_kind), intent(inout) :: pvec(2*kmaxit)
 
-integer(i_kind) :: info,ii,jj,iwork(2*kmaxit)
+integer(i_kind) :: info,iwork(2*kmaxit)
 
 if (r_kind==N_DEFAULT_REAL_KIND) then
   call SGETRF(2*kiter,2*kiter,pmat,2*kmaxit,iwork,info)

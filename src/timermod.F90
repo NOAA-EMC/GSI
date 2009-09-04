@@ -1,17 +1,27 @@
 module timermod
 
-!$$$  subprogram documentation block
-!
-!   module: timermod
-!   prgmmr: todling          org: gmao                date: 2007-10-01
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   timermod
+!  prgmmr: todling          org: gmao                date: 2007-10-01
 !
 ! abstract: module providing interface to timing procedures
 !
 ! program history log:
 !   2007-10-01  todling
 !   2009-02-26  todling - if-def from GMAO_FVGSI to GEOS_PERT
+!   2009-08-13  lueken - update documentation
 !
-!$$$
+! subroutines included:
+!   sub init_
+!   sub final_
+!   sub flush_
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only : i_kind
 #ifdef GEOS_PERT
@@ -42,7 +52,7 @@ contains
 
 subroutine init_ (str)
 !$$$  subprogram documentation block
-!
+!                .      .    .                                       .
 ! subprogram:    init_       initialize procedure timing
 !
 !   prgmmr: todling          org: gmao                date: 2007-10-01
@@ -55,7 +65,13 @@ subroutine init_ (str)
 !   input argument list:
 !     str - string designation for process to be timed
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 character(len=*) str
@@ -66,7 +82,7 @@ end subroutine init_
 
 subroutine final_ (str)
 !$$$  subprogram documentation block
-!
+!                .      .    .                                       .
 ! subprogram:    final_       finalize procedure timing
 !
 !   prgmmr: todling          org: gmao                date: 2007-10-01
@@ -79,7 +95,13 @@ subroutine final_ (str)
 !   input argument list:
 !     str - string designation for process timed
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 character(len=*) str
@@ -90,7 +112,7 @@ end subroutine final_
 
 subroutine flush_ (lu)
 !$$$  subprogram documentation block
-!
+!                .      .    .                                       .
 ! subprogram:    flush_       summarizes timing results
 !
 !   prgmmr: todling          org: gmao                date: 2007-10-01
@@ -103,7 +125,13 @@ subroutine flush_ (lu)
 !   input argument list:
 !     str - string designation for process timed
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 integer(i_kind) :: lu

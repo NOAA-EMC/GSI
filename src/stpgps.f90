@@ -1,15 +1,25 @@
 module stpgpsmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stpgpsmod    module for stpref and its tangent linear stpref_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stpgpsmod    module for stpref and its tangent linear stpref_tl
+!  prgmmr:
 !
 ! abstract: module for stpref and its tangent linear stpref_tl
 !
 ! program history log:
 !   2005-05-19  Yanqiu zhu - wrap stpref and its tangent linear stpref_tl into one module
 !   2005-11-16  Derber - remove interfaces
+!   2009-08-12  lueken - updated documentation
 !
+! subroutines included:
+!   sub stpgps
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -55,6 +65,7 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
 !   2008-12-03  todling - changed handling of ptr%time
 !
 !   input argument list:
+!     gpshead
 !     rt    - search direction (gradxJ) for virtual temperature
 !     rq    - search direction (gradxJ) for specific humidity
 !     rp    - search direction (gradxJ) for (3D) pressure
@@ -93,7 +104,7 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
   real(r_kind),dimension(4),intent(in):: sges
 
 ! Declare local variables
-  integer(i_kind) i,j,k
+  integer(i_kind) j
   integer(i_kind),dimension(nsig):: i1,i2,i3,i4
   real(r_kind) :: val,val2
   real(r_kind) :: w1,w2,w3,w4

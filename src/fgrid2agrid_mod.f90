@@ -114,6 +114,8 @@ module fgrid2agrid_mod
 !
 !$$$
     use constants, only: one
+    implicit none
+
     type(fgrid2agrid_parm),intent(out):: p
 
 !    initialize fgrid2agrid interpolation structure variables and other constants to defaults
@@ -202,6 +204,7 @@ module fgrid2agrid_mod
 !       are the same.
 
     use constants, only: one
+    implicit none
     type(fgrid2agrid_parm),intent(inout):: p
 
     if(p%grid_ratio.le.1.001_r_kind.and.p%grid_ratio.ge..999_r_kind) then
@@ -276,6 +279,7 @@ module fgrid2agrid_mod
 !
 !
     use constants, only: zero,one
+    implicit none
 
     type(fgrid2agrid_cons),intent(inout):: f2a
     real(r_kind),intent(in):: grid_ratio_in
@@ -582,6 +586,7 @@ module fgrid2agrid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+    implicit none
 
 ! free space used by interpolation structures
     type(fgrid2agrid_parm),intent(inout):: p
@@ -622,12 +627,13 @@ module fgrid2agrid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+    implicit none
 
     type(fgrid2agrid_parm),intent(in):: p
     real(r_kind),intent(in):: f(p%nlatf,p%nlonf)
     real(r_kind),intent(out)::a(p%nlata,p%nlona)
 
-    integer i,j,j1,k
+    integer(i_kind) i,j,j1,k
     real(r_kind) w1,w(p%nlata,p%nlonf)
 
     if(p%identity) then
@@ -690,6 +696,7 @@ module fgrid2agrid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+    implicit none
 
     type(fgrid2agrid_parm),intent(in):: p
     real(r_kind),intent(out)::f(p%nlatf,p%nlonf)
@@ -759,6 +766,7 @@ module fgrid2agrid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+    implicit none
 
     type(fgrid2agrid_parm),intent(in):: p
     real(r_kind),intent(out)::f(p%nlatf,p%nlonf)

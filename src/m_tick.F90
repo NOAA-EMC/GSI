@@ -1,19 +1,97 @@
 module m_tick
-! 2009-01-08 todling - encapsulated in this module
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   m_tick
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-01-08 todling - encapsulated in this module
+!   2009-08-06 lueken  - added module doc block
+!
+! subroutines included:
+!   sub tick
+!   sub INCYMD
+!   sub leap_year
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+implicit none
+
 contains
 #ifdef ibm_sp
   subroutine tick (nymd, nhms, ndt)
+!$$$ subprogram documentation block
+!               .      .    .                                       .
+! subprogram:   tick
+!   prgmmr:
+!
+! abstract: Dummy routine for ibm_sp.
+!
+! program history log:
+!   2009-08-06 lueken  - added subprogram doc block
+!
+!   input argument list:
+!    ndt
+!    nymd
+!    nhms
+!
+!   output argument list:
+!    nymd
+!    nhms
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use kinds, only: i_kind
+  implicit none
+  integer(i_kind) ndt
+  integer(i_kind) nymd
+  integer(i_kind) nhms
   end subroutine tick
 #else
       subroutine tick (nymd, nhms, ndt)
+!$$$ subprogram documentation block
+!               .      .    .                                       .
+! subprogram:   tick
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06 lueken  - added subprogram doc block
+!
+!   input argument list:
+!    ndt
+!    nymd
+!    nhms
+!
+!   output argument list:
+!    nymd
+!    nhms
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use kinds, only: i_kind
+  implicit none
 
 ! Input:
-      integer ndt                     ! TIME-STEP
-! Inpuit/Output:
-      integer nymd                    ! CURRENT YYYYMMDD
-      integer nhms                    ! CURRENT HHMMSS
+      integer(i_kind),intent(in):: ndt                     ! TIME-STEP
+! Input/Output:
+      integer(i_kind),intent(inout):: nymd                 ! CURRENT YYYYMMDD
+      integer(i_kind),intent(inout):: nhms                 ! CURRENT HHMMSS
 ! Local:
-      integer :: NSECF, NHMSF, NSEC, N
+      integer(i_kind) :: NSECF, NHMSF, NSEC, N
 
 ! Origin:     L.L. Takacs
 ! Revision:   S.-J. Lin Mar 2000
@@ -47,6 +125,29 @@ contains
       end subroutine tick
 
       integer FUNCTION INCYMD (NYMD,M)
+!$$$ subprogram documentation block
+!               .      .    .                                       .
+! subprogram:   INCYMD
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06 lueken  - added subprogram doc block
+!
+!   input argument list:
+!    NYMD
+!    M
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use kinds, only: i_kind
+  implicit none
 
 !  PURPOSE
 !     INCYMD:  NYMD CHANGED BY ONE DAY
@@ -55,11 +156,10 @@ contains
 !     NYMD     CURRENT DATE IN YYMMDD FORMAT
 !     M        +/- 1 (DAY ADJUSTMENT)
 
-      INTEGER NDPM(12)
+      INTEGER(i_kind) NDPM(12)
       DATA    NDPM /31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31/
-      INTEGER NY00
-      DATA    NY00     / 1900 /
-      INTEGER NYMD, M, NY, NM, ND
+      INTEGER(i_kind),intent(in):: NYMD, M
+      INTEGER(i_kind) NY, NM, ND
 
       NY = NYMD / 10000
       NM = MOD(NYMD,10000) / 100
@@ -92,13 +192,35 @@ contains
       END function INCYMD
 
       logical function leap_year(ny)
+!$$$ subprogram documentation block
+!               .      .    .                                       .
+! subprogram:   leap_year
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06 lueken  - added subprogram doc block
+!
+!   input argument list:
+!    ny
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use kinds, only: i_kind
+
 !
 ! Determine if year ny is a leap year
 !
 ! Author: S.-J. Lin
       implicit none
-      integer ny
-      integer ny00
+      integer(i_kind),intent(in):: ny
+      integer(i_kind) ny00
 
 !
 ! No leap years prior to 1900

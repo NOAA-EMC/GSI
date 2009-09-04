@@ -1,5 +1,8 @@
 subroutine control2model(xhat,sval,bval)
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    control2model
+!   prgmmr: tremolet
 !
 ! abstract:  Converts control variable to physical space
 !
@@ -9,24 +12,31 @@ subroutine control2model(xhat,sval,bval)
 !   2008-12-04  todling  - update interface to ckgcov; add tsen/p3d
 !   2008-12-29  todling  - add call to strong balance contraint
 !   2009-04-21  derber   - modify call to getuv to getuv(*,0)
+!   2009-08-14  lueken   - update documentation
 !
 !   input argument list:
 !     xhat - Control variable
+!     sval - State variable
+!     bval - Bias predictors
+!
 !   output argument list:
 !     sval - State variable
 !     bval - Bias predictors
 !
-!$$$
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 use kinds, only: r_kind,i_kind
 use control_vectors
 use state_vectors
 use bias_predictors
 use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb
 use gridmod, only: lat2,lon2,nsig,nnnn1o
-use jfunc, only: nsclen,npclen,nrclen
+use jfunc, only: nsclen,npclen
 use berror, only: varprd,fpsproj
 use balmod, only: balance
-use mpimod, only: levs_id
 implicit none
   
 ! Declare passed variables  
@@ -36,7 +46,7 @@ type(predictors)    , intent(inout) :: bval
 
 ! Declare local variables  	
 real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
-integer(i_kind) :: ii,jj,kk
+integer(i_kind) :: ii,jj
 
 !******************************************************************************
 

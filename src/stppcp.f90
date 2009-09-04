@@ -1,8 +1,9 @@
 module stppcpmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stppcpmod    module for stppcp and its tangent linear stppcp_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stppcpmod    module for stppcp and its tangent linear stppcp_tl
+!  prgmmr:
 !
 ! abstract: module for stppcp and its tangent linear stppcp_tl
 !
@@ -10,7 +11,16 @@ module stppcpmod
 !   2005-05-17  Yanqiu zhu - wrap stppcp and its tangent linear stppcp_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stppcp_tl
+!   2009-08-12  lueken - update documentation
 !
+! subroutines included:
+!   sub stppcp
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documnetation block
 
 implicit none
 
@@ -20,7 +30,7 @@ PUBLIC  stppcp
 contains
 
 subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
-     rpred,spred,out,sges)
+     out,sges)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stppcp     compute contribution to penalty and
@@ -50,6 +60,7 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
 !   2009-01-26  todling - re-implement Tremolet's linearization for q1fy10
 !
 !   input argument list:
+!     pcphead
 !     rt       - search direction for temperature
 !     rq       - search direction for moisture 
 !     ru       - search direction for zonal wind
@@ -60,8 +71,6 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
 !     su       - input u correction field
 !     sv       - input v correction field
 !     scwm     - input cwm correction field
-!     rpred    - search direction for bias correction predictors
-!     spred    - input precipitation bias correction values
 !     sges     - step size estimates (4)
 !
 !   output argument list:
@@ -78,7 +87,7 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use pcpinfo, only: npcptype,npredp,b_pcp,pg_pcp,tinym1_obs
+  use pcpinfo, only: b_pcp,pg_pcp,tinym1_obs
   use obsmod, only: pcp_ob_type
   use constants, only: zero,one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
   use qcmod, only: nlnqc_iter,varqc_iter
@@ -93,7 +102,6 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
   real(r_quad),dimension(6),intent(out):: out
   real(r_kind),dimension(latlon1n),intent(in):: rt,st,rq,sq,ru,su,&
        rv,sv,rcwm,scwm
-  real(r_kind),dimension(npcptype,npredp),intent(in):: rpred,spred
 
 ! Declare local variables
   integer(i_kind) n,ncwm,nq,nt,nu,nv,kx

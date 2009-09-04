@@ -152,7 +152,7 @@ subroutine sub2grid2(workin,st,vp,pri,t,iflg)
        strip,strip_periodic,reorder,nnnvsbal,nlevsbal,ku_gs,kv_gs, &
        kp_gs,kt_gs
   use gridmod, only: itotsub,lat1,lon1,lat2,lon2,iglobal,&
-       nlat,nlon,nsig,ltosi,ltosj,latlon1n,latlon11
+       nlat,nlon,nsig,ltosi,ltosj
   use constants, only: zero
   implicit none
 

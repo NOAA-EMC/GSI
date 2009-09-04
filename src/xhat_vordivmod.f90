@@ -1,12 +1,33 @@
 module xhat_vordivmod
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   xhat_vordivmod
+!  prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-14  lueken - added module doc block
+!
+! subroutines included:
+!   sub init_
+!   sub clean_
+!   sub calc_
+!   sub calc2_
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
        isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,isduv_s,&
-       strip,reorder,reorder2,mype
-  use constants, only: zero, one, ozcon, fv, tiny_r_kind
-  use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,ltosi,ltosj,nlon,nlat,iglobal,&
-       ltosi_s,ltosj_s,regional,twodvar_regional
+       strip,reorder,reorder2
+  use constants, only: zero
+  use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,&
+       regional
   use compact_diffs, only: uv2vordiv
   use gsi_4dvar, only: nobs_bins
   use state_vectors
@@ -30,12 +51,52 @@ module xhat_vordivmod
 CONTAINS
 
 subroutine init_
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-14  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   allocate(xhat_vor(lat2,lon2,nsig,nobs_bins))
   allocate(xhat_div(lat2,lon2,nsig,nobs_bins))
 end subroutine init_
 
 subroutine clean_
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    clean_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-14  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   deallocate(xhat_div)
   deallocate(xhat_vor)
@@ -53,8 +114,7 @@ subroutine calc_(sval)
 !   2007-07-05  todling - intial code; stripped off from update_guess
 !
 !   input argument list:
-!     xhat     - analysis increment in grid space
-!     xhatuv    - u,v increment in grid space
+!     sval     - analysis increment in grid space
 !
 !   output argument list:
 !

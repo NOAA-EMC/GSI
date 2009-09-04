@@ -133,17 +133,17 @@
        crtm_coeffs_path,air_rad,ang_rad
   use guess_grids, only: add_rtm_layers,sfcmod_gfs,sfcmod_mm5,&
        comp_fact10
-  use obsmod, only: iadate,ianldate,ndat,mype_diaghdr,lunobs_obs,nchan_total, &
-           dplat,dtbduv_on,rmiss_single,rad_ob_type,radhead,radtail,&
+  use obsmod, only: ianldate,iadate,ndat,mype_diaghdr,nchan_total, &
+           dplat,dtbduv_on,radhead,radtail,&
            i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
            dirname,time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use gridmod, only: istart,jstart,jlon1,nlon,nsig,nlat,nsig2,nsig3,nsig3p1,&
-       lat2,regional,nsig4,nsig5,nsig3p2,nsig3p3,msig,nlayers,get_ij
+  use gridmod, only: nsig,nsig2,nsig3p1,&
+       regional,nsig3p2,nsig3p3,msig,get_ij
   use satthin, only: super_val1
-  use constants, only: half,ozcon,constoz,amsua_clw_d1,amsua_clw_d2,tiny_r_kind,&
+  use constants, only: half,constoz,amsua_clw_d1,amsua_clw_d2,tiny_r_kind,&
        fv,zero,one,izero,deg2rad,rad2deg,one_tenth,quarter,two,three,four,five,&
-       zero_single,ttp,grav,cg_term,tpwcon,t0c,r1000,wgtlim
+       cg_term,tpwcon,t0c,r1000,wgtlim,r60,h300
   use jfunc, only: jiter,miter
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
        finish_sst_retrieval,spline_cub
@@ -198,7 +198,6 @@
 ! real(r_kind),parameter:: r0_2=0.2_r_kind
   real(r_kind),parameter:: r0_3=0.3_r_kind
   real(r_kind),parameter:: r0_4=0.4_r_kind
-  real(r_kind),parameter:: r0_5=0.5_r_kind
   real(r_kind),parameter:: r0_6=0.6_r_kind
   real(r_kind),parameter:: r0_7=0.7_r_kind
   real(r_kind),parameter:: r0_8=0.8_r_kind
@@ -1163,7 +1162,7 @@
         end if
 
 !      If GOES and lza > 60. do not use
-       if( goessndr .and. zasat*rad2deg > 60._r_kind) then
+       if( goessndr .and. zasat*rad2deg > r60) then
 !        QC5 in statsrad
          if(luse(n))aivals(12,is) = aivals(12,is) + one
          do i=1,nchanl
@@ -1276,7 +1275,7 @@
            if(.not. sea)then
              dts=min(dtempf,dts)
            else
-             dts=min(3.0_r_kind,dts)
+             dts=min(three,dts)
            end if
            do i=1,nchanl
               delta=max(r0_05*tnoise(i),r0_02)
@@ -1343,7 +1342,7 @@
         end if
 
 !       Apply window test to channel 2 using channel 1
-        if (abs(tbc(1)) > 5.0_r_kind) then
+        if (abs(tbc(1)) > five) then
            errf(2) = zero
            varinv(2) = zero
            if(id_qc(2) == izero)id_qc(2)=2
@@ -1575,8 +1574,8 @@
          end if
          if(sea .or. ice .or. snow)then
             dsi=9.0_r_kind
-            if(tb_obs(2) < 300.0_r_kind)then
-               dsi=0.13_r_kind*(tbc(1)-33.58_r_kind*tbc(2)/(300.0_r_kind-tb_obs(2)))
+            if(tb_obs(2) < h300)then
+               dsi=0.13_r_kind*(tbc(1)-33.58_r_kind*tbc(2)/(h300-tb_obs(2)))
 !              QC3 in statsrad
                if(luse(n) .and. dsi >= one)aivals(10,is) = aivals(10,is) + one
             end if
@@ -1758,9 +1757,9 @@
                if (tb_obs_sdv(2) >r1_4 )                         &
                     varinv(i)=varinv(i)/1.48_r_kind
             else if(dplat(is) == 'g12' .and. i== 2) then
-               if (tb_obs_sdv(2) >r0_4 .and. tb_obs_sdv(2) <=r0_5) &
+               if (tb_obs_sdv(2) >r0_4 .and. tb_obs_sdv(2) <=half) &
                     varinv(i)=varinv(i)/1.05_r_kind
-               if (tb_obs_sdv(2) >r0_5 .and. tb_obs_sdv(2) <=r0_6) &
+               if (tb_obs_sdv(2) >half .and. tb_obs_sdv(2) <=r0_6) &
                     varinv(i)=varinv(i)/1.09_r_kind
                if (tb_obs_sdv(2) >r0_6 .and. tb_obs_sdv(2) <=r0_7) &
                     varinv(i)=varinv(i)/1.14_r_kind
@@ -1957,7 +1956,7 @@
            call avhrr_sst_retrieval(obstype,dplat(is),nchanl,tnoise,&
                 varinv,tsavg5,sstnv,sstcu,temp,wmix,ts,tbc,cenlat,cenlon,zasat,&
                 dtime,dtp_avh,tlapchn,predterms,emissivity,pangs,tbcnob,tb_obs,&
-                rad_diagsave,sfcpct,id_qc,nadir,mype,ireal,ipchan,luse(n))
+                rad_diagsave,sfcpct,id_qc,nadir,ireal,ipchan,luse(n))
            go to 100
         endif
      endif

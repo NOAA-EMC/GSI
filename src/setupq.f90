@@ -78,7 +78,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: oneobtest,maginnov,magoberr
   use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps
-  use gridmod, only: lat2,lon2,nsig,get_ijk,istart,jstart
+  use gridmod, only: lat2,lon2,nsig,get_ijk
   use constants, only: zero,one,r1000
   use constants, only: huge_single,wgtlim
   use constants, only: tiny_r_kind,five,half,two,huge_r_kind,cg_term

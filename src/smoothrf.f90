@@ -34,8 +34,8 @@ subroutine smoothrf(work,nsc,nlevs)
   use gridmod, only: nlat,nlon,regional
   use constants, only:  zero,half
   use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
-       ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,nlath,hswgt
-  use mpimod, only:  levs_id,nvar_id
+       ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,hswgt
+  use mpimod, only:  nvar_id
   use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
   implicit none
 
@@ -391,7 +391,7 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 !	    .	|     .	   |  . 	   <-- IY < 0
 !  ---------------------------------------
 
-    call rfhyt(p2,p1t,nx,ny,ndeg,ndeg,aly,be)
+    call rfhyt(p2,p1t,nx,ny,ndeg,aly,be)
 
 
 !   IX < 0	|	   |	 IX > NX
@@ -576,7 +576,7 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
   return
 end subroutine rfhx0
 ! -----------------------------------------------------------------------------
-subroutine rfhyt(p1,p2,nx,ny,ndegx,ndegy,aly,be)
+subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -595,7 +595,6 @@ subroutine rfhyt(p1,p2,nx,ny,ndegx,ndegy,aly,be)
 !     p1       - field to be smoothed
 !     nx       - first dimension of p1
 !     ny       - second dimension of p1
-!     ndegx    - degree of smoothing x direction
 !     ndegy    - degree of smoothing y direction
 !     aly      - smoothing coefficients y direction
 !     be       - smoothing coefficients
@@ -612,7 +611,7 @@ subroutine rfhyt(p1,p2,nx,ny,ndegx,ndegy,aly,be)
   use constants, only:  zero
   implicit none
 
-  integer(i_kind),intent(in):: nx,ny,ndegx,ndegy
+  integer(i_kind),intent(in):: nx,ny,ndegy
   real(r_kind),intent(in),dimension(nx,ny):: p1
   real(r_kind),intent(in),dimension(nx,ny,ndegy):: aly
   real(r_kind),intent(in),dimension(ndegy):: be
@@ -1014,9 +1013,9 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   use jfunc,only: nval_lenz
   use constants, only:  zero,half
   use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
-       ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,nlath,hswgt
-  use mpimod, only:  levs_id,nvar_id
-  use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
+       ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,hswgt
+  use mpimod, only:  nvar_id
+  use smooth_polcarf, only: norsp,smooth_polcas
   implicit none
 
 ! Declare passed variables
@@ -1256,9 +1255,9 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
   use jfunc,only: nval_lenz
   use constants, only:  zero,half
   use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
-       ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,nlath,hswgt
-  use mpimod, only:  levs_id,nvar_id
-  use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
+       ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,hswgt
+  use mpimod, only:  nvar_id
+  use smooth_polcarf, only: norsp,smooth_polcasa
   implicit none
 
 ! Declare passed variables
@@ -1662,7 +1661,7 @@ subroutine sqrt_rfxyyx_ad(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 !	    .	|     .	   |  . 	   <-- IY < 0
 !  ---------------------------------------
 
-    call rfhyt(p2,p1t,nx,ny,ndeg,ndeg,aly,be)
+    call rfhyt(p2,p1t,nx,ny,ndeg,aly,be)
 
 
 !   IX < 0	|	   |	 IX > NX

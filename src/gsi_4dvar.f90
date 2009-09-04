@@ -48,11 +48,15 @@ module gsi_4dvar
 !
 !   idmodel           - Run w/ identity GCM TLM and ADM; test mode
 !
+! attributes:
+!   language: f90
+!   machine:
+!
 !$$$ end documentation block
 
 ! --------------------------------------------------------------------
   use kinds, only: r_kind,i_kind
-  use constants, only: zero, one, two
+  use constants, only: one
   use geos_pertmod, only: model_init
   use geos_pertmod, only: model_clean
 ! --------------------------------------------------------------------
@@ -82,6 +86,25 @@ module gsi_4dvar
 contains
 ! --------------------------------------------------------------------
 subroutine init_4dvar ()
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_4dvar
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use gridmod, only: regional
 
@@ -107,14 +130,34 @@ nwrvecs=-1
 end subroutine init_4dvar
 ! --------------------------------------------------------------------
 subroutine setup_4dvar(miter,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    setup_4dvar
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    mype     - mpi task id
+!    miter
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 implicit none
 integer(i_kind),intent(in) :: mype
 integer(i_kind),intent(in) :: miter
 
 ! local variables
-real(r_kind),parameter:: R3600 = 3600.0_r_kind
 integer(i_kind) :: ibin,ierr
-real(r_kind) :: tstep
 
 winlen = real(nhr_assimilation,r_kind)
 winoff = real(nhr_offset,r_kind)
@@ -203,7 +246,29 @@ endif
 end subroutine setup_4dvar
 ! --------------------------------------------------------------------
 subroutine time_4dvar(idate,step4d)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:   time_4dvar
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    idate    - Date (yyyymmddhh)
+!
+!   output argument list:
+!    step4d   - Time since start of 4D-Var window (hours)
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
+use constants, only: r60
 implicit none
 integer(i_kind),intent(in) :: idate   ! Date (yyyymmddhh)
 real(r_kind),intent(out)   :: step4d  ! Time since start of 4D-Var window (hours)
@@ -224,7 +289,7 @@ if (MOD(nmin_obs,60)/=0) then
 end if
 
 nhrobs=nmin_obs/60
-nhrbgn=NINT(real(iwinbgn,r_kind)/60._r_kind)
+nhrbgn=NINT(real(iwinbgn,r_kind)/r60)
 nhroff=nhrobs-nhrbgn
 
 step4d=real(nhroff,r_kind)
@@ -233,6 +298,26 @@ return
 end subroutine time_4dvar
 ! --------------------------------------------------------------------
 subroutine clean_4dvar()
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    clean_4dvar
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 implicit none
 ! Initialize atmospheric AD and TL model
 if (l4dvar) then

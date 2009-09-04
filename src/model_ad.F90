@@ -14,8 +14,7 @@ subroutine model_ad(xini,xobs,ldprt)
 use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
 use gsi_4dvar, only: iadateend,idmodel
-use jfunc, only: nclen1
-use constants, only: zero,one,izero
+use constants, only: zero,izero,r3600
 use state_vectors
 use geos_pertmod, only: ndtpert
 use m_tick, only: tick
@@ -25,8 +24,6 @@ use timermod, only: timer_ini,timer_fnl
 use prognostics, only: dyn_prog
 use prognostics, only: prognostics_initial
 use prognostics, only: prognostics_final
-use prognostics, only: prognostics_dup
-use prognostics, only: prognostics_dotp
 use geos_pertmod, only: gsi2pgcm
 use geos_pertmod, only: pgcm2gsi
 use m_model_ad, only: initial_ad
@@ -67,12 +64,10 @@ type(state_vector), intent(inout) :: xini(nsubwin)   ! Adjoint state variable at
 
 ! Declare local variables
 character(len=*), parameter :: myname = 'model_ad'
-real(r_kind),     parameter :: R3600  = 3600.0_r_kind
 
 type(state_vector) :: xx
 integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ii,jj,ierr
 integer(i_kind)    :: nymdi,nhmsi,ndt,dt
-integer(i_kind)    :: nymdb,nhmsb
 real(r_kind)       :: d0,tstep
 
 ! Temporary vector for lagrangian backward integration
@@ -89,16 +84,16 @@ type(dyn_prog) :: xpert
 
 ! Initialize variables
 if (idmodel) then
-   tstep  = R3600
+   tstep  = r3600
    dt     = tstep
 else
-   ndt    = NINT(hr_obsbin*R3600/ndtpert)
+   ndt    = NINT(hr_obsbin*r3600/ndtpert)
    dt     = ndt*ndtpert
    tstep  = dt
 endif
-nstep  = NINT(winlen*R3600/tstep)
-nfrctl = NINT(winsub*R3600/tstep)
-nfrobs = NINT(hr_obsbin*R3600/tstep)
+nstep  = NINT(winlen*r3600/tstep)
+nfrctl = NINT(winsub*r3600/tstep)
+nfrobs = NINT(hr_obsbin*r3600/tstep)
 nymdi  =  iadateend/100
 nhmsi  = (iadateend-100*nymdi)*10000
 !nymdi=20060102; nhmsi=050000

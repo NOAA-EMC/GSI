@@ -1,4 +1,23 @@
 module m_ssu_eff_cell_pres
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   m_suu_eff_cell_pres
+!   prgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added module doc block
+!
+! subroutines included:
+!   ssu_eff_cell_pres
+!
+! attributes:
+!   langauge: f90
+!   machine:
+!
+!$$$ end documentation block
+implicit none
 
 private
 public ssu_eff_cell_pres
@@ -6,8 +25,33 @@ public ssu_eff_cell_pres
 contains
 
    subroutine ssu_eff_cell_pres(yyyymmdd,satid,set_eff_cell,iprt)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    m_suu_eff_cell_pres
+!   prgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    yyyymmdd
+!    satid
+!    iprt
+!    set_eff_cell
+!
+!   output argument list:
+!    set_eff_cell
+!
+! attributes:
+!   langauge: f90
+!   machine:
+!
+!$$$ end documentation block
 
-   use kinds, only: r_kind,r_double,i_kind
+   use constants, only: zero
+   use kinds, only: r_kind,i_kind
 
    implicit none          
 
@@ -27,24 +71,14 @@ contains
    integer(i_kind), parameter :: ssu_lun     = 8     !  
    integer(i_kind), parameter :: ssu_success = 0     ! Success flag - continue
    integer(i_kind), parameter :: ssu_error   = -1    ! Fatial Error will not continue
-   integer(i_kind), parameter :: ssu_warning = -2    ! Warning message will continue
-   integer(i_kind), parameter :: ssu_maxcha  = 3     ! Max number of ssu channels
 
    integer(i_kind), parameter :: mx_cell_tsat= 12
    integer(i_kind), parameter :: mx_cell_dsat= 7
    integer(i_kind), parameter :: mx_cell_ent = 15
 
-   integer(i_kind), parameter, dimension(3):: ssu_sat_index=(/25,26,27/)
-   integer(i_kind), parameter, dimension(3):: ssu_ins_index=(/1,2,3/)
-
    real(r_kind)                            :: rdate       ! date converted to real
    integer(i_kind), dimension(1)           :: lmm         ! minimum value location
    real(r_kind),    dimension(mx_cell_ent) :: diff_date   ! diff between sounding date
-
-   character(LEN=2),dimension(mx_cell_tsat) :: sat_ref_id = (/'TN',  &
-    'NA', 'NB', 'NC', 'ND', 'NE', 'NF', 'NG', 'NH', 'NI', 'NJ', 'NK'/)
-   integer, dimension(mx_cell_tsat)        :: sat_ref_idx = (/ 1,    &
-    6,     0,    7,    12,   8,    9,    10,   11,   13,   14,   15/)
 
    character(len=220) :: ssu_data_file
 
@@ -118,7 +152,7 @@ contains
 
 ! Initialize ssu pressure
 
-   set_eff_cell = 0.0
+   set_eff_cell = zero
 
 ! Determine valid channels 
 
@@ -127,7 +161,7 @@ contains
 
 !  set_cell%date = rdate
 
-   lmm  = minloc( diff_date, diff_date >= 0.0 )
+   lmm  = minloc( diff_date, diff_date >= zero )
    l    = lmm(1)
 
 !  print out info related to ssu effective cell pressure

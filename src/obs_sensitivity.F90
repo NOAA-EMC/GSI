@@ -1,4 +1,8 @@
 module obs_sensitivity
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   obs_sensitivity
+!   prgmmr: tremolet
 !
 ! abstract: Contains variables and routines for computation of
 !           forecast sensitivity to observations.
@@ -6,19 +10,25 @@ module obs_sensitivity
 ! program history log:
 !   2007-06-26 tremolet
 !   2007-07-19 tremolet - increment sensitivity to observations
+!   2009-08-07 lueken   - updated documentation
 !
 ! Subroutines Included:
 !   init_fc_sens  - Initialize computations
 !
 ! Variable Definitions:
 !   fcsens - forecast sensitivity gradient
-
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 ! ------------------------------------------------------------------------------
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero, zero_quad, two
-use gsi_4dvar, only: nobs_bins, l4dvar, idmodel
+use constants, only: zero, zero_quad
+use gsi_4dvar, only: nobs_bins, idmodel
 use jfunc, only: jiter, miter, niter, iter
-use obsmod, only: cobstype, nobs_type, obsdiags, obsptr, obscounts, &
+use obsmod, only: nobs_type, obsdiags, obsptr, obscounts, &
                 & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                 & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                 & i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
@@ -52,6 +62,25 @@ character(len=3) :: cobtype(nobs_type)
 contains
 ! ------------------------------------------------------------------------------
 subroutine init_obsens
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_obsens
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 implicit none
 
 lobsensfc=.false.
@@ -66,11 +95,26 @@ iobsconv=0
 end subroutine init_obsens
 ! ------------------------------------------------------------------------------
 subroutine init_fc_sens
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_fc_sens
+!   prgmmr:      tremolet
+!
 ! abstract: Read forecast sensitivity gradient
 !
 ! program history log:
 !   2007-06-26  tremolet - initial code
+!   2009-08-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 character(len=12) :: clfile
@@ -175,14 +219,28 @@ return
 end subroutine init_fc_sens
 ! ------------------------------------------------------------------------------
 subroutine save_fc_sens
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    save_fc_sens
+!   prgmmr:      tremolet
+!
 ! abstract: Compute and save forecast sensitivity to observations
 !
 ! program history log:
 !   2007-06-26  tremolet - initial code
-
+!   2009-08-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 implicit none
-real(r_kind) :: zjx,zjy,zz
+real(r_kind) :: zz
 integer(i_kind) :: ii,jj,kk
 
 ! Save statistics
@@ -244,16 +302,30 @@ return
 end subroutine save_fc_sens
 ! ------------------------------------------------------------------------------
 real(r_kind) function dot_prod_obs()
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_fc_sens
+!   prgmmr:      tremolet
+!
 ! abstract: Computes scalar product in observation space
 !           (based on evaljo)
 !
 ! program history log:
 !   2007-06-27  tremolet
 !   2009-01-18  todling - carry summations in quad precision
-
+!   2009-08-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 implicit none
-integer(i_kind) :: ii,jj,kk,ij,it
+integer(i_kind) :: ii,jj,ij,it
 real(r_quad)    :: zzz
 real(r_quad)    :: zprods(nobs_type*nobs_bins)
 ! ----------------------------------------------------------

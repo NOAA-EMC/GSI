@@ -1,8 +1,9 @@
 module pcgsoimod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    pcgsoimod    module for pcgsoi and its tangent linear pcgsoi_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   pcgsoimod    module for pcgsoi and its tangent linear pcgsoi_tl
+!  prgmmr:
 !   
 ! abstract: module for pcgsoi and its tangent linear pcgsoi_tl
 !
@@ -10,7 +11,18 @@ module pcgsoimod
 !   2005-05-17  Yanqiu zhu - wrap pcgsoi and its tangent linear pcgsoi_tl into one module
 !   2005-11-21  Derber - remove interface
 !   2008-11-26  Todling - remove pcgsoi_tl
+!   2009-08-12  lueken  - update documentation
 !
+! subroutines included:
+!   sub pcgsoi
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+implicit none
 
 PRIVATE
 PUBLIC pcgsoi
@@ -85,12 +97,12 @@ subroutine pcgsoi()
   use kinds, only: r_kind,i_kind,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
   use obsmod, only: destroyobs,oberror_tune
-  use jfunc, only: iter,jiter,jiterstart,jiterend,niter,miter,iout_iter,&
-       nclen,nclen1,penorig,gnormorig,xhatsave,yhatsave,&
+  use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&
+       nclen,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution, &
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg,lgschmidt
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, lwrtinc
-  use gridmod, only: lat2,lon2,regional,twodvar_regional,latlon1n
+  use gridmod, only: regional,twodvar_regional
   use constants, only: zero,izero,one,five,tiny_r_kind,ione
   use anberror, only: anisotropic
   use mpimod, only: mype
@@ -530,13 +542,24 @@ subroutine init_
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_    initialize pcgsoi
+!   prgmmr:      Todling
 !   
 ! abstract: initialize pcgsoi required fields on way in
 !
 ! program history log:
 !   2008-12-01  Todling
 !
-!$$$
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   mschine:
+!
+!$$$ end documentation block
+
+implicit none
 
 ! Allocate local variables
   call allocate_cv(xhat)
@@ -575,13 +598,24 @@ subroutine clean_
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    clean_    clean pcgsoi
+!   prgmmr:      Todling
 !   
 ! abstract: clean pcgsoi required fields on way out
 !
 ! program history log:
 !   2008-12-01  Todling
 !
-!$$$
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+implicit none
 
 ! Deallocate obs file
   if (.not.l4dvar) call destroyobs

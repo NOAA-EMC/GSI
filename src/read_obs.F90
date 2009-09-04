@@ -66,7 +66,7 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
   inquire(file=trim(filename),exist=lexist)
   if(lexist)then
     write(fname,'(2a,i4.4)') 'fsize_',trim(filename),mype
-   write(command,'(4a)') 'wc -c ', trim(filename),' > ', trim(fname)
+    write(command,'(4a)') 'wc -c ', trim(filename),' > ', trim(fname)
     call system(command)
     open(unit=999,file=trim(fname),form='formatted')
     read(999,*) lenb
@@ -155,18 +155,13 @@ subroutine read_obs(ndata,mype)
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
          strip,reorder,setcomm
-    use constants, only: izero,half
+    use constants, only: izero
     use converr, only: converr_read
     use guess_grids, only: ges_prsl,ntguessig,destroy_sfc_grids
-    use guess_grids, only: create_ges_grids
-    use m_gsiBiases, only: create_bias_grids
-    use guess_grids, only: ges_prsl,ntguessig
     use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad
     use ozinfo, only: nusis_oz,iuse_oz,jpch_oz,diag_ozone
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv
-    use tendsmod, only: create_tendvars
-    use jfunc, only: tendsflag,switch_on_derivatives
 
     implicit none
 
@@ -586,8 +581,7 @@ subroutine read_obs(ndata,mype)
 
 !            Process synthetic tc-mslp obs
              else if (obstype == 'tcp') then
-                call read_tcps(nread,npuse,nouse,infile,obstype,lunout, &
-                     twind,sis)
+                call read_tcps(nread,npuse,nouse,infile,obstype,lunout,sis)
                 string='READ_TCPS'
 
 !            Process radar superob winds
@@ -623,7 +617,7 @@ subroutine read_obs(ndata,mype)
                 call read_bufrtovs(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     mype_sub_read,ntask_read,mpi_comm_sub_read,lll)
+                     mype_sub_read,ntask_read,lll)
                 string='READ_BUFRTOVS'
 
 !            Process airs data        
@@ -636,7 +630,7 @@ subroutine read_obs(ndata,mype)
 
 !            Process iasi data
              else if(obstype == 'iasi')then
-                 call read_iasi(mype,val_dat,ithin,rmesh,platid,gstime,&
+                 call read_iasi(mype,val_dat,ithin,rmesh,gstime,&
                       infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                       mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                   string='READ_IASI'
@@ -661,7 +655,7 @@ subroutine read_obs(ndata,mype)
 !            Process amsre data
              else if ( obstype == 'amsre_low' .or. obstype == 'amsre_mid' .or. &
                        obstype == 'amsre_hig' ) then
-                call read_amsre(mype,val_dat,ithin,rmesh,platid,gstime,&
+                call read_amsre(mype,val_dat,ithin,rmesh,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                 string='READ_AMSRE'
@@ -705,7 +699,7 @@ subroutine read_obs(ndata,mype)
 
 !         Process precipitation             
           else if (ditype(i) == 'pcp')then
-             call read_pcp(nread,npuse,nouse,mype,platid,gstime,infile, &
+             call read_pcp(nread,npuse,nouse,gstime,infile, &
                   lunout,obstype,twind,sis)
              string='READ_PCP'
 

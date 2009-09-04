@@ -1,4 +1,4 @@
-subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
+subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub)
 !$$$  subprogram documentation block
@@ -50,7 +50,6 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
 !     val_iasi - weighting factor applied to super obs
 !     ithin    - flag to thin data
 !     rmesh    - thinning mesh size (km)
-!     jsatid   - satellite to read
 !     gstime   - analysis time in minutes from reference date
 !     infile   - unit from which to read BUFR data
 !     lunout   - unit to which to write data for further processing
@@ -77,12 +76,12 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                finalcheck,checkob,score_crit
   use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path
-  use crtm_planck_functions, only: crtm_planck_temperature,crtm_planck_radiance
+  use crtm_planck_functions, only: crtm_planck_temperature
   use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
        tll2xy,txy2ll,rlats,rlons
-  use constants, only: zero,deg2rad,one,three,izero,ione,rad2deg,r60inv
-  use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
+  use constants, only: zero,deg2rad,izero,rad2deg,r60inv,one
+  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
 
   implicit none
 
@@ -102,7 +101,6 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in) :: mype_sub
   integer(i_kind)  ,intent(in) :: npe_sub
   integer(i_kind)  ,intent(in) :: mpi_comm_sub  
-  character(len=10),intent(in) :: jsatid
   character(len=10),intent(in) :: infile
   character(len=10),intent(in) :: obstype
   character(len=20),intent(in) :: sis
@@ -139,10 +137,8 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
 ! Work variables for time
   integer(i_kind)   :: idate
   integer(i_kind)   :: idate5(5)
-  character(len=10) :: date
   real(r_kind)      :: sstime, tdiff, t4dv
   integer(i_kind)   :: nmind
-  integer(i_kind)   :: iy, im, idd, ihh
 
 
 ! Other work variables
@@ -168,12 +164,11 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind)  :: ifov, iscn, ioff, ilat, ilon, sensorindex
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line
   integer(i_kind)  :: nreal, isflg
-  integer(i_kind)  :: itx, k, nele, itt, iout,n
+  integer(i_kind)  :: itx, k, nele, itt, n
   integer(i_kind):: iexponent
   integer(i_kind):: idomsfc
   integer(i_kind):: ntest
   integer(i_kind):: error_status
-  integer(i_kind):: file_handle,ierror,nblocks
   character(len=20),dimension(1):: sensorlist
 
 
@@ -284,7 +279,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
 
 !    Read IASI FOV information
      call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QGFQ MJFC SELV')
-     if ( linele(3) /= 0.0) cycle read_loop  ! problem with profile (QGFQ)
+     if ( linele(3) /= zero) cycle read_loop  ! problem with profile (QGFQ)
 
      if ( bad_line == nint(linele(2))) then
 !        zenith angle/scan spot mismatch, reject entire line
@@ -398,7 +393,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
      lza = ((start + float((ifov-1)/4)*step) + piece)*deg2rad
      sat_height_ratio = (earth_radius + linele(5))/earth_radius
      lzaest = asin(sat_height_ratio*sin(lza))*rad2deg
-     if (abs(sat_zenang - lzaest) > 1.0) then
+     if (abs(sat_zenang - lzaest) > one) then
         write(6,*)' READ_IASI WARNING uncertainty in lza ', &
             lza*rad2deg,sat_zenang,sis,ifov,start,step,allspot(11),allspot(12),allspot(13)
         bad_line = iscn
@@ -477,8 +472,8 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
      iskip = 0
      do i=1,n_totchan
 !     check that channel number is within reason
-      if (( allchan(1,i) > 0.0_r_kind .and. allchan(1,i) < 99999._r_kind) .and. &  ! radiance bounds
-          (allchan(2,i) < 8462._r_kind .and. allchan(2,i) > 0.0_r_kind )) then      ! chan # bounds
+      if (( allchan(1,i) > zero .and. allchan(1,i) < 99999._r_kind) .and. &  ! radiance bounds
+          (allchan(2,i) < 8462._r_kind .and. allchan(2,i) > zero )) then      ! chan # bounds
 !         radiance to BT calculation
           radiance = allchan(1,i)
           scaleloop: do j=1,10
@@ -563,7 +558,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,jsatid,gstime,&
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
-  call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
+  call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
 
 

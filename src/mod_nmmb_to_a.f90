@@ -1,4 +1,27 @@
 module mod_nmmb_to_a
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   mod_nmmb_to_a
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added module doc block
+!
+! subroutines included:
+!   sub init_nmmb_to_a
+!   sub nmmb_h_to_a
+!   sub nmmb_v_to_a
+!   sub nmmb_a_to_h
+!   sub nmmb_a_to_v
+!   sub b_to_a_interpolate
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
   implicit none
@@ -14,10 +37,31 @@ module mod_nmmb_to_a
 contains
 
 subroutine init_nmmb_to_a(nmmb_reference_grid,grid_ratio_nmmb,nxb_in,nyb_in)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_nmmb_to_a
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nmmb_refernce_grid
+!    grid_ratio_nmmb
+!    nxb_in,nyb_in
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !   initialize constants required to interpolate back and forth between nmmb grid and analysis grid
 
-  use kinds, only: r_kind,i_kind
   use constants, only: half,one,two
   implicit none
 
@@ -100,8 +144,29 @@ subroutine init_nmmb_to_a(nmmb_reference_grid,grid_ratio_nmmb,nxb_in,nyb_in)
 end subroutine init_nmmb_to_a
 
 subroutine nmmb_h_to_a(hb,ha)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    nmmb_h_to_a
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    hb
+!
+!   output argument list:
+!    ha
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind,r_single
+  use kinds, only: r_single
   implicit none
 
   real(r_single),intent(in)::hb(nxb,nyb)
@@ -120,8 +185,29 @@ subroutine nmmb_h_to_a(hb,ha)
 end subroutine nmmb_h_to_a
 
 subroutine nmmb_v_to_a(vb,va)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    nmmb_v_to_a
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    vb
+!
+!   output argument list:
+!    va
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind,r_single
+  use kinds, only: r_single
   implicit none
 
   real(r_single),intent(in)::vb(nxb,nyb)
@@ -144,8 +230,29 @@ subroutine nmmb_v_to_a(vb,va)
 end subroutine nmmb_v_to_a
 
 subroutine nmmb_a_to_h(ha,hb)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    nmmb_a_to_h
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ha
+!
+!   output argument list:
+!    hb
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind,r_single
+  use kinds, only: r_single
   implicit none
 
   real(r_kind),intent(in)::ha(nya,nxa)
@@ -164,8 +271,29 @@ subroutine nmmb_a_to_h(ha,hb)
 end subroutine nmmb_a_to_h
 
 subroutine nmmb_a_to_v(va,vb)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    nmmb_a_to_v
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    va
+!
+!   output argument list:
+!    vb
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind,r_single
+  use kinds, only: r_single
   use constants, only: zero
   implicit none
 
@@ -194,13 +322,34 @@ subroutine nmmb_a_to_v(va,vb)
 end subroutine nmmb_a_to_v
 
 subroutine b_to_a_interpolate(b,a,mb,nb,ma,na,xb,yb,xa,ya)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    b_to_a_interpolate
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    mb,nb,ma,na
+!    b,xb,yb,xa,ya
+!
+!   output argument list:
+!    a
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !  interpolate from b-grid to a-grid
 
 !   NOTE:  xa is in xb units, ya is in yb units
 
-  use kinds, only: r_kind,i_kind
-  use constants, only: zero,half,one
+  use constants, only: zero,one
   implicit none
 
   integer(i_kind),intent(in):: mb,nb,ma,na
@@ -208,7 +357,7 @@ subroutine b_to_a_interpolate(b,a,mb,nb,ma,na,xb,yb,xa,ya)
   real(r_kind),intent(out):: a(na,ma)
 
   integer(i_kind) i,j
-  real(r_kind) w00,w01,w10,w11,gxa,gya
+  real(r_kind) gxa,gya
   real(r_kind) dx(ma),dx1(ma),dy(na),dy1(na)
   integer(i_kind) jxa(ma),jxap(ma),iya(na),iyap(na)
 

@@ -1,4 +1,4 @@
-subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype,obstype)
+subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intrp3oz    space-time linear interpolation for ozone
@@ -44,7 +44,6 @@ subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype,obstype)
   implicit none
 
 ! Declare passed variables
-  character(10), intent(in)        :: obstype  ! type of ozone obs
   integer(i_kind),intent(in):: n,mype,nlevs
   real(r_kind),dimension(n),intent(in):: dx,dy,obstime
   real(r_kind),dimension(nlevs-1,n),intent(in):: dz

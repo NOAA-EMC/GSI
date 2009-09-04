@@ -83,10 +83,10 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use kinds, only: r_kind,r_single,i_kind
 
   use constants, only : zero,izero,half,one,two,tiny_r_kind
-  use constants, only : rozcon,cg_term,wgtlim
+  use constants, only : rozcon,cg_term,wgtlim,h300
 
   use obsmod, only : ozhead,oztail,i_oz_ob_type,dplat,nobskeep
-  use obsmod, only : iadate,mype_diaghdr,dirname,time_offset,ianldate
+  use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -125,7 +125,6 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   integer(i_kind),parameter:: iint=1
   integer(i_kind),parameter:: ireal=3
   real(r_kind),parameter:: r10=10.0_r_kind
-  real(r_kind),parameter:: r300=300.0_r_kind
 
 ! Declare local variables  
   
@@ -196,7 +195,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
        iouse(jc)=iuse_oz(j)
        tnoise(jc)=error_oz(j)
-       gross(jc)=min(r10*gross_oz(j),r300)
+       gross(jc)=min(r10*gross_oz(j),h300)
        if (obstype == 'sbuv2' ) then
          pobs(jc)=pob_oz(j) * 1.01325_r_kind
        else
@@ -302,7 +301,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      end if
 
      call intrp3oz(ges_oz,ozges,dlat,dlon,ozp,dtime,&
-          1,nlevs,mype,obstype)
+          1,nlevs,mype)
 
      if(ozone_diagsave)then
         ii=ii+1

@@ -33,10 +33,11 @@ subroutine grdcrd(d,nd,x,nx,flg)
   use kinds, only: r_kind,i_kind
   use constants, only: one
   implicit none
-  integer(i_kind) nd,id,ix,nx,isrchf
+  integer(i_kind) id,ix,isrchf
+  integer(i_kind),intent(in):: nd,nx
   integer(i_kind),intent(in):: flg
-  real(r_kind),dimension(nd):: d
-  real(r_kind),dimension(nx):: x
+  real(r_kind),dimension(nd),intent(inout):: d
+  real(r_kind),dimension(nx),intent(in):: x
 
 ! Treat "normal" case in which nx>1
   if(nx>1) then

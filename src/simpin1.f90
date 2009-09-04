@@ -49,13 +49,13 @@ subroutine simpin1(wgts,wgtsx1,wgtsx11,iwgts, &
   use constants, only: zero, one
   implicit none
   
-  integer(i_kind) nin,iord,lbig,n1grid,nf,ndx1,ndx11
-  real(r_kind) x1in(nin),x1grid(n1grid)
-  real(r_kind) wgts(nin,lbig)
-  integer(i_kind) iwgts(nin,lbig)
-  real(r_kind) wgtsx1(nin,lbig),wgtsx11(nin,lbig)
-  integer(i_kind) ixi(0:iord)
-  real(r_kind) tl(lbig,lbig,n1grid,2),alocal(n1grid,2),blocal(n1grid,2)
+  integer(i_kind),intent(in):: nin,iord,lbig,n1grid,nf,ndx1,ndx11
+  real(r_kind),intent(in):: x1in(nin),x1grid(n1grid)
+  real(r_kind),intent(out):: wgts(nin,lbig)
+  integer(i_kind),intent(out):: iwgts(nin,lbig)
+  real(r_kind),intent(out):: wgtsx1(nin,lbig),wgtsx11(nin,lbig)
+  integer(i_kind),intent(in):: ixi(0:iord)
+  real(r_kind),intent(in):: tl(lbig,lbig,n1grid,2),alocal(n1grid,2),blocal(n1grid,2)
 
   real(r_kind) dx1gridi(-3:n1grid+3)
   integer(i_kind) i1ref(nin)

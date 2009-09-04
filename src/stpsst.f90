@@ -1,8 +1,9 @@
 module stpsstmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stpsstmod    module for stpsst and its tangent linear stpsst_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stpsstmod    module for stpsst and its tangent linear stpsst_tl
+!  prgmmr:
 !
 ! abstract: module for stpsst and its tangent linear stpsst_tl
 !
@@ -10,7 +11,16 @@ module stpsstmod
 !   2005-05-20  Yanqiu zhu - wrap stpsst and its tangent linear stpsst_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stpsst_tl
+!   2009-08-12  lueken - update documentation
 !
+! subroutines included:
+!   sub stpsst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -44,6 +54,7 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges)
 !   2008-06-02  safford - rm unused var and uses
 !
 !   input argument list:
+!     ssthead
 !     rsst     - search direction for sst
 !     ssst     - analysis increment for sst
 !     sges     - step size estimate (4)
@@ -64,7 +75,7 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: sst_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
   implicit none
 

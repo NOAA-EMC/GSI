@@ -1,8 +1,9 @@
 module intallmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intallmod    module for intall and its tangent linear intall_tl
+!$$$ mdoule documentation block
+!           .      .    .                                       .
+! module:   intallmod    module for intall and its tangent linear intall_tl
+!  prgmmr:
 !
 ! abstract: module for intall and its tangent linear intall_tl
 !
@@ -10,7 +11,19 @@ module intallmod
 !   2005-05-18  Yanqiu zhu - wrap intall and its tangent linear intall_tl into one module
 !   2005-11-21  Derber - remove interface and clean up code
 !   2008-11-26  Todling - remove intall_tl
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intall
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 
 implicit none
 
@@ -152,8 +165,7 @@ subroutine intall(sval,sbias,rval,rbias)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nsig,latlon1n
+  use kinds, only: i_kind
   use gsi_4dvar, only: nobs_bins, ltlint
   use constants, only: zero
   use jcmod, only: ljcpdry
@@ -162,7 +174,8 @@ subroutine intall(sval,sbias,rval,rbias)
   use intjomod, only: intjo
   use bias_predictors
   use state_vectors
-  use intlimqmod
+  use intlimqmod, only: intlimq
+  use intjcpdrymod, only: intjcpdry
   use timermod, only: timer_ini,timer_fnl
   implicit none
 
@@ -173,7 +186,7 @@ subroutine intall(sval,sbias,rval,rbias)
   type(predictors), intent(inout)   :: rbias
 
 ! Declare local variables
-  integer(i_kind) :: ibin,iobs,ii
+  integer(i_kind) :: ibin,ii
 
 !******************************************************************************
 ! Initialize timer

@@ -1,8 +1,9 @@
 module intsrwmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intsrwmod    module for intsrw and its tangent linear intsrw_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intsrwmod    module for intsrw and its tangent linear intsrw_tl
+!  prgmmr:
 !
 ! abstract: module for intsrw and its tangent linear intsrw_tl
 !
@@ -10,7 +11,18 @@ module intsrwmod
 !   2005-05-12  Yanqiu zhu - wrap intsrw and its tangent linear intsrw_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intsrw_tl; add interface back
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intsrw_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -49,8 +61,11 @@ subroutine intsrw_(srwhead,ru,rv,su,sv)
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !
 !   input argument list:
+!     srwhead
 !     su       - u increment in grid space
 !     sv       - v increment in grid space
+!     ru
+!     rv
 !
 !   output argument list:
 !     ru       - u results from observation operator 
@@ -62,7 +77,7 @@ subroutine intsrw_(srwhead,ru,rv,su,sv)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,two,zero,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,tiny_r_kind,cg_term,r3600
   use obsmod, only: srw_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n

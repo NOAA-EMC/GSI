@@ -64,29 +64,20 @@ subroutine read_guess(mype)
 !
 !$$$
 
-  use kinds, only: r_kind,r_single,i_kind
+  use kinds, only: r_kind,i_kind
   use jfunc, only: biascor,bcoption
-  use mpimod, only: ierror,mpi_rtype,mpi_sum,mpi_comm_world,levs_id,npe
-  use mpimod, only: strip
   use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,ges_vor,ges_div,&
-       ges_tv,ges_tsen,ges_q,ges_oz,ges_cwmr,sfct,fact10,veg_type,sno,&
-       ifilesfc,nfldsfc,isli,isli_g,isli2,soil_type,sfc_rough,&
-       veg_frac,soil_moi,soil_temp,ntguessig,ifilesig,&
+       ges_tv,ges_tsen,ges_q,ges_oz,ges_cwmr,&
+       ifilesig,&
        nfldsig,load_prsges,load_geop_hgt
   use m_gsiBiases,only : correct_bias,nbc
   use m_gsiBiases,only : bias_q,bias_tv,bias_cwmr,bias_oz,bias_ps,&
-       bias_vor,bias_u,bias_div,bias_tskin,bias_u,bias_v
+       bias_vor,bias_div,bias_tskin,bias_u,bias_v
   use gsi_io, only: read_bias
-  use guess_grids, only: ntguessfc
   use gridmod, only: lat2,lon2
-  use gridmod, only: jstart,jlon1
-  use gridmod, only: istart,ilat1
-  use gridmod, only: nsig,lat1,lon1
+  use gridmod, only: nsig
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,&
        twodvar_regional,netcdf,regional,nems_nmmb_regional
-  use gridmod, only: aeta1_ll,aeta2_ll,pdtop_ll,pt_ll
-  use gridmod, only:  nlat,nlon,&
-     ltosi,ltosj,iglobal,itotsub,ijn,displs_g
 
   use constants, only: izero,zero,one,fv
   use ncepgfs_io, only: read_gfsatm
@@ -100,9 +91,7 @@ subroutine read_guess(mype)
   character(24) filename
   integer(i_kind) i,j,k,it,iret,iret_bias
 
-  real(r_kind):: wspd
   real(r_kind),dimension(lat2,lon2):: work
-  real(r_kind),allocatable,dimension(:,:) :: dummysfc
 
 !-----------------------------------------------------------------------------------
 ! Certain functions are only done once --> on the first outer iteration. 
@@ -165,7 +154,7 @@ subroutine read_guess(mype)
         
 ! If doing SBC, apply bias correction ...
 
-  if(biascor>=0.0 .and. iret_bias==izero .and. bcoption==1 ) call correct_bias()
+  if(biascor>=zero .and. iret_bias==izero .and. bcoption==1 ) call correct_bias()
 
 ! Get sensible temperature (after bias correction's been applied)
 

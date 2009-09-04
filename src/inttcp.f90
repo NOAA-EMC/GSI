@@ -1,8 +1,9 @@
 module inttcpmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    inttcpmod    module for intps and its tangent linear intps_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   inttcpmod    module for intps and its tangent linear intps_tl
+!  prgmmr:
 !
 ! abstract: module for inttcp 
 !
@@ -10,7 +11,18 @@ module inttcpmod
 !   2005-05-12  Yanqiu zhu - wrap intps and its tangent linear intps_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intps_tl; add interface back
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub inttcp_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -37,9 +49,9 @@ subroutine inttcp_(tcphead,rp,sp)
 !   input argument list:
 !     tcphead - obs type pointer to obs structure
 !     sp      - ps increment in grid space
+!     rp
 !
 !   output argument list:
-!     tcphead - obs type pointer to obs structure
 !     rp      - ps results from observation operator
 !
 ! attributes:
@@ -49,11 +61,11 @@ subroutine inttcp_(tcphead,rp,sp)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,two,zero,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,tiny_r_kind,cg_term
   use obsmod, only: tcp_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n1
-  use jfunc, only: iter,jiter,niter_no_qc,jiterstart,xhat_dt,dhat_dt,l_foto
+  use jfunc, only: jiter,xhat_dt,dhat_dt,l_foto
   implicit none
 
 ! Declare passed variables
@@ -62,7 +74,7 @@ subroutine inttcp_(tcphead,rp,sp)
   real(r_kind),dimension(latlon1n1),intent(inout):: rp
 
 ! Declare local variables
-  integer(i_kind) i,j1,j2,j3,j4
+  integer(i_kind) j1,j2,j3,j4
 ! real(r_kind) penalty
   real(r_kind) cg_ps,val,p0,grad,wnotgross,wgross,ps_pg
   real(r_kind) w1,w2,w3,w4,time_tcp

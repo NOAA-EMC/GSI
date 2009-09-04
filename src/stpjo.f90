@@ -135,11 +135,10 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo)
 !     dbias    - 
 !     xval     -
 !     xbias    -
-!     xhat_t   - current solution for the tendencies
-!     dirx_t   - derivative of search direction for x
+!     sges
 !
 !   output argument list:
-!     dirx     - search direction
+!     pbcjo
 !
 !
 ! remarks:
@@ -155,14 +154,11 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_quad
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,levs_id,npe,mype
-  use constants, only:  zero_quad
-  use gridmod, only: latlon1n
-  use obsmod, only: obs_handle, ref_obs, &
+  use kinds, only: r_kind,r_quad
+  use obsmod, only: obs_handle, &
                   & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
-                  & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, i_o3l_ob_type, &
+                  & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, &
                   & i_gps_ob_type, i_rad_ob_type, i_pcp_ob_type,i_tcp_ob_type, &
                     nobs_type
   use stptmod, only: stpt
@@ -181,7 +177,6 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo)
   use stpdwmod, only: stpdw
   use stppcpmod, only: stppcp
   use stpozmod, only: stpoz
-  use stplimqmod, only: stplimq
   use bias_predictors
   use state_vectors
   implicit none
@@ -193,11 +188,9 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo)
   type(state_vector),intent(in):: xval
   type(predictors),  intent(in):: xbias
   real(r_kind),dimension(4),intent(in)::sges
-!_RT  real(r_quad),dimension(6),intent(inout)::pbcjo
   real(r_quad),dimension(6,nobs_type),intent(out)::pbcjo
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ii,jj
 
 !************************************************************************************  
 !$omp parallel sections
@@ -268,7 +261,6 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo)
     call stppcp(yobs%pcp,&
                 dval%tsen,dval%q,dval%u,dval%v,dval%cw, &
                 xval%tsen,xval%q,xval%u,xval%v,xval%cw, &
-                dbias%predp,xbias%predp,&
                 pbcjo(1,i_pcp_ob_type),sges)
 
 !$omp section

@@ -71,11 +71,11 @@
 
   integer(i_kind),intent(out)::kraintype,ierr
   real(r_kind),intent(out)::tpwc,clw
+  real(r_kind),intent(out)::si85
 
 ! Declare local variables
   real(r_kind)::tbpol(3),tb19v,tb19h,tb22v,tb37v,tb37h,tb85v,tb85h
   real(r_kind)::tpw,tpw0,clw19,clw37,clw85
-  real(r_kind)::si85
   real(r_kind)::clw2term
   real(r_kind)::rmis=-9.99e11_r_kind
  
@@ -85,7 +85,6 @@
   real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r290=290.0_r_kind
   real(r_kind),parameter:: r285=285.0_r_kind
-  real(r_kind),parameter:: r300=300.0_r_kind
  
 !  ======  Initialize products to missing
 

@@ -59,20 +59,19 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_single,r_double,i_kind,i_long
+  use kinds, only: r_kind,r_single,r_double,i_kind
 
   use obsmod, only: rwhead,rwtail,rmiss_single,i_rw_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print,ptop,pbot
-  use guess_grids, only: ges_ps,hrdifsig,geop_hgtl,ges_z,nfldsig,&
-       ntguessig,ges_lnprsl,ges_u,ges_v,sfcmod_gfs,sfcmod_mm5,comp_fact10
-  use gridmod, only: nsig,nlat,nlon,get_ijk
+  use guess_grids, only: ges_ps,hrdifsig,geop_hgtl,nfldsig,&
+       ges_lnprsl,ges_u,ges_v,sfcmod_gfs,sfcmod_mm5,comp_fact10
+  use gridmod, only: nsig,get_ijk
   use constants, only: flattening,semi_major_axis,grav_ratio,zero,grav,wgtlim,&
        half,one,two,grav_equator,eccentricity,somigliana,rad2deg,deg2rad
-  use constants, only: tiny_r_kind,half,cg_term,huge_single
-  use qcmod, only: npres_print
-  use jfunc, only: jiter,last,first,miter
+  use constants, only: tiny_r_kind,cg_term,huge_single
+  use jfunc, only: jiter,last,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   implicit none

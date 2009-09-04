@@ -1,17 +1,30 @@
 module adjtest
 
-!$$$  module documentation block
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   adjtest
+!  prgmmr: tremolet
 !
 ! abstract: Routines and data to perform adjoint test
 !
 ! program history log:
 !   2007-05-09  tremolet - initial code
+!   2009-08-14  lueken - update documentation
 !
-!$$$
+! subroutines included:
+!   sub adtest
+!
+! variable definition:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only: r_kind,i_kind
-use gsi_4dvar, only: ltlint, nsubwin
-use constants, only: zero, one, two
+use gsi_4dvar, only: nsubwin
+use constants, only: zero, two
 use jfunc, only: nrclen
 use mpimod, only: mype
 use control_vectors
@@ -29,6 +42,26 @@ logical :: ltestadj = .false.
 contains
 ! ----------------------------------------------------------------------
 subroutine adtest(xhat)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    adtest
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-14  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xhat
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -38,9 +71,8 @@ type(control_vector), optional, intent(in) :: xhat
 ! Declare local variables  
 type(state_vector) :: stest1(nsubwin),stest2(nsubwin)
 type(predictors) :: sbias1,sbias2
-integer(i_kind) :: nprt,ii
-real(r_kind) :: zf,zz1,zz2,zz3,zz4
-logical :: lsavinc,lltlint
+integer(i_kind) :: ii
+real(r_kind) :: zz1,zz2,zz3,zz4
 
 if (mype==0) write(6,*)'ADTEST starting'
 

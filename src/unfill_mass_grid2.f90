@@ -29,8 +29,9 @@ subroutine unfill_mass_grid2t(gout,nx,ny,gin)
 
   implicit none
 
-  integer(i_kind) nx,ny
-  real(r_single) gin(nx,ny),gout(itotsub)
+  integer(i_kind), intent(in)  :: nx,ny
+  real(r_single), intent(in)   :: gout(itotsub)
+  real(r_single), intent(inout):: gin(nx,ny)
   
   real(r_single) b(nx,ny)
   integer(i_kind) i,j
@@ -81,8 +82,9 @@ subroutine unfill_mass_grid2u(gout,nx,ny,gin)
 
   implicit none
 
-  integer(i_kind) nx,ny
-  real(r_single) gin(nx+1,ny),gout(itotsub)
+  integer(i_kind), intent(in)  :: nx,ny
+  real(r_single), intent(in)   :: gout(itotsub)
+  real(r_single), intent(inout):: gin(nx+1,ny)
   
   real(r_single) b(nx,ny)
   integer(i_kind) i,i0,im,j
@@ -134,8 +136,9 @@ subroutine unfill_mass_grid2v(gout,nx,ny,gin)
 
   implicit none
 
-  integer(i_kind) nx,ny
-  real(r_single) gin(nx,ny+1),gout(itotsub)
+  integer(i_kind), intent(in)  :: nx,ny
+  real(r_single), intent(in)   :: gout(itotsub)
+  real(r_single), intent(inout):: gin(nx,ny+1)
   
   real(r_single) b(nx,ny)
   integer(i_kind) i,j,j0,jm

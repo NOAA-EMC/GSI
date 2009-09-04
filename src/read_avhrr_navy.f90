@@ -64,13 +64,13 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_double,r_single,i_kind
+  use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
            finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, rad2deg,r60inv
   use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis
-  use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
+  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   implicit none
 
 
@@ -113,7 +113,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) idummy1,idummy2,lun
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) nmind,isflg,idomsfc
-  integer(i_kind) itx,k,i,bufsat,iout
+  integer(i_kind) itx,k,i,bufsat
   integer(i_kind) ireadsb,ireadmg
   integer(i_kind) nele,itt
   integer(i_kind) nlat_sst,nlon_sst
@@ -395,7 +395,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 ! Normal exit
 700 continue
 
-  call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
+  call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
 
 

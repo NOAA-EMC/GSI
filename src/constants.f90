@@ -120,7 +120,7 @@ module constants
   real(r_kind),parameter::  cclimit = 0.001_r_kind
   real(r_kind),parameter::  climit = 1.e-20_r_kind
   real(r_kind),parameter::  epsq = 2.e-12_r_kind
-  real(r_kind),parameter::  h1000 = 1000.0_r_kind
+  real(r_kind),parameter::  h1000 = r1000
   real(r_kind),parameter::  rhcbot=0.85_r_kind
   real(r_kind),parameter::  rhctop=0.85_r_kind
   real(r_kind),parameter::  dx_max=-8.8818363_r_kind
@@ -135,7 +135,7 @@ module constants
   real(r_kind),parameter::  cmr = one/0.0003_r_kind
   real(r_kind),parameter::  cws = 0.025_r_kind
   real(r_kind),parameter::  ke2 = 0.00002_r_kind
-  real(r_kind),parameter::  row = 1000._r_kind
+  real(r_kind),parameter::  row = r1000
   real(r_kind),parameter::  rrow = one/row
 
 ! Constant used to process ozone
@@ -147,7 +147,7 @@ module constants
   real(r_kind),parameter::  amsua_clw_d2 = -2.265_r_kind
 
 ! Constants used for variational qc
-  real(r_kind),parameter::  wgtlim = 0.25_r_kind  ! Cutoff weight for concluding that obs has been
+  real(r_kind),parameter::  wgtlim = quarter  ! Cutoff weight for concluding that obs has been
                                      ! rejected by nonlinear qc. This limit is arbitrary
                                      ! and DOES NOT affect nonlinear qc. It only affects
                                      ! the printout which "counts" the number of obs that

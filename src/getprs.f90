@@ -103,7 +103,7 @@ subroutine getprs(ps,prs)
 end subroutine getprs
 
 
-subroutine getprs_horiz(ps_x,ps_y,mype,prs,prs_x,prs_y)
+subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
 !$$$  subprogram docuentation block
 !                .     .    .                     .
 ! subprogram:    getprs_horiz
@@ -135,7 +135,7 @@ subroutine getprs_horiz(ps_x,ps_y,mype,prs,prs_x,prs_y)
   use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
-  use mpimod, only: npe,nvarbal_id,nlevsbal,nnnvsbal
+  use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: compact_dlat,compact_dlon
   implicit none
 
@@ -143,7 +143,6 @@ subroutine getprs_horiz(ps_x,ps_y,mype,prs,prs_x,prs_y)
   real(r_kind),dimension(lat2,lon2),intent(in):: ps_x,ps_y
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(in):: prs
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(out)::prs_x,prs_y
-  integer(i_kind),intent(in):: mype
 
 ! Declare local variables
   integer(i_kind) i,j,k,iflg
@@ -289,7 +288,7 @@ subroutine getprs_tl(ps,t,prs)
 end subroutine getprs_tl
 
 
-subroutine getprs_horiz_tl(ps_x,ps_y,mype,prs,prs_x,prs_y)
+subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
 !$$$ subprogram documentation block
 !               .      .    .                     .
 ! subprogram:   getprs_horiz_tl
@@ -321,7 +320,7 @@ subroutine getprs_horiz_tl(ps_x,ps_y,mype,prs,prs_x,prs_y)
   use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
-  use mpimod, only: npe,nvarbal_id,nlevsbal,nnnvsbal
+  use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: compact_dlat,compact_dlon
   implicit none
 
@@ -329,7 +328,6 @@ subroutine getprs_horiz_tl(ps_x,ps_y,mype,prs,prs_x,prs_y)
   real(r_kind),dimension(lat2,lon2),intent(in):: ps_x,ps_y
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(in):: prs
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(out):: prs_x,prs_y
-  integer(i_kind),intent(in):: mype
 
 ! Declare local variables
   integer(i_kind) i,j,k,iflg
@@ -487,7 +485,7 @@ subroutine getprs_ad(ps,t,prs)
 end subroutine getprs_ad
 
 
-subroutine getprs_horiz_ad(ps_x,ps_y,mype,prs,prs_x,prs_y)
+subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
 !$$$ subprogram documentation block
 !               .      .    .              .
 ! subprogram:  getprs_horiz_ad
@@ -522,7 +520,7 @@ subroutine getprs_horiz_ad(ps_x,ps_y,mype,prs,prs_x,prs_y)
   use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
-  use mpimod, only: npe,nvarbal_id,nlevsbal,nnnvsbal
+  use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
 
   implicit none
@@ -531,7 +529,6 @@ subroutine getprs_horiz_ad(ps_x,ps_y,mype,prs,prs_x,prs_y)
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(in):: prs_x,prs_y
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout):: prs
   real(r_kind),dimension(lat2,lon2),intent(inout):: ps_x,ps_y
-  integer(i_kind),intent(in):: mype
 
 ! Declare local variables
   integer(i_kind) i,j,k,iflg

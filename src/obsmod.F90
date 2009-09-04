@@ -187,8 +187,9 @@ module obsmod
 
   use kinds, only: r_kind,i_kind,r_single
   use gsi_4dvar, only: l4dvar
-  use constants, only:  izero,ione,zero,one,two,three,four,five
+  use constants, only:  izero,ione,zero,one,two,three,five
   use mpimod, only: mpi_max,mpi_itype,mpi_comm_world,ierror,npe,mype
+  implicit none
 
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
@@ -776,7 +777,6 @@ module obsmod
   integer(i_kind),dimension(5):: iadate
   integer(i_kind),dimension(ndatmax):: dsfcalc,dthin,ipoint
   integer(i_kind),allocatable,dimension(:)::  nsat1,mype_diaghdr
-  integer(i_kind),allocatable,dimension(:,:) :: j_rad,j_pcp  
   integer(i_kind),allocatable :: obscounts(:,:)
   
   character(128) obs_setup
@@ -969,6 +969,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$ end documentation block
+    implicit none
 
     integer(i_kind),intent(in):: mype
     character(len=144):: command
@@ -1075,7 +1076,6 @@ contains
 !   language: f90
 !
 !$$$  end documentation block
-    use gsi_4dvar, only: l4dvar
     use gsi_4dvar, only: nhr_assimilation
     use gridmod, only: regional
     implicit none
@@ -1173,7 +1173,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$  end documentation block
-    use gsi_4dvar, only: nobs_bins, l4dvar
+    use gsi_4dvar, only: nobs_bins
 
     implicit none
     logical,optional,intent(in) :: skipit
@@ -1443,6 +1443,7 @@ contains
 !
 !$$$  end documentation block
 
+    use constants, only: five
     implicit none
 
     integer(i_kind):: j
@@ -1453,7 +1454,7 @@ contains
     do j=1,10
        ran01dom=ran01dom+a(j)
     enddo
-    ran01dom=(ran01dom-5.0_r_kind)/0.912345_r_kind
+    ran01dom=(ran01dom-five)/0.912345_r_kind
     return
   end function ran01dom
 
@@ -1496,6 +1497,27 @@ contains
 
 ! ----------------------------------------------------------------------
 subroutine inquire_obsdiags(kiter)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    inquire_obsdiags
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-07  lueken - added  subprogram doc block
+!
+!   input argument list:
+!    kiter
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 implicit none
 integer(i_kind), intent(in) :: kiter
 

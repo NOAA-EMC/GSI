@@ -97,6 +97,7 @@ contains
 !   machine:   ibm RS/6000 SP
 !
 !$$$
+    implicit none
 
     integer(i_kind),intent(in):: mype
 
@@ -128,17 +129,17 @@ subroutine initialize_strong_fast_global(mype)
 !$$$
 
 
-  use kinds, only: i_kind
   use gridmod, only: nlat
   use specmod, only: jcap
   use mod_vtrans, only: nvmodes_keep
+  implicit none
 
   integer(i_kind),intent(in):: mype
 
   allocate(mode_list(3,nlat*nvmodes_keep),mmode_list(5,(jcap+1)*nvmodes_keep))
   call inmi_coupler_sd2ew0(mype)
   call inmi_coupler_ew2ns0(mype)
-  call gather_rmstends0(mype)
+  call gather_rmstends0
   call inmi_coupler_sd2ew1(mype)
   call inmi_coupler_ew2ns1(mype)
   call inmi_coupler_ew2sd1(mype)
@@ -192,7 +193,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use mod_vtrans, only: depths,nvmodes_keep,vtrans,vtrans_inv
   use mod_inmi, only: m,gspeed,mmax,dinmi,gproj
   use gridmod, only: nlat,nlon,lat2,lon2,nsig
@@ -210,8 +211,6 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind),dimension(nvmodes_keep)::rmstend_uf,rmstend_g_uf
   real(r_kind),dimension(nvmodes_keep)::rmstend_f,rmstend_g_f
 
-  real(r_kind),dimension(lat2,lon2,nsig)::u_t_g,v_t_g,t_t_g
-  real(r_kind),dimension(lat2,lon2)::ps_t_g
   real(r_kind),dimension(lat2,lon2,nsig)::delu,delv,delt
   real(r_kind),dimension(lat2,lon2)::delps
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t,vtilde_t,mtilde_t
@@ -220,7 +219,6 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind),allocatable,dimension(:,:)::rmstend_loc_uf,rmstend_g_loc_uf
   real(r_kind),allocatable,dimension(:,:)::rmstend_loc_f,rmstend_g_loc_f
   real(r_kind),dimension(2,0:jcap)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
-  real(r_kind),dimension(2,0:jcap)::divhat_g,vorthat_g,mhat_g
   real(r_kind) rmstend_all_uf,rmstend_all_g_uf,rmstend_all_f,rmstend_all_g_f
   real(r_kind),allocatable,dimension(:,:,:,:)::uvm_ew
   real(r_kind),allocatable,dimension(:,:,:,:,:)::uvm_ewtrans,uvm_ns,zdm_hat
@@ -246,9 +244,9 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   allocate(rmstend_g_loc_f(2,m_0:m_1))
   call inmi_coupler_sd2ew(utilde_t,vtilde_t,mtilde_t,utilde_t,vtilde_t,mtilde_t, &
                           uvm_ew,mype)
-  call inmi_ew_trans(uvm_ew,uvm_ewtrans,mype)
-  call inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns,mype)
-  call inmi_nsuvm2zdm(uvm_ns,zdm_hat,mype)
+  call inmi_ew_trans(uvm_ew,uvm_ewtrans)
+  call inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns)
+  call inmi_nsuvm2zdm(uvm_ns,zdm_hat)
   rmstend_loc_uf=zero
   rmstend_g_loc_uf=zero
   rmstend_loc_f=zero
@@ -301,9 +299,9 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
     end do
   end do
 
-  call inmi_nspcm_hat2pcm(uvm_ns,zdm_hat,mype)
-  call inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns,mype)
-  call inmi_ew_invtrans(uvm_ew,uvm_ewtrans,mype)
+  call inmi_nspcm_hat2pcm(uvm_ns,zdm_hat)
+  call inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns)
+  call inmi_ew_invtrans(uvm_ew,uvm_ewtrans)
   call inmi_coupler_ew2sd(delutilde,delvtilde,delmtilde,utilde_t_g,vtilde_t_g,mtilde_t_g,uvm_ew,mype)
   deallocate(uvm_ew,uvm_ewtrans,uvm_ns,zdm_hat)
 
@@ -413,7 +411,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use mod_vtrans, only: depths,nvmodes_keep,vtrans_ad,vtrans_inv_ad
   use mod_inmi, only: m,gspeed,mmax,dinmi_ad,gproj_ad
   use gridmod, only: nlat,nlon,lat2,lon2,nsig
@@ -470,9 +468,9 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   allocate(uvm_ew(2,3,nlon,nlatm_0:nlatm_1),uvm_ewtrans(2,3,2,0:jcap,nlatm_0:nlatm_1))
   allocate(uvm_ns(3,2,nlat,2,m_0:m_1),zdm_hat(3,2,nlat,2,m_0:m_1))
   call inmi_coupler_sd2ew(delutilde,delvtilde,delmtilde,utilde_t_g,vtilde_t_g,mtilde_t_g,uvm_ew,mype)
-  call inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans,mype)
-  call inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns,mype)
-  call inmi_nspcm_hat2pcm_ad(uvm_ns,zdm_hat,mype)
+  call inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
+  call inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns)
+  call inmi_nspcm_hat2pcm_ad(uvm_ns,zdm_hat)
   do kk=m_0,m_1
     do ipair=1,2
       m=mmode_list(ipair,kk)
@@ -519,9 +517,9 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
     end do
   end do
 
-  call inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat,mype)
-  call inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns,mype)
-  call inmi_ew_trans_ad(uvm_ew,uvm_ewtrans,mype)
+  call inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat)
+  call inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns)
+  call inmi_ew_trans_ad(uvm_ew,uvm_ewtrans)
   call inmi_coupler_ew2sd(utilde_t,vtilde_t,mtilde_t,utilde_t2,vtilde_t2,mtilde_t2,uvm_ew,mype)
 
   utilde_t=utilde_t+utilde_t2
@@ -536,7 +534,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 
 end subroutine strong_bal_correction_fast_global_ad
 
-subroutine gather_rmstends0(mype)
+subroutine gather_rmstends0
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -551,7 +549,6 @@ subroutine gather_rmstends0(mype)
 !   2008-04-04  safford  - rm unused uses
 !
 !   input argument list:
-!     mype        - current processor number
 !
 !   output argument list:
 !     rmstend  -  all vertical modes of rmstend assembled across all processors
@@ -562,13 +559,10 @@ subroutine gather_rmstends0(mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_integer4,npe
   use mod_vtrans, only: nvmodes_keep
   use specmod, only: jcap
   implicit none
-
-  integer(i_kind),intent(in):: mype
 
   integer(i_kind) indexloc(m_0:m_1)
   integer(i_kind) i
@@ -605,10 +599,6 @@ subroutine gather_rmstends(rmstend_loc,rmstend)
 !   input argument list:
 !     rmstend_loc - previously computed energy norms of vertical modes
 !                   as distributed on local processors
-!     m_0,m_1     - range of identifying index for local processor
-!     mmode_list  - defines how vertical modes are interleaved across processors
-!     mype        - current processor number
-!     ipair       - =1, then vertical modes of correction
 !
 !   output argument list:
 !     rmstend  -  all vertical modes of rmstend assembled across all processors
@@ -619,7 +609,7 @@ subroutine gather_rmstends(rmstend_loc,rmstend)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe
   use mod_vtrans, only: nvmodes_keep
   use constants, only: zero
@@ -673,7 +663,6 @@ subroutine inmi_coupler_sd2ew0(mype)
 
 !  create ew (lat strips) subdivision for use with inmi
 
-  use kinds, only: r_kind,i_kind
   use mod_vtrans, only: nvmodes_keep
   use gridmod, only: nlat
   use mpimod, only: npe
@@ -751,9 +740,8 @@ subroutine inmi_coupler_sd2ew1(mype)
 
 !  use mpi_alltoallv to move u_sd,v_sd,m_sd (subdomains) to uvm_ew (lat strips)
 
-  use kinds, only: r_kind,i_kind
   use mod_vtrans, only: nvmodes_keep
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart
+  use gridmod, only: nlat,lon2,lat2,jstart,istart
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
   implicit none
 
@@ -875,9 +863,9 @@ subroutine inmi_coupler_sd2ew(u_sd1,v_sd1,m_sd1,u_sd2,v_sd2,m_sd2,uvm_ew,mype)
 
 !  use mpi_alltoallv to move u_sd,v_sd,m_sd (subdomains) to uvm_ew (lat strips)
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use mod_vtrans, only: nvmodes_keep
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart
+  use gridmod, only: nlon,lon2,lat2,jstart,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
@@ -952,8 +940,7 @@ subroutine inmi_coupler_ew2sd1(mype)
 
 !  use mpi_alltoallv to move uvm_ew (lat strips) to u_sd,v_sd,m_sd (subdomains)
 
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart,ilat1,jlon1
+  use gridmod, only: nlon,jstart,istart,ilat1,jlon1
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
   implicit none
 
@@ -1058,9 +1045,9 @@ subroutine inmi_coupler_ew2sd(u_sd1,v_sd1,m_sd1,u_sd2,v_sd2,m_sd2,uvm_ew,mype)
 
 !  use mpi_alltoallv to move uvm_ew (lat strips) to u_sd,v_sd,m_sd (subdomains)
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use mod_vtrans, only: nvmodes_keep
-  use gridmod, only: nlat,nlon,lon2,lat2,jstart,istart,ilat1,jlon1
+  use gridmod, only: nlat,nlon,lon2,lat2,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
@@ -1071,7 +1058,7 @@ subroutine inmi_coupler_ew2sd(u_sd1,v_sd1,m_sd1,u_sd2,v_sd2,m_sd2,uvm_ew,mype)
   real(r_kind),dimension(2,3,nlon,nlatm_0:nlatm_1),intent(in)::uvm_ew
 
   real(r_kind),allocatable::sendbuf(:,:,:),recvbuf(:,:,:)
-  integer(i_kind) ilat,imode,j,k,mm1,ilatm,ilon,mpi_string1,ilonloc
+  integer(i_kind) ilat,imode,j,mm1,ilatm,ilon,mpi_string1,ilonloc
 
   mm1=mype+1
 
@@ -1121,7 +1108,7 @@ subroutine inmi_coupler_ew2sd(u_sd1,v_sd1,m_sd1,u_sd2,v_sd2,m_sd2,uvm_ew,mype)
 
 end subroutine inmi_coupler_ew2sd
 
-subroutine inmi_ew_trans(uvm_ew,uvm_ewtrans,mype)
+subroutine inmi_ew_trans(uvm_ew,uvm_ewtrans)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1135,7 +1122,6 @@ subroutine inmi_ew_trans(uvm_ew,uvm_ewtrans,mype)
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
 !
 !   input argument list:
-!     mype     - mpi task id
 !     uvm_ew   -
 !
 !   output argument list:
@@ -1147,13 +1133,11 @@ subroutine inmi_ew_trans(uvm_ew,uvm_ewtrans,mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use gridmod, only: nlon
-  use mpimod, only: npe,mpi_comm_world,ierror
   use specmod, only: jcap,afft
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(2,3,nlon,nlatm_0:nlatm_1),intent(in)::uvm_ew
   real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(out)::uvm_ewtrans
 
@@ -1178,7 +1162,7 @@ subroutine inmi_ew_trans(uvm_ew,uvm_ewtrans,mype)
 
 end subroutine inmi_ew_trans
 
-subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans,mype)
+subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    inmi_ew_invtrans_ad
@@ -1191,7 +1175,6 @@ subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans,mype)
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
 !
 !   input argument list:
-!     mype     - mpi task id
 !     uvm_ew   -
 !
 !   output argument list:
@@ -1203,13 +1186,12 @@ subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans,mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use gridmod, only: nlon
   use specmod, only: jcap,afft
   use constants, only: two
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(2,3,nlon,nlatm_0:nlatm_1),intent(in)::uvm_ew
   real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(out)::uvm_ewtrans
 
@@ -1238,7 +1220,7 @@ subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans,mype)
 
 end subroutine inmi_ew_invtrans_ad
 
-subroutine inmi_ew_invtrans(uvm_ew,uvm_ewtrans,mype)
+subroutine inmi_ew_invtrans(uvm_ew,uvm_ewtrans)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1252,7 +1234,6 @@ subroutine inmi_ew_invtrans(uvm_ew,uvm_ewtrans,mype)
 !   2008-04-04  safford -- add subprogram doc block, rm unused vars
 !
 !   input argument list:
-!     mype        - mpi task id
 !     uvm_ewtrans -
 !
 !   output argument list:
@@ -1264,13 +1245,12 @@ subroutine inmi_ew_invtrans(uvm_ew,uvm_ewtrans,mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use gridmod, only: nlon
   use specmod, only: jcap,afft
   use constants, only: zero
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(2,3,nlon,nlatm_0:nlatm_1),intent(out)::uvm_ew
   real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(in)::uvm_ewtrans
 
@@ -1301,7 +1281,7 @@ subroutine inmi_ew_invtrans(uvm_ew,uvm_ewtrans,mype)
 
 end subroutine inmi_ew_invtrans
 
-subroutine inmi_ew_trans_ad(uvm_ew,uvm_ewtrans,mype)
+subroutine inmi_ew_trans_ad(uvm_ew,uvm_ewtrans)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    inmi_ew_trans_ad
@@ -1314,7 +1294,6 @@ subroutine inmi_ew_trans_ad(uvm_ew,uvm_ewtrans,mype)
 !   2008-04-04  safford -- add subprogram doc block, rm unused vars
 !
 !   input argument list:
-!     mype        - mpi task id
 !     uvm_ewtrans -
 !
 !   output argument list:
@@ -1328,13 +1307,12 @@ subroutine inmi_ew_trans_ad(uvm_ew,uvm_ewtrans,mype)
 !$$$
 
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use gridmod, only: nlon
   use specmod, only: jcap,afft
   use constants, only: zero,half
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(2,3,nlon,nlatm_0:nlatm_1),intent(out)::uvm_ew
   real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(in)::uvm_ewtrans
 
@@ -1393,7 +1371,6 @@ subroutine inmi_coupler_ew2ns0(mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
   use mod_vtrans, only: nvmodes_keep
   use mpimod, only: npe
   use specmod, only: jcap
@@ -1543,9 +1520,7 @@ subroutine inmi_coupler_ew2ns1(mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
   use mod_vtrans, only: nvmodes_keep
-  use gridmod, only: nlat
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4,mpi_sum
   use specmod, only: jcap
   implicit none
@@ -1553,9 +1528,9 @@ subroutine inmi_coupler_ew2ns1(mype)
   integer(i_kind),intent(in)::mype
 
   integer(i_kind) mmode2_list(0:jcap,-nvmodes_keep:nvmodes_keep)
-  integer(i_kind) i,ip12,ipe,j,k,m,nn,m1,m2,ilat,ilatm,imode,imode1,imode2
+  integer(i_kind) i,ip12,ipe,j,k,m,nn,m1,m2,ilat,imode,imode1,imode2
   integer(i_kind) mpi_string1
-       integer(i_kind) ibad,ibad0,loop
+  integer(i_kind) ibad,ibad0,loop
 
   allocate(nsend(npe),nrecv(npe),ndsend(npe+1),ndrecv(npe+1))
   nn=0
@@ -1670,7 +1645,7 @@ subroutine inmi_coupler_ew2ns1(mype)
 
 end subroutine inmi_coupler_ew2ns1
 
-subroutine inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns,mype)
+subroutine inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1684,7 +1659,6 @@ subroutine inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns,mype)
 !   2008-04-04  safford -- add subprogram doc block, rm unused vars and uses
 !
 !   input argument list:
-!     mype        - mpi task id
 !     uvm_ewtrans -
 !
 !   output argument list:
@@ -1696,13 +1670,12 @@ subroutine inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns,mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use gridmod, only: nlat
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   use specmod, only: jcap
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(in)::uvm_ewtrans
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(out)::uvm_ns
 
@@ -1748,7 +1721,7 @@ subroutine inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns,mype)
 
 end subroutine inmi_coupler_ew2ns
 
-subroutine inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns,mype)
+subroutine inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1762,7 +1735,6 @@ subroutine inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns,mype)
 !   2008-04-04  safford -- add subprogram doc block, rm unused vars and uses
 !
 !   input argument list:
-!     mype     - mpi task id
 !     uvm_ns   -
 !
 !   output argument list:
@@ -1774,13 +1746,12 @@ subroutine inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns,mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use gridmod, only: nlat
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   use specmod, only: jcap
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(out)::uvm_ewtrans
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(in)::uvm_ns
 
@@ -1826,7 +1797,7 @@ subroutine inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns,mype)
 
 end subroutine inmi_coupler_ns2ew
 
-subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat,mype)
+subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1840,7 +1811,6 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat,mype)
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
 !
 !   input argument list:
-!     mype     - mpi task id
 !     uvm_ns   -
 !
 !   output argument list:
@@ -1855,13 +1825,12 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat,mype)
 
 
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use gridmod, only: nlat
   use specmod, only: jcap,jb,je,pln,plntop,enn1,elonn1,eon,eontop,wlat,clat
   use constants, only: zero
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(in)::uvm_ns
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(out)::zdm_hat
 
@@ -1936,7 +1905,7 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat,mype)
 
 end subroutine inmi_nsuvm2zdm
 
-subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat,mype)
+subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    inmi_nszdm2uvm_ad
@@ -1949,7 +1918,6 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat,mype)
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
 !
 !   input argument list:
-!     mype     - mpi task id
 !     uvm_ns   -
 !
 !   output argument list:
@@ -1961,13 +1929,12 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat,mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use gridmod, only: nlat
   use specmod, only: jcap,jb,je,pln,plntop,enn1,elonn1,eon,eontop,wlat,clat
   use constants, only: zero
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(in)::uvm_ns
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(out)::zdm_hat
 
@@ -2068,7 +2035,7 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat,mype)
 
 end subroutine inmi_nszdm2uvm_ad
 
-subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat,mype)
+subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    inmi_szdm2uvm
@@ -2081,7 +2048,6 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat,mype)
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
 !
 !   input argument list:
-!     mype     - mpi task id
 !     uvm_ns   -
 !
 !   output argument list:
@@ -2093,13 +2059,12 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat,mype)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   use gridmod, only: nlat
-  use specmod, only: jcap,jb,je,pln,plntop,enn1,elonn1,eon,eontop,clat
+  use specmod, only: jcap,jb,je,pln,plntop,elonn1,eon,eontop,clat
   use constants, only: zero
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(out)::uvm_ns
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(in)::zdm_hat
 
@@ -2129,7 +2094,7 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat,mype)
 
 !           convert to spcu, spcv
 
-      call spdz2uv_ns(0,jcap,m,enn1(ics),elonn1(ics),eon(ics),eontop(m+1), &
+      call spdz2uv_ns(0,jcap,m,elonn1(ics),eon(ics),eontop(m+1), &
               spcd(1,m),spcz(1,m),spcu(1,m),spcv(1,m),spcu(1,jcap+1),spcv(1,jcap+1))
 
       do j=jb,je
@@ -2214,15 +2179,36 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat,mype)
 
 end subroutine inmi_nszdm2uvm
 
-subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat,mype)
+subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat)
 
-  use kinds, only: r_kind,i_kind
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    inmi_nspcm_hat2pcm
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-13  lueken - added subprogram doc block
+!
+!   input argument list:
+!    pcm_hat
+!
+!   output argument list:
+!    pcm_ns
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind
   use gridmod, only: nlat
-  use specmod, only: jcap,jb,je,pln,plntop,enn1,elonn1,eon,eontop,clat
+  use specmod, only: jcap,jb,je,pln,plntop,clat
   use constants, only: zero
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(out)::pcm_ns
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(in)::pcm_hat
 
@@ -2318,15 +2304,35 @@ subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat,mype)
 
 end subroutine inmi_nspcm_hat2pcm
 
-subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat,mype)
+subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
 
-  use kinds, only: r_kind,i_kind
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    inmi_nspcm_hat2pcm_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-13  lueken - added subprogram doc block
+!
+!   input argument list:
+!    pcm_ns
+!
+!   output argument list:
+!    pcm_hat
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use kinds, only: r_kind
   use gridmod, only: nlat
-  use specmod, only: jcap,jb,je,pln,plntop,enn1,elonn1,eon,eontop,wlat,clat
+  use specmod, only: jcap,jb,je,pln,plntop,wlat,clat
   use constants, only: zero
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(in)::pcm_ns
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(out)::pcm_hat
 
@@ -2416,14 +2422,36 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat,mype)
 
 end subroutine inmi_nspcm_hat2pcm_ad
 
-subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat,mype)
+subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat)
 
-  use kinds, only: r_kind,i_kind
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    inmi_nsuvm2zdm_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-13  lueken - added subprogram doc block
+!
+!   input argument list:
+!    uvm_ns
+!    zdm_hat
+!
+!   output argument list:
+!    uvm_ns
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind
   use gridmod, only: nlat
   use specmod, only: jcap,jb,je,pln,plntop,enn1,elonn1,eon,eontop,clat,wlat
   implicit none
 
-  integer(i_kind),intent(in)::mype
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(inout)::uvm_ns
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(in)::zdm_hat
 
@@ -2453,7 +2481,7 @@ subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat,mype)
 
 !           convert to spcu, spcv
 
-      call spdz2uv_ns(0,jcap,m,enn1(ics),elonn1(ics),eon(ics),eontop(m+1), &
+      call spdz2uv_ns(0,jcap,m,elonn1(ics),eon(ics),eontop(m+1), &
               spcd(1,m),spcz(1,m),spcu(1,m),spcv(1,m),spcu(1,jcap+1),spcv(1,jcap+1))
 
       do j=jb,je
@@ -2495,7 +2523,7 @@ subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat,mype)
   end do
 
 end subroutine inmi_nsuvm2zdm_ad
-      subroutine spdz2uv_ns(I,M,L,ENN1,ELONN1,EON,EONTOP,D,Z,U,V,UTOP,VTOP)
+      subroutine spdz2uv_ns(I,M,L,ELONN1,EON,EONTOP,D,Z,U,V,UTOP,VTOP)
 !$$$  SUBPROGRAM DOCUMENTATION BLOCK
 !
 ! SUBPROGRAM:    SPDZ2UV_ns  COMPUTE WINDS FROM div and vort for one zonal wave number
@@ -2523,14 +2551,13 @@ end subroutine inmi_nsuvm2zdm_ad
 !   2006-09-05 parrish -- modify to do one zonal wave number only for parallel
 !                         computation across processors by zonal wave number.
 !
-! USAGE:    CALL SPDZ2UV_ns(I,M,L,ENN1,ELONN1,EON,EONTOP,D,Z,U,V,UTOP,VTOP)
+! USAGE:    CALL SPDZ2UV_ns(I,M,L,ELONN1,EON,EONTOP,D,Z,U,V,UTOP,VTOP)
 !
 !   INPUT ARGUMENT LIST:
 !     I        - INTEGER SPECTRAL DOMAIN SHAPE
 !                (0 FOR TRIANGULAR, 1 FOR RHOMBOIDAL)
 !     M        - INTEGER SPECTRAL TRUNCATION
 !     L        - zonal wave number
-!     ENN1     - REAL (L:M+I*L) N*(N+1)/A**2
 !     ELONN1   - REAL (L:M+I*L) L/(N*(N+1))*A
 !     EON      - REAL (L:M+I*L) EPSILON/N*A
 !     EONTOP   - REAL       EPSILON/N*A OVER TOP
@@ -2547,11 +2574,11 @@ end subroutine inmi_nsuvm2zdm_ad
 !   LANGUAGE: CRAY FORTRAN
 !
 !$$$
-      use kinds, only: r_kind,i_kind
+      use kinds, only: r_kind
       implicit none
 
       integer(i_kind),intent(in):: i,m,l
-      REAL(r_kind),intent(in):: ENN1(L:M+I*L),ELONN1(L:M+I*L)
+      REAL(r_kind),intent(in):: ELONN1(L:M+I*L)
       REAL(r_kind),intent(in):: EON(L:M+I*L),EONTOP
       REAL(r_kind),intent(in):: D(2,L:M+I*L),Z(2,L:M+I*L)
       REAL(r_kind),intent(out):: U(2,L:M+I*L),V(2,L:M+I*L)
@@ -2622,6 +2649,7 @@ end subroutine inmi_nsuvm2zdm_ad
 !   INPUT ARGUMENT LIST:
 !     I        - INTEGER SPECTRAL DOMAIN SHAPE
 !                (0 FOR TRIANGULAR, 1 FOR RHOMBOIDAL)
+!     L        - zonal wave number
 !     M        - INTEGER SPECTRAL TRUNCATION
 !     ENN1     - REAL (L:M+I*L) N*(N+1)/A**2
 !     ELONN1   - REAL (L:M+I*L) L/(N*(N+1))*A
@@ -2640,7 +2668,7 @@ end subroutine inmi_nsuvm2zdm_ad
 !   LANGUAGE: CRAY FORTRAN
 !
 !$$$
-      use kinds, only: r_kind,i_kind
+      use kinds, only: r_kind
       implicit none
 
       integer(i_kind),intent(in):: i,m,l
@@ -2729,8 +2757,7 @@ end subroutine inmi_nsuvm2zdm_ad
 !   LANGUAGE: CRAY FORTRAN
 !
 !$$$
-      use kinds, only: r_kind,i_kind
-      use constants, only: zero
+      use kinds, only: r_kind
       implicit none
 
       integer(i_kind),intent(in):: i,m,l
@@ -2800,7 +2827,7 @@ end subroutine inmi_nsuvm2zdm_ad
 !   LANGUAGE: CRAY FORTRAN
 !
 !$$$
-      use kinds, only: r_kind,i_kind
+      use kinds, only: r_kind
       use constants, only: zero
       implicit none
 

@@ -30,14 +30,17 @@ subroutine polcasl(sl,sl1,sl2,mf,nf,mrr,nrr,nor,rs,df,nxe,nxg)
   use gridmod, only: nlat,nlon
   implicit none
 
-  integer(i_kind) nxp,nxg,nxe,j1,ir,j,i,mf,nf,nor,nrr,mrr
+  integer(i_kind),intent(in):: mf,nf,nor,nrr,mrr
+
+  real(r_kind),intent(in):: df
+  real(r_kind),dimension(nlat,nlon),intent(in):: sl
+  real(r_kind),dimension(-nf:nf,-nf:nf),intent(out):: sl1,sl2
+  real(r_kind),dimension(0:nrr),intent(in):: rs
+
+  integer(i_kind) nxp,nxg,nxe,j1,ir,j,i
   integer(i_kind),dimension(mf:nf,0:nxg-1):: inaxt
   integer(i_kind),dimension(0:nf,mf:nf):: inbat
 
-  real(r_kind) df
-  real(r_kind),dimension(nlat,nlon):: sl
-  real(r_kind),dimension(-nf:nf,-nf:nf):: sl1,sl2
-  real(r_kind),dimension(0:nrr):: rs
   real(r_kind),dimension(0:nlon,mrr:nrr):: axr
   real(r_kind),dimension(0:nor-1,mrr:nrr-nor+1):: qr
   real(r_kind),dimension(0:nor-1,mf:nf,0:nxg-1):: wtaxt
@@ -121,18 +124,21 @@ subroutine polca(axr,afg,wtaxt,wtbat,inaxt,inbat, &
   use constants, only: zero
   implicit none
 
-  integer(i_kind) mf,nf,mrr,nrr,nxe,nxg,nor,naxr,nxq,nxqm,nx,nxm,nxgm,norm
+  integer(i_kind),intent(in):: mf,nf,mrr,nrr,nxe,nxg,nor,naxr
+  integer(i_kind),dimension(mf:nf,0:nxg-1),intent(in):: inaxt
+  integer(i_kind),dimension(0:nf,mf:nf),intent(in):: inbat
+  real(r_kind),dimension(0:naxr-1,mrr:nrr),intent(in):: axr
+  real(r_kind),dimension(0:nor-1,mf:nf,0:nxg-1),intent(in):: wtaxt
+  real(r_kind),dimension(0:nor-1,0:nf,mf:nf),intent(in):: wtbat
+
+  real(r_kind),dimension(-nf:nf,-nf:nf),intent(out):: afg
+
+  integer(i_kind) nxq,nxqm,nx,nxm,nxgm,norm
   integer(i_kind) ix,ia,i,ici,ic0,ix5,idi,jdi,id0,ib,ix1,ix6,ix4,ix7,ix3,ix2
   integer(i_kind) jx0,ix0
-  integer(i_kind),dimension(mf:nf,0:nxg-1):: inaxt
-  integer(i_kind),dimension(0:nf,mf:nf):: inbat
   
   real(r_kind) wt
-  real(r_kind),dimension(-nf:nf,-nf:nf):: afg
-  real(r_kind),dimension(0:naxr-1,mrr:nrr):: axr
   real(r_kind),dimension(mf:nf,-nxg:nxg-1):: aq0,aq2,aq4,aq6
-  real(r_kind),dimension(0:nor-1,mf:nf,0:nxg-1):: wtaxt
-  real(r_kind),dimension(0:nor-1,0:nf,mf:nf):: wtbat
   
   nxq=nxe*2
   nxqm=nxq-1
@@ -241,17 +247,22 @@ subroutine setwtt(wtaxt,wtbat,inaxt,inbat,rs,df,qr,nxe,nxg,mrr,nrr,mf,nf,nor)
   use constants, only:  quarter,pi,one,half
   implicit none
 
-  integer(i_kind) irp,nra,mra,iy,ir,ia,ixp,i,ic0,ib,mf,nrr,nor,nf,nxe,mrr
-  integer(i_kind) nxg,norm,norh,ix,nxgm
-  integer(i_kind),dimension(mf:nf,0:nxg-1):: inaxt
-  integer(i_kind),dimension(0:nf,mf:nf):: inbat
+  integer(i_kind),intent(in):: mf,nrr,nor,nf,nxe,mrr
+  integer(i_kind),intent(in):: nxg
+  real(r_kind),intent(in):: df
+  real(r_kind),dimension(mrr:nrr),intent(in):: rs
+  real(r_kind),dimension(0:nor-1,mrr:nrr+1-nor),intent(in):: qr
+
+  integer(i_kind),dimension(mf:nf,0:nxg-1),intent(out):: inaxt
+  integer(i_kind),dimension(0:nf,mf:nf),intent(out):: inbat
+  real(r_kind),dimension(0:nor-1,mf:nf,0:nxg-1),intent(out):: wtaxt
+  real(r_kind),dimension(0:nor-1,0:nf,mf:nf),intent(out):: wtbat
+
+  integer(i_kind) irp,nra,mra,iy,ir,ia,ixp,i,ic0,ib
+  integer(i_kind) norm,norh,ix,nxgm
   
-  real(r_kind) secx,fsai,xf,x,df,dx,piq,dfi,dxi,ry,r,y
+  real(r_kind) secx,fsai,xf,x,dx,piq,dfi,dxi,ry,r,y
   real(r_kind),dimension(0:nxg):: c
-  real(r_kind),dimension(mrr:nrr):: rs
-  real(r_kind),dimension(0:nor-1,mf:nf,0:nxg-1):: wtaxt
-  real(r_kind),dimension(0:nor-1,0:nf,mf:nf):: wtbat
-  real(r_kind),dimension(0:nor-1,mrr:nrr+1-nor):: qr
   real(r_kind),dimension(20):: dw
   real(r_kind),dimension(0:20):: ys,qy
 
@@ -384,16 +395,20 @@ subroutine setwts(wtaxs,wtxrs,inaxs,inxrs,rs,df,nor,nxe,nf,mr,nr)
   use kinds, only: r_kind,i_kind
   use constants, only:  one,quarter,pi,half
   implicit none
+ 
+  integer(i_kind),intent(in):: nf,mr,nxe,nor,nr
+  real(r_kind),intent(in):: df
+  real(r_kind),dimension(mr:*),intent(in):: rs
+
+  integer(i_kind),dimension(nf,0:nxe-1),intent(out):: inaxs
+  integer(i_kind),dimension(0:nxe-1,mr:nr),intent(out):: inxrs
+  real(r_kind),dimension(0:nor-1,nf,0:nxe-1),intent(out):: wtaxs
+  real(r_kind),dimension(0:nor-1,0:nxe-1,mr:nr),intent(out):: wtxrs
+ 
+  integer(i_kind) iy,ix,if1min,ia,ir,ig,nxem
+  integer(i_kind) norm,norhm,norh
   
-  integer(i_kind) iy,ix,if1min,ia,ir,ig,nxem,nf,mr,nxe,nor,nr,norm
-  integer(i_kind) norhm,norh
-  integer(i_kind),dimension(nf,0:nxe-1):: inaxs
-  integer(i_kind),dimension(0:nxe-1,mr:nr):: inxrs
-  
-  real(r_kind) x,dfi,cx,ry,y,df,piq,dx
-  real(r_kind),dimension(0:nor-1,nf,0:nxe-1):: wtaxs
-  real(r_kind),dimension(0:nor-1,0:nxe-1,mr:nr):: wtxrs
-  real(r_kind),dimension(mr:*):: rs
+  real(r_kind) x,dfi,cx,ry,y,piq,dx
   real(r_kind),dimension(0:nxe+nor/2):: t,c
   real(r_kind),dimension(20):: dw
   real(r_kind),dimension(0:20):: ys,qy
@@ -470,8 +485,8 @@ subroutine polcas(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
 !     nf     - half-width of (f,g) grid interpolated from
 !     mr     - inner limit of part of polar grid interpolated to
 !     nr     - outer limit of part of polar grid interpolated to
-!     nxe    - nx/8 where nx is the number of longitudes for polar grid
-!     nor    - order of interpolations (even; linear = 2, cubic = 4, etc.)
+!     nxem   - nx/8 where nx is the number of longitudes for polar grid
+!     norm   - order of interpolations (even; linear = 2, cubic = 4, etc.)
 !     naxr:  total first fortran dimension of axr.
 !
 !   output argument list:
@@ -486,17 +501,21 @@ subroutine polcas(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
   use constants, only: zero
   implicit none
 
-  integer(i_kind) ix2,ix4,ir,ibi,ix7,ia0,iai,ix5,ix6,ix1,ix3,i,naxr
-  integer(i_kind) nxq,ix,ia,ib0,norm,nxem,nx,nxm,nf,mr,nr
-  integer(i_kind),dimension(nf,0:nxem):: inaxs
-  integer(i_kind),dimension(0:nxem,mr:nr):: inxrs
+  integer(i_kind),intent(in):: naxr
+  integer(i_kind),intent(in):: norm,nxem,nf,mr,nr
+  integer(i_kind),dimension(nf,0:nxem),intent(in):: inaxs
+  integer(i_kind),dimension(0:nxem,mr:nr),intent(in):: inxrs
+  real(r_kind),dimension(-nf:nf,-nf:nf),intent(in):: afg
+  real(r_kind),dimension(0:norm,nf,0:nxem),intent(in):: wtaxs
+  real(r_kind),dimension(0:norm,0:nxem,mr:nr),intent(in):: wtxrs
+
+  real(r_kind),dimension(0:naxr,mr:nr),intent(out):: axr
+
+  integer(i_kind) ix2,ix4,ir,ibi,ix7,ia0,iai,ix5,ix6,ix1,ix3,i
+  integer(i_kind) nxq,ix,ia,ib0,nx,nxm
   
   real(r_kind) wt,afg0,valp
-  real(r_kind),dimension(-nf:nf,-nf:nf):: afg
-  real(r_kind),dimension(0:naxr,mr:nr):: axr
   real(r_kind),dimension(-nf:nf):: afxp,afxn,agxp,agxn
-  real(r_kind),dimension(0:norm,nf,0:nxem):: wtaxs
-  real(r_kind),dimension(0:norm,0:nxem,mr:nr):: wtxrs
   real(r_kind),dimension(8)::sx
   
   nxq=(nxem+1)*2
@@ -613,8 +632,8 @@ subroutine polcasa(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
 !     nf     - half-width of (f,g) grid interpolated from
 !     mr     - inner limit of part of polar grid interpolated to
 !     nr     - outer limit of part of polar grid interpolated to
-!     nxe    - nx/8 where nx is the number of longitudes for polar grid
-!     nor    - order of interpolations (even; linear = 2, cubic = 4, etc.)
+!     nxem   - nx/8 where nx is the number of longitudes for polar grid
+!     norm   - order of interpolations (even; linear = 2, cubic = 4, etc.)
 !     naxr:  total first fortran dimension of axr.
 !
 !   output argument list:
@@ -628,18 +647,23 @@ subroutine polcasa(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   implicit none
-  
-  integer(i_kind) nxq,ir,ia0,i,ix7,ix1,ix3,ix5,iai,if,ib0,ibi,ig,ix,naxr
-  integer(i_kind) nxem,nx,ix2,ix4,ix6,ia,nxm,norm,nf,mr,nr
-  integer(i_kind),dimension(nf,0:nxem):: inaxs
-  integer(i_kind),dimension(0:nxem,mr:nr):: inxrs
+ 
+  integer(i_kind),intent(in):: naxr
+  integer(i_kind),intent(in):: nxem,norm,nf,mr,nr
+  integer(i_kind),dimension(nf,0:nxem),intent(in):: inaxs
+  integer(i_kind),dimension(0:nxem,mr:nr),intent(in):: inxrs
+  real(r_kind),dimension(0:norm,nf,0:nxem),intent(in):: wtaxs
+  real(r_kind),dimension(0:norm,0:nxem,mr:nr),intent(in):: wtxrs
+
+  real(r_kind),dimension(0:naxr,mr:nr),intent(inout):: axr
+
+  real(r_kind),dimension(-nf:nf,-nf:nf),intent(out):: afg
+ 
+  integer(i_kind) nxq,ir,ia0,i,ix7,ix1,ix3,ix5,iai,if,ib0,ibi,ig,ix
+  integer(i_kind) nx,ix2,ix4,ix6,ia,nxm
   
   real(r_kind) wt,afg0,valp
-  real(r_kind),dimension(-nf:nf,-nf:nf):: afg
-  real(r_kind),dimension(0:naxr,mr:nr):: axr
   real(r_kind),dimension(-nf:nf):: afxp,afxn,agxp,agxn
-  real(r_kind),dimension(0:norm,nf,0:nxem):: wtaxs
-  real(r_kind),dimension(0:norm,0:nxem,mr:nr):: wtxrs
   
   nxq=(nxem+1)*2
   nx=nxq*4
@@ -739,8 +763,12 @@ subroutine setq(q,x,n)
   use constants, only: one
   implicit none
 
-  integer(i_kind) n,i,j
-  real(r_kind),dimension(n):: q,x
+  integer(i_kind),intent(in):: n
+  real(r_kind),dimension(n),intent(in):: x
+
+  real(r_kind),dimension(n),intent(out):: q
+
+  integer(i_kind) i,j
 
   do i=1,n
      q(i)=one
@@ -784,12 +812,19 @@ subroutine lagw(x,xt,q,w,dw,n)
   use kinds, only: r_kind,i_kind
   use constants, only: zero, one
   implicit none
+
+  integer(i_kind),intent(in):: n
+  real(r_kind),intent(in):: xt
+  real(r_kind),dimension(*),intent(in):: x
+
+  real(r_kind),dimension(*),intent(inout):: q,w
+
+  real(r_kind),dimension(*),intent(out):: dw 
   
-  integer(i_kind) n,i,j
+  integer(i_kind) i,j
   
-  real(r_kind) p,sdil,sdir,xt,s
+  real(r_kind) p,sdil,sdir,s
   real(r_kind),dimension(12):: sdit(12),d(12),di(12)
-  real(r_kind),dimension(*):: x,q,w,dw
   
   p=one       ! will become product of all the d(i)=xt-x(i)
   do i=1,n

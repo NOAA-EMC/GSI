@@ -1,8 +1,9 @@
 module stpradmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stpradmod    module for stprad and its tangent linear stprad_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stpradmod    module for stprad and its tangent linear stprad_tl
+!  prgmmr:
 !
 ! abstract: module for stprad and its tangent linear stprad_tl
 !
@@ -10,7 +11,16 @@ module stpradmod
 !   2005-05-20  Yanqiu zhu - wrap stprad and its tangent linear stprad_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stprad_tl
+!   2009-08-12  lueken - update documentation
 !
+! subroutines included:
+!   sub stprad
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -50,6 +60,7 @@ subroutine stprad(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst, &
 !   2008-12-03  todling - changed handling of ptr%time
 !
 !   input argument list:
+!     radhead
 !     rt       - search direction for temperature
 !     rq       - search direction for moisture 
 !     roz      - search direction for ozone
@@ -71,8 +82,6 @@ subroutine stprad(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst, &
 !     out(2)   - penalty for radiance data sges(2)
 !     out(3)   - penalty for radiance data sges(3)
 !     out(4)   - penalty for radiance data sges(4)
-!     b1       - pen(sges1)-pen(sges2)
-!     b3       - pen(sges3)-pen(sges2)
 !
 ! attributes:
 !   language: f90
@@ -99,7 +108,7 @@ subroutine stprad(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst, &
   real(r_kind),dimension(4),intent(in):: sges
 
 ! Declare local variables
-  integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4,i
+  integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4
   real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
   real(r_kind) val2,tlap2,val,tlap,w1,w2,w3,w4
   real(r_kind),dimension(nsig3p3):: tdir,rdir

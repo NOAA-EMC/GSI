@@ -19,6 +19,8 @@ subroutine convert_netcdf_mass
 !
 !   input argument list:
 !
+!   output argument list:
+!
 !     NOTES:  this is beginning of allowing direct connection of gsi to wrf files
 !             without seperate external interface.  it is very inefficient, and
 !             later versions will be made to reduce the total i/o involved.
@@ -30,15 +32,15 @@ subroutine convert_netcdf_mass
 !$$$
 
   use kinds, only: r_single,i_kind
+  use constants, only: h300
   use gsi_4dvar, only: nhr_assimilation
   implicit none
 
 ! Declare local parameters
   real(r_single),parameter:: one_single = 1.0_r_single
   real(r_single),parameter:: r45 = 45.0_r_single
-  real(r_single),parameter:: r300 = 300.0_r_single
 
-  character(len=120) :: flnm1,flnm2
+  character(len=120) :: flnm1
   character(len=19)  :: DateStr1
   character(len=6)   :: filename
   integer(i_kind)            :: dh1
@@ -51,14 +53,11 @@ subroutine convert_netcdf_mass
   integer(i_kind), dimension(4)  :: start_index, end_index
   character (len= 4) :: staggering=' N/A'
   character (len= 3) :: ordering
-  character (len=31) :: name,name1,name2,name3,name4,name5
   
   character (len=80), dimension(3)  ::  dimnames
   character (len=80) :: SysDepInfo
-  
-  integer(i_kind) :: l, n
-  
-  integer(i_kind) :: ierr, ier, Status, Status_next_time
+ 
+  integer(i_kind) :: ierr, Status, Status_next_time
   
 ! binary stuff
 
@@ -69,7 +68,6 @@ subroutine convert_netcdf_mass
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
   real(r_single) pt_regional
   real(r_single) rdx,rdy
-  real(r_single) dlmd_regional,dphd_regional
   real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:),field2c(:,:)
   real(r_single),allocatable::field3u(:,:,:),field3v(:,:,:)
   integer(i_kind),allocatable::ifield2(:,:)
@@ -401,7 +399,7 @@ subroutine convert_netcdf_mass
        start_index,end_index,               & !mem
        start_index,end_index,               & !pat
        ierr                                 )
-  field3=field3+r300
+  field3=field3+h300
   do k=1,nsig_regional
      write(6,*)' k,max,min,mid T=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
           field3(nlon_regional/2,nlat_regional/2,k)
@@ -757,6 +755,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 !                      the nmm hydrostatic pressure thickness variable.
 !     ctph0,stph0:   cos and sin thp0, earth lat of center of nmm grid (0 deg lat in rotated nmm coordinate)
 !                      (used by calctends routines)
+!     tlm0
 !
 !     NOTES:  this is beginning of allowing direct connection of gsi to wrf files
 !             without seperate external interface.  it is very inefficient, and
@@ -778,79 +777,40 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 ! include 'wrf_status_codes.h'
 ! include 'netcdf.inc'
 
-  logical update_pint
-  real(r_kind) ctph0,stph0,tlm0
+  logical,intent(inout):: update_pint
+  real(r_kind),intent(out):: ctph0,stph0,tlm0
 
-  character(len=120) :: flnm,flnm0,flnm1,flnm2,flnm3
-  character(len=120) :: arg3
-  character(len=19)  :: DateStr,DateStr1,DateStr2
-  character(len=31)  :: VarName,VarName1,VarName2
+  character(len=120) :: flnm1
+  character(len=19)  :: DateStr1
   character(len=6)   :: filename
-  integer(i_kind)            :: dh0,dh1,dh2
+  integer(i_kind)            :: dh1
   
-  integer(i_kind) :: flag
   integer(i_kind) :: iunit
   
   integer(i_kind) :: i,j,k
-  integer(i_kind) :: levlim
-  integer(i_kind) :: cross
-  integer(i_kind) :: ndim, ndim1,ndim2
-  integer(i_kind) :: WrfType, WrfType1, WrfType2
-  real(r_single)    :: time, time1, time2
-  real(r_single)    :: a, b, old_data, scale
-  integer(i_kind), dimension(4)  :: start_index, end_index, start_index1, end_index1
-  integer(i_kind), dimension(4)  :: start_index2, end_index2
-  integer(i_kind) , Dimension(3) :: MemS,MemE,PatS,PatE
+  integer(i_kind) :: ndim1
+  integer(i_kind) :: WrfType
+  integer(i_kind), dimension(4)  :: start_index, end_index1
   character (len= 4) :: staggering=' N/A'
-  character (len= 3) :: ordering,ordering1,ordering2, ord
-  character (len=24) :: start_date,start_date1,start_date2
-  character (len=24) :: current_date,current_date1,current_date2
-  character (len=31) :: name,name1,name2,name3,name4,name5
-  character (len=25) :: units,        units2
-  character (len=46) :: description,  description2
+  character (len= 3) :: ordering
 
   character (len=80), dimension(3)  ::  dimnames
   character (len=80) :: SysDepInfo
 
-  integer(i_kind) :: l, n
-  integer(i_kind) :: ikdiffs, ifdiffs
-
-  real(r_single), allocatable, dimension(:,:,:,:) :: data,data1,data2
-
-  integer(i_kind) :: ierr, ierr2, ier, ier2, Status, Status_next_time
-  integer(i_kind) :: Status_next_time2, Status_next_var, Status_next_var_2
-
-  logical :: ensemble = .FALSE.
-  logical :: gsi3dvar = .TRUE.
-  logical :: newtime  = .TRUE.
-  logical :: justplot, efound
-
-  integer(i_kind), external :: iargc
-  logical, external :: iveceq
+  integer(i_kind) :: ierr, Status, Status_next_time
 
 ! binary stuff
 
-  logical :: write_binary = .FALSE.
-  integer(i_kind) :: ix,jx,kx
-  real, allocatable, dimension(:,:,:,:) :: bin_data
-
 ! rmse stuff
 
-  logical :: rescale = .FALSE.
-  real:: rms_error, pert_limit
   character (len=31) :: rmse_var
-  real, allocatable, dimension(:,:,:,:) :: rdata1,rdata2
   
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
   real(r_single) pt_regional,pdtop_regional,dy_nmm
-  real(r_single) rdx,rdy
   real(r_single) dlmd_regional,dphd_regional
-  real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:),field2c(:,:)
-  real(r_single),allocatable::field3u(:,:,:),field3v(:,:,:)
+  real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:)
   integer(i_kind),allocatable::ifield2(:,:)
-  real(r_single),allocatable::u_base(:),v_base(:)
-  integer(i_kind) istop,loop
   integer(i_kind) wrf_real
   data iunit / 15 /
   wrf_real=104
@@ -1419,74 +1379,67 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 end subroutine convert_netcdf_nmm
 
 subroutine update_netcdf_mass
-
-!  create internal binary file from netcdf format wrf restart file
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    update_netcdf_mass     create internal binary file from netcdf format wrf restart file
+!   prgmmr:
+!
+! abstract: create internal binary file from netcdf format wrf restart file
+!
+! program history log:
 !   2004-11-05  treadon - add return code 75 for error stop
 !   2004-12-15  treadon - remove get_lun, read guess from file "wrf_inout"
 !   2005-12-09  middlecoff - initialize character variable staggering and removed staggering1,staggering2
 !   2006-04-06  middlecoff - added read of SM and SICE to match the writes in wrwrfmass.F90  
 !                            and read in the rest of the fields to match the writes in wrwrfmass.F90  
 !   2006-06-09  liu - bug fix: replace SM and SICE with SMOIS and XICE
+!   2009-08-14  lueken - update documentation
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   use kinds, only: r_single,i_kind
+  use constants, only: h300
   implicit none
 
 ! Declare local parameters
-  real(r_single),parameter:: r300 = 300.0_r_single
 
-  character(len=120) :: flnm,flnm0,flnm1,flnm2,flnm3
-  character(len=120) :: arg3
-  character(len=19)  :: DateStr,DateStr1,DateStr2
-  character(len=31)  :: VarName,VarName1,VarName2
-  integer(i_kind)            :: dh0,dh1,dh2
+  character(len=120) :: flnm1,flnm2
+  character(len=19)  :: DateStr1
+  integer(i_kind)            :: dh1
 
-  integer(i_kind) :: flag
   integer(i_kind) :: iunit
 
   integer(i_kind) :: i,j,k
-  integer(i_kind) :: levlim
-  integer(i_kind) :: cross
-  integer(i_kind) :: ndim, ndim1,ndim2
-  integer(i_kind) :: WrfType, WrfType1, WrfType2
-  real(r_single)    :: time, time1, time2
-  real(r_single)    :: a, b, old_data, scale
-  integer(i_kind), dimension(4)  :: start_index, end_index, start_index1, end_index1
-  integer(i_kind), dimension(4)  :: start_index2, end_index2
-  integer(i_kind) , Dimension(3) :: MemS,MemE,PatS,PatE
+  integer(i_kind) :: ndim1
+  integer(i_kind) :: WrfType
+  integer(i_kind), dimension(4)  :: start_index, end_index1
   character (len= 4) :: staggering=' N/A'
-  character (len= 3) :: ordering,ordering1,ordering2, ord
-  character (len=24) :: start_date,start_date1,start_date2
-  character (len=24) :: current_date,current_date1,current_date2
-  character (len=31) :: name,name1,name2,name3,name4,name5
-  character (len=25) :: units,        units2
-  character (len=46) :: description,  description2
+  character (len= 3) :: ordering
 
   character (len=80), dimension(3)  ::  dimnames
   character (len=80) :: SysDepInfo
 
-  integer(i_kind) :: l, n
 
-
-  integer(i_kind) :: ierr, ierr2, ier, ier2, Status, Status_next_time
-  integer(i_kind) :: Status_next_time2, Status_next_var, Status_next_var_2
-
-  integer(i_kind), external :: iargc
-  logical, external :: iveceq
+  integer(i_kind) :: ierr, Status, Status_next_time
 
 ! binary stuff
 
 ! rmse stuff
 
-  logical :: rescale = .FALSE.
   character (len=31) :: rmse_var
 
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
   real(r_single) pt_regional,pdtop_regional,dy_nmm
-  real(r_single) rdx,rdy
-  real(r_single) dlmd_regional,dphd_regional
-  real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:),field2c(:,:)
+  real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:)
   real(r_single),allocatable::field3u(:,:,:),field3v(:,:,:)
   integer(i_kind),allocatable::ifield2(:,:)
   integer(i_kind) wrf_real
@@ -1612,7 +1565,7 @@ subroutine update_netcdf_mass
      write(6,*)' k,max,min,mid T=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
           field3(nlon_regional/2,nlat_regional/2,k)
   end do
-  field3=field3-r300
+  field3=field3-h300
   rmse_var='T'
   call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
        start_index,end_index1, WrfType, ierr    )
@@ -1806,13 +1759,29 @@ subroutine update_netcdf_mass
 end subroutine update_netcdf_mass
 
 subroutine update_netcdf_nmm
-
-!  create internal binary file from netcdf format wrf restart file
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    update_netcdf_nmm   create internal binary file from netcdf format wrf restart file
+!   pgrmmr:
+!
+! abstract: create internal binary file from netcdf format wrf restart file
+!
+! program history log:
 !   2004-11-05  treadon - add return code 75 for error stop
 !   2004-12-15  treadon - remove get_lun, read guess from file "wrf_inout"
 !   2005-12-09  middlecoff - read in pint if update_pint=.true.
 !   2005-12-09  middlecoff - initialize character variable staggering and removed staggering1,staggering2
+!   2009-08-14  lueken - update documentation
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   use kinds, only: r_single,i_kind
   use regional_io, only: update_pint
@@ -1821,76 +1790,37 @@ subroutine update_netcdf_nmm
 ! include 'wrf_status_codes.h'
 ! include 'netcdf.inc'
 
-  character(len=120) :: flnm,flnm0,flnm1,flnm2,flnm3
-  character(len=120) :: arg3
-  character(len=19)  :: DateStr,DateStr1,DateStr2
-  character(len=31)  :: VarName,VarName1,VarName2
-  integer(i_kind)            :: dh0,dh1,dh2
+  character(len=120) :: flnm1,flnm2
+  character(len=19)  :: DateStr1
+  integer(i_kind)            :: dh1
 
-  integer(i_kind) :: flag
   integer(i_kind) :: iunit
 
   integer(i_kind) :: i,j,k
-  integer(i_kind) :: levlim
-  integer(i_kind) :: cross
-  integer(i_kind) :: ndim, ndim1,ndim2
-  integer(i_kind) :: WrfType, WrfType1, WrfType2
-  real(r_single)    :: time, time1, time2
-  real(r_single)    :: a, b, old_data, scale
-  integer(i_kind), dimension(4)  :: start_index, end_index, start_index1, end_index1
-  integer(i_kind), dimension(4)  :: start_index2, end_index2
-  integer(i_kind) , Dimension(3) :: MemS,MemE,PatS,PatE
+  integer(i_kind) :: ndim1
+  integer(i_kind) :: WrfType
+  integer(i_kind), dimension(4)  :: start_index, end_index1
   character (len= 4) :: staggering=' N/A'
-  character (len= 3) :: ordering,ordering1,ordering2, ord
-  character (len=24) :: start_date,start_date1,start_date2
-  character (len=24) :: current_date,current_date1,current_date2
-  character (len=31) :: name,name1,name2,name3,name4,name5
-  character (len=25) :: units,        units2
-  character (len=46) :: description,  description2
+  character (len= 3) :: ordering
 
   character (len=80), dimension(3)  ::  dimnames
   character (len=80) :: SysDepInfo
 
-  integer(i_kind) :: l, n
-  integer(i_kind) :: ikdiffs, ifdiffs
-
-  real(r_single), allocatable, dimension(:,:,:,:) :: data,data1,data2
-
-  integer(i_kind) :: ierr, ierr2, ier, ier2, Status, Status_next_time
-  integer(i_kind) :: Status_next_time2, Status_next_var, Status_next_var_2
-
-  logical :: ensemble = .FALSE.
-  logical :: gsi3dvar = .TRUE.
-  logical :: newtime  = .TRUE.
-  logical :: justplot, efound
-
-  integer(i_kind), external :: iargc
-  logical, external :: iveceq
+  
+  integer(i_kind) :: ierr, Status, Status_next_time
 
 ! binary stuff
 
-  logical :: write_binary = .FALSE.
-  integer(i_kind) :: ix,jx,kx
-  real, allocatable, dimension(:,:,:,:) :: bin_data
-
 ! rmse stuff
 
-  logical :: rescale = .FALSE.
-  real:: rms_error, pert_limit
   character (len=31) :: rmse_var
-  real, allocatable, dimension(:,:,:,:) :: rdata1,rdata2
-  integer :: nallo
+  integer(i_kind) :: nallo
 
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
   real(r_single) pt_regional,pdtop_regional,dy_nmm
-  real(r_single) rdx,rdy
-  real(r_single) dlmd_regional,dphd_regional
-  real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:),field2c(:,:)
-  real(r_single),allocatable::field3u(:,:,:),field3v(:,:,:)
+  real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:)
   integer(i_kind),allocatable::ifield2(:,:)
-  real(r_single),allocatable::u_base(:),v_base(:)
-  integer(i_kind) istop,loop
   integer(i_kind) wrf_real
   data iunit / 15 /
   wrf_real=104
@@ -2103,22 +2033,106 @@ end subroutine update_netcdf_nmm
 
 #else /* Start no WRF-library block */
 subroutine convert_netcdf_nmm
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_netcdf_nmm
+!   pgrmmr:
+!
+! abstract: dummy call... does nothing
+!
+! program history log:
+!   2009-08-14  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
+
   write(6,*)'CONVERT_NETCDF_NMM:  ***WARNING*** dummy call ... does nothing!'
   return
 end subroutine convert_netcdf_nmm
 
 subroutine convert_netcdf_mass
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_netcdf_mass
+!   pgrmmr:
+!
+! abstract: dummy call... does nothing
+!
+! program history log:
+!   2009-08-14  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
+
   write(6,*)'CONVERT_NETCDF_MASS:  ***WARNING*** dummy call ... does nothing!'
   return
 end subroutine convert_netcdf_mass
 
 subroutine update_netcdf_nmm
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    update_netcdf_nmm
+!   pgrmmr:
+!
+! abstract: dummy call... does nothing
+!
+! program history log:
+!   2009-08-14  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
+
   write(6,*)'UPDATE_NETCDF_NMM:  ***WARNING*** dummy call ... does nothing!'
   return
 end subroutine update_netcdf_nmm
 
 
 subroutine update_netcdf_mass
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    update_netcdf_mass
+!   pgrmmr:
+!
+! abstract: dummy call... does nothing
+!
+! program history log:
+!   2009-08-14  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
+
   write(6,*)'UPDATE_NETCDF_MASS:  ***WARNING*** dummy call ... does nothing!'
   return
 end subroutine update_netcdf_mass

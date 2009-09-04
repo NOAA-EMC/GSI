@@ -1,4 +1,4 @@
-subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
+subroutine read_amsre(mype,val_amsre,ithin,rmesh,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub)
 
@@ -49,7 +49,6 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
 !     val_amsre- weighting factor applied to super obs
 !     ithin    - flag to thin data
 !     rmesh    - thinning mesh size (km)
-!     jsatid   - satellite to read  ex.49
 !     gstime   - analysis time in minutes from reference date
 !     infile   - unit from which to read BUFR data
 !     lunout   - unit to which to write data for further processing
@@ -76,9 +75,9 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
               checkob,finalcheck,score_crit
   use radinfo, only: iuse_rad,nusis,jpch_rad
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
-       tll2xy,txy2ll
-  use constants, only: deg2rad,rad2deg,zero,one,two,three,izero,r60inv
-  use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
+       tll2xy
+  use constants, only: deg2rad,rad2deg,zero,three,r60inv
+  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   implicit none
 
 ! Number of channels for sensors in BUFR
@@ -93,7 +92,6 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
   character(len=*) ,intent(in) :: obstype
   integer(i_kind)  ,intent(in) :: mype
   integer(i_kind)  ,intent(in) :: ithin
-  character(len=*) ,intent(in) :: jsatid
   integer(i_kind)  ,intent(in) :: lunout
   real(r_kind)     ,intent(inout) :: val_amsre
   real(r_kind)     ,intent(in) :: gstime,twind
@@ -116,27 +114,24 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
   integer(i_kind)   :: iret,isflg,idomsfc
 
 ! Work variables for time
-  character(len=10) :: date
   integer(i_kind)   :: idate
   integer(i_kind)   :: idate5(5)
   integer(i_kind)   :: nmind
-  integer(i_kind)   :: iy, im, idd, ihh
   real(r_kind)     :: sstime, tdiff, t4dv
 
 ! Other work variables
   logical           :: outside,iuse,assim
   integer(i_kind)   :: nreal, kidsat
-  integer(i_kind)   :: itx, k, nele, itt, iobsout
+  integer(i_kind)   :: itx, k, nele, itt
   integer(i_kind)   :: ifov, ilat, ilon
   integer(i_kind)   :: i, l, n
-  integer(i_kind)   :: file_handle,ierror,nblocks
   integer(i_kind),dimension(n_amsrch) :: kchamsre
   real(r_kind)     :: sfcr
   real(r_kind)     :: dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind),allocatable,dimension(:,:):: data_all
-  integer(i_kind):: isubset,irec,isub,next
+  integer(i_kind):: irec,isub,next
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: ts
@@ -220,7 +215,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
   orbit = -1
   old_orbit=-1
   iorbit = 0
-  sstime = 0.0
+  sstime = zero
   if(amsre_low)then
     kchanl=4
     kchamsre(1:4)=(/1,2,3,4/)
@@ -239,7 +234,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
      nscan  = 196  !for low frequency ch
 !    nscan  = 392  !for 89.0GHz ch
      kidsat = 549  
-     rlndsea(0) = 0._r_kind
+     rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
      rlndsea(2) = 10._r_kind
      rlndsea(3) = 15._r_kind
@@ -435,7 +430,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
              endif
            end do
            if(kskip == kchanl .or. iskip == nchanl) cycle read_loop
-           flgch=iskip*3.0  !used for thin, range 0 to 36
+           flgch=iskip*three  !used for thin, range 0 to 36
            crit1 = crit1 + flgch
 
 !    Set data quality predictor ***NEED TO COME UP WITH THIS***
@@ -548,7 +543,7 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,jsatid,gstime,&
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
-  call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
+  call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
           nele,itxmax,nread,ndata,data_all,score_crit)
 
 
@@ -661,19 +656,22 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
 !$$$
 !
   use kinds, only: r_kind,i_kind
-  use constants, only: deg2rad,rad2deg
+  use constants, only: deg2rad,rad2deg,one,r60inv
 
   implicit none
 
-  integer(i_kind)   di,day
-  real(r_kind)      time,lat,lon
+  integer(i_kind),intent(in):: day
+  real(r_kind), intent(in)  :: time,lat,lon
+
+  real(r_kind),intent(out)  :: sun_zenith,sun_azimuth
+
+  integer(i_kind)   di
   real(r_kind)      ut,noon
   real(r_kind)      y(5),y2(5),x(2,5),Tx(5,2),xTx(2,2),aTx(5,2),det
   real(r_kind)      tt,eqtime,decang,latsun,lonsun
   real(r_kind)      nday(74),eqt(74),dec(74)
   real(r_kind)      beta(2), beta2(2), a(2,2)
   real(r_kind)      t0,t1,p0,p1,zz,xx,yy
-  real(r_kind)      sun_zenith,sun_azimuth
 
   data   nday/1.0,   6.0,  11.0,  16.0,  21.0,  26.0,  31.0,  36.0,  41.0,  46.0,&
              51.0,  56.0,  61.0,  66.0,  71.0,  76.0,  81.0,  86.0,  91.0,  96.0,&
@@ -715,7 +713,7 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
 
 !============== Perform a least squares regression on doy**3 ==============
 
-  x(1,:) = 1.0
+  x(1,:) = one
 
   if ((di .ge. 3) .and. (di .le. 72)) then
     y(:) = eqt(di-2:di+2)
@@ -799,7 +797,7 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
 
   if ((di .lt. 3) .or. (di .gt. 72)) tt = tt + 365._r_kind
 
-  eqtime=(beta(1) + beta(2)*tt**3)/60._r_kind
+  eqtime=(beta(1) + beta(2)*tt**3)*r60inv
   decang=beta2(1) + beta2(2)*tt**3
   latsun=decang
 
@@ -862,9 +860,9 @@ subroutine deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
 !
 !$$$
    use kinds, only: r_kind,i_kind
-   use satthin, only: sno_full,isli_full,sst_full
+   use satthin, only: sno_full,isli_full
    use constants, only: zero,one
-   use gridmod, only: rlats,rlons,nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
+   use gridmod, only: regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
    use guess_grids, only: ntguessfc
    implicit none
    integer(i_kind),intent(out):: isflg

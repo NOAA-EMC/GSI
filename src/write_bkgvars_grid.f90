@@ -42,7 +42,7 @@ subroutine write_bkgvars_grid(a,b,c,d,mype)
   real(r_single),dimension(nlon,nlat,nsig):: a4,b4,c4
   real(r_single),dimension(nlon,nlat):: d4
 
-  integer ncfggg,iret,i,j,k
+  integer(i_kind) ncfggg,iret,i,j,k
 
 ! gather stuff to processor 0
   call gather_stuff2(a,ag,nsig,mype,0)
@@ -105,14 +105,14 @@ subroutine load_grid2(grid_in,grid_out)
 !   machine:
 !
 !$$$
-  use kinds, only: r_kind
+  use kinds, only: i_kind,r_kind
   use gridmod, only:  nlat,nlon
   implicit none
 
   real(r_kind),dimension(nlat,nlon),intent(in):: grid_in        ! input grid
   real(r_kind),dimension(nlon,nlat-2),intent(out):: grid_out    ! output grid
 
-  integer i,j,nlatm1,jj,j2
+  integer(i_kind) i,j,nlatm1,jj,j2
 
 ! Transfer contents of local array to output array.
   nlatm1=nlat-1
@@ -150,15 +150,14 @@ subroutine fill_ns2(grid_in,grid_out)
 !   machine:
 !
 !$$$
-  use kinds, only: r_kind
-  use kinds, only: r_kind
+  use kinds, only: i_kind,r_kind
   use gridmod, only: nlat,nlon
   implicit none
 
   real(r_kind),dimension(nlon,nlat-2),intent(in):: grid_in  ! input grid
   real(r_kind),dimension(nlat,nlon),intent(out):: grid_out  ! output grid
 !  Declare local variables
-  integer i,j,jj,nlatm2
+  integer(i_kind) i,j,jj,nlatm2
   real(r_kind) rnlon,sumn,sums
 
 !  Transfer contents of input grid to local work array

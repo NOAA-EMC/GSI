@@ -1,4 +1,4 @@
-subroutine retrieval_amsre(tb,nchanl,amsre_low, amsre_mid, amsre_hig,  &
+subroutine retrieval_amsre(tb,amsre_low, amsre_mid, amsre_hig,  &
                         uu5,vv5,f10, sst, &
                         tpwc,clw,si85,kraintype,ierr )
 
@@ -20,7 +20,6 @@ subroutine retrieval_amsre(tb,nchanl,amsre_low, amsre_mid, amsre_hig,  &
 !
 !   input argument list:
 !     tb      - Observed brightness temperature [K]
-!     nchanl  - number of channels per obs
 !     amsre_low   - logical true if amsre_low is processed
 !     amsre_mid   - logical true if amsre_mid is processed
 !     amsre_hig   - logical true if amsre_hig is processed
@@ -45,12 +44,11 @@ subroutine retrieval_amsre(tb,nchanl,amsre_low, amsre_mid, amsre_hig,  &
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: zero,one,izero
+  use constants, only: zero,izero
 
   implicit none
   
 ! Input variable
-  integer(i_kind),intent(in)   ::nchanl
   real(r_kind),dimension(12),intent(in)::tb
   real(r_kind),intent(in):: uu5,vv5,f10
   real(r_kind),intent(in):: sst
@@ -199,18 +197,24 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: deg2rad,two,zero,one
+  use constants, only: deg2rad,zero,half,one,two,five
 
   implicit none
 
   integer(i_kind) nch
   parameter(nch=6)
+
+  real(r_kind),intent(in) ::  tbo(nch*2)
+  real(r_kind),intent(in) ::  wind,theta,sst
+
+  real(r_kind),intent(out)::  rwp,vr,vc,cwp
+
   integer(i_kind) ich,i,polar_status
-  real(r_kind)  wind,angle,theta,sst,frequency,emissivity
+  real(r_kind)  angle,frequency,emissivity
   real(r_kind)  freq(nch),ev(nch),eh(nch)
-  real(r_kind)  tbo(nch*2),tbe(nch*2),tauo(nch),kl(nch),kw(nch),tv(nch),th(nch),tvmin(nch),thmin(nch)
+  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),kw(nch),tv(nch),th(nch),tvmin(nch),thmin(nch)
   real(r_kind)  ko2_coe(nch,3),kl_coe(nch,3)
-  real(r_kind)  rwp,vr,vc,cwp,umu,tl
+  real(r_kind)  umu,tl
   real(r_kind)  a0,a1,a2,b0,b1,b2
   data freq/6.925_r_kind,10.65_r_kind,18.7_r_kind,23.8_r_kind,37._r_kind,89.0_r_kind/
   data  kw/ 7.253225e-5_r_kind,1.8841e-4_r_kind,1.6962e-3_r_kind,5.268469e-3_r_kind,1.96235e-3_r_kind,9.399432e-3_r_kind/
@@ -264,8 +268,8 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 ! Calculate a0, a1, a2 and b0, b1 and b2 at 18.7 GHz over 23.8 GHz
 
 ! 18.7 over 23.8 GHz: rain water path
-  a0 = -0.5_r_kind*kw(4)/(kw(4)*kl(3)-kw(3)*kl(4))
-  b0 =  0.5_r_kind*kl(4)/(kw(4)*kl(3)-kw(3)*kl(4))
+  a0 = -half*kw(4)/(kw(4)*kl(3)-kw(3)*kl(4))
+  b0 =  half*kl(4)/(kw(4)*kl(3)-kw(3)*kl(4))
   a1 =  kw(3)/kw(4)
   b1 =  kl(3)/kl(4)
   a2 = -two*(tauo(3) - a1*tauo(4))/umu  +(one-a1)*dlog(sst) + dlog(one-ev(3)) - a1*dlog(one-ev(4))
@@ -286,8 +290,8 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   endif
 
 ! 36.5 over 23.8 GHz: cloud water path
-  a0 = -0.5_r_kind*kw(4)/(kw(4)*kl(5)-kw(5)*kl(4))
-  b0 =  0.5_r_kind*kl(4)/(kw(4)*kl(5)-kw(5)*kl(4))
+  a0 = -half*kw(4)/(kw(4)*kl(5)-kw(5)*kl(4))
+  b0 =  half*kl(4)/(kw(4)*kl(5)-kw(5)*kl(4))
   a1 =  kw(5)/kw(4)
   b1 =  kl(5)/kl(4)
   a2 = -two*(tauo(5) - a1*tauo(4))/umu  +(one-a1)*dlog(sst) + &
@@ -306,7 +310,7 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 
 ! Quality control: remove residual effect of sea roughness on 18.7 GHz
   if ( cwp .le. 0.3_r_kind) rwp = cwp
-  if (cwp .le. 0.2_r_kind .and. wind .ge. 5.0_r_kind) rwp = zero
+  if (cwp .le. 0.2_r_kind .and. wind .ge. five) rwp = zero
 
 end subroutine RCWPS_Alg
 
@@ -343,11 +347,16 @@ subroutine TBE_FROM_TBO(tbo,tb)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
+  use constants, only: three
   implicit none
 
   integer(i_kind) nch,i,j,k
   parameter (nch = 6)
-  real(r_kind) tbo(nch*2),tb(nch*2),tbe(nch*2),tv18
+
+  real(r_kind),intent(in) :: tbo(nch*2)
+  real(r_kind),intent(out):: tb(nch*2)
+
+  real(r_kind) tbe(nch*2),tv18
   real(r_kind) coe_tbs(10,11)
   data (coe_tbs(1,k),k=1,11)/  &
     2.836349e+000_r_kind, 1.001083e+000_r_kind,-1.245813e-002_r_kind,-1.431959e-002_r_kind, 3.735422e-002_r_kind, &
@@ -435,8 +444,8 @@ subroutine TBE_FROM_TBO(tbo,tb)
 ! correction of sea surface roughness
 
   tv18 = 0.0054_r_kind*tbo(7)*tbo(7) -1.9554_r_kind*tbo(7) +364.71_r_kind
-  if ((tbo(5)-tv18 .ge. 3.0)  .and. (tbo(2) .ge. 90.0)) &
-    tb(5) = tb(5) - 5.5_r_kind*(tbo(5)-tv18)/(10.0_r_kind-3.0_r_kind)
+  if ((tbo(5)-tv18 .ge. three)  .and. (tbo(2) .ge. 90.0)) &
+    tb(5) = tb(5) - 5.5_r_kind*(tbo(5)-tv18)/(10.0_r_kind-three)
   return
   stop
 
@@ -475,7 +484,11 @@ subroutine TBA_FROM_TBE(tbo,tvs,ths)
 
   integer(i_kind) nch
   parameter (nch = 6)
-  real(r_kind) tbo(nch*2),tb(nch*2),tvs(nch),ths(nch)
+
+  real(r_kind),intent(in) :: tbo(nch*2)
+  real(r_kind),intent(out):: tvs(nch),ths(nch)
+
+  real(r_kind) tb(nch*2)
 
 !v,h-->h,v
   tb(1) = tbo(2)
@@ -550,21 +563,27 @@ subroutine emis_water(angle,frequency,sst,wind,polar_status,emissivity)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: zero,one
+  use constants, only: zero,one,four
   implicit none
 
   real(r_kind) s
   parameter (s = 35.5_r_kind)
-  integer(i_kind) polar_status
-  real(r_kind) t,degre,angle, wind, emissivity
+
+  real(r_kind),intent(in)    :: angle, wind
+  real(r_kind),intent(in)    :: sst,frequency
+  integer(i_kind),intent(in) :: polar_status
+
+  real(r_kind),intent(out)   :: emissivity
+
+  real(r_kind) t,degre
   real(r_kind) f
-  real(r_kind) ref,rfoam,tr,g,rclear,foam,ev,eh,pi,sst,frequency
+  real(r_kind) ref,rfoam,tr,g,rclear,foam,ev,eh,pi
   real(r_kind) ep,real_ep,imag_ep
   complex mu, eps, aid1,aid2,aid3,cang,refwat,rh,rv
 
   mu = cmplx (one,zero)
   f = frequency*1.0e9_r_kind
-  pi = 4.0_r_kind*atan(one)
+  pi = four*atan(one)
   degre = angle*180.0_r_kind/pi
   cang = cmplx(angle)
   t = sst ! - 273.15_r_kind
@@ -659,8 +678,11 @@ subroutine  epsp(t1,s,f,ep)
   use constants, only: one
   implicit none
 
-  real(r_kind) f,t1,t,t2,eswi,eswo,a,b,esw,tswo,tsw,s
-  real(r_kind) ep
+  real(r_kind),intent(in) :: f,t1,s
+
+  real(r_kind),intent(out):: ep
+
+  real(r_kind) t,t2,eswi,eswo,a,b,esw,tswo,tsw
 
   t=t1-273.0_r_kind
   t2=(t-25.0_r_kind)
@@ -709,18 +731,20 @@ subroutine epspp (t1,s,f,ep)
 !$$$ end documentation block
 
   use kinds, only: r_kind
-  use constants, only: two,one
+  use constants, only: two,one,four
   implicit none
 
-  real(r_kind) f,t1,t,t2,eswi,eswo,a,b,d,esw,tswo,tsw,sswo,fi,ssw
-  real(r_kind) pi,eo,s
-  real(r_kind) ep
+  real(r_kind),intent(in) :: f,t1,s
+  real(r_kind),intent(out):: ep
+
+  real(r_kind) t,t2,eswi,eswo,a,b,d,esw,tswo,tsw,sswo,fi,ssw
+  real(r_kind) pi,eo
 
   t=t1-273.0_r_kind
   t2=t-25.0_r_kind
   eswi = 4.9_r_kind
   eo = 8.854e-12_r_kind
-  pi = 4.0_r_kind * atan(one)
+  pi = four * atan(one)
   eswo = 87.134_r_kind-1.949e-1_r_kind*t-1.276e-2_r_kind*t*t+2.491e-4_r_kind*t**3
   a = one+1.613e-5_r_kind*t*s-3.656e-3_r_kind*s+3.210e-5_r_kind*s*s-4.232e-7_r_kind*s**3
   esw = eswo*a

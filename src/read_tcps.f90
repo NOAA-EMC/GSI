@@ -1,4 +1,4 @@
-subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
+subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_tcps                   read tcvitals ascii file
@@ -14,7 +14,6 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 !     infile   - unit from which to read ascii file
 !     obstype  - observation type to process
 !     lunout   - unit to which to write data for further processing
-!     twind    - input group time window (hours)
 !
 !   output argument list:
 !     nread    - number of bogus data read
@@ -27,9 +26,9 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,rlats,rlons
-  use constants, only: deg2rad,rad2deg,zero
+  use constants, only: deg2rad,rad2deg,zero,one_tenth
   use convinfo, only: nconvtype,ictype,icuse
-  use obsmod, only: ianldate,offtime_data
+  use obsmod, only: ianldate
   use tcv_mod, only: get_storminfo,numstorms,stormlat,stormlon,stormpsmin,stormdattim
   use gsi_4dvar, only: time_4dvar
   implicit none
@@ -39,7 +38,6 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   character(20),intent(in):: sis
   integer(i_kind),intent(in):: lunout
   integer(i_kind),intent(inout):: nread,ndata,nodata
-  real(r_kind),intent(in):: twind
 
 ! Declare local parameters
   real(r_kind),parameter:: r360=360.0_r_kind
@@ -47,11 +45,11 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   integer(i_kind),parameter:: maxdat=9
 
 ! Declare local variables
-  real(r_kind) time,dlat,dlon,dlat_earth,dlon_earth
+  real(r_kind) dlat,dlon,dlat_earth,dlon_earth
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   real(r_kind) ohr,olat,olon,psob,pob,oberr,usage,toff
 
-  integer(i_kind) i,k,n,iy,im,idd,ihh,iret,lunin,nc
+  integer(i_kind) i,k,iret,lunin,nc
   integer(i_kind) ilat,ilon,ikx,nreal,nchanl,nmrecs
 
   logical endfile
@@ -128,9 +126,9 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
     nodata=min(nodata+1,maxobs)
 
 ! convert pressure (mb) to log(pres(cb))
-    pob=0.1_r_kind*psob
+    pob=one_tenth*psob
 
-    cdata_all(1,ndata)=oberr*0.1_r_kind      ! obs error converted to cb
+    cdata_all(1,ndata)=oberr*one_tenth       ! obs error converted to cb
     cdata_all(2,ndata)=dlon                  ! grid relative longitude
     cdata_all(3,ndata)=dlat                  ! grid relative latitude
     cdata_all(4,ndata)=pob                   ! pressure in cb 

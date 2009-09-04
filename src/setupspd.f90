@@ -75,7 +75,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use constants, only: one,grav,rd,zero,four,tiny_r_kind, &
        half,two,cg_term,huge_single,r1000,wgtlim
   use jfunc, only: jiter,last,miter
-  use qcmod, only: dfact,dfact1,npres_print
+  use qcmod, only: dfact,dfact1
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   implicit none

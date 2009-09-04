@@ -53,7 +53,7 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
        ges_prsl,ges_prsi,tropprs,dsfct, &
        hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,ges_tv,isli2,sno2
   use gridmod, only: istart,jstart,nlon,nlat,nsig,lon1
-  use constants, only: zero,one
+  use constants, only: zero,one,one_tenth
   implicit none
 
 ! Declare passed variables
@@ -66,13 +66,13 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
   real(r_kind),dimension(0:3),intent(out) :: dtskin
 
 ! Declare local parameters
-  real(r_kind),parameter:: minsnow=0.1_r_kind
+  real(r_kind),parameter:: minsnow=one_tenth
 
 ! Declare local variables  
-  integer(i_kind) i,j,k,m1,ix,ix1,ixp,iy,iy1,iyp
+  integer(i_kind) j,k,m1,ix,ix1,ixp,iy,iy1,iyp
   integer(i_kind) itsig,itsigp,itsfc,itsfcp
   integer(i_kind) istyp00,istyp01,istyp10,istyp11
-  real(r_kind) u1,v1,f10,u10,v10,w00,w01,w10,w11
+  real(r_kind) w00,w01,w10,w11
   real(r_kind),dimension(0:3):: wgtavg
   real(r_kind) tv
   real(r_kind) delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp

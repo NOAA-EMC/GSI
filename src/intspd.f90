@@ -1,8 +1,9 @@
 module intspdmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intspdmod    module for intspd and its tangent linear intspd_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intspdmod    module for intspd and its tangent linear intspd_tl
+!  prgmmr:
 !
 ! abstract: module for intspd and its tangent linear intspd_tl
 !
@@ -10,7 +11,18 @@ module intspdmod
 !   2005-05-11  Yanqiu zhu - wrap intspd and its tangent linear intspd_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intspd_tl; add interface back
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intspd_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -54,9 +66,10 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
 !     spdhead  - obs type pointer to obs structure
 !     su       - u increment in grid space
 !     sv       - v increment in grid space
+!     ru
+!     rv
 !
 !   output argument list:
-!     spdhead  - obs type pointer to obs structure
 !     ru       - u results from observation operator 
 !     rv       - v results from observation operator 
 !
@@ -68,7 +81,7 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
   use kinds, only: r_kind,i_kind
   use obsmod, only: spd_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: zero, half, one, two,tiny_r_kind,cg_term,r3600
+  use constants, only: zero, half, one, tiny_r_kind,cg_term,r3600
   use gridmod, only: latlon1n
   use gsi_4dvar, only: ltlint
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt

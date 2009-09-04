@@ -66,6 +66,7 @@
 module anisofilter
 ! Uses:
   use kinds, only: r_kind,i_kind,r_single,r_double,i_long
+
   use anberror, only: indices,indices_p,&
                       nvars,idvar,jdvar,kvar_start,kvar_end,levs_jdvar,&
                       var_names,smooth_len, &
@@ -86,7 +87,7 @@ module anisofilter
 
   use constants, only: izero,                         ione, & ! for integer
                        zero_single, tiny_single,            & ! for real(4)
-                       zero,        tiny_r_kind, half, one, two, & ! for real(8)
+                       zero,        tiny_r_kind, quarter, half, one, two, three, five, & ! for real(8)
                        rd_over_cp, pi
 
   use balmod,only: llmin,llmax,rllat,fstat
@@ -96,7 +97,7 @@ module anisofilter
   use jfunc, only: varq,qoption
 
   use guess_grids, only: ges_u,ges_v,ges_prsl,ges_tv,ges_z,ntguessig,&
-                         ges_prslavg,ges_psfcavg,ges_ps,ges_q,geop_hgtl
+                         ges_prslavg,ges_psfcavg,ges_ps,ges_q
 
   use mpimod, only: npe,levs_id,nvar_id,ierror,&
                     mpi_real8,mpi_real4,mpi_integer4,mpi_rtype,mpi_itype,&
@@ -118,17 +119,16 @@ module anisofilter
 
   logical:: latdepend
 
-  real(r_kind),parameter:: zero_25      = 0.25_r_kind
   real(r_kind),parameter:: zero_3       = 0.3_r_kind
   real(r_kind),parameter:: r400000      = 400000.0_r_kind
   real(r_kind),parameter:: r800000      = 800000.0_r_kind
-  real(r_kind),parameter:: r25          =   1.0_r_kind/25.0_r_kind
+  real(r_kind),parameter:: r25          =   one/25.0_r_kind
   real(r_kind),parameter:: r015         =   0.15_r_kind
   real(r_kind),parameter:: r100         = 100.0_r_kind
 
-  real(r_kind),parameter:: qlth_temp0   = 0.5_r_kind
-  real(r_kind),parameter:: qltv_temp0   = 5.0_r_kind
-  real(r_kind),parameter:: qlth_wind0   = 3.0_r_kind
+  real(r_kind),parameter:: qlth_temp0   = half
+  real(r_kind),parameter:: qltv_temp0   = five
+  real(r_kind),parameter:: qlth_wind0   = three
   real(r_kind),parameter:: qltv_wind0   = 7.5_r_kind
   real(r_kind),parameter:: qls_rh       = 5.e+05_r_kind
 
@@ -233,6 +233,9 @@ subroutine anprewgt_reg(mype)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
+!$$$ end documentation block
+  implicit none
+
 ! Declare passed variables
   integer(i_kind),intent(in):: mype
 
@@ -542,6 +545,7 @@ subroutine get_aspect_reg_2d(mype)
 !
 !$$$
   use anberror, only: afact0
+  use constants, only: h300
   implicit none
 
 ! Declare passed variables
@@ -572,7 +576,7 @@ subroutine get_aspect_reg_2d(mype)
     k1=levs_id(k)
 
     if (k1==izero) cycle
-    call isotropic_scales(asp10f,asp20f,asp30f,k,mype)
+    call isotropic_scales(asp10f,asp20f,asp30f,k)
 
     do j=1,nlonf
       do i=1,nlatf
@@ -722,7 +726,7 @@ subroutine get_aspect_reg_pt(mype)
 
     k1=levs_id(k)
     if (k1==izero) cycle
-    call isotropic_scales(asp10f,asp20f,asp30f,k,mype)
+    call isotropic_scales(asp10f,asp20f,asp30f,k)
 
     do j=1,nlonf
       do i=1,nlatf
@@ -925,7 +929,7 @@ subroutine init_anisofilter_reg(mype)
   if(.not.twodvar_regional) then
     if(opt_sclclb==0) then
       rfact0h(1)=0.90_r_kind   ;  rfact0v(1)=1.60_r_kind
-      rfact0h(2)=1.00_r_kind   ;  rfact0v(2)=1.60_r_kind
+      rfact0h(2)=one           ;  rfact0v(2)=1.60_r_kind
     else if(opt_sclclb==1) then
       rfact0h(1)=1.20_r_kind   ;  rfact0v(1)=1.20_r_kind
       rfact0h(2)=0.20_r_kind   ;  rfact0v(2)=0.20_r_kind
@@ -934,24 +938,24 @@ subroutine init_anisofilter_reg(mype)
     rfact0h(3)=1.40_r_kind   ;  rfact0v(3)=1.40_r_kind
     rfact0h(4)=1.40_r_kind   ;  rfact0v(4)=1.40_r_kind
     rfact0h(5)=1.40_r_kind   ;  rfact0v(5)=1.00_r_kind
-    rfact0h(6)=1.00_r_kind   ;  rfact0v(6)=1.20_r_kind
-    rfact0h(7)=1.00_r_kind   ;  rfact0v(7)=1.20_r_kind
-    rfact0h(8)=1.00_r_kind   ;  rfact0v(8)=1.20_r_kind
-    rfact0h(9)=1.00_r_kind   ;  rfact0v(9)=1.20_r_kind
+    rfact0h(6)=one           ;  rfact0v(6)=1.20_r_kind
+    rfact0h(7)=one           ;  rfact0v(7)=1.20_r_kind
+    rfact0h(8)=one           ;  rfact0v(8)=1.20_r_kind
+    rfact0h(9)=one           ;  rfact0v(9)=1.20_r_kind
     rfact0h(10)=1.40_r_kind  ;  rfact0v(10)=1.20_r_kind
 
   else
 
-    rfact0h(1)=1.0_r_kind    ;  rfact0v(1)=1.50_r_kind
-    rfact0h(2)=1.0_r_kind    ;  rfact0v(2)=1.50_r_kind
+    rfact0h(1)=one           ;  rfact0v(1)=1.50_r_kind
+    rfact0h(2)=one           ;  rfact0v(2)=1.50_r_kind
     rfact0h(3)=1.2_r_kind    ;  rfact0v(3)=1.50_r_kind
     rfact0h(4)=1.5_r_kind    ;  rfact0v(4)=1.50_r_kind
     rfact0h(5)=1.5_r_kind    ;  rfact0v(5)=1.25_r_kind
-    rfact0h(6)=1.0_r_kind    ;  rfact0v(6)=1.25_r_kind
-    rfact0h(7)=1.0_r_kind    ;  rfact0v(7)=1.25_r_kind
-    rfact0h(8)=1.0_r_kind    ;  rfact0v(8)=1.25_r_kind
-    rfact0h(9)=1.0_r_kind    ;  rfact0v(9)=1.25_r_kind
-    rfact0h(10)=1.0_r_kind   ;  rfact0v(10)=1.25_r_kind
+    rfact0h(6)=one           ;  rfact0v(6)=1.25_r_kind
+    rfact0h(7)=one           ;  rfact0v(7)=1.25_r_kind
+    rfact0h(8)=one           ;  rfact0v(8)=1.25_r_kind
+    rfact0h(9)=one           ;  rfact0v(9)=1.25_r_kind
+    rfact0h(10)=one          ;  rfact0v(10)=1.25_r_kind
 
       afact0=one     !(use "zero" for isotropic computations)
       hsteep=zero
@@ -1453,7 +1457,7 @@ subroutine get_background(mype)
       if (twodvar_regional) then
         aspect(1,i,j,k)=real(hsmooth_len**2/pf2aP1%grid_ratio_lat,r_single)
         aspect(2,i,j,k)=real(hsmooth_len**2/pf2aP1%grid_ratio_lon,r_single)
-        aspect(3,i,j,k)=real( 1._r_kind**2                       ,r_single)
+        aspect(3,i,j,k)=real( one**2                             ,r_single)
         aspect(4:7,i,j,k)=zero_single
       else
         ivar=3
@@ -1516,7 +1520,7 @@ subroutine raf_sm_reg(fslb0,ngauss_smooth,mype)
 end subroutine
 !=======================================================================
 !=======================================================================
-subroutine isotropic_scales(scale1,scale2,scale3,k,mype)
+subroutine isotropic_scales(scale1,scale2,scale3,k)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:   isotropic_scales
@@ -1529,7 +1533,6 @@ subroutine isotropic_scales(scale1,scale2,scale3,k,mype)
 !   2006-08-01  pondeca
 !
 !   input argument list:
-!    mype     - mpi task id
 !    k        - level number of field in slab mode
 !
 !   output argument list:
@@ -1545,14 +1548,14 @@ subroutine isotropic_scales(scale1,scale2,scale3,k,mype)
   implicit none
 
 !Declare passed variables
- integer(i_kind),intent(in)::k, mype
+ integer(i_kind),intent(in)::k
 
 !Declare local variables
  integer(i_kind) i,j,k1,ivar,l,lp
 
- real(r_kind) scale1(pf2aP1%nlatf,pf2aP1%nlonf)
- real(r_kind) scale2(pf2aP1%nlatf,pf2aP1%nlonf)
- real(r_kind) scale3(pf2aP1%nlatf,pf2aP1%nlonf)
+ real(r_kind),intent(out) :: scale1(pf2aP1%nlatf,pf2aP1%nlonf)
+ real(r_kind),intent(out) :: scale2(pf2aP1%nlatf,pf2aP1%nlonf)
+ real(r_kind),intent(out) :: scale3(pf2aP1%nlatf,pf2aP1%nlonf)
  real(r_kind) dl1,dl2,factk,hwll_loc
  real(r_kind) scaleaux1(pf2aP1%nlata,pf2aP1%nlona)
  real(r_kind) scaleaux2(pf2aP1%nlata,pf2aP1%nlona)
@@ -1620,7 +1623,7 @@ subroutine isotropic_scales(scale1,scale2,scale3,k,mype)
                lp=min((l+1),mlat)
                dl2=rllatf(i,j)-float(l)
                dl1=one-dl2
-               hwll_loc=zero_25*(dl1*hwll(l,1,ivar)+dl2*hwll(lp,1,ivar))
+               hwll_loc=quarter*(dl1*hwll(l,1,ivar)+dl2*hwll(lp,1,ivar))
                scale3(i,j)=one
 
             else if (nvar_id(k)==10) then ! surface temp (ice)
@@ -1628,7 +1631,7 @@ subroutine isotropic_scales(scale1,scale2,scale3,k,mype)
                lp=min((l+1),mlat)
                dl2=rllatf(i,j)-float(l)
                dl1=one-dl2
-               hwll_loc=zero_25*(dl1*hwll(l,1,ivar)+dl2*hwll(lp,1,ivar))
+               hwll_loc=quarter*(dl1*hwll(l,1,ivar)+dl2*hwll(lp,1,ivar))
                scale3(i,j)=one
           end if
 
@@ -1711,6 +1714,7 @@ subroutine get_theta_corrl_lenghts(mype)
 !
 !$$$  end documentation block
 !
+  use constants, only: four
   implicit none
 
 ! Declare passed variables
@@ -1780,8 +1784,8 @@ subroutine get_theta_corrl_lenghts(mype)
      qltv_temp(k)=qltv_temp0
      qltv_wind(k)=qltv_wind0
     else
-     qltv_temp(k)=qltv_temp0*dthetabarz(k)/dthetabarz(44)*4._r_kind
-     qltv_wind(k)=qltv_wind0*dthetabarz(k)/dthetabarz(44)*4._r_kind
+     qltv_temp(k)=qltv_temp0*dthetabarz(k)/dthetabarz(44)*four
+     qltv_wind(k)=qltv_wind0*dthetabarz(k)/dthetabarz(44)*four
    endif
   end do
 
@@ -1813,7 +1817,7 @@ subroutine get_theta_corrl_lenghts(mype)
   do k=1,nsig1o
     k1=levs_id(k)
     if(k1==izero) cycle      !  skip to next k value
-    call isotropic_scales(asp10f,asp20f,asp30f,k,mype)
+    call isotropic_scales(asp10f,asp20f,asp30f,k)
 
     do j=1,nlonf
     do i=1,nlatf
@@ -2025,7 +2029,6 @@ subroutine hanning_smther(g1, npts, ns)
 !   machine:  ibm RS/6000 SP
 !
 
-   use kinds, only: r_kind,i_kind
    implicit none
 
 
@@ -2073,7 +2076,6 @@ subroutine smther_one(g1,is,ie,js,je,ns)
 !   machine:  ibm RS/6000 SP
 !
 
-  use kinds,only: r_single,i_long
   implicit none
 
   integer(i_long)  is, ie, js, je
@@ -2456,7 +2458,7 @@ subroutine get_aspect_reg_ens(mype)
     k1=levs_id(k)
     if (k1==izero) cycle
 
-    call isotropic_scales(asp10f,asp20f,asp30f,k,mype)
+    call isotropic_scales(asp10f,asp20f,asp30f,k)
 
     do j=1,pf2aP1%nlonf
       do i=1,pf2aP1%nlatf

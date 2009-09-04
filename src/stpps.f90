@@ -1,8 +1,9 @@
 module stppsmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stppsmod    module for stpps and its tangent linear stpps_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stppsmod    module for stpps and its tangent linear stpps_tl
+!  prgmmr:
 !
 ! abstract: module for stpps and its tangent linear stpps_tl
 !
@@ -10,7 +11,16 @@ module stppsmod
 !   2005-05-18  Yanqiu zhu - wrap stpps and its tangent linear stpps_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stpps_tl
+!   2009-08-12  lueken - update documentation
 !
+! subroutines included:
+!   sub stpps
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -46,6 +56,7 @@ subroutine stpps(pshead,rp,sp,out,sges)
 !   2008-12-03  todling - changed handling of ptr%time
 !
 !   input argument list:
+!     pshead
 !     rp       - search direction for ps
 !     sp       - analysis increment for ps
 !     sges     - step size estimates (4)
@@ -66,9 +77,9 @@ subroutine stpps(pshead,rp,sp,out,sges)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: ps_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n1
-  use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
@@ -78,7 +89,7 @@ subroutine stpps(pshead,rp,sp,out,sges)
   real(r_kind),dimension(4),intent(in):: sges
 
 ! Declare local variables
-  integer(i_kind) i,j1,j2,j3,j4
+  integer(i_kind) j1,j2,j3,j4
   real(r_kind) val,val2,w1,w2,w3,w4,time_ps
   real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,ps0
   real(r_kind) cg_ps,pen1,pen2,pen3,pencur,ps1,ps2,ps3,wgross,wnotgross,ps_pg

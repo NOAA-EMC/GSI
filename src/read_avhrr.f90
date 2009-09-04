@@ -53,13 +53,13 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_double,r_single,i_kind
+  use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-               checkob,finalcheck,score_crit
+               finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, two,half, rad2deg, r60inv
   use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis
-  use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
+  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   implicit none
 
 
@@ -102,7 +102,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) ilat,ilon
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) nmind,isflg,idomsfc
-  integer(i_kind) itx,k,i,bufsat,iout,n
+  integer(i_kind) itx,k,i,bufsat,n
   integer(i_kind) nele,itt
   integer(i_kind) nlat_sst,nlon_sst
 
@@ -150,7 +150,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   ilon=3
   ilat=4
 
-  rlndsea(0) = 0._r_kind
+  rlndsea(0) = zero
   rlndsea(1) = 30._r_kind
   rlndsea(2) = 20._r_kind
   rlndsea(3) = 30._r_kind
@@ -240,8 +240,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
       dlon_earth = hdr(8)*deg2rad   !convert degrees to radians
       dlat_earth = hdr(7)*deg2rad
 
-!     write(*,*) 'hdr(8),hdr(7),dlat_earth,dlon_earth: ',hdr(8),hdr(7),dlat_earth,dlon_earth
-
 !     Regional case
       if(regional)then
          call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
@@ -268,7 +266,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         crit1 = 0.01_r_kind+timedif
       endif
       call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-!     write(*,*) '2 dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse: ',dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse
 
       if(.not. iuse)cycle read_loop
 
@@ -291,7 +288,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
       sst_hires=w00*sst_an(klat1,klon1 ) + w10*sst_an(klatp1,klon1 ) + &
            w01*sst_an(klat1,klonp1) + w11*sst_an(klatp1,klonp1)
 
-      if ( sst_hires < 0.0 ) then
+      if ( sst_hires < zero ) then
         print*,' sst_hires,klat1,klon1 : ',sst_hires,klat1,klon1
       endif
 
@@ -313,8 +310,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
             ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
       crit1=crit1+rlndsea(isflg)
-!     call checkob(dist1,crit1,itx,iuse)
-!     if(.not. iuse)cycle LOOP_OBSPOINTS
 
 !     Set common predictor parameters
 
@@ -325,7 +320,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
       crit1 = crit1+pred  
       call finalcheck(dist1,crit1,itx,iuse)
-!     write(*,*) 'dist1,crit1,ndata,itx,iout,iuse,sis: ',dist1,crit1,ndata,itx,iout,iuse,sis
 
       if(.not. iuse)cycle read_loop
 !
@@ -390,7 +384,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
     enddo read_loop
   enddo
 
-  call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
+  call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
 
  write(6,*) 'READ_AVHRR:  total number of obs, nread,ndata : ',nread,ndata
@@ -405,7 +399,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
  do n=1,ndata
     do k=1,nchanl
        if(data_all(k+maxinfo,n) > tbmin .and. &
-!      if(data_all(k+maxinfo,n) > zero .and. &
           data_all(k+maxinfo,n) < tbmax) nodata=nodata+1
     end do
     itt=nint(data_all(maxinfo,n))

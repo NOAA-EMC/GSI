@@ -1,15 +1,25 @@
 module stpcldmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stpqmod    module for stpq and its tangent linear stpq_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stpqmod    module for stpq and its tangent linear stpq_tl
+!  prgmmr:
 !
 ! abstract: module for stpq and its tangent linear stpq_tl
 !
 ! program history log:
 !   2005-05-19  Yanqiu zhu - wrap stpq and its tangent linear stpq_tl into one module
 !   2005-11-16  Derber - remove interfaces
+!   2009-08-12  lueken - updated documentation
 !
+! subroutines included:
+!   sub stpcld
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -57,7 +67,7 @@ of processors
   use obsmod, only: cldptr,cldhead
   use qcmod, only: nlnqc_iter
   use gridmod, only: latlon1n
-  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
   implicit none
 
 ! Declare passed variables
@@ -66,7 +76,7 @@ of processors
   real(r_kind),dimension(4),intent(in):: sges
 
 ! Declare local variables
-  integer(i_kind) i,j1,j2,j3,j4,j5,j6,j7,j8,itype
+  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,itype
   real(r_kind) cg_q,pen1,pen2,pen3,pencur,c1,c2,c3,val,val2,wgross,wnotgross
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,c0
   real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc

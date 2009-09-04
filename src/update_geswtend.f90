@@ -29,14 +29,14 @@
   use kinds, only: r_kind,i_kind
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
        isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,isduv_s,&
-       strip,reorder,reorder2,mype
-  use constants, only: zero, one, fv, r3600, tiny_r_kind
+       strip,reorder,reorder2
+  use constants, only: zero, one, fv, r3600
   use jfunc, only: l_foto
-  use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,ltosi,ltosj,nlon,nlat,iglobal,&
-       ltosi_s,ltosj_s,regional,twodvar_regional,latlon1n,latlon11
+  use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,&
+       regional
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,&
-       nfldsig,ntguessig,nfldsfc,dsfct,hrdifsig,hrdifsfc
+       nfldsig,hrdifsig
   use compact_diffs, only: uv2vordiv
 
   implicit none
@@ -47,14 +47,13 @@
   real(r_kind),dimension(lat2,lon2),intent(in):: xpt
 
 ! Declare local variables
-  integer(i_kind) i,j,k,it,ij,ijk,i2,i2m1,ni1,ni2,kk
+  integer(i_kind) i,j,k,it
   real(r_kind),dimension(lat1,lon1,nsig):: usm,vsm
-  real(r_kind),dimension(lat2,lon2,nsig):: xhat_vor,xhat_div,xhat_q,dvor_t,ddiv_t
+  real(r_kind),dimension(lat2,lon2,nsig):: dvor_t,ddiv_t
   real(r_kind),dimension(itotsub,nuvlevs):: work1,work2
-  real(r_kind),dimension(latlon1n+latlon11)::xhat3dp
 
 
-  real(r_kind) aux_m1,tcon
+  real(r_kind) tcon
 
   if (.not.l_foto) return
 

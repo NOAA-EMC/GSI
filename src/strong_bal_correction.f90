@@ -28,8 +28,8 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 !     t_t      - input perturbation T tendency (subdomains)
 !     ps_t     - input perturbation surface pressure tendency (subdomains)
 !     mype     - current processor
-!     u        - input perturbation u (subdomains)
-!     v        - input perturbation v (subdomains)
+!     psi
+!     chi
 !     t        - input perturbation T (subdomains)
 !     ps       - input perturbation surface pressure (subdomains)
 !     bal_diagnostic - if true, then compute BAL diagnostic, a measure of amplitude
@@ -39,8 +39,12 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 !     update   - if false, then do not update u,v,t,ps with balance increment
 !
 !   output argument list:
-!     u        - output balanced perturbation u (subdomains)
-!     v        - output balanced perturbation v (subdomains)
+!     u_t      - output perturbation u tendency (subdomains)
+!     v_t      - output perturbation v tendency (subdomains)
+!     t_t      - output perturbation T tendency (subdomains)
+!     ps_t     - output perturbation surface pressure tendency (subdomains)
+!     psi
+!     chi
 !     t        - output balanced perturbation T (subdomains)
 !     ps       - output balanced perturbation surface pressure (subdomains)
 !
@@ -95,6 +99,7 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
   end if
 
 end subroutine strong_bal_correction
+
 subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 
 !$$$  subprogram documentation block
@@ -125,19 +130,20 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 !     t_t      - input perturbation T tendency (subdomains)
 !     ps_t     - input perturbation surface pressure tendency (subdomains)
 !     mype     - current processor
-!     u        - input perturbation u (subdomains)
-!     v        - input perturbation v (subdomains)
+!     psi
+!     chi
 !     t        - input perturbation T (subdomains)
 !     ps       - input perturbation surface pressure (subdomains)
-!     bal_diagnostic - if true, then compute BAL diagnostic, a measure of amplitude
-!                      of balanced gravity mode tendencies
-!     update   - if false, then do not update u,v,t,ps with balance increment
 !
 !   output argument list:
 !     u_t      - output adjusted perturbation u_t (subdomains)
 !     v_t      - output adjusted perturbation v_t (subdomains)
 !     t_t      - output adjusted perturbation T_t (subdomains)
 !     ps_t     - output adjusted perturbation ps_t (subdomains)
+!     psi
+!     chi
+!     t        - output perturbation T (subdomains)
+!     ps       - output perturbation surface pressure (subdomains)
 !
 ! attributes:
 !   language: f90

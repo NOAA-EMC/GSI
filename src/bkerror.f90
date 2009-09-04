@@ -39,7 +39,7 @@ subroutine bkerror(gradx,grady)
   use gsi_4dvar, only: nsubwin, lsqrtb
   use gridmod, only: lat2,lon2,nlat,nlon,nnnn1o,periodic
   use jfunc, only: nsclen,npclen
-  use constants, only:  zero,half,one,two,four
+  use constants, only:  zero
   use control_vectors
   use timermod, only: timer_ini,timer_fnl
   implicit none
@@ -49,7 +49,7 @@ subroutine bkerror(gradx,grady)
   type(control_vector),intent(inout):: grady
 
 ! Declare local variables
-  integer(i_kind) k,i,j,iflg,ii
+  integer(i_kind) i,j,iflg,ii
   real(r_kind),dimension(nlat,nlon,nnnn1o):: work
   real(r_kind),dimension(lat2,lon2):: slndt,sicet
 

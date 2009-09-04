@@ -457,7 +457,7 @@
 
    call create_grid_vars   
    
-   call create_mapping(nlat,nlon,npe)
+   call create_mapping(npe)
 
    ! decompose GSI grid into npe subdomains. Also calculate lat1,lon1
    ! lat1: no. of lats on subdomain (no buffer)
@@ -593,7 +593,7 @@
    ! Reinitialize specmod for spectral transformation whereever needed.
    if(GsiGridType==0) then 
       call destroy_spec_vars()
-      call init_spec_vars(nlat,nlon,nsig,eqspace=.true.)
+      call init_spec_vars(nlat,nlon,eqspace=.true.)
    endif
 
    ! Fields (bkg files) on a uniform grid have longitude range on [-pi,pi]

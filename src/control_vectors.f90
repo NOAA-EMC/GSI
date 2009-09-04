@@ -1,5 +1,8 @@
 module control_vectors
-!$$$  module documentation block
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   control_vectors
+!   prgmmr: tremolet
 !
 ! abstract: define control vectors and basic operators
 !
@@ -9,8 +12,41 @@ module control_vectors
 !   2008-01-04  tremolet - improve allocate/deallocate
 !   2008-12-29  todling  - add omp to various loops
 !   2009-01-27  todling  - rename prt_norms to prevent IBM compiler confusion
+!   2009-08-12  lueken   - updated documentation
 !
-!$$$
+! subroutines included:
+!   sub setup_control_vectors
+!   sub allocate_cv
+!   sub deallocate_cv
+!   sub assign_scalar2cv
+!   sub assign_cv2cv
+!   sub assign_array2cv
+!   sub assign_cv2array
+!   sub ddot_prod_vars
+!   sub qdot_prod_vars
+!   sub prt_norms
+!   sub prt_norms_vars
+!   sub axpy
+!   sub random_cv
+!   sub write_cv
+!   sub read_cv
+!   sub inquire_cv
+!
+! functions included:
+!   dplevs
+!   qdot_prod_sub
+!   dot_prod_cv
+!   qdot_prod_cv
+!   maxval_cv
+!   qdot_product
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
 use mpimod, only: mpi_comm_world,mpi_max,mpi_rtype,mype,npe,ierror
@@ -80,6 +116,36 @@ contains
 ! ----------------------------------------------------------------------
 subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
                                & ksclen,kpclen,kclen,ksubwin,kval_len,ldsqrtb)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    setup_control_vectors
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ksig
+!    klat,klon
+!    katlon11
+!    katlon1n
+!    ksclen
+!    kpclen
+!    kclen
+!    ksubwin
+!    kval_len
+!    ldsqrtb
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   integer(i_kind), intent(in) :: ksig,klat,klon,katlon11,katlon1n, &
                                & ksclen,kpclen,kclen,ksubwin,kval_len
@@ -111,6 +177,27 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 end subroutine setup_control_vectors
 ! ----------------------------------------------------------------------
 subroutine allocate_cv(ycv)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    allocate_cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!    ycv
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(out) :: ycv
   integer(i_kind) :: ii,jj
@@ -177,6 +264,28 @@ subroutine allocate_cv(ycv)
 end subroutine allocate_cv
 ! ----------------------------------------------------------------------
 subroutine deallocate_cv(ycv)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    deallocate_cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ycv
+!
+!   output argument list:
+!    ycv
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(inout) :: ycv
   integer(i_kind) :: ii
@@ -210,6 +319,29 @@ subroutine deallocate_cv(ycv)
 end subroutine deallocate_cv
 ! ----------------------------------------------------------------------
 subroutine assign_scalar2cv(ycv,pval)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    assign_scalar2cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ycv
+!    pval
+!
+!   output argument list:
+!    ycv
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(inout) :: ycv
   real(r_kind), intent(in) :: pval
@@ -223,6 +355,29 @@ subroutine assign_scalar2cv(ycv,pval)
 end subroutine assign_scalar2cv
 ! ----------------------------------------------------------------------
 subroutine assign_cv2cv(ycv,xcv)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    assign_cv2cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ycv
+!    xcv
+!
+!   output argument list:
+!    ycv
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(inout) :: ycv
   type(control_vector), intent(in) :: xcv
@@ -243,6 +398,29 @@ subroutine assign_cv2cv(ycv,xcv)
 end subroutine assign_cv2cv
 ! ----------------------------------------------------------------------
 subroutine assign_array2cv(ycv,parray)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    assign_array2cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ycv
+!    parray
+!
+!   output argument list:
+!    ycv
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(inout) :: ycv
   real(r_kind), intent(in) :: parray(:)
@@ -264,6 +442,28 @@ subroutine assign_array2cv(ycv,parray)
 end subroutine assign_array2cv
 ! ----------------------------------------------------------------------
 subroutine assign_cv2array(parray,ycv)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    assign_array2cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ycv
+!
+!   output argument list:
+!    parray
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   real(r_kind), intent(out) :: parray(:)
   type(control_vector), intent(in) :: ycv
@@ -284,6 +484,28 @@ subroutine assign_cv2array(parray,ycv)
 end subroutine assign_cv2array
 ! ----------------------------------------------------------------------
 real(r_quad) function dplevs(nlevs,dx,dy)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    dplevs
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nlevs
+!    dx,dy
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   integer(i_kind),intent(in) :: nlevs
   real(r_kind),intent(in)::dx(lat2,lon2,nlevs),dy(lat2,lon2,nlevs)
@@ -303,6 +525,28 @@ return
 end function dplevs
 ! ----------------------------------------------------------------------
 subroutine ddot_prod_vars(xcv,ycv,prods)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    ddot_prod_vars
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xcv,ycv
+!
+!   output argument list:
+!    prods
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(in) :: xcv, ycv
   real(r_kind), intent(out) :: prods(nsubwin+1)
@@ -348,6 +592,28 @@ return
 end subroutine ddot_prod_vars
 ! ----------------------------------------------------------------------
 real(r_quad) function qdot_prod_sub(xcv,ycv)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    qdot_prod_sub
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xcv,ycv
+!
+!   output argument list:
+!    prods
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(in) :: xcv, ycv
   integer(i_kind) :: ii,j
@@ -386,6 +652,28 @@ return
 end function qdot_prod_sub
 ! ----------------------------------------------------------------------
 subroutine qdot_prod_vars(xcv,ycv,prods)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    qdot_prod_vars
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xcv,ycv
+!
+!   output argument list:
+!    prods
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(in) :: xcv, ycv
   real(r_quad), intent(out) :: prods(nsubwin+1)
@@ -431,6 +719,27 @@ return
 end subroutine qdot_prod_vars
 ! ----------------------------------------------------------------------
 real(r_kind) function dot_prod_cv(xcv,ycv)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    dot_prod_cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xcv,ycv
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(in) :: xcv, ycv
 
@@ -454,6 +763,28 @@ return
 end function dot_prod_cv
 ! ----------------------------------------------------------------------
 real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    qdot_prod_cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xcv,ycv
+!    kind
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   integer(i_kind),intent(in)::kind
   type(control_vector), intent(in) :: xcv, ycv
@@ -478,6 +809,28 @@ return
 end function qdot_prod_cv
 ! ----------------------------------------------------------------------
 subroutine prt_norms(xcv,sgrep)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    prt_norms
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xcv
+!    sgrep
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(in) :: xcv
   character(len=*), intent(in) :: sgrep
@@ -504,6 +857,28 @@ subroutine prt_norms(xcv,sgrep)
 end subroutine prt_norms
 ! ----------------------------------------------------------------------
 subroutine prt_norms_vars(xcv,sgrep)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    prt_norms_vars
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xcv
+!    sgrep
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use m_stats,only : stats_sum,stats_allreduce
   implicit none
   type(control_vector), intent(in) :: xcv
@@ -552,6 +927,29 @@ subroutine prt_norms_vars(xcv,sgrep)
 end subroutine prt_norms_vars
 ! ----------------------------------------------------------------------
 subroutine axpy(alpha,xcv,ycv)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    axpy
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xcv
+!    alpha
+!
+!   output argument list:
+!    ycv
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   real(r_kind) :: alpha
   type(control_vector), intent(in) :: xcv
@@ -571,6 +969,27 @@ subroutine axpy(alpha,xcv,ycv)
 end subroutine axpy
 ! ----------------------------------------------------------------------
 subroutine random_cv(ycv,kseed)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    random_cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ycv
+!    kseed
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 type(control_vector), intent(inout) :: ycv
@@ -624,6 +1043,28 @@ return
 end subroutine random_cv
 ! ----------------------------------------------------------------------
 subroutine write_cv(xcv,cdfile)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    write_cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xcv
+!    cdfile
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(in) :: xcv
   character(len=*), intent(in) :: cdfile
@@ -647,6 +1088,29 @@ subroutine write_cv(xcv,cdfile)
 end subroutine write_cv
 ! ----------------------------------------------------------------------
 subroutine read_cv(xcv,cdfile)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    xcv
+!    cdfile
+!
+!   output argument list:
+!    xcv
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   type(control_vector), intent(inout) :: xcv
   character(len=*), intent(in) :: cdfile
@@ -674,6 +1138,26 @@ subroutine read_cv(xcv,cdfile)
 end subroutine read_cv
 ! ----------------------------------------------------------------------
 subroutine inquire_cv
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    inquire_cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+implicit none
 real(r_kind) :: zz
 
 if (mype==0) then
@@ -689,6 +1173,26 @@ endif
 end subroutine inquire_cv
 ! ----------------------------------------------------------------------
 real(r_kind) function maxval_cv(ycv)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    maxval_cv
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ycv
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 type(control_vector), intent(in) :: ycv
@@ -708,6 +1212,27 @@ return
 end function maxval_cv
 ! ----------------------------------------------------------------------
 real(r_quad) function qdot_product(x,y)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    qdot_product
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    x,y
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   implicit none
   real(r_kind),intent(in)::x(:),y(:)
   real(r_quad):: zz

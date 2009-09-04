@@ -151,7 +151,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: i_kind
     use constants, only:  zero,one,three
     use balmod, only: fstat
     implicit none
@@ -314,7 +313,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: i_kind,r_kind
     use constants, only:  one,one_tenth
     use jfunc, only: nrclen
     implicit none
@@ -359,9 +357,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: i_kind,r_kind
     use gridmod, only:  regional
-    use mpimod, only:  levs_id
     use constants, only: zero,one
     implicit none
 
@@ -488,14 +484,14 @@ contains
 !      Load pointers into table array
        do j=1,3
 
-         call initable(ny,nx,sli(1,1,k),nta,ntax,ihwlb,&
+         call initable(ny,nx,sli(1,1,k),ntax,ihwlb,&
             ii(1,1,j,k),jj(1,1,j,k),hzscl(j),tin,ipoint)
 
          if(.not. regional)then
-           call initable(nfg,nfg,sli1(1,1,k),nta,ntax,ihwlb,&
+           call initable(nfg,nfg,sli1(1,1,k),ntax,ihwlb,&
             ii1(1,1,j,k),jj1(1,1,j,k),hzscl(j),tin,ipoint)
 
-           call initable(nfg,nfg,sli2(1,1,k),nta,ntax,ihwlb,&
+           call initable(nfg,nfg,sli2(1,1,k),ntax,ihwlb,&
             ii2(1,1,j,k),jj2(1,1,j,k),hzscl(j),tin,ipoint)
          end if
 
@@ -516,7 +512,7 @@ contains
   end subroutine init_rftable
 
   
-  subroutine initable(nxdim,nydim,sli,nta,ntax,ihwlb,iix,jjx,factor,tin,ipoint)
+  subroutine initable(nxdim,nydim,sli,ntax,ihwlb,iix,jjx,factor,tin,ipoint)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    initable    initializes pointers to table for background error
@@ -533,7 +529,6 @@ contains
 !     nxdim    - 1st dimension of arrays
 !     nydim    - 2nd dimension of arrays
 !     sli      - horizontal scale info
-!     nta      - number of entries in table array
 !     ntax     - number of possible entries in table array
 !     ihwlb    - minimum of possible coefficient values
 !     factor   - horizontal scale factor
@@ -549,11 +544,10 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind
     use constants, only: one
     implicit none
 
-    integer(i_kind) iy,nydim,ix,nxdim,nta,iloc,ntax
+    integer(i_kind) iy,nydim,ix,nxdim,iloc,ntax
     integer(i_kind),dimension(nxdim,nydim):: iix,jjx
     integer(i_kind),dimension(ntax):: ipoint
     integer(i_kind) ihwlb
@@ -603,7 +597,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: i_kind
     use balmod, only: llmin,llmax
     use gridmod, only: nlat,nlon,nsig,nnnn1o,lat2,lon2
     use jfunc, only: nrclen

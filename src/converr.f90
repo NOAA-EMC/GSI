@@ -29,8 +29,9 @@ module converr
 use kinds, only:r_kind,i_kind,r_single
 use constants, only: zero
 use obsmod, only : oberrflg 
+implicit none
 
-  integer(i_kind) ietabl,itypex,lcount,k,m
+  integer(i_kind) ietabl,itypex,lcount,iflag,k,m
   real(r_single),allocatable,dimension(:,:,:) :: etabl
   real(r_kind),allocatable,dimension(:)  :: ptabl
 
@@ -58,6 +59,9 @@ contains
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
+     use constants, only: half
+     implicit none
+     integer(i_kind),intent(in):: mype
 
      allocate(etabl(300,33,6))
 
@@ -89,7 +93,7 @@ contains
        ptabl=zero
        ptabl(1)=etabl(120,1,1)
        do k=2,33
-          ptabl(k)=0.5*(etabl(120,k-1,1)+etabl(120,k,1))
+          ptabl(k)=half*(etabl(120,k-1,1)+etabl(120,k,1))
        enddo
        ptabl(34)=etabl(120,33,1)
     endif
@@ -120,6 +124,7 @@ subroutine converr_destroy
 !   machine:  ibm rs/6000 sp
 !
 !$$$
+     implicit none
 
      deallocate(etabl,ptabl)
      return

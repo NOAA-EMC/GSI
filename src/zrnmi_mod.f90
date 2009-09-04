@@ -135,6 +135,7 @@ contains
 !$$$ end documentation block
     use mod_strong, only: period_max,period_width
     use mod_vtrans, only: nvmodes_keep
+    implicit none
 
     integer(i_kind),intent(in):: mype
 
@@ -147,10 +148,10 @@ contains
     call zrnmi_sd2y0(mype)
     call zrnmi_sd2y1(mype)
     call zrnmi_y2sd1(mype)
-    call zrnmi_x_strans0(mype)
+    call zrnmi_x_strans0
     call zrnmi_x2y0(mype)
     call zrnmi_x2y1(mype)
-    call zrnmi_y_strans0(mype)
+    call zrnmi_y_strans0
     call zrnmi_constants(mype)
 
   end subroutine zrnmi_initialize
@@ -195,6 +196,7 @@ contains
 
   use gridmod, only: nlon,nlat
   use mpimod, only:  npe
+  implicit none
 
   integer(i_kind),intent(in)::mype
 
@@ -525,8 +527,10 @@ contains
 !
 !   input argument list:
 !     mype     - mpi task id
+!     u1_sd,u2_sd
 !
 !   output argument list:
+!     u1_x,u2_x
 !
 ! attributes:
 !   language:  f90
@@ -592,8 +596,10 @@ contains
 !
 !   input argument list:
 !     mype     - mpi task id
+!     u1_sd,u2_sd,u2_sd
 !
 !   output argument list:
+!     u1_x,u2_x,u3_x
 !
 ! attributes:
 !   language:  f90
@@ -902,6 +908,7 @@ contains
 !                      list_sd2y(3,j) = pe of this x/vert strip
 
   use mpimod, only:  npe
+  implicit none
 
   integer(i_kind),intent(in)::mype
 
@@ -1586,7 +1593,7 @@ contains
 
   end subroutine zrnmi_y2sd3
 
-  subroutine zrnmi_x_strans0(mype)
+  subroutine zrnmi_x_strans0
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    zrnmi_x_strans0
@@ -1599,7 +1606,6 @@ contains
 !   2008-03-25  safford -- add subprogram doc block, rm unused uses
 !
 !   input argument list:
-!     mype     - mpi task id
 !
 !   output argument list:
 !
@@ -1610,8 +1616,7 @@ contains
 !$$$
 
     use constants, only: one,two,pi
-
-    integer(i_kind),intent(in)::mype
+    implicit none
 
     integer(i_kind) k,n
 
@@ -1649,6 +1654,7 @@ contains
 !$$$
 
     use constants, only: zero,half,one
+    implicit none
 
     real(r_kind),intent(in):: g_x(nx,ny_0:ny_1)
     real(r_kind),intent(out):: gt_x(nx,ny_0:ny_1)
@@ -1720,6 +1726,7 @@ contains
 !$$$
 
     use gridmod, only: lon2,lat2
+    implicit none
 
     integer(i_kind),intent(in):: mype
     real(r_kind),dimension(lat2,lon2,nvert),intent(in)::u,v,m
@@ -1775,6 +1782,7 @@ contains
 !$$$
 
     use gridmod, only: lon2,lat2
+    implicit none
 
     integer(i_kind),intent(in):: mype
     real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u,v,m
@@ -1830,6 +1838,7 @@ contains
 !$$$
  
     use gridmod, only: lon2,lat2
+    implicit none
  
     integer(i_kind),intent(in):: mype
     real(r_kind),dimension(lat2,lon2,nvert),intent(out)::p,c,m
@@ -1964,6 +1973,7 @@ contains
 !$$$
  
     use gridmod, only: lon2,lat2
+    implicit none
  
     integer(i_kind),intent(in):: mype
     real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::p,c,m
@@ -2023,6 +2033,7 @@ contains
 !                      list_x2y(3,j) = pe of this x/vert strip
 
     use mpimod, only:  npe
+    implicit none
 
     integer(i_kind),intent(in)::mype
 
@@ -2206,6 +2217,7 @@ contains
 !$$$
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+    implicit none
 
     integer(i_kind),intent(in)::mype
     real(r_kind),dimension(nx,ny_0:ny_1),intent(in)::u_x
@@ -2265,6 +2277,7 @@ contains
 !$$$
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+    implicit none
 
     integer(i_kind),intent(in)::mype
     real(r_kind),dimension(nx,ny_0:ny_1),intent(in)::u1_x,u2_x
@@ -2330,6 +2343,7 @@ contains
 !$$$
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+    implicit none
 
     integer(i_kind),intent(in)::mype
     real(r_kind),dimension(nx,ny_0:ny_1),intent(in)::u1_x,u2_x,u3_x
@@ -2393,6 +2407,7 @@ contains
 !$$$
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+    implicit none
 
     integer(i_kind),intent(in)::mype
     real(r_kind),dimension(nx,ny_0:ny_1),intent(out)::u_x
@@ -2450,6 +2465,7 @@ contains
 !$$$
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+    implicit none
 
     integer(i_kind),intent(in)::mype
     real(r_kind),dimension(nx,ny_0:ny_1),intent(out)::u1_x,u2_x
@@ -2514,6 +2530,7 @@ contains
 !$$$
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+    implicit none
 
     integer(i_kind),intent(in)::mype
     real(r_kind),dimension(nx,ny_0:ny_1),intent(out)::u1_x,u2_x,u3_x
@@ -2550,7 +2567,7 @@ contains
 
   end subroutine zrnmi_y2x3
 
-  subroutine zrnmi_y_strans0(mype)
+  subroutine zrnmi_y_strans0
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    zrnmi_y_strans0
@@ -2563,7 +2580,6 @@ contains
 !   2008-03-25  safford -- add subprogram doc block, rm unused uses
 !
 !   input argument list:
-!     mype     - mpi task id
 !
 !   output argument list:
 !
@@ -2574,8 +2590,7 @@ contains
 !$$$
 
     use constants, only: one,two,pi
-
-    integer(i_kind),intent(in)::mype
+    implicit none
 
     integer(i_kind) k,n
 
@@ -2613,6 +2628,7 @@ contains
 !$$$
 
     use constants, only: zero,half,one
+    implicit none
 
     real(r_kind),intent(in):: g_y(ny,mx_0:mx_1)
     real(r_kind),intent(out):: gt_y(ny,mx_0:mx_1)
@@ -2727,6 +2743,7 @@ contains
 !$$$
 
     use gridmod, only: coeffx
+    implicit none
 
     real(r_kind),intent(in)::  f_x(nx,ny_0:ny_1)
     real(r_double),intent(out):: fx_x(nx,ny_0:ny_1)
@@ -2770,6 +2787,7 @@ contains
 
     use constants, only: zero
     use gridmod, only: coeffx
+    implicit none
 
     real(r_kind),intent(out)::  f_x(nx,ny_0:ny_1)
     real(r_double),intent(in):: fx_x(nx,ny_0:ny_1)
@@ -2864,6 +2882,7 @@ contains
 !$$$
 
     use gridmod, only: coeffy
+    implicit none
 
     real(r_kind),intent(in)::  f_y(ny,nx_0:nx_1)
     real(r_double),intent(out):: fy_y(ny,nx_0:nx_1)
@@ -2907,6 +2926,7 @@ contains
 
     use constants, only: zero
     use gridmod, only: coeffy
+    implicit none
 
     real(r_kind),intent(out)::  f_y(ny,nx_0:nx_1)
     real(r_double),intent(in):: fy_y(ny,nx_0:nx_1)
@@ -3020,7 +3040,6 @@ contains
 !
 !$$$
 
-    use kinds, only: r_kind,i_kind
     use constants, only: zero
     use gridmod, only: lat2,lon2
     implicit none
@@ -3197,10 +3216,11 @@ contains
 !$$$
 
 
-    use constants, only: zero,half,one,two,omega,pi
+    use constants, only: zero,half,one,two,omega,pi,one_tenth,r3600
     use gridmod, only: region_dx,region_dy
     use mod_vtrans, only: depths,speeds
     use mpimod,only: mpi_rtype,mpi_integer,mpi_max,mpi_min,mpi_sum,mpi_comm_world,ierror
+    implicit none
 
     integer(i_kind),intent(in):: mype
 
@@ -3211,7 +3231,7 @@ contains
     integer(i_kind) numkeep(nvert),numtot(nvert)
     real(r_kind) rlenmax0(nvert),permax0(nvert)
     integer(i_kind) numkeep0(nvert),numtot0(nvert)
-real(r_kind) pmaskmax(nvert),pmaskmin(nvert),pmaskmax0(nvert),pmaskmin0(nvert)
+    real(r_kind) pmaskmax(nvert),pmaskmin(nvert),pmaskmax0(nvert),pmaskmin0(nvert)
 
     fbar=two*omega
     dxbar=zero
@@ -3266,7 +3286,7 @@ real(r_kind) pmaskmax(nvert),pmaskmin(nvert),pmaskmax0(nvert),pmaskmin0(nvert)
 
         thislength=two*pi*sqrt(am2(i,j))
     !   if(thislength.lt.3._r_kind*max(dxbar,dybar)) cycle
-        thisperiod=thislength/(speeds(mode)*3600._8)
+        thisperiod=thislength/(speeds(mode)*r3600)
       ! pmask(i,j)=half*(one-tanh((thisperiod-zrnmi_period_max)/zrnmi_period_width))
         if(thisperiod.le.zrnmi_period_max) pmask(i,j)=one
               permax(mode)=max(permax(mode),thisperiod)
@@ -3279,7 +3299,7 @@ real(r_kind) pmaskmax(nvert),pmaskmin(nvert),pmaskmax0(nvert),pmaskmin0(nvert)
       mode=list_x2y(2,j)
       do i=1,ny
         numtot(mode)=numtot(mode)+1
-        if(pmask(i,j).gt..1_r_kind) numkeep(mode)=numkeep(mode)+1
+        if(pmask(i,j).gt.one_tenth) numkeep(mode)=numkeep(mode)+1
              pmaskmax(mode)=max(pmask(i,j),pmaskmax(mode))
              pmaskmin(mode)=min(pmask(i,j),pmaskmin(mode))
       end do
@@ -3351,6 +3371,7 @@ real(r_kind) pmaskmax(nvert),pmaskmin(nvert),pmaskmax0(nvert),pmaskmin0(nvert)
     use mod_vtrans, only: depths
     use mpimod,only: mpi_rtype,mpi_sum,mpi_comm_world,ierror
     use jfunc,only: jiter
+    implicit none
 
 !   initially just generate projections and make maps
 
@@ -3365,8 +3386,8 @@ real(r_kind) pmaskmax(nvert),pmaskmin(nvert),pmaskmax0(nvert),pmaskmin0(nvert)
     real(r_kind),dimension(lat2,lon2,nvert)::utilde,vtilde,mtilde
     real(r_kind),dimension(ny,mx_0:mx_1)::dhat,zhat,mhat
     real(r_kind),dimension(ny,mx_0:mx_1)::phat2,chat2,mhat2
-    real(r_kind),dimension(lat2,lon2,nsig)::utg,vtg,ttg,dpsi,dchi,dt
-    real(r_kind),dimension(lat2,lon2)::pstg,dps
+    real(r_kind),dimension(lat2,lon2,nsig)::dpsi,dchi,dt
+    real(r_kind),dimension(lat2,lon2)::dps
     real(r_kind),dimension(nvert)::baldt(nvert),balagt(nvert)
     real(r_kind),dimension(nvert)::baldt0(nvert),balagt0(nvert)
     real(r_kind) baldt_all,balagt_all
@@ -3486,6 +3507,7 @@ real(r_kind) pmaskmax(nvert),pmaskmin(nvert),pmaskmax0(nvert),pmaskmin0(nvert)
     use gridmod, only: lat2,lon2,nsig
     use constants, only: zero
     use mod_vtrans, only: vtrans_ad,vtrans_inv_ad
+    implicit none
 
 !   initially just generate projections and make maps
 
@@ -3499,8 +3521,8 @@ real(r_kind) pmaskmax(nvert),pmaskmin(nvert),pmaskmax0(nvert),pmaskmin0(nvert)
     real(r_kind),dimension(lat2,lon2,nvert)::utilde,vtilde,mtilde
     real(r_kind),dimension(ny,mx_0:mx_1)::dhat,zhat,mhat
     real(r_kind),dimension(ny,mx_0:mx_1)::phat2,chat2,mhat2
-    real(r_kind),dimension(lat2,lon2,nsig)::utg,vtg,ttg,dpsi,dchi,dt
-    real(r_kind),dimension(lat2,lon2)::pstg,dps
+    real(r_kind),dimension(lat2,lon2,nsig)::dpsi,dchi,dt
+    real(r_kind),dimension(lat2,lon2)::dps
 
     dhat=zero ; zhat=zero ; mhat=zero
     dpsi=zero ; dchi=zero ; dt=zero ; dps=zero

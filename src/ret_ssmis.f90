@@ -1,6 +1,6 @@
-subroutine ret_ssmis(tb,nchanl,n, &
-     ssmis_las,ssmis_uas,ssmis_img,ssmis_env, &
-     tpwmdl,ts5,cosza,pems5,tpwc,clw,ierr)
+subroutine ret_ssmis(tb,nchanl, &
+     ssmis_las, &
+     tpwc,clw,ierr)
 
 !$$$ subprogram documentation block
 !
@@ -40,13 +40,6 @@ subroutine ret_ssmis(tb,nchanl,n, &
 !     tb      - Observed brightness temperature [K]
 !     nchanl  - number of channels per obs
 !     ssmis_las    - logical true if ssmis_las (channel 1,2,3,4,5,6,7,24) is processed
-!     ssmis_uas    - logical true if ssmis_uas (channel 19,20,21,22,23) is processed
-!     ssmis_img    - logical true if ssmis_img (channel 8,9,10,11,17,18) is processed
-!     ssmis_env    - logical true if ssmis_env (channel 12,13,14,15,16) is processed
-!     cosza  - cos(zasat), zasat is local zenith angle
-!     ts5    - sea surface temperature
-!     pems5  - sea surface emissivity
-!     tpwmdl    - column water vapor over ocean  [kg/m2]
 !
 !   output argument list:
 !     clw     - column cloud water vapor over ocean  [kg/m2]
@@ -67,11 +60,9 @@ subroutine ret_ssmis(tb,nchanl,n, &
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in)   ::nchanl,n
+  integer(i_kind),intent(in)   ::nchanl
   real(r_kind),dimension(nchanl),intent(in)::tb
-  real(r_kind),intent(in)::tpwmdl,ts5,cosza
-  real(r_kind),dimension(nchanl),intent(in)::pems5
-  logical,intent(in):: ssmis_las,ssmis_uas,ssmis_env,ssmis_img
+  logical,intent(in):: ssmis_las
   integer(i_kind),intent(out) ::ierr
   real(r_kind),intent(out)::tpwc
   real(r_kind),intent(out)::clw
@@ -89,7 +80,6 @@ subroutine ret_ssmis(tb,nchanl,n, &
   ierr = izero
   clw = rmis
 
-!  if(ssmis_img) then
   if(ssmis_las) then
 
 !    ap and bp for the cloud liquid water mass absorption coefficients calculation 
@@ -216,7 +206,7 @@ subroutine ice_check(tbx,seaice,ierr)
   
   real(r_kind),dimension(7),intent(in):: tbx
   integer(i_kind),intent(out)         :: ierr
-  real(r_kind),intent(out):: seaice
+  real(r_kind),intent(out)            :: seaice
   
   ierr = zero 
   

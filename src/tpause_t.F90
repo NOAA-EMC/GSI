@@ -28,6 +28,7 @@ subroutine tpause_t(km,p,t,h,ptp)
 !
 ! Attributes:
 !   Language: Fortran 90
+!   machine:
 !
 !$$$
   use kinds, only: r_kind,i_kind

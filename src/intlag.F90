@@ -1,14 +1,26 @@
 module intlagmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intlagmod    module for intlag
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intlagmod    module for intlag
+!  prgmmr:  meunier
 !
 ! abstract: module for intlag
 !
 ! program history log:
 !   2008-03-23  lmeunier - initial code
-
+!   2009-08-13  lueken - update documentation
+!
+! subroutines included:
+!   sub intlag
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 implicit none
 
 PRIVATE
@@ -32,6 +44,7 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
 !     laghead - obs type pointer to appropriate obs structure
 !     su      - zonal wind increment in grid space
 !     sv      - meridian wind increment in grid space
+!     obsbin
 !
 !   output argument list:
 !     su      - result for zonal wind increment in grid space
@@ -43,7 +56,7 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,two,zero,izero,tiny_r_kind,cg_term,rad2deg
+  use constants, only: half,one,zero,izero,tiny_r_kind,cg_term,rad2deg
   use obsmod, only: lag_ob_type, lsaveobsens, l_do_adjoint
   use qcmod, only: nlnqc_iter
   use gridmod, only: latlon1n,iglobal
@@ -69,12 +82,11 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
   integer(i_kind),intent(in):: obsbin
 
 ! real(r_kind) penalty
-  real(r_kind) cg_lag,p0,grad,wnotgross,wgross
+  real(r_kind) cg_lag,p0,wnotgross,wgross
   real(r_kind) lon_tl,lat_tl,p_tl
   real(r_kind) grad_lon,grad_lat,grad_p
   type(lag_ob_type), pointer :: lagptr
   integer(i_kind) i,j
-  integer(i_kind) postmp,levtmp
 
   real(r_kind),dimension(:,:),allocatable:: adu_tmp,adv_tmp
 
@@ -190,19 +202,6 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
     call lag_ADscatter_stateuv(ru,rv,obsbin)
     lag_u_full(:,:,obsbin)=zero
     lag_v_full(:,:,obsbin)=zero
-
-!   if (iv_debug>=2) then
-!     call lag_gather_stateuv(ru,rv,obsbin)
-!     if (associated(laghead)) then
-!       do i=2,9
-!         call lag_retr_3d(laghead%speci(i),postmp,levtmp)
-!         print "(A,E16.4,E16.4)",'Inc U,V',&
-!           lag_u_full(postmp,levtmp,obsbin),lag_v_full(postmp,levtmp,obsbin)
-!       end do
-!       lag_u_full(:,:,obsbin)=zero
-!       lag_v_full(:,:,obsbin)=zero
-!     end if
-!   end if
 
     deallocate(adu_tmp)
     deallocate(adv_tmp)

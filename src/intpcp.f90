@@ -1,8 +1,9 @@
 module intpcpmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intpcpmod    module for intpcp and its tangent linear intpcp_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intpcpmod    module for intpcp and its tangent linear intpcp_tl
+!  prgmmr:
 !
 ! abstract: module for intpcp and its tangent linear intpcp_tl
 !
@@ -10,7 +11,18 @@ module intpcpmod
 !   2005-05-16  Yanqiu zhu - wrap intpcp and its tangent linear intpcp_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intpcp_tl
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intpcp_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -23,7 +35,7 @@ end interface
 
 contains
 
-subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm,rpredp,spredp)
+subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -64,16 +76,18 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm,rpredp,spredp)
 !     su       - input zonal wind correction field
 !     sv       - input meridional wind correction field
 !     scwm     - input cloud condensate mixing ratio correction field
-!     spredp   - input bias correction predictor values
+!     rt
+!     rq
+!     ru
+!     rv
+!     rcwm
 !
 !   output argument list:
-!     pcphead  - obs type pointer to obs structure
 !     rt       - output t vector after inclusion of pcp. info.
 !     rq       - output q vector after inclusion of pcp. info.
 !     ru       - output u vector after inclusion of pcp. info.
 !     rv       - output v vector after inclusion of pcp. info.
 !     rcwm     - output cwm vector after inclusion of pcp. info.
-!     rpredp   - output bias correction predictor vector after inclusion of pcp. info.
 !
 ! attributes:
 !   language: f90
@@ -85,7 +99,7 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm,rpredp,spredp)
   use qcmod, only: nlnqc_iter,varqc_iter
   use pcpinfo, only: npcptype,npredp,b_pcp,pg_pcp,tinym1_obs
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
-  use gridmod, only: nsig,latlon11,latlon1n,nsig5
+  use gridmod, only: nsig,latlon11,latlon1n
   use gsi_4dvar, only: ltlint
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
@@ -93,12 +107,10 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm,rpredp,spredp)
 ! Declare passed variables
   type(pcp_ob_type),pointer,intent(in):: pcphead
   real(r_kind),dimension(latlon1n),intent(in):: st,sq,su,sv,scwm
-  real(r_kind),dimension(npcptype*npredp),intent(in):: spredp
   real(r_kind),dimension(latlon1n),intent(inout):: rt,rq,ru,rv,rcwm
-  real(r_quad),dimension(npcptype*npredp),intent(inout):: rpredp
   
 ! Declare local variables
-  integer(i_kind) j,j1,j2,j3,j4,nq,nu,nv,ncwm,n,nt,kx,jn
+  integer(i_kind) j1,j2,j3,j4,nq,nu,nv,ncwm,n,nt,kx
   real(r_kind) dt,dq,du,dv,dcwm,dcwm_ad,termges_ad,w1,w2,w3,w4
   real(r_kind) pcp_ges_ad,dq_ad,dt_ad,dv_ad,du_ad,pcp_ges
   real(r_kind) obsges,termges,time_pcp,termges_tl,pcp_ges_tl,pcp_cur,termcur

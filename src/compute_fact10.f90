@@ -32,8 +32,8 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: grav,zero,half,one,two,four,quarter,izero,&
-       fv,rd,rd_over_cp
+  use constants, only: grav,zero,quarter,half,one,two,four,five,izero,&
+       fv,rd,rd_over_cp,r1000
   implicit none
 
 ! Passed Variables
@@ -56,7 +56,7 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
 ! Local Parameters
   real(r_kind),parameter::  charnok=0.014_r_kind
 ! real(r_kind),parameter::  ca=0.4_r_kind
-  real(r_kind),parameter::  alpha=5.0_r_kind
+  real(r_kind),parameter::  alpha=five
   real(r_kind),parameter::  a0=-3.975_r_kind
   real(r_kind),parameter::  a1=12.32_r_kind
   real(r_kind),parameter::  b1=-7.755_r_kind
@@ -83,8 +83,8 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
 
 
    rkap = rd_over_cp
-   RKAPI  = 1.0 / RKAP
-   RKAPP1 = 1.0 + RKAP
+   RKAPI  = one / RKAP
+   RKAPP1 = one + RKAP
 
    rat=zero ; restar=zero ; ustar=zero
    del = prsi1-prsi2
@@ -94,8 +94,8 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
    prkl  = (prki1*prsi1-prki2*prsi2)/tem
    prsl  = 100.0_r_kind*prkl**rkapi
 
-   psurf=ps*1000.0_r_kind
-   ps1=prsl*1000.0_r_kind
+   psurf=ps*r1000
+   ps1=prsl*r1000
    wind= sqrt( u*u + v*v )
    wind=max(wind,one)
    q0=max(q,1.e-8_r_kind)
@@ -140,7 +140,7 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
    if (dtv >= zero) then
      hl1=hlinf
    end if        
-   if ((dtv >= zero) .AND. (hlinf > 0.25_r_kind)) then
+   if ((dtv >= zero) .AND. (hlinf > quarter)) then
      hl0inf=z0max*hlinf/z1
      hltinf=ztmax*hlinf/z1
      aa=sqrt(one + four*alpha*hlinf)
@@ -183,7 +183,7 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
    end if
 
 !  GET PM AND PH
-   if (dtv < zero .AND. hlinf >= (-0.5_r_kind)) then
+   if (dtv < zero .AND. hlinf >= (-half)) then
      hl1=hlinf
      pm=(a0 + a1*hl1)*hl1/(one + b1*hl1 + b2*hl1*hl1)
      ph=(a0p + a1p*hl1)*hl1/(one + b1p*hl1 + b2*hl1*hl1)
@@ -192,7 +192,7 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
      hl12=hl1*two/z1
      ph2=(a0p + a1p*hl12)*hl12/(one + b1p*hl12 + b2p*hl12*hl12)
    end if
-   if (dtv < zero .AND. hlinf < (-0.5_r_kind)) then
+   if (dtv < zero .AND. hlinf < (-half)) then
      hl1=-hlinf
      pm=log(hl1) + two*hl1**(-quarter) - 0.8776_r_kind
      ph=log(hl1) + half*hl1**(-half) + 1.386_r_kind

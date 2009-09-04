@@ -22,7 +22,9 @@ subroutine convert_binary_2d
 !                         station location. used for qc purposes in 2dvar.
 !   2009-02-27  pondeca - add fgat to 2dvar
 !
-! input argument list:
+!   input argument list:
+!
+!   output argument list:
 !
 ! attributes:
 !   language: f90
@@ -461,6 +463,8 @@ subroutine read_2d_guess(mype)
 !   input argument list:
 !     mype     - pe number
 !
+!   output argument list:
+!
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
@@ -468,14 +472,13 @@ subroutine read_2d_guess(mype)
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use mpimod, only: mpi_sum,mpi_integer,mpi_real4,mpi_comm_world,npe,ierror
-  use jfunc, only: qsatg,jiter,jiterstart,qgues,dqdrh
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_cwmr,ges_vor,&
        ges_div,ges_u,ges_v,ges_tvlat,ges_tvlon,ges_qlat,ges_qlon,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
-       isli,ntguessig,nfldsig,ifilesig,ges_tsen
-  use gridmod, only: lat2,lon2,lon1,lat1,nlat_regional,nlon_regional,&
-       nsig,ijn_s,displs_s,eta1_ll,pt_ll,itotsub
-  use constants, only: zero,one,grav,fv,zero_single,rd,cp_mass
+       isli,nfldsig,ifilesig,ges_tsen
+  use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
+       nsig,ijn_s,displs_s,itotsub
+  use constants, only: zero,one,grav,fv,zero_single,one_tenth
   implicit none
 
 ! Declare passed variables
@@ -483,7 +486,6 @@ subroutine read_2d_guess(mype)
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_01=0.01_r_kind
-  real(r_kind),parameter:: r0_1=0.1_r_kind
 
 ! Declare local variables
   integer(i_kind) kt,kq,ku,kv
@@ -732,7 +734,7 @@ subroutine read_2d_guess(mype)
 !             convert input psfc to psfc in mb, and then to log(psfc) in cb
 
               psfc_this=r0_01*all_loc(j,i,i_0+i_psfc)
-              ges_ps(j,i,it)=r0_1*psfc_this   ! convert from mb to cb
+              ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_0+i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_0+i_smois)
               soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
@@ -852,11 +854,11 @@ subroutine wr2d_binary(mype)
 !$$$
   use kinds, only: r_kind,r_single,i_kind
   use guess_grids, only: ntguessfc,ntguessig,ifilesig,sfct,ges_ps,&
-       ges_tv,ges_q,ges_u,ges_v,ges_tsen
+       ges_q,ges_u,ges_v,ges_tsen
   use mpimod, only: mpi_comm_world,ierror,mpi_real4,strip_single
-  use gridmod, only: pt_ll,eta1_ll,lat2,iglobal,itotsub,update_regsfc,displs_s,&
-       ijn_s,lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g
-  use constants, only: one,fv,zero_single
+  use gridmod, only: lat2,iglobal,itotsub,update_regsfc,&
+       lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g
+  use constants, only: zero_single
   use jfunc, only: qsatg
   implicit none
 

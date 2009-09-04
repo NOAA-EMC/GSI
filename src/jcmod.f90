@@ -32,7 +32,7 @@ module jcmod
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind
   implicit none
 
   logical ljcdfi,ljcpdry
@@ -63,7 +63,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-    use constants, only: one
     implicit none
 
 ! load defaults for non-allocatable arrays

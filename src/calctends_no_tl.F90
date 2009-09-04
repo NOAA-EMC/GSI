@@ -95,7 +95,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
   call getprs_tl(p,t,pri)
 
   call get_derivatives2(st,vp,t,pri,u,v,u_x,v_x,t_x,pri_x, &
-                                  u_y,v_y,t_y,pri_y,mype)
+                                        u_y,v_y,t_y,pri_y)
 
 
 !!!$omp parallel private(nth,tid,i,j,k,jstart,jstop,tmp,tmp2, &

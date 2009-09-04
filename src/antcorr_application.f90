@@ -156,6 +156,8 @@ CONTAINS
   SUBROUTINE Remove_AntCorr( AC  , &  ! Input
                              iFOV, &  ! Input
                              T     )  ! In/Output
+    implicit none
+
     ! Arguments
     TYPE(AntCorr_type), INTENT(IN)     :: AC
     INTEGER           , INTENT(IN)     :: iFOV
@@ -251,6 +253,8 @@ CONTAINS
   SUBROUTINE Apply_AntCorr( AC  , &  ! Input
                             iFOV, &  ! Input
                             T     )  ! In/Output
+    implicit none
+
     ! Arguments
     TYPE(AntCorr_type), INTENT(IN)     :: AC
     INTEGER           , INTENT(IN)     :: iFOV

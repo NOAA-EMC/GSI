@@ -77,8 +77,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
        tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,one,two,three,four,r60inv
-  use obsmod, only: iadate,offtime_data
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,idmodel,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
 
   implicit none
 
@@ -118,13 +117,12 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   logical ssmi,assim
   logical outside,iuse
 
-  character(10) date
   character(8) subset,subfgn
 
-  integer(i_kind):: ihh,i,k,idd,ntest,ireadsb,ireadmg,irec,isub,next
-  integer(i_kind):: iret,idate,im,iy,nchanl
+  integer(i_kind):: i,k,ntest,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind):: iret,idate,nchanl
   integer(i_kind):: isflg,nreal,idomsfc
-  integer(i_kind):: nmind,itx,nele,itt,iout
+  integer(i_kind):: nmind,itx,nele,itt
   integer(i_kind):: iskip
   integer(i_kind):: lnbufr
   integer(i_kind):: ilat,ilon
@@ -136,7 +134,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind) crit1,dist1
   real(r_kind) timedif
   real(r_kind),allocatable,dimension(:,:):: data_all
-  integer(i_kind):: isubset
 
   real(r_kind) disterr,disterrmax,dlon00,dlat00
 
@@ -149,7 +146,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
   integer(i_kind) :: nscan,jc,bufsat,js,ij,npos,n
   integer(i_kind),dimension(5):: iobsdate
-  integer(i_kind):: file_handle,ierror,nblocks
   real(r_kind):: tb19v,tb22v,tb85v,si85,flgch,q19
   real(r_kind),dimension(maxchanl):: tbob
   real(r_kind),dimension(0:3):: sfcpct
@@ -452,7 +448,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
-  call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
+  call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
 
   write(6,*) 'READ_SSMI: after combine_obs, nread,ndata is ',nread,ndata

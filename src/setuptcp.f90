@@ -1,4 +1,4 @@
-subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
+subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setuptcp                     setup tcpel data
@@ -18,23 +18,21 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_single,r_double,i_kind
-  use obsmod, only: tcptail,tcphead,obsdiags,lobsdiagsave,i_tcp_ob_type, &
+  use kinds, only: r_kind,i_kind
+  use obsmod, only: tcptail,tcphead,obsdiags,i_tcp_ob_type, &
              nobskeep,lobsdiag_allocated,oberror_tune,perturb_obs
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use qcmod, only: npres_print,ptop,pbot,dfact,dfact1
-  use guess_grids, only: ges_z,tropprs,ges_ps,ges_lnprsl,nfldsig,hrdifsig,ges_tv, &
+  use qcmod, only: npres_print
+  use guess_grids, only: ges_z,ges_ps,ges_lnprsl,nfldsig,hrdifsig,ges_tv, &
           ntguessig
-  use gridmod, only: get_ij,nsig,lat2,lon2
-  use constants, only: zero,half,one,tiny_r_kind,two,one_tenth,cg_term,r3600, &
-          four,wgtlim,g_over_rd,huge_r_kind,pi,three
-  use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
-  use convinfo, only: icsubtype
-  use jfunc, only: jiter,first,last,jiterstart,l_foto,miter
+  use gridmod, only: get_ij,nsig
+  use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
+          wgtlim,g_over_rd,huge_r_kind,pi
+  use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg
+  use jfunc, only: jiter,last,jiterstart,miter
   implicit none
 
   integer(i_kind),intent(in) :: lunin,mype,nele,nobs
-  logical,intent(in):: conv_diagsave
 
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork ! obs-ges stats
   real(r_kind),dimension(100+7*nsig),intent(inout) :: awork ! data counts and gross checks
@@ -43,23 +41,22 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   logical,dimension(nobs):: luse,muse
 
   real(r_kind) scale,ratio,obserror,obserrlm
-  real(r_kind) residual,ress,ressw2,val,val2,valqc2
-  real(r_kind) valqc,rlow,rhgh,drpx,prsfc,tges,tges2
-  real(r_kind) cg_w,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2
-  real(r_kind) presw,factw,dpres,rwgt,dpressave,cg_ps,drbx
-  real(r_kind) sfcchk,prsln2,error,dtime,dlon,dlat,r0_001,r2_5,r0_2,rsig,thirty
+  real(r_kind) residual,ress,ressw2,val,val2
+  real(r_kind) valqc,tges,tges2
+  real(r_kind) wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2
+  real(r_kind) rwgt,cg_ps,drbx
+  real(r_kind) error,dtime,dlon,dlat,r0_001,r2_5,r0_2,rsig
   real(r_kind) ratio_errors,psges,zsges,rdp,drdp
   real(r_kind) pob,pges,pgesorig,half_tlapse,r10,ddiff,halfpi,r0_005,rdelz,psges2
   real(r_kind) alpha,resfct,error_orig
 
   real(r_kind),dimension(nele,nobs):: data
-  real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig)::prsltmp
 
-  integer(i_kind) i,k,j,n,l,it,ii,itype
-  integer(i_kind) jlat,jlon,jsig,mm1
+  integer(i_kind) i
+  integer(i_kind) mm1
   integer(i_kind) ikxx,nn,istat,iuse,ibin,iptrb
-  integer(i_kind) ier,ilon,ilat,ipres,id,itime,ikx
+  integer(i_kind) ier,ilon,ilat,ipres,itime,ikx
 
 
 !******************************************************************************

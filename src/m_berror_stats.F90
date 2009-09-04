@@ -53,7 +53,6 @@ contains
 ! !INTERFACE:
 
     subroutine get_dims(msig,mlat,unit)
-      use kinds,only: i_kind
       implicit none
       integer(i_kind),intent(out) :: msig  ! dimension of levels
       integer(i_kind),intent(out) :: mlat  ! dimension of latitudes
@@ -87,7 +86,7 @@ end subroutine get_dims
 ! !INTERFACE:
 
     subroutine read_bal(agvin,bvin,wgvin,mype,unit)
-      use kinds,only : i_kind,r_single
+      use kinds,only : r_single
       use gridmod,only : nlat,nlon,nsig
       implicit none
       real(r_single),dimension(nlat,nsig,nsig),intent(out):: agvin
@@ -186,7 +185,7 @@ end subroutine read_bal
     subroutine read_wgt(corz,cord,corh,corq,corq2,coroz,corc,corp,&
        hwllin,vscalesin,corsst,hsst,mype,unit)
 
-      use kinds,only : i_kind,r_single
+      use kinds,only : r_single
       use gridmod,only : nlat,nlon,nsig
       implicit none
       real(r_single),dimension(nlat,nsig),intent(out):: corz  ! #1
@@ -258,6 +257,7 @@ end subroutine read_bal
   endif
 
   inerr=default_unit_
+  if(present(unit)) inerr=unit
 
 ! Open background error statistics file
   open(inerr,file=berror_stats,form='unformatted',status='old')
@@ -319,7 +319,7 @@ end subroutine read_bal
 	! set ozone related data.
     call setcoroz_(coroz,mype)
     call sethwlloz_   (hwllin   (:,4*nsig+1:5*nsig),mype)
-    call setvscalesoz_(vscalesin(:,4*nsig+1:5*nsig),mype)
+    call setvscalesoz_(vscalesin(:,4*nsig+1:5*nsig))
 
   case default
     write(6,*) myname_,'(PREBAL):  unknown format, []_nvars = ',berror_nvars
@@ -341,11 +341,11 @@ end subroutine read_wgt
 
     subroutine setcoroz_(coroz,mype)
       use kinds,    only: r_single,r_kind
-      use constants,only: zero,rozcon
+      use constants,only: zero,rozcon,one
       use mpimod,   only: npe,mpi_rtype,mpi_sum,mpi_comm_world
 
-      use gridmod,  only: nlat,nlon,nsig
-      use gridmod,  only: lon1,lat1,istart,lon2,lat2
+      use gridmod,  only: nlat,nsig
+      use gridmod,  only: lon1,lat1
 
       use guess_grids,only: ntguessig
       use guess_grids,only: ges_oz   ! ozone fields
@@ -361,7 +361,7 @@ end subroutine read_wgt
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::setcoroz_'
-  real(r_kind),parameter:: r25 = 1.0_r_kind/25.0_r_kind
+  real(r_kind),parameter:: r25 = one/25.0_r_kind
 
 !! -- workspace and working variables
 
@@ -447,10 +447,10 @@ end subroutine setcoroz_
 ! !INTERFACE:
 
     subroutine sethwlloz_(hwlloz,mype)
-      use kinds,   only: r_single,r_kind,i_kind
+      use kinds,   only: r_single,r_kind
       use mpimod,  only: levs_id
       use gridmod, only: nnnn1o,nsig,nlon
-      use constants,only: two,pi,rearth_equator
+      use constants,only: two,three,pi,rearth_equator
       implicit none
       real(r_single),dimension(:,:),intent(out) :: hwlloz
       integer(i_kind),intent(in) :: mype ! ID of this processor
@@ -465,9 +465,8 @@ end subroutine setcoroz_
   real(r_kind),parameter :: r400=400._r_kind
   real(r_kind),parameter :: r800=800._r_kind
   real(r_kind),parameter :: r40000=40000._r_kind
-  real(r_kind),parameter :: three =3.0_r_kind
 
-  integer(i_kind) :: i,k,k1
+  integer(i_kind) :: k,k1
   real(r_kind) :: fact
   real(r_kind) :: s2u
     
@@ -501,11 +500,10 @@ end subroutine sethwlloz_
 !
 ! !INTERFACE:
 
-    subroutine setvscalesoz_(vscalesoz,mype)
+    subroutine setvscalesoz_(vscalesoz)
       use kinds,only: r_single,r_kind
       implicit none
       real(r_single),dimension(:,:),intent(out) :: vscalesoz
-      integer(i_kind),intent(in) :: mype ! ID of this processor
 
 ! !REVISION HISTORY:
 ! 	31Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>

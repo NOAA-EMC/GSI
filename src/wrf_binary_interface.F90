@@ -30,6 +30,8 @@ subroutine convert_binary_mass
 !
 !   input argument list:
 !
+!   output argument list:
+!
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
@@ -551,6 +553,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !     ctph0,stph0:   cos and sin thp0, earth lat of center of nmm grid 
 !                    (0 deg lat in rotated nmm coordinate)
 !                      (used by calctends routines)
+!     tlm0
 !
 ! attributes:
 !   language: f90
@@ -566,8 +569,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 
   integer(i_kind),parameter:: in_unit = 15
 
-  logical update_pint
-  real(r_kind) ctph0,stph0,tlm0
+  logical,intent(inout)   :: update_pint
+  real(r_kind),intent(out):: ctph0,stph0,tlm0
 
   character(9) wrfges,fileout
   integer(i_kind),allocatable:: start_block(:),end_block(:)
@@ -1076,6 +1079,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !     ctph0,stph0:   cos and sin thp0, earth lat of center of nmm grid 
 !                    (0 deg lat in rotated nmm coordinate)
 !                      (used by calctends routines)
+!     tlm0
 !
 ! attributes:
 !   language: f90
@@ -1083,22 +1087,21 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !
 !$$$
 
-  use kinds, only: r_single,i_llong,r_kind,i_kind
-  use constants, only: deg2rad,rad2deg
+  use kinds, only: r_single,r_kind,i_kind
+  use constants, only: deg2rad,rad2deg,one_tenth
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar,nemsio_readrecv
   implicit none
 
-  integer(i_kind),parameter:: in_unit = 15
+! integer(i_kind),parameter:: in_unit = 15
   real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r0_1  = 0.1_r_kind
   real(r_kind),parameter:: r100  = 100.0_r_kind
   real(r_kind),parameter:: rd_over_cp = 0.285725661955006982_r_kind
 
-  logical update_pint
-  real(r_kind) ctph0,stph0,tlm0
+  logical,intent(inout)   :: update_pint
+  real(r_kind),intent(out):: ctph0,stph0,tlm0
 
   type(nemsio_gfile) :: gfile
   character(255) wrfges,fileout
@@ -1158,7 +1161,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
        end if
      end if
      write(fileout,'("sigf",i2.2)')n+nhr_assimilation-1
-     write(6,*)' convert_binary_nmm: in_unit,out_unit=',trim(wrfges),',',trim(fileout)
+     write(6,*)' convert_nems_nmmb: in_unit,out_unit=',trim(wrfges),',',trim(fileout)
      open(lendian_out,file=trim(fileout),form='unformatted')
      rewind lendian_out
 
@@ -1422,7 +1425,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
      do i=1,nlon_regional*nlat_regional
            pd=r0_01*field2c(i)
            psfc_this=pd+pd_to_ps
-           ratio=(r0_1*psfc_this/r100)
+           ratio=(one_tenth*psfc_this/r100)
            factor=ratio**rd_over_cp
            field2c(i)=field2b(i)*factor
      end do
@@ -1498,7 +1501,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
 
 !   do an initial read through of a wrf binary file, and get total number of sequential file records
 
-  use kinds, only: r_single,i_byte,i_long,i_llong,i_kind
+  use kinds, only: i_byte,i_long,i_llong,i_kind
   implicit none
 
   integer(i_kind),intent(in)::in_unit
@@ -1517,7 +1520,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
   integer(i_byte) buf(lrecl)
   integer(i_kind) i,loc_count,nreads
   logical lastbuf
-  integer ierr
+  integer(i_kind) ierr
 
   cwrfges = wrfges
   cwrfges(10:10) = char(0)
@@ -1641,6 +1644,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 !   output argument list:  (all following dimensioned nrecs)
 !     datestr_all      - date character string for each field, where applicable (or else blanks)
 !     varname_all      - wrf mnemonic for each variable, where applicable (or blank)
+!     memoryorder_all
 !     domainend_all    - dimensions of each field, where applicable (up to 3 dimensions)
 !     start_block      - direct access block number containing 1st byte of record
 !                            (after 4 byte record mark)
@@ -1656,7 +1660,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 !
 !$$$
 
-  use kinds, only: r_single,i_byte,i_long,i_llong,i_kind
+  use kinds, only: i_byte,i_long,i_llong,i_kind
 ! use module_internal_header_util, only: int_get_ti_header_char,int_get_write_field_header
   implicit none
 
@@ -1693,16 +1697,14 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
   integer(i_kind) loccode
   character(132) blanks
   integer(i_kind) typesize
-  integer(i_kind) fieldtype,comm,iocomm
+  integer(i_kind) fieldtype
   integer(i_kind) domaindesc
   character(132) memoryorder,stagger,dimnames(3)
   integer(i_kind) domainstart(3),domainend(3)
-  integer(i_kind) memorystart(3),memoryend(3)
   integer(i_kind) patchstart(3),patchend(3)
   character(132) datestr,varname
-  real(r_single) dummy_field(1)
   integer(i_kind) itypesize
-  integer ierr
+  integer(i_kind) ierr
 
   call wrf_sizeof_integer(itypesize)
   inttypesize=itypesize
@@ -1786,10 +1788,10 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
        else
 
 
-          call int_get_write_field_header(hdrbuf,hdrbufsize,inttypesize,typesize, &
-             datahandle,datestr,varname,dummy_field,fieldtype,comm,iocomm, &
+          call int_get_write_field_header(hdrbuf,hdrbufsize,typesize, &
+             datahandle,datestr,varname,fieldtype, &
              domaindesc,memoryorder,stagger,dimnames, &
-             domainstart,domainend,memorystart,memoryend,patchstart,patchend)
+             domainstart,domainend,patchstart,patchend)
           varname_all(irecs)=trim(varname)
           datestr_all(irecs)=trim(datestr)
           memoryorder_all(irecs)=trim(memoryorder)
@@ -1864,6 +1866,8 @@ subroutine count_recs_wrf_binary_file()
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+    implicit none
+
     write(6,*)'COUNT_RECS_WRF_BINARY_FILE:  dummy routine, does nothing'
 	return
 end subroutine count_recs_wrf_binary_file
@@ -1884,6 +1888,8 @@ subroutine inventory_wrf_binary_file()
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+        implicit none
+
 	write(6,*)'INVENTORY_WRF_BINARY_FILE:  dummy routine, does nothing'
 	return
 end subroutine inventory_wrf_binary_file
@@ -1927,11 +1933,14 @@ subroutine next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
   use kinds, only: i_byte,i_llong,i_kind
   implicit none
 
-  integer(i_llong) lrecl
-  integer(i_kind) in_unit,nreads
-  integer(i_byte) buf(lrecl)
-  integer(i_llong) nextbyte,locbyte,thisblock
-  logical lastbuf
+  integer(i_llong),intent(in):: lrecl
+  integer(i_kind),intent(in):: in_unit
+  integer(i_llong),intent(in):: nextbyte
+  integer(i_byte),intent(out):: buf(lrecl)
+  integer(i_llong),intent(out):: thisblock
+  integer(i_kind),intent(inout):: nreads
+  integer(i_llong),intent(inout):: locbyte
+  logical,intent(inout):: lastbuf
 
   integer(i_kind) ierr
 
@@ -2110,15 +2119,16 @@ SUBROUTINE int_get_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use kinds, only: i_kind
   IMPLICIT NONE
 ! INCLUDE 'intio_tags.h'
-  INTEGER, INTENT(INOUT)       ::  hdrbuf(*)
-  INTEGER, INTENT(OUT)         ::  hdrbufsize
-  INTEGER, INTENT(IN)          ::  itypesize
+  INTEGER(i_kind), INTENT(INOUT)       ::  hdrbuf(*)
+  INTEGER(i_kind), INTENT(OUT)         ::  hdrbufsize
+  INTEGER(i_kind), INTENT(IN)          ::  itypesize
   CHARACTER*(*), INTENT(INOUT) ::  Element, Data, VarName
-  INTEGER, INTENT(OUT)         ::  DataHandle, code
+  INTEGER(i_kind), INTENT(OUT)         ::  DataHandle, code
 !Local
-  INTEGER i, n, DummyCount, typesize
+  INTEGER(i_kind) i, n, DummyCount, typesize
   CHARACTER * 132  dummyData
   logical, external :: debug_foo
 !
@@ -2134,11 +2144,11 @@ SUBROUTINE int_get_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
 
   RETURN
 END SUBROUTINE int_get_ti_header_char
-SUBROUTINE int_get_write_field_header ( hdrbuf, hdrbufsize, itypesize, ftypesize, &
-                                        DataHandle , DateStr , VarName , Dummy , FieldType , Comm , IOComm,  &
+
+SUBROUTINE int_get_write_field_header ( hdrbuf, hdrbufsize, ftypesize, &
+                                        DataHandle , DateStr , VarName , FieldType ,                 &
                                         DomainDesc , MemoryOrder , Stagger , DimNames ,              &
                                         DomainStart , DomainEnd ,                                    &
-                                        MemoryStart , MemoryEnd ,                                    &
                                         PatchStart , PatchEnd )
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -2153,49 +2163,54 @@ SUBROUTINE int_get_write_field_header ( hdrbuf, hdrbufsize, itypesize, ftypesize
 !
 !   input argument list:
 !     hdrbuf     - 
-!     itypesize  - 
 !     ftypesize  - 
 !     DateStr    -
 !     VarName    - 
+!     MemoryOrder
+!     Stagger
+!     DimNames
 !
 !   output argument list:
 !     hdrbuf     - 
 !     hdrbufsize - 
-!     itypesize  - 
 !     ftypesize  - 
 !     DataHandle - 
 !     DateStr    -
 !     VarName    - 
+!     FieldType
+!     DomainDesc
+!     MemoryOrder
+!     Stagger
+!     DimNames
+!     DomainStart,DomainEnd
+!     PatchStart,PatchEnd
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use kinds, only: i_kind
   IMPLICIT NONE
 
 ! INCLUDE 'intio_tags.h'
   integer,parameter:: int_field       =       530
-  INTEGER,       INTENT(INOUT)  ::  hdrbuf(*)
-  INTEGER,       INTENT(OUT)    ::  hdrbufsize
-  INTEGER,       INTENT(INOUT)  ::  itypesize, ftypesize
-  INTEGER ,      INTENT(OUT)    :: DataHandle
-  CHARACTER*(*), INTENT(INOUT)  :: DateStr
-  CHARACTER*(*), INTENT(INOUT)  :: VarName
-  REAL, DIMENSION(*)            :: Dummy
-  INTEGER                                       :: FieldType
-  INTEGER                                       :: Comm
-  INTEGER                                       :: IOComm
-  INTEGER                                       :: DomainDesc
-  CHARACTER*(*)                                 :: MemoryOrder
-  CHARACTER*(*)                                 :: Stagger
-  CHARACTER*(*) , dimension (*)                 :: DimNames
-  INTEGER ,dimension(*)                         :: DomainStart, DomainEnd
-  INTEGER ,dimension(*)                         :: MemoryStart, MemoryEnd
-  INTEGER ,dimension(*)                         :: PatchStart,  PatchEnd
+  INTEGER(i_kind),               INTENT(INOUT)  ::  hdrbuf(*)
+  INTEGER(i_kind),               INTENT(OUT)    ::  hdrbufsize
+  INTEGER(i_kind),               INTENT(INOUT)  ::  ftypesize
+  INTEGER(i_kind) ,              INTENT(OUT)    :: DataHandle
+  CHARACTER*(*),                 INTENT(INOUT)  :: DateStr
+  CHARACTER*(*),                 INTENT(INOUT)  :: VarName
+  INTEGER(i_kind),               INTENT(OUT)    :: FieldType
+  INTEGER(i_kind),               INTENT(OUT)    :: DomainDesc
+  CHARACTER*(*),                INTENT(INOUT)   :: MemoryOrder
+  CHARACTER*(*),                INTENT(INOUT)   :: Stagger
+  CHARACTER*(*) , dimension (*),INTENT(INOUT)   :: DimNames
+  INTEGER(i_kind) ,dimension(*), INTENT(OUT)    :: DomainStart, DomainEnd
+  INTEGER(i_kind) ,dimension(*), INTENT(OUT)    :: PatchStart,  PatchEnd
 !Local
   CHARACTER*132 mess
-  INTEGER i, n
+  INTEGER(i_kind) i, n
 
   hdrbufsize = hdrbuf(1)
   IF ( hdrbuf(2) .NE. int_field ) THEN
@@ -2230,6 +2245,7 @@ SUBROUTINE int_get_write_field_header ( hdrbuf, hdrbufsize, itypesize, ftypesize
 
   RETURN
 END SUBROUTINE int_get_write_field_header
+
 SUBROUTINE int_unpack_string ( str, buf, n )
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -2255,13 +2271,15 @@ SUBROUTINE int_unpack_string ( str, buf, n )
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+
+  use kinds, only: i_kind
   IMPLICIT NONE
-  CHARACTER*(*), INTENT(OUT)        :: str
-  INTEGER, INTENT(OUT)              :: n       ! on return, N is the number of ints copied from buf
-  INTEGER, INTENT(IN), DIMENSION(*) :: buf
+  CHARACTER*(*), INTENT(OUT)                :: str
+  INTEGER(i_kind), INTENT(OUT)              :: n       ! on return, N is the number of ints copied from buf
+  INTEGER(i_kind), INTENT(IN), DIMENSION(*) :: buf
 !Local
-  INTEGER i
-  INTEGER strlen
+  INTEGER(i_kind) i
+  INTEGER(i_kind) strlen
 
   strlen = buf(1)
   str = ""
@@ -2294,11 +2312,12 @@ SUBROUTINE wrf_sizeof_integer( retval )
 !$$$
   use kinds, only: i_kind
   IMPLICIT NONE
-  INTEGER retval
+  INTEGER(i_kind) retval
 ! IWORDSIZE is defined by CPP
   retval = i_kind
   RETURN
 END SUBROUTINE wrf_sizeof_integer
+
 !WRF:DRIVER_LAYER:UTIL
 !
 
@@ -2323,9 +2342,10 @@ MODULE module_wrf_error
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  use kinds, only: i_kind
+  implicit none
 
-  INTEGER           :: wrf_debug_level = 0
-  CHARACTER*256     :: wrf_err_message
+  INTEGER(i_kind)      :: wrf_debug_level = 0
 CONTAINS
 
   LOGICAL FUNCTION wrf_at_debug_level ( level )
@@ -2348,8 +2368,9 @@ CONTAINS
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+    use kinds, only: i_kind
     IMPLICIT NONE
-    INTEGER , INTENT(IN) :: level
+    INTEGER(i_kind) , INTENT(IN) :: level
     wrf_at_debug_level = ( level .LE. wrf_debug_level )
     RETURN
   END FUNCTION wrf_at_debug_level
@@ -2399,8 +2420,9 @@ END MODULE module_wrf_error
 !
 !$$$ end documentation block
     USE module_wrf_error
+    use kinds, only: i_kind
     IMPLICIT NONE
-    INTEGER , INTENT(IN) :: level
+    INTEGER(i_kind) , INTENT(IN) :: level
     wrf_debug_level = level
     RETURN
   END SUBROUTINE set_wrf_debug_level
@@ -2426,8 +2448,9 @@ END MODULE module_wrf_error
 !
 !$$$ end documentation block
     USE module_wrf_error
+    use kinds, only: i_kind
     IMPLICIT NONE
-    INTEGER , INTENT(OUT) :: level
+    INTEGER(i_kind) , INTENT(OUT) :: level
     level = wrf_debug_level
     RETURN
   END SUBROUTINE get_wrf_debug_level
@@ -2454,10 +2477,11 @@ SUBROUTINE wrf_debug( level , str )
 !
 !$$$ end documentation block
   USE module_wrf_error
+  use kinds, only: i_kind
   IMPLICIT NONE
   CHARACTER*(*) str
-  INTEGER , INTENT (IN) :: level
-  INTEGER               :: debug_level
+  INTEGER(i_kind) , INTENT (IN) :: level
+  INTEGER(i_kind)               :: debug_level
   CALL get_wrf_debug_level( debug_level )
   IF ( level .LE. debug_level ) THEN
     ! old behavior
@@ -2477,6 +2501,7 @@ SUBROUTINE wrf_message( str )
 !   2008-03-31  safford - add subroutine doc block
 !
 !   input argument list:
+!    str
 !
 !   output argument list:
 !
@@ -2487,7 +2512,7 @@ SUBROUTINE wrf_message( str )
 !$$$ end documentation block
   USE module_wrf_error
   IMPLICIT NONE
-  CHARACTER*(*) str
+  CHARACTER*(*), intent(in):: str
   write(6,*) TRIM(str)
   print*, TRIM(str)
 !TBH:  Calls to logwrite cut off str in ESMF 2.2.0.
@@ -2511,6 +2536,7 @@ SUBROUTINE wrf_message2( str )
 !   2008-03-31  safford - add subroutine doc block
 !
 !   input argument list:
+!    str
 !
 !   output argument list:
 !
@@ -2521,7 +2547,7 @@ SUBROUTINE wrf_message2( str )
 !$$$ end documentation block
   USE module_wrf_error
   IMPLICIT NONE
-  CHARACTER*(*) str
+  CHARACTER*(*), intent(in):: str
   write(6,*) str
 !TBH:  Calls to logwrite cut off str in ESMF 2.2.0.
 !TBH:  Restore this call once this ESMF bug is fixed.
@@ -2555,10 +2581,11 @@ SUBROUTINE wrf_error_fatal3( file_str, line, str )
 !
 !$$$ end documentation block
   USE module_wrf_error
+  use kinds, only: i_kind
   IMPLICIT NONE
-  CHARACTER*(*) file_str
-  INTEGER , INTENT (IN) :: line  ! only print file and line if line > 0
-  CHARACTER*(*) str
+  CHARACTER*(*),intent(in)      :: file_str
+  INTEGER(i_kind) , INTENT (IN) :: line  ! only print file and line if line > 0
+  CHARACTER*(*),intent(in)      :: str
   CHARACTER*256 :: line_str
 
   write(line_str,'(i6)') line
@@ -2595,7 +2622,7 @@ SUBROUTINE wrf_error_fatal( str )
 !$$$ end documentation block
   USE module_wrf_error
   IMPLICIT NONE
-  CHARACTER*(*) str
+  CHARACTER*(*),intent(in):: str
   CALL wrf_error_fatal3 ( ' ', 0, str )
 END SUBROUTINE wrf_error_fatal
 
@@ -2614,6 +2641,8 @@ SUBROUTINE wrf_check_error( expected, actual, str, file_str, line )
 !     expected -
 !     actual   -
 !     line     -
+!     str
+!     file_str
 !
 !   output argument list:
 !
@@ -2623,12 +2652,13 @@ SUBROUTINE wrf_check_error( expected, actual, str, file_str, line )
 !
 !$$$ end documentation block
   USE module_wrf_error
+  use kinds, only: i_kind
   IMPLICIT NONE
-  INTEGER , INTENT (IN) :: expected
-  INTEGER , INTENT (IN) :: actual
-  CHARACTER*(*) str
-  CHARACTER*(*) file_str
-  INTEGER , INTENT (IN) :: line
+  INTEGER(i_kind) , INTENT (IN) :: expected
+  INTEGER(i_kind) , INTENT (IN) :: actual
+  CHARACTER*(*) ,intent(in)     :: str
+  CHARACTER*(*) ,intent(in)     :: file_str
+  INTEGER(i_kind) , INTENT (IN) :: line
   CHARACTER (LEN=512)   :: rc_str
   CHARACTER (LEN=512)   :: str_with_rc
 

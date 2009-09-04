@@ -85,7 +85,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
        pdtop_ll,pt_ll,nlon,nlat,nlon_regional,nsig,nlat_regional,half_grid,&
        filled_grid, &
       displs_s,ijn_s,ltosi_s,ltosj_s,half_nmm_grid2a,fill_nmm_grid2a3
-  use constants, only: zero,one,grav,fv,zero_single
+  use constants, only: zero,one_tenth,half,one,grav,fv,zero_single
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
   implicit none
@@ -94,20 +94,16 @@ subroutine read_wrf_nmm_binary_guess(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  integer(i_kind),parameter:: lunin = 21	
   real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r0_1  = 0.1_r_kind
   real(r_kind),parameter:: r100  = 100.0_r_kind
 
 ! Declare local variables
   integer(i_kind) kpint,kt,kq,ku,kv
 
 ! NMM variable names stuck in here
-  logical run
-  integer(i_kind) idat(3),ihrst,ntsd,mfcst
+  integer(i_kind) mfcst
 
 ! other internal variables
-  logical ice
   real(r_single),allocatable:: tempa(:,:)
   real(r_single),allocatable::temp1(:,:)
   real(r_single),allocatable::all_loc(:,:,:)
@@ -118,13 +114,13 @@ subroutine read_wrf_nmm_binary_guess(mype)
   integer(i_kind) this_length
   character(9) wrfges
   character(6) filename 
-  integer(i_kind) ifld,jfld,im,jm,lm,num_nmm_fields
+  integer(i_kind) ifld,im,jm,lm,num_nmm_fields
   integer(i_kind) num_loc_groups,num_j_groups
-  integer(i_kind) i,icount,icount_prev,it,j,k,k1,levtempmax
+  integer(i_kind) i,it,j,k
   integer(i_kind) i_pd,i_fis,i_pint,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smc,i_stc
   integer(i_kind) i_sm,i_sice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) isli_this
-  real(r_kind) pd,psfc_this,sm_this,sice_this,drh,wmag
+  real(r_kind) pd,psfc_this,sm_this,sice_this,wmag
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
   integer(i_llong) n_position
   integer(i_kind) iskip,ksize,jextra,nextra
@@ -133,7 +129,6 @@ subroutine read_wrf_nmm_binary_guess(mype)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
   integer(i_long),allocatable:: ibuf(:,:)
   integer(i_long),allocatable:: jbuf(:,:,:)
-  integer(i_long) dummy9(9)
   real(r_kind) rough0(nlon,nlat)
   real(r_single) rough_in(nlon_regional,nlat_regional)
   real(r_kind) rough_in2(nlon_regional,nlat_regional)
@@ -141,8 +136,6 @@ subroutine read_wrf_nmm_binary_guess(mype)
   integer(i_kind) mm1                               
   integer(i_kind) iadd
   character(132) memoryorder
-
-  real(r_kind),dimension(5):: stat,stat1
 
 !  NMM input grid dimensions in module reg_glob_ll
 !      These are the following:
@@ -577,7 +570,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
               
               pd=r0_01*all_loc(j,i,i_pd)
               psfc_this=pd+pdtop_ll+pt_ll
-              ges_ps(j,i,it)=r0_1*psfc_this   ! convert from mb to cb
+              ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_smc)
               soil_temp(j,i,it)=all_loc(j,i,i_stc)
@@ -616,7 +609,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
               wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
               if(wmag > zero)fact10(j,i,it)=sqrt(all_loc(j,i,i_u10)**2 + &
                       all_loc(j,i,i_v10)**2)/wmag
-              fact10(j,i,it)=min(max(fact10(j,i,it),0.5_r_kind),0.95_r_kind)
+              fact10(j,i,it)=min(max(fact10(j,i,it),half),0.95_r_kind)
               veg_type(j,i,it)=all_loc(j,i,i_ivgtyp)
               veg_frac(j,i,it)=all_loc(j,i,i_vegfrac)
               soil_type(j,i,it)=all_loc(j,i,i_isltyp)
@@ -726,7 +719,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   use gridmod, only: lat2,lon2,itotsub,displs_s,ijn_s,&
        pdtop_ll,pt_ll,nlon_regional,nsig,nlat_regional,half_grid,&
        filled_grid
-  use constants, only: zero,one,grav,fv,zero_single
+  use constants, only: zero,one_tenth,half,one,grav,fv,zero_single
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
   implicit none
@@ -736,18 +729,13 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_01=0.01_r_kind
-  real(r_kind),parameter:: r0_1=0.1_r_kind
-  real(r_kind),parameter:: r100=100.0_r_kind
 
 ! Declare local variables
   integer(i_kind) kpint,kt,kq,ku,kv
 
 ! NMM variable names stuck in here
-  logical run
-  integer(i_kind) idat(3),ihrst,ntsd
 
 ! other internal variables
-  logical ice
   real(r_single) tempa(itotsub)
   real(r_single),allocatable::temp1(:,:)
   real(r_single),allocatable::all_loc(:,:,:)
@@ -755,17 +743,15 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   integer(i_kind),allocatable::igtype(:),jsig_skip(:)
   character(60),allocatable::identity(:)
   character(6) filename 
-  integer(i_kind) irc_s_reg(npe),ird_s_reg(npe),npts
+  integer(i_kind) irc_s_reg(npe),ird_s_reg(npe)
   integer(i_kind) ifld,im,jm,lm,num_nmm_fields
   integer(i_kind) num_all_fields,num_loc_groups,num_all_pad
-  integer(i_kind) i,icount,icount_prev,it,j,k,k1,levtempmax
+  integer(i_kind) i,icount,icount_prev,it,j,k
   integer(i_kind) i_0,i_pd,i_fis,i_pint,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smc,i_stc
   integer(i_kind) i_sm,i_sice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) isli_this
-  real(r_kind) pd,psfc_this,sm_this,sice_this,drh,wmag
+  real(r_kind) pd,psfc_this,sm_this,sice_this,wmag
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
-  real(r_kind),dimension(5):: stat,stat1
-
 
 !  NMM input grid dimensions in module reg_glob_ll
 !      These are the following:
@@ -1004,7 +990,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
               
               pd=r0_01*all_loc(j,i,i_0+i_pd)
               psfc_this=pd+pdtop_ll+pt_ll
-              ges_ps(j,i,it)=r0_1*psfc_this   ! convert from mb to cb
+              ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_0+i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_0+i_smc)
               soil_temp(j,i,it)=all_loc(j,i,i_0+i_stc)
@@ -1051,7 +1037,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
               wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
               if(wmag > zero)fact10(j,i,it)=sqrt(all_loc(j,i,i_0+i_u10)**2 + &
                       all_loc(j,i,i_0+i_v10)**2)/wmag
-              fact10(j,i,it)=min(max(fact10(j,i,it),0.5_r_kind),0.95_r_kind)
+              fact10(j,i,it)=min(max(fact10(j,i,it),half),0.95_r_kind)
               veg_type(j,i,it)=all_loc(j,i,i_0+i_ivgtyp)
               veg_frac(j,i,it)=all_loc(j,i,i_0+i_vegfrac)
               soil_type(j,i,it)=all_loc(j,i,i_0+i_isltyp)
@@ -1139,13 +1125,13 @@ subroutine read_nems_nmmb_guess(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_single,i_kind
+  use kinds, only: r_kind,i_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_integer,mpi_sum
   use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ges_tsen
   use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype
-  use constants, only: zero,one,fv,rd_over_cp
+  use constants, only: zero,one_tenth,half,one,fv,rd_over_cp
   use regional_io, only: update_pint
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read
   implicit none
@@ -1155,7 +1141,6 @@ subroutine read_nems_nmmb_guess(mype)
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r0_1  = 0.1_r_kind
   real(r_kind),parameter:: r100  = 100.0_r_kind
 
 ! Declare local variables
@@ -1200,7 +1185,7 @@ subroutine read_nems_nmmb_guess(mype)
 !               convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
            pd=r0_01*ges_pd(j,i,it)
            psfc_this=pd+pd_to_ps
-           ges_ps(j,i,it)=r0_1*psfc_this
+           ges_ps(j,i,it)=one_tenth*psfc_this
          end do
        end do
 
@@ -1313,7 +1298,7 @@ subroutine read_nems_nmmb_guess(mype)
            fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
            wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
            if(wmag > zero)fact10(j,i,it)=sqrt(u10this(j,i)**2+v10this(j,i)**2)/wmag
-           fact10(j,i,it)=min(max(fact10(j,i,it),0.5_r_kind),0.95_r_kind)
+           fact10(j,i,it)=min(max(fact10(j,i,it),half),0.95_r_kind)
 
            if(smthis(j,i).ne.zero) smthis(j,i)=one
            if(sicethis(j,i).ne.zero) sicethis(j,i)=one

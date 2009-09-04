@@ -1,4 +1,4 @@
-subroutine get_semimp_mats(tbar,pbar,ahat,bhat,chat,amat,bmat,hmat,smat)
+subroutine get_semimp_mats(tbar,pbar,bhat,chat,amat,bmat,hmat,smat)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_semimp_mats       compute matrices for semi implicit
@@ -15,7 +15,6 @@ subroutine get_semimp_mats(tbar,pbar,ahat,bhat,chat,amat,bmat,hmat,smat)
 !   input argument list:
 !     tbar     - profile reference temperature
 !     pbar     - profile reference pressure
-!     ahat     - vertical coordinate a-coefficient (constant pressure)
 !     bhat     - vertical coordinate b-coefficient (sigma)
 !     chat     - vertical coordinate c-coefficient (isentropic)
 !
@@ -40,7 +39,7 @@ subroutine get_semimp_mats(tbar,pbar,ahat,bhat,chat,amat,bmat,hmat,smat)
 
 ! Declare passed variables
   real(r_kind),dimension(nsig),intent(in):: tbar
-  real(r_kind),dimension(nsig+1),intent(in):: pbar,ahat,bhat,chat
+  real(r_kind),dimension(nsig+1),intent(in):: pbar,bhat,chat
   real(r_kind),dimension(nsig,nsig),intent(out):: amat,bmat
   real(r_kind),dimension(nsig):: hmat,smat
 
@@ -176,7 +175,7 @@ subroutine get_semimp_mats(tbar,pbar,ahat,bhat,chat,amat,bmat,hmat,smat)
   end do
   do k=1,nsig
     gamma(k)=one - kappa*dpkref(k)*rpkref(k)*two
-    delta(k)=one + kappa*DPKREF(k)*RPKREF(k)*2.0
+    delta(k)=one + kappa*DPKREF(k)*RPKREF(k)*two
   end do
   do k=1,nsig-1
     beta(k+1)=(pbar(k)+pbar(k+1))/(pbar(k+1)+pbar(k+2))

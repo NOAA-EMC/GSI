@@ -30,17 +30,17 @@ subroutine simpin1_init(ixi,tlout,alocalout,blocalout,iord,lbig,x1grid,n1grid)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero, half, one, two
+  use constants, only: zero, half, one, two,one_tenth
   implicit none
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_1=0.1_r_kind
   real(r_kind),parameter:: r0_001=0.001_r_kind
 
-  integer(i_kind) iord,lbig,n1grid
-  integer(i_kind) ixi(0:iord)
-  real(r_kind) tlout(lbig,lbig,2*n1grid),&
-       alocalout(2*n1grid),blocalout(2*n1grid),x1grid(n1grid)
+  integer(i_kind),intent(in) :: iord,lbig,n1grid
+  integer(i_kind),intent(out):: ixi(0:iord)
+  real(r_kind),intent(out):: tlout(lbig,lbig,2*n1grid),&
+       alocalout(2*n1grid),blocalout(2*n1grid)
+  real(r_kind),intent(in) :: x1grid(n1grid)
   real(r_kind) x1in(2*n1grid)
   real(r_kind) dx1gridi(-3:n1grid+3)
   real(r_kind) tl(max(64,2*n1grid/lbig),lbig,lbig)
@@ -62,9 +62,9 @@ subroutine simpin1_init(ixi,tlout,alocalout,blocalout,iord,lbig,x1grid,n1grid)
      nm=max(1,n-1)
      np=min(n1grid,n+1)
      delx1=x1grid(np)-x1grid(np-1)
-     x1in(n)=x1grid(n)+r0_1*delx1
+     x1in(n)=x1grid(n)+one_tenth*delx1
      delx1=x1grid(nm+1)-x1grid(nm)
-     x1in(n1grid+n)=x1grid(n)-r0_1*delx1
+     x1in(n1grid+n)=x1grid(n)-one_tenth*delx1
   end do
   
   ntl=max(64,nin/lbig)

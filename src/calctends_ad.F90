@@ -487,14 +487,14 @@ jstop=lon2
     end do
   end do
 
-  call getprs_horiz_ad(ps_x,ps_y,mype,pri,pri_x,pri_y)
+  call getprs_horiz_ad(ps_x,ps_y,pri,pri_x,pri_y)
 
 ! add contributions from derivatives
 
   call tget_derivatives( &
          u ,v , t, pri ,q ,oz ,sst ,cw ,  &
          u_x, v_x, t_x, ps_x, q_x, oz_x, sst_x, cw_x, &
-         u_y, v_y, t_y, ps_y, q_y, oz_y, sst_y, cw_y, nnn, mype)
+         u_y, v_y, t_y, ps_y, q_y, oz_y, sst_y, cw_y, nnn )
 
   return
 end subroutine calctends_ad

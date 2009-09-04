@@ -51,7 +51,7 @@ subroutine psichi2uv_reg( psi, chi,  u, v)
   real(r_kind), intent(out)  :: u(nlat,nlon)   ! u wind comp (m/s)
   real(r_kind), intent(out)  :: v(nlat,nlon)   ! v wind comp (m/s)
   
-  integer(i_kind)            :: i, j, k                      ! Loop counters.
+  integer(i_kind)            :: i, j                         ! Loop counters.
   
 
 
@@ -163,6 +163,10 @@ subroutine delx_reg( chi,  u,vector)
 !
 !   input argument list:
 !     chi - velocity potential
+!     vector
+!
+!   output argument list:
+!     u
 !
 ! remarks:
 !    The method used is 
@@ -180,7 +184,7 @@ subroutine delx_reg( chi,  u,vector)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half
-  use gridmod, only: coeffx,coeffy,nlat,nlon,region_dy,region_dyi
+  use gridmod, only: coeffx,nlat,nlon,region_dy,region_dyi
   
   implicit none
   
@@ -189,8 +193,7 @@ subroutine delx_reg( chi,  u,vector)
   real(r_kind), intent(in)   :: chi(nlat,nlon) ! Velocity potential
   real(r_kind), intent(out)  :: u(nlat,nlon)   ! v wind comp (m/s)
   
-  integer(i_kind)            :: i, j, k                      ! Loop counters.
-  integer(i_kind)            :: js, je                       ! 2nd dim. end points.
+  integer(i_kind)            :: i, j                         ! Loop counters.
   real(r_kind)               :: ch2(nlat,nlon)
 
   if(vector) then
@@ -312,11 +315,10 @@ subroutine dely_reg( chi,  v,vector)
 !   2009-04-19   derber       - modify to fit gsi
 !
 !   input argument list:
-!     psi - streamfunction
 !     chi - velocity potential
+!     vector
 !
 !   output argument list:
-!     u - zonal wind component
 !     v - meridional wind component
 !
 ! remarks:

@@ -1,18 +1,31 @@
 subroutine test_obsens(xincr,xsens)
-
-! abstract: Test accuracy of increment sensitivity to observations
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    test_obsens
+!   prgmmr: tremolet
 !
-! Inputs:
-!   xincr - current increment in control space
-!   xsens - A_k^{-T}*xincr where A_k is the estimate of the Hessian
+! abstract: Test accuracy of increment sensitivity to observations
 !
 ! program history log:
 !   2007-11-15  tremolet
 !   2009-01-18  todling - carry summations in quad precision
+!   2009-08-13  lueken - update documentation
+!
+!   input argument list:
+!    xincr - current increment in control space
+!    xsens - A_k^{-T}*xincr where A_k is the estimate of the Hessian
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 ! ------------------------------------------------------------------------------
-use kinds, only: r_kind,i_kind,r_quad
+use kinds, only: i_kind,r_quad
 use constants, only: zero
-use jfunc, only: jiter,xhatsave
+use jfunc, only: xhatsave
 use obsmod, only: lsaveobsens,l_do_adjoint
 use mpimod, only: mype
 use obs_sensitivity, only: iobsconv, lobsensincr, dot_prod_obs

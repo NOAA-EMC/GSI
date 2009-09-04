@@ -2,11 +2,30 @@
 ! SET_CVSECTION
 ! ------------------------------------------------------------------------------
 subroutine set_cvsection(psec,ydcv,kbgn,kend)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    set_cvsection
+!   prgmmr: tremolet
+!
 ! abstract: Sets a section of a control vector
 !
 ! program history log:
 !   2007-05-16 tremolet
+!   2009-08-14 lueken - update documentation
+!
+!   input argument list:
+!    kbgn,kend
+!    psec
+!    ydcv
+!
+!   output argument list:
+!    ydvc
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only: r_kind,i_kind
 use mpimod, only: mype, nvar_pe
@@ -54,15 +73,33 @@ end subroutine set_cvsection
 ! ALLGATHER_CVSECTION - Gather part of the control variable on all PEs.
 ! ------------------------------------------------------------------------------
 subroutine allgather_cvsection(ydcv,psec,kbgn,kend)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    allgather_cvsection
+!   prgmmr: tremolet
+!
 ! abstract: Gathers a section of a control vector
 !
 ! program history log:
 !   2007-05-16 tremolet
+!   2009-08-14 lueken - update documentation
+!
+!   input argument list:
+!    ydcv
+!    kbgn,kend
+!
+!   output argument list:
+!    psec
 !
 ! NOTE: this routine is inefficient to gather long sections
 ! or full vectors. In practice, it is only used for very short
 ! sections of the control_vector in lanczos:preppcm.
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only: r_kind,i_kind
 use mpimod, only: mype, nvar_pe

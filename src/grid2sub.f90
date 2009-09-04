@@ -39,7 +39,6 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
        mpi_comm_world,mpi_rtype,reorder2,vectosub
   use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,nsig1o,nnnn1o,latlon1n,latlon11
   use jfunc, only: nsst2,noz2,nslt2,ncw2,nsit2,nvp2,nst2,np2,nq2,nt2
-  use constants, only:  zero
   implicit none
 
 ! Declare passed variables
@@ -63,11 +62,6 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
 
 ! reoder work1 global slab array for communications
   call reorder2(work1,nsig1o,nnnn1o)
-
-! zero xtmp work array
-! do k=1,lat2*lon2*(nsig*6+4)
-!    xtmp(k)=zero
-! end do
 
 ! send global slabs to subdomains
   call mpi_alltoallv(work1(1,1),iscnt_s,isdsp_s,&
@@ -117,8 +111,7 @@ subroutine grid2sub2(workout,st,vp,pri,t)
   use mpimod, only: irdbal_s,ircbal_s,iscbal_s,isdbal_s,ierror,&
        mpi_comm_world,mpi_rtype,reorder2,vectosub,nlevsbal,nnnvsbal, &
        ku_gs,kv_gs,kt_gs,kp_gs
-  use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,latlon1n,latlon11
-  use constants, only:  zero
+  use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,latlon11
   implicit none
 
 ! Declare passed variables

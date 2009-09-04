@@ -1,8 +1,9 @@
 module stpcalcmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stpcalcmod    module for stpcalc and its tangent linear stpcalc_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stpcalcmod    module for stpcalc and its tangent linear stpcalc_tl
+!  prgmmr:
 !
 ! abstract: module for stpcalc and its tangent linear stpcalc_tl
 !
@@ -10,7 +11,16 @@ module stpcalcmod
 !   2005-05-21  Yanqiu zhu - wrap stpcalc and its tangent linear stpcalc_tl into one module
 !   2005-11-21  Derber - remove interfaces and clean up code
 !   2008-12-02  Todling - remove stpcalc_tl
+!   2009-08-12  lueken  - updated documentation
 !
+! subroutines included:
+!   sub stpcalc
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -154,19 +164,19 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   input argument list:
 !     stpinout - guess stepsize
 !     sval     - current solution
-!     xhat_y   - current solution y derivative
+!     xhat     - current solution
 !     dirx     - search direction for x
 !     diry     - search direction for y (B-1 dirx)
-!     mype     - pe number
 !     end_iter - end iteration flag
+!     dval
+!     sbias,dbias
 !
 !   output argument list:
-!     dirx     - search direction
-!     dirx_t   - t derivative of search direction for x
+!     xhat
 !     stpinout - final estimate of stepsize
 !     penalty  - penalty
 !     end_iter - end iteration flag false if stepsize successful
-!
+!     pjcost
 !
 ! remarks:
 !     The part of xhat and dirx containing temps and psfc are values before strong initialization,
@@ -183,14 +193,15 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use mpimod, only: mype
-  use constants, only:  zero,one_tenth,one,zero_quad
+  use constants, only:  zero,one_tenth,half,one,zero_quad
   use gsi_4dvar, only: nobs_bins, ltlint
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
        l_foto,xhat_dt,dhat_dt,nvals_len
-  use gridmod, only: latlon1n
+  use jcmod, only: ljcpdry
   use jcmod, only: ljcpdry
   use obsmod, only: yobs,nobs_type
   use stplimqmod, only: stplimq
+  use stpjcpdrymod, only: stpjcpdry
   use bias_predictors
   use control_vectors
   use state_vectors
@@ -218,7 +229,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   integer(i_kind),parameter:: ioutpen = istp_iter*4
 
 ! Declare local variables
-  integer(i_kind) i,j,mm1,ii,ibin,k
+  integer(i_kind) i,j,mm1,ii,ibin
   integer(i_kind) istp_use
   real(r_quad),dimension(6,ipen):: pbc
   real(r_quad),dimension(ipen):: bpen,cpen   
@@ -313,7 +324,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
     if(ii == 1)then
       sges(1)=zero
     else
-      sges(1)=0.5_r_kind*sges(2)
+      sges(1)=half*sges(2)
     end if
 
     do i=1,ipenlin
@@ -326,8 +337,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
     end do
 
 !   penalty, b, and c for moisture constraint
-    if(.not.ltlint) call stplimq(dval(1)%q,sval(1)%q,dval(1)%cw,sval(1)%cw,sges, &
-                                 pbc(1,4),pbc(1,5))
+    if(.not.ltlint) call stplimq(dval(1)%q,sval(1)%q,sges,pbc(1,4),pbc(1,5))
 
 !   stepsize and background for Jo
     do ibin=1,nobs_bins
@@ -410,7 +420,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         do i=3,ii*4
           stp(ii)=min(outstp(i),stp(ii))
         end do
-        stp(ii)=0.1_r_kind*stp(ii)
+        stp(ii)=one_tenth*stp(ii)
       end if
     end if
 

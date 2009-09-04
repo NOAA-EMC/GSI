@@ -40,9 +40,9 @@ subroutine read_files(mype)
   use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mpi_itype
   use guess_grids, only: nfldsig,nfldsfc,ntguessig,ntguessfc,&
        ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
-  use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen, nhr_assimilation
+  use gsi_4dvar, only: l4dvar, iwinbgn, winlen, nhr_assimilation
   use gridmod, only: ncep_sigio,nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs
-  use constants, only: izero,zero,one,r60inv
+  use constants, only: izero,zero,r60inv
   use obsmod, only: iadate
   use sfcio_module, only: sfcio_head,sfcio_sropen,&
        sfcio_sclose,sfcio_srhead
@@ -74,7 +74,7 @@ subroutine read_files(mype)
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),dimension(num_lpl):: lpl_dum
   real(r_single) hourg4
-  real(r_kind) hourg,temp,t4dv
+  real(r_kind) hourg,t4dv
   real(r_kind),allocatable,dimension(:,:):: time_atm
   real(r_kind),allocatable,dimension(:,:):: time_sfc
 

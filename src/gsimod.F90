@@ -12,7 +12,7 @@
 
 ! !USES:
 
-  use kinds, only: i_kind,r_kind
+  use kinds, only: i_kind
   use geos_pertmod, only: parallel_init
   use obsmod, only: dmesh,dval,dthin,dtype,dfile,dplat,dsfcalc,ndat,&
      init_obsmod_dflts,create_obsmod_vars,write_diag,oberrflg,&
@@ -35,7 +35,7 @@
                       conv_bias_ps,conv_bias_t,conv_bias_spd, &
                       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,diag_conv
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
-     oneobtest,magoberr,maginnov,init_oneobmod,oneobmakebufr,pctswitch
+     oneobtest,magoberr,maginnov,init_oneobmod,pctswitch
   use balmod, only: fstat
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,repe_gps,&
@@ -503,6 +503,8 @@
 !*************************************************************
 ! Begin gsi code
 !
+  implicit none
+
   call parallel_init
 
   call mpi_comm_size(mpi_comm_world,npe,ierror)
@@ -537,6 +539,7 @@
   call initialize_superob_radar
   call init_io(mype)
   call init_vtrans
+  call init_obsens
   preserve_restart_date=.false.
 
 
@@ -765,7 +768,7 @@
   call init_constants(regional)
   call init_reg_glob_ll(mype,lendian_in)
   call init_grid_vars(jcap,npe)
-  if (.not.regional) call init_spec_vars(nlat,nlon,nsig)
+  if (.not.regional) call init_spec_vars(nlat,nlon)
   call init_mpi_vars(nsig,mype,nsig1o)
   call create_obsmod_vars
 
@@ -791,6 +794,7 @@
 
 !---------------------------------------------------------------------------
  
+  implicit none
 ! Call the main gsi driver routine
   call gsisub(mype)
 
@@ -810,6 +814,7 @@
 
 !---------------------------------------------------------------------------
 
+  implicit none
 ! Deallocate arrays
   call clean_4dvar
   if (.not.regional) call destroy_spec_vars

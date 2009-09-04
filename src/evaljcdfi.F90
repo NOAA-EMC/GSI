@@ -1,14 +1,28 @@
 subroutine evaljcdfi(svalue,pjc,rvalue)
 
 !$$$  subprogram documentation block
-!
+!                .      .    .                                       .
 ! subprogram:    evaljcdfi    calculate Jc DFI terms and contribution to gradient
+!   prgmmr: tremolet
 !
 ! program history log:
 !   2007-10-18  tremolet - initial version
 !   2009-01-18  todling  - carry sommation in quad precision
+!   2009-08-14  lueken   - updte documentation
 !
-!$$$
+!   input argument list:
+!    svalue
+!    rvalue
+!
+!   output argument list:
+!    rvalue
+!    pjc
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero,one

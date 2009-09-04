@@ -1,8 +1,9 @@
 module stptmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stptmod    module for stpt and its tangent linear stpt_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stptmod    module for stpt and its tangent linear stpt_tl
+!  prgmmr:
 !
 ! abstract: module for stpt and its tangent linear stpt_tl
 !
@@ -10,8 +11,16 @@ module stptmod
 !   2005-05-19  Yanqiu zhu - wrap stpt and its tangent linear stpt_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stpt_tl
+!   2009-08-12  lueken - update documentation
 !
-
+! subroutines included:
+!   sub stpt
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 implicit none
 
 PRIVATE
@@ -50,6 +59,7 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges)
 !   2008-12-03  todling - changed handling of ptr%time
 !
 !   input argument list:
+!     thead
 !     rt       - search direction for sensible t
 !     st       - analysis increment for sensible t
 !     rtv      - search direction for virtual t
@@ -82,9 +92,9 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: t_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n,latlon11,latlon1n1
-  use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables

@@ -154,14 +154,12 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-    use kinds,only: r_kind,i_kind
-    use constants,only: zero,half,one,two,three,four,rd,rd_over_cp
-    use gridmod,only: lat2,lon2,nsig,tref5,idvc5,&
-         nlat,nlon,lat2,lon2,lat1,lon1,&
-         ltosi,ltosj,iglobal,itotsub,ijn,displs_g,nsig
-    use mpimod,only: npe,mpi_rtype,mpi_comm_world,ierror,strip,npe
+    use constants,only: zero,half,one,quarter,one_tenth
+    use gridmod,only: lat2,lon2,nsig,&
+         nlat,nlon,lat1,lon1,&
+         ltosi,ltosj,iglobal,ijn,displs_g
+    use mpimod,only: mpi_rtype,mpi_comm_world,ierror,strip
     use guess_grids, only: ges_tv,ges_ps,ntguessig
-    use module_pmat1, only: invh
     use m_dgeevx,only : dgeevx
     implicit none
 
@@ -189,7 +187,6 @@ contains
 
 
 !   Declare local parameters
-    real(r_kind),parameter:: p25=.25_r_kind,p1=.1_r_kind
     real(r_kind),parameter:: ten=10._r_kind
 
     allocate(hmatsave(nsig),smatsave(nsig),amatsave(nsig,nsig),bmatsave(nsig,nsig))
@@ -283,7 +280,7 @@ contains
     hmat=zero ; smat=zero ; amat=zero ; bmat=zero
 
 ! Get matrices for variable transforms/vertical modes
-    call get_semimp_mats(tbar,pbar,ahat,bhat,chat,amat,bmat,hmat,smat)
+    call get_semimp_mats(tbar,pbar,bhat,chat,amat,bmat,hmat,smat)
     hmatsave=hmat ; smatsave=smat ; amatsave=amat ; bmatsave=bmat
 
 !   qmat = hmat*smat + amat*bmat
@@ -306,7 +303,7 @@ contains
 ! checks and print out eigenvalues
 !
     do k=1,nsig
-      if(mype.eq.0) write(6,*)' c,eigenvalue(',k,') = ',(www(1,k)**2+www(2,k)**2)**p25,www(1,k),www(2,k)
+      if(mype.eq.0) write(6,*)' c,eigenvalue(',k,') = ',(www(1,k)**2+www(2,k)**2)**quarter,www(1,k),www(2,k)
     end do
 
     do k=1,nsig
@@ -316,9 +313,9 @@ contains
     do k=1,nsig
       if(k.le.nvmodes_keep) then
         depths(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**half
-        speeds(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**p25
+        speeds(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**quarter
       end if
-      if(mype.eq.0) write(6,*)' c,eigenvalue(',k,') = ',(wwwd(1,k)**2+wwwd(2,k)**2)**p25,wwwd(1,k),wwwd(2,k)
+      if(mype.eq.0) write(6,*)' c,eigenvalue(',k,') = ',(wwwd(1,k)**2+wwwd(2,k)**2)**quarter,wwwd(1,k),wwwd(2,k)
     end do
 
     do k=1,nsig
@@ -434,7 +431,7 @@ contains
         phihat2t(i,j)=sum
       end do
     end do
-    phihat2p=p1*phihat2p ! local units are mb, but gsi units are cb--fix later
+    phihat2p=one_tenth*phihat2p ! local units are mb, but gsi units are cb--fix later
 
 !      print out phihat2t
 
@@ -500,9 +497,8 @@ contains
 !     chat       -
 !
 !$$$ end documentation block
-    use kinds,only: r_kind,i_kind
-    use constants,only: zero,one_tenth
-    use gridmod,only: nsig,ak5,bk5,ck5,tref5
+    use constants,only: zero
+    use gridmod,only: nsig,ak5,bk5,ck5
     use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll
     implicit none
 
@@ -556,6 +552,7 @@ contains
 
     use gridmod,only: lat2,lon2,nsig
     use constants,only: zero
+    implicit none
 
     real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in):: uhat,vhat,phihat
     real(r_kind),dimension(lat2,lon2,nsig),intent(out):: u,v,t
@@ -611,6 +608,7 @@ contains
 !$$$ end documentation block
     use gridmod,only: lat2,lon2,nsig
     use constants,only: zero
+    implicit none
 
     real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(inout):: uhat,vhat,phihat
     real(r_kind),dimension(lat2,lon2,nsig),intent(in):: u,v,t
@@ -664,6 +662,7 @@ contains
 
     use gridmod,only: lat2,lon2,nsig
     use constants,only: zero
+    implicit none
 
     real(r_kind),dimension(lat2,lon2,nsig),intent(in):: u,v,t
     real(r_kind),dimension(lat2,lon2),intent(in):: p
@@ -740,8 +739,8 @@ contains
 !$$$ end documentation block
 
     use gridmod,only: lat2,lon2,nsig
-    use constants,only: zero
-
+    implicit none
+ 
     real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: u,v,t
     real(r_kind),dimension(lat2,lon2),intent(inout):: p
     real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in):: uhat,vhat,phihat
@@ -793,6 +792,7 @@ contains
 
     use gridmod,only: lat2,lon2,nsig
     use constants,only: zero
+    implicit none
 
     real(r_kind),dimension(lat2,lon2,nsig),intent(in):: xin,yin
     real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(out):: xhat,yhat
@@ -841,6 +841,7 @@ contains
 
     use gridmod,only: lat2,lon2,nsig
     use constants,only: zero
+    implicit none
 
     real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in):: xhat,yhat
     real(r_kind),dimension(lat2,lon2,nsig),intent(out):: xout,yout
@@ -889,7 +890,7 @@ contains
 !$$$ end documentation block
 
     use gridmod,only: lat2,lon2,nsig
-    use constants,only: zero
+    implicit none
 
     real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: x,y
     real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in):: xhat,yhat
@@ -936,7 +937,7 @@ contains
 !$$$ end documentation block
 
     use gridmod,only: lat2,lon2,nsig
-    use constants,only: zero
+    implicit none
 
     real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(inout):: xhat,yhat
     real(r_kind),dimension(lat2,lon2,nsig),intent(in):: xin,yin

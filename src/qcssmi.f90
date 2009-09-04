@@ -1,5 +1,5 @@
-subroutine qcssmi(nchanl,cenlat,cenlon,   &
-     sfchgt,luse,sea,land,ice,snow,mixed, &
+subroutine qcssmi(nchanl,   &
+     sfchgt,luse,sea,ice,snow,mixed, &
      ts,pems,ierrret,kraintype,tpwc,clw,sgagl,    &
      tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
      varinv,errf,aivals,id_qc )
@@ -32,7 +32,6 @@ subroutine qcssmi(nchanl,cenlat,cenlon,   &
 !     sfchgt  - surface height (not use now)
 !     luse    - logical use flag
 !     sea     - logical, sea flag
-!     land    - logical, land flag
 !     ice     - logical, ice flag
 !     snow    - logical, snow flag
 !     mixed   - logical, mixed zone flag
@@ -82,18 +81,16 @@ subroutine qcssmi(nchanl,cenlat,cenlon,   &
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: one,izero,zero,tiny_r_kind
-  use obsmod, only: iadate
+  use constants, only: half,one,izero,zero,tiny_r_kind,two
   implicit none
 
 
 ! Declare passed variables
   integer(i_kind),intent(in) :: nchanl
-  real(r_kind),intent(in):: cenlat,cenlon
   integer(i_kind),intent(in):: kraintype,ierrret
   integer(i_kind),dimension(nchanl),intent(inout):: id_qc
 
-  logical,intent(in):: sea,snow,land,ice,mixed,luse
+  logical,intent(in):: sea,snow,ice,mixed,luse
   logical,intent(in):: ssmi,amsre_low,amsre_mid,amsre_hig,ssmis
 
   real(r_kind),intent(in):: sfchgt,tpwc,clw,sgagl
@@ -145,7 +142,7 @@ subroutine qcssmi(nchanl,cenlat,cenlon,   &
                10.0_r_kind,10.0_r_kind, &
                10.0_r_kind,10.0_r_kind  /)
   end if
-  dtempf = 0.5_r_kind
+  dtempf = half
   demisf_mi(1:nchanl) = 0.01_r_kind
 
 ! Loop over observations.
@@ -283,48 +280,13 @@ subroutine qcssmi(nchanl,cenlat,cenlon,   &
   end if
 
   if(ssmis)then
-!
-! need to check seasonal dependence ( from Feb. 2007, these data would be flagged in bufrdata.)
-!
-!  ! inperfect data of UKMO SSMIS are removed
-!    if(cenlat < 45._r_kind .and. cenlat > 15._r_kind) then
-!
-!      if(iadate(4)==0 ) then
-!        if((cenlon>=  0._r_kind .and. cenlon<=  30._r_kind) .or. &
-!           (cenlon>=210._r_kind .and. cenlon<= 360._r_kind)) then
-!          varinv(1:7)=zero
-!          varinv(23:24)=zero
-!        end if
-!      else if(iadate(4)==6) then
-!        if((cenlon>=120._r_kind .and. cenlon<= 300._r_kind)) then
-!          varinv(1:7)=zero
-!          varinv(23:24)=zero
-!        end if
-!
-!      else if(iadate(4)==12) then
-!        if((cenlon>=30._r_kind .and. cenlon<= 210._r_kind)) then
-!          varinv(1:7)=zero
-!          varinv(23:24)=zero
-!        end if
-!
-!      else if(iadate(4)==18) then
-!        if((cenlon>=  0._r_kind .and. cenlon<= 120._r_kind) .or. &
-!           (cenlon>=300._r_kind .and. cenlon<= 360._r_kind)) then
-!          varinv(1:7)=zero
-!          varinv(23:24)=zero
-!        end if
-!
-!      end if
-!    end if
-
-
   ! scattering affected data removal
     pred9  =271.252327 + tb_ges(17)*(-0.485934) + tb_ges(8)*(0.473806)
     pred10 =272.280341 + tb_ges(17)*(-0.413688) + tb_ges(8)*(0.361549)
     pred11 =278.824902 + tb_ges(17)*(-0.400882) + tb_ges(8)*(0.270510)
-    if(tbcnob(9)+tb_ges(9)-pred9<-2.0_r_kind) varinv(9)=zero
-    if(tbcnob(10)+tb_ges(10)-pred10<-2.0_r_kind) varinv(10)=zero
-    if(tbcnob(11)+tb_ges(11)-pred11<-2.0_r_kind) varinv(11)=zero
+    if(tbcnob(9)+tb_ges(9)-pred9<-two) varinv(9)=zero
+    if(tbcnob(10)+tb_ges(10)-pred10<-two) varinv(10)=zero
+    if(tbcnob(11)+tb_ges(11)-pred11<-two) varinv(11)=zero
   end if
 
 

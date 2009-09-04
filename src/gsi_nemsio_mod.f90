@@ -1,4 +1,28 @@
 module gsi_nemsio_mod
+!$$$   module documentation block
+!             .      .    .                                       .
+! module:     gsi_nemsio_mod
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added module doc block
+!
+! subroutines included:
+!   sub gsi_nemsio_open
+!   sub gsi_nemsio_update
+!   sub gsi_nemsio_close
+!   sub gsi_nemsio_read
+!   sub gsi_nemsio_write
+!
+! variable definitions:
+!
+! attributes:
+!   langauge: f90
+!   machine:
+!
+!$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_single
   use nemsio_module, only: nemsio_gfile
@@ -13,8 +37,32 @@ module gsi_nemsio_mod
 contains
 
   subroutine gsi_nemsio_open(file_name,iostatus,message,mype,mype_io)
-
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_nemsio_open
+!   pgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    file_name
+!    iostatus
+!    message
+!    mype     - mpi task id
+!    mype_io
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use nemsio_module, only: nemsio_init,nemsio_open
+    implicit none
 
     character(*),intent(in):: file_name        !  input file name
     character(*),intent(in):: iostatus         !  'READ' for read only, 'rdwr' for read/write
@@ -40,11 +88,34 @@ contains
   end subroutine gsi_nemsio_open
 
   subroutine gsi_nemsio_update(file_name,message,mype,mype_io)
-
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_nemsio_update
+!   pgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    file_name
+!    message
+!    mype     - mpi task id
+!    mype_io
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use nemsio_module, only: nemsio_init,nemsio_open,nemsio_getfilehead,nemsio_close,nemsio_setheadvar
     use nemsio_module, only: nemsio_getheadvar
     use constants, only: zero
     use regional_io, only: preserve_restart_date
+    implicit none
 
     character(*),intent(in):: file_name        !  input file name
     character(*),intent(in):: message          !  info to appear in write statement on status of file open
@@ -141,7 +212,7 @@ contains
     end if
     
 
-!                        FOllowing is diagnostic to check if date updated:
+!                        Following is diagnostic to check if date updated:
 
       call nemsio_getfilehead(gfile,iret=iret,nrec=nrec,dimx=im,dimy=jm, &
         dimz=lm,idate=idate,gdatatype=gdatatype,gtype=gtype,modelname=modelname, &
@@ -179,8 +250,32 @@ contains
   end subroutine gsi_nemsio_update
 
   subroutine gsi_nemsio_close(file_name,message,mype,mype_io)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_nemsio_close
+!   pgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    file_name
+!    message
+!    mype     - mpi task id
+!    mype_io
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use nemsio_module, only: nemsio_close
+    implicit none
 
     character(*),intent(in):: file_name        !  input file name
     character(*),intent(in):: message          !  info to appear in write statement on status of file open
@@ -200,12 +295,37 @@ contains
   end subroutine gsi_nemsio_close
 
   subroutine gsi_nemsio_read(varname,vartype,gridtype,lev,var,mype,mype_io)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_nemsio_open
+!   pgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    varname,vartype,gridtype
+!    lev
+!    mype     - mpi task id
+!    mype_io
+!
+!   output argument list:
+!    var
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use mpimod, only:        mpi_rtype,mpi_comm_world,ierror
     use gridmod, only:       lat2,lon2,nlon,nlat
     use gridmod, only:       ijn_s,displs_s,itotsub,ltosi_s,ltosj_s
     use nemsio_module, only: nemsio_readrecv
     use mod_nmmb_to_a, only: nmmb_h_to_a,nmmb_v_to_a
+    implicit none
 
     character(*),intent(in):: varname,vartype,gridtype      ! gridtype='H' or 'V'
     integer(i_kind),intent(in):: lev              !   vertical level of desired variable
@@ -250,12 +370,38 @@ contains
   end subroutine gsi_nemsio_read
 
   subroutine gsi_nemsio_write(varname,vartype,gridtype,lev,var,mype,mype_io,add_saved)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_nemsio_write
+!   pgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    varname,vartype,gridtype
+!    lev
+!    add_saved
+!    mype     - mpi task id
+!    mype_io
+!
+!   output argument list:
+!    var
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use mpimod, only:        mpi_rtype,mpi_comm_world,ierror
     use gridmod, only:       lat2,lon2,nlon,nlat,lat1,lon1
     use gridmod, only:       ijn,displs_g,itotsub,iglobal,ltosi,ltosj
     use nemsio_module, only: nemsio_writerecv
     use mod_nmmb_to_a, only: nmmb_a_to_h,nmmb_a_to_v
+    implicit none
 
     character(*),intent(in):: varname,vartype,gridtype      ! gridtype='H' or 'V'
     integer(i_kind),intent(in):: lev              !   vertical level of desired variable

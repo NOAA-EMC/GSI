@@ -219,9 +219,9 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind,r_single
+    use kinds, only: r_single
     use mpimod, only: mype
-    use gridmod, only: istart,lat2,nlat,nlon,nsig
+    use gridmod, only: istart,lat2,nlat,nsig
     use constants, only: zero
     use m_berror_stats,only: berror_get_dims,berror_read_bal
     implicit none
@@ -310,7 +310,6 @@ contains
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !$$$
-    use kinds, only: r_kind,i_kind
     use gridmod, only: nsig,twodvar_regional
     use guess_grids, only: ges_prslavg,ges_psfcavg
     use constants, only: zero
@@ -324,7 +323,6 @@ contains
 
 !   Declare local variables
     integer(i_kind) k,i
-!   integer(i_kind) n,m
     integer(i_kind) j
     integer(i_kind) ke,inerr
     integer(i_kind) msig                   ! stats dimensions
@@ -460,7 +458,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind
     use constants, only: one,half
     use gridmod, only: regional,lat2,nsig,iglobal,itotsub,lon2
     implicit none
@@ -640,7 +637,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds,       only: r_kind,i_kind
     use constants,   only: one,half
     use gridmod,     only: itotsub,regional,iglobal,lon2,lat2,nsig
     implicit none
@@ -803,7 +799,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind,r_single
+    use kinds, only: r_single
     use gridmod, only: nlon,nlat,lat2,lon2,istart,jstart,region_lat
     use constants, only: deg2rad,one
     implicit none
@@ -932,10 +928,8 @@ subroutine strong_bk(st,vp,p,t)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use constants, only:  zero
-  use gridmod, only: latlon1n,latlon11,nnnn1o
+  use gridmod, only: latlon1n,latlon11
   use mod_vtrans,only: nvmodes_keep
   use mod_strong,only: nstrong
   implicit none
@@ -1000,10 +994,9 @@ subroutine strong_bk_ad(st,vp,p,t)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
   use mpimod, only: mype
   use constants, only: zero
-  use gridmod, only: latlon1n,latlon11,nnnn1o,latlon1n1
+  use gridmod, only: latlon1n,latlon11
   use mod_vtrans,only: nvmodes_keep
   use mod_strong,only: nstrong
   implicit none
@@ -1014,7 +1007,7 @@ subroutine strong_bk_ad(st,vp,p,t)
   real(r_kind),dimension(latlon1n),intent(inout):: t
 
 ! Declare local variables  	
-  integer(i_kind) i,k
+  integer(i_kind) i
   real(r_kind),dimension(latlon1n):: u_t,v_t,t_t
   real(r_kind),dimension(latlon11):: ps_t
   integer(i_kind) istrong

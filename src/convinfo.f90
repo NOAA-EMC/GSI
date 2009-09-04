@@ -74,8 +74,6 @@ module convinfo
 			       stndev_conv_ps,stndev_conv_t,stndev_conv_spd
 
 
-  real(r_kind),allocatable,dimension(:,:):: zbias     ! raob solar zenith angle dependent bias
-
   logical,save :: convinfo_initialized=.false.
 
 contains
@@ -151,8 +149,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use kinds, only: r_kind,i_kind
-    use constants, only: zero, izero, one
+    use constants, only: izero
     implicit none
     
     integer(i_kind),intent(in) ::mype
@@ -357,7 +354,7 @@ contains
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-
+                implicit none
 		integer (i_kind) nc,np
 		do nc=1,nconvtype
 			if (trim(ioctype(nc)) == 'ps') then
@@ -396,7 +393,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-
+    implicit none
     integer(i_kind) ier
 
     if(.not.convinfo_initialized) return

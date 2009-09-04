@@ -1,23 +1,33 @@
 subroutine evaljo(pjo,kobs,kprt,louter)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    evaljo
+!   prgmmr: tremolet
+!
 ! abstract: Computes and prints Jo components
 !
 ! program history log:
 !   2007-03-01  tremolet
 !   2009-01-15  todling  - quad precision for reproducibility
+!   2009-08-14  lueken   - update documentation
 !
 !   input argument list:
 !     kprt - print level
+!     louter
 !
 !   output argument list:
 !     kobs - Number of obs used in evaluating Jo
 !     pjo  - Jo value
 !
-
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: nobs_type,cobstype,obsdiags,obsptr,obscounts
   use gsi_4dvar, only: nobs_bins
-  use constants, only: zero,half,one,two,zero_quad
+  use constants, only: zero_quad
   use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_integer,mype
   use jfunc, only: jiter
   use mpl_allreducemod, only: mpl_allreduce
@@ -31,7 +41,7 @@ subroutine evaljo(pjo,kobs,kprt,louter)
   logical, intent(in) :: louter
 
 ! Declare local variables
-  integer(i_kind) :: ii,jj,kk,ij,ioff,ilen
+  integer(i_kind) :: ii,jj,ij,ilen
   integer(i_kind) :: iobs(nobs_type)
   real(r_quad)    :: zjo,zz
   real(r_kind)    :: zdep

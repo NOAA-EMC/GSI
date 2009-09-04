@@ -1,8 +1,9 @@
 module stpspdmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stpspdmod    module for stpspd and its tangent linear stpspd_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stpspdmod    module for stpspd and its tangent linear stpspd_tl
+!  prgmmr:
 !
 ! abstract: module for stpspd and its tangent linear stpspd_tl
 !
@@ -10,7 +11,16 @@ module stpspdmod
 !   2005-05-20  Yanqiu zhu - wrap stpspd and its tangent linear stpspd_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stpspd_tl
+!   2009-08-12  lueken - update documentation
 !
+! subroutine included:
+!   sub stpspd
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -48,6 +58,7 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges)
 !   2009-01-19  todling - re-implement Tremolet's linearization for q1fy10
 !
 !   input argument list:
+!     spdhead
 !     ru       - search direction for u
 !     rv       - search direction for v
 !     su       - analysis increment for u
@@ -87,8 +98,8 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges)
   real(r_kind) w1,w2,w3,w4,time_spd
   real(r_kind) valu,valv,ucur,vcur,spdnl,spdtl
   real(r_kind) pen(3),pentl(3),spd(0:3),uu(0:3),vv(0:3)
-  real(r_kind) pen1tl,pen2tl,pen3tl,penctl,cctl
-  real(r_kind) cg_spd,pen1,pen2,pen3,pencur,wgross,wnotgross
+  real(r_kind) cctl
+  real(r_kind) cg_spd,pencur,wgross,wnotgross
   real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,pg_spd
   type(spd_ob_type), pointer :: spdptr
 

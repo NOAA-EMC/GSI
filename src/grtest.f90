@@ -24,7 +24,7 @@ subroutine grtest(xhat,pdx,itertest)
 !-----------------------------------------------------------------------------
 
 use kinds, only: i_kind, r_kind, r_quad
-use constants, only: zero_quad
+use constants, only: zero_quad, one_quad
 use mpimod, only: mype
 use control_vectors
 
@@ -36,15 +36,14 @@ integer(i_kind),intent(in) :: itertest
 
 ! Local variables
 real(r_quad), parameter :: half_quad=0.5_r_quad
-real(r_quad), parameter ::  one_quad=1.0_r_quad
 real(r_quad), parameter ::  two_quad=2.0_r_quad
 type(control_vector) :: xdir,yhat,grad
 real(r_quad) :: zabuf(itertest),zfabuf(itertest)
 real(r_quad) :: zfy,zf0,zdf0,za,zfa,zdfa
-real(r_quad) :: ZTC0,ZT1,ZB,ZFB,ztco,ZTC1,ZT2,ZTC1A,ZTC2,ZTF2
+real(r_quad) :: ZT1,ZB,ZFB,ztco,ZTC1,ZT2,ZTC1A,ZTC2,ZTF2
 real(r_quad) :: ZAL,ZFAL,ZBL,ZFBL,ZTF2L
 real(r_quad) :: ZTC00,ZTC02,ZTC10,ZTC12
-real(r_quad) :: ZERMIN,ZT1TST,ZT2SMA,ZREF
+real(r_quad) :: ZERMIN,ZT1TST,ZREF
 integer(i_kind) :: ibest,idig,jj,nprt,ii
 logical :: lsavinc
 

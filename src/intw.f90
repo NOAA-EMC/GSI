@@ -1,8 +1,9 @@
 module intwmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intwmod    module for intw and its tangent linear intw_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intwmod    module for intw and its tangent linear intw_tl
+!  prgmmr:
 !
 ! abstract: module for intw and its tangent linear intw_tl
 !
@@ -10,7 +11,18 @@ module intwmod
 !   2005-05-16  Yanqiu zhu - wrap intw and its tangent linear intw_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intw_tl; add interface back
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intw_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -56,9 +68,10 @@ subroutine intw_(whead,ru,rv,su,sv)
 !     whead    - obs type pointer to obs structure
 !     su       - u increment in grid space
 !     sv       - v increment in grid space
+!     ru
+!     rv
 !
 !   output argument list:
-!     whead    - obs type pointer to obs structure
 !     ru       - u results from observation operator 
 !     rv       - v results from observation operator 
 !
@@ -68,11 +81,11 @@ subroutine intw_(whead,ru,rv,su,sv)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,tiny_r_kind,cg_term,r3600
   use obsmod, only: w_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
-  use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables

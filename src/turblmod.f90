@@ -1,7 +1,8 @@
 module turblmod
 !$$$   module documentation block
-!                .      .    .
-! module:   turblmod
+!             .      .    .
+! module:     turblmod
+!  prgmmr:
 !
 ! abstract:
 !
@@ -22,7 +23,7 @@ module turblmod
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nsig,nsig_hlf
+  use gridmod, only: lat2,lon2,nsig_hlf
   use constants, only: one
   implicit none
 

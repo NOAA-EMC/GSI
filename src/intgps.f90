@@ -1,8 +1,9 @@
 module intgpsmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intrefmod    module for intref and its tangent linear intref_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intrefmod    module for intref and its tangent linear intref_tl
+!  prgmmr:
 !
 ! abstract: module for intref and its tangent linear intref_tl
 !
@@ -10,8 +11,18 @@ module intgpsmod
 !   2005-05-13  Yanqiu zhu - wrap intref and its tangent linear intref_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-28  Todling - add interface back
+!   2009-08-13  lueken - update documentation
 !
-
+! subroutines included:
+!   sub intgps_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 implicit none
 
 PRIVATE
@@ -83,9 +94,6 @@ subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
-
-! Declare local parameters
-  real(r_kind),parameter:: ten = 10.0_r_kind
 
 ! Declare passed variables
   type(gps_ob_type),pointer,intent(in):: gpshead

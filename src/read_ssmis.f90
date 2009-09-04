@@ -77,8 +77,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   use radinfo, only: iuse_rad,jpch_rad,nusis
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
        tll2xy,txy2ll
-  use constants, only: deg2rad,rad2deg,zero,half,two,izero,r60inv
-  use gsi_4dvar, only: l4dvar, idmodel, iwinbgn, winlen
+  use constants, only: deg2rad,rad2deg,zero,half,one,two,four,r60inv
+  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_conical, only: instrument_init
   
   implicit none
@@ -114,19 +114,17 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Declare local variables
   logical :: ssmis_las,ssmis_uas,ssmis_img,ssmis_env
   logical :: outside,iuse,assim
-  character(len=10) :: date
   character(len=8)  :: subset,subfgn
-  integer(i_kind) :: ihh,i,k,ifov,ifovoff,idd,ntest
-  integer(i_kind) :: iret,nlv,idate,im,iy,nchanl,nreal
+  integer(i_kind) :: i,k,ifov,ifovoff,ntest
+  integer(i_kind) :: nlv,idate,nchanl,nreal
   integer(i_kind) :: n,ireadsb,ireadmg,irec,isub,next
-  integer(i_kind) :: nmind,itx,nele,itt,iout
+  integer(i_kind) :: nmind,itx,nele,itt
   integer(i_kind) :: iskip
   integer(i_kind) :: lnbufr,isflg,idomsfc
   integer(i_kind) :: ilat,ilon
   integer(i_kind) :: nscan,jc,bufsat,incangl,said
   integer(i_kind) :: nfov_bad
   integer(i_kind) :: ichan, instr
-  integer(i_kind) :: file_handle,ierror,nblocks
   integer(i_kind) isflg_1,isflg_2,isflg_3,isflg_4
   integer(i_kind),dimension(5):: iobsdate
   real(r_kind) sfcr,r07
@@ -165,7 +163,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !----------------------------------------------------------------------
 ! Initialize variables
   lnbufr = 15
-  disterrmax=0._r_kind
+  disterrmax=zero
   ntest  = 0
   nreal  = maxinfo
   nchanl = maxchanl
@@ -216,7 +214,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !     subfgn = 'NC021201'
      subfgn = 'NC021203'
      incangl = 53.0_r_kind
-     rlndsea(0) = 0._r_kind
+     rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
      rlndsea(2) = 10._r_kind
      rlndsea(3) = 15._r_kind
@@ -230,7 +228,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      kchssmis(1:5)=(/12,13,14,15,16/)
      subfgn = 'NC021202'
      incangl = 53.1_r_kind
-     rlndsea(0) = 0._r_kind
+     rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
      rlndsea(2) = 10._r_kind
      rlndsea(3) = 15._r_kind
@@ -247,7 +245,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      kchssmis(1:24)=(/1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24/)
      subfgn = 'NC021201'
      incangl = 53.0_r_kind
-     rlndsea(0) = 0._r_kind
+     rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
      rlndsea(2) = 10._r_kind
      rlndsea(3) = 15._r_kind
@@ -261,7 +259,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      kchssmis(1:5)=(/19,20,21,22,23/)
      subfgn = 'NC021204'
      incangl = 52.4_r_kind
-     rlndsea(0) = 0._r_kind
+     rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
      rlndsea(2) = 10._r_kind
      rlndsea(3) = 15._r_kind
@@ -319,7 +317,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
            cycle read_loop
         end if
 
-        if( bufrinit(6) ==1.0_r_kind) cycle read_loop
+        if( bufrinit(6) == one) cycle read_loop
 
 
 !       SSMIS imager has 180 scan positions.  Select every other position.
@@ -522,7 +520,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
-  call combine_radobs(mype,mype_sub,mype_root,npe_sub,mpi_comm_sub,&
+  call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
 
 
@@ -540,7 +538,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         end do
         itt=nint(data_all(nreal,n))
         super_val(itt)=super_val(itt)+val_ssmis
-
 
      end do
 

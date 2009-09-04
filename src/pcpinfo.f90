@@ -361,6 +361,8 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
+     implicit none
+
      deallocate(xkt2d)
      return
   end subroutine destroy_pcp_random

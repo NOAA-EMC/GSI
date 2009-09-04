@@ -24,11 +24,10 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use constants, only: grav_ratio,flattening,grav,zero,rad2deg,deg2rad, &
        grav_equator,one,two,somigliana,semi_major_axis,eccentricity,r1000,&
        wgtlim
-  use constants, only: tiny_r_kind,one_tenth,half,cg_term,huge_single
+  use constants, only: tiny_r_kind,half,cg_term,huge_single
 
   use obsmod, only: rmiss_single,dwtail,dwhead,i_dw_ob_type,obsdiags,&
-                    lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,&
-                    time_offset
+                    lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
   use jfunc, only: last, jiter, miter

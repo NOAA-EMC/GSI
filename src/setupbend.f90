@@ -68,16 +68,16 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_single,r_double
+  use kinds, only: r_kind,i_kind,r_single
   use obsmod, only: gpshead,nprof_gps,grids_dim,gpstail,lobsdiag_allocated,&
        gps_allhead,gps_alltail,i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,&
        time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,nfldsig,&
-       ntguessig,ges_z,ges_tv,ges_q
+       ges_z,ges_tv,ges_q
   use gridmod, only: lat2,lon2,nsig
   use gridmod, only: get_ij,latlon11
-  use constants, only: fv,n_a,n_b,deg2rad,tiny_r_kind,huge_single
+  use constants, only: fv,n_a,n_b,deg2rad,tiny_r_kind,huge_single,half
   use constants, only: zero,half,one,two,eccentricity,semi_major_axis,&
        grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,three,four,five
   use qcmod, only: repe_gps
@@ -110,7 +110,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub)
 ! Declare local variables
 
   real(r_kind),dimension(grids_dim,nobs) :: dbend_loc,xj
-  real(r_kind),dimension(grids_dim):: dnj, ddnj,grid_s,ref_rad_s
+  real(r_kind),dimension(grids_dim):: ddnj,grid_s,ref_rad_s
 
   real(r_kind) rsig,rsig_up,ddbend,tmean,qmean
   real(r_kind) sin2,termg,termr,termrg,hob
@@ -304,7 +304,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub)
       if(gps2work(1,i) < eight)then
          repe_gps=0.9_r_kind
       else
-         repe_gps=0.5_r_kind
+         repe_gps=half
       endif
     end if
 
@@ -407,9 +407,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub)
              dw4(1)=dw4(1)+dw4(4); dw4(2:4)=dw4(1:3);dw4(1)=zero
              ihob=ihob-1
           endif
-!         dnj(j)=dot_product(w4,nrefges(ihob-1:ihob+2,i))  !refractivity N_j
           ddnj(j)=dot_product(dw4,nrefges(ihob-1:ihob+2,i))!derivative (dN/dx)_j
-!         dnj(j)=max(zero,abs(dnj(j)))
           ddnj(j)=max(zero,abs(ddnj(j)))
         else
           write(6,*) 'GPS obs outside integration grid','obs=',i

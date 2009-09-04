@@ -15,6 +15,7 @@ subroutine q_diag(mype)
 !   2009-04-21  derber  - fix ierror error
 !
 !   input argument list:
+!    mype       - mpi task id
 ! 
 !   output argument list
 !

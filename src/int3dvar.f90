@@ -70,7 +70,7 @@ subroutine int3dvar(rval,rval_dt)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
   use mpimod, only: mype
   use jfunc, only: l_foto
   use gridmod, only: nnnn1o
@@ -80,9 +80,6 @@ subroutine int3dvar(rval,rval_dt)
 ! Declare passed variables  
   type(state_vector),intent(inout):: rval
   type(state_vector),intent(inout):: rval_dt
-
-! Declare local variables  	
-  integer(i_kind) i,k
 
 !******************************************************************************
 

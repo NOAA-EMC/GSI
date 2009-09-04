@@ -27,8 +27,8 @@ subroutine tv_to_tsen(tv,q,tsen)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,twodvar_regional
-  use constants, only: zero,fv,one
-  use guess_grids, only: ges_tv,ges_q,ges_tsen,fact_tv,ntguessig
+  use constants, only: fv
+  use guess_grids, only: ges_tsen,fact_tv,ntguessig
   use jfunc, only: tsensible
 
   implicit none
@@ -92,8 +92,8 @@ subroutine tv_to_tsen_ad(tv,q,tsen)
 
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,twodvar_regional
-  use constants, only: zero,fv,one
-  use guess_grids, only: ges_q,ges_tsen,fact_tv,ntguessig
+  use constants, only: fv
+  use guess_grids, only: ges_tsen,fact_tv,ntguessig
   use jfunc, only: tsensible
 
   implicit none

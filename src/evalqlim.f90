@@ -1,20 +1,31 @@
 subroutine evalqlim(sq,pbc,rq)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    evalqlim
+!   prgmmr: tremolet
+!
 ! abstract: Computes Jq component
 !
 ! program history log:
 !   2007-03-01  tremolet
 !   2008-12-8   todling - updated to GSI-May08
 !   2009-01-15  todling - carry summation in quadruple precision
+!   2009-08-14  lueken  - update documentation
 !
 !   input argument list:
-!     kprt - print level
+!    sq
+!    rq
+!    pbc
 !
 !   output argument list:
-!     kobs - Number of obs used in evaluating Jo
-!     pjo  - Jo value
+!    rq
+!    pbc
 !
-
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: zero,one,zero_quad
   use gridmod, only: lat1,lon1,lat2,lon2,nsig

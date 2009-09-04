@@ -1,4 +1,3 @@
-
       subroutine looplimits(taskid, ntasks, lb, ub, i1, i2)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -15,8 +14,10 @@
 !   2008-05-29  safford -- add subprogram doc block
 !
 !   input argument list:
+!    taskid, ntasks, lb, ub
 !
 !   output argument list:
+!    i1, i2
 !
 ! attributes:
 !   language:  f90
@@ -26,7 +27,9 @@
 
       use kinds, only: i_kind
       implicit none
-      integer(i_kind) taskid, ntasks, lb, ub, i1, i2
+      integer(i_kind),intent(in) :: taskid, ntasks, lb, ub
+      integer(i_kind),intent(out):: i1, i2
+
       integer(i_kind) chunk, nwork, nt1, nt2
       integer(i_kind) itask, netdisp
       integer(i_kind) counts(ntasks), displacements(ntasks)

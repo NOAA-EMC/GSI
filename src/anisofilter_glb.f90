@@ -109,7 +109,7 @@ module anisofilter_glb
                     strip,strip_single
 
   use anisofilter, only: lreadnorm, &
-                         zero_25,zero_3,r400000,r800000,r25,r015,r100, &
+                         zero_3,r400000,r800000,r25,r015,r100, &
                          qlth_temp0, qltv_temp0, qlth_wind0, qltv_wind0, &
                          scalex1, scalex2, scalex3, &
                          stpcode_alloc,   stpcode_namelist, &

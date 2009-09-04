@@ -1,8 +1,9 @@
 module stplimqmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stplimqmod    module for stplimq and its tangent linear stplimq_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stplimqmod    module for stplimq and its tangent linear stplimq_tl
+!  pgrmmr:
 !
 ! abstract: module for stplimq and its tangent linear stplimq_tl
 !
@@ -11,7 +12,17 @@ module stplimqmod
 !   2005-11-16  Derber - remove interfaces
 !   2005-11-22  Wu - return in factq's are zero
 !   2008-12-02  Todling - remove stpqlimq_tl
+!   2009-08-12  lueken - update documentation
 !
+! subroutines included:
+!   sub stplimq
+!   sub stplimq_
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -20,7 +31,7 @@ PUBLIC stplimq
 
 contains
  
-subroutine stplimq(rq,sq,rc,sc,sges,outmin,outmax)
+subroutine stplimq(rq,sq,sges,outmin,outmax)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stplimq     calculate penalty and stepsize for limit of q 
@@ -30,22 +41,34 @@ subroutine stplimq(rq,sq,rc,sc,sges,outmin,outmax)
 !
 ! program history log:
 !   2008-12-02  todling - adapted interface for state vector convenience
+!   2009-08-12  lueken  - update documentation
+!
+!   input argument list:
+!    sges
+!    rq,sq
+!
+!   output argument list:
+!    outmin,outmax
+!
+! attributes:
+!   language: f90
+!   machine:
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_quad
+  use kinds, only: r_kind,r_quad
   use gridmod, only: lat2,lon2,nsig
   implicit none
 
 ! Declare passed variables
   real(r_kind),dimension(4),intent(in):: sges
   real(r_quad),dimension(6),intent(out):: outmin,outmax
-  real(r_kind),dimension(lat2*lon2*nsig),intent(in):: rq,sq,rc,sc
+  real(r_kind),dimension(lat2*lon2*nsig),intent(in):: rq,sq
 
-  call stplimq_(rq,sq,rc,sc,sges,outmin,outmax)
+  call stplimq_(rq,sq,sges,outmin,outmax)
 
 end subroutine stplimq
  
-subroutine stplimq_(rq,sq,rc,sc,sges,outmin,outmax)
+subroutine stplimq_(rq,sq,sges,outmin,outmax)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stplimq     calculate penalty and stepsize for limit of q 
@@ -100,7 +123,7 @@ subroutine stplimq_(rq,sq,rc,sc,sges,outmin,outmax)
   real(r_kind),dimension(4),intent(in):: sges
   real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
   real(r_quad),dimension(6),intent(out):: outmin,outmax
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: rq,sq,rc,sc
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: rq,sq
 
 ! Declare local variables
   integer(i_kind) i,j,k

@@ -1,3 +1,38 @@
+module intjcpdrymod
+
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intjcpdrymod    module for intlimq and its tangent linear intlimq_tl
+!  prgmmr:
+!
+! abstract: module for intlimq and its tangent linear intlimq_tl
+!
+! program history log:
+!   2005-05-11  Yanqiu zhu - wrap intlimq and its tangent linear intlimq_tl into one module
+!   2005-11-16  Derber - remove interfaces
+!   2005-11-22  Wu - return if factq's = zero
+!   2008-11-26  Todling - remove intlimq_tl
+!   2009-08-13  lueken - update documentation
+!
+! subroutines included:
+!   sub intjcpdry
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+implicit none
+
+PRIVATE
+PUBLIC intjcpdry
+
+
+contains
+
  subroutine intjcpdry(rq,rc,rp,sq,sc,sp,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -29,8 +64,8 @@
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,two,one,half,grav
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use constants, only: zero
+  use gridmod, only: lat2,lon2,nsig
   use guess_grids, only: ges_prsi,ntguessig
   use jcmod, only: bamp_jcpdry
   implicit none
@@ -84,3 +119,5 @@
 
   return
 end subroutine intjcpdry
+
+end module intjcpdrymod

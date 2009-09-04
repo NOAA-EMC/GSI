@@ -1,19 +1,31 @@
 subroutine init_jcdfi
 
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_jcdfi
+!   prgmmr: tremolet
 !
 ! abstract: Setup weights for Dolph-Chebyshev window digital filter
 !
 ! program history log:
 !   2007-10-18  tremolet - initial code
+!   2009-08-17  lueken   - update documentation
 !
-!$$$
+!   input argument list:
+!
+!   output argument list:
+!
+! attrbiutes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 !----------------------------------------------------------------------
 
 use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nobs_bins, hr_obsbin
-use constants, only: zero, one, two, pi
+use constants, only: zero, one, two, pi,r3600
 use mpimod, only: mype
 use jcmod, only: wgtdfi
 
@@ -23,7 +35,6 @@ real(r_kind) :: tauc,rtdfi
 real(r_kind) :: zx(0:nobs_bins),zp(0:nobs_bins)
 real(r_kind) :: zd,zh,zl,zn,zr,zs,zt
 integer(i_kind) :: nstdfi,jj,jn
-real(r_kind), parameter :: R3600 = 3600.0_r_kind
 
 !----------------------------------------------------------------------
 
@@ -102,12 +113,32 @@ end if
 contains
 !----------------------------------------------------------------------
 real(r_kind) function fcheby(px,kn)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    fcheby
+!   pgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    kn
+!    px
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 integer(i_kind), intent(in) :: kn
 real(r_kind), intent(in) :: px
 
-integer(i_kind) :: jj,jn
 real(r_kind) :: z0,z1,z2
 
 jn=ABS(kn)

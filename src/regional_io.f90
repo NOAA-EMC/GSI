@@ -54,6 +54,7 @@ contains
 !      mype - mpi task id
 !
 !   output argument list:
+!      ctph0,stph0,tlm0
 !
 ! attributes:
 !   language: f90

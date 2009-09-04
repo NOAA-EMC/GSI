@@ -1,8 +1,9 @@
 module inttmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    inttmod    module for intt and its tangent linear intt_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   inttmod    module for intt and its tangent linear intt_tl
+!  prgmmr:
 !
 ! abstract: module for intt and its tangent linear intt_tl
 !
@@ -10,7 +11,18 @@ module inttmod
 !   2005-05-12  Yanqiu zhu - wrap intt and its tangent linear intt_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intt_tl; add interface back
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intt_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -65,14 +77,15 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
 !     sv       - v increment in grid space
 !     sp       - surface pressure increment in grid space
 !     ssst     - sst increment in grid space
-!     dst      - time derivative of sensible temperature increment in grid space
-!     dsq      - time derivative of moisture increment in grid space
-!     dsu      - time derivative of u increment in grid space
-!     dsv      - time derivative of v increment in grid space
-!     dsp      - time derivative of surface pressure increment in grid space
+!     rt
+!     rtv
+!     rq
+!     ru
+!     rv
+!     rp
+!     rsst
 !
 !   output argument list:
-!     thead    - obs type pointer to obs structure
 !     rt       - sensible temperature results from observation operator
 !     rtv      - virtual temperature results from observation operator
 !     rq       - moisture results from observation operator
@@ -87,11 +100,11 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,two,zero,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
   use obsmod, only: t_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n,latlon11,latlon1n1
-  use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
   
 

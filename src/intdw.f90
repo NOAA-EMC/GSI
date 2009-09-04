@@ -1,8 +1,9 @@
 module intdwmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intdwmod    module for intdw and its tangent linear intdw_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intdwmod    module for intdw and its tangent linear intdw_tl
+!  prgmmr:
 !
 ! abstract: module for intdw and its tangent linear intdw_tl
 !
@@ -10,7 +11,18 @@ module intdwmod
 !   2005-05-12  Yanqiu zhu - wrap intdw and its tangent linear intdw_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intdw_tl
+!   2009-08-13  lueken - updated documentation
 !
+! subroutines included:
+!   sub intdw_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -68,7 +80,7 @@ subroutine intdw_(dwhead,ru,rv,su,sv)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,tiny_r_kind,cg_term,r3600
   use obsmod, only: dw_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n

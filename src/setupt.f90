@@ -13,7 +13,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use obsmod, only: ttail,thead,sfcmodel,rmiss_single,perturb_obs,oberror_tune,&
+  use obsmod, only: ttail,thead,sfcmodel,perturb_obs,oberror_tune,&
        i_t_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
@@ -23,15 +23,15 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use oneobmod, only: maginnov
   use oneobmod, only: magoberr
 
-  use gridmod, only: lat2, lon2, nsig,rlats,rlons,nlat,nlon,twodvar_regional,regional
+  use gridmod, only: nsig,twodvar_regional,regional
   use gridmod, only: get_ijk
-  use jfunc, only: jiter,first,last,jiterstart,miter
+  use jfunc, only: jiter,last,jiterstart,miter
 
   use guess_grids, only: nfldsig, hrdifsig,ges_ps,ges_lnprsl,ges_tv,ges_q,&
-       ntguessig,ges_u,ges_v,geop_hgtl,ges_tsen,pt_ll
+       ges_u,ges_v,geop_hgtl,ges_tsen,pt_ll
 
-  use constants, only: zero, one, fv, rad2deg,four,t0c,rd_over_cp,ione
-  use constants, only: tiny_r_kind,half,two,one_tenth,cg_term,huge_r_kind
+  use constants, only: zero, one, four,t0c,rd_over_cp,ione
+  use constants, only: tiny_r_kind,half,two,cg_term
   use constants, only: huge_single,r1000,wgtlim,izero
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
   use converr, only: ptabl 
@@ -310,15 +310,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !    Put obs pressure in correct units to get grid coord. number
      call grdcrd(dpres,1,prsltmp(1),nsig,-1)
 
-! Convert dry (sensible) temperature to virtual temperature
-!    tvirt=tob
-!    if(.not. iqtflg) then
-!       call tintrp3(ges_q,qtges,dlat,dlon,dpres,dtime, &
-!            hrdifsig,1,mype,nfldsig)
-!       tvirt=tvirt*(one+fv*qtges)
-!    end if
-!    iqtflg=.true.
-     
 ! Implementation of forward model ----------
 
      if(sfctype.and.sfcmodel) then

@@ -298,7 +298,7 @@ subroutine sptez_v(waved,wavez,gridu,gridv,idir)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use specmod, only: nc,ijmax,imax,jmax
+  use specmod, only: nc,ijmax
   use constants, only: zero
   implicit none
 
@@ -604,7 +604,7 @@ end subroutine sptranf_s_bkg
 
 subroutine sptez_v_bkg(waved,wavez,gridu,gridv,idir)
   use kinds, only: r_kind,i_kind
-  use specmod, only: nc_b,ijmax,imax,jmax
+  use specmod, only: nc_b,ijmax
   use constants, only: zero
   implicit none
 

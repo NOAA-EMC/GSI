@@ -57,7 +57,7 @@ subroutine prewgt_reg(mype)
   use jfunc, only: qoption,varq          
   use gridmod, only: lon2,nsig,nnnn1o,&
        region_dx,region_dy
-  use constants, only: izero,zero,half,one,two,four
+  use constants, only: zero,half,one,two,four
   use guess_grids, only: ges_prslavg,ges_psfcavg
 
   implicit none
@@ -72,7 +72,7 @@ subroutine prewgt_reg(mype)
   real(r_kind),parameter:: r400000      = 400000.0_r_kind
   real(r_kind),parameter:: r800000      = 800000.0_r_kind
 ! real(r_kind),parameter:: r1000        = 1000.0_r_kind
-  real(r_kind),parameter:: r25          = 1.0_r_kind/25.0_r_kind
+  real(r_kind),parameter:: r25          = one/25.0_r_kind
   real(r_kind),parameter:: r015         = 0.15_r_kind
 
 
@@ -87,7 +87,7 @@ subroutine prewgt_reg(mype)
   real(r_kind) samp2,dl1,dl2
   real(r_kind) samp,hwl
   real(r_kind),dimension(nsig):: rate,dlsig,rlsig
-  real(r_kind),dimension(nsig,nsig):: turn, vv
+  real(r_kind),dimension(nsig,nsig):: turn
   real(r_kind),dimension(ny,nx)::sl
   real(r_kind) fact,factoz,psfc015
 
@@ -162,22 +162,6 @@ subroutine prewgt_reg(mype)
 
   call rfdpar1(be,rate,ndeg)
   call rfdpar2(be,rate,turn,samp,ndeg)
-
-! NOTE:  no ozone in the regional mode
-! Set ozone vertical scale
-!  scalv=0.8
-!  call rfdparv(scalv,rate,alv1,nsig,ndeg)
-!  dssv1=sqrt(samp*scalv)
-!
-!  vv=zero
-!  do k=1,nsig
-!     vv(k,k)=one
-!  enddo
-!  call smoothzo(vv,nsig,nsig ,ndeg,alv1,be,dssv1,2)
-!  call smoothzo(vv,nsig,nsig ,ndeg,alv1,be,dssv1,1)
-!  do k=1,nsig
-!     dssv1(k)=dssv1(k)/sqrt(vv(k,k))
-!  enddo
 
   if(qoption==2)then
      do k=1,nsig

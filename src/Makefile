@@ -171,7 +171,7 @@ clean:
 	@echo
 	@echo '==== CLEAN ==================================================='
 	- $(RM) $(EXE_FILE) *.o *.mod *.MOD *.lst *.a *.x
-	- $(RM) loadmap.txt log.make.gsi_anl
+	- $(RM) loadmap.txt log.make.$(EXE_FILE)
 	- $(MAKE) doclean
 
 

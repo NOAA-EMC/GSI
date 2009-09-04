@@ -1,5 +1,8 @@
 subroutine setupyobs()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    setupyobs
+!   prgmmr:      tremolet
 !
 ! abstract:  Setup observation vectors (ie the "y" the in "H(x)-y" )
 !            In 3D-Var, it contains all observations, in 4D-Var, each
@@ -9,8 +12,17 @@ subroutine setupyobs()
 !   2007-04-17  tremolet - initial code
 !   2009-01-08  todling  - remove reference to ozohead
 !   2009-03-05  meunier  - add pointer to lagrangean data
+!   2009-08-11  lueken   - updated documentation
 !
-!$$$
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 use kinds, only: i_kind
 use obsmod, only: pshead, thead, whead, qhead, spdhead, srwhead, rwhead, &
                 & dwhead, ssthead, radhead, pcphead, pwhead, gpshead, &

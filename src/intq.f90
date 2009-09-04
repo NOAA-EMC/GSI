@@ -1,8 +1,9 @@
 module intqmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intqmod    module for intq and its tangent linear intq_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   intqmod    module for intq and its tangent linear intq_tl
+!  prgmmr:
 !
 ! abstract: module for intq and its tangent linear intq_tl
 !
@@ -10,7 +11,18 @@ module intqmod
 !   2005-05-13  Yanqiu zhu - wrap intq and its tangent linear intq_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intq_tl; add interface back
+!   2009-08-13  lueken - update documentation
 !
+! subroutines included:
+!   sub intq_
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -56,9 +68,9 @@ subroutine intq_(qhead,rq,sq)
 !   input argument list:
 !     qhead    - obs type pointer to obs structure
 !     sq       - q increment in grid space
+!     rq
 !
 !   output argument list:
-!     qhead    - obs type pointer to obs structure
 !     rq       - results from q observation operator 
 !
 ! attributes:
@@ -67,11 +79,11 @@ subroutine intq_(qhead,rq,sq)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,tiny_r_kind,cg_term,r3600
   use obsmod, only: q_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
-  use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables

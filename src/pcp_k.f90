@@ -8,7 +8,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
      tlrg_o,qlrg_o,rnlrg_of,&
      t_out,q_out,cwm_out,u_out,v_out,rn_out,&
      t_in_ad,q_in_ad,cwm_in_ad,u_in_ad,v_in_ad,div_in_ad,&
-     t_out_ad,q_out_ad,cwm_out_ad,u_out_ad,v_out_ad,rn_out_ad,mype)
+     t_out_ad,q_out_ad,cwm_out_ad,u_out_ad,v_out_ad,rn_out_ad)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -57,7 +57,6 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 !     u_out_ad  - zonal wind perturbation
 !     v_out_ad  - meridional wind perturbation
 !     rn_out_ad - rain rate perturbation
-!     mype      - pe number
 !
 !   output argument list:
 !     tsas_o    - temperature following call to SAS
@@ -102,7 +101,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 
 ! Declare passed variables
   logical:: skipsas,skiplrg
-  integer(i_kind) k,mype,km,ncloud
+  integer(i_kind) k,km,ncloud
   integer(i_kind):: kb,kbcon,jmin,ktcon,kuo
 
   real(r_kind) work2,tem,work1,dtp,frain,rmmhr
@@ -235,7 +234,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
        
        tsas_i_ad,qsas_i_ad,cwmsas_i_ad,usas_i_ad,vsas_i_ad,wsas_i_ad,&
        tsas_o_ad,qsas_o_ad,cwmsas_o_ad,usas_o_ad,vsas_o_ad,rnsas_o_ad,&
-       adjoint,mype)
+       adjoint)
   
 
 ! Transfer u and v to output arrays
@@ -285,7 +284,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
        t_ten_i_ad,q_ten_i_ad,p_ten_i_ad,&
        qgs_i_ad,cwmgs_i_ad,tgs_i_ad,&
        qgs_o_ad,cwmgs_o_ad,tgs_o_ad,&
-       adjoint,mype)
+       adjoint)
 
 
 ! Call gridscale precipitation routine, PRECPD
@@ -313,7 +312,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
        qlrg_o, cwmlrg_o, tlrg_o,rnlrg_o,&
        qlrg_i_ad, cwmlrg_i_ad, tlrg_i_ad,&
        qlrg_o_ad, cwmlrg_o_ad, tlrg_o_ad,rnlrg_o_ad,&
-       adjoint,mype)
+       adjoint)
 
 
 ! Combine convective and gridscale precipitation to get the total
@@ -390,7 +389,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
        qlrg_o, cwmlrg_o, tlrg_o,rnlrg_o,&
        qlrg_i_ad, cwmlrg_i_ad, tlrg_i_ad,&
        qlrg_o_ad, cwmlrg_o_ad, tlrg_o_ad,rnlrg_o_ad,&
-       adjoint,mype)
+       adjoint)
 
 
 ! If gridscale precipitation < tiny_obs, do not include forcing from 
@@ -437,7 +436,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
        t_ten_i_ad,q_ten_i_ad,p_ten_i_ad,&
        qgs_i_ad,cwmgs_i_ad,tgs_i_ad,&
        qgs_o_ad,cwmgs_o_ad,tgs_o_ad,&
-       adjoint,mype)
+       adjoint)
 
 
 ! Adjoint of u and v transfers
@@ -495,7 +494,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
        
        tsas_i_ad,qsas_i_ad,cwmsas_i_ad,usas_i_ad,vsas_i_ad,wsas_i_ad,&
        tsas_o_ad,qsas_o_ad,cwmsas_o_ad,usas_o_ad,vsas_o_ad,rnsas_o_ad,&
-       adjoint,mype)
+       adjoint)
 
 
 ! If convective precipitation < tiny_obs, do not include forcing from

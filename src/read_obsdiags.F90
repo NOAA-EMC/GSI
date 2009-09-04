@@ -1,6 +1,9 @@
 subroutine read_obsdiags(cdfile)
 
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_obdiags
+!   prgmmr:      tremolet
 !
 ! abstract: Read obsdiags data structure from file.
 !
@@ -15,12 +18,13 @@ subroutine read_obsdiags(cdfile)
 !   input argument list:
 !     cdfile - filename to read data from
 !
+!   output argument list:
+!
 ! remarks: ozhead still cannot handle omi data
 !
-!$$$
+!$$$ end documentation block
 
 use kinds, only: r_kind,i_kind
-use constants, only: tiny_r_kind
 use obsmod, only: nobs_type,obsdiags,obsptr,lobsdiag_allocated,lobserver
 use obsmod, only: destroyobs
 use obsmod, only: i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
@@ -186,6 +190,9 @@ contains
 
 subroutine read_pshead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_pshead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -195,7 +202,13 @@ subroutine read_pshead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: pshead,pstail
     implicit none
@@ -260,8 +273,7 @@ subroutine read_pshead_ ()
 !   --------------------------------
     icount=0
     pstail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
        obsdiags(jj,ii)%tail => NULL()
        do kk=1,kobs
           if (.not.associated(obsdiags(jj,ii)%tail)) then
@@ -280,8 +292,6 @@ subroutine read_pshead_ ()
             icount = icount + 1
           endif
        enddo
-!   enddo
-!   if(mobs>0) print *, 'Read ps from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
     if(icount.ne.mobs) then
       write(6,*)'read_pshead_: error counting ob',icount,mobs
       call stop2(183)
@@ -290,6 +300,9 @@ end subroutine read_pshead_
 
 subroutine read_thead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_thead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -299,7 +312,13 @@ subroutine read_thead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: thead,ttail
     implicit none
@@ -322,7 +341,7 @@ subroutine read_thead_ ()
     logical         :: zluse          !  flag indicating if ob is used in pen.
     logical         :: zuse_sfc_model !  logical flag for using boundary model
 
-    integer         :: j,mobs,jread,icount,iostat
+    integer(i_kind) :: j,mobs,jread,icount,iostat
     logical         :: mymuse   
 
     read(iunit) mobs,jread
@@ -372,8 +391,7 @@ subroutine read_thead_ ()
 !   --------------------------------
     icount=0
     ttail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs
        if (.not.associated(obsdiags(jj,ii)%tail)) then
@@ -392,9 +410,7 @@ subroutine read_thead_ ()
          icount = icount + 1
        endif      
     enddo
-!   enddo
 
-!   if(mobs>0) print *, 'Read t from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
     if(icount.ne.mobs) then
       write(6,*)'read_thead_: error counting ob',icount,mobs
       call stop2(186)
@@ -403,6 +419,9 @@ end subroutine read_thead_
 
 subroutine read_whead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_whead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -412,7 +431,13 @@ subroutine read_whead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: whead,wtail
     implicit none
@@ -433,7 +458,7 @@ subroutine read_whead_ ()
     integer(i_kind) :: zkx            !  ob type
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer         :: j,mm,mobs,jread,icount,iostat
+    integer(i_kind) :: j,mm,mobs,jread,icount,iostat
     logical         :: mymuse
    
     read(iunit) mobs,jread
@@ -482,8 +507,7 @@ subroutine read_whead_ ()
 !   --------------------------------
     icount=0
     wtail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs/2
 
@@ -510,17 +534,18 @@ subroutine read_whead_ ()
        endif
 
     enddo
-!   enddo
 
     if(icount.ne.mobs) then
        write(6,*)'read_whead_: error counting ob',icount,mobs
        call stop2(189)
     end if
-!   if(mobs>0) print *, 'Read w from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_whead_
 
 subroutine read_qhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_qhead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -530,7 +555,13 @@ subroutine read_qhead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: qhead,qtail
     implicit none
@@ -549,7 +580,7 @@ subroutine read_qhead_ ()
     integer(i_kind) :: zkx            !  ob type
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer         :: j,mobs,jread,icount,iostat
+    integer(i_kind) :: j,mobs,jread,icount,iostat
     logical         :: mymuse   
    
     read(iunit) mobs,jread
@@ -598,8 +629,7 @@ subroutine read_qhead_ ()
 !   --------------------------------
     icount=0
     qtail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs
 
@@ -622,17 +652,18 @@ subroutine read_qhead_ ()
        endif
        
     enddo
-!   enddo
 
     if(icount.ne.mobs) then
       write(6,*)'read_qhead_: error counting ob',icount,mobs
       call stop2(192)
     end if
-!   if(mobs>0) print *, 'Read q from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_qhead_
 
 subroutine read_spdhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_spdhead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -641,7 +672,13 @@ subroutine read_spdhead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: spdhead,spdtail
     implicit none
@@ -659,7 +696,7 @@ subroutine read_spdhead_ ()
     real(r_kind)    :: zvges          !  meridional guess
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer         :: j,mobs,jread,icount,iostat
+    integer(i_kind) :: j,mobs,jread,icount,iostat
     logical         :: mymuse   
    
     read(iunit) mobs,jread
@@ -707,8 +744,7 @@ subroutine read_spdhead_ ()
 !   --------------------------------
     icount=0
     spdtail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs
        if (.not.associated(obsdiags(jj,ii)%tail)) then
@@ -727,17 +763,18 @@ subroutine read_spdhead_ ()
          icount = icount + 1
        endif      
     enddo
-!   enddo
 
     if(icount.ne.mobs) then
        write(6,*)'read_spdhead_: error counting ob',icount,mobs
        call stop2(195)
     end if
-!   if(mobs>0) print *, 'Read spd from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_spdhead_
 
 subroutine read_srwhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_srwhead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -746,7 +783,13 @@ subroutine read_srwhead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: srwhead,srwtail
     implicit none
@@ -766,7 +809,7 @@ subroutine read_srwhead_ ()
     real(r_kind)    :: zges2          !  second component guess
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer         :: j,mm,mobs,jread,icount,iostat
+    integer(i_kind) :: j,mm,mobs,jread,icount,iostat
     logical         :: mymuse   
    
     icount=0
@@ -817,8 +860,7 @@ subroutine read_srwhead_ ()
 !   --------------------------------
     icount=0
     srwtail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs/2
 
@@ -844,17 +886,18 @@ subroutine read_srwhead_ ()
        endif
 
     enddo
-!   enddo
 
     if(icount.ne.mobs) then
        write(6,*)'read_srwhead_: error counting ob',icount,mobs
        call stop2(198)
     end if
-!   if(mobs>0) print *, 'Read srw from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_srwhead_
 
 subroutine read_rwhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_rwhead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -863,7 +906,13 @@ subroutine read_rwhead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: rwhead,rwtail
     implicit none
@@ -881,7 +930,7 @@ subroutine read_rwhead_ ()
     integer(i_kind) :: zij(8)         !  horizontal locations
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer         :: j,mobs,jread,icount,iostat
+    integer(i_kind) :: j,mobs,jread,icount,iostat
     logical         :: mymuse   
    
     read(iunit) mobs,jread
@@ -927,8 +976,7 @@ subroutine read_rwhead_ ()
 !   --------------------------------
     icount=0
     rwtail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs
        if (.not.associated(obsdiags(jj,ii)%tail)) then
@@ -947,17 +995,18 @@ subroutine read_rwhead_ ()
          icount = icount + 1
        endif
     enddo
-!   enddo
 
     if(icount.ne.mobs) then
        write(6,*)'read_rwhead_: error counting ob',icount,mobs
        call stop2(201)
     end if
-!   if(mobs>0) print *, 'Read rw from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_rwhead_
 
 subroutine read_dwhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_dwhead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -966,7 +1015,13 @@ subroutine read_dwhead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: dwhead,dwtail
     implicit none
@@ -984,7 +1039,7 @@ subroutine read_dwhead_ ()
     integer(i_kind) :: zij(8)         !  horizontal locations
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer         :: j,mobs,jread,icount,iostat
+    integer(i_kind) :: j,mobs,jread,icount,iostat
     logical         :: mymuse   
    
     read(iunit) mobs,jread
@@ -1030,8 +1085,7 @@ subroutine read_dwhead_ ()
 !   --------------------------------
     icount=0
     dwtail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs
        if (.not.associated(obsdiags(jj,ii)%tail)) then
@@ -1050,17 +1104,18 @@ subroutine read_dwhead_ ()
          icount = icount + 1
        endif
     enddo
-!   enddo
 
      if(icount.ne.mobs) then
        write(6,*)'read_dwhead_: error counting ob',icount,mobs
        call stop2(204)
      end if
-!   if(mobs>0) print *, 'Read dw from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_dwhead_
 
 subroutine read_ssthead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_ssthead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -1069,7 +1124,13 @@ subroutine read_ssthead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: ssthead,ssttail
     implicit none
@@ -1128,8 +1189,7 @@ subroutine read_ssthead_ ()
 !   --------------------------------
     icount=0
     ssttail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs
        if (.not.associated(obsdiags(jj,ii)%tail)) then
@@ -1148,17 +1208,18 @@ subroutine read_ssthead_ ()
        icount = icount + 1
        endif
     enddo
-!   enddo
   
     if(icount.ne.mobs) then
        write(6,*)'read_ssthead_: error counting ob',icount,mobs
        call stop2(207)
     end if
-!   if(mobs>0) print *, 'Read sst from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_ssthead_
 
 subroutine read_pwhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_pwhead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -1167,7 +1228,13 @@ subroutine read_pwhead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use gridmod, only: nsig
     use obsmod, only: pwhead,pwtail
@@ -1241,8 +1308,7 @@ subroutine read_pwhead_ ()
 !   --------------------------------
     icount=0
     pwtail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs
        if (.not.associated(obsdiags(jj,ii)%tail)) then
@@ -1261,17 +1327,18 @@ subroutine read_pwhead_ ()
          icount = icount + 1
        endif
     enddo
-!   enddo
 
     if(icount.ne.mobs) then
        write(6,*)'read_pwhead_: error counting ob',icount,mobs
        call stop2(211)
     end if
-!   if(mobs>0) print *, 'Read pw from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_pwhead_
 
 subroutine read_ozhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_ozhead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -1282,7 +1349,13 @@ subroutine read_ozhead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use gridmod, only: nsig
     use obsmod, only: ozhead,oztail
@@ -1366,8 +1439,7 @@ subroutine read_ozhead_ ()
 !   --------------------------------
     icount=0
     oztail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     obsptr => obsdiags(jj,ii)%head
     do while (associated(obsptr))
@@ -1396,7 +1468,6 @@ subroutine read_ozhead_ ()
        enddo
 
     enddo
-!   enddo
     if(icount.ne.mobs) then
       write(6,*)'read_ozhead_: error counting ob',icount,mobs
       call stop2(214)
@@ -1406,6 +1477,9 @@ end subroutine read_ozhead_
 
 subroutine read_o3lhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_o3lhead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -1414,7 +1488,13 @@ subroutine read_o3lhead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: o3lhead,o3ltail
     implicit none
@@ -1475,8 +1555,7 @@ subroutine read_o3lhead_ ()
 !   --------------------------------
     icount=0
     o3ltail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs
        if (.not.associated(obsdiags(jj,ii)%tail)) then
@@ -1495,7 +1574,6 @@ subroutine read_o3lhead_ ()
          icount = icount + 1
        endif
     enddo
-!   enddo
     if(icount.ne.mobs) then
       write(6,*)'read_o3lhead_: error counting ob',icount,mobs
       call stop2(217)
@@ -1505,6 +1583,9 @@ end subroutine read_o3lhead_
 
 subroutine read_pcphead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_pcphead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -1513,7 +1594,13 @@ subroutine read_pcphead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: pcphead,pcptail
     use gridmod, only: nsig5
@@ -1599,8 +1686,7 @@ subroutine read_pcphead_ ()
 !   --------------------------------
     icount=0
     pcptail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs
        if (.not.associated(obsdiags(jj,ii)%tail)) then
@@ -1619,17 +1705,18 @@ subroutine read_pcphead_ ()
          icount = icount + 1
        endif
     enddo
-!   enddo
     if(icount.ne.mobs) then
       write(6,*)'read_pcphead_: error counting ob',icount,mobs
       call stop2(222)
     end if
 
-!   if(mobs>0) print *, 'Read pcp from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_pcphead_
 
 subroutine read_gpshead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_gpshead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -1638,7 +1725,13 @@ subroutine read_gpshead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: gpshead,gpstail
     use gridmod, only: nsig
@@ -1650,7 +1743,6 @@ subroutine read_gpshead_ ()
     real(r_kind)    :: zraterr2       !  square of ratio of final obs error
                                       !  to original obs error
     real(r_kind)    :: ztime          !  observation time
-    real(r_kind)    :: zges           !  guess observation
     real(r_kind)    :: zwij(4)        !  horizontal interpolation weights
     real(r_kind),allocatable:: zjac_t(:)   !
     real(r_kind),allocatable:: zjac_q(:)   !
@@ -1720,8 +1812,7 @@ subroutine read_gpshead_ ()
 !   --------------------------------
     icount=0
     gpstail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     obsdiags(jj,ii)%tail => NULL()
     do kk=1,kobs
        if (.not.associated(obsdiags(jj,ii)%tail)) then
@@ -1740,17 +1831,18 @@ subroutine read_gpshead_ ()
          icount = icount + 1
        endif
     enddo
-!   enddo
 
     if(icount.ne.mobs) then
       write(6,*)'read_gpshead_: error counting ob',icount,mobs
       call stop2(226)
     end if
-!   if(mobs>0) print *, 'Read gps from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_gpshead_
 
 subroutine read_radhead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_radhead_
+!   prgmmr:      todling
 !
 ! abstract: Read obs-specific data structure from file.
 !
@@ -1759,7 +1851,13 @@ subroutine read_radhead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: radhead,radtail,radptr
     use radinfo, only: npred,retrieval
@@ -1924,8 +2022,7 @@ subroutine read_radhead_ ()
 !   ----------------------------------------
     mm=0
     radtail(ii)%head => NULL()
-!   do j=1,kiter
-       j=kiter
+    j=kiter
     kk=0
     obsdiags(jj,ii)%tail => NULL()
     obsptr => obsdiags(jj,ii)%head
@@ -1971,7 +2068,6 @@ subroutine read_radhead_ ()
        end if
 
     enddo
-!   enddo
     if(mm/=mobs) then
        write(6,*)'read_radhead_: error radtail final obs counter',mm,mobs
        call stop2(248)
@@ -1985,6 +2081,9 @@ end subroutine read_radhead_
 
 subroutine read_laghead_ ()
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_laghead_
+!   prgmmr:      meunier
 !
 ! abstract: Read obs-specific data structure from file (lagrangian data).
 !
@@ -1993,7 +2092,13 @@ subroutine read_laghead_ ()
 !
 !   input argument list:
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
     use obsmod, only: laghead,lagtail
     implicit none
@@ -2016,7 +2121,7 @@ subroutine read_laghead_ ()
     real(r_kind)    :: pg            ! variational quality control parameter
     logical         :: luse          ! flag indicating if ob is used in pen.
 
-    integer         :: j,mm,mobs,jread,icount,iostat
+    integer(i_kind) :: j,mm,mobs,jread,icount,iostat
     logical         :: mymuse
 
     allocate(speci(lag_rk2itenpara_i),stat=ierr)
@@ -2110,7 +2215,6 @@ subroutine read_laghead_ ()
        write(6,*) 'read_laghead_: error counting ob, icount,mobs=',icount,mobs
        call stop2(252)
     endif
-!   if(mobs>0) print *, 'Read lag from obsdiag, ii =', ii, ' mobs =', mobs, ', pe ', mype
 end subroutine read_laghead_
 
 end subroutine read_obsdiags

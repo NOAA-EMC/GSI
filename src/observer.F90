@@ -22,21 +22,18 @@ module observermod
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
   use mpimod, only: mype
-  use jfunc, only: miter,jiter,jiterstart,biascor,destroy_jfunc,&
-       set_pointer,read_guess_solution,&
-       switch_on_derivatives,tendsflag,xhatsave,create_jfunc
-  use gridmod, only: nlat,nlon,rlats,regional,twodvar_regional
-  use guess_grids, only: sfct,create_ges_grids,create_sfc_grids,&
-       destroy_sfc_grids,destroy_sfct,destroy_ges_grids,destroy_gesfinfo
+  use jfunc, only: miter,jiter,jiterstart,destroy_jfunc,&
+       set_pointer,&
+       switch_on_derivatives,tendsflag,create_jfunc
+  use guess_grids, only: create_ges_grids,create_sfc_grids,&
+       destroy_sfct,destroy_ges_grids,destroy_gesfinfo
   use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver
   use gsi_4dvar, only: l4dvar
   use convinfo, only: convinfo_destroy
   use m_gsiBiases, only : create_bias_grids, destroy_bias_grids
-  use obs_sensitivity, only: init_fc_sens, save_fc_sens
   use control_vectors
-  use converr, only: converr_destroy
   use m_berror_stats, only: berror_get_dims
   use timermod, only: timer_ini, timer_fnl
   use read_obsmod, only: read_obs
@@ -113,7 +110,6 @@ subroutine guess_init_
 
 ! Declare local variables
 
-  integer(i_kind) error_status
   integer(i_kind):: msig,mlat
 
 !*******************************************************************************************
@@ -181,7 +177,6 @@ subroutine init_
 
 ! Declare local variables
 
-  integer(i_kind) error_status
 
 !*******************************************************************************************
 !
@@ -281,7 +276,7 @@ subroutine run_
 
 ! Declare local variables
 
-  integer(i_kind) i,jiterlast
+  integer(i_kind) jiterlast
   logical :: last
   character(len=12) :: clfile
 
@@ -354,7 +349,6 @@ subroutine final_
 ! Declare passed variables
 
 ! Declare local variables
-  integer(i_kind) error_status
 
 !*******************************************************************************************
  
@@ -400,7 +394,6 @@ subroutine guess_final_
 ! Declare passed variables
 
 ! Declare local variables
-  integer(i_kind) error_status
 
 !*******************************************************************************************
   if ( fg_finalized_ ) return

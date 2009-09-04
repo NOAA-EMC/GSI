@@ -57,15 +57,14 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
 !
 !$$$
   use kinds,only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nsig,istart,rlats,nlat,idvc5,bk5,&
+  use gridmod, only: lat2,lon2,nsig,istart,nlat,idvc5,bk5,&
       eta2_ll,wrf_nmm_regional,nems_nmmb_regional,regional
   use constants, only: zero,half,two,rd,rcp
   use tendsmod, only: what9,prsth9,r_prsum9,prdif9,r_prdif9,pr_xsum9,pr_xdif9,&
       pr_ysum9,pr_ydif9,curvx,curvy,coriolis
   use guess_grids, only: ntguessig,ges_u,&
       ges_u_lon,ges_u_lat,ges_v,ges_v_lon,ges_v_lat,ges_tv,ges_tvlat,ges_tvlon,&
-      ges_q,ges_qlon,ges_qlat,ges_oz,ges_ozlon,ges_ozlat,ges_cwmr,ges_cwmr_lon,&
-      ges_cwmr_lat,ges_teta,ges_prsi
+      ges_teta,ges_prsi
   implicit none
 
 ! Declare passed variables
@@ -418,7 +417,7 @@ jstop=lon2
   end do
 
   call tget_derivatives2(st,vp,t,pri,u,v,u_x,v_x,t_x,pri_x, &
-                                         u_y,v_y,t_y,pri_y,mype)
+                                         u_y,v_y,t_y,pri_y)
 
   call getprs_ad(p,t,pri)
 

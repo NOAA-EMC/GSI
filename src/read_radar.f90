@@ -58,7 +58,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
                        one_tenth,r1000,r60inv
   use qcmod, only: erradar_inflate,vadfile
   use obsmod, only: iadate,offtime_data
-  use gsi_4dvar, only: l4dvar,idmodel,iadatebgn,iadateend,iwinbgn,winlen,time_4dvar
+  use gsi_4dvar, only: l4dvar,iadatebgn,iadateend,iwinbgn,winlen,time_4dvar
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy
   use gridmod, only: check_rotate_wind
   use convinfo, only: nconvtype,ctwind, &
@@ -552,7 +552,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
      if(regional) then
         cosazm_earth=cos(azm_earth*deg2rad)
         sinazm_earth=sin(azm_earth*deg2rad)
-        call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlat_earth,dlon,dlat)
+        call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
         azm=atan2(sinazm,cosazm)*rad2deg
      else
         azm=azm_earth
@@ -965,7 +965,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
         if(regional) then
           cosazm_earth=cos(azm_earth*deg2rad)
           sinazm_earth=sin(azm_earth*deg2rad)
-          call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlat_earth,dlon,dlat)
+          call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
           azm=atan2(sinazm,cosazm)*rad2deg
         else
           azm=azm_earth
@@ -1203,8 +1203,8 @@ subroutine deter_zsfc_model(dlat,dlon,zsfc)
 !$$$
   use kinds, only: r_kind,i_kind
   use satthin, only: zs_full
-  use constants, only: zero,one
-  use gridmod, only: rlats,rlons,nlat,nlon
+  use constants, only: one
+  use gridmod, only: nlat,nlon
   implicit none
   real(r_kind),intent(in) :: dlat,dlon
   real(r_kind),intent(out) :: zsfc

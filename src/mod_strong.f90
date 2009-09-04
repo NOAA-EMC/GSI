@@ -69,11 +69,14 @@ contains
 !
 !$$$ end documentation block
 
+    use constants, only: one_tenth
+    implicit none
+
     jcstrong=.false.
     jcstrong_option=1
     nstrong=0
     period_max=1000000._r_kind
-    period_width=.1_r_kind
+    period_width=one_tenth
     scheme='B'
     baldiag_full=.false.
     baldiag_inc =.false.

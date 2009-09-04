@@ -1,8 +1,9 @@
 module stpwmod
 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stpwmod    module for stpw and its tangent linear stpw_tl
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stpwmod    module for stpw and its tangent linear stpw_tl
+!  prgmmr:
 !
 ! abstract: module for stpw and its tangent linear stpw_tl
 !
@@ -10,7 +11,16 @@ module stpwmod
 !   2005-05-20  Yanqiu zhu - wrap stpw and its tangent linear stpw_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-01  Todling - remove stpw_tl; add interface back
+!   2009-08-12  lueken - update documentation
 !
+! subroutines included:
+!   sub stpw
+!
+! attributes:
+!   langauge: f90
+!   machine:
+!
+!$$$ end documentation block
 
 implicit none
 
@@ -49,6 +59,7 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges)
 !   2008-12-03  todling - changed handling of ptr%time
 !
 !   input argument list:
+!     whead
 !     ru       - search direction for u
 !     rv       - search direction for v
 !     su       - analysis increment for u
@@ -71,9 +82,9 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: w_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: zero,one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
-  use jfunc, only: iter,jiter,niter_no_qc,jiterstart,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables

@@ -23,7 +23,7 @@ subroutine global_mean(psfc,psave,mype)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,lat2,lon2,wgtlats
-  use constants, only: zero,half,one,two
+  use constants, only: zero,one,two
   implicit none
 
   real(r_kind),dimension(lat2,lon2),intent(in):: psfc
@@ -79,7 +79,7 @@ subroutine global_mean_ad(psfc,psave,mype)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,lat2,lon2,wgtlats
-  use constants, only: zero,half,one,two
+  use constants, only: zero,one,two
   implicit none
 
   real(r_kind),dimension(lat2,lon2),intent(inout):: psfc

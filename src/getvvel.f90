@@ -29,7 +29,7 @@ subroutine getvvel(t,t_thor,prsth,prdif,what)
 !$$$
   use kinds,only: r_kind,i_kind
   use constants, only: zero,one,two,rd,cp,half
-  use gridmod, only: lat2,lon2,nsig,ak5,bk5,ck5,tref5
+  use gridmod, only: lat2,lon2,nsig,bk5,ck5,tref5
   use tendsmod, only: adiag9,bdiag9,cdiag9,factk9,wint9,wint9_f,&
        r_bdiag9
   implicit none
@@ -417,7 +417,7 @@ subroutine getvvel_ad(t,t_thor,t_thor9,prsth,prdif,whatin)
   use constants, only: zero,one,two,rd,cp,half
   use gridmod, only: lat2,lon2,nsig,bk5,ck5,tref5
   use guess_grids, only: ges_tv,ntguessig
-  use tendsmod, only: prdif9,r_prdif9,prsth9,adiag9,bdiag9,cdiag9,factk9,&
+  use tendsmod, only: prdif9,r_prdif9,adiag9,bdiag9,cdiag9,factk9,&
        r_bdiag9,wint9,wint9_f
   implicit none
 

@@ -103,9 +103,9 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
      u ,v ,t ,pri ,q ,oz ,sst ,cw , &
      u_x, v_x, t_x , ps_x, q_x, oz_x, sst_x, cw_x, &
      u_y, v_y, t_y , ps_y, q_y, oz_y, sst_y, cw_y, &
-     nnn,mype,1)
+     nnn,1)
 
-  call getprs_horiz_tl(ps_x,ps_y,mype,pri,pri_x,pri_y)
+  call getprs_horiz_tl(ps_x,ps_y,pri,pri_x,pri_y)
 
 !!!$omp parallel private(nth,tid,i,j,k,jstart,jstop,tmp,tmp2, &
 !!!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk,ix)
