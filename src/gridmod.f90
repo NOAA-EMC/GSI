@@ -851,7 +851,7 @@ contains
        if(maxval(glat)/deg2rad.lt.zero) sign_pole=one
        do j=1,nlat_regional
         do i=1,nlon_regional
-         rtemp=pihalf-sign_pole*glat(i,j)
+         rtemp=pihalf+sign_pole*glat(i,j)
          gxtemp(i,j)=rtemp*cos(one*glon(i,j))
          gytemp(i,j)=rtemp*sin(one*glon(i,j))
         end do
@@ -861,7 +861,7 @@ contains
        do j=1,nlat
         do i=1,nlon
          rtemp=sqrt(gxtemp_an(i,j)**2+gytemp_an(i,j)**2)
-         glat_an(i,j)=sign_pole*(pihalf-rtemp)
+         glat_an(i,j)=sign_pole*(rtemp-pihalf)
          glon_an(i,j)=atan2(gytemp_an(i,j),gxtemp_an(i,j))
         end do
        end do
@@ -1140,7 +1140,7 @@ contains
       if(maxval(glat)/deg2rad.lt.zero) sign_pole=one
       do j=1,nlat_regional
        do i=1,nlon_regional
-        rtemp=pihalf-sign_pole*glat(i,j)
+        rtemp=pihalf+sign_pole*glat(i,j)
         gxtemp4(i,j)=rtemp*cos(one*glon(i,j))
         gytemp4(i,j)=rtemp*sin(one*glon(i,j))
        end do
@@ -1150,7 +1150,7 @@ contains
       do i=1,nlon
         do j=1,nlat
         rtemp=sqrt(gxtemp_an(j,i)**2+gytemp_an(j,i)**2)
-        glat_an(i,j)=sign_pole*(pihalf-rtemp)
+        glat_an(i,j)=sign_pole*(rtemp-pihalf)
         glon_an(i,j)=atan2(gytemp_an(j,i),gxtemp_an(j,i))
        end do
       end do
