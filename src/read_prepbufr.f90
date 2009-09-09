@@ -1238,7 +1238,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 enddo loop_convinfo! loops over convinfo entry matches
 
 ! Write header record and data to output file for further processing
-900 continue
   allocate(iloc(ndata))
   do i=1,ndata
     iloc(i)=i
@@ -1270,8 +1269,9 @@ enddo loop_convinfo! loops over convinfo entry matches
   write(lunout) cdata_out
 
   deallocate(cdata_out)
+  call destroy_rjlists
 
-
+900 continue
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_PREPBUFR:  ',&
        'ntest,disterrmax=',ntest,disterrmax
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_PREPBUFR:  ',&
@@ -1289,7 +1289,6 @@ enddo loop_convinfo! loops over convinfo entry matches
 
   close(lunin)
 
-  call destroy_rjlists
 
 ! End of routine
   return

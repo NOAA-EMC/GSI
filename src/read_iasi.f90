@@ -213,13 +213,13 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
   
   sensorlist(1)=sis
   if( crtm_coeffs_path /= "" ) then
-    if(mype==0) write(6,*)'READ_IASI: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
+    if(mype_sub==mype_root) write(6,*)'READ_IASI: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
     error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-       Process_ID=mype,Output_Process_ID=0, &
+       Process_ID=mype_sub,Output_Process_ID=mype_root, &
        File_Path = crtm_coeffs_path )
   else
     error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-       Process_ID=mype,Output_Process_ID=0)
+       Process_ID=mype_sub,Output_Process_ID=mype_root)
   endif
   if (error_status /= success) then
      write(6,*)'READ_IASI:  ***ERROR*** crtm_init error_status=',error_status,&

@@ -56,15 +56,17 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
   character(len=*),intent(in) :: filename
   integer(i_kind),intent(in) :: mype
 
+  logical :: lhere
   integer(i_kind) :: lenb
   character(len=256) command, fname
 
 #ifdef ibm_sp
-  inquire(file=trim(filename),exist=lexist,size=lbytes)
+  inquire(file=trim(filename),exist=lhere,size=lbytes)
+  lexist = lhere .and. lbytes>0
 #else
   lenb=0; lbytes = lenb
-  inquire(file=trim(filename),exist=lexist)
-  if(lexist)then
+  inquire(file=trim(filename),exist=lhere)
+  if(lhere)then
     write(fname,'(2a,i4.4)') 'fsize_',trim(filename),mype
     write(command,'(4a)') 'wc -c ', trim(filename),' > ', trim(fname)
     call system(command)
@@ -73,6 +75,7 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
     close(999)
     lbytes=lenb
   endif
+  lexist = lhere .and. lbytes>0
 #endif
   return
   end subroutine gsi_inquire

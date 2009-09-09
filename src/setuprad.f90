@@ -479,13 +479,13 @@
 
    sensorlist(1)=isis
    if( crtm_coeffs_path /= "" ) then
-    if(mype==0) write(6,*)'SETUPRAD: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
+    if(mype==mype_diaghdr(is)) write(6,*)'SETUPRAD: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
     error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-       Process_ID=mype,Output_Process_ID=0, &
+       Process_ID=mype,Output_Process_ID=mype_diaghdr(is), &
        File_Path = crtm_coeffs_path )
    else
      error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-       Process_ID=mype,Output_Process_ID=0)
+       Process_ID=mype,Output_Process_ID=mype_diaghdr(is))
    endif
    if (error_status /= success) then
      write(6,*)'SETUPRAD:  ***ERROR*** crtm_init error_status=',error_status,&

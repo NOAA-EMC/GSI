@@ -417,7 +417,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       write(6,*) '  infile=', lnbufr, infile2,' subset=',&
            subset, ' subfgn=',subfgn,' ',obstype,' ',jsatid
       write(6,*) 'SKIP PROCESSING OF THIS 1B FILE'
-      go to 900
+      go to 500
    end if
 
 !  Extract date and check for consistency with analysis date     
@@ -432,22 +432,22 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       write(6,*)'Analysis start  :',iadatebgn
       write(6,*)'Analysis end    :',iadateend
       write(6,*)'Observation time:',idate
-      if(.not.offtime_data) go to 900
+      if(.not.offtime_data) go to 500
    ENDIF
 
    if(lll == 2)then
       sensorlist(1)=sis
       if( crtm_coeffs_path /= "" ) then
-        if(mype==0) write(6,*)'READ_IASI: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
+        if(mype_sub_read==mype_root) write(6,*)'READ_BUFRTOVS: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
         error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-           Process_ID=mype,Output_Process_ID=0, &
+           Process_ID=mype_sub_read,Output_Process_ID=mype_root, &
            File_Path = crtm_coeffs_path )
       else
         error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-           Process_ID=mype,Output_Process_ID=0)
+           Process_ID=mype_sub_read,Output_Process_ID=mype_root)
       endif
       if (error_status /= success) then
-         write(6,*)'READ_IASI:  ***ERROR*** crtm_init error_status=',error_status,&
+         write(6,*)'READ_BUFRTOVS:  ***ERROR*** crtm_init error_status=',error_status,&
               '   TERMINATE PROGRAM EXECUTION'
          call stop2(71)
       endif
@@ -774,11 +774,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
     enddo
     call closbf(lnbufr)
 
-900 continue
 
     if(lll == 2)then
 !   deallocate crtm info
-       deallocate(data1b8x)
        error_status = crtm_destroy(channelinfo)
        if (error_status /= success) &
          write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
@@ -787,6 +785,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   Jump here when there is a problem opening the bufr file
 500  continue
   deallocate(data1b8)
+  if (lll==2) deallocate(data1b8x)
 
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
