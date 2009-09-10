@@ -26,7 +26,7 @@ module obs_sensitivity
 ! ------------------------------------------------------------------------------
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero, zero_quad
-use gsi_4dvar, only: nobs_bins, idmodel
+use gsi_4dvar, only: nobs_bins, idmodel, nsubwin
 use jfunc, only: jiter, miter, niter, iter
 use obsmod, only: nobs_type, obsdiags, obsptr, obscounts, &
                 & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
@@ -118,7 +118,7 @@ subroutine init_fc_sens
 
 implicit none
 character(len=12) :: clfile
-type(state_vector) :: fcgrad
+type(state_vector) :: fcgrad(nsubwin)
 type(predictors) :: zbias
 type(control_vector) :: xwork
 real(r_kind) :: zjx
@@ -171,7 +171,9 @@ if (lobsensfc) then
         call read_cv(fcsens,clfile)
       else
 !       read and convert output of GCM adjoint
-        call allocate_state(fcgrad)
+        do ii=1,nsubwin
+          call allocate_state(fcgrad(ii))
+        end do
         call allocate_preds(zbias)
         zbias=zero
 #ifdef GEOS_PERT
@@ -179,10 +181,14 @@ if (lobsensfc) then
         call pgcm2gsi(fcgrad,'adm',ierr)
         call model_clean()
 #else /* GEOS_PERT */
-        fcgrad = zero ! not yet implemented
+        do ii=1,nsubwin
+          fcgrad(ii) = zero ! not yet implemented
+        end do
 #endif /* GEOS_PERT */
         call model2control(fcgrad,zbias,fcsens)
-        call deallocate_state(fcgrad)
+        do ii=1,nsubwin
+          call deallocate_state(fcgrad(ii))
+        end do
         call deallocate_preds(zbias)
       endif
     else

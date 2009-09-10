@@ -67,7 +67,7 @@ subroutine dptsv
 implicit none
 end subroutine dptsv
 
-subroutine flush
+subroutine flush(lu)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    flush
@@ -87,6 +87,8 @@ subroutine flush
 !   machine:
 !
 !$$$ end documentation block
+use kinds, only : i_kind
 implicit none
+integer(i_kind),intent(in):: lu
 end subroutine flush
 

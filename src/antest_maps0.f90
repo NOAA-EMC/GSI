@@ -113,7 +113,7 @@ do iref=1,5 !--- element loop start --------------------------------------------
     end do
   end if
 
-  call ansmoothrf(hwork,mype)
+  call ansmoothrf(hwork)
   if(mype.eq.0) write(lunin) ref_plotcor,var_plotcor,j_plotcor,i_plotcor,k_plotcor, &
                nlon,nlat,kvar_end(ivar_plot)-kvar_start(ivar_plot)+1
   if(mype.eq.0) write(0,*) ' refvar= ',trim(ref_plotcor),' corvar= ',trim(var_plotcor), &
@@ -337,7 +337,7 @@ do 200 lvar=1,5
   end if
 
 
-  call ansmoothrf_reg_subdomain_option(twork,pwork,qwork,stwork,vpwork,mype)
+  call ansmoothrf_reg_subdomain_option(twork,pwork,qwork,stwork,vpwork)
  !if(mype.eq.0) write(lunin) ref_plotcor,var_plotcor,j_plotcor,i_plotcor,k_plotcor, &
  !             nlon,nlat,kvar_end(ivar_plot)-kvar_start(ivar_plot)+1
   if(mype.eq.0) write(6,*) ' refvar= ',trim(ref_plotcor),' corvar= ',trim(var_plotcor), &

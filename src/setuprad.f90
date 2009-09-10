@@ -1033,15 +1033,14 @@
                    tpwcon*r10*(prsitmp(k)-prsitmp(k+1))
            end do
 
-           call ret_ssmis( tb_obs(1),nchanl, n,              &
-                ssmis_las,ssmis_uas,ssmis_img,ssmis_env,     &
-                tpw5,tsavg5,cosza,emissivity,                &
+           call ret_ssmis( tb_obs(1),nchanl,                 &
+                ssmis_las,                                   &
                 tpwc, clw, ierrret)
 
        else if (amsre) then
 
            call retrieval_amsre(                                 &   
-                tb_obs(1),nchanl,amsre_low,amsre_mid,amsre_hig,  &
+                tb_obs(1),amsre_low,amsre_mid,amsre_hig,  &
                 uwind,vwind,f10,tsavg5,                          &
                 tpwc,clw,si85,kraintype,ierrret ) 
 
@@ -1818,8 +1817,8 @@
 
      else if( ssmi .or. amsre .or. ssmis )then   
 
-         call qcssmi(nchanl,cenlat,cenlon, &
-              zsges,luse(n),sea,land,ice,snow,mixed, &
+         call qcssmi(nchanl, &
+              zsges,luse(n),sea,ice,snow,mixed, &
               ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl, &
               tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
               varinv,errf,aivals(1,is),id_qc)

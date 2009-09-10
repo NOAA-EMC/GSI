@@ -1195,9 +1195,9 @@ contains
 
 !   Declare local variables
     logical iqtflg
-    integer(i_kind):: i,j,it,itt,nt
+    integer(i_kind):: i,j,it,itt,nt,regime
     integer(i_kind),dimension(nfldsfc):: indx
-    real(r_kind):: u10ges,v10ges,t2ges,q2ges,regime
+    real(r_kind):: u10ges,v10ges,t2ges,q2ges
 
     nt=0
     indx=1
@@ -1288,11 +1288,11 @@ contains
     real(r_kind),intent(in):: dlat,dlon,dtime,skint,sfcrough
     real(r_kind),intent(inout):: factw
     integer(i_kind),intent(in)::mype,islimsk
-    integer(i_kind) ix,ix1,ixp,iy,iy1,iyp
+    integer(i_kind) ix,ix1,ixp,iy,iy1,iyp,regime
     integer(i_kind) itsig,itsigp,j,m1,islimsk2
     real(r_kind) w00,w01,w10,w11
     real(r_kind) delx,dely,delx1,dely1,dtsig,dtsigp
-    real(r_kind):: u10ges,v10ges,t2ges,q2ges,regime
+    real(r_kind):: u10ges,v10ges,t2ges,q2ges
     real(r_kind):: pgesin,ugesin,vgesin,qgesin,tgesin,prsigesin1
     real(r_kind):: prsigesin2,lnpgesin1,lnpgesin2,tgesin2,qgesin2,geopgesin,ts
 

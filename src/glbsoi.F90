@@ -166,7 +166,7 @@ subroutine glbsoi(mype)
      if(anisotropic) then
         call anprewgt_reg(mype)
      else
-        call prewgt_reg
+        call prewgt_reg(mype)
      end if
   else
      call create_balance_vars

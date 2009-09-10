@@ -37,14 +37,12 @@ implicit none
 
 type(state_vector), intent(in) :: xst
 real(r_quad), intent(out) :: enorm
-type(state_vector), optional, target, intent(inout) :: yst
+type(state_vector), intent(inout) :: yst
 
 ! Declare local variables
 real(r_kind) :: tfact, pfact, pref, tref, gridfac, zps
 real(r_kind) :: coslat(lat2), dsig(lat2,lon2,nsig), akk(nsig)
 integer(i_kind) :: ii,jj,kk,ijk,ilat
-type(state_vector), pointer :: aux
-type(state_vector), target  :: tmp
 real(r_kind), parameter :: Pa_per_kPa = r1000
 
 ! ----------------------------------------------------------------------
@@ -92,13 +90,7 @@ do ii=2,lat2-1
   endif
 enddo
 ! ----------------------------------------------------------------------
-if (present(yst)) then
-  aux => yst
-else
-  call allocate_state(tmp)
-  aux => tmp
-endif
-aux=zero
+yst=zero
 ! ----------------------------------------------------------------------
 
 ! U
@@ -106,7 +98,7 @@ do kk=1,nsig
   do jj=2,lon2-1
     do ii=2,lat2-1
       ijk=(kk-1)*lon2*lat2 + (jj-1)*lat2 + ii
-      aux%u(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst%u(ijk)
+      yst%u(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst%u(ijk)
     enddo
   enddo
 enddo
@@ -116,7 +108,7 @@ do kk=1,nsig
   do jj=2,lon2-1
     do ii=2,lat2-1
       ijk=(kk-1)*lon2*lat2 + (jj-1)*lat2 + ii
-      aux%v(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst%v(ijk)
+      yst%v(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst%v(ijk)
     enddo
   enddo
 enddo
@@ -126,7 +118,7 @@ do kk=1,nsig
   do jj=2,lon2-1
     do ii=2,lat2-1
       ijk=(kk-1)*lon2*lat2 + (jj-1)*lat2 + ii
-      aux%t(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*tfact*xst%t(ijk)
+      yst%t(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*tfact*xst%t(ijk)
     enddo
   enddo
 enddo
@@ -135,17 +127,15 @@ enddo
 do jj=2,lon2-1
   do ii=2,lat2-1
     ijk= (jj-1)*lat2 + ii
-    aux%p(ijk)=gridfac*coslat(ii)*pfact*xst%p(ijk)
+    yst%p(ijk)=gridfac*coslat(ii)*pfact*xst%p(ijk)
   enddo
 enddo
 
 ! ----------------------------------------------------------------------
 
-enorm=DOT_PRODUCT(aux,xst)
+enorm=DOT_PRODUCT(yst,xst)
 
 ! ----------------------------------------------------------------------
-if (.not.present(yst)) call deallocate_state(tmp)
-aux => NULL()
 
 return
 end subroutine enorm_state

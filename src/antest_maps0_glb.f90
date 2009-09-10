@@ -166,7 +166,7 @@ do ielm=1,5
     if(var_plotcor=='ps') exit
   end do
 
-  call ansmoothrf(hwork,mype)
+  call ansmoothrf(hwork)
 
   if(mype.eq.0) write(lunin) ref_plotcor,var_plotcor,j_plotcor,i_plotcor,k_plotcor, &
                nlon,nlat,kvar_end(ivar_plot)-kvar_start(ivar_plot)+1

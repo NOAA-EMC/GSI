@@ -1310,7 +1310,7 @@ subroutine test_inverses(mype)
   t1=zero ; t2=zero ; v1=zero
 
 ! use the following field to create a test field t1
-  call gather_stuff2(ges_tv(1,1,1,ntguessig),t1,1,mype,0)
+  call gather_stuff2(ges_tv(1,1,1,ntguessig),t1,mype,0)
 
 ! only perform the test on one processor.
   if (mype==0) then
