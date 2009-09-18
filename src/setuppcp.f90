@@ -173,7 +173,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
 
   real(r_kind) avg,sdv,rterm1,rterm2,rterm
-  real(r_kind) error,a0,a1
+  real(r_kind) error,a0,a1,obser
   real(r_kind) errlog
   real(r_kind) rdocp,frain,dtp,dtf,sum,sixthpi
   real(r_kind) drad,vfact,efact,fhour,rtime
@@ -1038,12 +1038,14 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
        if (varinv > r1em6) then
          drad   = log(one+satpcp) - log(one+pcpbc)
+         obserr = sqrt(one/varinv)
+         if (iusep(kx)<1) varinv=zero
 
          aivals(11,is)  = aivals(11,is) + one
          aivals(13,is)  = aivals(13,is) + drad                !bias
          aivals(14,is)  = aivals(14,is) + drad*drad           !bias**2
          aivals(15,is)  = aivals(15,is) + drad*drad*varinv    !pen
-         aivals(16,is)  = aivals(16,is) + sqrt(one/varinv)    !obs error error   
+         aivals(16,is)  = aivals(16,is) + obserr              !obs error error   
 
          aivals(21,is) = aivals(21,is) + satpcp            
          aivals(22,is) = aivals(22,is) + pcpnbc            

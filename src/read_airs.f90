@@ -406,7 +406,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
        tdiff = (sstime - gstime)*r60inv
        if (abs(tdiff)>twind) cycle read_loop
      endif
-     
+
+     nread = nread + nchanl
+
      if (l4dvar) then
        crit1 = 0.01_r_kind
      else
@@ -495,8 +497,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
              ll=l-ioffset
              if(ll == 1 .or. ll == 2)cycle read_loop
            end if
-        else
-           nread=nread+1
         endif
      end do
 
