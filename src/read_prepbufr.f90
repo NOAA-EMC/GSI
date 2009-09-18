@@ -381,11 +381,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        call ufbint(lunin,hdr,7,1,iret,hdstr)
        kx=hdr(5)
 
-       sfctype=(kx>179.and.kx<190).or.(kx>279.and.kx<290)
-
-!      If running in 2d-var (surface analysis) mode, check to see if observation
-!      is surface type.  If not, read next observation report from bufr file
-       if ( twodvar_regional .and. .not.sfctype ) cycle loop_report
 
        iobsub = 0           ! temporary until put in bufr file
        if(kx == 243 .or. kx == 253 .or. kx == 254) iobsub = hdr(7)
@@ -592,6 +587,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        t4dv=t4dv + time_correction
        time=timeobs + time_correction
        kx=hdr(5)
+
+       sfctype=(kx>179.and.kx<190).or.(kx>279.and.kx<290)
+
+!      If running in 2d-var (surface analysis) mode, check to see if observation
+!      is surface type.  If not, read next observation report from bufr file
+       if ( twodvar_regional .and. .not.sfctype ) cycle loop_readsb
 
 !      If ASCAT data, determine primary surface type.  If not open sea,
 !      skip this observation.  This check must be done before thinning.
