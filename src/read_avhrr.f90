@@ -125,7 +125,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
   real(r_double), dimension(13) :: hdr
   real(r_double), dimension(3,5) :: bufrf
-  integer(i_kind) lnbufr,ireadsb,ireadmg,iskip
+  integer(i_kind) lnbufr,ireadsb,ireadmg,iskip,irec,isub,next
 
   real(r_kind) disterr,disterrmax,dlon00,dlat00
   integer(i_kind) ntest
@@ -196,8 +196,12 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 ! latter to BUFRLIB software
   call openbf (lnbufr,'IN',lnbufr)
 
+  next=mype_sub+1
 ! Read BUFR AVHRR GAC 1b data
-  do while (ireadmg(lnbufr,subset,idate) == 0)
+  do while (ireadmg(lnbufr,subset,idate) >= 0)
+    call ufbcnt(lnbufr,irec,isub)
+    if(irec/=next)cycle
+    next=next+npe_sub
     read_loop: do while (ireadsb(lnbufr) == 0)
       call ufbint(lnbufr,hdr,13,1,iret,headr)
       call ufbrep(lnbufr,bufrf, 3,5,iret,'INCN ALBD TMBR')

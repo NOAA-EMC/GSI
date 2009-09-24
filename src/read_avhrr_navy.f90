@@ -116,7 +116,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) itx,k,i,bufsat
   integer(i_kind) ireadsb,ireadmg
   integer(i_kind) nele,itt
-  integer(i_kind) nlat_sst,nlon_sst
+  integer(i_kind) nlat_sst,nlon_sst,irec,isub,next
 
   real(r_kind) dlon,dlat,timedif,sfcr
   real(r_kind) dlon_earth,dlat_earth
@@ -208,10 +208,13 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   call nemtab(lun,'NC012015',idummy1,cdummy,iret)
   if(iret.gt.0)  subset = 'NC012015'
 
+  next=mype_sub+1
 
 ! Read BUFR Navy data
-  do while (ireadmg(lnbufr,subset,idate) == 0)
-
+  do while (ireadmg(lnbufr,subset,idate) >= 0)
+     call ufbcnt(lnbufr,irec,isub)
+     if(irec/=next)cycle
+     next=next+npe_sub
      read_loop:do while (ireadsb(lnbufr) == 0)
   
        call ufbint(lnbufr,bufrf(1),9,1,iret, &

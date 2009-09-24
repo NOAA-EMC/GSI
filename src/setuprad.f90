@@ -511,7 +511,7 @@
      isst_hires    = 31 ! index of interpolated hires sst (K)
   elseif (avhrr) then
      iclavr        = 32 ! index CLAVR cloud flag with AVHRR data
-     isst_hires    = 31 ! index of interpolated hires sst (K)
+     isst_hires    = 33 ! index of interpolated hires sst (K)
   elseif (amsre) then
      isgnt_ang     = 32 ! index of sun glint angle (degrees)
   endif

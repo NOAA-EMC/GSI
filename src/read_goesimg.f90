@@ -97,7 +97,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
   character(8) subset,subfgn
 
-  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah
+  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,isub,next
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon
   integer(i_kind) ireadmg,ireadsb,iret,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
@@ -198,9 +198,14 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   nele=maxinfo+nchanl
   allocate(data_all(nele,itxmax))
 
+  next=mype_sub+1
 
 ! Big loop over bufr file
-  do while(IREADMG(lnbufr,subset,idate) == 0)
+  do while(IREADMG(lnbufr,subset,idate) >= 0)
+     call ufbcnt(lnbufr,irec,isub)
+     if(irec/=next)cycle
+     next=next+npe_sub
+
      read_loop: do while (IREADSB(lnbufr) == 0)
 
 !       Read through each reacord

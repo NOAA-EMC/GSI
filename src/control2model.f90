@@ -56,7 +56,7 @@ if (.not.lsqrtb) then
 end if
 if (nsubwin/=1 .and. .not.l4dvar) then
   write(6,*)'control2model: error 3dvar',nsubwin
-  call stop2('control2model: error 3dvar')
+  call stop2(105)
 end if
 
 ! Loop over control steps

@@ -332,8 +332,7 @@ subroutine read_obs(ndata,mype)
 
           if(lexist .and. nuse) then
             ntasks1(i,1)=1
-            if(ditype(i) == 'rad' .and. ( .not. obstype=='goes_img' .and. &
-                 .not. avhrr)) then
+            if(ditype(i) == 'rad') then
 
                  len4file=lenbytes/4
 !  Allow up to 16 processors/file increase loop bounds to increase number of processors allowed
@@ -394,9 +393,6 @@ subroutine read_obs(ndata,mype)
      do ii=1,4
       do i=1,ndat
        if(iix == npe_sub3(i) .and. ditype(i) == 'rad')then
-        obstype=dtype(i)                   !     obstype  - observation types to process
-        avhrr = index(obstype,'avhrr') /= 0
-         if(.not. obstype=='goes_img' .and. .not. avhrr) then
           if(ntasks(i,1) > 0 .and. ntasks(i,1) <= npeextra)then
             npeextra=npeextra-ntasks(i,1)
             npe_sub(i)=npe_sub(i)+ntasks(i,1)
@@ -409,7 +405,6 @@ subroutine read_obs(ndata,mype)
             ntasks(i,2)=2*ntasks(i,2)
             if(npeextra == 0)exit extraloop
           end if
-        end if
        end if
       end do
       iix=2*iix 
