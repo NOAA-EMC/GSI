@@ -223,9 +223,10 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 ! Big loop to read data file
   next=mype_sub+1
   do while(ireadmg(lnbufr,subset,idate)>=0)
-  call ufbcnt(lnbufr,irec,isub)
-  if(irec/=next)cycle; next=next+npe_sub
-  read_loop: do while (ireadsb(lnbufr)==0)
+   call ufbcnt(lnbufr,irec,isub)
+   if(irec/=next)cycle
+   next=next+npe_sub
+   read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Extract type, date, and location information
      if(g5x5)then
@@ -236,7 +237,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !      If not goes data over ocean , read next bufr record
 !      if(kx /= 174 .and. kx /= 175)cycle read_loop
 
-       ksatid=hdr(7)
+       ksatid=nint(hdr(7))
 !      if not proper satellite read next bufr record
        if (ksatid /= lsatid) cycle read_loop
 
@@ -257,7 +258,6 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
          if(ldetect /= nint(hdr(8)))cycle read_loop
        end if
 
-!!     ifov = hdr(15) ! number of averaged FOVS 
        ifov = nint(hdr(15)) ! number of averaged FOVS
 
        if(ifov < mfov .and. ifov > 0)then
@@ -266,7 +266,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 !      Extract obs time.  If not within analysis window, skip obs
 !      Extract date information.  If time outside window, skip this obs
-       idate5(1) = hdr(9) !year
+       idate5(1) = hdr(9)  !year
        idate5(2) = hdr(10) !month
        idate5(3) = hdr(11) !day
        idate5(4) = hdr(12) !hour

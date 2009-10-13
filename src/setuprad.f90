@@ -285,11 +285,11 @@
   real(r_single),allocatable,dimension(:,:):: diagbufchan
 
   real(r_kind),dimension(npred+1,nchanl)::predterms
-  real(r_kind),dimension(npred-2):: pred
+  real(r_kind),dimension(npred,nchanl):: pred
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
   real(r_kind),dimension(nchanl):: tnoise,errmax
-  real(r_kind),dimension(nchanl):: var,ratio_raderr,radinv,pred_tlap
+  real(r_kind),dimension(nchanl):: var,ratio_raderr,radinv
   real(r_kind),dimension(nchanl):: emissivity,ts,emissivity_k
   real(r_kind),dimension(nchanl):: uwind_k,vwind_k
   real(r_kind),dimension(nchanl,nsig):: dtb
@@ -355,8 +355,10 @@
   sgagl = zero
   icc   = izero
   ich9  = min(9,nchanl)
-  do j=1,npred-2
-     pred(j)=zero
+  do i=1,nchanl
+    do j=1,npred
+     pred(j,i)=zero
+    end do
   end do
   sqrt_tiny_r_kind = ten*sqrt(tiny_r_kind)
 
@@ -998,11 +1000,12 @@
 !*****
 
 !    Construct predictors for 1B radiance bias correction.
-     pred(1) = r0_01
-     pred(2) = one_tenth*(secant_term-one)**2-.015_r_kind
-!    pred(2) = zero
-     if(ssmi .or. ssmis .or. amsre)pred(2)=zero
-     pred(3) = zero
+     do i=1,nchanl
+       pred(1,i) = r0_01
+       pred(2,i) = one_tenth*(secant_term-one)**2-.015_r_kind
+       if(ssmi .or. ssmis .or. amsre)pred(2,i)=zero
+       pred(3,i) = zero
+     end do
 
 !    Compute predictor for microwave cloud liquid water bias correction.
      clw=zero
@@ -1020,8 +1023,6 @@
                 .and. tb_obs(2) > zero) &
               clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
                   amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
-           clw = max(zero,clw)
-           pred(3) = clw*cosza*cosza
          end if
          
        else if (ssmis_las) then
@@ -1053,9 +1054,13 @@
        clw = max(zero,clw)
 
        if (amsre) then
-          pred(3) = clw
+         do i=1,nchanl
+          pred(3,i) = clw
+         end do
        else
-          pred(3) = clw*cosza*cosza
+         do i=1,nchanl
+          pred(3,i) = clw*cosza*cosza
+         end do
        end if
      end if
 
@@ -1072,11 +1077,16 @@
         end do
         tlapchn(i) = r0_01*tlapchn(i)
         tlap = tlapchn(i)-tlapmean(mm)
+        pred(4,i)=tlap*tlap
+        pred(5,i)=tlap
+        do j=1,npred
+          pred(j,i)=pred(j,i)*air_rad(mm)
+        end do
 
-        predterms(2,i) = tlap*predx(npred,mm)*air_rad(mm)        !tlap
-        predterms(3,i) = tlap*tlap*predx(npred-1,mm)*air_rad(mm) !tlap*tlap
+        predterms(2,i) = pred(5,i)*predx(npred,mm)                    !tlap
+        predterms(3,i) = pred(4,i)*predx(npred-1,mm)                  !tlap*tlap
         do j = 1,npred-2
-           predterms(j+3,i) = predx(j,mm)*pred(j)*air_rad(mm)
+           predterms(j+3,i) = predx(j,mm)*pred(j,i)
         end do
 
 !       Apply SST dependent bias correction with cubic spline
@@ -1527,7 +1537,7 @@
 !                Adjust observation error based on magnitude of liquid
 !                water correction.  0.2 is empirical factor
 
-                 term=term+0.2_r_kind*(predx(3,ich(i))*pred(3)*air_rad(ich(i)))**2
+                 term=term+0.2_r_kind*(predx(3,ich(i))*pred(3,i))**2
 
                  errf(i)   = efactmc*errf(i)
                  varinv(i) = vfactmc*varinv(i)
@@ -1537,7 +1547,9 @@
             end if
             
             if ( (i <= 5 .or. i == 15) .and. &
-                 (varinv(i)<1.e-9_r_kind) ) pred(3) = zero
+                 (varinv(i)<1.e-9_r_kind) ) then
+               pred(3,i) = zero
+            end if
             
          end do
 
@@ -2015,7 +2027,6 @@
               icxx(icc) = m                   ! channel index
               var(icc) = one/error0(i)**2     ! 1/(obs error)**2  (original uninflated error)
               ratio_raderr(icc)=error0(i)**2*varinv(i) ! (original error)/(inflated error)
-              pred_tlap(icc)=tlapchn(i)-tlapmean(m)   ! lapse rate predictor
 
 !             Load jacobian for temperature (dTb/dTv).  The factor c2
 !             converts the temperature from sensible to virtual
@@ -2118,10 +2129,8 @@
                 radtail(ibin)%head%err2(iii)=var(iii)
                 radtail(ibin)%head%raterr2(iii)=ratio_raderr(iii)
                 radtail(ibin)%head%icx(iii)=icxx(iii)
-                radtail(ibin)%head%pred(npred,iii)=pred_tlap(iii)*air_rad(m)
-                radtail(ibin)%head%pred(npred-1,iii)=pred_tlap(iii)*pred_tlap(iii)*air_rad(m)
-                do k=1,npred-2
-                   radtail(ibin)%head%pred(k,iii)=pred(k)*air_rad(m)
+                do k=1,npred
+                   radtail(ibin)%head%pred(k,iii)=pred(k,ii)
                 end do
                 do k=1,nsig3p3
                   radtail(ibin)%head%dtb_dvar(k,iii)=htlto(k,iii)

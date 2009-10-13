@@ -164,7 +164,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(8) c_prvstg,c_sprvstg 
   character(8) c_station_id
 
-  integer(i_kind) lunin,i,maxobs,j,idomsfc,itemp
+  integer(i_kind) lunin,i,maxobs,j,idomsfc,itemp,it29
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nc,nx,id,isflg,ntread,itx
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
@@ -231,7 +231,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   equivalence(r_sprvstg(1,1),c_sprvstg) 
   equivalence(rstation_id,c_station_id)
 
-  data hdstr  /'SID XOB YOB DHR TYP ELV SAID '/
+  data hdstr  /'SID XOB YOB DHR TYP ELV SAID T29'/
   data obstr  /'POB QOB TOB ZOB UOB VOB PWO CAT PRSS' /
   data drift  /'XDR YDR HRDR                    '/
   data sststr /'MSST DBSS SST1 SSTQM SSTOE           '/
@@ -378,12 +378,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
          nrep(nmsg)=nrep(nmsg)+1  ! count reports per message 
        endif
 !    Extract type, date, and location information
-       call ufbint(lunin,hdr,7,1,iret,hdstr)
+       call ufbint(lunin,hdr,8,1,iret,hdstr)
        kx=hdr(5)
 
 
        iobsub = 0           ! temporary until put in bufr file
        if(kx == 243 .or. kx == 253 .or. kx == 254) iobsub = hdr(7)
+       if(kx == 280) iobsub=hdr(8)
 
        ntb = ntb+1
        if (ntb>mxtb) then
@@ -409,13 +410,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                call ufbint(lunin,levdat,1,255,levs,levstr)
                maxobs=maxobs+max(1,levs)
                exit loop_convinfo_test
-            else if (icsubtype(nc) == 0 .and. (kx == 243 .or. kx == 253 .or. kx == 254) ) then
-              if (iobsub /= 55 .and. iobsub /= 56) then
-                 ikx=nc
-                 call ufbint(lunin,levdat,1,255,levs,levstr)
-                 maxobs=maxobs+max(1,levs)
-                 exit loop_convinfo_test
-              end if
+            else if (icsubtype(nc) == 0 ) then
+               ikx=nc
+               call ufbint(lunin,levdat,1,255,levs,levstr)
+               maxobs=maxobs+max(1,levs)
+               exit loop_convinfo_test
             endif
          end if
 
@@ -526,7 +525,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        endif
                  
 !      Extract type, date, and location information
-       call ufbint(lunin,hdr,7,1,iret,hdstr)
+       call ufbint(lunin,hdr,8,1,iret,hdstr)
        if(hdr(2)>= r360)hdr(2)=hdr(2)-r360
        if(hdr(2) < zero)hdr(2)=hdr(2)+r360
        dlon_earth=hdr(2)*deg2rad
@@ -1005,7 +1004,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            oelev=obsdat(4,k)
            if(kx >= 280 .and. kx < 300 )then
              oelev=r10+selev
-             if (kx == 280) oelev=r20+selev
+             if (kx == 280 )then
+               it29=nint(hdr(8))
+               if(it29 == 522 .or. it29 == 523 .or. it29 == 531)then
+!                oelev=r20+selev
+                 oelev=r20
+               end if
+             end if
+
              if (kx == 282) oelev=r20+selev
              if (kx == 285 .or. kx == 289 .or. kx == 290) then
                 oelev=selev

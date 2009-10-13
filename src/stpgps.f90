@@ -112,7 +112,7 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
   real(r_kind) :: rq_TL,rp_TL,rt_TL
   type(gps_ob_type), pointer :: gpsptr
 
-  real(r_kind) cg_gps,pen1,pen2,pen3,pencur,nref1,nref2,nref3,wgross,wnotgross
+  real(r_kind) cg_gps,pen1,pen2,pen3,pen0,nref1,nref2,nref3,wgross,wnotgross
   real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,nref0,pg_gps
 
 ! Initialize penalty, b1, and b3 to zero
@@ -179,10 +179,10 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
       nref2=val2+sges(3)*val
       nref3=val2+sges(4)*val
 
-      pencur = nref0*nref0*gpsptr%err2
-      pen1   = nref1*nref1*gpsptr%err2
-      pen2   = nref2*nref2*gpsptr%err2
-      pen3   = nref3*nref3*gpsptr%err2
+      pen0 = nref0*nref0*gpsptr%err2
+      pen1 = nref1*nref1*gpsptr%err2
+      pen2 = nref2*nref2*gpsptr%err2
+      pen3 = nref3*nref3*gpsptr%err2
 
 !      Modify penalty term if nonlinear QC
       if (nlnqc_iter .and. gpsptr%pg > tiny_r_kind .and. gpsptr%b > tiny_r_kind) then
@@ -190,18 +190,18 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
          cg_gps=cg_term/gpsptr%b
          wnotgross= one-pg_gps
          wgross = pg_gps*cg_gps/wnotgross
-         pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
-         pen1   = -two*log((exp(-half*pen1  ) + wgross)/(one+wgross))
-         pen2   = -two*log((exp(-half*pen2  ) + wgross)/(one+wgross))
-         pen3   = -two*log((exp(-half*pen3  ) + wgross)/(one+wgross))
+         pen0 = -two*log((exp(-half*pen0) + wgross)/(one+wgross))
+         pen1 = -two*log((exp(-half*pen1) + wgross)/(one+wgross))
+         pen2 = -two*log((exp(-half*pen2) + wgross)/(one+wgross))
+         pen3 = -two*log((exp(-half*pen3) + wgross)/(one+wgross))
       endif
   
 !     Cost function, b1, and b3
       cc  = (pen1+pen3-two*pen2)*gpsptr%raterr2
-      out(1) = out(1)+pencur*gpsptr%raterr2
-      out(2) = out(2)+pen1  *gpsptr%raterr2
-      out(3) = out(3)+pen2  *gpsptr%raterr2
-      out(4) = out(4)+pen3  *gpsptr%raterr2
+      out(1) = out(1)+pen0*gpsptr%raterr2
+      out(2) = out(2)+pen1*gpsptr%raterr2
+      out(3) = out(3)+pen2*gpsptr%raterr2
+      out(4) = out(4)+pen3*gpsptr%raterr2
       out(5) = out(5)+(pen1-pen3)*gpsptr%raterr2*bcoef1+cc*bcoef2
       out(6) = out(6)+cc*ccoef
 

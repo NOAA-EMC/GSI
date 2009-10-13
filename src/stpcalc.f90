@@ -378,9 +378,9 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
     delpen = stp(ii)*(bx - 0.5_r_quad*stp(ii)*cx ) 
 
     if(ii == 1)then
-      pjcost(1) = pbc(1,1) ! Jb
-      pjcost(3) = pbc(1,2) + pbc(1,3)! Jc
-      pjcost(4) = pbc(1,5)+pbc(1,4) ! Jl
+      pjcost(1) = pbc(1,1)            ! Jb
+      pjcost(3) = pbc(1,2) + pbc(1,3) ! Jc
+      pjcost(4) = pbc(1,5) + pbc(1,4) ! Jl
       pjcost(2) = zero
       do i=1,nobs_type
         pjcost(2) = pjcost(2)+pbc(1,5+i) ! Jo

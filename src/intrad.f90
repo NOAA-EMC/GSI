@@ -103,7 +103,7 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use radinfo, only: npred,npred1,jpch_rad,pg_rad,b_rad
+  use radinfo, only: npred,jpch_rad,pg_rad,b_rad
   use obsmod, only: rad_ob_type,lsaveobsens,l_do_adjoint
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gridmod, only: latlon11,latlon1n,nsig,nsig2,&
@@ -124,9 +124,8 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
 ! Declare local variables
   integer(i_kind) j,j1,j2,j3,j4,i1,i2,i3,i4,n,n_1,n_2,k,ic,ix,nn,jn
   integer(i_kind),dimension(nsig) :: i1n,i2n,i3n,i4n
-  real(r_kind) valx,val
-  real(r_kind) tlap,tlap2,w1,w2,w3,w4
-! real(r_kind) penalty,p1
+  real(r_kind) val
+  real(r_kind) w1,w2,w3,w4
   real(r_kind),dimension(nsig3p3):: tval,tdir
   real(r_kind) cg_rad,p0,wnotgross,wgross,time_rad
   type(rad_ob_type), pointer :: radptr
@@ -143,7 +142,6 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
      w3=radptr%wij(3)
      w4=radptr%wij(4)
 
-!    p1=zero
      do k=1,nsig3p3
         tval(k)=zero
      end do
@@ -214,25 +212,22 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
         ix=(ic-1)*npred
 
 !       include observation increment and lapse rate contributions to bias correction
-        tlap=radptr%pred(npred,nn)
-!       tlap2=tlap*tlap
-        tlap2=radptr%pred(npred1,nn)
-        valx=spred(ix+npred)*tlap+spred(ix+npred1)*tlap2
+        val=zero
 
 !       Include contributions from atmospheric jacobian
         do k=1,nsig3p3
-           valx=valx+tdir(k)*radptr%dtb_dvar(k,nn)
+           val=val+tdir(k)*radptr%dtb_dvar(k,nn)
         end do
 
 !       Include contributions from remaining bias correction terms
-        do n=1,npred-2
-           valx=valx+spred(ix+n)*radptr%pred(n,nn)
+        do n=1,npred
+           val=val+spred(ix+n)*radptr%pred(n,nn)
         end do
 
         if (lsaveobsens) then
-          radptr%diags(nn)%ptr%obssen(jiter) = valx*radptr%err2(nn)*radptr%raterr2(nn)
+          radptr%diags(nn)%ptr%obssen(jiter) = val*radptr%err2(nn)*radptr%raterr2(nn)
         else
-          if (radptr%luse) radptr%diags(nn)%ptr%tldepart(jiter) = valx
+          if (radptr%luse) radptr%diags(nn)%ptr%tldepart(jiter) = val
         endif
 
        if (l_do_adjoint) then
@@ -240,7 +235,7 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
           val=radptr%diags(nn)%ptr%obssen(jiter)
 
         else
-          valx=valx-radptr%res(nn)
+          val=val-radptr%res(nn)
 
 !         Multiply by variance.
           if (nlnqc_iter .and. pg_rad(ic) > tiny_r_kind .and. &
@@ -248,12 +243,11 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
              cg_rad=cg_term/b_rad(ic)
              wnotgross= one-pg_rad(ic)*varqc_iter
              wgross = varqc_iter*pg_rad(ic)*cg_rad/wnotgross
-             p0   = wgross/(wgross+exp(-half*radptr%err2(nn)*valx*valx))
-             valx = valx*(one-p0)
+             p0   = wgross/(wgross+exp(-half*radptr%err2(nn)*val*val))
+             val = val*(one-p0)
           endif
 
-          val = valx*radptr%err2(nn)
-          val = val*radptr%raterr2(nn)
+          val = val*radptr%err2(nn)*radptr%raterr2(nn)
         endif
 
 !       Begin adjoint
@@ -266,11 +260,9 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
 !       Extract contributions from bias correction terms
 !       use compensated summation
         if(radptr%luse)then
-          do n=1,npred-2
+          do n=1,npred
              rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val
           end do
-          rpred(ix+npred) =rpred(ix+npred) +val*tlap
-          rpred(ix+npred1)=rpred(ix+npred1)+val*tlap2
         end if
        endif
      end do

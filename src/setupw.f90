@@ -143,6 +143,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   real(r_kind) dz,zob,z1,z2,p1,p2,dz21,dlnp21,spdb,dstn
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,skint,sfcr
+  real(r_kind) dudiff_opp, dvdiff_opp, vecdiff, vecdiff_opp
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig)::prsltmp,tges,zges
@@ -586,9 +587,17 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      if (itype==290) then
         qcu = five
         qcv = five
-        if ( abs(dudiff) > qcu  .or. &   ! u component check
-             abs(dvdiff) > qcv ) then    ! v component check
-           error = zero
+!       Compute innovations for opposite vectors
+        dudiff_opp = -uob - ugesin
+        dvdiff_opp = -vob - vgesin
+        vecdiff = sqrt(dudiff**2 + dvdiff**2)
+        vecdiff_opp = sqrt(dudiff_opp**2 + dvdiff_opp**2)
+        if ( abs(dudiff) > qcu  .or. &       ! u component check
+             abs(dvdiff) > qcv  .or. &       ! v component check
+             vecdiff > vecdiff_opp ) then    ! ambiguity check
+
+                error = zero
+
         endif
      endif
 

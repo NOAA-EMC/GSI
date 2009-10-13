@@ -89,10 +89,10 @@ subroutine stprad(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst, &
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use radinfo, only: npred1,npred,jpch_rad,b_rad,pg_rad
+  use radinfo, only: npred,jpch_rad,b_rad,pg_rad
   use obsmod, only: rad_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,r3600,zero_quad
+  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,r3600,zero_quad,one_quad
   use gridmod, only: nsig,nsig2,nsig3p1,nsig3p2,nsig3p3,&
        latlon11,latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
@@ -109,16 +109,16 @@ subroutine stprad(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst, &
 
 ! Declare local variables
   integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4
-  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
-  real(r_kind) val2,tlap2,val,tlap,w1,w2,w3,w4
+  real(r_quad) alpha,ccoef,bcoef1,bcoef2,cc,pen1,pen3
+  real(r_kind) val2,val,w1,w2,w3,w4
   real(r_kind),dimension(nsig3p3):: tdir,rdir
-  real(r_kind) cg_rad,rad0,rad1,rad2,rad3,pen1,pen3,wgross,wnotgross
+  real(r_kind) cg_rad,rad0,rad1,rad2,rad3,wgross,wnotgross
   real(r_kind) term,term1,term2,term3,time_rad
   real(i_kind),dimension(nsig) :: j1n,j2n,j3n,j4n
   type(rad_ob_type), pointer :: radptr
 
   out=zero_quad
-  alpha=one/(sges(3)-sges(2))
+  alpha=one_quad/(sges(3)-sges(2))
   ccoef=half*alpha*alpha
   bcoef1=half*half*alpha
   bcoef2=sges(3)*ccoef
@@ -218,19 +218,16 @@ subroutine stprad(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst, &
        end do
 !$omp end parallel do
      end if
-     pen1=zero
-     pen3=zero
+     pen1=zero_quad
+     pen3=zero_quad
      do nn=1,radptr%nchan
-        ic=radptr%icx(nn)
+
+        val2=-radptr%res(nn)
+        val = zero
 
 !       contribution from bias corection
-        tlap=radptr%pred(npred,nn)
-!       tlap2=tlap*tlap
-        tlap2=radptr%pred(npred1,nn)
-        val2=-radptr%res(nn)+spred(npred,ic)*tlap+spred(npred1,ic)*tlap2
-        val=                 rpred(npred,ic)*tlap+rpred(npred1,ic)*tlap2
-
-        do nx=1,npred-2
+        ic=radptr%icx(nn)
+        do nx=1,npred
            val2=val2+spred(nx,ic)*radptr%pred(nx,nn)
            val =val +rpred(nx,ic)*radptr%pred(nx,nn)
         end do
@@ -241,18 +238,19 @@ subroutine stprad(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst, &
            val =val +rdir(k)*radptr%dtb_dvar(k,nn)
         end do
 
-!       multiply by variance
+!       calculate radiances for each stepsize
         rad0=val2+sges(1)*val
         rad1=val2+sges(2)*val
         rad2=val2+sges(3)*val
         rad3=val2+sges(4)*val
         
+!       calculate contribution to J
         term  = radptr%err2(nn)*rad0*rad0
         term1 = radptr%err2(nn)*rad1*rad1
         term2 = radptr%err2(nn)*rad2*rad2
         term3 = radptr%err2(nn)*rad3*rad3
         
-!  Modify penalty term if nonlinear QC
+!       Modify penalty term if nonlinear QC
         if(nlnqc_iter .and. pg_rad(ic) > tiny_r_kind .and. &
                             b_rad(ic)  > tiny_r_kind)then
            cg_rad=cg_term/b_rad(ic)

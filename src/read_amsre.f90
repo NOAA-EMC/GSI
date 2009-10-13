@@ -272,16 +272,16 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,gstime,&
 ! Big loop to read data file
   next=mype_sub+1
   do while(ireadmg(lnbufr,subset,idate)>=0)
-  call ufbcnt(lnbufr,irec,isub)
-  if(irec/=next)cycle; next=next+npe_sub
-  read_loop: do while (ireadsb(lnbufr)==0)
+   call ufbcnt(lnbufr,irec,isub)
+   if(irec/=next)cycle; next=next+npe_sub
+   read_loop: do while (ireadsb(lnbufr)==0)
 
 
 !    Retrieve bufr 2/4 :get amsrspot (siid,ymdhs,lat,lon)
      call ufbrep(lnbufr,amsrspot_d,N_AMSRSPOT_LIST,1,iret, &
          'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ FOVN')
 
-     siid = int( amsrspot_d(1) + POINT001 ) 
+     siid = nint(amsrspot_d(1)) 
      if(siid /= AMSRE_SIID)  cycle read_loop
 
 

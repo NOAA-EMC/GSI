@@ -472,8 +472,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
    next=mype_sub_read+1
    do while(ireadmg(lnbufr,subset,idate)>=0)
    call ufbcnt(lnbufr,irec,isub)
-   if(irec/=next)cycle; next=next+npe_sub_read
-   read_loop: do while (ireadsb(lnbufr)==0 .and. subset==subfgn)
+   if(irec/=next)cycle
+   next=next+npe_sub_read
+   if(subset /=subfgn) cycle
+   read_loop: do while (ireadsb(lnbufr)==0)
 
 !          Read header record.  (lll=1 is normal feed, 2=EARS data)
            hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HOLS'
@@ -703,12 +705,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !               0.454_r_kind*ch2-ch15
 
            else if (amsub .or. mhs) then
-              cosza = cos(lza)
               ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
                     r01*predx(1,ichan1)*air_rad(ichan1)
               ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
                     r01*predx(1,ichan2)*air_rad(ichan2)
               if(isflg == 0)then
+                 cosza = cos(lza)
 !                pred = (ch1-ch2)/cosza+30.0_r_kind
                  if(ch2 < h300)then 
                     pred = (0.13_r_kind*(ch1+33.58_r_kind*log(h300-ch2)- &
