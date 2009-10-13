@@ -393,15 +393,21 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        endif
        ikx=-999
 
-       loop_convinfo_test: do nc=1,nconvtype
-         if (kx /= ictype(nc)) cycle loop_convinfo_test
-         if (trim(ioctype(nc)) /= trim(obstype))cycle loop_convinfo_test
+       loop_convinfo_test1: do nc=1,nconvtype
+         if (kx /= ictype(nc)) cycle loop_convinfo_test1
+         if (trim(ioctype(nc)) /= trim(obstype))cycle loop_convinfo_test1
          if(icsubtype(nc) == iobsub) then
             ikx=nc
             call ufbint(lunin,levdat,1,255,levs,levstr)
             maxobs=maxobs+max(1,levs)
-            exit loop_convinfo_test
-         else
+            exit loop_convinfo_test1
+         end if
+       end do loop_convinfo_test1
+
+       if(ikx == -999)then
+          loop_convinfo_test2: do nc=1,nconvtype
+            if (kx /= ictype(nc)) cycle loop_convinfo_test2
+            if (trim(ioctype(nc)) /= trim(obstype))cycle loop_convinfo_test2
             ixsub=icsubtype(nc)/10
             iosub=iobsub/10
             isubsub=icsubtype(nc)-ixsub*10
@@ -409,16 +415,26 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                ikx=nc
                call ufbint(lunin,levdat,1,255,levs,levstr)
                maxobs=maxobs+max(1,levs)
-               exit loop_convinfo_test
-            else if (icsubtype(nc) == 0 ) then
-               ikx=nc
-               call ufbint(lunin,levdat,1,255,levs,levstr)
-               maxobs=maxobs+max(1,levs)
-               exit loop_convinfo_test
-            endif
-         end if
+               exit loop_convinfo_test2
+            end if
+          end do loop_convinfo_test2
+          if(ikx == -999)then
+            loop_convinfo_test3: do nc=1,nconvtype
+              if (kx /= ictype(nc)) cycle loop_convinfo_test3
+              if (trim(ioctype(nc)) /= trim(obstype))cycle loop_convinfo_test3
+              ixsub=icsubtype(nc)/10
+              iosub=iobsub/10
+              isubsub=icsubtype(nc)-ixsub*10
+              if (icsubtype(nc) == 0 ) then
+                 ikx=nc
+                 call ufbint(lunin,levdat,1,255,levs,levstr)
+                 maxobs=maxobs+max(1,levs)
+                 exit loop_convinfo_test3
+              endif
 
-       end do loop_convinfo_test
+            end do loop_convinfo_test3
+          end if
+       end if
        tab(ntb)=ikx
        if(ikx < izero) cycle loop_report
        lmsg(nmsg) = .true.
