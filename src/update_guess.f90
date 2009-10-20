@@ -77,7 +77,7 @@ subroutine update_guess(sval,sbias)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use constants, only: zero, one, fv
+  use constants, only: izero,ione,zero,one,fv
   use jfunc, only: iout_iter,biascor,tsensible
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional
@@ -110,11 +110,11 @@ subroutine update_guess(sval,sbias)
 ! Initialize local arrays
   if (regional) then
    do ii=1,nobs_bins
-     ijk=0
+     ijk=izero
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ijk=ijk+1
+              ijk=ijk+ione
               sval(ii)%oz(ijk)=zero
               sval(ii)%cw(ijk)=zero
            end do
@@ -125,17 +125,17 @@ subroutine update_guess(sval,sbias)
 
 ! Add increment to background
   do it=1,nfldsig
-     if (nobs_bins>1) then
+     if (nobs_bins>ione) then
        zt = hrdifsig(it)
-       ii = NINT(zt/hr_obsbin)+1
+       ii = NINT(zt/hr_obsbin)+ione
      else
-       ii = 1
+       ii = ione
      endif
-     ijk=0
+     ijk=izero
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ijk=ijk+1
+              ijk=ijk+ione
               ges_u(i,j,k,it)    =                 ges_u(i,j,k,it)    + sval(ii)%u(ijk)
               ges_v(i,j,k,it)    =                 ges_v(i,j,k,it)    + sval(ii)%v(ijk)
               ges_q(i,j,k,it)    =                 ges_q(i,j,k,it)    + sval(ii)%q(ijk) 
@@ -157,26 +157,26 @@ subroutine update_guess(sval,sbias)
            end do
         end do
      end do
-     ij=0
+     ij=izero
      do j=1,lon2
         do i=1,lat2
-           ij=ij+1
+           ij=ij+ione
            ges_ps(i,j,it) = ges_ps(i,j,it) + sval(ii)%p(ij)
         end do
      end do
   end do
 
   do k=1,nfldsfc
-     if (nobs_bins>1) then
+     if (nobs_bins>ione) then
        zt = hrdifsfc(it)
-       ii = NINT(zt/hr_obsbin)+1
+       ii = NINT(zt/hr_obsbin)+ione
      else
-       ii = 1
+       ii = ione
      endif
-     ij=0
+     ij=izero
      do j=1,lon2
         do i=1,lat2
-           ij=ij+1
+           ij=ij+ione
            dsfct(i,j,k)=dsfct(i,j,k)+sval(ii)%sst(ij)
         end do
      end do
@@ -185,7 +185,7 @@ subroutine update_guess(sval,sbias)
 
 ! If requested, update background bias correction
   if (biascor >= zero) then
-     if (mype==0) write(iout_iter,*) &
+     if (mype==izero) write(iout_iter,*) &
           'UPDATE_GUESS:  update background bias correction.  biascor=',biascor
 
 !    Update bias correction field
@@ -201,19 +201,19 @@ subroutine update_guess(sval,sbias)
   if (.not.twodvar_regional) then
 
 !    Satellite radiance biases
-     ij=0
+     ij=izero
      do j=1,jpch_rad
         do i=1,npred
-           ij=ij+1
+           ij=ij+ione
            predx(i,j)=predx(i,j)+sbias%predr(ij)
         end do
      end do
 
 !    Precipitation biases
-     ij=0
+     ij=izero
      do j=1,npcptype
         do i=1,npredp
-           ij=ij+1
+           ij=ij+ione
            predxp(i,j)=predxp(i,j)+sbias%predp(ij)
         end do
      end do

@@ -1,7 +1,7 @@
 module sub2fslab_mod
-!$$$   module documentation block
-!                .      .    .                                       .
-! module:    sub2fslab_mod
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   sub2fslab_mod
 !   prgmmr: sato             org: np23                date: 2008-01-23
 !
 ! abstract: contains stuffs to convert the subdomain data
@@ -14,8 +14,12 @@ module sub2fslab_mod
 !   sub setup_sub2fslab
 !   sub destroy_sub2fslab
 !   sub sub2fslab
+!   sub sub2fslab_glb
 !   sub sub2fslabdz
+!   sub sub2fslabdz_glb
 !   sub sub2slab2d
+!   sub sub2fslab2d
+!   sub sub2fslab2d_glb
 !
 ! Variable Definitions:
 !   var work_*  - work array for sub2grid
@@ -28,7 +32,7 @@ module sub2fslab_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind,r_single,r_double,i_long
+  use kinds, only: r_kind,i_kind,r_single
   use gridmod, only: nsig1o, nlon, nlat, & ! for slab mode
                      nsig  , lat2, lon2, & ! for subdomain
                      regional, twodvar_regional
@@ -37,6 +41,19 @@ module sub2fslab_mod
                       prm3 => pf2aP3
 
   implicit none
+
+! set default to private
+  private
+! set subroutines to public
+  public :: setup_sub2fslab
+  public :: destroy_sub2fslab
+  public :: sub2fslab
+  public :: sub2fslab_glb
+  public :: sub2fslabdz
+  public :: sub2fslabdz_glb
+  public :: sub2slab2d
+  public :: sub2fslab2d
+  public :: sub2fslab2d_glb
 
   real(r_kind),allocatable,dimension(:,:,:)::work_st,work_vp,work_t,work_q, &
                                              work_oz,work_cwmr
@@ -51,7 +68,7 @@ contains
 subroutine setup_sub2fslab
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   setup_sub2fslab
+! subprogram:    setup_sub2fslab
 !   prgmmr: sato             org: np23                date: 2008-01-23
 !
 ! abstract: set up work arrays
@@ -68,6 +85,7 @@ subroutine setup_sub2fslab
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  implicit none
 
   allocate(work_st(lat2,lon2,nsig),work_vp(lat2,lon2,nsig),work_t   (lat2,lon2,nsig))
   allocate(work_q (lat2,lon2,nsig),work_oz(lat2,lon2,nsig),work_cwmr(lat2,lon2,nsig))
@@ -92,7 +110,7 @@ end subroutine setup_sub2fslab
 subroutine destroy_sub2fslab
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   destroy_sub2fslab
+! subprogram:    destroy_sub2fslab
 !   prgmmr: sato             org: np23                date: 2008-01-23
 !
 ! abstract: destroy work arrays
@@ -110,6 +128,7 @@ subroutine destroy_sub2fslab
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  implicit none
 
   deallocate(work_st, work_vp, work_t, work_q, work_oz, work_cwmr)
   deallocate(work_p, work_sst, work_slndt, work_sicet)
@@ -132,7 +151,7 @@ end subroutine destroy_sub2fslab
 subroutine sub2fslab(fsub,fslab)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   sub2fslab
+! subprogram:    sub2fslab
 !   prgmmr: sato             org: np23                date: 2008-01-23
 !
 ! abstract: convert subdomain data into filter-space slab data
@@ -141,7 +160,6 @@ subroutine sub2fslab(fsub,fslab)
 !   2008-01-23  sato
 !
 !   input argument list:
-!    parm     - filter-space information
 !    fsub     - subdomain data array
 !
 !   output argument list:
@@ -152,7 +170,10 @@ subroutine sub2fslab(fsub,fslab)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block\
+  use constants, only: ione
   use fgrid2agrid_mod, only: agrid2fgrid
+  implicit none
+
 ! Declare passed variables
   real(r_kind)  ,intent(in) ::fsub(lat2,lon2,nsig)
   real(r_single),intent(out)::fslab(prm0%nlatf,prm0%nlonf,nsig1o)
@@ -167,7 +188,7 @@ subroutine sub2fslab(fsub,fslab)
   work_slndt(:,:)=fsub(:,:,1)
   work_sicet(:,:)=fsub(:,:,1)
 
-  iflg=1
+  iflg=ione
   call sub2grid(hfine,work_t,work_p,work_q,work_oz,work_sst, &
                 work_slndt,work_sicet,work_cwmr,work_st,work_vp,iflg)
 
@@ -183,7 +204,7 @@ end subroutine sub2fslab
 subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   sub2fslab
+! subprogram:    sub2fslab
 !   prgmmr: sato             org: np23                date: 2008-01-23
 !
 ! abstract: convert subdomain data into filter-space slab data
@@ -193,18 +214,19 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
 !   2008-01-23  sato
 !
 !   input argument list:
-!    parm     - filter-space information
-!    fsub     - subdomain data array
+!    fsub                 - subdomain data array
 !
 !   output argument list:
-!    fslab    - filter-space data array
+!    fslb0,fslb2,fslb3    - filter-space data array
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  use constants, only: ione
   use patch2grid_mod, only: grid2patch
+  implicit none
 
 ! Declare passed variables
   real(r_kind)  ,intent(in) ::fsub(lat2,lon2,nsig)
@@ -222,7 +244,7 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
   work_slndt(:,:)=fsub(:,:,1)
   work_sicet(:,:)=fsub(:,:,1)
 
-  iflg=1
+  iflg=ione
   call sub2grid(hfine,work_t,work_p,work_q,work_oz,work_sst, &
                 work_slndt,work_sicet,work_cwmr,work_st,work_vp,iflg)
 
@@ -240,7 +262,7 @@ end subroutine sub2fslab_glb
 subroutine sub2fslabdz(fsub,fslab)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   sub2fslabdz
+! subprogram:    sub2fslabdz
 !   prgmmr: sato             org: np23                date: 2008-01-23
 !
 ! abstract: convert subdomain data into filter-space slab data with
@@ -250,7 +272,6 @@ subroutine sub2fslabdz(fsub,fslab)
 !   2008-01-23  sato
 !
 !   input argument list:
-!    parm     - filter-space information
 !    fsub     - subdomain data array
 !
 !   output argument list:
@@ -261,7 +282,8 @@ subroutine sub2fslabdz(fsub,fslab)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use constants, only: zero, one
+  use constants, only: ione,zero, one
+  implicit none
 
 ! Declare passed variables
   real(r_kind)  ,intent(in) ::fsub(lat2,lon2,nsig)
@@ -269,11 +291,11 @@ subroutine sub2fslabdz(fsub,fslab)
 
 ! Declare local variables
   real(r_kind):: fsubdz(lat2,lon2,nsig),dzi
-  integer(i_kind):: k,kp,km,iflg
+  integer(i_kind):: k,kp,km
 
   do k=1,nsig
-    km=max(   1,k-1)
-    kp=min(nsig,k+1)
+    km=max(ione,k-ione)
+    kp=min(nsig,k+ione)
     if (twodvar_regional) then; dzi=zero
     else;                       dzi=one/real(kp-km,r_kind)
     end if
@@ -299,18 +321,18 @@ subroutine sub2fslabdz_glb(fsub,fslb0,fslb2,fslb3)
 !   2008-01-23  sato
 !
 !   input argument list:
-!    parm     - filter-space information
-!    fsub     - subdomain data array
+!    fsub                 - subdomain data array
 !
 !   output argument list:
-!    fslab    - filter-space data array
+!    fslb0,fslb2,fslb3    - filter-space data array
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use constants, only: zero, one
+  use constants, only: ione,one
+  implicit none
 
 ! Declare passed variables
   real(r_kind)  ,intent(in) ::fsub(lat2,lon2,nsig)
@@ -320,11 +342,11 @@ subroutine sub2fslabdz_glb(fsub,fslb0,fslb2,fslb3)
 
 ! Declare local variables
   real(r_kind):: fsubdz(lat2,lon2,nsig),dzi
-  integer(i_kind):: k,kp,km,iflg
+  integer(i_kind):: k,kp,km
 
   do k=1,nsig
-    km=max(   1,k-1)
-    kp=min(nsig,k+1)
+    km=max(ione,k-ione)
+    kp=min(nsig,k+ione)
     dzi=one/real(kp-km,r_kind)
     fsubdz(:,:,k)=dzi*(fsub(:,:,kp)-fsub(:,:,km))
   end do
@@ -338,7 +360,7 @@ end subroutine sub2fslabdz_glb
 subroutine sub2slab2d(fsub,slab)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   sub2slab2d
+! subprogram:    sub2slab2d
 !   prgmmr: sato             org: np23                date: 2008-01-23
 !
 ! abstract: convert 2d subdomain data into anlaysis-space slab data
@@ -357,6 +379,9 @@ subroutine sub2slab2d(fsub,slab)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  use constants, only: ione
+  implicit none
+
 ! Declare passed variables
   real(r_kind),intent(in) ::fsub(lat2,lon2)
   real(r_kind),intent(out)::slab(nlat,nlon,nsig1o)
@@ -375,7 +400,7 @@ subroutine sub2slab2d(fsub,slab)
   work_slndt(:,:)=fsub(:,:)
   work_sicet(:,:)=fsub(:,:)
 
-  iflg=1
+  iflg=ione
   call sub2grid(slab,work_t,work_p,work_q,work_oz,work_sst, &
                 work_slndt,work_sicet,work_cwmr,work_st,work_vp,iflg)
 
@@ -386,7 +411,7 @@ end subroutine sub2slab2d
 subroutine sub2fslab2d(fsub,fslab)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   sub2fslab2d
+! subprogram:    sub2fslab2d
 !   prgmmr: sato             org: np23                date: 2008-01-23
 !
 ! abstract: convert 2d subdomain data into filter-space slab data
@@ -406,6 +431,7 @@ subroutine sub2fslab2d(fsub,fslab)
 !
 !$$$ end documentation block
   use fgrid2agrid_mod, only: agrid2fgrid
+  implicit none
 
 ! Declare passed variables
   real(r_kind)  ,intent(in) ::fsub(lat2,lon2)
@@ -413,7 +439,6 @@ subroutine sub2fslab2d(fsub,fslab)
 
 
 ! Declare local variables
-  integer(i_kind):: k,iflg
 
   call sub2slab2d(fsub,hfine)
 
@@ -427,7 +452,7 @@ end subroutine sub2fslab2d
 subroutine sub2fslab2d_glb(fsub,fslb0,fslb2,fslb3)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   sub2fslab2d
+! subprogram:    sub2fslab2d
 !   prgmmr: sato             org: np23                date: 2008-01-23
 !
 ! abstract: convert 2d subdomain data into filter-space slab data
@@ -437,10 +462,10 @@ subroutine sub2fslab2d_glb(fsub,fslb0,fslb2,fslb3)
 !   2008-01-23  sato
 !
 !   input argument list:
-!    fsub     - subdomain data array
+!    fsub                 - subdomain data array
 !
 !   output argument list:
-!    fslab    - filter-space data array
+!    fslb0,fslb2,fslb3    - filter-space data array
 !
 ! attributes:
 !   language: f90
@@ -448,6 +473,7 @@ subroutine sub2fslab2d_glb(fsub,fslb0,fslb2,fslb3)
 !
 !$$$ end documentation block
   use patch2grid_mod, only: grid2patch
+  implicit none
 
 ! Declare passed variables
   real(r_kind)  ,intent(in) ::fsub(lat2,lon2)
@@ -456,7 +482,6 @@ subroutine sub2fslab2d_glb(fsub,fslb0,fslb2,fslb3)
   real(r_single),intent(out)::fslb3(prm3%nlatf,prm3%nlonf)
 
 ! Declare local variables
-  integer(i_kind):: k,iflg
 
   call sub2slab2d(fsub,hfine)
 

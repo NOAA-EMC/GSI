@@ -50,6 +50,23 @@ module balmod
   use kinds, only: r_kind,i_kind
   implicit none
 
+! set default to private
+  private
+! set subroutines to public
+  public :: create_balance_vars
+  public :: destroy_balance_vars
+  public :: create_balance_vars_reg
+  public :: destroy_balance_vars_reg
+  public :: prebal
+  public :: prebal_reg
+  public :: balance
+  public :: tbalance
+  public :: locatelat_reg
+  public :: strong_bk
+  public :: strong_bk_ad
+! set passed variables to public
+  public :: fstat,llmax,llmin,rllat,rllat1,ke_vp,f1,bvz,agvz,wgvz
+
   real(r_kind),allocatable,dimension(:,:,:):: agvz
   real(r_kind),allocatable,dimension(:,:):: wgvz
   real(r_kind),allocatable,dimension(:,:):: bvz
@@ -126,6 +143,7 @@ contains
 !   2005-01-22  parrish
 !
 !   input argument list:
+!    mype
 !
 !   output argument list:
 !
@@ -222,7 +240,7 @@ contains
     use kinds, only: r_single
     use mpimod, only: mype
     use gridmod, only: istart,lat2,nlat,nsig
-    use constants, only: zero
+    use constants, only: ione,zero
     use m_berror_stats,only: berror_get_dims,berror_read_bal
     implicit none
     
@@ -238,7 +256,7 @@ contains
     real(r_single),dimension(nlat,nsig) :: wgvin,bvin
     
 !   Initialize local variables
-    mm1=mype+1
+    mm1=mype+ione
 
     call berror_read_bal(agvin,bvin,wgvin,mype)
     call berror_get_dims(msig,mlat)
@@ -257,16 +275,16 @@ contains
     do k=1,nsig
        do j=1,nsig
           do i=1,lat2
-             jx=istart(mm1)+i-2
-             jx=max(jx,2)
-             jx=min(nlat-1,jx)
+             jx=istart(mm1)+i-2_i_kind
+             jx=max(jx,2_i_kind)
+             jx=min(nlat-ione,jx)
              agvz(i,j,k)=agvin(jx,j,k)
           end do
        end do
        do i=1,lat2
-          jx=istart(mm1)+i-2
-          jx=max(jx,2)
-          jx=min(nlat-1,jx)
+          jx=istart(mm1)+i-2_i_kind
+          jx=max(jx,2_i_kind)
+          jx=min(nlat-ione,jx)
           wgvz(i,k)=wgvin(jx,k)
           bvz(i,k)=bvin(jx,k)
        end do
@@ -312,7 +330,7 @@ contains
 !$$$
     use gridmod, only: nsig,twodvar_regional
     use guess_grids, only: ges_prslavg,ges_psfcavg
-    use constants, only: zero
+    use constants, only: ione,zero
     implicit none
 
 !   Declare passed variables
@@ -336,7 +354,7 @@ contains
 
 
 !   Read dimension of stats file
-    inerr=22
+    inerr=22_i_kind
     open(inerr,file='berror_stats',form='unformatted')
     rewind inerr
     read(inerr)msig,mlat
@@ -344,10 +362,10 @@ contains
 !   Allocate arrays in stats file
     allocate ( corz(1:mlat,1:nsig,1:4) )
     allocate ( corp(1:mlat) )
-    allocate ( hwll(0:mlat+1,1:nsig,1:4),hwllp(0:mlat+1) )
-    allocate ( vz(1:nsig,0:mlat+1,1:6) )
-    allocate ( agvi(0:mlat+1,1:nsig,1:nsig) )
-    allocate ( bvi(0:mlat+1,1:nsig),wgvi(0:mlat+1,1:nsig) )
+    allocate ( hwll(0:mlat+ione,1:nsig,1:4),hwllp(0:mlat+ione) )
+    allocate ( vz(1:nsig,0:mlat+ione,1:6) )
+    allocate ( agvi(0:mlat+ione,1:nsig,1:nsig) )
+    allocate ( bvi(0:mlat+ione,1:nsig),wgvi(0:mlat+ione,1:nsig) )
     
 !   Read in background error stats and interpolate in vertical to that specified in namelist
     call rdgstat_reg(msig,mlat,inerr,&
@@ -366,7 +384,7 @@ contains
        endif
     enddo j_loop
     
-    ke_vp=ke-1
+    ke_vp=ke-ione
     if (twodvar_regional) ke_vp=ke
     do k=1,ke_vp
        do j=llmin,llmax
@@ -374,7 +392,7 @@ contains
        enddo
     enddo
     if (.not.twodvar_regional) then
-       do k=ke_vp+1,nsig
+       do k=ke_vp+ione,nsig
           do j=llmin,llmax
              bvz(j,k)=zero
           enddo
@@ -442,14 +460,13 @@ contains
 !   input argument list:
 !     t        - t grid values 
 !     p        - p surface grid values 
-!     q        - q grid values 
 !     st       - streamfunction grid values 
 !     vp       - velocity potential grid values 
+!     fpsproj
 !
 !   output argument list:
 !     t        - t grid values 
 !     p        - p surface grid values 
-!     q        - q grid values 
 !     st       - streamfunction grid values 
 !     vp       - velocity potential grid values 
 !
@@ -458,7 +475,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: one,half
+    use constants, only: ione,one,half
     use gridmod, only: regional,lat2,nsig,iglobal,itotsub,lon2
     implicit none
     
@@ -484,7 +501,7 @@ contains
           do j=1,lon2
              do i=1,lat2
                 l=int(rllat1(i,j))
-                l2=min0(l+1,llmax)
+                l2=min0(l+ione,llmax)
                 dl2=rllat1(i,j)-float(l)
                 dl1=one-dl2
                 vp(i,j,k)=vp(i,j,k)+(dl1*bvz(l,k)+dl2*bvz(l2,k))*st(i,j,k)
@@ -514,7 +531,7 @@ contains
              do j=1,lon2
                 do i=1,lat2
                    l=int(rllat1(i,j))
-                l2=min0(l+1,llmax)
+                   l2=min0(l+ione,llmax)
                    dl2=rllat1(i,j)-float(l)
                    dl1=one-dl2
                    t(i,j,m)=t(i,j,m)+(dl1*agvz(l,m,k)+dl2*agvz(l2,m,k))*st(i,j,k)
@@ -529,7 +546,7 @@ contains
           do j=1,lon2
              do i=1,lat2
                 l=int(rllat1(i,j))
-                l2=min0(l+1,llmax)
+                l2=min0(l+ione,llmax)
                 dl2=rllat1(i,j)-float(l)
                 dl1=one-dl2
                 p(i,j)=p(i,j)+(dl1*wgvz(l,k)+dl2*wgvz(l2,k))*st(i,j,k)
@@ -553,7 +570,7 @@ contains
        else
           do j=1,lon2
              do i=1,lat2
-                do k=1,nsig-1
+                do k=1,nsig-ione
                    p(i,j)=p(i,j)+wgvz(i,k)*st(i,j,k)
                 end do
                 p(i,j)=p(i,j)+wgvz(i,nsig)*vp(i,j,1)
@@ -626,9 +643,11 @@ contains
 !     p        - p surface grid values from int routines 
 !     st       - streamfunction grid values from int routines 
 !     vp       - velocity potential grid values from int routines
+!     fpsproj
 !
 !   output argument list:
-!     q        - q grid values with adjoint of balance added
+!     t
+!     p
 !     st       - streamfunction grid vals with adjoint of balance added
 !     vp       - velocity potential grid values with adjoint of balance added
 !
@@ -637,7 +656,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants,   only: one,half
+    use constants,   only: ione,one,half
     use gridmod,     only: itotsub,regional,iglobal,lon2,lat2,nsig
     implicit none
 
@@ -663,7 +682,7 @@ contains
     if (regional) then
 
       if(fstat) then
-!      Adjoint of contribution to temperature from streamfunction.
+!     Adjoint of contribution to temperature from streamfunction.
       lm=(llmax+llmin)*half
        do m=1,nsig
           do k=1,nsig
@@ -683,7 +702,7 @@ contains
              do j=1,lon2
                 do i=1,lat2
                    l=int(rllat1(i,j))
-                l2=min0(l+1,llmax)
+                   l2=min0(l+ione,llmax)
                    dl2=rllat1(i,j)-float(l)
                    dl1=one-dl2
                    st(i,j,m)=st(i,j,m)+(dl1*agvz(l,k,m)+dl2*agvz(l2,k,m))*t(i,j,k)
@@ -693,77 +712,76 @@ contains
        end do
       endif ! fstat
 
-!      Adjoint of streamfunction contribution to surface pressure.  
-!      Add contributions from u and v to streamfunction and velocity potential
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                l=int(rllat1(i,j))
-                l2=min0(l+1,llmax)
-                dl2=rllat1(i,j)-float(l)
-                dl1=one-dl2
-                st(i,j,k)=st(i,j,k)+(dl1*wgvz(l,k)+dl2*wgvz(l2,k))*p(i,j)
-                
-             end do
-          end do
-       end do
+!     Adjoint of streamfunction contribution to surface pressure.  
+!     Add contributions from u and v to streamfunction and velocity potential
+      do k=1,nsig
+         do j=1,lon2
+            do i=1,lat2
+               l=int(rllat1(i,j))
+               l2=min0(l+ione,llmax)
+               dl2=rllat1(i,j)-float(l)
+               dl1=one-dl2
+               st(i,j,k)=st(i,j,k)+(dl1*wgvz(l,k)+dl2*wgvz(l2,k))*p(i,j)
+            end do
+         end do
+      end do
 
-!      Adjoint of contribution to velocity potential from streamfunction.
-       do k=1,ke_vp
-          do j=1,lon2
-             do i=1,lat2
-                l=int(rllat1(i,j))
-                l2=min0(l+1,llmax)
-                dl2=rllat1(i,j)-float(l)
-                dl1=one-dl2
-                st(i,j,k)=st(i,j,k)+(dl1*bvz(l,k)+dl2*bvz(l2,k))*vp(i,j,k)
-             end do
-          end do
-       end do
+!     Adjoint of contribution to velocity potential from streamfunction.
+      do k=1,ke_vp
+         do j=1,lon2
+            do i=1,lat2
+               l=int(rllat1(i,j))
+               l2=min0(l+ione,llmax)
+               dl2=rllat1(i,j)-float(l)
+               dl1=one-dl2
+               st(i,j,k)=st(i,j,k)+(dl1*bvz(l,k)+dl2*bvz(l2,k))*vp(i,j,k)
+            end do
+         end do
+      end do
        
 !   GLOBAL BRANCH
     else
 
-!      Adjoint of contribution to temperature from streamfunction.
-       do k=1,nsig
-          do l=1,nsig
-             do j=1,lon2
-                do i=1,lat2
-                   st(i,j,k)=st(i,j,k)+agvz(i,l,k)*t(i,j,l)
-                end do
-             end do
-          end do
-       end do
+!     Adjoint of contribution to temperature from streamfunction.
+      do k=1,nsig
+         do l=1,nsig
+            do j=1,lon2
+               do i=1,lat2
+                  st(i,j,k)=st(i,j,k)+agvz(i,l,k)*t(i,j,l)
+               end do
+            end do
+         end do
+      end do
        
-!      Adjoint of contribution to velocity potential from streamfunction.
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                st(i,j,k)=st(i,j,k)+bvz(i,k)*vp(i,j,k)
-             end do
-          end do
-       end do
+!     Adjoint of contribution to velocity potential from streamfunction.
+      do k=1,nsig
+         do j=1,lon2
+            do i=1,lat2
+               st(i,j,k)=st(i,j,k)+bvz(i,k)*vp(i,j,k)
+            end do
+         end do
+      end do
 
-!      Adjoint of streamfunction and unbalanced velocity potential
-!      contribution to surface pressure.
-       if ( fpsproj ) then
-          do k=1,nsig
-             do j=1,lon2
-                do i=1,lat2
-                   st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
-                end do
-             end do
-          end do
-       else
-          do j=1,lon2
-             do i=1,lat2
-                do k=1,nsig-1
-                   st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
-                end do
-                vp(i,j,1)=vp(i,j,1)+wgvz(i,nsig)*p(i,j)
-             end do
-          end do
-       endif
+!     Adjoint of streamfunction and unbalanced velocity potential
+!     contribution to surface pressure.
+      if ( fpsproj ) then
+         do k=1,nsig
+            do j=1,lon2
+               do i=1,lat2
+                  st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
+               end do
+            end do
+         end do
+      else
+         do j=1,lon2
+            do i=1,lat2
+               do k=1,nsig-ione
+                  st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
+               end do
+               vp(i,j,1)=vp(i,j,1)+wgvz(i,nsig)*p(i,j)
+            end do
+         end do
+      endif
 !   End of REGIONAL/GLOBAL if-then block
     endif
 
@@ -801,7 +819,7 @@ contains
 !$$$
     use kinds, only: r_single
     use gridmod, only: nlon,nlat,lat2,lon2,istart,jstart,region_lat
-    use constants, only: deg2rad,one
+    use constants, only: ione,deg2rad,one
     implicit none
     
 !   Declare passed variables
@@ -815,7 +833,7 @@ contains
 
 
 !   Read in dim of stats file
-    lunin=22
+    lunin=22_i_kind
     open(lunin,file='berror_stats',form='unformatted')
     rewind lunin
     read(lunin)msig,mlat
@@ -836,23 +854,23 @@ contains
 !   llmax,llmin: max,min stats grid needed in analysis domain
 !   rllat1: location of analysis grid in stats grid unit (MPP local domain)
 
-    llmax=-999
-    llmin=999
+    llmax=-999_i_kind
+    llmin=999_i_kind
     do j=1,nlon 
        do i=1,nlat   
-          if(region_lat(i,j).ge.clat_avn(mlat))then
+          if(region_lat(i,j)>=clat_avn(mlat))then
              rllat(i,j)=float(mlat)
              llmax=max0(mlat,llmax)
              llmin=min0(mlat,llmin)
-          else if(region_lat(i,j).lt.clat_avn(1))then
-             rllat(i,j)=1.
-             llmax=max0(1,llmax)
-             llmin=min0(1,llmin)
+          else if(region_lat(i,j)<clat_avn(1))then
+             rllat(i,j)=one
+             llmax=max0(ione,llmax)
+             llmin=min0(ione,llmin)
           else
-             do m=1,mlat-1
-                m1=m+1
-                if((region_lat(i,j).ge.clat_avn(m)).and.  &
-                     (region_lat(i,j).lt.clat_avn(m1)))then
+             do m=1,mlat-ione
+                m1=m+ione
+                if((region_lat(i,j)>=clat_avn(m)).and.  &
+                     (region_lat(i,j)<clat_avn(m1)))then
                    rllat(i,j)=float(m)
                    llmax=max0(m,llmax)
                    llmin=min0(m,llmin)
@@ -864,39 +882,38 @@ contains
           endif
        end do
     end do
-    llmax=min0(mlat,llmax+1)
-    llmin=max0(1,llmin-1)
+    llmax=min0(mlat,llmax+ione)
+    llmin=max0(ione,llmin-ione)
     
     deallocate(clat_avn)
     
-    mm1=mype+1
+    mm1=mype+ione
     do j=1,lon2            
-       jl=j+jstart(mm1)-2
-       jl=min0(max0(1,jl),nlon)
+       jl=j+jstart(mm1)-2_i_kind
+       jl=min0(max0(ione,jl),nlon)
        do i=1,lat2            
-          il=i+istart(mm1)-2
-          il=min0(max0(1,il),nlat)
+          il=i+istart(mm1)-2_i_kind
+          il=min0(max0(ione,il),nlat)
           rllat1(i,j)=rllat(il,jl)
        enddo
     enddo
- if(fstat)then
-   fmid=one/sin(region_lat(nlat/2,nlon/2))
-    do j=1,lon2
-       jl=j+jstart(mm1)-2
-       jl=min0(max0(1,jl),nlon)
-       do i=1,lat2
-          il=i+istart(mm1)-2
-          il=min0(max0(1,il),nlat)
-          f1(i,j)=sin(region_lat(il,jl))*fmid
+    if(fstat)then
+       fmid=one/sin(region_lat(nlat/2,nlon/2))
+       do j=1,lon2
+          jl=j+jstart(mm1)-2_i_kind
+          jl=min0(max0(ione,jl),nlon)
+          do i=1,lat2
+             il=i+istart(mm1)-2_i_kind
+             il=min0(max0(ione,il),nlat)
+             f1(i,j)=sin(region_lat(il,jl))*fmid
+          enddo
        enddo
-    enddo
- endif
+    endif
     
     return
-  end subroutine locatelat_reg
+end subroutine locatelat_reg
   
 subroutine strong_bk(st,vp,p,t)
-
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    strong_bk   apply strong balance constraint
@@ -928,6 +945,7 @@ subroutine strong_bk(st,vp,p,t)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use constants, only: izero
   use mpimod, only: mype
   use gridmod, only: latlon1n,latlon11
   use mod_vtrans,only: nvmodes_keep
@@ -945,7 +963,7 @@ subroutine strong_bk(st,vp,p,t)
   real(r_kind),dimension(latlon11):: ps_t
 
 !******************************************************************************  
-  if(nvmodes_keep <= 0 .or. nstrong <= 0) return
+  if(nvmodes_keep <= izero .or. nstrong <= izero) return
 
 ! compute derivatives
 
@@ -957,7 +975,7 @@ subroutine strong_bk(st,vp,p,t)
      call strong_bal_correction(u_t,v_t,t_t, &
           ps_t,mype,st,vp,t,p,.false.,fullfield,.true.)
 
-   end do
+  end do
 
   return
 end subroutine strong_bk
@@ -995,7 +1013,7 @@ subroutine strong_bk_ad(st,vp,p,t)
 !
 !$$$
   use mpimod, only: mype
-  use constants, only: zero
+  use constants, only: izero,zero
   use gridmod, only: latlon1n,latlon11
   use mod_vtrans,only: nvmodes_keep
   use mod_strong,only: nstrong
@@ -1014,7 +1032,7 @@ subroutine strong_bk_ad(st,vp,p,t)
 
 !******************************************************************************
 
-  if(nvmodes_keep <= 0 .or. nstrong <= 0) return
+  if(nvmodes_keep <= izero .or. nstrong <= izero) return
      
   do istrong=1,nstrong
 ! Zero gradient arrays
@@ -1034,5 +1052,6 @@ subroutine strong_bk_ad(st,vp,p,t)
   end do
 
   return
-  end subroutine strong_bk_ad
+end subroutine strong_bk_ad
+
 end module balmod

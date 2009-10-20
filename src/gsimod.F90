@@ -69,7 +69,7 @@
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
-  use constants, only: zero,one,init_constants,init_constants_derived,three
+  use constants, only: izero,ione,zero,one,init_constants,init_constants_derived,three
   use fgrid2agrid_mod, only: nord_f2a,init_fgrid2agrid
   use smooth_polcarf, only: norsp,init_smooth_polcas
   use read_l2bufr_mod, only: minnum,del_azimuth,del_elev,del_range,del_time,&
@@ -332,7 +332,7 @@
 !     ngauss      - number of gaussians to add together in each factor
 !     rgauss      - multipliers on reference aspect tensor for each gaussian factor
 !     anhswgt     - empirical weights to apply to each gaussian
-!     an_amp      - multiplying factors on reference background error variances
+!     an_amp0     - multiplying factors on reference background error variances
 !                    an_amp0( 1) - streamfunction
 !                    an_amp0( 2) - velocity potential
 !                    an_amp0( 3) - ps
@@ -509,7 +509,7 @@
 
   call mpi_comm_size(mpi_comm_world,npe,ierror)
   call mpi_comm_rank(mpi_comm_world,mype,ierror)
-  if (mype==0) call w3tagb('GSI_ANL',1999,0232,0055,'NP23')
+  if (mype==izero) call w3tagb('GSI_ANL',1999,0232,0055,'NP23')
 
 
 ! Initialize defaults of vars in modules
@@ -574,6 +574,7 @@
   close(11)
 #endif
 
+
 ! 4D-Var setup
   call setup_4dvar(miter,mype)
   if (.not. l4dvar) then
@@ -591,30 +592,35 @@
       call stop2(137)
   end if
 
+
 ! Check user input for consistency among parameters for given setups.
+
 
 ! Set regional parameters
   if(filled_grid.and.half_grid) filled_grid=.false.
   regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional
 
+
 ! Check that regional=.true. if jcstrong_option > 2
-  if(jcstrong_option.gt.2.and..not.regional) then
-     if(mype.eq.0) then
+  if(jcstrong_option>2_i_kind.and..not.regional) then
+     if(mype==izero) then
        write(6,*) ' jcstrong_option>2 not allowed except for regional=.true.'
        write(6,*) ' ERROR EXIT FROM GSI'
      end if
      call stop2(328)
   end if
 
+
 !  jcstrong_option=4 currently requires that 2*nvmodes_keep <= npe
-  if(jcstrong_option.eq.4) then
-    if(2*nvmodes_keep.gt.npe) then
-      if(mype.eq.0) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
-      if(mype.eq.0) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
+  if(jcstrong_option==4_i_kind) then
+    if(2*nvmodes_keep>npe) then
+      if(mype==izero) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
+      if(mype==izero) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
       nvmodes_keep=npe/2
-      if(mype.eq.0) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
+      if(mype==izero) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
     end if
   end if
+
 
 ! Ensure time window specified in obs_input does not exceed 
 ! specified maximum value
@@ -626,7 +632,7 @@
      endif
   end do
   writediag=.false.
-  do i=1,miter+1
+  do i=1,miter+ione
     if(write_diag(i))writediag=.true.
   end do
   if(.not. writediag)then
@@ -634,39 +640,44 @@
      diag_conv=.false.
      diag_ozone=.false.
      diag_pcp=.false.
-   end if
+  end if
 
-  if (mype==0 .and. limit) &
+
+  if (mype==izero .and. limit) &
        write(6,*)'GSIMOD:  reset time window for one or ',&
        'more OBS_INPUT entries to ',time_window_max
+
 
 ! Force use of perturb_obs for oberror_tune
   if (oberror_tune ) then
      perturb_obs=.true.
-     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** reset perturb_obs=',perturb_obs
+     if (mype==izero) write(6,*)'GSIMOD:  ***WARNING*** reset perturb_obs=',perturb_obs
   endif
+
 
 ! Finish initialization of observation setup
   call init_obsmod_vars(mype)
 
+
 ! Force use of external observation error table for regional runs
   if (regional .and. .not.oberrflg) then
      oberrflg=.true.
-     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** reset oberrflg=',oberrflg
+     if (mype==izero) write(6,*)'GSIMOD:  ***WARNING*** reset oberrflg=',oberrflg
   endif
 
+
 ! Set 10m wind factor logicals based on ifact10
-  if (ifact10==1 .or. ifact10==2) then
-     if (ifact10==1) sfcmod_gfs = .true.
-     if (ifact10==2) sfcmod_mm5 = .true.
+  if (ifact10==ione .or. ifact10==2_i_kind) then
+     if (ifact10==ione)     sfcmod_gfs = .true.
+     if (ifact10==2_i_kind) sfcmod_mm5 = .true.
   endif
 
 
 ! If strong constraint is turned off (jcstrong=.false.), 
 ! force other strong constraint variables to zero
-  if ((.not.jcstrong) .and. nstrong/=0 ) then
-     nstrong=0
-     if (mype==0) write(6,*)'GSIMOD:  reset nstrong=',nstrong,&
+  if ((.not.jcstrong) .and. nstrong/=izero ) then
+     nstrong=izero
+     if (mype==izero) write(6,*)'GSIMOD:  reset nstrong=',nstrong,&
           ' because jcstrong=',jcstrong
   endif
   if (.not.jcstrong) then
@@ -674,13 +685,16 @@
      baldiag_inc =.false.
   end if
 
+
 ! Turn on derivatives if using dynamic constraint
 ! For now if wrf mass or 2dvar no dynamic constraint
   if (jcstrong.or.l_foto) tendsflag=.true.
   if (tendsflag) switch_on_derivatives=.true.
 
+
 ! Turn off Jc-pdry weak constraint if regional application
   if (regional) ljcpdry=.false.
+
 
 ! Initialize lagrangian data assimilation - must be called after gsi_4dvar
   call lag_modini()
@@ -697,24 +711,25 @@
 ! NOTE: only applicable for global run when not using observer
   if (.not.tendsflag .and. .not.regional) then
      check_pcp: do i=1,ndat
-        if ( .not.tendsflag .and. index(dtype(i),'pcp') /=0 ) then
+        if ( .not.tendsflag .and. index(dtype(i),'pcp') /=izero ) then
            tendsflag = .true.
            switch_on_derivatives=.true.
-           if (mype==0) write(6,*)'GSIMOD:  set tendsflag,switch_on_derivatives=',&
+           if (mype==izero) write(6,*)'GSIMOD:  set tendsflag,switch_on_derivatives=',&
                 tendsflag,switch_on_derivatives,' for pcp data'
            exit check_pcp
         endif
      end do check_pcp
   endif
 
+
 ! Optionally read in namelist for single observation run
   if (oneobtest) then
-     miter=1
-     ndat=1
+     miter=ione
+     ndat=ione
      dfile(1)='prepqc'
      time_window(1)=three
      dplat='oneob'
-     dthin=1 
+     dthin=ione
      dval=one
      dmesh=one
      factqmin=zero
@@ -732,9 +747,8 @@
   endif
 
 
-
 ! Write namelist output to standard out
-  if(mype==0) then
+  if(mype==izero) then
      write(6,200)
 200  format(' calling gsisub with following input parameters:',//)
      write(6,setup)
@@ -744,12 +758,12 @@
      write(6,jcopts)
      write(6,strongopts)
      write(6,obsqc)
-     ngroup=0
+     ngroup=izero
      do i=1,ndat
-       dthin(i) = max(dthin(i),0)
+       dthin(i) = max(dthin(i),izero)
        if(dthin(i) > ngroup)ngroup=dthin(i)
      end do
-     if(ngroup>0)write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
+     if(ngroup>izero)write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
      do i=1,ndat
         write(6,*)dfile(i),dtype(i),dplat(i),dsis(i),dval(i),dthin(i),time_window(i)
      end do
@@ -823,7 +837,7 @@
 
 
 ! Done with GSI.
-  if (mype==0)  call w3tage('GSI_ANL')
+  if (mype==izero)  call w3tage('GSI_ANL')
   
   call mpi_finalize(ierror)
  

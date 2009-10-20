@@ -1,7 +1,8 @@
 module sfcobsqc
-!$$$  module documentation block
-!                .      .    .                                       .
-! module:    sfcobsqc
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   sfcobsqc
+!   prgmmr: pondeca
 !
 ! abstract: contains subroutines for the qc of surface obs based
 !           on (i) the provider uselist for mesonet winds, (ii) 
@@ -15,7 +16,19 @@ module sfcobsqc
 ! program history log:
 !   2007-10-19  pondeca
 !
-! Uses:
+! subroutines included:
+!   sub init_rjlists
+!   sub get_usagerj
+!   sub destroy_rjlists
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use kinds, only: i_kind,r_kind
 
   private
@@ -42,22 +55,38 @@ module sfcobsqc
 contains
 
 subroutine init_rjlists
-
-!$$$  module documentation block
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_rjlists
+!   prgmmr:
+!
 ! abstract: initialize qc lists 
+!
+! program history log:
+!   2009-10-01  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
+  use constants, only: izero,ione
   implicit none
 
 ! Declare passed variables
-! integer(i_kind),intent(in):: mype
 
 ! Declare local variables
   integer(i_kind) meso_unit,ncount,m
   character(80) cstring
 
-  integer(i_kind), parameter::nmax=10000
+  integer(i_kind), parameter::nmax=10000_i_kind
 
-  data meso_unit / 20 /
+  data meso_unit / 20_i_kind /
 !**************************************************************************
   allocate(cprovider(200))
   allocate(w_rjlist(nmax))
@@ -70,16 +99,16 @@ subroutine init_rjlists
  inquire(file='mesonetuselist',exist=listexist)
  if(listexist) then
      open (meso_unit,file='mesonetuselist',form='formatted')
-     ncount=0
+     ncount=izero
      do m=1,3
       read(meso_unit,*,end=131) cstring
      enddo
 130  continue
-     ncount=ncount+1
+     ncount=ncount+ione
      read(meso_unit,*,end=131) cprovider(ncount)
      goto 130
 131  continue
-     nprov=ncount-1
+     nprov=ncount-ione
      print*,'mesonetuselist: nprov=',nprov
  endif
  close(meso_unit)
@@ -88,16 +117,16 @@ subroutine init_rjlists
  inquire(file='w_rejectlist',exist=wlistexist)
  if(wlistexist) then
      open (meso_unit,file='w_rejectlist',form='formatted')
-     ncount=0
+     ncount=izero
      do m=1,3
       read(meso_unit,*,end=141) cstring
      enddo
 140  continue
-     ncount=ncount+1
+     ncount=ncount+ione
      read(meso_unit,*,end=141) w_rjlist(ncount)
      goto 140
 141  continue
-     nwrjs=ncount-1
+     nwrjs=ncount-ione
      print*,'w_rejectlist: nwrjs=',nwrjs
    endif
  close(meso_unit)
@@ -106,16 +135,16 @@ subroutine init_rjlists
  inquire(file='t_rejectlist',exist=tlistexist)
  if(tlistexist) then
      open (meso_unit,file='t_rejectlist',form='formatted')
-     ncount=0
+     ncount=izero
      do m=1,3
       read(meso_unit,*,end=151) cstring
      enddo
 150  continue
-     ncount=ncount+1
+     ncount=ncount+ione
      read(meso_unit,*,end=151) t_rjlist(ncount)
      goto 150
 151  continue
-     ntrjs=ncount-1
+     ntrjs=ncount-ione
      print*,'t_rejectlist: ntrjs=',ntrjs
    endif
  close(meso_unit)
@@ -124,16 +153,16 @@ subroutine init_rjlists
  inquire(file='p_rejectlist',exist=plistexist)
  if(plistexist) then
      open (meso_unit,file='p_rejectlist',form='formatted')
-     ncount=0
+     ncount=izero
      do m=1,3
       read(meso_unit,*,end=161) cstring
      enddo
 160  continue
-     ncount=ncount+1
+     ncount=ncount+ione
      read(meso_unit,*,end=161) p_rjlist(ncount)
      goto 160
 161  continue
-     nprjs=ncount-1
+     nprjs=ncount-ione
      print*,'p_rejectlist: nprjs=',nprjs
    endif
  close(meso_unit)
@@ -142,16 +171,16 @@ subroutine init_rjlists
  inquire(file='q_rejectlist',exist=qlistexist)
  if(qlistexist) then
      open (meso_unit,file='q_rejectlist',form='formatted')
-     ncount=0
+     ncount=izero
      do m=1,3
       read(meso_unit,*,end=171) cstring
      enddo
 170  continue
-     ncount=ncount+1
+     ncount=ncount+ione
      read(meso_unit,*,end=171) q_rjlist(ncount)
      goto 170
 171  continue
-     nqrjs=ncount-1
+     nqrjs=ncount-ione
      print*,'q_rejectlist: nqrjs=',nqrjs
    endif
  close(meso_unit)
@@ -160,13 +189,13 @@ subroutine init_rjlists
  inquire(file='mesonet_stnuselist',exist=listexist2)
  if(listexist2) then
      open (meso_unit,file='mesonet_stnuselist',form='formatted')
-     ncount=0
+     ncount=izero
 180  continue
-     ncount=ncount+1
+     ncount=ncount+ione
      read(meso_unit,'(a5,a80)',end=181) csta_winduse(ncount),cstring
      goto 180
 181  continue
-     nsta_mesowind_use=ncount-1
+     nsta_mesowind_use=ncount-ione
      print*,'mesonet_stnuselist: nsta_mesowind_use=',nsta_mesowind_use
  endif
  close(meso_unit)
@@ -174,14 +203,34 @@ subroutine init_rjlists
 end subroutine init_rjlists
 
 subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
-
-!$$$  module documentation block
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_usagerg
+!   prgmmr:
+!
 ! abstract: determine the usage value of read_prepbufr for surface obs. the following
 !           is done: (i) if incoming usage value is >=100. then do nothing, since
 !           read_prepbufr has already flagged this ob and assigned a specific usage 
 !           value to it. (ii) use usage=500. for temperature, moisture, or surface pressure
 !           obs which are found in the rejectlist. (iii) 
-
+!
+! program history log:
+!   2009-10-01  lueken - added subprogram doc block
+!
+!   input argument list:
+!    kx
+!    obstype
+!    c_station_id
+!    c_prvstg,c_sprvstg
+!
+!   output argument list:
+!    usage_rj
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   implicit none
 
@@ -207,14 +256,14 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
 
      usage_rj0=usage_rj
 
-     if (kx.lt.190) then  !<==mass obs
+     if (kx<190_i_kind) then  !<==mass obs
 
         if(obstype=='t' .and. tlistexist ) then
                do m=1,ntrjs
                   ch8(1:8)=t_rjlist(m)(1:8)
                   nlen=len_trim(ch8)
                   if ((trim(c_station_id) == trim(ch8)) .or. &
-                      (kx==188 .and. c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
+                      (kx==188_i_kind .and. c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
                      usage_rj=r5000                                           !an "a" or "x" in the eight position following blanks
                      exit
                   endif
@@ -224,7 +273,7 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
                   ch8(1:8)=q_rjlist(m)(1:8)
                   nlen=len_trim(ch8)
                   if ((trim(c_station_id) == trim(ch8)) .or. &
-                      (kx==188 .and. c_station_id(1:nlen)==ch8(1:nlen))) then
+                      (kx==188_i_kind .and. c_station_id(1:nlen)==ch8(1:nlen))) then
                      usage_rj=r5000
                      exit
                   endif
@@ -234,16 +283,16 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
                   ch8(1:8)=p_rjlist(m)(1:8)
                   nlen=len_trim(ch8)
                   if ((trim(c_station_id) == trim(ch8)) .or. &
-                      (kx==188 .and. c_station_id(1:nlen)==ch8(1:nlen))) then
+                      (kx==188_i_kind .and. c_station_id(1:nlen)==ch8(1:nlen))) then
                      usage_rj=r5000
                      exit
                   endif
                enddo
         end if
 
-       elseif (kx.ge.190) then !<==wind obs
+       elseif (kx>=190_i_kind) then !<==wind obs
 
-        if (kx.eq.288 .and. (listexist.or.listexist2)) then  !note that uselist must precede rejectlist
+        if (kx==288_i_kind .and. (listexist.or.listexist2)) then  !note that uselist must precede rejectlist
            usage_rj=r6000
            if (listexist) then
               do m=1,nprov
@@ -270,12 +319,12 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
                   ch8(1:8)=w_rjlist(m)(1:8)
                   nlen=len_trim(ch8)
                   if ((trim(c_station_id) == trim(ch8)) .or. &
-                      (kx==288 .and. c_station_id(1:nlen)==ch8(1:nlen))) then
-                      if (kx.ne.288) then
+                      (kx==288_i_kind .and. c_station_id(1:nlen)==ch8(1:nlen))) then
+                      if (kx/=288_i_kind) then
                            usage_rj=r5000
                          else
-                          if (usage_rj.eq.usage_rj0)    usage_rj=r6100 !ob is in at least one of the above two uselists
-                          if (usage_rj.eq.r6000)        usage_rj=r6200 !ob is in none of the above two uselists
+                          if (usage_rj==usage_rj0)    usage_rj=r6100 !ob is in at least one of the above two uselists
+                          if (usage_rj==r6000)        usage_rj=r6200 !ob is in none of the above two uselists
                       endif
                       exit
                   endif
@@ -286,6 +335,25 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
 end subroutine get_usagerj
 
 subroutine destroy_rjlists
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroy_rjlists
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-10-01  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
 
   deallocate(cprovider)

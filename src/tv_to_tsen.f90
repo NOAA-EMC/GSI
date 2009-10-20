@@ -34,7 +34,7 @@ subroutine tv_to_tsen(tv,q,tsen)
   implicit none
 
   real(r_kind),intent(in):: tv(lat2,lon2,nsig)
-  real(r_kind),intent(in):: q(lat2,lon2,nsig)
+  real(r_kind),intent(in)::  q(lat2,lon2,nsig)
 
   real(r_kind),intent(out):: tsen(lat2,lon2,nsig)
 
@@ -77,9 +77,9 @@ subroutine tv_to_tsen_ad(tv,q,tsen)
 !   2008-11-28  todling - no longer does tendencies (need to call twice)
 !
 !   input argument list:
-!      rhnorm - normalized RH
-!      t      - virtual temperature
-!      p      - ln(psfc)
+!      tv     - virtual temperature
+!      q      - specific humidity
+!      tsen   - sensible temperature
 !
 !   output argument list:
 !      q      - specific humidity
@@ -99,8 +99,8 @@ subroutine tv_to_tsen_ad(tv,q,tsen)
   implicit none
 
   real(r_kind),intent(inout):: tv(lat2,lon2,nsig)
-  real(r_kind),intent(inout):: q(lat2,lon2,nsig)
-  real(r_kind),intent(in):: tsen(lat2,lon2,nsig)
+  real(r_kind),intent(inout)::  q(lat2,lon2,nsig)
+  real(r_kind),intent(in)::  tsen(lat2,lon2,nsig)
 
 ! local variables:
   integer(i_kind) i,j,k

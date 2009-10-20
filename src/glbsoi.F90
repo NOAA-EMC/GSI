@@ -80,12 +80,12 @@ subroutine glbsoi(mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: rearth
+  use constants, only: izero,ione,rearth
   use mpimod, only: npe
   use jfunc, only: miter,jiter,jiterstart,jiterend,iguess,&
        write_guess_solution,&
        tendsflag,xhatsave
-  use anberror, only: anisotropic, ancovmdl, &
+  use anberror, only: anisotropic, &
        create_anberror_vars_reg,destroy_anberror_vars_reg,&
        create_anberror_vars,destroy_anberror_vars
   use anisofilter, only: anprewgt_reg
@@ -142,10 +142,10 @@ subroutine glbsoi(mype)
   call observer_init
 
 ! Check GSI options against available number of guess time levels
-  if (nfldsig == 1) then
+  if (nfldsig == ione) then
      if (bkgv_flowdep) then
         bkgv_flowdep = .false.
-        if (mype==0) &
+        if (mype==izero) &
              write(6,*)'GLBSOI: ***WARNING*** reset bkgv_flowdep=',bkgv_flowdep,&
              ', because only ',nfldsig,' guess time level available'
      endif
@@ -178,10 +178,10 @@ subroutine glbsoi(mype)
      
 !    Generate coefficients for compact differencing
      call create_cdiff_coefs
-     call inisph(rearth,rlats(2),wgtlats(2),nlon,nlat-2)
+     call inisph(rearth,rlats(2),wgtlats(2),nlon,nlat-2_i_kind)
 
      slow_pole_in=.false.
-     nlev_mp=nsig+1
+     nlev_mp=nsig+ione
      call init_mp_compact_diffs1(nlev_mp,mype,slow_pole_in)
 
      call prebal(mlat)
@@ -195,12 +195,12 @@ subroutine glbsoi(mype)
   end if
 
 ! Read output from previous min.
-  if (l4dvar.and.jiterstart>1) then
+  if (l4dvar.and.jiterstart>ione) then
     clfile='xhatsave.ZZZ'
-    write(clfile(10:12),'(I3.3)') jiterstart-1
+    write(clfile(10:12),'(I3.3)') jiterstart-ione
     call read_cv(xhatsave,clfile)
     zgg=dot_product(xhatsave,xhatsave)
-    if (mype==0) write(6,*)'Norm xhatsave=',sqrt(zgg)
+    if (mype==izero) write(6,*)'Norm xhatsave=',sqrt(zgg)
   endif
 
 ! Set error (variance) for predictors (only use guess)
@@ -210,12 +210,12 @@ subroutine glbsoi(mype)
      call create_tendvars
      call create_turblvars
   endif
-  if ( (jcstrong) .and. nvmodes_keep.gt.0) then
+  if ( (jcstrong) .and. nvmodes_keep>izero) then
      call create_vtrans(mype)
-     if(jcstrong_option.eq.1) call init_strongvars_1(mype)
-     if(jcstrong_option.eq.2) call init_strongvars_2(mype)
-     if(jcstrong_option.eq.3) call zrnmi_initialize(mype)
-     if(jcstrong_option.eq.4) call fmg_initialize_e(mype)
+     if(jcstrong_option==ione)     call init_strongvars_1(mype)
+     if(jcstrong_option==2_i_kind) call init_strongvars_2(mype)
+     if(jcstrong_option==3_i_kind) call zrnmi_initialize(mype)
+     if(jcstrong_option==4_i_kind) call fmg_initialize_e(mype)
   end if
 
 ! Set errors and create variables for dynamical constraint
@@ -228,8 +228,8 @@ subroutine glbsoi(mype)
 ! Main outer analysis loop
   do jiter=jiterstart,jiterlast
 
-    if (mype==0) write(6,*)'GLBSOI: jiter,jiterstart,jiterlast,jiterend=', &
-                                    jiter,jiterstart,jiterlast,jiterend
+    if (mype==izero) write(6,*)'GLBSOI: jiter,jiterstart,jiterlast,jiterend=', &
+                                        jiter,jiterstart,jiterlast,jiterend
 
 !   Set up right hand side of analysis equation
     call setuprhsall(ndata,mype)
@@ -238,22 +238,22 @@ subroutine glbsoi(mype)
 
 !     Set up right hand side of adjoint of analysis equation
       if (lsensrecompute) lobsensfc=(jiter==jiterend)
-      if (lobsensfc.or.iobsconv>0) call init_fc_sens
+      if (lobsensfc.or.iobsconv>izero) call init_fc_sens
 
 !     Call inner minimization loop
       if (lsqrtb) then
-        if (mype==0) write(6,*)'GLBSOI: Using sqrt(B), jiter=',jiter
+        if (mype==izero) write(6,*)'GLBSOI: Using sqrt(B), jiter=',jiter
         call sqrtmin
       else
 !       Standard run
-        if (mype==0) write(6,*)'GLBSOI:  START pcgsoi jiter=',jiter
+        if (mype==izero) write(6,*)'GLBSOI:  START pcgsoi jiter=',jiter
         call pcgsoi
       end if
 
 !     Save information for next minimization
       if (lobsensfc) then
         clfile='obsdiags.ZZZ'
-        write(clfile(10:12),'(I3.3)') 100+jiter
+        write(clfile(10:12),'(I3.3)') 100_i_kind+jiter
         call write_obsdiags(clfile)
       else
         if (l4dvar.or.lanczosave) then
@@ -265,24 +265,24 @@ subroutine glbsoi(mype)
           write(clfile(10:12),'(I3.3)') jiter
           call write_cv(xhatsave,clfile)
           zgg=dot_product(xhatsave,xhatsave)
-          if (mype==0) write(6,*)'Norm xhatsave=',sqrt(zgg)
+          if (mype==izero) write(6,*)'Norm xhatsave=',sqrt(zgg)
         endif
       endif
 
 !      Save output of adjoint of analysis equation
-       if (lobsensfc.or.iobsconv>0) call save_fc_sens
+       if (lobsensfc.or.iobsconv>izero) call save_fc_sens
     endif
 
 ! End of outer iteration loop
   end do
 
   if (.not.l4dvar) then
-    jiter=jiterlast+1
+    jiter=jiterlast+ione
 !   If requested, write obs-anl information to output files
     if (write_diag(jiter)) call setuprhsall(ndata,mype)
 
 !   Write xhat- and yhat-save for use as a guess for the solution
-    if (iguess==0 .or. iguess==1) call write_guess_solution(mype)
+    if (iguess==izero .or. iguess==ione) call write_guess_solution(mype)
   endif
 
 ! Deallocate arrays
@@ -303,28 +303,28 @@ subroutine glbsoi(mype)
      call destroy_balance_vars
      call destroy_cdiff_coefs
      call destroy_mp_compact_diffs1
-     if (norsp > 0) call destroy_smooth_polcas
+     if (norsp > izero) call destroy_smooth_polcas
   endif
   if (tendsflag) then
      call destroy_tendvars
      call destroy_turblvars
   endif
-  if ( (jcstrong ) .and. nvmodes_keep.gt.0) call destroy_vtrans
+  if ( (jcstrong ) .and. nvmodes_keep>izero) call destroy_vtrans
 
 ! Write updated bias correction coefficients
   if (.not.twodvar_regional) then
     if (l4dvar) then
-      if(mype == 0) call radinfo_write
-      if(mype == npe-1) call pcpinfo_write
+      if(mype == izero) call radinfo_write
+      if(mype == npe-ione) call pcpinfo_write
     else
-      if (jiter==miter+1 ) then
-         if(mype == 0) call radinfo_write
-         if(mype == npe-1) call pcpinfo_write
+      if (jiter==miter+ione ) then
+         if(mype == izero) call radinfo_write
+         if(mype == npe-ione) call pcpinfo_write
       endif
     endif
   endif
 
-! Finallize observer
+! Finalize observer
   call observer_finalize
 
 ! Finalize timer for this procedure

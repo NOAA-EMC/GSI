@@ -73,13 +73,16 @@ module obsmod
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
-!   sub create_obsmod_vars  - allocate obs related variables
 !   sub init_directories    - create sub-directories for tasks specific i/o
 !   sub create_obsmod_vars  - allocate obs related variables
 !   sub init_obsmod_vars    - initialize obs related variables to actual values
 !   sub destroyobs          - deallocate obs linked lists
 !   sub destroy_obsmod_vars - deallocate obsmod arrays
 !   sub destroy_genstats_gps- deallocate linked list for gsp statistics
+!   sub inquire_obsdiags
+!
+! Functions Included:
+!   fun ran01dom
 !
 ! Variable Definitions:
 !   def oberror_tune - namelist logical to tune (=true) oberror
@@ -183,46 +186,86 @@ module obsmod
 !   def hilbert_curve - logical, if .true., then generate hilbert curve based
 !                      cross-validation datasets in 2dvar mode.
 !
+! attributes:
+!   langauge: f90
+!   machgine:
+!
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_single
   use gsi_4dvar, only: l4dvar
-  use constants, only:  izero,ione,zero,one,two,three,five
+  use constants, only:  izero,ione,zero,one,two,three,four,five
   use mpimod, only: mpi_max,mpi_itype,mpi_comm_world,ierror,npe,mype
   implicit none
 
+! set default as private
+  private
+! set subroutines and functions to public
+  public :: init_obsmod_dflts
+  public :: init_directories
+  public :: create_obsmod_vars
+  public :: init_obsmod_vars
+  public :: destroyobs
+  public :: destroy_obsmod_vars
+  public :: ran01dom
+  public :: destroy_genstats_gps
+  public :: inquire_obsdiags
+! set passed variables to public
+  public :: iout_pcp,iout_rad,iadate,write_diag,oberrflg,ndat,dthin,dmesh,l_do_adjoint
+  public :: lsaveobsens,lag_ob_type,o3l_ob_type,oz_ob_type,pcp_ob_type,dw_ob_type
+  public :: sst_ob_type,srw_ob_type,spd_ob_type,rw_ob_type,gps_ob_type,tcp_ob_type
+  public :: rad_ob_type,q_ob_type,pw_ob_type,ps_ob_type,w_ob_type,t_ob_type
+  public :: obs_handle,yobs,i_ps_ob_type,i_t_ob_type,i_w_ob_type,i_q_ob_type
+  public :: i_spd_ob_type,i_srw_ob_type,i_rw_ob_type,i_dw_ob_type,i_sst_ob_type
+  public :: i_pw_ob_type,i_pcp_ob_type,i_oz_ob_type,i_o3l_ob_type,i_gps_ob_type
+  public :: i_rad_ob_type,i_tcp_ob_type,i_lag_ob_type,obscounts,obsptr,nobs_type,obsdiags
+  public :: cobstype,gpsptr,obs_diag,nprof_gps,gps_allhead,gps_allptr,time_offset,ianldate
+  public :: iout_oz,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
+  public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
+  public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel
+  public :: perturb_fact,dtbduv_on,ndatmax,nsat1,mype_diaghdr,wptr,whead,psptr,pshead
+  public :: qptr,qhead,tptr,thead,lobsdiag_allocated,pstail,ttail,wtail,qtail,spdtail
+  public :: spdhead,srwtail,srwhead,rwtail,rwhead,dwtail,dwhead,ssttail,ssthead,pwtail
+  public :: pwhead,oztail,ozhead,o3ltail,o3lhead,pcptail,pcphead,gpstail,gpshead
+  public :: radptr,radtail,radhead,lagtail,laghead,nloz_v8,nloz_v6,nobskeep,gps_alltail
+  public :: grids_dim,rmiss_single,nchan_total,tcphead,tcptail,mype_sst,mype_gps
+  public :: mype_uv,mype_dw,mype_rw,mype_srw,mype_q,mype_tcp,mype_lag,mype_ps,mype_t
+  public :: mype_pw,iout_rw,iout_dw,iout_srw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
+  public :: iout_lag,iout_uv,iout_gps,iout_ps,spdptr,srwptr,rwptr,dwptr,sstptr,pwptr
+  public :: ozptr,o3lptr,pcpptr,lagptr
+
 ! Set parameters
-  integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
+  integer(i_kind),parameter:: ndatmax = 200_i_kind  ! maximum number of observation files
   real(r_single), parameter:: rmiss_single = -999.0_r_single
 
 ! Declare types
 
-  integer(i_kind),parameter::  i_ps_ob_type= 1 ! ps_ob_type
-  integer(i_kind),parameter::   i_t_ob_type= 2 ! t_ob_type
-  integer(i_kind),parameter::   i_w_ob_type= 3 ! w_ob_type
-  integer(i_kind),parameter::   i_q_ob_type= 4 ! q_ob_type
-  integer(i_kind),parameter:: i_spd_ob_type= 5 ! spd_ob_type
-  integer(i_kind),parameter:: i_srw_ob_type= 6 ! srw_ob_type
-  integer(i_kind),parameter::  i_rw_ob_type= 7 ! rw_ob_type
-  integer(i_kind),parameter::  i_dw_ob_type= 8 ! dw_ob_type
-  integer(i_kind),parameter:: i_sst_ob_type= 9 ! sst_ob_type
-  integer(i_kind),parameter::  i_pw_ob_type=10 ! pw_ob_type
-  integer(i_kind),parameter:: i_pcp_ob_type=11 ! pcp_ob_type
-  integer(i_kind),parameter::  i_oz_ob_type=12 ! oz_ob_type
-  integer(i_kind),parameter:: i_o3l_ob_type=13 ! o3l_ob_type
-  integer(i_kind),parameter:: i_gps_ob_type=14 ! gps_ob_type
-  integer(i_kind),parameter:: i_rad_ob_type=15 ! rad_ob_type
-  integer(i_kind),parameter:: i_tcp_ob_type=16 ! tcp_ob_type
-  integer(i_kind),parameter:: i_lag_ob_type=17 ! lag_ob_type
+  integer(i_kind),parameter::  i_ps_ob_type= ione        ! ps_ob_type
+  integer(i_kind),parameter::   i_t_ob_type= 2_i_kind    ! t_ob_type
+  integer(i_kind),parameter::   i_w_ob_type= 3_i_kind    ! w_ob_type
+  integer(i_kind),parameter::   i_q_ob_type= 4_i_kind    ! q_ob_type
+  integer(i_kind),parameter:: i_spd_ob_type= 5_i_kind    ! spd_ob_type
+  integer(i_kind),parameter:: i_srw_ob_type= 6_i_kind    ! srw_ob_type
+  integer(i_kind),parameter::  i_rw_ob_type= 7_i_kind    ! rw_ob_type
+  integer(i_kind),parameter::  i_dw_ob_type= 8_i_kind    ! dw_ob_type
+  integer(i_kind),parameter:: i_sst_ob_type= 9_i_kind    ! sst_ob_type
+  integer(i_kind),parameter::  i_pw_ob_type=10_i_kind    ! pw_ob_type
+  integer(i_kind),parameter:: i_pcp_ob_type=11_i_kind    ! pcp_ob_type
+  integer(i_kind),parameter::  i_oz_ob_type=12_i_kind    ! oz_ob_type
+  integer(i_kind),parameter:: i_o3l_ob_type=13_i_kind    ! o3l_ob_type
+  integer(i_kind),parameter:: i_gps_ob_type=14_i_kind    ! gps_ob_type
+  integer(i_kind),parameter:: i_rad_ob_type=15_i_kind    ! rad_ob_type
+  integer(i_kind),parameter:: i_tcp_ob_type=16_i_kind    ! tcp_ob_type
+  integer(i_kind),parameter:: i_lag_ob_type=17_i_kind    ! lag_ob_type
 
-  integer(i_kind),parameter:: nobs_type = 17   ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 17_i_kind      ! number of observation types
 
 ! Structure for diagnostics
 
   type obs_diag
     sequence
     type(obs_diag), pointer :: next => NULL()
-    real(r_kind), pointer :: nldepart(:)    ! (miter+1)
+    real(r_kind), pointer :: nldepart(:)    ! (miter+ione)
     real(r_kind), pointer :: tldepart(:)    ! (miter)
     real(r_kind), pointer :: obssen(:)      ! (miter)
     real(r_kind) :: wgtjo
@@ -838,11 +881,11 @@ contains
     do i=0,50
        write_diag(i)=.false.
     end do
-    write_diag(1)=.true.
+    write_diag(ione)=.true.
     lobsdiagsave=.false.
     lobsdiag_allocated=.false.
     lobskeep=.false.
-    nobskeep=0
+    nobskeep=izero
     lsaveobsens=.false.
     l_do_adjoint=.true.     ! .true. = apply H^T when in int routines
     oberrflg  = .false.
@@ -861,39 +904,39 @@ contains
 !   Specify unit numbers to which to write data counts, indication of quality control
 !   decisions, and statistics summary of innovations.  For radiance data also write
 !   bias correction coefficients to this unit (iout_rad)
-    iout_ps=201    ! surface pressure
-    iout_uv=202    ! u,v wind components
-    iout_t=203     ! virtual temperature
-    iout_q=204     ! moisure (specific humidity)
-    iout_pw=205    ! total column water (precipitable water)
-    iout_oz=206    ! ozone
-    iout_rad=207   ! radiance (brightness temperature)
-    iout_pcp=208   ! precipitation rate
-    iout_rw=209    ! radar radial wind
-    iout_dw=210    ! doppler lidar wind
-    iout_srw=211   ! radar superob wind
-    iout_gps=212   ! gps refractivity or bending angle
-    iout_sst=213   ! conventional sst
-    iout_tcp=214   ! synthetic tc-mslp
-    iout_lag=215   ! lagrangian tracers
+    iout_ps=201_i_kind    ! surface pressure
+    iout_uv=202_i_kind    ! u,v wind components
+    iout_t=203_i_kind     ! virtual temperature
+    iout_q=204_i_kind     ! moisure (specific humidity)
+    iout_pw=205_i_kind    ! total column water (precipitable water)
+    iout_oz=206_i_kind    ! ozone
+    iout_rad=207_i_kind   ! radiance (brightness temperature)
+    iout_pcp=208_i_kind   ! precipitation rate
+    iout_rw=209_i_kind    ! radar radial wind
+    iout_dw=210_i_kind    ! doppler lidar wind
+    iout_srw=211_i_kind   ! radar superob wind
+    iout_gps=212_i_kind   ! gps refractivity or bending angle
+    iout_sst=213_i_kind   ! conventional sst
+    iout_tcp=214_i_kind   ! synthetic tc-mslp
+    iout_lag=215_i_kind   ! lagrangian tracers
 
-    mype_ps = npe-1          ! surface pressure
-    mype_uv = max(0,npe-2)   ! u,v wind components
-    mype_t  = max(0,npe-3)   ! virtual temperature
-    mype_q  = max(0,npe-4)   ! moisture (specific humidity)
-    mype_pw = max(0,npe-5)   ! total column water
-    mype_rw = max(0,npe-6)   ! radar radial wind
-    mype_dw = max(0,npe-7)   ! doppler lidar wind
-    mype_srw= max(0,npe-8)   ! radar superob wind
-    mype_gps= max(0,npe-9)   ! gps refractivity or bending angle
-    mype_sst= max(0,npe-10)  ! conventional sst
-    mype_tcp= max(0,npe-11)  ! synthetic tc-mslp
-    mype_lag= max(0,npe-12)  ! lagrangian tracers
+    mype_ps = npe-ione                  ! surface pressure
+    mype_uv = max(izero,npe-2_i_kind)   ! u,v wind components
+    mype_t  = max(izero,npe-3_i_kind)   ! virtual temperature
+    mype_q  = max(izero,npe-4_i_kind)   ! moisture (specific humidity)
+    mype_pw = max(izero,npe-5_i_kind)   ! total column water
+    mype_rw = max(izero,npe-6_i_kind)   ! radar radial wind
+    mype_dw = max(izero,npe-7_i_kind)   ! doppler lidar wind
+    mype_srw= max(izero,npe-8_i_kind)   ! radar superob wind
+    mype_gps= max(izero,npe-9_i_kind)   ! gps refractivity or bending angle
+    mype_sst= max(izero,npe-10_i_kind)  ! conventional sst
+    mype_tcp= max(izero,npe-11_i_kind)  ! synthetic tc-mslp
+    mype_lag= max(izero,npe-12_i_kind)  ! lagrangian tracers
     
 !   Initialize arrays used in namelist obs_input 
     ndat = ndatmax          ! number of observation types (files)
     time_window_max = three ! set maximum time window to +/-three hours
-    do i=1,ndat
+    do i=ione,ndat
        dfile(i) = ' '     ! local file name from which to read observatinal data
        dtype(i) = ' '     ! character string identifying type of observation
        ditype(i)= ' '     ! character string identifying group type of ob
@@ -909,16 +952,16 @@ contains
 
 
 !   Other initializations
-    nloz_v6 = 12               ! number of "levels" in ozone version8 data
-    nloz_v8 = 21               ! number of "levels" in ozone version6 data
+    nloz_v6 = 12_i_kind               ! number of "levels" in ozone version8 data
+    nloz_v8 = 21_i_kind               ! number of "levels" in ozone version6 data
 
-    lunobs_obs = 2             ! unit to which to write/read information
-                               ! related to brightness temperature and 
-                               ! precipitation rate observations
+    lunobs_obs = 2_i_kind             ! unit to which to write/read information
+                                      ! related to brightness temperature and 
+                                      ! precipitation rate observations
 
-    grids_dim= 161             ! grid points for integration of GPS bend
+    grids_dim= 161_i_kind             ! grid points for integration of GPS bend
 
-    nprof_gps = 0
+    nprof_gps = izero
 
 !   Define a name for obs types
     cobstype( i_ps_ob_type)="surface pressure    " ! ps_ob_type
@@ -1108,16 +1151,16 @@ contains
           limit = .true.
        endif
     end do
-    if (mype==0 .and. limit) &
+    if (mype==izero .and. limit) &
       write(6,*)'INIT_OBSMOD_VARS: reset time window for one or ',&
                 'more OBS_INPUT entries to ',time_window_max
 
 !   Initialize arrays in obs_input if more than one synoptic time
-    IF (ndat_times>1) THEN
+    IF (ndat_times>ione) THEN
 !     Copy other things
       DO ii=2,ndat_times
         write(cind,'(i2.2)')ii
-        ioff=(ii-1)*ndat_types
+        ioff=(ii-ione)*ndat_types
         DO jj=1,ndat_types
           dfile (ioff+jj) = trim(dfile(jj))//'.'//cind
           dmesh (ioff+jj) = dmesh(jj)
@@ -1132,14 +1175,14 @@ contains
         ENDDO
       ENDDO
 !     Then change name for first time slot
-      IF (ndat_times>1) THEN
-        DO jj=1,ndat_types
+      IF (ndat_times>ione) THEN
+        DO jj=ione,ndat_types
           dfile(jj) = trim(dfile(jj))//'.01'
         ENDDO
       ENDIF
     ENDIF
 
-    IF (mype==0) THEN
+    IF (mype==izero) THEN
       write(6,*)'INIT_OBSMOD_VARS: ndat_times,ndat_types,ndat=', &
                                  & ndat_times,ndat_types,ndat
       write(6,*)'INIT_OBSMOD_VARS: nhr_assimilation=',nhr_assimilation
@@ -1165,6 +1208,7 @@ contains
 !   2005-06-14  wu      - add OMI oz (ozo)
 !
 !   input argument list:
+!    skipit
 !
 !   output argument list:
 !
@@ -1190,7 +1234,7 @@ contains
       do while (associated(ttail(ii)%head))
         thead(ii)%head => ttail(ii)%head%llpoint
         deallocate(ttail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for t, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for t, istatus=',istatus
         ttail(ii)%head => thead(ii)%head
       end do
     end do
@@ -1200,9 +1244,9 @@ contains
       do while (associated(pwtail(ii)%head))
         pwhead(ii)%head => pwtail(ii)%head%llpoint
         deallocate(pwtail(ii)%head%dp,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pw arrays, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pw arrays, istatus=',istatus
         deallocate(pwtail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pw, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pw, istatus=',istatus
         pwtail(ii)%head => pwhead(ii)%head
       end do
     end do
@@ -1212,7 +1256,7 @@ contains
       do while (associated(pstail(ii)%head))
         pshead(ii)%head => pstail(ii)%head%llpoint
         deallocate(pstail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for ps, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for ps, istatus=',istatus
         pstail(ii)%head => pshead(ii)%head
       end do
     end do
@@ -1222,7 +1266,7 @@ contains
       do while (associated(wtail(ii)%head))
         whead(ii)%head => wtail(ii)%head%llpoint
         deallocate(wtail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for w, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for w, istatus=',istatus
         wtail(ii)%head => whead(ii)%head
       end do
     end do
@@ -1232,7 +1276,7 @@ contains
       do while (associated(qtail(ii)%head))
         qhead(ii)%head => qtail(ii)%head%llpoint
         deallocate(qtail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for q, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for q, istatus=',istatus
         qtail(ii)%head => qhead(ii)%head
       end do
     end do
@@ -1242,7 +1286,7 @@ contains
       do while (associated(spdtail(ii)%head))
         spdhead(ii)%head => spdtail(ii)%head%llpoint
         deallocate(spdtail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for spd, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for spd, istatus=',istatus
         spdtail(ii)%head => spdhead(ii)%head
       end do
     end do
@@ -1252,7 +1296,7 @@ contains
       do while (associated(srwtail(ii)%head))
         srwhead(ii)%head => srwtail(ii)%head%llpoint
         deallocate(srwtail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for srw, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for srw, istatus=',istatus
         srwtail(ii)%head => srwhead(ii)%head
       end do
     end do
@@ -1262,7 +1306,7 @@ contains
       do while (associated(rwtail(ii)%head))
         rwhead(ii)%head => rwtail(ii)%head%llpoint
         deallocate(rwtail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rw, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rw, istatus=',istatus
         rwtail(ii)%head => rwhead(ii)%head
       end do
     end do
@@ -1272,7 +1316,7 @@ contains
       do while (associated(dwtail(ii)%head))
         dwhead(ii)%head => dwtail(ii)%head%llpoint
         deallocate(dwtail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for dw, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for dw, istatus=',istatus
         dwtail(ii)%head => dwhead(ii)%head
       end do
     end do
@@ -1282,7 +1326,7 @@ contains
       do while (associated(ssttail(ii)%head))
         ssthead(ii)%head => ssttail(ii)%head%llpoint
         deallocate(ssttail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for sst, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for sst, istatus=',istatus
         ssttail(ii)%head => ssthead(ii)%head
       end do
     end do
@@ -1294,9 +1338,9 @@ contains
         deallocate(oztail(ii)%head%res, oztail(ii)%head%wij,&
                    oztail(ii)%head%err2,oztail(ii)%head%raterr2, &
                    oztail(ii)%head%prs,oztail(ii)%head%ipos,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for oz arrays, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for oz arrays, istatus=',istatus
         deallocate(oztail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for oz, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for oz, istatus=',istatus
         oztail(ii)%head => ozhead(ii)%head
       end do
     end do
@@ -1306,7 +1350,7 @@ contains
       do while (associated(o3ltail(ii)%head))
         o3lhead(ii)%head => o3ltail(ii)%head%llpoint
         deallocate(o3ltail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for o3l, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for o3l, istatus=',istatus
         o3ltail(ii)%head => o3lhead(ii)%head
       end do
     end do
@@ -1318,9 +1362,9 @@ contains
         deallocate(gpstail(ii)%head%jac_q,gpstail(ii)%head%jac_t, &
                    gpstail(ii)%head%jac_p, &
                    gpstail(ii)%head%ij,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for gps arrays, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for gps arrays, istatus=',istatus
         deallocate(gpstail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for gps, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for gps, istatus=',istatus
         gpstail(ii)%head => gpshead(ii)%head
       end do
     end do
@@ -1333,9 +1377,9 @@ contains
                    radtail(ii)%head%raterr2,radtail(ii)%head%pred, &
                    radtail(ii)%head%dtb_dvar, &
                    radtail(ii)%head%icx,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rad arrays, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rad arrays, istatus=',istatus
         deallocate(radtail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rad, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rad, istatus=',istatus
         radtail(ii)%head => radhead(ii)%head
       end do
     end do
@@ -1345,9 +1389,9 @@ contains
       do while (associated(pcptail(ii)%head))
         pcphead(ii)%head => pcptail(ii)%head%llpoint
         deallocate(pcptail(ii)%head%predp,pcptail(ii)%head%dpcp_dvar,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pcp arrays, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pcp arrays, istatus=',istatus
         deallocate(pcptail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pcp, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pcp, istatus=',istatus
         pcptail(ii)%head => pcphead(ii)%head
       end do
     end do
@@ -1357,7 +1401,7 @@ contains
       do while (associated(tcptail(ii)%head))
         tcphead(ii)%head => tcptail(ii)%head%llpoint
         deallocate(tcptail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for tcp, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for tcp, istatus=',istatus
         tcptail(ii)%head => tcphead(ii)%head
       end do
     end do
@@ -1367,9 +1411,9 @@ contains
       do while (associated(lagtail(ii)%head))
         laghead(ii)%head => lagtail(ii)%head%llpoint
         deallocate(lagtail(ii)%head%speci,lagtail(ii)%head%specr,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for lag arrays, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for lag arrays, istatus=',istatus
         deallocate(lagtail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for lag, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for lag, istatus=',istatus
         lagtail(ii)%head => laghead(ii)%head
       end do
     end do
@@ -1487,7 +1531,7 @@ contains
       do while (associated(gps_alltail(ii)%head))
         gps_allhead(ii)%head => gps_alltail(ii)%head%llpoint
         deallocate(gps_alltail(ii)%head,stat=istatus)
-        if (istatus/=0) write(6,*)'DESTROY_GENSTATS_GPS: deallocate error for gps_all, istatus=',istatus
+        if (istatus/=izero) write(6,*)'DESTROY_GENSTATS_GPS: deallocate error for gps_all, istatus=',istatus
         gps_alltail(ii)%head => gps_allhead(ii)%head
       end do
     end do
@@ -1525,33 +1569,33 @@ real(r_kind) :: sizei, sizer, sizel, sizep, ziter, zsize, ztot
 integer(i_kind) :: ii,jj,iobsa(2),iobsb(2)
 
 ! Any better way to determine size or i_kind, r_kind, etc... ?
-sizei=4.0
-sizer=8.0
-sizel=1.0
-sizep=4.0
+sizei=four
+sizer=8.0_r_kind
+sizel=one
+sizep=four
 
-iobsa(:)=0
+iobsa(:)=izero
 do ii=1,size(obsdiags,2)
   do jj=1,size(obsdiags,1)
     obsptr => obsdiags(jj,ii)%head
     do while (associated(obsptr))
-      iobsa(1)=iobsa(1)+1
-      if (ANY(obsptr%muse(:))) iobsa(2)=iobsa(2)+1
+      iobsa(ione)=iobsa(ione)+ione
+      if (ANY(obsptr%muse(:))) iobsa(2)=iobsa(2)+ione
       obsptr => obsptr%next
     enddo
   enddo
 enddo
 
-call mpi_reduce(iobsa,iobsb,2,mpi_itype,mpi_max,0,mpi_comm_world,ierror)
+call mpi_reduce(iobsa,iobsb,2_i_kind,mpi_itype,mpi_max,izero,mpi_comm_world,ierror)
 
-if (mype==0) then
+if (mype==izero) then
   ziter=real(kiter,r_kind)
   zsize = sizer*(three*ziter+two) + sizei + sizel*(ziter+one) + sizep*five
-  ztot=real(iobsb(1),r_kind)*zsize
-  ztot=ztot/(1024.0*1024.0)
+  ztot=real(iobsb(ione),r_kind)*zsize
+  ztot=ztot/(1024.0_r_kind*1024.0_r_kind)
 
   write(6,*)'obsdiags: Bytes per element=',NINT(zsize)
-  write(6,*)'obsdiags: length total, used=',iobsb(1),iobsb(2)
+  write(6,*)'obsdiags: length total, used=',iobsb(ione),iobsb(2_i_kind)
   write(6,'(A,F8.1,A)')'obsdiags: Estimated memory usage= ',ztot,' Mb'
 endif
 

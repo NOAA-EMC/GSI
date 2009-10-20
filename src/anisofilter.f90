@@ -1,6 +1,7 @@
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
+module anisofilter
 !$$$   module documentation block
 !                .      .    .                                       .
 ! module:    anisofilter
@@ -25,49 +26,67 @@
 !
 ! subroutines included:
 !
-!   init_anisofilter_reg          - initialize anisotropic background error
-!                                   related variables
-!   anprewgt_reg                  - main subroutine for computation of the
-!                                   anisotropic aspect tensor of auto-correlation
-!                                   model
-!   get_aspect_reg_2d             - compute the anisotropic aspect tensor for the
-!                                   2dvar case of gsi-regional
-!   get_aspect_reg_pt             - compute the anisotropic aspect tensor for the
-!                                   3dvar case of gsi-regional based on theta
-!   fact_qopt2                    - correct q variance for qoption=2
+!   anprewgt_reg                      - main subroutine for computation of the
+!                                       anisotropic aspect tensor of auto-correlation
+!                                       model
+!   get_aspect_reg_2d                 - compute the anisotropic aspect tensor for the
+!                                       2dvar case of gsi-regional
+!   get_aspect_reg_pt                 - compute the anisotropic aspect tensor for the
+!                                       3dvar case of gsi-regional based on theta
+!   fact_qopt2                        - correct q variance for qoption=2
 !
-!   read_bckgstats                - read in background error statistics
+!   init_anisofilter_reg              - initialize anisotropic background error
+!                                       related variables
+!   read_bckgstats                    - read in background error statistics
 !
-!   get_background                - compute smoothed versions of the background fields
-!                                   and respective spatial derivatives on filter grid
-!                                   for use in auto-correlation model
-!   isotropic_scales              - compute isotropic length-scales of
-!                                   auto-correlation model
-!   get_theta_corrl_lenghts       - compute function correlation length-scales of
-!                                   Riishojgaard-type anisotropic auto-correlation
-!                                   model based on the background potential temperature
-!   mk_gradpt_slab                - compute horizontal differential for theta
-!   hanning_smther                - apply hanning smoother to 2-dimensional field
+!   get_background                    - compute smoothed versions of the background fields
+!                                       and respective spatial derivatives on filter grid
+!                                       for use in auto-correlation model
+!   raf_sm_reg                        -
 !
-!   smther_one                    - apply 1-2-1 smoother to 2-dimensional field
+!   isotropic_scales                  - compute isotropic length-scales of
+!                                       auto-correlation model
+!   get_theta_corrl_lenghts           - compute function correlation length-scales of
+!                                       Riishojgaard-type anisotropic auto-correlation
+!                                       model based on the background potential temperature
+!   mk_gradpt_slab                    - compute horizontal differential for theta
+!   hanning_smther                    - apply hanning smoother to 2-dimensional field
 !
-!   invert_aspect_tensor          - invert ascpect tensor
-!---
-!   get_aspect_reg_ens            - compute the anisotropic aspect tensor for the
-!                                   3dvar case of gsi-regional based on ensemble info
-!   get_ensmber
+!   smther_one                        - apply 1-2-1 smoother to 2-dimensional field
+!
+!   smther_one_8                      -
+!
+!   invert_aspect_tensor              - invert ascpect tensor
+!
+!   get_aspect_det                    -
+!
+!   get_aspect_reg_ens                - compute the anisotropic aspect tensor for the
+!                                       3dvar case of gsi-regional based on ensemble info
+!   get_ensmber                       -
+!
+!   set_range_aniall                  -
+!
+!   mode_val                          -
+!
+!   writeout_isoscaleinfo             -
+!
+!   get2berr_reg_subdomain_option     -
+!
+!   get_background_subdomain_option   -
+!
+!   isotropic_scales_subdomain_option -
+!
+! variable definitions:
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-!
-module anisofilter
-! Uses:
+
   use kinds, only: r_kind,i_kind,r_single,r_double,i_long
 
-  use anberror, only: indices,indices_p,&
+  use anberror, only: indices,&
                       nvars,idvar,jdvar,kvar_start,kvar_end,levs_jdvar,&
                       var_names,smooth_len, &
                       filter_all,pf2aP1, &
@@ -80,14 +99,13 @@ module anisofilter
 
   use gridmod, only: nsig,nsig1o,region_dx,region_dy,nlon,nlat, &
                      lat2,lon2,twodvar_regional, &
-                     itotsub,lon1,lat1,region_lat,region_lon,&
-                     ltosi,ltosj,ltosi_s,ltosj_s, &
-                     rotate_wind_ll2xy, tll2xy, &
+                     itotsub,lon1,lat1,&
+                     ltosi_s,ltosj_s, &
                      displs_s,displs_g,ijn_s,ijn
 
   use constants, only: izero,                         ione, & ! for integer
                        zero_single, tiny_single,            & ! for real(4)
-                       zero,        tiny_r_kind, quarter, half, one, two, three, five, & ! for real(8)
+                       zero,        tiny_r_kind, quarter, half, one, two, three, four, five, & ! for real(8)
                        rd_over_cp, pi
 
   use balmod,only: llmin,llmax,rllat,fstat
@@ -100,22 +118,56 @@ module anisofilter
                          ges_prslavg,ges_psfcavg,ges_ps,ges_q
 
   use mpimod, only: npe,levs_id,nvar_id,ierror,&
-                    mpi_real8,mpi_real4,mpi_integer4,mpi_rtype,mpi_itype,&
-                    mpi_sum,mpi_min,mpi_max,mpi_comm_world,&
-                    strip,strip_single
+                    mpi_real8,mpi_real4,mpi_integer4,mpi_rtype,&
+                    mpi_sum,mpi_comm_world,&
+                    strip_single
 
   use aniso_ens_util, only: ens_intpcoeffs_reg,fillanlgrd,ens_uv_to_psichi, &
                             pges_minmax,intp_spl
 
   implicit none
 
+! set default to private
+  private
+! set subroutines to public
+  public :: anprewgt_reg
+  public :: get_aspect_reg_2d
+  public :: get_aspect_reg_pt
+  public :: fact_qopt2
+  public :: init_anisofilter_reg
+  public :: read_bckgstats
+  public :: get_background
+  public :: raf_sm_reg
+  public :: isotropic_scales
+  public :: get_theta_corrl_lenghts
+  public :: mk_gradpt_slab
+  public :: hanning_smther
+  public :: smther_one
+  public :: smther_one_8
+  public :: invert_aspect_tensor
+  public :: get_aspect_det
+  public :: get_aspect_reg_ens
+  public :: get_ensmber
+  public :: set_range_aniall
+  public :: mode_val
+  public :: writeout_isoscaleinfo
+  public :: get2berr_reg_subdomain_option
+  public :: get_background_subdomain_option
+  public :: isotropic_scales_subdomain_option
+! set passed variables to public
+  public :: theta0zf,theta0f,asp3_max,u0f,v0zf,v0f,u0zf,tx1_slab,hfilter,hfine,tx2_slab,asp2_max,asp1_max,tx3_slab
+  public :: qltv_wind,qlth_wind,qltv_temp,eampmax,pgesmax,pgesmin,eampmin,asp10f,rh0f,z0f,asp20f,qlth_temp,psg,asp30f
+  public :: qlth_wind0,qltv_temp0,qlth_temp0,qltv_wind0,scalex3,scalex2,scalex1,lreadnorm
+  public :: r100,r015,corp,corz,rfact0v,hwll,aspect,vz,hwllp,stpcode_ensdata,stpcode_namelist,stpcode_alloc
+  public :: stpcode_statdata,rfact0h,ks,mlat,rllatf,ensamp
+
 ! Declare passed variables
 
 ! Declare local parameters
-  integer,parameter:: stpcode_alloc    = 101 ! stop code (memory allocation error)
-  integer,parameter:: stpcode_namelist = 102 ! stop code (nemelist has error)
-  integer,parameter:: stpcode_ensdata  = 103 ! stop code (ensemble data error)
-  integer,parameter:: stpcode_statdata = 104 ! stop code (stat data error)
+  integer(i_kind),parameter:: stpcode_alloc    = 101_i_kind ! stop code (memory allocation error)
+  integer(i_kind),parameter:: stpcode_namelist = 102_i_kind ! stop code (namelist has error)
+  integer(i_kind),parameter:: stpcode_ensdata  = 103_i_kind ! stop code (ensemble data error)
+  integer(i_kind),parameter:: stpcode_statdata = 104_i_kind ! stop code (stat data error)
 
   logical:: latdepend
 
@@ -134,13 +186,13 @@ module anisofilter
 
   real(r_kind) scalex1,scalex2,scalex3
 
-  real(r_single),parameter:: EAMPMAX=2.0
-  real(r_single),parameter:: EAMPMIN=0.5
+  real(r_single),parameter:: EAMPMAX=2.0_r_single
+  real(r_single),parameter:: EAMPMIN=0.5_r_single
 
-  integer,parameter:: opt_sclclb=0 ! iso scale calibration option
-                                   ! 0: isoscale=isoscale *rfact0(ikind)
-                                   ! 1: isoscale=isoscale**rfact0(1)+rfact0(2)
-                                   ! 2: H:0 / V:1
+  integer,parameter:: opt_sclclb=izero ! iso scale calibration option
+                                       ! 0: isoscale=isoscale *rfact0(ikind)
+                                       ! 1: isoscale=isoscale**rfact0(1)+rfact0(2)
+                                       ! 2: H:0 / V:1
 
   integer(i_kind):: mlat
   integer(i_kind),allocatable:: ks(:)
@@ -160,8 +212,8 @@ module anisofilter
   real(r_kind),allocatable::qlth_wind(:),qltv_wind(:)
 
 !--- For Ensemble Aspect
-  integer(i_kind),parameter::ngrds=3        !# of supported grids
-  integer(i_kind),parameter::nensmax=96
+  integer(i_kind),parameter::ngrds=3_i_kind        !# of supported grids
+  integer(i_kind),parameter::nensmax=96_i_kind
   real(r_single),allocatable,dimension(:,:,:,:,:):: aniasp
   real(r_single),allocatable,dimension(:,:,:,:)  :: ensv
   real(r_single),allocatable,dimension(:,:,:)    :: ens0f,ens0zf,ensamp
@@ -257,7 +309,7 @@ subroutine anprewgt_reg(mype)
 ! These parameters might be changed in get_aspect_*
   llamp_adjust = .false.
   llamp_coeff  = 0.6_r_kind
-  llamp_levtop = 40
+  llamp_levtop = 40_i_kind
 !---
 
   nlatf=pf2aP1%nlatf
@@ -268,7 +320,7 @@ subroutine anprewgt_reg(mype)
 
 !--- 2dvar subodomain mode -> bypassed to the subroutine for subdomain mode
   if (twodvar_regional.and.rtma_subdomain_option) then
-    if(mype==0) write(6,*) '### 2d auto correlation model - subdomain mode ###'
+    if(mype==izero) write(6,*) '### 2d auto correlation model - subdomain mode ###'
     call get2berr_reg_subdomain_option(mype)
     return
   end if
@@ -292,13 +344,13 @@ subroutine anprewgt_reg(mype)
 ! Makes anisotropic aspect array
 !----------------------------------------------
   if (twodvar_regional) then
-    if(mype==0) write(6,*) '### 2d auto correlation model ###'
-    call get_aspect_reg_2d(mype)
-  else if (ancovmdl==1) then
-    if(mype==0) write(6,*) '### ens-based auto correlation model ###'
+    if(mype==izero) write(6,*) '### 2d auto correlation model ###'
+    call get_aspect_reg_2d
+  else if (ancovmdl==ione) then
+    if(mype==izero) write(6,*) '### ens-based auto correlation model ###'
     call get_aspect_reg_ens(mype)
   else
-    if(mype==0) write(6,*) '### pt-based auto correlation model ###'
+    if(mype==izero) write(6,*) '### pt-based auto correlation model ###'
     call get_aspect_reg_pt(mype)
   endif
   deallocate(asp10f,asp20f,asp30f,ks)
@@ -308,13 +360,13 @@ subroutine anprewgt_reg(mype)
 !----------------------------------------------
   call invert_aspect_tensor(aspect,nlatf,nlonf,nsig1o)
 
-  if(mype.eq.0) write(6,*)' in anprewgt_reg, nlat,nlon,nlatf,nlonf=', &
-                                             nlat,nlon,nlatf,nlonf
+  if(mype==izero) write(6,*)' in anprewgt_reg, nlat,nlon,nlatf,nlonf=', &
+                                               nlat,nlon,nlatf,nlonf
 
-  if(mype.eq.0) write(6,*)' in anprewgt_reg, ids,ide=',indices%ids,indices%ide
-  if(mype.eq.0) write(6,*)' in anprewgt_reg, jds,jde=',indices%jds,indices%jde
+  if(mype==izero) write(6,*)' in anprewgt_reg, ids,ide=',indices%ids,indices%ide
+  if(mype==izero) write(6,*)' in anprewgt_reg, jds,jde=',indices%jds,indices%jde
 
-  if(lreadnorm) normal=0
+  if(lreadnorm) normal=izero
   call init_raf4_wrap(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,filter_all, &
                       nsmooth,nsmooth_shapiro, &
                       nvars,idvar,kvar_start,kvar_end,var_names, &
@@ -348,7 +400,7 @@ subroutine anprewgt_reg(mype)
 !----------------------------------------------
 ! keep original amplitude factor for qoption2 (used in compute_derived)
 !----------------------------------------------
-  if(qoption==2) then
+  if(qoption==2_i_kind) then
     deallocate(filter_all(2)%amp,stat=ierr)
     allocate(filter_all(2)%amp(ngauss,indices%ips:indices%ipe, &
                               &       indices%jps:indices%jpe, &
@@ -376,7 +428,7 @@ subroutine anprewgt_reg(mype)
   anhswgtsum=sum(anhswgt(1:ngauss))
   do k=indices%kps,indices%kpe
     ivar=idvar(k)
-    kvar=k-kvar_start(ivar)+1
+    kvar=k-kvar_start(ivar)+ione
     do k1=1,nsig1o
       if(levs_id(k1)==kvar) exit
     end do
@@ -396,7 +448,7 @@ subroutine anprewgt_reg(mype)
           print*, 'anprewgt_reg: llamp_coeff (',llamp_coeff,')must be >= 0.0 and < 1.0'
           call stop2(stpcode_namelist)
         end if
-        if ( (ivar==1.or.ivar==2.or.ivar==4.or.ivar==5) .and. (kvar<llamp_levtop) ) then
+        if ( (ivar==ione.or.ivar==2_i_kind.or.ivar==4_i_kind.or.ivar==5_i_kind) .and. (kvar<llamp_levtop) ) then
           an_amp(:,ivar)= an_amp0(ivar) &
                         *(one - ((cos(real(kvar,r_kind)/real(llamp_levtop,r_kind)*pi)+one)*half)*(one-llamp_coeff))
         end if
@@ -408,22 +460,22 @@ subroutine anprewgt_reg(mype)
 !----------------------------------------------
     do j=indices%jps,indices%jpe
     do i=indices%ips,indices%ipe
-      l =max(min(int(rllatf(i,j)),mlat),1)
-      lp=min((l+1),mlat)
+      l =max(min(int(rllatf(i,j)),mlat),ione)
+      lp=min((l+ione),mlat)
       dl2=rllatf(i,j)-float(l)
       dl1=one-dl2
       select case (ivar)
-        case(1); factk=dl1*corz(l,kvar,1)+dl2*corz(lp,kvar,1)  ! streamfunction
-        case(2); factk=dl1*corz(l,kvar,2)+dl2*corz(lp,kvar,2)  ! velocity potential
-        case(3); factk=dl1*corp(l)       +dl2*corp(lp)         ! log(ps)
-        case(4); factk=dl1*corz(l,kvar,3)+dl2*corz(lp,kvar,3)  ! temperature
-        case(5); factk=dl1*corz(l,kvar,4)+dl2*corz(lp,kvar,4)        ! qoption=1
-          if(qoption.eq.2) call fact_qopt2(factk,rh0f(i,j,k1),kvar)  ! correction for qoption=2
-        case(6); factk=factoz                                  ! ozone
-        case(7); factk=zero_3                                  ! sea surface temperature
-        case(8); factk=one                                     ! land surface temperature
-        case(9); factk=one                                     ! ice surface temperature
-        case(10);factk=dl1*corz(l,kvar,4)+dl2*corz(lp,kvar,4)  ! cloud condensate mixing ratio
+        case(1); factk=dl1*corz(l,kvar,1)+dl2*corz(lp,kvar,1)               ! streamfunction
+        case(2); factk=dl1*corz(l,kvar,2)+dl2*corz(lp,kvar,2)               ! velocity potential
+        case(3); factk=dl1*corp(l)       +dl2*corp(lp)                      ! log(ps)
+        case(4); factk=dl1*corz(l,kvar,3)+dl2*corz(lp,kvar,3)               ! temperature
+        case(5); factk=dl1*corz(l,kvar,4)+dl2*corz(lp,kvar,4)               ! qoption=1
+          if(qoption==2_i_kind) call fact_qopt2(factk,rh0f(i,j,k1),kvar)    ! correction for qoption=2
+        case(6); factk=factoz                                               ! ozone
+        case(7); factk=zero_3                                               ! sea surface temperature
+        case(8); factk=one                                                  ! land surface temperature
+        case(9); factk=one                                                  ! ice surface temperature
+        case(10);factk=dl1*corz(l,kvar,4)+dl2*corz(lp,kvar,4)               ! cloud condensate mixing ratio
       end select
 
       do igauss=1,ngauss
@@ -472,7 +524,7 @@ subroutine anprewgt_reg(mype)
     allocate(region_dy4(nlat,nlon),region_dx4(nlat,nlon))
     allocate(psg4(nlat,nlon))
 
-    if (mype.eq.0) then
+    if (mype==izero) then
       region_dx4=region_dx
       region_dy4=region_dy
       open (94,file='bckg_dxdy.dat',form='unformatted')
@@ -509,7 +561,7 @@ subroutine anprewgt_reg(mype)
  end subroutine anprewgt_reg
 !=======================================================================
 !=======================================================================
-subroutine get_aspect_reg_2d(mype)
+subroutine get_aspect_reg_2d
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_aspect_reg_2d
@@ -534,22 +586,18 @@ subroutine get_aspect_reg_2d(mype)
 !                         to the parent subroutine anprewgt_reg().
 !
 !   input argument list:
-!     mype     - mpi task id
 !
 !   output argument list:
-!
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-!$$$
+!$$$ end documentation block
   use anberror, only: afact0
-  use constants, only: h300
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
 
 ! Declare local variables
   integer(i_kind):: i,j,k,k1,ip,im,jp,jm,ivar
@@ -585,8 +633,8 @@ subroutine get_aspect_reg_2d(mype)
         asp2=asp20f(i,j)
         asp3=asp30f(i,j)
 
-        jp=min(nlonf,j+1) ; jm=max(1,j-1); dxi=one/(jp-jm)
-        ip=min(nlatf,i+1) ; im=max(1,i-1); dyi=one/(ip-im)
+        jp=min(nlonf,j+ione) ; jm=max(1,j-ione); dxi=one/(jp-jm)
+        ip=min(nlatf,i+ione) ; im=max(1,i-ione); dyi=one/(ip-im)
 
         fx1= dyi*real(z0f(ip,j,k)-z0f(im,j,k),r_kind)
         fx2= dxi*real(z0f(i,jp,k)-z0f(i,jm,k),r_kind)
@@ -602,7 +650,7 @@ subroutine get_aspect_reg_2d(mype)
           case(4); rltop=rltop_temp
           case(5); rltop=rltop_q
         end select
-        if (jdvar(k) <= 5) afact=afact0(ivar)
+        if (jdvar(k) <= 5_i_kind) afact=afact0(ivar)
 
         if (afact>zero) then
           asp1=scalex1*asp1
@@ -677,7 +725,7 @@ subroutine get_aspect_reg_pt(mype)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-!$$$
+!$$$ end documentation block
   use anberror, only: afact0
   implicit none
 
@@ -685,10 +733,10 @@ subroutine get_aspect_reg_pt(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local variables
-  integer(i_kind):: i,j,k,k1,im,ip,jm,jp
+  integer(i_kind):: i,j,k,k1
   real(r_kind):: rk1,fblend
-  real(r_kind):: fx2,fx1,fx3,dxi,dyi
-  real(r_kind):: asp1,asp2,asp3,aspmax(3)
+  real(r_kind):: fx2,fx1,fx3
+  real(r_kind):: asp1,asp2,asp3
   real(r_kind):: qls,ucomp,vcomp,bfact,dxf0,dyf0
   real(r_kind):: afact,qltv,qlth
 
@@ -749,7 +797,7 @@ subroutine get_aspect_reg_pt(mype)
           case(4); qlth=qlth_temp(k1) ; qltv=qltv_temp(k1)
         end select
 
-        if ( (nvar_id(k)==1 .or. nvar_id(k)==2 .or. nvar_id(k)==4) .and. afact0(nvar_id(k))>zero ) then
+        if ( (nvar_id(k)==ione .or. nvar_id(k)==2_i_kind .or. nvar_id(k)==4_i_kind) .and. afact0(nvar_id(k))>zero ) then
            afact=real(afact0(nvar_id(k)),r_single)
            asp1=scalex1*asp1
            asp2=scalex2*asp2
@@ -768,7 +816,7 @@ subroutine get_aspect_reg_pt(mype)
 
 !---
 ! Note: not effective in the current settings...
-        if (nvar_id(k)==5)  then
+        if (nvar_id(k)==5_i_kind)  then
 !         bfact=one
           qls=qls_rh
           asp1=scalex1*asp1
@@ -779,7 +827,7 @@ subroutine get_aspect_reg_pt(mype)
         rk1=float(k1-44_i_kind)
         fblend=half*(one-tanh(rk1))! one
 
-        if (nvar_id(k) /= 5) then
+        if (nvar_id(k) /= 5_i_kind) then
           aspect(1,i,j,k) = real(one/asp1**2+afact*fblend*fx1*fx1/(qlth**2)  ,r_single) ! 1st (y) direction    x1*x1
           aspect(2,i,j,k) = real(one/asp2**2+afact*fblend*fx2*fx2/(qlth**2)  ,r_single) ! 2nd (x) direction    x2*x2
           aspect(3,i,j,k) = real(one/asp3**2+afact*fblend*fx3*fx3/(qltv**2)  ,r_single) ! 3rd (z) direction    x3*x3
@@ -787,7 +835,7 @@ subroutine get_aspect_reg_pt(mype)
           aspect(5,i,j,k) = real(            afact*fblend*fx3*fx1/(qlth*qltv),r_single) !  x3*x1
           aspect(6,i,j,k) = real(            afact*fblend*fx2*fx1/(qlth**2)  ,r_single) !  x2*x1
           aspect(7,i,j,k)=  zero_single
-        else if (nvar_id(k)==5) then
+        else if (nvar_id(k)==5_i_kind) then
           aspect(1,i,j,k) = real(one/asp1**2+bfact*fblend*ucomp*ucomp*dyf0*dyf0/qls**2,r_single)
           aspect(2,i,j,k) = real(one/asp2**2+bfact*fblend*vcomp*vcomp*dxf0*dxf0/qls**2,r_single)
           aspect(3,i,j,k) = real(one/asp3**2                                          ,r_single)
@@ -832,8 +880,7 @@ subroutine fact_qopt2(factk,rh,kvar)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-! use jfunc,only: varq
-! use constants,only: i_kind, r_kind, r_single, one
+!$$$ end documentation block
   implicit none
 
   real(r_kind)  ,intent(inout):: factk
@@ -845,11 +892,11 @@ subroutine fact_qopt2(factk,rh,kvar)
 
   d  =20.0_r_kind * rh + one
   n  =int(d)
-  np =n+1
+  np =n+ione
   dn2=d-float(n)
   dn1=one-dn2
-  n =min0(max(1,n) ,25)
-  np=min0(max(1,np),25)
+  n =min0(max(ione,n) ,25_i_kind)
+  np=min0(max(ione,np),25_i_kind)
   factk=factk*(varq(n,kvar)*dn1+varq(np,kvar)*dn2)    ! qoption=2
 
   return
@@ -868,6 +915,7 @@ subroutine init_anisofilter_reg(mype)
 !   2006-08-01  pondeca
 !
 !   input argument list:
+!    mype
 !
 !   output argument list:
 !
@@ -876,6 +924,7 @@ subroutine init_anisofilter_reg(mype)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
+!$$$ end documentation block
   use anberror, only: afact0
   implicit none
 
@@ -915,7 +964,7 @@ subroutine init_anisofilter_reg(mype)
     scalex2=1.2_r_kind
     scalex3=1.2_r_kind
   end if
-  anhswgt(:)=1.0
+  anhswgt(:)=one
 
 !-----------------------------------------------------------------------
 !==>prescribe scaling factors for spatial correlation lengths.
@@ -927,17 +976,17 @@ subroutine init_anisofilter_reg(mype)
 
 !--- fine tuning with rgauss tuning
   if(.not.twodvar_regional) then
-    if(opt_sclclb==0) then
+    if(opt_sclclb==izero) then
       rfact0h(1)=0.90_r_kind   ;  rfact0v(1)=1.60_r_kind
       rfact0h(2)=one           ;  rfact0v(2)=1.60_r_kind
-    else if(opt_sclclb==1) then
+    else if(opt_sclclb==ione) then
       rfact0h(1)=1.20_r_kind   ;  rfact0v(1)=1.20_r_kind
       rfact0h(2)=0.20_r_kind   ;  rfact0v(2)=0.20_r_kind
     end if
 !---
     rfact0h(3)=1.40_r_kind   ;  rfact0v(3)=1.40_r_kind
     rfact0h(4)=1.40_r_kind   ;  rfact0v(4)=1.40_r_kind
-    rfact0h(5)=1.40_r_kind   ;  rfact0v(5)=1.00_r_kind
+    rfact0h(5)=1.40_r_kind   ;  rfact0v(5)=one
     rfact0h(6)=one           ;  rfact0v(6)=1.20_r_kind
     rfact0h(7)=one           ;  rfact0v(7)=1.20_r_kind
     rfact0h(8)=one           ;  rfact0v(8)=1.20_r_kind
@@ -968,7 +1017,7 @@ subroutine init_anisofilter_reg(mype)
       water_scalefacttemp=one
       water_scalefactq=one
       water_scalefactpsfc=one
-      nhscale_pass=0
+      nhscale_pass=izero
 
       rltop_wind=huge(rltop_wind)
       rltop_temp=huge(rltop_temp)
@@ -977,9 +1026,9 @@ subroutine init_anisofilter_reg(mype)
 
       svpsi =0.35_r_double
       svchi =0.35_r_double*2.063_r_double
-      svpsfc=0.70_r_double*2.0_r_double
-      svtemp=1.00_r_double*2.0_r_double
-      svshum=0.50_r_double*1.5_r_double*2._r_double
+      svpsfc=0.70_r_double*two
+      svtemp=one*two
+      svshum=half*1.5_r_double*two
 
       sclpsi =0.3_r_kind*75._r_kind/100._r_kind*1.2_r_kind
       sclchi =0.3_r_kind*75._r_kind/100._r_kind*1.2_r_kind
@@ -1023,7 +1072,7 @@ subroutine init_anisofilter_reg(mype)
       water_scalefact(4)=water_scalefacttemp
       water_scalefact(5)=water_scalefactq
 
-      if (mype==0) then
+      if (mype==izero) then
          print*,'in init_anisofilter_reg: hsteep=',hsteep
          print*,'in init_anisofilter_reg: hsmooth_len=',hsmooth_len
          print*,'in init_anisofilter_reg: lsmoothterrain=',lsmoothterrain
@@ -1061,7 +1110,7 @@ subroutine init_anisofilter_reg(mype)
       endif
   endif
 
-  if (mype==0) then
+  if (mype==izero) then
      do i=1,10
        print*,'in init_anisofilter_reg: i,rfact0h,rfact0v,afact0=',i,rfact0h(i),rfact0v(i),afact0(i)
      enddo
@@ -1086,7 +1135,7 @@ subroutine init_anisofilter_reg(mype)
   dyf=pf2aP1%grid_ratio_lat*dyf             !  note that dyf = grid_ratio_lat*dy
   call agrid2fgrid(pf2aP1,rllat,rllatf)
 
-  if(mype.eq.0) then
+  if(mype==izero) then
     write(6,*)'in anisofilter_reg, nlatf,nlonf=',nlatf,nlonf
     write(6,*)'in anisofilter_reg, min,max(rllat)=',minval(rllat),maxval(rllat)
     write(6,*)'in anisofilter_reg, min,max(rllatf)=',minval(rllatf),maxval(rllatf)
@@ -1127,6 +1176,7 @@ subroutine read_bckgstats(mype)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
+!$$$ end documentation block
   implicit none
 
 ! Declare passed variables
@@ -1144,7 +1194,7 @@ subroutine read_bckgstats(mype)
   real(r_kind)            :: corpavg,     hwllpavg
 
 ! Read dimension of stats file
-  inerr=22
+  inerr=22_i_kind
   open(inerr,file='berror_stats',form='unformatted')
   rewind inerr
   read(inerr)msig,mlat
@@ -1152,10 +1202,10 @@ subroutine read_bckgstats(mype)
 ! Allocate arrays in stats file
   allocate ( corz(1:mlat,1:nsig,1:4) )
   allocate ( corp(1:mlat) )
-  allocate ( hwll(0:mlat+1,1:nsig,1:4),hwllp(0:mlat+1) )
-  allocate ( vz(1:nsig,0:mlat+1,1:6) )
-  allocate ( agvi(0:mlat+1,1:nsig,1:nsig) )
-  allocate ( bvi(0:mlat+1,1:nsig),wgvi(0:mlat+1,1:nsig) )
+  allocate ( hwll(0:mlat+ione,1:nsig,1:4),hwllp(0:mlat+ione) )
+  allocate ( vz(1:nsig,0:mlat+ione,1:6) )
+  allocate ( agvi(0:mlat+ione,1:nsig,1:nsig) )
+  allocate ( bvi(0:mlat+ione,1:nsig),wgvi(0:mlat+ione,1:nsig) )
 
 ! Read in background error stats and interpolate in vertical
 ! to that specified in namelist
@@ -1168,9 +1218,9 @@ subroutine read_bckgstats(mype)
   deallocate(agvi,bvi,wgvi)
   close(inerr)
 
-  if(mype==0) write(6,*)'in read_bckgstats,mlat=',mlat
+  if(mype==izero) write(6,*)'in read_bckgstats,mlat=',mlat
 
-  if(qoption==2)then
+  if(qoption==2_i_kind)then
     do k=1,nsig
     do j=1,mlat
       varq(j,k)=min(max(real(corz(j,k,4),r_kind),0.0015_r_kind),one)
@@ -1182,10 +1232,10 @@ subroutine read_bckgstats(mype)
 ! Normalize vz with del sigma and convert to vertical grid units!
   if(.not.twodvar_regional) then
     dlsig(1)=rlsig(1)-rlsig(2)
-    do k=2,nsig-1
-      dlsig(k)=half*(rlsig(k-1)-rlsig(k+1))
+    do k=2,nsig-ione
+      dlsig(k)=half*(rlsig(k-ione)-rlsig(k+ione))
     end do
-    dlsig(nsig)=rlsig(nsig-1)-rlsig(nsig)
+    dlsig(nsig)=rlsig(nsig-ione)-rlsig(nsig)
   else
     dlsig=one ! Really no meaning for 2dvar.  Set to 1.0 to avoid
               ! division by zero below.  Array vz is reset for 2dvar
@@ -1193,7 +1243,7 @@ subroutine read_bckgstats(mype)
   end if
 
   do k=1,nsig
-    vz(k,0:mlat+1,1:6)=vz(k,0:mlat+1,1:6)*dlsig(k)
+    vz(k,0:mlat+ione,1:6)=vz(k,0:mlat+ione,1:6)*dlsig(k)
   end do
 
   deallocate(rlsig)
@@ -1202,10 +1252,10 @@ subroutine read_bckgstats(mype)
 !----- apply scaling to vertical length scales.
 !      note:  parameter vs needs to be inverted
 
-  if(mype==0) write(6,*)'in read_bckgstats,an_vs=',an_vs
+  if(mype==izero) write(6,*)'in read_bckgstats,an_vs=',an_vs
   an_vs=one/an_vs
   vz=vz/an_vs
-  if (twodvar_regional) vz(1:nsig,0:mlat+1,1:6)=sqrt(one)
+  if (twodvar_regional) vz(1:nsig,0:mlat+ione,1:6)=sqrt(one)
 
 
 !-----compute and print out diagnostics for
@@ -1215,11 +1265,11 @@ subroutine read_bckgstats(mype)
   allocate(vziavg(1:nsig,1:6))
   do n=1,6
     do k=1,nsig
-      vzimax(k,n)=maxval(one/vz(k,0:mlat+1,n))
-      vzimin(k,n)=minval(one/vz(k,0:mlat+1,n))
-      vziavg(k,n)=sum((one/vz(k,0:mlat+1,n)))/float(mlat+2)
+      vzimax(k,n)=maxval(one/vz(k,0:mlat+ione,n))
+      vzimin(k,n)=minval(one/vz(k,0:mlat+ione,n))
+      vziavg(k,n)=sum((one/vz(k,0:mlat+ione,n)))/float(mlat+2_i_kind)
    end do
-   if(mype.eq.0) then
+   if(mype==izero) then
       do k=1,nsig
         write(6,'(" var,k,max,min,avg vert corlen =",2i4,3f11.3)') &
                     n,k,vzimax(k,n),vzimin(k,n),vziavg(k,n)
@@ -1236,17 +1286,17 @@ subroutine read_bckgstats(mype)
     do n=1,4
       do k=1,nsig
         corzavg(k,n)=sum(corz(1:mlat,k,n))/float(mlat)
-        hwllavg(k,n)=sum(hwll(0:mlat+1,k,n))/float(mlat+2)
+        hwllavg(k,n)=sum(hwll(0:mlat+1,k,n))/float(mlat+2_i_kind)
       end do
     end do
     corpavg=sum(corp(1:mlat))/float(mlat)
-    hwllpavg=sum(hwllp(0:mlat+1))/float(mlat+2)
+    hwllpavg=sum(hwllp(0:mlat+ione))/float(mlat+2_i_kind)
 
     do j=1,mlat
        corz(j,1:nsig,1:4)=corzavg(1:nsig,1:4)
        corp(j)=corpavg
     end do
-    do j=0,mlat+1
+    do j=0,mlat+ione
        hwll(j,1:nsig,1:4)=hwllavg(1:nsig,1:4)
        hwllp(j)=hwllpavg
        vz(1:nsig,j,1:6)=one/vziavg(1:nsig,1:6)
@@ -1271,8 +1321,8 @@ subroutine read_bckgstats(mype)
     kds=indices%kds; kde=indices%kde
     allocate (ks(kds:kde))
     do l=kds,kde
-      ks(l)=nsig+1
-      if(jdvar(l)<3)then
+      ks(l)=nsig+ione
+      if(jdvar(l)<3_i_kind)then
         k_loop0: do k=1,nsig
           if (ges_prslavg(k)< psfc015) then
             ks(l)=k
@@ -1284,8 +1334,8 @@ subroutine read_bckgstats(mype)
   else
     allocate (ks(nsig1o))
     do l=1,nsig1o
-      ks(l)=nsig+1
-      if(nvar_id(l)<3)then
+      ks(l)=nsig+ione
+      if(nvar_id(l)<3_i_kind)then
         k_loop: do k=1,nsig
           if (ges_prslavg(k)< psfc015) then
             ks(l)=k
@@ -1324,6 +1374,7 @@ subroutine get_background(mype)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
+!$$$ end documentation block
   use sub2fslab_mod, only: setup_sub2fslab, destroy_sub2fslab, &
                            sub2fslab, sub2fslabdz, sub2fslab2d, sub2slab2d
   use guess_grids, only: isli2
@@ -1333,17 +1384,11 @@ subroutine get_background(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local variables
-  integer(i_kind) i,j,k,l,ip,im,jp,jm,kp,km,mm1,iflg,k1,ivar,lp
-  integer(i_kind) lcount
-  integer(i_kind) mcount0,mcount
-  integer(i_kind) n
+  integer(i_kind) i,j,k,l,mm1,k1,ivar
 
-  real(r_kind) d,dl1,dl2,factk,hwll_loc
-  real(r_kind) fx2,fx1,fx3,dxi,dyi
+  real(r_kind) hwll_loc
   real(r_kind) asp1,asp2,asp3
 
-  real(r_kind) pbar4a,pbar4(nsig),hgt4(nsig),tbar4(nsig), &
-              thetabar4(nsig),dthetabarz(nsig),dthetabarzmax
   real(r_kind),allocatable,dimension(:,:,:)::field,fld1,fld2
   logical:: ice
 
@@ -1355,7 +1400,7 @@ subroutine get_background(mype)
 
   nlatf=pf2aP1%nlatf
   nlonf=pf2aP1%nlonf
-  mm1=mype+1
+  mm1=mype+ione
 
 !=========================================================================
 
@@ -1398,7 +1443,7 @@ subroutine get_background(mype)
   ! Z
   do j=1,lon2
   do i=1,lat2
-    if (min(max(isli2(i,j),izero),ione)==0) then
+    if (min(max(isli2(i,j),izero),ione)==izero) then
       field(i,j,1)=ges_z(i,j,it)-hsteep
     else
       field(i,j,1)=ges_z(i,j,it)
@@ -1407,7 +1452,7 @@ subroutine get_background(mype)
   end do
   call sub2fslab2d(field(1,1,1),z0f )
 
-  if(nsig1o>1) then
+  if(nsig1o>ione) then
     do j=1,nlonf
     do i=1,nlatf
       z0f(i,j,2:nsig1o)=z0f(i,j,1)
@@ -1460,7 +1505,7 @@ subroutine get_background(mype)
         aspect(3,i,j,k)=real( one**2                             ,r_single)
         aspect(4:7,i,j,k)=zero_single
       else
-        ivar=3
+        ivar=3_i_kind
         l=int(rllatf(nlatf/2,nlonf/2))
         hwll_loc=hwll(l,k1,ivar)
         asp1=hwll_loc/min(dyf(nlatf/2,nlonf/2),dxf(nlatf/2,nlonf/2))*rfact0h(4)
@@ -1475,13 +1520,13 @@ subroutine get_background(mype)
     end do
   end do
 
-  ngauss_smooth=1
+  ngauss_smooth=ione
   rgauss_smooth=one
-  npass_smooth =1
-  normal_smooth=0
-  ifilt_ord_smooth=4
-  nsmooth_smooth=0
-  nsmooth_shapiro_smooth=0
+  npass_smooth =ione
+  normal_smooth=izero
+  ifilt_ord_smooth=4_i_kind
+  nsmooth_smooth=izero
+  nsmooth_shapiro_smooth=izero
 
   call init_raf4_wrap(aspect,triad4,ngauss_smooth,rgauss_smooth, &
                      npass_smooth,normal_smooth,binom, &
@@ -1490,31 +1535,53 @@ subroutine get_background(mype)
                      nvars,idvar,kvar_start,kvar_end,var_names, &
                      indices, mype, npe)
 
-  call raf_sm_reg(theta0f ,ngauss_smooth,mype)
-  call raf_sm_reg(theta0zf,ngauss_smooth,mype)
-  call raf_sm_reg(u0f ,ngauss_smooth,mype)
-  call raf_sm_reg(u0zf,ngauss_smooth,mype)
-  call raf_sm_reg(v0f ,ngauss_smooth,mype)
-  call raf_sm_reg(v0zf,ngauss_smooth,mype)
+  call raf_sm_reg(theta0f ,ngauss_smooth)
+  call raf_sm_reg(theta0zf,ngauss_smooth)
+  call raf_sm_reg(u0f ,ngauss_smooth)
+  call raf_sm_reg(u0zf,ngauss_smooth)
+  call raf_sm_reg(v0f ,ngauss_smooth)
+  call raf_sm_reg(v0zf,ngauss_smooth)
 
   if( (twodvar_regional.and.lsmoothterrain) .or. (.not.twodvar_regional)) &
-    call raf_sm_reg(z0f ,ngauss_smooth,mype)
+    call raf_sm_reg(z0f ,ngauss_smooth)
 
-  call raf_sm_reg(rh0f,ngauss_smooth,mype)
+  call raf_sm_reg(rh0f,ngauss_smooth)
 
 end subroutine get_background
 !=======================================================================
 !=======================================================================
-subroutine raf_sm_reg(fslb0,ngauss_smooth,mype)
+subroutine raf_sm_reg(fslb0,ngauss_smooth)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    raf_sm_reg
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-16  lueken - added subprogram doc block
+!
+!   input argument list:
+!    ngauss_smooth
+!    fslb0
+!
+!   output argument list:
+!    fslb0
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
 
   integer(i_long),intent(in):: ngauss_smooth
-  integer(i_kind),intent(in):: mype
 
   real(r_single),intent(inout)::fslb0(pf2aP1%nlatf,pf2aP1%nlonf)
 
   !--- Smoother for regional
-  call raf_sm4_wrap   (fslb0,filter_all,ngauss_smooth,indices,mype,npe)
-  call raf_sm4_ad_wrap(fslb0,filter_all,ngauss_smooth,indices,mype,npe)
+  call raf_sm4_wrap   (fslb0,filter_all,ngauss_smooth,indices,npe)
+  call raf_sm4_ad_wrap(fslb0,filter_all,ngauss_smooth,indices,npe)
 
   return
 end subroutine
@@ -1545,6 +1612,7 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
+!$$$ end documentation block
   implicit none
 
 !Declare passed variables
@@ -1556,7 +1624,7 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
  real(r_kind),intent(out) :: scale1(pf2aP1%nlatf,pf2aP1%nlonf)
  real(r_kind),intent(out) :: scale2(pf2aP1%nlatf,pf2aP1%nlonf)
  real(r_kind),intent(out) :: scale3(pf2aP1%nlatf,pf2aP1%nlonf)
- real(r_kind) dl1,dl2,factk,hwll_loc
+ real(r_kind) dl1,dl2,hwll_loc
  real(r_kind) scaleaux1(pf2aP1%nlata,pf2aP1%nlona)
  real(r_kind) scaleaux2(pf2aP1%nlata,pf2aP1%nlona)
  integer(i_kind) nlatf,nlonf
@@ -1566,42 +1634,42 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
 
     k1=levs_id(k)
 
-    if (nvar_id(k)==1)  ivar=1  ! streamfunction
-    if (nvar_id(k)==2)  ivar=2  ! velocity potential
-    if (nvar_id(k)==4)  ivar=3  ! temperature
-    if (nvar_id(k)==5)  ivar=4  ! specific humidity
-    if (nvar_id(k)==6)  ivar=5  ! Ozone
-    if (nvar_id(k)==7)  ivar=1  ! SST
-    if (nvar_id(k)==8)  ivar=4  ! cloud water
-    if (nvar_id(k)==9)  ivar=1  ! surface temp (land)
-    if (nvar_id(k)==10) ivar=1  ! surface temp (ice)
+    if (nvar_id(k)==ione)         ivar=ione          ! streamfunction
+    if (nvar_id(k)==2_i_kind)     ivar=2_i_kind      ! velocity potential
+    if (nvar_id(k)==4_i_kind)     ivar=3_i_kind      ! temperature
+    if (nvar_id(k)==5_i_kind)     ivar=4_i_kind      ! specific humidity
+    if (nvar_id(k)==6_i_kind)     ivar=5_i_kind      ! Ozone
+    if (nvar_id(k)==7_i_kind)     ivar=ione          ! SST
+    if (nvar_id(k)==8_i_kind)     ivar=4_i_kind      ! cloud water
+    if (nvar_id(k)==9_i_kind)     ivar=ione          ! surface temp (land)
+    if (nvar_id(k)==10_i_kind)    ivar=ione          ! surface temp (ice)
 
     do j=1,nlonf
        do i=1,nlatf
 
-          if (nvar_id(k)==1 .or. nvar_id(k)==2 .or. nvar_id(k)==4 .or. &
-              nvar_id(k)==5 .or. nvar_id(k)==8 )then
+          if (nvar_id(k)==ione     .or. nvar_id(k)==2_i_kind .or. nvar_id(k)==4_i_kind .or. &
+              nvar_id(k)==5_i_kind .or. nvar_id(k)==8_i_kind )then
                if(k1 >= ks(k))then
                  l=int(rllatf(nlatf/2,nlonf/2))
                  hwll_loc=hwll(l,k1,ivar)
                else
-                 l =max(min(int(rllatf(i,j)),mlat),1)
-                 lp=min((l+1),mlat)
+                 l =max(min(int(rllatf(i,j)),mlat),ione)
+                 lp=min((l+ione),mlat)
                  dl2=rllatf(i,j)-float(l)
                  dl1=one-dl2
                  hwll_loc=dl1*hwll(l,k1,ivar)+dl2*hwll(lp,k1,ivar)
                end if
                scale3(i,j)=one/vz(k1,l,ivar)
 
-            else if (nvar_id(k)==3) then        !surface pressure
-               l =max(min(int(rllatf(i,j)),mlat),1)
-               lp=min((l+1),mlat)
+            else if (nvar_id(k)==3_i_kind) then        !surface pressure
+               l =max(min(int(rllatf(i,j)),mlat),ione)
+               lp=min((l+ione),mlat)
                dl2=rllatf(i,j)-float(l)
                dl1=one-dl2
                hwll_loc=dl1*hwllp(l)+dl2*hwllp(lp)
                scale3(i,j)=one
 
-            else if (nvar_id(k)==6) then
+            else if (nvar_id(k)==6_i_kind) then
                if(k1 <= nsig*3/4)then
                  hwll_loc=r400000
                else
@@ -1610,25 +1678,25 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
                l=int(rllatf(nlatf/2,nlonf/2))
                scale3(i,j)=one/vz(k1,l,ivar)
 
-            else if (nvar_id(k)==7) then ! SST
-               l =max(min(int(rllatf(i,j)),mlat),1)
-               lp=min((l+1),mlat)
+            else if (nvar_id(k)==7_i_kind) then ! SST
+               l =max(min(int(rllatf(i,j)),mlat),ione)
+               lp=min((l+ione),mlat)
                dl2=rllatf(i,j)-float(l)
                dl1=one-dl2
                hwll_loc=half*(dl1*hwll(l,1,ivar)+dl2*hwll(lp,1,ivar))
                scale3(i,j)=one
 
-            else if (nvar_id(k)==9) then ! surface temp (land)
-               l =max(min(int(rllatf(i,j)),mlat),1)
-               lp=min((l+1),mlat)
+            else if (nvar_id(k)==9_i_kind) then ! surface temp (land)
+               l =max(min(int(rllatf(i,j)),mlat),ione)
+               lp=min((l+ione),mlat)
                dl2=rllatf(i,j)-float(l)
                dl1=one-dl2
                hwll_loc=quarter*(dl1*hwll(l,1,ivar)+dl2*hwll(lp,1,ivar))
                scale3(i,j)=one
 
-            else if (nvar_id(k)==10) then ! surface temp (ice)
-               l =max(min(int(rllatf(i,j)),mlat),1)
-               lp=min((l+1),mlat)
+            else if (nvar_id(k)==10_i_kind) then ! surface temp (ice)
+               l =max(min(int(rllatf(i,j)),mlat),ione)
+               lp=min((l+ione),mlat)
                dl2=rllatf(i,j)-float(l)
                dl1=one-dl2
                hwll_loc=quarter*(dl1*hwll(l,1,ivar)+dl2*hwll(lp,1,ivar))
@@ -1646,20 +1714,20 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
             !rescaling to roughly match original analysis from purely isotropic
             !option, ie.. when anisotropic=.false. in namelist "anbkgerr".
 
-            if(opt_sclclb==0) then
+            if(opt_sclclb==izero) then
               scale1(i,j)=rfact0h(nvar_id(k))*scale1(i,j)
               scale2(i,j)=rfact0h(nvar_id(k))*scale2(i,j)
-            else if(opt_sclclb==1) then
+            else if(opt_sclclb==ione) then
               scale1(i,j)=scale1(i,j)**rfact0h(1)+rfact0h(2)
               scale2(i,j)=scale2(i,j)**rfact0h(1)+rfact0h(2)
             end if
 
           if (.not.twodvar_regional) then
-            if (nvar_id(k) /=3 .and. nvar_id(k) /=7 .and. &
-                nvar_id(k) /=9 .and. nvar_id(k) /=10 ) then
-              if(opt_sclclb==0) then
+            if (nvar_id(k) /=3_i_kind .and. nvar_id(k) /=7_i_kind .and. &
+                nvar_id(k) /=9_i_kind .and. nvar_id(k) /=10_i_kind ) then
+              if(opt_sclclb==izero) then
                 scale3(i,j)=rfact0v(nvar_id(k))*scale3(i,j)
-              else if(opt_sclclb==1) then
+              else if(opt_sclclb==ione) then
                 scale3(i,j)=scale3(i,j)**rfact0v(1)+rfact0v(2)
               end if
             end if
@@ -1667,7 +1735,7 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
       enddo
     enddo
 
-    if (lwater_scaleinfl .and. water_scalefact(nvar_id(k)).ne.one) then
+    if (lwater_scaleinfl .and. water_scalefact(nvar_id(k))/=one) then
        call fgrid2agrid(pf2aP1,scale1,scaleaux1)
        call fgrid2agrid(pf2aP1,scale2,scaleaux2)
        do j=1,nlon
@@ -1678,9 +1746,9 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
          end if
        end do
        end do
-       if (nhscale_pass .gt. 0) then
-         call smther_one_8(scaleaux1,1,nlat,1,nlon,nhscale_pass)
-         call smther_one_8(scaleaux2,1,nlat,1,nlon,nhscale_pass)
+       if (nhscale_pass>izero) then
+         call smther_one_8(scaleaux1,ione,nlat,ione,nlon,nhscale_pass)
+         call smther_one_8(scaleaux2,ione,nlat,ione,nlon,nhscale_pass)
        end if
        call agrid2fgrid(pf2aP1,scaleaux1,scale1)
        call agrid2fgrid(pf2aP1,scaleaux2,scale2)
@@ -1713,22 +1781,17 @@ subroutine get_theta_corrl_lenghts(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$  end documentation block
-!
-  use constants, only: four
   implicit none
 
 ! Declare passed variables
   integer(i_kind),intent(in):: mype
 
 ! Declare local variables
-  integer(i_kind) i,j,k,l,ip,im,jp,jm,kp,km,mm1,iflg,k1,ivar,lp
-  integer(i_kind) lcount
+  integer(i_kind) i,j,k,kp,km,k1
   integer(i_kind) mcount0,mcount
 
-  real(r_kind) d,dl1,dl2,factk
-  real(r_kind) fx2,fx1,fx3,dxi,dyi,dzi
+  real(r_kind) dzi
   real(r_kind) asp1,asp2,asp3
-  real(r_kind) rho
 
   real(r_kind) pbar4a,pbar4(nsig),hgt4(nsig),tbar4(nsig), &
                thetabar4(nsig),dthetabarz(nsig),dthetabarzmax, &
@@ -1749,30 +1812,30 @@ subroutine get_theta_corrl_lenghts(mype)
     end do
    end do
    mcount0=lon2*lat2! It's OK to count buffer points
-   call mpi_allreduce(pbar4a,pbar4(k),1,mpi_real8,mpi_sum,mpi_comm_world,ierror)
-   call mpi_allreduce(mcount0,mcount,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+   call mpi_allreduce(pbar4a,pbar4(k),ione,mpi_real8,mpi_sum,mpi_comm_world,ierror)
+   call mpi_allreduce(mcount0,mcount,ione,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
    pbar4(k)=pbar4(k)/float(mcount)
-   if(mype.eq.0) write(6,*)'in get_theta_corrl_lenghts,k,pbar4=',k,pbar4(k)
+   if(mype==izero) write(6,*)'in get_theta_corrl_lenghts,k,pbar4=',k,pbar4(k)
    call w3fa03(pbar4(k),hgt4(k),tbar4(k),thetabar4(k))
   end do
 
   dthetabarzmax=zero
   do k=1,nsig
-   kp=min(nsig,k+1)
-   km=max(1,k-1)
+   kp=min(nsig,k+ione)
+   km=max(ione,k-ione)
    dzi=one/(kp-km)
    dthetabarz(k)=dzi*(thetabar4(kp)-thetabar4(km))
    dthetabarzmax=max(dthetabarz(k),dthetabarzmax)
-   if(mype.eq.0) then
+   if(mype==izero) then
       write(6,'("in get_theta_corrl_lenghts,k,pbar4,hgt4,tbar4=",i4,3f11.3)') k,pbar4(k),hgt4(k),tbar4(k)
       write(6,'("in get_theta_corrl_lenghts,k,thetabar4,dthetabarz=",i4,2f11.3)') k,thetabar4(k),dthetabarz(k)
    endif
   end do
-  if(mype.eq.0) write(6,*)'in get_theta_corrl_lenghts,dthetabarzmax=',dthetabarzmax
+  if(mype==izero) write(6,*)'in get_theta_corrl_lenghts,dthetabarzmax=',dthetabarzmax
 
   do k=1,nsig
    dthetabarz(k)=dthetabarz(k)/dthetabarzmax
-   if(mype.eq.0) then
+   if(mype==izero) then
       write(6,*)'in get_theta_corrl_lenghts,k,normalized dthetabarz=',k,dthetabarz(k)
    endif
   end do
@@ -1780,7 +1843,7 @@ subroutine get_theta_corrl_lenghts(mype)
   do k=1,nsig
    qlth_temp(k)=qlth_temp0
    qlth_wind(k)=qlth_wind0
-   if (k.le.44) then
+   if (k<=44_i_kind) then
      qltv_temp(k)=qltv_temp0
      qltv_wind(k)=qltv_wind0
     else
@@ -1789,16 +1852,16 @@ subroutine get_theta_corrl_lenghts(mype)
    endif
   end do
 
-  call hanning_smther(qltv_temp, nsig, 5)
-  call hanning_smther(qltv_wind, nsig, 5)
+  call hanning_smther(qltv_temp, nsig, 5_i_kind)
+  call hanning_smther(qltv_wind, nsig, 5_i_kind)
 
-  if (mype.eq.0) then
+  if (mype==izero) then
    do k=1,nsig
      write(6,*)'in get3berr_reg,k,qltv_temp,qltv_wind=',k,qltv_temp(k),qltv_wind(k)
    enddo
   endif
 
-  if (mype.eq.0) then
+  if (mype==izero) then
    open (94,file='std_atm.dat',form='unformatted')
    write(94)pbar4
    write(94)hgt4
@@ -1880,7 +1943,6 @@ subroutine mk_gradpt_slab(nlatf,nlonf, &
 !   2007-12-20  sato
 !
 !   input argument list:
-!     mype     - mpi task id
 !     nlatf    - # of lat for filtered space
 !     nlonf    - # of lon for filtered space
 !     thetaf   - background    theta      in filtered space
@@ -1905,8 +1967,6 @@ subroutine mk_gradpt_slab(nlatf,nlonf, &
 !   machine:  ibm RS/6000 SP
 !
 !$$$  end documentation block
-!
-
   implicit none
 
 !--- set limcor .true.
@@ -1935,18 +1995,18 @@ subroutine mk_gradpt_slab(nlatf,nlonf, &
   do j=1,nlonf
   do i=1,nlatf
 
-    inodat=0
+    inodat=izero
 
     if( present(ilatf) ) then
-      if( ilatf(i,j) .eq. zero ) then
-        inodat=1
+      if( ilatf(i,j)==zero ) then
+        inodat=ione
       else
-        jp=min(nlonf,j+1) ; jm=max(1,j-1)
-        ip=min(nlatf,i+1) ; im=max(1,i-1)
-        if( ilatf(ip,j) .eq. zero .or. &
-          & ilatf(im,j) .eq. zero .or. &
-          & ilatf(i,jp) .eq. zero .or. &
-          & ilatf(i,jm) .eq. zero ) inodat=1
+        jp=min(nlonf,j+ione) ; jm=max(ione,j-ione)
+        ip=min(nlatf,i+ione) ; im=max(ione,i-ione)
+        if( ilatf(ip,j)==zero .or. &
+          & ilatf(im,j)==zero .or. &
+          & ilatf(i,jp)==zero .or. &
+          & ilatf(i,jm)==zero ) inodat=ione
       end if
     end if
 
@@ -1954,17 +2014,17 @@ subroutine mk_gradpt_slab(nlatf,nlonf, &
     tx2(i,j)=zero_single
     tx3(i,j)=zero_single
 
-    if( inodat /= 1 ) then
+    if( inodat /= ione ) then
 
-      jp=min(nlonf,j+1) ; jm=max(1,j-1) ; dxi=one/(jp-jm)
-      ip=min(nlatf,i+1) ; im=max(1,i-1) ; dyi=one/(ip-im)
+      jp=min(nlonf,j+ione) ; jm=max(ione,j-ione) ; dxi=one/(jp-jm)
+      ip=min(nlatf,i+ione) ; im=max(ione,i-ione) ; dyi=one/(ip-im)
 
       fx1= dyi*real(thetaf(ip,j)-thetaf(im,j),r_kind)
       fx2= dxi*real(thetaf(i,jp)-thetaf(i,jm),r_kind)
       fx3=     real(thetazf(i,j)             ,r_kind)
 
-      if ( nvarid==1 .or. nvarid==2 .or. nvarid==4 ) then
-        if (abs(fx1).gt.rvsmall) then
+      if ( nvarid==ione .or. nvarid==2_i_kind .or. nvarid==4_i_kind ) then
+        if (abs(fx1)>rvsmall) then
           if(limcor) then
             gmax=two*qlth/asp1max
             r=abs(fx1)/gmax
@@ -1973,7 +2033,7 @@ subroutine mk_gradpt_slab(nlatf,nlonf, &
           end if
           tx1(i,j)=real(fx1,r_single)
         end if
-        if (abs(fx2).gt.rvsmall) then
+        if (abs(fx2)>rvsmall) then
           if(limcor) then
             gmax=two*qlth/asp2max
             r=abs(fx2)/gmax
@@ -1982,7 +2042,7 @@ subroutine mk_gradpt_slab(nlatf,nlonf, &
           end if
           tx2(i,j)=real(fx2,r_single)
         end if
-        if (abs(fx3).gt.rvsmall) then
+        if (abs(fx3)>rvsmall) then
           if(limcor) then
             gmax=two*qltv/asp3max
             r=abs(fx3)/gmax
@@ -1997,9 +2057,9 @@ subroutine mk_gradpt_slab(nlatf,nlonf, &
   end do
   end do
 
-  call smther_one(tx1(1,1),1,nlatf,1,nlonf,2)
-  call smther_one(tx2(1,1),1,nlatf,1,nlonf,2)
-  call smther_one(tx3(1,1),1,nlatf,1,nlonf,2)
+  call smther_one(tx1(1,1),ione,nlatf,ione,nlonf,2_i_kind)
+  call smther_one(tx2(1,1),ione,nlatf,ione,nlonf,2_i_kind)
+  call smther_one(tx3(1,1),ione,nlatf,ione,nlonf,2_i_kind)
 
   return
 end subroutine mk_gradpt_slab
@@ -2028,12 +2088,12 @@ subroutine hanning_smther(g1, npts, ns)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-
+!$$$ end documentation block
    implicit none
 
-
-   integer(i_kind) npts,ns,it,itp,itm,l
-   real(r_kind) g1(npts)
+   integer(i_kind), intent(in):: npts,ns
+   real(r_kind), intent(inout):: g1(npts)
+   integer(i_kind) it,itp,itm,l
    real(r_kind), allocatable:: g2(:)
 
    allocate(g2(npts))
@@ -2041,8 +2101,8 @@ subroutine hanning_smther(g1, npts, ns)
    do l=1,ns
     g2(:)=g1(:)
     do it = 1,npts
-       itp=min(it+1,npts) ; itm=max(1,it-1)
-       g1(it) = .25*g2(itm) + .5*g2(it) + .25*g2(itp)
+       itp=min(it+ione,npts) ; itm=max(1,it-ione)
+       g1(it) = quarter*g2(itm) + half*g2(it) + quarter*g2(itp)
     enddo
    enddo
 
@@ -2075,10 +2135,10 @@ subroutine smther_one(g1,is,ie,js,je,ns)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-
+!$$$ end documentation block
   implicit none
 
-  integer(i_long)  is, ie, js, je
+  integer(i_long), intent(in) :: is, ie, js, je
   integer(i_long)  i,j,l,ip,im,jp,jm
   integer(i_long), intent(in) :: ns
 
@@ -2094,15 +2154,15 @@ subroutine smther_one(g1,is,ie,js,je,ns)
 
      do j=js,je
       do i=is,ie
-       ip=min(i+1,ie) ; im=max(is,i-1)
-         g2(i,j)=.25*(g1(ip,j)+g1(im,j))+.5*g1(i,j)
+       ip=min(i+ione,ie) ; im=max(is,i-ione)
+       g2(i,j)=quarter*(g1(ip,j)+g1(im,j))+half*g1(i,j)
       end do
-       end do
+     end do
 
      do i=is,ie
       do j=js,je
-       jp=min(j+1,je) ; jm=max(js,j-1)
-       g1(i,j)=.25*(g2(i,jp)+g2(i,jm))+.5*g2(i,j)
+       jp=min(j+ione,je) ; jm=max(js,j-ione)
+       g1(i,j)=quarter*(g2(i,jp)+g2(i,jm))+half*g2(i,j)
       end do
      end do
 
@@ -2116,7 +2176,7 @@ end subroutine smther_one
 subroutine smther_one_8(g1,is,ie,js,je,ns)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   smther_one
+! subprogram:   smther_one_8
 ! prgmmr: pondeca          org: np22                date: 2006-08-01
 !
 ! abstract: apply 1-2-1 smoother in each direction of data slab
@@ -2137,11 +2197,10 @@ subroutine smther_one_8(g1,is,ie,js,je,ns)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-
-  use kinds,only: r_kind,i_long
+!$$$ end documentation block
   implicit none
 
-  integer(i_long)  is, ie, js, je
+  integer(i_long), intent(in) :: is, ie, js, je
   integer(i_long)  i,j,l,ip,im,jp,jm
   integer(i_long), intent(in) :: ns
 
@@ -2157,15 +2216,15 @@ subroutine smther_one_8(g1,is,ie,js,je,ns)
 
      do j=js,je
       do i=is,ie
-       ip=min(i+1,ie) ; im=max(is,i-1)
-         g2(i,j)=.25*(g1(ip,j)+g1(im,j))+.5*g1(i,j)
+       ip=min(i+ione,ie) ; im=max(is,i-ione)
+       g2(i,j)=quarter*(g1(ip,j)+g1(im,j))+half*g1(i,j)
       end do
      end do
 
      do i=is,ie
       do j=js,je
-       jp=min(j+1,je) ; jm=max(js,j-1)
-       g1(i,j)=.25*(g2(i,jp)+g2(i,jm))+.5*g2(i,j)
+       jp=min(j+ione,je) ; jm=max(js,j-ione)
+       g1(i,j)=quarter*(g2(i,jp)+g2(i,jm))+half*g2(i,j)
       end do
      end do
 
@@ -2198,16 +2257,17 @@ subroutine invert_aspect_tensor(asp,ni,nj,nk)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-  use kinds,only: i_kind,r_single,r_kind
   implicit none
 
-  integer(i_kind),intent(in):: ni,nj,nk
-  real(r_single):: asp(7,ni,nj,nk)
+  integer(i_kind),intent(in)  :: ni,nj,nk
+  real(r_single),intent(inout):: asp(7,ni,nj,nk)
+
   real(r_kind):: a1,a2,a3,a4,a5,a6,detai
   real(r_kind):: biga1,biga2,biga3,biga4,biga5,biga6
   integer(i_kind):: i,j,k
+
   do k=1,nk
-    if( levs_id(k) .eq. 0 ) cycle
+    if( levs_id(k)==izero ) cycle
     do j=1,nj
       do i=1,ni
         a1=real(asp(1,i,j,k),r_kind)
@@ -2229,9 +2289,9 @@ subroutine invert_aspect_tensor(asp,ni,nj,nk)
         asp(4,i,j,k)=real(biga4*detai,r_single)
         asp(5,i,j,k)=real(biga5*detai,r_single)
         asp(6,i,j,k)=real(biga6*detai,r_single)
-       end do
-     end do
-   end do
+      end do
+    end do
+  end do
 end subroutine invert_aspect_tensor
 !=======================================================================
 !=======================================================================
@@ -2248,20 +2308,20 @@ subroutine get_aspect_det(asp,det)
 !
 !   input argument list:
 !    asp - aspect tensor to be inverted
-!    detai - detaminant
+!    det - detaminant
 !
 !   output argument list:
-!    asp - inverted aspect tensor
+!    det
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-  use kinds,only: r_single,r_kind
+!$$$ end documentation block
   implicit none
 
-  real(r_single):: asp(6)
-  real(r_kind):: det
+  real(r_single),intent(in) :: asp(6)
+  real(r_kind),intent(inout):: det
   real(r_kind):: a1,a2,a3,a4,a5,a6
   real(r_kind):: biga1,biga2,biga3,biga4,biga5,biga6
 
@@ -2285,7 +2345,7 @@ end subroutine get_aspect_det
 subroutine get_aspect_reg_ens(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    get3berr_ens_reg
+! subprogram:    get_aspect_reg_ens
 ! prgmmr: pondeca          org: np22                date: 2007-03-05
 !
 ! abstract: compute ensemble based anisotropic aspect tensor for the
@@ -2309,7 +2369,7 @@ subroutine get_aspect_reg_ens(mype)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-!$$$
+!$$$ end documentation block
   use anberror, only: afact0
   implicit none
 
@@ -2317,33 +2377,30 @@ subroutine get_aspect_reg_ens(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local variables
-  integer(i_kind),parameter::ntensmax=200   !max # of ens members
-  integer(i_kind) igrdtype(ntensmax)        !ens grid number (212, 221 or 3)
-  integer(i_kind) igrdtype_in(50)           !aux field to igrdtype
-  integer(i_kind) ngrps                     !# of distinct igrdtype's present
-  integer(i_kind) nflds(ntensmax)           !# of distinct physical flds in each ens member
-  integer(i_kind) nflds_in(nensmax)              !auxiliar field to nflds
-  integer(i_kind) ifldlevs(ntensmax,nensmax)     !# of vert levels in each physical fld of each ens member
-  integer(i_kind) ifldlevs_in(20,nensmax)        !auxiliar to ifldlevs
-  integer(i_kind) nrepeat(nensmax)               !ens of igrdtype(i) appears nrepeat(i) times
+  integer(i_kind),parameter::ntensmax=200_i_kind   !max # of ens members
+  integer(i_kind) igrdtype(ntensmax)               !ens grid number (212, 221 or 3)
+  integer(i_kind) igrdtype_in(50)                  !aux field to igrdtype
+  integer(i_kind) ngrps                            !# of distinct igrdtype's present
+  integer(i_kind) nflds(ntensmax)                  !# of distinct physical flds in each ens member
+  integer(i_kind) nflds_in(nensmax)                !auxiliar field to nflds
+  integer(i_kind) ifldlevs(ntensmax,nensmax)       !# of vert levels in each physical fld of each ens member
+  integer(i_kind) ifldlevs_in(20,nensmax)          !auxiliar to ifldlevs
+  integer(i_kind) nrepeat(nensmax)                 !ens of igrdtype(i) appears nrepeat(i) times
 !
-  integer(i_kind) i,j,k,l,lp,k1,kvar,ivar,im,ip,jm,jp,m,m1,m2,n,nlatlonf
-  integer(i_kind) i1,i2,j1,j2
+  integer(i_kind) i,j,k,k1,ivar,im,ip,jm,jp,m,m1,m2,n,nlatlonf
   integer(i_kind) igbox(4,ngrds),igbox0f(4,ngrds),igrid,igd
   integer(i_kind) kens,ntens
-  integer(i_kind) nens(nsig1o,ngrds),nt1,nt2,nt3,kt
+  integer(i_kind) nens(nsig1o,ngrds),nt1,nt2,nt3
   integer(i_kind) ifld
   integer(i_kind) nflag(10),nkflag(nsig1o) !dimension is # of anl. variables
   integer(i_kind) kflag(nsig)
   integer(i_kind) iref(nlat,nlon,ngrds)
   integer(i_kind) jref(nlat,nlon,ngrds)
 
-  real(r_kind) d,dl1,dl2,factk,factor,hwll_loc
   real(r_single):: aniall(6),ensvin
   real(r_kind) fx2,fx1,fx3,dxi,dyi
-  real(r_kind) asp1,asp2,asp3,factoz,asplim,coeff_asplim
+  real(r_kind) asp1,asp2,asp3,coeff_asplim
   real(r_kind) qlx,qly,qlz
-  real(r_kind) fb,gb
   real(r_single):: s1,s2,s3,smax,max_grad,min_grad
   real(r_single):: c(6,3)
   real(r_single):: afact,deta0,deta1,alpha,alphaz,mag
@@ -2353,29 +2410,26 @@ subroutine get_aspect_reg_ens(mype)
   real(r_single):: rescvar(10) ! -> change into namelist parameter
   real(r_single):: rescvarzadj(10) ! -> change into namelist parameter
   real(r_kind),parameter:: rperc=0.0001_r_kind
-  real(r_kind),parameter:: detmin=1.0, detmax=10.0
+  real(r_kind),parameter:: detmin=one, detmax=10.0_r_kind
 
-  character(len=4):: clun
-  character(len=3):: clun1,clun2,clun3
-  logical:: lflag
   logical:: lgrd1,lgrd2,lgrd3
   logical:: lres1,lres2
   real(r_kind):: aensv(6,nsig1o)
   integer(i_kind):: nsmp
 
-  integer:: icovmap  ! flag for output covariance map
-  integer:: idiagens ! if = 1 then print out diganostic info
-  integer:: icorlim  ! if = 1 then vertical correlation length is restricted
-  integer:: ibldani  ! 0: use simple formulation to blend iso-aniso aspect
+  integer(i_kind):: icovmap  ! flag for output covariance map
+  integer(i_kind):: idiagens ! if = 1 then print out diganostic info
+  integer(i_kind):: icorlim  ! if = 1 then vertical correlation length is restricted
+  integer(i_kind):: ibldani  ! 0: use simple formulation to blend iso-aniso aspect
                      ! 1: use Jim's formulation
                      ! 2: use Sato's formulation
                      ! 3: use anisotropic components only
 
-  integer:: iensamp  ! if = 1 then uses amplitude adjustment by ensemble varience
+  integer(i_kind):: iensamp  ! if = 1 then uses amplitude adjustment by ensemble varience
                      ! only when ibldani=0
                      ! NOTE: this option could now work correctlly now (20080122) !
 
-  integer:: isatytest ! for my temporary test
+  integer(i_kind):: isatytest ! for my temporary test
 
   logical:: truewind ! if true, covariance model is based on u,v
                      ! if false,covariance model is based on psi,chi
@@ -2386,12 +2440,12 @@ subroutine get_aspect_reg_ens(mype)
                     rescvar,rescvarzadj,idiagens,icovmap,icorlim, &
                     truewind, unbalens, ibldani, iensamp, isatytest, scalex1ens, scalex2ens, scalex3ens
 
-  data idiagens  / 0 /
-  data icovmap   / 0 /
-  data icorlim   / 0 /
-  data isatytest / 0 /
-  data ibldani   / 0 /
-  data iensamp   / 0 /
+  data idiagens  / izero /
+  data icovmap   / izero /
+  data icorlim   / izero /
+  data isatytest / izero /
+  data ibldani   / izero /
+  data iensamp   / izero /
   data truewind / .false. /
   data unbalens / .false. /
   data rescvar / one,one,one,one,one, one,one,one,one,one /
@@ -2429,11 +2483,11 @@ subroutine get_aspect_reg_ens(mype)
   close(55)
 
   if( unbalens ) truewind = .false. ! to use unbalance part, it needs to use phi,chi
-  if(icovmap==1) covmap=.true. ! passed to anprewgt_reg
+  if(icovmap==ione) covmap=.true. ! passed to anprewgt_reg
 
 !-----------------------------------------------------------
 
-  if (mype==0) then
+  if (mype==izero) then
     write (6, ensparam)
 
     write(6,200)
@@ -2487,12 +2541,12 @@ subroutine get_aspect_reg_ens(mype)
 
 !==> ensemble contribution:
 
-  if (ntens .gt. izero) then !see mark-0
+  if (ntens>izero) then !see mark-0
 
-    m1=1
+    m1=ione
     do n=1,ngrps
-      if (n > 1) m1=m1+nrepeat(n-1)
-      do m=m1,m1+nrepeat(n)-1
+      if (n > ione) m1=m1+nrepeat(n-ione)
+      do m=m1,m1+nrepeat(n)-ione
         igrdtype(m)=igrdtype_in(n)
         nflds(m)=nflds_in(n)
         do m2=1,nflds_in(n)
@@ -2501,7 +2555,7 @@ subroutine get_aspect_reg_ens(mype)
       end do
     end do
 
-    if (mype==0) then
+    if (mype==izero) then
       do n=1,nensmax
         print*,'in get3berr_ens_reg: n,igrdtype(n),nflds(n)=',n,igrdtype(n),nflds(n)
       end do
@@ -2517,7 +2571,7 @@ subroutine get_aspect_reg_ens(mype)
 
      call ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gblend,mype)
 
-     if (mype==0) then
+     if (mype==izero) then
        do n=1,3
          print*,'in get3berr_ens_reg: nlat,nlon=',nlat,nlon
          print*,'n,igbox(1,n),igbox0f(1,n)=',n,igbox(1,n),igbox0f(1,n)
@@ -2547,17 +2601,17 @@ subroutine get_aspect_reg_ens(mype)
          call get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
               igbox,iref,jref,nflag,kflag,idiagens,mype)
 
-         if      (igrid == 212) then; igd=1; lgrd1=.true.
-         else if (igrid == 221) then; igd=2; lgrd2=.true.
-         else if (igrid ==   3) then; igd=3; lgrd3=.true.
+         if      (igrid == 212_i_kind) then; igd=ione;        lgrd1=.true.
+         else if (igrid == 221_i_kind) then; igd=2_i_kind;    lgrd2=.true.
+         else if (igrid ==   3_i_kind) then; igd=3_i_kind;    lgrd3=.true.
          else
            print*,'in get3berr_ens_reg: igrid=',igrid
            print*,'in get3berr_ens_reg: unknown ensemble grid. aborting ...'
            call stop2(stpcode_ensdata)
          endif
 
-         lres1=any(nflag(:)==1)
-         lres2=any(kflag(:)==1)
+         lres1=any(nflag(:)==ione)
+         lres2=any(kflag(:)==ione)
          if ( .not.lres1 .or. .not.lres2) cycle
 
          do k=1,nsig1o
@@ -2566,19 +2620,19 @@ subroutine get_aspect_reg_ens(mype)
            k1  =levs_id(k)
 
            if ( ivar==izero .or. k1==izero .or. &
-                nflag(ivar) /=1 .or. kflag(k1) /=1 ) cycle
+                nflag(ivar) /=ione .or. kflag(k1) /=ione ) cycle
 
-           nkflag(k)=1
+           nkflag(k)=ione
 
-           nens(k,igd)=nens(k,igd)+1
+           nens(k,igd)=nens(k,igd)+ione
 
            do j=1,pf2aP1%nlonf
            do i=1,pf2aP1%nlatf
 
              ensv(i,j,k,igd)=ensv(i,j,k,igd)+ens0f(i,j,k)*ens0f(i,j,k)
 
-             jp=min(pf2aP1%nlonf,j+1) ; jm=max(1,j-1); dxi=one/(jp-jm)
-             ip=min(pf2aP1%nlatf,i+1) ; im=max(1,i-1); dyi=one/(ip-im)
+             jp=min(pf2aP1%nlonf,j+ione) ; jm=max(ione,j-ione); dxi=one/(jp-jm)
+             ip=min(pf2aP1%nlatf,i+ione) ; im=max(ione,i-ione); dyi=one/(ip-im)
 
              fx1= dyi*real(ens0f(ip,j,k)-ens0f(im,j,k),r_kind)
              fx2= dxi*real(ens0f(i,jp,k)-ens0f(i,jm,k),r_kind)
@@ -2614,9 +2668,9 @@ subroutine get_aspect_reg_ens(mype)
        k1=levs_id(k)
        if (ivar==izero .or. k1==izero) cycle
 
-       nt1=max(1,(nens(k,1)+nens(k,2)+nens(k,3)-1))
-       nt2=max(1,          (nens(k,2)+nens(k,3)-1))
-       nt3=max(1,                    (nens(k,3)-1))
+       nt1=max(ione,(nens(k,1)+nens(k,2)+nens(k,3)-ione))
+       nt2=max(ione,          (nens(k,2)+nens(k,3)-ione))
+       nt3=max(ione,                    (nens(k,3)-ione))
 
        smax=-huge(smax)
        do j=1,pf2aP1%nlonf
@@ -2627,7 +2681,7 @@ subroutine get_aspect_reg_ens(mype)
          smax=max(smax,s1,s2,s3)
        end do
        end do
-       if (nkflag(k)==1) then
+       if (nkflag(k)==ione) then
          qlxmin(ivar,k1)=rperc*smax
          qlymin(ivar,k1)=rperc*smax
          qlzmin(ivar,k1)=rperc*smax*rescvarzadj(ivar)
@@ -2650,9 +2704,9 @@ subroutine get_aspect_reg_ens(mype)
     k1=levs_id(k)
     if (ivar==izero .or. k1==izero) cycle
 
-    nt1=max(1,(nens(k,1)+nens(k,2)+nens(k,3)-1))
-    nt2=max(1,          (nens(k,2)+nens(k,3)-1))
-    nt3=max(1,                    (nens(k,3)-1))
+    nt1=max(ione,(nens(k,1)+nens(k,2)+nens(k,3)-ione))
+    nt2=max(ione,          (nens(k,2)+nens(k,3)-ione))
+    nt3=max(ione,                    (nens(k,3)-ione))
 
     do j=1,pf2aP1%nlonf
     do i=1,pf2aP1%nlatf
@@ -2660,7 +2714,7 @@ subroutine get_aspect_reg_ens(mype)
       ensv(i,j,k,2)=              (ensv(i,j,k,2)+ensv(i,j,k,3))/sqrt(float(nt2))
       ensv(i,j,k,3)=                             ensv(i,j,k,3) /sqrt(float(nt3))
 
-      if( ibldani==0 .or. ibldani==2 .or. ibldani==3 ) then
+      if( ibldani==izero .or. ibldani==2_i_kind .or. ibldani==3_i_kind ) then
         do m=1,6
           c(m,1)=(aniasp(m,i,j,k,1)+aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/float(nt1)
           c(m,2)=                  (aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/float(nt2)
@@ -2679,7 +2733,7 @@ subroutine get_aspect_reg_ens(mype)
             aniasp(6,i,j,k,igd)=c(6,igd)/real(qly*qlx,r_single)
           end if
         end do
-      else if(ibldani==1) then
+      else if(ibldani==ione) then
         do m=1,6
           aniasp(m,i,j,k,1)=(aniasp(m,i,j,k,1)+aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/float(nt1)
           aniasp(m,i,j,k,2)=                  (aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/float(nt2)
@@ -2696,7 +2750,7 @@ subroutine get_aspect_reg_ens(mype)
     end do
     end do
 
-    if(ibldani==1) then
+    if(ibldani==ione) then
       aensv(4,k)=aensv(1,k)*aensv(3,k)
       aensv(5,k)=aensv(3,k)*aensv(2,k)
       aensv(6,k)=aensv(2,k)*aensv(1,k)
@@ -2713,7 +2767,7 @@ subroutine get_aspect_reg_ens(mype)
 !    NOTE: ensvin (variance) is used only for (ibldani/=1 or iensamp==1).
 !    But it is always calculated since the task must not be heavy
 !
-  if(iensamp==1) then
+  if(iensamp==ione) then
     allocate(ensamp(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o))
     ensamp=1.0_r_single
   end if
@@ -2788,13 +2842,13 @@ subroutine get_aspect_reg_ens(mype)
       !-----------------------
       ! Sets limit to the aspect tensors with the isotropic values.
       !-----------------------
-      if(icorlim==1) then
-        max_grad=-1.0
-        min_grad= 1.2
+      if(icorlim==ione) then
+        max_grad=-1.0_r_single
+        min_grad= 1.2_r_single
         call set_range_aniall(aniall,aspect(1:3,i,j,k),max_grad,min_grad)
       end if
 
-      if(ibldani==0) then
+      if(ibldani==izero) then
       !==> simple blending
         aspect(1,i,j,k) = aspect(1,i,j,k)+afact*aniall(1)
         aspect(2,i,j,k) = aspect(2,i,j,k)+afact*aniall(2)
@@ -2805,7 +2859,7 @@ subroutine get_aspect_reg_ens(mype)
 !---
         aspect(6,i,j,k) =                 afact*aniall(6)
         aspect(7,i,j,k) = zero_single
-      else if(ibldani==1) then
+      else if(ibldani==ione) then
       !==> Jim's formulation
         qlx=max(qlxmin(ivar,k1),ensvin)
         qly=max(qlymin(ivar,k1),ensvin)
@@ -2820,8 +2874,8 @@ subroutine get_aspect_reg_ens(mype)
 
       else if(ibldani==2) then
       !==> Yoshi's formulation
-        alpha=0.5
-        alphaz=0.5
+        alpha=0.5_r_single
+        alphaz=0.5_r_single
         deta0=aspect(1,i,j,k)*aspect(2,i,j,k)
         deta1=aniall(1)*aniall(2)-aniall(6)*aniall(6)
 
@@ -2848,8 +2902,8 @@ subroutine get_aspect_reg_ens(mype)
 
         aspect(7,i,j,k) = zero_single
       else if(ibldani==3) then
-        max_grad=10.0
-        min_grad=1.0
+        max_grad=10.0_r_single
+        min_grad=1.0_r_single
         call set_range_aniall(aniall,aspect(1:3,i,j,k),max_grad,min_grad)
         aspect(1,i,j,k) = aniall(1)
         aspect(2,i,j,k) = aniall(2)
@@ -2862,7 +2916,7 @@ subroutine get_aspect_reg_ens(mype)
         end if
       end if
 
-      if(iensamp==1) then
+      if(iensamp==ione) then
         ensamp(i,j,k)=ensvin
       end if
 
@@ -2871,8 +2925,8 @@ subroutine get_aspect_reg_ens(mype)
 
     !==> normalize ensamp (0.5-2.0)
     !    sqrt(ensamp) will be multiplied to an_amp
-    if(iensamp==1.and.lres1) then
-      nsmp=100
+    if(iensamp==ione.and.lres1) then
+      nsmp=100_i_kind
       call mode_val(ensamp(1,1,k),nlatlonf,nsmp,ensamp_mod)
       do j=1,pf2aP1%nlonf
       do i=1,pf2aP1%nlatf
@@ -2904,14 +2958,14 @@ subroutine get_aspect_reg_ens(mype)
 !-----------------------------------------------
 ! Amplitude correction settings to pass to anprewgt_reg
 !-----------------------------------------------
-  if     (isatytest==4) then
+  if     (isatytest==4_i_kind) then
     llamp_adjust = .true.
     llamp_coeff  = 0.6_r_kind
-    llamp_levtop =40
-  else if(isatytest==6) then
+    llamp_levtop =40_i_kind
+  else if(isatytest==6_i_kind) then
     llamp_adjust = .true.
     llamp_coeff  = 0.8_r_kind
-    llamp_levtop =40
+    llamp_levtop =40_i_kind
   end if
 
 end subroutine get_aspect_reg_ens
@@ -2921,7 +2975,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
            igbox,iref,jref,nflag,kflag,idiagens,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   get_ensmber.f90
+! subprogram:   get_ensmber
 ! prgmmr: pondeca          org: np22                date: 2007-03-08
 !
 ! abstract: obtain specific physical field of specific ens member on the
@@ -2943,6 +2997,8 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 !    igbox(4,ngrds) - i and j corner values of portion of anl grid that
 !                     falls completely inside e-grid.
 !    ifldlevs(kens,ifld) - # of p-levels in the ifld field of the kens e-member
+!    truewind
+!    unbalens
 !
 !   output argument list:
 !    nflag(i) - 1 if field will be used to construct covariance of
@@ -2954,7 +3010,9 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-  use balmod, only : bvz,agvz,wgvz,rllat1,ke_vp,fstat,f1
+!$$$ end documentation block
+
+  use balmod, only : bvz,agvz,wgvz,rllat1,ke_vp,f1
   use sub2fslab_mod, only : setup_sub2fslab, destroy_sub2fslab, &
                             sub2fslab, sub2fslabdz
 
@@ -2974,34 +3032,32 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   logical,intent(in)::unbalens
 
 ! Declare local variables
-  integer(i_kind) i,j,k,l,m,ip,kp,km,l2,iflg,ivar,it
+  integer(i_kind) i,j,k,l,m,l2,ivar,it
   integer(i_kind) n,kup
   integer(i_kind) inttype !read in from each e-member. tells about
 !                          desired vertical interp type for specific
 !                          physical field. 0 for linear in p and
 !                          1 in ln(p).
   integer(i_kind) irc_s_reg(npe),ird_s_reg(npe)
-  integer(i_kind) irc_s_reg_st(npe),ird_s_reg_st(npe)
 
-  real(r_kind) hwll_loc,asp1,asp2,asp3
+  real(r_kind) asp1,asp2,asp3
   real(r_kind) dl1,dl2
 
   real(r_kind),allocatable,dimension(:,:,:)::field
 
   integer(i_kind) lun,nx,ny,k1
-  integer(i_kind) kk,num_pad,num_pad_st,kslab,kstart,kend,kslab_prev,ier
+  integer(i_kind) kk,num_pad,kslab,kstart,kend,kslab_prev,ier
   real(r_single),allocatable,dimension(:)::slab,aslab
   real(r_single),allocatable,dimension(:,:,:)::h_loc
   real(r_single),allocatable,dimension(:)::pres
   real(r_single) slab2(nlat,nlon),aslab2(nlat,nlon)
-  real(r_single) tempa(itotsub),tempst(itotsub)
+  real(r_single) tempa(itotsub)
   real(r_single) strp(lat1*lon1)
   real(r_single) auxa(lat2,lon2),auxb(nlon,nlat)
   real(r_single) p0,gamma
   real(r_kind) p1,p2
-  logical lvar
   logical one21
-  character(3) clun,clun2,clun3
+  character(3) clun,clun2
 
   integer(i_long):: ngauss_smooth,npass_smooth,normal_smooth,ifilt_ord_smooth
   integer(i_long):: nsmooth_smooth, nsmooth_shapiro_smooth
@@ -3017,11 +3073,11 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 !==>determine dimensions of input ensemble grid and allocate
 !   slab, which is used to read in the ens fields:
 !==========================================================================
-  if      (igrid == 212) then; nx=185; ny=129
-  else if (igrid == 221) then; nx=349; ny=277
-  else if (igrid ==   3) then; nx=360; ny=181
+  if      (igrid == 212_i_kind) then; nx=185_i_kind; ny=129_i_kind
+  else if (igrid == 221_i_kind) then; nx=349_i_kind; ny=277_i_kind
+  else if (igrid ==   3_i_kind) then; nx=360_i_kind; ny=181_i_kind
   else
-    if (mype == 0 ) then
+    if (mype == izero ) then
       print*,'in get_ensmber: igrid=',igrid
       print*,'in get_ensmber: unsupported grid, aborting ...'
     end if
@@ -3038,15 +3094,15 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 !==========================================================================
   write (clun(1:3),'(i3.3)') kens
 
-  lun=55
+  lun=55_i_kind
   open (lun,file='ens.dat_'//clun,form='unformatted', &
         access='direct',recl=4*nx*ny)
 
-  kstart=0
-  do k=1,ifld-1
-    kstart=kstart+(1+ifldlevs(kens,k))
+  kstart=izero
+  do k=1,ifld-ione
+    kstart=kstart+(ione+ifldlevs(kens,k))
   enddo
-  kstart=kstart+1
+  kstart=kstart+ione
 
   read(lun,rec=kstart) slab
 
@@ -3058,7 +3114,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 
   n=nint(slab(25))
   if (igrid  /= n) then
-    if (mype == 0) then
+    if (mype == izero) then
       print*,'in get_ensmber: igrid,n=',igrid,n
       print*,'in get_ensmber: inconsistency in grid type for this field. &
                               &igrid and n must be equal. aborting ...'
@@ -3070,7 +3126,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 
   n=nint(slab(27))
   if (ifldlevs(kens,ifld) /= n) then
-    if (mype == 0) then
+    if (mype == izero) then
       print*,'in get_ensmber: ifldlevs(kens,ifld),n=',ifldlevs(kens,ifld),n
       print*,'in get_ensmber: inconsistency in number of levels for this field. &
                               &ifldlevs and n must be equal. aborting ...'
@@ -3080,10 +3136,10 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 
   allocate(pres(ifldlevs(kens,ifld)))
   do k=1,ifldlevs(kens,ifld)
-     pres(k)=slab(k+39)
+     pres(k)=slab(k+39_i_kind)
   end do
 
-  if (idiagens==1 .and. mype==0) then
+  if (idiagens==ione .and. mype==izero) then
      print*,'in get_ensmber: kens,ifld,kstart,igrid,nx,ny=', &
                              kens,ifld,kstart,igrid,nx,ny
   end if
@@ -3091,10 +3147,10 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 !==>prepare for alltoallv comunications:
 !==========================================================================
   n=ifldlevs(kens,ifld)
-  if(mod(n,npe)==0) then; num_pad= n
-  else;                   num_pad=(n/npe+1)*npe
+  if(mod(n,npe)==izero) then; num_pad= n
+  else;                   num_pad=(n/npe+ione)*npe
   end if
-  if (mype.eq.0) &
+  if (mype==izero) &
     print*,'in get_ensmber: kens,ifld,ivar,ifldlevs,npe,num_pad=', &
                             kens,ifld,ivar,ifldlevs(kens,ifld),npe,num_pad
 
@@ -3102,19 +3158,19 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   h_loc(:,:,:)=zero_single
 
   do i=1,npe
-    irc_s_reg(i)=ijn_s(mype+1)
+    irc_s_reg(i)=ijn_s(mype+ione)
   end do
-  ird_s_reg(1)=0
+  ird_s_reg(1)=izero
   do i=1,npe
-    if(i /= 1) ird_s_reg(i)=ird_s_reg(i-1)+irc_s_reg(i-1)
+    if(i /= ione) ird_s_reg(i)=ird_s_reg(i-ione)+irc_s_reg(i-ione)
   end do
 
 !==========================================================================
 !==>read in ensemble field and distribute over subdomains
 !==========================================================================
-  kslab_prev=1
-  kstart=kstart+1
-  kend=kstart+ifldlevs(kens,ifld)-1
+  kslab_prev=ione
+  kstart=kstart+ione
+  kend=kstart+ifldlevs(kens,ifld)-ione
 
   tempa(:)=zero_single
 
@@ -3123,20 +3179,20 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
       read(lun,rec=kslab) slab
       slab2(:,:)=zero_single
 
-      call fillanlgrd(slab,ngrds,igrid,nx,ny,slab2,iref,jref,igbox,enscoeff,mype)
+      call fillanlgrd(slab,ngrds,igrid,nx,ny,slab2,iref,jref,igbox,enscoeff)
 
-      if (ifld==1 .or. ifld==2) then
-        if (ifld==1) read(lun,rec=(kslab+(ifldlevs(kens,ifld)+1))) aslab ! v-comp
-        if (ifld==2) read(lun,rec=(kslab-(ifldlevs(kens,ifld)+1))) aslab ! u-comp
+      if (ifld==ione .or. ifld==2_i_kind) then
+        if (ifld==ione)     read(lun,rec=(kslab+(ifldlevs(kens,ifld)+ione))) aslab ! v-comp
+        if (ifld==2_i_kind) read(lun,rec=(kslab-(ifldlevs(kens,ifld)+ione))) aslab ! u-comp
         aslab2(:,:)=zero_single
 
-        call fillanlgrd(aslab,ngrds,igrid,nx,ny,aslab2,iref,jref,igbox,enscoeff,mype)
-        if (ifld==1) then
+        call fillanlgrd(aslab,ngrds,igrid,nx,ny,aslab2,iref,jref,igbox,enscoeff)
+        if (ifld==ione) then
           ! slab2=u -> st, aslab2=v -> vp
-          call ens_uv_to_psichi(slab2,aslab2,truewind,mype)
+          call ens_uv_to_psichi(slab2,aslab2,truewind)
         else
           ! aslab2=u -> st, slab2=v -> vp
-          call ens_uv_to_psichi(aslab2,slab2,truewind,mype)
+          call ens_uv_to_psichi(aslab2,slab2,truewind)
         end if
       end if
 
@@ -3146,12 +3202,12 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 
     endif
 
-    kk=kslab-kstart+1
-    if ( mod(kk,npe)==0 .or. kk==ifldlevs(kens,ifld) ) then
+    kk=kslab-kstart+ione
+    if ( mod(kk,npe)==izero .or. kk==ifldlevs(kens,ifld) ) then
       call mpi_alltoallv(tempa,ijn_s,displs_s,mpi_real4, &
               h_loc(1,1,kslab_prev),irc_s_reg,ird_s_reg, &
                           mpi_real4,mpi_comm_world,ierror)
-      kslab_prev=kk+1
+      kslab_prev=kk+ione
     end if
   200 continue
   close(lun)
@@ -3163,7 +3219,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   it=ntguessig
 
   allocate(field(lat2,lon2,nsig),stat=ier)
-  if(ier/=0) then
+  if(ier/=izero) then
     write(6,*) 'could not allocate memory for field'
     call stop2(stpcode_alloc)
   end if
@@ -3172,9 +3228,9 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 
   n=ifldlevs(kens,ifld)
 
-  if (n == 1) then
+  if (n == ione) then
     do k=1,nsig
-      if(ivar==7) then
+      if(ivar==7_i_kind) then
         field(:,:,k)=h_loc(:,:,1)*0.001_r_kind ! Pa->cb
       else
         field(:,:,k)=h_loc(:,:,1)
@@ -3186,22 +3242,22 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
       ! Spline interpolation
       do i=1,lat2
       do j=1,lon2
-       if(inttype==0) then
+       if(inttype==izero) then
           xspli=pres
           do k=1,nsig
-            xsplo(k)=ges_prsl(i,j,k,it)*10.0
+            xsplo(k)=ges_prsl(i,j,k,it)*10.0_r_kind
           end do
         else
           xspli=log(pres)
           do k=1,nsig
-            xsplo(k)=log(ges_prsl(i,j,k,it)*10.0)
+            xsplo(k)=log(ges_prsl(i,j,k,it)*10.0_r_kind)
           end do
         end if
         do k=1,n
           yspli(k)=h_loc(i,j,k)
         end do
         call intp_spl(xspli,yspli,xsplo,ysplo,n,nsig)
-!       if(mype==0.and.i==lat2.and.j==lon2) then
+!       if(mype==izero.and.i==lat2.and.j==lon2) then
 !         write(6,*) 'splchk:',xspli(1:n),'|',yspli(1:n),'|',xsplo,'|',ysplo
 !       end if
         do k=1,nsig
@@ -3215,18 +3271,18 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
       do j=1,lon2
       do i=1,lat2
         p0=ges_prsl(i,j,k,it)*10._r_single
-        if (p0.lt.pres(n)) then
+        if (p0<pres(n)) then
           field(i,j,k)=h_loc(i,j,n)
-        else if (p0.ge.pres(1)) then
+        else if (p0>=pres(1)) then
           field(i,j,k)=h_loc(i,j,1)
         else
-          do kk=1,n-1
-            if (p0.le.pres(kk) .and. p0.ge.pres(kk+1)) then
-              if (inttype == 0) then
-                gamma=(h_loc(i,j,kk+1)-h_loc(i,j,kk))/(pres(kk+1)-pres(kk))
+          do kk=1,n-ione
+            if (p0<=pres(kk) .and. p0>=pres(kk+ione)) then
+              if (inttype == izero) then
+                gamma=(h_loc(i,j,kk+ione)-h_loc(i,j,kk))/(pres(kk+ione)-pres(kk))
                 field(i,j,k)=h_loc(i,j,kk)+gamma*(p0-pres(kk))
               else
-                gamma=(h_loc(i,j,kk+1)-h_loc(i,j,kk))/alog(pres(kk+1)/pres(kk))
+                gamma=(h_loc(i,j,kk+ione)-h_loc(i,j,kk))/alog(pres(kk+ione)/pres(kk))
                 field(i,j,k)=h_loc(i,j,kk)+gamma*alog(p0/pres(kk))
               end if
             end if
@@ -3239,7 +3295,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   end if
 
 ! save the data to estimate unbalanced part
-  if( unbalens .and. ivar==1 ) then
+  if( unbalens .and. ivar==ione ) then
     if(.not.allocated(field_st)) allocate(field_st(lat2,lon2,nsig))
     field_st = field
     kens_p = kens
@@ -3249,7 +3305,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 !==>Estimate unbalanced part
 !==========================================================================
   if( unbalens ) then
-    if( kens .ne. kens_p ) then
+    if( kens/=kens_p ) then
       write(6,*) 'get_ensmber(): kens must be equal to kens_p,',kens,kens_p
       call stop2(stpcode_ensdata)
     end if
@@ -3265,7 +3321,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
         do j=1,lon2
         do i=1,lat2
           l=int(rllat1(i,j))
-          l2=min0(l+1,llmax)
+          l2=min0(l+ione,llmax)
           dl2=rllat1(i,j)-float(l)
           dl1=one-dl2
           field(i,j,k)=field(i,j,k)-(dl1*bvz(l,k)+dl2*bvz(l2,k))*field_st(i,j,k)
@@ -3293,7 +3349,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
           do j=1,lon2
           do i=1,lat2
             l=int(rllat1(i,j))
-            l2=min0(l+1,llmax)
+            l2=min0(l+ione,llmax)
             dl2=rllat1(i,j)-float(l)
             dl1=one-dl2
             field(i,j,m)=field(i,j,m)-(dl1*agvz(l,m,k)+dl2*agvz(l2,m,k))*field_st(i,j,k)
@@ -3310,7 +3366,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
         do i=1,lat2
           do k=1,nsig
             l=int(rllat1(i,j))
-            l2=min0(l+1,llmax)
+            l2=min0(l+ione,llmax)
             dl2=rllat1(i,j)-float(l)
             dl1=one-dl2
             field(i,j,1)=field(i,j,1)-(dl1*wgvz(l,k)+dl2*wgvz(l2,k))*field_st(i,j,k)
@@ -3324,38 +3380,38 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 !-------------------------------
 ! Test: replace Q info by T
 !-------------------------------
-! if     (ivar==3) then
+! if     (ivar==3_i_kind) then
 !   if(.not.allocated(field_t)) allocate(field_t(lat2,lon2,nsig))
 !   field_t = field
-! else if(ivar==4) then
+! else if(ivar==4_i_kind) then
 !   field = field_t
 ! end if
 !
 !-------------------------------
 ! Vertical Smoother
 !-------------------------------
-  nsmooth_smooth=2
-  nsmooth_shapiro_smooth=0
+  nsmooth_smooth=2_i_kind
+  nsmooth_shapiro_smooth=izero
   n=ifldlevs(kens,ifld)
-  if (n > 1) then
+  if (n > ione) then
     call vert_smther(field,nsmooth_smooth,nsmooth_shapiro_smooth)
   end if
 
 !==========================================================================
 !==>Output to check the field
 !==========================================================================
-  if (idiagens==1) then
+  if (idiagens==ione) then
     write (clun(1:3),'(i3.3)') kens
     write (clun2(1:3),'(i3.3)') ifld
     open (54,file='field.dat_'//clun//'_'//clun2,form='unformatted')
 
-    if (n == 1) then
-      k=1
+    if (n == ione) then
+      k=ione
       auxa(:,:)=field(:,:,k)
-      call strip_single(auxa,strp,1)
-      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-      if (mype.eq.0) then
+      call strip_single(auxa,strp,ione)
+      call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+           tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+      if (mype==izero) then
         auxb(:,:)=zero_single
         call unfill_mass_grid2t(tempa,nlon,nlat,auxb)
         write(54) auxb
@@ -3363,10 +3419,10 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
     else
       do k=1,nsig
         auxa(:,:)=field(:,:,k)
-        call strip_single(auxa,strp,1)
-        call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-             tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-        if (mype.eq.0) then
+        call strip_single(auxa,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+             tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+        if (mype==izero) then
           auxb(:,:)=zero_single
           call unfill_mass_grid2t(tempa,nlon,nlat,auxb)
           write(54) auxb
@@ -3385,25 +3441,25 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 !  those vertical levels are. kflag(k)=1(0) means that the current ensemble
 !  field will(not) be used for the covariance on the the kth model level.
 !==========================================================================
-  kflag(1:nsig)=1
+  kflag(1:nsig)=ione
 
   n=ifldlevs(kens,ifld)
-  if (n == 1) kflag(2:nsig)=-1 ! in the current code, n==1 is assumed to occur
-                               ! only when ensemble field is a surface field
+  if (n == ione) kflag(2:nsig)=-ione ! in the current code, n==1 is assumed to occur
+                                     ! only when ensemble field is a surface field
 
-  kup=0
-  if (n > 1) then
+  kup=izero
+  if (n > ione) then
      p1=pres(1)*one
      p2=pres(n)*one
      do k=nsig,1,-1
-        if (pgesmax(k).gt.p1 .or. pgesmin(k).lt.p2 ) then
-           kflag(k)=-1
-           if (kup.eq.0 .and. pgesmax(k).gt.p1) kup=k
+        if (pgesmax(k)>p1 .or. pgesmin(k)<p2 ) then
+           kflag(k)=-ione
+           if (kup==izero .and. pgesmax(k)>p1) kup=k
         endif
      enddo
-     if (pres(1).ge.999.5_r_single) then
+     if (pres(1)>=999.5_r_single) then
         do k=1,kup
-           kflag(k)=1
+           kflag(k)=ione
         enddo
      endif
   endif
@@ -3418,7 +3474,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   ens0zf(:,:,:)=zero_single
   call setup_sub2fslab
   call sub2fslab  (field,ens0f )
-  if(n>1) call sub2fslabdz(field,ens0zf)
+  if(n>ione) call sub2fslabdz(field,ens0zf)
   call destroy_sub2fslab
 
 !-----------------------------------------------------------
@@ -3429,8 +3485,8 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 
   if (one21) then
     do k=1,nsig1o
-      call smther_one(ens0f (1,1,k),1,pf2aP1%nlatf,1,pf2aP1%nlonf,nsmooth_smooth)
-      call smther_one(ens0zf(1,1,k),1,pf2aP1%nlatf,1,pf2aP1%nlonf,nsmooth_smooth)
+      call smther_one(ens0f (1,1,k),ione,pf2aP1%nlatf,ione,pf2aP1%nlonf,nsmooth_smooth)
+      call smther_one(ens0zf(1,1,k),ione,pf2aP1%nlatf,ione,pf2aP1%nlonf,nsmooth_smooth)
     end do
   else
     aspect(:,:,:,:)=zero
@@ -3451,13 +3507,13 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
     end do
 
 
-    ngauss_smooth=1
+    ngauss_smooth=ione
     rgauss_smooth=one
-    npass_smooth=1
-    normal_smooth=0
-    ifilt_ord_smooth=4
-    nsmooth_smooth=0
-    nsmooth_shapiro_smooth=0
+    npass_smooth=ione
+    normal_smooth=izero
+    ifilt_ord_smooth=4_i_kind
+    nsmooth_smooth=izero
+    nsmooth_shapiro_smooth=izero
     call init_raf4_wrap(aspect,triad4,ngauss_smooth,rgauss_smooth, &
                        npass_smooth,normal_smooth,binom, &
                        ifilt_ord_smooth,filter_all, &
@@ -3465,15 +3521,15 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
                        nvars,idvar,kvar_start,kvar_end,var_names, &
                        indices, mype, npe)
 
-    call raf_sm_reg(ens0f ,ngauss_smooth,mype)
-    call raf_sm_reg(ens0zf,ngauss_smooth,mype)
+    call raf_sm_reg(ens0f ,ngauss_smooth)
+    call raf_sm_reg(ens0zf,ngauss_smooth)
 
   endif
 
   do k=1,nsig1o
     k1=levs_id(k)
     if (k1==izero) cycle
-    if (kflag(k1) == 0) then
+    if (kflag(k1) == izero) then
       ens0f (:,:,k)=zero_single
       ens0zf(:,:,k)=zero_single
     endif
@@ -3506,13 +3562,13 @@ subroutine set_range_aniall(aniall,isoasp,max_grad,min_grad)
 !    max_grad       - maximum gradient parameter ( <=0 -> no limit)
 !    min_grad       - minimum gradient parameter ( <=0 -> no limit)
 !   output argument list:
-!    asniall        - anisotropic aspect tensor
+!    aniall         - anisotropic aspect tensor
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-  use constants, only: zero_single
+!$$$ end documentation block
   implicit none
   real(r_single),intent(in)   :: max_grad, min_grad
   real(r_single),intent(inout):: aniall(6)
@@ -3607,7 +3663,7 @@ subroutine mode_val(gx,nx,nsmp,gmod)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-
+!$$$ end documentation block
   implicit none
   integer(i_kind),intent(in) :: nx,nsmp
   real(r_single) ,intent(in) :: gx(nx)
@@ -3618,30 +3674,56 @@ subroutine mode_val(gx,nx,nsmp,gmod)
   integer(i_kind):: ig_sum(nsmp)
   integer(i_kind):: ix,ig,ig_max
 
-  ig_sum=0
-  ag_sum=0.0
+  ig_sum=izero
+  ag_sum=zero_single
   gmax=maxval(gx)
   gmin=minval(gx)
   do ix=1,nx
-    ig=max(min(int((gx(ix)-gmin)*nsmp/(gmax-gmin)),nsmp),1)
-    ig_sum(ig)=ig_sum(ig)+1
+    ig=max(min(int((gx(ix)-gmin)*nsmp/(gmax-gmin)),nsmp),ione)
+    ig_sum(ig)=ig_sum(ig)+ione
     ag_sum(ig)=ag_sum(ig)+gx(ix)
   end do
 
-  ig_max=1
+  ig_max=ione
   do ig=2,nsmp
     if(ig_sum(ig_max)<ig_sum(ig)) ig_max=ig
   end do
 
   gmod=ag_sum(ig_max)/ig_sum(ig_max)
 
-write(6,*) 'mode_val:avg/mod',sum(ag_sum)/sum(ig_sum),gmod,ig_max
+  write(6,*) 'mode_val:avg/mod',sum(ag_sum)/sum(ig_sum),gmod,ig_max
 
   return
 end subroutine mode_val
 !=======================================================================
 !=======================================================================
 subroutine writeout_isoscaleinfo(nvar,k1,asp1,asp2,asp3,dxfc,dyfc,aspx)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    writeout_isoscaleinfo
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-16  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nvar,k1
+!    asp1,asp2,asp3
+!    dxfc,dyfc
+!    aspx
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+
   integer(i_kind),intent(in):: nvar,k1
   real(r_kind),intent(in):: asp1,asp2,asp3
   real(r_kind),intent(in):: dxfc,dyfc
@@ -3661,7 +3743,7 @@ end subroutine
 subroutine get2berr_reg_subdomain_option(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    get2berr_reg
+! subprogram:    get2berr_reg_subdomain_option
 ! prgmmr: parrish          org: np22                date: 2005-02-08
 !
 ! abstract: setup everything for anisotropic regional background
@@ -3690,9 +3772,9 @@ subroutine get2berr_reg_subdomain_option(mype)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
-!$$$
+!$$$ end documentation block
   use anberror, only: afact0
-  use gridmod, only: nlat,nlon,istart,jstart
+  use gridmod, only: istart,jstart
   use raflib, only: init_raf4
   implicit none
 
@@ -3702,24 +3784,20 @@ subroutine get2berr_reg_subdomain_option(mype)
 ! Declare local variables
   integer(i_kind) i,j,k,l,lp,k1,kvar,ivar,im,ip,jm,jp,mm1,iloc,iploc,imloc,jloc,jploc,jmloc,igauss
   integer(i_kind) iglob,jglob
-             integer(i_kind) kk
 
-  real(4) aspect_out(nlon,nlat),aspect_out0(nlon,nlat)
-  real(r_kind) d,dl1,dl2,factk,factor,hwll_loc,anhswgtsum
+  real(r_kind) dl1,dl2,factk,factor,anhswgtsum
   real(r_kind) a1,a2,a3,a4,a5,a6,detai
   real(r_kind) biga1,biga2,biga3,biga4,biga5,biga6
-  real(r_kind) fx2,fx1,fx3,dxi,dyi,dzi
+  real(r_kind) fx2,fx1,fx3,dxi,dyi
   real(r_kind) asp1,asp2,asp3,factoz,afact
-  real(r_kind) detratio,deta0,deta1
+  real(r_kind) deta0,deta1
 
-  real(r_kind),allocatable,dimension(:,:)::bckgvar,zaux,zsmooth
   real(r_kind),allocatable,dimension(:,:,:):: bckgvar0f
   real(r_single),allocatable,dimension(:,:)::bckgvar4,bckgvar4a,zsmooth4,zsmooth4a
   real(r_single),allocatable,dimension(:,:)::region_dx4,region_dy4,psg4,psg4a
   real(r_single),allocatable,dimension(:,:,:):: fltvals0,fltvals
   character*10 chvarname(5)
   character(80) fname
-  real(r_single) dummy_amp
 
   integer(i_kind):: ids,ide,jds,jde,kds,kde,ips,ipe,jps,jpe,kps,kpe
   integer(i_kind):: nlatf,nlonf
@@ -3750,7 +3828,7 @@ subroutine get2berr_reg_subdomain_option(mype)
 
   allocate(aspect(7,ips:ipe,jps:jpe,kps:kpe))
   aspect(:,:,:,:)=zero
-  mm1=mype+1
+  mm1=mype+ione
 
   do k=kds,kde
     ivar=jdvar(k)
@@ -3758,22 +3836,22 @@ subroutine get2berr_reg_subdomain_option(mype)
     call isotropic_scales_subdomain_option(asp10f,asp20f,asp30f,k,mype)
 
     do j=jps,jpe
-       jloc=j-jstart(mm1)+2
+       jloc=j-jstart(mm1)+2_i_kind
        do i=ips,ipe
-          iloc=i-istart(mm1)+2
+          iloc=i-istart(mm1)+2_i_kind
 
           asp1=asp10f(iloc,jloc)
           asp2=asp20f(iloc,jloc)
           asp3=asp30f(iloc,jloc)
 
-          jp=min(nlonf,j+1) ; jm=max(1,j-1)
-          jploc=jp-jstart(mm1)+2
-          jmloc=jm-jstart(mm1)+2
+          jp=min(nlonf,j+ione) ; jm=max(ione,j-ione)
+          jploc=jp-jstart(mm1)+2_i_kind
+          jmloc=jm-jstart(mm1)+2_i_kind
           dxi=one/(jp-jm)
 
-          ip=min(nlatf,i+1) ; im=max(1,i-1)
-          iploc=ip-istart(mm1)+2
-          imloc=im-istart(mm1)+2
+          ip=min(nlatf,i+ione) ; im=max(ione,i-ione)
+          iploc=ip-istart(mm1)+2_i_kind
+          imloc=im-istart(mm1)+2_i_kind
           dyi=one/(ip-im)
 
           fx1= dyi*(z0f(iploc,jloc,k1)-z0f(imloc,jloc,k1))
@@ -3783,12 +3861,12 @@ subroutine get2berr_reg_subdomain_option(mype)
           rltop=rltop_wind
           afact=zero
 
-          if (jdvar(k)==1) rltop=rltop_wind
-          if (jdvar(k)==2) rltop=rltop_wind
-          if (jdvar(k)==3) rltop=rltop_psfc
-          if (jdvar(k)==4) rltop=rltop_temp
-          if (jdvar(k)==5) rltop=rltop_q
-          if (jdvar(k) <= 5) afact=afact0(ivar)  !(use "zero" for isotropic computations)
+          if (jdvar(k)==ione)        rltop=rltop_wind
+          if (jdvar(k)==2_i_kind)    rltop=rltop_wind
+          if (jdvar(k)==3_i_kind)    rltop=rltop_psfc
+          if (jdvar(k)==4_i_kind)    rltop=rltop_temp
+          if (jdvar(k)==5_i_kind)    rltop=rltop_q
+          if (jdvar(k) <= 5_i_kind)  afact=afact0(ivar)  !(use "zero" for isotropic computations)
 
           if (afact>zero) then
              asp1=scalex1*asp1
@@ -3796,16 +3874,16 @@ subroutine get2berr_reg_subdomain_option(mype)
           endif
 
 
-          if(i.eq.nlatf/2.and.j.eq.nlonf/2) then
+          if(i==nlatf/2.and.j==nlonf/2) then
              write(6,'("at domain center, var,k1,asp1,asp2,asp3 =",2i4,3f11.3)') &
                     jdvar(k),k1,asp1,asp2,asp3
              write(6,'("at domain center, var,k1,dxf,dyf =",2i4,3f11.3)') &
                     jdvar(k),k1,dxf(i,j),dyf(i,j)
           end if
 
-          aspect(1,i,j,k) =   1./asp1**2 + afact*fx1*fx1/rltop**2   ! 1st (y) direction    x1*x1
-          aspect(2,i,j,k) =   1./asp2**2 + afact*fx2*fx2/rltop**2   ! 2nd (x) direction    x2*x2
-          aspect(3,i,j,k) =   1./asp3**2                            ! 3rd (z) direction    x3*x3
+          aspect(1,i,j,k) =   one/asp1**2 + afact*fx1*fx1/rltop**2  ! 1st (y) direction    x1*x1
+          aspect(2,i,j,k) =   one/asp2**2 + afact*fx2*fx2/rltop**2  ! 2nd (x) direction    x2*x2
+          aspect(3,i,j,k) =   one/asp3**2                           ! 3rd (z) direction    x3*x3
           aspect(4,i,j,k) =   afact*fx3*fx2/rltop**2                !  x3*x2
           aspect(5,i,j,k) =   afact*fx3*fx1/rltop**2                !  x3*x1
           aspect(6,i,j,k) =   afact*fx2*fx1/rltop**2                !  x2*x1
@@ -3825,7 +3903,7 @@ subroutine get2berr_reg_subdomain_option(mype)
 
 !  Invert to get true aspect tensor
   do k=kps,kpe
-    if(levs_jdvar(k).eq.0 ) cycle
+    if(levs_jdvar(k)==izero ) cycle
     do j=jps,jpe
       do i=ips,ipe
         a1=aspect(1,i,j,k)
@@ -3852,16 +3930,16 @@ subroutine get2berr_reg_subdomain_option(mype)
    end do
 
 
-   if(mype.eq.0) write(6,*)'rltop_wind,rltop_temp,rltop_q,rltop_psfc=',&
+   if(mype==izero) write(6,*)'rltop_wind,rltop_temp,rltop_q,rltop_psfc=',&
                                      rltop_wind,rltop_temp,rltop_q,rltop_psfc
 
-   if(mype.eq.0) write(6,*)' in get2berr_reg, nlat,nlon,nlatf,nlonf=',nlat,nlon,nlatf,nlonf
+   if(mype==izero) write(6,*)' in get2berr_reg, nlat,nlon,nlatf,nlonf=',nlat,nlon,nlatf,nlonf
 
-   if(mype.eq.0) write(6,*)' in get2berr_reg, ids,ide=',ids,ide
-   if(mype.eq.0) write(6,*)' in get2berr_reg, jds,jde=',jds,jde
+   if(mype==izero) write(6,*)' in get2berr_reg, ids,ide=',ids,ide
+   if(mype==izero) write(6,*)' in get2berr_reg, jds,jde=',jds,jde
    write(6,*)'in get2berr_reg, mype,ips,ipe,jps,jpe,kps,kpe=',mype,ips,ipe,jps,jpe,kps,kpe
 
-  if(lreadnorm) normal=0
+  if(lreadnorm) normal=izero
 
      call init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,filter_all, &
                  nsmooth,nsmooth_shapiro, &
@@ -3882,7 +3960,7 @@ subroutine get2berr_reg_subdomain_option(mype)
         fltvals0=zero_single
         fltvals=zero_single
 
-        if (mype.eq.0) then
+        if (mype==izero) then
            open (94,file='fltnorm.dat_'//trim(chvarname(k)),form='unformatted')
            if(lreadnorm)  read(94) fltvals0
         endif
@@ -3903,11 +3981,11 @@ subroutine get2berr_reg_subdomain_option(mype)
            enddo
         enddo
         if(.not.lreadnorm)  then 
-           fltvals0=0._r_single
-           call mpi_reduce(fltvals,fltvals0,ngauss*nlatf*nlonf,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-           if (mype.eq.0) write(94) fltvals0
+           fltvals0=zero_single
+           call mpi_reduce(fltvals,fltvals0,ngauss*nlatf*nlonf,mpi_real4,mpi_sum,izero,mpi_comm_world,ierror)
+           if (mype==izero) write(94) fltvals0
         endif
-        if (mype.eq.0) close(94)
+        if (mype==izero) close(94)
      enddo
 
   allocate(bckgvar0f(ips:ipe,jps:jpe,kps:kpe))
@@ -3922,27 +4000,27 @@ subroutine get2berr_reg_subdomain_option(mype)
   factoz = 0.0002_r_kind*r25
   anhswgtsum=sum(anhswgt(1:ngauss))
   do k=kps,kpe
-                            if(k.eq.1) fname='fltnorm.dat_psi'
-                            if(k.eq.2) fname='fltnorm.dat_chi'
-                            if(k.eq.3) fname='fltnorm.dat_ps'
-                            if(k.eq.4) fname='fltnorm.dat_t'
-                            if(k.eq.5) fname='fltnorm.dat_pseudorh'
+                            if(k==ione)        fname='fltnorm.dat_psi'
+                            if(k==2_i_kind)    fname='fltnorm.dat_chi'
+                            if(k==3_i_kind)    fname='fltnorm.dat_ps'
+                            if(k==4_i_kind)    fname='fltnorm.dat_t'
+                            if(k==5_i_kind)    fname='fltnorm.dat_pseudorh'
     ivar=jdvar(k)
     kvar=levs_jdvar(k)
     do j=jps,jpe
       do i=ips,ipe
-             l=max(min(int(rllatf(i,j)),mlat),1)
-             lp=min((l+1),mlat)
+             l=max(min(int(rllatf(i,j)),mlat),ione)
+             lp=min((l+ione),mlat)
              dl2=rllatf(i,j)-float(l)
              dl1=one-dl2
-             if(ivar.eq. 1) factk=dl1*corz(l,kvar,1)+dl2*corz(lp,kvar,1)  ! streamfunction
-             if(ivar.eq. 2) factk=dl1*corz(l,kvar,2)+dl2*corz(lp,kvar,2)  ! velocity potential
-             if(ivar.eq. 3) factk=dl1*corp(l)+dl2*corp(lp)                ! ps
-             if(ivar.eq. 4) factk=dl1*corz(l,kvar,3)+dl2*corz(lp,kvar,3)  ! temperature
-             if(ivar.eq. 5) factk=dl1*corz(l,kvar,4)+dl2*corz(lp,kvar,4)  ! specific humidity
+             if(ivar==ione) factk=dl1*corz(l,kvar,1)+dl2*corz(lp,kvar,1)  ! streamfunction
+             if(ivar==2) factk=dl1*corz(l,kvar,2)+dl2*corz(lp,kvar,2)     ! velocity potential
+             if(ivar==3) factk=dl1*corp(l)+dl2*corp(lp)                   ! ps
+             if(ivar==4) factk=dl1*corz(l,kvar,3)+dl2*corz(lp,kvar,3)     ! temperature
+             if(ivar==5) factk=dl1*corz(l,kvar,4)+dl2*corz(lp,kvar,4)     ! specific humidity
 
         do igauss=1,ngauss
-        ! if (j.eq.(jps+2) .and. (i.eq.(ips+2) .or. i.eq.(ips+8))) then
+        ! if (j==(jps+2_i_kind) .and. (i==(ips+2_i_kind) .or. i==(ips+8_i_kind))) then
         !    print*,'in anisofilter,mype,k,ivar,i,j,factk=',mype,k,ivar,i,j,factk
         ! endif
           factor=anhswgt(igauss)*factk*an_amp(igauss,ivar)/sqrt(anhswgtsum)
@@ -3970,8 +4048,8 @@ subroutine get2berr_reg_subdomain_option(mype)
         bckgvar4a(i,j)=bckgvar0f(i,j,k)
       end do
     end do
-    call mpi_reduce(bckgvar4a,bckgvar4,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-    if(mype.eq.0) then
+    call mpi_reduce(bckgvar4a,bckgvar4,nlat*nlon,mpi_real4,mpi_sum,izero,mpi_comm_world,ierror)
+    if(mype==izero) then
       ivar=jdvar(k)
       open (94,file='bckgvar.dat_'//trim(chvarname(ivar)),form='unformatted')
       write(94) bckgvar4
@@ -3982,30 +4060,30 @@ subroutine get2berr_reg_subdomain_option(mype)
   allocate(zsmooth4a(nlat,nlon))
   allocate(zsmooth4(nlat,nlon))
   zsmooth4a=zero
-  do j=2,lon2-1
-    jglob=j+jstart(mm1)-2
-    do i=2,lat2-1
-      iglob=i+istart(mm1)-2
+  do j=2,lon2-ione
+    jglob=j+jstart(mm1)-2_i_kind
+    do i=2,lat2-ione
+      iglob=i+istart(mm1)-2_i_kind
       zsmooth4a(iglob,jglob)=z0f(i,j,1)
     end do
   end do
-  call mpi_reduce(zsmooth4a,zsmooth4,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
+  call mpi_reduce(zsmooth4a,zsmooth4,nlat*nlon,mpi_real4,mpi_sum,izero,mpi_comm_world,ierror)
 
   allocate(psg4a(nlat,nlon))
   allocate(psg4(nlat,nlon))
   psg4a=zero
-  do j=2,lon2-1
-    jglob=j+jstart(mm1)-2
-    do i=2,lat2-1
-      iglob=i+istart(mm1)-2
+  do j=2,lon2-ione
+    jglob=j+jstart(mm1)-2_i_kind
+    do i=2,lat2-ione
+      iglob=i+istart(mm1)-2_i_kind
       psg4a(iglob,jglob)=psg(i,j,1)
     end do
   end do
-  call mpi_reduce(psg4a,psg4,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
+  call mpi_reduce(psg4a,psg4,nlat*nlon,mpi_real4,mpi_sum,izero,mpi_comm_world,ierror)
 
   allocate(region_dy4(nlat,nlon),region_dx4(nlat,nlon))
 
-  if (mype.eq.0) then
+  if (mype==izero) then
    region_dx4=region_dx
    region_dy4=region_dy
    open (94,file='bckg_dxdy.dat',form='unformatted')
@@ -4040,7 +4118,7 @@ end subroutine get2berr_reg_subdomain_option
 subroutine get_background_subdomain_option(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   get_background
+! subprogram:   get_background_subdomain_option
 ! prgmmr: pondeca          org: np22                date: 2006-08-01
 !
 ! abstract: compute background fields and their spatial derivatives
@@ -4061,6 +4139,7 @@ subroutine get_background_subdomain_option(mype)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
+!$$$ end documentation block
   use raflib, only: init_raf4,raf_sm4,raf_sm4_ad
   use gridmod, only: istart,jstart
   use anberror, only: halo_update_reg
@@ -4071,15 +4150,12 @@ subroutine get_background_subdomain_option(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local variables
-  integer(i_kind) i,j,k,l,ip,im,jp,jm,kp,km,mm1,iflg,k1,ivar,lp
+  integer(i_kind) i,j,k,mm1
   integer(i_kind) n,iloc,jloc
   integer(i_kind) kds0,kde0,kps0,kpe0
   integer(i_kind) nvars0
   integer(i_kind),allocatable::idvar0(:),kvar_start0(:),kvar_end0(:)
   character(80),allocatable::var_names0(:)
-
-  real(r_kind) d,dl1,dl2,factk
-  real(r_kind) asp1,asp2,asp3
 
   real(r_kind),allocatable,dimension(:,:,:)::field2
   real(r_single),allocatable,dimension(:,:,:)::field
@@ -4108,26 +4184,26 @@ subroutine get_background_subdomain_option(mype)
 !       definition of the interpolation and adjoint of interpolation
 !       weights. check for accuracy.(done).
 
-  if(nlat.ne.nlatf.or.nlon.ne.nlonf) then
-    if(mype.eq.0) &
+  if(nlat/=nlatf.or.nlon/=nlonf) then
+    if(mype==izero) &
       write(6,*)' rtma_subdomain_option true, nlat ne nlatf and/or nlon ne nlonf, nlat,nlatf,nlon,nlonf=', &
                         nlat,nlatf,nlon,nlonf
     call mpi_finalize(i)
     stop
   end if
 
-  mm1=mype+1
+  mm1=mype+ione
 
 ! define local vertical index for smoothing single variables
-  kds0=1
+  kds0=ione
   kde0=nsig
   kps0=kds0
   kpe0=kde0
-  nvars0=1
+  nvars0=ione
   allocate(idvar0(kds0:kde0),kvar_start0(nvars0),kvar_end0(nvars0))
   allocate(var_names0(nvars0))
-  idvar0=1
-  kvar_start0=1
+  idvar0=ione
+  kvar_start0=ione
   kvar_end0=nsig
   var_names0(1)='background'
 ! ------------------------------------------------------------
@@ -4143,20 +4219,20 @@ subroutine get_background_subdomain_option(mype)
 
        aspect(1,i,j,k)=hsmooth_len**2
        aspect(2,i,j,k)=hsmooth_len**2
-       aspect(3,i,j,k)=1._r_kind**2
+       aspect(3,i,j,k)=one**2
        aspect(4:7,i,j,k)=zero
 
     end do
    end do
   end do
 
-  ngauss_smooth=1
+  ngauss_smooth=ione
   rgauss_smooth=one
-  npass_smooth=1
-  normal_smooth=0
-  ifilt_ord_smooth=4
-  nsmooth_smooth=0
-  nsmooth_shapiro_smooth=0
+  npass_smooth=ione
+  normal_smooth=izero
+  ifilt_ord_smooth=4_i_kind
+  nsmooth_smooth=izero
+  nsmooth_shapiro_smooth=izero
   call init_raf4(aspect,triad4,ngauss_smooth,rgauss_smooth, &
                  npass_smooth,normal_smooth,binom, &
                  ifilt_ord_smooth,filter_all, &
@@ -4177,14 +4253,14 @@ subroutine get_background_subdomain_option(mype)
 
    do k=kps0,kpe0
     do j=jps,jpe
-      jloc=j-jstart(mm1)+2
+      jloc=j-jstart(mm1)+2_i_kind
       do i=ips,ipe
-        iloc=i-istart(mm1)+2
-        if (n==1) field(i,j,k)=ges_tv(iloc,jloc,k,it)/(ges_prsl(iloc,jloc,k,it)/r100)**rd_over_cp
-        if (n==2) field(i,j,k)=ges_u(iloc,jloc,k,it)
-        if (n==3) field(i,j,k)=ges_v(iloc,jloc,k,it)
-        if (n==4) then
-            if ( min(max(isli2(iloc,jloc),izero),ione)==0 ) then
+        iloc=i-istart(mm1)+2_i_kind
+        if (n==ione)        field(i,j,k)=ges_tv(iloc,jloc,k,it)/(ges_prsl(iloc,jloc,k,it)/r100)**rd_over_cp
+        if (n==2_i_kind)    field(i,j,k)=ges_u(iloc,jloc,k,it)
+        if (n==3_i_kind)    field(i,j,k)=ges_v(iloc,jloc,k,it)
+        if (n==4_i_kind)    then
+            if ( min(max(isli2(iloc,jloc),izero),ione)==izero ) then
               field(i,j,k)=ges_z(iloc,jloc,it)-hsteep
             else
               field(i,j,k)=ges_z(iloc,jloc,it)
@@ -4193,15 +4269,15 @@ subroutine get_background_subdomain_option(mype)
      end do
     end do
    end do
-   if (n.le.3 .or. (n.eq.4 .and. lsmoothterrain)) then
-     call raf_sm4(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,mype,npe)
-     call raf_sm4_ad(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,mype,npe)
+   if (n<=3_i_kind .or. (n==4_i_kind .and. lsmoothterrain)) then
+     call raf_sm4(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
+     call raf_sm4_ad(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
    endif
    do k=kps0,kpe0
     do j=jps,jpe
-      jloc=j-jstart(mm1)+2
+      jloc=j-jstart(mm1)+2_i_kind
       do i=ips,ipe
-        iloc=i-istart(mm1)+2
+        iloc=i-istart(mm1)+2_i_kind
         field2(iloc,jloc,k)=field(i,j,k)
       end do
     end do
@@ -4210,10 +4286,10 @@ subroutine get_background_subdomain_option(mype)
    do k=1,nsig
     do j=1,lon2
       do i=1,lat2
-        if (n==1) theta0f(i,j,k)=field2(i,j,k)
-        if (n==2) u0f(i,j,k)=field2(i,j,k)
-        if (n==3) v0f(i,j,k)=field2(i,j,k)
-        if (n==4) z0f(i,j,k)=field2(i,j,k)
+        if (n==ione)    theta0f(i,j,k)=field2(i,j,k)
+        if (n==2_i_kind)    u0f(i,j,k)=field2(i,j,k)
+        if (n==3_i_kind)    v0f(i,j,k)=field2(i,j,k)
+        if (n==4_i_kind)    z0f(i,j,k)=field2(i,j,k)
      end do
     end do
    end do
@@ -4261,6 +4337,7 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
+!$$$ end documentation block
   use gridmod,only:istart,jstart
   use guess_grids, only: isli2
   implicit none
@@ -4274,7 +4351,7 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
  real(r_kind) scale1(lat2,lon2)
  real(r_kind) scale2(lat2,lon2)
  real(r_kind) scale3(lat2,lon2)
- real(r_kind) dl1,dl2,factk,hwll_loc
+ real(r_kind) dl1,dl2,hwll_loc
  real(r_kind),dimension(pf2aP1%nlatf,pf2aP1%nlonf):: &
               scaleaux1,scaleauxa, &
               scaleaux2,scaleauxb
@@ -4283,40 +4360,40 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
  nlatf=pf2aP1%nlatf
  nlonf=pf2aP1%nlonf
 
-    mm1=mype+1
-    if (jdvar(k)==1)  ivar=1  ! streamfunction
-    if (jdvar(k)==2)  ivar=2  ! velocity potential
-    if (jdvar(k)==4)  ivar=3  ! temperature
-    if (jdvar(k)==5)  ivar=4  ! specific humidity
-    if (jdvar(k)==6)  ivar=5  ! Ozone
-    if (jdvar(k)==7)  ivar=1  ! SST
-    if (jdvar(k)==8)  ivar=4  ! cloud water
-    if (jdvar(k)==9)  ivar=1  ! surface temp (land)
-    if (jdvar(k)==10) ivar=1  ! surface temp (ice)
+    mm1=mype+ione
+    if (jdvar(k)==ione)         ivar=ione         ! streamfunction
+    if (jdvar(k)==2_i_kind)     ivar=2_i_kind     ! velocity potential
+    if (jdvar(k)==4_i_kind)     ivar=3_i_kind     ! temperature
+    if (jdvar(k)==5_i_kind)     ivar=4_i_kind     ! specific humidity
+    if (jdvar(k)==6_i_kind)     ivar=5_i_kind     ! Ozone
+    if (jdvar(k)==7_i_kind)     ivar=ione         ! SST
+    if (jdvar(k)==8_i_kind)     ivar=4_i_kind     ! cloud water
+    if (jdvar(k)==9_i_kind)     ivar=ione         ! surface temp (land)
+    if (jdvar(k)==10_i_kind)    ivar=ione         ! surface temp (ice)
 
     k1=levs_jdvar(k)
 
     do j=1,lon2
-       jglob=j+jstart(mm1)-2
-       if(jglob.lt.1.or.jglob.gt.nlonf) cycle
+       jglob=j+jstart(mm1)-2_i_kind
+       if(jglob<ione.or.jglob>nlonf) cycle
        do i=1,lat2
-         iglob=i+istart(mm1)-2
-         if(iglob.lt.1.or.iglob.gt.nlatf) cycle
+         iglob=i+istart(mm1)-2_i_kind
+         if(iglob<ione.or.iglob>nlatf) cycle
 
-          if( jdvar(k)==1 .or. jdvar(k)==2 .or. jdvar(k)==4 .or. &
-              jdvar(k)==5 .or. jdvar(k)==8 ) then
+          if( jdvar(k)==ione     .or. jdvar(k)==2_i_kind .or. jdvar(k)==4_i_kind .or. &
+              jdvar(k)==5_i_kind .or. jdvar(k)==8_i_kind ) then
 
                l=int(rllatf(iglob,jglob))
-               lp=l+1
+               lp=l+ione
                dl2=rllatf(iglob,jglob)-float(l)
                dl1=one-dl2
                hwll_loc=dl1*hwll(l,k1,ivar)+dl2*hwll(lp,k1,ivar)
 
                scale3(i,j)=one/vz(k1,l,ivar)
 
-            else if (jdvar(k)==3) then        !surface pressure
+            else if (jdvar(k)==3_i_kind) then        !surface pressure
                l=int(rllatf(iglob,jglob))
-               lp=l+1
+               lp=l+ione
                dl2=rllatf(iglob,jglob)-float(l)
                dl1=one-dl2
                hwll_loc=dl1*hwllp(l)+dl2*hwllp(lp)
@@ -4339,8 +4416,8 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
             scale2(i,j)=rfact0h(jdvar(k))*scale2(i,j)
 
           if (.not.twodvar_regional) then
-            if (jdvar(k) /=3 .and. jdvar(k) /=7 .and. &
-                jdvar(k) /=9 .and. jdvar(k) /=10 ) &
+            if (jdvar(k) /=3_i_kind .and. jdvar(k) /=7_i_kind .and. &
+                jdvar(k) /=9_i_kind .and. jdvar(k) /=10_i_kind ) &
             scale3(i,j)=rfact0v(jdvar(k))*scale3(i,j)
           endif
 
@@ -4351,22 +4428,22 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
        it=ntguessig
        do j=1,lon2
         do i=1,lat2
-           if ( min(max(isli2(i,j),izero),ione)==0 ) then
+           if ( min(max(isli2(i,j),izero),ione)==izero ) then
               scale1(i,j)=water_scalefact(jdvar(k))*scale1(i,j)
               scale2(i,j)=water_scalefact(jdvar(k))*scale2(i,j)
           endif
-    enddo
+        enddo
        enddo
 
-       if (nhscale_pass .gt. 0) then
+       if (nhscale_pass>izero) then
           scaleauxa=zero
           scaleauxb=zero
-          do j=2,lon2-1
-             jglob=j+jstart(mm1)-2
-             if(jglob.lt.1.or.jglob.gt.nlonf) cycle
-             do i=2,lat2-1
-               iglob=i+istart(mm1)-2
-               if(iglob.lt.1.or.iglob.gt.nlatf) cycle
+          do j=2,lon2-ione
+             jglob=j+jstart(mm1)-2_i_kind
+             if(jglob<ione.or.jglob>nlonf) cycle
+             do i=2,lat2-ione
+               iglob=i+istart(mm1)-2_i_kind
+               if(iglob<ione.or.iglob>nlatf) cycle
                scaleauxa(iglob,jglob)=scale1(i,j)
                scaleauxb(iglob,jglob)=scale2(i,j)
              enddo
@@ -4374,15 +4451,15 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
           call mpi_allreduce(scaleauxa,scaleaux1,nlatf*nlonf,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
           call mpi_allreduce(scaleauxb,scaleaux2,nlatf*nlonf,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
 
-          call smther_one_8(scaleaux1,1,nlatf,1,nlonf,nhscale_pass)
-          call smther_one_8(scaleaux2,1,nlatf,1,nlonf,nhscale_pass)
+          call smther_one_8(scaleaux1,ione,nlatf,ione,nlonf,nhscale_pass)
+          call smther_one_8(scaleaux2,ione,nlatf,ione,nlonf,nhscale_pass)
 
           do j=1,lon2
-             jglob=j+jstart(mm1)-2
-             if(jglob.lt.1.or.jglob.gt.nlonf) cycle
+             jglob=j+jstart(mm1)-2_i_kind
+             if(jglob<ione.or.jglob>nlonf) cycle
              do i=1,lat2
-               iglob=i+istart(mm1)-2
-               if(iglob.lt.1.or.iglob.gt.nlatf) cycle
+               iglob=i+istart(mm1)-2_i_kind
+               if(iglob<ione.or.iglob>nlatf) cycle
                scale1(i,j)=scaleaux1(iglob,jglob)
                scale2(i,j)=scaleaux2(iglob,jglob)
              enddo

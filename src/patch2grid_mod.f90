@@ -28,12 +28,23 @@ module patch2grid_mod
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use constants,only: zero,one
+  use constants,only: izero,ione,zero,one
   use anberror, only: pf2aP1,pf2aP2,pf2aP3,&
                       nx,ny,mr,nr,nf
   use gridmod,  only: nlat,nlon
 
   implicit none
+
+! set default to private
+  private
+! set subroutines to public
+  public :: setup_patch2grid
+  public :: setup_blend
+  public :: destroy_patch2grid
+  public :: grid2patch
+  public :: patch2grid
+  public :: tpatch2grid
+  public :: vpatch2grid
 
   integer(i_kind):: ndx,ndy,ndx2,nmix,nrmxb,nmixp,nymx,nlatxb
 
@@ -46,37 +57,78 @@ module patch2grid_mod
   contains
 
 subroutine setup_patch2grid
-  integer:: ier
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    setup_patch2grid
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-22  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
+
+  integer(i_kind):: ier
 
   ndx=(nx-nlon)/2
   ndy=(nlat-ny)/2
   ndx2=2*ndx
-  nmix=nr+1+(ny-nlat)/2
-  nrmxb=ndy-1
-  nmixp=nmix+1
+  nmix=nr+ione+(ny-nlat)/2
+  nrmxb=ndy-ione
+  nmixp=nmix+ione
   nymx=ny-nmix
   nlatxb=nlat-nrmxb
 
   allocate(p1all(ny,nx))
-  allocate(p2all(nlon+1,mr:nr))
-  allocate(p3all(nlon+1,mr:nr))
-  allocate(p2pol(nf*2+1,nf*2+1))
-  allocate(p3pol(nf*2+1,nf*2+1),stat=ier)
+  allocate(p2all(nlon+ione,mr:nr))
+  allocate(p3all(nlon+ione,mr:nr))
+  allocate(p2pol(nf*2+ione,nf*2+ione))
+  allocate(p3pol(nf*2+ione,nf*2+ione),stat=ier)
 
-  if( ier /= 0 ) then
+  if( ier /= izero ) then
     write(6,*) 'setup_patch2grid: could not allocate memories'
     call stop2(99)
   end if
 
 !   initialize blend array (bl,bl2)
-  allocate( bl(nx-nlon), bl2(nr+1+(ny-nlat)/2) )
+  allocate( bl(nx-nlon), bl2(nr+ione+(ny-nlat)/2) )
   call setup_blend
 
 end subroutine
 
 subroutine setup_blend
-! setup blend array bl & bl2
-  integer(i_kind),dimension(0:40):: iblend
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    setup_blend
+!   prgmmr:
+!
+! abstract: setup blend array bl & bl2
+!
+! program history log:
+!   2009-09-22  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
+
+  integer(i_kind),dimension(izero:40):: iblend
   integer(i_kind):: mm,nolp,nbuf,nmixbl,ndxbl
   real(r_kind):: dxx,x,y
 
@@ -86,20 +138,20 @@ subroutine setup_blend
   mm=4
   call blend(mm,iblend)
 
-  nolp=nr+1+(ny-nlat)/2
-  nbuf=0
+  nolp=nr+ione+(ny-nlat)/2
+  nbuf=izero
   nmixbl=nolp-nbuf*2
-  dxx=one/(nmixbl+1)
+  dxx=one/(nmixbl+ione)
   bl2=zero
-  k=0
+  k=izero
   do i=1,nmixbl
-    k=k+1
+    k=k+ione
     x=i*dxx
     y=iblend(mm)
-    do j=mm-1,0,-1
+    do j=mm-ione,0,-1
       y=x*y+iblend(j)
     end do
-    y=y*x**(mm+1)
+    y=y*x**(mm+ione)
     bl2(k)=one-y
   end do
   do k=1,nmixbl
@@ -107,18 +159,18 @@ subroutine setup_blend
   end do
 
   nmixbl=(nx-nlon)
-  dxx=one/(nmixbl+1)
+  dxx=one/(nmixbl+ione)
   ndxbl=(nx-nlon)
   bl=zero
   k=ndxbl-nmixbl
   do i=1,nmixbl
-    k=k+1
+    k=k+ione
     x=i*dxx
     y=iblend(mm)
-    do j=mm-1,0,-1
+    do j=mm-ione,0,-1
       y=x*y+iblend(j)
     end do
-    y=y*x**(mm+1)
+    y=y*x**(mm+ione)
     bl(k)=one-y
   enddo
   do k=1,nmixbl
@@ -128,6 +180,26 @@ subroutine setup_blend
 end subroutine setup_blend
 
 subroutine destroy_patch2grid
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroy_patch2grid
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-22  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
 
   deallocate(p1all)
   deallocate(p2all,p3all)
@@ -139,6 +211,30 @@ end subroutine
 !=======================================================================
 !=======================================================================
 subroutine grid2patch(grid_wrk,hflt_all,hflt_p2,hflt_p3)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    grid2patch
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-22  lueken - added subprogram doc block
+!
+!   input argument list:
+!    grid_wrk
+!
+!   output argument list:
+!    hflt_all
+!    hflt_p2
+!    hflt_p3
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use smooth_polcarf, only: smooth_caspol
   use fgrid2agrid_mod, only: agrid2fgrid
 
@@ -166,7 +262,7 @@ subroutine grid2patch(grid_wrk,hflt_all,hflt_p2,hflt_p3)
   end do
 
 ! Middle zone (no blending)
-  do i=ndx+1,nx-ndx
+  do i=ndx+ione,nx-ndx
     i1=i-ndx
     do j=1,ny
       p1all(j,i)=grid_wrk(j+ndy,i1)
@@ -177,7 +273,7 @@ subroutine grid2patch(grid_wrk,hflt_all,hflt_p2,hflt_p3)
   do i=1,nlon
     do j=mr,nrmxb+nmix
       p2all(i,j)=grid_wrk(nlat-j,i)
-      p3all(i,j)=grid_wrk(j+1   ,i)
+      p3all(i,j)=grid_wrk(j+ione,i)
     end do
   end do
 
@@ -193,6 +289,30 @@ end subroutine grid2patch
 !=======================================================================
 !=======================================================================
 subroutine tpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    tpatch2grid
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-22  lueken - added subprogram doc block
+!
+!   input argument list:
+!    grid_wrk
+!
+!   output argument list:
+!    hflt_all
+!    hflt_p2
+!    hflt_p3
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use smooth_polcarf, only: smooth_polcasa
   use fgrid2agrid_mod, only: tfgrid2agrid
 
@@ -221,7 +341,7 @@ subroutine tpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
   end do
 
 ! Middle zone (no blending)
-  do i=ndx+1,nx-ndx
+  do i=ndx+ione,nx-ndx
     i1=i-ndx
     do j=1,ny
       p1all(j,i)=grid_wrk(j+ndy,i1)
@@ -230,7 +350,7 @@ subroutine tpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
 
 ! Apply blending coefficients to central patch
   do i=1,ndx2
-    i1=ndx2+1-i
+    i1=ndx2+ione-i
     i2=nx-ndx2+i
     do j=1,ny
       p1all(j,i) =p1all(j,i) *bl(i1)  ! left (west) blending zone
@@ -243,7 +363,7 @@ subroutine tpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
     do j=1,nmix
       p1all(j,i)=p1all(j,i)*bl2(nmixp-j)
     end do
-    do j=nymx+1,ny
+    do j=nymx+ione,ny
       p1all(j,i)=p1all(j,i)*bl2(j-nymx)
     end do
   end do
@@ -255,12 +375,12 @@ subroutine tpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
   do j=mr,nrmxb+nmix
     do i=1,nlon
       p2all(i,j)=grid_wrk(nlat-j,i)
-      p3all(i,j)=grid_wrk(j+1,i)
+      p3all(i,j)=grid_wrk(j+ione,i)
     end do
   end do
 
 ! Apply blending coefficients
-  do j=nrmxb+1,nrmxb+nmix
+  do j=nrmxb+ione,nrmxb+nmix
     j1=j-nrmxb
     do i=1,nlon
       p2all(i,j)=p2all(i,j)*bl2(j1)
@@ -280,6 +400,30 @@ end subroutine tpatch2grid
 !=======================================================================
 !=======================================================================
 subroutine patch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    patch2grid
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-22  lueken - added subprogram doc block
+!
+!   input argument list:
+!    hflt_all
+!    hflt_p2
+!    hflt_p3
+!
+!   output argument list:
+!    grid_wrk
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use smooth_polcarf, only: smooth_polcas
   use fgrid2agrid_mod, only: fgrid2agrid
 
@@ -307,7 +451,7 @@ subroutine patch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
 ! Equatorial patch
 ! Adjoint of central patch blending on left/right sides of patch
   do i=1,ndx2
-    i1=ndx2+1-i
+    i1=ndx2+ione-i
     i2=nx-ndx2+i
     do j=1,ny
       p1all(j,i) =p1all(j,i) *bl(i1)   ! left (west) blending zone
@@ -320,7 +464,7 @@ subroutine patch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
     do j=1,nmix
       p1all(j,i)=p1all(j,i)*bl2(nmixp-j)
     end do
-    do j=nymx+1,ny
+    do j=nymx+ione,ny
       p1all(j,i)=p1all(j,i)*bl2(j-nymx)
     end do
   end do
@@ -337,7 +481,7 @@ subroutine patch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
   end do
 
 ! Middle zone (no blending)
-  do i=ndx+1,nx-ndx
+  do i=ndx+ione,nx-ndx
     i1=i-ndx
     do j=1,ny
       j1=j+ndy
@@ -348,14 +492,14 @@ subroutine patch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
 ! Adjoint of North pole patch(p2) -- blending and transfer to grid
 ! Adjoint of South pole patch(p3) -- blending and transfer to grid
 
-  do j=nlatxb-nmix,nlatxb-1
+  do j=nlatxb-nmix,nlatxb-ione
 ! Adjoint of blending
     do i=1,nlon
       p2all(i,nlat-j)=p2all(i,nlat-j)*bl2(nlatxb-j)
     end do
   end do
 
-  do j=nrmxb+1,nrmxb+nmix
+  do j=nrmxb+ione,nrmxb+nmix
 !   Adjoint of blending
     do i=1,nlon
       p3all(i,j)=p3all(i,j)*bl2(j-nrmxb)
@@ -365,7 +509,7 @@ subroutine patch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
   do i=1,nlon
 !   Adjoint of transfer
     do j=mr,nrmxb+nmix
-      grid_wrk(j+1,i)=grid_wrk(j+1,i)+p3all(i,j)
+      grid_wrk(j+ione,i)=grid_wrk(j+ione,i)+p3all(i,j)
     end do
     do j=nlatxb-nmix,nlat-mr
       grid_wrk(j  ,i)=grid_wrk(j  ,i)+p2all(i,nlat-j)
@@ -377,6 +521,30 @@ end subroutine patch2grid
 !=======================================================================
 !=======================================================================
 subroutine vpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    vpatch2grid
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-22  lueken - added subprogram doc block
+!
+!   input argument list:
+!    hflt_all
+!    hflt_p2
+!    hflt_p3
+!
+!   output argument list:
+!    grid_wrk
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use smooth_polcarf, only: smooth_polcasv
   use fgrid2agrid_mod, only: fgrid2agrid
 
@@ -411,7 +579,7 @@ subroutine vpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
   allocate(p1wgt(ny,nx)); p1wgt=one
 
   do i=1,ndx2
-    i1=ndx2+1-i
+    i1=ndx2+ione-i
     i2=nx-ndx2+i
     do j=1,ny
       p1all(j,i) =p1all(j,i) *bl(i1)   ! left (west) blending zone
@@ -427,7 +595,7 @@ subroutine vpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
       p1all(j,i)=p1all(j,i)*bl2(nmixp-j)
       p1wgt(j,i)=p1wgt(j,i)*bl2(nmixp-j)
     end do
-    do j=nymx+1,ny
+    do j=nymx+ione,ny
       p1all(j,i)=p1all(j,i)*bl2(j-nymx)
       p1wgt(j,i)=p1wgt(j,i)*bl2(j-nymx)
     end do
@@ -451,7 +619,7 @@ subroutine vpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
   end do
 
 ! Middle zone (no blending)
-  do i=ndx+1,nx-ndx
+  do i=ndx+ione,nx-ndx
     i1=i-ndx
     do j=1,ny
       j1=j+ndy
@@ -464,10 +632,10 @@ subroutine vpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
 
 ! Adjoint of North pole patch(p2) -- blending and transfer to grid
 ! Adjoint of South pole patch(p3) -- blending and transfer to grid
-  allocate(p2wgt(nlon+1,mr:nr)); p2wgt=one
-  allocate(p3wgt(nlon+1,mr:nr)); p3wgt=one
+  allocate(p2wgt(nlon+ione,mr:nr)); p2wgt=one
+  allocate(p3wgt(nlon+ione,mr:nr)); p3wgt=one
 
-  do j=nlatxb-nmix,nlatxb-1
+  do j=nlatxb-nmix,nlatxb-ione
 ! Adjoint of blending
     do i=1,nlon
       p2all(i,nlat-j)=p2all(i,nlat-j)*bl2(nlatxb-j)
@@ -475,7 +643,7 @@ subroutine vpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
     end do
   end do
 
-  do j=nrmxb+1,nrmxb+nmix
+  do j=nrmxb+ione,nrmxb+nmix
 !   Adjoint of blending
     do i=1,nlon
       p3all(i,j)=p3all(i,j)*bl2(j-nrmxb)
@@ -486,8 +654,8 @@ subroutine vpatch2grid(grid_wrk,hflt_all,hflt_p2,hflt_p3)
   do i=1,nlon
 !   Adjoint of transfer
     do j=mr,nrmxb+nmix
-      grid_wrk(j+1,i)=grid_wrk(j+1,i)+p3all(i,j)
-      wgt_wrk (j+1,i)=wgt_wrk (j+1,i)+p3wgt(i,j)
+      grid_wrk(j+ione,i)=grid_wrk(j+ione,i)+p3all(i,j)
+      wgt_wrk (j+ione,i)=wgt_wrk (j+ione,i)+p3wgt(i,j)
     end do
     do j=nlatxb-nmix,nlat-mr
       grid_wrk(j  ,i)=grid_wrk(j  ,i)+p2all(i,nlat-j)

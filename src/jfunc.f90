@@ -30,13 +30,13 @@ module jfunc
 !                         re-orthogonalization of the gradx vectors in 2dvar mode
 !
 ! Subroutines Included:
-!   init_jfunc           - set defaults for cost function variables
-!   create_jfunc         - allocate cost function arrays 
-!   destroy_jfunc        - deallocate cost function arrays
-!   read_guess_solution  - read guess solution
-!   write_guess_solution - write guess solution
-!   strip2               - strip off halo from subdomain arrays
-!   set_pointer          - set location indices for components of vectors
+!   sub init_jfunc           - set defaults for cost function variables
+!   sub create_jfunc         - allocate cost function arrays 
+!   sub destroy_jfunc        - deallocate cost function arrays
+!   sub read_guess_solution  - read guess solution
+!   sub write_guess_solution - write guess solution
+!   sub strip2               - strip off halo from subdomain arrays
+!   sub set_pointer          - set location indices for components of vectors
 !
 ! remarks: variable definitions below
 !   def first      - logical flag = .true. on first outer iteration
@@ -88,7 +88,7 @@ module jfunc
 !                    to the 2dvar mode only
 !   def lgschmidt  - option to re-biorthogonalyze the gradx and grady vectors during the
 !                    inner iteration using the modified gram-schmidt method. useful for
-!                    estimatinng the analysis error via the projection method. 
+!                    estimating the analysis error via the projection method. 
 !
 ! attributes:
 !   language: f90
@@ -99,6 +99,25 @@ module jfunc
   use control_vectors 
   use state_vectors
   implicit none
+
+! set default to private
+  private
+! set subroutines to public
+  public :: init_jfunc
+  public :: create_jfunc
+  public :: destroy_jfunc
+  public :: read_guess_solution
+  public :: write_guess_solution
+  public :: strip2
+  public :: set_pointer
+! set passed variables to public
+  public :: nrclen,npclen,nsclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
+  public :: switch_on_derivatives,qgues,qsatg,rhgues,jiterend,jiterstart,jiter,iter,niter,miter
+  public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
+  public :: factqmax,factqmin,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
+  public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
+  public :: nst2,nvp2,np2,nt2,nq2,noz2,nsst2,nslt2,nsit2,ncw2
+  public :: nstsm,nvpsm,npsm,ntsm,nqsm,nozsm,nsstsm,nsltsm,nsitsm,ncwsm
 
   logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
@@ -145,7 +164,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: zero, one
+    use constants, only: izero,ione,zero, one
     implicit none
     integer(i_kind) i
 
@@ -160,21 +179,21 @@ contains
 
     factqmin=one
     factqmax=one
-    iout_iter=220
-    miter=1
-    qoption=1
+    iout_iter=220_i_kind
+    miter=ione
+    qoption=ione
     do i=0,50
-      niter(i)=0
-      niter_no_qc(i)=1000000
+      niter(i)=izero
+      niter_no_qc(i)=1000000_i_kind
     end do
-    jiterstart=1
-    jiterend=1
+    jiterstart=ione
+    jiterend=ione
     jiter=jiterstart
     biascor=-one        ! bias multiplicative coefficient
-    diurnalbc=0         ! 1= diurnal bias; 0= persistent bias
-    bcoption=1          ! 0=ibc; 1=sbc
-    nclen=1
-    nclenz=1
+    diurnalbc=izero     ! 1= diurnal bias; 0= persistent bias
+    bcoption=ione       ! 0=ibc; 1=sbc
+    nclen=ione
+    nclenz=ione
 
     penorig=zero
     gnormorig=zero
@@ -184,7 +203,7 @@ contains
 ! iguess =  1  read and write guess file
 ! iguess =  2  read only guess file
 
-    iguess=1  
+    iguess=ione
 
     return
   end subroutine init_jfunc
@@ -206,6 +225,7 @@ contains
 !   2008-05-12  safford - rm unused uses
 !
 !   input argument list:
+!    mlat
 !
 !   output argument list:
 !
@@ -214,7 +234,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: zero
+    use constants, only: ione,zero
     use gridmod, only: lat2,lon2,nsig
     implicit none
     integer(i_kind),intent(in)::mlat
@@ -225,13 +245,13 @@ contains
     call allocate_cv(yhatsave)
     allocate(qsatg(lat2,lon2,nsig),&
          dqdt(lat2,lon2,nsig),dqdrh(lat2,lon2,nsig),&
-         varq(1:mlat,1:nsig),dqdp(lat2,lon2,nsig),&
+         varq(ione:mlat,ione:nsig),dqdp(lat2,lon2,nsig),&
          rhgues(lat2,lon2,nsig),qgues(lat2,lon2,nsig))
 
     xhatsave=zero
     yhatsave=zero
 
-    do k=1,nsig
+    do k=ione,nsig
        do j=1,mlat
          varq(j,k)=zero
        end do
@@ -302,6 +322,7 @@ contains
 !     mype   - mpi task id
 !
 !   output argument list:
+!     dirx,diry
 !
 ! attributes:
 !   language: f90
@@ -309,6 +330,7 @@ contains
 !
 !$$$
     use kinds, only: r_single
+    use constants, only: izero,ione
     use mpimod, only: ierror, mpi_comm_world,mpi_real4
     use gridmod, only: nlat,nlon,nsig,itotsub,ltosi_s,ltosj_s,&
          displs_s,ijn_s,latlon11,iglobal
@@ -316,6 +338,7 @@ contains
     implicit none
 
     integer(i_kind),intent(in):: mype
+    type(control_vector),intent(out) :: dirx,diry
 
     integer(i_kind) i,k,mm1,myper,kk,i1,i2
     integer(i_kind) nlatg,nlong,nsigg
@@ -323,41 +346,40 @@ contains
     real(r_single),dimension(max(iglobal,itotsub)):: fieldx,fieldy
     real(r_single),dimension(nlat,nlon):: xhatsave_g,yhatsave_g
     real(r_single),dimension(nclen):: xhatsave_r4,yhatsave_r4
-    type(control_vector) :: dirx,diry
     
-    jiterstart = 1
-    mm1=mype+1
-    myper=0
+    jiterstart = ione
+    mm1=mype+ione
+    myper=izero
 
 ! Open unit to guess solution.  Read header.  If no header, file is
 ! empty and exit routine
     open(12,file='gesfile_in',form='unformatted')
-    iadateg=0
-    nlatg=0
-    nlong=0
-    nsigg=0
+    iadateg=izero
+    nlatg=izero
+    nlong=izero
+    nsigg=izero
     read(12,end=1234)iadateg,nlatg,nlong,nsigg
-    if(iadate(1) == iadateg(1) .and. iadate(2) == iadate(2) .and. &
-          iadate(3) == iadateg(3) .and. iadate(4) == iadateg(4) .and. &
-          iadate(5) == iadateg(5) .and. nlat == nlatg .and. &
+    if(iadate(ione) == iadateg(ione) .and. iadate(2_i_kind) == iadate(2_i_kind) .and. &
+          iadate(3_i_kind) == iadateg(3_i_kind) .and. iadate(4_i_kind) == iadateg(4_i_kind) .and. &
+          iadate(5_i_kind) == iadateg(5_i_kind) .and. nlat == nlatg .and. &
           nlon == nlong .and. nsig == nsigg) then
-      if(mype == 0) write(6,*)'READ_GUESS_SOLUTION:  read guess solution for ',&
+      if(mype == izero) write(6,*)'READ_GUESS_SOLUTION:  read guess solution for ',&
                     iadateg,nlatg,nlong,nsigg
-      jiterstart=0
+      jiterstart=izero
          
 ! Let all tasks read gesfile_in to pick up bias correction (second read)
 
 ! Loop to read input guess fields.  After reading in each field & level,
 ! scatter the grid to the appropriate location in the xhat and yhatsave
 ! arrays.
-      do k=1,nval_levs
+      do k=ione,nval_levs
         read(12,end=1236) xhatsave_g,yhatsave_g
         do kk=1,itotsub
           i1=ltosi_s(kk); i2=ltosj_s(kk)
           fieldx(kk)=xhatsave_g(i1,i2)
           fieldy(kk)=yhatsave_g(i1,i2)
         end do
-        i=(k-1)*latlon11 + 1
+        i=(k-ione)*latlon11 + ione
         call mpi_scatterv(fieldx,ijn_s,displs_s,mpi_real4,&
                  xhatsave_r4(i),ijn_s(mm1),mpi_real4,myper,mpi_comm_world,ierror)
         call mpi_scatterv(fieldy,ijn_s,displs_s,mpi_real4,&
@@ -365,14 +387,14 @@ contains
       end do  !end do over nval_levs
 
 !     Read radiance and precipitation bias correction terms
-      read(12,end=1236) (xhatsave_r4(i),i=nclen1+1,nclen),(yhatsave_r4(i),i=nclen1+1,nclen)
+      read(12,end=1236) (xhatsave_r4(i),i=nclen1+ione,nclen),(yhatsave_r4(i),i=nclen1+ione,nclen)
       do i=1,nclen
          dirx%values(i)=real(xhatsave_r4(i),r_kind)
          diry%values(i)=real(yhatsave_r4(i),r_kind)
       end do
          
     else
-      if(mype == 0) then
+      if(mype == izero) then
         write(6,*) 'READ_GUESS_SOLUTION:  INCOMPATABLE GUESS FILE, gesfile_in'
         write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
         write(6,*) 'READ_GUESS_SOLUTION:  nlat,nlatg,nlon,nlong,nsig,nsigg=',&
@@ -385,7 +407,7 @@ contains
 ! The guess file is empty.  Do not return an error code but print a message to
 ! standard out.
 1234  continue
-    if(mype == 0) then
+    if(mype == izero) then
       write(6,*) 'READ_GUESS_SOLUTION:  NO GUESS FILE, gesfile_in'
       write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
       write(6,*) 'READ_GUESS_SOLUTION:  nlat,nlatg,nlon,nlong,nsig,nsigg=',&
@@ -397,7 +419,7 @@ contains
 ! Error contition reading level or bias correction data.  Set error flag and
 ! return to the calling program.
 1236  continue
-    if (mype==0) write(6,*) 'READ_GUESS_SOLUTION:  ERROR in reading guess'
+    if (mype==izero) write(6,*) 'READ_GUESS_SOLUTION:  ERROR in reading guess'
     close(12)
     call stop2(76)
 
@@ -435,7 +457,7 @@ contains
     use gridmod, only: ijn,latlon11,displs_g,ltosj,ltosi,nsig,&
          nlat,nlon,lat1,lon1,itotsub,iglobal
     use obsmod, only: iadate
-    use constants, only: zero
+    use constants, only: izero,ione,zero
     implicit none
 
     integer(i_kind),intent(in):: mype
@@ -446,8 +468,8 @@ contains
     real(r_single),dimension(nlat,nlon):: xhatsave_g,yhatsave_g
     real(r_single),dimension(nrclen):: xhatsave4,yhatsave4
 
-    mm1=mype+1
-    mypew=0
+    mm1=mype+ione
+    mypew=izero
     
 ! Write header record to output file
     if (mype==mypew) then
@@ -456,8 +478,8 @@ contains
     endif
 
 ! Loop over levels.  Gather guess solution and write to output
-    do k=1,nval_levs
-      ie=(k-1)*latlon11 + 1
+    do k=ione,nval_levs
+      ie=(k-ione)*latlon11 + ione
       is=ie+latlon11
       call strip2(xhatsave%values(ie:is),yhatsave%values(ie:is),field)
       call mpi_gatherv(field(1,1,1),ijn(mm1),mpi_real4,&
@@ -526,6 +548,7 @@ contains
 !
 !$$$
     use kinds, only: r_single
+    use constants, only: ione
     use gridmod, only: lat1,lon1,lat2,lon2
     implicit none
 
@@ -534,10 +557,10 @@ contains
     real(r_kind),dimension(lat2,lon2),intent(in):: field_in1,field_in2
 
     do j=1,lon1
-      jp1 = j+1
+      jp1 = j+ione
       do i=1,lat1
-        field_out(i,j,1)=field_in1(i+1,jp1)
-        field_out(i,j,2)=field_in2(i+1,jp1)
+        field_out(i,j,1)=field_in1(i+ione,jp1)
+        field_out(i,j,2)=field_in2(i+ione,jp1)
       end do
     end do
 
@@ -567,19 +590,18 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
+    use constants, only: izero,ione
     use gridmod, only: lat1,lon1,latlon11,latlon1n,nsig,lat2,lon2
     use gridmod, only: nnnn1o,regional,nlat,nlon
     use radinfo, only: npred,jpch_rad
     use pcpinfo, only: npredp,npcptype
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors
-    use control_vectors, only: setup_control_vectors
-    use state_vectors, only: setup_state_vectors
     implicit none
 
     integer(i_kind) nx,ny,mr,nr,nf
 
-    nvals_levs=8*nsig+2+1         ! +1 for extra level in p3d
+    nvals_levs=8*nsig+2+ione        ! +1 for extra level in p3d
     nvals_len=nvals_levs*latlon11
 
     nval_levs=6*nsig+2
@@ -601,11 +623,11 @@ contains
         nx=nx/2*2
         ny=nlat*8/9
         ny=ny/2*2
-        if(mod(nlat,2)/=0)ny=ny+1
-        mr=0
+        if(mod(nlat,2)/=izero)ny=ny+ione
+        mr=izero
         nr=nlat/4
         nf=nr
-        nval2d=(ny*nx + 2*(2*nf+1)*(2*nf+1))*3
+        nval2d=(ny*nx + 2*(2*nf+ione)*(2*nf+ione))*3
       end if
       nval_lenz=nval2d*nnnn1o
       nclenz=nsubwin*nval_lenz+nsclen+npclen
@@ -617,7 +639,7 @@ contains
 !   For new mpi communication, define vector starting points
 !   for each variable type using the subdomains size without 
 !   buffer points
-    nstsm=1                                ! streamfunction small 
+    nstsm=ione                             ! streamfunction small 
     nvpsm=nstsm  +(lat1*lon1*nsig)         ! vel. pot. small
     npsm=nvpsm   +(lat1*lon1*nsig)         ! sfc. p. small
     ntsm=npsm    +(lat1*lon1)              ! temp. small
@@ -630,7 +652,7 @@ contains
     
 !   Define vector starting points for subdomains which include
 !   buffer points
-    nst2=1                               ! streamfunction mpi
+    nst2=ione                            ! streamfunction mpi
     nvp2=nst2  +latlon1n                 ! vel pot mpi
     np2=nvp2   +latlon1n                 ! sfc p mpi
     nt2=np2    +latlon11                 ! temp mpi

@@ -8,6 +8,24 @@ module projmethod_support
 ! program history log:
 !   2007-10-01  pondeca
 !
+! subroutines included:
+!   sub init_mgram_schmidt
+!   sub destroy_mgram_schmidt
+!   sub mgram_schmidt
+!
+! functions included:
+!   dplev_mask
+!   fast_dplev
+!   dplev5
+!
+! variable definition:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 ! Uses:
   use kinds, only: r_kind
   use control_vectors
@@ -24,8 +42,26 @@ PUBLIC init_mgram_schmidt, mgram_schmidt, &
 contains
 
 subroutine init_mgram_schmidt
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_mgram_schmidt
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-22  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: i_kind
   use jfunc, only: nclen,jiter,niter
 
   implicit none
@@ -33,14 +69,32 @@ subroutine init_mgram_schmidt
 ! Declare passed variables
 
 ! Declare local variables
+
   allocate(gx(nclen,0:niter(jiter)))
   allocate(gy(nclen,0:niter(jiter)))
 
 end subroutine init_mgram_schmidt
 
 subroutine destroy_mgram_schmidt
-
-  use kinds, only: i_kind
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroy_mgram_schmidt
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-22  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   implicit none
 
@@ -52,7 +106,6 @@ subroutine destroy_mgram_schmidt
 end subroutine destroy_mgram_schmidt
 
 subroutine mgram_schmidt(gradx,grady)
-
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    mgram_schmidt
@@ -65,8 +118,6 @@ subroutine mgram_schmidt(gradx,grady)
 !   2007-08-01  pondeca
 !
 ! input argument list:
-!
-!     iter     - inner loop iteration number
 !     gradx    - gradient of the cost function w.r.t control variable
 !     grady    - B*(gradx) where B is background error covariance matrix
 !
@@ -83,10 +134,10 @@ subroutine mgram_schmidt(gradx,grady)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
   use jfunc, only: iter,nclen
-  use constants, only: izero,tiny_r_kind
-  use mpimod, only: mpi_real8,mpi_sum,mpi_comm_world,ierror,mype
+  use constants, only: izero,ione,tiny_r_kind
+  use mpimod, only: mype
 
   implicit none
 
@@ -96,7 +147,6 @@ subroutine mgram_schmidt(gradx,grady)
 ! Declare local variables  
   integer(i_kind) i,k
   real(r_kind) prd0
-  real(8) dplev_mask
 !**********************************************************************
 
   gx(1:nclen,iter)=gradx%values(1:nclen)
@@ -105,14 +155,14 @@ subroutine mgram_schmidt(gradx,grady)
 !==> orthogonalization + renormalization
 
   do k=1,2
-    do i=izero,iter-1
+    do i=izero,iter-ione
        prd0=dplev_mask(gy(1,iter),gx(1,i),mype)
        gx(1:nclen,iter)=gx(1:nclen,iter)-gx(1:nclen,i)*prd0
        gy(1:nclen,iter)=gy(1:nclen,iter)-gy(1:nclen,i)*prd0
     enddo
     prd0=dplev_mask(gx(1,iter),gy(1,iter),mype)
-    if (prd0 .le. tiny_r_kind) then
-        if (mype.eq.0) then 
+    if (prd0 <= tiny_r_kind) then
+        if (mype==izero) then 
           print*,'in mgram_schmidt: unable to bi-orthogonalize due to round-off error for iter,k=',iter,k
           print*,'in mgram_schmidt: likely to happen when using fast version of inner product'
           print*,'in mgram_schmidt: iter,k,prd0=',iter,k,prd0
@@ -130,156 +180,32 @@ subroutine mgram_schmidt(gradx,grady)
   grady%values(1:nclen)=gy(1:nclen,iter)*sqrt(prd0)
 
 100 continue
-end subroutine mgram_schmidt
 
-end module projmethod_support
+contains
 
-subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
+real(r_kind) function dplev_mask(dx,dy,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    writeout_gradients
-!   prgmmr: pondeca           org: np23                  date: 2006-10-17
+! subprogram:    dplev_mask
+!   prgmmr:
 !
-! abstract: writes out the x and y gradidents of the costfunction
-!           also writes out B*y
+! abstract:
 !
 ! program history log:
-!   2006-10-17  pondeca, document
+!   2009-09-22  lueken - added subprogram doc block
 !
 !   input argument list:
-!     dx       - input vector 1
-!     dy       - input vector 2
+!    mype
+!    dx,dy
 !
-!   output argument list
+!   output argument list:
 !
-!attributes:
+! attributes:
 !   language: f90
-!   machine:  ibm RS/6000 SP
+!   machine:
 !
-!$$$
-!*************************************************************************
-  use kinds, only: r_kind,i_kind
-  use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
-  use gridmod, only: nsig,lat1,lon1,lat2,lon2,nlon,nlat,itotsub,iglobal, & 
-                     ltosi,ltosj,latlon11,ijn,displs_g,twodvar_regional
-  use radinfo, only: npred,jpch_rad
-  use pcpinfo, only: npredp,npcptype
-  use jfunc, only: iter,jiter,nclen,nclen1,nclen2
-  use control_vectors
-  use gsi_4dvar, only: nsubwin
-  implicit none
+!$$$ end documentation block
 
-! Declare passed variables
-  integer(i_kind),intent(in):: nv,mype  	
-  type(control_vector),intent(in)::dx,dy
-  real(r_kind) alpha,gamma
-
-
-! Declare local variables
-  integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii
-  real(r_kind),allocatable,dimension(:)::tempa
-  real(r_kind),allocatable,dimension(:,:)::slab
-  real(r_kind),allocatable,dimension(:)::strp
-  real(r_kind),allocatable,dimension(:)::field
-  type(control_vector)::dz
-  character(2) clun1
-  character(3) clun2
-!*************************************************************************
-  call allocate_cv(dz)
-  allocate(tempa(itotsub))
-  allocate(slab(nlon,nlat))
-  allocate(strp(lat1*lon1))
-  allocate(field(lat2*lon2*nsig))
-
-  write (clun1(1:2),'(i2.2)') jiter
-  write (clun2(1:3),'(i3.3)') iter
-
-  lun=19 
-  do icase=1,2
- 
-     if (icase.eq.1) then 
-        dz=dx
-        open (lun,file='gradx.dat_'//clun1//'_'//clun2,form='unformatted')
-      else if (icase.eq.2) then 
-        dz=dy
-        open (lun,file='grady.dat_'//clun1//'_'//clun2,form='unformatted')
-     endif
-
-     write (lun) nlon,nlat,nsig,jpch_rad,npred,npcptype,npredp,jiter,nv,alpha,gamma
-
-     ii=1
-     do ifield=1,6
-        if (ifield.eq.1) field=dz%step(ii)%st
-        if (ifield.eq.2) field=dz%step(ii)%vp
-        if (ifield.eq.3) field=dz%step(ii)%t
-        if (ifield.eq.4) field=dz%step(ii)%rh
-        if (ifield.eq.5) field=dz%step(ii)%oz
-        if (ifield.eq.6) field=dz%step(ii)%cw
-
-        do k=1,nsig
-           k1=1+(k-1)*latlon11
-           k2=k1+latlon11-1
-           call strip(field(k1:k2),strp,1)
-
-           call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
-                tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
-
-           if(mype == 0) then
-             do i=1,iglobal
-                slab(ltosj(i),ltosi(i))=tempa(i)
-             end do
-            write(lun) slab
-           endif
-
-        end do
-     enddo !ifield
-
-!                               gradient wrt sfcp
-     call strip(dz%step(ii)%p,strp,1)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
-          tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
-
-     if(mype == 0) then
-       do i=1,iglobal
-          slab(ltosj(i),ltosi(i))=tempa(i)
-       end do
-       write(lun) slab
-     endif
-
-!                               gradient wrt sfct
-     call strip(dz%step(ii)%sst,strp,1)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
-         tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
-
-     if(mype == 0) then
-       do i=1,iglobal
-          slab(ltosj(i),ltosi(i))=tempa(i)
-       end do
-       write(lun) slab
-     endif
-
-!                   gradient wrt satellite radiance bias correction coefficients
-       if (mype.eq.0) write(lun) dz%predr
-
-!                   gradient wrt precipitation bias correction coefficients
-       if (mype.eq.0)write(lun) dz%predp
-
-  close(lun)
-  end do ! icase
-
-  call deallocate_cv(dz)
-  deallocate(tempa)
-  deallocate(slab)
-  deallocate(strp)
-  deallocate(field)
-
-  return
-
-end subroutine writeout_gradients
-
-real(8) function dplev_mask(dx,dy,mype)
-
-  use kinds, only: r_kind,i_kind
   use jfunc, only:  nval_levs
   use gridmod, only:  lat2,lon2,twodvar_regional
   implicit none
@@ -291,11 +217,10 @@ real(8) function dplev_mask(dx,dy,mype)
 ! Declare local variables
   logical mask(nval_levs)
   logical fast
-  real(8) fast_dplev,dplev5
 
   fast=.false.
   mask=.true.
-!                set fast to .true. for twodvar_regional, 
+!                set fast to .true. for twodvar_regional,
 !                  substantially faster, but no roundoff error reduction and
 !                  results differ for different number of processors.
   if(twodvar_regional) then
@@ -306,16 +231,36 @@ real(8) function dplev_mask(dx,dy,mype)
   end if
 
   if(fast) then
-    dplev_mask=fast_dplev(dx,dy,mype,mask)
+    dplev_mask=fast_dplev(dx,dy,mask)
   else
     dplev_mask=dplev5(dx,dy,mype,mask)
   end if
 
 end function dplev_mask
 
-real(8) function fast_dplev(dx,dy,mype,mask)
+real(r_kind) function fast_dplev(dx,dy,mask)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    fast_dplev
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-22  lueken - added subprogram doc block
+!
+!   input argument list:
+!    dx,dy
+!    mask
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
   use jfunc, only:  nval_levs
   use gridmod, only:  lat2,lon2
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
@@ -324,7 +269,6 @@ real(8) function fast_dplev(dx,dy,mype,mask)
 
 ! Declar passed variables
   real(r_kind),dimension(lat2,lon2,nval_levs),intent(in)::dx,dy
-  integer(i_kind),intent(in)::mype
   logical,intent(in):: mask(nval_levs)
 
 ! Declare local variables
@@ -332,34 +276,33 @@ real(8) function fast_dplev(dx,dy,mype,mask)
 
   integer(i_kind) i,j,k
   real(r_kind) sum
-  
+
   sum=zero
   do k=1,nval_levs
      if(.not.mask(k)) cycle
-     do j=2,lon2-1
-        do i=2,lat2-1
+     do j=2,lon2-ione
+        do i=2,lat2-ione
            sum=sum+dx(i,j,k)*dy(i,j,k)
         end do
      end do
   end do
 
-  call mpi_allgather(sum,1,mpi_rtype,sumall,1,mpi_rtype,mpi_comm_world,ierror)
+  call mpi_allgather(sum,ione,mpi_rtype,sumall,ione,mpi_rtype,mpi_comm_world,ierror)
   fast_dplev=zero
   do i=1,npe
     fast_dplev=fast_dplev+sumall(i)
   end do
-    
+
 end function fast_dplev
 
-real(8) function dplev5(dx,dy,mype,mask)
-
+real(r_kind) function dplev5(dx,dy,mype,mask)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    dplev   calculates dot product for data on subdomain
 !   prgmmr: derber           org: np23                date: 2004-05-13
 !
 ! abstract: calculates dot product for data on subdomain.  Note loops over
-!           streamfunction, velocity potential, temperature, etc. Also, only 
+!           streamfunction, velocity potential, temperature, etc. Also, only
 !           over interior of subdomain.
 !
 ! program history log:
@@ -369,25 +312,25 @@ real(8) function dplev5(dx,dy,mype,mask)
 !   input argument list:
 !     dx       - input vector 1
 !     dy       - input vector 2
+!     mype
+!     mask
 !
 !   output argument list
-!     dplev    - dot product
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  
-  use kinds, only: r_kind,r_double,i_kind
-  use jfunc, only:  nval_levs
-  use gridmod, only:  nlat,nlon,lat2,lon2,lat1,lon1,&
-     ltosi,ltosj,iglobal,itotsub,ijn,displs_g
+
+  use jfunc, only: nval_levs
+  use gridmod, only: nlat,nlon,lat2,lon2,lat1,lon1,&
+     ltosi,ltosj,iglobal,ijn,displs_g
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
-  use constants, only:  zero
+  use constants, only: zero
   implicit none
 
-! Declar passed variables
+! Declare passed variables
   real(r_kind),dimension(lat2,lon2,nval_levs),intent(in)::dx,dy
   integer(i_kind),intent(in)::mype
   logical,intent(in):: mask(nval_levs)
@@ -398,10 +341,10 @@ real(8) function dplev5(dx,dy,mype,mask)
   real(r_kind),dimension(lat2,lon2):: sum
   real(r_kind),dimension(nlat,nlon):: sumall
 
-  integer(i_kind) i,j,k,mm1,kk
+  integer(i_kind) i,j,k,mm1
   real(r_kind) e,y,temp
-  
-  mm1=mype+1
+
+  mm1=mype+ione
   sum=zero
   do k=1,nval_levs
      if(.not.mask(k)) cycle
@@ -415,7 +358,7 @@ real(8) function dplev5(dx,dy,mype,mask)
     zsm(j)=zero
   end do
 
-  call strip(sum,zsm,1)
+  call strip(sum,zsm,ione)
 
   call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
      work1,ijn,displs_g,mpi_rtype,&
@@ -437,5 +380,156 @@ real(8) function dplev5(dx,dy,mype,mask)
 !     dplev=dplev+sumall(i,j)
     end do
   end do
-    
+
 end function dplev5
+
+end subroutine mgram_schmidt
+
+end module projmethod_support
+
+subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    writeout_gradients
+!   prgmmr: pondeca           org: np23                  date: 2006-10-17
+!
+! abstract: writes out the x and y gradidents of the costfunction
+!           also writes out B*y
+!
+! program history log:
+!   2006-10-17  pondeca, document
+!
+!   input argument list:
+!     nv
+!     mype
+!     dx       - input vector 1
+!     dy       - input vector 2
+!     alpha
+!     gamma
+!
+!   output argument list
+!
+!attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+!*************************************************************************
+  use kinds, only: r_kind,i_kind
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
+  use gridmod, only: nsig,lat1,lon1,lat2,lon2,nlon,nlat,itotsub,iglobal, & 
+                     ltosi,ltosj,latlon11,ijn,displs_g
+  use radinfo, only: npred,jpch_rad
+  use pcpinfo, only: npredp,npcptype
+  use jfunc, only: iter,jiter
+  use control_vectors
+  use constants, only: izero,ione
+  implicit none
+
+! Declare passed variables
+  integer(i_kind),intent(in):: nv,mype  	
+  type(control_vector),intent(in)::dx,dy
+  real(r_kind),intent(in):: alpha,gamma
+
+
+! Declare local variables
+  integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii
+  real(r_kind),allocatable,dimension(:)::tempa
+  real(r_kind),allocatable,dimension(:,:)::slab
+  real(r_kind),allocatable,dimension(:)::strp
+  real(r_kind),allocatable,dimension(:)::field
+  type(control_vector)::dz
+  character(2) clun1
+  character(3) clun2
+!*************************************************************************
+  call allocate_cv(dz)
+  allocate(tempa(itotsub))
+  allocate(slab(nlon,nlat))
+  allocate(strp(lat1*lon1))
+  allocate(field(lat2*lon2*nsig))
+
+  write (clun1(1:2),'(i2.2)') jiter
+  write (clun2(1:3),'(i3.3)') iter
+
+  lun=19_i_kind
+  do icase=1,2
+ 
+     if (icase==ione) then 
+        dz=dx
+        open (lun,file='gradx.dat_'//clun1//'_'//clun2,form='unformatted')
+      else if (icase==2_i_kind) then 
+        dz=dy
+        open (lun,file='grady.dat_'//clun1//'_'//clun2,form='unformatted')
+     endif
+
+     write (lun) nlon,nlat,nsig,jpch_rad,npred,npcptype,npredp,jiter,nv,alpha,gamma
+
+     ii=ione
+     do ifield=1,6
+        if (ifield==ione)        field=dz%step(ii)%st
+        if (ifield==2_i_kind)    field=dz%step(ii)%vp
+        if (ifield==3_i_kind)    field=dz%step(ii)%t
+        if (ifield==4_i_kind)    field=dz%step(ii)%rh
+        if (ifield==5_i_kind)    field=dz%step(ii)%oz
+        if (ifield==6_i_kind)    field=dz%step(ii)%cw
+
+        do k=1,nsig
+           k1=ione+(k-ione)*latlon11
+           k2=k1+latlon11-ione
+           call strip(field(k1:k2),strp,ione)
+
+           call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+                tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+
+           if(mype == izero) then
+             do i=1,iglobal
+                slab(ltosj(i),ltosi(i))=tempa(i)
+             end do
+            write(lun) slab
+           endif
+
+        end do
+     enddo !ifield
+
+!                               gradient wrt sfcp
+     call strip(dz%step(ii)%p,strp,ione)
+     call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+          tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+
+     if(mype == izero) then
+       do i=1,iglobal
+          slab(ltosj(i),ltosi(i))=tempa(i)
+       end do
+       write(lun) slab
+     endif
+
+!                               gradient wrt sfct
+     call strip(dz%step(ii)%sst,strp,ione)
+     call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+         tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+
+     if(mype == izero) then
+       do i=1,iglobal
+          slab(ltosj(i),ltosi(i))=tempa(i)
+       end do
+       write(lun) slab
+     endif
+
+!                   gradient wrt satellite radiance bias correction coefficients
+       if (mype==izero) write(lun) dz%predr
+
+!                   gradient wrt precipitation bias correction coefficients
+       if (mype==izero)write(lun) dz%predp
+
+  close(lun)
+  end do ! icase
+
+  call deallocate_cv(dz)
+  deallocate(tempa)
+  deallocate(slab)
+  deallocate(strp)
+  deallocate(field)
+
+  return
+
+end subroutine writeout_gradients

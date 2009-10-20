@@ -80,7 +80,7 @@ subroutine compute_derived(mype)
   use mod_strong, only: jcstrong,baldiag_full
   use obsmod, only: write_diag
 
-  use constants, only: zero,one,one_tenth,half,fv
+  use constants, only: ione,zero,one,one_tenth,half,fv
 
 ! for anisotropic mode
   use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab
@@ -105,7 +105,7 @@ subroutine compute_derived(mype)
   
   real(r_kind) d,dl1,dl2,psfc015,dn1,dn2
   real(r_kind),allocatable,dimension(:,:,:):: dlnesdtv,dmax
-  real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
+  real(r_kind),dimension(lat2,lon2,nsig+ione):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
 
 ! for anisotropic mode
@@ -218,7 +218,7 @@ subroutine compute_derived(mype)
 ! Load arrays based on option for moisture background error
 
 ! qoption 1:  use psuedo-RH
-  if(qoption==1)then
+  if(qoption==ione)then
 
 !    On first outer iteration only, load array used for pseudo-RH
 !    moisture analysis variable.  
@@ -228,7 +228,7 @@ subroutine compute_derived(mype)
               do i=1,lat2
                  if(regional)then
                     l=int(rllat1(i,j))
-                    l2=min0(l+1,llmax)
+                    l2=min0(l+ione,llmax)
                     dl2=rllat1(i,j)-float(l)
                     dl1=one-dl2
                     if(.not.twodvar_regional)then
@@ -256,14 +256,14 @@ subroutine compute_derived(mype)
              if (jiter==jiterstart) then
                d=20.0_r_kind*rhgues(i,j,k) + one
                n=int(d)
-               np=n+1
+               np=n+ione
                dn2=d-float(n)
                dn1=one-dn2
-               n=min0(max(1,n),25)
-               np=min0(max(1,np),25)
+               n=min0(max(ione,n),25_i_kind)
+               np=min0(max(ione,np),25_i_kind)
                if(regional)then
                  l=int(rllat1(i,j))
-                 l2=min0(l+1,llmax)
+                 l2=min0(l+ione,llmax)
                  dl2=rllat1(i,j)-float(l)
                  dl1=one-dl2
                  if(.not.twodvar_regional)then
@@ -290,15 +290,15 @@ subroutine compute_derived(mype)
          call sub2fslab(rhgues,rh0f)
          do k=indices%kps,indices%kpe
            ivar=idvar(k)
-           if(ivar==5) then
-             kvar=k-kvar_start(ivar)+1
+           if(ivar==5_i_kind) then
+             kvar=k-kvar_start(ivar)+ione
              do k1=1,nsig1o
                if(levs_id(k1)==kvar) exit
              end do
              do j=indices%jps,indices%jpe
              do i=indices%ips,indices%ipe
-               l =max(min(int(rllatf(i,j)),mlat),1)
-               l2=min((l+1),mlat)
+               l =max(min(int(rllatf(i,j)),mlat),ione)
+               l2=min((l+ione),mlat)
                dl2=rllatf(i,j)-float(l)
                dl1=one-dl2
 
@@ -325,8 +325,8 @@ subroutine compute_derived(mype)
          call sub2fslab_glb (rhgues,rh0f,rh2f,rh3f)
          do k=indices%kps,indices%kpe
            ivar=idvar(k)
-           if(ivar==5) then
-             kvar=k-kvar_start(ivar)+1
+           if(ivar==5_i_kind) then
+             kvar=k-kvar_start(ivar)+ione
              do k1=1,nsig1o
                if(levs_id(k1)==kvar) exit
              end do
@@ -349,7 +349,7 @@ subroutine compute_derived(mype)
              do j=indices_p%jps,indices_p%jpe
              do i=indices_p%ips,indices_p%ipe
                ! north polar
-               if(p2ilatf(i,j).ne.zero) then
+               if(p2ilatf(i,j)/=zero) then
                  call get_stat_factk(p2ilatf(i,j),ivar,kvar,factk, &
                                      rh2f(i,j,k1),one)
                else
@@ -364,7 +364,7 @@ subroutine compute_derived(mype)
                  end if
                end do
                ! south polar
-               if(p3ilatf(i,j).ne.zero) then
+               if(p3ilatf(i,j)/=zero) then
                  call get_stat_factk(p3ilatf(i,j),ivar,kvar,factk, &
                                      rh3f(i,j,k1),one)
                else

@@ -18,7 +18,7 @@ module fgrid2agrid_mod
 !
 ! program history log:
 !   2005-06-06  parrish
-!   2008-11-03  sato - eliminate global varibables except for nord_f2a
+!   2008-11-03  sato - eliminate global variables except for nord_f2a
 !                      for multi-filter-space in global mode
 !
 ! subroutines included:
@@ -54,6 +54,19 @@ module fgrid2agrid_mod
   use kinds, only: r_kind,i_kind
 
   implicit none
+
+! set default to private
+  private
+! set subroutines to public
+  public :: init_fgrid2agrid
+  public :: create_fgrid2agrid
+  public :: get_3ops
+  public :: destroy_fgrid2agrid
+  public :: fgrid2agrid
+  public :: tfgrid2agrid
+  public :: agrid2fgrid
+! set passed variables to public
+  public :: fgrid2agrid_parm,nord_f2a
 
   integer(i_kind):: nord_f2a
 
@@ -113,22 +126,22 @@ module fgrid2agrid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: one
+    use constants, only: ione,one
     implicit none
 
     type(fgrid2agrid_parm),intent(out):: p
 
 !    initialize fgrid2agrid interpolation structure variables and other constants to defaults
 
-    p%nlatf=1
-    p%nlonf=1
+    p%nlatf=ione
+    p%nlonf=ione
     p%grid_ratio_lon=one
     p%grid_ratio_lat=one
     p%identity=.false.
-    p%f2a_lon%nfgrid=1
-    p%f2a_lon%nagrid=1
-    p%f2a_lon%mfgrid=1
-    p%f2a_lon%magrid=1
+    p%f2a_lon%nfgrid=ione
+    p%f2a_lon%nagrid=ione
+    p%f2a_lon%mfgrid=ione
+    p%f2a_lon%magrid=ione
     p%f2a_lon%grid_ratio=one
     allocate(p%f2a_lon%iwin(2,2))
     allocate(p%f2a_lon%nwin(2))
@@ -139,10 +152,10 @@ module fgrid2agrid_mod
     allocate(p%f2a_lon%win(2,2))
     allocate(p%f2a_lon%twin(2,2))
     allocate(p%f2a_lon%swin(2,2))
-    p%f2a_lat%nfgrid=1
-    p%f2a_lat%nagrid=1
-    p%f2a_lat%mfgrid=1
-    p%f2a_lat%magrid=1
+    p%f2a_lat%nfgrid=ione
+    p%f2a_lat%nagrid=ione
+    p%f2a_lat%mfgrid=ione
+    p%f2a_lat%magrid=ione
     p%f2a_lat%grid_ratio=one
     allocate(p%f2a_lat%iwin(2,2))
     allocate(p%f2a_lat%nwin(2))
@@ -158,7 +171,7 @@ module fgrid2agrid_mod
 ! Global variable nord_f2a should be initialized. So I added this line.
 ! Since nord_f2a was a namelist parameter in gsi_main,
 ! Please don't call this routine (init_fgrid2agrid()) after that.
-    nord_f2a=4
+    nord_f2a=4_i_kind
 
   end subroutine init_fgrid2agrid
 
@@ -207,7 +220,7 @@ module fgrid2agrid_mod
     implicit none
     type(fgrid2agrid_parm),intent(inout):: p
 
-    if(p%grid_ratio.le.1.001_r_kind.and.p%grid_ratio.ge..999_r_kind) then
+    if(p%grid_ratio<=1.001_r_kind.and.p%grid_ratio>=.999_r_kind) then
       p%nlatf=p%nlata
       p%nlonf=p%nlona
       p%identity=.true.
@@ -278,7 +291,7 @@ module fgrid2agrid_mod
 !        swin, iswin: interpolation weights, addresses for analysis grid --> filter grid
 !
 !
-    use constants, only: zero,one
+    use constants, only: izero,ione,zero,one
     implicit none
 
     type(fgrid2agrid_cons),intent(inout):: f2a
@@ -305,7 +318,7 @@ module fgrid2agrid_mod
 !-----first decide dimensions of fine grid and coarse grid
 !--------------------------------------------------------
 
-    if(grid_ratio_in.lt.one) then
+    if(grid_ratio_in<one) then
 
       nc=ngrida
       rnf=one+(nc-one)/grid_ratio_in
@@ -340,18 +353,18 @@ module fgrid2agrid_mod
     do i=1,nc
       gridc(i)=i
     end do
-    allocate(tl(iord+1,iord+1,2*nc),alocal(2*nc),blocal(2*nc))
-    allocate(wgts(nf,iord+1),iwgts(nf,iord+1),iflag(nf))
-    allocate(win(iord+1,nf),iwin(iord+1,nf),nwin(nf))
+    allocate(tl(iord+ione,iord+ione,2*nc),alocal(2*nc),blocal(2*nc))
+    allocate(wgts(nf,iord+ione),iwgts(nf,iord+ione),iflag(nf))
+    allocate(win(iord+ione,nf),iwin(iord+ione,nf),nwin(nf))
     win=zero
-    iwin=0
-    nwin=0
+    iwin=izero
+    nwin=izero
     do jord=1,iord
-      lbig=jord+1
+      lbig=jord+ione
       call simpin1_init(ixi,tl,alocal,blocal,jord,lbig,gridc,nc)
-      call simpin1(wgts,wgts,wgts,iwgts,iflag,grid,nf,jord,lbig,gridc,nc,1,0,0,ixi,tl,alocal,blocal)
+      call simpin1(wgts,wgts,wgts,iwgts,iflag,grid,nf,jord,lbig,gridc,nc,ione,izero,izero,ixi,tl,alocal,blocal)
       do i=1,nf
-        if(iflag(i).eq.1) then
+        if(iflag(i)==ione) then
           nwin(i)=lbig
           do k=1,lbig
             win(k,i)=wgts(i,k)
@@ -360,7 +373,7 @@ module fgrid2agrid_mod
         end if
       end do
     end do
-    if(minval(nwin).eq.0) then
+    if(minval(nwin)==izero) then
       write(6,*)'GET_3OPS: ***ERROR*** while getting coarse to fine ', &
                 'interpolation operator'
       call stop2(33)
@@ -372,8 +385,8 @@ module fgrid2agrid_mod
 
     allocate(workc(nc),hbig(nf,nc))
     allocate(ipmax(nf),ipmin(nf))
-    ipminmin=nf+1
-    ipmaxmax=0
+    ipminmin=nf+ione
+    ipmaxmax=izero
     do j=1,nc
       do k=1,nc
         workc(k)=zero
@@ -386,29 +399,29 @@ module fgrid2agrid_mod
         end do
       end do
       do i=1,nf
-        if(hbig(i,j).ne.zero) then
+        if(hbig(i,j)/=zero) then
           ipmin(j)=i
           ipminmin=min(ipmin(j),ipminmin)
           exit
         end if
       end do
       do i=nf,1,-1
-        if(hbig(i,j).ne.zero) then
+        if(hbig(i,j)/=zero) then
           ipmax(j)=i
           ipmaxmax=max(ipmax(j),ipmaxmax)
           exit
         end if
       end do
     end do
-    ntwinmax=ipmaxmax-ipminmin+1
+    ntwinmax=ipmaxmax-ipminmin+ione
     allocate(twin(ntwinmax,nc),itwin(ntwinmax,nc),ntwin(nc))
-    itwin=0
+    itwin=izero
     twin=zero
     do j=1,nc
-      ntwin(j)=ipmax(j)-ipmin(j)+1
-      ii=0
+      ntwin(j)=ipmax(j)-ipmin(j)+ione
+      ii=izero
       do i=ipmin(j),ipmax(j)
-        ii=ii+1
+        ii=ii+ione
         itwin(ii,j)=i
         twin(ii,j)=hbig(i,j)
       end do
@@ -420,8 +433,8 @@ module fgrid2agrid_mod
 
     allocate(swin(ntwinmax,nc),iswin(ntwinmax,nc),nswin(nc))
     swin=zero
-    iswin=0
-    nswin=0
+    iswin=izero
+    nswin=izero
     do j=1,nc
       workc(j)=zero
       do i=1,ntwin(j)
@@ -439,7 +452,7 @@ module fgrid2agrid_mod
 !   finally get adjoint of smoothing interpolation (coarse to fine)
 !--------------------------------------------------------
 
-    allocate(tswin(iord+1,nf),itswin(iord+1,nf),ntswin(nf))
+    allocate(tswin(iord+ione,nf),itswin(iord+ione,nf),ntswin(nf))
     do i=1,nf
       ntswin(i)=nwin(i)
       do j=1,nwin(i)
@@ -452,21 +465,21 @@ module fgrid2agrid_mod
 !   now assign appropriate operators depending on value of grid_ratio
 !--------------------------------------------------------
 
-    if(grid_ratio_in.gt.one) then
+    if(grid_ratio_in>one) then
 
       f2a%nfgrid=nc
       f2a%nagrid=nf
       ngridf=nc
-      f2a%mfgrid=iord+1
+      f2a%mfgrid=iord+ione
       f2a%magrid=ntwinmax
       grid_ratio_out=(nf-one)/(nc-one)
       f2a%grid_ratio=grid_ratio_out
       deallocate(f2a%iwin,f2a%nwin,f2a%win)
-      allocate(f2a%iwin(iord+1,nf))
+      allocate(f2a%iwin(iord+ione,nf))
       allocate(f2a%nwin(nf))
-      allocate(f2a%win(iord+1,nf))
-      f2a%iwin=0
-      f2a%nwin=0
+      allocate(f2a%win(iord+ione,nf))
+      f2a%iwin=izero
+      f2a%nwin=izero
       f2a%win=zero
 !$omp parallel do private(i,k)
       do i=1,nf
@@ -484,11 +497,11 @@ module fgrid2agrid_mod
       allocate(f2a%twin(ntwinmax,nc))
       allocate(f2a%swin(ntwinmax,nc))
       allocate(f2a%nswin(nc))
-      f2a%itwin=0
-      f2a%ntwin=0
+      f2a%itwin=izero
+      f2a%ntwin=izero
       f2a%twin=zero
-      f2a%iswin=0
-      f2a%nswin=0
+      f2a%iswin=izero
+      f2a%nswin=izero
       f2a%swin=zero
 !$omp parallel do private(j,k)
       do j=1,nc
@@ -508,17 +521,17 @@ module fgrid2agrid_mod
       f2a%nagrid=nc
       ngridf=nf
       f2a%mfgrid=ntwinmax
-      f2a%magrid=iord+1
+      f2a%magrid=iord+ione
       grid_ratio_out=(nc-one)/(nf-one)
       f2a%grid_ratio=grid_ratio_out
       deallocate(f2a%iwin,f2a%nwin,f2a%win)
       allocate(f2a%iwin(ntwinmax,nc))
       allocate(f2a%nwin(nc))
       allocate(f2a%win(ntwinmax,nc))
-      f2a%iwin=0
-      f2a%nwin=0
+      f2a%iwin=izero
+      f2a%nwin=izero
       f2a%win=zero
-      !$omp parallel do private (k,j)
+!$omp parallel do private (k,j)
       do j=1,nc
         f2a%nwin(j)=nswin(j)
         do k=1,nswin(j)
@@ -528,19 +541,19 @@ module fgrid2agrid_mod
       end do
       deallocate(f2a%itwin,f2a%ntwin,f2a%twin)
       deallocate(f2a%iswin,f2a%nswin,f2a%swin)
-      allocate(f2a%itwin(iord+1,nf))
-      allocate(f2a%iswin(iord+1,nf))
+      allocate(f2a%itwin(iord+ione,nf))
+      allocate(f2a%iswin(iord+ione,nf))
       allocate(f2a%ntwin(nf))
       allocate(f2a%nswin(nf))
-      allocate(f2a%twin(iord+1,nf))
-      allocate(f2a%swin(iord+1,nf))
-      f2a%itwin=0
-      f2a%ntwin=0
+      allocate(f2a%twin(iord+ione,nf))
+      allocate(f2a%swin(iord+ione,nf))
+      f2a%itwin=izero
+      f2a%ntwin=izero
       f2a%twin=zero
-      f2a%iswin=0
-      f2a%nswin=0
+      f2a%iswin=izero
+      f2a%nswin=izero
       f2a%swin=zero
-      !$omp parallel do private (i,k)
+!$omp parallel do private (i,k)
       do i=1,nf
         f2a%ntwin(i)=ntswin(i)
         f2a%nswin(i)=nwin(i)
@@ -772,7 +785,7 @@ module fgrid2agrid_mod
     real(r_kind),intent(out)::f(p%nlatf,p%nlonf)
     real(r_kind),intent(in):: a(p%nlata,p%nlona)
 
-    integer i,j,j1,k
+    integer(i_kind) i,j,j1,k
     real(r_kind) w1,w(p%nlata,p%nlonf)
 
     if(p%identity) then

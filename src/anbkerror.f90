@@ -32,14 +32,14 @@ subroutine anbkerror(gradx,grady)
   use jfunc, only: nsclen,npclen
   use balmod, only: balance,tbalance
   use berror, only: varprd,fpsproj
-  use constants, only: zero
+  use constants, only: izero,zero
   use control_vectors
   use gsi_4dvar, only: nsubwin
   implicit none
 
 ! Declare passed variables
-type(control_vector),intent(inout):: gradx
-type(control_vector),intent(inout):: grady
+  type(control_vector),intent(inout):: gradx
+  type(control_vector),intent(inout):: grady
 
 ! Declare local variables
   integer(i_kind) i,j,ii
@@ -76,12 +76,12 @@ type(control_vector),intent(inout):: grady
 end do
 
 ! Take care of background error for bias correction terms
-  if(nsclen>0)then
+  if(nsclen>izero)then
     do i=1,nsclen
       grady%predr(i)=grady%predr(i)*varprd(i)
     end do
   end if
-  if(npclen>0)then
+  if(npclen>izero)then
     do i=1,npclen
       grady%predp(i)=grady%predp(i)*varprd(nsclen+i)
     end do
@@ -136,7 +136,7 @@ subroutine anbkgcov(st,vp,t,p,q,oz,skint,sst,slndt,sicet,cwmr)
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nlat,nlon,nsig,nsig1o
   use anberror, only: rtma_subdomain_option,nsmooth, nsmooth_shapiro
-  use constants, only: zero
+  use constants, only: izero,ione,zero
   implicit none
 
 ! Passed Variables
@@ -149,7 +149,7 @@ subroutine anbkgcov(st,vp,t,p,q,oz,skint,sst,slndt,sicet,cwmr)
 
 
 ! break up skin temp into components
-  call anbkgvar(skint,sst,slndt,sicet,0)
+  call anbkgvar(skint,sst,slndt,sicet,izero)
 
 ! Perform simple vertical smoothing while fields are in sudomain mode.
 ! The accompanying smoothing in the horizontal is performed inside the
@@ -175,7 +175,7 @@ subroutine anbkgcov(st,vp,t,p,q,oz,skint,sst,slndt,sicet,cwmr)
   else
 
 ! Convert from subdomain to full horizontal field distributed among processors
-    iflg=1
+    iflg=ione
     call sub2grid(hwork,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
 
 ! Apply horizontal smoother for number of horizontal scales
@@ -194,7 +194,7 @@ subroutine anbkgcov(st,vp,t,p,q,oz,skint,sst,slndt,sicet,cwmr)
   call tvert_smther(t   ,nsmooth,nsmooth_shapiro)
 
 ! combine sst,sldnt, and sicet into skin temperature field
-  call anbkgvar(skint,sst,slndt,sicet,1)
+  call anbkgvar(skint,sst,slndt,sicet,ione)
 
 end subroutine anbkgcov
 
@@ -231,6 +231,8 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+
+  use constants, only: izero,ione
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2
   use guess_grids, only: isli2
@@ -245,26 +247,26 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
 
        do j=1,lon2
          do i=1,lat2
-           if(iflg == 0) then
+           if(iflg == izero) then
 ! Break skin temperature into components
 !          If land point
-             if(isli2(i,j) == 1) then
+             if(isli2(i,j) == ione) then
                slndt(i,j)=skint(i,j)
 !          If ice
-             else if(isli2(i,j) == 2) then
+             else if(isli2(i,j) == 2_i_kind) then
                sicet(i,j)=skint(i,j)
 !          Else treat as a water point
              else
                sst(i,j)=skint(i,j)
              end if
 
-           else if (iflg.eq.1) then
+           else if (iflg==ione) then
 ! Combine sst,slndt, and sicet into skin temperature field
 !          Land point, load land sfc t into skint
-             if(isli2(i,j) == 1) then
+             if(isli2(i,j) == ione) then
                skint(i,j)=slndt(i,j)
 !          Ice, load ice temp into skint
-             else if(isli2(i,j) == 2) then
+             else if(isli2(i,j) == 2_i_kind) then
                skint(i,j)=sicet(i,j)
 !          Treat as a water point, load sst into skint
              else
@@ -305,7 +307,7 @@ subroutine ansmoothrf(work)
   use anberror, only: indices,indices_p,ngauss,pf2aP1, &
                       filter_all,filter_p2,filter_p3
   use patch2grid_mod, only: patch2grid, tpatch2grid
-  use mpimod, only:  mype,npe
+  use mpimod, only:  npe
   use constants, only: zero
   use gridmod, only: nlat,nlon,regional
   use fgrid2agrid_mod, only: fgrid2agrid,tfgrid2agrid
@@ -384,15 +386,15 @@ subroutine ansmoothrf(work)
 
 !   apply recursive filter
 
-  call raf4_wrap(   workb,filter_all,ngauss,indices,mype,npe)
-  call raf4_ad_wrap(workb,filter_all,ngauss,indices,mype,npe)
+  call raf4_wrap(   workb,filter_all,ngauss,indices,npe)
+  call raf4_ad_wrap(workb,filter_all,ngauss,indices,npe)
 
   if(.not.regional) then
-    call raf4_wrap(   workbnp,filter_p2,ngauss,indices_p,mype,npe)
-    call raf4_ad_wrap(workbnp,filter_p2,ngauss,indices_p,mype,npe)
+    call raf4_wrap(   workbnp,filter_p2,ngauss,indices_p,npe)
+    call raf4_ad_wrap(workbnp,filter_p2,ngauss,indices_p,npe)
 
-    call raf4_wrap(   workbsp,filter_p3,ngauss,indices_p,mype,npe)
-    call raf4_ad_wrap(workbsp,filter_p3,ngauss,indices_p,mype,npe)
+    call raf4_wrap(   workbsp,filter_p3,ngauss,indices_p,npe)
+    call raf4_ad_wrap(workbsp,filter_p3,ngauss,indices_p,npe)
   end if
 
 !  add together ngauss copies
@@ -444,11 +446,35 @@ subroutine ansmoothrf(work)
 end subroutine ansmoothrf
 
 subroutine vert_smther(g,nsmooth,nsmooth_shapiro)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    vert_smther
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-15  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nsmooth
+!    nsmooth_shapiro
+!    g
+!
+!   output argument list:
+!    g
+!
+! Notes:  nsmooth > 0 ==> apply 1-2-1 smoother
+!         nsmooth_shapiro 0 ==> apply second moment preserving
+!                               "shapiro smoother"
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-! nsmooth > 0 ==> apply 1-2-1 smoother
-! nsmooth_shapiro 0 ==> apply second moment preserving
-!                       "shapiro smoother"
-
+  use constants, only: izero,ione,quarter,half
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig
   implicit none
@@ -462,33 +488,33 @@ subroutine vert_smther(g,nsmooth,nsmooth_shapiro)
   integer(i_kind) i,j,l,k,kp,km,kp3,km3
   real(r_kind), allocatable:: gaux(:)
 
-  if (nsig==1)return
+  if (nsig==ione)return
 
   allocate(gaux(1:nsig))
 
-  if (nsmooth > 0 ) then
+  if (nsmooth > izero ) then
     do i=1,lat2
     do j=1,lon2
      do l=1,nsmooth
        gaux(1:nsig)=g(i,j,1:nsig)
        do k=1,nsig
-         kp=min(k+1,nsig) ; km=max(1,k-1)
-         g(i,j,k)=.25*(gaux(kp)+gaux(km))+.5*gaux(k)
+         kp=min(k+ione,nsig) ; km=max(ione,k-ione)
+         g(i,j,k)=quarter*(gaux(kp)+gaux(km))+half*gaux(k)
        enddo
      enddo
     enddo
     enddo
   endif
 
-  if (nsmooth_shapiro > 0 .and. nsmooth <= 0) then
+  if (nsmooth_shapiro > izero .and. nsmooth <= izero) then
     do i=1,lat2
     do j=1,lon2
      do l=1,nsmooth_shapiro
        gaux(1:nsig)=g(i,j,1:nsig)
        do k=1,nsig
-         kp=min(k+1,nsig) ; km=max(1,k-1)
-         kp3=min(k+3,nsig) ; km3=max(1,k-3)
-         g(i,j,k)=.28125*(gaux(kp)+gaux(km))+.5*gaux(k)-.03125*(gaux(kp3)+gaux(km3))
+         kp=min(k+ione,nsig) ; km=max(ione,k-ione)
+         kp3=min(k+3_i_kind,nsig) ; km3=max(ione,k-3_i_kind)
+         g(i,j,k)=.28125_r_kind*(gaux(kp)+gaux(km))+half*gaux(k)-.03125_r_kind*(gaux(kp3)+gaux(km3))
        enddo
      enddo
     enddo
@@ -501,12 +527,35 @@ end subroutine vert_smther
 
 
 subroutine tvert_smther(g,nsmooth,nsmooth_shapiro)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    tvert_smther
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-09-15  lueken - added subprogram doc block
+!
+!   input argument list:
+!    nsmooth
+!    nsmooth_shapiro
+!    g
+!
+!   output argument list:
+!    g
+!
+! Notes:  nsmooth > 0 ==>  1-2-1 smoother
+!         nsmooth_shapiro 0 ==>  second moment preserving
+!                               "shapiro smoother"
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-! adjoint of tvert_smther
-! nsmooth > 0 ==>  1-2-1 smoother
-! nsmooth_shapiro 0 ==>  second moment preserving
-!                       "shapiro smoother"
-
+  use constants, only: izero,ione,zero,quarter,half
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig
   implicit none
@@ -520,20 +569,20 @@ subroutine tvert_smther(g,nsmooth,nsmooth_shapiro)
   integer(i_kind) i,j,l,k,kp,km,kp3,km3
   real(r_kind), allocatable:: gaux(:)
 
-  if (nsig==1)return
+  if (nsig==ione)return
 
   allocate(gaux(1:nsig))
 
-  if (nsmooth > 0 ) then
+  if (nsmooth > izero ) then
     do i=1,lat2
     do j=1,lon2
      do l=1,nsmooth
-       gaux(1:nsig)=0._r_kind
+       gaux(1:nsig)=zero
        do k=1,nsig
-         kp=min(k+1,nsig) ; km=max(1,k-1)
-         gaux(k)=gaux(k)+.5*g(i,j,k)
-         gaux(km)=gaux(km)+.25*g(i,j,k)
-         gaux(kp)=gaux(kp)+.25*g(i,j,k)
+         kp=min(k+ione,nsig) ; km=max(ione,k-ione)
+         gaux(k)=gaux(k)+half*g(i,j,k)
+         gaux(km)=gaux(km)+quarter*g(i,j,k)
+         gaux(kp)=gaux(kp)+quarter*g(i,j,k)
        enddo
        g(i,j,1:nsig)=gaux(1:nsig)
      enddo
@@ -541,19 +590,19 @@ subroutine tvert_smther(g,nsmooth,nsmooth_shapiro)
     enddo
   endif
 
-  if (nsmooth_shapiro > 0 .and. nsmooth <= 0) then
+  if (nsmooth_shapiro > izero .and. nsmooth <= izero) then
     do i=1,lat2
     do j=1,lon2
      do l=1,nsmooth_shapiro
-       gaux(1:nsig)=0._r_kind
+       gaux(1:nsig)=zero
        do k=1,nsig
-         kp=min(k+1,nsig) ; km=max(1,k-1)
-         kp3=min(k+3,nsig) ; km3=max(1,k-3)
-         gaux(km3)=gaux(km3)-.03125*g(i,j,k)
-         gaux(kp3)=gaux(kp3)-.03125*g(i,j,k)
-         gaux(k)=gaux(k)+.5*g(i,j,k)
-         gaux(km)=gaux(km)+.28125*g(i,j,k)
-         gaux(kp)=gaux(kp)+.28125*g(i,j,k)
+         kp=min(k+ione,nsig) ; km=max(ione,k-ione)
+         kp3=min(k+3_i_kind,nsig) ; km3=max(ione,k-3_i_kind)
+         gaux(km3)=gaux(km3)-.03125_r_kind*g(i,j,k)
+         gaux(kp3)=gaux(kp3)-.03125_r_kind*g(i,j,k)
+         gaux(k)=gaux(k)+half*g(i,j,k)
+         gaux(km)=gaux(km)+.28125_r_kind*g(i,j,k)
+         gaux(kp)=gaux(kp)+.28125_r_kind*g(i,j,k)
        enddo
        g(i,j,1:nsig)=gaux(1:nsig)
      enddo
@@ -591,7 +640,7 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
   use kinds, only: r_kind,i_kind,r_single
   use anberror, only: indices, filter_all,ngauss,halo_update_reg
   use mpimod, only: mype,npe
-  use constants, only: zero
+  use constants, only: izero,ione,zero
   use gridmod, only: lat2,lon2,istart,jstart,nsig
   use raflib, only: raf4_ad_wrap,raf4_wrap
   implicit none
@@ -616,16 +665,16 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
   jps=indices%jps; jpe=indices%jpe
   kps=indices%kps; kpe=indices%kpe
 
-  mm1=mype+1
+  mm1=mype+ione
 
 !  transfer variables to ngauss copies
-  kk=0
+  kk=izero
   do k=1,nsig
-    kk=kk+1
+    kk=kk+ione
     do j=jps,jpe
-      jloc=j-jstart(mm1)+2
+      jloc=j-jstart(mm1)+2_i_kind
       do i=ips,ipe
-        iloc=i-istart(mm1)+2
+        iloc=i-istart(mm1)+2_i_kind
         do igauss=1,ngauss
           workb(igauss,i,j,kk)=st(iloc,jloc,k)
         end do
@@ -633,33 +682,33 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
     end do
   end do
   do k=1,nsig
-    kk=kk+1
+    kk=kk+ione
     do j=jps,jpe
-      jloc=j-jstart(mm1)+2
+      jloc=j-jstart(mm1)+2_i_kind
       do i=ips,ipe
-        iloc=i-istart(mm1)+2
+        iloc=i-istart(mm1)+2_i_kind
         do igauss=1,ngauss
           workb(igauss,i,j,kk)=vp(iloc,jloc,k)
         end do
       end do
     end do
   end do
-  kk=kk+1
+  kk=kk+ione
   do j=jps,jpe
-    jloc=j-jstart(mm1)+2
+    jloc=j-jstart(mm1)+2_i_kind
     do i=ips,ipe
-      iloc=i-istart(mm1)+2
+      iloc=i-istart(mm1)+2_i_kind
       do igauss=1,ngauss
         workb(igauss,i,j,kk)=p(iloc,jloc)
       end do
     end do
   end do
   do k=1,nsig
-    kk=kk+1
+    kk=kk+ione
     do j=jps,jpe
-      jloc=j-jstart(mm1)+2
+      jloc=j-jstart(mm1)+2_i_kind
       do i=ips,ipe
-        iloc=i-istart(mm1)+2
+        iloc=i-istart(mm1)+2_i_kind
         do igauss=1,ngauss
           workb(igauss,i,j,kk)=t(iloc,jloc,k)
         end do
@@ -667,11 +716,11 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
     end do
   end do
   do k=1,nsig
-    kk=kk+1
+    kk=kk+ione
     do j=jps,jpe
-      jloc=j-jstart(mm1)+2
+      jloc=j-jstart(mm1)+2_i_kind
       do i=ips,ipe
-        iloc=i-istart(mm1)+2
+        iloc=i-istart(mm1)+2_i_kind
         do igauss=1,ngauss
           workb(igauss,i,j,kk)=q(iloc,jloc,k)
         end do
@@ -681,17 +730,17 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
 
 !   apply recursive filter
 
-  call raf4_wrap(workb,filter_all,ngauss,indices,mype,npe)
-  call raf4_ad_wrap(workb,filter_all,ngauss,indices,mype,npe)
+  call raf4_wrap(workb,filter_all,ngauss,indices,npe)
+  call raf4_ad_wrap(workb,filter_all,ngauss,indices,npe)
 
 !  add together ngauss copies
-  kk=0
+  kk=izero
   do k=1,nsig
-    kk=kk+1
+    kk=kk+ione
     do j=jps,jpe
-      jloc=j-jstart(mm1)+2
+      jloc=j-jstart(mm1)+2_i_kind
       do i=ips,ipe
-        iloc=i-istart(mm1)+2
+        iloc=i-istart(mm1)+2_i_kind
         st(iloc,jloc,k)=zero
         do igauss=1,ngauss
           st(iloc,jloc,k)=st(iloc,jloc,k)+workb(igauss,i,j,kk)
@@ -700,11 +749,11 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
     end do
   end do
   do k=1,nsig
-    kk=kk+1
+    kk=kk+ione
     do j=jps,jpe
-      jloc=j-jstart(mm1)+2
+      jloc=j-jstart(mm1)+2_i_kind
       do i=ips,ipe
-        iloc=i-istart(mm1)+2
+        iloc=i-istart(mm1)+2_i_kind
         vp(iloc,jloc,k)=zero
         do igauss=1,ngauss
           vp(iloc,jloc,k)=vp(iloc,jloc,k)+workb(igauss,i,j,kk)
@@ -712,11 +761,11 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
       end do
     end do
   end do
-  kk=kk+1
+  kk=kk+ione
   do j=jps,jpe
-    jloc=j-jstart(mm1)+2
+    jloc=j-jstart(mm1)+2_i_kind
     do i=ips,ipe
-      iloc=i-istart(mm1)+2
+      iloc=i-istart(mm1)+2_i_kind
       p(iloc,jloc)=zero
       do igauss=1,ngauss
         p(iloc,jloc)=p(iloc,jloc)+workb(igauss,i,j,kk)
@@ -724,11 +773,11 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
     end do
   end do
   do k=1,nsig
-    kk=kk+1
+    kk=kk+ione
     do j=jps,jpe
-      jloc=j-jstart(mm1)+2
+      jloc=j-jstart(mm1)+2_i_kind
       do i=ips,ipe
-        iloc=i-istart(mm1)+2
+        iloc=i-istart(mm1)+2_i_kind
         t(iloc,jloc,k)=zero
         do igauss=1,ngauss
           t(iloc,jloc,k)=t(iloc,jloc,k)+workb(igauss,i,j,kk)
@@ -737,11 +786,11 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
     end do
   end do
   do k=1,nsig
-    kk=kk+1
+    kk=kk+ione
     do j=jps,jpe
-      jloc=j-jstart(mm1)+2
+      jloc=j-jstart(mm1)+2_i_kind
       do i=ips,ipe
-        iloc=i-istart(mm1)+2
+        iloc=i-istart(mm1)+2_i_kind
         q(iloc,jloc,k)=zero
         do igauss=1,ngauss
           q(iloc,jloc,k)=q(iloc,jloc,k)+workb(igauss,i,j,kk)
@@ -751,7 +800,7 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
   end do
 
 !   update halos:
-  call halo_update_reg(p,1)
+  call halo_update_reg(p,ione)
   call halo_update_reg(t,nsig)
   call halo_update_reg(q,nsig)
   call halo_update_reg(vp,nsig)
