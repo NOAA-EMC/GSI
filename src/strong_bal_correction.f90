@@ -190,6 +190,7 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 
 !    version 3 regional option
 
+    update=.true.
     call fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
 
   end if
