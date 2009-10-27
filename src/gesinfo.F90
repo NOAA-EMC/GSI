@@ -43,12 +43,12 @@ subroutine gesinfo(mype)
   use gfsio_module, only: gfsio_gfile,gfsio_open,gfsio_close,&
        gfsio_init,gfsio_finalize,gfsio_getfilehead
 
-  use constants, only: izero,zero,h300
+  use constants, only: izero,ione,zero,h300
 
   implicit none
 
 ! Declare local parameters
-  integer(i_kind),parameter:: lunges=11
+  integer(i_kind),parameter:: lunges=11_i_kind
   real(r_kind),parameter::  zero_001=0.001_r_kind
 
 
@@ -106,20 +106,20 @@ subroutine gesinfo(mype)
      else
 
 !       Determine NCEP atmospheric guess file format
-        intype = 0
+        intype = izero
         call sigio_sropen(lunges,filename,iret)
         call sigio_srhead(lunges,sighead,iret2)
-        if (iret==0 .and. iret2==0) then
-           intype = 1
+        if (iret==izero .and. iret2==izero) then
+           intype = ione
         else
            call gfsio_init(iret)
            call gfsio_open(gfile,trim(filename),'read',iret)
            call gfsio_getfilehead(gfile,iret=iret2,gtype=filetype)
-           if (iret==0 .and. iret2==0 .and. filetype=='GFSIOATM') intype = 2
+           if (iret==izero .and. iret2==izero .and. filetype=='GFSIOATM') intype = 2_i_kind
         endif
-        if (intype==1) then
+        if (intype==ione) then
            ncep_sigio=.true.
-        elseif (intype==2) then
+        elseif (intype==2_i_kind) then
            ncep_sigio=.false.
         else
            write(6,*)' GESINFO:  UNKNOWN FORMAT FOR NCEP ATM GUESS FILE ',filename
@@ -152,16 +152,16 @@ subroutine gesinfo(mype)
            gfshead%ncldt=sighead%ncldt
            gfshead%nvcoord=sighead%nvcoord
 
-           allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
+           allocate(gfsheadv%vcoord(gfshead%levs+ione,gfshead%nvcoord))
            gfsheadv%vcoord=sighead%vcoord
 
-           allocate(gfsheadv%cpi(gfshead%ntrac+1))
-           if (mod(gfshead%idvm/10,10) == 3) then
-              do k=1,gfshead%ntrac+1
+           allocate(gfsheadv%cpi(gfshead%ntrac+ione))
+           if (mod(gfshead%idvm/10,10) == 3_i_kind) then
+              do k=1,gfshead%ntrac+ione
                  gfsheadv%cpi(k)=sighead%cpi(k)
               end do
            else
-              do k=1,gfshead%ntrac+1
+              do k=1,gfshead%ntrac+ione
                  gfsheadv%cpi(k)=zero
               end do
            endif
@@ -196,11 +196,11 @@ subroutine gesinfo(mype)
 
 
 !          Extract horizontal and vertical coordinate structure
-           allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
+           allocate(gfsheadv%vcoord(gfshead%levs+ione,gfshead%nvcoord))
            call gfsio_getfilehead(gfile,iret=iret,vcoord=gfsheadv%vcoord)
 
-           allocate(gfsheadv%cpi(gfshead%ntrac+1))
-           do k=1,gfshead%ntrac+1
+           allocate(gfsheadv%cpi(gfshead%ntrac+ione))
+           do k=1,gfshead%ntrac+ione
               gfsheadv%cpi(k)=zero
            end do
 
@@ -208,10 +208,10 @@ subroutine gesinfo(mype)
            call gfsio_finalize()
 
 !          Check for consistency:  jcap, levs, latb,lonb
-           if (gfshead%latb+2/=nlat .or. gfshead%lonb/=nlon .or. &
+           if (gfshead%latb+2_i_kind/=nlat .or. gfshead%lonb/=nlon .or. &
                 gfshead%levs/=nsig ) then
               write(6,*)'GESINFO:  ***ERROR*** gfsio (latb+2,lonb,levs)=',&
-                   gfshead%latb+2,gfshead%lonb,gfshead%levs, ' do not equal ',&
+                   gfshead%latb+2_i_kind,gfshead%lonb,gfshead%levs, ' do not equal ',&
                    ' user (nlat,nlon,nsig)=',nlat,nlon,nsig
               call stop2(85)
            endif
@@ -231,23 +231,23 @@ subroutine gesinfo(mype)
 !       Load vertical coordinate structure
         idvc5=gfshead%idvc
         idsl5=gfshead%idsl
-        do k=1,nsig+1
+        do k=1,nsig+ione
            ak5(k)=zero
            bk5(k)=zero
            ck5(k)=zero
         end do
 
-        if (gfshead%nvcoord == 1) then
-           do k=1,nsig+1
+        if (gfshead%nvcoord == ione) then
+           do k=1,nsig+ione
               bk5(k) = gfsheadv%vcoord(k,1)
            end do
-        elseif (gfshead%nvcoord == 2) then
-           do k = 1,nsig+1
+        elseif (gfshead%nvcoord == 2_i_kind) then
+           do k = 1,nsig+ione
               ak5(k) = gfsheadv%vcoord(k,1)*zero_001
               bk5(k) = gfsheadv%vcoord(k,2)
            end do
-        elseif (gfshead%nvcoord == 3) then
-           do k = 1,nsig+1
+        elseif (gfshead%nvcoord == 3_i_kind) then
+           do k = 1,nsig+ione
               ak5(k) = gfsheadv%vcoord(k,1)*zero_001
               bk5(k) = gfsheadv%vcoord(k,2)
               ck5(k) = gfsheadv%vcoord(k,3)*zero_001
@@ -269,8 +269,8 @@ subroutine gesinfo(mype)
 
 !       Load specific heat for tracers
         if (allocated(cp5)) deallocate(cp5)
-        allocate(cp5(gfshead%ntrac+1))
-        do k=1,gfshead%ntrac+1
+        allocate(cp5(gfshead%ntrac+ione))
+        do k=1,gfshead%ntrac+ione
            cp5(k)=gfsheadv%cpi(k)
         end do
 
@@ -295,7 +295,7 @@ subroutine gesinfo(mype)
            do k=1,nsig
               write(6,110) k,ak5(k),bk5(k),ck5(k),tref5(k)
            end do
-           k=nsig+1
+           k=nsig+ione
            write(6,110) k,ak5(k),bk5(k),ck5(k)
 110        format(3x,'k,ak,bk,ck,tref=',i3,1x,4(g18.12,1x))
         endif
@@ -314,32 +314,32 @@ subroutine gesinfo(mype)
 !    Compute analysis time from guess date and forecast length.
      iyr=idate4(4)
      ihourg=hourg
-     if(iyr>=izero.and.iyr<=99) then
-        if(iyr>51) then
-           iyr=iyr+1900
+     if(iyr>=izero.and.iyr<=99_i_kind) then
+        if(iyr>51_i_kind) then
+           iyr=iyr+1900_i_kind
         else
-           iyr=iyr+2000
+           iyr=iyr+2000_i_kind
         end if
      end if
-     fha=zero; ida=0; jda=0
+     fha=zero; ida=izero; jda=izero
      fha(2)=ihourg    ! relative time interval in hours
      ida(1)=iyr       ! year
      ida(2)=idate4(2) ! month
      ida(3)=idate4(3) ! day
-     ida(4)=0         ! time zone
+     ida(4)=izero     ! time zone
      ida(5)=idate4(1) ! hour
      call w3movdat(fha,ida,jda)
      iadate(1)=jda(1) ! year
      iadate(2)=jda(2) ! mon
      iadate(3)=jda(3) ! day
      iadate(4)=jda(5) ! hour
-     iadate(5)=0      ! minute
+     iadate(5)=izero  ! minute
      ianldate =jda(1)*1000000+jda(2)*10000+jda(3)*100+jda(5)
 
 !  Determine date and time at start of assimilation window
-   ida(:)=0
-   jda(:)=0
-   fha(:)=0.0
+   ida(:)=izero
+   jda(:)=izero
+   fha(:)=zero
    fha(2)=-nhr_offset
    ida(1:3)=iadate(1:3)
    ida(5:6)=iadate(4:5)
@@ -355,10 +355,10 @@ subroutine gesinfo(mype)
 
 !  Determine date and time at end of assimilation window
    ida(:)=jda(:)
-   jda(:)=0
-   fha(:)=0.0
-   if ( nhr_offset == 0 ) then
-        fha(2)=0
+   jda(:)=izero
+   fha(:)=zero
+   if ( nhr_offset == izero ) then
+        fha(2)=zero
    else
         fha(2)=nhr_assimilation
    endif

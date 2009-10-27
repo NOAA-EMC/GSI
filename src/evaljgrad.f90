@@ -1,5 +1,4 @@
 subroutine evaljgrad(xhat,fjcost,gradx,lupdfgs,nprt,calledby)
-
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    evaljgrad
@@ -34,7 +33,7 @@ subroutine evaljgrad(xhat,fjcost,gradx,lupdfgs,nprt,calledby)
 
 use kinds, only: r_kind,i_kind,r_quad
 use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, lwrtinc
-use constants, only: zero,zero_quad
+use constants, only: izero,ione,zero,zero_quad
 use mpimod, only: mype
 use jfunc, only: xhatsave
 use jcmod, only: ljcdfi
@@ -70,7 +69,7 @@ character(len=255) :: seqcalls
 
 !**********************************************************************
 
-llprt=(mype==0.and.nprt>=2)
+llprt=(mype==izero.and.nprt>=2_i_kind)
 llouter=.false.
 seqcalls = trim(calledby)//'::'//trim(myname)
 
@@ -105,7 +104,7 @@ zjb=dot_product(gradx,gradx,r_quad)
 ! Convert from control space to model space
 call control2model(xhat,mval,sbias)
 
-if (nprt>=2) then
+if (nprt>=2_i_kind) then
   do ii=1,nsubwin
     call prt_state_norms(mval(ii),'mval')
   enddo
@@ -120,7 +119,7 @@ else
   enddo
 end if
 
-if (nprt>=2) then
+if (nprt>=2_i_kind) then
   do ii=1,nobs_bins
     call prt_state_norms(sval(ii),'sval')
   enddo
@@ -161,7 +160,7 @@ if (l_do_adjoint) then
     zjc=zero_quad
   endif
 
-  if (nprt>=2) then
+  if (nprt>=2_i_kind) then
     do ii=1,nobs_bins
       call prt_state_norms(rval(ii),'rval')
     enddo
@@ -177,7 +176,7 @@ if (l_do_adjoint) then
     enddo
   end if
 
-  if (nprt>=2) then
+  if (nprt>=2_i_kind) then
     do ii=1,nsubwin
       call prt_state_norms(mval(ii),'mval')
     enddo
@@ -190,9 +189,9 @@ if (l_do_adjoint) then
   fjcost=zjb+zjo+zjc+zjl
 
 ! Print diagnostics
-  if (nprt>=2) call prt_control_norms(gradx,'gradx')
-  if (nprt>=1.and.mype==0) write(6,999)trim(seqcalls),': grepcost J,Jb,Jo,Jc,Jl=',&
-                              fjcost,zjb,zjo,zjc,zjl
+  if (nprt>=2_i_kind) call prt_control_norms(gradx,'gradx')
+  if (nprt>=ione.and.mype==izero) write(6,999)trim(seqcalls),': grepcost J,Jb,Jo,Jc,Jl=',&
+                                     fjcost,zjb,zjo,zjc,zjl
 endif
 
 ! Produce diagnostic when applying strong constraint
@@ -202,7 +201,7 @@ endif
 if (lupdfgs) then
   call xhat_vordiv_init
   call xhat_vordiv_calc(sval)
-  if (nprt>=1.and.mype==0) write(6,*)trim(seqcalls),': evaljgrad: Updating guess'
+  if (nprt>=ione.and.mype==izero) write(6,*)trim(seqcalls),': evaljgrad: Updating guess'
   call update_guess(sval,sbias)
   call write_all(.false.,mype)
   if (lwrtinc) then

@@ -53,7 +53,7 @@ subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only:  one
+  use constants, only: izero,ione,one
   use balmod, only: rllat1,llmax
   use berror, only: dssv,dssvp,dssvt,qvar3d
   use gridmod, only: nsig,regional,lat2,lon2
@@ -78,7 +78,7 @@ subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
       do i=1,lon2
         do j=1,lat2
           l=int(rllat1(j,i))
-          l2=min0(l+1,llmax)
+          l2=min0(l+ione,llmax)
           dl2=rllat1(j,i)-float(l)
           dl1=one-dl2
           st(j,i,k)  =st(j,i,k)  *(dl1*dssv(1,l,i,k)+dl2*dssv(1,l2,i,k))
@@ -89,23 +89,23 @@ subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
           cwmr(j,i,k)=cwmr(j,i,k)*(dl1*dssv(6,l,i,k)+dl2*dssv(6,l2,i,k))
         end do
       enddo
-      if(k == 1)then
+      if(k == ione)then
 
-        if(iflg == 0) then
+        if(iflg == izero) then
 ! Surface fields
          do j=1,lon2
            do i=1,lat2
              l=int(rllat1(i,j))
-             l2=min0(l+1,llmax)
+             l2=min0(l+ione,llmax)
              dl2=rllat1(i,j)-float(l)
              dl1=one-dl2
              p(i,j)=p(i,j)*(dl1*dssvp(l,j)+dl2*dssvp(l2,j))
 ! Break skin temperature into components
 !          If land point
-             if(isli2(i,j) == 1) then
+             if(isli2(i,j) == ione) then
                 slndt(i,j)=skint(i,j)*(dl1*dssvt(l,j,2)+dl2*dssvt(l2,j,2))
 !          If ice
-             else if(isli2(i,j) == 2) then
+             else if(isli2(i,j) == 2_i_kind) then
                 sicet(i,j)=skint(i,j)*(dl1*dssvt(l,j,3)+dl2*dssvt(l2,j,3))
 !          Else treat as a water point
              else
@@ -114,21 +114,21 @@ subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
            end do
          end do
 
-        else if (iflg.eq.1) then
+        else if (iflg==ione) then
 ! Surface fields
          do j=1,lon2
            do i=1,lat2
              l=int(rllat1(i,j))
-             l2=min0(l+1,llmax)
+             l2=min0(l+ione,llmax)
              dl2=rllat1(i,j)-float(l)
              dl1=one-dl2
              p(i,j)=p(i,j)*(dl1*dssvp(l,j)+dl2*dssvp(l2,j))
 ! Combine sst,slndt, and sicet into skin temperature field
 !          Land point, load land sfc t into skint
-             if(isli2(i,j) == 1) then
+             if(isli2(i,j) == ione) then
                 skint(i,j)=slndt(i,j)*(dl1*dssvt(l,j,2)+dl2*dssvt(l2,j,2))
 !          Ice, load ice temp into skint
-             else if(isli2(i,j) == 2) then
+             else if(isli2(i,j) == 2_i_kind) then
                 skint(i,j)=sicet(i,j)*(dl1*dssvt(l,j,3)+dl2*dssvt(l2,j,3))
 !          Treat as a water point, load sst into skint
              else
@@ -157,14 +157,14 @@ subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
         end do
       enddo
 
-      if(k == 1)then
+      if(k == ione)then
 ! Surface fields
        do j=1,lon2
         do i=1,lat2
            p(i,j)=p(i,j)*dssvp(i,j)
         end do
        end do
-       if (iflg == 0) then
+       if (iflg == izero) then
 ! Break skin temperature into components
          do j=1,lon2
            do i=1,lat2

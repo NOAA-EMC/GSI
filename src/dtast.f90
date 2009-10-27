@@ -35,7 +35,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,izero
+  use constants, only: zero,izero,ione
   use convinfo, only: nconvtype,ictype,icsubtype,ioctype
   use qcmod, only: npres_print
   implicit none
@@ -59,7 +59,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
   
 
 ! Initialize variables
-  count=0; rms=zero; bias=zero; rat=zero; qcrat=zero 
+  count=izero; rms=zero; bias=zero; rat=zero; qcrat=zero 
   typx(1)='    '
   typx(2)='rej '
   typx(3)='mon '
@@ -69,10 +69,10 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
   do k=1,240
      cline(k) = '-'
   end do
-  imsg=max(1,index(mesage,'$')-1)
-  ilin=max(imsg,min(nlev*8+28,240))
+  imsg=max(ione,index(mesage,'$')-ione)
+  ilin=max(imsg,min(nlev*8+28_i_kind,240))
   write(iout,505) mesage(1:imsg)
-  if (nlev > 1) then
+  if (nlev > ione) then
      write(iout,510)'                              ptop  ',(ptop(k),k=1,nlev)
      write(iout,510)'     it     obs    type styp  pbot  ',(pbot(k),k=1,nlev)
   end if
@@ -88,19 +88,19 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
         count(i,j,1) = nint(work1(i,j,1,1))    ! data count used
         count(i,j,2) = nint(work1(i,j,1,2))    ! data count rejected
         count(i,j,3) = nint(work1(i,j,1,3))    ! data count monitored
-        if(count(i,j,1) > 0)then
+        if(count(i,j,1) > izero)then
           bias(i,j,1)  = work1(i,j,2,1)        ! bias used
           rms(i,j,1)   = work1(i,j,3,1)        ! rms used
           rat(i,j,1)   = work1(i,j,4,1)        ! penalty used
           qcrat(i,j,1) = work1(i,j,5,1)        ! nonlin qc penalty used
         end if
-        if(count(i,j,2) > 0)then
+        if(count(i,j,2) > izero)then
           bias(i,j,2)  = work1(i,j,2,2)        ! bias rejected
           rms(i,j,2)   = work1(i,j,3,2)        ! rms rejected
           rat(i,j,2)   = work1(i,j,4,2)        ! penalty rejected
           qcrat(i,j,2) = work1(i,j,5,2)        ! nonlin qc penalty rejected
         end if
-        if(count(i,j,3) > 0)then
+        if(count(i,j,3) > izero)then
           bias(i,j,3)  = work1(i,j,2,3)        ! bias monitored
           rms(i,j,3)   = work1(i,j,3,3)        ! rms monitored
           rat(i,j,3)   = work1(i,j,4,3)        ! penalty monitored
@@ -112,7 +112,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
 
 
 ! Print statistics for single level obs (e.g., surface pressure)     
-  if (nlev == 1) then
+  if (nlev == ione) then
     write(iout,600) ptop(1),pbot(1)
     write(iout,610)
 600 format(1x,'pressure levels (hPa)=',f6.1,1x,f6.1)
@@ -124,7 +124,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
       ratall(1)=zero
       qcratall(1)=zero
       do i=1,nconvtype
-         if(pflag(i) .and. count(1,i,nn) > 0)then
+         if(pflag(i) .and. count(1,i,nn) > izero)then
             biasx(1)=bias(1,i,nn)/count(1,i,nn)
             rmsx(1)=sqrt(rms(1,i,nn)/count(1,i,nn))
             ratx(1)=rat(1,i,nn)/count(1,i,nn)
@@ -139,7 +139,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
             write(iout,700) label,typx(nn),obstyp,count(nlev,i,nn),biasx(1),rmsx(1),ratx(1),qcratx(1)
          end if
       end do
-      if(countall(1) > 0)then
+      if(countall(1) > izero)then
         biasx(1)=biasall(1)/countall(1)
         rmsx(1)=sqrt(rmsall(1)/countall(1))
         ratx(1)=ratall(1)/countall(1)
@@ -161,7 +161,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
       ratall=zero
       qcratall=zero
       do i = 1,nconvtype
-         if(pflag(i) .and. count(nlev,i,nn) > 0)then
+         if(pflag(i) .and. count(nlev,i,nn) > izero)then
            biasx=zero
            rmsx=zero
            ratx=zero
@@ -188,7 +188,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
           write(iout,800) label,typx(nn),obstyp,'qcpen',(qcratx(k),k=1,nlev)
          end if
       end do
-      if(countall(nlev) > 0)then
+      if(countall(nlev) > izero)then
        biasx=zero
        rmsx=zero
        ratx=zero

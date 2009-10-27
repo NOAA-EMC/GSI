@@ -16,7 +16,7 @@ subroutine geos_pgcmtest(xini,xobs,ldprt)
 use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
 use gsi_4dvar, only: iadatebgn,idmodel
-use constants, only: zero,one,tiny_r_kind,r3600
+use constants, only: izero,ione,zero,one,tiny_r_kind,r3600
 #ifdef GEOS_PERT
 use prognostics, only: dyn_prog
 use prognostics, only: prognostics_initial
@@ -52,7 +52,7 @@ type(dyn_prog) :: ypert
 real(r_kind)   :: tstep, zt
 real(r_kind)   :: d0(10),d1(nobs_bins*nsubwin),d2(nsubwin)
 logical cases(0:5)
-integer, save :: mycount = 0
+integer(i_kind), save :: mycount = izero
 
 cases = .false.
 cases(4) = .true.
@@ -60,7 +60,7 @@ cases(0:2) = .true.
 !cases(3) = .true.
 !******************************************************************************
 
-if ( mycount==-1 ) then  ! not active on purpose
+if ( mycount==-ione ) then  ! not active on purpose
 
 ! Initialize variables
 if (idmodel) then
@@ -91,7 +91,7 @@ if (ABS(hr_obsbin*r3600-zt)>epsilon(zt)) then
   write(6,*)'geos_pgcmtest: error nfrobs',hr_obsbin,zt
   call stop2(129)
 end if
-if (ndt<1)then
+if (ndt<ione)then
  write(6,*)'geos_pgcmtest: error ndt',ndt
  call stop2(130)
 end if
@@ -266,7 +266,7 @@ if (ldprt) write(6,*)'geos_pgcmtest: nstep,nfrctl,nfrobs=',nstep,nfrctl,nfrobs
 
        endif ! case 3
 
-       if ( cases(4) .and. (nsubwin==1) ) then
+       if ( cases(4) .and. (nsubwin==ione) ) then
 
           ! temporarily store state
           ! -----------------------
@@ -336,7 +336,7 @@ if (ldprt) write(6,*)'geos_pgcmtest: nstep,nfrctl,nfrobs=',nstep,nfrctl,nfrobs
     endif
 
 endif
-mycount = mycount + 1
+mycount = mycount + ione
 
 #endif /* GEOS_PERT */
 end subroutine geos_pgcmtest

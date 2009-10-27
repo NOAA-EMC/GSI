@@ -30,7 +30,7 @@ subroutine getuv(u,v,st,vp,iflg)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: izero,ione,zero
   use gridmod, only: regional,lat2,nsig,iglobal,lon1,itotsub,lon2,lat1, &
         nlat,nlon,latlon11,ltosj_s,ltosi_s,ltosi,ltosj
   use mpimod, only: iscvec_s,ierror,mpi_comm_world,irdvec_s,ircvec_s,&
@@ -55,19 +55,19 @@ subroutine getuv(u,v,st,vp,iflg)
   real(r_kind),dimension(lat2,lon2)::ux,vx
 
 
-  if(iflg == 0)then
+  if(iflg == izero)then
     do k=1,nsig
-      ioff=lu_gs(k)*lat1*lon1+1
-      call strip(st(1,1,k),uvsm(ioff),1)
-      ioff=lv_gs(k)*lat1*lon1+1
-      call strip(vp(1,1,k),uvsm(ioff),1)
+      ioff=lu_gs(k)*lat1*lon1+ione
+      call strip(st(1,1,k),uvsm(ioff),ione)
+      ioff=lv_gs(k)*lat1*lon1+ione
+      call strip(vp(1,1,k),uvsm(ioff),ione)
     end do
   else
     do k=1,nsig
-      ioff=lu_gs(k)*lat1*lon1+1
-      call strip(u(1,1,k),uvsm(ioff),1)
-      ioff=lv_gs(k)*lat1*lon1+1
-      call strip(v(1,1,k),uvsm(ioff),1)
+      ioff=lu_gs(k)*lat1*lon1+ione
+      call strip(u(1,1,k),uvsm(ioff),ione)
+      ioff=lv_gs(k)*lat1*lon1+ione
+      call strip(v(1,1,k),uvsm(ioff),ione)
     end do
   end if
    
@@ -91,12 +91,12 @@ subroutine getuv(u,v,st,vp,iflg)
        do l=1,iglobal
            ni1=ltosi(l); ni2=ltosj(l)
            stx(ni1,ni2)=work1(l,k)
-           vpx(ni1,ni2)=work1(l,k+1)
+           vpx(ni1,ni2)=work1(l,k+ione)
        end do
-       if(iflg == 0)then
-         call psichi2uv_reg(stx,vpx,workin(1,1,k),workin(1,1,k+1))
+       if(iflg == izero)then
+         call psichi2uv_reg(stx,vpx,workin(1,1,k),workin(1,1,k+ione))
        else
-         call psichi2uvt_reg(stx,vpx,workin(1,1,k),workin(1,1,k+1))
+         call psichi2uvt_reg(stx,vpx,workin(1,1,k),workin(1,1,k+ione))
        end if
     end do
   else
@@ -104,12 +104,12 @@ subroutine getuv(u,v,st,vp,iflg)
       do l=1,iglobal
            ni1=ltosi(l); ni2=ltosj(l)
            workin(ni1,ni2,k)=work1(l,k)
-           workin(ni1,ni2,k+1)=work1(l,k+1)
+           workin(ni1,ni2,k+ione)=work1(l,k+ione)
       end do
-      if(iflg == 0)then
-        call stvp2uv(workin(1,1,k),workin(1,1,k+1))
+      if(iflg == izero)then
+        call stvp2uv(workin(1,1,k),workin(1,1,k+ione))
       else
-        call tstvp2uv(workin(1,1,k),workin(1,1,k+1))
+        call tstvp2uv(workin(1,1,k),workin(1,1,k+ione))
       end if
     end do
   end if
@@ -130,18 +130,18 @@ subroutine getuv(u,v,st,vp,iflg)
        mpi_rtype,uvsm(1),ircvec_s,irdvec_s,&
        mpi_rtype,mpi_comm_world,ierror)
 
-  if(iflg == 0)then
+  if(iflg == izero)then
     do k=1,nsig
-      ioff=lu_gs(k)*latlon11+1
+      ioff=lu_gs(k)*latlon11+ione
       call vectosub(uvsm(ioff),latlon11,u(1,1,k))
-      ioff=lv_gs(k)*latlon11+1
+      ioff=lv_gs(k)*latlon11+ione
       call vectosub(uvsm(ioff),latlon11,v(1,1,k))
     end do
   else
     do k=1,nsig
-      ioff=lu_gs(k)*latlon11+1
+      ioff=lu_gs(k)*latlon11+ione
       call vectosub(uvsm(ioff),latlon11,ux)
-      ioff=lv_gs(k)*latlon11+1
+      ioff=lv_gs(k)*latlon11+ione
       call vectosub(uvsm(ioff),latlon11,vx)
       do j=1,lon2
         do i=1,lat2

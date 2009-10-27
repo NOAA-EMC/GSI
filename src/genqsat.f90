@@ -42,7 +42,7 @@ subroutine genqsat(qsat,ice,itime,dlnesdtv,dmax)
 !
 !$$$
   use kinds, only: r_single,r_kind,i_kind
-  use constants, only: xai,tmix,xb,omeps,eps,xbi,one,zero,&
+  use constants, only: ione,xai,tmix,xb,omeps,eps,xbi,one,zero,&
        xa,psat,ttp
   use gridmod, only: nsig,lon2,lat2
   use guess_grids, only: ges_tsen,ges_prsl
@@ -64,7 +64,7 @@ subroutine genqsat(qsat,ice,itime,dlnesdtv,dmax)
   onep3 = 1.e3_r_kind
 
   maxrh = zero
-  lmint=1
+  lmint=ione
   do j=1,lon2
     do i=1,lat2
       mint(i,j)=340._r_kind

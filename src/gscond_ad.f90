@@ -59,7 +59,7 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
 ! all entries are defined explicitly
 !==============================================
   use kinds, only: r_kind,i_kind
-  use constants, only: zero, half, one, two, el2orc, cclimit, elocp, rcp, &
+  use constants, only: izero, ione, zero, half, one, two, el2orc, cclimit, elocp, rcp, &
        cp, cpr, h1000, eps, climit, epsq, epsm1, hsub, hvap, ttp
   implicit none
 
@@ -290,7 +290,7 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
 !----------------------------------------------
   rdt = one/dt
   do i = 1, im
-     iw0 = 0
+     iw0 = izero
      iw1 = iw0
      iw0k(km,i) = iw0
      iw1k(km,i) = iw0
@@ -298,12 +298,12 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
         cwmin = cwm_in(k,i)
         tik = t_in(k,i)
         qin = q_in(k,i)
-        if (qin .gt. epsq) then
+        if (qin > epsq) then
            qik = qin
         else
            qik = epsq
         endif
-        if (cwmin .gt. climit) then
+        if (cwmin > climit) then
            cwmik = cwmin
         else
            cwmik = climit
@@ -311,7 +311,7 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
         prsk = ps(i)*sl(k,i)
         call fpvsx_ad(tik,esk,dum1,dum2,.false.)
         qsk = eps*esk/(prsk+epsm1*esk)
-        if (qsk .gt. epsq) then
+        if (qsk > epsq) then
            qsik = qsk
         else
            qsik = epsq
@@ -324,26 +324,26 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
 !
         
         tmt0 = tik-ttp
-        if (tmt0 .lt. (-15._r_kind)) then
+        if (tmt0 < (-15._r_kind)) then
            u00ik = rhc(k,i)
-           if (qik-u00ik*qsik .gt. zero .or. cwmik .gt. climit) then
-              iw0 = 1
+           if (qik-u00ik*qsik > zero .or. cwmik > climit) then
+              iw0 = ione
            else
-              iw0 = 0
+              iw0 = izero
            endif
         endif
-        if (tmt0 .ge. zero) then
-           iw0 = 0
+        if (tmt0 >= zero) then
+           iw0 = izero
         endif
-        if (tmt0 .lt. zero .and. tmt0 .ge. (-15._r_kind)) then
-           iw0 = 0
-           if (k .lt. km) then
-              if (iw1 .eq. 1 .and. cwmik .gt. climit) then
-                 iw0 = 1
+        if (tmt0 < zero .and. tmt0 >= (-15._r_kind)) then
+           iw0 = izero
+           if (k < km) then
+              if (iw1 == ione .and. cwmik > climit) then
+                 iw0 = ione
               endif
            endif
         endif
-        if (iw0 .eq. 0) then
+        if (iw0 == izero) then
            elv = hvap
         else
            elv = hsub
@@ -361,24 +361,24 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
         at = advt(k,i)
         aq = advq(k,i)
         ap = advp(k,i)
-        if (qsik .le. 1.e-10_r_kind) then
+        if (qsik <= 1.e-10_r_kind) then
            rqik = zero
         else
            rqik = qik/qsik
         endif
-        if (rqik .lt. u00ik) then
+        if (rqik < u00ik) then
            ccrik = zero
-        else if (rqik .ge. one) then
+        else if (rqik >= one) then
            ccrik = one
         else
-           if (rqik .lt. one) then
+           if (rqik < one) then
               rqikk = rqik
            else
               rqikk = one
            endif
            ccrik = one-sqrt((one-rqikk)/(one-u00ik))
         endif
-        if (ccrik .le. cclimit .and. cwmik .gt. climit) then
+        if (ccrik <= cclimit .and. cwmik > climit) then
            tx1_1 = tik
            tx3_1 = qik
            call fpvsx_ad(tx1_1,es_1,dum1,dum2,.false.)
@@ -404,17 +404,17 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
            delq_3 = (qs_3-tx3_3)*tsq_3/(tsq_3+el2orc*qs_3)
            tx2_4 = tx2_3+delq_3
            e4 = tx2_4*rdt
-           if (e4 .lt. zero) then
+           if (e4 < zero) then
               e3 = zero
            else
               e3 = e4
            endif
-           if (cwmik*rdt .lt. e3) then
+           if (cwmik*rdt < e3) then
               e2 = cwmik*rdt
            else
               e2 = e3
            endif
-           if (e2 .lt. zero) then
+           if (e2 < zero) then
               e1 = zero
            else
               e1 = e2
@@ -423,7 +423,7 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
         else
            e0 = zero
         endif
-        if (ccrik .gt. cclimit .and. qsik .gt. epsq) then
+        if (ccrik > cclimit .and. qsik > epsq) then
            us00 = one-u00ik
            ccrik1 = one-ccrik
            aa = eps*elv*pres*qik
@@ -436,12 +436,12 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
            ai = cp*aa
            cond1 = (ac-ad)*(af*aq-ai*at+ae*qik*ap)/(ac*(af+ag))
            condi = (qik-u00ik*qsik*one)*rdt
-           if (cond1 .lt. condi) then
+           if (cond1 < condi) then
               cond2 = cond1
            else
               cond2 = condi
            endif
-           if (cond2 .gt. zero) then
+           if (cond2 > zero) then
               cond3 = cond2
            else
               cond3 = zero
@@ -479,18 +479,18 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
         cwmin = cwm_in(k,i)
         tik = t_in(k,i)
         qin = q_in(k,i)
-        if (qin .gt. epsq) then
+        if (qin > epsq) then
            qik = qin
         else
            qik = epsq
         endif
-        if (cwmin .gt. climit) then
+        if (cwmin > climit) then
            cwmik = cwmin
         else
            cwmik = climit
         endif
         prsk = ps(i)*sl(k,i)
-        if (qsk .gt. epsq) then
+        if (qsk > epsq) then
            qsik = qsk
         else
            qsik = epsq
@@ -500,17 +500,17 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
         at = advt(k,i)
         aq = advq(k,i)
         ap = advp(k,i)
-        if (qsik .le. 1.e-10_r_kind) then
+        if (qsik <= 1.e-10_r_kind) then
            rqik = zero
         else
            rqik = qik/qsik
         endif
-        if (rqik .lt. u00ik) then
+        if (rqik < u00ik) then
            ccrik = zero
-        else if (rqik .ge. one) then
+        else if (rqik >= one) then
            ccrik = one
         else
-           if (rqik .lt. one) then
+           if (rqik < one) then
               rqikk = rqik
            else
               rqikk = one
@@ -519,23 +519,23 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
         endif
 
 !       Adjoint model
-        cone0_ad = cone0_ad-q_out_ad(k,i)
-        qin_ad = qin_ad+q_out_ad(k,i)
-        q_out_ad(k,i) = zero
-        cone0_ad = cone0_ad+t_out_ad(k,i)*elv*rcp
-        tik_ad = tik_ad+t_out_ad(k,i)
-        t_out_ad(k,i) = zero
-        cone0_ad = cone0_ad+cwm_out_ad(k,i)
-        cwmin_ad = cwmin_ad+cwm_out_ad(k,i)
+        cone0_ad        = cone0_ad-q_out_ad  (k,i)
+        qin_ad          = qin_ad  +q_out_ad  (k,i)
+        q_out_ad(k,i)   = zero
+        cone0_ad        = cone0_ad+t_out_ad  (k,i)*elv*rcp
+        tik_ad          = tik_ad  +t_out_ad  (k,i)
+        t_out_ad(k,i)   = zero
+        cone0_ad        = cone0_ad+cwm_out_ad(k,i)
+        cwmin_ad        = cwmin_ad+cwm_out_ad(k,i)
         cwm_out_ad(k,i) = zero
-        cond_ad = cond_ad+cone0_ad*dt
-        e0_ad = e0_ad-cone0_ad*dt
-        cone0_ad = zero
+        cond_ad         = cond_ad +cone0_ad*dt
+        e0_ad           = e0_ad   -cone0_ad*dt
+        cone0_ad        = zero
         
-        if (ccrik .gt. cclimit .and. qsik .gt. epsq) then
+        if (ccrik > cclimit .and. qsik > epsq) then
 
 !          Redo forward model calculations
-           us00 = one-u00ik
+           us00   = one-u00ik
            ccrik1 = one-ccrik
            aa = eps*elv*pres*qik
            ab = ccrik*ccrik1*qsik*us00
@@ -547,7 +547,7 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
            ai = cp*aa
            cond1 = (ac-ad)*(af*aq-ai*at+ae*qik*ap)/(ac*(af+ag))
            condi = (qik-u00ik*qsik*one)*rdt
-           if (cond1 .lt. condi) then
+           if (cond1 < condi) then
               cond2 = cond1
            else
               cond2 = condi
@@ -555,22 +555,22 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
            
 !          Adjoint model
            cond3_ad = cond3_ad+cond_ad
-           cond_ad = zero
-           if (cond2 .gt. zero) then
+           cond_ad  = zero
+           if (cond2 > zero) then
               cond2_ad = cond2_ad+cond3_ad
               cond3_ad = zero
            else
               cond3_ad = zero
            endif
-           if (cond1 .lt. condi) then
+           if (cond1 < condi) then
               cond1_ad = cond1_ad+cond2_ad
               cond2_ad = zero
            else
               condi_ad = condi_ad+cond2_ad
               cond2_ad = zero
            endif
-           qik_ad = qik_ad+condi_ad*rdt
-           qsik_ad = qsik_ad-one*condi_ad*u00ik*rdt
+           qik_ad   = qik_ad +    condi_ad      *rdt
+           qsik_ad  = qsik_ad-one*condi_ad*u00ik*rdt
            condi_ad = zero
            ac_ad = ac_ad+cond1_ad*((af*aq-ai*at+ae*qik*ap)/(ac*(af+ag))- &
                 (ac-ad)*(af*aq-ai*at+ae*qik*ap)*(af+ag)/(ac*(af+ag)*ac*(af+ag)))
@@ -611,38 +611,38 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
         else
            cond_ad = zero
         endif
-        if (ccrik .le. cclimit .and. cwmik .gt. climit) then
+        if (ccrik <= cclimit .and. cwmik > climit) then
 
 !          Redo forward model calculations.  Vapor pressure calculations
 !          are saved from the forward model
-           tx1_1 = tik
-           tx3_1 = qik
-           es_1 = es_1k(k,i)
-           qs_1 = u00ik*eps*es_1/(prsk+epsm1*es_1)
-           tsq_1 = tx1_1*tx1_1
+           tx1_1  = tik
+           tx3_1  = qik
+           es_1   = es_1k(k,i)
+           qs_1   = u00ik*eps*es_1/(prsk+epsm1*es_1)
+           tsq_1  = tx1_1*tx1_1
            delq_1 = half*(qs_1-tx3_1)*tsq_1/(tsq_1+el2orc*qs_1)
-           tx2_2 = delq_1
-           tx1_2 = tx1_1-delq_1*elocp
-           tx3_2 = tx3_1+delq_1
-           es_2 = es_2k(k,i)
-           qs_2 = u00ik*eps*es_2/(prsk+epsm1*es_2)
-           tsq_2 = tx1_2*tx1_2
+           tx2_2  = delq_1
+           tx1_2  = tx1_1-delq_1*elocp
+           tx3_2  = tx3_1+delq_1
+           es_2   = es_2k(k,i)
+           qs_2   = u00ik*eps*es_2/(prsk+epsm1*es_2)
+           tsq_2  = tx1_2*tx1_2
            delq_2 = (qs_2-tx3_2)*tsq_2/(tsq_2+el2orc*qs_2)
-           tx2_3 = tx2_2+delq_2
-           tx1_3 = tx1_2-delq_2*elocp
-           tx3_3 = tx3_2+delq_2
-           es_3 = es_3k(k,i)
-           qs_3 = u00ik*eps*es_3/(prsk+epsm1*es_3)
-           tsq_3 = tx1_3*tx1_3
+           tx2_3  = tx2_2+delq_2
+           tx1_3  = tx1_2-delq_2*elocp
+           tx3_3  = tx3_2+delq_2
+           es_3   = es_3k(k,i)
+           qs_3   = u00ik*eps*es_3/(prsk+epsm1*es_3)
+           tsq_3  = tx1_3*tx1_3
            delq_3 = (qs_3-tx3_3)*tsq_3/(tsq_3+el2orc*qs_3)
-           tx2_4 = tx2_3+delq_3
-           e4 = tx2_4*rdt
-           if (e4 .lt. zero) then
+           tx2_4  = tx2_3+delq_3
+           e4     = tx2_4*rdt
+           if (e4 < zero) then
               e3 = zero
            else
               e3 = e4
            endif
-           if (cwmik*rdt .lt. e3) then
+           if (cwmik*rdt < e3) then
               e2 = cwmik*rdt
            else
               e2 = e3
@@ -651,127 +651,127 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
 !          Adjoint model
            e1_ad = e1_ad+e0_ad
            e0_ad = zero
-           if (e2 .lt. zero) then
+           if (e2 < zero) then
               e1_ad = zero
            else
               e2_ad = e2_ad+e1_ad
               e1_ad = zero
            endif
-           if (cwmik*rdt .lt. e3) then
+           if (cwmik*rdt < e3) then
               cwmik_ad = cwmik_ad+e2_ad*rdt
               e2_ad = zero
            else
               e3_ad = e3_ad+e2_ad
               e2_ad = zero
            endif
-           if (e4 .lt. zero) then
+           if (e4 < zero) then
               e3_ad = zero
            else
               e4_ad = e4_ad+e3_ad
               e3_ad = zero
            endif
-           tx2_4_ad = tx2_4_ad+e4_ad*rdt
-           e4_ad = zero
+           tx2_4_ad  = tx2_4_ad+e4_ad*rdt
+           e4_ad     = zero
            delq_3_ad = delq_3_ad+tx2_4_ad
-           tx2_3_ad = tx2_3_ad+tx2_4_ad
-           tx2_4_ad = zero
-           qs_3_ad = qs_3_ad+delq_3_ad*(tsq_3/(tsq_3+el2orc*qs_3)-(qs_3- &
+           tx2_3_ad  = tx2_3_ad+tx2_4_ad
+           tx2_4_ad  = zero
+           qs_3_ad   = qs_3_ad+delq_3_ad*(tsq_3/(tsq_3+el2orc*qs_3)-(qs_3- &
                 tx3_3)*tsq_3*el2orc/((tsq_3+el2orc*qs_3)*(tsq_3+el2orc*qs_3)))
-           tsq_3_ad = tsq_3_ad+delq_3_ad*((qs_3-tx3_3)/(tsq_3+el2orc*qs_3) &
+           tsq_3_ad  = tsq_3_ad+delq_3_ad*((qs_3-tx3_3)/(tsq_3+el2orc*qs_3) &
                 -(qs_3-tx3_3)*tsq_3/((tsq_3+el2orc*qs_3)*(tsq_3+el2orc*qs_3)))
-           tx3_3_ad = tx3_3_ad-delq_3_ad*(tsq_3/(tsq_3+el2orc*qs_3))
+           tx3_3_ad  = tx3_3_ad-delq_3_ad*(tsq_3/(tsq_3+el2orc*qs_3))
            delq_3_ad = zero
-           tx1_3_ad = tx1_3_ad+2*tsq_3_ad*tx1_3
-           tsq_3_ad = zero
-           es_3_ad = es_3_ad+qs_3_ad*(u00ik*eps/(prsk+epsm1*es_3)-u00ik* &
+           tx1_3_ad  = tx1_3_ad+2*tsq_3_ad*tx1_3
+           tsq_3_ad  = zero
+           es_3_ad   = es_3_ad+qs_3_ad*(u00ik*eps/(prsk+epsm1*es_3)-u00ik* &
                 eps*es_3*epsm1/((prsk+epsm1*es_3)*(prsk+epsm1*es_3)))
-           qs_3_ad = zero
+           qs_3_ad   = zero
            call fpvsx_ad( tx1_3,es_3,tx1_3_ad,es_3_ad,adjoint )
-           es_3_ad = zero
+           es_3_ad   = zero
            delq_2_ad = delq_2_ad+tx3_3_ad
-           tx3_2_ad = tx3_2_ad+tx3_3_ad
+           tx3_2_ad  = tx3_2_ad+tx3_3_ad
            tx3_3_ad  = zero
            delq_2_ad = delq_2_ad-tx1_3_ad*elocp
-           tx1_2_ad = tx1_2_ad+tx1_3_ad
-           tx1_3_ad = zero
+           tx1_2_ad  = tx1_2_ad+tx1_3_ad
+           tx1_3_ad  = zero
            delq_2_ad = delq_2_ad+tx2_3_ad
-           tx2_2_ad = tx2_2_ad+tx2_3_ad
-           tx2_3_ad = zero
-           qs_2_ad = qs_2_ad+delq_2_ad*(tsq_2/(tsq_2+el2orc*qs_2)-(qs_2- &
+           tx2_2_ad  = tx2_2_ad+tx2_3_ad
+           tx2_3_ad  = zero
+           qs_2_ad   = qs_2_ad+delq_2_ad*(tsq_2/(tsq_2+el2orc*qs_2)-(qs_2- &
                 tx3_2)*tsq_2*el2orc/((tsq_2+el2orc*qs_2)*(tsq_2+el2orc*qs_2)))
-           tsq_2_ad = tsq_2_ad+delq_2_ad*((qs_2-tx3_2)/(tsq_2+el2orc*qs_2) &
+           tsq_2_ad  = tsq_2_ad+delq_2_ad*((qs_2-tx3_2)/(tsq_2+el2orc*qs_2) &
                 -(qs_2-tx3_2)*tsq_2/((tsq_2+el2orc*qs_2)*(tsq_2+el2orc*qs_2)))
-           tx3_2_ad = tx3_2_ad-delq_2_ad*(tsq_2/(tsq_2+el2orc*qs_2))
+           tx3_2_ad  = tx3_2_ad-delq_2_ad*(tsq_2/(tsq_2+el2orc*qs_2))
            delq_2_ad = zero
-           tx1_2_ad = tx1_2_ad+2*tsq_2_ad*tx1_2
-           tsq_2_ad = zero
-           es_2_ad = es_2_ad+qs_2_ad*(u00ik*eps/(prsk+epsm1*es_2)-u00ik* &
+           tx1_2_ad  = tx1_2_ad+2*tsq_2_ad*tx1_2
+           tsq_2_ad  = zero
+           es_2_ad   = es_2_ad+qs_2_ad*(u00ik*eps/(prsk+epsm1*es_2)-u00ik* &
                 eps*es_2*epsm1/((prsk+epsm1*es_2)*(prsk+epsm1*es_2)))
-           qs_2_ad = zero
+           qs_2_ad   = zero
            call fpvsx_ad( tx1_2,es_2,tx1_2_ad,es_2_ad,adjoint )
-           es_2_ad = zero
+           es_2_ad   = zero
            delq_1_ad = delq_1_ad+tx3_2_ad
-           tx3_1_ad = tx3_1_ad+tx3_2_ad
-           tx3_2_ad = zero
+           tx3_1_ad  = tx3_1_ad+tx3_2_ad
+           tx3_2_ad  = zero
            delq_1_ad = delq_1_ad-tx1_2_ad*elocp
-           tx1_1_ad = tx1_1_ad+tx1_2_ad
-           tx1_2_ad = zero
+           tx1_1_ad  = tx1_1_ad+tx1_2_ad
+           tx1_2_ad  = zero
            delq_1_ad = delq_1_ad+tx2_2_ad
-           tx2_2_ad = zero
-           qs_1_ad = qs_1_ad+delq_1_ad*(half*tsq_1/(tsq_1+el2orc*qs_1)-half* &
+           tx2_2_ad  = zero
+           qs_1_ad   = qs_1_ad+delq_1_ad*(half*tsq_1/(tsq_1+el2orc*qs_1)-half* &
                 (qs_1-tx3_1)*tsq_1*el2orc/((tsq_1+el2orc*qs_1)* &
                 (tsq_1+el2orc*qs_1) ))
-           tsq_1_ad = tsq_1_ad+delq_1_ad*(half*(qs_1-tx3_1)/(tsq_1+el2orc* &
+           tsq_1_ad  = tsq_1_ad+delq_1_ad*(half*(qs_1-tx3_1)/(tsq_1+el2orc* &
                 qs_1)-half*(qs_1-tx3_1)*tsq_1/((tsq_1+el2orc*qs_1)* &
                 (tsq_1+el2orc*qs_1)))
-           tx3_1_ad = tx3_1_ad+delq_1_ad*((-half)*tsq_1/(tsq_1+el2orc*qs_1))
+           tx3_1_ad  = tx3_1_ad+delq_1_ad*((-half)*tsq_1/(tsq_1+el2orc*qs_1))
            delq_1_ad = zero
-           tx1_1_ad = tx1_1_ad+2*tsq_1_ad*tx1_1
-           tsq_1_ad = zero
-           es_1_ad = es_1_ad+qs_1_ad*(u00ik*eps/(prsk+epsm1*es_1)-u00ik* &
+           tx1_1_ad  = tx1_1_ad+2*tsq_1_ad*tx1_1
+           tsq_1_ad  = zero
+           es_1_ad   = es_1_ad+qs_1_ad*(u00ik*eps/(prsk+epsm1*es_1)-u00ik* &
                 eps*es_1*epsm1/((prsk+epsm1*es_1)*(prsk+epsm1*es_1)))
-           qs_1_ad = zero
+           qs_1_ad   = zero
            call fpvsx_ad( tx1_1,es_1,tx1_1_ad,es_1_ad,adjoint )
-           es_1_ad = zero
-           qik_ad = qik_ad+tx3_1_ad
-           tx3_1_ad = zero
-           tik_ad = tik_ad+tx1_1_ad
-           tx1_1_ad = zero
+           es_1_ad   = zero
+           qik_ad    = qik_ad+tx3_1_ad
+           tx3_1_ad  = zero
+           tik_ad    = tik_ad+tx1_1_ad
+           tx1_1_ad  = zero
         else
            e0_ad = zero
         endif
-        if (rqik .lt. u00ik) then
+        if (rqik < u00ik) then
            ccrik_ad = zero
-        else if (rqik .ge. one) then
+        else if (rqik >= one) then
            ccrik_ad = zero
         else
            rqikk_ad = rqikk_ad+ccrik_ad*(one/(two*sqrt((one-rqikk)/ &
                 (one-u00ik)))/(one-u00ik))
            ccrik_ad = zero
-           if (rqik .lt. one) then
-              rqik_ad = rqik_ad+rqikk_ad
+           if (rqik < one) then
+              rqik_ad  = rqik_ad+rqikk_ad
               rqikk_ad = zero
            else
               rqikk_ad = zero
            endif
         endif
-        if (qsik .le. 1.e-10_r_kind) then
+        if (qsik <= 1.e-10_r_kind) then
            rqik_ad = zero
         else
-           qik_ad = qik_ad+rqik_ad/qsik
+           qik_ad  = qik_ad+rqik_ad/qsik
            qsik_ad = qsik_ad-rqik_ad*(qik/(qsik*qsik))
            rqik_ad = zero
         endif
         advp_ad(k,i) = advp_ad(k,i)+ap_ad
-        ap_ad = zero
+        ap_ad        = zero
         advq_ad(k,i) = advq_ad(k,i)+aq_ad
-        aq_ad = zero
+        aq_ad        = zero
         advt_ad(k,i) = advt_ad(k,i)+at_ad
-        at_ad = zero
-        tik_ad = tik_ad+tmt0_ad
-        tmt0_ad = zero
-        if (qsk .gt. epsq) then
-           qsk_ad = qsk_ad+qsik_ad
+        at_ad        = zero
+        tik_ad       = tik_ad+tmt0_ad
+        tmt0_ad      = zero
+        if (qsk > epsq) then
+           qsk_ad  = qsk_ad+qsik_ad
            qsik_ad = zero
         else
            qsik_ad = zero
@@ -781,24 +781,24 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
         qsk_ad = zero
         call fpvsx_ad( tik,esk,tik_ad,esk_ad,adjoint )
         esk_ad = zero
-        if (cwmin .gt. climit) then
+        if (cwmin > climit) then
            cwmin_ad = cwmin_ad+cwmik_ad
            cwmik_ad = zero
         else
            cwmik_ad = zero
         endif
-        if (qin .gt. epsq) then
+        if (qin > epsq) then
            qin_ad = qin_ad+qik_ad
            qik_ad = zero
         else
            qik_ad = zero
         endif
-        q_in_ad(k,i) = q_in_ad(k,i)+qin_ad
-        qin_ad = zero
-        t_in_ad(k,i) = t_in_ad(k,i)+tik_ad
-        tik_ad = zero
+        q_in_ad(k,i)   = q_in_ad(k,i)+qin_ad
+        qin_ad         = zero
+        t_in_ad(k,i)   = t_in_ad(k,i)+tik_ad
+        tik_ad         = zero
         cwm_in_ad(k,i) = cwm_in_ad(k,i)+cwmin_ad
-        cwmin_ad = zero
+        cwmin_ad       = zero
      end do
   end do
   

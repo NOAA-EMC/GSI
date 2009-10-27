@@ -1,5 +1,4 @@
 subroutine deter_subdomain(mype)
-
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    deter_subdomain          perform domain decomposition
@@ -28,14 +27,14 @@ subroutine deter_subdomain(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-
+  use constants, only: izero
   use mpimod, only: nxPE, nyPE
   implicit none
   integer,intent(in):: mype
 
 ! If a layout is provided, use it for the domain decomposition
 ! ------------------------------------------------------------
-  if ( nxPE > 0 .AND. nyPE > 0 ) then
+  if ( nxPE > izero .AND. nyPE > izero ) then
 
        call deter_subdomain_withLayout ( myPE, nxPE, nyPE ) ! ESMF-like
 
@@ -80,6 +79,7 @@ subroutine deter_subdomain_noLayout(mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind
+  use constants, only: izero,ione
   use gridmod, only: periodic,periodic_s,lon1,lat1,nlon,nlat,&
        ilat1,istart,jlon1,jstart
   use mpimod, only: npe
@@ -91,7 +91,7 @@ subroutine deter_subdomain_noLayout(mype)
 ! Declare local variables
   integer(i_kind) npts,nrnc,iinum,iileft,jrows,jleft,k,i,jjnum
   integer(i_kind) j,mm1,iicnt,ipts,jjleft
-  integer(i_kind),dimension(npe+1):: iiend,jjend,iistart
+  integer(i_kind),dimension(npe+ione):: iiend,jjend,iistart
   real(r_kind):: anperpe
 
 !************************************************************************
@@ -103,39 +103,39 @@ subroutine deter_subdomain_noLayout(mype)
 ! Start with square subdomains
   nrnc=sqrt(anperpe)
   iinum=nlon/nrnc
-  if(iinum==0) iinum=1
+  if(iinum==izero) iinum=ione
   iicnt=nlon/iinum
   iileft=nlon-iicnt*iinum
   jrows=npe/iinum
   jleft=npe-jrows*iinum
 
 ! Adjust subdomain boundaries
-  k=0
-  istart=1
-  jstart=1
-  iistart(1)=1
+  k=izero
+  istart=ione
+  jstart=ione
+  iistart(1)=ione
   do i=1,iinum
      ipts = iicnt
-     if(i <= iileft)ipts=ipts+1
-     iiend(i)=iistart(i)+ipts-1
-     iistart(i+1)=iiend(i)+1
+     if(i <= iileft)ipts=ipts+ione
+     iiend(i)=iistart(i)+ipts-ione
+     iistart(i+ione)=iiend(i)+ione
      jjnum=jrows
-     if(i <= jleft)jjnum=jrows+1
+     if(i <= jleft)jjnum=jrows+ione
      do j=1,jjnum
-        k=k+1
+        k=k+ione
         jlon1(k)=ipts
         jstart(k)= iistart(i)
         ilat1(k)=nlat/jjnum
         jjleft=nlat-ilat1(k)*jjnum
-        if(j <= jjleft)ilat1(k)=ilat1(k)+1
-        if(j > 1)istart(k)=jjend(j-1)+1
-        jjend(j)=istart(k)+ilat1(k)-1
+        if(j <= jjleft)ilat1(k)=ilat1(k)+ione
+        if(j > ione)istart(k)=jjend(j-1)+ione
+        jjend(j)=istart(k)+ilat1(k)-ione
 
         if (jlon1(k)==nlon) then
            periodic=.true.
            periodic_s(k)=.true.
         endif
-        if(mype == 0) &
+        if(mype == izero) &
              write(6,100) k-1,istart(k),jstart(k),ilat1(k),jlon1(k)
      end do
   end do
@@ -143,7 +143,7 @@ subroutine deter_subdomain_noLayout(mype)
 
 
 ! Set number of latitude and longitude for given subdomain
-  mm1=mype+1
+  mm1=mype+ione
   lat1=ilat1(mm1)
   lon1=jlon1(mm1)
   
@@ -159,6 +159,7 @@ end subroutine deter_subdomain_noLayout
 ! !USES:
 
   use kinds, only: i_kind
+  use constants, only: izero,ione
   use gridmod, only: lon1,lat1,nlon,nlat,&
        ilat1,istart,jlon1,jstart
 
@@ -199,8 +200,8 @@ end subroutine deter_subdomain_noLayout
 
   im=nlon; jm=nlat
   npe=nxpe*nype
-  allocate(imxy(0:nxpe-1),jmxy(0:nype-1), stat=ierr)
-  if(ierr /= 0) then
+  allocate(imxy(0:nxpe-ione),jmxy(0:nype-ione), stat=ierr)
+  if(ierr /= izero) then
     write(6,*)' DETER_SUBDOMAIN: ALLOCATE ERROR.'
     call stop2(30)
   end if
@@ -210,52 +211,52 @@ end subroutine deter_subdomain_noLayout
 
 ! compute subdomain boundaries  (axis indices)
 
-  k=0
+  k=izero
   iinum=imxy(0)
   jjnum=jmxy(0)
-  nxseg=2
-  nyseg=2
-  istart=1
-  jstart=1
-  iistart=1
-  jjstart=1
+  nxseg=2_i_kind
+  nyseg=2_i_kind
+  istart=ione
+  jstart=ione
+  iistart=ione
+  jjstart=ione
   lsetx=npe/nype
   lsety=npe/nype
-  do j=0,nype-1
-     do i=0,nxpe-1
-       k=k+1
-       if(i>0) then
-         if(imxy(i)<imxy(i-1)) iinum = imxy(i)
+  do j=0,nype-ione
+     do i=0,nxpe-ione
+       k=k+ione
+       if(i>izero) then
+         if(imxy(i)<imxy(i-ione)) iinum = imxy(i)
        end if
-       if(j>0) then
-         if(jmxy(j)<jmxy(j-1)) jjnum = jmxy(j)
+       if(j>izero) then
+         if(jmxy(j)<jmxy(j-ione)) jjnum = jmxy(j)
        end if
        ilat1(k)=jjnum
        jlon1(k)=iinum
-       if(k>1) then
+       if(k>ione) then
          if(nxseg<=lsetx) then
            jstart(k)=iistart+jlon1(k)
            iistart=jstart(k)
-           nxseg=nxseg+1
+           nxseg=nxseg+ione
          else
-           jstart(k)=1
-           iistart=1
-           nxseg=2
+           jstart(k)=ione
+           iistart=ione
+           nxseg=2_i_kind
          end if
          if(nyseg<=lsety) then
            istart(k)=jjstart
-           nyseg=nyseg+1
+           nyseg=nyseg+ione
          else
-           if(ilat1(k)<ilat1(k-1)) then
-             istart(k)=jjstart+ilat1(k)+1
+           if(ilat1(k)<ilat1(k-ione)) then
+             istart(k)=jjstart+ilat1(k)+ione
            else
              istart(k)=jjstart+ilat1(k)
            end if
            jjstart=istart(k)
-           nyseg=2
+           nyseg=2_i_kind
          end if
        end if
-       if(mype == 0) &
+       if(mype == izero) &
             write(6,100) k,istart(k),jstart(k),ilat1(k),jlon1(k)
      end do
   end do
@@ -264,12 +265,12 @@ end subroutine deter_subdomain_noLayout
   
         
 ! Set number of latitude and longitude for given subdomain
-  mm1=mype+1
+  mm1=mype+ione
   lat1=ilat1(mm1)
   lon1=jlon1(mm1)
 
   deallocate(imxy,jmxy, stat=ierr)
-  if(ierr /= 0) then
+  if(ierr /= izero) then
     write(6,*)' DETER_SUBDOMAIN: DEALLOCATE ERROR.'
     call stop2(30)
   end if 
@@ -306,13 +307,13 @@ end subroutine deter_subdomain_noLayout
 
   implicit   none
   integer(i_kind),intent(in)::    dim_world, NDEs
-  integer(i_kind),intent(inout):: dim(0:NDEs-1)
+  integer(i_kind),intent(inout):: dim(0:NDEs-ione)
   integer(i_kind)    n,im,rm
   im = dim_world/NDEs
   rm = dim_world-NDEs*im
-  do n=0,NDEs-1
-                    dim(n) = im
-    if( n.le.rm-1 ) dim(n) = im+1
+  do n=0,NDEs-ione
+     dim(n) = im
+     if( n<=rm-ione ) dim(n) = im+ione
   enddo
   end subroutine GET_LOCAL_DIMS
 

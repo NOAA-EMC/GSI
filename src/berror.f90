@@ -104,6 +104,24 @@ module berror
   use kinds, only: r_kind,i_kind
   implicit none
 
+! set default to private
+  private
+! set subroutines to public
+  public :: init_berror
+  public :: create_berror_vars
+  public :: destroy_berror_vars
+  public :: set_predictors_var
+  public :: init_rftable
+  public :: initable
+  public :: create_berror_vars_reg
+  public :: destroy_berror_vars_reg
+! set passed variables to public
+  public :: qvar3d,nr,nf,varprd,fpsproj,bkgv_flowdep,tsfc_sdv
+  public :: dssvt,dssvp,dssv,bkgv_write,bkgv_rewgtfct,hswgt
+  public :: hzscl,bw,pert_berr_fct,pert_berr,ndeg,norh,as,vs
+  public :: bl,bl2,be,slw2,slw1,slw,mr,inaxs,wtxrs,wtaxs,nx,ny
+  public :: inxrs,jj1,ii2,jj2,ii,jj,ii1,table,alv
+
   integer(i_kind) norh,ndeg,nta,nlath
   integer(i_kind) nx,ny,mr,nr,nf
   integer(i_kind),allocatable,dimension(:,:):: inaxs,inxrs
@@ -162,10 +180,10 @@ contains
     bkgv_write = .false.
     pert_berr_fct = zero
     bkgv_rewgtfct = zero
-    norh=2
-    ndeg=4
-    nta=50000
-    nlath=48
+    norh=2_i_kind
+    ndeg=4_i_kind
+    nta=50000_i_kind
+    nlath=48_i_kind
 
     bw=zero
 
@@ -214,10 +232,10 @@ contains
   use balmod, only: llmin,llmax
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
   use jfunc, only: nrclen
-  use constants, only: zero
+  use constants, only: izero,ione,zero
   implicit none
   
-  llmin=1
+  llmin=ione
   llmax=nlat
 
 ! Grid constant to transform to 3 pieces
@@ -226,18 +244,18 @@ contains
   nx=nx/2*2
   ny=nlat*8/9
   ny=ny/2*2
-  if(mod(nlat,2)/=0)ny=ny+1
-  mr=0
+  if(mod(nlat,2)/=izero)ny=ny+ione
+  mr=izero
   nr=nlat/4
   nf=nr
   nlath=nlat/2
-  if(mod(nlat,2)/=0) nlath=nlath+1
+  if(mod(nlat,2)/=izero) nlath=nlath+ione
 
-  allocate(wtaxs(0:norh*2-1,nf,0:(nlon/8)-1), &
-           wtxrs(0:norh*2-1,0:(nlon/8)-1,mr:nr), &
+  allocate(wtaxs(0:norh*2-ione,nf,0:(nlon/8)-ione), &
+           wtxrs(0:norh*2-ione,0:(nlon/8)-ione,mr:nr), &
            be(ndeg), &
            bl(nx-nlon), &
-           bl2(nr+1+(ny-nlat)/2), &
+           bl2(nr+ione+(ny-nlat)/2), &
            alv(lat2,ndeg,nsig,6), &
            dssv(6,lat2,lon2,nsig),&
            qvar3d(lat2,lon2,nsig),&
@@ -249,11 +267,11 @@ contains
            inxrs(nlon/8,mr:nr) )
 
   allocate(slw(ny*nx,nnnn1o),&
-           slw1((2*nf+1)*(2*nf+1),nnnn1o),&
-           slw2((2*nf+1)*(2*nf+1),nnnn1o))
+           slw1((2*nf+ione)*(2*nf+ione),nnnn1o),&
+           slw2((2*nf+ione)*(2*nf+ione),nnnn1o))
   allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o),&
-           ii1(2*nf+1,2*nf+1,3,nnnn1o),jj1(2*nf+1,2*nf+1,3,nnnn1o),&
-           ii2(2*nf+1,2*nf+1,3,nnnn1o),jj2(2*nf+1,2*nf+1,3,nnnn1o))
+           ii1(2*nf+ione,2*nf+ione,3,nnnn1o),jj1(2*nf+ione,2*nf+ione,3,nnnn1o),&
+           ii2(2*nf+ione,2*nf+ione,3,nnnn1o),jj2(2*nf+ione,2*nf+ione,3,nnnn1o))
 
   return
  end subroutine create_berror_vars
@@ -313,7 +331,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only:  one,one_tenth
+    use constants, only:  ione,one,one_tenth
     use jfunc, only: nrclen
     implicit none
 
@@ -321,7 +339,7 @@ contains
     real(r_kind) stndev
     
     stndev = one/one_tenth       ! 0.316 K background error
-    do i=1,max(1,nrclen)
+    do i=1,max(ione,nrclen)
        varprd(i)=stndev
     end do
     return
@@ -358,7 +376,7 @@ contains
 !
 !$$$
     use gridmod, only:  regional
-    use constants, only: zero,one
+    use constants, only: izero,ione,zero,one
     implicit none
 
     real(r_kind),parameter:: tin = 0.2e-3_r_kind
@@ -367,7 +385,7 @@ contains
     integer(i_kind) nnn,mype,ihwlb
     integer(i_kind) nfg,ntax,iloc
     
-    real(r_kind),optional,dimension((2*nf+1)*(2*nf+1),2,nnn):: sli1,sli2
+    real(r_kind),optional,dimension((2*nf+ione)*(2*nf+ione),2,nnn):: sli1,sli2
     real(r_kind),dimension(ny*nx,2,nnn):: sli
     real(r_kind),dimension(ndeg):: rate
     real(r_kind):: hwlmax,hwlmin,hwlb,hwle,wni2
@@ -383,7 +401,7 @@ contains
          write(6,*)'INIT_RFTABLE:  ***ERROR*** sli1 or sli2 not present'
          call stop2(34)
       end if
-      nfg=nf*2+1
+      nfg=nf*2+ione
       nfnf=nfg*nfg
     end if
 
@@ -433,8 +451,8 @@ contains
 
     ihwlb=hwlb/tin
     hwlb=ihwlb*tin
-!   tin=(hwle-hwlb)/float(nta-1)
-    ntax=(hwle-hwlb)/tin+2
+!   tin=(hwle-hwlb)/float(nta-ione)
+    ntax=(hwle-hwlb)/tin+2_i_kind
 !   write(6,*)'INIT_RFTABLE:  tin ',ntax,ihwlb,tin,hwlb,hwle
 
     allocate(iuse(ntax))
@@ -446,7 +464,7 @@ contains
            do i=1,nynx
              do j=1,3
                iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli(i,n,k))))
-               iloc=max(iloc,1)
+               iloc=max(iloc,ione)
                iuse(iloc)=.true.
              enddo
            enddo
@@ -455,10 +473,10 @@ contains
              do i=1,nfnf
                do j=1,3
                iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli1(i,n,k))))
-               iloc=max(iloc,1)
+               iloc=max(iloc,ione)
                iuse(iloc)=.true.
                iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli2(i,n,k))))
-               iloc=max(iloc,1)
+               iloc=max(iloc,ione)
                iuse(iloc)=.true.
                enddo
              enddo
@@ -466,14 +484,14 @@ contains
 
         enddo
     enddo
-    nta=0
+    nta=izero
     allocate(dsh(ntax),ipoint(ntax))
-    ipoint=0
+    ipoint=izero
     do i=1,ntax
       if(iuse(i))then
-        nta=nta+1
+        nta=nta+ione
         ipoint(i)=nta
-        dsh(nta)=one/(float(i-1+ihwlb)*tin)
+        dsh(nta)=one/(float(i-ione+ihwlb)*tin)
       end if
     end do
 !   write(6,*)'INIT_RFTABLE:  ntax,nta = ',ntax,nta
@@ -544,7 +562,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: one
+    use constants, only: ione,one
     implicit none
 
     integer(i_kind) iy,nydim,ix,nxdim,iloc,ntax
@@ -559,9 +577,9 @@ contains
     wni2=one/tin
     do iy=1,nydim
        do ix=1,nxdim
-         iloc=min(ntax, max(1, nint(one-ihwlb+wni2/(sli(ix,iy,1)*factor))))
+         iloc=min(ntax, max(ione, nint(one-ihwlb+wni2/(sli(ix,iy,1)*factor))))
          iix(ix,iy)=ipoint(iloc)
-         iloc=min(ntax, max(1, nint(one-ihwlb+wni2/(sli(ix,iy,2)*factor))))
+         iloc=min(ntax, max(ione, nint(one-ihwlb+wni2/(sli(ix,iy,2)*factor))))
          jjx(ix,iy)=ipoint(iloc)
        enddo
     enddo
@@ -597,6 +615,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+    use constants, only: ione
     use balmod, only: llmin,llmax
     use gridmod, only: nlat,nlon,nsig,nnnn1o,lat2,lon2
     use jfunc, only: nrclen
@@ -604,8 +623,8 @@ contains
     
     nx=nlon
     ny=nlat
-    mr=1
-    nr=1
+    mr=ione
+    nr=ione
     nf=nr
     
 !   Grid constant for background error
@@ -617,7 +636,7 @@ contains
          dssvp(llmin:llmax,lon2),&
          dssvt(llmin:llmax,lon2,3))
     
-    allocate(varprd(max(1,nrclen) ) )     
+    allocate(varprd(max(ione,nrclen) ) )     
 
     allocate(slw(ny*nx,nnnn1o) )
     allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o) )

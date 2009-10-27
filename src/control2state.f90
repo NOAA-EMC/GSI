@@ -23,6 +23,7 @@ subroutine control2state(xhat,sval,bval)
 !
 !$$$ end documentation block
 use kinds, only: r_kind,i_kind
+use constants, only: izero,ione
 use control_vectors
 use state_vectors
 use bias_predictors
@@ -45,7 +46,7 @@ if (lsqrtb) then
   write(6,*)'control2state: not for sqrt(B)'
   call stop2(106)
 end if
-if (nsubwin/=1 .and. .not.l4dvar) then
+if (nsubwin/=ione .and. .not.l4dvar) then
   write(6,*)'control2state: error 3dvar',nsubwin,l4dvar
   call stop2(107)
 end if
@@ -63,7 +64,7 @@ do jj=1,nsubwin
   call tv_to_tsen(xhat%step(jj)%t,sval(jj)%q,sval(jj)%tsen)
 
 ! Convert streamfunction and velocity potential to u,v
-  call getuv(sval(jj)%u,sval(jj)%v,xhat%step(jj)%st,xhat%step(jj)%vp,0)
+  call getuv(sval(jj)%u,sval(jj)%v,xhat%step(jj)%st,xhat%step(jj)%vp,izero)
 
 ! Copy other variables
   do ii=1,latlon1n

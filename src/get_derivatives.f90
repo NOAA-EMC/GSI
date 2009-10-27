@@ -44,29 +44,30 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !     skint_y  - latitude derivative of skin temperature
 !     cwmr_y   - latitude derivative of cwmr
 !
+!   note:  u_x,v_x,u_y,v_y are not evaluated at the poles
+!     all other derivatives are
+!
+!   for u and v, derivatives are following:
+!
+!     u_x:  (du/dlon)/(a*cos(lat))
+!     u_y:  (d(u*cos(lat))/dlat)/(a*cos(lat))
+!
+!     v_x:  (dv/dlon)/(a*cos(lat))
+!     v_y:  (d(v*cos(lat))/dlat)/(a*cos(lat))
+!
+!  for all other variables, derivatives are:
+!
+!     f_x:  (df/dlon)/(a*cos(lat))
+!     f_y:  (df/dlat)/a
+!
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-!   note:  u_x,v_x,u_y,v_y are not evaluated at the poles
-!     all other derivatives are
-
-!   for u and v, derivatives are following:
-
-!     u_x:  (du/dlon)/(a*cos(lat))
-!     u_y:  (d(u*cos(lat))/dlat)/(a*cos(lat))
-
-!     v_x:  (dv/dlon)/(a*cos(lat))
-!     v_y:  (d(v*cos(lat))/dlat)/(a*cos(lat))
-
-!  for all other variables, derivatives are:
-
-!     f_x:  (df/dlon)/(a*cos(lat))
-!     f_y:  (df/dlat)/a
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nsig1o
   use compact_diffs, only: compact_dlat,compact_dlon
   use mpimod, only: nvar_id
@@ -74,7 +75,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   implicit none
 
 ! Passed variables
-  integer(i_kind) nlevs,nfldsig
+  integer(i_kind),intent(in):: nlevs,nfldsig
   real(r_kind),dimension(lat2,lon2,nfldsig),intent(in):: p
   real(r_kind),dimension(lat2,lon2),intent(in):: skint
   real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,q,cwmr,oz,u,v
@@ -93,12 +94,12 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   real(r_kind),dimension(nlat,nlon,nsig1o):: hwork,hworkd
   logical vector
 
-  iflg=1
+  iflg=ione
   slndt=zero
   sicet=zero
 
   if(nsig1o > nlevs)then
-    do k=nlevs+1,nsig1o
+    do k=nlevs+ione,nsig1o
       do j=1,nlon
         do i=1,nlat
           hworkd(i,j,k) = zero
@@ -116,7 +117,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   x derivative
 !$omp parallel do private(vector)
     do k=1,nlevs
-      vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
+      vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
       if(regional) then
         call delx_reg(hwork(1,1,k),hworkd(1,1,k),vector)
       else
@@ -131,7 +132,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   y derivative
 !$omp parallel do private(vector)
     do k=1,nlevs
-      vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
+      vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
       if(regional) then
         call dely_reg(hwork(1,1,k),hworkd(1,1,k),vector)
       else
@@ -197,17 +198,16 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-!    adjoint of get_derivatives
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nsig1o
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
   use mpimod, only: nvar_id
   implicit none
 
 ! Passed variables
-  integer(i_kind) nlevs
+  integer(i_kind),intent(in):: nlevs
   real(r_kind),dimension(lat2,lon2),intent(inout):: p,skint
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,q,cwmr,oz,u,v
   real(r_kind),dimension(lat2,lon2),intent(inout):: p_x,skint_x
@@ -222,7 +222,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   real(r_kind),dimension(nlat,nlon,nsig1o):: hwork,hworkd
   logical vector
 
-  iflg=1
+  iflg=ione
 !             initialize hwork to zero, so can accumulate contribution from
 !             all derivatives
   hwork=zero
@@ -238,7 +238,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
                 u_y,v_y,iflg)
 !$omp parallel do private(vector)
   do k=1,nlevs
-    vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
+    vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
     if(regional) then
       call dely_reg(hworkd(1,1,k),hwork(1,1,k),vector)
     else
@@ -253,7 +253,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
                 u_x,v_x,iflg)
 !$omp parallel do private(vector)
   do k=1,nlevs
-    vector = nvar_id(k) == 1 .or. nvar_id(k) == 2
+    vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
     if(regional) then
       call delx_reg(hworkd(1,1,k),hwork(1,1,k),vector)
     else
@@ -319,7 +319,7 @@ subroutine get_zderivs(z,z_x,z_y,mype)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: izero,ione,zero
   use gridmod, only: regional,nlat,nlon,lat2,lon2,lat1,lon1,&
      displs_s,ltosj_s,ijn_s,ltosi,ltosj,iglobal,ltosi_s,itotsub,&
      ijn,displs_g
@@ -338,18 +338,18 @@ subroutine get_zderivs(z,z_x,z_y,mype)
   real(r_kind),dimension(nlat,nlon):: workh,workd1,workd2
   integer(i_kind) mm1,i,j,k
 
-  mm1=mype+1
+  mm1=mype+ione
 
   do j=1,lon1*lat1
     zsm(j)=zero
   end do
  
-  call strip(z,zsm,1)
+  call strip(z,zsm,ione)
   call mpi_gatherv(zsm,ijn(mm1),mpi_rtype,&
      work1,ijn,displs_g,mpi_rtype,&
-     0,mpi_comm_world,ierror)
+     izero,mpi_comm_world,ierror)
 
-  if (mype==0) then
+  if (mype==izero) then
     do k=1,iglobal
       i=ltosi(k) ; j=ltosj(k)
       workh(i,j)=work1(k)
@@ -368,10 +368,10 @@ subroutine get_zderivs(z,z_x,z_y,mype)
     end do
   end if
   call mpi_scatterv(work1,ijn_s,displs_s,mpi_rtype,&
-       z_x,ijn_s(mm1),mpi_rtype,0,mpi_comm_world,ierror)
+       z_x,ijn_s(mm1),mpi_rtype,izero,mpi_comm_world,ierror)
 
   call mpi_scatterv(work2,ijn_s,displs_s,mpi_rtype,&
-       z_y,ijn_s(mm1),mpi_rtype,0,mpi_comm_world,ierror)
+       z_y,ijn_s(mm1),mpi_rtype,izero,mpi_comm_world,ierror)
 
 
   return

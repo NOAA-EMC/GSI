@@ -1,5 +1,4 @@
 subroutine evaljcdfi(svalue,pjc,rvalue)
-
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    evaljcdfi    calculate Jc DFI terms and contribution to gradient
@@ -25,7 +24,7 @@ subroutine evaljcdfi(svalue,pjc,rvalue)
 !$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero,one
+use constants, only: izero,ione,zero,one
 use jcmod, only: wgtdfi,alphajc
 use gsi_4dvar, only: nobs_bins
 use mpimod, only: mype
@@ -44,7 +43,7 @@ type(state_vector) :: sfilter,afilter
 
 !************************************************************************************  
 
-idfi = (nobs_bins-1)/2+1
+idfi = (nobs_bins-ione)/2+ione
 call allocate_state(sfilter)
 call allocate_state(afilter)
 
@@ -65,7 +64,7 @@ call self_mul(sfilter,alphajc)
 ! afilter = wgt * sfilter
 call enorm_state(sfilter,pjc,afilter)
 pjc=half_quad*pjc
-if (mype==0) write(6,*)'Jc DFI=',pjc
+if (mype==izero) write(6,*)'Jc DFI=',pjc
 
 ! Adjoint Jc multiplicative factor
 call self_mul(afilter,alphajc)

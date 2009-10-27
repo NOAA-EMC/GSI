@@ -50,7 +50,7 @@ module control_vectors
 
 use kinds, only: r_kind,i_kind,r_quad
 use mpimod, only: mpi_comm_world,mpi_max,mpi_rtype,mype,npe,ierror
-use constants, only: zero, one, two, zero_quad
+use constants, only: izero, ione, zero, one, two, zero_quad
 use gsi_4dvar, only: iadatebgn
 use file_utility, only : get_lun
 use mpl_allreducemod, only: mpl_allreduce
@@ -166,10 +166,10 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   lsqrtb=ldsqrtb
 
   llinit = .true.
-  m_vec_alloc=0
-  max_vec_alloc=0
-  m_allocs=0
-  m_deallocs=0
+  m_vec_alloc=izero
+  max_vec_alloc=izero
+  m_allocs=izero
+  m_deallocs=izero
 
   call inquire_cv
 
@@ -212,9 +212,9 @@ subroutine allocate_cv(ycv)
   ALLOCATE(ycv%values(ycv%lencv))
   ALLOCATE(ycv%step(nsubwin))
 
-  ii=0
+  ii=izero
   do jj=1,nsubwin
-    ycv%step(jj)%values => ycv%values(ii+1:ii+nval_len)
+    ycv%step(jj)%values => ycv%values(ii+ione:ii+nval_len)
 
     if (lsqrtb) then
       ycv%step(jj)%st  => NULL()
@@ -227,28 +227,28 @@ subroutine allocate_cv(ycv)
       ycv%step(jj)%sst => NULL()
       ii=ii+nval_len
     else
-      ycv%step(jj)%st  => ycv%values(ii+1:ii+latlon1n)
+      ycv%step(jj)%st  => ycv%values(ii+ione:ii+latlon1n)
       ii=ii+latlon1n
-      ycv%step(jj)%vp  => ycv%values(ii+1:ii+latlon1n)
+      ycv%step(jj)%vp  => ycv%values(ii+ione:ii+latlon1n)
       ii=ii+latlon1n
-      ycv%step(jj)%t   => ycv%values(ii+1:ii+latlon1n)
+      ycv%step(jj)%t   => ycv%values(ii+ione:ii+latlon1n)
       ii=ii+latlon1n
-      ycv%step(jj)%rh  => ycv%values(ii+1:ii+latlon1n)
+      ycv%step(jj)%rh  => ycv%values(ii+ione:ii+latlon1n)
       ii=ii+latlon1n
-      ycv%step(jj)%oz  => ycv%values(ii+1:ii+latlon1n)
+      ycv%step(jj)%oz  => ycv%values(ii+ione:ii+latlon1n)
       ii=ii+latlon1n
-      ycv%step(jj)%cw  => ycv%values(ii+1:ii+latlon1n)
+      ycv%step(jj)%cw  => ycv%values(ii+ione:ii+latlon1n)
       ii=ii+latlon1n
-      ycv%step(jj)%p   => ycv%values(ii+1:ii+latlon11)
+      ycv%step(jj)%p   => ycv%values(ii+ione:ii+latlon11)
       ii=ii+latlon11
-      ycv%step(jj)%sst => ycv%values(ii+1:ii+latlon11)
+      ycv%step(jj)%sst => ycv%values(ii+ione:ii+latlon11)
       ii=ii+latlon11
     endif
   enddo
 
-  ycv%predr => ycv%values(ii+1:ii+nsclen)
+  ycv%predr => ycv%values(ii+ione:ii+nsclen)
   ii=ii+nsclen
-  ycv%predp => ycv%values(ii+1:ii+npclen)
+  ycv%predp => ycv%values(ii+ione:ii+npclen)
   ii=ii+npclen
 
   if (ii/=nclen) then
@@ -256,8 +256,8 @@ subroutine allocate_cv(ycv)
     call stop2(109)
   end if
 
-  m_allocs=m_allocs+1
-  m_vec_alloc=m_vec_alloc+1
+  m_allocs=m_allocs+ione
+  m_vec_alloc=m_vec_alloc+ione
   max_vec_alloc=MAX(max_vec_alloc,m_vec_alloc)
 
   return
@@ -309,10 +309,10 @@ subroutine deallocate_cv(ycv)
 
     ycv%lallocated=.false.
 
-    m_deallocs=m_deallocs+1
-    m_vec_alloc=m_vec_alloc-1
+    m_deallocs=m_deallocs+ione
+    m_vec_alloc=m_vec_alloc-ione
   else
-    if (mype==0) write(6,*)'deallocate_cv warning: vector not allocated'
+    if (mype==izero) write(6,*)'deallocate_cv warning: vector not allocated'
   endif
 
   return
@@ -514,8 +514,8 @@ real(r_quad) function dplevs(nlevs,dx,dy)
 
   dplevs=zero_quad
   do kk=1,nlevs
-     do jj=2,lon2-1
-        do ii=2,lat2-1
+     do jj=2,lon2-ione
+        do ii=2,lat2-ione
            dplevs=dplevs+dx(ii,jj,kk)*dy(ii,jj,kk)
         end do
      end do
@@ -572,8 +572,8 @@ subroutine ddot_prod_vars(xcv,ycv,prods)
       zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
       zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
       zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-      zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-      zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+      zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
+      zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
     end do
   end if
 
@@ -581,11 +581,11 @@ subroutine ddot_prod_vars(xcv,ycv,prods)
   prods(1:nsubwin) = zz(1:nsubwin)
 
 ! Duplicated part of vector
-  if (nsclen>0) then
-    prods(nsubwin+1) = prods(nsubwin+1) + dot_product(xcv%predr(:),ycv%predr(:))
+  if (nsclen>izero) then
+    prods(nsubwin+ione) = prods(nsubwin+ione) + dot_product(xcv%predr(:),ycv%predr(:))
   endif
-  if (npclen>0) then
-    prods(nsubwin+1) = prods(nsubwin+1) + dot_product(xcv%predp(:),ycv%predp(:))
+  if (npclen>izero) then
+    prods(nsubwin+ione) = prods(nsubwin+ione) + dot_product(xcv%predp(:),ycv%predp(:))
   endif
 
 return
@@ -636,14 +636,14 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
       qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
       qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
       qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-      qdot_prod_sub = qdot_prod_sub + dplevs(1   ,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-      qdot_prod_sub = qdot_prod_sub + dplevs(1   ,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+      qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
+      qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
     end do
   end if
 
 ! Duplicated part of vector
-  if(mype == 0)then
-    do j=nclen1+1,nclen
+  if(mype == izero)then
+    do j=nclen1+ione,nclen
       qdot_prod_sub=qdot_prod_sub+xcv%values(j)*ycv%values(j) 
     end do
   end if
@@ -676,7 +676,7 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
 
   implicit none
   type(control_vector), intent(in) :: xcv, ycv
-  real(r_quad), intent(out) :: prods(nsubwin+1)
+  real(r_quad), intent(out) :: prods(nsubwin+ione)
 
   real(r_quad) :: zz(nsubwin)
   integer(i_kind) :: ii
@@ -699,8 +699,8 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
       zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
       zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
       zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-      zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-      zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+      zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
+      zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
     end do
   end if
 
@@ -708,11 +708,11 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
   prods(1:nsubwin) = zz(1:nsubwin)
 
 ! Duplicated part of vector
-  if (nsclen>0) then
-    prods(nsubwin+1) = prods(nsubwin+1) + qdot_product(xcv%predr(:),ycv%predr(:))
+  if (nsclen>izero) then
+    prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predr(:),ycv%predr(:))
   endif
-  if (npclen>0) then
-    prods(nsubwin+1) = prods(nsubwin+1) + qdot_product(xcv%predp(:),ycv%predp(:))
+  if (npclen>izero) then
+    prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predp(:),ycv%predp(:))
   endif
 
 return
@@ -744,7 +744,7 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
   type(control_vector), intent(in) :: xcv, ycv
 
 ! local variables
-  real(r_kind) :: zz(nsubwin+1)
+  real(r_kind) :: zz(nsubwin+ione)
   integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
@@ -755,7 +755,7 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
   call dot_prod_vars(xcv,ycv,zz)
 
   dot_prod_cv = zero
-  do ii=1,nsubwin+1
+  do ii=1,nsubwin+ione
     dot_prod_cv = dot_prod_cv + zz(ii)
   enddo
 
@@ -790,7 +790,7 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
   type(control_vector), intent(in) :: xcv, ycv
 
 ! local variables
-  real(r_quad) :: zz(nsubwin+1)
+  real(r_quad) :: zz(nsubwin+ione)
   integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
@@ -801,7 +801,7 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
   call qdot_prod_vars(xcv,ycv,zz)
 
   qdot_prod_cv = zero_quad
-  do ii=1,nsubwin+1
+  do ii=1,nsubwin+ione
     qdot_prod_cv = qdot_prod_cv + zz(ii)
   enddo
 
@@ -835,18 +835,18 @@ subroutine prt_norms(xcv,sgrep)
   type(control_vector), intent(in) :: xcv
   character(len=*), intent(in) :: sgrep
 
-  real(r_quad) :: zz(nsubwin+1),zt
+  real(r_quad) :: zz(nsubwin+ione),zt
   integer(i_kind) :: ii
 
   call dot_prod_vars(xcv,xcv,zz)
   zt = zero_quad
-  do ii=1,nsubwin+1
+  do ii=1,nsubwin+ione
     zt = zt + zz(ii)
   enddo
   zt=sqrt(zt)
   zz(:) = SQRT(zz(:))
 
-  if (mype==0) then
+  if (mype==izero) then
     write(6,*)sgrep,' partial norms=',real(zz(:),r_kind)
     write(6,*)sgrep,' global  norm =',real(zt,r_kind)
   endif
@@ -909,14 +909,14 @@ subroutine prt_norms_vars(xcv,sgrep)
       end select
 
       call stats_sum(piv, &
-      	vdot(iv),vsum(iv),vmin(iv),vmax(iv),vnum(iv),add=iw>1)
+      	vdot(iv),vsum(iv),vmin(iv),vmax(iv),vnum(iv),add=iw>ione)
     enddo
 
     call stats_allreduce(vdot(iv),vsum(iv),vmin(iv),vmax(iv),	&
     	vnum(iv),MPI_comm_world)
-    nv=max(vnum(iv),1)
+    nv=max(vnum(iv),ione)
   
-    if(mype==0) then
+    if(mype==izero) then
       write(6,'(2(1x,a),4(1x,ES20.12),1x,i10)')		&
         sgrep,vnames(iv),sqrt(vdot(iv)/nv),vsum(iv)/nv,	&
 		vmin(iv),vmax(iv),vnum(iv)
@@ -1021,7 +1021,7 @@ do jj=1,nsubwin
 enddo
 deallocate(zz)
 
-if (nsclen>0) then
+if (nsclen>izero) then
   allocate(zz(nsclen))
   call random_number(zz)
   do ii=1,nsclen
@@ -1030,7 +1030,7 @@ if (nsclen>0) then
   deallocate(zz)
 endif
 
-if (npclen>0) then
+if (npclen>izero) then
   allocate(zz(npclen))
   call random_number(zz)
   do ii=1,npclen
@@ -1077,7 +1077,7 @@ subroutine write_cv(xcv,cdfile)
   clmype='.YYYY'
   write(clmype(2:5),'(I4.4)')mype
   clfile=trim(cdfile)//clmype
-  if (mype==0) write(6,*)'Writing control vector to file ',clfile
+  if (mype==izero) write(6,*)'Writing control vector to file ',clfile
 
   open(iunit,file=trim(clfile),form='unformatted')
   write(iunit)xcv%lencv
@@ -1123,7 +1123,7 @@ subroutine read_cv(xcv,cdfile)
   clmype='.YYYY'
   write(clmype(2:5),'(I4.4)')mype
   clfile=trim(cdfile)//clmype
-  if (mype==0) write(6,*)'Reading control vector from file ',clfile
+  if (mype==izero) write(6,*)'Reading control vector from file ',clfile
 
   open(iunit,file=trim(clfile),form='unformatted')
   read(iunit)ilen
@@ -1160,7 +1160,7 @@ subroutine inquire_cv
 implicit none
 real(r_kind) :: zz
 
-if (mype==0) then
+if (mype==izero) then
   zz=real(max_vec_alloc*nclen,r_kind)*8.0_r_kind/1.048e6_r_kind
   write(6,*)'control_vectors: length=',nclen
   write(6,*)'control_vectors: currently allocated=',m_vec_alloc
@@ -1200,8 +1200,8 @@ real(r_kind) :: zloc(1),zglo(1)
 
 zloc(1)=maxval(ycv%values(:))
 
-call mpi_allreduce(zloc,zglo,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-if (ierror/=0) then
+call mpi_allreduce(zloc,zglo,ione,mpi_rtype,mpi_max,mpi_comm_world,ierror)
+if (ierror/=izero) then
   write(6,*)'maxval_cv: MPI error',ierror
   call stop2(117)
 end if

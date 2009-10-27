@@ -28,6 +28,7 @@ subroutine set_cvsection(psec,ydcv,kbgn,kend)
 !$$$ end documentation block
 
 use kinds, only: r_kind,i_kind
+use constants, only: ione
 use mpimod, only: mype, nvar_pe
 use gridmod, only: nsig
 use jfunc, only: nval2d
@@ -42,28 +43,28 @@ type(control_vector), intent(inout) :: ydcv
 integer(i_kind) :: indx,ival,iloc,iend,ilen,ioff,jj
 
 ! Look for starting index
-if (kbgn<1.or.kbgn>(6*nsig+4)*nval2d) then
+if (kbgn<ione.or.kbgn>(6*nsig+4_i_kind)*nval2d) then
   write(6,*)'set_cvsection: kbgn out of range',kbgn
   call stop2(119)
 end if
-if (kend<1.or.kend>(6*nsig+4)*nval2d) then
+if (kend<ione.or.kend>(6*nsig+4_i_kind)*nval2d) then
   write(6,*)'set_cvsection: kend out of range',kend
   call stop2(120)
 end if
 
 indx=kbgn
 do while (indx<=kend)
-  ival=indx/nval2d+1
-  iloc=indx-nval2d*(ival-1)
+  ival=indx/nval2d+ione
+  iloc=indx-nval2d*(ival-ione)
   iend=MIN(kend,ival*nval2d)
   ilen=iend-iloc
   if (mype==nvar_pe(ival,1)) then
-    ioff=(nvar_pe(ival,2)-1)*nval2d+iloc
+    ioff=(nvar_pe(ival,2)-ione)*nval2d+iloc
     do jj=0,ilen
       ydcv%values(ioff+jj)=psec(indx+jj)
     enddo
   endif
-  indx=indx+ilen+1
+  indx=indx+ilen+ione
 enddo
 
 return
@@ -102,6 +103,7 @@ subroutine allgather_cvsection(ydcv,psec,kbgn,kend)
 !$$$ end documentation block
 
 use kinds, only: r_kind,i_kind
+use constants, only: ione
 use mpimod, only: mype, nvar_pe
 use gridmod, only: nsig
 use jfunc, only: nval2d
@@ -117,32 +119,32 @@ integer(i_kind) :: indx,ival,iloc,iend,ilen,ioff,jj
 real(r_kind) :: work(nval2d)
 
 ! Look for starting index
-if (kbgn<1.or.kbgn>(6*nsig+4)*nval2d) then
+if (kbgn<ione.or.kbgn>(6*nsig+4_i_kind)*nval2d) then
   write(6,*)'all_cvsection: kbgn out of range',kbgn
   call stop2(121)
 end if
-if (kend<1.or.kend>(6*nsig+4)*nval2d) then
+if (kend<ione.or.kend>(6*nsig+4_i_kind)*nval2d) then
   write(6,*)'all_cvsection: kend out of range',kend
   call stop2(122)
 end if
 
 indx=kbgn
 do while (indx<=kend)
-  ival=indx/nval2d+1
-  iloc=indx-nval2d*(ival-1)
+  ival=indx/nval2d+ione
+  iloc=indx-nval2d*(ival-ione)
   iend=MIN(kend,ival*nval2d)
   ilen=iend-iloc
   if (mype==nvar_pe(ival,1)) then
-    ioff=(nvar_pe(ival,2)-1)*nval2d+iloc
+    ioff=(nvar_pe(ival,2)-ione)*nval2d+iloc
     do jj=0,ilen
-      work(jj+1)=ydcv%values(ioff+jj)
+      work(jj+ione)=ydcv%values(ioff+jj)
     enddo
   endif
-  call mpl_bcast(nvar_pe(ival,1),ilen+1,work)
+  call mpl_bcast(nvar_pe(ival,1),ilen+ione,work)
   do jj=0,ilen
-    psec(indx+jj)=work(jj+1)
+    psec(indx+jj)=work(jj+ione)
   enddo
-  indx=indx+ilen+1
+  indx=indx+ilen+ione
 enddo
 
 return

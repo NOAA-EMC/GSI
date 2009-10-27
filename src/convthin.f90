@@ -25,6 +25,15 @@ module convthin
   use kinds, only: r_kind,i_kind
   implicit none
 
+! set default to private
+  private
+! set subroutines to public
+  public :: make3grids
+  public :: map3grids
+  public :: del3grids
+! set passed variables to public
+  public :: use_all
+
   integer(i_kind):: mlat
   integer(i_kind),allocatable,dimension(:):: mlon
   integer(i_kind),allocatable,dimension(:,:):: icount,ibest_obs
@@ -63,7 +72,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: rearth_equator,two,deg2rad,zero,half,one,pi
+    use constants, only: izero,ione,rearth_equator,two,deg2rad,zero,half,one,pi
     use satthin, only:dlat_grid,dlon_grid,rlat_min,rlon_min
 
     implicit none
@@ -85,7 +94,7 @@ contains
     use_all=.false.
     if(abs(rmesh) <= one)then
        use_all=.true.
-       itxmax=2.e6
+       itxmax=2.e6_i_kind
        return
     end if
 
@@ -104,23 +113,23 @@ contains
 	delat = dlat_grid/mlat
 	delonx= dlon_grid/mlonx
     dgv  = delat*half
-    mlat=max(2,mlat);   mlonx=max(2,mlonx)
+    mlat=max(2_i_kind,mlat);   mlonx=max(2_i_kind,mlonx)
 
     allocate(mlon(mlat),glat(mlat),glon(mlonx,mlat),hll(mlonx,mlat))
 
 
 !   Set up thinning grid lon & lat.  The lon & lat represent the location of the
 !   lower left corner of the thinning grid box.
-    itxmax=0
+    itxmax=izero
     do j = 1,mlat
-       glat(j) = rlat_min + (j-1)*delat
+       glat(j) = rlat_min + (j-ione)*delat
        glat(j) = glat(j)*deg2rad
        glatm = glat(j) + dgv*deg2rad
        
        factor = abs(cos(abs(glatm)))
        if (rmesh>zero) then
           mlonj   = nint(mlonx*factor)	
-          mlon(j) = max(2,mlonj)
+          mlon(j) = max(2_i_kind,mlonj)
           delon = dlon_grid/mlon(j)
        else
           delon = factor*rmesh
@@ -130,9 +139,9 @@ contains
        
        glat(j) = min(max(-halfpi,glat(j)),halfpi)
        do i = 1,mlon(j)
-          itxmax=itxmax+1
+          itxmax=itxmax+ione
           hll(i,j)=itxmax
-          glon(i,j) = rlon_min + (i-1)*delon
+          glon(i,j) = rlon_min + (i-ione)*delon
           glon(i,j) = glon(i,j)*deg2rad
           glon(i,j) = min(max(zero,glon(i,j)),twopi)
        enddo
@@ -146,8 +155,8 @@ contains
 
     do j=1,nlevp
        do i=1,itxmax
-          icount(i,j) = 0
-          ibest_obs(i,j)= 0
+          icount(i,j) = izero
+          ibest_obs(i,j)= izero
           score_crit(i,j)= 9.99e6_r_kind
        end do
     end do
@@ -197,7 +206,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: one, half,two,three,ione
+    use constants, only: ione,izero,one, half,two,three,ione
     implicit none
     
     logical ,intent(out):: iuse
@@ -219,7 +228,7 @@ contains
 !   If using all data (no thinning), simply return to calling routine
     if(use_all)then
        iuse=.true.
-       iobs=iobs+1
+       iobs=iobs+ione
        iobsout=iobs
        return
     end if
@@ -230,20 +239,20 @@ contains
     dlon1=dlon_earth
     pob1=pob
 
-    call grdcrd(pob1,1,pcoord,nlevp,-1)
+    call grdcrd(pob1,ione,pcoord,nlevp,-ione)
     ip=int(pob1)
     dp=pob1-ip
-    ip=max(1,min(ip,nlevp))
+    ip=max(ione,min(ip,nlevp))
     
-    call grdcrd(dlat1,1,glat,mlat,1)
+    call grdcrd(dlat1,ione,glat,mlat,ione)
     iy=int(dlat1)
     dy=dlat1-iy
-    iy=max(1,min(iy,mlat))
+    iy=max(ione,min(iy,mlat))
     
-    call grdcrd(dlon1,1,glon(1,iy),mlon(iy),1)
+    call grdcrd(dlon1,ione,glon(1,iy),mlon(iy),ione)
     ix=int(dlon1)
     dx=dlon1-ix
-    ix=max(1,min(ix,mlon(iy)))
+    ix=max(ione,min(ix,mlon(iy)))
     
     dxx=half-min(dx,one-dx)
     dyy=half-min(dy,one-dy)
@@ -255,7 +264,7 @@ contains
 
     itx=hll(ix,iy)
     itt=istart_val(ithin)+itx
-    if(ithin == 0) itt=0
+    if(ithin == izero) itt=izero
 
 !   Compute distance metric (smaller is closer to center of cube)
     dist1=(dxx*dxx+dyy*dyy+dpp*dpp)*two/three+half
@@ -270,25 +279,25 @@ contains
 
 !   Case:  obs score > best value at this location, 
 !     -->  do not use this obs, return to calling program.
-    if(crit > score_crit(itx,ip) .and. icount(itx,ip) > 0) then
+    if(crit > score_crit(itx,ip) .and. icount(itx,ip) > izero) then
        iuse=.false.
        return
 
 !   Case:  obs score < best value at this location, 
 !     -->  update score, count, and best obs counters
-    elseif (icount(itx,ip) > 0 .and. crit < score_crit(itx,ip)) then
+    elseif (icount(itx,ip) > izero .and. crit < score_crit(itx,ip)) then
        score_crit(itx,ip)= crit
        iobsout=ibest_obs(itx,ip)
-       icount(itx,ip)=icount(itx,ip)+1
+       icount(itx,ip)=icount(itx,ip)+ione
 
 !   Case:  first obs at this location, 
 !     -->  keep this obs as starting point
-    elseif (icount(itx,ip)==0) then
-       iobs=iobs+1
+    elseif (icount(itx,ip)==izero) then
+       iobs=iobs+ione
        iobsout=iobs
        score_crit(itx,ip)= crit
        ibest_obs(itx,ip) = iobs
-       icount(itx,ip)=icount(itx,ip)+1
+       icount(itx,ip)=icount(itx,ip)+ione
 
 !   Case:  none of the above cases are satisified, 
 !     -->  don't use this obs
@@ -312,6 +321,8 @@ contains
 !   2006-01-25  kistler - original routine
 !
 !   input argument list:
+!
+!   output argument list:
 !
 ! attributes:
 !   language: f90

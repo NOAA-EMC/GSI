@@ -43,10 +43,10 @@
 
  private
 
- integer(i_kind) , parameter, public    :: npoly = 30
- integer(i_kind) , parameter, private   :: maxinstr = 16
- integer(i_kind) , dimension(maxinstr), private:: maxfov = (/ 2048,2048,2048,56,56,56,56,56, &
-                                                              8,11,30,90,90,96,96,96 /)
+ integer(i_kind) , parameter, public    :: npoly = 30_i_kind
+ integer(i_kind) , parameter, private   :: maxinstr = 16_i_kind
+ integer(i_kind) , dimension(maxinstr), private:: maxfov = (/ 2048_i_kind,2048_i_kind,2048_i_kind,56_i_kind,56_i_kind,56_i_kind,56_i_kind,56_i_kind, &
+                                                              8_i_kind,11_i_kind,30_i_kind,90_i_kind,90_i_kind,96_i_kind,96_i_kind,96_i_kind /)
 
  real(r_kind) , dimension(:), allocatable, private :: alongtrackangle
  real(r_kind) , dimension(:), allocatable, private :: crosstrackangle
@@ -67,6 +67,7 @@
  contains
 
  subroutine instrument_init(instr, satid, expansion)
+!$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    instrument_init          initalize instrument fields
 !
@@ -110,7 +111,7 @@
 !
 !$$$
 
- use constants, only                 : pi, half, one, two
+ use constants, only                 : ione, pi, half, one, two
 
  implicit none
 
@@ -123,7 +124,7 @@
  integer(i_kind)                    :: i, ifov
  real(r_kind)                       :: ata, cta, atf, ctf, ratio, height    
 
- if (instr < 1 .or. instr > maxinstr) then
+ if (instr < ione .or. instr > maxinstr) then
    write(6,*) "INSTURMENT_INIT: INSTRUMENT NUMBER OF: ", instr, " IS OUT OF RANGE."
    call stop2(100)
  end if
@@ -141,7 +142,7 @@
  allocate (eccen(1:maxfov(instr)))
  
  do i = 1, npoly
-   psi(i) = two*pi*float(i-1)/float(npoly-1) ! Will connect Npoly points
+   psi(i) = two*pi*float(i-ione)/float(npoly-ione) ! Will connect Npoly points
  enddo
  
 ! Precompute angles and sizes for speed. For accurate representation of fov, 
@@ -165,7 +166,9 @@
  enddo
 
  end subroutine instrument_init
+
  subroutine fov_cleanup
+!$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    fov cleanup        deallocate module arrays
 !
@@ -199,6 +202,7 @@
  if(allocated(eccen))             deallocate (eccen)
 
  end subroutine fov_cleanup
+
  subroutine fov_ellipse_crosstrk (fov, satellite_azimuth,  &
                                   lat, lon, elats, elons )
 !$$$  subprogram documentation block
@@ -296,6 +300,7 @@
  elons(1:npoly) = lon + b
  
  end subroutine fov_ellipse_crosstrk
+
  subroutine fovanglessizes(instr,height,fov,alongtrackangle,crosstrackangle,&
                            alongtrackfovsize,crosstrackfovsize)
 !$$$  subprogram documentation block
@@ -440,6 +445,7 @@
  alongtrackangle = 360._r_kind * alongtrackfovsize/(two*pi*radius)
 
  end subroutine fovanglessizes
+
  subroutine get_sat_height(satid, height)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -496,9 +502,11 @@
  end select
 
  end subroutine get_sat_height
+
  subroutine inside_fov_crosstrk(instr, fov, satellite_azimuth,  &
                                 lat, lon, testlat, testlon, &
 		                expansion, inside)
+!$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  inside_fov_crosstrk         determine antenna power
 !
@@ -586,7 +594,7 @@
          -0.00291774_r_kind, -0.00157707_r_kind, -0.000538326_r_kind,  6.86365e-005_r_kind,   &
          -0.0455019_r_kind,  -0.0811913_r_kind,  -0.903818_r_kind,     0.0451496_r_kind, &
          -0.0276690_r_kind,   0.00156701_r_kind,  0.000986008_r_kind,  -9.50111e-005_r_kind /), &
-       (/ 8,2 /) )
+       (/ 8_i_kind,2_i_kind /) )
 
 ! Declare local variables.
  real(r_kind)  :: dellon ! longitude difference from fov center to test location
@@ -644,7 +652,7 @@
 
  inside = zero
  if(d<r)then 
-   if(instr == 11)then  ! compute amsua power
+   if(instr == 11_i_kind)then  ! compute amsua power
     rat    = d / r * expansion * fovanglesize * half
     x      = rat * cos(psi)
     y      = rat * sin(psi)
@@ -663,6 +671,7 @@
   return
 
  end subroutine inside_fov_crosstrk
+
  subroutine fov_check(fov,instr,valid)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -686,6 +695,8 @@
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+
+ use constants, only              : ione
  implicit none
 
 ! Declare passed variables
@@ -695,7 +706,7 @@
 
 ! test for fov in range
  valid=.true.
- if (fov <  1) then 
+ if (fov <  ione) then 
    write(6,*) "FOV_CHECK: ERROR, FOV NUMBER LESS THAN ONE "
    valid=.false.
    return

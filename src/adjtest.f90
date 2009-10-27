@@ -24,7 +24,7 @@ module adjtest
 
 use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nsubwin
-use constants, only: zero, two
+use constants, only: izero, zero, two
 use jfunc, only: nrclen
 use mpimod, only: mype
 use control_vectors
@@ -74,7 +74,7 @@ type(predictors) :: sbias1,sbias2
 integer(i_kind) :: ii
 real(r_kind) :: zz1,zz2,zz3,zz4
 
-if (mype==0) write(6,*)'ADTEST starting'
+if (mype==izero) write(6,*)'ADTEST starting'
 
 ! ----------------------------------------------------------------------
 ! Allocate local variables
@@ -129,7 +129,7 @@ else
 endif
 zz4 = zz3/epsilon(zz3)
 
-if (mype==0) then
+if (mype==izero) then
   write(6,'(A)')' ADTEST            0.123456789012345678'
   write(6,'(A,ES24.18)')' ADTEST <F*F.Y,X>= ',zz1
   write(6,'(A,ES24.18)')' ADTEST <F.Y,F.Y>= ',zz2
@@ -149,7 +149,7 @@ call deallocate_preds(sbias1)
 call deallocate_preds(sbias2)
 ! ----------------------------------------------------------------------
 
-if (mype==0) write(6,*)'ADTEST finished'
+if (mype==izero) write(6,*)'ADTEST finished'
 
 return
 end subroutine adtest

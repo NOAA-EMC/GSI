@@ -49,7 +49,7 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
 ! Declare local variables
   integer(i_kind) k,l,ni1,ni2
   real(r_kind),dimension(itotsub,nsig1o):: work1
-  real(r_kind),dimension(lat2*lon2*(nsig*6+4)):: xtmp
+  real(r_kind),dimension(lat2*lon2*(nsig*6+4_i_kind)):: xtmp
 
 
 ! Transfer input array to local work array
@@ -82,6 +82,7 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
 
  return
 end subroutine grid2sub
+
 subroutine grid2sub2(workout,st,vp,pri,t)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -108,6 +109,7 @@ subroutine grid2sub2(workout,st,vp,pri,t)
 !
 !$$$
   use kinds, only: r_kind,i_kind
+  use constants, only: ione
   use mpimod, only: irdbal_s,ircbal_s,iscbal_s,isdbal_s,ierror,&
        mpi_comm_world,mpi_rtype,reorder2,vectosub,nlevsbal,nnnvsbal, &
        ku_gs,kv_gs,kt_gs,kp_gs
@@ -116,13 +118,13 @@ subroutine grid2sub2(workout,st,vp,pri,t)
 
 ! Declare passed variables
   real(r_kind),dimension(nlat,nlon,nnnvsbal),intent(in):: workout
-  real(r_kind),dimension(lat2,lon2,nsig+1),intent(out):: pri
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(out):: pri
   real(r_kind),dimension(lat2,lon2,nsig),intent(out):: t,st,vp
 
 ! Declare local variables
   integer(i_kind) k,l,ni1,ni2,ioff
   real(r_kind),dimension(itotsub,nlevsbal):: work1
-  real(r_kind),dimension(lat2*lon2*(nsig*4+1)):: xtmp
+  real(r_kind),dimension(lat2*lon2*(nsig*4+ione)):: xtmp
 
 ! Transfer input array to local work array
   do k=1,nnnvsbal
@@ -143,15 +145,15 @@ subroutine grid2sub2(workout,st,vp,pri,t)
 
 ! load the received subdomain vector
   do k=1,nsig
-   ioff=ku_gs(k)*latlon11+1
+   ioff=ku_gs(k)*latlon11+ione
    call vectosub(xtmp(ioff),latlon11,st(1,1,k))
-   ioff=kv_gs(k)*latlon11+1
+   ioff=kv_gs(k)*latlon11+ione
    call vectosub(xtmp(ioff),latlon11,vp(1,1,k))
-   ioff=kt_gs(k)*latlon11+1
+   ioff=kt_gs(k)*latlon11+ione
    call vectosub(xtmp(ioff),latlon11,t(1,1,k))
   end do
-  do k=1,nsig+1
-   ioff=kp_gs(k)*latlon11+1
+  do k=1,nsig+ione
+   ioff=kp_gs(k)*latlon11+ione
    call vectosub(xtmp(ioff),latlon11,pri(1,1,k))
   end do
 

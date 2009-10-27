@@ -1,7 +1,6 @@
 subroutine combine_radobs(mype_sub,mype_root,&
      npe_sub,mpi_comm_sub,nele,itxmax,nread,ndata,&
      data_all,data_crit)
-
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    combine_radobs        merge input from multiple tasks
@@ -39,7 +38,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,izero
+  use constants, only: zero,izero,ione
   use mpimod, only: ierror,mpi_rtype,mpi_itype,mpi_sum,mpi_min
   implicit none
 
@@ -60,18 +59,18 @@ subroutine combine_radobs(mype_sub,mype_root,&
   real(r_kind),dimension(itxmax):: data_crit_min
   real(r_kind),dimension(nele,itxmax):: data_all_in
 
-  ndata=0
-  if(npe_sub > 1)then
+  ndata=izero
+  if(npe_sub > ione)then
 !   Determine total number of data read and retained.
     ncounts=nread
-    call mpi_allreduce(ncounts,ncounts1,1,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
+    call mpi_allreduce(ncounts,ncounts1,ione,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
 
 !   Set total number of observations summed over all tasks and
 !   construct starting location of subset in reduction array
 
-    nread=0
+    nread=izero
     if (mype_sub==mype_root) nread = ncounts1
-    if (ncounts1 == 0)return
+    if (ncounts1 == izero)return
 
 !   Allocate arrays to hold data
       
@@ -79,19 +78,19 @@ subroutine combine_radobs(mype_sub,mype_root,&
 !   is only needed on task mype_root
     call mpi_allreduce(data_crit,data_crit_min,itxmax,mpi_rtype,mpi_min,mpi_comm_sub,ierror)
 
-    ndata=0
-    ndata1=0
+    ndata=izero
+    ndata1=izero
     data_all_in=zero
     do k=1,itxmax
       if(data_crit_min(k) < 5.e9_r_kind)then
-         ndata=ndata+1
+         ndata=ndata+ione
          if(data_crit_min(k) /= data_crit(k)) then
             data_crit(ndata)=1.e10_r_kind
             do l=1,nele
                data_all_in(l,ndata)=zero
             end do
          else
-            ndata1=ndata1+1
+            ndata1=ndata1+ione
             data_crit(ndata)=data_crit(k)
             do l=1,nele
                data_all_in(l,ndata)=data_all(l,k)
@@ -99,7 +98,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
          end if
        end if
     end do
-    call mpi_allreduce(ndata1,ndata2,1,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
+    call mpi_allreduce(ndata1,ndata2,ione,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
 
 !  Following code only in the unlikely circumstance that 2 min crit's in one grid box are identical
     if(ndata /= ndata2)then
@@ -128,7 +127,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
     if(nread <= izero)return
     do k=1,itxmax
       if(data_crit(k) < 1.e9_r_kind)then
-        ndata=ndata+1
+        ndata=ndata+ione
         do l=1,nele
            data_all(l,ndata)=data_all(l,k)
         end do

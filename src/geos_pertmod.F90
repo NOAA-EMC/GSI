@@ -78,7 +78,7 @@
       use gridmod,     only : itotsub        ! no. of horizontal points of all subdomains combined
       use gridmod,     only : bk5
       use gsi_io,      only : reorder21,reorder12
-      use constants,   only : zero,one,r1000,r3600
+      use constants,   only : izero,ione,zero,one,r1000,r3600
       use state_vectors                      ! GSI state vector
 
       implicit none
@@ -149,11 +149,11 @@
       character(len=*), parameter :: fnpert = 'fsens.eta.hdf'
       character(len=*), parameter :: fnxgsi = 'xxgsi.eta'
 
-      integer(i_kind),  parameter :: ROOT = 0 ! should really come from above
+      integer(i_kind),  parameter :: ROOT = izero ! should really come from above
 
       integer(i_kind), save  :: ndtpert
 
-      integer(i_kind), save :: mycount = 0
+      integer(i_kind), save :: mycount = izero
       real(r_kind), parameter :: PPMV2DU    = 1.657E-6_r_kind
       real(r_kind), parameter :: kPa_per_Pa = 0.001_r_kind
       real(r_kind), parameter :: Pa_per_kPa = r1000
@@ -166,7 +166,7 @@
       logical, save :: skiptraj_    = .false.
       logical, save :: bks_checked_ = .false.
  
-      integer, save :: vectype_     = 5       ! default is GEOS-5 vector
+      integer(i_kind), save :: vectype_     = 5_i_kind       ! default is GEOS-5 vector
 
       CONTAINS
 
@@ -197,7 +197,7 @@
 
       type(state_vector),       intent(inout) :: xx       ! GSI increment
 
-      integer(i-kind),                    intent(out) :: stat
+      integer(i_kind),                    intent(out) :: stat
 
       integer(i_kind),optional,           intent(out) :: nymd_in
       integer(i_kind),optional,           intent(out) :: nhms_in
@@ -227,13 +227,13 @@
      integer(i_kind) ierr,nymdp,nhmsp
      real(r_kind)    dmodel,dgsi
 
-     stat = 0
+     stat = izero
      xx   = zero
 
 !    Initializes this package
 !    ------------------------
      call init_ ( ierr, skiptraj=skiptraj )
-        if(ierr/=0) return
+        if(ierr/=izero) return
 
 !    Set file to be read
 !    -------------------
@@ -248,7 +248,7 @@
 !    Create GCM perturbation vector
 !    ------------------------------
      if ( myimr/=imr .or. myjnp/=jnp .or. mynl/=nl .or. mync<nc ) then
-          stat = 89
+          stat = 89_i_kind
           if (mype==ROOT) then
              print*, 'myimr,myjnp,mynl,mync ', myimr,myjnp,mynl,mync
              print*, '  imr,  jnp,  nl,  nc ',   imr,  jnp,  nl,  nc
@@ -261,10 +261,10 @@
 
 !    Read in perturbation
 !    --------------------
-     nymdp = 0; nhmsp = 0
+     nymdp = izero; nhmsp = izero
      call getpert ( trim(fname), nymdp, nhmsp, xpert, pick=.false., stat=ierr, vectype=vectype_, forceflip=.true. )
-       if(ierr/=0)then
-           stat = 90
+       if(ierr/=izero)then
+           stat = 90_i_kind
            if(mype==ROOT) print*, trim(myname_), ': Error retrieving perturbation'
            return
        endif
@@ -291,7 +291,7 @@
 
 !       ... convert GEOS-4 to GEOS-5 like perturbation and ...
 !       ------------------------------------------------------
-        if(vectype_==4) call stepon_g4tog5_tl ( nymdp, nhmsp, ypert )
+        if(vectype_==4_i_kind) call stepon_g4tog5_tl ( nymdp, nhmsp, ypert )
 
 !       ... then convert to GSI
 !       -----------------------
@@ -366,7 +366,7 @@
       logical      scaleit
 
       scaleit = .true.  ! default: scale input vector as original var from G-5 GCM
-      stat = 0
+      stat = izero
       if ( present(jgradf) ) then
            if(jgradf) scaleit = .false. ! input vector is a gradient, don't scale vars
       endif
@@ -374,29 +374,29 @@
 !     Initializes this package
 !     ------------------------
       call init_ ( ierr )
-        if(ierr/=0) return
+        if(ierr/=izero) return
       call check_bks()
 
       allocate (sub_tv  (lat2,lon2,nsig), sub_u (lat2,lon2,nsig),&
                 sub_v   (lat2,lon2,nsig), sub_q (lat2,lon2,nsig),&
                 sub_delp(lat2,lon2,nsig), sub_ps(lat2,lon2), stat=ierr )
-        if ( ierr/=0 ) then
-            stat = 91
+        if ( ierr/=izero ) then
+            stat = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_)'
             return
         end if
-      if ( nc>1 ) then
+      if ( nc>ione ) then
           allocate (sub_oz  (lat2,lon2,nsig), stat=ierr )
-            if ( ierr/=0 ) then
-                stat = 91
+            if ( ierr/=izero ) then
+                stat = 91_i_kind
                 if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_oz)'
                 return
             end if
       endif
-      if ( nc>2 ) then
+      if ( nc>2_i_kind ) then
           allocate (sub_cw  (lat2,lon2,nsig), stat=ierr )
-            if ( ierr/=0 ) then
-                stat = 91
+            if ( ierr/=izero ) then
+                stat = 91_i_kind
                 if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_cw)'
                 return
             end if
@@ -404,15 +404,15 @@
 
 !     Gather from GCM/Scatter to GSI subdomains
 !     -----------------------------------------
-                call pert2gsi_ ( xpert%u,          sub_u   , ng_d, ng_s, ierr )
-                call pert2gsi_ ( xpert%v,          sub_v   , ng_s, ng_d, ierr )
-                call pert2gsi_ ( xpert%pt,         sub_tv  , ng_d, ng_d, ierr )
-                call pert2gsi_ ( xpert%delp,       sub_delp,    0,    0, ierr )
-                call pert2gsi_ ( xpert%q(:,:,:,1), sub_q   , ng_d, ng_d, ierr )
-      if (nc>1) call pert2gsi_ ( xpert%q(:,:,:,2), sub_oz  , ng_d, ng_d, ierr )
-      if (nc>2) call pert2gsi_ ( xpert%q(:,:,:,3), sub_cw  , ng_d, ng_d, ierr )
-        if ( ierr/=0 ) then
-            stat = 99
+                     call pert2gsi_ ( xpert%u,          sub_u   , ng_d, ng_s, ierr )
+                     call pert2gsi_ ( xpert%v,          sub_v   , ng_s, ng_d, ierr )
+                     call pert2gsi_ ( xpert%pt,         sub_tv  , ng_d, ng_d, ierr )
+                     call pert2gsi_ ( xpert%delp,       sub_delp,izero,izero, ierr )
+                     call pert2gsi_ ( xpert%q(:,:,:,1), sub_q   , ng_d, ng_d, ierr )
+      if (nc>ione)   call pert2gsi_ ( xpert%q(:,:,:,2), sub_oz  , ng_d, ng_d, ierr )
+      if (nc>2_kind) call pert2gsi_ ( xpert%q(:,:,:,3), sub_cw  , ng_d, ng_d, ierr )
+        if ( ierr/=izero ) then
+            stat = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': unfinished convertion ...'
             return
         end if
@@ -433,11 +433,11 @@
 
 !     Calculate all other perturbation for GSI
 !     ----------------------------------------
-      ijk=0
+      ijk=izero
       do k=1,nsig
          do j=1,lon2
             do i=1,lat2
-               ijk=ijk+1
+               ijk=ijk+ione
                xx%u(ijk) = sub_u (i,j,k)
                xx%v(ijk) = sub_v (i,j,k)
                xx%t(ijk) = sub_tv(i,j,k)
@@ -445,24 +445,24 @@
             enddo
          enddo
       enddo
-      if ( nc>1 ) then
-           ijk=0
+      if ( nc>ione ) then
+           ijk=izero
            do k=1,nsig
               do j=1,lon2
                  do i=1,lat2
-                    ijk=ijk+1
+                    ijk=ijk+ione
                     xx%oz(ijk) = sub_oz (i,j,k)
                  enddo
               enddo
            enddo
            if(scaleit) xx%oz(:)  = xx%oz(:) * PPMV2DU
       endif
-      if ( nc>2 ) then
-           ijk=0
+      if ( nc>2_i_kind ) then
+           ijk=izero
            do k=1,nsig
               do j=1,lon2
                  do i=1,lat2
-                    ijk=ijk+1
+                    ijk=ijk+ione
                     xx%cw(ijk) = sub_cw (i,j,k)
                  enddo
               enddo
@@ -475,23 +475,23 @@
 !     xx%sst(:) = xx%sst(:)
 
       deallocate (sub_tv, sub_u, sub_v, sub_q, sub_delp, sub_ps, stat=ierr )
-        if ( ierr/=0 ) then
-            stat = 99
+        if ( ierr/=izero ) then
+            stat = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_)'
             return
         end if
-      if ( nc>1 ) then
+      if ( nc>ione ) then
           deallocate (sub_oz, stat=ierr )
-            if ( ierr/=0 ) then
-                stat = 99
+            if ( ierr/=izero ) then
+                stat = 99_i_kind
                 if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_oz)'
                 return
             end if
        endif
-      if ( nc>2 ) then
+      if ( nc>2_i_kind ) then
           deallocate (sub_cw, stat=ierr )
-            if ( ierr/=0 ) then
-                stat = 99
+            if ( ierr/=izero ) then
+                stat = 99_i_kind
                 if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_cw)'
                 return
             end if
@@ -526,10 +526,10 @@
       real(r_kind), intent(in) :: alpha
         xx%p = zero
         do k=1,nsig
-           ij=0
+           ij=izero
            do j=1,lon2
               do i=1,lat2
-                 ij=ij+1
+                 ij=ij+ione
                  xx%p(ij) = xx%p(ij) + alpha * sub_delp(i,j,k)
               end do
            end do
@@ -564,11 +564,11 @@
       real(r_kind) bkweight
         xx%p=zero
         do k=1,nsig
-           bkweight = alpha * ( bk5(k) - bk5(k+1) ) / ( bk5(1) - bk5(nsig+1) )
-           ij=0
+           bkweight = alpha * ( bk5(k) - bk5(k+ione) ) / ( bk5(1) - bk5(nsig+ione) )
+           ij=izero
            do j=1,lon2
               do i=1,lat2
-                 ij=ij+1
+                 ij=ij+ione
                  xx%p(ij) = xx%p(ij) + bkweight * sub_delp(i,j,k)
               enddo
            enddo
@@ -602,7 +602,7 @@
       implicit none
 
       integer(i_kind), intent(in)  :: ngd, ngs
-      real(r8),        intent(in)  :: fld(:,:,:)
+      real(r_kind),    intent(in)  :: fld(:,:,:)
       real(r_kind),    intent(out) :: sub(:,:,:)
       integer(i_kind), intent(out) :: stat_
 
@@ -614,25 +614,25 @@
       real(r_kind), allocatable :: work(:)
       integer(i_kind) mm1
 
-      mm1 = mype+1 
-      stat_ = 0
+      mm1 = mype+ione
+      stat_ = izero
 
       allocate ( work3d(nlon,nlat,nsig), stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 91
+        if ( ierr/=izero ) then
+            stat_ = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(work3d)'
             return
         end if
       allocate ( work4d(imr,jnp,nl,1), stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 91
+        if ( ierr/=izero ) then
+            stat_ = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
             return
         end if
                                                                                                                            
 !     Gather GCM perturbations to root processor
 !     ------------------------------------------
-      call mp_gather4d(fld, work4d, imr, jnp, nl, 1, jfirst, jlast, 1, nl, ngd, ngs, root)
+      call mp_gather4d(fld, work4d, imr, jnp, nl, ione, jfirst, jlast, ione, nl, ngd, ngs, root)
 
 !     Flip horizontal and vertical
 !     ----------------------------
@@ -656,20 +656,20 @@
 !     Swap work memory
 !     ----------------
       deallocate ( work4d, stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 99
+        if ( ierr/=izero ) then
+            stat_ = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4d)'
             return
         end if
       allocate ( work(itotsub), stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 91
+        if ( ierr/=izero ) then
+            stat_ = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(work)'
             return
         end if
       allocate ( work2d(lat2,lon2), stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 91
+        if ( ierr/=izero ) then
+            stat_ = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
             return
         end if
@@ -692,20 +692,20 @@
 !     Release work memory
 !     -------------------
       deallocate ( work2d, stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 99
+        if ( ierr/=izero ) then
+            stat_ = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4d)'
             return
         end if
       deallocate ( work, stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 99
+        if ( ierr/=izero ) then
+            stat_ = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': delloc(work)'
             return
         end if
       deallocate ( work3d, stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 99
+        if ( ierr/=izero ) then
+            stat_ = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': delloc(work3d)'
             return
         end if
@@ -742,7 +742,7 @@
 ! !OUTPUT PARAMETERS:
 
       type(dyn_prog),optional,intent(out) :: xp
-      integer(i_kind),            intent(out) :: stat
+      integer(i_kind),        intent(out) :: stat
 
 ! !DESCRIPTION: Convert GSI increment vector to GEOS-5 perturbation vector
 !               (as gsi2pgcm1_, but output GCM perturbation to file)
@@ -763,12 +763,12 @@
      integer(i_kind) idim,jdim,kdim,i,j,k
      real(r_kind), allocatable :: ps(:,:)
 
-     stat = 0
+     stat = izero
 
 !    Initializes this package
 !    ------------------------
      call init_ ( ierr )
-        if(ierr/=0) return
+        if(ierr/=izero) return
      call check_bks()
 
 !    Create GCM perturbation vector
@@ -796,7 +796,7 @@
 
 !    Write out perturbation
 !    ----------------------
-     mycount = mycount + 1
+     mycount = mycount + ione
      if (present(filename)) then
        write(fname,'(3a)')      trim(job), '.', trim(filename)
      else
@@ -804,8 +804,8 @@
      endif
      call putpert ( job, nymd, nhms, xpert, fvpsasdt, nstep, &
                     ak, bk, Ts, oro, ps, fname, vectype=vectype_ )
-       if(ierr/=0)then
-           stat = 90
+       if(ierr/=izero)then
+           stat = 90_i_kind
            if(mype==ROOT) print*, trim(myname_), ': Error retrieving perturbation'
            return
        endif
@@ -866,33 +866,33 @@
       integer  i,j,k,ijk,ij
       integer  ierr
 
-      stat = 0
+      stat = izero
 
 !     Initializes this package
 !     ------------------------
       call init_ ( ierr )
-        if(ierr/=0) return
+        if(ierr/=izero) return
 
       allocate (sub_tv  (lat2,lon2,nsig), sub_u (lat2,lon2,nsig),&
                 sub_v   (lat2,lon2,nsig), sub_q (lat2,lon2,nsig),&
                 sub_delp(lat2,lon2,nsig), sub_ps(lat2,lon2), stat=ierr )
-        if ( ierr/=0 ) then
-            stat = 91
+        if ( ierr/=izero ) then
+            stat = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_)'
             return
         end if
-      if ( nc>1 ) then
+      if ( nc>ione ) then
           allocate (sub_oz  (lat2,lon2,nsig), stat=ierr )
-            if ( ierr/=0 ) then
-                stat = 91
+            if ( ierr/=izero ) then
+                stat = 91_i_kind
                 if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_oz)'
                 return
             end if
       endif
-      if ( nc>2 ) then
+      if ( nc>2_i_kind ) then
           allocate (sub_cw  (lat2,lon2,nsig), stat=ierr )
-            if ( ierr/=0 ) then
-                stat = 91
+            if ( ierr/=izero ) then
+                stat = 91_i_kind
                 if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_cw)'
                 return
             end if
@@ -900,11 +900,11 @@
 
 !     Fill in subdomain arrays
 !     ------------------------
-      ijk=0
+      ijk=izero
       do k=1,nsig
          do j=1,lon2
             do i=1,lat2
-               ijk=ijk+1
+               ijk=ijk+ione
                sub_u (i,j,k) = xx%u(ijk)
                sub_v (i,j,k) = xx%v(ijk)
                sub_tv(i,j,k) = xx%t(ijk)
@@ -912,30 +912,30 @@
             enddo
          enddo
       enddo
-      if ( nc>1 ) then
-           ijk=0
+      if ( nc>ione ) then
+           ijk=izero
            do k=1,nsig
               do j=1,lon2
                  do i=1,lat2
-                    ijk=ijk+1
+                    ijk=ijk+ione
                     sub_oz(i,j,k) = xx%oz(ijk)
                  enddo
               enddo
            enddo
            sub_oz = sub_oz / PPMV2DU
       endif
-      if ( nc>2 ) then
-           ijk=0
+      if ( nc>2_i_kind ) then
+           ijk=izero
            do k=1,nsig
               do j=1,lon2
                  do i=1,lat2
-                    ijk=ijk+1
+                    ijk=ijk+ione
                     sub_cw(i,j,k) = xx%cw(ijk)
                  enddo
               enddo
            enddo
       endif
-      ij=0
+      ij=izero
       do j=1,lon2
          do i=1,lat2
             sub_ps(i,j) = zero
@@ -954,37 +954,37 @@
 
 !     Gather from GSI subdomains/Scatter to GCM
 !     -----------------------------------------
-               call gsi2pert_ ( sub_u,    xpert%u,          ng_d, ng_s, ierr )
-               call gsi2pert_ ( sub_v,    xpert%v,          ng_s, ng_d, ierr )
-               call gsi2pert_ ( sub_tv,   xpert%pt,         ng_d, ng_d, ierr )
-               call gsi2pert_ ( sub_delp, xpert%delp,          0,    0, ierr )
-               call gsi2pert_ ( sub_q ,   xpert%q(:,:,:,1), ng_d, ng_d, ierr )
-      if(nc>1) call gsi2pert_ ( sub_oz,   xpert%q(:,:,:,2), ng_d, ng_d, ierr )
-      if(nc>2) call gsi2pert_ ( sub_cw,   xpert%q(:,:,:,3), ng_d, ng_d, ierr )
-        if ( ierr/=0 ) then
-            stat = 98
+                      call gsi2pert_ ( sub_u,    xpert%u,          ng_d, ng_s, ierr )
+                      call gsi2pert_ ( sub_v,    xpert%v,          ng_s, ng_d, ierr )
+                      call gsi2pert_ ( sub_tv,   xpert%pt,         ng_d, ng_d, ierr )
+                      call gsi2pert_ ( sub_delp, xpert%delp,      izero,izero, ierr )
+                      call gsi2pert_ ( sub_q ,   xpert%q(:,:,:,1), ng_d, ng_d, ierr )
+      if(nc>ione)     call gsi2pert_ ( sub_oz,   xpert%q(:,:,:,2), ng_d, ng_d, ierr )
+      if(nc>2_i_kind) call gsi2pert_ ( sub_cw,   xpert%q(:,:,:,3), ng_d, ng_d, ierr )
+        if ( ierr/=izero ) then
+            stat = 98_i_kind
             if(mype==ROOT) print*, trim(myname_), ': unfinished convertion ...'
             return
         end if
 
       deallocate (sub_tv, sub_u, sub_v, sub_q, sub_delp, sub_ps, stat=ierr )
-        if ( ierr/=0 ) then
-            stat = 99
+        if ( ierr/=izero ) then
+            stat = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_)'
             return
         end if
-      if ( nc>1 ) then
+      if ( nc>ione ) then
           deallocate (sub_oz, stat=ierr )
-            if ( ierr/=0 ) then
-                stat = 99
+            if ( ierr/=izero ) then
+                stat = 99_i_kind
                 if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_oz)'
                 return
             end if
        endif
-      if ( nc>2 ) then
+      if ( nc>2_i_kind ) then
           deallocate (sub_cw, stat=ierr )
-            if ( ierr/=0 ) then
-                stat = 99
+            if ( ierr/=izero ) then
+                stat = 99_i_kind
                 if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_cw)'
                 return
             end if
@@ -1020,11 +1020,11 @@
       real(r_kind), intent(in) :: alpha
       real(r_kind) bkweight
         do k=1,nsig
-           bkweight = alpha * ( bk5(k) - bk5(k+1) ) / ( bk5(1) - bk5(nsig) )
-           ij=0
+           bkweight = alpha * ( bk5(k) - bk5(k+ione) ) / ( bk5(1) - bk5(nsig) )
+           ij=izero
            do j=1,lon2
               do i=1,lat2
-                 ij=ij+1
+                 ij=ij+ione
                  sub_delp(i,j,k) = bkweight * xx%p(ij)
               enddo
            enddo
@@ -1057,10 +1057,10 @@
       implicit none
       real(r_kind), intent(in) :: alpha
         do k=1,nsig
-           ij=0
+           ij=izero
            do j=1,lon2
               do i=1,lat2
-                 ij=ij+1
+                 ij=ij+ione
                  sub_delp(i,j,k) = alpha * xx%p(ij)
               enddo
            enddo
@@ -1095,7 +1095,7 @@
 
       integer(i_kind),      intent(in)  :: ngd, ngs
       real(r_kind),         intent(in)  :: sub(:,:,:)
-      real(r8),             intent(out) :: fld(:,:,:)
+      real(r_kind),         intent(out) :: fld(:,:,:)
       integer(i_kind),      intent(out) :: stat_
 
       character(len=*), parameter :: myname_ = myname//'*gsi2pert_'
@@ -1107,24 +1107,24 @@
 
       integer(i_kind) mm1
 
-      mm1 = mype+1 
-      stat_ = 0
+      mm1 = mype+ione
+      stat_ = izero
 
       allocate ( work3d(nlon,nlat,nsig), stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 91
+        if ( ierr/=izero ) then
+            stat_ = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(work3d)'
             return
         end if
       allocate ( work(max(iglobal,itotsub)), stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 91
+        if ( ierr/=izero ) then
+            stat_ = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(work)'
             return
         end if
       allocate ( fldsm(lat1*lon1,nsig), stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 91
+        if ( ierr/=izero ) then
+            stat_ = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(fldsm)'
             return
         end if
@@ -1145,21 +1145,21 @@
       end do
 
       deallocate ( fldsm, stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 99
+        if ( ierr/=izero ) then
+            stat_ = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': delloc(fldsm)'
             return
         end if
       deallocate ( work, stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 99
+        if ( ierr/=izero ) then
+            stat_ = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': delloc(work)'
             return
         end if
 
       allocate ( work4d(imr,jnp,nl,1), stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 91
+        if ( ierr/=izero ) then
+            stat_ = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
             return
         end if
@@ -1185,20 +1185,20 @@
 
 !     Scatter perturbations to GCM decomposition
 !     ------------------------------------------
-      call mp_scatter4d ( work4d, fld, imr, jnp, nl, 1, jfirst, jlast, 1, nl, ngd, ngs, root )
+      call mp_scatter4d ( work4d, fld, imr, jnp, nl, ione, jfirst, jlast, ione, nl, ngd, ngs, root )
 
 !     Swap work memory
 !     ----------------
       deallocate ( work4d, stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 99
+        if ( ierr/=izero ) then
+            stat_ = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4d)'
             return
         end if
 
       deallocate ( work3d, stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 99
+        if ( ierr/=izero ) then
+            stat_ = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': delloc(work3d)'
             return
         end if
@@ -1245,14 +1245,14 @@
 
       integer(i_kind) n,ierr
 
-      stat = 0
+      stat = izero
 
-      call pert2pert_ ( ng_d,ng_s, myimr,myjnp,mynl,ypert%u,           xpert%u,          ierr )
-      call pert2pert_ ( ng_s,ng_d, myimr,myjnp,mynl,ypert%v,           xpert%v,          ierr )
-      call pert2pert_ ( ng_d,ng_d, myimr,myjnp,mynl,ypert%pt,          xpert%pt,         ierr )
-      call pert2pert_ (    0,   0, myimr,myjnp,mynl,ypert%delp,        xpert%delp,       ierr )
+      call pert2pert_ ( ng_d, ng_s, myimr,myjnp,mynl,ypert%u,           xpert%u,          ierr )
+      call pert2pert_ ( ng_s, ng_d, myimr,myjnp,mynl,ypert%v,           xpert%v,          ierr )
+      call pert2pert_ ( ng_d, ng_d, myimr,myjnp,mynl,ypert%pt,          xpert%pt,         ierr )
+      call pert2pert_ (izero,izero, myimr,myjnp,mynl,ypert%delp,        xpert%delp,       ierr )
       do n = 1, nc
-      call pert2pert_ ( ng_d,ng_d, myimr,myjnp,mynl,ypert%q(:,:,:,n),  xpert%q(:,:,:,n), ierr )
+      call pert2pert_ ( ng_d, ng_d, myimr,myjnp,mynl,ypert%q(:,:,:,n),  xpert%q(:,:,:,n), ierr )
       enddo
 
       stat = ierr
@@ -1288,8 +1288,8 @@
 
       integer(i_kind),  intent(in)  :: ngd,ngs
       integer(i_kind),  intent(in)  :: myimr,myjnp,mynl
-      real(r8), intent(in)  :: fldi(:,:,:)
-      real(r8), intent(out) :: fldo(:,:,:)
+      real(r_kind),     intent(in)  :: fldi(:,:,:)
+      real(r_kind),     intent(out) :: fldo(:,:,:)
       integer(i_kind),  intent(out) :: stat_
 
       character(len=*), parameter :: myname_ = myname//'*pert2pert_'
@@ -1297,24 +1297,24 @@
       real(r_kind), allocatable :: work4di(:,:,:,:)   ! auxliar 4d array
       real(r_kind), allocatable :: work4do(:,:,:,:)   ! auxliar 4d array
 
-      stat_ = 0
+      stat_ = izero
 
       allocate ( work4do(nlon,nlat,nl,1), stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 91
+        if ( ierr/=izero ) then
+            stat_ = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(work3d)'
             return
         end if
       allocate ( work4di(myimr,myjnp,mynl,1), stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 91
+        if ( ierr/=izero ) then
+            stat_ = 91_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
             return
         end if
                                                                                                                            
 !     Gather GCM perturbations to root processor
 !     ------------------------------------------
-      call mp_gather4d(fldi, work4di, myimr, myjnp, nl, 1, jfirst, jlast, 1, nl, ngd, ngs, root)
+      call mp_gather4d(fldi, work4di, myimr, myjnp, nl, ione, jfirst, jlast, ione, nl, ngd, ngs, root)
 
 !     Interpolate perturbation to internal resolution
 !     -----------------------------------------------
@@ -1325,19 +1325,19 @@
 
 !     Scatter interpolated perturbations to internal vector
 !     -----------------------------------------------------
-      call mp_scatter4d ( work4do, fldo, nlon, nlat, nl, nc, jfirst, jlast, 1, nl, ngd, ngs, root )
+      call mp_scatter4d ( work4do, fldo, nlon, nlat, nl, nc, jfirst, jlast, ione, nl, ngd, ngs, root )
 
 !     Release work memory
 !     -------------------
       deallocate ( work4di, stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 99
+        if ( ierr/=izero ) then
+            stat_ = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4di)'
             return
         end if
       deallocate ( work4do, stat=ierr )
-        if ( ierr/=0 ) then
-            stat_ = 99
+        if ( ierr/=izero ) then
+            stat_ = 99_i_kind
             if(mype==ROOT) print*, trim(myname_), ': delloc(work4do)'
             return
         end if
@@ -1387,7 +1387,7 @@
       integer(i_kind) m,n
 #endif /* GEOS_PERT */
 
-      stat = 0
+      stat = izero
 
 #ifdef GEOS_PERT
 
@@ -1398,13 +1398,13 @@
 
 !     Consistency checking between ADM/TLM and GSI dims
 !     -------------------------------------------------
-      if ( nc>3 ) then
-           stat = 90
+      if ( nc>3_i_kind ) then
+           stat = 90_i_kind
            if(mype==ROOT) print*, trim(myname_), ': unacceptable number of tracers'
            return
       endif
       if ( nsig/=nl ) then
-           stat = 91
+           stat = 91_i_kind
            if(mype==ROOT) print*, trim(myname_), ': inconsistent number of levels, nsig,nl: ', nsig,nl
            return
       endif
@@ -1562,8 +1562,8 @@
 #ifdef GEOS_PERT
     integer(i_kind) k,kk 
     if(bks_checked_) return
-    do k = 1, nsig+1
-       kk = nsig-k+2
+    do k = 1, nsig+ione
+       kk = nsig-k+2_i_kind
        if(abs(bk(k)-bk5(kk))>0.00001_r_kind)then
           if(mype==ROOT)then
              print*,'bk5',bk5
@@ -1655,7 +1655,7 @@
       do i=1,isz
          aji(1:jsz,i,kk)=aij(i,1:jsz,k)
       end do
-      kk=kk+1
+      kk=kk+ione
    end do
    call SwapV_(aji)
    end subroutine SwapIJK_

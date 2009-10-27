@@ -1,30 +1,43 @@
 subroutine grtest(xhat,pdx,itertest)
-
-!     Method :
-!     --------
-!     The aim is to characterize mathematically the cost-function J on a
-!  line in the KDIM-dimensional space defined by point X and direction H.
-!  Arbitrarily H is defined by -gradJ(X), the useful direction for
-!  minimization. Let us denote by f the real function f(a)=J(X+a.H). A
-!  sequence of characteristic quantities are computed and displayed for
-!  various values of a :
-!           a=PDX, PDX*10, PDX*100 ... PDX*10**itertest
-!  The sequence is prematuraly terminated if f(a)-f(0) changes of sign,
-!  which normally indicates we are overshooting the minimum of f (assuming
-!  J is convex and H points downwards the slope of J). The characteristic
-!  quantities TC0,T1,TC1,T2... test increasingly high orders of regularity.
-!  Refer to the comments below for the explanation of each quantity.
-!    Owing to numerical truncation errors, the tests normally fail for very 
-!  small perturbations. The maximum quality of the test results, even for a
-!  bug-free simulator, is limited to a few digits, depending on the machine.
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    grtest
+!   prggmr: todling
 !
-! REVISION HISTORY:
+! abstract: The aim is to characterize mathematically the cost-function J on a
+!           line in the KDIM-dimensional space defined by point X and direction H.
+!           Arbitrarily H is defined by -gradJ(X), the useful direction for
+!           minimization. Let us denote by f the real function f(a)=J(X+a.H). A
+!           sequence of characteristic quantities are computed and displayed for
+!           various values of a :
+!                    a=PDX, PDX*10, PDX*100 ... PDX*10**itertest
+!           The sequence is prematuraly terminated if f(a)-f(0) changes of sign,
+!           which normally indicates we are overshooting the minimum of f (assuming
+!           J is convex and H points downwards the slope of J). The characteristic
+!           quantities TC0,T1,TC1,T2... test increasingly high orders of regularity.
+!           Refer to the comments below for the explanation of each quantity.
+!             Owing to numerical truncation errors, the tests normally fail for very 
+!           small perturbations. The maximum quality of the test results, even for a
+!           bug-free simulator, is limited to a few digits, depending on the machine.
 !
-!  2009-01-18 todling - some quad precision changes (incomplete)
-!-----------------------------------------------------------------------------
+! program history log:
+!   2009-01-18 todling - some quad precision changes (incomplete)
+!
+!   input argument list:
+!    xhat
+!    pdx
+!    itertest
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
 use kinds, only: i_kind, r_kind, r_quad
-use constants, only: zero_quad, one_quad
+use constants, only: izero, ione, zero_quad, one_quad
 use mpimod, only: mype
 use control_vectors
 
@@ -49,14 +62,14 @@ logical :: lsavinc
 
 !-----------------------------------------------------------------------------
 
-if (mype==0) write(6,*)'grtest: starting'
+if (mype==izero) write(6,*)'grtest: starting'
 if (pdx<=EPSILON(pdx)) then
-  if (mype==0) write(6,*)'grtest, pdx=',pdx
+  if (mype==izero) write(6,*)'grtest, pdx=',pdx
   write(6,*)'grtest: pdx too small',pdx
   call stop2(131)
 endif
 lsavinc=.false.
-nprt=1
+nprt=ione
 
 call allocate_cv(xdir)
 call allocate_cv(yhat)
@@ -71,7 +84,7 @@ zfy=half_quad*zfy
 
 !          1.1 Define perturbation direction ZH
 
-if (mype==0) write(6,*) 'The test direction is the opposite of the gradient'
+if (mype==izero) write(6,*) 'The test direction is the opposite of the gradient'
 do ii=1,xdir%lencv
   xdir%values(ii)=-grad%values(ii)
 end do
@@ -80,20 +93,20 @@ end do
 
 zf0=zfy
 zdf0=dot_product(grad,xdir,r_quad)
-if (mype==0) write(6,*)'grtest: F(0)=',zf0,' DF(0)=',zdf0
+if (mype==izero) write(6,*)'grtest: F(0)=',zf0,' DF(0)=',zdf0
 
-IF (ZDF0>zero_quad.and.mype==0) write(6,*) 'GRTEST Warning, DF should be negative'
+IF (ZDF0>zero_quad.and.mype==izero) write(6,*) 'GRTEST Warning, DF should be negative'
 IF (ABS(ZDF0) < SQRT(EPSILON(ZDF0))) THEN
-  if (mype==0) write(6,*) 'GRTEST WARNING, DERIVATIVE IS TOO SMALL'
+  if (mype==izero) write(6,*) 'GRTEST WARNING, DERIVATIVE IS TOO SMALL'
 ENDIF
 
 !       2. Loop on test point
 !          ------------------
 DO jj=1,itertest
 
-  za=pdx*(10.0_r_kind**(jj-1))
+  za=pdx*(10.0_r_kind**(jj-ione))
 
-  if (mype==0) write(6,*)'grtest iter=',jj,' alpha=',za
+  if (mype==izero) write(6,*)'grtest iter=',jj,' alpha=',za
 
 !           2.1 Compute f and df at new point y=x+a.h
 
@@ -107,7 +120,7 @@ DO jj=1,itertest
   zfa=zfy
   zdfa=dot_product(grad,xdir,r_quad)
 
-  if (mype==0) write(6,*)'grtest: alpha=',za,' F(a)=',zfa,' DF(a)=',zdfa
+  if (mype==izero) write(6,*)'grtest: alpha=',za,' F(a)=',zfa,' DF(a)=',zdfa
 
   zabuf(jj)=za
   zfabuf(jj)=zfa
@@ -119,11 +132,11 @@ DO jj=1,itertest
 
   IF (ABS(zf0)<=TINY(zf0)) THEN
 !           do not compute T1 in this unlikely case
-    if (mype==0) write(6,*) 'grtest: Warning: zf0 is suspiciously small.'
-    if (mype==0) write(6,*) 'grtest: F(a)-F(0)=',zfa-zf0
+    if (mype==izero) write(6,*) 'grtest: Warning: zf0 is suspiciously small.'
+    if (mype==izero) write(6,*) 'grtest: F(a)-F(0)=',zfa-zf0
   ELSE
     ztco=zfa/zf0-one_quad
-    if (mype==0) write(6,*)'grtest: continuity TC0=',ztco
+    if (mype==izero) write(6,*)'grtest: continuity TC0=',ztco
   ENDIF
 
 !                           f(a)-f(0)
@@ -133,11 +146,11 @@ DO jj=1,itertest
 !         if df is the gradient then T1->1 at origin,
 !         linearly with a. T1 is undefined if df(0)=0.
   IF (ABS(za*zdf0)<=SQRT(TINY(zf0))) THEN
-    if (mype==0) write(6,*)'grtest: Warning: could not compute ',&
+    if (mype==izero) write(6,*)'grtest: Warning: could not compute ',&
      & 'gradient test T1, a.df(0)=',za*zdf0  
   ELSE
     zt1=(zfa-zf0)/(za*zdf0)
-    if (mype==0) write(6,*)'grtest: gradient T1=',zt1
+    if (mype==izero) write(6,*)'grtest: gradient T1=',zt1
   ENDIF
 
 !         2.4 Quantity TC1=( f(a)-f(0)-a.df(0) )/a
@@ -145,20 +158,20 @@ DO jj=1,itertest
 !         if df is the gradient and df is continuous,
 !         then TC1->0 linearly with a.
   ZTC1=(ZFA-ZF0-ZA*ZDF0)/ZA
-  if (mype==0) write(6,*)'grtest: grad continuity TC1=',ZTC1
+  if (mype==izero) write(6,*)'grtest: grad continuity TC1=',ZTC1
 
 !         2.5 Quantity T2=( f(a)-f(0)-a.df(0) )*2/a**2
 
 !         if d2f exists then T2 -> d2f(0) linearly with a.
   ZT2=(ZFA-ZF0-ZA*ZDF0)*two_quad/(ZA**2)
-  if (mype==0) write(6,*)'grtest: second derivative T2=',ZT2
+  if (mype==izero) write(6,*)'grtest: second derivative T2=',ZT2
 
 !         2.6 Quantity TC1A=df(a)-df(0)
 
 !         if df is the gradient in a and df is continuous,
 !         then TC1A->0 linearly with a.
   ZTC1A=ZDFA-ZDF0
-  if (mype==0) write(6,*)'grtest: a-grad continuity TC1A=',ZTC1A
+  if (mype==izero) write(6,*)'grtest: a-grad continuity TC1A=',ZTC1A
 
 !         2.7 Quantity TC2=( 2(f(0)-f(a))+ a(df(0)+df(a))/a**2
 
@@ -166,7 +179,7 @@ DO jj=1,itertest
 !         it has to -> 0 when a is BIG. Otherwise TC2->0 linearly for
 !         small a is trivially implied by TC1A and T2.
   ZTC2=(two_quad*(ZF0-ZFA)+ZA*(ZDF0+ZDFA))/(ZA**2)
-  if (mype==0) write(6,*)'grtest: quadraticity TC2=',ZTC2
+  if (mype==izero) write(6,*)'grtest: quadraticity TC2=',ZTC2
 
 !                           2   f(0)-f(b)   f(a)-f(b)
 !         2.8 Quantity TF2=---( --------- + --------- )
@@ -175,11 +188,11 @@ DO jj=1,itertest
 !         TF2=d2f, always. The estimate is most stable when a,b are big.
 !         This test works only after two loops, but it is immune against
 !         gradient bugs. 
-  IF (jj>=2) THEN
-    ZB=ZABUF(jj-1)
-    ZFB=ZFABUF(jj-1)
+  IF (jj>=2_i_kind) THEN
+    ZB =ZABUF (jj-ione)
+    ZFB=ZFABUF(jj-ione)
     ZTF2=two_quad/ZA*((ZF0-ZFB)/ZB+(ZFA-ZFB)/(ZA-ZB))
-    if (mype==0) write(6,*)'grtest: convexity ZTF2=',ZTF2
+    if (mype==izero) write(6,*)'grtest: convexity ZTF2=',ZTF2
   ENDIF
 
 ! End loop
@@ -197,7 +210,7 @@ call deallocate_cv(grad)
 
 !          3.1 Fundamental checks
 
-if (mype==0) then
+if (mype==izero) then
   write(6,*) 'grtest: TENTATIVE CONCLUSIONS :'
 
   ZTC00=ABS(zfabuf(1)-zf0)
@@ -221,7 +234,7 @@ if (mype==0) then
   ELSE
 !   Find best gradient test index
     ZERMIN=HUGE(ZERMIN)
-    ibest=-1
+    ibest=-ione
     DO jj=1,itertest
       ZT1TST=(zfabuf(jj)-zf0)/(zabuf(jj)*zdf0)
       ZT1TST=ABS(ZT1TST-one_quad)
@@ -230,27 +243,27 @@ if (mype==0) then
         ZERMIN=ZT1TST
       ENDIF
     ENDDO
-    IF(ibest == -1)THEN
+    IF(ibest == -ione)THEN
       write(6,*)'grtest: gradient test problem : bad ',&
        & 'gradient, non-convex cost, or truncation errors ?'  
     ELSE
       idig=INT(-LOG(ZERMIN+TINY(ZERMIN))/LOG(10.0_r_kind))
       write(6,*)'grtest: the best gradient test found has ',&
        & idig,' satisfactory digits.'  
-      IF(idig <= 1)THEN
+      IF(idig <= ione)THEN
         write(6,*)'grtest: SAYS: THE GRADIENT IS VERY BAD.'
-      ELSEIF(idig <= 3)THEN
+      ELSEIF(idig <= 3_i_kind)THEN
         write(6,*)'grtest: SAYS: THE GRADIENT IS SUSPICIOUS.'
-      ELSEIF(idig <= 5)THEN
+      ELSEIF(idig <= 5_i_kind)THEN
         write(6,*)'grtest: SAYS: THE GRADIENT IS ACCEPTABLE.'
       ELSE
         write(6,*)'grtest: SAYS: THE GRADIENT IS EXCELLENT.'
       ENDIF
   
-      IF (ibest<=itertest-2) THEN
-        ZTC10=ABS(zfabuf(ibest  )-zf0-zabuf(ibest  )*zdf0)/zabuf(ibest)
-        ZTC12=ABS(zfabuf(ibest+2)-zf0-zabuf(ibest+2)*zdf0)/zabuf(ibest+2)
-        IF(ZTC10/zabuf(ibest) <=  1.1_r_kind*ZTC12/zabuf(ibest+2) )THEN
+      IF (ibest<=itertest-2_i_kind) THEN
+        ZTC10=ABS(zfabuf(ibest         )-zf0-zabuf(ibest         )*zdf0)/zabuf(ibest         )
+        ZTC12=ABS(zfabuf(ibest+2_i_kind)-zf0-zabuf(ibest+2_i_kind)*zdf0)/zabuf(ibest+2_i_kind)
+        IF(ZTC10/zabuf(ibest) <=  1.1_r_kind*ZTC12/zabuf(ibest+2_i_kind) )THEN
           write(6,*)'grtest: Gradient convergence looks good.'
         ELSE
           write(6,*)'grtest: Gradient convergence is suspicious'
@@ -264,10 +277,10 @@ if (mype==0) then
 !            3.3 Quadraticity
 !         finite difference quadraticity test (gradient-free)
 
-  ZAL=zabuf(itertest)
-  ZFAL=zfabuf(itertest)
-  ZBL=zabuf(itertest-1)
-  ZFBL=zfabuf(itertest-1)
+  ZAL  =zabuf(itertest      )
+  ZFAL =zfabuf(itertest     )
+  ZBL  =zabuf(itertest-ione )
+  ZFBL =zfabuf(itertest-ione)
   ZTF2L=two_quad/ZAL*((zf0-ZFBL)/ZBL+(ZFAL-ZFBL)/(ZAL-ZBL))
   write(6,*) 'grtest: finite diff. d2f estimate no1:',ZTF2
   write(6,*) 'grtest: finite diff. d2f estimate no2:',ZTF2L
@@ -279,11 +292,11 @@ if (mype==0) then
     idig=INT(-LOG(ABS(ZTF2L-ZTF2)/ZREF+TINY(ZTF2))/LOG(10.0_r_kind))
     write(6,*) 'grtest: the fin.dif. estimates of d2f ',&
      & 'have ',idig,' satisfactory digits.'  
-    IF(idig <= 1)THEN
+    IF(idig <= ione)THEN
       write(6,*) 'grtest:: THE FD-QUADRATICITY IS BAD.'
-    ELSEIF(idig <= 3)THEN
+    ELSEIF(idig <= 3_i_kind)THEN
       write(6,*) 'grtest:: THE FD-QUADRATICITY IS SUSPICIOUS.'
-    ELSEIF(idig <= 5)THEN
+    ELSEIF(idig <= 5_i_kind)THEN
       write(6,*) 'grtest:: THE FD-QUADRATICITY IS ACCEPTABLE.'
     ELSE
       write(6,*) 'grtest:: THE FD-QUADRATICITY IS EXCELLENT.'

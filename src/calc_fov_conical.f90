@@ -42,9 +42,9 @@
 
  private
 
- integer(i_kind), parameter, private :: nchan = 24 
- integer(i_kind), parameter, private :: maxinstr = 2
- integer(i_kind), parameter, private :: instrumentrange(maxinstr) = (/26 , 27/)
+ integer(i_kind), parameter, private :: nchan = 24_i_kind
+ integer(i_kind), parameter, private :: maxinstr = 2_i_kind
+ integer(i_kind), parameter, private :: instrumentrange(maxinstr) = (/26_i_kind , 27_i_kind/)
  real(r_kind), parameter, private    :: radius   = 6371.22_r_kind
 
  real(r_kind), private :: alongtrackangle(nchan)
@@ -61,6 +61,7 @@
  public fov_ellipse_conical
 
  contains
+
 subroutine instrument_init(instr,satid,expansion)
 !                .      .    .                                       .
 ! subprogram:    instrument_init          initalize instrument fields
@@ -92,7 +93,7 @@ subroutine instrument_init(instr,satid,expansion)
 !$$$
 
  use calc_fov_crosstrk, only : get_sat_height
- use constants, only  : pi, one, two, half
+ use constants, only  : ione, pi, one, two, half
 
  implicit none
 
@@ -113,7 +114,7 @@ subroutine instrument_init(instr,satid,expansion)
 
 ! fov is polygon.
  do i = 1 , npoly
-   psi(i) = two*pi*(i-1)/(npoly-1)  ! will connect npoly points
+   psi(i) = two*pi*(i-ione)/(npoly-ione)  ! will connect npoly points
  enddo
 
  call get_sat_height(satid, height)
@@ -136,9 +137,11 @@ subroutine instrument_init(instr,satid,expansion)
  return
 
 end subroutine instrument_init
+
 subroutine fovconicalanglessizes(instr,chan,height,alongtrackangle, &
                                  crosstrackangle,alongtrackfovsize, &
                                  crosstrackfovsize)
+!$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    fovconicalanglessizes    calc conical angle size
 !
@@ -267,6 +270,7 @@ subroutine fovconicalanglessizes(instr,chan,height,alongtrackangle, &
  alongtrackangle = rad2deg*alongtrackfovsize/(radius)
 
 end subroutine fovconicalanglessizes
+
 subroutine fov_ellipse_conical(ichan,satellite_azimuth,lat,lon,elats,elons)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -374,6 +378,7 @@ subroutine fov_ellipse_conical(ichan,satellite_azimuth,lat,lon,elats,elons)
  
  return
 end subroutine fov_ellipse_conical
+
 subroutine inside_fov_conical(instr,ichan,satellite_azimuth,lat,lon, &
                               testlat,testlon,expansion,inside)
 !$$$  subprogram documentation block
@@ -638,7 +643,7 @@ subroutine inside_fov_conical(instr,ichan,satellite_azimuth,lat,lon, &
    0.0000000e+000_r_kind,  -2.0684712e+000_r_kind,  -2.4435213e+001_r_kind,  &
   -6.7334828e+000_r_kind,  -1.9548767e+001_r_kind,   1.7209103e+001_r_kind,  &
    1.4496602e+001_r_kind,  -1.1115800e+001_r_kind /),  &
-       (/ 8,2,nchan /) )
+       (/ 8_i_kind,2_i_kind,nchan /) )
 
 ! Get satellite az to where we want it. 1st, convert +- to 0-360
   satellite_azimuth_rot = satellite_azimuth

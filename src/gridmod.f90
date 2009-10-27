@@ -240,6 +240,50 @@ module gridmod
      real(r_single),allocatable:: cpi(:)    
   end type ncepgfs_headv
 
+! set default to private
+  private
+! set subroutines to public
+  public :: init_grid
+  public :: init_grid_vars
+  public :: init_subdomain_vars
+  public :: create_grid_vars
+  public :: destroy_grid_vars
+  public :: create_mapping
+  public :: destroy_mapping
+  public :: init_reg_glob_ll
+  public :: init_general_transform
+  public :: tll2xy
+  public :: txy2ll
+  public :: nearest_3
+  public :: get_xytilde_domain
+  public :: half_nmm_grid2a
+  public :: fill_nmm_grid2a3
+  public :: rotate_wind_ll2xy
+  public :: rotate_wind_xy2ll
+  public :: load_grid
+  public :: fill_ns
+  public :: filluv_ns
+  public :: get_ij
+  public :: get_ijk
+  public :: check_rotate_wind
+! set passed variables to public
+  public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig
+  public :: ncloud,nlat,nlon,ntracer,displs_s,displs_g,ltosj_s,ltosi_s
+  public :: ltosj,ltosi,bk5,regional,latlon11,latlon1n,twodvar_regional
+  public :: netcdf,nems_nmmb_regional,wrf_mass_regional,wrf_nmm_regional
+  public :: aeta2_ll,pdtop_ll,pt_ll,eta1_ll,eta2_ll,aeta1_ll,idsl5,ck5,ak5
+  public :: tref5,idvc5,nlayers,msig,jstart,istart,region_lat,nsig1o,rlats
+  public :: region_dy,region_dx,region_lon,rlat_min_dd,rlat_max_dd,rlon_max_dd
+  public :: rlon_min_dd,coslon,sinlon,rlons,ird_s,irc_s,periodic,idthrm5
+  public :: cp5,idvm5,ncep_sigio,ncepgfs_head,idpsfc5,nlon_sfc,nlat_sfc
+  public :: rlons_sfc,rlats_sfc,jlon1,ilat1,periodic_s,latlon1n1,nsig3p2
+  public :: nsig3p3,nsig2,nsig3p1,wgtlats,corlats,rbs2,ncepgfs_headv,regional_time
+  public :: regional_fhr,region_dyi,coeffx,region_dxi,coeffy,nsig_hlf
+  public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
+  public :: diagnostic_reg,nmmb_reference_grid,hybrid,filled_grid
+  public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
+  public :: nsig4,nsig3
+
 contains
    
 !-------------------------------------------------------------------------
@@ -271,23 +315,23 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-    use constants, only: two
+    use constants, only: izero,ione,two
     implicit none
 
     integer(i_kind) k
 
-    nsig = 42
-    nsig1o = 7
-    nlat = 96
-    nlon = 384
-    idvc5 = 1
-    idvm5=0
-    idpsfc5=1
-    idthrm5=1
-    idsl5 = 1
-    ntracer=1
-    ncloud=0
-    gencode = 80
+    nsig = 42_i_kind
+    nsig1o = 7_i_kind
+    nlat = 96_i_kind
+    nlon = 384_i_kind
+    idvc5 = ione
+    idvm5 = izero
+    idpsfc5 = ione
+    idthrm5 = ione
+    idsl5 = ione
+    ntracer = ione
+    ncloud = izero
+    gencode = 80_i_kind
     regional = .false.
     ncep_sigio = .true.
     periodic = .false.
@@ -299,22 +343,22 @@ contains
     hybrid = .false.
     filled_grid = .false.
     half_grid = .false.
-    grid_ratio_nmmb=sqrt(two)
-    nmmb_reference_grid='H'
-    nmmb_verttype='OLD'
+    grid_ratio_nmmb = sqrt(two)
+    nmmb_reference_grid = 'H'
+    nmmb_verttype = 'OLD'
     lat1 = nlat
     lon1 = nlon
-    lat2 = lat1+2
-    lon2 = lon1+2
+    lat2 = lat1+2_i_kind
+    lon2 = lon1+2_i_kind
 
-    diagnostic_reg=.false.
-    update_regsfc=.false.
-    nlon_regional=0
-    nlat_regional=0
+    diagnostic_reg = .false.
+    update_regsfc = .false.
+    nlon_regional = izero
+    nlat_regional = izero
 
     msig = nsig
     do k=1,100
-       nlayers(k) = 1
+       nlayers(k) = ione
     end do
 
     return
@@ -333,6 +377,7 @@ contains
 
 ! !USES:
 
+    use constants, only: izero,ione
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -363,28 +408,28 @@ contains
 !-------------------------------------------------------------------------
     integer(i_kind) vlevs,k
 
-    if(jcap==62) gencode=80.0
-    ns1=2*nsig+1
+    if(jcap==62_i_kind) gencode=80.0_r_kind
+    ns1=2*nsig+ione
     nsig2=2*nsig
     nsig3=3*nsig
-    nsig3p1=3*nsig+1
-    nsig3p2=3*nsig+2
-    nsig3p3=3*nsig+3
+    nsig3p1=3*nsig+ione
+    nsig3p2=3*nsig+2_i_kind
+    nsig3p3=3*nsig+3_i_kind
     nsig4=4*nsig
     nsig5=5*nsig
-    nsig5p1=5*nsig+1
+    nsig5p1=5*nsig+ione
     nsig_hlf=nsig/2
     iglobal=nlat*nlon
 
 ! Initialize nsig1o to distribute levs/variables
 ! as evenly as possible over the tasks
-    vlevs=(6*nsig)+4
+    vlevs=(6*nsig)+4_i_kind
     nsig1o=vlevs/npe
-    if(mod(vlevs,npe)/=0) nsig1o=nsig1o+1
+    if(mod(vlevs,npe)/=izero) nsig1o=nsig1o+ione
     nnnn1o=nsig1o                  ! temporarily set the number of levels to nsig1o
 
 ! Sum total number of vertical layers for RTM call
-    msig = 0
+    msig = izero
     do k=1,nsig
        msig = msig + nlayers(k)
     end do
@@ -423,8 +468,8 @@ contains
 !-------------------------------------------------------------------------
     implicit none
 
-    lat2 = lat1+2
-    lon2 = lon1+2
+    lat2 = lat1+2_i_kind
+    lon2 = lon1+2_i_kind
     latlon11 = lat2*lon2
     latlon1n = latlon11*nsig
     latlon1n1= latlon1n+latlon11
@@ -460,11 +505,12 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
+    use constants, only: ione
     implicit none
 
     allocate(rlats(nlat),rlons(nlon),coslon(nlon),sinlon(nlon),&
              wgtlats(nlat),rbs2(nlat),corlats(nlat))
-    allocate(ak5(nsig+1),bk5(nsig+1),ck5(nsig+1),tref5(nsig))
+    allocate(ak5(nsig+ione),bk5(nsig+ione),ck5(nsig+ione),tref5(nsig))
     return
   end subroutine create_grid_vars
     
@@ -619,7 +665,7 @@ contains
 
 ! !USES:
 
-    use constants, only: zero, one, three, deg2rad,pi,half, two
+    use constants, only: izero,ione,zero, one, three, deg2rad,pi,half, two
     use mod_nmmb_to_a, only: init_nmmb_to_a,nxa,nya,nmmb_h_to_a
     implicit none
 
@@ -713,11 +759,11 @@ contains
 
     if(wrf_nmm_regional) then     ! begin wrf_nmm section
 ! This is a wrf_nmm regional run.
-      if(diagnostic_reg.and.mype.eq.0)  &
+      if(diagnostic_reg.and.mype==izero)  &
         write(6,*)' in init_reg_glob_ll, initializing for wrf nmm regional run'
 
 ! Get regional constants
-      ihr=-999
+      ihr=-999_i_kind
       do i=0,12
         write(filename,'("sigf",i2.2)')i
         inquire(file=filename,exist=fexist)
@@ -726,29 +772,29 @@ contains
           exit
         end if
       end do
-      if(ihr.lt.0) then
+      if(ihr<izero) then
         write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (WRFNMM) ANALYSIS.  PROGRAM STOPS'
         call stop2(99)
       end if
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
+      if(diagnostic_reg.and.mype==izero) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
       open(lendian_in,file=filename,form='unformatted')
       rewind lendian_in
       read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig, &
                   dlmd,dphd,pt,pdtop
       regional_fhr=zero  !  with wrf nmm fcst hr is not currently available.
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
                regional_time
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
                nlon_regional
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
                nlat_regional
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
 
 ! Get vertical info for hybrid coordinate and sigma coordinate we will interpolate to
-      allocate(aeta1_ll(nsig),eta1_ll(nsig+1),aeta2_ll(nsig),eta2_ll(nsig+1))
-      allocate(deta1(nsig),aeta1(nsig),eta1(nsig+1),deta2(nsig),aeta2(nsig),eta2(nsig+1))
+      allocate(aeta1_ll(nsig),eta1_ll(nsig+ione),aeta2_ll(nsig),eta2_ll(nsig+ione))
+      allocate(deta1(nsig),aeta1(nsig),eta1(nsig+ione),deta2(nsig),aeta2(nsig),eta2(nsig+ione))
       allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
       allocate(dx_nmm(nlon_regional,nlat_regional),dy_nmm(nlon_regional,nlat_regional))
       read(lendian_in) deta1
@@ -758,8 +804,8 @@ contains
       read(lendian_in) aeta2
       read(lendian_in) eta2
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, pdtop,pt=',pdtop,pt
-      if(diagnostic_reg.and.mype.eq.0) then
+      if(diagnostic_reg.and.mype==izero) write(6,*)' in init_reg_glob_ll, pdtop,pt=',pdtop,pt
+      if(diagnostic_reg.and.mype==izero) then
         write(6,*)' in init_reg_glob_ll, aeta1 aeta2 follow:'
         do k=1,nsig
           write(6,'(" k,aeta1,aeta2=",i3,2f10.4)') k,aeta1(k),aeta2(k)
@@ -769,7 +815,7 @@ contains
           write(6,'(" k,deta1,deta2=",i3,2f10.4)') k,deta1(k),deta2(k)
         end do
         write(6,*)' in init_reg_glob_ll, deta1 deta2 follow:'
-        do k=1,nsig+1
+        do k=1,nsig+ione
           write(6,'(" k,eta1,eta2=",i3,2f10.4)') k,eta1(k),eta2(k)
         end do
       end if
@@ -777,7 +823,7 @@ contains
       pdtop_ll=r0_01*pdtop                    !  check units--this converts to mb
       pt_ll=r0_01*pt                          !  same here
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, pdtop_ll,pt_ll=',pdtop_ll,pt_ll
+      if(diagnostic_reg.and.mype==izero) write(6,*)' in init_reg_glob_ll, pdtop_ll,pt_ll=',pdtop_ll,pt_ll
       eta1_ll=eta1
       aeta1_ll=aeta1
       eta2_ll=eta2
@@ -786,10 +832,10 @@ contains
       read(lendian_in) glon,dy_nmm
       close(lendian_in)
 
-      rlon_min_ll=1
-      rlat_min_ll=1
+      rlon_min_ll=one
+      rlat_min_ll=one
       if(filled_grid) then
-        nlon=2*nlon_regional-1
+        nlon=2*nlon_regional-ione
         nlat=nlat_regional
         rlon_max_ll=nlon
         rlat_max_ll=nlat
@@ -800,7 +846,7 @@ contains
       end if
       if(half_grid) then
         nlon=nlon_regional
-        nlat=1+nlat_regional/2
+        nlat=ione+nlat_regional/2
         rlon_max_ll=nlon
         rlat_max_ll=nlat
         rlat_min_dd=rlat_min_ll+r1_5
@@ -809,7 +855,7 @@ contains
         rlon_max_dd=rlon_max_ll-three
       end if
 
-      if(diagnostic_reg.and.mype.eq.0) then
+      if(diagnostic_reg.and.mype==izero) then
         write(6,*)' in init_reg_glob_ll, rlat_min_dd=',rlat_min_dd
         write(6,*)' in init_reg_glob_ll, rlat_max_dd=',rlat_max_dd
         write(6,*)' in init_reg_glob_ll, rlon_min_dd=',rlon_min_dd
@@ -833,43 +879,43 @@ contains
       allocate(dx_an(nlon,nlat),dy_an(nlon,nlat))
 
       if(half_grid) then
-       call half_nmm_grid2a(glon,nlon_regional,nlat_regional,glon_an,1)
-       call half_nmm_grid2a(glat,nlon_regional,nlat_regional,glat_an,1)
-       call half_nmm_grid2a(dx_nmm,nlon_regional,nlat_regional,dx_an,1)
-       call half_nmm_grid2a(dy_nmm,nlon_regional,nlat_regional,dy_an,1)
-       dx_an=two*dx_an
-       dy_an=two*dy_an
+        call half_nmm_grid2a(glon,nlon_regional,nlat_regional,glon_an,ione)
+        call half_nmm_grid2a(glat,nlon_regional,nlat_regional,glat_an,ione)
+        call half_nmm_grid2a(dx_nmm,nlon_regional,nlat_regional,dx_an,ione)
+        call half_nmm_grid2a(dy_nmm,nlon_regional,nlat_regional,dy_an,ione)
+        dx_an=two*dx_an
+        dy_an=two*dy_an
       end if
 
       if(filled_grid) then
-       allocate(gxtemp(nlon_regional,nlat_regional))
-       allocate(gytemp(nlon_regional,nlat_regional))
-       allocate(gxtemp_an(nlon,nlat))
-       allocate(gytemp_an(nlon,nlat))
-       sign_pole=-one
-       pihalf=half*pi
-       if(maxval(glat)/deg2rad.lt.zero) sign_pole=one
-       do j=1,nlat_regional
-        do i=1,nlon_regional
-         rtemp=pihalf+sign_pole*glat(i,j)
-         gxtemp(i,j)=rtemp*cos(one*glon(i,j))
-         gytemp(i,j)=rtemp*sin(one*glon(i,j))
+        allocate(gxtemp(nlon_regional,nlat_regional))
+        allocate(gytemp(nlon_regional,nlat_regional))
+        allocate(gxtemp_an(nlon,nlat))
+        allocate(gytemp_an(nlon,nlat))
+        sign_pole=-one
+        pihalf=half*pi
+        if(maxval(glat)/deg2rad<zero) sign_pole=one
+        do j=1,nlat_regional
+          do i=1,nlon_regional
+            rtemp=pihalf+sign_pole*glat(i,j)
+            gxtemp(i,j)=rtemp*cos(one*glon(i,j))
+            gytemp(i,j)=rtemp*sin(one*glon(i,j))
+          end do
         end do
-       end do
-       call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,gxtemp_an)
-       call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,gytemp_an)
-       do j=1,nlat
-        do i=1,nlon
-         rtemp=sqrt(gxtemp_an(i,j)**2+gytemp_an(i,j)**2)
-         glat_an(i,j)=sign_pole*(rtemp-pihalf)
-         glon_an(i,j)=atan2(gytemp_an(i,j),gxtemp_an(i,j))
+        call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,gxtemp_an)
+        call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,gytemp_an)
+        do j=1,nlat
+          do i=1,nlon
+            rtemp=sqrt(gxtemp_an(i,j)**2+gytemp_an(i,j)**2)
+            glat_an(i,j)=sign_pole*(rtemp-pihalf)
+            glon_an(i,j)=atan2(gytemp_an(i,j),gxtemp_an(i,j))
+          end do
         end do
-       end do
-       gxtemp=dx_nmm
-       gytemp=dy_nmm
-       call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,dx_an)
-       call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,dy_an)
-       deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an)
+        gxtemp=dx_nmm
+        gytemp=dy_nmm
+        call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,dx_an)
+        call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,dy_an)
+        deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an)
       end if
 
       do k=1,nlon
@@ -895,11 +941,11 @@ contains
 
     if(wrf_mass_regional) then     ! begin wrf mass core section
 ! This is a wrf_mass regional run.
-      if(diagnostic_reg.and.mype.eq.0) &
+      if(diagnostic_reg.and.mype==izero) &
           write(6,*)' in init_reg_glob_ll, initializing for wrf mass core regional run'
 
 ! Get regional constants
-      ihr=-999
+      ihr=-999_i_kind
       do i=0,12
         write(filename,'("sigf",i2.2)')i
         inquire(file=filename,exist=fexist)
@@ -908,55 +954,55 @@ contains
           exit
         end if
       end do
-      if(ihr.lt.0) then
+      if(ihr<izero) then
         write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (WRF MASS CORE) ANALYSIS.  PROGRAM STOPS'
         call stop2(99)
       end if
-      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
+      if(diagnostic_reg.and.mype==izero) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
       open(lendian_in,file=filename,form='unformatted')
       rewind lendian_in
       read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig,pt
       regional_fhr=zero  !  with wrf mass core fcst hr is not currently available.
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
                regional_time
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
                nlon_regional
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
                nlat_regional
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
 
 ! Get vertical info for wrf mass core
-      allocate(aeta1_ll(nsig),eta1_ll(nsig+1))
-      allocate(aeta1(nsig),eta1(nsig+1))
+      allocate(aeta1_ll(nsig),eta1_ll(nsig+ione))
+      allocate(aeta1(nsig),eta1(nsig+ione))
       allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
       allocate(dx_mc(nlon_regional,nlat_regional),dy_mc(nlon_regional,nlat_regional))
       read(lendian_in) aeta1
       read(lendian_in) eta1
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, pt=',pt
-      if(diagnostic_reg.and.mype.eq.0) then
+      if(diagnostic_reg.and.mype==izero) write(6,*)' in init_reg_glob_ll, pt=',pt
+      if(diagnostic_reg.and.mype==izero) then
         write(6,*)' in init_reg_glob_ll, aeta1 follows:'
         do k=1,nsig
           write(6,'(" k,aeta1=",i3,f10.4)') k,aeta1(k)
         end do
         write(6,*)' in init_reg_glob_ll, eta1 follows:'
-        do k=1,nsig+1
+        do k=1,nsig+ione
           write(6,'(" k,eta1=",i3,f10.4)') k,eta1(k)
         end do
       end if
 
       pt_ll=r0_01*pt                    !  check units--this converts to mb
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, pt_ll=',pt_ll
+      if(diagnostic_reg.and.mype==izero) write(6,*)' in init_reg_glob_ll, pt_ll=',pt_ll
       eta1_ll=eta1
       aeta1_ll=aeta1
       read(lendian_in) glat,dx_mc
       read(lendian_in) glon,dy_mc
       close(lendian_in)
 
-      rlon_min_ll=1
-      rlat_min_ll=1
+      rlon_min_ll=one
+      rlat_min_ll=one
       nlon=nlon_regional
       nlat=nlat_regional
       rlon_max_ll=nlon
@@ -966,7 +1012,7 @@ contains
       rlon_min_dd=rlon_min_ll+r1_5
       rlon_max_dd=rlon_max_ll-r1_5
 
-      if(diagnostic_reg.and.mype.eq.0) then
+      if(diagnostic_reg.and.mype==izero) then
         write(6,*)' in init_reg_glob_ll, rlat_min_dd=',rlat_min_dd
         write(6,*)' in init_reg_glob_ll, rlat_max_dd=',rlat_max_dd
         write(6,*)' in init_reg_glob_ll, rlon_min_dd=',rlon_min_dd
@@ -1011,11 +1057,11 @@ contains
 
     if(nems_nmmb_regional) then     ! begin nems nmmb section
 ! This is a nems_nmmb regional run.
-      if(diagnostic_reg.and.mype.eq.0)  &
+      if(diagnostic_reg.and.mype==izero)  &
         write(6,*)' in init_reg_glob_ll, initializing for nems nmmb regional run'
 
 ! Get regional constants
-      ihr=-999
+      ihr=-999_i_kind
       do i=0,12
         write(filename,'("sigf",i2.2)')i
         inquire(file=filename,exist=fexist)
@@ -1024,42 +1070,42 @@ contains
           exit
         end if
       end do
-      if(ihr.lt.0) then
+      if(ihr<izero) then
         write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (NEMS NMMB) ANALYSIS.  PROGRAM STOPS'
         call stop2(99)
       end if
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
+      if(diagnostic_reg.and.mype==izero) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
       open(lendian_in,file=filename,form='unformatted')
       rewind lendian_in
       read(lendian_in) regional_time,regional_fhr,nlon_regional,nlat_regional,nsig, &
                   dlmd,dphd,pt,pdtop
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
                regional_time
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
                nlon_regional
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
                nlat_regional
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig
 
       call init_nmmb_to_a(nmmb_reference_grid,grid_ratio_nmmb,nlon_regional,nlat_regional)
       nlon=nxa ; nlat=nya
 
-      rlon_min_ll=1
-      rlat_min_ll=1
+      rlon_min_ll=one
+      rlat_min_ll=one
       rlon_max_ll=nlon
       rlat_max_ll=nlat
    !  rlat_min_dd=rlat_min_ll+three/grid_ratio_nmmb
    !  rlat_max_dd=rlat_max_ll-three/grid_ratio_nmmb
    !  rlon_min_dd=rlon_min_ll+six/grid_ratio_nmmb
    !  rlon_max_dd=rlon_max_ll-six/grid_ratio_nmmb
-      rlat_min_dd=rlat_min_ll+r1_5*1.412/grid_ratio_nmmb
-      rlat_max_dd=rlat_max_ll-r1_5*1.412/grid_ratio_nmmb
-      rlon_min_dd=rlon_min_ll+three*1.412/grid_ratio_nmmb
-      rlon_max_dd=rlon_max_ll-three*1.412/grid_ratio_nmmb
+      rlat_min_dd=rlat_min_ll+r1_5*1.412_r_kind/grid_ratio_nmmb
+      rlat_max_dd=rlat_max_ll-r1_5*1.412_r_kind/grid_ratio_nmmb
+      rlon_min_dd=rlon_min_ll+three*1.412_r_kind/grid_ratio_nmmb
+      rlon_max_dd=rlon_max_ll-three*1.412_r_kind/grid_ratio_nmmb
 
-      if(diagnostic_reg.and.mype.eq.0) then
+      if(diagnostic_reg.and.mype==izero) then
         write(6,*)' in init_reg_glob_ll, rlat_min_dd=',rlat_min_dd
         write(6,*)' in init_reg_glob_ll, rlat_max_dd=',rlat_max_dd
         write(6,*)' in init_reg_glob_ll, rlon_min_dd=',rlon_min_dd
@@ -1074,8 +1120,8 @@ contains
       end if
 
 ! Get vertical info for hybrid coordinate and sigma coordinate we will interpolate to
-      allocate(aeta1_ll(nsig),eta1_ll(nsig+1),aeta2_ll(nsig),eta2_ll(nsig+1))
-      allocate(deta1(nsig),aeta1(nsig),eta1(nsig+1),deta2(nsig),aeta2(nsig),eta2(nsig+1))
+      allocate(aeta1_ll(nsig),eta1_ll(nsig+ione),aeta2_ll(nsig),eta2_ll(nsig+ione))
+      allocate(deta1(nsig),aeta1(nsig),eta1(nsig+ione),deta2(nsig),aeta2(nsig),eta2(nsig+ione))
       allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
       allocate(dx_nmm(nlon_regional,nlat_regional),dy_nmm(nlon_regional,nlat_regional))
       read(lendian_in) deta1
@@ -1086,15 +1132,15 @@ contains
       read(lendian_in) eta2
 !----------------------------------------detect if new nmmb coordinate:
       nmmb_verttype='OLD'
-      if(aeta1(1).lt..6_r_single) then
-        if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, detect new nmmb vert coordinate'
+      if(aeta1(1)<.6_r_single) then
+        if(diagnostic_reg.and.mype==izero) write(6,*)' in init_reg_glob_ll, detect new nmmb vert coordinate'
         aeta1=aeta1+aeta2
         eta1=eta1+eta2
         nmmb_verttype='NEW'
       end if
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, pdtop,pt=',pdtop,pt
-      if(diagnostic_reg.and.mype.eq.0) then
+      if(diagnostic_reg.and.mype==izero) write(6,*)' in init_reg_glob_ll, pdtop,pt=',pdtop,pt
+      if(diagnostic_reg.and.mype==izero) then
         write(6,*)' in init_reg_glob_ll, aeta1 aeta2 follow:'
         do k=1,nsig
           write(6,'(" k,aeta1,aeta2=",i3,2f10.4)') k,aeta1(k),aeta2(k)
@@ -1104,7 +1150,7 @@ contains
           write(6,'(" k,deta1,deta2=",i3,2f10.4)') k,deta1(k),deta2(k)
         end do
         write(6,*)' in init_reg_glob_ll, deta1 deta2 follow:'
-        do k=1,nsig+1
+        do k=1,nsig+ione
           write(6,'(" k,eta1,eta2=",i3,2f10.4)') k,eta1(k),eta2(k)
         end do
       end if
@@ -1112,7 +1158,7 @@ contains
       pdtop_ll=r0_01*pdtop                    !  check units--this converts to mb
       pt_ll=r0_01*pt                          !  same here
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, pdtop_ll,pt_ll=',pdtop_ll,pt_ll
+      if(diagnostic_reg.and.mype==izero) write(6,*)' in init_reg_glob_ll, pdtop_ll,pt_ll=',pdtop_ll,pt_ll
       eta1_ll=eta1
       aeta1_ll=aeta1
       eta2_ll=eta2
@@ -1137,22 +1183,22 @@ contains
       allocate(gytemp_an(nlat,nlon))
       sign_pole=-one
       pihalf=half*pi
-      if(maxval(glat)/deg2rad.lt.zero) sign_pole=one
+      if(maxval(glat)/deg2rad<zero) sign_pole=one
       do j=1,nlat_regional
-       do i=1,nlon_regional
-        rtemp=pihalf+sign_pole*glat(i,j)
-        gxtemp4(i,j)=rtemp*cos(one*glon(i,j))
-        gytemp4(i,j)=rtemp*sin(one*glon(i,j))
-       end do
+        do i=1,nlon_regional
+          rtemp=pihalf+sign_pole*glat(i,j)
+          gxtemp4(i,j)=rtemp*cos(one*glon(i,j))
+          gytemp4(i,j)=rtemp*sin(one*glon(i,j))
+        end do
       end do
       call nmmb_h_to_a(gxtemp4,gxtemp_an)
       call nmmb_h_to_a(gytemp4,gytemp_an)
       do i=1,nlon
         do j=1,nlat
-        rtemp=sqrt(gxtemp_an(j,i)**2+gytemp_an(j,i)**2)
-        glat_an(i,j)=sign_pole*(rtemp-pihalf)
-        glon_an(i,j)=atan2(gytemp_an(j,i),gxtemp_an(j,i))
-       end do
+          rtemp=sqrt(gxtemp_an(j,i)**2+gytemp_an(j,i)**2)
+          glat_an(i,j)=sign_pole*(rtemp-pihalf)
+          glon_an(i,j)=atan2(gytemp_an(j,i),gxtemp_an(j,i))
+        end do
       end do
       gxtemp4=dx_nmm
       gytemp4=dy_nmm
@@ -1187,11 +1233,11 @@ contains
     if(twodvar_regional) then 
 
 ! This is a surface analysis regional run.
-      if(diagnostic_reg.and.mype.eq.0) &
+      if(diagnostic_reg.and.mype==izero) &
           write(6,*)' in init_reg_glob_ll, initializing for surface analysis regional run'
 
 ! Get regional constants
-      ihr=-999
+      ihr=-999_i_kind
       do i=0,12
         write(filename,'("sigf",i2.2)')i
         inquire(file=filename,exist=fexist)
@@ -1200,27 +1246,27 @@ contains
           exit
         end if
       end do
-      if(ihr.lt.0) then
+      if(ihr<izero) then
         write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (SURFACE) ANALYSIS.  PROGRAM STOPS'
         call stop2(99)
       end if
-      if(diagnostic_reg.and.mype.eq.0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
+      if(diagnostic_reg.and.mype==izero) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
       open(lendian_in,file=filename,form='unformatted')
       rewind lendian_in
       read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig
       regional_fhr=zero  !  with twodvar analysis fcst hr is not currently available.
 
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
                regional_time
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
                nlon_regional
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
                nlat_regional
-      if(diagnostic_reg.and.mype.eq.0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
+      if(diagnostic_reg.and.mype==izero) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
 
 ! Get vertical info 
-      allocate(aeta1_ll(nsig),eta1_ll(nsig+1))
-      allocate(aeta1(nsig),eta1(nsig+1))
+      allocate(aeta1_ll(nsig),eta1_ll(nsig+ione))
+      allocate(aeta1(nsig),eta1(nsig+ione))
       allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
       allocate(dx_mc(nlon_regional,nlat_regional),dy_mc(nlon_regional,nlat_regional))
 
@@ -1236,8 +1282,8 @@ contains
       read(lendian_in) glon,dy_mc
       close(lendian_in)
 
-      rlon_min_ll=1
-      rlat_min_ll=1
+      rlon_min_ll=one
+      rlat_min_ll=one
       nlon=nlon_regional
       nlat=nlat_regional
       rlon_max_ll=nlon
@@ -1247,7 +1293,7 @@ contains
       rlon_min_dd=rlon_min_ll+r1_5
       rlon_max_dd=rlon_max_ll-r1_5
 
-      if(diagnostic_reg.and.mype.eq.0) then
+      if(diagnostic_reg.and.mype==izero) then
         write(6,*)' in init_reg_glob_ll, rlat_min_dd=',rlat_min_dd
         write(6,*)' in init_reg_glob_ll, rlat_max_dd=',rlat_max_dd
         write(6,*)' in init_reg_glob_ll, rlon_min_dd=',rlon_min_dd
@@ -1316,7 +1362,7 @@ contains
 !
 !$$$ end documentation block
 
-  use constants, only: zero,one,half,pi,deg2rad,two
+  use constants, only: izero,ione,zero,one,half,pi,deg2rad,two
   implicit none
   real(r_kind),intent(in):: glats(nlon,nlat),glons(nlon,nlat)
   integer(i_kind),intent(in):: mype
@@ -1334,7 +1380,7 @@ contains
 !  define xtilde, ytilde grid, transform
 
 !      glons,glats are lons, lats of input grid points of dimension nlon,nlat
-       if(mype.eq.0) write(6,*)' at  1 in init_general_transform'
+  if(mype==izero) write(6,*)' at  1 in init_general_transform'
   call get_xytilde_domain(nlon,nlat,glons,glats,nxtilde,nytilde, &
                    xbar_min,xbar_max,ybar_min,ybar_max)
   allocate(i0_tilde(nxtilde,nytilde),j0_tilde(nxtilde,nytilde))
@@ -1343,42 +1389,42 @@ contains
 
 ! define atilde_x, btilde_x, atilde_y, btilde_y
 
-  btilde_x=(nxtilde-one)/(xbar_max-xbar_min)
-  btilde_xinv=(xbar_max-xbar_min)/(nxtilde-one)
-  atilde_x=one-btilde_x*xbar_min
-  btilde_y=(nytilde-one)/(ybar_max-ybar_min)
-  btilde_yinv=(ybar_max-ybar_min)/(nytilde-one)
-  atilde_y=one-btilde_y*ybar_min
+  btilde_x   =(nxtilde -one     )/(xbar_max-xbar_min)
+  btilde_xinv=(xbar_max-xbar_min)/(nxtilde -one     )
+  atilde_x   =one-btilde_x*xbar_min
+  btilde_y   =(nytilde -one     )/(ybar_max-ybar_min)
+  btilde_yinv=(ybar_max-ybar_min)/(nytilde -one     )
+  atilde_y   =one-btilde_y*ybar_min
 
 ! define xtilde0,ytilde0
   do j=1,nlat
-   do i=1,nlon
-    r_of_lat=pihalf+sign_pole*glats(i,j)
-    clon=cos(glons(i,j)+rlambda0)
-    slon=sin(glons(i,j)+rlambda0)
-    xbar=r_of_lat*clon
-    ybar=r_of_lat*slon
-    xtilde0(i,j)=atilde_x+btilde_x*xbar
-    ytilde0(i,j)=atilde_y+btilde_y*ybar
-   end do
+    do i=1,nlon
+      r_of_lat=pihalf+sign_pole*glats(i,j)
+      clon=cos(glons(i,j)+rlambda0)
+      slon=sin(glons(i,j)+rlambda0)
+      xbar=r_of_lat*clon
+      ybar=r_of_lat*slon
+      xtilde0(i,j)=atilde_x+btilde_x*xbar
+      ytilde0(i,j)=atilde_y+btilde_y*ybar
+    end do
   end do
 
 !  now get i0_tilde, j0_tilde, ip_tilde,jp_tilde
-  ilast=1 ; jlast=1
+  ilast=ione ; jlast=ione
   istart0=nxtilde
-  iend=1
-  iinc=-1
+  iend=ione
+  iinc=-ione
   do j=1,nytilde
-   itemp=istart0
-   istart0=iend
-   iend=itemp
-   iinc=-iinc
-   ybar=j
-   do i=istart0,iend,iinc
-    xbar=i
-    call nearest_3(ilast,jlast,i0_tilde(i,j),j0_tilde(i,j), &
-                   ip_tilde(i,j),jp_tilde(i,j),xbar,ybar,nlon,nlat,xtilde0,ytilde0)
-   end do
+    itemp=istart0
+    istart0=iend
+    iend=itemp
+    iinc=-iinc
+    ybar=j
+    do i=istart0,iend,iinc
+      xbar=i
+      call nearest_3(ilast,jlast,i0_tilde(i,j),j0_tilde(i,j), &
+                     ip_tilde(i,j),jp_tilde(i,j),xbar,ybar,nlon,nlat,xtilde0,ytilde0)
+    end do
   end do
 
 !  now compute beta_ref, used in alpha = beta_ref + sign_pole*earth_lon, and alpha is 
@@ -1387,39 +1433,39 @@ contains
   allocate(beta_ref(nlon,nlat),cos_beta_ref(nlon,nlat),sin_beta_ref(nlon,nlat))
   epslon=r0_01*deg2rad
   do j=1,nlat
-   do i=1,nlon-1
-    ip=i+1
-    r0=two*cos(glats(i,j))/(one-sign_pole*sin(glats(i,j)))
-    x0=r0*cos(glons(i,j))
-    y0=r0*sin(glons(i,j))
+    do i=1,nlon-ione
+      ip=i+ione
+      r0=two*cos(glats(i,j ))/(one-sign_pole*sin(glats(i,j )))
+      x0=r0 *cos(glons(i,j ))
+      y0=r0 *sin(glons(i,j ))
+      r1=two*cos(glats(ip,j))/(one-sign_pole*sin(glats(ip,j)))
+      x1=r1 *cos(glons(ip,j))
+      y1=r1 *sin(glons(ip,j))
+      x2=r0 *cos(glons(i,j)+epslon)
+      y2=r0 *sin(glons(i,j)+epslon)
+      denom=one/sqrt(((x1-x0)**2+(y1-y0)**2)*((x2-x0)**2+(y2-y0)**2))
+      cosalpha=((x2-x0)*(x1-x0)+(y2-y0)*(y1-y0))*denom
+      sinalpha=((x2-x0)*(y1-y0)-(y2-y0)*(x1-x0))*denom
+      beta_ref(i,j)=atan2(sinalpha,cosalpha)-sign_pole*glons(i,j)
+      cos_beta_ref(i,j)=cos(beta_ref(i,j))
+      sin_beta_ref(i,j)=sin(beta_ref(i,j))
+    end do
+    i=nlon
+    ip=nlon-ione
+    r0=two*cos(glats(i,j ))/(one-sign_pole*sin(glats(i,j )))
+    x0=r0 *cos(glons(i,j ))
+    y0=r0 *sin(glons(i,j ))
     r1=two*cos(glats(ip,j))/(one-sign_pole*sin(glats(ip,j)))
-    x1=r1*cos(glons(ip,j))
-    y1=r1*sin(glons(ip,j))
-    x2=r0*cos(glons(i,j)+epslon)
-    y2=r0*sin(glons(i,j)+epslon)
+    x1=r1 *cos(glons(ip,j))
+    y1=r1 *sin(glons(ip,j))
+    x2=r0 *cos(glons(i,j)-epslon)
+    y2=r0 *sin(glons(i,j)-epslon)
     denom=one/sqrt(((x1-x0)**2+(y1-y0)**2)*((x2-x0)**2+(y2-y0)**2))
     cosalpha=((x2-x0)*(x1-x0)+(y2-y0)*(y1-y0))*denom
     sinalpha=((x2-x0)*(y1-y0)-(y2-y0)*(x1-x0))*denom
     beta_ref(i,j)=atan2(sinalpha,cosalpha)-sign_pole*glons(i,j)
     cos_beta_ref(i,j)=cos(beta_ref(i,j))
     sin_beta_ref(i,j)=sin(beta_ref(i,j))
-   end do
-   i=nlon
-   ip=nlon-1
-   r0=two*cos(glats(i,j))/(one-sign_pole*sin(glats(i,j)))
-   x0=r0*cos(glons(i,j))
-   y0=r0*sin(glons(i,j))
-   r1=two*cos(glats(ip,j))/(one-sign_pole*sin(glats(ip,j)))
-   x1=r1*cos(glons(ip,j))
-   y1=r1*sin(glons(ip,j))
-   x2=r0*cos(glons(i,j)-epslon)
-   y2=r0*sin(glons(i,j)-epslon)
-   denom=one/sqrt(((x1-x0)**2+(y1-y0)**2)*((x2-x0)**2+(y2-y0)**2))
-   cosalpha=((x2-x0)*(x1-x0)+(y2-y0)*(y1-y0))*denom
-   sinalpha=((x2-x0)*(y1-y0)-(y2-y0)*(x1-x0))*denom
-   beta_ref(i,j)=atan2(sinalpha,cosalpha)-sign_pole*glons(i,j)
-   cos_beta_ref(i,j)=cos(beta_ref(i,j))
-   sin_beta_ref(i,j)=sin(beta_ref(i,j))
   end do
   beta_diff_max=-rbig
   beta_diff_max_gt_20=-rbig
@@ -1443,7 +1489,7 @@ contains
 
 ! !USES:
 
-    use constants, only: one
+    use constants, only: ione,one
     implicit none
 
     real(r_kind),intent(in)::rlon  ! earth longitude (radians)
@@ -1507,20 +1553,20 @@ contains
 
 !  next get interpolation information
 
-    itilde=max(1,min(nint(xtilde),nxtilde))
-    jtilde=max(1,min(nint(ytilde),nytilde))
+    itilde=max(ione,min(nint(xtilde),nxtilde))
+    jtilde=max(ione,min(nint(ytilde),nytilde))
 
-    i0=i0_tilde(itilde,jtilde)
-    j0=j0_tilde(itilde,jtilde)
-    ip=i0+ip_tilde(itilde,jtilde)
-    jp=j0+jp_tilde(itilde,jtilde)
-    dtilde=xtilde-xtilde0(i0,j0)
-    etilde=ytilde-ytilde0(i0,j0)
+    i0     =   i0_tilde(itilde,jtilde)
+    j0     =   j0_tilde(itilde,jtilde)
+    ip     =i0+ip_tilde(itilde,jtilde)
+    jp     =j0+jp_tilde(itilde,jtilde)
+    dtilde =xtilde-xtilde0(i0,j0)
+    etilde =ytilde-ytilde0(i0,j0)
     d1tilde=(xtilde0(ip,j0)-xtilde0(i0,j0))*(ip-i0)
     d2tilde=(xtilde0(i0,jp)-xtilde0(i0,j0))*(jp-j0)
     e1tilde=(ytilde0(ip,j0)-ytilde0(i0,j0))*(ip-i0)
     e2tilde=(ytilde0(i0,jp)-ytilde0(i0,j0))*(jp-j0)
-    detinv=one/(d1tilde*e2tilde-d2tilde*e1tilde)
+    detinv =one/(d1tilde*e2tilde-d2tilde*e1tilde)
     x = i0+detinv*(e2tilde*dtilde-d2tilde*etilde)
     y = j0+detinv*(d1tilde*etilde-e1tilde*dtilde)
 
@@ -1542,7 +1588,7 @@ contains
 
 ! !USES:
 
-    use constants, only: one
+    use constants, only: ione,one
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -1597,34 +1643,34 @@ contains
 
     i0=nint(x)
     j0=nint(y)
-    i0=max(1,min(i0,nlon))
-    j0=max(1,min(j0,nlat))
+    i0=max(ione,min(i0,nlon))
+    j0=max(ione,min(j0,nlat))
     ip=i0+nint(sign(one,x-i0))
     jp=j0+nint(sign(one,y-j0))
-    if(ip.lt.1) then
-     i0=2
-     ip=1
+    if(ip<ione) then
+      i0=2_i_kind
+      ip=ione
     end if
-    if(jp.lt.1) then
-     j0=2
-     jp=1
+    if(jp<ione) then
+      j0=2_i_kind
+      jp=ione
     end if
-    if(ip.gt.nlon) then
-     i0=nlon-1
-     ip=nlon
+    if(ip>nlon) then
+      i0=nlon-ione
+      ip=nlon
     end if
-    if(jp.gt.nlat) then
-     j0=nlat-1
-     jp=nlat
+    if(jp>nlat) then
+      j0=nlat-ione
+      jp=nlat
     end if
     d1tilde=(xtilde0(ip,j0)-xtilde0(i0,j0))*(ip-i0)
     d2tilde=(xtilde0(i0,jp)-xtilde0(i0,j0))*(jp-j0)
     e1tilde=(ytilde0(ip,j0)-ytilde0(i0,j0))*(ip-i0)
     e2tilde=(ytilde0(i0,jp)-ytilde0(i0,j0))*(jp-j0)
-    dtilde=d1tilde*(x-i0)+d2tilde*(y-j0)
-    etilde=e1tilde*(x-i0)+e2tilde*(y-j0)
-    xtilde=dtilde+xtilde0(i0,j0)
-    ytilde=etilde+ytilde0(i0,j0)
+    dtilde =d1tilde*(x-i0) +d2tilde*(y-j0)
+    etilde =e1tilde*(x-i0) +e2tilde*(y-j0)
+    xtilde =dtilde         +xtilde0(i0,j0)
+    ytilde =etilde         +ytilde0(i0,j0)
 
     xbar=(xtilde-atilde_x)*btilde_xinv
     ybar=(ytilde-atilde_y)*btilde_yinv
@@ -1640,7 +1686,7 @@ contains
 ! subprogram:    nearest_3
 !   prgmmr:
 !
-! abstract:
+! abstract: find closest 3 points to (x,y) on grid defined by x0,y0
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
@@ -1662,9 +1708,9 @@ contains
 !
 !$$$ end documentation block
 
-!   find closest 3 points to (x,y) on grid defined by x0,y0
-
+  use constants, only: izero,ione
   implicit none
+
   integer(i_kind),intent(inout)::ilast,jlast
   integer(i_kind),intent(out)::i0,j0
   integer(i_byte),intent(out)::ip,jp
@@ -1676,54 +1722,54 @@ contains
   integer(i_kind) i,inext,j,jnext
 
   do
-   i0=ilast
-   j0=jlast
-   dist2min=huge(dist2min)
-   inext=0
-   jnext=0
-   do j=max(j0-1,1),min(j0+1,ny0)
-    do i=max(i0-1,1),min(i0+1,nx0)
-     dist2=(x-x0(i,j))**2+(y-y0(i,j))**2
-     if(dist2.lt.dist2min) then
-      dist2min=dist2
-      inext=i
-      jnext=j
-     end if
+    i0=ilast
+    j0=jlast
+    dist2min=huge(dist2min)
+    inext=izero
+    jnext=izero
+    do j=max(j0-ione,ione),min(j0+ione,ny0)
+      do i=max(i0-ione,ione),min(i0+ione,nx0)
+        dist2=(x-x0(i,j))**2+(y-y0(i,j))**2
+        if(dist2<dist2min) then
+          dist2min=dist2
+          inext=i
+          jnext=j
+        end if
+      end do
     end do
-   end do
-   if(inext.eq.i0.and.jnext.eq.j0) exit
-   ilast=inext
-   jlast=jnext
+    if(inext==i0.and.jnext==j0) exit
+    ilast=inext
+    jlast=jnext
   end do
 
 !  now find which way to go in x for second point
 
-  ip=0
-  if(i0.eq.nx0) ip=-1
-  if(i0.eq.1) ip=1
-  if(ip.eq.0) then
-   dista=(x-x0(i0-1,j0))**2+(y-y0(i0-1,j0))**2
-   distb=(x-x0(i0+1,j0))**2+(y-y0(i0+1,j0))**2
-   if(distb.lt.dista) then
-    ip=1
-   else
-    ip=-1
-   end if
+  ip=izero
+  if(i0==nx0)  ip=-ione
+  if(i0==ione) ip=ione
+  if(ip==izero) then
+    dista=(x-x0(i0-ione,j0))**2+(y-y0(i0-ione,j0))**2
+    distb=(x-x0(i0+ione,j0))**2+(y-y0(i0+ione,j0))**2
+    if(distb<dista) then
+      ip=ione
+    else
+      ip=-ione
+    end if
   end if
 
 !  repeat for y for 3rd point
 
-  jp=0
-  if(j0.eq.ny0) jp=-1
-  if(j0.eq.1) jp=1
-  if(jp.eq.0) then
-   dista=(x-x0(i0,j0-1))**2+(y-y0(i0,j0-1))**2
-   distb=(x-x0(i0,j0+1))**2+(y-y0(i0,j0+1))**2
-   if(distb.lt.dista) then
-    jp=1
-   else
-    jp=-1
-   end if
+  jp=izero
+  if(j0==ny0  ) jp=-ione
+  if(j0==ione ) jp=ione
+  if(jp==izero) then
+     dista=(x-x0(i0,j0-ione))**2+(y-y0(i0,j0-ione))**2
+     distb=(x-x0(i0,j0+ione))**2+(y-y0(i0,j0+ione))**2
+     if(distb<dista) then
+       jp=ione
+     else
+       jp=-ione
+     end if
   end if
 
   ilast=i0
@@ -1757,7 +1803,7 @@ contains
 !
 !$$$ end documentation block
 
-   use constants, only: one, deg2rad,half,zero
+   use constants, only: ione,one, deg2rad,half,zero
 !  define parameters for xy domain which optimally overlays input grid
 
   implicit none
@@ -1786,49 +1832,49 @@ contains
 
 !   assign hemisphere ( parameter sign_pole )
 
-  if(rlats0min.gt.-r37*deg2rad) sign_pole=-one   !  northern hemisphere xy domain
-  if(rlats0max.lt. r37*deg2rad) sign_pole= one   !  southern hemisphere xy domain
+  if(rlats0min>-r37*deg2rad) sign_pole=-one   !  northern hemisphere xy domain
+  if(rlats0max< r37*deg2rad) sign_pole= one   !  southern hemisphere xy domain
 
 !   get optimum rotation angle rlambda0
 
-  areamin=huge(areamin)
+  areamin= huge(areamin)
   areamax=-huge(areamax)
   do m=0,359
-   testlambda=m*deg2rad
-   xmax=-huge(xmax)
-   xmin=huge(xmin)
-   ymax=-huge(ymax)
-   ymin=huge(ymin)
-   do j=1,ny0,ny0-1
-    do i=1,nx0
-     xthis=(pihalf+sign_pole*rlats0(i,j))*cos(rlons0(i,j)+testlambda)
-     ythis=(pihalf+sign_pole*rlats0(i,j))*sin(rlons0(i,j)+testlambda)
-     xmax=max(xmax,xthis)
-     ymax=max(ymax,ythis)
-     xmin=min(xmin,xthis)
-     ymin=min(ymin,ythis)
+    testlambda=m*deg2rad
+    xmax=-huge(xmax)
+    xmin= huge(xmin)
+    ymax=-huge(ymax)
+    ymin= huge(ymin)
+    do j=1,ny0,ny0-ione
+      do i=1,nx0
+        xthis=(pihalf+sign_pole*rlats0(i,j))*cos(rlons0(i,j)+testlambda)
+        ythis=(pihalf+sign_pole*rlats0(i,j))*sin(rlons0(i,j)+testlambda)
+        xmax=max(xmax,xthis)
+        ymax=max(ymax,ythis)
+        xmin=min(xmin,xthis)
+        ymin=min(ymin,ythis)
+      end do
     end do
-   end do
-   do j=1,ny0
-    do i=1,nx0,nx0-1
-     xthis=(pihalf+sign_pole*rlats0(i,j))*cos(rlons0(i,j)+testlambda)
-     ythis=(pihalf+sign_pole*rlats0(i,j))*sin(rlons0(i,j)+testlambda)
-     xmax=max(xmax,xthis)
-     ymax=max(ymax,ythis)
-     xmin=min(xmin,xthis)
-     ymin=min(ymin,ythis)
+    do j=1,ny0
+      do i=1,nx0,nx0-ione
+        xthis=(pihalf+sign_pole*rlats0(i,j))*cos(rlons0(i,j)+testlambda)
+        ythis=(pihalf+sign_pole*rlats0(i,j))*sin(rlons0(i,j)+testlambda)
+        xmax=max(xmax,xthis)
+        ymax=max(ymax,ythis)
+        xmin=min(xmin,xthis)
+        ymin=min(ymin,ythis)
+      end do
     end do
-   end do
-   area=(xmax-xmin)*(ymax-ymin)
-   areamax=max(area,areamax)
-   if(area.lt.areamin) then
-    areamin=area
-    rlambda0=testlambda
-    xmaxout=xmax
-    xminout=xmin
-    ymaxout=ymax
-    yminout=ymin
-   end if
+    area=(xmax-xmin)*(ymax-ymin)
+    areamax=max(area,areamax)
+    if(area<areamin) then
+      areamin =area
+      rlambda0=testlambda
+      xmaxout =xmax
+      xminout =xmin
+      ymaxout =ymax
+      yminout =ymin
+    end if
   end do
 
 
@@ -1836,27 +1882,27 @@ contains
 !                 (currently hard-wired at 1/2 the average input grid increment)
 
   do j=1,ny0
-   do i=1,nx0
-    coslon0(i,j)=cos(one*rlons0(i,j)) ; sinlon0(i,j)=sin(one*rlons0(i,j))
-    coslat0(i,j)=cos(one*rlats0(i,j)) ; sinlat0(i,j)=sin(one*rlats0(i,j))
-   end do
+    do i=1,nx0
+      coslon0(i,j)=cos(one*rlons0(i,j)) ; sinlon0(i,j)=sin(one*rlons0(i,j))
+      coslat0(i,j)=cos(one*rlats0(i,j)) ; sinlat0(i,j)=sin(one*rlats0(i,j))
+    end do
   end do
 
   delbar=zero
-  count=zero
-  do j=1,ny0-1
-   jp1=j+1
-   do i=1,nx0-1
-    ip1=i+1
-    disti=acos(sinlat0(i,j)*sinlat0(ip1,j)+coslat0(i,j)*coslat0(ip1,j)* &
-               (sinlon0(i,j)*sinlon0(ip1,j)+coslon0(i,j)*coslon0(ip1,j)))
-    distj=acos(sinlat0(i,j)*sinlat0(i,jp1)+coslat0(i,j)*coslat0(i,jp1)* &
-               (sinlon0(i,j)*sinlon0(i,jp1)+coslon0(i,j)*coslon0(i,jp1)))
-    distmax=max(disti,distj)
-    distmin=min(disti,distj)
-    delbar=delbar+distmax
-    count=count+one
-   end do
+  count =zero
+  do j=1,ny0-ione
+    jp1=j+ione
+    do i=1,nx0-ione
+      ip1=i+ione
+      disti=acos(sinlat0(i,j)*sinlat0(ip1,j)+coslat0(i,j)*coslat0(ip1,j)* &
+                (sinlon0(i,j)*sinlon0(ip1,j)+coslon0(i,j)*coslon0(ip1,j)))
+      distj=acos(sinlat0(i,j)*sinlat0(i,jp1)+coslat0(i,j)*coslat0(i,jp1)* &
+                (sinlon0(i,j)*sinlon0(i,jp1)+coslon0(i,j)*coslon0(i,jp1)))
+      distmax=max(disti,distj)
+      distmin=min(disti,distj)
+      delbar=delbar+distmax
+      count=count+one
+    end do
   end do
   delbar=delbar/count
   dx=half*delbar
@@ -1870,8 +1916,8 @@ contains
   xminout=xminout-extra
   ymaxout=ymaxout+extra
   yminout=yminout-extra
-  nx=1+(xmaxout-xminout)/dx
-  ny=1+(ymaxout-yminout)/dy
+  nx=ione+(xmaxout-xminout)/dx
+  ny=ione+(ymaxout-yminout)/dy
  
  end subroutine get_xytilde_domain
 
@@ -1938,34 +1984,35 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: quarter
+  use constants, only: izero,ione,quarter
   implicit none
+ 
   integer(i_kind),intent(in):: nx,ny,igtype
   real(r_single),intent(in):: gin(nx,ny)
   real(r_kind),intent(out):: gout(nx,*)
 
   integer(i_kind) i,i0,im,j,jj,jm,jp
 
-  if(igtype.eq.1) then
-   jj=0
-   do j=1,ny,2
-    jj=jj+1
-    do i=1,nx
-     gout(i,jj)=gin(i,j)
+  if(igtype==ione) then
+    jj=izero
+    do j=1,ny,2
+      jj=jj+ione
+      do i=1,nx
+        gout(i,jj)=gin(i,j)
+      end do
     end do
-   end do
   else
-   jj=0
-   do j=1,ny,2
-    jj=jj+1
-    jp=j+1 ; if(jp.gt.ny) jp=j-1
-    jm=j-1 ; if(jm.lt.1) jm=j+1
-    do i=1,nx
-     im=i-1 ; if(im.lt.1) im=i
-     i0=i ; if(i.eq.nx) i0=im
-     gout(i,jj)=quarter*(gin(im,j)+gin(i0,j)+gin(i,jp)+gin(i,jm))
+    jj=izero
+    do j=1,ny,2
+      jj=jj+ione
+      jp=j+ione ; if(jp>ny)   jp=j-ione
+      jm=j-ione ; if(jm<ione) jm=j+ione
+      do i=1,nx
+        im=i-ione ; if(im<ione) im=i
+        i0=i      ; if(i==nx)   i0=im
+        gout(i,jj)=quarter*(gin(im,j)+gin(i0,j)+gin(i,jp)+gin(i,jm))
+      end do
     end do
-   end do
   end if
 
  end subroutine half_nmm_grid2a
@@ -1994,54 +2041,56 @@ contains
 !
 !$$$ end documentation block
 
+  use constants, only: ione
   implicit none
+
   integer(i_kind),intent(in):: nx,ny
   real(r_kind),intent(in):: gin(nx,ny)
-  real(r_kind),intent(out):: gout(2*nx-1,ny)
+  real(r_kind),intent(out):: gout(2*nx-ione,ny)
 
   integer(i_kind) i,j
-  integer(i_kind) i1a(2*nx-1),i2a(2*nx-1)
-  integer(i_kind) i3a(2*nx-1),i4a(2*nx-1)
-  real(r_kind) r1a(2*nx-1),r2a(2*nx-1)
-  real(r_kind) r3a(2*nx-1),r4a(2*nx-1)
+  integer(i_kind) i1a(2*nx-ione),i2a(2*nx-ione)
+  integer(i_kind) i3a(2*nx-ione),i4a(2*nx-ione)
+  real(r_kind) r1a(2*nx-ione),r2a(2*nx-ione)
+  real(r_kind) r3a(2*nx-ione),r4a(2*nx-ione)
   real(r_kind) x,x1,x2,x3,x4
 
 !  first transfer all staggered points to appropriate
 !   points on filled output grid
 
   do j=1,ny,2
-   do i=1,nx
-    gout(2*i-1,j)=gin(i,j)
-   end do
+    do i=1,nx
+      gout(2*i-ione,j)=gin(i,j)
+    end do
   end do
   do j=2,ny,2
-   do i=1,nx-1
-    gout(2*i,j)=gin(i,j)
-   end do
+    do i=1,nx-ione
+      gout(2*i,j)=gin(i,j)
+    end do
   end do
 
 !   compute all interpolation constants for even x points on odd y rows
 
-  i=2
-   i1a(i)=i-1 ; i2a(i)=i+1 ; i3a(i)=i+3 ; i4a(i)=i+5
-   x=i ; x1=i1a(i) ; x2=i2a(i) ; x3=i3a(i) ; x4=i4a(i)
+  i=2_i_kind
+   i1a(i)=i-ione ; i2a(i)=i+ione ; i3a(i)=i+3_i_kind ; i4a(i)=i+5_i_kind
+   x=i           ; x1=i1a(i)     ; x2=i2a(i)         ; x3=i3a(i)         ; x4=i4a(i)
    r1a(i)=       (x-x2)*(x-x3)*(x-x4)/(        (x1-x2)*(x1-x3)*(x1-x4))
    r2a(i)=(x-x1)       *(x-x3)*(x-x4)/((x2-x1)        *(x2-x3)*(x2-x4))
    r3a(i)=(x-x1)*(x-x2)       *(x-x4)/((x3-x1)*(x3-x2)        *(x3-x4))
    r4a(i)=(x-x1)*(x-x2)*(x-x3)       /((x4-x1)*(x4-x2)*(x4-x3)        )
 
-  do i=4,2*nx-4,2
-   i1a(i)=i-3 ; i2a(i)=i-1 ; i3a(i)=i+1 ; i4a(i)=i+3
-   x=i ; x1=i1a(i) ; x2=i2a(i) ; x3=i3a(i) ; x4=i4a(i)
+  do i=4,2*nx-4_i_kind,2
+   i1a(i)=i-3_i_kind ; i2a(i)=i-ione ; i3a(i)=i+ione ; i4a(i)=i+3_i_kind
+   x=i               ; x1=i1a(i)     ; x2=i2a(i)     ; x3=i3a(i)         ; x4=i4a(i)
    r1a(i)=       (x-x2)*(x-x3)*(x-x4)/(        (x1-x2)*(x1-x3)*(x1-x4))
    r2a(i)=(x-x1)       *(x-x3)*(x-x4)/((x2-x1)        *(x2-x3)*(x2-x4))
    r3a(i)=(x-x1)*(x-x2)       *(x-x4)/((x3-x1)*(x3-x2)        *(x3-x4))
    r4a(i)=(x-x1)*(x-x2)*(x-x3)       /((x4-x1)*(x4-x2)*(x4-x3)        )
   end do
 
-  i=2*nx-2
-   i1a(i)=i-5 ; i2a(i)=i-3 ; i3a(i)=i-1 ; i4a(i)=i+1
-   x=i ; x1=i1a(i) ; x2=i2a(i) ; x3=i3a(i) ; x4=i4a(i)
+  i=2*nx-2_i_kind
+   i1a(i)=i-5_i_kind ; i2a(i)=i-3_i_kind ; i3a(i)=i-ione ; i4a(i)=i+ione
+   x=i               ; x1=i1a(i)         ; x2=i2a(i)     ; x3=i3a(i)     ; x4=i4a(i)
    r1a(i)=       (x-x2)*(x-x3)*(x-x4)/(        (x1-x2)*(x1-x3)*(x1-x4))
    r2a(i)=(x-x1)       *(x-x3)*(x-x4)/((x2-x1)        *(x2-x3)*(x2-x4))
    r3a(i)=(x-x1)*(x-x2)       *(x-x4)/((x3-x1)*(x3-x2)        *(x3-x4))
@@ -2049,58 +2098,58 @@ contains
 
 !   now get all interpolation constants for odd x points on even y rows
 
-  i=1
-   i1a(i)=i+1 ; i2a(i)=i+3 ; i3a(i)=i+5 ; i4a(i)=i+7
-   x=i ; x1=i1a(i) ; x2=i2a(i) ; x3=i3a(i) ; x4=i4a(i)
+  i=ione
+   i1a(i)=i+ione ; i2a(i)=i+3_i_kind ; i3a(i)=i+5_i_kind ; i4a(i)=i+7_i_kind
+   x=i           ; x1=i1a(i)         ; x2=i2a(i)         ; x3=i3a(i)     ; x4=i4a(i)
    r1a(i)=       (x-x2)*(x-x3)*(x-x4)/(        (x1-x2)*(x1-x3)*(x1-x4))
    r2a(i)=(x-x1)       *(x-x3)*(x-x4)/((x2-x1)        *(x2-x3)*(x2-x4))
    r3a(i)=(x-x1)*(x-x2)       *(x-x4)/((x3-x1)*(x3-x2)        *(x3-x4))
    r4a(i)=(x-x1)*(x-x2)*(x-x3)       /((x4-x1)*(x4-x2)*(x4-x3)        )
 
-  i=3
-   i1a(i)=i-1 ; i2a(i)=i+1 ; i3a(i)=i+3 ; i4a(i)=i+5
-   x=i ; x1=i1a(i) ; x2=i2a(i) ; x3=i3a(i) ; x4=i4a(i)
+  i=3_i_kind
+   i1a(i)=i-ione ; i2a(i)=i+ione ; i3a(i)=i+3_i_kind ; i4a(i)=i+5_i_kind
+   x=i           ; x1=i1a(i)     ; x2=i2a(i)         ; x3=i3a(i)         ; x4=i4a(i)
    r1a(i)=       (x-x2)*(x-x3)*(x-x4)/(        (x1-x2)*(x1-x3)*(x1-x4))
    r2a(i)=(x-x1)       *(x-x3)*(x-x4)/((x2-x1)        *(x2-x3)*(x2-x4))
    r3a(i)=(x-x1)*(x-x2)       *(x-x4)/((x3-x1)*(x3-x2)        *(x3-x4))
    r4a(i)=(x-x1)*(x-x2)*(x-x3)       /((x4-x1)*(x4-x2)*(x4-x3)        )
 
-  do i=5,2*nx-5,2
-   i1a(i)=i-3 ; i2a(i)=i-1 ; i3a(i)=i+1 ; i4a(i)=i+3
-   x=i ; x1=i1a(i) ; x2=i2a(i) ; x3=i3a(i) ; x4=i4a(i)
+  do i=5,2*nx-5_i_kind,2
+   i1a(i)=i-3_i_kind ; i2a(i)=i-ione ; i3a(i)=i+ione ; i4a(i)=i+3_i_kind
+   x=i               ; x1=i1a(i)     ; x2=i2a(i)     ; x3=i3a(i)         ; x4=i4a(i)
    r1a(i)=       (x-x2)*(x-x3)*(x-x4)/(        (x1-x2)*(x1-x3)*(x1-x4))
    r2a(i)=(x-x1)       *(x-x3)*(x-x4)/((x2-x1)        *(x2-x3)*(x2-x4))
    r3a(i)=(x-x1)*(x-x2)       *(x-x4)/((x3-x1)*(x3-x2)        *(x3-x4))
    r4a(i)=(x-x1)*(x-x2)*(x-x3)       /((x4-x1)*(x4-x2)*(x4-x3)        )
   end do
 
-  i=2*nx-3
-   i1a(i)=i-5 ; i2a(i)=i-3 ; i3a(i)=i-1 ; i4a(i)=i+1
-   x=i ; x1=i1a(i) ; x2=i2a(i) ; x3=i3a(i) ; x4=i4a(i)
+  i=2*nx-3_i_kind
+   i1a(i)=i-5_i_kind ; i2a(i)=i-3_i_kind ; i3a(i)=i-ione ; i4a(i)=i+ione
+   x=i               ; x1=i1a(i)         ; x2=i2a(i)     ; x3=i3a(i)     ; x4=i4a(i)
    r1a(i)=       (x-x2)*(x-x3)*(x-x4)/(        (x1-x2)*(x1-x3)*(x1-x4))
    r2a(i)=(x-x1)       *(x-x3)*(x-x4)/((x2-x1)        *(x2-x3)*(x2-x4))
    r3a(i)=(x-x1)*(x-x2)       *(x-x4)/((x3-x1)*(x3-x2)        *(x3-x4))
    r4a(i)=(x-x1)*(x-x2)*(x-x3)       /((x4-x1)*(x4-x2)*(x4-x3)        )
 
-  i=2*nx-1
-   i1a(i)=i-7 ; i2a(i)=i-5 ; i3a(i)=i-3 ; i4a(i)=i-1
-   x=i ; x1=i1a(i) ; x2=i2a(i) ; x3=i3a(i) ; x4=i4a(i)
+  i=2*nx-ione
+   i1a(i)=i-7_i_kind ; i2a(i)=i-5_i_kind ; i3a(i)=i-3_i_kind ; i4a(i)=i-ione
+   x=i               ; x1=i1a(i)         ; x2=i2a(i)         ; x3=i3a(i) ; x4=i4a(i)
    r1a(i)=       (x-x2)*(x-x3)*(x-x4)/(        (x1-x2)*(x1-x3)*(x1-x4))
    r2a(i)=(x-x1)       *(x-x3)*(x-x4)/((x2-x1)        *(x2-x3)*(x2-x4))
    r3a(i)=(x-x1)*(x-x2)       *(x-x4)/((x3-x1)*(x3-x2)        *(x3-x4))
    r4a(i)=(x-x1)*(x-x2)*(x-x3)       /((x4-x1)*(x4-x2)*(x4-x3)        )
 
   do j=1,ny,2
-   do i=2,2*nx-2,2
-    gout(i,j)=r1a(i)*gout(i1a(i),j)+r2a(i)*gout(i2a(i),j)+ &
-              r3a(i)*gout(i3a(i),j)+r4a(i)*gout(i4a(i),j)
-   end do
+    do i=2,2*nx-2_i_kind,2
+      gout(i,j)=r1a(i)*gout(i1a(i),j)+r2a(i)*gout(i2a(i),j)+ &
+                r3a(i)*gout(i3a(i),j)+r4a(i)*gout(i4a(i),j)
+    end do
   end do
   do j=2,ny,2
-   do i=1,2*nx-1,2
-    gout(i,j)=r1a(i)*gout(i1a(i),j)+r2a(i)*gout(i2a(i),j)+ &
-              r3a(i)*gout(i3a(i),j)+r4a(i)*gout(i4a(i),j)
-   end do
+    do i=1,2*nx-1,2
+      gout(i,j)=r1a(i)*gout(i1a(i),j)+r2a(i)*gout(i2a(i),j)+ &
+                r3a(i)*gout(i3a(i),j)+r4a(i)*gout(i4a(i),j)
+    end do
   end do
 
  end subroutine fill_nmm_grid2a3
@@ -2118,7 +2167,7 @@ contains
 
 ! !USES:
 
-    use constants, only: one,two,pi,rad2deg,one_tenth
+    use constants, only: ione,one,two,pi,rad2deg,one_tenth
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -2157,25 +2206,25 @@ contains
 
   ix=x
   iy=y
-  ix=max(1,min(ix,nlon-1))
-  iy=max(1,min(iy,nlat-1))
+  ix=max(ione,min(ix,nlon-ione))
+  iy=max(ione,min(iy,nlat-ione))
   delx=x-ix
   dely=y-iy
   delxp=one-delx
   delyp=one-dely
-  beta_old=beta_ref(ix  ,iy  )*delxp*delyp+beta_ref(ix+1,iy  )*delx *delyp+ &
-       beta_ref(ix  ,iy+1)*delxp*dely +beta_ref(ix+1,iy+1)*delx *dely
-  cos_beta=cos_beta_ref(ix  ,iy  )*delxp*delyp+cos_beta_ref(ix+1,iy  )*delx *delyp+ &
-       cos_beta_ref(ix  ,iy+1)*delxp*dely +cos_beta_ref(ix+1,iy+1)*delx *dely
-  sin_beta=sin_beta_ref(ix  ,iy  )*delxp*delyp+sin_beta_ref(ix+1,iy  )*delx *delyp+ &
-       sin_beta_ref(ix  ,iy+1)*delxp*dely +sin_beta_ref(ix+1,iy+1)*delx *dely
+  beta_old=    beta_ref(ix  ,iy     )*delxp*delyp+    beta_ref(ix+ione,iy     )*delx *delyp+ &
+               beta_ref(ix  ,iy+ione)*delxp*dely +    beta_ref(ix+ione,iy+ione)*delx *dely
+  cos_beta=cos_beta_ref(ix  ,iy     )*delxp*delyp+cos_beta_ref(ix+ione,iy     )*delx *delyp+ &
+           cos_beta_ref(ix  ,iy+ione)*delxp*dely +cos_beta_ref(ix+ione,iy+ione)*delx *dely
+  sin_beta=sin_beta_ref(ix  ,iy     )*delxp*delyp+sin_beta_ref(ix+ione,iy     )*delx *delyp+ &
+           sin_beta_ref(ix  ,iy+ione)*delxp*dely +sin_beta_ref(ix+ione,iy+ione)*delx *dely
   beta=atan2(sin_beta,cos_beta)
   thisdiff=huge(thisdiff)
   two_pi=two*pi
   do k=-6,6
     thisdiff=min(abs(beta-beta_old+k*two_pi),thisdiff)
   end do
-  if(thisdiff*rad2deg.gt.one_tenth) then
+  if(thisdiff*rad2deg>one_tenth) then
     count_beta_diff_gt_20=count_beta_diff_gt_20 + one
     beta_diff_max_gt_20=max(beta_diff_max_gt_20,thisdiff)
   else
@@ -2205,7 +2254,7 @@ contains
 
 ! !USES:
 
-    use constants, only: one
+    use constants, only: ione,one
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -2245,16 +2294,16 @@ contains
 
   ix=x
   iy=y
-  ix=max(1,min(ix,nlon-1))
-  iy=max(1,min(iy,nlat-1))
+  ix=max(ione,min(ix,nlon-ione))
+  iy=max(ione,min(iy,nlat-ione))
   delx=x-ix
   dely=y-iy
   delxp=one-delx
   delyp=one-dely
-  cos_beta=cos_beta_ref(ix  ,iy  )*delxp*delyp+cos_beta_ref(ix+1,iy  )*delx *delyp+ &
-       cos_beta_ref(ix  ,iy+1)*delxp*dely +cos_beta_ref(ix+1,iy+1)*delx *dely
-  sin_beta=sin_beta_ref(ix  ,iy  )*delxp*delyp+sin_beta_ref(ix+1,iy  )*delx *delyp+ &
-       sin_beta_ref(ix  ,iy+1)*delxp*dely +sin_beta_ref(ix+1,iy+1)*delx *dely
+  cos_beta=cos_beta_ref(ix  ,iy     )*delxp*delyp+cos_beta_ref(ix+ione,iy     )*delx *delyp+ &
+           cos_beta_ref(ix  ,iy+ione)*delxp*dely +cos_beta_ref(ix+ione,iy+ione)*delx *dely
+  sin_beta=sin_beta_ref(ix  ,iy     )*delxp*delyp+sin_beta_ref(ix+ione,iy     )*delx *delyp+ &
+           sin_beta_ref(ix  ,iy+ione)*delxp*dely +sin_beta_ref(ix+ione,iy+ione)*delx *dely
   beta=atan2(sin_beta,cos_beta)
 
 !  now rotate;
@@ -2277,12 +2326,13 @@ contains
 
 ! !USES:
 
+   use constants, only: ione
    implicit none
 
 ! !INPUT PARAMETERS:
 
    real(r_kind),dimension(max(iglobal,itotsub)),intent(in):: grid_in  ! input grid
-   real(r_kind),dimension(nlon,nlat-2),intent(out):: grid_out         ! output grid
+   real(r_kind),dimension(nlon,nlat-2_i_kind),intent(out):: grid_out         ! output grid
 
 ! !DESCRIPTION: This routine prepares grids for use in splib
 !               grid to spectral tranforms.  This preparation
@@ -2317,15 +2367,15 @@ contains
 !  into the routine the order is south --> north.  On exit
 !  the order is north --> south
    do k=1,iglobal
-      i=nlat-ltosi(k)+1
+      i=nlat-ltosi(k)+ione
       j=ltosj(k)
       grid(j,i)=grid_in(k)
    end do
    
 !  Transfer contents of local array to output array.
-   nlatm1=nlat-1
+   nlatm1=nlat-ione
    do j=2,nlatm1
-      jj=j-1
+      jj=j-ione
       do i=1,nlon
          grid_out(i,jj)=grid(i,j)
       end do
@@ -2347,13 +2397,13 @@ contains
 
 ! !USES:
 
-   use constants, only: zero,one
+   use constants, only: ione,zero,one
    implicit none
 
 ! !INPUT PARAMETERS:
 
-   real(r_kind),dimension(nlon,nlat-2),intent(in):: grid_in  ! input grid
-   real(r_kind),dimension(itotsub),intent(out):: grid_out    ! output grid
+   real(r_kind),dimension(nlon,nlat-2_i_kind),intent(in):: grid_in  ! input grid
+   real(r_kind),dimension(itotsub),intent(out):: grid_out           ! output grid
 
 ! !DESCRIPTION: This routine adds a southern and northern latitude
 !               row to the input grid.  The southern row contains
@@ -2404,7 +2454,7 @@ contains
 
 !  Transfer contents of input grid to local work array
 !  Reverse ordering in j direction from n-->s to s-->n
-   do j=2,nlat-1
+   do j=2,nlat-ione
       jj=nlat-j
       do i=1,nlon
          grid(i,j)=grid_in(i,jj)
@@ -2414,7 +2464,7 @@ contains
 !  Compute mean along southern and northern latitudes
    sumn=zero
    sums=zero
-   nlatm2=nlat-2
+   nlatm2=nlat-2_i_kind
    do i=1,nlon
       sumn=sumn+grid_in(i,1)
       sums=sums+grid_in(i,nlatm2)
@@ -2452,13 +2502,13 @@ contains
 
 ! !USES:
 
-   use constants, only: zero
+   use constants, only: ione,zero
    implicit none
 
 ! !INPUT PARAMETERS:
 
-   real(r_kind),dimension(nlon,nlat-2),intent(in):: gridu_in,gridv_in  ! input grid
-   real(r_kind),dimension(itotsub),intent(out):: gridu_out,gridv_out    ! output grid
+   real(r_kind),dimension(nlon,nlat-2_i_kind),intent(in):: gridu_in,gridv_in  ! input grid
+   real(r_kind),dimension(itotsub),intent(out):: gridu_out,gridv_out          ! output grid
 
 ! !DESCRIPTION: This routine adds a southern and northern latitude
 !               row to the input grid.  The southern row contains
@@ -2509,7 +2559,7 @@ contains
 
 !  Transfer contents of input grid to local work array
 !  Reverse ordering in j direction from n-->s to s-->n
-   do j=2,nlat-1
+   do j=2,nlat-ione
       jj=nlat-j
       do i=1,nlon
          grid(i,j)=gridu_in(i,jj)
@@ -2523,20 +2573,20 @@ contains
    polsu=zero
    polsv=zero
    do i=1,nlon
-      polnu=polnu+grid(i,nlat-1)*coslon(i)-grid2(i,nlat-1)*sinlon(i)
-      polnv=polnv+grid(i,nlat-1)*sinlon(i)+grid2(i,nlat-1)*coslon(i)
-      polsu=polsu+grid(i,2)*coslon(i)+grid2(i,2)*sinlon(i)
-      polsv=polsv+grid(i,2)*sinlon(i)-grid2(i,2)*coslon(i)
+      polnu=polnu+grid(i,nlat-ione)*coslon(i)-grid2(i,nlat-ione)*sinlon(i)
+      polnv=polnv+grid(i,nlat-ione)*sinlon(i)+grid2(i,nlat-ione)*coslon(i)
+      polsu=polsu+grid(i,2        )*coslon(i)+grid2(i,2        )*sinlon(i)
+      polsv=polsv+grid(i,2        )*sinlon(i)-grid2(i,2        )*coslon(i)
    end do
    polnu=polnu/float(nlon)
    polnv=polnv/float(nlon)
    polsu=polsu/float(nlon)
    polsv=polsv/float(nlon)
    do i=1,nlon
-      grid(i,nlat)= polnu*coslon(i)+polnv*sinlon(i)
+      grid (i,nlat)= polnu*coslon(i)+polnv*sinlon(i)
       grid2(i,nlat)=-polnu*sinlon(i)+polnv*coslon(i)
-      grid(i,1)= polsu*coslon(i)+polsv*sinlon(i)
-      grid2(i,1)= polsu*sinlon(i)-polsv*coslon(i)
+      grid (i,1   )= polsu*coslon(i)+polsv*sinlon(i)
+      grid2(i,1   )= polsu*sinlon(i)-polsv*coslon(i)
    end do
 
 !  Transfer local work array to output grid
@@ -2564,7 +2614,7 @@ contains
 
 ! !USES:
 
-   use constants, only: one
+   use constants, only: izero,ione,one
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -2610,26 +2660,26 @@ contains
    dy1 = one-dy
 
 !  Bound lat and lon indices to fall within analysis grid limits   
-   jlat = min(max(1,jlat),nlat)
-   jlon = min(max(0,jlon),nlon)
+   jlat = min(max(ione ,jlat),nlat)
+   jlon = min(max(izero,jlon),nlon)
 
 !  Handle special case of e/w periodicity
-   if (jstart(mm1)==1 .and. jlon==nlon) jlon=0
-   if (jstart(mm1)+jlon1(mm1)==nlon+1 .and. jlon==0) jlon=nlon
+   if (jstart(mm1)==ione .and. jlon==nlon) jlon=izero
+   if (jstart(mm1)+jlon1(mm1)==nlon+ione .and. jlon==izero) jlon=nlon
 
 !  Convert global (i,j) indices to sub-domain specific (i,j) indices
-   jlat=jlat-istart(mm1)+2
-   jlon=jlon-jstart(mm1)+2
+   jlat=jlat-istart(mm1)+2_i_kind
+   jlon=jlon-jstart(mm1)+2_i_kind
 
-   jgrd(1)=jlat+(jlon-1)*lat2
-   jgrd(2)=jgrd(1)+1
+   jgrd(1)=jlat+(jlon-ione)*lat2
+   jgrd(2)=jgrd(1)+ione
    jgrd(3)=jgrd(1)+lat2
-   jgrd(4)=jgrd(3)+1
+   jgrd(4)=jgrd(3)+ione
 
    wgrd(1)=dx1*dy1
    wgrd(2)=dx1*dy
-   wgrd(3)=dx*dy1
-   wgrd(4)=dx*dy
+   wgrd(3)=dx *dy1
+   wgrd(4)=dx *dy
 
    if (present(jjlat)) jjlat=jlat
    if (present(jjlon)) jjlon=jlon
@@ -2650,7 +2700,7 @@ contains
 
 ! !USES:
 
-   use constants, only: one
+   use constants, only: izero,ione,one
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -2705,37 +2755,37 @@ contains
    ds1 = one-ds
 
 !  Bound lat and lon indices to fall within analysis grid limits   
-   jlat = min(max(1,jlat),nlat)
-   jlon = min(max(0,jlon),nlon)
+   jlat = min(max(ione ,jlat),nlat)
+   jlon = min(max(izero,jlon),nlon)
 
 !  Handle special case of e/w periodicity
-   if (jstart(mm1)==1 .and. jlon==nlon) jlon=0
-   if (jstart(mm1)+jlon1(mm1)==nlon+1 .and. jlon==0) jlon=nlon
+   if (jstart(mm1)==ione .and. jlon==nlon) jlon=izero
+   if (jstart(mm1)+jlon1(mm1)==nlon+ione .and. jlon==izero) jlon=nlon
 
 !  Convert global (i,j) indices to sub-domain specific (i,j) indices
-   jlat=jlat-istart(mm1)+2
-   jlon=jlon-jstart(mm1)+2
+   jlat=jlat-istart(mm1)+2_i_kind
+   jlon=jlon-jstart(mm1)+2_i_kind
 
 !  Set number of points on horizontal layer
    latlon11_l = latlon11
-   if(jsig==nsig) latlon11_l=0
-   jgrd(1)=jlat+(jlon-1)*lat2+(jsig-1)*latlon11
-   jgrd(2)=jgrd(1)+1
+   if(jsig==nsig) latlon11_l=izero
+   jgrd(1)=jlat+(jlon-ione)*lat2+(jsig-ione)*latlon11
+   jgrd(2)=jgrd(1)+ione
    jgrd(3)=jgrd(1)+lat2
-   jgrd(4)=jgrd(3)+1
+   jgrd(4)=jgrd(3)+ione
    jgrd(5)=jgrd(1)+latlon11_l
-   jgrd(6)=jgrd(5)+1
+   jgrd(6)=jgrd(5)+ione
    jgrd(7)=jgrd(5)+lat2
-   jgrd(8)=jgrd(7)+1
+   jgrd(8)=jgrd(7)+ione
 
    wgrd(1)=dx1*dy1*ds1
-   wgrd(2)=dx1*dy*ds1
-   wgrd(3)=dx*dy1*ds1
-   wgrd(4)=dx*dy*ds1
+   wgrd(2)=dx1*dy *ds1
+   wgrd(3)=dx *dy1*ds1
+   wgrd(4)=dx *dy *ds1
    wgrd(5)=dx1*dy1*ds
-   wgrd(6)=dx1*dy*ds
-   wgrd(7)=dx*dy1*ds
-   wgrd(8)=dx*dy*ds
+   wgrd(6)=dx1*dy *ds
+   wgrd(7)=dx *dy1*ds
+   wgrd(8)=dx *dy *ds
 
    return
  end subroutine get_ijk
@@ -2767,7 +2817,7 @@ contains
    implicit none
    character(len=*),intent(in):: string
 
-   if(count_beta_diff.gt.zero.or.count_beta_diff_gt_20.gt.zero) then
+   if(count_beta_diff>zero.or.count_beta_diff_gt_20>zero) then
       beta_diff_rms=sqrt(beta_diff_rms/(max(one,count_beta_diff)))
       write(6,*)'CHECK_ROTATE_WIND:  called from routine ',trim(string)
       write(6,100) beta_diff_max*rad2deg, beta_diff_min*rad2deg, beta_diff_rms*rad2deg

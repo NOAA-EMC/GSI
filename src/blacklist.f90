@@ -39,6 +39,14 @@ module blacklist
 !EOP
 !-------------------------------------------------------------------------
 
+! set default to private
+  private
+! set subroutines to public
+  public :: blacklist_read
+  public :: blacklist_destroy
+! set passed variables to public
+  public :: ibcnt,blkkx,blkstns
+
   integer(i_kind) ibcnt,ilcnt
   character(len=8),allocatable,dimension(:) :: blkstns
   integer(i_kind), allocatable,dimension(:) :: blkkx
@@ -58,6 +66,7 @@ contains
 
 ! !USES:
 
+    use constants, only: izero,ione
     implicit none
 
 ! !DESCRIPTION:  This routine reads the conventional information file
@@ -90,40 +99,40 @@ contains
     character(len=8) stnid
     logical eof
 
-     iblktbl = 19
+     iblktbl = 19_i_kind
      open(iblktbl,file='blacklist',form='formatted')
      rewind iblktbl
-     ibcnt = 0
-     ilcnt = 0
+     ibcnt = izero
+     ilcnt = izero
      eof = .false.
      do while (.not. eof)     ! get number of applicable entries in table
         read(iblktbl,fmt='(a1,a7)',iostat=ios)cflg,iotype
-        if (ios /= 0) then
+        if (ios /= izero) then
            eof = .true.
            cycle
         endif
-        ilcnt = ilcnt + 1
+        ilcnt = ilcnt + ione
         if (cflg == '!') cycle
         if (iotype/=obstype)cycle
-        ibcnt = ibcnt + 1
+        ibcnt = ibcnt + ione
      end do
-     if (ibcnt > 0) then     ! allocate and read in table
+     if (ibcnt > izero) then     ! allocate and read in table
         allocate(blkstns(ibcnt),blkkx(ibcnt),stat=ier)
-        if (ier /=0) then
+        if (ier /= izero) then
            write(6,*)'***READ_PREPBUFR ERROR*** Error allocating ',&
                 'memory; blacklist will not be applied'
-           ibcnt = 0
+           ibcnt = izero
         else
            rewind iblktbl
-           ibcnt = 0
+           ibcnt = izero
            do i = 1, ilcnt
               read(iblktbl,fmt='(a1,a7,1x,a120)',iostat=ios) &
                    cflg,iotype,crecord
-              if (ios /=0) exit
+              if (ios /= izero) exit
               if (cflg == '!') cycle
               if (iotype == obstype) then
                  read(crecord,'(i3,1x,a8)') ikx,stnid
-                 ibcnt = ibcnt + 1
+                 ibcnt = ibcnt + ione
                  blkstns(ibcnt) = stnid
                  blkkx(ibcnt) = ikx
               endif

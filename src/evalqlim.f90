@@ -27,7 +27,7 @@ subroutine evalqlim(sq,pbc,rq)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
-  use constants, only: zero,one,zero_quad
+  use constants, only: ione,zero,one,zero_quad
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
   use jfunc, only: factqmin,factqmax,rhgues
   use mpl_allreducemod, only: mpl_allreduce
@@ -51,8 +51,8 @@ subroutine evalqlim(sq,pbc,rq)
   do k = 1,nsig
     p1max(k)=zero_quad
     p1min(k)=zero_quad
-    do j = 2,lon1+1
-      do i = 2,lat1+1
+    do j = 2,lon1+ione
+      do i = 2,lat1+ione
 !       Value for q
         q = rhgues(i,j,k) + sq(i,j,k)
 !       Compute penalty for neg q

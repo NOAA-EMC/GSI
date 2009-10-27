@@ -1,5 +1,8 @@
 subroutine abor1(error_msg)
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    abor1
+!   prgmmr: tremolet
 !
 ! abstract:  Print error message and abort execution of mpi code.
 !
@@ -10,7 +13,14 @@ subroutine abor1(error_msg)
 !     error_msg - Error message
 !     ierror_code - Error code
 !
-!$$$
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
 use kinds, only: i_kind
 use mpimod, only: mpi_comm_world,ierror
 implicit none
@@ -21,7 +31,7 @@ integer(i_kind) :: ierr
 !if (PRESENT(ierror_code)) then
 !  ierr=ierror_code
 !else
-  ierr=100
+  ierr=100_i_kind
 !endif
 
 write(6,*)'ABOR1 called: ',error_msg

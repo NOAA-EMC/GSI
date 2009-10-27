@@ -1,5 +1,4 @@
 module converr
- 
 !$$$   module documentation block
 !                .      .    .                                       .
 ! module:    convinfo
@@ -27,9 +26,17 @@ module converr
 !$$$ end documentation block
 
 use kinds, only:r_kind,i_kind,r_single
-use constants, only: zero
+use constants, only: izero,ione,zero
 use obsmod, only : oberrflg 
 implicit none
+
+! set default as private
+  private
+! set subroutines as public
+  public :: converr_read
+  public :: converr_destroy
+! set passed variables as public
+  public :: etabl,ptabl
 
   integer(i_kind) ietabl,itypex,lcount,iflag,k,m
   real(r_single),allocatable,dimension(:,:,:) :: etabl
@@ -68,32 +75,32 @@ contains
      etabl=1.e9_r_kind
       
      
-     ietabl=19
+     ietabl=19_i_kind
      open(ietabl,file='errtable',form='formatted')
      rewind ietabl
      etabl=1.e9_r_kind
-     lcount=0
+     lcount=izero
      loopd : do 
         read(ietabl,100,IOSTAT=iflag) itypex
-        if( iflag /= 0 ) exit loopd
+        if( iflag /= izero ) exit loopd
 100     format(1x,i3)
-        lcount=lcount+1
+        lcount=lcount+ione
         do k=1,33
            read(ietabl,110)(etabl(itypex,k,m),m=1,6)
 110        format(1x,6e12.5)
         end do
      end do   loopd
 
-    if(lcount.le.0 .and. mype ==0) then
+    if(lcount<=izero .and. mype==izero) then
        write(6,*)'CONVERR:  ***WARNING*** obs error table not available to 3dvar.'
        oberrflg=.false.
     else
-       if(mype ==0) write(6,*)'CONVERR:  using observation errors from user provided table'
+       if(mype == izero) write(6,*)'CONVERR:  using observation errors from user provided table'
        allocate(ptabl(34))
        ptabl=zero
        ptabl(1)=etabl(120,1,1)
        do k=2,33
-          ptabl(k)=half*(etabl(120,k-1,1)+etabl(120,k,1))
+          ptabl(k)=half*(etabl(120,k-ione,1)+etabl(120,k,1))
        enddo
        ptabl(34)=etabl(120,33,1)
     endif

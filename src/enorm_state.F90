@@ -1,5 +1,4 @@
 subroutine enorm_state(xst,enorm,yst)
-
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    enorm_state
@@ -27,7 +26,7 @@ subroutine enorm_state(xst,enorm,yst)
 !$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero,one,cp,rd,pi,two,r1000
+use constants, only: ione,zero,one,cp,rd,pi,two,r1000
 use gridmod, only: nsig,nlat,nlon,lon2,lat2,istart,rlats,ak5,bk5
 use mpimod, only: mype
 use guess_grids, only: ges_ps,ntguessig
@@ -54,14 +53,14 @@ pfact=rd*tref/(pref*pref)
 gridfac=one/(nlat*nlon)
 
 do kk=1,nsig
-  akk(kk) = Pa_per_kPa * (ak5(kk)-ak5(kk+1))
+  akk(kk) = Pa_per_kPa * (ak5(kk)-ak5(kk+ione))
 enddo
 dsig=HUGE(dsig)
-do jj=2,lon2-1
-  do ii=2,lat2-1
+do jj=2,lon2-ione
+  do ii=2,lat2-ione
     zps = Pa_per_kPa * ges_ps(ii,jj,ntguessig)
     do kk=1,nsig
-      dsig(ii,jj,kk) = akk(kk) + (bk5(kk)-bk5(kk+1)) * zps
+      dsig(ii,jj,kk) = akk(kk) + (bk5(kk)-bk5(kk+ione)) * zps
     enddo
     if (ANY(dsig(ii,jj,:)<=zero)) then
       do kk=1,nsig
@@ -69,7 +68,7 @@ do jj=2,lon2-1
           kk,r1000*ak5(kk),bk5(kk),r1000*ak5(kk)+bk5(kk)*pref,dsig(2,2,kk)
       enddo
       write(6,'(A,I3,4(2X,F18.8))')'enorm ak,bk,pk     =',&
-        nsig+1,r1000*ak5(nsig+1),bk5(nsig+1),r1000*ak5(nsig+1)+bk5(nsig+1)*pref
+        nsig+ione,r1000*ak5(nsig+ione),bk5(nsig+ione),r1000*ak5(nsig+ione)+bk5(nsig+ione)*pref
       write(6,*)'enorm_state: negative dsig'
       call stop2(123)
     endif
@@ -77,9 +76,9 @@ do jj=2,lon2-1
 enddo
 
 coslat=HUGE(coslat)
-do ii=2,lat2-1
-  ilat=istart(mype+1)+ii-2
-  if (ilat<1.or.ilat>nlat) then
+do ii=2,lat2-ione
+  ilat=istart(mype+ione)+ii-2_i_kind
+  if (ilat<ione.or.ilat>nlat) then
     write(6,*)'enorm_state: error ilat',ilat
     call stop2(124)
   end if
@@ -95,9 +94,9 @@ yst=zero
 
 ! U
 do kk=1,nsig
-  do jj=2,lon2-1
-    do ii=2,lat2-1
-      ijk=(kk-1)*lon2*lat2 + (jj-1)*lat2 + ii
+  do jj=2,lon2-ione
+    do ii=2,lat2-ione
+      ijk=(kk-ione)*lon2*lat2 + (jj-ione)*lat2 + ii
       yst%u(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst%u(ijk)
     enddo
   enddo
@@ -105,9 +104,9 @@ enddo
 
 ! V
 do kk=1,nsig
-  do jj=2,lon2-1
-    do ii=2,lat2-1
-      ijk=(kk-1)*lon2*lat2 + (jj-1)*lat2 + ii
+  do jj=2,lon2-ione
+    do ii=2,lat2-ione
+      ijk=(kk-ione)*lon2*lat2 + (jj-ione)*lat2 + ii
       yst%v(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst%v(ijk)
     enddo
   enddo
@@ -115,18 +114,18 @@ enddo
 
 ! T
 do kk=1,nsig
-  do jj=2,lon2-1
-    do ii=2,lat2-1
-      ijk=(kk-1)*lon2*lat2 + (jj-1)*lat2 + ii
+  do jj=2,lon2-ione
+    do ii=2,lat2-ione
+      ijk=(kk-ione)*lon2*lat2 + (jj-ione)*lat2 + ii
       yst%t(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*tfact*xst%t(ijk)
     enddo
   enddo
 enddo
 
 ! P
-do jj=2,lon2-1
-  do ii=2,lat2-1
-    ijk= (jj-1)*lat2 + ii
+do jj=2,lon2-ione
+  do ii=2,lat2-ione
+    ijk= (jj-ione)*lat2 + ii
     yst%p(ijk)=gridfac*coslat(ii)*pfact*xst%p(ijk)
   enddo
 enddo

@@ -29,6 +29,7 @@ subroutine control2model(xhat,sval,bval)
 !
 !$$$ end documentation block
 use kinds, only: r_kind,i_kind
+use constants, only: izero,ione
 use control_vectors
 use state_vectors
 use bias_predictors
@@ -54,7 +55,7 @@ if (.not.lsqrtb) then
   write(6,*)'control2model: assumes lsqrtb'
   call stop2(104)
 end if
-if (nsubwin/=1 .and. .not.l4dvar) then
+if (nsubwin/=ione .and. .not.l4dvar) then
   write(6,*)'control2model: error 3dvar',nsubwin
   call stop2(105)
 end if
@@ -85,7 +86,7 @@ do jj=1,nsubwin
   call tv_to_tsen(sval(jj)%t,sval(jj)%q,sval(jj)%tsen)
 
 ! Convert streamfunction and velocity potential to u,v
-  call getuv(sval(jj)%u,sval(jj)%v,workst,workvp,0)
+  call getuv(sval(jj)%u,sval(jj)%v,workst,workvp,izero)
 
 end do
 
