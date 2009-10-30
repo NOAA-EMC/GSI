@@ -40,14 +40,14 @@ subroutine init_commvars(mype)
        ku_gs,kv_gs,kt_gs,kp_gs,nnnvsbal,irdvec_g,isdvec_g,ircvec_g, &
        iscvec_g,ircvec_s,isdvec_s,irdvec_s,iscvec_s,nlevsuv,nnnvsuv,lu_gs,lv_gs
 
-  use constants, only: izero
+  use constants, only: izero,ione
   implicit none
 
   integer(i_kind) ns,mm1,mype
   integer(i_kind) i,j,n,kchk,npcount,icount,nstart
-  integer(i_kind),dimension(0:npe-1):: nbalpe,nbalpe_uv,kcount,lcount
+  integer(i_kind),dimension(0:npe-ione):: nbalpe,nbalpe_uv,kcount,lcount
   
-  mm1=mype+1
+  mm1=mype+ione
 
 
 ! Set number of latitude and longitude for given subdomain
@@ -55,7 +55,7 @@ subroutine init_commvars(mype)
 ! arrays are used in the spectral to grid transforms
   do i=1,npe
     ijn(i)=ilat1(i)*jlon1(i)
-    ijn_s(i)=(ilat1(i)+2)*(jlon1(i)+2)
+    ijn_s(i)=(ilat1(i)+2_i_kind)*(jlon1(i)+2_i_kind)
   end do
  
   do i=1,npe
@@ -72,16 +72,16 @@ subroutine init_commvars(mype)
   isd_g(1)=izero
   displs_g(1)=izero
   do n=1,npe
-    if(n/=1) then
-      isd_g(n)=isd_g(n-1)+isc_g(n-1)
-      displs_g(n)=displs_g(n-1)+ijn(n-1)
+    if(n/=ione) then
+      isd_g(n)=isd_g(n-ione)+isc_g(n-ione)
+      displs_g(n)=displs_g(n-ione)+ijn(n-ione)
     end if
     do j=1,jlon1(n)
-      ns=displs_g(n)+(j-1)*ilat1(n)
+      ns=displs_g(n)+(j-ione)*ilat1(n)
       do i=1,ilat1(n)
-        ns=ns+1
-        ltosi(ns)=istart(n)+i-1
-        ltosj(ns)=jstart(n)+j-1
+        ns=ns+ione
+        ltosi(ns)=istart(n)+i-ione
+        ltosj(ns)=jstart(n)+j-ione
       end do
     end do
   end do
@@ -90,9 +90,9 @@ subroutine init_commvars(mype)
   ird_s(1)=izero
   displs_s(1)=izero
   do n=1,npe
-    if(n/=1) then
-      ird_s(n)=ird_s(n-1)+irc_s(n-1)
-      displs_s(n)=displs_s(n-1)+ijn_s(n-1)
+    if(n/=ione) then
+      ird_s(n)=ird_s(n-ione)+irc_s(n-ione)
+      displs_s(n)=displs_s(n-ione)+ijn_s(n-ione)
     end if
   end do
 ! set total number of points from all subdomain grids
@@ -107,31 +107,31 @@ subroutine init_commvars(mype)
 if(regional)then
 
   do n=1,npe
-    do j=1,jlon1(n)+2
-      ns=displs_s(n)+(j-1)*(ilat1(n)+2)
-      do i=1,ilat1(n)+2
-        ns=ns+1
-        ltosi_s(ns)=istart(n)+i-2
-        ltosj_s(ns)=jstart(n)+j-2
-        if(ltosi_s(ns)==0) ltosi_s(ns)=1
-        if(ltosi_s(ns)==nlat+1) ltosi_s(ns)=nlat
-        if(ltosj_s(ns)==0) ltosj_s(ns)=1   
-        if(ltosj_s(ns)==nlon+1) ltosj_s(ns)=nlon
+    do j=1,jlon1(n)+2_i_kind
+      ns=displs_s(n)+(j-ione)*(ilat1(n)+2_i_kind)
+      do i=1,ilat1(n)+2_i_kind
+        ns=ns+ione
+        ltosi_s(ns)=istart(n)+i-2_i_kind
+        ltosj_s(ns)=jstart(n)+j-2_i_kind
+        if(ltosi_s(ns)==izero) ltosi_s(ns)=ione
+        if(ltosi_s(ns)==nlat+ione) ltosi_s(ns)=nlat
+        if(ltosj_s(ns)==izero) ltosj_s(ns)=ione
+        if(ltosj_s(ns)==nlon+ione) ltosj_s(ns)=nlon
       end do
     end do
   end do  ! end do over npe
 else
   do n=1,npe
-    do j=1,jlon1(n)+2
-      ns=displs_s(n)+(j-1)*(ilat1(n)+2)
-      do i=1,ilat1(n)+2
-        ns=ns+1
-        ltosi_s(ns)=istart(n)+i-2
-        ltosj_s(ns)=jstart(n)+j-2
-        if(ltosi_s(ns)==0) ltosi_s(ns)=1
-        if(ltosi_s(ns)==nlat+1) ltosi_s(ns)=nlat
-        if(ltosj_s(ns)==0) ltosj_s(ns)=nlon
-        if(ltosj_s(ns)==nlon+1) ltosj_s(ns)=1
+    do j=1,jlon1(n)+2_i_kind
+      ns=displs_s(n)+(j-ione)*(ilat1(n)+2_i_kind)
+      do i=1,ilat1(n)+2_i_kind
+        ns=ns+ione
+        ltosi_s(ns)=istart(n)+i-2_i_kind
+        ltosj_s(ns)=jstart(n)+j-2_i_kind
+        if(ltosi_s(ns)==izero) ltosi_s(ns)=ione
+        if(ltosi_s(ns)==nlat+ione) ltosi_s(ns)=nlat
+        if(ltosj_s(ns)==izero) ltosj_s(ns)=nlon
+        if(ltosj_s(ns)==nlon+ione) ltosj_s(ns)=ione
       end do
     end do
   end do  ! end do over npe
@@ -144,129 +144,129 @@ endif
   isdsp_s(1)=izero
   irdsp_s(1)=izero
 
-  if (mod((6*nsig)+4,npe)==izero) then
+  if (mod((6*nsig)+4_i_kind,npe)==izero) then
     kchk=npe
   else
-    kchk=mod((nsig*6)+4,npe)
+    kchk=mod((nsig*6)+4_i_kind,npe)
   end if
 
   do n=1,npe
-    if (n.le.kchk) then
+    if (n<=kchk) then
       iscnt_g(n)=ijn(mm1)*nsig1o
       ircnt_s(n)=ijn_s(mm1)*nsig1o
     else
-      iscnt_g(n)=ijn(mm1)*(nsig1o-1)
-      ircnt_s(n)=ijn_s(mm1)*(nsig1o-1)
+      iscnt_g(n)=ijn(mm1)*(nsig1o-ione)
+      ircnt_s(n)=ijn_s(mm1)*(nsig1o-ione)
     end if
 
-    if (mm1.le.kchk) then
+    if (mm1<=kchk) then
       ircnt_g(n)=ijn(n)*nsig1o
       iscnt_s(n)=ijn_s(n)*nsig1o
     else
-      ircnt_g(n)=ijn(n)*(nsig1o-1)
-      iscnt_s(n)=ijn_s(n)*(nsig1o-1)
+      ircnt_g(n)=ijn(n)*(nsig1o-ione)
+      iscnt_s(n)=ijn_s(n)*(nsig1o-ione)
     end if
 
-    if (n/=1) then
-      isdsp_g(n)=isdsp_g(n-1)+iscnt_g(n-1)
-      irdsp_g(n)=irdsp_g(n-1)+ijn(n-1)*nsig1o
-      isdsp_s(n)=isdsp_s(n-1)+ijn_s(n-1)*nsig1o
-      irdsp_s(n)=irdsp_s(n-1)+ircnt_s(n-1)
+    if (n/=ione) then
+      isdsp_g(n)=isdsp_g(n-ione)+iscnt_g(n-ione)
+      irdsp_g(n)=irdsp_g(n-ione)+ijn(n-ione)*nsig1o
+      isdsp_s(n)=isdsp_s(n-ione)+ijn_s(n-ione)*nsig1o
+      irdsp_s(n)=irdsp_s(n-ione)+ircnt_s(n-ione)
     end if
   end do
 
 ! set up communications for balance stuff
-  nbalpe=0
-  nbalpe_uv=0
-  icount=0
+  nbalpe=izero
+  nbalpe_uv=izero
+  icount=izero
 ! First take care of u,v and st,vp
   do n=1,nsig
-    nbalpe(icount)=nbalpe(icount)+2
-    nbalpe_uv(icount)=nbalpe_uv(icount)+2
-    icount=icount+1
-    if(icount == npe)icount=0
+    nbalpe(icount)=nbalpe(icount)+2_i_kind
+    nbalpe_uv(icount)=nbalpe_uv(icount)+2_i_kind
+    icount=icount+ione
+    if(icount == npe)icount=izero
   end do
   nstart=icount
-! Pressure (nsig+1)
-  do n=1,nsig+1
-    nbalpe(icount)=nbalpe(icount)+1
-    icount=icount+1
+! Pressure (nsig+ione)
+  do n=1,nsig+ione
+    nbalpe(icount)=nbalpe(icount)+ione
+    icount=icount+ione
     if(icount == npe)then
       icount=nstart
-      nstart=0
+      nstart=izero
     end if
   end do
 ! Temperature (nsig)
   do n=1,nsig
-    nbalpe(icount)=nbalpe(icount)+1
-    icount=icount+1
+    nbalpe(icount)=nbalpe(icount)+ione
+    icount=icount+ione
     if(icount == npe)then
       icount=nstart
-      nstart=0
+      nstart=izero
     end if
   end do
-  nlevsbal=0
-  do n=0,npe-1
+  nlevsbal=izero
+  do n=0,npe-ione
     nlevsbal=max(nlevsbal,nbalpe(n))
   end do
   nnnvsbal=nbalpe(mype)
-  nlevsuv=0
-  do n=0,npe-1
+  nlevsuv=izero
+  do n=0,npe-ione
     nlevsuv=max(nlevsuv,nbalpe_uv(n))
   end do
   nnnvsuv=nbalpe_uv(mype)
   allocate(nvarbal_id(nlevsbal))
-  npcount=1
-  icount=0
-  kcount=0
-  lcount=0
-  do n=1,npe-1
-   kcount(n)=nbalpe(n-1)+kcount(n-1)
-   lcount(n)=nbalpe_uv(n-1)+lcount(n-1)
+  npcount=ione
+  icount=izero
+  kcount=izero
+  lcount=izero
+  do n=1,npe-ione
+   kcount(n)=nbalpe(n-ione)+kcount(n-ione)
+   lcount(n)=nbalpe_uv(n-ione)+lcount(n-ione)
   end do
 ! First take care of u,v and st,vp
   do n=1,nsig
     if(mype == icount)then
-      nvarbal_id(npcount)=1
-      nvarbal_id(npcount+1)=2
-      npcount=npcount+2
+      nvarbal_id(npcount)=ione
+      nvarbal_id(npcount+ione)=2_i_kind
+      npcount=npcount+2_i_kind
     end if
     ku_gs(n)=kcount(icount)
-    kv_gs(n)=kcount(icount)+1
+    kv_gs(n)=kcount(icount)+ione
     lu_gs(n)=lcount(icount)
-    lv_gs(n)=lcount(icount)+1
-    kcount(icount)=kcount(icount)+2
-    lcount(icount)=lcount(icount)+2
-    icount=icount+1
-    if(icount == npe)icount=0
+    lv_gs(n)=lcount(icount)+ione
+    kcount(icount)=kcount(icount)+2_i_kind
+    lcount(icount)=lcount(icount)+2_i_kind
+    icount=icount+ione
+    if(icount == npe)icount=izero
   end do
   nstart=icount
-! Pressure (nsig+1)
-  do n=1,nsig+1
+! Pressure (nsig+ione)
+  do n=1,nsig+ione
     if(mype == icount)then
-      nvarbal_id(npcount)=3
-      npcount=npcount+1
+      nvarbal_id(npcount)=3_i_kind
+      npcount=npcount+ione
     end if
     kp_gs(n)=kcount(icount)
-    kcount(icount)=kcount(icount)+1
-    icount=icount+1
+    kcount(icount)=kcount(icount)+ione
+    icount=icount+ione
     if(icount == npe)then
       icount=nstart
-      nstart=0
+      nstart=izero
     end if
   end do
 ! Temperature (nsig)
   do n=1,nsig
     if(mype == icount)then
-      nvarbal_id(npcount)=4
-      npcount=npcount+1
+      nvarbal_id(npcount)=4_i_kind
+      npcount=npcount+ione
     end if
     kt_gs(n)=kcount(icount)
-    kcount(icount)=kcount(icount)+1
-    icount=icount+1
+    kcount(icount)=kcount(icount)+ione
+    icount=icount+ione
     if(icount == npe)then
       icount=nstart
-      nstart=0
+      nstart=izero
     end if
   end do
 
@@ -276,20 +276,20 @@ endif
   irdbal_s(1)=izero
   do n=1,npe
 !  sub to grid communications
-      iscbal_g(n)=ijn(mm1)*nbalpe(n-1)
+      iscbal_g(n)=ijn(mm1)*nbalpe(n-ione)
       ircbal_g(n)=ijn(n)*nbalpe(mype)
 
 !  grid to sub communications
-      ircbal_s(n)=ijn_s(mm1)*nbalpe(n-1)
+      ircbal_s(n)=ijn_s(mm1)*nbalpe(n-ione)
       iscbal_s(n)=ijn_s(n)*nbalpe(mype)
 
-    if (n/=1) then
+    if (n/=ione) then
 !  sub to grid
-      isdbal_g(n)=isdbal_g(n-1)+iscbal_g(n-1)
-      irdbal_g(n)=irdbal_g(n-1)+ijn(n-1)*nlevsbal
+      isdbal_g(n)=isdbal_g(n-ione)+iscbal_g(n-ione)
+      irdbal_g(n)=irdbal_g(n-ione)+ijn(n-ione)*nlevsbal
 !  grid to sub
-      isdbal_s(n)=isdbal_s(n-1)+ijn_s(n-1)*nlevsbal
-      irdbal_s(n)=irdbal_s(n-1)+ircbal_s(n-1)
+      isdbal_s(n)=isdbal_s(n-ione)+ijn_s(n-ione)*nlevsbal
+      irdbal_s(n)=irdbal_s(n-ione)+ircbal_s(n-ione)
     end if
   end do
 
@@ -299,20 +299,20 @@ endif
   irdvec_s(1)=izero
   do n=1,npe
 !  sub to grid communications
-      iscvec_g(n)=ijn(mm1)*nbalpe_uv(n-1)
+      iscvec_g(n)=ijn(mm1)*nbalpe_uv(n-ione)
       ircvec_g(n)=ijn(n)*nbalpe_uv(mype)
 
 !  grid to sub communications
-      ircvec_s(n)=ijn_s(mm1)*nbalpe_uv(n-1)
+      ircvec_s(n)=ijn_s(mm1)*nbalpe_uv(n-ione)
       iscvec_s(n)=ijn_s(n)*nbalpe_uv(mype)
 
-    if (n/=1) then
+    if (n/=ione) then
 !  sub to grid
-      isdvec_g(n)=isdvec_g(n-1)+iscvec_g(n-1)
-      irdvec_g(n)=irdvec_g(n-1)+ijn(n-1)*nlevsuv
+      isdvec_g(n)=isdvec_g(n-ione)+iscvec_g(n-ione)
+      irdvec_g(n)=irdvec_g(n-ione)+ijn(n-ione)*nlevsuv
 !  grid to sub
-      isdvec_s(n)=isdvec_s(n-1)+ijn_s(n-1)*nlevsuv
-      irdvec_s(n)=irdvec_s(n-1)+ircvec_s(n-1)
+      isdvec_s(n)=isdvec_s(n-ione)+ijn_s(n-ione)*nlevsuv
+      irdvec_s(n)=irdvec_s(n-ione)+ircvec_s(n-ione)
     end if
   end do
 
@@ -330,27 +330,27 @@ endif
   end if
 
   do n=1,npe
-    if (n.le.kchk) then
+    if (n<=kchk) then
       iscuv_g(n)=ijn(mm1)*nuvlevs
       ircuv_s(n)=ijn_s(mm1)*nuvlevs
     else
-      iscuv_g(n)=ijn(mm1)*(nuvlevs-1)
-      ircuv_s(n)=ijn_s(mm1)*(nuvlevs-1)
+      iscuv_g(n)=ijn(mm1)*(nuvlevs-ione)
+      ircuv_s(n)=ijn_s(mm1)*(nuvlevs-ione)
     end if
 
-    if (mm1.le.kchk) then
+    if (mm1<=kchk) then
       ircuv_g(n)=ijn(n)*nuvlevs
       iscuv_s(n)=ijn_s(n)*nuvlevs
     else
-      ircuv_g(n)=ijn(n)*(nuvlevs-1)
-      iscuv_s(n)=ijn_s(n)*(nuvlevs-1)
+      ircuv_g(n)=ijn(n)*(nuvlevs-ione)
+      iscuv_s(n)=ijn_s(n)*(nuvlevs-ione)
     end if
 
-    if (n/=1) then
-      isduv_g(n)=isduv_g(n-1)+iscuv_g(n-1)
-      irduv_g(n)=irduv_g(n-1)+ijn(n-1)*nuvlevs
-      isduv_s(n)=isduv_s(n-1)+ijn_s(n-1)*nuvlevs
-      irduv_s(n)=irduv_s(n-1)+ircuv_s(n-1)
+    if (n/=ione) then
+      isduv_g(n)=isduv_g(n-ione)+iscuv_g(n-ione)
+      irduv_g(n)=irduv_g(n-ione)+ijn(n-ione)*nuvlevs
+      isduv_s(n)=isduv_s(n-ione)+ijn_s(n-ione)*nuvlevs
+      irduv_s(n)=irduv_s(n-ione)+ircuv_s(n-ione)
     end if
   end do
 

@@ -28,6 +28,7 @@ subroutine inc2guess(sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
+  use constants, only: izero,ione
   use mpimod, only: mype
   use gridmod, only: lat2,lon2,nsig
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
@@ -50,17 +51,17 @@ subroutine inc2guess(sval)
 
 ! Overwrite guess fields by increments
   do it=1,nfldsig
-     if (nobs_bins>1) then
+     if (nobs_bins>ione) then
        zt = hrdifsig(it)
-       ii = NINT(zt/hr_obsbin)+1
+       ii = NINT(zt/hr_obsbin)+ione
      else
-       ii = 1
+       ii = ione
      endif
-     ijk=0
+     ijk=izero
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ijk=ijk+1
+              ijk=ijk+ione
               ges_u(i,j,k,it)    = sval(ii)%u(ijk)
               ges_v(i,j,k,it)    = sval(ii)%v(ijk)
               ges_tv(i,j,k,it)   = sval(ii)%t(ijk)
@@ -72,25 +73,25 @@ subroutine inc2guess(sval)
            end do
         end do
      end do
-     ij=0
+     ij=izero
      do j=1,lon2
         do i=1,lat2
-           ij=ij+1
+           ij=ij+ione
            ges_ps(i,j,it) = sval(ii)%p(ij)
         end do
      end do
   end do
 
   do k=1,nfldsfc
-     ij=0
+     ij=izero
      do j=1,lon2
         do i=1,lat2
-           ij=ij+1
+           ij=ij+ione
            sfct(i,j,k)= sval(ii)%sst(ij)
         end do
      end do
   end do
-  if(mype==0) write(6,*) 'inc2guess: overwriting guess with increment'
+  if(mype==izero) write(6,*) 'inc2guess: overwriting guess with increment'
 
   return
 end subroutine inc2guess

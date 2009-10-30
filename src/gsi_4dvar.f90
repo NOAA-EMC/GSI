@@ -1,8 +1,8 @@
 module gsi_4dvar
-!$$$   module documentation block
-!
-! module:  gsi_4dvar
-! prgmmr:  tremolet          org: GMAO                date: 2007-02-02
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   gsi_4dvar
+!   prgmmr: tremolet    org: GMAO                date: 2007-02-02
 !
 ! abstract: Contains variables and routines to control GSI 4D-Var
 !
@@ -12,7 +12,10 @@ module gsi_4dvar
 !   2007-07-10 todling  - flag to allow writing of increment
 !
 ! Subroutines Included:
+!   sub init_4dvar    -
 !   sub setup_4dvar   - initialize 4dvar parameters
+!   sub time_4dvar    -
+!   sub clean_4dvar   -
 !
 ! Variable Definitions:
 !
@@ -56,7 +59,7 @@ module gsi_4dvar
 
 ! --------------------------------------------------------------------
   use kinds, only: r_kind,i_kind
-  use constants, only: one
+  use constants, only: izero,ione,one
   use geos_pertmod, only: model_init
   use geos_pertmod, only: model_clean
 ! --------------------------------------------------------------------
@@ -81,6 +84,19 @@ module gsi_4dvar
   integer(i_kind) :: nhr_assimilation,nhr_offset
   integer(i_kind) :: nwrvecs
   real(r_kind) :: iwinbgn, winlen, winoff, winsub, hr_obsbin
+
+! set default to private
+  private
+! set subroutines to public
+  public :: init_4dvar
+  public :: setup_4dvar
+  public :: time_4dvar
+  public :: clean_4dvar
+! set passed variables to public
+  public :: iadatebgn,l4dvar,nobs_bins,nhr_assimilation,lsqrtb,nsubwin
+  public :: hr_obsbin,ltlint,idmodel,lwrtinc,winsub,winlen,iwinbgn
+  public :: nhr_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
+  public :: ladtest,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
 
 ! --------------------------------------------------------------------
 contains
@@ -115,17 +131,17 @@ lsqrtb = .false.
 lcongrad = .false.
 lbfgsmin = .false.
 ltlint = .false.
-nhr_assimilation=6
-if(regional)nhr_assimilation=3
-nhr_offset=3
-nhr_subwin=-1
-nhr_obsbin=-1
+nhr_assimilation=6_i_kind
+if(regional)nhr_assimilation=3_i_kind
+nhr_offset=3_i_kind
+nhr_subwin=-ione
+nhr_obsbin=-ione
 ladtest=.false.
 lgrtest=.false.
 idmodel= .false.
 lwrtinc= .false.
 lanczosave = .false.
-nwrvecs=-1
+nwrvecs=-ione
 
 end subroutine init_4dvar
 ! --------------------------------------------------------------------
@@ -162,7 +178,7 @@ integer(i_kind) :: ibin,ierr
 winlen = real(nhr_assimilation,r_kind)
 winoff = real(nhr_offset,r_kind)
 
-if (nhr_obsbin>0.and.nhr_obsbin<=nhr_assimilation) then
+if (nhr_obsbin>izero.and.nhr_obsbin<=nhr_assimilation) then
   hr_obsbin = real(nhr_obsbin,r_kind)
 else
   if (l4dvar) then
@@ -187,13 +203,13 @@ IF (hr_obsbin<winlen) THEN
     call stop2(132)
   ENDIF
 ELSE
-  ibin = 0
+  ibin = izero
 ENDIF
 
-nobs_bins = ibin + 1
+nobs_bins = ibin + ione
 
 ! Setup weak constraint 4dvar
-if (nhr_subwin<=0) nhr_subwin = nhr_assimilation
+if (nhr_subwin<=izero) nhr_subwin = nhr_assimilation
 winsub = real(nhr_subwin,r_kind)
 
 IF (nhr_subwin<nhr_assimilation) THEN
@@ -204,17 +220,17 @@ IF (nhr_subwin<nhr_assimilation) THEN
     call stop2(133)
   ENDIF
 ELSE
-  nsubwin = 1
+  nsubwin = ione
 ENDIF
 
-if (nwrvecs<0) then
-  if (lbfgsmin) nwrvecs=10
-  if (lcongrad) nwrvecs=20
+if (nwrvecs<izero) then
+  if (lbfgsmin) nwrvecs=10_i_kind
+  if (lcongrad) nwrvecs=20_i_kind
 endif
 
 !! Consistency check: presently, can only write inc when miter=1
 !if (lwrtinc) then
-!    if (miter>1) then
+!    if (miter>ione) then
 !        write(6,*) 'SETUP_4DVAR: Not able to write increment when miter>1, lwrtinc,miter=',lwrtinc,miter
 !        write(6,*)'SETUP_4DVAR: Unable to fullfil request for increment output'
 !        call stop2(134)
@@ -226,7 +242,7 @@ if (lwrtinc .neqv. l4dvar) then
 end if
 
 ! Prints
-if (mype==0) then
+if (mype==izero) then
   write(6,*)'SETUP_4DVAR: l4dvar=',l4dvar
   write(6,*)'SETUP_4DVAR: winlen=',winlen
   write(6,*)'SETUP_4DVAR: winoff=',winoff
@@ -268,7 +284,7 @@ subroutine time_4dvar(idate,step4d)
 !
 !$$$ end documentation block
 
-use constants, only: r60
+use constants, only: r60inv
 implicit none
 integer(i_kind),intent(in) :: idate   ! Date (yyyymmddhh)
 real(r_kind),intent(out)   :: step4d  ! Time since start of 4D-Var window (hours)
@@ -282,14 +298,14 @@ imo=ihr/10000
 ihr=ihr-10000*imo
 idy=ihr/100
 ihr=ihr-100*idy
-call w3fs21((/iyr,imo,idy,ihr,0/),nmin_obs)
-if (MOD(nmin_obs,60)/=0) then
+call w3fs21((/iyr,imo,idy,ihr,izero/),nmin_obs)
+if (MOD(nmin_obs,60_i_kind)/=izero) then
   write(6,*)'time_4dvar: minutes should be 0',nmin_obs
   call stop2(136)
 end if
 
-nhrobs=nmin_obs/60
-nhrbgn=NINT(real(iwinbgn,r_kind)/r60)
+nhrobs=nmin_obs*r60inv
+nhrbgn=NINT(real(iwinbgn,r_kind)*r60inv)
 nhroff=nhrobs-nhrbgn
 
 step4d=real(nhroff,r_kind)

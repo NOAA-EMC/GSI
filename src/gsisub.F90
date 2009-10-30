@@ -60,6 +60,7 @@ subroutine gsisub(mype)
 !
 !$$$
   use kinds, only: i_kind
+  use constants, only: izero
   use obsmod, only: iadate,lobserver
   use observermod, only: observer_init,observer_run,observer_finalize
   use gridmod, only: twodvar_regional,regional,&
@@ -91,7 +92,7 @@ subroutine gsisub(mype)
 
 ! If single ob test, create prep.bufr file with single ob in it
   if (oneobtest) then
-     if(mype==0)call oneobmakebufr
+     if(mype==izero)call oneobmakebufr
      call mpi_barrier(mpi_comm_world,ierror)
   end if
 

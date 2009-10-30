@@ -1,7 +1,8 @@
 module gsi_io
-!                .      .    .                                       .
-! module:  gsi_io
-! prgmmr:  treadon           org: np23                date: 2006-04-15
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   gsi_io
+!   prgmmr: treadon     org: np23                date: 2006-04-15
 !
 ! abstract: This module contains routines which handle input/output
 !           operations for GSI atmospheric and surface files.
@@ -16,6 +17,10 @@ module gsi_io
 !                           from full grid to subdomains 
 !   sub write_bias        - gather gsi guess bias from subdomains to full 
 !                           grid, write to binary file
+!   sub reorder21s_       -
+!   sub reorder21d_       -
+!   sub reorder12s_       -
+!   sub reorder12d_       -
 !
 ! Variable Definitions:
 !   def lendian_in        - unit number reserved for little endian input
@@ -71,6 +76,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+    use constants, only: izero
     implicit none
 
 !   Declare passed variables
@@ -78,10 +84,10 @@ contains
 
 
 !   Set unit numbers reserved for little endian input and output
-    lendian_in  = 15
-    lendian_out = 66
+    lendian_in  = 15_i_kind
+    lendian_out = 66_i_kind
 
-    if (mype==0) write(6,*)'INIT_IO:  reserve units lendian_in=',lendian_in,&
+    if (mype==izero) write(6,*)'INIT_IO:  reserve units lendian_in=',lendian_in,&
          ' and lendian_out=',lendian_out,' for little endian i/o'
 
   end subroutine init_io
@@ -128,13 +134,13 @@ contains
     use kinds, only: r_kind,r_single
     use gridmod, only: itotsub,nlon,nlat,lat2,lon2,nsig,displs_s,ijn_s,&
          ntracer,ncloud
-    use constants, only: izero,zero
+    use constants, only: izero,ione,zero
     use mpimod, only: mpi_rtype,ierror,mpi_comm_world
     implicit none
     
 !   Declare local parameters
-    integer(i_kind):: lunin=11
-    integer(i_kind):: nsize=4
+    integer(i_kind):: lunin=11_i_kind
+    integer(i_kind):: nsize=4_i_kind
 
 !   Declare passed variables
     character(24),intent(in):: filename
@@ -157,15 +163,15 @@ contains
 !******************************************************************************  
 !   Initialize variables used below
     mype_in=izero
-    mm1=mype+1
-    ib=-1
+    mm1=mype+ione
+    ib=-ione
     nb=nsize*nlon*nlat
 
 
 !   Open file to read bias fields
     istatus=izero
     call baopenr(lunin,filename,iret)
-    if (iret/=0) then
+    if (iret/=izero) then
        if (mype==mype_in) write(6,*) &
             'READ_BIAS:  ***ERROR*** opening output file, iret=',iret,lunin,filename
        istatus=istatus+iret
@@ -186,161 +192,161 @@ contains
 
 
 !   Surface pressure:  same procedure as terrain
-    if (mype==mype_in) then
-       call baread(lunin,ib,nb,ka,grid4)
-       call reorder21(grid4,work)
-    endif
-    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-         sub_ps(1,1,n),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
+       if (mype==mype_in) then
+          call baread(lunin,ib,nb,ka,grid4)
+          call reorder21(grid4,work)
+       endif
+       call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+            sub_ps(1,1,n),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
     
 
 !   Skin temperature
-    if (mype==mype_in) then
-       call baread(lunin,ib,nb,ka,grid4)
-       call reorder21(grid4,work)
-    endif
-    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-         sub_tskin(1,1,n),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
+       if (mype==mype_in) then
+          call baread(lunin,ib,nb,ka,grid4)
+          call reorder21(grid4,work)
+       endif
+       call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+            sub_tskin(1,1,n),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
 
 
 !   (Virtual) temperature
-    do k=1,nsig
-       if (mype==mype_in) then
-          call baread(lunin,ib,nb,ka,grid4)
-          call reorder21(grid4,work)
-       endif
-       call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-            work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-       do j=1,lon2
-          do i=1,lat2
-             sub_tv(i,j,k,n) = work3d(i,j,k)
-          end do
-       end do
-    end do
-
-
-!   Divergence and voriticity.
-    do k=1,nsig
-       if (mype==mype_in) then
-          call baread(lunin,ib,nb,ka,grid4)
-          call reorder21(grid4,work)
-       endif
-       call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-            work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-       do j=1,lon2
-          do i=1,lat2
-             sub_div(i,j,k,n) = work3d(i,j,k)
-          end do
-       end do
-    end do
-    do k=1,nsig
-       if (mype==mype_in) then
-          call baread(lunin,ib,nb,ka,grid4)
-          call reorder21(grid4,work)
-       endif
-       call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-            work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-       do j=1,lon2
-          do i=1,lat2
-             sub_vor(i,j,k,n) = work3d(i,j,k)
-          end do
-       end do
-    end do
-
-
-!   u and v wind
-    do k=1,nsig
-       if (mype==mype_in) then
-          call baread(lunin,ib,nb,ka,grid4)
-          call reorder21(grid4,work)
-       endif
-       call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-            work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-       do j=1,lon2
-          do i=1,lat2
-             sub_u(i,j,k,n) = work3d(i,j,k)
-          end do
-       end do
-    end do
-    do k=1,nsig
-       if (mype==mype_in) then
-          call baread(lunin,ib,nb,ka,grid4)
-          call reorder21(grid4,work)
-       endif
-       call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-            work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-       do j=1,lon2
-          do i=1,lat2
-             sub_v(i,j,k,n) = work3d(i,j,k)
-          end do
-       end do
-    end do
-
-
-!   Water vapor mixing ratio
-    do k=1,nsig
-       if (mype==mype_in) then
-          call baread(lunin,ib,nb,ka,grid4)
-          call reorder21(grid4,work)
-       endif
-       call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-            work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-       do j=1,lon2
-          do i=1,lat2
-             sub_q(i,j,k,n) = work3d(i,j,k)
-          end do
-       end do
-    end do
-
-
-
-!   Ozone mixing ratio
-    do k=1,nsig
-       if (mype==mype_in) then
-          call baread(lunin,ib,nb,ka,grid4)
-          call reorder21(grid4,work)
-       endif
-       call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-            work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-       do j=1,lon2
-          do i=1,lat2
-             sub_oz(i,j,k,n) = work3d(i,j,k)
-          end do
-       end do
-    end do
-
-    
-
-!   Cloud condensate mixing ratio.
-    if (ntracer>2 .or. ncloud>=1) then
        do k=1,nsig
           if (mype==mype_in) then
              call baread(lunin,ib,nb,ka,grid4)
              call reorder21(grid4,work)
           endif
           call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-            work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-       end do
-       do j=1,lon2
-          do i=1,lat2
-             sub_cwmr(i,j,k,n) = work3d(i,j,k)
-          end do
-       end do
-    else
-       do k=1,nsig
+               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
           do j=1,lon2
              do i=1,lat2
-                sub_cwmr(i,j,k,n)=zero
+                sub_tv(i,j,k,n) = work3d(i,j,k)
              end do
           end do
        end do
-    endif
+
+
+!   Divergence and voriticity.
+       do k=1,nsig
+          if (mype==mype_in) then
+             call baread(lunin,ib,nb,ka,grid4)
+             call reorder21(grid4,work)
+          endif
+          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
+          do j=1,lon2
+             do i=1,lat2
+                sub_div(i,j,k,n) = work3d(i,j,k)
+             end do
+          end do
+       end do
+       do k=1,nsig
+          if (mype==mype_in) then
+             call baread(lunin,ib,nb,ka,grid4)
+             call reorder21(grid4,work)
+          endif
+          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
+          do j=1,lon2
+             do i=1,lat2
+                sub_vor(i,j,k,n) = work3d(i,j,k)
+             end do
+          end do
+       end do
+
+
+!   u and v wind
+       do k=1,nsig
+          if (mype==mype_in) then
+             call baread(lunin,ib,nb,ka,grid4)
+             call reorder21(grid4,work)
+          endif
+          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
+          do j=1,lon2
+             do i=1,lat2
+                sub_u(i,j,k,n) = work3d(i,j,k)
+             end do
+          end do
+       end do
+       do k=1,nsig
+          if (mype==mype_in) then
+             call baread(lunin,ib,nb,ka,grid4)
+             call reorder21(grid4,work)
+          endif
+          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
+          do j=1,lon2
+             do i=1,lat2
+                sub_v(i,j,k,n) = work3d(i,j,k)
+             end do
+          end do
+       end do
+
+
+!   Water vapor mixing ratio
+       do k=1,nsig
+          if (mype==mype_in) then
+             call baread(lunin,ib,nb,ka,grid4)
+             call reorder21(grid4,work)
+          endif
+          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
+          do j=1,lon2
+             do i=1,lat2
+                sub_q(i,j,k,n) = work3d(i,j,k)
+             end do
+          end do
+       end do
+
+
+
+!   Ozone mixing ratio
+       do k=1,nsig
+          if (mype==mype_in) then
+             call baread(lunin,ib,nb,ka,grid4)
+             call reorder21(grid4,work)
+          endif
+          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
+          do j=1,lon2
+             do i=1,lat2
+                sub_oz(i,j,k,n) = work3d(i,j,k)
+             end do
+          end do
+       end do
+
+    
+
+!   Cloud condensate mixing ratio.
+       if (ntracer>2_i_kind .or. ncloud>=ione) then
+          do k=1,nsig
+             if (mype==mype_in) then
+                call baread(lunin,ib,nb,ka,grid4)
+                call reorder21(grid4,work)
+             endif
+             call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
+          end do
+          do j=1,lon2
+             do i=1,lat2
+                sub_cwmr(i,j,k,n) = work3d(i,j,k)
+             end do
+          end do
+       else
+          do k=1,nsig
+             do j=1,lon2
+                do i=1,lat2
+                   sub_cwmr(i,j,k,n)=zero
+                end do
+             end do
+          end do
+       endif
 
     end do  ! End loop over coefficients
     
 !   Close input file
     call baclose(lunin,iret)
-    if (iret/=0) then
+    if (iret/=izero) then
        write(6,*)'READ_BIAS:  ***ERROR*** closing input file, iret=',iret
     endif
     istatus=istatus+iret
@@ -366,7 +372,7 @@ contains
 !
     use kinds, only: r_kind,r_single
     
-    use constants, only: izero
+    use constants, only: izero,ione
   
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
@@ -438,8 +444,8 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-    integer(i_kind),parameter::  lunout = 51
-    integer(i_kind),parameter::  nsize=4
+    integer(i_kind),parameter::  lunout = 51_i_kind
+    integer(i_kind),parameter::  nsize=4_i_kind
 
     integer(i_kind) k,mm1
     integer(i_kind):: iret
@@ -453,14 +459,14 @@ contains
 !*************************************************************************
 
 !   Initialize local variables
-    mm1=mype+1
+    mm1=mype+ione
     nb=nsize*nlon*nlat
 
 !   Open file to receive bias fields
     istatus=izero
     if (mype==mype_out) then
        call baopenwt(lunout,filename,iret)
-       if (iret/=0) then
+       if (iret/=izero) then
           write(6,*)'WRITE_BIAS:  ***ERROR*** opening output file, iret=',iret
        endif
        istatus=istatus+iret
@@ -471,17 +477,17 @@ contains
     do n=1,nbc
 
 !   Strip off boundary points from subdomains
-    call strip(sub_z(1,1,n),zsm,1)
-    call strip(sub_ps(1,1,n),psm,1)
-    call strip(sub_tskin(1,1,n),tskinsm,1)
-    call strip(sub_vor(1,1,1,n),vorsm,nsig)
-    call strip(sub_div(1,1,1,n),divsm,nsig)
-    call strip(sub_u(1,1,1,n),usm,nsig)
-    call strip(sub_v(1,1,1,n),vsm,nsig)
-    call strip(sub_tv(1,1,1,n),tvsm,nsig)
-    call strip(sub_q(1,1,1,n),qsm,nsig)
-    call strip(sub_oz(1,1,1,n),ozsm,nsig)
-    call strip(sub_cwmr(1,1,1,n),cwmrsm,nsig)
+       call strip(sub_z    (1,1,n)  ,zsm    ,ione)
+       call strip(sub_ps   (1,1,n)  ,psm    ,ione)
+       call strip(sub_tskin(1,1,n)  ,tskinsm,ione)
+       call strip(sub_vor  (1,1,1,n),vorsm  ,nsig)
+       call strip(sub_div  (1,1,1,n),divsm  ,nsig)
+       call strip(sub_u    (1,1,1,n),usm    ,nsig)
+       call strip(sub_v    (1,1,1,n),vsm    ,nsig)
+       call strip(sub_tv   (1,1,1,n),tvsm   ,nsig)
+       call strip(sub_q    (1,1,1,n),qsm    ,nsig)
+       call strip(sub_oz   (1,1,1,n),ozsm   ,nsig)
+       call strip(sub_cwmr (1,1,1,n),cwmrsm ,nsig)
   
 
 !   For each output grid, the following steps are repeated
@@ -490,118 +496,38 @@ contains
 
 
 !   Terrain
-    call mpi_gatherv(zsm,ijn(mm1),mpi_rtype,&
-         work,ijn,displs_g,mpi_rtype,&
-         mype_out,mpi_comm_world,ierror)
-    if (mype==mype_out) then
-       call reorder12(work,grid4)
-       call wryte(lunout,nb,grid4)
-    endif
+       call mpi_gatherv(zsm,ijn(mm1),mpi_rtype,&
+            work,ijn,displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       if (mype==mype_out) then
+          call reorder12(work,grid4)
+          call wryte(lunout,nb,grid4)
+       endif
     
 
 !   Surface pressure
-    call mpi_gatherv(psm,ijn(mm1),mpi_rtype,&
-         work,ijn,displs_g,mpi_rtype,&
-         mype_out,mpi_comm_world,ierror)
-    if (mype==mype_out) then
-       call reorder12(work,grid4)
-       call wryte(lunout,nb,grid4)
-    endif
+       call mpi_gatherv(psm,ijn(mm1),mpi_rtype,&
+            work,ijn,displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       if (mype==mype_out) then
+          call reorder12(work,grid4)
+          call wryte(lunout,nb,grid4)
+       endif
     
 
 !   Skin temperature
-    call mpi_gatherv(tskinsm,ijn(mm1),mpi_rtype,&
-         work,ijn,displs_g,mpi_rtype,&
-         mype_out,mpi_comm_world,ierror)
-    if (mype==mype_out) then
-       call reorder12(work,grid4)
-       call wryte(lunout,nb,grid4)
-    endif
+       call mpi_gatherv(tskinsm,ijn(mm1),mpi_rtype,&
+            work,ijn,displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       if (mype==mype_out) then
+          call reorder12(work,grid4)
+          call wryte(lunout,nb,grid4)
+       endif
 
 
 !   Virtual temperature
-    do k=1,nsig
-       call mpi_gatherv(tvsm(1,k),ijn(mm1),mpi_rtype,&
-            work,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          call reorder12(work,grid4)
-          call wryte(lunout,nb,grid4)
-       endif
-    end do
-
-  
-!   Horizontal divergence and voriticy
-    do k=1,nsig
-       call mpi_gatherv(divsm(1,k),ijn(mm1),mpi_rtype,&
-            work,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          call reorder12(work,grid4)
-          call wryte(lunout,nb,grid4)
-       endif
-    end do
-    do k=1,nsig
-       call mpi_gatherv(vorsm(1,k),ijn(mm1),mpi_rtype,&
-            work,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          call reorder12(work,grid4)
-          call wryte(lunout,nb,grid4)
-       endif
-    end do
-
-
-!   u and v wind
-    do k=1,nsig
-       call mpi_gatherv(usm(1,k),ijn(mm1),mpi_rtype,&
-            work,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          call reorder12(work,grid4)
-          call wryte(lunout,nb,grid4)
-       endif
-    end do
-    do k=1,nsig
-       call mpi_gatherv(vsm(1,k),ijn(mm1),mpi_rtype,&
-            work,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          call reorder12(work,grid4)
-          call wryte(lunout,nb,grid4)
-       endif
-    end do
-
-    
-
-!   Specific humidity
-    do k=1,nsig
-       call mpi_gatherv(qsm(1,k),ijn(mm1),mpi_rtype,&
-            work,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          call reorder12(work,grid4)
-          call wryte(lunout,nb,grid4)
-       endif
-    end do
-    
-
-!   Ozone
-    do k=1,nsig
-       call mpi_gatherv(ozsm(1,k),ijn(mm1),mpi_rtype,&
-            work,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          call reorder12(work,grid4)
-          call wryte(lunout,nb,grid4)
-       endif
-    end do
-    
-
-!   Cloud condensate mixing ratio
-    if (ntracer>2 .or. ncloud>=1) then
        do k=1,nsig
-          call mpi_gatherv(cwmrsm(1,k),ijn(mm1),mpi_rtype,&
+          call mpi_gatherv(tvsm(1,k),ijn(mm1),mpi_rtype,&
                work,ijn,displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
           if (mype==mype_out) then
@@ -609,7 +535,87 @@ contains
              call wryte(lunout,nb,grid4)
           endif
        end do
-    endif
+
+  
+!   Horizontal divergence and voriticy
+       do k=1,nsig
+          call mpi_gatherv(divsm(1,k),ijn(mm1),mpi_rtype,&
+               work,ijn,displs_g,mpi_rtype,&
+               mype_out,mpi_comm_world,ierror)
+          if (mype==mype_out) then
+             call reorder12(work,grid4)
+             call wryte(lunout,nb,grid4)
+          endif
+       end do
+       do k=1,nsig
+          call mpi_gatherv(vorsm(1,k),ijn(mm1),mpi_rtype,&
+               work,ijn,displs_g,mpi_rtype,&
+               mype_out,mpi_comm_world,ierror)
+          if (mype==mype_out) then
+             call reorder12(work,grid4)
+             call wryte(lunout,nb,grid4)
+          endif
+       end do
+
+
+!   u and v wind
+       do k=1,nsig
+          call mpi_gatherv(usm(1,k),ijn(mm1),mpi_rtype,&
+               work,ijn,displs_g,mpi_rtype,&
+               mype_out,mpi_comm_world,ierror)
+          if (mype==mype_out) then
+             call reorder12(work,grid4)
+             call wryte(lunout,nb,grid4)
+          endif
+       end do
+       do k=1,nsig
+          call mpi_gatherv(vsm(1,k),ijn(mm1),mpi_rtype,&
+               work,ijn,displs_g,mpi_rtype,&
+               mype_out,mpi_comm_world,ierror)
+          if (mype==mype_out) then
+             call reorder12(work,grid4)
+             call wryte(lunout,nb,grid4)
+          endif
+       end do
+
+    
+
+!   Specific humidity
+       do k=1,nsig
+          call mpi_gatherv(qsm(1,k),ijn(mm1),mpi_rtype,&
+               work,ijn,displs_g,mpi_rtype,&
+               mype_out,mpi_comm_world,ierror)
+          if (mype==mype_out) then
+             call reorder12(work,grid4)
+             call wryte(lunout,nb,grid4)
+          endif
+       end do
+    
+
+!   Ozone
+       do k=1,nsig
+          call mpi_gatherv(ozsm(1,k),ijn(mm1),mpi_rtype,&
+               work,ijn,displs_g,mpi_rtype,&
+               mype_out,mpi_comm_world,ierror)
+          if (mype==mype_out) then
+             call reorder12(work,grid4)
+             call wryte(lunout,nb,grid4)
+          endif
+       end do
+    
+
+!   Cloud condensate mixing ratio
+       if (ntracer>2_i_kind .or. ncloud>=ione) then
+          do k=1,nsig
+             call mpi_gatherv(cwmrsm(1,k),ijn(mm1),mpi_rtype,&
+                  work,ijn,displs_g,mpi_rtype,&
+                  mype_out,mpi_comm_world,ierror)
+             if (mype==mype_out) then
+                call reorder12(work,grid4)
+                call wryte(lunout,nb,grid4)
+             endif
+          end do
+       endif
     
     end do ! End loop over nbc
 
@@ -618,7 +624,7 @@ contains
        write(6,*) 'WRITE_BIAS:  bias file written to ',&
             trim(filename)
        call baclose(lunout,iret)
-       if (iret/=0) then
+       if (iret/=izero) then
           write(6,*)'WRITE_BIAS:  ***ERROR*** closing output file, iret=',iret
        endif
        istatus=istatus+iret
@@ -647,8 +653,8 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   real(r_single),dimension(nlon,nlat),intent(in):: grid_in   ! input grid
-   real(r_kind),dimension(itotsub),intent(out)::    grid_out  ! output grid
+   real(r_single),dimension(nlon,nlat),intent(in) :: grid_in   ! input grid
+   real(r_kind)  ,dimension(itotsub)  ,intent(out):: grid_out  ! output grid
 
 ! !DESCRIPTION: This routine transfers the contents of a two-diemnsional,
 !               type r_single array into a one-dimension, type r_kind
@@ -699,8 +705,8 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   real(r_kind),dimension(nlon,nlat),intent(in):: grid_in   ! input grid
-   real(r_kind),dimension(itotsub),intent(out)::  grid_out  ! output grid
+   real(r_kind),dimension(nlon,nlat),intent(in) :: grid_in   ! input grid
+   real(r_kind),dimension(itotsub)  ,intent(out):: grid_out  ! output grid
 
 ! !DESCRIPTION: This routine transfers the contents of a two-diemnsional,
 !               type r_single array into a one-dimension, type r_kind
@@ -752,8 +758,8 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   real(r_kind),dimension(max(iglobal,itotsub)),intent(in)::  grid_in   ! input grid
-   real(r_single),dimension(nlon,nlat),intent(out)::          grid_out  ! input grid
+   real(r_kind)  ,dimension(max(iglobal,itotsub)),intent(in) :: grid_in   ! input grid
+   real(r_single),dimension(nlon,nlat)           ,intent(out):: grid_out  ! input grid
 
 ! !DESCRIPTION: This routine transfers the contents of a one-diemnsional,
 !               type r_kind array into a two-dimensional, type r_single
@@ -803,8 +809,8 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   real(r_kind),dimension(max(iglobal,itotsub)),intent(in)::  grid_in   ! input grid
-   real(r_kind),dimension(nlon,nlat),intent(out)::            grid_out  ! input grid
+   real(r_kind),dimension(max(iglobal,itotsub)),intent(in) :: grid_in   ! input grid
+   real(r_kind),dimension(nlon,nlat)           ,intent(out):: grid_out  ! input grid
 
 ! !DESCRIPTION: This routine transfers the contents of a one-diemnsional,
 !               type r_kind array into a two-dimensional, type r_single

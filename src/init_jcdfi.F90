@@ -1,5 +1,4 @@
 subroutine init_jcdfi
-
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_jcdfi
@@ -25,7 +24,7 @@ subroutine init_jcdfi
 
 use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nobs_bins, hr_obsbin
-use constants, only: zero, one, two, pi,r3600
+use constants, only: izero, ione, zero, one, two, pi,r3600
 use mpimod, only: mype
 use jcmod, only: wgtdfi
 
@@ -40,9 +39,9 @@ integer(i_kind) :: nstdfi,jj,jn
 
 tauc   = 6.0_r_kind*r3600
 rtdfi  = hr_obsbin *r3600
-nstdfi = (nobs_bins-1)/2
+nstdfi = (nobs_bins-ione)/2
 
-if (mype==0) then
+if (mype==izero) then
   write(6,*)'Setup weights for Dolph-Chebyshev window digital filter'
   write(6,*)'Number of DFI timesteps: ',2*nstdfi
   write(6,*)'DFI timestep: ',rtdfi
@@ -74,10 +73,10 @@ DO jn=0,nstdfi
   DO jj=1,nstdfi
     zh = zh + zr*zp(jj)*cos(real(2*jj,r_kind)*zx(jn))
   ENDDO
-  wgtdfi(nstdfi+1+jn) = zh/zl
+  wgtdfi(nstdfi+ione+jn) = zh/zl
 ENDDO
 DO jn=1,nstdfi
-  wgtdfi(nstdfi+1-jn) = wgtdfi(nstdfi+1+jn)
+  wgtdfi(nstdfi+ione-jn) = wgtdfi(nstdfi+ione+jn)
 ENDDO
 
 ! Combining with simple filter
@@ -85,20 +84,20 @@ zt=two*pi*rtdfi/tauc
 zs=zero
 DO jn=-nstdfi,nstdfi
   zn = real(jn,r_kind)
-  if (jn==0) then
+  if (jn==izero) then
     zh = zt/pi
   else
     zh = sin(zn*zt)/(zn*pi)
   endif
-  wgtdfi(nstdfi+1+jn) = wgtdfi(nstdfi+1+jn)*zh
-  zs = zs + wgtdfi(nstdfi+1+jn)
+  wgtdfi(nstdfi+ione+jn) = wgtdfi(nstdfi+ione+jn)*zh
+  zs = zs + wgtdfi(nstdfi+ione+jn)
 ENDDO
 DO jn=-nstdfi,nstdfi
-  wgtdfi(nstdfi+1+jn) = wgtdfi(nstdfi+1+jn)/zs
+  wgtdfi(nstdfi+ione+jn) = wgtdfi(nstdfi+ione+jn)/zs
 ENDDO
 
 ! Checking...
-if (mype==0) write(6,*)'init_jcdfi: wgtdfi=',wgtdfi
+if (mype==izero) write(6,*)'init_jcdfi: wgtdfi=',wgtdfi
 
 zs=zero
 DO jj=1,nobs_bins
@@ -145,9 +144,9 @@ jn=ABS(kn)
 z0=one
 z1=px
 
-if (jn==0) then
+if (jn==izero) then
   fcheby=z0
-elseif (jn==1) then
+elseif (jn==ione) then
   fcheby=z1
 else
   do jj=2,jn

@@ -25,6 +25,7 @@ module gsi_nemsio_mod
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_single
+  use constants, only: izero,ione
   use nemsio_module, only: nemsio_gfile
   use gridmod, only: nlon_regional,nlat_regional
   implicit none
@@ -33,6 +34,15 @@ module gsi_nemsio_mod
   save gfile
 
   real(r_single),allocatable::work_saved(:)
+
+! set default to private
+  private
+! set subroutines to public
+  public :: gsi_nemsio_open
+  public :: gsi_nemsio_update
+  public :: gsi_nemsio_close
+  public :: gsi_nemsio_read
+  public :: gsi_nemsio_write
 
 contains
 
@@ -71,14 +81,14 @@ contains
 
     integer(i_kind) iret
 
-    if(mype.eq.mype_io) then
+    if(mype==mype_io) then
       call nemsio_init(iret=iret)
-      if(iret.ne.0) then
+      if(iret/=izero) then
         write(6,*)trim(message),'  problem with nemsio_init, Status = ',iret
         call stop2(74)
       end if
       call nemsio_open(gfile,file_name,trim(iostatus),iret=iret)
-      if(iret.ne.0) then
+      if(iret/=izero) then
         write(6,*)trim(message),'  problem opening file',trim(file_name),', Status = ',iret
         call stop2(74)
       end if
@@ -130,14 +140,14 @@ contains
     character(4) gdatatype,modelname
     character(32) gtype
 
-    if(mype.eq.mype_io) then
+    if(mype==mype_io) then
       call nemsio_init(iret=iret)
-      if(iret.ne.0) then
+      if(iret/=izero) then
         write(6,*)trim(message),'  problem with nemsio_init, Status = ',iret
         call stop2(74)
       end if
       call nemsio_open(gfile,file_name,'RDWR',iret=iret)
-      if(iret.ne.0) then
+      if(iret/=izero) then
         write(6,*)trim(message),'  problem opening file',trim(file_name),', Status = ',iret
         call stop2(74)
       end if
@@ -166,25 +176,25 @@ contains
             write(6,*)' at 3.1 in gsi_nemsio_update, extrameta=',extrameta         ! debug
  
                    write(6,*)' in gsi_nemsio_update, guess yr,mn,dy,hr,fhr=',idate(1:4),nfhour
-      fha=zero ; ida=0 ; jda=0
+      fha=zero ; ida=izero ; jda=izero
       fha(2)=nfhour
       ida(1)=idate(1)    !  year
       ida(2)=idate(2)    !  month
       ida(3)=idate(3)    !  day
-      ida(4)=0           !  time zone
+      ida(4)=izero       !  time zone
       ida(5)=idate(4)    !  hour
       call w3movdat(fha,ida,jda)
       jdate(1)=jda(1)    !  new year
       jdate(2)=jda(2)    !  new month
       jdate(3)=jda(3)    !  new day
       jdate(4)=jda(5)    !  new hour
-      jdate(5)=0         !  new minute
-      jdate(6)=0         !  new scaled seconds
+      jdate(5)=izero     !  new minute
+      jdate(6)=izero     !  new scaled seconds
       jdate(7)=idate(7)  !  new seconds multiplier
-      nfhour=0           !  new forecast hour
-      nfminute=0
-      nfsecondn=0
-      ntimestep=0
+      nfhour=izero       !  new forecast hour
+      nfminute=izero
+      nfsecondn=izero
+      ntimestep=izero
 
     if(.not.preserve_restart_date) then
 
@@ -240,7 +250,7 @@ contains
         write(6,*)' check new ntimestep after getheadvar, ntimestep,iret=',ntimestep,iret
       call nemsio_close(gfile,iret=iret)
            if(preserve_restart_date) write(6,*)' RESTART DATE PRESERVED FOR SHORT FORECASTS'
-      if(iret.ne.0) then
+      if(iret/=izero) then
         write(6,*)trim(message),'  problem closing file',trim(file_name),', Status = ',iret
         call stop2(74)
       end if
@@ -283,9 +293,9 @@ contains
 
     integer(i_kind) iret
 
-    if(mype.eq.mype_io) then
+    if(mype==mype_io) then
       call nemsio_close(gfile,iret=iret)
-      if(iret.ne.0) then
+      if(iret/=izero) then
         write(6,*)trim(message),'  problem closing file',trim(file_name),', Status = ',iret
         call stop2(74)
       end if
@@ -337,14 +347,14 @@ contains
     real(r_kind) work_a(nlat,nlon)
     real(r_single) work_b(nlon_regional*nlat_regional)
 
-    mm1=mype+1
+    mm1=mype+ione
 
-    if(mype.eq.mype_io) then
+    if(mype==mype_io) then
 
 !            read field from file with nemsio
 
       call nemsio_readrecv(gfile,trim(varname),trim(vartype),lev,work_b,iret=iret)
-      if(iret.ne.0) then
+      if(iret/=izero) then
         write(6,*)'  problem reading varname=',trim(varname),', vartype=',trim(vartype),', Status = ',iret
         call stop2(74)
       end if
@@ -352,8 +362,8 @@ contains
 
 !      interpolate to analysis grid
 
-      if(trim(gridtype).eq.'H') call nmmb_h_to_a(work_b,work_a)
-      if(trim(gridtype).eq.'V') call nmmb_v_to_a(work_b,work_a)
+      if(trim(gridtype)=='H') call nmmb_h_to_a(work_b,work_a)
+      if(trim(gridtype)=='V') call nmmb_v_to_a(work_b,work_a)
 
 
 !        scatter to subdomains
@@ -414,26 +424,26 @@ contains
     real(r_kind) work_a(nlat,nlon)
     real(r_single) work_b(nlon_regional*nlat_regional)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     do i=1,lon1
       do j=1,lat1
-        work_sub(j,i)=var(j+1,i+1)
+        work_sub(j,i)=var(j+ione,i+ione)
       end do
     end do
     call mpi_gatherv(work_sub,ijn(mm1),mpi_rtype, &
                            work,ijn,displs_g,mpi_rtype,mype_io,mpi_comm_world,ierror)
-    if(mype.eq.mype_io) then
+    if(mype==mype_io) then
       do n=1,iglobal
         i=ltosi(n)
         j=ltosj(n)
         work_a(i,j)=work(n)
       end do
-      if(trim(gridtype).eq.'H') call nmmb_a_to_h(work_a,work_b)
-      if(trim(gridtype).eq.'V') call nmmb_a_to_v(work_a,work_b)
+      if(trim(gridtype)=='H') call nmmb_a_to_h(work_a,work_b)
+      if(trim(gridtype)=='V') call nmmb_a_to_v(work_a,work_b)
       if(add_saved) work_b=work_b+work_saved
       call nemsio_writerecv(gfile,trim(varname),trim(vartype),lev,work_b,iret=iret)
-      if(iret.ne.0) then
+      if(iret/=izero) then
         write(6,*)'  problem writing varname=',trim(varname),', vartype=',trim(vartype),', Status = ',iret
         call stop2(74)
       end if

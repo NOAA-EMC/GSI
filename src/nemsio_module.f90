@@ -808,7 +808,7 @@ contains
     type(nemsio_meta1)           :: meta1
     type(nemsio_meta2)           :: meta2
     type(nemsio_meta3)           :: meta3
-    integer(i_kind),automatic :: i
+    integer(i_kind)              :: i
     character(nemsio_charkind8),allocatable :: char8var(:)
 !------------------------------------------------------------
 ! read first meta data record
@@ -1371,7 +1371,7 @@ contains
     type(nemsio_meta1)      :: meta1
     type(nemsio_meta2)      :: meta2
     type(nemsio_meta3)      :: meta3
-    integer(i_kind),automatic :: i,ios,nummeta
+    integer(i_kind)         :: i,ios,nummeta
     logical :: linit
 !------------------------------------------------------------
 ! set gfile meta data to operational model (default) if it's empty
@@ -2054,7 +2054,7 @@ contains
     character(len=*),  intent(in)                 :: varname
     integer(i_kind),intent(in)            :: varval
     integer(i_kind),optional,intent(out)  :: iret
-    integer(i_kind),automatic :: i,lhead
+    integer(i_kind)                       :: i,lhead
     integer(i_llong) :: iskip,iwrite,nwrite
     type(nemsio_meta2)      :: meta2
 !---
@@ -2822,7 +2822,7 @@ contains
     character(*),  intent(in)                     :: varname
     logical(nemsio_logickind),intent(out)         :: varval
     integer(i_kind),optional,intent(out)  :: iret
-    integer(i_kind),automatic :: i
+    integer(i_kind)                       :: i
 !---
     if(present(iret) ) iret=-17
     if(gfile%nmetavarl.gt.izero) then
@@ -2983,7 +2983,7 @@ contains
     character(*),  intent(in)                     :: varname
     real(r_single),intent(out)                    :: varval(:)
     integer(i_kind),optional,intent(out)          :: iret
-    integer(i_kind),automatic :: i,ierr
+    integer(i_kind)                               :: i,ierr
 !---
     if(present(iret) ) iret=-17
     if(gfile%headaryrnum>izero) then
@@ -3042,7 +3042,7 @@ contains
     character(*),  intent(in)                     :: varname
     logical(nemsio_logickind),intent(out)         :: varval(:)
     integer(i_kind),optional,intent(out)          :: iret
-    integer(i_kind),automatic :: i,ierr
+    integer(i_kind)                               :: i,ierr
 !---
     if(present(iret) ) iret=-17
     if(gfile%nmetaaryl.gt.izero) then
@@ -3091,7 +3091,7 @@ contains
     character(len=*),  intent(in)                 :: varname
     character(*),intent(out)                      :: varval(:)
     integer(i_kind),optional,intent(out)          :: iret
-    integer(i_kind),automatic :: i,ierr
+    integer(i_kind)                               :: i,ierr
 !---
     if(present(iret) ) iret=-17
     if(gfile%headarycnum>izero) then
@@ -3156,7 +3156,7 @@ contains
     character(*), optional, intent(in)            :: gdatatype
     integer(i_kind),optional,intent(in)           :: nframe
     real(r_single),allocatable                    :: datatmp(:)
-    integer(i_kind),automatic :: i,j
+    integer(i_kind)                               :: i,j
 !------------------------------------------------------------
 ! read 4 byte rec
 !------------------------------------------------------------
@@ -3239,7 +3239,7 @@ contains
     character(*), optional, intent(in)            :: gdatatype
     integer(i_kind),optional,intent(in)           :: nframe
     real(r_kind),allocatable                      :: datatmp(:)
-    integer(i_kind),automatic :: i,j
+    integer(i_kind)                               :: i,j
 !------------------------------------------------------------
 ! read 4 byte rec
 !------------------------------------------------------------
@@ -3326,7 +3326,7 @@ contains
     character(*), optional, intent(in)            :: gdatatype
     integer(i_kind),optional,intent(in)           :: nframe
     real(r_single),allocatable                    :: datatmp(:)
-    integer(i_kind),automatic :: i,j
+    integer(i_kind)                               :: i,j
 !------------------------------------------------------------
 ! read 4 byte rec
 !------------------------------------------------------------
@@ -3412,7 +3412,7 @@ contains
     character(*), optional, intent(in)            :: gdatatype
     integer(i_kind),optional,intent(in)           :: nframe
     real(r_kind),allocatable                      :: datatmp(:)
-    integer(i_kind),automatic :: i,j
+    integer(i_kind)                               :: i,j
 !------------------------------------------------------------
 ! read 8 byte rec
 !------------------------------------------------------------
@@ -3883,7 +3883,7 @@ contains
     character(*),intent(in),optional              :: levtyp
     integer(i_kind),optional,intent(in)           :: lev
     integer(i_kind),optional,intent(out)          :: iret
-    integer(i_kind),automatic :: i, nlen,nlen1
+    integer(i_kind)                               :: i, nlen,nlen1
 
     iret=-11
     nlen=min(len(name),len(gfile%recname))
@@ -5146,7 +5146,7 @@ contains
     integer(i_kind),optional,intent(in)         :: itr
     real(r_single),optional,intent(in)          :: zhour
     type(nemsio_grbmeta)           :: grbmeta
-    integer(i_kind),automatic      :: i
+    integer(i_kind)                :: i
     integer(i_kind)                :: ios,w34,ibms
 !---
     real(r_single)      :: mymax
@@ -5248,8 +5248,8 @@ contains
     integer(i_kind),optional,intent(in)         :: itr
     real(r_single),optional,intent(in)          :: zhour
     real(r_kind),allocatable                    :: data8(:)
-    type(nemsio_grbmeta)         :: grbmeta
-    integer(i_kind),automatic      :: nc,i,nc1
+    type(nemsio_grbmeta)           :: grbmeta
+    integer(i_kind)                :: nc,i,nc1
     integer(i_kind)                :: ios,ibms
     real(r_single)                 :: mymax
 !------------------------------------------------------------
@@ -5365,7 +5365,7 @@ contains
     integer(i_kind),optional,intent(in)         :: itr
     real(r_single),optional,intent(in)          :: zhour
     type(nemsio_grbmeta)         :: grbmeta
-    integer(i_kind),automatic    :: i
+    integer(i_kind)              :: i
     integer(i_kind)              :: ios,ibms
 !---
     real(r_single)               :: mymax
@@ -5470,7 +5470,7 @@ contains
     integer(i_kind),optional,intent(in)         :: itr
     real(r_single),optional,intent(in)          :: zhour
     type(nemsio_grbmeta)         :: grbmeta
-    integer(i_kind),automatic    :: i
+    integer(i_kind)              :: i
     integer(i_kind)              :: ios,w34,ibms
     real(r_single)               :: mymax
 !------------------------------------------------------------
@@ -5578,7 +5578,7 @@ contains
     real(r_single),optional,intent(in)          :: zhour
     real(r_kind),allocatable                    :: data8(:)
     type(nemsio_grbmeta)         :: grbmeta
-    integer(i_kind),automatic    :: i
+    integer(i_kind)              :: i
     integer(i_kind)              :: ios,ibms
     real(r_single)               :: mymax
 !------------------------------------------------------------
@@ -5686,7 +5686,7 @@ contains
     integer(i_kind),optional,intent(in)         :: itr
     real(r_single),optional,intent(in)          :: zhour
     type(nemsio_grbmeta)         :: grbmeta
-    integer(i_kind),automatic    :: i
+    integer(i_kind)              :: i
     integer(i_kind)              :: ios,ibms
     real(r_single)               :: mymax
 !------------------------------------------------------------
@@ -6179,7 +6179,7 @@ contains
     character(*),intent(in)       :: vname,vlevtyp
     integer(i_kind),intent(out)   :: ktbl,krec
     integer(i_kind),intent(out)   :: iret
-    integer(i_kind),automatic  :: i,j,nlen,nlen1
+    integer(i_kind)               :: i,j,nlen,nlen1
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     iret=-5
     nlen=len(trim(vname))
@@ -6804,7 +6804,7 @@ contains
     implicit none
     type(nemsio_gfile),intent(inout)     :: gfile
     integer(i_kind),intent(out)          :: iret
-    integer(i_kind),automatic            :: i,j,k
+    integer(i_kind)                      :: i,j,k
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     iret=-17
     gfile%headvarinum=29
@@ -7203,7 +7203,7 @@ contains
     character(*),optional,intent(in)     :: recname(:)
     character(*),optional,intent(in)     :: reclevtyp(:)
     integer(i_kind),optional,intent(in)  :: reclev(:)
-    integer(i_kind),automatic            :: i,j,rec
+    integer(i_kind)                      :: i,j,rec
     real(r_kind),allocatable             :: slat(:)
     real(r_kind),allocatable             :: dx(:)
     real(r_kind)                         :: radi
@@ -7862,7 +7862,7 @@ contains
      type(nemsio_gfile),intent (inout) :: gfile
      character*(*),intent(in)          :: gfname,gaction
      integer(i_kind),intent(out) :: iret
-     integer(i_kind),automatic   :: i
+     integer(i_kind)             :: i
      iret=-10
      gfile%gfname=gfname
      gfile%gaction=gaction
@@ -8201,7 +8201,7 @@ contains
       logical              :: equal_str_nocase
       Character (len=*) , intent(in) :: str1
       Character (len=*) , intent(in) :: str2
-      integer(i_kind),automatic :: i,ic1,ic2,nlen
+      integer(i_kind)                :: i,ic1,ic2,nlen
       nlen = len(str2)
 !
       if(len(str1)/=nlen)  then
@@ -8251,8 +8251,8 @@ contains
 
       implicit none
       Character (len=32)              :: lowercase
-      Character (len=*) , intent(in) :: word
-      integer(i_kind),automatic :: i,ic,nlen
+      Character (len=*) , intent(in)  :: word
+      integer(i_kind)                 :: i,ic,nlen
       nlen = len(word)
       if(nlen >32) then
         nlen=32

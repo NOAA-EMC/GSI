@@ -9,7 +9,7 @@
 
    program gsi
 
-   use gsimod
+   use gsimod, only: gsimain_initialize,gsimain_run,gsimain_finalize
    use timermod, only: timer_pri
    implicit none
 
