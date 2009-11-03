@@ -39,6 +39,13 @@ module jcmod
   real(r_kind) alphajc,bamp_jcpdry
   real(r_kind),allocatable :: wgtdfi(:)
 
+! set default to private
+  private
+! set subroutines to public
+  public :: init_jcvars
+! set passed variables to public
+  public :: ljcdfi,alphajc,wgtdfi,bamp_jcpdry,ljcpdry
+
 contains
 
   subroutine init_jcvars
@@ -63,13 +70,14 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+    use constants, only: zero
     implicit none
 
 ! load defaults for non-allocatable arrays
     ljcdfi=.false.
     ljcpdry=.false.
     alphajc=10.0_r_kind
-    bamp_jcpdry=0._r_kind
+    bamp_jcpdry=zero
 
     return
   end subroutine init_jcvars

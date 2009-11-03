@@ -20,11 +20,20 @@ module m_tick
 !   machine:
 !
 !$$$ end documentation block
+use kinds, only: i_kind
+use constants, only: izero,ione
 
 implicit none
 
+! set default to private
+  private
+! set subroutines to public
+  public :: tick
+
 contains
+
 #ifdef ibm_sp
+
   subroutine tick (nymd, nhms, ndt)
 !$$$ subprogram documentation block
 !               .      .    .                                       .
@@ -50,13 +59,16 @@ contains
 !   machine:
 !
 !$$$ end documentation block
-  use kinds, only: i_kind
   implicit none
+
   integer(i_kind) ndt
   integer(i_kind) nymd
   integer(i_kind) nhms
+
   end subroutine tick
+
 #else
+
       subroutine tick (nymd, nhms, ndt)
 !$$$ subprogram documentation block
 !               .      .    .                                       .
@@ -82,7 +94,6 @@ contains
 !   machine:
 !
 !$$$ end documentation block
-  use kinds, only: i_kind
   implicit none
 
 ! Input:
@@ -101,22 +112,22 @@ contains
 
        NSEC = NSECF(NHMS) + ndt
 
-       IF (NSEC.GT.86400)  THEN
-           DO WHILE (NSEC.GT.86400)
+       IF (NSEC>86400_i_kind)  THEN
+           DO WHILE (NSEC>86400_i_kind)
               NSEC = NSEC - 86400
-              NYMD = INCYMD (NYMD,1)
+              NYMD = INCYMD (NYMD,ione)
            ENDDO
        ENDIF
 
-       IF (NSEC.EQ.86400)  THEN
-           NSEC = 0
-           NYMD = INCYMD (NYMD,1)
+       IF (NSEC==86400)  THEN
+           NSEC = izero
+           NYMD = INCYMD (NYMD,ione)
        ENDIF
 
-       IF (NSEC .LT. 0)  THEN
-           DO WHILE (NSEC .LT. 0)
-               NSEC = 86400 + NSEC
-               NYMD = INCYMD (NYMD,-1)
+       IF (NSEC < izero)  THEN
+           DO WHILE (NSEC < izero)
+               NSEC = 86400_i_kind + NSEC
+               NYMD = INCYMD (NYMD,-ione)
            ENDDO
         ENDIF
 
@@ -124,7 +135,7 @@ contains
       return
       end subroutine tick
 
-      integer FUNCTION INCYMD (NYMD,M)
+      integer(i_kind) FUNCTION INCYMD (NYMD,M)
 !$$$ subprogram documentation block
 !               .      .    .                                       .
 ! subprogram:   INCYMD
@@ -146,7 +157,6 @@ contains
 !   machine:
 !
 !$$$ end documentation block
-  use kinds, only: i_kind
   implicit none
 
 !  PURPOSE
@@ -157,7 +167,8 @@ contains
 !     M        +/- 1 (DAY ADJUSTMENT)
 
       INTEGER(i_kind) NDPM(12)
-      DATA    NDPM /31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31/
+      DATA    NDPM /31_i_kind, 28_i_kind, 31_i_kind, 30_i_kind, 31_i_kind, 30_i_kind, &
+                    31_i_kind, 31_i_kind, 30_i_kind, 31_i_kind, 30_i_kind, 31_i_kind/
       INTEGER(i_kind),intent(in):: NYMD, M
       INTEGER(i_kind) NY, NM, ND
 
@@ -165,25 +176,25 @@ contains
       NM = MOD(NYMD,10000) / 100
       ND = MOD(NYMD,100) + M
 
-      IF (ND.EQ.0) THEN
-      NM = NM - 1
-      IF (NM.EQ.0) THEN
-          NM = 12
-          NY = NY - 1
+      IF (ND==izero) THEN
+      NM = NM - ione
+      IF (NM==izero) THEN
+          NM = 12_i_kind
+          NY = NY - ione
       ENDIF
       ND = NDPM(NM)
-      IF (NM.EQ.2 .AND. leap_year(NY))  ND = 29
+      IF (NM==2_i_kind .AND. leap_year(NY))  ND = 29_i_kind
       ENDIF
 
-      IF (ND.EQ.29 .AND. NM.EQ.2 .AND. leap_year(ny))  GO TO 20
+      IF (ND==29_i_kind .AND. NM==2_i_kind .AND. leap_year(ny))  GO TO 20
 
-      IF (ND.GT.NDPM(NM)) THEN
-      ND = 1
-      NM = NM + 1
-      IF (NM.GT.12) THEN
-          NM = 1
-          NY = NY + 1
-      ENDIF
+      IF (ND>NDPM(NM)) THEN
+        ND = ione
+        NM = NM + ione
+        IF (NM>12_i_kind) THEN
+          NM = ione
+          NY = NY + ione
+        ENDIF
       ENDIF
 
    20 CONTINUE
@@ -212,8 +223,7 @@ contains
 !   machine:
 !
 !$$$ end documentation block
-  use kinds, only: i_kind
-
+      implicit none
 !
 ! Determine if year ny is a leap year
 !
@@ -225,9 +235,9 @@ contains
 !
 ! No leap years prior to 1900
 !
-      parameter ( ny00 = 1900 )   ! The threshold for starting leap-year 
+      parameter ( ny00 = 1900_i_kind )   ! The threshold for starting leap-year 
 
-      if( mod(ny,4) .eq. 0 .and. ny .ge. ny00 ) then
+      if( mod(ny,4) == izero .and. ny >= ny00 ) then
           leap_year = .true.
       else
           leap_year = .false.

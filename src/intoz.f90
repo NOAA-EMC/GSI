@@ -3,7 +3,7 @@ module intozmod
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intozmod    module for intoz and its tangent linear intoz_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for intoz and its tangent linear intoz_tl
 !
@@ -132,7 +132,7 @@ subroutine intozlay_(ozhead,roz,soz)
   use obsmod, only: oz_ob_type,lsaveobsens,l_do_adjoint
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
-  use constants, only: one,zero,r3600,zero_quad
+  use constants, only: ione,one,zero,r3600,zero_quad
   implicit none
 
 ! Declare passed variables
@@ -162,8 +162,8 @@ subroutine intozlay_(ozhead,roz,soz)
 
 
 !    Accumulate contribution from layer observations
-     dz1=nsig+1
-     if ( ozptr%nloz >= 1 ) then
+     dz1=nsig+ione
+     if ( ozptr%nloz >= ione ) then
 
         if(l_foto) time_oz = ozptr%time*r3600
         do k=1,ozptr%nloz
@@ -186,10 +186,10 @@ subroutine intozlay_(ozhead,roz,soz)
                    w3* soz(j3,kk)+ &
                    w4* soz(j4,kk))*delz
               if (l_foto) then
-                 j1x=w1+(kk-1)*lat2*lon2
-                 j2x=w2+(kk-1)*lat2*lon2
-                 j3x=w3+(kk-1)*lat2*lon2
-                 j4x=w4+(kk-1)*lat2*lon2
+                 j1x=w1+(kk-ione)*lat2*lon2
+                 j2x=w2+(kk-ione)*lat2*lon2
+                 j3x=w3+(kk-ione)*lat2*lon2
+                 j4x=w4+(kk-ione)*lat2*lon2
                  val1=val1 + ( &
                      (w1*xhat_dt%oz(j1x)+ &
                       w2*xhat_dt%oz(j2x)+ &
@@ -217,8 +217,8 @@ subroutine intozlay_(ozhead,roz,soz)
 
               do kk=iz1,iz2,-1
                  delz=one
-                 if(kk.eq.iz1)delz=dz1-iz1
-                 if(kk.eq.iz2)delz=delz-pob+iz2
+                 if(kk==iz1)delz=dz1-iz1
+                 if(kk==iz2)delz=delz-pob+iz2
                  w1=ozptr%wij(1,kk)
                  w2=ozptr%wij(2,kk)
                  w3=ozptr%wij(3,kk)
@@ -231,16 +231,16 @@ subroutine intozlay_(ozhead,roz,soz)
               if (l_foto) then
                  do kk=iz1,iz2,-1
                     delz=one
-                    if(kk.eq.iz1)delz=dz1-iz1
-                    if(kk.eq.iz2)delz=delz-pob+iz2
+                    if(kk==iz1)delz=dz1-iz1
+                    if(kk==iz2)delz=delz-pob+iz2
                     w1=ozptr%wij(1,kk)
                     w2=ozptr%wij(2,kk)
                     w3=ozptr%wij(3,kk)
                     w4=ozptr%wij(4,kk)
-                    j1x=w1+(kk-1)*lat2*lon2
-                    j2x=w2+(kk-1)*lat2*lon2
-                    j3x=w3+(kk-1)*lat2*lon2
-                    j4x=w4+(kk-1)*lat2*lon2
+                    j1x=w1+(kk-ione)*lat2*lon2
+                    j2x=w2+(kk-ione)*lat2*lon2
+                    j3x=w3+(kk-ione)*lat2*lon2
+                    j4x=w4+(kk-ione)*lat2*lon2
                     dhat_dt%oz(j1x) = dhat_dt%oz(j1x) + valx*w1*delz*time_oz
                     dhat_dt%oz(j2x) = dhat_dt%oz(j2x) + valx*w2*delz*time_oz
                     dhat_dt%oz(j3x) = dhat_dt%oz(j3x) + valx*w3*delz*time_oz
@@ -254,7 +254,7 @@ subroutine intozlay_(ozhead,roz,soz)
      end if   ! (ozptr%nloz >= 1)
 
 !    Add contribution from total column observation
-     k=ozptr%nloz+1
+     k=ozptr%nloz+ione
      val1= zero
      do kk=nsig,1,-1
         w1=ozptr%wij(1,kk)
@@ -273,10 +273,10 @@ subroutine intozlay_(ozhead,roz,soz)
            w2=ozptr%wij(2,kk)
            w3=ozptr%wij(3,kk)
            w4=ozptr%wij(4,kk)
-           j1x=w1+(kk-1)*lat2*lon2
-           j2x=w2+(kk-1)*lat2*lon2
-           j3x=w3+(kk-1)*lat2*lon2
-           j4x=w4+(kk-1)*lat2*lon2
+           j1x=w1+(kk-ione)*lat2*lon2
+           j2x=w2+(kk-ione)*lat2*lon2
+           j3x=w3+(kk-ione)*lat2*lon2
+           j4x=w4+(kk-ione)*lat2*lon2
            val1=val1 + &
                (w1*xhat_dt%oz(j1x)+ &
                 w2*xhat_dt%oz(j2x)+ &
@@ -318,10 +318,10 @@ subroutine intozlay_(ozhead,roz,soz)
               w2=ozptr%wij(2,kk)
               w3=ozptr%wij(3,kk)
               w4=ozptr%wij(4,kk)
-              j1x=w1+(kk-1)*lat2*lon2
-              j2x=w2+(kk-1)*lat2*lon2
-              j3x=w3+(kk-1)*lat2*lon2
-              j4x=w4+(kk-1)*lat2*lon2
+              j1x=w1+(kk-ione)*lat2*lon2
+              j2x=w2+(kk-ione)*lat2*lon2
+              j3x=w3+(kk-ione)*lat2*lon2
+              j4x=w4+(kk-ione)*lat2*lon2
               dhat_dt%oz(j1x) =dhat_dt%oz(j1x) + valx*w1*time_oz
               dhat_dt%oz(j2x) =dhat_dt%oz(j2x) + valx*w2*time_oz
               dhat_dt%oz(j3x) =dhat_dt%oz(j3x) + valx*w3*time_oz

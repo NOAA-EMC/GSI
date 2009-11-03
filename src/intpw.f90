@@ -3,7 +3,7 @@ module intpwmod
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intpwmod    module for intpw and its tangent linear intpw_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for intpw and its tangent linear intpw_tl
 !
@@ -86,7 +86,7 @@ subroutine intpw_(pwhead,rq,sq)
   use obsmod, only: pw_ob_type,lsaveobsens,l_do_adjoint
   use gridmod, only: latlon11,latlon1n,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: zero,tpwcon,half,one,tiny_r_kind,cg_term,r3600
+  use constants, only: ione,zero,tpwcon,half,one,tiny_r_kind,cg_term,r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   implicit none
 
@@ -116,10 +116,10 @@ subroutine intpw_(pwhead,rq,sq)
      i3(1)=pwptr%ij(3)
      i4(1)=pwptr%ij(4)
      do k=2,nsig
-        i1(k)=i1(k-1)+latlon11
-        i2(k)=i2(k-1)+latlon11
-        i3(k)=i3(k-1)+latlon11
-        i4(k)=i4(k-1)+latlon11
+        i1(k)=i1(k-ione)+latlon11
+        i2(k)=i2(k-ione)+latlon11
+        i3(k)=i3(k-ione)+latlon11
+        i4(k)=i4(k-ione)+latlon11
      end do
      
      val=zero
@@ -145,47 +145,47 @@ subroutine intpw_(pwhead,rq,sq)
      endif
 
     if (l_do_adjoint) then
-     if (lsaveobsens) then
-       grad = pwptr%diags%obssen(jiter)
+      if (lsaveobsens) then
+        grad = pwptr%diags%obssen(jiter)
 
-     else
-!      Difference from observation
-       val=val-pwptr%res
+      else
+!       Difference from observation
+        val=val-pwptr%res
 
-!      needed for gradient of nonlinear qc operator
-       if (nlnqc_iter .and. pwptr%pg > tiny_r_kind .and.  &
-                            pwptr%b  > tiny_r_kind) then
+!       needed for gradient of nonlinear qc operator
+        if (nlnqc_iter .and. pwptr%pg > tiny_r_kind .and.  &
+                             pwptr%b  > tiny_r_kind) then
           pg_pw=pwptr%pg*varqc_iter
           cg_pw=cg_term/pwptr%b
           wnotgross= one-pg_pw
           wgross = pg_pw*cg_pw/wnotgross
           p0   = wgross/(wgross+exp(-half*pwptr%err2*val**2))
           val = val*(one-p0)
-       endif
+        endif
 
-       grad = val*pwptr%raterr2*pwptr%err2
-     endif
+        grad = val*pwptr%raterr2*pwptr%err2
+      endif
 
-!    Adjoint
-     do k=1,nsig
+!     Adjoint
+      do k=1,nsig
         pwcon1=tpwcon*pwptr%dp(k)*grad
         rq(i1(k))   =   rq(i1(k))+w1*pwcon1
         rq(i2(k))   =   rq(i2(k))+w2*pwcon1
         rq(i3(k))   =   rq(i3(k))+w3*pwcon1
         rq(i4(k))   =   rq(i4(k))+w4*pwcon1
-     end do
-     if ( l_foto ) then
-       do k=1,nsig
+      end do
+      if ( l_foto ) then
+        do k=1,nsig
           pwcon1=tpwcon*pwptr%dp(k)*grad
           dhat_dt%q(i1(k))=dhat_dt%q(i1(k))+w1*pwcon1*time_pw
           dhat_dt%q(i2(k))=dhat_dt%q(i2(k))+w2*pwcon1*time_pw
           dhat_dt%q(i3(k))=dhat_dt%q(i3(k))+w3*pwcon1*time_pw
           dhat_dt%q(i4(k))=dhat_dt%q(i4(k))+w4*pwcon1*time_pw
-       end do
-     endif
+        end do
+      endif
     endif
 
-     pwptr => pwptr%llpoint
+    pwptr => pwptr%llpoint
 
   end do
 

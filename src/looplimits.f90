@@ -26,7 +26,10 @@
 !$$$ end documentation block
 
       use kinds, only: i_kind
+      use constants, only: ione
+
       implicit none
+ 
       integer(i_kind),intent(in) :: taskid, ntasks, lb, ub
       integer(i_kind),intent(out):: i1, i2
 
@@ -34,25 +37,25 @@
       integer(i_kind) itask, netdisp
       integer(i_kind) counts(ntasks), displacements(ntasks)
 
-      nwork = ub - lb + 1
+      nwork = ub - lb + ione
       chunk = nwork/ntasks
       nt1 = nwork - ntasks*chunk
       nt2 = ntasks - nt1
 
       netdisp = lb
       do itask = 1, nt1
-         counts(itask) = chunk + 1
+         counts(itask) = chunk + ione
          displacements(itask) = netdisp  
-         netdisp = min(ub,netdisp+chunk+1)
+         netdisp = min(ub,netdisp+chunk+ione)
       end do
-      do itask = nt1 + 1 , ntasks
+      do itask = nt1 + ione , ntasks
          counts(itask) = chunk
          displacements(itask) = netdisp  
          netdisp = min(ub,netdisp+chunk)
       end do
 
-      i1 = displacements(taskid+1)
-      i2 = min(ub,i1+counts(taskid+1)-1)
+      i1 = displacements(taskid+ione)
+      i2 = min(ub,i1+counts(taskid+ione)-ione)
 
       return
       end

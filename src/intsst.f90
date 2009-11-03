@@ -1,9 +1,8 @@
 module intsstmod
-
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intsstmod    module for intsst and its tangent linear intsst_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for intsst and its tangent linear intsst_tl
 !
@@ -111,34 +110,34 @@ subroutine intsst(ssthead,rsst,ssst)
      endif
 
     if (l_do_adjoint) then
-     if (lsaveobsens) then
-       grad = sstptr%diags%obssen(jiter)
+      if (lsaveobsens) then
+        grad = sstptr%diags%obssen(jiter)
 
-     else
-       val=val-sstptr%res
+      else
+        val=val-sstptr%res
 
-!      gradient of nonlinear operator
-       if (nlnqc_iter .and. sstptr%pg > tiny_r_kind .and. &
-                            sstptr%b  > tiny_r_kind) then
+!       gradient of nonlinear operator
+        if (nlnqc_iter .and. sstptr%pg > tiny_r_kind .and. &
+                             sstptr%b  > tiny_r_kind) then
           pg_sst=sstptr%pg*varqc_iter
           cg_sst=cg_term/sstptr%b
           wnotgross= one-pg_sst
           wgross = pg_sst*cg_sst/wnotgross
           p0   = wgross/(wgross+exp(-half*sstptr%err2*val**2))
           val = val*(one-p0)
-       endif
+        endif
 
-       grad = val*sstptr%raterr2*sstptr%err2
-     endif
+        grad = val*sstptr%raterr2*sstptr%err2
+      endif
 
-!    Adjoint
-     rsst(j1)=rsst(j1)+w1*grad
-     rsst(j2)=rsst(j2)+w2*grad
-     rsst(j3)=rsst(j3)+w3*grad
-     rsst(j4)=rsst(j4)+w4*grad
+!     Adjoint
+      rsst(j1)=rsst(j1)+w1*grad
+      rsst(j2)=rsst(j2)+w2*grad
+      rsst(j3)=rsst(j3)+w3*grad
+      rsst(j4)=rsst(j4)+w4*grad
     endif
 
-     sstptr => sstptr%llpoint
+    sstptr => sstptr%llpoint
 
   end do
 

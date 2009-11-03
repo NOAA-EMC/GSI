@@ -198,7 +198,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
        l_foto,xhat_dt,dhat_dt,nvals_len
   use jcmod, only: ljcpdry
-  use jcmod, only: ljcpdry
   use obsmod, only: yobs,nobs_type
   use stplimqmod, only: stplimq
   use stpjcpdrymod, only: stpjcpdry

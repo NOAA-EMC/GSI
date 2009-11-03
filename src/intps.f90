@@ -3,7 +3,7 @@ module intpsmod
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intpsmod    module for intps and its tangent linear intps_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for intps and its tangent linear intps_tl
 !

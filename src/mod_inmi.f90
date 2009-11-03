@@ -1,8 +1,8 @@
 module mod_inmi
-!$$$   module documentation block
-!                .      .    .                                       .
-! module:  obsmod
-! prgmmr:  derber             org: np23               date: 2003-09-25
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   obsmod
+!   prgmmr: derber      org: np23                date: 2003-09-25
 !
 ! abstract: Implement implicit normal mod initialization routines for
 !           use with analysis increment and analysis increment tendencies.
@@ -13,12 +13,13 @@ module mod_inmi
 !   2006-08-15 parrish
 !
 ! Subroutines Included:
-!   sub init_strongvars_1- set default namelist variable values for strong option 1
 !   sub gproj            - project input u,v,mass variable to gravity modes
+!   sub gproj0           -
+!   sub gproj_ad         -
 !   sub dinmi            - obtain balance increment from input tendencies
 !   sub dinmi_ad         - adjoint of dinmi
 !   sub dinmi0           - lower level--balance increment from input tendencies
-!   sub bal_m1           - compute balance diagnostic variable
+!   sub balm_1           - compute balance diagnostic variable
 !   sub get_periodmask   - create mask to only balance gravity modes with periods
 !                          less than period_max
 !   sub getbcf           - compute matrices B,C,F as defined in above reference
@@ -44,8 +45,30 @@ implicit none
   integer(i_kind) m
   real(r_kind) gspeed
 
-contains
+! set default to private
+  private
+! set subroutines to public
+  public :: gproj
+  public :: gproj0
+  public :: gproj_ad
+  public :: dinmi
+  public :: dinmi_ad
+  public :: dinmi0
+  public :: balm_1
+  public :: get_periodmask
+  public :: getbcf
+  public :: scale_vars
+  public :: scale_vars_ad
+  public :: unscale_vars
+  public :: unscale_vars_ad
+  public :: f_mult
+  public :: c_mult
+  public :: i_mult
+  public :: solve_f2c2
+! set passed variables to public
+  public :: mmax,gspeed,m
 
+contains
 
   subroutine gproj(vort,div,phi,vort_g,div_g,phi_g,rmstend,rmstend_g,filtered)
 !$$$  subprogram documentation block
@@ -345,7 +368,7 @@ contains
 !   machine:   ibm RS/6000 SP
 !   
 !$$$ end documentation block
-
+    use constants, only: zero
     implicit none
 
     real(r_kind),intent(inout)::vort_t(2,m:mmax),div_t(2,m:mmax),phi_t(2,m:mmax)
@@ -356,7 +379,7 @@ contains
     real(r_kind) del_vort_hat(2,m:mmax),del_div_hat(2,m:mmax),del_phi_hat(2,m:mmax)
     integer(i_kind) n
 
-    del_vort_hat=0 ; del_div_hat=0 ; del_phi_hat=0
+    del_vort_hat=zero ; del_div_hat=zero ; del_phi_hat=zero
     call unscale_vars_ad(del_vort_hat,del_div_hat,del_phi_hat,del_vort,del_div,del_phi)
     call dinmi0(del_vort_hat,del_div_hat,del_phi_hat,vort_t_hat,div_t_hat,phi_t_hat)
     call get_periodmask(pmask)
@@ -502,7 +525,7 @@ contains
 !   
 !$$$ end documentation block
 
-    use constants, only: zero,half,one,rearth,r3600
+    use constants, only: izero,zero,half,one,two,four,rearth,r3600
     use mod_strong, only: period_max,period_width
     implicit none
 
@@ -511,11 +534,11 @@ contains
     real(r_kind) pi,thislength,thisperiod
     integer(i_kind) n
 
-    pi=4._8*atan(1._8)
+    pi=four*atan(one)
     do n=m,mmax
       pmask(n)=zero
-      if(n.eq.0) cycle
-      thislength=2._8*pi*rearth/n
+      if(n==izero) cycle
+      thislength=two*pi*rearth/n
       thisperiod=thislength/(gspeed*r3600)
       pmask(n)=half*(one-tanh((thisperiod-period_max)/period_width))
     end do
@@ -547,7 +570,7 @@ contains
 !   
 !$$$ end documentation block
 
-    use constants, only: zero,one,two,four,omega,rearth
+    use constants, only: ione,zero,one,two,four,omega,rearth
     use mod_strong, only: scheme
     implicit none
 
@@ -571,20 +594,20 @@ contains
 
 !     in the above, eps = sqrt((n*n-m*m)/(4*n*n-1))
 
-    nstart=max(m,1)
+    nstart=max(m,ione)
     rm=m
     do n=nstart,mmax
       rn=n
       eps=sqrt((rn*rn-rm*rm )/(four*rn*rn-one))
-      if(scheme.eq.'B') then
+      if(scheme=='B') then
         b(n)=two*omega*rm/(rn*(rn+one))
         f(n)=two*omega*sqrt(rn*rn-one)*eps/rn
         c(n)=gspeed*sqrt(rn*(rn+one))/rearth
-      else if(scheme.eq.'C') then
+      else if(scheme=='C') then
         b(n)=zero
         f(n)=two*omega*sqrt(rn*rn-one)*eps/rn
         c(n)=gspeed*sqrt(rn*(rn+one))/rearth
-      else if(scheme.eq.'D') then
+      else if(scheme=='D') then
         b(n)=zero
         f(n)=two*omega*eps
         c(n)=gspeed*sqrt(rn*(rn+one))/rearth
@@ -631,7 +654,7 @@ contains
 !   
 !$$$ end documentation block
 
-    use constants, only: zero,one,rearth
+    use constants, only: ione,zero,one,rearth
     use mod_strong, only: scheme
     implicit none
 
@@ -648,24 +671,24 @@ contains
     div_hat(2,m)=zero
     phi_hat(1,m)=zero
     phi_hat(2,m)=zero
-    nstart=max(m,1)
-    if(scheme.ne.'D') then
+    nstart=max(m,ione)
+    if(scheme/='D') then
       do n=nstart,mmax
         vort_hat(1,n)=rearth*vort(1,n)/sqrt(n*(n+one))
         vort_hat(2,n)=rearth*vort(2,n)/sqrt(n*(n+one))
-        div_hat(2,n)=rearth*div(1,n)/sqrt(n*(n+one))
-        div_hat(1,n)=-rearth*div(2,n)/sqrt(n*(n+one))
-        phi_hat(1,n)=phi(1,n)/gspeed
-        phi_hat(2,n)=phi(2,n)/gspeed
+        div_hat(2,n) =rearth*div (1,n)/sqrt(n*(n+one))
+        div_hat(1,n) =-rearth*div(2,n)/sqrt(n*(n+one))
+        phi_hat(1,n) =phi(1,n)/gspeed
+        phi_hat(2,n) =phi(2,n)/gspeed
       end do
     else
       do n=nstart,mmax
         vort_hat(1,n)=rearth*vort(1,n)
         vort_hat(2,n)=rearth*vort(2,n)
-        div_hat(2,n)=rearth*div(1,n)
-        div_hat(1,n)=-rearth*div(2,n)
-        phi_hat(1,n)=sqrt(n*(n+one))*phi(1,n)/gspeed
-        phi_hat(2,n)=sqrt(n*(n+one))*phi(2,n)/gspeed
+        div_hat(2,n) =rearth *div(1,n)
+        div_hat(1,n) =-rearth*div(2,n)
+        phi_hat(1,n) =sqrt(n*(n+one))*phi(1,n)/gspeed
+        phi_hat(2,n) =sqrt(n*(n+one))*phi(2,n)/gspeed
       end do
     end if
 
@@ -707,7 +730,7 @@ contains
 !   
 !$$$ end documentation block
 
-    use constants, only: one,rearth
+    use constants, only: ione,one,rearth
     use mod_strong, only: scheme
     implicit none
 
@@ -716,24 +739,24 @@ contains
 
     integer(i_kind) n,nstart
 
-    nstart=max(m,1)
-    if(scheme.ne.'D') then
+    nstart=max(m,ione)
+    if(scheme/='D') then
       do n=nstart,mmax
         vort(1,n)=vort(1,n)+vort_hat(1,n)*rearth/sqrt(n*(n+one))
         vort(2,n)=vort(2,n)+vort_hat(2,n)*rearth/sqrt(n*(n+one))
-        div(1,n)=div(1,n)+div_hat(2,n)*rearth/sqrt(n*(n+one))
-        div(2,n)=div(2,n)-div_hat(1,n)*rearth/sqrt(n*(n+one))
-        phi(1,n)=phi(1,n)+phi_hat(1,n)/gspeed
-        phi(2,n)=phi(2,n)+phi_hat(2,n)/gspeed
+        div(1,n) =div(1,n) +div_hat (2,n)*rearth/sqrt(n*(n+one))
+        div(2,n) =div(2,n) -div_hat (1,n)*rearth/sqrt(n*(n+one))
+        phi(1,n) =phi(1,n) +phi_hat (1,n)/gspeed
+        phi(2,n) =phi(2,n) +phi_hat (2,n)/gspeed
       end do
     else
       do n=nstart,mmax
         vort(1,n)=vort(1,n)+rearth*vort_hat(1,n)
         vort(2,n)=vort(2,n)+rearth*vort_hat(2,n)
-        div(1,n)=div(1,n)+div_hat(2,n)*rearth
-        div(2,n)=div(2,n)-div_hat(1,n)*rearth
-        phi(1,n)=phi(1,n)+sqrt(n*(n+one))*phi_hat(1,n)/gspeed
-        phi(2,n)=phi(2,n)+sqrt(n*(n+one))*phi_hat(2,n)/gspeed
+        div(1,n) =div (1,n)+div_hat(2,n)*rearth
+        div(2,n) =div (2,n)-div_hat(1,n)*rearth
+        phi(1,n) =phi (1,n)+sqrt(n*(n+one))*phi_hat(1,n)/gspeed
+        phi(2,n) =phi (2,n)+sqrt(n*(n+one))*phi_hat(2,n)/gspeed
       end do
     end if
 
@@ -771,7 +794,7 @@ contains
 !   
 !$$$ end documentation block
 
-    use constants, only: zero,one,rearth
+    use constants, only: ione,zero,one,rearth
     use mod_strong, only: scheme
     implicit none
 
@@ -788,24 +811,24 @@ contains
     div(2,m)=zero
     phi(1,m)=zero
     phi(2,m)=zero
-    nstart=max(m,1)
-    if(scheme.ne.'D') then
+    nstart=max(m,ione)
+    if(scheme/='D') then
       do n=nstart,mmax
         vort(1,n)=vort_hat(1,n)*sqrt(n*(n+one))/rearth
         vort(2,n)=vort_hat(2,n)*sqrt(n*(n+one))/rearth
-        div(1,n)=div_hat(2,n)*sqrt(n*(n+one))/rearth
-        div(2,n)=-div_hat(1,n)*sqrt(n*(n+one))/rearth
-        phi(1,n)=phi_hat(1,n)*gspeed
-        phi(2,n)=phi_hat(2,n)*gspeed
+        div (1,n)=div_hat (2,n)*sqrt(n*(n+one))/rearth
+        div (2,n)=-div_hat(1,n)*sqrt(n*(n+one))/rearth
+        phi (1,n)=phi_hat (1,n)*gspeed
+        phi (2,n)=phi_hat (2,n)*gspeed
       end do
     else
       do n=nstart,mmax
         vort(1,n)=vort_hat(1,n)/rearth
         vort(2,n)=vort_hat(2,n)/rearth
-        div(1,n)=div_hat(2,n)/rearth
-        div(2,n)=-div_hat(1,n)/rearth
-        phi(1,n)=phi_hat(1,n)*gspeed/sqrt(n*(n+one))
-        phi(2,n)=phi_hat(2,n)*gspeed/sqrt(n*(n+one))
+        div (1,n)=div_hat (2,n)/rearth
+        div (2,n)=-div_hat(1,n)/rearth
+        phi (1,n)=phi_hat (1,n)*gspeed/sqrt(n*(n+one))
+        phi (2,n)=phi_hat (2,n)*gspeed/sqrt(n*(n+one))
       end do
     end if
 
@@ -843,7 +866,7 @@ contains
 !   
 !$$$ end documentation block
 
-    use constants, only:  one,rearth
+    use constants, only:  ione,one,rearth
     use mod_strong, only:  scheme
     implicit none
 
@@ -852,24 +875,24 @@ contains
 
     integer(i_kind) n,nstart
 
-    nstart=max(m,1)
-    if(scheme.ne.'D') then
+    nstart=max(m,ione)
+    if(scheme/='D') then
       do n=nstart,mmax
         vort_hat(1,n)=vort_hat(1,n)+vort(1,n)*sqrt(n*(n+one))/rearth
         vort_hat(2,n)=vort_hat(2,n)+vort(2,n)*sqrt(n*(n+one))/rearth
-        div_hat(2,n)=div_hat(2,n)+div(1,n)*sqrt(n*(n+one))/rearth
-        div_hat(1,n)=div_hat(1,n)-div(2,n)*sqrt(n*(n+one))/rearth
-        phi_hat(1,n)=phi_hat(1,n)+phi(1,n)*gspeed
-        phi_hat(2,n)=phi_hat(2,n)+phi(2,n)*gspeed
+        div_hat (2,n)=div_hat (2,n)+div (1,n)*sqrt(n*(n+one))/rearth
+        div_hat (1,n)=div_hat (1,n)-div (2,n)*sqrt(n*(n+one))/rearth
+        phi_hat (1,n)=phi_hat (1,n)+phi (1,n)*gspeed
+        phi_hat (2,n)=phi_hat (2,n)+phi (2,n)*gspeed
       end do
     else
       do n=nstart,mmax
         vort_hat(1,n)=vort_hat(1,n)+vort(1,n)/rearth
         vort_hat(2,n)=vort_hat(2,n)+vort(2,n)/rearth
-        div_hat(2,n)=div_hat(2,n)+div(1,n)/rearth
-        div_hat(1,n)=div_hat(1,n)-div(2,n)/rearth
-        phi_hat(1,n)=phi_hat(1,n)+phi(1,n)*gspeed/sqrt(n*(n+one))
-        phi_hat(2,n)=phi_hat(2,n)+phi(2,n)*gspeed/sqrt(n*(n+one))
+        div_hat (2,n)=div_hat (2,n)+div (1,n)/rearth
+        div_hat (1,n)=div_hat (1,n)-div (2,n)/rearth
+        phi_hat (1,n)=phi_hat (1,n)+phi (1,n)*gspeed/sqrt(n*(n+one))
+        phi_hat (2,n)=phi_hat (2,n)+phi (2,n)*gspeed/sqrt(n*(n+one))
       end do
     end if
 
@@ -900,7 +923,7 @@ contains
 !   
 !$$$ end documentation block
 
-    use constants, only: zero
+    use constants, only: ione,zero
     implicit none
 
     real(r_kind),intent(in)::y(2,m:mmax),f(m:mmax)
@@ -908,7 +931,7 @@ contains
 
     integer(i_kind) n,nstart
 
-    if(m.eq.mmax) then
+    if(m==mmax) then
       x=zero
       return
     end if
@@ -917,19 +940,19 @@ contains
 
     x(1,m)=zero
     x(2,m)=zero
-    nstart=max(m,1)
+    nstart=max(m,ione)
 
     x(1,mmax)=zero
     x(2,mmax)=zero
-    if(nstart.lt.mmax) then
+    if(nstart<mmax) then
 
-      do n=nstart,mmax-1
-        x(1,n)=f(n+1)*y(1,n+1)
-        x(2,n)=f(n+1)*y(2,n+1)
+      do n=nstart,mmax-ione
+        x(1,n)=f(n+ione)*y(1,n+ione)
+        x(2,n)=f(n+ione)*y(2,n+ione)
       end do
-      do n=nstart+1,mmax
-        x(1,n)=x(1,n)+f(n)*y(1,n-1)
-        x(2,n)=x(2,n)+f(n)*y(2,n-1)
+      do n=nstart+ione,mmax
+        x(1,n)=x(1,n)+f(n)*y(1,n-ione)
+        x(2,n)=x(2,n)+f(n)*y(2,n-ione)
       end do
     end if
 
@@ -960,7 +983,7 @@ contains
 !   
 !$$$ end documentation block
 
-    use constants, only: zero
+    use constants, only: ione,zero
     implicit none
 
     real(r_kind),intent(in)::y(2,m:mmax),c(m:mmax)
@@ -973,7 +996,7 @@ contains
 
     x(1,m)=zero
     x(2,m)=zero
-    nstart=max(m,1)
+    nstart=max(m,ione)
 
     do n=nstart,mmax
       x(1,n)=c(n)*y(1,n)
@@ -1007,7 +1030,7 @@ contains
 !   
 !$$$ end documentation block
 
-    use constants, only: zero
+    use constants, only: ione,zero
     implicit none
 
     real(r_kind),intent(in)::y(2,m:mmax)
@@ -1020,7 +1043,7 @@ contains
 
     x(1,m)=zero
     x(2,m)=zero
-    nstart=max(m,1)
+    nstart=max(m,ione)
 
     do n=nstart,mmax
       x(1,n)=-y(2,n)
@@ -1054,7 +1077,7 @@ contains
 !   
 !$$$ end documentation block
 
-    use constants, only: zero
+    use constants, only: ione,zero
     implicit none
 
     real(r_kind),intent(in)::y(2,m:mmax),f(m:mmax),c(m:mmax)
@@ -1068,7 +1091,7 @@ contains
 
     x(1,m)=zero
     x(2,m)=zero
-    nstart=max(m,1)
+    nstart=max(m,ione)
 
 !     copy forcing y to internal array
 
@@ -1077,54 +1100,54 @@ contains
       z(2,n)=y(2,n)
     end do
 
-!     if nstart.eq.mmax, then trivial solution
+!     if nstart==mmax, then trivial solution
 
-    if(nstart.eq.mmax) then
-      a(nstart)=c(nstart)*c(nstart)
+    if(nstart==mmax) then
+      a(  nstart)=c(  nstart)*c(nstart)
       x(1,nstart)=z(1,nstart)/a(nstart)
       x(2,nstart)=z(2,nstart)/a(nstart)
     else
 
 !       compute main diagonal of F*F + C*C
 
-      a(nstart)=f(nstart+1)*f(nstart+1)+c(nstart)*c(nstart)
-      if(nstart+1.lt.mmax) then
-        do n=nstart+1,mmax-1
-          a(n)=f(n)*f(n)+f(n+1)*f(n+1)+c(n)*c(n)
+      a(nstart)=f(nstart+ione)*f(nstart+ione)+c(nstart)*c(nstart)
+      if(nstart+ione<mmax) then
+        do n=nstart+ione,mmax-ione
+          a(n)=f(n)*f(n)+f(n+ione)*f(n+ione)+c(n)*c(n)
         end do
       end if
       a(mmax)=f(mmax)*f(mmax)+c(mmax)*c(mmax)
 
 !       compute only non-zero off-diagonal of F*F + C*C
 
-      if(nstart+2.le.mmax) then
-        do n=nstart+2,mmax
-          b(n)=f(n-1)*f(n)
+      if(nstart+2_i_kind<=mmax) then
+        do n=nstart+2_i_kind,mmax
+          b(n)=f(n-ione)*f(n)
         end do
       end if
 
 !        forward elimination:
 
-      if(nstart+2.le.mmax) then
+      if(nstart+2_i_kind<=mmax) then
 
-        do n=nstart,mmax-2
-          z(1,n+2)=z(1,n+2)-b(n+2)*z(1,n)/a(n)
-          z(2,n+2)=z(2,n+2)-b(n+2)*z(2,n)/a(n)
-          a(n+2)=a(n+2)-b(n+2)*b(n+2)/a(n)
+        do n=nstart,mmax-2_i_kind
+          z(1,n+2_i_kind)=z(1,n+2_i_kind)-b(n+2_i_kind)*z(1,       n)/a(n)
+          z(2,n+2_i_kind)=z(2,n+2_i_kind)-b(n+2_i_kind)*z(2,       n)/a(n)
+          a(  n+2_i_kind)=a(  n+2_i_kind)-b(n+2_i_kind)*b(n+2_i_kind)/a(n)
         end do
 
       end if
 
 !        backward substitution:
 
-      x(1,mmax)=z(1,mmax)/a(mmax)
-      x(2,mmax)=z(2,mmax)/a(mmax)
-      x(1,mmax-1)=z(1,mmax-1)/a(mmax-1)
-      x(2,mmax-1)=z(2,mmax-1)/a(mmax-1)
-      if(nstart+2.le.mmax) then
-        do n=mmax-2,nstart,-1
-          x(1,n)=(z(1,n) - b(n+2)*x(1,n+2))/a(n)
-          x(2,n)=(z(2,n) - b(n+2)*x(2,n+2))/a(n)
+      x(1,mmax     )=z(1,mmax     )/a(mmax     )
+      x(2,mmax     )=z(2,mmax     )/a(mmax     )
+      x(1,mmax-ione)=z(1,mmax-ione)/a(mmax-ione)
+      x(2,mmax-ione)=z(2,mmax-ione)/a(mmax-ione)
+      if(nstart+2_i_kind<=mmax) then
+        do n=mmax-2_i_kind,nstart,-1
+          x(1,n)=(z(1,n) - b(n+2_i_kind)*x(1,n+2_i_kind))/a(n)
+          x(2,n)=(z(2,n) - b(n+2_i_kind)*x(2,n+2_i_kind))/a(n)
         end do
       end if
 

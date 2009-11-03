@@ -64,10 +64,10 @@ module lag_fields
   integer(i_kind)::lag_kfirst,lag_klast ! First and last level use
   integer(i_kind)::lag_kcount           ! Number of levels use
 
-  integer(i_kind),parameter::lag_unit_in  =11 ! Unit to read in the ini file
-  integer(i_kind),parameter::lag_unit_save=11 ! Unit to read/write the state
+  integer(i_kind),parameter::lag_unit_in  =11_i_kind ! Unit to read in the ini file
+  integer(i_kind),parameter::lag_unit_save=11_i_kind ! Unit to read/write the state
 
-  integer(i_kind),parameter::iv_debug=1       ! printing level
+  integer(i_kind),parameter::iv_debug=ione       ! printing level
 
   character(*),parameter::lag_filesave='lagstate.save'  ! File for save/read
                                                         ! the state of the
@@ -196,8 +196,8 @@ module lag_fields
     implicit none   
     real(r_kind)::lon,lat,p
     integer(i_kind)::num
-    real(r_kind),dimension(nsig+1)::pcalc
-    real(r_kind),dimension(nsig+1)::tmp_press
+    real(r_kind),dimension(nsig+ione)::pcalc
+    real(r_kind),dimension(nsig+ione)::tmp_press
     integer(i_kind)::i,j,iferror,nread
     real(r_kind)   ,dimension(:,:),allocatable::tmp_inibal
     integer(i_kind),dimension(:,:),allocatable::tmp_ininum
@@ -206,38 +206,38 @@ module lag_fields
     character(len=255)::tmp_fname
 
     ! Table of pressure for all levels (standard pressure)
-    do i=1,nsig+1
+    do i=1,nsig+ione
       pcalc(i)=10_r_kind*ak5(i)+1e3_r_kind*bk5(i)
     end do
     do i=1,nsig
-      tmp_press(i)=log(sqrt(pcalc(i)*pcalc(i+1)))
+      tmp_press(i)=log(sqrt(pcalc(i)*pcalc(i+ione)))
     end do
       
     !Allocate the array to read data
     allocate(tmp_inibal(lag_nmax_bal,3))  ! balloon initial position
     allocate(tmp_ininum(lag_nmax_bal,3))  ! numbers of balloons
     allocate(tmp_inisig(lag_nmax_bal))    ! to store vertical level
-    ntotal_orig_lag=0
-    nlocal_orig_lag=0
+    ntotal_orig_lag=izero
+    nlocal_orig_lag=izero
 
     !open the initial position file
     write(unit=tmp_fname,fmt="(A,'.',I3.3)") trim(infile_lag),ione
     open(lag_unit_in,file=trim(tmp_fname),form='formatted',iostat=iferror)
-    lerror = (iferror/=0)
+    lerror = (iferror/=izero)
 
     !read the first line
     if (.not.lerror) then
       read(lag_unit_in,fmt=*,iostat=iferror) num,lon,lat,p
-      lerror=(iferror>0)
-      leof  =(iferror<0)
+      lerror=(iferror>izero)
+      leof  =(iferror<izero)
       lmax  =.false.
     end if
 
     !loop on the file
-    nread=0
+    nread=izero
     do while (.not.(lerror .or. leof .or. lmax))
 
-      nread=nread+1
+      nread=nread+ione
       lon=deg2rad*lon
       lat=deg2rad*lat
 
@@ -248,14 +248,14 @@ module lag_fields
       if (lok) then
 
         if (lon<zero) lon=lon+two*pi
-        ntotal_orig_lag=ntotal_orig_lag+1
+        ntotal_orig_lag=ntotal_orig_lag+ione
         tmp_ininum(ntotal_orig_lag,1)=num ! balloon id number
-        tmp_ininum(ntotal_orig_lag,2)=mod(ntotal_orig_lag-1,npe) ! Processor of
-                                                                 ! affectation
-        tmp_ininum(ntotal_orig_lag,3)=(ntotal_orig_lag-1)/npe + 1 ! Nr. on processor
+        tmp_ininum(ntotal_orig_lag,2)=mod(ntotal_orig_lag-ione,npe)     ! Processor of
+                                                                        ! affectation
+        tmp_ininum(ntotal_orig_lag,3)=(ntotal_orig_lag-ione)/npe + ione ! Nr. on processor
         
         ! Number of balloons affected to this processor
-        if (mype==tmp_ininum(ntotal_orig_lag,2)) nlocal_orig_lag=nlocal_orig_lag+1
+        if (mype==tmp_ininum(ntotal_orig_lag,2)) nlocal_orig_lag=nlocal_orig_lag+ione
 
         tmp_inibal(ntotal_orig_lag,1)=lon ! Balloon data
         tmp_inibal(ntotal_orig_lag,2)=lat
@@ -263,20 +263,20 @@ module lag_fields
 
         ! Calculate the level relative coordinate
         tmp_inisig(ntotal_orig_lag)=log(p)
-        call grdcrd(tmp_inisig(ntotal_orig_lag),1,tmp_press,nsig,-1)
+        call grdcrd(tmp_inisig(ntotal_orig_lag),ione,tmp_press,nsig,-ione)
       end if
 
       ! read the next one
       read(lag_unit_in,fmt=*,iostat=iferror) num,lon,lat,p
-      lerror=(iferror>0)
-      leof  =(iferror<0)
+      lerror=(iferror>izero)
+      leof  =(iferror<izero)
       lmax  =nread>=lag_nmax_bal
 
     end do
 
     close(lag_unit_in)
 
-    if (mype==0) &
+    if (mype==izero) &
       write(6,'(A,I4,A)') 'LAG_GUESSINI: first guess read. ',&
         &ntotal_orig_lag,' balloons availlable.'
 
@@ -285,16 +285,16 @@ module lag_fields
 
       !Allocate the array containing the original positions
       allocate(orig_lag_data(ntotal_orig_lag,3),stat=i)
-      if (i .NE. izero) stop "Allocation failled"
+      if (i /= izero) stop "Allocation failled"
       allocate(orig_lag_num (ntotal_orig_lag,3),stat=i)
-      if (i .NE. izero) stop "Allocation failled"
+      if (i /= izero) stop "Allocation failled"
       orig_lag_data(:,:)=tmp_inibal(1:ntotal_orig_lag,:)
       orig_lag_num(:,:) =tmp_ininum(1:ntotal_orig_lag,:)
 
       ! Setup the min and max level
-      lag_kfirst=floor(  minval(tmp_inisig(1:ntotal_orig_lag)))-1
-      lag_klast =ceiling(maxval(tmp_inisig(1:ntotal_orig_lag)))+1
-      lag_kcount=lag_klast-lag_kfirst+1
+      lag_kfirst=floor(  minval(tmp_inisig(1:ntotal_orig_lag)))-ione
+      lag_klast =ceiling(maxval(tmp_inisig(1:ntotal_orig_lag)))+ione
+      lag_kcount=lag_klast-lag_kfirst+ione
 
       !Setup the pressure subgrid
       call lag_inipgrid(tmp_press(lag_kfirst:lag_klast))
@@ -320,8 +320,8 @@ module lag_fields
 
       !Allocate the distributed TL model definition
       if (nlocal_orig_lag/=izero .and. nobs_bins>ione) then
-        allocate(lag_tl_spec_r(nlocal_orig_lag,nobs_bins-1,lag_rk2itenpara_r))
-        allocate(lag_tl_spec_i(nlocal_orig_lag,nobs_bins-1,lag_rk2itenpara_i))
+        allocate(lag_tl_spec_r(nlocal_orig_lag,nobs_bins-ione,lag_rk2itenpara_r))
+        allocate(lag_tl_spec_i(nlocal_orig_lag,nobs_bins-ione,lag_rk2itenpara_i))
       end if
 
       !If in 3Dvar, try to read the other guess fields
@@ -333,19 +333,19 @@ module lag_fields
 
         do i=2,nfldsig
 
-          if (mype==0) &
+          if (mype==izero) &
             write(6,'(A,I2,A)') 'LAG_GUESSINI: 3Dvar try to read guess ',i,'.'
 
           !open the initial position file
           write(unit=tmp_fname,fmt="(A,'.',I3.3)") trim(infile_lag),i
           open(lag_unit_in,file=trim(tmp_fname),form='formatted',iostat=iferror)
-          lerror = (iferror/=0)
+          lerror = (iferror/=izero)
 
           !read the first line
           if (.not.lerror) then
             read(lag_unit_in,fmt=*,iostat=iferror) num,lon,lat,p
-            lerror=(iferror>0)
-            leof  =(iferror<0)
+            lerror=(iferror>izero)
+            leof  =(iferror<izero)
             lmax  =.false.
           end if
 
@@ -375,8 +375,8 @@ module lag_fields
 
             ! read the next one
             read(lag_unit_in,fmt=*,iostat=iferror) num,lon,lat,p
-            lerror=(iferror>0)
-            leof  =(iferror<0)
+            lerror=(iferror>izero)
+            leof  =(iferror<izero)
             lmax  =nread>=lag_nmax_bal
 
           end do
@@ -393,8 +393,8 @@ module lag_fields
     deallocate(tmp_inibal,tmp_ininum,tmp_inisig)
 
     !debug printing
-    if (iv_debug>=1) then
-      if (mype==0) then
+    if (iv_debug>=ione) then
+      if (mype==izero) then
         print *,'GUESS NUM',orig_lag_num
         print *,'GUESS kfirst, klast',lag_kfirst,lag_klast
       end if
@@ -597,15 +597,15 @@ module lag_fields
 
     ! gather the fields only for the predefined level range
     do k=lag_kfirst,lag_klast
-      call mpi_allgatherv(ustrip(1,k),ijn(mype+1),mpi_rtype,&
+      call mpi_allgatherv(ustrip(1,k),ijn(mype+ione),mpi_rtype,&
         worku,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
-      call mpi_allgatherv(vstrip(1,k),ijn(mype+1),mpi_rtype,&
+      call mpi_allgatherv(vstrip(1,k),ijn(mype+ione),mpi_rtype,&
         workv,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
-      call reorder(worku,1,1)
-      call reorder(workv,1,1)
+      call reorder(worku,ione,ione)
+      call reorder(workv,ione,ione)
       do i=1,iglobal
-        lag_u_full(lag_index_h(ltosj(i),ltosi(i)),k-lag_kfirst+1,itt)=worku(i)
-        lag_v_full(lag_index_h(ltosj(i),ltosi(i)),k-lag_kfirst+1,itt)=workv(i)
+        lag_u_full(lag_index_h(ltosj(i),ltosi(i)),k-lag_kfirst+ione,itt)=worku(i)
+        lag_v_full(lag_index_h(ltosj(i),ltosi(i)),k-lag_kfirst+ione,itt)=workv(i)
       end do
     end do
 
@@ -667,15 +667,15 @@ module lag_fields
 
     ! gather the fields only for the predefined level range
     do k=lag_kfirst,lag_klast
-      call mpi_allgatherv(ustrip(1,k),ijn(mype+1),mpi_rtype,&
+      call mpi_allgatherv(ustrip(1,k),ijn(mype+ione),mpi_rtype,&
         worku,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
-      call mpi_allgatherv(vstrip(1,k),ijn(mype+1),mpi_rtype,&
+      call mpi_allgatherv(vstrip(1,k),ijn(mype+ione),mpi_rtype,&
         workv,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
-      call reorder(worku,1,1)
-      call reorder(workv,1,1)
+      call reorder(worku,ione,ione)
+      call reorder(workv,ione,ione)
       do i=1,iglobal
-        lag_u_full(lag_index_h(ltosj(i),ltosi(i)),k-lag_kfirst+1,itt)=worku(i)
-        lag_v_full(lag_index_h(ltosj(i),ltosi(i)),k-lag_kfirst+1,itt)=workv(i)
+        lag_u_full(lag_index_h(ltosj(i),ltosi(i)),k-lag_kfirst+ione,itt)=worku(i)
+        lag_v_full(lag_index_h(ltosj(i),ltosi(i)),k-lag_kfirst+ione,itt)=workv(i)
       end do
     end do
 
@@ -749,22 +749,22 @@ module lag_fields
 
       ! reorder all the elements to obtain the same shape than svalu & svalv
       do i=1,itotsub
-        worku2(i)=worku(lag_index_h(ltosj_s(i),ltosi_s(i)),k-lag_kfirst+1)
-        workv2(i)=workv(lag_index_h(ltosj_s(i),ltosi_s(i)),k-lag_kfirst+1)
+        worku2(i)=worku(lag_index_h(ltosj_s(i),ltosi_s(i)),k-lag_kfirst+ione)
+        workv2(i)=workv(lag_index_h(ltosj_s(i),ltosi_s(i)),k-lag_kfirst+ione)
       end do
-      call reorder2(worku2,1,1)
-      call reorder2(workv2,1,1)
-      ! if (k==lag_kfirst+1) print *,'Mype',mype,'Contribution total worku2',sum(worku2)
+      call reorder2(worku2,ione,ione)
+      call reorder2(workv2,ione,ione)
+      ! if (k==lag_kfirst+ione) print *,'Mype',mype,'Contribution total worku2',sum(worku2)
 
       ! indexes in the arrays
-      hdisp_glo1=ird_s(mype+1)+1
-      hdisp_glo2=ird_s(mype+1)+ijn_s(mype+1)-1
-      hdisp_sub1=1+ijn_s(mype+1)*(k-1)
-      hdisp_sub2=hdisp_sub1+ijn_s(mype+1)-1
+      hdisp_glo1=ird_s(mype+ione)+ione
+      hdisp_glo2=ird_s(mype+ione)+ijn_s(mype+ione)-ione
+      hdisp_sub1=ione+ijn_s(mype+ione)*(k-ione)
+      hdisp_sub2=hdisp_sub1+ijn_s(mype+ione)-ione
 
       svalu(hdisp_sub1:hdisp_sub2)=&
         svalu(hdisp_sub1:hdisp_sub2) + worku2(hdisp_glo1:hdisp_glo2)
-      ! if (k==lag_kfirst+1) print *,'Mype',mype,'Svalu',sum(svalu)
+      ! if (k==lag_kfirst+ione) print *,'Mype',mype,'Svalu',sum(svalu)
 
       svalv(hdisp_sub1:hdisp_sub2)=&
         svalv(hdisp_sub1:hdisp_sub2) + workv2(hdisp_glo1:hdisp_glo2)
@@ -820,31 +820,31 @@ module lag_fields
       ! Load the wind field guess in memory
       do i=1,nfldsig
         call lag_gather_gesuv(i)
-        if (iv_debug>=1) print '(A,I2,A,I2)','LAG_PRESETUP: Mype',mype,&
+        if (iv_debug>=ione) print '(A,I2,A,I2)','LAG_PRESETUP: Mype',mype,&
           &'. Gather u,v guess',i
       end do
 
       ! 4Dvar, Perform the NL integration given this guess fo each obsbin
-      if (l4dvar .and. nobs_bins>1) then
+      if (l4dvar .and. nobs_bins>ione) then
         do i=2,nobs_bins
 
-          fieldtime=(i-2)*hr_obsbin
+          fieldtime=(i-2_i_kind)*hr_obsbin
           if(fieldtime>=hrdifsig(1) .and. fieldtime<=hrdifsig(nfldsig)) then
 
             ! Which guess field to use
-            do k=1,nfldsig-1
-              if(fieldtime >= hrdifsig(k) .and. fieldtime <= hrdifsig(k+1)) then
+            do k=1,nfldsig-ione
+              if(fieldtime >= hrdifsig(k) .and. fieldtime <= hrdifsig(k+ione)) then
                 itime=k
               end if
             end do
 
             do j=1,nlocal_orig_lag
-                lag_nl_vec(j,i,:)=lag_nl_vec(j,i-1,:)
+                lag_nl_vec(j,i,:)=lag_nl_vec(j,i-ione,:)
                 call lag_rk2iter_nl(&
                   &lag_nl_vec(j,i,1),lag_nl_vec(j,i,2),lag_nl_vec(j,i,3),&
                   &lag_u_full(:,:,itime),lag_v_full(:,:,itime),&
                   &lag_iteduration,&
-                  &lag_tl_spec_i(j,i-1,:),lag_tl_spec_r(j,i-1,:))
+                  &lag_tl_spec_i(j,i-ione,:),lag_tl_spec_r(j,i-ione,:))
             end do
 
           else
@@ -857,17 +857,17 @@ module lag_fields
 
       ! 3Dvar, Perform the NL integration given this guess fo each guess time 
       ! (if needed only)
-      if (.not.l4dvar .and. nfldsig>1) then
+      if (.not.l4dvar .and. nfldsig>ione) then
 
         do i=2,nfldsig
           do j=1,nlocal_orig_lag
             ! If the guess add already been read do nothing
             if (lag_nl_vec(j,i,3)==zero) then
-              lag_nl_vec(j,i,:)=lag_nl_vec(j,i-1,:)
+              lag_nl_vec(j,i,:)=lag_nl_vec(j,i-ione,:)
               call lag_rk2iter_nl(&
                 &lag_nl_vec(j,i,1),lag_nl_vec(j,i,2),lag_nl_vec(j,i,3),&
-                &lag_u_full(:,:,i-1),lag_v_full(:,:,i-1),&
-                &(hrdifsig(i)-hrdifsig(i-1))*r3600)
+                &lag_u_full(:,:,i-ione),lag_v_full(:,:,i-ione),&
+                &(hrdifsig(i)-hrdifsig(i-ione))*r3600)
             end if
           end do
         end do
@@ -875,7 +875,7 @@ module lag_fields
       end if ! not l4dvar
 
       !debug printing
-      if (iv_debug>=1) then
+      if (iv_debug>=ione) then
         do i=1,size(lag_nl_vec,2)
           do j=1,size(lag_nl_vec,1)
             print '(A,I2.2,A,I2.2,A,I2.2,A,F12.6,F12.6,F12.6)',&
@@ -994,7 +994,7 @@ module lag_fields
 
       read(lag_unit_save,iostat=istat)  lag_kfirst,lag_klast
       if (istat/=izero) call abor1('lag_state_read: Unable to read pgrid par.')
-      lag_kcount=lag_klast-lag_kfirst+1
+      lag_kcount=lag_klast-lag_kfirst+ione
 
       allocate(tmp_pgrid(lag_kcount),stat=istat)
       if (istat/=izero) call abor1('lag_state_read: err. alloc. tmp_pgrid')
@@ -1011,7 +1011,7 @@ module lag_fields
       read(lag_unit_save,iostat=istat) orig_lag_data, orig_lag_num
       if (istat/=izero) call abor1('lag_state_read: Unable to read orig_lag*')
 
-      if (nlocal_orig_lag/=0) then
+      if (nlocal_orig_lag/=izero) then
 
         allocate(lag_nl_vec(nlocal_orig_lag,nobs_bins,3),stat=istat)
         if (istat/=izero) call abor1('lag_state_read: err. alloc. lag_nl_vec')
@@ -1024,12 +1024,12 @@ module lag_fields
         read(lag_unit_save,iostat=istat) lag_nl_vec
         if (istat/=izero) call abor1('lag_state_read: Unable to read lag_nl_vec')
 
-        if (nobs_bins>1) then
+        if (nobs_bins>ione) then
 
-          allocate(lag_tl_spec_r(nlocal_orig_lag,nobs_bins-1,lag_rk2itenpara_r),&
+          allocate(lag_tl_spec_r(nlocal_orig_lag,nobs_bins-ione,lag_rk2itenpara_r),&
             stat=istat)
           if (istat/=izero) call abor1('lag_state_read: err. alloc. spec_r')
-          allocate(lag_tl_spec_i(nlocal_orig_lag,nobs_bins-1,lag_rk2itenpara_i),&
+          allocate(lag_tl_spec_i(nlocal_orig_lag,nobs_bins-ione,lag_rk2itenpara_i),&
             stat=istat)
           if (istat/=izero) call abor1('lag_state_read: err. alloc. spec_i')
 

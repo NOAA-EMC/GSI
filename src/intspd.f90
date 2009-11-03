@@ -1,9 +1,8 @@
 module intspdmod
-
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intspdmod    module for intspd and its tangent linear intspd_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for intspd and its tangent linear intspd_tl
 !
@@ -133,18 +132,18 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
          endif
 
         if (l_do_adjoint) then
-         if (lsaveobsens) then
-           grad=spdptr%diags%obssen(jiter)
-         else
-           spd=spdatl-spdptr%diags%nldepart(jiter)
-           grad=spdptr%raterr2*spdptr%err2*spd
-         endif
+          if (lsaveobsens) then
+            grad=spdptr%diags%obssen(jiter)
+          else
+            spd=spdatl-spdptr%diags%nldepart(jiter)
+            grad=spdptr%raterr2*spdptr%err2*spd
+          endif
 
-!        Adjoint
-         spdtra=sqrt(spdptr%err2)*spdtra
-         valu=grad*min(one,max(spdptr%uges/spdtra,-one))
-         valv=grad*min(one,max(spdptr%vges/spdtra,-one))
-        endif
+!         Adjoint
+          spdtra=sqrt(spdptr%err2)*spdtra
+          valu=grad*min(one,max(spdptr%uges/spdtra,-one))
+          valv=grad*min(one,max(spdptr%vges/spdtra,-one))
+         endif
        else
          if (spdptr%luse) spdptr%diags%tldepart(jiter)=zero
          if (lsaveobsens) spdptr%diags%obssen(jiter)=zero
@@ -153,31 +152,31 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
 
      else ! < ltlint >
 
-!        Forward model
-         uanl=spdptr%uges+w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)
-         vanl=spdptr%vges+w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)
-         if ( l_foto ) then
-           time_spd=spdptr%time*r3600
-           uanl=uanl+&
-                time_spd*(w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-                          w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))
-           vanl=vanl+&
-                time_spd*(w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-                          w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))
-         endif
-         spdanl=sqrt(uanl*uanl+vanl*vanl)
-         if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdanl-spdtra
+!      Forward model
+       uanl=spdptr%uges+w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)
+       vanl=spdptr%vges+w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)
+       if ( l_foto ) then
+         time_spd=spdptr%time*r3600
+         uanl=uanl+&
+              time_spd*(w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
+                        w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))
+         vanl=vanl+&
+              time_spd*(w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
+                        w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))
+       endif
+       spdanl=sqrt(uanl*uanl+vanl*vanl)
+       if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdanl-spdtra
 
-         if (l_do_adjoint) then
-           valu=zero
-           valv=zero
-           spd=spdanl-spdptr%res
-           grad=spdptr%raterr2*spdptr%err2*spd
+       if (l_do_adjoint) then
+         valu=zero
+         valv=zero
+         spd=spdanl-spdptr%res
+         grad=spdptr%raterr2*spdptr%err2*spd
 
-!          Adjoint
-!          if(spdanl > tiny_r_kind*100._r_kind) then
-           if (spdanl>EPSILON(spdanl)) then
-              if (lsaveobsens) spdptr%diags%obssen(jiter)=grad
+!        Adjoint
+!        if(spdanl > tiny_r_kind*100._r_kind) then
+         if (spdanl>EPSILON(spdanl)) then
+            if (lsaveobsens) spdptr%diags%obssen(jiter)=grad
               valu=uanl/spdanl
               valv=vanl/spdanl
               if (nlnqc_iter .and. spdptr%pg > tiny_r_kind .and.  &
@@ -190,7 +189,7 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
                  term = (one-p0)
                  grad = grad*term
               endif
-           end if
+            end if
          endif ! < l_do_adjoint >
 
          valu=valu*grad
@@ -223,7 +222,7 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
        endif
     endif
 
-     spdptr => spdptr%llpoint
+    spdptr => spdptr%llpoint
 
   end do
   return

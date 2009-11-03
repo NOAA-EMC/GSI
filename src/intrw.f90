@@ -1,9 +1,8 @@
 module intrwmod
-
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intrwmod    module for intrw and its tangent linear intrw_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for intrw and its tangent linear intrw_tl
 !
@@ -145,69 +144,69 @@ subroutine intrw_(rwhead,ru,rv,su,sv)
      endif
 
     if (l_do_adjoint) then
-     if (lsaveobsens) then
-       grad = rwptr%diags%obssen(jiter)
+      if (lsaveobsens) then
+        grad = rwptr%diags%obssen(jiter)
 
-     else
-       val=val-rwptr%res
+      else
+        val=val-rwptr%res
 
-!      gradient of nonlinear operator
-       if (nlnqc_iter .and. rwptr%pg > tiny_r_kind .and. &
-                            rwptr%b  > tiny_r_kind) then
+!       gradient of nonlinear operator
+        if (nlnqc_iter .and. rwptr%pg > tiny_r_kind .and. &
+                             rwptr%b  > tiny_r_kind) then
           pg_rw=rwptr%pg*varqc_iter
           cg_rw=cg_term/rwptr%b
           wnotgross= one-pg_rw
           wgross = pg_rw*cg_rw/wnotgross
           p0   = wgross/(wgross+exp(-half*rwptr%err2*val**2))
           val = val*(one-p0)
-       endif
+        endif
 
-       grad = val*rwptr%raterr2*rwptr%err2
-     endif
+        grad = val*rwptr%raterr2*rwptr%err2
+      endif
 
-!    Adjoint
-     valu=rwptr%cosazm*grad
-     valv=rwptr%sinazm*grad
-     ru(j1)=ru(j1)+w1*valu
-     ru(j2)=ru(j2)+w2*valu
-     ru(j3)=ru(j3)+w3*valu
-     ru(j4)=ru(j4)+w4*valu
-     ru(j5)=ru(j5)+w5*valu
-     ru(j6)=ru(j6)+w6*valu
-     ru(j7)=ru(j7)+w7*valu
-     ru(j8)=ru(j8)+w8*valu
-     rv(j1)=rv(j1)+w1*valv
-     rv(j2)=rv(j2)+w2*valv
-     rv(j3)=rv(j3)+w3*valv
-     rv(j4)=rv(j4)+w4*valv
-     rv(j5)=rv(j5)+w5*valv
-     rv(j6)=rv(j6)+w6*valv
-     rv(j7)=rv(j7)+w7*valv
-     rv(j8)=rv(j8)+w8*valv
+!     Adjoint
+      valu=rwptr%cosazm*grad
+      valv=rwptr%sinazm*grad
+      ru(j1)=ru(j1)+w1*valu
+      ru(j2)=ru(j2)+w2*valu
+      ru(j3)=ru(j3)+w3*valu
+      ru(j4)=ru(j4)+w4*valu
+      ru(j5)=ru(j5)+w5*valu
+      ru(j6)=ru(j6)+w6*valu
+      ru(j7)=ru(j7)+w7*valu
+      ru(j8)=ru(j8)+w8*valu
+      rv(j1)=rv(j1)+w1*valv
+      rv(j2)=rv(j2)+w2*valv
+      rv(j3)=rv(j3)+w3*valv
+      rv(j4)=rv(j4)+w4*valv
+      rv(j5)=rv(j5)+w5*valv
+      rv(j6)=rv(j6)+w6*valv
+      rv(j7)=rv(j7)+w7*valv
+      rv(j8)=rv(j8)+w8*valv
 
-     if ( l_foto ) then
-       valu=valu*time_rw
-       valv=valv*time_rw
-       dhat_dt%u(j1)=dhat_dt%u(j1)+w1*valu
-       dhat_dt%u(j2)=dhat_dt%u(j2)+w2*valu
-       dhat_dt%u(j3)=dhat_dt%u(j3)+w3*valu
-       dhat_dt%u(j4)=dhat_dt%u(j4)+w4*valu
-       dhat_dt%u(j5)=dhat_dt%u(j5)+w5*valu
-       dhat_dt%u(j6)=dhat_dt%u(j6)+w6*valu
-       dhat_dt%u(j7)=dhat_dt%u(j7)+w7*valu
-       dhat_dt%u(j8)=dhat_dt%u(j8)+w8*valu
-       dhat_dt%v(j1)=dhat_dt%v(j1)+w1*valv
-       dhat_dt%v(j2)=dhat_dt%v(j2)+w2*valv
-       dhat_dt%v(j3)=dhat_dt%v(j3)+w3*valv
-       dhat_dt%v(j4)=dhat_dt%v(j4)+w4*valv
-       dhat_dt%v(j5)=dhat_dt%v(j5)+w5*valv
-       dhat_dt%v(j6)=dhat_dt%v(j6)+w6*valv
-       dhat_dt%v(j7)=dhat_dt%v(j7)+w7*valv
-       dhat_dt%v(j8)=dhat_dt%v(j8)+w8*valv
-     endif
+      if ( l_foto ) then
+        valu=valu*time_rw
+        valv=valv*time_rw
+        dhat_dt%u(j1)=dhat_dt%u(j1)+w1*valu
+        dhat_dt%u(j2)=dhat_dt%u(j2)+w2*valu
+        dhat_dt%u(j3)=dhat_dt%u(j3)+w3*valu
+        dhat_dt%u(j4)=dhat_dt%u(j4)+w4*valu
+        dhat_dt%u(j5)=dhat_dt%u(j5)+w5*valu
+        dhat_dt%u(j6)=dhat_dt%u(j6)+w6*valu
+        dhat_dt%u(j7)=dhat_dt%u(j7)+w7*valu
+        dhat_dt%u(j8)=dhat_dt%u(j8)+w8*valu
+        dhat_dt%v(j1)=dhat_dt%v(j1)+w1*valv
+        dhat_dt%v(j2)=dhat_dt%v(j2)+w2*valv
+        dhat_dt%v(j3)=dhat_dt%v(j3)+w3*valv
+        dhat_dt%v(j4)=dhat_dt%v(j4)+w4*valv
+        dhat_dt%v(j5)=dhat_dt%v(j5)+w5*valv
+        dhat_dt%v(j6)=dhat_dt%v(j6)+w6*valv
+        dhat_dt%v(j7)=dhat_dt%v(j7)+w7*valv
+        dhat_dt%v(j8)=dhat_dt%v(j8)+w8*valv
+      endif
     endif
 
-     rwptr => rwptr%llpoint
+    rwptr => rwptr%llpoint
   end do
   return
 end subroutine intrw_

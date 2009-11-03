@@ -180,7 +180,6 @@ contains
 
     use constants, only:  izero,ione,zero,half,one,two,three,four
     use raflib, only: set_indices
-    use raflib, only: set_indices
     implicit none
 
     integer(i_kind) k
@@ -236,7 +235,6 @@ contains
     an_amp0=one/three
     an_vs=one
     grid_ratio=two
-    grid_ratio_p=zero
     grid_ratio_p=zero
     an_flen_u=-one      ! this turns off anisotropic coupling to horizontal wind
     an_flen_t=-one      ! this turns off anisotropic coupling to grad(pot temp)

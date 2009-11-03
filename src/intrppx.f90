@@ -53,7 +53,7 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
        ges_prsl,ges_prsi,tropprs,dsfct, &
        hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,ges_tv,isli2,sno2
   use gridmod, only: istart,jstart,nlon,nlat,nsig,lon1
-  use constants, only: zero,one,one_tenth
+  use constants, only: ione,zero,one,one_tenth
   implicit none
 
 ! Declare passed variables
@@ -61,7 +61,7 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
   real(r_kind),intent(in):: dx,dy,obstime
   real(r_kind),intent(out):: trop5
   real(r_kind),dimension(nsig),intent(out):: h,q,poz,prsl
-  real(r_kind),dimension(nsig+1),intent(out):: prsi
+  real(r_kind),dimension(nsig+ione),intent(out):: prsi
   real(r_kind),intent(out):: uu5,vv5,dtsavg
   real(r_kind),dimension(0:3),intent(out) :: dtskin
 
@@ -80,15 +80,15 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
   real(r_kind):: sno00,sno01,sno10,sno11
 
 
-  m1=mype+1
+  m1=mype+ione
 
 ! Set spatial interpolation indices and weights
   ix1=dx
-  ix1=max(1,min(ix1,nlat))
+  ix1=max(ione,min(ix1,nlat))
   delx=dx-ix1
   delx=max(zero,min(delx,one))
-  ix=ix1-istart(m1)+2
-  ixp=ix+1
+  ix=ix1-istart(m1)+2_i_kind
+  ixp=ix+ione
   if(ix1==nlat) then
      ixp=ix
   end if
@@ -96,16 +96,16 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
 
   iy1=dy
   dely=dy-iy1
-  iy=iy1-jstart(m1)+2
-  if(iy<1) then
+  iy=iy1-jstart(m1)+2_i_kind
+  if(iy<ione) then
      iy1=iy1+nlon
-     iy=iy1-jstart(m1)+2
+     iy=iy1-jstart(m1)+2_i_kind
   end if
-  if(iy>lon1+1) then
+  if(iy>lon1+ione) then
      iy1=iy1-nlon
-     iy=iy1-jstart(m1)+2
+     iy=iy1-jstart(m1)+2_i_kind
   end if
-  iyp=iy+1
+  iyp=iy+ione
   dely1=one-dely
 
   w00=delx1*dely1; w10=delx*dely1; w01=delx1*dely; w11=delx*dely
@@ -117,16 +117,16 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
 
 ! Get time interpolation factors for sigma files
   if(obstime > hrdifsig(1) .and. obstime < hrdifsig(nfldsig))then
-     do j=1,nfldsig-1
-        if(obstime > hrdifsig(j) .and. obstime <= hrdifsig(j+1))then
+     do j=1,nfldsig-ione
+        if(obstime > hrdifsig(j) .and. obstime <= hrdifsig(j+ione))then
            itsig=j
-           itsigp=j+1
-           dtsig=((hrdifsig(j+1)-obstime)/(hrdifsig(j+1)-hrdifsig(j)))
+           itsigp=j+ione
+           dtsig=((hrdifsig(j+ione)-obstime)/(hrdifsig(j+ione)-hrdifsig(j)))
         end if
      end do
   else if(obstime <=hrdifsig(1))then
-     itsig=1
-     itsigp=1
+     itsig=ione
+     itsigp=ione
      dtsig=one
   else
      itsig=nfldsig
@@ -137,16 +137,16 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
 
 ! Get time interpolation factors for surface files
   if(obstime > hrdifsfc(1) .and. obstime < hrdifsfc(nfldsfc))then
-     do j=1,nfldsfc-1
-        if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+1))then
+     do j=1,nfldsfc-ione
+        if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+ione))then
            itsfc=j
-           itsfcp=j+1
-           dtsfc=((hrdifsfc(j+1)-obstime)/(hrdifsfc(j+1)-hrdifsfc(j)))
+           itsfcp=j+ione
+           dtsfc=((hrdifsfc(j+ione)-obstime)/(hrdifsfc(j+ione)-hrdifsfc(j)))
         end if
      end do
   else if(obstime <=hrdifsfc(1))then
-     itsfc=1
-     itsfcp=1
+     itsfc=ione
+     itsfcp=ione
      dtsfc=one
   else
      itsfc=nfldsfc
@@ -164,10 +164,10 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
   sno01= sno2(ix ,iyp,itsfc)*dtsfc+sno2(ix ,iyp,itsfcp)*dtsfcp
   sno10= sno2(ixp,iy ,itsfc)*dtsfc+sno2(ixp,iy ,itsfcp)*dtsfcp
   sno11= sno2(ixp,iyp,itsfc)*dtsfc+sno2(ixp,iyp,itsfcp)*dtsfcp
-  if(istyp00 >= 1 .and. sno00 > minsnow)istyp00 = 3
-  if(istyp01 >= 1 .and. sno01 > minsnow)istyp01 = 3
-  if(istyp10 >= 1 .and. sno10 > minsnow)istyp10 = 3
-  if(istyp11 >= 1 .and. sno11 > minsnow)istyp11 = 3
+  if(istyp00 >= ione .and. sno00 > minsnow)istyp00 = 3_i_kind
+  if(istyp01 >= ione .and. sno01 > minsnow)istyp01 = 3_i_kind
+  if(istyp10 >= ione .and. sno10 > minsnow)istyp10 = 3_i_kind
+  if(istyp11 >= ione .and. sno11 > minsnow)istyp11 = 3_i_kind
 
   sst00= dsfct(ix ,iy,ntguessfc) ; sst01= dsfct(ix ,iyp,ntguessfc)
   sst10= dsfct(ixp,iy,ntguessfc) ; sst11= dsfct(ixp,iyp,ntguessfc) 
@@ -176,13 +176,13 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
   dtskin(0:3)=zero
   wgtavg(0:3)=zero
 
-  if(istyp00 == 1)then
+  if(istyp00 == ione)then
      wgtavg(1) = wgtavg(1) + w00
      dtskin(1)=dtskin(1)+w00*sst00
-  else if(istyp00 == 2)then
+  else if(istyp00 == 2_i_kind)then
      wgtavg(2) = wgtavg(2) + w00
      dtskin(2)=dtskin(2)+w00*sst00
-  else if(istyp00 == 3)then
+  else if(istyp00 == 3_i_kind)then
      wgtavg(3) = wgtavg(3) + w00
      dtskin(3)=dtskin(3)+w00*sst00
   else
@@ -190,13 +190,13 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
      dtskin(0)=dtskin(0)+w00*sst00
   end if
 
-  if(istyp01 == 1)then
+  if(istyp01 == ione)then
      wgtavg(1) = wgtavg(1) + w01
      dtskin(1)=dtskin(1)+w01*sst01
-  else if(istyp01 == 2)then
+  else if(istyp01 == 2_i_kind)then
      wgtavg(2) = wgtavg(2) + w01
      dtskin(2)=dtskin(2)+w01*sst01
-  else if(istyp01 == 3)then
+  else if(istyp01 == 3_i_kind)then
      wgtavg(3) = wgtavg(3) + w01
      dtskin(3)=dtskin(3)+w01*sst01
   else
@@ -204,13 +204,13 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
      dtskin(0)=dtskin(0)+w01*sst01
   end if
 
-  if(istyp10 == 1)then
+  if(istyp10 == ione)then
      wgtavg(1) = wgtavg(1) + w10
      dtskin(1)=dtskin(1)+w10*sst10
-  else if(istyp10 == 2)then
+  else if(istyp10 == 2_i_kind)then
      wgtavg(2) = wgtavg(2) + w10
      dtskin(2)=dtskin(2)+w10*sst10
-  else if(istyp10 == 3)then
+  else if(istyp10 == 3_i_kind)then
      wgtavg(3) = wgtavg(3) + w10
      dtskin(3)=dtskin(3)+w10*sst10
   else
@@ -218,13 +218,13 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
      dtskin(0)=dtskin(0)+w10*sst10
   end if
 
-  if(istyp11 == 1)then
+  if(istyp11 == ione)then
      wgtavg(1) = wgtavg(1) + w11
      dtskin(1)=dtskin(1)+w11*sst11
-  else if(istyp11 == 2)then
+  else if(istyp11 == 2_i_kind)then
      wgtavg(2) = wgtavg(2) + w11
      dtskin(2)=dtskin(2)+w11*sst11
-  else if(istyp11 == 3)then
+  else if(istyp11 == 3_i_kind)then
      wgtavg(3) = wgtavg(3) + w11
      dtskin(3)=dtskin(3)+w11*sst11
   else
@@ -306,7 +306,7 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
             ges_tv(ixp,iyp,k,itsigp)*w11)*dtsigp
 
   end do
-  do k=1,nsig+1
+  do k=1,nsig+ione
     prsi(k)=(ges_prsi(ix ,iy ,k,itsig )*w00+ &
              ges_prsi(ixp,iy ,k,itsig )*w10+ &
              ges_prsi(ix ,iyp,k,itsig )*w01+ &

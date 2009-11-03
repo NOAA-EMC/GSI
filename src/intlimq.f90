@@ -3,7 +3,7 @@ module intlimqmod
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intlimqmod    module for intlimq and its tangent linear intlimq_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for intlimq and its tangent linear intlimq_tl
 !
@@ -65,7 +65,7 @@ subroutine intlimq(rq,sq)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: lat2,lon2,nsig,lat1,lon1
   use jfunc, only: factqmin,factqmax,qgues,qsatg
   implicit none
@@ -81,8 +81,8 @@ subroutine intlimq(rq,sq)
   if (factqmin==zero .and. factqmax==zero) return
  
   do k = 1,nsig
-     do j = 2,lon1+1
-        do i = 2,lat1+1
+     do j = 2,lon1+ione
+        do i = 2,lat1+ione
            q = qgues(i,j,k) + sq(i,j,k)
            
 !          Lower constraint limit

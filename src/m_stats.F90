@@ -13,6 +13,7 @@ module m_stats
 
 use kinds,only : r_kind
 use kinds,only : i_kind
+use constants, only: izero,ione,zero
 use mpimod, only: ierror,mpi_rtype,mpi_sum,mpi_max
 
 implicit none
@@ -92,11 +93,11 @@ subroutine sum_(v,vdot,vsum,vmin,vmax,vdim,add)
   if(present(add)) add_=add
 
   if(.not.add_) then
-    vdot=0.
-    vsum=0.
+    vdot=zero
+    vsum=zero
     vmin=+HUGE(vmin)
     vmax=-HUGE(vmax)
-    vdim=0
+    vdim=izero
   endif
 
   vdot = vdot + dot_product(v,v)
@@ -146,7 +147,7 @@ subroutine allreduce_(vdot,vsum,vmin,vmax,vdim,comm)
 
   call mpi_allreduce((/vdot,vsum/),bufr,size(bufr),mpi_rtype, &
   		     mpi_sum,comm,ierror)
-	if(ierror/=0) then
+	if(ierror/=izero) then
             write(6,*)'m_stats: MPI_allreduce(dot-sum)'
             call stop2(143)
         end if
@@ -155,7 +156,7 @@ subroutine allreduce_(vdot,vsum,vmin,vmax,vdim,comm)
 
   call mpi_allreduce((/-vmin,vmax/),bufr,size(bufr),mpi_rtype, &
   		     mpi_max,comm,ierror)
-	if(ierror/=0) then
+	if(ierror/=izero) then
           write(6,*)'m_stats: MPI_allreduce(min-max)'
           call stop2(144)
         end if
@@ -163,8 +164,8 @@ subroutine allreduce_(vdot,vsum,vmin,vmax,vdim,comm)
   vmax=+bufr(2)
 
   vdim_local=vdim
-  call mpi_allreduce(vdim_local,vdim,1,mpi_rtype,mpi_sum,comm,ierror)
-	if(ierror/=0) then
+  call mpi_allreduce(vdim_local,vdim,ione,mpi_rtype,mpi_sum,comm,ierror)
+	if(ierror/=izero) then
           write(6,*)'m_stats: MPI_allreduce(dim)'
           call stop2(145)
         end if

@@ -1,9 +1,8 @@
 module inttcpmod
-
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   inttcpmod    module for intps and its tangent linear intps_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for inttcp 
 !
@@ -107,42 +106,42 @@ subroutine inttcp_(tcphead,rp,sp)
      endif
 
      if(l_do_adjoint)then
-       if (lsaveobsens) then
-         grad = tcpptr%diags%obssen(jiter)
+        if (lsaveobsens) then
+          grad = tcpptr%diags%obssen(jiter)
 
-       else
-         val=val-tcpptr%res
-!        gradient of nonlinear operator
+        else
+          val=val-tcpptr%res
+!         gradient of nonlinear operator
 
-         if (nlnqc_iter .and. tcpptr%pg > tiny_r_kind .and.  &
-                              tcpptr%b  > tiny_r_kind) then
+          if (nlnqc_iter .and. tcpptr%pg > tiny_r_kind .and.  &
+                               tcpptr%b  > tiny_r_kind) then
             ps_pg=tcpptr%pg*varqc_iter
             cg_ps=cg_term/tcpptr%b                           ! b is d in Enderson
             wnotgross= one-ps_pg                            ! pg is A in Enderson
             wgross =ps_pg*cg_ps/wnotgross                   ! wgross is gama in Enderson
             p0=wgross/(wgross+exp(-half*tcpptr%err2*val**2)) ! p0 is P in Enderson
             val=val*(one-p0)                                ! term is Wqc in Enderson
-         endif
+          endif
 
-         grad     = val*tcpptr%raterr2*tcpptr%err2
-       end if
+          grad     = val*tcpptr%raterr2*tcpptr%err2
+        end if
 
-!      Adjoint
-       rp(j1)=rp(j1)+w1*grad
-       rp(j2)=rp(j2)+w2*grad
-       rp(j3)=rp(j3)+w3*grad
-       rp(j4)=rp(j4)+w4*grad
-  
-       if (l_foto) then
-         grad=grad*time_tcp
-         dhat_dt%p3d(j1)=dhat_dt%p3d(j1)+w1*grad
-         dhat_dt%p3d(j2)=dhat_dt%p3d(j2)+w2*grad
-         dhat_dt%p3d(j3)=dhat_dt%p3d(j3)+w3*grad
-         dhat_dt%p3d(j4)=dhat_dt%p3d(j4)+w4*grad
-       endif
+!       Adjoint
+        rp(j1)=rp(j1)+w1*grad
+        rp(j2)=rp(j2)+w2*grad
+        rp(j3)=rp(j3)+w3*grad
+        rp(j4)=rp(j4)+w4*grad
+   
+        if (l_foto) then
+          grad=grad*time_tcp
+          dhat_dt%p3d(j1)=dhat_dt%p3d(j1)+w1*grad
+          dhat_dt%p3d(j2)=dhat_dt%p3d(j2)+w2*grad
+          dhat_dt%p3d(j3)=dhat_dt%p3d(j3)+w3*grad
+          dhat_dt%p3d(j4)=dhat_dt%p3d(j4)+w4*grad
+        endif
 
-     end if
-     tcpptr => tcpptr%llpoint
+      end if
+      tcpptr => tcpptr%llpoint
   end do
   return
 end subroutine inttcp_

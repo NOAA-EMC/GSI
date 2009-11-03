@@ -3,7 +3,7 @@ module intlagmod
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intlagmod    module for intlag
-!  prgmmr:  meunier
+!   prgmmr: meunier
 !
 ! abstract: module for intlag
 !
@@ -56,7 +56,7 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,zero,izero,tiny_r_kind,cg_term,rad2deg
+  use constants, only: half,one,zero,izero,ione,tiny_r_kind,cg_term,rad2deg
   use obsmod, only: lag_ob_type, lsaveobsens, l_do_adjoint
   use qcmod, only: nlnqc_iter
   use gridmod, only: latlon1n,iglobal
@@ -73,7 +73,7 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
   implicit none
 
 ! Print level
-  integer(i_kind),parameter::iv_debug = 0
+  integer(i_kind),parameter::iv_debug = izero
 
 ! Declare passed variables
   type(lag_ob_type),pointer,intent(in):: laghead
@@ -116,19 +116,19 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
     lon_tl=lag_tl_vec(orig_lag_num(lagptr%intnum,3),obsbin,1)
     lat_tl=lag_tl_vec(orig_lag_num(lagptr%intnum,3),obsbin,2)
     p_tl  =lag_tl_vec(orig_lag_num(lagptr%intnum,3),obsbin,3)
-    if (iv_debug>=2) then 
+    if (iv_debug>=2_i_kind) then 
       print *,'TL Orig:',lon_tl*rad2deg,lat_tl*rad2deg
       print *,'SPECI',lagptr%speci
       print *,'SPECR',lagptr%specr
     end if
-    if (iv_debug>=1) then
+    if (iv_debug>=ione) then
       print *,'MAX INC U',maxval(abs(lag_u_full(:,:,obsbin)))
       print *,'MAX INC V',maxval(abs(lag_v_full(:,:,obsbin)))
     end if
     call lag_rk2iter_tl(lagptr%speci,lagptr%specr,&
       &lon_tl,lat_tl,p_tl,&
       &lag_u_full(:,:,obsbin),lag_v_full(:,:,obsbin))
-    if (iv_debug>=1) print *,'TL correction:',lon_tl*rad2deg,lat_tl*rad2deg
+    if (iv_debug>=ione) print *,'TL correction:',lon_tl*rad2deg,lat_tl*rad2deg
 
     if (lsaveobsens) then
       lagptr%diag_lon%obssen(jiter) = lon_tl*lagptr%raterr2*lagptr%err2_lon
@@ -158,7 +158,7 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
                 &exp(-half*(lagptr%err2_lon*lon_tl**2+lagptr%err2_lat*lat_tl**2)))
           lon_tl = lon_tl*(one-p0)
           lat_tl = lat_tl*(one-p0)
-          if (iv_debug>=1) print *,'Do nlnqc_iter'
+          if (iv_debug>=ione) print *,'Do nlnqc_iter'
         end if
 
         grad_lon = lon_tl*lagptr%raterr2*lagptr%err2_lon
@@ -166,7 +166,7 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
         grad_p   = zero
       endif
 
-      if (iv_debug>=2) then
+      if (iv_debug>=2_i_kind) then
         print *,'Residual a. cor:',lon_tl*rad2deg,lat_tl*rad2deg
         print *,'R application  :',grad_lon*rad2deg,grad_lat*rad2deg
       end if
@@ -183,8 +183,8 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
       if (iv_debug>=2) then
         do i=1,iglobal
           do j=1,lag_kcount
-            if (adu_tmp(i,j)/=0) print *,'IntLag Mype',mype,'GradU',adu_tmp(i,j)
-            if (adv_tmp(i,j)/=0) print *,'IntLag Mype',mype,'GradV',adv_tmp(i,j)
+            if (adu_tmp(i,j)/=zero) print *,'IntLag Mype',mype,'GradU',adu_tmp(i,j)
+            if (adv_tmp(i,j)/=zero) print *,'IntLag Mype',mype,'GradV',adv_tmp(i,j)
           end do
         end do
       end if

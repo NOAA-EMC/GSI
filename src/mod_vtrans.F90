@@ -16,10 +16,15 @@ module mod_vtrans
 !   sub init_vtrans              - initialize vertical mode related variables
 !   sub create_vtrans            - allocate and load vert mode variables
 !   sub destroy_vtrans           - deallocate vert mode variables
-!   sub vtrans                   - vert transformed u,v,phi --> physical space u,v,T,p
+!   sub getabc                   -
 !   sub vtrans_inv               - physical space u,v,T,p --> vert transformed u,v,phi
-!   sub vtrans_ad                - adjoint of vtrans
 !   sub vtrans_inv_ad            - adjoint of vtrans_inv
+!   sub vtrans                   - vert transformed u,v,phi --> physical space u,v,T,p
+!   sub vtrans_ad                - adjoint of vtrans
+!   sub vtrans2                  -
+!   sub vtrans2_inv              -
+!   sub vtrans2_ad               -
+!   sub vtrans2_inv_ad           -
 !
 ! Variable Definitions:
 !   def nvmodes_keep             - number of vertical modes to keep ( <= nsig )
@@ -46,6 +51,24 @@ module mod_vtrans
   real(r_kind),dimension(:),allocatable:: hmatsave,smatsave
   real(r_kind),dimension(:,:),allocatable:: amatsave,bmatsave
 
+! set default to private
+  private
+! set subroutines to public
+  public :: init_vtrans
+  public :: create_vtrans
+  public :: destroy_vtrans
+  public :: getabc
+  public :: vtrans_inv
+  public :: vtrans_inv_ad
+  public :: vtrans
+  public :: vtrans_ad
+  public :: vtrans2
+  public :: vtrans2_inv
+  public :: vtrans2_ad
+  public :: vtrans2_inv_ad
+! set passed variables to public
+  public :: nvmodes_keep,depths,speeds
+
 contains
 
   subroutine init_vtrans
@@ -68,9 +91,10 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+    use constants, only: izero
     implicit none
 
-    nvmodes_keep=0
+    nvmodes_keep=izero
 
   end subroutine init_vtrans
 
@@ -154,7 +178,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-    use constants,only: zero,half,one,quarter,one_tenth
+    use constants,only: izero,ione,zero,half,one,quarter,one_tenth
     use gridmod,only: lat2,lon2,nsig,&
          nlat,nlon,lat1,lon1,&
          ltosi,ltosj,iglobal,ijn,displs_g
@@ -171,13 +195,13 @@ contains
     integer(i_kind) i,j,k,n,kk,mm1
     real(r_kind) count,factor
     real(r_kind) psbar
-    real(r_kind),dimension(nsig+1)::pbar
+    real(r_kind),dimension(nsig+ione)::pbar
     real(r_kind),dimension(nsig)::tbar
-    real(r_kind),dimension(nsig+1)::ahat,bhat,chat
+    real(r_kind),dimension(nsig+ione)::ahat,bhat,chat
     real(r_kind),dimension(nsig)::hmat,smat
     real(r_kind),dimension(nsig,nsig)::amat,bmat,qmat,qmatinv
-    real(8) www(2,nsig),zzz(2,nsig,nsig)
-    real(8) wwwd(2,nsig),zzzd(2,nsig,nsig)
+    real(r_kind) www(2,nsig),zzz(2,nsig,nsig)
+    real(r_kind) wwwd(2,nsig),zzzd(2,nsig,nsig)
     integer(i_kind) info
     real(r_kind) factord,sum,errormax
     real(r_kind) bqmatinv(nsig,nsig),sqmatinv(nsig)
@@ -214,12 +238,12 @@ contains
     count=one/float(nlat*nlon)
 
 !   psbar:
-    mm1=mype+1
+    mm1=mype+ione
     do j=1,lon1*lat1
       zsm(j)=zero
     end do
 
-    call strip(ps,zsm,1)
+    call strip(ps,zsm,ione)
 
     call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
        work1,ijn,displs_g,mpi_rtype,&
@@ -237,7 +261,7 @@ contains
       end do
     end do
     psbar=ten*count*psbar
-    do k=1,nsig+1
+    do k=1,nsig+ione
       pbar(k)=ahat(k)+bhat(k)*psbar     !  + chat(k)*(T/T0)**(1/kappa)   --- add later
     end do
 
@@ -247,7 +271,7 @@ contains
         zsm(j)=zero
       end do
 
-      call strip(ges_tv(1,1,k,ntguessig),zsm,1)
+      call strip(ges_tv(1,1,k,ntguessig),zsm,ione)
 
       call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
          work1,ijn,displs_g,mpi_rtype,&
@@ -269,11 +293,11 @@ contains
       tbar(k)=count*tbar(k)
     end do
   
-    if(mype.eq.0) then
+    if(mype==izero) then
       do k=1,nsig
         write(6,'(" k,pbar,tbar = ",i5,2f15.2)')k,pbar(k),tbar(k)
       end do
-      k=nsig+1
+      k=nsig+ione
       write(6,'(" k,pbar      = ",i5,f15.2)')k,pbar(k)
     end if
 
@@ -298,28 +322,28 @@ contains
 
     call dgeevx(nsig,qmat,size(qmat,1),www,wwwd,zzz,size(zzz,2),zzzd,size(zzzd,2),info,mype)
 
-    if (mype ==0) write (6,*) ' AFTER CALL DGEEV', 'status: info =  ', info
+    if (mype ==izero) write (6,*) ' AFTER CALL DGEEV', 'status: info =  ', info
 
 ! checks and print out eigenvalues
 !
     do k=1,nsig
-      if(mype.eq.0) write(6,*)' c,eigenvalue(',k,') = ',(www(1,k)**2+www(2,k)**2)**quarter,www(1,k),www(2,k)
+      if(mype==izero) write(6,*)' c,eigenvalue(',k,') = ',(www(1,k)**2+www(2,k)**2)**quarter,www(1,k),www(2,k)
     end do
 
     do k=1,nsig
-      if(mype.eq.0) write(6,'(" p, eigvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+1)),zzz(1,k,1:4)
+      if(mype==izero) write(6,'(" p, eigvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+ione)),zzz(1,k,1:4)
     end do
 
     do k=1,nsig
-      if(k.le.nvmodes_keep) then
+      if(k<=nvmodes_keep) then
         depths(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**half
         speeds(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**quarter
       end if
-      if(mype.eq.0) write(6,*)' c,eigenvalue(',k,') = ',(wwwd(1,k)**2+wwwd(2,k)**2)**quarter,wwwd(1,k),wwwd(2,k)
+      if(mype==izero) write(6,*)' c,eigenvalue(',k,') = ',(wwwd(1,k)**2+wwwd(2,k)**2)**quarter,wwwd(1,k),wwwd(2,k)
     end do
 
     do k=1,nsig
-      if(mype.eq.0) write(6,'(" p, dualvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+1)),zzzd(1,k,1:4)
+      if(mype==izero) write(6,'(" p, dualvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+ione)),zzzd(1,k,1:4)
     end do
 
 !  normalize and check for biorthogonality
@@ -331,7 +355,7 @@ contains
       end do
       factor=one/sqrt(abs(sum))
       factord=factor
-      if(sum.lt.zero) factord=-factor
+      if(sum<zero) factord=-factor
       do i=1,nsig
         zzz(1,i,j)=factor*zzz(1,i,j)
         zzzd(1,i,j)=factord*zzzd(1,i,j)
@@ -351,14 +375,14 @@ contains
     do j=1,nsig
       do i=1,nsig
         sum=zero
-        if(i.eq.j) sum=-one
+        if(i==j) sum=-one
         do k=1,nsig
           sum=sum+zzz(1,k,i)*zzzd(1,k,j)
         end do
         errormax=max(abs(sum),errormax)
       end do
     end do
-    if(mype.eq.0) write(6,*)' biorthonormal error = ',errormax
+    if(mype==izero) write(6,*)' biorthonormal error = ',errormax
 
 !   now get inverse of Q, using eigenvector/value decomposition
 
@@ -377,14 +401,14 @@ contains
     do j=1,nsig
       do i=1,nsig
         sum=zero
-        if(i.eq.j) sum=-one
+        if(i==j) sum=-one
         do k=1,nsig
           sum=sum+qmat(i,k)*qmatinv(k,j)
         end do
         errormax=max(abs(sum),errormax)
       end do
     end do
-       if(mype.eq.0) write(6,*)' error in qmatinv =',errormax
+    if(mype==izero) write(6,*)' error in qmatinv =',errormax
 
 !   next compute p2phihat and t2phihat
 
@@ -435,7 +459,7 @@ contains
 
 !      print out phihat2t
 
-    if(mype.eq.0) then
+    if(mype==izero) then
       write(6,*)' phihat2p = ',phihat2p(1:min(4,nvmodes_keep))
       do i=1,nsig
         write(6,*)' i,phihat2t=',i,phihat2t(i,1:min(4,nvmodes_keep))
@@ -497,25 +521,25 @@ contains
 !     chat       -
 !
 !$$$ end documentation block
-    use constants,only: zero
+    use constants,only: ione,zero
     use gridmod,only: nsig,ak5,bk5,ck5
     use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll
     implicit none
 
 !   Declare passed variables
-    real(r_kind),dimension(nsig+1),intent(out):: ahat,bhat,chat
+    real(r_kind),dimension(nsig+ione),intent(out):: ahat,bhat,chat
 
 !   Declare local variables
     integer(i_kind) k
 
     if(wrf_nmm_regional.or.nems_nmmb_regional) then
-      do k=1,nsig+1
+      do k=1,nsig+ione
         ahat(k)=eta1_ll(k)*pdtop_ll-eta2_ll(k)*(pdtop_ll+pt_ll)+pt_ll
         bhat(k)=eta2_ll(k)
         chat(k)=zero
       end do
     else
-      do k=1,nsig+1
+      do k=1,nsig+ione
         ahat(k)=ak5(k)*10
         bhat(k)=bk5(k)
         chat(k)=ck5(k)*10
@@ -661,7 +685,7 @@ contains
 !$$$ end documentation block
 
     use gridmod,only: lat2,lon2,nsig
-    use constants,only: zero
+    use constants,only: ione,zero
     implicit none
 
     real(r_kind),dimension(lat2,lon2,nsig),intent(in):: u,v,t
@@ -674,14 +698,14 @@ contains
     integer(i_kind) :: nth,tid,omp_get_num_threads,omp_get_thread_num
 #endif
 
-    jstart=1
+    jstart=ione
     jstop=lon2
 
 !$omp parallel private(nth,tid,i,j,k,n,jstart,jstop)
 #ifdef ibm_sp
     nth = omp_get_num_threads()
     tid = omp_get_thread_num()
-    call looplimits(tid, nth, 1, lon2, jstart, jstop)
+    call looplimits(tid, nth, ione, lon2, jstart, jstop)
 #endif
 
     do n=1,nvmodes_keep

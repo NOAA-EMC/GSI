@@ -3,7 +3,7 @@ module intgpsmod
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intrefmod    module for intref and its tangent linear intref_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for intref and its tangent linear intref_tl
 !
@@ -158,7 +158,7 @@ subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
     endif
 
 !   Do adjoint
-     if (l_do_adjoint) then
+    if (l_do_adjoint) then
 
        if (lsaveobsens) then
          grad=gpsptr%diags%obssen(jiter)

@@ -67,7 +67,6 @@ use mpimod,only: mpi_comm_world,mpi_integer,mpi_integer1,mpi_integer2,mpi_intege
               mpi_integer8,mpi_max,mpi_min,mpi_real4,mpi_real8,mpi_real16,mpi_sum
 use constants, only: izero,ione,zero,half,one,two,zero_quad,zero_single
 
-
 implicit none
 
 ! set default to private

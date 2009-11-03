@@ -3,7 +3,7 @@ module intpcpmod
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intpcpmod    module for intpcp and its tangent linear intpcp_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for intpcp and its tangent linear intpcp_tl
 !
@@ -200,42 +200,42 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
      endif
 
    if (l_do_adjoint) then
-    if (lsaveobsens) then
-      termges_ad  = pcpptr%diags%obssen(jiter)
+     if (lsaveobsens) then
+       termges_ad  = pcpptr%diags%obssen(jiter)
     
-    else
-!     Adjoint model
-      kx=pcpptr%icxp
-      if (nlnqc_iter .and. pg_pcp(kx) > tiny_r_kind .and.  &
-                           b_pcp(kx)  > tiny_r_kind) then
+     else
+!      Adjoint model
+       kx=pcpptr%icxp
+       if (nlnqc_iter .and. pg_pcp(kx) > tiny_r_kind .and.  &
+                            b_pcp(kx)  > tiny_r_kind) then
          cg_pcp=cg_term/b_pcp(kx)
          wnotgross= one-pg_pcp(kx)*varqc_iter
          wgross = varqc_iter*pg_pcp(kx)*cg_pcp/wnotgross
          p0   = wgross/(wgross+exp(-half*pcpptr%err2*obsges**2))
          obsges = obsges*(one-p0)
-      endif
+       endif
 
-      termges_ad  = obsges*pcpptr%err2*pcpptr%raterr2
-    endif
+       termges_ad  = obsges*pcpptr%err2*pcpptr%raterr2
+     endif
 
-!   Adjoint for logrithmic forumulation
-    if (ltlint) then
-      if ( pcp_ges > tinym1_obs ) then
-        pcp_ges_ad = termges_ad/(one+pcp_ges)
-      else
-        pcp_ges_ad = zero
-      endif
-    else
-      pcp_ges_ad = termges_ad/(one+pcp_cur)
-    endif
+!    Adjoint for logrithmic forumulation
+     if (ltlint) then
+       if ( pcp_ges > tinym1_obs ) then
+         pcp_ges_ad = termges_ad/(one+pcp_ges)
+       else
+         pcp_ges_ad = zero
+       endif
+     else
+       pcp_ges_ad = termges_ad/(one+pcp_cur)
+     endif
 
-!   Adjoint of pcp_ges update
+!    Adjoint of pcp_ges update
 
-    j1=pcpptr%ij(1)
-    j2=pcpptr%ij(2)
-    j3=pcpptr%ij(3)
-    j4=pcpptr%ij(4)
-    do n=1,nsig
+     j1=pcpptr%ij(1)
+     j2=pcpptr%ij(2)
+     j3=pcpptr%ij(3)
+     j4=pcpptr%ij(4)
+     do n=1,nsig
        nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig
 
        dcwm_ad = pcpptr%dpcp_dvar(ncwm)*pcp_ges_ad
@@ -307,9 +307,9 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
        j3=j3+latlon11
        j4=j4+latlon11
             
-    end do
-   endif
-    pcpptr => pcpptr%llpoint 
+     end do
+  endif
+  pcpptr => pcpptr%llpoint 
   end do
 
   return

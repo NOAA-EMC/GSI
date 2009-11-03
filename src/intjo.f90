@@ -3,7 +3,7 @@ module intjomod
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intjo    module for intjo
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for H'R^{-1}H
 !
@@ -176,7 +176,7 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !
 !$$$
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero_quad
+use constants, only: ione,zero_quad
 use obsmod, only: obs_handle
 use jfunc, only: nrclen,nsclen,npclen,l_foto,xhat_dt
 use state_vectors
@@ -209,7 +209,7 @@ type(predictors)  , intent(inout) :: rbias
 
 ! Declare local variables
 integer(i_kind) :: i
-real(r_quad),dimension(max(1,nrclen)):: qpred
+real(r_quad),dimension(max(ione,nrclen)):: qpred
 
 !******************************************************************************
   qpred=zero_quad

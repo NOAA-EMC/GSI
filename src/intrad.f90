@@ -3,7 +3,7 @@ module intradmod
 !$$$ module documentation block
 !                .      .    .                                       .
 ! module:    intradmod    module for intrad and its tangent linear intrad_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for intrad and its tangent linear intrad_tl
 !
@@ -109,7 +109,7 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
   use gridmod, only: latlon11,latlon1n,nsig,nsig2,&
        nsig3p1,nsig3p2,nsig3p3
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: zero,half,one,tiny_r_kind,cg_term,r3600
+  use constants, only: ione,zero,half,one,tiny_r_kind,cg_term,r3600
   implicit none
 
 ! Declare passed variables
@@ -153,10 +153,10 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
      i3n(1) = j3
      i4n(1) = j4
      do k=2,nsig
-      i1n(k) = i1n(k-1)+latlon11
-      i2n(k) = i2n(k-1)+latlon11
-      i3n(k) = i3n(k-1)+latlon11
-      i4n(k) = i4n(k-1)+latlon11
+       i1n(k) = i1n(k-ione)+latlon11
+       i2n(k) = i2n(k-ione)+latlon11
+       i3n(k) = i3n(k-ione)+latlon11
+       i4n(k) = i4n(k-ione)+latlon11
      enddo
 !$omp parallel do private(k,i1,i2,i3,i4)
      do k=1,nsig
@@ -209,7 +209,7 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
 !  begin channel specific calculations
      do nn=1,radptr%nchan
         ic=radptr%icx(nn)
-        ix=(ic-1)*npred
+        ix=(ic-ione)*npred
 
 !       include observation increment and lapse rate contributions to bias correction
         val=zero
@@ -231,110 +231,110 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
         endif
 
        if (l_do_adjoint) then
-        if (lsaveobsens) then
-          val=radptr%diags(nn)%ptr%obssen(jiter)
+         if (lsaveobsens) then
+           val=radptr%diags(nn)%ptr%obssen(jiter)
 
-        else
-          val=val-radptr%res(nn)
+         else
+           val=val-radptr%res(nn)
 
-!         Multiply by variance.
-          if (nlnqc_iter .and. pg_rad(ic) > tiny_r_kind .and. &
-                               b_rad(ic)  > tiny_r_kind) then
+!          Multiply by variance.
+           if (nlnqc_iter .and. pg_rad(ic) > tiny_r_kind .and. &
+                                b_rad(ic)  > tiny_r_kind) then
              cg_rad=cg_term/b_rad(ic)
              wnotgross= one-pg_rad(ic)*varqc_iter
              wgross = varqc_iter*pg_rad(ic)*cg_rad/wnotgross
              p0   = wgross/(wgross+exp(-half*radptr%err2(nn)*val*val))
              val = val*(one-p0)
-          endif
+           endif
 
-          val = val*radptr%err2(nn)*radptr%raterr2(nn)
-        endif
+           val = val*radptr%err2(nn)*radptr%raterr2(nn)
+         endif
 
-!       Begin adjoint
+!        Begin adjoint
 
-!       Extract contributions from atmospheric jacobian
-        do k=1,nsig3p3
+!        Extract contributions from atmospheric jacobian
+         do k=1,nsig3p3
            tval(k)=tval(k)+radptr%dtb_dvar(k,nn)*val
-        end do
+         end do
 
-!       Extract contributions from bias correction terms
-!       use compensated summation
-        if(radptr%luse)then
-          do n=1,npred
+!        Extract contributions from bias correction terms
+!        use compensated summation
+         if(radptr%luse)then
+           do n=1,npred
              rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val
-          end do
-        end if
+           end do
+         end if
        endif
      end do
 
-    if (l_do_adjoint) then
+     if (l_do_adjoint) then
 !    Distribute adjoint contributions over surrounding grid points
-     ru(j1)=ru(j1)+w1*tval(nsig3p1)
-     ru(j2)=ru(j2)+w2*tval(nsig3p1)
-     ru(j3)=ru(j3)+w3*tval(nsig3p1)
-     ru(j4)=ru(j4)+w4*tval(nsig3p1)
-     rv(j1)=rv(j1)+w1*tval(nsig3p2)
-     rv(j2)=rv(j2)+w2*tval(nsig3p2)
-     rv(j3)=rv(j3)+w3*tval(nsig3p2)
-     rv(j4)=rv(j4)+w4*tval(nsig3p2)
-     if (l_foto) then
-       dhat_dt%u(j1)=dhat_dt%u(j1)+w1*tval(nsig3p1)*time_rad
-       dhat_dt%u(j2)=dhat_dt%u(j2)+w2*tval(nsig3p1)*time_rad
-       dhat_dt%u(j3)=dhat_dt%u(j3)+w3*tval(nsig3p1)*time_rad
-       dhat_dt%u(j4)=dhat_dt%u(j4)+w4*tval(nsig3p1)*time_rad
-       dhat_dt%v(j1)=dhat_dt%v(j1)+w1*tval(nsig3p2)*time_rad
-       dhat_dt%v(j2)=dhat_dt%v(j2)+w2*tval(nsig3p2)*time_rad
-       dhat_dt%v(j3)=dhat_dt%v(j3)+w3*tval(nsig3p2)*time_rad
-       dhat_dt%v(j4)=dhat_dt%v(j4)+w4*tval(nsig3p2)*time_rad
-     endif
+       ru(j1)=ru(j1)+w1*tval(nsig3p1)
+       ru(j2)=ru(j2)+w2*tval(nsig3p1)
+       ru(j3)=ru(j3)+w3*tval(nsig3p1)
+       ru(j4)=ru(j4)+w4*tval(nsig3p1)
+       rv(j1)=rv(j1)+w1*tval(nsig3p2)
+       rv(j2)=rv(j2)+w2*tval(nsig3p2)
+       rv(j3)=rv(j3)+w3*tval(nsig3p2)
+       rv(j4)=rv(j4)+w4*tval(nsig3p2)
+       if (l_foto) then
+         dhat_dt%u(j1)=dhat_dt%u(j1)+w1*tval(nsig3p1)*time_rad
+         dhat_dt%u(j2)=dhat_dt%u(j2)+w2*tval(nsig3p1)*time_rad
+         dhat_dt%u(j3)=dhat_dt%u(j3)+w3*tval(nsig3p1)*time_rad
+         dhat_dt%u(j4)=dhat_dt%u(j4)+w4*tval(nsig3p1)*time_rad
+         dhat_dt%v(j1)=dhat_dt%v(j1)+w1*tval(nsig3p2)*time_rad
+         dhat_dt%v(j2)=dhat_dt%v(j2)+w2*tval(nsig3p2)*time_rad
+         dhat_dt%v(j3)=dhat_dt%v(j3)+w3*tval(nsig3p2)*time_rad
+         dhat_dt%v(j4)=dhat_dt%v(j4)+w4*tval(nsig3p2)*time_rad
+       endif
 
-     rst(j1)=rst(j1)+w1*tval(nsig3p3)
-     rst(j2)=rst(j2)+w2*tval(nsig3p3)
-     rst(j3)=rst(j3)+w3*tval(nsig3p3)
-     rst(j4)=rst(j4)+w4*tval(nsig3p3)
+       rst(j1)=rst(j1)+w1*tval(nsig3p3)
+       rst(j2)=rst(j2)+w2*tval(nsig3p3)
+       rst(j3)=rst(j3)+w3*tval(nsig3p3)
+       rst(j4)=rst(j4)+w4*tval(nsig3p3)
 
-     do k=1,nsig
-        n_1=k+nsig
-        n_2=k+nsig2
-        i1 = i1n(k)
-        i2 = i2n(k)
-        i3 = i3n(k)
-        i4 = i4n(k)
+       do k=1,nsig
+         n_1=k+nsig
+         n_2=k+nsig2
+         i1 = i1n(k)
+         i2 = i2n(k)
+         i3 = i3n(k)
+         i4 = i4n(k)
 
-        rt(i1)=rt(i1)+w1*tval(k)
-        rt(i2)=rt(i2)+w2*tval(k)
-        rt(i3)=rt(i3)+w3*tval(k)
-        rt(i4)=rt(i4)+w4*tval(k)
-        rq(i1)=rq(i1)+w1*tval(n_1)
-        rq(i2)=rq(i2)+w2*tval(n_1)
-        rq(i3)=rq(i3)+w3*tval(n_1)
-        rq(i4)=rq(i4)+w4*tval(n_1)
-        roz(i1)=roz(i1)+w1*tval(n_2)
-        roz(i2)=roz(i2)+w2*tval(n_2)
-        roz(i3)=roz(i3)+w3*tval(n_2)
-        roz(i4)=roz(i4)+w4*tval(n_2)
-        if (l_foto) then
-          dhat_dt%t(i1)=dhat_dt%t(i1)+w1*tval(k)*time_rad
-          dhat_dt%t(i2)=dhat_dt%t(i2)+w2*tval(k)*time_rad
-          dhat_dt%t(i3)=dhat_dt%t(i3)+w3*tval(k)*time_rad
-          dhat_dt%t(i4)=dhat_dt%t(i4)+w4*tval(k)*time_rad
-          dhat_dt%q(i1)=dhat_dt%q(i1)+w1*tval(n_1)*time_rad
-          dhat_dt%q(i2)=dhat_dt%q(i2)+w2*tval(n_1)*time_rad
-          dhat_dt%q(i3)=dhat_dt%q(i3)+w3*tval(n_1)*time_rad
-          dhat_dt%q(i4)=dhat_dt%q(i4)+w4*tval(n_1)*time_rad
-          dhat_dt%oz(i1)=dhat_dt%oz(i1)+w1*tval(n_2)*time_rad
-          dhat_dt%oz(i2)=dhat_dt%oz(i2)+w2*tval(n_2)*time_rad
-          dhat_dt%oz(i3)=dhat_dt%oz(i3)+w3*tval(n_2)*time_rad
-          dhat_dt%oz(i4)=dhat_dt%oz(i4)+w4*tval(n_2)*time_rad
-        endif
+         rt(i1)=rt(i1)+w1*tval(k)
+         rt(i2)=rt(i2)+w2*tval(k)
+         rt(i3)=rt(i3)+w3*tval(k)
+         rt(i4)=rt(i4)+w4*tval(k)
+         rq(i1)=rq(i1)+w1*tval(n_1)
+         rq(i2)=rq(i2)+w2*tval(n_1)
+         rq(i3)=rq(i3)+w3*tval(n_1)
+         rq(i4)=rq(i4)+w4*tval(n_1)
+         roz(i1)=roz(i1)+w1*tval(n_2)
+         roz(i2)=roz(i2)+w2*tval(n_2)
+         roz(i3)=roz(i3)+w3*tval(n_2)
+         roz(i4)=roz(i4)+w4*tval(n_2)
+         if (l_foto) then
+           dhat_dt%t(i1)=dhat_dt%t(i1)+w1*tval(k)*time_rad
+           dhat_dt%t(i2)=dhat_dt%t(i2)+w2*tval(k)*time_rad
+           dhat_dt%t(i3)=dhat_dt%t(i3)+w3*tval(k)*time_rad
+           dhat_dt%t(i4)=dhat_dt%t(i4)+w4*tval(k)*time_rad
+           dhat_dt%q(i1)=dhat_dt%q(i1)+w1*tval(n_1)*time_rad
+           dhat_dt%q(i2)=dhat_dt%q(i2)+w2*tval(n_1)*time_rad
+           dhat_dt%q(i3)=dhat_dt%q(i3)+w3*tval(n_1)*time_rad
+           dhat_dt%q(i4)=dhat_dt%q(i4)+w4*tval(n_1)*time_rad
+           dhat_dt%oz(i1)=dhat_dt%oz(i1)+w1*tval(n_2)*time_rad
+           dhat_dt%oz(i2)=dhat_dt%oz(i2)+w2*tval(n_2)*time_rad
+           dhat_dt%oz(i3)=dhat_dt%oz(i3)+w3*tval(n_2)*time_rad
+           dhat_dt%oz(i4)=dhat_dt%oz(i4)+w4*tval(n_2)*time_rad
+         endif
 
-     end do
-    endif ! < l_do_adjoint >
+       end do
+     endif ! < l_do_adjoint >
 
-    radptr => radptr%llpoint
-  end do
+     radptr => radptr%llpoint
+   end do
 
-  return
+   return
 end subroutine intrad_
 
 end module intradmod

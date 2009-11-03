@@ -37,7 +37,7 @@ subroutine intrp2a(f,g,dx,dy,n,nlevs,mype)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: istart,jstart,lon1,lat2,lon2,nlat,nlon
-  use constants, only: zero,one
+  use constants, only: ione,zero,one
   implicit none
 
 ! Declare passed variables
@@ -50,26 +50,26 @@ subroutine intrp2a(f,g,dx,dy,n,nlevs,mype)
   integer(i_kind) mm1,k,i,ix1,iy1,ix,iy,ixp,iyp
   real(r_kind) delx,dely,delxp,delyp
 
-  mm1=mype+1
+  mm1=mype+ione
  
   do i=1,n
     ix1=int(dx(i))
     iy1=int(dy(i))
-    ix1=max(1,min(ix1,nlat))
+    ix1=max(ione,min(ix1,nlat))
     delx=dx(i)-float(ix1)
     dely=dy(i)-float(iy1)
     delx=max(zero,min(delx,one))
-    ix=ix1-istart(mm1)+2
-    iy=iy1-jstart(mm1)+2
-    if(iy<1) then
+    ix=ix1-istart(mm1)+2_i_kind
+    iy=iy1-jstart(mm1)+2_i_kind
+    if(iy<ione) then
       iy1=iy1+nlon
-      iy=iy1-jstart(mm1)+2
+      iy=iy1-jstart(mm1)+2_i_kind
     end if
-    if(iy>lon1+1) then
+    if(iy>lon1+ione) then
       iy1=iy1-nlon
-      iy=iy1-jstart(mm1)+2
+      iy=iy1-jstart(mm1)+2_i_kind
     end if
-    ixp=ix+1; iyp=iy+1
+    ixp=ix+ione; iyp=iy+ione
     if(ix1==nlat) then
       ixp=ix
     end if

@@ -3,7 +3,7 @@ module intjcpdrymod
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   intjcpdrymod    module for intlimq and its tangent linear intlimq_tl
-!  prgmmr:
+!   prgmmr:
 !
 ! abstract: module for intlimq and its tangent linear intlimq_tl
 !
@@ -64,7 +64,7 @@ contains
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: lat2,lon2,nsig
   use guess_grids, only: ges_prsi,ntguessig
   use jcmod, only: bamp_jcpdry
@@ -89,7 +89,7 @@ contains
     do j=1,lon2
       do i=1,lat2
         sqint(i,j)=sqint(i,j) + ( (sq(i,j,k)+sc(i,j,k))* &
-            (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it)) )
+            (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it)) )
       end do
     end do
   end do
@@ -109,10 +109,10 @@ contains
   call global_mean_ad(rqint,rqave,mype)
 
   do k=1,nsig
-    do j=2,lon2-1
-      do i=2,lat2-1
-        rq(i,j,k)=rq(i,j,k) + rqint(i,j)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))
-        rc(i,j,k)=rc(i,j,k) + rqint(i,j)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))
+    do j=2,lon2-ione
+      do i=2,lat2-ione
+        rq(i,j,k)=rq(i,j,k) + rqint(i,j)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it))
+        rc(i,j,k)=rc(i,j,k) + rqint(i,j)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it))
       end do
     end do
   end do

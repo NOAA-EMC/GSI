@@ -44,6 +44,14 @@ implicit none
   character(1) scheme
   real(r_kind) period_max,period_width
 
+! set default to private
+  private
+! set subroutines to public
+  public :: init_strongvars
+! set passed variables to public
+  public :: nstrong,baldiag_full,jcstrong,baldiag_inc,period_width,period_max,scheme
+  public :: jcstrong_option
+
 contains
 
 
@@ -69,12 +77,12 @@ contains
 !
 !$$$ end documentation block
 
-    use constants, only: one_tenth
+    use constants, only: izero,ione,one_tenth
     implicit none
 
     jcstrong=.false.
-    jcstrong_option=1
-    nstrong=0
+    jcstrong_option=ione
+    nstrong=izero
     period_max=1000000._r_kind
     period_width=one_tenth
     scheme='B'
