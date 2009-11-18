@@ -60,6 +60,7 @@ subroutine setuprhsall(ndata,mype)
 !   2008-12-08  todling - move 3dprs/geop-hght calculation from compute_derivate into here
 !   2009-01-17  todling - update interface to intjo
 !   2009-03-05  meunier - add call to lagragean operator
+!   2009-10-22     shen - add high_gps and high_gps_sub
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -123,6 +124,7 @@ subroutine setuprhsall(ndata,mype)
   real(r_kind),dimension(npres_print,nconvtype,5,3):: bwork,bwork1
   real(r_kind),dimension(7*nsig+100,13)::awork,awork1
   real(r_kind),dimension(max(1,nprof_gps)):: toss_gps_sub
+  real(r_kind),dimension(max(1,nprof_gps)):: high_gps_sub
   
 !******************************************************************************
 ! Initialize timer
@@ -145,6 +147,7 @@ subroutine setuprhsall(ndata,mype)
   stats_oz = zero
   nchan_total=izero
   toss_gps_sub=zero
+  high_gps_sub=zero
 
   i_ps = 1
   i_uv = 2
@@ -338,7 +341,7 @@ subroutine setuprhsall(ndata,mype)
 !      Set up GPS local refractivity data
        else if(ditype(is) == 'gps')then
           if(obstype=='gps_ref')then
-             call setupref(lunin,mype,awork(1,i_gps),nele,nobs,toss_gps_sub)
+             call setupref(lunin,mype,awork(1,i_gps),nele,nobs,toss_gps_sub,high_gps_sub)
 
 !         Set up GPS local bending angle data
           else if(obstype=='gps_bnd')then
@@ -362,7 +365,7 @@ subroutine setuprhsall(ndata,mype)
   call setupyobs
 
 ! Finalize qc and accumulate statistics for GPSRO data
-  call genstats_gps(bwork,awork(1,i_gps),toss_gps_sub,conv_diagsave,mype)
+  call genstats_gps(bwork,awork(1,i_gps),toss_gps_sub,high_gps_sub,conv_diagsave,mype)
 
   if (conv_diagsave) close(7)
 

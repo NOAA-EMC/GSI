@@ -1,4 +1,4 @@
-subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
+subroutine genstats_gps(bwork,awork,toss_gps_sub,high_gps_sub,conv_diagsave,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    genstats_gps    generate statistics for gps observations
@@ -25,6 +25,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !   2008-09-05 lueken   - merged ed's changes into q1fy09 code
 !   2008-25-08 todling  - adapt obs-binning change to GSI-May2008
 !   2009-02-05 cucurull - modify latitude range four statistics output
+!   2009-10-22     shen - add high_gps
 !
 !   input argument list:
 !     toss_gps      - array of qc'd profile heights
@@ -43,7 +44,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   use kinds, only: r_kind,i_kind,r_single
   use obsmod, only: gps_allhead,gps_allptr,nprof_gps,&
        destroy_genstats_gps,gpsptr,obs_diag
-  use gridmod, only: nsig
+  use gridmod, only: nsig,regional
   use constants, only: tiny_r_kind,half,izero,ione,wgtlim,one,two,zero,five
   use qcmod, only: npres_print,ptop,pbot
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,mpi_max
@@ -60,6 +61,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   real(r_kind),dimension(100+7*nsig),intent(inout):: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout):: bwork
   real(r_kind),dimension(max(ione,nprof_gps)),intent(in):: toss_gps_sub
+  real(r_kind),dimension(max(ione,nprof_gps)),intent(in):: high_gps_sub
 
 ! Declare local variables
   logical:: luse,muse
@@ -70,6 +72,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   real(r_kind):: wnotgross,data_ipg,data_ier,data_ib,factor,super_gps_up,rhgt
   real(r_kind),dimension(nsig,max(ione,nprof_gps),nobs_bins):: super_gps_sub,super_gps
   real(r_kind),dimension(max(ione,nprof_gps)):: toss_gps
+  real(r_kind),dimension(max(ione,nprof_gps)):: high_gps
   real(r_kind),allocatable,dimension(:,:)::rdiag
   real(r_single),allocatable,dimension(:,:)::sdiag
   character(8),allocatable,dimension(:):: cdiag
@@ -92,6 +95,13 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   call mpi_allreduce(toss_gps_sub,toss_gps,nprof_gps,mpi_rtype,mpi_max,&
        mpi_comm_world,ierror)
 
+! Reduce sub-domain and get the height of the highest observation in a profile.
+! Only effective in regional assimilation.
+  high_gps=zero
+  if (regional) then
+    call mpi_allreduce(high_gps_sub,high_gps,nprof_gps,mpi_rtype,mpi_max,&
+         mpi_comm_world,ierror)
+  endif
 
 ! Compute superobs factor on sub-domains using global QC'd profile height
   super_gps_sub=zero
@@ -246,6 +256,19 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
         endif
      endif
 
+
+!    if the highest observation in a profile below 30 km is less than 5 km,
+!    the observations in this profile would be tossed. It will set error
+!    parameter to zero.    Only effective in regional assimilation.
+
+     if (regional) then
+       if (high_gps(kprof) < five) then
+         ratio_errors = zero
+         if (associated(gpsptr)) then
+            gpsptr%raterr2 = ratio_errors **2
+         endif
+       endif
+     endif
         
 !    Compute penalty terms
      if (ratio_errors*data_ier <= tiny_r_kind) muse = .false.

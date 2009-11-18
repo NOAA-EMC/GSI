@@ -1,4 +1,4 @@
-subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
+subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,high_gps_sub)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupref    compute rhs of oi for gps refractivity
@@ -74,6 +74,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
 !                       - changed handle of tail%time
 !  2009-02-05  cucurull - update qc, obs error and refractivity operator
 !  2009-04-27  cucurull - update qc to enable GRAS and GRACE assimilation
+!  2009-10-22      shen - add regional obs error for regional GSI
+!			- add high_gps_sub
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -97,7 +99,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig,&
        ges_z,ges_tv,ges_q
   use gridmod, only: nsig
-  use gridmod, only: latlon11,get_ij
+  use gridmod, only: latlon11,get_ij,regional
   use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,quarter
   use constants, only: zero,one,two,eccentricity,semi_major_axis,&
        grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,&
@@ -128,6 +130,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   integer(i_kind),intent(in):: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig),intent(inout):: awork
   real(r_kind),dimension(max(1,nprof_gps)),intent(inout):: toss_gps_sub
+  real(r_kind),dimension(max(1,nprof_gps)),intent(inout):: high_gps_sub
 
 ! Declare local variables
 
@@ -194,6 +197,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   qcfail_stats_2=zero
   qcfail_high=zero 
   toss_gps_sub=zero
+  high_gps_sub=zero
 
 ! Allocate arrays for output to diagnostic file
   mreal=19
@@ -283,6 +287,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
      repe_gps=one
      alt=r1em3*elev
 
+     if(.not.regional) then	! for global
+
      if((data(ilate,i)>= r20).or.(data(ilate,i)<= -r20)) then
         repe_gps=-1.321_r_kind+0.341_r_kind*alt-0.005_r_kind*alt**2
 
@@ -293,6 +299,25 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
            repe_gps=-1.18_r_kind+0.058_r_kind*alt+0.025_r_kind*alt**2
         endif
      endif
+
+     else	! for regional
+
+     if((data(ilate,i)>= r20).or.(data(ilate,i)<= -r20)) then
+        if(alt > ten) then
+           repe_gps=-1.321_r_kind+0.341_r_kind*alt-0.005_r_kind*alt**2
+        else
+           repe_gps=-1.2_r_kind+0.065_r_kind*alt+0.021_r_kind*alt**2
+        endif
+     else
+        if(alt > ten) then
+           repe_gps=2.013_r_kind-0.120_r_kind*alt+0.0065_r_kind*alt**2
+        else
+           repe_gps=-1.19_r_kind+0.03_r_kind*alt+0.023_r_kind*alt**2
+        endif
+     endif
+
+     endif
+
      repe_gps=exp(repe_gps)
      repe_gps=one/abs(repe_gps) ! representativeness error
 
@@ -552,6 +577,18 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
                awork(24) = awork(24)+one                !TR
             end if
         end if
+     end if
+
+!    Get the height of the highest observation in a QC'd profile.
+!    Only effective in regional assimilation.
+
+     if (regional) then
+       if(.not.qcfail(i)) then
+       kprof = data(iprof,i)
+         if ( alt<=r30 ) then
+           high_gps_sub(kprof) = max(high_gps_sub(kprof),alt)
+         endif
+       endif
      endif
   end do
 
