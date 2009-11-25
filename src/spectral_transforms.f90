@@ -753,6 +753,10 @@ subroutine spectra_pole_scalar (field,coefs)
 !
 ! program history log:
 !   2007-05-15  errico
+!   2009-11-24  parrish -- change values of starting assoc. legendre polynomial alp0(0),alp0(1)
+!                           to be consistent with what is computed in sptranf0.
+!                          alp0(0) = sqrt(half), instead of alp0(0)=one
+!                    and   alp0(1) = sqrt(three)*alp0(0), instead of alp0(1)=sqrt(three)
 !
 !   input argument list:
 !     coefs  - spherical harmonic coefficients of scalar field
@@ -766,7 +770,7 @@ subroutine spectra_pole_scalar (field,coefs)
 !$$$
  use specmod, only: nc,jcap
  use kinds, only: r_kind,i_kind
- use constants, only: zero,one,three
+ use constants, only: zero,half,three
  use gridmod, only: nlat,nlon
   
       implicit none      
@@ -802,8 +806,8 @@ subroutine spectra_pole_scalar (field,coefs)
       enddo
 !
 !  Compute Legendre polynomials for m=0 at North Pole
-       alp0(0)=one
-       alp0(1)=dsqrt(three)
+       alp0(0)=dsqrt(half)
+       alp0(1)=dsqrt(three)*alp0(0)
        do n=2,jcap
          alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
        enddo
@@ -843,6 +847,10 @@ subroutine spectra_pole_scalar_ad (field,coefs)
 !
 ! program history log:
 !   2007-05-15  errico
+!   2009-11-24  parrish -- change values of starting assoc. legendre polynomial alp0(0),alp0(1)
+!                           to be consistent with what is computed in sptranf0.
+!                          alp0(0) = sqrt(half), instead of alp0(0)=one
+!                    and   alp0(1) = sqrt(three)*alp0(0), instead of alp0(1)=sqrt(three)
 !
 !   input argument list:
 !     field -  adjoint (dual) of field (only poles used here)
@@ -857,7 +865,7 @@ subroutine spectra_pole_scalar_ad (field,coefs)
 !$$$
  use specmod, only: nc,jcap
  use kinds, only: r_kind,i_kind
- use constants, only: zero,one,three
+ use constants, only: zero,half,three
  use gridmod, only: nlat,nlon
   
       implicit none      
@@ -895,8 +903,8 @@ subroutine spectra_pole_scalar_ad (field,coefs)
       enddo
 !
 !  Compute Legendre polynomials for m=0 at North Pole
-       alp0(0)=one
-       alp0(1)=dsqrt(three)
+       alp0(0)=dsqrt(half)
+       alp0(1)=dsqrt(three)*alp0(0)
        do n=2,jcap
          alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
        enddo
@@ -934,6 +942,9 @@ subroutine spectra_pole_wind (ufield,vfield,vort,divg)
 !
 ! program history log:
 !   2007-05-15  errico
+!   2009-11-24  parrish -- change values of starting assoc. legendre polynomial alp1(1)
+!                           to be consistent with what is computed in sptranf0.
+!                          alp1(1) = sqrt(three)/two, instead of alp1(1)=sqrt(three/two)
 !
 !   input argument list:
 !     vort  - spherical harmonic coefficients of vorticity
@@ -1030,7 +1041,7 @@ subroutine spectra_pole_wind (ufield,vfield,vort,divg)
 !
 !  Compute Legendre polynomials / cos for m=1 at North Pole
 !  This is actually limit Pn,m / abs (cos) as pole is approached 
-      alp1(1)=sqrt(three/two)
+      alp1(1)=sqrt(three)/two
       alp1(2)=dsqrt(two+three)*alp1(1)
       do n=3,jcap
         alp1(n)=(alp1(n-1)-epsi1(n-1)*alp1(n-2))/epsi1(n)
@@ -1106,6 +1117,9 @@ subroutine spectra_pole_wind_ad (ufield,vfield,vort,divg)
 !
 ! program history log:
 !   2007-05-15  errico
+!   2009-11-24  parrish -- change values of starting assoc. legendre polynomial alp1(1)
+!                           to be consistent with what is computed in sptranf0.
+!                          alp1(1) = sqrt(three)/two, instead of alp1(1)=sqrt(three/two)
 !
 !   input argument list:
 !     ufield - adjoint (dual) of u wind component field (set at poles only)
@@ -1178,7 +1192,7 @@ subroutine spectra_pole_wind_ad (ufield,vfield,vort,divg)
 !
 !  Compute Legendre polynomials / cos for m=1 at North Pole
 !  This is actually limit Pn,m / abs (cos) as pole is approached 
-      alp1(1)=sqrt(three/two)
+      alp1(1)=sqrt(three)/two
       alp1(2)=dsqrt(two+three)*alp1(1)
       do n=3,jcap
         alp1(n)=(alp1(n-1)-epsi1(n-1)*alp1(n-2))/epsi1(n)

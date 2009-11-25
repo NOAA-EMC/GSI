@@ -180,7 +180,7 @@ read_goesndr.o : read_goesndr.f90 gsi_4dvar.o constants.o gridmod.o radinfo.o sa
 read_gps.o : read_gps.f90 gridmod.o convinfo.o gsi_4dvar.o obsmod.o constants.o kinds.o 
 read_guess.o : read_guess.F90 ncepgfs_io.o constants.o gridmod.o gsi_io.o m_gsiBiases.o jfunc.o kinds.o 
 read_iasi.o : read_iasi.f90 gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
-read_l2bufr_mod.o : read_l2bufr_mod.f90 gridmod.o mpimod.o constants.o kinds.o 
+read_l2bufr_mod.o : read_l2bufr_mod.f90 obsmod.o mpimod.o constants.o kinds.o 
 read_lag.o : read_lag.F90 lag_fields.o gsi_4dvar.o convinfo.o constants.o gridmod.o kinds.o 
 read_lidar.o : read_lidar.f90 gsi_4dvar.o obsmod.o constants.o convinfo.o gridmod.o kinds.o 
 read_modsbufr.o : read_modsbufr.f90 gsi_4dvar.o obsmod.o convinfo.o gridmod.o constants.o kinds.o 

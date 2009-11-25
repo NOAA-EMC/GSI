@@ -17,6 +17,8 @@ module read_l2bufr_mod
 !   2006-05-22  parrish, fix bug which causes infinite loop when no data pass initial checks
 !   2007-10-24  parrish  add l2superob_only option
 !   2009-04-18  woollen  improve mpi_io interface with bufrlib routines
+!   2009-11-24  parrish  change time variable from regional_time (passed from gridmod) to
+!                          iadate (passed from obsmod), to prevent all radar data being tossed.
 !
 ! subroutines included:
 !   sub initialize_superob_radar - initialize superob parameters to defaults
@@ -110,7 +112,7 @@ contains
     use constants, only: zero,half,one,two,rearth,deg2rad,rad2deg
     use mpimod, only: mpi_comm_world,mpi_min,mpi_sum,mpi_real4,mpi_real8,ierror
     use mpimod, only: mpi_max,mpi_integer4
-    use gridmod,only: regional_time
+    use obsmod,only: iadate
     implicit none
 
     integer(i_kind),intent(in):: npe,mype
@@ -240,10 +242,10 @@ contains
       read (date,'(i4,3i2)') iyref,imref,idref,ihref
       if(rite) write(6,*)' create superobs only, radar file date = ',iyref,imref,idref,ihref
     else
-      iyref=regional_time(1)       !????  add mods so can be used in global mode
-      imref=regional_time(2)
-      idref=regional_time(3)
-      ihref=regional_time(4)
+      iyref=iadate(1)              !????  add mods so can be used in global mode
+      imref=iadate(2)
+      idref=iadate(3)
+      ihref=iadate(4)
       if(rite) write(6,*)' using restart file date = ',iyref,imref,idref,ihref
     end if
     if(rite) write(6,*)'RADAR_BUFR_READ_ALL: analysis time is ',iyref,imref,idref,ihref
