@@ -28,7 +28,7 @@ PUBLIC stpq
 
 contains
 
-subroutine stpq(qhead,rq,sq,out,sges)
+subroutine stpq(qhead,rq,sq,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpq        calcuate penalty and stepsize from q
@@ -59,15 +59,11 @@ subroutine stpq(qhead,rq,sq,out,sges)
 !     qhead
 !     rq       - search direction for q
 !     sq       - analysis increment for q
-!     sges     - stepsize estimates (4)
+!     sges     - stepsize estimates (nstep)
+!     nstep    - number of stepsize estimates (== 0 means use outer iteration values)
 !
 !   output argument list:
-!     out(1)   - contribution of penalty from q sges(1)
-!     out(2)   - contribution of penalty from q sges(2)
-!     out(3)   - contribution of penalty from q sges(3)
-!     out(4)   - contribution of penalty from q sges(4)
-!     out(5)   - pen(sges1)-pen(sges2)
-!     out(6)   - pen(sges3)-pen(sges2)
+!     out(1:nstep)   - contribution of penalty from q sges(1:nstep)
 !
 ! attributes:
 !   language: f90
@@ -84,68 +80,64 @@ subroutine stpq(qhead,rq,sq,out,sges)
 
 ! Declare passed variables
   type(q_ob_type),pointer,intent(in):: qhead
-  real(r_quad),dimension(6),intent(out):: out
+  integer(i_kind),intent(in)::nstep
+  real(r_quad),dimension(max(1,nstep)),intent(out):: out
   real(r_kind),dimension(latlon1n),intent(in):: rq,sq
-  real(r_kind),dimension(4),intent(in):: sges
+  real(r_kind),dimension(max(1,nstep)),intent(in):: sges
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
-  real(r_kind) cg_q,pen1,pen2,pen3,pencur,q0,q1,q2,q3,val,val2,wgross,wnotgross,q_pg
-  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_q
-  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
+  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
+  real(r_kind) cg_q,val,val2,wgross,wnotgross,q_pg
+  real(r_kind),dimension(max(1,nstep))::pen
+  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_q,qq
   type(q_ob_type), pointer :: qptr
 
   out=zero_quad
-  alpha=one/(sges(3)-sges(2))
-  ccoef=half*alpha*alpha
-  bcoef1=half*half*alpha
-  bcoef2=sges(3)*ccoef
 
   qptr => qhead
   do while (associated(qptr))
     if(qptr%luse)then
-     j1=qptr%ij(1)
-     j2=qptr%ij(2)
-     j3=qptr%ij(3)
-     j4=qptr%ij(4)
-     j5=qptr%ij(5)
-     j6=qptr%ij(6)
-     j7=qptr%ij(7)
-     j8=qptr%ij(8)
-     w1=qptr%wij(1)
-     w2=qptr%wij(2)
-     w3=qptr%wij(3)
-     w4=qptr%wij(4)
-     w5=qptr%wij(5)
-     w6=qptr%wij(6)
-     w7=qptr%wij(7)
-     w8=qptr%wij(8)
+     if(nstep > 0)then
+       j1=qptr%ij(1)
+       j2=qptr%ij(2)
+       j3=qptr%ij(3)
+       j4=qptr%ij(4)
+       j5=qptr%ij(5)
+       j6=qptr%ij(6)
+       j7=qptr%ij(7)
+       j8=qptr%ij(8)
+       w1=qptr%wij(1)
+       w2=qptr%wij(2)
+       w3=qptr%wij(3)
+       w4=qptr%wij(4)
+       w5=qptr%wij(5)
+       w6=qptr%wij(6)
+       w7=qptr%wij(7)
+       w8=qptr%wij(8)
 
 
-     val= w1* rq(j1)+w2* rq(j2)+w3* rq(j3)+w4* rq(j4)+ &
-          w5* rq(j5)+w6* rq(j6)+w7* rq(j7)+w8* rq(j8)
-     val2=w1* sq(j1)+w2* sq(j2)+w3* sq(j3)+w4* sq(j4)+ &
-          w5* sq(j5)+w6* sq(j6)+w7* sq(j7)+w8* sq(j8)-qptr%res
-     if(l_foto)then
-        time_q=qptr%time*r3600
-        val =val +(w1*dhat_dt%q(j1)+w2*dhat_dt%q(j2)+ &
-                   w3*dhat_dt%q(j3)+w4*dhat_dt%q(j4)+ &
-                   w5*dhat_dt%q(j5)+w6*dhat_dt%q(j6)+ &
-                   w7*dhat_dt%q(j7)+w8*dhat_dt%q(j8))*time_q
-        val2=val2+(w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
-                   w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4)+ &
-                   w5*xhat_dt%q(j5)+w6*xhat_dt%q(j6)+ &
-                   w7*xhat_dt%q(j7)+w8*xhat_dt%q(j8))*time_q
+       val= w1* rq(j1)+w2* rq(j2)+w3* rq(j3)+w4* rq(j4)+ &
+            w5* rq(j5)+w6* rq(j6)+w7* rq(j7)+w8* rq(j8)
+       val2=w1* sq(j1)+w2* sq(j2)+w3* sq(j3)+w4* sq(j4)+ &
+            w5* sq(j5)+w6* sq(j6)+w7* sq(j7)+w8* sq(j8)-qptr%res
+       if(l_foto)then
+          time_q=qptr%time*r3600
+          val =val +(w1*dhat_dt%q(j1)+w2*dhat_dt%q(j2)+ &
+                     w3*dhat_dt%q(j3)+w4*dhat_dt%q(j4)+ &
+                     w5*dhat_dt%q(j5)+w6*dhat_dt%q(j6)+ &
+                     w7*dhat_dt%q(j7)+w8*dhat_dt%q(j8))*time_q
+          val2=val2+(w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
+                     w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4)+ &
+                     w5*xhat_dt%q(j5)+w6*xhat_dt%q(j6)+ &
+                     w7*xhat_dt%q(j7)+w8*xhat_dt%q(j8))*time_q
+       end if
+       do kk=1,nstep
+         qq=val2+sges(kk)*val
+         pen(kk)=qq*qq*qptr%err2
+       end do
+     else
+       pen(1)=qptr%res*qptr%res*qptr%err2
      end if
-     q0=val2+sges(1)*val
-     q1=val2+sges(2)*val
-     q2=val2+sges(3)*val
-     q3=val2+sges(4)*val
-
-     pencur = q0*q0*qptr%err2
-     pen1   = q1*q1*qptr%err2
-     pen2   = q2*q2*qptr%err2
-     pen3   = q3*q3*qptr%err2
 
 !  Modify penalty term if nonlinear QC
 
@@ -155,19 +147,15 @@ subroutine stpq(qhead,rq,sq,out,sges)
         cg_q=cg_term/qptr%b
         wnotgross= one-q_pg
         wgross = q_pg*cg_q/wnotgross
-        pencur = -two*log((exp(-half*pencur)+wgross)/(one+wgross))
-        pen1   = -two*log((exp(-half*pen1  )+wgross)/(one+wgross))
-        pen2   = -two*log((exp(-half*pen2  )+wgross)/(one+wgross))
-        pen3   = -two*log((exp(-half*pen3  )+wgross)/(one+wgross))
+        do kk=1,max(1,nstep)
+          pen(kk)= -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
+        end do
      endif
      
-     out(1) = out(1)+pencur*qptr%raterr2
-     out(2) = out(2)+pen1  *qptr%raterr2
-     out(3) = out(3)+pen2  *qptr%raterr2
-     out(4) = out(4)+pen3  *qptr%raterr2
-     cc     = (pen1+pen3-two*pen2)*qptr%raterr2
-     out(5) = out(5)+(pen1-pen3)*qptr%raterr2*bcoef1+cc*bcoef2
-     out(6) = out(6)+cc*ccoef
+     out(1) = out(1)+pen(1)*qptr%raterr2
+     do kk=2,nstep
+       out(kk) = out(kk)+(pen(kk)-pen(1))*qptr%raterr2
+     end do
     end if
 
     qptr => qptr%llpoint

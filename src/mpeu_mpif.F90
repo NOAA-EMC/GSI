@@ -29,6 +29,7 @@
 	  implicit none
 	  private	! except
 
+	  public :: MPI_INTEGER1
 	  public :: MPI_INTEGER2
 	  public :: MPI_INTEGER4
 	  public :: MPI_INTEGER8

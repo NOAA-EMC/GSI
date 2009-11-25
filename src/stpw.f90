@@ -29,7 +29,7 @@ PUBLIC stpw
 
 contains
 
-subroutine stpw(whead,ru,rv,su,sv,out,sges)
+subroutine stpw(whead,ru,rv,su,sv,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpw        calculate penalty and contribution to stepsize
@@ -64,15 +64,11 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges)
 !     rv       - search direction for v
 !     su       - analysis increment for u
 !     sv       - analysis increment for v
-!     sges     - step size estimates  (4)
+!     sges     - step size estimates  (nstep)
+!     nstep    - number of step sizes ( if == 0 use outer iteration value)
 !
 !   output argument list  
-!     out(1)   - current penalty using sges(1)
-!     out(2)   - current penalty using sges(2)
-!     out(3)   - current penalty using sges(3)
-!     out(4)   - current penalty using sges(4)
-!     out(5)   - contribution to numerator for winds
-!     out(6)   - contribution to denomonator for winds
+!     out(1:nstep)   - current penalty using sges(1:nstep)
 !
 ! attributes:
 !   language: f90
@@ -89,87 +85,81 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges)
 
 ! Declare passed variables
   type(w_ob_type),pointer,intent(in):: whead
-  real(r_quad),dimension(6),intent(inout):: out
+  integer(i_kind),intent(in):: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout):: out
   real(r_kind),dimension(latlon1n),intent(in):: ru,rv,su,sv
-  real(r_kind),dimension(4),intent(in):: sges
+  real(r_kind),dimension(max(1,nstep)),intent(in):: sges
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
+  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
   real(r_kind) valu,facu,valv,facv,w1,w2,w3,w4,w5,w6,w7,w8,time_w
-  real(r_kind) cg_w,pen1,pen2,pen3,pencur,u1,u2,u3,v1,v2,v3,wgross,wnotgross,w_pg
-  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,u0,v0
+  real(r_kind) cg_w,wgross,wnotgross,w_pg
+  real(r_kind) uu,vv
+  real(r_kind),dimension(max(1,nstep))::pen
   type(w_ob_type), pointer :: wptr
 
   out=zero_quad
-  alpha=one/(sges(3)-sges(2))
-  ccoef=half*alpha*alpha
-  bcoef1=half*half*alpha
-  bcoef2=sges(3)*ccoef
 
   wptr => whead
   do while (associated(wptr))
     if(wptr%luse)then
-     j1=wptr%ij(1)
-     j2=wptr%ij(2)
-     j3=wptr%ij(3)
-     j4=wptr%ij(4)
-     j5=wptr%ij(5)
-     j6=wptr%ij(6)
-     j7=wptr%ij(7)
-     j8=wptr%ij(8)
-     w1=wptr%wij(1)
-     w2=wptr%wij(2)
-     w3=wptr%wij(3)
-     w4=wptr%wij(4)
-     w5=wptr%wij(5)
-     w6=wptr%wij(6)
-     w7=wptr%wij(7)
-     w8=wptr%wij(8)
+     if(nstep > 0)then
+       j1=wptr%ij(1)
+       j2=wptr%ij(2)
+       j3=wptr%ij(3)
+       j4=wptr%ij(4)
+       j5=wptr%ij(5)
+       j6=wptr%ij(6)
+       j7=wptr%ij(7)
+       j8=wptr%ij(8)
+       w1=wptr%wij(1)
+       w2=wptr%wij(2)
+       w3=wptr%wij(3)
+       w4=wptr%wij(4)
+       w5=wptr%wij(5)
+       w6=wptr%wij(6)
+       w7=wptr%wij(7)
+       w8=wptr%wij(8)
 
-     valu=w1* ru(j1)+w2* ru(j2)+w3* ru(j3)+w4* ru(j4) &
-         +w5* ru(j5)+w6* ru(j6)+w7* ru(j7)+w8* ru(j8)  
+       valu=w1* ru(j1)+w2* ru(j2)+w3* ru(j3)+w4* ru(j4) &
+           +w5* ru(j5)+w6* ru(j6)+w7* ru(j7)+w8* ru(j8)  
 
-     facu=w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4) &
-         +w5* su(j5)+w6* su(j6)+w7* su(j7)+w8* su(j8) - wptr%ures
+       facu=w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4) &
+           +w5* su(j5)+w6* su(j6)+w7* su(j7)+w8* su(j8) - wptr%ures
 
-     valv=w1* rv(j1)+w2* rv(j2)+w3* rv(j3)+w4* rv(j4) &
-         +w5* rv(j5)+w6* rv(j6)+w7* rv(j7)+w8* rv(j8)  
+       valv=w1* rv(j1)+w2* rv(j2)+w3* rv(j3)+w4* rv(j4) &
+           +w5* rv(j5)+w6* rv(j6)+w7* rv(j7)+w8* rv(j8)  
 
-     facv=w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4) &
-         +w5* sv(j5)+w6* sv(j6)+w7* sv(j7)+w8* sv(j8) - wptr%vres
-     if(l_foto) then
-       time_w=wptr%time*r3600
-       valu=valu+(w1*dhat_dt%u(j1)+w2*dhat_dt%u(j2)+ &
-                  w3*dhat_dt%u(j3)+w4*dhat_dt%u(j4)+ &
-                  w5*dhat_dt%u(j5)+w6*dhat_dt%u(j6)+ &
-                  w7*dhat_dt%u(j7)+w8*dhat_dt%u(j8))*time_w
-       facu=facu+(w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-                  w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4)+ &
-                  w5*xhat_dt%u(j5)+w6*xhat_dt%u(j6)+ &
-                  w7*xhat_dt%u(j7)+w8*xhat_dt%u(j8))*time_w 
-       valv=valv+(w1*dhat_dt%v(j1)+w2*dhat_dt%v(j2)+ &
-                  w3*dhat_dt%v(j3)+w4*dhat_dt%v(j4)+ &
-                  w5*dhat_dt%v(j5)+w6*dhat_dt%v(j6)+ &
-                  w7*dhat_dt%v(j7)+w8*dhat_dt%v(j8))*time_w
-       facv=facv+(w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-                  w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4)+ &
-                  w5*xhat_dt%v(j5)+w6*xhat_dt%v(j6)+ &
-                  w7*xhat_dt%v(j7)+w8*xhat_dt%v(j8))*time_w 
-     end if
+       facv=w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4) &
+           +w5* sv(j5)+w6* sv(j6)+w7* sv(j7)+w8* sv(j8) - wptr%vres
+       if(l_foto) then
+         time_w=wptr%time*r3600
+         valu=valu+(w1*dhat_dt%u(j1)+w2*dhat_dt%u(j2)+ &
+                    w3*dhat_dt%u(j3)+w4*dhat_dt%u(j4)+ &
+                    w5*dhat_dt%u(j5)+w6*dhat_dt%u(j6)+ &
+                    w7*dhat_dt%u(j7)+w8*dhat_dt%u(j8))*time_w
+         facu=facu+(w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
+                    w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4)+ &
+                    w5*xhat_dt%u(j5)+w6*xhat_dt%u(j6)+ &
+                    w7*xhat_dt%u(j7)+w8*xhat_dt%u(j8))*time_w 
+         valv=valv+(w1*dhat_dt%v(j1)+w2*dhat_dt%v(j2)+ &
+                    w3*dhat_dt%v(j3)+w4*dhat_dt%v(j4)+ &
+                    w5*dhat_dt%v(j5)+w6*dhat_dt%v(j6)+ &
+                    w7*dhat_dt%v(j7)+w8*dhat_dt%v(j8))*time_w
+         facv=facv+(w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
+                    w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4)+ &
+                    w5*xhat_dt%v(j5)+w6*xhat_dt%v(j6)+ &
+                    w7*xhat_dt%v(j7)+w8*xhat_dt%v(j8))*time_w 
+       end if
      
-     u0=facu+sges(1)*valu
-     u1=facu+sges(2)*valu
-     u2=facu+sges(3)*valu
-     u3=facu+sges(4)*valu
-     v0=facv+sges(1)*valv
-     v1=facv+sges(2)*valv
-     v2=facv+sges(3)*valv
-     v3=facv+sges(4)*valv
-
-     pencur = (u0*u0+v0*v0)*wptr%err2
-     pen1   = (u1*u1+v1*v1)*wptr%err2
-     pen2   = (u2*u2+v2*v2)*wptr%err2
-     pen3   = (u3*u3+v3*v3)*wptr%err2
+       do kk=1,nstep
+         uu=facu+sges(kk)*valu
+         vv=facv+sges(kk)*valv
+         pen(kk)= (uu*uu+vv*vv)*wptr%err2
+       end do
+     else
+       pen(1)= (wptr%ures*wptr%ures+wptr%vres*wptr%vres)*wptr%err2
+     end if
 
 !  Modify penalty term if nonlinear QC
 
@@ -179,19 +169,15 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges)
         cg_w=cg_term/wptr%b
         wnotgross= one-w_pg
         wgross =w_pg*cg_w/wnotgross
-        pencur = -two*log((exp(-half*pencur)+wgross)/(one+wgross))
-        pen1   = -two*log((exp(-half*pen1  )+wgross)/(one+wgross))
-        pen2   = -two*log((exp(-half*pen2  )+wgross)/(one+wgross))
-        pen3   = -two*log((exp(-half*pen3  )+wgross)/(one+wgross))
+        do kk=1,max(1,nstep)
+          pen(kk)= -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
+        end do
      endif
 
-     out(1) = out(1)+pencur*wptr%raterr2
-     out(2) = out(2)+pen1*wptr%raterr2
-     out(3) = out(3)+pen2*wptr%raterr2
-     out(4) = out(4)+pen3*wptr%raterr2
-     cc     = (pen3+pen1-two*pen2)*wptr%raterr2
-     out(5) = out(5)+(pen1-pen3)*wptr%raterr2*bcoef1+cc*bcoef2
-     out(6) = out(6)+cc*ccoef
+     out(1) = out(1)+pen(1)*wptr%raterr2
+     do kk=2,nstep
+       out(kk) = out(kk)+(pen(kk)-pen(1))*wptr%raterr2
+     end do
     end if
 
     wptr => wptr%llpoint

@@ -165,7 +165,7 @@ subroutine qcssmi(nchanl,   &
   if(sea) then 
 
 !    dtb/rain/clw qc using SSM/I RAYTHEON algorithm
-     if( ierrret>izero  .or. kraintype/=izero .or. tpwc<=zero ) then 
+     if( ierrret>izero  .or. kraintype/=izero .or. tpwc<zero ) then 
         efact=zero; vfact=zero
         if(luse) aivals(8) = aivals(8) + one
            
@@ -173,7 +173,7 @@ subroutine qcssmi(nchanl,   &
            do i=1,nchanl
              if( id_qc(i)==izero .and. kraintype/=izero ) id_qc(i)=4
              if( id_qc(i)==izero .and. ierrret>izero )    id_qc(i)=5
-             if( id_qc(i)==izero .and. tpwc<=zero )       id_qc(i)=6
+             if( id_qc(i)==izero .and. tpwc<zero )       id_qc(i)=6
            end do 
         end if
      else if(amsre_low .and. sgagl < 25.0_r_kind) then

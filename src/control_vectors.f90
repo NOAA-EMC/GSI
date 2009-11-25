@@ -58,7 +58,7 @@ use mpl_allreducemod, only: mpl_allreduce
 implicit none
 save
 private
-public control_vector, allocate_cv, deallocate_cv, assignment(=), &
+public control_state, control_vector, allocate_cv, deallocate_cv, assignment(=), &
      & dot_product, prt_control_norms, axpy, random_cv, setup_control_vectors, &
      & write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub
 

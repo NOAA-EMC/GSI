@@ -99,14 +99,14 @@ contains
   call global_mean(sqint,sqave,mype)
   call global_mean(rqint,rqave,mype)
 
+  if (mype==0) then
 ! Subtract out water to get incremental dry mass
-  sdmass=spave-sqave
-  rdmass=rpave-rqave
+    sdmass=spave-sqave
+    rdmass=rpave-rqave
 
 ! Now penalize non-zero global mean dry ps increment
 ! Notice there will only be a contribution from PE=0
 
-  if (mype==0) then
     pen = bamp_jcpdry*sdmass*sdmass
     b  = -bamp_jcpdry*rdmass*sdmass
     c  = bamp_jcpdry*rdmass*rdmass

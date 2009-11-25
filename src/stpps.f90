@@ -29,7 +29,7 @@ PUBLIC stpps
 
 contains
 
-subroutine stpps(pshead,rp,sp,out,sges)
+subroutine stpps(pshead,rp,sp,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpps       calculate penalty and contribution to
@@ -59,15 +59,11 @@ subroutine stpps(pshead,rp,sp,out,sges)
 !     pshead
 !     rp       - search direction for ps
 !     sp       - analysis increment for ps
-!     sges     - step size estimates (4)
+!     sges     - step size estimates (nstep)
+!     nstep    - number of stepsize estimates  (==0 means use outer iteration values)
 !                                         
 !   output argument list:         
-!     out(1)   - contribution to penalty for surface pressure - sges(1)
-!     out(2)   - contribution to penalty for surface pressure - sges(2)
-!     out(3)   - contribution to penalty for surface pressure - sges(3)
-!     out(4)   - contribution to penalty for surface pressure - sges(4)
-!     out(5)   - contribution to numerator for surface pressure
-!     out(6)   - contribution to denomonator for surface pressure
+!     out(1:nstep)   - contribution to penalty for surface pressure - sges(1:nstep)
 !
 ! attributes:
 !   language: f90
@@ -84,53 +80,48 @@ subroutine stpps(pshead,rp,sp,out,sges)
 
 ! Declare passed variables
   type(ps_ob_type),pointer,intent(in):: pshead
-  real(r_quad),dimension(6),intent(out):: out
+  integer(i_kind),intent(in)::nstep
+  real(r_quad),dimension(max(1,nstep)),intent(out):: out
   real(r_kind),dimension(latlon1n1),intent(in):: rp,sp
-  real(r_kind),dimension(4),intent(in):: sges
+  real(r_kind),dimension(max(1,nstep)),intent(in):: sges
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4
+  integer(i_kind) j1,j2,j3,j4,kk
   real(r_kind) val,val2,w1,w2,w3,w4,time_ps
-  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,ps0
-  real(r_kind) cg_ps,pen1,pen2,pen3,pencur,ps1,ps2,ps3,wgross,wnotgross,ps_pg
+  real(r_kind) cg_ps,ps,wgross,wnotgross,ps_pg
+  real(r_kind),dimension(max(1,nstep))::pen
   type(ps_ob_type), pointer :: psptr
 
   out=zero_quad
-  alpha=one/(sges(3)-sges(2))
-  ccoef=half*alpha*alpha
-  bcoef1=half*half*alpha
-  bcoef2=sges(3)*ccoef
 
   psptr => pshead
   do while (associated(psptr))
     if(psptr%luse)then
-     j1 = psptr%ij(1)
-     j2 = psptr%ij(2)
-     j3 = psptr%ij(3)
-     j4 = psptr%ij(4)
-     w1 = psptr%wij(1)
-     w2 = psptr%wij(2)
-     w3 = psptr%wij(3)
-     w4 = psptr%wij(4)
-     val =w1* rp(j1)+w2* rp(j2)+w3* rp(j3)+w4* rp(j4)
-     val2=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)-psptr%res
-     if(l_foto) then
-       time_ps = psptr%time*r3600
-       val =val +(w1*dhat_dt%p3d(j1)+w2*dhat_dt%p3d(j2)+ &
-                  w3*dhat_dt%p3d(j3)+w4*dhat_dt%p3d(j4))*time_ps
-       val2=val2+(w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
-                  w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_ps
+     if(nstep > 0)then
+       j1 = psptr%ij(1)
+       j2 = psptr%ij(2)
+       j3 = psptr%ij(3)
+       j4 = psptr%ij(4)
+       w1 = psptr%wij(1)
+       w2 = psptr%wij(2)
+       w3 = psptr%wij(3)
+       w4 = psptr%wij(4)
+       val =w1* rp(j1)+w2* rp(j2)+w3* rp(j3)+w4* rp(j4)
+       val2=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)-psptr%res
+       if(l_foto) then
+         time_ps = psptr%time*r3600
+         val =val +(w1*dhat_dt%p3d(j1)+w2*dhat_dt%p3d(j2)+ &
+                    w3*dhat_dt%p3d(j3)+w4*dhat_dt%p3d(j4))*time_ps
+         val2=val2+(w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
+                    w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_ps
+       end if
+       do kk=1,nstep
+         ps=val2+sges(kk)*val
+         pen(kk)=ps*ps*psptr%err2
+       end do
+     else
+       pen(1)=psptr%res*psptr%res*psptr%err2
      end if
-
-     ps0=val2+sges(1)*val
-     ps1=val2+sges(2)*val
-     ps2=val2+sges(3)*val
-     ps3=val2+sges(4)*val
-
-     pencur = ps0*ps0*psptr%err2
-     pen1   = ps1*ps1*psptr%err2
-     pen2   = ps2*ps2*psptr%err2
-     pen3   = ps3*ps3*psptr%err2
 
 !  Modify penalty term if nonlinear QC
 
@@ -140,19 +131,15 @@ subroutine stpps(pshead,rp,sp,out,sges)
         cg_ps=cg_term/psptr%b
         wnotgross= one-ps_pg
         wgross =ps_pg*cg_ps/wnotgross
-        pencur = -two*log((exp(-half*pencur)+wgross)/(one+wgross))
-        pen1   = -two*log((exp(-half*pen1  )+wgross)/(one+wgross))
-        pen2   = -two*log((exp(-half*pen2  )+wgross)/(one+wgross))
-        pen3   = -two*log((exp(-half*pen3  )+wgross)/(one+wgross))
+        do kk=1,max(1,nstep)
+          pen(kk) = -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
+        end do
      endif
      
-     cc  = (pen1+pen3-two*pen2)*psptr%raterr2
-     out(1) = out(1)+pencur*psptr%raterr2
-     out(2) = out(2)+pen1  *psptr%raterr2
-     out(3) = out(3)+pen2  *psptr%raterr2
-     out(4) = out(4)+pen3  *psptr%raterr2
-     out(5) = out(5)+(pen1-pen3)*psptr%raterr2*bcoef1+cc*bcoef2
-     out(6) = out(6)+cc*ccoef
+     out(1) = out(1)+pen(1)*psptr%raterr2
+     do kk=2,nstep
+       out(kk) = out(kk)+(pen(kk)-pen(1))*psptr%raterr2
+     end do
     end if
 
     psptr => psptr%llpoint

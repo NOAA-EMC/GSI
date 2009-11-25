@@ -31,9 +31,9 @@ module sfcobsqc
 
   use kinds, only: i_kind,r_kind
 
-  private
-
   implicit none
+
+  private
 
   character(16),allocatable,dimension(:)::cprovider
   character(5),allocatable,dimension(:)::csta_winduse

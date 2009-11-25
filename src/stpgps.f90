@@ -28,7 +28,7 @@ PUBLIC stpgps
 
 contains
 
-subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
+subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram: stpref    compute contribution to penalty and stepsize
@@ -72,15 +72,11 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
 !     st    - analysis increment (correction) for virtual temperature
 !     sq    - analysis increment (correction) for specific humidity
 !     sp    - analysis increment (correction) for (3D) pressure
-!     sges  - stepsize estimates (4)
+!     sges  - stepsize estimates (nstep)
+!     nstep - number of stepsize estimates (==0 means use outer iteration values)
 !                                         
 !   output argument list:
-!     out(1)- contribution to penalty from local gps refractivity - sges(1)
-!     out(2)- contribution to penalty from local gps refractivity - sges(2)
-!     out(3)- contribution to penalty from local gps refractivity - sges(3)
-!     out(4)- contribution to penalty from local gps refractivity - sges(4)
-!     out(5)- pen(sges1)-pen(sges2)
-!     out(6)- pen(sges3)-pen(sges2)
+!     out(1:nstep)- contribution to penalty from local gps refractivity - sges(1:nstep)
 !
 ! attributes:
 !   language: f90
@@ -98,13 +94,14 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
 
 ! Declare passed variables
   type(gps_ob_type),pointer,intent(in):: gpshead
-  real(r_quad),dimension(6),intent(out):: out
+  integer(i_kind),intent(in)::nstep
+  real(r_quad),dimension(max(1,nstep)),intent(out):: out
   real(r_kind),dimension(latlon1n),intent(in):: rt,rq,st,sq
   real(r_kind),dimension(latlon1n1),intent(in):: rp,sp
-  real(r_kind),dimension(4),intent(in):: sges
+  real(r_kind),dimension(max(1,nstep)),intent(in):: sges
 
 ! Declare local variables
-  integer(i_kind) j
+  integer(i_kind) j,kk
   integer(i_kind),dimension(nsig):: i1,i2,i3,i4
   real(r_kind) :: val,val2
   real(r_kind) :: w1,w2,w3,w4
@@ -112,15 +109,12 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
   real(r_kind) :: rq_TL,rp_TL,rt_TL
   type(gps_ob_type), pointer :: gpsptr
 
-  real(r_kind) cg_gps,pen1,pen2,pen3,pen0,nref1,nref2,nref3,wgross,wnotgross
-  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc,nref0,pg_gps
+  real(r_kind) cg_gps,wgross,wnotgross
+  real(r_kind) pg_gps,nref
+  real(r_kind),dimension(max(1,nstep))::pen
 
 ! Initialize penalty, b1, and b3 to zero
   out=zero_quad
-  alpha=one/(sges(3)-sges(2))
-  ccoef=half*alpha*alpha
-  bcoef1=half*half*alpha
-  bcoef2=sges(3)*ccoef
 
 ! Loop over observations
   gpsptr => gpshead
@@ -128,61 +122,60 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
 
     if(gpsptr%luse)then
 
-      do j=1,nsig
-        i1(j)= gpsptr%ij(1,j)
-        i2(j)= gpsptr%ij(2,j)
-        i3(j)= gpsptr%ij(3,j)
-        i4(j)= gpsptr%ij(4,j)
-      enddo
-      w1=gpsptr%wij(1)
-      w2=gpsptr%wij(2)
-      w3=gpsptr%wij(3)
-      w4=gpsptr%wij(4)
-
-
-      val=zero
       val2=-gpsptr%res
+      if(nstep > 0)then
+        do j=1,nsig
+          i1(j)= gpsptr%ij(1,j)
+          i2(j)= gpsptr%ij(2,j)
+          i3(j)= gpsptr%ij(3,j)
+          i4(j)= gpsptr%ij(4,j)
+        enddo
+        w1=gpsptr%wij(1)
+        w2=gpsptr%wij(2)
+        w3=gpsptr%wij(3)
+        w4=gpsptr%wij(4)
 
 
-      do j=1,nsig
-        t_TL =w1* st(i1(j))+w2* st(i2(j))+w3* st(i3(j))+w4* st(i4(j))
-        rt_TL=w1* rt(i1(j))+w2* rt(i2(j))+w3* rt(i3(j))+w4* rt(i4(j))
-        q_TL =w1* sq(i1(j))+w2* sq(i2(j))+w3* sq(i3(j))+w4* sq(i4(j))
-        rq_TL=w1* rq(i1(j))+w2* rq(i2(j))+w3* rq(i3(j))+w4* rq(i4(j))
-        p_TL =w1* sp(i1(j))+w2* sp(i2(j))+w3* sp(i3(j))+w4* sp(i4(j))
-        rp_TL=w1* rp(i1(j))+w2* rp(i2(j))+w3* rp(i3(j))+w4* rp(i4(j))
-        if(l_foto)then
-          time_gps=gpsptr%time*r3600
-          t_TL=t_TL+(w1*xhat_dt%t(i1(j))+w2*xhat_dt%t(i2(j))+ &
-                     w3*xhat_dt%t(i3(j))+w4*xhat_dt%t(i4(j)))*time_gps
-          rt_TL=rt_TL+(w1*dhat_dt%t(i1(j))+w2*dhat_dt%t(i2(j))+ &
-                       w3*dhat_dt%t(i3(j))+w4*dhat_dt%t(i4(j)))*time_gps
-          q_TL=q_TL+(w1*xhat_dt%q(i1(j))+w2*xhat_dt%q(i2(j))+ &
-                     w3*xhat_dt%q(i3(j))+w4*xhat_dt%q(i4(j)))*time_gps
-          rq_TL=rq_TL+(w1*dhat_dt%q(i1(j))+w2*dhat_dt%q(i2(j))+ &
-                       w3*dhat_dt%q(i3(j))+w4*dhat_dt%q(i4(j)))*time_gps
-          p_TL=p_TL+(w1*xhat_dt%p3d(i1(j))+w2*xhat_dt%p3d(i2(j))+ &
-                     w3*xhat_dt%p3d(i3(j))+w4*xhat_dt%p3d(i4(j)))*time_gps
-          rp_TL=rp_TL+(w1*dhat_dt%p3d(i1(j))+w2*dhat_dt%p3d(i2(j))+ &
-                       w3*dhat_dt%p3d(i3(j))+w4*dhat_dt%p3d(i4(j)))*time_gps
-        end if
-        val2 = val2 + t_tl*gpsptr%jac_t(j)+ q_tl*gpsptr%jac_q(j)+p_tl*gpsptr%jac_p(j) 
-        val  = val + rt_tl*gpsptr%jac_t(j)+rq_tl*gpsptr%jac_q(j)+rp_tl*gpsptr%jac_p(j)
+        val=zero
 
-      enddo
+
+        do j=1,nsig
+          t_TL =w1* st(i1(j))+w2* st(i2(j))+w3* st(i3(j))+w4* st(i4(j))
+          rt_TL=w1* rt(i1(j))+w2* rt(i2(j))+w3* rt(i3(j))+w4* rt(i4(j))
+          q_TL =w1* sq(i1(j))+w2* sq(i2(j))+w3* sq(i3(j))+w4* sq(i4(j))
+          rq_TL=w1* rq(i1(j))+w2* rq(i2(j))+w3* rq(i3(j))+w4* rq(i4(j))
+          p_TL =w1* sp(i1(j))+w2* sp(i2(j))+w3* sp(i3(j))+w4* sp(i4(j))
+          rp_TL=w1* rp(i1(j))+w2* rp(i2(j))+w3* rp(i3(j))+w4* rp(i4(j))
+          if(l_foto)then
+            time_gps=gpsptr%time*r3600
+            t_TL=t_TL+(w1*xhat_dt%t(i1(j))+w2*xhat_dt%t(i2(j))+ &
+                       w3*xhat_dt%t(i3(j))+w4*xhat_dt%t(i4(j)))*time_gps
+            rt_TL=rt_TL+(w1*dhat_dt%t(i1(j))+w2*dhat_dt%t(i2(j))+ &
+                         w3*dhat_dt%t(i3(j))+w4*dhat_dt%t(i4(j)))*time_gps
+            q_TL=q_TL+(w1*xhat_dt%q(i1(j))+w2*xhat_dt%q(i2(j))+ &
+                       w3*xhat_dt%q(i3(j))+w4*xhat_dt%q(i4(j)))*time_gps
+            rq_TL=rq_TL+(w1*dhat_dt%q(i1(j))+w2*dhat_dt%q(i2(j))+ &
+                         w3*dhat_dt%q(i3(j))+w4*dhat_dt%q(i4(j)))*time_gps
+            p_TL=p_TL+(w1*xhat_dt%p3d(i1(j))+w2*xhat_dt%p3d(i2(j))+ &
+                       w3*xhat_dt%p3d(i3(j))+w4*xhat_dt%p3d(i4(j)))*time_gps
+            rp_TL=rp_TL+(w1*dhat_dt%p3d(i1(j))+w2*dhat_dt%p3d(i2(j))+ &
+                         w3*dhat_dt%p3d(i3(j))+w4*dhat_dt%p3d(i4(j)))*time_gps
+          end if
+          val2 = val2 + t_tl*gpsptr%jac_t(j)+ q_tl*gpsptr%jac_q(j)+p_tl*gpsptr%jac_p(j) 
+          val  = val + rt_tl*gpsptr%jac_t(j)+rq_tl*gpsptr%jac_q(j)+rp_tl*gpsptr%jac_p(j)
+
+        enddo
 
 
 !     penalty and gradient
 
-      nref0=val2+sges(1)*val
-      nref1=val2+sges(2)*val
-      nref2=val2+sges(3)*val
-      nref3=val2+sges(4)*val
-
-      pen0 = nref0*nref0*gpsptr%err2
-      pen1 = nref1*nref1*gpsptr%err2
-      pen2 = nref2*nref2*gpsptr%err2
-      pen3 = nref3*nref3*gpsptr%err2
+        do kk=1,nstep
+           nref=val2+sges(kk)*val
+           pen(kk)=nref*nref*gpsptr%err2
+        end do
+      else
+        pen(1)=val2*val2*gpsptr%err2
+      end if
 
 !      Modify penalty term if nonlinear QC
       if (nlnqc_iter .and. gpsptr%pg > tiny_r_kind .and. gpsptr%b > tiny_r_kind) then
@@ -190,20 +183,16 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges)
          cg_gps=cg_term/gpsptr%b
          wnotgross= one-pg_gps
          wgross = pg_gps*cg_gps/wnotgross
-         pen0 = -two*log((exp(-half*pen0) + wgross)/(one+wgross))
-         pen1 = -two*log((exp(-half*pen1) + wgross)/(one+wgross))
-         pen2 = -two*log((exp(-half*pen2) + wgross)/(one+wgross))
-         pen3 = -two*log((exp(-half*pen3) + wgross)/(one+wgross))
+         do kk=1,max(1,nstep)
+           pen(kk) = -two*log((exp(-half*pen(kk)) + wgross)/(one+wgross))
+         end do
       endif
   
-!     Cost function, b1, and b3
-      cc  = (pen1+pen3-two*pen2)*gpsptr%raterr2
-      out(1) = out(1)+pen0*gpsptr%raterr2
-      out(2) = out(2)+pen1*gpsptr%raterr2
-      out(3) = out(3)+pen2*gpsptr%raterr2
-      out(4) = out(4)+pen3*gpsptr%raterr2
-      out(5) = out(5)+(pen1-pen3)*gpsptr%raterr2*bcoef1+cc*bcoef2
-      out(6) = out(6)+cc*ccoef
+!     Cost function
+      out(1) = out(1)+pen(1)*gpsptr%raterr2
+      do kk=2,nstep
+        out(kk) = out(kk)+(pen(kk)-pen(1))*gpsptr%raterr2
+      end do
 
     endif
   

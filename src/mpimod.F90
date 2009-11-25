@@ -26,6 +26,7 @@ module mpimod
   use mpeu_mpif, only : mpi_status_size
   use mpeu_mpif, only : mpi_sum
   use mpeu_mpif, only : mpi_integer
+  use mpeu_mpif, only : mpi_integer1
   use mpeu_mpif, only : mpi_integer2
   use mpeu_mpif, only : mpi_integer4
   use mpeu_mpif, only : mpi_integer8

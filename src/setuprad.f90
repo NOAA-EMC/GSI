@@ -1028,15 +1028,13 @@
        else if (ssmis_las) then
 
 !       Compute guess total precipitable water
-           tpw5 = zero
-           do k=1,nsig
-              tpw5 = tpw5 + qvp(k) * &
-                   tpwcon*r10*(prsitmp(k)-prsitmp(k+1))
-           end do
+!          tpw5 = zero
+!          do k=1,nsig
+!             tpw5 = tpw5 + qvp(k) * &
+!                  tpwcon*r10*(prsitmp(k)-prsitmp(k+1))
+!          end do
 
-           call ret_ssmis( tb_obs(1),nchanl,                 &
-                ssmis_las,                                   &
-                tpwc, clw, ierrret)
+           call ret_ssmis( tb_obs(1),nchanl,ssmis_las,tpwc, clw, ierrret)
 
        else if (amsre) then
 

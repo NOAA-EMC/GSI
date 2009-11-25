@@ -28,7 +28,7 @@ PUBLIC stpt
 
 contains
 
-subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges)
+subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpt        calculate penalty and contribution to stepsize
@@ -74,15 +74,11 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges)
 !     sp       - analysis increment for p
 !     rsst     - search direction for sst
 !     ssst     - analysis increment for sst
-!     sges     - step size estimates (4)
+!     sges     - step size estimates (nstep)
+!     nstep    - number of stepsizes (==0 means use outer iteration values)
 !                                         
 !   output argument list:         
-!     out(1)   - penalty from temperature observations sges(1)
-!     out(2)   - penalty from temperature observations sges(2)
-!     out(3)   - penalty from temperature observations sges(3)
-!     out(4)   - penalty from temperature observations sges(4)
-!     out(5)   - contribution to numerator for temperature data
-!     out(6)   - contribution to denomonator for temperature data
+!     out(1:nstep)   - penalty from temperature observations sges(1:nstep)
 !
 ! attributes:
 !   language: f90
@@ -99,183 +95,145 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges)
 
 ! Declare passed variables
   type(t_ob_type),pointer,intent(in):: thead
-  real(r_quad),dimension(6),intent(out):: out
+  integer(i_kind),intent(in)::nstep
+  real(r_quad),dimension(max(1,nstep)),intent(out):: out
   real(r_kind),dimension(latlon1n),intent(in):: rt,st,rtv,stv,rq,sq,ru,su,rv,sv
   real(r_kind),dimension(latlon11),intent(in):: rsst,ssst
   real(r_kind),dimension(latlon1n1),intent(in):: rp,sp
-  real(r_kind),dimension(4),intent(in):: sges
+  real(r_kind),dimension(max(1,nstep)),intent(in):: sges
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
+  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
-  real(r_kind) cg_t,pen1,pen2,pen3,pencur,t1,t2,t3,val,val2,wgross,wnotgross,t_pg
-  real(r_kind) tg_prime0,tg_prime1,tg_prime2,tg_prime3
-  real(r_kind) ts_prime0,ts_prime1,ts_prime2,ts_prime3
-  real(r_kind) qs_prime0,qs_prime1,qs_prime2,qs_prime3
-  real(r_kind) us_prime0,us_prime1,us_prime2,us_prime3
-  real(r_kind) vs_prime0,vs_prime1,vs_prime2,vs_prime3
-  real(r_kind) psfc_prime0,psfc_prime1,psfc_prime2,psfc_prime3
-  real(r_kind) t0,time_t
-  real(r_kind) alpha,ccoef,bcoef1,bcoef2,cc
+  real(r_kind) cg_t,val,val2,wgross,wnotgross,t_pg
+  real(r_kind),dimension(max(1,nstep))::pen,tt
+  real(r_kind) tg_prime,valq,valq2,valp,valp2,valu,valu2
+  real(r_kind) ts_prime,valv,valv2,valsst,valsst2
+  real(r_kind) qs_prime
+  real(r_kind) us_prime
+  real(r_kind) vs_prime
+  real(r_kind) psfc_prime
+  real(r_kind) time_t
   type(t_ob_type), pointer :: tptr
 
   out=zero_quad
-  alpha=one/(sges(3)-sges(2))
-  ccoef=half*alpha*alpha
-  bcoef1=half*half*alpha
-  bcoef2=sges(3)*ccoef
 
   tptr => thead
   do while (associated(tptr))
 
     if(tptr%luse)then
-      j1=tptr%ij(1)
-      j2=tptr%ij(2)
-      j3=tptr%ij(3)
-      j4=tptr%ij(4)
-      j5=tptr%ij(5)
-      j6=tptr%ij(6)
-      j7=tptr%ij(7)
-      j8=tptr%ij(8)
-      w1=tptr%wij(1)
-      w2=tptr%wij(2)
-      w3=tptr%wij(3)
-      w4=tptr%wij(4)
-      w5=tptr%wij(5)
-      w6=tptr%wij(6)
-      w7=tptr%wij(7)
-      w8=tptr%wij(8)
-!  Note time derivative stuff not consistent for virtual temperature
+      if(nstep > 0)then
+        j1=tptr%ij(1)
+        j2=tptr%ij(2)
+        j3=tptr%ij(3)
+        j4=tptr%ij(4)
+        j5=tptr%ij(5)
+        j6=tptr%ij(6)
+        j7=tptr%ij(7)
+        j8=tptr%ij(8)
+        w1=tptr%wij(1)
+        w2=tptr%wij(2)
+        w3=tptr%wij(3)
+        w4=tptr%wij(4)
+        w5=tptr%wij(5)
+        w6=tptr%wij(6)
+        w7=tptr%wij(7)
+        w8=tptr%wij(8)
+!    Note time derivative stuff not consistent for virtual temperature
 
-      if(tptr%tv_ob)then
-        val= w1*rtv(j1)+w2*rtv(j2)+w3*rtv(j3)+w4*rtv(j4)+ &
-             w5*rtv(j5)+w6*rtv(j6)+w7*rtv(j7)+w8*rtv(j8)
+        if(tptr%tv_ob)then
+          val= w1*rtv(j1)+w2*rtv(j2)+w3*rtv(j3)+w4*rtv(j4)+ &
+               w5*rtv(j5)+w6*rtv(j6)+w7*rtv(j7)+w8*rtv(j8)
 
-        val2=w1*stv(j1)+w2*stv(j2)+w3*stv(j3)+w4*stv(j4)+ &
-             w5*stv(j5)+w6*stv(j6)+w7*stv(j7)+w8*stv(j8)
-        if(l_foto)then
-          time_t=tptr%time*r3600
-          val =val + (w1*dhat_dt%t(j1)+w2*dhat_dt%t(j2)+ &
-                      w3*dhat_dt%t(j3)+w4*dhat_dt%t(j4)+ &
-                      w5*dhat_dt%t(j5)+w6*dhat_dt%t(j6)+ &
-                      w7*dhat_dt%t(j7)+w8*dhat_dt%t(j8))*time_t
+          val2=w1*stv(j1)+w2*stv(j2)+w3*stv(j3)+w4*stv(j4)+ &
+               w5*stv(j5)+w6*stv(j6)+w7*stv(j7)+w8*stv(j8)
+          if(l_foto)then
+            time_t=tptr%time*r3600
+            val =val + (w1*dhat_dt%t(j1)+w2*dhat_dt%t(j2)+ &
+                        w3*dhat_dt%t(j3)+w4*dhat_dt%t(j4)+ &
+                        w5*dhat_dt%t(j5)+w6*dhat_dt%t(j6)+ &
+                        w7*dhat_dt%t(j7)+w8*dhat_dt%t(j8))*time_t
           val2=val2+ (w1*xhat_dt%t(j1)+w2*xhat_dt%t(j2)+ &
-                      w3*xhat_dt%t(j3)+w4*xhat_dt%t(j4)+ &
-                      w5*xhat_dt%t(j5)+w6*xhat_dt%t(j6)+ &
-                      w7*xhat_dt%t(j7)+w8*xhat_dt%t(j8))*time_t
+                        w3*xhat_dt%t(j3)+w4*xhat_dt%t(j4)+ &
+                        w5*xhat_dt%t(j5)+w6*xhat_dt%t(j6)+ &
+                        w7*xhat_dt%t(j7)+w8*xhat_dt%t(j8))*time_t
+          end if
+        else
+          val= w1*    rt(j1)+w2*    rt(j2)+w3*    rt(j3)+w4*    rt(j4)+ &
+               w5*    rt(j5)+w6*    rt(j6)+w7*    rt(j7)+w8*    rt(j8)
+          val2=w1*    st(j1)+w2*    st(j2)+w3*    st(j3)+w4*    st(j4)+ &
+               w5*    st(j5)+w6*    st(j6)+w7*    st(j7)+w8*    st(j8)
+          if(l_foto)then
+            val =val + (w1*dhat_dt%tsen(j1)+w2*dhat_dt%tsen(j2)+ &
+                        w3*dhat_dt%tsen(j3)+w4*dhat_dt%tsen(j4)+ &
+                        w5*dhat_dt%tsen(j5)+w6*dhat_dt%tsen(j6)+ &
+                        w7*dhat_dt%tsen(j7)+w8*dhat_dt%tsen(j8))*time_t
+            val2=val2+ (w1*xhat_dt%tsen(j1)+w2*xhat_dt%tsen(j2)+ &
+                        w3*xhat_dt%tsen(j3)+w4*xhat_dt%tsen(j4)+ &
+                        w5*xhat_dt%tsen(j5)+w6*xhat_dt%tsen(j6)+ &
+                        w7*xhat_dt%tsen(j7)+w8*xhat_dt%tsen(j8))*time_t
+          end if
         end if
+
+        do kk=1,nstep
+          tt(kk)=val2+sges(kk)*val
+        end do
+
+        if(tptr%use_sfc_model) then
+
+            valsst =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
+            valsst2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
+            valq =w1* rq(j1)+w2* rq(j2)+w3* rq(j3)+w4* rq(j4)
+            valq2=w1* sq(j1)+w2* sq(j2)+w3* sq(j3)+w4* sq(j4)
+            valu =w1* ru(j1)+w2* ru(j2)+w3* ru(j3)+w4* ru(j4)
+            valu2=w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)
+            valv =w1* rv(j1)+w2* rv(j2)+w3* rv(j3)+w4* rv(j4)
+            valv2=w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)
+            valp =w1* rp(j1)+w2* rp(j2)+w3* rp(j3)+w4* rp(j4)
+            valp2=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)
+            if(l_foto)then
+              valq =valq +(w1*dhat_dt%q(j1)+w2*dhat_dt%q(j2)+ &
+                           w3*dhat_dt%q(j3)+w4*dhat_dt%q(j4))*time_t
+              valq2=valq2+(w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
+                           w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4))*time_t
+              valu =valu +(w1*dhat_dt%u(j1)+w2*dhat_dt%u(j2)+ &
+                           w3*dhat_dt%u(j3)+w4*dhat_dt%u(j4))*time_t
+              valu2=valu2+(w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
+                           w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))*time_t
+              valv =valv +(w1*dhat_dt%v(j1)+w2*dhat_dt%v(j2)+ &
+                           w3*dhat_dt%v(j3)+w4*dhat_dt%v(j4))*time_t
+              valv2=valv2+(w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
+                           w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_t
+              valp =valp +(w1*dhat_dt%p3d(j1)+w2*dhat_dt%p3d(j2)+ &
+                           w3*dhat_dt%p3d(j3)+w4*dhat_dt%p3d(j4))*time_t
+              valp2=valp2+(w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
+                           w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_t
+            end if
+            do kk=1,nstep
+              ts_prime=tt(kk)
+              tg_prime=valsst2+sges(kk)*valsst
+              qs_prime=valq2+sges(kk)*valq
+              us_prime=valu2+sges(kk)*val
+              vs_prime=valv2+sges(kk)*val
+              psfc_prime=val2+sges(1)*val
+
+              tt(kk)=psfc_prime*tptr%tlm_tsfc(1) + tg_prime*tptr%tlm_tsfc(2) + &
+                     ts_prime  *tptr%tlm_tsfc(3) + qs_prime*tptr%tlm_tsfc(4) + &
+                     us_prime  *tptr%tlm_tsfc(5) + vs_prime*tptr%tlm_tsfc(6)
+           end do
+
+        end if
+
+        do kk=1,nstep
+          tt(kk)=tt(kk)-tptr%res
+        end do
       else
-        val= w1*    rt(j1)+w2*    rt(j2)+w3*    rt(j3)+w4*    rt(j4)+ &
-             w5*    rt(j5)+w6*    rt(j6)+w7*    rt(j7)+w8*    rt(j8)
-        val2=w1*    st(j1)+w2*    st(j2)+w3*    st(j3)+w4*    st(j4)+ &
-             w5*    st(j5)+w6*    st(j6)+w7*    st(j7)+w8*    st(j8)
-        if(l_foto)then
-          val =val + (w1*dhat_dt%tsen(j1)+w2*dhat_dt%tsen(j2)+ &
-                      w3*dhat_dt%tsen(j3)+w4*dhat_dt%tsen(j4)+ &
-                      w5*dhat_dt%tsen(j5)+w6*dhat_dt%tsen(j6)+ &
-                      w7*dhat_dt%tsen(j7)+w8*dhat_dt%tsen(j8))*time_t
-          val2=val2+ (w1*xhat_dt%tsen(j1)+w2*xhat_dt%tsen(j2)+ &
-                      w3*xhat_dt%tsen(j3)+w4*xhat_dt%tsen(j4)+ &
-                      w5*xhat_dt%tsen(j5)+w6*xhat_dt%tsen(j6)+ &
-                      w7*xhat_dt%tsen(j7)+w8*xhat_dt%tsen(j8))*time_t
-        end if
+        tt(1)=tptr%res
       end if
 
-      t0=val2+sges(1)*val
-      t1=val2+sges(2)*val
-      t2=val2+sges(3)*val
-      t3=val2+sges(4)*val
-
-      if(tptr%use_sfc_model) then
-
-        ts_prime0=t0
-        ts_prime1=t1
-        ts_prime2=t2
-        ts_prime3=t3
-
-        val =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
-        val2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
-        tg_prime0=val2+sges(1)*val
-        tg_prime1=val2+sges(2)*val
-        tg_prime2=val2+sges(3)*val
-        tg_prime3=val2+sges(4)*val
-
-        val =w1* rq(j1)+w2* rq(j2)+w3* rq(j3)+w4* rq(j4)
-        val2=w1* sq(j1)+w2* sq(j2)+w3* sq(j3)+w4* sq(j4)
-        if(l_foto)then
-          val =val +(w1*dhat_dt%q(j1)+w2*dhat_dt%q(j2)+ &
-                     w3*dhat_dt%q(j3)+w4*dhat_dt%q(j4))*time_t
-          val2=val2+(w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
-                     w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4))*time_t
-        end if
-        qs_prime0=val2+sges(1)*val
-        qs_prime1=val2+sges(2)*val
-        qs_prime2=val2+sges(3)*val
-        qs_prime3=val2+sges(4)*val
-
-        val =w1* ru(j1)+w2* ru(j2)+w3* ru(j3)+w4* ru(j4)
-        val2=w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)
-        if(l_foto)then
-          val =val +(w1*dhat_dt%u(j1)+w2*dhat_dt%u(j2)+ &
-                     w3*dhat_dt%u(j3)+w4*dhat_dt%u(j4))*time_t
-          val2=val2+(w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-                     w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))*time_t
-        end if
-        us_prime0=val2+sges(1)*val
-        us_prime1=val2+sges(2)*val
-        us_prime2=val2+sges(3)*val
-        us_prime3=val2+sges(4)*val
-
-        val =w1* rv(j1)+w2* rv(j2)+w3* rv(j3)+w4* rv(j4)
-        val2=w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)
-        if(l_foto)then
-          val =val +(w1*dhat_dt%v(j1)+w2*dhat_dt%v(j2)+ &
-                     w3*dhat_dt%v(j3)+w4*dhat_dt%v(j4))*time_t
-          val2=val2+(w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-                     w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_t
-        end if
-        vs_prime0=val2+sges(1)*val
-        vs_prime1=val2+sges(2)*val
-        vs_prime2=val2+sges(3)*val
-        vs_prime3=val2+sges(4)*val
-
-        val =w1* rp(j1)+w2* rp(j2)+w3* rp(j3)+w4* rp(j4)
-        val2=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)
-        if(l_foto)then
-          val =val +(w1*dhat_dt%p3d(j1)+w2*dhat_dt%p3d(j2)+ &
-                     w3*dhat_dt%p3d(j3)+w4*dhat_dt%p3d(j4))*time_t
-          val2=val2+(w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
-                     w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_t
-        end if
-        psfc_prime0=val2+sges(1)*val
-        psfc_prime1=val2+sges(2)*val
-        psfc_prime2=val2+sges(3)*val
-        psfc_prime3=val2+sges(4)*val
-
-        t0=psfc_prime0*tptr%tlm_tsfc(1) + tg_prime0*tptr%tlm_tsfc(2) + &
-           ts_prime0  *tptr%tlm_tsfc(3) + qs_prime0*tptr%tlm_tsfc(4) + &
-           us_prime0  *tptr%tlm_tsfc(5) + vs_prime0*tptr%tlm_tsfc(6)
-        t1=psfc_prime1*tptr%tlm_tsfc(1) + tg_prime1*tptr%tlm_tsfc(2) + &
-           ts_prime1  *tptr%tlm_tsfc(3) + qs_prime1*tptr%tlm_tsfc(4) + &
-           us_prime1  *tptr%tlm_tsfc(5) + vs_prime1*tptr%tlm_tsfc(6)
-        t2=psfc_prime2*tptr%tlm_tsfc(1) + tg_prime2*tptr%tlm_tsfc(2) + &
-           ts_prime2  *tptr%tlm_tsfc(3) + qs_prime2*tptr%tlm_tsfc(4) + &
-           us_prime2  *tptr%tlm_tsfc(5) + vs_prime2*tptr%tlm_tsfc(6)
-        t3=psfc_prime3*tptr%tlm_tsfc(1) + tg_prime3*tptr%tlm_tsfc(2) + &
-           ts_prime3  *tptr%tlm_tsfc(3) + qs_prime3*tptr%tlm_tsfc(4) + &
-           us_prime3  *tptr%tlm_tsfc(5) + vs_prime3*tptr%tlm_tsfc(6)
-
-      end if
-
-      t0=t0 - tptr%res
-      t1=t1 - tptr%res
-      t2=t2 - tptr%res
-      t3=t3 - tptr%res
-
-      pencur = t0*t0*tptr%err2
-      pen1   = t1*t1*tptr%err2
-      pen2   = t2*t2*tptr%err2
-      pen3   = t3*t3*tptr%err2
+      do kk=1,max(1,nstep)
+        pen(kk) = tt(kk)*tt(kk)*tptr%err2
+      end do
 
 !  Modify penalty term if nonlinear QC
 
@@ -284,22 +242,18 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges)
         cg_t=cg_term/tptr%b
         wnotgross= one-t_pg
         wgross =t_pg*cg_t/wnotgross
-        pencur = -two*log((exp(-half*pencur)+wgross)/(one+wgross))
-        pen1   = -two*log((exp(-half*pen1  )+wgross)/(one+wgross))
-        pen2   = -two*log((exp(-half*pen2  )+wgross)/(one+wgross))
-        pen3   = -two*log((exp(-half*pen3  )+wgross)/(one+wgross))
+        do kk=1,max(1,nstep)
+          pen(kk) = -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
+        end do
       endif
 
 !     Note:  if wgross=0 (no gross error, then wnotgross=1 and this all 
 !            reduces to the linear case (no qc)
 
-      out(1) = out(1)+pencur*tptr%raterr2
-      out(2) = out(2)+pen1*tptr%raterr2
-      out(3) = out(3)+pen2*tptr%raterr2
-      out(4) = out(4)+pen3*tptr%raterr2
-      cc     = (pen1+pen3-two*pen2)*tptr%raterr2
-      out(5) = out(5)+(pen1-pen3)*tptr%raterr2*bcoef1+cc*bcoef2
-      out(6) = out(6)+cc*ccoef
+      out(1) = out(1)+pen(1)*tptr%raterr2
+      do kk=2,nstep
+        out(kk) = out(kk)+(pen(kk)-pen(1))*tptr%raterr2
+      end do
     end if
 
     tptr => tptr%llpoint
