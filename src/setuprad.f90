@@ -87,7 +87,7 @@
 !   2008-01-30  h.liu/treadon - add SSU cell pressure correction block
 !   2008-05-21  safford - rm unused vars and uses
 !   2008-12-03  todling - changed handle of tail%time
-!
+!   2009-12-07  b.yan   - changed qc for channel 5 (relaxed)
 !   input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
 !     mype    - mpi task id
@@ -1530,7 +1530,7 @@
             if(varinv(i) > tiny_r_kind)then
               dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
               term=dtbf*dtbf
-              if(i <= 5 .or. i == 15)then
+              if(i <= 4 .or. i == 15)then
                
 !                Adjust observation error based on magnitude of liquid
 !                water correction.  0.2 is empirical factor
