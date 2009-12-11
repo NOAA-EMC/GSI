@@ -24,14 +24,14 @@ module radinfo
 !   2008-04-23  safford - add standard documentation block
 !
 ! subroutines included:
-!   init_rad            - set satellite related variables to defaults
-!   init_rad_vars       - initialize satellite related variables
-!   radinfo_read        - read in sat info and biases, including read 
-!                          sst_an and avhrr bias correction
-!   radinfo_write       - write out satellite biases
+!   sub init_rad            - set satellite related variables to defaults
+!   sub init_rad_vars       - initialize satellite related variables
+!   sub radinfo_read        - read in sat info and biases, including read 
+!                             sst_an and avhrr bias correction
+!   sub radinfo_write       - write out satellite biases
 !
 ! functions included:
-!   newchn
+!   fun newchn
 !
 ! variable definitions:
 !
@@ -47,7 +47,20 @@ module radinfo
   use kinds, only: r_kind,i_kind
   implicit none
 
-  integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
+! set default to private
+  private
+! set subroutines to public
+  public :: init_rad
+  public :: init_rad_vars
+  public :: radinfo_read
+  public :: radinfo_write
+! set passed variables to public
+  public :: jpch_rad,npred,b_rad,pg_rad,diag_rad,iuse_rad,nusis
+  public :: crtm_coeffs_path,retrieval,predx,ang_rad,newchn,cbias
+  public :: air_rad,nuchan,numt,varch,fbias,ermax_rad,tlapmean
+  public :: ifactq,mype_rad
+
+  integer(i_kind),parameter:: numt = 33_i_kind   ! size of AVHRR bias correction file
 
   logical diag_rad   ! logical to turn off or on the diagnostic radiance file (true=on)
   logical retrieval  ! logical to turn off or on the SST retrieval with AVHRR data
@@ -114,13 +127,14 @@ contains
 !
 !$$$ end documentation block
 
+    use constants, only: izero
     implicit none
 
-    jpch_rad = 0         ! total number of channels over all instruments & satellites
+    jpch_rad = izero     ! total number of channels over all instruments & satellites
     retrieval = .false.  ! .true. = apply physical SST retrieval with AVHRR data
     diag_rad = .true.    ! .true.=generate radiance diagnostic file
-    mype_rad = 0         ! mpi task to collect and print radiance use information on/from
-    npred=5              ! number of bias correction predictors
+    mype_rad = izero     ! mpi task to collect and print radiance use information on/from
+    npred=5_i_kind       ! number of bias correction predictors
   end subroutine init_rad
 
 
@@ -151,9 +165,10 @@ contains
 !
 !$$$ end documentation block
 
+    use constants, only: ione
     implicit none
 
-    npred1=npred-1
+    npred1=npred-ione
     
     return
   end subroutine init_rad_vars
@@ -213,7 +228,7 @@ contains
 ! !USES:
 
     use obsmod, only: iout_rad
-    use constants, only: zero,one
+    use constants, only: izero,ione,zero,one
     use mpimod, only: mype
     implicit none
 
@@ -233,22 +248,22 @@ contains
     logical,allocatable,dimension(:):: nfound
     logical cfound
 
-    data lunin / 49 /
+    data lunin / 49_i_kind /
 
 !============================================================================
 
 !   Determine number of entries in satellite information file
     open(lunin,file='satinfo',form='formatted')
-    j=0
-    nlines=0
+    j=izero
+    nlines=izero
     read1:  do
        read(lunin,100,iostat=istat) cflg,crecord
-       if (istat /= 0) exit
-       nlines=nlines+1
+       if (istat /= izero) exit
+       nlines=nlines+ione
        if (cflg == '!') cycle
-       j=j+1
+       j=j+ione
     end do read1
-    if (istat>0) then
+    if (istat>izero) then
        close(lunin)
        write(6,*)'RADINFO_READ:  ***ERROR*** error reading radinfo, istat=',istat
        write(6,*)'RADINFO_READ:  stop program execution'
@@ -269,8 +284,8 @@ contains
          ermax_rad(jpch_rad),b_rad(jpch_rad),pg_rad(jpch_rad), &
          ang_rad(jpch_rad),air_rad(jpch_rad))
     allocate(satsenlist(jpch_rad),nfound(jpch_rad))
-    iuse_rad(0)=-999
-    ifactq=0
+    iuse_rad(0)=-999_i_kind
+    ifactq=izero
     air_rad=one
     ang_rad=one
 
@@ -283,15 +298,15 @@ contains
        write(iout_rad,*)'RADINFO_READ:  jpch_rad=',jpch_rad
     endif
     rewind(lunin)
-    j=0
+    j=izero
     do k=1,nlines
        read(lunin,100) cflg,crecord
        if (cflg == '!') cycle
-       j=j+1
+       j=j+ione
        read(crecord,*) nusis(j),nuchan(j),iuse_rad(j),&
             varch(j),ermax_rad(j),b_rad(j),pg_rad(j)
-       if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2)air_rad(j)=zero
-       if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3)ang_rad(j)=zero
+       if(iuse_rad(j) == 4_i_kind .or. iuse_rad(j) == 2_i_kind)air_rad(j)=zero
+       if(iuse_rad(j) == 4_i_kind .or. iuse_rad(j) == 3_i_kind)ang_rad(j)=zero
        if (mype==mype_rad) write(iout_rad,110) j,nusis(j), &
             nuchan(j),varch(j),iuse_rad(j),ermax_rad(j), &
             b_rad(j),pg_rad(j)
@@ -315,7 +330,7 @@ contains
     read2: do
        read(lunin,'(I5,1x,A20,2x,I4,e15.6/9(4x,10f7.3/))',iostat=istat) &
             ich,isis,ichan,tlapm,(cbiasx(ip),ip=1,90)
-       if (istat /= 0) exit
+       if (istat /= izero) exit
        cfound = .false.
        do j =1,jpch_rad
           if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
@@ -327,12 +342,12 @@ contains
              tlapmean(j)=tlapm
           end if
        end do
-       if(.not. cfound .and. mype == 0) &
+       if(.not. cfound .and. mype == izero) &
             write(6,*) '***WARNING instrument/channel ',isis,ichan, &
             'found in satbias_angle file but not found in satinfo'
     end do read2
     close(lunin)
-    if (istat>0) then
+    if (istat>izero) then
        write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_angle, istat=',istat
        write(6,*)'RADINFO_READ:  stop program execution'
        call stop2(79)
@@ -350,57 +365,57 @@ contains
 
 !   Allocate array to hold coefficients for predictive (air mass) part of 
 !   bias correction.  Open unit to input file.  Read data.
-    allocate(predx(npred,jpch_rad))
-    do j=1,jpch_rad
-       do i=1,npred
-          predx(i,j)=zero
-       end do
-    end do
-
-    open(lunin,file='satbias_in' ,form='formatted')
-    nfound = .false.
-    read3: do
-       read(lunin,'(I5,1x,A20,1x,I5,10f12.6)',iostat=istat) ich,isis,&
-            ichan,(predr(ip),ip=1,npred)
-       if (istat /= 0) exit
-       cfound = .false.
-       do j =1,jpch_rad
-          if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
-             cfound = .true.
-             nfound(j) = .true.
-             do i=1,npred
-                predx(i,j)=predr(i)
-             end do
-          end if
-       end do
-       if(mype == 0 .and. .not. cfound) &
-            write(6,*) '***WARNING instrument/channel ',isis,ichan, &
-            'found in satbias_in file but not found in satinfo'
-    end do read3
-    close(lunin)
-    if (istat>0) then
-       write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_in, istat=',istat
-       write(6,*)'RADINFO_READ:  stop program execution'
-       call stop2(79)
-    endif
-
-    if (mype==mype_rad) then
-       write(iout_rad,*)'RADINFO_READ:  guess air mass bias correction coefficients below'
+       allocate(predx(npred,jpch_rad))
        do j=1,jpch_rad
-          if (nfound(j)) then
-             write(iout_rad,140) j,trim(nusis(j)),(predx(n,j),n=1,npred)
-          else
-             write(iout_rad,*) '***WARNING instrument/channel ',&
-             nusis(j),nuchan(j),' not found in satbias_in file - set to zero '
-          endif
-      end do
-140    format(i4,1x,a20,10f12.6)
-    endif
+          do i=1,npred
+             predx(i,j)=zero
+          end do
+       end do
+
+       open(lunin,file='satbias_in' ,form='formatted')
+       nfound = .false.
+       read3: do
+          read(lunin,'(I5,1x,A20,1x,I5,10f12.6)',iostat=istat) ich,isis,&
+               ichan,(predr(ip),ip=1,npred)
+          if (istat /= izero) exit
+          cfound = .false.
+          do j =1,jpch_rad
+             if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
+                cfound = .true.
+                nfound(j) = .true.
+                do i=1,npred
+                   predx(i,j)=predr(i)
+                end do
+             end if
+          end do
+          if(mype == izero .and. .not. cfound) &
+             write(6,*) '***WARNING instrument/channel ',isis,ichan, &
+             'found in satbias_in file but not found in satinfo'
+       end do read3
+       close(lunin)
+       if (istat>izero) then
+          write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_in, istat=',istat
+          write(6,*)'RADINFO_READ:  stop program execution'
+          call stop2(79)
+       endif
+
+       if (mype==mype_rad) then
+          write(iout_rad,*)'RADINFO_READ:  guess air mass bias correction coefficients below'
+          do j=1,jpch_rad
+             if (nfound(j)) then
+                write(iout_rad,140) j,trim(nusis(j)),(predx(n,j),n=1,npred)
+             else
+                write(iout_rad,*) '***WARNING instrument/channel ',&
+                nusis(j),nuchan(j),' not found in satbias_in file - set to zero '
+             endif
+          end do
+140       format(i4,1x,a20,10f12.6)
+       endif
 
     endif
 
 ! Read SST dependent radiance bias correction lookup table
-   if (retrieval) then
+    if (retrieval) then
       
        allocate(fbias(numt,jpch_rad))
        fbias=zero
@@ -412,10 +427,10 @@ contains
 
 !      Loop over satellites sensors & channels
        read4: do
-           read(lunin,'(I5,1x,a20,1x,I5/3(4x,11f10.3/) )',iostat=istat) ich,isis,ichan,(fbiasx(i),i=1,numt)
-           if (istat /= 0) exit
-           cfound = .false.
-           do j=1,jpch_rad
+          read(lunin,'(I5,1x,a20,1x,I5/3(4x,11f10.3/) )',iostat=istat) ich,isis,ichan,(fbiasx(i),i=1,numt)
+          if (istat /= izero) exit
+          cfound = .false.
+          do j=1,jpch_rad
              if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
                 cfound = .true.
                 do i=1,numt
@@ -423,11 +438,11 @@ contains
                 end do
                 tlapmean(j)=tlapm
              end if
-           end do
-           if(.not. cfound)write(6,*) ' WARNING instrument/channel ',isis,ichan, &
-              'found in satbias_sst file and not found in satinfo'
-      end do read4
-      close(lunin)
+          end do
+          if(.not. cfound)write(6,*) ' WARNING instrument/channel ',isis,ichan, &
+             'found in satbias_sst file and not found in satinfo'
+       end do read4
+       close(lunin)
     endif           ! endif for if (retrieval) then
 
 
@@ -470,7 +485,7 @@ contains
     implicit none
 
     integer(i_kind) lunout,jch,ip
-    data lunout / 51 /
+    data lunout / 51_i_kind /
 
 
 !   Open unit to output file.  Write updated coefficients.  Close unit.
@@ -524,16 +539,17 @@ contains
 !$$$ end documentation block
 
 ! !USES:
- 
+
+    use constants, only: izero 
     implicit none
 
 ! !INPUT PARAMETERS:
 
-    character(len=20), intent(in)::  sis   ! satellite to search for
-    integer(i_kind), intent(in)::  ichan   ! channel number to search for
-
+    character(len=20), intent(in) :: sis   ! satellite to search for
+    integer(i_kind)  , intent(in) :: ichan ! channel number to search for
 
     integer(i_kind) j
+
     do j=1,jpch_rad
        if ( nuchan(j)==ichan .and. nusis(j)==sis) then
           newchn=j
@@ -542,7 +558,7 @@ contains
     end do
     write(6,*) 'NEWCHN:  channel=',ichan,' sensor/instrument/satellite=',sis, &
          ' not present in satinfo file'
-    newchn=0
+    newchn=izero
     return
   end function newchn
   

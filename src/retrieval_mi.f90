@@ -60,18 +60,18 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: two,zero,izero
+  use constants, only: ione,two,zero,izero
 
   implicit none
     
 ! Declare passed variables
-  integer(i_kind),intent(in)::nchanl
-  real(r_kind),dimension(nchanl),intent(in)::tb
-  logical,intent(in):: ssmi,ssmis, no85GHz
+  integer(i_kind)               ,intent(in   ) :: nchanl
+  real(r_kind),dimension(nchanl),intent(in   ) :: tb
+  logical                       ,intent(in   ) :: ssmi,ssmis, no85GHz
 
-  integer(i_kind),intent(out)::kraintype,ierr
-  real(r_kind),intent(out)::tpwc,clw
-  real(r_kind),intent(out)::si85
+  integer(i_kind)               ,intent(  out) :: kraintype,ierr
+  real(r_kind)                  ,intent(  out) :: tpwc,clw
+  real(r_kind)                  ,intent(  out) :: si85
 
 ! Declare local variables
   real(r_kind)::tbpol(3),tb19v,tb19h,tb22v,tb37v,tb37h,tb85v,tb85h
@@ -94,11 +94,11 @@
   kraintype  = izero
 
   if(ssmi) then
-       tb19v = tb(1); tb19h = tb(2); tb22v = tb(3)
-       tb37v = tb(4); tb37h = tb(5); tb85v = tb(6); tb85h = tb(7)
+     tb19v = tb(1); tb19h = tb(2); tb22v = tb(3)
+     tb37v = tb(4); tb37h = tb(5); tb85v = tb(6); tb85h = tb(7)
   else if(ssmis) then
-       tb19v = tb(13); tb19h = tb(12); tb22v = tb(14)
-       tb37v = tb(16); tb37h = tb(15); tb85v = tb(17); tb85h = tb(18)
+     tb19v = tb(13); tb19h = tb(12); tb22v = tb(14)
+     tb37v = tb(16); tb37h = tb(15); tb85v = tb(17); tb85h = tb(18)
   end if
  
   if(ssmis) return   
@@ -110,12 +110,12 @@
 ! bad channels, skip this obs. 
   if ( no85GHz ) then                ! if no 85GHz, only check ch 1-5
      if ( any(tb(1:5)  < 70.0_r_kind) .or. any(tb(1:5) > 320.0_r_kind ) ) then
-        ierr = 1
+        ierr = ione
         return
      endif
   else
      if ( any(tb < 70.0_r_kind) .or. any(tb > 320.0_r_kind ) ) then
-        ierr = 1 
+        ierr = ione
         return
      end if
   endif
@@ -128,11 +128,11 @@
 
   if ( no85GHz ) then                ! if no 85GHz, just check 22,37 GHz
      if (tbpol(1) < -two .or. tbpol(2) < -two) then
-        ierr = 2
+        ierr = 2_i_kind
      endif
      
   else if ( any(tbpol < -two ) ) then 
-     ierr = 2 
+     ierr = 2_i_kind
      return
   end if
  
@@ -152,7 +152,7 @@
           2.439_r_kind*tb22v - 0.00504_r_kind*tb22v*tb22v - tb85v
 
      if (si85 >= r10) then
-        kraintype=2
+        kraintype=2_i_kind
      end if
 
   endif
@@ -168,13 +168,13 @@
 !   If rain is present, can not retrieve tpw since squared tb22v
 !   term greatly increases error in tpw.  
 
-    tpw = 232.89393_r_kind - 0.148596_r_kind*tb19v - 0.36954_r_kind*tb37v - &
-          (1.829125_r_kind - 0.006193_r_kind*tb22v)*tb22v
+     tpw = 232.89393_r_kind - 0.148596_r_kind*tb19v - 0.36954_r_kind*tb37v - &
+           (1.829125_r_kind - 0.006193_r_kind*tb22v)*tb22v
 
 !   Apply cubic correction for high and low values.
-    tpwc = -3.75_r_kind + 1.507_r_kind*tpw - 0.01933_r_kind*(tpw**2) &
-          + 0.0002191_r_kind*(tpw**3)
-    tpwc = max(zero,tpwc)
+     tpwc = -3.75_r_kind + 1.507_r_kind*tpw - 0.01933_r_kind*(tpw**2) &
+           + 0.0002191_r_kind*(tpw**3)
+     tpwc = max(zero,tpwc)
 
 !  =======   CLW over ocean (when no rain)  ====================
 !   Generate cloud liquid water (clw) using algorithm in Sec 3.2.
@@ -182,34 +182,34 @@
 !   generate a product.  
 
      if (tb22v<r285) then
-       clw2term=log(r290-tb22v)
+        clw2term=log(r290-tb22v)
 !
 !      CLW using 37v as primary channel
-       if (tb37v<r285) then 
-          clw37 = -1.66_r_kind*( log(r290-tb37v ) -  &
-                   2.99_r_kind - 0.32_r_kind*clw2term )
-          clw = clw37           ! default if none of the other critera satisfied
-       end if
+        if (tb37v<r285) then 
+           clw37 = -1.66_r_kind*( log(r290-tb37v ) -  &
+                    2.99_r_kind - 0.32_r_kind*clw2term )
+           clw = clw37           ! default if none of the other critera satisfied
+        end if
 
 !
 !      CLW using 19v as primary channel
-       if (tb19v<r285) then 
-         clw19  = -3.20_r_kind*( log(r290-tb19v) -  &
-                   2.84_r_kind - 0.4_r_kind*clw2term  ) 
-         if (clw19 > 0.7_r_kind) then 
-           clw = clw19
-         else if ( .not. no85GHz .and. &
-              clw37 <= 0.28_r_kind .and. tb85h<r285) then 
+        if (tb19v<r285) then 
+           clw19  = -3.20_r_kind*( log(r290-tb19v) -  &
+                     2.84_r_kind - 0.4_r_kind*clw2term  ) 
+           if (clw19 > 0.7_r_kind) then 
+              clw = clw19
+           else if ( .not. no85GHz .and. &
+                clw37 <= 0.28_r_kind .and. tb85h<r285) then 
 !
 !          CLW using 85h as primary channel
-           clw85 = -0.44_r_kind*( log(r290-tb85h) + & 
-                    1.11_r_kind - 1.26_r_kind*clw2term   )
-           tpw0 = tpwc 
-           if (tpw0 < 30.0_r_kind .and. clw85>zero ) then 
-             clw = clw85
+              clw85 = -0.44_r_kind*( log(r290-tb85h) + & 
+                       1.11_r_kind - 1.26_r_kind*clw2term   )
+              tpw0 = tpwc 
+              if (tpw0 < 30.0_r_kind .and. clw85>zero ) then 
+                 clw = clw85
+              end if
            end if
-         end if
-       end if
+        end if
 
      end if
 
@@ -220,4 +220,4 @@
   end if                    
  
   return
-  end
+end subroutine retrieval_mi

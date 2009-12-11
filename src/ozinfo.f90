@@ -1,8 +1,8 @@
 module ozinfo 
-!$$$   module documentation block
-!                .      .    .                                       .
-! module:    ozinfo
-!   prgmmr: treadon          org: np23                date: 2004-04-10
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   ozinfo
+!   prgmmr: treadon     org: np23                date: 2004-04-10
 !
 ! abstract:  This module contains variables and routines related
 !            to the assimilation of ozone observations (presently,
@@ -41,8 +41,18 @@ module ozinfo
 !
 !$$$ end documentation block
 
-  use kinds, only:r_kind,i_kind
+  use kinds, only: r_kind,i_kind
+  use constants, only: izero,ione
   implicit none
+
+! set default to private
+  private
+! set subroutines to public
+  public :: init_oz
+  public :: ozinfo_read
+! set passed variables to pubic
+  public :: jpch_oz,diag_ozone,nusis_oz,iuse_oz,b_oz,pg_oz,gross_oz
+  public :: error_oz,pob_oz,mype_oz,nulev
 
   logical diag_ozone
   integer(i_kind) mype_oz,jpch_oz
@@ -75,12 +85,12 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use mpimod, only: npe       ! contains the number of mpi tasks, variable "npe"
+    use mpimod, only: npe                  ! contains the number of mpi tasks, variable "npe"
     implicit none
 
-    jpch_oz = 0                 ! number of enteries read from ozinfo
-    diag_ozone = .true.         ! default is to generate ozone diagnostic file
-    mype_oz     = max(0,npe-6)  ! mpi task to write ozone summary report
+    jpch_oz = izero                        ! number of enteries read from ozinfo
+    diag_ozone = .true.                    ! default is to generate ozone diagnostic file
+    mype_oz     = max(izero,npe-6_i_kind)  ! mpi task to write ozone summary report
 
   end subroutine init_oz
   
@@ -115,21 +125,21 @@ contains
     character(len=1):: cflg
     character(len=120) crecord
     integer(i_kind) lunin,mype,j,k,istat,nlines
-    data lunin / 47 /
+    data lunin / 47_i_kind /
 
 
 !   Determine number of entries in ozone information file
     open(lunin,file='ozinfo',form='formatted')
-    j=0
-    nlines=0
+    j=izero
+    nlines=izero
     read1:  do 
        read(lunin,100,iostat=istat) cflg,crecord
-       if (istat /= 0) exit
-       nlines=nlines+1
+       if (istat /= izero) exit
+       nlines=nlines+ione
        if (cflg == '!') cycle
-       j=j+1
+       j=j+ione
     end do read1
-    if (istat>0) then
+    if (istat>izero) then
        write(6,*)'OZINFO_READ:  ***ERROR*** error reading ozinfo, istat=',istat
        close(lunin)
        write(6,*)'OZINFO_READ:  stop program execution'
@@ -152,11 +162,11 @@ contains
        write(iout_oz,*)'OZINFO_READ:  jpch_oz=',jpch_oz
     endif
     rewind(lunin)
-    j=0
+    j=izero
     do k=1,nlines
        read(lunin,100) cflg,crecord
        if (cflg == '!') cycle
-       j=j+1
+       j=j+ione
        read(crecord,*) nusis_oz(j),&
             nulev(j),iuse_oz(j),pob_oz(j),gross_oz(j),error_oz(j), &
             b_oz(j),pg_oz(j)

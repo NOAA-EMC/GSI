@@ -1,8 +1,8 @@
 module oneobmod
-!$$$   module documentation block
-!                .      .    .                                       .
-! module:    oneobmod
-!   prgmmr: kleist           org: np20                date: 2003-10-20
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   oneobmod
+!   prgmmr: kleist      org: np20                date: 2003-10-20
 !
 ! abstract: module contains everything necessary for running single
 !           observation experiments
@@ -14,8 +14,9 @@ module oneobmod
 !   2009-04-28  sienkiewicz - add text output for ozone level obs testing
 !
 ! subroutines included:
-!   init_oneobmod
-!   oneobmakebufr
+!   sub init_oneobmod
+!   sub oneobmakebufr
+!   sub oneobo3lv
 !
 ! variable definitions:
 !   def maginnov   - magnitude of innovation for one ob exp
@@ -35,6 +36,16 @@ module oneobmod
   use kinds, only: r_kind,i_kind
 
   implicit none
+
+! set default to private
+  private
+! set subroutines to public
+  public :: init_oneobmod
+  public :: oneobmakebufr
+  public :: oneobo3lv
+! set passed variables to public
+  public :: oneobtest,oneob_type,magoberr,pctswitch,maginnov
+  public :: oblat,oblon,obpres,obdattim,obhourset
 
   real(r_kind) maginnov, magoberr, oblat, oblon,&
     obhourset, obpres
@@ -76,7 +87,7 @@ contains
     oblat=zero
     oblon=zero
     obpres=r1000
-    obdattim=2000010100
+    obdattim=2000010100_i_kind
     obhourset=zero
     pctswitch=.false.
 
@@ -106,7 +117,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: zero, one, five, one_tenth
+    use constants, only: ione, zero, one, five, one_tenth
     use gsi_io, only: lendian_in
     use obsmod, only: offtime_data,iadate
     implicit none
@@ -124,14 +135,14 @@ contains
     real(r_kind),dimension(1):: xob,yob,dhr
     real(r_kind),dimension(1,1):: pob
     integer(i_kind) n,k,iret
-    real(r_kind):: bmiss=10.e10
+    real(r_kind):: bmiss=10.e10_r_kind
     real(r_kind) hdr(10),obs(10,255),qms(10,255),err(10,255)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
     character(80):: obsstr='POB QOB TOB ZOB UOB VOB CAT'
     character(80):: qmsstr='PQM QQM TQM ZQM WQM'
     character(80):: errstr='POE QOE TOE WOE'
 
-    if (oneob_type .eq. 'o3lev') then
+    if (oneob_type == 'o3lev') then
        call oneobo3lv
        return
     end if
@@ -143,9 +154,9 @@ contains
     write(6,*)idate
     pob=obpres
 ! set default values for this routine
-    ludx=22
-    nobs=1
-    nlev=1
+    ludx=22_i_kind
+    nobs=ione
+    nlev=ione
     subset='ADPUPA'
     sid='SID00001'
     qob=r100
@@ -159,11 +170,11 @@ contains
     zqm=one
     wqm=one
     offtime_data=.true.
-    if (oneob_type.eq.'ps') then
-      typ(1)=87.
+    if (oneob_type=='ps') then
+      typ(1)=87._r_kind
       cat(1,1)=zero
     else
-      typ(1)=20.
+      typ(1)=20._r_kind
       cat(1,1)=one
     endif
 ! keep errs small so the single ob passes the QC check
@@ -186,7 +197,7 @@ contains
       hdr(2)=xob(n)
       hdr(3)=yob(n)
       hdr(4)=dhr(n)
-      hdr(5)=100+typ(n)
+      hdr(5)=r100+typ(n)
       obs=bmiss
       qms=bmiss
       err=bmiss
@@ -205,7 +216,7 @@ contains
         err(3,k)=toe(k,n)
       enddo
       call openmb(lendian_in,subset,idate)
-      call ufbint(lendian_in,hdr,10,   1,iret,hdrstr)
+      call ufbint(lendian_in,hdr,10,ione,iret,hdrstr)
       call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
       call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
       call ufbint(lendian_in,err,10,nlev,iret,errstr)
@@ -214,7 +225,7 @@ contains
       hdr(2)=xob(n)
       hdr(3)=yob(n)
       hdr(4)=dhr(n)
-      hdr(5)=200+typ(n)
+      hdr(5)=200_r_kind+typ(n)
       obs=bmiss
       qms=bmiss
       err=bmiss
@@ -229,7 +240,7 @@ contains
         err(4,k)=woe(k,n)
       enddo
       call openmb(lendian_in,subset,idate)
-      call ufbint(lendian_in,hdr,10,   1,iret,hdrstr)
+      call ufbint(lendian_in,hdr,10,ione,iret,hdrstr)
       call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
       call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
       call ufbint(lendian_in,err,10,nlev,iret,errstr)
@@ -259,7 +270,7 @@ contains
 !   machine:  ?
 !
 !$$$
-    use constants, only: zero, one
+    use constants, only: izero, ione, zero, one
     implicit none
 
     integer(i_kind) lumk                          ! output unit
@@ -270,9 +281,9 @@ contains
 
 2   format(i5,4i3,f6.2,i7,i5,f10.4,f11.4,e16.7,i7,i5,g16.7,g15.7,f6.3)
 
-    lumk = 22
-    ilev = 1                  ! ilev > 24 is passive
-    isnd = 1
+    lumk = 22_i_kind
+    ilev = ione               ! ilev > 24 is passive
+    isnd = ione
     ppmv = one                ! dummy value 
 
 !    obdattim=2000010100
@@ -282,10 +293,10 @@ contains
     ildat(1) = obdattim  / 1000000            ! year
     ildat(2) = mod(obdattim,1000000)/10000    ! month
     ildat(3) = mod(obdattim,10000)/100        ! day
-    ildat(4) = 0
+    ildat(4) = izero
     ildat(5) = mod(obdattim,100)              ! hour
 
-    ildat(6:8) = 0                            ! (no minute/sec in obdattim)
+    ildat(6:8) = izero                        ! (no minute/sec in obdattim)
 
     call w3movdat(rlnc,ildat,jldat)
 

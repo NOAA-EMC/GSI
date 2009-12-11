@@ -10,7 +10,8 @@
 ! !INTERFACE:
 
     module mpeu_util
-      use kinds, only: i_kind
+      use kinds, only: i_kind,r_single,r_double
+      use constants, only: izero,ione
       implicit none
       private	! except
 
@@ -19,12 +20,12 @@
       public :: stdin, stdout, stderr
       public :: strTemplate
 
-    integer(i_kind),parameter :: STDIN = 5
-    integer(i_kind),parameter :: STDOUT= 6
+    integer(i_kind),parameter :: STDIN = 5_i_kind
+    integer(i_kind),parameter :: STDOUT= 6_i_kind
 #ifdef sysHP_UX
-    integer(i_kind),parameter :: STDERR= 7
+    integer(i_kind),parameter :: STDERR= 7_i_kind
 #else
-    integer(i_kind),parameter :: STDERR= 0
+    integer(i_kind),parameter :: STDERR= izero
 #endif
     interface luavail; module procedure luavail_; end interface
 
@@ -70,14 +71,10 @@
 
   character(len=*),parameter :: myname="mpeu_util"
 
-  real*4,parameter :: R4=1.E+0
-  real*8,parameter :: R8=1.D+0
-  integer,parameter :: SP=kind(R4)
-  integer,parameter :: DP=kind(R8)
-
-  integer,parameter :: MAX_LUNIT=1024
+  integer(i_kind),parameter :: MAX_LUNIT=1024_i_kind
 
 contains
+
 function luavail_() result(lu)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -106,29 +103,29 @@ function luavail_() result(lu)
   integer(i_kind) ios
   logical inuse
 
-  lu=-1
-  ios=0
+  lu=-ione
+  ios=izero
   inuse=.true.
 
-  do while(ios.eq.0.and.inuse)
-    lu=lu+1
+  do while(ios==izero.and.inuse)
+    lu=lu+ione
 
 	! Test #1, reserved units
 
-    inuse = lu.eq.stdout .or. lu.eq.stdin .or. lu.eq.stderr
+    inuse = lu==stdout .or. lu==stdin .or. lu==stderr
 
 #ifdef sysSunOS
 	! Reserved units under SunOS
-    inuse = lu.eq.100 .or. lu.eq.101 .or. lu.eq.102
+    inuse = lu==100_i_kind .or. lu==101_i_kind .or. lu==102_i_kind
 #endif
 
 	! Test #2, in-use
 
     if(.not.inuse) inquire(unit=lu,opened=inuse,iostat=ios)
 
-    if(lu >= MAX_LUNIT) ios=-1
+    if(lu >= MAX_LUNIT) ios=-ione
   end do
-  if(ios.ne.0) lu=-1
+  if(ios/=izero) lu=-ione
 end function luavail_
 
 subroutine perr_(who,what)
@@ -153,6 +150,7 @@ subroutine perr_(who,what)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
   write(stderr,'(1x,4a)',advance='no') &
     trim(who),'(): >>> ERROR <<< ',trim(what),' '
@@ -162,6 +160,7 @@ subroutine perr_(who,what)
     trim(who),'(): >>> ERROR <<< ',trim(what),' '
   write(stdout,*)
 end subroutine perr_
+
 subroutine perr_chr_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -184,6 +183,7 @@ subroutine perr_chr_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what,val
   write(stderr,'(1x,4a)',advance='no') &
     trim(who),'(): >>> ERROR <<< ',trim(what),' '
@@ -193,6 +193,7 @@ subroutine perr_chr_(who,what,val)
     trim(who),'(): >>> ERROR <<< ',trim(what),' '
   write(stdout,'(1x,3a)') '"',trim(val),'"'
 end subroutine perr_chr_
+
 subroutine perr_int_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -216,8 +217,9 @@ subroutine perr_int_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  integer(i_kind),intent(in) :: val
+  integer(i_kind) ,intent(in) :: val
   write(stderr,'(1x,4a)',advance='no') &
     trim(who),'(): >>> ERROR <<< ',trim(what),' '
   write(stderr,*) val
@@ -226,6 +228,7 @@ subroutine perr_int_(who,what,val)
     trim(who),'(): >>> ERROR <<< ',trim(what),' '
   write(stdout,*) val
 end subroutine perr_int_
+
 subroutine perr_flt_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -249,8 +252,9 @@ subroutine perr_flt_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  real(SP),intent(in) :: val
+  real(r_single)  ,intent(in) :: val
   write(stderr,'(1x,4a)',advance='no') &
     trim(who),'(): >>> ERROR <<< ',trim(what),' '
   write(stderr,*) val
@@ -259,6 +263,7 @@ subroutine perr_flt_(who,what,val)
     trim(who),'(): >>> ERROR <<< ',trim(what),' '
   write(stdout,*) val
 end subroutine perr_flt_
+
 subroutine perr_dbl_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -282,8 +287,9 @@ subroutine perr_dbl_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  real(DP),intent(in) :: val
+  real(r_double)  ,intent(in) :: val
   write(stderr,'(1x,4a)',advance='no') &
     trim(who),'(): >>> ERROR <<< ',trim(what),' '
   write(stderr,*) val
@@ -315,11 +321,13 @@ subroutine warn_(who,what)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): >>> WARNING <<< ',trim(what),' '
   write(stdout,*)
 end subroutine warn_
+
 subroutine warn_chr_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -342,11 +350,13 @@ subroutine warn_chr_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what,val
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): >>> WARNING <<< ',trim(what),' '
   write(stdout,'(1x,3a)') '"',trim(val),'"'
 end subroutine warn_chr_
+
 subroutine warn_int_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -370,12 +380,14 @@ subroutine warn_int_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  integer(i_kind),intent(in) :: val
+  integer(i_kind) ,intent(in) :: val
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): >>> WARNING <<< ',trim(what),' '
   write(stdout,*) val
 end subroutine warn_int_
+
 subroutine warn_flt_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -399,16 +411,40 @@ subroutine warn_flt_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  real(SP),intent(in) :: val
+  real(r_single)  ,intent(in) :: val
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): >>> WARNING <<< ',trim(what),' '
   write(stdout,*) val
 end subroutine warn_flt_
+
 subroutine warn_dbl_(who,what,val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    warn_dbl_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!
+!   input argument list:
+!    who,what
+!    val
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  real(DP),intent(in) :: val
+  real(r_double)  ,intent(in) :: val
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): >>> WARNING <<< ',trim(what),' '
   write(stdout,*) val
@@ -436,11 +472,13 @@ subroutine tell_(who,what)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): ',trim(what),' '
   write(stdout,*)
 end subroutine tell_
+
 subroutine tell_chr_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -463,11 +501,13 @@ subroutine tell_chr_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what,val
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): ',trim(what),' '
   write(stdout,'(1x,3a)') '"',trim(val),'"'
 end subroutine tell_chr_
+
 subroutine tell_int_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -491,12 +531,14 @@ subroutine tell_int_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  integer(i_kind),intent(in) :: val
+  integer(i_kind) ,intent(in) :: val
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): ',trim(what),' '
   write(stdout,*) val
 end subroutine tell_int_
+
 subroutine tell_flt_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -520,12 +562,14 @@ subroutine tell_flt_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  real(SP),intent(in) :: val
+  real(r_single)  ,intent(in) :: val
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): ',trim(what),' '
   write(stdout,*) val
 end subroutine tell_flt_
+
 subroutine tell_dbl_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -549,8 +593,9 @@ subroutine tell_dbl_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  real(DP),intent(in) :: val
+  real(r_double)  ,intent(in) :: val
   write(stdout,'(1x,4a)',advance='no') &
     trim(who),'(): ',trim(what),' '
   write(stdout,*) val
@@ -577,6 +622,7 @@ subroutine dropdead_()
 !
 !$$$ end documentation block
   implicit none
+
   	! this is a GSI_GridComp::abort()
   call abor1(myname//"dropdead_()")
 !!  call exit(2)
@@ -604,10 +650,12 @@ subroutine die_(who)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who
   call perr_(who,'presence of a fatal condition')
   call dropdead_()
 end subroutine die_
+
 subroutine die2_(who,what)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -630,10 +678,12 @@ subroutine die2_(who,what)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
   call perr_(who,what)
   call dropdead_()
 end subroutine die2_
+
 subroutine die_chr_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -656,10 +706,12 @@ subroutine die_chr_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what,val
   call perr_chr_(who,what,val)
   call dropdead_()
 end subroutine die_chr_
+
 subroutine die_int_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -683,11 +735,13 @@ subroutine die_int_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  integer(i_kind),intent(in) :: val
+  integer(i_kind) ,intent(in) :: val
   call perr_int_(who,what,val)
   call dropdead_()
 end subroutine die_int_
+
 subroutine die_flt_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -711,11 +765,13 @@ subroutine die_flt_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  real(SP),intent(in) :: val
+  real(r_single)  ,intent(in) :: val
   call perr_flt_(who,what,val)
   call dropdead_()
 end subroutine die_flt_
+
 subroutine die_dbl_(who,what,val)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -739,11 +795,13 @@ subroutine die_dbl_(who,what,val)
 !
 !$$$ end documentation block
   implicit none
+
   character(len=*),intent(in) :: who,what
-  real(DP),intent(in) :: val
+  real(r_double)  ,intent(in) :: val
   call perr_dbl_(who,what,val)
   call dropdead_()
 end subroutine die_dbl_
+
 subroutine assert_(str,from,line)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -768,13 +826,15 @@ subroutine assert_(str,from,line)
 !
 !$$$ end documentation block
   implicit none
-  character(len=*),intent(in) :: str	! a message of assert_()
-  character(len=*),intent(in) :: from	! where assert_() is invoked.
-  integer(i_kind),intent(in)  :: line	! where assert_() is invoked.
+
+  character(len=*),intent(in) :: str    ! a message of assert_()
+  character(len=*),intent(in) :: from   ! where assert_() is invoked.
+  integer(i_kind) ,intent(in) :: line   ! where assert_() is invoked.
   character(len=*),parameter :: myname_='ASSERT_'
   call perr_(myname_,'failed: "'//str//'"')
   call die(myname_,from,line)
 end subroutine assert_
+
 subroutine assert_GE_(m,n,who,str)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -799,9 +859,10 @@ subroutine assert_GE_(m,n,who,str)
 !
 !$$$ end documentation block
   implicit none
-  integer(i_kind),intent(in) :: m,n
-  character(len=*),intent(in) :: who	! where assert_GE_() is invoked.
-  character(len=*),intent(in) :: str	! a message of assert_GE_()
+
+  integer(i_kind) ,intent(in) :: m,n
+  character(len=*),intent(in) :: who    ! where assert_GE_() is invoked.
+  character(len=*),intent(in) :: str    ! a message of assert_GE_()
   character(len=*),parameter :: myname_='ASSERT_GE_'
   if(.not.(m>=n)) then
     call perr(myname_,'failed: "'//str//'"')
@@ -855,23 +916,23 @@ end subroutine assert_GE_
 
       character(len=*),intent(in ) :: tmpl	! a "format"
 
-      integer(i_kind),intent(in ),optional :: nymd
-			! yyyymmdd, substituting "%y4", "%y2", "%m1",
-			! "%m2", "%mc", "%Mc', and "%MC"
+      integer(i_kind) ,intent(in ),optional :: nymd
+                        ! yyyymmdd, substituting "%y4", "%y2", "%m1",
+                        ! "%m2", "%mc", "%Mc', and "%MC"
 
-      integer(i_kind),intent(in ),optional :: nhms
-			! hhmmss, substituting "%h1", "%h2", "%h3",
-			! and "%n2"
+      integer(i_kind) ,intent(in ),optional :: nhms
+                        ! hhmmss, substituting "%h1", "%h2", "%h3",
+                        ! and "%n2"
 
       integer(i_kind),dimension(:),intent(in ),optional :: dims
-			! integers, substituing "%i", "%j", "%k", "%l"
+                        ! integers, substituing "%i", "%j", "%k", "%l"
 
       character(len=*),intent(in ),optional :: xid
-			! a string substituting a "%s".  Trailing
-			! spaces will be ignored
+                        ! a string substituting a "%s".  Trailing
+                        ! spaces will be ignored
 
-      integer(i_kind),intent(out),optional :: stat
-			! error code
+      integer(i_kind) ,intent(out),optional :: stat
+                        ! error code
 
 ! !REVISION HISTORY:
 ! 	18Feb09	- Jing Guo <Jing.Guo@nasa.gov>
@@ -890,17 +951,17 @@ end subroutine assert_GE_
 
   character(len=*),parameter :: myname_=myname//'::strTemplate'
 
-  character(len=3),parameter,dimension(12) :: mon_lc =	(/	&
-	'jan','feb','mar','apr','may','jun',	&
-	'jul','aug','sep','oct','nov','dec'	/)
+  character(len=3),parameter,dimension(12) :: mon_lc =	(/  &
+        'jan','feb','mar','apr','may','jun',	&
+        'jul','aug','sep','oct','nov','dec' /)
 
-  character(len=3),parameter,dimension(12) :: mon_wd =	(/	&
-	'Jan','Feb','Mar','Apr','May','Jun',	&
-	'Jul','Aug','Sep','Oct','Nov','Dec'	/)
+  character(len=3),parameter,dimension(12) :: mon_wd =	(/  &
+        'Jan','Feb','Mar','Apr','May','Jun',	&
+        'Jul','Aug','Sep','Oct','Nov','Dec' /)
 
-  character(len=3),parameter,dimension(12) :: mon_uc =	(/	&
-	'JAN','FEB','MAR','APR','MAY','JUN',	&
-	'JUL','AUG','SEP','OCT','NOV','DEC'	/)
+  character(len=3),parameter,dimension(12) :: mon_uc =	(/  &
+        'JAN','FEB','MAR','APR','MAY','JUN',	&
+        'JUL','AUG','SEP','OCT','NOV','DEC' /)
 
 
   integer(i_kind) :: iy4,iy2,imo,idy
@@ -913,18 +974,18 @@ end subroutine assert_GE_
   character(len=1) :: c0,c1,c2
   character(len=8) :: sbuf
 !________________________________________
-	! Determine iyr, imo, and idy
-  iy4=-1
-  iy2=-1
-  imo=-1
-  idy=-1
+! Determine iyr, imo, and idy
+  iy4=-ione
+  iy2=-ione
+  imo=-ione
+  idy=-ione
   if(present(nymd)) then
-	if(nymd <= 0) then
-	  call perr(myname_,'nymd <= 0',nymd)
-	  if(.not.present(stat)) call die(myname_)
-	  stat=1
-	  return
-	endif
+    if(nymd <= izero) then
+      call perr(myname_,'nymd <= 0',nymd)
+      if(.not.present(stat)) call die(myname_)
+      stat=ione
+      return
+    endif
 
     i=nymd
     iy4=i/10000
@@ -935,16 +996,16 @@ end subroutine assert_GE_
     idy=i
   endif
 !________________________________________
-	! Determine ihr and imn
-  ihr=-1
-  imn=-1
+! Determine ihr and imn
+  ihr=-ione
+  imn=-ione
   if(present(nhms)) then
-	if(nhms < 0) then
-	  call perr(myname_,'nhms < 0',nhms)
-	  if(.not.present(stat)) call die(myname_)
-	  stat=1
-	  return
-	endif
+    if(nhms < izero) then
+      call perr(myname_,'nhms < 0',nhms)
+      if(.not.present(stat)) call die(myname_)
+      stat=ione
+      return
+    endif
 
     i=nhms
     ihr=i/10000
@@ -953,277 +1014,278 @@ end subroutine assert_GE_
   endif
 !________________________________________
 
-  ln_tmpl=len_trim(tmpl)	! size of the format template
-  ln_str =len(str)		! size of the output string
+  ln_tmpl=len_trim(tmpl)   ! size of the format template
+  ln_str =len(str)         ! size of the output string
 !________________________________________
 
-  if(present(stat)) stat=0
+  if(present(stat)) stat=izero
 
-str=""
+  str=""
 
-i=0; istp=1
-k=1; kstp=1
+  i=izero; istp=ione
+  k=ione ; kstp=ione
 
-do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
+  do while( i+istp <= ln_tmpl )    ! A loop over all tokens in (tmpl)
 
-  if(k>ln_Str) exit	! truncate the output here.
+    if(k>ln_Str) exit    ! truncate the output here.
 
-  i=i+istp
-  c0=tmpl(i:i)
+    i=i+istp
+    c0=tmpl(i:i)
 
-  select case(c0)
-  case ("$")
-    call genv_(tmpl,ln_tmpl,i,istp,str,ln_str,k,ier)
-    if(ier/=0) then
-      call perr(myname_,'genv_("'//tmpl(i:ln_tmpl)//'"',ier)
-      if(.not.present(stat)) call die(myname_)
-      stat=1
-      return
-    endif
-
-  case ("%")
-	!________________________________________
-
-    c1=""
-    i1=i+1
-    if(i1 <= ln_Tmpl) c1=tmpl(i1:i1)
-	!________________________________________
-
-    select case(c1)
-
-    case("s")
-      if(.not.present(xid)) then
-	write(stderr,'(2a)') myname_,	&
-		': optional argument expected, "xid="'
-	if(.not.present(stat)) call die(myname_)
-	stat=1
-	return
+    select case(c0)
+    case ("$")
+      call genv_(tmpl,ln_tmpl,i,istp,str,ln_str,k,ier)
+      if(ier/=izero) then
+        call perr(myname_,'genv_("'//tmpl(i:ln_tmpl)//'"',ier)
+        if(.not.present(stat)) call die(myname_)
+        stat=ione
+        return
       endif
 
-      istp=2
-      m=min(k+len_trim(xid)-1,ln_str)
-      str(k:m)=xid
-      k=m+1
-      cycle
+    case ("%")
+    !________________________________________
 
-    case("i":"l")	! from "i" to "l", (i,j,k,l)
-      if(.not.present(dims)) then
-	write(stderr,'(2a)') myname_,	&
-		': optional argument expected, "dims=(/./)"'
-	if(.not.present(stat)) call die(myname_)
-	stat=1
-	return
-      endif
+      c1=""
+      i1=i+ione
+      if(i1 <= ln_Tmpl) c1=tmpl(i1:i1)
+      !________________________________________
 
-      m=ichar(c1)-ichar("i")+1	! m=1,2,3,4 for i,j,k,l
+      select case(c1)
 
-      if(m>size(dims)) then
-	write(stderr,'(2a)') myname_,	&
-		': additional "dims=(/./)" element expected'
-	write(stderr,'(2a,i4)') myname_,': size(dims) = ',size(dims)
-	write(stderr,'(2a,2a)') myname_,': %-keyword  = "%',c1,'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=1
-	return
-      endif
+      case("s")
+        if(.not.present(xid)) then
+          write(stderr,'(2a)') myname_,	&
+                  ': optional argument expected, "xid="'
+          if(.not.present(stat)) call die(myname_)
+          stat=ione
+          return
+        endif
+
+        istp=2_i_kind
+        m=min(k+len_trim(xid)-ione,ln_str)
+        str(k:m)=xid
+        k=m+ione
+        cycle
+
+      case("i":"l")    ! from "i" to "l", (i,j,k,l)
+        if(.not.present(dims)) then
+          write(stderr,'(2a)') myname_,	&
+                  ': optional argument expected, "dims=(/./)"'
+          if(.not.present(stat)) call die(myname_)
+          stat=ione
+          return
+        endif
+
+        m=ichar(c1)-ichar("i")+ione    ! m=1,2,3,4 for i,j,k,l
+
+        if(m>size(dims)) then
+          write(stderr,'(2a)') myname_,	&
+                  ': additional "dims=(/./)" element expected'
+          write(stderr,'(2a,i4)') myname_,': size(dims) = ',size(dims)
+          write(stderr,'(2a,2a)') myname_,': %-keyword  = "%',c1,'"'
+          if(.not.present(stat)) call die(myname_)
+          stat=ione
+          return
+        endif
       	! If m<size(dims), any extra dims elements are ignored
 
-      write(sbuf,'(i8)') dims(m)
-      sbuf=adjustl(sbuf)	! adjust left all digits
+        write(sbuf,'(i8)') dims(m)
+        sbuf=adjustl(sbuf)    ! adjust left all digits
 
-      istp=2			! size of the "%" keyword
+        istp=2_i_kind         ! size of the "%" keyword
 
-      m=min(k+len_trim(sbuf)-1,ln_str)
-      str(k:m)=sbuf
-      k=m+1
-      cycle
+        m=min(k+len_trim(sbuf)-ione,ln_str)
+        str(k:m)=sbuf
+        k=m+ione
+        cycle
 
-    case("%","$")
+      case("%","$")
 
-      istp=2
-      str(k:k)=c1
-      k=k+1	! kstp=1
-      cycle
+        istp=2_i_kind
+        str(k:k)=c1
+        k=k+ione    ! kstp=ione
+        cycle
 
-    case default
+      case default
 
-      c2=""
-      i2=i+2
-      if(i2 <= ln_Tmpl) c2=tmpl(i2:i2)
-	!________________________________________
+        c2=""
+        i2=i+2_i_kind
+        if(i2 <= ln_Tmpl) c2=tmpl(i2:i2)
+        !________________________________________
 
       select case(c1//c2)
 
       case("y4","y2","m1","m2","mc","Mc","MC","d1","d2")
         if(.not.present(nymd)) then
-	  write(stderr,'(2a)') myname_,	&
-		': optional argument expected, "nymd="'
-	  if(.not.present(stat)) call die(myname_)
-	  stat=1
-	  return
+          write(stderr,'(2a)') myname_,	&
+                  ': optional argument expected, "nymd="'
+          if(.not.present(stat)) call die(myname_)
+          stat=ione
+          return
         endif
-        istp=3
+        istp=3_i_kind
 
       case("h1","h2","h3","n2")
         if(.not.present(nhms)) then
-	  write(stderr,'(2a)') myname_,	&
-		': optional argument expected, "nhms="'
-	  if(.not.present(stat)) call die(myname_)
-	  stat=1
-	  return
+          write(stderr,'(2a)') myname_,	&
+                  ': optional argument expected, "nhms="'
+          if(.not.present(stat)) call die(myname_)
+          stat=ione
+          return
         endif
-        istp=3
+        istp=3_i_kind
 
       case default
 
         write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
+                ': invalid template entry, "',trim(tmpl(i:)),'"'
         if(.not.present(stat)) call die(myname_)
-        stat=2
+        stat=2_i_kind
         return
 
       end select	  ! case(c1//c2)
     end select		! case(c1)
-	!________________________________________
+    !________________________________________
 
     select case(c1)
 
     case("y")
       select case(c2)
       case("2")
-	write(sbuf,'(i2.2)') iy2
-	kstp=2
+        write(sbuf,'(i2.2)') iy2
+        kstp=2_i_kind
       case("4")
-	write(sbuf,'(i4.4)') iy4
-	kstp=4
+        write(sbuf,'(i4.4)') iy4
+        kstp=4_i_kind
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,	&
+                ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2_i_kind
+        return
       end select
 
     case("m")
       select case(c2)
       case("1")
-	if(imo < 10) then
-	  write(sbuf,'(i1)') imo
-	  kstp=1
-	else
-	  write(sbuf,'(i2)') imo
-	  kstp=2
-	endif
+        if(imo < 10_i_kind) then
+          write(sbuf,'(i1)') imo
+          kstp=ione
+        else
+          write(sbuf,'(i2)') imo
+          kstp=2_i_kind
+        endif
       case("2")
-	write(sbuf,'(i2.2)') imo
-	kstp=2
+        write(sbuf,'(i2.2)') imo
+        kstp=2_i_kind
       case("c")
-	sbuf=mon_lc(imo)
-	kstp=3
+        sbuf=mon_lc(imo)
+        kstp=3_i_kind
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,	&
+                ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2_i_kind
+        return
       end select
 
     case("M")
       select case(c2)
       case("c")
-	sbuf=mon_wd(imo)
-	kstp=3
+        sbuf=mon_wd(imo)
+        kstp=3_i_kind
       case("C")
-	sbuf=mon_uc(imo)
-	kstp=3
+        sbuf=mon_uc(imo)
+        kstp=3_i_kind
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,	&
+                ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2_i_kind
+        return
       end select
 
     case("d")
       select case(c2)
       case("1")
-	if(idy < 10) then
-	  write(sbuf,'(i1)') idy
-	  kstp=1
-	else
-	  write(sbuf,'(i2)') idy
-	  kstp=2
-	endif
+        if(idy < 10_i_kind) then
+          write(sbuf,'(i1)') idy
+          kstp=ione
+        else
+          write(sbuf,'(i2)') idy
+          kstp=2_i_kind
+        endif
       case("2")
-	write(sbuf,'(i2.2)') idy
-	kstp=2
+        write(sbuf,'(i2.2)') idy
+        kstp=2_i_kind
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,	&
+                ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2_i_kind
+        return
       end select
 
     case("h")
       select case(c2)
       case("1")
-	if(ihr < 10) then
-	  write(sbuf,'(i1)') ihr
-	  kstp=1
-	else
-	  write(sbuf,'(i2)') ihr
-	  kstp=2
-	endif
+        if(ihr < 10_i_kind) then
+        write(sbuf,'(i1)') ihr
+        kstp=ione
+      else
+        write(sbuf,'(i2)') ihr
+        kstp=2_i_kind
+      endif
       case("2")
-	write(sbuf,'(i2.2)') ihr
-	kstp=2
+        write(sbuf,'(i2.2)') ihr
+        kstp=2_i_kind
       case("3")
-	write(sbuf,'(i3.3)') ihr
-	kstp=3
+        write(sbuf,'(i3.3)') ihr
+        kstp=3_i_kind
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,	&
+                ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2_i_kind
+        return
       end select
 
     case("n")
       select case(c2)
       case("2")
-	write(sbuf,'(i2.2)') imn
-	kstp=2
+        write(sbuf,'(i2.2)') imn
+        kstp=2_i_kind
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,	&
+                ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2_i_kind
+        return
       end select
 
     case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
+      write(stderr,'(4a)') myname_,	&
+              ': invalid template entry, "',trim(tmpl(i:)),'"'
+      if(.not.present(stat)) call die(myname_)
+      stat=2_i_kind
       return
     end select	! case(c1)
 
-    m=min(k+kstp-1,ln_Str)
+    m=min(k+kstp-ione,ln_Str)
     str(k:m)=sbuf
-    k=m+1
+    k=m+ione
 
   case default
 
-    istp=1
+    istp=ione
     str(k:k)=tmpl(i:i)
-    k=k+1
+    k=k+ione
 
   end select	! case(c0)
 end do
 
 contains
+
 subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1255,38 +1317,39 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
 !
 !$$$ end documentation block
   implicit none
-  character(len=*),intent(in) :: tmpl
-  integer(i_kind),intent(in)  :: lnt
-  integer(i_kind),intent(in)  :: i
-  integer(i_kind),intent(out) :: istp
+
+  character(len=*),intent(in   ) :: tmpl
+  integer(i_kind) ,intent(in   ) :: lnt
+  integer(i_kind) ,intent(in   ) :: i
+  integer(i_kind) ,intent(  out) :: istp
   character(len=*),intent(inout) :: str
-  integer(i_kind),intent(in)    :: lns
-  integer(i_kind),intent(inout) :: k
-  integer(i_kind),intent(out) :: ier
+  integer(i_kind) ,intent(in   ) :: lns
+  integer(i_kind) ,intent(inout) :: k
+  integer(i_kind) ,intent(  out) :: ier
 
   integer(i_kind) :: j,jb,je
   integer(i_kind) :: l,m
   logical :: bracket,more
   character(len=256) :: env
 
-  j=i+1		! skip "$"
-  ier=0
+  j=i+ione    ! skip "$"
+  ier=izero
 
   if(j>lnt) then
-    ier=1
+    ier=ione
     return
   endif
 
   bracket = tmpl(j:j)=='{'
-  if(bracket) j=j+1
+  if(bracket) j=j+ione
 
-  	! There is at least one a letter (including "_") to start a
-	! variable name
+! There is at least one a letter (including "_") to start a
+! variable name
 
   select case(tmpl(j:j))
   case ("A":"Z","a":"z","_")
   case default
-    ier=2
+    ier=2_i_kind
     return
   end select
 
@@ -1300,12 +1363,12 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
       select case(tmpl(j:j))
       case ("A":"Z","a":"z","_","0":"9")
 	je=j
-        j=j+1
+        j=j+ione
       case ("}")	! End if "}" or eos
-        j=j+1
+        j=j+ione
         exit
       case default
-        ier=3
+        ier=3_i_kind
         return
       end select
       more=j<=lnt
@@ -1318,7 +1381,7 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
       select case(tmpl(j:j))
       case ("A":"Z","a":"z","_","0":"9")
         je=j
-	j=j+1
+	j=j+ione
       case default
         exit
       end select
@@ -1330,9 +1393,9 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
 
   call getenv(tmpl(jb:je),env)
   l=len_trim(env)
-  m=min(k+l-1,lns)
+  m=min(k+l-ione,lns)
   str(k:m)=env
-  k=m+1
+  k=m+ione
 
 end subroutine genv_
 end subroutine strTemplate

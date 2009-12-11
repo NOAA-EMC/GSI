@@ -34,7 +34,7 @@ subroutine read_wrf_nmm_files(mype)
   use guess_grids, only: nfldsig,nfldsfc,ntguessig,ntguessfc,&
        ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
   use gsi_4dvar, only: nhr_assimilation
-  use constants, only: izero,zero,one,zero_single,r60inv
+  use constants, only: izero,ione,zero,one,zero_single,r60inv
   use obsmod, only: iadate
   implicit none
 
@@ -61,12 +61,12 @@ subroutine read_wrf_nmm_files(mype)
 !-----------------------------------------------------------------------------
 ! Start read_wrf_nmm_files here.
   nhr_half=nhr_assimilation/2
-  if(nhr_half*2 < nhr_assimilation) nhr_half=nhr_half+1
-  npem1=npe-1
+  if(nhr_half*2 < nhr_assimilation) nhr_half=nhr_half+ione
+  npem1=npe-ione
   
   do i=1,202
-     time_ges(i,1) = 999
-     time_ges(i,2) = 999
+     time_ges(i,1) = 999_r_kind
+     time_ges(i,2) = 999_r_kind
   end do
 
 
@@ -78,23 +78,23 @@ subroutine read_wrf_nmm_files(mype)
      write(6,*)'READ_wrf_nmm_FILES:  analysis date,minutes ',iadate,nminanl
 
 !    Check for consistency of times from sigma guess files.
-     in_unit=15
+     in_unit=15_i_kind
      iwan=izero
      do i=0,99
         write(filename,100)i
 100     format('sigf',i2.2)
         inquire(file=filename,exist=fexist)
         if(fexist)then
-  open(in_unit,file=filename,form='unformatted')
-  read(in_unit) idate5
-  close(in_unit)
+           open(in_unit,file=filename,form='unformatted')
+           read(in_unit) idate5
+           close(in_unit)
            idate5(5)=izero
            call w3fs21(idate5,nming2)
-           hourg=0.
+           hourg=zero
            write(6,*)'READ_wrf_nmm_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2
            ndiff=nming2-nminanl
            if(abs(ndiff) > 60*nhr_half ) go to 110
-           iwan=iwan+1
+           iwan=iwan+ione
            time_ges(iwan,1) = (nming2-nminanl)*r60inv
            time_ges(iwan+100,1)=i+r0_001
         end if
@@ -102,13 +102,13 @@ subroutine read_wrf_nmm_files(mype)
      end do
      time_ges(201,1)=one
      time_ges(202,1)=one
-     if(iwan > 1)then
+     if(iwan > ione)then
         do i=1,iwan
            do j=i+1,iwan 
               if(time_ges(j,1) < time_ges(i,1))then
-                 temp=time_ges(i+100,1)
-                 time_ges(i+100,1)=time_ges(j+100,1)
-                 time_ges(j+100,1)=temp
+                 temp=time_ges(i+100_i_kind,1)
+                 time_ges(i+100_i_kind,1)=time_ges(j+100_i_kind,1)
+                 time_ges(j+100_i_kind,1)=temp
                  temp=time_ges(i,1)
                  time_ges(i,1)=time_ges(j,1)
                  time_ges(j,1)=temp
@@ -139,22 +139,22 @@ subroutine read_wrf_nmm_files(mype)
            write(6,*)'READ_wrf_nmm_FILES:  surface guess file, nming2 ',hourg,idateg,nming2
            ndiff=nming2-nminanl
            if(abs(ndiff) > 60*nhr_half ) go to 210
-           iwan=iwan+1
+           iwan=iwan+ione
            time_ges(iwan,2) = (nming2-nminanl)*r60inv
-           time_ges(iwan+100,2)=i+r0_001
+           time_ges(iwan+100_i_kind,2)=i+r0_001
         end if
 210     continue
-        if(iwan.eq.1) exit
+        if(iwan==ione) exit
      end do
      time_ges(201,2)=one
      time_ges(202,2)=one
-     if(iwan > 1)then
+     if(iwan > ione)then
         do i=1,iwan
-           do j=i+1,iwan 
+           do j=i+ione,iwan 
               if(time_ges(j,2) < time_ges(i,2))then
-                 temp=time_ges(i+100,2)
-                 time_ges(i+100,2)=time_ges(j+100,2)
-                 time_ges(j+100,2)=temp
+                 temp=time_ges(i+100_i_kind,2)
+                 time_ges(i+100_i_kind,2)=time_ges(j+100_i_kind,2)
+                 time_ges(j+100_i_kind,2)=temp
                  temp=time_ges(i,2)
                  time_ges(i,2)=time_ges(j,2)
                  time_ges(j,2)=temp
@@ -168,7 +168,7 @@ subroutine read_wrf_nmm_files(mype)
 
 
 ! Broadcast guess file information to all tasks
-  call mpi_bcast(time_ges,404,mpi_rtype,npem1,mpi_comm_world,ierror)
+  call mpi_bcast(time_ges,404_i_kind,mpi_rtype,npem1,mpi_comm_world,ierror)
 
   nfldsig   = nint(time_ges(201,1))
 !!nfldsfc   = nint(time_ges(201,2))
@@ -178,12 +178,12 @@ subroutine read_wrf_nmm_files(mype)
   call create_gesfinfo
 
   do i=1,nfldsig
-     ifilesig(i) = -100
+     ifilesig(i) = -100_i_kind
      hrdifsig(i) = zero
   end do
   
   do i=1,nfldsfc
-     ifilesfc(i) = -100
+     ifilesfc(i) = -100_i_kind
      hrdifsfc(i) = zero
   end do
 
@@ -191,9 +191,9 @@ subroutine read_wrf_nmm_files(mype)
   ntguessig = nint(time_ges(202,1))
   do i=1,nfldsig
      hrdifsig(i) = time_ges(i,1)
-     ifilesig(i) = nint(time_ges(i+100,1))
+     ifilesig(i) = nint(time_ges(i+100_i_kind,1))
   end do
-  if(mype == 0) write(6,*)'READ_wrf_nmm_FILES:  sigma fcst files used in analysis  :  ',&
+  if(mype == izero) write(6,*)'READ_wrf_nmm_FILES:  sigma fcst files used in analysis  :  ',&
        (ifilesig(i),i=1,nfldsig),(hrdifsig(i),i=1,nfldsig),ntguessig
 
 
@@ -201,7 +201,7 @@ subroutine read_wrf_nmm_files(mype)
   ntguessfc = nint(time_ges(202,2))
   do i=1,nfldsfc
      hrdifsfc(i) = time_ges(i,2)
-     ifilesfc(i) = nint(time_ges(i+100,2))
+     ifilesfc(i) = nint(time_ges(i+100_i_kind,2))
   end do
 
 ! Below is a temporary fix. The wrf_nmm regional mode does not have a surface
@@ -218,7 +218,7 @@ subroutine read_wrf_nmm_files(mype)
      hrdifsfc(i) = hrdifsig(i)
      ifilesfc(i) = ifilesig(i)
   end do
-  if(mype == 0) write(6,*)'READ_wrf_nmm_FILES:  surface fcst files used in analysis:  ',&
+  if(mype == izero) write(6,*)'READ_wrf_nmm_FILES:  surface fcst files used in analysis:  ',&
        (ifilesfc(i),i=1,nfldsfc),(hrdifsfc(i),i=1,nfldsfc),ntguessfc
   
 
@@ -262,7 +262,7 @@ subroutine read_nems_nmmb_files(mype)
   use guess_grids, only: nfldsig,nfldsfc,ntguessig,ntguessfc,&
        ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
   use gsi_4dvar, only: nhr_assimilation
-  use constants, only: izero,zero,one,zero_single,r60inv
+  use constants, only: izero,ione,zero,one,zero_single,r60inv
   use obsmod, only: iadate
   implicit none
 
@@ -289,12 +289,12 @@ subroutine read_nems_nmmb_files(mype)
 !-----------------------------------------------------------------------------
 ! Start read_nems_nmmb_files here.
   nhr_half=nhr_assimilation/2
-  if(nhr_half*2 < nhr_assimilation) nhr_half=nhr_half+1
-  npem1=npe-1
+  if(nhr_half*2 < nhr_assimilation) nhr_half=nhr_half+ione
+  npem1=npe-ione
 
   do i=1,202
-     time_ges(i,1) = 999
-     time_ges(i,2) = 999
+     time_ges(i,1) = 999_r_kind
+     time_ges(i,2) = 999_r_kind
   end do
 
 
@@ -306,37 +306,37 @@ subroutine read_nems_nmmb_files(mype)
      write(6,*)'READ_nems_nmmb_FILES:  analysis date,minutes ',iadate,nminanl
 
 !    Check for consistency of times from sigma guess files.
-     in_unit=15
+     in_unit=15_i_kind
      iwan=izero
      do i=0,99
         write(filename,100)i
 100     format('sigf',i2.2)
         inquire(file=filename,exist=fexist)
         if(fexist)then
-  open(in_unit,file=filename,form='unformatted')
-  read(in_unit) idate5,isecond,hourg
-  close(in_unit)
+           open(in_unit,file=filename,form='unformatted')
+           read(in_unit) idate5,isecond,hourg
+           close(in_unit)
            idate5(5)=izero
            call w3fs21(idate5,nmings)
            write(6,*)'READ_nems_nmmb_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2
            nming2=nmings+60*hourg
            ndiff=nming2-nminanl
            if(abs(ndiff) > 60*nhr_half ) go to 110
-           iwan=iwan+1
+           iwan=iwan+ione
            time_ges(iwan,1) = (nming2-nminanl)*r60inv
-           time_ges(iwan+100,1)=i+r0_001
+           time_ges(iwan+100_i_kind,1)=i+r0_001
         end if
 110     continue
      end do
      time_ges(201,1)=one
      time_ges(202,1)=one
-     if(iwan > 1)then
+     if(iwan > ione)then
         do i=1,iwan
-           do j=i+1,iwan 
+           do j=i+ione,iwan 
               if(time_ges(j,1) < time_ges(i,1))then
-                 temp=time_ges(i+100,1)
-                 time_ges(i+100,1)=time_ges(j+100,1)
-                 time_ges(j+100,1)=temp
+                 temp=time_ges(i+100_i_kind,1)
+                 time_ges(i+100_i_kind,1)=time_ges(j+100_i_kind,1)
+                 time_ges(j+100_i_kind,1)=temp
                  temp=time_ges(i,1)
                  time_ges(i,1)=time_ges(j,1)
                  time_ges(j,1)=temp
@@ -367,22 +367,22 @@ subroutine read_nems_nmmb_files(mype)
            write(6,*)'READ_nems_nmmb_FILES:  surface guess file, nming2 ',hourg,idateg,nming2
            ndiff=nming2-nminanl
            if(abs(ndiff) > 60*nhr_half ) go to 210
-           iwan=iwan+1
+           iwan=iwan+ione
            time_ges(iwan,2) = (nming2-nminanl)*r60inv
-           time_ges(iwan+100,2)=i+r0_001
+           time_ges(iwan+100_i_kind,2)=i+r0_001
         end if
 210     continue
-        if(iwan.eq.1) exit
+        if(iwan==ione) exit
      end do
      time_ges(201,2)=one
      time_ges(202,2)=one
-     if(iwan > 1)then
+     if(iwan > ione)then
         do i=1,iwan
-           do j=i+1,iwan 
+           do j=i+ione,iwan 
               if(time_ges(j,2) < time_ges(i,2))then
-                 temp=time_ges(i+100,2)
-                 time_ges(i+100,2)=time_ges(j+100,2)
-                 time_ges(j+100,2)=temp
+                 temp=time_ges(i+100_i_kind,2)
+                 time_ges(i+100_i_kind,2)=time_ges(j+100_i_kind,2)
+                 time_ges(j+100_i_kind,2)=temp
                  temp=time_ges(i,2)
                  time_ges(i,2)=time_ges(j,2)
                  time_ges(j,2)=temp
@@ -396,7 +396,7 @@ subroutine read_nems_nmmb_files(mype)
 
 
 ! Broadcast guess file information to all tasks
-  call mpi_bcast(time_ges,404,mpi_rtype,npem1,mpi_comm_world,ierror)
+  call mpi_bcast(time_ges,404_i_kind,mpi_rtype,npem1,mpi_comm_world,ierror)
 
   nfldsig   = nint(time_ges(201,1))
 !!nfldsfc   = nint(time_ges(201,2))
@@ -406,12 +406,12 @@ subroutine read_nems_nmmb_files(mype)
   call create_gesfinfo
 
   do i=1,nfldsig
-     ifilesig(i) = -100
+     ifilesig(i) = -100_i_kind
      hrdifsig(i) = zero
   end do
 
   do i=1,nfldsfc
-     ifilesfc(i) = -100
+     ifilesfc(i) = -100_i_kind
      hrdifsfc(i) = zero
   end do
 
@@ -419,9 +419,9 @@ subroutine read_nems_nmmb_files(mype)
   ntguessig = nint(time_ges(202,1))
   do i=1,nfldsig
      hrdifsig(i) = time_ges(i,1)
-     ifilesig(i) = nint(time_ges(i+100,1))
+     ifilesig(i) = nint(time_ges(i+100_i_kind,1))
   end do
-  if(mype == 0) write(6,*)'READ_nems_nmmb_FILES:  sigma fcst files used in analysis  :  ',&
+  if(mype == izero) write(6,*)'READ_nems_nmmb_FILES:  sigma fcst files used in analysis  :  ',&
        (ifilesig(i),i=1,nfldsig),(hrdifsig(i),i=1,nfldsig),ntguessig
 
 
@@ -429,7 +429,7 @@ subroutine read_nems_nmmb_files(mype)
   ntguessfc = nint(time_ges(202,2))
   do i=1,nfldsfc
      hrdifsfc(i) = time_ges(i,2)
-     ifilesfc(i) = nint(time_ges(i+100,2))
+     ifilesfc(i) = nint(time_ges(i+100_i_kind,2))
   end do
 
 ! Below is a temporary fix. The nems_nmmb regional mode does not have a surface
@@ -446,7 +446,7 @@ subroutine read_nems_nmmb_files(mype)
      hrdifsfc(i) = hrdifsig(i)
      ifilesfc(i) = ifilesig(i)
   end do
-  if(mype == 0) write(6,*)'READ_nems_nmb_FILES:  surface fcst files used in analysis:  ',&
+  if(mype == izero) write(6,*)'READ_nems_nmb_FILES:  surface fcst files used in analysis:  ',&
        (ifilesfc(i),i=1,nfldsfc),(hrdifsfc(i),i=1,nfldsfc),ntguessfc
   
 

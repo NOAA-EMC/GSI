@@ -44,6 +44,7 @@ module mp_compact_diffs_mod1
 !$$$ end documentation block
 
   use kinds,only: r_kind,i_kind
+  use constants,only: izero,ione
   implicit none
 
   integer(i_kind),allocatable::list_sd2ew(:,:)   ! list_sd2ew(1,j) = lat index 1 for ew strip j
@@ -75,6 +76,38 @@ module mp_compact_diffs_mod1
   integer(i_kind),allocatable,dimension(:,:)::info_send_ns2sd,info_recv_ns2sd
 
   logical slow_pole
+
+! set default to private
+  private
+! set subroutines to public
+  public :: init_mp_compact_diffs1
+  public :: destroy_mp_compact_diffs1
+  public :: cdiff_sd2ew0
+  public :: cdiff_sd2ew1
+  public :: cdiff_ew2sd1
+  public :: cdiff_sd2ew
+  public :: cdiff_sd2ew2
+  public :: cdiff_sd2ew3
+  public :: cdiff_ew2sd
+  public :: cdiff_ew2sd2
+  public :: cdiff_ew2sd3
+  public :: cdiff_sd2ns0
+  public :: cdiff_sd2ns1
+  public :: cdiff_ns2sd1
+  public :: cdiff_sd2ns
+  public :: cdiff_sd2ns2
+  public :: cdiff_sd2ns3
+  public :: cdiff_ns2sd
+  public :: cdiff_ns2sd2
+  public :: cdiff_ns2sd3
+  public :: mp_compact_dlon
+  public :: mp_compact_dlon_ad
+  public :: mp_compact_dlat
+  public :: mp_compact_dlat_ad
+  public :: mp_uv_pole
+  public :: mp_uv_pole_ad
+! set passed variables to public
+  public :: nlat_1,slow_pole,nlat_0,nlon_0,nlon_1
 
 contains
 
@@ -154,32 +187,15 @@ subroutine cdiff_sd2ew0(nlev,mype)
 ! subprogram:    cdiff_sd2ew0
 !   prgmmr:
 !
-! abstract:
+! abstract: create ew (lat strips) subdivision for use in global spectral transform
 !
-! program history list:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    nlev
-!    mype       - mpi task id
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-!  create ew (lat strips) subdivision for use in global spectral transform
-
 !  output:
-
+!
 !     nlat_0,nlat_1:   range of lat/vert index on processor mype
-
+!
 !                    1 <= nlat_0 <= nlat_1 <= ((nlat+1)/2)*nlev
 !                    if npe > ((nlat+1)/2)*nlev, then will have nlat_0 = -1, nlat_1 = -2
-!                    on some processors, and nlat_0=nlat_1 on the 
+!                    on some processors, and nlat_0=nlat_1 on the
 !                    remaining ((nlat+1)/2)*nlev processors
 !
 !     list_sd2ew(4,((nlat+1)/2)*nlev):  global definition of contents of each lat/vert strip
@@ -194,7 +210,20 @@ subroutine cdiff_sd2ew0(nlev,mype)
 !                      if the number of lats is odd, then the second pair contains two duplicate
 !                      latitudes, ie  (1,2),(3,3),(4,5),...,(nlat-1,nlat)
 !
+! program history list:
+!   2009-08-06  lueken - added subprogram doc block
 !
+!   input argument list:
+!    nlev
+!    mype       - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
   use gridmod, only: nlat
   use mpimod, only: npe
@@ -204,77 +233,77 @@ subroutine cdiff_sd2ew0(nlev,mype)
 
   integer(i_kind) nlat_this,nlat_tot,kchk,i,k,kk,n,nn
 
-  allocate(list_sd2ew(4,((nlat+1)/2)*nlev))
+  allocate(list_sd2ew(4,((nlat+ione)/2)*nlev))
 
-  nlat_tot=((nlat+1)/2)*nlev
+  nlat_tot=((nlat+ione)/2)*nlev
   nlat_this=nlat_tot/npe
-  if(mod(nlat_tot,npe)/=0) nlat_this=nlat_this+1
-  if(mod(nlat_tot,npe)==0) then
+  if(mod(nlat_tot,npe)/=izero) nlat_this=nlat_this+ione
+  if(mod(nlat_tot,npe)==izero) then
     kchk=npe
   else
     kchk=mod(nlat_tot,npe)
   end if
 
-  nn=0
+  nn=izero
   do k=1,nlev
-    nn=nn+1
-    list_sd2ew(1,nn)=1
-    list_sd2ew(2,nn)=2
+    nn=nn+ione
+    list_sd2ew(1,nn)=ione
+    list_sd2ew(2,nn)=2_i_kind
     list_sd2ew(3,nn)=k
-    list_sd2ew(4,nn)=-1
-    if(mod(nlat,2)/=0) then
+    list_sd2ew(4,nn)=-ione
+    if(mod(nlat,2)/=izero) then
 !                           nlat odd:
-      nn=nn+1
-      list_sd2ew(1,nn)=3
-      list_sd2ew(2,nn)=3
+      nn=nn+ione
+      list_sd2ew(1,nn)=3_i_kind
+      list_sd2ew(2,nn)=3_i_kind
       list_sd2ew(3,nn)=k
-      list_sd2ew(4,nn)=-1
-      do i=4,nlat-1,2
-        nn=nn+1
+      list_sd2ew(4,nn)=-ione
+      do i=4,nlat-ione,2
+        nn=nn+ione
         list_sd2ew(1,nn)=i
-        list_sd2ew(2,nn)=i+1
+        list_sd2ew(2,nn)=i+ione
         list_sd2ew(3,nn)=k
-        list_sd2ew(4,nn)=-1
+        list_sd2ew(4,nn)=-ione
       end do
 
     else
 !                           nlat even:
-      do i=3,nlat-1,2
-        nn=nn+1
+      do i=3,nlat-ione,2
+        nn=nn+ione
         list_sd2ew(1,nn)=i
-        list_sd2ew(2,nn)=i+1
+        list_sd2ew(2,nn)=i+ione
         list_sd2ew(3,nn)=k
-        list_sd2ew(4,nn)=-1
+        list_sd2ew(4,nn)=-ione
       end do
 
     end if
 
   end do
 
-   !  if(mype.eq.0) write(0,*)' nn,nlat_tot,nlat,nlev=',nn,nlat_tot,nlat,nlev
+   !  if(mype==izero) write(0,*)' nn,nlat_tot,nlat,nlev=',nn,nlat_tot,nlat,nlev
 
-  nlat_0=-1
-  nlat_1=-2
-  nn=0
+  nlat_0=-ione
+  nlat_1=-2_i_kind
+  nn=izero
   do n=1,npe
-    if(n.le.kchk) then
+    if(n<=kchk) then
       kk=nlat_this
     else
-      kk=nlat_this-1
+      kk=nlat_this-ione
     end if
-    if(kk.gt.0) then
-      if(mype+1.eq.n) then
-        nlat_0=nn+1
+    if(kk>izero) then
+      if(mype+ione==n) then
+        nlat_0=nn+ione
         nlat_1=nn+kk
       end if
       do k=1,kk
-        nn=nn+1
+        nn=nn+ione
         list_sd2ew(4,nn)=n
       end do
     end if
   end do
     ! write(0,*) '  mype,nlat_0,nlat_1,nlat_1-nlat0+1=',mype,nlat_0,nlat_1,nlat_1-nlat_0+1
-    ! if(mype.eq.0) then
+    ! if(mype==izero) then
     !   do i=1,nlat_tot
     !     write(0,'(" i,list_sd2ew(:,i)=",i5,4i6)')i,list_sd2ew(1:4,i)
     !   end do
@@ -288,7 +317,7 @@ subroutine cdiff_sd2ew1(nlev,mype)
 ! subprogram:    cdiff_sd2ew1
 !   prgmmr:
 !
-! abstract:
+! abstract: continue with setup for subdomain to lat strip interchanges
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -305,8 +334,6 @@ subroutine cdiff_sd2ew1(nlev,mype)
 !
 !$$$ end documentation block
 
-!  continue with setup for subdomain to lat strip interchanges
-
   use gridmod, only: nlat,lon2,lat2,jstart,istart
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
   implicit none
@@ -317,68 +344,68 @@ subroutine cdiff_sd2ew1(nlev,mype)
   integer(i_kind) i,ii,ii0,ilat,ilat_1,ilat_2,ivert,j,mm1,nn,nlonloc,ipe,ilatm,ilon,mpi_string1
   integer(i_kind) isig,nlat_tot,i12
 
-  allocate(nsend_sd2ew(npe),nrecv_sd2ew(npe),ndsend_sd2ew(npe+1),ndrecv_sd2ew(npe+1))
-  mm1=mype+1
-  nlat_tot=((nlat+1)/2)*nlev
+  allocate(nsend_sd2ew(npe),nrecv_sd2ew(npe),ndsend_sd2ew(npe+ione),ndrecv_sd2ew(npe+ione))
+  mm1=mype+ione
+  nlat_tot=((nlat+ione)/2)*nlev
 
-  nn=0
-  list2=0
+  nn=izero
+  list2=izero
   do j=1,nlat_tot
     ilat_1=list_sd2ew(1,j)
     ilat_2=list_sd2ew(2,j)
     ivert=list_sd2ew(3,j)
-    if(list2(ilat_1,ivert).ne.0.or.list2(ilat_2,ivert).ne.0) then
-           if(mype.eq.0) write(0,*)' problem in cdiff_sd2ew1'
-                        call mpi_finalize(i)
-                        stop
+    if(list2(ilat_1,ivert)/=izero.or.list2(ilat_2,ivert)/=izero) then
+           if(mype==izero) write(0,*)' problem in cdiff_sd2ew1'
+           call mpi_finalize(i)
+           stop
     end if
     list2(ilat_1,ivert)=j
     list2(ilat_2,ivert)=j
   end do
   do ivert=1,nlev
     do ilat=1,nlat
-      if(list2(ilat,ivert).eq.0) then
-           if(mype.eq.0) write(0,*)' problem in cdiff_sd2ew1'
-                        call mpi_finalize(i)
-                        stop
+      if(list2(ilat,ivert)==izero) then
+           if(mype==izero) write(0,*)' problem in cdiff_sd2ew1'
+           call mpi_finalize(i)
+           stop
       end if
     end do
   end do
 
 !  obtain counts of points to send to each pe from this pe
 
-  nsend_sd2ew=0
-  nlonloc=lon2-2
+  nsend_sd2ew=izero
+  nlonloc=lon2-2_i_kind
   do ivert=1,nlev
-    do i=2,lat2-1
-      ilat=i+istart(mm1)-2
+    do i=2,lat2-ione
+      ilat=i+istart(mm1)-2_i_kind
       j=list2(ilat,ivert)
       ipe=list_sd2ew(4,j)
       nsend_sd2ew(ipe)=nsend_sd2ew(ipe)+nlonloc
     end do
   end do
 
-  ndsend_sd2ew(1)=0
-  do i=2,npe+1
-    ndsend_sd2ew(i)=ndsend_sd2ew(i-1)+nsend_sd2ew(i-1)
+  ndsend_sd2ew(1)=izero
+  do i=2,npe+ione
+    ndsend_sd2ew(i)=ndsend_sd2ew(i-ione)+nsend_sd2ew(i-ione)
   end do
-  nallsend_sd2ew=ndsend_sd2ew(npe+1)
+  nallsend_sd2ew=ndsend_sd2ew(npe+ione)
   allocate(info_send_sd2ew(4,nallsend_sd2ew))
-  nsend_sd2ew=0
+  nsend_sd2ew=izero
   do ivert=1,nlev
-    do i=2,lat2-1
-      ilat=i+istart(mm1)-2
+    do i=2,lat2-ione
+      ilat=i+istart(mm1)-2_i_kind
       ilatm=list2(ilat,ivert)
       ilat_1=list_sd2ew(1,ilatm)
       ilat_2=list_sd2ew(2,ilatm)
-      i12=0
-      if(ilat_1.eq.ilat) i12=1
-      if(ilat_2.eq.ilat) i12=2
+      i12=izero
+      if(ilat_1==ilat) i12=ione
+      if(ilat_2==ilat) i12=2_i_kind
       isig =list_sd2ew(3,ilatm)
       ipe=list_sd2ew(4,ilatm)
-      do ii=2,lon2-1
-        ilon=ii+jstart(mm1)-2
-        nsend_sd2ew(ipe)=nsend_sd2ew(ipe)+1
+      do ii=2,lon2-ione
+        ilon=ii+jstart(mm1)-2_i_kind
+        nsend_sd2ew(ipe)=nsend_sd2ew(ipe)+ione
         ii0=ndsend_sd2ew(ipe)+nsend_sd2ew(ipe)
         info_send_sd2ew(1,ii0)=ilon
         info_send_sd2ew(2,ii0)=ilatm
@@ -388,14 +415,14 @@ subroutine cdiff_sd2ew1(nlev,mype)
     end do
   end do
 
-  call mpi_alltoall(nsend_sd2ew,1,mpi_integer4,nrecv_sd2ew,1,mpi_integer4,mpi_comm_world,ierror)
-  ndrecv_sd2ew(1)=0
-  do i=2,npe+1
-    ndrecv_sd2ew(i)=ndrecv_sd2ew(i-1)+nrecv_sd2ew(i-1)
+  call mpi_alltoall(nsend_sd2ew,ione,mpi_integer4,nrecv_sd2ew,ione,mpi_integer4,mpi_comm_world,ierror)
+  ndrecv_sd2ew(1)=izero
+  do i=2,npe+ione
+    ndrecv_sd2ew(i)=ndrecv_sd2ew(i-ione)+nrecv_sd2ew(i-ione)
   end do
-  nallrecv_sd2ew=ndrecv_sd2ew(npe+1)
+  nallrecv_sd2ew=ndrecv_sd2ew(npe+ione)
   allocate(info_recv_sd2ew(4,nallrecv_sd2ew))
-  call mpi_type_contiguous(4,mpi_integer4,mpi_string1,ierror)
+  call mpi_type_contiguous(4_i_kind,mpi_integer4,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(info_send_sd2ew,nsend_sd2ew,ndsend_sd2ew,mpi_string1, &
                      info_recv_sd2ew,nrecv_sd2ew,ndrecv_sd2ew,mpi_string1,mpi_comm_world,ierror)
@@ -409,7 +436,7 @@ subroutine cdiff_ew2sd1(mype)
 ! subprogram:    cdiff_ew2sd1
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -425,8 +452,6 @@ subroutine cdiff_ew2sd1(mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
-
   use gridmod, only: nlon,jstart,istart,ilat1,jlon1
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
   implicit none
@@ -435,84 +460,84 @@ subroutine cdiff_ew2sd1(mype)
   integer(i_kind),intent(in)::mype
   integer(i_kind) i,i1,i2,ilat_1,ilat_2,ivert,j,k,mm1,ipe,ilon,mpi_string1,nn
 
-  allocate(nsend_ew2sd(npe),nrecv_ew2sd(npe),ndsend_ew2sd(npe+1),ndrecv_ew2sd(npe+1))
-  mm1=mype+1
+  allocate(nsend_ew2sd(npe),nrecv_ew2sd(npe),ndsend_ew2sd(npe+ione),ndrecv_ew2sd(npe+ione))
+  mm1=mype+ione
 
 !      1.  for each pe, gather up list of points from this set of lat strips destined
 !             for subdomain of pe
   do ipe=1,npe
-    nn=0
+    nn=izero
     do k=nlat_0,nlat_1
       ilat_1=list_sd2ew(1,k)
       ilat_2=list_sd2ew(2,k)
       ivert=list_sd2ew(3,k)
-      i1=ilat_1-istart(ipe)+2
-      if(i1.ge.1.and.i1.le.ilat1(ipe)+2) then
-        do j=1,jlon1(ipe)+2
-          nn=nn+1
+      i1=ilat_1-istart(ipe)+2_i_kind
+      if(i1>=ione.and.i1<=ilat1(ipe)+2_i_kind) then
+        do j=1,jlon1(ipe)+2_i_kind
+          nn=nn+ione
         end do
       end if
-      if(ilat_1.eq.ilat_2) cycle
-      i2=ilat_2-istart(ipe)+2
-      if(i2.ge.1.and.i2.le.ilat1(ipe)+2) then
-        do j=1,jlon1(ipe)+2
-          nn=nn+1
+      if(ilat_1==ilat_2) cycle
+      i2=ilat_2-istart(ipe)+2_i_kind
+      if(i2>=ione.and.i2<=ilat1(ipe)+2_i_kind) then
+        do j=1,jlon1(ipe)+2_i_kind
+          nn=nn+ione
         end do
       end if
     end do
     nsend_ew2sd(ipe)=nn
   end do
 
-  ndsend_ew2sd(1)=0
-  do i=2,npe+1
-    ndsend_ew2sd(i)=ndsend_ew2sd(i-1)+nsend_ew2sd(i-1)
+  ndsend_ew2sd(1)=izero
+  do i=2,npe+ione
+    ndsend_ew2sd(i)=ndsend_ew2sd(i-ione)+nsend_ew2sd(i-ione)
   end do
-  nallsend_ew2sd=ndsend_ew2sd(npe+1)
+  nallsend_ew2sd=ndsend_ew2sd(npe+ione)
   allocate(info_send_ew2sd(4,nallsend_ew2sd))
-  nn=0
+  nn=izero
   do ipe=1,npe
     do k=nlat_0,nlat_1
       ilat_1=list_sd2ew(1,k)
       ilat_2=list_sd2ew(2,k)
       ivert=list_sd2ew(3,k)
-      i1=ilat_1-istart(ipe)+2
-      if(i1.ge.1.and.i1.le.ilat1(ipe)+2) then
-        do j=1,jlon1(ipe)+2
-          ilon=j+jstart(ipe)-2
-          if(ilon.lt.1) ilon=ilon+nlon
-          if(ilon.gt.nlon) ilon=ilon-nlon
-          nn=nn+1
+      i1=ilat_1-istart(ipe)+2_i_kind
+      if(i1>=ione.and.i1<=ilat1(ipe)+2_i_kind) then
+        do j=1,jlon1(ipe)+2_i_kind
+          ilon=j+jstart(ipe)-2_i_kind
+          if(ilon<ione) ilon=ilon+nlon
+          if(ilon>nlon) ilon=ilon-nlon
+          nn=nn+ione
           info_send_ew2sd(1,nn)=ilon
           info_send_ew2sd(2,nn)=j
           info_send_ew2sd(3,nn)=k
-          info_send_ew2sd(4,nn)=1
+          info_send_ew2sd(4,nn)=ione
         end do
       end if
-      if(ilat_1.eq.ilat_2) cycle
-      i2=ilat_2-istart(ipe)+2
-      if(i2.ge.1.and.i2.le.ilat1(ipe)+2) then
-        do j=1,jlon1(ipe)+2
-          ilon=j+jstart(ipe)-2
-          if(ilon.lt.1) ilon=ilon+nlon
-          if(ilon.gt.nlon) ilon=ilon-nlon
-          nn=nn+1
+      if(ilat_1==ilat_2) cycle
+      i2=ilat_2-istart(ipe)+2_i_kind
+      if(i2>=ione.and.i2<=ilat1(ipe)+2_i_kind) then
+        do j=1,jlon1(ipe)+2_i_kind
+          ilon=j+jstart(ipe)-2_i_kind
+          if(ilon<ione) ilon=ilon+nlon
+          if(ilon>nlon) ilon=ilon-nlon
+          nn=nn+ione
           info_send_ew2sd(1,nn)=ilon
           info_send_ew2sd(2,nn)=j
           info_send_ew2sd(3,nn)=k
-          info_send_ew2sd(4,nn)=2
+          info_send_ew2sd(4,nn)=2_i_kind
         end do
       end if
     end do
   end do
 
-  call mpi_alltoall(nsend_ew2sd,1,mpi_integer4,nrecv_ew2sd,1,mpi_integer4,mpi_comm_world,ierror)
-  ndrecv_ew2sd(1)=0
-  do i=2,npe+1
-    ndrecv_ew2sd(i)=ndrecv_ew2sd(i-1)+nrecv_ew2sd(i-1)
+  call mpi_alltoall(nsend_ew2sd,ione,mpi_integer4,nrecv_ew2sd,ione,mpi_integer4,mpi_comm_world,ierror)
+  ndrecv_ew2sd(1)=izero
+  do i=2,npe+ione
+    ndrecv_ew2sd(i)=ndrecv_ew2sd(i-ione)+nrecv_ew2sd(i-ione)
   end do
-  nallrecv_ew2sd=ndrecv_ew2sd(npe+1)
+  nallrecv_ew2sd=ndrecv_ew2sd(npe+ione)
   allocate(info_recv_ew2sd(4,nallrecv_ew2sd))
-  call mpi_type_contiguous(4,mpi_integer4,mpi_string1,ierror)
+  call mpi_type_contiguous(4_i_kind,mpi_integer4,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(info_send_ew2sd,nsend_ew2sd,ndsend_ew2sd,mpi_string1, &
                      info_recv_ew2sd,nrecv_ew2sd,ndrecv_ew2sd,mpi_string1,mpi_comm_world,ierror)
@@ -526,7 +551,7 @@ subroutine cdiff_sd2ew(u_sd,u_ew,nlev,mype)
 ! subprogram:    cdiff_sd2ew
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_sd (subdomains) to u_ew (lat strips)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -545,8 +570,6 @@ subroutine cdiff_sd2ew(u_sd,u_ew,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_sd (subdomains) to u_ew (lat strips)
-
   use gridmod, only: nlon,lon2,lat2,jstart,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -559,7 +582,7 @@ subroutine cdiff_sd2ew(u_sd,u_ew,nlev,mype)
   integer(i_kind) i12,ilat,ilatm,ilon,ivert,j,mm1
   real(r_kind),allocatable::sendbuf(:),recvbuf(:)
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(nallsend_sd2ew))
   do j=1,nallsend_sd2ew
@@ -568,7 +591,7 @@ subroutine cdiff_sd2ew(u_sd,u_ew,nlev,mype)
     i12=info_send_sd2ew(3,j)
     ilat=list_sd2ew(i12,ilatm)
     ivert=list_sd2ew(3,ilatm)
-    sendbuf(j)=u_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
+    sendbuf(j)=u_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
   end do
   allocate(recvbuf(nallrecv_sd2ew))
   call mpi_alltoallv(sendbuf,nsend_sd2ew,ndsend_sd2ew,mpi_rtype, &
@@ -591,7 +614,7 @@ subroutine cdiff_sd2ew2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
 ! subprogram:    cdiff_sd2ew2
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_sd (subdomains) to u_ew (lat strips)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -610,8 +633,6 @@ subroutine cdiff_sd2ew2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_sd (subdomains) to u_ew (lat strips)
-
   use gridmod, only: nlon,lon2,lat2,jstart,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -626,7 +647,7 @@ subroutine cdiff_sd2ew2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
   integer(i_kind) i12,ilat,ilatm,ilon,ivert,j,mm1,mpi_string1
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(2,nallsend_sd2ew))
   do j=1,nallsend_sd2ew
@@ -635,11 +656,11 @@ subroutine cdiff_sd2ew2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
     i12=info_send_sd2ew(3,j)
     ilat=list_sd2ew(i12,ilatm)
     ivert=list_sd2ew(3,ilatm)
-    sendbuf(1,j)=u1_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
-    sendbuf(2,j)=u2_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
+    sendbuf(1,j)=u1_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
+    sendbuf(2,j)=u2_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
   end do
   allocate(recvbuf(2,nallrecv_sd2ew))
-  call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
+  call mpi_type_contiguous(2_i_kind,mpi_rtype,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(sendbuf,nsend_sd2ew,ndsend_sd2ew,mpi_string1, &
                      recvbuf,nrecv_sd2ew,ndrecv_sd2ew,mpi_string1,mpi_comm_world,ierror)
@@ -663,7 +684,7 @@ subroutine cdiff_sd2ew3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
 ! subprogram:    cdiff_sd2ew3
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_sd (subdomains) to u_ew (lat strips)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -682,8 +703,6 @@ subroutine cdiff_sd2ew3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_sd (subdomains) to u_ew (lat strips)
-
   use gridmod, only: nlon,lon2,lat2,jstart,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -696,7 +715,7 @@ subroutine cdiff_sd2ew3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
   integer(i_kind) i12,ilat,ilatm,ilon,ivert,j,mm1,mpi_string1
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(3,nallsend_sd2ew))
   do j=1,nallsend_sd2ew
@@ -705,12 +724,12 @@ subroutine cdiff_sd2ew3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
     i12=info_send_sd2ew(3,j)
     ilat=list_sd2ew(i12,ilatm)
     ivert=list_sd2ew(3,ilatm)
-    sendbuf(1,j)=u1_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
-    sendbuf(2,j)=u2_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
-    sendbuf(3,j)=u3_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
+    sendbuf(1,j)=u1_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
+    sendbuf(2,j)=u2_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
+    sendbuf(3,j)=u3_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
   end do
   allocate(recvbuf(3,nallrecv_sd2ew))
-  call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
+  call mpi_type_contiguous(3_i_kind,mpi_rtype,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(sendbuf,nsend_sd2ew,ndsend_sd2ew,mpi_string1, &
                      recvbuf,nrecv_sd2ew,ndrecv_sd2ew,mpi_string1,mpi_comm_world,ierror)
@@ -735,7 +754,7 @@ subroutine cdiff_ew2sd(u_sd,u_ew,nlev,mype)
 ! subprogram:    cdiff_ew2sd
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -754,8 +773,6 @@ subroutine cdiff_ew2sd(u_sd,u_ew,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
-
   use gridmod, only: nlat,nlon,lon2,lat2,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -768,7 +785,7 @@ subroutine cdiff_ew2sd(u_sd,u_ew,nlev,mype)
   real(r_kind),allocatable::sendbuf(:),recvbuf(:)
   integer(i_kind) i12,ilat,ivert,j,mm1,ilatm,ilon,ilonloc
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(nallsend_ew2sd))
   do j=1,nallsend_ew2sd
@@ -787,14 +804,14 @@ subroutine cdiff_ew2sd(u_sd,u_ew,nlev,mype)
     i12=info_recv_ew2sd(4,j)
     ilat=list_sd2ew(i12,ilatm)
     ivert=list_sd2ew(3,ilatm)
-    u_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(j)
+    u_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(j)
 !--------------check for north or south pole
-    ilat=-1
-    if(list_sd2ew(i12,ilatm).eq.nlat) ilat=nlat+1
-    if(list_sd2ew(i12,ilatm).eq.1) ilat=0
-    if(ilat.eq.-1) cycle
+    ilat=-ione
+    if(list_sd2ew(i12,ilatm)==nlat) ilat=nlat+ione
+    if(list_sd2ew(i12,ilatm)==ione) ilat=izero
+    if(ilat==-ione) cycle
 !-----------------do repeat rows for north/south pole
-    u_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(j)
+    u_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(j)
   end do
   deallocate(recvbuf)
 
@@ -806,7 +823,7 @@ subroutine cdiff_ew2sd2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
 ! subprogram:    cdiff_ew2sd2
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -825,8 +842,6 @@ subroutine cdiff_ew2sd2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
-
   use gridmod, only: nlat,nlon,lon2,lat2,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -839,7 +854,7 @@ subroutine cdiff_ew2sd2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
   integer(i_kind) i12,ilat,ivert,j,mm1,ilatm,ilon,ilonloc,mpi_string1
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(2,nallsend_ew2sd))
   do j=1,nallsend_ew2sd
@@ -850,7 +865,7 @@ subroutine cdiff_ew2sd2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
     sendbuf(2,j)=u2_ew(i12,ilon,ilatm)
   end do
   allocate(recvbuf(2,nallrecv_ew2sd))
-  call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
+  call mpi_type_contiguous(2_i_kind,mpi_rtype,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(sendbuf,nsend_ew2sd,ndsend_ew2sd,mpi_string1, &
                      recvbuf,nrecv_ew2sd,ndrecv_ew2sd,mpi_string1,mpi_comm_world,ierror)
@@ -862,16 +877,16 @@ subroutine cdiff_ew2sd2(u1_sd,u2_sd,u1_ew,u2_ew,nlev,mype)
     i12=info_recv_ew2sd(4,j)
     ilat=list_sd2ew(i12,ilatm)
     ivert=list_sd2ew(3,ilatm)
-    u1_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(1,j)
-    u2_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(2,j)
+    u1_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(1,j)
+    u2_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(2,j)
 !--------------check for north or south pole
-    ilat=-1
-    if(list_sd2ew(i12,ilatm).eq.nlat) ilat=nlat+1
-    if(list_sd2ew(i12,ilatm).eq.1) ilat=0
-    if(ilat.eq.-1) cycle
+    ilat=-ione
+    if(list_sd2ew(i12,ilatm)==nlat) ilat=nlat+ione
+    if(list_sd2ew(i12,ilatm)==ione) ilat=izero
+    if(ilat==-ione) cycle
 !-----------------do repeat rows for north/south pole
-    u1_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(1,j)
-    u2_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(2,j)
+    u1_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(1,j)
+    u2_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(2,j)
   end do
   deallocate(recvbuf)
 
@@ -883,7 +898,7 @@ subroutine cdiff_ew2sd3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
 ! subprogram:    cdiff_ew2sd3
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -902,8 +917,6 @@ subroutine cdiff_ew2sd3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_ew (lat strips) to u_sd (subdomains)
-
   use gridmod, only: nlat,nlon,lon2,lat2,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -916,7 +929,7 @@ subroutine cdiff_ew2sd3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
   integer(i_kind) i12,ilat,ivert,j,mm1,ilatm,ilon,ilonloc,mpi_string1
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(3,nallsend_ew2sd))
   do j=1,nallsend_ew2sd
@@ -928,7 +941,7 @@ subroutine cdiff_ew2sd3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
     sendbuf(3,j)=u3_ew(i12,ilon,ilatm)
   end do
   allocate(recvbuf(3,nallrecv_ew2sd))
-  call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
+  call mpi_type_contiguous(3_i_kind,mpi_rtype,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(sendbuf,nsend_ew2sd,ndsend_ew2sd,mpi_string1, &
                      recvbuf,nrecv_ew2sd,ndrecv_ew2sd,mpi_string1,mpi_comm_world,ierror)
@@ -940,18 +953,18 @@ subroutine cdiff_ew2sd3(u1_sd,u2_sd,u3_sd,u1_ew,u2_ew,u3_ew,nlev,mype)
     i12=info_recv_ew2sd(4,j)
     ilat=list_sd2ew(i12,ilatm)
     ivert=list_sd2ew(3,ilatm)
-    u1_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(1,j)
-    u2_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(2,j)
-    u3_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(3,j)
+    u1_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(1,j)
+    u2_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(2,j)
+    u3_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(3,j)
 !--------------check for north or south pole
-    ilat=-1
-    if(list_sd2ew(i12,ilatm).eq.nlat) ilat=nlat+1
-    if(list_sd2ew(i12,ilatm).eq.1) ilat=0
-    if(ilat.eq.-1) cycle
+    ilat=-ione
+    if(list_sd2ew(i12,ilatm)==nlat) ilat=nlat+ione
+    if(list_sd2ew(i12,ilatm)==ione) ilat=izero
+    if(ilat==-ione) cycle
 !-----------------do repeat rows for north/south pole
-    u1_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(1,j)
-    u2_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(2,j)
-    u3_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(3,j)
+    u1_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(1,j)
+    u2_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(2,j)
+    u3_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(3,j)
   end do
   deallocate(recvbuf)
 
@@ -963,7 +976,25 @@ subroutine cdiff_sd2ns0(nlev,mype)
 ! subprogram:    cdiff_sd2ns0
 !   prgmmr:
 !
-! abstract:
+! abstract: create ns (lon strips) subdivision for use with compact differences in latitude
+!
+!  output:
+!
+!     nlon_0,nlon_1:   range of lon/vert index on processor mype
+!
+!                    1 <= nlon_0 <= nlon_1 <= (nlon/2)*nlev
+!                    if npe > (nlon/2)*nlev, then will have nlon_0 = -1, nlon_1 = -2
+!                    on some processors, and nlon_0=nlon_1 on the
+!                    remaining (nlon/2)*nlev processors
+!
+!     list_sd2ns(4,(nlon/2)*nlev):  global definition of contents of each lon/vert strip
+!                      list_sd2ns(1,j) = lon index 1 for ns strip j
+!                      list_sd2ns(2,j) = lon index 2 for ns strip j
+!                      list_sd2ns(3,j) = vert level for ns strip j
+!                      list_sd2ns(4,j) = pe of this lon/vert strip
+!
+!       NOTE:  only works for nlon even, because longitudes must be in pairs to
+!                complete a great circle through the poles.
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -980,29 +1011,6 @@ subroutine cdiff_sd2ns0(nlev,mype)
 !
 !$$$ end documentation block
 
-!  create ns (lon strips) subdivision for use with compact differences in latitude
-
-!  output:
-
-!     nlon_0,nlon_1:   range of lon/vert index on processor mype
-
-!                    1 <= nlon_0 <= nlon_1 <= (nlon/2)*nlev
-!                    if npe > (nlon/2)*nlev, then will have nlon_0 = -1, nlon_1 = -2
-!                    on some processors, and nlon_0=nlon_1 on the 
-!                    remaining (nlon/2)*nlev processors
-!
-!     list_sd2ns(4,(nlon/2)*nlev):  global definition of contents of each lon/vert strip
-!                      list_sd2ns(1,j) = lon index 1 for ns strip j
-!                      list_sd2ns(2,j) = lon index 2 for ns strip j
-!                      list_sd2ns(3,j) = vert level for ns strip j
-!                      list_sd2ns(4,j) = pe of this lon/vert strip
-!
-!       NOTE:  only works for nlon even, because longitudes must be in pairs to
-!                complete a great circle through the poles.
-!          
-!
-!
-
   use gridmod, only: nlon
   use mpimod, only: npe
   implicit none
@@ -1011,7 +1019,7 @@ subroutine cdiff_sd2ns0(nlev,mype)
 
   integer(i_kind) nlon_this,nlon_tot,kchk,i,k,kk,n,nn,nlonh
 
-  if(mod(nlon,2).ne.0) then
+  if(mod(nlon,2)/=izero) then
         write(6,*)' FAILURE IN cdiff_sd2ns0, nlon not even'
         call stop2(99)
   end if
@@ -1020,49 +1028,49 @@ subroutine cdiff_sd2ns0(nlev,mype)
 
   nlon_tot=nlonh*nlev
   nlon_this=nlon_tot/npe
-  if(mod(nlon_tot,npe)/=0) nlon_this=nlon_this+1
-  if(mod(nlon_tot,npe)==0) then
+  if(mod(nlon_tot,npe)/=izero) nlon_this=nlon_this+ione
+  if(mod(nlon_tot,npe)==izero) then
     kchk=npe
   else
     kchk=mod(nlon_tot,npe)
   end if
 
-  nn=0
+  nn=izero
   do k=1,nlev
     do i=1,nlonh
-      nn=nn+1
+      nn=nn+ione
       list_sd2ns(1,nn)=i
       list_sd2ns(2,nn)=i+nlonh
       list_sd2ns(3,nn)=k
-      list_sd2ns(4,nn)=-1
+      list_sd2ns(4,nn)=-ione
     end do
 
   end do
 
-   !  if(mype.eq.0) write(0,*)' nn,nlon_tot,nlon,nlonh,nlev=',nn,nlon_tot,nlon,nlonh,nlev
+   !  if(mype==izero) write(0,*)' nn,nlon_tot,nlon,nlonh,nlev=',nn,nlon_tot,nlon,nlonh,nlev
 
-  nlon_0=-1
-  nlon_1=-2
-  nn=0
+  nlon_0=-ione
+  nlon_1=-2_i_kind
+  nn=izero
   do n=1,npe
-    if(n.le.kchk) then
+    if(n<=kchk) then
       kk=nlon_this
     else
-      kk=nlon_this-1
+      kk=nlon_this-ione
     end if
-    if(kk.gt.0) then
-      if(mype+1.eq.n) then
-        nlon_0=nn+1
+    if(kk>izero) then
+      if(mype+ione==n) then
+        nlon_0=nn+ione
         nlon_1=nn+kk
       end if
       do k=1,kk
-        nn=nn+1
+        nn=nn+ione
         list_sd2ns(4,nn)=n
       end do
     end if
   end do
    !  write(0,*) '  mype,nlon_0,nlon_1,nlon_1-nlon0+1=',mype,nlon_0,nlon_1,nlon_1-nlon_0+1
-   !  if(mype.eq.0) then
+   !  if(mype==izero) then
    !    do i=1,nlon_tot
    !      write(0,'(" i,list_sd2ns(:,i)=",i5,4i6)')i,list_sd2ns(1:4,i)
    !    end do
@@ -1076,7 +1084,7 @@ subroutine cdiff_sd2ns1(nlev,mype)
 ! subprogram:    cdiff_sd2ns1
 !   prgmmr:
 !
-! abstract:
+! abstract: continue with setup for subdomain to lat strip interchanges
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -1093,8 +1101,6 @@ subroutine cdiff_sd2ns1(nlev,mype)
 !
 !$$$ end documentation block
 
-!  continue with setup for subdomain to lat strip interchanges
-
   use gridmod, only: nlon,lon2,lat2,jstart,istart
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
   implicit none
@@ -1105,69 +1111,69 @@ subroutine cdiff_sd2ns1(nlev,mype)
   integer(i_kind) i,ii,ii0,ilat,ilon_1,ilon_2,ivert,j,mm1,nn,ipe,ilon,mpi_string1
   integer(i_kind) isig,nlon_tot,i12,nlonh,nlatloc,ilonm
 
-  allocate(nsend_sd2ns(npe),nrecv_sd2ns(npe),ndsend_sd2ns(npe+1),ndrecv_sd2ns(npe+1))
-  mm1=mype+1
+  allocate(nsend_sd2ns(npe),nrecv_sd2ns(npe),ndsend_sd2ns(npe+ione),ndrecv_sd2ns(npe+ione))
+  mm1=mype+ione
   nlonh=nlon/2
   nlon_tot=nlonh*nlev
 
-  nn=0
-  list2=0
+  nn=izero
+  list2=izero
   do j=1,nlon_tot
     ilon_1=list_sd2ns(1,j)
     ilon_2=list_sd2ns(2,j)
     ivert=list_sd2ns(3,j)
-    if(list2(ilon_1,ivert).ne.0.or.list2(ilon_2,ivert).ne.0) then
-           if(mype.eq.0) write(0,*)' problem in cdiff_sd2ns1'
-                        call mpi_finalize(i)
-                        stop
+    if(list2(ilon_1,ivert)/=izero.or.list2(ilon_2,ivert)/=izero) then
+           if(mype==izero) write(0,*)' problem in cdiff_sd2ns1'
+           call mpi_finalize(i)
+           stop
     end if
     list2(ilon_1,ivert)=j
     list2(ilon_2,ivert)=j
   end do
   do ivert=1,nlev
     do ilon=1,nlon
-      if(list2(ilon,ivert).eq.0) then
-           if(mype.eq.0) write(0,*)' problem in cdiff_sd2ns1'
-                        call mpi_finalize(i)
-                        stop
+      if(list2(ilon,ivert)==izero) then
+           if(mype==izero) write(0,*)' problem in cdiff_sd2ns1'
+           call mpi_finalize(i)
+           stop
       end if
     end do
   end do
 
 !  obtain counts of points to send to each pe from this pe
 
-  nsend_sd2ns=0
-  nlatloc=lat2-2
+  nsend_sd2ns=izero
+  nlatloc=lat2-2_i_kind
   do ivert=1,nlev
-    do i=2,lon2-1
-      ilon=i+jstart(mm1)-2
+    do i=2,lon2-ione
+      ilon=i+jstart(mm1)-2_i_kind
       j=list2(ilon,ivert)
       ipe=list_sd2ns(4,j)
       nsend_sd2ns(ipe)=nsend_sd2ns(ipe)+nlatloc
     end do
   end do
 
-  ndsend_sd2ns(1)=0
-  do i=2,npe+1
-    ndsend_sd2ns(i)=ndsend_sd2ns(i-1)+nsend_sd2ns(i-1)
+  ndsend_sd2ns(1)=izero
+  do i=2,npe+ione
+    ndsend_sd2ns(i)=ndsend_sd2ns(i-ione)+nsend_sd2ns(i-ione)
   end do
-  nallsend_sd2ns=ndsend_sd2ns(npe+1)
+  nallsend_sd2ns=ndsend_sd2ns(npe+ione)
   allocate(info_send_sd2ns(4,nallsend_sd2ns))
-  nsend_sd2ns=0
+  nsend_sd2ns=izero
   do ivert=1,nlev
-    do i=2,lon2-1
-      ilon=i+jstart(mm1)-2
+    do i=2,lon2-ione
+      ilon=i+jstart(mm1)-2_i_kind
       ilonm=list2(ilon,ivert)
       ilon_1=list_sd2ns(1,ilonm)
       ilon_2=list_sd2ns(2,ilonm)
-      i12=0
-      if(ilon_1.eq.ilon) i12=1
-      if(ilon_2.eq.ilon) i12=2
+      i12=izero
+      if(ilon_1==ilon) i12=ione
+      if(ilon_2==ilon) i12=2_i_kind
       isig =list_sd2ns(3,ilonm)
       ipe=list_sd2ns(4,ilonm)
-      do ii=2,lat2-1
-        ilat=ii+istart(mm1)-2
-        nsend_sd2ns(ipe)=nsend_sd2ns(ipe)+1
+      do ii=2,lat2-ione
+        ilat=ii+istart(mm1)-2_i_kind
+        nsend_sd2ns(ipe)=nsend_sd2ns(ipe)+ione
         ii0=ndsend_sd2ns(ipe)+nsend_sd2ns(ipe)
         info_send_sd2ns(1,ii0)=ilat
         info_send_sd2ns(2,ii0)=ilonm
@@ -1177,14 +1183,14 @@ subroutine cdiff_sd2ns1(nlev,mype)
     end do
   end do
 
-  call mpi_alltoall(nsend_sd2ns,1,mpi_integer4,nrecv_sd2ns,1,mpi_integer4,mpi_comm_world,ierror)
-  ndrecv_sd2ns(1)=0
-  do i=2,npe+1
-    ndrecv_sd2ns(i)=ndrecv_sd2ns(i-1)+nrecv_sd2ns(i-1)
+  call mpi_alltoall(nsend_sd2ns,ione,mpi_integer4,nrecv_sd2ns,ione,mpi_integer4,mpi_comm_world,ierror)
+  ndrecv_sd2ns(1)=izero
+  do i=2,npe+ione
+    ndrecv_sd2ns(i)=ndrecv_sd2ns(i-ione)+nrecv_sd2ns(i-ione)
   end do
-  nallrecv_sd2ns=ndrecv_sd2ns(npe+1)
+  nallrecv_sd2ns=ndrecv_sd2ns(npe+ione)
   allocate(info_recv_sd2ns(4,nallrecv_sd2ns))
-  call mpi_type_contiguous(4,mpi_integer4,mpi_string1,ierror)
+  call mpi_type_contiguous(4_i_kind,mpi_integer4,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(info_send_sd2ns,nsend_sd2ns,ndsend_sd2ns,mpi_string1, &
                      info_recv_sd2ns,nrecv_sd2ns,ndrecv_sd2ns,mpi_string1,mpi_comm_world,ierror)
@@ -1198,7 +1204,7 @@ subroutine cdiff_ns2sd1(mype)
 ! subprogram:    cdiff_ns2sd1
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_ns (lon strips) to u_sd (subdomains)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -1214,8 +1220,6 @@ subroutine cdiff_ns2sd1(mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_ns (lon strips) to u_sd (subdomains)
-
   use gridmod, only: nlat,nlon,jstart,istart,ilat1,jlon1
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
   implicit none
@@ -1225,34 +1229,34 @@ subroutine cdiff_ns2sd1(mype)
   integer(i_kind) i,i1,i2,ilat,ilon_1,ilon_2,ivert,j,k,mm1,ipe,mpi_string1,nn
   integer(i_kind) iloop
 
-  allocate(nsend_ns2sd(npe),nrecv_ns2sd(npe),ndsend_ns2sd(npe+1),ndrecv_ns2sd(npe+1))
-  mm1=mype+1
+  allocate(nsend_ns2sd(npe),nrecv_ns2sd(npe),ndsend_ns2sd(npe+ione),ndrecv_ns2sd(npe+ione))
+  mm1=mype+ione
 
 !      1.  for each pe, gather up list of points from this set of lat strips destined
 !             for subdomain of pe
   do ipe=1,npe
-    nn=0
+    nn=izero
     do k=nlon_0,nlon_1
       ilon_1=list_sd2ns(1,k)
       ilon_2=list_sd2ns(2,k)
       ivert=list_sd2ns(3,k)
-      i1=ilon_1-jstart(ipe)+2
+      i1=ilon_1-jstart(ipe)+2_i_kind
       do iloop=-1,1
-        if(i1+iloop*nlon.ge.1.and.i1+iloop*nlon.le.jlon1(ipe)+2) then
-          do j=1,ilat1(ipe)+2
-            ilat=j+istart(ipe)-2
-            if(ilat.lt.1.or.ilat.gt.nlat) cycle
-            nn=nn+1
+        if(i1+iloop*nlon>=ione.and.i1+iloop*nlon<=jlon1(ipe)+2_i_kind) then
+          do j=1,ilat1(ipe)+2_i_kind
+            ilat=j+istart(ipe)-2_i_kind
+            if(ilat<ione.or.ilat>nlat) cycle
+            nn=nn+ione
           end do
         end if
       end do
-      i2=ilon_2-jstart(ipe)+2
+      i2=ilon_2-jstart(ipe)+2_i_kind
       do iloop=-1,1
-        if(i2+iloop*nlon.ge.1.and.i2+iloop*nlon.le.jlon1(ipe)+2) then
-          do j=1,ilat1(ipe)+2
-            ilat=j+istart(ipe)-2
-            if(ilat.lt.1.or.ilat.gt.nlat) cycle
-            nn=nn+1
+        if(i2+iloop*nlon>=ione.and.i2+iloop*nlon<=jlon1(ipe)+2_i_kind) then
+          do j=1,ilat1(ipe)+2_i_kind
+            ilat=j+istart(ipe)-2_i_kind
+            if(ilat<ione.or.ilat>nlat) cycle
+            nn=nn+ione
           end do
         end if
       end do
@@ -1260,57 +1264,57 @@ subroutine cdiff_ns2sd1(mype)
     nsend_ns2sd(ipe)=nn
   end do
 
-  ndsend_ns2sd(1)=0
-  do i=2,npe+1
-    ndsend_ns2sd(i)=ndsend_ns2sd(i-1)+nsend_ns2sd(i-1)
+  ndsend_ns2sd(1)=izero
+  do i=2,npe+ione
+    ndsend_ns2sd(i)=ndsend_ns2sd(i-ione)+nsend_ns2sd(i-ione)
   end do
-  nallsend_ns2sd=ndsend_ns2sd(npe+1)
+  nallsend_ns2sd=ndsend_ns2sd(npe+ione)
   allocate(info_send_ns2sd(4,nallsend_ns2sd))
-  nn=0
+  nn=izero
   do ipe=1,npe
     do k=nlon_0,nlon_1
       ilon_1=list_sd2ns(1,k)
       ilon_2=list_sd2ns(2,k)
       ivert=list_sd2ns(3,k)
-      i1=ilon_1-jstart(ipe)+2
+      i1=ilon_1-jstart(ipe)+2_i_kind
       do iloop=-1,1
-        if(i1+iloop*nlon.ge.1.and.i1+iloop*nlon.le.jlon1(ipe)+2) then
-          do j=1,ilat1(ipe)+2
-            ilat=j+istart(ipe)-2
-            if(ilat.lt.1.or.ilat.gt.nlat) cycle
-            nn=nn+1
+        if(i1+iloop*nlon>=ione.and.i1+iloop*nlon<=jlon1(ipe)+2_i_kind) then
+          do j=1,ilat1(ipe)+2_i_kind
+            ilat=j+istart(ipe)-2_i_kind
+            if(ilat<ione.or.ilat>nlat) cycle
+            nn=nn+ione
             info_send_ns2sd(1,nn)=ilat
             info_send_ns2sd(2,nn)=i1+iloop*nlon
             info_send_ns2sd(3,nn)=k
-            info_send_ns2sd(4,nn)=1
+            info_send_ns2sd(4,nn)=ione
           end do
         end if
       end do
-      i2=ilon_2-jstart(ipe)+2
+      i2=ilon_2-jstart(ipe)+2_i_kind
       do iloop=-1,1
-        if(i2+iloop*nlon.ge.1.and.i2+iloop*nlon.le.jlon1(ipe)+2) then
-          do j=1,ilat1(ipe)+2
-            ilat=j+istart(ipe)-2
-            if(ilat.lt.1.or.ilat.gt.nlat) cycle
-            nn=nn+1
+        if(i2+iloop*nlon>=ione.and.i2+iloop*nlon<=jlon1(ipe)+2_i_kind) then
+          do j=1,ilat1(ipe)+2_i_kind
+            ilat=j+istart(ipe)-2_i_kind
+            if(ilat<ione.or.ilat>nlat) cycle
+            nn=nn+ione
             info_send_ns2sd(1,nn)=ilat
             info_send_ns2sd(2,nn)=i2+iloop*nlon
             info_send_ns2sd(3,nn)=k
-            info_send_ns2sd(4,nn)=2
+            info_send_ns2sd(4,nn)=2_i_kind
           end do
         end if
       end do
     end do
   end do
 
-  call mpi_alltoall(nsend_ns2sd,1,mpi_integer4,nrecv_ns2sd,1,mpi_integer4,mpi_comm_world,ierror)
-  ndrecv_ns2sd(1)=0
-  do i=2,npe+1
-    ndrecv_ns2sd(i)=ndrecv_ns2sd(i-1)+nrecv_ns2sd(i-1)
+  call mpi_alltoall(nsend_ns2sd,ione,mpi_integer4,nrecv_ns2sd,ione,mpi_integer4,mpi_comm_world,ierror)
+  ndrecv_ns2sd(1)=izero
+  do i=2,npe+ione
+    ndrecv_ns2sd(i)=ndrecv_ns2sd(i-ione)+nrecv_ns2sd(i-ione)
   end do
-  nallrecv_ns2sd=ndrecv_ns2sd(npe+1)
+  nallrecv_ns2sd=ndrecv_ns2sd(npe+ione)
   allocate(info_recv_ns2sd(4,nallrecv_ns2sd))
-  call mpi_type_contiguous(4,mpi_integer4,mpi_string1,ierror)
+  call mpi_type_contiguous(4_i_kind,mpi_integer4,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(info_send_ns2sd,nsend_ns2sd,ndsend_ns2sd,mpi_string1, &
                      info_recv_ns2sd,nrecv_ns2sd,ndrecv_ns2sd,mpi_string1,mpi_comm_world,ierror)
@@ -1324,7 +1328,7 @@ subroutine cdiff_sd2ns(u_sd,u_ns,nlev,mype)
 ! subprogram:    cdiff_sd2ns
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_sd (subdomains) to u_ns (lat strips)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -1343,8 +1347,6 @@ subroutine cdiff_sd2ns(u_sd,u_ns,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_sd (subdomains) to u_ns (lat strips)
-
   use gridmod, only: nlat,lon2,lat2,jstart,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -1357,7 +1359,7 @@ subroutine cdiff_sd2ns(u_sd,u_ns,nlev,mype)
   integer(i_kind) i12,ilat,ilonm,ilon,ivert,j,mm1
   real(r_kind),allocatable::sendbuf(:),recvbuf(:)
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(nallsend_sd2ns))
   do j=1,nallsend_sd2ns
@@ -1366,7 +1368,7 @@ subroutine cdiff_sd2ns(u_sd,u_ns,nlev,mype)
     i12=info_send_sd2ns(3,j)
     ilon=list_sd2ns(i12,ilonm)
     ivert=list_sd2ns(3,ilonm)
-    sendbuf(j)=u_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
+    sendbuf(j)=u_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
   end do
   allocate(recvbuf(nallrecv_sd2ns))
   call mpi_alltoallv(sendbuf,nsend_sd2ns,ndsend_sd2ns,mpi_rtype, &
@@ -1389,7 +1391,7 @@ subroutine cdiff_sd2ns2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
 ! subprogram:    cdiff_sd2ns2
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_sd (subdomains) to u_ns (lat strips)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -1408,8 +1410,6 @@ subroutine cdiff_sd2ns2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_sd (subdomains) to u_ns (lat strips)
-
   use gridmod, only: nlat,lon2,lat2,jstart,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -1422,7 +1422,7 @@ subroutine cdiff_sd2ns2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
   integer(i_kind) i12,ilat,ilonm,ilon,ivert,j,mm1,mpi_string1
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(2,nallsend_sd2ns))
   do j=1,nallsend_sd2ns
@@ -1431,11 +1431,11 @@ subroutine cdiff_sd2ns2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
     i12=info_send_sd2ns(3,j)
     ilon=list_sd2ns(i12,ilonm)
     ivert=list_sd2ns(3,ilonm)
-    sendbuf(1,j)=u1_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
-    sendbuf(2,j)=u2_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
+    sendbuf(1,j)=u1_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
+    sendbuf(2,j)=u2_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
   end do
   allocate(recvbuf(2,nallrecv_sd2ns))
-  call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
+  call mpi_type_contiguous(2_i_kind,mpi_rtype,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(sendbuf,nsend_sd2ns,ndsend_sd2ns,mpi_string1, &
                      recvbuf,nrecv_sd2ns,ndrecv_sd2ns,mpi_string1,mpi_comm_world,ierror)
@@ -1459,7 +1459,7 @@ subroutine cdiff_sd2ns3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
 ! subprogram:    cdiff_sd2ns3
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_sd (subdomains) to u_ns (lat strips)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -1478,8 +1478,6 @@ subroutine cdiff_sd2ns3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_sd (subdomains) to u_ns (lat strips)
-
   use gridmod, only: nlat,lon2,lat2,jstart,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -1492,7 +1490,7 @@ subroutine cdiff_sd2ns3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
   integer(i_kind) i12,ilat,ilonm,ilon,ivert,j,mm1,mpi_string1
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(3,nallsend_sd2ns))
   do j=1,nallsend_sd2ns
@@ -1501,12 +1499,12 @@ subroutine cdiff_sd2ns3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
     i12=info_send_sd2ns(3,j)
     ilon=list_sd2ns(i12,ilonm)
     ivert=list_sd2ns(3,ilonm)
-    sendbuf(1,j)=u1_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
-    sendbuf(2,j)=u2_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
-    sendbuf(3,j)=u3_sd(ilat-istart(mm1)+2,ilon-jstart(mm1)+2,ivert)
+    sendbuf(1,j)=u1_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
+    sendbuf(2,j)=u2_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
+    sendbuf(3,j)=u3_sd(ilat-istart(mm1)+2_i_kind,ilon-jstart(mm1)+2_i_kind,ivert)
   end do
   allocate(recvbuf(3,nallrecv_sd2ns))
-  call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
+  call mpi_type_contiguous(3_i_kind,mpi_rtype,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(sendbuf,nsend_sd2ns,ndsend_sd2ns,mpi_string1, &
                      recvbuf,nrecv_sd2ns,ndrecv_sd2ns,mpi_string1,mpi_comm_world,ierror)
@@ -1531,7 +1529,7 @@ subroutine cdiff_ns2sd(u_sd,u_ns,nlev,mype)
 ! subprogram:    cdiff_ns2sd
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_ns (lat strips) to u_sd (subdomains)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -1550,8 +1548,6 @@ subroutine cdiff_ns2sd(u_sd,u_ns,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_ns (lat strips) to u_sd (subdomains)
-
   use gridmod, only: nlat,lon2,lat2,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -1564,7 +1560,7 @@ subroutine cdiff_ns2sd(u_sd,u_ns,nlev,mype)
   real(r_kind),allocatable::sendbuf(:),recvbuf(:)
   integer(i_kind) i12,ilat,ivert,j,k,mm1,ilonm,ilonloc
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(nallsend_ns2sd))
   do j=1,nallsend_ns2sd
@@ -1582,19 +1578,19 @@ subroutine cdiff_ns2sd(u_sd,u_ns,nlev,mype)
     ilonloc=info_recv_ns2sd(2,j)
     ilonm=info_recv_ns2sd(3,j)
     ivert=list_sd2ns(3,ilonm)
-    u_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(j)
+    u_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(j)
   end do
   deallocate(recvbuf)
 
 !-----------------do repeat rows for north/south pole
-  if(nlat+1-istart(mm1)+2.eq.lat2) then
+  if(nlat+ione-istart(mm1)+2_i_kind==lat2) then
     do k=1,nlev
       do j=1,lon2
-        u_sd(lat2,j,k)=u_sd(lat2-1,j,k)
+        u_sd(lat2,j,k)=u_sd(lat2-ione,j,k)
       end do
     end do
   end if
-  if(2-istart(mm1).eq.1) then
+  if(2_i_kind-istart(mm1)==ione) then
     do k=1,nlev
       do j=1,lon2
         u_sd(1,j,k)=u_sd(2,j,k)
@@ -1610,7 +1606,7 @@ subroutine cdiff_ns2sd2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
 ! subprogram:    init_mp_compact_diffs1
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_ns (lat strips) to u_sd (subdomains)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -1629,8 +1625,6 @@ subroutine cdiff_ns2sd2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_ns (lat strips) to u_sd (subdomains)
-
   use gridmod, only: nlat,lon2,lat2,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -1643,7 +1637,7 @@ subroutine cdiff_ns2sd2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
   integer(i_kind) i12,ilat,ivert,j,k,mm1,ilonm,ilonloc,mpi_string1
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(2,nallsend_ns2sd))
   do j=1,nallsend_ns2sd
@@ -1654,7 +1648,7 @@ subroutine cdiff_ns2sd2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
     sendbuf(2,j)=u2_ns(i12,ilat,ilonm)
   end do
   allocate(recvbuf(2,nallrecv_ns2sd))
-  call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
+  call mpi_type_contiguous(2_i_kind,mpi_rtype,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(sendbuf,nsend_ns2sd,ndsend_ns2sd,mpi_string1, &
                      recvbuf,nrecv_ns2sd,ndrecv_ns2sd,mpi_string1,mpi_comm_world,ierror)
@@ -1665,21 +1659,21 @@ subroutine cdiff_ns2sd2(u1_sd,u2_sd,u1_ns,u2_ns,nlev,mype)
     ilonloc=info_recv_ns2sd(2,j)
     ilonm=info_recv_ns2sd(3,j)
     ivert=list_sd2ns(3,ilonm)
-    u1_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(1,j)
-    u2_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(2,j)
+    u1_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(1,j)
+    u2_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(2,j)
   end do
   deallocate(recvbuf)
 
 !-----------------do repeat rows for north/south pole
-  if(nlat+1-istart(mm1)+2.eq.lat2) then
+  if(nlat+ione-istart(mm1)+2_i_kind==lat2) then
     do k=1,nlev
       do j=1,lon2
-        u1_sd(lat2,j,k)=u1_sd(lat2-1,j,k)
-        u2_sd(lat2,j,k)=u2_sd(lat2-1,j,k)
+        u1_sd(lat2,j,k)=u1_sd(lat2-ione,j,k)
+        u2_sd(lat2,j,k)=u2_sd(lat2-ione,j,k)
       end do
     end do
   end if
-  if(2-istart(mm1).eq.1) then
+  if(2_i_kind-istart(mm1)==ione) then
     do k=1,nlev
       do j=1,lon2
         u1_sd(1,j,k)=u1_sd(2,j,k)
@@ -1696,7 +1690,7 @@ subroutine cdiff_ns2sd3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
 ! subprogram:    cdiff_ns2sd3
 !   prgmmr:
 !
-! abstract:
+! abstract: use mpi_alltoallv to move u_ns (lat strips) to u_sd (subdomains)
 !
 ! program history list:
 !   2009-08-06  lueken - added subprogram doc block
@@ -1715,8 +1709,6 @@ subroutine cdiff_ns2sd3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
 !
 !$$$ end documentation block
 
-!  use mpi_alltoallv to move u_ns (lat strips) to u_sd (subdomains)
-
   use gridmod, only: nlat,lon2,lat2,istart
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
@@ -1729,7 +1721,7 @@ subroutine cdiff_ns2sd3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
   real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
   integer(i_kind) i12,ilat,ivert,j,k,mm1,ilonm,ilonloc,mpi_string1
 
-  mm1=mype+1
+  mm1=mype+ione
 
   allocate(sendbuf(3,nallsend_ns2sd))
   do j=1,nallsend_ns2sd
@@ -1741,7 +1733,7 @@ subroutine cdiff_ns2sd3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
     sendbuf(3,j)=u3_ns(i12,ilat,ilonm)
   end do
   allocate(recvbuf(3,nallrecv_ns2sd))
-  call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
+  call mpi_type_contiguous(3_i_kind,mpi_rtype,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(sendbuf,nsend_ns2sd,ndsend_ns2sd,mpi_string1, &
                      recvbuf,nrecv_ns2sd,ndrecv_ns2sd,mpi_string1,mpi_comm_world,ierror)
@@ -1752,23 +1744,23 @@ subroutine cdiff_ns2sd3(u1_sd,u2_sd,u3_sd,u1_ns,u2_ns,u3_ns,nlev,mype)
     ilonloc=info_recv_ns2sd(2,j)
     ilonm=info_recv_ns2sd(3,j)
     ivert=list_sd2ns(3,ilonm)
-    u1_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(1,j)
-    u2_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(2,j)
-    u3_sd(ilat-istart(mm1)+2,ilonloc,ivert)=recvbuf(3,j)
+    u1_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(1,j)
+    u2_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(2,j)
+    u3_sd(ilat-istart(mm1)+2_i_kind,ilonloc,ivert)=recvbuf(3,j)
   end do
   deallocate(recvbuf)
 
 !-----------------do repeat rows for north/south pole
-  if(nlat+1-istart(mm1)+2.eq.lat2) then
+  if(nlat+ione-istart(mm1)+2_i_kind==lat2) then
     do k=1,nlev
       do j=1,lon2
-        u1_sd(lat2,j,k)=u1_sd(lat2-1,j,k)
-        u2_sd(lat2,j,k)=u2_sd(lat2-1,j,k)
-        u3_sd(lat2,j,k)=u3_sd(lat2-1,j,k)
+        u1_sd(lat2,j,k)=u1_sd(lat2-ione,j,k)
+        u2_sd(lat2,j,k)=u2_sd(lat2-ione,j,k)
+        u3_sd(lat2,j,k)=u3_sd(lat2-ione,j,k)
       end do
     end do
   end if
-  if(2-istart(mm1).eq.1) then
+  if(2_i_kind-istart(mm1)==ione) then
     do k=1,nlev
       do j=1,lon2
         u1_sd(1,j,k)=u1_sd(2,j,k)
@@ -1819,13 +1811,13 @@ subroutine mp_compact_dlon(b,dbdx,vector)
   real(r_kind),dimension(nlon):: work3,grid3,grid3pol
   real(r_kind) polu,polv
 
-  ny=nlat-2
+  ny=nlat-2_i_kind
   nxh=nlon/2
-  nbp=2*noq+1
+  nbp=2*noq+ione
   nya=ny*nbp
   nxa=nxh*nbp
 
-  lacox1=1
+  lacox1=ione
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -1833,14 +1825,14 @@ subroutine mp_compact_dlon(b,dbdx,vector)
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-1
+  lcy   =lbcoy2+nya-ione
 
 !  outer loop over lat strips
   do k=nlat_0,nlat_1
     do i12=1,2
       ilat=list_sd2ew(i12,k)
-      iy=ilat-1
-      if(iy.ge.1.and.iy.le.ny) then
+      iy=ilat-ione
+      if(iy>=ione.and.iy<=ny) then
 
 ! Initialize output arrays to zero
         do ix=1,nlon
@@ -1863,7 +1855,7 @@ subroutine mp_compact_dlon(b,dbdx,vector)
           grid3(ix)=grid3(ix)*coef(lcy+iy)
         end do
 
-        if(iy.eq.1.or.iy.eq.ny) then
+        if(iy==ione.or.iy==ny) then
           if(.not.vector) then
             polu=zero
             polv=zero
@@ -1889,11 +1881,11 @@ subroutine mp_compact_dlon(b,dbdx,vector)
         end do
 
 ! Load pole row if we are adjacent to pole
-        if(iy.eq.1) then
+        if(iy==ione) then
           do ix=1,nlon
             dbdx(1,ix,k)=grid3pol(ix)
           end do
-        else if(iy.eq.ny) then
+        else if(iy==ny) then
           do ix=1,nlon
             dbdx(2,ix,k)=grid3pol(ix)
           end do
@@ -1946,13 +1938,13 @@ subroutine mp_compact_dlon_ad(b,dbdx,vector)
   real(r_kind),dimension(nlon):: work3,grid3,grid3pol
   real(r_kind) polu,polv
 
-  ny=nlat-2
+  ny=nlat-2_i_kind
   nxh=nlon/2
-  nbp=2*noq+1
+  nbp=2*noq+ione
   nya=ny*nbp
   nxa=nxh*nbp
 
-  lacox1=1
+  lacox1=ione
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -1960,22 +1952,22 @@ subroutine mp_compact_dlon_ad(b,dbdx,vector)
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-1
+  lcy   =lbcoy2+nya-ione
 
 
 !  outer loop over lat strips
   do k=nlat_0,nlat_1
     do i12=1,2
       ilat=list_sd2ew(i12,k)
-      iy=ilat-1
-      if(iy.ge.1.and.iy.le.ny) then
+      iy=ilat-ione
+      if(iy>=ione.and.iy<=ny) then
 
 ! adjoint of Load pole row if we are adjacent to pole
-        if(iy.eq.1) then
+        if(iy==ione) then
           do ix=1,nlon
             grid3pol(ix)=dbdx(1,ix,k)
           end do
-        else if(iy.eq.ny) then
+        else if(iy==ny) then
           do ix=1,nlon
             grid3pol(ix)=dbdx(2,ix,k)
           end do
@@ -1986,7 +1978,7 @@ subroutine mp_compact_dlon_ad(b,dbdx,vector)
           grid3(ix)=dbdx(i12,ix,k)
         end do
 
-        if(iy.eq.1.or.iy.eq.ny) then
+        if(iy==ione.or.iy==ny) then
           if(.not.vector) then
             polu=zero
             polv=zero
@@ -2068,13 +2060,13 @@ subroutine mp_compact_dlat(b,dbdy,vector)
 
 
 ! Set parameters for calls to subsequent routines
-  ny=nlat-2
+  ny=nlat-2_i_kind
   nxh=nlon/2
-  nbp=2*noq+1
+  nbp=2*noq+ione
   nya=ny*nbp
   nxa=nxh*nbp
   
-  lacox1=1
+  lacox1=ione
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -2082,7 +2074,7 @@ subroutine mp_compact_dlat(b,dbdy,vector)
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-1
+  lcy   =lbcoy2+nya-ione
 
 !  outer loop over lon strips
   do k=nlon_0,nlon_1
@@ -2133,8 +2125,8 @@ subroutine mp_compact_dlat(b,dbdy,vector)
     dbdy(1,nlat,k)=grid4n
     dbdy(2,nlat,k)=-grid4n
     do i=1,ny
-       dbdy(1,i+1,k) = grid4(1,i)
-       dbdy(2,i+1,k) = grid4(2,i)
+       dbdy(1,i+ione,k) = grid4(1,i)
+       dbdy(2,i+ione,k) = grid4(2,i)
     end do
   
   end do
@@ -2182,13 +2174,13 @@ subroutine mp_compact_dlat_ad(b,dbdy,vector)
 
 
 ! Set parameters for calls to subsequent routines
-  ny=nlat-2
+  ny=nlat-2_i_kind
   nxh=nlon/2
-  nbp=2*noq+1
+  nbp=2*noq+ione
   nya=ny*nbp
   nxa=nxh*nbp
   
-  lacox1=1
+  lacox1=ione
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -2196,15 +2188,15 @@ subroutine mp_compact_dlat_ad(b,dbdy,vector)
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-1
+  lcy   =lbcoy2+nya-ione
 
 !  outer loop over lon strips
   do k=nlon_0,nlon_1
 
 ! adjoint Load result into output array
     do i=1,ny
-       grid4(1,i) = dbdy(1,i+1,k)
-       grid4(2,i) = dbdy(2,i+1,k)
+       grid4(1,i) = dbdy(1,i+ione,k)
+       grid4(2,i) = dbdy(2,i+ione,k)
     end do
   ! grid4s=dbdy(1,1,k)-dbdy(2,1,k)
   ! grid4n=dbdy(1,nlat,k)-dbdy(2,nlat,k)
@@ -2245,8 +2237,8 @@ subroutine mp_compact_dlat_ad(b,dbdy,vector)
 
 ! accumulate to output field
     do i=1,ny
-       b(1,i+1,k) = b(1,i+1,k) - work2(1,i)
-       b(2,i+1,k) = b(2,i+1,k) - work2(2,i)
+       b(1,i+ione,k) = b(1,i+ione,k) - work2(1,i)
+       b(2,i+ione,k) = b(2,i+ione,k) - work2(2,i)
     end do
 
   end do
@@ -2289,7 +2281,7 @@ subroutine mp_uv_pole(u,v)
   do k=nlat_0,nlat_1
     ilat1=list_sd2ew(1,k)
     ilat2=list_sd2ew(2,k)
-    if(ilat1.eq.1) then
+    if(ilat1==ione) then
 
 !      do south pole
       polsu=zero
@@ -2305,7 +2297,7 @@ subroutine mp_uv_pole(u,v)
         v(1,ix,k)=polsu*sinlon(ix)-polsv*coslon(ix)
       end do
 
-    else if(ilat2.eq.nlat) then
+    else if(ilat2==nlat) then
 
 !      do north pole
       polnu=zero
@@ -2365,7 +2357,7 @@ subroutine mp_uv_pole_ad(u,v)
   do k=nlat_0,nlat_1
     ilat1=list_sd2ew(1,k)
     ilat2=list_sd2ew(2,k)
-    if(ilat1.eq.1) then
+    if(ilat1==ione) then
 
 !      do south pole
       polsu=zero
@@ -2383,7 +2375,7 @@ subroutine mp_uv_pole_ad(u,v)
         v(2,ix,k)=v(2,ix,k)+polsu*sinlon(ix)-polsv*coslon(ix)
       end do
 
-    else if(ilat2.eq.nlat) then
+    else if(ilat2==nlat) then
 
 !      do north pole
       polnu=zero

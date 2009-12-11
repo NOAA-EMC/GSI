@@ -18,7 +18,7 @@ subroutine model2control(rval,bval,grad)
 !
 !$$$
 use kinds, only: r_kind,i_kind
-use constants, only: zero
+use constants, only: ione,zero
 use control_vectors
 use state_vectors
 use bias_predictors
@@ -57,7 +57,7 @@ do jj=1,nsubwin
 
 ! Convert RHS calculations for u,v to st/vp for application of
 ! background error
-  call getuv(rval(jj)%u,rval(jj)%v,workst,workvp,1)
+  call getuv(rval(jj)%u,rval(jj)%v,workst,workvp,ione)
 
 ! Calculate sensible temperature
   call tv_to_tsen_ad(rval(jj)%t,rval(jj)%q,rval(jj)%tsen)

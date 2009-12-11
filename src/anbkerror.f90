@@ -60,31 +60,31 @@ subroutine anbkerror(gradx,grady)
 ! Loop on control steps
   do ii=1,nsubwin
 
-!   Transpose of balance equation
-    call tbalance(grady%step(ii)%t ,grady%step(ii)%p , &
-                  grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
+!    Transpose of balance equation
+     call tbalance(grady%step(ii)%t ,grady%step(ii)%p , &
+                   grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
 
-!   Apply variances, as well as vertical & horizontal parts of background error
-    call anbkgcov(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%t, &
+!    Apply variances, as well as vertical & horizontal parts of background error
+     call anbkgcov(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%t, &
                    grady%step(ii)%p ,grady%step(ii)%rh,grady%step(ii)%oz, &
                    grady%step(ii)%sst,sst,slndt,sicet,grady%step(ii)%cw)
 
-!   Balance equation
-    call balance(grady%step(ii)%t ,grady%step(ii)%p ,&
-                 grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
+!    Balance equation
+     call balance(grady%step(ii)%t ,grady%step(ii)%p ,&
+                  grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
 
-end do
+  end do
 
 ! Take care of background error for bias correction terms
   if(nsclen>izero)then
-    do i=1,nsclen
-      grady%predr(i)=grady%predr(i)*varprd(i)
-    end do
+     do i=1,nsclen
+        grady%predr(i)=grady%predr(i)*varprd(i)
+     end do
   end if
   if(npclen>izero)then
-    do i=1,npclen
-      grady%predp(i)=grady%predp(i)*varprd(nsclen+i)
-    end do
+     do i=1,npclen
+        grady%predp(i)=grady%predp(i)*varprd(nsclen+i)
+     end do
   end if
 
 end subroutine anbkerror
@@ -140,8 +140,8 @@ subroutine anbkgcov(st,vp,t,p,q,oz,skint,sst,slndt,sicet,cwmr)
   implicit none
 
 ! Passed Variables
-  real(r_kind),dimension(lat2,lon2),intent(inout):: p,skint,sst,slndt,sicet
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,q,cwmr,oz,st,vp
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p,skint,sst,slndt,sicet
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,cwmr,oz,st,vp
 
 ! Local Variables
   integer(i_kind) iflg
@@ -165,24 +165,24 @@ subroutine anbkgcov(st,vp,t,p,q,oz,skint,sst,slndt,sicet,cwmr)
 
   if(rtma_subdomain_option) then
 
-    oz=zero
-    cwmr=zero
-    sst=zero
-    slndt=zero
-    sicet=zero
-    call ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
+     oz=zero
+     cwmr=zero
+     sst=zero
+     slndt=zero
+     sicet=zero
+     call ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
 
   else
 
 ! Convert from subdomain to full horizontal field distributed among processors
-    iflg=ione
-    call sub2grid(hwork,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
+     iflg=ione
+     call sub2grid(hwork,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
 
 ! Apply horizontal smoother for number of horizontal scales
-    call ansmoothrf(hwork)
+     call ansmoothrf(hwork)
 
 ! Put back onto subdomains
-    call grid2sub(hwork,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
+     call grid2sub(hwork,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
 
   end if
 
@@ -239,41 +239,41 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: iflg
-  real(r_kind),dimension(lat2,lon2),intent(inout):: skint,sst,slndt,sicet
+  integer(i_kind)                  ,intent(in   ) :: iflg
+  real(r_kind),dimension(lat2,lon2),intent(inout) :: skint,sst,slndt,sicet
 
 ! Declare local variables
   integer(i_kind) i,j
 
        do j=1,lon2
-         do i=1,lat2
-           if(iflg == izero) then
+          do i=1,lat2
+             if(iflg == izero) then
 ! Break skin temperature into components
 !          If land point
-             if(isli2(i,j) == ione) then
-               slndt(i,j)=skint(i,j)
+                if(isli2(i,j) == ione) then
+                   slndt(i,j)=skint(i,j)
 !          If ice
-             else if(isli2(i,j) == 2_i_kind) then
-               sicet(i,j)=skint(i,j)
+                else if(isli2(i,j) == 2_i_kind) then
+                   sicet(i,j)=skint(i,j)
 !          Else treat as a water point
-             else
-               sst(i,j)=skint(i,j)
-             end if
+                else
+                   sst(i,j)=skint(i,j)
+                end if
 
-           else if (iflg==ione) then
+             else if (iflg==ione) then
 ! Combine sst,slndt, and sicet into skin temperature field
 !          Land point, load land sfc t into skint
-             if(isli2(i,j) == ione) then
-               skint(i,j)=slndt(i,j)
+                if(isli2(i,j) == ione) then
+                   skint(i,j)=slndt(i,j)
 !          Ice, load ice temp into skint
-             else if(isli2(i,j) == 2_i_kind) then
-               skint(i,j)=sicet(i,j)
+                else if(isli2(i,j) == 2_i_kind) then
+                   skint(i,j)=sicet(i,j)
 !          Treat as a water point, load sst into skint
-             else
-               skint(i,j)=sst(i,j)
+                else
+                   skint(i,j)=sst(i,j)
+                end if
              end if
-           end if
-         end do
+          end do
        end do
 
   return
@@ -332,56 +332,56 @@ subroutine ansmoothrf(work)
   real(r_single),allocatable,dimension(:,:,:,:):: workbnp,workbsp
 
   if(.not.regional) then
-    allocate(workanp(indices_p%ips:indices_p%ipe, &
-                     indices_p%jps:indices_p%jpe, &
-                     indices_p%kps:indices_p%kpe ))
-    allocate(workbnp(ngauss, &
-                     indices_p%ips:indices_p%ipe, &
-                     indices_p%jps:indices_p%jpe, &
-                     indices_p%kps:indices_p%kpe ))
-    allocate(workasp(indices_p%ips:indices_p%ipe, &
-                     indices_p%jps:indices_p%jpe, &
-                     indices_p%kps:indices_p%kpe ))
-    allocate(workbsp(ngauss, &
-                     indices_p%ips:indices_p%ipe, &
-                     indices_p%jps:indices_p%jpe, &
-                     indices_p%kps:indices_p%kpe ))
+     allocate(workanp(indices_p%ips:indices_p%ipe, &
+                      indices_p%jps:indices_p%jpe, &
+                      indices_p%kps:indices_p%kpe ))
+     allocate(workbnp(ngauss, &
+                      indices_p%ips:indices_p%ipe, &
+                      indices_p%jps:indices_p%jpe, &
+                      indices_p%kps:indices_p%kpe ))
+     allocate(workasp(indices_p%ips:indices_p%ipe, &
+                      indices_p%jps:indices_p%jpe, &
+                      indices_p%kps:indices_p%kpe ))
+     allocate(workbsp(ngauss, &
+                      indices_p%ips:indices_p%ipe, &
+                      indices_p%jps:indices_p%jpe, &
+                      indices_p%kps:indices_p%kpe ))
   end if
 
 !  adjoint of coarse to fine grid
   do k=indices%kps,indices%kpe
-    if(regional) then
-      call tfgrid2agrid(pf2aP1,work(1,1,k),worka(indices%ips,indices%jps,k))
-    else
-      call tpatch2grid(work(1,1,k), &
-                       worka  (indices%ips,  indices%jps,k),   &
-                       workanp(indices_p%ips,indices_p%jps,k), &
-                       workasp(indices_p%ips,indices_p%jps,k))
-    end if
+     if(regional) then
+        call tfgrid2agrid(pf2aP1,work(1,1,k),worka(indices%ips,indices%jps,k))
+     else
+        call tpatch2grid(work(1,1,k), &
+                         worka  (indices%ips,  indices%jps,k),   &
+                         workanp(indices_p%ips,indices_p%jps,k), &
+                         workasp(indices_p%ips,indices_p%jps,k))
+     end if
   end do
 
 !  transfer coarse grid fields to ngauss copies
   do k=indices%kps,indices%kpe
-  do j=indices%jps,indices%jpe
-  do i=indices%ips,indices%ipe
-  do igauss=1,ngauss
-    workb(igauss,i,j,k)=worka(i,j,k)
-  end do
-  end do
-  end do
+     do j=indices%jps,indices%jpe
+        do i=indices%ips,indices%ipe
+           do igauss=1,ngauss
+              workb(igauss,i,j,k)=worka(i,j,k)
+           end do
+        end do
+     end do
   end do
 
   if(.not.regional) then
-    do k=indices_p%kps,indices_p%kpe
-    do j=indices_p%jps,indices_p%jpe
-    do i=indices_p%ips,indices_p%ipe
-    do igauss=1,ngauss
-      workbnp(igauss,i,j,k)=workanp(i,j,k)
-      workbsp(igauss,i,j,k)=workasp(i,j,k)
-    end do
-    end do
-    end do
-    end do
+     do k=indices_p%kps,indices_p%kpe
+        do j=indices_p%jps,indices_p%jpe
+           do i=indices_p%ips,indices_p%ipe
+              do igauss=1,ngauss
+                 workbnp(igauss,i,j,k)=workanp(i,j,k)
+                 workbsp(igauss,i,j,k)=workasp(i,j,k)
+              end do
+           end do
+        end do
+     end do
   end if
 
 !   apply recursive filter
@@ -390,57 +390,57 @@ subroutine ansmoothrf(work)
   call raf4_ad_wrap(workb,filter_all,ngauss,indices,npe)
 
   if(.not.regional) then
-    call raf4_wrap(   workbnp,filter_p2,ngauss,indices_p,npe)
-    call raf4_ad_wrap(workbnp,filter_p2,ngauss,indices_p,npe)
+     call raf4_wrap(   workbnp,filter_p2,ngauss,indices_p,npe)
+     call raf4_ad_wrap(workbnp,filter_p2,ngauss,indices_p,npe)
 
-    call raf4_wrap(   workbsp,filter_p3,ngauss,indices_p,npe)
-    call raf4_ad_wrap(workbsp,filter_p3,ngauss,indices_p,npe)
+     call raf4_wrap(   workbsp,filter_p3,ngauss,indices_p,npe)
+     call raf4_ad_wrap(workbsp,filter_p3,ngauss,indices_p,npe)
   end if
 
 !  add together ngauss copies
   worka=zero
   do k=indices%kps,indices%kpe
-  do j=indices%jps,indices%jpe
-  do i=indices%ips,indices%ipe
-  do igauss=1,ngauss
-    worka(i,j,k)=worka(i,j,k)+workb(igauss,i,j,k)
-  end do
-  end do
-  end do
+     do j=indices%jps,indices%jpe
+        do i=indices%ips,indices%ipe
+           do igauss=1,ngauss
+              worka(i,j,k)=worka(i,j,k)+workb(igauss,i,j,k)
+           end do
+        end do
+     end do
   end do
 
   if(.not.regional) then
-    workanp=zero
-    workasp=zero
-    do k=indices_p%kps,indices_p%kpe
-    do j=indices_p%jps,indices_p%jpe
-    do i=indices_p%ips,indices_p%ipe
-    do igauss=1,ngauss
-      workanp(i,j,k)=workanp(i,j,k)+workbnp(igauss,i,j,k)
-      workasp(i,j,k)=workasp(i,j,k)+workbsp(igauss,i,j,k)
-    end do
-    end do
-    end do
-    end do
+     workanp=zero
+     workasp=zero
+     do k=indices_p%kps,indices_p%kpe
+        do j=indices_p%jps,indices_p%jpe
+           do i=indices_p%ips,indices_p%ipe
+              do igauss=1,ngauss
+                 workanp(i,j,k)=workanp(i,j,k)+workbnp(igauss,i,j,k)
+                 workasp(i,j,k)=workasp(i,j,k)+workbsp(igauss,i,j,k)
+              end do
+           end do
+        end do
+     end do
   end if
 
 !  coarse to fine grid
   do k=indices%kps,indices%kpe
-    if(regional) then
-      call fgrid2agrid(pf2aP1,worka(indices%ips,indices%jps,k),work(1,1,k))
-    else
-      call patch2grid(work(1,1,k), &
-                      worka  (indices%ips  ,indices%jps  ,k),&
-                      workanp(indices_p%ips,indices_p%jps,k),&
-                      workasp(indices_p%ips,indices_p%jps,k))
-    end if
+     if(regional) then
+        call fgrid2agrid(pf2aP1,worka(indices%ips,indices%jps,k),work(1,1,k))
+     else
+        call patch2grid(work(1,1,k), &
+                        worka  (indices%ips  ,indices%jps  ,k),&
+                        workanp(indices_p%ips,indices_p%jps,k),&
+                        workasp(indices_p%ips,indices_p%jps,k))
+     end if
   end do
 
   if(.not.regional) then
-    deallocate(workanp)
-    deallocate(workbnp)
-    deallocate(workasp)
-    deallocate(workbsp)
+     deallocate(workanp)
+     deallocate(workbnp)
+     deallocate(workasp)
+     deallocate(workbsp)
   end if
 
 end subroutine ansmoothrf
@@ -481,8 +481,8 @@ subroutine vert_smther(g,nsmooth,nsmooth_shapiro)
 
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nsmooth,nsmooth_shapiro
-  real(r_kind),dimension(1:lat2,1:lon2,1:nsig),intent(inout):: g
+  integer(i_kind)                             ,intent(in   ) :: nsmooth,nsmooth_shapiro
+  real(r_kind),dimension(1:lat2,1:lon2,1:nsig),intent(inout) :: g
 
 ! Declare local variables
   integer(i_kind) i,j,l,k,kp,km,kp3,km3
@@ -493,32 +493,32 @@ subroutine vert_smther(g,nsmooth,nsmooth_shapiro)
   allocate(gaux(1:nsig))
 
   if (nsmooth > izero ) then
-    do i=1,lat2
-    do j=1,lon2
-     do l=1,nsmooth
-       gaux(1:nsig)=g(i,j,1:nsig)
-       do k=1,nsig
-         kp=min(k+ione,nsig) ; km=max(ione,k-ione)
-         g(i,j,k)=quarter*(gaux(kp)+gaux(km))+half*gaux(k)
-       enddo
+     do i=1,lat2
+        do j=1,lon2
+           do l=1,nsmooth
+              gaux(1:nsig)=g(i,j,1:nsig)
+              do k=1,nsig
+                 kp=min(k+ione,nsig) ; km=max(ione,k-ione)
+                 g(i,j,k)=quarter*(gaux(kp)+gaux(km))+half*gaux(k)
+              enddo
+           enddo
+        enddo
      enddo
-    enddo
-    enddo
   endif
 
   if (nsmooth_shapiro > izero .and. nsmooth <= izero) then
-    do i=1,lat2
-    do j=1,lon2
-     do l=1,nsmooth_shapiro
-       gaux(1:nsig)=g(i,j,1:nsig)
-       do k=1,nsig
-         kp=min(k+ione,nsig) ; km=max(ione,k-ione)
-         kp3=min(k+3_i_kind,nsig) ; km3=max(ione,k-3_i_kind)
-         g(i,j,k)=.28125_r_kind*(gaux(kp)+gaux(km))+half*gaux(k)-.03125_r_kind*(gaux(kp3)+gaux(km3))
-       enddo
+     do i=1,lat2
+        do j=1,lon2
+           do l=1,nsmooth_shapiro
+              gaux(1:nsig)=g(i,j,1:nsig)
+              do k=1,nsig
+                 kp=min(k+ione,nsig) ; km=max(ione,k-ione)
+                 kp3=min(k+3_i_kind,nsig) ; km3=max(ione,k-3_i_kind)
+                 g(i,j,k)=.28125_r_kind*(gaux(kp)+gaux(km))+half*gaux(k)-.03125_r_kind*(gaux(kp3)+gaux(km3))
+              enddo
+           enddo
+        enddo
      enddo
-    enddo
-    enddo
   endif
   deallocate(gaux)
 
@@ -562,8 +562,8 @@ subroutine tvert_smther(g,nsmooth,nsmooth_shapiro)
 
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nsmooth,nsmooth_shapiro
-  real(r_kind),dimension(1:lat2,1:lon2,1:nsig),intent(inout):: g
+  integer(i_kind)                             ,intent(in   ) :: nsmooth,nsmooth_shapiro
+  real(r_kind),dimension(1:lat2,1:lon2,1:nsig),intent(inout) :: g
 
 ! Declare local variables
   integer(i_kind) i,j,l,k,kp,km,kp3,km3
@@ -574,40 +574,40 @@ subroutine tvert_smther(g,nsmooth,nsmooth_shapiro)
   allocate(gaux(1:nsig))
 
   if (nsmooth > izero ) then
-    do i=1,lat2
-    do j=1,lon2
-     do l=1,nsmooth
-       gaux(1:nsig)=zero
-       do k=1,nsig
-         kp=min(k+ione,nsig) ; km=max(ione,k-ione)
-         gaux(k)=gaux(k)+half*g(i,j,k)
-         gaux(km)=gaux(km)+quarter*g(i,j,k)
-         gaux(kp)=gaux(kp)+quarter*g(i,j,k)
-       enddo
-       g(i,j,1:nsig)=gaux(1:nsig)
+     do i=1,lat2
+        do j=1,lon2
+           do l=1,nsmooth
+              gaux(1:nsig)=zero
+              do k=1,nsig
+                 kp=min(k+ione,nsig) ; km=max(ione,k-ione)
+                 gaux(k)=gaux(k)+half*g(i,j,k)
+                 gaux(km)=gaux(km)+quarter*g(i,j,k)
+                 gaux(kp)=gaux(kp)+quarter*g(i,j,k)
+              enddo
+              g(i,j,1:nsig)=gaux(1:nsig)
+           enddo
+        enddo
      enddo
-    enddo
-    enddo
   endif
 
   if (nsmooth_shapiro > izero .and. nsmooth <= izero) then
-    do i=1,lat2
-    do j=1,lon2
-     do l=1,nsmooth_shapiro
-       gaux(1:nsig)=zero
-       do k=1,nsig
-         kp=min(k+ione,nsig) ; km=max(ione,k-ione)
-         kp3=min(k+3_i_kind,nsig) ; km3=max(ione,k-3_i_kind)
-         gaux(km3)=gaux(km3)-.03125_r_kind*g(i,j,k)
-         gaux(kp3)=gaux(kp3)-.03125_r_kind*g(i,j,k)
-         gaux(k)=gaux(k)+half*g(i,j,k)
-         gaux(km)=gaux(km)+.28125_r_kind*g(i,j,k)
-         gaux(kp)=gaux(kp)+.28125_r_kind*g(i,j,k)
-       enddo
-       g(i,j,1:nsig)=gaux(1:nsig)
+     do i=1,lat2
+        do j=1,lon2
+           do l=1,nsmooth_shapiro
+              gaux(1:nsig)=zero
+              do k=1,nsig
+                 kp=min(k+ione,nsig) ; km=max(ione,k-ione)
+                 kp3=min(k+3_i_kind,nsig) ; km3=max(ione,k-3_i_kind)
+                 gaux(km3)=gaux(km3)-.03125_r_kind*g(i,j,k)
+                 gaux(kp3)=gaux(kp3)-.03125_r_kind*g(i,j,k)
+                 gaux(k)=gaux(k)+half*g(i,j,k)
+                 gaux(km)=gaux(km)+.28125_r_kind*g(i,j,k)
+                 gaux(kp)=gaux(kp)+.28125_r_kind*g(i,j,k)
+              enddo
+              g(i,j,1:nsig)=gaux(1:nsig)
+           enddo
+        enddo
      enddo
-    enddo
-    enddo
   endif
   deallocate(gaux)
 
@@ -646,8 +646,8 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2),intent(inout):: p
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,q,vp,st
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,vp,st
 
 ! Declare local variables
   integer(i_kind) i,igauss,iloc,j,jloc,k,kk,mm1
@@ -670,62 +670,62 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
 !  transfer variables to ngauss copies
   kk=izero
   do k=1,nsig
-    kk=kk+ione
-    do j=jps,jpe
-      jloc=j-jstart(mm1)+2_i_kind
-      do i=ips,ipe
-        iloc=i-istart(mm1)+2_i_kind
-        do igauss=1,ngauss
-          workb(igauss,i,j,kk)=st(iloc,jloc,k)
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           do igauss=1,ngauss
+              workb(igauss,i,j,kk)=st(iloc,jloc,k)
+           end do
         end do
-      end do
-    end do
+     end do
   end do
   do k=1,nsig
-    kk=kk+ione
-    do j=jps,jpe
-      jloc=j-jstart(mm1)+2_i_kind
-      do i=ips,ipe
-        iloc=i-istart(mm1)+2_i_kind
-        do igauss=1,ngauss
-          workb(igauss,i,j,kk)=vp(iloc,jloc,k)
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           do igauss=1,ngauss
+              workb(igauss,i,j,kk)=vp(iloc,jloc,k)
+           end do
         end do
-      end do
-    end do
+     end do
   end do
   kk=kk+ione
   do j=jps,jpe
-    jloc=j-jstart(mm1)+2_i_kind
-    do i=ips,ipe
-      iloc=i-istart(mm1)+2_i_kind
-      do igauss=1,ngauss
-        workb(igauss,i,j,kk)=p(iloc,jloc)
-      end do
-    end do
-  end do
-  do k=1,nsig
-    kk=kk+ione
-    do j=jps,jpe
-      jloc=j-jstart(mm1)+2_i_kind
-      do i=ips,ipe
+     jloc=j-jstart(mm1)+2_i_kind
+     do i=ips,ipe
         iloc=i-istart(mm1)+2_i_kind
         do igauss=1,ngauss
-          workb(igauss,i,j,kk)=t(iloc,jloc,k)
+           workb(igauss,i,j,kk)=p(iloc,jloc)
         end do
-      end do
-    end do
+     end do
   end do
   do k=1,nsig
-    kk=kk+ione
-    do j=jps,jpe
-      jloc=j-jstart(mm1)+2_i_kind
-      do i=ips,ipe
-        iloc=i-istart(mm1)+2_i_kind
-        do igauss=1,ngauss
-          workb(igauss,i,j,kk)=q(iloc,jloc,k)
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           do igauss=1,ngauss
+              workb(igauss,i,j,kk)=t(iloc,jloc,k)
+           end do
         end do
-      end do
-    end do
+     end do
+  end do
+  do k=1,nsig
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           do igauss=1,ngauss
+              workb(igauss,i,j,kk)=q(iloc,jloc,k)
+           end do
+        end do
+     end do
   end do
 
 !   apply recursive filter
@@ -736,67 +736,67 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
 !  add together ngauss copies
   kk=izero
   do k=1,nsig
-    kk=kk+ione
-    do j=jps,jpe
-      jloc=j-jstart(mm1)+2_i_kind
-      do i=ips,ipe
-        iloc=i-istart(mm1)+2_i_kind
-        st(iloc,jloc,k)=zero
-        do igauss=1,ngauss
-          st(iloc,jloc,k)=st(iloc,jloc,k)+workb(igauss,i,j,kk)
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           st(iloc,jloc,k)=zero
+           do igauss=1,ngauss
+              st(iloc,jloc,k)=st(iloc,jloc,k)+workb(igauss,i,j,kk)
+           end do
         end do
-      end do
-    end do
+     end do
   end do
   do k=1,nsig
-    kk=kk+ione
-    do j=jps,jpe
-      jloc=j-jstart(mm1)+2_i_kind
-      do i=ips,ipe
-        iloc=i-istart(mm1)+2_i_kind
-        vp(iloc,jloc,k)=zero
-        do igauss=1,ngauss
-          vp(iloc,jloc,k)=vp(iloc,jloc,k)+workb(igauss,i,j,kk)
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           vp(iloc,jloc,k)=zero
+           do igauss=1,ngauss
+              vp(iloc,jloc,k)=vp(iloc,jloc,k)+workb(igauss,i,j,kk)
+           end do
         end do
-      end do
-    end do
+     end do
   end do
   kk=kk+ione
   do j=jps,jpe
-    jloc=j-jstart(mm1)+2_i_kind
-    do i=ips,ipe
-      iloc=i-istart(mm1)+2_i_kind
-      p(iloc,jloc)=zero
-      do igauss=1,ngauss
-        p(iloc,jloc)=p(iloc,jloc)+workb(igauss,i,j,kk)
-      end do
-    end do
+     jloc=j-jstart(mm1)+2_i_kind
+     do i=ips,ipe
+        iloc=i-istart(mm1)+2_i_kind
+        p(iloc,jloc)=zero
+        do igauss=1,ngauss
+           p(iloc,jloc)=p(iloc,jloc)+workb(igauss,i,j,kk)
+        end do
+     end do
   end do
   do k=1,nsig
-    kk=kk+ione
-    do j=jps,jpe
-      jloc=j-jstart(mm1)+2_i_kind
-      do i=ips,ipe
-        iloc=i-istart(mm1)+2_i_kind
-        t(iloc,jloc,k)=zero
-        do igauss=1,ngauss
-          t(iloc,jloc,k)=t(iloc,jloc,k)+workb(igauss,i,j,kk)
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           t(iloc,jloc,k)=zero
+           do igauss=1,ngauss
+              t(iloc,jloc,k)=t(iloc,jloc,k)+workb(igauss,i,j,kk)
+           end do
         end do
-      end do
-    end do
+     end do
   end do
   do k=1,nsig
-    kk=kk+ione
-    do j=jps,jpe
-      jloc=j-jstart(mm1)+2_i_kind
-      do i=ips,ipe
-        iloc=i-istart(mm1)+2_i_kind
-        q(iloc,jloc,k)=zero
-        do igauss=1,ngauss
-          q(iloc,jloc,k)=q(iloc,jloc,k)+workb(igauss,i,j,kk)
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           q(iloc,jloc,k)=zero
+           do igauss=1,ngauss
+              q(iloc,jloc,k)=q(iloc,jloc,k)+workb(igauss,i,j,kk)
+           end do
         end do
-      end do
-    end do
+     end do
   end do
 
 !   update halos:

@@ -24,7 +24,8 @@ module constants
 !   2009-02-05  cucurull - modify refractive indexes for gpsro data
 !
 ! Subroutines Included:
-!   sub init_constants  - compute derived constants, set regional/global constants
+!   sub init_constants_derived - compute derived constants
+!   sub init_constants         - set regional/global constants
 !
 ! Variable Definitions:
 !   see below
@@ -157,7 +158,26 @@ module constants
                                      ! wgtlim does not alter the analysis, only
                                      ! the nonlinear qc data "count"
 
+! set default as private
+  private
+! set subroutines as public
+  public :: init_constants_derived
+  public :: init_constants
+! set passed variables to public
+  public :: one,two,ione,half,zero,izero,deg2rad,pi,three,quarter,one_tenth
+  public :: rad2deg,zero_quad,r3600,r1000,r60inv,five,four,rd_over_cp,grav
+  public :: rd,rozcon,rearth_equator,zero_single,tiny_r_kind,tiny_single
+  public :: omega,rcp,rearth,fv,h300,cp,cg_term,tpwcon,xb,ttp,psatk,xa,tmix
+  public :: xai,xbi,psat,eps,omeps,wgtlim,one_quad,epsq,climit,epsm1,hvap
+  public :: hsub,cclimit,el2orc,elocp,h1000,cpr,pcpeff0,pcpeff2,delta,pcpeff1
+  public :: factor1,c0,pcpeff3,factor2,dx_inv,dx_min,rhcbot,rhctop,hfus,ke2
+  public :: rrow,cmr,cws,r60,huge_i_kind,huge_r_kind,t0c,rd_over_cp_mass
+  public :: somigliana,grav_equator,grav_ratio,flattening,semi_major_axis
+  public :: n_b,n_a,eccentricity,huge_single,constoz,g_over_rd,amsua_clw_d2
+  public :: amsua_clw_d1,n_c,rd_over_g,zero_ilong
+
 contains
+
   subroutine init_constants_derived
 !$$$  subprogram documentation block
 !                .      .    .                                       .

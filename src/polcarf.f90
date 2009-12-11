@@ -27,33 +27,34 @@ subroutine polcasl(sl,sl1,sl2,mf,nf,mrr,nrr,nor,rs,df,nxe,nxg)
 !   machine:  ibm rs/6000 sp
 !$$$
   use kinds, only: r_kind,i_kind
+  use constants, only: ione
   use gridmod, only: nlat,nlon
   implicit none
 
-  integer(i_kind),intent(in):: mf,nf,nor,nrr,mrr
+  integer(i_kind)                      ,intent(in   ) :: mf,nf,nor,nrr,mrr
 
-  real(r_kind),intent(in):: df
-  real(r_kind),dimension(nlat,nlon),intent(in):: sl
-  real(r_kind),dimension(-nf:nf,-nf:nf),intent(out):: sl1,sl2
-  real(r_kind),dimension(0:nrr),intent(in):: rs
+  real(r_kind)                         ,intent(in   ) :: df
+  real(r_kind),dimension(nlat,nlon)    ,intent(in   ) :: sl
+  real(r_kind),dimension(-nf:nf,-nf:nf),intent(  out) :: sl1,sl2
+  real(r_kind),dimension(0:nrr)        ,intent(in   ) :: rs
 
   integer(i_kind) nxp,nxg,nxe,j1,ir,j,i
-  integer(i_kind),dimension(mf:nf,0:nxg-1):: inaxt
+  integer(i_kind),dimension(mf:nf,0:nxg-ione):: inaxt
   integer(i_kind),dimension(0:nf,mf:nf):: inbat
 
   real(r_kind),dimension(0:nlon,mrr:nrr):: axr
-  real(r_kind),dimension(0:nor-1,mrr:nrr-nor+1):: qr
-  real(r_kind),dimension(0:nor-1,mf:nf,0:nxg-1):: wtaxt
-  real(r_kind),dimension(0:nor-1,0:nf,mf:nf):: wtbat
+  real(r_kind),dimension(0:nor-ione,mrr:nrr-nor+ione):: qr
+  real(r_kind),dimension(0:nor-ione,mf:nf,0:nxg-ione):: wtaxt
+  real(r_kind),dimension(0:nor-ione,0:nf,mf:nf):: wtbat
 
   call setwtt(wtaxt,wtbat,inaxt,inbat,rs(mrr),df,qr(0,mrr)&
        ,nxe,nxg,mrr,nrr,mf,nf,nor)
   
-  nxp=nlon+1
+  nxp=nlon+ione
   j1=nlat
   do i=1,nlon   
      do j=mrr,nrr
-        axr(i-1,j)=sl(j1-j,i)
+        axr(i-ione,j)=sl(j1-j,i)
      enddo
   enddo
   
@@ -64,7 +65,7 @@ subroutine polcasl(sl,sl1,sl2,mf,nf,mrr,nrr,nor,rs,df,nxe,nxg)
        ,wtaxt,wtbat,inaxt,inbat,mf,nf,mrr,nrr,nxe,nxg,nor,nxp)
   do i=1,nlon   
      do j=mrr,nrr
-        axr(i-1,j)=sl(j+1,i)
+        axr(i-ione,j)=sl(j+ione,i)
      enddo
   enddo
   
@@ -121,31 +122,32 @@ subroutine polca(axr,afg,wtaxt,wtbat,inaxt,inbat, &
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   implicit none
 
-  integer(i_kind),intent(in):: mf,nf,mrr,nrr,nxe,nxg,nor,naxr
-  integer(i_kind),dimension(mf:nf,0:nxg-1),intent(in):: inaxt
-  integer(i_kind),dimension(0:nf,mf:nf),intent(in):: inbat
-  real(r_kind),dimension(0:naxr-1,mrr:nrr),intent(in):: axr
-  real(r_kind),dimension(0:nor-1,mf:nf,0:nxg-1),intent(in):: wtaxt
-  real(r_kind),dimension(0:nor-1,0:nf,mf:nf),intent(in):: wtbat
+  integer(i_kind)                                       ,intent(in   ) :: mf,nf,mrr,nrr,nxe,nxg,nor,naxr
+  integer(i_kind),dimension(mf:nf,0:nxg-ione)           ,intent(in   ) :: inaxt
+  integer(i_kind),dimension(0:nf,mf:nf)                 ,intent(in   ) :: inbat
 
-  real(r_kind),dimension(-nf:nf,-nf:nf),intent(out):: afg
+  real(r_kind)   ,dimension(0:naxr-ione,mrr:nrr)        ,intent(in   ) :: axr
+  real(r_kind)   ,dimension(0:nor-ione,mf:nf,0:nxg-ione),intent(in   ) :: wtaxt
+  real(r_kind)   ,dimension(0:nor-ione,0:nf,mf:nf)      ,intent(in   ) :: wtbat
+
+  real(r_kind)   ,dimension(-nf:nf,-nf:nf)              ,intent(  out) :: afg
 
   integer(i_kind) nxq,nxqm,nx,nxm,nxgm,norm
   integer(i_kind) ix,ia,i,ici,ic0,ix5,idi,jdi,id0,ib,ix1,ix6,ix4,ix7,ix3,ix2
   integer(i_kind) jx0,ix0
   
   real(r_kind) wt
-  real(r_kind),dimension(mf:nf,-nxg:nxg-1):: aq0,aq2,aq4,aq6
+  real(r_kind),dimension(mf:nf,-nxg:nxg-ione):: aq0,aq2,aq4,aq6
   
   nxq=nxe*2
-  nxqm=nxq-1
+  nxqm=nxq-ione
   nx=nxq*4
-  nxm=nx-1
-  nxgm=nxg-1
-  norm=nor-1
+  nxm=nx-ione
+  nxgm=nxg-ione
+  norm=nor-ione
   do ix=-nxg,nxgm
      do ia=mf,nf
         aq0(ia,ix)=zero
@@ -155,7 +157,7 @@ subroutine polca(axr,afg,wtaxt,wtbat,inaxt,inbat, &
      enddo
   enddo
   do ix0=0,nxgm
-     jx0=-1-ix0
+     jx0=-ione-ix0
      ix2=ix0+nxq
      ix4=ix2+nxq
      ix6=ix4+nxq
@@ -190,7 +192,7 @@ subroutine polca(axr,afg,wtaxt,wtbat,inaxt,inbat, &
         id0=inbat(ib,ia)
         do i=0,norm
            idi=id0+i
-           jdi=-1-idi
+           jdi=-ione-idi
            wt=wtbat(i,ib,ia)
            afg( ia,-ib)=afg( ia,-ib)+wt*aq0(ia,jdi)
            afg( ia, ib)=afg( ia, ib)+wt*aq0(ia,idi)
@@ -244,19 +246,21 @@ subroutine setwtt(wtaxt,wtbat,inaxt,inbat,rs,df,qr,nxe,nxg,mrr,nrr,mf,nf,nor)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only:  quarter,pi,one,half
+  use constants, only: izero,ione,quarter,pi,one,half
   implicit none
 
-  integer(i_kind),intent(in):: mf,nrr,nor,nf,nxe,mrr
-  integer(i_kind),intent(in):: nxg
-  real(r_kind),intent(in):: df
-  real(r_kind),dimension(mrr:nrr),intent(in):: rs
-  real(r_kind),dimension(0:nor-1,mrr:nrr+1-nor),intent(in):: qr
+  integer(i_kind)                                       ,intent(in   ) :: mf,nrr,nor,nf,nxe,mrr
+  integer(i_kind)                                       ,intent(in   ) :: nxg
 
-  integer(i_kind),dimension(mf:nf,0:nxg-1),intent(out):: inaxt
-  integer(i_kind),dimension(0:nf,mf:nf),intent(out):: inbat
-  real(r_kind),dimension(0:nor-1,mf:nf,0:nxg-1),intent(out):: wtaxt
-  real(r_kind),dimension(0:nor-1,0:nf,mf:nf),intent(out):: wtbat
+  real(r_kind)                                          ,intent(in   ) :: df
+  real(r_kind)   ,dimension(mrr:nrr)                    ,intent(in   ) :: rs
+  real(r_kind)   ,dimension(0:nor-ione,mrr:nrr+ione-nor),intent(in   ) :: qr
+
+  integer(i_kind),dimension(mf:nf,0:nxg-ione)           ,intent(  out) :: inaxt
+  integer(i_kind),dimension(0:nf,mf:nf)                 ,intent(  out) :: inbat
+
+  real(r_kind)   ,dimension(0:nor-ione,mf:nf,0:nxg-ione),intent(  out) :: wtaxt
+  real(r_kind)   ,dimension(0:nor-ione,0:nf,mf:nf)      ,intent(  out) :: wtbat
 
   integer(i_kind) irp,nra,mra,iy,ir,ia,ixp,i,ic0,ib
   integer(i_kind) norm,norh,ix,nxgm
@@ -266,63 +270,63 @@ subroutine setwtt(wtaxt,wtbat,inaxt,inbat,rs,df,qr,nxe,nxg,mrr,nrr,mf,nf,nor)
   real(r_kind),dimension(20):: dw
   real(r_kind),dimension(0:20):: ys,qy
 
-  if(mod(nor,2).ne.0.or.nor.le.0)goto 803
+  if(mod(nor,2_i_kind)/=izero.or.nor<=izero)goto 803
   piq=quarter*pi
   dx=piq/nxe
   dxi=one/dx
   dfi=one/df
   norh=nor/2
-  norm=nor-1
-  nxgm=nxg-1
+  norm=nor-ione
+  nxgm=nxg-ione
   do ix=0,nxgm
      x=(ix+half)*dx
      c(ix)=cos(x)
   enddo
   do iy=0,norm
-     ys(iy)=iy+1-norh
+     ys(iy)=iy+one-norh
   enddo
   call setq(qy,ys,nor)  ! denominators for unit-spaced grid
   
-  ix=0
+  ix=izero
   secx=df/c(ix)
   ia=mf
-  ir=mrr-1
+  ir=mrr-ione
   r=ia*secx
   irp=ir
-410 irp=irp+1
-  if(rs(irp).le.r)goto 410
-  ir=irp-1
+410 irp=irp+ione
+  if(rs(irp)<=r)goto 410
+  ir=irp-ione
   mra=irp-norh ! the lowest radial grid source index actually used
 !      write(6,'("lowest radial grid source index, mra=",i4)') mra
-  if(mra.lt.0)mra=0
-  if(mra.lt.mrr)goto 801
+  if(mra<izero)mra=izero
+  if(mra<mrr)goto 801
   ix=nxgm
   secx=df/c(ix)
   ia=nf
   r=ia*secx
   irp=ir
-411 irp=irp+1
-  if(irp.gt.nrr)then
+411 irp=irp+ione
+  if(irp>nrr)then
      write(6,'(" irp,r,rs(nrr)=",i5,2(1x,e12.6))') irp,r,rs(nrr)
      goto 800
   endif
-  if(rs(irp).le.r)goto 411
-  ir=irp-1
+  if(rs(irp)<=r)goto 411
+  ir=irp-ione
   nra=ir+norh ! the highest radial grid source index actually used
 !      write(6,'(" highest radial grid source index, nra=",i4)') nra
-  if(nra.gt.nrr)goto 800
+  if(nra>nrr)goto 800
   do ir=mra,nra-norm
      call setq(qr(0,ir),rs(ir),nor) ! lagrange denomimators for radial grid.
   enddo
   
   do ix=0,nxgm
      secx=df/c(ix)
-     irp=mra+norh-1
+     irp=mra+norh-ione
      do ia=mf,nf
         r=ia*secx
 400     continue
-        if(rs(irp).gt.r) go to 402
-        irp=irp+1
+        if(rs(irp)>r) go to 402
+        irp=irp+ione
         go to 400
 402     continue
         ic0=irp-norh
@@ -331,7 +335,7 @@ subroutine setwtt(wtaxt,wtbat,inaxt,inbat,rs,df,qr,nxe,nxg,mrr,nrr,mf,nf,nor)
      enddo
   enddo
   
-  if(mf.le.0)goto 802
+  if(mf<=izero)goto 802
   do ia=mf,nf
      fsai=one/ia
      do ib=0,ia
@@ -393,17 +397,17 @@ subroutine setwts(wtaxs,wtxrs,inaxs,inxrs,rs,df,nor,nxe,nf,mr,nr)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only:  one,quarter,pi,half
+  use constants, only: ione,one,quarter,pi,half
   implicit none
  
-  integer(i_kind),intent(in):: nf,mr,nxe,nor,nr
-  real(r_kind),intent(in):: df
-  real(r_kind),dimension(mr:*),intent(in):: rs
+  integer(i_kind)                                       ,intent(in   ) :: nf,mr,nxe,nor,nr
+  real(r_kind)                                          ,intent(in   ) :: df
+  real(r_kind)   ,dimension(mr:*)                       ,intent(in   ) :: rs
 
-  integer(i_kind),dimension(nf,0:nxe-1),intent(out):: inaxs
-  integer(i_kind),dimension(0:nxe-1,mr:nr),intent(out):: inxrs
-  real(r_kind),dimension(0:nor-1,nf,0:nxe-1),intent(out):: wtaxs
-  real(r_kind),dimension(0:nor-1,0:nxe-1,mr:nr),intent(out):: wtxrs
+  integer(i_kind),dimension(nf,0:nxe-ione)              ,intent(  out) :: inaxs
+  integer(i_kind),dimension(0:nxe-ione,mr:nr)           ,intent(  out) :: inxrs
+  real(r_kind)   ,dimension(0:nor-ione,nf,0:nxe-ione)   ,intent(  out) :: wtaxs
+  real(r_kind)   ,dimension(0:nor-ione,0:nxe-ione,mr:nr),intent(  out) :: wtxrs
  
   integer(i_kind) iy,ix,if1min,ia,ir,ig,nxem
   integer(i_kind) norm,norhm,norh
@@ -416,9 +420,9 @@ subroutine setwts(wtaxs,wtxrs,inaxs,inxrs,rs,df,nor,nxe,nf,mr,nr)
   piq=quarter*pi
   dx=piq/nxe
   norh=nor/2
-  norm=nor-1
-  norhm=norh-1
-  nxem=nxe-1
+  norm=nor-ione
+  norhm=norh-ione
+  nxem=nxe-ione
   if1min=nf-norm
   dfi=one/df
   do ix=0,nxem
@@ -498,18 +502,18 @@ subroutine polcas(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   implicit none
 
-  integer(i_kind),intent(in):: naxr
-  integer(i_kind),intent(in):: norm,nxem,nf,mr,nr
-  integer(i_kind),dimension(nf,0:nxem),intent(in):: inaxs
-  integer(i_kind),dimension(0:nxem,mr:nr),intent(in):: inxrs
-  real(r_kind),dimension(-nf:nf,-nf:nf),intent(in):: afg
-  real(r_kind),dimension(0:norm,nf,0:nxem),intent(in):: wtaxs
-  real(r_kind),dimension(0:norm,0:nxem,mr:nr),intent(in):: wtxrs
+  integer(i_kind)                               ,intent(in   ) :: naxr
+  integer(i_kind)                               ,intent(in   ) :: norm,nxem,nf,mr,nr
+  integer(i_kind),dimension(nf,0:nxem)          ,intent(in   ) :: inaxs
+  integer(i_kind),dimension(0:nxem,mr:nr)       ,intent(in   ) :: inxrs
+  real(r_kind)   ,dimension(-nf:nf,-nf:nf)      ,intent(in   ) :: afg
+  real(r_kind)   ,dimension(0:norm,nf,0:nxem)   ,intent(in   ) :: wtaxs
+  real(r_kind)   ,dimension(0:norm,0:nxem,mr:nr),intent(in   ) :: wtxrs
 
-  real(r_kind),dimension(0:naxr,mr:nr),intent(out):: axr
+  real(r_kind)   ,dimension(0:naxr,mr:nr)       ,intent(  out) :: axr
 
   integer(i_kind) ix2,ix4,ir,ibi,ix7,ia0,iai,ix5,ix6,ix1,ix3,i
   integer(i_kind) nxq,ix,ia,ib0,nx,nxm
@@ -518,9 +522,9 @@ subroutine polcas(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
   real(r_kind),dimension(-nf:nf):: afxp,afxn,agxp,agxn
   real(r_kind),dimension(8)::sx
   
-  nxq=(nxem+1)*2
+  nxq=(nxem+ione)*2
   nx=nxq*4
-  nxm=nx-1
+  nxm=nx-ione
   do ir=mr,nr
      do ix=0,nxm
         axr(ix,ir)=zero
@@ -542,7 +546,7 @@ subroutine polcas(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
      do ia=1,nf
         ib0=inaxs(ia,ix)
         do i=1,8
-         sx(i)=zero
+           sx(i)=zero
         end do
         do i=0,norm
            ibi=ib0+i
@@ -568,14 +572,14 @@ subroutine polcas(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
      ix2=ix +nxq
      ix4=ix2+nxq
      ix6=ix4+nxq
-     ix1=nxq-1-ix
+     ix1=nxq-ione-ix
      ix3=ix1+nxq
      ix5=ix3+nxq
      ix7=ix5+nxq
      do ir=mr,nr
         ia0=inxrs(ix,ir)
         do i=1,8
-         sx(i)=zero
+           sx(i)=zero
         end do
         do i=0,norm
            iai=ia0+i
@@ -601,12 +605,12 @@ subroutine polcas(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
   enddo
 !   take care of pole point
   valp=zero
-  do i=0,naxr-1
-   valp=valp+axr(i,mr+1)
+  do i=0,naxr-ione
+     valp=valp+axr(i,mr+ione)
   end do
   valp=valp/float(naxr)
-  do i=0,naxr-1
-    axr(i,mr)=valp
+  do i=0,naxr-ione
+     axr(i,mr)=valp
   end do
   return
 end subroutine polcas
@@ -645,19 +649,19 @@ subroutine polcasa(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
 !$$$
   
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   implicit none
  
-  integer(i_kind),intent(in):: naxr
-  integer(i_kind),intent(in):: nxem,norm,nf,mr,nr
-  integer(i_kind),dimension(nf,0:nxem),intent(in):: inaxs
-  integer(i_kind),dimension(0:nxem,mr:nr),intent(in):: inxrs
-  real(r_kind),dimension(0:norm,nf,0:nxem),intent(in):: wtaxs
-  real(r_kind),dimension(0:norm,0:nxem,mr:nr),intent(in):: wtxrs
+  integer(i_kind)                               ,intent(in   ) :: naxr
+  integer(i_kind)                               ,intent(in   ) :: nxem,norm,nf,mr,nr
+  integer(i_kind),dimension(nf,0:nxem)          ,intent(in   ) :: inaxs
+  integer(i_kind),dimension(0:nxem,mr:nr)       ,intent(in   ) :: inxrs
+  real(r_kind)   ,dimension(0:norm,nf,0:nxem)   ,intent(in   ) :: wtaxs
+  real(r_kind)   ,dimension(0:norm,0:nxem,mr:nr),intent(in   ) :: wtxrs
 
-  real(r_kind),dimension(0:naxr,mr:nr),intent(inout):: axr
+  real(r_kind)   ,dimension(0:naxr,mr:nr)       ,intent(inout) :: axr
 
-  real(r_kind),dimension(-nf:nf,-nf:nf),intent(out):: afg
+  real(r_kind)   ,dimension(-nf:nf,-nf:nf)      ,intent(  out) :: afg
  
   integer(i_kind) nxq,ir,ia0,i,ix7,ix1,ix3,ix5,iai,if,ib0,ibi,ig,ix
   integer(i_kind) nx,ix2,ix4,ix6,ia,nxm
@@ -665,9 +669,9 @@ subroutine polcasa(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
   real(r_kind) wt,afg0,valp
   real(r_kind),dimension(-nf:nf):: afxp,afxn,agxp,agxn
   
-  nxq=(nxem+1)*2
+  nxq=(nxem+ione)*2
   nx=nxq*4
-  nxm=nx-1
+  nxm=nx-ione
 
   do ig=-nf,nf
      do if=-nf,nf
@@ -676,13 +680,13 @@ subroutine polcasa(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
   enddo
 !   take care of pole point
   valp=zero
-  do i=0,naxr-1
-    valp=valp+axr(i,mr)
+  do i=0,naxr-ione
+     valp=valp+axr(i,mr)
   end do
   valp=valp/float(naxr)
-  do i=0,naxr-1
-    axr(i,mr)=zero
-    axr(i,mr+1)=axr(i,mr+1)+valp
+  do i=0,naxr-ione
+     axr(i,mr)=zero
+     axr(i,mr+ione)=axr(i,mr+ione)+valp
   end do
 
   afg0=zero
@@ -696,7 +700,7 @@ subroutine polcasa(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
      ix2=ix +nxq
      ix4=ix2+nxq
      ix6=ix4+nxq
-     ix1=nxq-1-ix
+     ix1=nxq-ione-ix
      ix3=ix1+nxq
      ix5=ix3+nxq
      ix7=ix5+nxq
@@ -763,17 +767,17 @@ subroutine setq(q,x,n)
   use constants, only: one
   implicit none
 
-  integer(i_kind),intent(in):: n
-  real(r_kind),dimension(n),intent(in):: x
+  integer(i_kind)          ,intent(in   ) :: n
+  real(r_kind),dimension(n),intent(in   ) :: x
 
-  real(r_kind),dimension(n),intent(out):: q
+  real(r_kind),dimension(n),intent(  out) :: q
 
   integer(i_kind) i,j
 
   do i=1,n
      q(i)=one
      do j=1,n
-        if(j.ne.i)then
+        if(j/=i)then
            q(i)=q(i)/(x(i)-x(j))
         endif
      enddo
@@ -813,13 +817,13 @@ subroutine lagw(x,xt,q,w,dw,n)
   use constants, only: zero, one
   implicit none
 
-  integer(i_kind),intent(in):: n
-  real(r_kind),intent(in):: xt
-  real(r_kind),dimension(*),intent(in):: x
+  integer(i_kind)          ,intent(in   ) :: n
+  real(r_kind)             ,intent(in   ) :: xt
+  real(r_kind),dimension(*),intent(in   ) :: x
 
-  real(r_kind),dimension(*),intent(inout):: q,w
+  real(r_kind),dimension(*),intent(inout) :: q,w
 
-  real(r_kind),dimension(*),intent(out):: dw 
+  real(r_kind),dimension(*),intent(  out) :: dw 
   
   integer(i_kind) i,j
   
@@ -833,11 +837,11 @@ subroutine lagw(x,xt,q,w,dw,n)
   enddo
 
 !   test p to reveal whether any of the d(i) vanish:
-  if(p.eq.zero)then    ! xt coincides with a grid point - use special code:
+  if(p==zero)then    ! xt coincides with a grid point - use special code:
      p=one             ! p will become the product of the nonzero d(i),
      s=zero            ! s will become the corresponding sum of q(i)/d(i)
      do i=1,n
-        if(d(i).eq.zero)then
+        if(d(i)==zero)then
            j=i             ! identify the grid index corresponding to present xt
            w(j)=one        ! interpolation weighted entirely to this one.
         else
@@ -849,7 +853,7 @@ subroutine lagw(x,xt,q,w,dw,n)
      enddo
      dw(j)=-s*p
      do i=1,n
-        if(i.ne.j)dw(i)=dw(i)*p
+        if(i/=j)dw(i)=dw(i)*p
      enddo
   else             ! xt is not a grid point - use generic code:
      sdil=zero            ! will become the sum of terms to the left.

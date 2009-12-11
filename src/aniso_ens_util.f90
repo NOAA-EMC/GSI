@@ -88,8 +88,8 @@ subroutine ens_uv_to_psichi(u,v,truewind)
   implicit none
 
 ! Declare passed variables
-  real(r_single),intent(inout):: u(nlat,nlon),v(nlat,nlon)
-  logical,intent(in):: truewind
+  real(r_single),intent(inout) :: u(nlat,nlon),v(nlat,nlon)
+  logical       ,intent(in   ) :: truewind
 
 
 ! Declare local variables
@@ -117,107 +117,107 @@ subroutine ens_uv_to_psichi(u,v,truewind)
 ! print*,'in ens_uv_to_psichi: region_lat,min,max=', &
 !                              minval(region_lat),maxval(region_lat)
   do i=1,nlat
-   do j=1,nlon
-     rlon=region_lon(i,j)
-     rlat=region_lat(i,j)
-     dlon=float(j)*one
-     dlat=float(i)*one
-     ue=u(i,j)
-     ve=v(i,j)
-     call rotate_wind_ll2xy(ue,ve,ug,vg,rlon,dlon,dlat)
-     u(i,j)=ug
-     v(i,j)=vg
+     do j=1,nlon
+        rlon=region_lon(i,j)
+        rlat=region_lat(i,j)
+        dlon=float(j)*one
+        dlat=float(i)*one
+        ue=u(i,j)
+        ve=v(i,j)
+        call rotate_wind_ll2xy(ue,ve,ug,vg,rlon,dlon,dlat)
+        u(i,j)=ug
+        v(i,j)=vg
+     enddo
   enddo
- enddo
- if (truewind) return
+  if (truewind) return
 !==========================================================================
 !==>divergence and vorticity computation
 !==========================================================================
   allocate(div(nlat,nlon))
   allocate(vort(nlat,nlon))
   do i=1,nlat
-    im=max(ione,i-ione)
-    ip=min(nlat,i+ione)
-    do j=1,nlon
-      jm=max(ione,j-ione)
-      jp=min(nlon,j+ione)
-      dxi=one/((jp-jm)*region_dx(i,j))
-      dyi=one/((ip-im)*region_dy(i,j))
-      div(i,j)= (u(i,jp)-u(i,jm))*dxi + (v(ip,j)-v(im,j))*dyi
-      vort(i,j)=(v(i,jp)-v(i,jm))*dxi - (u(ip,j)-u(im,j))*dyi
+     im=max(ione,i-ione)
+     ip=min(nlat,i+ione)
+     do j=1,nlon
+        jm=max(ione,j-ione)
+        jp=min(nlon,j+ione)
+        dxi=one/((jp-jm)*region_dx(i,j))
+        dyi=one/((ip-im)*region_dy(i,j))
+        div(i,j)= (u(i,jp)-u(i,jm))*dxi + (v(ip,j)-v(im,j))*dyi
+        vort(i,j)=(v(i,jp)-v(i,jm))*dxi - (u(ip,j)-u(im,j))*dyi
+     enddo
   enddo
- enddo
 
- allocate(dxy(nlat,nlon))
- dxy=(region_dx+region_dy)/two
+  allocate(dxy(nlat,nlon))
+  dxy=(region_dx+region_dy)/two
 
 !==========================================================================
 !==>expand domain in preparation for fft use
 !==========================================================================
-      n0=max(nlat,nlon)
-      ijext=4_i_kind
-100   continue
-      n1=n0+2*ijext
-      call check_32primes(n1,lprime)
-      if (.not.lprime) then
-         ijext=ijext+ione
-         goto 100
-      endif
+  n0=max(nlat,nlon)
+  ijext=4_i_kind
+100 continue
+  n1=n0+2*ijext
+  call check_32primes(n1,lprime)
+  if (.not.lprime) then
+     ijext=ijext+ione
+     goto 100
+  endif
 
-      nxs=ijext+ione
-      nxe=ijext+nlon
-      nys=ijext+ione
-      nye=ijext+nlat
+  nxs=ijext+ione
+  nxe=ijext+nlon
+  nys=ijext+ione
+  nye=ijext+nlat
 
-      nxb=n1
-      nyb=n1
+  nxb=n1
+  nyb=n1
 
-      allocate(divb(1:nyb,1:nxb))
-      allocate(vortb(1:nyb,1:nxb))
-      allocate(dxyb(1:nyb,1:nxb))
+  allocate(divb(1:nyb,1:nxb))
+  allocate(vortb(1:nyb,1:nxb))
+  allocate(dxyb(1:nyb,1:nxb))
 
-      no_wgt=.false.
-      call ens_fill(divb ,nxb,nyb,div ,nlat,nlon,ijext,no_wgt)
-      call ens_fill(vortb,nxb,nyb,vort,nlat,nlon,ijext,no_wgt)
-      no_wgt=.true.
-      call ens_fill(dxyb ,nxb,nyb,dxy ,nlat,nlon,ijext,no_wgt)
+  no_wgt=.false.
+  call ens_fill(divb ,nxb,nyb,div ,nlat,nlon,ijext,no_wgt)
+  call ens_fill(vortb,nxb,nyb,vort,nlat,nlon,ijext,no_wgt)
+  no_wgt=.true.
+  call ens_fill(dxyb ,nxb,nyb,dxy ,nlat,nlon,ijext,no_wgt)
 
-      allocate(tqg(1:nxb,1:nyb,2))  !note reverse order of indices
-      allocate(tdxyb(1:nxb,1:nyb)) !note reverse order of indices
+  allocate(tqg(1:nxb,1:nyb,2))  !note reverse order of indices
+  allocate(tdxyb(1:nxb,1:nyb)) !note reverse order of indices
 
-      do i=1,nyb
-      do j=1,nxb
-         tqg(j,i,1)=divb(i,j)
-         tqg(j,i,2)=vortb(i,j)
-         tdxyb(j,i)=dxyb(i,j)
-      enddo
-      enddo
+  do i=1,nyb
+     do j=1,nxb
+        tqg(j,i,1)=divb(i,j)
+        tqg(j,i,2)=vortb(i,j)
+        tdxyb(j,i)=dxyb(i,j)
+     enddo
+  enddo
 
-      mmaxb=nxb/3-ione
-      nmaxb=nyb/3-ione
+  mmaxb=nxb/3-ione
+  nmaxb=nyb/3-ione
 
-      call divvort_to_psichi(nxb,nyb,mmaxb,nmaxb,tdxyb,tqg)
+  call divvort_to_psichi(nxb,nyb,mmaxb,nmaxb,tdxyb,tqg)
 
-      do i=1,nyb
-      do j=1,nxb
-         divb(i,j)=tqg(j,i,1)  !vel potential
-         vortb(i,j)=tqg(j,i,2)  !streamfunction
-      enddo
-      enddo
+  do i=1,nyb
+     do j=1,nxb
+        divb(i,j)=tqg(j,i,1)  !vel potential
+        vortb(i,j)=tqg(j,i,2)  !streamfunction
+     enddo
+  enddo
 
-      call ens_unfill(vortb,nxb,nyb,u,nlat,nlon)
-      call ens_unfill(divb ,nxb,nyb,v,nlat,nlon)
+  call ens_unfill(vortb,nxb,nyb,u,nlat,nlon)
+  call ens_unfill(divb ,nxb,nyb,v,nlat,nlon)
 
-      !in future may add call here to get unbalanced part of chi
+  !in future may add call here to get unbalanced part of chi
 
-      deallocate(div)
-      deallocate(vort)
-      deallocate(divb)
-      deallocate(vortb)
-      deallocate(tqg)
-      deallocate(dxy)
-      deallocate(dxyb)
-      deallocate(tdxyb)
+  deallocate(div)
+  deallocate(vort)
+  deallocate(divb)
+  deallocate(vortb)
+  deallocate(tqg)
+  deallocate(dxy)
+  deallocate(dxyb)
+  deallocate(tdxyb)
 end subroutine ens_uv_to_psichi
 !  --------------------------------------------------------------
 !=======================================================================
@@ -247,8 +247,10 @@ subroutine set_grdparm212(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
 
   use kinds, only: i_kind, r_kind
   implicit none
+
   integer(i_kind),intent(out):: iy,jx,jxp
-  real(r_kind),intent(out):: alat1,elon1,ds,elonv,alatan
+  real(r_kind)   ,intent(out):: alat1,elon1,ds,elonv,alatan
+
   iy=129_i_kind
   jx=185_i_kind
   jxp=jx
@@ -286,8 +288,10 @@ subroutine set_grdparm221(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
   use kinds, only: i_kind, r_kind
   use constants, only: one
   implicit none
+
   integer(i_kind),intent(out):: iy,jx,jxp
-  real(r_kind),intent(out):: alat1,elon1,ds,elonv,alatan
+  real(r_kind)   ,intent(out):: alat1,elon1,ds,elonv,alatan
+
   iy=277_i_kind
   jx=349_i_kind
   jxp=jx
@@ -364,13 +368,13 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype,ngrds
-  integer(i_kind),intent(out)::igbox(4,ngrds),igbox0f(4,ngrds)
-  integer(i_kind),intent(out)::iref(nlat,nlon,ngrds)
-  integer(i_kind),intent(out)::jref(nlat,nlon,ngrds)
-  real(r_kind),   intent(out)::ensmask(nlat,nlon,ngrds)
-  real(r_kind)   ,intent(out)::enscoeff(4,nlat,nlon,ngrds)
-  real(r_kind),   intent(out)::gblend(pf2aP1%nlatf,pf2aP1%nlonf,2)
+  integer(i_kind),intent(in   ) :: mype,ngrds
+  integer(i_kind),intent(  out) :: igbox(4,ngrds),igbox0f(4,ngrds)
+  integer(i_kind),intent(  out) :: iref(nlat,nlon,ngrds)
+  integer(i_kind),intent(  out) :: jref(nlat,nlon,ngrds)
+  real(r_kind),   intent(  out) :: ensmask(nlat,nlon,ngrds)
+  real(r_kind)   ,intent(  out) :: enscoeff(4,nlat,nlon,ngrds)
+  real(r_kind),   intent(  out) :: gblend(pf2aP1%nlatf,pf2aP1%nlonf,2)
 
 ! Declare local variables
   integer(i_kind),parameter::ijadjust=4_i_kind
@@ -405,202 +409,202 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
 
   do kg=1,3
 
-    if      (kg==ione) then      !grid #212
-      call set_grdparm212(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
-    else if (kg==2_i_kind) then  !grid #221
-      call set_grdparm221(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
-    else if (kg==3_i_kind) then  !1dg x 1dg global grid
-      iy=181_i_kind
-      jx=360_i_kind
-      jxp=jx+ione
-    end if
+     if      (kg==ione) then      !grid #212
+        call set_grdparm212(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
+     else if (kg==2_i_kind) then  !grid #221
+        call set_grdparm221(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
+     else if (kg==3_i_kind) then  !1dg x 1dg global grid
+        iy=181_i_kind
+        jx=360_i_kind
+        jxp=jx+ione
+     end if
 
-    do j=1,nlon
-    do i=1,nlat
+     do j=1,nlon
+        do i=1,nlat
+ 
+           ! latlon for the analysing grid
+           rlat=region_lat(i,j)*rad2deg
+           rlon=region_lon(i,j)*rad2deg
+           if (rlon<zero) rlon=rlon+r360
 
-      ! latlon for the analysing grid
-      rlat=region_lat(i,j)*rad2deg
-      rlon=region_lon(i,j)*rad2deg
-      if (rlon<zero) rlon=rlon+r360
+           ! correspoinding ensemble grid
+           if (kg==ione .or. kg==2_i_kind) then
+              call w3fb11(rlat,rlon,alat1,elon1,ds,elonv,alatan,xg,yg)
+           else if(kg==3_i_kind) then
+              xg=rlon+one
+              if (rlon>=r360) xg=rlon+one-r360
+              yg=rlat+90._r_kind+one
+           end if
 
-      ! correspoinding ensemble grid
-      if (kg==ione .or. kg==2_i_kind) then
-        call w3fb11(rlat,rlon,alat1,elon1,ds,elonv,alatan,xg,yg)
-      else if(kg==3_i_kind) then
-        xg=rlon+one
-        if (rlon>=r360) xg=rlon+one-r360
-        yg=rlat+90._r_kind+one
-      end if
+           dxg=xg-float(floor(xg))
+           dyg=yg-float(floor(yg))
+           dxg1=one-dxg
+           dyg1=one-dyg
 
-      dxg=xg-float(floor(xg))
-      dyg=yg-float(floor(yg))
-      dxg1=one-dxg
-      dyg1=one-dyg
+           if (xg>=one .and. xg<=float(jxp) .and.  &
+               yg>=one .and. yg<=float(iy) ) then
 
-      if (xg>=one .and. xg<=float(jxp) .and.  &
-          yg>=one .and. yg<=float(iy) ) then
+              enscoeff(1,i,j,kg)=dxg1*dyg1
+              enscoeff(2,i,j,kg)=dxg1*dyg
+              enscoeff(3,i,j,kg)=dxg*dyg1
+              enscoeff(4,i,j,kg)=dxg*dyg
 
-        enscoeff(1,i,j,kg)=dxg1*dyg1
-        enscoeff(2,i,j,kg)=dxg1*dyg
-        enscoeff(3,i,j,kg)=dxg*dyg1
-        enscoeff(4,i,j,kg)=dxg*dyg
+              iref(i,j,kg)=floor(yg)
+              jref(i,j,kg)=floor(xg)
+ 
+              if (kg==ione .or. kg==2_i_kind) ensmask(i,j,kg)=one
 
-        iref(i,j,kg)=floor(yg)
-        jref(i,j,kg)=floor(xg)
+           end if
 
-        if (kg==ione .or. kg==2_i_kind) ensmask(i,j,kg)=one
-
-      end if
-
-    end do
-    end do
+        end do
+     end do
   end do
 
 !==>determine rectangle of analysis grid that falls inside the ensemble grid
 
   do kg=1,2
-    dlonmin=+huge(dlonmin)
-    dlonmax=-huge(dlonmax)
-    dlatmin=+huge(dlatmin)
-    dlatmax=-huge(dlatmax)
+     dlonmin=+huge(dlonmin)
+     dlonmax=-huge(dlonmax)
+     dlatmin=+huge(dlatmin)
+     dlatmax=-huge(dlatmax)
 
-    if      (kg==ione) then      !grid #212
-      call set_grdparm212(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
-    else if (kg==2_i_kind) then  !grid #221
-      call set_grdparm221(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
-    endif
+     if      (kg==ione) then      !grid #212
+        call set_grdparm212(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
+     else if (kg==2_i_kind) then  !grid #221
+        call set_grdparm221(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
+     endif
 
-    do j=1,iy
-      yg=float(j)*one
-      do i=1,jx
-        xg=float(i)*one
-        call w3fb12(xg,yg,alat1,elon1,ds,elonv,alatan,rlat,rlon,ierr8)
-        rlon=rlon/rad2deg
-        rlat=rlat/rad2deg
-        call tll2xy(rlon,rlat,dlon,dlat,outside)
-        dlon=min(rlon_max_dd,max(rlon_min_dd,dlon))
-        dlat=min(rlat_max_dd,max(rlat_min_dd,dlat))
-        dlonmin=min(dlonmin,dlon)
-        dlonmax=max(dlonmax,dlon)
-        dlatmin=min(dlatmin,dlat)
-        dlatmax=max(dlatmax,dlat)
-      end do
-    end do
+     do j=1,iy
+        yg=float(j)*one
+        do i=1,jx
+           xg=float(i)*one
+           call w3fb12(xg,yg,alat1,elon1,ds,elonv,alatan,rlat,rlon,ierr8)
+           rlon=rlon/rad2deg
+           rlat=rlat/rad2deg
+           call tll2xy(rlon,rlat,dlon,dlat,outside)
+           dlon=min(rlon_max_dd,max(rlon_min_dd,dlon))
+           dlat=min(rlat_max_dd,max(rlat_min_dd,dlat))
+           dlonmin=min(dlonmin,dlon)
+           dlonmax=max(dlonmax,dlon)
+           dlatmin=min(dlatmin,dlat)
+           dlatmax=max(dlatmax,dlat)
+        end do
+     end do
 
-    i1=ceiling(dlatmin)
-    i2=floor  (dlatmax)
-    j1=ceiling(dlonmin)
-    j2=floor  (dlonmax)
+     i1=ceiling(dlatmin)
+     i2=floor  (dlatmax)
+     j1=ceiling(dlonmin)
+     j2=floor  (dlonmax)
 
-    if (mype==izero) print*,'in ens_intpcoeffs_reg: kg, i1,i2,j1,j2=',kg, i1,i2,j1,j2
+     if (mype==izero) print*,'in ens_intpcoeffs_reg: kg, i1,i2,j1,j2=',kg, i1,i2,j1,j2
 
 !==>adjust limits by trial and error
 
-    ilateral=2_i_kind
-    jlateral=2_i_kind
-100 continue
-    ilower=i1+ilateral
-    iupper=i2-ilateral
-    jleft=j1+jlateral
-    jright=j2-jlateral
-    ltest=any(ensmask(ilower:iupper,jleft:jright,kg)<zero)
-    if (ltest) then
-      ilateral=ilateral+2_i_kind
-      jlateral=jlateral+2_i_kind
-      goto 100
-    endif
-    ilateral=ilateral+4_i_kind  !increase if necessary
-    jlateral=jlateral+4_i_kind
+     ilateral=2_i_kind
+     jlateral=2_i_kind
+100  continue
+     ilower=i1+ilateral
+     iupper=i2-ilateral
+     jleft=j1+jlateral
+     jright=j2-jlateral
+     ltest=any(ensmask(ilower:iupper,jleft:jright,kg)<zero)
+     if (ltest) then
+        ilateral=ilateral+2_i_kind
+        jlateral=jlateral+2_i_kind
+        goto 100
+     endif
+     ilateral=ilateral+4_i_kind  !increase if necessary
+     jlateral=jlateral+4_i_kind
+ 
+     if (mype==izero) print*,'in ens_intpcoeffs_reg: kg,ilateral,jlateral=',kg,ilateral,jlateral
 
-    if (mype==izero) print*,'in ens_intpcoeffs_reg: kg,ilateral,jlateral=',kg,ilateral,jlateral
+     ilower_prev=i1+ilateral
+     iupper_prev=i2-ilateral
+     jleft_prev =j1+jlateral
+     jright_prev=j2-jlateral
 
-    ilower_prev=i1+ilateral
-    iupper_prev=i2-ilateral
-    jleft_prev =j1+jlateral
-    jright_prev=j2-jlateral
+     mype1=mype+ione
 
-    mype1=mype+ione
-
-    ij=izero
-    iarea(:)=izero
-    iimin(:)=izero
-    iimax(:)=izero
-    jjmin(:)=izero
-    jjmax(:)=izero
-    do ilower=(i1+ilateral),i1,-ione
-      do iupper=(i2-ilateral),i2
-        do jleft=(j1+jlateral),j1,-ione
-          do jright=(j2-jlateral),j2
-            ij=ij+ione
-            if (mod(ij-ione,npe) == mype)then
-              ltest1=any(ensmask(ilower:ilower_prev,jleft:jright,kg)<zero)
-              ltest2=any(ensmask(iupper_prev:iupper,jleft:jright,kg)<zero)
-              ltest3=any(ensmask(ilower:iupper,jleft:jleft_prev,kg)<zero)
-              ltest4=any(ensmask(ilower:iupper,jright_prev:jright,kg)<zero)
-              if (.not.ltest1  .and. .not.ltest2 .and. .not.ltest3 .and. .not.ltest4) then
-                iprod=(iupper-ilower)*(jright-jleft)
-                if (iprod > iarea(mype1)) then
-                  iarea(mype1)=iprod
-                  iimin(mype1)=ilower
-                  iimax(mype1)=iupper
-                  jjmin(mype1)=jleft
-                  jjmax(mype1)=jright
-                end if
-              end if
-              ilower_prev=ilower
-              iupper_prev=iupper
-              jleft_prev =jleft
-              jright_prev=jright
-            end if
-          end do
+     ij=izero
+     iarea(:)=izero
+     iimin(:)=izero
+     iimax(:)=izero
+     jjmin(:)=izero
+     jjmax(:)=izero
+     do ilower=(i1+ilateral),i1,-ione
+        do iupper=(i2-ilateral),i2
+           do jleft=(j1+jlateral),j1,-ione
+              do jright=(j2-jlateral),j2
+                 ij=ij+ione
+                 if (mod(ij-ione,npe) == mype)then
+                    ltest1=any(ensmask(ilower:ilower_prev,jleft:jright,kg)<zero)
+                    ltest2=any(ensmask(iupper_prev:iupper,jleft:jright,kg)<zero)
+                    ltest3=any(ensmask(ilower:iupper,jleft:jleft_prev,kg)<zero)
+                    ltest4=any(ensmask(ilower:iupper,jright_prev:jright,kg)<zero)
+                    if (.not.ltest1  .and. .not.ltest2 .and. .not.ltest3 .and. .not.ltest4) then
+                       iprod=(iupper-ilower)*(jright-jleft)
+                       if (iprod > iarea(mype1)) then
+                          iarea(mype1)=iprod
+                          iimin(mype1)=ilower
+                          iimax(mype1)=iupper
+                          jjmin(mype1)=jleft
+                          jjmax(mype1)=jright
+                       end if
+                    end if
+                    ilower_prev=ilower
+                    iupper_prev=iupper
+                    jleft_prev =jleft
+                    jright_prev=jright
+                 end if
+              end do
+           end do
         end do
-      end do
-    end do
+     end do
 
-    iarea2(:)=izero
-    iimin2(:)=izero
-    iimax2(:)=izero
-    jjmin2(:)=izero
-    jjmax2(:)=izero
+     iarea2(:)=izero
+     iimin2(:)=izero
+     iimax2(:)=izero
+     jjmin2(:)=izero
+     jjmax2(:)=izero
 
-    call mpi_allreduce(iarea,iarea2,npe,mpi_itype, &
-                       mpi_sum,mpi_comm_world,ierror)
-    call mpi_allreduce(iimin,iimin2,npe,mpi_itype, &
-                       mpi_sum,mpi_comm_world,ierror)
-    call mpi_allreduce(iimax,iimax2,npe,mpi_itype, &
-                       mpi_sum,mpi_comm_world,ierror)
-    call mpi_allreduce(jjmin,jjmin2,npe,mpi_itype, &
-                       mpi_sum,mpi_comm_world,ierror)
-    call mpi_allreduce(jjmax,jjmax2,npe,mpi_itype, &
-                       mpi_sum,mpi_comm_world,ierror)
+     call mpi_allreduce(iarea,iarea2,npe,mpi_itype, &
+                        mpi_sum,mpi_comm_world,ierror)
+     call mpi_allreduce(iimin,iimin2,npe,mpi_itype, &
+                        mpi_sum,mpi_comm_world,ierror)
+     call mpi_allreduce(iimax,iimax2,npe,mpi_itype, &
+                        mpi_sum,mpi_comm_world,ierror)
+     call mpi_allreduce(jjmin,jjmin2,npe,mpi_itype, &
+                        mpi_sum,mpi_comm_world,ierror)
+     call mpi_allreduce(jjmax,jjmax2,npe,mpi_itype, &
+                        mpi_sum,mpi_comm_world,ierror)
 
-    iprod=izero
-    do i=1,npe
-      if (iarea2(i) > iprod) then
-        iprod=iarea2(i)
-        j=i
-      end if
-    end do
+     iprod=izero
+     do i=1,npe
+        if (iarea2(i) > iprod) then
+           iprod=iarea2(i)
+           j=i
+        end if
+     end do
 
-    iimin0(kg)=iimin2(j)
-    iimax0(kg)=iimax2(j)
-    jjmin0(kg)=jjmin2(j)
-    jjmax0(kg)=jjmax2(j)
+     iimin0(kg)=iimin2(j)
+     iimax0(kg)=iimax2(j)
+     jjmin0(kg)=jjmin2(j)
+     jjmax0(kg)=jjmax2(j)
 
   end do
 
 !check limits
   if (mype==izero) then
-    do kg=1,2
-      do i=iimin0(kg),iimax0(kg)
-      do j=jjmin0(kg),jjmax0(kg)
-        if (ensmask(i,j,kg) < zero) then
-          print*,'in ens_intpcoeffs_reg: trouble: kg,i,j,ensmask(i,j,kg)=',&
-          kg,i,j,ensmask(i,j,kg)
-        end if
-      end do
-      end do
-    end do
+     do kg=1,2
+        do i=iimin0(kg),iimax0(kg)
+           do j=jjmin0(kg),jjmax0(kg)
+              if (ensmask(i,j,kg) < zero) then
+                 print*,'in ens_intpcoeffs_reg: trouble: kg,i,j,ensmask(i,j,kg)=',&
+                         kg,i,j,ensmask(i,j,kg)
+              end if
+           end do
+        end do
+     end do
   end if
 
   iimin0(3)=ione
@@ -609,53 +613,53 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
   jjmax0(3)=nlon
 
   do kg=1,3
-    igbox(1,kg)=iimin0(kg)
-    igbox(2,kg)=iimax0(kg)
-    igbox(3,kg)=jjmin0(kg)
-    igbox(4,kg)=jjmax0(kg)
-    igbox0f(1,kg)=one+float((igbox(1,kg)-ione))/pf2aP1%grid_ratio_lat + ijadjust
-    igbox0f(2,kg)=one+float((igbox(2,kg)-ione))/pf2aP1%grid_ratio_lat - ijadjust
-    igbox0f(3,kg)=one+float((igbox(3,kg)-ione))/pf2aP1%grid_ratio_lon + ijadjust
-    igbox0f(4,kg)=one+float((igbox(4,kg)-ione))/pf2aP1%grid_ratio_lon - ijadjust
+     igbox(1,kg)=iimin0(kg)
+     igbox(2,kg)=iimax0(kg)
+     igbox(3,kg)=jjmin0(kg)
+     igbox(4,kg)=jjmax0(kg)
+     igbox0f(1,kg)=one+float((igbox(1,kg)-ione))/pf2aP1%grid_ratio_lat + ijadjust
+     igbox0f(2,kg)=one+float((igbox(2,kg)-ione))/pf2aP1%grid_ratio_lat - ijadjust
+     igbox0f(3,kg)=one+float((igbox(3,kg)-ione))/pf2aP1%grid_ratio_lon + ijadjust
+     igbox0f(4,kg)=one+float((igbox(4,kg)-ione))/pf2aP1%grid_ratio_lon - ijadjust
   end do
 
 !==> compute blending functions
 
   do i=1,pf2aP1%nlatf
-    dist1=float(igbox0f(1,1)-i)
-    dist2=float(i-igbox0f(2,1))
-    gblend_b(i,1)=half*(one-tanh(dist1)) !relax to zero
-    gblend_t(i,1)=half*(one-tanh(dist2)) !outside 212 grid
+     dist1=float(igbox0f(1,1)-i)
+     dist2=float(i-igbox0f(2,1))
+     gblend_b(i,1)=half*(one-tanh(dist1)) !relax to zero
+     gblend_t(i,1)=half*(one-tanh(dist2)) !outside 212 grid
 
-    dist1=float(igbox0f(1,2)-i)
-    dist2=float(i-igbox0f(2,2))
-    gblend_b(i,2)=half*(one-tanh(dist1)) !relax to zero
-    gblend_t(i,2)=half*(one-tanh(dist2)) !outside 221 grid
+     dist1=float(igbox0f(1,2)-i)
+     dist2=float(i-igbox0f(2,2))
+     gblend_b(i,2)=half*(one-tanh(dist1)) !relax to zero
+     gblend_t(i,2)=half*(one-tanh(dist2)) !outside 221 grid
   end do
 
   do j=1,pf2aP1%nlonf
-    dist1=float(igbox0f(3,1)-j)
-    dist2=float(j-igbox0f(4,1))
-    gblend_l(j,1)=half*(one-tanh(dist1)) !relax to zero
-    gblend_r(j,1)=half*(one-tanh(dist2)) !outside 212 grid
-
-    dist1=float(igbox0f(3,2)-j)
-    dist2=float(j-igbox0f(4,2))
-    gblend_l(j,2)=half*(one-tanh(dist1)) !relax to zero
-    gblend_r(j,2)=half*(one-tanh(dist2)) !outside 221 grid
+     dist1=float(igbox0f(3,1)-j)
+     dist2=float(j-igbox0f(4,1))
+     gblend_l(j,1)=half*(one-tanh(dist1)) !relax to zero
+     gblend_r(j,1)=half*(one-tanh(dist2)) !outside 212 grid
+ 
+     dist1=float(igbox0f(3,2)-j)
+     dist2=float(j-igbox0f(4,2))
+     gblend_l(j,2)=half*(one-tanh(dist1)) !relax to zero
+     gblend_r(j,2)=half*(one-tanh(dist2)) !outside 221 grid
   end do
 
   do i=1,pf2aP1%nlatf
-  do j=1,pf2aP1%nlonf
-    gblend(i,j,1)=gblend_b(i,1)*gblend_t(i,1)*gblend_l(j,1)*gblend_r(j,1)
-    gblend(i,j,2)=gblend_b(i,2)*gblend_t(i,2)*gblend_l(j,2)*gblend_r(j,2)
-  end do
+     do j=1,pf2aP1%nlonf
+        gblend(i,j,1)=gblend_b(i,1)*gblend_t(i,1)*gblend_l(j,1)*gblend_r(j,1)
+        gblend(i,j,2)=gblend_b(i,2)*gblend_t(i,2)*gblend_l(j,2)*gblend_r(j,2)
+     end do
   end do
 
   if(mype==izero) then
-    open(94,file='gblend.dat',form='unformatted')
-    write(94) gblend
-    close(94)
+     open(94,file='gblend.dat',form='unformatted')
+     write(94) gblend
+     close(94)
   end if
 
 end subroutine ens_intpcoeffs_reg
@@ -702,12 +706,12 @@ subroutine fillanlgrd(workin,ngrds,igrid,nx,ny,workout, &
 
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: igrid,ngrds,nx,ny,igbox(4,ngrds)
-  integer(i_kind),intent(in):: iref(nlat,nlon,ngrds)
-  integer(i_kind),intent(in):: jref(nlat,nlon,ngrds)
-  real(r_kind)   ,intent(in):: enscoeff(4,nlat,nlon,ngrds)
-  real(r_single),dimension(nx,ny),intent(in)::workin
-  real(r_single),dimension(nlat,nlon),intent(inout)::workout
+  integer(i_kind)                    ,intent(in   ) :: igrid,ngrds,nx,ny,igbox(4,ngrds)
+  integer(i_kind)                    ,intent(in   ) :: iref(nlat,nlon,ngrds)
+  integer(i_kind)                    ,intent(in   ) :: jref(nlat,nlon,ngrds)
+  real(r_kind)                       ,intent(in   ) :: enscoeff(4,nlat,nlon,ngrds)
+  real(r_single),dimension(nx,ny)    ,intent(in   ) :: workin
+  real(r_single),dimension(nlat,nlon),intent(inout) :: workout
 
 ! Declare local variables
   integer(i_kind) i,j,kg,ii,jj,iip,jjp,nxp
@@ -718,11 +722,11 @@ subroutine fillanlgrd(workin,ngrds,igrid,nx,ny,workout, &
 
 !* *****************************************************************************
   select case(igrid)
-    case(212); kg=ione
-    case(221); kg=2_i_kind
-    case(  3); kg=3_i_kind
-    case default
-      print*,'in fillanlgrd: warning, unknown grid, igrid=',igrid
+     case(212); kg=ione
+     case(221); kg=2_i_kind
+     case(  3); kg=3_i_kind
+     case default
+        print*,'in fillanlgrd: warning, unknown grid, igrid=',igrid
   end select
 
 ! print*,'in fillanlgrd: igrid,nx,ny=',igrid,nx,ny
@@ -733,9 +737,9 @@ subroutine fillanlgrd(workin,ngrds,igrid,nx,ny,workout, &
   allocate(tworkin(ny,nxp))
 
   do i=1,ny
-  do j=1,nx
-     tworkin(i,j)=workin(j,i)
-  enddo
+     do j=1,nx
+        tworkin(i,j)=workin(j,i)
+     enddo
   enddo
 
   if (kg == 3_i_kind) tworkin(:,nxp)=tworkin(:,1)
@@ -748,23 +752,23 @@ subroutine fillanlgrd(workin,ngrds,igrid,nx,ny,workout, &
   allocate(asmall(nys:nye,nxs:nxe))
 
   do i=nys,nye
-  do j=nxs,nxe
+     do j=nxs,nxe
 
-     ii=iref(i,j,kg)
-     jj=jref(i,j,kg)
-     iip=min(ii+ione,ny)
-     jjp=min(jj+ione,nxp)
-     asmall(i,j)=real(enscoeff(1,i,j,kg)*real(tworkin(ii ,jj ),r_kind)+ &
-                      enscoeff(2,i,j,kg)*real(tworkin(iip,jj ),r_kind)+ &
-                      enscoeff(3,i,j,kg)*real(tworkin(ii ,jjp),r_kind)+ &
-                      enscoeff(4,i,j,kg)*real(tworkin(iip,jjp),r_kind),r_single)
-  enddo
+        ii=iref(i,j,kg)
+        jj=jref(i,j,kg)
+        iip=min(ii+ione,ny)
+        jjp=min(jj+ione,nxp)
+        asmall(i,j)=real(enscoeff(1,i,j,kg)*real(tworkin(ii ,jj ),r_kind)+ &
+                         enscoeff(2,i,j,kg)*real(tworkin(iip,jj ),r_kind)+ &
+                         enscoeff(3,i,j,kg)*real(tworkin(ii ,jjp),r_kind)+ &
+                         enscoeff(4,i,j,kg)*real(tworkin(iip,jjp),r_kind),r_single)
+     enddo
   enddo
 
   if (igrid == 3_i_kind) then
-    workout(:,:)=asmall(:,:)  !this should be ok. index ranges are the same for this case
+     workout(:,:)=asmall(:,:)  !this should be ok. index ranges are the same for this case
   else
-    call ens_mirror(asmall,workout,nxs,nxe,nys,nye,nlon,nlat)
+     call ens_mirror(asmall,workout,nxs,nxe,nys,nye,nlon,nlat)
   endif
 
   deallocate(tworkin)
@@ -812,11 +816,11 @@ subroutine ens_mirror(asmall,alarge,nxs,nxe,nys,nye,nxb,nyb)
        implicit none
 
 ! Declare passed variables
-       integer(i_kind),intent(in):: nxs,nxe,nys,nye
-       integer(i_kind),intent(in):: nxb,nyb
+       integer(i_kind),intent(in   ) :: nxs,nxe,nys,nye
+       integer(i_kind),intent(in   ) :: nxb,nyb
 
-       real(r_single),intent(in):: asmall(nys:nye,nxs:nxe)
-       real(r_single),intent(inout):: alarge(1:nyb,1:nxb)
+       real(r_single) ,intent(in   ) :: asmall(nys:nye,nxs:nxe)
+       real(r_single) ,intent(inout) :: alarge(1:nyb,1:nxb)
 
 ! Declare local variables
        integer(i_kind) i,j,m,n,k
@@ -826,9 +830,9 @@ subroutine ens_mirror(asmall,alarge,nxs,nxe,nys,nye,nxb,nyb)
 
        alarge(:,:)=zero_single
        do j=nxs,nxe
-       do i=nys,nye
-          alarge(i,j)=asmall(i,j)
-       enddo
+          do i=nys,nye
+             alarge(i,j)=asmall(i,j)
+          enddo
        enddo
 
 !==> start by mirroring field in the i-direction
@@ -897,8 +901,8 @@ subroutine pges_minmax(mype,pmin,pmax)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
-  real(r_kind),intent(out):: pmin(nsig),pmax(nsig)
+  integer(i_kind),intent(in   ) :: mype
+  real(r_kind)   ,intent(  out) :: pmin(nsig),pmax(nsig)
 
 ! Declare local variables
   integer(i_kind):: k,ierror
@@ -918,9 +922,9 @@ subroutine pges_minmax(mype,pmin,pmax)
   pmax(:)=pmax(:)*10._r_kind
 
   if (mype==izero) then
-    do k=1,nsig
-      print*,'in pges_minmax,k,pmin(k),pmax(k)=',k,pmin(k),pmax(k)
-    enddo
+     do k=1,nsig
+        print*,'in pges_minmax,k,pmin(k),pmax(k)=',k,pmin(k),pmax(k)
+     enddo
   endif
 
 end subroutine pges_minmax
@@ -954,8 +958,8 @@ subroutine check_32primes(n,lprime)
   use constants, only: izero,ione
   implicit none
 
-  integer(i_kind),intent(in) :: n
-  logical,intent(inout) :: lprime
+  integer(i_kind),intent(in   ) :: n
+  logical        ,intent(inout) :: lprime
 
   integer(i_kind) nn,nfax,ii
 
@@ -967,26 +971,26 @@ subroutine check_32primes(n,lprime)
 ! check for factors of 3
 !
   do 10 ii = 1,20
-    if (nn==3*(nn/3)) then
-      nfax = nfax+ione
-      nn = nn/3
-    else
-      go to 20
-    end if
-  10 continue
-  20 continue
+     if (nn==3*(nn/3)) then
+        nfax = nfax+ione
+        nn = nn/3
+     else
+        go to 20
+     end if
+10 continue
+20 continue
 !
 ! check for factors of 2
 !
   do 30 ii = nfax+ione,20
-    if (nn==2*(nn/2)) then
-      nfax = nfax +ione
-      nn = nn/2
-    else
-      go to 40
-    end if
-  30 continue
-  40 continue
+     if (nn==2*(nn/2)) then
+        nfax = nfax +ione
+        nn = nn/2
+     else
+        go to 40
+     end if
+30 continue
+40 continue
   if (nn==ione) lprime=.true.
 
   return
@@ -1024,73 +1028,73 @@ subroutine intp_spl(xi,yi,xo,yo,ni,no)
   use constants, only: zero,two,three,ione
   implicit none
 
-  integer(i_kind),intent(in):: ni,no
-  real(r_kind),intent(in):: xi(ni)
-  real(r_kind),intent(in):: yi(ni)
-  real(r_kind),intent(in) :: xo(no)
+  integer(i_kind),intent(in   ) :: ni,no
+  real(r_kind)   ,intent(in   ) :: xi(ni)
+  real(r_kind)   ,intent(in   ) :: yi(ni)
+  real(r_kind)   ,intent(in   ) :: xo(no)
 
-  real(r_kind),intent(out):: yo(no)
+  real(r_kind)   ,intent(  out):: yo(no)
 
   real(r_kind),dimension(ni):: hi,bi,di,gi,ui,ri,pi,qi,si
   real(r_kind):: xe
   integer(i_kind):: k,kk,k0
 
   do k=1,ni-ione
-    hi(k)=xi(k+ione)-xi(k)
+     hi(k)=xi(k+ione)-xi(k)
   end do
 
   do k=2,ni-ione
-    bi(k)=two*(hi(k)+hi(k-ione))
-    di(k)=three*((yi(k+ione)-yi(k))/hi(k)-(yi(k)-yi(k-ione))/hi(k-ione))
+     bi(k)=two*(hi(k)+hi(k-ione))
+     di(k)=three*((yi(k+ione)-yi(k))/hi(k)-(yi(k)-yi(k-ione))/hi(k-ione))
   end do
 
   gi(2)=hi(2)/bi(2)
   do k=3,ni-ione
-    gi(k)=hi(k)/(bi(k)-hi(k-ione)*gi(k-ione))
+     gi(k)=hi(k)/(bi(k)-hi(k-ione)*gi(k-ione))
   end do
 
   ui(2)=di(2)/bi(2)
   do k=3,ni-ione
-    ui(k)=(di(k)-hi(k-ione)*ui(k-ione))/(bi(k)-hi(k-ione)*gi(k-ione))
+     ui(k)=(di(k)-hi(k-ione)*ui(k-ione))/(bi(k)-hi(k-ione)*gi(k-ione))
   end do
 
   ri(ni)=zero
   do k=ni-ione,2,-ione
-    ri(k)=ui(k)-gi(k)*ri(k+ione)
+     ri(k)=ui(k)-gi(k)*ri(k+ione)
   end do
   ri(1)=zero
 
   do k=1,ni-ione
-    pi(k)=yi(k)
-    qi(k)=(yi(k+ione)-yi(k))/hi(k)-hi(k)*(ri(k+ione)+two*ri(k))/three
-    si(k)=(ri(k+ione)-ri(k))/(three*hi(k))
+     pi(k)=yi(k)
+     qi(k)=(yi(k+ione)-yi(k))/hi(k)-hi(k)*(ri(k+ione)+two*ri(k))/three
+     si(k)=(ri(k+ione)-ri(k))/(three*hi(k))
   end do
 
   do kk=1,no
-    yo(kk)=huge(yo(kk))
+     yo(kk)=huge(yo(kk))
 
 ! NOTE
 ! The lower extrapolation must be not so far from 1000mb. -> Extrapolation
 ! But the upper extrapolation might be far from the top level for Q. -> Use top end values
 !
-    if     (xo(kk)>=xi(1) ) then
-!     yo(kk)=yi(1)  ! use the end value
-      k0=ione       ! extrapolation
-    else if(xo(kk)<=xi(ni)) then
-      yo(kk)=yi(ni) ! use the end value
-!     k0=ni-ione    ! extrapolation
-    else
-      do k=1,ni-ione
-        if( xo(kk)<xi(k) .and. xo(kk)>=xi(k+ione) ) then
-          k0=k
-          exit
-        end if
-      end do
-    end if
-    if(yo(kk)==huge(yo(kk))) then
-      xe=xo(kk)-xi(k0)
-      yo(kk)=pi(k0)+qi(k0)*xe+ri(k0)*xe**2+si(k0)*xe**3
-    end if
+     if     (xo(kk)>=xi(1) ) then
+!       yo(kk)=yi(1)  ! use the end value
+        k0=ione       ! extrapolation
+     else if(xo(kk)<=xi(ni)) then
+        yo(kk)=yi(ni) ! use the end value
+!       k0=ni-ione    ! extrapolation
+     else
+        do k=1,ni-ione
+           if( xo(kk)<xi(k) .and. xo(kk)>=xi(k+ione) ) then
+              k0=k
+              exit
+           end if
+        end do
+     end if
+     if(yo(kk)==huge(yo(kk))) then
+        xe=xo(kk)-xi(k0)
+        yo(kk)=pi(k0)+qi(k0)*xe+ri(k0)*xe**2+si(k0)*xe**3
+     end if
   end do
 end subroutine intp_spl
 
@@ -1123,12 +1127,12 @@ subroutine ens_fill(ur,na,nb,u,nxx,ny,itap,no_wgt_in)
   use constants, only: zero, half, one, four, ione
   implicit none
 
-  integer(i_kind),intent(in)::nxx,ny,na,nb,itap
-  real(r_single),intent(in):: u(nxx,ny)
-  real(r_single),intent(inout):: ur(na,nb)
-  real(r_kind):: wt(itap)
-  logical,intent(in):: no_wgt_in
+  integer(i_kind),intent(in   ) :: nxx,ny,na,nb,itap
+  real(r_single) ,intent(in   ) :: u(nxx,ny)
+  real(r_single) ,intent(inout) :: ur(na,nb)
+  logical        ,intent(in   ) :: no_wgt_in
 
+  real(r_kind):: wt(itap)
   real(r_kind):: pionp1,xi
   integer(i_kind)::i,j,im,jm,ip,jp
   integer(i_kind)::nah,nbh,naq,nbq,ndx,ndxh,ndy,ndyh,ndj,ndi,ndip,ndjp,ndipx
@@ -1140,8 +1144,8 @@ subroutine ens_fill(ur,na,nb,u,nxx,ny,itap,no_wgt_in)
   pionp1=four*atan(one)/float(itap+ione)
 
   do i=1,itap
-    xi=float(i)
-    wt(i)=half+half*cos(pionp1*xi)
+     xi=float(i)
+     wt(i)=half+half*cos(pionp1*xi)
   enddo
 
   if(no_wgt) wt=one
@@ -1161,43 +1165,43 @@ subroutine ens_fill(ur,na,nb,u,nxx,ny,itap,no_wgt_in)
 
 !!!!!!! inner !!!!!
   do j=1,ny
-    jp=j+ndj
-    do i=1,nxx
-      ip=i+ndi
-      ur(ip,jp)= u(i,j)
-    end do
+     jp=j+ndj
+     do i=1,nxx
+        ip=i+ndi
+        ur(ip,jp)= u(i,j)
+     end do
   end do
 
 !!!!!!! lower !!!!!
   ndjp=ndj+ione
   do j=1,itap
-    jm=ndjp-j
-    do i=ndi+ione,ndi+nxx
-      ur(i,jm)=ur(i,ndjp)*wt(j)
-    end do
+     jm=ndjp-j
+     do i=ndi+ione,ndi+nxx
+        ur(i,jm)=ur(i,ndjp)*wt(j)
+     end do
   end do
 
 !!!!!!! upper !!!!!
   ndjp=ndj+ny
   do j=1,itap
-    jp=ndjp+j
-    do i=ndi+ione,ndi+nxx
-      ur(i,jp)=ur(i,ndjp)*wt(j)
-    end do
+     jp=ndjp+j
+     do i=ndi+ione,ndi+nxx
+        ur(i,jp)=ur(i,ndjp)*wt(j)
+     end do
   end do
 
 !!!!!!! left+right  !!!!!
   ndip=ndi+ione
   ndipx=ndi+nxx
   do j=ndj+ione-itap,ndj+ny+itap
-    do i=1,itap
-      im=ndip-i
-      ur(im,j)=ur(ndip ,j)*wt(i)
-    end do
-    do i=1,itap
-      ip=ndipx+i
-      ur(ip,j)=ur(ndipx,j)*wt(i)
-    end do
+     do i=1,itap
+        im=ndip-i
+        ur(im,j)=ur(ndip ,j)*wt(i)
+     end do
+     do i=1,itap
+        ip=ndipx+i
+        ur(ip,j)=ur(ndipx,j)*wt(i)
+     end do
   end do
 
   return
@@ -1230,9 +1234,10 @@ subroutine ens_unfill(ur,na,nb,u,nxx,ny)
   use kinds, only: i_kind, r_single, r_kind
   implicit none
 
-  integer(i_kind),intent(in)::na,nb,nxx,ny
-  real(r_single),intent(inout):: u(nxx,ny)
-  real(r_single),intent(in):: ur(na,nb)
+  integer(i_kind),intent(in   ) :: na,nb,nxx,ny
+  real(r_single) ,intent(inout) :: u(nxx,ny)
+  real(r_single) ,intent(in   ) :: ur(na,nb)
+
   integer(i_kind)::i,j,ip,jp
   integer(i_kind)::nah,nbh,naq,nbq,ndx,ndxh,ndy,ndyh,ndj,ndi
 
@@ -1248,11 +1253,11 @@ subroutine ens_unfill(ur,na,nb,u,nxx,ny)
   ndi=naq+ndxh
 
   do j=1,ny
-    jp=j+ndj
-    do i=1,nxx
-      ip=i+ndi
-      u(i,j)=ur(ip,jp)
-    end do
+     jp=j+ndj
+     do i=1,nxx
+        ip=i+ndi
+        u(i,j)=ur(ip,jp)
+     end do
   end do
 
   return

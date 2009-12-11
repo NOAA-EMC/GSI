@@ -28,7 +28,7 @@ subroutine q_diag(mype)
   use guess_grids, only: ges_q,ntguessig,ges_cwmr,ges_ps,ges_prsi
   use jfunc, only: qsatg,iout_iter,rhgues
   use mpimod, only: mpi_rtype,mpi_comm_world,mpi_sum,strip,ierror
-  use constants,only: zero,two,one,half
+  use constants,only: izero,ione,zero,two,one,half
   use gridmod, only: lat2,lon2,nsig,nlat,nlon,lat1,lon1,iglobal,&
        displs_g,ijn,wgtlats,itotsub,load_grid
 
@@ -48,41 +48,41 @@ subroutine q_diag(mype)
   real(r_kind),dimension(lat2,lon2):: pw
   real(r_kind),dimension(lat1*lon1):: psm,pwm
   real(r_kind),dimension(max(iglobal,itotsub)):: work_ps,work_pw
-  real(r_kind),dimension(nlon,nlat-2):: grid_ps,grid_pw
+  real(r_kind),dimension(nlon,nlat-2_i_kind):: grid_ps,grid_pw
 
   it=ntguessig
-  mype_out=0
-  mm1=mype+1
+  mype_out=izero
+  mm1=mype+ione
 
   qrms=zero
-  pw=zero
+  pw  =zero
   do k=1,nsig
-    do j=2,lon2-1
-      do i=2,lat2-1
-        if (ges_q(i,j,k,it) < zero) then
-          qrms(1,1)=qrms(1,1) + ges_q(i,j,k,it)**two
-          qrms(1,2)=qrms(1,2) + one
-        else if (ges_q(i,j,k,it) > qsatg(i,j,k)) then
-          qrms(2,1)=qrms(2,1) + (ges_q(i,j,k,it)-qsatg(i,j,k))**two
-          qrms(2,2)=qrms(2,2) + one
-        end if
-        if (rhgues(i,j,k) < zero) then
-          qrms(1,3)=qrms(1,3)+ rhgues(i,j,k)**two
-          qrms(1,4)=qrms(1,4) + one
-        else if (rhgues(i,j,k) > one) then
-          qrms(2,3)=qrms(2,3)+ (rhgues(i,j,k)-1)**two
-          qrms(2,4)=qrms(2,4) + one
-        end if
-        pw(i,j)=pw(i,j)+(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))* &
-             (ges_q(i,j,k,it)+ges_cwmr(i,j,k,it))
-      end do
-    end do
+     do j=2,lon2-ione
+        do i=2,lat2-ione
+           if (ges_q(i,j,k,it) < zero) then
+              qrms(1,1)=qrms(1,1) + ges_q(i,j,k,it)**two
+              qrms(1,2)=qrms(1,2) + one
+           else if (ges_q(i,j,k,it) > qsatg(i,j,k)) then
+              qrms(2,1)=qrms(2,1) + (ges_q(i,j,k,it)-qsatg(i,j,k))**two
+              qrms(2,2)=qrms(2,2) + one
+           end if
+           if (rhgues(i,j,k) < zero) then
+              qrms(1,3)=qrms(1,3) + rhgues(i,j,k)**two
+              qrms(1,4)=qrms(1,4) + one
+           else if (rhgues(i,j,k) > one) then
+              qrms(2,3)=qrms(2,3) + (rhgues(i,j,k)-one)**two
+              qrms(2,4)=qrms(2,4) + one
+           end if
+           pw(i,j)=pw(i,j)+(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))* &
+                (ges_q(i,j,k,it)+ges_cwmr(i,j,k,it))
+        end do
+     end do
   end do
 
-  call strip(ges_ps(1,1,it),psm,1)
-  call strip(pw,pwm,1)
+  call strip(ges_ps(1,1,it),psm,ione)
+  call strip(pw,pwm,ione)
 
-  call mpi_reduce(qrms,qrms0,8,mpi_rtype,mpi_sum,mype_out,mpi_comm_world,ierror)
+  call mpi_reduce(qrms,qrms0,8_i_kind,mpi_rtype,mpi_sum,mype_out,mpi_comm_world,ierror)
 
   call mpi_gatherv(psm,ijn(mm1),mpi_rtype,work_ps,ijn,displs_g,mpi_rtype,&
        mype_out,mpi_comm_world,ierror)
@@ -91,13 +91,13 @@ subroutine q_diag(mype)
 
 
   if(mype == mype_out) then
-     qrms_neg = zero
-     qrms_sat = zero
+     qrms_neg  = zero
+     qrms_sat  = zero
      rhrms_neg = zero
      rhrms_sat = zero
-     if(qrms0(1,2)>zero) qrms_neg=sqrt(qrms0(1,1)/qrms0(1,2))
+     if(qrms0(1,2)>zero) qrms_neg =sqrt(qrms0(1,1)/qrms0(1,2))
      if(qrms0(1,4)>zero) rhrms_neg=sqrt(qrms0(1,3)/qrms0(1,4))
-     if(qrms0(2,2)>zero) qrms_sat=sqrt(qrms0(2,1)/qrms0(2,2))
+     if(qrms0(2,2)>zero) qrms_sat =sqrt(qrms0(2,1)/qrms0(2,2))
      if(qrms0(2,4)>zero) rhrms_sat=sqrt(qrms0(2,3)/qrms0(2,4))
      write(iout_iter,100) nint(qrms0(1,2)),qrms_neg,nint(qrms0(1,4)),rhrms_neg, &
                           nint(qrms0(2,2)),qrms_sat,nint(qrms0(2,4)),rhrms_sat
@@ -111,8 +111,8 @@ subroutine q_diag(mype)
      globps=zero
      globpw=zero
      rlon=one/float(nlon)
-     do jj=2,nlat-1
-        j=jj-1
+     do jj=2,nlat-ione
+        j=jj-ione
         fmeanps=zero
         fmeanpw=zero
         do i=1,nlon

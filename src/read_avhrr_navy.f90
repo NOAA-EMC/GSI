@@ -68,37 +68,37 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
            finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad, zero, one, rad2deg,r60inv
+  use constants, only: deg2rad, izero, ione, zero, one, rad2deg, r60inv
   use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   implicit none
 
 
 ! Declare passed variables
-  character(len=*),intent(in):: infile,obstype,jsatid
-  character(len=*),intent(in):: sis
-  integer(i_kind),intent(in):: mype,lunout,ithin
-  integer(i_kind),intent(inout):: nread
-  integer(i_kind),intent(inout):: ndata,nodata
-  real(r_kind),intent(in):: rmesh,gstime,twind
-  real(r_kind),intent(inout):: val_avhrr
-  integer(i_kind),intent(in) :: mype_root
-  integer(i_kind),intent(in) :: mype_sub
-  integer(i_kind),intent(in) :: npe_sub
-  integer(i_kind),intent(in) :: mpi_comm_sub
+  character(len=*),intent(in   ) :: infile,obstype,jsatid
+  character(len=*),intent(in   ) :: sis
+  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
+  integer(i_kind) ,intent(inout) :: nread
+  integer(i_kind) ,intent(inout) :: ndata,nodata
+  real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
+  real(r_kind)    ,intent(inout) :: val_avhrr
+  integer(i_kind) ,intent(in   ) :: mype_root
+  integer(i_kind) ,intent(in   ) :: mype_sub
+  integer(i_kind) ,intent(in   ) :: npe_sub
+  integer(i_kind) ,intent(in   ) :: mpi_comm_sub
 
 
 ! Declare local parameters
   character(6),parameter:: file_sst='SST_AN'
-  integer(i_kind),parameter:: maxinfo = 35
-  integer(i_kind),parameter:: mlat_sst = 3000
-  integer(i_kind),parameter:: mlon_sst = 5000
+  integer(i_kind),parameter:: maxinfo = 35_i_kind
+  integer(i_kind),parameter:: mlat_sst = 3000_i_kind
+  integer(i_kind),parameter:: mlon_sst = 5000_i_kind
   real(r_kind),parameter:: r6=6.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
 
-  real(r_kind),parameter:: bmiss = 1.0E11
+  real(r_kind),parameter:: bmiss = 1.0E11_r_kind
 
 
 ! Declare local variables  
@@ -144,27 +144,27 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !**************************************************************************
 ! Start routine here.  Set constants.  Initialize variables
   disterrmax=zero
-  lnbufr = 10
-  ntest=0
-  ndata  = 0
-  nodata  = 0
-  nchanl = 3
+  lnbufr = 10_i_kind
+  ntest=izero
+  ndata  = izero
+  nodata  = izero
+  nchanl = 3_i_kind
 
-  ilon=3
-  ilat=4
+  ilon=3_i_kind
+  ilat=4_i_kind
 
-  rlndsea(0) = 0._r_kind
+  rlndsea(0) = zero
   rlndsea(1) = 30._r_kind
   rlndsea(2) = 20._r_kind
   rlndsea(3) = 30._r_kind
   rlndsea(4) = 30._r_kind
 
                             ! 207, 208 or 209 for NOAA-16, 17 & 18 respectively
-  if(jsatid == 'n16')bufsat = 207
-  if(jsatid == 'n17')bufsat = 208
-  if(jsatid == 'n18')bufsat = 209
-  if(jsatid == 'n19')bufsat = 223
-  if(jsatid == 'metop-a')bufsat = 4
+  if(jsatid == 'n16')bufsat = 207_i_kind
+  if(jsatid == 'n17')bufsat = 208_i_kind
+  if(jsatid == 'n18')bufsat = 209_i_kind
+  if(jsatid == 'n19')bufsat = 223_i_kind
+  if(jsatid == 'metop-a')bufsat = 4_i_kind
 
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
@@ -173,7 +173,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
   assim=.false.
   search: do i=1,jpch_rad
-     if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
+     if ((nusis(i)==sis) .and. (iuse_rad(i)>izero)) then
         assim=.true.
         exit search
      endif
@@ -206,31 +206,31 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   subset = 'NC012012'
   call status(lnbufr,lun,idummy1,idummy2)
   call nemtab(lun,'NC012015',idummy1,cdummy,iret)
-  if(iret.gt.0)  subset = 'NC012015'
+  if(iret>izero)  subset = 'NC012015'
 
-  next=mype_sub+1
+  next=mype_sub+ione
 
 ! Read BUFR Navy data
-  do while (ireadmg(lnbufr,subset,idate) >= 0)
+  do while (ireadmg(lnbufr,subset,idate) >= izero)
      call ufbcnt(lnbufr,irec,isub)
      if(irec/=next)cycle
      next=next+npe_sub
-     read_loop:do while (ireadsb(lnbufr) == 0)
+     read_loop:do while (ireadsb(lnbufr) == izero)
   
-       call ufbint(lnbufr,bufrf(1),9,1,iret, &
-       &            'YEAR MNTH DAYS HOUR MINU SECO CLAT CLON SAID')
+        call ufbint(lnbufr,bufrf(1),9_i_kind,ione,iret, &
+        &            'YEAR MNTH DAYS HOUR MINU SECO CLAT CLON SAID')
 
         if ( bufsat /= nint(bufrf(9)) ) cycle read_loop               ! read next bufr subset
-        call ufbint(lnbufr,bufrf(10),4,1,iret,'SAZA SOZA SOLAZI SSTYPE')
-        call ufbint(lnbufr,bufrf(14),1,1,iret,'SST1')
-        call ufbrep(lnbufr,bufrf(15),1,5,iret,'TMBR')
+        call ufbint(lnbufr,bufrf(10),4_i_kind,ione,iret,'SAZA SOZA SOLAZI SSTYPE')
+        call ufbint(lnbufr,bufrf(14),ione,ione,iret,'SST1')
+        call ufbrep(lnbufr,bufrf(15),ione,5_i_kind,iret,'TMBR')
 
-        iskip = 0
+        iskip = izero
         do k=1,nchanl
-           if(bufrf(16+k) < tbmin .or. bufrf(16+k) > tbmax) then
-              iskip=iskip+1
+           if(bufrf(16_i_kind+k) < tbmin .or. bufrf(16_i_kind+k) > tbmax) then
+              iskip=iskip+ione
            else
-              nread=nread+1
+              nread=nread+ione
            end if
         end do
         if(iskip >= nchanl)cycle read_loop
@@ -246,11 +246,11 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
         t4dv=(real(nmind-iwinbgn,r_kind) + real(bufrf(6),r_kind)*r60inv)*r60inv
 
         if (l4dvar) then
-          if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
+           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-          sstime=real(nmind,r_kind) + real(bufrf(6),r_kind)*r60inv
-          tdiff=(sstime-gstime)*r60inv
-          if(abs(tdiff) > twind) cycle read_loop
+           sstime=real(nmind,r_kind) + real(bufrf(6),r_kind)*r60inv
+           tdiff=(sstime-gstime)*r60inv
+           if(abs(tdiff) > twind) cycle read_loop
         endif
 
 !       Convert obs location to radians
@@ -265,7 +265,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
            if(diagnostic_reg) then
               call txy2ll(dlon,dlat,dlon00,dlat00)
-              ntest=ntest+1
+              ntest=ntest+ione
               disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
                    (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
               disterrmax=max(disterrmax,disterr)
@@ -276,18 +276,18 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd(dlat,ione,rlats,nlat,ione)
+           call grdcrd(dlon,ione,rlons,nlon,ione)
         endif
 
 !       Set common predictor parameters
 
         if (l4dvar) then
-          crit1 = 0.01_r_kind
+           crit1 = 0.01_r_kind
         else
-          timedif = r6*abs(tdiff)        ! range:  0 to 18
-!         Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-          crit1 = 0.01_r_kind+timedif 
+           timedif = r6*abs(tdiff)        ! range:  0 to 18
+!          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+           crit1 = 0.01_r_kind+timedif 
         endif
 
 !       Map obs to thinning grid
@@ -322,18 +322,18 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !       Interpolate hi-res sst analysis to observation location
         dlat_sst = dlat_earth
         dlon_sst = dlon_earth
-        call grdcrd(dlat_sst,1,rlats_sst,nlat_sst,1)
-        call grdcrd(dlon_sst,1,rlons_sst,nlon_sst,1)
+        call grdcrd(dlat_sst,ione,rlats_sst,nlat_sst,ione)
+        call grdcrd(dlon_sst,ione,rlons_sst,nlon_sst,ione)
 
         klon1=int(dlon_sst); klat1=int(dlat_sst)
         dx  =dlon_sst-klon1; dy  =dlat_sst-klat1
         dx1 =one-dx;         dy1 =one-dy
         w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
 
-        klat1=min(max(1,klat1),nlat_sst); klon1=min(max(0,klon1),nlon_sst)
-        if(klon1==0) klon1=nlon_sst
-        klatp1=min(nlat_sst,klat1+1); klonp1=klon1+1
-        if(klonp1==nlon_sst+1) klonp1=1
+        klat1=min(max(ione,klat1),nlat_sst); klon1=min(max(izero,klon1),nlon_sst)
+        if(klon1==izero) klon1=nlon_sst
+        klatp1=min(nlat_sst,klat1+ione); klonp1=klon1+ione
+        if(klonp1==nlon_sst+ione) klonp1=ione
 
         sst_hires=w00*sst_an(klat1,klon1 ) + w10*sst_an(klatp1,klon1 ) + &
                   w01*sst_an(klat1,klonp1) + w11*sst_an(klatp1,klonp1)
@@ -341,59 +341,59 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 !       Transfer information to work array
 
-        data_all(1, itx) = bufrf(9)            ! satellite id
-        data_all(2, itx) = t4dv                ! time (hours)
-        data_all(3, itx) = dlon                ! grid relative longitude
-        data_all(4, itx) = dlat                ! grid relative latitude
-        data_all(5, itx) = bufrf(10)*deg2rad   ! satellite zenith angle (radians)
-        data_all(6, itx) = bmiss               ! satellite azimuth angle
-        data_all(7, itx) = bufrf(14)           ! Navy SST retrieval
-        data_all(8, itx) = zero                ! scan position (unavailable)
-        data_all(9, itx) = bufrf(11)           ! solar zenith angle (radians)
-        data_all(10,itx) = bufrf(12)           ! solar azimuth angle (radians)
-        data_all(11,itx) = sfcpct(0)           ! sea percentage of
-        data_all(12,itx) = sfcpct(1)           ! land percentage
-        data_all(13,itx) = sfcpct(2)           ! sea ice percentage
-        data_all(14,itx) = sfcpct(3)           ! snow percentage
-        data_all(15,itx)= ts(0)                ! ocean skin temperature
-        data_all(16,itx)= ts(1)                ! land skin temperature
-        data_all(17,itx)= ts(2)                ! ice skin temperature
-        data_all(18,itx)= ts(3)                ! snow skin temperature
-        data_all(19,itx)= tsavg                ! average skin temperature
-        data_all(20,itx)= vty                  ! vegetation type
-        data_all(21,itx)= vfr                  ! vegetation fraction
-        data_all(22,itx)= sty                  ! soil type
-        data_all(23,itx)= stp                  ! soil temperature
-        data_all(24,itx)= sm                   ! soil moisture
-        data_all(25,itx)= sn                   ! snow depth
-        data_all(26,itx)= zz                   ! surface height
-        data_all(27,itx)= idomsfc + 0.001      ! dominate surface type
-        data_all(28,itx)= sfcr                 ! surface roughness
-        data_all(29,itx)= ff10                 ! ten meter wind factor
-        data_all(30,itx)= dlon_earth           ! earth relative longitude (degrees)
-        data_all(31,itx)= dlat_earth           ! earth relative latitude (degrees)
+        data_all(1, itx) = bufrf(9)              ! satellite id
+        data_all(2, itx) = t4dv                  ! time (hours)
+        data_all(3, itx) = dlon                  ! grid relative longitude
+        data_all(4, itx) = dlat                  ! grid relative latitude
+        data_all(5, itx) = bufrf(10)*deg2rad     ! satellite zenith angle (radians)
+        data_all(6, itx) = bmiss                 ! satellite azimuth angle
+        data_all(7, itx) = bufrf(14)             ! Navy SST retrieval
+        data_all(8, itx) = zero                  ! scan position (unavailable)
+        data_all(9, itx) = bufrf(11)             ! solar zenith angle (radians)
+        data_all(10,itx) = bufrf(12)             ! solar azimuth angle (radians)
+        data_all(11,itx) = sfcpct(0)             ! sea percentage of
+        data_all(12,itx) = sfcpct(1)             ! land percentage
+        data_all(13,itx) = sfcpct(2)             ! sea ice percentage
+        data_all(14,itx) = sfcpct(3)             ! snow percentage
+        data_all(15,itx)= ts(0)                  ! ocean skin temperature
+        data_all(16,itx)= ts(1)                  ! land skin temperature
+        data_all(17,itx)= ts(2)                  ! ice skin temperature
+        data_all(18,itx)= ts(3)                  ! snow skin temperature
+        data_all(19,itx)= tsavg                  ! average skin temperature
+        data_all(20,itx)= vty                    ! vegetation type
+        data_all(21,itx)= vfr                    ! vegetation fraction
+        data_all(22,itx)= sty                    ! soil type
+        data_all(23,itx)= stp                    ! soil temperature
+        data_all(24,itx)= sm                     ! soil moisture
+        data_all(25,itx)= sn                     ! snow depth
+        data_all(26,itx)= zz                     ! surface height
+        data_all(27,itx)= idomsfc + 0.001_r_kind ! dominate surface type
+        data_all(28,itx)= sfcr                   ! surface roughness
+        data_all(29,itx)= ff10                   ! ten meter wind factor
+        data_all(30,itx)= dlon_earth             ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth             ! earth relative latitude (degrees)
 
-        data_all(30,itx) = dlon_earth          ! earth relative longitude (rad)
-        data_all(31,itx) = dlat_earth          ! earth relative latitude (rad)
-        data_all(32,itx) = bufrf(13)           ! Data type: 151=day,152=night,159=cloud problem
-        data_all(33,itx) = sst_hires           ! interpolated hires SST (deg K)
+        data_all(30,itx) = dlon_earth            ! earth relative longitude (rad)
+        data_all(31,itx) = dlat_earth            ! earth relative latitude (rad)
+        data_all(32,itx) = bufrf(13)             ! Data type: 151=day,152=night,159=cloud problem
+        data_all(33,itx) = sst_hires             ! interpolated hires SST (deg K)
 
         data_all(34,itx) = val_avhrr
         data_all(35,itx) = itt
 
         do k=1,nchanl
-           data_all(k+maxinfo,itx)= bufrf(16+k)  ! Tb for avhrr ch-3, ch-4 and ch-5
+           data_all(k+maxinfo,itx)= bufrf(16_i_kind+k)  ! Tb for avhrr ch-3, ch-4 and ch-5
         end do
 
 
 
 !    End of satellite read block
 
-    end do read_loop
+     end do read_loop
 
- end do                      ! if ( ierrmg == 0 ) then
+  end do                      ! if ( ierrmg == 0 ) then
 
- write(6,*) 'READ_AVHRR_NAVY:  total number of obs, nread,ndata : ',nread,ndata
+  write(6,*) 'READ_AVHRR_NAVY:  total number of obs, nread,ndata : ',nread,ndata
 
 ! Normal exit
 700 continue
@@ -405,31 +405,31 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 ! Now that we've identified the "best" observations, pull out best obs
 ! and write them to the output file
 
- do n=1,ndata
-    do k=1,nchanl
-       if(data_all(k+maxinfo,n) > tbmin .and. &
-          data_all(k+maxinfo,n) < tbmax)nodata=nodata+1
-    end do
-    itt=nint(data_all(maxinfo,n))
-    super_val(itt)=super_val(itt)+val_avhrr
+  do n=1,ndata
+     do k=1,nchanl
+        if(data_all(k+maxinfo,n) > tbmin .and. &
+           data_all(k+maxinfo,n) < tbmax)nodata=nodata+ione
+     end do
+     itt=nint(data_all(maxinfo,n))
+     super_val(itt)=super_val(itt)+val_avhrr
 
- end do
+  end do
 
 ! Write retained data to local file
- write(lunout) obstype,sis,maxinfo,nchanl,ilat,ilon
- write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+  write(lunout) obstype,sis,maxinfo,nchanl,ilat,ilon
+  write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
 
 ! Deallocate local arrays
- deallocate(data_all)
+  deallocate(data_all)
 
 ! Deallocate arrays
 900 continue
- call destroygrids
- call closbf(lnbufr)
+  call destroygrids
+  call closbf(lnbufr)
 
- if(diagnostic_reg.and.ntest.gt.0) write(6,*)'READ_AVHRR_NAVY:  ',&
-      'mype,ntest,disterrmax=',mype,ntest,disterrmax
+  if(diagnostic_reg.and.ntest>izero) write(6,*)'READ_AVHRR_NAVY:  ',&
+       'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
 ! End of routine
- return
+  return
 end subroutine read_avhrr_navy

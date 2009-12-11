@@ -26,7 +26,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,rlats,rlons
-  use constants, only: deg2rad,rad2deg,zero,one_tenth
+  use constants, only: deg2rad,rad2deg,izero,ione,zero,one_tenth
   use convinfo, only: nconvtype,ictype,icuse
   use obsmod, only: ianldate
   use tcv_mod, only: get_storminfo,numstorms,stormlat,stormlon,stormpsmin,stormdattim
@@ -34,15 +34,15 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
   implicit none
 
 ! Declare passed variables
-  character(10),intent(in):: obstype,infile
-  character(20),intent(in):: sis
-  integer(i_kind),intent(in):: lunout
-  integer(i_kind),intent(inout):: nread,ndata,nodata
+  character(10)  ,intent(in   ) :: obstype,infile
+  character(20)  ,intent(in   ) :: sis
+  integer(i_kind),intent(in   ) :: lunout
+  integer(i_kind),intent(inout) :: nread,ndata,nodata
 
 ! Declare local parameters
   real(r_kind),parameter:: r360=360.0_r_kind
-  integer(i_kind),parameter:: maxobs=2e6
-  integer(i_kind),parameter:: maxdat=9
+  integer(i_kind),parameter:: maxobs=2e6_i_kind
+  integer(i_kind),parameter:: maxdat=9_i_kind
 
 ! Declare local variables
   real(r_kind) dlat,dlon,dlat_earth,dlon_earth
@@ -54,15 +54,15 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
 
   logical endfile
 
-  data lunin / 10 /
+  data lunin / 10_i_kind /
 
 !**************************************************************************
 ! Initialize variables
-  nmrecs=0
+  nmrecs=izero
   nreal=maxdat
-  nchanl=0
-  ilon=2
-  ilat=3
+  nchanl=izero
+  ilon=2_i_kind
+  ilat=3_i_kind
   endfile=.false.
 
   allocate(cdata_all(maxdat,maxobs))
@@ -77,68 +77,68 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
   write(6,*) 'READ_TCPS:  IANLDATE = ',ianldate
 
   do i=1,numstorms
-    nmrecs=nmrecs+1
-    nread=nread+1
+     nmrecs=nmrecs+ione
+     nread=nread+ione
 
 ! Set ikx here...pseudo-mslp tc_vitals obs are assumed to be type 111
-    do nc=1,nconvtype
-      if (ictype(nc)==112) ikx=nc
-    end do
+     do nc=1,nconvtype
+        if (ictype(nc)==112_i_kind) ikx=nc
+     end do
 
 ! Set usage variable
-    usage = 0.
-    if(icuse(ikx) <= 0)usage=100.
+     usage = zero
+     if(icuse(ikx) <= izero)usage=100._r_kind
 
-    if (stormdattim(i).ne.ianldate) then
-       write(6,*) 'READ_TCPS:  IGNORE TC_VITALS ENTRY # ',i
-       write(6,*) 'READ_TCPS:  MISMATCHED FROM ANALYSIS TIME, OBS / ANL DATES = ',stormdattim(i),ianldate
-       go to 990
-    end if
+     if (stormdattim(i)/=ianldate) then
+        write(6,*) 'READ_TCPS:  IGNORE TC_VITALS ENTRY # ',i
+        write(6,*) 'READ_TCPS:  MISMATCHED FROM ANALYSIS TIME, OBS / ANL DATES = ',stormdattim(i),ianldate
+        go to 990
+     end if
 
 ! Observation occurs at analysis time as per date check above
 ! Set observation lat, lon, mslp, and default obs-error
-    call time_4dvar(ianldate,toff)
-    write(6,*)'READ_TCPS: bufr file date is ',ianldate
-    write(6,*)'READ_TCPS: time offset is ',toff,' hours.'
-    ohr=toff
-    olat=stormlat(i)
-    olon=stormlon(i)
-    psob=stormpsmin(i)
-    oberr=0.75
+     call time_4dvar(ianldate,toff)
+     write(6,*)'READ_TCPS: bufr file date is ',ianldate
+     write(6,*)'READ_TCPS: time offset is ',toff,' hours.'
+     ohr=toff
+     olat=stormlat(i)
+     olon=stormlon(i)
+     psob=stormpsmin(i)
+     oberr=0.75_r_kind
 
 ! Make sure the psob is reasonable
-    if ( (psob<850.) .or. (psob>1025.) )then
-      usage=100.
-    end if
+     if ( (psob<850._r_kind) .or. (psob>1025._r_kind) )then
+        usage=100._r_kind
+     end if
 
-    if (olon >= r360) olon=olon-r360
-    if (olon < zero)  olon=olon+r360
-    dlat_earth = olat * deg2rad
-    dlon_earth = olon * deg2rad
-
-    dlat = dlat_earth
-    dlon = dlon_earth
-    call grdcrd(dlat,1,rlats,nlat,1)
-    call grdcrd(dlon,1,rlons,nlon,1)
+     if (olon >= r360) olon=olon-r360
+     if (olon < zero)  olon=olon+r360
+     dlat_earth = olat * deg2rad
+     dlon_earth = olon * deg2rad
+ 
+     dlat = dlat_earth
+     dlon = dlon_earth
+     call grdcrd(dlat,ione,rlats,nlat,ione)
+     call grdcrd(dlon,ione,rlons,nlon,ione)
 
 ! Extract observation.
-    ndata=min(ndata+1,maxobs)
-    nodata=min(nodata+1,maxobs)
+     ndata=min(ndata+ione,maxobs)
+     nodata=min(nodata+ione,maxobs)
 
 ! convert pressure (mb) to log(pres(cb))
-    pob=one_tenth*psob
+     pob=one_tenth*psob
+ 
+     cdata_all(1,ndata)=oberr*one_tenth       ! obs error converted to cb
+     cdata_all(2,ndata)=dlon                  ! grid relative longitude
+     cdata_all(3,ndata)=dlat                  ! grid relative latitude
+     cdata_all(4,ndata)=pob                   ! pressure in cb 
+     cdata_all(5,ndata)=toff                  ! obs time (analyis relative hour)
+     cdata_all(6,ndata)=ikx                   ! obs type
+     cdata_all(7,ndata)=dlon_earth*rad2deg    ! earth relative longitude (degrees)
+     cdata_all(8,ndata)=dlat_earth*rad2deg    ! earth relative latitude (degrees)
+     cdata_all(9,ndata)=usage                 ! usage parameter
 
-    cdata_all(1,ndata)=oberr*one_tenth       ! obs error converted to cb
-    cdata_all(2,ndata)=dlon                  ! grid relative longitude
-    cdata_all(3,ndata)=dlat                  ! grid relative latitude
-    cdata_all(4,ndata)=pob                   ! pressure in cb 
-    cdata_all(5,ndata)=toff                  ! obs time (analyis relative hour)
-    cdata_all(6,ndata)=ikx                   ! obs type
-    cdata_all(7,ndata)=dlon_earth*rad2deg    ! earth relative longitude (degrees)
-    cdata_all(8,ndata)=dlat_earth*rad2deg    ! earth relative latitude (degrees)
-    cdata_all(9,ndata)=usage                 ! usage parameter
-
-990 continue
+990  continue
 
 ! End of loop over number of storms
   end do

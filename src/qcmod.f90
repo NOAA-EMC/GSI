@@ -26,6 +26,10 @@ module qcmod
 !   2007-04-16       su - add c_varqc for determining the spped to turn on var. qc
 !   2008-06-03  treadon - add use_poq7
 !
+! subroutines included:
+!   sub init_qcvars
+!   sub errormod
+!
 ! remarks: variable definitions below
 !   def dfact           - factor for duplicate obs at same location for conv. data
 !   def dfact1          - time factor for duplicate obs at same location for conv. data
@@ -54,6 +58,16 @@ module qcmod
 
   use kinds, only: i_kind,r_kind
   implicit none
+
+! set default to private
+  private
+! set subroutines to public
+  public :: init_qcvars
+  public :: errormod
+! set passed variables to public
+  public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,repe_dw
+  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,repe_gps
+  public :: pboto3,ptopo3,pbotq,ptopq
 
   logical nlnqc_iter
   logical noiqc
@@ -100,49 +114,49 @@ contains
     implicit none
 !   real(r_kind),parameter:: ten=10.0_r_kind
 
-    npres_print = 12
+    npres_print = 12_i_kind
     allocate(ptop(npres_print),pbot(npres_print),ptopq(npres_print), &
              pbotq(npres_print),ptopo3(npres_print),pboto3(npres_print))
     
 ! Set pressure level groupings.  There are npres_print groupings
-    ptop(1) = r1000;   pbot(1)=  1200.0
-    ptop(2) = 900.0;    pbot(2)=  999.9
-    ptop(3) = 800.0;    pbot(3)=  899.9
-    ptop(4) = 600.0;    pbot(4)=  799.9
-    ptop(5) = 400.0;    pbot(5)=  599.9
-    ptop(6) = h300;     pbot(6)=  399.9
-    ptop(7) = 250.0;    pbot(7)=  299.9
-    ptop(8) = 200.0;    pbot(8)=  249.9
-    ptop(9) = 150.0;    pbot(9)=  199.9
-    ptop(10)= 100.0;    pbot(10)= 149.9
-    ptop(11)= 50.0;     pbot(11)= 99.9
-    ptop(12)= zero;     pbot(12)= 2000.0
+    ptop(1) = r1000       ;    pbot(1)=  1200.0_r_kind
+    ptop(2) = 900.0_r_kind;    pbot(2)=  999.9_r_kind
+    ptop(3) = 800.0_r_kind;    pbot(3)=  899.9_r_kind
+    ptop(4) = 600.0_r_kind;    pbot(4)=  799.9_r_kind
+    ptop(5) = 400.0_r_kind;    pbot(5)=  599.9_r_kind
+    ptop(6) = h300        ;    pbot(6)=  399.9_r_kind
+    ptop(7) = 250.0_r_kind;    pbot(7)=  299.9_r_kind
+    ptop(8) = 200.0_r_kind;    pbot(8)=  249.9_r_kind
+    ptop(9) = 150.0_r_kind;    pbot(9)=  199.9_r_kind
+    ptop(10)= 100.0_r_kind;    pbot(10)= 149.9_r_kind
+    ptop(11)= 50.0_r_kind ;    pbot(11)= 99.9_r_kind
+    ptop(12)= zero        ;    pbot(12)= 2000.0_r_kind
 
-    ptopq(1)=  r1000;  pbotq(1)=  1200.0
-    ptopq(2)=  950.0;   pbotq(2)=  999.9
-    ptopq(3)=  900.0;   pbotq(3)=  949.9
-    ptopq(4)=  850.0;   pbotq(4)=  899.9
-    ptopq(5)=  800.0;   pbotq(5)=  849.9
-    ptopq(6)=  700.0;   pbotq(6)=  799.9
-    ptopq(7)=  600.0;   pbotq(7)=  699.9
-    ptopq(8)=  500.0;   pbotq(8)=  599.9
-    ptopq(9)=  400.0;   pbotq(9)=  499.9
-    ptopq(10)= h300;    pbotq(10)= 399.9
-    ptopq(11)= zero;    pbotq(11)= 299.9
-    ptopq(12)= zero;    pbotq(12)= 2000.0
+    ptopq(1)=  r1000       ;   pbotq(1)=  1200.0_r_kind
+    ptopq(2)=  950.0_r_kind;   pbotq(2)=  999.9_r_kind
+    ptopq(3)=  900.0_r_kind;   pbotq(3)=  949.9_r_kind
+    ptopq(4)=  850.0_r_kind;   pbotq(4)=  899.9_r_kind
+    ptopq(5)=  800.0_r_kind;   pbotq(5)=  849.9_r_kind
+    ptopq(6)=  700.0_r_kind;   pbotq(6)=  799.9_r_kind
+    ptopq(7)=  600.0_r_kind;   pbotq(7)=  699.9_r_kind
+    ptopq(8)=  500.0_r_kind;   pbotq(8)=  599.9_r_kind
+    ptopq(9)=  400.0_r_kind;   pbotq(9)=  499.9_r_kind
+    ptopq(10)= h300        ;   pbotq(10)= 399.9_r_kind
+    ptopq(11)= zero        ;   pbotq(11)= 299.9_r_kind
+    ptopq(12)= zero        ;   pbotq(12)= 2000.0_r_kind
 
-    ptopo3(1) = 120.0;  pboto3(1) = h300
-    ptopo3(2) =  70.0;  pboto3(2) = 119.9
-    ptopo3(3) =  40.0;  pboto3(3) =  69.9
-    ptopo3(4) =  25.0;  pboto3(4) =  39.9
-    ptopo3(5) =  12.0;  pboto3(5) =  24.99
-    ptopo3(6) =   7.0;  pboto3(6) =  11.99
-    ptopo3(7) =  four;  pboto3(7) =   6.99
-    ptopo3(8) =   2.5;  pboto3(8) =   3.99
-    ptopo3(9) =   1.2;  pboto3(9) =  2.499
-    ptopo3(10) =  0.7;  pboto3(10) =  1.199
-    ptopo3(11) =  0.4;  pboto3(11) =  0.699
-    ptopo3(12) = zero;  pboto3(12) = 2000.0
+    ptopo3(1) = 120.0_r_kind;  pboto3(1) = h300
+    ptopo3(2) =  70.0_r_kind;  pboto3(2) = 119.9_r_kind
+    ptopo3(3) =  40.0_r_kind;  pboto3(3) =  69.9_r_kind
+    ptopo3(4) =  25.0_r_kind;  pboto3(4) =  39.9_r_kind
+    ptopo3(5) =  12.0_r_kind;  pboto3(5) =  24.99_r_kind
+    ptopo3(6) =   7.0_r_kind;  pboto3(6) =  11.99_r_kind
+    ptopo3(7) =  four       ;  pboto3(7) =   6.99_r_kind
+    ptopo3(8) =   2.5_r_kind;  pboto3(8) =   3.99_r_kind
+    ptopo3(9) =   1.2_r_kind;  pboto3(9) =  2.499_r_kind
+    ptopo3(10) =  0.7_r_kind;  pboto3(10) =  1.199_r_kind
+    ptopo3(11) =  0.4_r_kind;  pboto3(11) =  0.699_r_kind
+    ptopo3(12) = zero       ;  pboto3(12) = 2000.0_r_kind
 
     dfact    = zero
     dfact1   = three
@@ -202,24 +216,24 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: one,two,tiny_r_kind,half,rd,grav,five
+    use constants, only: ione,one,two,tiny_r_kind,half,rd,grav,five
     implicit none
 
-    integer(i_kind),intent(in):: levs,k,nsig,lim_qm
-    real(r_kind),dimension(255),intent(in):: plevs
-    real(r_kind),dimension(nsig),intent(in):: presl
-    real(r_kind),dimension(nsig-1),intent(in):: dpres
-    integer(i_kind),dimension(255),intent(in):: pq,vq
-    real(r_kind),intent(inout):: errout
+    integer(i_kind)                     ,intent(in   ):: levs,k,nsig,lim_qm
+    real(r_kind)   ,dimension(255)      ,intent(in   ):: plevs
+    real(r_kind)   ,dimension(nsig)     ,intent(in   ):: presl
+    real(r_kind)   ,dimension(nsig-ione),intent(in   ):: dpres
+    integer(i_kind),dimension(255)      ,intent(in   ):: pq,vq
+    real(r_kind)                        ,intent(inout):: errout
 
     integer(i_kind) n,l,ilev
     real(r_kind):: vmag,pdiffu,pdiffd,con
     
     errout=one
-    if(levs == 1)return
-    ilev=1
-    do n=2,nsig-1
-      if(plevs(k) < presl(n))ilev=n
+    if(levs == ione)return
+    ilev=ione
+    do n=2,nsig-ione
+       if(plevs(k) < presl(n))ilev=n
     end do
     con=grav*500._r_kind/(273._r_kind*rd)
     vmag=min(max(half*dpres(ilev),0.02_r_kind*presl(ilev)),con*plevs(k))
@@ -229,41 +243,41 @@ contains
     pdiffd=vmag
     if(pq(k) < lim_qm .and. vq(k) < lim_qm)then
 ! Move up through the profile.  
-      l=k
+       l=k
 
 ! Array plevs is only defined from l=1 to l=levs.  Hence the check below
-      if (l+1<=levs) then
-        upprof: do while (abs(plevs(k)-plevs(l+1)) < vmag .and. l <= levs-1) 
-          l=l+1
-          if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
-            pdiffu=abs(plevs(k)-plevs(l))
-            exit upprof
-          end if
-          if (l==levs) exit upprof
-        end do upprof
-      endif
+       if (l+ione<=levs) then
+          upprof: do while (abs(plevs(k)-plevs(l+ione)) < vmag .and. l <= levs-ione) 
+             l=l+ione
+             if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
+                pdiffu=abs(plevs(k)-plevs(l))
+                exit upprof
+             end if
+             if (l==levs) exit upprof
+          end do upprof
+       endif
         
 ! Reset the level and move down through the profile
-      l=k
+       l=k
 
 ! The check (l>=2) ensures that plevs(l-1) is defined
-      if (l>=2) then
-         dwprof: do while (abs(plevs(l-1)-plevs(k)) < vmag .and. l >= 2) 
-          l=l-1
-          if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
-            pdiffd=abs(plevs(l)-plevs(k))
-            exit dwprof
-          end if
-          if (l==1) exit dwprof
-        end do dwprof
-      endif
+       if (l>=2_i_kind) then
+          dwprof: do while (abs(plevs(l-one)-plevs(k)) < vmag .and. l >= 2_i_kind) 
+             l=l-ione
+             if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
+                pdiffd=abs(plevs(l)-plevs(k))
+                exit dwprof
+             end if
+             if (l==ione) exit dwprof
+          end do dwprof
+       endif
 
 ! Set adjusted error
-      errout=sqrt(two*vmag/max(pdiffd+pdiffu,five*tiny_r_kind))
+       errout=sqrt(two*vmag/max(pdiffd+pdiffu,five*tiny_r_kind))
 
 ! Quality marks indicate bad data.  Set error to large value.
     else
-      errout=1.e6_r_kind
+       errout=1.e6_r_kind
     end if
 
     return

@@ -23,6 +23,7 @@ module observermod
 !$$$
 
   use kinds, only: i_kind
+  use constants, only: izero,ione
   use mpimod, only: mype
   use jfunc, only: miter,jiter,jiterstart,destroy_jfunc,&
        set_pointer,&
@@ -135,7 +136,7 @@ subroutine guess_init_
   call lag_guessini()
  
 ! Read output from previous min.
-   if (l4dvar.and.jiterstart>1) then
+  if (l4dvar.and.jiterstart>ione) then
   else
   ! If requested and if available, read guess solution.
   endif
@@ -292,7 +293,7 @@ subroutine run_
     write(6,*)'observer should only be called in 4dvar'
     call stop2(157)
   endif
-  if (mype==0) write(6,*)'OBSERVER: jiterstart,jiterlast=',jiterstart,jiterlast
+  if (mype==izero) write(6,*)'OBSERVER: jiterstart,jiterlast=',jiterstart,jiterlast
 
 ! Main outer analysis loop
   do jiter=jiterstart,jiterlast
@@ -300,7 +301,7 @@ subroutine run_
 !   Set up right hand side of analysis equation
     call setuprhsall(ndata,mype)
 
-    last  = jiter == miter+1 
+    last  = jiter == miter+ione
     if (l4dvar.and.(.not.last)) then
        clfile='obsdiags.ZZZ'
        write(clfile(10:12),'(I3.3)') jiter
@@ -311,7 +312,7 @@ subroutine run_
   end do
 
   if (.not.l4dvar) then
-    jiter=miter+1
+    jiter=miter+ione
 !   If requested, write obs-anl information to output files
     if (write_diag(jiter)) call setuprhsall(ndata,mype)
 

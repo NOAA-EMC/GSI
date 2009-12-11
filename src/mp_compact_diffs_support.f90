@@ -35,10 +35,10 @@
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: ny,noq
-  real(r_kind),dimension(ny,-noq:noq),intent(in):: aco1,bco1,aco2,bco2
-  real(r_kind),dimension(2,ny),intent(in):: p
-  real(r_kind),dimension(2,ny),intent(out):: q
+  integer(i_kind)                    ,intent(in   ):: ny,noq
+  real(r_kind),dimension(ny,-noq:noq),intent(in   ):: aco1,bco1,aco2,bco2
+  real(r_kind),dimension(2,ny)       ,intent(in   ):: p
+  real(r_kind),dimension(2,ny)       ,intent(  out):: q
 
 ! Declare local variables
   integer(i_kind) iy
@@ -46,7 +46,7 @@
 
 !  treat odd-symmetry component of input:
      do iy=1,ny
-        v1(iy,2)=p(1,iy)-p(2,iy)
+        v1(iy,2)= p(1,iy)-p(2,iy)
         v2(iy,1)= p(1,iy)+p(2,iy)
      enddo
   call mp_ymulbv(bco1,v1(1,2),v1,ny,ny,noq,noq,ny)
@@ -99,17 +99,17 @@
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: ny,noq
-  real(r_kind),dimension(ny,-noq:noq),intent(in):: aco1,bco1,aco2,bco2
-  real(r_kind),dimension(2,ny),intent(in):: q
-  real(r_kind),dimension(2,ny),intent(out):: p
+  integer(i_kind)                    ,intent(in   ):: ny,noq
+  real(r_kind),dimension(ny,-noq:noq),intent(in   ):: aco1,bco1,aco2,bco2
+  real(r_kind),dimension(2,ny)       ,intent(in   ):: q
+  real(r_kind),dimension(2,ny)       ,intent(  out):: p
 
 ! Declare local variables
   integer(i_kind) iy
   real(r_kind),dimension(ny,2):: v1,v2
 
      do iy=1,ny
-        v1(iy,2)=q(1,iy)+q(2,iy)
+        v1(iy,2)= q(1,iy)+q(2,iy)
         v2(iy,1)= q(1,iy)-q(2,iy)
      enddo
   call mp_ybacvb(v1(1,2),aco2,ny,noq,noq,ny)
@@ -159,14 +159,14 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: n1y,n2y,nbh1,nbh2,na
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(n2y),intent(in):: v1
-  real(r_kind),dimension(n1y),intent(out):: v2
+  integer(i_kind)                      ,intent(in   ):: n1y,n2y,nbh1,nbh2,na
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
+  real(r_kind),dimension(n2y)          ,intent(in   ):: v1
+  real(r_kind),dimension(n1y)          ,intent(  out):: v2
 
 ! Declare local variables
   integer(i_kind) iy,jiy
@@ -175,7 +175,7 @@
         v2(iy)=zero
      enddo
      do jiy=-nbh1,nbh2
-        do iy=max(1,1-jiy),min(n1y,n2y-jiy)
+        do iy=max(ione,ione-jiy),min(n1y,n2y-jiy)
            v2(iy)=v2(iy)+a(iy,jiy)*v1(jiy+iy)
         enddo
      end do
@@ -218,24 +218,25 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
+  use constants, only: ione
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: ny,nbh1,nbh2,na
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(ny),intent(inout):: v
+  integer(i_kind)                      ,intent(in   ):: ny,nbh1,nbh2,na
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
+  real(r_kind),dimension(ny)           ,intent(inout):: v
 
 ! Declare local variables
   integer(i_kind) jy,iy
 
      do jy=1,ny
-        do iy=jy+1,min(ny,jy+nbh1)
+        do iy=jy+ione,min(ny,jy+nbh1)
            v(iy) =v(iy) -a(iy,jy-iy)*v(jy)
         enddo
         v(jy) =a(jy,0)*v(jy)
      end do
      do jy=ny,2,-1
-        do iy=max(1,jy-nbh2),jy-1
+        do iy=max(ione,jy-nbh2),jy-ione
            v(iy) =v(iy) -a(iy,jy-iy)*v(jy)
         enddo
      enddo
@@ -276,25 +277,26 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
+  use constants, only: ione
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: ny,nbh1,nbh2,na
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(ny),intent(inout):: v
+  integer(i_kind)                      ,intent(in   ):: ny,nbh1,nbh2,na
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
+  real(r_kind),dimension(ny)           ,intent(inout):: v
 
 ! Declare local variables  
   integer(i_kind) iy,jy
 
      do iy=1,ny
-        do jy=iy+1,min(ny,iy+nbh2)
+        do jy=iy+ione,min(ny,iy+nbh2)
            v(jy) =v(jy) -v(iy) *a(iy,jy-iy)
         enddo
         v(iy) =v(iy) *a(iy,0)
      enddo
 
      do iy=ny,2,-1
-        do jy=max(1,iy-nbh1),iy-1
+        do jy=max(ione,iy-nbh1),iy-ione
            v(jy) =v(jy) -v(iy) *a(iy,jy-iy)
         enddo
      enddo
@@ -332,14 +334,14 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   implicit none
 
 ! Delcare passed variables
-  integer(i_kind),intent(in):: n1y,n2y,nbh1,nbh2,na
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(n1y),intent(in):: v1
-  real(r_kind),dimension(n2y),intent(out):: v2
+  integer(i_kind)                      ,intent(in   ):: n1y,n2y,nbh1,nbh2,na
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
+  real(r_kind),dimension(n1y)          ,intent(in   ):: v1
+  real(r_kind),dimension(n2y)          ,intent(  out):: v2
 
 ! Declare local variables
   integer(i_kind) iy,jiy,jy
@@ -350,7 +352,7 @@
      enddo
 
      do jiy=-nbh1,nbh2
-        do iy=max(1,1-jiy),min(n1y,n2y-jiy)
+        do iy=max(ione,ione-jiy),min(n1y,n2y-jiy)
            jy=jiy+iy
            aij=a(iy,jiy)
            v2(jy)=v2(jy)+v1(iy)*aij
@@ -396,27 +398,28 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
+  use constants, only: ione
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,noq,nxh
-  real(r_kind),dimension(nx),intent(in):: p
-  real(r_kind),dimension(nxh,-noq:noq),intent(in):: aco1,bco1,aco2,bco2
-  real(r_kind),dimension(nx),intent(out):: q
+  integer(i_kind)                     ,intent(in   ):: nx,noq,nxh
+  real(r_kind),dimension(nx)          ,intent(in   ):: p
+  real(r_kind),dimension(nxh,-noq:noq),intent(in   ):: aco1,bco1,aco2,bco2
+  real(r_kind),dimension(nx)          ,intent(  out):: q
 
 ! Declare local variables
   integer(i_kind) nxhp,ix,nxp,ix1,ix2
   real(r_kind),dimension(nx):: v1,v2
 
-  nxhp=nxh+1
-  nxp=nx+1
+  nxhp=nxh+ione
+  nxp=nx+ione
 
 !  treat odd-symmetry component of input:
   do ix=1,nxh
      ix1=nxh+ix
      ix2=nxp-ix
      v1(ix1)=p(ix)-p(ix2)
-     v2(ix)=p(ix)+p(nxp-ix)
+     v2(ix )=p(ix)+p(nxp-ix)
   enddo
   call mp_xmulbv(bco1,v1(nxhp),v1,nxh,nxh,noq,noq,nxh,nx,nx)
   call mp_xbacbv(aco1,v1,nxh,noq,noq,nxh,nx)
@@ -467,14 +470,14 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: n1x,n2x,nbh1,nbh2,na,nv1,nv2
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(nv1),intent(in):: v1
-  real(r_kind),dimension(nv2),intent(out):: v2
+  integer(i_kind)                      ,intent(in   ):: n1x,n2x,nbh1,nbh2,na,nv1,nv2
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
+  real(r_kind),dimension(nv1)          ,intent(in   ):: v1
+  real(r_kind),dimension(nv2)          ,intent(  out):: v2
 
 ! Declare local variables
   integer(i_kind) ix,jix,ix1
@@ -483,7 +486,7 @@
       v2(ix)=zero
   enddo
   do jix=-nbh1,nbh2
-     do ix=max(1,1-jix),min(n1x,n2x-jix)
+     do ix=max(ione,ione-jix),min(n1x,n2x-jix)
         ix1=jix+ix
         v2(ix)=v2(ix)+a(ix,jix)*v1(ix1)
      enddo
@@ -526,25 +529,26 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
+  use constants, only: ione
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,nbh1,nbh2,na,nv
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(nv),intent(inout):: v
+  integer(i_kind)                      ,intent(in   ):: nx,nbh1,nbh2,na,nv
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
+  real(r_kind),dimension(nv)           ,intent(inout):: v
 
 ! Declare local variables
   integer(i_kind) jx,ix,ix1
 
   do jx=1,nx
-     do ix=jx+1,min(nx,jx+nbh1)
+     do ix=jx+ione,min(nx,jx+nbh1)
         ix1=jx-ix
         v(ix)=v(ix)-a(ix,ix1)*v(jx)
      end do
      v(jx)=a(jx,0)*v(jx)
   end do
   do jx=nx,2,-1
-     do ix=max(1,jx-nbh2),jx-1
+     do ix=max(ione,jx-nbh2),jx-ione
         ix1=jx-ix
         v(ix)=v(ix)-a(ix,ix1)*v(jx)
      enddo

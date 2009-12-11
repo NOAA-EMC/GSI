@@ -35,23 +35,23 @@ subroutine rdgstat_reg(msig,mlat,inerr,&
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind,r_single
-  use constants, only: zero,one
+  use constants, only: ione,zero,one
   use gridmod, only: nsig
   use guess_grids, only:  ges_psfcavg,ges_prslavg
   use jfunc, only: qoption
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: msig,mlat,inerr
-  real(r_kind),dimension(0:mlat+1,nsig,nsig),intent(out):: agvi
-  real(r_kind),dimension(0:mlat+1,nsig),intent(out):: wgvi
-  real(r_kind),dimension(0:mlat+1,nsig),intent(out):: bvi
-  real(r_kind),dimension(nsig,0:mlat+1,1:6),intent(out):: vz
-  real(r_kind),dimension(0:mlat+1,nsig,4),intent(out):: hwll
-  real(r_kind),dimension(0:mlat+1),intent(out):: hwllp
-  real(r_kind),dimension(1:mlat,nsig,4),intent(inout):: corz
-  real(r_kind),dimension(1:mlat),intent(out):: corp
-  real(r_kind),dimension(nsig),intent(out):: rlsig
+  integer(i_kind)                              ,intent(in   ) :: msig,mlat,inerr
+  real(r_kind),dimension(0:mlat+ione,nsig,nsig),intent(  out) :: agvi
+  real(r_kind),dimension(0:mlat+ione,nsig)     ,intent(  out) :: wgvi
+  real(r_kind),dimension(0:mlat+ione,nsig)     ,intent(  out) :: bvi
+  real(r_kind),dimension(nsig,0:mlat+ione,1:6) ,intent(  out) :: vz
+  real(r_kind),dimension(0:mlat+ione,nsig,4)   ,intent(  out) :: hwll
+  real(r_kind),dimension(0:mlat+ione)          ,intent(  out) :: hwllp
+  real(r_kind),dimension(1:mlat,nsig,4)        ,intent(inout) :: corz
+  real(r_kind),dimension(1:mlat)               ,intent(  out) :: corp
+  real(r_kind),dimension(nsig)                 ,intent(  out) :: rlsig
 
 ! Declare local parameters
 ! real(r_kind),parameter:: r101_324 = 101.324_r_kind
@@ -73,11 +73,11 @@ subroutine rdgstat_reg(msig,mlat,inerr,&
   allocate ( corqq_avn(1:mlat,1:msig) )
   allocate ( sigma_avn(1:msig) )
   allocate ( rlsigo(1:msig) )
-  allocate ( hwll_avn(0:mlat+1,1:msig,1:4) )
-  allocate ( vztdq_avn(1:msig,0:mlat+1,1:4) )
-  allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
-  allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
-  allocate ( clat_avn(mlat),corp_avn(mlat),hwllp_avn(0:mlat+1) )
+  allocate ( hwll_avn(0:mlat+ione,1:msig,1:4) )
+  allocate ( vztdq_avn(1:msig,0:mlat+ione,1:4) )
+  allocate ( agv_avn(0:mlat+ione,1:msig,1:msig) )
+  allocate ( bv_avn(0:mlat+ione,1:msig),wgv_avn(0:mlat+ione,1:msig) )
+  allocate ( clat_avn(mlat),corp_avn(mlat),hwllp_avn(0:mlat+ione) )
   
 
 ! Read in berror 
@@ -91,7 +91,7 @@ subroutine rdgstat_reg(msig,mlat,inerr,&
   read(inerr)agv_avn,bv_avn,wgv_avn
 
 ! choose which q stats to use
-  if(qoption==2)then
+  if(qoption==2_i_kind)then
      do k=1,msig
         do j=1,mlat
            corz_avn(j,k,4)=corqq_avn(j,k)
@@ -103,8 +103,8 @@ subroutine rdgstat_reg(msig,mlat,inerr,&
      corp(i)=corp_avn(i)
      hwllp(i)=hwllp_avn(i)
   end do
-  hwllp(0)=hwllp_avn(0)
-  hwllp(mlat+1)=hwllp_avn(mlat+1)
+  hwllp(0        )=hwllp_avn(0)
+  hwllp(mlat+ione)=hwllp_avn(mlat+ione)
 
 ! compute vertical(pressure) interpolation index and weight
   do k=1,nsig
@@ -115,23 +115,23 @@ subroutine rdgstat_reg(msig,mlat,inerr,&
   enddo
   
   do k=1,nsig
-     if(rlsig(k).ge.rlsigo(1))then
-        m=1
-        m1=2
-        lsig(k)=1
+     if(rlsig(k)>=rlsigo(1))then
+        m=ione
+        m1=2_i_kind
+        lsig(k)=ione
         coef1(k)=one
         coef2(k)=zero
-     else if(rlsig(k).le.rlsigo(msig))then
-        m=msig-1
+     else if(rlsig(k)<=rlsigo(msig))then
+        m=msig-ione
         m1=msig
-        lsig(k)=msig-1
+        lsig(k)=msig-ione
         coef1(k)=zero
         coef2(k)=one
      else
-        m_loop: do m=1,msig-1
-           m1=m+1
-           if((rlsig(k).le.rlsigo(m))   .and.  &
-                (rlsig(k).gt.rlsigo(m1))     )then
+        m_loop: do m=1,msig-ione
+           m1=m+ione
+           if((rlsig(k)<=rlsigo(m))   .and.  &
+                (rlsig(k)>rlsigo(m1))     )then
               lsig(k)=m
               exit m_loop
            end if
@@ -139,7 +139,7 @@ subroutine rdgstat_reg(msig,mlat,inerr,&
         coef1(k)=(rlsigo(m1)-rlsig(k))/(rlsigo(m1)-rlsigo(m))
         coef2(k)=one-coef1(k)
         if(lsig(k)==msig)then
-           lsig(k)=msig-1
+           lsig(k)=msig-ione
            coef2(k)=one
            coef1(k)=zero
         endif
@@ -149,18 +149,18 @@ subroutine rdgstat_reg(msig,mlat,inerr,&
 ! Load agv wgv bv
   do k=1,nsig
      m=lsig(k)
-     m1=m+1
+     m1=m+ione
      do i=1,mlat
         wgvi(i,k)=wgv_avn(i,m)*coef1(k)+wgv_avn(i,m1)*coef2(k)
-        bvi(i,k)=bv_avn(i,m)*coef1(k)+bv_avn(i,m1)*coef2(k)
+        bvi (i,k)=bv_avn (i,m)*coef1(k)+bv_avn (i,m1)*coef2(k)
      enddo
      
      do j=1,nsig
         l=lsig(j)
-        l1=l+1
+        l1=l+ione
         do i=1,mlat
            agvi(i,j,k)=(agv_avn(i,l,m)*coef1(j)+agv_avn(i,l1,m)*coef2(j))*coef1(k) &
-                +(agv_avn(i,l,m1)*coef1(j)+agv_avn(i,l1,m1)*coef2(j))*coef2(k)
+                    +(agv_avn(i,l,m1)*coef1(j)+agv_avn(i,l1,m1)*coef2(j))*coef2(k)
         enddo
      enddo
   enddo
@@ -168,15 +168,15 @@ subroutine rdgstat_reg(msig,mlat,inerr,&
   agvi(0,:,:)=agvi(1,:,:)
   wgvi(0,:)=wgvi(1,:)
   bvi(0,:)=bvi(1,:)
-  agvi(mlat+1,:,:)=agvi(mlat,:,:)
-  wgvi(mlat+1,:)=wgvi(mlat,:)
-  bvi(mlat+1,:)=bvi(mlat,:)
+  agvi(mlat+ione,:,:)=agvi(mlat,:,:)
+  wgvi(mlat+ione,:)=wgvi(mlat,:)
+  bvi(mlat+ione,:)=bvi(mlat,:)
 !--------------------------------------------------------------------
 
   do n=1,4
      do k=1,nsig
         m=lsig(k)
-        m1=m+1
+        m1=m+ione
         do i=1,mlat
            corz(i,k,n)=corz_avn(i,m,n)*coef1(k)+corz_avn(i,m1,n)*coef2(k)
         enddo
@@ -186,8 +186,8 @@ subroutine rdgstat_reg(msig,mlat,inerr,&
   do n=1,4
      do k=1,nsig
         m=lsig(k)
-        m1=m+1
-        do i=0,mlat+1   
+        m1=m+ione
+        do i=0,mlat+ione   
            hwll(i,k,n)=hwll_avn(i,m,n)*coef1(k)+hwll_avn(i,m1,n)*coef2(k)
            vz(k,i,n)=vztdq_avn(m,i,n)*coef1(k)+vztdq_avn(m1,i,n)*coef2(k)
         enddo

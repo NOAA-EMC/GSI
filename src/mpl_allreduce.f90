@@ -1,7 +1,8 @@
 module mpl_allreducemod
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    mpl_allreduce    reproducible sums
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   mpl_allreduce    reproducible sums
+!   prgmmr:
 !
 ! abstract: module for reproducible sums
 !
@@ -9,7 +10,18 @@ module mpl_allreducemod
 !   2008-12-09 todling 
 !   2009-01-17 todling - add allgather (quad)
 !
-
+! subroutines included:
+!   sub rmpl_allreduce
+!   sub qmpl_allreduce0
+!   sub qmpl_allreduce2d
+!
+! variable definitions:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 implicit none
 
 PRIVATE
@@ -28,18 +40,29 @@ contains
 
 subroutine rmpl_allreduce(klen,pvals)
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    rmpl_allreduce
+!   prgmmr:
 !
 ! abstract: Reproducible all reduce
 !
 ! program history log:
 !   2007-04-13  tremolet - initial code
 !
-! argument list:
-!   klen  - length of array pvals
-!   pvals - array of values to be reduced (overwritten)
+!   input argument list:
+!    klen  - length of array pvals
+!    pvals - array of values to be reduced (overwritten)
+!
+!   output argument list:
+!    pvals - array of values to be reduced (overwritten)
+!
+! attributes:
+!   language: f90
+!   machine:
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
+  use constants, only: izero,ione
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe
   implicit none
 
@@ -53,7 +76,7 @@ subroutine rmpl_allreduce(klen,pvals)
 
 ! ----------------------------------------------------------
 
-  if (npe>1 .and. klen>0) then
+  if (npe>ione .and. klen>izero) then
 
 !   Gather contributions
     call mpi_allgather(pvals,klen,mpi_rtype, &
@@ -77,20 +100,30 @@ end subroutine rmpl_allreduce
 ! ----------------------------------------------------------
 subroutine qmpl_allreduce0(klen,pvals)
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    qmpl_allreduce0
+!   prgmmr:
 !
 ! abstract: Reproducible all reduce
 !
 ! program history log:
 !   2007-04-13  tremolet - initial code
 !
-! argument list:
-!   klen  - length of array pvals
-!   pvals - array of values to be reduced (overwritten)
+!   input argument list:
+!    klen  - length of array pvals
+!    pvals - array of values to be reduced (overwritten)
+!
+!   output argument list:
+!    pvals - array of values to be reduced (overwritten)
+!
+! attributes:
+!   language: f90
+!   machine:
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe
-  use constants, only: zero,zero_quad
+  use constants, only: izero,ione,zero,zero_quad
   implicit none
 
 ! Declare passed variables
@@ -103,7 +136,7 @@ subroutine qmpl_allreduce0(klen,pvals)
 
 ! ----------------------------------------------------------
 
-  if (npe>1 .and. klen>0) then
+  if (npe>ione .and. klen>izero) then
 
     zwork1=zero
     do ii=1,klen
@@ -135,19 +168,29 @@ end subroutine qmpl_allreduce0
 ! ----------------------------------------------------------------------
 subroutine qmpl_allreduce1d(klen,pvals)
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    qmpl_allreduce1d
+!   prgmmr:
 !
 ! abstract: Reproducible (across different pe's) all reduce
 !
 ! program history log:
 !   2008-12-09  todling - embed Derber's reproducible sum in subroutine
 !
-! argument list:
-!   klen  - length of array pvals
-!   pvals - array of values to be reduced (overwritten)
+!   input argument list:
+!    klen  - length of array pvals
+!    pvals - array of values to be reduced (overwritten)
+!
+!   output argument list:
+!    pvals - array of values to be reduced (overwritten)
+!
+! attributes:
+!   language: f90
+!   machine:
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
-  use constants, only: zero_quad, zero
+  use constants, only: ione, zero_quad, zero
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mype,npe,mpi_sum
   implicit none
 
@@ -164,7 +207,7 @@ subroutine qmpl_allreduce1d(klen,pvals)
 !  Break quad precision number into two double precision numbers
 !  on each processor for mpi_allreduce
 
-  mp1=mype+1
+  mp1=mype+ione
   zwork1=zero
   do ii=1,klen
     zwork1(ii,mp1,1)=pvals(ii)
@@ -190,20 +233,31 @@ end subroutine qmpl_allreduce1d
 ! ----------------------------------------------------------
 subroutine qmpl_allreduce2d(ilen,klen,pvals,pvnew)
 !$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    qmpl_allreduce2d
+!   prgmmr:
 !
 ! abstract: Reproducible (across different pe's) all reduce
 !
 ! program history log:
 !   2008-12-09  todling - embed Derber's reproducible sum in subroutine
 !
-! argument list:
-!   ilen  - first dimension of array pvals
-!   klen  - second dimension of array pvals
-!   pvals - array of values to be reduced (overwritten)
+!   input argument list:
+!    ilen  - first dimension of array pvals
+!    klen  - second dimension of array pvals
+!    pvals - array of values to be reduced (overwritten)
+!
+!   output argument list:
+!    pvals - array of values to be reduced (overwritten)
+!    pvnew
+!
+! attributes:
+!   language: f90
+!   machine:
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
-  use constants, only: zero_quad, zero
+  use constants, only: ione, zero_quad, zero
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mype,npe,mpi_sum
   implicit none
 
@@ -221,7 +275,7 @@ subroutine qmpl_allreduce2d(ilen,klen,pvals,pvnew)
 !  Break quad precision number into two double precision numbers
 !  on each processor for mpi_allreduce
 
-  mp1=mype+1
+  mp1=mype+ione
   zwork1=zero
   do kk=1,klen
     do ii=1,ilen
@@ -266,13 +320,37 @@ return
 end subroutine qmpl_allreduce2d
 
 subroutine mpl_allgatherq(idim,jdim,zloc,zall)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    mpl_allgatherq
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-11-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    idim
+!    jdim
+!    zloc
+!
+!   output argument list:
+!    zall
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   use kinds, only: i_kind,r_kind,r_quad
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe
   use constants, only: zero,zero_quad
   implicit none
-  integer(i_kind),intent(in) :: idim,jdim
-  real(r_quad), intent(in)  :: zloc(idim)
-  real(r_quad), intent(out) :: zall(idim,jdim)
+
+  integer(i_kind),intent(in   ) :: idim,jdim
+  real(r_quad)   ,intent(in   ) :: zloc(idim)
+  real(r_quad)   ,intent(  out) :: zall(idim,jdim)
 
   integer(i_kind) :: i,j
   real(r_kind) :: z1(idim,2),z2(idim,jdim,2)

@@ -45,6 +45,8 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 !     psexp     - surface pressure (cb)
 !     dplat     - partial derivative of ln(ps) with respect to latitude
 !     dplon     - partial derivative of ln(ps) with respect to longitude
+!     del_in    -
+!     sl_in     -
 !     t_in      - sensible temperature
 !     q_in      - specific humidity
 !     u_in      - zonal wind component
@@ -57,6 +59,9 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 !     u_out_ad  - zonal wind perturbation
 !     v_out_ad  - meridional wind perturbation
 !     rn_out_ad - rain rate perturbation
+!     tsen_ten_in
+!     q_ten_in
+!     p_ten_in
 !
 !   output argument list:
 !     tsas_o    - temperature following call to SAS
@@ -92,7 +97,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 !$$$
 !    
   use kinds, only: r_kind,i_kind
-  use constants, only: rhcbot,rhctop,dx_inv,dx_min,one,zero
+  use constants, only: rhcbot,rhctop,dx_inv,dx_min,izero,ione,one,zero
   use pcpinfo, only: tiny_obs
   use gridmod, only: nlon
   use specmod, only: jcap
@@ -100,32 +105,33 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 
 
 ! Declare passed variables
-  logical:: skipsas,skiplrg
-  integer(i_kind) k,km,ncloud
-  integer(i_kind):: kb,kbcon,jmin,ktcon,kuo
+  integer(i_kind)           , intent(in   ) :: km,ncloud
+  integer(i_kind)           , intent(  out) :: kbcon,jmin,ktcon,kuo
 
-  real(r_kind) work2,tem,work1,dtp,frain,rmmhr
-  real(r_kind):: rbs,dplat,dplon,slmask,psexp,cldwrk,rn_out
+  real(r_kind)              , intent(in   ) :: dtp,frain,rmmhr
+  real(r_kind)              , intent(in   ) :: rbs,dplat,dplon,slmask,psexp
+  real(r_kind)              , intent(  out) :: cldwrk,rn_out
 
-  real(r_kind),dimension(km):: del_in,sl_in
-  real(r_kind),dimension(km):: rhc,t_in,q_in,cwm_in,u_in,v_in,div_in,&
-       t_out,q_out,cwm_out,u_out,v_out,&
-       t_in_ad,q_in_ad,u_in_ad,v_in_ad,div_in_ad,cwm_in_ad,&
+  real(r_kind),dimension(km), intent(in   ) :: del_in,sl_in
+  real(r_kind),dimension(km), intent(in   ) :: t_in,q_in,cwm_in,u_in,v_in,div_in,&
        t_out_ad,q_out_ad,cwm_out_ad,u_out_ad,v_out_ad,&
        tsen_ten_in,q_ten_in,p_ten_in
+  real(r_kind),dimension(km), intent(  out) :: t_out,q_out,cwm_out,u_out,v_out,&
+       t_in_ad,q_in_ad,u_in_ad,v_in_ad,div_in_ad,cwm_in_ad
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_99=0.99_r_kind
 
 ! Declare local arrays
+  logical:: skipsas,skiplrg
   logical adjoint
 
-  integer(i_kind):: im,ix
+  integer(i_kind):: k,kb,im,ix
   real(r_kind):: ps,rcl,rcs,xkt,xkt2,rnlrg_o,&
        rnlrg_o_ad,rnsas_o,rnsas_o_ad,rnsas_of,rnlrg_of,rnsas_of_ad,&
-       rnlrg_of_ad,rn_out_ad
+       rnlrg_of_ad,rn_out_ad,work2,tem,work1
   
-  real(r_kind),dimension(km):: u_i,v_i,div_i,vvel_o,&
+  real(r_kind),dimension(km):: rhc,u_i,v_i,div_i,vvel_o,&
        u_i_ad,v_i_ad,div_i_ad,vvel_o_ad,&
        t_ten_i,q_ten_i,p_ten_i,qgs_i,cwmgs_i,tgs_i,&
        qgs_o,cwmgs_o,tgs_o, qlrg_i, cwmlrg_i, tlrg_i,&
@@ -144,14 +150,14 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 
 !**************************************************************************
 ! Initialize output arrays to zero
-  im=1
-  ix=1
+  im=ione
+  ix=ione
   cldwrk = zero
-  kb     = 0
-  jmin   = 0
-  kbcon  = 0
-  ktcon  = 0
-  kuo    = 0
+  kb     = izero
+  jmin   = izero
+  kbcon  = izero
+  ktcon  = izero
+  kuo    = izero
   rn_out = zero
   do k = 1,km
      t_out(k)   = zero
@@ -249,7 +255,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
   work1 = (log(one/(rcs*nlon))-dx_min) * dx_inv
   work2 = one - work1
   do k=1,km
-     rhc(k) = rhcbot + tem*(k-1)
+     rhc(k) = rhcbot + tem*(k-ione)
      rhc(k) = r0_99*work1 + rhc(k)*work2
   end do
 

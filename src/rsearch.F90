@@ -57,56 +57,56 @@ subroutine rsearch(km1,z1,km2,z2,l2)
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,r_double,i_kind
+  use kinds, only: r_kind,r_double,i_kind,i_long
+  use constants, only: ione,one
   implicit none
-  integer(i_kind) kint_mpi
-  parameter(kint_mpi=4)
-  integer(i_kind),intent(in):: km1,km2
-  real(r_kind),intent(in):: z1(km1),z2(km2)
-  real(r_kind) one
+
+  integer(i_kind),intent(in   ) :: km1,km2
+  real(r_kind)   ,intent(in   ) :: z1(km1),z2(km2)
+  integer(i_kind),intent(  out) :: l2(km2)
+
   real(r_double) oned
-  integer(i_kind),intent(out):: l2(km2)
-  integer(kint_mpi) incx,n,incy,m,indx(km2),rc(km2),iopt
+  integer(i_long) incx,n,incy,m,indx(km2),rc(km2),iopt
   integer(i_kind) k2
   
-  one=1.; oned=1.
+  oned=1._r_double
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Find the surrounding input interval for each output point.
-  if(z1(1).le.z1(km1)) then
+  if(z1(1)<=z1(km1)) then
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Input coordinate is monotonically ascending.
-    incx=1
-    n=km2
-    incy=1
-    m=km1
-    iopt=1
+     incx=1_i_long
+     n=km2
+     incy=1_i_long
+     m=km1
+     iopt=1_i_long
 
 !   Use the appropriate ESSL function based on numerical precision of compiled code
-    if(digits(one).lt.digits(oned)) then
-      call sbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
-    else
-      call dbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
-    endif
+     if(digits(one)<digits(oned)) then
+        call sbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
+     else
+        call dbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
+     endif
 
-    do k2=1,km2
-      l2(k2)=indx(k2)-rc(k2)
-    enddo
+     do k2=1,km2
+        l2(k2)=indx(k2)-rc(k2)
+     enddo
   else
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Input coordinate is monotonically descending.
-    incx=1
-    n=km2
-    incy=-1
-    m=km1
-    iopt=0
-    if(digits(one).lt.digits(oned)) then
-      call sbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
-    else
-      call dbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
-    endif
-    do k2=1,km2
-      l2(k2)=km1+1-indx(k2)
-    enddo
+     incx=1_i_long
+     n=km2
+     incy=-1_i_long
+     m=km1
+     iopt=0_i_long
+     if(digits(one)<digits(oned)) then
+        call sbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
+     else
+        call dbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
+     endif
+     do k2=1,km2
+        l2(k2)=km1+ione-indx(k2)
+     enddo
   endif
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 end subroutine rsearch
@@ -189,42 +189,45 @@ subroutine rsearch(im,km1,ixz1,kxz1,z1,km2,ixz2,kxz2,z2,ixl2,kxl2,l2)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
+  use constants, only: izero,ione
   implicit none
-  integer(i_kind),intent(in):: im,km1,ixz1,kxz1,km2,ixz2,kxz2,ixl2,kxl2
-  real(r_kind),intent(in):: z1(1+(im-1)*ixz1+(km1-1)*kxz1)
-  real(r_kind),intent(in):: z2(1+(im-1)*ixz2+(km2-1)*kxz2)
-  integer(i_kind),intent(out):: l2(1+(im-1)*ixl2+(km2-1)*kxl2)
+ 
+  integer(i_kind),intent(in   ) :: im,km1,ixz1,kxz1,km2,ixz2,kxz2,ixl2,kxl2
+  real(r_kind)   ,intent(in   ) :: z1(ione+(im-ione)*ixz1+(km1-ione)*kxz1)
+  real(r_kind)   ,intent(in   ) :: z2(ione+(im-ione)*ixz2+(km2-ione)*kxz2)
+  integer(i_kind),intent(  out) :: l2(ione+(im-ione)*ixl2+(km2-ione)*kxl2)
+
   integer(i_kind) i,k2,l
   real(r_kind) z
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ! Find the surrounding input interval for each output point.
   do i=1,im
-     if(z1(1+(i-1)*ixz1).le.z1(1+(i-1)*ixz1+(km1-1)*kxz1)) then
+     if(z1(ione+(i-ione)*ixz1)<=z1(ione+(i-ione)*ixz1+(km1-ione)*kxz1)) then
 
 !       Input coordinate is monotonically ascending.
         do k2=1,km2
-           z=z2(1+(i-1)*ixz2+(k2-1)*kxz2)
-           l=0
+           z=z2(ione+(i-ione)*ixz2+(k2-ione)*kxz2)
+           l=izero
            do
-              if(z.lt.z1(1+(i-1)*ixz1+l*kxz1)) exit
-              l=l+1
-              if(l.eq.km1) exit
+              if(z<z1(ione+(i-ione)*ixz1+l*kxz1)) exit
+              l=l+ione
+              if(l==km1) exit
            enddo
-           l2(1+(i-1)*ixl2+(k2-1)*kxl2)=l
+           l2(ione+(i-ione)*ixl2+(k2-ione)*kxl2)=l
         enddo
 
      else
 
 !    Input coordinate is monotonically descending.
         do k2=1,km2
-           z=z2(1+(i-1)*ixz2+(k2-1)*kxz2)
-           l=0
+           z=z2(ione+(i-ione)*ixz2+(k2-ione)*kxz2)
+           l=izero
            do
-              if(z.gt.z1(1+(i-1)*ixz1+l*kxz1)) exit
-              l=l+1
-              if(l.eq.km1) exit
+              if(z>z1(ione+(i-ione)*ixz1+l*kxz1)) exit
+              l=l+ione
+              if(l==km1) exit
            enddo
-           l2(1+(i-1)*ixl2+(k2-1)*kxl2)=l
+           l2(ione+(i-ione)*ixl2+(k2-ione)*kxl2)=l
         enddo
      endif
 

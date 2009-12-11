@@ -194,8 +194,8 @@ contains
     end do
 
     do i=1,3
-      hzscl(i)=one
-      hswgt(i)=one/three
+       hzscl(i)=one
+       hswgt(i)=one/three
     end do
     vs=one/1.5_r_kind
 
@@ -397,12 +397,12 @@ contains
 
     nynx=ny*nx
     if(.not. regional)then
-      if(.not. present(sli1) .or. .not. present(sli2))then
-         write(6,*)'INIT_RFTABLE:  ***ERROR*** sli1 or sli2 not present'
-         call stop2(34)
-      end if
-      nfg=nf*2+ione
-      nfnf=nfg*nfg
+       if(.not. present(sli1) .or. .not. present(sli2))then
+          write(6,*)'INIT_RFTABLE:  ***ERROR*** sli1 or sli2 not present'
+          call stop2(34)
+       end if
+       nfg=nf*2+ione
+       nfnf=nfg*nfg
     end if
 
 ! Determine lower/upper bounds on scales
@@ -410,28 +410,28 @@ contains
     hwlmin=r999
     do k=1,nnn
 
-        do j=1,nynx
-           hwlmax=max(hwlmax,sli(j,1,k),sli(j,2,k))
-           hwlmin=min(hwlmin,sli(j,1,k),sli(j,2,k))
-!          hwlmax=max(hwlmax,sli(j,1,k))
-!          hwlmin=min(hwlmin,sli(j,1,k))
-!          hwlmax=max(hwlmax,sli(j,2,k))
-!          hwlmin=min(hwlmin,sli(j,2,k))
-        end do
-        if(.not. regional)then
+       do j=1,nynx
+          hwlmax=max(hwlmax,sli(j,1,k),sli(j,2,k))
+          hwlmin=min(hwlmin,sli(j,1,k),sli(j,2,k))
+!         hwlmax=max(hwlmax,sli(j,1,k))
+!         hwlmin=min(hwlmin,sli(j,1,k))
+!         hwlmax=max(hwlmax,sli(j,2,k))
+!         hwlmin=min(hwlmin,sli(j,2,k))
+       end do
+       if(.not. regional)then
           do j=1,nfnf
-           hwlmax=max(hwlmax,sli1(j,1,k),sli2(j,1,k),sli1(j,2,k),sli2(j,2,k))
-           hwlmin=min(hwlmin,sli1(j,1,k),sli2(j,1,k),sli1(j,2,k),sli2(j,2,k))
-!          hwlmax=max(hwlmax,sli1(j,1,k))
-!          hwlmin=min(hwlmin,sli1(j,1,k))
-!          hwlmax=max(hwlmax,sli2(j,1,k))
-!          hwlmin=min(hwlmin,sli2(j,1,k))
-!          hwlmax=max(hwlmax,sli1(j,2,k))
-!          hwlmin=min(hwlmin,sli1(j,2,k))
-!          hwlmax=max(hwlmax,sli2(j,2,k))
-!          hwlmin=min(hwlmin,sli2(j,2,k))
+             hwlmax=max(hwlmax,sli1(j,1,k),sli2(j,1,k),sli1(j,2,k),sli2(j,2,k))
+             hwlmin=min(hwlmin,sli1(j,1,k),sli2(j,1,k),sli1(j,2,k),sli2(j,2,k))
+!            hwlmax=max(hwlmax,sli1(j,1,k))
+!            hwlmin=min(hwlmin,sli1(j,1,k))
+!            hwlmax=max(hwlmax,sli2(j,1,k))
+!            hwlmin=min(hwlmin,sli2(j,1,k))
+!            hwlmax=max(hwlmax,sli1(j,2,k))
+!            hwlmin=min(hwlmin,sli1(j,2,k))
+!            hwlmax=max(hwlmax,sli2(j,2,k))
+!            hwlmin=min(hwlmin,sli2(j,2,k))
           end do
-        end if
+       end if
     enddo
 
 ! factor from multi-Gaussian RF
@@ -460,39 +460,39 @@ contains
     iuse=.false.
     wni2=one/tin
     do k=1,nnn
-        do n=1,2
-           do i=1,nynx
+       do n=1,2
+          do i=1,nynx
              do j=1,3
-               iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli(i,n,k))))
-               iloc=max(iloc,ione)
-               iuse(iloc)=.true.
+                iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli(i,n,k))))
+                iloc=max(iloc,ione)
+                iuse(iloc)=.true.
              enddo
-           enddo
+          enddo
 
-           if(.not. regional)then
+          if(.not. regional)then
              do i=1,nfnf
-               do j=1,3
-               iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli1(i,n,k))))
-               iloc=max(iloc,ione)
-               iuse(iloc)=.true.
-               iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli2(i,n,k))))
-               iloc=max(iloc,ione)
-               iuse(iloc)=.true.
-               enddo
+                do j=1,3
+                   iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli1(i,n,k))))
+                   iloc=max(iloc,ione)
+                   iuse(iloc)=.true.
+                   iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli2(i,n,k))))
+                   iloc=max(iloc,ione)
+                   iuse(iloc)=.true.
+                enddo
              enddo
-           end if
+          end if
 
-        enddo
+       enddo
     enddo
     nta=izero
     allocate(dsh(ntax),ipoint(ntax))
     ipoint=izero
     do i=1,ntax
-      if(iuse(i))then
-        nta=nta+ione
-        ipoint(i)=nta
-        dsh(nta)=one/(float(i-ione+ihwlb)*tin)
-      end if
+       if(iuse(i))then
+          nta=nta+ione
+          ipoint(i)=nta
+          dsh(nta)=one/(float(i-ione+ihwlb)*tin)
+       end if
     end do
 !   write(6,*)'INIT_RFTABLE:  ntax,nta = ',ntax,nta
 
@@ -502,16 +502,16 @@ contains
 !      Load pointers into table array
        do j=1,3
 
-         call initable(ny,nx,sli(1,1,k),ntax,ihwlb,&
-            ii(1,1,j,k),jj(1,1,j,k),hzscl(j),tin,ipoint)
+          call initable(ny,nx,sli(1,1,k),ntax,ihwlb,&
+             ii(1,1,j,k),jj(1,1,j,k),hzscl(j),tin,ipoint)
 
-         if(.not. regional)then
-           call initable(nfg,nfg,sli1(1,1,k),ntax,ihwlb,&
-            ii1(1,1,j,k),jj1(1,1,j,k),hzscl(j),tin,ipoint)
+          if(.not. regional)then
+             call initable(nfg,nfg,sli1(1,1,k),ntax,ihwlb,&
+              ii1(1,1,j,k),jj1(1,1,j,k),hzscl(j),tin,ipoint)
 
-           call initable(nfg,nfg,sli2(1,1,k),ntax,ihwlb,&
-            ii2(1,1,j,k),jj2(1,1,j,k),hzscl(j),tin,ipoint)
-         end if
+             call initable(nfg,nfg,sli2(1,1,k),ntax,ihwlb,&
+              ii2(1,1,j,k),jj2(1,1,j,k),hzscl(j),tin,ipoint)
+          end if
 
        end do
 
@@ -565,22 +565,24 @@ contains
     use constants, only: ione,one
     implicit none
 
-    integer(i_kind) iy,nydim,ix,nxdim,iloc,ntax
-    integer(i_kind),dimension(nxdim,nydim):: iix,jjx
-    integer(i_kind),dimension(ntax):: ipoint
-    integer(i_kind) ihwlb
+    integer(i_kind)                       ,intent(in   ) :: nydim,nxdim,ntax
+    real(r_kind)                          ,intent(in   ) :: factor,tin
+    real(r_kind),dimension(nxdim,nydim,2) ,intent(in   ) :: sli
+    integer(i_kind),dimension(ntax)       ,intent(in   ) :: ipoint
+    integer(i_kind)                       ,intent(in   ) :: ihwlb
+    integer(i_kind),dimension(nxdim,nydim),intent(  out) :: iix,jjx
 
-    real(r_kind) wni2,factor,tin
-    real(r_kind),dimension(nxdim,nydim,2):: sli
+    integer(i_kind) iy,ix,iloc
+    real(r_kind) wni2
 
 !   Load pointers for table array
     wni2=one/tin
     do iy=1,nydim
        do ix=1,nxdim
-         iloc=min(ntax, max(ione, nint(one-ihwlb+wni2/(sli(ix,iy,1)*factor))))
-         iix(ix,iy)=ipoint(iloc)
-         iloc=min(ntax, max(ione, nint(one-ihwlb+wni2/(sli(ix,iy,2)*factor))))
-         jjx(ix,iy)=ipoint(iloc)
+          iloc=min(ntax, max(ione, nint(one-ihwlb+wni2/(sli(ix,iy,1)*factor))))
+          iix(ix,iy)=ipoint(iloc)
+          iloc=min(ntax, max(ione, nint(one-ihwlb+wni2/(sli(ix,iy,2)*factor))))
+          jjx(ix,iy)=ipoint(iloc)
        enddo
     enddo
 
@@ -668,11 +670,13 @@ contains
 !
 !$$$
     implicit none
+
     deallocate(be,table,alv,&
                dssv,qvar3d,dssvp,&
                dssvt,varprd)
     deallocate(slw)
     deallocate(ii,jj)
+
     return
   end subroutine destroy_berror_vars_reg
 

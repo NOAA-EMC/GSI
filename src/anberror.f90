@@ -197,30 +197,30 @@ contains
 
     do k=1,7
 
-      allocate(filter_all(k)%istart(2),filter_all(k)%ib(2))
-      allocate(filter_all(k)%nrecv(2),filter_all(k)%ndrecv(2))
-      allocate(filter_all(k)%nsend(2),filter_all(k)%ndsend(2))
-      allocate(filter_all(k)%lnf(2,2,2,2),filter_all(k)%bnf(2,2,2))
-      allocate(filter_all(k)%amp(2,2,2,2),filter_all(k)%ia(2))
-      allocate(filter_all(k)%ja(2),filter_all(k)%ka(2))
+       allocate(filter_all(k)%istart(2),filter_all(k)%ib(2))
+       allocate(filter_all(k)%nrecv(2),filter_all(k)%ndrecv(2))
+       allocate(filter_all(k)%nsend(2),filter_all(k)%ndsend(2))
+       allocate(filter_all(k)%lnf(2,2,2,2),filter_all(k)%bnf(2,2,2))
+       allocate(filter_all(k)%amp(2,2,2,2),filter_all(k)%ia(2))
+       allocate(filter_all(k)%ja(2),filter_all(k)%ka(2))
 
-      allocate(filter_p2(k)%istart(2),filter_p2(k)%ib(2))
-      allocate(filter_p2(k)%nrecv(2),filter_p2(k)%ndrecv(2))
-      allocate(filter_p2(k)%nsend(2),filter_p2(k)%ndsend(2))
-      allocate(filter_p2(k)%lnf(2,2,2,2),filter_p2(k)%bnf(2,2,2))
-      allocate(filter_p2(k)%amp(2,2,2,2),filter_p2(k)%ia(2))
-      allocate(filter_p2(k)%ja(2),filter_p2(k)%ka(2))
+       allocate(filter_p2(k)%istart(2),filter_p2(k)%ib(2))
+       allocate(filter_p2(k)%nrecv(2),filter_p2(k)%ndrecv(2))
+       allocate(filter_p2(k)%nsend(2),filter_p2(k)%ndsend(2))
+       allocate(filter_p2(k)%lnf(2,2,2,2),filter_p2(k)%bnf(2,2,2))
+       allocate(filter_p2(k)%amp(2,2,2,2),filter_p2(k)%ia(2))
+       allocate(filter_p2(k)%ja(2),filter_p2(k)%ka(2))
 
-      allocate(filter_p3(k)%istart(2),filter_p3(k)%ib(2))
-      allocate(filter_p3(k)%nrecv(2),filter_p3(k)%ndrecv(2))
-      allocate(filter_p3(k)%nsend(2),filter_p3(k)%ndsend(2))
-      allocate(filter_p3(k)%lnf(2,2,2,2),filter_p3(k)%bnf(2,2,2))
-      allocate(filter_p3(k)%amp(2,2,2,2),filter_p3(k)%ia(2))
-      allocate(filter_p3(k)%ja(2),filter_p3(k)%ka(2))
+       allocate(filter_p3(k)%istart(2),filter_p3(k)%ib(2))
+       allocate(filter_p3(k)%nrecv(2),filter_p3(k)%ndrecv(2))
+       allocate(filter_p3(k)%nsend(2),filter_p3(k)%ndsend(2))
+       allocate(filter_p3(k)%lnf(2,2,2,2),filter_p3(k)%bnf(2,2,2))
+       allocate(filter_p3(k)%amp(2,2,2,2),filter_p3(k)%ia(2))
+       allocate(filter_p3(k)%ja(2),filter_p3(k)%ka(2))
 
     end do
 
-!    set other parameters to default values
+!   set other parameters to default values
 
     npass=ione
     ifilt_ord=4_i_long
@@ -297,7 +297,7 @@ contains
     nx=nx/2*2
     ny=nlat*8/9
     ny=ny/2*2
-    if(mod(nlat,2)/=izero) ny=ny+ione
+    if(mod(nlat,2_i_kind)/=izero) ny=ny+ione
     mr=izero
     nr=nlat/4
     nf=nr
@@ -311,9 +311,9 @@ contains
     pf2aP1%nlata     =ny
     call create_fgrid2agrid(pf2aP1)
     if(mype==izero) then
-      write(6,*) 'set up pf2aP1', &
-        pf2aP1%nlona,pf2aP1%nlata, &
-        pf2aP1%nlonf,pf2aP1%nlatf
+       write(6,*) 'set up pf2aP1', &
+         pf2aP1%nlona,pf2aP1%nlata, &
+         pf2aP1%nlonf,pf2aP1%nlatf
     end if
 
     indices%ids=ione ; indices%ide=pf2aP1%nlatf
@@ -322,17 +322,17 @@ contains
     indices%jps=indices%jds ; indices%jpe=indices%jde
 
     if( grid_ratio_p > zero ) then
-      pf2aP2%grid_ratio=grid_ratio_p
+       pf2aP2%grid_ratio=grid_ratio_p
     else
-      pf2aP2%grid_ratio=grid_ratio
+       pf2aP2%grid_ratio=grid_ratio
     end if
     pf2aP2%nlona     = nf*2+ione
     pf2aP2%nlata     = nf*2+ione
     call create_fgrid2agrid(pf2aP2)
     if(mype==izero) then
-      write(6,*) 'set up pf2aP2', &
-        pf2aP2%nlona,pf2aP2%nlata, &
-        pf2aP2%nlonf,pf2aP2%nlatf
+       write(6,*) 'set up pf2aP2', &
+         pf2aP2%nlona,pf2aP2%nlata, &
+         pf2aP2%nlonf,pf2aP2%nlatf
     end if
 
     pf2aP3%grid_ratio=pf2aP2%grid_ratio
@@ -340,9 +340,9 @@ contains
     pf2aP3%nlata     =pf2aP2%nlata
     call create_fgrid2agrid(pf2aP3)
     if(mype==izero) then
-      write(6,*) 'set up pf2aP3', &
-        pf2aP3%nlona,pf2aP3%nlata, &
-        pf2aP3%nlonf,pf2aP3%nlatf
+       write(6,*) 'set up pf2aP3', &
+         pf2aP3%nlona,pf2aP3%nlata, &
+         pf2aP3%nlonf,pf2aP3%nlatf
     end if
 
     indices_p%ids=ione ; indices_p%ide=pf2aP3%nlatf
@@ -431,27 +431,27 @@ contains
 
 !   compute vertical partition variables used by anisotropic filter code
     if(rtma_subdomain_option) then
-      call halo_update_reg0(mype)
-      call anberror_vert_partition_subdomain_option(mype)
+       call halo_update_reg0(mype)
+       call anberror_vert_partition_subdomain_option(mype)
 
-      indices%ids=ione ; indices%ide=pf2aP1%nlatf
-      indices%jds=ione ; indices%jde=pf2aP1%nlonf
+       indices%ids=ione ; indices%ide=pf2aP1%nlatf
+       indices%jds=ione ; indices%jde=pf2aP1%nlonf
 
 !   following without halo
 
-      indices%ips=max(indices%ids,min(istart(mype+ione)       ,indices%ide))
-      indices%ipe=max(indices%ids,min(lat2+istart(mype+ione)-3,indices%ide))
-      indices%jps=max(indices%jds,min(jstart(mype+ione)       ,indices%jde))
-      indices%jpe=max(indices%jds,min(lon2+jstart(mype+ione)-3,indices%jde))
+       indices%ips=max(indices%ids,min(istart(mype+ione)              ,indices%ide))
+       indices%ipe=max(indices%ids,min(lat2+istart(mype+ione)-3_i_kind,indices%ide))
+       indices%jps=max(indices%jds,min(jstart(mype+ione)              ,indices%jde))
+       indices%jpe=max(indices%jds,min(lon2+jstart(mype+ione)-3_i_kind,indices%jde))
 
     else
 
-      call anberror_vert_partition(mype)
+       call anberror_vert_partition(mype)
 
-      indices%ids=ione        ; indices%ide=pf2aP1%nlatf
-      indices%jds=ione        ; indices%jde=pf2aP1%nlonf
-      indices%ips=indices%ids ; indices%ipe=indices%ide
-      indices%jps=indices%jds ; indices%jpe=indices%jde
+       indices%ids=ione        ; indices%ide=pf2aP1%nlatf
+       indices%jds=ione        ; indices%jde=pf2aP1%nlonf
+       indices%ips=indices%ids ; indices%ipe=indices%ide
+       indices%jps=indices%jds ; indices%jpe=indices%jde
 
     end if
 
@@ -495,7 +495,7 @@ contains
     integer(i_kind) idvar_last,k,kk,vlevs
     integer(i_kind) nlevs0(0:npe-ione),nlevs1(0:npe-ione),nvar_id0(nsig1o*npe),nvar_id1(nsig1o*npe)
 
-    vlevs=6*nsig+4       !  all variables
+    vlevs=6*nsig+4_i_kind       !  all variables
     indices%kds=  ione ; indices%kde=vlevs
     indices_p%kds=ione ; indices_p%kde=vlevs
 
@@ -530,61 +530,61 @@ contains
 
     nlevs0=izero
     do k=1,nsig1o
-      if(levs_id(k)/=izero) nlevs0(mype)=nlevs0(mype)+ione
-      if(k==ione.or.k>=nsig1o-2_i_long) write(6,*)' k,levs_id(k)=',k,levs_id(k)
+       if(levs_id(k)/=izero) nlevs0(mype)=nlevs0(mype)+ione
+       if(k==ione.or.k>=nsig1o-2_i_long) write(6,*)' k,levs_id(k)=',k,levs_id(k)
     end do
 
     call mpi_allreduce(nlevs0,nlevs1,npe,mpi_integer4,mpi_max,mpi_comm_world,ierror)
     nvar_id0=izero
     do k=1,nsig1o
-     nvar_id0(mype*nsig1o+k)=nvar_id(k)
+       nvar_id0(mype*nsig1o+k)=nvar_id(k)
     end do
     call mpi_allreduce(nvar_id0,nvar_id1,npe*nsig1o,mpi_integer4,mpi_max,mpi_comm_world,ierror)
 
     kk=izero
     do k=1,npe*nsig1o
-     if(nvar_id1(k)>izero) then
-      kk=kk+ione
-      jdvar(kk)=nvar_id1(k)
-     end if
+       if(nvar_id1(k)>izero) then
+          kk=kk+ione
+          jdvar(kk)=nvar_id1(k)
+       end if
     end do
     idvar_last=izero
     kk=izero
     do k=indices%kds,indices%kde
-     if(jdvar(k)/=idvar_last) then
-      idvar_last=jdvar(k)
-      kk=kk+ione
-     end if
-     idvar(k)=kk
+       if(jdvar(k)/=idvar_last) then
+          idvar_last=jdvar(k)
+          kk=kk+ione
+       end if
+       idvar(k)=kk
     end do
     idvar_last=izero
     do k=indices%kds,indices%kde
-     if(idvar(k)/=idvar_last) then
-      idvar_last=idvar(k)
-      kvar_start(idvar_last)=k
-     end if
+       if(idvar(k)/=idvar_last) then
+          idvar_last=idvar(k)
+          kvar_start(idvar_last)=k
+       end if
     end do
     idvar_last=izero
     do k=indices%kde,indices%kds,-ione
-     if(idvar(k)/=idvar_last) then
-      idvar_last=idvar(k)
-      kvar_end(idvar_last)=k
-     end if
+       if(idvar(k)/=idvar_last) then
+          idvar_last=idvar(k)
+          kvar_end(idvar_last)=k
+       end if
     end do
 
-          if(mype==izero) then
-              do k=indices%kds,indices%kde
-               write(6,*)' in anberror_vert_partition, k,idvar(k),jdvar(k)=',k,idvar(k),jdvar(k)
-              end do
-              do k=1,nvars
-               write(6,*)' k,kvar_start,end(k)=',k,kvar_start(k),kvar_end(k)
-              end do
-          end if
+    if(mype==izero) then
+       do k=indices%kds,indices%kde
+          write(6,*)' in anberror_vert_partition, k,idvar(k),jdvar(k)=',k,idvar(k),jdvar(k)
+       end do
+       do k=1,nvars
+          write(6,*)' k,kvar_start,end(k)=',k,kvar_start(k),kvar_end(k)
+       end do
+    end if
     indices%kpe=izero
     indices_p%kpe=izero
     do k=0,mype
-     indices%kpe  =indices%kpe  +nlevs1(k)
-     indices_p%kpe=indices_p%kpe+nlevs1(k)
+       indices%kpe  =indices%kpe  +nlevs1(k)
+       indices_p%kpe=indices_p%kpe+nlevs1(k)
     end do
     indices%kps=indices%kpe-nlevs1(mype)+ione
     indices_p%kps=indices_p%kpe-nlevs1(mype)+ione
@@ -695,31 +695,31 @@ contains
 !!                      8      9       surface temp (land)
 !!                      9     10       surface temp (ice)
 
-    idvar(1        :nsig  )     =ione      ! st
-    idvar(nsig+ione:2*nsig)     =2_i_long  ! vp
-    idvar(2*nsig+ione)          =3_i_long  ! ps
-    idvar(2*nsig+2 :3*nsig+ione)=4_i_long  ! tv
-    idvar(3*nsig+2 :4*nsig+ione)=5_i_long  ! q
+    idvar(1              :nsig  )     =ione      ! st
+    idvar(nsig+ione      :2*nsig)     =2_i_long  ! vp
+    idvar(2*nsig+ione)                =3_i_long  ! ps
+    idvar(2*nsig+2_i_kind:3*nsig+ione)=4_i_long  ! tv
+    idvar(3*nsig+2_i_kind:4*nsig+ione)=5_i_long  ! q
     jdvar=idvar
 
     kk=izero
     do k=1,nsig
-      kk=kk+ione
-      levs_jdvar(kk)=k     ! st
+       kk=kk+ione
+       levs_jdvar(kk)=k     ! st
     end do
     do k=1,nsig
-      kk=kk+ione
-      levs_jdvar(kk)=k     ! vp
+       kk=kk+ione
+       levs_jdvar(kk)=k     ! vp
     end do
     kk=kk+ione
     levs_jdvar(kk)=ione    ! ps
     do k=1,nsig
-      kk=kk+ione
-      levs_jdvar(kk)=k     ! tv
+       kk=kk+ione
+       levs_jdvar(kk)=k     ! tv
     end do
     do k=1,nsig
-      kk=kk+ione
-      levs_jdvar(kk)=k     ! q
+       kk=kk+ione
+       levs_jdvar(kk)=k     ! q
     end do
 
     kvar_start(1) =ione
@@ -733,16 +733,16 @@ contains
     kvar_start(5) =kvar_end(4)+ione
     kvar_end(5)   =kvar_end(4)+nsig
 
-      if(mype==izero) then
-          do k=indices%kds,indices%kde
-           write(6,*)' in anberror_vert_partition_subdomain_option, k,idvar,jdvar,levs_jdvar=', &
-                       k,idvar(k),jdvar(k),levs_jdvar(k)
-          end do
-          do k=1,nvars
-           write(6,*)' k,kvar_start,end(k)=',k,kvar_start(k),kvar_end(k)
-          end do
-      end if
-        write(6,*)' in anberror_vert_partition_subdomain_option, kps,kpe=',indices%kps,indices%kpe
+    if(mype==izero) then
+       do k=indices%kds,indices%kde
+          write(6,*)' in anberror_vert_partition_subdomain_option, k,idvar,jdvar,levs_jdvar=', &
+                      k,idvar(k),jdvar(k),levs_jdvar(k)
+       end do
+       do k=1,nvars
+          write(6,*)' k,kvar_start,end(k)=',k,kvar_start(k),kvar_end(k)
+       end do
+    end if
+    write(6,*)' in anberror_vert_partition_subdomain_option, kps,kpe=',indices%kps,indices%kpe
 
   end subroutine anberror_vert_partition_subdomain_option
 
@@ -790,11 +790,11 @@ subroutine halo_update_reg0(mype)
 
   ijglob_pe0=izero
   do j=2,lon2-ione
-    jglob=j+jstart(mm1)-2_i_long
-    do i=2,lat2-ione
-      iglob=i+istart(mm1)-2_i_long
-      ijglob_pe0(iglob,jglob)=mype
-    end do
+     jglob=j+jstart(mm1)-2_i_long
+     do i=2,lat2-ione
+        iglob=i+istart(mm1)-2_i_long
+        ijglob_pe0(iglob,jglob)=mype
+     end do
   end do
   call mpi_allreduce(ijglob_pe0,ijglob_pe,nlat*nlon,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
 
@@ -803,61 +803,61 @@ subroutine halo_update_reg0(mype)
   nrecv_halo=izero
                       !ierror=izero
   do j=1,lon2,lon2-ione
-    jglob=j+jstart(mm1)-2_i_long
-    if(jglob<ione.or.jglob>nlon) cycle
-    do i=1,lat2
-      iglob=i+istart(mm1)-2_i_long
-      if(iglob<ione.or.iglob>nlat) cycle
-      ii=ii+ione
-      info_recv_halo(1,ii)=iglob ; info_recv_halo(2,ii)=jglob
-      iorigin(ii)=ijglob_pe(iglob,jglob)
-      nrecv_halo(ijglob_pe(iglob,jglob))=nrecv_halo(ijglob_pe(iglob,jglob))+ione
-                      ! if(iorigin(ii)==mype) ierror=ierror+ione
-    end do
+     jglob=j+jstart(mm1)-2_i_long
+     if(jglob<ione.or.jglob>nlon) cycle
+     do i=1,lat2
+        iglob=i+istart(mm1)-2_i_long
+        if(iglob<ione.or.iglob>nlat) cycle
+        ii=ii+ione
+        info_recv_halo(1,ii)=iglob ; info_recv_halo(2,ii)=jglob
+        iorigin(ii)=ijglob_pe(iglob,jglob)
+        nrecv_halo(ijglob_pe(iglob,jglob))=nrecv_halo(ijglob_pe(iglob,jglob))+ione
+                        ! if(iorigin(ii)==mype) ierror=ierror+ione
+     end do
   end do
   do i=1,lat2,lat2-ione
-    iglob=i+istart(mm1)-2_i_long
-    if(iglob<ione.or.iglob>nlat) cycle
-    do j=2,lon2-ione                                ! already have corner points
-      jglob=j+jstart(mm1)-2_i_long
-      if(jglob<ione.or.jglob>nlon) cycle
-      ii=ii+ione
-      info_recv_halo(1,ii)=iglob ; info_recv_halo(2,ii)=jglob
-      iorigin(ii)=ijglob_pe(iglob,jglob)
-      nrecv_halo(ijglob_pe(iglob,jglob))=nrecv_halo(ijglob_pe(iglob,jglob))+ione
-                      ! if(iorigin(ii)==mype) ierror=ierror+ione
-    end do
+     iglob=i+istart(mm1)-2_i_long
+     if(iglob<ione.or.iglob>nlat) cycle
+     do j=2,lon2-ione                                ! already have corner points
+        jglob=j+jstart(mm1)-2_i_long
+        if(jglob<ione.or.jglob>nlon) cycle
+        ii=ii+ione
+        info_recv_halo(1,ii)=iglob ; info_recv_halo(2,ii)=jglob
+        iorigin(ii)=ijglob_pe(iglob,jglob)
+        nrecv_halo(ijglob_pe(iglob,jglob))=nrecv_halo(ijglob_pe(iglob,jglob))+ione
+                        ! if(iorigin(ii)==mype) ierror=ierror+ione
+     end do
   end do
 
   ndrecv_halo(0)=izero
   do mpe=1,npe
-    ndrecv_halo(mpe)=ndrecv_halo(mpe-ione)+nrecv_halo(mpe-ione)
+     ndrecv_halo(mpe)=ndrecv_halo(mpe-ione)+nrecv_halo(mpe-ione)
   end do
 
   call mpi_alltoall(nrecv_halo,ione,mpi_integer4,nsend_halo,ione,mpi_integer4,mpi_comm_world,ierror)
   ndsend_halo(0)=izero
   do mpe=1,npe
-    ndsend_halo(mpe)=ndsend_halo(mpe-ione)+nsend_halo(mpe-ione)
+     ndsend_halo(mpe)=ndsend_halo(mpe-ione)+nsend_halo(mpe-ione)
   end do
   nsend_halo_loc=ndsend_halo(npe)
   nrecv_halo_loc=ndrecv_halo(npe)
 
 !   sort origin pe numbers from smallest to largest
   if(ii>izero) then
-    call indexxi4(ii,iorigin,indx)
+     call indexxi4(ii,iorigin,indx)
 
 !     use sort index to reorder
-    do j=1,2
-      do i=1,ii
-        iwork(i)=info_recv_halo(j,indx(i))
-      end do
-      do i=1,ii
-        info_recv_halo(j,i)=iwork(i)
-      end do
-    end do
+     do j=1,2
+        do i=1,ii
+           iwork(i)=info_recv_halo(j,indx(i))
+        end do
+        do i=1,ii
+           info_recv_halo(j,i)=iwork(i)
+        end do
+     end do
   end if
 
-  call mpi_type_contiguous(2,mpi_integer4,mpi_string1,ierror)
+  call mpi_type_contiguous(2_i_kind,mpi_integer4,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_alltoallv(info_recv_halo,nrecv_halo,ndrecv_halo,mpi_string1, &
                      info_send_halo,nsend_halo,ndsend_halo,mpi_string1,mpi_comm_world,ierror)
@@ -866,17 +866,17 @@ subroutine halo_update_reg0(mype)
 !   convert info arrays back to local coordinate units
 
   do i=1,nsend_halo_loc
-    iglob=info_send_halo(1,i)
-    info_send_halo(1,i)=iglob-istart(mm1)+2_i_long
-    jglob=info_send_halo(2,i)
-    info_send_halo(2,i)=jglob-jstart(mm1)+2_i_long
+     iglob=info_send_halo(1,i)
+     info_send_halo(1,i)=iglob-istart(mm1)+2_i_long
+     jglob=info_send_halo(2,i)
+     info_send_halo(2,i)=jglob-jstart(mm1)+2_i_long
   end do
 
   do i=1,nrecv_halo_loc
-    iglob=info_recv_halo(1,i)
-    info_recv_halo(1,i)=iglob-istart(mm1)+2_i_long
-    jglob=info_recv_halo(2,i)
-    info_recv_halo(2,i)=jglob-jstart(mm1)+2_i_long
+     iglob=info_recv_halo(1,i)
+     info_recv_halo(1,i)=iglob-istart(mm1)+2_i_long
+     jglob=info_recv_halo(2,i)
+     info_recv_halo(2,i)=jglob-jstart(mm1)+2_i_long
   end do
 
 end subroutine halo_update_reg0
@@ -911,8 +911,8 @@ subroutine halo_update_reg(f,nvert)
   use mpimod, only: npe,mpi_rtype,mpi_comm_world,ierror
   implicit none
 
-  integer(i_kind),intent(in):: nvert
-  real(r_kind),intent(inout):: f(lat2,lon2,nvert)
+  integer(i_kind),intent(in   ) :: nvert
+  real(r_kind)   ,intent(inout) :: f(lat2,lon2,nvert)
 
   integer(i_kind) i,k,mpi_string2
   real(r_kind) bufsend(nvert,nsend_halo_loc),bufrecv(nvert,nrecv_halo_loc)
@@ -921,9 +921,9 @@ subroutine halo_update_reg(f,nvert)
 
 !   now gather up points to send
   do i=1,nsend_halo_loc
-    do k=1,nvert
-      bufsend(k,i)=f(info_send_halo(1,i),info_send_halo(2,i),k)
-    end do
+     do k=1,nvert
+        bufsend(k,i)=f(info_send_halo(1,i),info_send_halo(2,i),k)
+     end do
   end do
   call mpi_type_contiguous(nvert,mpi_rtype,mpi_string2,ierror)
   call mpi_type_commit(mpi_string2,ierror)
@@ -932,9 +932,9 @@ subroutine halo_update_reg(f,nvert)
   call mpi_type_free(mpi_string2,ierror)
 !   finally distribute points back
   do i=1,nrecv_halo_loc
-    do k=1,nvert
-      f(info_recv_halo(1,i),info_recv_halo(2,i),k)=bufrecv(k,i)
-    end do
+     do k=1,nvert
+        f(info_recv_halo(1,i),info_recv_halo(2,i),k)=bufrecv(k,i)
+     end do
   end do
 
 end subroutine halo_update_reg

@@ -1,8 +1,8 @@
 module obsmod
-!$$$   module documentation block
-!                .      .    .                                       .
-! module:  obsmod
-! prgmmr:  derber             org: np23               date: 2003-09-25
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   obsmod
+!   prgmmr: derber      org: np23                date: 2003-09-25
 !
 ! abstract: This module contains variables and arrays pertinent for
 !           observational data.

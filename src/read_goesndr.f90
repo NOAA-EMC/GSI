@@ -69,32 +69,32 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_double,i_kind
+  use kinds, only: r_kind,r_single,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
              checkob,finalcheck,score_crit
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad 
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,zero,rad2deg, r60inv,two
+  use constants, only: deg2rad,izero,ione,zero,rad2deg, r60inv,two
   use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
 
   implicit none
 
 ! Declare passed variables
-  character(len=*),intent(in):: infile,obstype,jsatid
-  character(len=*),intent(in):: sis
-  integer(i_kind),intent(in):: mype,lunout,ithin
-  integer(i_kind),intent(inout):: ndata,nodata,nread
-  real(r_kind),intent(in):: rmesh,twind,gstime
-  real(r_kind),intent(inout):: val_goes
-  integer(i_kind)  ,intent(in) :: mype_root
-  integer(i_kind)  ,intent(in) :: mype_sub
-  integer(i_kind)  ,intent(in) :: npe_sub
-  integer(i_kind)  ,intent(in) :: mpi_comm_sub
+  character(len=*),intent(in   ) :: infile,obstype,jsatid
+  character(len=*),intent(in   ) :: sis
+  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
+  integer(i_kind) ,intent(inout) :: ndata,nodata,nread
+  real(r_kind)    ,intent(in   ) :: rmesh,twind,gstime
+  real(r_kind)    ,intent(inout) :: val_goes
+  integer(i_kind) ,intent(in   ) :: mype_root
+  integer(i_kind) ,intent(in   ) :: mype_sub
+  integer(i_kind) ,intent(in   ) :: npe_sub
+  integer(i_kind) ,intent(in   ) :: mpi_comm_sub
 
 
 ! Declare local parameters
-  integer(i_kind),parameter:: maxinfo=33
-  integer(i_kind),parameter:: mfov=25   ! maximum number of fovs (currently 5x5)
+  integer(i_kind),parameter:: maxinfo=33_i_kind
+  integer(i_kind),parameter:: mfov=25_i_kind   ! maximum number of fovs (currently 5x5)
 
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
@@ -141,18 +141,18 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !**************************************************************************
 
 ! Start routine here.  Set constants.  Initialize variables
-  lnbufr = 10
+  lnbufr = 10_i_kind
   disterrmax=zero
-  ntest  = 0
+  ntest  = izero
   nreal  = maxinfo
-  ich8   = 8        !channel 8
-  ndata  = 0
-  nchanl = 18
-  ifov = -999
+  ich8   = 8_i_kind        !channel 8
+  ndata  = izero
+  nchanl = 18_i_kind
+  ifov = -999_i_kind
   r01 = 0.01_r_kind
 
-  ilon=3
-  ilat=4
+  ilon=3_i_kind
+  ilat=4_i_kind
 
   rlndsea(0) = zero
   rlndsea(1) = 15._r_kind
@@ -185,23 +185,23 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
          jsatid == 'g12_prep' .or. jsatid == 'g13_prep'
 
   if(g5x5)then
-       if(jsatid=='g08_prep')lsatid=252
-       if(jsatid=='g09_prep')lsatid=253
-       if(jsatid=='g10_prep')lsatid=254
-       if(jsatid=='g11_prep')lsatid=255
-       if(jsatid=='g12_prep')lsatid=256
-       if(jsatid=='g13_prep')lsatid=257
+       if(jsatid=='g08_prep')lsatid=252_i_kind
+       if(jsatid=='g09_prep')lsatid=253_i_kind
+       if(jsatid=='g10_prep')lsatid=254_i_kind
+       if(jsatid=='g11_prep')lsatid=255_i_kind
+       if(jsatid=='g12_prep')lsatid=256_i_kind
+       if(jsatid=='g13_prep')lsatid=257_i_kind
    else
-       if(jsatid=='g08')lsatid=252
-       if(jsatid=='g09')lsatid=253
-       if(jsatid=='g10')lsatid=254
-       if(jsatid=='g11')lsatid=255
-       if(jsatid=='g12')lsatid=256
-       if(jsatid=='g13')lsatid=257
-       if(obstype == 'sndrd1')ldetect = 1
-       if(obstype == 'sndrd2')ldetect = 2
-       if(obstype == 'sndrd3')ldetect = 3
-       if(obstype == 'sndrd4')ldetect = 4
+       if(jsatid=='g08')lsatid=252_i_kind
+       if(jsatid=='g09')lsatid=253_i_kind
+       if(jsatid=='g10')lsatid=254_i_kind
+       if(jsatid=='g11')lsatid=255_i_kind
+       if(jsatid=='g12')lsatid=256_i_kind
+       if(jsatid=='g13')lsatid=257_i_kind
+       if(obstype == 'sndrd1')ldetect = ione
+       if(obstype == 'sndrd2')ldetect = 2_i_kind
+       if(obstype == 'sndrd3')ldetect = 3_i_kind
+       if(obstype == 'sndrd4')ldetect = 4_i_kind
   end if
 
 ! Set array index for surface-sensing channels
@@ -221,129 +221,129 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   allocate(data_all(nele,itxmax))
 
 ! Big loop to read data file
-  next=mype_sub+1
-  do while(ireadmg(lnbufr,subset,idate)>=0)
-   call ufbcnt(lnbufr,irec,isub)
-   if(irec/=next)cycle
-   next=next+npe_sub
-   read_loop: do while (ireadsb(lnbufr)==0)
+  next=mype_sub+ione
+  do while(ireadmg(lnbufr,subset,idate)>=izero)
+     call ufbcnt(lnbufr,irec,isub)
+     if(irec/=next)cycle
+     next=next+npe_sub
+     read_loop: do while (ireadsb(lnbufr)==izero)
 
-!    Extract type, date, and location information
-     if(g5x5)then
-!    Prepbufr file
-       call ufbint(lnbufr,hdr,11,1,iret,hdstr5)
-       kx = hdr(8)
-       if(kx /= 164 .and. kx /= 165 .and. kx /= 174 .and. kx /= 175)cycle read_loop
-!      If not goes data over ocean , read next bufr record
-!      if(kx /= 174 .and. kx /= 175)cycle read_loop
+!       Extract type, date, and location information
+        if(g5x5)then
+!       Prepbufr file
+           call ufbint(lnbufr,hdr,11_i_kind,ione,iret,hdstr5)
+           kx = hdr(8)
+           if(kx /= 164_i_kind .and. kx /= 165_i_kind .and. kx /= 174_i_kind .and. kx /= 175_i_kind)cycle read_loop
+!          If not goes data over ocean , read next bufr record
+!          if(kx /= 174_i_kind .and. kx /= 175_i_kind)cycle read_loop
 
-       ksatid=nint(hdr(7))
-!      if not proper satellite read next bufr record
-       if (ksatid /= lsatid) cycle read_loop
+           ksatid=nint(hdr(7))
+!          if not proper satellite read next bufr record
+           if (ksatid /= lsatid) cycle read_loop
 
-!      Extract number of averaged FOVS
-       ifov = hdr(9) ! number of averaged FOVS 
-       if(ifov <= 3) cycle read_loop
-!      Extract obs time difference. 
-       tdiff=hdr(10)  ! relative obs time in hours
-       t4dv=toff+tdiff
-     else
-!      GOES 1x1 or 5x5 file
-       call ufbint(lnbufr,hdr,15,1,iret,hdstr)
+!          Extract number of averaged FOVS
+           ifov = hdr(9) ! number of averaged FOVS 
+           if(ifov <= 3_i_kind) cycle read_loop
+!          Extract obs time difference. 
+           tdiff=hdr(10)  ! relative obs time in hours
+           t4dv=toff+tdiff
+        else
+!          GOES 1x1 or 5x5 file
+           call ufbint(lnbufr,hdr,15_i_kind,ione,iret,hdstr)
 
-       ksatid=hdr(7)   !bufr satellite id
-!      if not proper satellite/detector read next bufr record
-       if (ksatid /=lsatid) cycle read_loop
-       if(obstype /= 'sndr')then
-         if(ldetect /= nint(hdr(8)))cycle read_loop
-       end if
+           ksatid=hdr(7)   !bufr satellite id
+!          if not proper satellite/detector read next bufr record
+           if (ksatid /=lsatid) cycle read_loop
+           if(obstype /= 'sndr')then
+              if(ldetect /= nint(hdr(8)))cycle read_loop
+           end if
 
-       ifov = nint(hdr(15)) ! number of averaged FOVS
+           ifov = nint(hdr(15)) ! number of averaged FOVS
 
-       if(ifov < mfov .and. ifov > 0)then
-        if(ifov <= 3) cycle read_loop
-       end if
+           if(ifov < mfov .and. ifov > izero)then
+              if(ifov <= 3_i_kind) cycle read_loop
+           end if
 
-!      Extract obs time.  If not within analysis window, skip obs
-!      Extract date information.  If time outside window, skip this obs
-       idate5(1) = hdr(9)  !year
-       idate5(2) = hdr(10) !month
-       idate5(3) = hdr(11) !day
-       idate5(4) = hdr(12) !hour
-       idate5(5) = hdr(13) !minute
-       call w3fs21(idate5,nmind)
-       sstime=real(nmind,r_kind) + hdr(14)*r60inv
-       tdiff=(sstime-gstime)*r60inv
-       t4dv=(real(nmind-iwinbgn,r_kind) + hdr(14)*r60inv)*r60inv
-     end if
+!          Extract obs time.  If not within analysis window, skip obs
+!          Extract date information.  If time outside window, skip this obs
+           idate5(1) = hdr(9)  !year
+           idate5(2) = hdr(10) !month
+           idate5(3) = hdr(11) !day
+           idate5(4) = hdr(12) !hour
+           idate5(5) = hdr(13) !minute
+           call w3fs21(idate5,nmind)
+           sstime=real(nmind,r_kind) + hdr(14)*r60inv
+           tdiff=(sstime-gstime)*r60inv
+           t4dv=(real(nmind-iwinbgn,r_kind) + hdr(14)*r60inv)*r60inv
+        end if
 
-!    If not within analysis window, skip obs
-     if (l4dvar) then
-       if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
-     else
-       if (abs(tdiff)>twind) cycle read_loop
-     endif
+!       If not within analysis window, skip obs
+        if (l4dvar) then
+           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
+        else
+           if (abs(tdiff)>twind) cycle read_loop
+        endif
 
 !       Convert obs location to radians
-     if (hdr(1)>=r360) hdr(1)=hdr(1)-r360
-     if (hdr(1)< zero) hdr(1)=hdr(1)+r360
+        if (hdr(1)>=r360) hdr(1)=hdr(1)-r360
+        if (hdr(1)< zero) hdr(1)=hdr(1)+r360
 
-     dlon_earth = hdr(1)*deg2rad   !convert degrees to radians
-     dlat_earth = hdr(2)*deg2rad
+        dlon_earth = hdr(1)*deg2rad   !convert degrees to radians
+        dlat_earth = hdr(2)*deg2rad
 
-     if(regional)then
-        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
-        if(diagnostic_reg) then
-           call txy2ll(dlon,dlat,dlon00,dlat00)
-           ntest=ntest+1
-           disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
-           disterrmax=max(disterrmax,disterr)
-        end if
+        if(regional)then
+           call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+           if(diagnostic_reg) then
+              call txy2ll(dlon,dlat,dlon00,dlat00)
+              ntest=ntest+1
+              disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+              disterrmax=max(disterrmax,disterr)
+           end if
       
 !          Check to see if in domain
-        if(outside) cycle read_loop
+           if(outside) cycle read_loop
 
-     else
-        dlon = dlon_earth 
-        dlat = dlat_earth 
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
-     endif
-
-
-!    Set common predictor parameters
-
-     if (l4dvar) then
-       timedif = zero
-     else
-       timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-     endif
-
-     nread=nread+nchanl
-
-     crit1=0.01_r_kind+timedif
-     if(ifov < mfov .and. ifov > 0)then
-       crit1=crit1+two*float(mfov-ifov)
-     end if
-
-     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-     if(.not. iuse)cycle read_loop
-
-!    Increment goes sounder data counter
-!    Extract brightness temperatures
-     call ufbint(lnbufr,grad,1,18,levs,rbstr)
-
-     iskip = 0
-     do l=1,nchanl
-
-        if( grad(l) < tbmin .or. grad(l) > tbmax )then
-           iskip = iskip + 1
-           if(l == ich8)iskip = nchanl
+        else
+           dlon = dlon_earth 
+           dlat = dlat_earth 
+           call grdcrd(dlat,ione,rlats,nlat,ione)
+           call grdcrd(dlon,ione,rlons,nlon,ione)
         endif
-     end do
 
-     if( iskip >= nchanl )cycle read_loop
+
+!       Set common predictor parameters
+
+        if (l4dvar) then
+           timedif = zero
+        else
+           timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
+        endif
+
+        nread=nread+nchanl
+
+        crit1=0.01_r_kind+timedif
+        if(ifov < mfov .and. ifov > izero)then
+           crit1=crit1+two*float(mfov-ifov)
+        end if
+
+        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+        if(.not. iuse)cycle read_loop
+
+!       Increment goes sounder data counter
+!       Extract brightness temperatures
+        call ufbint(lnbufr,grad,ione,18_i_kind,levs,rbstr)
+
+        iskip = izero
+        do l=1,nchanl
+
+           if( grad(l) < tbmin .or. grad(l) > tbmax )then
+              iskip = iskip + ione
+              if(l == ich8)iskip = nchanl
+           endif
+        end do
+
+        if( iskip >= nchanl )cycle read_loop
 
 !    "Score" observation.   We use this information to id "best" obs.
 
@@ -357,74 +357,74 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !                3 snow
 !                4 mixed 
 
-     call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
+        call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
                 ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
 
-!      If not goes data over ocean , read next bufr record
-     if(isflg /= 0) cycle read_loop
+!       If not goes data over ocean , read next bufr record
+        if(isflg /= izero) cycle read_loop
 
-     crit1 = crit1 + rlndsea(isflg)  
-     call checkob(dist1,crit1,itx,iuse)
-     if(.not. iuse)cycle read_loop
+        crit1 = crit1 + rlndsea(isflg)  
+        call checkob(dist1,crit1,itx,iuse)
+        if(.not. iuse)cycle read_loop
 
-!    Set data quality predictor
-     iscan   = nint(hdr(3))+0.001_r_kind   ! "scan" position
-     ch8     = grad(ich8) -ang_rad(ichan8)*cbias(iscan,ichan8) -  &
-                           r01*predx(1,ichan8)*air_rad(ichan8)
-     emiss=0.992-0.013*(hdr(3)/65.)**3.5-0.026*(hdr(3)/65.)**7.0
-     pred = abs(ch8-tsavg*emiss)
+!       Set data quality predictor
+        iscan   = nint(hdr(3))+0.001_r_kind   ! "scan" position
+        ch8     = grad(ich8) -ang_rad(ichan8)*cbias(iscan,ichan8) -  &
+                                 r01*predx(1,ichan8)*air_rad(ichan8)
+        emiss=0.992_r_single-0.013_r_single*(hdr(3)/65._r_single)**3.5_r_single-0.026_r_single*(hdr(3)/65._r_single)**7.0_r_single
+        pred = abs(ch8-tsavg*emiss)
 
-!    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-     crit1 = crit1+10.0_r_kind*pred  
+!       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+        crit1 = crit1+10.0_r_kind*pred  
 
-     call finalcheck(dist1,crit1,itx,iuse)
-     if(.not. iuse)cycle read_loop
+        call finalcheck(dist1,crit1,itx,iuse)
+        if(.not. iuse)cycle read_loop
 
-!    Transfer observation location and other data to local arrays
+!       Transfer observation location and other data to local arrays
 
-     data_all(1,itx) = ksatid                       ! satellite id
-     data_all(2,itx) = t4dv                         ! time (hours)
-     data_all(3,itx) = dlon                         ! grid relative longitude
-     data_all(4,itx) = dlat                         ! grid relative latitude
-     data_all(5,itx) = hdr(3)*deg2rad               ! satellite zenith angle
-     data_all(6,itx) = hdr(5)                       ! satellite zenith angle
-     data_all(7,itx) = zero                         ! local zenith angle
-     data_all(8,itx) = iscan                        ! "scan" position
-     data_all(9,itx) = hdr(4)                       ! solar zenith angle
-     data_all(10,itx)= hdr(6)                       ! solar zenith angle
-     data_all(11,itx) = sfcpct(0)                   ! sea percentage of
-     data_all(12,itx) = sfcpct(1)                   ! land percentage
-     data_all(13,itx) = sfcpct(2)                   ! sea ice percentage
-     data_all(14,itx) = sfcpct(3)                   ! snow percentage
-     data_all(15,itx)= ts(0)                        ! ocean skin temperature
-     data_all(16,itx)= ts(1)                        ! land skin temperature
-     data_all(17,itx)= ts(2)                        ! ice skin temperature
-     data_all(18,itx)= ts(3)                        ! snow skin temperature
-     data_all(19,itx)= tsavg                        ! average skin temperature
-     data_all(20,itx)= vty                          ! vegetation type
-     data_all(21,itx)= vfr                          ! vegetation fraction
-     data_all(22,itx)= sty                          ! soil type
-     data_all(23,itx)= stp                          ! soil temperature
-     data_all(24,itx)= sm                           ! soil moisture
-     data_all(25,itx)= sn                           ! snow depth
-     data_all(26,itx)= zz                           ! surface height
-     data_all(27,itx)= idomsfc + 0.001              ! dominate surface type
-     data_all(28,itx)= sfcr                         ! surface roughness
-     data_all(29,itx)= ff10                         ! ten meter wind factor
-     data_all(30,itx)= dlon_earth*rad2deg           ! earth relative longitude (degrees)
-     data_all(31,itx)= dlat_earth*rad2deg           ! earth relative latitude (degrees)
-
-
-     data_all(32,itx)= val_goes
-     data_all(33,itx)= itt
-
-     do k=1,nchanl
-        data_all(k+nreal,itx)=grad(k)
-     end do
+        data_all(1,itx) = ksatid                       ! satellite id
+        data_all(2,itx) = t4dv                         ! time (hours)
+        data_all(3,itx) = dlon                         ! grid relative longitude
+        data_all(4,itx) = dlat                         ! grid relative latitude
+        data_all(5,itx) = hdr(3)*deg2rad               ! satellite zenith angle
+        data_all(6,itx) = hdr(5)                       ! satellite zenith angle
+        data_all(7,itx) = zero                         ! local zenith angle
+        data_all(8,itx) = iscan                        ! "scan" position
+        data_all(9,itx) = hdr(4)                       ! solar zenith angle
+        data_all(10,itx)= hdr(6)                       ! solar zenith angle
+        data_all(11,itx) = sfcpct(0)                   ! sea percentage of
+        data_all(12,itx) = sfcpct(1)                   ! land percentage
+        data_all(13,itx) = sfcpct(2)                   ! sea ice percentage
+        data_all(14,itx) = sfcpct(3)                   ! snow percentage
+        data_all(15,itx)= ts(0)                        ! ocean skin temperature
+        data_all(16,itx)= ts(1)                        ! land skin temperature
+        data_all(17,itx)= ts(2)                        ! ice skin temperature
+        data_all(18,itx)= ts(3)                        ! snow skin temperature
+        data_all(19,itx)= tsavg                        ! average skin temperature
+        data_all(20,itx)= vty                          ! vegetation type
+        data_all(21,itx)= vfr                          ! vegetation fraction
+        data_all(22,itx)= sty                          ! soil type
+        data_all(23,itx)= stp                          ! soil temperature
+        data_all(24,itx)= sm                           ! soil moisture
+        data_all(25,itx)= sn                           ! snow depth
+        data_all(26,itx)= zz                           ! surface height
+        data_all(27,itx)= idomsfc + 0.001_r_kind       ! dominate surface type
+        data_all(28,itx)= sfcr                         ! surface roughness
+        data_all(29,itx)= ff10                         ! ten meter wind factor
+        data_all(30,itx)= dlon_earth*rad2deg           ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth*rad2deg           ! earth relative latitude (degrees)
 
 
-  end do read_loop
+        data_all(32,itx)= val_goes
+        data_all(33,itx)= itt
+
+        do k=1,nchanl
+           data_all(k+nreal,itx)=grad(k)
+        end do
+
+
+     end do read_loop
   end do
   call closbf(lnbufr)
 
@@ -438,7 +438,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root.and.ndata>0) then
+  if (mype_sub==mype_root.and.ndata>izero) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -446,7 +446,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
      do n=1,ndata
         do i=1,nchanl
            if(data_all(i+nreal,n) > tbmin .and. &
-                data_all(i+nreal,n) < tbmax)nodata=nodata+1
+              data_all(i+nreal,n) < tbmax)nodata=nodata+ione
         end do
         itt=nint(data_all(nreal,n))
         super_val(itt)=super_val(itt)+val_goes
@@ -462,7 +462,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   deallocate(data_all) ! Deallocate data arrays
   call destroygrids    ! Deallocate satthin arrays
 
-  if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
+  if(diagnostic_reg .and. ntest>izero .and. mype_sub==mype_root) &
        write(6,*)'READ_GOESNDR:  mype,ntest,disterrmax=',&
        mype,ntest,disterrmax
 

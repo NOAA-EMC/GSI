@@ -49,21 +49,21 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use convinfo, only: nconvtype,ctwind, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
-  use constants, only: deg2rad,rad2deg,zero,r60inv
+  use constants, only: izero,ione,deg2rad,rad2deg,zero,r60inv
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: l4dvar,iadatebgn,iadateend,time_4dvar,winlen
   implicit none
 
 ! Declare passed variables
-  character(len=*),intent(in):: obstype,infile
-  character(len=*),intent(in):: sis
-  integer(i_kind),intent(in):: lunout
-  integer(i_kind),intent(inout):: nread,ndata,nodata
-  real(r_kind),intent(in):: twind
+  character(len=*),intent(in   ) :: obstype,infile
+  character(len=*),intent(in   ) :: sis
+  integer(i_kind) ,intent(in   ) :: lunout
+  integer(i_kind) ,intent(inout) :: nread,ndata,nodata
+  real(r_kind)    ,intent(in   ) :: twind
 
 ! Declare local parameters
-  integer(i_kind),parameter:: maxobs=2e6
-  integer(i_kind),parameter:: maxdat=20
+  integer(i_kind),parameter:: maxobs=2e6_i_kind
+  integer(i_kind),parameter:: maxdat=20_i_kind
   real(r_kind),parameter:: r360=360.0_r_kind
 
 ! Declare local variables
@@ -93,17 +93,17 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   data hdstr  /'SID XOB YOB DHR TYP'/
   data dwstr  /'ADWL ELEV BORA NOLS NOLC ADPL LOSC SDLE'/
   
-  data lunin / 10 /
+  data lunin / 10_i_kind /
 
 
 !**************************************************************************
 ! Initialize variables
-  nbadlat=0
-  nmrecs=0
+  nbadlat=izero
+  nmrecs=izero
   nreal=maxdat
-  nchanl=0
-  ilon=2
-  ilat=3
+  nchanl=izero
+  ilon=2_i_kind
+  ilat=3_i_kind
 
   allocate(cdata_all(maxdat,maxobs))
 
@@ -113,7 +113,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   call openbf(lunin,'IN',lunin)
   call datelen(10)
   call readmg(lunin,subset,idate,iret)
-  if(iret/=0) goto 1010
+  if(iret/=izero) goto 1010
 
 ! Time offset
   call time_4dvar(idate,toff)
@@ -132,13 +132,13 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
      idate5(2)=im
      idate5(3)=idd
      idate5(4)=ihh
-     idate5(5)=0
+     idate5(5)=izero
      call w3fs21(idate5,minobs)    !  obs ref time in minutes relative to historic date
      idate5(1)=iadate(1)
      idate5(2)=iadate(2)
      idate5(3)=iadate(3)
      idate5(4)=iadate(4)
-     idate5(5)=0
+     idate5(5)=izero
      call w3fs21(idate5,minan)    !  analysis ref time in minutes relative to historic date
 
 !     add obs reference time, then subtract analysis time to get obs time relative to analysis
@@ -153,10 +153,10 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   write(6,*)'READ_LIDAR: time offset is ',toff,' hours.'
   IF (idate<iadatebgn.OR.idate>iadateend) THEN
      if(offtime_data) then
-       write(6,*)'***READ_BUFRTOVS analysis and data file date differ, but use anyway'
+        write(6,*)'***READ_BUFRTOVS analysis and data file date differ, but use anyway'
      else
-       write(6,*)'***READ_LIDAR ERROR*** incompatable analysis ',&
-          'and observation date/time'
+        write(6,*)'***READ_LIDAR ERROR*** incompatable analysis ',&
+           'and observation date/time'
      end if
      write(6,*)'Analysis start  :',iadatebgn
      write(6,*)'Analysis end    :',iadateend
@@ -169,93 +169,93 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 ! Big loop over bufr file	
 
 10 call readsb(lunin,iret) 
-     if(iret/=0) then
-        call readmg(lunin,subset,jdate,iret)
-        if(iret/=0) go to 1000
-        go to 10
-     end if
-     nmrecs=nmrecs+1
+  if(iret/=izero) then
+     call readmg(lunin,subset,jdate,iret)
+     if(iret/=izero) go to 1000
+     go to 10
+  end if
+  nmrecs=nmrecs+ione
 
-!    Extract type, date, and location information
-     call ufbint(lunin,hdr,5,1,iret,hdstr)
+! Extract type, date, and location information
+  call ufbint(lunin,hdr,5_i_kind,ione,iret,hdstr)
 
-     kx=hdr(5)
+  kx=hdr(5)
      
-     ikx=0
-     do i=1,nconvtype
-       if(trim(obstype) == trim(ioctype(i)) .and. kx == ictype(i))ikx = i
-     end do
-!    Determine if this is doppler wind lidar report
-     dwl= (kx /= 0) .and. (subset=='DWLDAT')
-     if(.not. dwl) go to 10
-     nread=nread+1
+  ikx=izero
+  do i=1,nconvtype
+     if(trim(obstype) == trim(ioctype(i)) .and. kx == ictype(i))ikx = i
+  end do
+! Determine if this is doppler wind lidar report
+  dwl= (kx /= izero) .and. (subset=='DWLDAT')
+  if(.not. dwl) go to 10
+  nread=nread+ione
 
-     t4dv = toff + hdr(4)
-     if (l4dvar) then
-       if (t4dv<zero .OR. t4dv>winlen) go to 10
+  t4dv = toff + hdr(4)
+  if (l4dvar) then
+     if (t4dv<zero .OR. t4dv>winlen) go to 10
+  else
+     time=hdr(4) + time_correction
+     if (abs(time) > ctwind(ikx) .or. abs(time) > twind) go to 10
+  endif
+
+  rstation_id=hdr(1)
+
+  if (abs(hdr(3))<89.9_r_double) then      !msq
+     if (hdr(2) >= r360) hdr(2)=hdr(2)-r360
+     if (hdr(2) < zero)  hdr(2)=hdr(2)+r360
+
+     dlat_earth = hdr(3) * deg2rad
+     dlon_earth = hdr(2) * deg2rad
+
+     if(regional)then
+        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+        if (outside) go to 10
      else
-       time=hdr(4) + time_correction
-       if (abs(time) > ctwind(ikx) .or. abs(time) > twind) go to 10
+        dlat = dlat_earth
+        dlon = dlon_earth
+        call grdcrd(dlat,ione,rlats,nlat,ione)
+        call grdcrd(dlon,ione,rlons,nlon,ione)
      endif
-
-     rstation_id=hdr(1)
-
-     if (abs(hdr(3))<89.9) then      !msq
-        if (hdr(2) >= r360) hdr(2)=hdr(2)-r360
-        if (hdr(2) < zero)  hdr(2)=hdr(2)+r360
-
-        dlat_earth = hdr(3) * deg2rad
-        dlon_earth = hdr(2) * deg2rad
-
-        if(regional)then
-           call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
-           if (outside) go to 10
-        else
-           dlat = dlat_earth
-           dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
-        endif
 
 
 
 !    If wind data, extract observation.
-        nodata=min(nodata+1,maxobs)
-        ndata=min(ndata+1,maxobs)
-        usage = 0.
-        if(icuse(ikx) < 0)usage=100.
-        if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
-          if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
-        end if
+     nodata=min(nodata+ione,maxobs)
+     ndata=min(ndata+ione,maxobs)
+     usage = zero
+     if(icuse(ikx) < izero)usage=100._r_kind
+     if(ncnumgrp(ikx) > izero )then                     ! cross validation on
+        if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-ione)usage=ncmiter(ikx)
+     end if
 
-        call ufbint(lunin,dwld,8,1,levs,dwstr)
+     call ufbint(lunin,dwld,8_i_kind,ione,levs,dwstr)
 
-        loswind=dwld(7)/(cos(dwld(2)*deg2rad))    ! obs wind (line of sight component)
-        call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr)
-        cdata_all(1,ndata)=ikx                    ! obs type
-        cdata_all(2,ndata)=dlon                   ! grid relative longitude
-        cdata_all(3,ndata)=dlat                   ! grid relative latitude
-        cdata_all(4,ndata)=t4dv                   ! obs time (analyis relative hour)
-        cdata_all(5,ndata)=dwld(1)                ! obs height (altitude) (m)
-        cdata_all(6,ndata)=dwld(2)*deg2rad        ! elevation angle (radians)
-        cdata_all(7,ndata)=dwld(3)*deg2rad        ! bearing or azimuth (radians)
-        cdata_all(8,ndata)=dwld(4)                ! number of laser shots
-        cdata_all(9,ndata)=dwld(5)                ! number of cloud laser shots
-        cdata_all(10,ndata)=dwld(6)               ! atmospheric depth
-        cdata_all(11,ndata)=loswind               ! obs wind (line of sight component) msq
-        cdata_all(12,ndata)=dwld(8)               ! standard deviation (obs error) msq
-        cdata_all(13,ndata)=rstation_id           ! station id
-        cdata_all(14,ndata)=usage                 ! usage parameter
-        cdata_all(15,ndata)=idomsfc+0.001         ! dominate surface type
-        cdata_all(16,ndata)=tsavg                 ! skin temperature      
-        cdata_all(17,ndata)=ff10                  ! 10 meter wind factor  
-        cdata_all(18,ndata)=sfcr                  ! surface roughness     
-        cdata_all(19,ndata)=dlon_earth*rad2deg    ! earth relative longitude (degrees)
-        cdata_all(20,ndata)=dlat_earth*rad2deg    ! earth relative latitude (degrees)
+     loswind=dwld(7)/(cos(dwld(2)*deg2rad))    ! obs wind (line of sight component)
+     call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr)
+     cdata_all(1,ndata)=ikx                    ! obs type
+     cdata_all(2,ndata)=dlon                   ! grid relative longitude
+     cdata_all(3,ndata)=dlat                   ! grid relative latitude
+     cdata_all(4,ndata)=t4dv                   ! obs time (analyis relative hour)
+     cdata_all(5,ndata)=dwld(1)                ! obs height (altitude) (m)
+     cdata_all(6,ndata)=dwld(2)*deg2rad        ! elevation angle (radians)
+     cdata_all(7,ndata)=dwld(3)*deg2rad        ! bearing or azimuth (radians)
+     cdata_all(8,ndata)=dwld(4)                ! number of laser shots
+     cdata_all(9,ndata)=dwld(5)                ! number of cloud laser shots
+     cdata_all(10,ndata)=dwld(6)               ! atmospheric depth
+     cdata_all(11,ndata)=loswind               ! obs wind (line of sight component) msq
+     cdata_all(12,ndata)=dwld(8)               ! standard deviation (obs error) msq
+     cdata_all(13,ndata)=rstation_id           ! station id
+     cdata_all(14,ndata)=usage                 ! usage parameter
+     cdata_all(15,ndata)=idomsfc+0.001_r_kind  ! dominate surface type
+     cdata_all(16,ndata)=tsavg                 ! skin temperature      
+     cdata_all(17,ndata)=ff10                  ! 10 meter wind factor  
+     cdata_all(18,ndata)=sfcr                  ! surface roughness     
+     cdata_all(19,ndata)=dlon_earth*rad2deg    ! earth relative longitude (degrees)
+     cdata_all(20,ndata)=dlat_earth*rad2deg    ! earth relative latitude (degrees)
 
-     else
-        nbadlat=nbadlat+1
-     endif
+  else
+     nbadlat=nbadlat+ione
+  endif
 
 ! End of bufr read loop
   go to 10

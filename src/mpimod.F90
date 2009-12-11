@@ -13,6 +13,7 @@ module mpimod
 ! !USES:
 
   use kinds, only: i_kind
+  use constants, only: izero,ione
 
 #ifdef ibm_sp
 ! Include standard mpi includes file.
@@ -97,7 +98,7 @@ module mpimod
   integer(i_kind)    nnnuvlevs   ! num levs current task, for dist. of uv/stvp         
   integer(i_kind)    nlevsbal    ! max num levs per task, for dist. of balance         
   integer(i_kind)    nnnvsbal    ! num levs current task, for dist. of balance         
-  integer(i_kind)    nlevsuv    ! max num levs per task, for dist. of balance         
+  integer(i_kind)    nlevsuv     ! max num levs per task, for dist. of balance         
   integer(i_kind)    nnnvsuv     ! num levs current task, for dist. of balance         
 
 ! Optional ESMF-like layout information: nxPE is the number of
@@ -105,8 +106,8 @@ module mpimod
 ! the number of processors used to decompose the latitudinal dimension.
 ! By construction, nPE = nxPE * nyPE.
 ! 
-  integer(i_kind) :: nxpe=-1     ! optional layout information
-  integer(i_kind) :: nype=-1     ! optional layout information
+  integer(i_kind) :: nxpe=-ione     ! optional layout information
+  integer(i_kind) :: nype=-ione     ! optional layout information
 
 
 ! communication arrays...set up in init_mpi_vars
@@ -188,6 +189,32 @@ module mpimod
   integer(i_kind),allocatable,dimension(:):: iscuv_s !  for send from nuvlevs slabs
   integer(i_kind),allocatable,dimension(:):: ircuv_s !  for receive from nuvlevs slabs
 
+! set default to private
+  private
+! set subroutines to public
+  public :: init_mpi_vars
+  public :: destroy_mpi_vars
+  public :: reorder
+  public :: reorder2
+  public :: strip_single
+  public :: strip
+  public :: vectosub
+  public :: reload
+  public :: strip_periodic
+  public :: setcomm
+! set passed variables to public
+  public :: ierror,mpi_comm_world,npe,mpi_rtype,mpi_sum,mype,mpi_max,mpi_itype
+  public :: mpi_real4,mpi_integer4,levs_id,mpi_min,mpi_real8,mpi_real16,mpi_integer8
+  public :: mpi_integer,mpi_integer1,mpi_integer2,nvar_id,nnnuvlevs,iscuv_g
+  public :: nuvlevs,ircuv_g,irduv_g,irduv_s,iscuv_s,ircuv_s,isduv_g,isduv_s
+  public :: mpi_status_size,mpi_rtype4,nvar_pe,nype,nxpe,nnnvsbal,nlevsbal
+  public :: nvarbal_id,lu_gs,nlevsuv,nnnvsuv,irdvec_g,ircvec_g,lv_gs,ircvec_s
+  public :: irdvec_s,iscvec_s,iscvec_g,isdvec_g,isdvec_s,iscnt_s,isdsp_s
+  public :: irdsp_s,ircnt_s,kv_gs,ku_gs,kp_gs,kt_gs,ircbal_s,irdbal_s,isdbal_s
+  public :: iscbal_s,isdbal_g,irdbal_g,iscbal_g,ircbal_g,isdsp_g,irdsp_g
+  public :: iscnt_g,ircnt_g,mpi_mode_rdonly,mpi_info_null,mpi_offset_kind
+  public :: mpi_mode_rdwr,mpi_byte
+
 contains
 
 !-------------------------------------------------------------------------
@@ -203,7 +230,6 @@ contains
 
 ! !USES:
 
-    use constants, only: izero,ione
     use gridmod, only: nnnn1o
     implicit none
 
@@ -241,7 +267,7 @@ contains
     integer(i_kind) levscnt
 
     allocate(levs_id(nsig1o),nvar_id(nsig1o))
-    allocate(nvar_pe(6*nsig+4,2))
+    allocate(nvar_pe(6*nsig+4_i_kind,2))
     allocate(iscnt_g(npe),isdsp_g(npe),ircnt_g(npe),&
        irdsp_g(npe),iscnt_s(npe),isdsp_s(npe),ircnt_s(npe),&
        irdsp_s(npe))
@@ -255,9 +281,9 @@ contains
        irduv_g(npe),iscuv_s(npe),isduv_s(npe),ircuv_s(npe),&
        irduv_s(npe))
 
-    mm1=mype+1
+    mm1=mype+ione
     nuvlevs=nsig/npe
-    if(mod(nsig,npe)/=izero) nuvlevs=nuvlevs+1
+    if(mod(nsig,npe)/=izero) nuvlevs=nuvlevs+ione
 
 
 ! redefine kchk for uv/stvp distribution
@@ -269,15 +295,15 @@ contains
 
     levscnt=izero
     do n=1,npe
-      if(n.le.kchk) then
+      if(n<=kchk) then
         kk=nuvlevs
       else
-        kk=nuvlevs-1
+        kk=nuvlevs-ione
       end if
 
       do k=1,kk
         levscnt=levscnt+ione
-	if ( n==mm1 .and. levscnt.le.nsig ) then
+	if ( n==mm1 .and. levscnt<=nsig ) then
           nnnuvlevs=kk
         end if
       end do
@@ -327,81 +353,81 @@ contains
 
 ! Distribute variables as evenly as possible over the tasks
 ! start by defining starting points for each variable
-    vps=nsig+1
-    pss=vps+nsig
-    ts=pss+1
-    qs=ts+nsig
-    ozs=qs+nsig
-    tss=ozs+nsig
-    tls=tss+1
-    tis=tls+1
-    cwms=tis+1
+    vps =nsig+ione
+    pss =vps +nsig
+    ts  =pss +ione
+    qs  =ts  +nsig
+    ozs =qs  +nsig
+    tss =ozs +nsig
+    tls =tss +ione
+    tis =tls +ione
+    cwms=tis +ione
 
 ! Need to use a variable to know which tasks have a full nsig1o 
 ! array, and which one have the last level irrelevant
-    if (mod((6*nsig)+4,npe)==izero) then
+    if (mod((6*nsig)+4_i_kind,npe)==izero) then
       kchk=npe
     else
-      kchk=mod((nsig*6)+4,npe)
+      kchk=mod((nsig*6)+4_i_kind,npe)
     end if
 
     nvar_id=izero
     levs_id=izero
-    nvar_pe=-999
+    nvar_pe=-999_i_kind
 
 ! Define which variable/level each task has for the
 ! global slabs (levs_id,nvar_id)
     varcnt=izero
     do n=1,npe
-      if(n.le.kchk) then
+      if(n<=kchk) then
         kk=nsig1o
       else
-        kk=nsig1o-1
+        kk=nsig1o-ione
       end if
       do k=1,kk
-        varcnt=varcnt+1
-        nvar_pe(varcnt,1)=n-1
+        varcnt=varcnt+ione
+        nvar_pe(varcnt,1)=n-ione
         nvar_pe(varcnt,2)=k
         if (n==mm1) then
-          if (varcnt.lt.vps) then
-            nvar_id(k)=1
+          if (varcnt<vps) then
+            nvar_id(k)=ione
             levs_id(k)=varcnt
-          else if (varcnt.ge.vps .and. varcnt.lt.pss) then
-            nvar_id(k)=2
-            levs_id(k)=varcnt-vps+1
-          else if (varcnt.eq.pss) then
-            nvar_id(k)=3
-            levs_id(k)=1
-          else if (varcnt.ge.ts .and. varcnt.lt.qs) then
-            nvar_id(k)=4
-            levs_id(k)=varcnt-ts+1
-          else if (varcnt.ge.qs .and. varcnt.lt.ozs) then
-            nvar_id(k)=5
-            levs_id(k)=varcnt-qs+1
-          else if (varcnt.ge.ozs .and. varcnt.lt.tss) then
-            nvar_id(k)=6
-            levs_id(k)=varcnt-ozs+1
-          else if (varcnt.eq.tss) then
-            nvar_id(k)=7
-            levs_id(k)=1
-          else if (varcnt.eq.tls) then
-            nvar_id(k)=9
-            levs_id(k)=1
-          else if (varcnt.eq.tis) then
-            nvar_id(k)=10
-            levs_id(k)=1
+          else if (varcnt>=vps .and. varcnt<pss) then
+            nvar_id(k)=2_i_kind
+            levs_id(k)=varcnt-vps+ione
+          else if (varcnt==pss) then
+            nvar_id(k)=3_i_kind
+            levs_id(k)=1_i_kind
+          else if (varcnt>=ts .and. varcnt<qs) then
+            nvar_id(k)=4_i_kind
+            levs_id(k)=varcnt-ts+ione
+          else if (varcnt>=qs .and. varcnt<ozs) then
+            nvar_id(k)=5_i_kind
+            levs_id(k)=varcnt-qs+ione
+          else if (varcnt>=ozs .and. varcnt<tss) then
+            nvar_id(k)=6_i_kind
+            levs_id(k)=varcnt-ozs+ione
+          else if (varcnt==tss) then
+            nvar_id(k)=7_i_kind
+            levs_id(k)=ione
+          else if (varcnt==tls) then
+            nvar_id(k)=9_i_kind
+            levs_id(k)=ione
+          else if (varcnt==tis) then
+            nvar_id(k)=10_i_kind
+            levs_id(k)=ione
           else
-            nvar_id(k)=8
-            levs_id(k)=varcnt-cwms+1
+            nvar_id(k)=8_i_kind
+            levs_id(k)=varcnt-cwms+ione
           end if ! end if for varcnt
         end if ! end if for task id
       end do ! enddo over levs
     end do ! enddo over npe
 
 
-    nnnn1o=0
+    nnnn1o=izero
     do k=1,nsig1o
-       if (levs_id(k)/=0) nnnn1o=nnnn1o+1
+       if (levs_id(k)/=izero) nnnn1o=nnnn1o+ione
     end do
 
 
@@ -526,24 +552,24 @@ contains
  
 ! Load temp array in desired order
     do k=1,k_use
-      iskip=0
-      iloc=0
+      iskip=izero
+      iloc=izero
       do n=1,npe
-        if (n/=1) then
-          iskip=iskip+ijn(n-1)*k_in
+        if (n/=ione) then
+          iskip=iskip+ijn(n-ione)*k_in
         end if
         do i=1,ijn(n)
-          iloc=iloc+1
-          temp(iloc,k)=work(i + iskip + (k-1)*ijn(n))
+          iloc=iloc+ione
+          temp(iloc,k)=work(i + iskip + (k-ione)*ijn(n))
         end do
       end do
     end do
 
 ! Load the temp array back into work
-    iloc=0
+    iloc=izero
     do k=1,k_use
       do i=1,itotsub
-        iloc=iloc+1
+        iloc=iloc+ione
         work(iloc)=temp(i,k)
       end do
     end do
@@ -602,8 +628,8 @@ contains
     real(r_kind),dimension(itotsub*k_in):: temp
 
 ! Load temp array in order of subdomains
-    iloc=0
-    iskip=0
+    iloc=izero
+    iskip=izero
     do n=1,npe
 
       do k=1,k_use
@@ -617,10 +643,10 @@ contains
     end do
 
 ! Now load the tmp array back into work
-    iloc=0
+    iloc=izero
     do k=1,k_in
       do i=1,itotsub
-        iloc=iloc+1
+        iloc=iloc+ione
         work(i,k)=temp(iloc)
       end do
     end do
@@ -682,9 +708,9 @@ contains
 
     do k=1,nz
       do j=1,lon1
-        jp1 = j+1
+        jp1 = j+ione
         do i=1,lat1
-          field_out(i,j,k)=field_in(i+1,jp1,k)
+          field_out(i,j,k)=field_in(i+ione,jp1,k)
         end do
       end do
     end do
@@ -706,19 +732,19 @@ contains
 
 ! !USES:
 
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind
     use gridmod, only: lat1,lon1,lat2,lon2
     implicit none
 
 ! !INPUT PARAMETERS:
 
     integer(i_kind), intent(in)::  nz        !  number of levs in subdomain array
-    real(r_kind),dimension(lat2,lon2,nz),intent(in):: field_in   ! full subdomain 
+    real(r_kind),dimension(lat2,lon2,nz),intent(in):: field_in    ! full subdomain 
                                                                   !    array containing 
                                                                   !    buffer points
 ! !OUTPUT PARAMETERS:
 
-    real(r_kind),dimension(lat1,lon1,nz),intent(out):: field_out ! subdomain array
+    real(r_kind),dimension(lat1,lon1,nz),intent(out):: field_out  ! subdomain array
                                                                   !   with buffer points
                                                                   !   stripped off
 
@@ -746,9 +772,9 @@ contains
 
     do k=1,nz
       do j=1,lon1
-        jp1 = j+1
+        jp1 = j+ione
         do i=1,lat1
-          field_out(i,j,k)=field_in(i+1,jp1,k)
+          field_out(i,j,k)=field_in(i+ione,jp1,k)
         end do
       end do
     end do
@@ -856,10 +882,10 @@ subroutine reload(work_in,work_out)
   integer(i_kind) i,j,k,ij
 
   do k=1,nsig
-     ij=0
+     ij=izero
      do j=1,lon2
         do i=1,lat2
-           ij=ij+1
+           ij=ij+ione
            work_out(i,j,k)=work_in(ij,k)
         end do
      end do
@@ -920,16 +946,16 @@ end subroutine reload
 
     do k=1,nz
       do j=1,lon1
-        jp1 = j+1
+        jp1 = j+ione
         do i=1,lat1
-          field_out(i,j,k)=field_in(i+1,jp1,k)
+          field_out(i,j,k)=field_in(i+ione,jp1,k)
         end do
       end do
     end do
     do k=1,nz
        do i=1,lat1
-          field_out(i,1,k)    = field_out(i,1,k)    + field_in(i+1,lon2,k)
-          field_out(i,lon1,k) = field_out(i,lon1,k) + field_in(i+1,1,k)
+          field_out(i,1,k)    = field_out(i,1,k)    + field_in(i+ione,lon2,k)
+          field_out(i,lon1,k) = field_out(i,lon1,k) + field_in(i+ione,1,k)
        end do
     end do
 
@@ -950,6 +976,18 @@ end subroutine reload
 ! !USES:
     implicit none
 
+! ! INPUT PARAMETERS:
+
+    integer(i_kind)                 ,intent(in   ):: iworld_group
+    integer(i_kind)                 ,intent(in   ):: ierr,nsize
+    integer(i_kind),dimension(nsize),intent(in   ):: members
+
+! ! OUTPUT PARAMETERS:
+
+! ! INPUT/OUTPUT PARAMETERS:
+
+    integer(i_kind)                 ,intent(inout):: iworld,ncomma
+
 ! !DESCRIPTION: set mpi communicator
 !
 ! !REVISION HISTORY:
@@ -967,9 +1005,8 @@ end subroutine reload
 !
 !EOP
 !-------------------------------------------------------------------------
-    integer(i_kind):: iworld,iworld_group,ncomma
-    integer(i_kind):: ncommva_group,ierr,nsize
-    integer(i_kind),dimension(nsize):: members
+
+    integer(i_kind) :: ncommva_group
 
     ncomma=mpi_comm_world
     iworld=mpi_comm_world

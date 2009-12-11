@@ -79,7 +79,7 @@ subroutine read_guess(mype)
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,&
        twodvar_regional,netcdf,regional,nems_nmmb_regional
 
-  use constants, only: izero,zero,one,fv
+  use constants, only: izero,ione,zero,one,fv
   use ncepgfs_io, only: read_gfsatm
 
   implicit none
@@ -154,7 +154,7 @@ subroutine read_guess(mype)
         
 ! If doing SBC, apply bias correction ...
 
-  if(biascor>=zero .and. iret_bias==izero .and. bcoption==1 ) call correct_bias()
+  if(biascor>=zero .and. iret_bias==izero .and. bcoption==ione ) call correct_bias()
 
 ! Get sensible temperature (after bias correction's been applied)
 

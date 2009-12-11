@@ -14,7 +14,7 @@ subroutine model_ad(xini,xobs,ldprt)
 use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
 use gsi_4dvar, only: iadateend,idmodel
-use constants, only: zero,izero,r3600
+use constants, only: izero,ione,zero,r3600
 use state_vectors
 use geos_pertmod, only: ndtpert
 use m_tick, only: tick
@@ -96,7 +96,7 @@ nfrctl = NINT(winsub*r3600/tstep)
 nfrobs = NINT(hr_obsbin*r3600/tstep)
 nymdi  =  iadateend/100
 nhmsi  = (iadateend-100*nymdi)*10000
-!nymdi=20060102; nhmsi=050000
+!nymdi=20060102_i_kind; nhmsi=050000_i_kind
 
 if (ldprt) write(6,'(a,3(1x,i4))')'model_ad: nstep,nfrctl,nfrobs=',nstep,nfrctl,nfrobs
 
@@ -115,7 +115,7 @@ endif
 ii=nobs_bins
 
 ! Post-process final state
-if (nobs_bins>1) then
+if (nobs_bins>ione) then
   if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_ad: retrieving state nymdi,nhmsi,nobs_bins=',nymdi,nhmsi,nobs_bins
   call self_add(xx,xobs(nobs_bins))
   if (.not.idmodel) then
@@ -123,7 +123,7 @@ if (nobs_bins>1) then
   endif
 endif
 ! Run AD model
-do istep=nstep-1,0,-1
+do istep=nstep-ione,0,-1
   call tick(nymdi,nhmsi,-dt)
 
 ! Apply AD model
@@ -136,18 +136,18 @@ do istep=nstep-1,0,-1
 #endif /* GEOS_PERT */
 
 ! Apply AD trajectory model (same time steps as obsbin)
-  if (MOD(istep,nfrobs)==0 .and. ntotal_orig_lag>izero) then
-    ii=istep/nfrobs+1
+  if (MOD(istep,nfrobs)==izero .and. ntotal_orig_lag>izero) then
+    ii=istep/nfrobs+ione
     if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_ad: trajectory model nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
-    if (ii<1.or.ii>nobs_bins) call abor1('model_ad: error xobs')
+    if (ii<ione.or.ii>nobs_bins) call abor1('model_ad: error xobs')
     ! Execute AD model for each balloon (loop step insensitive)
     do jj=1,nlocal_orig_lag
-      ad_tmp_locvect = lag_ad_vec(jj,ii+1,:)
+      ad_tmp_locvect = lag_ad_vec(jj,ii+ione,:)
       ! if (.not.idmodel) then
-        call lag_rk2iter_ad(lag_tl_spec_i(jj,ii,:),lag_tl_spec_r(jj,ii,:),&
-          &ad_tmp_locvect(1),ad_tmp_locvect(2),ad_tmp_locvect(3),&
-          &lag_u_full(:,:,ii),lag_v_full(:,:,ii))
-        print '(A,I3,A,F16.6,F16.6)',"ADiter: ",ii," location",lag_ad_vec(jj,ii,1),lag_ad_vec(jj,ii,2)
+      call lag_rk2iter_ad(lag_tl_spec_i(jj,ii,:),lag_tl_spec_r(jj,ii,:),&
+        &ad_tmp_locvect(1),ad_tmp_locvect(2),ad_tmp_locvect(3),&
+        &lag_u_full(:,:,ii),lag_v_full(:,:,ii))
+      print '(A,I3,A,F16.6,F16.6)',"ADiter: ",ii," location",lag_ad_vec(jj,ii,1),lag_ad_vec(jj,ii,2)
       ! end if
       lag_ad_vec(jj,ii,:)=lag_ad_vec(jj,ii,:)+ad_tmp_locvect
     end do
@@ -158,15 +158,15 @@ do istep=nstep-1,0,-1
   endif
 
 ! Post-process x_{istep}
-  if (MOD(istep,nfrobs)==0) then
-    ii=istep/nfrobs+1
+  if (MOD(istep,nfrobs)==izero) then
+    ii=istep/nfrobs+ione
     if (ldprt) write(6,'(2a,i8.8,1x,i6.6,2(1x,i4))')myname,': retrieving state nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
     call self_add(xx,xobs(ii))
   endif
 
 ! Apply control vector to x_{istep}
-  if (MOD(istep,nfrctl)==0) then
-      ii=istep/nfrctl+1
+  if (MOD(istep,nfrctl)==izero) then
+      ii=istep/nfrctl+ione
       if (ldprt) write(6,'(2a,i8.8,1x,i6.6,2(1x,i4))')myname,': adj adding WC nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
       xini(ii)=xx
       d0=dot_product(xobs(ii),xx)

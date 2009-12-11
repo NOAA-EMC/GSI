@@ -85,13 +85,21 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use satthin, only: makegrids,map2tgrid,destroygrids, &
                finalcheck,itxmax
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv,two
+  use constants, only: izero,ione,deg2rad,zero,rad2deg,one_tenth,r60inv,two
   use obsmod, only: iadate,offtime_data,nloz_v6,nloz_v8
   use convinfo, only: nconvtype, &
         icuse,ictype,ioctype
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
   use qcmod, only: use_poq7
   implicit none
+
+! Declare passed variables
+  character(len=*),intent(in   ) :: obstype,infile,jsatid
+  character(len=*),intent(in   ) :: sis
+  integer(i_kind) ,intent(in   ) :: lunout,ithin
+  integer(i_kind) ,intent(inout) :: nread
+  integer(i_kind) ,intent(inout) :: ndata,nodata
+  real(r_kind)    ,intent(in   ) :: gstime,twind,rmesh
 
 ! Declare local parameters
   real(r_kind),parameter:: r6   = 6.0_r_kind
@@ -101,14 +109,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   real(r_kind),parameter:: r360 = 360.0_r_kind
   real(r_kind),parameter:: rmiss = -9999.9_r_kind
   real(r_kind),parameter:: badoz = 10000.0_r_kind
-
-! Declare passed variables
-  character(len=*),intent(in):: obstype,infile,jsatid
-  character(len=*),intent(in):: sis
-  integer(i_kind),intent(in):: lunout,ithin
-  integer(i_kind),intent(inout):: nread
-  integer(i_kind),intent(inout):: ndata,nodata
-  real(r_kind),intent(in):: gstime,twind,rmesh
 
 ! Declare local variables
   logical outside,version6,version8,iuse
@@ -169,29 +169,29 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
        / 'CLDMNT ACIDX STKO VZAN TOQC TOQF FOVN AFBO' /
 
 
-  data lunin / 10 /
-! data ithin / -9 /
-! data rmesh / -99.999 /
+  data lunin / 10_i_kind /
+! data ithin / -9_i_kind /
+! data rmesh / -99.999_i_kind /
   data subset6 / 'NC008010' /
   data subset8 / 'NC008011' /
 
 !**************************************************************************
 ! Set constants.  Initialize variables
-  rsat=999.
-  maxobs=1e6
-  ilon=3
-  ilat=4
-  ipoq7=0
-  if (use_poq7) ipoq7=7
+  rsat=999._r_kind
+  maxobs=1e6_i_kind
+  ilon=3_i_kind
+  ilat=4_i_kind
+  ipoq7=izero
+  if (use_poq7) ipoq7=7_i_kind
 
 
 ! Separately process sbuv or omi ozone
   
   if (obstype == 'sbuv2' ) then
 
-     nreal=9
+     nreal=9_i_kind
      open(lunin,file=infile,form='unformatted')
-     nmrecs=0
+     nmrecs=izero
      call openbf(lunin,'IN',lunin)
      call datelen(10)
      call readmg(lunin,subset,idate,iret)
@@ -214,10 +214,10 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      endif
 
 !    Set dependent variables and allocate arrays
-     nchanl=nloz+1
+     nchanl=nloz+ione
      nozdat=nreal+nchanl
      allocate (ozout(nozdat,maxobs))
-     allocate (  poz(nloz+1))
+     allocate (  poz(nloz+ione))
 
 
 !    Set BUFR string based on sbuv version
@@ -227,14 +227,14 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         ozstr='SAID CLAT CLON YEAR MNTH DAYS HOUR MINU SECO SOZA'
      endif
 
-     if(iret/=0) goto 160
+     if(iret/=izero) goto 160
      write(6,*)'READ_OZONE: bufr file date is ',idate,infile,jsatid
      IF (idate<iadatebgn.OR.idate>iadateend) THEN
         if(offtime_data) then
-          write(6,*)'***READ_OZONE analysis and data file date differ, but use anyway'
+           write(6,*)'***READ_OZONE analysis and data file date differ, but use anyway'
         else
-          write(6,*)'***READ_OZONE ERROR*** ',&
-             'incompatable analysis and observation date/time'
+           write(6,*)'***READ_OZONE ERROR*** ',&
+              'incompatable analysis and observation date/time'
         end if
         write(6,*)'Analysis start  :',iadatebgn
         write(6,*)'Analysis end    :',iadateend
@@ -244,9 +244,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      
 110  continue
      call readsb(lunin,iret)
-     if (iret/=0) then
+     if (iret/=izero) then
         call readmg(lunin,subset,jdate,iret)
-        if (iret/=0) goto 150
+        if (iret/=izero) goto 150
         goto 110
      endif
      
@@ -255,20 +255,20 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    Dennis Keyser's website,
 !    http://www.emc.ncep.noaa.gov/mmb/papers/keyser/Satellite_Historical.txt
 
-     call ufbint(lunin,hdroz,10,1,iret,ozstr)
+     call ufbint(lunin,hdroz,10_i_kind,ione,iret,ozstr)
      rsat = hdroz(1); ksatid=rsat
-     if(jsatid == 'nim07') kidsat = 767
-     if(jsatid == 'n09') kidsat = 201
-     if(jsatid == 'n11') kidsat = 203
-     if(jsatid == 'n14') kidsat = 205
-     if(jsatid == 'n16') kidsat = 207
-     if(jsatid == 'n17') kidsat = 208
-     if(jsatid == 'n18') kidsat = 209
-     if(jsatid == 'n19') kidsat = 223
+     if(jsatid == 'nim07') kidsat = 767_i_kind
+     if(jsatid == 'n09') kidsat = 201_i_kind
+     if(jsatid == 'n11') kidsat = 203_i_kind
+     if(jsatid == 'n14') kidsat = 205_i_kind
+     if(jsatid == 'n16') kidsat = 207_i_kind
+     if(jsatid == 'n17') kidsat = 208_i_kind
+     if(jsatid == 'n18') kidsat = 209_i_kind
+     if(jsatid == 'n19') kidsat = 223_i_kind
 
      if (ksatid /= kidsat) go to 110
 
-     nmrecs=nmrecs+nloz+1
+     nmrecs=nmrecs+nloz+ione
     
 !    Convert observation location to radians
      slats0= hdroz(2)
@@ -284,8 +284,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd(dlat,ione,rlats,nlat,ione)
+        call grdcrd(dlon,ione,rlons,nlon,ione)
      endif
      
 !    Special check for NOAA-17 version 6
@@ -296,11 +296,11 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    Angles (SZA) greater than 76 Degrees.
 
      if (version6) then
-       solzen = hdroz(9)    ! solar zenith angle
-       solzenp= hdroz(10)   ! profile solar zenith angle
-       if (ksatid==208 .and. dlat_earth<zero .and. solzenp > r76) goto 110
+        solzen = hdroz(9)    ! solar zenith angle
+        solzenp= hdroz(10)   ! profile solar zenith angle
+        if (ksatid==208_i_kind .and. dlat_earth<zero .and. solzenp > r76) goto 110
      else if(version8)then
-       solzen = hdroz(10)    ! solar zenith angle
+        solzen = hdroz(10)    ! solar zenith angle
      endif
 
 !    Convert observation time to relative time
@@ -312,35 +312,35 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call w3fs21(idate5,nmind)
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
      if (l4dvar) then
-       if(t4dv<zero .OR. t4dv>winlen) goto 110
+        if(t4dv<zero .OR. t4dv>winlen) goto 110
      else
-       sstime=real(nmind,r_kind)
-       tdiff=(sstime-gstime)*r60inv
-       if(abs(tdiff) > twind) goto 110
+        sstime=real(nmind,r_kind)
+        tdiff=(sstime-gstime)*r60inv
+        if(abs(tdiff) > twind) goto 110
      end if
      
 !    Extract layer ozone values and compute profile total ozone
      if (version8) then
-       call ufbseq(lunin,ozone_v8,29,21,iret,'OZOPQLSQ')
-       totoz=zero
-       do k=1,nloz
-         kk=nloz-k+1
-         poz(k) = ozone_v8(6,kk)
-         totoz=totoz+ozone_v8(6,k)
-       end do
-       poz(nloz+1) = totoz
+        call ufbseq(lunin,ozone_v8,29_i_kind,21_i_kind,iret,'OZOPQLSQ')
+        totoz=zero
+        do k=1,nloz
+           kk=nloz-k+ione
+           poz(k) = ozone_v8(6,kk)
+           totoz=totoz+ozone_v8(6,k)
+        end do
+        poz(nloz+ione) = totoz
      endif
  
      if (version6) then
-       call ufbint(lunin,ozone_v6,nloz,1,iret,lozstr)
-       do k=1,nloz
-         kk=nloz-k+1
-         poz(k) = ozone_v6(kk)
-       end do
+        call ufbint(lunin,ozone_v6,nloz,ione,iret,lozstr)
+        do k=1,nloz
+           kk=nloz-k+ione
+           poz(k) = ozone_v6(kk)
+        end do
 
-!      extract total ozone
-       call ufbint(lunin,totoz,1,1,iret,'OTSP')
-       poz(nloz+1) = totoz
+!       extract total ozone
+        call ufbint(lunin,totoz,ione,ione,iret,'OTSP')
+        poz(nloz+ione) = totoz
      endif
 
 
@@ -359,10 +359,10 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      toq=zero
      poq=zero
      if (version8) then
-       call ufbint(lunin,toq,1,1,iret,'SBUVTOQ')
-       call ufbint(lunin,poq,1,1,iret,'SBUVPOQ')
-       if (toq/=0 .and. toq/=2) goto 110
-       if (poq/=0 .and. poq/=1 .and. poq/=ipoq7) goto 110
+        call ufbint(lunin,toq,ione,ione,iret,'SBUVTOQ')
+        call ufbint(lunin,poq,ione,ione,iret,'SBUVPOQ')
+        if (toq/=izero .and. toq/=2_i_kind) goto 110
+        if (poq/=izero .and. poq/=ione .and. poq/=ipoq7) goto 110
      endif
 
 !    Check ozone layer values.  If any layer value is bad, toss entire profile
@@ -371,8 +371,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      end do
      
 !    Write ozone record to output file
-     ndata=min(ndata+1,maxobs)
-     nodata=nodata+nloz+1
+     ndata=min(ndata+ione,maxobs)
+     nodata=nodata+nloz+ione
      ozout(1,ndata)=rsat
      ozout(2,ndata)=t4dv
      ozout(3,ndata)=dlon               ! grid relative longitude
@@ -382,8 +382,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      ozout(7,ndata)=toq                ! total ozone error flag
      ozout(8,ndata)=poq                ! profile ozone error flag
      ozout(9,ndata)=solzen             ! solar zenith angle
-     do k=1,nloz+1
-        ozout(k+9,ndata)=poz(k)
+     do k=1,nloz+ione
+        ozout(k+9_i_kind,ndata)=poz(k)
      end do
 
 !    Loop back to read next profile
@@ -548,9 +548,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call makegrids(rmesh,ithin)
 
 !    Set dependent variables and allocate arraysn
-     nreal=14
-     nloz=0
-     nchanl=1
+     nreal=14_i_kind
+     nloz=izero
+     nchanl=ione
      nozdat=nreal+nchanl
      allocate (ozout(nozdat,itxmax))
      do k=1,itxmax
@@ -560,7 +560,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      end do
 
 
-     nmrecs=0
+     nmrecs=izero
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -573,21 +573,21 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         goto 170
      endif
 
-     iy=0
-     im=0
-     idd=0
-     ihh=0
-     if(iret/=0) goto 160
+     iy=izero
+     im=izero
+     idd=izero
+     ihh=izero
+     if(iret/=izero) goto 160
      write(date,'( i10)') idate
      read (date,'(i4,3i2)') iy,im,idd,ihh
      write(6,*)'READ_OZONE:    ozone bufr file date is ',iy,im,idd,ihh,infile
      if(iy/=iadate(1).or.im/=iadate(2).or.idd/=iadate(3).or.&
           ihh/=iadate(4)) then
         if(offtime_data) then
-          write(6,*)'***READ_OZONE analysis and data file date differ, but use anyway'
+           write(6,*)'***READ_OZONE analysis and data file date differ, but use anyway'
         else
-          write(6,*)'***READ_OZONE ERROR*** incompatable analysis and observation ',&
-              'date/time'
+           write(6,*)'***READ_OZONE ERROR*** incompatable analysis and observation ',&
+               'date/time'
         end if
         write(6,*)' year  anal/obs ',iadate(1),iy
         write(6,*)' month anal/obs ',iadate(2),im
@@ -598,22 +598,22 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 130  continue
      call readsb(lunin,iret)
-     if (iret/=0) then
+     if (iret/=izero) then
         call readmg(lunin,subset,jdate,iret)
-        if (iret/=0) goto 150
+        if (iret/=izero) goto 150
         goto 130
      endif
 
 !    extract header information
-     call ufbint(lunin,hdrozo,10,1,iret,ozostr)
-     call ufbint(lunin,hdrozo2,8,1,iret,ozostr2)
+     call ufbint(lunin,hdrozo,10_i_kind,ione,iret,ozostr)
+     call ufbint(lunin,hdrozo2,8_i_kind,ione,iret,ozostr2)
      rsat = hdrozo(1); ksatid=rsat
 
-     if(jsatid == 'aura')kidsat = 785
+     if(jsatid == 'aura')kidsat = 785_i_kind
      if (ksatid /= kidsat) go to 130
 
 
-     nmrecs=nmrecs+nloz+1
+     nmrecs=nmrecs+nloz+ione
 
 !    Convert observation location to radians
      slats0= hdrozo(2)
@@ -629,8 +629,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd(dlat,ione,rlats,nlat,ione)
+        call grdcrd(dlon,ione,rlons,nlon,ione)
      endif
 
 ! convert observation time to relative time
@@ -643,26 +643,26 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
      if (l4dvar) then
-       if (t4dv<zero .OR. t4dv>winlen) go to 130
+        if (t4dv<zero .OR. t4dv>winlen) go to 130
      else
-       sstime=real(nmind,r_kind)
-       tdiff=(sstime-gstime)*r60inv
-       if(abs(tdiff) > twind) go to 130
+        sstime=real(nmind,r_kind)
+        tdiff=(sstime-gstime)*r60inv
+        if(abs(tdiff) > twind) go to 130
      end if
 
 !    extract total ozone
-     call ufbint(lunin,totoz,1,1,iret,'OZON')
+     call ufbint(lunin,totoz,ione,ione,iret,'OZON')
      if (totoz > badoz ) goto 130
 
 !    only accept flag 0 1, flag 2 is high SZA data which is not used for now
      toq=hdrozo2(5)
-     if (toq/=0 .and. toq/=1) goto 130
+     if (toq/=izero .and. toq/=ione) goto 130
 
 !    remove the bad scan position data: fovn beyond 28
-     if (hdrozo2(7) >=28.0) goto 130
+     if (hdrozo2(7) >=28.0_r_double) goto 130
 
 !    remove the data in which the C-pair algorithm ((331 and 360 nm) is used. 
-     if (hdrozo2(8) == 3 .or. hdrozo2(8) == 13) goto 130
+     if (hdrozo2(8) == 3_r_double .or. hdrozo2(8) == 13_r_double) goto 130
 
 
 !    thin OMI data
@@ -675,60 +675,60 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call finalcheck(dist1,crit1,itx,iuse)
      if(.not. iuse)go to 130
    
-     ndata=ndata+1
+     ndata=ndata+ione
      nodata=ndata
 
 
 
-    ozout(1,itx)=rsat
-    ozout(2,itx)=t4dv
-    ozout(3,itx)=dlon               ! grid relative longitude
-    ozout(4,itx)=dlat               ! grid relative latitude
-    ozout(5,itx)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-    ozout(6,itx)=dlat_earth*rad2deg ! earth relative latitude (degrees)
-    ozout(7,itx)=hdrozo2(5)         ! total ozone quality code
-    ozout(8,itx)=hdrozo(10)         ! solar zenith angle
-    ozout(9,itx)=hdrozo2(6)         ! total ozone quality flag
-    ozout(10,itx)=hdrozo2(1)        !  cloud amount
-    ozout(11,itx)=hdrozo2(4)        !  vzan
-    ozout(12,itx)=hdrozo2(2)        !  aerosol index
-    ozout(13,itx)=hdrozo2(3)        !  ascending/descending
-    ozout(14,itx)=hdrozo2(7)        !  scan position
-    ozout(15,itx)=totoz
+     ozout(1,itx)=rsat
+     ozout(2,itx)=t4dv
+     ozout(3,itx)=dlon               ! grid relative longitude
+     ozout(4,itx)=dlat               ! grid relative latitude
+     ozout(5,itx)=dlon_earth*rad2deg ! earth relative longitude (degrees)
+     ozout(6,itx)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+     ozout(7,itx)=hdrozo2(5)         ! total ozone quality code
+     ozout(8,itx)=hdrozo(10)         ! solar zenith angle
+     ozout(9,itx)=hdrozo2(6)         ! total ozone quality flag
+     ozout(10,itx)=hdrozo2(1)        !  cloud amount
+     ozout(11,itx)=hdrozo2(4)        !  vzan
+     ozout(12,itx)=hdrozo2(2)        !  aerosol index
+     ozout(13,itx)=hdrozo2(3)        !  ascending/descending
+     ozout(14,itx)=hdrozo2(7)        !  scan position
+     ozout(15,itx)=totoz
 
 !    End of loop over observations
-    go to 130
+     go to 130
 
 ! End of OMI block
 
   else if (obstype == 'mlsoz') then
 
-     nreal = 15
-     nchanl = 0
+     nreal = 15_i_kind
+     nchanl = izero
      nozdat = nreal+nchanl
      allocate (ozout(nozdat,maxobs))
 
-     itype = 304
-     if (sis .eq. 'mls_aura_ozpc') itype = 303
+     itype = 304_i_kind
+     if (sis == 'mls_aura_ozpc') itype = 303_i_kind
 
      do i=1,nconvtype
         if( trim(ioctype(i)) == 'o3lev' .and. itype == ictype(i)  &
              .and. abs(icuse(i))== 1) ikx=i
      end do
 
-     if (ikx == 0) then
+     if (ikx == izero) then
         write(6,*)'READ_OZONE: ozone type ',itype,&
              ' not found or flagged for non-use'
 
      else  ! obs type to be used
 
-        if (icuse(ikx) < 0) then
-           usage = 100.
+        if (icuse(ikx) < izero) then
+           usage = 100._r_double
         else
-           usage = 0.
+           usage = zero
         endif
      
-        nmrecs=0
+        nmrecs=izero
         open(lunin,file=infile,form='formatted')
         
 2       format(i5,4i3,f6.2,i7,i5,f10.4,f11.4,e16.7,i7,i5,g16.7,g15.7,f6.3)
@@ -743,7 +743,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
         eof = .false.
 
-        do while ( ndata .lt. maxobs )
+        do while ( ndata < maxobs )
            read(lunin,2,end=150,err=160) iy,im,idd,ihh,imin,rsec,isnd,&
                 ilev,slats,slons,ppmv,iflg,mflg,prec,pres,obserr
 
@@ -761,10 +761,10 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            else
               dlat = dlat_earth
               dlon = dlon_earth
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd(dlat,ione,rlats,nlat,ione)
+              call grdcrd(dlon,ione,rlons,nlon,ione)
            endif
-           nmrecs=nmrecs+1
+           nmrecs=nmrecs+ione
            idate5(1) = iy !year
            idate5(2) = im !month
            idate5(3) = idd !day
@@ -773,29 +773,29 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            call w3fs21(idate5,nmind)
            t4dv=real((nmind-iwinbgn),r_kind)*r60inv
            if (l4dvar) then
-             if (t4dv<zero .OR. t4dv>winlen) then
-               write(6,*)'READ_OZONE: mls obs time idate5=',idate5,', t4dv=',&
-                    t4dv,' is outside time window, sstime=',sstime*r60inv
-               cycle
-             end if
+              if (t4dv<zero .OR. t4dv>winlen) then
+                 write(6,*)'READ_OZONE: mls obs time idate5=',idate5,', t4dv=',&
+                      t4dv,' is outside time window, sstime=',sstime*r60inv
+                 cycle
+              end if
            else
-             sstime=real(nmind,r_kind)
-             tdiff=(sstime-gstime)*r60inv
-             if(abs(tdiff) > twind)then
-               write(6,*)'READ_OZONE: mls obs time idate5=',idate5,', tdiff=',&
-                    tdiff,' is outside time window=',twind
-               cycle
-             end if
+              sstime=real(nmind,r_kind)
+              tdiff=(sstime-gstime)*r60inv
+              if(abs(tdiff) > twind)then
+                 write(6,*)'READ_OZONE: mls obs time idate5=',idate5,', tdiff=',&
+                      tdiff,' is outside time window=',twind
+                 cycle
+              end if
            end if
 
            pob = log(pres * one_tenth)
         
 ! use 'precision' as obs error if itype equals 303
 ! (needed a way to switch for testing)
-           if (itype == 303.) obserr = prec
+           if (itype == 303_i_kind) obserr = prec
            
-           ndata=ndata+1
-           nodata = nodata + 1      
+           ndata=ndata+ione
+           nodata = nodata + ione      
            ozout(1,ndata)=rsat
            ozout(2,ndata)=t4dv
            ozout(3,ndata)=dlon                 ! grid relative longitude
@@ -807,7 +807,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            ozout(9,ndata)= real(isnd,r_kind)   ! sounding flag
            ozout(10,ndata) = float(ikx)        ! pointer of obs type in convinfo
            ozout(11,ndata) = usage             ! usage=100. for passive
-           if (ilev .gt. 24) ozout(11,ndata) = 100.  !force passive 0.1 mb
+           if (ilev > 24_i_kind) ozout(11,ndata) = 100._r_kind  !force passive 0.1 mb
            ozout(12,ndata) = obserr            ! observation error
            ozout(13,ndata) = real(iflg,r_kind) ! status flag
            ozout(14,ndata) = real(mflg,r_kind) ! 100. * quality flag
@@ -825,10 +825,10 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! If gome or omi data, compress ozout array to thinned data
   if (obstype=='omi' .or. obstype=='gome') then
-     kk=0
+     kk=izero
      do k=1,itxmax
         if (ozout(1,k)>zero) then
-           kk=kk+1
+           kk=kk+ione
            do i=1,nozdat
               ozout(i,kk)=ozout(i,k)
            end do

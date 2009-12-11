@@ -30,7 +30,7 @@ subroutine pcgsqrt(xhat,costf,gradx,itermax,nprt)
 
 use kinds, only: r_kind,i_kind,r_quad
 use jfunc, only: iter,jiter
-use constants, only: zero,zero_quad,tiny_r_kind
+use constants, only: izero,zero,zero_quad,tiny_r_kind
 use mpimod, only: mype
 use control_vectors
 
@@ -68,7 +68,7 @@ zgk=zg0
 
 ! Perform inner iteration
 inner_iteration: do iter=1,itermax
-  if (mype==0) write(6,*)trim(myname),': Minimization iteration',iter
+  if (mype==izero) write(6,*)trim(myname),': Minimization iteration',iter
 
 ! Search direction
   do ii=1,dirx%lencv
@@ -104,7 +104,7 @@ inner_iteration: do iter=1,itermax
   if(abs(zgk)>tiny_r_kind) beta=zgnew/zgk
   zgk=zgnew
 
-  if (mype==0) then
+  if (mype==izero) then
     if (abs(zg0)>tiny_r_kind) then
       write(6,999)trim(myname),': grepgrad grad,reduction=',jiter,iter,sqrt(real(zgk,r_kind)),&
                                                          sqrt(real(zgk,r_kind)/real(zg0,r_kind))

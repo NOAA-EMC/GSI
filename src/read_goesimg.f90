@@ -63,29 +63,29 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
             checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
-  use constants, only: deg2rad,zero,rad2deg,r60inv,r60
+  use constants, only: izero,ione,deg2rad,zero,rad2deg,r60inv,r60
   use obsmod, only: offtime_data
   use radinfo, only: iuse_rad,jpch_rad,nusis
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
   implicit none
 
 ! Declare passed variables
-  character(len=*),intent(in):: infile,obstype,jsatid
-  character(len=*),intent(in):: sis
-  integer(i_kind),intent(in):: mype,lunout,ithin
-  integer(i_kind),intent(inout):: ndata,nodata
-  integer(i_kind),intent(inout):: nread
-  real(r_kind),intent(in):: rmesh,gstime,twind
-  real(r_kind),intent(inout):: val_img
-  integer(i_kind),intent(in) :: mype_root
-  integer(i_kind),intent(in) :: mype_sub
-  integer(i_kind),intent(in) :: npe_sub
-  integer(i_kind),intent(in) :: mpi_comm_sub
+  character(len=*),intent(in   ) :: infile,obstype,jsatid
+  character(len=*),intent(in   ) :: sis
+  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
+  integer(i_kind) ,intent(inout) :: ndata,nodata
+  integer(i_kind) ,intent(inout) :: nread
+  real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
+  real(r_kind)    ,intent(inout) :: val_img
+  integer(i_kind) ,intent(in   ) :: mype_root
+  integer(i_kind) ,intent(in   ) :: mype_sub
+  integer(i_kind) ,intent(in   ) :: npe_sub
+  integer(i_kind) ,intent(in   ) :: mpi_comm_sub
 
 ! Declare local parameters
-  integer(i_kind),parameter:: nimghdr=13
-  integer(i_kind),parameter:: maxinfo=37
-  integer(i_kind),parameter:: maxchanl=4
+  integer(i_kind),parameter:: nimghdr=13_i_kind
+  integer(i_kind),parameter:: maxinfo=37_i_kind
+  integer(i_kind),parameter:: maxchanl=4_i_kind
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
@@ -122,13 +122,13 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 !**************************************************************************
 ! Initialize variables
-  lnbufr = 10
+  lnbufr = 10_i_kind
   disterrmax=zero
-  ntest=0
+  ntest=izero
   dg2ew = r360*deg2rad
 
-  ilon=3
-  ilat=4
+  ilon=3_i_kind
+  ilat=4_i_kind
 
   rlndsea(0) = zero
   rlndsea(1) = 15._r_kind
@@ -136,13 +136,13 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   rlndsea(3) = 15._r_kind
   rlndsea(4) = 30._r_kind
 
-  ndata=0
-  nodata=0
-  nchanl=4              ! the channel number
-  ilath=8               ! the position of latitude in the header
-  ilonh=9               ! the position of longitude in the header
-  ilzah=10              ! satellite zenith angle
-  iszah=11              ! solar zenith angle
+  ndata=izero
+  nodata=izero
+  nchanl=4_i_kind       ! the channel number
+  ilath=8_i_kind        ! the position of latitude in the header
+  ilonh=9_i_kind        ! the position of longitude in the header
+  ilzah=10_i_kind       ! satellite zenith angle
+  iszah=11_i_kind       ! solar zenith angle
   subfgn='NC021041'     ! sub message
 
 ! If all channels of a given sensor are set to monitor or not
@@ -152,7 +152,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
   assim=.false.
   search: do i=1,jpch_rad
-     if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
+     if ((nusis(i)==sis) .and. (iuse_rad(i)>izero)) then
         assim=.true.
         exit search
      endif
@@ -172,7 +172,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   call readmg(lnbufr,subset,idate,iret)
 
 ! Check the data set
-  if( iret/=0 .or. subset /= subfgn) then
+  if( iret/=izero .or. subset /= subfgn) then
      write(6,*) 'READ_GOESIMG:  SKIP PROCESSING OF GOESIMG FILE'
      write(6,*) 'infile=', lnbufr, infile,' subset=', &
           subset, ' subfgn=',subfgn
@@ -183,10 +183,10 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   write(6,*)'READ_GOESIMG: bufr file date is ',idate,infile
   IF (idate<iadatebgn.OR.idate>iadateend) THEN
      if(offtime_data) then
-       write(6,*)'***READ_GOESIMG analysis and data file date differ, but use anyway'
+        write(6,*)'***READ_GOESIMG analysis and data file date differ, but use anyway'
      else
-       write(6,*)'***READ_GOESIMG ERROR*** ',&
-          'incompatable analysis and observation date/time'
+        write(6,*)'***READ_GOESIMG ERROR*** ',&
+           'incompatable analysis and observation date/time'
      end if
      write(6,*)'Analysis start  :',iadatebgn
      write(6,*)'Analysis end    :',iadateend
@@ -198,30 +198,30 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   nele=maxinfo+nchanl
   allocate(data_all(nele,itxmax))
 
-  next=mype_sub+1
+  next=mype_sub+ione
 
 ! Big loop over bufr file
-  do while(IREADMG(lnbufr,subset,idate) >= 0)
+  do while(IREADMG(lnbufr,subset,idate) >= izero)
      call ufbcnt(lnbufr,irec,isub)
      if(irec/=next)cycle
      next=next+npe_sub
 
-     read_loop: do while (IREADSB(lnbufr) == 0)
+     read_loop: do while (IREADSB(lnbufr) == izero)
 
 !       Read through each reacord
-        call ufbint(lnbufr,hdrgoesarr,nimghdr,1,iret,hdrgoes)
-        if(jsatid == 'g08') kidsat = 252
-        if(jsatid == 'g09') kidsat = 253
-        if(jsatid == 'g10') kidsat = 254
-        if(jsatid == 'g11') kidsat = 255
-        if(jsatid == 'g12') kidsat = 256
-        if(jsatid == 'g13') kidsat = 257
+        call ufbint(lnbufr,hdrgoesarr,nimghdr,ione,iret,hdrgoes)
+        if(jsatid == 'g08') kidsat = 252_i_kind
+        if(jsatid == 'g09') kidsat = 253_i_kind
+        if(jsatid == 'g10') kidsat = 254_i_kind
+        if(jsatid == 'g11') kidsat = 255_i_kind
+        if(jsatid == 'g12') kidsat = 256_i_kind
+        if(jsatid == 'g13') kidsat = 257_i_kind
         if(hdrgoesarr(1) /= kidsat) cycle read_loop
-        call ufbrep(lnbufr,dataimg,3,6,iret,'TMBRST NCLDMNT SDTB')
+        call ufbrep(lnbufr,dataimg,3_i_kind,6_i_kind,iret,'TMBRST NCLDMNT SDTB')
         nread=nread+nchanl
 !      first step QC filter out data with less clear sky fraction
-        if (hdrgoesarr(1) == 256 .and. dataimg(2,3) < 70.0_r_kind) cycle read_loop
-        if (hdrgoesarr(1) == 254 .and. dataimg(2,3) < 40.0_r_kind) cycle read_loop
+        if (hdrgoesarr(1) == 256_r_double .and. dataimg(2,3) < 70.0_r_kind) cycle read_loop
+        if (hdrgoesarr(1) == 254_r_double .and. dataimg(2,3) < 40.0_r_kind) cycle read_loop
         if (hdrgoesarr(ilzah) >r60) cycle read_loop
 
 
@@ -235,11 +235,11 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         call w3fs21(idate5,nmind)
         t4dv = (real((nmind-iwinbgn),r_kind) + real(hdrgoesarr(7),r_kind)*r60inv)*r60inv
         if (l4dvar) then
-          if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
+           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-          sstime = real(nmind,r_kind) + real(hdrgoesarr(7),r_kind)*r60inv
-          tdiff=(sstime-gstime)*r60inv
-          if (abs(tdiff)>twind) cycle read_loop
+           sstime = real(nmind,r_kind) + real(hdrgoesarr(7),r_kind)*r60inv
+           tdiff=(sstime-gstime)*r60inv
+           if (abs(tdiff)>twind) cycle read_loop
         endif
 
 !       Convert obs location from degrees to radians
@@ -258,7 +258,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
            if(diagnostic_reg) then
               call txy2ll(dlon,dlat,dlon00,dlat00)
-              ntest=ntest+1
+              ntest=ntest+ione
               disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
                    (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
               disterrmax=max(disterrmax,disterr)
@@ -272,15 +272,15 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         else
            dlon=dlon_earth
            dlat=dlat_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd(dlat,ione,rlats,nlat,ione)
+           call grdcrd(dlon,ione,rlons,nlon,ione)
         endif
 
         if (l4dvar) then
-          crit1=0.01_r_kind
+           crit1=0.01_r_kind
         else
-          timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-          crit1=0.01_r_kind+timedif
+           timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
+           crit1=0.01_r_kind+timedif
         endif
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if(.not. iuse)cycle read_loop
@@ -317,9 +317,9 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         if(.not. iuse) cycle read_loop
 
 !       Map obs to grids
-        if(hdrgoesarr(1) == 256) then
-         dataimg(1,5)=dataimg(1,6)              ! use  brightness tem. 6 not 5
-         dataimg(3,5)=dataimg(3,6)              ! use BT tem. var. 6 not 5 
+        if(hdrgoesarr(1) == 256_r_double) then
+           dataimg(1,5)=dataimg(1,6)              ! use  brightness tem. 6 not 5
+           dataimg(3,5)=dataimg(3,6)              ! use BT tem. var. 6 not 5 
         endif
         iscan = nint(hdrgoesarr(ilzah))+1.001_r_kind ! integer scan position
         
@@ -350,7 +350,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         data_all(24,itx)= sm                          ! soil moisture
         data_all(25,itx)= sn                          ! snow depth
         data_all(26,itx)= zz                          ! surface height
-        data_all(27,itx)= idomsfc + 0.001             ! dominate surface type
+        data_all(27,itx)= idomsfc + 0.001_r_kind      ! dominate surface type
         data_all(28,itx)= sfcr                        ! surface roughness
         data_all(29,itx)= ff10                        ! ten meter wind factor
         data_all(30,itx)= dlon_earth*rad2deg          ! earth relative longitude (degrees)
@@ -362,8 +362,8 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !       Transfer observation location and other data to local arrays
 
         do k=1,nchanl
-           data_all(k+31,itx)=dataimg(3,k+1)
-           data_all(k+maxinfo,itx)=dataimg(1,k+1)
+           data_all(k+31_i_kind,itx)=dataimg(3,k+ione)
+           data_all(k+maxinfo,itx)=dataimg(1,k+ione)
         end do
 
      enddo read_loop
@@ -375,9 +375,9 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 ! If no observations read, jump to end of routine.
 
   do n=1,ndata
-    do k=1,nchanl
+     do k=1,nchanl
         if(data_all(k+maxinfo,n) > tbmin .and. &
-           data_all(k+maxinfo,n) < tbmax)nodata=nodata+1
+           data_all(k+maxinfo,n) < tbmax)nodata=nodata+ione
     end do
     itt=nint(data_all(maxinfo,n))
     super_val(itt)=super_val(itt)+val_img
@@ -395,7 +395,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   call destroygrids
   call closbf(lnbufr)
 
-  if(diagnostic_reg.and.ntest.gt.0) write(6,*)'READ_GOESIMG:  ',&
+  if(diagnostic_reg.and.ntest>izero) write(6,*)'READ_GOESIMG:  ',&
        'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
   return

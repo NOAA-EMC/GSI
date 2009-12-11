@@ -51,19 +51,19 @@ subroutine rdgrbsst(file_sst,mlat_sst,mlon_sst,&
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: h1000,half,deg2rad,zero
+  use constants, only: izero,ione,h1000,half,deg2rad,zero
   implicit none
 
-! Declare local parameters
-  integer(i_kind),parameter:: lu_sst = 21   ! FORTRAN unit number of GRIB SST file
-
 ! Declare passed variables and arrays
-  character(6),intent(in):: file_sst
-  integer(i_kind),intent(in):: mlat_sst,mlon_sst
-  integer(i_kind),intent(out):: nlat_sst,nlon_sst
-  real(r_kind),dimension(mlat_sst),intent(out):: rlats_sst
-  real(r_kind),dimension(mlon_sst),intent(out):: rlons_sst
-  real(r_kind),dimension(mlat_sst,mlon_sst),intent(out):: sst_an
+  character(6)                             ,intent(in   ) :: file_sst
+  integer(i_kind)                          ,intent(in   ) :: mlat_sst,mlon_sst
+  integer(i_kind)                          ,intent(  out) :: nlat_sst,nlon_sst
+  real(r_kind),dimension(mlat_sst)         ,intent(  out) :: rlats_sst
+  real(r_kind),dimension(mlon_sst)         ,intent(  out) :: rlons_sst
+  real(r_kind),dimension(mlat_sst,mlon_sst),intent(  out) :: sst_an
+
+! Declare local parameters
+  integer(i_kind),parameter:: lu_sst = 21_i_kind   ! FORTRAN unit number of GRIB SST file
 
 ! Declare local variables and arrays
   logical(1), allocatable, dimension(:) ::  lb
@@ -82,19 +82,19 @@ subroutine rdgrbsst(file_sst,mlat_sst,mlon_sst,&
 !
 ! Open SST analysis file (GRIB)
   call baopenr(lu_sst,trim(file_sst),iret)
-  if (iret /= 0 ) then
+  if (iret /= izero ) then
      write(6,*)'RDGRBSST:  ***ERROR*** opening SST file'
      call stop2(59)
   endif
 
 
 ! Define SST variables for read
-  j=-1
-  jpds=-1
-  jgds=-1
-  jpds(5)=11       ! SST variable
-  jpds(6)=1        ! surface
-  call getgbh(lu_sst,0,j,jpds,jgds,kg,kf,k,kpds,kgds,iret)
+  j=-ione
+  jpds=-ione
+  jgds=-ione
+  jpds(5)=11_i_kind ! SST variable
+  jpds(6)=ione      ! surface
+  call getgbh(lu_sst,izero,j,jpds,jgds,kg,kf,k,kpds,kgds,iret)
 
   nlat_sst = kgds(3)   ! number points on longitude circle (360)
   nlon_sst = kgds(2)   ! number points on latitude circle (720)
@@ -106,16 +106,16 @@ subroutine rdgrbsst(file_sst,mlat_sst,mlon_sst,&
   jf=nlat_sst*nlon_sst
 
 ! Read in the analysis
-  call getgb(lu_sst,0,jf,j,jpds,jgds,kf,k,kpds,kgds,lb,f,iret)
-  if (iret /= 0) then
+  call getgb(lu_sst,izero,jf,j,jpds,jgds,kf,k,kpds,kgds,lb,f,iret)
+  if (iret /= izero) then
      write(6,*)'RDGRBSST:  ***ERROR*** reading sst analysis data record'
      deallocate(lb,f)
      call stop2(59)
   endif
 
 ! Allocate SST analysis and the arrays for its dimensions
-  nlat_sst = nlat_sst + 2          ! Add two poles (90S & 90N)
-  nlon_sst = nlon_sst + 2          ! Add two buffer ends in zonal direction (-0.25 & 0.25)
+  nlat_sst = nlat_sst + 2_i_kind          ! Add two poles (90S & 90N)
+  nlon_sst = nlon_sst + 2_i_kind          ! Add two buffer ends in zonal direction (-0.25 & 0.25)
 
   if ( (nlat_sst>mlat_sst) .or. (nlon_sst>mlon_sst) ) then
      write(6,*)'RDGRBSST:  inconsistent dimensions.  mlat_sst,mlon_sst=',&
@@ -131,15 +131,15 @@ subroutine rdgrbsst(file_sst,mlat_sst,mlon_sst,&
   dres  =  real(kgds(9))/h1000        ! increment of latitude/longitude (the same here)
 
 ! Get lat_sst & lon_sst
-  do i = 2, nlat_sst - 1
-     rlats_sst(i) = (xsst0 + float(i-2)*dres)*deg2rad
+  do i = 2, nlat_sst - ione
+     rlats_sst(i) = (xsst0 + float(i-2_i_kind)*dres)*deg2rad
   enddo
 
   rlats_sst(1)        = -90.0_r_kind*deg2rad
   rlats_sst(nlat_sst) =  90.0_r_kind*deg2rad
   
-  do j = 2, nlon_sst - 1
-     rlons_sst(j) = (ysst0 + float(j-2)*dres)*deg2rad
+  do j = 2, nlon_sst - ione
+     rlons_sst(j) = (ysst0 + float(j-2_i_kind)*dres)*deg2rad
   enddo
 
   rlons_sst(1)        = -half*dres*deg2rad                              ! 1
@@ -156,44 +156,44 @@ subroutine rdgrbsst(file_sst,mlat_sst,mlon_sst,&
 
 ! Get i and j scanning directions from kb1 and kb2.
 ! 0 yields +1, 1 yields -1. +1 is west to east, -1 is east to west.
-  iincdir = 1-kb1*2
+  iincdir = ione-kb1*2
 
 ! 0 yields -1, 1 yields +1. +1 is south to north, -1 is north to south.
-  jincdir = kb2*2 - 1
+  jincdir = kb2*2 - ione
   do k=1,kf
 
 !    kb3 from scan mode indicates if i points are consecutive
 !    or if j points are consecutive
-     if(kb3.eq.0)then     !  (i,j)
-        i=(ni+1)*kb1+(mod(k-1,ni)+1)*iincdir
-        j=(nj+1)*(1-kb2)+jincdir*((k-1)/ni+1)
+     if(kb3==izero)then     !  (i,j)
+        i=(ni+ione)*kb1+(mod(k-ione,ni)+ione)*iincdir
+        j=(nj+ione)*(ione-kb2)+jincdir*((k-ione)/ni+ione)
      else                !  (j,i)
-        j=(nj+1)*(1-kb2)+(mod(k-1,nj)+1)*jincdir
-        i=(ni+1)*kb1+iincdir*((k-1)/nj+1)
+        j=(nj+ione)*(ione-kb2)+(mod(k-ione,nj)+ione)*jincdir
+        i=(ni+ione)*kb1+iincdir*((k-ione)/nj+ione)
      endif
-     sst(i+1,j+1)=f(k)
+     sst(i+ione,j+ione)=f(k)
   end do
 
 ! Set sst value at 90 S (1) & 90 N (362 = nlon_sst) to be mean of 
 ! adjacent row
-  i = 0
+  i = izero
   sums=zero
   sumn=zero
-  do j = 2, nlon_sst - 1
-     i    = i + 1
+  do j = 2, nlon_sst - ione
+     i    = i + ione
      sums = sums + sst(j,2)
-     sumn = sumn + sst(j,nlat_sst-1)
+     sumn = sumn + sst(j,nlat_sst-ione)
   end do
   sums = sums / float(i)
   sumn = sumn / float(i)
-  do j = 2,nlon_sst-1
+  do j = 2,nlon_sst-ione
      sst(j,1)        = sums
      sst(j,nlat_sst) = sumn
   enddo
      
 ! Get sst value for added two ends in zonal direction
   do i = 1, nlat_sst
-     sst(1,i) = sst(nlon_sst-1,i)
+     sst(1,i) = sst(nlon_sst-ione,i)
      sst(nlon_sst,i) = sst(2,i)
   enddo
      
@@ -204,7 +204,7 @@ subroutine rdgrbsst(file_sst,mlat_sst,mlon_sst,&
      enddo
   enddo
      
-  iyrstmp=kpds(8) + (kpds(21)-1)*100
+  iyrstmp=kpds(8) + (kpds(21)-ione)*100
   imstmp=kpds(9)
   idstmp=kpds(10)
   deallocate(lb,f)

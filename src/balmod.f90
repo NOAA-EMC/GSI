@@ -127,7 +127,9 @@ contains
 !
 !$$$
     implicit none
+
     deallocate(agvz,wgvz,bvz)
+
     return
   end subroutine destroy_balance_vars
 
@@ -192,7 +194,9 @@ contains
 !
 !$$$
     implicit none
+
     deallocate(rllat,rllat1,f1,agvz,wgvz,bvz)
+
     return
   end subroutine destroy_balance_vars_reg
 
@@ -261,8 +265,8 @@ contains
     call berror_read_bal(agvin,bvin,wgvin,mype)
     call berror_get_dims(msig,mlat)
     if(msig/=nsig) then
-      write(6,*) 'prebal: levs in file inconsistent with GSI',msig,nsig
-      call stop2(101)
+       write(6,*) 'prebal: levs in file inconsistent with GSI',msig,nsig
+       call stop2(101)
     end if
 
 !   Set ke_vp=nsig (note:  not used in global)
@@ -412,11 +416,11 @@ contains
 
 !   Alternatively, zero out all balance correlation matrices
 !   for univariate surface analysis
-     if (twodvar_regional) then
-        bvz(:,:)=zero
-        agvz(:,:,:)=zero
-        wgvz(:,:)=zero
-     endif
+    if (twodvar_regional) then
+       bvz(:,:)=zero
+       agvz(:,:,:)=zero
+       wgvz(:,:)=zero
+    endif
     
     deallocate ( corz,corp,hwll,hwllp,vz,agvi,bvi,wgvi)
     
@@ -480,9 +484,9 @@ contains
     implicit none
     
 !   Declare passed variables
-    real(r_kind),dimension(lat2,lon2),intent(inout):: p
-    real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,vp,st
-    logical, intent(in) :: fpsproj
+    real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p
+    real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,vp,st
+    logical                               ,intent(in   ) :: fpsproj
 
 !   Declare local variables
     integer(i_kind) i,j,k,l,m,l2,isize,lm
@@ -510,36 +514,36 @@ contains
        end do
        
 
-      if (fstat) then
+       if (fstat) then
 !      Add contribution from streamfunction to unbalanced temperature.
-      lm=(llmax+llmin)*half
-       do k=1,nsig
-          do m=1,nsig
-             do j=1,lon2
-                do i=1,lat2
-                   t(i,j,m)=t(i,j,m)+agvz(lm,m,k)*f1(i,j)*st(i,j,k)
+          lm=(llmax+llmin)*half
+          do k=1,nsig
+             do m=1,nsig
+                do j=1,lon2
+                   do i=1,lat2
+                      t(i,j,m)=t(i,j,m)+agvz(lm,m,k)*f1(i,j)*st(i,j,k)
+                   end do
                 end do
              end do
           end do
-       end do
 
-      else ! not fstat
+       else ! not fstat
 
 !      Add contribution from streamfunction to unbalanced temperature.
-       do k=1,nsig
-          do m=1,nsig
-             do j=1,lon2
-                do i=1,lat2
-                   l=int(rllat1(i,j))
-                   l2=min0(l+ione,llmax)
-                   dl2=rllat1(i,j)-float(l)
-                   dl1=one-dl2
-                   t(i,j,m)=t(i,j,m)+(dl1*agvz(l,m,k)+dl2*agvz(l2,m,k))*st(i,j,k)
+          do k=1,nsig
+             do m=1,nsig
+                do j=1,lon2
+                   do i=1,lat2
+                      l=int(rllat1(i,j))
+                      l2=min0(l+ione,llmax)
+                      dl2=rllat1(i,j)-float(l)
+                      dl1=one-dl2
+                      t(i,j,m)=t(i,j,m)+(dl1*agvz(l,m,k)+dl2*agvz(l2,m,k))*st(i,j,k)
+                   end do
                 end do
              end do
           end do
-       end do
-      endif ! fstat
+       endif ! fstat
 
 !      Add contribution from streamfunction to surface pressure.
        do k=1,nsig
@@ -661,10 +665,10 @@ contains
     implicit none
 
 !   Declare passed variables
-    real(r_kind),dimension(lat2,lon2),intent(inout):: p
-    real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t
-    real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: st,vp
-    logical, intent(in) :: fpsproj
+    real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p
+    real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t
+    real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: st,vp
+    logical                               ,intent(in   ) :: fpsproj
 
 !   Declare local variables
     integer(i_kind) l,m,l2,i,j,k,igrid,isize,lm
@@ -681,107 +685,107 @@ contains
 !   REGIONAL BRANCH
     if (regional) then
 
-      if(fstat) then
-!     Adjoint of contribution to temperature from streamfunction.
-      lm=(llmax+llmin)*half
-       do m=1,nsig
-          do k=1,nsig
-             do j=1,lon2
-                do i=1,lat2
-                   st(i,j,m)=st(i,j,m)+agvz(lm,k,m)*f1(i,j)*t(i,j,k)
+       if(fstat) then
+!      Adjoint of contribution to temperature from streamfunction.
+          lm=(llmax+llmin)*half
+          do m=1,nsig
+             do k=1,nsig
+                do j=1,lon2
+                   do i=1,lat2
+                      st(i,j,m)=st(i,j,m)+agvz(lm,k,m)*f1(i,j)*t(i,j,k)
+                   end do
                 end do
              end do
           end do
-       end do
 
-      else ! not fstat
+       else ! not fstat
 
 !      Adjoint of contribution to temperature from streamfunction.
-       do m=1,nsig
-          do k=1,nsig
-             do j=1,lon2
-                do i=1,lat2
-                   l=int(rllat1(i,j))
-                   l2=min0(l+ione,llmax)
-                   dl2=rllat1(i,j)-float(l)
-                   dl1=one-dl2
-                   st(i,j,m)=st(i,j,m)+(dl1*agvz(l,k,m)+dl2*agvz(l2,k,m))*t(i,j,k)
+          do m=1,nsig
+             do k=1,nsig
+                do j=1,lon2
+                   do i=1,lat2
+                      l=int(rllat1(i,j))
+                      l2=min0(l+ione,llmax)
+                      dl2=rllat1(i,j)-float(l)
+                      dl1=one-dl2
+                      st(i,j,m)=st(i,j,m)+(dl1*agvz(l,k,m)+dl2*agvz(l2,k,m))*t(i,j,k)
+                   end do
                 end do
              end do
           end do
+       endif ! fstat
+
+!      Adjoint of streamfunction contribution to surface pressure.  
+!      Add contributions from u and v to streamfunction and velocity potential
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                l=int(rllat1(i,j))
+                l2=min0(l+ione,llmax)
+                dl2=rllat1(i,j)-float(l)
+                dl1=one-dl2
+                st(i,j,k)=st(i,j,k)+(dl1*wgvz(l,k)+dl2*wgvz(l2,k))*p(i,j)
+             end do
+          end do
        end do
-      endif ! fstat
 
-!     Adjoint of streamfunction contribution to surface pressure.  
-!     Add contributions from u and v to streamfunction and velocity potential
-      do k=1,nsig
-         do j=1,lon2
-            do i=1,lat2
-               l=int(rllat1(i,j))
-               l2=min0(l+ione,llmax)
-               dl2=rllat1(i,j)-float(l)
-               dl1=one-dl2
-               st(i,j,k)=st(i,j,k)+(dl1*wgvz(l,k)+dl2*wgvz(l2,k))*p(i,j)
-            end do
-         end do
-      end do
-
-!     Adjoint of contribution to velocity potential from streamfunction.
-      do k=1,ke_vp
-         do j=1,lon2
-            do i=1,lat2
-               l=int(rllat1(i,j))
-               l2=min0(l+ione,llmax)
-               dl2=rllat1(i,j)-float(l)
-               dl1=one-dl2
-               st(i,j,k)=st(i,j,k)+(dl1*bvz(l,k)+dl2*bvz(l2,k))*vp(i,j,k)
-            end do
-         end do
-      end do
+!      Adjoint of contribution to velocity potential from streamfunction.
+       do k=1,ke_vp
+          do j=1,lon2
+             do i=1,lat2
+                l=int(rllat1(i,j))
+                l2=min0(l+ione,llmax)
+                dl2=rllat1(i,j)-float(l)
+                dl1=one-dl2
+                st(i,j,k)=st(i,j,k)+(dl1*bvz(l,k)+dl2*bvz(l2,k))*vp(i,j,k)
+             end do
+          end do
+       end do
        
 !   GLOBAL BRANCH
     else
 
-!     Adjoint of contribution to temperature from streamfunction.
-      do k=1,nsig
-         do l=1,nsig
-            do j=1,lon2
-               do i=1,lat2
-                  st(i,j,k)=st(i,j,k)+agvz(i,l,k)*t(i,j,l)
-               end do
-            end do
-         end do
-      end do
-       
-!     Adjoint of contribution to velocity potential from streamfunction.
-      do k=1,nsig
-         do j=1,lon2
-            do i=1,lat2
-               st(i,j,k)=st(i,j,k)+bvz(i,k)*vp(i,j,k)
-            end do
-         end do
-      end do
+!      Adjoint of contribution to temperature from streamfunction.
+       do k=1,nsig
+          do l=1,nsig
+             do j=1,lon2
+                do i=1,lat2
+                   st(i,j,k)=st(i,j,k)+agvz(i,l,k)*t(i,j,l)
+                end do
+             end do
+          end do
+       end do
 
-!     Adjoint of streamfunction and unbalanced velocity potential
-!     contribution to surface pressure.
-      if ( fpsproj ) then
-         do k=1,nsig
-            do j=1,lon2
-               do i=1,lat2
-                  st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
-               end do
-            end do
-         end do
-      else
-         do j=1,lon2
-            do i=1,lat2
-               do k=1,nsig-ione
-                  st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
-               end do
-               vp(i,j,1)=vp(i,j,1)+wgvz(i,nsig)*p(i,j)
-            end do
-         end do
-      endif
+!      Adjoint of contribution to velocity potential from streamfunction.
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                st(i,j,k)=st(i,j,k)+bvz(i,k)*vp(i,j,k)
+             end do
+          end do
+       end do
+
+!      Adjoint of streamfunction and unbalanced velocity potential
+!      contribution to surface pressure.
+       if ( fpsproj ) then
+          do k=1,nsig
+             do j=1,lon2
+                do i=1,lat2
+                   st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
+                end do
+             end do
+          end do
+       else
+          do j=1,lon2
+             do i=1,lat2
+                do k=1,nsig-ione
+                   st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
+                end do
+                vp(i,j,1)=vp(i,j,1)+wgvz(i,nsig)*p(i,j)
+             end do
+          end do
+       endif
 !   End of REGIONAL/GLOBAL if-then block
     endif
 
@@ -870,7 +874,7 @@ contains
              do m=1,mlat-ione
                 m1=m+ione
                 if((region_lat(i,j)>=clat_avn(m)).and.  &
-                     (region_lat(i,j)<clat_avn(m1)))then
+                   (region_lat(i,j)<clat_avn(m1)))then
                    rllat(i,j)=float(m)
                    llmax=max0(m,llmax)
                    llmin=min0(m,llmin)
@@ -1036,18 +1040,18 @@ subroutine strong_bk_ad(st,vp,p,t)
      
   do istrong=1,nstrong
 ! Zero gradient arrays
-    do i=1,latlon1n
-       u_t(i)=zero
-       v_t(i)=zero
-       t_t(i)=zero
-    end do
-    do i=1,latlon11
-       ps_t(i)=zero
-    end do
+     do i=1,latlon1n
+        u_t(i)=zero
+        v_t(i)=zero
+        t_t(i)=zero
+     end do
+     do i=1,latlon11
+        ps_t(i)=zero
+     end do
 
-    call strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,st,vp,t,p)
+     call strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,st,vp,t,p)
 
-    call calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,ps_t)  
+     call calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,ps_t)  
 !
   end do
 

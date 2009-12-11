@@ -42,7 +42,7 @@ subroutine read_files(mype)
        ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen, nhr_assimilation
   use gridmod, only: ncep_sigio,nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs
-  use constants, only: izero,zero,r60inv
+  use constants, only: izero,ione,zero,r60inv
   use obsmod, only: iadate
   use sfcio_module, only: sfcio_head,sfcio_sropen,&
        sfcio_sclose,sfcio_srhead
@@ -57,9 +57,9 @@ subroutine read_files(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  integer(i_kind),parameter:: lunsfc=11
-  integer(i_kind),parameter:: lunatm=12
-  integer(i_kind),parameter:: num_lpl=2000
+  integer(i_kind),parameter:: lunsfc=11_i_kind
+  integer(i_kind),parameter:: lunatm=12_i_kind
+  integer(i_kind),parameter:: num_lpl=2000_i_kind
   real(r_kind),parameter:: r0_001=0.001_r_kind
 
 ! Declare local variables
@@ -86,26 +86,26 @@ subroutine read_files(mype)
 !-----------------------------------------------------------------------------
 ! Initialize variables
   nhr_half=nhr_assimilation/2
-  if(nhr_half*2 < nhr_assimilation) nhr_half=nhr_half+1
-  npem1=npe-1
+  if(nhr_half*2 < nhr_assimilation) nhr_half=nhr_half+ione
+  npem1=npe-ione
 
   fexist=.true.
-  nfldsig=0
+  nfldsig=izero
   do i=0,99
-      write(filename,'(a,i2.2)')'sigf',i
-      inquire(file=filename,exist=fexist)
-      if(fexist) nfldsig=nfldsig+1
-      write(filename,'(a,i2.2)')'sfcf',i
-      inquire(file=filename,exist=fexist)
-      if(fexist) nfldsfc=nfldsfc+1
+     write(filename,'(a,i2.2)')'sigf',i
+     inquire(file=filename,exist=fexist)
+     if(fexist) nfldsig=nfldsig+ione
+     write(filename,'(a,i2.2)')'sfcf',i
+     inquire(file=filename,exist=fexist)
+     if(fexist) nfldsfc=nfldsfc+ione
   enddo
-  if(nfldsig==0) then
-    write(6,*)'0 atm fields; aborting'
-    call stop2(169)
+  if(nfldsig==izero) then
+     write(6,*)'0 atm fields; aborting'
+     call stop2(169)
   end if
-  if(nfldsfc==0) then
-    write(6,*)'0 sfc fields; aborting'
-    call stop2(170)
+  if(nfldsfc==izero) then
+     write(6,*)'0 sfc fields; aborting'
+     call stop2(170)
   end if
   allocate(time_atm(nfldsig,2),time_sfc(nfldsfc,2))
 
@@ -145,12 +145,12 @@ subroutine read_files(mype)
            write(6,*)'READ_FILES:  atm guess file, nming2 ',hourg,idateg,nming2
            t4dv=real((nming2-iwinbgn),r_kind)*r60inv
            if (l4dvar) then
-             if (t4dv<zero .OR. t4dv>winlen) go to 110
+              if (t4dv<zero .OR. t4dv>winlen) go to 110
            else
-             ndiff=nming2-nminanl
-             if(abs(ndiff) > 60*nhr_half ) go to 110
+              ndiff=nming2-nminanl
+              if(abs(ndiff) > 60*nhr_half ) go to 110
            endif
-           iwan=iwan+1
+           iwan=iwan+ione
            if(nminanl==nming2) iamana(1)=iwan
            time_atm(iwan,1) = t4dv
            time_atm(iwan,2) = i+r0_001
@@ -170,12 +170,12 @@ subroutine read_files(mype)
            hourg4=sfc_head%fhour
            idateg=sfc_head%idate
            i_ges(1)=sfc_head%lonb
-           i_ges(2)=sfc_head%latb+2
+           i_ges(2)=sfc_head%latb+2_i_kind
            if(sfc_head%latb/2>num_lpl)then
-             write(6,*)'READ_FILES: increase dimension of variable lpl_dum'
-             call stop2(80)
+              write(6,*)'READ_FILES: increase dimension of variable lpl_dum'
+              call stop2(80)
            endif
-           lpl_dum=0
+           lpl_dum=izero
            lpl_dum(1:sfc_head%latb/2)=sfc_head%lpl
            call sfcio_sclose(lunsfc,iret)
            hourg = hourg4
@@ -186,12 +186,12 @@ subroutine read_files(mype)
            write(6,*)'READ_FILES:  sfc guess file, nming2 ',hourg,idateg,nming2
            t4dv=real((nming2-iwinbgn),r_kind)*r60inv
            if (l4dvar) then
-             if (t4dv<zero .OR. t4dv>winlen) go to 210
+              if (t4dv<zero .OR. t4dv>winlen) go to 210
            else
-             ndiff=nming2-nminanl
-             if(abs(ndiff) > 60*nhr_half ) go to 210
+              ndiff=nming2-nminanl
+              if(abs(ndiff) > 60*nhr_half ) go to 210
            endif
-           iwan=iwan+1
+           iwan=iwan+ione
            if(nminanl==nming2) iamana(2)=iwan
            time_sfc(iwan,1) = t4dv
            time_sfc(iwan,2) = i+r0_001
@@ -205,17 +205,17 @@ subroutine read_files(mype)
 ! Broadcast guess file information to all tasks
   call mpi_bcast(time_atm,2*nfldsig,mpi_rtype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(time_sfc,2*nfldsfc,mpi_rtype,npem1,mpi_comm_world,ierror)
-  call mpi_bcast(iamana,2,mpi_rtype,npem1,mpi_comm_world,ierror)
-  call mpi_bcast(i_ges,2,mpi_itype,npem1,mpi_comm_world,ierror)
+  call mpi_bcast(iamana,2_i_kind,mpi_rtype,npem1,mpi_comm_world,ierror)
+  call mpi_bcast(i_ges,2_i_kind,mpi_itype,npem1,mpi_comm_world,ierror)
   nlon_sfc=i_ges(1)
   nlat_sfc=i_ges(2)
   call mpi_bcast(lpl_dum,num_lpl,mpi_itype,npem1,mpi_comm_world,ierror)
   allocate(lpl_gfs(nlat_sfc/2))
   allocate(dx_gfs(nlat_sfc/2))
-  lpl_gfs(1)=1  ! singularity at pole
+  lpl_gfs(1)=ione  ! singularity at pole
   dx_gfs(1) = 360._r_kind / lpl_gfs(1)
   do j=2,nlat_sfc/2
-     lpl_gfs(j)=lpl_dum(j-1)
+     lpl_gfs(j)=lpl_dum(j-ione)
      dx_gfs(j) = 360._r_kind / lpl_gfs(j)
   enddo
 
@@ -229,7 +229,7 @@ subroutine read_files(mype)
      hrdifsig(i) = time_atm(i,1)
      ifilesig(i) = nint(time_atm(i,2))
   end do
-  if(mype == 0) write(6,*)'READ_FILES:  atm fcst files used in analysis  :  ',&
+  if(mype == izero) write(6,*)'READ_FILES:  atm fcst files used in analysis  :  ',&
        (ifilesig(i),i=1,nfldsig),(hrdifsig(i),i=1,nfldsig),ntguessig
   
 
@@ -239,7 +239,7 @@ subroutine read_files(mype)
      hrdifsfc(i) = time_sfc(i,1)
      ifilesfc(i) = nint(time_sfc(i,2))
   end do
-  if(mype == 0) write(6,*)'READ_FILES:  sfc fcst files used in analysis:  ',&
+  if(mype == izero) write(6,*)'READ_FILES:  sfc fcst files used in analysis:  ',&
        (ifilesfc(i),i=1,nfldsfc),(hrdifsfc(i),i=1,nfldsfc),ntguessfc
   
   deallocate(time_atm,time_sfc)

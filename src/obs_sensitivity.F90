@@ -25,7 +25,7 @@ module obs_sensitivity
 !$$$ end documentation block
 ! ------------------------------------------------------------------------------
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero, zero_quad
+use constants, only: izero, ione, zero, zero_quad
 use gsi_4dvar, only: nobs_bins, idmodel, nsubwin
 use jfunc, only: jiter, miter, niter, iter
 use obsmod, only: nobs_type, obsdiags, obsptr, obscounts, &
@@ -90,7 +90,7 @@ lobsensadj=.false.
 lobsensmin=.false.
 lsensrecompute=.false.
 llancdone=.false.
-iobsconv=0
+iobsconv=izero
 
 end subroutine init_obsens
 ! ------------------------------------------------------------------------------
@@ -124,7 +124,7 @@ type(control_vector) :: xwork
 real(r_kind) :: zjx
 integer(i_kind) :: ii,ierr
 
-if (mype==0) then
+if (mype==izero) then
   write(6,*)'init_fc_sens: lobsensincr,lobsensfc,lobsensjb=', &
                            lobsensincr,lobsensfc,lobsensjb
   write(6,*)'init_fc_sens: lobsensadj,lobsensmin,iobsconv=', &
@@ -140,7 +140,7 @@ if (lobsensadj.and.lobsensmin) then
   call stop2(155)
 end if
 
-if (iobsconv>=2) then
+if (iobsconv>=2_i_kind) then
   allocate(sensincr(nobs_bins,nobs_type,niter(jiter)))
 else
   allocate(sensincr(nobs_bins,nobs_type,1))
@@ -153,9 +153,9 @@ if (lobsensfc) then
     clfile='xhatsave.ZZZ'
     write(clfile(10:12),'(I3.3)') jiter
     call read_cv(fcsens,clfile)
-    if (jiter>1) then
+    if (jiter>ione) then
       clfile='xhatsave.ZZZ'
-      write(clfile(10:12),'(I3.3)') jiter-1
+      write(clfile(10:12),'(I3.3)') jiter-ione
       call allocate_cv(xwork)
       call read_cv(xwork,clfile)
       do ii=1,fcsens%lencv
@@ -194,12 +194,12 @@ if (lobsensfc) then
     else
 !     read gradient from outer loop jiter+1
       clfile='fgsens.ZZZ'
-      WRITE(clfile(8:10),'(I3.3)') jiter+1
+      WRITE(clfile(8:10),'(I3.3)') jiter+ione
       call read_cv(fcsens,clfile)
     endif
   endif
   zjx=dot_product(fcsens,fcsens)
-  if (mype==0) write(6,888)'init_fc_sens: Norm fcsens=',sqrt(zjx)
+  if (mype==izero) write(6,888)'init_fc_sens: Norm fcsens=',sqrt(zjx)
 endif
 888 format(A,3(1X,ES24.18))
 
@@ -250,7 +250,7 @@ real(r_kind) :: zz
 integer(i_kind) :: ii,jj,kk
 
 ! Save statistics
-if (mype==0) then
+if (mype==izero) then
 
 ! Full stats
   do jj=1,nobs_type
@@ -269,7 +269,7 @@ if (mype==0) then
 
   write(6,*)'Obs Impact Begin'
   do kk=1,SIZE(sensincr,3)
-    if (SIZE(sensincr,3)==1) then
+    if (SIZE(sensincr,3)==ione) then
       write(6,'(A,I4)')'Obs Impact iteration= ',niter(jiter)
     else
       write(6,'(A,I4)')'Obs Impact iteration= ',kk
@@ -338,10 +338,10 @@ real(r_quad)    :: zprods(nobs_type*nobs_bins)
 
 zprods(:)=zero_quad
 
-ij=0
+ij=izero
 do ii=1,nobs_bins
   do jj=1,nobs_type
-    ij=ij+1
+    ij=ij+ione
 
     obsptr => obsdiags(jj,ii)%head
     do while (associated(obsptr))
@@ -358,18 +358,18 @@ enddo
 call mpl_allreduce(nobs_type*nobs_bins,zprods)
 
 ! Save intermediate values
-it=-1
-if (iobsconv>=2) then
-  if (iter>=1.and.iter<=niter(jiter)) it=iter
+it=-ione
+if (iobsconv>=2_i_kind) then
+  if (iter>=ione.and.iter<=niter(jiter)) it=iter
 else
-  it=1
+  it=ione
 endif
 
-if (it>0) then
-  ij=0
+if (it>izero) then
+  ij=izero
   do ii=1,nobs_bins
     do jj=1,nobs_type
-      ij=ij+1
+      ij=ij+ione
       sensincr(ii,jj,it)=zprods(ij)
     enddo
   enddo
@@ -378,10 +378,10 @@ endif
 ! Sum
 zzz=zero_quad
 
-ij=0
+ij=izero
 do ii=1,nobs_bins
   do jj=1,nobs_type
-    ij=ij+1
+    ij=ij+ione
     zzz=zzz+zprods(ij)
   enddo
 enddo

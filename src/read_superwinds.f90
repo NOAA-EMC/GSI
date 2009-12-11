@@ -74,7 +74,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
-  use constants, only: deg2rad,rad2deg,zero,r60inv
+  use constants, only: deg2rad,rad2deg,izero,ione,zero,one,r60inv
   use gridmod, only: regional,nlat,nlon,tll2xy,rotate_wind_ll2xy,rlats,rlons
   use gridmod, only: check_rotate_wind
   use convinfo, only: nconvtype,ctwind, &
@@ -83,16 +83,16 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,winlen,time_4dvar
   implicit none
 
+! Declare passed variables
+  character(len=*),intent(in   ) :: obstype,infile
+  character(len=*),intent(in   ) :: sis
+  real(r_kind)    ,intent(in   ) :: twind
+  integer(i_kind) ,intent(in   ) :: lunout
+  integer(i_kind) ,intent(inout) :: nread,ndata,nodata
+
 ! Declare local parameters
   real(r_kind),parameter:: r360=360.0_r_kind
 
-! Declare passed variables
-  character(len=*),intent(in):: obstype,infile
-  character(len=*),intent(in):: sis
-  real(r_kind),intent(in):: twind
-  integer(i_kind),intent(in):: lunout
-  integer(i_kind),intent(inout):: nread,ndata,nodata
-  
 ! Declare local variables  
   logical outside
   integer(i_kind) ndata_in,iord_in,iuvw_in,nbar_in
@@ -116,20 +116,20 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 
 !**************************************************************************
 ! Initialize variables
-  lnbufr=10
-  maxobs=2e6
-  nreal=21
-  nchanl=0
-  ilon=1
-  ilat=2
+  lnbufr=10_i_kind
+  maxobs=2e6_i_kind
+  nreal=21_i_kind
+  nchanl=izero
+  ilon=ione
+  ilat=2_i_kind
 
-  ikx = 0
+  ikx = izero
   do i=1,nconvtype
-    if(trim(obstype) == trim(ioctype(i)))ikx=i
+     if(trim(obstype) == trim(ioctype(i)))ikx=i
   end do
-  if(ikx == 0)then
-    write(6,*) ' READSUPERWIND: NO DATA REQUESTED'
-    return
+  if(ikx == izero)then
+     write(6,*) ' READSUPERWIND: NO DATA REQUESTED'
+     return
   end if
   allocate(cdata_all(nreal,maxobs))
 
@@ -143,13 +143,13 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !      obtain time correction for observations to account for analysis
 !                  time being different from obs file time
 
-    idate5(1)=iyref
-    idate5(2)=imref
-    idate5(3)=idref
-    idate5(4)=ihref
-    idate5(5)=0
-    call w3fs21(idate5,minobs)          !  obs ref time in minutes relative to historic date
-    call w3fs21(iadate,minan)           !  analysis ref time in minutes relative to historic date
+     idate5(1)=iyref
+     idate5(2)=imref
+     idate5(3)=idref
+     idate5(4)=ihref
+     idate5(5)=izero
+     call w3fs21(idate5,minobs)          !  obs ref time in minutes relative to historic date
+     call w3fs21(iadate,minan)           !  analysis ref time in minutes relative to historic date
 
 !     add obs reference time, then subtract analysis time to get obs time relative to analysis
 
@@ -163,11 +163,11 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   write(6,*)'READ_SUPERWINDS: input file date is ',idate
   if (idate<iadatebgn.OR.idate>iadateend) THEN
      if(offtime_data) then
-          write(6,*)'***allow off time READ_PREPBUFR file ',&
-             'observation date/time and time_correction follow:'
+        write(6,*)'***allow off time READ_PREPBUFR file ',&
+           'observation date/time and time_correction follow:'
      else
-       write(6,*)'***READ_SUPERWINDS ERROR*** incompatable analysis ',&
-          'and observation date/time'
+        write(6,*)'***READ_SUPERWINDS ERROR*** incompatable analysis ',&
+           'and observation date/time'
      end if
      write(6,*)'Analysis start  :',iadatebgn
      write(6,*)'Analysis end    :',iadateend
@@ -179,10 +179,10 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      if(offtime_data) write(6,'(" time_correction = ",f12.2)') time_correction
      if(.not.offtime_data) call stop2(92)
   endif
-  rstation_id=999.
+  rstation_id=999._r_kind
   write(6,*)'READ_SUPERWINDS:  ndata_in,iord_in,iuvw_in,nbar_in =', &
        ndata_in,iord_in,iuvw_in,nbar_in
-  if(iord_in.ne.0.or.iuvw_in.ne.2.or.nbar_in.ne.2) then
+  if(iord_in/=izero.or.iuvw_in/=2_i_kind.or.nbar_in/=2_i_kind) then
      write(6,*)'READ_SUPERWINDS:  ***ERROR*** iord =',iord_in,' iuvw=',iuvw_in,' nbar=',nbar_in
      write(6,*)'  currently only able to do iord=0 (traditional superob), iuvw=2 (u,v only), and nbar=2'
      call stop2(97)
@@ -191,15 +191,15 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   
 ! Loop to read in data
   do icount=1,ndata_in
-     nread=nread+2
+     nread=nread+2_i_kind
      read(lnbufr)suplon0,suplat0,suphgt,suptime0,supyhat,suprhat,supbigu,supid
 
      t4dv = toff + suptime0
      if (l4dvar) then
-       if (t4dv<zero .OR. t4dv>winlen) cycle
+        if (t4dv<zero .OR. t4dv>winlen) cycle
      else
-       suptime=suptime0 + time_correction
-       if(abs(suptime) > ctwind(ikx) .or. abs(suptime) > twind)cycle
+        suptime=suptime0 + time_correction
+        if(abs(suptime) > ctwind(ikx) .or. abs(suptime) > twind)cycle
      endif
      dlat_earth = suplat0
      dlon_earth = suplon0
@@ -208,17 +208,17 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      dlat_earth = dlat_earth*deg2rad
      dlon_earth = dlon_earth*deg2rad
      if(regional)then
-             call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
         if(outside) cycle
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd(dlat,ione,rlats,nlat,ione)
+        call grdcrd(dlon,ione,rlons,nlon,ione)
      endif
 
-     ndata=min(ndata+1,maxobs)
-     nodata=min(nodata+1,maxobs)
+     ndata=min(ndata+ione,maxobs)
+     nodata=min(nodata+ione,maxobs)
 
 !  rotate forward matrix to account for input u,v being in regional coordinate
 !
@@ -253,13 +253,13 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      end if
      
      superror=sqrt(suprhat(1))
-     superrinv(2)=superror/(sqrt(suprhat(2))+1.e-20)
-     if(suprhat(2).lt.1.e-20)superrinv(2)=0.
-     superrinv(1)=1.
-     usage = 0.
-     if(icuse(ikx) < 0)usage=100.
-     if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
-       if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
+     superrinv(2)=superror/(sqrt(suprhat(2))+1.e-20_r_kind)
+     if(suprhat(2)<1.e-20_r_single)superrinv(2)=zero
+     superrinv(1)=one
+     usage = zero
+     if(icuse(ikx) < izero)usage=100._r_kind
+     if(ncnumgrp(ikx) > izero )then                     ! cross validation on
+        if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-ione)usage=ncmiter(ikx)
      end if
 
      call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)

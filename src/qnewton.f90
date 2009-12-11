@@ -25,7 +25,7 @@ module qnewton
 ! ------------------------------------------------------------------------------
 
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero, one
+use constants, only: izero, ione, zero, one
 use mpimod, only: mype
 use control_vectors
 
@@ -237,11 +237,11 @@ use jfunc, only: iter,jiter,niter_no_qc
 implicit none
 
 type(control_vector), intent(inout) :: xhat,grad
-real(r_kind), intent(inout) :: cost
-real(r_kind), intent(inout) :: EPS
-integer(i_kind), intent(in) :: MAXFEV
-integer(i_kind), intent(in) :: maxvecs
-integer(i_kind), intent(in) :: nprt
+real(r_kind)        , intent(inout) :: cost
+real(r_kind)        , intent(inout) :: EPS
+integer(i_kind)     , intent(in   ) :: MAXFEV
+integer(i_kind)     , intent(in   ) :: maxvecs
+integer(i_kind)     , intent(in   ) :: nprt
 
 type(control_vector) :: diag, wy(maxvecs), ws(maxvecs), ww
 real(r_kind) :: rho(maxvecs),alpha(maxvecs)
@@ -254,11 +254,11 @@ logical :: lldone
 !     INITIALIZE
 !     ----------
 !
-IF (maxvecs<=0) then
+IF (maxvecs<=izero) then
   write(6,*)'LBFGS: maxvecs is not positive.',maxvecs
   call stop2(158)
 end if
-IF (GTOL<1.0e-04) then
+IF (GTOL<1.0e-04_r_kind) then
   write(6,*)'LBFGS: GTOL is smaller than 1.0e-4.'
   call stop2(159)
 end if
@@ -266,13 +266,13 @@ end if
 call allocate_cv(diag)
 call allocate_cv(ww)
 do ii=1,maxvecs
-  call allocate_cv(ws(ii))
-  call allocate_cv(wy(ii))
+   call allocate_cv(ws(ii))
+   call allocate_cv(wy(ii))
 enddo
 
-ITER= 0
-NFUN= 1
-POINT= 1
+ITER= izero
+NFUN= ione
+POINT= ione
 lldone= .FALSE.
 
 !diag=zero
@@ -290,10 +290,10 @@ STP1= ONE/GNORM
 main_loop: DO WHILE (.not.lldone)
 
   nlnqc_iter = iter >= niter_no_qc(jiter)
-  ITER= ITER+1
-  if (mype==0) write(6,*)'Minimization iteration',iter
-  BOUND=ITER-1
-  IF (ITER==1) GO TO 165
+  ITER= ITER+ione
+  if (mype==izero) write(6,*)'Minimization iteration',iter
+  BOUND=ITER-ione
+  IF (ITER==ione) GO TO 165
   IF (ITER>maxvecs) BOUND=maxvecs
 
   YS=dot_product(WY(NPT),WS(NPT))
@@ -308,29 +308,29 @@ main_loop: DO WHILE (.not.lldone)
   CP = POINT
   rho(CP)= ONE/YS
   DO jj=1,ww%lencv
-    WW%values(jj) = -grad%values(jj)
+     WW%values(jj) = -grad%values(jj)
   end do
 
   DO I=1,BOUND
-    CP=CP-1
-    IF (CP==0) CP=maxvecs
-    SQ=dot_product(WS(CP),WW)
-    alpha(CP)=rho(CP)*SQ
-    CALL AXPY(-alpha(CP),WY(CP),WW)
+     CP=CP-ione
+     IF (CP==izero) CP=maxvecs
+     SQ=dot_product(WS(CP),WW)
+     alpha(CP)=rho(CP)*SQ
+     CALL AXPY(-alpha(CP),WY(CP),WW)
   end do
 !
   DO jj=1,ww%lencv
-!    WW%values(jj)=DIAG%values(jj)*WW%values(jj)
-    WW%values(jj)=gamk*WW%values(jj)
+!     WW%values(jj)=DIAG%values(jj)*WW%values(jj)
+     WW%values(jj)=gamk*WW%values(jj)
   end do
 !
   DO I=1,BOUND
-    YR=dot_product(WY(CP),WW)
-    BETA= rho(CP)*YR
-    BETA= alpha(CP)-BETA
-    CALL AXPY(BETA,WS(CP),WW)
-    CP=CP+1
-    IF (CP>maxvecs) CP=1
+     YR=dot_product(WY(CP),WW)
+     BETA= rho(CP)*YR
+     BETA= alpha(CP)-BETA
+     CALL AXPY(BETA,WS(CP),WW)
+     CP=CP+ione
+     IF (CP>maxvecs) CP=ione
   end do
 !
 ! STORE THE NEW SEARCH DIRECTION
@@ -342,18 +342,18 @@ main_loop: DO WHILE (.not.lldone)
 ! BY USING THE LINE SEARCH ROUTINE MCSRCH
 ! ----------------------------------------------------
  165  CONTINUE
-  NFEV=0
-  INFO=0
+  NFEV=izero
+  INFO=izero
   STP=ONE
-  IF (ITER==1) STP=STP1
+  IF (ITER==ione) STP=STP1
   WW=grad
 
   CALL MCSRCH(xhat,cost,grad,WS(POINT),STP,MAXFEV,INFO,NFEV,DIAG,nprt)
 
-  IF (INFO/=1.and.info/=3) then
-    WRITE(6,200) INFO
-    write(6,*)'LBFGS: line search failed'
-    call stop2(160)
+  IF (INFO/=ione.and.info/=3_i_kind) then
+     WRITE(6,200) INFO
+     write(6,*)'LBFGS: line search failed'
+     call stop2(160)
   endif
   NFUN= NFUN + NFEV
 !
@@ -363,12 +363,12 @@ main_loop: DO WHILE (.not.lldone)
   NPT=POINT
 
   do jj=1,ws(npt)%lencv
-    WS(NPT)%values(jj)= STP*WS(NPT)%values(jj)
-    WY(NPT)%values(jj)= grad%values(jj)-WW%values(jj)
+     WS(NPT)%values(jj)= STP*WS(NPT)%values(jj)
+     WY(NPT)%values(jj)= grad%values(jj)-WW%values(jj)
   enddo
 
-  POINT=POINT+1
-  IF (POINT>maxvecs) POINT=1
+  POINT=POINT+ione
+  IF (POINT>maxvecs) POINT=ione
 !
 ! TERMINATION TEST
 ! ----------------
@@ -380,8 +380,8 @@ main_loop: DO WHILE (.not.lldone)
   IF (GNORM/XNORM<=EPS) lldone=.TRUE.
   IF (NFUN>=MAXFEV) lldone=.true.
 
-  if (mype==0) then
-    write(6,999)'LBFGS iter,step,gnorm=',iter,stp,gnorm
+  if (mype==izero) then
+     write(6,999)'LBFGS iter,step,gnorm=',iter,stp,gnorm
   endif
 
 end do main_loop
@@ -394,8 +394,8 @@ end do main_loop
 call deallocate_cv(diag)
 call deallocate_cv(ww)
 do ii=1,maxvecs
-  call deallocate_cv(ws(ii))
-  call deallocate_cv(wy(ii))
+   call deallocate_cv(ws(ii))
+   call deallocate_cv(wy(ii))
 enddo
 
 888 format(A,3(1X,ES24.18))
@@ -413,9 +413,9 @@ SUBROUTINE MCSRCH(X,F,G,S,STP,MAXFEV,INFO,NFEV,WA,nprt)
 
 use constants, only: half,four
 implicit none
-integer(i_kind), intent(in) :: MAXFEV,nprt
-integer(i_kind), intent(inout) :: NFEV,INFO
-real(r_kind), intent(inout) :: F,STP
+integer(i_kind)     , intent(in   ) :: MAXFEV,nprt
+integer(i_kind)     , intent(inout) :: NFEV,INFO
+real(r_kind)        , intent(inout) :: F,STP
 type(control_vector), intent(inout) :: X,G,S,WA
 !
 !                     SUBROUTINE MCSRCH
@@ -553,15 +553,15 @@ real(r_quad) :: FQUAD
 real(r_kind), parameter :: p66=0.66_r_kind
 real(r_kind), parameter :: xtrapf=four
 
-INFOC = 1
+INFOC = ione
 !
 !     CHECK THE INPUT PARAMETERS FOR ERRORS.
 !
 IF (STP<=ZERO .OR. FTOL<ZERO .OR. &
-  & GTOL<ZERO .OR. XTOL<ZERO .OR. STPMIN<ZERO &
-  & .OR. STPMAX<STPMIN .OR. MAXFEV<=0) then
-  write(6,*)'MCSRCH: Error input',stp,ftol,gtol,xtol,stpmin,stpmax,maxfev
-  call stop2(161)
+   & GTOL<ZERO .OR. XTOL<ZERO .OR. STPMIN<ZERO &
+   & .OR. STPMAX<STPMIN .OR. MAXFEV<=izero) then
+   write(6,*)'MCSRCH: Error input',stp,ftol,gtol,xtol,stpmin,stpmax,maxfev
+   call stop2(161)
 endif
 !
 !     COMPUTE THE INITIAL GRADIENT IN THE SEARCH DIRECTION
@@ -570,19 +570,19 @@ endif
 dginit = dot_product(g,s)
 
 IF (DGINIT>=ZERO) then
-  write(6,*)'MCSRCH: THE SEARCH DIRECTION IS NOT A DESCENT DIRECTION',dginit
-  call stop2(162)
+   write(6,*)'MCSRCH: THE SEARCH DIRECTION IS NOT A DESCENT DIRECTION',dginit
+   call stop2(162)
 ENDIF
 !
 !     INITIALIZE LOCAL VARIABLES.
 !
 BRACKT = .FALSE.
 STAGE1 = .TRUE.
-FINIT = F
+FINIT  = F
 DGTEST = FTOL*DGINIT
-WIDTH = STPMAX - STPMIN
+WIDTH  = STPMAX - STPMIN
 WIDTH1 = WIDTH/half
-wa = x
+wa     = x
 !
 !     THE VARIABLES STX, FX, DGX CONTAIN THE VALUES OF THE STEP,
 !     FUNCTION, AND DIRECTIONAL DERIVATIVE AT THE BEST STEP.
@@ -593,10 +593,10 @@ wa = x
 !     FUNCTION, AND DERIVATIVE AT THE CURRENT STEP.
 !
 STX = ZERO
-FX = FINIT
+FX  = FINIT
 DGX = DGINIT
 STY = ZERO
-FY = FINIT
+FY  = FINIT
 DGY = DGINIT
 !
 !     START OF ITERATION.
@@ -606,57 +606,57 @@ do ifev=1,maxfev
 !        SET THE MINIMUM AND MAXIMUM STEPS TO CORRESPOND
 !        TO THE PRESENT INTERVAL OF UNCERTAINTY.
 !
-  IF (BRACKT) THEN
-    STMIN = MIN(STX,STY)
-    STMAX = MAX(STX,STY)
-  ELSE
-    STMIN = STX
-    STMAX = STP + XTRAPF*(STP - STX)
-  END IF
+   IF (BRACKT) THEN
+      STMIN = MIN(STX,STY)
+      STMAX = MAX(STX,STY)
+   ELSE
+      STMIN = STX
+      STMAX = STP + XTRAPF*(STP - STX)
+   END IF
 !
 !        FORCE THE STEP TO BE WITHIN THE BOUNDS STPMAX AND STPMIN.
 !
-  STP = MAX(STP,STPMIN)
-  STP = MIN(STP,STPMAX)
+   STP = MAX(STP,STPMIN)
+   STP = MIN(STP,STPMAX)
 !
 !        IF AN UNUSUAL TERMINATION IS TO OCCUR THEN LET
 !        STP BE THE LOWEST POINT OBTAINED SO FAR.
 !
-  IF ((BRACKT .AND. (STP<=STMIN .OR. STP>=STMAX)) &
-   &  .OR. iFEV>=MAXFEV-1 .OR. INFOC==0 &
-   &  .OR. (BRACKT .AND. STMAX-STMIN<=XTOL*STMAX)) STP = STX
+   IF ((BRACKT .AND. (STP<=STMIN .OR. STP>=STMAX)) &
+    &  .OR. iFEV>=MAXFEV-ione .OR. INFOC==izero &
+    &  .OR. (BRACKT .AND. STMAX-STMIN<=XTOL*STMAX)) STP = STX
 !
 !        EVALUATE THE FUNCTION AND GRADIENT AT STP
 !        AND COMPUTE THE DIRECTIONAL DERIVATIVE.
 !
-  DO jj=1,x%lencv
-    X%values(jj) = WA%values(jj) + STP*S%values(jj)
-  end do
+   DO jj=1,x%lencv
+      X%values(jj) = WA%values(jj) + STP*S%values(jj)
+   end do
 !
-  lsavinc=.false.
-  call evaljgrad(x,fquad,g,lsavinc,nprt,'MCSRCH')
-  f=fquad
+   lsavinc=.false.
+   call evaljgrad(x,fquad,g,lsavinc,nprt,'MCSRCH')
+   f=fquad
 
-  dg = dot_product(g,s)
-  FTEST1 = FINIT + STP*DGTEST
+   dg = dot_product(g,s)
+   FTEST1 = FINIT + STP*DGTEST
 !
 !        TEST FOR CONVERGENCE.
 !
-  IF ((BRACKT .AND. (STP<=STMIN .OR. STP>=STMAX)) .OR. INFOC==0) INFO = 6
-  IF (STP==STPMAX .AND. F<=FTEST1 .AND. DG<=DGTEST) INFO = 5
-  IF (STP==STPMIN .AND. (F>FTEST1 .OR. DG>=DGTEST)) INFO = 4
-  IF (iFEV>=MAXFEV) INFO = 3
-  IF (BRACKT .AND. STMAX-STMIN<=XTOL*STMAX) INFO = 2
-  IF (F<=FTEST1 .AND. ABS(DG)<=GTOL*(-DGINIT)) INFO = 1
+   IF ((BRACKT .AND. (STP<=STMIN .OR. STP>=STMAX)) .OR. INFOC==0) INFO = 6_i_kind
+   IF (STP==STPMAX .AND. F<=FTEST1 .AND. DG<=DGTEST) INFO = 5_i_kind
+   IF (STP==STPMIN .AND. (F>FTEST1 .OR. DG>=DGTEST)) INFO = 4_i_kind
+   IF (iFEV>=MAXFEV) INFO = 3_i_kind
+   IF (BRACKT .AND. STMAX-STMIN<=XTOL*STMAX) INFO = 2_i_kind
+   IF (F<=FTEST1 .AND. ABS(DG)<=GTOL*(-DGINIT)) INFO = ione
 !
 !        CHECK FOR TERMINATION.
 !
-  IF (INFO/=0) exit
+   IF (INFO/=izero) exit
 !
 !        IN THE FIRST STAGE WE SEEK A STEP FOR WHICH THE MODIFIED
 !        FUNCTION HAS A NONPOSITIVE VALUE AND NONNEGATIVE DERIVATIVE.
 !
-  IF (STAGE1 .AND. F<=FTEST1 .AND. DG>=MIN(FTOL,GTOL)*DGINIT) STAGE1=.FALSE.
+   IF (STAGE1 .AND. F<=FTEST1 .AND. DG>=MIN(FTOL,GTOL)*DGINIT) STAGE1=.FALSE.
 !
 !        A MODIFIED FUNCTION IS USED TO PREDICT THE STEP ONLY IF
 !        WE HAVE NOT OBTAINED A STEP FOR WHICH THE MODIFIED
@@ -664,46 +664,46 @@ do ifev=1,maxfev
 !        DERIVATIVE, AND IF A LOWER FUNCTION VALUE HAS BEEN
 !        OBTAINED BUT THE DECREASE IS NOT SUFFICIENT.
 !
-  IF (STAGE1 .AND. F<=FX .AND. F>FTEST1) THEN
+   IF (STAGE1 .AND. F<=FX .AND. F>FTEST1) THEN
 !
 !           DEFINE THE MODIFIED FUNCTION AND DERIVATIVE VALUES.
 !
-    FM = F - STP*DGTEST
-    FXM = FX - STX*DGTEST
-    FYM = FY - STY*DGTEST
-    DGM = DG - DGTEST
-    DGXM = DGX - DGTEST
-    DGYM = DGY - DGTEST
+      FM   = F   - STP*DGTEST
+      FXM  = FX  - STX*DGTEST
+      FYM  = FY  - STY*DGTEST
+      DGM  = DG  - DGTEST
+      DGXM = DGX - DGTEST
+      DGYM = DGY - DGTEST
 !
 !           CALL CSTEP TO UPDATE THE INTERVAL OF UNCERTAINTY
 !           AND TO COMPUTE THE NEW STEP.
 !
-    CALL MCSTEP(STX,FXM,DGXM,STY,FYM,DGYM,STP,FM,DGM, &
-     &          BRACKT,STMIN,STMAX,INFOC)
+      CALL MCSTEP(STX,FXM,DGXM,STY,FYM,DGYM,STP,FM,DGM, &
+       &          BRACKT,STMIN,STMAX,INFOC)
 !
 !           RESET THE FUNCTION AND GRADIENT VALUES FOR F.
 !
-    FX = FXM + STX*DGTEST
-    FY = FYM + STY*DGTEST
-    DGX = DGXM + DGTEST
-    DGY = DGYM + DGTEST
-  ELSE
+      FX  = FXM  + STX*DGTEST
+      FY  = FYM  + STY*DGTEST
+      DGX = DGXM + DGTEST
+      DGY = DGYM + DGTEST
+   ELSE
 !
 !           CALL MCSTEP TO UPDATE THE INTERVAL OF UNCERTAINTY
 !           AND TO COMPUTE THE NEW STEP.
 !
-    CALL MCSTEP(STX,FX,DGX,STY,FY,DGY,STP,F,DG, &
-     &         BRACKT,STMIN,STMAX,INFOC)
-  END IF
+      CALL MCSTEP(STX,FX,DGX,STY,FY,DGY,STP,F,DG, &
+       &         BRACKT,STMIN,STMAX,INFOC)
+   END IF
 !
 !        FORCE A SUFFICIENT DECREASE IN THE SIZE OF THE
 !        INTERVAL OF UNCERTAINTY.
 !
-  IF (BRACKT) THEN
-    IF (ABS(STY-STX)>=P66*WIDTH1) STP = STX + half*(STY - STX)
-    WIDTH1 = WIDTH
-    WIDTH = ABS(STY-STX)
-  END IF
+   IF (BRACKT) THEN
+      IF (ABS(STY-STX)>=P66*WIDTH1) STP = STX + half*(STY - STX)
+      WIDTH1 = WIDTH
+      WIDTH  = ABS(STY-STX)
+   END IF
 
 end do
 
@@ -715,10 +715,11 @@ END SUBROUTINE MCSRCH
 SUBROUTINE MCSTEP(STX,FX,DX,STY,FY,DY,STP,FP,DP,BRACKT, &
                 & STPMIN,STPMAX,INFO)
 
+use constants, only: three
 implicit none
-real(r_kind), intent(inout) :: STX,FX,DX,STY,FY,DY,STP,FP,DP,STPMIN,STPMAX
-integer(i_kind), intent(out) :: INFO
-logical, intent(inout) :: BRACKT
+real(r_kind)   , intent(inout) :: STX,FX,DX,STY,FY,DY,STP,FP,DP,STPMIN,STPMAX
+integer(i_kind), intent(  out) :: INFO
+logical        , intent(inout) :: BRACKT
 !
 !     SUBROUTINE MCSTEP
 !
@@ -779,15 +780,15 @@ logical, intent(inout) :: BRACKT
 real(r_kind) :: GAMMA,P,Q,R,S,SGND,STPC,STPF,STPQ,THETA
 LOGICAL BOUND
 ! ------------------------------------------------------------------------------
-INFO = 0
+INFO = izero
 !
 !     CHECK THE INPUT PARAMETERS FOR ERRORS.
 !
 IF ((BRACKT .AND. (STP<=MIN(STX,STY) .OR. &
-  &  STP>=MAX(STX,STY))) .OR. &
-  &  DX*(STP-STX)>=zero .OR. STPMAX<STPMIN) then
-  write(6,*)'MCSTEP: error in input values',BRACKT,STP,STX,STY,DX,STPMAX,STPMIN
-  call stop2(163)
+   &  STP>=MAX(STX,STY))) .OR. &
+   &  DX*(STP-STX)>=zero .OR. STPMAX<STPMIN) then
+   write(6,*)'MCSTEP: error in input values',BRACKT,STP,STX,STY,DX,STPMAX,STPMIN
+   call stop2(163)
 end if
 !
 !     DETERMINE IF THE DERIVATIVES HAVE OPPOSITE SIGN.
@@ -800,23 +801,23 @@ SGND = DP*(DX/ABS(DX))
 !     ELSE THE AVERAGE OF THE CUBIC AND QUADRATIC STEPS IS TAKEN.
 !
 IF (FP>FX) THEN
-  INFO = 1
-  BOUND = .TRUE.
-  THETA = 3*(FX - FP)/(STP - STX) + DX + DP
-  S = MAX(ABS(THETA),ABS(DX),ABS(DP))
-  GAMMA = S*SQRT((THETA/S)**2 - (DX/S)*(DP/S))
-  IF (STP<STX) GAMMA = -GAMMA
-  P = (GAMMA - DX) + THETA
-  Q = ((GAMMA - DX) + GAMMA) + DP
-  R = P/Q
-  STPC = STX + R*(STP - STX)
-  STPQ = STX + ((DX/((FX-FP)/(STP-STX)+DX))/2)*(STP - STX)
-  IF (ABS(STPC-STX)<ABS(STPQ-STX)) THEN
-    STPF = STPC
-  ELSE
-    STPF = STPC + (STPQ - STPC)/2
-  END IF
-  BRACKT = .TRUE.
+   INFO  = ione
+   BOUND = .TRUE.
+   THETA = three*(FX - FP)/(STP - STX) + DX + DP
+   S     = MAX(ABS(THETA),ABS(DX),ABS(DP))
+   GAMMA = S*SQRT((THETA/S)**2 - (DX/S)*(DP/S))
+   IF (STP<STX) GAMMA = -GAMMA
+   P    =  (GAMMA - DX) + THETA
+   Q    = ((GAMMA - DX) + GAMMA) + DP
+   R    = P/Q
+   STPC = STX + R*(STP - STX)
+   STPQ = STX + ((DX/((FX-FP)/(STP-STX)+DX))/2)*(STP - STX)
+   IF (ABS(STPC-STX)<ABS(STPQ-STX)) THEN
+      STPF = STPC
+   ELSE
+      STPF = STPC + (STPQ - STPC)/2
+   END IF
+   BRACKT = .TRUE.
 !
 !     SECOND CASE. A LOWER FUNCTION VALUE AND DERIVATIVES OF
 !     OPPOSITE SIGN. THE MINIMUM IS BRACKETED. IF THE CUBIC
@@ -824,23 +825,23 @@ IF (FP>FX) THEN
 !     THE CUBIC STEP IS TAKEN, ELSE THE QUADRATIC STEP IS TAKEN.
 !
 ELSE IF (SGND<zero) THEN
-  INFO = 2
-  BOUND = .FALSE.
-  THETA = 3*(FX - FP)/(STP - STX) + DX + DP
-  S = MAX(ABS(THETA),ABS(DX),ABS(DP))
-  GAMMA = S*SQRT((THETA/S)**2 - (DX/S)*(DP/S))
-  IF (STP>STX) GAMMA = -GAMMA
-  P = (GAMMA - DP) + THETA
-  Q = ((GAMMA - DP) + GAMMA) + DX
-  R = P/Q
-  STPC = STP + R*(STX - STP)
-  STPQ = STP + (DP/(DP-DX))*(STX - STP)
-  IF (ABS(STPC-STP)>ABS(STPQ-STP)) THEN
-    STPF = STPC
-  ELSE
-    STPF = STPQ
-  END IF
-  BRACKT = .TRUE.
+   INFO  = 2_i_kind
+   BOUND = .FALSE.
+   THETA = three*(FX - FP)/(STP - STX) + DX + DP
+   S     = MAX(ABS(THETA),ABS(DX),ABS(DP))
+   GAMMA = S*SQRT((THETA/S)**2 - (DX/S)*(DP/S))
+   IF (STP>STX) GAMMA = -GAMMA
+   P    =  (GAMMA - DP) + THETA
+   Q    = ((GAMMA - DP) + GAMMA) + DX
+   R    = P/Q
+   STPC = STP + R*(STX - STP)
+   STPQ = STP + (DP/(DP-DX))*(STX - STP)
+   IF (ABS(STPC-STP)>ABS(STPQ-STP)) THEN
+      STPF = STPC
+   ELSE
+      STPF = STPQ
+   END IF
+   BRACKT = .TRUE.
 !
 !     THIRD CASE. A LOWER FUNCTION VALUE, DERIVATIVES OF THE
 !     SAME SIGN, AND THE MAGNITUDE OF THE DERIVATIVE DECREASES.
@@ -852,40 +853,40 @@ ELSE IF (SGND<zero) THEN
 !     CLOSEST TO STX IS TAKEN, ELSE THE STEP FARTHEST AWAY IS TAKEN.
 !
 ELSE IF (ABS(DP)<ABS(DX)) THEN
-  INFO = 3
-  BOUND = .TRUE.
-  THETA = 3*(FX - FP)/(STP - STX) + DX + DP
-  S = MAX(ABS(THETA),ABS(DX),ABS(DP))
+   INFO  = 3_i_kind
+   BOUND = .TRUE.
+   THETA = three*(FX - FP)/(STP - STX) + DX + DP
+   S     = MAX(ABS(THETA),ABS(DX),ABS(DP))
 !
 !        THE CASE GAMMA = 0 ONLY ARISES IF THE CUBIC DOES NOT TEND
 !        TO INFINITY IN THE DIRECTION OF THE STEP.
 !
-  GAMMA = S*SQRT(MAX(0.0D0,(THETA/S)**2 - (DX/S)*(DP/S)))
-  IF (STP>STX) GAMMA = -GAMMA
-  P = (GAMMA - DP) + THETA
-  Q = (GAMMA + (DX - DP)) + GAMMA
-  R = P/Q
-  IF (R<zero .AND. GAMMA/=zero) THEN
-    STPC = STP + R*(STX - STP)
-  ELSE IF (STP>STX) THEN
-    STPC = STPMAX
-  ELSE
-    STPC = STPMIN
-  END IF
-  STPQ = STP + (DP/(DP-DX))*(STX - STP)
-  IF (BRACKT) THEN
-    IF (ABS(STP-STPC)<ABS(STP-STPQ)) THEN
-      STPF = STPC
-    ELSE
-      STPF = STPQ
-    END IF
-  ELSE
-    IF (ABS(STP-STPC)>ABS(STP-STPQ)) THEN
-      STPF = STPC
-    ELSE
-      STPF = STPQ
-    END IF
-  END IF
+   GAMMA = S*SQRT(MAX(0.0D0,(THETA/S)**2 - (DX/S)*(DP/S)))
+   IF (STP>STX) GAMMA = -GAMMA
+   P =  (GAMMA - DP) + THETA
+   Q = (GAMMA + (DX - DP)) + GAMMA
+   R = P/Q
+   IF (R<zero .AND. GAMMA/=zero) THEN
+      STPC = STP + R*(STX - STP)
+   ELSE IF (STP>STX) THEN
+      STPC = STPMAX
+   ELSE
+      STPC = STPMIN
+   END IF
+   STPQ = STP + (DP/(DP-DX))*(STX - STP)
+   IF (BRACKT) THEN
+      IF (ABS(STP-STPC)<ABS(STP-STPQ)) THEN
+         STPF = STPC
+      ELSE
+         STPF = STPQ
+      END IF
+   ELSE
+      IF (ABS(STP-STPC)>ABS(STP-STPQ)) THEN
+         STPF = STPC
+      ELSE
+         STPF = STPQ
+      END IF
+   END IF
 !
 !     FOURTH CASE. A LOWER FUNCTION VALUE, DERIVATIVES OF THE
 !     SAME SIGN, AND THE MAGNITUDE OF THE DERIVATIVE DOES
@@ -893,53 +894,53 @@ ELSE IF (ABS(DP)<ABS(DX)) THEN
 !     IS EITHER STPMIN OR STPMAX, ELSE THE CUBIC STEP IS TAKEN.
 !
 ELSE
-  INFO = 4
-  BOUND = .FALSE.
-  IF (BRACKT) THEN
-    THETA = 3*(FP - FY)/(STY - STP) + DY + DP
-    S = MAX(ABS(THETA),ABS(DY),ABS(DP))
-    GAMMA = S*SQRT((THETA/S)**2 - (DY/S)*(DP/S))
-    IF (STP>STY) GAMMA = -GAMMA
-    P = (GAMMA - DP) + THETA
-    Q = ((GAMMA - DP) + GAMMA) + DY
-    R = P/Q
-    STPC = STP + R*(STY - STP)
-    STPF = STPC
-  ELSE IF (STP>STX) THEN
+   INFO = 4_i_kind
+   BOUND = .FALSE.
+   IF (BRACKT) THEN
+      THETA = three*(FP - FY)/(STY - STP) + DY + DP
+      S = MAX(ABS(THETA),ABS(DY),ABS(DP))
+      GAMMA = S*SQRT((THETA/S)**2 - (DY/S)*(DP/S))
+      IF (STP>STY) GAMMA = -GAMMA
+      P    =  (GAMMA - DP) + THETA
+      Q    = ((GAMMA - DP) + GAMMA) + DY
+      R    = P/Q
+      STPC = STP + R*(STY - STP)
+      STPF = STPC
+   ELSE IF (STP>STX) THEN
       STPF = STPMAX
-  ELSE
+   ELSE
       STPF = STPMIN
-  END IF
+   END IF
 END IF
 !
 !     UPDATE THE INTERVAL OF UNCERTAINTY. THIS UPDATE DOES NOT
 !     DEPEND ON THE NEW STEP OR THE CASE ANALYSIS ABOVE.
 !
 IF (FP>FX) THEN
-  STY = STP
-  FY = FP
-  DY = DP
+   STY = STP
+   FY  = FP
+   DY  = DP
 ELSE
-  IF (SGND<zero) THEN
-    STY = STX
-    FY = FX
-    DY = DX
-  END IF
-  STX = STP
-  FX = FP
-  DX = DP
+   IF (SGND<zero) THEN
+      STY = STX
+      FY  = FX
+      DY  = DX
+   END IF
+   STX = STP
+   FX  = FP
+   DX  = DP
 END IF
 !
 !     COMPUTE THE NEW STEP AND SAFEGUARD IT.
 !
 STPF = MIN(STPMAX,STPF)
 STPF = MAX(STPMIN,STPF)
-STP = STPF
+STP  = STPF
 IF (BRACKT .AND. BOUND) THEN
-  IF (STY>STX) THEN
-    STP = MIN(STX+0.66*(STY-STX),STP)
-  ELSE
-    STP = MAX(STX+0.66*(STY-STX),STP)
+   IF (STY>STX) THEN
+      STP = MIN(STX+0.66_r_kind*(STY-STX),STP)
+   ELSE
+      STP = MAX(STX+0.66_r_kind*(STY-STX),STP)
   END IF
 END IF
 
@@ -975,36 +976,36 @@ subroutine matinv(pmat,pvec,kiter,kmaxit)
 !$$$ end documentation block
 
 implicit none
-integer(i_kind), intent(in) :: kiter,kmaxit
-real(r_kind), intent(inout) :: pmat(2*kmaxit,2*kmaxit)
-real(r_kind), intent(inout) :: pvec(2*kmaxit)
+integer(i_kind), intent(in   ) :: kiter,kmaxit
+real(r_kind)   , intent(inout) :: pmat(2*kmaxit,2*kmaxit)
+real(r_kind)   , intent(inout) :: pvec(2*kmaxit)
 
 integer(i_kind) :: info,iwork(2*kmaxit)
 
 if (r_kind==N_DEFAULT_REAL_KIND) then
-  call SGETRF(2*kiter,2*kiter,pmat,2*kmaxit,iwork,info)
-  if (info/=0) then
-    write(6,*)'Error in qnewton: SGETRF returned info=',info
-    call ABOR1('QNEWTON: SGETRF returned non-zero info')
-  endif
-  call SGETRS('N',2*kiter,1,pmat,2*kmaxit,iwork,pvec,2*kmaxit,info)
-  if (info/=0) then
-    write(6,*)'Error in qnewton: SGETRS returned info=',info
-    call ABOR1('QNEWTON: SGETRS returned non-zero info')
-  endif
+   call SGETRF(2*kiter,2*kiter,pmat,2*kmaxit,iwork,info)
+   if (info/=izero) then
+      write(6,*)'Error in qnewton: SGETRF returned info=',info
+      call ABOR1('QNEWTON: SGETRF returned non-zero info')
+   endif
+   call SGETRS('N',2*kiter,ione,pmat,2*kmaxit,iwork,pvec,2*kmaxit,info)
+   if (info/=izero) then
+      write(6,*)'Error in qnewton: SGETRS returned info=',info
+      call ABOR1('QNEWTON: SGETRS returned non-zero info')
+   endif
 ELSEIF (r_kind==N_DOUBLE_KIND) then
-  call DGETRF(2*kiter,2*kiter,pmat,2*kmaxit,iwork,info)
-  if (info/=0) then
-    write(6,*)'Error in qnewton: DGETRF returned info=',info
-    call ABOR1('QNEWTON: DGETRF returned non-zero info')
-  endif
-  call DGETRS('N',2*kiter,1,pmat,2*kmaxit,iwork,pvec,2*kmaxit,info)
-  if (info/=0) then
-    write(6,*)'Error in qnewton: DGETRS returned info=',info
-    call ABOR1('QNEWTON: DGETRS returned non-zero info')
-  endif
+   call DGETRF(2*kiter,2*kiter,pmat,2*kmaxit,iwork,info)
+   if (info/=izero) then
+      write(6,*)'Error in qnewton: DGETRF returned info=',info
+      call ABOR1('QNEWTON: DGETRF returned non-zero info')
+   endif
+   call DGETRS('N',2*kiter,ione,pmat,2*kmaxit,iwork,pvec,2*kmaxit,info)
+   if (info/=izero) then
+      write(6,*)'Error in qnewton: DGETRS returned info=',info
+      call ABOR1('QNEWTON: DGETRS returned non-zero info')
+   endif
 else
-  call ABOR1('r_kind is neither default real nor double precision')
+   call ABOR1('r_kind is neither default real nor double precision')
 endif
 
 end subroutine matinv

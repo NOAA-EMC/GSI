@@ -14,8 +14,8 @@ module regional_io
 !   2005-10-17  parrish - add ctph0,stph0,tlm0 
 !   
 ! Subroutines Included:
-!   convert_regional_guess  - convert regional guess to internal format
-!   write_regional_analysis - write regional analysis
+!   sub convert_regional_guess  - convert regional guess to internal format
+!   sub write_regional_analysis - write regional analysis
 !
 ! variable definitions:
 !
@@ -30,8 +30,16 @@ module regional_io
   use mpimod, only: mpi_comm_world,ierror
   implicit none
 
-  logical update_pint        !  if true, then this is nmm run with pint variable, so update pint
-                             !    (where pint is non-hydrostatic 3-d pressure variable)
+! set default to private
+  private
+! set subroutines to public
+  public :: convert_regional_guess
+  public :: write_regional_analysis
+! set passed variables to public
+  public :: update_pint,preserve_restart_date
+
+  logical update_pint            !  if true, then this is nmm run with pint variable, so update pint
+                                 !    (where pint is non-hydrostatic 3-d pressure variable)
   logical preserve_restart_date  !  if true, then do not update date information on restart file
 
 contains
@@ -63,12 +71,13 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
+    use constants, only: izero,ione
     use mpimod, only: mpi_integer4,mpi_rtype
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),intent(in):: mype
-    real(r_kind),intent(out):: ctph0,stph0,tlm0
+    integer(i_kind),intent(in   ) :: mype
+    real(r_kind)   ,intent(  out) :: ctph0,stph0,tlm0
 
 
 !   Convert nmm guess file to internal gsi format.  Consider
@@ -76,7 +85,7 @@ contains
 
     update_pint=.false.
     if (wrf_nmm_regional) then
-       if (mype==0) then
+       if (mype==izero) then
           if (netcdf) then
              call convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           else
@@ -84,17 +93,17 @@ contains
           end if
        end if
        call mpi_barrier(mpi_comm_world,ierror)
-       call mpi_bcast(update_pint,1,mpi_integer4,0,mpi_comm_world,ierror)
-       call mpi_bcast(ctph0,1,mpi_rtype,0,mpi_comm_world,ierror)
-       call mpi_bcast(stph0,1,mpi_rtype,0,mpi_comm_world,ierror)
-       call mpi_bcast(tlm0,1,mpi_rtype,0,mpi_comm_world,ierror)
+       call mpi_bcast(update_pint,ione,mpi_integer4,izero,mpi_comm_world,ierror)
+       call mpi_bcast(ctph0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
+       call mpi_bcast(stph0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
+       call mpi_bcast(tlm0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
 
 
 !   Convert mass guess file to internal gsi format.  Consider
 !   two possible input formats:  netcdf or binary
 
     elseif (wrf_mass_regional) then
-       if (mype==0) then
+       if (mype==izero) then
           if (netcdf) then
              call convert_netcdf_mass
           else
@@ -106,19 +115,19 @@ contains
 !   Convert nems nmmb guess file to internal gsi format.
 
     elseif (nems_nmmb_regional) then
-       if (mype==0) then
-         call convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
+       if (mype==izero) then
+          call convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
        end if
        call mpi_barrier(mpi_comm_world,ierror)
-       call mpi_bcast(update_pint,1,mpi_integer4,0,mpi_comm_world,ierror)
-       call mpi_bcast(ctph0,1,mpi_rtype,0,mpi_comm_world,ierror)
-       call mpi_bcast(stph0,1,mpi_rtype,0,mpi_comm_world,ierror)
-       call mpi_bcast(tlm0,1,mpi_rtype,0,mpi_comm_world,ierror)
+       call mpi_bcast(update_pint,ione,mpi_integer4,izero,mpi_comm_world,ierror)
+       call mpi_bcast(ctph0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
+       call mpi_bcast(stph0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
+       call mpi_bcast(tlm0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
 
 !   Convert binary twodvar guess file to internal gsi format.
 
     elseif (twodvar_regional) then
-       if (mype==0) then
+       if (mype==izero) then
           call convert_binary_2d
        end if
        call mpi_barrier(mpi_comm_world,ierror)
@@ -152,6 +161,7 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind
+    use constants, only: izero
     implicit none
 
 !   Declare passed variables
@@ -162,7 +172,7 @@ contains
     if (wrf_nmm_regional) then
        if (netcdf) then
           call wrwrfnmma_netcdf(mype)
-          if (mype==0) then
+          if (mype==izero) then
              call update_netcdf_nmm
           end if
           call mpi_barrier(mpi_comm_world,ierror)
@@ -176,7 +186,7 @@ contains
     if (wrf_mass_regional) then
        if(netcdf) then
           call wrwrfmassa_netcdf(mype)
-          if (mype==0) then
+          if (mype==izero) then
              call update_netcdf_mass
           endif
           call mpi_barrier(mpi_comm_world,ierror)

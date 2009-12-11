@@ -37,7 +37,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !
 !$$$
   use kinds, only: r_kind,r_double,i_kind,r_single
-  use constants, only: izero,zero,one_tenth,quarter,half,one,deg2rad,&
+  use constants, only: izero,ione,zero,one_tenth,quarter,half,one,deg2rad,&
        three,rad2deg,r60inv
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
        tll2xy,txy2ll,rlats,rlons
@@ -48,11 +48,11 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   implicit none
 
 ! Declare passed variables
-  character(len=*),intent(in):: infile,obstype
-  character(len=*),intent(in):: sis
-  integer(i_kind),intent(in):: lunout
-  integer(i_kind),intent(inout):: nread,ndata,nodata
-  real(r_kind),intent(in):: gstime,twindin
+  character(len=*),intent(in   ) :: infile,obstype
+  character(len=*),intent(in   ) :: sis
+  integer(i_kind) ,intent(in   ) :: lunout
+  integer(i_kind) ,intent(inout) :: nread,ndata,nodata
+  real(r_kind)    ,intent(in   ) :: gstime,twindin
 
 ! Declare local parameters
   real(r_double),parameter:: d250 = 250.0_r_double
@@ -60,7 +60,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_kind),parameter:: r100 = 100.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
 
-  real(r_kind),parameter:: bmiss = 1.0E11
+  real(r_kind),parameter:: bmiss = 1.0E11_r_kind
 
 ! Declare local variables
   logical outside
@@ -95,44 +95,44 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 
   data headr/'YEAR MNTH DAYS HOUR MINU CLATH CLONH SELV RPID'/
 
-  data lunin / 10 /
+  data lunin / 10_i_kind /
 !**************************************************************************
 ! Initialize variables
   disterrmax=zero
-  ntest=0
-  maxobs=2e6
-  nread=0
-  ndata = 0
-  nodata = 0
-  nchanl=0
-  ilon=2
-  ilat=3
+  ntest=izero
+  maxobs=2e6_i_kind
+  nread=izero
+  ndata = izero
+  nodata = izero
+  nchanl=izero
+  ilon=2_i_kind
+  ilat=3_i_kind
 
-  nreal=19
+  nreal=19_i_kind
 
   allocate(cdata_all(nreal,maxobs))
 
 
   if(oberrflg)then
      allocate(etabl(300,33,6))
-     ietabl=19
+     ietabl=19_i_kind
      open(ietabl,file='errtable',form='formatted')
      rewind ietabl
      etabl=1.e9_r_kind
-     lcount=0
+     lcount=izero
      do l=1,300
         read(ietabl,100,end=120,err=120)itypex
 100     format(1x,i3)
-        lcount=lcount+1
+        lcount=lcount+ione
         do k=1,33
            read(ietabl,110)(etabl(itypex,k,m),m=1,6)
 110        format(1x,6e12.5)
         end do
      end do
 120  continue
-     if(lcount.le.0) then
-       write(6,*)'READ_MODSBUFR:  ***WARNING*** obs error table not available to 3dvar.'
-       oberrflg=.false.
+     if(lcount<=izero) then
+        write(6,*)'READ_MODSBUFR:  ***WARNING*** obs error table not available to 3dvar.'
+        oberrflg=.false.
      end if
      close(ietabl)
 
@@ -152,10 +152,10 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
        
 ! READING EACH REPORT FROM BUFR
        
-  do while (ireadmg(lunin,subset,idate) == 0)
-    do while (ireadsb(lunin) == 0)
-      call ufbint(lunin,hdr,9,1,iret,headr)
-       
+  do while (ireadmg(lunin,subset,idate) == izero)
+     do while (ireadsb(lunin) == izero)
+        call ufbint(lunin,hdr,9_i_kind,ione,iret,headr)
+
 !          Measurement types
 !             0       Ship intake
 !             1       Bucket
@@ -174,138 +174,138 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !     Determine measurement type
 !
 
-      if ( subset == 'SHIPS' .or. subset == 'MBUOY' .or. &
-           subset == 'LCMAN' ) then
-        call ufbint(lunin,msst,1,1,iret,'MSST')      ! for ships, fixed buoy and lcman
-      elseif ( subset == 'DBUOY' ) then
-        msst = 11.0                                  ! for drifting buoy, assign to be 11
-      endif
+        if ( subset == 'SHIPS' .or. subset == 'MBUOY' .or. &
+             subset == 'LCMAN' ) then
+           call ufbint(lunin,msst,ione,ione,iret,'MSST')      ! for ships, fixed buoy and lcman
+        elseif ( subset == 'DBUOY' ) then
+           msst = 11.0_r_double                               ! for drifting buoy, assign to be 11
+        endif
        
-      call ufbint(lunin,sst,1,1,iret,'SST1')         ! read SST
+        call ufbint(lunin,sst,ione,ione,iret,'SST1')         ! read SST
        
-      nread = nread + 1
+        nread = nread + ione
        
-!   if ( iret > 0 ) then
-    if ( iret > 0 .and. ( sst >d250 .and. sst < d400) ) then
+!       if ( iret > izero ) then
+        if ( iret > izero .and. ( sst >d250 .and. sst < d400) ) then
        
-!     Extract type, date, and location information
-      if(hdr(7) >= r360)  hdr(7) = hdr(7) - r360
-      if(hdr(7) <  zero)  hdr(7) = hdr(7) + r360
+!       Extract type, date, and location information
+           if(hdr(7) >= r360)  hdr(7) = hdr(7) - r360
+           if(hdr(7) <  zero)  hdr(7) = hdr(7) + r360
        
-      dlon_earth=hdr(7)*deg2rad
-      dlat_earth=hdr(6)*deg2rad
+           dlon_earth=hdr(7)*deg2rad
+           dlat_earth=hdr(6)*deg2rad
        
-      if(regional)then
-        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
-          if(diagnostic_reg) then
-            call txy2ll(dlon,dlat,rlon00,rlat00)
-            ntest=ntest+1
-            cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
-                 (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
-            cdist=max(-one,min(cdist,one))
-            disterr=acos(cdist)*rad2deg
-            disterrmax=max(disterrmax,disterr)
-          end if
-        if(outside) go to 10   ! check to see if outside regional domain
-      else
-        dlat = dlat_earth
-        dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
-      endif
+           if(regional)then
+              call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
+              if(diagnostic_reg) then
+                 call txy2ll(dlon,dlat,rlon00,rlat00)
+                 ntest=ntest+1
+                 cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
+                      (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
+                 cdist=max(-one,min(cdist,one))
+                 disterr=acos(cdist)*rad2deg
+                 disterrmax=max(disterrmax,disterr)
+              end if
+              if(outside) go to 10   ! check to see if outside regional domain
+           else
+              dlat = dlat_earth
+              dlon = dlon_earth
+              call grdcrd(dlat,ione,rlats,nlat,ione)
+              call grdcrd(dlon,ione,rlons,nlon,ione)
+           endif
 
-!     Extract date information.  If time outside window, skip this obs
-      idate5(1) = nint(hdr(1))    !year
-      idate5(2) = nint(hdr(2))    !month
-      idate5(3) = nint(hdr(3))    !day
-      idate5(4) = nint(hdr(4))    !hour
-      idate5(5) = nint(hdr(5))    !minute
+!          Extract date information.  If time outside window, skip this obs
+           idate5(1) = nint(hdr(1))    !year
+           idate5(2) = nint(hdr(2))    !month
+           idate5(3) = nint(hdr(3))    !day
+           idate5(4) = nint(hdr(4))    !hour
+           idate5(5) = nint(hdr(5))    !minute
        
-!     determine platform (ships, dbuoy, fbuoy or lcman) dependent obs. error
+!          determine platform (ships, dbuoy, fbuoy or lcman) dependent obs. error
 !
-      if ( subset == 'SHIPS' ) then                                            ! ships
-        kx = 180
-        sstoe = one
-      elseif ( subset == 'DBUOY' ) then
+           if ( subset == 'SHIPS' ) then                                            ! ships
+              kx = 180_i_kind
+              sstoe = one
+           elseif ( subset == 'DBUOY' ) then
        
-        kx = 181
-        cid = trim(crpid)
+              kx = 181_i_kind
+              cid = trim(crpid)
        
-      if ( cid(3:3) == '5' .or. cid(3:3) == '6' .or. cid(3:3) == '7' .or. &
-           cid(3:3) == '8' .or. cid(3:3) == '9' ) then                       ! drifting buoy
-        sstoe = 0.75_r_kind
-      elseif ( cid(3:3) == '0' .or. cid(3:3) == '1' .or. cid(3:3) == '2' .or. &
-               cid(3:3) == '3' .or. cid(3:3) == '4' ) then                     ! fixed buoy
-        sstoe = quarter
-      endif
+              if ( cid(3:3) == '5' .or. cid(3:3) == '6' .or. cid(3:3) == '7' .or. &
+                   cid(3:3) == '8' .or. cid(3:3) == '9' ) then                       ! drifting buoy
+                 sstoe = 0.75_r_kind
+              elseif ( cid(3:3) == '0' .or. cid(3:3) == '1' .or. cid(3:3) == '2' .or. &
+                       cid(3:3) == '3' .or. cid(3:3) == '4' ) then                     ! fixed buoy
+                 sstoe = quarter
+              endif
        
-      elseif ( subset == 'MBUOY' ) then                                        ! fixed buoy
-        sstoe = quarter
-        kx = 181
-      elseif ( subset == 'LCMAN' ) then                                        ! lcman
-        kx = 181
-        sstoe = one
-      endif
+           elseif ( subset == 'MBUOY' ) then                                        ! fixed buoy
+              sstoe = quarter
+              kx = 181_i_kind
+           elseif ( subset == 'LCMAN' ) then                                        ! lcman
+              kx = 181_i_kind
+              sstoe = one
+           endif
 
 !
 ! Determine usage
 !
-      ikx = izero
-      do i = 1, nconvtype
-        if(kx == ictype(i) .and. abs(icuse(i))== 1) ikx=i
+           ikx = izero
+           do i = 1, nconvtype
+              if(kx == ictype(i) .and. abs(icuse(i))== ione) ikx=i
 
-      end do
+           end do
 
-      if(ikx == izero) go to 10             ! not ob type used
+           if(ikx == izero) go to 10             ! not ob type used
 
-      call w3fs21(idate5,nmind)
-      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
+           call w3fs21(idate5,nmind)
+           t4dv=real((nmind-iwinbgn),r_kind)*r60inv
 !
-      if (l4dvar) then
-        if (t4dv<zero .OR. t4dv>winlen) go to 10
-      else
-        tdiff=(sstime-gstime)*r60inv
-        if(abs(tdiff)>twindin .or. abs(tdiff)>ctwind(ikx)) go to 10  ! outside time window
-      endif
+           if (l4dvar) then
+              if (t4dv<zero .OR. t4dv>winlen) go to 10
+           else
+              tdiff=(sstime-gstime)*r60inv
+              if(abs(tdiff)>twindin .or. abs(tdiff)>ctwind(ikx)) go to 10  ! outside time window
+           endif
 
 !    If running in 2d-var (surface analysis) mode, check to see if observation
 !    is surface type.  If not, read next observation report from bufr file
 
-      usage = zero
-      if (   icuse(ikx) < izero ) usage = r100
-      if ( ncnumgrp(ikx) > izero ) then                                ! cross validation on
-        if (mod(ndata+1,ncnumgrp(ikx))== ncgroup(ikx)-1) usage=ncmiter(ikx)
-      end if
-      nodata = nodata + 1
-      ndata = ndata + 1
-      if(ndata > maxobs) then
-           write(6,*)'READ_MODSBUFR:  ***WARNING*** ndata > maxobs for ',obstype
-           ndata = maxobs
-      end if
-      call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr)
+           usage = zero
+           if (   icuse(ikx) < izero ) usage = r100
+           if ( ncnumgrp(ikx) > izero ) then                                ! cross validation on
+              if (mod(ndata+ione,ncnumgrp(ikx))== ncgroup(ikx)-ione) usage=ncmiter(ikx)
+           end if
+           nodata = nodata + ione
+           ndata = ndata + ione
+           if(ndata > maxobs) then
+              write(6,*)'READ_MODSBUFR:  ***WARNING*** ndata > maxobs for ',obstype
+              ndata = maxobs
+           end if
+           call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr)
 
-      cdata_all(1,ndata)  = sstoe                   ! sst error
-      cdata_all(2,ndata)  = dlon                    ! grid relative longitude
-      cdata_all(3,ndata)  = dlat                    ! grid relative latitude
-      cdata_all(4,ndata)  = sst                     ! sst obs
-      cdata_all(5,ndata)  = hdr(9)                  ! station id
-      cdata_all(6,ndata)  = t4dv                    ! time
-      cdata_all(7,ndata)  = ikx                     ! type
-      cdata_all(8,ndata)  = sstoe*three             ! pw max error
-      cdata_all(9,ndata)  = hdr(8)                  ! depth of measurement
-      cdata_all(10,ndata) = msst                    ! measurement type
-      cdata_all(11,ndata) = sstq                    ! quality mark
-      cdata_all(12,ndata) = bmiss                   ! original obs error
-      cdata_all(13,ndata) = usage                   ! usage parameter
-      cdata_all(14,ndata) = idomsfc+0.001           ! dominate surface type
-      cdata_all(15,ndata) = tsavg                   ! skin temperature
-      cdata_all(16,ndata) = ff10                    ! 10 meter wind factor
-      cdata_all(17,ndata) = sfcr                    ! surface roughness
-      cdata_all(18,ndata) = dlon_earth*rad2deg      ! earth relative longitude (degrees)
-      cdata_all(19,ndata) = dlat_earth*rad2deg      ! earth relative latitude (degrees)
-    end if                                          ! if ( iret > 0 ) then
-10 continue
-    enddo
+           cdata_all(1,ndata)  = sstoe                   ! sst error
+           cdata_all(2,ndata)  = dlon                    ! grid relative longitude
+           cdata_all(3,ndata)  = dlat                    ! grid relative latitude
+           cdata_all(4,ndata)  = sst                     ! sst obs
+           cdata_all(5,ndata)  = hdr(9)                  ! station id
+           cdata_all(6,ndata)  = t4dv                    ! time
+           cdata_all(7,ndata)  = ikx                     ! type
+           cdata_all(8,ndata)  = sstoe*three             ! pw max error
+           cdata_all(9,ndata)  = hdr(8)                  ! depth of measurement
+           cdata_all(10,ndata) = msst                    ! measurement type
+           cdata_all(11,ndata) = sstq                    ! quality mark
+           cdata_all(12,ndata) = bmiss                   ! original obs error
+           cdata_all(13,ndata) = usage                   ! usage parameter
+           cdata_all(14,ndata) = idomsfc+0.001_r_kind    ! dominate surface type
+           cdata_all(15,ndata) = tsavg                   ! skin temperature
+           cdata_all(16,ndata) = ff10                    ! 10 meter wind factor
+           cdata_all(17,ndata) = sfcr                    ! surface roughness
+           cdata_all(18,ndata) = dlon_earth*rad2deg      ! earth relative longitude (degrees)
+           cdata_all(19,ndata) = dlat_earth*rad2deg      ! earth relative latitude (degrees)
+        end if                                           ! if ( iret > 0 ) then
+10      continue
+     enddo
   enddo
 !
 !   End of bufr read loop
@@ -322,7 +322,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   if (oberrflg) deallocate(etabl)
   call closbf(lunin)
 
-  if(diagnostic_reg.and.ntest > 0) write(6,*)'READ_MODSBUFR:  ',&
+  if(diagnostic_reg.and.ntest > izero) write(6,*)'READ_MODSBUFR:  ',&
        'ntest,disterrmax=',ntest,disterrmax
 
 

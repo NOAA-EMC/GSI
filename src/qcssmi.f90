@@ -81,24 +81,24 @@ subroutine qcssmi(nchanl,   &
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: half,one,izero,zero,tiny_r_kind,two
+  use constants, only: izero,half,one,zero,tiny_r_kind,two
   implicit none
 
 
 ! Declare passed variables
-  integer(i_kind),intent(in) :: nchanl
-  integer(i_kind),intent(in):: kraintype,ierrret
-  integer(i_kind),dimension(nchanl),intent(inout):: id_qc
+  integer(i_kind)                  ,intent(in   ) :: nchanl
+  integer(i_kind)                  ,intent(in   ) :: kraintype,ierrret
+  integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
 
-  logical,intent(in):: sea,snow,ice,mixed,luse
-  logical,intent(in):: ssmi,amsre_low,amsre_mid,amsre_hig,ssmis
+  logical                          ,intent(in   ) :: sea,snow,ice,mixed,luse
+  logical                          ,intent(in   ) :: ssmi,amsre_low,amsre_mid,amsre_hig,ssmis
 
-  real(r_kind),intent(in):: sfchgt,tpwc,clw,sgagl
-  real(r_kind),dimension(nchanl),intent(in):: ts,pems
-  real(r_kind),dimension(nchanl),intent(in):: tbcnob,tb_obs
+  real(r_kind)                     ,intent(in   ) :: sfchgt,tpwc,clw,sgagl
+  real(r_kind)   ,dimension(nchanl),intent(in   ) :: ts,pems
+  real(r_kind)   ,dimension(nchanl),intent(in   ) :: tbcnob,tb_obs
 
-  real(r_kind),dimension(nchanl),intent(inout):: varinv,errf
-  real(r_kind),dimension(40),intent(inout):: aivals
+  real(r_kind)   ,dimension(nchanl),intent(inout) :: varinv,errf
+  real(r_kind)   ,dimension(40)    ,intent(inout) :: aivals
 
 ! Declare local variables
   integer(i_kind) :: l,i
@@ -171,122 +171,122 @@ subroutine qcssmi(nchanl,   &
            
         if(luse)then
            do i=1,nchanl
-             if( id_qc(i)==izero .and. kraintype/=izero ) id_qc(i)=4
-             if( id_qc(i)==izero .and. ierrret>izero )    id_qc(i)=5
-             if( id_qc(i)==izero .and. tpwc<zero )       id_qc(i)=6
+              if( id_qc(i)==izero .and. kraintype/=izero ) id_qc(i)=4_i_kind
+              if( id_qc(i)==izero .and. ierrret>izero )    id_qc(i)=5_i_kind
+              if( id_qc(i)==izero .and. tpwc<=zero )       id_qc(i)=6_i_kind
            end do 
         end if
      else if(amsre_low .and. sgagl < 25.0_r_kind) then
 
 ! ---- sun glint angle qc (for AMSR-E)
 
-         varinv(1:4)=zero
-         do i=1,4
-           if(id_qc(i) == izero)id_qc(i) = 7
-         end do
-         if(luse) aivals(11) = aivals(11) + one
+        varinv(1:4)=zero
+        do i=1,4
+           if(id_qc(i) == izero)id_qc(i) = 7_i_kind
+        end do
+        if(luse) aivals(11) = aivals(11) + one
 
      else if(amsre_low .or. amsre_mid .or. amsre_hig)then
 
 ! ---- dtb threshold qc for AMSR-E due to an inaccuracy of emis model
 
-       if( abs(tbcnob(1)) > 6.0_r_kind .or. &
-           abs(tbcnob(2)) > 6.0_r_kind .or. &
-           abs(tbcnob(3)) > 6.0_r_kind .or. &
-           abs(tbcnob(4)) > 6.0_r_kind .or. &
-           abs(tbcnob(5)) > 6.0_r_kind .or. &
-           abs(tbcnob(6)) > 8.0_r_kind .or. &
-           abs(tbcnob(7)) > 8.0_r_kind .or. &
-           abs(tbcnob(8)) > 10.0_r_kind .or. &
-           abs(tbcnob(9)) > 6.0_r_kind .or. &
-           abs(tbcnob(10)) > 6.0_r_kind) then
-           varinv(:)=zero
-           do i=1,nchanl
-             id_qc(i)=9
-           end do
-         if(luse) aivals(13) = aivals(13) + one
-       end if
+        if( abs(tbcnob(1)) > 6.0_r_kind .or. &
+            abs(tbcnob(2)) > 6.0_r_kind .or. &
+            abs(tbcnob(3)) > 6.0_r_kind .or. &
+            abs(tbcnob(4)) > 6.0_r_kind .or. &
+            abs(tbcnob(5)) > 6.0_r_kind .or. &
+            abs(tbcnob(6)) > 8.0_r_kind .or. &
+            abs(tbcnob(7)) > 8.0_r_kind .or. &
+            abs(tbcnob(8)) > 10.0_r_kind .or. &
+            abs(tbcnob(9)) > 6.0_r_kind .or. &
+            abs(tbcnob(10)) > 6.0_r_kind) then
+            varinv(:)=zero
+            do i=1,nchanl
+               id_qc(i)=9_i_kind
+            end do
+            if(luse) aivals(13) = aivals(13) + one
+        end if
 
      else if(clw > zero)then
 
 !      If dtb is larger than demissivity and dwmin contribution, 
 !      it is assmued to be affected by  rain and cloud, tossing it out
-       do l=1,nchanl
+        do l=1,nchanl
 
 !          clw QC using ch-dependent threshold (clwch)
-         if( clw > clwcutofx(l) ) then
-           varinv(l)=zero
-           if(luse) then
-             aivals(10) = aivals(10) + one
-             if(id_qc(l)==izero) then
-               id_qc(l)=10
-               aivals(9)=aivals(9) + one
-             end if
+           if( clw > clwcutofx(l) ) then
+              varinv(l)=zero
+              if(luse) then
+                 aivals(10) = aivals(10) + one
+                 if(id_qc(l)==izero) then
+                    id_qc(l)=10_i_kind
+                    aivals(9)=aivals(9) + one
+                 end if
+              end if
            end if
-         end if
-       end do  !l_loop
+        end do  !l_loop
      end if
 
 !    Use only data over sea
   else  !land,sea ice,mixed
 
 !   Reduce q.c. bounds over higher topography
-   if ( .not. ssmis) then
-     if (sfchgt > r2000) then
-       fact = r2000/sfchgt
-       efact = fact*efact
-       vfact = fact*vfact
-       do i=1,nchanl
-         if(id_qc(i)==izero.and.luse) id_qc(i)=3
-       end do
-     end if
+     if ( .not. ssmis) then
+        if (sfchgt > r2000) then
+           fact = r2000/sfchgt
+           efact = fact*efact
+           vfact = fact*vfact
+           do i=1,nchanl
+              if(id_qc(i)==izero.and.luse) id_qc(i)=3_i_kind
+           end do
+        end if
 
 !    demisf_mi=demisf_mi*0.7_r_kind   ! not necessary since data not used
-     efact=zero
-     vfact=zero
-     do i=1,nchanl
-       if(id_qc(i)==izero.and.luse) id_qc(i)=2
-     end do
-   else if (ssmis) then
-       varinv(1:2)=zero
-       varinv(12:16)=zero
-      if (sfchgt > r2000) then
-       varinv(9)=zero
-      end if
-      if (sfchgt > r4000) then
-       varinv(3)=zero
-       varinv(10)=zero
-      end if
+        efact=zero
+        vfact=zero
+        do i=1,nchanl
+           if(id_qc(i)==izero.and.luse) id_qc(i)=2_i_kind
+        end do
+     else if (ssmis) then
+        varinv(1:2)=zero
+        varinv(12:16)=zero
+        if (sfchgt > r2000) then
+           varinv(9)=zero
+        end if
+        if (sfchgt > r4000) then
+           varinv(3)=zero
+           varinv(10)=zero
+        end if
 
-      if(mixed) then
-        varinv(1:3)=zero
-        varinv(8:18)=zero
-      end if
-      if(ice) then
-        varinv(2:3)=zero
-        varinv(9:11)=zero
-      end if
-      if(snow) then
-        varinv(2:3)=zero
-        varinv(9:11)=zero
-      end if
+        if(mixed) then
+           varinv(1:3)=zero
+           varinv(8:18)=zero
+        end if
+        if(ice) then
+           varinv(2:3)=zero
+           varinv(9:11)=zero
+        end if
+        if(snow) then
+           varinv(2:3)=zero
+           varinv(9:11)=zero
+        end if
 
-      do i=1,nchanl
-        if(id_qc(i)==izero.and.luse) id_qc(i)=2
-     end do
+        do i=1,nchanl
+           if(id_qc(i)==izero.and.luse) id_qc(i)=2_i_kind
+        end do
 
-   end if
+     end if
 
   end if
 
   if(ssmis)then
   ! scattering affected data removal
-    pred9  =271.252327 + tb_ges(17)*(-0.485934) + tb_ges(8)*(0.473806)
-    pred10 =272.280341 + tb_ges(17)*(-0.413688) + tb_ges(8)*(0.361549)
-    pred11 =278.824902 + tb_ges(17)*(-0.400882) + tb_ges(8)*(0.270510)
-    if(tbcnob(9)+tb_ges(9)-pred9<-two) varinv(9)=zero
-    if(tbcnob(10)+tb_ges(10)-pred10<-two) varinv(10)=zero
-    if(tbcnob(11)+tb_ges(11)-pred11<-two) varinv(11)=zero
+     pred9  =271.252327_r_kind + tb_ges(17)*(-0.485934_r_kind) + tb_ges(8)*(0.473806_r_kind)
+     pred10 =272.280341_r_kind + tb_ges(17)*(-0.413688_r_kind) + tb_ges(8)*(0.361549_r_kind)
+     pred11 =278.824902_r_kind + tb_ges(17)*(-0.400882_r_kind) + tb_ges(8)*(0.270510_r_kind)
+     if(tbcnob(9) +tb_ges(9) -pred9 <-two) varinv(9) =zero
+     if(tbcnob(10)+tb_ges(10)-pred10<-two) varinv(10)=zero
+     if(tbcnob(11)+tb_ges(11)-pred11<-two) varinv(11)=zero
   end if
 
 
@@ -301,7 +301,7 @@ subroutine qcssmi(nchanl,   &
         term = dtbf*dtbf
         if(term>tiny_r_kind) varinv(l)=one/(one/varinv(l)+term)
      else if(luse  .and. id_qc(l)==izero )then
-        id_qc(l)=11
+        id_qc(l)=11_i_kind
      endif
         
 

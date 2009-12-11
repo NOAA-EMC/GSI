@@ -44,22 +44,22 @@ subroutine retrieval_amsre(tb,amsre_low, amsre_mid, amsre_hig,  &
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: zero,izero
+  use constants, only: izero,ione,zero
 
   implicit none
   
 ! Input variable
-  real(r_kind),dimension(12),intent(in)::tb
-  real(r_kind),intent(in):: uu5,vv5,f10
-  real(r_kind),intent(in):: sst
-  logical,intent(in):: amsre_low
-  logical,intent(in):: amsre_mid
-  logical,intent(in):: amsre_hig
+  real(r_kind),dimension(12),intent(in   ) :: tb
+  real(r_kind)              ,intent(in   ) :: uu5,vv5,f10
+  real(r_kind)              ,intent(in   ) :: sst
+  logical                   ,intent(in   ) :: amsre_low
+  logical                   ,intent(in   ) :: amsre_mid
+  logical                   ,intent(in   ) :: amsre_hig
 
 ! Output variable
-  integer(i_kind),intent(out)     ::kraintype,ierr
-  real(r_kind),intent(out)::tpwc,clw
-  real(r_kind)::si85
+  integer(i_kind)           ,intent(  out) :: kraintype,ierr
+  real(r_kind)              ,intent(  out) :: tpwc,clw
+  real(r_kind)              ,intent(  out) :: si85
 
 ! Internal variable
   integer(i_kind) :: nchanl1
@@ -68,7 +68,7 @@ subroutine retrieval_amsre(tb,amsre_low, amsre_mid, amsre_hig,  &
   real(r_kind),dimension(12)::tbo
 
 ! Initialize variable
-  nchanl1 = 12   ! Total AMSR-E channel number=12
+  nchanl1 = 12_i_kind   ! Total AMSR-E channel number=12
   ierr = izero; kraintype=izero
   rwp =zero;cwp=zero;vr=zero;vc=zero
 
@@ -79,8 +79,8 @@ subroutine retrieval_amsre(tb,amsre_low, amsre_mid, amsre_hig,  &
 ! bad channels, skip this obs.
 
   if ( any(tb < 50.0_r_kind) .or. any(tb > 400.0_r_kind ) ) then
-    ierr = 1
-    return
+     ierr = ione
+     return
   end if
 
   tbo(:)=tb(:)
@@ -92,13 +92,13 @@ subroutine retrieval_amsre(tb,amsre_low, amsre_mid, amsre_hig,  &
   tpwc=vr  ! 18.7GHz
 !  tpwc=vc ! 36.5GHz
   clw=cwp
-  clw = clw - 0.03   ! remove bias
+  clw = clw - 0.03_r_kind   ! remove bias
   si85=rwp
 
 !  =======   TPW over ocean (when no rain)  ====================
 
   if(kraintype==izero) then
-    tpwc = max(zero,tpwc)
+     tpwc = max(zero,tpwc)
   end if !no rain
 
 !  =======   CLW over ocean (when no rain)  ====================
@@ -106,7 +106,7 @@ subroutine retrieval_amsre(tb,amsre_low, amsre_mid, amsre_hig,  &
   if(kraintype==izero) then
 
 !    Ensure clw is non-negative.
-    clw    = max(zero,clw)
+     clw    = max(zero,clw)
  
 !     upper limit of 6.0 kg/m2.
 !     if(clw>6.0_r_kind) clw=zero
@@ -118,7 +118,6 @@ end subroutine retrieval_amsre
 
 
 subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
-
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram: RCWPS_Alg   make retrieval from AMSR-E observation
@@ -197,17 +196,17 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: deg2rad,zero,half,one,two,five
+  use constants, only: deg2rad,izero,ione,zero,half,one,two,five
 
   implicit none
 
   integer(i_kind) nch
-  parameter(nch=6)
+  parameter(nch=6_i_kind)
 
-  real(r_kind),intent(in) ::  tbo(nch*2)
-  real(r_kind),intent(in) ::  wind,theta,sst
+  real(r_kind),intent(in   ) :: tbo(nch*2)
+  real(r_kind),intent(in   ) :: wind,theta,sst
 
-  real(r_kind),intent(out)::  rwp,vr,vc,cwp
+  real(r_kind),intent(  out) :: rwp,vr,vc,cwp
 
   integer(i_kind) ich,i,polar_status
   real(r_kind)  angle,frequency,emissivity
@@ -238,7 +237,7 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 
 ! A temporal assumption about cloud layer temperature (to be updated when it is available)
   tl = sst-20.0_r_kind-273.15_r_kind
-  if (tl .gt. 10.0_r_kind) tl = 10.0_r_kind
+  if (tl > 10.0_r_kind) tl = 10.0_r_kind
 
 ! scatteing correction
   call TBE_FROM_TBO(tbo,tbe)
@@ -248,21 +247,21 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 
 ! Calculate KW and KL and tau_o2(taut) and emissivity
   do ich = 1, nch
-    tauo(ich) = ko2_coe(ich,1) +  ko2_coe(ich,2)*sst + ko2_coe(ich,3)*sst*sst
-    kl(ich)   = kl_coe(ich,1)  +  kl_coe(ich,2)*tl   + kl_coe(ich,3)*tl*tl
-    frequency = freq(ich)
-    polar_status = 0
-    call emis_water(angle,frequency,sst,wind,polar_status, emissivity)
-    eh(ich) = emissivity
-    polar_status = 1
-    call emis_water(angle,frequency,sst,wind,polar_status, emissivity)
-    ev(ich) = emissivity
-    tvmin(ich) = sst*( one - dexp(-tauo(ich)/umu)*dexp(-tauo(ich)/umu)*(one-ev(ich)) )
-    thmin(ich) = sst*( one - dexp(-tauo(ich)/umu)*dexp(-tauo(ich)/umu)*(one-eh(ich)) )
+     tauo(ich) = ko2_coe(ich,1) +  ko2_coe(ich,2)*sst + ko2_coe(ich,3)*sst*sst
+     kl(ich)   = kl_coe(ich,1)  +  kl_coe(ich,2)*tl   + kl_coe(ich,3)*tl*tl
+     frequency = freq(ich)
+     polar_status = izero
+     call emis_water(angle,frequency,sst,wind,polar_status, emissivity)
+     eh(ich) = emissivity
+     polar_status = ione
+     call emis_water(angle,frequency,sst,wind,polar_status, emissivity)
+     ev(ich) = emissivity
+     tvmin(ich) = sst*( one - dexp(-tauo(ich)/umu)*dexp(-tauo(ich)/umu)*(one-ev(ich)) )
+     thmin(ich) = sst*( one - dexp(-tauo(ich)/umu)*dexp(-tauo(ich)/umu)*(one-eh(ich)) )
 
 ! Quality control
-    if (tv(ich) .lt. tvmin(ich)) tv(ich) = tvmin(ich)
-    if (th(ich) .lt. thmin(ich)) th(ich) = thmin(ich)
+     if (tv(ich) < tvmin(ich)) tv(ich) = tvmin(ich)
+     if (th(ich) < thmin(ich)) th(ich) = thmin(ich)
   enddo
 
 ! Calculate a0, a1, a2 and b0, b1 and b2 at 18.7 GHz over 23.8 GHz
@@ -275,18 +274,18 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   a2 = -two*(tauo(3) - a1*tauo(4))/umu  +(one-a1)*dlog(sst) + dlog(one-ev(3)) - a1*dlog(one-ev(4))
   b2 = -two*(tauo(3)  - b1*tauo(4))/umu +(one-b1)*dlog(sst) + dlog(one-ev(3)) - b1*dlog(one-ev(4))
 
-  if ( ( sst-tv(3) .gt. 0.01_r_kind ) .and. ( sst-tv(4) .gt. 0.01_r_kind ) ) then
-    rwp = a0*umu*( dlog(sst-tv(3) ) - a1*dlog(sst-tv(4))-a2)
-    vr = b0*umu*( dlog(sst-tv(3)) - b1*dlog(sst-tv(4))-b2 )
+  if ( ( sst-tv(3) > 0.01_r_kind ) .and. ( sst-tv(4) > 0.01_r_kind ) ) then
+     rwp = a0*umu*( dlog(sst-tv(3) ) - a1*dlog(sst-tv(4))-a2)
+     vr = b0*umu*( dlog(sst-tv(3)) - b1*dlog(sst-tv(4))-b2 )
 
 ! Clear conditions
-    if (rwp .lt. zero) rwp = zero
-    if (vr .lt. zero) vr = zero
+     if (rwp < zero) rwp = zero
+     if (vr < zero) vr = zero
   else
 
 ! Invalid retrieval
-    rwp = -999.0_r_kind
-    vr  = -999.0_r_kind
+     rwp = -999.0_r_kind
+     vr  = -999.0_r_kind
   endif
 
 ! 36.5 over 23.8 GHz: cloud water path
@@ -298,26 +297,25 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
                            dlog(one-ev(5)) - a1*dlog(one-ev(4))
   b2 = -two*(tauo(5)  - b1*tauo(4))/umu +(one-b1)*dlog(sst) + &
                            dlog(one-ev(5)) - b1*dlog(one-ev(4))
-  if ( ( sst-tv(4) .gt. 0.01_r_kind ) .and. ( sst-tv(5) .gt. 0.01_r_kind ) ) then
-    cwp = a0*umu*( dlog(sst-tv(5) ) - a1*dlog(sst-tv(4))-a2)
-    vc = b0*umu*( dlog(sst-tv(5)) - b1*dlog(sst-tv(4))-b2 )
-    if(cwp .lt. zero) cwp = zero
-    if(vc .lt. zero) vc = zero
+  if ( ( sst-tv(4) > 0.01_r_kind ) .and. ( sst-tv(5) > 0.01_r_kind ) ) then
+     cwp = a0*umu*( dlog(sst-tv(5) ) - a1*dlog(sst-tv(4))-a2)
+     vc = b0*umu*( dlog(sst-tv(5)) - b1*dlog(sst-tv(4))-b2 )
+     if(cwp < zero) cwp = zero
+     if(vc < zero) vc = zero
   else
-    cwp = -999.0_r_kind
-    vc  = -999.0_r_kind
+     cwp = -999.0_r_kind
+     vc  = -999.0_r_kind
   endif
 
 ! Quality control: remove residual effect of sea roughness on 18.7 GHz
-  if ( cwp .le. 0.3_r_kind) rwp = cwp
-  if (cwp .le. 0.2_r_kind .and. wind .ge. five) rwp = zero
+  if ( cwp <= 0.3_r_kind) rwp = cwp
+  if (cwp <= 0.2_r_kind .and. wind >= five) rwp = zero
 
 end subroutine RCWPS_Alg
 
 
 
 subroutine TBE_FROM_TBO(tbo,tb)
-
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram: TBE_FROM_TBO
@@ -347,15 +345,16 @@ subroutine TBE_FROM_TBO(tbo,tb)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: three
+  use constants, only: ione,three
   implicit none
 
-  integer(i_kind) nch,i,j,k
-  parameter (nch = 6)
+  integer(i_kind) nch
+  parameter (nch = 6_i_kind)
 
-  real(r_kind),intent(in) :: tbo(nch*2)
-  real(r_kind),intent(out):: tb(nch*2)
+  real(r_kind),intent(in   ) :: tbo(nch*2)
+  real(r_kind),intent(  out) :: tb(nch*2)
 
+  integer(i_kind) i,j,k
   real(r_kind) tbe(nch*2),tv18
   real(r_kind) coe_tbs(10,11)
   data (coe_tbs(1,k),k=1,11)/  &
@@ -415,11 +414,11 @@ subroutine TBE_FROM_TBO(tbo,tb)
 
 ! from tbscat to tbemiss
   do i = 1, 10
-    tbe(i) = coe_tbs(i,1)
-    do  j=1,10
-      tbe(i) = tbe(i) + coe_tbs(i,j+1)*tb(j)
-    enddo
-    tbe(10) = tbe(10) + 0.4*(tbe(10)-tb(10))
+     tbe(i) = coe_tbs(i,1)
+     do j=1,10
+        tbe(i) = tbe(i) + coe_tbs(i,j+ione)*tb(j)
+     enddo
+     tbe(10) = tbe(10) + 0.4_r_kind*(tbe(10)-tb(10))
   enddo
 
 ! tbo at 89 GHz are to be corrected
@@ -444,8 +443,8 @@ subroutine TBE_FROM_TBO(tbo,tb)
 ! correction of sea surface roughness
 
   tv18 = 0.0054_r_kind*tbo(7)*tbo(7) -1.9554_r_kind*tbo(7) +364.71_r_kind
-  if ((tbo(5)-tv18 .ge. three)  .and. (tbo(2) .ge. 90.0)) &
-    tb(5) = tb(5) - 5.5_r_kind*(tbo(5)-tv18)/(10.0_r_kind-three)
+  if ((tbo(5)-tv18 >= three)  .and. (tbo(2) >= 90.0_r_kind)) &
+     tb(5) = tb(5) - 5.5_r_kind*(tbo(5)-tv18)/(10.0_r_kind-three)
   return
   stop
 
@@ -483,10 +482,10 @@ subroutine TBA_FROM_TBE(tbo,tvs,ths)
   implicit none
 
   integer(i_kind) nch
-  parameter (nch = 6)
+  parameter (nch = 6_i_kind)
 
-  real(r_kind),intent(in) :: tbo(nch*2)
-  real(r_kind),intent(out):: tvs(nch),ths(nch)
+  real(r_kind),intent(in   ) :: tbo(nch*2)
+  real(r_kind),intent(  out) :: tvs(nch),ths(nch)
 
   real(r_kind) tb(nch*2)
 
@@ -563,17 +562,17 @@ subroutine emis_water(angle,frequency,sst,wind,polar_status,emissivity)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: zero,one,four
+  use constants, only: ione,zero,one,four
   implicit none
+
+  real(r_kind)   ,intent(in   ) :: angle, wind
+  real(r_kind)   ,intent(in   ) :: sst,frequency
+  integer(i_kind),intent(in   ) :: polar_status
+
+  real(r_kind)   ,intent(  out) :: emissivity
 
   real(r_kind) s
   parameter (s = 35.5_r_kind)
-
-  real(r_kind),intent(in)    :: angle, wind
-  real(r_kind),intent(in)    :: sst,frequency
-  integer(i_kind),intent(in) :: polar_status
-
-  real(r_kind),intent(out)   :: emissivity
 
   real(r_kind) t,degre
   real(r_kind) f
@@ -604,15 +603,15 @@ subroutine emis_water(angle,frequency,sst,wind,polar_status,emissivity)
   aid2 = eps*ccos(cang)-aid1
   aid3 = eps*ccos(cang)+aid1
   rv = aid2/aid3
-  if(wind.lt.7.0_r_kind) then
-    foam=zero
+  if(wind<7.0_r_kind) then
+     foam=zero
   else
-    foam=0.006_r_kind*(one-dexp(-f*1.0e-9_r_kind/7.5_r_kind))*(wind-7.0_r_kind)
+     foam=0.006_r_kind*(one-dexp(-f*1.0e-9_r_kind/7.5_r_kind))*(wind-7.0_r_kind)
   endif
 
 ! correction for wind induced foam free sea surface
-  if(foam.lt.zero) foam=zero
-  if(foam.gt.one) foam=one
+  if(foam<zero) foam=zero
+  if(foam>one) foam=one
 
 ! emperical functions for wind induced reflection changes for hp
   g = one - 1.748e-3_r_kind*degre-7.336e-5_r_kind*degre**2+ 1.044e-7_r_kind*degre**3
@@ -629,14 +628,14 @@ subroutine emis_water(angle,frequency,sst,wind,polar_status,emissivity)
   ref = ( cabs(rv) )**2
   rclear = ref - tr/t
   ev = one-(one-foam)*rclear-foam*rfoam
-  if(eh.gt.one) eh=one
-  if(eh.lt.zero) eh=zero
-  if(ev.gt.one) ev=one
-  if(ev.lt.zero) ev=zero
-  if (polar_status .eq. 1) then
-    emissivity = ev
+  if(eh>one) eh=one
+  if(eh<zero) eh=zero
+  if(ev>one) ev=one
+  if(ev<zero) ev=zero
+  if (polar_status == ione) then
+     emissivity = ev
   else
-    emissivity = eh
+     emissivity = eh
   endif
 
   return
@@ -667,6 +666,7 @@ subroutine  epsp(t1,s,f,ep)
 !         f        : (Hz)
 !
 !   output argument list:
+!         ep
 !
 ! attributes:
 !   language: f90
@@ -678,9 +678,9 @@ subroutine  epsp(t1,s,f,ep)
   use constants, only: one
   implicit none
 
-  real(r_kind),intent(in) :: f,t1,s
+  real(r_kind),intent(in   ) :: f,t1,s
 
-  real(r_kind),intent(out):: ep
+  real(r_kind),intent(  out) :: ep
 
   real(r_kind) t,t2,eswi,eswo,a,b,esw,tswo,tsw
 
@@ -693,7 +693,7 @@ subroutine  epsp(t1,s,f,ep)
   tswo = 1.1109e-10_r_kind-3.824e-12_r_kind*t+6.938e-14_r_kind*t**2-5.096e-16_r_kind*t**3
   b = one+2.282e-5_r_kind*t*s-7.638e-4_r_kind*s-7.760e-6_r_kind*s**2+1.105e-8_r_kind*s**3
   tsw = tswo*b
-  ep = eswi +(esw-eswi)/(1.0+(f*tsw)**2)
+  ep = eswi +(esw-eswi)/(one+(f*tsw)**2)
 
   return
 
@@ -734,8 +734,8 @@ subroutine epspp (t1,s,f,ep)
   use constants, only: two,one,four
   implicit none
 
-  real(r_kind),intent(in) :: f,t1,s
-  real(r_kind),intent(out):: ep
+  real(r_kind),intent(in   ) :: f,t1,s
+  real(r_kind),intent(  out) :: ep
 
   real(r_kind) t,t2,eswi,eswo,a,b,d,esw,tswo,tsw,sswo,fi,ssw
   real(r_kind) pi,eo
