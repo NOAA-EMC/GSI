@@ -136,7 +136,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   logical outside,iuse,assim,valid
 
   character(14):: infile2
-  character(8) subset,subfgn
+  character(8) subset
   character(80) hdr1b,hdr2b
 
   integer(i_kind) ireadsb,ireadmg,irec,isub,next
@@ -370,39 +370,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !    Set bufr subset names based on type of data to read
   if(lll == 2_i_kind .and. amsua .and. kidsat >= 200_i_kind .and. kidsat <= 207_i_kind)go to 500
-  if(lll == ione)then
-     if ( hirs ) then
-        subfgn='NC021025'
-        if(hirs2) subfgn='NC021021'
-        if(hirs4) subfgn='NC021028'
-     else if ( msu ) then
-        subfgn='NC021022'
-     else if ( amsua ) then
-        subfgn='NC021023'
-     else if ( amsub )  then
-        subfgn='NC021024'
-     else if ( mhs )  then
-        subfgn='NC021027'
-     else if ( ssu ) then
-        subfgn='NC021020'
-     end if
-
-!    EARS data feed
-  else
-     if ( hirs ) then
-        subfgn='NC021035'
-        if(hirs2) subfgn='NC021021'
-        if(hirs4) subfgn='NC021038'
-     else if ( msu ) then
-        subfgn='NC021032'
-     else if ( amsua ) then
-        subfgn='NC021033'
-     else if ( amsub )  then
-        subfgn='NC021034'
-     else if ( mhs )  then
-        subfgn='NC021037'
-     end if
-  end if
 
 !  Open unit to satellite bufr file
   infile2=infile
@@ -411,14 +378,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
-  if( subset /= subfgn) then
-     write(6,*) 'READ_BUFRTOVS:  *** WARNING: ',&
-          'THE FILE TITLE DOES NOT MATCH DATA SUBSET'
-     write(6,*) '  infile=', lnbufr, infile2,' subset=',&
-          subset, ' subfgn=',subfgn,' ',obstype,' ',jsatid
-     write(6,*) 'SKIP PROCESSING OF THIS 1B FILE'
-     go to 500
-  end if
 
 !  Extract date and check for consistency with analysis date     
   write(6,*)'READ_BUFRTOVS: bufr file date is ',idate,infile2,jsatid
@@ -470,11 +429,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
    
 !  Loop to read bufr file
   next=mype_sub_read+ione
-  do while(ireadmg(lnbufr,subset,idate)>=izero)
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=izero)
      call ufbcnt(lnbufr,irec,isub)
      if(irec/=next)cycle
      next=next+npe_sub_read
-     if(subset /=subfgn) cycle
      read_loop: do while (ireadsb(lnbufr)==izero)
 
 !          Read header record.  (lll=1 is normal feed, 2=EARS data)
@@ -484,7 +442,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !          Extract satellite id.  If not the one we want, read next record
            rsat=bfr1bhdr(1) 
            ksatid=nint(bfr1bhdr(1))
-           if(ksatid /= kidsat) cycle read_loop
+           if(ksatid /= kidsat) cycle read_subset
 
 !          Extract observation location and other required information
            if(abs(bfr1bhdr(11)) <= 91._r_kind .and. abs(bfr1bhdr(12)) <= 361._r_kind)then
@@ -773,7 +731,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !       End of bufr read loops
      enddo read_loop
-  enddo
+  enddo read_subset
   call closbf(lnbufr)
 
 

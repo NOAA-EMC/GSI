@@ -112,6 +112,16 @@ subroutine compute_derived(mype)
   integer(i_kind):: k1,ivar,kvar,igauss
   real(r_kind):: factor,factk,hswgtsum
 
+! Limit q to be >= 1.e-10_r_kind
+  do it=1,nfldsig
+   do k=1,nsig
+     do j=1,lon2
+        do i=1,lat2
+           ges_q(i,j,k,it)=max(ges_q(i,j,k,it),1.e-10_r_kind)
+        end do
+     end do
+   end do
+  end do
 !-----------------------------------------------------------------------------------
 ! Compute derivatives for .not. twodvar_regional case
   if (.not. twodvar_regional)then
@@ -194,7 +204,7 @@ subroutine compute_derived(mype)
      do j=1,lon2
         do i=1,lat2
            qgues(i,j,k)=ges_q(i,j,k,ntguessig) ! q guess
-           qsatg(i,j,k)=max(zero,ges_q(i,j,k,ntguessig)) ! q guess
+           qsatg(i,j,k)=ges_q(i,j,k,ntguessig) ! q guess
            fact_tv(i,j,k)=one/(one+fv*qsatg(i,j,k))      ! factor for tv to tsen conversion
         end do
      end do

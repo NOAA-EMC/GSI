@@ -138,15 +138,15 @@ subroutine update_guess(sval,sbias)
               ijk=ijk+ione
               ges_u(i,j,k,it)    =                 ges_u(i,j,k,it)    + sval(ii)%u(ijk)
               ges_v(i,j,k,it)    =                 ges_v(i,j,k,it)    + sval(ii)%v(ijk)
-              ges_q(i,j,k,it)    =                 ges_q(i,j,k,it)    + sval(ii)%q(ijk) 
+              ges_q(i,j,k,it)    =             max(ges_q(i,j,k,it)    + sval(ii)%q(ijk),1.e-10_r_kind) 
               if (.not.twodvar_regional .or. .not.tsensible) then
                 ges_tv(i,j,k,it)   =                ges_tv(i,j,k,it)   + sval(ii)%t(ijk)
 !  produce sensible temperature
-                ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*max(zero,ges_q(i,j,k,it)))
+                ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*ges_q(i,j,k,it))
               else
                 ges_tsen(i,j,k,it) =                ges_tsen(i,j,k,it)   + sval(ii)%t(ijk)
 !  produce virtual temperature
-                ges_tv(i,j,k,it)   = ges_tsen(i,j,k,it)*(one+fv*max(zero,ges_q(i,j,k,it)))
+                ges_tv(i,j,k,it)   = ges_tsen(i,j,k,it)*(one+fv*ges_q(i,j,k,it))
               endif
 
 !             Note:  Below variables only used in NCEP GFS model
