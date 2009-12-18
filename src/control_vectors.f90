@@ -13,6 +13,8 @@ module control_vectors
 !   2008-12-29  todling  - add omp to various loops
 !   2009-01-27  todling  - rename prt_norms to prevent IBM compiler confusion
 !   2009-08-12  lueken   - updated documentation
+!   2009-09-20  parrish  - add pointer variable a_en to definition of type control_state
+!                           also, add module variables n_ens, nlva_en
 !
 ! subroutines included:
 !   sub setup_control_vectors
@@ -37,10 +39,13 @@ module control_vectors
 !   qdot_prod_sub
 !   dot_prod_cv
 !   qdot_prod_cv
+!   qdot_prod_cv_eb
 !   maxval_cv
 !   qdot_product
 !
 ! variable definitions:
+!   def n_ens     - number of ensemble perturbations (=0 except when hybrid ensemble option turned on)
+!   def nlva_en   - total number of levels for hybrid ensemble control variable a_en
 !
 ! attributes:
 !   language: f90
@@ -72,6 +77,7 @@ type control_state
   real(r_kind), pointer :: cw(:)  => NULL()
   real(r_kind), pointer :: p(:)   => NULL()
   real(r_kind), pointer :: sst(:) => NULL()
+  real(r_kind), pointer :: a_en(:)=> NULL()    !  ensemble control variable (only used if l_hyb_ens=.true.)
 end type control_state
 
 type control_vector
@@ -84,7 +90,7 @@ type control_vector
 end type control_vector
 
 integer(i_kind) :: nclen,nclen1,nsclen,npclen,nrclen,nsubwin,nval_len
-integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig
+integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens,nlva_en
 logical :: lsqrtb
 
 integer(i_kind) :: m_vec_alloc, max_vec_alloc, m_allocs, m_deallocs
@@ -97,7 +103,7 @@ MODULE PROCEDURE assign_scalar2cv, assign_array2cv, assign_cv2array, assign_cv2c
 END INTERFACE
 
 INTERFACE DOT_PRODUCT
-MODULE PROCEDURE dot_prod_cv,qdot_prod_cv
+MODULE PROCEDURE dot_prod_cv,qdot_prod_cv,qdot_prod_cv_eb
 END INTERFACE
 
 INTERFACE DOT_PROD_VARS
@@ -115,7 +121,7 @@ END INTERFACE
 contains
 ! ----------------------------------------------------------------------
 subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
-                               & ksclen,kpclen,kclen,ksubwin,kval_len,ldsqrtb)
+                               & ksclen,kpclen,kclen,ksubwin,kval_len,ldsqrtb,k_ens)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setup_control_vectors
@@ -125,6 +131,8 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2009-09-20  parrish - add optional input variable k_ens, which communicates size
+!                          of ensemble used when hybrid ensemble option is turned on.
 !
 !   input argument list:
 !    ksig
@@ -137,6 +145,7 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 !    ksubwin
 !    kval_len
 !    ldsqrtb
+!    k_ens     - optional, if present, then size of ensemble used in hybrid ensemble option
 !
 !   output argument list:
 !
@@ -149,6 +158,7 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   implicit none
   integer(i_kind), intent(in) :: ksig,klat,klon,katlon11,katlon1n, &
                                & ksclen,kpclen,kclen,ksubwin,kval_len
+  integer(i_kind), intent(in), optional :: k_ens
   logical, intent(in) :: ldsqrtb
 
   nsig=ksig
@@ -164,6 +174,12 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   nsubwin=ksubwin
   nval_len=kval_len
   lsqrtb=ldsqrtb
+  n_ens=izero
+  nlva_en=izero
+  if(present(k_ens)) then
+    n_ens=k_ens
+    nlva_en=n_ens*nsig
+  end if
 
   llinit = .true.
   m_vec_alloc=izero
@@ -186,6 +202,7 @@ subroutine allocate_cv(ycv)
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2009-09-20  parrish - add optional allocation of hybrid ensemble control variable a_en
 !
 !   input argument list:
 !
@@ -243,6 +260,10 @@ subroutine allocate_cv(ycv)
       ii=ii+latlon11
       ycv%step(jj)%sst => ycv%values(ii+ione:ii+latlon11)
       ii=ii+latlon11
+      if(n_ens >  izero) then
+        ycv%step(jj)%a_en => ycv%values(ii+1:ii+n_ens*latlon1n)
+        ii=ii+n_ens*latlon1n
+      end if
     endif
   enddo
 
@@ -273,6 +294,7 @@ subroutine deallocate_cv(ycv)
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2009-09-20  parrish - add optional removal of pointer to hybrid ensemble control variable a_en
 !
 !   input argument list:
 !    ycv
@@ -300,6 +322,7 @@ subroutine deallocate_cv(ycv)
       NULLIFY(ycv%step(ii)%cw )
       NULLIFY(ycv%step(ii)%p  )
       NULLIFY(ycv%step(ii)%sst)
+      if(n_ens >  izero) NULLIFY(ycv%step(ii)%a_en)
     end do
     NULLIFY(ycv%predr)
     NULLIFY(ycv%predp)
@@ -534,6 +557,7 @@ subroutine ddot_prod_vars(xcv,ycv,prods)
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2009-09-20  parrish - add hybrid ensemble control variable a_en contribution to dot product
 !
 !   input argument list:
 !    xcv,ycv
@@ -574,6 +598,8 @@ subroutine ddot_prod_vars(xcv,ycv,prods)
       zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
       zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
       zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+      if(n_ens >  izero) &
+      zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
     end do
   end if
 
@@ -601,6 +627,7 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2009-09-20  parrish - add hybrid ensemble control variable a_en contribution to dot product
 !
 !   input argument list:
 !    xcv,ycv
@@ -638,6 +665,8 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
       qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
       qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
       qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+      if(n_ens >  izero) &
+      qdot_prod_sub = qdot_prod_sub + dplevs(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
     end do
   end if
 
@@ -661,6 +690,7 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2009-09-20  parrish - add hybrid ensemble control variable a_en contribution to dot product
 !
 !   input argument list:
 !    xcv,ycv
@@ -701,6 +731,8 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
       zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
       zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
       zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+      if(n_ens >  izero) &
+      zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
     end do
   end if
 
@@ -717,6 +749,89 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
 
 return
 end subroutine qdot_prod_vars
+! ----------------------------------------------------------------------
+subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    qdot_prod_vars_eb  copy of qdot_prod_vars for J_ens
+!   prgmmr: parrish          org: np22                date: 2009-09-20
+!
+! abstract: copy qdot_prod_vars and add extra code to compute J_b or
+!            J_ens when running in hybrid_ensemble mode.  extra input
+!            character string eb is used to signal if J_b or J_ens is
+!            to be computed.
+!
+! program history log:
+!   2009-09-20  parrish - initial documentation
+!
+!   input argument list:
+!    xcv,ycv
+!    eb        - eb= 'cost_b' then return J_b in prods
+!                  = 'cost_e' then return J_ens in prods
+!
+!   output argument list:
+!    prods
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+  type(control_vector), intent(in) :: xcv, ycv
+  character(len=*),intent(in):: eb
+  real(r_quad), intent(out) :: prods(nsubwin+ione)
+
+  real(r_quad) :: zz(nsubwin)
+  integer(i_kind) :: ii
+
+  prods(:)=zero_quad
+  zz(:)=zero_quad
+
+! Independent part of vector
+  if (lsqrtb) then
+!$omp parallel do
+    do ii=1,nsubwin
+      zz(ii)=qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
+    end do
+!$omp end parallel do
+  else
+    if(trim(eb) == 'cost_b') then
+      do ii=1,nsubwin
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
+        zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
+        zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+      end do
+    end if
+    if(trim(eb) == 'cost_e') then
+      do ii=1,nsubwin
+        if(n_ens >  izero) &
+        zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
+      end do
+    end if
+  end if
+
+  call mpl_allreduce(nsubwin,zz)
+  prods(1:nsubwin) = zz(1:nsubwin)
+
+! Duplicated part of vector
+  if(trim(eb) == 'cost_b') then
+    if (nsclen>0) then
+      prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predr(:),ycv%predr(:))
+    endif
+    if (npclen>0) then
+      prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predp(:),ycv%predp(:))
+    endif
+  end if
+
+return
+end subroutine qdot_prod_vars_eb
 ! ----------------------------------------------------------------------
 real(r_kind) function dot_prod_cv(xcv,ycv)
 !$$$  subprogram documentation block
@@ -808,6 +923,58 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
 return
 end function qdot_prod_cv
 ! ----------------------------------------------------------------------
+real(r_quad) function qdot_prod_cv_eb(xcv,ycv,kind,eb)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    qdot_prod_cv_eb  copy of qdot_prod_cv for J_ens
+!   prgmmr: parrish          org: np22                date: 2009-09-20
+!
+! abstract: copy qdot_prod_cv and add extra code to compute J_b or
+!            J_ens when running in hybrid_ensemble mode.  extra input
+!            character string eb is used to signal if J_b or J_ens is
+!            to be computed.
+!
+! program history log:
+!   2009-09-20  parrish - initial documentation
+!
+!   input argument list:
+!    xcv,ycv
+!    kind
+!    eb        - eb= 'cost_b' then return J_b in prods
+!                  = 'cost_e' then return J_ens in prods
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+  integer(i_kind),intent(in)::kind
+  character(len=*) eb
+  type(control_vector), intent(in) :: xcv, ycv
+
+! local variables
+  real(r_quad) :: zz(nsubwin+ione)
+  integer(i_kind) :: ii
+
+  if (xcv%lencv/=ycv%lencv) then
+      write(6,*)'qdot_prod_cv_eb: error length',xcv%lencv,ycv%lencv
+      call stop2(114)
+  end if
+
+  call qdot_prod_vars_eb(xcv,ycv,zz,eb)
+
+  qdot_prod_cv_eb= zero_quad
+  do ii=1,nsubwin+ione
+    qdot_prod_cv_eb = qdot_prod_cv_eb + zz(ii)
+  enddo
+
+return
+end function qdot_prod_cv_eb
+! ----------------------------------------------------------------------
 subroutine prt_norms(xcv,sgrep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -886,15 +1053,17 @@ subroutine prt_norms_vars(xcv,sgrep)
 
   real   (r_kind),dimension(8) :: vdot,vsum,vmin,vmax
   integer(i_kind),dimension(8) :: vnum
-  integer :: iw,nsw,iv,nv
+  integer :: iw,nsw,iv,ivend,nv
   real(r_kind),pointer,dimension(:) :: piv
 
-  character(len=4),dimension(8) :: vnames = &
-			(/'st  ','vp  ','t   ','rh  ','oz  ','cw  ','p   ','sst '/)
+  character(len=4),dimension(9) :: vnames = &
+                        (/'st  ','vp  ','t   ','rh  ','oz  ','cw  ','p   ','sst ','a_en'/)
 
   nsw=size(xcv%step)
 
-  do iv=1,8
+  ivend=8_i_kind
+  if(n_ens >  izero) ivend=9_i_kind
+  do iv=1,ivend
     do iw=1,nsw
       piv => null()
       select case(iv)
@@ -906,6 +1075,7 @@ subroutine prt_norms_vars(xcv,sgrep)
       case(6); piv => xcv%step(iw)%cw
       case(7); piv => xcv%step(iw)%p
       case(8); piv => xcv%step(iw)%sst
+      case(9); piv => xcv%step(iw)%a_en
       end select
 
       call stats_sum(piv, &

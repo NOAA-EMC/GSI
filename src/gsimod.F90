@@ -80,6 +80,8 @@
                         &lag_vorcore_stderr_a,lag_vorcore_stderr_b,lag_modini
   use lag_interp,only : lag_accur
   use lag_traj,only   : lag_stepduration
+  use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
+                         n_ens,beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters
   implicit none
 
   private
@@ -130,6 +132,9 @@
 !  04-21-2009 Derber    Ensure that ithin is positive if neg. set to zero
 !  07-08-2009 Sato      Update for anisotropic mode (global/ensemble based)
 !  08-31-2009 Parrish   Add changes for version 3 regional tangent linear normal mode constraint
+!  09-22-2009 Parrish   Add read of namelist/hybrid_ensemble/.  contains parameters used for hybrid
+!                        ensemble option.
+!                         
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -483,6 +488,24 @@
   namelist/lag_data/lag_accur,infile_lag,lag_stepduration,lag_nmax_bal,&
       lag_vorcore_stderr_a,lag_vorcore_stderr_b
 
+! HYBRID_ENSEMBLE (parameters for use with hybrid ensemble option)
+!     l_hyb_ens     - if true, then turn on hybrid ensemble option
+!     uv_hyb_ens    - if true, then ensemble perturbation wind variables are u,v,
+!                       otherwise, ensemble perturbation wind variables are stream, pot. functions.
+!     aniso_a_en - if true, then use anisotropic localization of hybrid ensemble control variable a_en.
+!     generate_ens - if true, then generate internal ensemble based on existing background error
+!     n_ens        - number of ensemble members.
+!     beta1_inv           - 1/beta1, the weight given to static background error covariance
+!                              0 <= beta1_inv <= 1,  tuned for optimal performance
+!                             =1, then ensemble information turned off
+!                             =0, then static background turned off
+!                            beta2_inv = 1 - beta1_inv is weight given to ensemble derived covariance
+!     s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
+!     s_ens_v             - vertical localization scale (grid units for now)
+!                              s_ens_h, s_ens_v, and beta1_inv are tunable parameters.
+  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,&
+                beta1_inv,s_ens_h,s_ens_v
+
 !EOC
 
 !---------------------------------------------------------------------------
@@ -540,6 +563,7 @@
   call init_io(mype)
   call init_vtrans
   call init_obsens
+  call init_hybrid_ensemble_parameters
   preserve_restart_date=.false.
 
 
@@ -559,6 +583,7 @@
   read(5,obs_input)
   read(5,superob_radar)
   read(5,lag_data)
+  read(5,hybrid_ensemble)
 #else
   open(11,file='gsiparm.anl')
   read(11,setup)
@@ -571,6 +596,7 @@
   read(11,obs_input)
   read(11,superob_radar)
   read(11,lag_data)
+  read(11,hybrid_ensemble)
   close(11)
 #endif
 
@@ -769,6 +795,7 @@
      end do
      write(6,superob_radar)
      write(6,lag_data)
+     write(6,hybrid_ensemble)
      if (oneobtest) write(6,singleob_test)
   endif
 

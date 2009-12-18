@@ -13,6 +13,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 !   2005=07-10  kleist, clean up and fix skint
 !   2009-04-21  derber - modify from get_derivatives to minimize data movement 
 !               and work for mass and momentum only and calculate uv
+!   2009-11-27  parrish - add uv_hyb_ens:  uv_hyb_ens=T, then st=u, vp=v
 !
 !   input argument list:
 !     u        - longitude velocity component
@@ -57,6 +58,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: compact_dlat,compact_dlon,stvp2uv
   use mpimod, only: nvarbal_id,nlevsbal,nnnvsbal
+  use hybrid_ensemble_parameters, only: uv_hyb_ens
 
   implicit none
 
@@ -82,7 +84,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
     if(regional)then
 !$omp parallel do 
       do k=1,nnnvsbal
-       if(nvarbal_id(k) ==ione)then
+       if(nvarbal_id(k) ==ione.and..not.uv_hyb_ens)then
          do j=1,nlon
            do i=1,nlat
              stx(i,j)=hwork(i,j,k)
@@ -100,7 +102,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
     else
 !$omp parallel do private(vector)
       do k=1,nnnvsbal
-       if(nvarbal_id(k) ==ione)then
+       if(nvarbal_id(k) ==ione.and..not.uv_hyb_ens)then
         call stvp2uv(hwork(1,1,k),hwork(1,1,k+ione))
        end if
        vector=.false.
@@ -134,6 +136,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
 !   2005-07-10  kleist, clean up
 !   2009-04-21  derber - modify from get_derivatives to minimize data movement 
 !               and work for mass and momentum only and calculate uv
+!   2009-11-27  parrish - add uv_hyb_ens:  uv_hyb_ens=T, then st=u, vp=v
 !
 !   input argument list:
 !     u_x      - longitude derivative of u  (note: in global mode, undefined at pole points)
@@ -163,6 +166,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: tcompact_dlat,tcompact_dlon,tstvp2uv
   use mpimod, only: nvarbal_id,nnnvsbal
+  use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
 
 ! Passed variables
@@ -196,7 +200,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
        if(nvarbal_id(k) <= 2_i_kind)vector=.true.
        call tdelx_reg(hwork_x(1,1,k),hwork(1,1,k),vector)
        call tdely_reg(hwork_y(1,1,k),hwork(1,1,k),vector)
-       if(nvarbal_id(k) ==ione)then
+       if(nvarbal_id(k) ==ione.and..not.uv_hyb_ens)then
         do j=1,nlon
           do i=1,nlat
             ux(i,j)=hwork(i,j,k)
@@ -215,7 +219,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
        if(nvarbal_id(k) <= 2_i_kind)vector=.true.
        call tcompact_dlon(hwork(1,1,k),hwork_x(1,1,k),vector)
        call tcompact_dlat(hwork(1,1,k),hwork_y(1,1,k),vector)
-       if(nvarbal_id(k) ==ione)then
+       if(nvarbal_id(k) ==ione.and..not.uv_hyb_ens)then
         call tstvp2uv(hwork(1,1,k),hwork(1,1,k+ione))
        end if
       end do

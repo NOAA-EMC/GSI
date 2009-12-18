@@ -227,19 +227,19 @@ contains
     end do
   end do
 
-  if(mype.eq.0) write(6,*)' nn,ny_tot,ny,nvert=',nn,ny_tot,ny,nvert
+  if(mype == 0) write(6,*)' nn,ny_tot,ny,nvert=',nn,ny_tot,ny,nvert
 
   ny_0=-1
   ny_1=-2
   nn=0
   do n=1,npe
-    if(n.le.kchk) then
+    if(n <= kchk) then
       kk=ny_this
     else
       kk=ny_this-1
     end if
-    if(kk.gt.0) then
-      if(mype+1.eq.n) then
+    if(kk >  0) then
+      if(mype+1 == n) then
         ny_0=nn+1
         ny_1=nn+kk
       end if
@@ -296,8 +296,8 @@ contains
     do j=1,ny_tot
       iy=list_sd2x(1,j)
       ivert=list_sd2x(2,j)
-      if(list2(iy,ivert).ne.0) then
-             if(mype.eq.0) write(0,*)' problem in zrnmi_sd2x1'
+      if(list2(iy,ivert) /= 0) then
+             if(mype == 0) write(0,*)' problem in zrnmi_sd2x1'
                           call mpi_finalize(i)
                           stop
       end if
@@ -400,10 +400,10 @@ contains
         iy=list_sd2x(1,k)
         ivert=list_sd2x(2,k)
         i=iy-istart(ipe)+2
-        if(i.ge.1.and.i.le.ilat1(ipe)+2) then
+        if(i >= 1.and.i <= ilat1(ipe)+2) then
           do j=1,jlon1(ipe)+2
             ix=j+jstart(ipe)-2
-            if(ix.ge.1.and.ix.le.nx) nn=nn+1
+            if(ix >= 1.and.ix <= nx) nn=nn+1
           end do
         end if
       end do
@@ -422,10 +422,10 @@ contains
         iy=list_sd2x(1,k)
         ivert=list_sd2x(2,k)
         i=iy-istart(ipe)+2
-        if(i.ge.1.and.i.le.ilat1(ipe)+2) then
+        if(i >= 1.and.i <= ilat1(ipe)+2) then
           do j=1,jlon1(ipe)+2
             ix=j+jstart(ipe)-2
-            if(ix.ge.1.and.ix.le.nx) then
+            if(ix >= 1.and.ix <= nx) then
               nn=nn+1
               info_send_x2sd(1,nn)=ix
               info_send_x2sd(2,nn)=j
@@ -935,19 +935,19 @@ contains
     end do
   end do
 
-  if(mype.eq.0) write(6,*)' in zrnmi_sd2x0, nn,nx_tot,nx,nvert=',nn,nx_tot,nx,nvert
+  if(mype == 0) write(6,*)' in zrnmi_sd2x0, nn,nx_tot,nx,nvert=',nn,nx_tot,nx,nvert
 
   nx_0=-1
   nx_1=-2
   nn=0
   do n=1,npe
-    if(n.le.kchk) then
+    if(n <= kchk) then
       kk=nx_this
     else
       kk=nx_this-1
     end if
-    if(kk.gt.0) then
-      if(mype+1.eq.n) then
+    if(kk >  0) then
+      if(mype+1 == n) then
         nx_0=nn+1
         nx_1=nn+kk
       end if
@@ -1004,8 +1004,8 @@ contains
     do j=1,nx_tot
       ix=list_sd2y(1,j)
       ivert=list_sd2y(2,j)
-      if(list2(ix,ivert).ne.0) then
-             if(mype.eq.0) write(0,*)' problem in zrnmi_sd2y1'
+      if(list2(ix,ivert) /= 0) then
+             if(mype == 0) write(0,*)' problem in zrnmi_sd2y1'
                           call mpi_finalize(i)
                           stop
       end if
@@ -1013,8 +1013,8 @@ contains
     end do
     do ivert=1,nvert
       do ix=1,nx
-        if(list2(ix,ivert).eq.0) then
-             if(mype.eq.0) write(0,*)' problem in zrnmi_sd2y1'
+        if(list2(ix,ivert) == 0) then
+             if(mype == 0) write(0,*)' problem in zrnmi_sd2y1'
                           call mpi_finalize(i)
                           stop
         end if
@@ -1117,10 +1117,10 @@ contains
         ix=list_sd2y(1,k)
         ivert=list_sd2y(2,k)
         i=ix-jstart(ipe)+2
-        if(i.ge.1.and.i.le.jlon1(ipe)+2) then
+        if(i >= 1.and.i <= jlon1(ipe)+2) then
           do j=1,ilat1(ipe)+2
             iy=j+istart(ipe)-2
-            if(iy.ge.1.and.iy.le.ny) nn=nn+1
+            if(iy >= 1.and.iy <= ny) nn=nn+1
           end do
         end if
       end do
@@ -1139,10 +1139,10 @@ contains
         ix=list_sd2y(1,k)
         ivert=list_sd2y(2,k)
         i=ix-jstart(ipe)+2
-        if(i.ge.1.and.i.le.jlon1(ipe)+2) then
+        if(i >= 1.and.i <= jlon1(ipe)+2) then
           do j=1,ilat1(ipe)+2
             iy=j+istart(ipe)-2
-            if(iy.ge.1.and.iy.le.ny) then
+            if(iy >= 1.and.iy <= ny) then
               nn=nn+1
               info_send_y2sd(1,nn)=iy
               info_send_y2sd(2,nn)=j
@@ -1668,13 +1668,13 @@ contains
       end do
       do i=1,((nx+1)/2),2
         factor=one
-        if(nx+1-i.eq.i) factor=half
+        if(nx+1-i == i) factor=half
         sum =factor*(g_x(i,j)+g_x(nx+1-i,j))
         diff=        g_x(i,j)-g_x(nx+1-i,j)
         i1=i+1
-        if(i1.le.(nx+1)/2) then
+        if(i1 <= (nx+1)/2) then
           factor=one
-          if(nx+1-i1.eq.i1) factor=half
+          if(nx+1-i1 == i1) factor=half
           sum1 =factor*(g_x(i1,j)+g_x(nx+1-i1,j))
           diff1=        g_x(i1,j)-g_x(nx+1-i1,j)
           do k=1,nx-1,2
@@ -1682,14 +1682,14 @@ contains
             gt_x(k ,j)=gt_x(k ,j)+sinx(k ,i)*sum +sinx(k ,i1)*sum1
             gt_x(k1,j)=gt_x(k1,j)+sinx(k1,i)*diff+sinx(k1,i1)*diff1
           end do
-          if(mod(nx,2).eq.1) gt_x(nx,j)=gt_x(nx,j)+sinx(nx,i)*sum+sinx(nx,i1)*sum1
+          if(mod(nx,2) == 1) gt_x(nx,j)=gt_x(nx,j)+sinx(nx,i)*sum+sinx(nx,i1)*sum1
         else
           do k=1,nx-1,2
             k1=k+1
             gt_x(k,j)=gt_x(k,j)+sinx(k,i)*sum
             gt_x(k1,j)=gt_x(k1,j)+sinx(k1,i)*diff
           end do
-          if(mod(nx,2).eq.1) gt_x(nx,j)=gt_x(nx,j)+sinx(nx,i)*sum
+          if(mod(nx,2) == 1) gt_x(nx,j)=gt_x(nx,j)+sinx(nx,i)*sum
         end if
       end do
     end do
@@ -2060,19 +2060,19 @@ contains
       end do
     end do
 
-    if(mype.eq.0) write(6,*)' in zrnmi_x2y0, nn,mx_tot,nx,nvert=',nn,mx_tot,nx,nvert
+    if(mype == 0) write(6,*)' in zrnmi_x2y0, nn,mx_tot,nx,nvert=',nn,mx_tot,nx,nvert
 
     mx_0=-1
     mx_1=-2
     nn=0
     do n=1,npe
-      if(n.le.kchk) then
+      if(n <= kchk) then
         kk=mx_this
       else
         kk=mx_this-1
       end if
-      if(kk.gt.0) then
-        if(mype+1.eq.n) then
+      if(kk >  0) then
+        if(mype+1 == n) then
           mx_0=nn+1
           mx_1=nn+kk
         end if
@@ -2125,8 +2125,8 @@ contains
     do j=1,mx_tot
       ix=list_x2y(1,j)
       ivert=list_x2y(2,j)
-      if(list2(ix,ivert).ne.0) then
-             if(mype.eq.0) write(0,*)' problem in zrnmi_x2y1'
+      if(list2(ix,ivert) /= 0) then
+             if(mype == 0) write(0,*)' problem in zrnmi_x2y1'
                           call mpi_finalize(i)
                           stop
       end if
@@ -2134,8 +2134,8 @@ contains
     end do
     do ivert=1,nvert
       do ix=1,nx
-        if(list2(ix,ivert).eq.0) then
-             if(mype.eq.0) write(0,*)' problem in zrnmi_x2y1'
+        if(list2(ix,ivert) == 0) then
+             if(mype == 0) write(0,*)' problem in zrnmi_x2y1'
                           call mpi_finalize(i)
                           stop
         end if
@@ -2642,13 +2642,13 @@ contains
       end do
       do i=1,((ny+1)/2),2
         factor=one
-        if(ny+1-i.eq.i) factor=half
+        if(ny+1-i == i) factor=half
         sum =factor*(g_y(i,j)+g_y(ny+1-i,j))
         diff=        g_y(i,j)-g_y(ny+1-i,j)
         i1=i+1
-        if(i1.le.(ny+1)/2) then
+        if(i1 <= (ny+1)/2) then
           factor=one
-          if(ny+1-i1.eq.i1) factor=half
+          if(ny+1-i1 == i1) factor=half
           sum1 =factor*(g_y(i1,j)+g_y(ny+1-i1,j))
           diff1=        g_y(i1,j)-g_y(ny+1-i1,j)
           do k=1,ny-1,2
@@ -2656,14 +2656,14 @@ contains
             gt_y(k ,j)=gt_y(k ,j)+siny(k ,i)*sum +siny(k ,i1)*sum1
             gt_y(k1,j)=gt_y(k1,j)+siny(k1,i)*diff+siny(k1,i1)*diff1
           end do
-          if(mod(ny,2).eq.1) gt_y(ny,j)=gt_y(ny,j)+siny(ny,i)*sum+siny(ny,i1)*sum1
+          if(mod(ny,2) == 1) gt_y(ny,j)=gt_y(ny,j)+siny(ny,i)*sum+siny(ny,i1)*sum1
         else
           do k=1,ny-1,2
             k1=k+1
             gt_y(k,j)=gt_y(k,j)+siny(k,i)*sum
             gt_y(k1,j)=gt_y(k1,j)+siny(k1,i)*diff
           end do
-          if(mod(ny,2).eq.1) gt_y(ny,j)=gt_y(ny,j)+siny(ny,i)*sum
+          if(mod(ny,2) == 1) gt_y(ny,j)=gt_y(ny,j)+siny(ny,i)*sum
         end if
       end do
     end do
@@ -2698,8 +2698,8 @@ contains
       end do
     end if
 
-    if(iord.eq.2) call zrnmi_delx(work1,work2)
-   !if(iord.eq.4) call zrnmi_delx_4th_ord(work1,work2)
+    if(iord == 2) call zrnmi_delx(work1,work2)
+   !if(iord == 4) call zrnmi_delx_4th_ord(work1,work2)
 
     if(vector) then
       do i=ny_0,ny_1
@@ -2837,8 +2837,8 @@ contains
       end do
     end if
 
-    if(iord.eq.2) call zrnmi_dely(work1,work2)
-   !if(iord.eq.4) call zrnmi_dely_4th_ord(work1,work2)
+    if(iord == 2) call zrnmi_dely(work1,work2)
+   !if(iord == 4) call zrnmi_dely_4th_ord(work1,work2)
 
     if(vector) then
       do i=nx_0,nx_1
@@ -3285,10 +3285,10 @@ contains
         f_p0_sm2(i,j)=fbar*p0_sm2(i,j)
 
         thislength=two*pi*sqrt(am2(i,j))
-    !   if(thislength.lt.3._r_kind*max(dxbar,dybar)) cycle
+    !   if(thislength <  3._r_kind*max(dxbar,dybar)) cycle
         thisperiod=thislength/(speeds(mode)*r3600)
       ! pmask(i,j)=half*(one-tanh((thisperiod-zrnmi_period_max)/zrnmi_period_width))
-        if(thisperiod.le.zrnmi_period_max) pmask(i,j)=one
+        if(thisperiod <= zrnmi_period_max) pmask(i,j)=one
               permax(mode)=max(permax(mode),thisperiod)
               rlenmax(mode)=max(rlenmax(mode),thislength)
       end do
@@ -3299,7 +3299,7 @@ contains
       mode=list_x2y(2,j)
       do i=1,ny
         numtot(mode)=numtot(mode)+1
-        if(pmask(i,j).gt.one_tenth) numkeep(mode)=numkeep(mode)+1
+        if(pmask(i,j) >  one_tenth) numkeep(mode)=numkeep(mode)+1
              pmaskmax(mode)=max(pmask(i,j),pmaskmax(mode))
              pmaskmin(mode)=min(pmask(i,j),pmaskmin(mode))
       end do
@@ -3310,7 +3310,7 @@ contains
     call mpi_allreduce(pmaskmin,pmaskmin0,nvert,mpi_rtype,mpi_min,mpi_comm_world,ierror)
     call mpi_allreduce(numkeep,numkeep0,nvert,mpi_integer,mpi_sum,mpi_comm_world,ierror)
     call mpi_allreduce(numtot,numtot0,nvert,mpi_integer,mpi_sum,mpi_comm_world,ierror)
-     if(mype.eq.0) then
+     if(mype == 0) then
           do k=1,nvert
             write(6,*)' in zrnmi_constants, k,period_max,numkeep,numtot,lenmax,permax=', &
                          k,zrnmi_period_max,numkeep0(k),numtot0(k),rlenmax0(k),permax0(k)
@@ -3334,6 +3334,8 @@ contains
 !
 ! program history log:
 !   2008-03-25  safford -- add subprogram doc block, rm unused uses
+!   2009-11-27  parrish - add uv_hyb_ens.  if present and true, then
+!                          input/output variables psi=u, chi=v.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -3371,6 +3373,7 @@ contains
     use mod_vtrans, only: depths
     use mpimod,only: mpi_rtype,mpi_sum,mpi_comm_world,ierror
     use jfunc,only: jiter
+    use hybrid_ensemble_parameters, only: uv_hyb_ens
     implicit none
 
 !   initially just generate projections and make maps
@@ -3417,7 +3420,11 @@ contains
       mhat2=p0_sm2*dhat
 
 !   transform to grid space
-      if(update)         call zrnmi_pcmhat2uvm(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
+      if(uv_hyb_ens) then
+        call zrnmi_pcmhat2uvm_orig(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
+      else
+        call zrnmi_pcmhat2uvm(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
+      end if
       call vtrans_inv(utilde,vtilde,mtilde,dpsi,dchi,dt,dps)
 
       t=t-dt ; ps=ps-dps
@@ -3447,7 +3454,7 @@ contains
       end do
       call mpi_allreduce(balagt,balagt0,nvert,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
       call mpi_allreduce(baldt,baldt0,nvert,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
-      if(mype.eq.0) then
+      if(mype == 0) then
 
          if (fullfield) then
             write(6,*) 'ZRNMI_STRONG_BAL:   FULL FIELD BALANCE DIAGNOSTICS --  '
@@ -3478,6 +3485,8 @@ contains
 !
 ! program history log:
 !   2008-03-25  safford -- add subprogram doc block, rm unused uses
+!   2009-11-27  parrish - add uv_hyb_ens.  if present and true, then
+!                          input/output variables psi=u, chi=v.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -3507,6 +3516,7 @@ contains
     use gridmod, only: lat2,lon2,nsig
     use constants, only: zero
     use mod_vtrans, only: vtrans_ad,vtrans_inv_ad
+    use hybrid_ensemble_parameters, only: uv_hyb_ens
     implicit none
 
 !   initially just generate projections and make maps
@@ -3532,7 +3542,11 @@ contains
       utilde=zero ; vtilde=zero ; mtilde=zero
       call vtrans_inv_ad(utilde,vtilde,mtilde,dpsi,dchi,dt,dps)
       phat2=zero ; chat2=zero ; mhat2=zero
-      call zrnmi_pcmhat2uvm_ad(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
+      if(uv_hyb_ens) then
+        call zrnmi_pcmhat2uvm_ad_orig(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
+      else
+        call zrnmi_pcmhat2uvm_ad(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
+      end if
 !       adjoint of gravity projected corrections
       dhat=p0_sm2*mhat2-f_sm2_am2*phat2
       zhat=f_sm2_am2*chat2

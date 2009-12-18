@@ -117,6 +117,8 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !   2007-04-16  kleist  - modified for full field or incremental diagnostics
 !   2008-04-04  safford - rm unused vars
 !   2008-10-08  derber  - modify to output streamfunction and vel. pot. and to not update time derivatives
+!   2009-11-27  parrish - add uv_hyb_ens.  if present and true, then
+!                          input/output variables psi=u, chi=v.
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -152,6 +154,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   use gridmod, only: nlat,nlon,lat2,lon2
   use specmod, only: jcap,nc
   use constants, only: zero
+  use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
 
   integer(i_kind),intent(in)::mype
@@ -198,7 +201,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   rmstend_g_loc_f=zero
   do kk=1,nuvlevs
     mode=mode_number(kk)
-    if(mode.eq.0) then
+    if(mode == 0) then
       do j=1,nlon
         do i=1,nlat
           uwork(i,j,kk)=zero
@@ -223,7 +226,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
       gspeed=sqrt(depths(abs(mode)))
       iad=1
       do m=0,jcap
-        if(mode.gt.0) then
+        if(mode >  0) then
 !              here, delvorthat, etc contain field corrections necessary to zero out gravity component
 !                                         of tendencies
           call dinmi(vorthat  (iad),divhat  (iad),mhat  (iad),&
@@ -249,7 +252,11 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
           mwork(i,j,kk)=zero
         end do
       end do
-      call zds2pcg(delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
+      if(uv_hyb_ens) then
+        call zds2uvg(delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
+      else
+        call zds2pcg(delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
+      end if
       call s2g0(delmhat,mwork(1,1,kk))
 
   end do
@@ -258,7 +265,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
     call gather_rmstends(rmstend_g_loc_uf,rmstend_g_uf,mype)
     call gather_rmstends(rmstend_loc_f,  rmstend_f,  mype)
     call gather_rmstends(rmstend_g_loc_f,rmstend_g_f,mype)
-    if(mype.eq.0) then
+    if(mype == 0) then
            rmstend_all_uf=zero
            rmstend_all_g_uf=zero
 
@@ -341,6 +348,8 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 !
 ! program history log:
 !   2006-07-15  parrish
+!   2009-11-27  parrish - add variable uv_hyb_ens.  if present and true, then
+!                          input/output variables psi=u, chi=v.
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -371,6 +380,7 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   use gridmod, only: nlat,nlon,lat2,lon2
   use specmod, only: jcap,nc
   use constants, only: zero
+  use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
 
   integer(i_kind),intent(in)::mype
@@ -424,7 +434,7 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 
   do kk=1,nuvlevs
     mode=mode_number(kk)
-    if(mode.eq.0) then
+    if(mode == 0) then
       do j=1,nlon
         do i=1,nlat
           uwork(i,j,kk)=zero
@@ -440,7 +450,11 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 !                     (slabs)                             (slabs)
 
       call s2g0_ad(delmhat,mwork(1,1,kk))
-      call zds2pcg_ad(delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
+      if(uv_hyb_ens) then
+        call zds2uvg_ad(delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
+      else
+        call zds2pcg_ad(delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
+      end if
 
 !   4.  divhat,vorthat,mhat --> deldivhat,delvorthat,delmhat   (inmi correction)
 !          (slabs)                        (slabs)
@@ -449,7 +463,7 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
       iad=1
       vorthat=zero ; divhat=zero ; mhat=zero
       do m=0,jcap
-        if(mode.gt.0) then
+        if(mode >  0) then
           call dinmi_ad(vorthat(iad),divhat(iad),mhat(iad),&
                       delvorthat(iad)   ,   deldivhat(iad),   delmhat(iad))
         else
@@ -551,8 +565,8 @@ subroutine inmi_sub2grid(utilde,utilde2,uwork)
   end do
   do k=1,nsig
     mode=mode_number0(k)
-    if(mode.eq.0) cycle
-    if(mode.gt.0) then
+    if(mode == 0) cycle
+    if(mode >  0) then
       do j=1,lon2
         do i=1,lat2
           u(i,j,k)=utilde(i,j,mode)
@@ -649,8 +663,8 @@ subroutine inmi_grid2sub(utilde,utilde2,uwork)
          mpi_comm_world,ierror)
   do k=1,nsig
     mode=mode_number0(k)
-    if(mode.eq.0) cycle
-    if(mode.gt.0) then
+    if(mode == 0) cycle
+    if(mode >  0) then
       do j=1,lon2
         do i=1,lat2
           utilde(i,j,mode)=u(i,j,k)
@@ -703,7 +717,7 @@ subroutine get_mode_number(mype)
   integer(i_kind) nuvlevs0(npe),ndisp(npe+1)
   integer(i_kind) nuvlev_use,kchk
 
-      if(nvmodes_keep*2.gt.nsig) then
+      if(nvmodes_keep*2 >  nsig) then
            write(6,*)' error in get_mode_number, currently necessary for nvmodes_keep*2 <= nsig '
            call stop2(89)
       end if
@@ -712,7 +726,7 @@ subroutine get_mode_number(mype)
   else
     kchk=mod(nsig,npe)
   end if
-  if(mype+1.le.kchk) then
+  if(mype+1 <= kchk) then
     nuvlev_use=nuvlevs
   else
     nuvlev_use=nuvlevs-1
@@ -720,9 +734,9 @@ subroutine get_mode_number(mype)
   ii=0
   mode_number=0
   do i=1,2*nvmodes_keep
-    if(mod(i-1,npe).eq.mype.and.ii.lt.nuvlev_use) then
+    if(mod(i-1,npe) == mype.and.ii <  nuvlev_use) then
       ii=ii+1
-      if(i.le.nvmodes_keep) then
+      if(i <= nvmodes_keep) then
         mode_number(ii)=i
       else
         mode_number(ii)=nvmodes_keep-i
@@ -786,7 +800,7 @@ subroutine gather_rmstends(rmstend_loc,rmstend,mype)
   else
     kchk=mod(nsig,npe)
   end if
-  if(mype+1.le.kchk) then
+  if(mype+1 <= kchk) then
     nuvlev_use=nuvlevs
   else
     nuvlev_use=nuvlevs-1
@@ -799,7 +813,7 @@ subroutine gather_rmstends(rmstend_loc,rmstend,mype)
   call mpi_allgatherv(rmstend_loc,nuvlev_use,mpi_rtype, &
                      work,nuvlevs0,ndisp,mpi_rtype,mpi_comm_world,ierror)
   do i=1,nsig
-    if(mode_number0(i).lt.0) rmstend(-mode_number0(i))=work(i)
+    if(mode_number0(i) <  0) rmstend(-mode_number0(i))=work(i)
   end do
 
 end subroutine gather_rmstends

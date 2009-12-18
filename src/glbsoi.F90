@@ -68,6 +68,9 @@ subroutine glbsoi(mype)
 !   2009-08-31  parrish - add call to fmg_initialize_e when jcstrong_option=4.  Initializes
 !                          alternative regional tangent linear normal mode constraint which
 !                          allows for variation of coriolis parameter and map factor.
+!   2009-09-12  parrish - add call to hybrid_ensemble_setup.  if l_hyb_ens=.true., then
+!                          subroutine hybrid_ensemble_setup is called, which creates 
+!                          everything needed for a hybrid ensemble 3dvar analysis.
 !
 !   input argument list:
 !     mype - mpi task id
@@ -120,6 +123,7 @@ subroutine glbsoi(mype)
   use mp_compact_diffs_mod1, only: init_mp_compact_diffs1,destroy_mp_compact_diffs1
   use observermod, only: observer_init,observer_set,observer_finalize,ndata
   use timermod, only: timer_ini, timer_fnl
+  use hybrid_ensemble_parameters, only: l_hyb_ens
 
   implicit none
 
@@ -192,6 +196,11 @@ subroutine glbsoi(mype)
      else
         call prewgt(mype)
      end if
+  end if
+
+! If l_hyb_ens is true, then initialize machinery for hybrid ensemble 3dvar
+  if(l_hyb_ens) then
+    call hybrid_ensemble_setup
   end if
 
 ! Read output from previous min.

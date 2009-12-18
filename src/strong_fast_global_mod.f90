@@ -164,6 +164,8 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !   2006-07-15  parrish
 !   2007-04-16  kleist  - modified for full field or incremental diagnostics
 !   2008-10-08  parrish/derber - modify to output streamfunction and vel. pot. and not update time derivatives
+!   2009-11-27  parrish - add uv_hyb_ens.  if uv_hyb_ens=true, then
+!                          input/output variables psi=u, chi=v.
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -199,6 +201,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   use gridmod, only: nlat,nlon,lat2,lon2,nsig
   use specmod, only: jcap
   use constants, only: zero,one,rearth
+  use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
 
   integer(i_kind),intent(in)::mype
@@ -270,7 +273,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !   4.  divhat,vorthat,mhat --> deldivhat,delvorthat,delmhat   (inmi correction)
 !          (slabs)                        (slabs)
 
-      if(mode.gt.0) then
+      if(mode >  0) then
 !              here, delvorthat, etc contain field corrections necessary to zero out gravity component
 !                                         of tendencies
         call dinmi(vorthat(1,m),divhat(1,m),mhat(1,m),delvorthat(1,m),deldivhat(1,m),delmhat(1,m))
@@ -283,23 +286,40 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
                      rmstend_loc_f(ipair,kk),rmstend_g_loc_f(ipair,kk),filtered)
       end if
 
-      i=0
-      do n=m,jcap
-        del2inv=zero
-        if(n.gt.0) del2inv=rearth**2/(n*(n+one))
-        i=i+1
-        zdm_hat(1,1,i,ipair,kk)=-delvorthat(1,n)*del2inv
-        zdm_hat(1,2,i,ipair,kk)=-delvorthat(2,n)*del2inv
-        zdm_hat(2,1,i,ipair,kk)=-deldivhat(1,n)*del2inv
-        zdm_hat(2,2,i,ipair,kk)=-deldivhat(2,n)*del2inv
-        zdm_hat(3,1,i,ipair,kk)=delmhat(1,n)
-        zdm_hat(3,2,i,ipair,kk)=delmhat(2,n)
-      end do
+      if(uv_hyb_ens) then
+        i=0
+        do n=m,jcap
+          i=i+1
+          zdm_hat(1,1,i,ipair,kk)=delvorthat(1,n)
+          zdm_hat(1,2,i,ipair,kk)=delvorthat(2,n)
+          zdm_hat(2,1,i,ipair,kk)=deldivhat(1,n)
+          zdm_hat(2,2,i,ipair,kk)=deldivhat(2,n)
+          zdm_hat(3,1,i,ipair,kk)=delmhat(1,n)
+          zdm_hat(3,2,i,ipair,kk)=delmhat(2,n)
+        end do
+      else
+        i=0
+        do n=m,jcap
+          del2inv=zero
+          if(n >  0) del2inv=rearth**2/(n*(n+one))
+          i=i+1
+          zdm_hat(1,1,i,ipair,kk)=-delvorthat(1,n)*del2inv
+          zdm_hat(1,2,i,ipair,kk)=-delvorthat(2,n)*del2inv
+          zdm_hat(2,1,i,ipair,kk)=-deldivhat(1,n)*del2inv
+          zdm_hat(2,2,i,ipair,kk)=-deldivhat(2,n)*del2inv
+          zdm_hat(3,1,i,ipair,kk)=delmhat(1,n)
+          zdm_hat(3,2,i,ipair,kk)=delmhat(2,n)
+        end do
+      end if
 
     end do
   end do
 
-  call inmi_nspcm_hat2pcm(uvm_ns,zdm_hat)
+  if(uv_hyb_ens) then
+    call inmi_nszdm2uvm(uvm_ns,zdm_hat)
+  else
+    call inmi_nspcm_hat2pcm(uvm_ns,zdm_hat)
+  end if
   call inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns)
   call inmi_ew_invtrans(uvm_ew,uvm_ewtrans)
   call inmi_coupler_ew2sd(delutilde,delvtilde,delmtilde,utilde_t_g,vtilde_t_g,mtilde_t_g,uvm_ew,mype)
@@ -310,7 +330,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
     call gather_rmstends(rmstend_g_loc_uf,rmstend_g_uf)
     call gather_rmstends(rmstend_loc_f,   rmstend_f)
     call gather_rmstends(rmstend_g_loc_f, rmstend_g_f)
-    if(mype.eq.0) then
+    if(mype == 0) then
            rmstend_all_uf=zero
            rmstend_all_g_uf=zero
 
@@ -387,6 +407,8 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 ! program history log:
 !   2006-07-15  parrish
 !   2008-10-08  parrish/derber - modify to output streamfunction and vel. pot. and not update time derivatives
+!   2009-11-27  parrish - add uv_hyb_ens.  if present and true, then
+!                          input/output variables psi=u, chi=v.
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -417,6 +439,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   use gridmod, only: nlat,nlon,lat2,lon2,nsig
   use specmod, only: jcap
   use constants, only: zero,one,rearth
+  use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
 
   integer(i_kind),intent(in)::mype
@@ -470,7 +493,11 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   call inmi_coupler_sd2ew(delutilde,delvtilde,delmtilde,utilde_t_g,vtilde_t_g,mtilde_t_g,uvm_ew,mype)
   call inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
   call inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns)
-  call inmi_nspcm_hat2pcm_ad(uvm_ns,zdm_hat)
+  if(uv_hyb_ens) then
+    call inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
+  else
+    call inmi_nspcm_hat2pcm_ad(uvm_ns,zdm_hat)
+  end if
   do kk=m_0,m_1
     do ipair=1,2
       m=mmode_list(ipair,kk)
@@ -484,19 +511,32 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
         mhat(   1,n)=zero
         mhat(   2,n)=zero
       end do
-      i=0
-      do n=m,jcap
-        del2inv=zero
-        if(n.gt.0) del2inv=rearth**2/(n*(n+one))
-        i=i+1
-        delvorthat(1,n)=-zdm_hat(1,1,i,ipair,kk)*del2inv
-        delvorthat(2,n)=-zdm_hat(1,2,i,ipair,kk)*del2inv
-        deldivhat(1,n)=-zdm_hat(2,1,i,ipair,kk)*del2inv
-        deldivhat(2,n)=-zdm_hat(2,2,i,ipair,kk)*del2inv
-        delmhat(1,n)=zdm_hat(3,1,i,ipair,kk)
-        delmhat(2,n)=zdm_hat(3,2,i,ipair,kk)
-      end do
-      if(mode.gt.0) then
+      if(uv_hyb_ens) then
+        i=0
+        do n=m,jcap
+          i=i+1
+          delvorthat(1,n)=zdm_hat(1,1,i,ipair,kk)
+          delvorthat(2,n)=zdm_hat(1,2,i,ipair,kk)
+          deldivhat(1,n)=zdm_hat(2,1,i,ipair,kk)
+          deldivhat(2,n)=zdm_hat(2,2,i,ipair,kk)
+          delmhat(1,n)=zdm_hat(3,1,i,ipair,kk)
+          delmhat(2,n)=zdm_hat(3,2,i,ipair,kk)
+        end do
+      else
+        i=0
+        do n=m,jcap
+          del2inv=zero
+          if(n >  0) del2inv=rearth**2/(n*(n+one))
+          i=i+1
+          delvorthat(1,n)=-zdm_hat(1,1,i,ipair,kk)*del2inv
+          delvorthat(2,n)=-zdm_hat(1,2,i,ipair,kk)*del2inv
+          deldivhat(1,n)=-zdm_hat(2,1,i,ipair,kk)*del2inv
+          deldivhat(2,n)=-zdm_hat(2,2,i,ipair,kk)*del2inv
+          delmhat(1,n)=zdm_hat(3,1,i,ipair,kk)
+          delmhat(2,n)=zdm_hat(3,2,i,ipair,kk)
+        end do
+      end if
+      if(mode >  0) then
         call dinmi_ad(vorthat(1,m),divhat(1,m),mhat(1,m),&
                     delvorthat(1,m)   ,   deldivhat(1,m),   delmhat(1,m))
       else
@@ -631,9 +671,9 @@ subroutine gather_rmstends(rmstend_loc,rmstend)
   do i=1,ndisp(npe+1)
     ii=indexglob(i)
     mode=mmode_list(3,ii)
-    if(mode.lt.0) rmstend(-mode)=work(1,ii)+rmstend(-mode)
+    if(mode <  0) rmstend(-mode)=work(1,ii)+rmstend(-mode)
     mode=mmode_list(4,ii)
-    if(mode.lt.0) rmstend(-mode)=work(2,ii)+rmstend(-mode)
+    if(mode <  0) rmstend(-mode)=work(2,ii)+rmstend(-mode)
   end do
 
 end subroutine gather_rmstends
@@ -695,13 +735,13 @@ subroutine inmi_coupler_sd2ew0(mype)
   nlatm_1=-2
   nn=0
   do n=1,npe
-    if(n.le.kchk) then
+    if(n <= kchk) then
       kk=nlatm_this
     else
       kk=nlatm_this-1
     end if
-    if(kk.gt.0) then
-      if(mype+1.eq.n) then
+    if(kk >  0) then
+      if(mype+1 == n) then
         nlatm_0=nn+1
         nlatm_1=nn+kk
       end if
@@ -760,18 +800,18 @@ subroutine inmi_coupler_sd2ew1(mype)
   do j=1,nlat*nvmodes_keep
     ilat=mode_list(1,j)
     imode=mode_list(2,j)
-    if(mode2_list(ilat,imode).ne.0) then
-           if(mype.eq.0) write(6,*)' problem in inmi_coupler_sd2ew'
+    if(mode2_list(ilat,imode) /= 0) then
+           if(mype == 0) write(6,*)' problem in inmi_coupler_sd2ew'
                         call mpi_finalize(i)
                         stop
     end if
     mode2_list(ilat,imode)=j
   end do
   do imode=1,nvmodes_keep
-    if(imode.eq.0) cycle
+    if(imode == 0) cycle
     do ilat=1,nlat
-      if(mode2_list(ilat,imode).eq.0) then
-           if(mype.eq.0) write(6,*)' problem in inmi_coupler_sd2ew'
+      if(mode2_list(ilat,imode) == 0) then
+           if(mype == 0) write(6,*)' problem in inmi_coupler_sd2ew'
                         call mpi_finalize(i)
                         stop
       end if
@@ -783,7 +823,7 @@ subroutine inmi_coupler_sd2ew1(mype)
   nsend_sd2ew=0
   nlonloc=lon2-2
   do imode=1,nvmodes_keep
-    if(imode.eq.0) cycle
+    if(imode == 0) cycle
     do i=2,lat2-1
       ilat=i+istart(mm1)-2
       j=mode2_list(ilat,imode)
@@ -800,7 +840,7 @@ subroutine inmi_coupler_sd2ew1(mype)
   allocate(info_send_sd2ew(2,nallsend_sd2ew))
   nsend_sd2ew=0
   do imode=1,nvmodes_keep
-    if(imode.eq.0) cycle
+    if(imode == 0) cycle
     do i=2,lat2-1
       ilat=i+istart(mm1)-2
       ilatm=mode2_list(ilat,imode)
@@ -961,11 +1001,11 @@ subroutine inmi_coupler_ew2sd1(mype)
       ilat=mode_list(1,k)
       imode=mode_list(2,k)
       i=ilat-istart(ipe)+2
-      if(i.lt.1.or.i.gt.ilat1(ipe)+2) cycle
+      if(i <  1.or.i >  ilat1(ipe)+2) cycle
       do j=1,jlon1(ipe)+2
         ilon=j+jstart(ipe)-2
-        if(ilon.lt.1) ilon=ilon+nlon
-        if(ilon.gt.nlon) ilon=ilon-nlon
+        if(ilon <  1) ilon=ilon+nlon
+        if(ilon >  nlon) ilon=ilon-nlon
         nn=nn+1
       end do
     end do
@@ -984,11 +1024,11 @@ subroutine inmi_coupler_ew2sd1(mype)
       ilat=mode_list(1,k)
       imode=mode_list(2,k)
       i=ilat-istart(ipe)+2
-      if(i.lt.1.or.i.gt.ilat1(ipe)+2) cycle
+      if(i <  1.or.i >  ilat1(ipe)+2) cycle
       do j=1,jlon1(ipe)+2
         ilon=j+jstart(ipe)-2
-        if(ilon.lt.1) ilon=ilon+nlon
-        if(ilon.gt.nlon) ilon=ilon-nlon
+        if(ilon <  1) ilon=ilon+nlon
+        if(ilon >  nlon) ilon=ilon-nlon
         nn=nn+1
         info_send_ew2sd(1,nn)=ilon
         info_send_ew2sd(2,nn)=j
@@ -1093,9 +1133,9 @@ subroutine inmi_coupler_ew2sd(u_sd1,v_sd1,m_sd1,u_sd2,v_sd2,m_sd2,uvm_ew,mype)
     m_sd2(ilat-istart(mm1)+2,ilonloc,imode)=recvbuf(2,3,j)
 !--------------check for north or south pole
     ilat=-1
-    if(mode_list(1,ilatm).eq.nlat) ilat=nlat+1
-    if(mode_list(1,ilatm).eq.1) ilat=0
-    if(ilat.eq.-1) cycle
+    if(mode_list(1,ilatm) == nlat) ilat=nlat+1
+    if(mode_list(1,ilatm) == 1) ilat=0
+    if(ilat == -1) cycle
 !-----------------do repeat rows for north/south pole
     u_sd1(ilat-istart(mm1)+2,ilonloc,imode)=recvbuf(1,1,j)
     v_sd1(ilat-istart(mm1)+2,ilonloc,imode)=recvbuf(1,2,j)
@@ -1401,7 +1441,7 @@ subroutine inmi_coupler_ew2ns0(mype)
     kchk=mod(total_groups,npe)
   end if
 
-  if(mod(jcap,2).ne.0) then
+  if(mod(jcap,2) /= 0) then
 
 !    case  jcap odd:
    
@@ -1477,13 +1517,13 @@ subroutine inmi_coupler_ew2ns0(mype)
   m_1=-2
   nn=0
   do n=1,npe
-    if(n.le.kchk) then
+    if(n <= kchk) then
       kk=num_per_pe
     else
       kk=num_per_pe-1
     end if
-    if(kk.gt.0) then
-      if(mype+1.eq.n) then
+    if(kk >  0) then
+      if(mype+1 == n) then
         m_0=nn+1
         m_1=nn+kk
       end if
@@ -1540,18 +1580,18 @@ subroutine inmi_coupler_ew2ns1(mype)
     m2=mmode_list(2,j)
     imode1=mmode_list(3,j)
     imode2=mmode_list(4,j)
-    if(imode1.eq.imode2) then
-      if(mmode2_list(m1,imode1).ne.0.or.mmode2_list(m2,imode1).ne.0) then
-            if(mype.eq.0) write(6,*)' problem in inmi_coupler_ew2ns'
+    if(imode1 == imode2) then
+      if(mmode2_list(m1,imode1) /= 0.or.mmode2_list(m2,imode1) /= 0) then
+            if(mype == 0) write(6,*)' problem in inmi_coupler_ew2ns'
                         call mpi_finalize(i)
                         stop
       end if
       mmode2_list(m1,imode1)=j
       mmode2_list(m2,imode1)=j
     end if
-    if(m1.eq.m2) then
-      if(mmode2_list(m1,imode1).ne.0.or.mmode2_list(m1,imode2).ne.0) then
-            if(mype.eq.0) write(6,*)' problem in inmi_coupler_ew2ns'
+    if(m1 == m2) then
+      if(mmode2_list(m1,imode1) /= 0.or.mmode2_list(m1,imode2) /= 0) then
+            if(mype == 0) write(6,*)' problem in inmi_coupler_ew2ns'
                         call mpi_finalize(i)
                         stop
       end if
@@ -1560,10 +1600,10 @@ subroutine inmi_coupler_ew2ns1(mype)
     end if
   end do
   do imode=-nvmodes_keep,nvmodes_keep
-    if(imode.eq.0) cycle
+    if(imode == 0) cycle
     do m=0,jcap
-      if(mmode2_list(m,imode).eq.0) then
-           if(mype.eq.0) write(6,*)' problem in inmi_coupler_ew2ns'
+      if(mmode2_list(m,imode) == 0) then
+           if(mype == 0) write(6,*)' problem in inmi_coupler_ew2ns'
                         call mpi_finalize(i)
                         stop
       end if
@@ -1597,7 +1637,7 @@ subroutine inmi_coupler_ew2ns1(mype)
     ilat=mode_list(1,k)
     do loop=1,2
       imode=mode_list(2,k)
-      if(loop.eq.2) imode=-mode_list(2,k)
+      if(loop == 2) imode=-mode_list(2,k)
       do m=0,jcap
         j=mmode2_list(m,imode)
         m1=mmode_list(1,j)
@@ -1606,11 +1646,11 @@ subroutine inmi_coupler_ew2ns1(mype)
         imode2=mmode_list(4,j)
         ipe=mmode_list(5,j)
         ip12=0
-        if(m1.eq.m2.and.imode.eq.imode1) ip12=1
-        if(m1.eq.m2.and.imode.eq.imode2) ip12=2
-        if(imode1.eq.imode2.and.m.eq.m1) ip12=1
-        if(imode1.eq.imode2.and.m.eq.m2) ip12=2
-             if(ip12.eq.0) ibad=ibad+1
+        if(m1 == m2.and.imode == imode1) ip12=1
+        if(m1 == m2.and.imode == imode2) ip12=2
+        if(imode1 == imode2.and.m == m1) ip12=1
+        if(imode1 == imode2.and.m == m2) ip12=2
+             if(ip12 == 0) ibad=ibad+1
         ipe=mmode_list(5,j)
         nsend(ipe)=nsend(ipe)+1
         info_send(1,ndsend(ipe)+nsend(ipe))=k
@@ -1624,8 +1664,8 @@ subroutine inmi_coupler_ew2ns1(mype)
   end do
 
      call mpi_allreduce(ibad,ibad0,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
-     if(ibad0.gt.0) then
-         if(mype.eq.0) write(0,*)' ibad = ',ibad0,'  inconsistency in inmi_coupler_ew2ns1'
+     if(ibad0 >  0) then
+         if(mype == 0) write(0,*)' ibad = ',ibad0,'  inconsistency in inmi_coupler_ew2ns1'
          call mpi_finalize(ierror)
          stop
      end if
@@ -1690,7 +1730,7 @@ subroutine inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns)
     imode=info_send(3,j)
     m=info_send(4,j)
     loop=1
-    if(imode.lt.0) loop=2
+    if(imode <  0) loop=2
     sendbuf(1,1,j)=uvm_ewtrans(loop,1,1,m,ilatm)
     sendbuf(2,1,j)=uvm_ewtrans(loop,2,1,m,ilatm)
     sendbuf(3,1,j)=uvm_ewtrans(loop,3,1,m,ilatm)
@@ -1785,7 +1825,7 @@ subroutine inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns)
     imode=info_send(3,j)
     m=info_send(4,j)
     loop=1
-    if(imode.lt.0) loop=2
+    if(imode <  0) loop=2
     uvm_ewtrans(loop,1,1,m,ilatm)=sendbuf(1,1,j)
     uvm_ewtrans(loop,2,1,m,ilatm)=sendbuf(2,1,j)
     uvm_ewtrans(loop,3,1,m,ilatm)=sendbuf(3,1,j)
@@ -1963,10 +2003,10 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
       end do
 
 !  adjoint of set pole values
-      if(m.eq.0) then
+      if(m == 0) then
         uvm_ns_temp(3,1,2,ipair,mm)=uvm_ns_temp(3,1,1,ipair,mm)+uvm_ns_temp(3,1,2,ipair,mm)
         uvm_ns_temp(3,1,nlat-1,ipair,mm)=uvm_ns_temp(3,1,nlat,ipair,mm)+uvm_ns_temp(3,1,nlat-1,ipair,mm)
-      else if(m.eq.1) then
+      else if(m == 1) then
         uvm_ns_temp(1,1,2,ipair,mm)=uvm_ns_temp(1,1,1,ipair,mm)+uvm_ns_temp(1,1,2,ipair,mm)
         uvm_ns_temp(1,2,2,ipair,mm)=uvm_ns_temp(1,2,1,ipair,mm)+uvm_ns_temp(1,2,2,ipair,mm)
         uvm_ns_temp(2,1,2,ipair,mm)=uvm_ns_temp(2,1,1,ipair,mm)+uvm_ns_temp(2,1,2,ipair,mm)
@@ -2010,7 +2050,7 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
               spcu(1,m),spcv(1,m),spcu(1,jcap+1),spcv(1,jcap+1),spcd(1,m),spcz(1,m))
 
       i=0
-      if(m.eq.0) then
+      if(m == 0) then
         i=i+1
         zdm_hat(1,1,i,ipair,mm)=zero
         zdm_hat(1,2,i,ipair,mm)=zero
@@ -2132,7 +2172,7 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
       end do
 
 !  set pole values
-      if(m.eq.0) then
+      if(m == 0) then
         uvm_ns(1,1,1,ipair,mm)=zero
         uvm_ns(1,2,1,ipair,mm)=zero
         uvm_ns(2,1,1,ipair,mm)=zero
@@ -2145,7 +2185,7 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
         uvm_ns(2,2,nlat,ipair,mm)=zero
         uvm_ns(3,1,nlat,ipair,mm)=uvm_ns(3,1,nlat-1,ipair,mm)
         uvm_ns(3,2,nlat,ipair,mm)=zero
-      else if(m.eq.1) then
+      else if(m == 1) then
         uvm_ns(1,1,1,ipair,mm)=uvm_ns(1,1,2,ipair,mm)
         uvm_ns(1,2,1,ipair,mm)=uvm_ns(1,2,2,ipair,mm)
         uvm_ns(2,1,1,ipair,mm)=uvm_ns(2,1,2,ipair,mm)
@@ -2270,7 +2310,7 @@ subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat)
       end do
 
 !  set pole values
-      if(m.eq.0) then
+      if(m == 0) then
         pcm_ns(1,1,1,ipair,mm)=pcm_ns(1,1,2,ipair,mm)
         pcm_ns(1,2,1,ipair,mm)=zero
         pcm_ns(1,1,nlat,ipair,mm)=pcm_ns(1,1,nlat-1,ipair,mm)
@@ -2360,7 +2400,7 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
 
 !  adjoint of set pole values
 
-      if(m.eq.0) then
+      if(m == 0) then
         pcm_ns_temp(1,1,     2,ipair,mm)=pcm_ns_temp(1,1,   1,ipair,mm)+pcm_ns_temp(1,1,     2,ipair,mm)
         pcm_ns_temp(1,1,nlat-1,ipair,mm)=pcm_ns_temp(1,1,nlat,ipair,mm)+pcm_ns_temp(1,1,nlat-1,ipair,mm)
         pcm_ns_temp(2,1,     2,ipair,mm)=pcm_ns_temp(2,1,   1,ipair,mm)+pcm_ns_temp(2,1,     2,ipair,mm)
@@ -2771,7 +2811,7 @@ end subroutine inmi_nsuvm2zdm_ad
       real(r_kind) wgtloc
       integer(i_kind) n
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-      if(mp.eq.0) then
+      if(mp == 0) then
         wgtloc=wgt
       else
         wgtloc=wgt*clat
@@ -2867,7 +2907,7 @@ end subroutine inmi_nsuvm2zdm_ad
             F(2,1)=F1I+F(2,2)
             F(1,2)=F1R-F(1,2)
             F(2,2)=F1I-F(2,2)
-          IF(MP.EQ.1) THEN
+          IF(MP == 1) THEN
             F(1,1)=F(1,1)/CLAT
             F(2,1)=F(2,1)/CLAT
             F(1,2)=F(1,2)/CLAT

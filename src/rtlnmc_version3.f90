@@ -177,8 +177,8 @@ contains
     do 
       next=nxall(k)/2
       ifactor=2*ifactor
-      if(next*ifactor.lt.nxall(1)) next=next+1
-      if(next.lt.3) exit
+      if(next*ifactor <  nxall(1)) next=next+1
+      if(next <  3) exit
       factor=ifactor
       thisend=next*factor
       k=k+1
@@ -251,7 +251,7 @@ contains
     integer(i_kind) ic,if,jc,jf
 
     nx=mg(1)%nx ; ny=mg(1)%ny
-    if(nx.ne.nxa-1.or.ny.ne.nya-1) then
+    if(nx /= nxa-1.or.ny /= nya-1) then
       write(6,*)' inconsistent args in init_mgvars, nx,nxa-1,ny,nya-1=',nx,nxa-1,ny,nya-1
       stop
     end if
@@ -313,8 +313,8 @@ contains
           mg(k)%y00(j,i)=dy_fine(jj,ii)*jump
           mg(k)%r00(j,i)=coriolis_fine(jj,ii)**2/mg(k)%phi0
         end do
-        if(j.lt.nyall(k)-1.or.j.gt.nyall(k)) jbad=jbad+1
-        if(j.eq.nyall(k)-1) then
+        if(j <  nyall(k)-1.or.j >  nyall(k)) jbad=jbad+1
+        if(j == nyall(k)-1) then
           j=nyall(k)
           jj=nyall(1)
           mg(k)%x00(j,i)=dx_fine(jj,ii)*jump
@@ -322,8 +322,8 @@ contains
           mg(k)%r00(j,i)=coriolis_fine(jj,ii)**2/mg(k)%phi0
         end if
       end do
-      if(i.lt.nxall(k)-1.or.i.gt.nxall(k)) ibad=ibad+1
-      if(i.eq.nxall(k)-1) then
+      if(i <  nxall(k)-1.or.i >  nxall(k)) ibad=ibad+1
+      if(i == nxall(k)-1) then
         i=nxall(k)
         ii=nxall(1)
         j=-1
@@ -333,9 +333,9 @@ contains
           mg(k)%y00(j,i)=dy_fine(jj,ii)*jump
           mg(k)%r00(j,i)=coriolis_fine(jj,ii)**2/mg(k)%phi0
         end do
-        if(j.lt.nyall(k)-1) jbad=jbad+1
-        if(j.gt.nyall(k))   jbad=jbad+1
-        if(j.eq.nyall(k)-1) then
+        if(j <  nyall(k)-1) jbad=jbad+1
+        if(j >  nyall(k))   jbad=jbad+1
+        if(j == nyall(k)-1) then
           j=nyall(k)
           jj=nyall(1)
           mg(k)%x00(j,i)=dx_fine(jj,ii)*jump
@@ -387,10 +387,10 @@ contains
         do i=1,nx-1
           ii=ii+1
           d(ii)=mg(k)%h00(j,i)
-          if(i.eq.nx-1) d(ii)=d(ii)+mg(k)%h0p(j,i)*mg(k)%b_over_a_east
+          if(i == nx-1) d(ii)=d(ii)+mg(k)%h0p(j,i)*mg(k)%b_over_a_east
           dh(ii)=d(ii)+mg(k)%r00(j,i)
-          if(i.lt.nx-1) o(ii)=-mg(k)%h0p(j,i)
-          if(i.gt.1) u(ii-1)=-mg(k)%h0m(j,i)
+          if(i <  nx-1) o(ii)=-mg(k)%h0p(j,i)
+          if(i >  1) u(ii-1)=-mg(k)%h0m(j,i)
         end do
         call multi_factorize(d,u,o,nx-1,dbar,ubar,obar)
         call multi_factorize(dh,u,o,nx-1,dbarh,ubarh,obarh)
@@ -428,10 +428,10 @@ contains
         do j=1,ny-1
           jj=jj+1
           d(jj)=mg(k)%h00(j,i)
-          if(j.eq.ny-1) d(jj)=d(jj)+mg(k)%hp0(j,i)*mg(k)%b_north/mg(k)%a_north
+          if(j == ny-1) d(jj)=d(jj)+mg(k)%hp0(j,i)*mg(k)%b_north/mg(k)%a_north
           dh(jj)=d(jj)+mg(k)%r00(j,i)
-          if(j.lt.ny-1) o(jj)=-mg(k)%hp0(j,i)
-          if(j.gt.1) u(jj-1)=-mg(k)%hm0(j,i)
+          if(j <  ny-1) o(jj)=-mg(k)%hp0(j,i)
+          if(j >  1) u(jj-1)=-mg(k)%hm0(j,i)
         end do
         call multi_factorize(d,u,o,ny-1,dbar,ubar,obar)
         call multi_factorize(dh,u,o,ny-1,dbarh,ubarh,obarh)
@@ -491,7 +491,7 @@ contains
 
     integer(i_kind) i,j
 
-    if(mgk%nx.ne.nx.or.mgk%ny.ne.ny) then
+    if(mgk%nx /= nx.or.mgk%ny /= ny) then
         write(6,*)' argument error in call to eval_ne_bdys, mgk%nx,nx,mgk%ny,ny=',mgk%nx,nx,mgk%ny,ny
         stop
     end if
@@ -532,7 +532,7 @@ contains
 
     integer(i_kind) i,j
 
-    if(mgk%nx.ne.nx.or.mgk%ny.ne.ny) then
+    if(mgk%nx /= nx.or.mgk%ny /= ny) then
         write(6,*)' argument error in call to eval_ne_bdys, mgk%nx,nx,mgk%ny,ny=',mgk%nx,nx,mgk%ny,ny
         stop
     end if
@@ -1227,7 +1227,7 @@ contains
     integer(i_kind) i,im1,ip1,j
 
 !      check that nx,ny are correct values for level k:
-    if(mg(k)%nx.ne.nx.or.mg(k)%ny.ne.ny) then
+    if(mg(k)%nx /= nx.or.mg(k)%ny /= ny) then
       write(6,*)' inconsistent input nx,ny for fmg_forward_op, program stops'
       stop
     end if
@@ -1255,7 +1255,7 @@ contains
     integer(i_kind) i,im1,ip1,j
 
 !      check that nx,ny are correct values for level k:
-    if(mg(k)%nx.ne.nx.or.mg(k)%ny.ne.ny) then
+    if(mg(k)%nx /= nx.or.mg(k)%ny /= ny) then
       write(6,*)' inconsistent input nx,ny for fmg_forward_op_ad, program stops'
       stop
     end if
@@ -1574,7 +1574,7 @@ contains
     real(r_kind) helmholtz_factor
          real(r_kind) fmax,fmean
 
-    if(nxall(1).ne.nx.or.nyall(1).ne.ny) then
+    if(nxall(1) /= nx.or.nyall(1) /= ny) then
        write(6,*)' inconsistent input nx,ny in fmg, program stops'
        stop
     end if
@@ -1643,13 +1643,13 @@ contains
 
       end do
 
-      if(m.gt.1) then
+      if(m >  1) then
         call eval_bdys(mg(m)%v,mg(m),mg(m)%nx,mg(m)%ny)
         call c2f_bicubic(mg(m)%v,mg(m-1)%v,mg(m)%nx,mg(m)%ny,mg(m-1)%nx,mg(m-1)%ny,mg(m-1)%bicubic_mask)
         call eval_bdys(mg(m-1)%v,mg(m-1),mg(m-1)%nx,mg(m-1)%ny)
       end if
 
-      if(m.eq.1) exit
+      if(m == 1) exit
 
       do k=m-1,mgrid-1
 
@@ -1718,7 +1718,7 @@ contains
     real(r_kind) helmholtz_factor
          real(r_kind) fmax,fmean
 
-    if(nxall(1).ne.nx.or.nyall(1).ne.ny) then
+    if(nxall(1) /= nx.or.nyall(1) /= ny) then
        write(6,*)' inconsistent input nx,ny in fmg, program stops'
        stop
     end if
@@ -1733,7 +1733,7 @@ contains
 
     do m=1,mgrid
 
-      if(m.gt.1) then
+      if(m >  1) then
         do k=mgrid-1,m-1,-1
 
 !        adjoint of transfer residual to next coarser grid
@@ -2131,7 +2131,7 @@ contains
     ! end do
     !   call outgrad1(mg(k)%z,'exact_v_xtest',nx+1,ny+1)
     !   call outgrad1(mg(k)%v,'solve_v_xtest',nx+1,ny+1)
-    !        if(1.ne.0) stop
+    !        if(1 /= 0) stop
 
       call eval_bdys(mg(k)%v,mg(k),mg(k)%nx,mg(k)%ny)
       mg(k)%f=zero
@@ -2150,7 +2150,7 @@ contains
                                                                maxval(abs(mg(k)%f(1:ny-1,1:nx-1)))
            write(6,'(" iter,max(|v-v0|)/max(|v0| = ",i5,e15.4)') &
                          i,maxval(abs(mg(k)%v-mg(k)%z))/maxval(abs(mg(k)%z))
-        if(i.gt.20) cycle
+        if(i >  20) cycle
         write(string,'("f",i2.2)')i
         call outgrad1(mg(k)%f,trim(string),nx+1,ny+1)
         write(string,'("r_odev_xy",i2.2)')i
@@ -2195,7 +2195,7 @@ contains
       end do
       write(6,'(" c2f_bilinear_ad (aT*a), kc,kf,xtz,yty=",2i3,2e22.15,e10.3)') &
                      kc,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
     end do
 
     do kf=1,mgrid-1
@@ -2218,7 +2218,7 @@ contains
       end do
       write(6,'(" c2f_bilinear_ad (a*aT), kc,kf,xtz,yty=",2i3,2e22.15,e10.3)') &
                      kc,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
     end do
           write(6,'(" max error for c2f_bilinear_ad=",e10.3)') errmax
 
@@ -2245,7 +2245,7 @@ contains
       end do
       write(6,'(" c2f_bicubic_ad (aT*a), kc,kf,xtz,yty=",2i3,2e22.15,e10.3)') &
                      kc,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
     end do
 
     do kf=1,mgrid-1
@@ -2268,7 +2268,7 @@ contains
       end do
       write(6,'(" c2f_bicubic_ad (a*aT), kc,kf,xtz,yty=",2i3,2e22.15,e10.3)') &
                      kc,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
     end do
           write(6,'(" max error for c2f_bicubic_ad=",e10.3)') errmax
 
@@ -2294,7 +2294,7 @@ contains
       end do
       write(6,'(" eval_bdys_ad (aT*a), k,xtz,yty=",i3,2e22.15,e10.3)') &
                      kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
     end do
 
     do kf=1,mgrid
@@ -2316,7 +2316,7 @@ contains
       end do
       write(6,'(" eval_bdys_ad (a*aT), k,xtz,yty=",i3,2e22.15,e10.3)') &
                      kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
     end do
           write(6,'(" max error for eval_bdys_ad=",e10.3)') errmax
 
@@ -2343,7 +2343,7 @@ contains
       end do
       write(6,'(" f2c_full_weight_ad (aT*a), kc,kf,xtz,yty=",2i3,2e22.15,e10.3)') &
                      kc,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
     end do
 
     do kf=1,mgrid-1
@@ -2366,7 +2366,7 @@ contains
       end do
       write(6,'(" f2c_full_weight_ad (a*aT), kc,kf,xtz,yty=",2i3,2e22.15,e10.3)') &
                      kc,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
     end do
           write(6,'(" max error for f2c_full_weight_ad=",e10.3)') errmax
 
@@ -2394,7 +2394,7 @@ contains
         end do
         write(6,'(" forward_op_ad (aT*a), h,k,xtz,yty=",i2,i3,2e22.15,e10.3)') &
                        ihem,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
       end do
 
       do kf=1,mgrid
@@ -2416,7 +2416,7 @@ contains
         end do
         write(6,'(" forward_op_ad (a*aT), h,k,xtz,yty=",i2,i3,2e22.15,e10.3)') &
                        ihem,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
       end do
     end do
           write(6,'(" max error for forward_op_ad=",e10.3)') errmax
@@ -2432,7 +2432,7 @@ contains
         call random_number(mg(kf)%v)
         mg(kf)%w=mg(kf)%v
         mg(kf)%f=zero
-        if(ihem.eq.0) then
+        if(ihem == 0) then
           call inverse_luop_x(mg(kf)%v,mg(kf)%f,mg(kf)%dbarx,mg(kf)%ubarx,mg(kf)%obarx, &
                                mg(kf)%nx,mg(kf)%ny,jj,ii)
         else
@@ -2446,7 +2446,7 @@ contains
           end do
         end do
         mg(kf)%v=zero
-        if(ihem.eq.0) then
+        if(ihem == 0) then
           call inverse_luop_x_ad(mg(kf)%v,mg(kf)%f,mg(kf)%dbarx,mg(kf)%ubarx,mg(kf)%obarx, &
                                mg(kf)%nx,mg(kf)%ny,jj,ii)
         else
@@ -2461,14 +2461,14 @@ contains
         end do
         write(6,'(" inverse_luop_x_ad (aT*a), jj,ii,h,k,xtz,yty=",3i2,i3,2e22.15,e10.3)') &
                        jj,ii,ihem,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
       end do
 
       do kf=1,mgrid
         call random_number(mg(kf)%f)
         mg(kf)%w=mg(kf)%f
         mg(kf)%v=zero
-        if(ihem.eq.0) then
+        if(ihem == 0) then
           call inverse_luop_x_ad(mg(kf)%v,mg(kf)%f,mg(kf)%dbarx,mg(kf)%ubarx,mg(kf)%obarx, &
                                mg(kf)%nx,mg(kf)%ny,jj,ii)
         else
@@ -2482,7 +2482,7 @@ contains
           end do
         end do
         mg(kf)%f=zero
-        if(ihem.eq.0) then
+        if(ihem == 0) then
           call inverse_luop_x(mg(kf)%v,mg(kf)%f,mg(kf)%dbarx,mg(kf)%ubarx,mg(kf)%obarx, &
                                mg(kf)%nx,mg(kf)%ny,jj,ii)
         else
@@ -2497,7 +2497,7 @@ contains
         end do
         write(6,'(" inverse_luop_x_ad (a*aT), jj,ii,h,k,xtz,yty=",3i2,i3,2e22.15,e10.3)') &
                        jj,ii,ihem,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
       end do
     end do
     end do
@@ -2515,7 +2515,7 @@ contains
         call random_number(mg(kf)%v)
         mg(kf)%w=mg(kf)%v
         mg(kf)%f=zero
-        if(ihem.eq.0) then
+        if(ihem == 0) then
           call inverse_luop_y(mg(kf)%v,mg(kf)%f,mg(kf)%dbary,mg(kf)%ubary,mg(kf)%obary, &
                                mg(kf)%nx,mg(kf)%ny,ii,jj)
         else
@@ -2529,7 +2529,7 @@ contains
           end do
         end do
         mg(kf)%v=zero
-        if(ihem.eq.0) then
+        if(ihem == 0) then
           call inverse_luop_y_ad(mg(kf)%v,mg(kf)%f,mg(kf)%dbary,mg(kf)%ubary,mg(kf)%obary, &
                                mg(kf)%nx,mg(kf)%ny,ii,jj)
         else
@@ -2544,14 +2544,14 @@ contains
         end do
         write(6,'(" inverse_luop_y_ad (aT*a), ii,jj,h,k,xtz,yty=",3i2,i3,2e22.15,e10.3)') &
                        ii,jj,ihem,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
       end do
 
       do kf=1,mgrid
         call random_number(mg(kf)%f)
         mg(kf)%w=mg(kf)%f
         mg(kf)%v=zero
-        if(ihem.eq.0) then
+        if(ihem == 0) then
           call inverse_luop_y_ad(mg(kf)%v,mg(kf)%f,mg(kf)%dbary,mg(kf)%ubary,mg(kf)%obary, &
                                mg(kf)%nx,mg(kf)%ny,ii,jj)
         else
@@ -2565,7 +2565,7 @@ contains
           end do
         end do
         mg(kf)%f=zero
-        if(ihem.eq.0) then
+        if(ihem == 0) then
           call inverse_luop_y(mg(kf)%v,mg(kf)%f,mg(kf)%dbary,mg(kf)%ubary,mg(kf)%obary, &
                                mg(kf)%nx,mg(kf)%ny,ii,jj)
         else
@@ -2580,7 +2580,7 @@ contains
         end do
         write(6,'(" inverse_luop_y_ad (a*aT), ii,jj,h,k,xtz,yty=",3i2,i3,2e22.15,e10.3)') &
                        ii,jj,ihem,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
       end do
     end do
     end do
@@ -2596,7 +2596,7 @@ contains
         call random_number(mg(kf)%f)
         mg(kf)%w=mg(kf)%v
         mg(kf)%y=mg(kf)%f
-        if(ihem.eq.1) then
+        if(ihem == 1) then
           call relax(mg(kf)%v,mg(kf)%f, &
                       mg(kf)%dbarxh,mg(kf)%ubarxh,mg(kf)%obarxh, &
                       mg(kf)%dbaryh,mg(kf)%ubaryh,mg(kf)%obaryh, &
@@ -2615,7 +2615,7 @@ contains
             yty=yty+mg(kf)%f(j,i)**2+mg(kf)%v(j,i)**2
           end do
         end do
-        if(ihem.eq.1) then
+        if(ihem == 1) then
           call relax_ad(mg(kf)%v,mg(kf)%f, &
                       mg(kf)%dbarxh,mg(kf)%ubarxh,mg(kf)%obarxh, &
                       mg(kf)%dbaryh,mg(kf)%ubaryh,mg(kf)%obaryh, &
@@ -2636,7 +2636,7 @@ contains
         end do
         write(6,'(" relax_ad (aT*a), h,k,xtz,yty=",i2,i3,2e22.15,e10.3)') &
                        ihem,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
       end do
 
       do kf=1,mgrid
@@ -2644,7 +2644,7 @@ contains
         call random_number(mg(kf)%f)
         mg(kf)%w=mg(kf)%v
         mg(kf)%y=mg(kf)%f
-        if(ihem.eq.1) then
+        if(ihem == 1) then
           call relax_ad(mg(kf)%v,mg(kf)%f, &
                       mg(kf)%dbarxh,mg(kf)%ubarxh,mg(kf)%obarxh, &
                       mg(kf)%dbaryh,mg(kf)%ubaryh,mg(kf)%obaryh, &
@@ -2663,7 +2663,7 @@ contains
             yty=yty+mg(kf)%f(j,i)**2+mg(kf)%v(j,i)**2
           end do
         end do
-        if(ihem.eq.1) then
+        if(ihem == 1) then
           call relax(mg(kf)%v,mg(kf)%f, &
                       mg(kf)%dbarxh,mg(kf)%ubarxh,mg(kf)%obarxh, &
                       mg(kf)%dbaryh,mg(kf)%ubaryh,mg(kf)%obaryh, &
@@ -2684,7 +2684,7 @@ contains
         end do
         write(6,'(" relax_ad (a*aT), h,k,xtz,yty=",i2,i3,2e22.15,e10.3)') &
                        ihem,kf,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
       end do
 
     end do
@@ -2695,7 +2695,7 @@ contains
     errmax=zero
     do ivar=1,2
     do ihem=0,1
-     helmholtz=ihem.eq.1
+     helmholtz=ihem == 1
      do nrelax1=1,1
      do nrelax2=1,1
      do nrelax_solve=1,1
@@ -2703,8 +2703,8 @@ contains
    ! do mgrid2=2,2
       kf=1
       mg(kf)%y=zero ; mg(kf)%z=zero
-      if(ivar.eq.1) call random_number(mg(kf)%y)
-      if(ivar.eq.2) call random_number(mg(kf)%z)
+      if(ivar == 1) call random_number(mg(kf)%y)
+      if(ivar == 2) call random_number(mg(kf)%z)
       mg(kf)%yy=mg(kf)%y
       mg(kf)%zz=mg(kf)%z
       call vcycle(mg(kf)%y,mg(kf)%z,mg(kf)%nx,mg(kf)%ny,mgrid2,nrelax1,nrelax2,nrelax_solve,helmholtz)
@@ -2723,11 +2723,11 @@ contains
       end do
         write(6,'(" vcycle_ad (aT*a), vhn12sm2,xz,yy=",6i2,2e22.15,e10.3)') &
                ivar,ihem,nrelax1,nrelax2,nrelax_solve,mgrid2,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
    
       mg(kf)%y=zero ; mg(kf)%z=zero
-      if(ivar.eq.1) call random_number(mg(kf)%y)
-      if(ivar.eq.2) call random_number(mg(kf)%z)
+      if(ivar == 1) call random_number(mg(kf)%y)
+      if(ivar == 2) call random_number(mg(kf)%z)
       mg(kf)%yy=mg(kf)%y
       mg(kf)%zz=mg(kf)%z
       call vcycle_ad(mg(kf)%y,mg(kf)%z,mg(kf)%nx,mg(kf)%ny,mgrid2,nrelax1,nrelax2,nrelax_solve,helmholtz)
@@ -2746,7 +2746,7 @@ contains
       end do
         write(6,'(" vcycle_ad (a*aT), vhn12sm2,xz,yy=",6i2,2e22.15,e10.3)') &
                ivar,ihem,nrelax1,nrelax2,nrelax_solve,mgrid2,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
      end do
      end do
      end do
@@ -2760,14 +2760,14 @@ contains
     errmax=zero
     do ivar=1,2
     do ihem=0,1
-     helmholtz=ihem.eq.1
+     helmholtz=ihem == 1
      do nrelax1=1,1
      do nrelax2=1,1
      do nrelax_solve=25,25
       kf=1
       mg(kf)%y=zero ; mg(kf)%z=zero
-      if(ivar.eq.1) call random_number(mg(kf)%y)
-      if(ivar.eq.2) call random_number(mg(kf)%z)
+      if(ivar == 1) call random_number(mg(kf)%y)
+      if(ivar == 2) call random_number(mg(kf)%z)
       mg(kf)%yy=mg(kf)%y
       mg(kf)%zz=mg(kf)%z
       call fmg(mg(kf)%y,mg(kf)%z,helmholtz,nrelax1,nrelax2,nrelax_solve,mg(kf)%nx,mg(kf)%ny)
@@ -2786,11 +2786,11 @@ contains
       end do
         write(6,'(" fmg_ad (aT*a), vhn12s,xz,yy=",5i2,2e22.15,e10.3)') &
                ivar,ihem,nrelax1,nrelax2,nrelax_solve,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
    
       mg(kf)%y=zero ; mg(kf)%z=zero
-      if(ivar.eq.1) call random_number(mg(kf)%y)
-      if(ivar.eq.2) call random_number(mg(kf)%z)
+      if(ivar == 1) call random_number(mg(kf)%y)
+      if(ivar == 2) call random_number(mg(kf)%z)
       mg(kf)%yy=mg(kf)%y
       mg(kf)%zz=mg(kf)%z
       call fmg_ad(mg(kf)%y,mg(kf)%z,helmholtz,nrelax1,nrelax2,nrelax_solve,mg(kf)%nx,mg(kf)%ny)
@@ -2809,7 +2809,7 @@ contains
       end do
         write(6,'(" fmg_ad (a*aT), vhn12s,xz,yy=",5i2,2e22.15,e10.3)') &
                ivar,ihem,nrelax1,nrelax2,nrelax_solve,xtz,yty,abs(two*(xtz-yty)/(abs(xtz)+abs(yty)))
-                     if(abs(xtz)+abs(yty).ne.zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
+                     if(abs(xtz)+abs(yty) /= zero) errmax=max(abs(two*(xtz-yty)/(abs(xtz)+abs(yty))),errmax)
      end do
      end do
      end do
@@ -2839,7 +2839,7 @@ subroutine fmg_initialize(mype)
 !                     this is most simpleminded approach--later modify to take advantage of all processors
 !                     available.
 
-   if(mype+1.gt.2*nvmodes_keep) return
+   if(mype+1 >  2*nvmodes_keep) return
 
    mode_number=mod(mype,nvmodes_keep)+1
    phi0=depths(mode_number)
@@ -2875,7 +2875,7 @@ subroutine fmg_initialize_e(mype)
 
    call zrnmi_initialize(mype)
 
-   if(mype+1.gt.2*nvmodes_keep) return
+   if(mype+1 >  2*nvmodes_keep) return
 
    mode_number=mod(mype,nvmodes_keep)+1
    phi0=depths(mode_number)
@@ -2911,9 +2911,9 @@ subroutine fmg_initialize_e(mype)
      region_dx_e(i,nlon+1)=region_dx_e(i,nlon)
      region_dy_e(i,nlon+1)=region_dy_e(i,nlon)
    end do
-              if(mype.eq.0) call outgrad1(region_lat_e,'region_lat_e',nlon+2,nlat+2)
-              if(mype.eq.0) call outgrad1(region_dx_e,'region_dx_e',nlon+2,nlat+2)
-              if(mype.eq.0) call outgrad1(region_dy_e,'region_dy_e',nlon+2,nlat+2)
+              if(mype == 0) call outgrad1(region_lat_e,'region_lat_e',nlon+2,nlat+2)
+              if(mype == 0) call outgrad1(region_dx_e,'region_dx_e',nlon+2,nlat+2)
+              if(mype == 0) call outgrad1(region_dy_e,'region_dy_e',nlon+2,nlat+2)
    
 
    call generate_grids(nlon+2,nlat+2)
@@ -2931,6 +2931,7 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
   use mpimod, only: mpi_comm_world,ierror,mpi_sum,mpi_rtype
   use zrnmi_mod, only: zrnmi_filter_uvm2
   use jfunc,only: jiter
+  use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
 
   integer(i_kind),intent(in)::mype
@@ -2963,19 +2964,24 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
                       real(r_kind) errmaxpsi,errmaxchi,errmaxdummy
             !???????????????????????????????????
 
+              if(uv_hyb_ens) then
+                write(0,*)' STOP IN fmg_strong_bal_correction--NOT ABLE TO ACCEPT uv_hyb_ens=.true. YET'
+                call stop2(998)
+              end if
+
  !bourke_mcgregor_scheme='A'
   bourke_mcgregor_scheme='B'
 
   mode_number_a=0 ; mode_number_b=0
-  if(mype+1.le.2*nvmodes_keep) then
-    if(mype+1.le.nvmodes_keep) then
+  if(mype+1 <= 2*nvmodes_keep) then
+    if(mype+1 <= nvmodes_keep) then
       mode_number_a=mype+1
     else
       mode_number_b=mype+1-nvmodes_keep
     end if
   end if
  !write(6,*)' in fmg_strong_bal_correction, mode_number_a,mode_number_b=',mode_number_a,mode_number_b
-          !      if(mype.gt.-10) then
+          !      if(mype >  -10) then
           !        call mpi_finalize(i)
           !        stop
           !      end if
@@ -3004,20 +3010,20 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
 
 !4.  compute div0t on A from u0t,v0t and vort0t on B from u0t,v0t
 
-    if(mode_number_a.ne.0) then
+    if(mode_number_a /= 0) then
       call get_div_reg(u0t,v0t,div0t)
     end if
-    if(mode_number_b.ne.0) then
+    if(mode_number_b /= 0) then
       call get_vor_reg(u0t,v0t,vor0t)
     end if
 
 !5.  solve HOP*delm = div0t                    on A
 !          HOP*mtg  = delsqr*m0t-f*vor0t  on B
 
-    if(mode_number_a.ne.0) then
+    if(mode_number_a /= 0) then
       call fmg_wrapper_e(delm,div0t,.true.,nlon,nlat)
     end if
-    if(mode_number_b.ne.0) then
+    if(mode_number_b /= 0) then
       call get_delsqr_reg(m0t,rhs)
       do j=1,nlon
         do i=1,nlat
@@ -3040,7 +3046,7 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
     if(bal_diagnostic) then
 
       bal_a=zero ; bal_b=zero
-      if(mode_number_a.ne.0) then
+      if(mode_number_a /= 0) then
         divtg=div0t
         bal_a=zero
         do j=1,nlon
@@ -3049,7 +3055,7 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
           end do
         end do
       end if
-      if(mode_number_b.ne.0) then
+      if(mode_number_b /= 0) then
 !                                  vortg=f*mtg/phi0    ; compute grad(mtg)
         do j=1,nlon
           do i=1,nlat
@@ -3069,7 +3075,7 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
       call mpi_allreduce(bal_a,bal_a0,nvmodes_keep,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
       call mpi_allreduce(bal_b,bal_b0,nvmodes_keep,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
       bal=bal_a0+bal_b0
-      if(mype.eq.0) then
+      if(mype == 0) then
         if(fullfield) then
           write(6,*)'FMG_STRONG_BAL:   FULL FIELD BALANCE DIAGNOSTICS --  '
         else
@@ -3086,7 +3092,7 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
 !    deldiv = mtg/phi0    --> solve delsqr(delchi) = deldiv    on B     (for bourke_mcgregor_scheme = B )
 !    deldiv = m0t/phi0                                                  (for bourke_mcgregor_scheme = A )
 
-    if(mode_number_a.ne.0) then
+    if(mode_number_a /= 0) then
       do j=1,nlon
         do i=1,nlat
           delvor(i,j)=two*omega*sin(region_lat(i,j))*delm(i,j)/depths(mode_number_a)
@@ -3094,15 +3100,15 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
       end do
       call fmg_wrapper_e(delpsi,delvor,.false.,nlon,nlat)
     end if
-    if(mode_number_b.ne.0) then
-      if(bourke_mcgregor_scheme.eq.'A') then
+    if(mode_number_b /= 0) then
+      if(bourke_mcgregor_scheme == 'A') then
        !write(6,*)' using bourke_mcgregor_scheme A, so deldiv = m0t/phi0'
         do j=1,nlon
           do i=1,nlat
             deldiv(i,j)=m0t(i,j)/depths(mode_number_b)
           end do
         end do
-      elseif(bourke_mcgregor_scheme.eq.'B') then
+      elseif(bourke_mcgregor_scheme == 'B') then
        !write(6,*)' using bourke_mcgregor_scheme B, so deldiv = mtg/phi0'
         do j=1,nlon
           do i=1,nlat
@@ -3121,7 +3127,7 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
 !    if update_uv, u_chi,v_chi  B slab --> subdomains
 
     delf1=zero ; delf2=zero
-    if(mode_number_a.ne.0) then
+    if(mode_number_a /= 0) then
       do j=1,nlon
         do i=1,nlat
           delf1(i,j)= delpsi(i,j)
@@ -3129,7 +3135,7 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
         end do
       end do
     end if
-    if(mode_number_b.ne.0) then
+    if(mode_number_b /= 0) then
       do j=1,nlon
         do i=1,nlat
           delf1(i,j)= delchi(i,j)
@@ -3158,6 +3164,7 @@ subroutine fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,myp
 ! use helmholtz_fmg_mod, only: mg
   use mpimod, only: mpi_comm_world,ierror,mpi_sum,mpi_rtype
   use zrnmi_mod, only: zrnmi_filter_uvm2_ad
+  use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
 
   integer(i_kind),intent(in)::mype
@@ -3181,12 +3188,17 @@ subroutine fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,myp
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delutilde,delvtilde
   character(1) bourke_mcgregor_scheme
 
+              if(uv_hyb_ens) then
+                write(0,*)' STOP IN fmg_strong_bal_correction--NOT ABLE TO ACCEPT uv_hyb_ens=.true. YET'
+                call stop2(998)
+              end if
+
  !bourke_mcgregor_scheme='A'
   bourke_mcgregor_scheme='B'
 
   mode_number_a=0 ; mode_number_b=0
-  if(mype+1.le.2*nvmodes_keep) then
-    if(mype+1.le.nvmodes_keep) then
+  if(mype+1 <= 2*nvmodes_keep) then
+    if(mype+1 <= nvmodes_keep) then
       mode_number_a=mype+1
     else
       mode_number_b=mype+1-nvmodes_keep
@@ -3211,7 +3223,7 @@ subroutine fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,myp
   call special_for_llfmg_sub2grid2(delpsitilde,delmtilde,delchitilde,dummytilde,delf1,delf2,mype)
 
     delpsi=zero ; delchi=zero ; delm=zero
-    if(mode_number_a.ne.0) then
+    if(mode_number_a /= 0) then
       do j=1,nlon
         do i=1,nlat
           delpsi(i,j)=delf1(i,j)
@@ -3219,7 +3231,7 @@ subroutine fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,myp
         end do
       end do
     end if
-    if(mode_number_b.ne.0) then
+    if(mode_number_b /= 0) then
       do j=1,nlon
         do i=1,nlat
           delchi(i,j)=delf1(i,j)
@@ -3231,7 +3243,7 @@ subroutine fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,myp
 !    deldiv = mtg/phi0    --> solve delsqr(delchi) = deldiv    on B     (for bourke_mcgregor_scheme = B )
 !    deldiv = m0t/phi0                                                  (for bourke_mcgregor_scheme = A )
 
-    if(mode_number_a.ne.0) then
+    if(mode_number_a /= 0) then
       delvor=zero
       call fmg_wrapper_e_ad(delpsi,delvor,.false.,nlon,nlat)
       do j=1,nlon
@@ -3240,18 +3252,18 @@ subroutine fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,myp
         end do
       end do
     end if
-    if(mode_number_b.ne.0) then
+    if(mode_number_b /= 0) then
       deldiv=zero
       call fmg_wrapper_e_ad(delchi,deldiv,.false.,nlon,nlat)
       m0t=zero ; mtg=zero
-      if(bourke_mcgregor_scheme.eq.'A') then
+      if(bourke_mcgregor_scheme == 'A') then
        !write(6,*)' using bourke_mcgregor_scheme A, so deldiv = m0t/phi0'
         do j=1,nlon
           do i=1,nlat
             m0t(i,j)=deldiv(i,j)/depths(mode_number_b)
           end do
         end do
-      elseif(bourke_mcgregor_scheme.eq.'B') then
+      elseif(bourke_mcgregor_scheme == 'B') then
        !write(6,*)' using bourke_mcgregor_scheme B, so deldiv = mtg/phi0'
         do j=1,nlon
           do i=1,nlat
@@ -3264,11 +3276,11 @@ subroutine fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,myp
 !5.  solve HOP*delm = div0t                    on A
 !          HOP*mtg  = delsqr*m0t-f*vor0t  on B
 
-    if(mode_number_a.ne.0) then
+    if(mode_number_a /= 0) then
       div0t=zero
       call fmg_wrapper_e_ad(delm,div0t,.true.,nlon,nlat)
     end if
-    if(mode_number_b.ne.0) then
+    if(mode_number_b /= 0) then
       rhs=zero
       call fmg_wrapper_e_ad(mtg,rhs,.true.,nlon,nlat)
       do j=1,nlon
@@ -3281,10 +3293,10 @@ subroutine fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,myp
 
 !4.  compute div0t on A from u0t,v0t and vort0t on B from u0t,v0t
 
-    if(mode_number_a.ne.0) then
+    if(mode_number_a /= 0) then
       call get_div_reg_ad(u0t,v0t,div0t)
     end if
-    if(mode_number_b.ne.0) then
+    if(mode_number_b /= 0) then
       call get_vor_reg_ad(u0t,v0t,vor0t)
     end if
 
@@ -3327,12 +3339,12 @@ subroutine fmg_strong_bal_correction_ad_test(u_t,v_t,t_t,ps_t,psi,chi,t,ps,mype)
 
      errmax=zero
      do ivar=0,4
-      if(ivar.gt.0) then
+      if(ivar >  0) then
        u_t=zero ; v_t=zero ; t_t=zero ; ps_t=zero
-       if(ivar.eq.1) call random_number(u_t)
-       if(ivar.eq.2) call random_number(v_t)
-       if(ivar.eq.3) call random_number(t_t)
-       if(ivar.eq.4) call random_number(ps_t)
+       if(ivar == 1) call random_number(u_t)
+       if(ivar == 2) call random_number(v_t)
+       if(ivar == 3) call random_number(t_t)
+       if(ivar == 4) call random_number(ps_t)
       end if
        uu_t=u_t ; vv_t=v_t ; tt_t=t_t ; pps_t=ps_t
        psi=zero ; chi=zero ; t=zero ; ps=zero
@@ -3367,17 +3379,17 @@ subroutine fmg_strong_bal_correction_ad_test(u_t,v_t,t_t,ps_t,psi,chi,t,ps,mype)
          end do
        end do
        call mpi_allreduce(xtz,xtz0,1,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
-         if(mype.eq.0) &
+         if(mype == 0) &
          write(6,'(" fmg_strong_bal_correction_ad (aT*a), ivar,xx,yy=",i2,2e22.15,e10.3)') &
                 ivar,xtz0,yty0,abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0)))
-               if(abs(xtz0)+abs(yty0).ne.zero) errmax=max(abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0))),errmax)
+               if(abs(xtz0)+abs(yty0) /= zero) errmax=max(abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0))),errmax)
  
-       if(ivar.eq.0) cycle
+       if(ivar == 0) cycle
        psi=zero ; chi=zero ; t=zero ; ps=zero
-       if(ivar.eq.1) call random_number(psi)
-       if(ivar.eq.2) call random_number(chi)
-       if(ivar.eq.3) call random_number(t)
-       if(ivar.eq.4) call random_number(ps)
+       if(ivar == 1) call random_number(psi)
+       if(ivar == 2) call random_number(chi)
+       if(ivar == 3) call random_number(t)
+       if(ivar == 4) call random_number(ps)
        psi2=psi ; chi2=chi ; t2=t ; ps2=ps
        u_t=zero ; v_t=zero ; t_t=zero ; ps_t=zero
        call fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,.true.,mype)
@@ -3411,14 +3423,14 @@ subroutine fmg_strong_bal_correction_ad_test(u_t,v_t,t_t,ps_t,psi,chi,t,ps,mype)
          end do
        end do
        call mpi_allreduce(xtz,xtz0,1,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
-         if(mype.eq.0) &
+         if(mype == 0) &
          write(6,'(" fmg_strong_bal_correction_ad (a*aT), ivar,xx,yy=",i2,2e22.15,e10.3)') &
                 ivar,xtz0,yty0,abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0)))
-               if(abs(xtz0)+abs(yty0).ne.zero) errmax=max(abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0))),errmax)
+               if(abs(xtz0)+abs(yty0) /= zero) errmax=max(abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0))),errmax)
  
      end do
-     if(mype.eq.0) write(6,'(" max error for fmg_strong_bal_correction_ad=",e10.3)') errmax
-        if(mype.gt.-1000) then
+     if(mype == 0) write(6,'(" max error for fmg_strong_bal_correction_ad=",e10.3)') errmax
+        if(mype >  -1000) then
               call mpi_finalize(ierror)
               stop
         end if
@@ -3447,9 +3459,9 @@ subroutine zrnmi_filter_uvm_ad_test(mype)
      errmax=zero
      do ivar=1,3
        u1=zero ; v1=zero ; m1=zero
-       if(ivar.eq.1) call random_number(u1)
-       if(ivar.eq.2) call random_number(v1)
-       if(ivar.eq.3) call random_number(m1)
+       if(ivar == 1) call random_number(u1)
+       if(ivar == 2) call random_number(v1)
+       if(ivar == 3) call random_number(m1)
        u2=u1 ; v2=v1 ; m2=m1
        call zrnmi_filter_uvm2(u1,v1,m1,mype)
        yty=zero
@@ -3471,15 +3483,15 @@ subroutine zrnmi_filter_uvm_ad_test(mype)
          end do
        end do
        call mpi_allreduce(xtz,xtz0,1,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
-         if(mype.eq.0) &
+         if(mype == 0) &
          write(6,'(" zrnmi_filter_uvm2_ad (aT*a), ivar,xx,yy=",i2,2e22.15,e10.3)') &
                 ivar,xtz0,yty0,abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0)))
-               if(abs(xtz0)+abs(yty0).ne.zero) errmax=max(abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0))),errmax)
+               if(abs(xtz0)+abs(yty0) /= zero) errmax=max(abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0))),errmax)
  
        u1=zero ; v1=zero ; m1=zero
-       if(ivar.eq.1) call random_number(u1)
-       if(ivar.eq.2) call random_number(v1)
-       if(ivar.eq.3) call random_number(m1)
+       if(ivar == 1) call random_number(u1)
+       if(ivar == 2) call random_number(v1)
+       if(ivar == 3) call random_number(m1)
        u2=u1 ; v2=v1 ; m2=m1
        call zrnmi_filter_uvm2_ad(u1,v1,m1,mype)
        yty=zero
@@ -3501,14 +3513,14 @@ subroutine zrnmi_filter_uvm_ad_test(mype)
          end do
        end do
        call mpi_allreduce(xtz,xtz0,1,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
-         if(mype.eq.0) &
+         if(mype == 0) &
          write(6,'(" zrnmi_filter_uvm2_ad (a*aT), ivar,xx,yy=",i2,2e22.15,e10.3)') &
                 ivar,xtz0,yty0,abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0)))
-               if(abs(xtz0)+abs(yty0).ne.zero) errmax=max(abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0))),errmax)
+               if(abs(xtz0)+abs(yty0) /= zero) errmax=max(abs(two*(xtz0-yty0)/(abs(xtz0)+abs(yty0))),errmax)
 
      end do
-     if(mype.eq.0) write(6,'(" max error for zrnmi_filter_uvm2_ad=",e10.3)') errmax
-        if(mype.gt.-1000) then
+     if(mype == 0) write(6,'(" max error for zrnmi_filter_uvm2_ad=",e10.3)') errmax
+        if(mype >  -1000) then
               call mpi_finalize(ierror)
               stop
         end if
@@ -3802,15 +3814,15 @@ subroutine special_for_llfmg_sub2grid3(a1,a2,a3,b1,b2,b3,f1,f2,f3,mype)
 
   call generic_sub2grid8(all_loc,tempa,kbegin(mype),kend(mype),kbegin,kend,mype,6*nvmodes_keep)
   do k=1,kend(mype)-kbegin(mype)+1
-    if(k.eq.1) then
+    if(k == 1) then
       do i=1,iglobal
         f1(ltosi(i),ltosj(i))=tempa(i,k)
       end do
-    elseif(k.eq.2) then
+    elseif(k == 2) then
       do i=1,iglobal
         f2(ltosi(i),ltosj(i))=tempa(i,k)
       end do
-    elseif(k.eq.3) then
+    elseif(k == 3) then
       do i=1,iglobal
         f3(ltosi(i),ltosj(i))=tempa(i,k)
       end do
@@ -3866,11 +3878,11 @@ subroutine special_for_llfmg_sub2grid2(a1,a2,b1,b2,f1,f2,mype)
 
   call generic_sub2grid8(all_loc,tempa,kbegin(mype),kend(mype),kbegin,kend,mype,4*nvmodes_keep)
   do k=1,kend(mype)-kbegin(mype)+1
-    if(k.eq.1) then
+    if(k == 1) then
       do i=1,iglobal
         f1(ltosi(i),ltosj(i))=tempa(i,k)
       end do
-    elseif(k.eq.2) then
+    elseif(k == 2) then
       do i=1,iglobal
         f2(ltosi(i),ltosj(i))=tempa(i,k)
       end do
@@ -3910,11 +3922,11 @@ subroutine special_for_llfmg_grid2sub2(f1,f2,a1,a2,b1,b2,mype)
   end do
 
   do k=1,kend(mype)-kbegin(mype)+1
-    if(k.eq.1) then
+    if(k == 1) then
       do i=1,itotsub
         tempa(i,k)=f1(ltosi_s(i),ltosj_s(i))
       end do
-    elseif(k.eq.2) then
+    elseif(k == 2) then
       do i=1,itotsub
         tempa(i,k)=f2(ltosi_s(i),ltosj_s(i))
       end do
@@ -3969,15 +3981,15 @@ subroutine special_for_llfmg_grid2sub3(f1,f2,f3,a1,a2,a3,b1,b2,b3,mype)
   end do
 
   do k=1,kend(mype)-kbegin(mype)+1
-    if(k.eq.1) then
+    if(k == 1) then
       do i=1,itotsub
         tempa(i,k)=f1(ltosi_s(i),ltosj_s(i))
       end do
-    elseif(k.eq.2) then
+    elseif(k == 2) then
       do i=1,itotsub
         tempa(i,k)=f2(ltosi_s(i),ltosj_s(i))
       end do
-    elseif(k.eq.3) then
+    elseif(k == 3) then
       do i=1,itotsub
         tempa(i,k)=f3(ltosi_s(i),ltosj_s(i))
       end do
@@ -4069,7 +4081,7 @@ subroutine generic_sub2grid8(all_loc,tempa,kbegin_loc,kend_loc,kbegin,kend,mype,
   call mpi_alltoallv(all_loc,recvcounts,rdispls,mpi_rtype, &
                 tempa,sendcounts,sdispls,mpi_rtype,mpi_comm_world,ierror)
 
-  if(kbegin_loc.le.kend_loc) then
+  if(kbegin_loc <= kend_loc) then
     call reorder_s8(tempa,kend_loc-kbegin_loc+1)
   else
     tempa=zero
@@ -4220,7 +4232,7 @@ subroutine generic_grid2sub8(tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,
   
 ! then call reorder2
 
-  if(kbegin_loc.le.kend_loc) then
+  if(kbegin_loc <= kend_loc) then
     call reorder2_s8(tempa,kend_loc-kbegin_loc+1)
   else
     tempa=zero

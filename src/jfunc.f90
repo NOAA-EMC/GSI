@@ -580,6 +580,7 @@ contains
 !   2004-07-28  treadon
 !   2006-04-21  kleist - include pointers for more time tendency arrays
 !   2008-12-04  todling - increase number of 3d fields from 6 to 8 
+!   2009-09-16  parrish - add hybrid_ensemble connection in call to setup_control_vectors
 !
 !   input argument list:
 !
@@ -597,6 +598,7 @@ contains
     use pcpinfo, only: npredp,npcptype
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors
+    use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens
     implicit none
 
     integer(i_kind) nx,ny,mr,nr,nf
@@ -605,6 +607,7 @@ contains
     nvals_len=nvals_levs*latlon11
 
     nval_levs=6*nsig+2
+    if(l_hyb_ens) nval_levs=nval_levs+n_ens*nsig
     nval_len=nval_levs*latlon11
     nsclen=npred*jpch_rad
     npclen=npredp*npcptype
@@ -613,7 +616,7 @@ contains
     nclen1=nclen-nrclen
     nclen2=nclen1+nsclen
   
-    if(lsqrtb) then
+    if(lsqrtb.or.(l_hyb_ens.and.generate_ens)) then
       if(regional) then
         nval2d=nlat*nlon*3
       else
@@ -667,8 +670,13 @@ contains
       CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
                                & nsclen,npclen,nclenz,nsubwin,nval_lenz,lsqrtb)
     else
-      CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
+      if(l_hyb_ens) then
+        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
+                               & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb,n_ens)
+      else
+        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
                                & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb)
+      end if
     endif
     CALL setup_state_vectors(latlon11,latlon1n,nvals_len,lat2,lon2,nsig)
     CALL setup_predictors(nrclen,nsclen,npclen)

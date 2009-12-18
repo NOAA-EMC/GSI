@@ -14,6 +14,10 @@ module balmod
 !   2005-05-24  pondeca - accommodate 2dvar only surface analysis option
 !   2005-07-15  wu - include fstat, f1 and fix l2
 !   2008-10-08  derber include routines strong_bk and strong_bk_ad
+!   2009-06-15  parrish - add logical l_hyb_ens to balance, tbalance so strong constraint
+!                          can be turned off in these routines when running in hybrid ensemble mode
+!                         (strong constraint gets moved to control2state and state2control routines
+!                            when l_hyb_ens=.true.)
 !
 ! subroutines included:
 !   sub create_balance_vars      - create arrays for balance vars
@@ -481,6 +485,7 @@ contains
 !$$$
     use constants, only: ione,one,half
     use gridmod, only: regional,lat2,nsig,iglobal,itotsub,lon2
+    use hybrid_ensemble_parameters, only: l_hyb_ens
     implicit none
     
 !   Declare passed variables
@@ -606,7 +611,7 @@ contains
     endif
 
 !   Strong balance constraint
-    call strong_bk(st,vp,p,t)
+    if(.not.l_hyb_ens) call strong_bk(st,vp,p,t)
 
 
     return
@@ -641,6 +646,10 @@ contains
 !   2006-11-30  todling - add fpsproj to control diff projection contributions to ps  
 !   2008-06-05  safford - rm unused vars
 !   2008-12-29  todling - remove q from arg list
+!   2009-06-15  parrish - add logical l_hyb_ens to balance, t_balance so strong constraint
+!                          can be turned off in these routines when running in hybrid ensemble mode
+!                         (strong constraint gets moved to control2state and state2control routines
+!                            when l_hyb_ens=.true.)
 !
 !   input argument list:
 !     t        - t grid values from int routines 
@@ -662,6 +671,7 @@ contains
 !$$$
     use constants,   only: ione,one,half
     use gridmod,     only: itotsub,regional,iglobal,lon2,lat2,nsig
+    use hybrid_ensemble_parameters, only: l_hyb_ens
     implicit none
 
 !   Declare passed variables
@@ -676,7 +686,7 @@ contains
     real(r_kind) dl1,dl2
   
 !  Adjoint of strong balance constraint
-    call strong_bk_ad(st,vp,p,t)
+    if(.not.l_hyb_ens) call strong_bk_ad(st,vp,p,t)
 
 !   Initialize variables
     igrid=lat2*lon2

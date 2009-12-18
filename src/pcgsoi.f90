@@ -12,6 +12,7 @@ module pcgsoimod
 !   2005-11-21  Derber - remove interface
 !   2008-11-26  Todling - remove pcgsoi_tl
 !   2009-08-12  lueken  - update documentation
+!   2009-09-17  parrish - add bkerror_a_en and anbkerror_reg_a_en for hybrid ensemble control variable a_en
 !
 ! subroutines included:
 !   sub pcgsoi
@@ -81,6 +82,10 @@ subroutine pcgsoi()
 !   2009-01-28  todling - move write_all from glbsoi to here (consistent w/ 4dvar mods)
 !   2009-02-06  pondeca - add option to re-biorthogonalize the gradx and and grady vectors.
 !                         hardwired to work for 2dvar only
+!   2009-09-17  parrish - add bkerror_a_en and anbkerror_reg_a_en for hybrid ensemble
+!                         control variable a_en
+!   2009-10-12  parrish - add beta12mult for scaling by hybrid blending parameters beta1inv, beta2inv
+!                           called only when l_hyb_ens=.true.
 !
 ! input argument list:
 !
@@ -118,6 +123,7 @@ subroutine pcgsoi()
   use timermod, only: timer_ini,timer_fnl
   use projmethod_support, only: init_mgram_schmidt, &
                                 mgram_schmidt,destroy_mgram_schmidt
+  use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
 
   implicit none
 
@@ -136,6 +142,7 @@ subroutine pcgsoi()
   real(r_quad) zjo
   real(r_kind),dimension(2):: gnorm
   real(r_kind) :: zgini,zfini,fjcost(4),zgend,zfend
+  real(r_kind) :: fjcost_e
   type(control_vector) :: xhat,gradx,grady,dirx,diry,ydiff
   type(state_vector) :: sval(nobs_bins), rval(nobs_bins)
   type(state_vector) :: mval(nsubwin)
@@ -272,6 +279,25 @@ subroutine pcgsoi()
        call bkerror(gradx,grady)
      end if
 
+!    If hybrid ensemble run, then multiply ensemble control variable a_en 
+!                                    by its localization correlation
+     if(l_hyb_ens) then
+       if(aniso_a_en) then
+    !    call anbkerror_a_en(gradx,grady)    !  not available yet
+              write(6,*)' ANBKERROR_A_EN not written yet, program stops'
+              stop
+       else
+         call bkerror_a_en(gradx,grady)
+       end if
+
+!      multiply static (Jb) part of grady by beta1_inv, and
+!      multiply ensemble (Je) part of grady by beta2_inv = ( 1 - beta1_inv )
+!        (this determines relative contributions from static background Jb and ensemble background Je)
+
+       call beta12mult(grady)
+
+     end if
+
      if (lanlerr) then
 !$omp parallel do
        do i=1,nclen
@@ -379,6 +405,7 @@ subroutine pcgsoi()
 120     format(' pnorm,gnorm, step? ',i3,i4,1x,2(e24.18,1x),a5)
      endif
 999  format(A,2(1X,I3),5(1X,ES25.18))
+9991 format(A,2(1X,I3),6(1X,ES25.18))
 
 !    Check for convergence or failure of algorithm
      if(gnormx < converge .or. penalty < converge  .or.  &
@@ -474,6 +501,25 @@ subroutine pcgsoi()
     call bkerror(gradx,grady)
   end if
 
+!    If hybrid ensemble run, then multiply ensemble control variable a_en 
+!                                    by its localization correlation
+     if(l_hyb_ens) then
+       if(aniso_a_en) then
+    !    call anbkerror_a_en(gradx,grady)    !  not available yet
+              write(6,*)' ANBKERROR_A_EN not written yet, program stops'
+              stop
+       else
+         call bkerror_a_en(gradx,grady)
+       end if
+
+!      multiply static (Jb) part of grady by beta1_inv, and
+!      multiply ensemble (Je) part of grady by beta2_inv = ( 1 - beta1_inv )
+!        (this determines relative contributions from static background Jb and ensemble background Je)
+
+       call beta12mult(grady)
+
+     end if
+
 
 ! Print final Jo table
   if(print_diag_pcg)then
@@ -482,12 +528,30 @@ subroutine pcgsoi()
     call evaljo(zjo,iobs,nprt,llouter)
     call prt_control_norms(gradx,'gradx')
 
-    fjcost(1) = dot_product(xhatsave,yhatsave,r_quad)
+    if(l_hyb_ens) then
+
+!    If hybrid ensemble run, compute contribution to Jb and Je separately
+
+      fjcost_e=   dot_product(xhatsave,yhatsave,r_quad,'cost_e')
+      fjcost(1) = dot_product(xhatsave,yhatsave,r_quad,'cost_b')
+
+    else
+      fjcost(1) = dot_product(xhatsave,yhatsave,r_quad)
+    end if
     fjcost(2) = zjo
     zfend=SUM(fjcost(:))
+    if(l_hyb_ens) zfend=zfend+fjcost_e
 
     if (mype==izero) then
-      write(6,999)'grepcost J,Jb,Jo,Jc,Jl =',jiter,iter,zfend,fjcost
+      if(l_hyb_ens) then
+
+!    If hybrid ensemble run, print out contribution to Jb and Je separately
+
+        write(6,9991)'grepcost J,Jb,Je,Jo,Jc,Jl =',jiter,iter,zfend,fjcost(1),fjcost_e,fjcost(2:4)
+
+      else
+        write(6,999)'grepcost J,Jb,Jo,Jc,Jl =',jiter,iter,zfend,fjcost
+      end if
       if (zgini>tiny_r_kind) then
           write(6,999)'grepgrad grad,reduction=',jiter,iter,sqrt(zgend),sqrt(zgend/zgini)
       else

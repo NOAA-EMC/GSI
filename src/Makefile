@@ -259,6 +259,9 @@ clean:
 	guess_grids.F90 \
 	half_nmm_grid2.f90 \
 	hilbert_curve.f90 \
+        hybrid_ensemble_isotropic_regional.f90 \
+        hybrid_ensemble_isotropic_global.f90 \
+        hybrid_ensemble_parameters.f90 \
         inc2guess.f90 \
 	init_commvars.f90 \
         init_jcdfi.F90 \

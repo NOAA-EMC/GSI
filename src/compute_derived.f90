@@ -44,6 +44,8 @@ subroutine compute_derived(mype)
 !   2008-10-10  derber  - add calculation of fact_tv
 !   2008-11-03  sato - add anisotropic mode procedures
 !   2008-12-08  todling - move 3dprs/geop-hght calculation from here into setuprhsall
+!   2009-10-15  parrish - add rescale of ensemble rh perturbations
+!                           (currently for internal generated ensemble only)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -79,6 +81,8 @@ subroutine compute_derived(mype)
   use balmod, only: rllat1,llmax
   use mod_strong, only: jcstrong,baldiag_full
   use obsmod, only: write_diag
+  use hybrid_ensemble_parameters, only: l_hyb_ens,generate_ens
+  use hybrid_ensemble_isotropic_regional, only: rescale_ensemble_rh_perturbations
 
   use constants, only: ione,zero,one,one_tenth,half,fv
 
@@ -471,6 +475,11 @@ subroutine compute_derived(mype)
 
 ! End of qoption block
   endif
+
+! If this is hybrid ensemble run, then need to modify ensemble rh perturbations based on qvar3d
+!     (at this point, only for generate_ens=.true. -- have to figure out what to do for
+!                      real ensemble perturbations.
+  if(l_hyb_ens.and.generate_ens) call rescale_ensemble_rh_perturbations
   
   deallocate(dlnesdtv,dmax)
 
