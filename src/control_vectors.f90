@@ -1414,7 +1414,11 @@ real(r_quad) function qdot_product(x,y)
     call stop2(118)
   end if
   zz=zero_quad
-!$omp parallel do
+
+! -- add omp reduction to get the correct qdot product
+!$omp parallel do &
+!$omp private( i ) &
+!$omp reduction( + : zz )
   do i=1,nx
      zz = zz + x(i)*y(i)
   enddo

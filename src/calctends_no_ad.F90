@@ -102,8 +102,8 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
   t_x=zero
   t_y=zero
 
-!!!$omp parallel private(nth,tid,i,j,k,jstart,jstop,tmp,tmp2,ix,&
-!!!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk)
+!$omp parallel private(nth,tid,i,j,k,jstart,jstop,tmp,tmp2,ix,&
+!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk)
 #ifdef ibm_sp
   nth = omp_get_num_threads()
   tid = omp_get_thread_num()
@@ -390,7 +390,7 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
       end do
     end do
   end do
-!!!$omp end parallel
+!$omp end parallel
 jstart=ione
 jstop=lon2
 

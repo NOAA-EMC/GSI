@@ -187,7 +187,7 @@ subroutine sptranf_s(wave,grid,idir)
 
 ! Transform wave to grid
   if(idir.gt.0) then
-!!$omp parallel do private(j,i,jj,ijn,ijs,g)
+!$omp parallel do private(j,i,jj,ijn,ijs,g)
      do j=jb,je
         call sptranf1(iromb,jcap,idrt,imax,jmax,j,j, &
              eps,epstop,enn1,elonn1,eon,eontop, &
@@ -202,10 +202,11 @@ subroutine sptranf_s(wave,grid,idir)
            grid(ijs)=g(i,2)
         enddo
      enddo
-!!$omp end parallel do
+!$omp end parallel do
 
 ! Transform grid to wave
   else
+!!threading bug in this block
 !!$omp parallel do private(j,i,jj,ijn,ijs,g)
      do j=jb,je
         if(wlat(j).gt.0.) then
@@ -561,7 +562,7 @@ subroutine sptranf_s_bkg(wave,gridn,grids,idir)
 
 ! Transform wave to grid
   if(idir.gt.0) then
-!!$omp parallel do private(j,i,jj,ijn,ijs,g)
+!$omp parallel do private(j,i,jj,ijn,ijs,g)
      do j=jb,je
         call sptranf1(iromb_b,jcap_b,idrt_b,imax,jmax,j,j, &
              eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
@@ -576,11 +577,11 @@ subroutine sptranf_s_bkg(wave,gridn,grids,idir)
            grids(ijs)=g(i,2)
         enddo
      enddo
-!!$omp end parallel do
+!$omp end parallel do
 
 ! Transform grid to wave
   else
-!!$omp parallel do private(j,i,jj,ijn,ijs,g)
+!$omp parallel do private(j,i,jj,ijn,ijs,g)
      do j=jb,je
         if(wlat(j).gt.0.) then
            do i=1,imax
@@ -598,7 +599,7 @@ subroutine sptranf_s_bkg(wave,gridn,grids,idir)
                 wave,wtop,g,idir)
         endif
      enddo
-!!$omp end parallel do
+!$omp end parallel do
   endif
 end subroutine sptranf_s_bkg
 

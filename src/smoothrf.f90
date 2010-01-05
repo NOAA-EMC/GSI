@@ -57,7 +57,7 @@ subroutine smoothrf(work,nsc,nlevs)
 
 ! Regional case
   if(regional)then
-!$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
+!_$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
      do k=1,nlevs
 
 !       apply horizontal recursive filters
@@ -96,8 +96,8 @@ subroutine smoothrf(work,nsc,nlevs)
      nymx=ny-nmix
      nfnf=(2*nf+1)*(2*nf+1)
      
-!$omp parallel do  schedule(dynamic,1) private(k) &
-!$omp private(i,j,i1,i2,j1,p1all,p2all,p3all,afg1)
+!_$omp parallel do  schedule(dynamic,1) private(k) &
+!_$omp private(i,j,i1,i2,j1,p1all,p2all,p3all,afg1)
      do k=1,nlevs
 
 !       Zero p1, p2, and p3
@@ -1039,7 +1039,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 
 ! Regional case
   if(regional)then
-!$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
+!_$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
      do k=1,nlevs
 
 !       apply horizontal recursive filters
@@ -1085,8 +1085,8 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
      nymx=ny-nmix
      nfnf=(2*nf+1)*(2*nf+1)
      
-!$omp parallel do  schedule(dynamic,1) private(k) &
-!$omp private(i,j,i1,i2,j1,p1all,p2all,p3all,afg1)
+!_$omp parallel do  schedule(dynamic,1) private(k) &
+!_$omp private(i,j,i1,i2,j1,p1all,p2all,p3all,afg1)
      do k=1,nlevs
 
 !       Zero p1, p2, and p3
@@ -1282,26 +1282,26 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 
 ! Regional case
   if(regional)then
-!$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
-     do k=1,nlevs
+	!_$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
+	     do k=1,nlevs
 
-!       apply horizontal recursive filters
-        do j=1,nsc
-           totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
-        end do
-        
-        if(nvar_id(k)<3)then
-           totwgt(3)=sqrt(half)*totwgt(3)
-        end if
-        
-        call sqrt_rfxyyx_ad(zloc,work(1,1,k),ny,nx,ii(1,1,1,k),&
-             jj(1,1,1,k),slw(1,k),nsc,totwgt)
+	!       apply horizontal recursive filters
+		do j=1,nsc
+		   totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
+		end do
+		
+		if(nvar_id(k)<3)then
+		   totwgt(3)=sqrt(half)*totwgt(3)
+		end if
+		
+		call sqrt_rfxyyx_ad(zloc,work(1,1,k),ny,nx,ii(1,1,1,k),&
+		     jj(1,1,1,k),slw(1,k),nsc,totwgt)
 
-        do j=1,nsc
-          iz=nlat*nlon*(k-1)+nlat*nlon*nnnn1o*(j-1)
-          do i=1,nlat*nlon
-            z(i+iz)=zloc(i,j)
-          end do
+		do j=1,nsc
+		  iz=nlat*nlon*(k-1)+nlat*nlon*nnnn1o*(j-1)
+		  do i=1,nlat*nlon
+		    z(i+iz)=zloc(i,j)
+		  end do
         end do
         
      end do
@@ -1327,9 +1327,10 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
      nmixp=nmix+1
      nymx=ny-nmix
      nfnf=(2*nf+1)*(2*nf+1)
-     
-!$omp parallel do  schedule(dynamic,1) private(k) &
-!$omp private(i,j,i1,i2,j1,p1all,p2all,p3all,afg1)
+
+!  suspect a bug in this threading     
+!_$omp parallel do  schedule(dynamic,1) private(k) &
+!_$omp private(i,j,i1,i2,j1,p1all,p2all,p3all,afg1)
      do k=1,nlevs
 
 !       Zero p1, p2, and p3

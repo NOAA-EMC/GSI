@@ -14,6 +14,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 !   2009-04-21  derber - modify from get_derivatives to minimize data movement 
 !               and work for mass and momentum only and calculate uv
 !   2009-11-27  parrish - add uv_hyb_ens:  uv_hyb_ens=T, then st=u, vp=v
+!   2010-01-04  safford - comment out $omp directives that produce inconsistent results 
 !
 !   input argument list:
 !     u        - longitude velocity component
@@ -82,7 +83,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
     call sub2grid2(hwork,st,vp,p3d,t,iflg)
 !   x derivative
     if(regional)then
-!$omp parallel do 
+!_$omp parallel do 
       do k=1,nnnvsbal
        if(nvarbal_id(k) ==ione.and..not.uv_hyb_ens)then
          do j=1,nlon
@@ -98,9 +99,9 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
        call delx_reg(hwork(1,1,k),hwork_x(1,1,k),vector)
        call dely_reg(hwork(1,1,k),hwork_y(1,1,k),vector)
       end do
-!$omp end parallel do
+!_$omp end parallel do
     else
-!$omp parallel do private(vector)
+!_$omp parallel do private(vector)
       do k=1,nnnvsbal
        if(nvarbal_id(k) ==ione.and..not.uv_hyb_ens)then
         call stvp2uv(hwork(1,1,k),hwork(1,1,k+ione))
@@ -110,7 +111,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
        call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),vector)
        call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),vector)
       end do
-!$omp end parallel do
+!_$omp end parallel do
     end if
 !  p3d_x and t_x are dummy arrays in first call
     call grid2sub2(hwork,u,v,p3d_x,t_x)

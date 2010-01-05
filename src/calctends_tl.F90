@@ -107,8 +107,8 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
 
   call getprs_horiz_tl(ps_x,ps_y,pri,pri_x,pri_y)
 
-!!!$omp parallel private(nth,tid,i,j,k,jstart,jstop,tmp,tmp2, &
-!!!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk,ix)
+!$omp parallel private(nth,tid,i,j,k,jstart,jstop,tmp,tmp2, &
+!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk,ix)
 #ifdef ibm_sp
          nth = omp_get_num_threads()
          tid = omp_get_thread_num()
@@ -381,7 +381,7 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
         end do
       end do
     end do
-!!!$omp end parallel
+!$omp end parallel
 
   return
 end subroutine calctends_tl
