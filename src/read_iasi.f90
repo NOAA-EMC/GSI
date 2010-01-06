@@ -1,4 +1,4 @@
-subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
+subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub)
 !$$$  subprogram documentation block
@@ -44,12 +44,19 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
 !   2008-11-28  todling - measure time from beginning of assimilation window
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2009-12-28  gayno - add option to calculate surface characteristics using
+!                       method that accounts for the size/shape of the fov.
 !
 !   input argument list:
 !     mype     - mpi task id
 !     val_iasi - weighting factor applied to super obs
 !     ithin    - flag to thin data
+!     isfcalc  - when set to one, calculate surface characteristics using
+!                method that accounts for the size/shape of the fov. 
+!                when not one, calculate surface characteristics using
+!                bilinear interpolation.
 !     rmesh    - thinning mesh size (km)
+!     jsatid   - satellite id
 !     gstime   - analysis time in minutes from reference date
 !     infile   - unit from which to read BUFR data
 !     lunout   - unit to which to write data for further processing
@@ -82,6 +89,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
        tll2xy,txy2ll,rlats,rlons
   use constants, only: izero,ione,zero,deg2rad,rad2deg,r60inv,one
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
+  use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
 
   implicit none
 
@@ -96,19 +104,20 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
 ! Input variables
   integer(i_kind)  ,intent(in   ) :: mype
   integer(i_kind)  ,intent(in   ) :: ithin
+  integer(i_kind)  ,intent(in   ) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: lunout
   integer(i_kind)  ,intent(in   ) :: mype_root
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
   character(len=10),intent(in   ) :: infile
+  character(len=10),intent(in   ) :: jsatid
   character(len=10),intent(in   ) :: obstype
   character(len=20),intent(in   ) :: sis
   real(r_kind)     ,intent(in   ) :: twind
   real(r_kind)     ,intent(inout) :: val_iasi
   real(r_kind)     ,intent(in   ) :: gstime
   real(r_kind)     ,intent(in   ) :: rmesh
-  
 
 ! Output variables
   integer(i_kind),intent(inout) :: nread
@@ -144,7 +153,7 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
 ! Other work variables
   real(r_kind)     :: clr_amt,piece,ten
   real(r_kind)     :: dlon, dlat
-  real(r_kind)     :: dlon_earth,dlat_earth
+  real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
   real(r_kind)     :: lza, lzaest,sat_height_ratio
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind)     :: sat_zenang
@@ -158,10 +167,10 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) disterr,disterrmax,rlon00,rlat00,r01
 
-  logical          :: outside,iuse,assim
+  logical          :: outside,iuse,assim,valid
   logical          :: iasi
 
-  integer(i_kind)  :: ifov, iscn, ioff, ilat, ilon, sensorindex
+  integer(i_kind)  :: ifov, instr, iscn, ioff, ilat, ilon, sensorindex
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
@@ -175,6 +184,10 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
 
 ! Set standard parameters
+  character(8),parameter:: fov_flag="crosstrk"
+  integer(i_kind),parameter:: ichan=-999_i_kind  ! fov-based surface code is not channel specific for iasi 
+  real(r_kind),parameter:: expansion=one         ! exansion factor for fov-based surface code.
+                                                 ! use one for ir sensors.
   real(r_kind),parameter:: R90    =  90._r_kind
   real(r_kind),parameter:: R360   = 360._r_kind
   real(r_kind),parameter:: tbmin  = 50._r_kind
@@ -242,6 +255,12 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
   ioff=ioff-ione
   if (mype_sub==mype_root)write(6,*)'READ_IASI:  iasi offset ',ioff
 
+! Calculate parameters needed for FOV-based surface calculation.
+  if (isfcalc==ione)then
+     instr=18_i_kind
+     call instrument_init(instr, jsatid, expansion)
+  endif
+
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
 ! We do not want such observations affecting the relative
@@ -308,6 +327,8 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
            dlon_earth = dlon_earth + R360
         endif
 
+        dlat_earth_deg = dlat_earth
+        dlon_earth_deg = dlon_earth
         dlat_earth = dlat_earth * deg2rad
         dlon_earth = dlon_earth * deg2rad
 
@@ -434,8 +455,23 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
 !                3 snow
 !                4 mixed 
 
-        call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-                   ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+!    When using FOV-based surface code, must screen out obs with bad fov numbers.
+        if (isfcalc == ione) then
+           call fov_check(ifov,instr,valid)
+           if (.not. valid) cycle read_loop
+        endif
+
+!    When isfcalc is set to one, calculate surface fields using size/shape of fov.
+!    Otherwise, use bilinear interpolation.
+
+        if (isfcalc == ione) then
+           call deter_sfc_fov(fov_flag,ifov,instr,ichan,allspot(11),dlat_earth_deg, &
+                              dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
+                              sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
+        else
+           call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
+                      ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+        endif
 
 !    Set common predictor parameters
 
@@ -587,6 +623,11 @@ subroutine read_iasi(mype,val_iasi,ithin,rmesh,gstime,&
 
   deallocate(data_all) ! Deallocate data arrays
   call destroygrids    ! Deallocate satthin arrays
+
+! Deallocate arrays and nullify pointers.
+  if(isfcalc == ione) then
+     call fov_cleanup
+  endif
 
   if(diagnostic_reg .and. ntest > izero .and. mype_sub==mype_root) &
        write(6,*)'READ_IASI:  mype,ntest,disterrmax=',&

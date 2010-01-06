@@ -54,16 +54,21 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2008-10-14  derber  - properly use EARS data and use MPI_IO
 !   2009-01-02  todling - remove unused vars
-!   2009-01-09  gayno   - add new option to calculate surface fields within FOV
+!   2009-01-09  gayno   - add option to calculate surface fields based on 
+!                         size/shape of field of view.
 !   2009-04-17  todling - zero out azimuth angle when unavailable (otherwise can't use old files)
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2009-12-20  gayno - modify for updated version of FOV surface code which calculates
+!                       relative antenna power for some instruments.
 !
 !   input argument list:
 !     mype     - mpi task id
 !     val_tovs - weighting factor applied to super obs
 !     ithin    - flag to thin data
 !     isfcalc  - method to calculate surface fields within FOV
+!                when one, calculate accounting for size/shape of FOV.
+!                otherwise, use bilinear interpolation.
 !     rmesh    - thinning mesh size (km)
 !     jsatid   - satellite to read
 !     gstime   - analysis time in minutes from reference date
@@ -123,7 +128,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 ! Declare local parameters
 
   character(8),parameter:: fov_flag="crosstrk"
-  real(r_kind),parameter:: expansion=2.9_r_kind  ! do not make larger than 3
   integer(i_kind),parameter:: n1bhdr=13_i_kind
   integer(i_kind),parameter:: n2bhdr=14_i_kind
   integer(i_kind),parameter:: maxinfo=33_i_kind
@@ -156,6 +160,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind) cosza,sfcr
   real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,qval
   real(r_kind) ch1flg
+  real(r_kind) expansion
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
@@ -223,7 +228,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      ichan8  = newchn(sis,ich8)
   endif
   if (amsua) ichan15 = newchn(sis,ich15)
-  if (isfcalc==ione) ichan = 999_i_kind  ! for deter_sfc_fov. not used yet.
 
   if(jsatid == 'n05')kidsat=705_i_kind
   if(jsatid == 'n06')kidsat=706_i_kind
@@ -258,6 +262,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 30._r_kind
      if (isfcalc == ione) then
+        expansion=one  ! use one for ir sensors
+        ichan=-999_i_kind  ! not used for hirs
         if (hirs2) then
            if(kidsat==203_i_kind.or.kidsat==205_i_kind)then
               instr=5_i_kind ! hirs-2i on noaa 11 and 14
@@ -267,7 +273,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               instr=4_i_kind ! hirs-2 on tiros-n,noaa6-10,noaa12
            else  ! sensor/sat mismatch
               write(6,*) 'READ_BUFRTOVS:  *** WARNING: HIRS2 SENSOR/SAT MISMATCH'
-              instr=5_i_kind ! set to something to prevent abort?
+              instr=5_i_kind ! set to something to prevent abort
            endif
         elseif (hirs4) then
            instr=8_i_kind
@@ -287,7 +293,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      step   = 9.474_r_kind
      start  = -47.37_r_kind
      nchanl=4_i_kind
-     if (isfcalc==ione) instr=10_i_kind
+     if (isfcalc==ione) then
+        instr=10_i_kind
+        ichan=-999_i_kind
+        expansion=2.9_r_kind
+     endif
 !   Set rlndsea for types we would prefer selecting
      rlndsea(0) = zero
      rlndsea(1) = 20._r_kind
@@ -299,7 +309,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      start = -48._r_kind - one/three
 !    start  = -48.33_r_kind
      nchanl=15_i_kind
-     if (isfcalc==ione) instr=11_i_kind
+     if (isfcalc==ione) then
+        instr=11_i_kind
+        ichan=15_i_kind  ! pick a surface sens. channel
+        expansion=2.9_r_kind ! use almost three for microwave sensors.
+     endif
 !   Set rlndsea for types we would prefer selecting
      rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
@@ -310,7 +324,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      step   = 1.1_r_kind
      start  = -48.95_r_kind
      nchanl=5_i_kind
-     if (isfcalc==ione) instr=12_i_kind
+     if (isfcalc==ione) then
+        instr=12_i_kind
+        ichan=-999_i_kind
+        expansion=2.9_r_kind
+     endif
 !   Set rlndsea for types we would prefer selecting
      rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
@@ -321,7 +339,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      step   = 10.0_r_kind/9.0_r_kind
      start  = -445.0_r_kind/9.0_r_kind
      nchanl=5_i_kind
-     if (isfcalc==ione) instr=13_i_kind
+     if (isfcalc==ione) then
+        instr=13_i_kind
+        ichan=ione  ! all channels give similar result.
+        expansion=2.9_r_kind
+     endif
 !   Set rlndsea for types we would prefer selecting
      rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
@@ -332,7 +354,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      step  =  10.00_r_kind
      start = -35.00_r_kind
      nchanl=3_i_kind
-     if (isfcalc==ione) instr=9_i_kind
+     if (isfcalc==ione) then
+        instr=9_i_kind
+        ichan=-999_i_kind  ! not used for this sensor
+        expansion=one
+     endif
 !   Set rlndsea for types we would prefer selecting
      rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
@@ -341,6 +367,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(4) = 30._r_kind
   end if
 
+! Initialize variables for use by FOV-based surface code.
   if (isfcalc == ione) then
      call instrument_init(instr,jsatid,expansion)
   endif
@@ -568,14 +595,21 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !                     3 snow
 !                     4 mixed                       
 
+!          FOV-based surface code requires fov number.  if out-of-range, then
+!          skip this ob.
+
            if (isfcalc == ione) then
               call fov_check(ifov,instr,valid)
               if (.not. valid) cycle read_loop
            end if
+
+!          When isfcalc is one, calculate surface fields based on size/shape of fov.
+!          Otherwise, use bilinear method.
+
            if (isfcalc == ione) then
               call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
                                  dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
-                                sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
+                                 sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
            else
               call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg, &
                      idomsfc,sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
@@ -773,7 +807,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 ! Deallocate satthin arrays
   call destroygrids
-
+ 
+! Deallocate FOV surface code arrays and nullify pointers.
   if (isfcalc == ione) call fov_cleanup
 
   if(diagnostic_reg.and.ntest>izero) write(6,*)'READ_BUFRTOVS:  ',&
@@ -1422,13 +1457,15 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
 !   prgmmr: gayno            org: np2                date: 2008-11-04
 !
 ! abstract:  determines surface characteristics within a field of view
-!            based on model information.
+!            based on model information and the size/shape of the 
+!            field of view.
 !
 ! program history log:
 !   2008-11-04 gayno
+!   2009-12-20 gayno - modify to use relative antenna power.
 !
 !   input argument list:
-!     fov_flag        - is this a crosstrack or conical instrument
+!     fov_flag        - is this a crosstrack or conical instrument?
 !     ichan           - channel number - conical scanners only
 !     ifov            - field of view number
 !     instr           - instrument number
@@ -1577,7 +1614,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
         call grdcrd(y,ione,rlats_sfc,nlat_sfc,ione)
         nearest_j = nint(y)
         jj = nearest_j
-        if (jj > nlat_sfc/2) jj = nlat_sfc - nearest_j + ione
+        if (jj > nlat_sfc/2_i_kind) jj = nlat_sfc - nearest_j + ione
         x = (dlon_earth_deg/dx_gfs(jj)) + one
         nearest_i = nint(x)
         call reduce2full(nearest_i,nearest_j,ifull)
@@ -1597,7 +1634,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
 ! expansion factor.
 
   if (fov_flag=="crosstrk")then
-     call fov_ellipse_crosstrk(ifov,sat_aziang,dlat_earth_deg,dlon_earth_deg, &
+     call fov_ellipse_crosstrk(ifov,instr,sat_aziang,dlat_earth_deg,dlon_earth_deg, &
                                lats_edge_fov,lons_edge_fov)
   elseif(fov_flag=="conical")then
      call fov_ellipse_conical(ichan,sat_aziang,dlat_earth_deg,dlon_earth_deg, &
@@ -1666,7 +1703,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
      allocate (min_i(jstart:jend))
      do j = jstart, jend
         jj = j
-        if (jj > nlat_sfc/2) jj = nlat_sfc - j + ione
+        if (jj > nlat_sfc/2_i_kind) jj = nlat_sfc - j + ione
         x = (minval(lons_edge_fov)/dx_gfs(jj)) + one
         nearest_i = nint(x)
         min_i(j) = nearest_i
@@ -1719,7 +1756,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
      dx_fov_max = zero
      do j = jstart,jend
         jj = j
-        if (jj > nlat_sfc/2) jj = nlat_sfc - j + ione
+        if (jj > nlat_sfc/2_i_kind) jj = nlat_sfc - j + ione
         dx_fov_max = max(dx_fov_max, dx_gfs(jj))
      enddo
 !  When taking the longitudinal difference, don't worry
@@ -1810,7 +1847,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
                     call inside_fov_crosstrk(instr,ifov,sat_aziang, &
                                             dlat_earth_deg,dlon_earth_deg, &
                                             lat_mdl,    lon_mdl,  &
-                                            expansion, power )
+                                            expansion, ichan, power )
                  elseif (fov_flag=="conical")then
                     call inside_fov_conical(instr,ichan,sat_aziang, &
                                            dlat_earth_deg,dlon_earth_deg,&
@@ -1825,7 +1862,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
   else
      do j = jstart, jend
         jj = j
-        if (j > nlat_sfc/2) jj = nlat_sfc - j + ione
+        if (j > nlat_sfc/2_i_kind) jj = nlat_sfc - j + ione
         do i = min_i(j), max_i(j)
            call reduce2full(i,j,ifull)
            call time_int_sfc(ifull,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
@@ -1846,7 +1883,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
                     call inside_fov_crosstrk(instr,ifov,sat_aziang, &
                                             dlat_earth_deg,dlon_earth_deg, &
                                             lat_mdl,    lon_mdl,  &
-                                            expansion, power )
+                                            expansion, ichan, power )
                  elseif (fov_flag=="conical")then
                     call inside_fov_conical(instr,ichan,sat_aziang, &
                                            dlat_earth_deg,dlon_earth_deg,&
@@ -1918,7 +1955,7 @@ subroutine reduce2full(ireduce, j, ifull)
   real(r_kind)                 :: r, x1
 
   jj = j
-  if (j > nlat_sfc/2) jj = nlat_sfc - j + ione
+  if (j > nlat_sfc/2_i_kind) jj = nlat_sfc - j + ione
   m2 = lpl_gfs(jj)
   m1 = nlon_sfc
   r=real(m1)/real(m2)
@@ -2157,8 +2194,6 @@ subroutine accum_sfc(i,j,power,sfc_mdl,sfc_sum)
 ! across all surface types.
   sfc_sum%ff10=sfc_sum%ff10 + (power*sfc_mdl%ff10)
   sfc_sum%sfcr=sfc_sum%sfcr + (power*sfc_mdl%sfcr)
-! warning, for old gfs sfc files, there is no terrain record.
-! what to do in that case??
   if (regional) then
      sfc_sum%zz=sfc_sum%zz + (power*zs_full(j,i))
   else

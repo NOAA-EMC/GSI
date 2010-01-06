@@ -1,4 +1,4 @@
-subroutine read_amsre(mype,val_amsre,ithin,rmesh,gstime,&
+subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub)
 
@@ -43,11 +43,16 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,gstime,&
 !   2008-05-28  safford - rm unused vars
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2009-12-20  gayno - add option to calculate surface fields based on
+!                       the size/shape of field of view.
 !
 ! input argument list:
 !     mype     - mpi task id
 !     val_amsre- weighting factor applied to super obs
 !     ithin    - flag to thin data
+!     isfcalc  - flag to specify method to calculate sfc fields within FOV
+!                when set to one, account for size/shape of FOV.  otherwise
+!                use bilinear interpolation.
 !     rmesh    - thinning mesh size (km)
 !     gstime   - analysis time in minutes from reference date
 !     infile   - unit from which to read BUFR data
@@ -78,12 +83,15 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,gstime,&
        tll2xy
   use constants, only: deg2rad,rad2deg,izero,ione,zero,three,r60inv
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
+  use calc_fov_conical, only: instrument_init
+
   implicit none
 
 ! Input variables
   character(len=*) ,intent(in   ) :: infile
   character(len=*) ,intent(in   ) :: obstype
   integer(i_kind)  ,intent(in   ) :: mype
+  integer(i_kind)  ,intent(in   ) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(in   ) :: lunout
   real(r_kind)     ,intent(inout) :: val_amsre
@@ -137,8 +145,14 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,gstime,&
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
 
+  character(len=7),parameter:: fov_flag="conical"
+  character(len=3) :: fov_satid
+  
+  integer(i_kind) :: ichan, instr, idum
+
   real(r_kind) :: clath_sun_glint_calc , clonh_sun_glint_calc 
   real(r_kind) :: date5_4_sun_glint_calc
+  real(r_kind) :: expansion, dlat_earth_deg, dlon_earth_deg
 
 ! Set standard parameters
   logical       :: amsre_low
@@ -256,6 +270,26 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,gstime,&
   end do search
   if (.not.assim) val_amsre=zero
 
+! note, fov-based surface code does not have equations for amsr-e, but
+! the fov size/shape is similar to ssmi/s.  so call
+! fov code using f16 specs.
+
+  if(isfcalc==ione)then
+     instr=26_i_kind
+     fov_satid='f16'
+     idum = -999_i_kind  ! dummy variable for fov number. not used for conical instr.
+     if(amsre_hig)then
+        ichan=18_i_kind
+        expansion=1.5_r_kind
+     elseif(amsre_mid)then
+       ichan=3_i_kind
+       expansion=2.9_r_kind
+     elseif(amsre_low)then
+       ichan=12_i_kind
+       expansion=2.9_r_kind
+     endif
+     call instrument_init(instr, fov_satid, expansion)
+  endif
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
@@ -348,6 +382,8 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,gstime,&
 !    If regional, map obs lat,lon to rotated grid.
         dlat_earth = clath * deg2rad
         dlon_earth = clonh * deg2rad
+        dlat_earth_deg = clath
+        dlon_earth_deg = clonh
         if(regional)then
         
 !       Convert to rotated coordinate.  dlon centered on 180 (pi),
@@ -382,11 +418,19 @@ subroutine read_amsre(mype,val_amsre,ithin,rmesh,gstime,&
 !                3 snow
 !                4 mixed                       
 
+!       When isfcalc is one, calculate surface fields based on size/shape of fov.
+!       Otherwise, use bilinear interpolation.
 
-        call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-            ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        if (amsre_low) then
-           call deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
+        if (isfcalc==ione)then
+           call deter_sfc_fov(fov_flag,idum,instr,ichan,amsrspot_d(11),dlat_earth_deg,&
+                              dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
+                              sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
+        else
+           call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
+               ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+           if (amsre_low) then
+              call deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
+           endif
         endif
 
         crit1 = crit1 +rlndsea(isflg)

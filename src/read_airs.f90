@@ -47,16 +47,20 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2008-04-21  safford - rm unused vars and uses
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2009-01-09  gayno   - new option to calculate surface fields within FOV
+!                         based on its size/shape
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2009-12-20  gayno - method to calculate surface fields within FOV
+!                       based on its size/shape now calculates antenna 
+!                       power for some instruments. 
 !
 !   input argument list:
 !     mype     - mpi task id
 !     val_airs - weighting factor applied to super obs
 !     ithin    - flag to thin data
 !     isfcalc  - specify method to calculate surface fields within FOV
-!                when set to one, integrate surface info across FOV.
-!                when not one, use bilinear interpolation.
+!                when set to one, integrate surface info across FOV based
+!                on its size/shape.  when not one, use bilinear interpolation.
 !     rmesh    - thinning mesh size (km)
 !     jsatid   - satellite to read
 !     gstime   - analysis time in minutes from reference date
@@ -173,14 +177,13 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical          :: outside,iuse,assim,lluse,valid
   integer(i_kind)  :: i, l, ll, iskip
   real(r_kind),allocatable,dimension(:,:):: data_all
-  real(r_kind) :: dlat_earth_deg, dlon_earth_deg
+  real(r_kind) :: dlat_earth_deg, dlon_earth_deg, expansion
   integer(i_kind):: idomsfc
 
 
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
-  real(r_kind),parameter:: expansion=2.9_r_kind
   real(r_kind),parameter:: R90    =  90._r_kind
   real(r_kind),parameter:: R360   = 360._r_kind
   real(r_kind),parameter:: d1     = 0.754_r_kind
@@ -208,8 +211,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   ilon=3_i_kind
   ilat=4_i_kind
 
-  if(isfcalc==ione) ichan = 999_i_kind  ! for deter_sfc_fov code. not used yet.
-
   if(airs)then
      ix=ione
      step   = 1.1_r_kind
@@ -226,7 +227,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      rlndsea(2) = 15._r_kind
      rlndsea(3) = 10._r_kind
      rlndsea(4) = 30._r_kind
-     if(isfcalc==ione) instr=12_i_kind ! according to tom kleespies, airs is the same as amsu-b.
+     if(isfcalc==ione) then
+        instr=17_i_kind
+        ichan=-999_i_kind  ! not used for airs
+        expansion=one ! use one for ir sensors
+     endif
      if (mype_sub==mype_root) &
           write(6,*)'READ_AIRS:  airs offset ',ioff,ichansst,ichsst
   else if(amsua)then
@@ -246,7 +251,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      rlndsea(2) = 20._r_kind
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 100._r_kind
-     if(isfcalc==ione) instr=11_i_kind
+     if(isfcalc==ione) then
+        instr=11_i_kind
+        ichan=15_i_kind  ! for now pick a surface channel
+        expansion=2.9_r_kind ! use almost three for microwave
+     endif
   else if(hsb)then
      ix=3_i_kind
      step   = 1.1_r_kind
@@ -263,9 +272,15 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      rlndsea(2) = 20._r_kind
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 100._r_kind
-     if(isfcalc==ione) instr=12_i_kind ! similar to amsu-b according to tom kleespies
+     if(isfcalc==ione) then
+        instr=12_i_kind ! similar to amsu-b according to tom kleespies
+        ichan=-999_i_kind ! not used for hsb
+        expansion=2.9_r_kind ! use almost three for microwave
+     endif
   endif
 
+! When calculating surface fields based on size/shape of fov, need
+! to initialize several variables.
   if (isfcalc == ione) then
      call instrument_init(instr,jsatid,expansion)
   endif
@@ -438,10 +453,17 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                   2 sea ice
 !                   3 snow
 !                   4 mixed 
+
+!       The fov of view number is used when calculating the surface fields
+!       based on the fov's size/shape.  if it is out-of-range, skip ob.
+
         if (isfcalc == ione) then
            call fov_check(ifov,instr,valid)
            if (.not. valid) cycle read_loop
         endif
+
+!       When isfcalc is one, calculate surface fields based on the fov's size/shape.
+!       Otherwise, use bilinear interpolation.
 
         if (isfcalc == ione) then
            call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg, &
@@ -706,6 +728,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   call destroygrids    ! Deallocate satthin arrays
   call closbf(lnbufr)  ! Close bufr file
 
+! deallocate arrays and nullify pointers.
   if (isfcalc == ione) then
     call fov_cleanup
   endif

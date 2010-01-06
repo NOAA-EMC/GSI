@@ -532,6 +532,7 @@ contains
 !   2004-05-13  kleist, documentation
 !   2004-07-15  todling, protex-compliant prologue
 !   2005-03-03  treadon - add implicit none
+!   2009-12-20  gayno - add variable lpl_gfs
 !
 ! !REMARKS:
 !   language: f90
@@ -547,6 +548,7 @@ contains
     deallocate(ak5,bk5,ck5,tref5)
     if (allocated(cp5)) deallocate(cp5)
     if (allocated(dx_gfs)) deallocate(dx_gfs)
+    if (allocated(lpl_gfs)) deallocate(lpl_gfs)
     return
   end subroutine destroy_grid_vars
 

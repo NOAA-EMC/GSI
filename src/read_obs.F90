@@ -142,6 +142,8 @@ subroutine read_obs(ndata,mype)
 !   2009-01-05  todling - need tendency alloc in observer mode
 !   2009-01-23  todling - echo surface state info 
 !   2009-03-18  meunier - add a if statement to read lagrangian data
+!   2009-12-20  gayno - modify argument lists so that fov-based surface
+!                       calculation may be used.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -636,7 +638,7 @@ subroutine read_obs(ndata,mype)
 
 !            Process iasi data
              else if(obstype == 'iasi')then
-                call read_iasi(mype,val_dat,ithin,rmesh,gstime,&
+                call read_iasi(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                 string='READ_IASI'
@@ -661,7 +663,7 @@ subroutine read_obs(ndata,mype)
 !            Process amsre data
              else if ( obstype == 'amsre_low' .or. obstype == 'amsre_mid' .or. &
                        obstype == 'amsre_hig' ) then
-                call read_amsre(mype,val_dat,ithin,rmesh,gstime,&
+                call read_amsre(mype,val_dat,ithin,isfcalc,rmesh,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                 string='READ_AMSRE'

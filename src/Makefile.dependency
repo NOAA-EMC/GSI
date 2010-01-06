@@ -173,7 +173,7 @@ raflib.o : raflib.f90 plib8.o constants.o mpimod.o kinds.o
 rdgrbsst.o : rdgrbsst.f90 constants.o kinds.o 
 rdgstat_reg.o : rdgstat_reg.f90 jfunc.o guess_grids.o gridmod.o constants.o kinds.o 
 read_airs.o : read_airs.f90 calc_fov_crosstrk.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
-read_amsre.o : read_amsre.f90 guess_grids.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
+read_amsre.o : read_amsre.f90 guess_grids.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o calc_fov_conical.o
 read_avhrr.o : read_avhrr.f90 gsi_4dvar.o radinfo.o constants.o gridmod.o satthin.o kinds.o 
 read_avhrr_navy.o : read_avhrr_navy.f90 gsi_4dvar.o radinfo.o constants.o gridmod.o satthin.o kinds.o 
 read_bufrtovs.o : read_bufrtovs.f90 calc_fov_conical.o guess_grids.o antcorr_application.o gsi_4dvar.o calc_fov_crosstrk.o obsmod.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
@@ -182,7 +182,7 @@ read_goesimg.o : read_goesimg.f90 gsi_4dvar.o radinfo.o obsmod.o constants.o gri
 read_goesndr.o : read_goesndr.f90 gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_gps.o : read_gps.f90 gridmod.o convinfo.o gsi_4dvar.o obsmod.o constants.o kinds.o 
 read_guess.o : read_guess.F90 ncepgfs_io.o constants.o gridmod.o gsi_io.o m_gsiBiases.o jfunc.o kinds.o 
-read_iasi.o : read_iasi.f90 gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
+read_iasi.o : read_iasi.f90 gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o calc_fov_crosstrk.o kinds.o 
 read_l2bufr_mod.o : read_l2bufr_mod.f90 obsmod.o mpimod.o constants.o kinds.o 
 read_lag.o : read_lag.F90 lag_fields.o gsi_4dvar.o convinfo.o constants.o gridmod.o kinds.o 
 read_lidar.o : read_lidar.f90 gsi_4dvar.o obsmod.o constants.o convinfo.o gridmod.o kinds.o 
