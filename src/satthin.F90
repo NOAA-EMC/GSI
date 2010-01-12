@@ -395,12 +395,13 @@ contains
 
     mm1=mype+1
 
-    if(mype == 0)write(6,*) ' nlat,nlon = ',nlat_sfc,nlon_sfc,nlat,nlon
+    if(mype == 0)write(6,*)'GETSFC:  enter with nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
+	' and nlat,nlon=',nlat,nlon
     if(regional)then
       nlat_sfc=nlat
       nlon_sfc=nlon
     end if
-    if(mype == 0)write(6,*) ' nlat,nlon = ',nlat_sfc,nlon_sfc,nlat,nlon
+    if(mype == 0)write(6,*)'GETSFC: set nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc
     allocate(rlats_sfc(nlat_sfc),rlons_sfc(nlon_sfc))
 
     allocate(isli_full(nlat_sfc,nlon_sfc),fact10_full(nlat_sfc,nlon_sfc,nfldsfc))
@@ -496,7 +497,7 @@ contains
             end do
           end do
         else
-          write(6,*)'satthin bias correction - incompatible surface resolution',&
+          write(6,*)'GETSFC:  satthin bias correction - incompatible surface resolution',&
               nlon,nlon_sfc,nlat,nlat_sfc
           call stop2(82)
         end if
@@ -790,7 +791,7 @@ contains
          itx=itx+1
        else
          iuse = .false.
-         write(6,*)' ndata > maxobs when reading data for ',sis,itxmax
+         write(6,*)'MAP2TGRID:  ndata > maxobs when reading data for ',sis,itxmax
        end if
        return
     end if

@@ -9,29 +9,16 @@ COREINC  = /nwprod/lib/incmod
 INCsfcio = $(COREINC)/sfcio_4
 INCsigio = $(COREINC)/sigio_4
 INCgfsio = $(COREINC)/gfsio_4
-##INCcrtm  = $(COREINC)/crtm_gfsgsi
 
-# The below definitions of INCcrtm and LIBcrtm are ONLY
-# for pre-implementation compiles.   
-#
-# When the new global_gsi code is implemented, first implement
-# crtm_gfs update.   Next, remove the INCcrtm and LIBcrtm lines
-# below.   Uncomment the INCcrtm line above.   Also replace
-# "$(LIBcrtm)" on LIBS_N line with "-lcrtm_gfsgsi"
-
-INCcrtm = /global/save/wx20rt/2jif/Q1FY10_DA/lib/incmod/crtm_gfsgsi
-LIBcrtm = /global/save/wx20rt/2jif/Q1FY10_DA/lib/libcrtm_gfsgsi.a
+INCcrtm = /nwprod/lib/incmod/crtm_gfsgsi
+LIBcrtm = /nwprod/lib/libcrtm_gfsgsi.a
 
 WRFPATH=/nwprod/sorc/nam_nmm_real_fcst.fd
-
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
 LIBwrfio_netcdf = $(WRFPATH)/external/io_netcdf/libwrfio_nf.a
 INCnetcdf       = /nwprod/lib/sorc/netcdf/netcdf-3.5.0/include
 OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
-
 WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk)
-
-MPITRACE = /usrx/local/mpi_trace/lib/libmpitrace_smp.a
 
 
 # Empty out definition of libs use by GMAO GSI building structure
@@ -73,7 +60,8 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Debug mode options
 #  -qflttrap=overflow:zero:enable \ is ok
-#          -qflttrap=overflow:zero:underflow:enable \ fails
+#  -qflttrap=overflow:zero:underflow:enable \ fails
+#  -qsave=all \ fails, so removing from option list
   FFLAGS_COM_D  =  -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
           -I $(INCgfsio) -I $(INCnetcdf) -qarch=auto \
           -qmaxmem=-1 -qfullpath -qdbg -qstrict -q64 \
@@ -84,7 +72,6 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
           -qcheck \
           -qwarn64 \
           -qflag=i:u \
-          -qsave \
           -qlistopt \
           -qsource
 
@@ -115,9 +102,9 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
 
-  LIBS_N        = -L/nwprod/lib -lsp_d -lw3_d -lbufr_d_64 -lbacio_4 \
-                  -lsigio_4 -lsfcio_4 -lgfsio_4 -lnetcdf_64 $(LIBcrtm) \
-                  $(WRFLIB) $(MPITRACE)
+  LIBS_N        = -L/nwprod/lib -lsp_d -lw3_d -lbufr_d_64 -lbacio_4 -lmpitrace \
+                  -lsigio_4 -lsfcio_4 -lgfsio_4 -lnetcdf_64 \
+                  $(LIBcrtm) $(WRFLIB)
 
   LDFLAGS_N     = -lessl_r -lmass -bloadmap:loadmap.txt \
                   -bdatapsize:64K -bstackpsize:64K $(OMP) $(PROF)

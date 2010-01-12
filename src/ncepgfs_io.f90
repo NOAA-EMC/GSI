@@ -94,7 +94,7 @@ contains
     use gridmod, only: displs_s,irc_s,ijn_s,&
          ird_s,nsig,nlat,nlon,lat2,lon2,&
          itotsub,fill_ns,filluv_ns,ncep_sigio,ncepgfs_head,idpsfc5,idthrm5,&
-         ntracer,idvc5,cp5,idvm5
+         ntracer,idvc5,cp5,idvm5,nlat_b,nlon_b,hires_b,interp_b2a
     use specmod, only: factsml_b,factvml_b,jcap_b,nc_b
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype,reload
     use constants, only: izero,ione,zero,one,fv
@@ -126,6 +126,7 @@ contains
     real(r_kind),dimension(nlon,nlat-2_i_kind):: grid,grid_u,grid_v,&
          grid_vor,grid_div,grid2,grid3
     real(r_kind),dimension(nlon,nlat-2_i_kind,ntracer):: grid_q
+    real(r_kind),  dimension(nlon_b,nlat_b-2):: grid_b,grid_bu,grid_bv
     real(r_kind),dimension(nc_b):: spec_work,spec_vor,spec_div
     real(r_kind),dimension(itotsub):: work,work_vor,work_div,&
          work_u,work_v
@@ -248,7 +249,12 @@ contains
              spec_work(i)=sigdata%hs(i)
              if(factsml_b(i))spec_work(i)=zero
           end do
-          call sptez_s_bkg(spec_work,grid,ione)
+          if (hires_b) then
+             call sptez_s_b(spec_work,grid_b,ione)
+             call interp_b2a(grid_b,nlon_b,nlat_b,grid,nlon,nlat)
+          else
+             call sptez_s(spec_work,grid,ione)
+          endif
        else
           ij=izero
           do j=1,gfshead%latb
@@ -276,7 +282,12 @@ contains
              spec_work(i)=sigdata%ps(i)
              if(factsml_b(i))spec_work(i)=zero
           end do
-          call sptez_s_bkg(spec_work,grid,ione)
+          if (hires_b) then
+             call sptez_s_b(spec_work,grid_b,ione)
+             call interp_b2a(grid_b,nlon_b,nlat_b,grid,nlon,nlat)
+          else
+             call sptez_s(spec_work,grid,ione)
+          endif
           call fill_ns(grid,work)
 
 !         If ln(ps), take exponential to convert to ps in cb
@@ -317,7 +328,12 @@ contains
                 spec_work(i)=sigdata%t(i,k)
                 if(factsml_b(i))spec_work(i)=zero
              end do
-             call sptez_s_bkg(spec_work,grid,ione)
+             if (hires_b) then
+                call sptez_s_b(spec_work,grid_b,ione)
+                call interp_b2a(grid_b,nlon_b,nlat_b,grid,nlon,nlat)
+             else
+                call sptez_s(spec_work,grid,ione)
+             endif
 
 !            SIGIO has three possible thermodynamic variables
 !            Variable idthrm5 indicates the type
@@ -336,7 +352,12 @@ contains
                       spec_work(i)=sigdata%q(i,k,n)
                       if(factsml_b(i))spec_work(i)=zero
                    end do
-                   call sptez_s_bkg(spec_work,grid_q(1,1,n),ione)
+                   if (hires_b) then
+                      call sptez_s_b(spec_work,grid_b,ione)
+                      call interp_b2a(grid_b,nlon_b,nlat_b,grid_q(1,1,n),nlon,nlat)
+                   else
+                      call sptez_s(spec_work,grid,ione)
+                   endif
                 end do
 
 !               Convert input thermodynamic variable to dry temperature
@@ -403,9 +424,20 @@ contains
                    spec_vor(i)=zero
                 end if
              end do
-             call sptez_s_bkg(spec_div,grid_div,ione)
-             call sptez_s_bkg(spec_vor,grid_vor,ione)
-             call sptez_v_bkg(spec_div,spec_vor,grid_u,grid_v,ione)
+             if (hires_b) then
+                call sptez_s_b(spec_div,grid_b,ione)
+                call interp_b2a(grid_b,nlon_b,nlat_b,grid_div,nlon,nlat)
+                call sptez_s_b(spec_vor,grid_b,ione)
+                call interp_b2a(grid_b,nlon_b,nlat_b,grid_vor,nlon,nlat)
+                call sptez_v_b(spec_div,spec_vor,grid_bu,grid_bv,ione)
+                call interp_b2a(grid_bu,nlon_b,nlat_b,grid_u,nlon,nlat)
+                call interp_b2a(grid_bv,nlon_b,nlat_b,grid_v,nlon,nlat)
+             else
+                call sptez_s(spec_div,grid_div,ione)
+                call sptez_s(spec_vor,grid_vor,ione)
+                call sptez_v(spec_div,spec_vor,grid_u,grid_v,ione)
+             endif
+
 
 !         Convert grid u,v to div and vor
           else
@@ -417,9 +449,15 @@ contains
                    grid_v(i,j)=gfsdata%v(ij,k)
                 end do
              end do
-             call sptez_v_bkg(spec_div,spec_vor,grid_u,grid_v,-ione)
-             call sptez_s_bkg(spec_div,grid_div,ione)
-             call sptez_s_bkg(spec_vor,grid_vor,ione)
+             if (hires_b) then
+                call sptez_v_b(spec_div,spec_vor,grid_u,grid_v,-ione)
+                call sptez_s_b(spec_div,grid_div,ione)
+                call sptez_s_b(spec_vor,grid_vor,ione)
+             else
+                call sptez_v(spec_div,spec_vor,grid_u,grid_v,-ione)
+                call sptez_s(spec_div,grid_div,ione)
+                call sptez_s(spec_vor,grid_vor,ione)
+             endif
           endif
           
           call fill_ns(grid_div,work_div)
@@ -465,7 +503,12 @@ contains
                 spec_work(i)=sigdata%q(i,k,1)
                 if(factsml_b(i))spec_work(i)=zero
              end do
-             call sptez_s_bkg(spec_work,grid,ione)
+             if (hires_b) then
+                call sptez_s_b(spec_work,grid_b,ione)
+                call interp_b2a(grid_b,nlon_b,nlat_b,grid,nlon,nlat)
+             else
+                call sptez_s(spec_work,grid,ione)
+             endif
           else
              ij=izero
              do j=1,gfshead%latb
@@ -496,7 +539,7 @@ contains
                    if (grid(i,j)<qsmall) grid2(i,j)=qsmall-grid(i,j)
                 end do
              end do
-             call sptez_s_bkg(spec_work,grid2,-ione)
+             call sptez_s(spec_work,grid2,-ione)
              ii1=izero
              do l=izero,jcap_b
                 do m=izero,jcap_b-l
@@ -511,7 +554,7 @@ contains
                    if (l==izero) spec_work(ii1)=zero
                 end do
              end do
-             call sptez_s_bkg(spec_work,grid2,ione)
+             call sptez_s(spec_work,grid2,ione)
              do j=1,nlatm2
                 do i=1,nlon
                    grid3(i,j)=grid3(i,j)+grid2(i,j)
@@ -554,7 +597,12 @@ contains
                 spec_work(i)=sigdata%q(i,k,2)
                 if(factsml_b(i))spec_work(i)=zero
              end do
-             call sptez_s_bkg(spec_work,grid,ione)
+             if (hires_b) then
+                call sptez_s_b(spec_work,grid_b,ione)
+                call interp_b2a(grid_b,nlon_b,nlat_b,grid,nlon,nlat)
+             else
+                call sptez_s(spec_work,grid,ione)
+             endif
           else
              ij=izero
              do j=1,gfshead%latb
@@ -589,7 +637,12 @@ contains
                    spec_work(i)=sigdata%q(i,k,3)
                    if(factsml_b(i))spec_work(i)=zero
                 end do
-                call sptez_s_bkg(spec_work,grid,ione)
+                if (hires_b) then
+                   call sptez_s_b(spec_work,grid_b,ione)
+                   call interp_b2a(grid_b,nlon_b,nlat_b,grid,nlon,nlat)
+                else
+                   call sptez_s(spec_work,grid,ione)
+                endif
              else
                 ij=izero
                 do j=1,gfshead%latb
@@ -865,10 +918,11 @@ contains
     logical,intent(in)::increment
     integer(i_kind),intent(in):: mype,mype_atm,mype_sfc
     character(24):: filename
+
 !   Write atmospheric analysis file
     if (increment) then
       filename='siginc'
-      if(mype==izero) write(6,'(a)') 'write_gfs: sorry, I do not know how to write increments yet'
+      if(mype==izero) write(6,'(a)') 'WRITE_GFS: sorry, I do not know how to write increments yet'
       return
     else
       filename='siganl'
@@ -965,7 +1019,9 @@ contains
     
     use guess_grids, only: ntguessig,ifilesig
     
-    use gridmod, only: nlat, nlon     ! no. lat/lon
+    use gridmod, only: nlat, nlon     ! no. lat/lon on analysis grid
+    use gridmod, only: nlat_b,nlon_b  ! no. lat/lon on guess (background) grid
+    use gridmod, only: hires_b        ! .t. if useing hires global background (guess)
     use gridmod, only: lat1, lon1     ! no. lat/lon on subdomain (no buffer)
     use gridmod, only: lat2, lon2     ! no. lat/lon on subdomain (buffer pnts on ends)
     use gridmod, only: nsig           ! no. levels
@@ -983,6 +1039,7 @@ contains
     use gridmod, only: ncloud
     use gridmod, only: ncep_sigio
     use gridmod, only: ncepgfs_head
+    use gridmod, only: interp_b2a
     
     use obsmod, only: iadate
     
@@ -1039,6 +1096,7 @@ contains
     real(r_kind),dimension(max(iglobal,itotsub)):: work1
     real(r_kind),dimension(max(iglobal,itotsub),nsig):: work1_k
     real(r_kind),dimension(nlon,nlat-2_i_kind):: grid,grid2
+    real(r_kind),dimension(nlon_b,nlat_b-2):: grid_b2
     real(r_kind),dimension(nc_b):: spec_work
     real(r_kind),dimension(nc):: spec_work_sm
 
@@ -1064,7 +1122,7 @@ contains
   integer(i_kind) :: itag_th,itag_sh,itag_oz,itag_clc,itag_div,itag_vort
   integer(i_kind) :: status(mpi_status_size),istat,pe_stride
   real(kind=sigio_realkind),allocatable :: temp(:,:)
- 
+
 !*************************************************************************
 !   Initialize local variables
     mm1=mype+ione
@@ -1086,7 +1144,6 @@ contains
     mype_vort = mype_div+pe_stride
     itag_vort = 10005_i_kind
 
-
 !   Strip off boundary points from subdomains
     call strip(sub_z   ,hsm       ,ione)
     call strip(sub_ps  ,psm       ,ione)
@@ -1096,6 +1153,7 @@ contains
     call strip(sub_q   ,qsm(1,1,1),nsig)
     call strip(sub_oz  ,qsm(1,1,2),nsig)
     call strip(sub_cwmr,qsm(1,1,3),nsig)
+
 !   Read guess file.   Pull out header information.  
 !   Update header and write out to analysis file.
 !   These operations only need to be done on the
@@ -1246,6 +1304,7 @@ contains
         allocate(gfsdata%q(gfshead%latb*gfshead%lonb,gfshead%levs,gfshead%ntrac))
       endif
     end if
+
 !gather the fields on the processors that will perform grid transforms
 !   Thermodynamic variable
 !   The GSI analysis variable is virtual temperature (Tv).   For GFSIO
@@ -1273,6 +1332,7 @@ contains
           end do
        end do
     endif
+
 !   create global grid by gathering from subdomains
     if (ncep_sigio) then
       do k=1,nsig
@@ -1333,7 +1393,12 @@ contains
              spec_work(i) = sigdata%hs(i)
              if(factsml_b(i))spec_work(i)=zero
           end do
-          call sptez_s_bkg(spec_work,grid2,ione)
+          if (hires_b) then
+             call sptez_s_b(spec_work,grid_b2,ione)
+             call interp_b2a(grid_b2,nlon_b,nlat_b,grid2,nlon,nlat)
+          else
+             call sptez_s(spec_work,grid2,ione)
+         endif
           grid=grid-grid2
           call sptez_s(spec_work_sm,grid,-ione)
           call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
@@ -1372,7 +1437,12 @@ contains
              spec_work(i) = sigdata%ps(i)
              if(factsml_b(i))spec_work(i)=zero
           end do
-          call sptez_s_bkg(spec_work,grid2,ione)
+          if (hires_b) then
+             call sptez_s_b(spec_work,grid_b2,ione)
+             call interp_b2a(grid_b2,nlon_b,nlat_b,grid2,nlon,nlat)
+          else
+             call sptez_s(spec_work,grid2,ione)
+          endif
           grid=grid-grid2
           call sptez_s(spec_work_sm,grid,-ione)
           call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
@@ -1395,14 +1465,19 @@ contains
 !   Thermodynamic variable
     if (ncep_sigio) then
       if (mype==mype_th) then
-!$omp parallel do private(k,grid,i,spec_work,grid2)
+!$omp parallel do private(k,grid,i,spec_work,grid2,grid_b2,spec_work_sm)
         do k=1,nsig
           call load_grid(work1_k(1,k),grid)
           do i=1,nc_b
              spec_work(i) = temp(i,k)
              if(factsml_b(i))spec_work(i)=zero
           end do
-          call sptez_s_bkg(spec_work,grid2,ione)
+          if (hires_b) then
+             call sptez_s_b(spec_work,grid_b2,ione)
+             call interp_b2a(grid_b2,nlon_b,nlat_b,grid2,nlon,nlat)
+          else
+             call sptez_s(spec_work,grid2,ione)
+          endif
           grid=grid-grid2
           call sptez_s(spec_work_sm,grid,-ione)
           call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
@@ -1415,7 +1490,7 @@ contains
 !send temperature back to mype_out
         call mpi_send(temp,nc_b*nsig,mpi_rtype4,mype_out,&
                       itag_th,mpi_comm_world,ierror)
-      endif
+     endif
     else                 !GFS I/O
       do k=1,nsig
         call mpi_gatherv(tvsm(1,k),ijn(mm1),mpi_rtype,&
@@ -1438,15 +1513,19 @@ contains
 !   Specific humidity
     if (ncep_sigio) then
       if (mype==mype_sh) then
-!$omp parallel do private(k,grid,i,spec_work,grid2)
+!$omp parallel do private(k,grid,i,spec_work,grid2,grid_b2,spec_work_sm)
         do k=1,nsig
           call load_grid(work1_k(1,k),grid)
           do i=1,nc_b
              spec_work(i) = temp(i,k)
              if(factsml_b(i))spec_work(i)=zero
           end do
-          call sptez_s_bkg(spec_work,grid2,ione)
-          call load_grid(work1_k(1,k),grid)
+          if (hires_b) then
+             call sptez_s_b(spec_work,grid_b2,ione)
+             call interp_b2a(grid_b2,nlon_b,nlat_b,grid2,nlon,nlat)
+          else
+             call sptez_s(spec_work,grid2,ione)
+          endif
           grid=grid-grid2
           call sptez_s(spec_work_sm,grid,-ione)
           call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
@@ -1483,15 +1562,19 @@ contains
 !   Ozone
     if (ncep_sigio) then
       if (mype==mype_oz) then
-!$omp parallel do private(k,grid,i,spec_work,grid2)
+!$omp parallel do private(k,grid,i,spec_work,grid2,grid_b2,spec_work_sm)
         do k=1,nsig
           call load_grid(work1_k(1,k),grid)
           do i=1,nc_b
              spec_work(i) = temp(i,k)
              if(factsml_b(i))spec_work(i)=zero
           end do
-          call sptez_s_bkg(spec_work,grid2,ione)
-          call load_grid(work1_k(1,k),grid)
+          if (hires_b) then
+             call sptez_s_b(spec_work,grid_b2,ione)
+             call interp_b2a(grid_b2,nlon_b,nlat_b,grid2,nlon,nlat)
+          else
+             call sptez_s(spec_work,grid2,ione)
+          endif
           grid=grid-grid2
           call sptez_s(spec_work_sm,grid,-ione)
           call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
@@ -1529,15 +1612,19 @@ contains
     if (ntracer>2_i_kind .or. ncloud>=ione) then
       if (ncep_sigio) then
         if (mype==mype_clc) then
-!$omp parallel do private(k,grid,i,spec_work,grid2)
+!$omp parallel do private(k,grid,i,spec_work,grid2,grid_b2,spec_work_sm)
           do k=1,nsig
              call load_grid(work1_k(1,k),grid)
              do i=1,nc_b
                 spec_work(i) = temp(i,k)
                 if(factsml_b(i))spec_work(i)=zero
              end do
-             call sptez_s_bkg(spec_work,grid2,ione)
-             call load_grid(work1_k(1,k),grid)
+             if (hires_b) then
+                call sptez_s_b(spec_work,grid_b2,ione)
+                call interp_b2a(grid_b2,nlon_b,nlat_b,grid2,nlon,nlat)
+             else
+                call sptez_s(spec_work,grid2,ione)
+             endif
              grid=grid-grid2
              call sptez_s(spec_work_sm,grid,-ione)
              call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
@@ -1576,14 +1663,19 @@ contains
 
 !     Horizontal divergence and voriticy
       if (mype==mype_div) then
-!$omp parallel do private(k,grid,i,spec_work,grid2)
+!$omp parallel do private(k,grid,i,spec_work,grid2,grid_b2,spec_work_sm)
         do k=1,nsig
+             call load_grid(work1_k(1,k),grid)
              do i=1,nc_b
                 spec_work(i) = temp(i,k)
                 if(factsml_b(i))spec_work(i)=zero
              end do
-             call sptez_s_bkg(spec_work,grid2,ione)
-             call load_grid(work1_k(1,k),grid)
+             if (hires_b) then
+                call sptez_s_b(spec_work,grid_b2,ione)
+                call interp_b2a(grid_b2,nlon_b,nlat_b,grid2,nlon,nlat)
+             else
+                call sptez_s(spec_work,grid2,ione)
+             endif
              grid=grid-grid2
              call sptez_s(spec_work_sm,grid,-ione)
              call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
@@ -1599,14 +1691,19 @@ contains
       endif
 
       if (mype==mype_vort) then
-!$omp parallel do private(k,grid,i,spec_work,grid2)
+!$omp parallel do private(k,grid,i,spec_work,grid2,grid_b2,spec_work_sm)
         do k=1,nsig
+             call load_grid(work1_k(1,k),grid)
              do i=1,nc_b
                 spec_work(i) = temp(i,k)
                 if(factsml_b(i))spec_work(i)=zero
              end do
-             call sptez_s_bkg(spec_work,grid2,ione)
-             call load_grid(work1_k(1,k),grid)
+             if (hires_b) then
+                call sptez_s_b(spec_work,grid_b2,ione)
+                call interp_b2a(grid_b2,nlon_b,nlat_b,grid2,nlon,nlat)
+             else
+                call sptez_s(spec_work,grid2,ione)
+             endif
              grid=grid-grid2
              call sptez_s(spec_work_sm,grid,-ione)
              call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
@@ -2187,6 +2284,5 @@ contains
     return
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   end subroutine sigio_cnvtdv8
-
 
 end module ncepgfs_io

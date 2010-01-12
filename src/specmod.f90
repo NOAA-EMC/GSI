@@ -17,6 +17,7 @@ module specmod
 !
 ! remarks: variable definitions below
 !   def jcap         - spectral (assumed triangular) truncation
+!   def jcap_b       - spectral (assumed triangular) truncation of background (guess)
 !   def nc           - (N+1)*(N+2); N=truncation
 !   def nc1          - 2*(N+1); N=truncation
 !   def ncd2         - [(N+1)*(N+2)]/2; N=truncation
@@ -53,12 +54,14 @@ module specmod
   real(r_kind),allocatable,dimension(:),save :: clat,slat,wlat
   real(r_kind),allocatable,dimension(:,:),save :: pln,plntop
   real(r_double),allocatable,dimension(:),save :: afft
-  integer(i_kind) jcap_b,nc_b,ncd2_b
-  integer(i_kind) iromb_b,idrt_b
-  logical,allocatable,dimension(:):: factsml_b,factvml_b
-  real(r_kind),allocatable,dimension(:):: eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b
-  real(r_kind),allocatable,dimension(:,:):: pln_b,plntop_b
 
+  integer(i_kind),save :: jcap_b,nc_b,ncd2_b
+  integer(i_kind),save :: iromb_b,idrt_b,imax_b,jmax_b,ijmax_b,jn_b,js_b,jb_b,je_b,ioffset_b
+  logical,allocatable,dimension(:),save:: factsml_b,factvml_b
+  real(r_kind),allocatable,dimension(:),save:: eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b
+  real(r_kind),allocatable,dimension(:),save :: clat_b,slat_b,wlat_b
+  real(r_kind),allocatable,dimension(:,:),save:: pln_b,plntop_b
+  real(r_double),allocatable,dimension(:),save :: afft_b
 
 contains
   
@@ -86,13 +89,13 @@ contains
 !$$$
     implicit none
 
-    jcap=62
-    jcap_b=62
+    jcap=62_i_kind
+    jcap_b=-999_i_kind
 
     return
   end subroutine init_spec
 
-  subroutine init_spec_vars(nlat,nlon,eqspace)
+  subroutine init_spec_vars(nlat_a,nlon_a,nlat_b,nlon_b,hires_b,eqspace)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_spec_vars
@@ -109,8 +112,11 @@ contains
 !   2008-04-11  safford    - rm unused vars
 !
 !   input argument list:
-!     nlat    - number of Gaussian latitudes
-!     nlon    - number of longitudes
+!     nlat_a - number of latitudes on analysis grid
+!     nlon_a - number of longitudes on analysis grid
+!     nlat_b - number of latitudes on background (guess) grid
+!     nlon_b - number of longitudes on background (guess) grid
+!     hires_b - .t. if background (guess) from hires grid
 !     eqspace
 !
 !   output argument list:
@@ -124,27 +130,55 @@ contains
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),intent(in):: nlat,nlon
+    integer(i_kind),intent(in) :: nlat_a,nlon_a,nlat_b,nlon_b
+    logical,intent(in):: hires_b
     logical,optional,intent(in) :: eqspace
 
 !   Declare local variables    
     integer(i_kind) ii1,l,m
+    integer(i_kind) :: ldafft,ldafft_b
 
-    integer(i_kind) :: ldafft
 
-!   Set constants
+!   Set constants used in transforms for analysis grid
     nc=(jcap+1)*(jcap+2)
     ncd2=nc/2
+    iromb=0
+    idrt=4
+    if(present(eqspace)) then
+      if(eqspace) idrt=256
+    endif
+    imax=nlon_a
+    jmax=nlat_a-2
+    ijmax=imax*jmax
+    ioffset=imax*(jmax-1)
+    jn=imax
+    js=-jn
+    kw=2*ncd2
+    jb=1
+    je=(jmax+1)/2
+
+
+!   Set constants used in transforms for background grid
     nc_b=(jcap_b+1)*(jcap_b+2)
     ncd2_b=nc_b/2
+    iromb_b=0
+    idrt_b=4
+    if(present(eqspace)) then
+      if(eqspace) idrt_b=256
+    endif
+    imax_b=nlon_b
+    jmax_b=nlat_b-2
+    ijmax_b=imax_b*jmax_b
+    ioffset_b=imax_b*(jmax_b-1)
+    jn_b=imax_b
+    js_b=-jn_b
+    jb_b=1
+    je_b=(jmax_b+1)/2
 
 
-!   Allocate more arrays related to transforms
+
+!   Allocate and initialize fact arrays
     allocate(factsml(nc),factvml(nc))
-    allocate(factsml_b(nc_b),factvml_b(nc_b))
-
-
-!   Set up factsml and factvml
     factsml=.false.
     factvml=.false.
     ii1=izero
@@ -156,6 +190,9 @@ contains
        end do
     end do
     factvml(1)=.true.
+
+!   Always need factsml_b and factvml_b, thus do not check hires_b flag
+    allocate(factsml_b(nc_b),factvml_b(nc_b))
     factsml_b=.false.
     factvml_b=.false.
     ii1=izero
@@ -168,24 +205,7 @@ contains
     end do
     factvml_b(1)=.true.
 
-
-!   Set other constants used in transforms
-    iromb=0
-    idrt=4
-    if(present(eqspace)) then
-      if(eqspace) idrt=256
-    endif
-    imax=nlon
-    jmax=nlat-2
-    ijmax=imax*jmax
-    ioffset=imax*(jmax-1)
-    jn=imax
-    js=-jn
-    kw=2*ncd2
-    jb=1
-    je=(jmax+1)/2
-
-!   Allocate arrays
+!   Allocate and initialize arrays used in transforms
     allocate( eps(ncd2) )
     allocate( epstop(jcap+1) )
     allocate( enn1(ncd2) )
@@ -199,31 +219,35 @@ contains
     allocate( wlat(jb:je) ) 
     allocate( pln(ncd2,jb:je) )
     allocate( plntop(jcap+1,jb:je) )
-
-!   Initialize arrays used in transforms
     call sptranf0(iromb,jcap,idrt,imax,jmax,jb,je, &
        eps,epstop,enn1,elonn1,eon,eontop, &
        afft,clat,slat,wlat,pln,plntop)
-    iromb_b=0
-    idrt_b=4
-    allocate( eps_b(ncd2_b) )
-    allocate( epstop_b(jcap_b+1) )
-    allocate( enn1_b(ncd2_b) )
-    allocate( elonn1_b(ncd2_b) )
-    allocate( eon_b(ncd2_b) )
-    allocate( eontop_b(jcap_b+1) )
-    allocate( pln_b(ncd2_b,jb:je) )
-    allocate( plntop_b(jcap_b+1,jb:je) )
 
-!   Initialize arrays used in transforms for background spectral truncation
-    call sptranf0(iromb_b,jcap_b,idrt_b,imax,jmax,jb,je, &
-       eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
-       afft,clat,slat,wlat,pln_b,plntop_b)
 
+!   Allocate and initialize arrays used in transforms for background
+    if (hires_b) then
+       allocate( eps_b(ncd2_b) )
+       allocate( epstop_b(jcap_b+1) )
+       allocate( enn1_b(ncd2_b) )
+       allocate( elonn1_b(ncd2_b) )
+       allocate( eon_b(ncd2_b) )
+       allocate( eontop_b(jcap_b+1) )
+       ldafft_b=50000+4*imax_b
+       allocate( afft_b(ldafft_b))
+       allocate( clat_b(jb_b:je_b) )
+       allocate( slat_b(jb_b:je_b) )
+       allocate( wlat_b(jb_b:je_b) )
+       allocate( pln_b(ncd2_b,jb_b:je_b) )
+       allocate( plntop_b(jcap_b+1,jb_b:je_b) )
+       call sptranf0(iromb_b,jcap_b,idrt_b,imax_b,jmax_b,jb_b,je_b, &
+            eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
+            afft_b,clat_b,slat_b,wlat_b,pln_b,plntop_b)
+    endif
+    
     return
   end subroutine init_spec_vars
 
-  subroutine destroy_spec_vars
+  subroutine destroy_spec_vars(hires_b)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    destroy_spec_vars
@@ -236,6 +260,7 @@ contains
 !   2004-05-18  kleist, new variables and documentation
 !
 !   input argument list:
+!     hires_b - .t. if background (guess) from hires grid
 !
 !   output argument list:
 !
@@ -245,13 +270,14 @@ contains
 !
 !$$$
     implicit none
+    logical,intent(in):: hires_b
 
     deallocate(factsml,factvml,factsml_b,factvml_b)
     deallocate(eps,epstop,enn1,elonn1,eon,eontop,afft,&
        clat,slat,wlat,pln,plntop)
-    deallocate(eps_b,epstop_b,enn1_b,elonn1_b,eon_b, &
-       eontop_b,pln_b,plntop_b)
-
+    if (hires_b) deallocate(eps_b,epstop_b,&
+         enn1_b,elonn1_b,eon_b,eontop_b,afft_b,&
+         clat_b,slat_b,wlat_b,pln_b,plntop_b)
     return
   end subroutine destroy_spec_vars
 

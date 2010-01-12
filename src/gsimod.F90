@@ -65,7 +65,7 @@
      filled_grid,half_grid,wrf_mass_regional,nsig1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
-     nlayers
+     nlayers,nlat_b,nlon_b,hires_b
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
@@ -258,6 +258,9 @@
 !     nsig     - number of sigma levels
 !     nlat     - number of latitudes
 !     nlon     - number of longitudes
+!     jcap_b   - spectral resolution of background
+!     nlat_b   - number of latitudes on background grid
+!     nlon_b   - number of longitudes on background grid
 !     hybrid   - logical hybrid data file flag true=hybrid
 !     nlon_regional - 
 !     nlat_regional
@@ -283,7 +286,7 @@
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,hybrid,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nlayers,&
-       nmmb_reference_grid,grid_ratio_nmmb
+       nmmb_reference_grid,grid_ratio_nmmb,nlat_b,nlon_b
 
 ! BKGERR (background error related variables):
 !     as()     - normalized scale factor for background error
@@ -748,6 +751,16 @@
      end do check_pcp
   endif
 
+! Check if using hires global background (guess)
+  if (jcap_b < izero) jcap_b = jcap
+  if ( (nlon_b > izero .and. nlon_b /= nlon) .and. &
+       (nlat_b > izero .and. nlat_b /= nlat) ) then
+     hires_b=.true.
+     if (mype==izero) write(6,*)'GSIMOD:  set hires_b=',hires_b,&
+	' with nlat_b,nlon_b=',nlat_b,nlon_b,&
+	' nlat,nlon=',nlat,nlon,' and jcap,jcap_b=',jcap,jcap_b
+  endif
+
 
 ! Optionally read in namelist for single observation run
   if (oneobtest) then
@@ -810,7 +823,7 @@
   call init_constants(regional)
   call init_reg_glob_ll(mype,lendian_in)
   call init_grid_vars(jcap,npe)
-  if (.not.regional) call init_spec_vars(nlat,nlon)
+  if (.not.regional) call init_spec_vars(nlat,nlon,nlat_b,nlon_b,hires_b)
   call init_mpi_vars(nsig,mype,nsig1o)
   call create_obsmod_vars
 
@@ -859,7 +872,7 @@
   implicit none
 ! Deallocate arrays
   call clean_4dvar
-  if (.not.regional) call destroy_spec_vars
+  if (.not.regional) call destroy_spec_vars(hires_b)
   call destroy_obsmod_vars
   call destroy_mpi_vars
 
