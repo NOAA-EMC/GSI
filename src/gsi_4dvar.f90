@@ -10,6 +10,8 @@ module gsi_4dvar
 !   2007-02-02 tremolet
 !   2007-05-29 todling  - add initialization of GCM TLM/ADM  
 !   2007-07-10 todling  - flag to allow writing of increment
+!   2009-10-09 wu       - replace nhr_offset with min_offset and
+!                         set default 1.5 hr for regional not for 4dvar but for FGAT
 !
 ! Subroutines Included:
 !   sub init_4dvar    -
@@ -81,7 +83,7 @@ module gsi_4dvar
   integer(i_kind) :: ibdate(5), iedate(5)
   integer(i_kind) :: nhr_obsbin, nobs_bins
   integer(i_kind) :: nhr_subwin, nsubwin
-  integer(i_kind) :: nhr_assimilation,nhr_offset
+  integer(i_kind) :: nhr_assimilation,min_offset
   integer(i_kind) :: nwrvecs
   real(r_kind) :: iwinbgn, winlen, winoff, winsub, hr_obsbin
 
@@ -95,7 +97,7 @@ module gsi_4dvar
 ! set passed variables to public
   public :: iadatebgn,l4dvar,nobs_bins,nhr_assimilation,lsqrtb,nsubwin
   public :: hr_obsbin,ltlint,idmodel,lwrtinc,winsub,winlen,iwinbgn
-  public :: nhr_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
+  public :: min_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
   public :: ladtest,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
 
 ! --------------------------------------------------------------------
@@ -131,9 +133,15 @@ lsqrtb = .false.
 lcongrad = .false.
 lbfgsmin = .false.
 ltlint = .false.
+
 nhr_assimilation=6_i_kind
-if(regional)nhr_assimilation=3_i_kind
-nhr_offset=3_i_kind
+min_offset=180_i_kind
+
+if(regional)then
+nhr_assimilation=3_i_kind
+min_offset=90_i_kind
+endif
+
 nhr_subwin=-ione
 nhr_obsbin=-ione
 ladtest=.false.
@@ -176,7 +184,7 @@ integer(i_kind),intent(in) :: miter
 integer(i_kind) :: ibin,ierr
 
 winlen = real(nhr_assimilation,r_kind)
-winoff = real(nhr_offset,r_kind)
+winoff = real(min_offset/60._r_kind,r_kind)
 
 if (nhr_obsbin>izero.and.nhr_obsbin<=nhr_assimilation) then
   hr_obsbin = real(nhr_obsbin,r_kind)

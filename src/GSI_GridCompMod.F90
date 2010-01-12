@@ -135,7 +135,7 @@
 
    use gsi_4dvar, only: ibdate, iedate, iadatebgn, iadateend, iwinbgn, &
                          nhr_assimilation,& ! size of assimilation window (hrs)
-                         nhr_offset,&       ! offset hours from analysis time
+                         min_offset,&       ! offset minutes from analysis time
                          lwrtinc,&          ! when .t., writes out increment
                          l4dvar             ! when .t., will run 4d-var
 
@@ -168,6 +168,7 @@
 !   10Jul2007 Todling  Adjustment to cope w/ write out of increment
 !   08Jul2008 Todling  Merge fdda-b1p3 w/ das-215 (MAPL update)
 !   18Nov2008 Todling  Merge with NCEP-May-2008; add sfc_rough
+!  10-09-2009 Wu       replace nhr_offset with min_offset since it's 1.5 hr for regional
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1918,7 +1919,8 @@
    ida(:)=0
    jda(:)=0
    fha(:)=0.0
-   fha(2)=-nhr_offset
+   fha(2)=-float(int(min_offset/60))
+   fha(3)=-(min_offset+fha(2)*60.)
    ida(1:3)=iadate(1:3)
    ida(5:6)=iadate(4:5)
    call w3movdat(fha,ida,jda)
@@ -1935,7 +1937,7 @@
    ida(:)=jda(:)
    jda(:)=0
    fha(:)=0.0
-   if ( nhr_offset == 0 ) then
+   if ( min_offset == 0 ) then
         fha(2)=0
    else
         fha(2)=nhr_assimilation
@@ -2629,7 +2631,7 @@
    call ESMF_TimeIntervalSet(FrqANA, h=ANAfreq_hr, rc=STATUS)
      VERIFY_(STATUS)
 
-   call ESMF_TimeIntervalSet(AnaOST, h=nhr_offset, rc=STATUS)
+   call ESMF_TimeIntervalSet(AnaOST, h=int(min_offset/60), rc=STATUS)
      VERIFY_(STATUS)
 
 

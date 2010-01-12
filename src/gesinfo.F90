@@ -16,6 +16,7 @@ subroutine gesinfo(mype)
 !   2008-06-04  safford - rm unused use one
 !   2009-01-07  todling - add logics to determine begin/end of analysis
 !   2009-01-28  todling - remove original GMAO interface
+!   2009-10-09  wu      - replace nhr_offset with min_offset since it's 1.5 hr for regional
 !
 !   input argument list:
 !     mype - mpi task id
@@ -30,7 +31,7 @@ subroutine gesinfo(mype)
   use kinds, only: i_kind,r_kind
   use obsmod, only: iadate,ianldate,time_offset
   use gsi_4dvar, only: ibdate, iedate, iadatebgn, iadateend, iwinbgn,time_4dvar
-  use gsi_4dvar, only: nhr_assimilation,nhr_offset
+  use gsi_4dvar, only: nhr_assimilation,min_offset
   use mpimod, only: npe
   use gridmod, only: idvc5,ak5,bk5,ck5,tref5,&
        regional,nsig,regional_fhr,regional_time,&
@@ -43,7 +44,7 @@ subroutine gesinfo(mype)
   use gfsio_module, only: gfsio_gfile,gfsio_open,gfsio_close,&
        gfsio_init,gfsio_finalize,gfsio_getfilehead
 
-  use constants, only: izero,ione,zero,h300
+  use constants, only: izero,ione,zero,h300,r60
 
   implicit none
 
@@ -340,7 +341,8 @@ subroutine gesinfo(mype)
    ida(:)=izero
    jda(:)=izero
    fha(:)=zero
-   fha(2)=-nhr_offset
+   fha(2)=-float(int(min_offset/60_i_kind))
+   fha(3)=-(min_offset+fha(2)*r60)
    ida(1:3)=iadate(1:3)
    ida(5:6)=iadate(4:5)
    call w3movdat(fha,ida,jda)
@@ -357,7 +359,7 @@ subroutine gesinfo(mype)
    ida(:)=jda(:)
    jda(:)=izero
    fha(:)=zero
-   if ( nhr_offset == izero ) then
+   if ( min_offset == izero ) then
         fha(2)=zero
    else
         fha(2)=nhr_assimilation
@@ -369,6 +371,11 @@ subroutine gesinfo(mype)
 
 !  Get time offset
    call time_4dvar(ianldate,time_offset)
+   if (regional)then
+   fha(2)=float(int(min_offset/60_i_kind))
+   fha(3)=(min_offset-fha(2)*r60)
+   time_offset=time_offset+fha(3)/r60
+   endif
 
 !    Get information about date/time and number of guess files
      if (regional) then

@@ -21,7 +21,7 @@
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
-  use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,nhr_offset, &
+  use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
                        l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,&
                        lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,lgrtest,&
                        idmodel,clean_4dvar,lwrtinc,lanczosave
@@ -134,6 +134,7 @@
 !  08-31-2009 Parrish   Add changes for version 3 regional tangent linear normal mode constraint
 !  09-22-2009 Parrish   Add read of namelist/hybrid_ensemble/.  contains parameters used for hybrid
 !                        ensemble option.
+!  10-09-2009 Wu        replace nhr_offset with min_offset since it's 1.5 hr for regional
 !                         
 !
 !EOP
@@ -167,7 +168,7 @@
 !     qoption  - option of analysis variable; 1:q/qsatg 2:norm RH
 !     fstat    - logical to seperate f from balance projection
 !     nhr_assimilation - assimilation time interval (currently 6hrs for global, 3hrs for reg)
-!     nhr_offset       - time of analysis in assimilation window (default 3 hours)
+!     min_offset       - time in minutes of analysis in assimilation window (default 3 hours)
 !     l4dvar           - turn 4D-Var on/off (default=off=3D-Var)
 !     idmodel          - uses identity model when running 4D-Var (test purposes)
 !     lwrtinc          - when .t., writes out increments instead of analysis
@@ -234,7 +235,7 @@
   namelist/setup/gencode,factqmin,factqmax,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
        ndat,npred,niter,niter_no_qc,miter,qoption,nhr_assimilation,&
-       nhr_offset, &
+       min_offset, &
        iout_iter,npredp,retrieval,&
        diag_rad,diag_pcp,diag_conv,diag_ozone,iguess,write_diag,&
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&

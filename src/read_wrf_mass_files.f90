@@ -13,6 +13,7 @@ subroutine read_wrf_mass_files(mype)
 !   2004-12-03  treadon - replace mpe_ibcast (IBM extension) with
 !                         standard mpi_bcast
 !   2005-03-30  treadon - reformat code (cosmetic changes only)
+!   2009-10-09  wu      - reset time reference (using iwinbgn and winlen...) in preparation for 4dvar
 !   
 !   input argument list:
 !     mype     - pe number
@@ -29,10 +30,10 @@ subroutine read_wrf_mass_files(mype)
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
   use guess_grids, only: nfldsig,nfldsfc,ntguessig,ntguessfc,&
        ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
-  use gsi_4dvar, only: nhr_assimilation
+  use gsi_4dvar, only: l4dvar, iwinbgn, winlen, nhr_assimilation
   use gridmod, only: regional_time,regional_fhr
   use constants, only: izero,ione,zero,one,zero_single,r60inv
-  use obsmod, only: iadate
+  use obsmod, only: iadate,time_offset
   implicit none
 
 ! Declare passed variables
@@ -50,7 +51,7 @@ subroutine read_wrf_mass_files(mype)
   integer(i_kind),dimension(4):: idateg
   integer(i_kind),dimension(5):: idate5
   real(r_single) hourg4
-  real(r_kind) hourg,temp
+  real(r_kind) hourg,temp,t4dv
   real(r_kind),dimension(202,2):: time_ges
 
 
@@ -87,14 +88,19 @@ subroutine read_wrf_mass_files(mype)
            hourg4= regional_fhr        !  fcst hour
            hourg = hourg4
            idate5(1)=idateg(4); idate5(2)=idateg(2)
-           idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=izero
+           idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=regional_time(5)
            call w3fs21(idate5,nmings)
            nming2=nmings+60*hourg
            write(6,*)'READ_wrf_mass_FILES:  sigma guess file, nming2 ',hourg,idateg,nming2
-           ndiff=nming2-nminanl
-           if(abs(ndiff) > 60*nhr_half ) go to 110
+           t4dv=real((nming2-iwinbgn),r_kind)*r60inv
+           if (l4dvar) then
+             if (t4dv<zero .OR. t4dv>winlen) go to 110
+           else
+             ndiff=nming2-nminanl
+             if(abs(ndiff) > 60*nhr_half ) go to 110
+           endif
            iwan=iwan+ione
-           time_ges(iwan,1) = (nming2-nminanl)*r60inv
+           time_ges(iwan,1) = real((nming2-iwinbgn),r_kind)*r60inv
            time_ges(iwan+100,1)=i+r0_001
         end if
 110     continue
@@ -113,7 +119,7 @@ subroutine read_wrf_mass_files(mype)
                  time_ges(j,1)=temp
               end if
            end do
-           if(time_ges(i,1) < r0_001)time_ges(202,1) = i
+           if(abs(time_ges(i,1)-time_offset) < r0_001)time_ges(202,1) = i
         end do
      end if
      time_ges(201,1) = iwan+r0_001
@@ -137,14 +143,14 @@ subroutine read_wrf_mass_files(mype)
            idateg(3)=iadate(3); idateg(1)=iadate(4)
            hourg = hourg4
            idate5(1)=idateg(4); idate5(2)=idateg(2)
-           idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=izero
+           idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=iadate(5)
            call w3fs21(idate5,nmings)
            nming2=nmings+60*hourg
            write(6,*)'READ_wrf_mass_FILES:  surface guess file, nming2 ',hourg,idateg,nming2
            ndiff=nming2-nminanl
            if(abs(ndiff) > 60*nhr_half ) go to 210
            iwan=iwan+ione
-           time_ges(iwan,2) = (nming2-nminanl)*r60inv
+           time_ges(iwan,2) = real((nming2-iwinbgn),r_kind)*r60inv
            time_ges(iwan+100_i_kind,2)=i+r0_001
         end if
 210     continue
@@ -164,7 +170,7 @@ subroutine read_wrf_mass_files(mype)
                  time_ges(j,2)=temp
               end if
            end do
-           if(time_ges(i,2) < r0_001)time_ges(202,2) = i
+           if(abs(time_ges(i,2)-time_offset) < r0_001)time_ges(202,2) = i
         end do
      end if
      time_ges(201,2) = iwan+r0_001

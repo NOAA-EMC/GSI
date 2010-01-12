@@ -291,6 +291,9 @@ subroutine read_2d_files(mype)
 !   2004-12-27  pondeca
 !   2006-04-06  middlecoff - remove mpi_request_null since not used
 !   2008-04-03  safford    - remove uses mpi_status_size, zero_single (not used)
+!   2009-10-09  pondeca - with the adding of 4dvar to the gsi, the time reference for the
+!                         obs changed. Adjust guess times accordingly by using time_offset
+!                         an thus ensure that fgat works properly
 !
 !   input argument list:
 !     mype     - pe number
@@ -309,7 +312,7 @@ subroutine read_2d_files(mype)
        ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
   use gsi_4dvar, only: nhr_assimilation
   use constants, only: izero,ione,zero,one,r60inv
-  use obsmod, only: iadate
+  use obsmod, only: iadate,time_offset
   implicit none
 
 ! Declare passed variables
@@ -366,7 +369,7 @@ subroutine read_2d_files(mype)
            ndiff=nming2-nminanl
            if(abs(ndiff) > 60*nhr_half ) go to 110
            iwan=iwan+ione
-           time_ges(iwan) = (nming2-nminanl)*r60inv
+           time_ges(iwan) = (nming2-nminanl)*r60inv + time_offset
            time_ges(iwan+100)=i+r0_001
         end if
 110     continue
@@ -385,7 +388,7 @@ subroutine read_2d_files(mype)
                  time_ges(j)=temp
               end if
            end do
-           if(time_ges(i) < r0_001)time_ges(202) = i
+           if(abs(time_ges(i)-time_offset) < r0_001)time_ges(202) = i
         end do
      end if
      time_ges(201) = iwan+r0_001
