@@ -145,7 +145,7 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges,nstep)
                        w7*xhat_dt%v(j7)+w8*xhat_dt%v(j8))*rwptr%sinazm)*time_rw  
        end if
        do kk=1,nstep
-         rw=facrw+sges(1)*valrw
+         rw=facrw+sges(kk)*valrw
          pen(kk)=rw*rw*rwptr%err2
        end do
      else
