@@ -35,20 +35,20 @@
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                    ,intent(in   ):: ny,noq
-  real(r_kind),dimension(ny,-noq:noq),intent(in   ):: aco1,bco1,aco2,bco2
-  real(r_kind),dimension(2,ny)       ,intent(in   ):: p
-  real(r_kind),dimension(2,ny)       ,intent(  out):: q
+  integer(i_kind)                    ,intent(in   ) :: ny,noq
+  real(r_kind),dimension(ny,-noq:noq),intent(in   ) :: aco1,bco1,aco2,bco2
+  real(r_kind),dimension(2,ny)       ,intent(in   ) :: p
+  real(r_kind),dimension(2,ny)       ,intent(  out) :: q
 
 ! Declare local variables
   integer(i_kind) iy
   real(r_kind),dimension(ny,2):: v1,v2
 
 !  treat odd-symmetry component of input:
-     do iy=1,ny
-        v1(iy,2)= p(1,iy)-p(2,iy)
-        v2(iy,1)= p(1,iy)+p(2,iy)
-     enddo
+  do iy=1,ny
+     v1(iy,2)= p(1,iy)-p(2,iy)
+     v2(iy,1)= p(1,iy)+p(2,iy)
+  enddo
   call mp_ymulbv(bco1,v1(1,2),v1,ny,ny,noq,noq,ny)
   call mp_ybacbv(aco1,v1,ny,noq,noq,ny)
 
@@ -99,19 +99,19 @@
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                    ,intent(in   ):: ny,noq
-  real(r_kind),dimension(ny,-noq:noq),intent(in   ):: aco1,bco1,aco2,bco2
-  real(r_kind),dimension(2,ny)       ,intent(in   ):: q
-  real(r_kind),dimension(2,ny)       ,intent(  out):: p
+  integer(i_kind)                    ,intent(in   ) :: ny,noq
+  real(r_kind),dimension(ny,-noq:noq),intent(in   ) :: aco1,bco1,aco2,bco2
+  real(r_kind),dimension(2,ny)       ,intent(in   ) :: q
+  real(r_kind),dimension(2,ny)       ,intent(  out) :: p
 
 ! Declare local variables
   integer(i_kind) iy
   real(r_kind),dimension(ny,2):: v1,v2
 
-     do iy=1,ny
-        v1(iy,2)= q(1,iy)+q(2,iy)
-        v2(iy,1)= q(1,iy)-q(2,iy)
-     enddo
+  do iy=1,ny
+     v1(iy,2)= q(1,iy)+q(2,iy)
+     v2(iy,1)= q(1,iy)-q(2,iy)
+  enddo
   call mp_ybacvb(v1(1,2),aco2,ny,noq,noq,ny)
   call mp_ymulvb(v1(1,2),bco2,v1,ny,ny,noq,noq,ny)
 
@@ -163,22 +163,22 @@
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                      ,intent(in   ):: n1y,n2y,nbh1,nbh2,na
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
-  real(r_kind),dimension(n2y)          ,intent(in   ):: v1
-  real(r_kind),dimension(n1y)          ,intent(  out):: v2
+  integer(i_kind)                      ,intent(in   ) :: n1y,n2y,nbh1,nbh2,na
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(n2y)          ,intent(in   ) :: v1
+  real(r_kind),dimension(n1y)          ,intent(  out) :: v2
 
 ! Declare local variables
   integer(i_kind) iy,jiy
 
-     do iy=1,n1y
-        v2(iy)=zero
+  do iy=1,n1y
+     v2(iy)=zero
+  enddo
+  do jiy=-nbh1,nbh2
+     do iy=max(ione,ione-jiy),min(n1y,n2y-jiy)
+        v2(iy)=v2(iy)+a(iy,jiy)*v1(jiy+iy)
      enddo
-     do jiy=-nbh1,nbh2
-        do iy=max(ione,ione-jiy),min(n1y,n2y-jiy)
-           v2(iy)=v2(iy)+a(iy,jiy)*v1(jiy+iy)
-        enddo
-     end do
+  end do
 
   end subroutine mp_ymulbv
 
@@ -222,24 +222,24 @@
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                      ,intent(in   ):: ny,nbh1,nbh2,na
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
-  real(r_kind),dimension(ny)           ,intent(inout):: v
+  integer(i_kind)                      ,intent(in   ) :: ny,nbh1,nbh2,na
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(ny)           ,intent(inout) :: v
 
 ! Declare local variables
   integer(i_kind) jy,iy
 
-     do jy=1,ny
-        do iy=jy+ione,min(ny,jy+nbh1)
-           v(iy) =v(iy) -a(iy,jy-iy)*v(jy)
-        enddo
-        v(jy) =a(jy,0)*v(jy)
-     end do
-     do jy=ny,2,-1
-        do iy=max(ione,jy-nbh2),jy-ione
-           v(iy) =v(iy) -a(iy,jy-iy)*v(jy)
-        enddo
+  do jy=1,ny
+     do iy=jy+ione,min(ny,jy+nbh1)
+        v(iy) =v(iy) -a(iy,jy-iy)*v(jy)
      enddo
+     v(jy) =a(jy,0)*v(jy)
+  end do
+  do jy=ny,2,-1
+     do iy=max(ione,jy-nbh2),jy-ione
+        v(iy) =v(iy) -a(iy,jy-iy)*v(jy)
+     enddo
+  enddo
      
   end subroutine mp_ybacbv
 
@@ -281,25 +281,25 @@
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                      ,intent(in   ):: ny,nbh1,nbh2,na
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
-  real(r_kind),dimension(ny)           ,intent(inout):: v
+  integer(i_kind)                      ,intent(in   ) :: ny,nbh1,nbh2,na
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(ny)           ,intent(inout) :: v
 
 ! Declare local variables  
   integer(i_kind) iy,jy
 
-     do iy=1,ny
-        do jy=iy+ione,min(ny,iy+nbh2)
-           v(jy) =v(jy) -v(iy) *a(iy,jy-iy)
-        enddo
-        v(iy) =v(iy) *a(iy,0)
+  do iy=1,ny
+     do jy=iy+ione,min(ny,iy+nbh2)
+        v(jy) =v(jy) -v(iy) *a(iy,jy-iy)
      enddo
+     v(iy) =v(iy) *a(iy,0)
+  enddo
 
-     do iy=ny,2,-1
-        do jy=max(ione,iy-nbh1),iy-ione
-           v(jy) =v(jy) -v(iy) *a(iy,jy-iy)
-        enddo
+  do iy=ny,2,-1
+     do jy=max(ione,iy-nbh1),iy-ione
+        v(jy) =v(jy) -v(iy) *a(iy,jy-iy)
      enddo
+  enddo
 
   end subroutine mp_ybacvb
 
@@ -338,26 +338,26 @@
   implicit none
 
 ! Delcare passed variables
-  integer(i_kind)                      ,intent(in   ):: n1y,n2y,nbh1,nbh2,na
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
-  real(r_kind),dimension(n1y)          ,intent(in   ):: v1
-  real(r_kind),dimension(n2y)          ,intent(  out):: v2
+  integer(i_kind)                      ,intent(in   ) :: n1y,n2y,nbh1,nbh2,na
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(n1y)          ,intent(in   ) :: v1
+  real(r_kind),dimension(n2y)          ,intent(  out) :: v2
 
 ! Declare local variables
   integer(i_kind) iy,jiy,jy
   real(r_kind) aij
 
-     do iy=1,n2y
-        v2(iy)=zero
-     enddo
+  do iy=1,n2y
+     v2(iy)=zero
+  enddo
 
-     do jiy=-nbh1,nbh2
-        do iy=max(ione,ione-jiy),min(n1y,n2y-jiy)
-           jy=jiy+iy
-           aij=a(iy,jiy)
-           v2(jy)=v2(jy)+v1(iy)*aij
-        enddo
+  do jiy=-nbh1,nbh2
+     do iy=max(ione,ione-jiy),min(n1y,n2y-jiy)
+        jy=jiy+iy
+        aij=a(iy,jiy)
+        v2(jy)=v2(jy)+v1(iy)*aij
      enddo
+  enddo
 
   end subroutine mp_ymulvb
 
@@ -402,10 +402,10 @@
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                     ,intent(in   ):: nx,noq,nxh
-  real(r_kind),dimension(nx)          ,intent(in   ):: p
-  real(r_kind),dimension(nxh,-noq:noq),intent(in   ):: aco1,bco1,aco2,bco2
-  real(r_kind),dimension(nx)          ,intent(  out):: q
+  integer(i_kind)                     ,intent(in   ) :: nx,noq,nxh
+  real(r_kind),dimension(nx)          ,intent(in   ) :: p
+  real(r_kind),dimension(nxh,-noq:noq),intent(in   ) :: aco1,bco1,aco2,bco2
+  real(r_kind),dimension(nx)          ,intent(  out) :: q
 
 ! Declare local variables
   integer(i_kind) nxhp,ix,nxp,ix1,ix2
@@ -474,10 +474,10 @@
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                      ,intent(in   ):: n1x,n2x,nbh1,nbh2,na,nv1,nv2
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
-  real(r_kind),dimension(nv1)          ,intent(in   ):: v1
-  real(r_kind),dimension(nv2)          ,intent(  out):: v2
+  integer(i_kind)                      ,intent(in   ) :: n1x,n2x,nbh1,nbh2,na,nv1,nv2
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(nv1)          ,intent(in   ) :: v1
+  real(r_kind),dimension(nv2)          ,intent(  out) :: v2
 
 ! Declare local variables
   integer(i_kind) ix,jix,ix1
@@ -533,9 +533,9 @@
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                      ,intent(in   ):: nx,nbh1,nbh2,na,nv
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ):: a
-  real(r_kind),dimension(nv)           ,intent(inout):: v
+  integer(i_kind)                      ,intent(in   ) :: nx,nbh1,nbh2,na,nv
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(nv)           ,intent(inout) :: v
 
 ! Declare local variables
   integer(i_kind) jx,ix,ix1

@@ -123,37 +123,37 @@ subroutine init_()
            bias_oz(lat2,lon2,nsig,nbc),bias_q(lat2,lon2,nsig,nbc),&
            bias_tv(lat2,lon2,nsig,nbc),bias_u(lat2,lon2,nsig,nbc),&
            bias_v(lat2,lon2,nsig,nbc),stat=istatus)
-       if (istatus/=izero) then
-              write(6,*)'CREATE_BIAS_GRIDS:  allocate error5, istatus=',&
-              istatus
-       endif
+  if (istatus/=izero) then
+     write(6,*)'CREATE_BIAS_GRIDS:  allocate error5, istatus=',&
+       istatus
+  endif
 
-       do n=1,nbc
-       do j=1,lon2
-          do i=1,lat2
-             bias_ps   (i,j,n)=zero
-             bias_tskin(i,j,n)=zero
-          end do
-       end do
-       end do
-       do n=1,nbc
-          do k=1,nsig
-             do j=1,lon2
-                do i=1,lat2
-                   bias_vor (i,j,k,n)=zero
-                   bias_div (i,j,k,n)=zero
-                   bias_tv  (i,j,k,n)=zero
-                   bias_q   (i,j,k,n)=zero
-                   bias_oz  (i,j,k,n)=zero
-                   bias_cwmr(i,j,k,n)=zero
-                   bias_u   (i,j,k,n)=zero
-                   bias_v   (i,j,k,n)=zero
-                end do
-             end do
-          end do
-       end do
+  do n=1,nbc
+     do j=1,lon2
+        do i=1,lat2
+           bias_ps   (i,j,n)=zero
+           bias_tskin(i,j,n)=zero
+        end do
+     end do
+  end do
+  do n=1,nbc
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              bias_vor (i,j,k,n)=zero
+              bias_div (i,j,k,n)=zero
+              bias_tv  (i,j,k,n)=zero
+              bias_q   (i,j,k,n)=zero
+              bias_oz  (i,j,k,n)=zero
+              bias_cwmr(i,j,k,n)=zero
+              bias_u   (i,j,k,n)=zero
+              bias_v   (i,j,k,n)=zero
+           end do
+        end do
+     end do
+  end do
 
-initialized_ = .true.
+  initialized_ = .true.
 
 end subroutine init_
 
@@ -179,7 +179,9 @@ subroutine clean_()
 !$$$ end documentation block
 
    implicit none
+
    integer(i_kind):: istatus
+
    if (.not.initialized_) return 
    if ( nbc < izero ) return
    deallocate(bias_ps,bias_tskin,bias_vor,bias_div,&
@@ -207,12 +209,12 @@ subroutine comp2d_(bias2d_,bias,hour)
 
 ! !INPUT PARAMETERS:
 
-   real   (r_kind),dimension(:,:,:),intent(in) :: bias
-   integer(i_kind),intent(in) :: hour
+   real   (r_kind),dimension(:,:,:),intent(in   ) :: bias
+   integer(i_kind)                 ,intent(in   ) :: hour
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-   real   (r_kind),dimension(:,:),intent(inout) :: bias2d_
+   real   (r_kind),dimension(:,:)  ,intent(inout) :: bias2d_
 
 ! !DESCRIPTION: 2d-interface to bias prediction model
 !
@@ -263,12 +265,12 @@ subroutine comp3d_(bias3d_,bias,hour)
 
 ! !INPUT PARAMETERS:
 
-   real   (r_kind),dimension(:,:,:,:),intent(in) :: bias
-   integer(i_kind),intent(in) :: hour
+   real   (r_kind),dimension(:,:,:,:),intent(in   ) :: bias
+   integer(i_kind)                   ,intent(in   ) :: hour
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-   real   (r_kind),dimension(:,:,:),intent(inout) :: bias3d_
+   real   (r_kind),dimension(:,:,:)  ,intent(inout) :: bias3d_
 
 ! !DESCRIPTION: 3d-interface to bias prediction model
 !
@@ -319,13 +321,13 @@ subroutine update2d_(bias,lat2,lon2,xhat,hour)
 
 ! !INPUT PARAMETERS:
 
-  integer(i_kind),intent(in) :: lat2,lon2
-  real   (r_kind),dimension(lat2*lon2),intent(in) :: xhat
-  integer(i_kind),optional,intent(in) :: hour
+  integer(i_kind)                     ,intent(in   ) :: lat2,lon2
+  real   (r_kind),dimension(lat2*lon2),intent(in   ) :: xhat
+  integer(i_kind),optional            ,intent(in   ) :: hour
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-  real   (r_kind),dimension(:,:,:),intent(inout) :: bias
+  real   (r_kind),dimension(:,:,:)    ,intent(inout) :: bias
 
 ! !DESCRIPTION: 2d-interface to bias prediction model
 !
@@ -355,26 +357,26 @@ subroutine update2d_(bias,lat2,lon2,xhat,hour)
   if (bcoption == 2_i_kind) dumpcor_=one-half*biascor
 
   if(present(hour)) then
-    twopi=8._r_kind*atan(one)
-    coshr=cos(twopi*hour/24._r_kind)*two*biascor
-    sinhr=sin(twopi*hour/24._r_kind)*two*biascor
+     twopi=8._r_kind*atan(one)
+     coshr=cos(twopi*hour/24._r_kind)*two*biascor
+     sinhr=sin(twopi*hour/24._r_kind)*two*biascor
 
-    ib=izero
-    do i=1,lon2
-      ie=ib+lat2
-      bias(:,i,1)=dumpcor_*bias(:,i,1) + biascor*xhat(ib+ione:ie)
-      bias(:,i,2)=dumpcor_*bias(:,i,2) +   coshr*xhat(ib+ione:ie)
-      bias(:,i,3)=dumpcor_*bias(:,i,3) +   sinhr*xhat(ib+ione:ie)
-      ib=ie
-    end do
+     ib=izero
+     do i=1,lon2
+        ie=ib+lat2
+        bias(:,i,1)=dumpcor_*bias(:,i,1) + biascor*xhat(ib+ione:ie)
+        bias(:,i,2)=dumpcor_*bias(:,i,2) +   coshr*xhat(ib+ione:ie)
+        bias(:,i,3)=dumpcor_*bias(:,i,3) +   sinhr*xhat(ib+ione:ie)
+        ib=ie
+     end do
 
   else
-    ib=izero
-    do i=1,lon2
-      ie=ib+lat2
-      bias(:,i,1)=dumpcor_*bias(:,i,1) + biascor*xhat(ib+ione:ie)
-      ib=ie
-    end do
+     ib=izero
+     do i=1,lon2
+        ie=ib+lat2
+        bias(:,i,1)=dumpcor_*bias(:,i,1) + biascor*xhat(ib+ione:ie)
+        ib=ie
+     end do
   endif
 end subroutine update2d_
 
@@ -398,13 +400,13 @@ subroutine update3d_(bias,lat2,lon2,nsig,xhat,hour)
 
 ! !INPUT PARAMETERS:
 
-  integer(i_kind),intent(in) :: lat2,lon2,nsig
-  real   (r_kind),dimension(lat2*lon2*nsig),intent(in) :: xhat
-  integer(i_kind),optional,intent(in) :: hour
+  integer(i_kind)                          ,intent(in   ) :: lat2,lon2,nsig
+  real   (r_kind),dimension(lat2*lon2*nsig),intent(in   ) :: xhat
+  integer(i_kind),optional                 ,intent(in   ) :: hour
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-  real   (r_kind),dimension(:,:,:,:),intent(inout) :: bias
+  real   (r_kind),dimension(:,:,:,:)       ,intent(inout) :: bias
 
 ! !DESCRIPTION: 3d-interface to bias prediction model, w/ xhat as
 !               a single-dimension array.
@@ -435,30 +437,30 @@ subroutine update3d_(bias,lat2,lon2,nsig,xhat,hour)
   if (bcoption == 2_i_kind) dumpcor_=one-half*biascor
 
   if(present(hour)) then
-    twopi=8._r_kind*atan(one)
-    coshr=cos(twopi*hour/24._r_kind)*two*biascor
-    sinhr=sin(twopi*hour/24._r_kind)*two*biascor
-
-    ib=izero
-    do k=1,nsig
-    do i=1,lon2
-      ie=ib+lat2
-      bias(:,i,k,1)=dumpcor_*bias(:,i,k,1) + biascor*xhat(ib+ione:ie)
-      bias(:,i,k,2)=dumpcor_*bias(:,i,k,2) +   coshr*xhat(ib+ione:ie)
-      bias(:,i,k,3)=dumpcor_*bias(:,i,k,3) +   sinhr*xhat(ib+ione:ie)
-      ib=ie
-    end do
-    end do
+     twopi=8._r_kind*atan(one)
+     coshr=cos(twopi*hour/24._r_kind)*two*biascor
+     sinhr=sin(twopi*hour/24._r_kind)*two*biascor
+ 
+     ib=izero
+     do k=1,nsig
+        do i=1,lon2
+           ie=ib+lat2
+           bias(:,i,k,1)=dumpcor_*bias(:,i,k,1) + biascor*xhat(ib+ione:ie)
+           bias(:,i,k,2)=dumpcor_*bias(:,i,k,2) +   coshr*xhat(ib+ione:ie)
+           bias(:,i,k,3)=dumpcor_*bias(:,i,k,3) +   sinhr*xhat(ib+ione:ie)
+           ib=ie
+        end do
+     end do
 
   else
-    ib=izero
-    do k=1,nsig
-    do i=1,lon2
-      ie=ib+lat2
-      bias(:,i,k,1)=dumpcor_*bias(:,i,k,1) + biascor*xhat(ib+ione:ie)
-      ib=ie
-    end do
-    end do
+     ib=izero
+     do k=1,nsig
+        do i=1,lon2
+           ie=ib+lat2
+           bias(:,i,k,1)=dumpcor_*bias(:,i,k,1) + biascor*xhat(ib+ione:ie)
+           ib=ie
+        end do
+     end do
   endif
 end subroutine update3d_
 
@@ -482,8 +484,8 @@ subroutine update3d3d_(bias,xhat,hour)
 
 ! !INPUT PARAMETERS:
 
-  real   (r_kind),dimension(:,:,:),intent(in) :: xhat
-  integer(i_kind),optional,intent(in) :: hour
+  real   (r_kind),dimension(:,:,:)  ,intent(in   ) :: xhat
+  integer(i_kind),optional          ,intent(in   ) :: hour
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -516,16 +518,16 @@ subroutine update3d3d_(bias,xhat,hour)
   if (bcoption == 2_i_kind) dumpcor_=one-half*biascor
                                                                                                                                                              
   if(present(hour)) then
-    twopi=8._r_kind*atan(one)
-    coshr=cos(twopi*hour/24._r_kind)*two*biascor
-    sinhr=sin(twopi*hour/24._r_kind)*two*biascor
+     twopi=8._r_kind*atan(one)
+     coshr=cos(twopi*hour/24._r_kind)*two*biascor
+     sinhr=sin(twopi*hour/24._r_kind)*two*biascor
                                                                                                                                                              
-      bias(:,:,:,1)=dumpcor_*bias(:,:,:,1) + biascor*xhat(:,:,:)
-      bias(:,:,:,2)=dumpcor_*bias(:,:,:,2) +   coshr*xhat(:,:,:)
-      bias(:,:,:,3)=dumpcor_*bias(:,:,:,3) +   sinhr*xhat(:,:,:)
-                                                                                                                                                             
+     bias(:,:,:,1)=dumpcor_*bias(:,:,:,1) + biascor*xhat(:,:,:)
+     bias(:,:,:,2)=dumpcor_*bias(:,:,:,2) +   coshr*xhat(:,:,:)
+     bias(:,:,:,3)=dumpcor_*bias(:,:,:,3) +   sinhr*xhat(:,:,:)
+
   else
-      bias(:,:,:,1)=dumpcor_*bias(:,:,:,1) + biascor*xhat(:,:,:)
+     bias(:,:,:,1)=dumpcor_*bias(:,:,:,1) + biascor*xhat(:,:,:)
   endif
 end subroutine update3d3d_
 
@@ -550,10 +552,10 @@ subroutine updateall_ (xhat,xhatuv,xhat_div,xhat_vor,xhat_q,hour)
 
 ! !INPUT PARAMETERS:
 
-  real(r_kind),dimension(:),intent(in):: xhat
-  real(r_kind),dimension(:),intent(in):: xhatuv
-  real(r_kind),dimension(:,:,:),intent(in):: xhat_vor,xhat_div,xhat_q
-  integer(i_kind),optional,intent(in) :: hour
+  real(r_kind),dimension(:)    ,intent(in   ) :: xhat
+  real(r_kind),dimension(:)    ,intent(in   ) :: xhatuv
+  real(r_kind),dimension(:,:,:),intent(in   ) :: xhat_vor,xhat_div,xhat_q
+  integer(i_kind),optional     ,intent(in   ) :: hour
 
 ! !OUTPUT PARAMETERS:
 
@@ -630,9 +632,9 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
 
   implicit none
 
-  type(state_vector),intent(in):: xhat
-  real(r_kind),dimension(:,:,:),intent(in):: xhat_vor,xhat_div
-  integer(i_kind),optional,intent(in) :: hour
+  type(state_vector)           ,intent(in   ) :: xhat
+  real(r_kind),dimension(:,:,:),intent(in   ) :: xhat_vor,xhat_div
+  integer(i_kind),optional     ,intent(in   ) :: hour
 
 ! !DESCRIPTION: state vector interface to update bias of all fields
 !
@@ -694,8 +696,9 @@ subroutine correct_()
 ! !TO DO:
 !
 !   1. check dims of input xhat arrays
-!       real(r_kind),dimension(nclen),intent(inout):: xhat
-!       real(r_kind),dimension(2*latlon1n),intent(in):: xhatuv
+!       real(r_kind),dimension(nclen)     ,intent(inout) :: xhat
+!       real(r_kind),dimension(2*latlon1n),intent(in   ) :: xhatuv
+
 !       real(r_kind),dimension(lat2,lon2,nsig):: xhat_vor,xhat_div,xhat_q
 !
 ! !REMARKS:

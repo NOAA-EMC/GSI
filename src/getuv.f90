@@ -40,8 +40,8 @@ subroutine getuv(u,v,st,vp,iflg)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: st,vp
-  integer(i_kind),intent(in)::iflg
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: st,vp
+  integer(i_kind)                       ,intent(in   ) :: iflg
 
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: u,v
 
@@ -56,27 +56,27 @@ subroutine getuv(u,v,st,vp,iflg)
 
 
   if(iflg == izero)then
-    do k=1,nsig
-      ioff=lu_gs(k)*lat1*lon1+ione
-      call strip(st(1,1,k),uvsm(ioff),ione)
-      ioff=lv_gs(k)*lat1*lon1+ione
-      call strip(vp(1,1,k),uvsm(ioff),ione)
-    end do
+     do k=1,nsig
+        ioff=lu_gs(k)*lat1*lon1+ione
+        call strip(st(1,1,k),uvsm(ioff),ione)
+        ioff=lv_gs(k)*lat1*lon1+ione
+        call strip(vp(1,1,k),uvsm(ioff),ione)
+     end do
   else
-    do k=1,nsig
-      ioff=lu_gs(k)*lat1*lon1+ione
-      call strip(u(1,1,k),uvsm(ioff),ione)
-      ioff=lv_gs(k)*lat1*lon1+ione
-      call strip(v(1,1,k),uvsm(ioff),ione)
-    end do
+     do k=1,nsig
+        ioff=lu_gs(k)*lat1*lon1+ione
+        call strip(u(1,1,k),uvsm(ioff),ione)
+        ioff=lv_gs(k)*lat1*lon1+ione
+        call strip(v(1,1,k),uvsm(ioff),ione)
+     end do
   end if
    
 
 ! zero out work arrays
   do k=1,nlevsuv
-    do j=1,itotsub
-      work1(j,k)=zero
-    end do
+     do j=1,itotsub
+        work1(j,k)=zero
+     end do
   end do
 
 !  subdomain vector to global slabs
@@ -87,31 +87,31 @@ subroutine getuv(u,v,st,vp,iflg)
 ! reorder work1 array post communication
   call reorder(work1,nlevsuv,nnnvsuv)
   if(regional)then
-    do k=1,nnnvsuv,2
-       do l=1,iglobal
+     do k=1,nnnvsuv,2
+        do l=1,iglobal
            ni1=ltosi(l); ni2=ltosj(l)
            stx(ni1,ni2)=work1(l,k)
            vpx(ni1,ni2)=work1(l,k+ione)
-       end do
-       if(iflg == izero)then
-         call psichi2uv_reg(stx,vpx,workin(1,1,k),workin(1,1,k+ione))
-       else
-         call psichi2uvt_reg(stx,vpx,workin(1,1,k),workin(1,1,k+ione))
-       end if
-    end do
+        end do
+        if(iflg == izero)then
+           call psichi2uv_reg(stx,vpx,workin(1,1,k),workin(1,1,k+ione))
+        else
+           call psichi2uvt_reg(stx,vpx,workin(1,1,k),workin(1,1,k+ione))
+        end if
+     end do
   else
-    do k=1,nnnvsuv,2
-      do l=1,iglobal
+     do k=1,nnnvsuv,2
+        do l=1,iglobal
            ni1=ltosi(l); ni2=ltosj(l)
            workin(ni1,ni2,k)=work1(l,k)
            workin(ni1,ni2,k+ione)=work1(l,k+ione)
-      end do
-      if(iflg == izero)then
-        call stvp2uv(workin(1,1,k),workin(1,1,k+ione))
-      else
-        call tstvp2uv(workin(1,1,k),workin(1,1,k+ione))
-      end if
-    end do
+        end do
+        if(iflg == izero)then
+           call stvp2uv(workin(1,1,k),workin(1,1,k+ione))
+        else
+           call tstvp2uv(workin(1,1,k),workin(1,1,k+ione))
+        end if
+     end do
   end if
 
 ! Transfer input array to local work array
@@ -131,25 +131,25 @@ subroutine getuv(u,v,st,vp,iflg)
        mpi_rtype,mpi_comm_world,ierror)
 
   if(iflg == izero)then
-    do k=1,nsig
-      ioff=lu_gs(k)*latlon11+ione
-      call vectosub(uvsm(ioff),latlon11,u(1,1,k))
-      ioff=lv_gs(k)*latlon11+ione
-      call vectosub(uvsm(ioff),latlon11,v(1,1,k))
-    end do
+     do k=1,nsig
+        ioff=lu_gs(k)*latlon11+ione
+        call vectosub(uvsm(ioff),latlon11,u(1,1,k))
+        ioff=lv_gs(k)*latlon11+ione
+        call vectosub(uvsm(ioff),latlon11,v(1,1,k))
+     end do
   else
-    do k=1,nsig
-      ioff=lu_gs(k)*latlon11+ione
-      call vectosub(uvsm(ioff),latlon11,ux)
-      ioff=lv_gs(k)*latlon11+ione
-      call vectosub(uvsm(ioff),latlon11,vx)
-      do j=1,lon2
-        do i=1,lat2
-          st(i,j,k)=st(i,j,k)+ux(i,j)
-          vp(i,j,k)=vp(i,j,k)+vx(i,j)
+     do k=1,nsig
+        ioff=lu_gs(k)*latlon11+ione
+        call vectosub(uvsm(ioff),latlon11,ux)
+        ioff=lv_gs(k)*latlon11+ione
+        call vectosub(uvsm(ioff),latlon11,vx)
+        do j=1,lon2
+           do i=1,lat2
+              st(i,j,k)=st(i,j,k)+ux(i,j)
+              vp(i,j,k)=vp(i,j,k)+vx(i,j)
+           end do
         end do
-      end do
-    end do
+     end do
   end if
 
   return

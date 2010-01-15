@@ -46,15 +46,15 @@ implicit none
 
 integer(i_kind),parameter        :: ngen=15_i_kind
 !real(r_kind),parameter          :: delta=.001_r_kind,xhskip=.00035_r_kind
- real(r_kind),parameter          :: xhskip=.00030_r_kind
+real(r_kind),parameter           :: xhskip=.00030_r_kind
 !real(r_kind),parameter          :: delta=.001_r_kind,xhskip=.00025_r_kind
 !real(r_kind),parameter          :: delta=.001_r_kind,xhskip=.00001_r_kind
 !real(r_kind),parameter          :: delta=.001_r_kind,xhskip=.005_r_kind
 
-integer(i_kind),                intent(  IN ):: mskip,nob
-real(r_kind), dimension(nob),   intent(  IN ):: xob,yob
+integer(i_kind)                ,intent(IN   ) :: mskip,nob
+real(r_kind), dimension(nob)   ,intent(IN   ) :: xob,yob
 
-integer(i_kind), dimension(nob),intent(  OUT):: test_set
+integer(i_kind), dimension(nob),intent(  OUT) :: test_set
 
 real(r_kind),dimension(nob)     :: xh
 integer(i_kind),dimension(nob)  :: next

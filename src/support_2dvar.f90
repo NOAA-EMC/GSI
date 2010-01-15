@@ -60,220 +60,220 @@ subroutine convert_binary_2d
 
   n_loop: do n=1,3
 
-  if(n==ione)then
-  wrfges = 'wrf_inout'
-  else
-   write(wrfges,'("wrf_inou",i1.1)')n
-  endif
-  open(in_unit,file=trim(wrfges),form='unformatted')
-  write(6,*)' convert_binary_2d: in_unit,lendian_out=',in_unit,lendian_out
-
+     if(n==ione)then
+        wrfges = 'wrf_inout'
+     else
+        write(wrfges,'("wrf_inou",i1.1)')n
+     endif
+     open(in_unit,file=trim(wrfges),form='unformatted')
+     write(6,*)' convert_binary_2d: in_unit,lendian_out=',in_unit,lendian_out
+ 
 ! Check for valid input file
-  read(in_unit,iostat=status_hdr)hdrbuf
-  if(n==ione)then
-    if(status_hdr /= izero) then
-       write(6,*)'CONVERT_BINARY_2D:  problem with wrfges = ',&
-            trim(wrfges),', Status = ',status_hdr
-       call stop2(74)
-    endif
-  else
-    if(status_hdr /= izero) then
-       write(6,*)'CONVERT_BINARY_2D:  no off hour guess  ', trim(wrfges)
-       close(in_unit)
-     cycle n_loop
-    endif
-  endif
+     read(in_unit,iostat=status_hdr)hdrbuf
+     if(n==ione)then
+        if(status_hdr /= izero) then
+           write(6,*)'CONVERT_BINARY_2D:  problem with wrfges = ',&
+                trim(wrfges),', Status = ',status_hdr
+           call stop2(74)
+        endif
+     else
+        if(status_hdr /= izero) then
+           write(6,*)'CONVERT_BINARY_2D:  no off hour guess  ', trim(wrfges)
+           close(in_unit)
+           cycle n_loop
+        endif
+     endif
 
-  write(filename,'("sigf",i2.2)')n+nhr_assimilation-ione
-  write(6,*)' CONVERT_BINARY_2D: in_unit,out_unit=',wrfges,',',filename
-  open(lendian_out,file=filename,form='unformatted')
-  rewind lendian_out
+     write(filename,'("sigf",i2.2)')n+nhr_assimilation-ione
+     write(6,*)' CONVERT_BINARY_2D: in_unit,out_unit=',wrfges,',',filename
+     open(lendian_out,file=filename,form='unformatted')
+     rewind lendian_out
+ 
+     read(in_unit) iyear,imonth,iday,ihour,iminute,isecond, &
+                   nlon_regional,nlat_regional,nsig_regional
+     write(6,*)' convert_binary_2d: iy,m,d,h,m,s=',&
+                 iyear,imonth,iday,ihour,iminute,isecond
+     write(6,*)' convert_binary_2d: nlon,lat,sig_regional=',&
+                 nlon_regional,nlat_regional,nsig_regional
+     write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
+                 nlon_regional,nlat_regional,nsig_regional
+ 
 
-  read(in_unit) iyear,imonth,iday,ihour,iminute,isecond, &
-                nlon_regional,nlat_regional,nsig_regional
-  write(6,*)' convert_binary_2d: iy,m,d,h,m,s=',&
-              iyear,imonth,iday,ihour,iminute,isecond
-  write(6,*)' convert_binary_2d: nlon,lat,sig_regional=',&
-              nlon_regional,nlat_regional,nsig_regional
-  write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
-              nlon_regional,nlat_regional,nsig_regional
+     allocate(field2(nlon_regional,nlat_regional))
+     allocate(field2b(nlon_regional,nlat_regional))
+     allocate(field2c(nlon_regional,nlat_regional))
+     allocate(ifield2(nlon_regional,nlat_regional))
 
-
-  allocate(field2(nlon_regional,nlat_regional))
-  allocate(field2b(nlon_regional,nlat_regional))
-  allocate(field2c(nlon_regional,nlat_regional))
-  allocate(ifield2(nlon_regional,nlat_regional))
-
-  read(in_unit) field2b,field2c !DX_MC,DY_MC
+     read(in_unit) field2b,field2c !DX_MC,DY_MC
 
 !                  XLAT
-   rad2deg_single=r45/atan(one_single)
-   read(in_unit)field2
-   write(6,*)' convert_binary_2d: max,min XLAT(:,1)=',&
-               maxval(field2(:,1)),minval(field2(:,1))
-   write(6,*)' convert_binary_2d: max,min XLAT(1,:)=',&
-               maxval(field2(1,:)),minval(field2(1,:))
-   write(6,*)' convert_binary_2d: xlat(1,1),xlat(nlon,1)=',&
-               field2(1,1),field2(nlon_regional,1)
-   write(6,*)' convert_binary_2d: xlat(1,nlat),xlat(nlon,nlat)=', &
-               field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-   field2=field2/rad2deg_single
-   write(lendian_out)field2,field2b    !XLAT,DX_MC
-
+     rad2deg_single=r45/atan(one_single)
+     read(in_unit)field2
+     write(6,*)' convert_binary_2d: max,min XLAT(:,1)=',&
+                 maxval(field2(:,1)),minval(field2(:,1))
+     write(6,*)' convert_binary_2d: max,min XLAT(1,:)=',&
+                 maxval(field2(1,:)),minval(field2(1,:))
+     write(6,*)' convert_binary_2d: xlat(1,1),xlat(nlon,1)=',&
+                 field2(1,1),field2(nlon_regional,1)
+     write(6,*)' convert_binary_2d: xlat(1,nlat),xlat(nlon,nlat)=', &
+                 field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     field2=field2/rad2deg_single
+     write(lendian_out)field2,field2b    !XLAT,DX_MC
+ 
 
 !                  XLONG
-  read(in_unit)field2
-  write(6,*)' convert_binary_2d: max,min XLONG(:,1)=',&
-              maxval(field2(:,1)),minval(field2(:,1))
-  write(6,*)' convert_binary_2d: max,min XLONG(1,:)=',&
-              maxval(field2(1,:)),minval(field2(1,:))
-  write(6,*)' convert_binary_2d: xlong(1,1),xlong(nlon,1)=',&
-              field2(1,1),field2(nlon_regional,1)
-  write(6,*)' convert_binary_2d: xlong(1,nlat),xlong(nlon,nlat)=', &
-              field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-  field2=field2/rad2deg_single
-  write(lendian_out)field2,field2c   !  XLONG,DY_MC
+     read(in_unit)field2
+     write(6,*)' convert_binary_2d: max,min XLONG(:,1)=',&
+                 maxval(field2(:,1)),minval(field2(:,1))
+     write(6,*)' convert_binary_2d: max,min XLONG(1,:)=',&
+                 maxval(field2(1,:)),minval(field2(1,:))
+     write(6,*)' convert_binary_2d: xlong(1,1),xlong(nlon,1)=',&
+                 field2(1,1),field2(nlon_regional,1)
+     write(6,*)' convert_binary_2d: xlong(1,nlat),xlong(nlon,nlat)=', &
+                 field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     field2=field2/rad2deg_single
+     write(lendian_out)field2,field2c   !  XLONG,DY_MC
 
 
-  read(in_unit)field2             !  psfc0
-  write(6,*)' convert_binary_2d: max,min psfc0=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid psfc0=', &
-              field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
+     read(in_unit)field2             !  psfc0
+     write(6,*)' convert_binary_2d: max,min psfc0=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid psfc0=', &
+                 field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
 
 
-  read(in_unit)field2             !  PHB (zsfc*g)
-  write(6,*)' convert_binary_2d: max,min,mid PHB=', &
-              maxval(field2),minval(field2), &
-              field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
+     read(in_unit)field2             !  PHB (zsfc*g)
+     write(6,*)' convert_binary_2d: max,min,mid PHB=', &
+                 maxval(field2),minval(field2), &
+                 field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+ 
+
+     read(in_unit)field2             !  T  ! POT TEMP (sensible??)
+     write(6,*)' convert_binary_2d: max,min,mid T=',&
+                 maxval(field2),minval(field2), &
+                 field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
 
 
-  read(in_unit)field2             !  T  ! POT TEMP (sensible??)
-  write(6,*)' convert_binary_2d: max,min,mid T=',&
-              maxval(field2),minval(field2), &
-              field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
+     read(in_unit)field2             !  Q
+     write(6,*)' convert_binary_2d: max,min,mid Q=',&
+                 maxval(field2),minval(field2), &
+                 field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
 
 
-  read(in_unit)field2             !  Q
-  write(6,*)' convert_binary_2d: max,min,mid Q=',&
-              maxval(field2),minval(field2), &
-              field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
+     read(in_unit)field2             !  U
+     write(6,*)' convert_binary_2d: max,min,mid U=',&
+                 maxval(field2),minval(field2), &
+                 field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
 
 
-  read(in_unit)field2             !  U
-  write(6,*)' convert_binary_2d: max,min,mid U=',&
-              maxval(field2),minval(field2), &
-              field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
+     read(in_unit)field2             !  V
+     write(6,*)' convert_binary_2d: max,min,mid V=',&
+                 maxval(field2),minval(field2), &
+                 field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
 
 
-  read(in_unit)field2             !  V
-  write(6,*)' convert_binary_2d: max,min,mid V=',&
-              maxval(field2),minval(field2), &
-              field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
+     read(in_unit)field2             !  LANDMASK  (1=land, 0=water)
+     write(6,*)' convert_binary_2d: max,min landmask=', &
+                 maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid landmask=', &
+                 field2(nlon_regional/2,nlat_regional/2)
+     write(6,*)' convert_binary_2d: landmask(1,1),landmask(nlon,1)=', &
+                 field2(1,1),field2(nlon_regional,1)
+     write(6,*)' convert_binary_2d: landmask(1,nlat),landmask(nlon,nlat)=', &
+                 field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     write(lendian_out)field2
 
 
-  read(in_unit)field2             !  LANDMASK  (1=land, 0=water)
-  write(6,*)' convert_binary_2d: max,min landmask=', &
-              maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid landmask=', &
-              field2(nlon_regional/2,nlat_regional/2)
-  write(6,*)' convert_binary_2d: landmask(1,1),landmask(nlon,1)=', &
-              field2(1,1),field2(nlon_regional,1)
-  write(6,*)' convert_binary_2d: landmask(1,nlat),landmask(nlon,nlat)=', &
-              field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-  write(lendian_out)field2
+     read(in_unit)field2             !  XICE
+     write(6,*)' convert_binary_2d: max,min XICE=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid XICE=', &
+                 field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
 
 
-  read(in_unit)field2             !  XICE
-  write(6,*)' convert_binary_2d: max,min XICE=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid XICE=', &
-              field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
+     read(in_unit)field2             !  SST
+     write(6,*)' convert_binary_2d: max,min SST=',&
+                 maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid SST=', &
+                 field2(nlon_regional/2,nlat_regional/2)
+     write(6,*)' convert_binary_2d: sst(1,1),sst(nlon,1)=',&
+                 field2(1,1),field2(nlon_regional,1)
+     write(6,*)' convert_binary_2d: sst(1,nlat),sst(nlon,nlat)=', &
+                 field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     write(lendian_out)field2
 
 
-  read(in_unit)field2             !  SST
-  write(6,*)' convert_binary_2d: max,min SST=',&
-              maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid SST=', &
-              field2(nlon_regional/2,nlat_regional/2)
-  write(6,*)' convert_binary_2d: sst(1,1),sst(nlon,1)=',&
-              field2(1,1),field2(nlon_regional,1)
-  write(6,*)' convert_binary_2d: sst(1,nlat),sst(nlon,nlat)=', &
-              field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-  write(lendian_out)field2
+     read(in_unit)ifield2            !  IVGTYP
+     write(6,*)' convert_binary_2d: max,min IVGTYP=', &
+                 maxval(ifield2),minval(ifield2)
+     write(6,*)' convert_binary_2d: mid IVGTYP=', &
+                 ifield2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)ifield2
 
 
-  read(in_unit)ifield2            !  IVGTYP
-  write(6,*)' convert_binary_2d: max,min IVGTYP=', &
-              maxval(ifield2),minval(ifield2)
-  write(6,*)' convert_binary_2d: mid IVGTYP=', &
-              ifield2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)ifield2
+     read(in_unit)ifield2            !  ISLTYP
+     write(6,*)' convert_binary_2d: max,min ISLTYP=', &
+                 maxval(ifield2),minval(ifield2)
+     write(6,*)' convert_binary_2d: mid ISLTYP=', &
+                 ifield2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)ifield2
 
 
-  read(in_unit)ifield2            !  ISLTYP
-  write(6,*)' convert_binary_2d: max,min ISLTYP=', &
-              maxval(ifield2),minval(ifield2)
-  write(6,*)' convert_binary_2d: mid ISLTYP=', &
-              ifield2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)ifield2
+     read(in_unit)field2             !  VEGFRA
+     write(6,*)' convert_binary_2d: max,min VEGFRA=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid VEGFRA=', &
+                 field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
 
 
-  read(in_unit)field2             !  VEGFRA
-  write(6,*)' convert_binary_2d: max,min VEGFRA=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid VEGFRA=', &
-              field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
+     read(in_unit)field2             !  SNOW
+     write(6,*)' convert_binary_2d: max,min SNO=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid SNO=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+ 
+
+     read(in_unit)field2             !  U10
+     write(6,*)' convert_binary_2d: max,min U10=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid U10=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
 
 
-  read(in_unit)field2             !  SNOW
-  write(6,*)' convert_binary_2d: max,min SNO=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid SNO=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
+     read(in_unit)field2             !  V10
+     write(6,*)' convert_binary_2d: max,min V10=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid V10=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+ 
+
+     read(in_unit)field2             !  SMOIS
+     write(6,*)' convert_binary_2d: max,min SMOIS=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid SMOIS=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
 
 
-  read(in_unit)field2             !  U10
-  write(6,*)' convert_binary_2d: max,min U10=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid U10=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
+     read(in_unit)field2             !  TSLB
+     write(6,*)' convert_binary_2d: max,min TSLB=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid TSLB=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+ 
 
+     read(in_unit)field2             !  TSK
+     write(6,*)' convert_binary_2d: max,min TSK=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid TSK=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+ 
+     close(in_unit)
+     close(lendian_out)
 
-  read(in_unit)field2             !  V10
-  write(6,*)' convert_binary_2d: max,min V10=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid V10=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
-
-
-  read(in_unit)field2             !  SMOIS
-  write(6,*)' convert_binary_2d: max,min SMOIS=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid SMOIS=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
-
-
-  read(in_unit)field2             !  TSLB
-  write(6,*)' convert_binary_2d: max,min TSLB=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid TSLB=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
-
-
-  read(in_unit)field2             !  TSK
-  write(6,*)' convert_binary_2d: max,min TSK=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_2d: mid TSK=',field2(nlon_regional/2,nlat_regional/2)
-  write(lendian_out)field2
-
-  close(in_unit)
-  close(lendian_out)
-
-  deallocate(field2)
-  deallocate(field2b)
-  deallocate(field2c)
-  deallocate(ifield2)
-enddo n_loop
+     deallocate(field2)
+     deallocate(field2b)
+     deallocate(field2c)
+     deallocate(ifield2)
+  enddo n_loop
 end subroutine convert_binary_2d
 
 !----------------------------------------------------------------------------------
@@ -316,7 +316,7 @@ subroutine read_2d_files(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_001=0.001_r_kind
@@ -370,7 +370,7 @@ subroutine read_2d_files(mype)
            if(abs(ndiff) > 60*nhr_half ) go to 110
            iwan=iwan+ione
            time_ges(iwan) = (nming2-nminanl)*r60inv + time_offset
-           time_ges(iwan+100)=i+r0_001
+           time_ges(iwan+100_i_kind)=i+r0_001
         end if
 110     continue
      end do
@@ -380,9 +380,9 @@ subroutine read_2d_files(mype)
         do i=1,iwan
            do j=i+ione,iwan
               if(time_ges(j) < time_ges(i))then
-                 temp=time_ges(i+100)
-                 time_ges(i+100)=time_ges(j+100)
-                 time_ges(j+100)=temp
+                 temp=time_ges(i+100_i_kind)
+                 time_ges(i+100_i_kind)=time_ges(j+100_i_kind)
+                 time_ges(j+100_i_kind)=temp
                  temp=time_ges(i)
                  time_ges(i)=time_ges(j)
                  time_ges(j)=temp
@@ -483,7 +483,7 @@ subroutine read_2d_guess(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_01=0.01_r_kind
@@ -526,228 +526,228 @@ subroutine read_2d_guess(mype)
 
 ! Big section of operations done only on first outer iteration
 
-     if(mype==izero) write(6,*)' at 0.1 in read_2d_guess'
+  if(mype==izero) write(6,*)' at 0.1 in read_2d_guess'
 
-     im=nlon_regional
-     jm=nlat_regional
-     lm=nsig
+  im=nlon_regional
+  jm=nlat_regional
+  lm=nsig
 
-!    Following is for convenient 2D input
-     num_2d_fields=18_i_kind! Adjust once exact content of RTMA restart file is known
-     num_all_fields=num_2d_fields*nfldsig
-     num_loc_groups=num_all_fields/npe
-     if(mype==izero) write(6,'(" at 1 in read_2d_guess, lm            =",i6)')lm
-     if(mype==izero) write(6,'(" at 1 in read_2d_guess, num_2d_fields=",i6)')num_2d_fields
-     if(mype==izero) write(6,'(" at 1 in read_2d_guess, nfldsig       =",i6)')nfldsig
-     if(mype==izero) write(6,'(" at 1 in read_2d_guess, num_all_fields=",i6)')num_all_fields
-     if(mype==izero) write(6,'(" at 1 in read_2d_guess, npe           =",i6)')npe
-     if(mype==izero) write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
-     do
-        num_all_pad=num_loc_groups*npe
-        if(num_all_pad >= num_all_fields) exit
-        num_loc_groups=num_loc_groups+ione
-     end do
-     if(mype==izero) write(6,'(" at 1 in read_2d_guess, num_all_pad   =",i6)')num_all_pad
-     if(mype==izero) write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
+! Following is for convenient 2D input
+  num_2d_fields=18_i_kind! Adjust once exact content of RTMA restart file is known
+  num_all_fields=num_2d_fields*nfldsig
+  num_loc_groups=num_all_fields/npe
+  if(mype==izero) write(6,'(" at 1 in read_2d_guess, lm            =",i6)')lm
+  if(mype==izero) write(6,'(" at 1 in read_2d_guess, num_2d_fields=",i6)')num_2d_fields
+  if(mype==izero) write(6,'(" at 1 in read_2d_guess, nfldsig       =",i6)')nfldsig
+  if(mype==izero) write(6,'(" at 1 in read_2d_guess, num_all_fields=",i6)')num_all_fields
+  if(mype==izero) write(6,'(" at 1 in read_2d_guess, npe           =",i6)')npe
+  if(mype==izero) write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
+  do
+     num_all_pad=num_loc_groups*npe
+     if(num_all_pad >= num_all_fields) exit
+     num_loc_groups=num_loc_groups+ione
+  end do
+  if(mype==izero) write(6,'(" at 1 in read_2d_guess, num_all_pad   =",i6)')num_all_pad
+  if(mype==izero) write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
 
-     allocate(all_loc(lat1+2_i_kind,lon1+2_i_kind,num_all_pad))
-     allocate(jsig_skip(num_2d_fields))
-     allocate(igtype(num_2d_fields))
-     allocate(identity(num_2d_fields))
+  allocate(all_loc(lat1+2_i_kind,lon1+2_i_kind,num_all_pad))
+  allocate(jsig_skip(num_2d_fields))
+  allocate(igtype(num_2d_fields))
+  allocate(identity(num_2d_fields))
 
-!    igtype is a flag indicating whether each input field is h-, u-, or v-grid
-!    and whether integer or real
-!     abs(igtype)=1 for h-grid
-!                =2 for u-grid
-!                =3 for v-grid
-!     igtype < 0 for integer field
+! igtype is a flag indicating whether each input field is h-, u-, or v-grid
+! and whether integer or real
+!  abs(igtype)=1 for h-grid
+!             =2 for u-grid
+!             =3 for v-grid
+!  igtype < 0 for integer field
 
-     i=izero
-     i=i+ione ; i_psfc=i                                            ! psfc
-     write(identity(i),'("record ",i3,"--psfc")')i
-     jsig_skip(i)=3_i_kind     ! number of files to skip before getting to psfc
-     igtype(i)=ione
-     i=i+ione ; i_fis=i                                             ! sfc geopotential
-     write(identity(i),'("record ",i3,"--fis")')i
+  i=izero
+  i=i+ione ; i_psfc=i                                            ! psfc
+  write(identity(i),'("record ",i3,"--psfc")')i
+  jsig_skip(i)=3_i_kind     ! number of files to skip before getting to psfc
+  igtype(i)=ione
+  i=i+ione ; i_fis=i                                             ! sfc geopotential
+  write(identity(i),'("record ",i3,"--fis")')i
+  jsig_skip(i)=izero
+  igtype(i)=ione
+  i_t=i+ione
+  do k=1,lm
+     i=i+ione                                                    ! t(k)  (sensible temp)
+     write(identity(i),'("record ",i3,"--t(",i2,")")')i,k
      jsig_skip(i)=izero
      igtype(i)=ione
-     i_t=i+ione
-     do k=1,lm
-        i=i+ione                                                    ! t(k)  (sensible temp)
-        write(identity(i),'("record ",i3,"--t(",i2,")")')i,k
-        jsig_skip(i)=izero
-        igtype(i)=ione
-     end do
-     i_q=i+ione
-     do k=1,lm
-        i=i+ione                                                    ! q(k)
-        write(identity(i),'("record ",i3,"--q(",i2,")")')i,k
-        jsig_skip(i)=izero ; igtype(i)=ione
-     end do
-     i_u=i+ione
-     do k=1,lm
-        i=i+ione                                                    ! u(k)
-        write(identity(i),'("record ",i3,"--u(",i2,")")')i,k
-        jsig_skip(i)=izero ; igtype(i)=2_i_kind
-     end do
-     i_v=i+ione
-     do k=1,lm
-        i=i+ione                                                    ! v(k)
-        write(identity(i),'("record ",i3,"--v(",i2,")")')i,k
-        jsig_skip(i)=izero ; igtype(i)=3_i_kind
-     end do
-     i=i+ione   ; i_sm=i                                            ! landmask
-     write(identity(i),'("record ",i3,"--sm")')i
+  end do
+  i_q=i+ione
+  do k=1,lm
+     i=i+ione                                                    ! q(k)
+     write(identity(i),'("record ",i3,"--q(",i2,")")')i,k
      jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_xice=i                                            ! xice
-     write(identity(i),'("record ",i3,"--xice")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_sst=i                                             ! sst
-     write(identity(i),'("record ",i3,"--sst")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_ivgtyp=i                                          ! ivgtyp
-     write(identity(i),'("record ",i3,"--ivgtyp")')i
-     jsig_skip(i)=izero ; igtype(i)=-ione
-     i=i+ione ; i_isltyp=i                                          ! isltyp
-     write(identity(i),'("record ",i3,"--isltyp")')i
-     jsig_skip(i)=izero ; igtype(i)=-ione
-     i=i+ione ; i_vegfrac=i                                         ! vegfrac
-     write(identity(i),'("record ",i3,"--vegfrac")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_sno=i                                             ! sno
-     write(identity(i),'("record ",i3,"--sno")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_u10=i                                             ! u10
-     write(identity(i),'("record ",i3,"--u10")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_v10=i                                             ! v10
-     write(identity(i),'("record ",i3,"--v10")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_smois=i                                           ! smois
-     write(identity(i),'("record ",i3,"--smois(",i2,")")')i,k
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_tslb=i                                            ! tslb
-     write(identity(i),'("record ",i3,"--tslb(",i2,")")')i,k
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_tsk=i                                             ! tsk
-     write(identity(i),'("record ",i3,"--sst")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
+  end do
+  i_u=i+ione
+  do k=1,lm
+     i=i+ione                                                    ! u(k)
+     write(identity(i),'("record ",i3,"--u(",i2,")")')i,k
+     jsig_skip(i)=izero ; igtype(i)=2_i_kind
+  end do
+  i_v=i+ione
+  do k=1,lm
+     i=i+ione                                                    ! v(k)
+     write(identity(i),'("record ",i3,"--v(",i2,")")')i,k
+     jsig_skip(i)=izero ; igtype(i)=3_i_kind
+  end do
+  i=i+ione   ; i_sm=i                                            ! landmask
+  write(identity(i),'("record ",i3,"--sm")')i
+  jsig_skip(i)=izero ; igtype(i)=ione
+  i=i+ione ; i_xice=i                                            ! xice
+  write(identity(i),'("record ",i3,"--xice")')i
+  jsig_skip(i)=izero ; igtype(i)=ione
+  i=i+ione ; i_sst=i                                             ! sst
+  write(identity(i),'("record ",i3,"--sst")')i
+  jsig_skip(i)=izero ; igtype(i)=ione
+  i=i+ione ; i_ivgtyp=i                                          ! ivgtyp
+  write(identity(i),'("record ",i3,"--ivgtyp")')i
+  jsig_skip(i)=izero ; igtype(i)=-ione
+  i=i+ione ; i_isltyp=i                                          ! isltyp
+  write(identity(i),'("record ",i3,"--isltyp")')i
+  jsig_skip(i)=izero ; igtype(i)=-ione
+  i=i+ione ; i_vegfrac=i                                         ! vegfrac
+  write(identity(i),'("record ",i3,"--vegfrac")')i
+  jsig_skip(i)=izero ; igtype(i)=ione
+  i=i+ione ; i_sno=i                                             ! sno
+  write(identity(i),'("record ",i3,"--sno")')i
+  jsig_skip(i)=izero ; igtype(i)=ione
+  i=i+ione ; i_u10=i                                             ! u10
+  write(identity(i),'("record ",i3,"--u10")')i
+  jsig_skip(i)=izero ; igtype(i)=ione
+  i=i+ione ; i_v10=i                                             ! v10
+  write(identity(i),'("record ",i3,"--v10")')i
+  jsig_skip(i)=izero ; igtype(i)=ione
+  i=i+ione ; i_smois=i                                           ! smois
+  write(identity(i),'("record ",i3,"--smois(",i2,")")')i,k
+  jsig_skip(i)=izero ; igtype(i)=ione
+  i=i+ione ; i_tslb=i                                            ! tslb
+  write(identity(i),'("record ",i3,"--tslb(",i2,")")')i,k
+  jsig_skip(i)=izero ; igtype(i)=ione
+  i=i+ione ; i_tsk=i                                             ! tsk
+  write(identity(i),'("record ",i3,"--sst")')i
+  jsig_skip(i)=izero ; igtype(i)=ione
 
-!    End of stuff from 2D restart file
+! End of stuff from 2D restart file
 
-     allocate(temp1(im,jm),itemp1(im,jm),temp1u(im+ione,jm),temp1v(im,jm+ione))
+  allocate(temp1(im,jm),itemp1(im,jm),temp1u(im+ione,jm),temp1v(im,jm+ione))
 
-     do i=1,npe
-        irc_s_reg(i)=ijn_s(mype+ione)
-     end do
-     ird_s_reg(1)=izero
-     do i=1,npe
-        if(i /= ione) ird_s_reg(i)=ird_s_reg(i-ione)+irc_s_reg(i-ione)
-     end do
+  do i=1,npe
+     irc_s_reg(i)=ijn_s(mype+ione)
+  end do
+  ird_s_reg(1)=izero
+  do i=1,npe
+     if(i /= ione) ird_s_reg(i)=ird_s_reg(i-ione)+irc_s_reg(i-ione)
+  end do
 
-!    Read fixed format input file created from external interface
-!    This is done by reading in parallel from every pe, and redistributing
-!    to local domains once for every npe fields read in, using
-!    mpi_all_to_allv
+! Read fixed format input file created from external interface
+! This is done by reading in parallel from every pe, and redistributing
+! to local domains once for every npe fields read in, using
+! mpi_all_to_allv
 
-     nfcst=15_i_kind
-     icount=izero
-     icount_prev=ione
-     do it=1,nfldsig
-        write(filename,'("sigf",i2.2)')ifilesig(it)
-        open(nfcst,file=filename,form='unformatted') ; rewind nfcst
-        write(6,*)'READ_2d_GUESS:  open nfcst=',nfcst,' to file=',filename
+  nfcst=15_i_kind
+  icount=izero
+  icount_prev=ione
+  do it=1,nfldsig
+     write(filename,'("sigf",i2.2)')ifilesig(it)
+     open(nfcst,file=filename,form='unformatted') ; rewind nfcst
+     write(6,*)'READ_2d_GUESS:  open nfcst=',nfcst,' to file=',filename
 
-!       Read, interpolate, and distribute 2D restart fields
-        do ifld=1,num_2d_fields
-           icount=icount+ione
-           if(jsig_skip(ifld) > izero) then
-              do i=1,jsig_skip(ifld)
-                 read(nfcst)
-              end do
-           end if
-           if(mype==mod(icount-ione,npe)) then
-              if(igtype(ifld)==ione .or. igtype(ifld)==2_i_kind .or. igtype(ifld)==3_i_kind) then
-                 read(nfcst)((temp1(i,j),i=1,im),j=1,jm)
-                 write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
-                 call fill_mass_grid2t(temp1,im,jm,tempa,ione)
-              end if
-              if(igtype(ifld) < izero) then
-                 read(nfcst)((itemp1(i,j),i=1,im),j=1,jm)
-                 do j=1,jm
-                    do i=1,im
-                       temp1(i,j)=itemp1(i,j)
-                    end do
-                 end do
-                 write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
-                 call fill_mass_grid2t(temp1,im,jm,tempa,ione)
-              end if
-           else
+!    Read, interpolate, and distribute 2D restart fields
+     do ifld=1,num_2d_fields
+        icount=icount+ione
+        if(jsig_skip(ifld) > izero) then
+           do i=1,jsig_skip(ifld)
               read(nfcst)
-           end if
-
-!          Distribute to local domains everytime we have npe fields
-           if(mod(icount,npe) == izero.or.icount==num_all_fields) then
-              call mpi_alltoallv(tempa,ijn_s,displs_s,mpi_real4, &
-                   all_loc(1,1,icount_prev),irc_s_reg,ird_s_reg,mpi_real4,mpi_comm_world,ierror)
-              icount_prev=icount+ione
-           end if
-        end do
-        close(nfcst)
-     end do
-!   do kv=i_v,i_v+nsig-ione
-!    if(mype==izero) write(6,*)' at 1.15, kv,mype,j,i,v=', &
-!         kv,mype,2,ione,all_loc(2,1,kv)
-!   end do
-
-
-!    Next do conversion of units as necessary and
-!    reorganize into WeiYu's format--
-
-     do it=1,nfldsig
-        i_0=(it-ione)*num_2d_fields
-        kt=i_0+i_t-ione
-        kq=i_0+i_q-ione
-        ku=i_0+i_u-ione
-        kv=i_0+i_v-ione
-
-        do k=1,nsig
-           kt=kt+ione
-           kq=kq+ione
-           ku=ku+ione
-           kv=kv+ione
-           do i=1,lon1+2_i_kind
-              do j=1,lat1+2_i_kind
-                 ges_u(j,i,k,it) = all_loc(j,i,ku)
-                 ges_v(j,i,k,it) = all_loc(j,i,kv)
-                 ges_vor(j,i,k,it) = zero
-                 ges_q(j,i,k,it)   = all_loc(j,i,kq)
-                 ges_tsen(j,i,k,it)  = all_loc(j,i,kt)
-              end do
            end do
-        end do
+        end if
+        if(mype==mod(icount-ione,npe)) then
+           if(igtype(ifld)==ione .or. igtype(ifld)==2_i_kind .or. igtype(ifld)==3_i_kind) then
+              read(nfcst)((temp1(i,j),i=1,im),j=1,jm)
+              write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
+              call fill_mass_grid2t(temp1,im,jm,tempa,ione)
+           end if
+           if(igtype(ifld) < izero) then
+              read(nfcst)((itemp1(i,j),i=1,im),j=1,jm)
+              do j=1,jm
+                 do i=1,im
+                    temp1(i,j)=itemp1(i,j)
+                 end do
+              end do
+              write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
+              call fill_mass_grid2t(temp1,im,jm,tempa,ione)
+           end if
+        else
+           read(nfcst)
+        end if
+
+!       Distribute to local domains everytime we have npe fields
+        if(mod(icount,npe) == izero.or.icount==num_all_fields) then
+           call mpi_alltoallv(tempa,ijn_s,displs_s,mpi_real4, &
+                all_loc(1,1,icount_prev),irc_s_reg,ird_s_reg,mpi_real4,mpi_comm_world,ierror)
+           icount_prev=icount+ione
+        end if
+     end do
+     close(nfcst)
+  end do
+!  do kv=i_v,i_v+nsig-ione
+!  if(mype==izero) write(6,*)' at 1.15, kv,mype,j,i,v=', &
+!       kv,mype,2,ione,all_loc(2,1,kv)
+!  end do
+
+
+! Next do conversion of units as necessary and
+! reorganize into WeiYu's format--
+
+  do it=1,nfldsig
+     i_0=(it-ione)*num_2d_fields
+     kt=i_0+i_t-ione
+     kq=i_0+i_q-ione
+     ku=i_0+i_u-ione
+     kv=i_0+i_v-ione
+
+     do k=1,nsig
+        kt=kt+ione
+        kq=kq+ione
+        ku=ku+ione
+        kv=kv+ione
         do i=1,lon1+2_i_kind
            do j=1,lat1+2_i_kind
-              ges_z(j,i,it)    = all_loc(j,i,i_0+i_fis)/grav ! surface elevation multiplied by g
-
-!             convert input psfc to psfc in mb, and then to log(psfc) in cb
-
-              psfc_this=r0_01*all_loc(j,i,i_0+i_psfc)
-              ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
-              sno(j,i,it)=all_loc(j,i,i_0+i_sno)
-              soil_moi(j,i,it)=all_loc(j,i,i_0+i_smois)
-              soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
+              ges_u(j,i,k,it) = all_loc(j,i,ku)
+              ges_v(j,i,k,it) = all_loc(j,i,kv)
+              ges_vor(j,i,k,it) = zero
+              ges_q(j,i,k,it)   = all_loc(j,i,kq)
+              ges_tsen(j,i,k,it)  = all_loc(j,i,kt)
            end do
         end do
+     end do
+     do i=1,lon1+2_i_kind
+        do j=1,lat1+2_i_kind
+           ges_z(j,i,it)    = all_loc(j,i,i_0+i_fis)/grav ! surface elevation multiplied by g
 
-        if(mype==10_i_kind) write(6,*)' in read_2d_guess, min,max(soil_moi)=', &
-             minval(soil_moi),maxval(soil_moi)
-        if(mype==10_i_kind) write(6,*)' in read_2d_guess, min,max(soil_temp)=', &
-             minval(soil_temp),maxval(soil_temp)
+!          convert input psfc to psfc in mb, and then to log(psfc) in cb
+
+           psfc_this=r0_01*all_loc(j,i,i_0+i_psfc)
+           ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
+           sno(j,i,it)=all_loc(j,i,i_0+i_sno)
+           soil_moi(j,i,it)=all_loc(j,i,i_0+i_smois)
+           soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
+        end do
+     end do
+
+     if(mype==10_i_kind) write(6,*)' in read_2d_guess, min,max(soil_moi)=', &
+        minval(soil_moi),maxval(soil_moi)
+     if(mype==10_i_kind) write(6,*)' in read_2d_guess, min,max(soil_temp)=', &
+        minval(soil_temp),maxval(soil_temp)
 
 
-!       Convert sensible temp to virtual temp
-        do k=1,nsig
+!    Convert sensible temp to virtual temp
+     do k=1,nsig
            do i=1,lon1+2_i_kind
               do j=1,lat1+2_i_kind
                  ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
@@ -862,7 +862,7 @@ subroutine wr2d_binary(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
   real(r_kind),parameter:: r10=10.0_r_kind
@@ -969,10 +969,10 @@ subroutine wr2d_binary(mype)
 
   allocate(tempa(itotsub),tempb(itotsub))
   if(mype == izero) then
-   read(iog)temp1
-   temp1_ps=log(temp1/r100/r10)
+     read(iog)temp1
+     temp1_ps=log(temp1/r100/r10)
   endif
-   call strip_single(all_loc(1,1,i_psfc),strp,ione)
+  call strip_single(all_loc(1,1,i_psfc),strp,ione)
   call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
        tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
   if(mype == izero) then
@@ -1025,8 +1025,8 @@ subroutine wr2d_binary(mype)
   do k=1,nsig
      kq=kq+ione
      if(mype == izero) then
-       read(iog)temp1
-       temp1_prh=temp1
+        read(iog)temp1
+        temp1_prh=temp1
      endif
      call strip_single(all_loc(1,1,kq),strp,ione)
      call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
@@ -1071,12 +1071,12 @@ subroutine wr2d_binary(mype)
           tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
      if(mype == izero) then
         call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
-      do i=1,iglobal
-        tempa(i)=tempa(i)-tempb(i)
-      end do
-      call unfill_mass_grid2t(tempa,im,jm,temp1)
-      write(ioan)temp1
-    end if
+        do i=1,iglobal
+           tempa(i)=tempa(i)-tempb(i)
+        end do
+        call unfill_mass_grid2t(tempa,im,jm,temp1)
+        write(ioan)temp1
+     end if
   end do
 
 ! Update v
@@ -1195,12 +1195,12 @@ subroutine wr2d_binary(mype)
      call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
      if(mype == izero) then
-      temp1=zero_single
-      call unfill_mass_grid2t(tempa,im,jm,temp1)
-      open (94,file='bckg_qsat.dat',form='unformatted')
-      write(94) temp1
-      close(94)
-    end if
+        temp1=zero_single
+        call unfill_mass_grid2t(tempa,im,jm,temp1)
+        open (94,file='bckg_qsat.dat',form='unformatted')
+        write(94) temp1
+        close(94)
+     end if
   end do
 
   deallocate(all_loc)
@@ -1361,53 +1361,53 @@ subroutine ndfdgrid_info
   implicit none
        
   if (trim(cgrid) == 'conus') then
-    nx=1073_i_kind
-    ny=689_i_kind
-    alat18=20.192_r_kind
-    elon18=238.446_r_kind
-    da8=5079.406_r_kind
-    elonv8=265.000_r_kind
-    alatan8=25.000_r_kind
+     nx=1073_i_kind
+     ny=689_i_kind
+     alat18=20.192_r_kind
+     elon18=238.446_r_kind
+     da8=5079.406_r_kind
+     elonv8=265.000_r_kind
+     alatan8=25.000_r_kind
 
-   elseif (trim(cgrid) == 'alaska') then 
-    nx=825_i_kind
-    ny=553_i_kind
-    alat18=40.530101_r_kind
-    elon18=181.429000_r_kind
-    da8=5953.125_r_kind
-    elonv8=210.000000_r_kind
-    alatan8=60.000000_r_kind
+  elseif (trim(cgrid) == 'alaska') then 
+     nx=825_i_kind
+     ny=553_i_kind
+     alat18=40.530101_r_kind
+     elon18=181.429000_r_kind
+     da8=5953.125_r_kind
+     elonv8=210.000000_r_kind
+     alatan8=60.000000_r_kind
+ 
+  elseif (trim(cgrid) == 'hawaii') then 
+     nx=321_i_kind
+     ny=225_i_kind
+     alat18=18.066780_r_kind
+     elon18=198.374755_r_kind
+     da8=2500.000_r_kind
+     elonv8=9999._r_kind
+     alatan8=20.000000_r_kind
 
-   elseif (trim(cgrid) == 'hawaii') then 
-    nx=321_i_kind
-    ny=225_i_kind
-    alat18=18.066780_r_kind
-    elon18=198.374755_r_kind
-    da8=2500.000_r_kind
-    elonv8=9999._r_kind
-    alatan8=20.000000_r_kind
+  elseif (trim(cgrid) == 'prico') then 
+     nx=177_i_kind
+     ny=129_i_kind
+     alat18=16.828685_r_kind
+     elon18=291.804687_r_kind
+     da8=2500.000_r_kind
+     elonv8=9999._r_kind
+     alatan8=20.000000_r_kind
 
-   elseif (trim(cgrid) == 'prico') then 
-    nx=177_i_kind
-    ny=129_i_kind
-    alat18=16.828685_r_kind
-    elon18=291.804687_r_kind
-    da8=2500.000_r_kind
-    elonv8=9999._r_kind
-    alatan8=20.000000_r_kind
+  elseif (trim(cgrid) == 'guam') then 
+     nx=193_i_kind
+     ny=193_i_kind
+     alat18=12.349884_r_kind
+     elon18=143.686538_r_kind
+     da8=2500.000_r_kind
+     elonv8=9999._r_kind
+     alatan8=20.000000_r_kind
 
-   elseif (trim(cgrid) == 'guam') then 
-    nx=193_i_kind
-    ny=193_i_kind
-    alat18=12.349884_r_kind
-    elon18=143.686538_r_kind
-    da8=2500.000_r_kind
-    elonv8=9999._r_kind
-    alatan8=20.000000_r_kind
-
-   else
-      print*,'in ndfdgrid_info: unknown grid ',cgrid,'...aborting'
-      call abort
+  else
+     print*,'in ndfdgrid_info: unknown grid ',cgrid,'...aborting'
+     call abort
   endif
 
 end subroutine ndfdgrid_info
@@ -1439,19 +1439,19 @@ subroutine latlon_to_grid0(rlat8,rlon8,xx8,yy8)
 !$$$
   implicit none
 
-  real(r_kind),intent(in)::rlat8,rlon8
-  real(r_kind),intent(out)::xx8,yy8
+  real(r_kind),intent(in   ) :: rlat8,rlon8
+  real(r_kind),intent(  out) :: xx8,yy8
 
   if (trim(cgrid)=='conus') then
-   call w3fb11(rlat8,rlon8,alat18,elon18,da8,elonv8,alatan8,xx8,yy8)
+     call w3fb11(rlat8,rlon8,alat18,elon18,da8,elonv8,alatan8,xx8,yy8)
   endif
 
   if (trim(cgrid)=='alaska') then
-   call w3fb06(rlat8,rlon8,alat18,elon18,da8,elonv8,xx8,yy8) 
+     call w3fb06(rlat8,rlon8,alat18,elon18,da8,elonv8,xx8,yy8) 
   endif
 
   if (trim(cgrid)=='hawaii' .or. trim(cgrid)=='guam' .or. trim(cgrid)=='prico') then
-   call w3fb08(rlat8,rlon8,alat18,elon18,alatan8,da8,xx8,yy8)
+     call w3fb08(rlat8,rlon8,alat18,elon18,alatan8,da8,xx8,yy8)
   endif
 
 end subroutine latlon_to_grid0
@@ -1485,8 +1485,8 @@ subroutine terrain_slmask(radrlat8,radrlon8,hgt0,slm0)
 
   implicit none
 
-  real(r_kind),intent(in):: radrlat8,radrlon8
-  real(r_kind),intent(out):: hgt0,slm0
+  real(r_kind),intent(in   ) :: radrlat8,radrlon8
+  real(r_kind),intent(  out) :: hgt0,slm0
 
 ! Declare local variables
   real(r_single) hgt04
@@ -1544,10 +1544,9 @@ subroutine adjust_error(alon,alat,oberr,oberr2)
 
   implicit none
 
-
 ! Declare passed variables
-  real (r_kind), intent(in)::alon,alat
-  real (r_kind), intent(inout)::oberr,oberr2
+  real (r_kind), intent(in   ) :: alon,alat
+  real (r_kind), intent(inout) :: oberr,oberr2
 
 ! Declare local variables
   integer(i_kind) i,j,istart,jstart,is,ie,js,je
@@ -1566,7 +1565,7 @@ subroutine adjust_error(alon,alat,oberr,oberr2)
             .and. rlat8>=32._r_kind .and. rlat8<=35._r_kind)
 
   if (trim(cgrid)=='conus') then
-    if(lcase1) return
+     if(lcase1) return
   endif
 
   if (rlon8<zero) rlon8=rlon8+360._r_kind
@@ -1590,15 +1589,15 @@ subroutine adjust_error(alon,alat,oberr,oberr2)
   if (slmask(is,js)>0.5_r_single)  rsign1=+1._r_single
 
   do j=js,je
-  do i=is,ie
-     if (slmask(i,j)<=0.5_r_single) rsign2=-1._r_single
-     if (slmask(i,j)>0.5_r_single)  rsign2=+1._r_single
-     if (rsign1*rsign2<zero_single) then
-       oberr=oberr*oberrinflfact
-       oberr2=oberr2*oberrinflfact
-       goto 100 
-     endif
-  enddo 
+     do i=is,ie
+        if (slmask(i,j)<=0.5_r_single) rsign2=-1._r_single
+        if (slmask(i,j)>0.5_r_single)  rsign2=+1._r_single
+        if (rsign1*rsign2<zero_single) then
+           oberr=oberr*oberrinflfact
+           oberr2=oberr2*oberrinflfact
+           goto 100 
+        endif
+     enddo 
   enddo 
 100 continue
 ! print*,'in adjust_error: after, oberr,oberr2=',oberr,oberr2
@@ -1724,7 +1723,7 @@ subroutine init_hilbertcurve(maxobs)
   use constants, only: izero
   implicit none
 
-  integer(i_kind),intent(in):: maxobs
+  integer(i_kind),intent(in   ) :: maxobs
 
   ncross=izero
 
@@ -1764,20 +1763,20 @@ subroutine accum_hilbertcurve(usage,dlat,dlon,ikx,kx,ndata)
 
   implicit none
 
-  real(r_kind),intent(in)::usage,dlat,dlon
-  integer(i_kind),intent(in)::ikx,kx,ndata
+  real(r_kind)   ,intent(in   ) :: usage,dlat,dlon
+  integer(i_kind),intent(in   ) :: ikx,kx,ndata
 
-      if(ncnumgrp(ikx) > izero .and. usage < 6._r_kind) then
-         ncross=ncross+ione
-         hil_dlat(ncross)=dlat/nlat
-         hil_dlon(ncross)=dlon/nlon
-         hil_ikx(ncross)=ikx
-         hil_kx(ncross)=kx
-         hil_i(ncross)=ndata
+  if(ncnumgrp(ikx) > izero .and. usage < 6._r_kind) then
+     ncross=ncross+ione
+     hil_dlat(ncross)=dlat/nlat
+     hil_dlon(ncross)=dlon/nlon
+     hil_ikx(ncross)=ikx
+     hil_kx(ncross)=kx
+     hil_i(ncross)=ndata
 
-!        write(6,*) 'CHECK0:',ndata,ncross,hil_ikx(ncross),hil_kx(ncross), & 
-!                    ncnumgrp(hil_ikx(ncross)),ncgroup(hil_ikx(ncross))
-      endif
+!     write(6,*) 'CHECK0:',ndata,ncross,hil_ikx(ncross),hil_kx(ncross), & 
+!                ncnumgrp(hil_ikx(ncross)),ncgroup(hil_ikx(ncross))
+  endif
 
 end subroutine accum_hilbertcurve
 
@@ -1814,56 +1813,56 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 
 
 !Declare passed variables
-  logical,intent(in):: tob,uvob,spdob,psob,qob,pwob,sstob
-  integer(i_kind),intent(in):: ktob,kuvob,kspdob,kpsob,kqob,kpwob,ksstob
-  integer(i_kind),intent(in):: maxobs,k1,k2
-  real(r_kind),intent(inout):: cdata(k1:k2,maxobs)
+  logical        ,intent(in   ) :: tob,uvob,spdob,psob,qob,pwob,sstob
+  integer(i_kind),intent(in   ) :: ktob,kuvob,kspdob,kpsob,kqob,kpwob,ksstob
+  integer(i_kind),intent(in   ) :: maxobs,k1,k2
+  real(r_kind)   ,intent(inout) :: cdata(k1:k2,maxobs)
 
 !Declare local variables
   integer(i_kind) i,ncnumgrp0,ncgroup0
   real(r_kind) usage
 
-      if(ncross>izero) then
+  if(ncross>izero) then
 
-        allocate(test_set(ncross))
+     allocate(test_set(ncross))
 
-        ncnumgrp0=ncnumgrp(hil_ikx(ncross)) ! number of cross-validating datasets is
-                                            ! chosen to be the last "number of groups" 
-                                            ! specified in convinfo for that ob type. 
-                                            ! there is no particular reason to do so.
+     ncnumgrp0=ncnumgrp(hil_ikx(ncross)) ! number of cross-validating datasets is
+                                         ! chosen to be the last "number of groups" 
+                                         ! specified in convinfo for that ob type. 
+                                         ! there is no particular reason to do so.
 
-        call hilbert(ncnumgrp0,ncross,hil_dlon(1:ncross),hil_dlat(1:ncross),test_set)
+     call hilbert(ncnumgrp0,ncross,hil_dlon(1:ncross),hil_dlat(1:ncross),test_set)
 
-        do i=1,ncross
+     do i=1,ncross
 
-          ncgroup0=ncgroup(hil_ikx(i))      !note: convinfo must be set up so that this 
-                                            !is the same group element for all ob subtypes 
-                                            !of a given ob type 
+        ncgroup0=ncgroup(hil_ikx(i))      !note: convinfo must be set up so that this 
+                                          !is the same group element for all ob subtypes 
+                                          !of a given ob type 
 
-          if (test_set(i)==ncgroup0) then
+        if (test_set(i)==ncgroup0) then
 
-            usage=ncmiter(hil_ikx(i))
+           usage=ncmiter(hil_ikx(i))
 
-            if(tob)   cdata(ktob,hil_i(i))=usage
+           if(tob)   cdata(ktob,hil_i(i))=usage
 
-            if(uvob)  cdata(kuvob,hil_i(i))=usage
+           if(uvob)  cdata(kuvob,hil_i(i))=usage
 
-            if(spdob) cdata(kspdob,hil_i(i))=usage
+           if(spdob) cdata(kspdob,hil_i(i))=usage
 
-            if(psob)  cdata(kpsob,hil_i(i))=usage
+           if(psob)  cdata(kpsob,hil_i(i))=usage
 
-            if(qob)   cdata(kqob,hil_i(i))=usage
+           if(qob)   cdata(kqob,hil_i(i))=usage
 
-            if(pwob)  cdata(kpwob,hil_i(i))=usage
+           if(pwob)  cdata(kpwob,hil_i(i))=usage
 
-            if(sstob) cdata(ksstob,hil_i(i))=usage
+           if(sstob) cdata(ksstob,hil_i(i))=usage
 
-          endif
+        endif
 
-!         write(6,*) 'CHECK2:',i,test_set(i),ncgroup(hil_ikx(i)),ncross
-        end do
+!        write(6,*) 'CHECK2:',i,test_set(i),ncgroup(hil_ikx(i)),ncross
+     end do
 
-      endif
+  endif
 
 end subroutine apply_hilbertcurve
 
@@ -1898,6 +1897,7 @@ subroutine destroy_hilbertcurve
   if (ncross>izero) deallocate(test_set)
 
 end subroutine destroy_hilbertcurve
+
 end module hilbertcurve
 !************************************************************
 subroutine mkheader_madis_and_time_rejects(cobtype,lun)
@@ -1926,8 +1926,8 @@ subroutine mkheader_madis_and_time_rejects(cobtype,lun)
   use kinds, only: i_kind
   implicit none
 
-  character(10),intent(in)::cobtype
-  integer(i_kind),intent(in)::lun
+  character(10)  ,intent(in   ) :: cobtype
+  integer(i_kind),intent(in   ) :: lun
 
   character(96) cheader
 
@@ -1998,6 +1998,11 @@ subroutine get_stndewpt(p,q,t,td,lboundtd)
   use constants, only: one
   implicit none
 
+! Declare passed variables
+  real(r_kind),intent(in   ) :: p,q,t
+  real(r_kind),intent(  out) :: td
+  logical     ,intent(in   ) :: lboundtd
+
 ! Declare local parameters
   real(r_kind),parameter::eps=0.62197_r_kind    !=Rd/Rv
   real(r_kind),parameter::a=243.5_r_kind
@@ -2005,11 +2010,6 @@ subroutine get_stndewpt(p,q,t,td,lboundtd)
   real(r_kind),parameter::c=19.48_r_kind
   real(r_kind),parameter::c2k=273.15_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
-
-! Declare passed variables
-  real(r_kind),intent(in):: p,q,t
-  real(r_kind),intent(out):: td
-  logical,intent(in):: lboundtd
 
 ! Declare local variables
   real(r_kind)  e, qv, eln
@@ -2065,10 +2065,10 @@ end subroutine get_stndewpt
       implicit none
 
 !declare passed variables
-      integer(i_kind),intent(in):: ix,jx
-      real(r_single),intent(in)::rffcst(ix,jx)
-      real(r_single),intent(in)::xx,yy
-      real(r_single),intent(out):: rfobs
+      integer(i_kind),intent(in   ) :: ix,jx
+      real(r_single) ,intent(in   ) :: rffcst(ix,jx)
+      real(r_single) ,intent(in   ) :: xx,yy
+      real(r_single) ,intent(  out) :: rfobs
 
 !declare local variables
       integer(i_kind) i,j
@@ -2078,14 +2078,14 @@ end subroutine get_stndewpt
       j  = ifix(xx)
       if((i>=ione) .and. (i<=(ix-ione)) .and. &
          (j>=ione) .and. (j<=(jx-ione)) ) then
-        dx = xx - float(j)
-        dy = yy - float(i)
-        dxm= 1.0_r_single-dx
-        dym= 1.0_r_single-dy
-          rfobs=dxm*(dym*rffcst(i,j)+dy*rffcst(i+ione,j)) &
-                   + dx *(dym*rffcst(i,j+ione)+dy*rffcst(i+ione,j+ione))
+         dx = xx - float(j)
+         dy = yy - float(i)
+         dxm= 1.0_r_single-dx
+         dym= 1.0_r_single-dy
+         rfobs=dxm*(dym*rffcst(i,j)+dy*rffcst(i+ione,j)) &
+                  + dx *(dym*rffcst(i,j+ione)+dy*rffcst(i+ione,j+ione))
       else
-        rfobs=1.e+39_r_single
+         rfobs=1.e+39_r_single
       endif
 
       return

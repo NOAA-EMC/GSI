@@ -18,7 +18,7 @@ subroutine write_all(increment,mype)
 
   use gridmod, only: regional
 
-  use constants, only: zero, izero
+  use constants, only: izero, ione, zero
   
   use jfunc, only: biascor
   
@@ -39,8 +39,8 @@ subroutine write_all(increment,mype)
 
 ! !INPUT PARAMETERS:
 
-  logical,         intent(in) :: increment  ! when .t., write out w/ increment filenames
-  integer(i_kind), intent(in) :: mype       ! task number
+  logical        , intent(in   ) :: increment  ! when .t., write out w/ increment filenames
+  integer(i_kind), intent(in   ) :: mype       ! task number
 
 ! !OUTPUT PARAMETERS:
 
@@ -121,7 +121,7 @@ subroutine write_all(increment,mype)
 !    Write file bias correction     
      if(biascor >= zero)then
         filename='biascor_out'
-        mype_bias=npe-1
+        mype_bias=npe-ione
         call write_bias(filename,mype,mype_bias,nbc,&
              ges_z(1,1,ntguessig),bias_ps,bias_tskin,&
              bias_vor,bias_div,bias_u,bias_v,bias_tv,&

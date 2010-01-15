@@ -33,11 +33,13 @@ subroutine grdcrd(d,nd,x,nx,flg)
   use kinds, only: r_kind,i_kind
   use constants, only: ione,one
   implicit none
+
+  integer(i_kind)           ,intent(in   ) :: nd,nx
+  integer(i_kind)           ,intent(in   ) :: flg
+  real(r_kind),dimension(nd),intent(inout) :: d
+  real(r_kind),dimension(nx),intent(in   ) :: x
+
   integer(i_kind) id,ix,isrchf
-  integer(i_kind),intent(in):: nd,nx
-  integer(i_kind),intent(in):: flg
-  real(r_kind),dimension(nd),intent(inout):: d
-  real(r_kind),dimension(nx),intent(in):: x
 
 ! Treat "normal" case in which nx>1
   if(nx>ione) then
@@ -105,28 +107,29 @@ function isrchf(nx1,x,y,flg)
   use kinds, only: r_kind,i_kind
   use constants, only: izero,ione
   implicit none
-  integer(i_kind):: isrchf
-  integer(i_kind),intent(in):: nx1
-  integer(i_kind),intent(in):: flg
-  real(r_kind),intent(in):: y
-  real(r_kind),dimension(nx1),intent(in):: x
+
+  integer(i_kind)            ,intent(in   ) :: nx1
+  integer(i_kind)            ,intent(in   ) :: flg
+  real(r_kind)               ,intent(in   ) :: y
+  real(r_kind),dimension(nx1),intent(in   ) :: x
 
   integer(i_kind) k
+  integer(i_kind):: isrchf
 
   if(flg==ione) then
-    do k=1,nx1
-      if(y<=x(k)) then
-        isrchf=k
-        go to 100
-      end if
-    end do
+     do k=1,nx1
+        if(y<=x(k)) then
+           isrchf=k
+           go to 100
+        end if
+     end do
   else
-    do k=1,nx1
-      if(y>=x(k)) then
-         isrchf=k
-        go to 100
-      end if
-    end do
+     do k=1,nx1
+        if(y>=x(k)) then
+           isrchf=k
+           go to 100
+        end if
+     end do
   end if
 
   isrchf=nx1+ione

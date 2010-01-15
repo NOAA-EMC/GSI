@@ -74,7 +74,7 @@ subroutine init_ (str)
 !$$$ end documentation block
 
 implicit none
-character(len=*) str
+character(len=*),intent(in   ) :: str
 #ifdef GEOS_PERT
 call zeit_ci(str)
 #endif /* GEOS_PERT */
@@ -104,7 +104,7 @@ subroutine final_ (str)
 !$$$ end documentation block
 
 implicit none
-character(len=*) str
+character(len=*),intent(in   ) :: str
 #ifdef GEOS_PERT
 call zeit_co(str)
 #endif /* GEOS_PERT */
@@ -134,7 +134,7 @@ subroutine flush_ (lu)
 !$$$ end documentation block
 
 implicit none
-integer(i_kind) :: lu
+integer(i_kind),intent(in   ) :: lu
 #ifdef GEOS_PERT
 call zeit_flush(lu)
 #endif /* GEOS_PERT */

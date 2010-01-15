@@ -22,6 +22,8 @@ module smooth_polcarf
 !   sub setup_smooth_polcas
 !   sub smooth_polcas   - interpolate from x-y to lat-lon using smooth cascade interpolation.
 !   sub smooth_polcasa
+!   sub smooth_caspol
+!   sub smooth_polcasv
 !   sub bspline
 !
 ! Variable Definitions:
@@ -87,9 +89,11 @@ module smooth_polcarf
   public :: setup_smooth_polcas
   public :: smooth_polcas
   public :: smooth_polcasa
+  public :: smooth_caspol
+  public :: smooth_polcasv
   public :: bspline
 ! set passed variables to public
-  public :: smooth_caspol,smooth_polcasv,norsp
+  public :: norsp
 
   integer(i_kind) norsp
 
@@ -191,7 +195,7 @@ contains
 
 !              define lat-lon grid lats in polar stereographic units (distance from pole)
   do i=1,nr
-    rs(i)=cos(rlats(nlat-i))/(one+sin(rlats(nlat-i)))
+     rs(i)=cos(rlats(nlat-i))/(one+sin(rlats(nlat-i)))
   end do
   rs(0)=zero
   pi2=two*pi
@@ -208,87 +212,87 @@ contains
   nxgrid=2*nf+ione
   nygrid=2*nf+ione
   do i=-nf,nf
-    xgrid(i)=df*i
-    ygrid(i)=xgrid(i)
+     xgrid(i)=df*i
+     ygrid(i)=xgrid(i)
   end do
 
   allocate(xwtxys(0:norsp,nlon,0:nr),ywtxys(0:norsp,nlon,0:nr))
   allocate(ixwtxys(0:norsp,nlon,0:nr),iywtxys(0:norsp,nlon,0:nr))
   allocate(nxwtxys(nlon,0:nr),nywtxys(nlon,0:nr))
   do j=1,nlon
-    clon(j)=cos((j-one)*dlon)
-    slon(j)=sin((j-one)*dlon)
+     clon(j)=cos((j-ione)*dlon)
+     slon(j)=sin((j-ione)*dlon)
   end do
   do i=0,nr
-    do j=1,nlon
+     do j=1,nlon
 !----------------------------x coordinate first
-      xin=rs(i)*clon(j)
-      ieven1=nint(xin/df)
-      iodd1=int(xin/df)
-      if(xin<zero) iodd1=iodd1-ione
-      nord_oddmax1=min(2*(iodd1+nf)+ione,2*(nf-iodd1-ione)+ione)
-      nord_evenmax1=2*min(ieven1+nf,nf-ieven1)
-      iord1=min(norsp,nord_oddmax1,nord_evenmax1)
-      if(iord1<=izero) then
-        nor1=izero ; wgt1(0)=one ; iwgt1(0)=min(nf,max(-nf,nint(xin/df)))
-      end if
-      if(iord1>izero.and.mod(iord1,2)==izero) then
-        tin=half+(xin-xgrid(ieven1))/df
-        call bspline(tin,iord1+ione,wgt1)
-        nor1=iord1
-        do ii=-iord1/2,iord1/2
-          iwgt1(ii+iord1/2)=ieven1+ii
-        end do
-      end if
-      if(iord1>izero.and.mod(iord1,2)/=izero) then
-        tin=(xin-xgrid(iodd1))/df
-        call bspline(tin,iord1+ione,wgt1)
-        nor1=iord1
-        do ii=-(iord1-ione)/2,ione+(iord1-ione)/2
-          iwgt1(ii+(iord1-ione)/2)=iodd1+ii
-        end do
-      end if
+        xin=rs(i)*clon(j)
+        ieven1=nint(xin/df)
+        iodd1=int(xin/df)
+        if(xin<zero) iodd1=iodd1-ione
+        nord_oddmax1=min(2*(iodd1+nf)+ione,2*(nf-iodd1-ione)+ione)
+        nord_evenmax1=2*min(ieven1+nf,nf-ieven1)
+        iord1=min(norsp,nord_oddmax1,nord_evenmax1)
+        if(iord1<=izero) then
+           nor1=izero ; wgt1(0)=one ; iwgt1(0)=min(nf,max(-nf,nint(xin/df)))
+        end if
+        if(iord1>izero.and.mod(iord1,2_i_kind)==izero) then
+           tin=half+(xin-xgrid(ieven1))/df
+           call bspline(tin,iord1+ione,wgt1)
+           nor1=iord1
+           do ii=-iord1/2,iord1/2
+              iwgt1(ii+iord1/2)=ieven1+ii
+           end do
+        end if
+        if(iord1>izero.and.mod(iord1,2_i_kind)/=izero) then
+           tin=(xin-xgrid(iodd1))/df
+           call bspline(tin,iord1+ione,wgt1)
+           nor1=iord1
+           do ii=-(iord1-ione)/2,ione+(iord1-ione)/2
+              iwgt1(ii+(iord1-ione)/2)=iodd1+ii
+           end do
+        end if
 
 !----------------------------y coordinate next
-      yin=rs(i)*slon(j)
-      ieven2=nint(yin/df)
-      iodd2=int(yin/df)
-      if(yin<zero) iodd2=iodd2-ione
-      nord_oddmax2=min(2*(iodd2+nf)+ione,2*(nf-iodd2-ione)+ione)
-      nord_evenmax2=2*min(ieven2+nf,nf-ieven2)
-      iord2=min(norsp,nord_oddmax2,nord_evenmax2)
-      if(iord2<=izero) then
-        nor2=izero ; wgt2(0)=one ; iwgt2(0)=min(nf,max(-nf,nint(yin/df)))
-      end if
-      if(iord2>izero.and.mod(iord2,2)==izero) then
-        tin=half+(yin-ygrid(ieven2))/df
-        call bspline(tin,iord2+ione,wgt2)
-        nor2=iord2
-        do ii=-iord2/2,iord2/2
-          iwgt2(ii+iord2/2)=ieven2+ii
-        end do
-      end if
-      if(iord2>izero.and.mod(iord2,2)/=izero) then
-        tin=(yin-ygrid(iodd2))/df
-        call bspline(tin,iord2+ione,wgt2)
-        nor2=iord2
-        do ii=-(iord2-ione)/2,ione+(iord2-ione)/2
-          iwgt2(ii+(iord2-ione)/2)=iodd2+ii
-        end do
-      end if
+        yin=rs(i)*slon(j)
+        ieven2=nint(yin/df)
+        iodd2=int(yin/df)
+        if(yin<zero) iodd2=iodd2-ione
+        nord_oddmax2=min(2*(iodd2+nf)+ione,2*(nf-iodd2-ione)+ione)
+        nord_evenmax2=2*min(ieven2+nf,nf-ieven2)
+        iord2=min(norsp,nord_oddmax2,nord_evenmax2)
+        if(iord2<=izero) then
+           nor2=izero ; wgt2(0)=one ; iwgt2(0)=min(nf,max(-nf,nint(yin/df)))
+        end if
+        if(iord2>izero.and.mod(iord2,2_i_kind)==izero) then
+           tin=half+(yin-ygrid(ieven2))/df
+           call bspline(tin,iord2+ione,wgt2)
+           nor2=iord2
+           do ii=-iord2/2,iord2/2
+              iwgt2(ii+iord2/2)=ieven2+ii
+           end do
+        end if
+        if(iord2>izero.and.mod(iord2,2_i_kind)/=izero) then
+           tin=(yin-ygrid(iodd2))/df
+           call bspline(tin,iord2+ione,wgt2)
+           nor2=iord2
+           do ii=-(iord2-ione)/2,ione+(iord2-ione)/2
+              iwgt2(ii+(iord2-ione)/2)=iodd2+ii
+           end do
+        end if
 !---------------------------now consolidate and get final weights, addresses for this point
 
-      nxwtxys(j,i)=nor1
-      nywtxys(j,i)=nor2
-      do jj=0,nor2
-        iywtxys(jj,j,i)=iwgt2(jj)
-        ywtxys(jj,j,i)=wgt2(jj)
-      end do
-      do ii=0,nor1
-        ixwtxys(ii,j,i)=iwgt1(ii)
-        xwtxys(ii,j,i)=wgt1(ii)
-      end do
-    end do
+        nxwtxys(j,i)=nor1
+        nywtxys(j,i)=nor2
+        do jj=0,nor2
+           iywtxys(jj,j,i)=iwgt2(jj)
+           ywtxys(jj,j,i)=wgt2(jj)
+        end do
+        do ii=0,nor1
+           ixwtxys(ii,j,i)=iwgt1(ii)
+           xwtxys(ii,j,i)=wgt1(ii)
+        end do
+     end do
   end do
 
   end subroutine setup_smooth_polcas
@@ -324,8 +328,8 @@ contains
   use gridmod, only: nlon
   implicit none
 
-  real(r_kind),intent(in),dimension(-nf:nf,-nf:nf):: fxy
-  real(r_kind),intent(out),dimension(nlon+ione,0:nr):: hlatlon
+  real(r_kind),dimension(-nf:nf,-nf:nf) ,intent(in   ) :: fxy
+  real(r_kind),dimension(nlon+ione,0:nr),intent(  out) :: hlatlon
 
 ! Declare local arrays variables:
   integer(i_kind) i,ii,j,jj,jjj
@@ -333,19 +337,19 @@ contains
 
 !$omp parallel private (i,j,jj,ii,sum,ywgt,jjj,xywgt)
   do i=0,nr
-   hlatlon(nlon+ione,i)=zero
-    do j=1,nlon
-      sum=zero
-      do jj=0,nywtxys(j,i)
-        ywgt=ywtxys(jj,j,i)
-        jjj=iywtxys(jj,j,i)
-        do ii=0,nxwtxys(j,i)
-          xywgt=ywgt*xwtxys(ii,j,i)
-          sum=sum+xywgt*fxy(ixwtxys(ii,j,i),jjj)
+     hlatlon(nlon+ione,i)=zero
+     do j=1,nlon
+        sum=zero
+        do jj=0,nywtxys(j,i)
+           ywgt=ywtxys(jj,j,i)
+           jjj=iywtxys(jj,j,i)
+           do ii=0,nxwtxys(j,i)
+              xywgt=ywgt*xwtxys(ii,j,i)
+              sum=sum+xywgt*fxy(ixwtxys(ii,j,i),jjj)
+           end do
         end do
-      end do
-      hlatlon(j,i)=sum
-    end do
+        hlatlon(j,i)=sum
+     end do
   end do
 !$omp end parallel
   end subroutine smooth_polcas
@@ -378,8 +382,8 @@ contains
   use gridmod, only: nlon
   implicit none
 
-  real(r_kind),intent(out),dimension(-nf:nf,-nf:nf):: fxy
-  real(r_kind),intent(in),dimension(nlon+ione,0:nr):: hlatlon
+  real(r_kind),dimension(-nf:nf,-nf:nf) ,intent(  out) :: fxy
+  real(r_kind),dimension(nlon+ione,0:nr),intent(in   ) :: hlatlon
 
 ! Declare local arrays variables:
   integer(i_kind) i,ii,j,jj,jjj
@@ -388,17 +392,17 @@ contains
 
   fxy=zero
   do i=0,nr
-    do j=1,nlon
-      sum=hlatlon(j,i)
-      do jj=0,nywtxys(j,i)
-        ywgt=ywtxys(jj,j,i)
-        jjj=iywtxys(jj,j,i)
-        do ii=0,nxwtxys(j,i)
-          xywgt=ywgt*xwtxys(ii,j,i)
-          fxy(ixwtxys(ii,j,i),jjj)=fxy(ixwtxys(ii,j,i),jjj)+sum*xywgt
+     do j=1,nlon
+        sum=hlatlon(j,i)
+        do jj=0,nywtxys(j,i)
+           ywgt=ywtxys(jj,j,i)
+           jjj=iywtxys(jj,j,i)
+           do ii=0,nxwtxys(j,i)
+              xywgt=ywgt*xwtxys(ii,j,i)
+              fxy(ixwtxys(ii,j,i),jjj)=fxy(ixwtxys(ii,j,i),jjj)+sum*xywgt
+           end do
         end do
-      end do
-    end do
+     end do
   end do
   end subroutine smooth_polcasa
 
@@ -429,8 +433,8 @@ subroutine smooth_caspol(fxy,hlatlon)
   use gridmod, only: nlon
   implicit none
 
-  real(r_kind),intent(out),dimension(-nf:nf,-nf:nf):: fxy
-  real(r_kind),intent(in),dimension(nlon+ione,0:nr):: hlatlon
+  real(r_kind),dimension(-nf:nf,-nf:nf) ,intent(  out) :: fxy
+  real(r_kind),dimension(nlon+ione,0:nr),intent(in   ) :: hlatlon
 
 ! Declare local arrays variables:
   integer(i_kind) i,ii,j,jj,i0,j0
@@ -439,15 +443,15 @@ subroutine smooth_caspol(fxy,hlatlon)
   rwgt=zero
 
   do i=0,nr
-  do j=1,nlon
-    do jj=0,nywtxys(j,i)
-      j0=iywtxys(jj,j,i)
-      do ii=0,nxwtxys(j,i)
-        i0=ixwtxys(ii,j,i)
-        rwgt(i0,j0)=rwgt(i0,j0)+ywtxys(jj,j,i)*xwtxys(ii,j,i)
-      end do
-    end do
-  end do
+     do j=1,nlon
+        do jj=0,nywtxys(j,i)
+           j0=iywtxys(jj,j,i)
+           do ii=0,nxwtxys(j,i)
+              i0=ixwtxys(ii,j,i)
+              rwgt(i0,j0)=rwgt(i0,j0)+ywtxys(jj,j,i)*xwtxys(ii,j,i)
+           end do
+        end do
+     end do
   end do
   call smooth_polcasa(fxy,hlatlon)
   where(rwgt>zero) fxy=fxy/rwgt
@@ -482,8 +486,8 @@ end subroutine smooth_caspol
   use gridmod, only: nlon
   implicit none
 
-  real(r_kind),intent(in),dimension(-nf:nf,-nf:nf):: fxy
-  real(r_kind),intent(out),dimension(nlon+ione,0:nr):: hlatlon
+  real(r_kind),dimension(-nf:nf,-nf:nf) ,intent(in   ) :: fxy
+  real(r_kind),dimension(nlon+ione,0:nr),intent(  out) :: hlatlon
 
 ! Declare local arrays variables:
   integer(i_kind) i,ii,j,jj,jjj
@@ -491,24 +495,24 @@ end subroutine smooth_caspol
 
   hlatlon=zero
   do i=0,nr
-    do j=1,nlon
-      sumwgt=zero
-      sum=zero
-      do jj=0,nywtxys(j,i)
-        ywgt=ywtxys(jj,j,i)
-        jjj=iywtxys(jj,j,i)
-        do ii=0,nxwtxys(j,i)
-          xywgt=ywgt*xwtxys(ii,j,i)
-          sum=sum+xywgt*fxy(ixwtxys(ii,j,i),jjj)
-          sumwgt=sumwgt+xywgt
+     do j=1,nlon
+        sumwgt=zero
+        sum=zero
+        do jj=0,nywtxys(j,i)
+           ywgt=ywtxys(jj,j,i)
+           jjj=iywtxys(jj,j,i)
+           do ii=0,nxwtxys(j,i)
+              xywgt=ywgt*xwtxys(ii,j,i)
+              sum=sum+xywgt*fxy(ixwtxys(ii,j,i),jjj)
+              sumwgt=sumwgt+xywgt
+           end do
         end do
-      end do
-      if(sumwgt>zero) then
-        hlatlon(j,i)=sum/sumwgt
-      else
-        hlatlon(j,i)=sum
-      end if
-    end do
+        if(sumwgt>zero) then
+           hlatlon(j,i)=sum/sumwgt
+        else
+           hlatlon(j,i)=sum
+        end if
+     end do
   end do
   end subroutine smooth_polcasv
 
@@ -543,30 +547,30 @@ subroutine bspline(tin,k,wout)
   use constants, only: ione,zero,one
   implicit none
 
-  integer(i_kind),intent(in):: k
-  real(r_kind),intent(in)   :: tin
+  integer(i_kind),intent(in   ) :: k
+  real(r_kind)   ,intent(in   ) :: tin
 
-  real(r_kind),intent(out)  :: wout(0:k-ione)
+  real(r_kind)   ,intent(  out) :: wout(0:k-ione)
 
   integer(i_kind) i,m
   real(r_kind) t,w(0:k),rmi(k)
 
   do m=1,k
-    rmi(m)=one/m
+     rmi(m)=one/m
   end do
   t=tin+k-ione
   w=zero
   w(k-ione)=one
   if(k>ione) then
-    do m=2,k
-      do i=0,k-ione
-        w(i)=w(i)*(t-i)*rmi(m-ione) + w(i+ione)*(i+m-t)*rmi(m-ione)
-      end do
-    end do
+     do m=2,k
+        do i=0,k-ione
+           w(i)=w(i)*(t-i)*rmi(m-ione) + w(i+ione)*(i+m-t)*rmi(m-ione)
+        end do
+     end do
   end if
 
   do i=0,k-ione
-    wout(i)=w(i)
+     wout(i)=w(i)
   end do
 
 end subroutine bspline

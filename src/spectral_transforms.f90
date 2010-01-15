@@ -25,29 +25,29 @@ subroutine g2s0(spectral_out,grid_in)
 
   use specmod, only: nc,factsml
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: nlat,nlon
   implicit none
 
-  real(r_kind),intent(out)::spectral_out(nc)
-  real(r_kind),intent(in)::grid_in(nlat,nlon)
+  real(r_kind),intent(  out) :: spectral_out(nc)
+  real(r_kind),intent(in   ) :: grid_in(nlat,nlon)
 
-  real(r_kind) work(nlon,nlat-2),spec_work(nc)
+  real(r_kind) work(nlon,nlat-2_i_kind),spec_work(nc)
   integer(i_kind) i,j,jj
 
 !  Transfer contents of input grid to local work array
 !  Reverse ordering in j direction from n-->s to s-->n
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      work(i,jj)=grid_in(j,i)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        work(i,jj)=grid_in(j,i)
+     end do
   end do
-  call sptez_s(spec_work,work,-1)
+  call sptez_s(spec_work,work,-ione)
 
   do i=1,nc
-    spectral_out(i)=spec_work(i)
-    if(factsml(i))spectral_out(i)=zero
+     spectral_out(i)=spec_work(i)
+     if(factsml(i))spectral_out(i)=zero
   end do
  
   return
@@ -81,57 +81,57 @@ subroutine g2s0_ad(spectral_in,grid_out)
 
   use specmod, only: jcap,nc,factsml,wlat,jb,je
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,half,two
+  use constants, only: izero,ione,zero,half,two
   use gridmod, only: nlat,nlon
   implicit none
 
-  real(r_kind),intent(in)::spectral_in(nc)
-  real(r_kind),intent(out)::grid_out(nlat,nlon)
+  real(r_kind),intent(in   ) :: spectral_in(nc)
+  real(r_kind),intent(  out) :: grid_out(nlat,nlon)
 
-  real(r_kind) work(nlon,nlat-2),spec_work(nc)
+  real(r_kind) work(nlon,nlat-2_i_kind),spec_work(nc)
   integer(i_kind) i,j,jj
 
   do i=1,nc
-    spec_work(i)=spectral_in(i)/float(nlon)
-    if(factsml(i))spec_work(i)=zero
+     spec_work(i)=spectral_in(i)/float(nlon)
+     if(factsml(i))spec_work(i)=zero
   end do
-  do i=2*jcap+3,nc
-    spec_work(i)=half*spec_work(i)
+  do i=2*jcap+3_i_kind,nc
+     spec_work(i)=half*spec_work(i)
   end do
  
-  call sptez_s(spec_work,work,1)
+  call sptez_s(spec_work,work,ione)
 
 !
 ! If nlat odd, then j=je is the equator.  The factor of 2 is because, 
 ! je is referenced only once, not twice as in the spectral transform 
 ! routines where half of the equator is considered in each hemisphere,
 ! separately. 
-  do j=jb,je-mod(nlat,2)
-    do i=1,nlon
-      work(i,j)=work(i,j)*wlat(j)
-      work(i,nlat-1-j)=work(i,nlat-1-j)*wlat(j)
-    end do
+  do j=jb,je-mod(nlat,2_i_kind)
+     do i=1,nlon
+        work(i,j)=work(i,j)*wlat(j)
+        work(i,nlat-ione-j)=work(i,nlat-ione-j)*wlat(j)
+     end do
   end do
   
-  if (mod(nlat,2) .ne. 0) then
-    do i=1,nlon
-      work(i,je)=work(i,je)*two*wlat(je)
-    end do
+  if (mod(nlat,2_i_kind) /= izero) then
+     do i=1,nlon
+        work(i,je)=work(i,je)*two*wlat(je)
+     end do
   endif
 
 !  Transfer contents of output grid to local work array
 !  Reverse ordering in j direction from n-->s to s-->n
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      grid_out(j,i)=work(i,jj)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        grid_out(j,i)=work(i,jj)
+     end do
   end do
 
 !  Load zero into pole points
   do i=1,nlon
-    grid_out(1,i)   =zero
-    grid_out(nlat,i)=zero
+     grid_out(1,i)   =zero
+     grid_out(nlat,i)=zero
   end do
 
   return
@@ -165,30 +165,30 @@ subroutine s2g0(spectral_in,grid_out)
 
   use specmod, only: nc,factsml
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: nlat,nlon
   implicit none
 
-  real(r_kind),intent(in)::spectral_in(nc)
-  real(r_kind),intent(out)::grid_out(nlat,nlon)
+  real(r_kind),intent(in   ) :: spectral_in(nc)
+  real(r_kind),intent(  out) :: grid_out(nlat,nlon)
 
-  real(r_kind) work(nlon,nlat-2),spec_work(nc)
+  real(r_kind) work(nlon,nlat-2_i_kind),spec_work(nc)
   integer(i_kind) i,j,jj
 
   do i=1,nc
-    spec_work(i)=spectral_in(i)
-    if(factsml(i))spec_work(i)=zero
+     spec_work(i)=spectral_in(i)
+     if(factsml(i))spec_work(i)=zero
   end do
  
-  call sptez_s(spec_work,work,1)
+  call sptez_s(spec_work,work,ione)
 
 !  Reverse ordering in j direction from n-->s to s-->n
 !  And account for work array excluding pole points
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      grid_out(j,i)=work(i,jj)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        grid_out(j,i)=work(i,jj)
+     end do
   end do
 
 !  fill in pole points using spectral coefficients
@@ -226,53 +226,53 @@ subroutine s2g0_ad(spectral_out,grid_in)
 
   use specmod, only: jcap,nc,factsml,wlat,jb,je
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,two
+  use constants, only: izero,ione,zero,two
   use gridmod, only: nlat,nlon
   implicit none
 
-  real(r_kind),intent(out)::spectral_out(nc)
-  real(r_kind),intent(in)::grid_in(nlat,nlon)
+  real(r_kind),intent(  out) :: spectral_out(nc)
+  real(r_kind),intent(in   ) :: grid_in(nlat,nlon)
 
-  real(r_kind) work(nlon,nlat-2),spec_work(nc)
+  real(r_kind) work(nlon,nlat-2_i_kind),spec_work(nc)
   integer(i_kind) i,j,jj
 
 
 !  Reverse ordering in j direction from n-->s to s-->n
 !  And account for work array excluding pole points
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      work(i,jj)=grid_in(j,i)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        work(i,jj)=grid_in(j,i)
+     end do
   end do
 
-  do j=jb,je-mod(nlat,2)
-    do i=1,nlon
-      work(i,j)=work(i,j)/wlat(j)
-      work(i,nlat-1-j)=work(i,nlat-1-j)/wlat(j)
-    end do
+  do j=jb,je-mod(nlat,2_i_kind)
+     do i=1,nlon
+        work(i,j)=work(i,j)/wlat(j)
+        work(i,nlat-ione-j)=work(i,nlat-ione-j)/wlat(j)
+     end do
   end do
 
-  if (mod(nlat,2) .ne. 0) then
-    do i=1,nlon
-      work(i,je)=work(i,je)/(two*wlat(je))
-    end do
+  if (mod(nlat,2_i_kind) /= izero) then
+     do i=1,nlon
+        work(i,je)=work(i,je)/(two*wlat(je))
+     end do
   endif
 
-  call sptez_s(spec_work,work,-1)
+  call sptez_s(spec_work,work,-ione)
 
   do i=1,nc
-    spec_work(i)=spec_work(i)*float(nlon)
+     spec_work(i)=spec_work(i)*float(nlon)
   end do
-  do i=2*jcap+3,nc
-    spec_work(i)=two*spec_work(i)
+  do i=2*jcap+3_i_kind,nc
+     spec_work(i)=two*spec_work(i)
   end do
 
   call spectra_pole_scalar_ad (grid_in,spec_work)
 
   do i=1,nc
-    spectral_out(i)=spec_work(i)
-    if(factsml(i))spectral_out(i)=zero
+     spectral_out(i)=spec_work(i)
+     if(factsml(i))spectral_out(i)=zero
   end do
 
   return
@@ -308,38 +308,38 @@ subroutine uvg2zds(zsp,dsp,ugrd,vgrd)
 
   use specmod, only: nc,factvml
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: nlat,nlon
   implicit none
 
 ! Passed variables
-  real(r_kind),dimension(nlat,nlon),intent(in) :: ugrd,vgrd
-  real(r_kind),dimension(nc),intent(out) :: zsp,dsp
+  real(r_kind),dimension(nlat,nlon),intent(in   ) :: ugrd,vgrd
+  real(r_kind),dimension(nc)       ,intent(  out) :: zsp,dsp
 
 ! Local variables
-  real(r_kind),dimension(nlon,nlat-2):: grdwrk1,grdwrk2 
+  real(r_kind),dimension(nlon,nlat-2_i_kind):: grdwrk1,grdwrk2 
   real(r_kind),dimension(nc):: spcwrk1,spcwrk2
   integer(i_kind) i,j,jj
 
 ! Transfer contents of input grid to local work array
 ! Reverse ordering in j direction from n-->s to s-->n
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      grdwrk1(i,jj)=ugrd(j,i)
-      grdwrk2(i,jj)=vgrd(j,i)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        grdwrk1(i,jj)=ugrd(j,i)
+        grdwrk2(i,jj)=vgrd(j,i)
+     end do
   end do
 
-  call sptez_v(spcwrk1,spcwrk2,grdwrk1,grdwrk2,-1)
+  call sptez_v(spcwrk1,spcwrk2,grdwrk1,grdwrk2,-ione)
 
   do i=1,nc
-    zsp(i)=spcwrk2(i)
-    dsp(i)=spcwrk1(i)
-    if(factvml(i))then
-       zsp(i)=zero
-       dsp(i)=zero
-    end if
+     zsp(i)=spcwrk2(i)
+     dsp(i)=spcwrk1(i)
+     if(factvml(i))then
+        zsp(i)=zero
+        dsp(i)=zero
+     end if
   end do
 
   return
@@ -377,74 +377,74 @@ subroutine uvg2zds_ad(zsp,dsp,ugrd,vgrd)
 
   use specmod, only: nc,factvml,wlat,jb,je,jcap,ncd2,enn1
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,half,two
+  use constants, only: izero,ione,zero,half,two
   use gridmod, only: nlat,nlon
   implicit none
 
 ! Passed variables
   real(r_kind),dimension(nlat,nlon),intent(inout) :: ugrd,vgrd
-  real(r_kind),dimension(nc),intent(in) :: zsp,dsp
+  real(r_kind),dimension(nc)       ,intent(in   ) :: zsp,dsp
 
 ! Local variables
-  real(r_kind),dimension(nlon,nlat-2):: grdwrk1,grdwrk2
+  real(r_kind),dimension(nlon,nlat-2_i_kind):: grdwrk1,grdwrk2
   real(r_kind),dimension(nc):: spcwrk1,spcwrk2
   integer(i_kind) i,j,jj
 
   do i=1,nc
-    spcwrk1(i)=dsp(i)/float(nlon)
-    spcwrk2(i)=zsp(i)/float(nlon)
-    if(factvml(i))then
-      spcwrk1(i)=zero
-      spcwrk2(i)=zero
-    end if
+     spcwrk1(i)=dsp(i)/float(nlon)
+     spcwrk2(i)=zsp(i)/float(nlon)
+     if(factvml(i))then
+        spcwrk1(i)=zero
+        spcwrk2(i)=zero
+     end if
   end do
 
-  do i=2*jcap+3,nc
+  do i=2*jcap+3_i_kind,nc
      spcwrk1(i)=half*spcwrk1(i)
      spcwrk2(i)=half*spcwrk2(i)
   end do
 
   do i=2,ncd2
-     spcwrk1(2*i-1)=spcwrk1(2*i-1)*enn1(i)
-     spcwrk1(2*i)=spcwrk1(2*i)*enn1(i)
-     spcwrk2(2*i-1)=spcwrk2(2*i-1)*enn1(i)
-     spcwrk2(2*i)=spcwrk2(2*i)*enn1(i)
+     spcwrk1(2*i-ione)=spcwrk1(2*i-ione)*enn1(i)
+     spcwrk1(2*i     )=spcwrk1(2*i     )*enn1(i)
+     spcwrk2(2*i-ione)=spcwrk2(2*i-ione)*enn1(i)
+     spcwrk2(2*i     )=spcwrk2(2*i     )*enn1(i)
   end do
 
-  call sptez_v(spcwrk1,spcwrk2,grdwrk1,grdwrk2,1)
+  call sptez_v(spcwrk1,spcwrk2,grdwrk1,grdwrk2,ione)
 
-  do j=jb,je-mod(nlat,2)
-    do i=1,nlon
-      grdwrk1(i,j)=grdwrk1(i,j)*wlat(j)
-      grdwrk1(i,nlat-1-j)=grdwrk1(i,nlat-1-j)*wlat(j)
-      grdwrk2(i,j)=grdwrk2(i,j)*wlat(j)
-      grdwrk2(i,nlat-1-j)=grdwrk2(i,nlat-1-j)*wlat(j)
-    end do
+  do j=jb,je-mod(nlat,2_i_kind)
+     do i=1,nlon
+        grdwrk1(i,j)=grdwrk1(i,j)*wlat(j)
+        grdwrk1(i,nlat-ione-j)=grdwrk1(i,nlat-ione-j)*wlat(j)
+        grdwrk2(i,j)=grdwrk2(i,j)*wlat(j)
+        grdwrk2(i,nlat-ione-j)=grdwrk2(i,nlat-ione-j)*wlat(j)
+     end do
   end do
 
-  if (mod(nlat,2) .ne. 0) then
-    do i=1,nlon
-      grdwrk1(i,je)=grdwrk1(i,je)*two*wlat(je)
-      grdwrk2(i,je)=grdwrk2(i,je)*two*wlat(je)
-    end do
+  if (mod(nlat,2_i_kind) /= izero) then
+     do i=1,nlon
+        grdwrk1(i,je)=grdwrk1(i,je)*two*wlat(je)
+        grdwrk2(i,je)=grdwrk2(i,je)*two*wlat(je)
+     end do
   endif 
 
 
 ! Transfer contents of input grid to local work array
 ! Reverse ordering in j direction from n-->s to s-->n
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      ugrd(j,i)=grdwrk1(i,jj)
-      vgrd(j,i)=grdwrk2(i,jj)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        ugrd(j,i)=grdwrk1(i,jj)
+        vgrd(j,i)=grdwrk2(i,jj)
+     end do
   end do
 
   do i=1,nlon
-    ugrd(1,i)    = zero
-    ugrd(nlat,i) = zero
-    vgrd(1,i)    = zero
-    vgrd(nlat,i) = zero
+     ugrd(1,i)    = zero
+     ugrd(nlat,i) = zero
+     vgrd(1,i)    = zero
+     vgrd(nlat,i) = zero
   end do
 
   return
@@ -478,13 +478,13 @@ subroutine zds2pcg(zsp,dsp,pgrd,cgrd)
 
   use specmod, only: nc,ncd2,enn1
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: nlat,nlon
   implicit none
 
 ! Passed variables
-  real(r_kind),dimension(nc),intent(in):: zsp,dsp
-  real(r_kind),dimension(nlat,nlon),intent(out) :: pgrd,cgrd
+  real(r_kind),dimension(nc)       ,intent(in   ) :: zsp,dsp
+  real(r_kind),dimension(nlat,nlon),intent(  out) :: pgrd,cgrd
 
 ! Local variables
   real(r_kind),dimension(nc):: spc1,spc2
@@ -496,16 +496,17 @@ subroutine zds2pcg(zsp,dsp,pgrd,cgrd)
   spc2(1)=zero
   spc2(2)=zero
   do i=2,ncd2
-    spc1(2*i-1)=zsp(2*i-1)/(-enn1(i))
-    spc1(2*i)=zsp(2*i)/(-enn1(i))
-    spc2(2*i-1)=dsp(2*i-1)/(-enn1(i))
-    spc2(2*i)=dsp(2*i)/(-enn1(i))
+     spc1(2*i-ione)=zsp(2*i-ione)/(-enn1(i))
+     spc1(2*i     )=zsp(2*i     )/(-enn1(i))
+     spc2(2*i-ione)=dsp(2*i-ione)/(-enn1(i))
+     spc2(2*i     )=dsp(2*i     )/(-enn1(i))
   end do
   call s2g0(spc1,pgrd)
   call s2g0(spc2,cgrd)
 
   return
 end subroutine zds2pcg
+
 subroutine zds2pcg_ad(zsp,dsp,pgrd,cgrd)
 
 !$$$  subprogram documentation block
@@ -534,12 +535,12 @@ subroutine zds2pcg_ad(zsp,dsp,pgrd,cgrd)
 
   use specmod, only: nc,ncd2,enn1
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: nlat,nlon
   implicit none
 
 ! Passed variables
-  real(r_kind),dimension(nc),intent(out):: zsp,dsp
+  real(r_kind),dimension(nc)       ,intent(  out) :: zsp,dsp
   real(r_kind),dimension(nlat,nlon),intent(inout) :: pgrd,cgrd
 
 ! Local variables
@@ -549,17 +550,17 @@ subroutine zds2pcg_ad(zsp,dsp,pgrd,cgrd)
 ! Inverse laplacian
   call s2g0_ad(spc1,pgrd)
   call s2g0_ad(spc2,cgrd)
-  pgrd=0
-  cgrd=0
+  pgrd=zero
+  cgrd=zero
   spc1(1)=zero
   spc1(2)=zero
   spc2(1)=zero
   spc2(2)=zero
   do i=2,ncd2
-    zsp(2*i-1)=spc1(2*i-1)/(-enn1(i))
-    zsp(2*i)=spc1(2*i)/(-enn1(i))
-    dsp(2*i-1)=spc2(2*i-1)/(-enn1(i))
-    dsp(2*i)=spc2(2*i)/(-enn1(i))
+     zsp(2*i-ione)=spc1(2*i-ione)/(-enn1(i))
+     zsp(2*i     )=spc1(2*i     )/(-enn1(i))
+     dsp(2*i-ione)=spc2(2*i-ione)/(-enn1(i))
+     dsp(2*i     )=spc2(2*i     )/(-enn1(i))
   end do
 
   return
@@ -594,38 +595,38 @@ subroutine zds2uvg(zsp,dsp,ugrd,vgrd)
 
   use specmod, only: nc,factvml
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: nlat,nlon
   implicit none
 
 ! Passed variables
-  real(r_kind),dimension(nc),intent(in):: zsp,dsp
-  real(r_kind),dimension(nlat,nlon),intent(out) :: ugrd,vgrd
+  real(r_kind),dimension(nc)       ,intent(in   ) :: zsp,dsp
+  real(r_kind),dimension(nlat,nlon),intent(  out) :: ugrd,vgrd
 
 ! Local variables
-  real(r_kind),dimension(nlon,nlat-2):: grdwrk1,grdwrk2
+  real(r_kind),dimension(nlon,nlat-2_i_kind):: grdwrk1,grdwrk2
   real(r_kind),dimension(nc):: spcwrk1,spcwrk2
   integer(i_kind) i,j,jj
 
   do i=1,nc
-    spcwrk1(i)=dsp(i)
-    spcwrk2(i)=zsp(i)
-    if(factvml(i))then
-      spcwrk1(i)=zero
-      spcwrk2(i)=zero
-    end if
+     spcwrk1(i)=dsp(i)
+     spcwrk2(i)=zsp(i)
+     if(factvml(i))then
+        spcwrk1(i)=zero
+        spcwrk2(i)=zero
+     end if
   end do
 
-  call sptez_v(spcwrk1,spcwrk2,grdwrk1,grdwrk2,1)
+  call sptez_v(spcwrk1,spcwrk2,grdwrk1,grdwrk2,ione)
 
 ! Reverse ordering in j direction from n-->s to s-->n
 ! and copy to array that includes pole points
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      ugrd(j,i)=grdwrk1(i,jj)
-      vgrd(j,i)=grdwrk2(i,jj)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        ugrd(j,i)=grdwrk1(i,jj)
+        vgrd(j,i)=grdwrk2(i,jj)
+     end do
   end do
 
 !  fill in pole points
@@ -669,52 +670,52 @@ subroutine zds2uvg_ad(zsp,dsp,ugrd,vgrd)
 
   use specmod, only: nc,factvml,wlat,jb,je,jcap,ncd2,enn1
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,two
+  use constants, only: izero,ione,zero,two
   use gridmod, only: nlat,nlon
   implicit none
 
 ! Passed variables
-  real(r_kind),dimension(nlat,nlon),intent(in) :: ugrd,vgrd
-  real(r_kind),dimension(nc),intent(inout) :: zsp,dsp
+  real(r_kind),dimension(nlat,nlon),intent(in   ) :: ugrd,vgrd
+  real(r_kind),dimension(nc)       ,intent(inout) :: zsp,dsp
 
 ! Local variables
-  real(r_kind),dimension(nlon,nlat-2):: grdwrk1,grdwrk2
+  real(r_kind),dimension(nlon,nlat-2_i_kind):: grdwrk1,grdwrk2
   real(r_kind),dimension(nc):: spcwrk1,spcwrk2
   integer(i_kind) i,j,jj
 
 ! Transfer contents of input grid to local work array
 ! Reverse ordering in j direction from n-->s to s-->n
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      grdwrk1(i,jj)=ugrd(j,i)
-      grdwrk2(i,jj)=vgrd(j,i)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        grdwrk1(i,jj)=ugrd(j,i)
+        grdwrk2(i,jj)=vgrd(j,i)
+     end do
   end do
 
-  do j=jb,je-mod(nlat,2)
-    do i=1,nlon
-      grdwrk1(i,j)=grdwrk1(i,j)/wlat(j)
-      grdwrk1(i,nlat-1-j)=grdwrk1(i,nlat-1-j)/wlat(j)
-      grdwrk2(i,j)=grdwrk2(i,j)/wlat(j)
-      grdwrk2(i,nlat-1-j)=grdwrk2(i,nlat-1-j)/wlat(j)
-    end do
+  do j=jb,je-mod(nlat,2_i_kind)
+     do i=1,nlon
+        grdwrk1(i,j)=grdwrk1(i,j)/wlat(j)
+        grdwrk1(i,nlat-ione-j)=grdwrk1(i,nlat-ione-j)/wlat(j)
+        grdwrk2(i,j)=grdwrk2(i,j)/wlat(j)
+        grdwrk2(i,nlat-ione-j)=grdwrk2(i,nlat-ione-j)/wlat(j)
+     end do
   end do
 
-  if (mod(nlat,2) .ne. 0) then
-    do i=1,nlon
-      grdwrk1(i,je)=grdwrk1(i,je)/(two*wlat(je))
-      grdwrk2(i,je)=grdwrk2(i,je)/(two*wlat(je))
-    end do
+  if (mod(nlat,2_i_kind) /= izero) then
+     do i=1,nlon
+        grdwrk1(i,je)=grdwrk1(i,je)/(two*wlat(je))
+        grdwrk2(i,je)=grdwrk2(i,je)/(two*wlat(je))
+     end do
   endif 
 
-  call sptez_v(spcwrk1,spcwrk2,grdwrk1,grdwrk2,-1)
+  call sptez_v(spcwrk1,spcwrk2,grdwrk1,grdwrk2,-ione)
 
   do i=2,ncd2
-     spcwrk1(2*i-1)=spcwrk1(2*i-1)/enn1(i)
-     spcwrk1(2*i)=spcwrk1(2*i)/enn1(i)
-     spcwrk2(2*i-1)=spcwrk2(2*i-1)/enn1(i)
-     spcwrk2(2*i)=spcwrk2(2*i)/enn1(i)
+     spcwrk1(2*i-ione)=spcwrk1(2*i-ione)/enn1(i)
+     spcwrk1(2*i     )=spcwrk1(2*i     )/enn1(i)
+     spcwrk2(2*i-ione)=spcwrk2(2*i-ione)/enn1(i)
+     spcwrk2(2*i     )=spcwrk2(2*i     )/enn1(i)
   end do
 
   do i=1,nc
@@ -722,7 +723,7 @@ subroutine zds2uvg_ad(zsp,dsp,ugrd,vgrd)
      spcwrk2(i)=spcwrk2(i)*float(nlon)
   end do
 
-  do i=2*jcap+3,nc
+  do i=2*jcap+3_i_kind,nc
      spcwrk1(i)=two*spcwrk1(i)
      spcwrk2(i)=two*spcwrk2(i)
   end do
@@ -731,12 +732,12 @@ subroutine zds2uvg_ad(zsp,dsp,ugrd,vgrd)
   call  spectra_pole_wind_ad (ugrd,vgrd,spcwrk2,spcwrk1)
 
   do i=1,nc
-    zsp(i)=spcwrk2(i)
-    dsp(i)=spcwrk1(i)
-    if(factvml(i))then
-      zsp(i)=zero
-      dsp(i)=zero
-    end if
+     zsp(i)=spcwrk2(i)
+     dsp(i)=spcwrk1(i)
+     if(factvml(i))then
+        zsp(i)=zero
+        dsp(i)=zero
+     end if
   end do
 
   return
@@ -770,12 +771,12 @@ subroutine spectra_pole_scalar (field,coefs)
 !$$$
  use specmod, only: nc,jcap
  use kinds, only: r_kind,i_kind
- use constants, only: zero,half,three
+ use constants, only: ione,zero,half,three
  use gridmod, only: nlat,nlon
   
       implicit none      
 
-      real(r_kind), intent(in)  :: coefs(nc)        ! all spectral coefs
+      real(r_kind), intent(in   ) :: coefs(nc)        ! all spectral coefs
       real(r_kind), intent(inout) :: field(nlat,nlon) ! field, including pole    
 ! 
 !  Local variables
@@ -800,39 +801,39 @@ subroutine spectra_pole_scalar (field,coefs)
 !  Compute epsilon for m=0.
       epsi0(0)=zero  
       do n=1,jcap
-        fnum=real(n**2)
-        fden=real(4*n**2-1)
-        epsi0(n)=dsqrt(fnum/fden)
+         fnum=real(n**2)
+         fden=real(4*n**2-ione)
+         epsi0(n)=dsqrt(fnum/fden)
       enddo
 !
 !  Compute Legendre polynomials for m=0 at North Pole
-       alp0(0)=dsqrt(half)
-       alp0(1)=dsqrt(three)*alp0(0)
-       do n=2,jcap
-         alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
-       enddo
+      alp0(0)=dsqrt(half)
+      alp0(1)=dsqrt(three)*alp0(0)
+      do n=2,jcap
+         alp0(n)=(alp0(n-ione)-epsi0(n-ione)*alp0(n-2_i_kind))/epsi0(n)
+      enddo
 !
 !  Compute projection of wavenumber 0 (only real values for this
-       fpole_n=zero
-       fpole_s=zero
-       n1=1
-       do n=0,jcap 
-         if (mod(n,2).eq.1) then
+      fpole_n=zero
+      fpole_s=zero
+      n1=ione
+      do n=0,jcap 
+         if (mod(n,2_i_kind)==ione) then
             afac=-alp0(n)
-          else 
+         else 
             afac= alp0(n)
-          endif  
-          fpole_n=fpole_n+alp0(n)*coefs(2*n+n1)
-          fpole_s=fpole_s+   afac*coefs(2*n+n1)
-       enddo
+         endif  
+         fpole_n=fpole_n+alp0(n)*coefs(2*n+n1)
+         fpole_s=fpole_s+   afac*coefs(2*n+n1)
+      enddo
 !
 ! set field for all "longitudes" at the pole to the same value
-       do j=1,nlon
+      do j=1,nlon
          field(   1,j)=fpole_s  
          field(nlat,j)=fpole_n
-       enddo
+      enddo
 
-       end subroutine spectra_pole_scalar 
+      end subroutine spectra_pole_scalar 
 !
 !  x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
 !
@@ -865,13 +866,13 @@ subroutine spectra_pole_scalar_ad (field,coefs)
 !$$$
  use specmod, only: nc,jcap
  use kinds, only: r_kind,i_kind
- use constants, only: zero,half,three
+ use constants, only: ione,zero,half,three
  use gridmod, only: nlat,nlon
   
       implicit none      
 
       real(r_kind), intent(inout) :: coefs(nc)  ! adjoint of all spectral coefs
-      real(r_kind), intent(in) :: field(nlat,nlon) ! adjoint field, including pole    
+      real(r_kind), intent(in   ) :: field(nlat,nlon) ! adjoint field, including pole    
 ! 
 !  Local variables
 
@@ -897,37 +898,37 @@ subroutine spectra_pole_scalar_ad (field,coefs)
 !  Compute epsilon for m=0.
       epsi0(0)=zero  
       do n=1,jcap
-        fnum=real(n**2, r_kind)
-        fden=real(4*n**2-1, r_kind)
-        epsi0(n)=dsqrt(fnum/fden)
+         fnum=real(n**2, r_kind)
+         fden=real(4*n**2-ione, r_kind)
+         epsi0(n)=dsqrt(fnum/fden)
       enddo
 !
 !  Compute Legendre polynomials for m=0 at North Pole
-       alp0(0)=dsqrt(half)
-       alp0(1)=dsqrt(three)*alp0(0)
-       do n=2,jcap
-         alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
-       enddo
+      alp0(0)=dsqrt(half)
+      alp0(1)=dsqrt(three)*alp0(0)
+      do n=2,jcap
+         alp0(n)=(alp0(n-ione)-epsi0(n-ione)*alp0(n-2_i_kind))/epsi0(n)
+      enddo
 !
 !  Compute projection of wavenumber 0 (only real values for this)
-       fpole_n=zero
-       fpole_s=zero
-       do j=1,nlon
+      fpole_n=zero
+      fpole_s=zero
+      do j=1,nlon
          fpole_n=fpole_n+field(nlat,j)
          fpole_s=fpole_s+field(   1,j)
-       enddo
+      enddo
        
-       n1=1
-       do n=0,jcap 
-         if (mod(n,2).eq.1) then
+      n1=ione
+      do n=0,jcap 
+         if (mod(n,2_i_kind)==ione) then
             afac=-alp0(n)
-          else 
+         else 
             afac= alp0(n)
-          endif
-          coefs(2*n+n1)=coefs(2*n+n1)+afac*fpole_s+alp0(n)*fpole_n  
-       enddo
+         endif
+         coefs(2*n+n1)=coefs(2*n+n1)+afac*fpole_s+alp0(n)*fpole_n  
+      enddo
 !
-       end subroutine spectra_pole_scalar_ad 
+      end subroutine spectra_pole_scalar_ad 
 !
 !  x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
 !
@@ -960,13 +961,13 @@ subroutine spectra_pole_wind (ufield,vfield,vort,divg)
 !$$$
  use specmod, only: nc,jcap
  use kinds, only: r_kind,i_kind
- use constants, only: zero,two,three,rearth,pi
+ use constants, only: izero,ione,zero,two,three,rearth,pi
  use gridmod, only: nlat,nlon
      
       implicit none  
   
-      real(r_kind), intent(in)  :: vort(nc) ! spect. coefs for vorticity
-      real(r_kind), intent(in)  :: divg(nc) ! spect. coefs for divergence
+      real(r_kind), intent(in   ) :: vort(nc) ! spect. coefs for vorticity
+      real(r_kind), intent(in   ) :: divg(nc) ! spect. coefs for divergence
       real(r_kind), intent(inout) :: ufield(nlat,nlon) ! u field, including pole    
       real(r_kind), intent(inout) :: vfield(nlat,nlon) ! v field, including pole    
 ! 
@@ -1022,20 +1023,20 @@ subroutine spectra_pole_wind (ufield,vfield,vort,divg)
 !  The phases of the spectra are assumed to be with respect
 !  to the first longitude being 0.
 !
-      n1=2*(jcap+1)
+      n1=2*(jcap+ione)
 !
 !  Specify cosine and sines of longitudes assuming that 
 !  the phases of spectral coefs are with repect to the 
 !  origin being the first longitude.
       fac=two*pi/nlon
       do j=1,nlon
-        coslon(j)=cos(fac*(j-1))
-        sinlon(j)=sin(fac*(j-1))
+         coslon(j)=cos(fac*(j-ione))
+         sinlon(j)=sin(fac*(j-ione))
       enddo
 
       do n=1,jcap
-        fnum=real(n**2-1, r_kind)
-        fden=real(4*n**2-1, r_kind)
+        fnum=real(n**2-ione, r_kind)
+        fden=real(4*n**2-ione, r_kind)
         epsi1(n)=dsqrt(fnum/fden)
       enddo
 !
@@ -1044,12 +1045,12 @@ subroutine spectra_pole_wind (ufield,vfield,vort,divg)
       alp1(1)=sqrt(three)/two
       alp1(2)=dsqrt(two+three)*alp1(1)
       do n=3,jcap
-        alp1(n)=(alp1(n-1)-epsi1(n-1)*alp1(n-2))/epsi1(n)
+         alp1(n)=(alp1(n-ione)-epsi1(n-ione)*alp1(n-2_i_kind))/epsi1(n)
       enddo
 !
 !  Replace Legendre polynomials by P/(n*n+n)
       do n=1,jcap
-        alp1(n)=alp1(n)/(n*n+n)
+         alp1(n)=alp1(n)/(n*n+n)
       enddo
 !
 !  Compute sums of coefs weighted by P(n)/(n*n+n)
@@ -1063,19 +1064,19 @@ subroutine spectra_pole_wind (ufield,vfield,vort,divg)
       s_divg_I_s=zero
       
       do n=1,jcap 
-        if (mod(n,2).eq.0) then
-          afac=-alp1(n)
-        else 
-          afac= alp1(n)
-        endif  
-        s_vort_R_n = s_vort_R_n + alp1(n)*vort(2*n-1+n1)
-        s_vort_I_n = s_vort_I_n + alp1(n)*vort(2*n  +n1)        
-        s_divg_R_n = s_divg_R_n + alp1(n)*divg(2*n-1+n1)
-        s_divg_I_n = s_divg_I_n + alp1(n)*divg(2*n  +n1) 
-        s_vort_R_s = s_vort_R_s + afac*vort(2*n-1+n1)
-        s_vort_I_s = s_vort_I_s + afac*vort(2*n  +n1)        
-        s_divg_R_s = s_divg_R_s + afac*divg(2*n-1+n1)
-        s_divg_I_s = s_divg_I_s + afac*divg(2*n  +n1) 
+         if (mod(n,2_i_kind)==izero) then
+            afac=-alp1(n)
+         else 
+            afac= alp1(n)
+         endif  
+         s_vort_R_n = s_vort_R_n + alp1(n)*vort(2*n-ione+n1)
+         s_vort_I_n = s_vort_I_n + alp1(n)*vort(2*n     +n1)        
+         s_divg_R_n = s_divg_R_n + alp1(n)*divg(2*n-ione+n1)
+         s_divg_I_n = s_divg_I_n + alp1(n)*divg(2*n     +n1) 
+         s_vort_R_s = s_vort_R_s + afac*vort(2*n-ione+n1)
+         s_vort_I_s = s_vort_I_s + afac*vort(2*n     +n1)        
+         s_divg_R_s = s_divg_R_s + afac*divg(2*n-ione+n1)
+         s_divg_I_s = s_divg_I_s + afac*divg(2*n     +n1) 
       enddo
       s_vort_R_s = -s_vort_R_s
       s_vort_I_s = -s_vort_I_s
@@ -1095,10 +1096,10 @@ subroutine spectra_pole_wind (ufield,vfield,vort,divg)
 !
 !  Perform Fourier projection for m=1 at pole             
       do j=1,nlon
-        ufield(nlat,j)=uR_n*coslon(j)-uI_n*sinlon(j)
-        vfield(nlat,j)=vR_n*coslon(j)-vI_n*sinlon(j)
-        ufield(   1,j)=uR_s*coslon(j)-uI_s*sinlon(j)
-        vfield(   1,j)=vR_s*coslon(j)-vI_s*sinlon(j)
+         ufield(nlat,j)=uR_n*coslon(j)-uI_n*sinlon(j)
+         vfield(nlat,j)=vR_n*coslon(j)-vI_n*sinlon(j)
+         ufield(   1,j)=uR_s*coslon(j)-uI_s*sinlon(j)
+         vfield(   1,j)=vR_s*coslon(j)-vI_s*sinlon(j)
       enddo
 !
       end subroutine spectra_pole_wind 
@@ -1137,15 +1138,15 @@ subroutine spectra_pole_wind_ad (ufield,vfield,vort,divg)
 !$$$
  use specmod, only: nc,jcap
  use kinds, only: r_kind,i_kind
- use constants, only: zero,two,three,rearth,pi
+ use constants, only: izero,ione,zero,two,three,rearth,pi
  use gridmod, only: nlat,nlon
      
       implicit none  
   
-      real(r_kind), intent(in) :: ufield(nlat,nlon) ! adjoint of u field, including pole    
-      real(r_kind), intent(in) :: vfield(nlat,nlon) ! adjoint of v field, including pole    
-      real(r_kind), intent(inout)  :: vort(nc) ! adjoint of spect. coefs for vorticity
-      real(r_kind), intent(inout)  :: divg(nc) ! adjoint of spect. coefs for divergence
+      real(r_kind), intent(in   ) :: ufield(nlat,nlon) ! adjoint of u field, including pole    
+      real(r_kind), intent(in   ) :: vfield(nlat,nlon) ! adjoint of v field, including pole    
+      real(r_kind), intent(inout) :: vort(nc) ! adjoint of spect. coefs for vorticity
+      real(r_kind), intent(inout) :: divg(nc) ! adjoint of spect. coefs for divergence
 ! 
 !  Local variables
 
@@ -1173,21 +1174,21 @@ subroutine spectra_pole_wind_ad (ufield,vfield,vort,divg)
 !  The phases of the spectra are assumed to be with respect
 !  to the first longitude being 0.
 !
-      n1=2*(jcap+1)
+      n1=2*(jcap+ione)
 !
 !  Specify cosine and sines of longitudes assuming that 
 !  the phases of spectral coefs are with repect to the 
 !  origin being the first longitude.
       fac=two*pi/nlon
       do j=1,nlon
-        coslon(j)=cos(fac*(j-1))
-        sinlon(j)=sin(fac*(j-1))
+         coslon(j)=cos(fac*(j-ione))
+         sinlon(j)=sin(fac*(j-ione))
       enddo
 
       do n=1,jcap
-        fnum=real(n**2-1, r_kind)
-        fden=real(4*n**2-1, r_kind)
-        epsi1(n)=dsqrt(fnum/fden)
+         fnum=real(n**2-ione, r_kind)
+         fden=real(4*n**2-ione, r_kind)
+         epsi1(n)=dsqrt(fnum/fden)
       enddo
 !
 !  Compute Legendre polynomials / cos for m=1 at North Pole
@@ -1195,12 +1196,12 @@ subroutine spectra_pole_wind_ad (ufield,vfield,vort,divg)
       alp1(1)=sqrt(three)/two
       alp1(2)=dsqrt(two+three)*alp1(1)
       do n=3,jcap
-        alp1(n)=(alp1(n-1)-epsi1(n-1)*alp1(n-2))/epsi1(n)
+         alp1(n)=(alp1(n-ione)-epsi1(n-ione)*alp1(n-2_i_kind))/epsi1(n)
       enddo
 !
 !  Replace Legendre polynomials by P/(n*n+n)
       do n=1,jcap
-        alp1(n)=alp1(n)/(n*n+n)
+         alp1(n)=alp1(n)/(n*n+n)
       enddo
 !
 !  Perform adjoint of Fourier projection for m=1 at pole         
@@ -1213,14 +1214,14 @@ subroutine spectra_pole_wind_ad (ufield,vfield,vort,divg)
       vR_s=zero    
       vI_s=zero    
       do j=1,nlon
-        uR_n=uR_n+coslon(j)*ufield(nlat,j)
-        uI_n=uI_n-sinlon(j)*ufield(nlat,j)
-        vR_n=vR_n+coslon(j)*vfield(nlat,j)
-        vI_n=vI_n-sinlon(j)*vfield(nlat,j)
-        uR_s=uR_s+coslon(j)*ufield(   1,j)
-        uI_s=uI_s-sinlon(j)*ufield(   1,j)
-        vR_s=vR_s+coslon(j)*vfield(   1,j)
-        vI_s=vI_s-sinlon(j)*vfield(   1,j)
+         uR_n=uR_n+coslon(j)*ufield(nlat,j)
+         uI_n=uI_n-sinlon(j)*ufield(nlat,j)
+         vR_n=vR_n+coslon(j)*vfield(nlat,j)
+         vI_n=vI_n-sinlon(j)*vfield(nlat,j)
+         uR_s=uR_s+coslon(j)*ufield(   1,j)
+         uI_s=uI_s-sinlon(j)*ufield(   1,j)
+         vR_s=vR_s+coslon(j)*vfield(   1,j)
+         vI_s=vI_s-sinlon(j)*vfield(   1,j)
       enddo
 
 !  the limit of abs(cos)/cos = -1.  
@@ -1239,18 +1240,18 @@ subroutine spectra_pole_wind_ad (ufield,vfield,vort,divg)
       s_divg_I_s= tworearth*uR_s
 !
       do n=1,jcap 
-        if (mod(n,2).eq.0) then
-           afac=-alp1(n)
+         if (mod(n,2_i_kind)==izero) then
+            afac=-alp1(n)
          else 
-           afac= alp1(n)
+            afac= alp1(n)
          endif  
-         vort(2*n-1+n1)=vort(2*n-1+n1)+alp1(n)*s_vort_R_n  &
+         vort(2*n-ione+n1)=vort(2*n-ione+n1)+alp1(n)*s_vort_R_n  &
                                       +   afac*s_vort_R_s
-         vort(2*n  +n1)=vort(2*n  +n1)+alp1(n)*s_vort_I_n  &
+         vort(2*n     +n1)=vort(2*n     +n1)+alp1(n)*s_vort_I_n  &
                                       +   afac*s_vort_I_s
-         divg(2*n-1+n1)=divg(2*n-1+n1)+alp1(n)*s_divg_R_n  &
+         divg(2*n-ione+n1)=divg(2*n-ione+n1)+alp1(n)*s_divg_R_n  &
                                       +   afac*s_divg_R_s
-         divg(2*n  +n1)=divg(2*n  +n1)+alp1(n)*s_divg_I_n  &
+         divg(2*n     +n1)=divg(2*n     +n1)+alp1(n)*s_divg_I_n  &
                                       +   afac*s_divg_I_s
       enddo
 !
@@ -1303,14 +1304,15 @@ subroutine test_inverses(mype)
 !
 !$$$
 
-  use kinds, only: r_single,r_kind,i_kind
+  use kinds, only: r_kind,i_kind
   use gridmod, only:  nlat,nlon
   use guess_grids, only: ges_tv,ntguessig
   use specmod, only: nc,jcap
-  use constants, only: zero,one
+  use constants, only: izero,ione,zero,one
   implicit none
 
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
+
   integer(i_kind) :: index (5)
   integer(i_kind) :: i,j,n,ig,ncstep
   real(r_kind),dimension(nlat,nlon):: u1,v1,u2,u3,v2,t1,t2
@@ -1318,319 +1320,319 @@ subroutine test_inverses(mype)
   real(r_kind),dimension(nc):: d1,d2,d3
   real(r_kind):: diffmax, absmax
 ! smallfrac is expected size of lagest fractional roundoff error 
-  real(r_kind),parameter:: smallfrac=1.e-9
+  real(r_kind),parameter:: smallfrac=1.e-9_r_kind
 
   s1=zero ; s2=zero ; s3=zero
   t1=zero ; t2=zero ; v1=zero
 
 ! use the following field to create a test field t1
-  call gather_stuff2(ges_tv(1,1,1,ntguessig),t1,mype,0)
+  call gather_stuff2(ges_tv(1,1,1,ntguessig),t1,mype,izero)
 
 ! only perform the test on one processor.
-  if (mype==0) then
+  if (mype==izero) then
 
 ! load S1 with something
-    write(777,*) ' *********************************************************'
-    write(777,*) ' *                   Test spectral routines              *'
-    write(777,*) ' *   diff=difference of numbers that should be the same  *'
-    write(777,*) ' *        except for roundoff effects                    *'
-    write(777,*) ' *   fracdiff=fractional difference of numbers that      *'
-    write(777,*) ' *        should be the same except for roundoff: only   *'
-    write(777,*) ' *        printed if > parameter smallfrac               *'
-    write(777,*) ' *********************************************************'
-    write(777,*) ' smallfrac=',smallfrac
+     write(777,*) ' *********************************************************'
+     write(777,*) ' *                   Test spectral routines              *'
+     write(777,*) ' *   diff=difference of numbers that should be the same  *'
+     write(777,*) ' *        except for roundoff effects                    *'
+     write(777,*) ' *   fracdiff=fractional difference of numbers that      *'
+     write(777,*) ' *        should be the same except for roundoff: only   *'
+     write(777,*) ' *        printed if > parameter smallfrac               *'
+     write(777,*) ' *********************************************************'
+     write(777,*) ' smallfrac=',smallfrac
 !
 !
 ! *********************************************************
 ! TEST SCALAR TRANSFORM AND ITS INVERSE
-    call g2s0(s1,t1)  ! compute spectral coefs s1
-    call s2g0(s1,t2)  ! compute spectrally truncated field t2
-    call g2s0(s3,t2)  ! recompute spectra from field  
+     call g2s0(s1,t1)  ! compute spectral coefs s1
+     call s2g0(s1,t2)  ! compute spectrally truncated field t2
+     call g2s0(s3,t2)  ! recompute spectra from field  
 !
 ! check all spectral coefficients
-    write(777,*) ' '
-    write(777,*) ' **** Test that s2g0 and g2s0 are inverses ****'
-    absmax=zero
-    diffmax=zero
-    do i=1,nc
-      if (s1(i).ne.0  .and. abs((s1(i)-s3(i))/s1(i)) .gt. smallfrac) then
-        write(777,'(a,i6,1p3e18.10)') 'i,s1,s3,fracdiff = ' &
-                                     ,i,s1(i),s3(i),(s1(i)-s3(i))/s1(i)
-      end if
-      if (abs(s1(i)) > absmax) absmax=abs(s1(i))
-      if (abs(s3(i)) > absmax) absmax=abs(s3(i))
-      if (abs(s1(i)-s3(i)) > diffmax) diffmax=abs(s1(i)-s3(i))
-    end do
-    write(777,*) ' max of absolute values tested =',absmax
-    write(777,*) ' max of absolute diff obtained =',diffmax
+     write(777,*) ' '
+     write(777,*) ' **** Test that s2g0 and g2s0 are inverses ****'
+     absmax=zero
+     diffmax=zero
+     do i=1,nc
+        if (s1(i)/=zero  .and. abs((s1(i)-s3(i))/s1(i)) > smallfrac) then
+           write(777,'(a,i6,1p3e18.10)') 'i,s1,s3,fracdiff = ' &
+                                        ,i,s1(i),s3(i),(s1(i)-s3(i))/s1(i)
+        end if
+        if (abs(s1(i)) > absmax) absmax=abs(s1(i))
+        if (abs(s3(i)) > absmax) absmax=abs(s3(i))
+        if (abs(s1(i)-s3(i)) > diffmax) diffmax=abs(s1(i)-s3(i))
+     end do
+     write(777,*) ' max of absolute values tested =',absmax
+     write(777,*) ' max of absolute diff obtained =',diffmax
 !
 !
 ! *****************************************************************
 ! TEST VECTOR TRANSFORM AND ITS INVERSE
 ! use same spectral coefs as for previous test
-    u1=zero; u2=zero; v1=zero; v2=zero
-    s2=zero; s3=zero
-    d2=zero; d3=zero
-    s1(1)=zero  ! this component is always zero
-    d1=0.1_r_single*s1 
-    call zds2uvg(s1,d1,u1,v1)  
-    call uvg2zds(s2,d2,u1,v1) 
+     u1=zero; u2=zero; v1=zero; v2=zero
+     s2=zero; s3=zero
+     d2=zero; d3=zero
+     s1(1)=zero  ! this component is always zero
+     d1=0.1_r_kind*s1 
+     call zds2uvg(s1,d1,u1,v1)  
+     call uvg2zds(s2,d2,u1,v1) 
 !
-    write(777,*) ' '
-    write(777,*) ' **** Test that zds2uvg and uvg2zds are inverses for vorticity ****'
-    absmax=zero
-    diffmax=zero
+     write(777,*) ' '
+     write(777,*) ' **** Test that zds2uvg and uvg2zds are inverses for vorticity ****'
+     absmax=zero
+     diffmax=zero
      do i=1,nc
-        if (s1(i).ne.0  .and. abs((s1(i)-s2(i))/s1(i)) .gt. smallfrac) then
-        write(777,'(a,i6,1p3e18.10)') 'i,s1,s2,fracdiff = ' &
-                                     ,i,s1(i),s2(i),(s1(i)-s2(i))/s1(i)
-      end if
-      if (abs(s1(i)) > absmax) absmax=abs(s1(i))
-      if (abs(s2(i)) > absmax) absmax=abs(s2(i))
-      if (abs(s1(i)-s2(i)) > diffmax) diffmax=abs(s1(i)-s2(i))
-    end do
-    write(777,*) ' max of absolute values tested =',absmax
-    write(777,*) ' max of absolute diff obtained =',diffmax
+        if (s1(i)/=zero  .and. abs((s1(i)-s2(i))/s1(i)) > smallfrac) then
+           write(777,'(a,i6,1p3e18.10)') 'i,s1,s2,fracdiff = ' &
+                                        ,i,s1(i),s2(i),(s1(i)-s2(i))/s1(i)
+        end if
+        if (abs(s1(i)) > absmax) absmax=abs(s1(i))
+        if (abs(s2(i)) > absmax) absmax=abs(s2(i))
+        if (abs(s1(i)-s2(i)) > diffmax) diffmax=abs(s1(i)-s2(i))
+     end do
+     write(777,*) ' max of absolute values tested =',absmax
+     write(777,*) ' max of absolute diff obtained =',diffmax
 !
-    write(777,*) ' '
-    write(777,*) ' **** Test that zds2uvg and uvg2zds are inverses for divergence ****'
-    absmax=zero
-    diffmax=zero
+     write(777,*) ' '
+     write(777,*) ' **** Test that zds2uvg and uvg2zds are inverses for divergence ****'
+     absmax=zero
+     diffmax=zero
      do i=1,nc
-        if (d1(i).ne.0  .and. abs((d1(i)-d2(i))/d1(i)) .gt. smallfrac) then
-        write(777,'(a,i6,1p3e18.10)') 'i,d1,d2,fracdiff = ' &
-                                     ,i,d1(i),d2(i),(d1(i)-d2(i))/d1(i)
-      end if
-      if (abs(d1(i)) > absmax) absmax=abs(d1(i))
-      if (abs(d2(i)) > absmax) absmax=abs(d2(i))
-      if (abs(d1(i)-d2(i)) > diffmax) diffmax=abs(d1(i)-d2(i))
-    end do
-    write(777,*) ' max of absolute values tested =',absmax
-    write(777,*) ' max of absolute diff obtained =',diffmax
+        if (d1(i)/=zero  .and. abs((d1(i)-d2(i))/d1(i)) > smallfrac) then
+           write(777,'(a,i6,1p3e18.10)') 'i,d1,d2,fracdiff = ' &
+                                        ,i,d1(i),d2(i),(d1(i)-d2(i))/d1(i)
+        end if
+        if (abs(d1(i)) > absmax) absmax=abs(d1(i))
+        if (abs(d2(i)) > absmax) absmax=abs(d2(i))
+        if (abs(d1(i)-d2(i)) > diffmax) diffmax=abs(d1(i)-d2(i))
+     end do
+     write(777,*) ' max of absolute values tested =',absmax
+     write(777,*) ' max of absolute diff obtained =',diffmax
 !
 !
 ! *********************************************************
 ! TEST THAT ADJOINT SCALAR ROUTINES ARE INVERSES OF EACH OTHER
     
-    call s2g0_ad(s1,t1)  ! compute spectral adjoint coefs s1
-    call g2s0_ad(s1,t2)  ! compute spectrally truncated adjoint field t2
-    call s2g0_ad(s3,t2)  ! recompute spectra from field  
+     call s2g0_ad(s1,t1)  ! compute spectral adjoint coefs s1
+     call g2s0_ad(s1,t2)  ! compute spectrally truncated adjoint field t2
+     call s2g0_ad(s3,t2)  ! recompute spectra from field  
 !
 ! check all spectra
-    write(777,*) ' '
-    write(777,*) ' **** Test that s2g0_ad and g2s0_ad are inverses ****'
-    absmax=zero
-    diffmax=zero
-    do i=1,nc
-        if (s1(i).ne.0  .and. abs((s1(i)-s3(i))/s1(i)) .gt. smallfrac) then
-        write(777,'(a,i6,1p3e18.10)') 'i,s1,s3,fracdiff = ' &
-                                     ,i,s1(i),s3(i),(s1(i)-s3(i))/s1(i)
-      end if
-      if (abs(s1(i)) > absmax) absmax=abs(s1(i))
-      if (abs(s3(i)) > absmax) absmax=abs(s3(i))
-      if (abs(s1(i)-s3(i)) > diffmax) diffmax=abs(s1(i)-s3(i))
-    end do
-    write(777,*) ' max of absolute values tested =',absmax
-    write(777,*) ' max of absolute diff obtained =',diffmax!
+     write(777,*) ' '
+     write(777,*) ' **** Test that s2g0_ad and g2s0_ad are inverses ****'
+     absmax=zero
+     diffmax=zero
+     do i=1,nc
+        if (s1(i)/=zero  .and. abs((s1(i)-s3(i))/s1(i)) > smallfrac) then
+           write(777,'(a,i6,1p3e18.10)') 'i,s1,s3,fracdiff = ' &
+                                        ,i,s1(i),s3(i),(s1(i)-s3(i))/s1(i)
+        end if
+        if (abs(s1(i)) > absmax) absmax=abs(s1(i))
+        if (abs(s3(i)) > absmax) absmax=abs(s3(i))
+        if (abs(s1(i)-s3(i)) > diffmax) diffmax=abs(s1(i)-s3(i))
+     end do
+     write(777,*) ' max of absolute values tested =',absmax
+     write(777,*) ' max of absolute diff obtained =',diffmax!
 !
 !
 !   ***********************************************************
 !   TEST THAT ADJOINT VECTOR ROUTINES ARE INVERSES OF EACH OTHER     
-    u1=zero; v1=zero
-    s2=zero; d2=zero
-    s1(1)=zero
-    d1=0.1_r_single*s1 
-    call uvg2zds_ad(s1,d1,u1,v1) 
-    call zds2uvg_ad(s2,d2,u1,v1)
+     u1=zero; v1=zero
+     s2=zero; d2=zero
+     s1(1)=zero
+     d1=0.1_r_kind*s1 
+     call uvg2zds_ad(s1,d1,u1,v1) 
+     call zds2uvg_ad(s2,d2,u1,v1)
 !
-    write(777,*) ' '
-    write(777,*) ' **** Test that zds2uvg_ad and uvg2zds_ad are' &
-                 ,' inverses for vorticity ****'
-    absmax=zero
-    diffmax=zero
+     write(777,*) ' '
+     write(777,*) ' **** Test that zds2uvg_ad and uvg2zds_ad are' &
+                  ,' inverses for vorticity ****'
+     absmax=zero
+     diffmax=zero
      do i=1,nc
-        if (s1(i).ne.0  .and. abs((s1(i)-s2(i))/s1(i)) .gt. smallfrac) then
-        write(777,'(a,i6,1p3e18.10)') 'i,s1,s2,fracdiff = ' &
-                                     ,i,s1(i),s2(i),(s1(i)-s2(i))/s1(i)
-      end if
-      if (abs(s1(i)) > absmax) absmax=abs(s1(i))
-      if (abs(s2(i)) > absmax) absmax=abs(s2(i))
-      if (abs(s1(i)-s2(i)) > diffmax) diffmax=abs(s1(i)-s2(i))
-    end do
-    write(777,*) ' max of absolute values tested =',absmax
-    write(777,*) ' max of absolute diff obtained =',diffmax
+        if (s1(i)/=zero  .and. abs((s1(i)-s2(i))/s1(i)) > smallfrac) then
+           write(777,'(a,i6,1p3e18.10)') 'i,s1,s2,fracdiff = ' &
+                                        ,i,s1(i),s2(i),(s1(i)-s2(i))/s1(i)
+        end if
+        if (abs(s1(i)) > absmax) absmax=abs(s1(i))
+        if (abs(s2(i)) > absmax) absmax=abs(s2(i))
+        if (abs(s1(i)-s2(i)) > diffmax) diffmax=abs(s1(i)-s2(i))
+     end do
+     write(777,*) ' max of absolute values tested =',absmax
+     write(777,*) ' max of absolute diff obtained =',diffmax
 !
-    write(777,*) ' '
-    write(777,*) ' **** Test that zds2uvg_ad and uvg2zds_ad are' &
-                ,' inverses for divergence ****'
-    absmax=zero
-    diffmax=zero
+     write(777,*) ' '
+     write(777,*) ' **** Test that zds2uvg_ad and uvg2zds_ad are' &
+                 ,' inverses for divergence ****'
+     absmax=zero
+     diffmax=zero
      do i=1,nc
-        if (d1(i).ne.0  .and. abs((d1(i)-d2(i))/d1(i)) .gt. smallfrac) then
-        write(777,'(a,i6,1p3e18.10)') 'i,d1,d2,fracdiff = ' &
-                                     ,i,d1(i),d2(i),(d1(i)-d2(i))/d1(i)
-      end if
-      if (abs(d1(i)) > absmax) absmax=abs(d1(i))
-      if (abs(d2(i)) > absmax) absmax=abs(d2(i))
-      if (abs(d1(i)-d2(i)) > diffmax) diffmax=abs(d1(i)-d2(i))
-    end do
-    write(777,*) ' max of absolute values tested =',absmax
-    write(777,*) ' max of absolute diff obtained =',diffmax
+        if (d1(i)/=izero  .and. abs((d1(i)-d2(i))/d1(i)) > smallfrac) then
+           write(777,'(a,i6,1p3e18.10)') 'i,d1,d2,fracdiff = ' &
+                                        ,i,d1(i),d2(i),(d1(i)-d2(i))/d1(i)
+        end if
+        if (abs(d1(i)) > absmax) absmax=abs(d1(i))
+        if (abs(d2(i)) > absmax) absmax=abs(d2(i))
+        if (abs(d1(i)-d2(i)) > diffmax) diffmax=abs(d1(i)-d2(i))
+     end do
+     write(777,*) ' max of absolute values tested =',absmax
+     write(777,*) ' max of absolute diff obtained =',diffmax
 !
 !
 !   ***********************************************
 !   TEST ADJOINT FOR SELECTED ELEMENTS OF JACOBIAN MATRIX
 !   test that s2g0_ad is adjoint of s2g0_ad
 !
-    write(777,*) ' '
-    write(777,*) ' **** Apply Jacobian test to selected elements' &
-                ,' of s2g0_ad and s2g0 ***' 
+     write(777,*) ' '
+     write(777,*) ' **** Apply Jacobian test to selected elements' &
+                 ,' of s2g0_ad and s2g0 ***' 
 !
-    absmax=zero
-    diffmax=zero
+     absmax=zero
+     diffmax=zero
 !
 ! So only 5 lats tested to cut down on computation
-    index(1)=1            ! S. pole
-    index(2)=2            ! 1st Lat next to S. pole
-    index(3)=(nlat+1)/2   ! equator or ist N. of equator if no equator
-    index(4)=nlat-1       ! 1st lat next to N. pole 
-    index(5)=nlat         ! N. pole
+     index(1)=ione            ! S. pole
+     index(2)=2_i_kind        ! 1st Lat next to S. pole
+     index(3)=(nlat+ione)/2   ! equator or ist N. of equator if no equator
+     index(4)=nlat-ione       ! 1st lat next to N. pole 
+     index(5)=nlat            ! N. pole
 !
 ! Only check a subset of spectral coefs to reduce computation
-    ncstep=4*jcap/3
-    if (mod(ncstep,2) == 0) ncstep=ncstep+1 ! then both real and imag parts tested
+     ncstep=4*jcap/3
+     if (mod(ncstep,2_i_kind) == izero) ncstep=ncstep+ione ! then both real and imag parts tested
    
-    do n=1,nc,ncstep
-      if (mod(n,2) ==0 .and. n .le. 2*jcap+2 ) then
-        d1(n)=zero   ! these are imag parts of coefs for zonal wave number 0
-      else
-        i=3   ! only one longitude tested 
+     do n=1,nc,ncstep
+        if (mod(n,2_i_kind) ==izero .and. n <= 2*jcap+2_i_kind ) then
+           d1(n)=zero   ! these are imag parts of coefs for zonal wave number 0
+        else
+           i=3_i_kind   ! only one longitude tested 
 !
-        do ig=1,5     !loop over selected lats to test
-          d1=zero; d2=zero
-          u1=zero; u2=zero
-          j = index(ig)
-          d1(n)=one
-          u2(j,i)=one
-          call s2g0_ad(d2,u2)  
-          call s2g0(d1,u1)
-          d3(n)=u1(j,i)-d2(n)
-          if (abs(d3(n)) .gt. smallfrac*(abs(d2(n))+abs(u1(j,i))) ) then 
-            write(777,'(a,2i7,1p3e18.10)') ' latindex,spec-index,s,g,diff ' &
-                                            ,j,n,d2(n),u1(j,i),d3(n)
-          endif
-          if (abs(d2(n))  > absmax) absmax=abs(d2(n))
-          if (abs(u1(j,i)) > absmax) absmax=abs(u1(j,i))
-          if (abs(d3(n))  > diffmax) diffmax=abs(d3(n))      
-        enddo   ! loop over selected lats
-      endif     ! test if imag part of zonal wave 0 coef
+           do ig=1,5     !loop over selected lats to test
+              d1=zero; d2=zero
+              u1=zero; u2=zero
+              j = index(ig)
+              d1(n)=one
+              u2(j,i)=one
+              call s2g0_ad(d2,u2)  
+              call s2g0(d1,u1)
+              d3(n)=u1(j,i)-d2(n)
+              if (abs(d3(n)) > smallfrac*(abs(d2(n))+abs(u1(j,i))) ) then 
+                 write(777,'(a,2i7,1p3e18.10)') ' latindex,spec-index,s,g,diff ' &
+                                                ,j,n,d2(n),u1(j,i),d3(n)
+              endif
+              if (abs(d2(n))  > absmax) absmax=abs(d2(n))
+              if (abs(u1(j,i)) > absmax) absmax=abs(u1(j,i))
+              if (abs(d3(n))  > diffmax) diffmax=abs(d3(n))      
+           enddo   ! loop over selected lats
+        endif     ! test if imag part of zonal wave 0 coef
  
-    enddo       ! loop over spec index n
+     enddo       ! loop over spec index n
  
-    write(777,*) ' max of absolute values tested =',absmax
-    write(777,*) ' max of absolute diff obtained =',diffmax
+     write(777,*) ' max of absolute values tested =',absmax
+     write(777,*) ' max of absolute diff obtained =',diffmax
 !
 !
 !   *******************************************
 !   TEST ADJOINT USING NORM TEST
 !   test that uvg2zds_ad is adjoint of uvg2zds      
 !   s is vort spectral coefs here
-    u1=zero; u2=zero; v1=zero; v2=zero
-    s1=zero; s2=zero; d1=zero; d2=zero
+     u1=zero; u2=zero; v1=zero; v2=zero
+     s1=zero; s2=zero; d1=zero; d2=zero
 
 ! fill wind with random numbers, then spectrally truncate
-    call random_number(u1)
-    call random_number(v1)
-    call uvg2zds(s1,d1,u1,v1)
-    u1=zero
-    v1=zero
-    call zds2uvg(s1,d1,u1,v1)  
+     call random_number(u1)
+     call random_number(v1)
+     call uvg2zds(s1,d1,u1,v1)
+     u1=zero
+     v1=zero
+     call zds2uvg(s1,d1,u1,v1)  
 !
 !  fill spectral adjoint variables with random numbers
 !  but with magnitudes like we have in real cases   
-    call random_number(d2)
-    call random_number(s2)
-    d2=d2*d1 ! this will set values that should be 0 to 0.
-    s2=s2*s1 ! this will set values that should be 0 to 0.
+     call random_number(d2)
+     call random_number(s2)
+     d2=d2*d1 ! this will set values that should be 0 to 0.
+     s2=s2*s1 ! this will set values that should be 0 to 0.
 !
 !  call 2 routines to compare
-    s1=zero
-    d1=zero
-    u2=zero
-    v2=zero  
-    call uvg2zds_ad(s2,d2,u2,v2)   
-    call uvg2zds(s1,d1,u1,v1)  
+     s1=zero
+     d1=zero
+     u2=zero
+     v2=zero  
+     call uvg2zds_ad(s2,d2,u2,v2)   
+     call uvg2zds(s1,d1,u1,v1)  
 !
 !  d3(1) is the norm in terms of spectra 
-    d3(1:3)=zero
-    do i=1,nc
-      d3(1)=d3(1) + s1(i)*s2(i) + d1(i)*d2(i)
-    enddo
+     d3(1:3)=zero
+     do i=1,nc
+        d3(1)=d3(1) + s1(i)*s2(i) + d1(i)*d2(i)
+     enddo
 !
 !  d3(2) is the norm in terms of grid values
-    do i=1,nlat
-      do j=1,nlon
-        d3(2)=d3(2) + u1(i,j)*u2(i,j) + v1(i,j)*v2(i,j)
-      enddo
-    enddo
+     do i=1,nlat
+        do j=1,nlon
+           d3(2)=d3(2) + u1(i,j)*u2(i,j) + v1(i,j)*v2(i,j)
+        enddo
+     enddo
 !
 !  d3(3) is the difference in the norms
-    d3(3)=d3(1)-d3(2)
+     d3(3)=d3(1)-d3(2)
 ! 
-    write(777,*) ' '
-    write(777,*) ' **** Apply norm test to uvg2zds and uvg2zds_ad ****'
-    write(777,'(a,1p3e18.10)') ' zdnorm, uvnorm, diff ',d3(1:3)
+     write(777,*) ' '
+     write(777,*) ' **** Apply norm test to uvg2zds and uvg2zds_ad ****'
+     write(777,'(a,1p3e18.10)') ' zdnorm, uvnorm, diff ',d3(1:3)
 !
 !
 !   ****************************************************
 !   TEST VECTOR TRANSFORM ADJOINT ZDS2UVG USING NORM TEST
 !   test that zds2uvg_ad is adjoint of zds2uvg      
 !   s is vort spectral coefs here
-    u1=zero; u2=zero; v1=zero; v2=zero
-    s1=zero; s2=zero; d1=zero; d2=zero
+     u1=zero; u2=zero; v1=zero; v2=zero
+     s1=zero; s2=zero; d1=zero; d2=zero
 
 ! fill wind with random numbers, then spectrally truncate
-    call random_number(u1)
-    call random_number(v1)
-    call uvg2zds(s1,d1,u1,v1)
-    u1=zero
-    v1=zero
-    call zds2uvg(s1,d1,u1,v1)  
+     call random_number(u1)
+     call random_number(v1)
+     call uvg2zds(s1,d1,u1,v1)
+     u1=zero
+     v1=zero
+     call zds2uvg(s1,d1,u1,v1)  
 !
 !  fill spectral adjoint variables with random numbers
 !  but with magnitudes like we have in real cases   
-    call random_number(d2)
-    call random_number(s2)
-    d2=d2*d1 ! this will set values that should be 0 to 0.
-    s2=s2*s1 ! this will set values that should be 0 to 0.
+     call random_number(d2)
+     call random_number(s2)
+     d2=d2*d1 ! this will set values that should be 0 to 0.
+     s2=s2*s1 ! this will set values that should be 0 to 0.
 !
 !  call 2 routines to compare
-    s1=zero
-    d1=zero
-    u2=zero
-    v2=zero  
-    call zds2uvg(s2,d2,u2,v2)  
-    call zds2uvg_ad(s1,d1,u1,v1)  
+     s1=zero
+     d1=zero
+     u2=zero
+     v2=zero  
+     call zds2uvg(s2,d2,u2,v2)  
+     call zds2uvg_ad(s1,d1,u1,v1)  
 !
 !  d3(1) is the norm in terms of spectra 
-    d3(1:3)=zero
-    do i=1,nc
-      d3(1)=d3(1) + s1(i)*s2(i) + d1(i)*d2(i)
-    enddo
+     d3(1:3)=zero
+     do i=1,nc
+        d3(1)=d3(1) + s1(i)*s2(i) + d1(i)*d2(i)
+     enddo
 !
 !  d3(2) is the norm in terms of grid values
-    do i=1,nlat
-      do j=1,nlon
-        d3(2)=d3(2) + u1(i,j)*u2(i,j) + v1(i,j)*v2(i,j)
-      enddo
-    enddo
+     do i=1,nlat
+        do j=1,nlon
+           d3(2)=d3(2) + u1(i,j)*u2(i,j) + v1(i,j)*v2(i,j)
+        enddo
+     enddo
 !
 !  d3(3) is the difference in the norms
-    d3(3)=d3(1)-d3(2)
+     d3(3)=d3(1)-d3(2)
 ! 
-    write(777,*) ' '
-    write(777,*) ' **** Apply norm test to zds2uvg and zds2uvg_ad ****'
-    write(777,'(a,1p3e18.10)') ' zdnorm, uvnorm, diff ',d3(1:3)
+     write(777,*) ' '
+     write(777,*) ' **** Apply norm test to zds2uvg and zds2uvg_ad ****'
+     write(777,'(a,1p3e18.10)') ' zdnorm, uvnorm, diff ',d3(1:3)
 !
 !
 !   **************************************************
@@ -1638,38 +1640,38 @@ subroutine test_inverses(mype)
 !   u is scalar field here
 
 ! fill adjoint field with random numbers, then compute adjoint spectra
-    call random_number(u1)
-    u3=u1
-    s1=zero
-    call s2g0_ad(s1,u3)   
+     call random_number(u1)
+     u3=u1
+     s1=zero
+     call s2g0_ad(s1,u3)   
 
 !  fill spectral variables with random numbers
 !  but with magnitudes like we have in real cases
-    call random_number(s2)
-    s2=s2*s1  ! this will set values that should be 0 to 0.
-    s3=s2
-    u2=zero
-    call s2g0(s3,u2)
+     call random_number(s2)
+     s2=s2*s1  ! this will set values that should be 0 to 0.
+     s3=s2
+     u2=zero
+     call s2g0(s3,u2)
 !
 !  d3(1) is the norm in terms of spectra 
-    d3(1:3)=zero
-    do i=1,nc
-      d3(1)=d3(1) + s1(i)*s2(i) 
-    enddo
+     d3(1:3)=zero
+     do i=1,nc
+        d3(1)=d3(1) + s1(i)*s2(i) 
+     enddo
 !
 !  d3(2) is the norm in terms of grid values
-    do i=1,nlat
-      do j=1,nlon
-        d3(2)=d3(2) + u1(i,j)*u2(i,j) 
-      enddo
-    enddo
+     do i=1,nlat
+        do j=1,nlon
+           d3(2)=d3(2) + u1(i,j)*u2(i,j) 
+        enddo
+     enddo
 !
 !  d3(3) is the difference in the norms
-    d3(3)=d3(1)-d3(2)
+     d3(3)=d3(1)-d3(2)
 ! 
-    write(777,*) ' '
-    write(777,*) ' **** Apply norm test to s2g0 and s2g0_ad ****'
-    write(777,'(a,1p3e18.10)') ' snorm, gnorm, diff ',d3(1:3)
+     write(777,*) ' '
+     write(777,*) ' **** Apply norm test to s2g0 and s2g0_ad ****'
+     write(777,'(a,1p3e18.10)') ' snorm, gnorm, diff ',d3(1:3)
 !
 !
 !   ****************************************************
@@ -1677,41 +1679,41 @@ subroutine test_inverses(mype)
 !   u is scalar field here
 
 ! fill field with random numbers, then spectrally truncate
-    call random_number(u1)
-    u3=u1
-    s1=zero
-    call g2s0(s1,u3)
+     call random_number(u1)
+     u3=u1
+     s1=zero
+     call g2s0(s1,u3)
 !
 !  fill spectral adjoint variables with random numbers
 !  but with magnitudes like we have in real cases
-    call random_number(s2)
-    s2=s2*s1  ! this will set values that should be 0 to 0.
-    s3=s2
-    u2=zero
-    call g2s0_ad(s3,u2)
+     call random_number(s2)
+     s2=s2*s1  ! this will set values that should be 0 to 0.
+     s3=s2
+     u2=zero
+     call g2s0_ad(s3,u2)
 !
 !  d3(1) is the norm in terms of spectra 
-    d3(1:3)=zero
-    do i=1,nc
-      d3(1)=d3(1) + s1(i)*s2(i) 
-    enddo
+     d3(1:3)=zero
+     do i=1,nc
+        d3(1)=d3(1) + s1(i)*s2(i) 
+     enddo
 !
 !  d3(2) is the norm in terms of grid values
-    do i=1,nlat
-      do j=1,nlon
-        d3(2)=d3(2) + u1(i,j)*u2(i,j) 
-      enddo
-    enddo
+     do i=1,nlat
+        do j=1,nlon
+           d3(2)=d3(2) + u1(i,j)*u2(i,j) 
+        enddo
+     enddo
 !
 !  d3(3) is the difference in the norms
-    d3(3)=d3(1)-d3(2)
+     d3(3)=d3(1)-d3(2)
 ! 
-    write(777,*) ' '
-    write(777,*) ' **** Apply norm test to g2s0 and g2s0_ad ****'
-    write(777,'(a,1p3e18.10)') ' snorm, gnorm, diff ',d3(1:3)
+     write(777,*) ' '
+     write(777,*) ' **** Apply norm test to g2s0 and g2s0_ad ****'
+     write(777,'(a,1p3e18.10)') ' snorm, gnorm, diff ',d3(1:3)
 !
 !
-   end if   ! end mype
+  end if   ! end mype
 !
 !
 end subroutine test_inverses

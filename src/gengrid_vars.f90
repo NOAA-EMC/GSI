@@ -41,60 +41,60 @@ subroutine gengrid_vars
 
   if(regional) then
 ! This is regional run, so transfer previously defined regional lats, lons
-    do i=1,nlon
-       rlons(i)=i
-    end do
+     do i=1,nlon
+        rlons(i)=i
+     end do
 
-    do i=1,nlat
-       rlats(i)=i
-    end do
+     do i=1,nlat
+        rlats(i)=i
+     end do
 
-    i1=nlon/4
-    do i=1,nlat
-      wgtlats(i)=zero
-      rbs2(i)=one/cos(region_lat(i,i1))**2
-    end do
+     i1=nlon/4
+     do i=1,nlat
+        wgtlats(i)=zero
+        rbs2(i)=one/cos(region_lat(i,i1))**2
+     end do
 
   else
 
 ! This is global run, so get global lons, lats, wgtlats
 
 ! Set local constants
-    anlon=float(nlon)
-    pih=half*pi
-    dlon=two*pi/anlon
+     anlon=float(nlon)
+     pih=half*pi
+     dlon=two*pi/anlon
 
 ! Load grid lat,lon arrays.  rbs2 is used in pcp.
-    do i=1,nlon
-      rlons(i)=float(i-ione)*dlon
-      coslon(i)=cos(rlons(i))
-      sinlon(i)=sin(rlons(i))
-    end do
+     do i=1,nlon
+        rlons(i)=float(i-ione)*dlon
+        coslon(i)=cos(rlons(i))
+        sinlon(i)=sin(rlons(i))
+     end do
 
-    do i=jb,je
-       i1=i+ione
-       rlats(i1)=-asin(slat(i))
-       rbs2(i1)=one/cos(rlats(i1))**2
-       wgtlats(i1)=wlat(i)
+     do i=jb,je
+        i1=i+ione
+        rlats(i1)=-asin(slat(i))
+        rbs2(i1)=one/cos(rlats(i1))**2
+        wgtlats(i1)=wlat(i)
 
-       i1=nlat-i
-       rlats(i1)=asin(slat(i))
-       rbs2(i1)=one/cos(rlats(i1))**2
-       wgtlats(i1)=wlat(i)
-    end do
+        i1=nlat-i
+        rlats(i1)=asin(slat(i))
+        rbs2(i1)=one/cos(rlats(i1))**2
+        wgtlats(i1)=wlat(i)
+     end do
 
-    rlats(1)=-pih
-    rlats(nlat)=pih
+     rlats(1)=-pih
+     rlats(nlat)=pih
    
-    wgtlats(1)=zero
-    wgtlats(nlat)=zero
+     wgtlats(1)=zero
+     wgtlats(nlat)=zero
 
-    rbs2(1)=zero
-    rbs2(nlat)=zero
+     rbs2(1)=zero
+     rbs2(nlat)=zero
 
-    do i=1,nlat
-      corlats(i)=two*omega*sin(rlats(i))
-    end do
+     do i=1,nlat
+        corlats(i)=two*omega*sin(rlats(i))
+     end do
 
 
 !   Repeat calculations, if necessary, for background grid.

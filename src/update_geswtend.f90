@@ -42,9 +42,9 @@
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: xut,xvt,xtt,xqt, &
-                                                      xozt,xcwt
-  real(r_kind),dimension(lat2,lon2),intent(in):: xpt
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: xut,xvt,xtt,xqt, &
+                                                          xozt,xcwt
+  real(r_kind),dimension(lat2,lon2)     ,intent(in   ) :: xpt
 
 ! Declare local variables
   integer(i_kind) i,j,k,it
@@ -86,48 +86,48 @@
 
 !  Do time derivative of vorticity and divergence
 
-!      Zero work arrays
-       do k=1,nuvlevs
-          do j=1,itotsub
-             work1(j,k)=zero
-             work2(j,k)=zero
-          end do
-       end do
+!    Zero work arrays
+     do k=1,nuvlevs
+        do j=1,itotsub
+           work1(j,k)=zero
+           work2(j,k)=zero
+        end do
+     end do
   
-!      Strip off halo for u,v grids on subdomains
-       call strip(xut,usm,nsig)
-       call strip(xvt,vsm,nsig)
+!    Strip off halo for u,v grids on subdomains
+     call strip(xut,usm,nsig)
+     call strip(xvt,vsm,nsig)
 
-!      Put u,v subdomains on global slabs
-!      Note:  u --> work1, v --> work2
-       call mpi_alltoallv(usm,iscuv_g,isduv_g,&
-            mpi_rtype,work1,ircuv_g,irduv_g,mpi_rtype,&
-            mpi_comm_world,ierror)
-       call mpi_alltoallv(vsm,iscuv_g,isduv_g,&
-            mpi_rtype,work2,ircuv_g,irduv_g,mpi_rtype,&
-            mpi_comm_world,ierror)
+!    Put u,v subdomains on global slabs
+!    Note:  u --> work1, v --> work2
+     call mpi_alltoallv(usm,iscuv_g,isduv_g,&
+          mpi_rtype,work1,ircuv_g,irduv_g,mpi_rtype,&
+          mpi_comm_world,ierror)
+     call mpi_alltoallv(vsm,iscuv_g,isduv_g,&
+          mpi_rtype,work2,ircuv_g,irduv_g,mpi_rtype,&
+          mpi_comm_world,ierror)
   
-!      Reorder work arrays before converting u,v to vor,div
-       call reorder(work1,nuvlevs,nnnuvlevs)
-       call reorder(work2,nuvlevs,nnnuvlevs)
+!    Reorder work arrays before converting u,v to vor,div
+     call reorder(work1,nuvlevs,nnnuvlevs)
+     call reorder(work2,nuvlevs,nnnuvlevs)
   
-!      Call u,v --> vor,div routine (conversion uses compact differences)
-       do k=1,nnnuvlevs
-          call uv2vordiv(work1(1,k),work2(1,k))
-       end do
+!    Call u,v --> vor,div routine (conversion uses compact differences)
+     do k=1,nnnuvlevs
+        call uv2vordiv(work1(1,k),work2(1,k))
+     end do
 
-!      Reorder work arrays for mpi communication
-       call reorder2(work1,nuvlevs,nnnuvlevs)
-       call reorder2(work2,nuvlevs,nnnuvlevs)
+!    Reorder work arrays for mpi communication
+     call reorder2(work1,nuvlevs,nnnuvlevs)
+     call reorder2(work2,nuvlevs,nnnuvlevs)
   
-!      Get vor,div on subdomains
-!      Note:  work1 --> vor, work2 --> div
-       call mpi_alltoallv(work1,iscuv_s,isduv_s,&
-            mpi_rtype,dvor_t,ircuv_s,irduv_s,mpi_rtype,&
-            mpi_comm_world,ierror)
-       call mpi_alltoallv(work2,iscuv_s,isduv_s,&
-            mpi_rtype,ddiv_t,ircuv_s,irduv_s,mpi_rtype,&
-            mpi_comm_world,ierror)
+!    Get vor,div on subdomains
+!    Note:  work1 --> vor, work2 --> div
+     call mpi_alltoallv(work1,iscuv_s,isduv_s,&
+          mpi_rtype,dvor_t,ircuv_s,irduv_s,mpi_rtype,&
+          mpi_comm_world,ierror)
+     call mpi_alltoallv(work2,iscuv_s,isduv_s,&
+          mpi_rtype,ddiv_t,ircuv_s,irduv_s,mpi_rtype,&
+          mpi_comm_world,ierror)
 
 
 !   End of NCEP GFS block
@@ -135,34 +135,34 @@
   endif
 
   
-    do it=1,nfldsig
-       tcon=hrdifsig(it)*r3600
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-               ges_u(i,j,k,it)    = ges_u(i,j,k,it) + xut(i,j,k)*tcon
-               ges_v(i,j,k,it)    = ges_v(i,j,k,it) + xvt(i,j,k)*tcon
-               ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)+ xtt(i,j,k)*tcon
-               ges_q(i,j,k,it)    = ges_q(i,j,k,it) + xqt(i,j,k)*tcon
+  do it=1,nfldsig
+     tcon=hrdifsig(it)*r3600
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              ges_u(i,j,k,it)    = ges_u(i,j,k,it) + xut(i,j,k)*tcon
+              ges_v(i,j,k,it)    = ges_v(i,j,k,it) + xvt(i,j,k)*tcon
+              ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)+ xtt(i,j,k)*tcon
+              ges_q(i,j,k,it)    = ges_q(i,j,k,it) + xqt(i,j,k)*tcon
 
 !  produce sensible temperature
-               ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*max(zero,ges_q(i,j,k,it)))
+              ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*max(zero,ges_q(i,j,k,it)))
 
-!              Note:  Below variables only used in NCEP GFS model
+!             Note:  Below variables only used in NCEP GFS model
 
-               ges_oz(i,j,k,it)   = ges_oz(i,j,k,it) + xozt(i,j,k)*tcon
-               ges_cwmr(i,j,k,it) = ges_cwmr(i,j,k,it)+ xcwt(i,j,k)*tcon
-               ges_div(i,j,k,it)  = ges_div(i,j,k,it) + ddiv_t(i,j,k)*tcon
-               ges_vor(i,j,k,it)  = ges_vor(i,j,k,it) + dvor_t(i,j,k)*tcon
-             end do
-          end do
-       end do
-       do j=1,lon2
-          do i=1,lat2
-            ges_ps(i,j,it) = ges_ps(i,j,it) + xpt(i,j)*tcon
-          end do
-       end do
-    end do
+              ges_oz(i,j,k,it)   = ges_oz(i,j,k,it) + xozt(i,j,k)*tcon
+              ges_cwmr(i,j,k,it) = ges_cwmr(i,j,k,it)+ xcwt(i,j,k)*tcon
+              ges_div(i,j,k,it)  = ges_div(i,j,k,it) + ddiv_t(i,j,k)*tcon
+              ges_vor(i,j,k,it)  = ges_vor(i,j,k,it) + dvor_t(i,j,k)*tcon
+           end do
+        end do
+     end do
+     do j=1,lon2
+        do i=1,lat2
+           ges_ps(i,j,it) = ges_ps(i,j,it) + xpt(i,j)*tcon
+        end do
+     end do
+  end do
 
   return
 end subroutine update_geswtend

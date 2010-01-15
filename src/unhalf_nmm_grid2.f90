@@ -36,20 +36,21 @@ subroutine unhalf_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 !
 !$$$
   use kinds, only: r_single,i_kind
+  use constants, only: izero,ione
   use gridmod, only: iglobal,ltosi,ltosj,itotsub,ltosj_s,ltosi_s
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,ny,igtype,iorder
-  real(r_single),dimension(itotsub),intent(in):: gout
-  real(r_single),dimension(nx,ny),intent(inout):: gin
+  integer(i_kind)                  ,intent(in   ) :: nx,ny,igtype,iorder
+  real(r_single),dimension(itotsub),intent(in   ) :: gout
+  real(r_single),dimension(nx,ny)  ,intent(inout) :: gin
 
 ! Declare local variables  
   integer(i_kind) i,ip,j,jj,jm,jp,jjp
   real(r_single),dimension(nx,ny):: hin
-  real(r_single),dimension(nx,(ny+5)/2):: c
+  real(r_single),dimension(nx,(ny+5_i_kind)/2):: c
 
-  if(iorder==1)then
+  if(iorder==ione)then
      do i=1,itotsub
         c(ltosj_s(i),ltosi_s(i))=gout(i)
      end do
@@ -61,45 +62,45 @@ subroutine unhalf_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
   
   
 ! Transfer half grid to staggered grid
-  if(igtype.eq.1) then
-     jj=0
+  if(igtype==ione) then
+     jj=izero
      do j=1,ny,2
-        jj=jj+1
+        jj=jj+ione
         do i=1,nx
            hin(i,j)=c(i,jj)
            gin(i,j)=gin(i,j)+c(i,jj)
         end do
      end do
      do j=2,ny,2
-        jm=j-1 ; jp=j+1 ; if(jp.gt.ny) jp=j-1
-        do i=1,nx-1
-           ip=i+1
-           gin(i,j)=gin(i,j)+.25*(hin(i,jm)+hin(ip,jm)+hin(i,jp)+hin(ip,jp))
+        jm=j-ione ; jp=j+ione ; if(jp>ny) jp=j-ione
+        do i=1,nx-ione
+           ip=i+ione
+           gin(i,j)=gin(i,j)+.25_r_single*(hin(i,jm)+hin(ip,jm)+hin(i,jp)+hin(ip,jp))
         end do
-           gin(nx,j)=gin(nx-1,j)*2-gin(nx-2,j)
+        gin(nx,j)=gin(nx-ione,j)*2-gin(nx-2_i_kind,j)
      end do
   else
-     jj=0
+     jj=izero
      do j=1,ny,2
-        jj=jj+1
-        do i=1,nx-1
-           ip=i+1
-           hin(i,j)=.5*(c(i,jj)+c(ip,jj))
+        jj=jj+ione
+        do i=1,nx-ione
+           ip=i+ione
+           hin(i,j)=.5_r_single*(c(i,jj)+c(ip,jj))
         end do
      end do
-     jj=0
+     jj=izero
      do j=2,ny,2
-        jj=jj+1
-        jjp=jj+1; if(j.eq.ny) jjp=jj
+        jj=jj+ione
+        jjp=jj+ione; if(j==ny) jjp=jj
         do i=1,nx
-           hin(i,j)=.5*(c(i,jj)+c(i,jjp))
+           hin(i,j)=.5_r_single*(c(i,jj)+c(i,jjp))
         end do
      end do
      do j=1,ny,2
-        do i=1,nx-1
+        do i=1,nx-ione
            gin(i,j)=gin(i,j)+hin(i,j)
         end do
-           gin(nx,j)=gin(nx-1,j)*2-gin(nx-2,j)
+        gin(nx,j)=gin(nx-ione,j)*2-gin(nx-2_i_kind,j)
      end do
      do j=2,ny,2
         do i=1,nx

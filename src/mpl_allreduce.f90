@@ -67,8 +67,8 @@ subroutine rmpl_allreduce(klen,pvals)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in) :: klen
-  real(r_kind),intent(inout) :: pvals(klen)
+  integer(i_kind),intent(in   ) :: klen
+  real(r_kind)   ,intent(inout) :: pvals(klen)
 
 ! Declare local variables
   integer(i_kind) :: ii,jj
@@ -78,19 +78,19 @@ subroutine rmpl_allreduce(klen,pvals)
 
   if (npe>ione .and. klen>izero) then
 
-!   Gather contributions
-    call mpi_allgather(pvals,klen,mpi_rtype, &
-                     & zwork,klen,mpi_rtype, mpi_comm_world,ierror)
+!    Gather contributions
+     call mpi_allgather(pvals,klen,mpi_rtype, &
+                      & zwork,klen,mpi_rtype, mpi_comm_world,ierror)
 
-!   Reproducible sum
-    DO ii=1,klen
-      pvals(ii)=zwork(ii,1)
-    ENDDO
-    DO jj=2,npe
-      DO ii=1,klen
-        pvals(ii)=pvals(ii)+zwork(ii,jj)
-      ENDDO
-    ENDDO
+!    Reproducible sum
+     DO ii=1,klen
+        pvals(ii)=zwork(ii,1)
+     ENDDO
+     DO jj=2,npe
+        DO ii=1,klen
+           pvals(ii)=pvals(ii)+zwork(ii,jj)
+        ENDDO
+     ENDDO
 
   endif
 
@@ -127,8 +127,8 @@ subroutine qmpl_allreduce0(klen,pvals)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in) :: klen
-  real(r_quad),intent(inout) :: pvals(klen)
+  integer(i_kind),intent(in   ) :: klen
+  real(r_quad)   ,intent(inout) :: pvals(klen)
 
 ! Declare local variables
   integer(i_kind) :: ii,jj
@@ -138,27 +138,27 @@ subroutine qmpl_allreduce0(klen,pvals)
 
   if (npe>ione .and. klen>izero) then
 
-    zwork1=zero
-    do ii=1,klen
-      zwork1(ii,1)=pvals(ii)
-      zwork1(ii,2)=pvals(ii)-zwork1(ii,1)
-    end do
+     zwork1=zero
+     do ii=1,klen
+        zwork1(ii,1)=pvals(ii)
+        zwork1(ii,2)=pvals(ii)-zwork1(ii,1)
+     end do
 
-!   Gather contributions
-    call mpi_allgather(zwork1(1,  1),klen,mpi_rtype, &
-                     & zwork2(1,1,1),klen,mpi_rtype, mpi_comm_world,ierror)
-    call mpi_allgather(zwork1(1,  2),klen,mpi_rtype, &
-                     & zwork2(1,1,2),klen,mpi_rtype, mpi_comm_world,ierror)
+!    Gather contributions
+     call mpi_allgather(zwork1(1,  1),klen,mpi_rtype, &
+                      & zwork2(1,1,1),klen,mpi_rtype, mpi_comm_world,ierror)
+     call mpi_allgather(zwork1(1,  2),klen,mpi_rtype, &
+                      & zwork2(1,1,2),klen,mpi_rtype, mpi_comm_world,ierror)
 
-!   Reproducible sum
-    DO ii=1,klen
-      pvals(ii)=zero_quad
-    ENDDO
-    DO jj=1,npe
-      DO ii=1,klen
-        pvals(ii)=pvals(ii)+zwork2(ii,jj,1)+zwork2(ii,jj,2)
-      ENDDO
-    ENDDO
+!    Reproducible sum
+     DO ii=1,klen
+        pvals(ii)=zero_quad
+     ENDDO
+     DO jj=1,npe
+        DO ii=1,klen
+           pvals(ii)=pvals(ii)+zwork2(ii,jj,1)+zwork2(ii,jj,2)
+        ENDDO
+     ENDDO
 
   endif
 
@@ -195,8 +195,8 @@ subroutine qmpl_allreduce1d(klen,pvals)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in) :: klen
-  real(r_quad),intent(inout) :: pvals(klen)
+  integer(i_kind),intent(in   ) :: klen
+  real(r_quad)   ,intent(inout) :: pvals(klen)
 
 ! Declare local variables
   integer(i_kind) :: ii,jj,mp1
@@ -210,8 +210,8 @@ subroutine qmpl_allreduce1d(klen,pvals)
   mp1=mype+ione
   zwork1=zero
   do ii=1,klen
-    zwork1(ii,mp1,1)=pvals(ii)
-    zwork1(ii,mp1,2)=pvals(ii)-zwork1(ii,mp1,1)
+     zwork1(ii,mp1,1)=pvals(ii)
+     zwork1(ii,mp1,2)=pvals(ii)-zwork1(ii,mp1,1)
   end do
 
 ! Reduce now
@@ -223,9 +223,9 @@ subroutine qmpl_allreduce1d(klen,pvals)
     
   pvals=zero_quad
   do jj=1,npe
-    do ii=1,klen
-      pvals(ii)=pvals(ii)+zwork2(ii,jj,1)+zwork2(ii,jj,2)
-    end do
+     do ii=1,klen
+        pvals(ii)=pvals(ii)+zwork2(ii,jj,1)+zwork2(ii,jj,2)
+     end do
   end do
 
 return
@@ -262,9 +262,9 @@ subroutine qmpl_allreduce2d(ilen,klen,pvals,pvnew)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in) :: ilen,klen
-  real(r_quad),intent(inout) :: pvals(ilen,klen)
-  real(r_quad),optional,intent(out) :: pvnew(ilen,klen)
+  integer(i_kind)      ,intent(in   ) :: ilen,klen
+  real(r_quad)         ,intent(inout) :: pvals(ilen,klen)
+  real(r_quad),optional,intent(  out) :: pvnew(ilen,klen)
 
 ! Declare local variables
   integer(i_kind) :: ii,kk,nn,mp1
@@ -278,10 +278,10 @@ subroutine qmpl_allreduce2d(ilen,klen,pvals,pvnew)
   mp1=mype+ione
   zwork1=zero
   do kk=1,klen
-    do ii=1,ilen
-      zwork1(ii,kk,mp1,1)=pvals(ii,kk)
-      zwork1(ii,kk,mp1,2)=pvals(ii,kk)-zwork1(ii,kk,mp1,1)
-    end do
+     do ii=1,ilen
+        zwork1(ii,kk,mp1,1)=pvals(ii,kk)
+        zwork1(ii,kk,mp1,2)=pvals(ii,kk)-zwork1(ii,kk,mp1,1)
+     end do
   end do
 
 ! Reduce now
@@ -293,25 +293,25 @@ subroutine qmpl_allreduce2d(ilen,klen,pvals,pvnew)
     
   if (present(pvnew)) then
 
-    pvnew=zero_quad
-    do nn=1,npe
-      do kk=1,klen
-        do ii=1,ilen
-          pvnew(ii,kk)=pvnew(ii,kk)+zwork2(ii,kk,nn,1)+zwork2(ii,kk,nn,2)
+     pvnew=zero_quad
+     do nn=1,npe
+        do kk=1,klen
+           do ii=1,ilen
+              pvnew(ii,kk)=pvnew(ii,kk)+zwork2(ii,kk,nn,1)+zwork2(ii,kk,nn,2)
+           end do
         end do
-      end do
-    end do
+     end do
 
   else
 
-    pvals=zero_quad
-    do nn=1,npe
-      do kk=1,klen
-        do ii=1,ilen
-          pvals(ii,kk)=pvals(ii,kk)+zwork2(ii,kk,nn,1)+zwork2(ii,kk,nn,2)
+     pvals=zero_quad
+     do nn=1,npe
+        do kk=1,klen
+           do ii=1,ilen
+              pvals(ii,kk)=pvals(ii,kk)+zwork2(ii,kk,nn,1)+zwork2(ii,kk,nn,2)
+           end do
         end do
-      end do
-    end do
+     end do
 
   endif 
 
@@ -356,15 +356,15 @@ subroutine mpl_allgatherq(idim,jdim,zloc,zall)
   real(r_kind) :: z1(idim,2),z2(idim,jdim,2)
 
   if(jdim/=npe) then
-    write(6,*)'state_vectors: troubled jdim/npe',jdim,npe
-    call stop2(153)
+     write(6,*)'state_vectors: troubled jdim/npe',jdim,npe
+     call stop2(153)
   end if
 
 ! break up quad precision number into 2 double precision numbers
   z1=zero
   do i=1,idim
-      z1(i,1)=zloc(i)
-      z1(i,2)=zloc(i)-z1(i,1)
+     z1(i,1)=zloc(i)
+     z1(i,2)=zloc(i)-z1(i,1)
   end do
 
   call mpi_allgather(z1(1,1)  ,idim,mpi_rtype, &
@@ -374,12 +374,12 @@ subroutine mpl_allgatherq(idim,jdim,zloc,zall)
 
 ! reintegrate quad precision number
   do i=1,idim
-      zall(i,1)=zero_quad
+     zall(i,1)=zero_quad
   end do
   do j=1,jdim
-    do i=1,idim
+     do i=1,idim
         zall(i,j)=zall(i,j)+z2(i,j,1)+z2(i,j,2)
-    end do
+     end do
   end do
 
 end subroutine mpl_allgatherq

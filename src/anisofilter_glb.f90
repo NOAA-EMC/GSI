@@ -242,7 +242,7 @@ subroutine anprewgt(mype)
 
   implicit none
 
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
   integer(i_kind):: i,j,k,k1,kvar,ivar,idiagflg,igauss,istat
   real(r_kind):: factk,factor,anhswgtsum
@@ -746,7 +746,7 @@ subroutine read_bckgstats_glb(mype)
   use patch2grid_mod, only: grid2patch
   implicit none
 
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
   integer(i_kind):: mcount0,mcount,ierror
   real(r_kind) :: pbar4a,pbar4(nsig)
@@ -1006,7 +1006,7 @@ subroutine get_background_glb(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind) i,j,k,mm1,k1,ivar,nlonfc,ier,it
@@ -1505,7 +1505,7 @@ subroutine get_aspect_pt(mype)
   use anberror, only: afact0
   implicit none
 
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
   integer(i_kind):: i,j,k,k1
   real(r_kind):: fx1,fx2,fx3,asp1,asp2,asp3
@@ -1678,7 +1678,7 @@ subroutine get_theta_corrl_lenghts_glb(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind) i,j,k,kp,km,k1,it
@@ -2129,7 +2129,7 @@ subroutine anbkgvar_rewgt(mype)
                            sub2fslab_glb, sub2fslab2d_glb
   implicit none
 
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
   integer(i_kind):: i,j,k,ix,ier,mm1,it
 
@@ -2230,7 +2230,7 @@ subroutine get_aspect_ens(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   real(r_single),allocatable,dimension(:,:,:,:):: aniasp_p0, aniasp_p2, aniasp_p3
@@ -3779,7 +3779,7 @@ subroutine ens_uv2psichi(work1,work2)
   implicit none
 
 ! Declare passed variables
-  real(r_single),dimension(nlat,nlon),intent(inout):: work1,work2
+  real(r_single),dimension(nlat,nlon),intent(inout) :: work1,work2
 
 ! Declare local variables
   real(r_kind),dimension(nlat,nlon):: work3,work4

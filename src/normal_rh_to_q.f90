@@ -35,10 +35,10 @@ subroutine normal_rh_to_q(rhnorm,t,p,q)
 
   implicit none
 
-  real(r_kind),intent(in):: rhnorm(lat2,lon2,nsig)
-  real(r_kind),intent(in):: t(lat2,lon2,nsig)
-  real(r_kind),intent(in):: p(lat2,lon2,nsig+ione)  
-  real(r_kind),intent(out):: q(lat2,lon2,nsig)
+  real(r_kind),intent(in   ) :: rhnorm(lat2,lon2,nsig)
+  real(r_kind),intent(in   ) :: t(lat2,lon2,nsig)
+  real(r_kind),intent(in   ) :: p(lat2,lon2,nsig+ione)  
+  real(r_kind),intent(  out) :: q(lat2,lon2,nsig)
   
   integer(i_kind) i,j,k
 
@@ -105,10 +105,10 @@ subroutine normal_rh_to_q_ad(rhnorm,t,p,q)
   use constants, only: ione,zero
   implicit none
 
-  real(r_kind),intent(inout):: rhnorm(lat2,lon2,nsig)
-  real(r_kind),intent(inout):: t(lat2,lon2,nsig)
-  real(r_kind),intent(inout):: p(lat2,lon2,nsig+ione)
-  real(r_kind),intent(inout):: q(lat2,lon2,nsig)
+  real(r_kind),intent(inout) :: rhnorm(lat2,lon2,nsig)
+  real(r_kind),intent(inout) :: t(lat2,lon2,nsig)
+  real(r_kind),intent(inout) :: p(lat2,lon2,nsig+ione)
+  real(r_kind),intent(inout) :: q(lat2,lon2,nsig)
   
 ! local variables:
   integer(i_kind) i,j,k

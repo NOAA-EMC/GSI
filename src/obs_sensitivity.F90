@@ -117,6 +117,7 @@ subroutine init_fc_sens
 !$$$ end documentation block
 
 implicit none
+
 character(len=12) :: clfile
 type(state_vector) :: fcgrad(nsubwin)
 type(predictors) :: zbias
@@ -125,81 +126,81 @@ real(r_kind) :: zjx
 integer(i_kind) :: ii,ierr
 
 if (mype==izero) then
-  write(6,*)'init_fc_sens: lobsensincr,lobsensfc,lobsensjb=', &
-                           lobsensincr,lobsensfc,lobsensjb
-  write(6,*)'init_fc_sens: lobsensadj,lobsensmin,iobsconv=', &
-                           lobsensadj,lobsensmin,iobsconv
-  write(6,*)'init_fc_sens: lsensrecompute=',lsensrecompute
+   write(6,*)'init_fc_sens: lobsensincr,lobsensfc,lobsensjb=', &
+                            lobsensincr,lobsensfc,lobsensjb
+   write(6,*)'init_fc_sens: lobsensadj,lobsensmin,iobsconv=', &
+                            lobsensadj,lobsensmin,iobsconv
+   write(6,*)'init_fc_sens: lsensrecompute=',lsensrecompute
 endif
 
 call allocate_cv(fcsens)
 fcsens=zero
 
 if (lobsensadj.and.lobsensmin) then
-  write(6,*)'init_fc_sens: unknown method',lobsensadj,lobsensmin
-  call stop2(155)
+   write(6,*)'init_fc_sens: unknown method',lobsensadj,lobsensmin
+   call stop2(155)
 end if
 
 if (iobsconv>=2_i_kind) then
-  allocate(sensincr(nobs_bins,nobs_type,niter(jiter)))
+   allocate(sensincr(nobs_bins,nobs_type,niter(jiter)))
 else
-  allocate(sensincr(nobs_bins,nobs_type,1))
+   allocate(sensincr(nobs_bins,nobs_type,1))
 endif
 sensincr=zero
 
 ! Initialize fcsens
 if (lobsensfc) then
-  if (lobsensincr) then
-    clfile='xhatsave.ZZZ'
-    write(clfile(10:12),'(I3.3)') jiter
-    call read_cv(fcsens,clfile)
-    if (jiter>ione) then
+   if (lobsensincr) then
       clfile='xhatsave.ZZZ'
-      write(clfile(10:12),'(I3.3)') jiter-ione
-      call allocate_cv(xwork)
-      call read_cv(xwork,clfile)
-      do ii=1,fcsens%lencv
-        fcsens%values(ii) = fcsens%values(ii) - xwork%values(ii)
-      end do
-      call deallocate_cv(xwork)
-    endif
-  else
-    if (jiter==miter) then
-      if (lobsensjb) then
-        clfile='xhatsave.ZZZ'
-        write(clfile(10:12),'(I3.3)') miter
-        call read_cv(fcsens,clfile)
-      else
-!       read and convert output of GCM adjoint
-        do ii=1,nsubwin
-          call allocate_state(fcgrad(ii))
-        end do
-        call allocate_preds(zbias)
-        zbias=zero
-#ifdef GEOS_PERT
-        call model_init(ierr,skiptraj=idmodel)
-        call pgcm2gsi(fcgrad,'adm',ierr)
-        call model_clean()
-#else /* GEOS_PERT */
-        do ii=1,nsubwin
-          fcgrad(ii) = zero ! not yet implemented
-        end do
-#endif /* GEOS_PERT */
-        call model2control(fcgrad,zbias,fcsens)
-        do ii=1,nsubwin
-          call deallocate_state(fcgrad(ii))
-        end do
-        call deallocate_preds(zbias)
-      endif
-    else
-!     read gradient from outer loop jiter+1
-      clfile='fgsens.ZZZ'
-      WRITE(clfile(8:10),'(I3.3)') jiter+ione
+      write(clfile(10:12),'(I3.3)') jiter
       call read_cv(fcsens,clfile)
-    endif
-  endif
-  zjx=dot_product(fcsens,fcsens)
-  if (mype==izero) write(6,888)'init_fc_sens: Norm fcsens=',sqrt(zjx)
+      if (jiter>ione) then
+         clfile='xhatsave.ZZZ'
+         write(clfile(10:12),'(I3.3)') jiter-ione
+         call allocate_cv(xwork)
+         call read_cv(xwork,clfile)
+         do ii=1,fcsens%lencv
+            fcsens%values(ii) = fcsens%values(ii) - xwork%values(ii)
+         end do
+         call deallocate_cv(xwork)
+      endif
+   else
+      if (jiter==miter) then
+         if (lobsensjb) then
+            clfile='xhatsave.ZZZ'
+            write(clfile(10:12),'(I3.3)') miter
+            call read_cv(fcsens,clfile)
+         else
+!           read and convert output of GCM adjoint
+            do ii=1,nsubwin
+               call allocate_state(fcgrad(ii))
+            end do
+            call allocate_preds(zbias)
+            zbias=zero
+#ifdef GEOS_PERT
+            call model_init(ierr,skiptraj=idmodel)
+            call pgcm2gsi(fcgrad,'adm',ierr)
+            call model_clean()
+#else /* GEOS_PERT */
+            do ii=1,nsubwin
+               fcgrad(ii) = zero ! not yet implemented
+            end do
+#endif /* GEOS_PERT */
+            call model2control(fcgrad,zbias,fcsens)
+            do ii=1,nsubwin
+               call deallocate_state(fcgrad(ii))
+            end do
+            call deallocate_preds(zbias)
+         endif
+      else
+!        read gradient from outer loop jiter+1
+         clfile='fgsens.ZZZ'
+         WRITE(clfile(8:10),'(I3.3)') jiter+ione
+         call read_cv(fcsens,clfile)
+      endif
+   endif
+   zjx=dot_product(fcsens,fcsens)
+   if (mype==izero) write(6,888)'init_fc_sens: Norm fcsens=',sqrt(zjx)
 endif
 888 format(A,3(1X,ES24.18))
 
@@ -246,58 +247,59 @@ subroutine save_fc_sens
 !
 !$$$ end documentation block
 implicit none
+
 real(r_kind) :: zz
 integer(i_kind) :: ii,jj,kk
 
 ! Save statistics
 if (mype==izero) then
 
-! Full stats
-  do jj=1,nobs_type
-    write(6,'(A,2X,I3,2X,A)')'Obs types:',jj,cobtype(jj)
-  enddo
-  write(6,'(A,2X,I4)')'Obs bins:',nobs_bins
-  write(6,*)'Obs Count Begin'
-  if (.not.allocated(obscounts)) then
-     write(6,*)'save_fc_sens: obscounts not allocated'
-     call stop2(156)
-  end if
-  do jj=1,nobs_type
-    write(6,'((1X,I12))')(obscounts(jj,ii),ii=1,nobs_bins)
-  enddo
-  write(6,*)'Obs Count End'
+!  Full stats
+   do jj=1,nobs_type
+      write(6,'(A,2X,I3,2X,A)')'Obs types:',jj,cobtype(jj)
+   enddo
+   write(6,'(A,2X,I4)')'Obs bins:',nobs_bins
+   write(6,*)'Obs Count Begin'
+   if (.not.allocated(obscounts)) then
+      write(6,*)'save_fc_sens: obscounts not allocated'
+      call stop2(156)
+   end if
+   do jj=1,nobs_type
+      write(6,'((1X,I12))')(obscounts(jj,ii),ii=1,nobs_bins)
+   enddo
+   write(6,*)'Obs Count End'
 
-  write(6,*)'Obs Impact Begin'
-  do kk=1,SIZE(sensincr,3)
-    if (SIZE(sensincr,3)==ione) then
-      write(6,'(A,I4)')'Obs Impact iteration= ',niter(jiter)
-    else
-      write(6,'(A,I4)')'Obs Impact iteration= ',kk
-    endif
-    do jj=1,nobs_type
-      write(6,'((1X,ES12.5))')(sensincr(ii,jj,kk),ii=1,nobs_bins)
-    enddo
-  enddo
-  write(6,*)'Obs Impact End'
+   write(6,*)'Obs Impact Begin'
+   do kk=1,SIZE(sensincr,3)
+      if (SIZE(sensincr,3)==ione) then
+         write(6,'(A,I4)')'Obs Impact iteration= ',niter(jiter)
+      else
+         write(6,'(A,I4)')'Obs Impact iteration= ',kk
+      endif
+      do jj=1,nobs_type
+         write(6,'((1X,ES12.5))')(sensincr(ii,jj,kk),ii=1,nobs_bins)
+      enddo
+   enddo
+   write(6,*)'Obs Impact End'
 
-  kk=SIZE(sensincr,3)
-! Summary by obs type
-  do jj=1,nobs_type
-    zz=zero
-    do ii=1,nobs_bins
-      zz=zz+sensincr(ii,jj,kk)
-    enddo
-    if (zz/=zero) write(6,'(A,2X,A3,2X,ES12.5)')'Obs Impact type',cobtype(jj),zz
-  enddo
+   kk=SIZE(sensincr,3)
+!  Summary by obs type
+   do jj=1,nobs_type
+      zz=zero
+      do ii=1,nobs_bins
+         zz=zz+sensincr(ii,jj,kk)
+      enddo
+      if (zz/=zero) write(6,'(A,2X,A3,2X,ES12.5)')'Obs Impact type',cobtype(jj),zz
+   enddo
 
-! Summary by obs bins
-  do ii=1,nobs_bins
-    zz=zero
-    do jj=1,nobs_type
-      zz=zz+sensincr(ii,jj,kk)
-    enddo
-    if (zz/=zero) write(6,'(A,2X,I3,2X,ES12.5)')'Obs Impact bin',ii,zz
-  enddo
+!  Summary by obs bins
+   do ii=1,nobs_bins
+      zz=zero
+      do jj=1,nobs_type
+         zz=zz+sensincr(ii,jj,kk)
+      enddo
+      if (zz/=zero) write(6,'(A,2X,I3,2X,ES12.5)')'Obs Impact bin',ii,zz
+   enddo
 
 endif
 
@@ -331,6 +333,7 @@ real(r_kind) function dot_prod_obs()
 !
 !$$$ end documentation block
 implicit none
+
 integer(i_kind) :: ii,jj,ij,it
 real(r_quad)    :: zzz
 real(r_quad)    :: zprods(nobs_type*nobs_bins)
@@ -340,18 +343,18 @@ zprods(:)=zero_quad
 
 ij=izero
 do ii=1,nobs_bins
-  do jj=1,nobs_type
-    ij=ij+ione
+   do jj=1,nobs_type
+      ij=ij+ione
 
-    obsptr => obsdiags(jj,ii)%head
-    do while (associated(obsptr))
-      if (obsptr%luse.and.obsptr%muse(jiter)) then
-        zprods(ij) = zprods(ij) + obsptr%nldepart(jiter) * obsptr%obssen(jiter)
-      endif
-      obsptr => obsptr%next
-    enddo
+      obsptr => obsdiags(jj,ii)%head
+      do while (associated(obsptr))
+         if (obsptr%luse.and.obsptr%muse(jiter)) then
+            zprods(ij) = zprods(ij) + obsptr%nldepart(jiter) * obsptr%obssen(jiter)
+         endif
+         obsptr => obsptr%next
+      enddo
 
-  enddo
+   enddo
 enddo
 
 ! Gather contributions
@@ -360,19 +363,19 @@ call mpl_allreduce(nobs_type*nobs_bins,zprods)
 ! Save intermediate values
 it=-ione
 if (iobsconv>=2_i_kind) then
-  if (iter>=ione.and.iter<=niter(jiter)) it=iter
+   if (iter>=ione.and.iter<=niter(jiter)) it=iter
 else
-  it=ione
+   it=ione
 endif
 
 if (it>izero) then
-  ij=izero
-  do ii=1,nobs_bins
-    do jj=1,nobs_type
-      ij=ij+ione
-      sensincr(ii,jj,it)=zprods(ij)
-    enddo
-  enddo
+   ij=izero
+   do ii=1,nobs_bins
+      do jj=1,nobs_type
+         ij=ij+ione
+         sensincr(ii,jj,it)=zprods(ij)
+      enddo
+   enddo
 endif
 
 ! Sum
@@ -380,10 +383,10 @@ zzz=zero_quad
 
 ij=izero
 do ii=1,nobs_bins
-  do jj=1,nobs_type
-    ij=ij+ione
-    zzz=zzz+zprods(ij)
-  enddo
+   do jj=1,nobs_type
+      ij=ij+ione
+      zzz=zzz+zprods(ij)
+   enddo
 enddo
 
 dot_prod_obs=zzz

@@ -608,18 +608,18 @@
 ! 4D-Var setup
   call setup_4dvar(miter,mype)
   if (.not. l4dvar) then
-    ljcdfi=.false.
+     ljcdfi=.false.
   endif
   if (l4dvar.and.lsensrecompute) then
-    lobsensfc  =lobsensfc  .and.(jiterstart==jiterend)
-    lobsensjb  =lobsensjb  .and.(jiterstart==jiterend)
-    lobsensincr=lobsensincr.and.(jiterstart==jiterend)
+     lobsensfc  =lobsensfc  .and.(jiterstart==jiterend)
+     lobsensjb  =lobsensjb  .and.(jiterstart==jiterend)
+     lobsensincr=lobsensincr.and.(jiterstart==jiterend)
   endif
   lobsensfc=lobsensfc.or.lobsensjb.or.lobsensincr
   lsensrecompute=lsensrecompute.and.lobsensfc
   if (lobsensadj .and. .not.lcongrad) then
-      write(6,*)'gsimod: adjoint computation requires congrad',lobsensadj,lcongrad
-      call stop2(137)
+     write(6,*)'gsimod: adjoint computation requires congrad',lobsensadj,lcongrad
+     call stop2(137)
   end if
 
 
@@ -634,8 +634,8 @@
 ! Check that regional=.true. if jcstrong_option > 2
   if(jcstrong_option>2_i_kind.and..not.regional) then
      if(mype==izero) then
-       write(6,*) ' jcstrong_option>2 not allowed except for regional=.true.'
-       write(6,*) ' ERROR EXIT FROM GSI'
+        write(6,*) ' jcstrong_option>2 not allowed except for regional=.true.'
+        write(6,*) ' ERROR EXIT FROM GSI'
      end if
      call stop2(328)
   end if
@@ -643,12 +643,12 @@
 
 !  jcstrong_option=4 currently requires that 2*nvmodes_keep <= npe
   if(jcstrong_option==4_i_kind) then
-    if(2*nvmodes_keep>npe) then
-      if(mype==izero) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
-      if(mype==izero) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
-      nvmodes_keep=npe/2
-      if(mype==izero) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
-    end if
+     if(2*nvmodes_keep>npe) then
+        if(mype==izero) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
+        if(mype==izero) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
+        nvmodes_keep=npe/2
+        if(mype==izero) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
+     end if
   end if
 
 
@@ -663,7 +663,7 @@
   end do
   writediag=.false.
   do i=1,miter+ione
-    if(write_diag(i))writediag=.true.
+     if(write_diag(i))writediag=.true.
   end do
   if(.not. writediag)then
      diag_rad=.false.
@@ -800,8 +800,8 @@
      write(6,obsqc)
      ngroup=izero
      do i=1,ndat
-       dthin(i) = max(dthin(i),izero)
-       if(dthin(i) > ngroup)ngroup=dthin(i)
+        dthin(i) = max(dthin(i),izero)
+        if(dthin(i) > ngroup)ngroup=dthin(i)
      end do
      if(ngroup>izero)write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
      do i=1,ndat

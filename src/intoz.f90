@@ -71,10 +71,10 @@ subroutine intoz_(ozhead,o3lhead,roz,soz)
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer,intent(in):: ozhead
-  type(o3l_ob_type),pointer,intent(in):: o3lhead
-  real(r_kind),dimension(latlon1n),intent(in):: soz
-  real(r_kind),dimension(latlon1n),intent(inout):: roz
+  type( oz_ob_type),pointer       ,intent(in   ) :: ozhead
+  type(o3l_ob_type),pointer       ,intent(in   ) :: o3lhead
+  real(r_kind),dimension(latlon1n),intent(in   ) :: soz
+  real(r_kind),dimension(latlon1n),intent(inout) :: roz
 
   call intozlay_( ozhead,roz,soz)
   call intozlev_(o3lhead,roz,soz)
@@ -136,9 +136,9 @@ subroutine intozlay_(ozhead,roz,soz)
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer,intent(in):: ozhead
-  real(r_kind),dimension(lat2*lon2,nsig),intent(in):: soz
-  real(r_kind),dimension(lat2*lon2,nsig),intent(inout):: roz
+  type( oz_ob_type),pointer             ,intent(in   ) :: ozhead
+  real(r_kind),dimension(lat2*lon2,nsig),intent(in   ) :: soz
+  real(r_kind),dimension(lat2*lon2,nsig),intent(inout) :: roz
 
 ! Declare local variables
   integer(i_kind) k,j1,j2,j3,j4,kk,iz1,iz2,j1x,j2x,j3x,j4x
@@ -381,9 +381,9 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
   implicit none
 
 ! Declare passed variables
-  type(o3l_ob_type),pointer,intent(in):: o3lhead
-  real(r_kind),dimension(latlon1n),intent(in):: soz1d
-  real(r_kind),dimension(latlon1n),intent(inout):: roz1d
+  type(o3l_ob_type),pointer       ,intent(in   ) :: o3lhead
+  real(r_kind),dimension(latlon1n),intent(in   ) :: soz1d
+  real(r_kind),dimension(latlon1n),intent(inout) :: roz1d
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8

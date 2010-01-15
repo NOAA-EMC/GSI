@@ -75,32 +75,32 @@ contains
     iopt=ione      !  eigenvalues and eigenvectors are computed
 
     do j=1,nsig
-      do i=1,nsig
-        aaa(i,j)=qmat(i,j)
-      end do
+       do i=1,nsig
+          aaa(i,j)=qmat(i,j)
+       end do
     end do
     naux=izero
     call dgeev(iopt,aaa,nsig,www,zzz,nsig,select,nsig,aux,naux)
 !   sort from largest to smallest eigenvalue
     do j=1,nsig-ione
-      do i=j+ione,nsig
-        if(www(1,i)>www(1,j)) then
-          factor=www(1,j)
-          www(1,j)=www(1,i)
-          www(1,i)=factor
-          factor=www(2,j)
-          www(2,j)=www(2,i)
-          www(2,i)=factor
-          do k=1,nsig
-            factor=zzz(1,k,j)
-            zzz(1,k,j)=zzz(1,k,i)
-            zzz(1,k,i)=factor
-            factor=zzz(2,k,j)
-            zzz(2,k,j)=zzz(2,k,i)
-            zzz(2,k,i)=factor
-          end do
-        end if
-      end do
+       do i=j+ione,nsig
+          if(www(1,i)>www(1,j)) then
+             factor=www(1,j)
+             www(1,j)=www(1,i)
+             www(1,i)=factor
+             factor=www(2,j)
+             www(2,j)=www(2,i)
+             www(2,i)=factor
+             do k=1,nsig
+                factor=zzz(1,k,j)
+                zzz(1,k,j)=zzz(1,k,i)
+                zzz(1,k,i)=factor
+                factor=zzz(2,k,j)
+                zzz(2,k,j)=zzz(2,k,i)
+                zzz(2,k,i)=factor
+             end do
+          end if
+       end do
     end do
 
 ! checks and print out eigenvalues (removed)
@@ -108,32 +108,32 @@ contains
 
     iopt=ione      !  eigenvalues and dual eigenvectors are computed next
     do j=1,nsig
-      do i=1,nsig
-        aaa(i,j)=qmat(j,i)         !  to get dual vectors, use transpose of qmat
-      end do
+       do i=1,nsig
+          aaa(i,j)=qmat(j,i)         !  to get dual vectors, use transpose of qmat
+       end do
     end do
     naux=izero
     call dgeev(iopt,aaa,nsig,wwwd,zzzd,nsig,select,nsig,aux,naux)
 !   sort from largest to smallest eigenvalue
     do j=1,nsig-ione
-      do i=j+ione,nsig
-        if(wwwd(1,i)>wwwd(1,j)) then
-          factor=wwwd(1,j)
-          wwwd(1,j)=wwwd(1,i)
-          wwwd(1,i)=factor
-          factor=wwwd(2,j)
-          wwwd(2,j)=wwwd(2,i)
-          wwwd(2,i)=factor
-          do k=1,nsig
-            factor=zzzd(1,k,j)
-            zzzd(1,k,j)=zzzd(1,k,i)
-            zzzd(1,k,i)=factor
-            factor=zzzd(2,k,j)
-            zzzd(2,k,j)=zzzd(2,k,i)
-            zzzd(2,k,i)=factor
-          end do
-        end if
-      end do
+       do i=j+ione,nsig
+          if(wwwd(1,i)>wwwd(1,j)) then
+             factor=wwwd(1,j)
+             wwwd(1,j)=wwwd(1,i)
+             wwwd(1,i)=factor
+             factor=wwwd(2,j)
+             wwwd(2,j)=wwwd(2,i)
+             wwwd(2,i)=factor
+             do k=1,nsig
+                factor=zzzd(1,k,j)
+                zzzd(1,k,j)=zzzd(1,k,i)
+                zzzd(1,k,i)=factor
+                factor=zzzd(2,k,j)
+                zzzd(2,k,j)=zzzd(2,k,i)
+                zzzd(2,k,i)=factor
+             end do
+          end if
+       end do
     end do
 
     info=izero
@@ -162,9 +162,9 @@ contains
 !      use SGI scslib dgeev subroutine
 
     do j=1,nsig
-      do i=1,nsig
-        aaa(i,j)=qmat(i,j)
-      end do
+       do i=1,nsig
+          aaa(i,j)=qmat(i,j)
+       end do
     end do
 
     if (mype ==izero) write (6,*) 'in mod_vtrans_create_vtrans, before CALL DGEEV'
@@ -175,8 +175,8 @@ contains
 
 ! use Dave's array names
     do j=1,nsig
-           if (wi(j) /= zero) write (6,*) &
-              'wrong eigen computation: create_vtrans'
+       if (wi(j) /= zero) write (6,*) &
+          'wrong eigen computation: create_vtrans'
        www(1,j)=wr(j)
        www(2,j)=wi(j)
 !-----------------------------------------------------------
@@ -197,30 +197,30 @@ contains
 !sort from largest to smallest eigenvalues
 !   sort from largest to smallest eigenvalue
     do j=1,nsig-ione
-      do i=j+ione,nsig
-        if(www(1,i)>www(1,j)) then
-          factor=www(1,j)
-          www(1,j)=www(1,i)
-          www(1,i)=factor
-          factor=www(2,j)
-          www(2,j)=www(2,i)
-          www(2,i)=factor
-          do k=1,nsig
-            factor =zzz (1,k,j)
-            factor2=zzzd(1,k,j)
-            zzz (1,k,j)=zzz (1,k,i)
-            zzzd(1,k,j)=zzzd(1,k,i)
-            zzz (1,k,i)=factor
-            zzzd(1,k,i)=factor2
-            factor =zzz (2,k,j)
-            factor2=zzzd(2,k,j)
-            zzz (2,k,j)=zzz (2,k,i)
-            zzzd(2,k,j)=zzzd(2,k,i)
-            zzz (2,k,i)=factor
-            zzzd(2,k,i)=factor2
-          end do
-        end if
-      end do
+       do i=j+ione,nsig
+          if(www(1,i)>www(1,j)) then
+             factor=www(1,j)
+             www(1,j)=www(1,i)
+             www(1,i)=factor
+             factor=www(2,j)
+             www(2,j)=www(2,i)
+             www(2,i)=factor
+             do k=1,nsig
+                factor =zzz (1,k,j)
+                factor2=zzzd(1,k,j)
+                zzz (1,k,j)=zzz (1,k,i)
+                zzzd(1,k,j)=zzzd(1,k,i)
+                zzz (1,k,i)=factor
+                zzzd(1,k,i)=factor2
+                factor =zzz (2,k,j)
+                factor2=zzzd(2,k,j)
+                zzz (2,k,j)=zzz (2,k,i)
+                zzzd(2,k,j)=zzzd(2,k,i)
+                zzz (2,k,i)=factor
+                zzzd(2,k,i)=factor2
+             end do
+          end if
+       end do
     end do
 
 ! checks and print out eigenvalues (removed)
@@ -233,7 +233,7 @@ contains
 ! check the eigenvalues
 
 !  using the component form
-     wwwd=www
+    wwwd=www
 
     if (mype==izero) write (6,*) '****************************'
     if (mype==izero) write (6,*) 'SECOND TIME CALL DGEEV'

@@ -54,7 +54,7 @@ subroutine read_files(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
   integer(i_kind),parameter:: lunsfc=11_i_kind

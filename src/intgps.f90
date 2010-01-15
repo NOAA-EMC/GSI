@@ -96,11 +96,11 @@ subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
   implicit none
 
 ! Declare passed variables
-  type(gps_ob_type),pointer,intent(in):: gpshead
-  real(r_kind),dimension(latlon1n),intent(in):: st,sq
-  real(r_kind),dimension(latlon1n),intent(inout):: rt,rq
-  real(r_kind),dimension(latlon1n1),intent(in):: sp
-  real(r_kind),dimension(latlon1n1),intent(inout):: rp
+  type(gps_ob_type),pointer        ,intent(in   ) :: gpshead
+  real(r_kind),dimension(latlon1n) ,intent(in   ) :: st,sq
+  real(r_kind),dimension(latlon1n) ,intent(inout) :: rt,rq
+  real(r_kind),dimension(latlon1n1),intent(in   ) :: sp
+  real(r_kind),dimension(latlon1n1),intent(inout) :: rp
 
 ! Declare local variables
   integer(i_kind) j
@@ -116,115 +116,115 @@ subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
   do while (associated(gpsptr))
 
 ! Load location information into local variables
-    do j=1,nsig
-      i1(j)= gpsptr%ij(1,j)
-      i2(j)= gpsptr%ij(2,j)
-      i3(j)= gpsptr%ij(3,j)
-      i4(j)= gpsptr%ij(4,j)
-    enddo
-    w1=gpsptr%wij(1)
-    w2=gpsptr%wij(2)
-    w3=gpsptr%wij(3)
-    w4=gpsptr%wij(4)
- 
+     do j=1,nsig
+        i1(j)= gpsptr%ij(1,j)
+        i2(j)= gpsptr%ij(2,j)
+        i3(j)= gpsptr%ij(3,j)
+        i4(j)= gpsptr%ij(4,j)
+     enddo
+     w1=gpsptr%wij(1)
+     w2=gpsptr%wij(2)
+     w3=gpsptr%wij(3)
+     w4=gpsptr%wij(4)
 
-    val=zero
+
+     val=zero
 
 !  local refractivity (linear operator)
 
-    do j=1,nsig
-      t_TL=w1* st(i1(j))+w2* st(i2(j))+w3* st(i3(j))+w4* st(i4(j))
-      q_TL=w1* sq(i1(j))+w2* sq(i2(j))+w3* sq(i3(j))+w4* sq(i4(j))
-      p_TL=w1* sp(i1(j))+w2* sp(i2(j))+w3* sp(i3(j))+w4* sp(i4(j))
-      if (l_foto) then
-        time_gps=gpsptr%time*r3600
-        t_TL=t_TL+&
-           (w1*xhat_dt%t(i1(j))+w2*xhat_dt%t(i2(j))+ &
-            w3*xhat_dt%t(i3(j))+w4*xhat_dt%t(i4(j)))*time_gps
-        q_TL=q_TL+&
-           (w1*xhat_dt%q(i1(j))+w2*xhat_dt%q(i2(j))+ &
-            w3*xhat_dt%q(i3(j))+w4*xhat_dt%q(i4(j)))*time_gps
-        p_TL=p_TL+&
-           (w1*xhat_dt%p3d(i1(j))+w2*xhat_dt%p3d(i2(j))+ &
-            w3*xhat_dt%p3d(i3(j))+w4*xhat_dt%p3d(i4(j)))*time_gps
-      endif
-      val = val + p_TL*gpsptr%jac_p(j) + t_TL*gpsptr%jac_t(j)+q_TL*gpsptr%jac_q(j)
-    end do
+     do j=1,nsig
+        t_TL=w1* st(i1(j))+w2* st(i2(j))+w3* st(i3(j))+w4* st(i4(j))
+        q_TL=w1* sq(i1(j))+w2* sq(i2(j))+w3* sq(i3(j))+w4* sq(i4(j))
+        p_TL=w1* sp(i1(j))+w2* sp(i2(j))+w3* sp(i3(j))+w4* sp(i4(j))
+        if (l_foto) then
+           time_gps=gpsptr%time*r3600
+           t_TL=t_TL+&
+              (w1*xhat_dt%t(i1(j))+w2*xhat_dt%t(i2(j))+ &
+               w3*xhat_dt%t(i3(j))+w4*xhat_dt%t(i4(j)))*time_gps
+           q_TL=q_TL+&
+              (w1*xhat_dt%q(i1(j))+w2*xhat_dt%q(i2(j))+ &
+               w3*xhat_dt%q(i3(j))+w4*xhat_dt%q(i4(j)))*time_gps
+           p_TL=p_TL+&
+              (w1*xhat_dt%p3d(i1(j))+w2*xhat_dt%p3d(i2(j))+ &
+               w3*xhat_dt%p3d(i3(j))+w4*xhat_dt%p3d(i4(j)))*time_gps
+        endif
+        val = val + p_TL*gpsptr%jac_p(j) + t_TL*gpsptr%jac_t(j)+q_TL*gpsptr%jac_q(j)
+     end do
 
-    if (lsaveobsens) then
-      gpsptr%diags%obssen(jiter) = val*gpsptr%raterr2*gpsptr%err2
-    else
-      if (gpsptr%luse) gpsptr%diags%tldepart(jiter)=val
-    endif
+     if (lsaveobsens) then
+        gpsptr%diags%obssen(jiter) = val*gpsptr%raterr2*gpsptr%err2
+     else
+        if (gpsptr%luse) gpsptr%diags%tldepart(jiter)=val
+     endif
 
-!   Do adjoint
-    if (l_do_adjoint) then
+!    Do adjoint
+     if (l_do_adjoint) then
 
-       if (lsaveobsens) then
-         grad=gpsptr%diags%obssen(jiter)
+        if (lsaveobsens) then
+           grad=gpsptr%diags%obssen(jiter)
 
-       else
-         val=val-gpsptr%res
+        else
+           val=val-gpsptr%res
+ 
+!          needed for gradient of nonlinear qc operator
+           if (nlnqc_iter .and. gpsptr%pg > tiny_r_kind .and.  &
+                                gpsptr%b  > tiny_r_kind) then
+              pg_gps=gpsptr%pg*varqc_iter
+              cg_gps=cg_term/gpsptr%b
+              wnotgross= one-pg_gps
+              wgross = pg_gps*cg_gps/wnotgross
+              p0   = wgross/(wgross+exp(-half*gpsptr%err2*val**2))
+              val = val*(one-p0)
+           endif
 
-!        needed for gradient of nonlinear qc operator
-         if (nlnqc_iter .and. gpsptr%pg > tiny_r_kind .and.  &
-                              gpsptr%b  > tiny_r_kind) then
-           pg_gps=gpsptr%pg*varqc_iter
-           cg_gps=cg_term/gpsptr%b
-           wnotgross= one-pg_gps
-           wgross = pg_gps*cg_gps/wnotgross
-           p0   = wgross/(wgross+exp(-half*gpsptr%err2*val**2))
-           val = val*(one-p0)
-         endif
-
-         grad = val*gpsptr%raterr2*gpsptr%err2
-       endif
+           grad = val*gpsptr%raterr2*gpsptr%err2
+        endif
 
 
-!      adjoint 
+!       adjoint 
 
-       do j=1,nsig
-         t_AD = grad*gpsptr%jac_t(j)
-         rt(i1(j))=rt(i1(j))+w1*t_AD
-         rt(i2(j))=rt(i2(j))+w2*t_AD
-         rt(i3(j))=rt(i3(j))+w3*t_AD
-         rt(i4(j))=rt(i4(j))+w4*t_AD
-         q_AD = grad*gpsptr%jac_q(j)
-         rq(i1(j))=rq(i1(j))+w1*q_AD
-         rq(i2(j))=rq(i2(j))+w2*q_AD
-         rq(i3(j))=rq(i3(j))+w3*q_AD
-         rq(i4(j))=rq(i4(j))+w4*q_AD
-         p_AD = grad*gpsptr%jac_p(j)
-         rp(i1(j))=rp(i1(j))+w1*p_AD
-         rp(i2(j))=rp(i2(j))+w2*p_AD
-         rp(i3(j))=rp(i3(j))+w3*p_AD
-         rp(i4(j))=rp(i4(j))+w4*p_AD
-       enddo
-
-       if (l_foto) then
-         grad=grad*time_gps
-         do j=1,nsig
+        do j=1,nsig
            t_AD = grad*gpsptr%jac_t(j)
-           dhat_dt%t(i1(j))=dhat_dt%t(i1(j))+w1*t_AD
-           dhat_dt%t(i2(j))=dhat_dt%t(i2(j))+w2*t_AD
-           dhat_dt%t(i3(j))=dhat_dt%t(i3(j))+w3*t_AD
-           dhat_dt%t(i4(j))=dhat_dt%t(i4(j))+w4*t_AD
+           rt(i1(j))=rt(i1(j))+w1*t_AD
+           rt(i2(j))=rt(i2(j))+w2*t_AD
+           rt(i3(j))=rt(i3(j))+w3*t_AD
+           rt(i4(j))=rt(i4(j))+w4*t_AD
            q_AD = grad*gpsptr%jac_q(j)
-           dhat_dt%q(i1(j))=dhat_dt%q(i1(j))+w1*q_AD
-           dhat_dt%q(i2(j))=dhat_dt%q(i2(j))+w2*q_AD
-           dhat_dt%q(i3(j))=dhat_dt%q(i3(j))+w3*q_AD
-           dhat_dt%q(i4(j))=dhat_dt%q(i4(j))+w4*q_AD
+           rq(i1(j))=rq(i1(j))+w1*q_AD
+           rq(i2(j))=rq(i2(j))+w2*q_AD
+           rq(i3(j))=rq(i3(j))+w3*q_AD
+           rq(i4(j))=rq(i4(j))+w4*q_AD
            p_AD = grad*gpsptr%jac_p(j)
-           dhat_dt%p3d(i1(j))=dhat_dt%p3d(i1(j))+w1*p_AD
-           dhat_dt%p3d(i2(j))=dhat_dt%p3d(i2(j))+w2*p_AD
-           dhat_dt%p3d(i3(j))=dhat_dt%p3d(i3(j))+w3*p_AD
-           dhat_dt%p3d(i4(j))=dhat_dt%p3d(i4(j))+w4*p_AD
-         enddo
-       endif
+           rp(i1(j))=rp(i1(j))+w1*p_AD
+           rp(i2(j))=rp(i2(j))+w2*p_AD
+           rp(i3(j))=rp(i3(j))+w3*p_AD
+           rp(i4(j))=rp(i4(j))+w4*p_AD
+        enddo
+
+        if (l_foto) then
+           grad=grad*time_gps
+           do j=1,nsig
+              t_AD = grad*gpsptr%jac_t(j)
+              dhat_dt%t(i1(j))=dhat_dt%t(i1(j))+w1*t_AD
+              dhat_dt%t(i2(j))=dhat_dt%t(i2(j))+w2*t_AD
+              dhat_dt%t(i3(j))=dhat_dt%t(i3(j))+w3*t_AD
+              dhat_dt%t(i4(j))=dhat_dt%t(i4(j))+w4*t_AD
+              q_AD = grad*gpsptr%jac_q(j)
+              dhat_dt%q(i1(j))=dhat_dt%q(i1(j))+w1*q_AD
+              dhat_dt%q(i2(j))=dhat_dt%q(i2(j))+w2*q_AD
+              dhat_dt%q(i3(j))=dhat_dt%q(i3(j))+w3*q_AD
+              dhat_dt%q(i4(j))=dhat_dt%q(i4(j))+w4*q_AD
+              p_AD = grad*gpsptr%jac_p(j)
+              dhat_dt%p3d(i1(j))=dhat_dt%p3d(i1(j))+w1*p_AD
+              dhat_dt%p3d(i2(j))=dhat_dt%p3d(i2(j))+w2*p_AD
+              dhat_dt%p3d(i3(j))=dhat_dt%p3d(i3(j))+w3*p_AD
+              dhat_dt%p3d(i4(j))=dhat_dt%p3d(i4(j))+w4*p_AD
+           enddo
+        endif
 
      endif
 
-    gpsptr => gpsptr%llpoint
+     gpsptr => gpsptr%llpoint
 
   end do
 

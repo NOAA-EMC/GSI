@@ -46,17 +46,17 @@ module lag_interp
 
   implicit none
 
-  ! Accuracy of localisation to determine wether or not a point is on the grid
-  real(r_kind)::lag_accur = 1.0e-6_r_kind
-
-  ! to store the constant pressure grid
-  real(r_kind),dimension(:),allocatable::lag_logcte_p
-
   private
   public:: lag_accur
   public:: lag_inipgrid,lag_delpgrid,lag_logcte_p
   public:: lag_gridrel_ijk,lag_index_h
   public:: lag_int3d_nl,lag_int3d_tl,lag_int3d_ad
+
+  ! Accuracy of localisation to determine wether or not a point is on the grid
+  real(r_kind)::lag_accur = 1.0e-6_r_kind
+
+  ! to store the constant pressure grid
+  real(r_kind),dimension(:),allocatable::lag_logcte_p
 
   contains
 
@@ -86,7 +86,8 @@ module lag_interp
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),dimension(:),intent(in)::newgrid
+
+    real(r_kind),dimension(:),intent(in   ) :: newgrid
 
     call lag_delpgrid()
     allocate(lag_logcte_p(size(newgrid)))
@@ -152,8 +153,9 @@ module lag_interp
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),intent(in)::lon,lat,p
-    real(r_kind),intent(out)::i,j,k
+
+    real(r_kind),intent(in   ) :: lon,lat,p
+    real(r_kind),intent(  out) :: i,j,k
 
     ! Use the function already implemented
     i=lon
@@ -190,7 +192,9 @@ module lag_interp
 !
 !$$$ end documentation block
     implicit none
-    integer(i_kind),intent(in)::lon,lat
+
+    integer(i_kind),intent(in   ) :: lon,lat
+
     integer(i_kind)::lag_index_h
 
     lag_index_h=lat+(lon-ione)*nlat
@@ -220,7 +224,9 @@ module lag_interp
 !
 !$$$ end documentation block
     implicit none
-    integer(i_kind),intent(in)::lonlat,sig
+
+    integer(i_kind),intent(in   ) :: lonlat,sig
+
     integer(i_kind)::lag_index_3d
 
     lag_index_3d=lonlat+(sig-ione)*nlat*nlon
@@ -251,8 +257,9 @@ module lag_interp
 !
 !$$$ end documentation block
     implicit none
-    integer(i_kind),intent(in)::i3d
-    integer(i_kind),intent(out)::lonlat,sig
+
+    integer(i_kind),intent(in   ) :: i3d
+    integer(i_kind),intent(  out) :: lonlat,sig
  
     sig   =(i3d/(nlat*nlon))+ione
     lonlat=mod(i3d,nlat*nlon)
@@ -288,15 +295,16 @@ module lag_interp
 !$$$ end documentation block
     use constants, only: half
     implicit none
+
     ! field = Field from which to interpolate : two dimensions
     !  1st : horizontal location (see lag_index_h above)
     !  2nd : vertical location
-    real(r_kind),dimension(:,:),intent(in)::field
+    real(r_kind)   ,dimension(:,:)        ,intent(in   ) :: field
     ! lon, lat (radians) and p (hPa) where the interpolation is requested
-    real(r_kind),intent(in)::lat,lon,p
+    real(r_kind)                          ,intent(in   ) :: lat,lon,p
     ! specification for the tangent-linear and adjoint (optional)
-    integer(i_kind),dimension(8) ,optional,intent(out)::lspec_i
-    real(r_kind)   ,dimension(10),optional,intent(out)::lspec_r
+    integer(i_kind),dimension(8) ,optional,intent(  out) :: lspec_i
+    real(r_kind)   ,dimension(10),optional,intent(  out) :: lspec_r
     ! Interpolated value
     real(r_kind)::lag_int3d_nl
   
@@ -374,120 +382,120 @@ module lag_interp
     !interpolation
     lag_int3d_nl = zero
     do i=1,8
-      lag_int3d_nl = lag_int3d_nl + rcoeff(i)*field(ihoriz(i),isigma(i))
+       lag_int3d_nl = lag_int3d_nl + rcoeff(i)*field(ihoriz(i),isigma(i))
     end do
 
     ! Have the parameters for the tangent linear to be retrieved ?
     if (lv_spec) then
 
-      ! lon and lat coefficients first
+       ! lon and lat coefficients first
       
-      ! On a grid point ?
-      if (abs(rdx)<lag_accur .and. abs(rdy)<lag_accur) then
-        im111=i111; im111(1)=i111(1)-ione; if (im111(1)<ione) im111(1)=nlon
-        i1m11=i111; i1m11(2)=i111(2)-ione; if (i1m11(2)<ione) i1m11(2)=nlat
-        im112=i112; im112(1)=i112(1)-ione; if (im112(1)<ione) im112(1)=nlon
-        i1m12=i112; i1m12(2)=i112(2)-ione; if (i1m12(2)<ione) i1m12(2)=nlat
-        rcx=half*( &
-          (one-rdz)*(field(lag_index_h(i211(1),i211(2)),i211(3))- &
-            field(lag_index_h(im111(1),im111(2)),im111(3))) + &
-          rdz*(field(lag_index_h(i212(1),i212(2)),i212(3))- &
-            field(lag_index_h(im112(1),im112(2)),im112(3))) )
-        rcy=half*( &
-          (one-rdz)*(field(lag_index_h(i121(1),i121(2)),i121(3))- &
-            field(lag_index_h(i1m11(1),i1m11(2)),i1m11(3))) + &
-          rdz*(field(lag_index_h(i122(1),i122(2)),i122(3))- &
-            field(lag_index_h(i1m12(1),i1m12(2)),i1m12(3))) )
-            
-      ! On a longitude line ?
-      elseif (abs(rdx)<lag_accur .and. abs(rdy)>lag_accur) then
-        im111=i111; im111(1)=i111(1)-ione; if (im111(1)<ione) im111(1)=nlon
-        im112=i112; im112(1)=i112(1)-ione; if (im112(1)<ione) im112(1)=nlon
-        im121=i121; im121(1)=i121(1)-ione; if (im121(1)<ione) im121(1)=nlon
-        im122=i122; im122(1)=i122(1)-ione; if (im122(1)<ione) im122(1)=nlon
-        rcx=half*( &
-          (one-rdz)*(field(lag_index_h(i211(1),i211(2)),i211(3))-&
-                   field(lag_index_h(im111(1),im111(2)),im111(3))+&
-                   rdy*(field(lag_index_h(im111(1),im111(2)),im111(3)) -&
-                        field(lag_index_h(i211(1),i211(2)),i211(3)) -&
-                        field(lag_index_h(im121(1),im121(2)),im121(3)) +&
-                        field(lag_index_h(i221(1) ,i221(2)) ,i221(3))) )   +&
-          (    rdz)*(field(lag_index_h(i212(1),i212(2)),i212(3))-&
-                   field(lag_index_h(im112(1),im112(2)),im112(3))+&
-                   rdy*(field(lag_index_h(im112(1),im112(2)),im112(3)) -&
-                        field(lag_index_h(i212(1),i212(2)),i212(3)) -&
-                        field(lag_index_h(im122(1),im122(2)),im122(3)) +&
-                        field(lag_index_h(i222(1) ,i222(2)) ,i222(3))) ) )
-        rcy=(one-rdz)*(field(lag_index_h(i121(1),i121(2)),i121(3))-&
-                     field(lag_index_h(i111(1),i111(2)),i111(3))) +&
-            (    rdz)*(field(lag_index_h(i122(1),i122(2)),i122(3))-&
-                     field(lag_index_h(i112(1),i112(2)),i112(3)))
-                     
-      ! On a lattitude line ?
-      elseif (abs(rdx)>lag_accur .and. abs(rdy)<lag_accur) then
-        i1m11=i111; i1m11(2)=i111(2)-ione; if (i1m11(2)<ione) i1m11(2)=nlat
-        i1m12=i112; i1m12(2)=i112(2)-ione; if (i1m12(2)<ione) i1m12(2)=nlat
-        i2m11=i211; i2m11(2)=i211(2)-ione; if (i2m11(2)<ione) i2m11(2)=nlat
-        i2m12=i212; i2m12(2)=i212(2)-ione; if (i2m12(2)<ione) i2m12(2)=nlat
-        rcx=(one-rdz)*(field(lag_index_h(i211(1),i211(2)),i211(3))-&
-                     field(lag_index_h(i111(1),i111(2)),i111(3))) +&
+       ! On a grid point ?
+       if (abs(rdx)<lag_accur .and. abs(rdy)<lag_accur) then
+          im111=i111; im111(1)=i111(1)-ione; if (im111(1)<ione) im111(1)=nlon
+          i1m11=i111; i1m11(2)=i111(2)-ione; if (i1m11(2)<ione) i1m11(2)=nlat
+          im112=i112; im112(1)=i112(1)-ione; if (im112(1)<ione) im112(1)=nlon
+          i1m12=i112; i1m12(2)=i112(2)-ione; if (i1m12(2)<ione) i1m12(2)=nlat
+          rcx=half*( &
+            (one-rdz)*(field(lag_index_h(i211(1),i211(2)),i211(3))- &
+              field(lag_index_h(im111(1),im111(2)),im111(3))) + &
+            rdz*(field(lag_index_h(i212(1),i212(2)),i212(3))- &
+              field(lag_index_h(im112(1),im112(2)),im112(3))) )
+          rcy=half*( &
+            (one-rdz)*(field(lag_index_h(i121(1),i121(2)),i121(3))- &
+              field(lag_index_h(i1m11(1),i1m11(2)),i1m11(3))) + &
+            rdz*(field(lag_index_h(i122(1),i122(2)),i122(3))- &
+              field(lag_index_h(i1m12(1),i1m12(2)),i1m12(3))) )
+
+       ! On a longitude line ?
+       elseif (abs(rdx)<lag_accur .and. abs(rdy)>lag_accur) then
+          im111=i111; im111(1)=i111(1)-ione; if (im111(1)<ione) im111(1)=nlon
+          im112=i112; im112(1)=i112(1)-ione; if (im112(1)<ione) im112(1)=nlon
+          im121=i121; im121(1)=i121(1)-ione; if (im121(1)<ione) im121(1)=nlon
+          im122=i122; im122(1)=i122(1)-ione; if (im122(1)<ione) im122(1)=nlon
+          rcx=half*( &
+            (one-rdz)*(field(lag_index_h(i211(1),i211(2)),i211(3))-&
+                     field(lag_index_h(im111(1),im111(2)),im111(3))+&
+                     rdy*(field(lag_index_h(im111(1),im111(2)),im111(3)) -&
+                          field(lag_index_h(i211(1),i211(2)),i211(3)) -&
+                          field(lag_index_h(im121(1),im121(2)),im121(3)) +&
+                          field(lag_index_h(i221(1) ,i221(2)) ,i221(3))) )   +&
             (    rdz)*(field(lag_index_h(i212(1),i212(2)),i212(3))-&
-                     field(lag_index_h(i112(1),i112(2)),i112(3)))
-        rcy=half*( &
-          (one-rdz)*(field(lag_index_h(i121(1),i121(2)),i121(3))-&
-                   field(lag_index_h(i1m11(1),i1m11(2)),i1m11(3))+&
-                   rdx*(field(lag_index_h(i1m11(1),i1m11(2)),i1m11(3)) -&
-                        field(lag_index_h(i121(1),i121(2)),i121(3)) -&
-                        field(lag_index_h(i2m11(1),i2m11(2)),i2m11(3)) +&
-                        field(lag_index_h(i221(1) ,i221(2)) ,i221(3))) )   +&
-          (    rdz)*(field(lag_index_h(i122(1),i122(2)),i122(3))-&
-                   field(lag_index_h(i1m12(1),i1m12(2)),i1m12(3))+&
-                   rdx*(field(lag_index_h(i1m12(1),i1m12(2)),i1m12(3)) -&
-                        field(lag_index_h(i122(1),i122(2)),i122(3)) -&
-                        field(lag_index_h(i2m12(1),i2m12(2)),i2m12(3)) +&
-                        field(lag_index_h(i222(1) ,i222(2)) ,i222(3))) ) )
-                        
-      ! "Normal" case
-      else 
-        rcx=(field(lag_index_h(i211(1),i211(2)),i211(3))-&
-              field(lag_index_h(i111(1),i111(2)),i111(3))+&
-              rdy*(field(lag_index_h(i111(1),i111(2)),i111(3))-&
-                   field(lag_index_h(i211(1),i211(2)),i211(3))-&
-                   field(lag_index_h(i121(1),i121(2)),i121(3))+&
-                   field(lag_index_h(i221(1),i221(2)),i221(3)))&  
-            )*(one-rdz)+&
-            (field(lag_index_h(i212(1),i212(2)),i212(3))-&
-              field(lag_index_h(i112(1),i112(2)),i112(3))+&
-              rdy*(field(lag_index_h(i112(1),i112(2)),i112(3))-&
-                   field(lag_index_h(i212(1),i212(2)),i212(3))-&
-                   field(lag_index_h(i122(1),i122(2)),i122(3))+&
-                   field(lag_index_h(i222(1),i222(2)),i222(3)))&  
-            )*rdz
-        rcy=(field(lag_index_h(i121(1),i121(2)),i121(3))-&
-              field(lag_index_h(i111(1),i111(2)),i111(3))+&
-              rdx*(field(lag_index_h(i111(1),i111(2)),i111(3))-&
-                   field(lag_index_h(i211(1),i211(2)),i211(3))-&
-                   field(lag_index_h(i121(1),i121(2)),i121(3))+&
-                   field(lag_index_h(i221(1),i221(2)),i221(3)))&  
-            )*(one-rdz)+&
-            (field(lag_index_h(i122(1),i122(2)),i122(3))-&
-              field(lag_index_h(i112(1),i112(2)),i112(3))+&
-              rdx*(field(lag_index_h(i112(1),i112(2)),i112(3))-&
-                   field(lag_index_h(i212(1),i212(2)),i212(3))-&
-                   field(lag_index_h(i122(1),i122(2)),i122(3))+&
-                   field(lag_index_h(i222(1),i222(2)),i222(3)))&  
-            )*rdz
-      end if
-      rcx=rcx/(rlons(i211(1))-rlons(i111(1)))
-      rcy=rcy/(rlats(i121(2))-rlats(i111(2)))
+                     field(lag_index_h(im112(1),im112(2)),im112(3))+&
+                     rdy*(field(lag_index_h(im112(1),im112(2)),im112(3)) -&
+                          field(lag_index_h(i212(1),i212(2)),i212(3)) -&
+                          field(lag_index_h(im122(1),im122(2)),im122(3)) +&
+                          field(lag_index_h(i222(1) ,i222(2)) ,i222(3))) ) )
+          rcy=(one-rdz)*(field(lag_index_h(i121(1),i121(2)),i121(3))-&
+                       field(lag_index_h(i111(1),i111(2)),i111(3))) +&
+              (    rdz)*(field(lag_index_h(i122(1),i122(2)),i122(3))-&
+                       field(lag_index_h(i112(1),i112(2)),i112(3)))
+                     
+       ! On a lattitude line ?
+       elseif (abs(rdx)>lag_accur .and. abs(rdy)<lag_accur) then
+          i1m11=i111; i1m11(2)=i111(2)-ione; if (i1m11(2)<ione) i1m11(2)=nlat
+          i1m12=i112; i1m12(2)=i112(2)-ione; if (i1m12(2)<ione) i1m12(2)=nlat
+          i2m11=i211; i2m11(2)=i211(2)-ione; if (i2m11(2)<ione) i2m11(2)=nlat
+          i2m12=i212; i2m12(2)=i212(2)-ione; if (i2m12(2)<ione) i2m12(2)=nlat
+          rcx=(one-rdz)*(field(lag_index_h(i211(1),i211(2)),i211(3))-&
+                       field(lag_index_h(i111(1),i111(2)),i111(3))) +&
+              (    rdz)*(field(lag_index_h(i212(1),i212(2)),i212(3))-&
+                       field(lag_index_h(i112(1),i112(2)),i112(3)))
+          rcy=half*( &
+            (one-rdz)*(field(lag_index_h(i121(1),i121(2)),i121(3))-&
+                     field(lag_index_h(i1m11(1),i1m11(2)),i1m11(3))+&
+                     rdx*(field(lag_index_h(i1m11(1),i1m11(2)),i1m11(3)) -&
+                          field(lag_index_h(i121(1),i121(2)),i121(3)) -&
+                          field(lag_index_h(i2m11(1),i2m11(2)),i2m11(3)) +&
+                          field(lag_index_h(i221(1) ,i221(2)) ,i221(3))) )   +&
+            (    rdz)*(field(lag_index_h(i122(1),i122(2)),i122(3))-&
+                     field(lag_index_h(i1m12(1),i1m12(2)),i1m12(3))+&
+                     rdx*(field(lag_index_h(i1m12(1),i1m12(2)),i1m12(3)) -&
+                          field(lag_index_h(i122(1),i122(2)),i122(3)) -&
+                          field(lag_index_h(i2m12(1),i2m12(2)),i2m12(3)) +&
+                          field(lag_index_h(i222(1) ,i222(2)) ,i222(3))) ) )
 
-      ! save weights and locations for the interpolation
-      do i=1,8
-        lspec_i(i)=lag_index_3d(ihoriz(i),isigma(i))
-        lspec_r(i)=rcoeff(i)
-      end do
-      lspec_r(9:10)=(/ rcx,rcy /)
+       ! "Normal" case
+       else 
+          rcx=(field(lag_index_h(i211(1),i211(2)),i211(3))-&
+                field(lag_index_h(i111(1),i111(2)),i111(3))+&
+                rdy*(field(lag_index_h(i111(1),i111(2)),i111(3))-&
+                     field(lag_index_h(i211(1),i211(2)),i211(3))-&
+                     field(lag_index_h(i121(1),i121(2)),i121(3))+&
+                     field(lag_index_h(i221(1),i221(2)),i221(3)))&  
+              )*(one-rdz)+&
+              (field(lag_index_h(i212(1),i212(2)),i212(3))-&
+                field(lag_index_h(i112(1),i112(2)),i112(3))+&
+                rdy*(field(lag_index_h(i112(1),i112(2)),i112(3))-&
+                     field(lag_index_h(i212(1),i212(2)),i212(3))-&
+                     field(lag_index_h(i122(1),i122(2)),i122(3))+&
+                     field(lag_index_h(i222(1),i222(2)),i222(3)))&  
+              )*rdz
+          rcy=(field(lag_index_h(i121(1),i121(2)),i121(3))-&
+                field(lag_index_h(i111(1),i111(2)),i111(3))+&
+                rdx*(field(lag_index_h(i111(1),i111(2)),i111(3))-&
+                     field(lag_index_h(i211(1),i211(2)),i211(3))-&
+                     field(lag_index_h(i121(1),i121(2)),i121(3))+&
+                     field(lag_index_h(i221(1),i221(2)),i221(3)))&  
+              )*(one-rdz)+&
+              (field(lag_index_h(i122(1),i122(2)),i122(3))-&
+                field(lag_index_h(i112(1),i112(2)),i112(3))+&
+                rdx*(field(lag_index_h(i112(1),i112(2)),i112(3))-&
+                     field(lag_index_h(i212(1),i212(2)),i212(3))-&
+                     field(lag_index_h(i122(1),i122(2)),i122(3))+&
+                     field(lag_index_h(i222(1),i222(2)),i222(3)))&  
+              )*rdz
+       end if
+       rcx=rcx/(rlons(i211(1))-rlons(i111(1)))
+       rcy=rcy/(rlats(i121(2))-rlats(i111(2)))
 
+       ! save weights and locations for the interpolation
+       do i=1,8
+          lspec_i(i)=lag_index_3d(ihoriz(i),isigma(i))
+          lspec_r(i)=rcoeff(i)
+       end do
+       lspec_r(9:10)=(/ rcx,rcy /)
+ 
     end if
 
   end function lag_int3d_nl
@@ -520,18 +528,20 @@ module lag_interp
 !
 !$$$ end documentation block
     implicit none
-    integer(i_kind),dimension(8),intent(in) ::lspec_i
-    real(r_kind)   ,dimension(10),intent(in)::lspec_r
-    real(r_kind),intent(in)::dlat,dlon
-    real(r_kind),dimension(:,:),intent(in)::dfield
-    real(r_kind)::lag_int3d_tl
 
+    integer(i_kind),dimension(8)  ,intent(in   ) :: lspec_i
+    real(r_kind)   ,dimension(10) ,intent(in   ) :: lspec_r
+    real(r_kind)                  ,intent(in   ) :: dlat,dlon
+    real(r_kind)   ,dimension(:,:),intent(in   ) :: dfield
+
+    real(r_kind)::lag_int3d_tl
     integer(i_kind)::i,horiz,sigma
+
     lag_int3d_tl=zero
 
     do i=1,8
-      call lag_retr_3d(lspec_i(i),horiz,sigma)
-      lag_int3d_tl=lag_int3d_tl+dfield(horiz,sigma)*lspec_r(i)
+       call lag_retr_3d(lspec_i(i),horiz,sigma)
+       lag_int3d_tl=lag_int3d_tl+dfield(horiz,sigma)*lspec_r(i)
     end do
 
     lag_int3d_tl=lag_int3d_tl+&
@@ -570,17 +580,18 @@ module lag_interp
 !
 !$$$ end documentation block
     implicit none
-    integer(i_kind),dimension(8) ,intent(in)::lspec_i
-    real(r_kind)   ,dimension(10),intent(in)::lspec_r
-    real(r_kind),intent(in)::adint3d
-    real(r_kind),intent(inout)::adlat,adlon
-    real(r_kind),dimension(:,:),intent(inout)::adfield
+
+    integer(i_kind),dimension(8)  ,intent(in   ) :: lspec_i
+    real(r_kind)   ,dimension(10) ,intent(in   ) :: lspec_r
+    real(r_kind)                  ,intent(in   ) :: adint3d
+    real(r_kind)                  ,intent(inout) :: adlat,adlon
+    real(r_kind)   ,dimension(:,:),intent(inout) :: adfield
 
     integer(i_kind)::i,horiz,sigma
 
     do i=1,8
-      call lag_retr_3d(lspec_i(i),horiz,sigma)
-      adfield(horiz,sigma)=adfield(horiz,sigma)+lspec_r(i)*adint3d
+       call lag_retr_3d(lspec_i(i),horiz,sigma)
+       adfield(horiz,sigma)=adfield(horiz,sigma)+lspec_r(i)*adint3d
     end do
     
     adlon=adlon+lspec_r(9) *adint3d

@@ -120,8 +120,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     ,intent(in   ) :: rmesh
 
 ! Output variables
-  integer(i_kind),intent(inout) :: nread
-  integer(i_kind)  ,intent(out) :: ndata,nodata
+  integer(i_kind)  ,intent(inout) :: nread
+  integer(i_kind)  ,intent(  out) :: ndata,nodata
   
 
 ! BUFR file sequencial number
@@ -505,7 +505,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            cycle read_loop
         endif
 
-        iskip = 0
+        iskip = izero
         do i=1,n_totchan
 !     check that channel number is within reason
            if (( allchan(1,i) > zero .and. allchan(1,i) < 99999._r_kind) .and. &  ! radiance bounds

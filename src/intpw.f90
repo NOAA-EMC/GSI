@@ -91,9 +91,9 @@ subroutine intpw_(pwhead,rq,sq)
   implicit none
 
 ! Declare passed variables
-  type(pw_ob_type),pointer,intent(in):: pwhead
-  real(r_kind),dimension(latlon1n),intent(in):: sq
-  real(r_kind),dimension(latlon1n),intent(inout):: rq
+  type(pw_ob_type),pointer        ,intent(in   ) :: pwhead
+  real(r_kind),dimension(latlon1n),intent(in   ) :: sq
+  real(r_kind),dimension(latlon1n),intent(inout) :: rq
 
 ! Declare local variables
   integer(i_kind) k
@@ -130,62 +130,62 @@ subroutine intpw_(pwhead,rq,sq)
                  tpwcon*pwptr%dp(k)
      end do
      if ( l_foto ) then
-       time_pw = pwptr%time*r3600
-       do k=1,nsig
-          val=val+(w1*xhat_dt%q(i1(k))+w2*xhat_dt%q(i2(k))           &
-                 + w3*xhat_dt%q(i3(k))+w4*xhat_dt%q(i4(k)))*time_pw* &
-                   tpwcon*pwptr%dp(k)
-       end do
+        time_pw = pwptr%time*r3600
+        do k=1,nsig
+           val=val+(w1*xhat_dt%q(i1(k))+w2*xhat_dt%q(i2(k))           &
+                  + w3*xhat_dt%q(i3(k))+w4*xhat_dt%q(i4(k)))*time_pw* &
+                    tpwcon*pwptr%dp(k)
+        end do
      endif
 
      if (lsaveobsens) then
-       pwptr%diags%obssen(jiter) = val*pwptr%raterr2*pwptr%err2
+        pwptr%diags%obssen(jiter) = val*pwptr%raterr2*pwptr%err2
      else
-       if (pwptr%luse) pwptr%diags%tldepart(jiter)=val
+        if (pwptr%luse) pwptr%diags%tldepart(jiter)=val
      endif
 
-    if (l_do_adjoint) then
-      if (lsaveobsens) then
-        grad = pwptr%diags%obssen(jiter)
-
-      else
-!       Difference from observation
-        val=val-pwptr%res
-
-!       needed for gradient of nonlinear qc operator
-        if (nlnqc_iter .and. pwptr%pg > tiny_r_kind .and.  &
-                             pwptr%b  > tiny_r_kind) then
-          pg_pw=pwptr%pg*varqc_iter
-          cg_pw=cg_term/pwptr%b
-          wnotgross= one-pg_pw
-          wgross = pg_pw*cg_pw/wnotgross
-          p0   = wgross/(wgross+exp(-half*pwptr%err2*val**2))
-          val = val*(one-p0)
+     if (l_do_adjoint) then
+        if (lsaveobsens) then
+           grad = pwptr%diags%obssen(jiter)
+ 
+        else
+!          Difference from observation
+           val=val-pwptr%res
+ 
+!          needed for gradient of nonlinear qc operator
+           if (nlnqc_iter .and. pwptr%pg > tiny_r_kind .and.  &
+                                pwptr%b  > tiny_r_kind) then
+              pg_pw=pwptr%pg*varqc_iter
+              cg_pw=cg_term/pwptr%b
+              wnotgross= one-pg_pw
+              wgross = pg_pw*cg_pw/wnotgross
+              p0   = wgross/(wgross+exp(-half*pwptr%err2*val**2))
+              val = val*(one-p0)
+           endif
+ 
+           grad = val*pwptr%raterr2*pwptr%err2
         endif
 
-        grad = val*pwptr%raterr2*pwptr%err2
-      endif
-
-!     Adjoint
-      do k=1,nsig
-        pwcon1=tpwcon*pwptr%dp(k)*grad
-        rq(i1(k))   =   rq(i1(k))+w1*pwcon1
-        rq(i2(k))   =   rq(i2(k))+w2*pwcon1
-        rq(i3(k))   =   rq(i3(k))+w3*pwcon1
-        rq(i4(k))   =   rq(i4(k))+w4*pwcon1
-      end do
-      if ( l_foto ) then
+!       Adjoint
         do k=1,nsig
-          pwcon1=tpwcon*pwptr%dp(k)*grad
-          dhat_dt%q(i1(k))=dhat_dt%q(i1(k))+w1*pwcon1*time_pw
-          dhat_dt%q(i2(k))=dhat_dt%q(i2(k))+w2*pwcon1*time_pw
-          dhat_dt%q(i3(k))=dhat_dt%q(i3(k))+w3*pwcon1*time_pw
-          dhat_dt%q(i4(k))=dhat_dt%q(i4(k))+w4*pwcon1*time_pw
+           pwcon1=tpwcon*pwptr%dp(k)*grad
+           rq(i1(k))   =   rq(i1(k))+w1*pwcon1
+           rq(i2(k))   =   rq(i2(k))+w2*pwcon1
+           rq(i3(k))   =   rq(i3(k))+w3*pwcon1
+           rq(i4(k))   =   rq(i4(k))+w4*pwcon1
         end do
-      endif
-    endif
+        if ( l_foto ) then
+           do k=1,nsig
+              pwcon1=tpwcon*pwptr%dp(k)*grad
+              dhat_dt%q(i1(k))=dhat_dt%q(i1(k))+w1*pwcon1*time_pw
+              dhat_dt%q(i2(k))=dhat_dt%q(i2(k))+w2*pwcon1*time_pw
+              dhat_dt%q(i3(k))=dhat_dt%q(i3(k))+w3*pwcon1*time_pw
+              dhat_dt%q(i4(k))=dhat_dt%q(i4(k))+w4*pwcon1*time_pw
+           end do
+        endif
+     endif
 
-    pwptr => pwptr%llpoint
+     pwptr => pwptr%llpoint
 
   end do
 

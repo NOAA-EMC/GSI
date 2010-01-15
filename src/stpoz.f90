@@ -65,18 +65,18 @@ subroutine stpoz(ozhead,o3lhead,roz,soz,out,sges,nstep)
   use kinds, only: r_kind,r_quad,i_kind
   use obsmod, only: oz_ob_type,o3l_ob_type
   use gridmod, only: latlon1n
-  use constants, only: zero_quad
+  use constants, only: ione,zero_quad
   implicit none
 
 ! Declare passed variables
 
-  type( oz_ob_type),pointer,intent(in):: ozhead
-  type(o3l_ob_type),pointer,intent(in):: o3lhead
-  integer(i_kind),intent(in):: nstep
-  real(r_kind),dimension(latlon1n),intent(in):: soz
-  real(r_kind),dimension(latlon1n),intent(in):: roz
-  real(r_kind),dimension(max(1,nstep)),intent(in):: sges
-  real(r_quad),dimension(max(1,nstep)),intent(out):: out
+  type( oz_ob_type),pointer              ,intent(in   ) :: ozhead
+  type(o3l_ob_type),pointer              ,intent(in   ) :: o3lhead
+  integer(i_kind)                        ,intent(in   ) :: nstep
+  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: soz
+  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: roz
+  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
 
   out=zero_quad
 
@@ -134,23 +134,23 @@ subroutine stpozlay_(ozhead,roz,soz,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: oz_ob_type
-  use constants, only: one,half,two,zero_quad,r3600
+  use constants, only: izero,ione,one,half,two,zero_quad,r3600
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer,intent(in)::  ozhead
-  integer(i_kind),intent(in)::nstep
-  real(r_quad),dimension(max(1,nstep)),intent(inout):: out
-  real(r_kind),dimension(lat2*lon2,nsig),intent(in):: roz,soz
-  real(r_kind),dimension(max(1,nstep)),intent(in):: sges
+  type( oz_ob_type),pointer              ,intent(in   ) ::  ozhead
+  integer(i_kind)                        ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(ione,nstep)),intent(inout) :: out
+  real(r_kind),dimension(lat2*lon2,nsig) ,intent(in   ) :: roz,soz
+  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
   integer(i_kind) k,j1,j2,j3,j4,iz1,iz2,j1x,j2x,j3x,j4x,kk
   real(r_kind) dz1,pob,delz
   real(r_kind) w1,w2,w3,w4,time_oz,oz
-  real(r_kind),dimension(max(1,nstep))::pen
+  real(r_kind),dimension(max(ione,nstep))::pen
   type( oz_ob_type), pointer ::  ozptr
 
   real(r_quad) val,val1
@@ -163,129 +163,129 @@ subroutine stpozlay_(ozhead,roz,soz,out,sges,nstep)
   do while (associated(ozptr))
      if(ozptr%luse)then
 
-       if(nstep > 0)then
-!    Get location
-        j1=ozptr%ij(1)
-        j2=ozptr%ij(2)
-        j3=ozptr%ij(3)
-        j4=ozptr%ij(4)
-        if(l_foto)time_oz=ozptr%time*r3600
+        if(nstep > izero)then
+!          Get location
+           j1=ozptr%ij(1)
+           j2=ozptr%ij(2)
+           j3=ozptr%ij(3)
+           j4=ozptr%ij(4)
+           if(l_foto)time_oz=ozptr%time*r3600
 
-!    Accumulate contribution from layer observations
-        dz1=nsig+1
-       end if
+!          Accumulate contribution from layer observations
+           dz1=nsig+ione
+        end if
 
-       if ( ozptr%nloz >= 1 ) then
+        if ( ozptr%nloz >= ione ) then
 
            do k=1,ozptr%nloz
-             if(nstep > 0)then
-               val1= -ozptr%res(k)
-               val = zero_quad
-               pob = ozptr%prs(k)
-               iz1 = dz1
-               if (iz1>nsig) iz1=nsig
-               iz2 = pob
-         
-               do kk=iz2,iz1
-                  delz=one
-                  if (kk==iz1) delz=dz1-iz1
-                  if (kk==iz2) delz=delz-pob+iz2
-                  w1=ozptr%wij(1,kk)
-                  w2=ozptr%wij(2,kk)
-                  w3=ozptr%wij(3,kk)
-                  w4=ozptr%wij(4,kk)
-                  val=val + ( &
-                       w1* roz(j1,kk)+ &
-                       w2* roz(j2,kk)+ &
-                       w3* roz(j3,kk)+ &
-                       w4* roz(j4,kk))*delz
-                  val1=val1 + ( &
-                       w1* soz(j1,kk)+ &
-                       w2* soz(j2,kk)+ &
-                       w3* soz(j3,kk)+ &
-                       w4* soz(j4,kk))*delz
-                  if(l_foto) then
-                    j1x=j1+(kk-1)*lat2*lon2
-                    j2x=j2+(kk-1)*lat2*lon2
-                    j3x=j3+(kk-1)*lat2*lon2
-                    j4x=j4+(kk-1)*lat2*lon2
-                    val=val + ( &
-                      (w1*dhat_dt%oz(j1x)+ &
-                       w2*dhat_dt%oz(j2x)+ &
-                       w3*dhat_dt%oz(j3x)+ &
-                       w4*dhat_dt%oz(j4x))*time_oz )*delz
-                    val1=val1 + ( &
-                      (w1*xhat_dt%oz(j1x)+ &
-                       w2*xhat_dt%oz(j2x)+ &
-                       w3*xhat_dt%oz(j3x)+ &
-                       w4*xhat_dt%oz(j4x))*time_oz )*delz
-                  end if
-               end do
-               do kk=1,nstep
-                 oz=val1+sges(kk)*val
-                 pen(kk)= ozptr%err2(k)*oz*oz
-               end do
-             else
-              pen(1)=ozptr%res(k)*ozptr%res(k)*ozptr%err2(k)
-             end if
+              if(nstep > izero)then
+                 val1= -ozptr%res(k)
+                 val = zero_quad
+                 pob = ozptr%prs(k)
+                 iz1 = dz1
+                 if (iz1>nsig) iz1=nsig
+                 iz2 = pob
 
-             out(1) = out(1)+pen(1)*ozptr%raterr2(k)
-             do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*ozptr%raterr2(k)
-             end do
-             dz1=pob
+                 do kk=iz2,iz1
+                    delz=one
+                    if (kk==iz1) delz=dz1-iz1
+                    if (kk==iz2) delz=delz-pob+iz2
+                    w1=ozptr%wij(1,kk)
+                    w2=ozptr%wij(2,kk)
+                    w3=ozptr%wij(3,kk)
+                    w4=ozptr%wij(4,kk)
+                    val=val + ( &
+                         w1* roz(j1,kk)+ &
+                         w2* roz(j2,kk)+ &
+                         w3* roz(j3,kk)+ &
+                         w4* roz(j4,kk))*delz
+                    val1=val1 + ( &
+                         w1* soz(j1,kk)+ &
+                         w2* soz(j2,kk)+ &
+                         w3* soz(j3,kk)+ &
+                         w4* soz(j4,kk))*delz
+                    if(l_foto) then
+                       j1x=j1+(kk-ione)*lat2*lon2
+                       j2x=j2+(kk-ione)*lat2*lon2
+                       j3x=j3+(kk-ione)*lat2*lon2
+                       j4x=j4+(kk-ione)*lat2*lon2
+                       val=val + ( &
+                         (w1*dhat_dt%oz(j1x)+ &
+                          w2*dhat_dt%oz(j2x)+ &
+                          w3*dhat_dt%oz(j3x)+ &
+                          w4*dhat_dt%oz(j4x))*time_oz )*delz
+                       val1=val1 + ( &
+                         (w1*xhat_dt%oz(j1x)+ &
+                          w2*xhat_dt%oz(j2x)+ &
+                          w3*xhat_dt%oz(j3x)+ &
+                          w4*xhat_dt%oz(j4x))*time_oz )*delz
+                    end if
+                 end do
+                 do kk=1,nstep
+                    oz=val1+sges(kk)*val
+                    pen(kk)= ozptr%err2(k)*oz*oz
+                 end do
+              else
+                 pen(1)=ozptr%res(k)*ozptr%res(k)*ozptr%err2(k)
+              end if
+
+              out(1) = out(1)+pen(1)*ozptr%raterr2(k)
+              do kk=2,nstep
+                 out(kk) = out(kk)+(pen(kk)-pen(1))*ozptr%raterr2(k)
+              end do
+              dz1=pob
            end do
            
         end if
 
-!    Add contribution from total column observation
-        if(nstep > 0)then
-          k   = ozptr%nloz+1
-          val1= -ozptr%res(k)
-          val  = zero_quad
-          do kk=1,nsig
-             w1=ozptr%wij(1,kk)
-             w2=ozptr%wij(2,kk)
-             w3=ozptr%wij(3,kk)
-             w4=ozptr%wij(4,kk)
-             val=val+  (          &
-                  w1* roz(j1,kk)+ &
-                  w2* roz(j2,kk)+ &
-                  w3* roz(j3,kk)+ &
-                  w4* roz(j4,kk))
-             val1=val1 +  (       &
-                  w1* soz(j1,kk)+ &
-                  w2* soz(j2,kk)+ &
-                  w3* soz(j3,kk)+ & 
-                  w4* soz(j4,kk))
-             if(l_foto)then
-               j1x=j1+(kk-1)*lat2*lon2
-               j2x=j2+(kk-1)*lat2*lon2
-               j3x=j3+(kk-1)*lat2*lon2
-               j4x=j4+(kk-1)*lat2*lon2
-               val=val+ ( &
-                 (w1*xhat_dt%oz(j1x)+ &
-                  w2*xhat_dt%oz(j2x)+ &
-                  w3*xhat_dt%oz(j3x)+ & 
-                  w4*xhat_dt%oz(j4x))*time_oz )
-               val1=val1 + ( &
-                 (w1*dhat_dt%oz(j1x)+ &
-                  w2*dhat_dt%oz(j2x)+ &
-                  w3*dhat_dt%oz(j3x)+ &
-                  w4*dhat_dt%oz(j4x))*time_oz )
-             end if
-          enddo
-          do kk=1,nstep
-            oz=val1+sges(kk)*val
-            pen(kk)= ozptr%err2(k)*oz*oz
-          end do
+!       Add contribution from total column observation
+        if(nstep > izero)then
+           k   = ozptr%nloz+ione
+           val1= -ozptr%res(k)
+           val  = zero_quad
+           do kk=1,nsig
+              w1=ozptr%wij(1,kk)
+              w2=ozptr%wij(2,kk)
+              w3=ozptr%wij(3,kk)
+              w4=ozptr%wij(4,kk)
+              val=val+  (          &
+                   w1* roz(j1,kk)+ &
+                   w2* roz(j2,kk)+ &
+                   w3* roz(j3,kk)+ &
+                   w4* roz(j4,kk))
+              val1=val1 +  (       &
+                   w1* soz(j1,kk)+ &
+                   w2* soz(j2,kk)+ &
+                   w3* soz(j3,kk)+ & 
+                   w4* soz(j4,kk))
+              if(l_foto)then
+                 j1x=j1+(kk-ione)*lat2*lon2
+                 j2x=j2+(kk-ione)*lat2*lon2
+                 j3x=j3+(kk-ione)*lat2*lon2
+                 j4x=j4+(kk-ione)*lat2*lon2
+                 val=val+ ( &
+                   (w1*xhat_dt%oz(j1x)+ &
+                    w2*xhat_dt%oz(j2x)+ &
+                    w3*xhat_dt%oz(j3x)+ & 
+                    w4*xhat_dt%oz(j4x))*time_oz )
+                 val1=val1 + ( &
+                   (w1*dhat_dt%oz(j1x)+ &
+                    w2*dhat_dt%oz(j2x)+ &
+                    w3*dhat_dt%oz(j3x)+ &
+                    w4*dhat_dt%oz(j4x))*time_oz )
+              end if
+           enddo
+           do kk=1,nstep
+              oz=val1+sges(kk)*val
+              pen(kk)= ozptr%err2(k)*oz*oz
+           end do
         else
-          pen(kk)=ozptr%res(k)*ozptr%res(k)*ozptr%err2(k)
+           pen(kk)=ozptr%res(k)*ozptr%res(k)*ozptr%err2(k)
         end if
 
         out(1) = out(1) +pen(1)*ozptr%raterr2(k)
         do kk=2,nstep
-          out(kk) = out(kk) +(pen(kk)-pen(1))*ozptr%raterr2(k)
+           out(kk) = out(kk) +(pen(kk)-pen(1))*ozptr%raterr2(k)
         end do
      end if
 
@@ -333,22 +333,22 @@ subroutine stpozlev_(o3lhead,roz1d,soz1d,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: o3l_ob_type
-  use constants, only: zero,one,half,two,r3600
+  use constants, only: izero,ione,zero,one,half,two,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
-  type(o3l_ob_type),pointer,intent(in):: o3lhead
-  integer(i_kind),intent(in)::nstep
-  real(r_quad),dimension(max(1,nstep)),intent(out):: out
-  real(r_kind),dimension(latlon1n),intent(in):: roz1d,soz1d
-  real(r_kind),dimension(max(1,nstep)),intent(in):: sges
+  type(o3l_ob_type),pointer              ,intent(in   ) :: o3lhead
+  integer(i_kind)                        ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
+  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: roz1d,soz1d
+  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
   real(r_kind) oz
-  real(r_kind),dimension(max(1,nstep))::pen
+  real(r_kind),dimension(max(ione,nstep))::pen
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,val,val2, time_oz
   type(o3l_ob_type), pointer :: o3lptr
 
@@ -362,54 +362,54 @@ subroutine stpozlev_(o3lhead,roz1d,soz1d,out,sges,nstep)
 !
   do while (associated(o3lptr))
      if(o3lptr%luse)then
-       if(nstep > 0)then
-        j1=o3lptr%ij(1)
-        j2=o3lptr%ij(2)
-        j3=o3lptr%ij(3)
-        j4=o3lptr%ij(4)
-        j5=o3lptr%ij(5)
-        j6=o3lptr%ij(6)
-        j7=o3lptr%ij(7)
-        j8=o3lptr%ij(8)
-        w1=o3lptr%wij(1)
-        w2=o3lptr%wij(2)
-        w3=o3lptr%wij(3)
-        w4=o3lptr%wij(4)
-        w5=o3lptr%wij(5)
-        w6=o3lptr%wij(6)
-        w7=o3lptr%wij(7)
-        w8=o3lptr%wij(8)
+        if(nstep > izero)then
+           j1=o3lptr%ij(1)
+           j2=o3lptr%ij(2)
+           j3=o3lptr%ij(3)
+           j4=o3lptr%ij(4)
+           j5=o3lptr%ij(5)
+           j6=o3lptr%ij(6)
+           j7=o3lptr%ij(7)
+           j8=o3lptr%ij(8)
+           w1=o3lptr%wij(1)
+           w2=o3lptr%wij(2)
+           w3=o3lptr%wij(3)
+           w4=o3lptr%wij(4)
+           w5=o3lptr%wij(5)
+           w6=o3lptr%wij(6)
+           w7=o3lptr%wij(7)
+           w8=o3lptr%wij(8)
 
 
-        val= w1*roz1d(j1)+w2*roz1d(j2)+w3*roz1d(j3)+w4*roz1d(j4)+ &
-             w5*roz1d(j5)+w6*roz1d(j6)+w7*roz1d(j7)+w8*roz1d(j8)   
-        val2=w1*soz1d(j1)+w2*soz1d(j2)+w3*soz1d(j3)+w4*soz1d(j4)+ &
-             w5*soz1d(j5)+w6*soz1d(j6)+w7*soz1d(j7)+w8*soz1d(j8)-o3lptr%res
+           val= w1*roz1d(j1)+w2*roz1d(j2)+w3*roz1d(j3)+w4*roz1d(j4)+ &
+                w5*roz1d(j5)+w6*roz1d(j6)+w7*roz1d(j7)+w8*roz1d(j8)   
+           val2=w1*soz1d(j1)+w2*soz1d(j2)+w3*soz1d(j3)+w4*soz1d(j4)+ &
+                w5*soz1d(j5)+w6*soz1d(j6)+w7*soz1d(j7)+w8*soz1d(j8)-o3lptr%res
 
-        if(l_foto) then
-           time_oz=o3lptr%time*r3600
-           val=val+ (w1*dhat_dt%oz(j1)+w2*dhat_dt%oz(j2)+ &
-                     w3*dhat_dt%oz(j3)+w4*dhat_dt%oz(j4)+ &
-                     w5*dhat_dt%oz(j5)+w6*dhat_dt%oz(j6)+ &
-                     w7*dhat_dt%oz(j7)+w8*dhat_dt%oz(j8))*time_oz
-           val2=val2+ (w1*xhat_dt%oz(j1)+w2*xhat_dt%oz(j2)+ &
-                       w3*xhat_dt%oz(j3)+w4*xhat_dt%oz(j4)+ &
-                       w5*xhat_dt%oz(j5)+w6*xhat_dt%oz(j6)+ &
-                       w7*xhat_dt%oz(j7)+w8*xhat_dt%oz(j8))*time_oz
+           if(l_foto) then
+              time_oz=o3lptr%time*r3600
+              val=val+ (w1*dhat_dt%oz(j1)+w2*dhat_dt%oz(j2)+ &
+                        w3*dhat_dt%oz(j3)+w4*dhat_dt%oz(j4)+ &
+                        w5*dhat_dt%oz(j5)+w6*dhat_dt%oz(j6)+ &
+                        w7*dhat_dt%oz(j7)+w8*dhat_dt%oz(j8))*time_oz
+              val2=val2+ (w1*xhat_dt%oz(j1)+w2*xhat_dt%oz(j2)+ &
+                          w3*xhat_dt%oz(j3)+w4*xhat_dt%oz(j4)+ &
+                          w5*xhat_dt%oz(j5)+w6*xhat_dt%oz(j6)+ &
+                          w7*xhat_dt%oz(j7)+w8*xhat_dt%oz(j8))*time_oz
+           end if
+
+           do kk=1,nstep
+              oz=val2+sges(kk)*val
+              pen(kk)= oz*oz*o3lptr%err2
+           end do
+        else
+           pen(1) = o3lptr%res*o3lptr%res*o3lptr%err2
         end if
 
-        do kk=1,nstep
-          oz=val2+sges(kk)*val
-          pen(kk)= oz*oz*o3lptr%err2
+        out(1) = out(1)+pen(1)*o3lptr%raterr2
+        do kk=2,nstep
+           out(kk) = out(kk)+(pen(kk)-pen(1))*o3lptr%raterr2
         end do
-       else
-        pen(1) = o3lptr%res*o3lptr%res*o3lptr%err2
-       end if
-
-       out(1) = out(1)+pen(1)*o3lptr%raterr2
-       do kk=2,nstep
-         out(kk) = out(kk)+(pen(kk)-pen(1))*o3lptr%raterr2
-       end do
      end if
 
      o3lptr => o3lptr%llpoint

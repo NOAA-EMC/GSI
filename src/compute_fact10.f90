@@ -37,10 +37,10 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
   implicit none
 
 ! Passed Variables
-  real(r_kind),intent(in):: u,v,t,q,ps,skint,z0rl
-  integer(i_kind),intent(in):: islimsk
-  real(r_kind),intent(out):: f10m
-  real(r_kind),intent(in):: prsi1,prsi2
+  real(r_kind)   ,intent(in   ) :: u,v,t,q,ps,skint,z0rl
+  integer(i_kind),intent(in   ) :: islimsk
+  real(r_kind)   ,intent(  out) :: f10m
+  real(r_kind)   ,intent(in   ) :: prsi1,prsi2
 
 ! Local Variables
   real(r_kind):: prsl,prkl
@@ -109,19 +109,19 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
 
 !  COMPUTE STABILITY DEPENDENT EXCHANGE COEFFICIENTS
    if (islimsk == izero) then
-     ustar = sqrt(grav * z0 / charnok)
+      ustar = sqrt(grav * z0 / charnok)
    end if
 !  COMPUTE STABILITY INDICES (RB AND HLINF)
    z0max = min(z0,one*z1)
    ztmax = z0max
    if (islimsk == izero) then
-     restar=ustar*z0max/vis
-     restar=max(restar,1.e-6_r_kind)
+      restar=ustar*z0max/vis
+      restar=max(restar,1.e-6_r_kind)
 
-!    Rat taken from Zeng, Zhao and Dickinson 1997
-     rat = 2.67_r_kind * restar**quarter - 2.57_r_kind
-     rat = min(rat,7.0_r_kind)
-     ztmax = z0max * exp(-rat)
+!     Rat taken from Zeng, Zhao and Dickinson 1997
+      rat = 2.67_r_kind * restar**quarter - 2.57_r_kind
+      rat = min(rat,7.0_r_kind)
+      ztmax = z0max * exp(-rat)
    end if
 
    dtv = thv1 - tvs
@@ -138,68 +138,68 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
 
 !  STABLE CASE
    if (dtv >= zero) then
-     hl1=hlinf
+      hl1=hlinf
    end if        
    if ((dtv >= zero) .AND. (hlinf > quarter)) then
-     hl0inf=z0max*hlinf/z1
-     hltinf=ztmax*hlinf/z1
-     aa=sqrt(one + four*alpha*hlinf)
-     aa0=sqrt(one + four*alpha*hl0inf)
-     bb=aa
-     bb0=sqrt(one + four*alpha*hltinf)
-     pm=aa0 - aa + log((aa+one)/(aa0+one))
-     ph=bb0 - bb + log((bb+one)/(bb0+one))
-     fms=fm-pm
-     fhs=fh-ph
-     hl1=fms*fms*rb/fhs
+      hl0inf=z0max*hlinf/z1
+      hltinf=ztmax*hlinf/z1
+      aa=sqrt(one + four*alpha*hlinf)
+      aa0=sqrt(one + four*alpha*hl0inf)
+      bb=aa
+      bb0=sqrt(one + four*alpha*hltinf)
+      pm=aa0 - aa + log((aa+one)/(aa0+one))
+      ph=bb0 - bb + log((bb+one)/(bb0+one))
+      fms=fm-pm
+      fhs=fh-ph
+      hl1=fms*fms*rb/fhs
    end if
 
 !  SECOND ITERATION
    if (dtv >= zero) then
-     hl0=z0max*hl1/z1
-     hlt=ztmax*hl1/z1
-     aa=sqrt(one + four*alpha*hl1)
-     aa0=sqrt(one + four*alpha*hl0)
-     bb=aa
-     bb0=sqrt(one + four*alpha*hlt)
-     pm=aa0 - aa + log((aa+one)/(aa0+one))
-     ph=bb0 - bb + log((bb+one)/(bb0+one))
-     hl110=hl1*ten/z1
-     aa=sqrt(one + four*alpha*hl110)
-     pm10=aa0 - aa + log((aa+one)/(aa0+one))
-     hl12=hl1*two/z1
-     bb=sqrt(one + four*alpha*hl12)
-     ph2=bb0 - bb + log((bb+one)/(bb0+one))
+      hl0=z0max*hl1/z1
+      hlt=ztmax*hl1/z1
+      aa=sqrt(one + four*alpha*hl1)
+      aa0=sqrt(one + four*alpha*hl0)
+      bb=aa
+      bb0=sqrt(one + four*alpha*hlt)
+      pm=aa0 - aa + log((aa+one)/(aa0+one))
+      ph=bb0 - bb + log((bb+one)/(bb0+one))
+      hl110=hl1*ten/z1
+      aa=sqrt(one + four*alpha*hl110)
+      pm10=aa0 - aa + log((aa+one)/(aa0+one))
+      hl12=hl1*two/z1
+      bb=sqrt(one + four*alpha*hl12)
+      ph2=bb0 - bb + log((bb+one)/(bb0+one))
    end if
 
 
 !  UNSTABLE CASE
 !  CHECK FOR UNPHYSICAL OBUKHOV LENGTH
    if (dtv < zero) then
-     olinf = z1/hlinf
-     if ( abs(olinf) <= z0max*50.0_r_kind ) then
-       hlinf = -z1/(50.0_r_kind*z0max)
-     end if
+      olinf = z1/hlinf
+      if ( abs(olinf) <= z0max*50.0_r_kind ) then
+         hlinf = -z1/(50.0_r_kind*z0max)
+      end if
    end if
 
 !  GET PM AND PH
    if (dtv < zero .AND. hlinf >= (-half)) then
-     hl1=hlinf
-     pm=(a0 + a1*hl1)*hl1/(one + b1*hl1 + b2*hl1*hl1)
-     ph=(a0p + a1p*hl1)*hl1/(one + b1p*hl1 + b2*hl1*hl1)
-     hl110=hl1*ten/z1
-     pm10=(a0 + a1*hl110)*hl110/(one + b1*hl110 + b2*hl110*hl110)
-     hl12=hl1*two/z1
-     ph2=(a0p + a1p*hl12)*hl12/(one + b1p*hl12 + b2p*hl12*hl12)
+      hl1=hlinf
+      pm=(a0 + a1*hl1)*hl1/(one + b1*hl1 + b2*hl1*hl1)
+      ph=(a0p + a1p*hl1)*hl1/(one + b1p*hl1 + b2*hl1*hl1)
+      hl110=hl1*ten/z1
+      pm10=(a0 + a1*hl110)*hl110/(one + b1*hl110 + b2*hl110*hl110)
+      hl12=hl1*two/z1
+      ph2=(a0p + a1p*hl12)*hl12/(one + b1p*hl12 + b2p*hl12*hl12)
    end if
    if (dtv < zero .AND. hlinf < (-half)) then
-     hl1=-hlinf
-     pm=log(hl1) + two*hl1**(-quarter) - 0.8776_r_kind
-     ph=log(hl1) + half*hl1**(-half) + 1.386_r_kind
-     hl110=hl1*ten/z1
-     pm10=log(hl110) + two*hl110**(-quarter) - 0.8776_r_kind
-     hl12=hl1*two/z1
-     ph2=log(hl12) + half*hl12**(-half) + 1.386_r_kind
+      hl1=-hlinf
+      pm=log(hl1) + two*hl1**(-quarter) - 0.8776_r_kind
+      ph=log(hl1) + half*hl1**(-half) + 1.386_r_kind
+      hl110=hl1*ten/z1
+      pm10=log(hl110) + two*hl110**(-quarter) - 0.8776_r_kind
+      hl12=hl1*two/z1
+      ph2=log(hl12) + half*hl12**(-half) + 1.386_r_kind
    end if
 
 

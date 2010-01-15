@@ -79,7 +79,7 @@ subroutine gsisub(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 #ifndef HAVE_ESMF
 
@@ -124,11 +124,11 @@ subroutine gsisub(mype)
 
 ! Complete setup and execute external and internal minimization loops
   if (lobserver) then
-    call observer_init
-    call observer_run
-    call observer_finalize
+     call observer_init
+     call observer_run
+     call observer_finalize
   else
-    call glbsoi(mype)
+     call glbsoi(mype)
   endif
 
   

@@ -100,12 +100,12 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero
+    use constants, only: izero,ione
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),intent(in):: nlat,nlon
-    logical,optional,intent(in) :: eqspace
+    integer(i_kind) ,intent(in   ) :: nlat,nlon
+    logical,optional,intent(in   ) :: eqspace
 
 !   Declare local variables    
     integer(i_kind) ii1,l,m
@@ -113,7 +113,7 @@ contains
     integer(i_kind) :: ldafft
 
 !   Set constants
-    nc=(jcap+1)*(jcap+2)
+    nc=(jcap+ione)*(jcap+2_i_kind)
     ncd2=nc/2
 
 !   Allocate more arrays related to transforms
@@ -125,7 +125,7 @@ contains
     ii1=izero
     do l=izero,jcap
        do m=izero,jcap-l
-          ii1=ii1+2
+          ii1=ii1+2_i_kind
           if(l == izero)factsml(ii1)=.true.
           if(l == izero)factvml(ii1)=.true.
        end do
@@ -133,35 +133,35 @@ contains
     factvml(1)=.true.
 
 !   Set other constants used in transforms
-    iromb=0
-    idrt=4
+    iromb=izero
+    idrt=4_i_kind
     if(present(eqspace)) then
-      if(eqspace) idrt=256
+       if(eqspace) idrt=256_i_kind
     endif
     imax=nlon
-    jmax=nlat-2
+    jmax=nlat-2_i_kind
     ijmax=imax*jmax
-    ioffset=imax*(jmax-1)
+    ioffset=imax*(jmax-ione)
     jn=imax
     js=-jn
     kw=2*ncd2
-    jb=1
-    je=(jmax+1)/2
+    jb=ione
+    je=(jmax+ione)/2
 
 !   Allocate arrays
     allocate( eps(ncd2) )
-    allocate( epstop(jcap+1) )
+    allocate( epstop(jcap+ione) )
     allocate( enn1(ncd2) )
     allocate( elonn1(ncd2) )
     allocate( eon(ncd2) )
-    allocate( eontop(jcap+1) )
-    ldafft=50000+4*imax ! ldafft=256+imax would be sufficient at GMAO.
+    allocate( eontop(jcap+ione) )
+    ldafft=50000_i_kind+4*imax ! ldafft=256+imax would be sufficient at GMAO.
     allocate( afft(ldafft))
     allocate( clat(jb:je) )
     allocate( slat(jb:je) ) 
     allocate( wlat(jb:je) ) 
     allocate( pln(ncd2,jb:je) )
-    allocate( plntop(jcap+1,jb:je) )
+    allocate( plntop(jcap+ione,jb:je) )
 
 !   Initialize arrays used in transforms
     call sptranf0(iromb,jcap,idrt,imax,jmax,jb,je, &
@@ -301,23 +301,23 @@ subroutine sptez_s_special(wave,grid,idir)
 !$$$
   use kinds, only: r_kind,i_kind
   use specmod_special, only: nc,ijmax
-  use constants, only: zero
+  use constants, only: izero,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: idir
-  real(r_kind),dimension(nc),intent(inout):: wave
-  real(r_kind),dimension(ijmax),intent(inout):: grid
+  integer(i_kind)              ,intent(in   ) :: idir
+  real(r_kind),dimension(nc)   ,intent(inout) :: wave
+  real(r_kind),dimension(ijmax),intent(inout) :: grid
 
 ! Declare local variables
   integer(i_kind) i
 
 ! Zero appropriate output array based on direction of transform
-  if (idir<0) then
+  if (idir<izero) then
      do i=1,nc
         wave(i)=zero
      end do
-  elseif (idir>0) then
+  elseif (idir>izero) then
      do i=1,ijmax
         grid(i)=zero
      end do
@@ -400,7 +400,7 @@ subroutine sptranf_s_special(wave,grid,idir)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: izero,ione,zero
   use specmod_special, only: iromb,jcap,idrt,imax,jmax,ijmax,&
        jn,js,jb,je,nc,ioffset,&
        eps,epstop,enn1,elonn1,eon,eontop,&
@@ -408,26 +408,26 @@ subroutine sptranf_s_special(wave,grid,idir)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: idir
-  real(r_kind),dimension(nc),intent(inout):: wave
-  real(r_kind),dimension(ijmax),intent(inout):: grid
+  integer(i_kind)              ,intent(in   ) :: idir
+  real(r_kind),dimension(nc)   ,intent(inout) :: wave
+  real(r_kind),dimension(ijmax),intent(inout) :: grid
 
 ! Declare local variables
   integer(i_kind) i,j,jj,ijn,ijs,mp
-  real(r_kind),dimension(2*(jcap+1)):: wtop
+  real(r_kind),dimension(2*(jcap+ione)):: wtop
   real(r_kind),dimension(imax,2):: g
   integer(i_kind) :: ldafft
-  ldafft=256+imax
+  ldafft=256_i_kind+imax
 
 ! Initialize local variables
-  mp=0
+  mp=izero
 
-  do i=1,2*(jcap+1)
+  do i=1,2*(jcap+ione)
      wtop(i)=zero
   end do
 
 ! Transform wave to grid
-  if(idir >  0) then
+  if(idir >  izero) then
 !!$omp parallel do private(j,i,jj,ijn,ijs,g)
      do j=jb,je
         call sptranf1(iromb,jcap,idrt,imax,jmax,j,j, &
@@ -449,7 +449,7 @@ subroutine sptranf_s_special(wave,grid,idir)
   else
 !!$omp parallel do private(j,i,jj,ijn,ijs,g)
      do j=jb,je
-        if(wlat(j) >  0.) then
+        if(wlat(j) >  zero) then
            do i=1,imax
               jj  = j-jb
               ijn = i + jj*jn
@@ -537,30 +537,30 @@ subroutine g2s0_special(spectral_out,grid_in)
 
   use specmod_special, only: nc,factsml
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: nlat,nlon
   use transform_special, only: sptez_s_special
   implicit none
 
-  real(r_kind),intent(out)::spectral_out(nc)
-  real(r_kind),intent(in)::grid_in(nlat,nlon)
+  real(r_kind),intent(  out) :: spectral_out(nc)
+  real(r_kind),intent(in   ) :: grid_in(nlat,nlon)
 
-  real(r_kind) work(nlon,nlat-2),spec_work(nc)
+  real(r_kind) work(nlon,nlat-2_i_kind),spec_work(nc)
   integer(i_kind) i,j,jj
 
 !  Transfer contents of input grid to local work array
 !  Reverse ordering in j direction from n-->s to s-->n
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      work(i,jj)=grid_in(j,i)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        work(i,jj)=grid_in(j,i)
+     end do
   end do
-  call sptez_s_special(spec_work,work,-1)
+  call sptez_s_special(spec_work,work,-ione)
 
   do i=1,nc
-    spectral_out(i)=spec_work(i)
-    if(factsml(i))spectral_out(i)=zero
+     spectral_out(i)=spec_work(i)
+     if(factsml(i))spectral_out(i)=zero
   end do
  
   return
@@ -594,58 +594,58 @@ subroutine g2s0_ad_special(spectral_in,grid_out)
 
   use specmod_special, only: jcap,nc,factsml,wlat,jb,je
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,half,two
+  use constants, only: izero,ione,zero,half,two
   use gridmod, only: nlat,nlon
   use transform_special, only: sptez_s_special
   implicit none
 
-  real(r_kind),intent(in)::spectral_in(nc)
-  real(r_kind),intent(out)::grid_out(nlat,nlon)
+  real(r_kind),intent(in   ) :: spectral_in(nc)
+  real(r_kind),intent(  out) :: grid_out(nlat,nlon)
 
-  real(r_kind) work(nlon,nlat-2),spec_work(nc)
+  real(r_kind) work(nlon,nlat-2_i_kind),spec_work(nc)
   integer(i_kind) i,j,jj
 
   do i=1,nc
-    spec_work(i)=spectral_in(i)/float(nlon)
-    if(factsml(i))spec_work(i)=zero
+     spec_work(i)=spectral_in(i)/float(nlon)
+     if(factsml(i))spec_work(i)=zero
   end do
-  do i=2*jcap+3,nc
-    spec_work(i)=half*spec_work(i)
+  do i=2*jcap+3_i_kind,nc
+     spec_work(i)=half*spec_work(i)
   end do
  
-  call sptez_s_special(spec_work,work,1)
+  call sptez_s_special(spec_work,work,ione)
 
 !
 ! If nlat odd, then j=je is the equator.  The factor of 2 is because, 
 ! je is referenced only once, not twice as in the spectral transform 
 ! routines where half of the equator is considered in each hemisphere,
 ! separately. 
-  do j=jb,je-mod(nlat,2)
-    do i=1,nlon
-      work(i,j)=work(i,j)*wlat(j)
-      work(i,nlat-1-j)=work(i,nlat-1-j)*wlat(j)
-    end do
+  do j=jb,je-mod(nlat,2_i_kind)
+     do i=1,nlon
+        work(i,j)=work(i,j)*wlat(j)
+        work(i,nlat-ione-j)=work(i,nlat-ione-j)*wlat(j)
+     end do
   end do
   
-  if (mod(nlat,2)  /=  0) then
-    do i=1,nlon
-      work(i,je)=work(i,je)*two*wlat(je)
-    end do
+  if (mod(nlat,2_i_kind)  /=  izero) then
+     do i=1,nlon
+        work(i,je)=work(i,je)*two*wlat(je)
+     end do
   endif
 
 !  Transfer contents of output grid to local work array
 !  Reverse ordering in j direction from n-->s to s-->n
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      grid_out(j,i)=work(i,jj)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        grid_out(j,i)=work(i,jj)
+     end do
   end do
 
 !  Load zero into pole points
   do i=1,nlon
-    grid_out(1,i)   =zero
-    grid_out(nlat,i)=zero
+     grid_out(1,i)   =zero
+     grid_out(nlat,i)=zero
   end do
 
   return
@@ -679,31 +679,31 @@ subroutine s2g0_special(spectral_in,grid_out)
 
   use specmod_special, only: nc,factsml
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,one,two
+  use constants, only: ione,zero,one,two
   use gridmod, only: nlat,nlon
   use transform_special, only: sptez_s_special
   implicit none
 
-  real(r_kind),intent(in)::spectral_in(nc)
-  real(r_kind),intent(out)::grid_out(nlat,nlon)
+  real(r_kind),intent(in   ) :: spectral_in(nc)
+  real(r_kind),intent(  out) :: grid_out(nlat,nlon)
 
-  real(r_kind) work(nlon,nlat-2),spec_work(nc)
+  real(r_kind) work(nlon,nlat-2_i_kind),spec_work(nc)
   integer(i_kind) i,j,jj
 
   do i=1,nc
-    spec_work(i)=spectral_in(i)
-    if(factsml(i))spec_work(i)=zero
+     spec_work(i)=spectral_in(i)
+     if(factsml(i))spec_work(i)=zero
   end do
  
-  call sptez_s_special(spec_work,work,1)
+  call sptez_s_special(spec_work,work,ione)
 
 !  Reverse ordering in j direction from n-->s to s-->n
 !  And account for work array excluding pole points
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      grid_out(j,i)=work(i,jj)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        grid_out(j,i)=work(i,jj)
+     end do
   end do
 
 !  fill in pole points using spectral coefficients
@@ -741,53 +741,53 @@ subroutine s2g0_ad_special(spectral_out,grid_in)
 
   use specmod_special, only: jcap,nc,factsml,wlat,jb,je
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,one,two
+  use constants, only: izero,ione,zero,one,two
   use gridmod, only: nlat,nlon
   use transform_special, only: sptez_s_special
   implicit none
 
-  real(r_kind),intent(out)::spectral_out(nc)
-  real(r_kind),intent(in)::grid_in(nlat,nlon)
+  real(r_kind),intent(  out) :: spectral_out(nc)
+  real(r_kind),intent(in   ) :: grid_in(nlat,nlon)
 
-  real(r_kind) work(nlon,nlat-2),spec_work(nc)
+  real(r_kind) work(nlon,nlat-2_i_kind),spec_work(nc)
   integer(i_kind) i,j,jj
 
 !  Reverse ordering in j direction from n-->s to s-->n
 !  And account for work array excluding pole points
-  do j=2,nlat-1
-    jj=nlat-j
-    do i=1,nlon
-      work(i,jj)=grid_in(j,i)
-    end do
+  do j=2,nlat-ione
+     jj=nlat-j
+     do i=1,nlon
+        work(i,jj)=grid_in(j,i)
+     end do
   end do
 
-  do j=jb,je-mod(nlat,2)
-    do i=1,nlon
-      work(i,j)=work(i,j)/wlat(j)
-      work(i,nlat-1-j)=work(i,nlat-1-j)/wlat(j)
-    end do
+  do j=jb,je-mod(nlat,2_i_kind)
+     do i=1,nlon
+        work(i,j)=work(i,j)/wlat(j)
+        work(i,nlat-ione-j)=work(i,nlat-ione-j)/wlat(j)
+     end do
   end do
 
-  if (mod(nlat,2)  /=  0) then
-    do i=1,nlon
-      work(i,je)=work(i,je)/(two*wlat(je))
-    end do
+  if (mod(nlat,2_i_kind)  /=  izero) then
+     do i=1,nlon
+        work(i,je)=work(i,je)/(two*wlat(je))
+     end do
   endif
 
-  call sptez_s_special(spec_work,work,-1)
+  call sptez_s_special(spec_work,work,-ione)
 
   do i=1,nc
-    spec_work(i)=spec_work(i)*float(nlon)
+     spec_work(i)=spec_work(i)*float(nlon)
   end do
-  do i=2*jcap+3,nc
-    spec_work(i)=two*spec_work(i)
+  do i=2*jcap+3_i_kind,nc
+     spec_work(i)=two*spec_work(i)
   end do
 
   call spectra_pole_scalar_ad_special (grid_in,spec_work)
 
   do i=1,nc
-    spectral_out(i)=spec_work(i)
-    if(factsml(i))spectral_out(i)=zero
+     spectral_out(i)=spec_work(i)
+     if(factsml(i))spectral_out(i)=zero
   end do
 
   return
@@ -819,26 +819,26 @@ subroutine spectra_pole_scalar_special (field,coefs)
 !   language: f90
 !
 !$$$
- use specmod_special, only: nc,jcap
- use kinds, only: r_kind,i_kind
- use constants, only: zero,half,three
- use gridmod, only: nlat,nlon
+  use specmod_special, only: nc,jcap
+  use kinds, only: r_kind,i_kind
+  use constants, only: ione,zero,half,three
+  use gridmod, only: nlat,nlon
   
-      implicit none      
+  implicit none      
 
-      real(r_kind), intent(in)  :: coefs(nc)        ! all spectral coefs
-      real(r_kind), intent(inout) :: field(nlat,nlon) ! field, including pole    
+  real(r_kind), intent(in   ) :: coefs(nc)        ! all spectral coefs
+  real(r_kind), intent(inout) :: field(nlat,nlon) ! field, including pole    
 ! 
-!  Local variables
+! Local variables
 
-      integer(i_kind) :: n           ! order of assoc. legendre polynomial 
-      integer(i_kind) :: n1          ! offset for real zonal wavenumber m=0 coefs
-      integer(i_kind) :: j           ! longitude index      
-      real(r_kind) :: alp0(0:jcap)   ! Assoc Legendre Poly for m=0 at the North Pole
-      real(r_kind) :: epsi0(0:jcap)  ! epsilon factor for m=0
-      real(r_kind) :: fnum, fden
-      real(r_kind)  :: afac           ! alp for S. pole 
-      real(r_kind) :: fpole_n, fpole_s    ! value of scalar field at n and s pole 
+  integer(i_kind) :: n           ! order of assoc. legendre polynomial 
+  integer(i_kind) :: n1          ! offset for real zonal wavenumber m=0 coefs
+  integer(i_kind) :: j           ! longitude index      
+  real(r_kind) :: alp0(0:jcap)   ! Assoc Legendre Poly for m=0 at the North Pole
+  real(r_kind) :: epsi0(0:jcap)  ! epsilon factor for m=0
+  real(r_kind) :: fnum, fden
+  real(r_kind)  :: afac           ! alp for S. pole 
+  real(r_kind) :: fpole_n, fpole_s    ! value of scalar field at n and s pole 
 !
 !  The spectral coefs are assumed to be ordered
 !      alternating real, imaginary
@@ -849,41 +849,41 @@ subroutine spectra_pole_scalar_special (field,coefs)
 !      These conditions determine the value of n1.
 !
 !  Compute epsilon for m=0.
-      epsi0(0)=zero  
-      do n=1,jcap
-        fnum=real(n**2)
-        fden=real(4*n**2-1)
-        epsi0(n)=dsqrt(fnum/fden)
-      enddo
+  epsi0(0)=zero  
+  do n=1,jcap
+     fnum=real(n**2)
+     fden=real(4*n**2-ione)
+     epsi0(n)=dsqrt(fnum/fden)
+  enddo
 !
 !  Compute Legendre polynomials for m=0 at North Pole
-       alp0(0)=dsqrt(half)
-       alp0(1)=dsqrt(three)*alp0(0)
-       do n=2,jcap
-         alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
-       enddo
+  alp0(0)=dsqrt(half)
+  alp0(1)=dsqrt(three)*alp0(0)
+  do n=2,jcap
+     alp0(n)=(alp0(n-ione)-epsi0(n-ione)*alp0(n-2_i_kind))/epsi0(n)
+  enddo
 !
 !  Compute projection of wavenumber 0 (only real values for this
-       fpole_n=zero
-       fpole_s=zero
-       n1=1
-       do n=0,jcap 
-         if (mod(n,2) == 1) then
-            afac=-alp0(n)
-          else 
-            afac= alp0(n)
-          endif  
-          fpole_n=fpole_n+alp0(n)*coefs(2*n+n1)
-          fpole_s=fpole_s+   afac*coefs(2*n+n1)
-       enddo
+  fpole_n=zero
+  fpole_s=zero
+  n1=ione
+  do n=0,jcap 
+     if (mod(n,2_i_kind) == ione) then
+        afac=-alp0(n)
+     else 
+        afac= alp0(n)
+     endif  
+     fpole_n=fpole_n+alp0(n)*coefs(2*n+n1)
+     fpole_s=fpole_s+   afac*coefs(2*n+n1)
+  enddo
 !
 ! set field for all "longitudes" at the pole to the same value
-       do j=1,nlon
-         field(   1,j)=fpole_s  
-         field(nlat,j)=fpole_n
-       enddo
+  do j=1,nlon
+     field(   1,j)=fpole_s  
+     field(nlat,j)=fpole_n
+  enddo
 
-       end subroutine spectra_pole_scalar_special 
+end subroutine spectra_pole_scalar_special 
 !
 !  x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
 !
@@ -914,28 +914,28 @@ subroutine spectra_pole_scalar_ad_special (field,coefs)
 !   language: f90
 !
 !$$$
- use specmod_special, only: nc,jcap
- use kinds, only: r_kind,i_kind
- use constants, only: zero,half,three
- use gridmod, only: nlat,nlon
+  use specmod_special, only: nc,jcap
+  use kinds, only: r_kind,i_kind
+  use constants, only: ione,zero,half,three
+  use gridmod, only: nlat,nlon
   
-      implicit none      
+  implicit none      
 
-      real(r_kind), intent(inout) :: coefs(nc)  ! adjoint of all spectral coefs
-      real(r_kind), intent(in) :: field(nlat,nlon) ! adjoint field, including pole    
+  real(r_kind), intent(inout) :: coefs(nc)  ! adjoint of all spectral coefs
+  real(r_kind), intent(in   ) :: field(nlat,nlon) ! adjoint field, including pole    
 ! 
 !  Local variables
 
-      integer(i_kind) :: n           ! order of assoc. legendre polynomial 
-      integer(i_kind) :: n1          ! offset for real zonal wavenumber m=0 coefs
-      integer(i_kind) :: j           ! longitude index      
-      real(r_kind) :: alp0(0:jcap)   ! Assoc Legendre Poly for m=0 at the North Pole
-      real(r_kind) :: epsi0(0:jcap)  ! epsilon factor for m=0
-      real(r_kind) :: fnum, fden
-      real(r_kind)  :: afac           ! alp for S. pole
-      real(r_kind) :: fpole_n, fpole_s    ! value of scalar field at n and s pole 
+  integer(i_kind) :: n           ! order of assoc. legendre polynomial 
+  integer(i_kind) :: n1          ! offset for real zonal wavenumber m=0 coefs
+  integer(i_kind) :: j           ! longitude index      
+  real(r_kind) :: alp0(0:jcap)   ! Assoc Legendre Poly for m=0 at the North Pole
+  real(r_kind) :: epsi0(0:jcap)  ! epsilon factor for m=0
+  real(r_kind) :: fnum, fden
+  real(r_kind)  :: afac           ! alp for S. pole
+  real(r_kind) :: fpole_n, fpole_s    ! value of scalar field at n and s pole 
 
-  
+
 !
 !  The spectral coefs are assumed to be ordered
 !      alternating real, imaginary
@@ -946,39 +946,39 @@ subroutine spectra_pole_scalar_ad_special (field,coefs)
 !      These conditions determine the value of n1.
 !
 !  Compute epsilon for m=0.
-      epsi0(0)=zero  
-      do n=1,jcap
-        fnum=real(n**2, r_kind)
-        fden=real(4*n**2-1, r_kind)
-        epsi0(n)=dsqrt(fnum/fden)
-      enddo
+  epsi0(0)=zero  
+  do n=1,jcap
+     fnum=real(n**2, r_kind)
+     fden=real(4*n**2-ione, r_kind)
+     epsi0(n)=dsqrt(fnum/fden)
+  enddo
 !
 !  Compute Legendre polynomials for m=0 at North Pole
-       alp0(0)=dsqrt(half)
-       alp0(1)=dsqrt(three)*alp0(0)
-       do n=2,jcap
-         alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
-       enddo
+  alp0(0)=dsqrt(half)
+  alp0(1)=dsqrt(three)*alp0(0)
+  do n=2,jcap
+     alp0(n)=(alp0(n-ione)-epsi0(n-ione)*alp0(n-2_i_kind))/epsi0(n)
+  enddo
 !
 !  Compute projection of wavenumber 0 (only real values for this)
-       fpole_n=zero
-       fpole_s=zero
-       do j=1,nlon
-         fpole_n=fpole_n+field(nlat,j)
-         fpole_s=fpole_s+field(   1,j)
-       enddo
+  fpole_n=zero
+  fpole_s=zero
+  do j=1,nlon
+     fpole_n=fpole_n+field(nlat,j)
+     fpole_s=fpole_s+field(   1,j)
+  enddo
        
-       n1=1
-       do n=0,jcap 
-         if (mod(n,2) == 1) then
-            afac=-alp0(n)
-          else 
-            afac= alp0(n)
-          endif
-          coefs(2*n+n1)=coefs(2*n+n1)+afac*fpole_s+alp0(n)*fpole_n  
-       enddo
+  n1=ione
+  do n=0,jcap 
+     if (mod(n,2_i_kind) == ione) then
+        afac=-alp0(n)
+     else 
+        afac= alp0(n)
+     endif
+     coefs(2*n+n1)=coefs(2*n+n1)+afac*fpole_s+alp0(n)*fpole_n  
+  enddo
 !
-       end subroutine spectra_pole_scalar_ad_special 
+end subroutine spectra_pole_scalar_ad_special 
 
 end module spectral_transforms_special
 
@@ -1049,11 +1049,12 @@ subroutine init_sf_xy(jcap_in)
   use hybrid_ensemble_parameters,only : s_ens_h
   use specmod_special, only: jcap,nc,init_spec_vars_special,slat,destroy_spec_vars_special
   use spectral_transforms_special,only: g2s0_special,s2g0_special
-  use constants, only: zero,half,one,two,three,rearth,pi
-                   use mpimod, only: mype
+  use constants, only: izero,ione,zero,half,one,two,three,rearth,pi
+  use mpimod, only: mype
   implicit none
 
-  integer(i_kind),intent(in):: jcap_in
+  integer(i_kind),intent(in   ) :: jcap_in
+
   integer(i_kind) i,ii,j,jmin,l,mm,n,nn,irn0,jcapmax
   real(r_kind),allocatable::g(:),gsave(:),errmax(:)
   real(r_kind) errmin,factor,x,y,f0new
@@ -1061,21 +1062,21 @@ subroutine init_sf_xy(jcap_in)
   real(r_single) out1(nlon,nlat)
   real(r_single),allocatable::pn0_npole(:)
   integer(i_kind),dimension(0:40):: iblend
-                      integer(i_kind) is_ens_h,jcapest
-                       real(r_kind) s_ens_h_min
+  integer(i_kind) is_ens_h,jcapest
+  real(r_kind) s_ens_h_min
   
 
 !    make sure s_ens_h is within allowable range  ( pi*rearth*.001/jcap_in <= s_ens_h <= 5500 )
 
   s_ens_h_min=pi*rearth*.001_r_kind/jcap_in
   if(s_ens_h <  s_ens_h_min) then
-    if(mype == 0) write(6,*)' s_ens_h = ',s_ens_h,' km--too small, min value = ',s_ens_h_min,' km.'
-    if(mype == 0) write(6,*)' s_ens_h reset to min value'
-    s_ens_h=s_ens_h_min
+     if(mype == izero) write(6,*)' s_ens_h = ',s_ens_h,' km--too small, min value = ',s_ens_h_min,' km.'
+     if(mype == izero) write(6,*)' s_ens_h reset to min value'
+     s_ens_h=s_ens_h_min
   else if(s_ens_h >  5500._r_kind) then
-    if(mype == 0) write(6,*)' s_ens_h = ',s_ens_h,' km--too large, max value = 5500 km.'
-    if(mype == 0) write(6,*)' s_ens_h reset to max value'
-    s_ens_h=5500._r_kind
+     if(mype == izero) write(6,*)' s_ens_h = ',s_ens_h,' km--too large, max value = 5500 km.'
+     if(mype == izero) write(6,*)' s_ens_h reset to max value'
+     s_ens_h=5500._r_kind
   end if
     
     
@@ -1139,20 +1140,20 @@ subroutine init_sf_xy(jcap_in)
 !     compute latitudes in km from north pole
   rkm(nlat)=zero
   rkm(1)=two*asin(one)*rearth*.001_r_kind
-  do i=1,(nlat-2)/2
-    rkm(nlat-i)=(asin(one)-asin(slat(i)))*rearth*.001_r_kind
-    rkm(   1+i)=(asin(one)+asin(slat(i)))*rearth*.001_r_kind
+  do i=1,(nlat-2_i_kind)/2
+     rkm(nlat-i)=(asin(one)-asin(slat(i)))*rearth*.001_r_kind
+     rkm(ione+i)=(asin(one)+asin(slat(i)))*rearth*.001_r_kind
   end do
-             if(mype == 0) write(0,*)' lat,max(dlat)=',rkm(1+(nlat-2)/2),-rkm(nlat-(nlat-2)/2)+rkm(1+(nlat-2)/2),' km'
+  if(mype == izero) write(0,*)' lat,max(dlat)=',rkm(ione+(nlat-2_i_kind)/2),-rkm(nlat-(nlat-2_i_kind)/2)+rkm(ione+(nlat-2_i_kind)/2),' km'
 
   do i=1,nlat
-    f0(i,1)=exp(-half*(rkm(i)/s_ens_h)**2)
+     f0(i,1)=exp(-half*(rkm(i)/s_ens_h)**2)
   end do
   
   do j=2,nlon
-    do i=1,nlat
-      f0(i,j)=f0(i,1)
-    end do
+     do i=1,nlat
+        f0(i,j)=f0(i,1)
+     end do
   end do
 
   allocate(g(nc),gsave(nc))
@@ -1164,7 +1165,7 @@ subroutine init_sf_xy(jcap_in)
   f=f/f(nlat,1)
   call g2s0_special(g,f)
   call s2g0_special(g,f)
-  if(mype == 0) write(0,*)' jcap,s_ens_h,max diff(f0-f)=',jcap,s_ens_h,maxval(abs(f0-f))
+  if(mype == izero) write(0,*)' jcap,s_ens_h,max diff(f0-f)=',jcap,s_ens_h,maxval(abs(f0-f))
 
 !            correct spectrum by dividing by pn0_npole
   gsave=g
@@ -1172,35 +1173,35 @@ subroutine init_sf_xy(jcap_in)
 !    obtain pn0_npole
   allocate(pn0_npole(0:jcap))
   do n=0,jcap
-    g=zero
-    g(2*n+1)=one
-    call s2g0_special(g,f)
-    pn0_npole(n)=f(nlat,1)
+     g=zero
+     g(2*n+ione)=one
+     call s2g0_special(g,f)
+     pn0_npole(n)=f(nlat,1)
   end do
 
   g=zero
   do n=0,jcap
-    g(2*n+1)=gsave(2*n+1)/pn0_npole(n)
+     g(2*n+ione)=gsave(2*n+ione)/pn0_npole(n)
   end do
 
 !    obtain spectral_filter
 
   allocate(spectral_filter(nc))
-  ii=0
+  ii=izero
   do l=0,jcap
-    factor=one
-    if(l >  0) factor=half
-    do n=l,jcap
-      nn=nn+2
-      ii=ii+1
-      spectral_filter(ii)=factor*g(2*n+1)
-      ii=ii+1
-      if(l == 0) then
-        spectral_filter(ii)=zero
-      else
-        spectral_filter(ii)=factor*g(2*n+1)
-      end if
-    end do
+     factor=one
+     if(l >  izero) factor=half
+     do n=l,jcap
+        nn=nn+2_i_kind
+        ii=ii+ione
+        spectral_filter(ii)=factor*g(2*n+ione)
+        ii=ii+ione
+        if(l == izero) then
+           spectral_filter(ii)=zero
+        else
+           spectral_filter(ii)=factor*g(2*n+ione)
+        end if
+     end do
   end do
 
   deallocate(g,gsave,pn0_npole)
@@ -1209,11 +1210,11 @@ subroutine init_sf_xy(jcap_in)
   f(nlat/4,nlon/2)=one
   call sf_xy(f,1)
   do j=1,nlon
-    do i=1,nlat
-      out1(j,i)=f(i,j)
-    end do
+     do i=1,nlat
+        out1(j,i)=f(i,j)
+     end do
   end do
-  if(mype == 0) call outgrads1(out1,nlon,nlat,'out1')
+  if(mype == izero) call outgrads1(out1,nlon,nlat,'out1')
 
 end subroutine init_sf_xy
 
@@ -1232,6 +1233,7 @@ subroutine sf_xy(f,nlevs)
 !
 !   input argument list:
 !     f        - input field to be filtered
+!     nlevs    -
 !
 !   output argument list:
 !     f        - filtered output
@@ -1248,16 +1250,16 @@ subroutine sf_xy(f,nlevs)
   use specmod_special, only: nc
   implicit none
 
-  integer(i_kind),intent(in):: nlevs
-  real(r_kind),intent(inout)::f(nlat*nlon,nlevs)
+  integer(i_kind),intent(in   ) :: nlevs
+  real(r_kind)   ,intent(inout) :: f(nlat*nlon,nlevs)
 
   real(r_kind) g(nc)
   integer(i_kind) k
 
   do k=1,nlevs
-    call s2g0_ad_special(g,f(:,k))
-    g=g*spectral_filter
-    call s2g0_special(g,f(:,k))
+     call s2g0_ad_special(g,f(:,k))
+     g=g*spectral_filter
+     call s2g0_special(g,f(:,k))
   end do
 
 end subroutine sf_xy

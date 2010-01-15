@@ -233,7 +233,7 @@ contains
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(nlat,nlon),intent(inout):: work1,work2
+  real(r_kind),dimension(nlat,nlon),intent(inout) :: work1,work2
 
 ! Declare local variables  
   integer(i_kind) lbcoy2,lcy,lbcoy1,lacoy1,lacoy2,ix,iy,nbp,nya
@@ -259,10 +259,10 @@ contains
   lcy   =lbcoy2+nya-ione
   
   do j=1,nlon
-    do i=2,nlat-ione
+     do i=2,nlat-ione
         a(i-1,j)=work1(i,j)
         b(i-1,j)=work2(i,j)
-    end do
+     end do
   end do
   
   call xdcirdp(a,grid1,coef(lacox1),coef(lbcox1),coef(lacox2),coef(lbcox2),&
@@ -304,18 +304,18 @@ contains
   end do
 ! work 1 is u, work2 is v
   do j=1,nlon
-    do i=1,nlat
-     if(i /= ione .and. i /= nlat)then
-        work1(i,j)=grid3(i-ione,j)
-        work2(i,j)=grid1(i-ione,j)
-     else if(i == ione)then
-        work1(i,j)=grid3s(j)
-        work2(i,j)=grid1s(j)
-     else
-        work1(i,j)=grid3n(j)
-        work2(i,j)=grid1n(j)
-     end if
-   end do
+     do i=1,nlat
+        if(i /= ione .and. i /= nlat)then
+           work1(i,j)=grid3(i-ione,j)
+           work2(i,j)=grid1(i-ione,j)
+        else if(i == ione)then
+           work1(i,j)=grid3s(j)
+           work2(i,j)=grid1s(j)
+        else
+           work1(i,j)=grid3n(j)
+           work2(i,j)=grid1n(j)
+        end if
+     end do
   enddo
 
   return
@@ -355,7 +355,7 @@ contains
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(itotsub),intent(inout):: work1,work2
+  real(r_kind),dimension(itotsub),intent(inout) :: work1,work2
 
 ! Declare local variables  
   integer(i_kind) kk,ni1,ni2,lacox1,nxa,lacox2,lbcox1,nxh,ny,nya
@@ -517,10 +517,10 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,ny,noq,nxh
-  real(r_kind),dimension(ny,nx),intent(in):: p
-  real(r_kind),dimension(nxh,-noq:noq),intent(in):: aco1,bco1,aco2,bco2
-  real(r_kind),dimension(ny,nx),intent(out):: q
+  integer(i_kind)                     ,intent(in   ) :: nx,ny,noq,nxh
+  real(r_kind),dimension(ny,nx)       ,intent(in   ) :: p
+  real(r_kind),dimension(nxh,-noq:noq),intent(in   ) :: aco1,bco1,aco2,bco2
+  real(r_kind),dimension(ny,nx)       ,intent(  out) :: q
 
 ! Declare local variables
   integer(i_kind) nxhp,ix,iy,nxp,ix1,ix2
@@ -592,10 +592,10 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: n1x,n2x,nbh1,nbh2,ny,na,nv1,nv2
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(ny,nv1),intent(in):: v1
-  real(r_kind),dimension(ny,nv2),intent(out):: v2
+  integer(i_kind)                      ,intent(in   ) :: n1x,n2x,nbh1,nbh2,ny,na,nv1,nv2
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(ny,nv1)       ,intent(in   ) :: v1
+  real(r_kind),dimension(ny,nv2)       ,intent(  out) :: v2
 
 ! Declare local variables
   logical odd
@@ -659,9 +659,9 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,nbh1,nbh2,ny,na,nv
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(ny,nv),intent(inout):: v
+  integer(i_kind)                      ,intent(in   ) :: nx,nbh1,nbh2,ny,na,nv
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(ny,nv)        ,intent(inout) :: v
 
 ! Declare local variables
   integer(i_kind) jx,ix,iy,ix1
@@ -726,7 +726,7 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed scalars, arrays
-  real(r_kind),dimension(nlat,nlon),intent(inout):: work1,work2
+  real(r_kind),dimension(nlat,nlon),intent(inout) :: work1,work2
 
 ! Declare local scalars,arrays
   integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
@@ -753,18 +753,18 @@ end subroutine uv2vordiv
   lcy   =lbcoy2+nya-ione
   
   do j=1,nlon
-    do i=1,nlat
-     if(i /= ione .and. i /= nlat)then
-        grid3(i-ione,j)=work1(i,j)
-        grid1(i-ione,j)=work2(i,j)
-     else if(i == ione)then
-        grid3s(j)=work1(i,j)
-        grid1s(j)=work2(i,j)
-     else
-        grid3n(j)=work1(i,j)
-        grid1n(j)=work2(i,j)
-     end if
-    end do
+     do i=1,nlat
+        if(i /= ione .and. i /= nlat)then
+           grid3(i-ione,j)=work1(i,j)
+           grid1(i-ione,j)=work2(i,j)
+        else if(i == ione)then
+           grid3s(j)=work1(i,j)
+           grid1s(j)=work2(i,j)
+        else
+           grid3n(j)=work1(i,j)
+           grid1n(j)=work2(i,j)
+        end if
+     end do
   end do
   
   polnu=zero
@@ -817,16 +817,16 @@ end subroutine uv2vordiv
        nlon,ny,noq)
 
   do j=1,nlon
-    do i=1,nlat
-     if(i /= ione .and. i /= nlat)then
-!       NOTE:  Adjoint of first derivative is its negative
-        work1(i,j)=-a(i-ione,j)
-        work2(i,j)=-b(i-ione,j)
-     else
-        work1(i,j)=zero
-        work2(i,j)=zero
-     end if
-   end do
+     do i=1,nlat
+        if(i /= ione .and. i /= nlat)then
+!          NOTE:  Adjoint of first derivative is its negative
+           work1(i,j)=-a(i-ione,j)
+           work2(i,j)=-b(i-ione,j)
+        else
+           work1(i,j)=zero
+           work2(i,j)=zero
+        end if
+     end do
   end do
   
   return
@@ -870,10 +870,10 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,ny,noq
-  real(r_kind),dimension(ny,-noq:noq),intent(in):: aco1,bco1,aco2,bco2
-  real(r_kind),dimension(ny,nx),intent(in):: p
-  real(r_kind),dimension(ny,nx),intent(out):: q
+  integer(i_kind)                    ,intent(in   ) :: nx,ny,noq
+  real(r_kind),dimension(ny,-noq:noq),intent(in   ) :: aco1,bco1,aco2,bco2
+  real(r_kind),dimension(ny,nx)      ,intent(in   ) :: p
+  real(r_kind),dimension(ny,nx)      ,intent(  out) :: q
 
 ! Declare local variables
   integer(i_kind) nxh,nxhp,ix,iy,ix1
@@ -944,10 +944,10 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: n1y,n2y,nbh1,nbh2,nx,na,nv1,nv2
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(n2y,nv1),intent(in):: v1
-  real(r_kind),dimension(n1y,nv2),intent(out):: v2
+  integer(i_kind)                      ,intent(in   ) :: n1y,n2y,nbh1,nbh2,nx,na,nv1,nv2
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(n2y,nv1)      ,intent(in   ) :: v1
+  real(r_kind),dimension(n1y,nv2)      ,intent(  out) :: v2
 
 ! Declare local variables
   integer(i_kind) ix,iy,jiy
@@ -1005,9 +1005,9 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: ny,nbh1,nbh2,nx,na,nv
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(ny,nv),intent(inout):: v
+  integer(i_kind)                      ,intent(in   ) :: ny,nbh1,nbh2,nx,na,nv
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(ny,nv)        ,intent(inout) :: v
 
 ! Declare local variables
   logical odd
@@ -1087,10 +1087,10 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,ny,noq
-  real(r_kind),dimension(ny,-noq:noq),intent(in):: aco1,bco1,aco2,bco2
-  real(r_kind),dimension(ny,nx),intent(in):: q
-  real(r_kind),dimension(ny,nx),intent(out):: p
+  integer(i_kind)                    ,intent(in   ) :: nx,ny,noq
+  real(r_kind),dimension(ny,-noq:noq),intent(in   ) :: aco1,bco1,aco2,bco2
+  real(r_kind),dimension(ny,nx)      ,intent(in   ) :: q
+  real(r_kind),dimension(ny,nx)      ,intent(  out) :: p
 
 ! Declare local variables
   integer(i_kind) nxh,nxhp,ix,iy,ix1
@@ -1160,9 +1160,9 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: ny,nbh1,nbh2,nx,nv,na
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(ny,nv),intent(inout):: v
+  integer(i_kind)                      ,intent(in   ) :: ny,nbh1,nbh2,nx,nv,na
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(ny,nv)        ,intent(inout) :: v
 
 ! Declare local variables  
   logical odd
@@ -1243,10 +1243,10 @@ end subroutine uv2vordiv
   implicit none
 
 ! Delcare passed variables
-  integer(i_kind),intent(in):: n1y,n2y,nbh1,nbh2,nx,na,nv1,nv2
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(in):: a
-  real(r_kind),dimension(n1y,nv1),intent(in):: v1
-  real(r_kind),dimension(n2y,nv2),intent(out):: v2
+  integer(i_kind)                      ,intent(in   ) :: n1y,n2y,nbh1,nbh2,nx,na,nv1,nv2
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(in   ) :: a
+  real(r_kind),dimension(n1y,nv1)      ,intent(in   ) :: v1
+  real(r_kind),dimension(n2y,nv2)      ,intent(  out) :: v2
 
 ! Declare local variables
   integer(i_kind) ix,iy,jiy,jy
@@ -1311,9 +1311,9 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,ny
-  real(r_kind),intent(in):: r
-  real(r_kind),dimension(nlat-ione),intent(in):: tau,yor
+  integer(i_kind)                  ,intent(in   ) :: nx,ny
+  real(r_kind)                     ,intent(in   ) :: r
+  real(r_kind),dimension(nlat-ione),intent(in   ) :: tau,yor
   
 ! Declare local variables
   integer(i_kind) nxh,nbp,nya,nxa,lbcox1,lacox1,ltaui,lbcox2
@@ -1439,14 +1439,14 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables  
-  integer(i_kind),intent(in):: nh,noq,na1,nb1,na2,nb2
-  real(r_kind),intent(in):: zlim1,zlim2
-  real(r_kind),dimension(*),intent(in):: z
-  real(r_kind),dimension(ione-noq:*):: work
-  real(r_kind),dimension(na1,-noq:noq),intent(out):: aco1
-  real(r_kind),dimension(nb1,-noq:noq),intent(out):: bco1
-  real(r_kind),dimension(na2,-noq:noq),intent(out):: aco2
-  real(r_kind),dimension(nb2,-noq:noq),intent(out):: bco2
+  integer(i_kind)                     ,intent(in   ) :: nh,noq,na1,nb1,na2,nb2
+  real(r_kind)                        ,intent(in   ) :: zlim1,zlim2
+  real(r_kind),dimension(*)           ,intent(in   ) :: z
+  real(r_kind),dimension(ione-noq:*)  ,intent(inout) :: work
+  real(r_kind),dimension(na1,-noq:noq),intent(  out) :: aco1
+  real(r_kind),dimension(nb1,-noq:noq),intent(  out) :: bco1
+  real(r_kind),dimension(na2,-noq:noq),intent(  out) :: aco2
+  real(r_kind),dimension(nb2,-noq:noq),intent(  out) :: bco2
 
 ! Declare local variables
   integer(i_kind) kw,kb,js,ir,i,n,j,ka,nohp
@@ -1568,10 +1568,10 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: na,nb
-  real(r_kind),intent(in):: z0
-  real(r_kind),dimension(*),intent(in):: za,zb
-  real(r_kind),dimension(*),intent(out):: work,a,b
+  integer(i_kind)          ,intent(in   ) :: na,nb
+  real(r_kind)             ,intent(in   ) :: z0
+  real(r_kind),dimension(*),intent(in   ) :: za,zb
+  real(r_kind),dimension(*),intent(  out) :: work,a,b
 
 ! Declare local variables  
   integer(i_kind) nc,ncs,ncsp,j,iw,i
@@ -1581,10 +1581,10 @@ end subroutine uv2vordiv
   ncs=nc*nc
   ncsp=ncs+ione
   do j=1,na
-     iw=1+(j-ione)*nc
+     iw=ione+(j-ione)*nc
      work(iw)=one
-     work(iw+1)=zero
-     work(iw+2)=one
+     work(iw+ione)=zero
+     work(iw+2_i_kind)=one
   enddo
   do j=1,nb
      iw=ione+(j+na-ione)*nc
@@ -1664,8 +1664,8 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: n,nbh1,nbh2,na
-  real(r_kind),dimension(na,-nbh1:nbh2),intent(inout):: a
+  integer(i_kind)                      ,intent(in   ) :: n,nbh1,nbh2,na
+  real(r_kind),dimension(na,-nbh1:nbh2),intent(inout) :: a
 
 ! Declare local variables
   integer(i_kind) j,jp,i,k,imost,jmost
@@ -1732,9 +1732,9 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: m,mm,na,nb
-  real(r_kind),dimension(na,*),intent(inout):: a
-  real(r_kind),dimension(nb,*),intent(inout):: b  
+  integer(i_kind)             ,intent(in   ) :: m,mm,na,nb
+  real(r_kind),dimension(na,*),intent(inout) :: a
+  real(r_kind),dimension(nb,*),intent(inout) :: b  
 
 ! Declare local parameters
   integer(i_kind),parameter:: nn = 500_i_kind
@@ -1782,10 +1782,10 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: m,na
-  integer(i_kind),dimension(*),intent(out):: ipiv
-  real(r_kind),intent(out):: d
-  real(r_kind),dimension(na,*),intent(inout):: a
+  integer(i_kind)             ,intent(in   ) :: m,na
+  integer(i_kind),dimension(*),intent(  out) :: ipiv
+  real(r_kind)                ,intent(  out) :: d
+  real(r_kind),dimension(na,*),intent(inout) :: a
 
 ! Declare local variables
   integer(i_kind) j,jp,ibig,jm,i,k
@@ -1867,10 +1867,10 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: m,mm,na,nb
-  integer(i_kind),dimension(*),intent(in):: ipiv
-  real(r_kind),dimension(na,*),intent(in):: a
-  real(r_kind),dimension(nb,*),intent(out):: b
+  integer(i_kind)             ,intent(in   ) :: m,mm,na,nb
+  integer(i_kind),dimension(*),intent(in   ) :: ipiv
+  real(r_kind),dimension(na,*),intent(in   ) :: a
+  real(r_kind),dimension(nb,*),intent(  out) :: b
 
 ! Declare local variables  
   integer(i_kind) k,i,l,j
@@ -1928,10 +1928,13 @@ end subroutine uv2vordiv
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
-  logical vector
+  real(r_kind),dimension(nlat,nlon),intent(in   ) :: b
+  logical                          ,intent(in   ) :: vector
+
+  real(r_kind),dimension(nlat,nlon),intent(  out) :: dbdx
+
   integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
   integer(i_kind) lbcoy2,lacoy2,iy,ix,i,j,lcy
-  real(r_kind),dimension(nlat,nlon):: b,dbdx
   real(r_kind),dimension(nlat-2_i_kind,nlon):: work3,grid3
   real(r_kind),dimension(nlon):: grid3n,grid3s
   real(r_kind) polnu,polnv,polsu,polsv
@@ -1985,29 +1988,29 @@ end subroutine uv2vordiv
   end do
 
   if(.not.vector) then
-    polnu=zero
-    polnv=zero
-    polsu=zero
-    polsv=zero
-    do ix=1,nlon
-       polnu=polnu+grid3(ny,ix)*coslon(ix)
-       polnv=polnv+grid3(ny,ix)*sinlon(ix)
-       polsu=polsu+grid3(1 ,ix)*coslon(ix)
-       polsv=polsv+grid3(1 ,ix)*sinlon(ix)
-    end do
-    polnu=polnu/float(nlon)
-    polnv=polnv/float(nlon)
-    polsu=polsu/float(nlon)
-    polsv=polsv/float(nlon)
-    do ix=1,nlon
-       grid3n(ix)= polnu*coslon(ix)+polnv*sinlon(ix)
-       grid3s(ix)= polsu*coslon(ix)+polsv*sinlon(ix)
-    end do
+     polnu=zero
+     polnv=zero
+     polsu=zero
+     polsv=zero
+     do ix=1,nlon
+        polnu=polnu+grid3(ny,ix)*coslon(ix)
+        polnv=polnv+grid3(ny,ix)*sinlon(ix)
+        polsu=polsu+grid3(1 ,ix)*coslon(ix)
+        polsv=polsv+grid3(1 ,ix)*sinlon(ix)
+     end do
+     polnu=polnu/float(nlon)
+     polnv=polnv/float(nlon)
+     polsu=polsu/float(nlon)
+     polsv=polsv/float(nlon)
+     do ix=1,nlon
+        grid3n(ix)= polnu*coslon(ix)+polnv*sinlon(ix)
+        grid3s(ix)= polsu*coslon(ix)+polsv*sinlon(ix)
+     end do
   else
-    do ix=1,nlon
-       grid3n(ix)= zero
-       grid3s(ix)= zero
-    end do
+     do ix=1,nlon
+        grid3n(ix)= zero
+        grid3s(ix)= zero
+     end do
   end if
 
 ! Load result into output array
@@ -2054,10 +2057,12 @@ end subroutine uv2vordiv
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
-  logical vector
+  real(r_kind),dimension(nlat,nlon),intent(inout) :: b
+  real(r_kind),dimension(nlat,nlon),intent(in   ) :: dbdx
+  logical                          ,intent(in   ) :: vector
+
   integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
   integer(i_kind) lbcoy2,lacoy2,iy,ix,i,j,lcy
-  real(r_kind),dimension(nlat,nlon):: b,dbdx
   real(r_kind),dimension(nlat-2_i_kind,nlon):: work3,grid3
   real(r_kind),dimension(nlon):: grid3n,grid3s
   real(r_kind) polnu,polnv,polsu,polsv
@@ -2084,33 +2089,33 @@ end subroutine uv2vordiv
      grid3s(j)=dbdx(1,j)
      grid3n(j)=dbdx(nlat,j)
      do i=1,ny
-       grid3(i,j)=dbdx(i+ione,j) 
+        grid3(i,j)=dbdx(i+ione,j) 
      end do
   end do
   if(.not.vector) then
-    polnu=zero
-    polnv=zero
-    polsu=zero
-    polsv=zero
-    do ix=1,nlon
-       polnu=polnu+coslon(ix)*grid3n(ix)
-       polnv=polnv+sinlon(ix)*grid3n(ix)
-       polsu=polsu+coslon(ix)*grid3s(ix)
-       polsv=polsv+sinlon(ix)*grid3s(ix)
-    end do
-    polnu=polnu/float(nlon)
-    polnv=polnv/float(nlon)
-    polsu=polsu/float(nlon)
-    polsv=polsv/float(nlon)
-    do ix=1,nlon
-       grid3(ny,ix)=grid3(ny,ix)+coslon(ix)*polnu+sinlon(ix)*polnv
-       grid3(1 ,ix)=grid3(1 ,ix)+coslon(ix)*polsu+sinlon(ix)*polsv
-    end do
+     polnu=zero
+     polnv=zero
+     polsu=zero
+     polsv=zero
+     do ix=1,nlon
+        polnu=polnu+coslon(ix)*grid3n(ix)
+        polnv=polnv+sinlon(ix)*grid3n(ix)
+        polsu=polsu+coslon(ix)*grid3s(ix)
+        polsv=polsv+sinlon(ix)*grid3s(ix)
+     end do
+     polnu=polnu/float(nlon)
+     polnv=polnv/float(nlon)
+     polsu=polsu/float(nlon)
+     polsv=polsv/float(nlon)
+     do ix=1,nlon
+        grid3(ny,ix)=grid3(ny,ix)+coslon(ix)*polnu+sinlon(ix)*polnv
+        grid3(1 ,ix)=grid3(1 ,ix)+coslon(ix)*polsu+sinlon(ix)*polsv
+     end do
   else
-    do ix=1,nlon
-       grid3n(ix)= zero
-       grid3s(ix)= zero
-    end do
+     do ix=1,nlon
+        grid3n(ix)= zero
+        grid3s(ix)= zero
+     end do
   end if
 
 ! Make corrections for convergence of meridians:
@@ -2130,7 +2135,7 @@ end subroutine uv2vordiv
   do j=1,nlon
      do i=1,ny
 !       NOTE:  Adjoint of first derivative is its negative
-       b(i+ione,j)=b(i+ione,j)-work3(i,j)
+        b(i+ione,j)=b(i+ione,j)-work3(i,j)
      end do
   end do
   
@@ -2170,10 +2175,13 @@ end subroutine uv2vordiv
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
-  logical vector
+  real(r_kind),dimension(nlat,nlon),intent(in   ) :: b
+  logical                          ,intent(in   ) :: vector
+
+  real(r_kind),dimension(nlat,nlon),intent(  out) :: dbdy
+
   integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
   integer(i_kind) lbcoy2,lacoy2,iy,ix,i,j,lcy
-  real(r_kind),dimension(nlat,nlon):: b,dbdy
   real(r_kind),dimension(nlat-2_i_kind,nlon):: work2,grid4
   real(r_kind),dimension(nlon)::grid4n,grid4s
   real(r_kind) polnu,polnv,polsu,polsv
@@ -2214,12 +2222,12 @@ end subroutine uv2vordiv
   end do
 
   if(vector) then
-!   multiply by cos(lat) ( 1/coef(lcy+iy) )
-    do ix=1,nlon
-       do iy=1,ny
-          work2(iy,ix)=work2(iy,ix)/coef(lcy+iy)
-       enddo
-    enddo
+!    multiply by cos(lat) ( 1/coef(lcy+iy) )
+     do ix=1,nlon
+        do iy=1,ny
+           work2(iy,ix)=work2(iy,ix)/coef(lcy+iy)
+        enddo
+     enddo
   end if
 
 ! Compute y (south-north) derivatives on sphere
@@ -2228,35 +2236,35 @@ end subroutine uv2vordiv
        nlon,ny,noq)
 
   if(vector) then
-!   divide by cos(lat)
-    do ix=1,nlon
-       do iy=1,ny
-          grid4(iy,ix)=grid4(iy,ix)*coef(lcy+iy)
-       enddo
-    enddo
-    do ix=1,nlon
-       grid4n(ix)= zero
-       grid4s(ix)= zero
-    end do
+!    divide by cos(lat)
+     do ix=1,nlon
+        do iy=1,ny
+           grid4(iy,ix)=grid4(iy,ix)*coef(lcy+iy)
+        enddo
+     enddo
+     do ix=1,nlon
+        grid4n(ix)= zero
+        grid4s(ix)= zero
+     end do
   else
-    polnu=zero
-    polnv=zero
-    polsu=zero
-    polsv=zero
-    do ix=1,nlon
-       polnu=polnu-grid4(ny,ix)*sinlon(ix)
-       polnv=polnv+grid4(ny,ix)*coslon(ix)
-       polsu=polsu+grid4(1 ,ix)*sinlon(ix)
-       polsv=polsv-grid4(1 ,ix)*coslon(ix)
-    end do
-    polnu=polnu/float(nlon)
-    polnv=polnv/float(nlon)
-    polsu=polsu/float(nlon)
-    polsv=polsv/float(nlon)
-    do ix=1,nlon
-       grid4n(ix)=-polnu*sinlon(ix)+polnv*coslon(ix)
-       grid4s(ix)= polsu*sinlon(ix)-polsv*coslon(ix)
-    end do
+     polnu=zero
+     polnv=zero
+     polsu=zero
+     polsv=zero
+     do ix=1,nlon
+        polnu=polnu-grid4(ny,ix)*sinlon(ix)
+        polnv=polnv+grid4(ny,ix)*coslon(ix)
+        polsu=polsu+grid4(1 ,ix)*sinlon(ix)
+        polsv=polsv-grid4(1 ,ix)*coslon(ix)
+     end do
+     polnu=polnu/float(nlon)
+     polnv=polnv/float(nlon)
+     polsu=polsu/float(nlon)
+     polsv=polsv/float(nlon)
+     do ix=1,nlon
+        grid4n(ix)=-polnu*sinlon(ix)+polnv*coslon(ix)
+        grid4s(ix)= polsu*sinlon(ix)-polsv*coslon(ix)
+     end do
   end if
 
 ! Load result into output array
@@ -2304,10 +2312,12 @@ end subroutine uv2vordiv
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
-  logical vector
+  real(r_kind),dimension(nlat,nlon),intent(inout) :: b
+  real(r_kind),dimension(nlat,nlon),intent(in   ) :: dbdy
+  logical                          ,intent(in   ) :: vector
+
   integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
   integer(i_kind) lbcoy2,lacoy2,iy,ix,i,j,lcy
-  real(r_kind),dimension(nlat,nlon):: b,dbdy
   real(r_kind),dimension(nlat-2_i_kind,nlon):: work2,grid4
   real(r_kind),dimension(nlon)::grid4n,grid4s
   real(r_kind) polnu,polnv,polsu,polsv
@@ -2334,39 +2344,39 @@ end subroutine uv2vordiv
      grid4s(j)=dbdy(1,j)
      grid4n(j)=dbdy(nlat,j)
      do i=1,ny
-       grid4(i,j)=dbdy(i+ione,j) 
+        grid4(i,j)=dbdy(i+ione,j) 
      end do
   end do
   if(vector) then
-    do ix=1,nlon
-       grid4n(ix)= zero
-       grid4s(ix)= zero
-    end do
-!  divide by cos(lat)
-    do ix=1,nlon
-       do iy=1,ny
-          grid4(iy,ix)=grid4(iy,ix)*coef(lcy+iy)
-       enddo
-    enddo
+     do ix=1,nlon
+        grid4n(ix)= zero
+        grid4s(ix)= zero
+     end do
+!    divide by cos(lat)
+     do ix=1,nlon
+        do iy=1,ny
+           grid4(iy,ix)=grid4(iy,ix)*coef(lcy+iy)
+        enddo
+     enddo
   else
-    polnu=zero
-    polnv=zero
-    polsu=zero
-    polsv=zero
-    do ix=1,nlon
-       polnu=polnu-sinlon(ix)*grid4n(ix)
-       polnv=polnv+coslon(ix)*grid4n(ix)
-       polsu=polsu+sinlon(ix)*grid4s(ix)
-       polsv=polsv-coslon(ix)*grid4s(ix)
-    end do
-    polnu=polnu/float(nlon)
-    polnv=polnv/float(nlon)
-    polsu=polsu/float(nlon)
-    polsv=polsv/float(nlon)
-    do ix=1,nlon
-       grid4(ny,ix)=grid4(ny,ix)-sinlon(ix)*polnu+coslon(ix)*polnv
-       grid4(1 ,ix)=grid4(1 ,ix)+sinlon(ix)*polsu-coslon(ix)*polsv
-    end do
+     polnu=zero
+     polnv=zero
+     polsu=zero
+     polsv=zero
+     do ix=1,nlon
+        polnu=polnu-sinlon(ix)*grid4n(ix)
+        polnv=polnv+coslon(ix)*grid4n(ix)
+        polsu=polsu+sinlon(ix)*grid4s(ix)
+        polsv=polsv-coslon(ix)*grid4s(ix)
+     end do
+     polnu=polnu/float(nlon)
+     polnv=polnv/float(nlon)
+     polsu=polsu/float(nlon)
+     polsv=polsv/float(nlon)
+     do ix=1,nlon
+        grid4(ny,ix)=grid4(ny,ix)-sinlon(ix)*polnu+coslon(ix)*polnv
+        grid4(1 ,ix)=grid4(1 ,ix)+sinlon(ix)*polsu-coslon(ix)*polsv
+     end do
   end if
 
 ! adjoint of y derivative on sphere
@@ -2376,19 +2386,19 @@ end subroutine uv2vordiv
        nlon,ny,noq)
 
   if(vector) then
-!   multiply by cos(lat) ( 1/coef(lcy+iy) )
-    do ix=1,nlon
-       do iy=1,ny
-          work2(iy,ix)=work2(iy,ix)/coef(lcy+iy)
-       enddo
-    enddo
+!    multiply by cos(lat) ( 1/coef(lcy+iy) )
+     do ix=1,nlon
+        do iy=1,ny
+           work2(iy,ix)=work2(iy,ix)/coef(lcy+iy)
+        enddo
+     enddo
   end if
 ! accumulate to output field
 
   do j=1,nlon
      do i=1,ny
-!      NOTE:  Adjoint of first derivative is its negative
-       b(i+ione,j)=b(i+ione,j)-work2(i,j)   !????/check this in particular
+!       NOTE:  Adjoint of first derivative is its negative
+        b(i+ione,j)=b(i+ione,j)-work2(i,j)   !????/check this in particular
      end do
   end do
   
@@ -2423,7 +2433,8 @@ end subroutine uv2vordiv
   use gridmod, only: nlon,nlat
   implicit none
 
-  real(r_kind),dimension(nlat,nlon):: b,delsqrb
+  real(r_kind),dimension(nlat,nlon),intent(in   ) :: b
+  real(r_kind),dimension(nlat,nlon),intent(  out) :: delsqrb
 
   real(r_kind),dimension(nlat,nlon):: bx,by,bxx,byy
   integer(i_kind) i,j
@@ -2434,9 +2445,9 @@ end subroutine uv2vordiv
   call compact_dlat(by,byy,.true.)
 
   do j=1,nlon
-    do i=1,nlat
-      delsqrb(i,j)=bxx(i,j)+byy(i,j)
-    end do
+     do i=1,nlat
+        delsqrb(i,j)=bxx(i,j)+byy(i,j)
+     end do
   end do
 
   return
@@ -2475,7 +2486,8 @@ end subroutine uv2vordiv
   use constants, only: zero
   implicit none
 
-  real(r_kind),dimension(nlat,nlon):: b,delsqrb
+  real(r_kind),dimension(nlat,nlon),intent(inout) :: b
+  real(r_kind),dimension(nlat,nlon),intent(in   ) :: delsqrb
 
   real(r_kind),dimension(nlat,nlon):: bx,by,bxx,byy
 
@@ -2483,18 +2495,18 @@ end subroutine uv2vordiv
 
 
   do j=1,nlon
-    do i=1,nlat
-      bxx(i,j)=zero
-      byy(i,j)=zero
-      bx(i,j)=zero
-      by(i,j)=zero
-    end do
+     do i=1,nlat
+        bxx(i,j)=zero
+        byy(i,j)=zero
+        bx(i,j)=zero
+        by(i,j)=zero
+     end do
   end do
   do j=1,nlon
-    do i=1,nlat
-      bxx(i,j)=bxx(i,j)+delsqrb(i,j)
-      byy(i,j)=byy(i,j)+delsqrb(i,j)
-    end do
+     do i=1,nlat
+        bxx(i,j)=bxx(i,j)+delsqrb(i,j)
+        byy(i,j)=byy(i,j)+delsqrb(i,j)
+     end do
   end do
   call tcompact_dlat(by,byy,.true.)
   call tcompact_dlat(b,by,.false.)
@@ -2537,9 +2549,11 @@ end subroutine uv2vordiv
     use gridmod, only: nlon, nlat
     implicit none
 
+    real(r_kind),dimension(nlat,nlon),intent(in   ) :: a
+    real(r_kind),dimension(nlat,nlon),intent(  out) :: dadx,dady
+
     integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
     integer(i_kind) lbcoy2,lacoy2,lcy,iy,ix,i,j
-    real(r_kind),dimension(nlat,nlon):: a,dadx,dady
     real(r_kind),dimension(nlat-2_i_kind,nlon):: work1,grid1,grid2
 
 ! Set parameters for calls to subsequent routines
@@ -2561,20 +2575,20 @@ end subroutine uv2vordiv
 
 ! Initialize output arrays to zero
     do j=1,nlon
-      do i=1,nlat
-        dadx(i,j)=zero
-        dady(i,j)=zero
-      end do
+       do i=1,nlat
+          dadx(i,j)=zero
+          dady(i,j)=zero
+       end do
     end do
 
 ! Transfer scalar input field to work array.
 ! Zero other work arrays.
     do j=1,nlon
-      do i=1,ny
-        work1(i,j) = a(i+ione,j)
-        grid1(i,j)=zero
-        grid2(i,j)=zero
-      end do
+       do i=1,ny
+          work1(i,j) = a(i+ione,j)
+          grid1(i,j)=zero
+          grid2(i,j)=zero
+       end do
     end do
 
 ! Compute x (east-west) derivatives on sphere
@@ -2589,17 +2603,17 @@ end subroutine uv2vordiv
 
 ! Make corrections for convergence of meridians:
     do ix=1,nlon
-      do iy=1,ny
-        grid1(iy,ix)=grid1(iy,ix)*coef(lcy+iy)
-      end do
+       do iy=1,ny
+          grid1(iy,ix)=grid1(iy,ix)*coef(lcy+iy)
+       end do
     end do
 
 ! Load results into ouptut arrays
     do j=1,nlon
-      do i=1,ny
-        dadx(i+ione,j) = grid1(i,j)
-        dady(i+ione,j) = grid2(i,j)
-      end do
+       do i=1,ny
+          dadx(i+ione,j) = grid1(i,j)
+          dady(i+ione,j) = grid2(i,j)
+       end do
     end do
 
     return
@@ -2634,10 +2648,11 @@ end subroutine uv2vordiv
     use gridmod, only: nlon, nlat
     implicit none
 
+    real(r_kind),dimension(nlat,nlon),intent(in   ) :: dadx,dady
+    real(r_kind),dimension(nlat,nlon),intent(  out) :: a
+
     integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
     integer(i_kind) lbcoy2,lacoy2,lcy,iy,ix,i,j
-    real(r_kind),dimension(nlat,nlon),intent(in):: dadx,dady
-    real(r_kind),dimension(nlat,nlon),intent(out):: a
     real(r_kind),dimension(nlat-2_i_kind,nlon):: work1,work2,grid1,grid2
 
 ! Set parameters for calls to subsequent routines
@@ -2659,19 +2674,19 @@ end subroutine uv2vordiv
 
 ! Initialize output arrays to zero
     do j=1,nlon
-      do i=1,ny
-        grid1(i,j) = dadx(i+ione,j)
-        grid2(i,j) = dady(i+ione,j)
-        work1(i,j)=zero
-        work2(i,j)=zero
-      end do
+       do i=1,ny
+          grid1(i,j) = dadx(i+ione,j)
+          grid2(i,j) = dady(i+ione,j)
+          work1(i,j)=zero
+          work2(i,j)=zero
+       end do
     end do
 
 !  MAKE CORRECTIONS FOR CONVERGENCE OF MERIDIANS:
     do ix=1,nlon
-      do iy=1,ny
-        grid1(iy,ix)=grid1(iy,ix)*coef(lcy+iy)
-      end do
+       do iy=1,ny
+          grid1(iy,ix)=grid1(iy,ix)*coef(lcy+iy)
+       end do
     end do
 
 ! Compute y (south-north) derivatives on sphere
@@ -2687,9 +2702,9 @@ end subroutine uv2vordiv
 ! Load results into output arrays
     a=zero
     do j=1,nlon
-      do i=1,ny
-        a(i+ione,j) = -work1(i,j)-work2(i,j)
-      end do
+       do i=1,ny
+          a(i+ione,j) = -work1(i,j)-work2(i,j)
+       end do
     end do
 
     return
@@ -2724,8 +2739,9 @@ end subroutine uv2vordiv
     use gridmod, only: nlon,nlat
     implicit none
 
-    real(r_kind),dimension(nlat,nlon),intent(in):: uin,vin
-    real(r_kind),dimension(nlat,nlon),intent(out):: div
+    real(r_kind),dimension(nlat,nlon),intent(in   ) :: uin,vin
+    real(r_kind),dimension(nlat,nlon),intent(  out) :: div
+
     integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
     integer(i_kind) lbcoy2,lacoy2,lcy,iy,ix,i,j
     real(r_kind),dimension(nlat-2_i_kind,nlon):: work1,work2,grid1,grid2
@@ -2749,20 +2765,20 @@ end subroutine uv2vordiv
 
 ! Initialize output arrays to zero
     do j=1,nlon
-      do i=1,nlat
-        div(i,j)=zero
-      end do
+       do i=1,nlat
+          div(i,j)=zero
+       end do
     end do
 
 ! Transfer scalar input field to work array.
 ! Zero other work arrays.
     do j=1,nlon
-      do i=1,ny
-        work1(i,j) = uin(i+ione,j)
-        work2(i,j) = vin(i+ione,j)
-        grid1(i,j)=zero
-        grid2(i,j)=zero
-      end do
+       do i=1,ny
+          work1(i,j) = uin(i+ione,j)
+          work2(i,j) = vin(i+ione,j)
+          grid1(i,j)=zero
+          grid2(i,j)=zero
+       end do
     end do
 
 ! Compute x (east-west) derivatives on sphere of u-wind
@@ -2772,16 +2788,16 @@ end subroutine uv2vordiv
 
 ! Make corrections for convergence of meridians:
     do ix=1,nlon
-      do iy=1,ny
-        grid1(iy,ix)=grid1(iy,ix)*coef(lcy+iy)
-      end do
+       do iy=1,ny
+          grid1(iy,ix)=grid1(iy,ix)*coef(lcy+iy)
+       end do
     end do
 
 !  first multiply by cos(lat)
     do ix=1,nlon
-      do iy=1,ny
-        work2(iy,ix)=work2(iy,ix)/coef(lcy+iy)
-      end do
+       do iy=1,ny
+          work2(iy,ix)=work2(iy,ix)/coef(lcy+iy)
+       end do
     end do
 
 ! Compute y (south-north) derivatives on sphere of v-wnd
@@ -2791,16 +2807,16 @@ end subroutine uv2vordiv
 
 ! Make corrections for convergence of meridians:
     do ix=1,nlon
-      do iy=1,ny
-        grid2(iy,ix)=grid2(iy,ix)*coef(lcy+iy)
-      end do
+       do iy=1,ny
+          grid2(iy,ix)=grid2(iy,ix)*coef(lcy+iy)
+       end do
     end do
 
 ! Load results into ouptut arrays
     do j=1,nlon
-      do i=1,ny
-        div(i+ione,j)=grid1(i,j)+grid2(i,j)
-      end do
+       do i=1,ny
+          div(i+ione,j)=grid1(i,j)+grid2(i,j)
+       end do
     end do
 
     return
@@ -2833,8 +2849,8 @@ end subroutine uv2vordiv
     use gridmod, only: nlat,nlon
     implicit none
     
-    real(r_kind),dimension(nlat,nlon),intent(out):: ux,vy
-    real(r_kind),dimension(nlat,nlon),intent(in):: ddiv
+    real(r_kind),dimension(nlat,nlon),intent(  out) :: ux,vy
+    real(r_kind),dimension(nlat,nlon),intent(in   ) :: ddiv
 
     integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
     integer(i_kind) lbcoy2,lacoy2,lcy,iy,ix,i,j
@@ -2860,20 +2876,20 @@ end subroutine uv2vordiv
 ! Transfer scalar input field to work array.
 ! Zero other work arrays.
     do j=1,nlon
-      do i=1,ny
-        grid1(i,j) = ddiv(i+ione,j)
-        grid2(i,j) = ddiv(i+ione,j)
-        work1(i,j) = zero
-        work2(i,j) = zero
-      end do
+       do i=1,ny
+          grid1(i,j) = ddiv(i+ione,j)
+          grid2(i,j) = ddiv(i+ione,j)
+          work1(i,j) = zero
+          work2(i,j) = zero
+       end do
     end do
 
 
 ! Make corrections for convergence of meridians:
     do ix=1,nlon
-      do iy=1,ny
-        grid2(iy,ix)=grid2(iy,ix)*coef(lcy+iy)
-      end do
+       do iy=1,ny
+          grid2(iy,ix)=grid2(iy,ix)*coef(lcy+iy)
+       end do
     end do
 
     call tydsphdp(work2,grid2, &
@@ -2882,17 +2898,17 @@ end subroutine uv2vordiv
 
 !  now multiply by cos(lat)
     do ix=1,nlon
-      do iy=1,ny
-        work2(iy,ix)=work2(iy,ix)/coef(lcy+iy)
-      end do
+       do iy=1,ny
+          work2(iy,ix)=work2(iy,ix)/coef(lcy+iy)
+       end do
     end do
 
 
 ! Make corrections for convergence of meridians:
     do ix=1,nlon
-      do iy=1,ny
-        grid1(iy,ix)=grid1(iy,ix)*coef(lcy+iy)
-      end do
+       do iy=1,ny
+          grid1(iy,ix)=grid1(iy,ix)*coef(lcy+iy)
+       end do
     end do
 
 ! Compute x (east-west) derivatives on sphere of u-wind
@@ -2904,10 +2920,10 @@ end subroutine uv2vordiv
     vy=zero
 ! Load results into ouptut arrays
     do j=1,nlon
-      do i=1,ny
-        ux(i+ione,j) = -work1(i,j)
-        vy(i+ione,j) = -work2(i,j)
-      end do
+       do i=1,ny
+          ux(i+ione,j) = -work1(i,j)
+          vy(i+ione,j) = -work2(i,j)
+       end do
     end do
 
     return

@@ -33,6 +33,7 @@ subroutine omegas_ad( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
 !
 !   output argument list:
 !     vvel_o  - vertical velocity
+!     vvel_o_ad- vertical velocity perturbation
 !     u_i_ad   - partial derivative of vertical velocity with respect to zonal wind
 !     v_i_ad   - partial derivative of vertical velocity with respect to meridional wind
 !     div_i_ad - partial derivative of vertical velocity with respect to horizontal divergence
@@ -57,24 +58,24 @@ subroutine omegas_ad( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
 !==============================================
 ! define arguments
 !==============================================
-  logical adjoint
-  integer(i_kind) ix
-  integer(i_kind) km
-  real(r_kind) div_i_ad(km,ix)
-  real(r_kind) u_i_ad(km,ix)
-  real(r_kind) v_i_ad(km,ix)
-  real(r_kind) vvel_o_ad(km,ix)
-  real(r_kind) del(km,ix)
-  real(r_kind) div_i(km,ix)
-  real(r_kind) dlam_i(ix)
-  real(r_kind) dphi_i(ix)
-  integer(i_kind) im
-  real(r_kind) ps_i(ix)
-  real(r_kind) rcl(ix)
-  real(r_kind) sl(km,ix)
-  real(r_kind) u_i(km,ix)
-  real(r_kind) v_i(km,ix)
-  real(r_kind) vvel_o(km,ix)
+  logical        ,intent(in   ) :: adjoint
+  integer(i_kind),intent(in   ) :: ix
+  integer(i_kind),intent(in   ) :: km
+  real(r_kind)   ,intent(  out) :: div_i_ad(km,ix)
+  real(r_kind)   ,intent(  out) :: u_i_ad(km,ix)
+  real(r_kind)   ,intent(  out) :: v_i_ad(km,ix)
+  real(r_kind)   ,intent(inout) :: vvel_o_ad(km,ix)
+  real(r_kind)   ,intent(in   ) :: del(km,ix)
+  real(r_kind)   ,intent(in   ) :: div_i(km,ix)
+  real(r_kind)   ,intent(in   ) :: dlam_i(ix)
+  real(r_kind)   ,intent(in   ) :: dphi_i(ix)
+  integer(i_kind),intent(in   ) :: im
+  real(r_kind)   ,intent(in   ) :: ps_i(ix)
+  real(r_kind)   ,intent(in   ) :: rcl(ix)
+  real(r_kind)   ,intent(in   ) :: sl(km,ix)
+  real(r_kind)   ,intent(in   ) :: u_i(km,ix)
+  real(r_kind)   ,intent(in   ) :: v_i(km,ix)
+  real(r_kind)   ,intent(  out) :: vvel_o(km,ix)
 
 !==============================================
 ! define local variables
@@ -82,12 +83,12 @@ subroutine omegas_ad( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
   real(r_kind) cb_ad(km,ix)
   real(r_kind) cg_ad(km,ix)
   real(r_kind) db_ad(km,ix)
-  real(r_kind) dot_ad(km+1,ix)
+  real(r_kind) dot_ad(km+ione,ix)
   real(r_kind) cb(km,ix)
   real(r_kind) cg(km,ix)
   real(r_kind) db(km,ix)
   real(r_kind) dlam(ix)
-  real(r_kind) dot(km+1,ix)
+  real(r_kind) dot(km+ione,ix)
   real(r_kind) dphi(ix)
   integer(i_kind) i
   integer(i_kind) ip1

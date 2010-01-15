@@ -29,9 +29,9 @@ subroutine unfill_mass_grid2t(gout,nx,ny,gin)
 
   implicit none
 
-  integer(i_kind), intent(in)  :: nx,ny
-  real(r_single), intent(in)   :: gout(itotsub)
-  real(r_single), intent(inout):: gin(nx,ny)
+  integer(i_kind), intent(in   ) :: nx,ny
+  real(r_single) , intent(in   ) :: gout(itotsub)
+  real(r_single) , intent(inout) :: gin(nx,ny)
   
   real(r_single) b(nx,ny)
   integer(i_kind) i,j
@@ -77,14 +77,14 @@ subroutine unfill_mass_grid2u(gout,nx,ny,gin)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use constants, only: half
+  use constants, only: ione,half
   use gridmod, only: itotsub,iglobal,ltosi,ltosj
 
   implicit none
 
-  integer(i_kind), intent(in)  :: nx,ny
-  real(r_single), intent(in)   :: gout(itotsub)
-  real(r_single), intent(inout):: gin(nx+1,ny)
+  integer(i_kind), intent(in   ) :: nx,ny
+  real(r_single) , intent(in   ) :: gout(itotsub)
+  real(r_single) , intent(inout) :: gin(nx+ione,ny)
   
   real(r_single) b(nx,ny)
   integer(i_kind) i,i0,im,j
@@ -94,8 +94,8 @@ subroutine unfill_mass_grid2u(gout,nx,ny,gin)
   end do
 
   do j=1,ny
-     do i=1,nx+1
-        im=max(1,i-1)
+     do i=1,nx+ione
+        im=max(ione,i-ione)
         i0=min(nx,i)
         gin(i,j)=gin(i,j)+half*(b(im,j)+b(i0,j))
      end do
@@ -131,14 +131,14 @@ subroutine unfill_mass_grid2v(gout,nx,ny,gin)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use constants, only: half
+  use constants, only: ione,half
   use gridmod, only: itotsub,iglobal,ltosi,ltosj
 
   implicit none
 
-  integer(i_kind), intent(in)  :: nx,ny
-  real(r_single), intent(in)   :: gout(itotsub)
-  real(r_single), intent(inout):: gin(nx,ny+1)
+  integer(i_kind), intent(in   ) :: nx,ny
+  real(r_single) , intent(in   ) :: gout(itotsub)
+  real(r_single) , intent(inout) :: gin(nx,ny+ione)
   
   real(r_single) b(nx,ny)
   integer(i_kind) i,j,j0,jm
@@ -147,8 +147,8 @@ subroutine unfill_mass_grid2v(gout,nx,ny,gin)
      b(ltosj(i),ltosi(i))=gout(i)
   end do
 
-  do j=1,ny+1
-     jm=max(1,j-1)
+  do j=1,ny+ione
+     jm=max(ione,j-ione)
      j0=min(ny,j)
      do i=1,nx
         gin(i,j)=gin(i,j)+half*(b(i,jm)+b(i,j0))

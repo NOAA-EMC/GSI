@@ -70,8 +70,8 @@ subroutine init_
 !   machine:
 !
 !$$$ end documentation block
-
   implicit none
+
   allocate(xhat_vor(lat2,lon2,nsig,nobs_bins))
   allocate(xhat_div(lat2,lon2,nsig,nobs_bins))
 end subroutine init_
@@ -96,8 +96,8 @@ subroutine clean_
 !   machine:
 !
 !$$$ end documentation block
-
   implicit none
+
   deallocate(xhat_div)
   deallocate(xhat_vor)
 end subroutine clean_
@@ -125,11 +125,10 @@ subroutine calc_(sval)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-
   implicit none
 
 ! Declare passed variables
-  type(state_vector), intent(in) :: sval(nobs_bins)
+  type(state_vector), intent(in   ) :: sval(nobs_bins)
 
 ! Declare local variables
   integer(i_kind) i,j,k,ii
@@ -140,14 +139,14 @@ subroutine calc_(sval)
 
 ! Initialize local arrays
   do ii=1,nobs_bins
-    do k=1,nsig
-       do j=1,lon2
-          do i=1,lat2
-             xhat_vor(i,j,k,ii) = zero
-             xhat_div(i,j,k,ii) = zero
-          end do
-       end do
-    end do
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              xhat_vor(i,j,k,ii) = zero
+              xhat_div(i,j,k,ii) = zero
+           end do
+        end do
+     end do
   end do
 
 ! The GSI analyzes stream function (sf) and velocity potential (vp).  
@@ -167,53 +166,53 @@ subroutine calc_(sval)
 ! For NCEP GFS convert increment in u,v to increments in vor,div
   if (.not.regional) then
 
-   do ii=1,nobs_bins
-!    NCEP GFS interface
-!    Zero work arrays
-     do k=1,nuvlevs
-        do j=1,itotsub
-           work1(j,k)=zero
-           work2(j,k)=zero
+     do ii=1,nobs_bins
+!       NCEP GFS interface
+!       Zero work arrays
+        do k=1,nuvlevs
+           do j=1,itotsub
+              work1(j,k)=zero
+              work2(j,k)=zero
+           end do
         end do
-     end do
   
-!    Strip off halo for u,v grids on subdomains
-     call strip(sval(ii)%u,usm,nsig)
-     call strip(sval(ii)%v,vsm,nsig)
+!       Strip off halo for u,v grids on subdomains
+        call strip(sval(ii)%u,usm,nsig)
+        call strip(sval(ii)%v,vsm,nsig)
 
-!    Put u,v subdomains on global slabs
-!    Note:  u --> work1, v --> work2
-     call mpi_alltoallv(usm,iscuv_g,isduv_g,&
-          mpi_rtype,work1,ircuv_g,irduv_g,mpi_rtype,&
-          mpi_comm_world,ierror)
-     call mpi_alltoallv(vsm,iscuv_g,isduv_g,&
-          mpi_rtype,work2,ircuv_g,irduv_g,mpi_rtype,&
-          mpi_comm_world,ierror)
+!       Put u,v subdomains on global slabs
+!       Note:  u --> work1, v --> work2
+        call mpi_alltoallv(usm,iscuv_g,isduv_g,&
+             mpi_rtype,work1,ircuv_g,irduv_g,mpi_rtype,&
+             mpi_comm_world,ierror)
+        call mpi_alltoallv(vsm,iscuv_g,isduv_g,&
+             mpi_rtype,work2,ircuv_g,irduv_g,mpi_rtype,&
+             mpi_comm_world,ierror)
 
-!    Reorder work arrays before converting u,v to vor,div
-     call reorder(work1,nuvlevs,nnnuvlevs)
-     call reorder(work2,nuvlevs,nnnuvlevs)
+!       Reorder work arrays before converting u,v to vor,div
+        call reorder(work1,nuvlevs,nnnuvlevs)
+        call reorder(work2,nuvlevs,nnnuvlevs)
+ 
+!       Call u,v --> vor,div routine (conversion uses compact differences)
+        do k=1,nnnuvlevs
+           call uv2vordiv(work1(1,k),work2(1,k))
+        end do
 
-!    Call u,v --> vor,div routine (conversion uses compact differences)
-     do k=1,nnnuvlevs
-        call uv2vordiv(work1(1,k),work2(1,k))
+!       Reorder work arrays for mpi communication
+        call reorder2(work1,nuvlevs,nnnuvlevs)
+        call reorder2(work2,nuvlevs,nnnuvlevs)
+
+!       Get vor,div on subdomains
+!       Note:  work1 --> vor, work2 --> div
+        call mpi_alltoallv(work1,iscuv_s,isduv_s,&
+             mpi_rtype,xhat_vor(1,1,1,ii),ircuv_s,irduv_s,mpi_rtype,&
+             mpi_comm_world,ierror)
+        call mpi_alltoallv(work2,iscuv_s,isduv_s,&
+             mpi_rtype,xhat_div(1,1,1,ii),ircuv_s,irduv_s,mpi_rtype,&
+             mpi_comm_world,ierror)
+
+!    End of NCEP GFS block
      end do
-
-!    Reorder work arrays for mpi communication
-     call reorder2(work1,nuvlevs,nnnuvlevs)
-     call reorder2(work2,nuvlevs,nnnuvlevs)
-
-!    Get vor,div on subdomains
-!    Note:  work1 --> vor, work2 --> div
-     call mpi_alltoallv(work1,iscuv_s,isduv_s,&
-          mpi_rtype,xhat_vor(1,1,1,ii),ircuv_s,irduv_s,mpi_rtype,&
-          mpi_comm_world,ierror)
-     call mpi_alltoallv(work2,iscuv_s,isduv_s,&
-          mpi_rtype,xhat_div(1,1,1,ii),ircuv_s,irduv_s,mpi_rtype,&
-          mpi_comm_world,ierror)
-
-! End of NCEP GFS block
-   end do
 
   endif
 
@@ -250,8 +249,8 @@ subroutine calc2_(u,v,vor,div)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),intent(in) ,dimension(lat2,lon2,nsig):: u,v
-  real(r_kind),intent(out),dimension(lat2,lon2,nsig):: vor,div
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: u,v
+  real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: vor,div
 
 ! Declare local variables
   integer(i_kind) i,j,k

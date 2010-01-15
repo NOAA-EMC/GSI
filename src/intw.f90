@@ -88,9 +88,9 @@ subroutine intw_(whead,ru,rv,su,sv)
   implicit none
 
 ! Declare passed variables
-  type(w_ob_type),pointer,intent(in):: whead
-  real(r_kind),dimension(latlon1n),intent(in):: su,sv
-  real(r_kind),dimension(latlon1n),intent(inout):: ru,rv
+  type(w_ob_type),pointer         ,intent(in   ) :: whead
+  real(r_kind),dimension(latlon1n),intent(in   ) :: su,sv
+  real(r_kind),dimension(latlon1n),intent(inout) :: ru,rv
 
 ! Declare local variables
   integer(i_kind) i1,i2,i3,i4,i5,i6,i7,i8
@@ -124,100 +124,100 @@ subroutine intw_(whead,ru,rv,su,sv)
      valv=w1* sv(i1)+w2* sv(i2)+w3* sv(i3)+w4* sv(i4)+&
           w5* sv(i5)+w6* sv(i6)+w7* sv(i7)+w8* sv(i8)
      if (l_foto) then
-       time_w=wptr%time*r3600
-       valu=valu+&
-         (w1*xhat_dt%u(i1)+w2*xhat_dt%u(i2)+ &
-          w3*xhat_dt%u(i3)+w4*xhat_dt%u(i4)+ &
-          w5*xhat_dt%u(i5)+w6*xhat_dt%u(i6)+ &
-          w7*xhat_dt%u(i7)+w8*xhat_dt%u(i8))*time_w
-       valv=valv+&
-         (w1*xhat_dt%v(i1)+w2*xhat_dt%v(i2)+ &
-          w3*xhat_dt%v(i3)+w4*xhat_dt%v(i4)+ &
-          w5*xhat_dt%v(i5)+w6*xhat_dt%v(i6)+ &
-          w7*xhat_dt%v(i7)+w8*xhat_dt%v(i8))*time_w
-      endif
-
-     if (lsaveobsens) then
-       wptr%diagu%obssen(jiter) = valu*wptr%raterr2*wptr%err2
-       wptr%diagv%obssen(jiter) = valv*wptr%raterr2*wptr%err2
-     else
-       if (wptr%luse) then
-         wptr%diagu%tldepart(jiter)=valu
-         wptr%diagv%tldepart(jiter)=valv
-       endif
+        time_w=wptr%time*r3600
+        valu=valu+&
+          (w1*xhat_dt%u(i1)+w2*xhat_dt%u(i2)+ &
+           w3*xhat_dt%u(i3)+w4*xhat_dt%u(i4)+ &
+           w5*xhat_dt%u(i5)+w6*xhat_dt%u(i6)+ &
+           w7*xhat_dt%u(i7)+w8*xhat_dt%u(i8))*time_w
+        valv=valv+&
+          (w1*xhat_dt%v(i1)+w2*xhat_dt%v(i2)+ &
+           w3*xhat_dt%v(i3)+w4*xhat_dt%v(i4)+ &
+           w5*xhat_dt%v(i5)+w6*xhat_dt%v(i6)+ &
+           w7*xhat_dt%v(i7)+w8*xhat_dt%v(i8))*time_w
      endif
 
-    if (l_do_adjoint) then
-      if (lsaveobsens) then
-        gradu = wptr%diagu%obssen(jiter)
-        gradv = wptr%diagv%obssen(jiter)
+     if (lsaveobsens) then
+        wptr%diagu%obssen(jiter) = valu*wptr%raterr2*wptr%err2
+        wptr%diagv%obssen(jiter) = valv*wptr%raterr2*wptr%err2
+     else
+        if (wptr%luse) then
+           wptr%diagu%tldepart(jiter)=valu
+           wptr%diagv%tldepart(jiter)=valv
+        endif
+     endif
 
-      else
-        valu=valu-wptr%ures
-        valv=valv-wptr%vres
+     if (l_do_adjoint) then
+        if (lsaveobsens) then
+           gradu = wptr%diagu%obssen(jiter)
+           gradv = wptr%diagv%obssen(jiter)
 
-!       gradient of nonlinear operator
+        else
+           valu=valu-wptr%ures
+           valv=valv-wptr%vres
 
-        if (nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
-                             wptr%b  > tiny_r_kind) then
-          w_pg=wptr%pg*varqc_iter
-          cg_w=cg_term/wptr%b
-          wnotgross= one-w_pg
-          wgross =w_pg*cg_w/wnotgross                ! wgross is gama in Enderson
-          p0=wgross/(wgross+                      &  ! p0 is P in Enderson
-           exp(-half*wptr%err2*(valu**2+valv**2))) 
-          term=one-p0                                !  term is Wqc in Enderson
-          valu = valu*term
-          valv = valv*term
+!          gradient of nonlinear operator
+ 
+           if (nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
+                                wptr%b  > tiny_r_kind) then
+              w_pg=wptr%pg*varqc_iter
+              cg_w=cg_term/wptr%b
+              wnotgross= one-w_pg
+              wgross =w_pg*cg_w/wnotgross                ! wgross is gama in Enderson
+              p0=wgross/(wgross+                      &  ! p0 is P in Enderson
+              exp(-half*wptr%err2*(valu**2+valv**2))) 
+              term=one-p0                                !  term is Wqc in Enderson
+              valu = valu*term
+              valv = valv*term
+           endif
+
+           gradu = valu*wptr%raterr2*wptr%err2
+           gradv = valv*wptr%raterr2*wptr%err2
         endif
 
-        gradu = valu*wptr%raterr2*wptr%err2
-        gradv = valv*wptr%raterr2*wptr%err2
-      endif
+!       Adjoint
+        ru(i1)=ru(i1)+w1*gradu
+        ru(i2)=ru(i2)+w2*gradu
+        ru(i3)=ru(i3)+w3*gradu
+        ru(i4)=ru(i4)+w4*gradu
+        ru(i5)=ru(i5)+w5*gradu
+        ru(i6)=ru(i6)+w6*gradu
+        ru(i7)=ru(i7)+w7*gradu
+        ru(i8)=ru(i8)+w8*gradu
 
-!     Adjoint
-      ru(i1)=ru(i1)+w1*gradu
-      ru(i2)=ru(i2)+w2*gradu
-      ru(i3)=ru(i3)+w3*gradu
-      ru(i4)=ru(i4)+w4*gradu
-      ru(i5)=ru(i5)+w5*gradu
-      ru(i6)=ru(i6)+w6*gradu
-      ru(i7)=ru(i7)+w7*gradu
-      ru(i8)=ru(i8)+w8*gradu
- 
-      rv(i1)=rv(i1)+w1*gradv
-      rv(i2)=rv(i2)+w2*gradv
-      rv(i3)=rv(i3)+w3*gradv
-      rv(i4)=rv(i4)+w4*gradv
-      rv(i5)=rv(i5)+w5*gradv
-      rv(i6)=rv(i6)+w6*gradv
-      rv(i7)=rv(i7)+w7*gradv
-      rv(i8)=rv(i8)+w8*gradv
+        rv(i1)=rv(i1)+w1*gradv
+        rv(i2)=rv(i2)+w2*gradv
+        rv(i3)=rv(i3)+w3*gradv
+        rv(i4)=rv(i4)+w4*gradv
+        rv(i5)=rv(i5)+w5*gradv
+        rv(i6)=rv(i6)+w6*gradv
+        rv(i7)=rv(i7)+w7*gradv
+        rv(i8)=rv(i8)+w8*gradv
      
-      if (l_foto) then
-        gradu=gradu*time_w
-        gradv=gradv*time_w
-        dhat_dt%u(i1)=dhat_dt%u(i1)+w1*gradu
-        dhat_dt%u(i2)=dhat_dt%u(i2)+w2*gradu
-        dhat_dt%u(i3)=dhat_dt%u(i3)+w3*gradu
-        dhat_dt%u(i4)=dhat_dt%u(i4)+w4*gradu
-        dhat_dt%u(i5)=dhat_dt%u(i5)+w5*gradu
-        dhat_dt%u(i6)=dhat_dt%u(i6)+w6*gradu
-        dhat_dt%u(i7)=dhat_dt%u(i7)+w7*gradu
-        dhat_dt%u(i8)=dhat_dt%u(i8)+w8*gradu
+        if (l_foto) then
+           gradu=gradu*time_w
+           gradv=gradv*time_w
+           dhat_dt%u(i1)=dhat_dt%u(i1)+w1*gradu
+           dhat_dt%u(i2)=dhat_dt%u(i2)+w2*gradu
+           dhat_dt%u(i3)=dhat_dt%u(i3)+w3*gradu
+           dhat_dt%u(i4)=dhat_dt%u(i4)+w4*gradu
+           dhat_dt%u(i5)=dhat_dt%u(i5)+w5*gradu
+           dhat_dt%u(i6)=dhat_dt%u(i6)+w6*gradu
+           dhat_dt%u(i7)=dhat_dt%u(i7)+w7*gradu
+           dhat_dt%u(i8)=dhat_dt%u(i8)+w8*gradu
 
-        dhat_dt%v(i1)=dhat_dt%v(i1)+w1*gradv
-        dhat_dt%v(i2)=dhat_dt%v(i2)+w2*gradv
-        dhat_dt%v(i3)=dhat_dt%v(i3)+w3*gradv
-        dhat_dt%v(i4)=dhat_dt%v(i4)+w4*gradv
-        dhat_dt%v(i5)=dhat_dt%v(i5)+w5*gradv
-        dhat_dt%v(i6)=dhat_dt%v(i6)+w6*gradv
-        dhat_dt%v(i7)=dhat_dt%v(i7)+w7*gradv
-        dhat_dt%v(i8)=dhat_dt%v(i8)+w8*gradv
-      endif
-    endif
+           dhat_dt%v(i1)=dhat_dt%v(i1)+w1*gradv
+           dhat_dt%v(i2)=dhat_dt%v(i2)+w2*gradv
+           dhat_dt%v(i3)=dhat_dt%v(i3)+w3*gradv
+           dhat_dt%v(i4)=dhat_dt%v(i4)+w4*gradv
+           dhat_dt%v(i5)=dhat_dt%v(i5)+w5*gradv
+           dhat_dt%v(i6)=dhat_dt%v(i6)+w6*gradv
+           dhat_dt%v(i7)=dhat_dt%v(i7)+w7*gradv
+           dhat_dt%v(i8)=dhat_dt%v(i8)+w8*gradv
+        endif
+     endif
 
-    wptr => wptr%llpoint
+     wptr => wptr%llpoint
 
   end do
   return

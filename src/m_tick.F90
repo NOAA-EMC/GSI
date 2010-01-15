@@ -61,9 +61,9 @@ contains
 !$$$ end documentation block
   implicit none
 
-  integer(i_kind) ndt
-  integer(i_kind) nymd
-  integer(i_kind) nhms
+  integer(i_kind),intent(in   ) :: ndt
+  integer(i_kind),intent(inout) :: nymd
+  integer(i_kind),intent(inout) :: nhms
 
   end subroutine tick
 
@@ -97,41 +97,41 @@ contains
   implicit none
 
 ! Input:
-      integer(i_kind),intent(in):: ndt                     ! TIME-STEP
+      integer(i_kind),intent(in   ) :: ndt                     ! TIME-STEP
 ! Input/Output:
-      integer(i_kind),intent(inout):: nymd                 ! CURRENT YYYYMMDD
-      integer(i_kind),intent(inout):: nhms                 ! CURRENT HHMMSS
+      integer(i_kind),intent(inout) :: nymd                 ! CURRENT YYYYMMDD
+      integer(i_kind),intent(inout) :: nhms                 ! CURRENT HHMMSS
 ! Local:
       integer(i_kind) :: NSECF, NHMSF, NSEC, N
 
 ! Origin:     L.L. Takacs
 ! Revision:   S.-J. Lin Mar 2000
 
-       NSECF(N)   = N/10000*3600 + MOD(N,10000)/100* 60 + MOD(N,100)
-       NHMSF(N)   = N/3600*10000 + MOD(N,3600 )/ 60*100 + MOD(N, 60)
+       NSECF(N)   = N/10000*3600 + MOD(N,10000_i_kind)/100* 60 + MOD(N,100_i_kind)
+       NHMSF(N)   = N/3600*10000 + MOD(N,3600_i_kind )/ 60*100 + MOD(N, 60_i_kind)
 
        NSEC = NSECF(NHMS) + ndt
 
        IF (NSEC>86400_i_kind)  THEN
-           DO WHILE (NSEC>86400_i_kind)
-              NSEC = NSEC - 86400
-              NYMD = INCYMD (NYMD,ione)
-           ENDDO
+          DO WHILE (NSEC>86400_i_kind)
+             NSEC = NSEC - 86400
+             NYMD = INCYMD (NYMD,ione)
+          ENDDO
        ENDIF
 
        IF (NSEC==86400)  THEN
-           NSEC = izero
-           NYMD = INCYMD (NYMD,ione)
+          NSEC = izero
+          NYMD = INCYMD (NYMD,ione)
        ENDIF
 
        IF (NSEC < izero)  THEN
-           DO WHILE (NSEC < izero)
-               NSEC = 86400_i_kind + NSEC
-               NYMD = INCYMD (NYMD,-ione)
-           ENDDO
-        ENDIF
+          DO WHILE (NSEC < izero)
+             NSEC = 86400_i_kind + NSEC
+             NYMD = INCYMD (NYMD,-ione)
+          ENDDO
+       ENDIF
 
-          NHMS = NHMSF (NSEC)
+       NHMS = NHMSF (NSEC)
       return
       end subroutine tick
 
@@ -173,28 +173,28 @@ contains
       INTEGER(i_kind) NY, NM, ND
 
       NY = NYMD / 10000
-      NM = MOD(NYMD,10000) / 100
-      ND = MOD(NYMD,100) + M
+      NM = MOD(NYMD,10000_i_kind) / 100
+      ND = MOD(NYMD,100_i_kind) + M
 
       IF (ND==izero) THEN
-      NM = NM - ione
-      IF (NM==izero) THEN
-          NM = 12_i_kind
-          NY = NY - ione
-      ENDIF
-      ND = NDPM(NM)
-      IF (NM==2_i_kind .AND. leap_year(NY))  ND = 29_i_kind
+         NM = NM - ione
+         IF (NM==izero) THEN
+            NM = 12_i_kind
+            NY = NY - ione
+         ENDIF
+         ND = NDPM(NM)
+         IF (NM==2_i_kind .AND. leap_year(NY))  ND = 29_i_kind
       ENDIF
 
       IF (ND==29_i_kind .AND. NM==2_i_kind .AND. leap_year(ny))  GO TO 20
 
       IF (ND>NDPM(NM)) THEN
-        ND = ione
-        NM = NM + ione
-        IF (NM>12_i_kind) THEN
-          NM = ione
-          NY = NY + ione
-        ENDIF
+         ND = ione
+         NM = NM + ione
+         IF (NM>12_i_kind) THEN
+            NM = ione
+            NY = NY + ione
+         ENDIF
       ENDIF
 
    20 CONTINUE
@@ -229,7 +229,9 @@ contains
 !
 ! Author: S.-J. Lin
       implicit none
-      integer(i_kind),intent(in):: ny
+
+      integer(i_kind),intent(in   ) :: ny
+
       integer(i_kind) ny00
 
 !
@@ -237,10 +239,10 @@ contains
 !
       parameter ( ny00 = 1900_i_kind )   ! The threshold for starting leap-year 
 
-      if( mod(ny,4) == izero .and. ny >= ny00 ) then
-          leap_year = .true.
+      if( mod(ny,4_i_kind) == izero .and. ny >= ny00 ) then
+         leap_year = .true.
       else
-          leap_year = .false.
+         leap_year = .false.
       endif
 
       return 

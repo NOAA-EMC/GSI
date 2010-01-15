@@ -45,8 +45,8 @@ subroutine bkerror(gradx,grady)
   implicit none
 
 ! Declare passed variables
-  type(control_vector),intent(inout):: gradx
-  type(control_vector),intent(inout):: grady
+  type(control_vector),intent(inout) :: gradx
+  type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
   integer(i_kind) i,j,iflg,ii
@@ -54,8 +54,8 @@ subroutine bkerror(gradx,grady)
   real(r_kind),dimension(lat2,lon2):: slndt,sicet
 
   if (lsqrtb) then
-    write(6,*)'bkerror: not for use with lsqrtb'
-    call stop2(317)
+     write(6,*)'bkerror: not for use with lsqrtb'
+     call stop2(317)
   end if
 
 ! Initialize timer
@@ -77,21 +77,21 @@ subroutine bkerror(gradx,grady)
 ! only needs to be done when running with a single mpi task and
 ! then only for array gradx.
   if (periodic) then
-    iflg=2
-    do j=1,lon2
-       do i=1,lat2
-          slndt(i,j)=zero
-          sicet(i,j)=zero
-       end do
-    end do
-    do ii=1,nsubwin
-      call sub2grid(work,gradx%step(ii)%t,gradx%step(ii)%p,gradx%step(ii)%rh, &
-                    gradx%step(ii)%oz,gradx%step(ii)%sst,slndt,sicet, &
-                    gradx%step(ii)%cw,gradx%step(ii)%st,gradx%step(ii)%vp,iflg)
-      call grid2sub(work,gradx%step(ii)%t,gradx%step(ii)%p,gradx%step(ii)%rh, &
-                    gradx%step(ii)%oz,gradx%step(ii)%sst,slndt,sicet, &
-                    gradx%step(ii)%cw,gradx%step(ii)%st,gradx%step(ii)%vp)
-    end do
+     iflg=2
+     do j=1,lon2
+        do i=1,lat2
+           slndt(i,j)=zero
+           sicet(i,j)=zero
+        end do
+     end do
+     do ii=1,nsubwin
+        call sub2grid(work,gradx%step(ii)%t,gradx%step(ii)%p,gradx%step(ii)%rh, &
+                      gradx%step(ii)%oz,gradx%step(ii)%sst,slndt,sicet, &
+                      gradx%step(ii)%cw,gradx%step(ii)%st,gradx%step(ii)%vp,iflg)
+        call grid2sub(work,gradx%step(ii)%t,gradx%step(ii)%p,gradx%step(ii)%rh, &
+                      gradx%step(ii)%oz,gradx%step(ii)%sst,slndt,sicet, &
+                      gradx%step(ii)%cw,gradx%step(ii)%st,gradx%step(ii)%vp)
+     end do
   endif
 
 ! Put things in grady first since operations change input variables
@@ -100,27 +100,27 @@ subroutine bkerror(gradx,grady)
 ! Loop on control steps
   do ii=1,nsubwin
 
-!   Transpose of balance equation
-    call tbalance(grady%step(ii)%t ,grady%step(ii)%p , &
+!    Transpose of balance equation
+     call tbalance(grady%step(ii)%t ,grady%step(ii)%p , &
+                   grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
+
+!    Apply variances, as well as vertical & horizontal parts of background error
+     call bkgcov(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%t, &
+                 grady%step(ii)%p ,grady%step(ii)%rh,grady%step(ii)%oz, &
+                 grady%step(ii)%sst,grady%step(ii)%cw,nnnn1o)
+
+!    Balance equation
+     call balance(grady%step(ii)%t ,grady%step(ii)%p ,&
                   grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
-
-!   Apply variances, as well as vertical & horizontal parts of background error
-    call bkgcov(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%t, &
-                grady%step(ii)%p ,grady%step(ii)%rh,grady%step(ii)%oz, &
-                grady%step(ii)%sst,grady%step(ii)%cw,nnnn1o)
-
-!   Balance equation
-    call balance(grady%step(ii)%t ,grady%step(ii)%p ,&
-                 grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
 
   end do
 
 ! Take care of background error for bias correction terms
   do i=1,nsclen
-    grady%predr(i)=grady%predr(i)*varprd(i)
+     grady%predr(i)=grady%predr(i)*varprd(i)
   end do
   do i=1,npclen
-    grady%predp(i)=grady%predp(i)*varprd(nsclen+i)
+     grady%predp(i)=grady%predp(i)*varprd(nsclen+i)
   end do
 
 ! Finalize timer

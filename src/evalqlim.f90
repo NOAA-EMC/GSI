@@ -34,9 +34,9 @@ subroutine evalqlim(sq,pbc,rq)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in)   :: sq
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: rq
-  real(r_quad),intent(inout):: pbc
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: sq
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: rq
+  real(r_quad)                          ,intent(inout) :: pbc
 
 ! Declare local variables
   integer(i_kind) i,j,k
@@ -49,35 +49,35 @@ subroutine evalqlim(sq,pbc,rq)
 ! Loop over interior of subdomain          
 !$omp parallel do  schedule(dynamic,1) private(k,i,j,q)
   do k = 1,nsig
-    p1max(k)=zero_quad
-    p1min(k)=zero_quad
-    do j = 2,lon1+ione
-      do i = 2,lat1+ione
-!       Value for q
-        q = rhgues(i,j,k) + sq(i,j,k)
-!       Compute penalty for neg q
-        if (q<zero) then
-          term = factqmin*q
-          p1min(k) = p1min(k) + term
-!         Adjoint
-          rq(i,j,k) = rq(i,j,k) + term
-        endif
-!       Compute penalty for excess q
-        if (q>one) then
-          term=factqmax*(q-one)
-          p1max(k) = p1max(k) + term
-!         Adjoint
-          rq(i,j,k) = rq(i,j,k) + term
-        endif
-      end do
-    end do
+     p1max(k)=zero_quad
+     p1min(k)=zero_quad
+     do j = 2,lon1+ione
+        do i = 2,lat1+ione
+!          Value for q
+           q = rhgues(i,j,k) + sq(i,j,k)
+!          Compute penalty for neg q
+           if (q<zero) then
+              term = factqmin*q
+              p1min(k) = p1min(k) + term
+!             Adjoint
+              rq(i,j,k) = rq(i,j,k) + term
+           endif
+!          Compute penalty for excess q
+           if (q>one) then
+              term=factqmax*(q-one)
+              p1max(k) = p1max(k) + term
+!             Adjoint
+              rq(i,j,k) = rq(i,j,k) + term
+           endif
+        end do
+     end do
   end do
 
 ! Sum cost
   zbc=zero_quad
   do k=1,nsig
-    zbc(1)=zbc(1)+p1min(k)
-    zbc(2)=zbc(2)+p1max(k)
+     zbc(1)=zbc(1)+p1min(k)
+     zbc(2)=zbc(2)+p1max(k)
   end do
 
 ! Reduce on all procs

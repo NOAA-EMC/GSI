@@ -283,7 +283,7 @@ contains
     use gridmod, only: nlat,nlon
     implicit none
 
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
 
     allocate(varprd(max(ione,nrclen)))
 
@@ -417,7 +417,7 @@ contains
     use gridmod, only: nlat,nlon,istart,jstart
     implicit none
 
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
 
     allocate(varprd(max(ione,nrclen)))
 
@@ -490,7 +490,7 @@ contains
            mpi_max,mpi_integer4
     implicit none
 
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
 
     integer(i_kind) idvar_last,k,kk,vlevs
     integer(i_kind) nlevs0(0:npe-ione),nlevs1(0:npe-ione),nvar_id0(nsig1o*npe),nvar_id1(nsig1o*npe)
@@ -656,11 +656,11 @@ contains
     use gridmod, only: nsig
     implicit none
 
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
 
     integer(i_kind) k,kk,vlevs
 
-  ! vlevs=6*nsig+4       !  all variables
+  ! vlevs=6*nsig+4_i_kind       !  all variables
     vlevs=4*nsig+ione                          !  for rtma, currently do only u,v,psfc,t,q
     indices%kds=ione        ; indices%kde=vlevs
     indices%kps=indices%kds ; indices%kpe=indices%kde
@@ -668,7 +668,7 @@ contains
 !  initialize nvars,idvar,kvar_start,kvar_end
 ! Determine how many vertical levels each mpi task will
 ! handle in the horizontal smoothing
-  ! nvars=10
+  ! nvars=10_i_kind
     nvars=5_i_long
     allocate(idvar(indices%kds:indices%kde),jdvar(indices%kds:indices%kde),kvar_start(nvars),kvar_end(nvars))
     allocate(var_names(nvars),levs_jdvar(indices%kds:indices%kde))
@@ -775,7 +775,7 @@ subroutine halo_update_reg0(mype)
   use raflib, only: indexxi4
   implicit none
 
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
   integer(i_kind) i,ii,j,mm1,mpe,iglob,jglob,mpi_string1
   integer(i_kind) ijglob_pe(nlat,nlon),ijglob_pe0(nlat,nlon)

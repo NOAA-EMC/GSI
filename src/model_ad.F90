@@ -42,8 +42,8 @@ implicit none
 
 ! !INPUT PARAMETERS:
 
-type(state_vector), intent(in)    :: xobs(nobs_bins) ! Adjoint state variable at observations times
-logical,            intent(in)    :: ldprt           ! Print-out flag
+type(state_vector), intent(in   ) :: xobs(nobs_bins) ! Adjoint state variable at observations times
+logical           , intent(in   ) :: ldprt           ! Print-out flag
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -80,7 +80,7 @@ type(dyn_prog) :: xpert
 !******************************************************************************
 
 ! Initialize timer
-  call timer_ini('model_ad')
+call timer_ini('model_ad')
 
 ! Initialize variables
 if (idmodel) then
@@ -107,8 +107,8 @@ d0 = zero
 ! Initialize GCM ADM and its perturbation vector
 #ifdef GEOS_PERT
 if (.not.idmodel ) then
-  call initial_ad
-  call prognostics_initial(xpert)
+   call initial_ad
+   call prognostics_initial(xpert)
 endif
 #endif /* GEOS_PERT */
 
@@ -116,76 +116,76 @@ ii=nobs_bins
 
 ! Post-process final state
 if (nobs_bins>ione) then
-  if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_ad: retrieving state nymdi,nhmsi,nobs_bins=',nymdi,nhmsi,nobs_bins
-  call self_add(xx,xobs(nobs_bins))
-  if (.not.idmodel) then
-     d0=dot_product(xobs(1),xobs(1))
-  endif
+   if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_ad: retrieving state nymdi,nhmsi,nobs_bins=',nymdi,nhmsi,nobs_bins
+   call self_add(xx,xobs(nobs_bins))
+   if (.not.idmodel) then
+      d0=dot_product(xobs(1),xobs(1))
+   endif
 endif
 ! Run AD model
 do istep=nstep-ione,0,-1
-  call tick(nymdi,nhmsi,-dt)
+   call tick(nymdi,nhmsi,-dt)
 
-! Apply AD model
+!  Apply AD model
 #ifdef GEOS_PERT
-  if (.not.idmodel) then
-     call gsi2pgcm  (xx,xpert,'adm',ierr)                          ! T'(-1)
-     call amodel_ad (xpert,nymdi,nhmsi,ntsteps=ndt,g5pert=.true.)  ! M'
-     call pgcm2gsi  (xpert,xx,'adm',ierr)                          ! T'
-  endif
+   if (.not.idmodel) then
+      call gsi2pgcm  (xx,xpert,'adm',ierr)                          ! T'(-1)
+      call amodel_ad (xpert,nymdi,nhmsi,ntsteps=ndt,g5pert=.true.)  ! M'
+      call pgcm2gsi  (xpert,xx,'adm',ierr)                          ! T'
+   endif
 #endif /* GEOS_PERT */
 
 ! Apply AD trajectory model (same time steps as obsbin)
-  if (MOD(istep,nfrobs)==izero .and. ntotal_orig_lag>izero) then
-    ii=istep/nfrobs+ione
-    if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_ad: trajectory model nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
-    if (ii<ione.or.ii>nobs_bins) call abor1('model_ad: error xobs')
-    ! Execute AD model for each balloon (loop step insensitive)
-    do jj=1,nlocal_orig_lag
-      ad_tmp_locvect = lag_ad_vec(jj,ii+ione,:)
-      ! if (.not.idmodel) then
-      call lag_rk2iter_ad(lag_tl_spec_i(jj,ii,:),lag_tl_spec_r(jj,ii,:),&
-        &ad_tmp_locvect(1),ad_tmp_locvect(2),ad_tmp_locvect(3),&
-        &lag_u_full(:,:,ii),lag_v_full(:,:,ii))
-      print '(A,I3,A,F16.6,F16.6)',"ADiter: ",ii," location",lag_ad_vec(jj,ii,1),lag_ad_vec(jj,ii,2)
-      ! end if
-      lag_ad_vec(jj,ii,:)=lag_ad_vec(jj,ii,:)+ad_tmp_locvect
-    end do
-    ! Give the sensitivity back to the GCM
-    call lag_ADscatter_stateuv(xx%u,xx%v,ii)
-    ! To not add the contribution 2 times
-    lag_u_full(:,:,ii)=zero; lag_v_full(:,:,ii)=zero;
-  endif
+   if (MOD(istep,nfrobs)==izero .and. ntotal_orig_lag>izero) then
+      ii=istep/nfrobs+ione
+      if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_ad: trajectory model nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
+      if (ii<ione.or.ii>nobs_bins) call abor1('model_ad: error xobs')
+      ! Execute AD model for each balloon (loop step insensitive)
+      do jj=1,nlocal_orig_lag
+         ad_tmp_locvect = lag_ad_vec(jj,ii+ione,:)
+         ! if (.not.idmodel) then
+         call lag_rk2iter_ad(lag_tl_spec_i(jj,ii,:),lag_tl_spec_r(jj,ii,:),&
+           &ad_tmp_locvect(1),ad_tmp_locvect(2),ad_tmp_locvect(3),&
+           &lag_u_full(:,:,ii),lag_v_full(:,:,ii))
+         print '(A,I3,A,F16.6,F16.6)',"ADiter: ",ii," location",lag_ad_vec(jj,ii,1),lag_ad_vec(jj,ii,2)
+         ! end if
+         lag_ad_vec(jj,ii,:)=lag_ad_vec(jj,ii,:)+ad_tmp_locvect
+      end do
+      ! Give the sensitivity back to the GCM
+      call lag_ADscatter_stateuv(xx%u,xx%v,ii)
+      ! To not add the contribution 2 times
+      lag_u_full(:,:,ii)=zero; lag_v_full(:,:,ii)=zero;
+   endif
 
-! Post-process x_{istep}
-  if (MOD(istep,nfrobs)==izero) then
-    ii=istep/nfrobs+ione
-    if (ldprt) write(6,'(2a,i8.8,1x,i6.6,2(1x,i4))')myname,': retrieving state nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
-    call self_add(xx,xobs(ii))
-  endif
+!  Post-process x_{istep}
+   if (MOD(istep,nfrobs)==izero) then
+      ii=istep/nfrobs+ione
+      if (ldprt) write(6,'(2a,i8.8,1x,i6.6,2(1x,i4))')myname,': retrieving state nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
+      call self_add(xx,xobs(ii))
+   endif
 
-! Apply control vector to x_{istep}
-  if (MOD(istep,nfrctl)==izero) then
+!  Apply control vector to x_{istep}
+   if (MOD(istep,nfrctl)==izero) then
       ii=istep/nfrctl+ione
       if (ldprt) write(6,'(2a,i8.8,1x,i6.6,2(1x,i4))')myname,': adj adding WC nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
       xini(ii)=xx
       d0=dot_product(xobs(ii),xx)
-  endif
+   endif
 
 enddo
 
 if(ldprt) print *, myname, ': total (gsi) dot product ', d0
 #ifdef GEOS_PERT
 if (.not.idmodel ) then
-  call prognostics_final(xpert)
-  call final_ad
+   call prognostics_final(xpert)
+   call final_ad
 endif
 #endif /* GEOS_PERT */
 
 call deallocate_state(xx)
 
 ! Finalize timer
-  call timer_fnl('model_ad')
+call timer_fnl('model_ad')
 
 return
 end subroutine model_ad

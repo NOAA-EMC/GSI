@@ -42,8 +42,8 @@ implicit none
 
 ! !INPUT PARAMETERS:
 
-type(state_vector), intent(in)    :: xini(nsubwin)   ! State variable at control times
-logical,            intent(in)    :: ldprt           ! Print-out flag 
+type(state_vector), intent(in   ) :: xini(nsubwin)   ! State variable at control times
+logical           , intent(in   ) :: ldprt           ! Print-out flag 
 
 ! !OUTPUT PARAMETERS:
 
@@ -78,7 +78,7 @@ type(dyn_prog) :: xpert
 !******************************************************************************
 
 ! Initialize timer
-  call timer_ini('model_tl')
+call timer_ini('model_tl')
 
 ! Initialize variables
 d0=zero
@@ -104,22 +104,22 @@ xx=zero
 ! Checks
 zz=real(nstep,r_kind)*tstep
 if (ABS(winlen*r3600   -zz)>epsilon(zz)) then
-  write(6,*)'model_tl: error nstep',winlen,zz
-  call stop2(147)
+   write(6,*)'model_tl: error nstep',winlen,zz
+   call stop2(147)
 end if
 zz=real(nfrctl,r_kind)*tstep
 if (ABS(winsub*r3600   -zz)>epsilon(zz)) then
-  write(6,*)'model_tl: error nfrctl',winsub,zz
-  call stop2(148)
+   write(6,*)'model_tl: error nfrctl',winsub,zz
+   call stop2(148)
 end if
 zz=real(nfrobs,r_kind)*tstep
 if (ABS(hr_obsbin*r3600-zz)>epsilon(zz)) then
-  write(6,*)'model_tl: error nfrobs',hr_obsbin,zz
-  call stop2(149)
+   write(6,*)'model_tl: error nfrobs',hr_obsbin,zz
+   call stop2(149)
 end if
 if (ndt<ione)then
-  write(6,*)'model_tl: error ndt',ndt
-  call stop2(150)
+   write(6,*)'model_tl: error ndt',ndt
+   call stop2(150)
 end if
 
 if (ldprt) write(6,'(a,3(1x,i4))')'model_tl: nstep,nfrctl,nfrobs=',nstep,nfrctl,nfrobs
@@ -127,8 +127,8 @@ if (ldprt) write(6,'(a,3(1x,i4))')'model_tl: nstep,nfrctl,nfrobs=',nstep,nfrctl,
 ! Initialize GCM TLM and its perturbation vector
 #ifdef GEOS_PERT
 if (.not.idmodel) then
-  call initial_tl
-  call prognostics_initial ( xpert )
+   call initial_tl
+   call prognostics_initial ( xpert )
 endif
 #endif /* GEOS_PERT */
 
@@ -139,80 +139,80 @@ lag_ad_vec(:,:,:)=zero
 ! Run TL model
 do istep=0,nstep-ione
 
-! Apply control vector to x_{istep}
-  if (MOD(istep,nfrctl)==izero) then
-    ii=istep/nfrctl+ione
-    if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: adding WC nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
-    if (ii<ione.or.ii>nsubwin) then
-      write(6,*)'model_tl: error xini',ii,nsubwin
-      call stop2(151)
-    end if
-    call self_add(xx,xini(ii))
-  endif
+!  Apply control vector to x_{istep}
+   if (MOD(istep,nfrctl)==izero) then
+      ii=istep/nfrctl+ione
+      if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: adding WC nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
+      if (ii<ione.or.ii>nsubwin) then
+         write(6,*)'model_tl: error xini',ii,nsubwin
+         call stop2(151)
+      end if
+      call self_add(xx,xini(ii))
+   endif
 
-! Post-process x_{istep}
-  if (MOD(istep,nfrobs)==izero) then
-    ii=istep/nfrobs+ione
-    if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: saving state nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
-    if (ii<ione.or.ii>nobs_bins) then
-      write(6,*)'model_tl: error xobs',ii,nobs_bins
-      call stop2(152)
-    end if
-    xobs(ii) = xx
-    d0=d0+dot_product(xx,xx)
-  endif
+!  Post-process x_{istep}
+   if (MOD(istep,nfrobs)==izero) then
+      ii=istep/nfrobs+ione
+      if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: saving state nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
+      if (ii<ione.or.ii>nobs_bins) then
+         write(6,*)'model_tl: error xobs',ii,nobs_bins
+         call stop2(152)
+      end if
+      xobs(ii) = xx
+      d0=d0+dot_product(xx,xx)
+   endif
 
-! Apply TL trajectory model (same time steps as obsbin)
-  if (MOD(istep,nfrobs)==izero .and. ntotal_orig_lag>izero) then
-    ii=istep/nfrobs+ione
-    if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: trajectory model nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
-    if (ii<ione.or.ii>nobs_bins) call abor1('model_tl: error xobs')
-    ! Gather winds from the increment
-    call lag_gather_stateuv(xx%u,xx%v,ii)
-    ! Execute TL model
-    do jj=1,nlocal_orig_lag
-      lag_tl_vec(jj,ii+ione,:)=lag_tl_vec(jj,ii,:)
-      ! if (.not.idmodel) then
-        call lag_rk2iter_tl(lag_tl_spec_i(jj,ii,:),lag_tl_spec_r(jj,ii,:),&
-              &lag_tl_vec(jj,ii+1,1),lag_tl_vec(jj,ii+1,2),lag_tl_vec(jj,ii+1,3),&
-              &lag_u_full(:,:,ii),lag_v_full(:,:,ii))
-        print '(A,I3,A,F14.6,F14.6)',"TLiter: ",ii+ione," location",lag_tl_vec(jj,ii+ione,1),lag_tl_vec(jj,ii+ione,2)
-      ! endif
-    end do
-  endif
+!  Apply TL trajectory model (same time steps as obsbin)
+   if (MOD(istep,nfrobs)==izero .and. ntotal_orig_lag>izero) then
+      ii=istep/nfrobs+ione
+      if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: trajectory model nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
+      if (ii<ione.or.ii>nobs_bins) call abor1('model_tl: error xobs')
+      ! Gather winds from the increment
+      call lag_gather_stateuv(xx%u,xx%v,ii)
+      ! Execute TL model
+      do jj=1,nlocal_orig_lag
+         lag_tl_vec(jj,ii+ione,:)=lag_tl_vec(jj,ii,:)
+         ! if (.not.idmodel) then
+         call lag_rk2iter_tl(lag_tl_spec_i(jj,ii,:),lag_tl_spec_r(jj,ii,:),&
+               &lag_tl_vec(jj,ii+1,1),lag_tl_vec(jj,ii+1,2),lag_tl_vec(jj,ii+1,3),&
+               &lag_u_full(:,:,ii),lag_v_full(:,:,ii))
+         print '(A,I3,A,F14.6,F14.6)',"TLiter: ",ii+ione," location",lag_tl_vec(jj,ii+ione,1),lag_tl_vec(jj,ii+ione,2)
+         ! endif
+      end do
+   endif
 
-! Apply TL model
+!  Apply TL model
 #ifdef GEOS_PERT
-  if (.not.idmodel) then
-     call gsi2pgcm ( xx, xpert, 'tlm', ierr )                                    ! T
-     call amodel_tl (xpert,nymdi=nymdi,nhmsi=nhmsi,ntsteps=ndt,g5pert=.true.)    ! M
-     call pgcm2gsi ( xpert, xx, 'tlm', ierr )                                    ! T(-1)
-  endif
+   if (.not.idmodel) then
+      call gsi2pgcm ( xx, xpert, 'tlm', ierr )                                    ! T
+      call amodel_tl (xpert,nymdi=nymdi,nhmsi=nhmsi,ntsteps=ndt,g5pert=.true.)    ! M
+      call pgcm2gsi ( xpert, xx, 'tlm', ierr )                                    ! T(-1)
+   endif
 #endif /* GEOS_PERT */
 
-  call tick (nymdi,nhmsi,dt)
+   call tick (nymdi,nhmsi,dt)
 enddo
 
 ! Post-process final state
 if (nobs_bins>ione) then
-  if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: saving state nymdi,nhmsi,nobs_bins=',nymdi,nhmsi,nobs_bins
-  xobs(nobs_bins) = xx
-  d0=d0+dot_product(xx,xx)
+   if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: saving state nymdi,nhmsi,nobs_bins=',nymdi,nhmsi,nobs_bins
+   xobs(nobs_bins) = xx
+   d0=d0+dot_product(xx,xx)
 endif
 if(ldprt) print *, myname, ': total (gsi) dot product ', d0
 
 ! Finalize GCM TLM and its perturbation vector
 #ifdef GEOS_PERT
 if (.not.idmodel) then
-  call prognostics_final ( xpert )
-  call final_tl
+   call prognostics_final ( xpert )
+   call final_tl
 endif
 #endif /* GEOS_PERT */
 
 call deallocate_state(xx)
 
 ! Finalize timer
-  call timer_fnl('model_tl')
+call timer_fnl('model_tl')
 
 return
 end subroutine model_tl

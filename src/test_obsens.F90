@@ -24,7 +24,7 @@ subroutine test_obsens(xincr,xsens)
 !$$$ end documentation block
 ! ------------------------------------------------------------------------------
 use kinds, only: i_kind,r_quad
-use constants, only: zero
+use constants, only: izero,ione,zero
 use jfunc, only: xhatsave
 use obsmod, only: lsaveobsens,l_do_adjoint
 use mpimod, only: mype
@@ -32,7 +32,7 @@ use obs_sensitivity, only: iobsconv, lobsensincr, dot_prod_obs
 use control_vectors
 ! ------------------------------------------------------------------------------
 implicit none
-type(control_vector), intent(in) :: xincr,xsens
+type(control_vector), intent(in   ) :: xincr,xsens
 
 real(r_quad) :: zx,zy,zb,zz,zcost
 type(control_vector) :: gwork
@@ -40,24 +40,24 @@ integer(i_kind) :: nprt
 logical :: lupdfgs
 
 if (.not.(lobsensincr.or.iobsconv>0)) then
-  write(6,*)'test_obsens: only for validation',lobsensincr,iobsconv
-  call stop2(315)
+   write(6,*)'test_obsens: only for validation',lobsensincr,iobsconv
+   call stop2(315)
 end if
 
 ! Apply R^{-1} H and save output in obsdiags
-if (iobsconv>0) then
-  lsaveobsens=.true.
-  l_do_adjoint=.false.
-  nprt=1
-  lupdfgs=.false.
-  call allocate_cv(gwork)
-  gwork=zero
+if (iobsconv>izero) then
+   lsaveobsens=.true.
+   l_do_adjoint=.false.
+   nprt=ione
+   lupdfgs=.false.
+   call allocate_cv(gwork)
+   gwork=zero
 
-  call evaljgrad(xsens,zcost,gwork,lupdfgs,nprt,'test_obsens')
+   call evaljgrad(xsens,zcost,gwork,lupdfgs,nprt,'test_obsens')
 
-  call deallocate_cv(gwork)
-  lsaveobsens=.false.
-  l_do_adjoint=.true.
+   call deallocate_cv(gwork)
+   lsaveobsens=.false.
+   l_do_adjoint=.true.
 endif
 
 ! Compute <dJ/dy,d>
@@ -70,18 +70,18 @@ zx=dot_product(xincr,xincr,r_quad)
 zb=dot_product(xsens,xhatsave,r_quad)
 
 ! Observations impact validation
-if (mype==0) then
-  write(6,'(A)')'Incr sensitivity to obs. 0.123456789012345678'
-  write(6,'(A,ES25.18)')'Incr sensit  <dF/dy,d>= ',zy
-  write(6,'(A,ES25.18)')'Incr sensit  <b,dx>   = ',zb
-  write(6,'(A,ES25.18)')'Incr sensit  <dx,dx>  = ',zx
-  if ( abs(zx) > sqrt(tiny(zz)) ) then
-    zz=abs((zy-zb-zx)/zx)
-    write(6,'(A,ES25.18)')'Incr sensit  rel error= ',zz
-  else
-    zz=abs(zy-zb-zx)
-    write(6,'(A,ES25.18)')'Incr sensit  abs error= ',zz
-  endif
+if (mype==izero) then
+   write(6,'(A)')'Incr sensitivity to obs. 0.123456789012345678'
+   write(6,'(A,ES25.18)')'Incr sensit  <dF/dy,d>= ',zy
+   write(6,'(A,ES25.18)')'Incr sensit  <b,dx>   = ',zb
+   write(6,'(A,ES25.18)')'Incr sensit  <dx,dx>  = ',zx
+   if ( abs(zx) > sqrt(tiny(zz)) ) then
+      zz=abs((zy-zb-zx)/zx)
+      write(6,'(A,ES25.18)')'Incr sensit  rel error= ',zz
+   else
+      zz=abs(zy-zb-zx)
+      write(6,'(A,ES25.18)')'Incr sensit  abs error= ',zz
+   endif
 endif
 
 return

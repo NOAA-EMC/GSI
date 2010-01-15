@@ -161,7 +161,7 @@ contains
     use gridmod, only: nlat,nlon,nsig,lat2,lon2
     implicit none
 
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
 
 !         compute rllat, rllat1, llmin, llmax
     allocate(rllat(nlat,nlon))
@@ -253,7 +253,7 @@ contains
     implicit none
     
 !   Declare passed variables
-    integer(i_kind),intent(out):: mlat
+    integer(i_kind),intent(  out) :: mlat
 
 !   Declare local variables
     integer(i_kind) i,j,k,msig
@@ -342,7 +342,7 @@ contains
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),intent(out):: mlat
+    integer(i_kind),intent(  out) :: mlat
 
 !   Declare local parameters
     real(r_kind),parameter:: r08 = 0.8_r_kind
@@ -837,7 +837,7 @@ contains
     implicit none
     
 !   Declare passed variables
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
 
 !   Declare local variables
     integer(i_kind) i,j,msig,mlat,lunin,m,m1,mm1,jl,il
@@ -967,9 +967,9 @@ subroutine strong_bk(st,vp,p,t)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(latlon1n),intent(inout):: st,vp
-  real(r_kind),dimension(latlon11),intent(inout):: p
-  real(r_kind),dimension(latlon1n),intent(inout):: t
+  real(r_kind),dimension(latlon1n),intent(inout) :: st,vp
+  real(r_kind),dimension(latlon11),intent(inout) :: p
+  real(r_kind),dimension(latlon1n),intent(inout) :: t
 
   logical:: fullfield
   integer(i_kind) istrong
@@ -1034,9 +1034,9 @@ subroutine strong_bk_ad(st,vp,p,t)
   implicit none
   
 ! Declare passed variables  
-  real(r_kind),dimension(latlon1n),intent(inout):: st,vp
-  real(r_kind),dimension(latlon11),intent(inout):: p
-  real(r_kind),dimension(latlon1n),intent(inout):: t
+  real(r_kind),dimension(latlon1n),intent(inout) :: st,vp
+  real(r_kind),dimension(latlon11),intent(inout) :: p
+  real(r_kind),dimension(latlon1n),intent(inout) :: t
 
 ! Declare local variables  	
   integer(i_kind) i

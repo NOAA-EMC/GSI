@@ -76,9 +76,9 @@ subroutine intsst(ssthead,rsst,ssst)
   implicit none
 
 ! Declare passed variables
-  type(sst_ob_type),pointer,intent(in):: ssthead
-  real(r_kind),dimension(latlon11),intent(in):: ssst
-  real(r_kind),dimension(latlon11),intent(inout):: rsst
+  type(sst_ob_type),pointer       ,intent(in   ) :: ssthead
+  real(r_kind),dimension(latlon11),intent(in   ) :: ssst
+  real(r_kind),dimension(latlon11),intent(inout) :: rsst
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4
@@ -104,40 +104,40 @@ subroutine intsst(ssthead,rsst,ssst)
         +w3*ssst(j3)+w4*ssst(j4)
 
      if (lsaveobsens) then
-       sstptr%diags%obssen(jiter) = val*sstptr%raterr2*sstptr%err2
+        sstptr%diags%obssen(jiter) = val*sstptr%raterr2*sstptr%err2
      else
-       if (sstptr%luse) sstptr%diags%tldepart(jiter)=val
+        if (sstptr%luse) sstptr%diags%tldepart(jiter)=val
      endif
 
-    if (l_do_adjoint) then
-      if (lsaveobsens) then
-        grad = sstptr%diags%obssen(jiter)
+     if (l_do_adjoint) then
+        if (lsaveobsens) then
+           grad = sstptr%diags%obssen(jiter)
+ 
+        else
+           val=val-sstptr%res
 
-      else
-        val=val-sstptr%res
+!          gradient of nonlinear operator
+           if (nlnqc_iter .and. sstptr%pg > tiny_r_kind .and. &
+                                sstptr%b  > tiny_r_kind) then
+              pg_sst=sstptr%pg*varqc_iter
+              cg_sst=cg_term/sstptr%b
+              wnotgross= one-pg_sst
+              wgross = pg_sst*cg_sst/wnotgross
+              p0   = wgross/(wgross+exp(-half*sstptr%err2*val**2))
+              val = val*(one-p0)
+           endif
 
-!       gradient of nonlinear operator
-        if (nlnqc_iter .and. sstptr%pg > tiny_r_kind .and. &
-                             sstptr%b  > tiny_r_kind) then
-          pg_sst=sstptr%pg*varqc_iter
-          cg_sst=cg_term/sstptr%b
-          wnotgross= one-pg_sst
-          wgross = pg_sst*cg_sst/wnotgross
-          p0   = wgross/(wgross+exp(-half*sstptr%err2*val**2))
-          val = val*(one-p0)
+           grad = val*sstptr%raterr2*sstptr%err2
         endif
 
-        grad = val*sstptr%raterr2*sstptr%err2
-      endif
+!       Adjoint
+        rsst(j1)=rsst(j1)+w1*grad
+        rsst(j2)=rsst(j2)+w2*grad
+        rsst(j3)=rsst(j3)+w3*grad
+        rsst(j4)=rsst(j4)+w4*grad
+     endif
 
-!     Adjoint
-      rsst(j1)=rsst(j1)+w1*grad
-      rsst(j2)=rsst(j2)+w2*grad
-      rsst(j3)=rsst(j3)+w3*grad
-      rsst(j4)=rsst(j4)+w4*grad
-    endif
-
-    sstptr => sstptr%llpoint
+     sstptr => sstptr%llpoint
 
   end do
 

@@ -395,7 +395,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               cdata_all(16,ndata)= geoid           ! geoid undulation (m)
  
            else
-              notgood = notgood + 1
+              notgood = notgood + ione
            end if
 
 

@@ -79,7 +79,7 @@ subroutine setuprhsall(ndata,mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use constants, only: izero,zero
+  use constants, only: izero,ione,zero
   use guess_grids, only: load_prsges,load_geop_hgt
   use obsmod, only: nsat1,iadate,nobs_type,obscounts,&
        nchan_total,ndat,obs_setup,&
@@ -100,8 +100,8 @@ subroutine setuprhsall(ndata,mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
-  integer(i_kind),dimension(ndat,3),intent(in):: ndata
+  integer(i_kind)                  ,intent(in   ) :: mype
+  integer(i_kind),dimension(ndat,3),intent(in   ) :: ndata
 
 
 ! Delcare local variables
@@ -122,9 +122,9 @@ subroutine setuprhsall(ndata,mype)
   real(r_kind),dimension(7,jpch_rad):: stats,stats1
   real(r_kind),dimension(9,jpch_oz):: stats_oz,stats_oz1
   real(r_kind),dimension(npres_print,nconvtype,5,3):: bwork,bwork1
-  real(r_kind),dimension(7*nsig+100,13)::awork,awork1
-  real(r_kind),dimension(max(1,nprof_gps)):: toss_gps_sub
-  real(r_kind),dimension(max(1,nprof_gps)):: high_gps_sub
+  real(r_kind),dimension(7*nsig+100_i_kind,13)::awork,awork1
+  real(r_kind),dimension(max(ione,nprof_gps)):: toss_gps_sub
+  real(r_kind),dimension(max(ione,nprof_gps)):: high_gps_sub
   
 !******************************************************************************
 ! Initialize timer
@@ -132,7 +132,7 @@ subroutine setuprhsall(ndata,mype)
 
 ! Initialize variables and constants.
   first = jiter == jiterstart   ! .true. on first outer iter
-  last  = jiter == miter+1      ! .true. following last outer iter
+  last  = jiter == miter+ione   ! .true. following last outer iter
   llouter=.true.
 
 ! Set diagnostic output flag
@@ -149,19 +149,19 @@ subroutine setuprhsall(ndata,mype)
   toss_gps_sub=zero
   high_gps_sub=zero
 
-  i_ps = 1
-  i_uv = 2
-  i_t  = 3
-  i_q  = 4
-  i_pw = 5
-  i_rw = 6
-  i_dw = 7
-  i_srw= 8
-  i_gps= 9
-  i_sst= 10
-  i_o3 = 11
-  i_tcp= 12
-  i_lag= 13
+  i_ps = ione
+  i_uv = 2_i_kind
+  i_t  = 3_i_kind
+  i_q  = 4_i_kind
+  i_pw = 5_i_kind
+  i_rw = 6_i_kind
+  i_dw = 7_i_kind
+  i_srw= 8_i_kind
+  i_gps= 9_i_kind
+  i_sst= 10_i_kind
+  i_o3 = 11_i_kind
+  i_tcp= 12_i_kind
+  i_lag= 13_i_kind
 
   awork=zero
   bwork=zero
@@ -171,19 +171,19 @@ subroutine setuprhsall(ndata,mype)
 
 ! Read observation diagnostics if available
   if (l4dvar) then
-    getodiag=(.not.lobserver) .or. (lobserver.and.jiter>1)
-    clfile='obsdiags.ZZZ'
-    if (lobsensfc .and. .not.lsensrecompute) then
-      write(clfile(10:12),'(I3.3)') miter
-      call read_obsdiags(clfile)
-      call inquire_obsdiags(miter)
-    else if (getodiag) then
-      if (.not.lobserver) then
-        write(clfile(10:12),'(I3.3)') jiter
+     getodiag=(.not.lobserver) .or. (lobserver.and.jiter>1)
+     clfile='obsdiags.ZZZ'
+     if (lobsensfc .and. .not.lsensrecompute) then
+        write(clfile(10:12),'(I3.3)') miter
         call read_obsdiags(clfile)
         call inquire_obsdiags(miter)
-      endif
-    endif
+     else if (getodiag) then
+        if (.not.lobserver) then
+           write(clfile(10:12),'(I3.3)') jiter
+           call read_obsdiags(clfile)
+           call inquire_obsdiags(miter)
+        endif
+     endif
   endif
 
   if (allocated(obscounts)) then
@@ -192,10 +192,10 @@ subroutine setuprhsall(ndata,mype)
   end if
   allocate(obscounts(nobs_type,nobs_bins))
 
-  if (jiter>1.and.lobskeep) then
-    nobskeep=1
+  if (jiter>ione.and.lobskeep) then
+     nobskeep=ione
   else
-    nobskeep=0
+     nobskeep=izero
   endif
 
 ! The 3d pressure and geopotential grids are initially loaded at
@@ -208,7 +208,7 @@ subroutine setuprhsall(ndata,mype)
      call load_prsges
      call load_geop_hgt
 !    if (sfcmod_gfs .or. sfcmod_mm5) then
-!       if (mype==0) write(6,*)'COMPUTE_DERIVED:  call load_fact10'
+!       if (mype==izero) write(6,*)'COMPUTE_DERIVED:  call load_fact10'
 !       call load_fact10
 !    endif
   endif
@@ -218,136 +218,136 @@ subroutine setuprhsall(ndata,mype)
 
 ! Initialize observer for Lagrangian data
   if ( (l4dvar.and.lobserver) .or. .not.l4dvar ) then
-    ! Init for Lagrangian data assimilation (gather winds and NL integration)
-    call lag_presetup()
-    ! Save state for inner loop if in 4Dvar observer mode
-    if (l4dvar.and.lobserver) then
-      call lag_state_write()
-    end if
+     ! Init for Lagrangian data assimilation (gather winds and NL integration)
+     call lag_presetup()
+     ! Save state for inner loop if in 4Dvar observer mode
+     if (l4dvar.and.lobserver) then
+        call lag_state_write()
+     end if
   else
-    ! Init for Lagrangian data assimilation (read saved parameters)
-    call lag_state_read()
+     ! Init for Lagrangian data assimilation (read saved parameters)
+     call lag_state_read()
   end if
   ! ------------------------------------------------------------------------
 
   if ( (l4dvar.and.lobserver) .or. .not.l4dvar ) then
 
-! Reset observation pointers
-  do ii=1,nobs_bins
-    do jj=1,nobs_type
-      obsdiags(jj,ii)%tail => NULL()
-    enddo
-  enddo
+!    Reset observation pointers
+     do ii=1,nobs_bins
+        do jj=1,nobs_type
+           obsdiags(jj,ii)%tail => NULL()
+        enddo
+     enddo
 
-  lunin=1
-  open(lunin,file=obs_setup,form='unformatted')
-  rewind lunin
-
+     lunin=ione
+     open(lunin,file=obs_setup,form='unformatted')
+     rewind lunin
+ 
   
-! If requested, create conventional diagnostic files
-  if(conv_diagsave)then
-     write(string,900) jiter
-900  format('conv_',i2.2)
-     diag_conv_file=trim(dirname) // trim(string)
-     open(7,file=trim(diag_conv_file),form='unformatted')
-     rewind 7
-     idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
-     if(mype == 0)write(7)idate
-  end if
+!    If requested, create conventional diagnostic files
+     if(conv_diagsave)then
+        write(string,900) jiter
+900     format('conv_',i2.2)
+        diag_conv_file=trim(dirname) // trim(string)
+        open(7,file=trim(diag_conv_file),form='unformatted')
+        rewind 7
+        idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
+        if(mype == izero)write(7)idate
+     end if
 
 
 ! Loop over data types to process
   do is=1,ndat
      nobs=nsat1(is)
 
-     if(nobs > 0)then
+     if(nobs > izero)then
 
-       read(lunin,end=125) obstype,isis,nreal,nchanl
-       nele=nreal+nchanl
+        read(lunin,end=125) obstype,isis,nreal,nchanl
+        nele=nreal+nchanl
 
-!      Set up for radiance data
-       if(ditype(is) == 'rad')then
+!       Set up for radiance data
+        if(ditype(is) == 'rad')then
 
-          call setuprad(lunin,&
-             mype,aivals,stats,nchanl,nreal,nobs,&
-             obstype,isis,is,rad_diagsave)
+           call setuprad(lunin,&
+              mype,aivals,stats,nchanl,nreal,nobs,&
+              obstype,isis,is,rad_diagsave)
 
-!      Set up for precipitation data
-       else if(ditype(is) == 'pcp')then
-          call setuppcp(lunin,mype,&
-             aivals,nele,nobs,obstype,isis,is,pcp_diagsave)
+!       Set up for precipitation data
+        else if(ditype(is) == 'pcp')then
+           call setuppcp(lunin,mype,&
+              aivals,nele,nobs,obstype,isis,is,pcp_diagsave)
 
-!      Set up temperature data
-       else if(ditype(is) == 'conv')then
-          if(obstype=='t')then
-             call setupt(lunin,mype,bwork,awork(1,i_t),nele,nobs,conv_diagsave)
+!       Set up temperature data
+        else if(ditype(is) == 'conv')then
+           if(obstype=='t')then
+              call setupt(lunin,mype,bwork,awork(1,i_t),nele,nobs,conv_diagsave)
 
-!         Set up uv wind data
-          else if(obstype=='uv')then
-             call setupw(lunin,mype,bwork,awork(1,i_uv),nele,nobs,conv_diagsave)
+!          Set up uv wind data
+           else if(obstype=='uv')then
+              call setupw(lunin,mype,bwork,awork(1,i_uv),nele,nobs,conv_diagsave)
 
-!         Set up wind speed data
-          else if(obstype=='spd')then
-            call setupspd(lunin,mype,bwork,awork(1,i_uv),nele,nobs,conv_diagsave)
+!          Set up wind speed data
+           else if(obstype=='spd')then
+              call setupspd(lunin,mype,bwork,awork(1,i_uv),nele,nobs,conv_diagsave)
 
-!         Set up surface pressure data
-          else if(obstype=='ps')then
-             call setupps(lunin,mype,bwork,awork(1,i_ps),nele,nobs,conv_diagsave)
+!          Set up surface pressure data
+           else if(obstype=='ps')then
+              call setupps(lunin,mype,bwork,awork(1,i_ps),nele,nobs,conv_diagsave)
 
-!         Set up tc-mslp data
-          else if(obstype=='tcp')then
-             call setuptcp(lunin,mype,bwork,awork(1,i_tcp),nele,nobs)
+!          Set up tc-mslp data
+           else if(obstype=='tcp')then
+              call setuptcp(lunin,mype,bwork,awork(1,i_tcp),nele,nobs)
 
-!         Set up moisture data
-          else if(obstype=='q') then
-             call setupq(lunin,mype,bwork,awork(1,i_q),nele,nobs,conv_diagsave)
+!          Set up moisture data
+           else if(obstype=='q') then
+              call setupq(lunin,mype,bwork,awork(1,i_q),nele,nobs,conv_diagsave)
 
-!         Set up lidar wind data
-          else if(obstype=='dw')then
-             call setupdw(lunin,mype,bwork,awork(1,i_dw),nele,nobs,conv_diagsave)
+!          Set up lidar wind data
+           else if(obstype=='dw')then
+              call setupdw(lunin,mype,bwork,awork(1,i_dw),nele,nobs,conv_diagsave)
 
-!         Set up radar wind data
-          else if(obstype=='rw')then
-             call setuprw(lunin,mype,bwork,awork(1,i_rw),nele,nobs,conv_diagsave)
+!          Set up radar wind data
+           else if(obstype=='rw')then
+              call setuprw(lunin,mype,bwork,awork(1,i_rw),nele,nobs,conv_diagsave)
 
-!         Set up total precipitable water (total column water) data
-          else if(obstype=='pw')then
-             call setuppw(lunin,mype,bwork,awork(1,i_pw),nele,nobs,conv_diagsave)
+!          Set up total precipitable water (total column water) data
+           else if(obstype=='pw')then
+              call setuppw(lunin,mype,bwork,awork(1,i_pw),nele,nobs,conv_diagsave)
 
-!         Set up superob radar wind data
-          else if(obstype=='srw')then
-             call setupsrw(lunin,mype,bwork,awork(1,i_srw),nele,nobs,conv_diagsave)
+!          Set up superob radar wind data
+           else if(obstype=='srw')then
+              call setupsrw(lunin,mype,bwork,awork(1,i_srw),nele,nobs,conv_diagsave)
 
-!         Set up conventional sst data
-          else if(obstype=='sst') then 
-             call setupsst(lunin,mype,bwork,awork(1,i_sst),nele,nobs,conv_diagsave)
+!          Set up conventional sst data
+           else if(obstype=='sst') then 
+              call setupsst(lunin,mype,bwork,awork(1,i_sst),nele,nobs,conv_diagsave)
 
-!         Set up conventional lagrangian data
-          else if(obstype=='lag') then 
-             call setuplag(lunin,mype,bwork,awork(1,i_lag),nele,nobs,conv_diagsave)
+!          Set up conventional lagrangian data
+           else if(obstype=='lag') then 
+              call setuplag(lunin,mype,bwork,awork(1,i_lag),nele,nobs,conv_diagsave)
 
-          end if
+           end if
 
-!      Set up ozone (sbuv/omi/mls) data
-       else if(ditype(is) == 'ozone')then
-          if (obstype == 'mlsoz') then
-             call setupo3lv(lunin,mype,bwork,awork(1,i_o3),nele,nobs,&
-                  isis,is,obstype,ozone_diagsave)
-          else
-             call setupoz(lunin,mype,stats_oz,nchanl,nreal,nobs,&
-                  obstype,isis,is,ozone_diagsave)
-          end if
+!       Set up ozone (sbuv/omi/mls) data
+        else if(ditype(is) == 'ozone')then
+           if (obstype == 'mlsoz') then
+              call setupo3lv(lunin,mype,bwork,awork(1,i_o3),nele,nobs,&
+                   isis,is,obstype,ozone_diagsave)
+           else
+              call setupoz(lunin,mype,stats_oz,nchanl,nreal,nobs,&
+                   obstype,isis,is,ozone_diagsave)
+           end if
 
-!      Set up GPS local refractivity data
-       else if(ditype(is) == 'gps')then
-          if(obstype=='gps_ref')then
-             call setupref(lunin,mype,awork(1,i_gps),nele,nobs,toss_gps_sub,high_gps_sub)
+!       Set up GPS local refractivity data
+        else if(ditype(is) == 'gps')then
+           if(obstype=='gps_ref')then
+              call setupref(lunin,mype,awork(1,i_gps),nele,nobs,toss_gps_sub,high_gps_sub)
 
-!         Set up GPS local bending angle data
-          else if(obstype=='gps_bnd')then
-             call setupbend(lunin,mype,awork(1,i_gps),nele,nobs,toss_gps_sub)
-          end if
-       end if
+!          Set up GPS local bending angle data
+           else if(obstype=='gps_bnd')then
+              call setupbend(lunin,mype,awork(1,i_gps),nele,nobs,toss_gps_sub)
+           end if
+        end if
 
      end if
 
@@ -389,7 +389,7 @@ subroutine setuprhsall(ndata,mype)
   call mpi_allreduce(bwork,bwork1,npres_print*nconvtype*5*3,mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)
   
-  call mpi_allreduce(awork,awork1,13*(7*nsig+100),mpi_rtype,mpi_sum, &
+  call mpi_allreduce(awork,awork1,13*(7*nsig+100_i_kind),mpi_rtype,mpi_sum, &
        mpi_comm_world,ierror)
 
 ! Compute and print statistics for radiance, precipitation, and ozone data.
@@ -398,35 +398,35 @@ subroutine setuprhsall(ndata,mype)
 
   if ( (l4dvar.and.lobserver) .or. .not.l4dvar ) then
 
-  if (.not.twodvar_regional) then
+     if (.not.twodvar_regional) then
 
-!    Compute and print statistics for radiance data
-     if(mype==mype_rad) call statsrad(aivals1,stats1,ndata)
+!       Compute and print statistics for radiance data
+        if(mype==mype_rad) call statsrad(aivals1,stats1,ndata)
 
-!    Compute and print statistics for precipitation data
-     if(mype==mype_rad) call statspcp(aivals1,ndata)
+!       Compute and print statistics for precipitation data
+        if(mype==mype_rad) call statspcp(aivals1,ndata)
 
-!    Compute and print statistics for ozone
-     if (mype==mype_oz) call statsoz(stats_oz1,bwork1,awork1(1,i_o3),ndata)
+!       Compute and print statistics for ozone
+        if (mype==mype_oz) call statsoz(stats_oz1,bwork1,awork1(1,i_o3),ndata)
 
-  endif
+     endif
 
-! Compute and print statistics for "conventional" data
-  call statsconv(mype,&
-       i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
-       bwork1,awork1,ndata)
+!    Compute and print statistics for "conventional" data
+     call statsconv(mype,&
+          i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
+          bwork1,awork1,ndata)
 
   endif  ! < .not. lobserver >
 
 ! Print Jo table
-  nprt=2
+  nprt=2_i_kind
   llouter=.true.
   call evaljo(zjo,iobs,nprt,llouter)
 
 ! If only performing sst retrieval, end program execution
   if(retrieval)then
      deallocate(fbias)
-     if(mype==0)then
+     if(mype==izero)then
         write(6,*)'SETUPRHSALL:  normal completion for retrieval'
         call w3tage('GLOBAL_SSI')
      end if

@@ -49,8 +49,8 @@ subroutine obs_para(ndata,mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                  ,intent(in) :: mype
-  integer(i_kind),dimension(ndat,3),intent(in) :: ndata
+  integer(i_kind)                  ,intent(in   ) :: mype
+  integer(i_kind),dimension(ndat,3),intent(in   ) :: ndata
 
 ! Declare local variables
   integer(i_kind) lunout,is,ii
@@ -80,16 +80,16 @@ subroutine obs_para(ndata,mype)
         ndatax_all=ndatax_all + ndata(is,1)
 
         if (dtype(is)=='lag') then    ! lagrangian data
-          call dislag(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is),&
-               nobs_s)
+           call dislag(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is),&
+                nobs_s)
         else                          ! classical observations
-          call disobs(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is), &
-                mype_diaghdr(is),nobs_s)
+           call disobs(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is), &
+                 mype_diaghdr(is),nobs_s)
         end if
         nsat1(is)=nobs_s(mm1)
         if(mm1 == npe)then
-            write(6,1000)dtype(is),dplat(is),(nobs_s(ii),ii=1,npe)
-1000        format('OBS_PARA: ',2A10,8I10,/,(10X,10I10))
+           write(6,1000)dtype(is),dplat(is),(nobs_s(ii),ii=1,npe)
+1000       format('OBS_PARA: ',2A10,8I10,/,(10X,10I10))
         end if
         
      end if
@@ -212,18 +212,18 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
 
      klim=max(mm1,mype_diag)
      do k=1,klim
-       if(lat>=ibs(k).and.lat<=ibn(k)) then
-         lon=obs_data(lon_data,n)
-         lon=min(max(izero,lon),nlon)
-         if((lon >= ibw(k).and. lon <=ibe(k))  .or.  &
-               (lon == izero   .and. ibe(k) >=nlon) .or.  &
-               (lon == nlon    .and. ibw(k) <=ione) .or. periodic_s(k)) then
-                nobs_s(k)=nobs_s(k)+ione
-                nprocs(n)=min(nprocs(n),k)
-                mype_diag=min(mype_diag,k-ione)
-                if(k == mm1)luse(n)=.true.
-         end if
-       end if
+        if(lat>=ibs(k).and.lat<=ibn(k)) then
+           lon=obs_data(lon_data,n)
+           lon=min(max(izero,lon),nlon)
+           if((lon >= ibw(k).and. lon <=ibe(k))  .or.  &
+              (lon == izero   .and. ibe(k) >=nlon) .or.  &
+              (lon == nlon    .and. ibw(k) <=ione) .or. periodic_s(k)) then
+              nobs_s(k)=nobs_s(k)+ione
+              nprocs(n)=min(nprocs(n),k)
+              mype_diag=min(mype_diag,k-ione)
+              if(k == mm1)luse(n)=.true.
+           end if
+        end if
      end do
   end do 
   ndata_s = nobs_s(mm1)
@@ -234,16 +234,16 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
      ndatax=izero
      do n=1,ndata
 
-       if(luse(n))then
+        if(luse(n))then
 
-          ndatax=ndatax+ione
-          luse_s(ndatax)= mm1 == nprocs(n)
+           ndatax=ndatax+ione
+           luse_s(ndatax)= mm1 == nprocs(n)
 
-          do jj= 1,nn_obs
-            data1_s(jj,ndatax) = obs_data(jj,n)
-          end do
+           do jj= 1,nn_obs
+              data1_s(jj,ndatax) = obs_data(jj,n)
+           end do
 
-       end if
+        end if
 
      end do
 
@@ -294,10 +294,10 @@ subroutine dislag(ndata,mm1,lunout,obsfile,obstypeall,ndata_s)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in   ):: ndata,lunout,mm1
-  integer(i_kind),intent(inout):: ndata_s
-  character(14)  ,intent(in   ):: obsfile
-  character(10)  ,intent(in   ):: obstypeall
+  integer(i_kind),intent(in   ) :: ndata,lunout,mm1
+  integer(i_kind),intent(inout) :: ndata_s
+  character(14)  ,intent(in   ) :: obsfile
+  character(10)  ,intent(in   ) :: obstypeall
 
 ! Declare local variables
   integer(i_kind) num_data,n,lunin,num
@@ -330,13 +330,13 @@ subroutine dislag(ndata,mm1,lunout,obsfile,obstypeall,ndata_s)
 ! to subdomains.
   use: do n=1,ndata
 
-!   Does the observation belong to the subdomain for this task?
-    num=int(obs_data(num_data,n),i_kind)  
-    if ((mm1-ione)==orig_lag_num(num,2)) then
-      ndata_s=ndata_s+ione
-      luse(n)=.true.
-      luse_x(n)=.true.  ! Never on another subdomain
-    end if
+!    Does the observation belong to the subdomain for this task?
+     num=int(obs_data(num_data,n),i_kind)  
+     if ((mm1-ione)==orig_lag_num(num,2)) then
+        ndata_s=ndata_s+ione
+        luse(n)=.true.
+        luse_x(n)=.true.  ! Never on another subdomain
+     end if
 
   end do use
 
@@ -345,16 +345,16 @@ subroutine dislag(ndata,mm1,lunout,obsfile,obstypeall,ndata_s)
      ndatax=izero
      do n=1,ndata
 
-       if(luse(n))then
+        if(luse(n))then
 
-          ndatax=ndatax+ione
-          luse_s(ndatax)=luse_x(n)
+           ndatax=ndatax+ione
+           luse_s(ndatax)=luse_x(n)
+ 
+           do jj= 1,nn_obs
+              data1_s(jj,ndatax) = obs_data(jj,n)
+           end do
 
-          do jj= 1,nn_obs
-            data1_s(jj,ndatax) = obs_data(jj,n)
-          end do
-
-       end if
+        end if
 
      end do
 

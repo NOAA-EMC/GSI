@@ -26,6 +26,7 @@ module phil1
 use kinds, only: r_kind,i_kind
 
 implicit none
+
 private
 public getvalsets
 interface getvalsets; module procedure getvalsets_s; end interface
@@ -80,12 +81,12 @@ subroutine getvalsets_s(nob, mskip,xhskip,xh,next, firsta,firstb)
 use constants, only: izero,ione
 implicit none
 
-integer(i_kind),                  intent(IN   ):: nob,mskip
-real(r_kind),                     intent(IN   ):: xhskip
-real(r_kind),dimension(nob),      intent(IN   ):: xh
-integer(i_kind), dimension(nob),  intent(INOUT):: next
-integer(i_kind),                  intent(INOUT):: firsta
-integer(i_kind), dimension(mskip),intent(  OUT):: firstb
+integer(i_kind),                  intent(IN   ) :: nob,mskip
+real(r_kind),                     intent(IN   ) :: xhskip
+real(r_kind),dimension(nob),      intent(IN   ) :: xh
+integer(i_kind), dimension(nob),  intent(INOUT) :: next
+integer(i_kind),                  intent(INOUT) :: firsta
+integer(i_kind), dimension(mskip),intent(  OUT) :: firstb
 !-----------------------------------------------------------------------------
 integer(i_kind)                                :: iskip,jskip,this_old_a,this_new_a &
                                          ,icycle,itrial

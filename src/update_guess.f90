@@ -109,27 +109,27 @@ subroutine update_guess(sval,sbias)
 
 ! Initialize local arrays
   if (regional) then
-   do ii=1,nobs_bins
-     ijk=izero
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              ijk=ijk+ione
-              sval(ii)%oz(ijk)=zero
-              sval(ii)%cw(ijk)=zero
+     do ii=1,nobs_bins
+        ijk=izero
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 ijk=ijk+ione
+                 sval(ii)%oz(ijk)=zero
+                 sval(ii)%cw(ijk)=zero
+              end do
            end do
         end do
      end do
-   end do
   endif
 
 ! Add increment to background
   do it=1,nfldsig
      if (nobs_bins>ione) then
-       zt = hrdifsig(it)
-       ii = NINT(zt/hr_obsbin)+ione
+        zt = hrdifsig(it)
+        ii = NINT(zt/hr_obsbin)+ione
      else
-       ii = ione
+        ii = ione
      endif
      ijk=izero
      do k=1,nsig
@@ -140,13 +140,13 @@ subroutine update_guess(sval,sbias)
               ges_v(i,j,k,it)    =                 ges_v(i,j,k,it)    + sval(ii)%v(ijk)
               ges_q(i,j,k,it)    =             max(ges_q(i,j,k,it)    + sval(ii)%q(ijk),1.e-10_r_kind) 
               if (.not.twodvar_regional .or. .not.tsensible) then
-                ges_tv(i,j,k,it)   =                ges_tv(i,j,k,it)   + sval(ii)%t(ijk)
+                 ges_tv(i,j,k,it)   =              ges_tv(i,j,k,it)   + sval(ii)%t(ijk)
 !  produce sensible temperature
-                ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*ges_q(i,j,k,it))
+                 ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*ges_q(i,j,k,it))
               else
-                ges_tsen(i,j,k,it) =                ges_tsen(i,j,k,it)   + sval(ii)%t(ijk)
+                 ges_tsen(i,j,k,it) =              ges_tsen(i,j,k,it) + sval(ii)%t(ijk)
 !  produce virtual temperature
-                ges_tv(i,j,k,it)   = ges_tsen(i,j,k,it)*(one+fv*ges_q(i,j,k,it))
+                 ges_tv(i,j,k,it)   = ges_tsen(i,j,k,it)*(one+fv*ges_q(i,j,k,it))
               endif
 
 !             Note:  Below variables only used in NCEP GFS model
@@ -168,10 +168,10 @@ subroutine update_guess(sval,sbias)
 
   do k=1,nfldsfc
      if (nobs_bins>ione) then
-       zt = hrdifsfc(it)
-       ii = NINT(zt/hr_obsbin)+ione
+        zt = hrdifsfc(it)
+        ii = NINT(zt/hr_obsbin)+ione
      else
-       ii = ione
+        ii = ione
      endif
      ij=izero
      do j=1,lon2
@@ -186,7 +186,7 @@ subroutine update_guess(sval,sbias)
 ! If requested, update background bias correction
   if (biascor >= zero) then
      if (mype==izero) write(iout_iter,*) &
-          'UPDATE_GUESS:  update background bias correction.  biascor=',biascor
+        'UPDATE_GUESS:  update background bias correction.  biascor=',biascor
 
 !    Update bias correction field
 

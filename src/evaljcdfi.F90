@@ -32,9 +32,9 @@ use state_vectors
 implicit none
 
 ! Declare passed variables
-type(state_vector), intent(in)    :: svalue(nobs_bins)
+type(state_vector), intent(in   ) :: svalue(nobs_bins)
 type(state_vector), intent(inout) :: rvalue(nobs_bins)
-real(r_quad), intent(out):: pjc
+real(r_quad)      , intent(  out) :: pjc
 
 ! Declare local variables
 integer(i_kind) :: jj,idfi
@@ -50,7 +50,7 @@ call allocate_state(afilter)
 ! Compute filtered state
 sfilter=zero
 do jj=1,nobs_bins
-  call self_add(sfilter,wgtdfi(jj),svalue(jj))
+   call self_add(sfilter,wgtdfi(jj),svalue(jj))
 enddo
 
 ! Compute difference from filtered state
@@ -74,7 +74,7 @@ call self_add(rvalue(idfi),-one,afilter)
 
 ! Compute filtered state
 do jj=1,nobs_bins
-  call self_add(rvalue(jj),wgtdfi(jj),afilter)
+   call self_add(rvalue(jj),wgtdfi(jj),afilter)
 enddo
 
 call deallocate_state(sfilter)

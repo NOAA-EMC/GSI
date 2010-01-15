@@ -23,8 +23,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
   use guess_grids, only: ges_u,ges_v,tropprs,ges_ps,ges_z,sfcmod_mm5
   use guess_grids, only: ges_tv,ges_lnprsl,comp_fact10,pt_ll
-  use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
-           three,rd,grav,four,five,huge_single,r1000,wgtlim,izero
+  use constants, only: izero,ione,zero,half,one,tiny_r_kind,two,cg_term, &
+           three,rd,grav,four,five,huge_single,r1000,wgtlim
   use constants, only: grav_ratio,flattening,deg2rad, &
        grav_equator,somigliana,semi_major_axis,eccentricity
   use jfunc, only: jiter,last,jiterstart,miter
@@ -36,16 +36,16 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   
 ! !INPUT PARAMETERS:
 
-   integer(i_kind),intent(in) :: lunin ! unit from which to read observations
-   integer(i_kind),intent(in) :: mype  ! mpi task id
-   integer(i_kind),intent(in) :: nele  ! number of data elements per observation
-   integer(i_kind),intent(in) :: nobs  ! number of observations
-   logical,intent(in) :: conv_diagsave ! logical to save innovation dignostics
+   integer(i_kind)                                  ,intent(in   ) :: lunin ! unit from which to read observations
+   integer(i_kind)                                  ,intent(in   ) :: mype  ! mpi task id
+   integer(i_kind)                                  ,intent(in   ) :: nele  ! number of data elements per observation
+   integer(i_kind)                                  ,intent(in   ) :: nobs  ! number of observations
+   logical                                          ,intent(in   ) :: conv_diagsave ! logical to save innovation dignostics
    
 ! !INPUT/OUTPUT PARAMETERS:
 
    real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork ! obs-ges stats
-   real(r_kind),dimension(100+7*nsig),intent(inout) :: awork ! data counts and gross checks
+   real(r_kind),dimension(100_i_kind+7*nsig)        ,intent(inout) :: awork ! data counts and gross checks
 
 !
 ! !DESCRIPTION:  For wind component observations, this routine
@@ -170,30 +170,30 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   read(lunin)data,luse
 
 !    index information for data array (see reading routine)
-  ier=1       ! index of obs error
-  ilon=2      ! index of grid relative obs location (x)
-  ilat=3      ! index of grid relative obs location (y)
-  ipres=4     ! index of pressure
-  ihgt=5      ! index of height
-  iuob=6      ! index of u observation
-  ivob=7      ! index of v observation
-  id=8        ! index of station id
-  itime=9     ! index of observation time in data array
-  ikxx=10     ! index of ob type
-  ielev=11    ! index of station elevation
-  iqc=12      ! index of quality mark
-  ier2=13     ! index of original-original obs error ratio
-  iuse=14     ! index of use parameter
-  idomsfc=15  ! index of dominant surface type
-  iskint=16   ! index of surface skin temperature
-  iff10=17    ! index of 10 meter wind factor
-  isfcr=18    ! index of surface roughness
-  ilone=19    ! index of longitude (degrees)
-  ilate=20    ! index of latitude (degrees)
-  iptrbu=21   ! index of u perturbation
-  iptrbv=22   ! index of v perturbation
+  ier=ione           ! index of obs error
+  ilon=2_i_kind      ! index of grid relative obs location (x)
+  ilat=3_i_kind      ! index of grid relative obs location (y)
+  ipres=4_i_kind     ! index of pressure
+  ihgt=5_i_kind      ! index of height
+  iuob=6_i_kind      ! index of u observation
+  ivob=7_i_kind      ! index of v observation
+  id=8_i_kind        ! index of station id
+  itime=9_i_kind     ! index of observation time in data array
+  ikxx=10_i_kind     ! index of ob type
+  ielev=11_i_kind    ! index of station elevation
+  iqc=12_i_kind      ! index of quality mark
+  ier2=13_i_kind     ! index of original-original obs error ratio
+  iuse=14_i_kind     ! index of use parameter
+  idomsfc=15_i_kind  ! index of dominant surface type
+  iskint=16_i_kind   ! index of surface skin temperature
+  iff10=17_i_kind    ! index of 10 meter wind factor
+  isfcr=18_i_kind    ! index of surface roughness
+  ilone=19_i_kind    ! index of longitude (degrees)
+  ilate=20_i_kind    ! index of latitude (degrees)
+  iptrbu=21_i_kind   ! index of u perturbation
+  iptrbv=22_i_kind   ! index of v perturbation
 
-  mm1=mype+1
+  mm1=mype+ione
   scale=one
   rsig=nsig
   thirty = 30.0_r_kind
@@ -204,360 +204,360 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
-     ii=0
-     nchar=1
-     nreal=23
-     if (lobsdiagsave) nreal=nreal+7*miter+2
+     ii=izero
+     nchar=ione
+     nreal=23_i_kind
+     if (lobsdiagsave) nreal=nreal+7*miter+2_i_kind
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
 
   do i=1,nobs
-    muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter
   end do
 
   dup=one
   do k=1,nobs
-     do l=k+1,nobs
+     do l=k+ione,nobs
         if(data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
            data(ipres,k)== data(ipres,l) .and. &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
            muse(l) .and. muse(k))then
 
-             tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-             dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-             dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
+           tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
+           dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
+           dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
 
         end if
      end do
   end do
 
   do i=1,nobs
-    dlat=data(ilat,i)
-    dlon=data(ilon,i)
-    dtime=data(itime,i)
-    error=data(ier2,i)
-    ikx=nint(data(ikxx,i))
-    isli = data(idomsfc,i)
+     dlat=data(ilat,i)
+     dlon=data(ilon,i)
+     dtime=data(itime,i)
+     error=data(ier2,i)
+     ikx=nint(data(ikxx,i))
+     isli = data(idomsfc,i)
 
 !    Link observation to appropriate observation bin
-     if (nobs_bins>1) then
-       ibin = NINT( dtime/hr_obsbin ) + 1
+     if (nobs_bins>ione) then
+        ibin = NINT( dtime/hr_obsbin ) + ione
      else
-       ibin = 1
+        ibin = ione
      endif
-     IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+     IF (ibin<ione.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
      do jj=1,2
-       if (.not.lobsdiag_allocated) then
-         if (.not.associated(obsdiags(i_w_ob_type,ibin)%head)) then
-           allocate(obsdiags(i_w_ob_type,ibin)%head,stat=istat)
-           if (istat/=0) then
-             write(6,*)'setupw: failure to allocate obsdiags',istat
-             call stop2(304)
+        if (.not.lobsdiag_allocated) then
+           if (.not.associated(obsdiags(i_w_ob_type,ibin)%head)) then
+              allocate(obsdiags(i_w_ob_type,ibin)%head,stat=istat)
+              if (istat/=izero) then
+                 write(6,*)'setupw: failure to allocate obsdiags',istat
+                 call stop2(304)
+              end if
+              obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%head
+           else
+              allocate(obsdiags(i_w_ob_type,ibin)%tail%next,stat=istat)
+              if (istat/=izero) then
+                 write(6,*)'setupw: failure to allocate obsdiags',istat
+                 call stop2(305)
+              end if
+              obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%head
-         else
-           allocate(obsdiags(i_w_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=0) then
-             write(6,*)'setupw: failure to allocate obsdiags',istat
-             call stop2(305)
+           allocate(obsdiags(i_w_ob_type,ibin)%tail%muse(miter+ione))
+           allocate(obsdiags(i_w_ob_type,ibin)%tail%nldepart(miter+ione))
+           allocate(obsdiags(i_w_ob_type,ibin)%tail%tldepart(miter))
+           allocate(obsdiags(i_w_ob_type,ibin)%tail%obssen(miter))
+           obsdiags(i_w_ob_type,ibin)%tail%indxglb=i
+           obsdiags(i_w_ob_type,ibin)%tail%nchnperobs=-99999_i_kind
+           obsdiags(i_w_ob_type,ibin)%tail%luse=.false.
+           obsdiags(i_w_ob_type,ibin)%tail%muse(:)=.false.
+           obsdiags(i_w_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+           obsdiags(i_w_ob_type,ibin)%tail%tldepart(:)=zero
+           obsdiags(i_w_ob_type,ibin)%tail%wgtjo=-huge(zero)
+           obsdiags(i_w_ob_type,ibin)%tail%obssen(:)=zero
+        else
+           if (.not.associated(obsdiags(i_w_ob_type,ibin)%tail)) then
+              obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%head
+           else
+              obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%tail%next
-         end if
-         allocate(obsdiags(i_w_ob_type,ibin)%tail%muse(miter+1))
-         allocate(obsdiags(i_w_ob_type,ibin)%tail%nldepart(miter+1))
-         allocate(obsdiags(i_w_ob_type,ibin)%tail%tldepart(miter))
-         allocate(obsdiags(i_w_ob_type,ibin)%tail%obssen(miter))
-         obsdiags(i_w_ob_type,ibin)%tail%indxglb=i
-         obsdiags(i_w_ob_type,ibin)%tail%nchnperobs=-99999
-         obsdiags(i_w_ob_type,ibin)%tail%luse=.false.
-         obsdiags(i_w_ob_type,ibin)%tail%muse(:)=.false.
-         obsdiags(i_w_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-         obsdiags(i_w_ob_type,ibin)%tail%tldepart(:)=zero
-         obsdiags(i_w_ob_type,ibin)%tail%wgtjo=-huge(zero)
-         obsdiags(i_w_ob_type,ibin)%tail%obssen(:)=zero
-       else
-         if (.not.associated(obsdiags(i_w_ob_type,ibin)%tail)) then
-           obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%head
-         else
-           obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%tail%next
-         end if
-         if (obsdiags(i_w_ob_type,ibin)%tail%indxglb/=i) then
-           write(6,*)'setupw: index error'
-           call stop2(306)
-         end if
-       endif
-       if (jj==1) obsptr => obsdiags(i_w_ob_type,ibin)%tail
+           if (obsdiags(i_w_ob_type,ibin)%tail%indxglb/=i) then
+              write(6,*)'setupw: index error'
+              call stop2(306)
+           end if
+        endif
+        if (jj==ione) obsptr => obsdiags(i_w_ob_type,ibin)%tail
      enddo
 
-!   Load observation error and values into local variables
-    obserror = max(cermin(ikx),min(cermax(ikx),data(ier,i)))
-    uob = data(iuob,i)
-    vob = data(ivob,i)
-    spdob=sqrt(uob*uob+vob*vob)
-    call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-         1,1,mype,nfldsig)
-    call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-         1,nsig,mype,nfldsig)
+!    Load observation error and values into local variables
+     obserror = max(cermin(ikx),min(cermax(ikx),data(ier,i)))
+     uob = data(iuob,i)
+     vob = data(ivob,i)
+     spdob=sqrt(uob*uob+vob*vob)
+     call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+          ione,ione,mype,nfldsig)
+     call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          ione,nsig,mype,nfldsig)
 
-    itype=ictype(ikx)
+     itype=ictype(ikx)
 
-!   Type 221=pibal winds contain a mixture of wind observations reported
-!   by pressure and others by height.  Those levels only reported by 
-!   pressure have a missing value (ie, large) value for the reported 
-!   height.  The logic below determines whether to process type 221 
-!   wind observations using height or pressure as the vertical coordinate.
-!   If height is not bad (less than 1e10), we use height in the
-!   forward model.  Otherwise, use reported pressure.
+!    Type 221=pibal winds contain a mixture of wind observations reported
+!    by pressure and others by height.  Those levels only reported by 
+!    pressure have a missing value (ie, large) value for the reported 
+!    height.  The logic below determines whether to process type 221 
+!    wind observations using height or pressure as the vertical coordinate.
+!    If height is not bad (less than 1e10), we use height in the
+!    forward model.  Otherwise, use reported pressure.
 
-    z_height = .false.
-    if ((itype>=221 .and. itype <= 229) .and. (data(ihgt,i)<r1e10)) z_height = .true.
+     z_height = .false.
+     if ((itype>=221_i_kind .and. itype <= 229_i_kind) .and. (data(ihgt,i)<r1e10)) z_height = .true.
 
-!   Process observations reported with height differently than those
-!   reported with pressure.  Type 223=profiler and 224=vadwnd are 
-!   encoded in NCEP prepbufr files with geometric height above 
-!   sea level.  Type 229=pibal profiler is reported using 
-!   geopotenital height.  Some type 221=pibal wind observations are
-!   also repoted using geopotential height.
+!    Process observations reported with height differently than those
+!    reported with pressure.  Type 223=profiler and 224=vadwnd are 
+!    encoded in NCEP prepbufr files with geometric height above 
+!    sea level.  Type 229=pibal profiler is reported using 
+!    geopotenital height.  Some type 221=pibal wind observations are
+!    also repoted using geopotential height.
 
-    sfc_data = (itype >=280 .and. itype < 300) .and. (.not.twodvar_regional)
-    if (z_height .or. sfc_data) then
+     sfc_data = (itype >=280_i_kind .and. itype < 300_i_kind) .and. (.not.twodvar_regional)
+     if (z_height .or. sfc_data) then
 
-       drpx = zero
-       dpres = data(ihgt,i)
-       dstn = data(ielev,i)
-       call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-            1,1,mype,nfldsig)
-!      Subtract off combination of surface station elevation and
-!      model elevation depending on how close to surface
-       fact = zero
-       if(dpres-dstn > 10._r_kind)then
-         if(dpres-dstn > r1000)then
-            fact = one
-         else
-            fact=(dpres-dstn)/990._r_kind
-         end if
-       end if
-       dpres=dpres-(dstn+fact*(zsges-dstn))
+        drpx = zero
+        dpres = data(ihgt,i)
+        dstn = data(ielev,i)
+        call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
+             ione,ione,mype,nfldsig)
+!       Subtract off combination of surface station elevation and
+!       model elevation depending on how close to surface
+        fact = zero
+        if(dpres-dstn > 10._r_kind)then
+           if(dpres-dstn > r1000)then
+              fact = one
+           else
+              fact=(dpres-dstn)/990._r_kind
+           end if
+        end if
+        dpres=dpres-(dstn+fact*(zsges-dstn))
 
-!      Get guess surface elevation and geopotential height profile 
-!      at observation location.
-       call tintrp2a(geop_hgtl,zges,dlat,dlon,dtime,hrdifsig,&
-            1,nsig,mype,nfldsig)
+!       Get guess surface elevation and geopotential height profile 
+!       at observation location.
+        call tintrp2a(geop_hgtl,zges,dlat,dlon,dtime,hrdifsig,&
+             ione,nsig,mype,nfldsig)
 
-!      For observation reported with geometric height above sea level,
-!      convert geopotential to geometric height.
+!       For observation reported with geometric height above sea level,
+!       convert geopotential to geometric height.
 
-       if ((itype>=223 .and. itype<=228) .or. sfc_data) then
-!         Convert geopotential height at layer midpoints to geometric 
-!         height using equations (17, 20, 23) in MJ Mahoney's note 
-!         "A discussion of various measures of altitude" (2001).  
-!         Available on the web at
-!         http://mtp.jpl.nasa.gov/notes/altitude/altitude.html
+        if ((itype>=223_i_kind .and. itype<=228_i_kind) .or. sfc_data) then
+!          Convert geopotential height at layer midpoints to geometric 
+!          height using equations (17, 20, 23) in MJ Mahoney's note 
+!          "A discussion of various measures of altitude" (2001).  
+!          Available on the web at
+!          http://mtp.jpl.nasa.gov/notes/altitude/altitude.html
 !
-!         termg  = equation 17
-!         termr  = equation 21
-!         termrg = first term in the denominator of equation 23
-!         zges  = equation 23
+!          termg  = equation 17
+!          termr  = equation 21
+!          termrg = first term in the denominator of equation 23
+!          zges  = equation 23
+
+           slat = data(ilate,i)*deg2rad
+           sin2  = sin(slat)*sin(slat)
+           termg = grav_equator * &
+                ((one+somigliana*sin2)/sqrt(one-eccentricity*eccentricity*sin2))
+           termr = semi_major_axis /(one + flattening + grav_ratio -  &
+                two*flattening*sin2)
+           termrg = (termg/grav)*termr
+           do k=1,nsig
+              zges(k) = (termr*zges(k)) / (termrg-zges(k))  ! eq (23)
+           end do
+ 
+        endif
+
+!       Given observation height, (1) adjust 10 meter wind factor if
+!       necessary, (2) convert height to grid relative units, (3) compute
+!       compute observation pressure (for diagnostic purposes only), and
+!       (4) compute location of midpoint of first model layer above surface
+!       in grid relative units
+
+!       Adjust 10m wind factor if necessary.  Rarely do we have a
+!       profiler/vad obs within 10 meters of the surface.  Almost always,
+!       the code below resets the 10m wind factor to 1.0 (i.e., no
+!       reduction in wind speed due to surface friction).
+
+!       Convert observation height (in dpres) from meters to grid relative
+!       units.  Save the observation height in zob for later use.
+        zob = dpres
+        call grdcrd(dpres,ione,zges,nsig,ione)
+
+!       Interpolate guess u and v to observation location and time.
+ 
+        call tintrp3(ges_u,ugesin,dlat,dlon,dpres,dtime, &
+           hrdifsig,ione,mype,nfldsig)
+        call tintrp3(ges_v,vgesin,dlat,dlon,dpres,dtime, &
+           hrdifsig,ione,mype,nfldsig)
+
+        if (zob > zges(1)) then
+           factw=one
+        else
+           factw = data(iff10,i)
+           if(sfcmod_gfs .or. sfcmod_mm5) then
+              sfcr = data(isfcr,i)
+              skint = data(iskint,i)
+              call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
+           end if
+
+           if (zob <= ten) then
+              if(zob < ten)then
+                 term = max(zob,zero)/ten
+                 factw = term*factw
+              end if
+           else
+              term = (zges(1)-zob)/(zges(1)-ten)
+              factw = one-term+factw*term
+           end if
+ 
+           ugesin=factw*ugesin
+           vgesin=factw*vgesin
+
+        endif
+
+        if(sfc_data .or. dpres < one) then
+           drpx=0.005_r_kind*abs(dstn-zsges)*(one-fact)
+        end if
+ 
+!       Compute observation pressure (only used for diagnostics)
+
+!       Set indices of model levels below (k1) and above (k2) observation.
+        if (dpres<one) then
+           z1=zero;    p1=log(psges)
+           z2=zges(1); p2=prsltmp(1)
+        elseif (dpres>nsig) then
+           z1=zges(nsig-ione); p1=prsltmp(nsig-ione)
+           z2=zges(nsig);   p2=prsltmp(nsig)
+           drpx = 1.e6_r_kind
+        else
+           k=dpres
+           k1=min(max(ione,k),nsig)
+           k2=max(ione,min(k+ione,nsig))
+           z1=zges(k1); p1=prsltmp(k1)
+           z2=zges(k2); p2=prsltmp(k2)
+        endif
        
-          slat = data(ilate,i)*deg2rad
-          sin2  = sin(slat)*sin(slat)
-          termg = grav_equator * &
-               ((one+somigliana*sin2)/sqrt(one-eccentricity*eccentricity*sin2))
-          termr = semi_major_axis /(one + flattening + grav_ratio -  &
-               two*flattening*sin2)
-          termrg = (termg/grav)*termr
-          do k=1,nsig
-             zges(k) = (termr*zges(k)) / (termrg-zges(k))  ! eq (23)
-          end do
+        dz21     = z2-z1
+        dlnp21   = p2-p1
+        dz       = zob-z1
+        pobl     = p1 + (dlnp21/dz21)*dz
+        presw    = ten*exp(pobl)
+ 
+!       Determine location in terms of grid units for midpoint of
+!       first layer above surface
+        sfcchk=zero
+!       call grdcrd(sfcchk,ione,zges,nsig,ione)
 
-       endif
 
-!      Given observation height, (1) adjust 10 meter wind factor if
-!      necessary, (2) convert height to grid relative units, (3) compute
-!      compute observation pressure (for diagnostic purposes only), and
-!      (4) compute location of midpoint of first model layer above surface
-!      in grid relative units
-
-!      Adjust 10m wind factor if necessary.  Rarely do we have a
-!      profiler/vad obs within 10 meters of the surface.  Almost always,
-!      the code below resets the 10m wind factor to 1.0 (i.e., no
-!      reduction in wind speed due to surface friction).
-
-!      Convert observation height (in dpres) from meters to grid relative
-!      units.  Save the observation height in zob for later use.
-       zob = dpres
-       call grdcrd(dpres,1,zges,nsig,1)
-
-!      Interpolate guess u and v to observation location and time.
-
-       call tintrp3(ges_u,ugesin,dlat,dlon,dpres,dtime, &
-          hrdifsig,1,mype,nfldsig)
-       call tintrp3(ges_v,vgesin,dlat,dlon,dpres,dtime, &
-          hrdifsig,1,mype,nfldsig)
-
-       if (zob > zges(1)) then
-          factw=one
-       else
-         factw = data(iff10,i)
-         if(sfcmod_gfs .or. sfcmod_mm5) then
-           sfcr = data(isfcr,i)
-           skint = data(iskint,i)
-           call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
-         end if
-
-         if (zob <= ten) then
-            if(zob < ten)then
-              term = max(zob,zero)/ten
-              factw = term*factw
-            end if
-         else
-            term = (zges(1)-zob)/(zges(1)-ten)
-            factw = one-term+factw*term
-         end if
-
-         ugesin=factw*ugesin
-         vgesin=factw*vgesin
-
-       endif
-
-       if(sfc_data .or. dpres < one) then
-         drpx=0.005*abs(dstn-zsges)*(one-fact)
-       end if
-
-!      Compute observation pressure (only used for diagnostics)
-
-!      Set indices of model levels below (k1) and above (k2) observation.
-       if (dpres<one) then
-          z1=zero;    p1=log(psges)
-          z2=zges(1); p2=prsltmp(1)
-       elseif (dpres>nsig) then
-          z1=zges(nsig-1); p1=prsltmp(nsig-1)
-          z2=zges(nsig);   p2=prsltmp(nsig)
-          drpx = 1.e6_r_kind
-       else
-          k=dpres
-          k1=min(max(1,k),nsig)
-          k2=max(1,min(k+1,nsig))
-          z1=zges(k1); p1=prsltmp(k1)
-          z2=zges(k2); p2=prsltmp(k2)
-       endif
+!    Process observations with reported pressure
+     else
+        dpres = data(ipres,i)
+        presw = ten*exp(dpres)
+        dpres = dpres-log(psges)
+        drpx=zero
        
-       dz21     = z2-z1
-       dlnp21   = p2-p1
-       dz       = zob-z1
-       pobl     = p1 + (dlnp21/dz21)*dz
-       presw    = ten*exp(pobl)
+        prsfc=psges
+        prsln2=log(exp(prsltmp(1))/prsfc)
+        dpressave=dpres
 
-!      Determine location in terms of grid units for midpoint of
-!      first layer above surface
-       sfcchk=zero
-!      call grdcrd(sfcchk,1,zges,nsig,1)
-
-
-!   Process observations with reported pressure
-    else
-       dpres = data(ipres,i)
-       presw = ten*exp(dpres)
-       dpres = dpres-log(psges)
-       drpx=zero
+!       Put obs pressure in correct units to get grid coord. number
+        dpres=log(exp(dpres)*prsfc)
+        call grdcrd(dpres,ione,prsltmp(1),nsig,-ione)
+ 
+!       Interpolate guess u and v to observation location and time.
+ 
+        call tintrp3(ges_u,ugesin,dlat,dlon,dpres,dtime, &
+           hrdifsig,ione,mype,nfldsig)
+        call tintrp3(ges_v,vgesin,dlat,dlon,dpres,dtime, &
+           hrdifsig,ione,mype,nfldsig)
+        if(dpressave <= prsln2)then
+           factw=one
+        else
+           factw = data(iff10,i)
+           if(sfcmod_gfs .or. sfcmod_mm5) then
+              sfcr = data(isfcr,i)
+              skint = data(iskint,i)
+              call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
+           end if
+ 
+           call tintrp2a(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
+              ione,nsig,mype,nfldsig)
+!          Apply 10-meter wind reduction factor to guess winds
+           dx10=-goverrd*ten/tges(1)
+           if (dpressave < dx10)then
+              term=(prsln2-dpressave)/(prsln2-dx10)
+              factw=one-term+factw*term
+           end if
+           ugesin=factw*ugesin   
+           vgesin=factw*vgesin
+ 
+        end if
        
-       prsfc=psges
-       prsln2=log(exp(prsltmp(1))/prsfc)
-       dpressave=dpres
-
-!      Put obs pressure in correct units to get grid coord. number
-       dpres=log(exp(dpres)*prsfc)
-       call grdcrd(dpres,1,prsltmp(1),nsig,-1)
-
-!      Interpolate guess u and v to observation location and time.
-
-       call tintrp3(ges_u,ugesin,dlat,dlon,dpres,dtime, &
-          hrdifsig,1,mype,nfldsig)
-       call tintrp3(ges_v,vgesin,dlat,dlon,dpres,dtime, &
-          hrdifsig,1,mype,nfldsig)
-       if(dpressave <= prsln2)then
-          factw=one
-       else
-          factw = data(iff10,i)
-          if(sfcmod_gfs .or. sfcmod_mm5) then
-            sfcr = data(isfcr,i)
-            skint = data(iskint,i)
-            call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
-          end if
-
-          call tintrp2a(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
-             1,nsig,mype,nfldsig)
-!         Apply 10-meter wind reduction factor to guess winds
-          dx10=-goverrd*ten/tges(1)
-          if (dpressave < dx10)then
-             term=(prsln2-dpressave)/(prsln2-dx10)
-             factw=one-term+factw*term
-          end if
-          ugesin=factw*ugesin   
-          vgesin=factw*vgesin
-
-       end if
-       
-!      Get approx k value of sfc by using surface pressure
-       sfcchk=log(psges)
-       call grdcrd(sfcchk,1,prsltmp(1),nsig,-1)
-
-    endif
+!       Get approx k value of sfc by using surface pressure
+        sfcchk=log(psges)
+        call grdcrd(sfcchk,ione,prsltmp(1),nsig,-ione)
+ 
+     endif
 
 
-!   Checks based on observation location relative to model surface and top
-    rlow=max(sfcchk-dpres,zero)
-    rhgh=max(dpres-r0_001-rsigp,zero)
-    if(luse(i))then
-       awork(1) = awork(1) + one
-       if(rlow/=zero) awork(2) = awork(2) + one
-       if(rhgh/=zero) awork(3) = awork(3) + one
-    end if
-    ratio_errors=error/(data(ier,i)+drpx+1.0e6*rhgh+four*rlow)
+!    Checks based on observation location relative to model surface and top
+     rlow=max(sfcchk-dpres,zero)
+     rhgh=max(dpres-r0_001-rsigp,zero)
+     if(luse(i))then
+        awork(1) = awork(1) + one
+        if(rlow/=zero) awork(2) = awork(2) + one
+        if(rhgh/=zero) awork(3) = awork(3) + one
+     end if
+     ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+four*rlow)
 
-!   Invert observation error
-    error=one/error
+!    Invert observation error
+     error=one/error
 
-!   Check to see if observation below model surface or above model top.
-!   If so, don't use observation
-    if (dpres > rsig )then
-      if( regional .and. presw > pt_ll )then
-        dpres=rsig
-      else
-        ratio_errors=zero
-      endif
-    endif
+!    Check to see if observation below model surface or above model top.
+!    If so, don't use observation
+     if (dpres > rsig )then
+        if( regional .and. presw > pt_ll )then
+           dpres=rsig
+        else
+           ratio_errors=zero
+        endif
+     endif
 
-    if ( (itype>=221 .and. itype<=229).and. (dpres<zero) ) ratio_errors=zero
+     if ( (itype>=221_i_kind .and. itype<=229_i_kind).and. (dpres<zero) ) ratio_errors=zero
+ 
 
-
-! Compute innovations
+!    Compute innovations
      dudiff=uob-ugesin
      dvdiff=vob-vgesin
      spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
 
-! QC MODIS winds
-    if (itype==257 .or. itype==258 .or. itype==259) then
+!    QC MODIS winds
+     if (itype==257_i_kind .or. itype==258_i_kind .or. itype==259_i_kind) then
 
 !       Get guess values of tropopause pressure and sea/land/ice
 !       mask at observation location
-        call intrp2a(tropprs,trop5,dlat,dlon,1,1,mype)
+        call intrp2a(tropprs,trop5,dlat,dlon,ione,ione,mype)
         prsfc = r10*prsfc       ! surface pressure in hPa
 
 !       Compute observed and guess wind speeds (m/s).  
         spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
-
+ 
 !       Set and computes modis specific qc parameters
         qcu = r7
         qcv = r7
         qc_spd = (spdges+r15)/three
-        
+
         qc_prs=zero
-        if (itype==257) qc_prs = prsfc - r200
-        if (itype==258 .or. itype==259) qc_prs = r400
+        if (itype==257_i_kind) qc_prs = prsfc - r200
+        if (itype==258_i_kind .or. itype==259_i_kind) qc_prs = r400
 
         if ( presw > qc_prs .and. qc_spd < qcu ) then
            qcu = (spdob + r15)/three
@@ -572,8 +572,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         endif
      endif
 
-! QC WindSAT winds
-     if (itype==289) then
+!    QC WindSAT winds
+     if (itype==289_i_kind) then
         qcu = r6
         qcv = r6
         if ( spdob > r20 .or. &          ! high wind speed check
@@ -583,8 +583,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         endif
      endif
 
-! QC ASCAT winds
-     if (itype==290) then
+!    QC ASCAT winds
+     if (itype==290_i_kind) then
         qcu = five
         qcv = five
 !       Compute innovations for opposite vectors
@@ -595,25 +595,25 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         if ( abs(dudiff) > qcu  .or. &       ! u component check
              abs(dvdiff) > qcv  .or. &       ! v component check
              vecdiff > vecdiff_opp ) then    ! ambiguity check
-
-                error = zero
+ 
+           error = zero
 
         endif
      endif
 
 !    If requested, setup for single obs test.
      if (oneobtest) then
-        if (oneob_type.eq.'u') then
+        if (oneob_type=='u') then
            dudiff=maginnov
            dvdiff=zero
-        elseif (oneob_type.eq.'v') then
+        elseif (oneob_type=='v') then
            dudiff=zero
            dvdiff=maginnov
         endif
         error=one/magoberr
         ratio_errors=one
      end if
-
+ 
 !    Gross error checks
      obserror = one/max(ratio_errors*error,tiny_r_kind)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
@@ -624,26 +624,26 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         error = zero
         ratio_errors = zero
      else
-      ratio_errors =ratio_errors/sqrt(dup(i)) 
+        ratio_errors =ratio_errors/sqrt(dup(i)) 
      end if
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
 
-     if (nobskeep>0) muse(i)=obsdiags(i_w_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>izero) muse(i)=obsdiags(i_w_ob_type,ibin)%tail%muse(nobskeep)
 
-!   Oberror Tuning and Perturb Obs
+!    Oberror Tuning and Perturb Obs
      if(muse(i)) then
-       if(oberror_tune )then
-          if( jiter > jiterstart ) then
+        if(oberror_tune )then
+           if( jiter > jiterstart ) then
+              dudiff=dudiff+data(iptrbu,i)/error/ratio_errors
+              dvdiff=dvdiff+data(iptrbv,i)/error/ratio_errors
+           endif
+        else if(perturb_obs )then
            dudiff=dudiff+data(iptrbu,i)/error/ratio_errors
            dvdiff=dvdiff+data(iptrbv,i)/error/ratio_errors
-          endif
-       else if(perturb_obs )then
-          dudiff=dudiff+data(iptrbu,i)/error/ratio_errors
-          dvdiff=dvdiff+data(iptrbv,i)/error/ratio_errors
-       endif
+        endif
      endif
-
+ 
      valu     = error*dudiff
      valv     = error*dvdiff
 
@@ -671,34 +671,34 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         if (muse(i)) then
            if(rwgt < one) awork(21) = awork(21)+one
            jsig = dpres
-           jsig=max(1,min(jsig,nsig))
-           awork(4*nsig+jsig+100)=awork(4*nsig+jsig+100)+valu*valu*rat_err2
-           awork(5*nsig+jsig+100)=awork(5*nsig+jsig+100)+valv*valv*rat_err2
-           awork(6*nsig+jsig+100)=awork(6*nsig+jsig+100)+one
-           awork(3*nsig+jsig+100)=awork(3*nsig+jsig+100)+valqc
+           jsig=max(ione,min(jsig,nsig))
+           awork(4*nsig+jsig+100_i_kind)=awork(4*nsig+jsig+100_i_kind)+valu*valu*rat_err2
+           awork(5*nsig+jsig+100_i_kind)=awork(5*nsig+jsig+100_i_kind)+valv*valv*rat_err2
+           awork(6*nsig+jsig+100_i_kind)=awork(6*nsig+jsig+100_i_kind)+one
+           awork(3*nsig+jsig+100_i_kind)=awork(3*nsig+jsig+100_i_kind)+valqc
         end if
 
-! Loop over pressure level groupings and obs to accumulate statistics
-! as a function of observation type.
-       ress  = scale*sqrt(dudiff**2+dvdiff**2)
-       ressw = ress*ress
-       val2    = half*(valu*valu+valv*valv)
-       valqc2  = half*valqc
-       nn=1
-       if (.not. muse(i)) then
-         nn=2
-         if(ratio_errors*error >=tiny_r_kind)nn=3
-       end if
-       do k = 1,npres_print
-         if(presw >=ptop(k) .and. presw<=pbot(k))then
-          bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one            ! count
-          bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+spdb           ! speed bias
-          bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw          ! (o-g)**2
-          bwork(k,ikx,4,nn) = bwork(k,ikx,4,nn)+val2*rat_err2  ! penalty
-          bwork(k,ikx,5,nn) = bwork(k,ikx,5,nn)+valqc2         ! nonlin qc penalty
-  
-         end if
-       end do
+!       Loop over pressure level groupings and obs to accumulate statistics
+!       as a function of observation type.
+        ress  = scale*sqrt(dudiff**2+dvdiff**2)
+        ressw = ress*ress
+        val2    = half*(valu*valu+valv*valv)
+        valqc2  = half*valqc
+        nn=ione
+        if (.not. muse(i)) then
+           nn=2_i_kind
+           if(ratio_errors*error >=tiny_r_kind)nn=3_i_kind
+        end if
+        do k = 1,npres_print
+           if(presw >=ptop(k) .and. presw<=pbot(k))then
+              bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one            ! count
+              bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+spdb           ! speed bias
+              bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw          ! (o-g)**2
+              bwork(k,ikx,4,nn) = bwork(k,ikx,4,nn)+val2*rat_err2  ! penalty
+              bwork(k,ikx,5,nn) = bwork(k,ikx,5,nn)+valqc2         ! nonlin qc penalty
+ 
+           end if
+        end do
      end if
 
 !    Fill obs to diagnostics structure
@@ -715,25 +715,25 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
-
+ 
      if (.not. last .and. muse(i)) then
 
         if(.not. associated(whead(ibin)%head))then
-            allocate(whead(ibin)%head,stat=istat)
-            if(istat /= 0)write(6,*)' failure to write whead '
-            wtail(ibin)%head => whead(ibin)%head
+           allocate(whead(ibin)%head,stat=istat)
+           if(istat /= izero)write(6,*)' failure to write whead '
+           wtail(ibin)%head => whead(ibin)%head
         else
-            allocate(wtail(ibin)%head%llpoint,stat=istat)
-            if(istat /= 0)write(6,*)' failure to write wtail%llpoint '
-            wtail(ibin)%head => wtail(ibin)%head%llpoint
+           allocate(wtail(ibin)%head%llpoint,stat=istat)
+           if(istat /= izero)write(6,*)' failure to write wtail%llpoint '
+           wtail(ibin)%head => wtail(ibin)%head%llpoint
         end if
-
+ 
         call get_ijk(mm1,dlat,dlon,dpres,wtail(ibin)%head%ij(1),wtail(ibin)%head%wij(1))
 
         do j=1,8
-          wtail(ibin)%head%wij(j)=factw*wtail(ibin)%head%wij(j)
+           wtail(ibin)%head%wij(j)=factw*wtail(ibin)%head%wij(j)
         end do
-
+ 
         wtail(ibin)%head%ures=dudiff
         wtail(ibin)%head%vres=dvdiff
         wtail(ibin)%head%err2=error**2
@@ -749,32 +749,32 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
            wtail(ibin)%head%vpertb=data(iptrbv,i)/error/ratio_errors
            wtail(ibin)%head%kx=ikx
            if(presw > ptabl(2))then
-              wtail(ibin)%head%k1=1
+              wtail(ibin)%head%k1=ione
            else if( presw <= ptabl(33)) then
-              wtail(ibin)%head%k1=33
+              wtail(ibin)%head%k1=33_i_kind
            else
               k_loop: do k=2,32
-                if(presw > ptabl(k+1) .and. presw <= ptabl(k)) then
-                   wtail(ibin)%head%k1=k
-                   exit k_loop
-                endif
-             enddo k_loop
+                 if(presw > ptabl(k+ione) .and. presw <= ptabl(k)) then
+                    wtail(ibin)%head%k1=k
+                    exit k_loop
+                 endif
+              enddo k_loop
            endif
         endif
 
         wtail(ibin)%head%diagv => obsdiags(i_w_ob_type,ibin)%tail
-
+ 
      end if
 
 !    Save select output for diagnostic file
      if (conv_diagsave .and. luse(i)) then
-        ii=ii+1
+        ii=ii+ione
         rstation_id     = data(id,i)
         cdiagbuf(ii)    = station_id         ! station id
-
+ 
         rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
         rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
-    
+
         rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
         rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
         rdiagbuf(5,ii)  = data(ielev,i)      ! station elevation (meters)
@@ -798,14 +798,14 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         else
            err_final = huge_single
         endif
-
+ 
         errinv_input = huge_single
         errinv_adjst = huge_single
         errinv_final = huge_single
         if (err_input>tiny_r_kind) errinv_input = one/err_input
         if (err_adjst>tiny_r_kind) errinv_adjst = one/err_adjst
         if (err_final>tiny_r_kind) errinv_final = one/err_final
-
+ 
         rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
         rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (m/s)**-1
         rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (m/s)**-1
@@ -822,35 +822,35 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         rdiagbuf(23,ii) = factw              ! 10m wind reduction factor
 
         if (lobsdiagsave) then
-          ioff=23
-          do jj=1,miter
-            ioff=ioff+1
-            if (obsdiags(i_w_ob_type,ibin)%tail%muse(jj)) then
-              rdiagbuf(ioff,ii) = one
-            else
-              rdiagbuf(ioff,ii) = -one
-            endif
-          enddo
-          do jj=1,miter+1
-            ioff=ioff+1
-            rdiagbuf(ioff,ii) = obsptr%nldepart(jj)
-            ioff=ioff+1
-            rdiagbuf(ioff,ii) = obsdiags(i_w_ob_type,ibin)%tail%nldepart(jj)
-          enddo
-          do jj=1,miter
-            ioff=ioff+1
-            rdiagbuf(ioff,ii) = obsptr%tldepart(jj)
-            ioff=ioff+1
-            rdiagbuf(ioff,ii) = obsdiags(i_w_ob_type,ibin)%tail%tldepart(jj)
-          enddo
-          do jj=1,miter
-            ioff=ioff+1
-            rdiagbuf(ioff,ii) = obsptr%obssen(jj)
-            ioff=ioff+1
-            rdiagbuf(ioff,ii) = obsdiags(i_w_ob_type,ibin)%tail%obssen(jj)
-          enddo
+           ioff=23_i_kind
+           do jj=1,miter
+              ioff=ioff+ione
+              if (obsdiags(i_w_ob_type,ibin)%tail%muse(jj)) then
+                 rdiagbuf(ioff,ii) = one
+              else
+                 rdiagbuf(ioff,ii) = -one
+              endif
+           enddo
+           do jj=1,miter+ione
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsptr%nldepart(jj)
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsdiags(i_w_ob_type,ibin)%tail%nldepart(jj)
+           enddo
+           do jj=1,miter
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsptr%tldepart(jj)
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsdiags(i_w_ob_type,ibin)%tail%tldepart(jj)
+           enddo
+           do jj=1,miter
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsptr%obssen(jj)
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsdiags(i_w_ob_type,ibin)%tail%obssen(jj)
+           enddo
         endif
-
+ 
      endif
 ! End of loop over observations
   end do

@@ -44,12 +44,12 @@ subroutine wrwrfnmma_binary(mype)
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
        nsig,lat1,lon1,eta2_ll
-  use constants, only: zero_single
+  use constants, only: izero,ione,zero_single
   use gsi_io, only: lendian_in
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local constants
   real(r_kind),parameter:: r10=10.0_r_kind
@@ -75,8 +75,8 @@ subroutine wrwrfnmma_binary(mype)
   integer(i_llong) n_position
   integer(i_kind) iskip,jextra,nextra
   integer(i_kind) status(mpi_status_size)
-  integer(i_kind) jbegin(0:npe),jend(0:npe-1)
-  integer(i_kind) kbegin(0:npe),kend(0:npe-1)
+  integer(i_kind) jbegin(0:npe),jend(0:npe-ione)
+  integer(i_kind) kbegin(0:npe),kend(0:npe-ione)
   integer(i_long),allocatable:: ibuf(:,:)
   integer(i_long),allocatable:: jbuf(:,:,:)
   integer(i_kind) ifld,mfcst
@@ -93,8 +93,8 @@ subroutine wrwrfnmma_binary(mype)
   jm=nlat_regional
   lm=nsig
 
-  num_nmm_fields=3+4*lm
-  if(update_pint) num_nmm_fields=num_nmm_fields+lm+1  ! contribution from PINT
+  num_nmm_fields=3_i_kind+4*lm
+  if(update_pint) num_nmm_fields=num_nmm_fields+lm+ione  ! contribution from PINT
   allocate(offset(num_nmm_fields))
   allocate(igtype(num_nmm_fields),kdim(num_nmm_fields),kord(num_nmm_fields))
   allocate(length(num_nmm_fields))
@@ -113,16 +113,16 @@ subroutine wrwrfnmma_binary(mype)
 
   write(filename,'("sigf",i2.2)')ifilesig(it)
   open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
-  if(mype == 0) write(6,*)'READ_WRF_NMM_OFFSET_FILE:  open lendian_in=',lendian_in,' to file=',filename
+  if(mype == izero) write(6,*)'READ_WRF_NMM_OFFSET_FILE:  open lendian_in=',lendian_in,' to file=',filename
   read(lendian_in) iyear,imonth,iday,ihour,iminute,isecond
 
   do iskip=2,9
-   read(lendian_in)
+     read(lendian_in)
   end do
   read(lendian_in) 
   read(lendian_in) n_position          !  offset for START_DATE record
   offset_start_date=n_position
-  length_start_date=2048
+  length_start_date=2048_i_kind
 
 !     open wrf file for mpi-io reading and writing
   wrfanl = 'wrf_inout'
@@ -130,209 +130,209 @@ subroutine wrwrfnmma_binary(mype)
 
 !     update START_DATE record so it contains new analysis time in place of old starting time
   call mpi_file_read_at(mfcst,offset_start_date,chdrbuf,length_start_date,mpi_byte,status,ierror)
-  if(mype.eq.0)  then
+  if(mype==izero)  then
      call update_start_date(chdrbuf,iyear,imonth,iday,ihour,iminute,isecond)
      call mpi_file_write_at(mfcst,offset_start_date,chdrbuf,length_start_date,mpi_byte,status,ierror)
   end if
 
-            if(mype==0) write(6,*)' in read_wrf_nmm_binary_guess, wrfanl=',trim(wrfanl)
+  if(mype==izero) write(6,*)' in read_wrf_nmm_binary_guess, wrfanl=',trim(wrfanl)
 
-        i=0
-        i=i+1 ; i_pd=i                                                ! pd
-        read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
-           if(mype == 0) write(6,*)' pd, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+  i=izero
+  i=i+ione ; i_pd=i                                                ! pd
+  read(lendian_in) n_position
+  offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
+  if(mype == izero) write(6,*)' pd, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
-        read(lendian_in)                                                   ! fis
+  read(lendian_in)                                                   ! fis
 
-        i_pint=i+1
-        if(update_pint) then
-          i_pint=i+1
-          read(lendian_in) n_position,memoryorder
-          do k=1,lm+1
-             i=i+1                                                       ! pint(k)
-             if(trim(memoryorder).eq.'XZY') then
-               iadd=0
-               kord(i)=lm+1
-             else
-               iadd=(k-1)*im*jm*4
-               kord(i)=1
-             end if
-             offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm+1
-             if(mype == 0.and.k==1) write(6,*)' temp i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
-          end do
+  i_pint=i+ione
+  if(update_pint) then
+     i_pint=i+ione
+     read(lendian_in) n_position,memoryorder
+     do k=1,lm+ione
+        i=i+ione                                                     ! pint(k)
+        if(trim(memoryorder)=='XZY') then
+           iadd=izero
+           kord(i)=lm+ione
+        else
+           iadd=(k-ione)*im*jm*4
+           kord(i)=ione
         end if
+        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm+ione
+        if(mype == izero.and.k==ione) write(6,*)' temp i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+     end do
+  end if
 
-        i_t=i+1
-        read(lendian_in) n_position,memoryorder
-        do k=1,lm
-           i=i+1                                                       ! t(k)
-           if(trim(memoryorder).eq.'XZY') then
-             iadd=0
-             kord(i)=lm
-           else
-             iadd=(k-1)*im*jm*4
-             kord(i)=1
-           end if
-           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-           if(mype == 0.and.k==1) write(6,*)' temp i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
-        end do
+  i_t=i+ione
+  read(lendian_in) n_position,memoryorder
+  do k=1,lm
+     i=i+ione                                                       ! t(k)
+     if(trim(memoryorder)=='XZY') then
+        iadd=izero
+        kord(i)=lm
+     else
+        iadd=(k-ione)*im*jm*4
+        kord(i)=ione
+     end if
+     offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
+     if(mype == izero.and.k==ione) write(6,*)' temp i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+  end do
 
-        i_q=i+1
-        read(lendian_in) n_position,memoryorder
-        do k=1,lm
-           i=i+1                                                       ! q(k)
-           if(trim(memoryorder).eq.'XZY') then
-             iadd=0
-             kord(i)=lm
-           else
-             iadd=(k-1)*im*jm*4
-             kord(i)=1
-           end if
-           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-           if(mype == 0.and.k==1) write(6,*)' q i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
-        end do
+  i_q=i+ione
+  read(lendian_in) n_position,memoryorder
+  do k=1,lm
+     i=i+ione                                                       ! q(k)
+     if(trim(memoryorder)=='XZY') then
+        iadd=izero
+        kord(i)=lm
+     else
+        iadd=(k-ione)*im*jm*4
+        kord(i)=ione
+     end if
+     offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
+     if(mype == izero.and.k==ione) write(6,*)' q i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+  end do
 
-        i_u=i+1
-        read(lendian_in) n_position,memoryorder
-        do k=1,lm
-           i=i+1                                                       ! u(k)
-           if(trim(memoryorder).eq.'XZY') then
-             iadd=0
-             kord(i)=lm
-           else
-             iadd=(k-1)*im*jm*4
-             kord(i)=1
-           end if
-           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=2 ; kdim(i)=lm
-           if(mype == 0.and.k==1) write(6,*)' u i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
-        end do
+  i_u=i+ione
+  read(lendian_in) n_position,memoryorder
+  do k=1,lm
+     i=i+ione                                                       ! u(k)
+     if(trim(memoryorder)=='XZY') then
+        iadd=izero
+        kord(i)=lm
+     else
+        iadd=(k-ione)*im*jm*4
+        kord(i)=ione
+     end if
+     offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=2_i_kind ; kdim(i)=lm
+     if(mype == izero.and.k==ione) write(6,*)' u i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+  end do
 
-        i_v=i+1
-        read(lendian_in) n_position,memoryorder
-        do k=1,lm
-           i=i+1                                                       ! v(k)
-           if(trim(memoryorder).eq.'XZY') then
-             iadd=0
-             kord(i)=lm
-           else
-             iadd=(k-1)*im*jm*4
-             kord(i)=1
-           end if
-           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=2 ; kdim(i)=lm
-           if(mype == 0.and.k==1) write(6,*)' v i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
-        end do
+  i_v=i+ione
+  read(lendian_in) n_position,memoryorder
+  do k=1,lm
+     i=i+ione                                                       ! v(k)
+     if(trim(memoryorder)=='XZY') then
+        iadd=izero
+        kord(i)=lm
+     else
+        iadd=(k-ione)*im*jm*4
+        kord(i)=ione
+     end if
+     offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=2 ; kdim(i)=lm
+     if(mype == izero.and.k==ione) write(6,*)' v i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+  end do
 
-        read(lendian_in)                                                    ! sm
-        read(lendian_in)                                                    ! sice
+  read(lendian_in)                                                    ! sm
+  read(lendian_in)                                                    ! sice
 
-        i=i+1 ; i_sst=i                                                ! sst
-        read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
-           if(mype == 0) write(6,*)' sst, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+  i=i+ione ; i_sst=i                                                ! sst
+  read(lendian_in) n_position
+  offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
+  if(mype == izero) write(6,*)' sst, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
-        read(lendian_in)                                                    ! ivgtyp
-        read(lendian_in)                                                    ! isltyp
-        read(lendian_in)                                                    ! vegfrac
-        read(lendian_in)                                                    ! sno
-        read(lendian_in)                                                    ! u10
-        read(lendian_in)                                                    ! v10
-        read(lendian_in)                                                    ! smc
-        read(lendian_in)                                                    ! stc
+  read(lendian_in)                                                    ! ivgtyp
+  read(lendian_in)                                                    ! isltyp
+  read(lendian_in)                                                    ! vegfrac
+  read(lendian_in)                                                    ! sno
+  read(lendian_in)                                                    ! u10
+  read(lendian_in)                                                    ! v10
+  read(lendian_in)                                                    ! smc
+  read(lendian_in)                                                    ! stc
 
-        i=i+1 ; i_tsk=i                                                ! tsk
-        read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
-           if(mype == 0) write(6,*)' tsk, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+  i=i+ione ; i_tsk=i                                                ! tsk
+  read(lendian_in) n_position
+  offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
+  if(mype == izero) write(6,*)' tsk, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
-        close(lendian_in)
+  close(lendian_in)
 
 !          set up evenly distributed index range over all processors for all input fields
 
 
   num_loc_groups=num_nmm_fields/npe
   nextra=num_nmm_fields-num_loc_groups*npe
-  kbegin(0)=1
-  if(nextra > 0) then
+  kbegin(0)=ione
+  if(nextra > izero) then
      do k=1,nextra
-        kbegin(k)=kbegin(k-1)+1+num_loc_groups
+        kbegin(k)=kbegin(k-ione)+ione+num_loc_groups
      end do
   end if
-  do k=nextra+1,npe
-     kbegin(k)=kbegin(k-1)+num_loc_groups
+  do k=nextra+ione,npe
+     kbegin(k)=kbegin(k-ione)+num_loc_groups
   end do
-  do k=0,npe-1
-   kend(k)=kbegin(k+1)-1
+  do k=0,npe-ione
+     kend(k)=kbegin(k+ione)-ione
   end do
-  if(mype == 0) then
-       write(6,*)' kbegin=',kbegin
-       write(6,*)' kend= ',kend
+  if(mype == izero) then
+     write(6,*)' kbegin=',kbegin
+     write(6,*)' kend= ',kend
   end if
   num_j_groups=jm/npe
   jextra=jm-num_j_groups*npe
-  jbegin(0)=1
-  if(jextra > 0) then
+  jbegin(0)=ione
+  if(jextra > izero) then
      do j=1,jextra
-        jbegin(j)=jbegin(j-1)+1+num_j_groups
+        jbegin(j)=jbegin(j-ione)+ione+num_j_groups
      end do
   end if
-  do j=jextra+1,npe
-     jbegin(j)=jbegin(j-1)+num_j_groups
+  do j=jextra+ione,npe
+     jbegin(j)=jbegin(j-ione)+num_j_groups
   end do
-  do j=0,npe-1
-   jend(j)=min(jbegin(j+1)-1,jm)
+  do j=0,npe-ione
+     jend(j)=min(jbegin(j+ione)-ione,jm)
   end do
-  if(mype == 0) then
-       write(6,*)' jbegin=',jbegin
-       write(6,*)' jend= ',jend
+  if(mype == izero) then
+     write(6,*)' jbegin=',jbegin
+     write(6,*)' jend= ',jend
   end if
   
 ! Create all_loc from ges_*
   allocate(all_loc(lat1,lon1,num_nmm_fields))
   all_loc=zero_single
-  kt=i_t-1
-  kq=i_q-1
-  ku=i_u-1
-  kv=i_v-1
+  kt=i_t-ione
+  kq=i_q-ione
+  ku=i_u-ione
+  kv=i_v-ione
   do k=1,nsig
-     kt=kt+1
-     kq=kq+1
-     ku=ku+1
-     kv=kv+1
+     kt=kt+ione
+     kq=kq+ione
+     ku=ku+ione
+     kv=kv+ione
      do i=1,lon1
         do j=1,lat1
-           all_loc(j,i,ku)=ges_u(j+1,i+1,k,it)
-           all_loc(j,i,kv)=ges_v(j+1,i+1,k,it)
-           all_loc(j,i,kq)=ges_q(j+1,i+1,k,it)
-           all_loc(j,i,kt)=ges_tsen(j+1,i+1,k,it)   ! sensible temperature
+           all_loc(j,i,ku)=ges_u(j+ione,i+ione,k,it)
+           all_loc(j,i,kv)=ges_v(j+ione,i+ione,k,it)
+           all_loc(j,i,kq)=ges_q(j+ione,i+ione,k,it)
+           all_loc(j,i,kt)=ges_tsen(j+ione,i+ione,k,it)   ! sensible temperature
         end do
      end do
   end do
   do i=1,lon1
      do j=1,lat1
-        psfc_this=r10*ges_ps(j+1,i+1,it)   ! convert from mb to cb
+        psfc_this=r10*ges_ps(j+ione,i+ione,it)   ! convert from mb to cb
         pd=psfc_this-pdtop_ll-pt_ll
         all_loc(j,i,i_pd)=r100*pd
      end do
   end do
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
-    kpint=i_pint-1
-    do k=1,nsig+1
-       kpint=kpint+1
-       do i=1,lon1
-          do j=1,lat1
-             all_loc(j,i,kpint)=ges_pint(j+1,i+1,k,it) &
-                         +eta2_ll(k)*(all_loc(j,i,i_pd)-ges_pd(j+1,i+1,it))   ! pint
-          end do
-       end do
-    end do
+     kpint=i_pint-ione
+     do k=1,nsig+ione
+        kpint=kpint+ione
+        do i=1,lon1
+           do j=1,lat1
+              all_loc(j,i,kpint)=ges_pint(j+ione,i+ione,k,it) &
+                          +eta2_ll(k)*(all_loc(j,i,i_pd)-ges_pd(j+ione,i+ione,it))   ! pint
+           end do
+        end do
+     end do
   end if
   if(update_regsfc) then
      do i=1,lon1
         do j=1,lat1
-           all_loc(j,i,i_sst)=dsfct(j+1,i+1,ntguessfc)
-           all_loc(j,i,i_tsk)=dsfct(j+1,i+1,ntguessfc)
+           all_loc(j,i,i_sst)=dsfct(j+ione,i+ione,ntguessfc)
+           all_loc(j,i,i_tsk)=dsfct(j+ione,i+ione,ntguessfc)
         end do
      end do
   end if
@@ -346,63 +346,63 @@ subroutine wrwrfnmma_binary(mype)
 !   2.  create ibuf with records to be updated read in
 
 !                                    read pint
-  if(update_pint.and.kord(i_pint).ne.1) then
-    allocate(jbuf(im,lm+1,jbegin(mype):jend(mype)))
-    this_offset=offset(i_pint)+(jbegin(mype)-1)*4*im*(lm+1)
-    this_length=(jend(mype)-jbegin(mype)+1)*im*(lm+1)
-    call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-    call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+1,im,jm,i_pint,i_pint+lm)
-    deallocate(jbuf)
+  if(update_pint.and.kord(i_pint)/=ione) then
+     allocate(jbuf(im,lm+ione,jbegin(mype):jend(mype)))
+     this_offset=offset(i_pint)+(jbegin(mype)-ione)*4*im*(lm+ione)
+     this_length=(jend(mype)-jbegin(mype)+ione)*im*(lm+ione)
+     call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+     call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+ione,im,jm,i_pint,i_pint+lm)
+     deallocate(jbuf)
   end if
 
 !                                    read temps
-  if(kord(i_t).ne.1) then
-    allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-    this_offset=offset(i_t)+(jbegin(mype)-1)*4*im*lm
-    this_length=(jend(mype)-jbegin(mype)+1)*im*lm
-    call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-    call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_t,i_t+lm-1)
-    deallocate(jbuf)
+  if(kord(i_t)/=ione) then
+     allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+     this_offset=offset(i_t)+(jbegin(mype)-ione)*4*im*lm
+     this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+     call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+     call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_t,i_t+lm-ione)
+     deallocate(jbuf)
   end if
 
 !                                    read q
-  if(kord(i_q).ne.1) then
-    allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-    this_offset=offset(i_q)+(jbegin(mype)-1)*4*im*lm
-    this_length=(jend(mype)-jbegin(mype)+1)*im*lm
-    call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-    call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_q,i_q+lm-1)
-    deallocate(jbuf)
+  if(kord(i_q)/=ione) then
+     allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+     this_offset=offset(i_q)+(jbegin(mype)-ione)*4*im*lm
+     this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+     call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+     call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_q,i_q+lm-ione)
+     deallocate(jbuf)
   end if
 
 !                                    read u
-  if(kord(i_u).ne.1) then
-    allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-    this_offset=offset(i_u)+(jbegin(mype)-1)*4*im*lm
-    this_length=(jend(mype)-jbegin(mype)+1)*im*lm
-    call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-    call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_u,i_u+lm-1)
-    deallocate(jbuf)
+  if(kord(i_u)/=ione) then
+     allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+     this_offset=offset(i_u)+(jbegin(mype)-ione)*4*im*lm
+     this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+     call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+     call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_u,i_u+lm-ione)
+     deallocate(jbuf)
   end if
 
 !                                    read v
-  if(kord(i_v).ne.1) then
-    allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-    this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
-    this_length=(jend(mype)-jbegin(mype)+1)*im*lm
-    call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-    call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_v,i_v+lm-1)
-    deallocate(jbuf)
+  if(kord(i_v)/=ione) then
+     allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+     this_offset=offset(i_v)+(jbegin(mype)-ione)*4*im*lm
+     this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+     call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+     call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_v,i_v+lm-ione)
+     deallocate(jbuf)
   end if
 
 !---------------------- read surface files last
   do k=kbegin(mype),kend(mype)
-     if(kdim(k).eq.1.or.kord(k).eq.1) then
+     if(kdim(k)==ione.or.kord(k)==ione) then
         call mpi_file_read_at(mfcst,offset(k),ibuf(1,k),length(k),mpi_integer4,status,ierror)
      end if
   end do
@@ -410,89 +410,89 @@ subroutine wrwrfnmma_binary(mype)
 !   5.  tempa --> updated ibuf --> jbuf --> write out
 
   allocate(tempb(itotsub,kbegin(mype):kend(mype)))
-     allocate(temp1(im*jm))
-        do ifld=kbegin(mype),kend(mype)
-           if((ifld.eq.i_sst.or.ifld.eq.i_tsk).and..not.update_regsfc) cycle
-           call move_ibuf_hg(ibuf(1,ifld),temp1,im,jm,im,jm)
-           if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb(1,ifld),igtype(ifld),2)
-           if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb(1,ifld),igtype(ifld),2)
-           if(ifld.eq.i_sst.or.ifld.eq.i_tsk) then
-              do i=1,iglobal
-                 if(tempb(i,ifld) < r225) then
-                    tempa(i,ifld)=zero_single
-                 else
-                    tempa(i,ifld)=tempa(i,ifld)-tempb(i,ifld)
-                 end if
-              end do
+  allocate(temp1(im*jm))
+  do ifld=kbegin(mype),kend(mype)
+     if((ifld==i_sst.or.ifld==i_tsk).and..not.update_regsfc) cycle
+     call move_ibuf_hg(ibuf(1,ifld),temp1,im,jm,im,jm)
+     if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb(1,ifld),igtype(ifld),2_i_kind)
+     if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb(1,ifld),igtype(ifld),2_i_kind)
+     if(ifld==i_sst.or.ifld==i_tsk) then
+        do i=1,iglobal
+           if(tempb(i,ifld) < r225) then
+              tempa(i,ifld)=zero_single
            else
-              do i=1,iglobal
-                 tempa(i,ifld)=tempa(i,ifld)-tempb(i,ifld)
-              end do
+              tempa(i,ifld)=tempa(i,ifld)-tempb(i,ifld)
            end if
-           if(filled_grid) call unfill_nmm_grid2(tempa(1,ifld),im,jm,temp1,igtype(ifld),2)
-           if(half_grid)   call unhalf_nmm_grid2(tempa(1,ifld),im,jm,temp1,igtype(ifld),2)
-           call move_hg_ibuf(temp1,ibuf(1,ifld),im,jm,im,jm)
         end do
+     else
+        do i=1,iglobal
+           tempa(i,ifld)=tempa(i,ifld)-tempb(i,ifld)
+        end do
+     end if
+     if(filled_grid) call unfill_nmm_grid2(tempa(1,ifld),im,jm,temp1,igtype(ifld),2_i_kind)
+     if(half_grid)   call unhalf_nmm_grid2(tempa(1,ifld),im,jm,temp1,igtype(ifld),2_i_kind)
+     call move_hg_ibuf(temp1,ibuf(1,ifld),im,jm,im,jm)
+  end do
 
 !           finally write ibuf back out ( ibuf --> jbuf -->  mpi_file_write )
 
 !                                    write pint
-  if(update_pint.and.kord(i_pint).ne.1) then
-    allocate(jbuf(im,lm+1,jbegin(mype):jend(mype)))
-    this_length=(jend(mype)-jbegin(mype)+1)*im*(lm+1)
+  if(update_pint.and.kord(i_pint)/=ione) then
+     allocate(jbuf(im,lm+ione,jbegin(mype):jend(mype)))
+     this_length=(jend(mype)-jbegin(mype)+ione)*im*(lm+ione)
 
-    call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+1,im,jm,i_pint,i_pint+lm)
-    this_offset=offset(i_pint)+(jbegin(mype)-1)*4*im*(lm+1)
-    call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-    deallocate(jbuf)
+     call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+ione,im,jm,i_pint,i_pint+lm)
+     this_offset=offset(i_pint)+(jbegin(mype)-ione)*4*im*(lm+ione)
+     call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+     deallocate(jbuf)
   end if
 
 !                                    write temps
-  if(kord(i_t).ne.1) then
-    allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-    this_length=(jend(mype)-jbegin(mype)+1)*im*lm
-
-    call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_t,i_t+lm-1)
-    this_offset=offset(i_t)+(jbegin(mype)-1)*4*im*lm
-    call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-    deallocate(jbuf)
+  if(kord(i_t)/=ione) then
+     allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+     this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+ 
+     call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_t,i_t+lm-ione)
+     this_offset=offset(i_t)+(jbegin(mype)-ione)*4*im*lm
+     call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+     deallocate(jbuf)
   end if
 
 !                                    write q
-  if(kord(i_q).ne.1) then
-    allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-    call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_q,i_q+lm-1)
-    this_offset=offset(i_q)+(jbegin(mype)-1)*4*im*lm
-    call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-    deallocate(jbuf)
+  if(kord(i_q)/=ione) then
+     allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+     call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_q,i_q+lm-ione)
+     this_offset=offset(i_q)+(jbegin(mype)-ione)*4*im*lm
+     call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+     deallocate(jbuf)
   end if
 
 !                                    write u
-  if(kord(i_u).ne.1) then
-    allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-    call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_u,i_u+lm-1)
-    this_offset=offset(i_u)+(jbegin(mype)-1)*4*im*lm
-    call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-    deallocate(jbuf)
+  if(kord(i_u)/=ione) then
+     allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+     call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_u,i_u+lm-ione)
+     this_offset=offset(i_u)+(jbegin(mype)-ione)*4*im*lm
+     call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+     deallocate(jbuf)
   end if
 
 !                                    write v
-  if(kord(i_v).ne.1) then
-    allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-    call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                       jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_v,i_v+lm-1)
-    this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
-    call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-    deallocate(jbuf)
+  if(kord(i_v)/=ione) then
+     allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+     call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_v,i_v+lm-ione)
+     this_offset=offset(i_v)+(jbegin(mype)-ione)*4*im*lm
+     call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+     deallocate(jbuf)
   end if
 
 !---------------------- write surface files last
   do k=kbegin(mype),kend(mype)
-     if(kdim(k).eq.1.or.kord(k).eq.1) then
+     if(kdim(k)==ione.or.kord(k)==ione) then
         call mpi_file_write_at(mfcst,offset(k),ibuf(1,k),length(k),mpi_integer4,status,ierror)
      end if
   end do
@@ -552,14 +552,14 @@ subroutine wrnemsnmma_binary(mype)
   use guess_grids, only: ges_ps,ges_pd,ges_u,ges_v,ges_q,&
         ntguessfc,ntguessig,ges_tsen,dsfct,isli
   use gridmod, only: pt_ll,update_regsfc,pdtop_ll,nsig,lat2,lon2,eta2_ll,nmmb_verttype
-  use constants, only: zero
+  use constants, only: izero,ione,zero
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read,gsi_nemsio_write
   use gsi_nemsio_mod, only: gsi_nemsio_update
 
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local constants
   real(r_kind),parameter:: r10=10.0_r_kind
@@ -576,17 +576,17 @@ subroutine wrnemsnmma_binary(mype)
 
 !     get conversion factor for pd to psfc
 
-  if(nmmb_verttype.eq.'OLD') then
-    pd_to_ps=pdtop_ll+pt_ll
+  if(nmmb_verttype=='OLD') then
+     pd_to_ps=pdtop_ll+pt_ll
   else
-    pd_to_ps=pt_ll
+     pd_to_ps=pt_ll
   end if
 
   it=ntguessig
-  mype_input=0
+  mype_input=izero
   add_saved=.true.
 
-  if(mype.eq.mype_input) wrfanl = 'wrf_inout'
+  if(mype==mype_input) wrfanl = 'wrf_inout'
 
 !   update date info so start time is analysis time, and forecast time = 0
   call gsi_nemsio_update(wrfanl,'WRNEMSNMMA_BINARY:  problem with update of wrfanl',mype,mype_input)
@@ -596,46 +596,46 @@ subroutine wrnemsnmma_binary(mype)
 
   do kr=1,nsig
 
-    k=nsig+1-kr
+     k=nsig+ione-kr
                                    !   u
 
-    call gsi_nemsio_read('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input)
-    do i=1,lon2
-      do j=1,lat2
-        work_sub(j,i)=ges_u(j,i,k,it)-work_sub(j,i)
-      end do
-    end do
-    call gsi_nemsio_write('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
+     call gsi_nemsio_read('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input)
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=ges_u(j,i,k,it)-work_sub(j,i)
+        end do
+     end do
+     call gsi_nemsio_write('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
 
                                    !   v
 
-    call gsi_nemsio_read('vgrd','mid layer','V',kr,work_sub(:,:),mype,mype_input)
-    do i=1,lon2
-      do j=1,lat2
-        work_sub(j,i)=ges_v(j,i,k,it)-work_sub(j,i)
-      end do
-    end do
-    call gsi_nemsio_write('vgrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
+     call gsi_nemsio_read('vgrd','mid layer','V',kr,work_sub(:,:),mype,mype_input)
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=ges_v(j,i,k,it)-work_sub(j,i)
+        end do
+     end do
+     call gsi_nemsio_write('vgrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
 
                                    !   q
 
-    call gsi_nemsio_read('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input)
-    do i=1,lon2
-      do j=1,lat2
-        work_sub(j,i)=ges_q(j,i,k,it)-work_sub(j,i)
-      end do
-    end do
-    call gsi_nemsio_write('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+     call gsi_nemsio_read('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input)
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=ges_q(j,i,k,it)-work_sub(j,i)
+        end do
+     end do
+     call gsi_nemsio_write('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
 
                                    !   tsen
 
-    call gsi_nemsio_read('tmp','mid layer','H',kr,work_sub(:,:),mype,mype_input)
-    do i=1,lon2
-      do j=1,lat2
-        work_sub(j,i)=ges_tsen(j,i,k,it)-work_sub(j,i)
-      end do
-    end do
-    call gsi_nemsio_write('tmp','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+     call gsi_nemsio_read('tmp','mid layer','H',kr,work_sub(:,:),mype,mype_input)
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=ges_tsen(j,i,k,it)-work_sub(j,i)
+        end do
+     end do
+     call gsi_nemsio_write('tmp','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
 
   end do
 
@@ -648,59 +648,59 @@ subroutine wrnemsnmma_binary(mype)
      end do
   end do
 
-  call gsi_nemsio_read('dpres','hybrid sig lev','H',1,work_sub(:,:),mype,mype_input)
+  call gsi_nemsio_read('dpres','hybrid sig lev','H',ione,work_sub(:,:),mype,mype_input)
   do i=1,lon2
-    do j=1,lat2
-      work_sub(j,i)=pd_new(j,i)-work_sub(j,i)
-    end do
+     do j=1,lat2
+        work_sub(j,i)=pd_new(j,i)-work_sub(j,i)
+     end do
   end do
-  call gsi_nemsio_write('dpres','hybrid sig lev','H',1,work_sub(:,:),mype,mype_input,add_saved)
+  call gsi_nemsio_write('dpres','hybrid sig lev','H',ione,work_sub(:,:),mype,mype_input,add_saved)
 
 
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
-    do kr=1,nsig+1
-      k=nsig+2-kr
-      call gsi_nemsio_read('pres','layer','H',kr,work_sub(:,:),mype,mype_input)
+     do kr=1,nsig+ione
+        k=nsig+2_i_kind-kr
+        call gsi_nemsio_read('pres','layer','H',kr,work_sub(:,:),mype,mype_input)
 
-      do i=1,lon2
-        do j=1,lat2
-          work_sub(j,i)=eta2_ll(k)*(pd_new(j,i)-ges_pd(j,i,it))   ! pint analysis increment
+        do i=1,lon2
+           do j=1,lat2
+              work_sub(j,i)=eta2_ll(k)*(pd_new(j,i)-ges_pd(j,i,it))   ! pint analysis increment
+           end do
         end do
-      end do
-      call gsi_nemsio_write('pres','layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
-    end do
+        call gsi_nemsio_write('pres','layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+     end do
   end if
 
   if(update_regsfc) then
 !              land points first
-    call gsi_nemsio_read('tg'   ,'sfc','H',1,work_sub(:,:),mype,mype_input)
-    do i=1,lon2
-      do j=1,lat2
-        if(isli(j,i,it).ne.0) then
+     call gsi_nemsio_read('tg'   ,'sfc','H',ione,work_sub(:,:),mype,mype_input)
+     do i=1,lon2
+        do j=1,lat2
+           if(isli(j,i,it)/=izero) then
 !               land points--
-          work_sub(j,i)=dsfct(j,i,ntguessfc)
-        else
+              work_sub(j,i)=dsfct(j,i,ntguessfc)
+           else
 !               water points
-          work_sub(j,i)=zero
-        end if
-      end do
-    end do
-    call gsi_nemsio_write('tg','sfc','H',1,work_sub(:,:),mype,mype_input,add_saved)
+              work_sub(j,i)=zero
+           end if
+        end do
+     end do
+     call gsi_nemsio_write('tg','sfc','H',ione,work_sub(:,:),mype,mype_input,add_saved)
 !          now water points
-    call gsi_nemsio_read('tsea' ,'sfc','H',1,work_sub(:,:),mype,mype_input)
-    do i=1,lon2
-       do j=1,lat2
-         if(isli(j,i,it).ne.0) then
+     call gsi_nemsio_read('tsea' ,'sfc','H',ione,work_sub(:,:),mype,mype_input)
+     do i=1,lon2
+        do j=1,lat2
+           if(isli(j,i,it)/=izero) then
 !               land points--
-           work_sub(j,i)=zero
-         else
+              work_sub(j,i)=zero
+           else
 !               water points
-           work_sub(j,i)=dsfct(j,i,ntguessfc)
-         end if
-       end do
-    end do
-    call gsi_nemsio_write('tsea','sfc','H',1,work_sub(:,:),mype,mype_input,add_saved)
+              work_sub(j,i)=dsfct(j,i,ntguessfc)
+           end if
+        end do
+     end do
+     call gsi_nemsio_write('tsea','sfc','H',ione,work_sub(:,:),mype,mype_input,add_saved)
   end if
 
   call gsi_nemsio_close(wrfanl,'WRNEMSNMMA_BINARY',mype,mype_input)
@@ -747,12 +747,12 @@ subroutine wrwrfnmma_netcdf(mype)
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
        nsig,lat1,lon1,ijn,displs_g,eta2_ll
-  use constants, only: zero_single
+  use constants, only: izero,ione,zero_single
   use gsi_io, only: lendian_in, lendian_out
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local constants
   real(r_kind),parameter:: r10=10.0_r_kind
@@ -771,8 +771,8 @@ subroutine wrwrfnmma_netcdf(mype)
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_kind) pd,psfc_this
   real(r_single) dlmd0,dphd0,pt0,pdtop0
-  real(r_single) deta10(nsig),aeta10(nsig),eta10(nsig+1),deta20(nsig),&
-       aeta20(nsig),eta20(nsig+1)
+  real(r_single) deta10(nsig),aeta10(nsig),eta10(nsig+ione),deta20(nsig),&
+       aeta20(nsig),eta20(nsig+ione)
   real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
   real(r_single) dx0_nmm(nlon_regional,nlat_regional),dy0_nmm(nlon_regional,nlat_regional)
 
@@ -780,34 +780,34 @@ subroutine wrwrfnmma_netcdf(mype)
   jm=nlat_regional
   lm=nsig
 
-  num_nmm_fields=3+4*lm
-  if(update_pint) num_nmm_fields=num_nmm_fields+lm+1  ! contribution from PINT
+  num_nmm_fields=3_i_kind+4*lm
+  if(update_pint) num_nmm_fields=num_nmm_fields+lm+ione  ! contribution from PINT
   num_all_fields=num_nmm_fields
   num_all_pad=num_all_fields
-  allocate(all_loc(lat1+2,lon1+2,num_all_pad))
+  allocate(all_loc(lat1+2_i_kind,lon1+2_i_kind,num_all_pad))
   allocate(strp(lat1*lon1))
 
-  i_pd=1
+  i_pd=ione
   if(update_pint) then
-    i_pint=2
-    i_t=i_pint+lm+1
+     i_pint=2_i_kind
+     i_t=i_pint+lm+ione
   else
-    i_t=2
+     i_t=2_i_kind
   end if
   i_q=i_t+lm
   i_u=i_q+lm
   i_v=i_u+lm
   i_sst=i_v+lm
-  i_skt=i_sst+1
-  igtypeh=1
-  igtypev=2
+  i_skt=i_sst+ione
+  igtypeh=ione
+  igtypev=2_i_kind
   
   allocate(temp1(im*jm))
 
-  if(mype == 0) write(6,*)' at 2 in wrwrfnmma'
+  if(mype == izero) write(6,*)' at 2 in wrwrfnmma'
 
 
-  if(mype == 0) then
+  if(mype == izero) then
      write(filename,'("sigf",i2.2)')ifilesig(ntguessig)
      open (lendian_in,file=filename,form='unformatted')
      open (lendian_out,file='siganl',form='unformatted')
@@ -818,21 +818,21 @@ subroutine wrwrfnmma_netcdf(mype)
   it=ntguessig
 
 ! Create all_loc from ges_*
-  if(mype == 0) write(6,*)' at 3 in wrwrfnmma'
+  if(mype == izero) write(6,*)' at 3 in wrwrfnmma'
   all_loc=zero_single
-  kt=i_t-1
-  kq=i_q-1
-  ku=i_u-1
-  kv=i_v-1
+  kt=i_t-ione
+  kq=i_q-ione
+  ku=i_u-ione
+  kv=i_v-ione
   do k=1,nsig
-     kt=kt+1
-     kq=kq+1
-     ku=ku+1
-     kv=kv+1
-     do i=1,lon1+2
-        do j=1,lat1+2
+     kt=kt+ione
+     kq=kq+ione
+     ku=ku+ione
+     kv=kv+ione
+     do i=1,lon1+2_i_kind
+        do j=1,lat1+2_i_kind
            all_loc(j,i,ku)=ges_u(j,i,k,it)
-           if(k == 1.and.abs(all_loc(j,i,ku)) > 1.e15) &
+           if(k == ione.and.abs(all_loc(j,i,ku)) > 1.e15_r_single) &
                 write(6,*)' at 3.01 in wrwrfnmma, j,i,ku,all_loc(j,i,ku)=',j,i,ku,all_loc(j,i,ku)
            all_loc(j,i,kv)=ges_v(j,i,k,it)
            all_loc(j,i,kq)=ges_q(j,i,k,it)
@@ -840,8 +840,8 @@ subroutine wrwrfnmma_netcdf(mype)
         end do
      end do
   end do
-  do i=1,lon1+2
-     do j=1,lat1+2
+  do i=1,lon1+2_i_kind
+     do j=1,lat1+2_i_kind
         psfc_this=r10*ges_ps(j,i,it)   ! convert from mb to cb
         pd=psfc_this-pdtop_ll-pt_ll
         all_loc(j,i,i_pd)=r100*pd
@@ -849,19 +849,19 @@ subroutine wrwrfnmma_netcdf(mype)
   end do
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
-    kpint=i_pint-1
-    do k=1,nsig+1
-       kpint=kpint+1
-       do i=1,lon1+2
-          do j=1,lat1+2
-             all_loc(j,i,kpint)=ges_pint(j,i,k,it) &
-                         +eta2_ll(k)*(all_loc(j,i,i_pd)-ges_pd(j,i,it))   ! pint
-          end do
-       end do
-    end do
+     kpint=i_pint-ione
+     do k=1,nsig+ione
+        kpint=kpint+ione
+        do i=1,lon1+2_i_kind
+           do j=1,lat1+2_i_kind
+              all_loc(j,i,kpint)=ges_pint(j,i,k,it) &
+                          +eta2_ll(k)*(all_loc(j,i,i_pd)-ges_pd(j,i,it))   ! pint
+           end do
+        end do
+     end do
   end if
   
-  if(mype == 0) then
+  if(mype == izero) then
      read(lendian_in) regional_time0,nlon_regional0,nlat_regional0,nsig0,dlmd0,dphd0,pt0,pdtop0
      write(lendian_out) regional_time0,nlon_regional0,nlat_regional0,nsig0,dlmd0,dphd0,pt0,pdtop0
      read(lendian_in) deta10
@@ -883,159 +883,159 @@ subroutine wrwrfnmma_netcdf(mype)
   end if
   
 ! Update pd
-  if(mype == 0) write(6,*)' at 6 in wrwrfnmma'
+  if(mype == izero) write(6,*)' at 6 in wrwrfnmma'
 
   allocate(tempa(itotsub),tempb(itotsub))
-  if(mype == 0) read(lendian_in)temp1
-  if(mype == 0) write(6,*)' at 6.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
-  call strip_single(all_loc(1,1,i_pd),strp,1)
-  call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-       tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-  if(mype == 0) then
-     if(mype == 0) write(6,*)' at 6.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
-     if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-     if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-     if(mype == 0) write(6,*)' at 6.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
+  if(mype == izero) read(lendian_in)temp1
+  if(mype == izero) write(6,*)' at 6.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+  call strip_single(all_loc(1,1,i_pd),strp,ione)
+  call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+       tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+  if(mype == izero) then
+     if(mype == izero) write(6,*)' at 6.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+     if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
+     if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
+     if(mype == izero) write(6,*)' at 6.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
      do i=1,iglobal
         tempa(i)=tempa(i)-tempb(i)
      end do
-     if(mype == 0) write(6,*)' at 6.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
-     if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-     if(mype == 0) write(6,*)' at 6.5 in wrwrfnmma'
-     if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-     if(mype == 0) write(6,*)' at 6.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+     if(mype == izero) write(6,*)' at 6.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+     if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
+     if(mype == izero) write(6,*)' at 6.5 in wrwrfnmma'
+     if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
+     if(mype == izero) write(6,*)' at 6.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
      write(lendian_out)temp1
   end if
 
 !  FIS read/write
-  if(mype == 0) then
+  if(mype == izero) then
      read(lendian_in)temp1
      write(lendian_out)temp1
   end if
 
 ! Update pint
   if(update_pint) then
-  kpint=i_pint-1
-  do k=1,nsig+1
-     kpint=kpint+1
-     if(mype == 0) read(lendian_in)temp1
-     call strip_single(all_loc(1,1,kpint),strp,1)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-        do i=1,iglobal
-           tempa(i)=tempa(i)-tempb(i)
-        end do
-        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-        write(lendian_out)temp1
-     end if
-  end do
-   endif
+     kpint=i_pint-ione
+     do k=1,nsig+ione
+        kpint=kpint+ione
+        if(mype == izero) read(lendian_in)temp1
+        call strip_single(all_loc(1,1,kpint),strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+             tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+        if(mype == izero) then
+           if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
+           if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
+           do i=1,iglobal
+              tempa(i)=tempa(i)-tempb(i)
+           end do
+           if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
+           if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
+           write(lendian_out)temp1
+        end if
+     end do
+  endif
 
 ! Update t
-  kt=i_t-1
+  kt=i_t-ione
   do k=1,nsig
-     kt=kt+1
-     if(mype == 0) read(lendian_in)temp1
-     call strip_single(all_loc(1,1,kt),strp,1)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
+     kt=kt+ione
+     if(mype == izero) read(lendian_in)temp1
+     call strip_single(all_loc(1,1,kt),strp,ione)
+     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+     if(mype == izero) then
+        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
+        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
         do i=1,iglobal
            tempa(i)=tempa(i)-tempb(i)
         end do
-        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
+        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
+        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
         write(lendian_out)temp1
      end if
   end do
-  if(mype == 0) write(6,*)' at 7 in wrwrfnmma'
+  if(mype == izero) write(6,*)' at 7 in wrwrfnmma'
 
 
 ! Update q
-  kq=i_q-1
+  kq=i_q-ione
   do k=1,nsig
-     kq=kq+1 
-     if(mype == 0) read(lendian_in)temp1
-     call strip_single(all_loc(1,1,kq),strp,1)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
+     kq=kq+ione
+     if(mype == izero) read(lendian_in)temp1
+     call strip_single(all_loc(1,1,kq),strp,ione)
+     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+     if(mype == izero) then
+        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
+        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
         do i=1,iglobal
            tempa(i)=tempa(i)-tempb(i)
         end do
-        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
+        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
+        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
         write(lendian_out)temp1
      end if
   end do
 
 ! Update u
-  ku=i_u-1
+  ku=i_u-ione
   do k=1,nsig
-     ku=ku+1   
-     if(mype == 0) read(lendian_in)temp1
-     call strip_single(all_loc(1,1,ku),strp,1)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) write(6,*)' at 7.2 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
-     if(mype == 0) then
-        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
-        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
-        if(mype == 0) write(6,*)' at 7.21 in wrwrfnmma,k,max,min(temp1)=',&
+     ku=ku+ione
+     if(mype == izero) read(lendian_in)temp1
+     call strip_single(all_loc(1,1,ku),strp,ione)
+     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+     if(mype == izero) write(6,*)' at 7.2 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
+     if(mype == izero) then
+        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypev,2_i_kind)
+        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypev,2_i_kind)
+        if(mype == izero) write(6,*)' at 7.21 in wrwrfnmma,k,max,min(temp1)=',&
              k,maxval(temp1),minval(temp1)
-        if(mype == 0) write(6,*)' at 7.22 in wrwrfnmma,k,max,min(tempb)=',&
+        if(mype == izero) write(6,*)' at 7.22 in wrwrfnmma,k,max,min(tempb)=',&
              k,maxval(tempb),minval(tempb)
-      do i=1,iglobal
-        tempa(i)=tempa(i)-tempb(i)
-      end do
-      if(mype == 0) write(6,*)' at 7.3 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
-      if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
-      if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
-      if(mype == 0) write(6,*)' at 7.4 in wrwrfnmma,k,max,min(temp1)=',k,maxval(temp1),minval(temp1)
-      write(lendian_out)temp1
-    end if
-  end do
-  if(mype == 0) write(6,*)' at 8 in wrwrfnmma'
-
-! Update v
-  kv=i_v-1
-  do k=1,nsig
-     kv=kv+1
-     if(mype == 0) read(lendian_in)temp1
-     call strip_single(all_loc(1,1,kv),strp,1)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
-        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
         do i=1,iglobal
            tempa(i)=tempa(i)-tempb(i)
         end do
-        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
-        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
+        if(mype == izero) write(6,*)' at 7.3 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
+        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2_i_kind)
+        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2_i_kind)
+        if(mype == izero) write(6,*)' at 7.4 in wrwrfnmma,k,max,min(temp1)=',k,maxval(temp1),minval(temp1)
+        write(lendian_out)temp1
+     end if
+  end do
+  if(mype == izero) write(6,*)' at 8 in wrwrfnmma'
+
+! Update v
+  kv=i_v-ione
+  do k=1,nsig
+     kv=kv+ione
+     if(mype == izero) read(lendian_in)temp1
+     call strip_single(all_loc(1,1,kv),strp,ione)
+     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+     if(mype == izero) then
+        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypev,2_i_kind)
+        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypev,2_i_kind)
+        do i=1,iglobal
+           tempa(i)=tempa(i)-tempb(i)
+        end do
+        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2_i_kind)
+        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2_i_kind)
         write(lendian_out)temp1
      end if
   end do
 
 ! Load updated skin temperature array if writing out to analysis file
   if (update_regsfc) then
-     do i=1,lon1+2
-        do j=1,lat1+2
+     do i=1,lon1+2_i_kind
+        do j=1,lat1+2_i_kind
            all_loc(j,i,i_sst)=dsfct(j,i,ntguessfc)
            all_loc(j,i,i_skt)=dsfct(j,i,ntguessfc)
         end do
      end do
   end if
 
-  if(mype == 0) then
+  if(mype == izero) then
 ! SM
      read(lendian_in)temp1
      write(lendian_out)temp1
@@ -1046,16 +1046,16 @@ subroutine wrwrfnmma_netcdf(mype)
 
 ! SST
   if(update_regsfc) then
-     if(mype == 0) read(lendian_in)temp1
-     if (mype==0)write(6,*)' at 9.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_sst),strp,1)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-        if(mype == 0) write(6,*)' at 9.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
-        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-        if(mype == 0) write(6,*)' at 9.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
+     if(mype == izero) read(lendian_in)temp1
+     if (mype==izero)write(6,*)' at 9.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+     call strip_single(all_loc(1,1,i_sst),strp,ione)
+     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+     if(mype == izero) then
+        if(mype == izero) write(6,*)' at 9.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
+        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
+        if(mype == izero) write(6,*)' at 9.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
         do i=1,iglobal
            if(tempb(i) < r225) then
               tempa(i)=zero_single
@@ -1063,22 +1063,22 @@ subroutine wrwrfnmma_netcdf(mype)
               tempa(i)=tempa(i)-tempb(i)
            end if
         end do
-        if(mype == 0) write(6,*)' at 9.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
-        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-        if(mype == 0) write(6,*)' at 9.5 in wrwrfnmma'
-        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-        if(mype == 0) write(6,*)' at 9.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+        if(mype == izero) write(6,*)' at 9.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
+        if(mype == izero) write(6,*)' at 9.5 in wrwrfnmma'
+        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
+        if(mype == izero) write(6,*)' at 9.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
         write(lendian_out)temp1
      end if     !endif mype==0
   else
-     if(mype==0) then
+     if(mype==izero) then
         read(lendian_in)temp1
         write(lendian_out)temp1
      end if
   end if   !end if check updatesfc
   
 ! REST OF FIELDS
-  if (mype == 0) then
+  if (mype == izero) then
      do k=4,11
         read(lendian_in)temp1
         write(lendian_out)temp1
@@ -1087,15 +1087,15 @@ subroutine wrwrfnmma_netcdf(mype)
   
 ! Update SKIN TEMP
   if(update_regsfc) then
-     if(mype == 0) read(lendian_in)temp1
-     if (mype==0)write(6,*)' at 10.0 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_skt),strp,1)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if (mype==0)write(6,*)' at 10.1'
-     if(mype == 0) then
-        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
+     if(mype == izero) read(lendian_in)temp1
+     if (mype==izero)write(6,*)' at 10.0 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+     call strip_single(all_loc(1,1,i_skt),strp,ione)
+     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+     if (mype==izero)write(6,*)' at 10.1'
+     if(mype == izero) then
+        if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
+        if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2_i_kind)
         do i=1,iglobal
            if(tempb(i) < r225) then
               tempa(i)=zero_single
@@ -1103,18 +1103,18 @@ subroutine wrwrfnmma_netcdf(mype)
               tempa(i)=tempa(i)-tempb(i)
            end if
         end do
-        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
+        if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
+        if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2_i_kind)
         write(lendian_out)temp1
      end if
   else
-     if (mype == 0) then
+     if (mype == izero) then
         read(lendian_in)temp1
         write(lendian_out)temp1
      end if
   end if
 
-  if (mype==0) then
+  if (mype==izero) then
      close(lendian_in)
      close(lendian_out)
   endif
@@ -1153,9 +1153,12 @@ subroutine  wrwrfnmma_binary(mype)
 !
 !$$$
   use kinds, only: i_kind
+  use constants, only: izero
   implicit none
-  integer(i_kind),intent(in)::mype
-    if (mype==0) write(6,*)'WRWRFNMMA_BINARY:  enter dummy call, do nothing'
+
+  integer(i_kind),intent(in   ) :: mype
+
+  if (mype==izero) write(6,*)'WRWRFNMMA_BINARY:  enter dummy call, do nothing'
 end subroutine  wrwrfnmma_binary
 
 subroutine wrnemsnmma_binary(mype)
@@ -1183,9 +1186,12 @@ subroutine wrnemsnmma_binary(mype)
 !
 !$$$
   use kinds, only: i_kind
+  use constants, only: izero
   implicit none
-  integer(i_kind),intent(in)::mype
-    if (mype==0) write(6,*)'WRNEMSNMMA_BINARY:  enter dummy call, do nothing'
+
+  integer(i_kind),intent(in   ) :: mype
+
+  if (mype==izero) write(6,*)'WRNEMSNMMA_BINARY:  enter dummy call, do nothing'
 end subroutine  wrwrfnmma_binary
 
 subroutine wrwrfnmma_netcdf(mype)
@@ -1215,8 +1221,11 @@ subroutine wrwrfnmma_netcdf(mype)
 !
 !$$$
   use kinds, only: i_kind
+  use constants, only: izero
   implicit none
-  integer(i_kind),intent(in)::mype
-    if (mype==0) write(6,*)'WRWRFNMMA_NETCDF:  enter dummy call, do nothing'
+
+  integer(i_kind),intent(in   ) :: mype
+
+  if (mype==izero) write(6,*)'WRWRFNMMA_NETCDF:  enter dummy call, do nothing'
 end subroutine wrwrfnmma_netcdf
 #endif /* End no WRF-library block */

@@ -42,16 +42,16 @@ subroutine statsrad(aivals,stats,ndata)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,one,izero
+  use constants, only: izero,ione,zero,one
   use obsmod, only: dtype,iout_rad,ndat,dplat,ditype
   use radinfo, only: varch,iuse_rad,nuchan,jpch_rad,nusis
   use jfunc, only: jiter
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(40,ndat),intent(in):: aivals
-  real(r_kind),dimension(7,jpch_rad),intent(inout):: stats
-  integer(i_kind),dimension(ndat,3),intent(in):: ndata
+  real(r_kind)   ,dimension(40,ndat)   ,intent(in   ) :: aivals
+  real(r_kind)   ,dimension(7,jpch_rad),intent(inout) :: stats
+  integer(i_kind),dimension(ndat,3)    ,intent(in   ) :: ndata
 
 ! Declare local variables
   integer(i_kind) iobs2,i,j,is,iasim
@@ -72,7 +72,7 @@ subroutine statsrad(aivals,stats,ndata)
 ! Loop over all observational data types
   penalty_all=zero
   qcpenalty_all=zero
-  nlgross_all=0
+  nlgross_all=izero
   idisplay=.false.
   do is=1,ndat
      obstype=dtype(is)
@@ -84,7 +84,7 @@ subroutine statsrad(aivals,stats,ndata)
         qcpenalty_all=qcpenalty_all+aivals(39,is)
         nlgross_all = nlgross_all + nint(aivals(2,is))
         idisplay(is) = .true.
-        if(iobs2 > 0)then
+        if(iobs2 > izero)then
 
            nlgross = nint(aivals(2,is))
            iland   = nint(aivals(3,is))
@@ -99,10 +99,10 @@ subroutine statsrad(aivals,stats,ndata)
                  iobs2,iland,isnoice,icoast,ireduce,ivarl,nlgross
            write(iout_rad,4002) 'qcpenalty','qc1','qc2','qc3','qc4','qc5','qc6','qc7'    
            write(iout_rad,4003) aivals(39,is),(nint(aivals(i,is)),i=8,14)
-4000 format(2x,a3,7x,a4,14x,a7,1x,8(a7,1x))
-4001 format(1x,a10,1x,a10,f16.8,8(i7,1x))
-4002 format(28x,a9,1x,8(a7,1x))
-4003 format(22x,f16.8,8(i7,1x))
+4000       format(2x,a3,7x,a4,14x,a7,1x,8(a7,1x))
+4001       format(1x,a10,1x,a10,f16.8,8(i7,1x))
+4002       format(28x,a9,1x,8(a7,1x))
+4003       format(22x,f16.8,8(i7,1x))
            
            write(iout_rad,'(/)')
         end if
@@ -116,9 +116,9 @@ subroutine statsrad(aivals,stats,ndata)
 ! Print counts, bias, rms, stndev as a function of channel.
   do i = 1,jpch_rad
      iasim = nint(stats(1,i))
-     if (iasim > 0) then
+     if (iasim > izero) then
         svar = varch(i)
-        if (iuse_rad(i) < 1) svar=-svar
+        if (iuse_rad(i) < ione) svar=-svar
         rsum = one/float(iasim)
         icerr = nint(stats(2,i))
         do j=3,6   ! j=3=obs-mod(w_biascor)
@@ -128,7 +128,7 @@ subroutine statsrad(aivals,stats,ndata)
            stats(j,i) = stats(j,i)*rsum
         end do
         stats(4,i) = sqrt(stats(4,i))
-        if (iasim > 1) then
+        if (iasim > ione) then
            stdev  = sqrt(stats(4,i)*stats(4,i)-stats(3,i)*stats(3,i))
         else
            stdev = zero
@@ -141,15 +141,15 @@ subroutine statsrad(aivals,stats,ndata)
 ! Write obs count to runtime output file
   write(iout_rad,1109)
   do i=1,ndat
-      if(idisplay(i))then
+     if(idisplay(i))then
         iobs2 = nint(aivals(38,i))
         qcpenal = aivals(39,i)
         rpenal = aivals(40,i)
         cpen=zero
         qcpen=zero
         if (iobs2 > izero) then
-         cpen=rpenal/aivals(38,i)
-         qcpen=qcpenal/aivals(38,i)
+           cpen=rpenal/aivals(38,i)
+           qcpen=qcpenal/aivals(38,i)
         end if
         write(iout_rad,1115) jiter,dplat(i),dtype(i),ndata(i,2), &
              ndata(i,3),iobs2,rpenal,qcpenal,cpen,qcpen

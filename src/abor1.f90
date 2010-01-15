@@ -25,7 +25,7 @@ use kinds, only: i_kind
 use mpimod, only: mpi_comm_world,ierror
 implicit none
 
-character(len=*), intent(in) :: error_msg
+character(len=*), intent(in   ) :: error_msg
 
 integer(i_kind) :: ierr
 

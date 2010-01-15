@@ -79,7 +79,7 @@ subroutine prewgt(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind) nrr,iii,jjj,nxg,i2,im,jm,j2
@@ -275,7 +275,7 @@ subroutine prewgt(mype)
         hzscl(i)=hzscl(i)+hzscl(i)*randfct(8_i_kind+i)
      end do
      vs=vs+vs*randfct(12)
-     if (mype==0) then
+     if (mype==izero) then
         write(6,*) 'PREWGT: REDEFINE AS = ',as
         write(6,*) 'PREWGT: REDEFINE HZSCL = ',hzscl
         write(6,*) 'PREWGT: REDEFINE VS = ',vs

@@ -75,16 +75,16 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   implicit none
 
 ! Passed variables
-  integer(i_kind),intent(in):: nlevs,nfldsig
-  real(r_kind),dimension(lat2,lon2,nfldsig),intent(in):: p
-  real(r_kind),dimension(lat2,lon2),intent(in):: skint
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,q,cwmr,oz,u,v
-  real(r_kind),dimension(lat2,lon2,nfldsig),intent(out):: p_x
-  real(r_kind),dimension(lat2,lon2),intent(out):: skint_x
-  real(r_kind),dimension(lat2,lon2,nsig),intent(out):: t_x,q_x,cwmr_x,oz_x,u_x,v_x
-  real(r_kind),dimension(lat2,lon2,nfldsig),intent(out):: p_y
-  real(r_kind),dimension(lat2,lon2),intent(out):: skint_y
-  real(r_kind),dimension(lat2,lon2,nsig),intent(out):: t_y,q_y,cwmr_y,oz_y,u_y,v_y
+  integer(i_kind)                          ,intent(in   ) :: nlevs,nfldsig
+  real(r_kind),dimension(lat2,lon2,nfldsig),intent(in   ) :: p
+  real(r_kind),dimension(lat2,lon2)        ,intent(in   ) :: skint
+  real(r_kind),dimension(lat2,lon2,nsig)   ,intent(in   ) :: t,q,cwmr,oz,u,v
+  real(r_kind),dimension(lat2,lon2,nfldsig),intent(  out) :: p_x
+  real(r_kind),dimension(lat2,lon2)        ,intent(  out) :: skint_x
+  real(r_kind),dimension(lat2,lon2,nsig)   ,intent(  out) :: t_x,q_x,cwmr_x,oz_x,u_x,v_x
+  real(r_kind),dimension(lat2,lon2,nfldsig),intent(  out) :: p_y
+  real(r_kind),dimension(lat2,lon2)        ,intent(  out) :: skint_y
+  real(r_kind),dimension(lat2,lon2,nsig)   ,intent(  out) :: t_y,q_y,cwmr_y,oz_y,u_y,v_y
 
 ! Local Variables
   integer(i_kind) iflg,k,i,j,it
@@ -99,50 +99,50 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   sicet=zero
 
   if(nsig1o > nlevs)then
-    do k=nlevs+ione,nsig1o
-      do j=1,nlon
-        do i=1,nlat
-          hworkd(i,j,k) = zero
+     do k=nlevs+ione,nsig1o
+        do j=1,nlon
+           do i=1,nlat
+              hworkd(i,j,k) = zero
+           end do
         end do
-      end do
-    end do
+     end do
   end if
 
   do it=1,nfldsig
-    call sub2grid(hwork,t,p(1,1,it),q,oz, &
-                  skint,slndt,sicet,cwmr,u, &
-                  v,iflg)
+     call sub2grid(hwork,t,p(1,1,it),q,oz, &
+                   skint,slndt,sicet,cwmr,u, &
+                   v,iflg)
 
 
-!   x derivative
+!    x derivative
 !$omp parallel do private(vector)
-    do k=1,nlevs
-      vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
-      if(regional) then
-        call delx_reg(hwork(1,1,k),hworkd(1,1,k),vector)
-      else
-        call compact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
-      end if
-    end do
+     do k=1,nlevs
+        vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
+        if(regional) then
+           call delx_reg(hwork(1,1,k),hworkd(1,1,k),vector)
+        else
+           call compact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
+        end if
+     end do
 !$omp end parallel do
-    call grid2sub(hworkd,t_x,p_x(1,1,it),q_x, &
-                  oz_x,skint_x,slndt_x,sicet_x, &
-                  cwmr_x,u_x,v_x)
+     call grid2sub(hworkd,t_x,p_x(1,1,it),q_x, &
+                   oz_x,skint_x,slndt_x,sicet_x, &
+                   cwmr_x,u_x,v_x)
 
-!   y derivative
+!    y derivative
 !$omp parallel do private(vector)
-    do k=1,nlevs
-      vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
-      if(regional) then
-        call dely_reg(hwork(1,1,k),hworkd(1,1,k),vector)
-      else
-        call compact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
-      end if
-    end do
+     do k=1,nlevs
+        vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
+        if(regional) then
+           call dely_reg(hwork(1,1,k),hworkd(1,1,k),vector)
+        else
+           call compact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
+        end if
+     end do
 !$omp end parallel do
-    call grid2sub(hworkd,t_y,p_y(1,1,it),q_y, &
-                  oz_y,skint_y,slndt_y,sicet_y, &
-                  cwmr_y,u_y,v_y)
+     call grid2sub(hworkd,t_y,p_y(1,1,it),q_y, &
+                   oz_y,skint_y,slndt_y,sicet_y, &
+                   cwmr_y,u_y,v_y)
   end do  ! end do it
 
   return
@@ -207,13 +207,13 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   implicit none
 
 ! Passed variables
-  integer(i_kind),intent(in):: nlevs
-  real(r_kind),dimension(lat2,lon2),intent(inout):: p,skint
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,q,cwmr,oz,u,v
-  real(r_kind),dimension(lat2,lon2),intent(inout):: p_x,skint_x
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t_x,q_x,cwmr_x,oz_x,u_x,v_x
-  real(r_kind),dimension(lat2,lon2),intent(inout):: p_y,skint_y
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t_y,q_y,cwmr_y,oz_y,u_y,v_y
+  integer(i_kind)                       ,intent(in   ) :: nlevs
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p,skint
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,cwmr,oz,u,v
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p_x,skint_x
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t_x,q_x,cwmr_x,oz_x,u_x,v_x
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p_y,skint_y
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t_y,q_y,cwmr_y,oz_y,u_y,v_y
 
 ! Local Variables
   integer(i_kind) iflg,k,i,j
@@ -238,12 +238,12 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
                 u_y,v_y,iflg)
 !$omp parallel do private(vector)
   do k=1,nlevs
-    vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
-    if(regional) then
-      call dely_reg(hworkd(1,1,k),hwork(1,1,k),vector)
-    else
-      call tcompact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
-    end if
+     vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
+     if(regional) then
+        call dely_reg(hworkd(1,1,k),hwork(1,1,k),vector)
+     else
+        call tcompact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
+     end if
   end do
 !$omp end parallel do
 
@@ -253,12 +253,12 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
                 u_x,v_x,iflg)
 !$omp parallel do private(vector)
   do k=1,nlevs
-    vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
-    if(regional) then
-      call delx_reg(hworkd(1,1,k),hwork(1,1,k),vector)
-    else
-      call tcompact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
-    end if
+     vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
+     if(regional) then
+        call delx_reg(hworkd(1,1,k),hwork(1,1,k),vector)
+     else
+        call tcompact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
+     end if
   end do
 !$omp end parallel do
 
@@ -268,30 +268,31 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   accumulate to contents of t,p,etc (except st,vp, which are zero on input
 !$omp parallel do
   do k=1,nsig
-    do j=1,lon2
-      do i=1,lat2
-        t(i,j,k)=t(i,j,k)+t_x(i,j,k)
-        q(i,j,k)=q(i,j,k)+q_x(i,j,k)
-        u(i,j,k)=u(i,j,k)+u_x(i,j,k)
-        v(i,j,k)=v(i,j,k)+v_x(i,j,k)
-        oz(i,j,k)=oz(i,j,k)+oz_x(i,j,k)
-        cwmr(i,j,k)=cwmr(i,j,k)+cwmr_x(i,j,k)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           t(i,j,k)=t(i,j,k)+t_x(i,j,k)
+           q(i,j,k)=q(i,j,k)+q_x(i,j,k)
+           u(i,j,k)=u(i,j,k)+u_x(i,j,k)
+           v(i,j,k)=v(i,j,k)+v_x(i,j,k)
+           oz(i,j,k)=oz(i,j,k)+oz_x(i,j,k)
+           cwmr(i,j,k)=cwmr(i,j,k)+cwmr_x(i,j,k)
+        end do
+     end do
   end do
 !$omp end parallel do
   do j=1,lon2
-    do i=1,lat2
-      p(i,j)=p(i,j)+p_x(i,j)
-      skint(i,j)=skint(i,j)+skint_x(i,j)
-    end do
+     do i=1,lat2
+        p(i,j)=p(i,j)+p_x(i,j)
+        skint(i,j)=skint(i,j)+skint_x(i,j)
+     end do
   end do
 
 end subroutine tget_derivatives
 
 
 subroutine get_zderivs(z,z_x,z_y,mype)
-! $$$
+!$$$  subprogram documentation block
+!                .      .    .                                       .
 ! subprogram:    get_zderivs    get derivatives of terrain
 !   prgmmr: parrish          org: np22                date: 2005-09-29
 !
@@ -328,9 +329,9 @@ subroutine get_zderivs(z,z_x,z_y,mype)
   implicit none
 
 ! Passed variables
-  integer(i_kind),intent(in):: mype
-  real(r_kind),dimension(lat2,lon2),intent(in):: z
-  real(r_kind),dimension(lat2,lon2),intent(out):: z_x,z_y
+  integer(i_kind)                  ,intent(in   ) :: mype
+  real(r_kind),dimension(lat2,lon2),intent(in   ) :: z
+  real(r_kind),dimension(lat2,lon2),intent(  out) :: z_x,z_y
 
 ! Local variables
   real(r_kind),dimension(lat1*lon1):: zsm
@@ -341,7 +342,7 @@ subroutine get_zderivs(z,z_x,z_y,mype)
   mm1=mype+ione
 
   do j=1,lon1*lat1
-    zsm(j)=zero
+     zsm(j)=zero
   end do
  
   call strip(z,zsm,ione)
@@ -350,22 +351,22 @@ subroutine get_zderivs(z,z_x,z_y,mype)
      izero,mpi_comm_world,ierror)
 
   if (mype==izero) then
-    do k=1,iglobal
-      i=ltosi(k) ; j=ltosj(k)
-      workh(i,j)=work1(k)
-    end do
-    if(regional) then
-      call delx_reg(workh,workd1,(.false.))
-      call dely_reg(workh,workd2,(.false.))
-    else
-      call compact_dlon(workh,workd1,(.false.))
-      call compact_dlat(workh,workd2,(.false.))
-    end if
-    do k=1,itotsub
-      i=ltosi_s(k) ; j=ltosj_s(k)
-      work1(k)=workd1(i,j)
-      work2(k)=workd2(i,j)
-    end do
+     do k=1,iglobal
+        i=ltosi(k) ; j=ltosj(k)
+        workh(i,j)=work1(k)
+     end do
+     if(regional) then
+        call delx_reg(workh,workd1,(.false.))
+        call dely_reg(workh,workd2,(.false.))
+     else
+        call compact_dlon(workh,workd1,(.false.))
+        call compact_dlat(workh,workd2,(.false.))
+     end if
+     do k=1,itotsub
+        i=ltosi_s(k) ; j=ltosj_s(k)
+        work1(k)=workd1(i,j)
+        work2(k)=workd2(i,j)
+     end do
   end if
   call mpi_scatterv(work1,ijn_s,displs_s,mpi_rtype,&
        z_x,ijn_s(mm1),mpi_rtype,izero,mpi_comm_world,ierror)

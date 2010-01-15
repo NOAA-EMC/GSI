@@ -32,7 +32,7 @@ subroutine smoothrf(work,nsc,nlevs)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,regional
-  use constants, only:  zero,half
+  use constants, only: izero,ione,zero,half
   use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
        ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,hswgt
   use mpimod, only:  nvar_id
@@ -40,8 +40,8 @@ subroutine smoothrf(work,nsc,nlevs)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nsc,nlevs
-  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout):: work
+  integer(i_kind)                        ,intent(in   ) :: nsc,nlevs
+  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
 
 ! Declare local variables
   integer(i_kind) ndx,ndy,nxe,nmix,nfg
@@ -51,7 +51,7 @@ subroutine smoothrf(work,nsc,nlevs)
 
   real(r_kind),dimension(nsc):: totwgt
   real(r_kind),dimension(ny,nx):: p1all
-  real(r_kind),dimension(nlon+1,mr:nr):: p2all,p3all
+  real(r_kind),dimension(nlon+ione,mr:nr):: p2all,p3all
   real(r_kind),dimension(-nf:nf,-nf:nf):: afg1
 
 
@@ -65,7 +65,7 @@ subroutine smoothrf(work,nsc,nlevs)
            totwgt(j)=hswgt(j)*hzscl(j)*hzscl(j)
         end do
         
-        if(nvar_id(k)<3)then
+        if(nvar_id(k)<3_i_kind)then
            totwgt(3)=half*totwgt(3)
         end if
         
@@ -84,17 +84,17 @@ subroutine smoothrf(work,nsc,nlevs)
      ndx=(nx-nlon)/2
      ndy=(nlat-ny)/2
      ndx2=2*ndx
-     norm=norh*2-1
+     norm=norh*2-ione
      nxe=nlon/8
-     nxem=nxe-1
-     nmix=nr+1+(ny-nlat)/2
-     naxr=nlon+1 
-     nfg=nf*2+1
-     nrmxb=ndy-1
+     nxem=nxe-ione
+     nmix=nr+ione+(ny-nlat)/2
+     naxr=nlon+ione
+     nfg=nf*2+ione
+     nrmxb=ndy-ione
      nlatxb=nlat-nrmxb
-     nmixp=nmix+1
+     nmixp=nmix+ione
      nymx=ny-nmix
-     nfnf=(2*nf+1)*(2*nf+1)
+     nfnf=(2*nf+ione)*(2*nf+ione)
      
 !_$omp parallel do  schedule(dynamic,1) private(k) &
 !_$omp private(i,j,i1,i2,j1,p1all,p2all,p3all,afg1)
@@ -120,7 +120,7 @@ subroutine smoothrf(work,nsc,nlevs)
         enddo
 
 !       Middle zone (no blending)
-        do i=ndx+1,nx-ndx
+        do i=ndx+ione,nx-ndx
            i1=i-ndx
            do j=1,ny
               p1all(j,i)=work(j+ndy,i1,k)
@@ -129,7 +129,7 @@ subroutine smoothrf(work,nsc,nlevs)
         
 !       Apply blending coefficients to central patch
         do i=1,ndx2
-           i1=ndx2+1-i
+           i1=ndx2+ione-i
            i2=nx-ndx2+i
            do j=1,ny
               p1all(j,i) =p1all(j,i) *bl(i1)  ! left (west) blending zone
@@ -142,7 +142,7 @@ subroutine smoothrf(work,nsc,nlevs)
            do j=1,nmix
               p1all(j,i)=p1all(j,i)*bl2(nmixp-j)
            enddo
-           do j=nymx+1,ny
+           do j=nymx+ione,ny
               p1all(j,i)=p1all(j,i)*bl2(j-nymx)
            enddo
         enddo
@@ -167,7 +167,7 @@ subroutine smoothrf(work,nsc,nlevs)
         enddo
 
 !       Apply blending coefficients
-        do j=nrmxb+1,nrmxb+nmix
+        do j=nrmxb+ione,nrmxb+nmix
            j1=j-nrmxb
            do i=1,nlon
               p2all(i,j)=p2all(i,j)*bl2(j1)
@@ -181,36 +181,36 @@ subroutine smoothrf(work,nsc,nlevs)
         call rfxyyx(p1all,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),nsc,totwgt)
 
 !       North pole patch --interpolate - recursive filter - adjoint interpolate
-        if(norsp.gt.0) then
-          call smooth_polcasa(afg1,p2all)
+        if(norsp>izero) then
+           call smooth_polcasa(afg1,p2all)
         else
-          call polcasa(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+           call polcasa(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
         end if
         call rfxyyx(afg1,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
-        if(norsp.gt.0) then
-          call smooth_polcas(afg1,p2all)
+        if(norsp>izero) then
+           call smooth_polcas(afg1,p2all)
         else
-          call polcas(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+           call polcas(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
         end if
 
 !       South pole patch --interpolate - recursive filter - adjoint interpolate
-        if(norsp.gt.0) then
-          call smooth_polcasa(afg1,p3all)
+        if(norsp>izero) then
+           call smooth_polcasa(afg1,p3all)
         else
-          call polcasa(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+           call polcasa(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
         end if
         call rfxyyx(afg1,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
-        if(norsp.gt.0) then
-          call smooth_polcas(afg1,p3all)
+        if(norsp>izero) then
+           call smooth_polcas(afg1,p3all)
         else
-          call polcas(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+           call polcas(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
         end if
 
 
 !       Equatorial patch
 !       Adjoint of central patch blending on left/right sides of patch
         do i=1,ndx2
-           i1=ndx2+1-i
+           i1=ndx2+ione-i
            i2=nx-ndx2+i
            do j=1,ny
               p1all(j,i) =p1all(j,i) *bl(i1)   ! left (west) blending zone
@@ -223,7 +223,7 @@ subroutine smoothrf(work,nsc,nlevs)
            do j=1,nmix
               p1all(j,i)=p1all(j,i)*bl2(nmixp-j)
            enddo
-           do j=nymx+1,ny
+           do j=nymx+ione,ny
               p1all(j,i)=p1all(j,i)*bl2(j-nymx)
            enddo
         enddo
@@ -247,7 +247,7 @@ subroutine smoothrf(work,nsc,nlevs)
         enddo
 
 !       Middle zone (no blending)
-        do i=ndx+1,nx-ndx
+        do i=ndx+ione,nx-ndx
            i1=i-ndx
            do j=1,ny
               j1=j+ndy
@@ -258,14 +258,14 @@ subroutine smoothrf(work,nsc,nlevs)
 !       Adjoint of North pole patch(p2) -- blending and transfer to grid
 !       Adjoint of South pole patch(p3) -- blending and transfer to grid
 
-        do j=nlatxb-nmix,nlatxb-1
+        do j=nlatxb-nmix,nlatxb-ione
 
 !          Adjoint of blending
            do i=1,nlon
               p2all(i,nlat-j)=p2all(i,nlat-j)*bl2(nlatxb-j)
            enddo
         end do
-        do j=nrmxb+1,nrmxb+nmix
+        do j=nrmxb+ione,nrmxb+nmix
 
 !          Adjoint of blending
            do i=1,nlon
@@ -276,7 +276,7 @@ subroutine smoothrf(work,nsc,nlevs)
 
 !          Adjoint of transfer
            do j=mr,nrmxb+nmix
-              work(j+1,i,k)=work(j+1,i,k)+p3all(i,j)
+              work(j+ione,i,k)=work(j+ione,i,k)+p3all(i,j)
            enddo
            do j=nlatxb-nmix,nlat-mr
               work(j,i,k)=work(j,i,k)+p2all(i,nlat-j)
@@ -329,11 +329,11 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,ny,nsc
-  integer(i_kind),dimension(nx,ny,nsc),intent(in):: iix,jjx
-  real(r_kind),dimension(nx,ny),intent(inout):: p1
-  real(r_kind),dimension(nx,ny),intent(in):: dssx
-  real(r_kind),dimension(nsc),intent(in):: totwgt
+  integer(i_kind)                     ,intent(in   ) :: nx,ny,nsc
+  integer(i_kind),dimension(nx,ny,nsc),intent(in   ) :: iix,jjx
+  real(r_kind),dimension(nx,ny)       ,intent(inout) :: p1
+  real(r_kind),dimension(nx,ny)       ,intent(in   ) :: dssx
+  real(r_kind),dimension(nsc)         ,intent(in   ) :: totwgt
 
 ! Declare local variables
   integer(i_kind) ix,iy,i,j,im,n
@@ -344,104 +344,104 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 
 ! Zero local arrays
   do iy=1,ny
-    do ix=1,nx
-      p1out(ix,iy)=zero
-    enddo
+     do ix=1,nx
+        p1out(ix,iy)=zero
+     enddo
   enddo
 
 ! Loop over number of scales
  
   do n=1,nsc
 
-    do j=1,ny
-      do i=1,ndeg
-        gax2(i,j)=zero
-        dex2(i,j)=zero
-      end do
-    end do
-    do iy=1,ny
-      do ix=1,nx
-        p2(ix,iy)=zero
-      enddo
-    enddo
-    do im=1,ndeg
-      do j=1,ny
-        do i=1,nx
-          alx(i,j,im)=table(iix(i,j,n),im)
-          aly(i,j,im)=table(jjx(i,j,n),im)
+     do j=1,ny
+        do i=1,ndeg
+           gax2(i,j)=zero
+           dex2(i,j)=zero
+        end do
+     end do
+     do iy=1,ny
+        do ix=1,nx
+           p2(ix,iy)=zero
         enddo
-      enddo
-    enddo
+     enddo
+     do im=1,ndeg
+        do j=1,ny
+           do i=1,nx
+              alx(i,j,im)=table(iix(i,j,n),im)
+              aly(i,j,im)=table(jjx(i,j,n),im)
+           enddo
+        enddo
+     enddo
 
-!   IX < 0	|	   |	 IX > NX
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!       .       |     .	   |  .            <-- IY > NY
+!       .       |    P1	   |  .
+!       .       |     .	   |  .            <-- IY < 0
+!   ---------------------------------------
+
+
+     call rfhx0(p1,p2,gax2,dex2,nx,ny,ndeg,alx,be)
+
+
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!       .       |     .	   |  .            <-- IY > NY
+!       DEX2    |    P2	   | GAX2
+!       .       |     .	   |  .            <-- IY < 0
+!   ---------------------------------------
+
+     call rfhyt(p2,p1t,nx,ny,ndeg,aly,be)
+
+
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!       DEGAXY1 |   GAY1   |GAGAXY1        <-- IY > NY
+!         DEX1  |    P1	   | GAX1
+!       DEDEXY1 |   DEY1   |GADEXY1        <-- IY < 0
+!   ---------------------------------------
+
+
+     do iy=1,ny
+        do ix=1,nx
+           p1t(ix,iy)=p1t(ix,iy)*dssx(ix,iy)*totwgt(n)
+        enddo
+     enddo
+
+
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!       GADEXY1 |   DEY1   |DEDEXY1        <-- IY > NY
+!         GAX1  |    P1	   | DEX1
+!       GAGAXY1 |   GAY1   |DEGAXY1        <-- IY < 0
+!   ---------------------------------------
+
+     call rfhy(p1t,p2,dex2,gax2,nx,ny,ndeg,ndeg,aly,be)
+
+
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!           .   |     .    |   .           <-- IY > NY
+!         GAX2  |    P2	   | DEX2
+!           .   |     .    |   .           <-- IY < 0
 !  ---------------------------------------
-!	    .	|     .	   |  . 	   <-- IY > NY
-!	    .	|    P1	   |  .
-!	    .	|     .	   |  . 	   <-- IY < 0
-!  ---------------------------------------
 
+     call rfhx0(p2,p1out,gax2,dex2,nx,ny,ndeg,alx,be)
 
-    call rfhx0(p1,p2,gax2,dex2,nx,ny,ndeg,alx,be)
-
-
-!   IX < 0	|	   |	 IX > NX
-!  ---------------------------------------
-!	    .	|     .	   |  . 	   <-- IY > NY
-!	  DEX2	|    P2	   | GAX2
-!	    .	|     .	   |  . 	   <-- IY < 0
-!  ---------------------------------------
-
-    call rfhyt(p2,p1t,nx,ny,ndeg,aly,be)
-
-
-!   IX < 0	|	   |	 IX > NX
-!  ---------------------------------------
-!	DEGAXY1 |   GAY1   |GAGAXY1	   <-- IY > NY
-!	  DEX1	|    P1	   | GAX1
-!	DEDEXY1 |   DEY1   |GADEXY1	   <-- IY < 0
-!  ---------------------------------------
-
-
-    do iy=1,ny
-      do ix=1,nx
-        p1t(ix,iy)=p1t(ix,iy)*dssx(ix,iy)*totwgt(n)
-      enddo
-    enddo
-
-
-!   IX < 0	|	   |	 IX > NX
-!  ---------------------------------------
-!	GADEXY1 |   DEY1   |DEDEXY1	   <-- IY > NY
-!	  GAX1	|    P1	   | DEX1
-!	GAGAXY1 |   GAY1   |DEGAXY1	   <-- IY < 0
-!  ---------------------------------------
-
-    call rfhy(p1t,p2,dex2,gax2,nx,ny,ndeg,ndeg,aly,be)
-
-
-!   IX < 0	|	   |	 IX > NX
-!  ---------------------------------------
-!	    .	|     .    |   .	   <-- IY > NY
-!	  GAX2	|    P2	   | DEX2
-!	    .	|     .    |   .	   <-- IY < 0
-!  ---------------------------------------
-
-    call rfhx0(p2,p1out,gax2,dex2,nx,ny,ndeg,alx,be)
-
-!   IX < 0	|	   |	 IX > NX
-!  ---------------------------------------
-!	    .	|     .	   |  . 	   <-- IY > NY
-!	    .	|    P1	   |  .
-!	    .	|     .	   |  . 	   <-- IY < 0
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!           .   |     .	   |  .            <-- IY > NY
+!           .   |    P1	   |  .
+!           .   |     .	   |  .            <-- IY < 0
 !  ---------------------------------------
 
 ! end loop over number of horizontal scales
   end do
 
   do iy=1,ny
-    do ix=1,nx
-      p1(ix,iy)=p1out(ix,iy)
-    enddo
+     do ix=1,nx
+        p1(ix,iy)=p1out(ix,iy)
+     enddo
   enddo
 
   return
@@ -479,22 +479,23 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
+  use constants, only: ione
   implicit none
 
-  integer(i_kind),intent(in):: nx,ny,ndeg
-  real(r_kind),intent(inout),dimension(ndeg,ny):: gap,dep
-  real(r_kind),intent(in),dimension(nx,ny):: p1
-  real(r_kind),intent(in),dimension(ndeg):: be
-  real(r_kind),intent(in),dimension(nx,ny,ndeg):: alx
-  real(r_kind),intent(out),dimension(nx,ny):: p2
+  integer(i_kind)                   ,intent(in   ) :: nx,ny,ndeg
+  real(r_kind),dimension(ndeg,ny)   ,intent(inout) :: gap,dep
+  real(r_kind),dimension(nx,ny)     ,intent(in   ) :: p1
+  real(r_kind),dimension(ndeg)      ,intent(in   ) :: be
+  real(r_kind),dimension(nx,ny,ndeg),intent(in   ) :: alx
+  real(r_kind),dimension(nx,ny)     ,intent(  out) :: p2
 
   integer(i_kind) kmod2,ix,iy,kr,ki
 
   real(r_kind) gakr,gaki,dekr,deki,bekr,beki
 
-  kmod2=mod(ndeg,2)
+  kmod2=mod(ndeg,2_i_kind)
 
-  if (kmod2 == 1) then  
+  if (kmod2 == ione) then  
 
 !    Advancing filter:
      do ix=1,nx
@@ -503,9 +504,9 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
            p2(ix,iy)=p2(ix,iy)+gap(1,iy)
         enddo
 
-			   ! treat remaining complex roots:
-        do kr=kmod2+1,ndeg,2  ! <-- index of "real" components
-           ki=kr+1 	   ! <-- index of "imag" components
+                           ! treat remaining complex roots:
+        do kr=kmod2+ione,ndeg,2  ! <-- index of "real" components
+           ki=kr+ione      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do iy=1,ny
@@ -527,9 +528,9 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
            p2(ix,iy)=p2(ix,iy)+dep(1,iy)
            dep(1,iy)=alx(ix,iy,1)*(dep(1,iy)+be(1)*p1(ix,iy))
         enddo
-			   ! treat remaining complex roots:
-        do kr=kmod2+1,ndeg,2   ! <-- index of "real" components
-           ki=kr+1 	   ! <-- index of "imag" components
+                           ! treat remaining complex roots:
+        do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
+           ki=kr+ione      ! <-- index of "imag" components
            do iy=1,ny
               p2(ix,iy)=p2(ix,iy)+dep(kr,iy)
               dekr=dep(kr,iy)+bekr*p1(ix,iy)
@@ -545,8 +546,8 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
 
         !       Advancing filter
         ! treat remaining complex roots:
-        do kr=kmod2+1,ndeg,2  ! <-- index of "real" components
-           ki=kr+1 	   ! <-- index of "imag" components
+        do kr=kmod2+ione,ndeg,2  ! <-- index of "real" components
+           ki=kr+ione      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -608,14 +609,14 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only:  zero
+  use constants, only: ione,zero
   implicit none
 
-  integer(i_kind),intent(in):: nx,ny,ndegy
-  real(r_kind),intent(in),dimension(nx,ny):: p1
-  real(r_kind),intent(in),dimension(nx,ny,ndegy):: aly
-  real(r_kind),intent(in),dimension(ndegy):: be
-  real(r_kind),intent(out),dimension(nx,ny):: p2
+  integer(i_kind)                    ,intent(in   ) :: nx,ny,ndegy
+  real(r_kind),dimension(nx,ny)      ,intent(in   ) :: p1
+  real(r_kind),dimension(nx,ny,ndegy),intent(in   ) :: aly
+  real(r_kind),dimension(ndegy)      ,intent(in   ) :: be
+  real(r_kind),dimension(nx,ny)      ,intent(  out) :: p2
 
   integer(i_kind) kmod2,ix,iy,kr,ki,ly
 
@@ -623,7 +624,7 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
   real(r_kind) gakr,gaki,dekr,deki
   real(r_kind) beki,bekr
 
-  kmod2=mod(ndegy,2)
+  kmod2=mod(ndegy,2_i_kind)
 
   do iy=1,ny
      do ix=1,nx
@@ -637,7 +638,7 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
      enddo
   enddo
 
-  if (kmod2 == 1) then
+  if (kmod2 == ione) then
 
 ! Advancing filter:
      do iy=1,ny
@@ -646,9 +647,9 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
            gap(ix,1)=aly(ix,iy,1)*gap(ix,1)+be(1)*p1(ix,iy)
            p2(ix,iy)=p2(ix,iy)+gap(ix,1)
         enddo
-			   ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
-           ki=kr+1 	   ! <-- index of "imag" components
+                           ! treat remaining complex roots:
+        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
+           ki=kr+ione      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -670,9 +671,9 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
            p2(ix,iy)=p2(ix,iy)+dep(ix,1)
            dep(ix,1)=aly(ix,iy,1)*(dep(ix,1)+be(1)*p1(ix,iy))
         enddo
-			   ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
-           ki=kr+1 	   ! <-- index of "imag" components
+                           ! treat remaining complex roots:
+        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
+           ki=kr+ione      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -690,8 +691,8 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
 !    Advancing filter:
      do iy=1,ny
         ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
-           ki=kr+1 	   ! <-- index of "imag" components
+        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
+           ki=kr+ione      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -709,8 +710,8 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
 !    Backing filter:
      do iy=ny,1,-1
         ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
-           ki=kr+1 	   ! <-- index of "imag" components
+        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
+           ki=kr+ione      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -761,15 +762,15 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only:  zero
+  use constants, only: ione,zero
   implicit none
 
-  integer(i_kind),intent(in):: nx,ny,ndegx,ndegy
-  real(r_kind),intent(in),dimension(nx,ny):: p1
-  real(r_kind),intent(in),dimension(nx,ny,ndegy):: aly
-  real(r_kind),intent(in),dimension(ndegy):: be
-  real(r_kind),intent(out),dimension(nx,ny):: p2
-  real(r_kind),intent(out),dimension(ndegx,ny):: e02,en2
+  integer(i_kind)                    ,intent(in   ) :: nx,ny,ndegx,ndegy
+  real(r_kind),dimension(nx,ny)      ,intent(in   ) :: p1
+  real(r_kind),dimension(nx,ny,ndegy),intent(in   ) :: aly
+  real(r_kind),dimension(ndegy)      ,intent(in   ) :: be
+  real(r_kind),dimension(nx,ny)      ,intent(  out) :: p2
+  real(r_kind),dimension(ndegx,ny)   ,intent(  out) :: e02,en2
 
   integer(i_kind) kmod2,ix,iy,lx,kr,ki,ly
 
@@ -779,7 +780,7 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
   real(r_kind),dimension(nx,ndegy):: gap,dep
   real(r_kind),dimension(ndegx,ndegy):: gae0,dee0,gaen,deen
 
-  kmod2=mod(ndegy,2)
+  kmod2=mod(ndegy,2_i_kind)
 
   do iy=1,ny
      do ix=1,nx
@@ -807,7 +808,7 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
      end do
   end do
 
-  if (kmod2 == 1) then
+  if (kmod2 == ione) then
 
 ! Advancing filter:
      do iy=1,ny
@@ -824,9 +825,9 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
            gaen(lx,1)=aln1*gaen(lx,1)
            en2(lx,iy)=en2(lx,iy)+gaen(lx,1)
         enddo
-			   ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
-           ki=kr+1 	   ! <-- index of "imag" components
+                           ! treat remaining complex roots:
+        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
+           ki=kr+ione      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -872,9 +873,9 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
            en2(lx,iy)=en2(lx,iy)+deen(lx,1)
            deen(lx,1)=aln1*deen(lx,1)
         enddo
-			   ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
-           ki=kr+1 	   ! <-- index of "imag" components
+                           ! treat remaining complex roots:
+        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
+           ki=kr+ione      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -908,8 +909,8 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
 !    Advancing filter:
      do iy=1,ny
         ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
-           ki=kr+1 	   ! <-- index of "imag" components
+        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
+           ki=kr+ione      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -943,8 +944,8 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
 !    Backing filter:
      do iy=ny,1,-1
         ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
-           ki=kr+1 	   ! <-- index of "imag" components
+        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
+           ki=kr+ione      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -1011,7 +1012,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,regional,nnnn1o
   use jfunc,only: nval_lenz
-  use constants, only:  zero,half
+  use constants, only: izero,ione,zero,half
   use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
        ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,hswgt
   use mpimod, only:  nvar_id
@@ -1019,9 +1020,9 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nsc,nlevs
-  real(r_kind),dimension(nval_lenz),intent(in)::z
-  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout):: work
+  integer(i_kind)                        ,intent(in   ) :: nsc,nlevs
+  real(r_kind),dimension(nval_lenz)      ,intent(in   ) :: z
+  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
 
 ! Declare local variables
   integer(i_kind) ndx,ndy,nxe,nmix,nfg
@@ -1031,11 +1032,11 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 
   real(r_kind),dimension(nsc):: totwgt
   real(r_kind),dimension(ny,nx):: p1all
-  real(r_kind),dimension(nlon+1,mr:nr):: p2all,p3all
+  real(r_kind),dimension(nlon+ione,mr:nr):: p2all,p3all
   real(r_kind),dimension(-nf:nf,-nf:nf):: afg1
   real(r_kind),dimension(nlat*nlon,nsc):: zloc
   real(r_kind),dimension(ny*nx,nsc):: zloc1
-  real(r_kind),dimension((2*nf+1)*(2*nf+1),nsc):: zloc2,zloc3
+  real(r_kind),dimension((2*nf+ione)*(2*nf+ione),nsc):: zloc2,zloc3
 
 ! Regional case
   if(regional)then
@@ -1047,15 +1048,15 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
            totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
         end do
         
-        if(nvar_id(k)<3)then
+        if(nvar_id(k)<3_i_kind)then
            totwgt(3)=sqrt(half)*totwgt(3)
         end if
 
         do j=1,nsc
-          iz=nlat*nlon*(k-1)+nlat*nlon*nnnn1o*(j-1)
-          do i=1,nlat*nlon
-            zloc(i,j)=z(i+iz)
-          end do
+           iz=nlat*nlon*(k-ione)+nlat*nlon*nnnn1o*(j-ione)
+           do i=1,nlat*nlon
+              zloc(i,j)=z(i+iz)
+           end do
         end do
         
         call sqrt_rfxyyx(zloc,work(1,1,k),ny,nx,ii(1,1,1,k),&
@@ -1073,17 +1074,17 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
      ndx=(nx-nlon)/2
      ndy=(nlat-ny)/2
      ndx2=2*ndx
-     norm=norh*2-1
+     norm=norh*2-ione
      nxe=nlon/8
-     nxem=nxe-1
-     nmix=nr+1+(ny-nlat)/2
-     naxr=nlon+1 
-     nfg=nf*2+1
-     nrmxb=ndy-1
+     nxem=nxe-ione
+     nmix=nr+ione+(ny-nlat)/2
+     naxr=nlon+ione
+     nfg=nf*2+ione
+     nrmxb=ndy-ione
      nlatxb=nlat-nrmxb
-     nmixp=nmix+1
+     nmixp=nmix+ione
      nymx=ny-nmix
-     nfnf=(2*nf+1)*(2*nf+1)
+     nfnf=(2*nf+ione)*(2*nf+ione)
      
 !_$omp parallel do  schedule(dynamic,1) private(k) &
 !_$omp private(i,j,i1,i2,j1,p1all,p2all,p3all,afg1)
@@ -1097,18 +1098,18 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
         end do
         
         do j=1,nsc
-          iz=(ny*nx+2*nfnf)*(k-1)+(ny*nx+2*nfnf)*nnnn1o*(j-1)
-          do i=1,ny*nx
-            zloc1(i,j)=z(i+iz)
-          end do
-          iz=iz+ny*nx
-          do i=1,nfnf
-            zloc2(i,j)=z(i+iz)
-          end do
-          iz=iz+nfnf
-          do i=1,nfnf
-            zloc3(i,j)=z(i+iz)
-          end do
+           iz=(ny*nx+2*nfnf)*(k-ione)+(ny*nx+2*nfnf)*nnnn1o*(j-ione)
+           do i=1,ny*nx
+              zloc1(i,j)=z(i+iz)
+           end do
+           iz=iz+ny*nx
+           do i=1,nfnf
+              zloc2(i,j)=z(i+iz)
+           end do
+           iz=iz+nfnf
+           do i=1,nfnf
+              zloc3(i,j)=z(i+iz)
+           end do
         end do
 
 !       Recursive filter applications
@@ -1119,24 +1120,24 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 !       North pole patch --interpolate - recursive filter - adjoint interpolate
 
         call sqrt_rfxyyx(zloc2,afg1,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
-        if(norsp.gt.0) then
-          call smooth_polcas(afg1,p2all)
+        if(norsp>izero) then
+           call smooth_polcas(afg1,p2all)
         else
-          call polcas(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+           call polcas(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
         end if
 
 !       South pole patch --interpolate - recursive filter - adjoint interpolate
         call sqrt_rfxyyx(zloc3,afg1,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
-        if(norsp.gt.0) then
-          call smooth_polcas(afg1,p3all)
+        if(norsp>izero) then
+           call smooth_polcas(afg1,p3all)
         else
-          call polcas(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+           call polcas(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
         end if
 
 !       Equatorial patch
 !       Adjoint of central patch blending on left/right sides of patch
         do i=1,ndx2
-           i1=ndx2+1-i
+           i1=ndx2+ione-i
            i2=nx-ndx2+i
            do j=1,ny
               p1all(j,i) =p1all(j,i) *bl(i1)   ! left (west) blending zone
@@ -1149,7 +1150,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
            do j=1,nmix
               p1all(j,i)=p1all(j,i)*bl2(nmixp-j)
            enddo
-           do j=nymx+1,ny
+           do j=nymx+ione,ny
               p1all(j,i)=p1all(j,i)*bl2(j-nymx)
            enddo
         enddo
@@ -1173,7 +1174,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
         enddo
 
 !       Middle zone (no blending)
-        do i=ndx+1,nx-ndx
+        do i=ndx+ione,nx-ndx
            i1=i-ndx
            do j=1,ny
               j1=j+ndy
@@ -1184,14 +1185,14 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 !       Adjoint of North pole patch(p2) -- blending and transfer to grid
 !       Adjoint of South pole patch(p3) -- blending and transfer to grid
 
-        do j=nlatxb-nmix,nlatxb-1
+        do j=nlatxb-nmix,nlatxb-ione
 
 !          Adjoint of blending
            do i=1,nlon
               p2all(i,nlat-j)=p2all(i,nlat-j)*bl2(nlatxb-j)
            enddo
         end do
-        do j=nrmxb+1,nrmxb+nmix
+        do j=nrmxb+ione,nrmxb+nmix
 
 !          Adjoint of blending
            do i=1,nlon
@@ -1202,7 +1203,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 
 !          Adjoint of transfer
            do j=mr,nrmxb+nmix
-              work(j+1,i,k)=work(j+1,i,k)+p3all(i,j)
+              work(j+ione,i,k)=work(j+ione,i,k)+p3all(i,j)
            enddo
            do j=nlatxb-nmix,nlat-mr
               work(j,i,k)=work(j,i,k)+p2all(i,nlat-j)
@@ -1253,7 +1254,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,nnnn1o,regional
   use jfunc,only: nval_lenz
-  use constants, only:  zero,half
+  use constants, only: izero,ione,zero,half
   use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
        ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,hswgt
   use mpimod, only:  nvar_id
@@ -1261,9 +1262,9 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nsc,nlevs
-  real(r_kind),dimension(nval_lenz),intent(inout)::z
-  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout):: work
+  integer(i_kind)                        ,intent(in   ) :: nsc,nlevs
+  real(r_kind),dimension(nval_lenz)      ,intent(inout) :: z
+  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
 
 ! Declare local variables
   integer(i_kind) ndx,ndy,nxe,nmix,nfg
@@ -1273,35 +1274,35 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 
   real(r_kind),dimension(nsc):: totwgt
   real(r_kind),dimension(ny,nx):: p1all
-  real(r_kind),dimension(nlon+1,mr:nr):: p2all,p3all
+  real(r_kind),dimension(nlon+ione,mr:nr):: p2all,p3all
   real(r_kind),dimension(-nf:nf,-nf:nf):: afg1
   real(r_kind),dimension(nlat*nlon,nsc):: zloc
   real(r_kind),dimension(ny*nx,nsc):: zloc1
-  real(r_kind),dimension((2*nf+1)*(2*nf+1),nsc):: zloc2,zloc3
+  real(r_kind),dimension((2*nf+ione)*(2*nf+ione),nsc):: zloc2,zloc3
 
 
 ! Regional case
   if(regional)then
-	!_$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
-	     do k=1,nlevs
+!_$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
+     do k=1,nlevs
 
-	!       apply horizontal recursive filters
-		do j=1,nsc
-		   totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
-		end do
-		
-		if(nvar_id(k)<3)then
-		   totwgt(3)=sqrt(half)*totwgt(3)
-		end if
-		
-		call sqrt_rfxyyx_ad(zloc,work(1,1,k),ny,nx,ii(1,1,1,k),&
-		     jj(1,1,1,k),slw(1,k),nsc,totwgt)
+!       apply horizontal recursive filters
+        do j=1,nsc
+           totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
+        end do
 
-		do j=1,nsc
-		  iz=nlat*nlon*(k-1)+nlat*nlon*nnnn1o*(j-1)
-		  do i=1,nlat*nlon
-		    z(i+iz)=zloc(i,j)
-		  end do
+        if(nvar_id(k)<3_i_kind)then
+           totwgt(3)=sqrt(half)*totwgt(3)
+        end if
+		
+        call sqrt_rfxyyx_ad(zloc,work(1,1,k),ny,nx,ii(1,1,1,k),&
+             jj(1,1,1,k),slw(1,k),nsc,totwgt)
+
+        do j=1,nsc
+           iz=nlat*nlon*(k-ione)+nlat*nlon*nnnn1o*(j-ione)
+           do i=1,nlat*nlon
+              z(i+iz)=zloc(i,j)
+           end do
         end do
         
      end do
@@ -1316,17 +1317,17 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
      ndx=(nx-nlon)/2
      ndy=(nlat-ny)/2
      ndx2=2*ndx
-     norm=norh*2-1
+     norm=norh*2-ione
      nxe=nlon/8
-     nxem=nxe-1
-     nmix=nr+1+(ny-nlat)/2
-     naxr=nlon+1 
-     nfg=nf*2+1
-     nrmxb=ndy-1
+     nxem=nxe-ione
+     nmix=nr+ione+(ny-nlat)/2
+     naxr=nlon+ione
+     nfg=nf*2+ione
+     nrmxb=ndy-ione
      nlatxb=nlat-nrmxb
-     nmixp=nmix+1
+     nmixp=nmix+ione
      nymx=ny-nmix
-     nfnf=(2*nf+1)*(2*nf+1)
+     nfnf=(2*nf+ione)*(2*nf+ione)
 
 !  suspect a bug in this threading     
 !_$omp parallel do  schedule(dynamic,1) private(k) &
@@ -1353,7 +1354,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
         enddo
 
 !       Middle zone (no blending)
-        do i=ndx+1,nx-ndx
+        do i=ndx+ione,nx-ndx
            i1=i-ndx
            do j=1,ny
               p1all(j,i)=work(j+ndy,i1,k)
@@ -1362,7 +1363,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
         
 !       Apply blending coefficients to central patch
         do i=1,ndx2
-           i1=ndx2+1-i
+           i1=ndx2+ione-i
            i2=nx-ndx2+i
            do j=1,ny
               p1all(j,i) =p1all(j,i) *bl(i1)  ! left (west) blending zone
@@ -1375,7 +1376,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
            do j=1,nmix
               p1all(j,i)=p1all(j,i)*bl2(nmixp-j)
            enddo
-           do j=nymx+1,ny
+           do j=nymx+ione,ny
               p1all(j,i)=p1all(j,i)*bl2(j-nymx)
            enddo
         enddo
@@ -1400,7 +1401,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
         enddo
 
 !       Apply blending coefficients
-        do j=nrmxb+1,nrmxb+nmix
+        do j=nrmxb+ione,nrmxb+nmix
            j1=j-nrmxb
            do i=1,nlon
               p2all(i,j)=p2all(i,j)*bl2(j1)
@@ -1414,34 +1415,34 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
         call sqrt_rfxyyx_ad(zloc1,p1all,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),nsc,totwgt)
 
 !       North pole patch --interpolate - recursive filter - adjoint interpolate
-        if(norsp.gt.0) then
-          call smooth_polcasa(afg1,p2all)
+        if(norsp>izero) then
+           call smooth_polcasa(afg1,p2all)
         else
-          call polcasa(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+           call polcasa(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
         end if
         call sqrt_rfxyyx_ad(zloc2,afg1,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
 
 !       South pole patch --interpolate - recursive filter - adjoint interpolate
-        if(norsp.gt.0) then
-          call smooth_polcasa(afg1,p3all)
+        if(norsp>izero) then
+           call smooth_polcasa(afg1,p3all)
         else
-          call polcasa(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+           call polcasa(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
         end if
         call sqrt_rfxyyx_ad(zloc3,afg1,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
 
         do j=1,nsc
-          iz=(ny*nx+2*nfnf)*(k-1)+(ny*nx+2*nfnf)*nnnn1o*(j-1)
-          do i=1,ny*nx
-            z(i+iz)=z(i+iz)+zloc1(i,j)
-          end do
-          iz=iz+ny*nx
-          do i=1,nfnf
-            z(i+iz)=z(i+iz)+zloc2(i,j)
-          end do
-          iz=iz+nfnf
-          do i=1,nfnf
-            z(i+iz)=z(i+iz)+zloc3(i,j)
-          end do
+           iz=(ny*nx+2*nfnf)*(k-ione)+(ny*nx+2*nfnf)*nnnn1o*(j-ione)
+           do i=1,ny*nx
+              z(i+iz)=z(i+iz)+zloc1(i,j)
+           end do
+           iz=iz+ny*nx
+           do i=1,nfnf
+              z(i+iz)=z(i+iz)+zloc2(i,j)
+           end do
+           iz=iz+nfnf
+           do i=1,nfnf
+              z(i+iz)=z(i+iz)+zloc3(i,j)
+           end do
         end do
 
 !    End of k loop over nlevs
@@ -1490,12 +1491,12 @@ subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,ny,nsc
-  integer(i_kind),dimension(nx,ny,nsc),intent(in):: iix,jjx
-  real(r_kind),dimension(nx,ny,3),intent(in):: z
-  real(r_kind),dimension(nx,ny),intent(inout):: p1
-  real(r_kind),dimension(nx,ny),intent(in):: dssx
-  real(r_kind),dimension(nsc),intent(in):: totwgt
+  integer(i_kind)                     ,intent(in   ) :: nx,ny,nsc
+  integer(i_kind),dimension(nx,ny,nsc),intent(in   ) :: iix,jjx
+  real(r_kind)   ,dimension(nx,ny,3)  ,intent(in   ) :: z
+  real(r_kind)   ,dimension(nx,ny)    ,intent(inout) :: p1
+  real(r_kind)   ,dimension(nx,ny)    ,intent(in   ) :: dssx
+  real(r_kind)   ,dimension(nsc)      ,intent(in   ) :: totwgt
 
 ! Declare local variables
   integer(i_kind) ix,iy,i,j,im,n
@@ -1506,64 +1507,64 @@ subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 
 ! Zero local arrays
   do iy=1,ny
-    do ix=1,nx
-      p1out(ix,iy)=zero
-    enddo
+     do ix=1,nx
+        p1out(ix,iy)=zero
+     enddo
   enddo
 
 ! Loop over number of scales
  
   do n=1,nsc
 
-    do im=1,ndeg
-      do j=1,ny
-        do i=1,nx
-          alx(i,j,im)=table(iix(i,j,n),im)
-          aly(i,j,im)=table(jjx(i,j,n),im)
+     do im=1,ndeg
+        do j=1,ny
+           do i=1,nx
+              alx(i,j,im)=table(iix(i,j,n),im)
+              aly(i,j,im)=table(jjx(i,j,n),im)
+           enddo
         enddo
-      enddo
-    enddo
+     enddo
 
-    do iy=1,ny
-      do ix=1,nx
-        p1t(ix,iy)=z(ix,iy,n)*sqrt(dssx(ix,iy))*totwgt(n)
-      enddo
-    enddo
-
-
-!   IX < 0	|	   |	 IX > NX
-!  ---------------------------------------
-!	GADEXY1 |   DEY1   |DEDEXY1	   <-- IY > NY
-!	  GAX1	|    P1	   | DEX1
-!	GAGAXY1 |   GAY1   |DEGAXY1	   <-- IY < 0
-!  ---------------------------------------
-
-    call rfhy(p1t,p2,dex2,gax2,nx,ny,ndeg,ndeg,aly,be)
+     do iy=1,ny
+        do ix=1,nx
+           p1t(ix,iy)=z(ix,iy,n)*sqrt(dssx(ix,iy))*totwgt(n)
+        enddo
+     enddo
 
 
-!   IX < 0	|	   |	 IX > NX
-!  ---------------------------------------
-!	    .	|     .    |   .	   <-- IY > NY
-!	  GAX2	|    P2	   | DEX2
-!	    .	|     .    |   .	   <-- IY < 0
-!  ---------------------------------------
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!       GADEXY1 |   DEY1   |DEDEXY1        <-- IY > NY
+!         GAX1	|    P1	   | DEX1
+!       GAGAXY1 |   GAY1   |DEGAXY1        <-- IY < 0
+!   ---------------------------------------
 
-    call rfhx0(p2,p1out,gax2,dex2,nx,ny,ndeg,alx,be)
+     call rfhy(p1t,p2,dex2,gax2,nx,ny,ndeg,ndeg,aly,be)
 
-!   IX < 0	|	   |	 IX > NX
-!  ---------------------------------------
-!	    .	|     .	   |  . 	   <-- IY > NY
-!	    .	|    P1	   |  .
-!	    .	|     .	   |  . 	   <-- IY < 0
-!  ---------------------------------------
+
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!           .   |     .    |   .           <-- IY > NY
+!         GAX2  |    P2	   | DEX2
+!           .   |     .    |   .           <-- IY < 0
+!   ---------------------------------------
+
+     call rfhx0(p2,p1out,gax2,dex2,nx,ny,ndeg,alx,be)
+
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!           .   |     .	   |  .            <-- IY > NY
+!           .   |    P1	   |  .
+!           .   |     .	   |  .            <-- IY < 0
+!   ---------------------------------------
 
 ! end loop over number of horizontal scales
   end do
 
   do iy=1,ny
-    do ix=1,nx
-      p1(ix,iy)=p1out(ix,iy)
-    enddo
+     do ix=1,nx
+        p1(ix,iy)=p1out(ix,iy)
+     enddo
   enddo
 
   return
@@ -1606,12 +1607,12 @@ subroutine sqrt_rfxyyx_ad(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,ny,nsc
-  integer(i_kind),dimension(nx,ny,nsc),intent(in):: iix,jjx
-  real(r_kind),dimension(nx,ny,3),intent(out):: z
-  real(r_kind),dimension(nx,ny),intent(inout):: p1
-  real(r_kind),dimension(nx,ny),intent(in):: dssx
-  real(r_kind),dimension(nsc),intent(in):: totwgt
+  integer(i_kind)                     ,intent(in   ) :: nx,ny,nsc
+  integer(i_kind),dimension(nx,ny,nsc),intent(in   ) :: iix,jjx
+  real(r_kind)   ,dimension(nx,ny,3)  ,intent(  out) :: z
+  real(r_kind)   ,dimension(nx,ny)    ,intent(inout) :: p1
+  real(r_kind)   ,dimension(nx,ny)    ,intent(in   ) :: dssx
+  real(r_kind)   ,dimension(nsc)      ,intent(in   ) :: totwgt
 
 ! Declare local variables
   integer(i_kind) ix,iy,i,j,im,n
@@ -1624,60 +1625,60 @@ subroutine sqrt_rfxyyx_ad(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
  
   do n=1,nsc
 
-    do j=1,ny
-      do i=1,ndeg
-        gax2(i,j)=zero
-        dex2(i,j)=zero
-      end do
-    end do
-    do iy=1,ny
-      do ix=1,nx
-        p2(ix,iy)=zero
-      enddo
-    enddo
-    do im=1,ndeg
-      do j=1,ny
-        do i=1,nx
-          alx(i,j,im)=table(iix(i,j,n),im)
-          aly(i,j,im)=table(jjx(i,j,n),im)
+     do j=1,ny
+        do i=1,ndeg
+           gax2(i,j)=zero
+           dex2(i,j)=zero
+        end do
+     end do
+     do iy=1,ny
+        do ix=1,nx
+           p2(ix,iy)=zero
         enddo
-      enddo
-    enddo
+     enddo
+     do im=1,ndeg
+        do j=1,ny
+           do i=1,nx
+              alx(i,j,im)=table(iix(i,j,n),im)
+              aly(i,j,im)=table(jjx(i,j,n),im)
+           enddo
+        enddo
+     enddo
 
-!   IX < 0	|	   |	 IX > NX
-!  ---------------------------------------
-!	    .	|     .	   |  . 	   <-- IY > NY
-!	    .	|    P1	   |  .
-!	    .	|     .	   |  . 	   <-- IY < 0
-!  ---------------------------------------
-
-
-    call rfhx0(p1,p2,gax2,dex2,nx,ny,ndeg,alx,be)
-
-
-!   IX < 0	|	   |	 IX > NX
-!  ---------------------------------------
-!	    .	|     .	   |  . 	   <-- IY > NY
-!	  DEX2	|    P2	   | GAX2
-!	    .	|     .	   |  . 	   <-- IY < 0
-!  ---------------------------------------
-
-    call rfhyt(p2,p1t,nx,ny,ndeg,aly,be)
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!           .   |     .	   |  .            <-- IY > NY
+!           .   |    P1	   |  .
+!           .   |     .	   |  .            <-- IY < 0
+!   ---------------------------------------
 
 
-!   IX < 0	|	   |	 IX > NX
-!  ---------------------------------------
-!	DEGAXY1 |   GAY1   |GAGAXY1	   <-- IY > NY
-!	  DEX1	|    P1	   | GAX1
-!	DEDEXY1 |   DEY1   |GADEXY1	   <-- IY < 0
-!  ---------------------------------------
+     call rfhx0(p1,p2,gax2,dex2,nx,ny,ndeg,alx,be)
 
 
-    do iy=1,ny
-      do ix=1,nx
-        z(ix,iy,n)=p1t(ix,iy)*sqrt(dssx(ix,iy))*totwgt(n)
-      enddo
-    enddo
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!           .   |     .	   |  .            <-- IY > NY
+!	  DEX2  |    P2	   | GAX2
+!           .   |     .	   |  .            <-- IY < 0
+!   ---------------------------------------
+
+     call rfhyt(p2,p1t,nx,ny,ndeg,aly,be)
+
+
+!    IX < 0     |          |     IX > NX
+!   ---------------------------------------
+!       DEGAXY1 |   GAY1   |GAGAXY1        <-- IY > NY
+!         DEX1  |    P1	   | GAX1
+!       DEDEXY1 |   DEY1   |GADEXY1        <-- IY < 0
+!   ---------------------------------------
+
+
+     do iy=1,ny
+        do ix=1,nx
+           z(ix,iy,n)=p1t(ix,iy)*sqrt(dssx(ix,iy))*totwgt(n)
+        enddo
+     enddo
 
 ! end loop over number of horizontal scales
   end do

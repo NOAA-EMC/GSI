@@ -122,9 +122,11 @@ contains
     use obsmod, only: iout_oz
     implicit none
 
+    integer(i_kind), intent(in   ) :: mype
+
     character(len=1):: cflg
     character(len=120) crecord
-    integer(i_kind) lunin,mype,j,k,istat,nlines
+    integer(i_kind) lunin,j,k,istat,nlines
     data lunin / 47_i_kind /
 
 

@@ -183,8 +183,8 @@ contains
     miter=ione
     qoption=ione
     do i=0,50
-      niter(i)=izero
-      niter_no_qc(i)=1000000_i_kind
+       niter(i)=izero
+       niter_no_qc(i)=1000000_i_kind
     end do
     jiterstart=ione
     jiterend=ione
@@ -237,7 +237,8 @@ contains
     use constants, only: ione,zero
     use gridmod, only: lat2,lon2,nsig
     implicit none
-    integer(i_kind),intent(in)::mlat
+
+    integer(i_kind),intent(in   ) :: mlat
 
     integer(i_kind) i,j,k
 
@@ -253,7 +254,7 @@ contains
 
     do k=ione,nsig
        do j=1,mlat
-         varq(j,k)=zero
+          varq(j,k)=zero
        end do
     end do
 
@@ -337,8 +338,8 @@ contains
     use obsmod, only: iadate
     implicit none
 
-    integer(i_kind),intent(in):: mype
-    type(control_vector),intent(out) :: dirx,diry
+    integer(i_kind)     ,intent(in   ) :: mype
+    type(control_vector),intent(  out) :: dirx,diry
 
     integer(i_kind) i,k,mm1,myper,kk,i1,i2
     integer(i_kind) nlatg,nlong,nsigg
@@ -360,65 +361,65 @@ contains
     nsigg=izero
     read(12,end=1234)iadateg,nlatg,nlong,nsigg
     if(iadate(ione) == iadateg(ione) .and. iadate(2_i_kind) == iadate(2_i_kind) .and. &
-          iadate(3_i_kind) == iadateg(3_i_kind) .and. iadate(4_i_kind) == iadateg(4_i_kind) .and. &
-          iadate(5_i_kind) == iadateg(5_i_kind) .and. nlat == nlatg .and. &
-          nlon == nlong .and. nsig == nsigg) then
-      if(mype == izero) write(6,*)'READ_GUESS_SOLUTION:  read guess solution for ',&
-                    iadateg,nlatg,nlong,nsigg
-      jiterstart=izero
+       iadate(3_i_kind) == iadateg(3_i_kind) .and. iadate(4_i_kind) == iadateg(4_i_kind) .and. &
+       iadate(5_i_kind) == iadateg(5_i_kind) .and. nlat == nlatg .and. &
+       nlon == nlong .and. nsig == nsigg) then
+       if(mype == izero) write(6,*)'READ_GUESS_SOLUTION:  read guess solution for ',&
+                     iadateg,nlatg,nlong,nsigg
+       jiterstart=izero
          
 ! Let all tasks read gesfile_in to pick up bias correction (second read)
 
 ! Loop to read input guess fields.  After reading in each field & level,
 ! scatter the grid to the appropriate location in the xhat and yhatsave
 ! arrays.
-      do k=ione,nval_levs
-        read(12,end=1236) xhatsave_g,yhatsave_g
-        do kk=1,itotsub
-          i1=ltosi_s(kk); i2=ltosj_s(kk)
-          fieldx(kk)=xhatsave_g(i1,i2)
-          fieldy(kk)=yhatsave_g(i1,i2)
-        end do
-        i=(k-ione)*latlon11 + ione
-        call mpi_scatterv(fieldx,ijn_s,displs_s,mpi_real4,&
-                 xhatsave_r4(i),ijn_s(mm1),mpi_real4,myper,mpi_comm_world,ierror)
-        call mpi_scatterv(fieldy,ijn_s,displs_s,mpi_real4,&
-                 yhatsave_r4(i),ijn_s(mm1),mpi_real4,myper,mpi_comm_world,ierror)
-      end do  !end do over nval_levs
+       do k=ione,nval_levs
+          read(12,end=1236) xhatsave_g,yhatsave_g
+          do kk=1,itotsub
+             i1=ltosi_s(kk); i2=ltosj_s(kk)
+             fieldx(kk)=xhatsave_g(i1,i2)
+             fieldy(kk)=yhatsave_g(i1,i2)
+          end do
+          i=(k-ione)*latlon11 + ione
+          call mpi_scatterv(fieldx,ijn_s,displs_s,mpi_real4,&
+                   xhatsave_r4(i),ijn_s(mm1),mpi_real4,myper,mpi_comm_world,ierror)
+          call mpi_scatterv(fieldy,ijn_s,displs_s,mpi_real4,&
+                   yhatsave_r4(i),ijn_s(mm1),mpi_real4,myper,mpi_comm_world,ierror)
+       end do  !end do over nval_levs
 
-!     Read radiance and precipitation bias correction terms
-      read(12,end=1236) (xhatsave_r4(i),i=nclen1+ione,nclen),(yhatsave_r4(i),i=nclen1+ione,nclen)
-      do i=1,nclen
-         dirx%values(i)=real(xhatsave_r4(i),r_kind)
-         diry%values(i)=real(yhatsave_r4(i),r_kind)
-      end do
-         
+!      Read radiance and precipitation bias correction terms
+       read(12,end=1236) (xhatsave_r4(i),i=nclen1+ione,nclen),(yhatsave_r4(i),i=nclen1+ione,nclen)
+       do i=1,nclen
+          dirx%values(i)=real(xhatsave_r4(i),r_kind)
+          diry%values(i)=real(yhatsave_r4(i),r_kind)
+       end do
+
     else
-      if(mype == izero) then
-        write(6,*) 'READ_GUESS_SOLUTION:  INCOMPATABLE GUESS FILE, gesfile_in'
-        write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
-        write(6,*) 'READ_GUESS_SOLUTION:  nlat,nlatg,nlon,nlong,nsig,nsigg=',&
-                    nlat,nlatg,nlon,nlong,nsig,nsigg
-      end if
+       if(mype == izero) then
+          write(6,*) 'READ_GUESS_SOLUTION:  INCOMPATABLE GUESS FILE, gesfile_in'
+          write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
+          write(6,*) 'READ_GUESS_SOLUTION:  nlat,nlatg,nlon,nlong,nsig,nsigg=',&
+                      nlat,nlatg,nlon,nlong,nsig,nsigg
+       end if
     endif
     close(12)
     return
 
 ! The guess file is empty.  Do not return an error code but print a message to
 ! standard out.
-1234  continue
+1234 continue
     if(mype == izero) then
-      write(6,*) 'READ_GUESS_SOLUTION:  NO GUESS FILE, gesfile_in'
-      write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
-      write(6,*) 'READ_GUESS_SOLUTION:  nlat,nlatg,nlon,nlong,nsig,nsigg=',&
-                  nlat,nlatg,nlon,nlong,nsig,nsigg
+       write(6,*) 'READ_GUESS_SOLUTION:  NO GUESS FILE, gesfile_in'
+       write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
+       write(6,*) 'READ_GUESS_SOLUTION:  nlat,nlatg,nlon,nlong,nsig,nsigg=',&
+                   nlat,nlatg,nlon,nlong,nsig,nsigg
     end if
     close(12)
     return
 
 ! Error contition reading level or bias correction data.  Set error flag and
 ! return to the calling program.
-1236  continue
+1236 continue
     if (mype==izero) write(6,*) 'READ_GUESS_SOLUTION:  ERROR in reading guess'
     close(12)
     call stop2(76)
@@ -460,7 +461,7 @@ contains
     use constants, only: izero,ione,zero
     implicit none
 
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
 
     integer(i_kind) i,j,k,mm1,mypew,kk,i1,i2,ie,is
     real(r_single),dimension(lat1,lon1,2):: field
@@ -473,37 +474,37 @@ contains
     
 ! Write header record to output file
     if (mype==mypew) then
-      open(51,file='gesfile_out',form='unformatted')
-      write(51) iadate,nlat,nlon,nsig
+       open(51,file='gesfile_out',form='unformatted')
+       write(51) iadate,nlat,nlon,nsig
     endif
 
 ! Loop over levels.  Gather guess solution and write to output
     do k=ione,nval_levs
-      ie=(k-ione)*latlon11 + ione
-      is=ie+latlon11
-      call strip2(xhatsave%values(ie:is),yhatsave%values(ie:is),field)
-      call mpi_gatherv(field(1,1,1),ijn(mm1),mpi_real4,&
-           fieldx,ijn,displs_g,mpi_real4,mypew,&
-           mpi_comm_world,ierror)
-      call mpi_gatherv(field(1,1,2),ijn(mm1),mpi_real4,&
-           fieldy,ijn,displs_g,mpi_real4,mypew,&
-           mpi_comm_world,ierror)
+       ie=(k-ione)*latlon11 + ione
+       is=ie+latlon11
+       call strip2(xhatsave%values(ie:is),yhatsave%values(ie:is),field)
+       call mpi_gatherv(field(1,1,1),ijn(mm1),mpi_real4,&
+            fieldx,ijn,displs_g,mpi_real4,mypew,&
+            mpi_comm_world,ierror)
+       call mpi_gatherv(field(1,1,2),ijn(mm1),mpi_real4,&
+            fieldy,ijn,displs_g,mpi_real4,mypew,&
+            mpi_comm_world,ierror)
 
 ! Transfer to global arrays
-      do j=1,nlon
-        do i=1,nlat
-          xhatsave_g(i,j)=zero
-          yhatsave_g(i,j)=zero
-        end do
-      end do
-      do kk=1,iglobal
-        i1=ltosi(kk); i2=ltosj(kk)
-        xhatsave_g(i1,i2)=fieldx(kk)
-        yhatsave_g(i1,i2)=fieldy(kk)
-      end do
+       do j=1,nlon
+          do i=1,nlat
+             xhatsave_g(i,j)=zero
+             yhatsave_g(i,j)=zero
+          end do
+       end do
+       do kk=1,iglobal
+          i1=ltosi(kk); i2=ltosj(kk)
+          xhatsave_g(i1,i2)=fieldx(kk)
+          yhatsave_g(i1,i2)=fieldy(kk)
+       end do
 
 ! Write level record
-      if (mype==mypew) write(51) xhatsave_g,yhatsave_g
+       if (mype==mypew) write(51) xhatsave_g,yhatsave_g
     end do  !end do over nval_levs
 
 ! Write radiance and precipitation bias correction terms to output file
@@ -512,10 +513,10 @@ contains
           xhatsave4(i)=xhatsave%values(nclen1+i)
           yhatsave4(i)=yhatsave%values(nclen1+i)
        end do
-      write(51) (xhatsave4(i),i=1,nrclen),(yhatsave4(i),i=1,nrclen)
-      close(51)
-      write(6,*)'WRITE_GUESS_SOLUTION:  write guess solution for ',&
-                 iadate,nlat,nlon,nsig
+       write(51) (xhatsave4(i),i=1,nrclen),(yhatsave4(i),i=1,nrclen)
+       close(51)
+       write(6,*)'WRITE_GUESS_SOLUTION:  write guess solution for ',&
+                  iadate,nlat,nlon,nsig
     endif
 
     return
@@ -552,16 +553,18 @@ contains
     use gridmod, only: lat1,lon1,lat2,lon2
     implicit none
 
+    real(r_single),dimension(lat1,lon1,2),intent(  out) :: field_out
+    real(r_kind)  ,dimension(lat2,lon2)  ,intent(in   ) :: field_in1,field_in2
+
     integer(i_kind) i,j,jp1
-    real(r_single),dimension(lat1,lon1,2),intent(out):: field_out
-    real(r_kind),dimension(lat2,lon2),intent(in):: field_in1,field_in2
+
 
     do j=1,lon1
-      jp1 = j+ione
-      do i=1,lat1
-        field_out(i,j,1)=field_in1(i+ione,jp1)
-        field_out(i,j,2)=field_in2(i+ione,jp1)
-      end do
+       jp1 = j+ione
+       do i=1,lat1
+          field_out(i,j,1)=field_in1(i+ione,jp1)
+          field_out(i,j,2)=field_in2(i+ione,jp1)
+       end do
     end do
 
     return
@@ -617,25 +620,25 @@ contains
     nclen2=nclen1+nsclen
   
     if(lsqrtb.or.(l_hyb_ens.and.generate_ens)) then
-      if(regional) then
-        nval2d=nlat*nlon*3
-      else
+       if(regional) then
+          nval2d=nlat*nlon*3
+       else
 !           following lifted from subroutine create_berror_vars in module berror.f90
 !            inserted because create_berror_vars called after this routine
-        nx=nlon*3/2
-        nx=nx/2*2
-        ny=nlat*8/9
-        ny=ny/2*2
-        if(mod(nlat,2)/=izero)ny=ny+ione
-        mr=izero
-        nr=nlat/4
-        nf=nr
-        nval2d=(ny*nx + 2*(2*nf+ione)*(2*nf+ione))*3
-      end if
-      nval_lenz=nval2d*nnnn1o
-      nclenz=nsubwin*nval_lenz+nsclen+npclen
+          nx=nlon*3/2
+          nx=nx/2*2
+          ny=nlat*8/9
+          ny=ny/2*2
+          if(mod(nlat,2)/=izero)ny=ny+ione
+          mr=izero
+          nr=nlat/4
+          nf=nr
+          nval2d=(ny*nx + 2*(2*nf+ione)*(2*nf+ione))*3
+       end if
+       nval_lenz=nval2d*nnnn1o
+       nclenz=nsubwin*nval_lenz+nsclen+npclen
     else
-      nval2d=latlon11
+       nval2d=latlon11
     end if
 
 
@@ -667,16 +670,16 @@ contains
     ncw2=nsit2 +latlon11                 ! cloud water mpi
 
     if (lsqrtb) then
-      CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                               & nsclen,npclen,nclenz,nsubwin,nval_lenz,lsqrtb)
+       CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
+                                & nsclen,npclen,nclenz,nsubwin,nval_lenz,lsqrtb)
     else
-      if(l_hyb_ens) then
-        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                               & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb,n_ens)
-      else
-        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                               & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb)
-      end if
+       if(l_hyb_ens) then
+          CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
+                                 & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb,n_ens)
+       else
+          CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
+                                 & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb)
+       end if
     endif
     CALL setup_state_vectors(latlon11,latlon1n,nvals_len,lat2,lon2,nsig)
     CALL setup_predictors(nrclen,nsclen,npclen)

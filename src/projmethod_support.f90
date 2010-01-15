@@ -32,12 +32,12 @@ module projmethod_support
 
   implicit none
 
+PRIVATE
+PUBLIC init_mgram_schmidt, mgram_schmidt, &
+       destroy_mgram_schmidt
+
 ! Declare local variables
   real(r_kind),allocatable,dimension(:,:)::gx,gy
-
-PRIVATE
-PUBLIC init_mgram_schmidt, mgram_schmidt, & 
-       destroy_mgram_schmidt
 
 contains
 
@@ -155,22 +155,22 @@ subroutine mgram_schmidt(gradx,grady)
 !==> orthogonalization + renormalization
 
   do k=1,2
-    do i=izero,iter-ione
-       prd0=dplev_mask(gy(1,iter),gx(1,i),mype)
-       gx(1:nclen,iter)=gx(1:nclen,iter)-gx(1:nclen,i)*prd0
-       gy(1:nclen,iter)=gy(1:nclen,iter)-gy(1:nclen,i)*prd0
-    enddo
-    prd0=dplev_mask(gx(1,iter),gy(1,iter),mype)
-    if (prd0 <= tiny_r_kind) then
+     do i=izero,iter-ione
+        prd0=dplev_mask(gy(1,iter),gx(1,i),mype)
+        gx(1:nclen,iter)=gx(1:nclen,iter)-gx(1:nclen,i)*prd0
+        gy(1:nclen,iter)=gy(1:nclen,iter)-gy(1:nclen,i)*prd0
+     enddo
+     prd0=dplev_mask(gx(1,iter),gy(1,iter),mype)
+     if (prd0 <= tiny_r_kind) then
         if (mype==izero) then 
-          print*,'in mgram_schmidt: unable to bi-orthogonalize due to round-off error for iter,k=',iter,k
-          print*,'in mgram_schmidt: likely to happen when using fast version of inner product'
-          print*,'in mgram_schmidt: iter,k,prd0=',iter,k,prd0
+           print*,'in mgram_schmidt: unable to bi-orthogonalize due to round-off error for iter,k=',iter,k
+           print*,'in mgram_schmidt: likely to happen when using fast version of inner product'
+           print*,'in mgram_schmidt: iter,k,prd0=',iter,k,prd0
         endif
         goto 100
-    endif
-    gx(1:nclen,iter)=gx(1:nclen,iter)/sqrt(prd0)
-    gy(1:nclen,iter)=gy(1:nclen,iter)/sqrt(prd0)
+     endif
+     gx(1:nclen,iter)=gx(1:nclen,iter)/sqrt(prd0)
+     gy(1:nclen,iter)=gy(1:nclen,iter)/sqrt(prd0)
   enddo
 
 !==> update gradx and grady and put correct B-norm back
@@ -211,8 +211,8 @@ real(r_kind) function dplev_mask(dx,dy,mype)
   implicit none
 
 ! Declar passed variables
-  real(r_kind),dimension(lat2,lon2,nval_levs),intent(in)::dx,dy
-  integer(i_kind),intent(in)::mype
+  real(r_kind),dimension(lat2,lon2,nval_levs),intent(in   ) :: dx,dy
+  integer(i_kind)                            ,intent(in   ) :: mype
 
 ! Declare local variables
   logical mask(nval_levs)
@@ -224,16 +224,16 @@ real(r_kind) function dplev_mask(dx,dy,mype)
 !                  substantially faster, but no roundoff error reduction and
 !                  results differ for different number of processors.
   if(twodvar_regional) then
-!   fast=.true.
-    mask(5)=.false.
-    mask(6)=.false.
-    mask(8)=.false.
+!    fast=.true.
+     mask(5)=.false.
+     mask(6)=.false.
+     mask(8)=.false.
   end if
 
   if(fast) then
-    dplev_mask=fast_dplev(dx,dy,mask)
+     dplev_mask=fast_dplev(dx,dy,mask)
   else
-    dplev_mask=dplev5(dx,dy,mype,mask)
+     dplev_mask=dplev5(dx,dy,mype,mask)
   end if
 
 end function dplev_mask
@@ -268,8 +268,8 @@ real(r_kind) function fast_dplev(dx,dy,mask)
   implicit none
 
 ! Declar passed variables
-  real(r_kind),dimension(lat2,lon2,nval_levs),intent(in)::dx,dy
-  logical,intent(in):: mask(nval_levs)
+  real(r_kind),dimension(lat2,lon2,nval_levs),intent(in   ) :: dx,dy
+  logical                                    ,intent(in   ) :: mask(nval_levs)
 
 ! Declare local variables
   real(r_kind),dimension(npe):: sumall
@@ -290,7 +290,7 @@ real(r_kind) function fast_dplev(dx,dy,mask)
   call mpi_allgather(sum,ione,mpi_rtype,sumall,ione,mpi_rtype,mpi_comm_world,ierror)
   fast_dplev=zero
   do i=1,npe
-    fast_dplev=fast_dplev+sumall(i)
+     fast_dplev=fast_dplev+sumall(i)
   end do
 
 end function fast_dplev
@@ -331,9 +331,9 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nval_levs),intent(in)::dx,dy
-  integer(i_kind),intent(in)::mype
-  logical,intent(in):: mask(nval_levs)
+  real(r_kind),dimension(lat2,lon2,nval_levs),intent(in   ) :: dx,dy
+  integer(i_kind)                            ,intent(in   ) :: mype
+  logical                                    ,intent(in   ) :: mask(nval_levs)
 
 ! Declare local variables
   real(r_kind),dimension(lat1*lon1):: zsm
@@ -355,7 +355,7 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
      end do
   end do
   do j=1,lon1*lat1
-    zsm(j)=zero
+     zsm(j)=zero
   end do
 
   call strip(sum,zsm,ione)
@@ -365,20 +365,20 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
      mpi_comm_world,ierror)
 
   do k=1,iglobal
-    i=ltosi(k) ; j=ltosj(k)
-    sumall(i,j)=work1(k)
+     i=ltosi(k) ; j=ltosj(k)
+     sumall(i,j)=work1(k)
   end do
   dplev5=zero
   e=zero
   do j=1,nlon
-    do i=1,nlat
-!  Compensated summation version of sum
-      temp=dplev5
-      y=sumall(i,j)+e
-      dplev5=temp+y
-      e=(temp-dplev5)+y
-!     dplev=dplev+sumall(i,j)
-    end do
+     do i=1,nlat
+!       Compensated summation version of sum
+        temp=dplev5
+        y=sumall(i,j)+e
+        dplev5=temp+y
+        e=(temp-dplev5)+y
+!       dplev=dplev+sumall(i,j)
+     end do
   end do
 
 end function dplev5
@@ -427,9 +427,9 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nv,mype  	
-  type(control_vector),intent(in)::dx,dy
-  real(r_kind),intent(in):: alpha,gamma
+  integer(i_kind)     ,intent(in   ) :: nv,mype  	
+  type(control_vector),intent(in   ) :: dx,dy
+  real(r_kind)        ,intent(in   ) :: alpha,gamma
 
 
 ! Declare local variables
@@ -457,7 +457,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      if (icase==ione) then 
         dz=dx
         open (lun,file='gradx.dat_'//clun1//'_'//clun2,form='unformatted')
-      else if (icase==2_i_kind) then 
+     else if (icase==2_i_kind) then 
         dz=dy
         open (lun,file='grady.dat_'//clun1//'_'//clun2,form='unformatted')
      endif
@@ -482,10 +482,10 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
                 tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
            if(mype == izero) then
-             do i=1,iglobal
-                slab(ltosj(i),ltosi(i))=tempa(i)
-             end do
-            write(lun) slab
+              do i=1,iglobal
+                 slab(ltosj(i),ltosi(i))=tempa(i)
+              end do
+              write(lun) slab
            endif
 
         end do
@@ -497,10 +497,10 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
           tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
      if(mype == izero) then
-       do i=1,iglobal
-          slab(ltosj(i),ltosi(i))=tempa(i)
-       end do
-       write(lun) slab
+        do i=1,iglobal
+           slab(ltosj(i),ltosi(i))=tempa(i)
+        end do
+        write(lun) slab
      endif
 
 !                               gradient wrt sfct
@@ -509,19 +509,19 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
          tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
      if(mype == izero) then
-       do i=1,iglobal
-          slab(ltosj(i),ltosi(i))=tempa(i)
-       end do
-       write(lun) slab
+        do i=1,iglobal
+           slab(ltosj(i),ltosi(i))=tempa(i)
+        end do
+        write(lun) slab
      endif
 
 !                   gradient wrt satellite radiance bias correction coefficients
-       if (mype==izero) write(lun) dz%predr
+     if (mype==izero) write(lun) dz%predr
 
 !                   gradient wrt precipitation bias correction coefficients
-       if (mype==izero)write(lun) dz%predp
+     if (mype==izero)write(lun) dz%predp
 
-  close(lun)
+     close(lun)
   end do ! icase
 
   call deallocate_cv(dz)

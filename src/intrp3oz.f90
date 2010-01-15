@@ -44,11 +44,11 @@ subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: n,mype,nlevs
-  real(r_kind),dimension(n),intent(in):: dx,dy,obstime
-  real(r_kind),dimension(nlevs-ione,n),intent(in):: dz
-  real(r_kind),dimension(lat2,lon2,nsig,nfldsig),intent(in):: f
-  real(r_kind),dimension(nlevs,n),intent(out):: g
+  integer(i_kind)                               ,intent(in   ) :: n,mype,nlevs
+  real(r_kind),dimension(n)                     ,intent(in   ) :: dx,dy,obstime
+  real(r_kind),dimension(nlevs-ione,n)          ,intent(in   ) :: dz
+  real(r_kind),dimension(lat2,lon2,nsig,nfldsig),intent(in   ) :: f
+  real(r_kind),dimension(nlevs,n)               ,intent(  out) :: g
 
 ! Declare local variables
   integer(i_kind) i,j,k,ix,ix1,iy,iy1,kk,itsig,itsigp,iz1,iz2

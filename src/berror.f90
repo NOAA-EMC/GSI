@@ -364,6 +364,9 @@ contains
 !   2009-03-09  derber  - modify to make arrays smaller
 !
 !   input argument list:
+!     mype
+!     rate
+!     nnn
 !     sli      - horizontal scale info for 1st patch
 !     sli1     - horizontal scale info for 2nd patch (optional)
 !     sli2     - horizontal scale info for 3rd patch (optional)
@@ -379,15 +382,17 @@ contains
     use constants, only: izero,ione,zero,one
     implicit none
 
+    integer(i_kind)                                               ,intent(in   ) :: nnn,mype
+    real(r_kind),dimension(ndeg)                                  ,intent(in   ) :: rate
+    real(r_kind),dimension(ny*nx,2,nnn)                           ,intent(in   ) :: sli
+    real(r_kind),optional,dimension((2*nf+ione)*(2*nf+ione),2,nnn),intent(in   ) :: sli1,sli2
+
     real(r_kind),parameter:: tin = 0.2e-3_r_kind
 
     integer(i_kind) i,j,k,n,nynx,nfnf
-    integer(i_kind) nnn,mype,ihwlb
+    integer(i_kind) ihwlb
     integer(i_kind) nfg,ntax,iloc
     
-    real(r_kind),optional,dimension((2*nf+ione)*(2*nf+ione),2,nnn):: sli1,sli2
-    real(r_kind),dimension(ny*nx,2,nnn):: sli
-    real(r_kind),dimension(ndeg):: rate
     real(r_kind):: hwlmax,hwlmin,hwlb,hwle,wni2
     real(r_kind),parameter:: r999         = 999.0_r_kind
     real(r_kind),allocatable,dimension(:):: dsh
@@ -610,7 +615,6 @@ contains
 !   input argument list:
 !
 !   output argument list:
-!     mype     - mpi task id
 !
 ! attributes:
 !   language: f90

@@ -41,10 +41,10 @@ subroutine intrp2a(f,g,dx,dy,n,nlevs,mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype,n,nlevs
-  real(r_kind),dimension(n),intent(in):: dx,dy
-  real(r_kind),dimension(lat2,lon2,nlevs),intent(in):: f
-  real(r_kind),dimension(nlevs,n),intent(out):: g
+  integer(i_kind)                        ,intent(in   ) :: mype,n,nlevs
+  real(r_kind),dimension(n)              ,intent(in   ) :: dx,dy
+  real(r_kind),dimension(lat2,lon2,nlevs),intent(in   ) :: f
+  real(r_kind),dimension(nlevs,n)        ,intent(  out) :: g
 
 ! Declare local variables
   integer(i_kind) mm1,k,i,ix1,iy1,ix,iy,ixp,iyp
@@ -53,33 +53,33 @@ subroutine intrp2a(f,g,dx,dy,n,nlevs,mype)
   mm1=mype+ione
  
   do i=1,n
-    ix1=int(dx(i))
-    iy1=int(dy(i))
-    ix1=max(ione,min(ix1,nlat))
-    delx=dx(i)-float(ix1)
-    dely=dy(i)-float(iy1)
-    delx=max(zero,min(delx,one))
-    ix=ix1-istart(mm1)+2_i_kind
-    iy=iy1-jstart(mm1)+2_i_kind
-    if(iy<ione) then
-      iy1=iy1+nlon
-      iy=iy1-jstart(mm1)+2_i_kind
-    end if
-    if(iy>lon1+ione) then
-      iy1=iy1-nlon
-      iy=iy1-jstart(mm1)+2_i_kind
-    end if
-    ixp=ix+ione; iyp=iy+ione
-    if(ix1==nlat) then
-      ixp=ix
-    end if
-    delxp=one-delx; delyp=one-dely
+     ix1=int(dx(i))
+     iy1=int(dy(i))
+     ix1=max(ione,min(ix1,nlat))
+     delx=dx(i)-float(ix1)
+     dely=dy(i)-float(iy1)
+     delx=max(zero,min(delx,one))
+     ix=ix1-istart(mm1)+2_i_kind
+     iy=iy1-jstart(mm1)+2_i_kind
+     if(iy<ione) then
+        iy1=iy1+nlon
+        iy=iy1-jstart(mm1)+2_i_kind
+     end if
+     if(iy>lon1+ione) then
+        iy1=iy1-nlon
+        iy=iy1-jstart(mm1)+2_i_kind
+     end if
+     ixp=ix+ione; iyp=iy+ione
+     if(ix1==nlat) then
+        ixp=ix
+     end if
+     delxp=one-delx; delyp=one-dely
+ 
+     do k=1,nlevs
+        g(k,i)=f(ix,iy,k)*delxp*delyp+f(ixp,iy,k)*delx*delyp&
+              +f(ix,iyp,k)*delxp*dely+f(ixp,iyp,k)*delx*dely
 
-    do k=1,nlevs
-      g(k,i)=f(ix,iy,k)*delxp*delyp+f(ixp,iy,k)*delx*delyp&
-            +f(ix,iyp,k)*delxp*dely+f(ixp,iyp,k)*delx*dely
-
-    end do
+     end do
   end do
 
   return

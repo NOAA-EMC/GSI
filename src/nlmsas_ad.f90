@@ -2302,7 +2302,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
              + fixed*ratio*xmb_ad(i)*tcwfdn(i)
         ratio_ad = ratio_ad + fixed*xmb_ad(i)*tcwfup(i)*tcwfdn(i)
      else
-!        do nothing since tlm = zero
+!       do nothing since tlm = zero
         xmb_ad(i) = zero
      endif
 
@@ -2310,7 +2310,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         xk_ad(i) = xk_ad(i) + f(i)/xk(i)**2 * ratio_ad
         f_ad(i)  = f_ad(i) - ratio_ad/xk(i)
      else
-!        do nothing since tlm = zero
+!       do nothing since tlm = zero
         ratio_ad = zero
      endif
 !
@@ -4400,7 +4400,8 @@ contains
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),intent(in):: x
+
+    real(r_kind),intent(in   ) :: x
 
     ftanh = half*(one + tanh(x))
   end function ftanh
@@ -4427,7 +4428,8 @@ contains
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),intent(in):: x
+
+    real(r_kind),intent(in   ) :: x
 
     dftanh = half/(cosh(x)**2)
   end function dftanh

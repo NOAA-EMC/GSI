@@ -41,7 +41,7 @@ use balmod, only: balance
 implicit none
   
 ! Declare passed variables  
-type(control_vector), intent(in)    :: xhat
+type(control_vector), intent(in   ) :: xhat
 type(state_vector)  , intent(inout) :: sval(nsubwin)
 type(predictors)    , intent(inout) :: bval
 
@@ -52,51 +52,51 @@ integer(i_kind) :: ii,jj
 !******************************************************************************
 
 if (.not.lsqrtb) then
-  write(6,*)'control2model: assumes lsqrtb'
-  call stop2(104)
+   write(6,*)'control2model: assumes lsqrtb'
+   call stop2(104)
 end if
 if (nsubwin/=ione .and. .not.l4dvar) then
-  write(6,*)'control2model: error 3dvar',nsubwin
-  call stop2(105)
+   write(6,*)'control2model: error 3dvar',nsubwin
+   call stop2(105)
 end if
 
 ! Loop over control steps
 do jj=1,nsubwin
 
-! Multiply by sqrt of background error (ckerror)
-! -----------------------------------------------------------------------------
-! Apply sqrt of variance, as well as vertical & horizontal parts of background
-! error
-  call ckgcov(xhat%step(jj)%values(:),workst,workvp, &
-              sval(jj)%t,sval(jj)%p,workrh,sval(jj)%oz, &
-              sval(jj)%sst,sval(jj)%cw,nnnn1o)
+!  Multiply by sqrt of background error (ckerror)
+!  -----------------------------------------------------------------------------
+!  Apply sqrt of variance, as well as vertical & horizontal parts of background
+!  error
+   call ckgcov(xhat%step(jj)%values(:),workst,workvp, &
+               sval(jj)%t,sval(jj)%p,workrh,sval(jj)%oz, &
+               sval(jj)%sst,sval(jj)%cw,nnnn1o)
 
-! Balance equation
-  call balance(sval(jj)%t,sval(jj)%p,workst,workvp,fpsproj)
+!  Balance equation
+   call balance(sval(jj)%t,sval(jj)%p,workst,workvp,fpsproj)
 
-! -----------------------------------------------------------------------------
+!  -----------------------------------------------------------------------------
 
-! Get 3d pressure
-  call getprs_tl(sval(jj)%p,sval(jj)%t,sval(jj)%p3d)
+!  Get 3d pressure
+   call getprs_tl(sval(jj)%p,sval(jj)%t,sval(jj)%p3d)
 
-! Convert input normalized RH to q
-  call normal_rh_to_q(workrh,sval(jj)%t,sval(jj)%p3d,sval(jj)%q)
+!  Convert input normalized RH to q
+   call normal_rh_to_q(workrh,sval(jj)%t,sval(jj)%p3d,sval(jj)%q)
 
-! Calculate sensible temperature
-  call tv_to_tsen(sval(jj)%t,sval(jj)%q,sval(jj)%tsen)
+!  Calculate sensible temperature
+   call tv_to_tsen(sval(jj)%t,sval(jj)%q,sval(jj)%tsen)
 
-! Convert streamfunction and velocity potential to u,v
-  call getuv(sval(jj)%u,sval(jj)%v,workst,workvp,izero)
+!  Convert streamfunction and velocity potential to u,v
+   call getuv(sval(jj)%u,sval(jj)%v,workst,workvp,izero)
 
 end do
 
 ! Bias correction terms
 do ii=1,nsclen
-  bval%predr(ii)=xhat%predr(ii)*sqrt(varprd(ii))
+   bval%predr(ii)=xhat%predr(ii)*sqrt(varprd(ii))
 enddo
 
 do ii=1,npclen
-  bval%predp(ii)=xhat%predp(ii)*sqrt(varprd(nsclen+ii))
+   bval%predp(ii)=xhat%predp(ii)*sqrt(varprd(nsclen+ii))
 enddo
 
 return

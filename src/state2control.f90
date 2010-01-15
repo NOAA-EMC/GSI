@@ -25,6 +25,7 @@ subroutine state2control(rval,bval,grad)
 !
 !$$$
 use kinds, only: i_kind
+use constants, only: ione,zero
 use control_vectors
 use state_vectors
 use bias_predictors
@@ -38,7 +39,7 @@ implicit none
 
 ! Declare passed variables
 type(state_vector)  , intent(inout) :: rval(nsubwin)
-type(predictors)    , intent(in)    :: bval
+type(predictors)    , intent(in   ) :: bval
 type(control_vector), intent(inout) :: grad
 
 ! Declare local variables
@@ -49,81 +50,81 @@ real(r_kind),dimension(latlon1n):: t,vp,st,rh,oz,cw,u,v
 !******************************************************************************
 
 if (lsqrtb) then
-  write(6,*)'state2control: not for sqrt(B)'
-  call stop2(311)
+   write(6,*)'state2control: not for sqrt(B)'
+   call stop2(311)
 end if
 
 ! Loop over control steps
 do jj=1,nsubwin
 
-! Adjoint of control to initial state
-  do ii=1,latlon1n
-    st(ii)=zero
-    vp(ii)=zero
-    t (ii)=rval(jj)%t (ii)
-    rh(ii)=zero
-    oz(ii)=rval(jj)%oz(ii)
-    cw(ii)=rval(jj)%cw(ii)
-  enddo
+!  Adjoint of control to initial state
+   do ii=1,latlon1n
+      st(ii)=zero
+      vp(ii)=zero
+      t (ii)=rval(jj)%t (ii)
+      rh(ii)=zero
+      oz(ii)=rval(jj)%oz(ii)
+      cw(ii)=rval(jj)%cw(ii)
+   enddo
 
-  do ii=1,latlon11
-    p(ii)  =rval(jj)%p(ii)
-    sst(ii)=rval(jj)%sst(ii)
-  enddo
+   do ii=1,latlon11
+      p(ii)  =rval(jj)%p(ii)
+      sst(ii)=rval(jj)%sst(ii)
+   enddo
 
-! Convert RHS calculations for u,v to st/vp for application of
-! background error
-  if(l_hyb_ens.and.uv_hyb_ens) then
-    u=rval(jj)%u
-    v=rval(jj)%v
-  else
-    call getuv(rval(jj)%u,rval(jj)%v,st,vp,1)
-  end if
+!  Convert RHS calculations for u,v to st/vp for application of
+!  background error
+   if(l_hyb_ens.and.uv_hyb_ens) then
+      u=rval(jj)%u
+      v=rval(jj)%v
+   else
+      call getuv(rval(jj)%u,rval(jj)%v,st,vp,ione)
+   end if
 
-! Calculate sensible temperature
-  call tv_to_tsen_ad(t,rval(jj)%q,rval(jj)%tsen)
+!  Calculate sensible temperature
+   call tv_to_tsen_ad(t,rval(jj)%q,rval(jj)%tsen)
 
-! Adjoint of convert input normalized RH to q to add contribution of moisture
-! to t, p , and normalized rh
-  call normal_rh_to_q_ad(rh,t,rval(jj)%p3d,rval(jj)%q)
+!  Adjoint of convert input normalized RH to q to add contribution of moisture
+!  to t, p , and normalized rh
+   call normal_rh_to_q_ad(rh,t,rval(jj)%p3d,rval(jj)%q)
 
-! Adjoint to convert ps to 3-d pressure
-  call getprs_ad(p,t,rval(jj)%p3d)
+!  Adjoint to convert ps to 3-d pressure
+   call getprs_ad(p,t,rval(jj)%p3d)
 
-! If this is ensemble run, then add ensemble contribution sum(a(k)*xe(k)),  where a(k) are the ensemble
-!   control variables and xe(k), k=1,n_ens are the ensemble perturbations.
-  if(l_hyb_ens) then
-    if(uv_hyb_ens) then
-!     Adjoint apply strong constraint to sum of static background and ensemble background combinations to
-!      reduce imbalances introduced by ensemble localization in addition to known imbalances from
-!      static background
-      call strong_bk_ad(u,v,p,t)
-      call ensemble_forward_model_ad(u,v,t,rh,oz,cw,p,sst,grad%step(jj)%a_en)
-      call getuv(u,v,st,vp,1)
-    else
-!     Adjoint apply strong constraint to sum of static background and ensemble background combinations to
-!      reduce imbalances introduced by ensemble localization in addition to known imbalances from
-!      static background
-      call strong_bk_ad(st,vp,p,t)
-      call ensemble_forward_model_ad(st,vp,t,rh,oz,cw,p,sst,grad%step(jj)%a_en)
-    end if
-  end if
+!  If this is ensemble run, then add ensemble contribution sum(a(k)*xe(k)),  where a(k) are the ensemble
+!    control variables and xe(k), k=1,n_ens are the ensemble perturbations.
+   if(l_hyb_ens) then
+      if(uv_hyb_ens) then
+!        Adjoint apply strong constraint to sum of static background and ensemble background combinations to
+!        reduce imbalances introduced by ensemble localization in addition to known imbalances from
+!        static background
+         call strong_bk_ad(u,v,p,t)
+         call ensemble_forward_model_ad(u,v,t,rh,oz,cw,p,sst,grad%step(jj)%a_en)
+         call getuv(u,v,st,vp,ione)
+      else
+!        Adjoint apply strong constraint to sum of static background and ensemble background combinations to
+!        reduce imbalances introduced by ensemble localization in addition to known imbalances from
+!        static background
+         call strong_bk_ad(st,vp,p,t)
+         call ensemble_forward_model_ad(st,vp,t,rh,oz,cw,p,sst,grad%step(jj)%a_en)
+      end if
+   end if
 
 !  Adjoint of transfer variables
 
-  do ii=1,latlon1n
-    grad%step(jj)%st(ii)=st(ii)+grad%step(jj)%st(ii)
-    grad%step(jj)%vp(ii)=vp(ii)+grad%step(jj)%vp(ii)
-    grad%step(jj)%t(ii) =t(ii) +grad%step(jj)%t(ii)
-    grad%step(jj)%rh(ii)=rh(ii)+grad%step(jj)%rh(ii)
-    grad%step(jj)%oz(ii)=oz(ii)+grad%step(jj)%oz(ii)
-    grad%step(jj)%cw(ii)=cw(ii)+grad%step(jj)%cw(ii)
-  enddo
+   do ii=1,latlon1n
+      grad%step(jj)%st(ii)=st(ii)+grad%step(jj)%st(ii)
+      grad%step(jj)%vp(ii)=vp(ii)+grad%step(jj)%vp(ii)
+      grad%step(jj)%t(ii) =t(ii) +grad%step(jj)%t(ii)
+      grad%step(jj)%rh(ii)=rh(ii)+grad%step(jj)%rh(ii)
+      grad%step(jj)%oz(ii)=oz(ii)+grad%step(jj)%oz(ii)
+      grad%step(jj)%cw(ii)=cw(ii)+grad%step(jj)%cw(ii)
+   enddo
 
-  do ii=1,latlon11
-    grad%step(jj)%p(ii)=p(ii)+grad%step(jj)%p(ii)
-    grad%step(jj)%sst(ii)=sst(ii)+grad%step(jj)%sst(ii)
-  enddo
+   do ii=1,latlon11
+      grad%step(jj)%p(ii)=p(ii)+grad%step(jj)%p(ii)
+      grad%step(jj)%sst(ii)=sst(ii)+grad%step(jj)%sst(ii)
+   enddo
 
 end do
 

@@ -289,7 +289,7 @@ subroutine anprewgt_reg(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
   integer(i_kind):: i,j,k,ivar,kvar,k1,l,lp,igauss,nlatf,nlonf,ierr
   real(r_kind):: dl1,dl2,factor,factoz,factk,anhswgtsum
@@ -730,7 +730,7 @@ subroutine get_aspect_reg_pt(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind):: i,j,k,k1
@@ -929,7 +929,7 @@ subroutine init_anisofilter_reg(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind):: i
@@ -1180,7 +1180,7 @@ subroutine read_bckgstats(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind):: j,k,l,n,inerr
@@ -1286,7 +1286,7 @@ subroutine read_bckgstats(mype)
      do n=1,4
         do k=1,nsig
            corzavg(k,n)=sum(corz(1:mlat,k,n))/float(mlat)
-           hwllavg(k,n)=sum(hwll(0:mlat+1,k,n))/float(mlat+2_i_kind)
+           hwllavg(k,n)=sum(hwll(0:mlat+ione,k,n))/float(mlat+2_i_kind)
         end do
      end do
      corpavg=sum(corp(1:mlat))/float(mlat)
@@ -1381,7 +1381,7 @@ subroutine get_background(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind) i,j,k,l,mm1,k1,ivar
@@ -1785,7 +1785,7 @@ subroutine get_theta_corrl_lenghts(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind) i,j,k,kp,km,k1
@@ -2377,7 +2377,7 @@ subroutine get_aspect_reg_ens(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind),parameter::ntensmax=200_i_kind   !max # of ens members
@@ -3728,10 +3728,10 @@ subroutine writeout_isoscaleinfo(nvar,k1,asp1,asp2,asp3,dxfc,dyfc,aspx)
 
   implicit none
 
-  integer(i_kind)      ,intent(in) :: nvar,k1
-  real(r_kind)         ,intent(in) :: asp1,asp2,asp3
-  real(r_kind)         ,intent(in) :: dxfc,dyfc
-  real(r_kind),optional,intent(in) :: aspx(3)
+  integer(i_kind)      ,intent(in   ) :: nvar,k1
+  real(r_kind)         ,intent(in   ) :: asp1,asp2,asp3
+  real(r_kind)         ,intent(in   ) :: dxfc,dyfc
+  real(r_kind),optional,intent(in   ) :: aspx(3)
 
   write(6,'("at domain center, var,k1,asp1,asp2,asp3,dxf,dyf =",2i4,5f11.3)') &
                 nvar, k1,asp1,asp2,asp3,dxfc,dyfc
@@ -3783,7 +3783,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind) i,j,k,l,lp,k1,kvar,ivar,im,ip,jm,jp,mm1,iloc,iploc,imloc,jloc,jploc,jmloc,igauss
@@ -4151,7 +4151,7 @@ subroutine get_background_subdomain_option(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind) i,j,k,mm1

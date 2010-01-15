@@ -38,8 +38,8 @@ subroutine anbkerror(gradx,grady)
   implicit none
 
 ! Declare passed variables
-  type(control_vector),intent(inout):: gradx
-  type(control_vector),intent(inout):: grady
+  type(control_vector),intent(inout) :: gradx
+  type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
   integer(i_kind) i,j,ii
@@ -315,7 +315,7 @@ subroutine ansmoothrf(work)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(nlat,nlon,indices%kps:indices%kpe),intent(inout):: work
+  real(r_kind),dimension(nlat,nlon,indices%kps:indices%kpe),intent(inout) :: work
 
 ! Declare local variables
   integer(i_kind) i,igauss,j,k

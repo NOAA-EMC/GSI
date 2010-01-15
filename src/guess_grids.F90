@@ -65,6 +65,35 @@ module guess_grids
 !EOP
 !-------------------------------------------------------------------------
 
+! set default to private
+  private
+! set subroutines to public
+  public :: create_sfc_grids
+  public :: create_ges_grids
+  public :: destroy_ges_grids
+  public :: destroy_sfct
+  public :: destroy_sfc_grids
+  public :: create_gesfinfo
+  public :: destroy_gesfinfo
+  public :: load_prsges
+  public :: load_geop_hgt
+  public :: add_rtm_layers
+  public :: load_fact10
+  public :: comp_fact10
+  public :: guess_grids_print
+  public :: guess_grids_stats
+! set passed variables to public
+  public :: ntguessig,ges_ps,ges_tv,ges_prsi,ges_oz,ges_psfcavg,ges_prslavg
+  public :: isli2,ges_prsl,ges_z,ges_q,ges_v,ges_u,nfldsig,ges_vor,ges_div
+  public :: ges_ozlat,ges_ozlon,ges_qlat,ges_cwmr,ges_teta,ges_cwmr_lat
+  public :: ges_cwmr_lon,ges_v_lon,ges_u_lat,ges_u_lon,ges_v_lat,ges_qlon
+  public :: ges_tvlon,ges_tvlat,ges_prs_ten,ges_tv_ten,ges_v_ten,ges_cwmr_ten
+  public :: ges_oz_ten,ges_q_ten,fact_tv,tropprs,sfct,ges_u_ten,ges_ps_lat
+  public :: ges_ps_lon,ntguessfc,dsfct,ifilesig,veg_frac,soil_type,veg_type
+  public :: sno2,ifilesfc,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
+  public :: nfldsfc,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc
+  public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
+
   logical:: sfcmod_gfs = .false.    ! .true. = recompute 10m wind factor using gfs physics
   logical:: sfcmod_mm5 = .false.    ! .true. = recompute 10m wind factor using mm5 physics
 
@@ -163,35 +192,6 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_oz_ten   ! ozone tendency
   real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_ten ! cloud water tendency
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
- 
-! set default to private
-  private
-! set subroutines to public
-  public :: create_sfc_grids
-  public :: create_ges_grids
-  public :: destroy_ges_grids
-  public :: destroy_sfct
-  public :: destroy_sfc_grids
-  public :: create_gesfinfo
-  public :: destroy_gesfinfo
-  public :: load_prsges
-  public :: load_geop_hgt
-  public :: add_rtm_layers
-  public :: load_fact10
-  public :: comp_fact10
-  public :: guess_grids_print
-  public :: guess_grids_stats
-! set passed variables to public
-  public :: ntguessig,ges_ps,ges_tv,ges_prsi,ges_oz,ges_psfcavg,ges_prslavg
-  public :: isli2,ges_prsl,ges_z,ges_q,ges_v,ges_u,nfldsig,ges_vor,ges_div
-  public :: ges_ozlat,ges_ozlon,ges_qlat,ges_cwmr,ges_teta,ges_cwmr_lat
-  public :: ges_cwmr_lon,ges_v_lon,ges_u_lat,ges_u_lon,ges_v_lat,ges_qlon
-  public :: ges_tvlon,ges_tvlat,ges_prs_ten,ges_tv_ten,ges_v_ten,ges_cwmr_ten
-  public :: ges_oz_ten,ges_q_ten,fact_tv,tropprs,sfct,ges_u_ten,ges_ps_lat
-  public :: ges_ps_lon,ntguessfc,dsfct,ifilesig,veg_frac,soil_type,veg_type
-  public :: sno2,ifilesfc,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
-  public :: nfldsfc,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc
-  public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
  
   interface guess_grids_print
      module procedure print1r8_
@@ -329,8 +329,8 @@ contains
 
 ! !INPUT PARAMETERS:
 
-    logical:: switch_on_derivatives    ! for for horizontal derivatives
-    logical:: tendsflag                ! for time tendencies
+    logical,intent(in   ) :: switch_on_derivatives    ! for for horizontal derivatives
+    logical,intent(in   ) :: tendsflag                ! for time tendencies
 
 
 ! !OUTPUT PARAMETERS:
@@ -366,150 +366,150 @@ contains
 
     if ( .not. ges_initilized ) then
 
-!   Allocate and zero guess grids
-    allocate ( ges_prsi(lat2,lon2,nsig+ione,nfldsig),ges_prsl(lat2,lon2,nsig,nfldsig),&
-         ges_lnprsl(lat2,lon2,nsig,nfldsig),ges_lnprsi(lat2,lon2,nsig+ione,nfldsig),&
-         ges_tsen(lat2,lon2,nsig,nfldsig),&
-         ges_teta(lat2,lon2,nsig,nfldsig),&
-         geop_hgtl(lat2,lon2,nsig,nfldsig), &
-         geop_hgti(lat2,lon2,nsig+ione,nfldsig),ges_prslavg(nsig),&
-         tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),stat=istatus)
-    if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS(1):  allocate error1, istatus=',&
-         istatus,lat2,lon2,nsig,nfldsig
+!      Allocate and zero guess grids
+       allocate ( ges_prsi(lat2,lon2,nsig+ione,nfldsig),ges_prsl(lat2,lon2,nsig,nfldsig),&
+            ges_lnprsl(lat2,lon2,nsig,nfldsig),ges_lnprsi(lat2,lon2,nsig+ione,nfldsig),&
+            ges_tsen(lat2,lon2,nsig,nfldsig),&
+            ges_teta(lat2,lon2,nsig,nfldsig),&
+            geop_hgtl(lat2,lon2,nsig,nfldsig), &
+            geop_hgti(lat2,lon2,nsig+ione,nfldsig),ges_prslavg(nsig),&
+            tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),stat=istatus)
+       if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS(1):  allocate error1, istatus=',&
+            istatus,lat2,lon2,nsig,nfldsig
 #ifndef HAVE_ESMF
-    allocate (ges_z(lat2,lon2,nfldsig),ges_ps(lat2,lon2,nfldsig),&
-         ges_u(lat2,lon2,nsig,nfldsig),ges_v(lat2,lon2,nsig,nfldsig),&
-         ges_vor(lat2,lon2,nsig,nfldsig),ges_div(lat2,lon2,nsig,nfldsig),&
-         ges_cwmr(lat2,lon2,nsig,nfldsig),ges_q(lat2,lon2,nsig,nfldsig),&
-         ges_oz(lat2,lon2,nsig,nfldsig),ges_tv(lat2,lon2,nsig,nfldsig),&
-         stat=istatus)
-    if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS(2):  allocate error1, istatus=',&
-         istatus,lat2,lon2,nsig,nfldsig
-#endif /* HAVE_ESMF */
-    if(update_pint) then
-       allocate(ges_pint(lat2,lon2,nsig+ione,nfldsig),ges_pd(lat2,lon2,nfldsig),&
+       allocate (ges_z(lat2,lon2,nfldsig),ges_ps(lat2,lon2,nfldsig),&
+            ges_u(lat2,lon2,nsig,nfldsig),ges_v(lat2,lon2,nsig,nfldsig),&
+            ges_vor(lat2,lon2,nsig,nfldsig),ges_div(lat2,lon2,nsig,nfldsig),&
+            ges_cwmr(lat2,lon2,nsig,nfldsig),ges_q(lat2,lon2,nsig,nfldsig),&
+            ges_oz(lat2,lon2,nsig,nfldsig),ges_tv(lat2,lon2,nsig,nfldsig),&
             stat=istatus)
-       if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS:  allocate error2, istatus=',&
-         istatus,lat2,lon2,nsig,nfldsig
-    endif
+       if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS(2):  allocate error1, istatus=',&
+            istatus,lat2,lon2,nsig,nfldsig
+#endif /* HAVE_ESMF */
+       if(update_pint) then
+          allocate(ges_pint(lat2,lon2,nsig+ione,nfldsig),ges_pd(lat2,lon2,nfldsig),&
+               stat=istatus)
+          if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS:  allocate error2, istatus=',&
+            istatus,lat2,lon2,nsig,nfldsig
+       endif
 
-    ges_initilized = .true.
+       ges_initilized = .true.
 
 !  Default for ges_psfcavg
-    ges_psfcavg=zero
-    do i=1,nsig
-       ges_prslavg(i)=zero
-    end do
-
-    do j=1,lon2
-       do i=1,lat2
-          tropprs(i,j)=zero
+       ges_psfcavg=zero
+       do i=1,nsig
+          ges_prslavg(i)=zero
        end do
-    end do
 
-    do k=1,nsig
-      do j=1,lon2
-        do i=1,lat2
-           fact_tv(i,j,k)=one
-        end do
-      end do
-    end do
-
-#ifndef HAVE_ESMF
-    do n=1,nfldsig
        do j=1,lon2
           do i=1,lat2
-             ges_z(i,j,n)=zero
-             ges_ps(i,j,n)=zero
+             tropprs(i,j)=zero
           end do
        end do
-    end do
-    do n=1,nfldsig
+
        do k=1,nsig
           do j=1,lon2
              do i=1,lat2
-                ges_u(i,j,k,n)=zero
-                ges_v(i,j,k,n)=zero
-                ges_vor(i,j,k,n)=zero
-                ges_div(i,j,k,n)=zero
-                ges_cwmr(i,j,k,n)=zero
-                ges_q(i,j,k,n)=zero
-                ges_oz(i,j,k,n)=zero
-                ges_tv(i,j,k,n)=zero
-!                ges_pint(i,j,k,n)=zero
+                fact_tv(i,j,k)=one
              end do
           end do
        end do
-    end do
-#endif /* HAVE_ESMF */
-    do n=1,nfldsig
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                ges_prsl(i,j,k,n)=zero
-                ges_lnprsl(i,j,k,n)=zero
-                ges_tsen(i,j,k,n)=zero
-                ges_teta(i,j,k,n)=zero
-                geop_hgtl(i,j,k,n)=zero
-             end do
-          end do
-       end do
-       do k=1,nsig+ione
-          do j=1,lon2
-             do i=1,lat2
-                ges_prsi(i,j,k,n)=zero
-                ges_lnprsi(i,j,k,n)=zero
-                geop_hgti(i,j,k,n)=zero
-             end do
-          end do
-       end do
-    end do
-    if(update_pint) then
+
+#ifndef HAVE_ESMF
        do n=1,nfldsig
-          do k=1,nsig+ione
+          do j=1,lon2
+             do i=1,lat2
+                ges_z(i,j,n)=zero
+                ges_ps(i,j,n)=zero
+             end do
+          end do
+       end do
+       do n=1,nfldsig
+          do k=1,nsig
              do j=1,lon2
                 do i=1,lat2
-                   ges_pint(i,j,k,n)=zero
+                   ges_u(i,j,k,n)=zero
+                   ges_v(i,j,k,n)=zero
+                   ges_vor(i,j,k,n)=zero
+                   ges_div(i,j,k,n)=zero
+                   ges_cwmr(i,j,k,n)=zero
+                   ges_q(i,j,k,n)=zero
+                   ges_oz(i,j,k,n)=zero
+                   ges_tv(i,j,k,n)=zero
+!                   ges_pint(i,j,k,n)=zero
                 end do
              end do
           end do
-          do j=1,lon2
-             do i=1,lat2
-                ges_pd(i,j,n)=zero
+       end do
+#endif /* HAVE_ESMF */
+       do n=1,nfldsig
+          do k=1,nsig
+             do j=1,lon2
+                do i=1,lat2
+                   ges_prsl(i,j,k,n)=zero
+                   ges_lnprsl(i,j,k,n)=zero
+                   ges_tsen(i,j,k,n)=zero
+                   ges_teta(i,j,k,n)=zero
+                   geop_hgtl(i,j,k,n)=zero
+                end do
+             end do
+          end do
+          do k=1,nsig+ione
+             do j=1,lon2
+                do i=1,lat2
+                   ges_prsi(i,j,k,n)=zero
+                   ges_lnprsi(i,j,k,n)=zero
+                   geop_hgti(i,j,k,n)=zero
+                end do
              end do
           end do
        end do
-    end if
+       if(update_pint) then
+          do n=1,nfldsig
+             do k=1,nsig+ione
+                do j=1,lon2
+                   do i=1,lat2
+                      ges_pint(i,j,k,n)=zero
+                   end do
+                end do
+             end do
+             do j=1,lon2
+                do i=1,lat2
+                   ges_pd(i,j,n)=zero
+                end do
+             end do
+          end do
+       end if
 
     end if ! ges_initilized
     
 !   If tendencies option on, allocate/initialize _ten arrays to zero
     if (.not.tnd_initilized .and. tendsflag) then
-      allocate(ges_prs_ten(lat2,lon2,nsig+ione),ges_u_ten(lat2,lon2,nsig),&
-               ges_v_ten(lat2,lon2,nsig),ges_tv_ten(lat2,lon2,nsig),&
-               ges_q_ten(lat2,lon2,nsig),ges_oz_ten(lat2,lon2,nsig),&
-               ges_cwmr_ten(lat2,lon2,nsig),stat=istatus)
-      if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS:  allocate error3, istatus=',&
-           istatus,lat2,lon2,nsig
-      tnd_initilized = .true.
-      do k=1,nsig
-        do j=1,lon2
-          do i=1,lat2
-            ges_u_ten(i,j,k)=zero
-            ges_v_ten(i,j,k)=zero
-            ges_tv_ten(i,j,k)=zero
-            ges_q_ten(i,j,k)=zero
-            ges_cwmr_ten(i,j,k)=zero
-            ges_oz_ten(i,j,k)=zero
-            ges_prs_ten(i,j,k)=zero
+       allocate(ges_prs_ten(lat2,lon2,nsig+ione),ges_u_ten(lat2,lon2,nsig),&
+                ges_v_ten(lat2,lon2,nsig),ges_tv_ten(lat2,lon2,nsig),&
+                ges_q_ten(lat2,lon2,nsig),ges_oz_ten(lat2,lon2,nsig),&
+                ges_cwmr_ten(lat2,lon2,nsig),stat=istatus)
+       if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS:  allocate error3, istatus=',&
+            istatus,lat2,lon2,nsig
+       tnd_initilized = .true.
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                ges_u_ten(i,j,k)=zero
+                ges_v_ten(i,j,k)=zero
+                ges_tv_ten(i,j,k)=zero
+                ges_q_ten(i,j,k)=zero
+                ges_cwmr_ten(i,j,k)=zero
+                ges_oz_ten(i,j,k)=zero
+                ges_prs_ten(i,j,k)=zero
+             end do
           end do
-        end do
-      end do
-      do j=1,lon2
-        do i=1,lat2
-          ges_prs_ten(i,j,nsig+ione)=zero
-        end do
-      end do
+       end do
+       do j=1,lon2
+          do i=1,lat2
+             ges_prs_ten(i,j,nsig+ione)=zero
+          end do
+       end do
     end if
 
 !   If derivatives option on, allocate and initialize derivatives arrays to 0.0
@@ -572,8 +572,8 @@ contains
     implicit none
 
 ! !INPUT PARAMETERS:
-    logical:: switch_on_derivatives    ! flag for horizontal derivatives
-    logical:: tendsflag                ! flag for tendency
+    logical,intent(in   ) :: switch_on_derivatives    ! flag for horizontal derivatives
+    logical,intent(in   ) :: tendsflag                ! flag for tendency
     
 ! !DESCRIPTION: deallocate guess and bias grids
 !
@@ -674,7 +674,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-   integer(i_kind):: istatus
+    integer(i_kind):: istatus
 
     deallocate(isli2,sno2,stat=istatus)
     if (istatus/=izero) &
@@ -726,7 +726,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-   integer(i_kind):: istatus
+    integer(i_kind):: istatus
 
     deallocate(isli_g,stat=istatus)
     if (istatus/=izero) &
@@ -774,11 +774,11 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-   integer(i_kind):: istatus
+    integer(i_kind):: istatus
 
 #ifndef HAVE_ESMF
-  allocate(hrdifsfc(nfldsfc),ifilesfc(nfldsfc), &
-           hrdifsig(nfldsig),ifilesig(nfldsig),stat=istatus)
+    allocate(hrdifsfc(nfldsfc),ifilesfc(nfldsfc), &
+             hrdifsig(nfldsig),ifilesig(nfldsig),stat=istatus)
     if (istatus/=izero) &
          write(6,*)'CREATE_GESFINFO:  allocate error, istatus=',&
          istatus
@@ -817,7 +817,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-   integer(i_kind):: istatus
+    integer(i_kind):: istatus
 
 #ifndef HAVE_ESMF
     deallocate(hrdifsfc,ifilesfc,hrdifsig,ifilesig,stat=istatus)
@@ -885,67 +885,67 @@ contains
     kapr=one/rd_over_cp
 
     do jj=1,nfldsig
-      do k=1,nsig+ione
-        do j=1,lon2
-          do i=1,lat2
-            if(regional) then
-              if (wrf_nmm_regional.or.nems_nmmb_regional) &
-                ges_prsi(i,j,k,jj)=one_tenth* &
-                            (eta1_ll(k)*pdtop_ll + &
-                             eta2_ll(k)*(ten*ges_ps(i,j,jj)-pdtop_ll-pt_ll) + &
-                             pt_ll)
-              if (wrf_mass_regional .or. twodvar_regional) &
-                ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j,jj)-pt_ll) + pt_ll)
-            else
-              if (idvc5==ione .or. idvc5==2_i_kind) then
-                ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j,jj))
-              else if (idvc5==3_i_kind) then
-                if (k==ione) then
-                   ges_prsi(i,j,k,jj)=ges_ps(i,j,jj)
-                else if (k==nsig+ione) then
-                   ges_prsi(i,j,k,jj)=zero
+       do k=1,nsig+ione
+          do j=1,lon2
+             do i=1,lat2
+                if(regional) then
+                   if (wrf_nmm_regional.or.nems_nmmb_regional) &
+                      ges_prsi(i,j,k,jj)=one_tenth* &
+                             (eta1_ll(k)*pdtop_ll + &
+                              eta2_ll(k)*(ten*ges_ps(i,j,jj)-pdtop_ll-pt_ll) + &
+                              pt_ll)
+                   if (wrf_mass_regional .or. twodvar_regional) &
+                      ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j,jj)-pt_ll) + pt_ll)
                 else
-                   trk=(half*(ges_tv(i,j,k-ione,jj)+ges_tv(i,j,k,jj))/tref5(k))**kapr
-                   ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j,jj))+(ck5(k)*trk)
-                end if
-              end if
-            endif
-            ges_lnprsi(i,j,k,jj)=log(ges_prsi(i,j,k,jj))
+                   if (idvc5==ione .or. idvc5==2_i_kind) then
+                      ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j,jj))
+                   else if (idvc5==3_i_kind) then
+                      if (k==ione) then
+                         ges_prsi(i,j,k,jj)=ges_ps(i,j,jj)
+                      else if (k==nsig+ione) then
+                         ges_prsi(i,j,k,jj)=zero
+                      else
+                         trk=(half*(ges_tv(i,j,k-ione,jj)+ges_tv(i,j,k,jj))/tref5(k))**kapr
+                         ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j,jj))+(ck5(k)*trk)
+                      end if
+                   end if
+                endif
+                ges_lnprsi(i,j,k,jj)=log(ges_prsi(i,j,k,jj))
+             end do
           end do
-        end do
-      end do
+       end do
     end do
 
     if(regional) then
-      if (wrf_nmm_regional.or.nems_nmmb_regional) then
+       if (wrf_nmm_regional.or.nems_nmmb_regional) then
 ! load using aeta coefficients
-        do jj=1,nfldsig
-          do k=1,nsig
-            do j=1,lon2
-              do i=1,lat2
-                ges_prsl(i,j,k,jj)=one_tenth* &
-                            (aeta1_ll(k)*pdtop_ll + &
-                             aeta2_ll(k)*(ten*ges_ps(i,j,jj)-pdtop_ll-pt_ll) + &
-                             pt_ll)
-                ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
-              end do
-            end do
+          do jj=1,nfldsig
+             do k=1,nsig
+                do j=1,lon2
+                   do i=1,lat2
+                      ges_prsl(i,j,k,jj)=one_tenth* &
+                                  (aeta1_ll(k)*pdtop_ll + &
+                                   aeta2_ll(k)*(ten*ges_ps(i,j,jj)-pdtop_ll-pt_ll) + &
+                                   pt_ll)
+                      ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
+                   end do
+                end do
+             end do
           end do
-        end do
-      end if   ! end if wrf_nmm regional block
-      if (wrf_mass_regional .or. twodvar_regional) then
+       end if   ! end if wrf_nmm regional block
+       if (wrf_mass_regional .or. twodvar_regional) then
 ! load using aeta coefficients
-        do jj=1,nfldsig
-          do k=1,nsig
-            do j=1,lon2
-              do i=1,lat2
-                ges_prsl(i,j,k,jj)=one_tenth*(aeta1_ll(k)*(ten*ges_ps(i,j,jj)-pt_ll)+pt_ll)
-                ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
-              end do
-            end do
+          do jj=1,nfldsig
+             do k=1,nsig
+                do j=1,lon2
+                   do i=1,lat2
+                      ges_prsl(i,j,k,jj)=one_tenth*(aeta1_ll(k)*(ten*ges_ps(i,j,jj)-pt_ll)+pt_ll)
+                      ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
+                   end do
+                end do
+             end do
           end do
-        end do
-      end if   ! end if wrf_mass regional block
+       end if   ! end if wrf_mass regional block
 
     else
 
@@ -1120,13 +1120,13 @@ contains
     implicit none
 
 ! !INPUT PARAMETERS:
-    integer(i_kind),dimension(msig),intent(out):: klevel
+    integer(i_kind),dimension(msig)     ,intent(  out) :: klevel
 
-    real(r_kind),dimension(nsig+ione),intent(in):: prsitmp
-    real(r_kind),dimension(nsig),intent(in):: prsltmp
+    real(r_kind)   ,dimension(nsig+ione),intent(in   ) :: prsitmp
+    real(r_kind)   ,dimension(nsig)     ,intent(in   ) :: prsltmp
 
-    real(r_kind),dimension(msig+ione),intent(out):: prsitmp_ext
-    real(r_kind),dimension(msig),intent(out):: prsltmp_ext
+    real(r_kind)   ,dimension(msig+ione),intent(  out) :: prsitmp_ext
+    real(r_kind)   ,dimension(msig)     ,intent(  out) :: prsltmp_ext
 
 
 ! !DESCRIPTION:  Add pressure layers for use in RTM
@@ -1303,6 +1303,10 @@ contains
 
 ! !INPUT PARAMETERS:
 
+    real(r_kind)   ,intent(in   ) :: dlat,dlon,dtime,skint,sfcrough
+    real(r_kind)   ,intent(inout) :: factw
+    integer(i_kind),intent(in   ) :: mype,islimsk
+
 ! !DESCRIPTION: compute 10m wind factor
 !
 ! !REVISION HISTORY:
@@ -1323,9 +1327,6 @@ contains
 
 !   Declare local variables
     logical iqtflg
-    real(r_kind),intent(in):: dlat,dlon,dtime,skint,sfcrough
-    real(r_kind),intent(inout):: factw
-    integer(i_kind),intent(in)::mype,islimsk
     integer(i_kind) ix,ix1,ixp,iy,iy1,iyp,regime
     integer(i_kind) itsig,itsigp,j,m1,islimsk2
     real(r_kind) w00,w01,w10,w11
@@ -1367,21 +1368,21 @@ contains
     w00=delx1*dely1; w10=delx*dely1; w01=delx1*dely; w11=delx*dely
 !   Get time interpolation factors for sigma files
     if(dtime > hrdifsig(1) .and. dtime < hrdifsig(nfldsig))then
-      do j=1,nfldsig-ione
-        if(dtime > hrdifsig(j) .and. dtime <= hrdifsig(j+ione))then
-           itsig=j
-           itsigp=j+ione
-           dtsig=((hrdifsig(j+ione)-dtime)/(hrdifsig(j+ione)-hrdifsig(j)))
-        end if
-      end do
+       do j=1,nfldsig-ione
+          if(dtime > hrdifsig(j) .and. dtime <= hrdifsig(j+ione))then
+             itsig=j
+             itsigp=j+ione
+             dtsig=((hrdifsig(j+ione)-dtime)/(hrdifsig(j+ione)-hrdifsig(j)))
+          end if
+       end do
     else if(dtime <=hrdifsig(1))then
-      itsig=ione
-      itsigp=ione
-      dtsig=one
+       itsig=ione
+       itsigp=ione
+       dtsig=one
     else
-      itsig=nfldsig
-      itsigp=nfldsig
-      dtsig=one
+       itsig=nfldsig
+       itsigp=nfldsig
+       dtsig=one
     end if
     dtsigp=one-dtsig
 
@@ -1524,9 +1525,9 @@ contains
 
    implicit none
 
-   character(len=*), intent(in) :: name
-   real(r_kind), intent(in), dimension(:,:,:) :: a
-   integer(i_kind), intent(in)                      :: mype
+   character(len=*)             , intent(in   ) :: name
+   real(r_kind),dimension(:,:,:), intent(in   ) :: a
+   integer(i_kind)              , intent(in   ) :: mype
 
 
 ! local variables
@@ -1542,11 +1543,11 @@ contains
 !  Calculate sums for a to estimate variance.
    work_a = zero
    do k = 1,nsig
-     do j = 2,lon1+ione
-        do i = 2,lat1+ione
-             work_a(k) = work_a(k) + a(i,j,k)
-        end do
-     end do
+      do j = 2,lon1+ione
+         do i = 2,lat1+ione
+            work_a(k) = work_a(k) + a(i,j,k)
+         end do
+      end do
    end do
    work_a(nsig+ione)=float(lon1*lat1)
 
@@ -1595,9 +1596,9 @@ contains
 
    implicit none
 
-   character(len=*), intent(in) :: name
-   real(r_kind), intent(in), dimension(:,:) :: a
-   integer(i_kind), intent(in)                      :: mype
+   character(len=*)           , intent(in   ) :: name
+   real(r_kind),dimension(:,:), intent(in   ) :: a
+   integer(i_kind)            , intent(in   ) :: mype
 
 
 ! local variables
@@ -1657,9 +1658,9 @@ contains
    use constants, only: ione,zero
    implicit none
 
-   real(r_kind), intent(in), dimension(:,:) :: a      ! array var
-   real(r_kind), intent(in)                 :: amiss  ! undef
-   real(r_kind), intent(out)                :: avg,rms
+   real(r_kind),dimension(:,:), intent(in   ) :: a      ! array var
+   real(r_kind)               , intent(in   ) :: amiss  ! undef
+   real(r_kind)               , intent(  out) :: avg,rms
 
 
 ! local variables
@@ -1712,9 +1713,9 @@ contains
 !
 !$$$ end documentation block
    implicit none
-   character(len=*), intent(in) :: name
-   real(r_kind),intent(in),dimension(:) :: fld
-   real(r_kind),intent(in)              :: undef
+   character(len=*)         , intent(in   ) :: name
+   real(r_kind),dimension(:), intent(in   ) :: fld
+   real(r_kind)             , intent(in   ) :: undef
 ! 
    write(6,100) trim(name),minval(fld),maxval(fld),sum(fld),undef
 100 format(a,': range,sum = ',1P3E16.4)
@@ -1747,9 +1748,9 @@ contains
 !$$$ end documentation block
 
    implicit none
-   character(len=*), intent(in) :: name
-   real(r_kind),intent(in),dimension(:,:) :: fld
-   real(r_kind),intent(in)                :: undef
+   character(len=*)           , intent(in   ) :: name
+   real(r_kind),dimension(:,:), intent(in   ) :: fld
+   real(r_kind)               , intent(in   ) :: undef
 ! 
    real(r_kind) avg,rms
    write(6,100) trim(name),minval(fld),maxval(fld),sum(fld)
@@ -1786,14 +1787,15 @@ contains
 !
 !$$$ end documentation block
    implicit none
-   character(len=*), intent(in) :: name
-   real(r_kind),intent(in),dimension(:,:,:) :: fld
-   real(r_kind),intent(in)                  :: undef
-   logical, intent(in), optional :: allk
+   character(len=*)             , intent(in   ) :: name
+   real(r_kind),dimension(:,:,:), intent(in   ) :: fld
+   real(r_kind)                 , intent(in   ) :: undef
+   logical,optional             , intent(in   ) :: allk
 ! 
    logical prntlevs
    integer(i_kind) k
    real(r_kind) avg,rms
+
    if(present(allk)) prntlevs=allk
    if(prntlevs) then
       do k=1,size(fld,3)
@@ -1837,14 +1839,15 @@ contains
 !$$$ end documentation block
 
    implicit none
-   character(len=*), intent(in) :: name
-   real(r_kind),intent(in),dimension(:,:,:,:) :: fld
-   real(r_kind),intent(in)                    :: undef
-   logical, intent(in), optional :: allk
+   character(len=*)               , intent(in   ) :: name
+   real(r_kind),dimension(:,:,:,:), intent(in   ) :: fld
+   real(r_kind)                   , intent(in   ) :: undef
+   logical,optional               , intent(in   ) :: allk
 ! 
    logical prntlevs
    integer(i_kind) k,it
    real(r_kind) avg,rms
+
    if(present(allk)) prntlevs=allk
    if(prntlevs) then
       do it=1,size(fld,4)

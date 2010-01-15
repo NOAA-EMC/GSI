@@ -32,7 +32,7 @@ implicit none
 
 ! Declare passed variables
 type(state_vector)  , intent(inout) :: rval(nsubwin)
-type(predictors)    , intent(in)    :: bval
+type(predictors)    , intent(in   ) :: bval
 type(control_vector), intent(inout) :: grad
 
 ! Declare local variables
@@ -44,46 +44,46 @@ real(r_kind) :: gradz(nval_lenz)
 !******************************************************************************
 
 if (.not.lsqrtb) then
-  write(6,*)'model2control: assumes lsqrtb'
-  call stop2(146)
+   write(6,*)'model2control: assumes lsqrtb'
+   call stop2(146)
 end if
 
 ! Loop over control steps
 do jj=1,nsubwin
 
-  workst(:,:,:)=zero
-  workvp(:,:,:)=zero
-  workrh(:,:,:)=zero
+   workst(:,:,:)=zero
+   workvp(:,:,:)=zero
+   workrh(:,:,:)=zero
 
 ! Convert RHS calculations for u,v to st/vp for application of
 ! background error
-  call getuv(rval(jj)%u,rval(jj)%v,workst,workvp,ione)
+   call getuv(rval(jj)%u,rval(jj)%v,workst,workvp,ione)
 
 ! Calculate sensible temperature
-  call tv_to_tsen_ad(rval(jj)%t,rval(jj)%q,rval(jj)%tsen)
+   call tv_to_tsen_ad(rval(jj)%t,rval(jj)%q,rval(jj)%tsen)
 
 ! Adjoint of convert input normalized RH to q to add contribution of moisture
 ! to t, p , and normalized rh
-  call normal_rh_to_q_ad(workrh,rval(jj)%t,rval(jj)%p3d,rval(jj)%q)
+   call normal_rh_to_q_ad(workrh,rval(jj)%t,rval(jj)%p3d,rval(jj)%q)
 
 ! Adjoint to convert ps to 3-d pressure
-  call getprs_ad(rval(jj)%p,rval(jj)%t,rval(jj)%p3d)
+   call getprs_ad(rval(jj)%p,rval(jj)%t,rval(jj)%p3d)
 
 ! Multiply by sqrt of background error adjoint (ckerror_ad)
 ! -----------------------------------------------------------------------------
 
 ! Transpose of balance equation
-  call tbalance(rval(jj)%t,rval(jj)%p,workst,workvp,fpsproj)
+   call tbalance(rval(jj)%t,rval(jj)%p,workst,workvp,fpsproj)
 
 ! Apply variances, as well as vertical & horizontal parts of background error
-  gradz(:)=zero
+   gradz(:)=zero
 
-  call ckgcov_ad(gradz,workst,workvp,rval(jj)%t,rval(jj)%p,workrh,&
-                 rval(jj)%oz,rval(jj)%sst,rval(jj)%cw,nnnn1o)
+   call ckgcov_ad(gradz,workst,workvp,rval(jj)%t,rval(jj)%p,workrh,&
+                  rval(jj)%oz,rval(jj)%sst,rval(jj)%cw,nnnn1o)
 
-  do ii=1,nval_lenz
-    grad%step(jj)%values(ii)=grad%step(jj)%values(ii)+gradz(ii)
-  enddo
+   do ii=1,nval_lenz
+      grad%step(jj)%values(ii)=grad%step(jj)%values(ii)+gradz(ii)
+   enddo
 
 ! -----------------------------------------------------------------------------
 
@@ -91,19 +91,19 @@ end do
 
 ! Bias predictors are duplicated
 do ii=1,nsclen
-  zwork(ii)=bval%predr(ii)
+   zwork(ii)=bval%predr(ii)
 enddo
 do ii=1,npclen
-  zwork(nsclen+ii)=bval%predp(ii)
+   zwork(nsclen+ii)=bval%predp(ii)
 enddo
 
 call mpl_allreduce(nrclen,zwork)
 
 do ii=1,nsclen
-  grad%predr(ii)=grad%predr(ii)+zwork(ii)*sqrt(varprd(ii))
+   grad%predr(ii)=grad%predr(ii)+zwork(ii)*sqrt(varprd(ii))
 enddo
 do ii=1,npclen
-  grad%predp(ii)=grad%predp(ii)+zwork(nsclen+ii)*sqrt(varprd(nsclen+ii))
+   grad%predp(ii)=grad%predp(ii)+zwork(nsclen+ii)*sqrt(varprd(nsclen+ii))
 enddo
 
 return

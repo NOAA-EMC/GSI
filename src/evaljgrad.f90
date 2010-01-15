@@ -50,12 +50,12 @@ use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 implicit none
 
 ! Declare passed variables
-type(control_vector), intent(in)    :: xhat
-real(r_quad), intent(out)           :: fjcost
+type(control_vector), intent(in   ) :: xhat
+real(r_quad)        , intent(  out) :: fjcost
 type(control_vector), intent(inout) :: gradx
-logical, intent(in) :: lupdfgs
-integer(i_kind), intent(in) :: nprt
-character(len=*), intent(in) :: calledby
+logical             , intent(in   ) :: lupdfgs
+integer(i_kind)     , intent(in   ) :: nprt
+character(len=*)    , intent(in   ) :: calledby
 
 ! Declare local variables  
 character(len=*), parameter :: myname='evaljgrad'
@@ -75,11 +75,11 @@ seqcalls = trim(calledby)//'::'//trim(myname)
 
 ! Allocate local variables
 do ii=1,nobs_bins
-  call allocate_state(sval(ii))
-  call allocate_state(rval(ii))
+   call allocate_state(sval(ii))
+   call allocate_state(rval(ii))
 end do
 do ii=1,nsubwin
-  call allocate_state(mval(ii))
+   call allocate_state(mval(ii))
 end do
 call allocate_preds(sbias)
 call allocate_preds(rbias)
@@ -89,14 +89,14 @@ gradx = xhat
 
 if (lsaveobsens) then
 ! Observation sensitivity right hand side
-  do ii=1,gradx%lencv
-    gradx%values(ii) = gradx%values(ii) - fcsens%values(ii)
-  enddo
+   do ii=1,gradx%lencv
+      gradx%values(ii) = gradx%values(ii) - fcsens%values(ii)
+   enddo
 else
 ! Contribution from previous background term
-  do ii=1,gradx%lencv
-    gradx%values(ii) = gradx%values(ii) + xhatsave%values(ii)
-  enddo
+   do ii=1,gradx%lencv
+      gradx%values(ii) = gradx%values(ii) + xhatsave%values(ii)
+   enddo
 endif
 
 zjb=dot_product(gradx,gradx,r_quad)
@@ -105,38 +105,38 @@ zjb=dot_product(gradx,gradx,r_quad)
 call control2model(xhat,mval,sbias)
 
 if (nprt>=2_i_kind) then
-  do ii=1,nsubwin
-    call prt_state_norms(mval(ii),'mval')
-  enddo
+   do ii=1,nsubwin
+      call prt_state_norms(mval(ii),'mval')
+   enddo
 endif
 
 ! Run TL model to fill sval
 if (l4dvar) then
-  call model_tl(mval,sval,llprt)
+   call model_tl(mval,sval,llprt)
 else
-  do ii=1,nobs_bins
-    sval(ii)=mval(1)
-  enddo
+   do ii=1,nobs_bins
+      sval(ii)=mval(1)
+   enddo
 end if
 
 if (nprt>=2_i_kind) then
-  do ii=1,nobs_bins
-    call prt_state_norms(sval(ii),'sval')
-  enddo
+   do ii=1,nobs_bins
+      call prt_state_norms(sval(ii),'sval')
+   enddo
 endif
 
 ! Zero gradient
 do ii=1,nobs_bins
-  rval(ii)=zero
+   rval(ii)=zero
 end do
 rbias=zero
 do ii=1,nsubwin
-  mval(ii)=zero
+   mval(ii)=zero
 end do
 
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
 do ibin=1,nobs_bins
-  call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
+   call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
 end do
 
 ! Evaluate Jo
@@ -144,82 +144,82 @@ call evaljo(zjo,iobs,nprt,llouter)
 
 if (l_do_adjoint) then
 ! Moisture constraint
-  zjl=zero_quad
-  if (.not.ltlint) then
-    do ibin=1,nobs_bins
-      call evalqlim(sval(ibin)%q,zjl,rval(ibin)%q)
-    enddo
-  endif
+   zjl=zero_quad
+   if (.not.ltlint) then
+      do ibin=1,nobs_bins
+         call evalqlim(sval(ibin)%q,zjl,rval(ibin)%q)
+      enddo
+   endif
 
-  if (ljcdfi) then
-    call evaljcdfi(sval,zjc,rval)
-  else
+   if (ljcdfi) then
+      call evaljcdfi(sval,zjc,rval)
+   else
 ! Jc and other 3D-Var terms
 ! Don't know how to deal with Jc term so comment for now...
-! call eval3dvar(sval,zjc,rval,zdummy)
-    zjc=zero_quad
-  endif
+!     call eval3dvar(sval,zjc,rval,zdummy)
+      zjc=zero_quad
+   endif
 
-  if (nprt>=2_i_kind) then
-    do ii=1,nobs_bins
-      call prt_state_norms(rval(ii),'rval')
-    enddo
-  endif
+   if (nprt>=2_i_kind) then
+      do ii=1,nobs_bins
+         call prt_state_norms(rval(ii),'rval')
+      enddo
+   endif
 
-! Run adjoint model
-  if (l4dvar) then
-    call model_ad(mval,rval,llprt)
-  else
-    mval(1)=rval(1)
-    do ii=2,nobs_bins
-      call self_add(mval(1),rval(ii))
-    enddo
-  end if
+!  Run adjoint model
+   if (l4dvar) then
+      call model_ad(mval,rval,llprt)
+   else
+      mval(1)=rval(1)
+      do ii=2,nobs_bins
+         call self_add(mval(1),rval(ii))
+      enddo
+   end if
 
-  if (nprt>=2_i_kind) then
-    do ii=1,nsubwin
-      call prt_state_norms(mval(ii),'mval')
-    enddo
-  endif
+   if (nprt>=2_i_kind) then
+      do ii=1,nsubwin
+         call prt_state_norms(mval(ii),'mval')
+      enddo
+   endif
 
-! Adjoint of convert control var to physical space
-  call model2control(mval,rbias,gradx)
+!  Adjoint of convert control var to physical space
+   call model2control(mval,rbias,gradx)
 
-! Cost function
-  fjcost=zjb+zjo+zjc+zjl
+!  Cost function
+   fjcost=zjb+zjo+zjc+zjl
 
-! Print diagnostics
-  if (nprt>=2_i_kind) call prt_control_norms(gradx,'gradx')
-  if (nprt>=ione.and.mype==izero) write(6,999)trim(seqcalls),': grepcost J,Jb,Jo,Jc,Jl=',&
-                                     fjcost,zjb,zjo,zjc,zjl
+!  Print diagnostics
+   if (nprt>=2_i_kind) call prt_control_norms(gradx,'gradx')
+   if (nprt>=ione.and.mype==izero) write(6,999)trim(seqcalls),': grepcost J,Jb,Jo,Jc,Jl=',&
+                                      fjcost,zjb,zjo,zjc,zjl
 endif
 
 ! Produce diagnostic when applying strong constraint
- if (lupdfgs.and.jcstrong.and.baldiag_inc) call strong_baldiag_inc(sval)
+if (lupdfgs.and.jcstrong.and.baldiag_inc) call strong_baldiag_inc(sval)
 
 ! Save increment (update guess)
 if (lupdfgs) then
-  call xhat_vordiv_init
-  call xhat_vordiv_calc(sval)
-  if (nprt>=ione.and.mype==izero) write(6,*)trim(seqcalls),': evaljgrad: Updating guess'
-  call update_guess(sval,sbias)
-  call write_all(.false.,mype)
-  if (lwrtinc) then
-     call inc2guess(sval)
-     call write_all(lwrtinc,mype)
-  endif
-  call xhat_vordiv_clean
+   call xhat_vordiv_init
+   call xhat_vordiv_calc(sval)
+   if (nprt>=ione.and.mype==izero) write(6,*)trim(seqcalls),': evaljgrad: Updating guess'
+   call update_guess(sval,sbias)
+   call write_all(.false.,mype)
+   if (lwrtinc) then
+      call inc2guess(sval)
+      call write_all(lwrtinc,mype)
+   endif
+   call xhat_vordiv_clean
 endif
 
 ! Release memory
 call deallocate_preds(rbias)
 call deallocate_preds(sbias)
 do ii=1,nsubwin
-  call deallocate_state(mval(ii))
+   call deallocate_state(mval(ii))
 end do
 do ii=1,nobs_bins
-  call deallocate_state(rval(ii))
-  call deallocate_state(sval(ii))
+   call deallocate_state(rval(ii))
+   call deallocate_state(sval(ii))
 end do
 
 999 format(2A,5(1X,ES24.18))

@@ -89,7 +89,7 @@ subroutine stp3dvar(dirx,dir_dt)
 
 ! Declare passed variables
   type(state_vector), intent(inout) :: dirx
-  type(state_vector),intent(out)::dir_dt
+  type(state_vector), intent(  out) :: dir_dt
 
 ! Declare local variables
 

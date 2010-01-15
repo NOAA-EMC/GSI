@@ -91,22 +91,22 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
   
       use kinds, only: r_kind,i_kind   
 
-      use constants, only: grav,fv,rd_over_cp,zero,quarter,one,two,four,five,r1000,izero
+      use constants, only: izero,ione,grav,fv,rd_over_cp,zero,quarter,one,two,four,five,r1000
 
       IMPLICIT NONE
 
-      real(r_kind),intent(in):: ps_in,tvs,qs,us,vs
-      real(r_kind),intent(in):: ps2_in,tvs2,qs2,psfc_in,tg
-      real(r_kind),intent(in):: hs,roughness
-      integer(i_kind),intent(in):: iland
-      logical,intent(in):: iqtflg
-      integer(i_kind),intent(out):: regime
-      real(r_kind),intent(out):: f10,u10,v10,q2,t2
+      real(r_kind)   ,intent(in   ) :: ps_in,tvs,qs,us,vs
+      real(r_kind)   ,intent(in   ) :: ps2_in,tvs2,qs2,psfc_in,tg
+      real(r_kind)   ,intent(in   ) :: hs,roughness
+      integer(i_kind),intent(in   ) :: iland
+      logical        ,intent(in   ) :: iqtflg
+      integer(i_kind),intent(  out) :: regime
+      real(r_kind)   ,intent(  out) :: f10,u10,v10,q2,t2
 
 ! Maximum number of iterations in computing psim, psih
 
-!     INTEGER(i_kind), PARAMETER :: k_iteration = 10
-!     INTEGER(i_kind), PARAMETER :: k_iteration = 1
+!     INTEGER(i_kind), PARAMETER :: k_iteration = 10_i_kind
+!     INTEGER(i_kind), PARAMETER :: k_iteration = ione
 
 ! h10 is the height of 10m where the wind observed
 ! h2  is the height of 2m where the temperature and 
@@ -170,9 +170,9 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 !     -----------------
 
       if ( iland == izero ) then
-        zq0 = z0
-       else
-        zq0 =  zint0
+         zq0 = z0
+      else
+         zq0 =  zint0
       endif
 
 ! 1.3 Define the some constant variable for psi
@@ -251,7 +251,7 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 
       if ( thvg >= thvs ) then
          Vc2 = four * (thvg - thvs)
-        else
+      else
          Vc2 = zero
       endif
 !
@@ -268,8 +268,8 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 ! 6.1 Stable conditions (REGIME 1)
 !     ---------------------------
 
-      IF       (rib .GE. 0.2) THEN
-         regime = 1
+      IF       (rib >= r0_2) THEN
+         regime = ione
          psim = -r10*gzsoz0
          psimz = -r10*gz10oz0
          psim2 = -r10*gz2oz0
@@ -283,9 +283,9 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 ! 6.2 Mechanically driven turbulence (REGIME 2)
 !     ------------------------------------------
 
-      ELSE IF ((rib .LT. r0_2) .AND. (rib .GT. zero)) THEN
+      ELSE IF ((rib < r0_2) .AND. (rib > zero)) THEN
 
-         regime = 2
+         regime = 2_i_kind
          psim = ( -five * rib ) * gzsoz0 / (r1_1 - five*rib)
          psimz = ( -five * rib ) * gz10oz0 / (r1_1 - five*rib)
          psim2 = ( -five * rib ) * gz2oz0 / (r1_1 - five*rib)
@@ -300,8 +300,8 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 ! 6.3 Unstable Forced convection (REGIME 3)
 !     -------------------------------------
 
-      ELSE IF ((rib .EQ. zero) .or. (rib.LT.zero .and. thvs2.GT.thvs)) THEN
-         regime = 3
+      ELSE IF ((rib == zero) .or. (rib<zero .and. thvs2>thvs)) THEN
+         regime = 3_i_kind
          psim = zero
          psimz = zero
          psim2 = zero
@@ -314,96 +314,96 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 !     --------------------------
 
       ELSE 
-        regime = 4
+         regime = 4_i_kind
        
 !      Calculate psi m and pshi h using iteration method
        
-        psim = zero
-        psih = zero
-        cc = two * atan(one)
+         psim = zero
+         psih = zero
+         cc = two * atan(one)
 
 !        do k = 1 , k_iteration
 
 ! 6.4.1  Calculate   ust, m/L (mol), h/L (hol)
 !        --------------------------
 
-!       Friction speed
+!        Friction speed
 
-          ust = k_kar * sqrt(v2) /( gzsoz0 - psim)
+         ust = k_kar * sqrt(v2) /( gzsoz0 - psim)
 
-!       Heat flux factor
+!        Heat flux factor
 
-          mol = k_kar * (ths - thg )/( gzsoz0 - psih)
+         mol = k_kar * (ths - thg )/( gzsoz0 - psih)
 
-!       Ratio of PBL height to Monin-Obukhov length
+!        Ratio of PBL height to Monin-Obukhov length
 
-          if ( ust .LT. r0_01 ) then
-             hol = rib * gzsoz0
-           else
-             hol = k_kar * grav * hs * mol / ( ths * ust * ust )
-          endif
+         if ( ust < r0_01 ) then
+            hol = rib * gzsoz0
+         else
+            hol = k_kar * grav * hs * mol / ( ths * ust * ust )
+         endif
 
 ! 6.4.2  Calculate n, nz, R, Rz
 !        --------------------------
        
-          hol = min(hol,zero)
-          hol = max(hol,-r10)
+         hol = min(hol,zero)
+         hol = max(hol,-r10)
          
-          holz = (h10 / hs) * hol
-          holz = min(holz,zero)
-          holz = max(holz,-r10)
+         holz = (h10 / hs) * hol
+         holz = min(holz,zero)
+         holz = max(holz,-r10)
 
-          hol2 = (h2 / hs) * hol
-          hol2 = min(hol2,zero)
-          hol2 = max(hol2,-r10)
+         hol2 = (h2 / hs) * hol
+         hol2 = min(hol2,zero)
+         hol2 = max(hol2,-r10)
 
 ! 6.4.3 Calculate Psim & psih
 !        --------------------------
 
-!       Using the look-up table:
-!          nn = int( -r100 * hol )
-!          rr = ( -r100 * hol ) - nn
-!          psim = psimtb(nn) + rr * ( psimtb(nn+1) - psimtb(nn))
-!          psih = psihtb(nn) + rr * ( psihtb(nn+1) - psihtb(nn))
-!       Using the continuous function:
-          xx = (one - r16 * hol) ** quarter
-          yy = log((one+xx*xx)/two)
-          psim = two * log((one+xx)/two) + yy - two * atan(xx) + cc
-          psih = two * yy
+!        Using the look-up table:
+!         nn = int( -r100 * hol )
+!         rr = ( -r100 * hol ) - nn
+!         psim = psimtb(nn) + rr * ( psimtb(nn+1) - psimtb(nn))
+!         psih = psihtb(nn) + rr * ( psihtb(nn+1) - psihtb(nn))
+!        Using the continuous function:
+         xx = (one - r16 * hol) ** quarter
+         yy = log((one+xx*xx)/two)
+         psim = two * log((one+xx)/two) + yy - two * atan(xx) + cc
+         psih = two * yy
 
-!       Using the look-up table:
-!          nz = int( -r100 * holz )
-!          rz = ( -r100 * holz ) - nz
-!          psimz = psimtb(nz) + rz * ( psimtb(nz+1) - psimtb(nz))
-!          psihz = psihtb(nz) + rz * ( psihtb(nz+1) - psihtb(nz))
-!       Using the continuous function:
-          xx = (one - r16 * holz) ** quarter
-          yy = log((one+xx*xx)/two)
-          psimz = two * log((one+xx)/two) + yy - two * atan(xx) + cc
-          psihz = two * yy
+!        Using the look-up table:
+!         nz = int( -r100 * holz )
+!         rz = ( -r100 * holz ) - nz
+!         psimz = psimtb(nz) + rz * ( psimtb(nz+1) - psimtb(nz))
+!         psihz = psihtb(nz) + rz * ( psihtb(nz+1) - psihtb(nz))
+!        Using the continuous function:
+         xx = (one - r16 * holz) ** quarter
+         yy = log((one+xx*xx)/two)
+         psimz = two * log((one+xx)/two) + yy - two * atan(xx) + cc
+         psihz = two * yy
 
-!       Using the look-up table:
-!          n2 = int( -r100 * hol2 )
-!          r2 = ( -r100 * hol2 ) - n2
-!          psim2 = psimtb(n2) + r2 * ( psimtb(n2+1) - psimtb(n2))
-!          psih2 = psihtb(n2) + r2 * ( psihtb(n2+1) - psihtb(n2))
-!       Using the continuous function:
-          xx = (one - r16 * hol2) ** quarter
-          yy = log((one+xx*xx)/two)
-          psim2 = two * log((one+xx)/two) + yy - two * atan(xx) + cc
-          psih2 = two * yy
+!        Using the look-up table:
+!         n2 = int( -r100 * hol2 )
+!         r2 = ( -r100 * hol2 ) - n2
+!         psim2 = psimtb(n2) + r2 * ( psimtb(n2+1) - psimtb(n2))
+!         psih2 = psihtb(n2) + r2 * ( psihtb(n2+1) - psihtb(n2))
+!        Using the continuous function:
+         xx = (one - r16 * hol2) ** quarter
+         yy = log((one+xx*xx)/two)
+         psim2 = two * log((one+xx)/two) + yy - two * atan(xx) + cc
+         psih2 = two * yy
 
-!      enddo 
+!        enddo 
 
 ! 6.4.4 Define the limit value for psim & psih
 !        --------------------------
 
-       psim = min(psim,r0_9*gzsoz0)
-       psimz = min(psimz,r0_9*gz10oz0)
-       psim2 = min(psim2,r0_9*gz2oz0)
-       psih = min(psih,r0_9*gzsoz0)
-       psihz = min(psihz,r0_9*gz10oz0)
-       psih2 = min(psih2,r0_9*gz2oz0)
+         psim = min(psim,r0_9*gzsoz0)
+         psimz = min(psimz,r0_9*gz10oz0)
+         psim2 = min(psim2,r0_9*gz2oz0)
+         psih = min(psih,r0_9*gzsoz0)
+         psihz = min(psihz,r0_9*gz10oz0)
+         psih2 = min(psih2,r0_9*gz2oz0)
   
       ENDIF  ! Regime
 
@@ -431,7 +431,7 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
       t2 = ( thg + ( ths - thg )*psit2/psit)*(psfc/r1000)**rd_over_cp
       q2 = qg + (qs - qg)*psiq2/psiq 
       if(iqtflg)then
-        t2  = t2 * (one + fv * q2)         
+         t2  = t2 * (one + fv * q2)         
       end if 
 
 return
@@ -474,15 +474,15 @@ SUBROUTINE DA_TP_To_Qs( t, p, es, qs )
 
    IMPLICIT NONE
 
+   REAL(r_kind), INTENT(IN   ) :: t                ! Temperature.
+   REAL(r_kind), INTENT(IN   ) :: p                ! Pressure.
+   REAL(r_kind), INTENT(  OUT) :: es               ! Sat. vapour pressure.
+   REAL(r_kind), INTENT(  OUT) :: qs               ! Sat. specific humidity.
+
 !  Saturation Vapour Pressure Constants(Rogers & Yau, 1989)
    REAL(r_kind), PARAMETER    :: es_alpha = 611.2_r_kind
    REAL(r_kind), PARAMETER    :: es_beta = 17.67_r_kind
    REAL(r_kind), PARAMETER    :: es_gamma = 243.5_r_kind
- 
-   REAL(r_kind), INTENT(IN)              :: t                ! Temperature.
-   REAL(r_kind), INTENT(IN)              :: p                ! Pressure.
-   REAL(r_kind), INTENT(OUT)             :: es               ! Sat. vapour pressure.
-   REAL(r_kind), INTENT(OUT)             :: qs               ! Sat. specific humidity.
     
    REAL(r_kind)                          :: t_c              ! T in degreesC.
 
@@ -575,20 +575,20 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
 
       IMPLICIT NONE
 
-      INTEGER(i_kind), INTENT (in)          :: regime,iland
-      REAL(r_kind)   , INTENT (in)          :: ps_in , tvs , qs , us, vs, psfc_in, tg    !   change ts to tvs
-      REAL(r_kind)   , INTENT (in)          :: sig1, ts_in, qs_prime  , &  !   change ts_prime to tvs_prime
+      INTEGER(i_kind), INTENT (in   ) :: regime,iland
+      REAL(r_kind)   , INTENT (in   ) :: ps_in , tvs , qs , us, vs, psfc_in, tg    !   change ts to tvs
+      REAL(r_kind)   , INTENT (in   ) :: sig1, ts_in, qs_prime  , &  !   change ts_prime to tvs_prime
                                        us_prime, vs_prime, psfc_prime_in, tg_prime
-      REAL(r_kind)   , INTENT (in)          :: hs, roughness
+      REAL(r_kind)   , INTENT (in   ) :: hs, roughness
 
-      REAL(r_kind)   , INTENT (out)         :: u10_prime, v10_prime, t2_prime, q2_prime  
-      logical,intent(in)::iqtflg
+      REAL(r_kind)   , INTENT (  out) :: u10_prime, v10_prime, t2_prime, q2_prime  
+      logical        , intent (in   ) :: iqtflg
                                                                                          
 
 ! Maximum number of iterations in computing psim, psih
 
-!      INTEGER(i_kind), PARAMETER :: k_iteration = 10 
-!      INTEGER, PARAMETER :: k_iteration = 1
+!      INTEGER(i_kind), PARAMETER :: k_iteration = 10_i_kind
+!      INTEGER, PARAMETER :: k_iteration = ione
 
 ! h10 is the height of 10m where the wind observed
 ! h2  is the height of 2m where the temperature and 
@@ -665,9 +665,9 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
 !     -----------------
 
       if ( iland == izero ) then
-        zq0 = z0
-       else
-        zq0 =  zint0
+         zq0 = z0
+      else
+         zq0 =  zint0
       endif
 
 ! 1.3 Define the some constant variable for psi
@@ -691,11 +691,11 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
       ts   = tvs / (one + fv * qs)       !  input now tvs, and need also ts
        
       if(iqtflg)then
-        ts_prime = (ts_in + fv*(qs*ts_in-tvs*qs_prime))/(one+fv*qs)**2
-        tvs_prime=ts_in
+         ts_prime = (ts_in + fv*(qs*ts_in-tvs*qs_prime))/(one+fv*qs)**2
+         tvs_prime=ts_in
       else
-        ts_prime = ts_in
-        tvs_prime = (ts_in*(one+fv*qs)**2+fv*tvs*qs_prime)/(one+fv*qs)
+         ts_prime = ts_in
+         tvs_prime = (ts_in*(one+fv*qs)**2+fv*tvs*qs_prime)/(one+fv*qs)
       end if
 
 ! 2.2 Compute the ground saturated mixing ratio and the ground virtual 
@@ -755,7 +755,7 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
       if ( thvg >= thvs ) then
          Vc2_prime = four * (thvg_prime - thvs_prime)
          Vc2 = four * (thvg - thvs)
-        else
+      else
          Vc2_prime = zero
          Vc2 = zero
       endif
@@ -780,102 +780,102 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
 ! 5.1 Stable conditions (REGIME 1)
 !     ---------------------------
 
-       CASE ( 1 );
+         CASE ( 1 );
 
-         psim_prime  = zero
-         psimz_prime = zero
-         psim2_prime = zero
-         psim  = -r10*gzsoz0
-         psimz = -r10*gz10oz0
-         psim2 = -r10*gz2oz0
-         psim  = max(psim,-r10)
-         psimz = max(psimz,-r10)
-         psim2 = max(psim2,-r10)
+            psim_prime  = zero
+            psimz_prime = zero
+            psim2_prime = zero
+            psim  = -r10*gzsoz0
+            psimz = -r10*gz10oz0
+            psim2 = -r10*gz2oz0
+            psim  = max(psim,-r10)
+            psimz = max(psimz,-r10)
+            psim2 = max(psim2,-r10)
 
-         psih_prime  = psim_prime
-         psihz_prime = psimz_prime
-         psih2_prime = psim2_prime
-         psih  = psim
-         psihz = psimz
-         psih2 = psim2
+            psih_prime  = psim_prime
+            psihz_prime = psimz_prime
+            psih2_prime = psim2_prime
+            psih  = psim
+            psihz = psimz
+            psih2 = psim2
 
 ! 5.2 Mechanically driven turbulence (REGIME 2)
 !     ------------------------------------------
 
-       CASE ( 2 );
+         CASE ( 2 );
 
-         Pi =  - one / ((r1_1 - five*rib)*(r1_1 - five*rib))
-         psim_prime  = r5_5 * gzsoz0  * rib_prime * Pi 
-         psimz_prime = r5_5 * gz10oz0 * rib_prime * Pi
-         psim2_prime = r5_5 * gz2oz0  * rib_prime * Pi
+            Pi =  - one / ((r1_1 - five*rib)*(r1_1 - five*rib))
+            psim_prime  = r5_5 * gzsoz0  * rib_prime * Pi 
+            psimz_prime = r5_5 * gz10oz0 * rib_prime * Pi
+            psim2_prime = r5_5 * gz2oz0  * rib_prime * Pi
 
-         Pi =  ( -five * rib ) / (r1_1 - five*rib)
-         psim  = gzsoz0  * Pi
-         psimz = gz10oz0 * Pi
-         psim2 = gz2oz0  * Pi
+            Pi =  ( -five * rib ) / (r1_1 - five*rib)
+            psim  = gzsoz0  * Pi
+            psimz = gz10oz0 * Pi
+            psim2 = gz2oz0  * Pi
 
-         if ( psim >= -r10 ) then
-            psim = psim
-            psim_prime = psim_prime
-          else
-            psim = -r10
-            psim_prime = zero
-         endif
-         if ( psimz >= -r10 ) then
-            psimz = psimz
-            psimz_prime = psimz_prime
-          else
-            psimz = -r10
-            psimz_prime = zero
-         endif
-         if ( psim2 >= -r10 ) then
-            psim2 = psim2
-            psim2_prime = psim2_prime
-          else
-            psim2 = -r10
-            psim2_prime = zero
-         endif
+            if ( psim >= -r10 ) then
+               psim = psim
+               psim_prime = psim_prime
+            else
+               psim = -r10
+               psim_prime = zero
+            endif
+            if ( psimz >= -r10 ) then
+               psimz = psimz
+               psimz_prime = psimz_prime
+            else
+               psimz = -r10
+               psimz_prime = zero
+            endif
+            if ( psim2 >= -r10 ) then
+               psim2 = psim2
+               psim2_prime = psim2_prime
+            else
+               psim2 = -r10
+               psim2_prime = zero
+            endif
 
-         psih_prime  = psim_prime
-         psihz_prime = psimz_prime
-         psih2_prime = psim2_prime
-         psih = psim
-         psihz = psimz
-         psih2 = psim2
+            psih_prime  = psim_prime
+            psihz_prime = psimz_prime
+            psih2_prime = psim2_prime
+            psih = psim
+            psihz = psimz
+            psih2 = psim2
 
 ! 5.3 Unstable Forced convection (REGIME 3)
 !     -------------------------------------
 
-       CASE ( 3 );
+         CASE ( 3 );
 
-         psim_prime = zero
-         psimz_prime = zero
-         psim2_prime = zero
+            psim_prime = zero
+            psimz_prime = zero
+            psim2_prime = zero
 
-         psim = zero
-         psimz = zero
-         psim2 = zero
+            psim = zero
+            psimz = zero
+            psim2 = zero
 
-         psih_prime = psim_prime
-         psihz_prime = psimz_prime
-         psih2_prime = psim2_prime
-         psih = psim
-         psihz = psimz
-         psih2 = psim2
+            psih_prime = psim_prime
+            psihz_prime = psimz_prime
+            psih2_prime = psim2_prime
+            psih = psim
+            psihz = psimz
+            psih2 = psim2
 
 
 ! 5.4 Free convection (REGIME 4)
 !     --------------------------
 
-       CASE ( 4 );
+         CASE ( 4 );
 
 !      Calculate psi m and pshi h using iteration method
        
-        psim_prime = zero
-        psih_prime = zero
-        psim = zero
-        psih = zero
-        cc = two * atan(one)
+            psim_prime = zero
+            psih_prime = zero
+            psim = zero
+            psih = zero
+            cc = two * atan(one)
 
 !        do k = 1 , k_iteration
 
@@ -884,163 +884,163 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
 
 !       Friction speed
 
-          ust = k_kar * sqrt(v2) /( gzsoz0 - psim)
-          ust_prime = (half/V2 * v2_prime + psim_prime /(gzsoz0 - psim)) * ust
+            ust = k_kar * sqrt(v2) /( gzsoz0 - psim)
+            ust_prime = (half/V2 * v2_prime + psim_prime /(gzsoz0 - psim)) * ust
 
 !       Heat fux factor
 
-          mol = k_kar * (ths - thg )/( gzsoz0 - psih)
-          mol_prime = ( (ths_prime - thg_prime ) /(ths - thg) + &
-                        psih_prime /( gzsoz0 - psih) ) * mol
+            mol = k_kar * (ths - thg )/( gzsoz0 - psih)
+            mol_prime = ( (ths_prime - thg_prime ) /(ths - thg) + &
+                          psih_prime /( gzsoz0 - psih) ) * mol
 
 !       Ratio of PBL height to Monin-Obukhov length
 
-          if ( ust .LT. r0_01 ) then
-             hol_prime = rib_prime * gzsoz0
-             hol = rib * gzsoz0
-           else
-             hol = k_kar * grav * hs * mol / ( ths * ust * ust )
-             hol_prime = ( mol_prime / mol - ths_prime / ths &
-                           - two* ust_prime / ust ) * hol
-          endif
+            if ( ust < r0_01 ) then
+               hol_prime = rib_prime * gzsoz0
+               hol = rib * gzsoz0
+            else
+               hol = k_kar * grav * hs * mol / ( ths * ust * ust )
+               hol_prime = ( mol_prime / mol - ths_prime / ths &
+                             - two* ust_prime / ust ) * hol
+            endif
 
 ! 5.4.2  Calculate n, nz, R, Rz
 !        --------------------------
        
-          if ( hol >= zero ) then
-            hol_prime = zero
-            hol = zero
-           else
-            hol_prime = hol_prime
-            hol = hol
-          endif
-          if ( hol >= -r10 ) then
-            hol_prime = hol_prime
-            hol = hol
-           else
-            hol_prime = zero
-            hol = -r10
-          endif
+            if ( hol >= zero ) then
+               hol_prime = zero
+               hol = zero
+            else
+               hol_prime = hol_prime
+               hol = hol
+            endif
+            if ( hol >= -r10 ) then
+               hol_prime = hol_prime
+               hol = hol
+            else
+               hol_prime = zero
+               hol = -r10
+            endif
            
-          holz_prime = (h10 / hs) * hol_prime
-          holz = (h10 / hs) * hol
-          if ( holz >= zero ) then
-            holz_prime = zero
-            holz = zero
-           else
-            holz_prime = holz_prime
-            holz = holz
-          endif
-          if ( holz >= -r10 ) then
-            holz_prime = holz_prime
-            holz = holz
-           else
-            holz_prime = zero
-            holz = -r10
-          endif
+            holz_prime = (h10 / hs) * hol_prime
+            holz = (h10 / hs) * hol
+            if ( holz >= zero ) then
+               holz_prime = zero
+               holz = zero
+            else
+               holz_prime = holz_prime
+               holz = holz
+            endif
+            if ( holz >= -r10 ) then
+               holz_prime = holz_prime
+               holz = holz
+            else
+               holz_prime = zero
+               holz = -r10
+            endif
 
-          hol2_prime = (h2 / hs) * hol_prime
-          hol2 = (h2 / hs) * hol
-          if ( hol2 >= zero ) then
-            hol2_prime = zero
-            hol2 = zero
-           else
-            hol2_prime = hol2_prime
-            hol2 = hol2
-          endif
-          if ( hol2 >= -r10 ) then
-            hol2_prime = hol2_prime
-            hol2 = hol2
-           else
-            hol2_prime = zero
-            hol2 = -r10
-          endif
+            hol2_prime = (h2 / hs) * hol_prime
+            hol2 = (h2 / hs) * hol
+            if ( hol2 >= zero ) then
+               hol2_prime = zero
+               hol2 = zero
+            else
+               hol2_prime = hol2_prime
+               hol2 = hol2
+            endif
+            if ( hol2 >= -r10 ) then
+               hol2_prime = hol2_prime
+               hol2 = hol2
+            else
+               hol2_prime = zero
+               hol2 = -r10
+            endif
 
 ! 5.4.3 Calculate Psim & psih
 !        --------------------------
 
 !       Using the continuous function:
-          xx_prime = -four* hol_prime /((one - r16 * hol) ** r0_75)
-          xx = (one - r16 * hol) ** quarter
-          yy_prime = two* xx * xx_prime /(one+xx*xx)
-          yy = log((one+xx*xx)/two)
-          psim_prime = 2 * xx_prime *(one/(one+xx)-one/(1+xx*xx)) + yy_prime 
-          psim = two * log((one+xx)/two) + yy - two * atan(xx) + cc
-          psih_prime = two * yy_prime
-          psih = two * yy
+            xx_prime = -four* hol_prime /((one - r16 * hol) ** r0_75)
+            xx = (one - r16 * hol) ** quarter
+            yy_prime = two* xx * xx_prime /(one+xx*xx)
+            yy = log((one+xx*xx)/two)
+            psim_prime = 2 * xx_prime *(one/(one+xx)-one/(1+xx*xx)) + yy_prime 
+            psim = two * log((one+xx)/two) + yy - two * atan(xx) + cc
+            psih_prime = two * yy_prime
+            psih = two * yy
 
 !       Using the continuous function:
-          xx_prime = -four* holz_prime /((one - r16 * holz) ** r0_75)
-          xx = (one - r16 * holz) ** quarter
-          yy_prime = two* xx * xx_prime /(one+xx*xx)
-          yy = log((one+xx*xx)/two)
-          psimz_prime = two* xx_prime *(one/(one+xx)-one/(1+xx*xx)) + yy_prime
-          psimz = two * log((one+xx)/two) + yy - two * atan(xx) + cc
-          psihz_prime = two * yy_prime
-          psihz = two * yy
+            xx_prime = -four* holz_prime /((one - r16 * holz) ** r0_75)
+            xx = (one - r16 * holz) ** quarter
+            yy_prime = two* xx * xx_prime /(one+xx*xx)
+            yy = log((one+xx*xx)/two)
+            psimz_prime = two* xx_prime *(one/(one+xx)-one/(1+xx*xx)) + yy_prime
+            psimz = two * log((one+xx)/two) + yy - two * atan(xx) + cc
+            psihz_prime = two * yy_prime
+            psihz = two * yy
 
 !       Using the continuous function:
-          xx_prime = -four* hol2_prime /((one - r16 * hol2) ** r0_75)
-          xx = (one - r16 * hol2) ** quarter
-          yy_prime = two* xx * xx_prime /(one+xx*xx)
-          yy = log((one+xx*xx)/two)
-          psim2_prime = two* xx_prime *(one/(one+xx)-one/(1+xx*xx)) + yy_prime
-          psim2 = two * log((one+xx)/two) + yy - two * atan(xx) + cc
-          psih2_prime = two * yy_prime
-          psih2 = two * yy
+            xx_prime = -four* hol2_prime /((one - r16 * hol2) ** r0_75)
+            xx = (one - r16 * hol2) ** quarter
+            yy_prime = two* xx * xx_prime /(one+xx*xx)
+            yy = log((one+xx*xx)/two)
+            psim2_prime = two* xx_prime *(one/(one+xx)-one/(1+xx*xx)) + yy_prime
+            psim2 = two * log((one+xx)/two) + yy - two * atan(xx) + cc
+            psih2_prime = two * yy_prime
+            psih2 = two * yy
 
 !      enddo 
 
 ! 5.4.4 Define the limit value for psim & psih
 !        --------------------------
 
-       if ( psim <= r0_9*gzsoz0 ) then
-         psim_prime = psim_prime
-         psim = psim
-        else
-         psim = r0_9*gzsoz0
-         psim_prime = zero
-       endif
-       if ( psimz <= r0_9*gz10oz0 ) then
-         psimz_prime = psimz_prime
-         psimz = psimz
-        else
-         psimz_prime = zero
-         psimz = r0_9*gz10oz0
-       endif
-       if ( psim2 <= r0_9*gz2oz0 ) then
-         psim2_prime = psim2_prime
-         psim2 = psim2
-        else
-         psim2_prime = zero
-         psim2 = r0_9*gz2oz0
-       endif
-       if ( psih <= r0_9*gzsoz0 ) then
-         psih_prime = psih_prime
-         psih = psih
-        else
-         psih_prime = zero
-         psih = r0_9*gzsoz0
-       endif
-       if ( psihz <= r0_9*gz10oz0 ) then
-         psihz_prime = psihz_prime
-         psihz = psihz
-        else
-         psihz_prime = zero
-         psihz = r0_9*gz10oz0
-       endif
-       if ( psih2 <= r0_9*gz2oz0 ) then
-         psih2_prime = psih2_prime
-         psih2 = psih2
-        else
-         psih2_prime = zero
-         psih2 = r0_9*gz2oz0
-       endif
+            if ( psim <= r0_9*gzsoz0 ) then
+               psim_prime = psim_prime
+               psim = psim
+            else
+               psim = r0_9*gzsoz0
+               psim_prime = zero
+            endif
+            if ( psimz <= r0_9*gz10oz0 ) then
+               psimz_prime = psimz_prime
+               psimz = psimz
+            else
+               psimz_prime = zero
+               psimz = r0_9*gz10oz0
+            endif
+            if ( psim2 <= r0_9*gz2oz0 ) then
+               psim2_prime = psim2_prime
+               psim2 = psim2
+            else
+               psim2_prime = zero
+               psim2 = r0_9*gz2oz0
+            endif
+            if ( psih <= r0_9*gzsoz0 ) then
+               psih_prime = psih_prime
+               psih = psih
+            else
+               psih_prime = zero
+               psih = r0_9*gzsoz0
+            endif
+            if ( psihz <= r0_9*gz10oz0 ) then
+               psihz_prime = psihz_prime
+               psihz = psihz
+            else
+               psihz_prime = zero
+               psihz = r0_9*gz10oz0
+            endif
+            if ( psih2 <= r0_9*gz2oz0 ) then
+               psih2_prime = psih2_prime
+               psih2 = psih2
+            else
+               psih2_prime = zero
+               psih2 = r0_9*gz2oz0
+            endif
 
-       CASE DEFAULT;
+         CASE DEFAULT;
 
-       write(unit=*, fmt='(/a,i2,a/)') "Regime=",regime," is invalid."
-       stop "sfc_wtq_Lin"
+            write(unit=*, fmt='(/a,i2,a/)') "Regime=",regime," is invalid."
+            stop "sfc_wtq_Lin"
 
       END SELECT
 
@@ -1086,7 +1086,7 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
       t2 = ( thg + ( ths - thg )*psit2/psit)*(psfc/r1000)**rd_over_cp
       q2 = qg + (qs - qg)*psiq2/psiq
       if(iqtflg)then
-        t2_prime=t2_prime*(one+fv*q2)+fv*t2*q2_prime
+         t2_prime=t2_prime*(one+fv*q2)+fv*t2*q2_prime
       end if
 
 END SUBROUTINE sfc_wtq_Lin
@@ -1128,19 +1128,19 @@ SUBROUTINE DA_TP_To_Qs_Lin( t, p, es, t_prime, p_prime, &
 
    IMPLICIT NONE
 
+   REAL(r_kind), INTENT(IN   ) :: t                ! Temperature.
+   REAL(r_kind), INTENT(IN   ) :: p                ! Pressure.
+   REAL(r_kind), INTENT(IN   ) :: es               ! Sat. vapour pressure.
+   REAL(r_kind), INTENT(IN   ) :: t_prime          ! Temperature increment.
+   REAL(r_kind), INTENT(IN   ) :: p_prime          ! Pressure increment.
+   REAL(r_kind), INTENT(  OUT) :: qs_prime_over_qs ! qs~/qs.
+
 !  Saturation Vapour Pressure Constants(Rogers & Yau, 1989)
 !  REAL(r_kind), PARAMETER    :: es_alpha = 611.2_r_kind
    REAL(r_kind), PARAMETER    :: es_beta = 17.67_r_kind
    REAL(r_kind), PARAMETER    :: es_gamma = 243.5_r_kind
    REAL(r_kind), PARAMETER    :: es_gammakelvin = es_gamma-t0c
    REAL(r_kind), PARAMETER    :: es_gammabeta = es_gamma*es_beta
-   
-   REAL(r_kind), INTENT(IN)              :: t                ! Temperature.
-   REAL(r_kind), INTENT(IN)              :: p                ! Pressure.
-   REAL(r_kind), INTENT(IN)              :: es               ! Sat. vapour pressure.
-   REAL(r_kind), INTENT(IN)              :: t_prime          ! Temperature increment.
-   REAL(r_kind), INTENT(IN)              :: p_prime          ! Pressure increment.
-   REAL(r_kind), INTENT(OUT)             :: qs_prime_over_qs ! qs~/qs.
    
    REAL(r_kind)                          :: temp           ! Temporary value.
    REAL(r_kind)                          :: es_prime_over_es ! es~/es
@@ -1204,13 +1204,14 @@ subroutine get_tlm_tsfc(tlm_tsfc,psges2,tgges,prsltmp2, &
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
+  use constants, only: zero,one
 
   implicit none
 
-  real(r_kind),intent(out):: tlm_tsfc(6)
-  real(r_kind),intent(in):: psges2,tgges,prsltmp2,tvtmp,qtmp,utmp,vtmp,hsges,roges
-  integer(i_kind),intent(in):: regime,msges
-  logical,intent(in)::iqtflg
+  real(r_kind)   ,intent(  out) :: tlm_tsfc(6)
+  real(r_kind)   ,intent(in   ) :: psges2,tgges,prsltmp2,tvtmp,qtmp,utmp,vtmp,hsges,roges
+  integer(i_kind),intent(in   ) :: regime,msges
+  logical        ,intent(in   ) :: iqtflg
 
   real(r_kind) perturb(6),u10_prime,v10_prime,q2_prime
   real(r_kind) sig1
@@ -1226,11 +1227,11 @@ subroutine get_tlm_tsfc(tlm_tsfc,psges2,tgges,prsltmp2, &
 !  5  -- us_prime
 !  6  -- vs_prime
 
-    perturb=0
-    perturb(i)=1
-    call sfc_wtq_lin(psges2,tgges,prsltmp2,tvtmp,qtmp,utmp,vtmp,regime, &
-            perturb(1),perturb(2),sig1,perturb(3),perturb(4),perturb(5),perturb(6), &
-            hsges,roges,msges,u10_prime,v10_prime,tlm_tsfc(i),q2_prime,iqtflg)
+     perturb=zero
+     perturb(i)=one
+     call sfc_wtq_lin(psges2,tgges,prsltmp2,tvtmp,qtmp,utmp,vtmp,regime, &
+             perturb(1),perturb(2),sig1,perturb(3),perturb(4),perturb(5),perturb(6), &
+             hsges,roges,msges,u10_prime,v10_prime,tlm_tsfc(i),q2_prime,iqtflg)
   end do
 
 end subroutine get_tlm_tsfc

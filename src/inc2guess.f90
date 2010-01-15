@@ -41,7 +41,7 @@ subroutine inc2guess(sval)
   implicit none
 
 ! Declare passed variables
-  type(state_vector), intent(in) :: sval(nobs_bins)
+  type(state_vector), intent(in   ) :: sval(nobs_bins)
 
 ! Declare local variables
   integer(i_kind) i,j,k,it,ij,ijk,ii
@@ -52,10 +52,10 @@ subroutine inc2guess(sval)
 ! Overwrite guess fields by increments
   do it=1,nfldsig
      if (nobs_bins>ione) then
-       zt = hrdifsig(it)
-       ii = NINT(zt/hr_obsbin)+ione
+        zt = hrdifsig(it)
+        ii = NINT(zt/hr_obsbin)+ione
      else
-       ii = ione
+        ii = ione
      endif
      ijk=izero
      do k=1,nsig

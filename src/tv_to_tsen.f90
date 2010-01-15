@@ -33,26 +33,26 @@ subroutine tv_to_tsen(tv,q,tsen)
 
   implicit none
 
-  real(r_kind),intent(in):: tv(lat2,lon2,nsig)
-  real(r_kind),intent(in)::  q(lat2,lon2,nsig)
+  real(r_kind),intent(in   ) :: tv(lat2,lon2,nsig)
+  real(r_kind),intent(in   ) ::  q(lat2,lon2,nsig)
 
-  real(r_kind),intent(out):: tsen(lat2,lon2,nsig)
+  real(r_kind),intent(  out) :: tsen(lat2,lon2,nsig)
 
 ! local arrays
   integer(i_kind) i,j,k
 
 ! Convert normalized tv to tsen
   if (twodvar_regional .and. tsensible) then
-    tsen=tv
+     tsen=tv
   else
-    do k=1,nsig
-      do j=1,lon2
-        do i=1,lat2
-          tsen(i,j,k)=(tv(i,j,k)-fv*ges_tsen(i,j,k,ntguessig)*q(i,j,k))*fact_tv(i,j,k)
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              tsen(i,j,k)=(tv(i,j,k)-fv*ges_tsen(i,j,k,ntguessig)*q(i,j,k))*fact_tv(i,j,k)
 
+           end do
         end do
-      end do
-    end do
+     end do
   end if
 
 end subroutine tv_to_tsen
@@ -98,9 +98,9 @@ subroutine tv_to_tsen_ad(tv,q,tsen)
 
   implicit none
 
-  real(r_kind),intent(inout):: tv(lat2,lon2,nsig)
-  real(r_kind),intent(inout)::  q(lat2,lon2,nsig)
-  real(r_kind),intent(in)::  tsen(lat2,lon2,nsig)
+  real(r_kind),intent(inout) :: tv(lat2,lon2,nsig)
+  real(r_kind),intent(inout) :: q (lat2,lon2,nsig)
+  real(r_kind),intent(in   ) :: tsen(lat2,lon2,nsig)
 
 ! local variables:
   integer(i_kind) i,j,k
@@ -109,15 +109,15 @@ subroutine tv_to_tsen_ad(tv,q,tsen)
   if (twodvar_regional .and. tsensible) then
      tv=tv+tsen
   else
-    do k=1,nsig
-      do j=1,lon2
-        do i=1,lat2
-          tv(i,j,k)=tv(i,j,k)+tsen(i,j,k)*fact_tv(i,j,k)
-          q(i,j,k)=q(i,j,k)-tsen(i,j,k)*fv*ges_tsen(i,j,k,ntguessig)*fact_tv(i,j,k)
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              tv(i,j,k)=tv(i,j,k)+tsen(i,j,k)*fact_tv(i,j,k)
+              q(i,j,k)=q(i,j,k)-tsen(i,j,k)*fv*ges_tsen(i,j,k,ntguessig)*fact_tv(i,j,k)
 
+           end do
         end do
-      end do
-    end do
+     end do
   end if
 
 end subroutine tv_to_tsen_ad

@@ -42,15 +42,6 @@ module mod_vtrans
   use kinds,only: r_kind,i_kind
   implicit none
 
-  integer(i_kind) nvmodes_keep
-  real(r_kind),dimension(:),allocatable:: depths,speeds
-  real(r_kind),dimension(:,:),allocatable:: vmodes,phihat2t,dualmodes
-  real(r_kind),dimension(:,:),allocatable:: t2phihat
-  real(r_kind),dimension(:),allocatable:: p2phihat,phihat2p
-
-  real(r_kind),dimension(:),allocatable:: hmatsave,smatsave
-  real(r_kind),dimension(:,:),allocatable:: amatsave,bmatsave
-
 ! set default to private
   private
 ! set subroutines to public
@@ -68,6 +59,15 @@ module mod_vtrans
   public :: vtrans2_inv_ad
 ! set passed variables to public
   public :: nvmodes_keep,depths,speeds
+
+  integer(i_kind) nvmodes_keep
+  real(r_kind),dimension(:),allocatable:: depths,speeds
+  real(r_kind),dimension(:,:),allocatable:: vmodes,phihat2t,dualmodes
+  real(r_kind),dimension(:,:),allocatable:: t2phihat
+  real(r_kind),dimension(:),allocatable:: p2phihat,phihat2p
+
+  real(r_kind),dimension(:),allocatable:: hmatsave,smatsave
+  real(r_kind),dimension(:,:),allocatable:: amatsave,bmatsave
 
 contains
 
@@ -167,8 +167,6 @@ contains
 !
 ! usage:
 !   input argument list:
-!       t        - background temperature field on subdomains
-!       ps       - background surface pressure field on subdomains
 !       mype     - current processor number
 !
 !   output argument list:
@@ -188,13 +186,13 @@ contains
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2):: ps
+    integer(i_kind),intent(in   ) :: mype
 
 !   Declare local variables
     integer(i_kind) i,j,k,n,kk,mm1
     real(r_kind) count,factor
     real(r_kind) psbar
+    real(r_kind),dimension(lat2,lon2):: ps
     real(r_kind),dimension(nsig+ione)::pbar
     real(r_kind),dimension(nsig)::tbar
     real(r_kind),dimension(nsig+ione)::ahat,bhat,chat
@@ -228,9 +226,9 @@ contains
 !   get global mean T and ps
 
     do j=1,lon2
-      do i=1,lat2
-        ps(i,j)=ges_ps(i,j,ntguessig)
-      end do
+       do i=1,lat2
+          ps(i,j)=ges_ps(i,j,ntguessig)
+       end do
     end do
 
 !   count:
@@ -240,7 +238,7 @@ contains
 !   psbar:
     mm1=mype+ione
     do j=1,lon1*lat1
-      zsm(j)=zero
+       zsm(j)=zero
     end do
 
     call strip(ps,zsm,ione)
@@ -250,55 +248,55 @@ contains
        mpi_comm_world,ierror)
 
     do k=1,iglobal
-      i=ltosi(k) ; j=ltosj(k)
-      sumall(i,j)=work1(k)
+       i=ltosi(k) ; j=ltosj(k)
+       sumall(i,j)=work1(k)
     end do
 
     psbar=zero
     do j=1,nlon
-      do i=1,nlat
-        psbar=psbar+sumall(i,j)
-      end do
+       do i=1,nlat
+          psbar=psbar+sumall(i,j)
+       end do
     end do
     psbar=ten*count*psbar
     do k=1,nsig+ione
-      pbar(k)=ahat(k)+bhat(k)*psbar     !  + chat(k)*(T/T0)**(1/kappa)   --- add later
+       pbar(k)=ahat(k)+bhat(k)*psbar     !  + chat(k)*(T/T0)**(1/kappa)   --- add later
     end do
 
 !   tbar:
     do k=1,nsig
-      do j=1,lon1*lat1
-        zsm(j)=zero
-      end do
+       do j=1,lon1*lat1
+          zsm(j)=zero
+       end do
 
-      call strip(ges_tv(1,1,k,ntguessig),zsm,ione)
+       call strip(ges_tv(1,1,k,ntguessig),zsm,ione)
 
-      call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-         work1,ijn,displs_g,mpi_rtype,&
-         mpi_comm_world,ierror)
+       call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+          work1,ijn,displs_g,mpi_rtype,&
+          mpi_comm_world,ierror)
 
-      do kk=1,iglobal
-        i=ltosi(kk) ; j=ltosj(kk)
-        sumall(i,j)=work1(kk)
-      end do
+       do kk=1,iglobal
+          i=ltosi(kk) ; j=ltosj(kk)
+          sumall(i,j)=work1(kk)
+       end do
 
-      tbar(k)=zero
-      do j=1,nlon
-        do i=1,nlat
-          tbar(k)=tbar(k)+sumall(i,j)
-        end do
-      end do
+       tbar(k)=zero
+       do j=1,nlon
+          do i=1,nlat
+             tbar(k)=tbar(k)+sumall(i,j)
+          end do
+       end do
     end do
     do k=1,nsig
-      tbar(k)=count*tbar(k)
+       tbar(k)=count*tbar(k)
     end do
   
     if(mype==izero) then
-      do k=1,nsig
-        write(6,'(" k,pbar,tbar = ",i5,2f15.2)')k,pbar(k),tbar(k)
-      end do
-      k=nsig+ione
-      write(6,'(" k,pbar      = ",i5,f15.2)')k,pbar(k)
+       do k=1,nsig
+          write(6,'(" k,pbar,tbar = ",i5,2f15.2)')k,pbar(k),tbar(k)
+       end do
+       k=nsig+ione
+       write(6,'(" k,pbar      = ",i5,f15.2)')k,pbar(k)
     end if
 
     hmat=zero ; smat=zero ; amat=zero ; bmat=zero
@@ -310,12 +308,12 @@ contains
 !   qmat = hmat*smat + amat*bmat
 
     do j=1,nsig
-      do i=1,nsig
-        qmat(i,j)=hmat(i)*smat(j)
-        do k=1,nsig
-          qmat(i,j)=qmat(i,j)+amat(i,k)*bmat(k,j)
-        end do
-      end do
+       do i=1,nsig
+          qmat(i,j)=hmat(i)*smat(j)
+          do k=1,nsig
+             qmat(i,j)=qmat(i,j)+amat(i,k)*bmat(k,j)
+          end do
+       end do
     end do
 
 !     next get eigenvalues, eigenvectors and compare to singular values, vectors.
@@ -327,45 +325,45 @@ contains
 ! checks and print out eigenvalues
 !
     do k=1,nsig
-      if(mype==izero) write(6,*)' c,eigenvalue(',k,') = ',(www(1,k)**2+www(2,k)**2)**quarter,www(1,k),www(2,k)
+       if(mype==izero) write(6,*)' c,eigenvalue(',k,') = ',(www(1,k)**2+www(2,k)**2)**quarter,www(1,k),www(2,k)
     end do
 
     do k=1,nsig
-      if(mype==izero) write(6,'(" p, eigvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+ione)),zzz(1,k,1:4)
+       if(mype==izero) write(6,'(" p, eigvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+ione)),zzz(1,k,1:4)
     end do
 
     do k=1,nsig
-      if(k<=nvmodes_keep) then
-        depths(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**half
-        speeds(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**quarter
-      end if
-      if(mype==izero) write(6,*)' c,eigenvalue(',k,') = ',(wwwd(1,k)**2+wwwd(2,k)**2)**quarter,wwwd(1,k),wwwd(2,k)
+       if(k<=nvmodes_keep) then
+          depths(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**half
+          speeds(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**quarter
+       end if
+       if(mype==izero) write(6,*)' c,eigenvalue(',k,') = ',(wwwd(1,k)**2+wwwd(2,k)**2)**quarter,wwwd(1,k),wwwd(2,k)
     end do
 
     do k=1,nsig
-      if(mype==izero) write(6,'(" p, dualvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+ione)),zzzd(1,k,1:4)
+       if(mype==izero) write(6,'(" p, dualvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+ione)),zzzd(1,k,1:4)
     end do
 
 !  normalize and check for biorthogonality
 
     do j=1,nsig
-      sum=zero
-      do i=1,nsig
-        sum=sum+zzz(1,i,j)*zzzd(1,i,j)
-      end do
-      factor=one/sqrt(abs(sum))
-      factord=factor
-      if(sum<zero) factord=-factor
-      do i=1,nsig
-        zzz(1,i,j)=factor*zzz(1,i,j)
-        zzzd(1,i,j)=factord*zzzd(1,i,j)
-      end do
+       sum=zero
+       do i=1,nsig
+          sum=sum+zzz(1,i,j)*zzzd(1,i,j)
+       end do
+       factor=one/sqrt(abs(sum))
+       factord=factor
+       if(sum<zero) factord=-factor
+       do i=1,nsig
+          zzz(1,i,j)=factor*zzz(1,i,j)
+          zzzd(1,i,j)=factord*zzzd(1,i,j)
+       end do
     end do
     do j=1,nvmodes_keep
-      do i=1,nsig
-        vmodes(i,j)=zzz(1,i,j)
-        dualmodes(i,j)=zzzd(1,i,j)
-      end do
+       do i=1,nsig
+          vmodes(i,j)=zzz(1,i,j)
+          dualmodes(i,j)=zzzd(1,i,j)
+       end do
     end do
 
 
@@ -373,40 +371,40 @@ contains
 
     errormax=zero
     do j=1,nsig
-      do i=1,nsig
-        sum=zero
-        if(i==j) sum=-one
-        do k=1,nsig
-          sum=sum+zzz(1,k,i)*zzzd(1,k,j)
-        end do
-        errormax=max(abs(sum),errormax)
-      end do
+       do i=1,nsig
+          sum=zero
+          if(i==j) sum=-one
+          do k=1,nsig
+             sum=sum+zzz(1,k,i)*zzzd(1,k,j)
+          end do
+          errormax=max(abs(sum),errormax)
+       end do
     end do
     if(mype==izero) write(6,*)' biorthonormal error = ',errormax
 
 !   now get inverse of Q, using eigenvector/value decomposition
 
     do j=1,nsig
-      do i=1,nsig
-        qmatinv(i,j)=zero
-        do k=1,nsig
-          qmatinv(i,j)=qmatinv(i,j)+zzz(1,i,k)*zzzd(1,j,k)/(wwwd(1,k)**2+wwwd(2,k)**2)**half
-        end do
-      end do
+       do i=1,nsig
+          qmatinv(i,j)=zero
+          do k=1,nsig
+             qmatinv(i,j)=qmatinv(i,j)+zzz(1,i,k)*zzzd(1,j,k)/(wwwd(1,k)**2+wwwd(2,k)**2)**half
+          end do
+       end do
     end do
 
 !   check inverse
 
     errormax=zero
     do j=1,nsig
-      do i=1,nsig
-        sum=zero
-        if(i==j) sum=-one
-        do k=1,nsig
-          sum=sum+qmat(i,k)*qmatinv(k,j)
-        end do
-        errormax=max(abs(sum),errormax)
-      end do
+       do i=1,nsig
+          sum=zero
+          if(i==j) sum=-one
+          do k=1,nsig
+             sum=sum+qmat(i,k)*qmatinv(k,j)
+          end do
+          errormax=max(abs(sum),errormax)
+       end do
     end do
     if(mype==izero) write(6,*)' error in qmatinv =',errormax
 
@@ -415,55 +413,55 @@ contains
     t2phihat=zero
     p2phihat=zero
     do n=1,nvmodes_keep
-      do k=1,nsig
-        do j=1,nsig
-          t2phihat(k,n)=t2phihat(k,n)+dualmodes(j,n)*amat(j,k)
-        end do
-        p2phihat(n)=p2phihat(n)+dualmodes(k,n)*hmat(k)
-      end do
+       do k=1,nsig
+          do j=1,nsig
+             t2phihat(k,n)=t2phihat(k,n)+dualmodes(j,n)*amat(j,k)
+          end do
+          p2phihat(n)=p2phihat(n)+dualmodes(k,n)*hmat(k)
+       end do
     end do
     p2phihat=ten*p2phihat ! in this code, p is in units of mb, but in gsi, p is in cb -- change later
 
 !   finally compute phihat2p, phihat2t
 
     do j=1,nsig
-      do i=1,nsig
-        bqmatinv(i,j)=zero
-        do k=1,nsig
-          bqmatinv(i,j)=bqmatinv(i,j)+bmat(i,k)*qmatinv(k,j)
-        end do
-      end do
+       do i=1,nsig
+          bqmatinv(i,j)=zero
+          do k=1,nsig
+             bqmatinv(i,j)=bqmatinv(i,j)+bmat(i,k)*qmatinv(k,j)
+          end do
+       end do
     end do
     do j=1,nsig
-      sqmatinv(j)=zero
-      do i=1,nsig
-        sqmatinv(j)=sqmatinv(j)+smat(i)*qmatinv(i,j)
-      end do
+       sqmatinv(j)=zero
+       do i=1,nsig
+          sqmatinv(j)=sqmatinv(j)+smat(i)*qmatinv(i,j)
+       end do
     end do
 
     do j=1,nvmodes_keep
-      sum=zero
-      do k=1,nsig
-        sum=sum+sqmatinv(k)*vmodes(k,j)
-      end do
-      phihat2p(j)=sum
-      do i=1,nsig
-        sum=zero
-        do k=1,nsig
-          sum=sum+bqmatinv(i,k)*vmodes(k,j)
-        end do
-        phihat2t(i,j)=sum
-      end do
+       sum=zero
+       do k=1,nsig
+          sum=sum+sqmatinv(k)*vmodes(k,j)
+       end do
+       phihat2p(j)=sum
+       do i=1,nsig
+          sum=zero
+          do k=1,nsig
+             sum=sum+bqmatinv(i,k)*vmodes(k,j)
+          end do
+          phihat2t(i,j)=sum
+       end do
     end do
     phihat2p=one_tenth*phihat2p ! local units are mb, but gsi units are cb--fix later
 
 !      print out phihat2t
 
     if(mype==izero) then
-      write(6,*)' phihat2p = ',phihat2p(1:min(4,nvmodes_keep))
-      do i=1,nsig
-        write(6,*)' i,phihat2t=',i,phihat2t(i,1:min(4,nvmodes_keep))
-      end do
+       write(6,*)' phihat2p = ',phihat2p(1:min(4,nvmodes_keep))
+       do i=1,nsig
+          write(6,*)' i,phihat2t=',i,phihat2t(i,1:min(4,nvmodes_keep))
+       end do
     end if
 
   end subroutine create_vtrans
@@ -527,23 +525,23 @@ contains
     implicit none
 
 !   Declare passed variables
-    real(r_kind),dimension(nsig+ione),intent(out):: ahat,bhat,chat
+    real(r_kind),dimension(nsig+ione),intent(  out) :: ahat,bhat,chat
 
 !   Declare local variables
     integer(i_kind) k
 
     if(wrf_nmm_regional.or.nems_nmmb_regional) then
-      do k=1,nsig+ione
-        ahat(k)=eta1_ll(k)*pdtop_ll-eta2_ll(k)*(pdtop_ll+pt_ll)+pt_ll
-        bhat(k)=eta2_ll(k)
-        chat(k)=zero
-      end do
+       do k=1,nsig+ione
+          ahat(k)=eta1_ll(k)*pdtop_ll-eta2_ll(k)*(pdtop_ll+pt_ll)+pt_ll
+          bhat(k)=eta2_ll(k)
+          chat(k)=zero
+       end do
     else
-      do k=1,nsig+ione
-        ahat(k)=ak5(k)*10
-        bhat(k)=bk5(k)
-        chat(k)=ck5(k)*10
-      end do
+       do k=1,nsig+ione
+          ahat(k)=ak5(k)*10
+          bhat(k)=bk5(k)
+          chat(k)=ck5(k)*10
+       end do
     end if
 
     return
@@ -578,29 +576,29 @@ contains
     use constants,only: zero
     implicit none
 
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in):: uhat,vhat,phihat
-    real(r_kind),dimension(lat2,lon2,nsig),intent(out):: u,v,t
-    real(r_kind),dimension(lat2,lon2),intent(out):: p
+    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in   ) :: uhat,vhat,phihat
+    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(  out) :: u,v,t
+    real(r_kind),dimension(lat2,lon2)             ,intent(  out) :: p
 
     integer(i_kind) i,j,k,n
 
     u=zero ; v=zero ; t=zero ; p=zero
 
     do n=1,nvmodes_keep
-      do k=1,nsig
-        do j=1,lon2
-          do i=1,lat2
-            u(i,j,k)=u(i,j,k)+vmodes(k,n)*uhat(i,j,n)
-            v(i,j,k)=v(i,j,k)+vmodes(k,n)*vhat(i,j,n)
-            t(i,j,k)=t(i,j,k)+phihat2t(k,n)*phihat(i,j,n)
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                u(i,j,k)=u(i,j,k)+vmodes(k,n)*uhat(i,j,n)
+                v(i,j,k)=v(i,j,k)+vmodes(k,n)*vhat(i,j,n)
+                t(i,j,k)=t(i,j,k)+phihat2t(k,n)*phihat(i,j,n)
+             end do
           end do
-        end do
-      end do
-      do j=1,lon2
-        do i=1,lat2
-          p(i,j)=p(i,j)+phihat2p(n)*phihat(i,j,n)
-        end do
-      end do
+       end do
+       do j=1,lon2
+          do i=1,lat2
+             p(i,j)=p(i,j)+phihat2p(n)*phihat(i,j,n)
+          end do
+       end do
     end do
 
   end subroutine vtrans_inv
@@ -634,27 +632,27 @@ contains
     use constants,only: zero
     implicit none
 
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(inout):: uhat,vhat,phihat
-    real(r_kind),dimension(lat2,lon2,nsig),intent(in):: u,v,t
-    real(r_kind),dimension(lat2,lon2),intent(in):: p
+    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(inout) :: uhat,vhat,phihat
+    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(in   ) :: u,v,t
+    real(r_kind),dimension(lat2,lon2)             ,intent(in   ) :: p
 
     integer(i_kind) i,j,k,n
 
     do n=1,nvmodes_keep
-      do k=1,nsig
-        do j=1,lon2
-          do i=1,lat2
-            uhat(i,j,n)=uhat(i,j,n)+vmodes(k,n)*u(i,j,k)
-            vhat(i,j,n)=vhat(i,j,n)+vmodes(k,n)*v(i,j,k)
-            phihat(i,j,n)=phihat(i,j,n)+phihat2t(k,n)*t(i,j,k)
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                uhat(i,j,n)=uhat(i,j,n)+vmodes(k,n)*u(i,j,k)
+                vhat(i,j,n)=vhat(i,j,n)+vmodes(k,n)*v(i,j,k)
+                phihat(i,j,n)=phihat(i,j,n)+phihat2t(k,n)*t(i,j,k)
+             end do
           end do
-        end do
-      end do
-      do j=1,lon2
-        do i=1,lat2
-          phihat(i,j,n)=phihat(i,j,n)+phihat2p(n)*p(i,j)
-        end do
-      end do
+       end do
+       do j=1,lon2
+          do i=1,lat2
+             phihat(i,j,n)=phihat(i,j,n)+phihat2p(n)*p(i,j)
+          end do
+       end do
     end do
 
   end subroutine vtrans_inv_ad
@@ -688,9 +686,9 @@ contains
     use constants,only: ione,zero
     implicit none
 
-    real(r_kind),dimension(lat2,lon2,nsig),intent(in):: u,v,t
-    real(r_kind),dimension(lat2,lon2),intent(in):: p
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(out):: uhat,vhat,phihat
+    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(in   ) :: u,v,t
+    real(r_kind),dimension(lat2,lon2)             ,intent(in   ) :: p
+    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(  out) :: uhat,vhat,phihat
 
     integer(i_kind) i,j,k,n
     integer(i_kind) :: jstart,jstop
@@ -709,27 +707,27 @@ contains
 #endif
 
     do n=1,nvmodes_keep
-     do j=jstart,jstop
-      do i=1,lat2
-        uhat(i,j,n)=zero
-        vhat(i,j,n)=zero
-        phihat(i,j,n)=zero
-      enddo
-     enddo
-      do k=1,nsig
-        do j=jstart,jstop
+       do j=jstart,jstop
           do i=1,lat2
-            uhat(i,j,n)=uhat(i,j,n)+dualmodes(k,n)*u(i,j,k)
-            vhat(i,j,n)=vhat(i,j,n)+dualmodes(k,n)*v(i,j,k)
-            phihat(i,j,n)=phihat(i,j,n)+t2phihat(k,n)*t(i,j,k)
+             uhat(i,j,n)=zero
+             vhat(i,j,n)=zero
+             phihat(i,j,n)=zero
+          enddo
+       enddo
+       do k=1,nsig
+          do j=jstart,jstop
+             do i=1,lat2
+                uhat(i,j,n)=uhat(i,j,n)+dualmodes(k,n)*u(i,j,k)
+                vhat(i,j,n)=vhat(i,j,n)+dualmodes(k,n)*v(i,j,k)
+                phihat(i,j,n)=phihat(i,j,n)+t2phihat(k,n)*t(i,j,k)
+             end do
           end do
-        end do
-      end do
-      do j=jstart,jstop
-        do i=1,lat2
-          phihat(i,j,n)=phihat(i,j,n)+p2phihat(n)*p(i,j)
-        end do
-      end do
+       end do
+       do j=jstart,jstop
+          do i=1,lat2
+             phihat(i,j,n)=phihat(i,j,n)+p2phihat(n)*p(i,j)
+          end do
+       end do
     end do
 !$omp end parallel
 
@@ -765,27 +763,27 @@ contains
     use gridmod,only: lat2,lon2,nsig
     implicit none
  
-    real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: u,v,t
-    real(r_kind),dimension(lat2,lon2),intent(inout):: p
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in):: uhat,vhat,phihat
+    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(inout) :: u,v,t
+    real(r_kind),dimension(lat2,lon2)             ,intent(inout) :: p
+    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in   ) :: uhat,vhat,phihat
 
     integer(i_kind) i,j,k,n
 
     do n=1,nvmodes_keep
-      do k=1,nsig
-        do j=1,lon2
-          do i=1,lat2
-            u(i,j,k)=u(i,j,k)+dualmodes(k,n)*uhat(i,j,n)
-            v(i,j,k)=v(i,j,k)+dualmodes(k,n)*vhat(i,j,n)
-            t(i,j,k)=t(i,j,k)+t2phihat(k,n)*phihat(i,j,n)
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                u(i,j,k)=u(i,j,k)+dualmodes(k,n)*uhat(i,j,n)
+                v(i,j,k)=v(i,j,k)+dualmodes(k,n)*vhat(i,j,n)
+                t(i,j,k)=t(i,j,k)+t2phihat(k,n)*phihat(i,j,n)
+             end do
           end do
-        end do
-      end do
-      do j=1,lon2
-        do i=1,lat2
-          p(i,j)=p(i,j)+p2phihat(n)*phihat(i,j,n)
-        end do
-      end do
+       end do
+       do j=1,lon2
+          do i=1,lat2
+             p(i,j)=p(i,j)+p2phihat(n)*phihat(i,j,n)
+          end do
+       end do
     end do
 
   end subroutine vtrans_ad
@@ -818,22 +816,22 @@ contains
     use constants,only: zero
     implicit none
 
-    real(r_kind),dimension(lat2,lon2,nsig),intent(in):: xin,yin
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(out):: xhat,yhat
+    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(in   ) :: xin,yin
+    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(  out) :: xhat,yhat
 
     integer(i_kind) i,j,k,n
 
     xhat=zero ; yhat=zero
 
     do n=1,nvmodes_keep
-      do k=1,nsig
-        do j=1,lon2
-          do i=1,lat2
-            xhat(i,j,n)=xhat(i,j,n)+dualmodes(k,n)*xin(i,j,k)
-            yhat(i,j,n)=yhat(i,j,n)+dualmodes(k,n)*yin(i,j,k)
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                xhat(i,j,n)=xhat(i,j,n)+dualmodes(k,n)*xin(i,j,k)
+                yhat(i,j,n)=yhat(i,j,n)+dualmodes(k,n)*yin(i,j,k)
+             end do
           end do
-        end do
-      end do
+       end do
     end do ! end do n
 
     return
@@ -867,22 +865,22 @@ contains
     use constants,only: zero
     implicit none
 
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in):: xhat,yhat
-    real(r_kind),dimension(lat2,lon2,nsig),intent(out):: xout,yout
+    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in   ) :: xhat,yhat
+    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(  out) :: xout,yout
 
     integer(i_kind) i,j,k,n
 
     xout=zero ; yout=zero
 
     do n=1,nvmodes_keep
-      do k=1,nsig
-        do j=1,lon2
-          do i=1,lat2
-            xout(i,j,k)=xout(i,j,k) + vmodes(k,n)*xhat(i,j,n)
-            yout(i,j,k)=yout(i,j,k) + vmodes(k,n)*yhat(i,j,n)
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                xout(i,j,k)=xout(i,j,k) + vmodes(k,n)*xhat(i,j,n)
+                yout(i,j,k)=yout(i,j,k) + vmodes(k,n)*yhat(i,j,n)
+             end do
           end do
-        end do
-      end do
+       end do
     end do
     
     return
@@ -916,20 +914,20 @@ contains
     use gridmod,only: lat2,lon2,nsig
     implicit none
 
-    real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: x,y
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in):: xhat,yhat
+    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(inout) :: x,y
+    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in   ) :: xhat,yhat
 
     integer(i_kind) i,j,k,n
 
     do n=1,nvmodes_keep
-      do k=1,nsig
-        do j=1,lon2
-          do i=1,lat2
-            x(i,j,k)=x(i,j,k)+dualmodes(k,n)*xhat(i,j,n)
-            y(i,j,k)=y(i,j,k)+dualmodes(k,n)*yhat(i,j,n)
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                x(i,j,k)=x(i,j,k)+dualmodes(k,n)*xhat(i,j,n)
+                y(i,j,k)=y(i,j,k)+dualmodes(k,n)*yhat(i,j,n)
+             end do
           end do
-        end do
-      end do
+       end do
     end do
 
     return
@@ -963,20 +961,20 @@ contains
     use gridmod,only: lat2,lon2,nsig
     implicit none
 
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(inout):: xhat,yhat
-    real(r_kind),dimension(lat2,lon2,nsig),intent(in):: xin,yin
+    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(inout) :: xhat,yhat
+    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(in   ) :: xin,yin
 
     integer(i_kind) i,j,k,n
 
     do n=1,nvmodes_keep
-      do k=1,nsig
-        do j=1,lon2
-          do i=1,lat2
-            xhat(i,j,n)=xhat(i,j,n)+vmodes(k,n)*xin(i,j,k)
-            yhat(i,j,n)=yhat(i,j,n)+vmodes(k,n)*yin(i,j,k)
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                xhat(i,j,n)=xhat(i,j,n)+vmodes(k,n)*xin(i,j,k)
+                yhat(i,j,n)=yhat(i,j,n)+vmodes(k,n)*yin(i,j,k)
+             end do
           end do
-        end do
-      end do
+       end do
     end do
 
     return

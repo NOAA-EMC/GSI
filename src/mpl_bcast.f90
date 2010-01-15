@@ -24,11 +24,11 @@ real(r_kind)   ,intent(inout) :: pvals(klen)
 ! ----------------------------------------------------------
 
 if (npe>ione.and.klen>izero) then
-  call mpi_bcast(pvals,klen,mpi_rtype,root,mpi_comm_world,ierror)
-  if (ierror/=izero) then
-     write(6,*)'mpl_bcast: MPI error'
-     call stop2(154)
-  end if
+   call mpi_bcast(pvals,klen,mpi_rtype,root,mpi_comm_world,ierror)
+   if (ierror/=izero) then
+      write(6,*)'mpl_bcast: MPI error'
+      call stop2(154)
+   end if
 endif
 
 ! ----------------------------------------------------------

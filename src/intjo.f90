@@ -200,10 +200,10 @@ use intlagmod
 implicit none
 
 ! Declare passed variables
-integer(i_kind),    intent(in)    :: ibin
-type(obs_handle),   intent(in)    :: yobs
-type(state_vector), intent(in)    :: sval
-type(predictors)  , intent(in)    :: sbias
+integer(i_kind)   , intent(in   ) :: ibin
+type(obs_handle)  , intent(in   ) :: yobs
+type(state_vector), intent(in   ) :: sval
+type(predictors)  , intent(in   ) :: sbias
 type(state_vector), intent(inout) :: rval
 type(predictors)  , intent(inout) :: rbias
 
@@ -279,10 +279,10 @@ real(r_quad),dimension(max(ione,nrclen)):: qpred
   call mpl_allreduce(nrclen,qpred)
 
   do i=1,nsclen
-    rbias%predr(i)=qpred(i)
+     rbias%predr(i)=qpred(i)
   end do
   do i=1,npclen
-    rbias%predp(i)=qpred(nsclen+i)
+     rbias%predp(i)=qpred(nsclen+i)
   end do
 
 return

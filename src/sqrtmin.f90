@@ -24,12 +24,12 @@ subroutine sqrtmin()
 !
 !$$$
 
-use kinds, only: r_single,r_kind,i_kind,r_quad
+use kinds, only: r_kind,i_kind,r_quad
 use gsi_4dvar, only: l4dvar, lsqrtb, lcongrad, lbfgsmin, ltlint, &
                      ladtest, lgrtest, lanczosave, nwrvecs
 use jfunc, only: jiter,miter,niter,xhatsave,jiterstart
 use qcmod, only: nlnqc_iter
-use constants, only: zero
+use constants, only: izero,ione,zero
 use mpimod, only: mype
 use obs_sensitivity, only: lobsensadj, lobsensmin, lobsensfc, lobsensincr, &
                            iobsconv, fcsens, llancdone, dot_prod_obs
@@ -45,6 +45,7 @@ use timermod, only: timer_ini, timer_fnl
 implicit none
 
 character(len=*), parameter :: myname='sqrtmin'
+
 ! Declare local variables  
 type(control_vector) :: xhat, gradx, gradf
 real(r_kind) :: costf,eps,rdx,zeps,zy
@@ -56,12 +57,12 @@ character(len=12) :: clfile
 !**********************************************************************
 
 if (.not.lsqrtb) then
-  write(6,*)'sqrtmin: lsqrtb false'
-  call stop2(307)
+   write(6,*)'sqrtmin: lsqrtb false'
+   call stop2(307)
 end if
 
 ! Initialize timer
-  call timer_ini('sqrtmin')
+call timer_ini('sqrtmin')
 
 ! Initialize
 lsavinc=.false.
@@ -73,28 +74,28 @@ call allocate_cv(gradx)
 
 ! Run tests if required
 rdx=1.0e-10_r_kind
-itest=8
+itest=8_i_kind
 if (lgrtest) call grtest(xhat,rdx,itest)
 if (ladtest) call adtest()
 zgg=dot_product(xhatsave,xhatsave,r_quad)
-if (mype==0) write(6,888)trim(myname),': Norm xhatsave=',sqrt(zgg)
+if (mype==izero) write(6,888)trim(myname),': Norm xhatsave=',sqrt(zgg)
 call prt_guess('guess')
 if (lobsensfc.and.lobsensmin) lsaveobsens=.true.
 
 ! Get initial cost function and gradient
-nprt=2
+nprt=2_i_kind
 xhat=zero
 call evaljgrad(xhat,zf0,gradx,lsavinc,nprt,myname)
 
 zg0=dot_product(gradx,gradx,r_quad)
 zg0=sqrt(zg0)
-if (mype==0) then
-  write(6,888)trim(myname),': Initial cost function =',zf0
-  write(6,888)trim(myname),': Initial gradient norm =',zg0
+if (mype==izero) then
+   write(6,888)trim(myname),': Initial cost function =',zf0
+   write(6,888)trim(myname),': Initial gradient norm =',zg0
 endif
 
 ! Minimization
-nprt=1
+nprt=ione
 itermax=niter(jiter)
 eps=1.0e-8_r_kind
 costf=zf0
@@ -103,135 +104,135 @@ zeps=eps
 jtermax=itermax
 
 if (lbfgsmin) then
-  call m1qn3  (xhat,costf,gradx,eps,itermax,nprt,nwrvecs)
+   call m1qn3  (xhat,costf,gradx,eps,itermax,nprt,nwrvecs)
 
 elseif (lcongrad) then
-! Setup CONGRAD
-  if (.not.ltlint) then
-    write(6,*)'sqrtmin: congrad requires ltlint'
-    call stop2(308)
-  end if
-  call setup_congrad(mype,nprt,jiter,jiterstart,itermax,nwrvecs, &
-                     l4dvar,lanczosave)
-  lsavev=(.not.lobsensfc).and.(jiter<miter)
+!  Setup CONGRAD
+   if (.not.ltlint) then
+      write(6,*)'sqrtmin: congrad requires ltlint'
+      call stop2(308)
+   end if
+   call setup_congrad(mype,nprt,jiter,jiterstart,itermax,nwrvecs, &
+                      l4dvar,lanczosave)
+   lsavev=(.not.lobsensfc).and.(jiter<miter)
 
-  if (lobsensfc.and.lobsensadj) then
-!   Get Lanczos vectors
-    if ( llancdone ) then        ! Lanczos vecs already computed, read them in
-      call read_lanczos(itermax)
-    else                         ! Do forward min to get Lanczos vectors
+   if (lobsensfc.and.lobsensadj) then
+!     Get Lanczos vectors
+      if ( llancdone ) then        ! Lanczos vecs already computed, read them in
+         call read_lanczos(itermax)
+      else                         ! Do forward min to get Lanczos vectors
+         call congrad(xhat,costf,gradx,eps,itermax,iobsconv,lsavev)
+      endif
+
+!     Compute sensitivity
+      zgg=dot_product(fcsens,fcsens,r_quad)
+      if (mype==izero) write(6,888)trim(myname),': Norm fcsens=',sqrt(zgg)
+      xhat=fcsens
+      call congrad_ad(xhat,itermax)
+   else
+!     Compute increment
       call congrad(xhat,costf,gradx,eps,itermax,iobsconv,lsavev)
-    endif
+   endif
 
-!   Compute sensitivity
-    zgg=dot_product(fcsens,fcsens,r_quad)
-    if (mype==0) write(6,888)trim(myname),': Norm fcsens=',sqrt(zgg)
-    xhat=fcsens
-    call congrad_ad(xhat,itermax)
-  else
-!   Compute increment
-    call congrad(xhat,costf,gradx,eps,itermax,iobsconv,lsavev)
-  endif
-
-! Finish CONGRAD
-  call save_precond(lsavev)
+!  Finish CONGRAD
+   call save_precond(lsavev)
 
 else  ! plain conjugate gradient
-  if (.not.ltlint) then
-    write(6,*)'sqrtmin: pcgsqrt requires ltlint'
-    call stop2(309)
-  end if
-  call pcgsqrt(xhat,costf,gradx,itermax,nprt)
+   if (.not.ltlint) then
+      write(6,*)'sqrtmin: pcgsqrt requires ltlint'
+      call stop2(309)
+   end if
+   call pcgsqrt(xhat,costf,gradx,itermax,nprt)
 endif
 
-if (mype==0) write(6,*)trim(myname),': Minimization final diagnostics'
+if (mype==izero) write(6,*)trim(myname),': Minimization final diagnostics'
 
 if (lferrscale .and. jiter==miter) call apply_hrm1h(2)
 
 ! Get final cost function and gradient
 ! and save increment (or update guess)
 if (lobsensfc) then
-  lsaveobsens=.true.
-  l_do_adjoint=.false.
-  nprt=1
+   lsaveobsens=.true.
+   l_do_adjoint=.false.
+   nprt=ione
 else
-  lsavinc=.true.
-  nprt=2
+   lsavinc=.true.
+   nprt=2_i_kind
 endif
 call allocate_cv(gradf)
 gradf=zero
 call evaljgrad(xhat,zff,gradf,lsavinc,nprt,myname)
 
 if (lobsensfc) then
-! Compute <dJ/dy,d>
-  if (lobsensincr) then
-    call test_obsens(fcsens,xhat)
-  else
-    zy=dot_prod_obs()
-    if (mype==0) write(6,'(A,ES25.18)')'Obs impact <dF/dy,d>= ',zy
-  endif
-! Save gradient for next (backwards) outer loop
-  if (jiter>1) then
-    do ii=1,xhat%lencv
-      fcsens%values(ii) = fcsens%values(ii) - xhat%values(ii)
-    enddo
-    clfile='fgsens.ZZZ'
-    write(clfile(8:10),'(I3.3)') jiter
-    call write_cv(fcsens,clfile)
-  endif
-  lsaveobsens=.false.
-  l_do_adjoint=.true.
+!  Compute <dJ/dy,d>
+   if (lobsensincr) then
+      call test_obsens(fcsens,xhat)
+   else
+      zy=dot_prod_obs()
+      if (mype==izero) write(6,'(A,ES25.18)')'Obs impact <dF/dy,d>= ',zy
+   endif
+!  Save gradient for next (backwards) outer loop
+   if (jiter>ione) then
+      do ii=1,xhat%lencv
+         fcsens%values(ii) = fcsens%values(ii) - xhat%values(ii)
+      enddo
+      clfile='fgsens.ZZZ'
+      write(clfile(8:10),'(I3.3)') jiter
+      call write_cv(fcsens,clfile)
+   endif
+   lsaveobsens=.false.
+   l_do_adjoint=.true.
 
 else
-! Update xhatsave
-  do ii=1,xhat%lencv
-    xhatsave%values(ii) = xhatsave%values(ii) + xhat%values(ii)
-  end do
+!  Update xhatsave
+   do ii=1,xhat%lencv
+      xhatsave%values(ii) = xhatsave%values(ii) + xhat%values(ii)
+   end do
 
-  zgg=dot_product(xhat,xhat,r_quad)
-  if (mype==0) write(6,888)trim(myname),': Norm xhat=',sqrt(zgg)
-  zgg=dot_product(xhatsave,xhatsave,r_quad)
-  if (mype==0) write(6,888)trim(myname),': Norm xhatsave=',sqrt(zgg)
+   zgg=dot_product(xhat,xhat,r_quad)
+   if (mype==izero) write(6,888)trim(myname),': Norm xhat=',sqrt(zgg)
+   zgg=dot_product(xhatsave,xhatsave,r_quad)
+   if (mype==izero) write(6,888)trim(myname),': Norm xhatsave=',sqrt(zgg)
 
-! Print diagnostics
-  zgf=dot_product(gradf,gradf,r_quad)
-  zgf=sqrt(zgf)
-  if (mype==0) then
-    write(6,888)trim(myname),': Final cost function =',real(zff,r_kind)
-    write(6,888)trim(myname),': Final gradient norm =',real(zgf,r_kind)
-    write(6,888)trim(myname),': Final/Initial cost function=',real(zff,r_kind)/real(zf0,r_kind)
-    write(6,888)trim(myname),': Final/Initial gradient norm=',real(zgf,r_kind)/real(zg0,r_kind)
-  endif
+!  Print diagnostics
+   zgf=dot_product(gradf,gradf,r_quad)
+   zgf=sqrt(zgf)
+   if (mype==izero) then
+      write(6,888)trim(myname),': Final cost function =',real(zff,r_kind)
+      write(6,888)trim(myname),': Final gradient norm =',real(zgf,r_kind)
+      write(6,888)trim(myname),': Final/Initial cost function=',real(zff,r_kind)/real(zf0,r_kind)
+      write(6,888)trim(myname),': Final/Initial gradient norm=',real(zgf,r_kind)/real(zg0,r_kind)
+   endif
 
-  if (l4dvar) then
-    call prt_guess('increment')
-  else
-    call prt_guess('analysis')
-  endif
+   if (l4dvar) then
+      call prt_guess('increment')
+   else
+      call prt_guess('analysis')
+   endif
 
-  zge=dot_product(gradx,gradx,r_quad)
-  zge=sqrt(zge)
+   zge=dot_product(gradx,gradx,r_quad)
+   zge=sqrt(zge)
 
-  do ii=1,xhat%lencv
-    gradf%values(ii) = gradf%values(ii) - gradx%values(ii)
-  end do
-  zgg=dot_product(gradf,gradf,r_quad)
-  zgg=sqrt(zgg)
-  if (mype==0) then
-    write(6,888)trim(myname),': Gradient norm estimated,actual,error:',zge,zgf,zgg
-  endif
+   do ii=1,xhat%lencv
+      gradf%values(ii) = gradf%values(ii) - gradx%values(ii)
+   end do
+   zgg=dot_product(gradf,gradf,r_quad)
+   zgg=sqrt(zgg)
+   if (mype==izero) then
+      write(6,888)trim(myname),': Gradient norm estimated,actual,error:',zge,zgf,zgg
+   endif
 
-  if (zgg>0.1_r_single) then
-    if (mype==0) write(6,*)'*** sqrtmin: error estimated gradient ***'
-!   With conjugate gradient, estimated gradient norm will differ from
-!   actual gradient norm without re-orthogonalisation so don't abort.
+   if (zgg>0.1_r_quad) then
+      if (mype==izero) write(6,*)'*** sqrtmin: error estimated gradient ***'
+!     With conjugate gradient, estimated gradient norm will differ from
+!     actual gradient norm without re-orthogonalisation so don't abort.
 !yt    if (lcongrad.or.lbfgsmin) then
 !         write(6,*)'sqrtmin: error estimated gradient',lcongrad,lbfgsmin
 !         call stop2(310)
 !      end if
-  endif
+   endif
   
-  if (ladtest) call adtest(xhat)
+   if (ladtest) call adtest(xhat)
 
 endif
 

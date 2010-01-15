@@ -27,22 +27,24 @@ subroutine deter_subdomain(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use kinds, only: i_kind
   use constants, only: izero
   use mpimod, only: nxPE, nyPE
   implicit none
-  integer,intent(in):: mype
+
+  integer(i_kind),intent(in   ) :: mype
 
 ! If a layout is provided, use it for the domain decomposition
 ! ------------------------------------------------------------
   if ( nxPE > izero .AND. nyPE > izero ) then
 
-       call deter_subdomain_withLayout ( myPE, nxPE, nyPE ) ! ESMF-like
+     call deter_subdomain_withLayout ( myPE, nxPE, nyPE ) ! ESMF-like
 
 ! Otherwise, use NCEP original algorithm
 ! --------------------------------------
   else
 
-       call deter_subdomain_noLayout ( mype ) ! NCEP's original algorithm
+     call deter_subdomain_noLayout ( mype ) ! NCEP's original algorithm
 
   endif
 
@@ -86,7 +88,7 @@ subroutine deter_subdomain_noLayout(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind) npts,nrnc,iinum,iileft,jrows,jleft,k,i,jjnum
@@ -136,7 +138,7 @@ subroutine deter_subdomain_noLayout(mype)
            periodic_s(k)=.true.
         endif
         if(mype == izero) &
-             write(6,100) k-1,istart(k),jstart(k),ilat1(k),jlon1(k)
+             write(6,100) k-ione,istart(k),jstart(k),ilat1(k),jlon1(k)
      end do
   end do
 100 format('DETER_SUBDOMAIN:  task,istart,jstart,ilat1,jlon1=',6(i6,1x))
@@ -167,7 +169,7 @@ end subroutine deter_subdomain_noLayout
 
 ! !INPUT PARAMETERS:
 
-  integer(i_kind),intent(in) :: mype,nxpe,nype
+  integer(i_kind),intent(in   ) :: mype,nxpe,nype
 
 ! !OUTPUT PARAMETERS:
 
@@ -202,8 +204,8 @@ end subroutine deter_subdomain_noLayout
   npe=nxpe*nype
   allocate(imxy(0:nxpe-ione),jmxy(0:nype-ione), stat=ierr)
   if(ierr /= izero) then
-    write(6,*)' DETER_SUBDOMAIN: ALLOCATE ERROR.'
-    call stop2(30)
+     write(6,*)' DETER_SUBDOMAIN: ALLOCATE ERROR.'
+     call stop2(30)
   end if
  
   call GET_LOCAL_DIMS ( im,imxy,nxpe )
@@ -224,40 +226,40 @@ end subroutine deter_subdomain_noLayout
   lsety=npe/nype
   do j=0,nype-ione
      do i=0,nxpe-ione
-       k=k+ione
-       if(i>izero) then
-         if(imxy(i)<imxy(i-ione)) iinum = imxy(i)
-       end if
-       if(j>izero) then
-         if(jmxy(j)<jmxy(j-ione)) jjnum = jmxy(j)
-       end if
-       ilat1(k)=jjnum
-       jlon1(k)=iinum
-       if(k>ione) then
-         if(nxseg<=lsetx) then
-           jstart(k)=iistart+jlon1(k)
-           iistart=jstart(k)
-           nxseg=nxseg+ione
-         else
-           jstart(k)=ione
-           iistart=ione
-           nxseg=2_i_kind
-         end if
-         if(nyseg<=lsety) then
-           istart(k)=jjstart
-           nyseg=nyseg+ione
-         else
-           if(ilat1(k)<ilat1(k-ione)) then
-             istart(k)=jjstart+ilat1(k)+ione
+        k=k+ione
+        if(i>izero) then
+           if(imxy(i)<imxy(i-ione)) iinum = imxy(i)
+        end if
+        if(j>izero) then
+           if(jmxy(j)<jmxy(j-ione)) jjnum = jmxy(j)
+        end if
+        ilat1(k)=jjnum
+        jlon1(k)=iinum
+        if(k>ione) then
+           if(nxseg<=lsetx) then
+              jstart(k)=iistart+jlon1(k)
+              iistart=jstart(k)
+              nxseg=nxseg+ione
            else
-             istart(k)=jjstart+ilat1(k)
+              jstart(k)=ione
+              iistart=ione
+              nxseg=2_i_kind
            end if
-           jjstart=istart(k)
-           nyseg=2_i_kind
-         end if
-       end if
-       if(mype == izero) &
-            write(6,100) k,istart(k),jstart(k),ilat1(k),jlon1(k)
+           if(nyseg<=lsety) then
+              istart(k)=jjstart
+              nyseg=nyseg+ione
+           else
+              if(ilat1(k)<ilat1(k-ione)) then
+                 istart(k)=jjstart+ilat1(k)+ione
+              else
+                 istart(k)=jjstart+ilat1(k)
+              end if
+              jjstart=istart(k)
+              nyseg=2_i_kind
+           end if
+        end if
+        if(mype == izero) &
+             write(6,100) k,istart(k),jstart(k),ilat1(k),jlon1(k)
      end do
   end do
 
@@ -271,8 +273,8 @@ end subroutine deter_subdomain_noLayout
 
   deallocate(imxy,jmxy, stat=ierr)
   if(ierr /= izero) then
-    write(6,*)' DETER_SUBDOMAIN: DEALLOCATE ERROR.'
-    call stop2(30)
+     write(6,*)' DETER_SUBDOMAIN: DEALLOCATE ERROR.'
+     call stop2(30)
   end if 
 
 
@@ -306,9 +308,12 @@ end subroutine deter_subdomain_noLayout
 !$$$ end documentation block
 
   implicit   none
-  integer(i_kind),intent(in)::    dim_world, NDEs
-  integer(i_kind),intent(inout):: dim(0:NDEs-ione)
+
+  integer(i_kind),intent(in   ) :: dim_world, NDEs
+  integer(i_kind),intent(inout) :: dim(0:NDEs-ione)
+
   integer(i_kind)    n,im,rm
+
   im = dim_world/NDEs
   rm = dim_world-NDEs*im
   do n=0,NDEs-ione

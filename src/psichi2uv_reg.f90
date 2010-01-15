@@ -59,15 +59,15 @@ subroutine psichi2uv_reg( psi, chi,  u, v)
 !  [2.0] Compute u, v at interior points (2nd order central finite diffs):
 !------------------------------------------------------------------------------
 
-     do j = 2,nlon-ione
-        do i = 2,nlat-ione
-           u(i,j) = -( psi(i+ione,j     ) - psi(i-ione,j     ) )*coeffy(i,j) + &
-                     ( chi(i     ,j+ione) - chi(i     ,j-ione) )*coeffx(i,j)
-           
-           v(i,j) =  ( psi(i     ,j+ione) - psi(i     ,j-ione) )*coeffx(i,j) + &
-                     ( chi(i+ione,j     ) - chi(i-ione,j     ) )*coeffy(i,j)
-        end do
+  do j = 2,nlon-ione
+     do i = 2,nlat-ione
+        u(i,j) = -( psi(i+ione,j     ) - psi(i-ione,j     ) )*coeffy(i,j) + &
+                  ( chi(i     ,j+ione) - chi(i     ,j-ione) )*coeffx(i,j)
+
+        v(i,j) =  ( psi(i     ,j+ione) - psi(i     ,j-ione) )*coeffx(i,j) + &
+                  ( chi(i+ione,j     ) - chi(i-ione,j     ) )*coeffy(i,j)
      end do
+  end do
      
 
 !------------------------------------------------------------------------------
@@ -76,46 +76,46 @@ subroutine psichi2uv_reg( psi, chi,  u, v)
 
 !    [3.1] Western boundaries:
 
-        j = ione
-        do i = 2,nlat-ione
-           u(i,j) = -( psi(i+ione,j         ) - psi(i-ione,j  ) )*coeffy(i,j) + &
-                     ( chi(i     ,j+2_i_kind) - chi(i     ,j  ) )*coeffx(i,j)
-           v(i,j) =  ( psi(i     ,j+2_i_kind) - psi(i     ,j  ) )*coeffx(i,j) + &
-                     ( chi(i+ione,j         ) - chi(i-ione,j  ) )*coeffy(i,j)
-        end do
+  j = ione
+  do i = 2,nlat-ione
+     u(i,j) = -( psi(i+ione,j         ) - psi(i-ione,j  ) )*coeffy(i,j) + &
+               ( chi(i     ,j+2_i_kind) - chi(i     ,j  ) )*coeffx(i,j)
+     v(i,j) =  ( psi(i     ,j+2_i_kind) - psi(i     ,j  ) )*coeffx(i,j) + &
+               ( chi(i+ione,j         ) - chi(i-ione,j  ) )*coeffy(i,j)
+  end do
      
 !    [3.2] Eastern boundaries:
 
-        j = nlon
-        do i = 2,nlat-ione
-           u(i,j) = -( psi(i+ione,j  ) - psi(i-ione,j         ) )*coeffy(i,j) + &
-                     ( chi(i     ,j  ) - chi(i     ,j-2_i_kind) )*coeffx(i,j)
-           v(i,j) =  ( psi(i     ,j  ) - psi(i     ,j-2_i_kind) )*coeffx(i,j) + &
-                     ( chi(i+ione,j  ) - chi(i-ione,j         ) )*coeffy(i,j)
-        end do
+  j = nlon
+  do i = 2,nlat-ione
+     u(i,j) = -( psi(i+ione,j  ) - psi(i-ione,j         ) )*coeffy(i,j) + &
+               ( chi(i     ,j  ) - chi(i     ,j-2_i_kind) )*coeffx(i,j)
+     v(i,j) =  ( psi(i     ,j  ) - psi(i     ,j-2_i_kind) )*coeffx(i,j) + &
+               ( chi(i+ione,j  ) - chi(i-ione,j         ) )*coeffy(i,j)
+  end do
      
 !    [3.3] Southern boundaries:
 
-        i = ione
-        do j = 2,nlon-ione
-           u(i,j) = -( psi(i+2_i_kind,j     ) - psi(i  ,j     ) )*coeffy(i,j) + &
-                     ( chi(i         ,j+ione) - chi(i  ,j-ione) )*coeffx(i,j)
+  i = ione
+  do j = 2,nlon-ione
+     u(i,j) = -( psi(i+2_i_kind,j     ) - psi(i  ,j     ) )*coeffy(i,j) + &
+               ( chi(i         ,j+ione) - chi(i  ,j-ione) )*coeffx(i,j)
+ 
+     v(i,j) =  ( psi(i         ,j+ione) - psi(i  ,j-ione) )*coeffx(i,j) + &
+               ( chi(i+2_i_kind,j     ) - chi(i  ,j     ) )*coeffy(i,j)
            
-           v(i,j) =  ( psi(i         ,j+ione) - psi(i  ,j-ione) )*coeffx(i,j) + &
-                     ( chi(i+2_i_kind,j     ) - chi(i  ,j     ) )*coeffy(i,j)
-           
-        end do
+  end do
      
 !    [3.4] Northern boundaries:
 
-        i = nlat
-        do j = 2,nlon-ione
-           u(i,j) = -( psi(i  ,j     ) - psi(i-2_i_kind,j     ) )*coeffy(i,j) + &
-                     ( chi(i  ,j+ione) - chi(i         ,j-ione) )*coeffx(i,j)
-           
-           v(i,j) =  ( psi(i  ,j+ione) - psi(i         ,j-ione) )*coeffx(i,j) + &
-                     ( chi(i  ,j     ) - chi(i-2_i_kind,j     ) )*coeffy(i,j)
-        end do
+  i = nlat
+  do j = 2,nlon-ione
+     u(i,j) = -( psi(i  ,j     ) - psi(i-2_i_kind,j     ) )*coeffy(i,j) + &
+               ( chi(i  ,j+ione) - chi(i         ,j-ione) )*coeffx(i,j)
+
+     v(i,j) =  ( psi(i  ,j+ione) - psi(i         ,j-ione) )*coeffx(i,j) + &
+               ( chi(i  ,j     ) - chi(i-2_i_kind,j     ) )*coeffy(i,j)
+  end do
      
 !------------------------------------------------------------------------------
 !    [4.0] Corner points (assume average of surrounding points - poor?):
@@ -123,23 +123,23 @@ subroutine psichi2uv_reg( psi, chi,  u, v)
 
 !    [4.1] Bottom-left point:
 
-        u(1,1) = half * ( u(2,1) + u(1,2) )
-        v(1,1) = half * ( v(2,1) + v(1,2) )
+  u(1,1) = half * ( u(2,1) + u(1,2) )
+  v(1,1) = half * ( v(2,1) + v(1,2) )
   
 !    [4.2] Top-left point:
 
-        u(nlat,1) = half * ( u(nlat-ione,1) + u(nlat,2) )
-        v(nlat,1) = half * ( v(nlat-ione,1) + v(nlat,2) )
+  u(nlat,1) = half * ( u(nlat-ione,1) + u(nlat,2) )
+  v(nlat,1) = half * ( v(nlat-ione,1) + v(nlat,2) )
      
 !    [4.3] Bottom-right point:
 
-        u(1,nlon) = half * ( u(2,nlon) + u(1,nlon-ione) )
-        v(1,nlon) = half * ( v(2,nlon) + v(1,nlon-ione) )
+  u(1,nlon) = half * ( u(2,nlon) + u(1,nlon-ione) )
+  v(1,nlon) = half * ( v(2,nlon) + v(1,nlon-ione) )
      
 !    [4.4] Top-right point:
 
-        u(nlat,nlon) = half * ( u(nlat-ione,nlon) + u(nlat,nlon-ione) )
-        v(nlat,nlon) = half * ( v(nlat-ione,nlon) + v(nlat,nlon-ione) )
+  u(nlat,nlon) = half * ( u(nlat-ione,nlon) + u(nlat,nlon-ione) )
+  v(nlat,nlon) = half * ( v(nlat-ione,nlon) + v(nlat,nlon-ione) )
      
   
 end subroutine psichi2uv_reg
@@ -210,7 +210,7 @@ subroutine delx_reg( chi,  u,vector)
      do j = 2,nlon-ione
         do i = 1,nlat
            u(i,j) =  ( ch2(i  ,j+ione) - ch2(i  ,j-ione) )*coeffx(i,j)
-           
+
         end do
      end do
      
@@ -221,20 +221,20 @@ subroutine delx_reg( chi,  u,vector)
 
 !    [3.1] Western boundaries:
 
-        j = ione
-        do i = 1,nlat
-           u(i,j) = ( ch2(i  ,j+2_i_kind) - ch2(i  ,j         ) )*coeffx(i,j)
-        end do
-     
+     j = ione
+     do i = 1,nlat
+        u(i,j) = ( ch2(i  ,j+2_i_kind) - ch2(i  ,j         ) )*coeffx(i,j)
+     end do
+
 !    [3.2] Eastern boundaries:
 
-        j = nlon
-        do i = 1,nlat
-           u(i,j) = ( ch2(i  ,j         ) - ch2(i  ,j-2_i_kind) )*coeffx(i,j)
-        end do
+     j = nlon
+     do i = 1,nlat
+        u(i,j) = ( ch2(i  ,j         ) - ch2(i  ,j-2_i_kind) )*coeffx(i,j)
+     end do
 
   else
-     
+
 !------------------------------------------------------------------------------
 !  [2.0] Compute u, v at interior points (2nd order central finite diffs):
 !------------------------------------------------------------------------------
@@ -253,17 +253,17 @@ subroutine delx_reg( chi,  u,vector)
 
 !    [3.1] Western boundaries:
 
-        j = ione
-        do i = 1,nlat
-           u(i,j) = ( chi(i  ,j+2_i_kind) - chi(i  ,j         ) )*coeffx(i,j)
-        end do
+     j = ione
+     do i = 1,nlat
+        u(i,j) = ( chi(i  ,j+2_i_kind) - chi(i  ,j         ) )*coeffx(i,j)
+     end do
 
 !    [3.2] Eastern boundaries:
 
-        j = nlon
-        do i = 1,nlat
-           u(i,j) = ( chi(i  ,j         ) - chi(i  ,j-2_i_kind) )*coeffx(i,j)
-        end do
+     j = nlon
+     do i = 1,nlat
+        u(i,j) = ( chi(i  ,j         ) - chi(i  ,j-2_i_kind) )*coeffx(i,j)
+     end do
 
   end if
 
@@ -273,19 +273,19 @@ subroutine delx_reg( chi,  u,vector)
 
 !    [4.1] Bottom-left point:
 
-        u(1   ,1   ) = half * ( u(2        ,1   ) + u(1   ,2        ) )
-  
+  u(1   ,1   ) = half * ( u(2        ,1   ) + u(1   ,2        ) )
+ 
 !    [4.2] Top-left point:
 
-        u(nlat,1   ) = half * ( u(nlat-ione,1   ) + u(nlat,2        ) )
+  u(nlat,1   ) = half * ( u(nlat-ione,1   ) + u(nlat,2        ) )
      
 !    [4.3] Bottom-right point:
 
-        u(1,nlon   ) = half * ( u(2        ,nlon) + u(1   ,nlon-ione) )
+  u(1,nlon   ) = half * ( u(2        ,nlon) + u(1   ,nlon-ione) )
      
 !    [4.4] Top-right point:
 
-        u(nlat,nlon) = half * ( u(nlat-ione,nlon) + u(nlat,nlon-ione) )
+  u(nlat,nlon) = half * ( u(nlat-ione,nlon) + u(nlat,nlon-ione) )
 
   if(vector) then
      do j=1,nlon
@@ -361,7 +361,7 @@ subroutine dely_reg( chi,  v,vector)
 
      do j = 1,nlon
         do i = 2,nlat-ione
-           
+
            v(i,j) =  ( ch2(i+ione,j  ) - ch2(i-ione,j  ) ) * coeffy(i,j)
         end do
      end do
@@ -373,20 +373,20 @@ subroutine dely_reg( chi,  v,vector)
 
 !    [3.3] Southern boundaries:
 
-        i = ione
-        do j = 1,nlon
-           
-           v(i,j) = ( ch2(i+2_i_kind,j  ) - ch2(i         ,j  ) ) * coeffy(i,j)
-           
-        end do
+     i = ione
+     do j = 1,nlon
+ 
+        v(i,j) = ( ch2(i+2_i_kind,j  ) - ch2(i         ,j  ) ) * coeffy(i,j)
+
+     end do
      
 !    [3.4] Northern boundaries:
 
-        i = nlat
-        do j = 1,nlon
-           
-           v(i,j) = ( ch2(i         ,j  ) - ch2(i-2_i_kind,j  ) ) * coeffy(i,j)
-        end do
+     i = nlat
+     do j = 1,nlon
+ 
+        v(i,j) = ( ch2(i         ,j  ) - ch2(i-2_i_kind,j  ) ) * coeffy(i,j)
+     end do
      
   else
 
@@ -408,20 +408,20 @@ subroutine dely_reg( chi,  v,vector)
 
 !    [3.3] Southern boundaries:
 
-        i = ione
-        do j = 1,nlon
+     i = ione
+     do j = 1,nlon
 
-           v(i,j) = ( chi(i+2_i_kind,j  ) - chi(i         ,j  ) ) * coeffy(i,j)
+        v(i,j) = ( chi(i+2_i_kind,j  ) - chi(i         ,j  ) ) * coeffy(i,j)
 
-        end do
+     end do
 
 !    [3.4] Northern boundaries:
 
-        i = nlat
-        do j = 1,nlon
+     i = nlat
+     do j = 1,nlon
 
-           v(i,j) = ( chi(i         ,j  ) - chi(i-2_i_kind,j  ) ) * coeffy(i,j)
-        end do
+        v(i,j) = ( chi(i         ,j  ) - chi(i-2_i_kind,j  ) ) * coeffy(i,j)
+     end do
 
   end if
 
@@ -431,19 +431,19 @@ subroutine dely_reg( chi,  v,vector)
 
 !    [4.1] Bottom-left point:
 
-        v(1   ,1   ) = half * ( v(2        ,1   ) + v(1   ,2        ) )
+  v(1   ,1   ) = half * ( v(2        ,1   ) + v(1   ,2        ) )
   
 !    [4.2] Top-left point:
 
-        v(nlat,1   ) = half * ( v(nlat-ione,1   ) + v(nlat,2        ) )
+  v(nlat,1   ) = half * ( v(nlat-ione,1   ) + v(nlat,2        ) )
      
 !    [4.3] Bottom-right point:
 
-        v(1   ,nlon) = half * ( v(2        ,nlon) + v(1   ,nlon-ione) )
+  v(1   ,nlon) = half * ( v(2        ,nlon) + v(1   ,nlon-ione) )
      
 !    [4.4] Top-right point:
 
-        v(nlat,nlon) = half * ( v(nlat-ione,nlon) + v(nlat,nlon-ione) )
+  v(nlat,nlon) = half * ( v(nlat-ione,nlon) + v(nlat,nlon-ione) )
      
   if(vector) then
      do j=1,nlon

@@ -144,7 +144,7 @@ subroutine apply_hrm1h (nprt)
 
 implicit none
 
-integer(i_kind),intent(in) :: nprt
+integer(i_kind),intent(in   ) :: nprt
 
 type(state_vector) :: ferrin
 type(state_vector) :: ferrout
@@ -201,7 +201,7 @@ real(r_kind) :: zjx
 integer(i_kind) :: ierr
 
 if (mype==izero) then
-  write(6,*)'get_ferr_scale: read forecast error vector'
+   write(6,*)'get_ferr_scale: read forecast error vector'
 endif
 
 ferrin = zero ! not yet implemented
@@ -211,8 +211,8 @@ if (lferrscale) then
 #ifdef GEOS_PERT
       call pgcm2gsi(ferrin,'tlm',ierr,nymd_in=nymd,nhms_in=nhms,filename=fnerri)
 #endif /* GEOS_PERT */
-  zjx=dot_product(ferrin,ferrin)
-  if (mype==izero) write(6,888)'get_ferr_scale: Norm ferrin=',sqrt(zjx)
+   zjx=dot_product(ferrin,ferrin)
+   if (mype==izero) write(6,888)'get_ferr_scale: Norm ferrin=',sqrt(zjx)
 endif
 888 format(A,3(1X,ES24.18))
 
@@ -244,22 +244,22 @@ subroutine put_ferr_scale (ferrout,nymd,nhms)
 !$$$ end documentation block
 
 implicit none
-type(state_vector),intent(in) :: ferrout
-integer(i_kind)   ,intent(in) :: nymd,nhms
+type(state_vector),intent(in   ) :: ferrout
+integer(i_kind)   ,intent(in   ) :: nymd,nhms
 
 real(r_kind) :: zjx
 integer(i_kind) :: ierr
 
 if (mype==izero) then
-  write(6,*)'put_ferr_scale: store scaled forecast error vector'
+   write(6,*)'put_ferr_scale: store scaled forecast error vector'
 endif
 
 ! Write out scaled forecast error to file
 if (lferrscale) then
-  zjx=dot_product(ferrout,ferrout)
-  if (mype==izero) write(6,888)'put_ferr_scale: Norm ferrout=',sqrt(zjx)
+   zjx=dot_product(ferrout,ferrout)
+   if (mype==izero) write(6,888)'put_ferr_scale: Norm ferrout=',sqrt(zjx)
 #ifdef GEOS_PERT
-      call gsi2pgcm(nymd,nhms,ferrout,'adm',ierr,filename=fnerro)
+   call gsi2pgcm(nymd,nhms,ferrout,'adm',ierr,filename=fnerro)
 #endif /* GEOS_PERT */
 endif
 888 format(A,3(1X,ES24.18))
@@ -328,11 +328,11 @@ seqcalls = trim(calledby)//'::'//trim(myname)
 
 ! Allocate local variables
 do ii=1,nobs_bins
-  call allocate_state(sval(ii))
-  call allocate_state(rval(ii))
+   call allocate_state(sval(ii))
+   call allocate_state(rval(ii))
 end do
 do ii=1,nsubwin
-  call allocate_state(mval(ii))
+   call allocate_state(mval(ii))
 end do
 call allocate_preds(sbias)
 call allocate_preds(rbias)
@@ -352,83 +352,83 @@ endif
 
 ! Run TL model to fill sval
 if (l4dvar) then
-  call model_tl(mval,sval,llprt)
+   call model_tl(mval,sval,llprt)
 else
-  do ii=1,nobs_bins
-    sval(ii)=mval(1)
-  enddo
+   do ii=1,nobs_bins
+      sval(ii)=mval(1)
+   enddo
 end if
 
 if (nprt>=2_i_kind) then
-  do ii=1,nobs_bins
-    call prt_state_norms(sval(ii),'sval')
-  enddo
+   do ii=1,nobs_bins
+      call prt_state_norms(sval(ii),'sval')
+   enddo
 endif
 
 ! Zero gradient
 do ii=1,nobs_bins
-  rval(ii)=zero
+   rval(ii)=zero
 end do
 rbias=zero
 do ii=1,nsubwin
-  mval(ii)=zero
+   mval(ii)=zero
 end do
 
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
 do ibin=1,nobs_bins
-  call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
+   call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
 end do
 
 ! Evaluate Jo
 call evaljo(zjo,iobs,nprt,llouter)
 
 if (l_do_adjoint) then
-! Moisture constraint
-  zjl=zero_quad
+!  Moisture constraint
+   zjl=zero_quad
 
-  zjc=zero_quad
+   zjc=zero_quad
 
-  if (nprt>=2_i_kind) then
-    do ii=1,nobs_bins
-      call prt_state_norms(rval(ii),'rval')
-    enddo
-  endif
+   if (nprt>=2_i_kind) then
+      do ii=1,nobs_bins
+         call prt_state_norms(rval(ii),'rval')
+      enddo
+   endif
 
-! Run adjoint model
-  if (l4dvar) then
-    call model_ad(mval,rval,llprt)
-  else
-    mval(1)=rval(1)
-    do ii=2,nobs_bins
-      call self_add(mval(1),rval(ii))
-    enddo
-  end if
+!  Run adjoint model
+   if (l4dvar) then
+      call model_ad(mval,rval,llprt)
+   else
+      mval(1)=rval(1)
+      do ii=2,nobs_bins
+         call self_add(mval(1),rval(ii))
+      enddo
+   end if
 
-  if (nprt>=2_i_kind) then
-    do ii=1,nsubwin
-      call prt_state_norms(mval(ii),'mval')
-    enddo
-  endif
+   if (nprt>=2_i_kind) then
+      do ii=1,nsubwin
+         call prt_state_norms(mval(ii),'mval')
+      enddo
+   endif
 
-! Return result
-  xout=zero
-  call self_add(xout,mval(1))
+!  Return result
+   xout=zero
+   call self_add(xout,mval(1))
 
-! Print diagnostics
-  if (nprt>=2_i_kind) call prt_state_norms(xout,'xout')
-  if (nprt>=ione.and.mype==izero) write(6,999)trim(seqcalls),': grepcost Jb,Jo,Jc,Jl=',&
-                                     zjb,zjo,zjc,zjl
+!  Print diagnostics
+   if (nprt>=2_i_kind) call prt_state_norms(xout,'xout')
+   if (nprt>=ione.and.mype==izero) write(6,999)trim(seqcalls),': grepcost Jb,Jo,Jc,Jl=',&
+                                      zjb,zjo,zjc,zjl
 endif
 
 ! Release memory
 call deallocate_preds(rbias)
 call deallocate_preds(sbias)
 do ii=1,nsubwin
-  call deallocate_state(mval(ii))
+   call deallocate_state(mval(ii))
 end do
 do ii=1,nobs_bins
-  call deallocate_state(rval(ii))
-  call deallocate_state(sval(ii))
+   call deallocate_state(rval(ii))
+   call deallocate_state(sval(ii))
 end do
 
 999 format(2A,5(1X,ES24.18))

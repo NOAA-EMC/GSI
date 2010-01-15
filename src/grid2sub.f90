@@ -42,9 +42,9 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(nlat,nlon,nnnn1o),intent(in):: workout
-  real(r_kind),dimension(lat2,lon2),intent(out):: p,sst,slndt,sicet
-  real(r_kind),dimension(lat2,lon2,nsig),intent(out):: t,q,cwmr,oz,st,vp
+  real(r_kind),dimension(nlat,nlon,nnnn1o),intent(in   ) :: workout
+  real(r_kind),dimension(lat2,lon2)       ,intent(  out) :: p,sst,slndt,sicet
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(  out) :: t,q,cwmr,oz,st,vp
 
 ! Declare local variables
   integer(i_kind) k,l,ni1,ni2
@@ -69,18 +69,18 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
        mpi_rtype,mpi_comm_world,ierror)
 
 ! load the received subdomain vector
-     call vectosub(xtmp(nst2),latlon1n,st)
-     call vectosub(xtmp(nvp2),latlon1n,vp)
-     call vectosub(xtmp(np2),latlon11,p)
-     call vectosub(xtmp(nt2),latlon1n,t)
-     call vectosub(xtmp(nq2),latlon1n,q)
-     call vectosub(xtmp(noz2),latlon1n,oz)
-     call vectosub(xtmp(nsst2),latlon11,sst)
-     call vectosub(xtmp(nslt2),latlon11,slndt)
-     call vectosub(xtmp(nsit2),latlon11,sicet)
-     call vectosub(xtmp(ncw2),latlon1n,cwmr)
+  call vectosub(xtmp(nst2),latlon1n,st)
+  call vectosub(xtmp(nvp2),latlon1n,vp)
+  call vectosub(xtmp(np2),latlon11,p)
+  call vectosub(xtmp(nt2),latlon1n,t)
+  call vectosub(xtmp(nq2),latlon1n,q)
+  call vectosub(xtmp(noz2),latlon1n,oz)
+  call vectosub(xtmp(nsst2),latlon11,sst)
+  call vectosub(xtmp(nslt2),latlon11,slndt)
+  call vectosub(xtmp(nsit2),latlon11,sicet)
+  call vectosub(xtmp(ncw2),latlon1n,cwmr)
 
- return
+  return
 end subroutine grid2sub
 
 subroutine grid2sub2(workout,st,vp,pri,t)
@@ -117,9 +117,9 @@ subroutine grid2sub2(workout,st,vp,pri,t)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(nlat,nlon,nnnvsbal),intent(in):: workout
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(out):: pri
-  real(r_kind),dimension(lat2,lon2,nsig),intent(out):: t,st,vp
+  real(r_kind),dimension(nlat,nlon,nnnvsbal) ,intent(in   ) :: workout
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: pri
+  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(  out) :: t,st,vp
 
 ! Declare local variables
   integer(i_kind) k,l,ni1,ni2,ioff
@@ -145,19 +145,19 @@ subroutine grid2sub2(workout,st,vp,pri,t)
 
 ! load the received subdomain vector
   do k=1,nsig
-   ioff=ku_gs(k)*latlon11+ione
-   call vectosub(xtmp(ioff),latlon11,st(1,1,k))
-   ioff=kv_gs(k)*latlon11+ione
-   call vectosub(xtmp(ioff),latlon11,vp(1,1,k))
-   ioff=kt_gs(k)*latlon11+ione
-   call vectosub(xtmp(ioff),latlon11,t(1,1,k))
+     ioff=ku_gs(k)*latlon11+ione
+     call vectosub(xtmp(ioff),latlon11,st(1,1,k))
+     ioff=kv_gs(k)*latlon11+ione
+     call vectosub(xtmp(ioff),latlon11,vp(1,1,k))
+     ioff=kt_gs(k)*latlon11+ione
+     call vectosub(xtmp(ioff),latlon11,t(1,1,k))
   end do
   do k=1,nsig+ione
-   ioff=kp_gs(k)*latlon11+ione
-   call vectosub(xtmp(ioff),latlon11,pri(1,1,k))
+     ioff=kp_gs(k)*latlon11+ione
+     call vectosub(xtmp(ioff),latlon11,pri(1,1,k))
   end do
 
 
- return
+  return
 end subroutine grid2sub2
 

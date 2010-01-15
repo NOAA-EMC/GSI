@@ -87,9 +87,9 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
   implicit none
 
 ! Declare passed variables
-  type(spd_ob_type),pointer,intent(in):: spdhead
-  real(r_kind),dimension(latlon1n),intent(in):: su,sv
-  real(r_kind),dimension(latlon1n),intent(inout):: ru,rv
+  type(spd_ob_type),pointer       ,intent(in   ) :: spdhead
+  real(r_kind),dimension(latlon1n),intent(in   ) :: su,sv
+  real(r_kind),dimension(latlon1n),intent(inout) :: ru,rv
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4
@@ -118,65 +118,65 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
 
      if (ltlint) then
 
-       if (spdtra>EPSILON(spdtra)) then
-!        Forward model
-         uatl=w1*su(j1)+w2*su(j2)+w3*su(j3)+w4*su(j4)
-         vatl=w1*sv(j1)+w2*sv(j2)+w3*sv(j3)+w4*sv(j4)
-         spdatl=spdptr%uges*uatl+spdptr%vges*vatl
-         spdatl=spdatl/spdtra
+        if (spdtra>EPSILON(spdtra)) then
+!          Forward model
+           uatl=w1*su(j1)+w2*su(j2)+w3*su(j3)+w4*su(j4)
+           vatl=w1*sv(j1)+w2*sv(j2)+w3*sv(j3)+w4*sv(j4)
+           spdatl=spdptr%uges*uatl+spdptr%vges*vatl
+           spdatl=spdatl/spdtra
 
-         if (lsaveobsens) then
-           spdptr%diags%obssen(jiter)=spdptr%raterr2*spdptr%err2*spdatl
-         else
-           if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdatl
-         endif
+           if (lsaveobsens) then
+              spdptr%diags%obssen(jiter)=spdptr%raterr2*spdptr%err2*spdatl
+           else
+              if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdatl
+           endif
 
-        if (l_do_adjoint) then
-          if (lsaveobsens) then
-            grad=spdptr%diags%obssen(jiter)
-          else
-            spd=spdatl-spdptr%diags%nldepart(jiter)
-            grad=spdptr%raterr2*spdptr%err2*spd
-          endif
+           if (l_do_adjoint) then
+              if (lsaveobsens) then
+                 grad=spdptr%diags%obssen(jiter)
+              else
+                 spd=spdatl-spdptr%diags%nldepart(jiter)
+                 grad=spdptr%raterr2*spdptr%err2*spd
+              endif
 
-!         Adjoint
-          spdtra=sqrt(spdptr%err2)*spdtra
-          valu=grad*min(one,max(spdptr%uges/spdtra,-one))
-          valv=grad*min(one,max(spdptr%vges/spdtra,-one))
-         endif
-       else
-         if (spdptr%luse) spdptr%diags%tldepart(jiter)=zero
-         if (lsaveobsens) spdptr%diags%obssen(jiter)=zero
-       endif
+!             Adjoint
+              spdtra=sqrt(spdptr%err2)*spdtra
+              valu=grad*min(one,max(spdptr%uges/spdtra,-one))
+              valv=grad*min(one,max(spdptr%vges/spdtra,-one))
+           endif
+        else
+           if (spdptr%luse) spdptr%diags%tldepart(jiter)=zero
+           if (lsaveobsens) spdptr%diags%obssen(jiter)=zero
+        endif
 
 
      else ! < ltlint >
 
-!      Forward model
-       uanl=spdptr%uges+w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)
-       vanl=spdptr%vges+w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)
-       if ( l_foto ) then
-         time_spd=spdptr%time*r3600
-         uanl=uanl+&
-              time_spd*(w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-                        w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))
-         vanl=vanl+&
-              time_spd*(w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-                        w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))
-       endif
-       spdanl=sqrt(uanl*uanl+vanl*vanl)
-       if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdanl-spdtra
+!       Forward model
+        uanl=spdptr%uges+w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)
+        vanl=spdptr%vges+w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)
+        if ( l_foto ) then
+           time_spd=spdptr%time*r3600
+           uanl=uanl+&
+                time_spd*(w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
+                          w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))
+           vanl=vanl+&
+                time_spd*(w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
+                          w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))
+        endif
+        spdanl=sqrt(uanl*uanl+vanl*vanl)
+        if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdanl-spdtra
 
-       if (l_do_adjoint) then
-         valu=zero
-         valv=zero
-         spd=spdanl-spdptr%res
-         grad=spdptr%raterr2*spdptr%err2*spd
+        if (l_do_adjoint) then
+           valu=zero
+           valv=zero
+           spd=spdanl-spdptr%res
+           grad=spdptr%raterr2*spdptr%err2*spd
 
-!        Adjoint
-!        if(spdanl > tiny_r_kind*100._r_kind) then
-         if (spdanl>EPSILON(spdanl)) then
-            if (lsaveobsens) spdptr%diags%obssen(jiter)=grad
+!          Adjoint
+!          if(spdanl > tiny_r_kind*100._r_kind) then
+           if (spdanl>EPSILON(spdanl)) then
+              if (lsaveobsens) spdptr%diags%obssen(jiter)=grad
               valu=uanl/spdanl
               valv=vanl/spdanl
               if (nlnqc_iter .and. spdptr%pg > tiny_r_kind .and.  &
@@ -189,40 +189,40 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
                  term = (one-p0)
                  grad = grad*term
               endif
-            end if
-         endif ! < l_do_adjoint >
+           end if
+        endif ! < l_do_adjoint >
 
-         valu=valu*grad
-         valv=valv*grad
+        valu=valu*grad
+        valv=valv*grad
 
      endif ! < ltlint >
 
 
      if (l_do_adjoint) then
-       ru(j1)=ru(j1)+w1*valu
-       ru(j2)=ru(j2)+w2*valu
-       ru(j3)=ru(j3)+w3*valu
-       ru(j4)=ru(j4)+w4*valu
-       rv(j1)=rv(j1)+w1*valv
-       rv(j2)=rv(j2)+w2*valv
-       rv(j3)=rv(j3)+w3*valv
-       rv(j4)=rv(j4)+w4*valv
+        ru(j1)=ru(j1)+w1*valu
+        ru(j2)=ru(j2)+w2*valu
+        ru(j3)=ru(j3)+w3*valu
+        ru(j4)=ru(j4)+w4*valu
+        rv(j1)=rv(j1)+w1*valv
+        rv(j2)=rv(j2)+w2*valv
+        rv(j3)=rv(j3)+w3*valv
+        rv(j4)=rv(j4)+w4*valv
 
-       if (l_foto) then
-         valu=valu*time_spd
-         valv=valv*time_spd
-         dhat_dt%u(j1)=dhat_dt%u(j1)+w1*valu
-         dhat_dt%u(j2)=dhat_dt%u(j2)+w2*valu
-         dhat_dt%u(j3)=dhat_dt%u(j3)+w3*valu
-         dhat_dt%u(j4)=dhat_dt%u(j4)+w4*valu
-         dhat_dt%v(j1)=dhat_dt%v(j1)+w1*valv
-         dhat_dt%v(j2)=dhat_dt%v(j2)+w2*valv
-         dhat_dt%v(j3)=dhat_dt%v(j3)+w3*valv
-         dhat_dt%v(j4)=dhat_dt%v(j4)+w4*valv
-       endif
-    endif
+        if (l_foto) then
+           valu=valu*time_spd
+           valv=valv*time_spd
+           dhat_dt%u(j1)=dhat_dt%u(j1)+w1*valu
+           dhat_dt%u(j2)=dhat_dt%u(j2)+w2*valu
+           dhat_dt%u(j3)=dhat_dt%u(j3)+w3*valu
+           dhat_dt%u(j4)=dhat_dt%u(j4)+w4*valu
+           dhat_dt%v(j1)=dhat_dt%v(j1)+w1*valv
+           dhat_dt%v(j2)=dhat_dt%v(j2)+w2*valv
+           dhat_dt%v(j3)=dhat_dt%v(j3)+w3*valv
+           dhat_dt%v(j4)=dhat_dt%v(j4)+w4*valv
+        endif
+     endif
 
-    spdptr => spdptr%llpoint
+     spdptr => spdptr%llpoint
 
   end do
   return

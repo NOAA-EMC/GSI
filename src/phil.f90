@@ -35,6 +35,7 @@ use kinds, only: r_kind,i_kind
 use constants, only: izero,ione,zero,one,two,four
 
 implicit none
+
 private
 public bsort,mergeab,r_to_hil,hil_to_r,xy_to_hil,hil_to_xy,xc_to_hil,hil_to_xc
 interface bsort;     module procedure bsort_s;     end interface
@@ -84,10 +85,10 @@ recursive subroutine bsort_s(n1,n2,v,next,first)
 !=============================================================================
 implicit none
 
-integer(i_kind),                  intent(IN   ):: n1,n2
-real(r_kind),dimension(n1:n2),    intent(IN   ):: v
-integer(i_kind), dimension(n1:n2),intent(  OUT):: next
-integer(i_kind),                  intent(  OUT):: first
+integer(i_kind),                  intent(IN   ) :: n1,n2
+real(r_kind),dimension(n1:n2),    intent(IN   ) :: v
+integer(i_kind), dimension(n1:n2),intent(  OUT) :: next
+integer(i_kind),                  intent(  OUT) :: first
 !-----------------------------------------------------------------------------
 integer(i_kind),parameter                      :: L=6_i_kind
 integer(i_kind)                                :: n,na1,na2,nb1,nb2,i,j,k, &
@@ -97,7 +98,7 @@ real(r_kind)                               :: maxv
 !=============================================================================
 n=n2+ione-n1
 if(n<=L)then
-! Sort the small number of items by an order (n*n) algorithm:
+!  Sort the small number of items by an order (n*n) algorithm:
    do i=n1,n2-ione
       next(i)=i+ione
    enddo
@@ -175,11 +176,11 @@ subroutine mergeab_s(na1,nb2,firsta,firstb, v,next,first)
 !=============================================================================
 implicit none
 
-integer(i_kind),                    intent(IN   ):: na1,nb2, &
+integer(i_kind),                    intent(IN   ) :: na1,nb2, &
                                             firsta,firstb
-real(r_kind),dimension(na1:nb2),    intent(IN   ):: v
-integer(i_kind), dimension(na1:nb2),intent(INOUT):: next
-integer(i_kind),                    intent(  OUT):: first
+real(r_kind),dimension(na1:nb2),    intent(IN   ) :: v
+integer(i_kind), dimension(na1:nb2),intent(INOUT) :: next
+integer(i_kind),                    intent(  OUT) :: first
 !-----------------------------------------------------------------------------
 integer(i_kind),parameter                        :: hugeint= 1000000_i_kind
 integer(i_kind)                                  :: idum,ia,ib,ic,id
@@ -253,9 +254,9 @@ subroutine hil_to_r_s(lgen,ngen,hil4,r)
 !$$$ end documentation block
 implicit none
 
-integer(i_kind),                     intent(IN ):: lgen,ngen
-integer(i_kind),dimension(lgen:ngen),intent(IN ):: hil4
-real(r_kind),                        intent(OUT):: r
+integer(i_kind),                     intent(IN   ) :: lgen,ngen
+integer(i_kind),dimension(lgen:ngen),intent(IN   ) :: hil4
+real(r_kind),                        intent(  OUT) :: r
 !-----------------------------------------------------------------------------
 real(r_kind),parameter                          :: f=one/four
 real(r_kind)                                    :: p
@@ -295,9 +296,9 @@ subroutine r_to_hil_s(lgen,ngen,r,hil4)
 !$$$ end documentation block
 implicit none
 
-integer(i_kind),                     intent(IN ):: lgen,ngen
-real(r_kind),                        intent(IN ):: r
-integer(i_kind),dimension(lgen:ngen),intent(OUT):: hil4
+integer(i_kind),                     intent(IN   ) :: lgen,ngen
+real(r_kind),                        intent(IN   ) :: r
+integer(i_kind),dimension(lgen:ngen),intent(  OUT) :: hil4
 !-----------------------------------------------------------------------------
 real(r_kind)                                    :: t
 integer(i_kind)                                 :: i
@@ -345,9 +346,9 @@ subroutine xy_to_hil_s(ngen,x,y,hil4)
 !=============================================================================
 implicit none
 
-integer(i_kind),                intent(IN ):: ngen
-real(r_kind),                   intent(IN ):: x,y
-integer(i_kind),dimension(ngen),intent(OUT):: hil4
+integer(i_kind),                intent(IN   ) :: ngen
+real(r_kind),                   intent(IN   ) :: x,y
+integer(i_kind),dimension(ngen),intent(  OUT) :: hil4
 !-----------------------------------------------------------------------------
 real(r_kind)                               :: xr,yr
 integer(i_kind),dimension(ngen)            :: dig4
@@ -375,7 +376,7 @@ do igen=1,ngen
       xr=xr-one
    endif
    if(yr>=one)then
-      dig4(igen)=dig4(igen)+2
+      dig4(igen)=dig4(igen)+2_i_kind
       yr=yr-one
    endif
 enddo
@@ -423,9 +424,9 @@ subroutine hil_to_xy_s(ngen,hil4,x,y)
 !=============================================================================
 implicit none
 
-integer(i_kind),                intent(IN ):: ngen
-integer(i_kind),dimension(ngen),intent(IN ):: hil4
-real(r_kind),                   intent(OUT):: x,y
+integer(i_kind),                intent(IN   ) :: ngen
+integer(i_kind),dimension(ngen),intent(IN   ) :: hil4
+real(r_kind),                   intent(  OUT) :: x,y
 !-----------------------------------------------------------------------------
 real(r_kind)                               :: frac
 integer(i_kind),dimension(0:3, 0:7)        :: xtable,ytable,ptable
@@ -490,9 +491,9 @@ subroutine xc_to_hil_s(ngen,xc,hil4)
 !=============================================================================
 implicit none
 
-integer(i_kind),                   intent(IN ):: ngen
-real(r_kind),dimension(3),         intent(IN ):: xc
-integer(i_kind), dimension(0:ngen),intent(OUT):: hil4
+integer(i_kind),                   intent(IN   ) :: ngen
+real(r_kind),dimension(3),         intent(IN   ) :: xc
+integer(i_kind), dimension(0:ngen),intent(  OUT) :: hil4
 !-----------------------------------------------------------------------------
 real(r_kind)                              :: ax,ay,s,t,x,y,z
 !=============================================================================
@@ -583,27 +584,27 @@ subroutine hil_to_xc_s(ngen,hil4,xc)
 !=============================================================================
 implicit none
 
-integer(i_kind),                   intent(IN ):: ngen
-integer(i_kind), dimension(0:ngen),intent(IN ):: hil4
-real(r_kind),dimension(3),         intent(OUT):: xc
+integer(i_kind),                   intent(IN   ) :: ngen
+integer(i_kind), dimension(0:ngen),intent(IN   ) :: hil4
+real(r_kind),dimension(3),         intent(  OUT) :: xc
 !-----------------------------------------------------------------------------
 real(r_kind)                                  :: ax,ay,s,t,x,y,z,rr
 integer(i_kind)                               :: quad
 !=============================================================================
 call hil_to_xy(ngen,hil4(1:ngen),x,y)
-quad=mod(hil4(0),4)
+quad=mod(hil4(0),4_i_kind)
 select case(quad)
-case(0)
-   x=x-one
-case(1)
-   t=x
-   x=-y
-   y=-t
-case(2)
-   t=x
-   x=y
-   y=t-one
-case(3)
+   case(0)
+      x=x-one
+   case(1)
+      t=x
+      x=-y
+      y=-t
+   case(2)
+      t=x
+      x=y
+      y=t-one
+   case(3)
 end select
 ax=abs(x)
 ay=abs(y)

@@ -42,9 +42,9 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: sfvar,vpvar,tvar
-  real(r_kind),dimension(lat2,lon2),intent(inout):: psvar
-  integer(i_kind),intent(in):: mype
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: sfvar,vpvar,tvar
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: psvar
+  integer(i_kind)                       ,intent(in   ) :: mype
 
 ! Declare local variables
   real(r_kind),dimension(lat2,lon2,nsig):: bald,balt
@@ -101,85 +101,85 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 
 ! Get delta variables
   do k=1,nsig
-    do j=1,lon2
-      do i=1,lat2
-        deltv(i,j,k) =ges_tv(i,j,k,nfldsig)-ges_tv(i,j,k,1)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           deltv(i,j,k) =ges_tv(i,j,k,nfldsig)-ges_tv(i,j,k,1)
+        end do
+     end do
   end do
   do j=1,lon2
-    do i=1,lat2
-      delps(i,j) = ges_ps(i,j,nfldsig)-ges_ps(i,j,1)
-    end do
+     do i=1,lat2
+        delps(i,j) = ges_ps(i,j,nfldsig)-ges_ps(i,j,1)
+     end do
   end do
 
 ! Balanced surface pressure and velocity potential from delta stream function
   do k=1,nsig
-    do j=1,lon2
-      do i=1,lat2
-        bald(i,j,k)=bvz(i,k)*delpsi(i,j,k)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           bald(i,j,k)=bvz(i,k)*delpsi(i,j,k)
+        end do
+     end do
   end do
   if(fpsproj)then
-    do k=1,nsig
-      do j=1,lon2
-        do i=1,lat2
-          balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
+           end do
         end do
-      end do
-    end do
+     end do
   else
-    do j=1,lon2
-      do i=1,lat2
-        do k=1,nsig-ione
-          balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
+     do j=1,lon2
+        do i=1,lat2
+           do k=1,nsig-ione
+              balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
+           end do
+           balps(i,j)=balps(i,j)+wgvz(i,nsig)*(delchi(i,j,1)-bald(i,j,1))
         end do
-        balps(i,j)=balps(i,j)+wgvz(i,nsig)*(delchi(i,j,1)-bald(i,j,1))
-      end do
-    end do
+     end do
   endif
 
 ! Balanced temperature from delta stream function
   do k=1,nsig
-    do l=1,nsig
-      do j=1,lon2
-        do i=1,lat2
-          balt(i,j,l)=balt(i,j,l)+agvz(i,l,k)*delpsi(i,j,k)
+     do l=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              balt(i,j,l)=balt(i,j,l)+agvz(i,l,k)*delpsi(i,j,k)
+           end do
         end do
-      end do
-    end do
+     end do
   end do
 
 ! Subtract off balanced parts
   do k=1,nsig
-    do j=1,lon2
-      do i=1,lat2
-        deltv (i,j,k) = deltv (i,j,k) - balt(i,j,k)
-        delchi(i,j,k) = delchi(i,j,k) - bald(i,j,k)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           deltv (i,j,k) = deltv (i,j,k) - balt(i,j,k)
+           delchi(i,j,k) = delchi(i,j,k) - bald(i,j,k)
+        end do
+     end do
   end do
   do j=1,lon2
-    do i=1,lat2
-      delps(i,j) = delps(i,j) - balps(i,j)
-    end do
+     do i=1,lat2
+        delps(i,j) = delps(i,j) - balps(i,j)
+     end do
   end do
 
 ! Convert to root mean square
   do k=1,nsig
-    do j=1,lon2
-      do i=1,lat2
-        delpsi(i,j,k)=sqrt( delpsi(i,j,k)**two )
-        delchi(i,j,k)=sqrt( delchi(i,j,k)**two )
-        deltv (i,j,k)=sqrt( deltv (i,j,k)**two )
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           delpsi(i,j,k)=sqrt( delpsi(i,j,k)**two )
+           delchi(i,j,k)=sqrt( delchi(i,j,k)**two )
+           deltv (i,j,k)=sqrt( deltv (i,j,k)**two )
+        end do
+     end do
   end do
   do j=1,lon2
-    do i=1,lat2
-      delps(i,j)=sqrt( delps(i,j)**two )
-    end do
+     do i=1,lat2
+        delps(i,j)=sqrt( delps(i,j)**two )
+     end do
   end do
 
 
@@ -197,33 +197,33 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   mean_dps=zero_quad
 
   do k=1,nsig
-    do j=2,lon2-ione
-      do i=2,lat2-ione
-        mean_dz(k) = mean_dz(k) + delpsi(i,j,k)
-        mean_dd(k) = mean_dd(k) + delchi(i,j,k)
-        mean_dt(k) = mean_dt(k) + deltv (i,j,k)
-
-        max_dz(k)=max(max_dz(k),delpsi(i,j,k))
-        max_dd(k)=max(max_dd(k),delchi(i,j,k))
-        max_dt(k)=max(max_dt(k),deltv (i,j,k))
-      end do
-    end do
+     do j=2,lon2-ione
+        do i=2,lat2-ione
+           mean_dz(k) = mean_dz(k) + delpsi(i,j,k)
+           mean_dd(k) = mean_dd(k) + delchi(i,j,k)
+           mean_dt(k) = mean_dt(k) + deltv (i,j,k)
+ 
+           max_dz(k)=max(max_dz(k),delpsi(i,j,k))
+           max_dd(k)=max(max_dd(k),delchi(i,j,k))
+           max_dt(k)=max(max_dt(k),deltv (i,j,k))
+        end do
+     end do
   end do
   do j=2,lon2-ione
-    do i=2,lat2-ione
-      mean_dps = mean_dps + delps(i,j)
-      max_dps  = max(max_dps,delps(i,j))
-    end do
+     do i=2,lat2-ione
+        mean_dps = mean_dps + delps(i,j)
+        max_dps  = max(max_dps,delps(i,j))
+     end do
   end do
 
 ! Break quadruple precision into two double precision arrays
   do k=1,nsig
-    mean_dz0(k,1,mm1) = mean_dz(k)
-    mean_dz0(k,2,mm1) = mean_dz(k) - mean_dz0(k,1,mm1)
-    mean_dd0(k,1,mm1) = mean_dd(k)
-    mean_dd0(k,2,mm1) = mean_dd(k) - mean_dd0(k,1,mm1)
-    mean_dt0(k,1,mm1) = mean_dt(k)
-    mean_dt0(k,2,mm1) = mean_dt(k) - mean_dt0(k,1,mm1)
+     mean_dz0(k,1,mm1) = mean_dz(k)
+     mean_dz0(k,2,mm1) = mean_dz(k) - mean_dz0(k,1,mm1)
+     mean_dd0(k,1,mm1) = mean_dd(k)
+     mean_dd0(k,2,mm1) = mean_dd(k) - mean_dd0(k,1,mm1)
+     mean_dt0(k,1,mm1) = mean_dt(k)
+     mean_dt0(k,2,mm1) = mean_dt(k) - mean_dt0(k,1,mm1)
   end do
   mean_dps0(1,mm1) = mean_dps
   mean_dps0(2,mm1) = mean_dps - mean_dps0(1,mm1)
@@ -243,27 +243,27 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   mean_dz =zero_quad ; mean_dd=zero_quad ; mean_dt=zero_quad
   mean_dps=zero_quad
   do i=1,npe
-    do k=1,nsig
-      mean_dz(k) = mean_dz(k) + mean_dz1(k,1,i) + mean_dz1(k,2,i)
-      mean_dd(k) = mean_dd(k) + mean_dd1(k,1,i) + mean_dd1(k,2,i)
-      mean_dt(k) = mean_dt(k) + mean_dt1(k,1,i) + mean_dt1(k,2,i)
-    end do
-    mean_dps = mean_dps + mean_dps1(1,i) + mean_dps1(2,i)
+     do k=1,nsig
+        mean_dz(k) = mean_dz(k) + mean_dz1(k,1,i) + mean_dz1(k,2,i)
+        mean_dd(k) = mean_dd(k) + mean_dd1(k,1,i) + mean_dd1(k,2,i)
+        mean_dt(k) = mean_dt(k) + mean_dt1(k,1,i) + mean_dt1(k,2,i)
+     end do
+     mean_dps = mean_dps + mean_dps1(1,i) + mean_dps1(2,i)
   end do
 
 ! Divide by number of grid points to get the mean
   do k=1,nsig
-    mean_dz(k)=mean_dz(k)/count
-    mean_dd(k)=mean_dd(k)/count
-    mean_dt(k)=mean_dt(k)/count
+     mean_dz(k)=mean_dz(k)/count
+     mean_dd(k)=mean_dd(k)/count
+     mean_dt(k)=mean_dt(k)/count
   end do
   mean_dps = mean_dps/count
 
 ! Load quad precision array back into double precision array for use
   do k=1,nsig
-    mean_dzout(k)=mean_dz(k)
-    mean_ddout(k)=mean_dd(k)
-    mean_dtout(k)=mean_dt(k)
+     mean_dzout(k)=mean_dz(k)
+     mean_ddout(k)=mean_dd(k)
+     mean_dtout(k)=mean_dt(k)
   end do
   mean_dpsout = mean_dps
 
@@ -282,22 +282,22 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 
 ! Get rescaling factor for each of the variables based on factor, mean, and max
   do k=1,nsig
-    do j=1,lon2
-      do i=1,lat2
-        sfvar(i,j,k)=sfvar(i,j,k)* &          
-            (one + bkgv_rewgtfct*(delpsi(i,j,k)-mean_dzout(k))*rmax_dz0(k))
-        vpvar(i,j,k)=vpvar(i,j,k)* &
-            (one + bkgv_rewgtfct*(delchi(i,j,k)-mean_ddout(k))*rmax_dd0(k))
-        tvar(i,j,k)=tvar(i,j,k)*  &         
-            (one + bkgv_rewgtfct*(deltv (i,j,k)-mean_dtout(k))*rmax_dt0(k))
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           sfvar(i,j,k)=sfvar(i,j,k)* &          
+                (one + bkgv_rewgtfct*(delpsi(i,j,k)-mean_dzout(k))*rmax_dz0(k))
+           vpvar(i,j,k)=vpvar(i,j,k)* &
+                (one + bkgv_rewgtfct*(delchi(i,j,k)-mean_ddout(k))*rmax_dd0(k))
+           tvar(i,j,k)=tvar(i,j,k)*  &         
+                (one + bkgv_rewgtfct*(deltv (i,j,k)-mean_dtout(k))*rmax_dt0(k))
+        end do
+     end do
   end do
   do j=1,lon2
-    do i=1,lat2
-      psvar(i,j)=psvar(i,j)* &          
-           (one + bkgv_rewgtfct*(delps(i,j)-mean_dpsout)*rmax_dps0)
-    end do
+     do i=1,lat2
+        psvar(i,j)=psvar(i,j)* &          
+             (one + bkgv_rewgtfct*(delps(i,j)-mean_dpsout)*rmax_dps0)
+     end do
   end do
 
 
@@ -353,8 +353,8 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: vordiv1,vordiv2
-  real(r_kind),dimension(lat2,lon2,nsig),intent(out):: dpsichi
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: vordiv1,vordiv2
+  real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: dpsichi
 
 ! Declare local variables
   integer(i_kind) i,j,k,kk,ni1,ni2
@@ -368,10 +368,10 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
 
 ! Zero out work arrays
   do k=1,nuvlevs
-    do j=1,itotsub
-      work1(j,k)=zero
-      work2(j,k)=zero
-    end do
+     do j=1,itotsub
+        work1(j,k)=zero
+        work2(j,k)=zero
+     end do
   end do
 
 ! Strip off endpoints arrays on subdomains
@@ -388,31 +388,31 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
 
 ! Perform scalar g2s on work array
   do k=1,nnnuvlevs
-    spc1=zero 
-    work3=zero
+     spc1=zero 
+     work3=zero
 
-    do kk=1,iglobal
-      ni1=ltosi(kk); ni2=ltosj(kk)
-      work3(ni1,ni2)=work2(kk,k)
-    end do
+     do kk=1,iglobal
+        ni1=ltosi(kk); ni2=ltosj(kk)
+        work3(ni1,ni2)=work2(kk,k)
+     end do
 
-    call g2s0(spc1,work3)
+     call g2s0(spc1,work3)
 
 ! Inverse laplacian
-    do i=2,ncd2
-      spc1(2*i-ione)=spc1(2*i-ione)/(-enn1(i))
-      spc1(2*i)=spc1(2*i)/(-enn1(i))
-    end do
-    spc1(1)=zero
-    spc1(2)=zero
+     do i=2,ncd2
+        spc1(2*i-ione)=spc1(2*i-ione)/(-enn1(i))
+        spc1(2*i)=spc1(2*i)/(-enn1(i))
+     end do
+     spc1(1)=zero
+     spc1(2)=zero
 
-    work3=zero 
-    call s2g0(spc1,work3)
+     work3=zero 
+     call s2g0(spc1,work3)
 
-    do kk=1,itotsub
-      ni1=ltosi_s(kk); ni2=ltosj_s(kk)
-      work1(kk,k)=work3(ni1,ni2)
-    end do
+     do kk=1,itotsub
+        ni1=ltosi_s(kk); ni2=ltosj_s(kk)
+        work1(kk,k)=work3(ni1,ni2)
+     end do
   end do  !end do nuvlevs
 
 ! Reorder the work array for the mpi communication
@@ -457,8 +457,8 @@ subroutine smooth2d(subd,nlevs,nsmooth,mype)
   use constants, only: izero,ione,zero,half,one,two,three,four
   implicit none
 
-  integer(i_kind),intent(in):: nlevs,mype,nsmooth
-  real(r_kind),intent(inout):: subd(lat2,lon2,nlevs)
+  integer(i_kind),intent(in   ) :: nlevs,mype,nsmooth
+  real(r_kind)   ,intent(inout) :: subd(lat2,lon2,nlevs)
 
   real(r_kind),dimension(nlat,nlon):: grd
   real(r_kind),dimension(nlat,0:nlon+ione):: grd2
@@ -480,51 +480,51 @@ subroutine smooth2d(subd,nlevs,nsmooth,mype)
 
 
   do k=1,nlevs
-    call gather_stuff2(subd(1,1,k),grd,mype,workpe)
-
-    if (mype==workpe) then
+     call gather_stuff2(subd(1,1,k),grd,mype,workpe)
+ 
+     if (mype==workpe) then
 ! Do nsmooth number of passes over the 9pt smoother
-      do n=1,nsmooth
+        do n=1,nsmooth
 
 ! Load grd2 which is used in computing the smoothed fields
-        do j=1,nlon
-          do i=1,nlat
-            grd2(i,j)=grd(i,j)
-          end do
-        end do
+           do j=1,nlon
+              do i=1,nlat
+                 grd2(i,j)=grd(i,j)
+              end do
+           end do
 
 ! Load longitude wrapper rows
-        do i=1,nlat
-          grd2(i,0)=grd(i,nlon)
-          grd2(i,nlon+ione)=grd(i,1)
-        end do
+           do i=1,nlat
+              grd2(i,0)=grd(i,nlon)
+              grd2(i,nlon+ione)=grd(i,1)
+           end do
 
 ! special treatment for near-poles
-        sumn=zero
-        sums=zero
-        do i=1,nlon
-          sumn=sumn+grd2(nlat-ione,i)
-          sums=sums+grd2(2,i)
-        end do
-        sumn=sumn/(real(nlon,r_kind))
-        sums=sums/(real(nlon,r_kind))
-        do i=0,nlon+ione
-          grd2(nlat,i)=sumn
-          grd2(1,i)=sums
-        end do
+           sumn=zero
+           sums=zero
+           do i=1,nlon
+              sumn=sumn+grd2(nlat-ione,i)
+              sums=sums+grd2(2,i)
+           end do
+           sumn=sumn/(real(nlon,r_kind))
+           sums=sums/(real(nlon,r_kind))
+           do i=0,nlon+ione
+              grd2(nlat,i)=sumn
+              grd2(1,i)=sums
+           end do
 ! Perform smoother on interior 
-        do j=1,nlon
-          do i=2,nlat-ione
-            temp = cent*grd2(i,j) + side*(grd2(i+ione,j) + &
-               grd2(i-ione,j) + grd2(i,j+ione) + grd2(i,j-ione)) + &
-               corn*(grd2(i+ione,j+ione) + grd2(i+ione,j-ione) + grd2(i-ione,j-ione) + &
-               grd2(i-ione,j+ione))
-            grd(i,j) = temp*rterm
-          end do
-        end do
-      end do    ! n smooth number of passes
-    end if    ! mype
-    call scatter_stuff2(grd,subd(1,1,k),mype,workpe)
+           do j=1,nlon
+              do i=2,nlat-ione
+                 temp = cent*grd2(i,j) + side*(grd2(i+ione,j) + &
+                    grd2(i-ione,j) + grd2(i,j+ione) + grd2(i,j-ione)) + &
+                    corn*(grd2(i+ione,j+ione) + grd2(i+ione,j-ione) + grd2(i-ione,j-ione) + &
+                    grd2(i-ione,j+ione))
+                 grd(i,j) = temp*rterm
+              end do
+           end do
+        end do    ! n smooth number of passes
+     end if    ! mype
+     call scatter_stuff2(grd,subd(1,1,k),mype,workpe)
   end do  ! k levs
 
 ! Get back on subdomains
@@ -564,9 +564,9 @@ subroutine gather_stuff2(f,g,mype,outpe)
   use mpimod, only: mpi_rtype,mpi_comm_world,ierror,strip,reorder
   implicit none
 
-  integer(i_kind),intent(in):: mype,outpe
-  real(r_kind),intent(in):: f(lat2,lon2)
-  real(r_kind),intent(out):: g(nlat,nlon)
+  integer(i_kind),intent(in   ) :: mype,outpe
+  real(r_kind)   ,intent(in   ) :: f(lat2,lon2)
+  real(r_kind)   ,intent(  out) :: g(nlat,nlon)
 
   real(r_kind) fsm(lat1,lon1)
   real(r_kind),allocatable:: tempa(:)
@@ -583,9 +583,9 @@ subroutine gather_stuff2(f,g,mype,outpe)
   call reorder(tempa,ione,ione)
 
   do ii=1,iglobal
-    i=ltosi(ii)
-    j=ltosj(ii)
-    g(i,j)=tempa(ii)
+     i=ltosi(ii)
+     j=ltosj(ii)
+     g(i,j)=tempa(ii)
   end do
 
 
@@ -627,10 +627,10 @@ subroutine scatter_stuff2(g,f,mype,inpe)
   use mpimod, only: mpi_rtype,mpi_comm_world,ierror
   implicit none
 
-  integer(i_kind),intent(in):: mype,inpe
+  integer(i_kind),intent(in   ) :: mype,inpe
 
-  real(r_kind),intent(in):: g(nlat,nlon)
-  real(r_kind),intent(out):: f(lat2,lon2)
+  real(r_kind)   ,intent(in   ) :: g(nlat,nlon)
+  real(r_kind)   ,intent(  out) :: f(lat2,lon2)
 
   real(r_kind),allocatable:: tempa(:)
   integer(i_kind) i,ii,isize,j,mm1
@@ -641,10 +641,10 @@ subroutine scatter_stuff2(g,f,mype,inpe)
   mm1=mype+ione
 
   if (mype==inpe) then
-    do ii=1,itotsub
-      i=ltosi_s(ii) ; j=ltosj_s(ii)
-      tempa(ii)=g(i,j)
-    end do
+     do ii=1,itotsub
+        i=ltosi_s(ii) ; j=ltosj_s(ii)
+        tempa(ii)=g(i,j)
+     end do
   end if
 
   call mpi_scatterv(tempa,ijn_s,displs_s,mpi_rtype,&

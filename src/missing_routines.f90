@@ -19,6 +19,7 @@ subroutine dsyev
 !
 !$$$ end documentation block
 implicit none
+
 end subroutine dsyev
 
 subroutine dsteqr
@@ -42,6 +43,7 @@ subroutine dsteqr
 !
 !$$$ end documentation block
 implicit none
+
 end subroutine dsteqr
 
 subroutine dptsv
@@ -65,6 +67,7 @@ subroutine dptsv
 !
 !$$$ end documentation block
 implicit none
+
 end subroutine dptsv
 
 subroutine flush(lu)
@@ -89,6 +92,8 @@ subroutine flush(lu)
 !$$$ end documentation block
 use kinds, only : i_kind
 implicit none
-integer(i_kind),intent(in):: lu
+
+integer(i_kind),intent(in   ) :: lu
+
 end subroutine flush
 

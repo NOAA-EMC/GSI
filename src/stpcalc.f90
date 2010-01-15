@@ -193,7 +193,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use mpimod, only: mype
-  use constants, only:  zero,one_tenth,half,one,zero_quad
+  use constants, only: izero,ione,zero,one_tenth,half,one,zero_quad
   use gsi_4dvar, only: nobs_bins, ltlint
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
        l_foto,xhat_dt,dhat_dt,nvals_len
@@ -209,22 +209,22 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   implicit none
 
 ! Declare passed variables
-  real(r_kind),intent(inout):: stpinout
-  logical,     intent(inout):: end_iter
-  real(r_kind),intent(out)  :: penalty
-  real(r_kind),intent(out)  :: pjcost(4)
+  real(r_kind)        ,intent(inout) :: stpinout
+  logical             ,intent(inout) :: end_iter
+  real(r_kind)        ,intent(  out) :: penalty
+  real(r_kind)        ,intent(  out) :: pjcost(4)
 
-  type(control_vector),intent(inout)::xhat
-  type(control_vector),intent(in)::dirx,diry
-  type(state_vector),  intent(in)::sval(nobs_bins)
-  type(state_vector),  intent(in)::dval(nobs_bins)
-  type(predictors),    intent(in)::sbias,dbias
+  type(control_vector),intent(inout) :: xhat
+  type(control_vector),intent(in   ) :: dirx,diry
+  type(state_vector)  ,intent(in   ) :: sval(nobs_bins)
+  type(state_vector)  ,intent(in   ) :: dval(nobs_bins)
+  type(predictors)    ,intent(in   ) :: sbias,dbias
 
 
 ! Declare local parameters
-  integer(i_kind),parameter:: ipen = 5+nobs_type
-  integer(i_kind),parameter:: istp_iter = 5
-  integer(i_kind),parameter:: ipenlin = 3
+  integer(i_kind),parameter:: ipen = 5_i_kind+nobs_type
+  integer(i_kind),parameter:: istp_iter = 5_i_kind
+  integer(i_kind),parameter:: ipenlin = 3_i_kind
   integer(i_kind),parameter:: ioutpen = istp_iter*4
 
 ! Declare local variables
@@ -246,10 +246,10 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   call timer_ini('stpcalc')
 
 ! Initialize variable
-  mm1=mype+1
+  mm1=mype+ione
   stp(0)=stpinout
   outpen = zero
-  nsteptot=0
+  nsteptot=izero
 
 !   Begin calculating contributions to penalty and stepsize for various terms
 !
@@ -301,9 +301,9 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 ! Contraint and 3dvar terms
   if(l_foto )then
-    call allocate_state(dhat_dt)
-    call assign_scalar2state(dhat_dt,zero)
-    call stp3dvar(dval(1),dhat_dt)
+     call allocate_state(dhat_dt)
+     call assign_scalar2state(dhat_dt,zero)
+     call stp3dvar(dval(1),dhat_dt)
 
   end if
 
@@ -314,191 +314,191 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 ! iterate over number of stepsize iterations (istp_iter - currently set to 2)
   stepsize: do ii=1,istp_iter
 
-!  Delta stepsize
-    dels=one_tenth ** ii
+!    Delta stepsize
+     dels=one_tenth ** ii
   
-    sges(1)= stp(ii-1)
-    sges(2)=(one-dels)*stp(ii-1)
-    sges(3)=(one+dels)*stp(ii-1)
+     sges(1)= stp(ii-ione)
+     sges(2)=(one-dels)*stp(ii-ione)
+     sges(3)=(one+dels)*stp(ii-ione)
 
-    bcoef=0.25_r_quad/(dels*stp(ii-1))
-    ccoef=0.5_r_quad/(dels*dels*stp(ii-1)*stp(ii-1))
+     bcoef=0.25_r_quad/(dels*stp(ii-ione))
+     ccoef=0.5_r_quad/(dels*dels*stp(ii-ione)*stp(ii-ione))
 
-    if(ii == 1)then
-!   First stepsize iteration include current J calculation in position ipenloc
-      nstep=4
-      sges(4)=zero
-      ipenloc=4
-    else
-!   Later stepsize iteration include only stepsize and stepsize +/- dels
-      nstep=3
-    end if
+     if(ii == ione)then
+!       First stepsize iteration include current J calculation in position ipenloc
+        nstep=4_i_kind
+        sges(4)=zero
+        ipenloc=4_i_kind
+     else
+!       Later stepsize iteration include only stepsize and stepsize +/- dels
+        nstep=3_i_kind
+     end if
 
-!   Calculate penalty values for linear terms
+!    Calculate penalty values for linear terms
 
-    do i=1,ipenlin
-      sges1=sges(1)
-      pbc(1,i)=pstart(1,i)-(2.0_r_quad*pstart(2,i)-pstart(3,i)*sges1)*sges1
-      do j=2,nstep
-        sgesj=sges(j)
-        pbc(j,i)=(-2.0_r_quad*pstart(2,i)+pstart(3,i)*(sgesj+sges1))*(sgesj-sges1)
-      end do
-    end do
-
-!   Do nonlinear terms
-
-!   penalties for moisture constraint
-    if(.not.ltlint) call stplimq(dval(1)%q,sval(1)%q,sges,pbc(1,4),pbc(1,5),nstep)
-
-!   penalties for Jo
-    do ibin=1,nobs_bins
-      call stpjo(yobs(ibin),dval(ibin),dbias,sval(ibin),sbias,sges,pbc(1,6),nstep)
-    enddo
-
-!   Gather J contributions
-    call mpl_allreduce(4,ipen,pbc)
-
-
-!   save penalty  and stepsizes
-    nsteptot=nsteptot+1
-    do j=1,ipen
-      outpen(nsteptot) = outpen(nsteptot)+pbc(1,j)
-    end do
-    outstp(nsteptot) = sges(1)
-    do i=2,nstep
-     nsteptot=nsteptot+1
-     do j=1,ipen
-      outpen(nsteptot) = outpen(nsteptot)+pbc(i,j)+pbc(1,j)
+     do i=1,ipenlin
+        sges1=sges(1)
+        pbc(1,i)=pstart(1,i)-(2.0_r_quad*pstart(2,i)-pstart(3,i)*sges1)*sges1
+        do j=2,nstep
+           sgesj=sges(j)
+           pbc(j,i)=(-2.0_r_quad*pstart(2,i)+pstart(3,i)*(sgesj+sges1))*(sgesj-sges1)
+        end do
      end do
-     outstp(nsteptot) = sges(i)
-    end do
 
-!   estimate and sum b and c
-    bsum=zero_quad
-    csum=zero_quad
-    do i=1,ipen
-      bsum(i)=bsum(i)+bcoef*(pbc(2,i)-pbc(3,i))
-      csum(i)=csum(i)+ccoef*(pbc(2,i)+pbc(3,i))
-    end do
+!    Do nonlinear terms
 
-!   estimate stepsize contributions for each term
-    bx=zero_quad
-    cx=zero_quad
-    stpx=zero
-    do i=1,ipen
-      bx=bx+bsum(i)
-      cx=cx+csum(i)
-      if(csum(i) > 1.e-20_r_kind)stpx(i)=bsum(i)/csum(i)
-    end do
+!    penalties for moisture constraint
+     if(.not.ltlint) call stplimq(dval(1)%q,sval(1)%q,sges,pbc(1,4),pbc(1,5),nstep)
 
-!   estimate of stepsize
+!    penalties for Jo
+     do ibin=1,nobs_bins
+        call stpjo(yobs(ibin),dval(ibin),dbias,sval(ibin),sbias,sges,pbc(1,6),nstep)
+     enddo
 
-    stp(ii)=stp(ii-1)
-    if(cx > 1.e-20_r_kind) stp(ii)=stp(ii)+bx/cx         ! step size estimate
+!    Gather J contributions
+     call mpl_allreduce(4,ipen,pbc)
 
-!   estimate of change in penalty
-    delpen = stp(ii)*(bx - 0.5_r_quad*stp(ii)*cx ) 
 
-!   estimate various terms in penalty on first iteration
-    if(ii == 1)then
-      pjcost(1) =  pbc(ipenloc,1) + pbc(1,1)                                ! Jb
-      pjcost(3) = (pbc(ipenloc,2) + pbc(1,2)) + (pbc(ipenloc,3) + pbc(1,3)) ! Jc
-      pjcost(4) = (pbc(ipenloc,5) + pbc(1,5)) + (pbc(ipenloc,4) + pbc(1,4)) ! Jl
-      pjcost(2) = zero
-      do i=1,nobs_type
-        pjcost(2) = pjcost(2)+pbc(ipenloc,5+i) + pbc(1,5+i)                 ! Jo
-      end do
-      penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)
-    end if
+!    save penalty  and stepsizes
+     nsteptot=nsteptot+ione
+     do j=1,ipen
+        outpen(nsteptot) = outpen(nsteptot)+pbc(1,j)
+     end do
+     outstp(nsteptot) = sges(1)
+     do i=2,nstep
+        nsteptot=nsteptot+ione
+        do j=1,ipen
+           outpen(nsteptot) = outpen(nsteptot)+pbc(i,j)+pbc(1,j)
+        end do
+        outstp(nsteptot) = sges(i)
+     end do
 
-    stpinout=stp(ii)
-!   If change in penalty is very small end stepsize calculation
-    if(abs(delpen/penalty) < 1.e-17_r_kind) then
-      if(mype == 0)then
-        if(ii == 1)write(iout_iter,100) (pbc(ipenloc,i),i=1,ipen)
-        write(iout_iter,140) ii,delpen,bx,cx,stp(ii)
+!    estimate and sum b and c
+     bsum=zero_quad
+     csum=zero_quad
+     do i=1,ipen
+        bsum(i)=bsum(i)+bcoef*(pbc(2,i)-pbc(3,i))
+        csum(i)=csum(i)+ccoef*(pbc(2,i)+pbc(3,i))
+     end do
+
+!    estimate stepsize contributions for each term
+     bx=zero_quad
+     cx=zero_quad
+     stpx=zero
+     do i=1,ipen
+        bx=bx+bsum(i)
+        cx=cx+csum(i)
+        if(csum(i) > 1.e-20_r_kind)stpx(i)=bsum(i)/csum(i)
+     end do
+
+!    estimate of stepsize
+
+     stp(ii)=stp(ii-ione)
+     if(cx > 1.e-20_r_kind) stp(ii)=stp(ii)+bx/cx         ! step size estimate
+
+!    estimate of change in penalty
+     delpen = stp(ii)*(bx - 0.5_r_quad*stp(ii)*cx ) 
+
+!    estimate various terms in penalty on first iteration
+     if(ii == ione)then
+        pjcost(1) =  pbc(ipenloc,1) + pbc(1,1)                                ! Jb
+        pjcost(3) = (pbc(ipenloc,2) + pbc(1,2)) + (pbc(ipenloc,3) + pbc(1,3)) ! Jc
+        pjcost(4) = (pbc(ipenloc,5) + pbc(1,5)) + (pbc(ipenloc,4) + pbc(1,4)) ! Jl
+        pjcost(2) = zero
+        do i=1,nobs_type
+           pjcost(2) = pjcost(2)+pbc(ipenloc,5+i) + pbc(1,5+i)                ! Jo
+        end do
+        penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)
+     end if
+
+     stpinout=stp(ii)
+!    If change in penalty is very small end stepsize calculation
+     if(abs(delpen/penalty) < 1.e-17_r_kind) then
+        if(mype == izero)then
+           if(ii == ione)write(iout_iter,100) (pbc(ipenloc,i),i=1,ipen)
+           write(iout_iter,140) ii,delpen,bx,cx,stp(ii)
+           write(iout_iter,101) (stpx(i),i=1,ipen)
+           write(iout_iter,105) (bsum(i),i=1,ipen)
+           write(iout_iter,110) (csum(i),i=1,ipen)
+        end if
+        end_iter = .true.
+!       Finalize timer
+        call timer_fnl('stpcalc')
+        return
+     end if
+
+!    Check for negative stepsize or cx <= 0. (probable error or large nonlinearity)
+     if(cx < 1.e-20_r_kind .or. stpinout < zero) then
+        stpinout=outstp(1)
+        outpensave=outpen(1)
+        do i=1,nsteptot
+           if(outpen(i) < outpensave)then
+              stpinout=outstp(i)
+              stp(ii)=stpinout
+              outpensave=outpen(i)
+           end if
+        end do
+!       Try different (better?) stepsize
+        if(stpinout <= zero .and. ii /= istp_iter)then
+           stp(ii)=outstp(2)
+           do i=1,nsteptot
+              if(outstp(i) < stp(ii) .and. stp(ii) > zero)stp(ii)=outstp(i)
+           end do
+           stp(ii)=one_tenth*stp(ii)
+        end if
+     end if
+
+!    Write out detailed results to iout_iter
+     if(ii == ione .and. mype == izero) then
+        write(iout_iter,100) (pbc(1,i) + pbc(ipenloc,i),i=1,ipen)
         write(iout_iter,101) (stpx(i),i=1,ipen)
         write(iout_iter,105) (bsum(i),i=1,ipen)
         write(iout_iter,110) (csum(i),i=1,ipen)
-      end if
-      end_iter = .true.
-!     Finalize timer
-      call timer_fnl('stpcalc')
-      return
-    end if
+     endif
+100  format(' J=',3e25.18/,(3x,3e25.18))
+101  format(' S=',3e25.18/,(3x,3e25.18))
+105  format(' b=',3e25.18/,(3x,3e25.18))
+110  format(' c=',3e25.18/,(3x,3e25.18))
+130  format('***WARNING***  negative or small cx inner', &
+            ' iteration terminated - probable error',i2,3e25.18)
+140  format('***WARNING***  expected penalty reduction small ',/,  &
+            ' inner iteration terminated - probable convergence',i2,4e25.18)
 
-! Check for negative stepsize or cx <= 0. (probable error or large nonlinearity)
-    if(cx < 1.e-20_r_kind .or. stpinout < zero) then
-      stpinout=outstp(1)
-      outpensave=outpen(1)
-      do i=1,nsteptot
-        if(outpen(i) < outpensave)then
-          stpinout=outstp(i)
-          stp(ii)=stpinout
-          outpensave=outpen(i)
-        end if
-      end do
-!  Try different (better?) stepsize
-      if(stpinout <= zero .and. ii /= istp_iter)then
-        stp(ii)=outstp(2)
-        do i=1,nsteptot
-          if(outstp(i) < stp(ii) .and. stp(ii) > zero)stp(ii)=outstp(i)
-        end do
-        stp(ii)=one_tenth*stp(ii)
-      end if
-    end if
-
-! Write out detailed results to iout_iter
-    if(ii == 1 .and. mype == 0) then
-      write(iout_iter,100) (pbc(1,i) + pbc(ipenloc,i),i=1,ipen)
-      write(iout_iter,101) (stpx(i),i=1,ipen)
-      write(iout_iter,105) (bsum(i),i=1,ipen)
-      write(iout_iter,110) (csum(i),i=1,ipen)
-    endif
-100 format(' J=',3e25.18/,(3x,3e25.18))
-101 format(' S=',3e25.18/,(3x,3e25.18))
-105 format(' b=',3e25.18/,(3x,3e25.18))
-110 format(' c=',3e25.18/,(3x,3e25.18))
-130 format('***WARNING***  negative or small cx inner', &
-           ' iteration terminated - probable error',i2,3e25.18)
-140 format('***WARNING***  expected penalty reduction small ',/,  &
-           ' inner iteration terminated - probable convergence',i2,4e25.18)
-
-!  Check for convergence in stepsize estimation
-    istp_use=ii
-    stprat=zero
-    if(stp(ii) > zero)then
-      stprat=abs((stp(ii)-stp(ii-1))/stp(ii))
-    end if
-    if(mype == 0)write(6,*)' stprat ',stprat
-    if(stprat < 1.e-4_r_kind) exit stepsize
+!    Check for convergence in stepsize estimation
+     istp_use=ii
+     stprat=zero
+     if(stp(ii) > zero)then
+        stprat=abs((stp(ii)-stp(ii-1))/stp(ii))
+     end if
+     if(mype == izero)write(6,*)' stprat ',stprat
+     if(stprat < 1.e-4_r_kind) exit stepsize
 
   end do stepsize
 
-!  Check for final stepsize negative (probable error)
+! Check for final stepsize negative (probable error)
   stpinout=stp(istp_use)
   if(stpinout < zero)then
-    if(mype == 0)then
-      write(iout_iter,130) ii,bx,cx,stp(ii)
-      write(iout_iter,101) (stpx(i),i=1,ipen)
-      write(iout_iter,105) (bsum(i),i=1,ipen)
-      write(iout_iter,110) (csum(i),i=1,ipen)
-    end if
-    end_iter = .true.
+     if(mype == izero)then
+        write(iout_iter,130) ii,bx,cx,stp(ii)
+        write(iout_iter,101) (stpx(i),i=1,ipen)
+        write(iout_iter,105) (bsum(i),i=1,ipen)
+        write(iout_iter,110) (csum(i),i=1,ipen)
+     end if
+     end_iter = .true.
   end if
-  if(mype == 0)then
-    write(iout_iter,200) (stp(i),i=0,istp_use)
-    write(iout_iter,201) (outstp(i),i=1,nsteptot)
-    write(iout_iter,202) (outpen(i)-outpen(1),i=1,nsteptot)
+  if(mype == izero)then
+     write(iout_iter,200) (stp(i),i=0,istp_use)
+     write(iout_iter,201) (outstp(i),i=1,nsteptot)
+     write(iout_iter,202) (outpen(i)-outpen(1),i=1,nsteptot)
   end if
 200 format(' stepsize estimates = ',6(e24.18,1x))
 201 format(' stepsize guesses = ',(8(e12.6,1x)))
 202 format(' penalties        = ',(8(e12.6,1x)))
 
-!  If convergence or failure of stepsize calculation return
+! If convergence or failure of stepsize calculation return
   if (end_iter) then
-    call timer_fnl('stpcalc')
-    return
+     call timer_fnl('stpcalc')
+     return
   endif
 
 ! Update solution
@@ -511,7 +511,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 ! Update time derivative of solution if required
   if(l_foto) then
      do i=1,nvals_len
-       xhat_dt%values(i)=xhat_dt%values(i)+stpinout*dhat_dt%values(i)
+        xhat_dt%values(i)=xhat_dt%values(i)+stpinout*dhat_dt%values(i)
      end do
      call tv_to_tsen(xhat_dt%t,xhat_dt%q,xhat_dt%tsen)
      call deallocate_state(dhat_dt)

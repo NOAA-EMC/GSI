@@ -85,7 +85,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !
 !$$$
 ! Use modules
-  use kinds, only: r_kind,r_single,r_double,i_kind
+  use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                finalcheck,checkob,score_crit
   use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad 
@@ -567,18 +567,18 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
              if ( isflg == izero ) then
 ! cloud checks over ocean
-                chsst = 8.28206_r_single - 0.97957_r_single * allchan(126_i_kind+ioffset) + 0.60529_r_single * &  ! AIRS science team
-                   allchan(129_i_kind+ioffset) + 1.74444_r_single * allchan(165_i_kind+ioffset) &                 ! SST calculation for
-                   - .40379_r_single * allchan(166_i_kind+ioffset)                                                ! AIRS data
+                chsst = 8.28206_r_kind - 0.97957_r_kind * allchan(126_i_kind+ioffset) + 0.60529_r_kind * &  ! AIRS science team
+                   allchan(129_i_kind+ioffset) + 1.74444_r_kind * allchan(165_i_kind+ioffset) &                 ! SST calculation for
+                   - .40379_r_kind * allchan(166_i_kind+ioffset)                                                ! AIRS data
 ! 917 cm-1 minus 2500 cm-1 cloud test valid at night for land/ocean:
 ! beyond threshold, negative >> cirrus (ice), positive >> stratus (water)
 ! 917 cm-1 minus 2664 cm-1 cloud test valid at night for land/ocean:
 ! beyond threshold, negative >> cirrus ( ice), positive >> stratus (water)
 ! 2500 cm-1 minus 2664 cm-1 cloud test valid at night for land/ocean:
 ! sensitivity test li, Jun et al. (2000) JAM
-                ch8ch18 = abs(allchan(125_i_kind+ioffset) - allchan(263_i_kind+ioffset) - .10_r_single)
-                ch8ch19 = abs(allchan(125_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .39_r_single)
-                ch18ch19 = abs(allchan(263_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .49_r_single)
+                ch8ch18 = abs(allchan(125_i_kind+ioffset) - allchan(263_i_kind+ioffset) - .10_r_kind)
+                ch8ch19 = abs(allchan(125_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .39_r_kind)
+                ch18ch19 = abs(allchan(263_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .49_r_kind)
                 if (sol_zenang > 89.0_r_kind .and. ch8ch18 < .75_r_kind .and. ch8ch19 < .55_r_kind .and. &
                     ch18ch19 < .50_r_kind .and. (chsst-tsavg) > -6.0_r_kind) then
                     chsst = tsavg
@@ -586,9 +586,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
              elseif ( isflg == ione ) then
 ! cloud checks over land
                 chsst = allchan(123_i_kind+ioffset)
-                ch8ch18 = abs(allchan(125_i_kind+ioffset) - allchan(263_i_kind+ioffset) - .39_r_single)
-                ch8ch19 = abs(allchan(125_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .13_r_single)
-                ch18ch19 = abs(allchan(263_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .52_r_single)
+                ch8ch18 = abs(allchan(125_i_kind+ioffset) - allchan(263_i_kind+ioffset) - .39_r_kind)
+                ch8ch19 = abs(allchan(125_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .13_r_kind)
+                ch18ch19 = abs(allchan(263_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .52_r_kind)
                 if (sol_zenang > 89.0_r_kind .and. ch8ch18 < .75_r_kind .and. ch8ch19 < .70_r_kind .and. &
                     ch18ch19 < .55_r_kind .and. (chsst-tsavg) > -10.0_r_kind) then
                     chsst = tsavg
@@ -606,8 +606,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
                 chsst = allchan(128_i_kind+ioffset)
                 ch8ch18 = allchan(119_i_kind+ioffset) - allchan(157_i_kind+ioffset)
                 ch8ch19 = allchan(129_i_kind+ioffset) - allchan(157_i_kind+ioffset)
-                if (ch8ch18 > -.05_r_single .and. ch8ch18 < one .and. &
-                    ch8ch19 > -.05_r_single .and. ch8ch19 < one .and. &
+                if (ch8ch18 > -.05_r_kind .and. ch8ch18 < one .and. &
+                    ch8ch19 > -.05_r_kind .and. ch8ch19 < one .and. &
                     chsst < 263.0_r_kind) then
                     chsst = tsavg
                 endif

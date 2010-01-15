@@ -71,23 +71,23 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: sst_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
+  use constants, only: izero,ione,half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
   implicit none
 
 ! Declare passed variables
-  type(sst_ob_type),pointer,intent(in):: ssthead
-  integer(i_kind),intent(in)::nstep
-  real(r_quad),dimension(max(1,nstep)),intent(out):: out
-  real(r_kind),dimension(latlon11),intent(in):: rsst,ssst
-  real(r_kind),dimension(max(1,nstep)),intent(in)::sges
+  type(sst_ob_type),pointer              ,intent(in   ) :: ssthead
+  integer(i_kind)                        ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
+  real(r_kind),dimension(latlon11)       ,intent(in   ) :: rsst,ssst
+  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
 
 ! Declare local variables  
   integer(i_kind) j1,j2,j3,j4,kk
   real(r_kind) w1,w2,w3,w4
   real(r_kind) val,val2
   real(r_kind) cg_sst,sst,wgross,wnotgross
-  real(r_kind),dimension(max(1,nstep)):: pen
+  real(r_kind),dimension(max(ione,nstep)):: pen
   real(r_kind) pg_sst
   type(sst_ob_type), pointer :: sstptr
 
@@ -95,47 +95,47 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges,nstep)
 
   sstptr => ssthead
   do while (associated(sstptr))
-    if(sstptr%luse)then
-     if(nstep > 0)then
-       j1=sstptr%ij(1)
-       j2=sstptr%ij(2)
-       j3=sstptr%ij(3)
-       j4=sstptr%ij(4)
-       w1=sstptr%wij(1)
-       w2=sstptr%wij(2)
-       w3=sstptr%wij(3)
-       w4=sstptr%wij(4)
+     if(sstptr%luse)then
+        if(nstep > izero)then
+           j1=sstptr%ij(1)
+           j2=sstptr%ij(2)
+           j3=sstptr%ij(3)
+           j4=sstptr%ij(4)
+           w1=sstptr%wij(1)
+           w2=sstptr%wij(2)
+           w3=sstptr%wij(3)
+           w4=sstptr%wij(4)
 
-       val =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
-       val2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)-sstptr%res
+           val =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
+           val2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)-sstptr%res
 
-       do kk=1,nstep
-         sst=val2+sges(kk)*val
-         pen(kk)= sst*sst*sstptr%err2
-       end do
-     else
-       pen(1)=sstptr%res*sstptr%res*sstptr%err2
+           do kk=1,nstep
+              sst=val2+sges(kk)*val
+              pen(kk)= sst*sst*sstptr%err2
+           end do
+        else
+           pen(1)=sstptr%res*sstptr%res*sstptr%err2
+        end if
+ 
+!  Modify penalty term if nonlinear QC
+        if (nlnqc_iter .and. sstptr%pg > tiny_r_kind .and.  &
+                             sstptr%b  > tiny_r_kind) then
+           pg_sst=sstptr%pg*varqc_iter
+           cg_sst=cg_term/sstptr%b
+           wnotgross= one-pg_sst
+           wgross = pg_sst*cg_sst/wnotgross
+           do kk=1,max(ione,nstep)
+              pen(kk)= -two*log((exp(-half*pen(kk)) + wgross)/(one+wgross))
+           end do
+        endif
+
+        out(1) = out(1)+pen(1)*sstptr%raterr2
+        do kk=2,nstep
+           out(kk) = out(kk)+(pen(kk)-pen(1))*sstptr%raterr2
+        end do
      end if
 
-!  Modify penalty term if nonlinear QC
-     if (nlnqc_iter .and. sstptr%pg > tiny_r_kind .and.  &
-                          sstptr%b  > tiny_r_kind) then
-        pg_sst=sstptr%pg*varqc_iter
-        cg_sst=cg_term/sstptr%b
-        wnotgross= one-pg_sst
-        wgross = pg_sst*cg_sst/wnotgross
-        do kk=1,max(1,nstep)
-          pen(kk)= -two*log((exp(-half*pen(kk)) + wgross)/(one+wgross))
-        end do
-     endif
-
-     out(1) = out(1)+pen(1)*sstptr%raterr2
-     do kk=2,nstep
-       out(kk) = out(kk)+(pen(kk)-pen(1))*sstptr%raterr2
-     end do
-    end if
-
-    sstptr => sstptr%llpoint
+     sstptr => sstptr%llpoint
 
   end do
   

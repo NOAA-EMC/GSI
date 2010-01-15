@@ -115,6 +115,14 @@ module hybrid_ensemble_parameters
   use kinds, only: i_kind,r_kind
   implicit none
 
+! set default to private
+  private
+! set subroutines to public
+  public :: init_hybrid_ensemble_parameters
+! set passed variables to public
+  public :: generate_ens,n_ens,l_hyb_ens,s_ens_h
+  public :: uv_hyb_ens,s_ens_v,beta1_inv,aniso_a_en
+
   logical l_hyb_ens,uv_hyb_ens
   logical aniso_a_en
   logical generate_ens
@@ -124,13 +132,35 @@ module hybrid_ensemble_parameters
 contains
 
 subroutine init_hybrid_ensemble_parameters
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_hybrid_ensemble_parameters
+!   prgmmr: parrish
+!
+! abstract: initialize hybird 3dvar hybrid ensemble parameters
+!
+! program history log:
+!   
+!   2010-01-13  lueken - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+  use constants, only: izero,one
+  implicit none
 
   l_hyb_ens=.false.
   uv_hyb_ens=.false.
   aniso_a_en=.false.
   generate_ens=.true.
-  n_ens=0_i_kind
-  beta1_inv=1.0_r_kind
+  n_ens=izero
+  beta1_inv=one
   s_ens_h = 2828._r_kind     !  km (this was optimal value in 
                              !   Wang, X.,D. M. Barker, C. Snyder, and T. M. Hamill, 2008: A hybrid
                              !      ETKF.3DVAR data assimilation scheme for the WRF Model. Part II: 

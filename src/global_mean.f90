@@ -26,9 +26,9 @@ subroutine global_mean(psfc,psave,mype)
   use constants, only: izero,zero,one,two
   implicit none
 
-  real(r_kind),dimension(lat2,lon2),intent(in):: psfc
-  real(r_kind),intent(out):: psave
-  integer(i_kind),intent(in):: mype
+  real(r_kind),dimension(lat2,lon2),intent(in   ) :: psfc
+  real(r_kind)                     ,intent(  out) :: psave
+  integer(i_kind)                  ,intent(in   ) :: mype
 
   real(r_kind),dimension(nlat,nlon):: psg
   real(r_kind) r_npts
@@ -41,12 +41,12 @@ subroutine global_mean(psfc,psave,mype)
   call gather_stuff2(psfc,psg,mype,wrkpe)
 
   if (mype==wrkpe) then
-    do i=1,nlat
-      do j=1,nlon
-        psave = psave + psg(i,j)*wgtlats(i)
-      end do
-    end do
-    psave=psave*r_npts
+     do i=1,nlat
+        do j=1,nlon
+           psave = psave + psg(i,j)*wgtlats(i)
+        end do
+     end do
+     psave=psave*r_npts
   end if
 
   return
@@ -82,9 +82,9 @@ subroutine global_mean_ad(psfc,psave,mype)
   use constants, only: izero,ione,zero,one,two
   implicit none
 
-  real(r_kind),dimension(lat2,lon2),intent(inout):: psfc
-  real(r_kind),intent(inout):: psave
-  integer(i_kind),intent(in):: mype
+  real(r_kind),dimension(lat2,lon2),intent(inout) :: psfc
+  real(r_kind)                     ,intent(inout) :: psave
+  integer(i_kind)                  ,intent(in   ) :: mype
 
   real(r_kind),dimension(nlat,nlon):: psg
   real(r_kind),dimension(lat2,lon2):: pstmp
@@ -96,20 +96,20 @@ subroutine global_mean_ad(psfc,psave,mype)
   wrkpe=izero
 
   if (mype==wrkpe) then
-    psave = psave*r_npts
-    do j=1,nlon
-      do i=1,nlat
-        psg(i,j) = psave*wgtlats(i)
-      end do
-    end do
+     psave = psave*r_npts
+     do j=1,nlon
+        do i=1,nlat
+           psg(i,j) = psave*wgtlats(i)
+        end do
+     end do
   end if
 
   call scatter_stuff2(psg,pstmp,mype,wrkpe)
 
   do j=2,lon2-ione
-    do i=2,lat2-ione
-      psfc(i,j)=psfc(i,j) + pstmp(i,j)
-    end do
+     do i=2,lat2-ione
+        psfc(i,j)=psfc(i,j) + pstmp(i,j)
+     end do
   end do
 
   return

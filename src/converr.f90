@@ -68,7 +68,8 @@ contains
 !$$$ end documentation block
      use constants, only: half
      implicit none
-     integer(i_kind),intent(in):: mype
+
+     integer(i_kind),intent(in   ) :: mype
 
      allocate(etabl(300,33,6))
 
@@ -91,19 +92,19 @@ contains
         end do
      end do   loopd
 
-    if(lcount<=izero .and. mype==izero) then
-       write(6,*)'CONVERR:  ***WARNING*** obs error table not available to 3dvar.'
-       oberrflg=.false.
-    else
-       if(mype == izero) write(6,*)'CONVERR:  using observation errors from user provided table'
-       allocate(ptabl(34))
-       ptabl=zero
-       ptabl(1)=etabl(120,1,1)
-       do k=2,33
-          ptabl(k)=half*(etabl(120,k-ione,1)+etabl(120,k,1))
-       enddo
-       ptabl(34)=etabl(120,33,1)
-    endif
+     if(lcount<=izero .and. mype==izero) then
+        write(6,*)'CONVERR:  ***WARNING*** obs error table not available to 3dvar.'
+        oberrflg=.false.
+     else
+        if(mype == izero) write(6,*)'CONVERR:  using observation errors from user provided table'
+        allocate(ptabl(34))
+        ptabl=zero
+        ptabl(1)=etabl(120,1,1)
+        do k=2,33
+           ptabl(k)=half*(etabl(120,k-ione,1)+etabl(120,k,1))
+        enddo
+        ptabl(34)=etabl(120,33,1)
+     endif
 
      close(ietabl)
 

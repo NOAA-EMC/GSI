@@ -93,10 +93,10 @@ subroutine divvort_to_psichi(nx0,ny0,mmax0,nmax0,rld0,qg)
 !$$$ end documentation block
       implicit none
 
-      integer(i_kind), intent(in )::nx0,ny0
-      integer(i_kind), intent(in )::mmax0,nmax0
-      real(r_single),  intent(in )::rld0(nx0,ny0)
-      real(r_single),  intent(out)::qg(nx0,ny0,2)
+      integer(i_kind), intent(in   ) :: nx0,ny0
+      integer(i_kind), intent(in   ) :: mmax0,nmax0
+      real(r_single) , intent(in   ) :: rld0(nx0,ny0)
+      real(r_single) , intent(  out) :: qg(nx0,ny0,2)
 
       real(r_kind) xmax,ymax,pi,wavey,delmn
       integer(i_kind) i,j,k,ny2,m,mm,indx
@@ -211,9 +211,9 @@ end  subroutine divvort_to_psichi
 !$$$ end documentation block
       implicit none
 
-      integer(i_kind), intent(in   )::idir
-      real(r_single),  intent(inout)::data(nx,ny)
-      complex(r_kind), intent(inout)::scr(nwavesx,ny),coeff(nwavesx,nwavesy)
+      integer(i_kind), intent(in   ) :: idir
+      real(r_single) , intent(inout) :: data(nx,ny)
+      complex(r_kind), intent(inout) :: scr(nwavesx,ny),coeff(nwavesx,nwavesy)
 !     write(6,*) 'IN fft2d,nx,ny,nwavesx,nwavesy=',nx,ny,nwavesx,nwavesy
 !-------------------------------------------------
 !==> forward transform.
@@ -265,9 +265,9 @@ end subroutine fft2d
 !$$$ end documentation block
       implicit none
 
-      integer(i_kind),intent(in )::idir
-      real(r_single), intent(out)::data(nx,ny)
-      complex(r_kind),intent(out)::coeff(nwavesx,ny)
+      integer(i_kind),intent(in   ) :: idir
+      real(r_single) ,intent(  out) :: data(nx,ny)
+      complex(r_kind),intent(  out) :: coeff(nwavesx,ny)
 
       integer(i_kind) i,j,n,npts,ndata,ndatah
       real(r_kind) a(ny/2,nx,2),c(ny/2,nx,2)
@@ -284,50 +284,50 @@ end subroutine fft2d
 !==> copy the data into the work array.
 !    transforms are computed pairwise using a complex fft.
 !    
-      do 10 j=1,npts
-      do 10 i=1,ndatah
-         a(i,j,1) = data(j,i)
-         a(i,j,2) = data(j,i+ndatah)
-10    continue
+         do 10 j=1,npts
+         do 10 i=1,ndatah
+            a(i,j,1) = data(j,i)
+            a(i,j,2) = data(j,i+ndatah)
+10       continue
 !
-      call fft2(a,c,npts,npts-ione,nfax0,ifax0,-ione,trigx,ndatah)
+         call fft2(a,c,npts,npts-ione,nfax0,ifax0,-ione,trigx,ndatah)
 !
-      do 20 i=1,ndatah
-      coeff(1,i) = c(i,1,1)
-      coeff(1,i+ndatah) = c(i,1,2)
-      do 20 n=2,nwavesx
-         coeff(n,i) = half*cmplx(c(i,n,1),c(i,n,2)) + & 
-         half*cmplx(c(i,npts-n+2_i_kind,1),-c(i,npts-n+2_i_kind,2))
-         coeff(n,i+ndatah) = half*cmplx(c(i,n,2),-c(i,n,1)) + & 
-         half*cmplx(c(i,npts-n+2_i_kind,2),c(i,npts-n+2_i_kind,1))
-20    continue
+         do 20 i=1,ndatah
+         coeff(1,i) = c(i,1,1)
+         coeff(1,i+ndatah) = c(i,1,2)
+         do 20 n=2,nwavesx
+            coeff(n,i) = half*cmplx(c(i,n,1),c(i,n,2)) + & 
+            half*cmplx(c(i,npts-n+2_i_kind,1),-c(i,npts-n+2_i_kind,2))
+            coeff(n,i+ndatah) = half*cmplx(c(i,n,2),-c(i,n,1)) + & 
+            half*cmplx(c(i,npts-n+2_i_kind,2),c(i,npts-n+2_i_kind,1))
+20       continue
 !----------------------
 !==> inverse transform.
 !----------------------
       else if (idir==-ione) then
 !
-      do 25 j=1,npts
-      do 25 i=1,ndatah
-         c(i,j,1) = zero
-         c(i,j,2) = zero
-25    continue
-      do 30 i=1,ndatah
-      c(i,1,1) = real(coeff(1,i))
-      c(i,1,2) = real(coeff(1,i+ndatah))
-      do 30 n=2,nwavesx
-         c(i,npts-n+2_i_kind,1) = real(coeff(n,i))+aimag(coeff(n,i+ndatah))
-         c(i,n,1) = real(coeff(n,i))-aimag(coeff(n,i+ndatah))
-         c(i,n,2) = aimag(coeff(n,i))+real(coeff(n,i+ndatah))
-         c(i,npts-n+2_i_kind,2) = real(coeff(n,i+ndatah))-aimag(coeff(n,i))
-30    continue
+         do 25 j=1,npts
+         do 25 i=1,ndatah
+            c(i,j,1) = zero
+            c(i,j,2) = zero
+25       continue
+         do 30 i=1,ndatah
+         c(i,1,1) = real(coeff(1,i))
+         c(i,1,2) = real(coeff(1,i+ndatah))
+         do 30 n=2,nwavesx
+            c(i,npts-n+2_i_kind,1) = real(coeff(n,i))+aimag(coeff(n,i+ndatah))
+            c(i,n,1) = real(coeff(n,i))-aimag(coeff(n,i+ndatah))
+            c(i,n,2) = aimag(coeff(n,i))+real(coeff(n,i+ndatah))
+            c(i,npts-n+2_i_kind,2) = real(coeff(n,i+ndatah))-aimag(coeff(n,i))
+30       continue
 !
-      call fft2(c,a,npts,npts-ione,nfax0,ifax0,+ione,trigx,ndatah)
+         call fft2(c,a,npts,npts-ione,nfax0,ifax0,+ione,trigx,ndatah)
 !
-      do 40 j=1,npts
-      do 40 i=1,ndatah
-         data(j,i) = a(i,j,1)
-         data(j,i+ndatah) = a(i,j,2)
-40    continue
+         do 40 j=1,npts
+         do 40 i=1,ndatah
+            data(j,i) = a(i,j,1)
+            data(j,i+ndatah) = a(i,j,2)
+40       continue
 !
       else
          write(6,*) ' idir must be +1 or -1 in rfft!'
@@ -365,8 +365,8 @@ end subroutine rfft
 !$$$ end documentation block
       implicit none
 
-      integer(i_kind),intent(in )::idir
-      complex(r_kind),intent(out)::data(nwavesx,ny),coeff(nwavesx,nwavesy)
+      integer(i_kind),intent(in   ) :: idir
+      complex(r_kind),intent(  out) :: data(nwavesx,ny),coeff(nwavesx,nwavesy)
 
       integer(i_kind) i,j,jj,npts,ndata
       real(r_kind) a(nwavesx,ny,2),c(nwavesx,ny,2)
@@ -381,42 +381,42 @@ end subroutine rfft
 !
 !==> copy the data into the work array.
 !    
-      do 10 j=1,npts
-      do 10 i=1,ndata
-         a(i,j,1) = real(data(i,j))
-         a(i,j,2) = aimag(data(i,j))
-10    continue
+         do 10 j=1,npts
+         do 10 i=1,ndata
+            a(i,j,1) = real(data(i,j))
+            a(i,j,2) = aimag(data(i,j))
+10       continue
 !
-      call fft2(a,c,npts,npts-ione,nfax0,ifax0,-ione,trigy,ndata)
+         call fft2(a,c,npts,npts-ione,nfax0,ifax0,-ione,trigy,ndata)
 !
-      do 20 j=1,nwavesy
-      do 20 i=1,ndata
-         jj = indxy(j)
-         coeff(i,j) = cmplx(c(i,jj,1),c(i,jj,2))
-20    continue
+         do 20 j=1,nwavesy
+         do 20 i=1,ndata
+            jj = indxy(j)
+            coeff(i,j) = cmplx(c(i,jj,1),c(i,jj,2))
+20       continue
 !----------------------
 !==> inverse transform.
 !----------------------
       else if (idir==-ione) then
 !
-      do 25 j=1,npts
-      do 25 i=1,ndata
-         c(i,j,1) = zero
-         c(i,j,2) = zero
-25    continue
-      do 30 j=1,nwavesy
-      do 30 i=1,ndata
-         jj = indxy(j)
-         c(i,jj,1) = real(coeff(i,j))
-         c(i,jj,2) = aimag(coeff(i,j))
-30    continue
+         do 25 j=1,npts
+         do 25 i=1,ndata
+            c(i,j,1) = zero
+            c(i,j,2) = zero
+25       continue
+         do 30 j=1,nwavesy
+         do 30 i=1,ndata
+            jj = indxy(j)
+            c(i,jj,1) = real(coeff(i,j))
+            c(i,jj,2) = aimag(coeff(i,j))
+30       continue
 !
-      call fft2(c,a,npts,npts-ione,nfax0,ifax0,+ione,trigy,ndata)
+         call fft2(c,a,npts,npts-ione,nfax0,ifax0,+ione,trigy,ndata)
 !
-      do 40 j=1,npts
-      do 40 i=1,ndata
-         data(i,j) = cmplx(a(i,j,1),a(i,j,2))
-40    continue
+         do 40 j=1,npts
+         do 40 i=1,ndata
+            data(i,j) = cmplx(a(i,j,1),a(i,j,2))
+40       continue
 !
       else
          write(6,*) ' idir must be +1 or -1 in cfft!'
@@ -469,9 +469,9 @@ end subroutine cfft
 !$$$ end documentation block
       implicit none
 
-      INTEGER(i_kind),intent(in   )::IFAX(*),LEN,NDIM,NFAX,ISIGN,N
-      REAL(r_kind),   intent(inout)::A(LEN,0:NDIM,2),TRIG(2,0:N-ione)
-      REAL(r_kind),   intent(inout)::C(LEN,0:NDIM,2)
+      INTEGER(i_kind),intent(in   ) :: IFAX(*),LEN,NDIM,NFAX,ISIGN,N
+      REAL(r_kind)   ,intent(inout) :: A(LEN,0:NDIM,2),TRIG(2,0:N-ione)
+      REAL(r_kind)   ,intent(inout) :: C(LEN,0:NDIM,2)
 
       INTEGER(i_kind) I,IJ,LA,IFAC
       REAL(r_kind) XNI
@@ -482,31 +482,31 @@ end subroutine cfft
       LA=ione  
       ODD=.TRUE.
       DO 10 I=1,NFAX  
-      IFAC=IFAX(I)
-      IF (ODD) THEN 
-        CALL PASS2(A,C,N,NDIM,ISIGN,IFAC,LA,TRIG,LEN)
-      ELSE  
-        CALL PASS2(C,A,N,NDIM,ISIGN,IFAC,LA,TRIG,LEN)
-      END IF
-      ODD=.NOT.ODD
-      LA=LA*IFAC
+         IFAC=IFAX(I)
+         IF (ODD) THEN 
+            CALL PASS2(A,C,N,NDIM,ISIGN,IFAC,LA,TRIG,LEN)
+         ELSE  
+            CALL PASS2(C,A,N,NDIM,ISIGN,IFAC,LA,TRIG,LEN)
+         END IF
+         ODD=.NOT.ODD
+         LA=LA*IFAC
    10 CONTINUE
 !
       IF (ODD) THEN 
          DO 30 I=0,N-ione
             DO 20 IJ=1,LEN
-            C(IJ,I,1) = A(IJ,I,1)
-            C(IJ,I,2) = A(IJ,I,2)
+               C(IJ,I,1) = A(IJ,I,1)
+               C(IJ,I,2) = A(IJ,I,2)
    20       CONTINUE  
-   30   CONTINUE
+   30    CONTINUE
       END IF
       IF (ISIGN==-ione) THEN
          XNI=one/N
          DO 50 I=0,N-ione
-           DO 40 IJ=1,LEN
-           C(IJ,I,1) = XNI * C(IJ,I,1)
-           C(IJ,I,2) = XNI * C(IJ,I,2)
-   40      CONTINUE 
+            DO 40 IJ=1,LEN
+               C(IJ,I,1) = XNI * C(IJ,I,1)
+               C(IJ,I,2) = XNI * C(IJ,I,2)
+   40       CONTINUE 
    50    CONTINUE
       END IF
       RETURN
@@ -555,9 +555,9 @@ END SUBROUTINE FFT2
 !$$$ end documentation block
       implicit none
 
-      INTEGER(i_kind),intent(in   )::N,NDIM,ISIGN,IFAC,LA,LEN
-      REAL(r_kind),   intent(in   )::TRIG(2,0:N-ione)
-      REAL(r_kind),   intent(inout)::A(LEN,0:NDIM,2),C(LEN,0:NDIM,2)
+      INTEGER(i_kind),intent(in   ) :: N,NDIM,ISIGN,IFAC,LA,LEN
+      REAL(r_kind)   ,intent(in   ) :: TRIG(2,0:N-ione)
+      REAL(r_kind)   ,intent(inout) :: A(LEN,0:NDIM,2),C(LEN,0:NDIM,2)
 
       INTEGER(i_kind) I,I0,I01,I1,I11,J,J0,J01,J1,J11,K,M,LLA,IND(0:20),JND(0:20),JUMP,IJ,IJ1
       INTEGER(i_kind) I2,I21,J2,J21
@@ -573,8 +573,8 @@ END SUBROUTINE FFT2
 !     SET UP INDEXING  
 !
       DO 10 K=0,IFAC-ione
-        IND(K) = K*M
-        JND(K) = K*LA
+         IND(K) = K*M
+         JND(K) = K*LA
    10 CONTINUE
       LLA =LA * LEN 
 !
@@ -584,154 +584,154 @@ END SUBROUTINE FFT2
       J = izero
       JUMP = (IFAC-ione) * LA
       DO 130 K = 0,M-LA,LA
-        IF (IFAC==2_i_kind) THEN
-          I0 = IND(0) + I
-          I1 = IND(1) + I
-          J0 = JND(0) + J
-          J1 = JND(1) + J
-          CC = TRIG(1,K)
-          SS = ISIGN * TRIG(2,K)
-          IF (K==izero) THEN
-            DO 20 IJ = 1,LLA
-              if(ij>len) then
-                ij1=mod(ij-ione,len)+ione
-                i01=(ij-ione)/len+i0; i11=(ij-ione)/len+i1
-                j01=(ij-ione)/len+j0; j11=(ij-ione)/len+j1
-                if(i01<=ndim.and.i11<=ndim.and.&
-                   j01<=ndim.and.j11<=ndim) then
-                  C(IJ1,J01,1) = A(IJ1,I01,1) + A(IJ1,I11,1)
-                  C(IJ1,J01,2) = A(IJ1,I01,2) + A(IJ1,I11,2)
-                  C(IJ1,J11,1) = A(IJ1,I01,1) - A(IJ1,I11,1)
-                  C(IJ1,J11,2) = A(IJ1,I01,2) - A(IJ1,I11,2)
-                end if
-              else
-                C(IJ,J0,1) = A(IJ,I0,1) + A(IJ,I1,1)
-                C(IJ,J0,2) = A(IJ,I0,2) + A(IJ,I1,2)
-                C(IJ,J1,1) = A(IJ,I0,1) - A(IJ,I1,1)
-                C(IJ,J1,2) = A(IJ,I0,2) - A(IJ,I1,2)
-              end if
-         20 CONTINUE
-          ELSE
-            DO 50 IJ = 1,LLA  
-             if(ij>len) then
-               ij1=mod(ij-ione,len)+ione
-               i01=(ij-ione)/len+i0; i11=(ij-ione)/len+i1
-               j01=(ij-ione)/len+j0; j11=(ij-ione)/len+j1
-               if(i01<=ndim.and.i11<=ndim.and.&
-                  j01<=ndim.and.j11<=ndim) then
-                   C(IJ1,J01,1) = A(IJ1,I01,1) + A(IJ1,I11,1)
-                   C(IJ1,J01,2) = A(IJ1,I01,2) + A(IJ1,I11,2)
-                   AM1 = A(IJ1,I01,1) - A(IJ1,I11,1)
-                   AM2 = A(IJ1,I01,2) - A(IJ1,I11,2)
-                   C(IJ1,J11,1) = CC * AM1 - SS * AM2
-                   C(IJ1,J11,2) = SS * AM1 + CC * AM2
-               end if
-             else
-               C(IJ,J0,1) = A(IJ,I0,1) + A(IJ,I1,1)
-               C(IJ,J0,2) = A(IJ,I0,2) + A(IJ,I1,2)
-               AM1 = A(IJ,I0,1) - A(IJ,I1,1)
-               AM2 = A(IJ,I0,2) - A(IJ,I1,2)
-               C(IJ,J1,1) = CC * AM1 - SS * AM2
-               C(IJ,J1,2) = SS * AM1 + CC * AM2
-             end if
-         50 CONTINUE
-          END IF
-        ELSEIF (IFAC==3_i_kind) THEN  
-          I0 = IND(0) + I
-          I1 = IND(1) + I
-          I2 = IND(2) + I
-          J0 = JND(0) + J
-          J1 = JND(1) + J
-          J2 = JND(2) + J
-          IF (K==izero) THEN
-            DO 60 IJ = 1,LLA  
-             if(ij>len) then
-               ij1=mod(ij-ione,len)+ione
-               i01=(ij-ione)/len+i0; i11=(ij-ione)/len+i1; i21=(ij-ione)/len+i2
-               j01=(ij-ione)/len+j0; j11=(ij-ione)/len+j1; j21=(ij-ione)/len+j2
-               if(i01<=ndim.and.i11<=ndim.and.i21<=ndim.and. &
-                  j01<=ndim.and.j11<=ndim.and.i21<=ndim) then
-                  AP1 = A(IJ1,I11,1) + A(IJ1,I21,1)
-                  AP2 = A(IJ1,I11,2) + A(IJ1,I21,2)
-                  C(IJ1,J01,1) = A(IJ1,I01,1) + AP1
-                  C(IJ1,J01,2) = A(IJ1,I01,2) + AP2
-                  TA1 = A(IJ1,I01,1) - half * AP1
-                  TA2 = A(IJ1,I01,2) - half * AP2
-                  AM1 = SN60 * (A(IJ1,I11,1) - A(IJ1,I21,1))
-                  AM2 = SN60 * (A(IJ1,I11,2) - A(IJ1,I21,2))
-                  C(IJ1,J11,1) = TA1 - AM2
-                  C(IJ1,J11,2) = TA2 + AM1
-                  C(IJ1,J21,1) = TA1 + AM2
-                  C(IJ1,J21,2) = TA2 - AM1
-               endif
-             else
-               AP1 = A(IJ,I1,1) + A(IJ,I2,1)
-               AP2 = A(IJ,I1,2) + A(IJ,I2,2)
-               C(IJ,J0,1) = A(IJ,I0,1) + AP1
-               C(IJ,J0,2) = A(IJ,I0,2) + AP2
-               TA1 = A(IJ,I0,1) - half * AP1
-               TA2 = A(IJ,I0,2) - half * AP2
-               AM1 = SN60 * (A(IJ,I1,1) - A(IJ,I2,1))
-               AM2 = SN60 * (A(IJ,I1,2) - A(IJ,I2,2))
-               C(IJ,J1,1) = TA1 - AM2
-               C(IJ,J1,2) = TA2 + AM1
-               C(IJ,J2,1) = TA1 + AM2
-               C(IJ,J2,2) = TA2 - AM1
-             end if
-         60 CONTINUE
-          ELSE
-            C1 = TRIG(1,K)
-            C2 = TRIG(1,2*K)
-            S1 = ISIGN * TRIG(2,K)
-            S2 = ISIGN * TRIG(2,2*K)
-            DO 70 IJ = 1,LLA  
-             if(ij>len) then
-               ij1=mod(ij-ione,len)+ione
-               i01=(ij-ione)/len+i0; i11=(ij-ione)/len+i1; i21=(ij-ione)/len+i2
-               j01=(ij-ione)/len+j0; j11=(ij-ione)/len+j1; j21=(ij-ione)/len+j2
-               if(i01<=ndim.and.i11<=ndim.and.i21<=ndim.and. &
-                  j01<=ndim.and.j11<=ndim.and.i21<=ndim) then
-                  AP1 = A(IJ1,I11,1) +A(IJ1,I21,1)
-                  AP2 = A(IJ1,I11,2) +A(IJ1,I21,2)
-                  C(IJ1,J01,1) = A(IJ1,I01,1) +AP1
-                  C(IJ1,J01,2) = A(IJ1,I01,2) +AP2
-                  TA1 = A(IJ1,I01,1) - half*AP1
-                  TA2 = A(IJ1,I01,2) - half*AP2
-                  AM1 = SN60 * (A(IJ1,I11,1) - A(IJ1,I21,1))
-                  AM2 = SN60 * (A(IJ1,I11,2) - A(IJ1,I21,2))
-                  T1 = TA1 - AM2
-                  T2 = TA2 + AM1
-                  C(IJ1,J11,1) = C1 * T1 - S1 * T2
-                  C(IJ1,J11,2) = S1 * T1 + C1 *T2
-                  T1 = TA1 + AM2
-                  T2 = TA2 - AM1
-                  C(IJ1,J21,1) = C2 * T1 - S2 * T2
-                  C(IJ1,J21,2) = S2 * T1 + C2 * T2
-               endif
-             else
-               AP1 = A(IJ,I1,1) +A(IJ,I2,1)
-               AP2 = A(IJ,I1,2) +A(IJ,I2,2)
-               C(IJ,J0,1) = A(IJ,I0,1) +AP1
-               C(IJ,J0,2) = A(IJ,I0,2) +AP2
-               TA1 = A(IJ,I0,1) - half*AP1
-               TA2 = A(IJ,I0,2) - half*AP2
-               AM1 = SN60 * (A(IJ,I1,1) - A(IJ,I2,1))
-               AM2 = SN60 * (A(IJ,I1,2) - A(IJ,I2,2))
-               T1 = TA1 - AM2
-               T2 = TA2 + AM1
-               C(IJ,J1,1) = C1 * T1 - S1 * T2
-               C(IJ,J1,2) = S1 * T1 + C1 *T2
-               T1 = TA1 + AM2
-               T2 = TA2 - AM1
-               C(IJ,J2,1) = C2 * T1 - S2 * T2
-               C(IJ,J2,2) = S2 * T1 + C2 * T2
-             end if
-         70 CONTINUE
-          END IF
-        END IF
-        I = I+LA
-        J = J+LA
-        J = J+JUMP
+         IF (IFAC==2_i_kind) THEN
+            I0 = IND(0) + I
+            I1 = IND(1) + I
+            J0 = JND(0) + J
+            J1 = JND(1) + J
+            CC = TRIG(1,K)
+            SS = ISIGN * TRIG(2,K)
+            IF (K==izero) THEN
+               DO 20 IJ = 1,LLA
+                  if(ij>len) then
+                     ij1=mod(ij-ione,len)+ione
+                     i01=(ij-ione)/len+i0; i11=(ij-ione)/len+i1
+                     j01=(ij-ione)/len+j0; j11=(ij-ione)/len+j1
+                     if(i01<=ndim.and.i11<=ndim.and.&
+                        j01<=ndim.and.j11<=ndim) then
+                        C(IJ1,J01,1) = A(IJ1,I01,1) + A(IJ1,I11,1)
+                        C(IJ1,J01,2) = A(IJ1,I01,2) + A(IJ1,I11,2)
+                        C(IJ1,J11,1) = A(IJ1,I01,1) - A(IJ1,I11,1)
+                        C(IJ1,J11,2) = A(IJ1,I01,2) - A(IJ1,I11,2)
+                     end if
+                  else
+                     C(IJ,J0,1) = A(IJ,I0,1) + A(IJ,I1,1)
+                     C(IJ,J0,2) = A(IJ,I0,2) + A(IJ,I1,2)
+                     C(IJ,J1,1) = A(IJ,I0,1) - A(IJ,I1,1)
+                     C(IJ,J1,2) = A(IJ,I0,2) - A(IJ,I1,2)
+                  end if
+         20    CONTINUE
+            ELSE
+               DO 50 IJ = 1,LLA  
+                  if(ij>len) then
+                     ij1=mod(ij-ione,len)+ione
+                     i01=(ij-ione)/len+i0; i11=(ij-ione)/len+i1
+                     j01=(ij-ione)/len+j0; j11=(ij-ione)/len+j1
+                     if(i01<=ndim.and.i11<=ndim.and.&
+                        j01<=ndim.and.j11<=ndim) then
+                        C(IJ1,J01,1) = A(IJ1,I01,1) + A(IJ1,I11,1)
+                        C(IJ1,J01,2) = A(IJ1,I01,2) + A(IJ1,I11,2)
+                        AM1 = A(IJ1,I01,1) - A(IJ1,I11,1)
+                        AM2 = A(IJ1,I01,2) - A(IJ1,I11,2)
+                        C(IJ1,J11,1) = CC * AM1 - SS * AM2
+                        C(IJ1,J11,2) = SS * AM1 + CC * AM2
+                     end if
+                  else
+                     C(IJ,J0,1) = A(IJ,I0,1) + A(IJ,I1,1)
+                     C(IJ,J0,2) = A(IJ,I0,2) + A(IJ,I1,2)
+                     AM1 = A(IJ,I0,1) - A(IJ,I1,1)
+                     AM2 = A(IJ,I0,2) - A(IJ,I1,2)
+                     C(IJ,J1,1) = CC * AM1 - SS * AM2
+                     C(IJ,J1,2) = SS * AM1 + CC * AM2
+                  end if
+            50 CONTINUE
+            END IF
+         ELSEIF (IFAC==3_i_kind) THEN  
+            I0 = IND(0) + I
+            I1 = IND(1) + I
+            I2 = IND(2) + I
+            J0 = JND(0) + J
+            J1 = JND(1) + J
+            J2 = JND(2) + J
+            IF (K==izero) THEN
+               DO 60 IJ = 1,LLA  
+                  if(ij>len) then
+                     ij1=mod(ij-ione,len)+ione
+                     i01=(ij-ione)/len+i0; i11=(ij-ione)/len+i1; i21=(ij-ione)/len+i2
+                     j01=(ij-ione)/len+j0; j11=(ij-ione)/len+j1; j21=(ij-ione)/len+j2
+                     if(i01<=ndim.and.i11<=ndim.and.i21<=ndim.and. &
+                        j01<=ndim.and.j11<=ndim.and.i21<=ndim) then
+                        AP1 = A(IJ1,I11,1) + A(IJ1,I21,1)
+                        AP2 = A(IJ1,I11,2) + A(IJ1,I21,2)
+                        C(IJ1,J01,1) = A(IJ1,I01,1) + AP1
+                        C(IJ1,J01,2) = A(IJ1,I01,2) + AP2
+                        TA1 = A(IJ1,I01,1) - half * AP1
+                        TA2 = A(IJ1,I01,2) - half * AP2
+                        AM1 = SN60 * (A(IJ1,I11,1) - A(IJ1,I21,1))
+                        AM2 = SN60 * (A(IJ1,I11,2) - A(IJ1,I21,2))
+                        C(IJ1,J11,1) = TA1 - AM2
+                        C(IJ1,J11,2) = TA2 + AM1
+                        C(IJ1,J21,1) = TA1 + AM2
+                        C(IJ1,J21,2) = TA2 - AM1
+                     endif
+                  else
+                     AP1 = A(IJ,I1,1) + A(IJ,I2,1)
+                     AP2 = A(IJ,I1,2) + A(IJ,I2,2)
+                     C(IJ,J0,1) = A(IJ,I0,1) + AP1
+                     C(IJ,J0,2) = A(IJ,I0,2) + AP2
+                     TA1 = A(IJ,I0,1) - half * AP1
+                     TA2 = A(IJ,I0,2) - half * AP2
+                     AM1 = SN60 * (A(IJ,I1,1) - A(IJ,I2,1))
+                     AM2 = SN60 * (A(IJ,I1,2) - A(IJ,I2,2))
+                     C(IJ,J1,1) = TA1 - AM2
+                     C(IJ,J1,2) = TA2 + AM1
+                     C(IJ,J2,1) = TA1 + AM2
+                     C(IJ,J2,2) = TA2 - AM1
+                  end if
+            60 CONTINUE
+            ELSE
+               C1 = TRIG(1,K)
+               C2 = TRIG(1,2*K)
+               S1 = ISIGN * TRIG(2,K)
+               S2 = ISIGN * TRIG(2,2*K)
+               DO 70 IJ = 1,LLA  
+                  if(ij>len) then
+                     ij1=mod(ij-ione,len)+ione
+                     i01=(ij-ione)/len+i0; i11=(ij-ione)/len+i1; i21=(ij-ione)/len+i2
+                     j01=(ij-ione)/len+j0; j11=(ij-ione)/len+j1; j21=(ij-ione)/len+j2
+                     if(i01<=ndim.and.i11<=ndim.and.i21<=ndim.and. &
+                        j01<=ndim.and.j11<=ndim.and.i21<=ndim) then
+                        AP1 = A(IJ1,I11,1) +A(IJ1,I21,1)
+                        AP2 = A(IJ1,I11,2) +A(IJ1,I21,2)
+                        C(IJ1,J01,1) = A(IJ1,I01,1) +AP1
+                        C(IJ1,J01,2) = A(IJ1,I01,2) +AP2
+                        TA1 = A(IJ1,I01,1) - half*AP1
+                        TA2 = A(IJ1,I01,2) - half*AP2
+                        AM1 = SN60 * (A(IJ1,I11,1) - A(IJ1,I21,1))
+                        AM2 = SN60 * (A(IJ1,I11,2) - A(IJ1,I21,2))
+                        T1 = TA1 - AM2
+                        T2 = TA2 + AM1
+                        C(IJ1,J11,1) = C1 * T1 - S1 * T2
+                        C(IJ1,J11,2) = S1 * T1 + C1 *T2
+                        T1 = TA1 + AM2
+                        T2 = TA2 - AM1
+                        C(IJ1,J21,1) = C2 * T1 - S2 * T2
+                        C(IJ1,J21,2) = S2 * T1 + C2 * T2
+                     endif
+                  else
+                     AP1 = A(IJ,I1,1) +A(IJ,I2,1)
+                     AP2 = A(IJ,I1,2) +A(IJ,I2,2)
+                     C(IJ,J0,1) = A(IJ,I0,1) +AP1
+                     C(IJ,J0,2) = A(IJ,I0,2) +AP2
+                     TA1 = A(IJ,I0,1) - half*AP1
+                     TA2 = A(IJ,I0,2) - half*AP2
+                     AM1 = SN60 * (A(IJ,I1,1) - A(IJ,I2,1))
+                     AM2 = SN60 * (A(IJ,I1,2) - A(IJ,I2,2))
+                     T1 = TA1 - AM2
+                     T2 = TA2 + AM1
+                     C(IJ,J1,1) = C1 * T1 - S1 * T2
+                     C(IJ,J1,2) = S1 * T1 + C1 *T2
+                     T1 = TA1 + AM2
+                     T2 = TA2 - AM1
+                     C(IJ,J2,1) = C2 * T1 - S2 * T2
+                     C(IJ,J2,2) = S2 * T1 + C2 * T2
+                  end if
+         70    CONTINUE
+            END IF
+         END IF
+         I = I+LA
+         J = J+LA
+         J = J+JUMP
   130 CONTINUE
       RETURN
 END SUBROUTINE PASS2 
@@ -764,10 +764,10 @@ END SUBROUTINE PASS2
 !$$$ end documentation block
       implicit none
 
-      INTEGER(i_kind),intent(in   )::N
-      REAL(r_kind),   intent(inout)::TRIG(2,0:N-ione)
+      INTEGER(i_kind),intent(in   ) :: N
+      REAL(r_kind)   ,intent(inout) :: TRIG(2,0:N-ione)
 
-      INTEGER(i_kind),intent(  out)::IFAX(*),NFAX
+      INTEGER(i_kind),intent(  out) :: IFAX(*),NFAX
 
       INTEGER(i_kind) K
       REAL(r_kind) ARG
@@ -776,9 +776,9 @@ END SUBROUTINE PASS2
 
       CALL FACTOR (N,NFAX,IFAX)
       DO 10 K=0,N-ione
-        ARG = two*PI*K/N
-        TRIG(1,K) = COS(ARG)
-        TRIG(2,K) = SIN(ARG)
+         ARG = two*PI*K/N
+         TRIG(1,K) = COS(ARG)
+         TRIG(2,K) = SIN(ARG)
    10 CONTINUE
       RETURN
 END SUBROUTINE PREFFT 
@@ -812,8 +812,8 @@ END SUBROUTINE PREFFT
 !$$$ end documentation block
       implicit none
 
-      INTEGER(i_kind),intent(in )::N
-      INTEGER(i_kind),intent(out)::IFAX(*),NFAX
+      INTEGER(i_kind),intent(in   ) :: N
+      INTEGER(i_kind),intent(  out) :: IFAX(*),NFAX
 
       INTEGER(i_kind) NN,II
 
@@ -823,28 +823,28 @@ END SUBROUTINE PREFFT
 !     EXTRACT FACTORS OF 3
       DO 10 II = 1,20
          IF (NN==3*(NN/3)) THEN
-              NFAX = NFAX+ione
-              IFAX(NFAX) = 3_i_kind
-              NN = NN/3
+            NFAX = NFAX+ione
+            IFAX(NFAX) = 3_i_kind
+            NN = NN/3
          ELSE
-                GO TO 20
+            GO TO 20
          END IF
    10 CONTINUE
    20 CONTINUE
 !     EXTRACT FACTORS OF 2
       DO 30 II = NFAX+ione,20
          IF (NN==2*(NN/2)) THEN
-             NFAX = NFAX +ione
-             IFAX(NFAX) =2_i_kind
-             NN = NN/2
+            NFAX = NFAX +ione
+            IFAX(NFAX) =2_i_kind
+            NN = NN/2
          ELSE
-             GO TO 40
+            GO TO 40
          END IF
    30 CONTINUE
    40 CONTINUE
       IF (NN/=ione) THEN
-      write(6,*) 'PORRA 4'
-            STOP
+         write(6,*) 'PORRA 4'
+         STOP
       END IF
       RETURN
 END SUBROUTINE FACTOR

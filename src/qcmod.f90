@@ -112,6 +112,7 @@ contains
 !$$$
     use constants, only: zero,one,three,four,r1000,h300
     implicit none
+
 !   real(r_kind),parameter:: ten=10.0_r_kind
 
     npres_print = 12_i_kind
@@ -219,12 +220,12 @@ contains
     use constants, only: ione,one,two,tiny_r_kind,half,rd,grav,five
     implicit none
 
-    integer(i_kind)                     ,intent(in   ):: levs,k,nsig,lim_qm
-    real(r_kind)   ,dimension(255)      ,intent(in   ):: plevs
-    real(r_kind)   ,dimension(nsig)     ,intent(in   ):: presl
-    real(r_kind)   ,dimension(nsig-ione),intent(in   ):: dpres
-    integer(i_kind),dimension(255)      ,intent(in   ):: pq,vq
-    real(r_kind)                        ,intent(inout):: errout
+    integer(i_kind)                     ,intent(in   ) :: levs,k,nsig,lim_qm
+    real(r_kind)   ,dimension(255)      ,intent(in   ) :: plevs
+    real(r_kind)   ,dimension(nsig)     ,intent(in   ) :: presl
+    real(r_kind)   ,dimension(nsig-ione),intent(in   ) :: dpres
+    integer(i_kind),dimension(255)      ,intent(in   ) :: pq,vq
+    real(r_kind)                        ,intent(inout) :: errout
 
     integer(i_kind) n,l,ilev
     real(r_kind):: vmag,pdiffu,pdiffd,con

@@ -61,17 +61,17 @@ contains
 !
 !$$$
   use kinds, only: r_quad,r_kind,i_kind
-  use constants, only: zero,zero_quad
+  use constants, only: izero,ione,zero,zero_quad
   use gridmod, only: lat2,lon2,nsig
   use guess_grids, only:  ges_prsi,ntguessig
   use jcmod, only: bamp_jcpdry
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: rq,sq,rc,sc
-  real(r_kind),dimension(lat2,lon2),intent(in):: rp,sp
-  real(r_quad),intent(out):: pen,b,c
-  integer(i_kind),intent(in):: mype
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: rq,sq,rc,sc
+  real(r_kind),dimension(lat2,lon2)     ,intent(in   ) :: rp,sp
+  real(r_quad)                          ,intent(  out) :: pen,b,c
+  integer(i_kind)                       ,intent(in   ) :: mype
 
 ! Declare local variables
   real(r_kind),dimension(lat2,lon2):: sqint,rqint
@@ -83,14 +83,14 @@ contains
   it=ntguessig
 
   do k=1,nsig
-    do j=1,lon2
-      do i=1,lat2
-        sqint(i,j)=sqint(i,j) + ( (sq(i,j,k)+sc(i,j,k))* &
-             (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it)) )
-        rqint(i,j)=rqint(i,j) + ( (rq(i,j,k)+rc(i,j,k))* &
-             (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it)) ) 
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           sqint(i,j)=sqint(i,j) + ( (sq(i,j,k)+sc(i,j,k))* &
+                (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it)) )
+           rqint(i,j)=rqint(i,j) + ( (rq(i,j,k)+rc(i,j,k))* &
+                (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it)) ) 
+        end do
+     end do
   end do
 
 ! First, use MPI to get global mean increment
@@ -99,17 +99,17 @@ contains
   call global_mean(sqint,sqave,mype)
   call global_mean(rqint,rqave,mype)
 
-  if (mype==0) then
-! Subtract out water to get incremental dry mass
-    sdmass=spave-sqave
-    rdmass=rpave-rqave
+  if (mype==izero) then
+!    Subtract out water to get incremental dry mass
+     sdmass=spave-sqave
+     rdmass=rpave-rqave
 
-! Now penalize non-zero global mean dry ps increment
-! Notice there will only be a contribution from PE=0
+!    Now penalize non-zero global mean dry ps increment
+!    Notice there will only be a contribution from PE=0
 
-    pen = bamp_jcpdry*sdmass*sdmass
-    b  = -bamp_jcpdry*rdmass*sdmass
-    c  = bamp_jcpdry*rdmass*rdmass
+     pen = bamp_jcpdry*sdmass*sdmass
+     b  = -bamp_jcpdry*rdmass*sdmass
+     c  = bamp_jcpdry*rdmass*rdmass
   end if
 
   return

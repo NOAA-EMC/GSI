@@ -35,12 +35,12 @@ public predictors, allocate_preds, deallocate_preds, &
      & assignment(=), setup_predictors
 
 type predictors
-  real(r_kind), pointer :: values(:) => NULL()
+   real(r_kind), pointer :: values(:) => NULL()
 
-  real(r_kind), pointer :: predr(:) => NULL()
-  real(r_kind), pointer :: predp(:) => NULL()
+   real(r_kind), pointer :: predr(:) => NULL()
+   real(r_kind), pointer :: predp(:) => NULL()
 
-  logical :: lallocated = .false.
+   logical :: lallocated = .false.
 end type predictors
 
 integer(i_kind) :: nrclen,nsclen,npclen
@@ -79,7 +79,7 @@ subroutine setup_predictors(krclen,ksclen,kpclen)
 !$$$ end documentation block
 
   implicit none
-  integer(i_kind), intent(in) :: krclen,ksclen,kpclen
+  integer(i_kind), intent(in   ) :: krclen,ksclen,kpclen
 
   nrclen=krclen
   nsclen=ksclen
@@ -117,8 +117,8 @@ subroutine allocate_preds(yst)
   integer(i_kind) :: ii
 
   if (yst%lallocated) then
-    write(6,*) ' allocate_preds: vector already allocated'
-    call stop2(102)
+     write(6,*) ' allocate_preds: vector already allocated'
+     call stop2(102)
   end if
 
   ALLOCATE(yst%values(nrclen))
@@ -165,12 +165,12 @@ subroutine deallocate_preds(yst)
   type(predictors), intent(inout) :: yst
 
   if (yst%lallocated) then 
-    NULLIFY(yst%predr)
-    NULLIFY(yst%predp)
-    DEALLOCATE(yst%values)
-    yst%lallocated = .false.
+     NULLIFY(yst%predr)
+     NULLIFY(yst%predp)
+     DEALLOCATE(yst%values)
+     yst%lallocated = .false.
   else
-    write(6,*) 'deallocate_preds warning: trying to dealloc() vector not allocated'
+     write(6,*) 'deallocate_preds warning: trying to dealloc() vector not allocated'
   endif
 
   return
@@ -201,11 +201,11 @@ subroutine assign_scalar2preds(yst,pval)
 !$$$ end documentation block
   implicit none
   type(predictors), intent(inout) :: yst
-  real(r_kind), intent(in) :: pval
+  real(r_kind)    , intent(in   ) :: pval
   integer(i_kind) :: ii
 
   DO ii=1,nrclen
-    yst%values(ii)=pval
+     yst%values(ii)=pval
   ENDDO
 
   return
@@ -236,11 +236,11 @@ subroutine assign_preds2preds(yst,xst)
 !$$$ end documentation block
   implicit none
   type(predictors), intent(inout) :: yst
-  type(predictors), intent(in) :: xst
+  type(predictors), intent(in   ) :: xst
   integer(i_kind) :: ii
 
   DO ii=1,nrclen
-    yst%values(ii)=xst%values(ii)
+     yst%values(ii)=xst%values(ii)
   ENDDO
 
   return

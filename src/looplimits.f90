@@ -30,8 +30,8 @@
 
       implicit none
  
-      integer(i_kind),intent(in) :: taskid, ntasks, lb, ub
-      integer(i_kind),intent(out):: i1, i2
+      integer(i_kind),intent(in   ) :: taskid, ntasks, lb, ub
+      integer(i_kind),intent(  out) :: i1, i2
 
       integer(i_kind) chunk, nwork, nt1, nt2
       integer(i_kind) itask, netdisp
@@ -58,4 +58,4 @@
       i2 = min(ub,i1+counts(taskid+ione)-ione)
 
       return
-      end
+      end subroutine looplimits

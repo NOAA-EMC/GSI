@@ -466,8 +466,8 @@ if(t<=tmin) then
 endif
 
 do
-  if (fn+t*fpn<fn+0.9_r_kind*t*fpn) exit
-  t=two*t
+   if (fn+t*fpn<fn+0.9_r_kind*t*fpn) exit
+   t=two*t
 enddo
 
 logic=izero
@@ -667,7 +667,9 @@ subroutine ecube(t,f,fp,ta,fa,fpa,tlower,tupper)
 
 use constants, only: three
 implicit none
+
 real(r_kind), intent(inout) :: t,f,fp,ta,fa,fpa,tlower,tupper
+
 real(r_kind) :: z1,b,discri,sign,den,anum
 !
 !  Using f and fp at t and ta, computes new t by cubic formula

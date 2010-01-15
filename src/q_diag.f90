@@ -38,7 +38,7 @@ subroutine q_diag(mype)
 ! real(r_kind),parameter:: r1000=1000.0_r_kind
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   integer(i_kind):: it,i,j,jj,k,mype_out,mm1

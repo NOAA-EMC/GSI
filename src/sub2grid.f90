@@ -44,18 +44,18 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
        nlat,nlon,nsig,ltosi,ltosj,nsig1o,nnnn1o
   use jfunc, only: nsstsm,nozsm,nsltsm,ncwsm,nsitsm,nvpsm,nstsm,&
        npsm,nqsm,ntsm
-  use constants, only: zero
+  use constants, only: ione,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: iflg
-  real(r_kind),dimension(lat2,lon2),intent(in):: p,sst,slndt,sicet
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,q,oz,cwmr,vp,st
-  real(r_kind),dimension(nlat,nlon,nnnn1o),intent(out):: workin
+  integer(i_kind)                         ,intent(in   ) :: iflg
+  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: p,sst,slndt,sicet
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: t,q,oz,cwmr,vp,st
+  real(r_kind),dimension(nlat,nlon,nnnn1o),intent(  out) :: workin
 
 ! Declare local variables
   integer(i_kind) j,k,l,ni1,ni2
-  real(r_kind),dimension(lat1*lon1*(nsig*6+4)):: xhatsm
+  real(r_kind),dimension(lat1*lon1*(nsig*6+4_i_kind)):: xhatsm
   real(r_kind),dimension(max(iglobal,itotsub),nsig1o):: work1  !  contain nsig1o slab of any variables
 
 ! Initialize variables
@@ -66,33 +66,33 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
 !       end do
 !    end do
 ! end do
-! do k=1,lat1*lon1*(nsig*6+4)
+! do k=1,lat1*lon1*(nsig*6+4_i_kind)
 !    xhatsm(k)=zero
 ! end do
 
 ! strip off boundary points and load vector for communication
-  if (iflg==1) then
-     call strip(st,xhatsm(nstsm),nsig)
-     call strip(vp,xhatsm(nvpsm),nsig)
-     call strip(p,xhatsm(npsm),1)
-     call strip(t,xhatsm(ntsm),nsig)
-     call strip(q,xhatsm(nqsm),nsig)
-     call strip(oz,xhatsm(nozsm),nsig)
-     call strip(sst,xhatsm(nsstsm),1)
-     call strip(slndt,xhatsm(nsltsm),1)
-     call strip(sicet,xhatsm(nsitsm),1)
-     call strip(cwmr,xhatsm(ncwsm),nsig)
-  elseif (iflg==2) then
-     call strip_periodic(st,xhatsm(nstsm),nsig)
-     call strip_periodic(vp,xhatsm(nvpsm),nsig)
-     call strip_periodic(p,xhatsm(npsm),1)
-     call strip_periodic(t,xhatsm(ntsm),nsig)
-     call strip_periodic(q,xhatsm(nqsm),nsig)
-     call strip_periodic(oz,xhatsm(nozsm),nsig)
-     call strip_periodic(sst,xhatsm(nsstsm),1)
-     call strip_periodic(slndt,xhatsm(nsltsm),1)
-     call strip_periodic(sicet,xhatsm(nsitsm),1)
-     call strip_periodic(cwmr,xhatsm(ncwsm),nsig)
+  if (iflg==ione) then
+     call strip(st   ,xhatsm(nstsm) ,nsig)
+     call strip(vp   ,xhatsm(nvpsm) ,nsig)
+     call strip(p    ,xhatsm(npsm)  ,ione)
+     call strip(t    ,xhatsm(ntsm)  ,nsig)
+     call strip(q    ,xhatsm(nqsm)  ,nsig)
+     call strip(oz   ,xhatsm(nozsm) ,nsig)
+     call strip(sst  ,xhatsm(nsstsm),ione)
+     call strip(slndt,xhatsm(nsltsm),ione)
+     call strip(sicet,xhatsm(nsitsm),ione)
+     call strip(cwmr ,xhatsm(ncwsm) ,nsig)
+  elseif (iflg==2_i_kind) then
+     call strip_periodic(st   ,xhatsm(nstsm) ,nsig)
+     call strip_periodic(vp   ,xhatsm(nvpsm) ,nsig)
+     call strip_periodic(p    ,xhatsm(npsm)  ,ione)
+     call strip_periodic(t    ,xhatsm(ntsm)  ,nsig)
+     call strip_periodic(q    ,xhatsm(nqsm)  ,nsig)
+     call strip_periodic(oz   ,xhatsm(nozsm) ,nsig)
+     call strip_periodic(sst  ,xhatsm(nsstsm),ione)
+     call strip_periodic(slndt,xhatsm(nsltsm),ione)
+     call strip_periodic(sicet,xhatsm(nsitsm),ione)
+     call strip_periodic(cwmr ,xhatsm(ncwsm) ,nsig)
   else
      write(6,*)'SUB2GRID:  ***ERROR*** iflg=',iflg,' is an illegal value'
   endif
@@ -100,9 +100,9 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
 
 ! zero out work arrays
   do k=1,nsig1o
-    do j=1,itotsub
-      work1(j,k)=zero
-    end do
+     do j=1,itotsub
+        work1(j,k)=zero
+     end do
   end do
 ! send subdomain vector to global slabs
   call mpi_alltoallv(xhatsm(1),iscnt_g,isdsp_g,&
@@ -112,14 +112,15 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
 ! reorder work1 array post communication
   call reorder(work1,nsig1o,nnnn1o)
   do k=1,nnnn1o
-   do l=1,iglobal
-      ni1=ltosi(l); ni2=ltosj(l)
-      workin(ni1,ni2,k)=work1(l,k)
-   end do
+     do l=1,iglobal
+        ni1=ltosi(l); ni2=ltosj(l)
+        workin(ni1,ni2,k)=work1(l,k)
+     end do
   end do
 
   return
 end subroutine sub2grid
+
 subroutine sub2grid2(workin,st,vp,pri,t,iflg)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -153,47 +154,47 @@ subroutine sub2grid2(workin,st,vp,pri,t,iflg)
        kp_gs,kt_gs
   use gridmod, only: itotsub,lat1,lon1,lat2,lon2,iglobal,&
        nlat,nlon,nsig,ltosi,ltosj
-  use constants, only: zero
+  use constants, only: ione,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: iflg
-  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in):: pri
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,vp,st
-  real(r_kind),dimension(nlat,nlon,nnnvsbal),intent(out):: workin
+  integer(i_kind)                            ,intent(in   ) :: iflg
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: pri
+  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: t,vp,st
+  real(r_kind),dimension(nlat,nlon,nnnvsbal) ,intent(  out) :: workin
 
 ! Declare local variables
   integer(i_kind) j,k,l,ni1,ni2,ioff
-  real(r_kind),dimension(lat1*lon1*(nsig*4+1)):: xhatsm
+  real(r_kind),dimension(lat1*lon1*(nsig*4+ione)):: xhatsm
   real(r_kind),dimension(max(iglobal,itotsub),nlevsbal):: work1  !  contain nsig1o slab of any variables
 
 
 ! strip off boundary points and load vector for communication
-  if (iflg==1) then
+  if (iflg==ione) then
      do k=1,nsig
-       ioff=ku_gs(k)*lat1*lon1+1
-       call strip(st(1,1,k),xhatsm(ioff),1)
-       ioff=kv_gs(k)*lat1*lon1+1
-       call strip(vp(1,1,k),xhatsm(ioff),1)
-       ioff=kt_gs(k)*lat1*lon1+1
-       call strip(t(1,1,k),xhatsm(ioff),1)
+        ioff=ku_gs(k)*lat1*lon1+ione
+        call strip(st (1,1,k),xhatsm(ioff),ione)
+        ioff=kv_gs(k)*lat1*lon1+ione
+        call strip(vp (1,1,k),xhatsm(ioff),ione)
+        ioff=kt_gs(k)*lat1*lon1+ione
+        call strip(t  (1,1,k),xhatsm(ioff),ione)
      end do
-     do k=1,nsig+1
-       ioff=kp_gs(k)*lat1*lon1+1
-       call strip(pri(1,1,k),xhatsm(ioff),1)
+     do k=1,nsig+ione
+        ioff=kp_gs(k)*lat1*lon1+ione
+        call strip(pri(1,1,k),xhatsm(ioff),ione)
      end do
-  elseif (iflg==2) then
+  elseif (iflg==2_i_kind) then
      do k=1,nsig
-       ioff=ku_gs(k)*lat1*lon1+1
-       call strip_periodic(st(1,1,k),xhatsm(ioff),1)
-       ioff=kv_gs(k)*lat1*lon1+1
-       call strip_periodic(vp(1,1,k),xhatsm(ioff),1)
-       ioff=kt_gs(k)*lat1*lon1+1
-       call strip_periodic(t(1,1,k),xhatsm(ioff),1)
+        ioff=ku_gs(k)*lat1*lon1+ione
+        call strip_periodic(st (1,1,k),xhatsm(ioff),ione)
+        ioff=kv_gs(k)*lat1*lon1+ione
+        call strip_periodic(vp (1,1,k),xhatsm(ioff),ione)
+        ioff=kt_gs(k)*lat1*lon1+ione
+        call strip_periodic(t  (1,1,k),xhatsm(ioff),ione)
      end do
-     do k=1,nsig+1
-       ioff=kp_gs(k)*lat1*lon1+1
-       call strip_periodic(pri(1,1,k),xhatsm(ioff),1)
+     do k=1,nsig+ione
+        ioff=kp_gs(k)*lat1*lon1+ione
+        call strip_periodic(pri(1,1,k),xhatsm(ioff),ione)
      end do
   else
      write(6,*)'SUB2GRID:  ***ERROR*** iflg=',iflg,' is an illegal value'
@@ -202,9 +203,9 @@ subroutine sub2grid2(workin,st,vp,pri,t,iflg)
 
 ! zero out work arrays
   do k=1,nlevsbal
-    do j=1,itotsub
-      work1(j,k)=zero
-    end do
+     do j=1,itotsub
+        work1(j,k)=zero
+     end do
   end do
 ! send subdomain vector to global slabs
   call mpi_alltoallv(xhatsm(1),iscbal_g,isdbal_g,&
@@ -214,10 +215,10 @@ subroutine sub2grid2(workin,st,vp,pri,t,iflg)
 ! reorder work1 array post communication
   call reorder(work1,nlevsbal,nnnvsbal)
   do k=1,nnnvsbal
-   do l=1,iglobal
-      ni1=ltosi(l); ni2=ltosj(l)
-      workin(ni1,ni2,k)=work1(l,k)
-   end do
+     do l=1,iglobal
+        ni1=ltosi(l); ni2=ltosj(l)
+        workin(ni1,ni2,k)=work1(l,k)
+     end do
   end do
 
   return

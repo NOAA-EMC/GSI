@@ -200,11 +200,11 @@ subroutine qcssmi(nchanl,   &
             abs(tbcnob(8)) > 10.0_r_kind .or. &
             abs(tbcnob(9)) > 6.0_r_kind .or. &
             abs(tbcnob(10)) > 6.0_r_kind) then
-            varinv(:)=zero
-            do i=1,nchanl
-               id_qc(i)=9_i_kind
-            end do
-            if(luse) aivals(13) = aivals(13) + one
+           varinv(:)=zero
+           do i=1,nchanl
+              id_qc(i)=9_i_kind
+           end do
+           if(luse) aivals(13) = aivals(13) + one
         end if
 
      else if(clw > zero)then

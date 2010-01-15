@@ -40,7 +40,7 @@ subroutine read_wrf_nmm_files(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_001=0.001_r_kind
@@ -95,10 +95,10 @@ subroutine read_wrf_nmm_files(mype)
            write(6,*)'READ_wrf_nmm_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2
            t4dv=real((nming2-iwinbgn),r_kind)*r60inv
            if (l4dvar) then
-             if (t4dv<zero .OR. t4dv>winlen) go to 110
+              if (t4dv<zero .OR. t4dv>winlen) go to 110
            else
-             ndiff=nming2-nminanl
-             if(abs(ndiff) > 60*nhr_half ) go to 110
+              ndiff=nming2-nminanl
+              if(abs(ndiff) > 60*nhr_half ) go to 110
            endif
            iwan=iwan+ione
            time_ges(iwan,1) =real((nming2-iwinbgn),r_kind)*r60inv
@@ -273,7 +273,7 @@ subroutine read_nems_nmmb_files(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_001=0.001_r_kind
@@ -328,10 +328,10 @@ subroutine read_nems_nmmb_files(mype)
            nming2=nmings+60*hourg
            t4dv=real((nming2-iwinbgn),r_kind)*r60inv
            if (l4dvar) then
-             if (t4dv<zero .OR. t4dv>winlen) go to 110
+              if (t4dv<zero .OR. t4dv>winlen) go to 110
            else
-             ndiff=nming2-nminanl
-             if(abs(ndiff) > 60*nhr_half ) go to 110
+              ndiff=nming2-nminanl
+              if(abs(ndiff) > 60*nhr_half ) go to 110
            endif
            iwan=iwan+ione
            time_ges(iwan,1) =real((nming2-iwinbgn),r_kind)*r60inv

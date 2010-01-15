@@ -66,7 +66,7 @@ subroutine adtest(xhat)
 implicit none
 
 ! Declare passed variables
-type(control_vector), optional, intent(in) :: xhat
+type(control_vector), optional, intent(in   ) :: xhat
 
 ! Declare local variables  
 type(state_vector) :: stest1(nsubwin),stest2(nsubwin)

@@ -86,9 +86,9 @@ subroutine intps_(pshead,rp,sp)
   implicit none
 
 ! Declare passed variables
-  type(ps_ob_type),pointer,intent(in):: pshead
-  real(r_kind),dimension(latlon1n1),intent(in):: sp
-  real(r_kind),dimension(latlon1n1),intent(inout):: rp
+  type(ps_ob_type),pointer         ,intent(in   ) :: pshead
+  real(r_kind),dimension(latlon1n1),intent(in   ) :: sp
+  real(r_kind),dimension(latlon1n1),intent(inout) :: rp
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4
@@ -111,53 +111,53 @@ subroutine intps_(pshead,rp,sp)
 !    Forward model
      val=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)
      if (l_foto) then
-       time_ps=psptr%time*r3600
-       val=val+&
-        (w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
-         w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_ps
+        time_ps=psptr%time*r3600
+        val=val+&
+          (w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
+           w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_ps
      endif
 
      if (lsaveobsens) then
-       psptr%diags%obssen(jiter) = val*psptr%raterr2*psptr%err2
+        psptr%diags%obssen(jiter) = val*psptr%raterr2*psptr%err2
      else
-       if (psptr%luse) psptr%diags%tldepart(jiter)=val
+        if (psptr%luse) psptr%diags%tldepart(jiter)=val
      endif
   
      if (l_do_adjoint) then
-       if (lsaveobsens) then
-         grad = psptr%diags%obssen(jiter)
+        if (lsaveobsens) then
+           grad = psptr%diags%obssen(jiter)
   
-       else
-         val=val-psptr%res
+        else
+           val=val-psptr%res
 
-!        gradient of nonlinear operator
-         if (nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
-                              psptr%b  > tiny_r_kind) then
-            ps_pg=psptr%pg*varqc_iter
-            cg_ps=cg_term/psptr%b                           ! b is d in Enderson
-            wnotgross= one-ps_pg                            ! pg is A in Enderson
-            wgross =ps_pg*cg_ps/wnotgross                   ! wgross is gama in Enderson
-            p0=wgross/(wgross+exp(-half*psptr%err2*val**2)) ! p0 is P in Enderson
-            val=val*(one-p0)                                ! term is Wqc in Enderson
-         endif
+!          gradient of nonlinear operator
+           if (nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
+                                psptr%b  > tiny_r_kind) then
+              ps_pg=psptr%pg*varqc_iter
+              cg_ps=cg_term/psptr%b                           ! b is d in Enderson
+              wnotgross= one-ps_pg                            ! pg is A in Enderson
+              wgross =ps_pg*cg_ps/wnotgross                   ! wgross is gama in Enderson
+              p0=wgross/(wgross+exp(-half*psptr%err2*val**2)) ! p0 is P in Enderson
+              val=val*(one-p0)                                ! term is Wqc in Enderson
+           endif
 
-         grad = val*psptr%raterr2*psptr%err2
-       endif
+           grad = val*psptr%raterr2*psptr%err2
+        endif
 
-!      Adjoint
-       rp(j1)=rp(j1)+w1*grad
-       rp(j2)=rp(j2)+w2*grad
-       rp(j3)=rp(j3)+w3*grad
-       rp(j4)=rp(j4)+w4*grad
+!       Adjoint
+        rp(j1)=rp(j1)+w1*grad
+        rp(j2)=rp(j2)+w2*grad
+        rp(j3)=rp(j3)+w3*grad
+        rp(j4)=rp(j4)+w4*grad
 
 
-       if (l_foto) then
-         grad=grad*time_ps
-         dhat_dt%p3d(j1)=dhat_dt%p3d(j1)+w1*grad
-         dhat_dt%p3d(j2)=dhat_dt%p3d(j2)+w2*grad
-         dhat_dt%p3d(j3)=dhat_dt%p3d(j3)+w3*grad
-         dhat_dt%p3d(j4)=dhat_dt%p3d(j4)+w4*grad
-       endif
+        if (l_foto) then
+           grad=grad*time_ps
+           dhat_dt%p3d(j1)=dhat_dt%p3d(j1)+w1*grad
+           dhat_dt%p3d(j2)=dhat_dt%p3d(j2)+w2*grad
+           dhat_dt%p3d(j3)=dhat_dt%p3d(j3)+w3*grad
+           dhat_dt%p3d(j4)=dhat_dt%p3d(j4)+w4*grad
+        endif
 
      endif
 

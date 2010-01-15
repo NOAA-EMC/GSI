@@ -101,7 +101,7 @@ subroutine compute_derived(mype)
   real(r_kind),parameter:: r015 = 0.15_r_kind
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   logical ice,fullfield
@@ -118,13 +118,13 @@ subroutine compute_derived(mype)
 
 ! Limit q to be >= 1.e-10_r_kind
   do it=1,nfldsig
-   do k=1,nsig
-     do j=1,lon2
-        do i=1,lat2
-           ges_q(i,j,k,it)=max(ges_q(i,j,k,it),1.e-10_r_kind)
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              ges_q(i,j,k,it)=max(ges_q(i,j,k,it),1.e-10_r_kind)
+           end do
         end do
      end do
-   end do
   end do
 !-----------------------------------------------------------------------------------
 ! Compute derivatives for .not. twodvar_regional case
@@ -152,25 +152,25 @@ subroutine compute_derived(mype)
 
 ! now that we have derivs, get time tendencies if necessary
 
-            call getprs(ges_ps(1,1,it),ges_3dp)
+           call getprs(ges_ps(1,1,it),ges_3dp)
 
-            call calctends(ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it), &
-               ges_q(1,1,1,it),ges_oz(1,1,1,it),ges_cwmr(1,1,1,it),&
-               ges_teta(1,1,1,it),ges_z(1,1,it), &
-               ges_u_lon,ges_u_lat,ges_v_lon,&
-               ges_v_lat,ges_tvlon,ges_tvlat,ges_ps_lon(1,1,it), &
-               ges_ps_lat(1,1,it),ges_qlon,ges_qlat,ges_ozlon,&
-               ges_ozlat,ges_cwmr_lon,ges_cwmr_lat,&
-               mype,ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
-               ges_oz_ten,ges_cwmr_ten,ges_3dp)
+           call calctends(ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it), &
+              ges_q(1,1,1,it),ges_oz(1,1,1,it),ges_cwmr(1,1,1,it),&
+              ges_teta(1,1,1,it),ges_z(1,1,it), &
+              ges_u_lon,ges_u_lat,ges_v_lon,&
+              ges_v_lat,ges_tvlon,ges_tvlat,ges_ps_lon(1,1,it), &
+              ges_ps_lat(1,1,it),ges_qlon,ges_qlat,ges_ozlon,&
+              ges_ozlat,ges_cwmr_lon,ges_cwmr_lat,&
+              mype,ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
+              ges_oz_ten,ges_cwmr_ten,ges_3dp)
 
-            if(jcstrong .and. write_diag(jiter) .and. baldiag_full) then
-                fullfield=.true.
+           if(jcstrong .and. write_diag(jiter) .and. baldiag_full) then
+              fullfield=.true.
 
 
-                call strong_bal_correction(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,mype, &
-                                           ges_u,ges_v,ges_tv,ges_ps,.true.,fullfield,.false.)
-            end if
+              call strong_bal_correction(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,mype, &
+                                         ges_u,ges_v,ges_tv,ges_ps,.true.,fullfield,.false.)
+           end if
         end if
      end if
 
@@ -267,140 +267,140 @@ subroutine compute_derived(mype)
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-             if (jiter==jiterstart) then
-               d=20.0_r_kind*rhgues(i,j,k) + one
-               n=int(d)
-               np=n+ione
-               dn2=d-float(n)
-               dn1=one-dn2
-               n=min0(max(ione,n),25_i_kind)
-               np=min0(max(ione,np),25_i_kind)
-               if(regional)then
-                 l=int(rllat1(i,j))
-                 l2=min0(l+ione,llmax)
-                 dl2=rllat1(i,j)-float(l)
-                 dl1=one-dl2
-                 if(.not.twodvar_regional)then
-                    qvar3d(i,j,k)=(varq(n,k)*dn1 + varq(np,k)*dn2)* &
-                      (dl1*dssv(4,l,j,k)+dl2*dssv(4,l2,j,k))
-                 endif 
-               else
-                 qvar3d(i,j,k)=(varq(n,k)*dn1 + varq(np,k)*dn2)*dssv(4,i,j,k) 
-               end if 
-             end if
-             dqdrh(i,j,k)=qsatg(i,j,k)
-             dqdt(i,j,k)=dmax(i,j,k)*dlnesdtv(i,j,k)*qgues(i,j,k)
-             dqdp(i,j,k)=dmax(i,j,k)*half*qgues(i,j,k)/ges_prsl(i,j,k,ntguessig)
+              if (jiter==jiterstart) then
+                 d=20.0_r_kind*rhgues(i,j,k) + one
+                 n=int(d)
+                 np=n+ione
+                 dn2=d-float(n)
+                 dn1=one-dn2
+                 n=min0(max(ione,n),25_i_kind)
+                 np=min0(max(ione,np),25_i_kind)
+                 if(regional)then
+                    l=int(rllat1(i,j))
+                    l2=min0(l+ione,llmax)
+                    dl2=rllat1(i,j)-float(l)
+                    dl1=one-dl2
+                    if(.not.twodvar_regional)then
+                       qvar3d(i,j,k)=(varq(n,k)*dn1 + varq(np,k)*dn2)* &
+                         (dl1*dssv(4,l,j,k)+dl2*dssv(4,l2,j,k))
+                    endif 
+                 else
+                    qvar3d(i,j,k)=(varq(n,k)*dn1 + varq(np,k)*dn2)*dssv(4,i,j,k) 
+                 end if 
+              end if
+              dqdrh(i,j,k)=qsatg(i,j,k)
+              dqdt(i,j,k)=dmax(i,j,k)*dlnesdtv(i,j,k)*qgues(i,j,k)
+              dqdp(i,j,k)=dmax(i,j,k)*half*qgues(i,j,k)/ges_prsl(i,j,k,ntguessig)
            end do
         end do
      end do
 
 ! variance update for anisotropic mode
      if( anisotropic .and. .not.rtma_subdomain_option ) then
-       hswgtsum=sum(hswgt(1:ngauss))
-       call setup_sub2fslab
-       if( regional ) then
-         allocate(rh0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o))
-         call sub2fslab(rhgues,rh0f)
-         do k=indices%kps,indices%kpe
-           ivar=idvar(k)
-           if(ivar==5_i_kind) then
-             kvar=k-kvar_start(ivar)+ione
-             do k1=1,nsig1o
-               if(levs_id(k1)==kvar) exit
-             end do
-             do j=indices%jps,indices%jpe
-             do i=indices%ips,indices%ipe
-               l =max(min(int(rllatf(i,j)),mlat),ione)
-               l2=min((l+ione),mlat)
-               dl2=rllatf(i,j)-float(l)
-               dl1=one-dl2
+        hswgtsum=sum(hswgt(1:ngauss))
+        call setup_sub2fslab
+        if( regional ) then
+           allocate(rh0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o))
+           call sub2fslab(rhgues,rh0f)
+           do k=indices%kps,indices%kpe
+              ivar=idvar(k)
+              if(ivar==5_i_kind) then
+                 kvar=k-kvar_start(ivar)+ione
+                 do k1=1,nsig1o
+                    if(levs_id(k1)==kvar) exit
+                 end do
+                 do j=indices%jps,indices%jpe
+                    do i=indices%ips,indices%ipe
+                       l =max(min(int(rllatf(i,j)),mlat),ione)
+                       l2=min((l+ione),mlat)
+                       dl2=rllatf(i,j)-float(l)
+                       dl1=one-dl2
 
-               factk=dl1*corz(l,kvar,4)+dl2*corz(l2,kvar,4)
-               call fact_qopt2(factk,rh0f(i,j,k1),kvar)
+                       factk=dl1*corz(l,kvar,4)+dl2*corz(l2,kvar,4)
+                       call fact_qopt2(factk,rh0f(i,j,k1),kvar)
+ 
+                       do igauss=1,ngauss
+                          factor=hswgt(igauss)*factk*an_amp0(ivar)/sqrt(hswgtsum)
+                          filter_all(1)%amp(igauss,i,j,k)=factor*filter_all(2)%amp(igauss,i,j,k)
+                          if (allocated(ensamp)) then
+                             filter_all(1)%amp(igauss,i,j,k)=filter_all(1)%amp(igauss,i,j,k)*ensamp(i,j,k1)
+                          end if
+                       end do
+                    end do
+                 end do
+              end if
+           end do
+           deallocate(rh0f)
+        else
+           allocate(rh0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o))
+           allocate(rh2f(pf2aP2%nlatf,pf2aP2%nlonf,nsig1o))
+           allocate(rh3f(pf2aP3%nlatf,pf2aP3%nlonf,nsig1o))
 
-               do igauss=1,ngauss
-                 factor=hswgt(igauss)*factk*an_amp0(ivar)/sqrt(hswgtsum)
-                 filter_all(1)%amp(igauss,i,j,k)=factor*filter_all(2)%amp(igauss,i,j,k)
-                 if (allocated(ensamp)) then
-                   filter_all(1)%amp(igauss,i,j,k)=filter_all(1)%amp(igauss,i,j,k)*ensamp(i,j,k1)
-                 end if
-               end do
-             end do
-             end do
-           end if
-         end do
-         deallocate(rh0f)
-       else
-         allocate(rh0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o))
-         allocate(rh2f(pf2aP2%nlatf,pf2aP2%nlonf,nsig1o))
-         allocate(rh3f(pf2aP3%nlatf,pf2aP3%nlonf,nsig1o))
+           call sub2fslab_glb (rhgues,rh0f,rh2f,rh3f)
+           do k=indices%kps,indices%kpe
+              ivar=idvar(k)
+              if(ivar==5_i_kind) then
+                 kvar=k-kvar_start(ivar)+ione
+                 do k1=1,nsig1o
+                    if(levs_id(k1)==kvar) exit
+                 end do
+                 ! zonal patch
+                 do j=indices%jps,indices%jpe
+                    do i=indices%ips,indices%ipe
+                       call get_stat_factk(p0ilatf(i),ivar,kvar,factk, &
+                                           rh0f(i,j,k1),one)
+                       do igauss=1,ngauss
+                          factor=hswgt(igauss)*factk*an_amp0(ivar)/sqrt(hswgtsum)
+                          filter_all(1)%amp(igauss,i,j,k)=factor*filter_all(2)%amp(igauss,i,j,k)
+                          if (allocated(ensamp0f)) then
+                             filter_all(1)%amp(igauss,i,j,k)=filter_all(1)%amp(igauss,i,j,k)*ensamp0f(i,j,k1)
+                          end if
+                       end do
+ 
+                    end do
+                 end do
+                 ! polar patches
+                 do j=indices_p%jps,indices_p%jpe
+                    do i=indices_p%ips,indices_p%ipe
+                       ! north polar
+                       if(p2ilatf(i,j)/=zero) then
+                          call get_stat_factk(p2ilatf(i,j),ivar,kvar,factk, &
+                                              rh2f(i,j,k1),one)
+                       else
+                          call get_stat_factk(p2ilatfm    ,ivar,kvar,factk, &
+                                              rh2f(i,j,k1),one)
+                       end if
+                       do igauss=1,ngauss
+                          factor=hswgt(igauss)*factk*an_amp0(ivar)/sqrt(hswgtsum)
+                          filter_p2(1)%amp(igauss,i,j,k)=factor*filter_p2(2)%amp(igauss,i,j,k)
+                          if(allocated(ensamp2f)) then
+                             filter_p2(1)%amp(igauss,i,j,k)=filter_p2(1)%amp(igauss,i,j,k)*sqrt(ensamp2f(i,j,k))
+                          end if
+                       end do
+                       ! south polar
+                       if(p3ilatf(i,j)/=zero) then
+                          call get_stat_factk(p3ilatf(i,j),ivar,kvar,factk, &
+                                              rh3f(i,j,k1),one)
+                       else
+                          call get_stat_factk(p3ilatfm    ,ivar,kvar,factk, &
+                                              rh3f(i,j,k1),one)
+                       end if
+                       do igauss=1,ngauss
+                          factor=factk*an_amp0(ivar)/sqrt(real(ngauss,r_kind))
+                          filter_p3(1)%amp(igauss,i,j,k)=factor*filter_p3(2)%amp(igauss,i,j,k)
+                          if(allocated(ensamp3f)) then
+                             filter_p3(1)%amp(igauss,i,j,k)=filter_p3(1)%amp(igauss,i,j,k)*sqrt(ensamp3f(i,j,k))
+                          end if
+                       end do
 
-         call sub2fslab_glb (rhgues,rh0f,rh2f,rh3f)
-         do k=indices%kps,indices%kpe
-           ivar=idvar(k)
-           if(ivar==5_i_kind) then
-             kvar=k-kvar_start(ivar)+ione
-             do k1=1,nsig1o
-               if(levs_id(k1)==kvar) exit
-             end do
-             ! zonal patch
-             do j=indices%jps,indices%jpe
-             do i=indices%ips,indices%ipe
-               call get_stat_factk(p0ilatf(i),ivar,kvar,factk, &
-                                   rh0f(i,j,k1),one)
-               do igauss=1,ngauss
-                 factor=hswgt(igauss)*factk*an_amp0(ivar)/sqrt(hswgtsum)
-                 filter_all(1)%amp(igauss,i,j,k)=factor*filter_all(2)%amp(igauss,i,j,k)
-                 if (allocated(ensamp0f)) then
-                   filter_all(1)%amp(igauss,i,j,k)=filter_all(1)%amp(igauss,i,j,k)*ensamp0f(i,j,k1)
-                 end if
-               end do
+                    end do
+                 end do
 
-             end do
-             end do
-             ! polar patches
-             do j=indices_p%jps,indices_p%jpe
-             do i=indices_p%ips,indices_p%ipe
-               ! north polar
-               if(p2ilatf(i,j)/=zero) then
-                 call get_stat_factk(p2ilatf(i,j),ivar,kvar,factk, &
-                                     rh2f(i,j,k1),one)
-               else
-                 call get_stat_factk(p2ilatfm    ,ivar,kvar,factk, &
-                                     rh2f(i,j,k1),one)
-               end if
-               do igauss=1,ngauss
-                 factor=hswgt(igauss)*factk*an_amp0(ivar)/sqrt(hswgtsum)
-                 filter_p2(1)%amp(igauss,i,j,k)=factor*filter_p2(2)%amp(igauss,i,j,k)
-                 if(allocated(ensamp2f)) then
-                   filter_p2(1)%amp(igauss,i,j,k)=filter_p2(1)%amp(igauss,i,j,k)*sqrt(ensamp2f(i,j,k))
-                 end if
-               end do
-               ! south polar
-               if(p3ilatf(i,j)/=zero) then
-                 call get_stat_factk(p3ilatf(i,j),ivar,kvar,factk, &
-                                     rh3f(i,j,k1),one)
-               else
-                 call get_stat_factk(p3ilatfm    ,ivar,kvar,factk, &
-                                     rh3f(i,j,k1),one)
-               end if
-               do igauss=1,ngauss
-                 factor=factk*an_amp0(ivar)/sqrt(real(ngauss,r_kind))
-                 filter_p3(1)%amp(igauss,i,j,k)=factor*filter_p3(2)%amp(igauss,i,j,k)
-                 if(allocated(ensamp3f)) then
-                   filter_p3(1)%amp(igauss,i,j,k)=filter_p3(1)%amp(igauss,i,j,k)*sqrt(ensamp3f(i,j,k))
-                 end if
-               end do
-
-             end do
-             end do
-
-           end if
-         end do
-         deallocate(rh0f,rh2f,rh3f)
-       end if
-       call destroy_sub2fslab
+              end if
+           end do
+           deallocate(rh0f,rh2f,rh3f)
+        end if
+        call destroy_sub2fslab
      end if
 
 !    Special block to decouple temperature and pressure from moisture
@@ -459,17 +459,17 @@ subroutine compute_derived(mype)
 !    End of regional block
 
      else                      !  for global 
-       do k=1,nsig
-         do j=1,lon2
-           do i=1,lat2
-!            Decouple Q from T above the tropopause for global
-             if ( (ges_prsl(i,j,k,ntguessig)) < (one_tenth*tropprs(i,j)) ) then
-               dqdt(i,j,k)=zero
-               dqdp(i,j,k)=zero
-             end if
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+!                Decouple Q from T above the tropopause for global
+                 if ( (ges_prsl(i,j,k,ntguessig)) < (one_tenth*tropprs(i,j)) ) then
+                    dqdt(i,j,k)=zero
+                    dqdp(i,j,k)=zero
+                 end if
+              end do
            end do
-         end do
-       end do
+        end do
  
      endif
 

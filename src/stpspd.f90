@@ -77,24 +77,24 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: spd_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: izero,ione,zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_4dvar, only: ltlint
   implicit none
 
 ! Declare passed variables
-  type(spd_ob_type),pointer,intent(in):: spdhead
-  integer(i_kind),intent(in)::nstep
-  real(r_kind),dimension(max(1,nstep)),intent(in):: sges
-  real(r_quad),dimension(max(1,nstep)),intent(out):: out
-  real(r_kind),dimension(latlon1n),intent(in):: ru,rv,su,sv
+  type(spd_ob_type),pointer              ,intent(in   ) :: spdhead
+  integer(i_kind)                        ,intent(in   ) :: nstep
+  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
+  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: ru,rv,su,sv
 
 ! Declare local variables
   integer(i_kind) i,j1,j2,j3,j4,kk
   real(r_kind) w1,w2,w3,w4,time_spd
   real(r_kind) valu,valv,ucur,vcur,spdnl,spdtl,uu,vv,spd
-  real(r_kind),dimension(max(1,nstep)):: pen,pentl
+  real(r_kind),dimension(max(ione,nstep)):: pen,pentl
   real(r_kind) cg_spd,pencur,wgross,wnotgross
   real(r_kind) pg_spd
   type(spd_ob_type), pointer :: spdptr
@@ -103,85 +103,85 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
   time_spd=zero
 
   if(ltlint.and.l_foto) then
-    write(6,*)'ltlint & foto not compatible at this time',ltlint,l_foto
-    call stop2(314)
+     write(6,*)'ltlint & foto not compatible at this time',ltlint,l_foto
+     call stop2(314)
   end if
 
   spdptr => spdhead
   do while (associated(spdptr))
 
-    if(spdptr%luse)then
-     if(nstep > 0)then
-       j1 = spdptr%ij(1)
-       j2 = spdptr%ij(2)
-       j3 = spdptr%ij(3)
-       j4 = spdptr%ij(4)
-       w1 = spdptr%wij(1)
-       w2 = spdptr%wij(2)
-       w3 = spdptr%wij(3)
-       w4 = spdptr%wij(4)
+     if(spdptr%luse)then
+        if(nstep > izero)then
+           j1 = spdptr%ij(1)
+           j2 = spdptr%ij(2)
+           j3 = spdptr%ij(3)
+           j4 = spdptr%ij(4)
+           w1 = spdptr%wij(1)
+           w2 = spdptr%wij(2)
+           w3 = spdptr%wij(3)
+           w4 = spdptr%wij(4)
+ 
+           valu=w1* ru(j1)+w2* ru(j2)+w3* ru(j3)+w4* ru(j4)
+           valv=w1* rv(j1)+w2* rv(j2)+w3* rv(j3)+w4* rv(j4)
+           ucur=w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)+spdptr%uges
+           vcur=w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)+spdptr%vges
 
-       valu=w1* ru(j1)+w2* ru(j2)+w3* ru(j3)+w4* ru(j4)
-       valv=w1* rv(j1)+w2* rv(j2)+w3* rv(j3)+w4* rv(j4)
-       ucur=w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)+spdptr%uges
-       vcur=w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)+spdptr%vges
-
-       if(l_foto) then 
-          time_spd=spdptr%time*r3600
-          valu=valu +&
-              (w1*dhat_dt%u(j1)+w2*dhat_dt%u(j2)+ &
-               w3*dhat_dt%u(j3)+w4*dhat_dt%u(j4))*time_spd
-          valv=valv +&
-              (w1*dhat_dt%v(j1)+w2*dhat_dt%v(j2)+ &
-               w3*dhat_dt%v(j3)+w4*dhat_dt%v(j4))*time_spd
-          ucur=ucur +&
-              (w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-               w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))*time_spd
-          vcur=vcur +&
-              (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-               w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_spd
-       endif
-       do kk=1,nstep
-         uu=ucur+sges(kk)*valu
-         vv=vcur+sges(kk)*valv
-         spd=sqrt(uu*uu+vv*vv)-spdptr%res
-         pen(kk)=spd*spd*spdptr%err2
-         if(ltlint)then
-          spdnl=sqrt(uu*uu+vv*vv)
-          spdtl=uu*valu+vv*valv
-          if (spdnl>tiny_r_kind*100._r_kind) then
-            spdtl=spdtl/spdnl
-          else
-            spdtl=zero
-          endif
-          pen(kk)=pen(kk)+two*spdtl*spd*spdptr%err2
-         end if
-       end do
-     else
-       pen(kk)=spdptr%res*spdptr%res*spdptr%err2
-     end if
+           if(l_foto) then 
+              time_spd=spdptr%time*r3600
+              valu=valu +&
+                  (w1*dhat_dt%u(j1)+w2*dhat_dt%u(j2)+ &
+                   w3*dhat_dt%u(j3)+w4*dhat_dt%u(j4))*time_spd
+              valv=valv +&
+                  (w1*dhat_dt%v(j1)+w2*dhat_dt%v(j2)+ &
+                   w3*dhat_dt%v(j3)+w4*dhat_dt%v(j4))*time_spd
+              ucur=ucur +&
+                  (w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
+                   w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))*time_spd
+              vcur=vcur +&
+                  (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
+                   w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_spd
+           endif
+           do kk=1,nstep
+              uu=ucur+sges(kk)*valu
+              vv=vcur+sges(kk)*valv
+              spd=sqrt(uu*uu+vv*vv)-spdptr%res
+              pen(kk)=spd*spd*spdptr%err2
+              if(ltlint)then
+                 spdnl=sqrt(uu*uu+vv*vv)
+                 spdtl=uu*valu+vv*valv
+                 if (spdnl>tiny_r_kind*100._r_kind) then
+                    spdtl=spdtl/spdnl
+                 else
+                    spdtl=zero
+                 endif
+                 pen(kk)=pen(kk)+two*spdtl*spd*spdptr%err2
+              end if
+           end do
+        else
+           pen(kk)=spdptr%res*spdptr%res*spdptr%err2
+        end if
 
 !  Modify penalty term if nonlinear QC
-     if (nlnqc_iter .and. spdptr%pg > tiny_r_kind .and. &
-                          spdptr%b  > tiny_r_kind) then
-        pg_spd=spdptr%pg*varqc_iter
-        cg_spd=cg_term/spdptr%b
-        wnotgross= one-pg_spd
-        wgross = pg_spd*cg_spd/wnotgross
-        pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
-        do kk=1,max(1,nstep)
-           pen(kk) = -two*log((exp(-half*pen(kk)  ) + wgross)/(one+wgross))
-        enddo
-     endif
+        if (nlnqc_iter .and. spdptr%pg > tiny_r_kind .and. &
+                             spdptr%b  > tiny_r_kind) then
+           pg_spd=spdptr%pg*varqc_iter
+           cg_spd=cg_term/spdptr%b
+           wnotgross= one-pg_spd
+           wgross = pg_spd*cg_spd/wnotgross
+           pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
+           do kk=1,max(ione,nstep)
+              pen(kk) = -two*log((exp(-half*pen(kk)  ) + wgross)/(one+wgross))
+           enddo
+        endif
 
-     out(1) = out(1)+pen(1)*spdptr%raterr2
-     do kk=2,nstep
-       out(kk) = out(kk)+(pen(kk)-pen(1))*spdptr%raterr2
-     end do
+        out(1) = out(1)+pen(1)*spdptr%raterr2
+        do kk=2,nstep
+           out(kk) = out(kk)+(pen(kk)-pen(1))*spdptr%raterr2
+        end do
 
-    end if
+     end if
     
-    spdptr => spdptr%llpoint
+     spdptr => spdptr%llpoint
 
   end do
   return

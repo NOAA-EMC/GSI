@@ -35,8 +35,8 @@ subroutine getprs(ps,prs)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2),intent(in):: ps
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(out):: prs
+  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs
 
 ! Declare local variables
   real(r_kind) kapr,trk
@@ -71,32 +71,32 @@ subroutine getprs(ps,prs)
         end do
      endif
   else
-    k=1
-    k2=nsig+ione
-    do j=1,lon2
-      do i=1,lat2
-        prs(i,j,k)=ps(i,j)
-        prs(i,j,k2)=zero
-      end do
-    end do
-    if (idvc5 /= 3_i_kind) then
-      do k=2,nsig
-        do j=1,lon2
-          do i=1,lat2
-            prs(i,j,k)=ak5(k)+bk5(k)*ps(i,j)
-          end do
+     k=ione
+     k2=nsig+ione
+     do j=1,lon2
+        do i=1,lat2
+           prs(i,j,k)=ps(i,j)
+           prs(i,j,k2)=zero
         end do
-      end do
-    else
-      do k=2,nsig
-        do j=1,lon2
-          do i=1,lat2
-            trk=(half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k))**kapr
-            prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
-          end do
+     end do
+     if (idvc5 /= 3_i_kind) then
+        do k=2,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 prs(i,j,k)=ak5(k)+bk5(k)*ps(i,j)
+              end do
+           end do
         end do
-      end do
-    end if
+     else
+        do k=2,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 trk=(half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k))**kapr
+                 prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
+              end do
+           end do
+        end do
+     end if
   end if
 
   return
@@ -140,9 +140,9 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2),intent(in):: ps_x,ps_y
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in):: prs
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(out)::prs_x,prs_y
+  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps_x,ps_y
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prs
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs_x,prs_y
 
 ! Declare local variables
   integer(i_kind) i,j,k,iflg
@@ -152,32 +152,32 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
 
   if(regional)then
      if(wrf_nmm_regional.or.nems_nmmb_regional) then
-       do k=1,nsig+ione
-         do j=1,lon2
-           do i=1,lat2
-             prs_x(i,j,k)=eta2_ll(k)*ps_x(i,j)
-             prs_y(i,j,k)=eta2_ll(k)*ps_y(i,j)
+        do k=1,nsig+ione
+           do j=1,lon2
+              do i=1,lat2
+                 prs_x(i,j,k)=eta2_ll(k)*ps_x(i,j)
+                 prs_y(i,j,k)=eta2_ll(k)*ps_y(i,j)
+              end do
            end do
-         end do
-       end do
+        end do
      else
-       prs_x=zero ; prs_y=zero
+        prs_x=zero ; prs_y=zero
      end if
   else
-    iflg=ione
-    st=zero
-    vp=zero
-    t=zero
-    hwork=zero
-    call sub2grid2(hwork,st,vp,prs,t,iflg)
-    do k=1,nnnvsbal
-     if(nvarbal_id(k) == 3_i_kind)then
-      call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
-      call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
-     end if
-    end do
-    call grid2sub2(hwork_x,st,vp,prs_x,t)
-    call grid2sub2(hwork_y,st,vp,prs_y,t)
+     iflg=ione
+     st=zero
+     vp=zero
+     t=zero
+     hwork=zero
+     call sub2grid2(hwork,st,vp,prs,t,iflg)
+     do k=1,nnnvsbal
+        if(nvarbal_id(k) == 3_i_kind)then
+           call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
+           call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
+        end if
+     end do
+     call grid2sub2(hwork_x,st,vp,prs_x,t)
+     call grid2sub2(hwork_y,st,vp,prs_y,t)
   end if
 
   return
@@ -224,9 +224,9 @@ subroutine getprs_tl(ps,t,prs)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2),intent(in):: ps
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(out):: prs
+  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps
+  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: t
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs
 
 ! Declare local variables
   real(r_kind) kapr,kaprm1,trk,tc1,t9trm
@@ -251,37 +251,37 @@ subroutine getprs_tl(ps,t,prs)
         end do
      endif
   else
-    k=ione
-    k2=nsig+ione
-    do j=1,lon2
-      do i=1,lat2
-        prs(i,j,k)=ps(i,j)
-        prs(i,j,k2)=zero
-      end do
-    end do
-    if (idvc5 /= 3_i_kind) then
-      do k=2,nsig
-        do j=1,lon2
-          do i=1,lat2
-            prs(i,j,k)=bk5(k)*ps(i,j)
-          end do
+     k=ione
+     k2=nsig+ione
+     do j=1,lon2
+        do i=1,lat2
+           prs(i,j,k)=ps(i,j)
+           prs(i,j,k2)=zero
         end do
-      end do
-    else
-      kapr=one/rd_over_cp
-      kaprm1=kapr-one
-      it=ntguessig
-      do k=2,nsig
-        do j=1,lon2
-          do i=1,lat2
-            t9trm=half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k)
-            tc1=half/tref5(k)
-            trk=kapr*tc1*(t(i,j,k-ione)+t(i,j,k))*(t9trm**kaprm1)
-            prs(i,j,k)=bk5(k)*ps(i,j) + ck5(k)*trk
-          end do
+     end do
+     if (idvc5 /= 3_i_kind) then
+        do k=2,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 prs(i,j,k)=bk5(k)*ps(i,j)
+              end do
+           end do
         end do
-      end do
-    end if
+     else
+        kapr=one/rd_over_cp
+        kaprm1=kapr-one
+        it=ntguessig
+        do k=2,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 t9trm=half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k)
+                 tc1=half/tref5(k)
+                 trk=kapr*tc1*(t(i,j,k-ione)+t(i,j,k))*(t9trm**kaprm1)
+                 prs(i,j,k)=bk5(k)*ps(i,j) + ck5(k)*trk
+              end do
+           end do
+        end do
+     end if
   end if
 
   return
@@ -325,9 +325,9 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2),intent(in):: ps_x,ps_y
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in):: prs
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(out):: prs_x,prs_y
+  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps_x,ps_y
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prs
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs_x,prs_y
 
 ! Declare local variables
   integer(i_kind) i,j,k,iflg
@@ -336,33 +336,33 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
 
 
   if(regional)then
-    if(wrf_nmm_regional.or.nems_nmmb_regional) then
-       do k=1,nsig+ione
-         do j=1,lon2
-           do i=1,lat2
-               prs_x(i,j,k)=eta2_ll(k)*ps_x(i,j)
-               prs_y(i,j,k)=eta2_ll(k)*ps_y(i,j)
+     if(wrf_nmm_regional.or.nems_nmmb_regional) then
+        do k=1,nsig+ione
+           do j=1,lon2
+              do i=1,lat2
+                 prs_x(i,j,k)=eta2_ll(k)*ps_x(i,j)
+                 prs_y(i,j,k)=eta2_ll(k)*ps_y(i,j)
+              end do
            end do
-         end do
-       end do
-    else
-      prs_x=zero
-      prs_y=zero
-    end if
-  else
-    iflg=ione
-    st=zero
-    vp=zero
-    t=zero
-    call sub2grid2(hwork,st,vp,prs,t,iflg)
-    do k=1,nnnvsbal
-     if(nvarbal_id(k) == 3_i_kind)then
-      call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
-      call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
+        end do
+     else
+        prs_x=zero
+        prs_y=zero
      end if
-    end do
-    call grid2sub2(hwork_x,st,vp,prs_x,t)
-    call grid2sub2(hwork_y,st,vp,prs_y,t)
+  else
+     iflg=ione
+     st=zero
+     vp=zero
+     t=zero
+     call sub2grid2(hwork,st,vp,prs,t,iflg)
+     do k=1,nnnvsbal
+        if(nvarbal_id(k) == 3_i_kind)then
+           call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
+           call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
+        end if
+     end do
+     call grid2sub2(hwork_x,st,vp,prs_x,t)
+     call grid2sub2(hwork_y,st,vp,prs_y,t)
   endif
 
   return
@@ -412,9 +412,9 @@ subroutine getprs_ad(ps,t,prs)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout):: prs
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t
-  real(r_kind),dimension(lat2,lon2),intent(inout):: ps
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout) :: prs
+  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(inout) :: t
+  real(r_kind),dimension(lat2,lon2)          ,intent(inout) :: ps
 
 ! Declare local variables
   real(r_kind) kapr,kaprm1,trk,tc1,t9trm
@@ -440,45 +440,45 @@ subroutine getprs_ad(ps,t,prs)
         end do
      endif
   else
-    if (idvc5 /= 3_i_kind) then
-      do k=2,nsig
-        do j=1,lon2
-          do i=1,lat2
-            ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
-          end do
+     if (idvc5 /= 3_i_kind) then
+        do k=2,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
+              end do
+           end do
         end do
-      end do
-    else
-      kapr=one/rd_over_cp
-      kaprm1=kapr-one
-      it=ntguessig
-      do k=2,nsig
-        do j=1,lon2
-          do i=1,lat2
-            t9trm=half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k)
-            tc1=half/tref5(k)
-            ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
-            trk = ck5(k)*prs(i,j,k)
-            t(i,j,k-ione) = t(i,j,k-ione) + kapr*tc1*trk*(t9trm**kaprm1)
-            t(i,j,k     ) = t(i,j,k     ) + kapr*tc1*trk*(t9trm**kaprm1)
-          end do
+     else
+        kapr=one/rd_over_cp
+        kaprm1=kapr-one
+        it=ntguessig
+        do k=2,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 t9trm=half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k)
+                 tc1=half/tref5(k)
+                 ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
+                 trk = ck5(k)*prs(i,j,k)
+                 t(i,j,k-ione) = t(i,j,k-ione) + kapr*tc1*trk*(t9trm**kaprm1)
+                 t(i,j,k     ) = t(i,j,k     ) + kapr*tc1*trk*(t9trm**kaprm1)
+              end do
+           end do
         end do
-      end do
-    end if
-    k=ione
-    do j=1,lon2
-      do i=1,lat2
-        ps(i,j)=ps(i,j) + prs(i,j,k)
-      end do
-    end do
+     end if
+     k=ione
+     do j=1,lon2
+        do i=1,lat2
+           ps(i,j)=ps(i,j) + prs(i,j,k)
+        end do
+     end do
   end if
 
   do k=1,nsig+ione
-   do j=1,lon2
-     do i=1,lat2
-      prs(i,j,k)=zero
+     do j=1,lon2
+        do i=1,lat2
+           prs(i,j,k)=zero
+        end do
      end do
-   end do
   end do 
  
   return
@@ -526,9 +526,9 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in):: prs_x,prs_y
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout):: prs
-  real(r_kind),dimension(lat2,lon2),intent(inout):: ps_x,ps_y
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prs_x,prs_y
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout) :: prs
+  real(r_kind),dimension(lat2,lon2)          ,intent(inout) :: ps_x,ps_y
 
 ! Declare local variables
   integer(i_kind) i,j,k,iflg
@@ -537,38 +537,38 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
 
 ! Adjoint of horizontal derivatives
   if (regional) then
-    if(wrf_nmm_regional.or.nems_nmmb_regional) then
-      do k=1,nsig+ione
-        do j=1,lon2
-          do i=1,lat2
-            ps_y(i,j) = ps_y(i,j) + eta2_ll(k)*prs_y(i,j,k)
-            ps_x(i,j) = ps_x(i,j) + eta2_ll(k)*prs_x(i,j,k)
-          end do
+     if(wrf_nmm_regional.or.nems_nmmb_regional) then
+        do k=1,nsig+ione
+           do j=1,lon2
+              do i=1,lat2
+                 ps_y(i,j) = ps_y(i,j) + eta2_ll(k)*prs_y(i,j,k)
+                 ps_x(i,j) = ps_x(i,j) + eta2_ll(k)*prs_x(i,j,k)
+              end do
+           end do
         end do
-      end do
-    end if
-  else
-    iflg=ione
-    st=zero
-    vp=zero
-    t=zero
-    hwork=zero
-    call sub2grid2(hwork_x,st,vp,prs_x,t,iflg)
-    call sub2grid2(hwork_y,st,vp,prs_y,t,iflg)
-    do k=1,nnnvsbal
-     if(nvarbal_id(k) == 3_i_kind)then
-      call tcompact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
-      call tcompact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
      end if
-    end do
-    call grid2sub2(hwork,st,vp,prs_x,t)
-    do k=1,nsig+ione
-      do j=1,lon2
-        do i=1,lat2
-         prs(i,j,k)=prs(i,j,k)+prs_x(i,j,k)
+  else
+     iflg=ione
+     st=zero
+     vp=zero
+     t=zero
+     hwork=zero
+     call sub2grid2(hwork_x,st,vp,prs_x,t,iflg)
+     call sub2grid2(hwork_y,st,vp,prs_y,t,iflg)
+     do k=1,nnnvsbal
+        if(nvarbal_id(k) == 3_i_kind)then
+           call tcompact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
+           call tcompact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
+        end if
+     end do
+     call grid2sub2(hwork,st,vp,prs_x,t)
+     do k=1,nsig+ione
+        do j=1,lon2
+           do i=1,lat2
+              prs(i,j,k)=prs(i,j,k)+prs_x(i,j,k)
+           end do
         end do
-      end do
-    end do
+     end do
   end if
 
 

@@ -51,6 +51,19 @@ module lag_traj
 
   implicit none
 
+  private
+
+  public:: lag_poledist,lag_trajfail
+
+  public:: lag_stepduration,lag_iteduration
+  public:: lag_rk4itenpara_r,lag_rk4itenpara_i
+  public:: lag_rk2itenpara_r,lag_rk2itenpara_i
+
+  public:: lag_initlparam
+  public:: lag_d_haversin
+  public:: lag_rk4iter_nl,lag_rk4iter_tl,lag_rk4iter_ad
+  public:: lag_rk2iter_nl,lag_rk2iter_tl,lag_rk2iter_ad
+
   ! Number of parameters needed by the tangent linear model, for one step
   ! of the Runge-Kutta (4th order) trajectory model
   integer(i_kind),parameter::lag_rk4stepnpara_r=57_i_kind  ! real numbers
@@ -127,20 +140,6 @@ module lag_traj
   integer(i_kind),parameter::irk2_lon_1_p=28_i_kind
 
 
-  private
-
-  public:: lag_poledist,lag_trajfail
-
-  public:: lag_stepduration,lag_iteduration
-  public:: lag_rk4itenpara_r,lag_rk4itenpara_i
-  public:: lag_rk2itenpara_r,lag_rk2itenpara_i
-
-  public:: lag_initlparam
-  public:: lag_d_haversin
-  public:: lag_rk4iter_nl,lag_rk4iter_tl,lag_rk4iter_ad
-  public:: lag_rk2iter_nl,lag_rk2iter_tl,lag_rk2iter_ad
-
-
   contains
 
 
@@ -208,22 +207,23 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),intent(inout)::lon,lat
+
+    real(r_kind),intent(inout) :: lon,lat
 
     ! When it cross the pole ...
     if (lat> pi/two) then
-      lat=pi -lat
+       lat=pi -lat
     end if
     if (lat<-pi/two) then
-      lat=-pi-lat
+       lat=-pi-lat
     end if
 
     ! Because we use radians
     do while (lon<zero) 
-        lon=lon+two*pi
+       lon=lon+two*pi
     end do
     do while (lon>=two*pi)
-        lon=lon-two*pi
+       lon=lon-two*pi
     end do
 
   end subroutine correct_position
@@ -257,31 +257,32 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),intent(inout)::lon,lat
-    real(r_kind),intent(in)::dlon,dlat
+
+    real(r_kind),intent(inout) :: lon,lat
+    real(r_kind),intent(in   ) :: dlon,dlat
 
     ! Check for a previous failure if m2lon
     if (dlon==lag_trajfail .or. lon==lag_trajfail .or. lat==lag_trajfail) then
-      lat=lag_trajfail; lon=lag_trajfail
-      return
+       lat=lag_trajfail; lon=lag_trajfail
+       return
     end if
 
     ! Pole crossing problem to handle first :
     if (abs(lat+dlat)< pi/two-lag_poledist) then
-      lat=lat+dlat
-      lon=lon+dlon
+       lat=lat+dlat
+       lon=lon+dlon
     else  ! Too close of the pole
-      lat=lag_trajfail
-      lon=lag_trajfail
-      return
+       lat=lag_trajfail
+       lon=lag_trajfail
+       return
     end if
 
     ! Because we use radians : make longitude remain between 0 and 2pi
     do while (lon<zero) 
-        lon=lon+two*pi
+       lon=lon+two*pi
     end do
     do while (lon>=two*pi)
-        lon=lon-two*pi
+       lon=lon-two*pi
     end do
 
   end subroutine add_position
@@ -311,8 +312,9 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
+
     ! distance in meters along a latitude line
-    real(r_kind),intent(in)::rv_dy
+    real(r_kind),intent(in   ) :: rv_dy
     ! equivalent distance in radians
     real(r_kind)::m2lat_tl          
 
@@ -346,29 +348,30 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
+
     ! latitude of the starting point
-    real(r_kind),intent(in)::rv_orig_lat
+    real(r_kind)                      ,intent(in   ) :: rv_orig_lat
     ! distance in meters along a longitude line
-    real(r_kind),intent(in)::rv_dx
+    real(r_kind)                      ,intent(in   ) :: rv_dx
     ! parameters needed for the TL and adjoint (optional)
-    real(r_kind),dimension(2),intent(out),optional::lspec_r
+    real(r_kind),dimension(2),optional,intent(  out) :: lspec_r
     ! equivalent distance in radians
     real(r_kind)::m2lon_nl
 
     ! Check distance to pole
     if (abs(rv_orig_lat-pi/two)<lag_poledist .or. &
         & abs(rv_orig_lat+pi/two)<lag_poledist) then
-      m2lon_nl=lag_trajfail
-      if (present(lspec_r)) lspec_r=zero
+       m2lon_nl=lag_trajfail
+       if (present(lspec_r)) lspec_r=zero
     end if
 
     ! Ok...
     m2lon_nl=rv_dx/(rearth*cos(rv_orig_lat))
     
     if (present(lspec_r)) then
-      lspec_r(1)=one/(rearth*cos(rv_orig_lat))
-      lspec_r(2)=(rv_dx/rearth)*&
-        &sin(rv_orig_lat)/(cos(rv_orig_lat)**2)
+       lspec_r(1)=one/(rearth*cos(rv_orig_lat))
+       lspec_r(2)=(rv_dx/rearth)*&
+         &sin(rv_orig_lat)/(cos(rv_orig_lat)**2)
     end if
   end function m2lon_nl
 
@@ -399,9 +402,10 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),dimension(2),intent(in)::lspec_r
-    real(r_kind),intent(in)::rv_dorig_lat
-    real(r_kind),intent(in)::rv_dx
+
+    real(r_kind),dimension(2),intent(in   ) :: lspec_r
+    real(r_kind)             ,intent(in   ) :: rv_dorig_lat
+    real(r_kind)             ,intent(in   ) :: rv_dx
     real(r_kind)::m2lon_tl
 
     m2lon_tl=lspec_r(1)*rv_dx + lspec_r(2)*rv_dorig_lat
@@ -437,10 +441,11 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),dimension(2),intent(in)::lspec_r
-    real(r_kind),intent(in)::ad_m2lon_l
-    real(r_kind),intent(inout)::ad_rv_dorig_lat
-    real(r_kind),intent(inout)::ad_rv_dx
+
+    real(r_kind),dimension(2),intent(in   ) :: lspec_r
+    real(r_kind)             ,intent(in   ) :: ad_m2lon_l
+    real(r_kind)             ,intent(inout) :: ad_rv_dorig_lat
+    real(r_kind)             ,intent(inout) :: ad_rv_dx
 
     ad_rv_dorig_lat =ad_rv_dorig_lat+lspec_r(2)*ad_m2lon_l
     ad_rv_dx        =ad_rv_dx       +lspec_r(1)*ad_m2lon_l
@@ -472,7 +477,8 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),intent(in)::rv_theta
+
+    real(r_kind),intent(in   ) :: rv_theta
     real(r_kind)::lag_haversin
     lag_haversin=sin(rv_theta/2)**2
   end function lag_haversin
@@ -501,7 +507,8 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),intent(in)::rv_z
+
+    real(r_kind),intent(in   )::rv_z
     real(r_kind)::lag_haversin_inv
     lag_haversin_inv=two*asin(sqrt(rv_z))
   end function lag_haversin_inv
@@ -531,14 +538,15 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),intent(in)::rv_lon1,rv_lat1,rv_lon2,rv_lat2
+
+    real(r_kind),intent(in   ) :: rv_lon1,rv_lat1,rv_lon2,rv_lat2
     real(r_kind)::lag_d_haversin
 
     ! Detect missing values
     if(rv_lon1==lag_trajfail .or. rv_lat1==lag_trajfail .or. &
         rv_lon2==lag_trajfail .or. rv_lat2==lag_trajfail) then
-      lag_d_haversin=lag_trajfail
-      return
+       lag_d_haversin=lag_trajfail
+       return
     end if
 
     lag_d_haversin=lag_haversin_inv( &
@@ -572,13 +580,14 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),intent(in)::rv_lat1,rv_lat2
+
+    real(r_kind),intent(in   ) :: rv_lat1,rv_lat2
     real(r_kind)::lag_d_lat
 
     ! Detect missing values
     if(rv_lat1==lag_trajfail .or. rv_lat2==lag_trajfail) then
-      lag_d_lat=lag_trajfail
-      return
+       lag_d_lat=lag_trajfail
+       return
     end if
 
     lag_d_lat=(rv_lat2-rv_lat1)*rearth
@@ -610,7 +619,8 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    real(r_kind),intent(in)::rv_lon1,rv_lon2,rv_lat1
+
+    real(r_kind),intent(in   ) :: rv_lon1,rv_lon2,rv_lat1
     real(r_kind)::lag_d_lon
 
     real(r_kind)::angle_diff
@@ -618,8 +628,8 @@ module lag_traj
     ! Detect missing values
     if(rv_lon1==lag_trajfail .or. rv_lon2==lag_trajfail .or. &
         rv_lat1==lag_trajfail) then
-      lag_d_lon=lag_trajfail
-      return
+       lag_d_lon=lag_trajfail
+       return
     end if
 
     angle_diff=rv_lon2-rv_lon1
@@ -665,15 +675,16 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
+
     ! longitude, latitude, pressure of the balloon
-    real(r_kind),intent(inout)::lon,lat,p
+    real(r_kind)                                          ,intent(inout) :: lon,lat,p
     ! components of the wind fields (2nd dimension for vertical level)
-    real(r_kind),dimension(:,:),intent(in)::ufield,vfield
+    real(r_kind)   ,dimension(:,:)                        ,intent(in   ) :: ufield,vfield
     ! Time step (seconds)
-    real(r_kind),intent(in)::tstep
+    real(r_kind)                                          ,intent(in   ) :: tstep
     ! Parameters for the TL and Adjoint (optional)
-    integer(i_kind),dimension(lag_rk4stepnpara_i),intent(out),optional::lspec_i
-    real(r_kind)   ,dimension(lag_rk4stepnpara_r),intent(out),optional::lspec_r
+    integer(i_kind),dimension(lag_rk4stepnpara_i),optional,intent(  out) :: lspec_i
+    real(r_kind)   ,dimension(lag_rk4stepnpara_r),optional,intent(  out) :: lspec_r
 
     logical::lv_spec
 
@@ -692,157 +703,157 @@ module lag_traj
 
     ! Detect missing values
     if(lon==lag_trajfail .or. lat==lag_trajfail) then
-      if (lv_spec) then
-        lspec_i=izero; lspec_r=zero
-      end if
-      lon=lag_trajfail; lat=lag_trajfail; return
+       if (lv_spec) then
+          lspec_i=izero; lspec_r=zero
+       end if
+       lon=lag_trajfail; lat=lag_trajfail; return
     end if
 
     ! 1st step of the 4th order scheme : calculate the approximate
     ! of the half-timestep position, using an explicit scheme
     if (lv_spec) then
-      rv_intu_0=lag_int3d_nl(ufield,lon,lat,p,tmp_ispec_int,tmp_rspec_int)
-      lspec_i(irk4_loc_0:(irk4_loc_0+7_i_kind))=tmp_ispec_int
-      lspec_r(irk4_wei_0:(irk4_wei_0+7_i_kind))=tmp_rspec_int(1:8)
-      lspec_r(irk4_ldu_0:(irk4_ldu_0+ione    ))=tmp_rspec_int(9:10)
-      rv_intv_0=lag_int3d_nl(vfield,lon,lat,p,tmp_ispec_int,tmp_rspec_int)
-      lspec_r(irk4_ldv_0:(irk4_ldv_0+ione))=tmp_rspec_int(9:10)
-      dlat_tmp=m2lat_tl(tstep/two*rv_intv_0)
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*rv_intu_0,tmp_rspec_lon)
-      lspec_r(irk4_lon_0:(irk4_lon_0+ione))=tmp_rspec_lon
+       rv_intu_0=lag_int3d_nl(ufield,lon,lat,p,tmp_ispec_int,tmp_rspec_int)
+       lspec_i(irk4_loc_0:(irk4_loc_0+7_i_kind))=tmp_ispec_int
+       lspec_r(irk4_wei_0:(irk4_wei_0+7_i_kind))=tmp_rspec_int(1:8)
+       lspec_r(irk4_ldu_0:(irk4_ldu_0+ione    ))=tmp_rspec_int(9:10)
+       rv_intv_0=lag_int3d_nl(vfield,lon,lat,p,tmp_ispec_int,tmp_rspec_int)
+       lspec_r(irk4_ldv_0:(irk4_ldv_0+ione))=tmp_rspec_int(9:10)
+       dlat_tmp=m2lat_tl(tstep/two*rv_intv_0)
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*rv_intu_0,tmp_rspec_lon)
+       lspec_r(irk4_lon_0:(irk4_lon_0+ione))=tmp_rspec_lon
     else
-      rv_intu_0=lag_int3d_nl(ufield,lon,lat,p)
-      rv_intv_0=lag_int3d_nl(vfield,lon,lat,p)
-      dlat_tmp=m2lat_tl(tstep/two*rv_intv_0)
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*rv_intu_0)
+       rv_intu_0=lag_int3d_nl(ufield,lon,lat,p)
+       rv_intv_0=lag_int3d_nl(vfield,lon,lat,p)
+       dlat_tmp=m2lat_tl(tstep/two*rv_intv_0)
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*rv_intu_0)
     end if
     pos_half_p(1)=lon; pos_half_p(2)=lat
     pos_half_p(3)=p
     call add_position(pos_half_p(1),pos_half_p(2),dlon_tmp,dlat_tmp)
 
     if (pos_half_p(1)==lag_trajfail) then
-      if (lv_spec) then
-        lspec_i=izero; lspec_r=zero
-      end if
-      lon=lag_trajfail; lat=lag_trajfail; return
+       if (lv_spec) then
+          lspec_i=izero; lspec_r=zero
+       end if
+       lon=lag_trajfail; lat=lag_trajfail; return
     end if
 
     ! 2nd step : calculate a second approximate of the half-timestep
     ! position, using an implicit scheme (with guest given by the position
     ! previously calculated)
     if (lv_spec) then
-      rv_intu_half_p=lag_int3d_nl(ufield,&
-        &pos_half_p(1),pos_half_p(2),pos_half_p(3),&
-        &tmp_ispec_int,tmp_rspec_int)
-      lspec_i(irk4_loc_half_p:(irk4_loc_half_p+7_i_kind))=tmp_ispec_int
-      lspec_r(irk4_wei_half_p:(irk4_wei_half_p+7_i_kind))=tmp_rspec_int(1:8)
-      lspec_r(irk4_ldu_half_p:(irk4_ldu_half_p+ione    ))=tmp_rspec_int(9:10)
-      rv_intv_half_p=lag_int3d_nl(vfield,&
-        &pos_half_p(1),pos_half_p(2),pos_half_p(3),&
-        &tmp_ispec_int,tmp_rspec_int)
-      lspec_r(irk4_ldv_half_p:(irk4_ldv_half_p+ione))=tmp_rspec_int(9:10)
-      dlat_tmp=m2lat_tl(tstep/two*rv_intv_half_p)
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*rv_intu_half_p,tmp_rspec_lon)
-      lspec_r(irk4_lon_half_p:(irk4_lon_half_p+ione))=tmp_rspec_lon
+       rv_intu_half_p=lag_int3d_nl(ufield,&
+         &pos_half_p(1),pos_half_p(2),pos_half_p(3),&
+         &tmp_ispec_int,tmp_rspec_int)
+       lspec_i(irk4_loc_half_p:(irk4_loc_half_p+7_i_kind))=tmp_ispec_int
+       lspec_r(irk4_wei_half_p:(irk4_wei_half_p+7_i_kind))=tmp_rspec_int(1:8)
+       lspec_r(irk4_ldu_half_p:(irk4_ldu_half_p+ione    ))=tmp_rspec_int(9:10)
+       rv_intv_half_p=lag_int3d_nl(vfield,&
+         &pos_half_p(1),pos_half_p(2),pos_half_p(3),&
+         &tmp_ispec_int,tmp_rspec_int)
+       lspec_r(irk4_ldv_half_p:(irk4_ldv_half_p+ione))=tmp_rspec_int(9:10)
+       dlat_tmp=m2lat_tl(tstep/two*rv_intv_half_p)
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*rv_intu_half_p,tmp_rspec_lon)
+       lspec_r(irk4_lon_half_p:(irk4_lon_half_p+ione))=tmp_rspec_lon
     else
-      rv_intu_half_p=lag_int3d_nl(ufield,&
-        &pos_half_p(1),pos_half_p(2),pos_half_p(3))
-      rv_intv_half_p=lag_int3d_nl(vfield,&
-        &pos_half_p(1),pos_half_p(2),pos_half_p(3))
-      dlat_tmp=m2lat_tl(tstep/two*rv_intv_half_p)
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*rv_intu_half_p)
+       rv_intu_half_p=lag_int3d_nl(ufield,&
+         &pos_half_p(1),pos_half_p(2),pos_half_p(3))
+       rv_intv_half_p=lag_int3d_nl(vfield,&
+         &pos_half_p(1),pos_half_p(2),pos_half_p(3))
+       dlat_tmp=m2lat_tl(tstep/two*rv_intv_half_p)
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*rv_intu_half_p)
     end if
     pos_half_pp(1)=lon; pos_half_pp(2)=lat
     pos_half_pp(3)=p
     call add_position(pos_half_pp(1),pos_half_pp(2),dlon_tmp,dlat_tmp)
 
     if (pos_half_pp(1)==lag_trajfail) then
-      if (lv_spec) then
-        lspec_i=izero; lspec_r=zero
-      end if
-      lon=lag_trajfail; lat=lag_trajfail; return
+       if (lv_spec) then
+          lspec_i=izero; lspec_r=zero
+       end if
+       lon=lag_trajfail; lat=lag_trajfail; return
     end if
 
     ! 3rd step : calculate the first estimate of the final position, using
     ! a midpoint rule predictor
     if (lv_spec) then
-      rv_intu_half_pp=lag_int3d_nl(ufield,&
-        &pos_half_pp(1),pos_half_pp(2),pos_half_pp(3),&
-        &tmp_ispec_int,tmp_rspec_int)
-      lspec_i(irk4_loc_half_pp:(irk4_loc_half_pp+7_i_kind))=tmp_ispec_int
-      lspec_r(irk4_wei_half_pp:(irk4_wei_half_pp+7_i_kind))=tmp_rspec_int(1:8)
-      lspec_r(irk4_ldu_half_pp:(irk4_ldu_half_pp+ione    ))=tmp_rspec_int(9:10)
-      rv_intv_half_pp=lag_int3d_nl(vfield,&
-        &pos_half_pp(1),pos_half_pp(2),pos_half_pp(3),&
-        &tmp_ispec_int,tmp_rspec_int)
-      lspec_r(irk4_ldv_half_pp:(irk4_ldv_half_pp+ione))=tmp_rspec_int(9:10)
-      dlat_tmp=m2lat_tl(tstep*rv_intv_half_pp)
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep*rv_intu_half_pp,tmp_rspec_lon)
-      lspec_r(irk4_lon_half_pp:(irk4_lon_half_pp+ione))=tmp_rspec_lon
+       rv_intu_half_pp=lag_int3d_nl(ufield,&
+         &pos_half_pp(1),pos_half_pp(2),pos_half_pp(3),&
+         &tmp_ispec_int,tmp_rspec_int)
+       lspec_i(irk4_loc_half_pp:(irk4_loc_half_pp+7_i_kind))=tmp_ispec_int
+       lspec_r(irk4_wei_half_pp:(irk4_wei_half_pp+7_i_kind))=tmp_rspec_int(1:8)
+       lspec_r(irk4_ldu_half_pp:(irk4_ldu_half_pp+ione    ))=tmp_rspec_int(9:10)
+       rv_intv_half_pp=lag_int3d_nl(vfield,&
+         &pos_half_pp(1),pos_half_pp(2),pos_half_pp(3),&
+         &tmp_ispec_int,tmp_rspec_int)
+       lspec_r(irk4_ldv_half_pp:(irk4_ldv_half_pp+ione))=tmp_rspec_int(9:10)
+       dlat_tmp=m2lat_tl(tstep*rv_intv_half_pp)
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep*rv_intu_half_pp,tmp_rspec_lon)
+       lspec_r(irk4_lon_half_pp:(irk4_lon_half_pp+ione))=tmp_rspec_lon
     else
-      rv_intu_half_pp=lag_int3d_nl(ufield,&
-        &pos_half_pp(1),pos_half_pp(2),pos_half_pp(3))
-      rv_intv_half_pp=lag_int3d_nl(vfield,&
-        &pos_half_pp(1),pos_half_pp(2),pos_half_pp(3))
-      dlat_tmp=m2lat_tl(tstep*rv_intv_half_pp)
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep*rv_intu_half_pp)
+       rv_intu_half_pp=lag_int3d_nl(ufield,&
+         &pos_half_pp(1),pos_half_pp(2),pos_half_pp(3))
+       rv_intv_half_pp=lag_int3d_nl(vfield,&
+         &pos_half_pp(1),pos_half_pp(2),pos_half_pp(3))
+       dlat_tmp=m2lat_tl(tstep*rv_intv_half_pp)
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep*rv_intu_half_pp)
     end if
     pos_1_p(1)=lon; pos_1_p(2)=lat
     pos_1_p(3)=p
     call add_position(pos_1_p(1),pos_1_p(2),dlon_tmp,dlat_tmp)
 
     if (pos_1_p(1)==lag_trajfail) then
-      if (lv_spec) then
-        lspec_i=izero; lspec_r=zero
-      end if
-      lon=lag_trajfail; lat=lag_trajfail; return
+       if (lv_spec) then
+          lspec_i=izero; lspec_r=zero
+       end if
+       lon=lag_trajfail; lat=lag_trajfail; return
     end if
 
     ! Final step : calculate the final position  of the balloon using a
     ! Simpson's rules corrector
     if (lv_spec) then
-      rv_intu_1_p=lag_int3d_nl(ufield,&
-        &pos_1_p(1),pos_1_p(2),pos_1_p(3),&
-        &tmp_ispec_int,tmp_rspec_int)
-      lspec_i(irk4_loc_1_p:(irk4_loc_1_p+7_i_kind))=tmp_ispec_int
-      lspec_r(irk4_wei_1_p:(irk4_wei_1_p+7_i_kind))=tmp_rspec_int(1:8)
-      lspec_r(irk4_ldu_1_p:(irk4_ldu_1_p+ione    ))=tmp_rspec_int(9:10)
-      rv_intv_1_p=lag_int3d_nl(vfield,&
-        &pos_1_p(1),pos_1_p(2),pos_1_p(3),&
-        &tmp_ispec_int,tmp_rspec_int)
-      lspec_r(irk4_ldv_1_p:(irk4_ldv_1_p+ione))=tmp_rspec_int(9:10)
-      dlat_tmp=m2lat_tl(tstep/6_r_kind*( &
-        &rv_intv_0 + &
-        &rv_intv_half_p *two + rv_intv_half_pp *two +&
-        &rv_intv_1_p))
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/6_r_kind*( &
-        &rv_intu_0 + &
-        &rv_intu_half_p *two + rv_intu_half_pp *two +&
-        &rv_intu_1_p) , tmp_rspec_lon)
-      lspec_r(irk4_lon_1_p:(irk4_lon_1_p+ione))=tmp_rspec_lon
+       rv_intu_1_p=lag_int3d_nl(ufield,&
+         &pos_1_p(1),pos_1_p(2),pos_1_p(3),&
+         &tmp_ispec_int,tmp_rspec_int)
+       lspec_i(irk4_loc_1_p:(irk4_loc_1_p+7_i_kind))=tmp_ispec_int
+       lspec_r(irk4_wei_1_p:(irk4_wei_1_p+7_i_kind))=tmp_rspec_int(1:8)
+       lspec_r(irk4_ldu_1_p:(irk4_ldu_1_p+ione    ))=tmp_rspec_int(9:10)
+       rv_intv_1_p=lag_int3d_nl(vfield,&
+         &pos_1_p(1),pos_1_p(2),pos_1_p(3),&
+         &tmp_ispec_int,tmp_rspec_int)
+       lspec_r(irk4_ldv_1_p:(irk4_ldv_1_p+ione))=tmp_rspec_int(9:10)
+       dlat_tmp=m2lat_tl(tstep/6_r_kind*( &
+         &rv_intv_0 + &
+         &rv_intv_half_p *two + rv_intv_half_pp *two +&
+         &rv_intv_1_p))
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/6_r_kind*( &
+         &rv_intu_0 + &
+         &rv_intu_half_p *two + rv_intu_half_pp *two +&
+         &rv_intu_1_p) , tmp_rspec_lon)
+       lspec_r(irk4_lon_1_p:(irk4_lon_1_p+ione))=tmp_rspec_lon
     else
-      rv_intu_1_p=lag_int3d_nl(ufield,&
-        &pos_1_p(1),pos_1_p(2),pos_1_p(3))
-      rv_intv_1_p=lag_int3d_nl(vfield,&
-        &pos_1_p(1),pos_1_p(2),pos_1_p(3))
-      dlat_tmp=m2lat_tl(tstep/6_r_kind*( &
-        &rv_intv_0 + &
-        &rv_intv_half_p *two + rv_intv_half_pp *two +&
-        &rv_intv_1_p))
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/6_r_kind*( &
-        &rv_intu_0 + &
-        &rv_intu_half_p *two + rv_intu_half_pp *two +&
-        &rv_intu_1_p))
+       rv_intu_1_p=lag_int3d_nl(ufield,&
+         &pos_1_p(1),pos_1_p(2),pos_1_p(3))
+       rv_intv_1_p=lag_int3d_nl(vfield,&
+         &pos_1_p(1),pos_1_p(2),pos_1_p(3))
+       dlat_tmp=m2lat_tl(tstep/6_r_kind*( &
+         &rv_intv_0 + &
+         &rv_intv_half_p *two + rv_intv_half_pp *two +&
+         &rv_intv_1_p))
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/6_r_kind*( &
+         &rv_intu_0 + &
+         &rv_intu_half_p *two + rv_intu_half_pp *two +&
+         &rv_intu_1_p))
     end if
     pos_1_pp(1)=lon; pos_1_pp(2)=lat
     pos_1_pp(3)=p
     call add_position(pos_1_pp(1),pos_1_pp(2),dlon_tmp,dlat_tmp)
 
     if (pos_1_pp(1)==lag_trajfail) then
-      if (lv_spec) then
-        lspec_i=izero; lspec_r=zero
-      end if
-      lon=lag_trajfail; lat=lag_trajfail; return
+       if (lv_spec) then
+          lspec_i=izero; lspec_r=zero
+       end if
+       lon=lag_trajfail; lat=lag_trajfail; return
     end if
 
     !Save the time step
@@ -885,10 +896,11 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    integer(i_kind),dimension(:),intent(in)::lspec_i
-    real(r_kind)   ,dimension(:),intent(in)::lspec_r
-    real(r_kind),intent(inout)::lon,lat,p
-    real(r_kind),dimension(:,:),intent(in)::ufield,vfield
+
+    integer(i_kind),dimension(:)  ,intent(in   ) :: lspec_i
+    real(r_kind)   ,dimension(:)  ,intent(in   ) :: lspec_r
+    real(r_kind)                  ,intent(inout) :: lon,lat,p
+    real(r_kind)   ,dimension(:,:),intent(in   ) :: ufield,vfield
 
     ! Calculated positions
     real(r_kind),dimension(3)::pos_half_p,pos_half_pp,pos_1_p,pos_1_pp
@@ -901,7 +913,7 @@ module lag_traj
 
     ! failure check
     if (lspec_r(irk4_tstep)==zero) then
-      lon=zero; lat=zero; p=zero; return
+       lon=zero; lat=zero; p=zero; return
     end if
 
     ! 1st step of the 4th order scheme : calculate the approximate
@@ -1011,10 +1023,11 @@ module lag_traj
 !$$$ end documentation block
     use constants, only: three
     implicit none
-    integer(i_kind),dimension(:),intent(in)::lspec_i
-    real(r_kind)   ,dimension(:),intent(in)::lspec_r
-    real(r_kind),intent(inout)::ad_lon,ad_lat,ad_p
-    real(r_kind),dimension(:,:),intent(inout)::ad_ufield,ad_vfield
+
+    integer(i_kind),dimension(:)  ,intent(in   ) :: lspec_i
+    real(r_kind)   ,dimension(:)  ,intent(in   ) :: lspec_r
+    real(r_kind)                  ,intent(inout) :: ad_lon,ad_lat,ad_p
+    real(r_kind)   ,dimension(:,:),intent(inout) :: ad_ufield,ad_vfield
 
     ! Calculated positions
     real(r_kind),dimension(3)::ad_pos_half_p,ad_pos_half_pp,ad_pos_1_p,ad_pos_1_pp
@@ -1028,7 +1041,7 @@ module lag_traj
 
     ! failure check
     if (lspec_r(irk4_tstep)==zero) then
-      return
+       return
     end if
     
     ! zeroing local variables
@@ -1194,15 +1207,16 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
+
     ! longitude, latitude, pressure of the balloon
-    real(r_kind),intent(inout)::lon,lat,p
+    real(r_kind)                         ,intent(inout) :: lon,lat,p
     ! components of the wind fields (2nd dimension for vertical level)
-    real(r_kind),dimension(:,:),intent(in)::ufield,vfield
+    real(r_kind)   ,dimension(:,:)       ,intent(in   ) :: ufield,vfield
     ! Time step (seconds)
-    real(r_kind),intent(in)::tstep
+    real(r_kind)                         ,intent(in   ) :: tstep
     ! Parameters for the TL and Adjoint (optional)
-    integer(i_kind),dimension(:),intent(out),optional::lspec_i
-    real(r_kind)   ,dimension(:),intent(out),optional::lspec_r
+    integer(i_kind),dimension(:),optional,intent(  out) :: lspec_i
+    real(r_kind)   ,dimension(:),optional,intent(  out) :: lspec_r
 
     logical::lv_spec
    
@@ -1224,49 +1238,49 @@ module lag_traj
     nsteps=izero
     tstep_tmp=tstep
     do i=1,lag_nstepiter
-      if (tstep_tmp>zero) then
-        nsteps=nsteps+ione
-        if (tstep_tmp/lag_stepduration>=one) then
-          tstep_iter(i)=lag_stepduration
-          tstep_tmp=tstep_tmp-lag_stepduration
-        else
-          tstep_iter(i)=tstep_tmp
-          tstep_tmp=zero
-        end if
-      else
-        tstep_iter(i)=zero
-      end if
+       if (tstep_tmp>zero) then
+          nsteps=nsteps+ione
+          if (tstep_tmp/lag_stepduration>=one) then
+             tstep_iter(i)=lag_stepduration
+             tstep_tmp=tstep_tmp-lag_stepduration
+          else
+             tstep_iter(i)=tstep_tmp
+             tstep_tmp=zero
+          end if
+       else
+          tstep_iter(i)=zero
+       end if
     end do
     
     ! save the number of time steps and intialise parameters
     if (lv_spec) then
-      lspec_i=izero
-      lspec_r=zero
-      lspec_i(1)=nsteps
+       lspec_i=izero
+       lspec_r=zero
+       lspec_i(1)=nsteps
     end if
     
     ! run each iteration
     allocate(tmp_ispec(lag_rk4stepnpara_i))
     allocate(tmp_rspec(lag_rk4stepnpara_r))
     do i=1,nsteps
-      if (lv_spec) then
-        call lag_rk4_nl(lon,lat,p,ufield,vfield,tstep_iter(i),&
-          &tmp_ispec,tmp_rspec)
-        tmp_begin=2_i_kind+(i-ione)*lag_rk4stepnpara_i
-        lspec_i(tmp_begin:(tmp_begin+lag_rk4stepnpara_i-ione))=tmp_ispec
-        tmp_begin=ione    +(i-ione)*lag_rk4stepnpara_r
-        lspec_r(tmp_begin:(tmp_begin+lag_rk4stepnpara_r-ione))=tmp_rspec
-      else
-        call lag_rk4_nl(lon,lat,p,ufield,vfield,tstep_iter(i))
-      end if
-      ! Failure check
-      if (lon==lag_trajfail .or. lat==lag_trajfail) then
-        lon=lag_trajfail; lat=lag_trajfail
-        if (lv_spec) then 
-          lspec_i=izero; lspec_r=zero
-        end if
-        return
-      end if
+       if (lv_spec) then
+          call lag_rk4_nl(lon,lat,p,ufield,vfield,tstep_iter(i),&
+            &tmp_ispec,tmp_rspec)
+          tmp_begin=2_i_kind+(i-ione)*lag_rk4stepnpara_i
+          lspec_i(tmp_begin:(tmp_begin+lag_rk4stepnpara_i-ione))=tmp_ispec
+          tmp_begin=ione    +(i-ione)*lag_rk4stepnpara_r
+          lspec_r(tmp_begin:(tmp_begin+lag_rk4stepnpara_r-ione))=tmp_rspec
+       else
+          call lag_rk4_nl(lon,lat,p,ufield,vfield,tstep_iter(i))
+       end if
+       ! Failure check
+       if (lon==lag_trajfail .or. lat==lag_trajfail) then
+          lon=lag_trajfail; lat=lag_trajfail
+          if (lv_spec) then 
+             lspec_i=izero; lspec_r=zero
+          end if
+          return
+       end if
     end do
 
     !cleaning
@@ -1304,27 +1318,28 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    integer(i_kind),dimension(:),intent(in)::lspec_i
-    real(r_kind)   ,dimension(:),intent(in)::lspec_r
-    real(r_kind),intent(inout)::lon,lat,p
-    real(r_kind),dimension(:,:),intent(in)::ufield,vfield
+
+    integer(i_kind),dimension(:)  ,intent(in   ) :: lspec_i
+    real(r_kind)   ,dimension(:)  ,intent(in   ) :: lspec_r
+    real(r_kind)                  ,intent(inout) :: lon,lat,p
+    real(r_kind)   ,dimension(:,:),intent(in   ) :: ufield,vfield
 
     integer(i_kind)::i,tmp_begin_i,tmp_begin_r
     
     ! Failure check
     if (lspec_i(1)==izero) then
-      lon=zero; lat=zero; p=zero
-      return
+       lon=zero; lat=zero; p=zero
+       return
     end if
 
     ! run each iteration
     do i=1,lspec_i(1)
-      tmp_begin_i=2_i_kind+(i-ione)*lag_rk4stepnpara_i
-      tmp_begin_r=ione    +(i-ione)*lag_rk4stepnpara_r
-      call lag_rk4_tl(&
-        &lspec_i(tmp_begin_i:(lag_rk4stepnpara_i+tmp_begin_i-ione)),&
-        &lspec_r(tmp_begin_r:(lag_rk4stepnpara_r+tmp_begin_r-ione)),&
-        &lon,lat,p,ufield,vfield)
+       tmp_begin_i=2_i_kind+(i-ione)*lag_rk4stepnpara_i
+       tmp_begin_r=ione    +(i-ione)*lag_rk4stepnpara_r
+       call lag_rk4_tl(&
+         &lspec_i(tmp_begin_i:(lag_rk4stepnpara_i+tmp_begin_i-ione)),&
+         &lspec_r(tmp_begin_r:(lag_rk4stepnpara_r+tmp_begin_r-ione)),&
+         &lon,lat,p,ufield,vfield)
     end do
 
   end subroutine lag_rk4iter_tl
@@ -1360,26 +1375,27 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    integer(i_kind),dimension(:),intent(in)::lspec_i
-    real(r_kind)   ,dimension(:),intent(in)::lspec_r
-    real(r_kind),intent(inout)::ad_lon,ad_lat,ad_p
-    real(r_kind),dimension(:,:),intent(inout)::ad_ufield,ad_vfield
+
+    integer(i_kind),dimension(:)  ,intent(in   ) :: lspec_i
+    real(r_kind)   ,dimension(:)  ,intent(in   ) :: lspec_r
+    real(r_kind)                  ,intent(inout) :: ad_lon,ad_lat,ad_p
+    real(r_kind)   ,dimension(:,:),intent(inout) :: ad_ufield,ad_vfield
 
     integer(i_kind)::i,tmp_begin_i,tmp_begin_r
     
     ! Failure check
     if (lspec_i(1)==izero) then
-      return
+       return
     end if
     
     ! run each iteration
     do i=lspec_i(1),1,-1
-      tmp_begin_i=2_i_kind+(i-ione)*lag_rk4stepnpara_i
-      tmp_begin_r=ione    +(i-ione)*lag_rk4stepnpara_r
-      call lag_rk4_ad(&
-        &lspec_i(tmp_begin_i:(tmp_begin_i+lag_rk4stepnpara_i-ione)),&
-        &lspec_r(tmp_begin_r:(tmp_begin_r+lag_rk4stepnpara_r-ione)),&
-        &ad_lon,ad_lat,ad_p,ad_ufield,ad_vfield)
+       tmp_begin_i=2_i_kind+(i-ione)*lag_rk4stepnpara_i
+       tmp_begin_r=ione    +(i-ione)*lag_rk4stepnpara_r
+       call lag_rk4_ad(&
+         &lspec_i(tmp_begin_i:(tmp_begin_i+lag_rk4stepnpara_i-ione)),&
+         &lspec_r(tmp_begin_r:(tmp_begin_r+lag_rk4stepnpara_r-ione)),&
+         &ad_lon,ad_lat,ad_p,ad_ufield,ad_vfield)
     end do
 
   end subroutine lag_rk4iter_ad
@@ -1421,15 +1437,16 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
+
     ! longitude, latitude, pressure of the balloon
-    real(r_kind),intent(inout)::lon,lat,p
+    real(r_kind)                                          ,intent(inout) :: lon,lat,p
     ! components of the wind fields (2nd dimension for vertical level)
-    real(r_kind),dimension(:,:),intent(in)::ufield,vfield
+    real(r_kind)   ,dimension(:,:)                        ,intent(in   ) :: ufield,vfield
     ! Time step (seconds)
-    real(r_kind),intent(in)::tstep
+    real(r_kind)                                          ,intent(in   ) :: tstep
     ! Parameters for the TL and Adjoint (optional)
-    integer(i_kind),dimension(lag_rk2stepnpara_i),intent(out),optional::lspec_i
-    real(r_kind)   ,dimension(lag_rk2stepnpara_r),intent(out),optional::lspec_r
+    integer(i_kind),dimension(lag_rk2stepnpara_i),optional,intent(  out) :: lspec_i
+    real(r_kind)   ,dimension(lag_rk2stepnpara_r),optional,intent(  out) :: lspec_r
 
     logical::lv_spec
 
@@ -1449,75 +1466,75 @@ module lag_traj
 
     ! Detect missing values
     if(lon==lag_trajfail .or. lat==lag_trajfail) then
-      if (lv_spec) then
-        lspec_i=izero; lspec_r=zero
-      end if
-      lon=lag_trajfail; lat=lag_trajfail; return
+       if (lv_spec) then
+          lspec_i=izero; lspec_r=zero
+       end if
+       lon=lag_trajfail; lat=lag_trajfail; return
     end if
 
     ! 1st step of the 2nd order scheme : calculate the approximate
     ! of the final position position, using an explicit scheme
     if (lv_spec) then
-      rv_intu_0=lag_int3d_nl(ufield,lon,lat,p,tmp_ispec_int,tmp_rspec_int)
-      lspec_i(irk2_loc_0:(irk2_loc_0+7_i_kind))=tmp_ispec_int
-      lspec_r(irk2_wei_0:(irk2_wei_0+7_i_kind))=tmp_rspec_int(1:8)
-      lspec_r(irk2_ldu_0:(irk2_ldu_0+ione    ))=tmp_rspec_int(9:10)
-      rv_intv_0=lag_int3d_nl(vfield,lon,lat,p,tmp_ispec_int,tmp_rspec_int)
-      lspec_r(irk2_ldv_0:(irk2_ldv_0+ione    ))=tmp_rspec_int(9:10)
-      dlat_tmp=m2lat_tl(tstep*rv_intv_0)
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep*rv_intu_0,tmp_rspec_lon)
-      lspec_r(irk2_lon_0:(irk2_lon_0+ione    ))=tmp_rspec_lon
+       rv_intu_0=lag_int3d_nl(ufield,lon,lat,p,tmp_ispec_int,tmp_rspec_int)
+       lspec_i(irk2_loc_0:(irk2_loc_0+7_i_kind))=tmp_ispec_int
+       lspec_r(irk2_wei_0:(irk2_wei_0+7_i_kind))=tmp_rspec_int(1:8)
+       lspec_r(irk2_ldu_0:(irk2_ldu_0+ione    ))=tmp_rspec_int(9:10)
+       rv_intv_0=lag_int3d_nl(vfield,lon,lat,p,tmp_ispec_int,tmp_rspec_int)
+       lspec_r(irk2_ldv_0:(irk2_ldv_0+ione    ))=tmp_rspec_int(9:10)
+       dlat_tmp=m2lat_tl(tstep*rv_intv_0)
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep*rv_intu_0,tmp_rspec_lon)
+       lspec_r(irk2_lon_0:(irk2_lon_0+ione    ))=tmp_rspec_lon
     else
-      rv_intu_0=lag_int3d_nl(ufield,lon,lat,p)
-      rv_intv_0=lag_int3d_nl(vfield,lon,lat,p)
-      dlat_tmp=m2lat_tl(tstep*rv_intv_0)
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep*rv_intu_0)
+       rv_intu_0=lag_int3d_nl(ufield,lon,lat,p)
+       rv_intv_0=lag_int3d_nl(vfield,lon,lat,p)
+       dlat_tmp=m2lat_tl(tstep*rv_intv_0)
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep*rv_intu_0)
     end if
     pos_1_p(1)=lon; pos_1_p(2)=lat
     pos_1_p(3)=p
     call add_position(pos_1_p(1),pos_1_p(2),dlon_tmp,dlat_tmp)
 
     if (pos_1_p(1)==lag_trajfail) then
-      if (lv_spec) then
-        lspec_i=izero; lspec_r=zero
-      end if
-      lon=lag_trajfail; lat=lag_trajfail; return
+       if (lv_spec) then
+          lspec_i=izero; lspec_r=zero
+       end if
+       lon=lag_trajfail; lat=lag_trajfail; return
     end if
 
     ! 2nd step : calculate the first estimate of the final position, using
     ! a heun method
     if (lv_spec) then
-      rv_intu_1_p=lag_int3d_nl(ufield,&
-        &pos_1_p(1),pos_1_p(2),pos_1_p(3),&
-        &tmp_ispec_int,tmp_rspec_int)
-      lspec_i(irk2_loc_1_p:(irk2_loc_1_p+7_i_kind))=tmp_ispec_int
-      lspec_r(irk2_wei_1_p:(irk2_wei_1_p+7_i_kind))=tmp_rspec_int(1:8)
-      lspec_r(irk2_ldu_1_p:(irk2_ldu_1_p+ione    ))=tmp_rspec_int(9:10)
-      rv_intv_1_p=lag_int3d_nl(vfield,&
-        &pos_1_p(1),pos_1_p(2),pos_1_p(3),&
-        &tmp_ispec_int,tmp_rspec_int)
-      lspec_r(irk2_ldv_1_p:(irk2_ldv_1_p+ione    ))=tmp_rspec_int(9:10)
-      dlat_tmp=m2lat_tl(tstep/two*(rv_intv_0+rv_intv_1_p))
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*(rv_intu_0+rv_intu_1_p),&
-        &tmp_rspec_lon)
-      lspec_r(irk2_lon_1_p:(irk2_lon_1_p+ione    ))=tmp_rspec_lon
+       rv_intu_1_p=lag_int3d_nl(ufield,&
+         &pos_1_p(1),pos_1_p(2),pos_1_p(3),&
+         &tmp_ispec_int,tmp_rspec_int)
+       lspec_i(irk2_loc_1_p:(irk2_loc_1_p+7_i_kind))=tmp_ispec_int
+       lspec_r(irk2_wei_1_p:(irk2_wei_1_p+7_i_kind))=tmp_rspec_int(1:8)
+       lspec_r(irk2_ldu_1_p:(irk2_ldu_1_p+ione    ))=tmp_rspec_int(9:10)
+       rv_intv_1_p=lag_int3d_nl(vfield,&
+         &pos_1_p(1),pos_1_p(2),pos_1_p(3),&
+         &tmp_ispec_int,tmp_rspec_int)
+       lspec_r(irk2_ldv_1_p:(irk2_ldv_1_p+ione    ))=tmp_rspec_int(9:10)
+       dlat_tmp=m2lat_tl(tstep/two*(rv_intv_0+rv_intv_1_p))
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*(rv_intu_0+rv_intu_1_p),&
+         &tmp_rspec_lon)
+       lspec_r(irk2_lon_1_p:(irk2_lon_1_p+ione    ))=tmp_rspec_lon
     else
-      rv_intu_1_p=lag_int3d_nl(ufield,&
-        &pos_1_p(1),pos_1_p(2),pos_1_p(3))
-      rv_intv_1_p=lag_int3d_nl(vfield,&
-        &pos_1_p(1),pos_1_p(2),pos_1_p(3))
-      dlat_tmp=m2lat_tl(tstep/two*(rv_intv_0+rv_intv_1_p))
-      dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*(rv_intu_0+rv_intu_1_p))
+       rv_intu_1_p=lag_int3d_nl(ufield,&
+         &pos_1_p(1),pos_1_p(2),pos_1_p(3))
+       rv_intv_1_p=lag_int3d_nl(vfield,&
+         &pos_1_p(1),pos_1_p(2),pos_1_p(3))
+       dlat_tmp=m2lat_tl(tstep/two*(rv_intv_0+rv_intv_1_p))
+       dlon_tmp=m2lon_nl(lat+dlat_tmp,tstep/two*(rv_intu_0+rv_intu_1_p))
     end if
     pos_1_pp(1)=lon; pos_1_pp(2)=lat
     pos_1_pp(3)=p
     call add_position(pos_1_pp(1),pos_1_pp(2),dlon_tmp,dlat_tmp)
 
     if (pos_1_pp(1)==lag_trajfail) then
-      if (lv_spec) then
-        lspec_i=izero; lspec_r=zero
-      end if
-      lon=lag_trajfail; lat=lag_trajfail; return
+       if (lv_spec) then
+          lspec_i=izero; lspec_r=zero
+       end if
+       lon=lag_trajfail; lat=lag_trajfail; return
     end if
 
     !Save the time step
@@ -1561,13 +1578,14 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
+
     ! Parameters for the TL and Adjoint
-    integer(i_kind),dimension(lag_rk2stepnpara_i),intent(in)::lspec_i
-    real(r_kind)   ,dimension(lag_rk2stepnpara_r),intent(in)::lspec_r
+    integer(i_kind),dimension(lag_rk2stepnpara_i),intent(in   ) :: lspec_i
+    real(r_kind)   ,dimension(lag_rk2stepnpara_r),intent(in   ) :: lspec_r
     ! longitude, latitude, pressure of the balloon
-    real(r_kind),intent(inout)::lon,lat,p
+    real(r_kind)                                 ,intent(inout) :: lon,lat,p
     ! components of the wind fields (2nd dimension for vertical level)
-    real(r_kind),dimension(:,:),intent(in)::ufield,vfield
+    real(r_kind)   ,dimension(:,:)               ,intent(in   ) :: ufield,vfield
 
     ! Calculated positions
     real(r_kind),dimension(3)::pos_1_p,pos_1_pp
@@ -1581,7 +1599,7 @@ module lag_traj
 
     ! failure check
     if (lspec_r(irk2_tstep)==zero) then
-      lon=zero; lat=zero; p=zero; return
+       lon=zero; lat=zero; p=zero; return
     end if
 
     ! 1st step of the 2nd order scheme : calculate the approximate
@@ -1655,13 +1673,14 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
+
     ! Parameters for the TL and Adjoint
-    integer(i_kind),dimension(lag_rk2stepnpara_i),intent(in)::lspec_i
-    real(r_kind)   ,dimension(lag_rk2stepnpara_r),intent(in)::lspec_r
+    integer(i_kind),dimension(lag_rk2stepnpara_i),intent(in   ) :: lspec_i
+    real(r_kind)   ,dimension(lag_rk2stepnpara_r),intent(in   ) :: lspec_r
     ! longitude, latitude, pressure of the balloon
-    real(r_kind),intent(inout)::ad_lon,ad_lat,ad_p
+    real(r_kind)                                 ,intent(inout) :: ad_lon,ad_lat,ad_p
     ! components of the wind fields (2nd dimension for vertical level)
-    real(r_kind),dimension(:,:),intent(inout)::ad_ufield,ad_vfield
+    real(r_kind)   ,dimension(:,:)               ,intent(inout) :: ad_ufield,ad_vfield
 
     ! Calculated positions
     real(r_kind),dimension(3)::ad_pos_1_p,ad_pos_1_pp
@@ -1676,7 +1695,7 @@ module lag_traj
 
     ! failure check
     if (lspec_r(irk2_tstep)==zero) then
-      return
+       return
     end if
 
     ! zeroing local variables
@@ -1781,15 +1800,16 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
+
     ! longitude, latitude, pressure of the balloon
-    real(r_kind),intent(inout)::lon,lat,p
+    real(r_kind)                         ,intent(inout) :: lon,lat,p
     ! components of the wind fields (2nd dimension for vertical level)
-    real(r_kind),dimension(:,:),intent(in)::ufield,vfield
+    real(r_kind)   ,dimension(:,:)       ,intent(in   ) :: ufield,vfield
     ! Time step (seconds)
-    real(r_kind),intent(in)::tstep
+    real(r_kind)                         ,intent(in   ) :: tstep
     ! Parameters for the TL and Adjoint (optional)
-    integer(i_kind),dimension(:),intent(out),optional::lspec_i
-    real(r_kind)   ,dimension(:),intent(out),optional::lspec_r
+    integer(i_kind),dimension(:),optional,intent(  out) :: lspec_i
+    real(r_kind)   ,dimension(:),optional,intent(  out) :: lspec_r
 
     logical::lv_spec
    
@@ -1811,49 +1831,49 @@ module lag_traj
     nsteps=izero
     tstep_tmp=tstep
     do i=1,lag_nstepiter
-      if (tstep_tmp>zero) then
-        nsteps=nsteps+ione
-        if (tstep_tmp/lag_stepduration>=one) then
-          tstep_iter(i)=lag_stepduration
-          tstep_tmp=tstep_tmp-lag_stepduration
-        else
-          tstep_iter(i)=tstep_tmp
-          tstep_tmp=zero
-        end if
-      else
-        tstep_iter(i)=zero
-      end if
+       if (tstep_tmp>zero) then
+          nsteps=nsteps+ione
+          if (tstep_tmp/lag_stepduration>=one) then
+             tstep_iter(i)=lag_stepduration
+             tstep_tmp=tstep_tmp-lag_stepduration
+          else
+             tstep_iter(i)=tstep_tmp
+             tstep_tmp=zero
+          end if
+       else
+          tstep_iter(i)=zero
+       end if
     end do
     
     ! save the number of time steps and intialise parameters
     if (lv_spec) then
-      lspec_i=izero
-      lspec_r=zero
-      lspec_i(1)=nsteps
+       lspec_i=izero
+       lspec_r=zero
+       lspec_i(1)=nsteps
     end if
     
     ! run each iteration
     allocate(tmp_ispec(lag_rk2stepnpara_i))
     allocate(tmp_rspec(lag_rk2stepnpara_r))
     do i=1,nsteps
-      if (lv_spec) then
-        call lag_rk2_nl(lon,lat,p,ufield,vfield,tstep_iter(i),&
-          &tmp_ispec,tmp_rspec)
-        tmp_begin=2_i_kind+(i-ione)*lag_rk2stepnpara_i
-        lspec_i(tmp_begin:(tmp_begin+lag_rk2stepnpara_i-ione))=tmp_ispec
-        tmp_begin=ione    +(i-ione)*lag_rk2stepnpara_r
-        lspec_r(tmp_begin:(tmp_begin+lag_rk2stepnpara_r-ione))=tmp_rspec
-      else
-        call lag_rk2_nl(lon,lat,p,ufield,vfield,tstep_iter(i))
-      end if
-      ! Failure check
-      if (lon==lag_trajfail .or. lat==lag_trajfail) then
-        lon=lag_trajfail; lat=lag_trajfail
-        if (lv_spec) then 
-          lspec_i=izero; lspec_r=zero
-        end if
-        return
-      end if
+       if (lv_spec) then
+          call lag_rk2_nl(lon,lat,p,ufield,vfield,tstep_iter(i),&
+            &tmp_ispec,tmp_rspec)
+          tmp_begin=2_i_kind+(i-ione)*lag_rk2stepnpara_i
+          lspec_i(tmp_begin:(tmp_begin+lag_rk2stepnpara_i-ione))=tmp_ispec
+          tmp_begin=ione    +(i-ione)*lag_rk2stepnpara_r
+          lspec_r(tmp_begin:(tmp_begin+lag_rk2stepnpara_r-ione))=tmp_rspec
+       else
+          call lag_rk2_nl(lon,lat,p,ufield,vfield,tstep_iter(i))
+       end if
+       ! Failure check
+       if (lon==lag_trajfail .or. lat==lag_trajfail) then
+          lon=lag_trajfail; lat=lag_trajfail
+          if (lv_spec) then 
+             lspec_i=izero; lspec_r=zero
+          end if
+          return
+       end if
     end do
 
     !cleaning
@@ -1891,27 +1911,28 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    integer(i_kind),dimension(:),intent(in)::lspec_i
-    real(r_kind)   ,dimension(:),intent(in)::lspec_r
-    real(r_kind),intent(inout)::lon,lat,p
-    real(r_kind),dimension(:,:),intent(in)::ufield,vfield
+
+    integer(i_kind),dimension(:)  ,intent(in   ) :: lspec_i
+    real(r_kind)   ,dimension(:)  ,intent(in   ) :: lspec_r
+    real(r_kind)                  ,intent(inout) :: lon,lat,p
+    real(r_kind)   ,dimension(:,:),intent(in   ) :: ufield,vfield
 
     integer(i_kind)::i,tmp_begin_i,tmp_begin_r
     
     ! Failure check
     if (lspec_i(1)==izero) then
-      lon=zero; lat=zero; p=zero;
-      return
+       lon=zero; lat=zero; p=zero;
+       return
     end if
     
     ! run each iteration
     do i=1,lspec_i(1)
-      tmp_begin_i=2_i_kind+(i-ione)*lag_rk2stepnpara_i
-      tmp_begin_r=ione    +(i-ione)*lag_rk2stepnpara_r
-      call lag_rk2_tl(&
-        &lspec_i(tmp_begin_i:(tmp_begin_i+lag_rk2stepnpara_i-ione)),&
-        &lspec_r(tmp_begin_r:(tmp_begin_r+lag_rk2stepnpara_r-ione)),&
-        &lon,lat,p,ufield,vfield)
+       tmp_begin_i=2_i_kind+(i-ione)*lag_rk2stepnpara_i
+       tmp_begin_r=ione    +(i-ione)*lag_rk2stepnpara_r
+       call lag_rk2_tl(&
+         &lspec_i(tmp_begin_i:(tmp_begin_i+lag_rk2stepnpara_i-ione)),&
+         &lspec_r(tmp_begin_r:(tmp_begin_r+lag_rk2stepnpara_r-ione)),&
+         &lon,lat,p,ufield,vfield)
     end do
 
   end subroutine lag_rk2iter_tl
@@ -1947,26 +1968,27 @@ module lag_traj
 !
 !$$$ end documentation block
     implicit none
-    integer(i_kind),dimension(:),intent(in)::lspec_i
-    real(r_kind)   ,dimension(:),intent(in)::lspec_r
-    real(r_kind),intent(inout)::ad_lon,ad_lat,ad_p
-    real(r_kind),dimension(:,:),intent(inout)::ad_ufield,ad_vfield
+
+    integer(i_kind),dimension(:)  ,intent(in   ) :: lspec_i
+    real(r_kind)   ,dimension(:)  ,intent(in   ) :: lspec_r
+    real(r_kind)                  ,intent(inout) :: ad_lon,ad_lat,ad_p
+    real(r_kind)   ,dimension(:,:),intent(inout) :: ad_ufield,ad_vfield
 
     integer(i_kind)::i,tmp_begin_i,tmp_begin_r
     
     ! Failure check
     if (lspec_i(1)==izero) then
-      return
+       return
     end if
     
     ! run each iteration
     do i=lspec_i(1),1,-1
-      tmp_begin_i=2_i_kind+(i-ione)*lag_rk2stepnpara_i
-      tmp_begin_r=ione    +(i-ione)*lag_rk2stepnpara_r
-      call lag_rk2_ad(&
-        &lspec_i(tmp_begin_i:(tmp_begin_i+lag_rk2stepnpara_i-ione)),&
-        &lspec_r(tmp_begin_r:(tmp_begin_r+lag_rk2stepnpara_r-ione)),&
-        &ad_lon,ad_lat,ad_p,ad_ufield,ad_vfield)
+       tmp_begin_i=2_i_kind+(i-ione)*lag_rk2stepnpara_i
+       tmp_begin_r=ione    +(i-ione)*lag_rk2stepnpara_r
+       call lag_rk2_ad(&
+         &lspec_i(tmp_begin_i:(tmp_begin_i+lag_rk2stepnpara_i-ione)),&
+         &lspec_r(tmp_begin_r:(tmp_begin_r+lag_rk2stepnpara_r-ione)),&
+         &ad_lon,ad_lat,ad_p,ad_ufield,ad_vfield)
     end do
 
   end subroutine lag_rk2iter_ad

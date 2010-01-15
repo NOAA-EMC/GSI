@@ -233,7 +233,7 @@ subroutine set_
 
 ! Create file names for pe relative observation data.  obs_setup files are used
 ! in outer loop setup routines. 
-   obs_setup = trim(dirname) // 'obs_setup'
+  obs_setup = trim(dirname) // 'obs_setup'
 
 ! Read observations
   call read_obs(ndata,mype)
@@ -288,33 +288,33 @@ subroutine run_
 
   jiterlast=miter
   if (l4dvar) then
-    jiterlast=jiterstart
+     jiterlast=jiterstart
   else
-    write(6,*)'observer should only be called in 4dvar'
-    call stop2(157)
+     write(6,*)'observer should only be called in 4dvar'
+     call stop2(157)
   endif
   if (mype==izero) write(6,*)'OBSERVER: jiterstart,jiterlast=',jiterstart,jiterlast
 
 ! Main outer analysis loop
   do jiter=jiterstart,jiterlast
 
-!   Set up right hand side of analysis equation
-    call setuprhsall(ndata,mype)
+!    Set up right hand side of analysis equation
+     call setuprhsall(ndata,mype)
 
-    last  = jiter == miter+ione
-    if (l4dvar.and.(.not.last)) then
-       clfile='obsdiags.ZZZ'
-       write(clfile(10:12),'(I3.3)') jiter
-       call write_obsdiags(clfile)
-    endif
+     last  = jiter == miter+ione
+     if (l4dvar.and.(.not.last)) then
+        clfile='obsdiags.ZZZ'
+        write(clfile(10:12),'(I3.3)') jiter
+        call write_obsdiags(clfile)
+     endif
 
 ! End of outer iteration loop
   end do
 
   if (.not.l4dvar) then
-    jiter=miter+ione
-!   If requested, write obs-anl information to output files
-    if (write_diag(jiter)) call setuprhsall(ndata,mype)
+     jiter=miter+ione
+!    If requested, write obs-anl information to output files
+     if (write_diag(jiter)) call setuprhsall(ndata,mype)
 
   endif
 

@@ -95,13 +95,13 @@ subroutine setup_sub2fslab
   allocate(hfine(nlat,nlon,nsig1o))
 
   if( regional ) then
-  ! for regional mode
-    allocate(hfilter(prm0%nlatf,prm0%nlonf))
+  !  for regional mode
+     allocate(hfilter(prm0%nlatf,prm0%nlonf))
   else
-  ! for global mode
-    allocate(hflt0(prm0%nlatf,prm0%nlonf))
-    allocate(hflt2(prm2%nlatf,prm2%nlonf))
-    allocate(hflt3(prm3%nlatf,prm3%nlonf))
+  !  for global mode
+     allocate(hflt0(prm0%nlatf,prm0%nlonf))
+     allocate(hflt2(prm2%nlatf,prm2%nlonf))
+     allocate(hflt3(prm3%nlatf,prm3%nlonf))
   end if
 
 end subroutine setup_sub2fslab
@@ -134,13 +134,13 @@ subroutine destroy_sub2fslab
   deallocate(work_p, work_sst, work_slndt, work_sicet)
 
   if( regional ) then
-  ! for regional mode
-    deallocate(hfilter)
+  !  for regional mode
+     deallocate(hfilter)
   else
-  ! for global mode
-    deallocate(hflt0)
-    deallocate(hflt2)
-    deallocate(hflt3)
+  !  for global mode
+     deallocate(hflt0)
+     deallocate(hflt2)
+     deallocate(hflt3)
   end if
 
   deallocate(hfine)
@@ -175,8 +175,8 @@ subroutine sub2fslab(fsub,fslab)
   implicit none
 
 ! Declare passed variables
-  real(r_kind)  ,intent(in) ::fsub(lat2,lon2,nsig)
-  real(r_single),intent(out)::fslab(prm0%nlatf,prm0%nlonf,nsig1o)
+  real(r_kind)  ,intent(in   ) :: fsub(lat2,lon2,nsig)
+  real(r_single),intent(  out) :: fslab(prm0%nlatf,prm0%nlonf,nsig1o)
 
 ! Declare local variables
   integer(i_kind):: k,iflg
@@ -193,8 +193,8 @@ subroutine sub2fslab(fsub,fslab)
                 work_slndt,work_sicet,work_cwmr,work_st,work_vp,iflg)
 
   do k=1,nsig1o
-    call agrid2fgrid(prm0,hfine(1,1,k),hfilter) !analysis to filter grid
-    fslab(:,:,k)=real(hfilter(:,:),r_single)
+     call agrid2fgrid(prm0,hfine(1,1,k),hfilter) !analysis to filter grid
+     fslab(:,:,k)=real(hfilter(:,:),r_single)
   end do
 
   return
@@ -229,10 +229,10 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
   implicit none
 
 ! Declare passed variables
-  real(r_kind)  ,intent(in) ::fsub(lat2,lon2,nsig)
-  real(r_single),intent(out)::fslb0(prm0%nlatf,prm0%nlonf,nsig1o)
-  real(r_single),intent(out)::fslb2(prm2%nlatf,prm2%nlonf,nsig1o)
-  real(r_single),intent(out)::fslb3(prm3%nlatf,prm3%nlonf,nsig1o)
+  real(r_kind)  ,intent(in   ) :: fsub(lat2,lon2,nsig)
+  real(r_single),intent(  out) :: fslb0(prm0%nlatf,prm0%nlonf,nsig1o)
+  real(r_single),intent(  out) :: fslb2(prm2%nlatf,prm2%nlonf,nsig1o)
+  real(r_single),intent(  out) :: fslb3(prm3%nlatf,prm3%nlonf,nsig1o)
 
 ! Declare local variables
   integer(i_kind):: k,iflg
@@ -249,10 +249,10 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
                 work_slndt,work_sicet,work_cwmr,work_st,work_vp,iflg)
 
   do k=1,nsig1o
-    call grid2patch(hfine(1,1,k),hflt0,hflt2,hflt3) !analysis to filter grid
-    fslb0(:,:,k)=real(hflt0(:,:),r_single)
-    fslb2(:,:,k)=real(hflt2(:,:),r_single)
-    fslb3(:,:,k)=real(hflt3(:,:),r_single)
+     call grid2patch(hfine(1,1,k),hflt0,hflt2,hflt3) !analysis to filter grid
+     fslb0(:,:,k)=real(hflt0(:,:),r_single)
+     fslb2(:,:,k)=real(hflt2(:,:),r_single)
+     fslb3(:,:,k)=real(hflt3(:,:),r_single)
   end do
 
   return
@@ -286,20 +286,20 @@ subroutine sub2fslabdz(fsub,fslab)
   implicit none
 
 ! Declare passed variables
-  real(r_kind)  ,intent(in) ::fsub(lat2,lon2,nsig)
-  real(r_single),intent(out)::fslab(prm0%nlatf,prm0%nlonf,nsig1o)
+  real(r_kind)  ,intent(in   ) :: fsub(lat2,lon2,nsig)
+  real(r_single),intent(  out) :: fslab(prm0%nlatf,prm0%nlonf,nsig1o)
 
 ! Declare local variables
   real(r_kind):: fsubdz(lat2,lon2,nsig),dzi
   integer(i_kind):: k,kp,km
 
   do k=1,nsig
-    km=max(ione,k-ione)
-    kp=min(nsig,k+ione)
-    if (twodvar_regional) then; dzi=zero
-    else;                       dzi=one/real(kp-km,r_kind)
-    end if
-    fsubdz(:,:,k)=dzi*(fsub(:,:,kp)-fsub(:,:,km))
+     km=max(ione,k-ione)
+     kp=min(nsig,k+ione)
+     if (twodvar_regional) then; dzi=zero
+     else;                       dzi=one/real(kp-km,r_kind)
+     end if
+     fsubdz(:,:,k)=dzi*(fsub(:,:,kp)-fsub(:,:,km))
   end do
 
   call sub2fslab(fsubdz,fslab)
@@ -335,20 +335,20 @@ subroutine sub2fslabdz_glb(fsub,fslb0,fslb2,fslb3)
   implicit none
 
 ! Declare passed variables
-  real(r_kind)  ,intent(in) ::fsub(lat2,lon2,nsig)
-  real(r_single),intent(out)::fslb0(prm0%nlatf,prm0%nlonf,nsig1o)
-  real(r_single),intent(out)::fslb2(prm2%nlatf,prm2%nlonf,nsig1o)
-  real(r_single),intent(out)::fslb3(prm3%nlatf,prm3%nlonf,nsig1o)
+  real(r_kind)  ,intent(in   ) :: fsub(lat2,lon2,nsig)
+  real(r_single),intent(  out) :: fslb0(prm0%nlatf,prm0%nlonf,nsig1o)
+  real(r_single),intent(  out) :: fslb2(prm2%nlatf,prm2%nlonf,nsig1o)
+  real(r_single),intent(  out) :: fslb3(prm3%nlatf,prm3%nlonf,nsig1o)
 
 ! Declare local variables
   real(r_kind):: fsubdz(lat2,lon2,nsig),dzi
   integer(i_kind):: k,kp,km
 
   do k=1,nsig
-    km=max(ione,k-ione)
-    kp=min(nsig,k+ione)
-    dzi=one/real(kp-km,r_kind)
-    fsubdz(:,:,k)=dzi*(fsub(:,:,kp)-fsub(:,:,km))
+     km=max(ione,k-ione)
+     kp=min(nsig,k+ione)
+     dzi=one/real(kp-km,r_kind)
+     fsubdz(:,:,k)=dzi*(fsub(:,:,kp)-fsub(:,:,km))
   end do
 
   call sub2fslab_glb(fsubdz,fslb0,fslb2,fslb3)
@@ -383,14 +383,14 @@ subroutine sub2slab2d(fsub,slab)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),intent(in) ::fsub(lat2,lon2)
-  real(r_kind),intent(out)::slab(nlat,nlon,nsig1o)
+  real(r_kind),intent(in   ) :: fsub(lat2,lon2)
+  real(r_kind),intent(  out) :: slab(nlat,nlon,nsig1o)
 
 ! Declare local variables
   integer(i_kind):: k,iflg
 
   do k=1,nsig
-    work_t(:,:,k)=fsub(:,:)
+     work_t(:,:,k)=fsub(:,:)
   end do
 
   work_st=work_t; work_vp=work_t
@@ -434,8 +434,8 @@ subroutine sub2fslab2d(fsub,fslab)
   implicit none
 
 ! Declare passed variables
-  real(r_kind)  ,intent(in) ::fsub(lat2,lon2)
-  real(r_single),intent(out)::fslab(prm0%nlatf,prm0%nlonf)
+  real(r_kind)  ,intent(in   ) :: fsub(lat2,lon2)
+  real(r_single),intent(  out) :: fslab(prm0%nlatf,prm0%nlonf)
 
 
 ! Declare local variables
@@ -476,10 +476,10 @@ subroutine sub2fslab2d_glb(fsub,fslb0,fslb2,fslb3)
   implicit none
 
 ! Declare passed variables
-  real(r_kind)  ,intent(in) ::fsub(lat2,lon2)
-  real(r_single),intent(out)::fslb0(prm0%nlatf,prm0%nlonf)
-  real(r_single),intent(out)::fslb2(prm2%nlatf,prm2%nlonf)
-  real(r_single),intent(out)::fslb3(prm3%nlatf,prm3%nlonf)
+  real(r_kind)  ,intent(in   ) :: fsub(lat2,lon2)
+  real(r_single),intent(  out) :: fslb0(prm0%nlatf,prm0%nlonf)
+  real(r_single),intent(  out) :: fslb2(prm2%nlatf,prm2%nlonf)
+  real(r_single),intent(  out) :: fslb3(prm3%nlatf,prm3%nlonf)
 
 ! Declare local variables
 

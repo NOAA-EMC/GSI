@@ -88,9 +88,9 @@ subroutine intdw_(dwhead,ru,rv,su,sv)
   implicit none
 
 ! Declare passed variables
-  type(dw_ob_type),pointer,intent(in):: dwhead
-  real(r_kind),dimension(latlon1n),intent(in):: su,sv
-  real(r_kind),dimension(latlon1n),intent(inout):: ru,rv
+  type(dw_ob_type),pointer        ,intent(in   ) :: dwhead
+  real(r_kind),dimension(latlon1n),intent(in   ) :: su,sv
+  real(r_kind),dimension(latlon1n),intent(inout) :: ru,rv
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
@@ -127,89 +127,89 @@ subroutine intdw_(dwhead,ru,rv,su,sv)
           w5*sv(j5)+w6*sv(j6)+w7*sv(j7)+w8*sv(j8))*dwptr%cosazm
 
      if ( l_foto ) then
-       time_dwi=dwptr%time*r3600
-       val=val+                                              &
-         ((w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+                &
-           w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4)+                &
-           w5*xhat_dt%u(j5)+w6*xhat_dt%u(j6)+                &
-           w7*xhat_dt%u(j7)+w8*xhat_dt%u(j8))*dwptr%sinazm+  &
-          (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+                &
-           w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4)+                &
-           w5*xhat_dt%v(j5)+w6*xhat_dt%v(j6)+                &
-           w7*xhat_dt%v(j7)+w8*xhat_dt%v(j8))*dwptr%cosazm)  &
-           *time_dwi
+        time_dwi=dwptr%time*r3600
+        val=val+                                              &
+          ((w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+                &
+            w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4)+                &
+            w5*xhat_dt%u(j5)+w6*xhat_dt%u(j6)+                &
+            w7*xhat_dt%u(j7)+w8*xhat_dt%u(j8))*dwptr%sinazm+  &
+           (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+                &
+            w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4)+                &
+            w5*xhat_dt%v(j5)+w6*xhat_dt%v(j6)+                &
+            w7*xhat_dt%v(j7)+w8*xhat_dt%v(j8))*dwptr%cosazm)  &
+            *time_dwi
      endif
 
      if (lsaveobsens) then
-       dwptr%diags%obssen(jiter) = val * dwptr%raterr2 * dwptr%err2
+        dwptr%diags%obssen(jiter) = val * dwptr%raterr2 * dwptr%err2
      else
-       if (dwptr%luse) dwptr%diags%tldepart(jiter)=val
+        if (dwptr%luse) dwptr%diags%tldepart(jiter)=val
      endif
 
-!   Do Adjoint
-    if (l_do_adjoint) then
-      if (lsaveobsens) then
-        grad = dwptr%diags%obssen(jiter)
+!    Do Adjoint
+     if (l_do_adjoint) then
+        if (lsaveobsens) then
+           grad = dwptr%diags%obssen(jiter)
+ 
+        else
+           val=val-dwptr%res
+ 
+!          gradient of nonlinear operator
+           if (nlnqc_iter .and. dwptr%pg > tiny_r_kind .and. &
+                                dwptr%b  > tiny_r_kind) then
+              pg_dw=varqc_iter*dwptr%pg
+              cg_dw=cg_term/dwptr%b
+              wnotgross= one-pg_dw
+              wgross = pg_dw*cg_dw/wnotgross
+              p0   = wgross/(wgross+exp(-half*dwptr%err2*val**2))
+              val = val*(one-p0)
+           endif
 
-      else
-        val=val-dwptr%res
-
-!       gradient of nonlinear operator
-        if (nlnqc_iter .and. dwptr%pg > tiny_r_kind .and. &
-                             dwptr%b  > tiny_r_kind) then
-          pg_dw=varqc_iter*dwptr%pg
-          cg_dw=cg_term/dwptr%b
-          wnotgross= one-pg_dw
-          wgross = pg_dw*cg_dw/wnotgross
-          p0   = wgross/(wgross+exp(-half*dwptr%err2*val**2))
-          val = val*(one-p0)
+           grad = val * dwptr%raterr2 * dwptr%err2
         endif
 
-        grad = val * dwptr%raterr2 * dwptr%err2
-      endif
+!       Adjoint
+        valu=dwptr%sinazm * grad
+        valv=dwptr%cosazm * grad
+        ru(j1)=ru(j1)+w1*valu
+        ru(j2)=ru(j2)+w2*valu
+        ru(j3)=ru(j3)+w3*valu
+        ru(j4)=ru(j4)+w4*valu
+        ru(j5)=ru(j5)+w5*valu
+        ru(j6)=ru(j6)+w6*valu
+        ru(j7)=ru(j7)+w7*valu
+        ru(j8)=ru(j8)+w8*valu
+        rv(j1)=rv(j1)+w1*valv
+        rv(j2)=rv(j2)+w2*valv
+        rv(j3)=rv(j3)+w3*valv
+        rv(j4)=rv(j4)+w4*valv
+        rv(j5)=rv(j5)+w5*valv
+        rv(j6)=rv(j6)+w6*valv
+        rv(j7)=rv(j7)+w7*valv
+        rv(j8)=rv(j8)+w8*valv
+        if(l_foto)then
+           valu = valu*time_dwi
+           valv = valv*time_dwi
+           dhat_dt%u(j1)=dhat_dt%u(j1)+w1*valu
+           dhat_dt%u(j2)=dhat_dt%u(j2)+w2*valu
+           dhat_dt%u(j3)=dhat_dt%u(j3)+w3*valu
+           dhat_dt%u(j4)=dhat_dt%u(j4)+w4*valu
+           dhat_dt%u(j5)=dhat_dt%u(j5)+w5*valu
+           dhat_dt%u(j6)=dhat_dt%u(j6)+w6*valu
+           dhat_dt%u(j7)=dhat_dt%u(j7)+w7*valu
+           dhat_dt%u(j8)=dhat_dt%u(j8)+w8*valu
+           dhat_dt%v(j1)=dhat_dt%v(j1)+w1*valv
+           dhat_dt%v(j2)=dhat_dt%v(j2)+w2*valv
+           dhat_dt%v(j3)=dhat_dt%v(j3)+w3*valv
+           dhat_dt%v(j4)=dhat_dt%v(j4)+w4*valv
+           dhat_dt%v(j5)=dhat_dt%v(j5)+w5*valv
+           dhat_dt%v(j6)=dhat_dt%v(j6)+w6*valv
+           dhat_dt%v(j7)=dhat_dt%v(j7)+w7*valv
+           dhat_dt%v(j8)=dhat_dt%v(j8)+w8*valv
+        end if
+     endif
 
-!     Adjoint
-      valu=dwptr%sinazm * grad
-      valv=dwptr%cosazm * grad
-      ru(j1)=ru(j1)+w1*valu
-      ru(j2)=ru(j2)+w2*valu
-      ru(j3)=ru(j3)+w3*valu
-      ru(j4)=ru(j4)+w4*valu
-      ru(j5)=ru(j5)+w5*valu
-      ru(j6)=ru(j6)+w6*valu
-      ru(j7)=ru(j7)+w7*valu
-      ru(j8)=ru(j8)+w8*valu
-      rv(j1)=rv(j1)+w1*valv
-      rv(j2)=rv(j2)+w2*valv
-      rv(j3)=rv(j3)+w3*valv
-      rv(j4)=rv(j4)+w4*valv
-      rv(j5)=rv(j5)+w5*valv
-      rv(j6)=rv(j6)+w6*valv
-      rv(j7)=rv(j7)+w7*valv
-      rv(j8)=rv(j8)+w8*valv
-      if(l_foto)then
-        valu = valu*time_dwi
-        valv = valv*time_dwi
-        dhat_dt%u(j1)=dhat_dt%u(j1)+w1*valu
-        dhat_dt%u(j2)=dhat_dt%u(j2)+w2*valu
-        dhat_dt%u(j3)=dhat_dt%u(j3)+w3*valu
-        dhat_dt%u(j4)=dhat_dt%u(j4)+w4*valu
-        dhat_dt%u(j5)=dhat_dt%u(j5)+w5*valu
-        dhat_dt%u(j6)=dhat_dt%u(j6)+w6*valu
-        dhat_dt%u(j7)=dhat_dt%u(j7)+w7*valu
-        dhat_dt%u(j8)=dhat_dt%u(j8)+w8*valu
-        dhat_dt%v(j1)=dhat_dt%v(j1)+w1*valv
-        dhat_dt%v(j2)=dhat_dt%v(j2)+w2*valv
-        dhat_dt%v(j3)=dhat_dt%v(j3)+w3*valv
-        dhat_dt%v(j4)=dhat_dt%v(j4)+w4*valv
-        dhat_dt%v(j5)=dhat_dt%v(j5)+w5*valv
-        dhat_dt%v(j6)=dhat_dt%v(j6)+w6*valv
-        dhat_dt%v(j7)=dhat_dt%v(j7)+w7*valv
-        dhat_dt%v(j8)=dhat_dt%v(j8)+w8*valv
-      end if
-    endif
-
-    dwptr => dwptr%llpoint
+     dwptr => dwptr%llpoint
 
   end do
 

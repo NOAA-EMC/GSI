@@ -82,22 +82,23 @@ subroutine sum_(v,vdot,vsum,vmin,vmax,vdim,add)
 !$$$ end documentation block
 
   implicit none
-  real(r_kind),dimension(:),intent(in) :: v
-  real(r_kind),intent(inout) :: vdot,vsum
-  real(r_kind),intent(inout) :: vmin,vmax
-  integer(i_kind),intent(inout) :: vdim
-  logical,optional,intent(in) :: add
+
+  real(r_kind),dimension(:),intent(in   ) :: v
+  real(r_kind)             ,intent(inout) :: vdot,vsum
+  real(r_kind)             ,intent(inout) :: vmin,vmax
+  integer(i_kind)          ,intent(inout) :: vdim
+  logical,optional         ,intent(in   ) :: add
 
   logical :: add_
   add_=.false.
   if(present(add)) add_=add
 
   if(.not.add_) then
-    vdot=zero
-    vsum=zero
-    vmin=+HUGE(vmin)
-    vmax=-HUGE(vmax)
-    vdim=izero
+     vdot=zero
+     vsum=zero
+     vmin=+HUGE(vmin)
+     vmax=-HUGE(vmax)
+     vdim=izero
   endif
 
   vdot = vdot + dot_product(v,v)
@@ -136,39 +137,41 @@ subroutine allreduce_(vdot,vsum,vmin,vmax,vdim,comm)
 !$$$ end documentation block
 
   implicit none
-  real(r_kind),intent(inout) :: vdot,vsum
-  real(r_kind),intent(inout) :: vmin,vmax
+
+  real(r_kind)   ,intent(inout) :: vdot,vsum
+  real(r_kind)   ,intent(inout) :: vmin,vmax
   integer(i_kind),intent(inout) :: vdim
+  integer        ,intent(in   ) :: comm
+  
   integer(i_kind):: vdim_local
-  integer,intent(in) :: comm
 
   character(len=*),parameter :: myname_=myname//"::allreduce_"
   real(kind(vdot)),dimension(2) :: bufr
 
   call mpi_allreduce((/vdot,vsum/),bufr,size(bufr),mpi_rtype, &
-  		     mpi_sum,comm,ierror)
-	if(ierror/=izero) then
-            write(6,*)'m_stats: MPI_allreduce(dot-sum)'
-            call stop2(143)
-        end if
+                     mpi_sum,comm,ierror)
+  if(ierror/=izero) then
+     write(6,*)'m_stats: MPI_allreduce(dot-sum)'
+     call stop2(143)
+  end if
   vdot=bufr(1)
   vsum=bufr(2)
 
   call mpi_allreduce((/-vmin,vmax/),bufr,size(bufr),mpi_rtype, &
-  		     mpi_max,comm,ierror)
-	if(ierror/=izero) then
-          write(6,*)'m_stats: MPI_allreduce(min-max)'
-          call stop2(144)
-        end if
+                     mpi_max,comm,ierror)
+  if(ierror/=izero) then
+     write(6,*)'m_stats: MPI_allreduce(min-max)'
+     call stop2(144)
+  end if
   vmin=-bufr(1)
   vmax=+bufr(2)
 
   vdim_local=vdim
   call mpi_allreduce(vdim_local,vdim,ione,mpi_rtype,mpi_sum,comm,ierror)
-	if(ierror/=izero) then
-          write(6,*)'m_stats: MPI_allreduce(dim)'
-          call stop2(145)
-        end if
+  if(ierror/=izero) then
+     write(6,*)'m_stats: MPI_allreduce(dim)'
+     call stop2(145)
+  end if
 
 end subroutine allreduce_
 end module m_stats

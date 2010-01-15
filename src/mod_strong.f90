@@ -38,12 +38,6 @@ module mod_strong
 use kinds,only: r_kind,i_kind
 implicit none
 
-  integer(i_kind) nstrong
-  logical jcstrong,baldiag_full,baldiag_inc
-  integer(i_kind) jcstrong_option
-  character(1) scheme
-  real(r_kind) period_max,period_width
-
 ! set default to private
   private
 ! set subroutines to public
@@ -51,6 +45,12 @@ implicit none
 ! set passed variables to public
   public :: nstrong,baldiag_full,jcstrong,baldiag_inc,period_width,period_max,scheme
   public :: jcstrong_option
+
+  integer(i_kind) nstrong
+  logical jcstrong,baldiag_full,baldiag_inc
+  integer(i_kind) jcstrong_option
+  character(1) scheme
+  real(r_kind) period_max,period_width
 
 contains
 

@@ -38,8 +38,8 @@ implicit none
 
 ! Declare arguments
 type(control_vector), intent(inout) :: xhat,gradx
-real(r_kind), intent(inout) :: costf
-integer(i_kind), intent(in) :: itermax,nprt
+real(r_kind)        , intent(inout) :: costf
+integer(i_kind)     , intent(in   ) :: itermax,nprt
 
 ! Declare local variables
 character(len=*), parameter :: myname='pcgsqrt'
@@ -68,51 +68,51 @@ zgk=zg0
 
 ! Perform inner iteration
 inner_iteration: do iter=1,itermax
-  if (mype==izero) write(6,*)trim(myname),': Minimization iteration',iter
+   if (mype==izero) write(6,*)trim(myname),': Minimization iteration',iter
 
-! Search direction
-  do ii=1,dirx%lencv
-    dirx%values(ii)=-gradx%values(ii)+beta*dirx%values(ii)
-  end do
+!  Search direction
+   do ii=1,dirx%lencv
+      dirx%values(ii)=-gradx%values(ii)+beta*dirx%values(ii)
+   end do
 
-! Estimate
-  do ii=1,xtry%lencv
-    xtry%values(ii)=xhat%values(ii)+dirx%values(ii)
-  end do
+!  Estimate
+   do ii=1,xtry%lencv
+      xtry%values(ii)=xhat%values(ii)+dirx%values(ii)
+   end do
 
-! Evaluate cost and gradient
-  call evaljgrad(xtry,zfk,grtry,lsavinc,nprt,myname)
+!  Evaluate cost and gradient
+   call evaljgrad(xtry,zfk,grtry,lsavinc,nprt,myname)
 
-! Get A q_k
-  do ii=1,grtry%lencv
-    grtry%values(ii)=grtry%values(ii)-grad0%values(ii)
-  end do
+!  Get A q_k
+   do ii=1,grtry%lencv
+      grtry%values(ii)=grtry%values(ii)-grad0%values(ii)
+   end do
 
-! Calculate stepsize
-  dkqk=dot_product(dirx,grtry,r_quad)
-  alpha=zero_quad
-  if(abs(dkqk)>tiny_r_kind) alpha = zgk/dkqk
+!  Calculate stepsize
+   dkqk=dot_product(dirx,grtry,r_quad)
+   alpha=zero_quad
+   if(abs(dkqk)>tiny_r_kind) alpha = zgk/dkqk
 
-! Update estimates
-  do ii=1,xhat%lencv
-    xhat%values(ii) =xhat%values(ii) +alpha* dirx%values(ii)
-    gradx%values(ii)=gradx%values(ii)+alpha*grtry%values(ii)
-  end do
+!  Update estimates
+   do ii=1,xhat%lencv
+      xhat%values(ii) =xhat%values(ii) +alpha* dirx%values(ii)
+      gradx%values(ii)=gradx%values(ii)+alpha*grtry%values(ii)
+   end do
 
-  zgnew=dot_product(gradx,gradx,r_quad)
-  beta=zero_quad
-  if(abs(zgk)>tiny_r_kind) beta=zgnew/zgk
-  zgk=zgnew
+   zgnew=dot_product(gradx,gradx,r_quad)
+   beta=zero_quad
+   if(abs(zgk)>tiny_r_kind) beta=zgnew/zgk
+   zgk=zgnew
 
-  if (mype==izero) then
-    if (abs(zg0)>tiny_r_kind) then
-      write(6,999)trim(myname),': grepgrad grad,reduction=',jiter,iter,sqrt(real(zgk,r_kind)),&
-                                                         sqrt(real(zgk,r_kind)/real(zg0,r_kind))
-    else
-      write(6,999)trim(myname),': grepgrad grad,reduction=',jiter,iter,sqrt(real(zgk,r_kind)),zero
-    endif
-    write(6,999)trim(myname),': cost,grad,step=',jiter,iter,zfk,sqrt(real(zgk,r_kind)),real(alpha,r_kind)
-  endif
+   if (mype==izero) then
+      if (abs(zg0)>tiny_r_kind) then
+         write(6,999)trim(myname),': grepgrad grad,reduction=',jiter,iter,sqrt(real(zgk,r_kind)),&
+                                                           sqrt(real(zgk,r_kind)/real(zg0,r_kind))
+      else
+         write(6,999)trim(myname),': grepgrad grad,reduction=',jiter,iter,sqrt(real(zgk,r_kind)),zero
+      endif
+      write(6,999)trim(myname),': cost,grad,step=',jiter,iter,zfk,sqrt(real(zgk,r_kind)),real(alpha,r_kind)
+   endif
 
 end do inner_iteration
 costf=zfk

@@ -141,8 +141,8 @@
   use gridmod, only: nsig,nsig2,nsig3p1,&
        regional,nsig3p2,nsig3p3,msig,get_ij
   use satthin, only: super_val1
-  use constants, only: half,constoz,amsua_clw_d1,amsua_clw_d2,tiny_r_kind,&
-       fv,zero,one,izero,deg2rad,rad2deg,one_tenth,quarter,two,three,four,five,&
+  use constants, only: izero,ione,half,constoz,amsua_clw_d1,amsua_clw_d2,tiny_r_kind,&
+       fv,zero,one,deg2rad,rad2deg,one_tenth,quarter,two,three,four,five,&
        cg_term,tpwcon,t0c,r1000,wgtlim,r60,h300
   use jfunc, only: jiter,miter
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
@@ -150,21 +150,21 @@
   implicit none
 
 ! Declare passed variables
-  logical,intent(in):: rad_diagsave
-  character(10),intent(in):: obstype
-  character(20),intent(in):: isis
-  integer(i_kind),intent(in):: lunin,mype,nchanl,nreal,nobs,is
-  real(r_kind),dimension(40,ndat),intent(inout):: aivals
-  real(r_kind),dimension(7,jpch_rad),intent(inout):: stats
+  logical                           ,intent(in   ) :: rad_diagsave
+  character(10)                     ,intent(in   ) :: obstype
+  character(20)                     ,intent(in   ) :: isis
+  integer(i_kind)                   ,intent(in   ) :: lunin,mype,nchanl,nreal,nobs,is
+  real(r_kind),dimension(40,ndat)   ,intent(inout) :: aivals
+  real(r_kind),dimension(7,jpch_rad),intent(inout) :: stats
 
 ! Declare local parameters
-  integer(i_kind),parameter:: ipchan=7
-  integer(i_kind),parameter:: ireal=26
+  integer(i_kind),parameter:: ipchan=7_i_kind
+  integer(i_kind),parameter:: ireal=26_i_kind
 
 ! CRTM structure variable declarations.
-  integer(i_kind),parameter::  n_absorbers = 2
-  integer(i_kind),parameter::  n_clouds = 0
-  integer(i_kind),parameter::  n_aerosols = 0
+  integer(i_kind),parameter::  n_absorbers = 2_i_kind
+  integer(i_kind),parameter::  n_clouds = izero
+  integer(i_kind),parameter::  n_aerosols = izero
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
 
 ! Mapping land surface type of GFS to CRTM
@@ -186,8 +186,8 @@
        IRRIGATED_LOW_VEGETATION, TUNDRA, TUNDRA, TUNDRA, TUNDRA, &
        COMPACTED_SOIL/)
 
-  integer(i_kind),parameter,dimension(12):: mday=(/0,31,59,90,120,151,&
-       181,212,243,273,304,334/)
+  integer(i_kind),parameter,dimension(12):: mday=(/izero,31_i_kind,59_i_kind,90_i_kind,&
+       120_i_kind,151_i_kind,181_i_kind,212_i_kind,243_i_kind,273_i_kind,304_i_kind,334_i_kind/)
 
   real(r_kind),parameter:: r0_01=0.01_r_kind
   real(r_kind),parameter:: r0_02=0.02_r_kind
@@ -284,7 +284,7 @@
   real(r_single),allocatable,dimension(:,:):: diagbufex
   real(r_single),allocatable,dimension(:,:):: diagbufchan
 
-  real(r_kind),dimension(npred+1,nchanl)::predterms
+  real(r_kind),dimension(npred+ione,nchanl)::predterms
   real(r_kind),dimension(npred,nchanl):: pred
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
@@ -296,12 +296,12 @@
   real(r_kind),dimension(nsig,nchanl):: wmix,temp,omix,ptau5
   real(r_kind),dimension(nsig3p3,nchanl):: htlto
   real(r_kind),dimension(nreal+nchanl,nobs)::data_s
-  real(r_kind),dimension(nsig+1):: pin5
+  real(r_kind),dimension(nsig+ione):: pin5
   real(r_kind),dimension(nsig):: c2,c3,c4,c5,prsltmp
   real(r_kind),dimension(nsig):: prsr5,temp5,qvp,tvp,poz
-  real(r_kind),dimension(nsig+1):: prsitmp
+  real(r_kind),dimension(nsig+ione):: prsitmp
   real(r_kind),dimension(msig)::  prsltmp_rtm
-  real(r_kind),dimension(msig+1)::  prsitmp_rtm
+  real(r_kind),dimension(msig+ione)::  prsitmp_rtm
   real(r_kind),dimension(4):: sfcpct
   real(r_kind),dimension(5):: tmp_time
   real(r_kind),dimension(0:3):: dtskin
@@ -337,7 +337,7 @@
 
 !**************************************************************************************
 ! Initialize variables and constants.
-  mm1        = mype+1
+  mm1        = mype+ione
   ten        = 10.0_r_kind
   w1f6       = one/ten
   w2f6       = one/0.8_r_kind
@@ -354,11 +354,11 @@
   si85  = zero
   sgagl = zero
   icc   = izero
-  ich9  = min(9,nchanl)
+  ich9  = min(9_i_kind,nchanl)
   do i=1,nchanl
-    do j=1,npred
-     pred(j,i)=zero
-    end do
+     do j=1,npred
+        pred(j,i)=zero
+     end do
   end do
   sqrt_tiny_r_kind = ten*sqrt(tiny_r_kind)
 
@@ -400,37 +400,37 @@
   microwave=amsua .or. amsub  .or. mhs .or. msu .or. hsb .or. &
         micrim 
 
-  isatid    = 1  ! index of satellite id
-  itime     = 2  ! index of analysis relative obs time 
-  ilon      = 3  ! index of grid relative obs location (x)
-  ilat      = 4  ! index of grid relative obs location (y)
-  ilzen_ang = 5  ! index of local (satellite) zenith angle (radians)
-  ilazi_ang = 6  ! index of local (satellite) azimuth angle (radians)
-  iscan_ang = 7  ! index of scan (look) angle (radians)
-  iscan_pos = 8  ! index of integer scan position 
-  iszen_ang = 9  ! index of solar zenith angle (degrees)
-  isazi_ang = 10 ! index of solar azimuth angle (degrees)
-  ifrac_sea = 11 ! index of ocean percentage
-  ifrac_lnd = 12 ! index of land percentage
-  ifrac_ice = 13 ! index of ice percentage
-  ifrac_sno = 14 ! index of snow percentage
-  its_sea   = 15 ! index of ocean temperature
-  its_lnd   = 16 ! index of land temperature
-  its_ice   = 17 ! index of ice temperature
-  its_sno   = 18 ! index of snow temperature
-  itsavg    = 19 ! index of average temperature
-  ivty      = 20 ! index of vegetation type
-  ivfr      = 21 ! index of vegetation fraction
-  isty      = 22 ! index of soil type
-  istp      = 23 ! index of soil temperature
-  ism       = 24 ! index of soil moisture
-  isn       = 25 ! index of snow depth
-  izz       = 26 ! index of surface height
-  idomsfc   = 27 ! index of dominate surface type
-  isfcr     = 28 ! index of surface roughness
-  iff10     = 29 ! index of ten meter wind factor
-  ilone     = 30 ! index of earth relative longitude (degrees)
-  ilate     = 31 ! index of earth relative latitude (degrees)
+  isatid    = ione      ! index of satellite id
+  itime     = 2_i_kind  ! index of analysis relative obs time 
+  ilon      = 3_i_kind  ! index of grid relative obs location (x)
+  ilat      = 4_i_kind  ! index of grid relative obs location (y)
+  ilzen_ang = 5_i_kind  ! index of local (satellite) zenith angle (radians)
+  ilazi_ang = 6_i_kind  ! index of local (satellite) azimuth angle (radians)
+  iscan_ang = 7_i_kind  ! index of scan (look) angle (radians)
+  iscan_pos = 8_i_kind  ! index of integer scan position 
+  iszen_ang = 9_i_kind  ! index of solar zenith angle (degrees)
+  isazi_ang = 10_i_kind ! index of solar azimuth angle (degrees)
+  ifrac_sea = 11_i_kind ! index of ocean percentage
+  ifrac_lnd = 12_i_kind ! index of land percentage
+  ifrac_ice = 13_i_kind ! index of ice percentage
+  ifrac_sno = 14_i_kind ! index of snow percentage
+  its_sea   = 15_i_kind ! index of ocean temperature
+  its_lnd   = 16_i_kind ! index of land temperature
+  its_ice   = 17_i_kind ! index of ice temperature
+  its_sno   = 18_i_kind ! index of snow temperature
+  itsavg    = 19_i_kind ! index of average temperature
+  ivty      = 20_i_kind ! index of vegetation type
+  ivfr      = 21_i_kind ! index of vegetation fraction
+  isty      = 22_i_kind ! index of soil type
+  istp      = 23_i_kind ! index of soil temperature
+  ism       = 24_i_kind ! index of soil moisture
+  isn       = 25_i_kind ! index of snow depth
+  izz       = 26_i_kind ! index of surface height
+  idomsfc   = 27_i_kind ! index of dominate surface type
+  isfcr     = 28_i_kind ! index of surface roughness
+  iff10     = 29_i_kind ! index of ten meter wind factor
+  ilone     = 30_i_kind ! index of earth relative longitude (degrees)
+  ilate     = 31_i_kind ! index of earth relative latitude (degrees)
 
 
 ! Initialize channel related information
@@ -441,7 +441,7 @@
   jc=izero
   do j=1,jpch_rad
      if(isis == nusis(j))then 
-        jc=jc+1
+        jc=jc+ione
         if(jc > nchanl)then
            write(6,*)'SETUPRAD:  ***ERROR*** in channel numbers, jc,nchanl=',jc,nchanl,&
                 '  ***STOP IN SETUPRAD***'
@@ -455,13 +455,13 @@
 !       Set error instrument channels
         tnoise(jc)=varch(j)
         errmax(jc)=ermax_rad(j)
-        if (iuse_rad(j)< -1 .or. (iuse_rad(j) == -1 .and.  &
+        if (iuse_rad(j)< -ione .or. (iuse_rad(j) == -ione .and.  &
               .not.rad_diagsave)) tnoise(jc)=r1e10
-        if (iuse_rad(j)>-1) l_may_be_passive=.true.
-        if (tnoise(jc) < 1.e4) toss = .false.
+        if (iuse_rad(j)>-ione) l_may_be_passive=.true.
+        if (tnoise(jc) < 1.e4_r_kind) toss = .false.
      end if
   end do
-  if ( mype == 0 .and. .not.l_may_be_passive) write(6,*)mype,'setuprad: passive obs',is,isis
+  if ( mype == izero .and. .not.l_may_be_passive) write(6,*)mype,'setuprad: passive obs',is,isis
   if(nchanl > jc) write(6,*)'SETUPRAD:  channel number reduced for ', &
        obstype,nchanl,' --> ',jc
   if(jc == izero) then
@@ -477,63 +477,63 @@
      goto 135
   endif
 
-!  Initialize radiative transfer
+! Initialize radiative transfer
 
-   sensorlist(1)=isis
-   if( crtm_coeffs_path /= "" ) then
-    if(mype==mype_diaghdr(is)) write(6,*)'SETUPRAD: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
-    error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-       Process_ID=mype,Output_Process_ID=mype_diaghdr(is), &
-       File_Path = crtm_coeffs_path )
-   else
+  sensorlist(1)=isis
+  if( crtm_coeffs_path /= "" ) then
+     if(mype==mype_diaghdr(is)) write(6,*)'SETUPRAD: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
      error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-       Process_ID=mype,Output_Process_ID=mype_diaghdr(is))
-   endif
-   if (error_status /= success) then
+        Process_ID=mype,Output_Process_ID=mype_diaghdr(is), &
+        File_Path = crtm_coeffs_path )
+  else
+     error_status = crtm_init(channelinfo,SensorID=sensorlist,&
+        Process_ID=mype,Output_Process_ID=mype_diaghdr(is))
+  endif
+  if (error_status /= success) then
      write(6,*)'SETUPRAD:  ***ERROR*** crtm_init error_status=',error_status,&
           '   TERMINATE PROGRAM EXECUTION'
      call stop2(71)
-   endif
+  endif
 
-   sensorindex = 0
-!  determine specific sensor
-   if (channelinfo(1)%sensor_id == isis ) sensorindex = 1
-   if (sensorindex == 0 ) then
-      write(6,*)'SETUPRAD:  ***WARNING*** problem with sensorindex=',isis,&
-           ' --> CAN NOT PROCESS isis=',isis,'   TERMINATE PROGRAM EXECUTION'
-      call stop2(71)
-   endif
+  sensorindex = izero
+! determine specific sensor
+  if (channelinfo(1)%sensor_id == isis ) sensorindex = ione
+  if (sensorindex == izero ) then
+     write(6,*)'SETUPRAD:  ***WARNING*** problem with sensorindex=',isis,&
+          ' --> CAN NOT PROCESS isis=',isis,'   TERMINATE PROGRAM EXECUTION'
+     call stop2(71)
+  endif
 
 ! Initialize sensor specific array pointers
   if (goes_img) then
-     iclr_sky = 7 ! index of clear sky amount
+     iclr_sky      =  7_i_kind ! index of clear sky amount
   elseif (avhrr_navy) then
-     isst_navy     =  7 ! index of navy sst (K) retrieval
-     idata_type    = 30 ! index of data type (151=day, 152=night)
-     isst_hires    = 31 ! index of interpolated hires sst (K)
+     isst_navy     =  7_i_kind ! index of navy sst (K) retrieval
+     idata_type    = 30_i_kind ! index of data type (151=day, 152=night)
+     isst_hires    = 31_i_kind ! index of interpolated hires sst (K)
   elseif (avhrr) then
-     iclavr        = 32 ! index CLAVR cloud flag with AVHRR data
-     isst_hires    = 33 ! index of interpolated hires sst (K)
+     iclavr        = 32_i_kind ! index CLAVR cloud flag with AVHRR data
+     isst_hires    = 33_i_kind ! index of interpolated hires sst (K)
   elseif (amsre) then
-     isgnt_ang     = 32 ! index of sun glint angle (degrees)
+     isgnt_ang     = 32_i_kind ! index of sun glint angle (degrees)
   endif
 
 ! Set number of extra pieces of information to write to diagnostic file
 ! For most satellite sensors there is no extra information.  However, 
 ! for GOES Imager data we write additional information.
-  iextra=0
-  jextra=0
+  iextra=izero
+  jextra=izero
   if (goes_img) then
-     iextra=1
+     iextra=ione
      jextra=nchanl
   endif
-  lextra = (iextra>0)
+  lextra = (iextra>izero)
 
 ! Set CRTM to process given satellite/sensor
 !  Error_Status = CRTM_Set_ChannelInfo(isis, ChannelInfo)
 !  if (error_status /= success) &
-!       write(6,*)'SETUPRAD:  ***ERROR*** crtm_set_channelinfo error_status=',&
-!       error_status,' for satsensor=',isis
+!      write(6,*)'SETUPRAD:  ***ERROR*** crtm_set_channelinfo error_status=',&
+!      error_status,' for satsensor=',isis
 
 
 ! Check for consistency between user specified number of channels (nchanl) 
@@ -556,11 +556,11 @@
        atmosphere_k(channelinfo(sensorindex)%n_channels,1),&
        surface_k   (channelinfo(sensorindex)%n_channels,1))
 
-  err1=0; err2=0; err3=0; err4=0; err5=0
+  err1=izero; err2=izero; err3=izero; err4=izero; err5=izero
   if(msig > max_n_layers)then
-    write(6,*) 'SETUPRAD:  msig > max_n_layers - increase crtm max_n_layers ',&
-         msig,max_n_layers
-    call stop2(36)
+     write(6,*) 'SETUPRAD:  msig > max_n_layers - increase crtm max_n_layers ',&
+          msig,max_n_layers
+     call stop2(36)
   end if
   err1 = crtm_allocate_atmosphere(msig,n_absorbers,n_clouds,n_aerosols,atmosphere(1))
   err2 = crtm_allocate_surface(channelinfo(sensorindex)%n_channels,surface(1))
@@ -575,7 +575,7 @@
 
 
   atmosphere(1)%n_layers = msig
-!  atmosphere%level_temperature_input = 0
+!  atmosphere%level_temperature_input = izero
   atmosphere(1)%absorber_id(1) = H2O_ID
   atmosphere(1)%absorber_id(2) = O3_ID
   atmosphere(1)%absorber_units(1) = MASS_MIXING_RATIO_UNITS
@@ -597,12 +597,12 @@
 
      error_status = crtm_assign_atmosphere(atmosphere(1),atmosphere_k(i,1))
      if (error_status /= success) &
-          write(6,*)'  ***ERROR*** crtm_assign_atmosphere ',&
-          error_status
+        write(6,*)'  ***ERROR*** crtm_assign_atmosphere ',&
+        error_status
      error_status = crtm_assign_surface(surface(1),surface_k(i,1))
      if (error_status /= success) &
-          write(6,*)'  ***ERROR*** crtm_assign_surface ',&
-          error_status
+        write(6,*)'  ***ERROR*** crtm_assign_surface ',&
+        error_status
 
   end do
 
@@ -615,16 +615,16 @@
 ! set no85GHz true if any 85GHz is not used, and other freq channel is used
   no85GHz = .false.
   if (ssmi) then
-    if (iuse_rad(ich(6)) < 1 .or. iuse_rad(ich(7)) < 1 ) then
-       do j = 1,5
-         if (iuse_rad(ich(j)) >= 1) then
-            no85GHz = .true.
-            cycle
-         endif
-       enddo
-       if (no85GHz .and. mype == izero) write(6,*) &
-          'SETUPRAD: using no85GHZ workaround for SSM/I ',isis
-    endif
+     if (iuse_rad(ich(6)) < ione .or. iuse_rad(ich(7)) < ione ) then
+        do j = 1,5
+           if (iuse_rad(ich(j)) >= ione) then
+              no85GHz = .true.
+              cycle
+           endif
+        enddo
+        if (no85GHz .and. mype == izero) write(6,*) &
+           'SETUPRAD: using no85GHZ workaround for SSM/I ',isis
+     endif
   endif
 
 
@@ -647,7 +647,7 @@
              isis,ireal,iextra,' to file ',trim(diag_rad_file),' ',ianldate
         do i=1,nchanl
            n=ich(i)
-           if( n < 1 )cycle
+           if( n < ione )cycle
 !           freq4=sc(sensorindex)%frequency(n)
 !           pol4=sc(sensorindex)%polarization(n)
 !           wave4=sc(sensorindex)%wavenumber(n)
@@ -662,15 +662,15 @@
      endif
   endif
 
-  idiag=ipchan+npred+1
-  if (lobsdiagsave) idiag=idiag+4*miter+1
+  idiag=ipchan+npred+ione
+  if (lobsdiagsave) idiag=idiag+4*miter+ione
   allocate(diagbufchan(idiag,nchanl))
   
 
 ! Load data array for current satellite
   read(lunin) data_s,luse
 
-  if (nobskeep>0) then
+  if (nobskeep>izero) then
      write(6,*)'setuprad: nobskeep',nobskeep
      call stop2(275)
   end if
@@ -714,7 +714,7 @@
      end if
 
      if(amsre)then
-       sgagl = data_s(isgnt_ang,n)
+        sgagl = data_s(isgnt_ang,n)
      end if
 
 !    Extract nadir (scan step position)
@@ -722,13 +722,13 @@
      pangs  = data_s(iszen_ang,n)
 
 !    Turn off antenna correction
-     options(1)%antenna_correction = 0
+     options(1)%antenna_correction = izero
 
 !    Load geometry structure
      geometryinfo(1)%sensor_zenith_angle = zasat*rad2deg  ! local zenith angle
      geometryinfo(1)%source_zenith_angle = pangs          ! solar zenith angle
      geometryinfo(1)%sensor_scan_angle   = panglr*rad2deg ! scan angle
-     geometryinfo(1)%ifov   = nadir                       ! field of view position
+     geometryinfo(1)%ifov                = nadir          ! field of view position
      if(abs(geometryinfo(1)%sensor_zenith_angle) > half) then
         geometryinfo(1)%distance_ratio = &
              abs( sin(geometryinfo(1)%sensor_scan_angle*deg2rad)/ &
@@ -755,18 +755,18 @@
 
 !       Compute decimal year, for example 1/10/1983
 !       d_year = 1983.0 + 10.0/365.0
-        leap_day = 0
-        if( mod(obs_time(1),4)==0 ) then
-           if( (mod(obs_time(1),100)/=0).or.(mod(obs_time(1),400)==0) ) leap_day = 1
+        leap_day = izero
+        if( mod(obs_time(1),4_i_kind)==izero ) then
+           if( (mod(obs_time(1),100_i_kind)/=izero).or.(mod(obs_time(1),400_i_kind)==izero) ) leap_day = ione
         endif
         day_of_year = Mday(obs_time(2)) + obs_time(3)
-        if(obs_time(2) > 2) day_of_year = day_of_year + leap_day
+        if(obs_time(2) > 2_i_kind) day_of_year = day_of_year + leap_day
 
 !       WARNING:  Current /nwprod/lib/sorc/crtm_gfs does NOT include Time
 !       as a component of the geometryinfo structure.   If SSU data is to
 !       be assimilated with the cell pressure correction applied, one must
 !       uncomment the line below and recompile the GSI with the CFSRR CRTM.
-!       geometryinfo(1)%Time = float(obs_time(1)) + float(day_of_year)/(365.0+leap_day)
+!       geometryinfo(1)%Time = float(obs_time(1)) + float(day_of_year)/(365.0_r_kind+leap_day)
         write(6,*)'SETUPRAD:  ***WARNING*** SSU cell pressure correction NOT applied'
      endif
 
@@ -788,7 +788,7 @@
      val_obs=one
      ixx=nint(data_s(nreal,n))
      if (ixx > izero .and. super_val1(ixx) >= one) then
-        val_obs=data_s(nreal-1,n)/super_val1(ixx)
+        val_obs=data_s(nreal-ione,n)/super_val1(ixx)
      endif
 
 !    Load channel data into work array.
@@ -799,7 +799,7 @@
 
      if(goes_img)then
         do i = 1,nchanl
-           tb_obs_sdv(i) = data_s(i+29,n)
+           tb_obs_sdv(i) = data_s(i+29_i_kind,n)
         end do
      end if
 
@@ -812,9 +812,9 @@
            sstcu=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
         elseif ( avhrr) then
            if ( pangs <= 89.0_r_kind) then              ! day time
-             dtp_avh = 151.0_r_kind
+              dtp_avh = 151.0_r_kind
            else
-             dtp_avh = 152.0_r_kind
+              dtp_avh = 152.0_r_kind
            endif
            sstfg=data_s(isst_hires,n)
            sstcu=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
@@ -853,11 +853,11 @@
 
 !    For SST retrieval, use interpolated NCEP SST analysis
      if (retrieval) then
-       tsavg5 = sstfg
-       data_s(its_sea,n)=sstfg
-       data_s(its_ice,n)=sstfg
-       data_s(its_lnd,n)=sstfg
-       data_s(its_sno,n)=sstfg
+        tsavg5 = sstfg
+        data_s(its_sea,n)=sstfg
+        data_s(its_ice,n)=sstfg
+        data_s(its_lnd,n)=sstfg
+        data_s(its_sno,n)=sstfg
      endif
 
 !    Load surface structure
@@ -869,10 +869,10 @@
 !             GFS and NNM as of September 2005
      itype = int(vegtype5)
      if (regional) then
-        itype = min(max(1,itype),24)
+        itype = min(max(ione,itype),24_i_kind)
         surface(1)%land_type = nmm_to_crtm(itype)
      else
-        itype = min(max(0,itype),13)
+        itype = min(max(izero,itype),13_i_kind)
         surface(1)%land_type = gfs_to_crtm(itype)
      end if
 
@@ -912,7 +912,7 @@
         temp5(k) = tvp(k)
      end do
 
-     pin5(nsig+1) = r10*prsitmp(nsig+1)
+     pin5(nsig+ione) = r10*prsitmp(nsig+ione)
 
 
 !    Interpolate guess pressure at interfaces as well as 
@@ -922,7 +922,7 @@
 
 !       Load profiles into extended RTM model layers
      do k = 1,msig
-        kk = msig - k + 1
+        kk = msig - k + ione
         atmosphere(1)%level_pressure(k) = r10*prsitmp_rtm(kk)
         atmosphere(1)%pressure(k)       = r10*prsltmp_rtm(kk)
 
@@ -935,8 +935,8 @@
 !    Set up to return Tb jacobians.  Zero atmosphere
 !    and surface jacobian structures
      do i=1,nchanl
-       rtsolution_k(i,1)%radiance = zero
-       rtsolution_k(i,1)%brightness_temperature = one
+        rtsolution_k(i,1)%radiance = zero
+        rtsolution_k(i,1)%brightness_temperature = one
      end do
      call crtm_zero_atmosphere(atmosphere_k(:,:))
      call crtm_zero_surface(surface_k(:,:))
@@ -947,7 +947,7 @@
          geometryinfo,channelinfo(sensorindex:sensorindex),atmosphere_k,&
          surface_k,rtsolution,options=options)
 
-     if (error_status /=0) &
+     if (error_status /=izero) &
          write(6,*)'RAD_TRAN_K:  ***ERROR*** during crtm_k_matrix call ',&
          error_status
 
@@ -961,12 +961,12 @@
                   surface_k(i,1)%snow_temperature
         if (abs(ts(i))<sqrt_tiny_r_kind) ts(i) = sign(sqrt_tiny_r_kind,ts(i))
         if (surface(1)%wind_speed>small_wind) then
-          term = surface_k(i,1)%wind_speed * f10*f10 / surface(1)%wind_speed
-          uwind_k(i) = term * uwind
-          vwind_k(i) = term * vwind
+           term = surface_k(i,1)%wind_speed * f10*f10 / surface(1)%wind_speed
+           uwind_k(i) = term * uwind
+           vwind_k(i) = term * vwind
         else
-          uwind_k(i)    = zero
-          vwind_k(i)    = zero
+           uwind_k(i)    = zero
+           vwind_k(i)    = zero
         endif
 
 
@@ -981,7 +981,7 @@
         total_od = zero
 !       Accumulate values from extended into model layers
         do k=1,msig
-           kk = klevel(msig-k+1)
+           kk = klevel(msig-k+ione)
            temp(kk,i) = temp(kk,i) + atmosphere_k(i,1)%temperature(k)
            wmix(kk,i) = wmix(kk,i) + atmosphere_k(i,1)%absorber(k,1)
            omix(kk,i) = omix(kk,i) + atmosphere_k(i,1)%absorber(k,2)
@@ -1001,31 +1001,31 @@
 
 !    Construct predictors for 1B radiance bias correction.
      do i=1,nchanl
-       pred(1,i) = r0_01
-       pred(2,i) = one_tenth*(secant_term-one)**2-.015_r_kind
-       if(ssmi .or. ssmis .or. amsre)pred(2,i)=zero
-       pred(3,i) = zero
+        pred(1,i) = r0_01
+        pred(2,i) = one_tenth*(secant_term-one)**2-.015_r_kind
+        if(ssmi .or. ssmis .or. amsre)pred(2,i)=zero
+        pred(3,i) = zero
      end do
 
 !    Compute predictor for microwave cloud liquid water bias correction.
      clw=zero
-     ierrret=0
+     ierrret=izero
      tpwc=zero
      kraintype=izero
      if(microwave .and. sea)then
 
-       if (amsua) then
+        if (amsua) then
 
-         if(tsavg5>t0c)then
-           tbcx1=rtsolution(1,1)%brightness_temperature+cbias(nadir,ich(1))*ang_rad(ich(1))
-           tbcx2=rtsolution(2,1)%brightness_temperature+cbias(nadir,ich(2))*ang_rad(ich(2))
-           if (tbcx1 <=r284 .and. tbcx2<=r284 .and. tb_obs(1) > zero &
-                .and. tb_obs(2) > zero) &
-              clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
-                  amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
-         end if
+           if(tsavg5>t0c)then
+              tbcx1=rtsolution(1,1)%brightness_temperature+cbias(nadir,ich(1))*ang_rad(ich(1))
+              tbcx2=rtsolution(2,1)%brightness_temperature+cbias(nadir,ich(2))*ang_rad(ich(2))
+              if (tbcx1 <=r284 .and. tbcx2<=r284 .and. tb_obs(1) > zero &
+                   .and. tb_obs(2) > zero) &
+                 clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
+                     amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
+           end if
          
-       else if (ssmis_las) then
+        else if (ssmis_las) then
 
 !       Compute guess total precipitable water
 !          tpw5 = zero
@@ -1036,30 +1036,30 @@
 
            call ret_ssmis( tb_obs(1),nchanl,ssmis_las,tpwc, clw, ierrret)
 
-       else if (amsre) then
+        else if (amsre) then
 
            call retrieval_amsre(                                 &   
                 tb_obs(1),amsre_low,amsre_mid,amsre_hig,  &
                 uwind,vwind,f10,tsavg5,                          &
                 tpwc,clw,si85,kraintype,ierrret ) 
 
-       else if(ssmi .or. ssmis_uas) then
+        else if(ssmi .or. ssmis_uas) then
 
            call retrieval_mi(tb_obs(1),nchanl, ssmi,ssmis,no85GHz, &
                 tpwc,clw,si85,kraintype,ierrret ) 
 
-       endif
-       clw = max(zero,clw)
+        endif
+        clw = max(zero,clw)
 
-       if (amsre) then
-         do i=1,nchanl
-          pred(3,i) = clw
-         end do
-       else
-         do i=1,nchanl
-          pred(3,i) = clw*cosza*cosza
-         end do
-       end if
+        if (amsre) then
+           do i=1,nchanl
+              pred(3,i) = clw
+           end do
+        else
+           do i=1,nchanl
+              pred(3,i) = clw*cosza*cosza
+           end do
+        end if
      end if
 
 !    Apply bias correction
@@ -1069,22 +1069,22 @@
 
         predterms(1,i) = cbias(nadir,mm)*ang_rad(mm)             !global_satangbias
         tlapchn(i)= (ptau5(2,i)-ptau5(1,i))*(tsavg5-temp5(2))
-        do k=2,nsig-1
+        do k=2,nsig-ione
            tlapchn(i)=tlapchn(i)+&
-                (ptau5(k+1,i)-ptau5(k,i))*(temp5(k-1)-temp5(k+1))
+                (ptau5(k+ione,i)-ptau5(k,i))*(temp5(k-ione)-temp5(k+ione))
         end do
         tlapchn(i) = r0_01*tlapchn(i)
         tlap = tlapchn(i)-tlapmean(mm)
         pred(4,i)=tlap*tlap
         pred(5,i)=tlap
         do j=1,npred
-          pred(j,i)=pred(j,i)*air_rad(mm)
+           pred(j,i)=pred(j,i)*air_rad(mm)
         end do
 
         predterms(2,i) = pred(5,i)*predx(npred,mm)                    !tlap
-        predterms(3,i) = pred(4,i)*predx(npred-1,mm)                  !tlap*tlap
-        do j = 1,npred-2
-           predterms(j+3,i) = predx(j,mm)*pred(j,i)
+        predterms(3,i) = pred(4,i)*predx(npred-ione,mm)               !tlap*tlap
+        do j = 1,npred-2_i_kind
+           predterms(j+3_i_kind,i) = predx(j,mm)*pred(j,i)
         end do
 
 !       Apply SST dependent bias correction with cubic spline
@@ -1099,17 +1099,17 @@
         tbcnob(i)    = tb_obs(i) - rtsolution(i,1)%brightness_temperature  
         tbc(i)       = tbcnob(i)                     
 
-        do j=1,npred+1
+        do j=1,npred+ione
            tbc(i)=tbc(i) - predterms(j,i) !obs-ges with bias correction
         end do
 
         error0(i)     = tnoise(i)
-        if(tnoise(i) < 1.e4 .or. (iuse_rad(ich(i))==-1  &
+        if(tnoise(i) < 1.e4_r_kind .or. (iuse_rad(ich(i))==-ione  &
              .and. rad_diagsave))then
            varinv(i)     = val_obs/tnoise(i)**2
            errf(i)       = tnoise(i)
         else
-           if(id_qc(i) == izero)id_qc(i)=1
+           if(id_qc(i) == izero)id_qc(i)=ione
            varinv(i)     = zero
            errf(i)       = zero
         endif
@@ -1139,13 +1139,13 @@
 !                 if(sc(sensorindex)%wavenumber(ll) > r2400)then
                  if(sc(sensorindex)%wavenumber(i) > r2400)then
                     varinv(i)=zero
-                    if(id_qc(i) == izero)id_qc(i)=2
+                    if(id_qc(i) == izero)id_qc(i)=2_i_kind
                  else
 !                    tmp=one-(sc(sensorindex)%wavenumber(ll)-r2000)*ptau5(1,i)&
                     tmp=one-(sc(sensorindex)%wavenumber(i)-r2000)*ptau5(1,i)&
                          *max(zero,cos(pangs*deg2rad))*oneover400
                     varinv(i)=tmp*varinv(i)
-                    if(id_qc(i) == izero)id_qc(i)=3
+                    if(id_qc(i) == izero)id_qc(i)=3_i_kind
                  end if
               end if
            end do
@@ -1168,23 +1168,23 @@
            dtempf = four
         end if
 
-!      If GOES and lza > 60. do not use
-       if( goessndr .and. zasat*rad2deg > r60) then
-!        QC5 in statsrad
-         if(luse(n))aivals(12,is) = aivals(12,is) + one
-         do i=1,nchanl
-           varinv(i) = zero
-           if(id_qc(i) == izero)id_qc(i)=4
-         end do
-       end if
+!       If GOES and lza > 60. do not use
+        if( goessndr .and. zasat*rad2deg > r60) then
+!          QC5 in statsrad
+           if(luse(n))aivals(12,is) = aivals(12,is) + one
+           do i=1,nchanl
+              varinv(i) = zero
+              if(id_qc(i) == izero)id_qc(i)=4_i_kind
+           end do
+        end if
 
-!      Reduce weight for obs over higher topography
+!       Reduce weight for obs over higher topography
         sfchgtfact=one
         if (zsges > r2000) then
-!        QC1 in statsrad
-         if(luse(n))aivals(8,is) = aivals(8,is) + one
-         sfchgtfact    = (r2000/zsges)**4
-!        if(id_qc(i) == izero)id_qc(i)=5
+!          QC1 in statsrad
+           if(luse(n))aivals(8,is) = aivals(8,is) + one
+           sfchgtfact    = (r2000/zsges)**4
+!          if(id_qc(i) == izero)id_qc(i)=5_i_kind
         endif
 
 !       Generate q.c. bounds and modified variances.
@@ -1213,7 +1213,7 @@
         do k=1,nsig
            do i=1,nchanl
               dtb(i,k)=(temp5(k)-tsavg5)*ts(i)
-              do kk=1,k-1
+              do kk=1,k-ione
                  dtb(i,k)=dtb(i,k)+(temp5(k)-temp5(kk))*temp(kk,i)
               end do
            end do
@@ -1224,7 +1224,7 @@
         end do
         sum3=0.75_r_kind*sum3
         
-        lcloud=0
+        lcloud=izero
         cld=zero
 !       cldp=ten*prsr5(1)
         cldp=prsr5(1)
@@ -1262,7 +1262,7 @@
                  if(luse(n))aivals(11,is)   = aivals(11,is) + one
                  varinv(i) = zero
                  varinv_use(i) = zero
-                 if(id_qc(i) == izero)id_qc(i)=6
+                 if(id_qc(i) == izero)id_qc(i)=6_i_kind
                  exit
               end if
            end do
@@ -1280,9 +1280,9 @@
         dts=abs(sum/sum2)
         if(abs(dts) > one)then
            if(.not. sea)then
-             dts=min(dtempf,dts)
+              dts=min(dtempf,dts)
            else
-             dts=min(three,dts)
+              dts=min(three,dts)
            end if
            do i=1,nchanl
               delta=max(r0_05*tnoise(i),r0_02)
@@ -1292,7 +1292,7 @@
                  if(luse(n) .and. varinv(i) > zero) &
                       aivals(10,is)   = aivals(10,is) + one
                  varinv(i) = zero
-                 if(id_qc(i) == izero)id_qc(i)=7
+                 if(id_qc(i) == izero)id_qc(i)=7_i_kind
               end if
            end do
         end if
@@ -1352,7 +1352,7 @@
         if (abs(tbc(1)) > five) then
            errf(2) = zero
            varinv(2) = zero
-           if(id_qc(2) == izero)id_qc(2)=2
+           if(id_qc(2) == izero)id_qc(2)=2_i_kind
 !          QC1 in statsrad
            if(luse(n))aivals(8,is)   = aivals(8,is) + one
         endif
@@ -1365,9 +1365,9 @@
            errf(1) = fact*errf(1)
            errf(2) = fact*errf(2)
            errf(3) = fact*errf(3)
-!          if(id_qc(1) == izero)id_qc(1)=3
-!          if(id_qc(2) == izero)id_qc(2)=3
-!          if(id_qc(3) == izero)id_qc(3)=3
+!          if(id_qc(1) == izero)id_qc(1)=3_i_kind
+!          if(id_qc(2) == izero)id_qc(2)=3_i_kind
+!          if(id_qc(3) == izero)id_qc(3)=3_i_kind
            vfact = fact
         end if
 
@@ -1398,139 +1398,139 @@
      else if (amsua) then
 
 
-         if(sea)then
-            demisf = r0_01
-            dtempf = half
-         else if(land)then
-            demisf = r0_02
-            dtempf = two
-         else if(ice)then
-            demisf = 0.015_r_kind  !decrease due to more accurate emiss model AMSU-A+B
-            dtempf = one           !decrease due to more accurate emiss model AMSU-A+B
-         else if(snow)then
-            demisf = r0_02 !decrease due to more accurate emiss model AMSU-A+B
-            dtempf = two   !decrease due to more accurate emiss model AMSU-A+B
-         else
-            demisf = 0.20_r_kind
-            dtempf = 4.5_r_kind
-         end if
+        if(sea)then
+           demisf = r0_01
+           dtempf = half
+        else if(land)then
+           demisf = r0_02
+           dtempf = two
+        else if(ice)then
+           demisf = 0.015_r_kind  !decrease due to more accurate emiss model AMSU-A+B
+           dtempf = one           !decrease due to more accurate emiss model AMSU-A+B
+        else if(snow)then
+           demisf = r0_02 !decrease due to more accurate emiss model AMSU-A+B
+           dtempf = two   !decrease due to more accurate emiss model AMSU-A+B
+        else
+           demisf = 0.20_r_kind
+           dtempf = 4.5_r_kind
+        end if
          
-!        Reduce qc bounds in tropics
-         cenlatx=abs(cenlat)*oneover25
-         if (cenlatx < one) then
-            if(luse(n))aivals(6,is) = aivals(6,is) + one
-            efact   = cenlatx*quarter+0.75_r_kind
-         else
-            efact   = one
-         endif
+!       Reduce qc bounds in tropics
+        cenlatx=abs(cenlat)*oneover25
+        if (cenlatx < one) then
+           if(luse(n))aivals(6,is) = aivals(6,is) + one
+           efact   = cenlatx*quarter+0.75_r_kind
+        else
+           efact   = one
+        endif
 
-         efactmc = one
-         vfactmc = one
-         tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
-!         sval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*tb_obsbc1)*tb_obsbc1 +  &
-!              0.454_r_kind*tb_obsbc2-tb_obsbc15
-         dsval=0.80_r_kind
-         if(sea)then
-            dsval=((2.41_r_kind-0.0098_r_kind*tb_obsbc1)*tbc(1) + &
-                 0.454_r_kind*tbc(2)-tbc(15))*w1f6
-            dsval=max(zero,dsval)
-         end if
+        efactmc = one
+        vfactmc = one
+        tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
+!        sval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*tb_obsbc1)*tb_obsbc1 +  &
+!             0.454_r_kind*tb_obsbc2-tb_obsbc15
+        dsval=0.80_r_kind
+        if(sea)then
+           dsval=((2.41_r_kind-0.0098_r_kind*tb_obsbc1)*tbc(1) + &
+                0.454_r_kind*tbc(2)-tbc(15))*w1f6
+           dsval=max(zero,dsval)
+        end if
          
-         if(sea .and. tsavg5 > t0c)then
+        if(sea .and. tsavg5 > t0c)then
            clwx=cosza*clw*w1f4
-         else
+        else
            clwx=0.6_r_kind
-         end if
-!        QC6 in statsrad
-         if(clwx >= one .and. luse(n))aivals(13,is) = aivals(13,is) + one
-         factch4=clwx**2+(tbc(4)*w2f4)**2
-!              factch6x=((sval-five)/r10)**2+(tbc(6)/0.8_r_kind)**2
-!        QC7 in statsrad
-         if(dsval >= one .and. luse(n))aivals(14,is) = aivals(14,is) + one
-         factch6=dsval**2+(tbc(6)*w2f6)**2
+        end if
+!       QC6 in statsrad
+        if(clwx >= one .and. luse(n))aivals(13,is) = aivals(13,is) + one
+        factch4=clwx**2+(tbc(4)*w2f4)**2
+!        factch6x=((sval-five)/r10)**2+(tbc(6)/0.8_r_kind)**2
+!       QC7 in statsrad
+        if(dsval >= one .and. luse(n))aivals(14,is) = aivals(14,is) + one
+        factch6=dsval**2+(tbc(6)*w2f6)**2
          
-         tpwc=factch4
+        tpwc=factch4
 
-         if(factch6 >= one .or. mixed)then
-            efactmc=zero
-            vfactmc=zero
-            errf(6)=zero
-            varinv(6)=zero
-            do i=1,6
-              if(id_qc(i) == izero)id_qc(i)=2
-            end do
-            if(id_qc(15) == izero)id_qc(15)=2
-!           QC3 in statsrad
-            if(.not. mixed.and. luse(n))aivals(10,is) = aivals(10,is) + one
+        if(factch6 >= one .or. mixed)then
+           efactmc=zero
+           vfactmc=zero
+           errf(6)=zero
+           varinv(6)=zero
+           do i=1,6
+              if(id_qc(i) == izero)id_qc(i)=2_i_kind
+           end do
+           if(id_qc(15) == izero)id_qc(15)=2_i_kind
+!          QC3 in statsrad
+           if(.not. mixed.and. luse(n))aivals(10,is) = aivals(10,is) + one
 
-         else if(factch4 > half)then
-            efactmc=zero
-            vfactmc=zero
-            do i=1,5
-              if(id_qc(i) == izero)id_qc(i)=3
-            end do
-            if(id_qc(15) == izero)id_qc(15)=3
-!           QC1 in statsrad
-            if(luse(n)) aivals(8,is) = aivals(8,is) + one
+        else if(factch4 > half)then
+           efactmc=zero
+           vfactmc=zero
+           do i=1,5
+              if(id_qc(i) == izero)id_qc(i)=3_i_kind
+           end do
+           if(id_qc(15) == izero)id_qc(15)=3_i_kind
+!          QC1 in statsrad
+           if(luse(n)) aivals(8,is) = aivals(8,is) + one
 
         else if(sea)then
-!           QC based on ratio of obs-ges increment versus the sensitivity of
-!           the simulated brightness temperature to the surface emissivity
-!           Y2K hurricane season runs by QingFu Liu found the hurricane
-!           forecast tracks to be degraded without this QC.
-!           (Is this still true?)
+!          QC based on ratio of obs-ges increment versus the sensitivity of
+!          the simulated brightness temperature to the surface emissivity
+!          Y2K hurricane season runs by QingFu Liu found the hurricane
+!          forecast tracks to be degraded without this QC.
+!          (Is this still true?)
 
-            dtde1 = emissivity_k(1)
-            de1   = zero
-            if (dtde1 /= zero) de1=abs(tbc(1))/dtde1
-            dtde2 = emissivity_k(2)
-            de2   = zero
-            if (dtde2 /= zero) de2=abs(tbc(2))/dtde2
-            dtde3 = emissivity_k(3)
-            de3   = zero
-            if (dtde3 /= zero) de3=abs(tbc(3))/dtde3
+           dtde1 = emissivity_k(1)
+           de1   = zero
+           if (dtde1 /= zero) de1=abs(tbc(1))/dtde1
+           dtde2 = emissivity_k(2)
+           de2   = zero
+           if (dtde2 /= zero) de2=abs(tbc(2))/dtde2
+           dtde3 = emissivity_k(3)
+           de3   = zero
+           if (dtde3 /= zero) de3=abs(tbc(3))/dtde3
 
-            if (de2 > r0_03 .or. de3 > r0_05 .or. de1 > r0_05) then
-!              QC2 in statsrad
-               if(luse(n))aivals(9,is) = aivals(9,is) + one
-               efactmc=zero
-               vfactmc=zero
-               do i=1,5
-                 if(id_qc(i) == izero)id_qc(i)=4
-               end do
-               if(id_qc(15) == izero)id_qc(15)=4
-            end if
-         end if
+           if (de2 > r0_03 .or. de3 > r0_05 .or. de1 > r0_05) then
+!             QC2 in statsrad
+              if(luse(n))aivals(9,is) = aivals(9,is) + one
+              efactmc=zero
+              vfactmc=zero
+              do i=1,5
+                 if(id_qc(i) == izero)id_qc(i)=4_i_kind
+              end do
+              if(id_qc(15) == izero)id_qc(15)=4_i_kind
+           end if
+        end if
 
-!        Reduce q.c. bounds over higher topography
-         if (zsges > r2000) then
-!           QC4 in statsrad
-            if(luse(n))aivals(11,is) = aivals(11,is) + one
-            fact    = r2000/zsges
-            efactmc = fact*efactmc
-            errf(6) = fact*errf(6)
-            vfactmc = fact*vfactmc
-            varinv(6)  = fact*varinv(6)
-            if (zsges > r4000) then
-!              QC5 in statsrad
-               if(luse(n))aivals(12,is) = aivals(12,is) + one
-               fact   = r4000/zsges
-               errf(7)= fact*errf(7)
-               varinv(7)= fact*varinv(7)
-            end if
-         end if
+!       Reduce q.c. bounds over higher topography
+        if (zsges > r2000) then
+!          QC4 in statsrad
+           if(luse(n))aivals(11,is) = aivals(11,is) + one
+           fact    = r2000/zsges
+           efactmc = fact*efactmc
+           errf(6) = fact*errf(6)
+           vfactmc = fact*vfactmc
+           varinv(6)  = fact*varinv(6)
+           if (zsges > r4000) then
+!             QC5 in statsrad
+              if(luse(n))aivals(12,is) = aivals(12,is) + one
+              fact   = r4000/zsges
+              errf(7)= fact*errf(7)
+              varinv(7)= fact*varinv(7)
+           end if
+        end if
 
-!        Generate q.c. bounds and modified variances.
-         do i=1,nchanl
+!       Generate q.c. bounds and modified variances.
+        do i=1,nchanl
 
-!           Modify error based on transmittance at top of model
-            varinv(i)=varinv(i)*ptau5(nsig,i)
-            errf(i)=errf(i)*ptau5(nsig,i)
+!          Modify error based on transmittance at top of model
+           varinv(i)=varinv(i)*ptau5(nsig,i)
+           errf(i)=errf(i)*ptau5(nsig,i)
 
-            if(varinv(i) > tiny_r_kind)then
+           if(varinv(i) > tiny_r_kind)then
               dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
               term=dtbf*dtbf
-              if(i <= 4 .or. i == 15)then
+              if(i <= 4_i_kind .or. i == 15_i_kind)then
                
 !                Adjust observation error based on magnitude of liquid
 !                water correction.  0.2 is empirical factor
@@ -1542,14 +1542,14 @@
               end if
               errf(i)   = efact*errf(i)
               if (term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
-            end if
+           end if
+
+           if ( (i <= 5_i_kind .or. i == 15_i_kind) .and. &
+                (varinv(i)<1.e-9_r_kind) ) then
+              pred(3,i) = zero
+           end if
             
-            if ( (i <= 5 .or. i == 15) .and. &
-                 (varinv(i)<1.e-9_r_kind) ) then
-               pred(3,i) = zero
-            end if
-            
-         end do
+        end do
 
 !    End of AMSU-A QC block
 !
@@ -1558,85 +1558,85 @@
 
      else if (amsub .or. hsb .or. mhs) then
 
-         efact = one
-         vfact = one
-         if(sea)then
-            demisf = 0.015_r_kind
-            dtempf = half
-         else if(land)then
-            demisf = r0_03
-            dtempf = two
-         else if(ice)then
-            demisf = r0_02  !decrease due to more accurate emiss model AMSU-A+B
-            dtempf = one    !decrease due to more accurate emiss model AMSU-A+B
-         else if(snow)then
-            demisf = r0_02  !decrease due to more accurate emiss model AMSU-A+B
-            dtempf = two    !decrease due to more accurate emiss model AMSU-A+B
-         else
-            demisf = quarter
-            dtempf = five
-         end if
+        efact = one
+        vfact = one
+        if(sea)then
+           demisf = 0.015_r_kind
+           dtempf = half
+        else if(land)then
+           demisf = r0_03
+           dtempf = two
+        else if(ice)then
+           demisf = r0_02  !decrease due to more accurate emiss model AMSU-A+B
+           dtempf = one    !decrease due to more accurate emiss model AMSU-A+B
+        else if(snow)then
+           demisf = r0_02  !decrease due to more accurate emiss model AMSU-A+B
+           dtempf = two    !decrease due to more accurate emiss model AMSU-A+B
+        else
+           demisf = quarter
+           dtempf = five
+        end if
 !   For now increase for mhs since emissivity model not as good
-         if(mhs .and. .not. sea) then
+        if(mhs .and. .not. sea) then
            demisf = three*demisf
            dtempf = three*dtempf
-         end if
-         if(sea .or. ice .or. snow)then
-            dsi=9.0_r_kind
-            if(tb_obs(2) < h300)then
-               dsi=0.13_r_kind*(tbc(1)-33.58_r_kind*tbc(2)/(h300-tb_obs(2)))
-!              QC3 in statsrad
-               if(luse(n) .and. dsi >= one)aivals(10,is) = aivals(10,is) + one
-            end if
-!           si=42.72_r_kind+0.85_r_kind*tbc(1)-tbc(2)
-         else
-            dsi=0.85_r_kind*tbc(1)-tbc(2)
-!           si=42.72_r_kind+0.85_r_kind*tb_obs(1)-tb_obs(2)
-!           QC4 in statsrad
-            if(luse(n) .and. dsi >= one)aivals(11,is) = aivals(11,is) + one
-         end if
-         dsi=max(zero,dsi)
-         fact1=((tbc(1)-7.5_r_kind*dsi)/ten)**2+(dsi)**2
+        end if
+        if(sea .or. ice .or. snow)then
+           dsi=9.0_r_kind
+           if(tb_obs(2) < h300)then
+              dsi=0.13_r_kind*(tbc(1)-33.58_r_kind*tbc(2)/(h300-tb_obs(2)))
+!             QC3 in statsrad
+              if(luse(n) .and. dsi >= one)aivals(10,is) = aivals(10,is) + one
+           end if
+!          si=42.72_r_kind+0.85_r_kind*tbc(1)-tbc(2)
+        else
+           dsi=0.85_r_kind*tbc(1)-tbc(2)
+!          si=42.72_r_kind+0.85_r_kind*tb_obs(1)-tb_obs(2)
+!          QC4 in statsrad
+           if(luse(n) .and. dsi >= one)aivals(11,is) = aivals(11,is) + one
+        end if
+        dsi=max(zero,dsi)
+        fact1=((tbc(1)-7.5_r_kind*dsi)/ten)**2+(dsi)**2
 
 !  Allow saving of qc factors
-         clw = dsi
-         tpwc = fact1
+        clw = dsi
+        tpwc = fact1
 
 
-         if(fact1 > one)then
-            vfact=zero
-!           QC1 in statsrad
-            if(luse(n))aivals(8,is) = aivals(8,is) + one
-            do i=1,nchanl
-              if(id_qc(i) == izero)id_qc(i)=2
-            end do
-         else
-            efact = (one-fact1*fact1)*efact
-            vfact = (one-fact1*fact1)*vfact
-!           Reduce q.c. bounds over higher topography
-            if (zsges > r2000) then
-!              QC2 in statsrad
-               if(luse(n))aivals(9,is) = aivals(9,is) + one
-               fact = r2000/zsges
-               efact = fact*efact
-               vfact = fact*vfact
-            end if
-         end if
+        if(fact1 > one)then
+           vfact=zero
+!          QC1 in statsrad
+           if(luse(n))aivals(8,is) = aivals(8,is) + one
+           do i=1,nchanl
+              if(id_qc(i) == izero)id_qc(i)=2_i_kind
+           end do
+        else
+           efact = (one-fact1*fact1)*efact
+           vfact = (one-fact1*fact1)*vfact
+!          Reduce q.c. bounds over higher topography
+           if (zsges > r2000) then
+!             QC2 in statsrad
+              if(luse(n))aivals(9,is) = aivals(9,is) + one
+              fact = r2000/zsges
+              efact = fact*efact
+              vfact = fact*vfact
+           end if
+        end if
 
-!        Generate q.c. bounds and modified variances.
-         do i=1,nchanl
+!       Generate q.c. bounds and modified variances.
+        do i=1,nchanl
 
-!           Modify error based on transmittance at top of model
-            varinv(i)=vfact*varinv(i)*ptau5(nsig,i)
-            errf(i)=efact*errf(i)*ptau5(nsig,i)
+!          Modify error based on transmittance at top of model
+           varinv(i)=vfact*varinv(i)*ptau5(nsig,i)
+           errf(i)=efact*errf(i)*ptau5(nsig,i)
 
-            if(varinv(i)>tiny_r_kind)then
-               dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
-               term=dtbf*dtbf
-               if(term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
-            end if
+           if(varinv(i)>tiny_r_kind)then
+              dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
+              term=dtbf*dtbf
+              if(term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+           end if
             
-         end do
+        end do
 
 !    End of AMSU-B QC block
 !
@@ -1646,148 +1646,148 @@
      else if(goes_img)then
 
 
-         if(tb_obs(1) > zero .and. tb_obs(2) > zero .and. tb_obs(3) > zero .and. &
-              tb_obs(4) > zero)then
-            efact = one
-            vfact = one
-            fact2 = one
-            fact3 = one
-            fact4 = one
-            fact5 = one
-            if(sea)then
-               demisf = r0_01
-               dtempf = half
-            else if(land)then
-               fact2=zero
-               fact4=zero
-               fact5=zero
-               demisf = r0_01
-               dtempf = two
-            else if(ice)then
-               fact2=zero
-               fact3=zero
-               fact4=zero
-               fact5=zero
-               demisf = r0_02
-               dtempf = three
-            else if(snow)then
-               fact2=zero
-               fact3=zero
-               fact4=zero
-               fact5=zero
-               demisf = r0_02
-               dtempf = three
-            else
-               fact2=zero
-               fact3=zero
-               fact4=zero
-               fact5=zero
-               demisf = r0_02
-               dtempf = five
-            end if
+        if(tb_obs(1) > zero .and. tb_obs(2) > zero .and. tb_obs(3) > zero .and. &
+           tb_obs(4) > zero)then
+           efact = one
+           vfact = one
+           fact2 = one
+           fact3 = one
+           fact4 = one
+           fact5 = one
+           if(sea)then
+              demisf = r0_01
+              dtempf = half
+           else if(land)then
+              fact2=zero
+              fact4=zero
+              fact5=zero
+              demisf = r0_01
+              dtempf = two
+           else if(ice)then
+              fact2=zero
+              fact3=zero
+              fact4=zero
+              fact5=zero
+              demisf = r0_02
+              dtempf = three
+           else if(snow)then
+              fact2=zero
+              fact3=zero
+              fact4=zero
+              fact5=zero
+              demisf = r0_02
+              dtempf = three
+           else
+              fact2=zero
+              fact3=zero
+              fact4=zero
+              fact5=zero
+              demisf = r0_02
+              dtempf = five
+           end if
             
-!           Filter out data according to clear sky fraction
-            if(dplat(is) == 'g10' .and. cld <r40 ) then
-               fact2=zero
-               fact3=zero
-               fact4=zero
-               fact5=zero
+!          Filter out data according to clear sky fraction
+           if(dplat(is) == 'g10' .and. cld <r40 ) then
+              fact2=zero
+              fact3=zero
+              fact4=zero
+              fact5=zero
 !           QC7 in statsrad
-               if(luse(n))aivals(14,is)= aivals(14,is) + one
-            else if(dplat(is) == 'g12' .and. cld <r70 ) then
-               fact2=zero
-               fact3=zero
-               fact4=zero
-               fact5=zero
+              if(luse(n))aivals(14,is)= aivals(14,is) + one
+           else if(dplat(is) == 'g12' .and. cld <r70 ) then
+              fact2=zero
+              fact3=zero
+              fact4=zero
+              fact5=zero
 !           QC7 in statsrad
-               if(luse(n))aivals(14,is)= aivals(14,is) + one
-            end if
+              if(luse(n))aivals(14,is)= aivals(14,is) + one
+           end if
             
-!           Quality control according to brightness temperature 
-!           standard deviation from data
-            if(tb_obs_sdv(1) >one ) then
-               fact2=zero
+!          Quality control according to brightness temperature 
+!          standard deviation from data
+           if(tb_obs_sdv(1) >one ) then
+              fact2=zero
 !           QC3 in statsrad
-               if(luse(n))aivals(10,is)= aivals(10,is) + one
-            end if
+              if(luse(n))aivals(10,is)= aivals(10,is) + one
+           end if
             
-            if(tb_obs_sdv(2) >1.5_r_kind ) then
-               fact3=zero
+           if(tb_obs_sdv(2) >1.5_r_kind ) then
+              fact3=zero
 !           QC4 in statsrad
-               if(luse(n))aivals(11,is)= aivals(11,is) + one
-            end if
+              if(luse(n))aivals(11,is)= aivals(11,is) + one
+           end if
             
-            if(tb_obs_sdv(3) >one ) then
-               fact4=zero
+           if(tb_obs_sdv(3) >one ) then
+              fact4=zero
 !           QC5 in statsrad
-               if(luse(n))aivals(12,is)= aivals(12,is) + one
-            end if
+              if(luse(n))aivals(12,is)= aivals(12,is) + one
+           end if
             
-            if(tb_obs_sdv(4) >one ) then
-               fact5=zero
+           if(tb_obs_sdv(4) >one ) then
+              fact5=zero
 !           QC6 in statsrad
-               if(luse(n))aivals(13,is)= aivals(13,is) + one
-            end if
+              if(luse(n))aivals(13,is)= aivals(13,is) + one
+           end if
             
-!           Reduce weight for obs over higher topography
-            if (zsges > r2000) then
-               fact    = r2000/zsges
-               efact   = fact*efact
-               vfact   = fact*vfact
+!          Reduce weight for obs over higher topography
+           if (zsges > r2000) then
+              fact    = r2000/zsges
+              efact   = fact*efact
+              vfact   = fact*vfact
 !           QC2 in statsrad
-               if(luse(n))aivals(9,is)= aivals(9,is) + one
-            end if
-         else
-            vfact=zero
-         end if
+              if(luse(n))aivals(9,is)= aivals(9,is) + one
+           end if
+        else
+           vfact=zero
+        end if
             
-!        Generate q.c. bounds and modified variances.
-         do i=1,nchanl
-            varinv(i) = vfact*varinv(i)
-            if(i == 1)varinv(i) = fact2*varinv(i)
-            if(i == 2)varinv(i) = fact3*varinv(i)
-            if(i == 3)varinv(i) = fact4*varinv(i)
-            if(i == 4)varinv(i) = fact5*varinv(i)
-            if( dplat(is) == 'g10' .and. i== 2) then
-               if (tb_obs_sdv(2) >r0_3 .and. tb_obs_sdv(2) <=r0_6) &
-                    varinv(i)=varinv(i)/1.05_r_kind
-               if (tb_obs_sdv(2) >r0_6 .and. tb_obs_sdv(2) <=r0_7) &
-                    varinv(i)=varinv(i)/1.15_r_kind
-               if (tb_obs_sdv(2) >r0_7 .and. tb_obs_sdv(2) <=r0_8) &
-                    varinv(i)=varinv(i)/1.24_r_kind
-               if (tb_obs_sdv(2) >r0_8 .and. tb_obs_sdv(2) <=r0_9) &
-                    varinv(i)=varinv(i)/1.28_r_kind
-               if (tb_obs_sdv(2) >r0_9 .and. tb_obs_sdv(2) <=one)  &
-                    varinv(i)=varinv(i)/1.32_r_kind
-               if (tb_obs_sdv(2) >one  .and. tb_obs_sdv(2) <=r1_1) &
-                    varinv(i)=varinv(i)/1.35_r_kind
-               if (tb_obs_sdv(2) >r1_1 .and. tb_obs_sdv(2) <=r1_3) &
-                    varinv(i)=varinv(i)/1.39_r_kind
-               if (tb_obs_sdv(2) >r1_4 )                         &
-                    varinv(i)=varinv(i)/1.48_r_kind
-            else if(dplat(is) == 'g12' .and. i== 2) then
-               if (tb_obs_sdv(2) >r0_4 .and. tb_obs_sdv(2) <=half) &
-                    varinv(i)=varinv(i)/1.05_r_kind
-               if (tb_obs_sdv(2) >half .and. tb_obs_sdv(2) <=r0_6) &
-                    varinv(i)=varinv(i)/1.09_r_kind
-               if (tb_obs_sdv(2) >r0_6 .and. tb_obs_sdv(2) <=r0_7) &
-                    varinv(i)=varinv(i)/1.14_r_kind
-               if (tb_obs_sdv(2) >r0_7 .and. tb_obs_sdv(2) <=r0_8) &
-                    varinv(i)=varinv(i)/1.17_r_kind
-               if (tb_obs_sdv(2) >r0_8 .and. tb_obs_sdv(2) <=r1_1) &
-                    varinv(i)=varinv(i)/1.19_r_kind
-               if (tb_obs_sdv(2) >r1_1 .and. tb_obs_sdv(2) <=r1_3) &
-                    varinv(i)=varinv(i)/1.25_r_kind
-               if (tb_obs_sdv(2) >r1_3 )                         &
-                    varinv(i)=varinv(i)/1.29_r_kind
-            end if
-            if(varinv(i)>tiny_r_kind)then
-               errf(i)   = efact*errf(i)
-               dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
-               term=dtbf*dtbf
-               if (term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
-            endif
-         end do
+!       Generate q.c. bounds and modified variances.
+        do i=1,nchanl
+           varinv(i) = vfact*varinv(i)
+           if(i == ione)    varinv(i) = fact2*varinv(i)
+           if(i == 2_i_kind)varinv(i) = fact3*varinv(i)
+           if(i == 3_i_kind)varinv(i) = fact4*varinv(i)
+           if(i == 4_i_kind)varinv(i) = fact5*varinv(i)
+           if( dplat(is) == 'g10' .and. i== 2_i_kind) then
+              if (tb_obs_sdv(2) >r0_3 .and. tb_obs_sdv(2) <=r0_6) &
+                 varinv(i)=varinv(i)/1.05_r_kind
+              if (tb_obs_sdv(2) >r0_6 .and. tb_obs_sdv(2) <=r0_7) &
+                 varinv(i)=varinv(i)/1.15_r_kind
+              if (tb_obs_sdv(2) >r0_7 .and. tb_obs_sdv(2) <=r0_8) &
+                 varinv(i)=varinv(i)/1.24_r_kind
+              if (tb_obs_sdv(2) >r0_8 .and. tb_obs_sdv(2) <=r0_9) &
+                 varinv(i)=varinv(i)/1.28_r_kind
+              if (tb_obs_sdv(2) >r0_9 .and. tb_obs_sdv(2) <=one)  &
+                 varinv(i)=varinv(i)/1.32_r_kind
+              if (tb_obs_sdv(2) >one  .and. tb_obs_sdv(2) <=r1_1) &
+                 varinv(i)=varinv(i)/1.35_r_kind
+              if (tb_obs_sdv(2) >r1_1 .and. tb_obs_sdv(2) <=r1_3) &
+                 varinv(i)=varinv(i)/1.39_r_kind
+              if (tb_obs_sdv(2) >r1_4 )                         &
+                 varinv(i)=varinv(i)/1.48_r_kind
+           else if(dplat(is) == 'g12' .and. i== 2_i_kind) then
+              if (tb_obs_sdv(2) >r0_4 .and. tb_obs_sdv(2) <=half) &
+                 varinv(i)=varinv(i)/1.05_r_kind
+              if (tb_obs_sdv(2) >half .and. tb_obs_sdv(2) <=r0_6) &
+                 varinv(i)=varinv(i)/1.09_r_kind
+              if (tb_obs_sdv(2) >r0_6 .and. tb_obs_sdv(2) <=r0_7) &
+                 varinv(i)=varinv(i)/1.14_r_kind
+              if (tb_obs_sdv(2) >r0_7 .and. tb_obs_sdv(2) <=r0_8) &
+                 varinv(i)=varinv(i)/1.17_r_kind
+              if (tb_obs_sdv(2) >r0_8 .and. tb_obs_sdv(2) <=r1_1) &
+                 varinv(i)=varinv(i)/1.19_r_kind
+              if (tb_obs_sdv(2) >r1_1 .and. tb_obs_sdv(2) <=r1_3) &
+                 varinv(i)=varinv(i)/1.25_r_kind
+              if (tb_obs_sdv(2) >r1_3 )                         &
+                 varinv(i)=varinv(i)/1.29_r_kind
+           end if
+           if(varinv(i)>tiny_r_kind)then
+              errf(i)   = efact*errf(i)
+              dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
+              term=dtbf*dtbf
+              if (term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+           endif
+        end do
 
 !    End of GOES imager QC block
 !
@@ -1796,29 +1796,29 @@
 
      else if (avhrr_navy .or. avhrr) then
 
-         if(tb_obs(2) > zero .and. tb_obs(2) < 400.0_r_kind)then
-            fact=one
-            efact=one
-            if (.not. sea)then
-               fact    = zero
+        if(tb_obs(2) > zero .and. tb_obs(2) < 400.0_r_kind)then
+           fact=one
+           efact=one
+           if (.not. sea)then
+              fact    = zero
 !           QC1 in statsrad
-               if(luse(n)) aivals(12,is)= aivals(12,is) + one
-            end if
-         else
-            vfact = zero
-         end if
+              if(luse(n)) aivals(12,is)= aivals(12,is) + one
+           end if
+        else
+           vfact = zero
+        end if
 
-!        Generate q.c. bounds and modified variances.
-         do i=1,nchanl
-            errf(i)   = efact*errf(i)
-            varinv(i) = fact*varinv(i)
-!           Reject day time AVHRR Ch-3A observation
-            if ( i == 1 .and. dtp_avh /= 152.0_r_kind ) then          ! day time
-               varinv(i) = zero
+!       Generate q.c. bounds and modified variances.
+        do i=1,nchanl
+           errf(i)   = efact*errf(i)
+           varinv(i) = fact*varinv(i)
+!          Reject day time AVHRR Ch-3A observation
+           if ( i == ione .and. dtp_avh /= 152.0_r_kind ) then          ! day time
+              varinv(i) = zero
 !           QC3 in statsrad
-               if(luse(n))aivals(10,is)= aivals(10,is) + one
-            endif
-         end do
+              if(luse(n))aivals(10,is)= aivals(10,is) + one
+           endif
+        end do
 
 !    End of AVHRR QC block
 !
@@ -1827,141 +1827,141 @@
 
      else if( ssmi .or. amsre .or. ssmis )then   
 
-         call qcssmi(nchanl, &
-              zsges,luse(n),sea,ice,snow,mixed, &
-              ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl, &
-              tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
-              varinv,errf,aivals(1,is),id_qc)
+        call qcssmi(nchanl, &
+             zsges,luse(n),sea,ice,snow,mixed, &
+             ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl, &
+             tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
+             varinv,errf,aivals(1,is),id_qc)
 
 !  ---------- SSU  -------------------
 !     SSU Q C
 
-      elseif (ssu) then
+     elseif (ssu) then
                                                                        
-         if(sea)then
-            demisf  = r0_01*half
-            dtempf  = half*half
-         else if(land)then
-            demisf = r0_02*half
-            dtempf = two*half
-         else if(ice)then
-            demisf = r0_03*half
-            dtempf = four*half
-         else if(snow)then
-            demisf = r0_02*half
-            dtempf = two*half
-         else
-            demisf = r0_03*half
-            dtempf = four*half
-         end if
+        if(sea)then
+           demisf  = r0_01*half
+           dtempf  = half*half
+        else if(land)then
+           demisf = r0_02*half
+           dtempf = two*half
+        else if(ice)then
+           demisf = r0_03*half
+           dtempf = four*half
+        else if(snow)then
+           demisf = r0_02*half
+           dtempf = two*half
+        else
+           demisf = r0_03*half
+           dtempf = four*half
+        end if
          
-!        Reduce weight for obs over higher topography
-         sfchgtfact=one
-         if (zsges > r2000) then
-            sfchgtfact    = (r2000/zsges)**4
-            if(luse(n)) aivals(11,is)= aivals(11,is) + one
-         endif
+!       Reduce weight for obs over higher topography
+        sfchgtfact=one
+        if (zsges > r2000) then
+           sfchgtfact    = (r2000/zsges)**4
+           if(luse(n)) aivals(11,is)= aivals(11,is) + one
+        endif
          
 !       Generate q.c. bounds and modified variances.
-         do i=1,nchanl
-            m=ich(i)
-            if (tb_obs(i) > r400 .or. tb_obs(i) <= r100) then
-               varinv(i)=zero
-               if(luse(n)) aivals(12,is)= aivals(12,is) + one
-            endif
-            varinv(i) = varinv(i)*(one-(one-sfchgtfact)*ptau5(1,i))
+        do i=1,nchanl
+           m=ich(i)
+           if (tb_obs(i) > r400 .or. tb_obs(i) <= r100) then
+              varinv(i)=zero
+              if(luse(n)) aivals(12,is)= aivals(12,is) + one
+           endif
+           varinv(i) = varinv(i)*(one-(one-sfchgtfact)*ptau5(1,i))
                                                                                                 
-!           Modify error based on transmittance at top of model
-            varinv(i)=varinv(i)*ptau5(nsig,i)
-            errf(i)=errf(i)*ptau5(nsig,i)
-         end do
+!          Modify error based on transmittance at top of model
+           varinv(i)=varinv(i)*ptau5(nsig,i)
+           errf(i)=errf(i)*ptau5(nsig,i)
+        end do
             
-!        Reduce qc bounds in tropics
-         cenlatx=abs(cenlat)*oneover25
-         if (cenlatx < one) then
-            if(luse(n))aivals(6,is) = aivals(6,is) + one
-            efact = half*(cenlatx+one)
-         else
-            efact = one
-         endif
+!       Reduce qc bounds in tropics
+        cenlatx=abs(cenlat)*oneover25
+        if (cenlatx < one) then
+           if(luse(n))aivals(6,is) = aivals(6,is) + one
+           efact = half*(cenlatx+one)
+        else
+           efact = one
+        endif
                                                                                                 
-!        Generate q.c. bounds and modified variances.
-         do i=1,nchanl
-            if(varinv(i) > tiny_r_kind)then
-               errf(i)=efact*errf(i)
-               dtbf = demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
-               term = dtbf*dtbf
-               if(term > tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
-            end if
-         end do
+!       Generate q.c. bounds and modified variances.
+        do i=1,nchanl
+           if(varinv(i) > tiny_r_kind)then
+              errf(i)=efact*errf(i)
+              dtbf = demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
+              term = dtbf*dtbf
+              if(term > tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+           end if
+        end do
  
-!     End of SSU qc block
-      end if
+!    End of SSU qc block
+     end if
 
 !    Done with sensor qc blocks.  Now make final qc decisions.
 
 
 !    Apply gross check to observations.  Toss obs failing test.
      do i = 1,nchanl
-       if (varinv(i) > tiny_r_kind ) then
-         m=ich(i)
+        if (varinv(i) > tiny_r_kind ) then
+           m=ich(i)
 
-         if (avhrr .or. avhrr_navy ) then
-           errf(i) = min(2.2_r_kind*errf(i),ermax_rad(m))
-           if ( tbc(i) < -errf(i) .or. tbc(i) > 2.4_r_kind*errf(i) ) then
-             if(id_qc(i) == izero)id_qc(i)=8
-             varinv(i) = zero
-             if(luse(n))stats(2,m) = stats(2,m) + one
-             if(luse(n))aivals(7,is) = aivals(7,is) + one
+           if (avhrr .or. avhrr_navy ) then
+              errf(i) = min(2.2_r_kind*errf(i),ermax_rad(m))
+              if ( tbc(i) < -errf(i) .or. tbc(i) > 2.4_r_kind*errf(i) ) then
+                 if(id_qc(i) == izero)id_qc(i)=8_i_kind
+                 varinv(i) = zero
+                 if(luse(n))stats(2,m) = stats(2,m) + one
+                 if(luse(n))aivals(7,is) = aivals(7,is) + one
+              endif
+
+           else
+
+              errf(i) = min(three*errf(i),ermax_rad(m))
+              if (abs(tbc(i)) > errf(i)) then
+!                If mean obs-ges difference around observations
+!                location is too large and difference at the 
+!                observation location is similarly large, then
+!                toss the observation.
+                 if(id_qc(i) == izero)id_qc(i)=8_i_kind
+                 varinv(i) = zero
+                 if(luse(n))stats(2,m) = stats(2,m) + one
+                 if(luse(n))aivals(7,is) = aivals(7,is) + one
+              end if
+
            endif
-
-         else
-
-           errf(i) = min(three*errf(i),ermax_rad(m))
-           if (abs(tbc(i)) > errf(i)) then
-!            If mean obs-ges difference around observations
-!            location is too large and difference at the 
-!            observation location is similarly large, then
-!            toss the observation.
-             if(id_qc(i) == izero)id_qc(i)=8
-             varinv(i) = zero
-             if(luse(n))stats(2,m) = stats(2,m) + one
-             if(luse(n))aivals(7,is) = aivals(7,is) + one
-           end if
-
-         endif
-       end if
+        end if
      end do
 
      if(amsua .or. amsub .or. mhs .or. msu .or. hsb)then
-        if(amsua)nlev=6
-        if(amsub .or. mhs)nlev=5
-        if(hsb)nlev=4
-        if(msu)nlev=4
+        if(amsua)nlev=6_i_kind
+        if(amsub .or. mhs)nlev=5_i_kind
+        if(hsb)nlev=4_i_kind
+        if(msu)nlev=4_i_kind
         kval=izero
         do i=2,nlev
 !       do i=1,nlev
-           if (varinv(i)<tiny_r_kind .and. iuse_rad(ich(i))>=1) then
-              kval=max(i-1,kval)
+           if (varinv(i)<tiny_r_kind .and. iuse_rad(ich(i))>=ione) then
+              kval=max(i-ione,kval)
               if(amsub .or. hsb .or. mhs)kval=nlev
-              if(amsua .and. i <= 3)kval = zero
+              if(amsua .and. i <= 3_i_kind)kval = zero
            end if
         end do
         if(kval > izero)then
            do i=1,kval
               varinv(i)=zero
-              if(id_qc(i) == izero)id_qc(i)=9
+              if(id_qc(i) == izero)id_qc(i)=9_i_kind
            end do
            if(amsua)then
               varinv(15)=zero
-              if(id_qc(15) == izero)id_qc(15)=9
+              if(id_qc(15) == izero)id_qc(15)=9_i_kind
            end if
         end if
      end if
 
 !    If requested, generate SST retrieval
      if(retrieval) then
-       if(avhrr_navy .or. avhrr) then
+        if(avhrr_navy .or. avhrr) then
            call avhrr_sst_retrieval(obstype,dplat(is),nchanl,tnoise,&
                 varinv,tsavg5,sstnv,sstcu,temp,wmix,ts,tbc,cenlat,cenlon,zasat,&
                 dtime,dtp_avh,tlapchn,predterms,emissivity,pangs,tbcnob,tb_obs,&
@@ -1970,7 +1970,7 @@
         endif
      endif
 
-     icc = 0
+     icc = izero
      do i = 1,nchanl
 
 !       Only process observations to be assimilated
@@ -2005,7 +2005,7 @@
            end if
            
 !          Only "good" obs are included in J calculation.
-           if (iuse_rad(m) >= 1)then
+           if (iuse_rad(m) >= ione)then
               if(luse(n))then
                  aivals(40,is) = aivals(40,is) + tbc(i)*varrad
                  aivals(39,is) = aivals(39,is) -two*(error0(i)**2)*varinv(i)*term
@@ -2020,7 +2020,7 @@
 
 !             Load arrays used in minimization
 
-              icc      = icc+1                ! total channel count
+              icc      = icc+ione                ! total channel count
               radinv(icc) = tbc(i)            ! obs-ges innovation
               icxx(icc) = m                   ! channel index
               var(icc) = one/error0(i)**2     ! 1/(obs error)**2  (original uninflated error)
@@ -2038,7 +2038,7 @@
 
 !                Deflate moisture jacobian above the tropopause.
                  if (pin5(k) < trop5) then
-                    ifactq(m)=15
+                    ifactq(m)=15_i_kind
                     term = (pin5(k)-trop5)/(trop5-pin5(nsig))
                     htlto(nsig+k,icc) = exp(ifactq(m)*term)*htlto(nsig+k,icc)
                  endif
@@ -2083,124 +2083,124 @@
 !    passive obs (monitoring), it is difficult to do if rad_diagsave
 !    is not on in the first outer loop. For now we use l_may_be_passive...
      if (l_may_be_passive) then
-!      Link observation to appropriate observation bin
-       if (nobs_bins>1) then
-         ibin = NINT( dtime/hr_obsbin ) + 1
-       else
-         ibin = 1
-       endif
-       IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+!       Link observation to appropriate observation bin
+        if (nobs_bins>ione) then
+           ibin = NINT( dtime/hr_obsbin ) + ione
+        else
+           ibin = ione
+        endif
+        IF (ibin<ione.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-!      Load data into output arrays
-       if(.not. retrieval)then
-          if(icc > 0)then
-            ncnt =ncnt+1
-            nchan_total=nchan_total+icc
+!       Load data into output arrays
+        if(.not. retrieval)then
+           if(icc > izero)then
+              ncnt =ncnt+ione
+              nchan_total=nchan_total+icc
+ 
+              if(.not. associated(radhead(ibin)%head))then
+                 allocate(radhead(ibin)%head,stat=istat)
+                 if(istat /= izero)write(6,*)' failure to write radhead '
+                 radtail(ibin)%head => radhead(ibin)%head
+              else
+                 allocate(radtail(ibin)%head%llpoint,stat=istat)
+                 if(istat /= izero)write(6,*)' failure to write radtail%llpoint '
+                 radtail(ibin)%head => radtail(ibin)%head%llpoint
+              end if
 
-            if(.not. associated(radhead(ibin)%head))then
-               allocate(radhead(ibin)%head,stat=istat)
-               if(istat /= 0)write(6,*)' failure to write radhead '
-               radtail(ibin)%head => radhead(ibin)%head
-            else
-               allocate(radtail(ibin)%head%llpoint,stat=istat)
-               if(istat /= 0)write(6,*)' failure to write radtail%llpoint '
-               radtail(ibin)%head => radtail(ibin)%head%llpoint
-            end if
+              allocate(radtail(ibin)%head%res(icc),radtail(ibin)%head%err2(icc), &
+                       radtail(ibin)%head%diags(icc),&
+                       radtail(ibin)%head%raterr2(icc),radtail(ibin)%head%pred(npred,icc), &
+                       radtail(ibin)%head%dtb_dvar(nsig3p3,icc), &
+                       radtail(ibin)%head%icx(icc))
 
-            allocate(radtail(ibin)%head%res(icc),radtail(ibin)%head%err2(icc), &
-                     radtail(ibin)%head%diags(icc),&
-                     radtail(ibin)%head%raterr2(icc),radtail(ibin)%head%pred(npred,icc), &
-                     radtail(ibin)%head%dtb_dvar(nsig3p3,icc), &
-                     radtail(ibin)%head%icx(icc))
-             
-            radtail(ibin)%head%nchan  = icc         ! profile observation count
-            call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(1),radtail(ibin)%head%wij(1))
-            radtail(ibin)%head%time=dtime
-            radtail(ibin)%head%luse=luse(n)
-            iii=0
-            do ii=1,nchanl
-              m=ich(ii)
-              if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
+              radtail(ibin)%head%nchan  = icc         ! profile observation count
+              call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(1),radtail(ibin)%head%wij(1))
+              radtail(ibin)%head%time=dtime
+              radtail(ibin)%head%luse=luse(n)
+              iii=izero
+              do ii=1,nchanl
+                 m=ich(ii)
+                 if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=ione) then
 
-                iii=iii+1
-                radtail(ibin)%head%res(iii)=radinv(iii)
-                radtail(ibin)%head%err2(iii)=var(iii)
-                radtail(ibin)%head%raterr2(iii)=ratio_raderr(iii)
-                radtail(ibin)%head%icx(iii)=icxx(iii)
-                do k=1,npred
-                   radtail(ibin)%head%pred(k,iii)=pred(k,ii)
-                end do
-                do k=1,nsig3p3
-                  radtail(ibin)%head%dtb_dvar(k,iii)=htlto(k,iii)
-                end do
-               end if
-             end do
-          end if
-       endif ! <.not. retrieval>
-
-!      Link obs to diagnostics structure
-       iii=0
-       do ii=1,nchanl
-         if (.not.lobsdiag_allocated) then
-           if (.not.associated(obsdiags(i_rad_ob_type,ibin)%head)) then
-             allocate(obsdiags(i_rad_ob_type,ibin)%head,stat=istat)
-             if (istat/=0) then
-               write(6,*)'setuprad: failure to allocate obsdiags',istat
-               call stop2(276)
-             end if
-             obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%head
-           else
-             allocate(obsdiags(i_rad_ob_type,ibin)%tail%next,stat=istat)
-             if (istat/=0) then
-               write(6,*)'setuprad: failure to allocate obsdiags',istat
-               call stop2(277)
-             end if
-             obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
+                    iii=iii+ione
+                    radtail(ibin)%head%res(iii)=radinv(iii)
+                    radtail(ibin)%head%err2(iii)=var(iii)
+                    radtail(ibin)%head%raterr2(iii)=ratio_raderr(iii)
+                    radtail(ibin)%head%icx(iii)=icxx(iii)
+                    do k=1,npred
+                       radtail(ibin)%head%pred(k,iii)=pred(k,ii)
+                    end do
+                    do k=1,nsig3p3
+                       radtail(ibin)%head%dtb_dvar(k,iii)=htlto(k,iii)
+                    end do
+                 end if
+              end do
            end if
-           allocate(obsdiags(i_rad_ob_type,ibin)%tail%muse(miter+1))
-           allocate(obsdiags(i_rad_ob_type,ibin)%tail%nldepart(miter+1))
-           allocate(obsdiags(i_rad_ob_type,ibin)%tail%tldepart(miter))
-           allocate(obsdiags(i_rad_ob_type,ibin)%tail%obssen(miter))
-           obsdiags(i_rad_ob_type,ibin)%tail%indxglb=(n-1)*nchanl+ii
-           obsdiags(i_rad_ob_type,ibin)%tail%nchnperobs=-99999
-           obsdiags(i_rad_ob_type,ibin)%tail%luse=.false.
-           obsdiags(i_rad_ob_type,ibin)%tail%muse(:)=.false.
-           obsdiags(i_rad_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-           obsdiags(i_rad_ob_type,ibin)%tail%tldepart(:)=zero
-           obsdiags(i_rad_ob_type,ibin)%tail%wgtjo=-huge(zero)
-           obsdiags(i_rad_ob_type,ibin)%tail%obssen(:)=zero
-         else
-           if (.not.associated(obsdiags(i_rad_ob_type,ibin)%tail)) then
-             obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%head
+        endif ! <.not. retrieval>
+
+!       Link obs to diagnostics structure
+        iii=izero
+        do ii=1,nchanl
+           if (.not.lobsdiag_allocated) then
+              if (.not.associated(obsdiags(i_rad_ob_type,ibin)%head)) then
+                 allocate(obsdiags(i_rad_ob_type,ibin)%head,stat=istat)
+                 if (istat/=izero) then
+                    write(6,*)'setuprad: failure to allocate obsdiags',istat
+                    call stop2(276)
+                 end if
+                 obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%head
+              else
+                 allocate(obsdiags(i_rad_ob_type,ibin)%tail%next,stat=istat)
+                 if (istat/=izero) then
+                    write(6,*)'setuprad: failure to allocate obsdiags',istat
+                    call stop2(277)
+                 end if
+                 obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
+              end if
+              allocate(obsdiags(i_rad_ob_type,ibin)%tail%muse(miter+ione))
+              allocate(obsdiags(i_rad_ob_type,ibin)%tail%nldepart(miter+ione))
+              allocate(obsdiags(i_rad_ob_type,ibin)%tail%tldepart(miter))
+              allocate(obsdiags(i_rad_ob_type,ibin)%tail%obssen(miter))
+              obsdiags(i_rad_ob_type,ibin)%tail%indxglb=(n-ione)*nchanl+ii
+              obsdiags(i_rad_ob_type,ibin)%tail%nchnperobs=-99999_i_kind
+              obsdiags(i_rad_ob_type,ibin)%tail%luse=.false.
+              obsdiags(i_rad_ob_type,ibin)%tail%muse(:)=.false.
+              obsdiags(i_rad_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+              obsdiags(i_rad_ob_type,ibin)%tail%tldepart(:)=zero
+              obsdiags(i_rad_ob_type,ibin)%tail%wgtjo=-huge(zero)
+              obsdiags(i_rad_ob_type,ibin)%tail%obssen(:)=zero
            else
-             obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
-           end if
-           if (obsdiags(i_rad_ob_type,ibin)%tail%indxglb/=(n-1)*nchanl+ii) then
-             write(6,*)'setuprad: index error'
-             call stop2(278)
+              if (.not.associated(obsdiags(i_rad_ob_type,ibin)%tail)) then
+                 obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%head
+              else
+                 obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
+              end if
+              if (obsdiags(i_rad_ob_type,ibin)%tail%indxglb/=(n-ione)*nchanl+ii) then
+                 write(6,*)'setuprad: index error'
+                 call stop2(278)
+              endif
            endif
-         endif
-         if (ii==1) obsptr => obsdiags(i_rad_ob_type,ibin)%tail
-         if (ii==1) obsdiags(i_rad_ob_type,ibin)%tail%nchnperobs = nchanl
-         obsdiags(i_rad_ob_type,ibin)%tail%luse = luse(n)
-         obsdiags(i_rad_ob_type,ibin)%tail%nldepart(jiter) = tbc(ii)
-         obsdiags(i_rad_ob_type,ibin)%tail%wgtjo=varinv(ii)
-
-!        Load data into output arrays
-         m=ich(ii)
-         if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
-           if(.not. retrieval)then
-             iii=iii+1
-             radtail(ibin)%head%diags(iii)%ptr => obsdiags(i_rad_ob_type,ibin)%tail
-             obsdiags(i_rad_ob_type,ibin)%tail%muse(jiter) = .true.
+           if (ii==ione) obsptr => obsdiags(i_rad_ob_type,ibin)%tail
+           if (ii==ione) obsdiags(i_rad_ob_type,ibin)%tail%nchnperobs = nchanl
+           obsdiags(i_rad_ob_type,ibin)%tail%luse = luse(n)
+           obsdiags(i_rad_ob_type,ibin)%tail%nldepart(jiter) = tbc(ii)
+           obsdiags(i_rad_ob_type,ibin)%tail%wgtjo=varinv(ii)
+ 
+!          Load data into output arrays
+           m=ich(ii)
+           if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=ione) then
+              if(.not. retrieval)then
+                 iii=iii+ione
+                 radtail(ibin)%head%diags(iii)%ptr => obsdiags(i_rad_ob_type,ibin)%tail
+                 obsdiags(i_rad_ob_type,ibin)%tail%muse(jiter) = .true.
+              endif
            endif
-         endif
-       enddo
-       if(.not. retrieval.and.(iii/=icc)) then
-         write(6,*)'setuprad: error iii icc',iii,icc
-         call stop2(279)
-       endif
-
+        enddo
+        if(.not. retrieval.and.(iii/=icc)) then
+           write(6,*)'setuprad: error iii icc',iii,icc
+           call stop2(279)
+        endif
+ 
 !    End of l_may_be_passive block
      endif
 
@@ -2209,7 +2209,7 @@
         diagbuf(1)  = cenlat                         ! observation latitude (degrees)
         diagbuf(2)  = cenlon                         ! observation longitude (degrees)
         diagbuf(3)  = zsges                          ! model (guess) elevation at observation location
-
+ 
         diagbuf(4)  = dtime-time_offset              ! observation time (hours relative to analysis time)
 
         diagbuf(5)  = data_s(iscan_pos,n)            ! sensor scan position
@@ -2218,7 +2218,7 @@
         diagbuf(8)  = pangs                          ! solar zenith angle (degrees)
         diagbuf(9)  = data_s(isazi_ang,n)            ! solar azimuth angle (degrees)
         diagbuf(10) = sgagl                          ! sun glint angle (degrees) (sgagl)
-
+ 
         diagbuf(11) = surface(1)%water_coverage         ! fractional coverage by water
         diagbuf(12) = surface(1)%land_coverage          ! fractional coverage by land
         diagbuf(13) = surface(1)%ice_coverage           ! fractional coverage by ice
@@ -2233,7 +2233,7 @@
         diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
         diagbuf(23) = surface(1)%snow_depth             ! snow depth
         diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
-
+ 
 !       Note:  The following quantities are not computed for all sensors
         if (.not.microwave) then
            diagbuf(25)  = cld                        ! cloud fraction (%)
@@ -2256,56 +2256,56 @@
            errinv = sqrt(varinv(i))
            diagbufchan(4,i)=errinv          ! inverse observation error
            useflag=one
-           if (iuse_rad(ich(i)) < 1) useflag=-one
+           if (iuse_rad(ich(i)) < ione) useflag=-one
            diagbufchan(5,i)= id_qc(i)*useflag! quality control mark or event indicator
 
            diagbufchan(6,i)=emissivity(i)   ! surface emissivity
            diagbufchan(7,i)=tlapchn(i)      ! stability index
-           do j=1,npred+1
-              diagbufchan(7+j,i)=predterms(j,i) ! Tb bias correction terms (K)
+           do j=1,npred+ione
+              diagbufchan(7_i_kind+j,i)=predterms(j,i) ! Tb bias correction terms (K)
            end do
         end do
 
         if (lobsdiagsave) then
-          if (l_may_be_passive) then
-            do ii=1,nchanl
-              if (.not.associated(obsptr)) then
-                write(6,*)'setuprad: error obsptr'
-                call stop2(280)
-              end if
-              if (obsptr%indxglb/=(n-1)*nchanl+ii) then
-                write(6,*)'setuprad: error writing diagnostics'
-                call stop2(281)
-              end if
-  
-              ioff=7+npred+1
-              do jj=1,miter
-                ioff=ioff+1
-                if (obsptr%muse(jj)) then
-                  diagbufchan(ioff,ii) = one
-                else
-                  diagbufchan(ioff,ii) = -one
-                endif
-              enddo
-              do jj=1,miter+1
-                ioff=ioff+1
-                diagbufchan(ioff,ii) = obsptr%nldepart(jj)
-              enddo
-              do jj=1,miter
-                ioff=ioff+1
-                diagbufchan(ioff,ii) = obsptr%tldepart(jj)
-              enddo
-              do jj=1,miter
-                ioff=ioff+1
-                diagbufchan(ioff,ii) = obsptr%obssen(jj)
-              enddo
+           if (l_may_be_passive) then
+              do ii=1,nchanl
+                 if (.not.associated(obsptr)) then
+                    write(6,*)'setuprad: error obsptr'
+                    call stop2(280)
+                 end if
+                 if (obsptr%indxglb/=(n-ione)*nchanl+ii) then
+                    write(6,*)'setuprad: error writing diagnostics'
+                    call stop2(281)
+                 end if
+ 
+                 ioff=7_i_kind+npred+ione
+                 do jj=1,miter
+                    ioff=ioff+ione
+                    if (obsptr%muse(jj)) then
+                       diagbufchan(ioff,ii) = one
+                    else
+                       diagbufchan(ioff,ii) = -one
+                    endif
+                 enddo
+                 do jj=1,miter+ione
+                    ioff=ioff+ione
+                    diagbufchan(ioff,ii) = obsptr%nldepart(jj)
+                 enddo
+                 do jj=1,miter
+                    ioff=ioff+ione
+                    diagbufchan(ioff,ii) = obsptr%tldepart(jj)
+                 enddo
+                 do jj=1,miter
+                    ioff=ioff+ione
+                    diagbufchan(ioff,ii) = obsptr%obssen(jj)
+                 enddo
 
-              obsptr => obsptr%next
-            enddo
-          else
-            ioff=7+npred+1
-            diagbufchan(ioff+1:ioff+4*miter+1,1:nchanl) = zero
-          endif
+                 obsptr => obsptr%next
+              enddo
+           else
+              ioff=7_i_kind+npred+ione
+              diagbufchan(ioff+ione:ioff+4*miter+ione,1:nchanl) = zero
+           endif
         endif
 
         if (.not.lextra) then
@@ -2332,7 +2332,7 @@
   if (error_status /= success) &
   write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
 
-  err1=0; err2=0; err3=0; err4=0; err5=0
+  err1=izero; err2=izero; err3=izero; err4=izero; err5=izero
   err1 = crtm_destroy_atmosphere(atmosphere(1))
   err2 = crtm_destroy_surface(surface(1))
   err3 = crtm_destroy_rtsolution(rtsolution)

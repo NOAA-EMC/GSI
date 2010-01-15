@@ -255,12 +255,12 @@ logical :: lldone
 !     ----------
 !
 IF (maxvecs<=izero) then
-  write(6,*)'LBFGS: maxvecs is not positive.',maxvecs
-  call stop2(158)
+   write(6,*)'LBFGS: maxvecs is not positive.',maxvecs
+   call stop2(158)
 end if
 IF (GTOL<1.0e-04_r_kind) then
-  write(6,*)'LBFGS: GTOL is smaller than 1.0e-4.'
-  call stop2(159)
+   write(6,*)'LBFGS: GTOL is smaller than 1.0e-4.'
+   call stop2(159)
 end if
 
 call allocate_cv(diag)
@@ -278,7 +278,7 @@ lldone= .FALSE.
 !diag=zero
 
 DO jj=1,ws(1)%lencv
-  WS(1)%values(jj)= -grad%values(jj)
+   WS(1)%values(jj)= -grad%values(jj)
 end do
 
 gnorm = sqrt( dot_product(grad,grad) )
@@ -289,100 +289,100 @@ STP1= ONE/GNORM
 !    --------------------
 main_loop: DO WHILE (.not.lldone)
 
-  nlnqc_iter = iter >= niter_no_qc(jiter)
-  ITER= ITER+ione
-  if (mype==izero) write(6,*)'Minimization iteration',iter
-  BOUND=ITER-ione
-  IF (ITER==ione) GO TO 165
-  IF (ITER>maxvecs) BOUND=maxvecs
+   nlnqc_iter = iter >= niter_no_qc(jiter)
+   ITER= ITER+ione
+   if (mype==izero) write(6,*)'Minimization iteration',iter
+   BOUND=ITER-ione
+   IF (ITER==ione) GO TO 165
+   IF (ITER>maxvecs) BOUND=maxvecs
 
-  YS=dot_product(WY(NPT),WS(NPT))
-  YY=dot_product(WY(NPT),WY(NPT))
-  gamk=YS/YY
+   YS=dot_product(WY(NPT),WS(NPT))
+   YY=dot_product(WY(NPT),WY(NPT))
+   gamk=YS/YY
 
-! COMPUTE -H*G USING THE FORMULA GIVEN IN: Nocedal, J. 1980,
-! "Updating quasi-Newton matrices with limited storage",
-! Mathematics of Computation, Vol.24, No.151, pp. 773-782.
-! ---------------------------------------------------------
+!  COMPUTE -H*G USING THE FORMULA GIVEN IN: Nocedal, J. 1980,
+!  "Updating quasi-Newton matrices with limited storage",
+!  Mathematics of Computation, Vol.24, No.151, pp. 773-782.
+!  ---------------------------------------------------------
 
-  CP = POINT
-  rho(CP)= ONE/YS
-  DO jj=1,ww%lencv
-     WW%values(jj) = -grad%values(jj)
-  end do
+   CP = POINT
+   rho(CP)= ONE/YS
+   DO jj=1,ww%lencv
+      WW%values(jj) = -grad%values(jj)
+   end do
 
-  DO I=1,BOUND
-     CP=CP-ione
-     IF (CP==izero) CP=maxvecs
-     SQ=dot_product(WS(CP),WW)
-     alpha(CP)=rho(CP)*SQ
-     CALL AXPY(-alpha(CP),WY(CP),WW)
-  end do
+   DO I=1,BOUND
+      CP=CP-ione
+      IF (CP==izero) CP=maxvecs
+      SQ=dot_product(WS(CP),WW)
+      alpha(CP)=rho(CP)*SQ
+      CALL AXPY(-alpha(CP),WY(CP),WW)
+   end do
 !
-  DO jj=1,ww%lencv
+   DO jj=1,ww%lencv
 !     WW%values(jj)=DIAG%values(jj)*WW%values(jj)
-     WW%values(jj)=gamk*WW%values(jj)
-  end do
+      WW%values(jj)=gamk*WW%values(jj)
+   end do
 !
-  DO I=1,BOUND
-     YR=dot_product(WY(CP),WW)
-     BETA= rho(CP)*YR
-     BETA= alpha(CP)-BETA
-     CALL AXPY(BETA,WS(CP),WW)
-     CP=CP+ione
-     IF (CP>maxvecs) CP=ione
-  end do
+   DO I=1,BOUND
+      YR=dot_product(WY(CP),WW)
+      BETA= rho(CP)*YR
+      BETA= alpha(CP)-BETA
+      CALL AXPY(BETA,WS(CP),WW)
+      CP=CP+ione
+      IF (CP>maxvecs) CP=ione
+   end do
 !
-! STORE THE NEW SEARCH DIRECTION
-! ------------------------------
+!  STORE THE NEW SEARCH DIRECTION
+!  ------------------------------
 !
-  WS(POINT) = WW
+   WS(POINT) = WW
 !
-! OBTAIN THE ONE-DIMENSIONAL MINIMIZER OF THE FUNCTION 
-! BY USING THE LINE SEARCH ROUTINE MCSRCH
-! ----------------------------------------------------
+!  OBTAIN THE ONE-DIMENSIONAL MINIMIZER OF THE FUNCTION 
+!  BY USING THE LINE SEARCH ROUTINE MCSRCH
+!  ----------------------------------------------------
  165  CONTINUE
-  NFEV=izero
-  INFO=izero
-  STP=ONE
-  IF (ITER==ione) STP=STP1
-  WW=grad
+   NFEV=izero
+   INFO=izero
+   STP=ONE
+   IF (ITER==ione) STP=STP1
+   WW=grad
 
-  CALL MCSRCH(xhat,cost,grad,WS(POINT),STP,MAXFEV,INFO,NFEV,DIAG,nprt)
+   CALL MCSRCH(xhat,cost,grad,WS(POINT),STP,MAXFEV,INFO,NFEV,DIAG,nprt)
 
-  IF (INFO/=ione.and.info/=3_i_kind) then
-     WRITE(6,200) INFO
-     write(6,*)'LBFGS: line search failed'
-     call stop2(160)
-  endif
-  NFUN= NFUN + NFEV
+   IF (INFO/=ione.and.info/=3_i_kind) then
+      WRITE(6,200) INFO
+      write(6,*)'LBFGS: line search failed'
+      call stop2(160)
+   endif
+   NFUN= NFUN + NFEV
 !
-! COMPUTE THE NEW STEP AND GRADIENT CHANGE 
-! -----------------------------------------
+!  COMPUTE THE NEW STEP AND GRADIENT CHANGE 
+!  -----------------------------------------
 !
-  NPT=POINT
+   NPT=POINT
 
-  do jj=1,ws(npt)%lencv
-     WS(NPT)%values(jj)= STP*WS(NPT)%values(jj)
-     WY(NPT)%values(jj)= grad%values(jj)-WW%values(jj)
-  enddo
+   do jj=1,ws(npt)%lencv
+      WS(NPT)%values(jj)= STP*WS(NPT)%values(jj)
+      WY(NPT)%values(jj)= grad%values(jj)-WW%values(jj)
+   enddo
 
-  POINT=POINT+ione
-  IF (POINT>maxvecs) POINT=ione
+   POINT=POINT+ione
+   IF (POINT>maxvecs) POINT=ione
 !
-! TERMINATION TEST
-! ----------------
+!  TERMINATION TEST
+!  ----------------
 !
-  gnorm = sqrt( dot_product(grad,grad) )
-  xnorm = sqrt( dot_product(xhat,xhat) )
+   gnorm = sqrt( dot_product(grad,grad) )
+   xnorm = sqrt( dot_product(xhat,xhat) )
+ 
+   XNORM= MAX(one,XNORM)
+   IF (GNORM/XNORM<=EPS) lldone=.TRUE.
+   IF (NFUN>=MAXFEV) lldone=.true.
 
-  XNORM= MAX(one,XNORM)
-  IF (GNORM/XNORM<=EPS) lldone=.TRUE.
-  IF (NFUN>=MAXFEV) lldone=.true.
-
-  if (mype==izero) then
-     write(6,999)'LBFGS iter,step,gnorm=',iter,stp,gnorm
-  endif
+   if (mype==izero) then
+      write(6,999)'LBFGS iter,step,gnorm=',iter,stp,gnorm
+   endif
 
 end do main_loop
 !
@@ -400,11 +400,11 @@ enddo
 
 888 format(A,3(1X,ES24.18))
 999 format(A,1X,I3,3(1X,ES24.18))
- 200  FORMAT(/' IFLAG= -1 ',/' LINE SEARCH FAILED. SEE', &
-     &          ' DOCUMENTATION OF ROUTINE MCSRCH',/' ERROR RETURN', &
-     &          ' OF LINE SEARCH: INFO= ',I2,/ &
-     &          ' POSSIBLE CAUSES: FUNCTION OR GRADIENT ARE INCORRECT',/, &
-     &          ' OR INCORRECT TOLERANCES')
+200 FORMAT(/' IFLAG= -1 ',/' LINE SEARCH FAILED. SEE', &
+   &          ' DOCUMENTATION OF ROUTINE MCSRCH',/' ERROR RETURN', &
+   &          ' OF LINE SEARCH: INFO= ',I2,/ &
+   &          ' POSSIBLE CAUSES: FUNCTION OR GRADIENT ARE INCORRECT',/, &
+   &          ' OR INCORRECT TOLERANCES')
 
 RETURN
 END SUBROUTINE LBFGS
@@ -413,6 +413,7 @@ SUBROUTINE MCSRCH(X,F,G,S,STP,MAXFEV,INFO,NFEV,WA,nprt)
 
 use constants, only: half,four
 implicit none
+
 integer(i_kind)     , intent(in   ) :: MAXFEV,nprt
 integer(i_kind)     , intent(inout) :: NFEV,INFO
 real(r_kind)        , intent(inout) :: F,STP
@@ -717,6 +718,7 @@ SUBROUTINE MCSTEP(STX,FX,DX,STY,FY,DY,STP,FP,DP,BRACKT, &
 
 use constants, only: three
 implicit none
+
 real(r_kind)   , intent(inout) :: STX,FX,DX,STY,FY,DY,STP,FP,DP,STPMIN,STPMAX
 integer(i_kind), intent(  out) :: INFO
 logical        , intent(inout) :: BRACKT

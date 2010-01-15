@@ -71,11 +71,11 @@ contains
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: sq,sc
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: rq,rc
-  real(r_kind),dimension(lat2,lon2),intent(in):: sp
-  real(r_kind),dimension(lat2,lon2),intent(inout):: rp
-  integer(i_kind),intent(in):: mype
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: sq,sc
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: rq,rc
+  real(r_kind),dimension(lat2,lon2)     ,intent(in   ) :: sp
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: rp
+  integer(i_kind)                       ,intent(in   ) :: mype
 
 ! Declare local variables
   real(r_kind),dimension(lat2,lon2):: sqint,rqint
@@ -86,12 +86,12 @@ contains
   it=ntguessig
 
   do k=1,nsig
-    do j=1,lon2
-      do i=1,lat2
-        sqint(i,j)=sqint(i,j) + ( (sq(i,j,k)+sc(i,j,k))* &
-            (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it)) )
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           sqint(i,j)=sqint(i,j) + ( (sq(i,j,k)+sc(i,j,k))* &
+               (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it)) )
+        end do
+     end do
   end do
 
 ! First, use MPI to get global mean increment
@@ -109,12 +109,12 @@ contains
   call global_mean_ad(rqint,rqave,mype)
 
   do k=1,nsig
-    do j=2,lon2-ione
-      do i=2,lat2-ione
-        rq(i,j,k)=rq(i,j,k) + rqint(i,j)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it))
-        rc(i,j,k)=rc(i,j,k) + rqint(i,j)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it))
-      end do
-    end do
+     do j=2,lon2-ione
+        do i=2,lat2-ione
+           rq(i,j,k)=rq(i,j,k) + rqint(i,j)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it))
+           rc(i,j,k)=rc(i,j,k) + rqint(i,j)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it))
+        end do
+     end do
   end do
 
   return

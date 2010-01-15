@@ -77,10 +77,10 @@ contains
 
     implicit none
 
-    real(r_kind),parameter:: r360 = 360.0_r_kind
+    real(r_kind)   ,intent(in   ) :: rmesh
+    integer(i_kind),intent(in   ) :: nlevp
 
-    real(r_kind),intent(in):: rmesh
-    integer(i_kind),intent(in):: nlevp
+    real(r_kind),parameter:: r360 = 360.0_r_kind
 
     integer(i_kind) i,j
     integer(i_kind) mlonx,mlonj,itxmax
@@ -110,8 +110,8 @@ contains
     dy    = dx
     mlat  = dlat_grid/dy + half
     mlonx = dlon_grid/dx + half
-	delat = dlat_grid/mlat
-	delonx= dlon_grid/mlonx
+    delat = dlat_grid/mlat
+    delonx= dlon_grid/mlonx
     dgv  = delat*half
     mlat=max(2_i_kind,mlat);   mlonx=max(2_i_kind,mlonx)
 
@@ -209,12 +209,12 @@ contains
     use constants, only: ione,izero,one, half,two,three,ione
     implicit none
     
-    logical ,intent(out):: iuse
-    integer(i_kind),intent(in):: ithin,nlevp,pflag
-    integer(i_kind),intent(inout):: iobs
-    integer(i_kind),intent(out):: iobsout
-    real(r_kind),intent(in):: dlat_earth,dlon_earth,crit1,pob
-    real(r_kind),dimension(nlevp),intent(in):: pcoord
+    logical                      ,intent(  out) :: iuse
+    integer(i_kind)              ,intent(in   ) :: ithin,nlevp,pflag
+    integer(i_kind)              ,intent(inout) :: iobs
+    integer(i_kind)              ,intent(  out) :: iobsout
+    real(r_kind)                 ,intent(in   ) :: dlat_earth,dlon_earth,crit1,pob
+    real(r_kind),dimension(nlevp),intent(in   ) :: pcoord
     
     integer(i_kind):: ip,itt,itx
     integer(i_kind) ix,iy

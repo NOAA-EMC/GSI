@@ -25,13 +25,14 @@ subroutine fill_mass_grid2t(gin,nx,ny,gout,iorder)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: iglobal, itotsub, ltosi, ltosj, ltosi_s, ltosj_s
 
   implicit none
 
-  integer(i_kind) nx,ny,iorder
-  real(r_single) gin(nx,ny),gout(itotsub)
+  integer(i_kind),intent(in   ) :: nx,ny,iorder
+  real(r_single) ,intent(in   ) :: gin(nx,ny)
+  real(r_single) ,intent(  out) :: gout(itotsub)
   
   real(r_single) b(nx,ny)
   integer(i_kind) i,j
@@ -47,7 +48,7 @@ subroutine fill_mass_grid2t(gin,nx,ny,gout,iorder)
   do i=1,itotsub
      gout(i)=zero
   end do
-  if(iorder==1)then
+  if(iorder==ione)then
      do i=1,itotsub
         gout(i)=b(ltosj_s(i),ltosi_s(i))
      end do
@@ -111,8 +112,9 @@ subroutine fill_mass_grid2u(gin,nx,ny,gout,iorder)
 
   implicit none
 
-  integer(i_kind) nx,ny,iorder
-  real(r_single) gin(nx+ione,ny),gout(itotsub)
+  integer(i_kind),intent(in   ) :: nx,ny,iorder
+  real(r_single) ,intent(in   ) :: gin(nx+ione,ny)
+  real(r_single) ,intent(  out) :: gout(itotsub)
   
   real(r_single) b(nx,ny)
   integer(i_kind) i,ip,j
@@ -194,8 +196,9 @@ subroutine fill_mass_grid2v(gin,nx,ny,gout,iorder)
 
   implicit none
 
-  integer(i_kind) nx,ny,iorder
-  real(r_single) gin(nx,ny+ione),gout(itotsub)
+  integer(i_kind),intent(in   ) :: nx,ny,iorder
+  real(r_single) ,intent(in   ) :: gin(nx,ny+ione)
+  real(r_single) ,intent(  out) :: gout(itotsub)
   
   real(r_single) b(nx,ny)
   integer(i_kind) i,j,jp

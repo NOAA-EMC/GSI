@@ -31,9 +31,9 @@ subroutine antest_maps0(mype,theta0f,z0f)
   use fgrid2agrid_mod, only: fgrid2agrid
   implicit none
 
-  integer(i_kind),intent(in) :: mype
-  real(r_single) ,intent(in) :: theta0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o)
-  real(r_single) ,intent(in) :: z0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o)
+  integer(i_kind),intent(in   ) :: mype
+  real(r_single) ,intent(in   ) :: theta0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o)
+  real(r_single) ,intent(in   ) :: z0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o)
 
   real(r_kind),dimension(nlat,nlon,nsig1o):: hwork
   real(r_kind) tempf(nlat,nlon),tempc(pf2aP1%nlatf,pf2aP1%nlonf)
@@ -280,9 +280,9 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
 
   implicit none
 
-  integer(i_kind),intent(in) :: mype
-  real(r_single) ,intent(in) :: theta0f(lat2,lon2,nsig)
-  real(r_single) ,intent(in) :: z0f(lat2,lon2,nsig)
+  integer(i_kind),intent(in   ) :: mype
+  real(r_single) ,intent(in   ) :: theta0f(lat2,lon2,nsig)
+  real(r_single) ,intent(in   ) :: z0f(lat2,lon2,nsig)
 
   real(r_kind),dimension(lat2,lon2,nsig):: twork,qwork,stwork,vpwork
   real(r_kind),dimension(lat2,lon2):: pwork
@@ -523,9 +523,9 @@ subroutine outgrads1(f,nx,ny,label)
   use constants, only: ione
   implicit none
 
-  character(*)   ,intent(in) :: label
-  integer(i_kind),intent(in) :: nx,ny
-  real(r_single) ,intent(in) :: f(nx,ny)
+  character(*)   ,intent(in   ) :: label
+  integer(i_kind),intent(in   ) :: nx,ny
+  real(r_single) ,intent(in   ) :: f(nx,ny)
 
   integer(i_kind) i,l,next,last,np,ntime,ioutdat,ioutcor,koutmax
   real(r_single) rlonmap0,undef,dlonmap,pinc,startp,rlatmap0,dlatmap

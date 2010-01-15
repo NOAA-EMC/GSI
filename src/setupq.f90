@@ -79,7 +79,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use oneobmod, only: oneobtest,maginnov,magoberr
   use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps
   use gridmod, only: lat2,lon2,nsig,get_ijk
-  use constants, only: zero,one,r1000
+  use constants, only: izero,ione,zero,one,r1000
   use constants, only: huge_single,wgtlim
   use constants, only: tiny_r_kind,five,half,two,huge_r_kind,cg_term
   use qcmod, only: npres_print,ptopq,pbotq,dfact,dfact1
@@ -102,10 +102,10 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 ! Declare local variables
 
 ! Declare passed variables
-  logical,intent(in):: conv_diagsave
-  integer(i_kind),intent(in):: lunin,mype,nele,nobs
-  real(r_kind),dimension(100+7*nsig),intent(inout):: awork
-  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout):: bwork
+  logical                                          ,intent(in   ) :: conv_diagsave
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(100_i_kind+7*nsig)        ,intent(inout) :: awork
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
 
 ! Declare local variables  
   
@@ -145,31 +145,31 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse
 
-  ier=1       ! index of obs error
-  ilon=2      ! index of grid relative obs location (x)
-  ilat=3      ! index of grid relative obs location (y)
-  ipres=4     ! index of pressure
-  iqob=5      ! index of q observation
-  id=6        ! index of station id
-  itime=7     ! index of observation time in data array
-  ikxx=8      ! index of ob type
-  iqmax=9     ! index of max error
-  itemp=10    ! index of dry temperature
-  iqc=11      ! index of quality mark
-  ier2=12     ! index of original-original obs error ratio
-  iuse=13     ! index of use parameter
-  idomsfc=14  ! index of dominant surface type
-  iskint=15   ! index of surface skin temperature
-  iff10=16    ! index of 10 meter wind factor
-  isfcr=17    ! index of surface roughness
-  ilone=18    ! index of longitude (degrees)
-  ilate=19    ! index of latitude (degrees)
-  istnelv=20  ! index of station elevation (m)
-  iobshgt=21  ! index of observation height (m)
-  iptrb=22    ! index of q perturbation           
+  ier=ione           ! index of obs error
+  ilon=2_i_kind      ! index of grid relative obs location (x)
+  ilat=3_i_kind      ! index of grid relative obs location (y)
+  ipres=4_i_kind     ! index of pressure
+  iqob=5_i_kind      ! index of q observation
+  id=6_i_kind        ! index of station id
+  itime=7_i_kind     ! index of observation time in data array
+  ikxx=8_i_kind      ! index of ob type
+  iqmax=9_i_kind     ! index of max error
+  itemp=10_i_kind    ! index of dry temperature
+  iqc=11_i_kind      ! index of quality mark
+  ier2=12_i_kind     ! index of original-original obs error ratio
+  iuse=13_i_kind     ! index of use parameter
+  idomsfc=14_i_kind  ! index of dominant surface type
+  iskint=15_i_kind   ! index of surface skin temperature
+  iff10=16_i_kind    ! index of 10 meter wind factor
+  isfcr=17_i_kind    ! index of surface roughness
+  ilone=18_i_kind    ! index of longitude (degrees)
+  ilate=19_i_kind    ! index of latitude (degrees)
+  istnelv=20_i_kind  ! index of station elevation (m)
+  iobshgt=21_i_kind  ! index of observation height (m)
+  iptrb=22_i_kind    ! index of q perturbation           
 
   do i=1,nobs
-    muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter
   end do
 
   dup=one
@@ -180,9 +180,9 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
            data(ipres,k) == data(ipres,l) .and. &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
            muse(k) .and. muse(l))then
-          tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-          dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-          dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
+           tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
+           dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
+           dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
         end if
      end do
   end do
@@ -190,15 +190,15 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
-     ii=0
-     nchar=1
-     nreal=20
-     if (lobsdiagsave) nreal=nreal+4*miter+1
+     ii=izero
+     nchar=ione
+     nreal=20_i_kind
+     if (lobsdiagsave) nreal=nreal+4*miter+ione
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
   rsig=nsig
 
-  mm1=mype+1
+  mm1=mype+ione
   grsmlt=five  ! multiplier factor for gross error check
   huge_error = huge_r_kind/r1e16
   scale=one
@@ -230,126 +230,126 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 
 ! Convert obs lats and lons to grid coordinates
-    dlat=data(ilat,i)
-    dlon=data(ilon,i)
-    dpres=data(ipres,i)
-    dtime=data(itime,i)
-    rmaxerr=data(iqmax,i)
-    ikx=nint(data(ikxx,i))
-    error=data(ier2,i)
+     dlat=data(ilat,i)
+     dlon=data(ilon,i)
+     dpres=data(ipres,i)
+     dtime=data(itime,i)
+     rmaxerr=data(iqmax,i)
+     ikx=nint(data(ikxx,i))
+     error=data(ier2,i)
 
-!   Link observation to appropriate observation bin
-    if (nobs_bins>1) then
-      ibin = NINT( dtime/hr_obsbin ) + 1
-    else
-      ibin = 1
-    endif
-    IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+!    Link observation to appropriate observation bin
+     if (nobs_bins>ione) then
+        ibin = NINT( dtime/hr_obsbin ) + ione
+     else
+        ibin = ione
+     endif
+     IF (ibin<ione.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-!   Link obs to diagnostics structure
-    if (.not.lobsdiag_allocated) then
-      if (.not.associated(obsdiags(i_q_ob_type,ibin)%head)) then
-        allocate(obsdiags(i_q_ob_type,ibin)%head,stat=istat)
-        if (istat/=0) then
-          write(6,*)'setupq: failure to allocate obsdiags',istat
-          call stop2(272)
+!    Link obs to diagnostics structure
+     if (.not.lobsdiag_allocated) then
+        if (.not.associated(obsdiags(i_q_ob_type,ibin)%head)) then
+           allocate(obsdiags(i_q_ob_type,ibin)%head,stat=istat)
+           if (istat/=izero) then
+              write(6,*)'setupq: failure to allocate obsdiags',istat
+              call stop2(272)
+           end if
+           obsdiags(i_q_ob_type,ibin)%tail => obsdiags(i_q_ob_type,ibin)%head
+        else
+           allocate(obsdiags(i_q_ob_type,ibin)%tail%next,stat=istat)
+           if (istat/=izero) then
+              write(6,*)'setupq: failure to allocate obsdiags',istat
+              call stop2(273)
+           end if
+           obsdiags(i_q_ob_type,ibin)%tail => obsdiags(i_q_ob_type,ibin)%tail%next
         end if
-        obsdiags(i_q_ob_type,ibin)%tail => obsdiags(i_q_ob_type,ibin)%head
-      else
-        allocate(obsdiags(i_q_ob_type,ibin)%tail%next,stat=istat)
-        if (istat/=0) then
-          write(6,*)'setupq: failure to allocate obsdiags',istat
-          call stop2(273)
+        allocate(obsdiags(i_q_ob_type,ibin)%tail%muse(miter+ione))
+        allocate(obsdiags(i_q_ob_type,ibin)%tail%nldepart(miter+ione))
+        allocate(obsdiags(i_q_ob_type,ibin)%tail%tldepart(miter))
+        allocate(obsdiags(i_q_ob_type,ibin)%tail%obssen(miter))
+        obsdiags(i_q_ob_type,ibin)%tail%indxglb=i
+        obsdiags(i_q_ob_type,ibin)%tail%nchnperobs=-99999_i_kind
+        obsdiags(i_q_ob_type,ibin)%tail%luse=.false.
+        obsdiags(i_q_ob_type,ibin)%tail%muse(:)=.false.
+        obsdiags(i_q_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+        obsdiags(i_q_ob_type,ibin)%tail%tldepart(:)=zero
+        obsdiags(i_q_ob_type,ibin)%tail%wgtjo=-huge(zero)
+        obsdiags(i_q_ob_type,ibin)%tail%obssen(:)=zero
+     else
+        if (.not.associated(obsdiags(i_q_ob_type,ibin)%tail)) then
+           obsdiags(i_q_ob_type,ibin)%tail => obsdiags(i_q_ob_type,ibin)%head
+        else
+           obsdiags(i_q_ob_type,ibin)%tail => obsdiags(i_q_ob_type,ibin)%tail%next
         end if
-        obsdiags(i_q_ob_type,ibin)%tail => obsdiags(i_q_ob_type,ibin)%tail%next
-      end if
-      allocate(obsdiags(i_q_ob_type,ibin)%tail%muse(miter+1))
-      allocate(obsdiags(i_q_ob_type,ibin)%tail%nldepart(miter+1))
-      allocate(obsdiags(i_q_ob_type,ibin)%tail%tldepart(miter))
-      allocate(obsdiags(i_q_ob_type,ibin)%tail%obssen(miter))
-      obsdiags(i_q_ob_type,ibin)%tail%indxglb=i
-      obsdiags(i_q_ob_type,ibin)%tail%nchnperobs=-99999
-      obsdiags(i_q_ob_type,ibin)%tail%luse=.false.
-      obsdiags(i_q_ob_type,ibin)%tail%muse(:)=.false.
-      obsdiags(i_q_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-      obsdiags(i_q_ob_type,ibin)%tail%tldepart(:)=zero
-      obsdiags(i_q_ob_type,ibin)%tail%wgtjo=-huge(zero)
-      obsdiags(i_q_ob_type,ibin)%tail%obssen(:)=zero
-    else
-      if (.not.associated(obsdiags(i_q_ob_type,ibin)%tail)) then
-        obsdiags(i_q_ob_type,ibin)%tail => obsdiags(i_q_ob_type,ibin)%head
-      else
-        obsdiags(i_q_ob_type,ibin)%tail => obsdiags(i_q_ob_type,ibin)%tail%next
-      end if
-      if (obsdiags(i_q_ob_type,ibin)%tail%indxglb/=i) then
-        write(6,*)'setupq: index error'
-        call stop2(274)
-      end if
-    endif
+        if (obsdiags(i_q_ob_type,ibin)%tail%indxglb/=i) then
+           write(6,*)'setupq: index error'
+           call stop2(274)
+        end if
+     endif
 
 ! Interpolate log(ps) & log(pres) at mid-layers to obs locations/times
-    call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-         1,1,mype,nfldsig)
-    call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-         1,nsig,mype,nfldsig)
+     call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+          ione,ione,mype,nfldsig)
+     call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          ione,nsig,mype,nfldsig)
 
-    presq=r10*exp(dpres)
-    itype=ictype(ikx)
-    dprpx=zero
-    if(itype > 179 .and. itype < 190)then
-       dprpx=abs(one-exp(dpres-log(psges)))*r10
-!      dprpx=abs(presq-r10*psges)*0.0025
-    end if
+     presq=r10*exp(dpres)
+     itype=ictype(ikx)
+     dprpx=zero
+     if(itype > 179_i_kind .and. itype < 190_i_kind)then
+        dprpx=abs(one-exp(dpres-log(psges)))*r10
+!       dprpx=abs(presq-r10*psges)*0.0025_r_kind
+     end if
 
-!   Put obs pressure in correct units to get grid coord. number
-    call grdcrd(dpres,1,prsltmp(1),nsig,-1)
+!    Put obs pressure in correct units to get grid coord. number
+     call grdcrd(dpres,ione,prsltmp(1),nsig,-ione)
 
-!   Get approximate k value of surface by using surface pressure
-    sfcchk=log(psges)
-    call grdcrd(sfcchk,1,prsltmp(1),nsig,-1)
+!    Get approximate k value of surface by using surface pressure
+     sfcchk=log(psges)
+     call grdcrd(sfcchk,ione,prsltmp(1),nsig,-ione)
 
-!   Check to see if observations is above the top of the model (regional mode)
-    if( dpres>=nsig+1)dprpx=1.e6
-    if(itype > 179 .and. itype < 186) dpres=one
+!    Check to see if observations is above the top of the model (regional mode)
+     if( dpres>=nsig+ione)dprpx=1.e6_r_kind
+     if(itype > 179_i_kind .and. itype < 186_i_kind) dpres=one
 
-!   Scale errors by guess saturation q
+!    Scale errors by guess saturation q
+ 
+     call tintrp3(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
+          ione,mype,nfldsig)
 
-    call tintrp3(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
-         1,mype,nfldsig)
+!    Load obs error and value into local variables
+     obserror = max(cermin(ikx)*r0_01,min(cermax(ikx)*r0_01,data(ier,i)))
+     qob = data(iqob,i) 
 
-!   Load obs error and value into local variables
-    obserror = max(cermin(ikx)*r0_01,min(cermax(ikx)*r0_01,data(ier,i)))
-    qob = data(iqob,i) 
-
-    rmaxerr=rmaxerr*qsges
-    rmaxerr=max(small2,rmaxerr)
-    errorx =(data(ier,i)+dprpx)*qsges
-    errorx =max(small1,errorx)
+     rmaxerr=rmaxerr*qsges
+     rmaxerr=max(small2,rmaxerr)
+     errorx =(data(ier,i)+dprpx)*qsges
+     errorx =max(small1,errorx)
     
 
-!   Adjust observation error to reflect the size of the residual.
-!   If extrapolation occurred, then further adjust error according to
-!   amount of extrapolation.
+!    Adjust observation error to reflect the size of the residual.
+!    If extrapolation occurred, then further adjust error according to
+!    amount of extrapolation.
 
-    rlow=max(sfcchk-dpres,zero)
-    rhgh=max(dpres-r0_001-rsig,zero)
+     rlow=max(sfcchk-dpres,zero)
+     rhgh=max(dpres-r0_001-rsig,zero)
      
-    if(luse(i))then
-      awork(1) = awork(1) + one
-      if(rlow/=zero) awork(2) = awork(2) + one
-      if(rhgh/=zero) awork(3) = awork(3) + one
-    end if
+     if(luse(i))then
+        awork(1) = awork(1) + one
+        if(rlow/=zero) awork(2) = awork(2) + one
+        if(rhgh/=zero) awork(3) = awork(3) + one
+     end if
 
-    ratio_errors=error*qsges/(errorx+1.0e6_r_kind*rhgh+r8*rlow)
+     ratio_errors=error*qsges/(errorx+1.0e6_r_kind*rhgh+r8*rlow)
 
-!   Check to see if observations is above the top of the model (regional mode)
-    if (dpres > rsig) ratio_errors=zero
-    error=one/(error*qsges)
+!    Check to see if observations is above the top of the model (regional mode)
+     if (dpres > rsig) ratio_errors=zero
+     error=one/(error*qsges)
 
 
 ! Interpolate guess moisture to observation location and time
-    call tintrp3(ges_q,qges,dlat,dlon,dpres,dtime, &
-       hrdifsig,1,mype,nfldsig)
+     call tintrp3(ges_q,qges,dlat,dlon,dpres,dtime, &
+        hrdifsig,ione,mype,nfldsig)
 
 ! Compute innovations
 
@@ -386,17 +386,17 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      end if
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
-     if (nobskeep>0) muse(i)=obsdiags(i_q_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>izero) muse(i)=obsdiags(i_q_ob_type,ibin)%tail%muse(nobskeep)
 
 !   Oberror Tuning and Perturb Obs
      if(muse(i)) then
-       if(oberror_tune )then
-         if( jiter > jiterstart ) then
-           ddiff=ddiff+data(iptrb,i)/error/ratio_errors
-         endif
-       else if(perturb_obs )then
+        if(oberror_tune )then
+           if( jiter > jiterstart ) then
+              ddiff=ddiff+data(iptrb,i)/error/ratio_errors
+           endif
+        else if(perturb_obs )then
            ddiff=ddiff+data(iptrb,i)/error/ratio_errors  
-       endif
+        endif
      endif
 
 
@@ -404,52 +404,52 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      val      = error*ddiff
      if(luse(i))then
 
-       val2     = val*val
-       exp_arg  = -half*val2
-       rat_err2 = ratio_errors**2
-       if (cvar_pg(ikx) > tiny_r_kind .and. error >tiny_r_kind) then
-          arg  = exp(exp_arg)
-          wnotgross= one-cvar_pg(ikx)
-          cg_q=cvar_b(ikx)
-          wgross = cg_term*cvar_pg(ikx)/(cg_q*wnotgross)
-          term =log((arg+wgross)/(one+wgross))
-          wgt  = one-wgross/(arg+wgross)
-          rwgt = wgt/wgtlim
-       else
-          term = exp_arg
-          wgt  = wgtlim
-          rwgt = wgt/wgtlim
-       endif
-       valqc = -two*rat_err2*term
+        val2     = val*val
+        exp_arg  = -half*val2
+        rat_err2 = ratio_errors**2
+        if (cvar_pg(ikx) > tiny_r_kind .and. error >tiny_r_kind) then
+           arg  = exp(exp_arg)
+           wnotgross= one-cvar_pg(ikx)
+           cg_q=cvar_b(ikx)
+           wgross = cg_term*cvar_pg(ikx)/(cg_q*wnotgross)
+           term =log((arg+wgross)/(one+wgross))
+           wgt  = one-wgross/(arg+wgross)
+           rwgt = wgt/wgtlim
+        else
+           term = exp_arg
+           wgt  = wgtlim
+           rwgt = wgt/wgtlim
+        endif
+        valqc = -two*rat_err2*term
         
 !       Accumulate statistics for obs belonging to this task
-       if(muse(i))then
+        if(muse(i))then
            if(rwgt < one) awork(21) = awork(21)+one
            jsig = dpres
-           jsig=max(1,min(jsig,nsig))
-           awork(jsig+5*nsig+100)=awork(jsig+5*nsig+100)+val2*rat_err2
-           awork(jsig+6*nsig+100)=awork(jsig+6*nsig+100)+one
-           awork(jsig+3*nsig+100)=awork(jsig+3*nsig+100)+valqc
-       end if
+           jsig=max(ione,min(jsig,nsig))
+           awork(jsig+5*nsig+100_i_kind)=awork(jsig+5*nsig+100_i_kind)+val2*rat_err2
+           awork(jsig+6*nsig+100_i_kind)=awork(jsig+6*nsig+100_i_kind)+one
+           awork(jsig+3*nsig+100_i_kind)=awork(jsig+3*nsig+100_i_kind)+valqc
+        end if
 ! Loop over pressure level groupings and obs to accumulate statistics
 ! as a function of observation type.
-       ress  = scale*r100*ddiff/qsges
-       ressw2= ress*ress
-       nn=1
-       if (.not. muse(i)) then
-         nn=2
-         if(ratio_errors*error >=tiny_r_kind)nn=3
-       end if
-       do k = 1,npres_print
-         if(presq >= ptopq(k) .and. presq <= pbotq(k))then
-  
-          bwork(k,ikx,1,nn)  = bwork(k,ikx,1,nn)+one             ! count
-          bwork(k,ikx,2,nn)  = bwork(k,ikx,2,nn)+ress            ! (o-g)
-          bwork(k,ikx,3,nn)  = bwork(k,ikx,3,nn)+ressw2          ! (o-g)**2
-          bwork(k,ikx,4,nn)  = bwork(k,ikx,4,nn)+val2*rat_err2   ! penalty
-          bwork(k,ikx,5,nn)  = bwork(k,ikx,5,nn)+valqc           ! nonlin qc penalty
-         end if
-       end do
+        ress  = scale*r100*ddiff/qsges
+        ressw2= ress*ress
+        nn=ione
+        if (.not. muse(i)) then
+           nn=2_i_kind
+           if(ratio_errors*error >=tiny_r_kind)nn=3_i_kind
+        end if
+        do k = 1,npres_print
+           if(presq >= ptopq(k) .and. presq <= pbotq(k))then
+ 
+              bwork(k,ikx,1,nn)  = bwork(k,ikx,1,nn)+one             ! count
+              bwork(k,ikx,2,nn)  = bwork(k,ikx,2,nn)+ress            ! (o-g)
+              bwork(k,ikx,3,nn)  = bwork(k,ikx,3,nn)+ressw2          ! (o-g)**2
+              bwork(k,ikx,4,nn)  = bwork(k,ikx,4,nn)+val2*rat_err2   ! penalty
+              bwork(k,ikx,5,nn)  = bwork(k,ikx,5,nn)+valqc           ! nonlin qc penalty
+           end if
+        end do
      end if
 
      obsdiags(i_q_ob_type,ibin)%tail%luse=luse(i)
@@ -462,13 +462,13 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      if (.not. last .and. muse(i)) then
 
         if(.not. associated(qhead(ibin)%head))then
-            allocate(qhead(ibin)%head,stat=istat)
-            if(istat /= 0)write(6,*)' failure to write qhead '
-            qtail(ibin)%head => qhead(ibin)%head
+           allocate(qhead(ibin)%head,stat=istat)
+           if(istat /= izero)write(6,*)' failure to write qhead '
+           qtail(ibin)%head => qhead(ibin)%head
         else
-            allocate(qtail(ibin)%head%llpoint,stat=istat)
-            if(istat /= 0)write(6,*)' failure to write qtail%llpoint '
-            qtail(ibin)%head => qtail(ibin)%head%llpoint
+           allocate(qtail(ibin)%head%llpoint,stat=istat)
+           if(istat /= izero)write(6,*)' failure to write qtail%llpoint '
+           qtail(ibin)%head => qtail(ibin)%head%llpoint
         end if
 
 !       Set (i,j,k) indices of guess gridpoint that bound obs location
@@ -486,16 +486,16 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
            qtail(ibin)%head%qpertb=data(iptrb,i)/error/ratio_errors
            qtail(ibin)%head%kx=ikx
            if(presq > ptabl(2))then
-              qtail(ibin)%head%k1=1
+              qtail(ibin)%head%k1=ione
            else if( presq <= ptabl(33)) then
-              qtail(ibin)%head%k1=33
+              qtail(ibin)%head%k1=33_i_kind
            else
               k_loop: do k=2,32
-                if(presq > ptabl(k+1) .and. presq <= ptabl(k)) then
-                   qtail(ibin)%head%k1=k
-                   exit k_loop
-                endif
-             enddo k_loop
+                 if(presq > ptabl(k+ione) .and. presq <= ptabl(k)) then
+                    qtail(ibin)%head%k1=k
+                    exit k_loop
+                 endif
+              enddo k_loop
            endif
         endif
 
@@ -506,7 +506,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 ! Save select output for diagnostic file
      if(conv_diagsave .and. luse(i))then
-        ii=ii+1
+        ii=ii+ione
         rstation_id     = data(id,i)
         cdiagbuf(ii)    = station_id         ! station id
 
@@ -556,27 +556,27 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         rdiagbuf(20,ii) = qsges              ! guess saturation specific humidity
 
         if (lobsdiagsave) then
-          ioff=20
-          do jj=1,miter 
-            ioff=ioff+1 
-            if (obsdiags(i_q_ob_type,ibin)%tail%muse(jj)) then
-              rdiagbuf(ioff,ii) = one
-            else
-              rdiagbuf(ioff,ii) = -one
-            endif
-          enddo
-          do jj=1,miter+1
-            ioff=ioff+1
-            rdiagbuf(ioff,ii) = obsdiags(i_q_ob_type,ibin)%tail%nldepart(jj)
-          enddo
-          do jj=1,miter
-            ioff=ioff+1
-            rdiagbuf(ioff,ii) = obsdiags(i_q_ob_type,ibin)%tail%tldepart(jj)
-          enddo
-          do jj=1,miter
-            ioff=ioff+1
-            rdiagbuf(ioff,ii) = obsdiags(i_q_ob_type,ibin)%tail%obssen(jj)
-          enddo
+           ioff=20_i_kind
+           do jj=1,miter 
+              ioff=ioff+ione 
+              if (obsdiags(i_q_ob_type,ibin)%tail%muse(jj)) then
+                 rdiagbuf(ioff,ii) = one
+              else
+                 rdiagbuf(ioff,ii) = -one
+              endif
+           enddo
+           do jj=1,miter+ione
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsdiags(i_q_ob_type,ibin)%tail%nldepart(jj)
+           enddo
+           do jj=1,miter
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsdiags(i_q_ob_type,ibin)%tail%tldepart(jj)
+           enddo
+           do jj=1,miter
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsdiags(i_q_ob_type,ibin)%tail%obssen(jj)
+           enddo
         endif
         
      end if

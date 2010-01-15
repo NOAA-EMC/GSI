@@ -84,9 +84,9 @@ subroutine intsrw_(srwhead,ru,rv,su,sv)
   implicit none
 
 ! Declare passed variables
-  type(srw_ob_type),pointer,intent(in):: srwhead
-  real(r_kind),dimension(latlon1n),intent(in):: su,sv
-  real(r_kind),dimension(latlon1n),intent(inout):: ru,rv
+  type(srw_ob_type),pointer       ,intent(in   ) :: srwhead
+  real(r_kind),dimension(latlon1n),intent(in   ) :: su,sv
+  real(r_kind),dimension(latlon1n),intent(inout) :: ru,rv
 
 ! Declare local variables  
   integer(i_kind) i1,i2,i3,i4,i5,i6,i7,i8
@@ -126,102 +126,102 @@ subroutine intsrw_(srwhead,ru,rv,su,sv)
      valv=w1* sv(i1)+w2* sv(i2)+w3* sv(i3)+w4* sv(i4)+&
           w5* sv(i5)+w6* sv(i6)+w7* sv(i7)+w8* sv(i8)
      if ( l_foto ) then
-       time_srw=srwptr%time*r3600
-       valu=valu+&
-         (w1*xhat_dt%u(i1)+w2*xhat_dt%u(i2)+ &
-          w3*xhat_dt%u(i3)+w4*xhat_dt%u(i4)+ &
-          w5*xhat_dt%u(i5)+w6*xhat_dt%u(i6)+ &
-          w7*xhat_dt%u(i7)+w8*xhat_dt%u(i8))*time_srw
-       valv=valv+&
-         (w1*xhat_dt%v(i1)+w2*xhat_dt%v(i2)+ &
-          w3*xhat_dt%v(i3)+w4*xhat_dt%v(i4)+ &
-          w5*xhat_dt%v(i5)+w6*xhat_dt%v(i6)+ &
-          w7*xhat_dt%v(i7)+w8*xhat_dt%v(i8))*time_srw
+        time_srw=srwptr%time*r3600
+        valu=valu+&
+          (w1*xhat_dt%u(i1)+w2*xhat_dt%u(i2)+ &
+           w3*xhat_dt%u(i3)+w4*xhat_dt%u(i4)+ &
+           w5*xhat_dt%u(i5)+w6*xhat_dt%u(i6)+ &
+           w7*xhat_dt%u(i7)+w8*xhat_dt%u(i8))*time_srw
+        valv=valv+&
+          (w1*xhat_dt%v(i1)+w2*xhat_dt%v(i2)+ &
+           w3*xhat_dt%v(i3)+w4*xhat_dt%v(i4)+ &
+           w5*xhat_dt%v(i5)+w6*xhat_dt%v(i6)+ &
+           w7*xhat_dt%v(i7)+w8*xhat_dt%v(i8))*time_srw
      endif
 
      valsrw1=bigu11*valu+bigu12*valv
      valsrw2=bigu21*valu+bigu22*valv
 
      if (lsaveobsens) then
-       srwptr%diagu%obssen(jiter) = valsrw1*srwptr%raterr2*srwptr%err2
-       srwptr%diagv%obssen(jiter) = valsrw2*srwptr%raterr2*srwptr%err2
+        srwptr%diagu%obssen(jiter) = valsrw1*srwptr%raterr2*srwptr%err2
+        srwptr%diagv%obssen(jiter) = valsrw2*srwptr%raterr2*srwptr%err2
      else
-       if (srwptr%luse) then
-         srwptr%diagu%tldepart(jiter)=valsrw1
-         srwptr%diagv%tldepart(jiter)=valsrw2
-       endif
+        if (srwptr%luse) then
+           srwptr%diagu%tldepart(jiter)=valsrw1
+           srwptr%diagv%tldepart(jiter)=valsrw2
+        endif
      endif
 
-    if (l_do_adjoint) then
-      if (lsaveobsens) then
-        gradsrw1 = srwptr%diagu%obssen(jiter)
-        gradsrw2 = srwptr%diagv%obssen(jiter)
+     if (l_do_adjoint) then
+        if (lsaveobsens) then
+           gradsrw1 = srwptr%diagu%obssen(jiter)
+           gradsrw2 = srwptr%diagv%obssen(jiter)
+ 
+        else
+           valsrw1=valsrw1-srwptr%res1
+           valsrw2=valsrw2-srwptr%res2
 
-      else
-        valsrw1=valsrw1-srwptr%res1
-        valsrw2=valsrw2-srwptr%res2
+!          gradient of nonlinear operator
+           if (nlnqc_iter .and. srwptr%pg > tiny_r_kind .and.  &
+                                srwptr%b  > tiny_r_kind) then
+              pg_srw=srwptr%pg*varqc_iter
+              cg_srw=cg_term/srwptr%b
+              wnotgross= one-pg_srw
+              wgross = pg_srw*cg_srw/wnotgross
+              p0   = wgross/(wgross+exp(-half*srwptr%err2*(valsrw1**2+valsrw2**2)))
+              term = (one-p0)
+              valsrw1=valsrw1*term
+              valsrw2=valsrw2*term
+           endif
 
-!       gradient of nonlinear operator
-        if (nlnqc_iter .and. srwptr%pg > tiny_r_kind .and.  &
-                             srwptr%b  > tiny_r_kind) then
-          pg_srw=srwptr%pg*varqc_iter
-          cg_srw=cg_term/srwptr%b
-          wnotgross= one-pg_srw
-          wgross = pg_srw*cg_srw/wnotgross
-          p0   = wgross/(wgross+exp(-half*srwptr%err2*(valsrw1**2+valsrw2**2)))
-          term = (one-p0)
-          valsrw1=valsrw1*term
-          valsrw2=valsrw2*term
+           gradsrw1 = valsrw1*srwptr%raterr2*srwptr%err2
+           gradsrw2 = valsrw2*srwptr%raterr2*srwptr%err2
         endif
 
-        gradsrw1 = valsrw1*srwptr%raterr2*srwptr%err2
-        gradsrw2 = valsrw2*srwptr%raterr2*srwptr%err2
-      endif
+        valu=bigu11*gradsrw1+bigu21*gradsrw2
+        valv=bigu12*gradsrw1+bigu22*gradsrw2
+ 
+!       Adjoint
+        ru(i1)=ru(i1)+w1*valu
+        ru(i2)=ru(i2)+w2*valu
+        ru(i3)=ru(i3)+w3*valu
+        ru(i4)=ru(i4)+w4*valu
+        ru(i5)=ru(i5)+w5*valu
+        ru(i6)=ru(i6)+w6*valu
+        ru(i7)=ru(i7)+w7*valu
+        ru(i8)=ru(i8)+w8*valu
+        rv(i1)=rv(i1)+w1*valv
+        rv(i2)=rv(i2)+w2*valv
+        rv(i3)=rv(i3)+w3*valv
+        rv(i4)=rv(i4)+w4*valv
+        rv(i5)=rv(i5)+w5*valv
+        rv(i6)=rv(i6)+w6*valv
+        rv(i7)=rv(i7)+w7*valv
+        rv(i8)=rv(i8)+w8*valv
 
-      valu=bigu11*gradsrw1+bigu21*gradsrw2
-      valv=bigu12*gradsrw1+bigu22*gradsrw2
+        valu=valu*time_srw
+        valv=valv*time_srw
+        if ( l_foto ) then
+           dhat_dt%u(i1)=dhat_dt%u(i1)+w1*valu
+           dhat_dt%u(i2)=dhat_dt%u(i2)+w2*valu
+           dhat_dt%u(i3)=dhat_dt%u(i3)+w3*valu
+           dhat_dt%u(i4)=dhat_dt%u(i4)+w4*valu
+           dhat_dt%u(i5)=dhat_dt%u(i5)+w5*valu
+           dhat_dt%u(i6)=dhat_dt%u(i6)+w6*valu
+           dhat_dt%u(i7)=dhat_dt%u(i7)+w7*valu
+           dhat_dt%u(i8)=dhat_dt%u(i8)+w8*valu
+           dhat_dt%v(i1)=dhat_dt%v(i1)+w1*valv
+           dhat_dt%v(i2)=dhat_dt%v(i2)+w2*valv
+           dhat_dt%v(i3)=dhat_dt%v(i3)+w3*valv
+           dhat_dt%v(i4)=dhat_dt%v(i4)+w4*valv
+           dhat_dt%v(i5)=dhat_dt%v(i5)+w5*valv
+           dhat_dt%v(i6)=dhat_dt%v(i6)+w6*valv
+           dhat_dt%v(i7)=dhat_dt%v(i7)+w7*valv
+           dhat_dt%v(i8)=dhat_dt%v(i8)+w8*valv
+        endif
+     endif
 
-!     Adjoint
-      ru(i1)=ru(i1)+w1*valu
-      ru(i2)=ru(i2)+w2*valu
-      ru(i3)=ru(i3)+w3*valu
-      ru(i4)=ru(i4)+w4*valu
-      ru(i5)=ru(i5)+w5*valu
-      ru(i6)=ru(i6)+w6*valu
-      ru(i7)=ru(i7)+w7*valu
-      ru(i8)=ru(i8)+w8*valu
-      rv(i1)=rv(i1)+w1*valv
-      rv(i2)=rv(i2)+w2*valv
-      rv(i3)=rv(i3)+w3*valv
-      rv(i4)=rv(i4)+w4*valv
-      rv(i5)=rv(i5)+w5*valv
-      rv(i6)=rv(i6)+w6*valv
-      rv(i7)=rv(i7)+w7*valv
-      rv(i8)=rv(i8)+w8*valv
-
-      valu=valu*time_srw
-      valv=valv*time_srw
-      if ( l_foto ) then
-        dhat_dt%u(i1)=dhat_dt%u(i1)+w1*valu
-        dhat_dt%u(i2)=dhat_dt%u(i2)+w2*valu
-        dhat_dt%u(i3)=dhat_dt%u(i3)+w3*valu
-        dhat_dt%u(i4)=dhat_dt%u(i4)+w4*valu
-        dhat_dt%u(i5)=dhat_dt%u(i5)+w5*valu
-        dhat_dt%u(i6)=dhat_dt%u(i6)+w6*valu
-        dhat_dt%u(i7)=dhat_dt%u(i7)+w7*valu
-        dhat_dt%u(i8)=dhat_dt%u(i8)+w8*valu
-        dhat_dt%v(i1)=dhat_dt%v(i1)+w1*valv
-        dhat_dt%v(i2)=dhat_dt%v(i2)+w2*valv
-        dhat_dt%v(i3)=dhat_dt%v(i3)+w3*valv
-        dhat_dt%v(i4)=dhat_dt%v(i4)+w4*valv
-        dhat_dt%v(i5)=dhat_dt%v(i5)+w5*valv
-        dhat_dt%v(i6)=dhat_dt%v(i6)+w6*valv
-        dhat_dt%v(i7)=dhat_dt%v(i7)+w7*valv
-        dhat_dt%v(i8)=dhat_dt%v(i8)+w8*valv
-      endif
-    endif
-
-    srwptr => srwptr%llpoint
+     srwptr => srwptr%llpoint
 
   end do
   return

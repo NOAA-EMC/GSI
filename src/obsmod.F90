@@ -263,33 +263,33 @@ module obsmod
 ! Structure for diagnostics
 
   type obs_diag
-    sequence
-    type(obs_diag), pointer :: next => NULL()
-    real(r_kind), pointer :: nldepart(:)    ! (miter+ione)
-    real(r_kind), pointer :: tldepart(:)    ! (miter)
-    real(r_kind), pointer :: obssen(:)      ! (miter)
-    real(r_kind) :: wgtjo
-    integer(i_kind) :: indxglb
-    integer(i_kind) :: nchnperobs           ! number of channels per observations
-                                            !  (dummy, expect for radiances)
-    logical, pointer :: muse(:)             ! (miter)
-    logical :: luse
+     sequence
+     type(obs_diag), pointer :: next => NULL()
+     real(r_kind), pointer :: nldepart(:)    ! (miter+ione)
+     real(r_kind), pointer :: tldepart(:)    ! (miter)
+     real(r_kind), pointer :: obssen(:)      ! (miter)
+     real(r_kind) :: wgtjo
+     integer(i_kind) :: indxglb
+     integer(i_kind) :: nchnperobs           ! number of channels per observations
+                                             !  (dummy, expect for radiances)
+     logical, pointer :: muse(:)             ! (miter)
+     logical :: luse
   end type obs_diag
 
   type obs_diags
-    type(obs_diag), pointer :: head => NULL()
-    type(obs_diag), pointer :: tail => NULL()
+     type(obs_diag), pointer :: head => NULL()
+     type(obs_diag), pointer :: tail => NULL()
   end type obs_diags
 
   type odiags
-    sequence
-    type(obs_diag), pointer :: ptr => NULL()
+     sequence
+     type(obs_diag), pointer :: ptr => NULL()
   end type odiags
 
 ! Main observation data structure
 
   type ps_ob_type
-    sequence
+     sequence
      type(ps_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
      real(r_kind)    :: res           !  surface pressure residual
@@ -334,7 +334,7 @@ module obsmod
   end type tcp_ob_head
 
   type t_ob_type
-    sequence
+     sequence
      type(t_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL() 
      real(r_kind)    :: res           !  temperature residual
@@ -361,7 +361,7 @@ module obsmod
   end type t_ob_head
   
   type w_ob_type
-    sequence
+     sequence
      type(w_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diagu => NULL()
      type(obs_diag), pointer :: diagv => NULL()
@@ -387,7 +387,7 @@ module obsmod
   end type w_ob_head
 
   type q_ob_type
-    sequence
+     sequence
      type(q_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL() 
      real(r_kind)    :: res           !  moisture residual
@@ -410,7 +410,7 @@ module obsmod
   end type q_ob_head
 
   type spd_ob_type
-    sequence
+     sequence
      type(spd_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
      real(r_kind)    :: res           !  speed observation
@@ -432,7 +432,7 @@ module obsmod
   end type spd_ob_head
 
   type srw_ob_type
-    sequence
+     sequence
      type(srw_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diagu => NULL()
      type(obs_diag), pointer :: diagv => NULL()
@@ -457,7 +457,7 @@ module obsmod
   end type srw_ob_head
 
   type rw_ob_type
-    sequence
+     sequence
      type(rw_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()     
      real(r_kind)    :: res           !  radial wind residual
@@ -479,7 +479,7 @@ module obsmod
   end type rw_ob_head
 
   type dw_ob_type
-    sequence
+     sequence
      type(dw_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
      real(r_kind)    :: res           !  doppler wind residual
@@ -501,7 +501,7 @@ module obsmod
   end type dw_ob_head
 
   type sst_ob_type
-    sequence
+     sequence
      type(sst_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
      real(r_kind)    :: res           !  sst residual
@@ -521,7 +521,7 @@ module obsmod
   end type sst_ob_head
 
   type pw_ob_type
-    sequence
+     sequence
      type(pw_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
      real(r_kind)    :: res           !  precipitable water residual
@@ -543,7 +543,7 @@ module obsmod
   end type pw_ob_head
 
   type oz_ob_type
-    sequence
+     sequence
      type(oz_ob_type),pointer :: llpoint => NULL()
      type(odiags), dimension(:), pointer :: diags => NULL()
      real(r_kind),dimension(:),pointer :: res => NULL()
@@ -569,7 +569,7 @@ module obsmod
   end type oz_ob_head
 
   type o3l_ob_type
-    sequence
+     sequence
      type(o3l_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
      real(r_kind)    :: res           !  ozone residual
@@ -589,7 +589,7 @@ module obsmod
   end type o3l_ob_head
 
   type gps_ob_type
-    sequence
+     sequence
      type(gps_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
      real(r_kind)    :: res           !  gps residual
@@ -616,7 +616,7 @@ module obsmod
   end type gps_ob_head
 
   type gps_all_ob_type
-    sequence
+     sequence
      type(gps_all_ob_type),pointer :: llpoint => NULL()
      type(gps_ob_type),pointer :: mmpoint => NULL()
      real(r_kind)    :: ratio_err                        
@@ -639,7 +639,7 @@ module obsmod
   end type gps_all_ob_head
 
   type rad_ob_type
-    sequence
+     sequence
      type(rad_ob_type),pointer :: llpoint => NULL()
      type(odiags), dimension(:), pointer :: diags => NULL()
      real(r_kind),dimension(:),pointer :: res => NULL()
@@ -665,7 +665,7 @@ module obsmod
   end type rad_ob_head
 
   type pcp_ob_type
-    sequence
+     sequence
      type(pcp_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
      real(r_kind)    :: obs           !  observed precipitation value 
@@ -689,7 +689,7 @@ module obsmod
  
 
   type lag_ob_type
-    sequence
+     sequence
      type(lag_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diag_lon => NULL()
      type(obs_diag), pointer :: diag_lat => NULL()
@@ -718,7 +718,7 @@ module obsmod
   ! lfm --------------------------------------------------------------------
 
   type obs_handle
-    sequence
+     sequence
      type(ps_ob_type),pointer  :: ps  => NULL() 
      type(t_ob_type),pointer   :: t   => NULL()
      type(w_ob_type),pointer   :: w   => NULL()
@@ -871,6 +871,7 @@ contains
 !
 !$$$ end documentation block
     implicit none
+
     integer(i_kind) i
 
 
@@ -1014,7 +1015,8 @@ contains
 !$$$ end documentation block
     implicit none
 
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
+
     character(len=144):: command
     character(len=8):: pe_name
 
@@ -1054,6 +1056,7 @@ contains
 !$$$ end documentation block
     use gsi_4dvar, only: nobs_bins
     implicit none
+
     allocate (nsat1(ndat),mype_diaghdr(ndat))
 
     ALLOCATE(thead  (nobs_bins))
@@ -1122,7 +1125,9 @@ contains
     use gsi_4dvar, only: nhr_assimilation
     use gridmod, only: regional
     implicit none
-    integer(i_kind),intent(in) :: mype
+
+    integer(i_kind),intent(in   ) :: mype
+
     integer(i_kind) ii,jj,ioff
     character(len=2) :: cind
     logical :: limit
@@ -1152,40 +1157,40 @@ contains
        endif
     end do
     if (mype==izero .and. limit) &
-      write(6,*)'INIT_OBSMOD_VARS: reset time window for one or ',&
-                'more OBS_INPUT entries to ',time_window_max
+       write(6,*)'INIT_OBSMOD_VARS: reset time window for one or ',&
+                 'more OBS_INPUT entries to ',time_window_max
 
 !   Initialize arrays in obs_input if more than one synoptic time
     IF (ndat_times>ione) THEN
-!     Copy other things
-      DO ii=2,ndat_times
-        write(cind,'(i2.2)')ii
-        ioff=(ii-ione)*ndat_types
-        DO jj=1,ndat_types
-          dfile (ioff+jj) = trim(dfile(jj))//'.'//cind
-          dmesh (ioff+jj) = dmesh(jj)
-          dtype (ioff+jj) = dtype(jj)
-          ditype(ioff+jj) = ditype(jj)
-          dplat (ioff+jj) = dplat(jj)
-          dsis  (ioff+jj) = dsis(jj)
-          ipoint(ioff+jj) = ipoint(jj)
-          dthin (ioff+jj) = dthin(jj)
-          dval  (ioff+jj) = dval(jj)
-          time_window(ioff+jj) = time_window(jj)
-        ENDDO
-      ENDDO
-!     Then change name for first time slot
-      IF (ndat_times>ione) THEN
-        DO jj=ione,ndat_types
-          dfile(jj) = trim(dfile(jj))//'.01'
-        ENDDO
-      ENDIF
+!      Copy other things
+       DO ii=2,ndat_times
+          write(cind,'(i2.2)')ii
+          ioff=(ii-ione)*ndat_types
+          DO jj=1,ndat_types
+             dfile (ioff+jj) = trim(dfile(jj))//'.'//cind
+             dmesh (ioff+jj) = dmesh(jj)
+             dtype (ioff+jj) = dtype(jj)
+             ditype(ioff+jj) = ditype(jj)
+             dplat (ioff+jj) = dplat(jj)
+             dsis  (ioff+jj) = dsis(jj)
+             ipoint(ioff+jj) = ipoint(jj)
+             dthin (ioff+jj) = dthin(jj)
+             dval  (ioff+jj) = dval(jj)
+             time_window(ioff+jj) = time_window(jj)
+          ENDDO
+       ENDDO
+!      Then change name for first time slot
+       IF (ndat_times>ione) THEN
+          DO jj=ione,ndat_types
+             dfile(jj) = trim(dfile(jj))//'.01'
+          ENDDO
+       ENDIF
     ENDIF
 
     IF (mype==izero) THEN
-      write(6,*)'INIT_OBSMOD_VARS: ndat_times,ndat_types,ndat=', &
-                                 & ndat_times,ndat_types,ndat
-      write(6,*)'INIT_OBSMOD_VARS: nhr_assimilation=',nhr_assimilation
+       write(6,*)'INIT_OBSMOD_VARS: ndat_times,ndat_types,ndat=', &
+                                  & ndat_times,ndat_types,ndat
+       write(6,*)'INIT_OBSMOD_VARS: nhr_assimilation=',nhr_assimilation
     ENDIF
 
     return
@@ -1220,219 +1225,221 @@ contains
     use gsi_4dvar, only: nobs_bins
 
     implicit none
-    logical,optional,intent(in) :: skipit
+
+    logical,optional,intent(in   ) :: skipit
+
     integer(i_kind) :: ii,jj,istatus
     logical :: skipit_
 
     skipit_=.false.
     if (present(skipit)) then
-        skipit_=skipit
+       skipit_=skipit
     endif
 
     do ii=1,nobs_bins
-      ttail(ii)%head => thead(ii)%head
-      do while (associated(ttail(ii)%head))
-        thead(ii)%head => ttail(ii)%head%llpoint
-        deallocate(ttail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for t, istatus=',istatus
-        ttail(ii)%head => thead(ii)%head
-      end do
+       ttail(ii)%head => thead(ii)%head
+       do while (associated(ttail(ii)%head))
+          thead(ii)%head => ttail(ii)%head%llpoint
+          deallocate(ttail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for t, istatus=',istatus
+          ttail(ii)%head => thead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      pwtail(ii)%head => pwhead(ii)%head
-      do while (associated(pwtail(ii)%head))
-        pwhead(ii)%head => pwtail(ii)%head%llpoint
-        deallocate(pwtail(ii)%head%dp,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pw arrays, istatus=',istatus
-        deallocate(pwtail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pw, istatus=',istatus
-        pwtail(ii)%head => pwhead(ii)%head
-      end do
+       pwtail(ii)%head => pwhead(ii)%head
+       do while (associated(pwtail(ii)%head))
+          pwhead(ii)%head => pwtail(ii)%head%llpoint
+          deallocate(pwtail(ii)%head%dp,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pw arrays, istatus=',istatus
+          deallocate(pwtail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pw, istatus=',istatus
+          pwtail(ii)%head => pwhead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      pstail(ii)%head => pshead(ii)%head
-      do while (associated(pstail(ii)%head))
-        pshead(ii)%head => pstail(ii)%head%llpoint
-        deallocate(pstail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for ps, istatus=',istatus
-        pstail(ii)%head => pshead(ii)%head
-      end do
+       pstail(ii)%head => pshead(ii)%head
+       do while (associated(pstail(ii)%head))
+          pshead(ii)%head => pstail(ii)%head%llpoint
+          deallocate(pstail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for ps, istatus=',istatus
+          pstail(ii)%head => pshead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      wtail(ii)%head => whead(ii)%head
-      do while (associated(wtail(ii)%head))
-        whead(ii)%head => wtail(ii)%head%llpoint
-        deallocate(wtail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for w, istatus=',istatus
-        wtail(ii)%head => whead(ii)%head
-      end do
+       wtail(ii)%head => whead(ii)%head
+       do while (associated(wtail(ii)%head))
+          whead(ii)%head => wtail(ii)%head%llpoint
+          deallocate(wtail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for w, istatus=',istatus
+          wtail(ii)%head => whead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      qtail(ii)%head => qhead(ii)%head
-      do while (associated(qtail(ii)%head))
-        qhead(ii)%head => qtail(ii)%head%llpoint
-        deallocate(qtail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for q, istatus=',istatus
-        qtail(ii)%head => qhead(ii)%head
-      end do
+       qtail(ii)%head => qhead(ii)%head
+       do while (associated(qtail(ii)%head))
+          qhead(ii)%head => qtail(ii)%head%llpoint
+          deallocate(qtail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for q, istatus=',istatus
+          qtail(ii)%head => qhead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      spdtail(ii)%head => spdhead(ii)%head
-      do while (associated(spdtail(ii)%head))
-        spdhead(ii)%head => spdtail(ii)%head%llpoint
-        deallocate(spdtail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for spd, istatus=',istatus
-        spdtail(ii)%head => spdhead(ii)%head
-      end do
+       spdtail(ii)%head => spdhead(ii)%head
+       do while (associated(spdtail(ii)%head))
+          spdhead(ii)%head => spdtail(ii)%head%llpoint
+          deallocate(spdtail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for spd, istatus=',istatus
+          spdtail(ii)%head => spdhead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      srwtail(ii)%head => srwhead(ii)%head
-      do while (associated(srwtail(ii)%head))
-        srwhead(ii)%head => srwtail(ii)%head%llpoint
-        deallocate(srwtail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for srw, istatus=',istatus
-        srwtail(ii)%head => srwhead(ii)%head
-      end do
+       srwtail(ii)%head => srwhead(ii)%head
+       do while (associated(srwtail(ii)%head))
+          srwhead(ii)%head => srwtail(ii)%head%llpoint
+          deallocate(srwtail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for srw, istatus=',istatus
+          srwtail(ii)%head => srwhead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      rwtail(ii)%head => rwhead(ii)%head
-      do while (associated(rwtail(ii)%head))
-        rwhead(ii)%head => rwtail(ii)%head%llpoint
-        deallocate(rwtail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rw, istatus=',istatus
-        rwtail(ii)%head => rwhead(ii)%head
-      end do
+       rwtail(ii)%head => rwhead(ii)%head
+       do while (associated(rwtail(ii)%head))
+          rwhead(ii)%head => rwtail(ii)%head%llpoint
+          deallocate(rwtail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rw, istatus=',istatus
+          rwtail(ii)%head => rwhead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      dwtail(ii)%head => dwhead(ii)%head
-      do while (associated(dwtail(ii)%head))
-        dwhead(ii)%head => dwtail(ii)%head%llpoint
-        deallocate(dwtail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for dw, istatus=',istatus
-        dwtail(ii)%head => dwhead(ii)%head
-      end do
+       dwtail(ii)%head => dwhead(ii)%head
+       do while (associated(dwtail(ii)%head))
+          dwhead(ii)%head => dwtail(ii)%head%llpoint
+          deallocate(dwtail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for dw, istatus=',istatus
+          dwtail(ii)%head => dwhead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      ssttail(ii)%head => ssthead(ii)%head
-      do while (associated(ssttail(ii)%head))
-        ssthead(ii)%head => ssttail(ii)%head%llpoint
-        deallocate(ssttail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for sst, istatus=',istatus
-        ssttail(ii)%head => ssthead(ii)%head
-      end do
+       ssttail(ii)%head => ssthead(ii)%head
+       do while (associated(ssttail(ii)%head))
+          ssthead(ii)%head => ssttail(ii)%head%llpoint
+          deallocate(ssttail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for sst, istatus=',istatus
+          ssttail(ii)%head => ssthead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      oztail(ii)%head => ozhead(ii)%head
-      do while (associated(oztail(ii)%head))
-        ozhead(ii)%head => oztail(ii)%head%llpoint
-        deallocate(oztail(ii)%head%res, oztail(ii)%head%wij,&
-                   oztail(ii)%head%err2,oztail(ii)%head%raterr2, &
-                   oztail(ii)%head%prs,oztail(ii)%head%ipos,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for oz arrays, istatus=',istatus
-        deallocate(oztail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for oz, istatus=',istatus
-        oztail(ii)%head => ozhead(ii)%head
-      end do
+       oztail(ii)%head => ozhead(ii)%head
+       do while (associated(oztail(ii)%head))
+          ozhead(ii)%head => oztail(ii)%head%llpoint
+          deallocate(oztail(ii)%head%res, oztail(ii)%head%wij,&
+                     oztail(ii)%head%err2,oztail(ii)%head%raterr2, &
+                     oztail(ii)%head%prs,oztail(ii)%head%ipos,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for oz arrays, istatus=',istatus
+          deallocate(oztail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for oz, istatus=',istatus
+          oztail(ii)%head => ozhead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      o3ltail(ii)%head => o3lhead(ii)%head
-      do while (associated(o3ltail(ii)%head))
-        o3lhead(ii)%head => o3ltail(ii)%head%llpoint
-        deallocate(o3ltail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for o3l, istatus=',istatus
-        o3ltail(ii)%head => o3lhead(ii)%head
-      end do
+       o3ltail(ii)%head => o3lhead(ii)%head
+       do while (associated(o3ltail(ii)%head))
+          o3lhead(ii)%head => o3ltail(ii)%head%llpoint
+          deallocate(o3ltail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for o3l, istatus=',istatus
+          o3ltail(ii)%head => o3lhead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      gpstail(ii)%head => gpshead(ii)%head
-      do while (associated(gpstail(ii)%head))
-        gpshead(ii)%head => gpstail(ii)%head%llpoint
-        deallocate(gpstail(ii)%head%jac_q,gpstail(ii)%head%jac_t, &
-                   gpstail(ii)%head%jac_p, &
-                   gpstail(ii)%head%ij,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for gps arrays, istatus=',istatus
-        deallocate(gpstail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for gps, istatus=',istatus
-        gpstail(ii)%head => gpshead(ii)%head
-      end do
+       gpstail(ii)%head => gpshead(ii)%head
+       do while (associated(gpstail(ii)%head))
+          gpshead(ii)%head => gpstail(ii)%head%llpoint
+          deallocate(gpstail(ii)%head%jac_q,gpstail(ii)%head%jac_t, &
+                     gpstail(ii)%head%jac_p, &
+                     gpstail(ii)%head%ij,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for gps arrays, istatus=',istatus
+          deallocate(gpstail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for gps, istatus=',istatus
+          gpstail(ii)%head => gpshead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      radtail(ii)%head => radhead(ii)%head
-      do while (associated(radtail(ii)%head))
-        radhead(ii)%head => radtail(ii)%head%llpoint
-        deallocate(radtail(ii)%head%res,radtail(ii)%head%err2, &
-                   radtail(ii)%head%raterr2,radtail(ii)%head%pred, &
-                   radtail(ii)%head%dtb_dvar, &
-                   radtail(ii)%head%icx,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rad arrays, istatus=',istatus
-        deallocate(radtail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rad, istatus=',istatus
-        radtail(ii)%head => radhead(ii)%head
-      end do
+       radtail(ii)%head => radhead(ii)%head
+       do while (associated(radtail(ii)%head))
+          radhead(ii)%head => radtail(ii)%head%llpoint
+          deallocate(radtail(ii)%head%res,radtail(ii)%head%err2, &
+                     radtail(ii)%head%raterr2,radtail(ii)%head%pred, &
+                     radtail(ii)%head%dtb_dvar, &
+                     radtail(ii)%head%icx,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rad arrays, istatus=',istatus
+          deallocate(radtail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rad, istatus=',istatus
+          radtail(ii)%head => radhead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      pcptail(ii)%head => pcphead(ii)%head
-      do while (associated(pcptail(ii)%head))
-        pcphead(ii)%head => pcptail(ii)%head%llpoint
-        deallocate(pcptail(ii)%head%predp,pcptail(ii)%head%dpcp_dvar,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pcp arrays, istatus=',istatus
-        deallocate(pcptail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pcp, istatus=',istatus
-        pcptail(ii)%head => pcphead(ii)%head
-      end do
+       pcptail(ii)%head => pcphead(ii)%head
+       do while (associated(pcptail(ii)%head))
+          pcphead(ii)%head => pcptail(ii)%head%llpoint
+          deallocate(pcptail(ii)%head%predp,pcptail(ii)%head%dpcp_dvar,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pcp arrays, istatus=',istatus
+          deallocate(pcptail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pcp, istatus=',istatus
+          pcptail(ii)%head => pcphead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      tcptail(ii)%head => tcphead(ii)%head
-      do while (associated(tcptail(ii)%head))
-        tcphead(ii)%head => tcptail(ii)%head%llpoint
-        deallocate(tcptail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for tcp, istatus=',istatus
-        tcptail(ii)%head => tcphead(ii)%head
-      end do
+       tcptail(ii)%head => tcphead(ii)%head
+       do while (associated(tcptail(ii)%head))
+          tcphead(ii)%head => tcptail(ii)%head%llpoint
+          deallocate(tcptail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for tcp, istatus=',istatus
+          tcptail(ii)%head => tcphead(ii)%head
+       end do
     end do
 
     do ii=1,nobs_bins
-      lagtail(ii)%head => laghead(ii)%head
-      do while (associated(lagtail(ii)%head))
-        laghead(ii)%head => lagtail(ii)%head%llpoint
-        deallocate(lagtail(ii)%head%speci,lagtail(ii)%head%specr,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for lag arrays, istatus=',istatus
-        deallocate(lagtail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for lag, istatus=',istatus
-        lagtail(ii)%head => laghead(ii)%head
-      end do
+       lagtail(ii)%head => laghead(ii)%head
+       do while (associated(lagtail(ii)%head))
+          laghead(ii)%head => lagtail(ii)%head%llpoint
+          deallocate(lagtail(ii)%head%speci,lagtail(ii)%head%specr,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for lag arrays, istatus=',istatus
+          deallocate(lagtail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for lag, istatus=',istatus
+          lagtail(ii)%head => laghead(ii)%head
+       end do
     end do
 
     if (l4dvar) then
-      if (.not. skipit_) then
-      do ii=1,nobs_bins
-        do jj=1,nobs_type
-          obsptr => obsdiags(jj,ii)%head
-          do while (associated(obsptr))
-            obsdiags(jj,ii)%head => obsptr%next
-            deallocate(obsptr%nldepart,obsptr%tldepart,obsptr%obssen,obsptr%muse)
-            deallocate(obsptr)
-            obsptr => obsdiags(jj,ii)%head
+       if (.not. skipit_) then
+          do ii=1,nobs_bins
+             do jj=1,nobs_type
+                obsptr => obsdiags(jj,ii)%head
+                do while (associated(obsptr))
+                   obsdiags(jj,ii)%head => obsptr%next
+                   deallocate(obsptr%nldepart,obsptr%tldepart,obsptr%obssen,obsptr%muse)
+                   deallocate(obsptr)
+                   obsptr => obsdiags(jj,ii)%head
+                enddo
+             enddo
           enddo
-        enddo
-      enddo
-      lobsdiag_allocated=.false.
-      endif
+          lobsdiag_allocated=.false.
+       endif
     endif
 
     if (allocated(obscounts)) deallocate(obscounts) 
@@ -1462,6 +1469,7 @@ contains
 !
 !$$$  end documentation block
     implicit none
+
     deallocate(nsat1,mype_diaghdr)
     return
   end subroutine destroy_obsmod_vars
@@ -1524,16 +1532,17 @@ contains
 !$$$  end documentation block
     use gsi_4dvar, only: nobs_bins
     implicit none
+
     integer(i_kind):: istatus,ii
 
     do ii=1,nobs_bins
-      gps_alltail(ii)%head => gps_allhead(ii)%head
-      do while (associated(gps_alltail(ii)%head))
-        gps_allhead(ii)%head => gps_alltail(ii)%head%llpoint
-        deallocate(gps_alltail(ii)%head,stat=istatus)
-        if (istatus/=izero) write(6,*)'DESTROY_GENSTATS_GPS: deallocate error for gps_all, istatus=',istatus
-        gps_alltail(ii)%head => gps_allhead(ii)%head
-      end do
+       gps_alltail(ii)%head => gps_allhead(ii)%head
+       do while (associated(gps_alltail(ii)%head))
+          gps_allhead(ii)%head => gps_alltail(ii)%head%llpoint
+          deallocate(gps_alltail(ii)%head,stat=istatus)
+          if (istatus/=izero) write(6,*)'DESTROY_GENSTATS_GPS: deallocate error for gps_all, istatus=',istatus
+          gps_alltail(ii)%head => gps_allhead(ii)%head
+       end do
     end do
 
     return
@@ -1563,7 +1572,8 @@ subroutine inquire_obsdiags(kiter)
 !$$$ end documentation block
 
 implicit none
-integer(i_kind), intent(in) :: kiter
+
+integer(i_kind), intent(in   ) :: kiter
 
 real(r_kind) :: sizei, sizer, sizel, sizep, ziter, zsize, ztot
 integer(i_kind) :: ii,jj,iobsa(2),iobsb(2)
@@ -1576,27 +1586,27 @@ sizep=four
 
 iobsa(:)=izero
 do ii=1,size(obsdiags,2)
-  do jj=1,size(obsdiags,1)
-    obsptr => obsdiags(jj,ii)%head
-    do while (associated(obsptr))
-      iobsa(ione)=iobsa(ione)+ione
-      if (ANY(obsptr%muse(:))) iobsa(2)=iobsa(2)+ione
-      obsptr => obsptr%next
-    enddo
-  enddo
+   do jj=1,size(obsdiags,1)
+      obsptr => obsdiags(jj,ii)%head
+      do while (associated(obsptr))
+         iobsa(ione)=iobsa(ione)+ione
+         if (ANY(obsptr%muse(:))) iobsa(2)=iobsa(2)+ione
+         obsptr => obsptr%next
+      enddo
+   enddo
 enddo
 
 call mpi_reduce(iobsa,iobsb,2_i_kind,mpi_itype,mpi_max,izero,mpi_comm_world,ierror)
 
 if (mype==izero) then
-  ziter=real(kiter,r_kind)
-  zsize = sizer*(three*ziter+two) + sizei + sizel*(ziter+one) + sizep*five
-  ztot=real(iobsb(ione),r_kind)*zsize
-  ztot=ztot/(1024.0_r_kind*1024.0_r_kind)
-
-  write(6,*)'obsdiags: Bytes per element=',NINT(zsize)
-  write(6,*)'obsdiags: length total, used=',iobsb(ione),iobsb(2_i_kind)
-  write(6,'(A,F8.1,A)')'obsdiags: Estimated memory usage= ',ztot,' Mb'
+   ziter=real(kiter,r_kind)
+   zsize = sizer*(three*ziter+two) + sizei + sizel*(ziter+one) + sizep*five
+   ztot=real(iobsb(ione),r_kind)*zsize
+   ztot=ztot/(1024.0_r_kind*1024.0_r_kind)
+ 
+   write(6,*)'obsdiags: Bytes per element=',NINT(zsize)
+   write(6,*)'obsdiags: length total, used=',iobsb(ione),iobsb(2_i_kind)
+   write(6,'(A,F8.1,A)')'obsdiags: Estimated memory usage= ',ztot,' Mb'
 endif
 
 end subroutine inquire_obsdiags

@@ -72,30 +72,30 @@ module fgrid2agrid_mod
 
   type fgrid2agrid_cons
 
-    sequence
+     sequence
 
-    integer(i_kind) nfgrid
-    integer(i_kind) nagrid
-    integer(i_kind) mfgrid
-    integer(i_kind) magrid
-    real(r_kind) grid_ratio
-    integer(i_kind),pointer::iwin(:,:)
-    integer(i_kind),pointer::nwin(:)
-    integer(i_kind),pointer::itwin(:,:)
-    integer(i_kind),pointer::ntwin(:)
-    integer(i_kind),pointer::iswin(:,:)
-    integer(i_kind),pointer::nswin(:)
-    real(r_kind),pointer::win(:,:)
-    real(r_kind),pointer::twin(:,:)
-    real(r_kind),pointer::swin(:,:)
+     integer(i_kind) nfgrid
+     integer(i_kind) nagrid
+     integer(i_kind) mfgrid
+     integer(i_kind) magrid
+     real(r_kind) grid_ratio
+     integer(i_kind),pointer::iwin(:,:)
+     integer(i_kind),pointer::nwin(:)
+     integer(i_kind),pointer::itwin(:,:)
+     integer(i_kind),pointer::ntwin(:)
+     integer(i_kind),pointer::iswin(:,:)
+     integer(i_kind),pointer::nswin(:)
+     real(r_kind),pointer::win(:,:)
+     real(r_kind),pointer::twin(:,:)
+     real(r_kind),pointer::swin(:,:)
 
   end type fgrid2agrid_cons
 
   type fgrid2agrid_parm
-    integer(i_kind):: nlata,nlona,nlatf,nlonf
-    logical:: identity
-    real(r_kind):: grid_ratio,grid_ratio_lon,grid_ratio_lat
-    type(fgrid2agrid_cons):: f2a_lon,f2a_lat
+     integer(i_kind):: nlata,nlona,nlatf,nlonf
+     logical:: identity
+     real(r_kind):: grid_ratio,grid_ratio_lon,grid_ratio_lat
+     type(fgrid2agrid_cons):: f2a_lon,f2a_lat
   end type fgrid2agrid_parm
 
   contains
@@ -129,7 +129,7 @@ module fgrid2agrid_mod
     use constants, only: ione,one
     implicit none
 
-    type(fgrid2agrid_parm),intent(out):: p
+    type(fgrid2agrid_parm),intent(  out) :: p
 
 !    initialize fgrid2agrid interpolation structure variables and other constants to defaults
 
@@ -218,25 +218,26 @@ module fgrid2agrid_mod
 
     use constants, only: one
     implicit none
-    type(fgrid2agrid_parm),intent(inout):: p
+
+    type(fgrid2agrid_parm),intent(inout) :: p
 
     if(p%grid_ratio<=1.001_r_kind.and.p%grid_ratio>=.999_r_kind) then
-      p%nlatf=p%nlata
-      p%nlonf=p%nlona
-      p%identity=.true.
-      p%grid_ratio_lon=one
-      p%grid_ratio_lat=one
-      return
+       p%nlatf=p%nlata
+       p%nlonf=p%nlona
+       p%identity=.true.
+       p%grid_ratio_lon=one
+       p%grid_ratio_lat=one
+       return
     else
 
-      p%identity=.false.
-
-      call get_3ops(p%f2a_lon, &
-                  & p%grid_ratio, p%grid_ratio_lon, &
-                  & p%nlona, p%nlonf, nord_f2a)
-      call get_3ops(p%f2a_lat, &
-                  & p%grid_ratio, p%grid_ratio_lat, &
-                  & p%nlata, p%nlatf, nord_f2a)
+       p%identity=.false.
+ 
+       call get_3ops(p%f2a_lon, &
+                   & p%grid_ratio, p%grid_ratio_lon, &
+                   & p%nlona, p%nlonf, nord_f2a)
+       call get_3ops(p%f2a_lat, &
+                   & p%grid_ratio, p%grid_ratio_lat, &
+                   & p%nlata, p%nlatf, nord_f2a)
 
     end if
 
@@ -294,11 +295,11 @@ module fgrid2agrid_mod
     use constants, only: izero,ione,zero,one
     implicit none
 
-    type(fgrid2agrid_cons),intent(inout):: f2a
-    real(r_kind),intent(in):: grid_ratio_in
-    real(r_kind),intent(out):: grid_ratio_out
-    integer(i_kind),intent(in):: iord,ngrida
-    integer(i_kind),intent(out):: ngridf
+    type(fgrid2agrid_cons),intent(inout) :: f2a
+    real(r_kind)          ,intent(in   ) :: grid_ratio_in
+    real(r_kind)          ,intent(  out) :: grid_ratio_out
+    integer(i_kind)       ,intent(in   ) :: iord,ngrida
+    integer(i_kind)       ,intent(  out) :: ngridf
 
     integer(i_kind) i,ii,ipmaxmax,ipminmin,j,jord,k,lbig,n,nc,nf,ntwinmax
     real(r_kind) rnc,rnf,dgrid
@@ -320,15 +321,15 @@ module fgrid2agrid_mod
 
     if(grid_ratio_in<one) then
 
-      nc=ngrida
-      rnf=one+(nc-one)/grid_ratio_in
-      nf=rnf
+       nc=ngrida
+       rnf=one+(nc-one)/grid_ratio_in
+       nf=rnf
 
     else
 
-      nf=ngrida
-      rnc=one+(nf-one)/grid_ratio_in
-      nc=ceiling(rnc)
+       nf=ngrida
+       rnc=one+(nf-one)/grid_ratio_in
+       nc=ceiling(rnc)
 
     end if
 
@@ -340,7 +341,7 @@ module fgrid2agrid_mod
 
     allocate(grid(nf))
     do i=1,nf
-     grid(i)=one+dgrid*(i-one)
+       grid(i)=one+dgrid*(i-one)
     end do
     grid(1)=one+nc*epsilon(one)     !  this guarantees that we interpolate
     grid(nf)=nc-nc*epsilon(one)     !   from coarse to fine
@@ -351,7 +352,7 @@ module fgrid2agrid_mod
 
     allocate(gridc(nc))
     do i=1,nc
-      gridc(i)=i
+       gridc(i)=i
     end do
     allocate(tl(iord+ione,iord+ione,2*nc),alocal(2*nc),blocal(2*nc))
     allocate(wgts(nf,iord+ione),iwgts(nf,iord+ione),iflag(nf))
@@ -360,23 +361,23 @@ module fgrid2agrid_mod
     iwin=izero
     nwin=izero
     do jord=1,iord
-      lbig=jord+ione
-      call simpin1_init(ixi,tl,alocal,blocal,jord,lbig,gridc,nc)
-      call simpin1(wgts,wgts,wgts,iwgts,iflag,grid,nf,jord,lbig,gridc,nc,ione,izero,izero,ixi,tl,alocal,blocal)
-      do i=1,nf
-        if(iflag(i)==ione) then
-          nwin(i)=lbig
-          do k=1,lbig
-            win(k,i)=wgts(i,k)
-            iwin(k,i)=iwgts(i,k)
-          end do
-        end if
-      end do
+       lbig=jord+ione
+       call simpin1_init(ixi,tl,alocal,blocal,jord,lbig,gridc,nc)
+       call simpin1(wgts,wgts,wgts,iwgts,iflag,grid,nf,jord,lbig,gridc,nc,ione,izero,izero,ixi,tl,alocal,blocal)
+       do i=1,nf
+          if(iflag(i)==ione) then
+             nwin(i)=lbig
+             do k=1,lbig
+                win(k,i)=wgts(i,k)
+                iwin(k,i)=iwgts(i,k)
+             end do
+          end if
+       end do
     end do
     if(minval(nwin)==izero) then
-      write(6,*)'GET_3OPS: ***ERROR*** while getting coarse to fine ', &
-                'interpolation operator'
-      call stop2(33)
+       write(6,*)'GET_3OPS: ***ERROR*** while getting coarse to fine ', &
+                 'interpolation operator'
+       call stop2(33)
     end if
 
 !--------------------------------------------------------
@@ -388,43 +389,43 @@ module fgrid2agrid_mod
     ipminmin=nf+ione
     ipmaxmax=izero
     do j=1,nc
-      do k=1,nc
-        workc(k)=zero
-      end do
-      workc(j)=one
-      do i=1,nf
-        hbig(i,j)=zero
-        do n=1,nwin(i)
-          hbig(i,j)=hbig(i,j)+win(n,i)*workc(iwin(n,i))
-        end do
-      end do
-      do i=1,nf
-        if(hbig(i,j)/=zero) then
-          ipmin(j)=i
-          ipminmin=min(ipmin(j),ipminmin)
-          exit
-        end if
-      end do
-      do i=nf,1,-1
-        if(hbig(i,j)/=zero) then
-          ipmax(j)=i
-          ipmaxmax=max(ipmax(j),ipmaxmax)
-          exit
-        end if
-      end do
+       do k=1,nc
+          workc(k)=zero
+       end do
+       workc(j)=one
+       do i=1,nf
+          hbig(i,j)=zero
+          do n=1,nwin(i)
+             hbig(i,j)=hbig(i,j)+win(n,i)*workc(iwin(n,i))
+          end do
+       end do
+       do i=1,nf
+          if(hbig(i,j)/=zero) then
+             ipmin(j)=i
+             ipminmin=min(ipmin(j),ipminmin)
+             exit
+          end if
+       end do
+       do i=nf,1,-1
+          if(hbig(i,j)/=zero) then
+             ipmax(j)=i
+             ipmaxmax=max(ipmax(j),ipmaxmax)
+             exit
+          end if
+       end do
     end do
     ntwinmax=ipmaxmax-ipminmin+ione
     allocate(twin(ntwinmax,nc),itwin(ntwinmax,nc),ntwin(nc))
     itwin=izero
     twin=zero
     do j=1,nc
-      ntwin(j)=ipmax(j)-ipmin(j)+ione
-      ii=izero
-      do i=ipmin(j),ipmax(j)
-        ii=ii+ione
-        itwin(ii,j)=i
-        twin(ii,j)=hbig(i,j)
-      end do
+       ntwin(j)=ipmax(j)-ipmin(j)+ione
+       ii=izero
+       do i=ipmin(j),ipmax(j)
+          ii=ii+ione
+          itwin(ii,j)=i
+          twin(ii,j)=hbig(i,j)
+       end do
     end do
 
 !--------------------------------------------------------
@@ -436,16 +437,16 @@ module fgrid2agrid_mod
     iswin=izero
     nswin=izero
     do j=1,nc
-      workc(j)=zero
-      do i=1,ntwin(j)
-        workc(j)=workc(j)+twin(i,j)
-      end do
-      workc(j)=one/workc(j)
-      nswin(j)=ntwin(j)
-      do i=1,ntwin(j)
-        swin(i,j)=workc(j)*twin(i,j)
-        iswin(i,j)=itwin(i,j)
-      end do
+       workc(j)=zero
+       do i=1,ntwin(j)
+          workc(j)=workc(j)+twin(i,j)
+       end do
+       workc(j)=one/workc(j)
+       nswin(j)=ntwin(j)
+       do i=1,ntwin(j)
+          swin(i,j)=workc(j)*twin(i,j)
+          iswin(i,j)=itwin(i,j)
+       end do
     end do
 
 !--------------------------------------------------------
@@ -454,11 +455,11 @@ module fgrid2agrid_mod
 
     allocate(tswin(iord+ione,nf),itswin(iord+ione,nf),ntswin(nf))
     do i=1,nf
-      ntswin(i)=nwin(i)
-      do j=1,nwin(i)
-        itswin(j,i)=iwin(j,i)
-        tswin(j,i)=workc(iwin(j,i))*win(j,i)
-      end do
+       ntswin(i)=nwin(i)
+       do j=1,nwin(i)
+          itswin(j,i)=iwin(j,i)
+          tswin(j,i)=workc(iwin(j,i))*win(j,i)
+       end do
     end do
 
 !--------------------------------------------------------
@@ -467,103 +468,103 @@ module fgrid2agrid_mod
 
     if(grid_ratio_in>one) then
 
-      f2a%nfgrid=nc
-      f2a%nagrid=nf
-      ngridf=nc
-      f2a%mfgrid=iord+ione
-      f2a%magrid=ntwinmax
-      grid_ratio_out=(nf-one)/(nc-one)
-      f2a%grid_ratio=grid_ratio_out
-      deallocate(f2a%iwin,f2a%nwin,f2a%win)
-      allocate(f2a%iwin(iord+ione,nf))
-      allocate(f2a%nwin(nf))
-      allocate(f2a%win(iord+ione,nf))
-      f2a%iwin=izero
-      f2a%nwin=izero
-      f2a%win=zero
+       f2a%nfgrid=nc
+       f2a%nagrid=nf
+       ngridf=nc
+       f2a%mfgrid=iord+ione
+       f2a%magrid=ntwinmax
+       grid_ratio_out=(nf-one)/(nc-one)
+       f2a%grid_ratio=grid_ratio_out
+       deallocate(f2a%iwin,f2a%nwin,f2a%win)
+       allocate(f2a%iwin(iord+ione,nf))
+       allocate(f2a%nwin(nf))
+       allocate(f2a%win(iord+ione,nf))
+       f2a%iwin=izero
+       f2a%nwin=izero
+       f2a%win=zero
 !$omp parallel do private(i,k)
-      do i=1,nf
-        f2a%nwin(i)=nwin(i)
-        do k=1,nwin(i)
-          f2a%iwin(k,i)=iwin(k,i)
-          f2a%win(k,i)=win(k,i)
-        end do
-      end do
-      deallocate(f2a%itwin,f2a%ntwin,f2a%twin)
-      deallocate(f2a%iswin,f2a%nswin,f2a%swin)
-      allocate(f2a%itwin(ntwinmax,nc))
-      allocate(f2a%iswin(ntwinmax,nc))
-      allocate(f2a%ntwin(nc))
-      allocate(f2a%twin(ntwinmax,nc))
-      allocate(f2a%swin(ntwinmax,nc))
-      allocate(f2a%nswin(nc))
-      f2a%itwin=izero
-      f2a%ntwin=izero
-      f2a%twin=zero
-      f2a%iswin=izero
-      f2a%nswin=izero
-      f2a%swin=zero
+       do i=1,nf
+          f2a%nwin(i)=nwin(i)
+          do k=1,nwin(i)
+             f2a%iwin(k,i)=iwin(k,i)
+             f2a%win(k,i)=win(k,i)
+          end do
+       end do
+       deallocate(f2a%itwin,f2a%ntwin,f2a%twin)
+       deallocate(f2a%iswin,f2a%nswin,f2a%swin)
+       allocate(f2a%itwin(ntwinmax,nc))
+       allocate(f2a%iswin(ntwinmax,nc))
+       allocate(f2a%ntwin(nc))
+       allocate(f2a%twin(ntwinmax,nc))
+       allocate(f2a%swin(ntwinmax,nc))
+       allocate(f2a%nswin(nc))
+       f2a%itwin=izero
+       f2a%ntwin=izero
+       f2a%twin=zero
+       f2a%iswin=izero
+       f2a%nswin=izero
+       f2a%swin=zero
 !$omp parallel do private(j,k)
-      do j=1,nc
-        f2a%ntwin(j)=ntwin(j)
-        f2a%nswin(j)=nswin(j)
-        do k=1,f2a%ntwin(j)
-          f2a%itwin(k,j)=itwin(k,j)
-          f2a%iswin(k,j)=iswin(k,j)
-          f2a%twin(k,j)=twin(k,j)
-          f2a%swin(k,j)=swin(k,j)
-        end do
-      end do
+       do j=1,nc
+          f2a%ntwin(j)=ntwin(j)
+          f2a%nswin(j)=nswin(j)
+          do k=1,f2a%ntwin(j)
+             f2a%itwin(k,j)=itwin(k,j)
+             f2a%iswin(k,j)=iswin(k,j)
+             f2a%twin(k,j)=twin(k,j)
+             f2a%swin(k,j)=swin(k,j)
+          end do
+       end do
 
     else
 
-      f2a%nfgrid=nf
-      f2a%nagrid=nc
-      ngridf=nf
-      f2a%mfgrid=ntwinmax
-      f2a%magrid=iord+ione
-      grid_ratio_out=(nc-one)/(nf-one)
-      f2a%grid_ratio=grid_ratio_out
-      deallocate(f2a%iwin,f2a%nwin,f2a%win)
-      allocate(f2a%iwin(ntwinmax,nc))
-      allocate(f2a%nwin(nc))
-      allocate(f2a%win(ntwinmax,nc))
-      f2a%iwin=izero
-      f2a%nwin=izero
-      f2a%win=zero
+       f2a%nfgrid=nf
+       f2a%nagrid=nc
+       ngridf=nf
+       f2a%mfgrid=ntwinmax
+       f2a%magrid=iord+ione
+       grid_ratio_out=(nc-one)/(nf-one)
+       f2a%grid_ratio=grid_ratio_out
+       deallocate(f2a%iwin,f2a%nwin,f2a%win)
+       allocate(f2a%iwin(ntwinmax,nc))
+       allocate(f2a%nwin(nc))
+       allocate(f2a%win(ntwinmax,nc))
+       f2a%iwin=izero
+       f2a%nwin=izero
+       f2a%win=zero
 !$omp parallel do private (k,j)
-      do j=1,nc
-        f2a%nwin(j)=nswin(j)
-        do k=1,nswin(j)
-          f2a%iwin(k,j)=iswin(k,j)
-          f2a%win(k,j)=swin(k,j)
-        end do
-      end do
-      deallocate(f2a%itwin,f2a%ntwin,f2a%twin)
-      deallocate(f2a%iswin,f2a%nswin,f2a%swin)
-      allocate(f2a%itwin(iord+ione,nf))
-      allocate(f2a%iswin(iord+ione,nf))
-      allocate(f2a%ntwin(nf))
-      allocate(f2a%nswin(nf))
-      allocate(f2a%twin(iord+ione,nf))
-      allocate(f2a%swin(iord+ione,nf))
-      f2a%itwin=izero
-      f2a%ntwin=izero
-      f2a%twin=zero
-      f2a%iswin=izero
-      f2a%nswin=izero
-      f2a%swin=zero
+       do j=1,nc
+          f2a%nwin(j)=nswin(j)
+          do k=1,nswin(j)
+             f2a%iwin(k,j)=iswin(k,j)
+             f2a%win(k,j)=swin(k,j)
+          end do
+       end do
+       deallocate(f2a%itwin,f2a%ntwin,f2a%twin)
+       deallocate(f2a%iswin,f2a%nswin,f2a%swin)
+       allocate(f2a%itwin(iord+ione,nf))
+       allocate(f2a%iswin(iord+ione,nf))
+       allocate(f2a%ntwin(nf))
+       allocate(f2a%nswin(nf))
+       allocate(f2a%twin(iord+ione,nf))
+       allocate(f2a%swin(iord+ione,nf))
+       f2a%itwin=izero
+       f2a%ntwin=izero
+       f2a%twin=zero
+       f2a%iswin=izero
+       f2a%nswin=izero
+       f2a%swin=zero
 !$omp parallel do private (i,k)
-      do i=1,nf
-        f2a%ntwin(i)=ntswin(i)
-        f2a%nswin(i)=nwin(i)
-        do k=1,f2a%ntwin(i)
-          f2a%itwin(k,i)=itswin(k,i)
-          f2a%iswin(k,i)=iwin(k,i)
-          f2a%twin(k,i)=tswin(k,i)
-          f2a%swin(k,i)=win(k,i)
-        end do
-      end do
+       do i=1,nf
+          f2a%ntwin(i)=ntswin(i)
+          f2a%nswin(i)=nwin(i)
+          do k=1,f2a%ntwin(i)
+             f2a%itwin(k,i)=itswin(k,i)
+             f2a%iswin(k,i)=iwin(k,i)
+             f2a%twin(k,i)=tswin(k,i)
+             f2a%swin(k,i)=win(k,i)
+          end do
+       end do
 
     end if
 
@@ -602,7 +603,7 @@ module fgrid2agrid_mod
     implicit none
 
 ! free space used by interpolation structures
-    type(fgrid2agrid_parm),intent(inout):: p
+    type(fgrid2agrid_parm),intent(inout) :: p
 
     deallocate(p%f2a_lon%iwin,p%f2a_lon%nwin,p%f2a_lon%itwin)
     deallocate(p%f2a_lon%ntwin,p%f2a_lon%iswin,p%f2a_lon%nswin)
@@ -642,42 +643,42 @@ module fgrid2agrid_mod
 !$$$ end documentation block
     implicit none
 
-    type(fgrid2agrid_parm),intent(in):: p
-    real(r_kind),intent(in):: f(p%nlatf,p%nlonf)
-    real(r_kind),intent(out)::a(p%nlata,p%nlona)
+    type(fgrid2agrid_parm),intent(in   ) :: p
+    real(r_kind)          ,intent(in   ) :: f(p%nlatf,p%nlonf)
+    real(r_kind)          ,intent(  out) :: a(p%nlata,p%nlona)
 
     integer(i_kind) i,j,j1,k
     real(r_kind) w1,w(p%nlata,p%nlonf)
 
     if(p%identity) then
-      do j=1,p%nlonf
-      do i=1,p%nlatf
-        a(i,j)=f(i,j)
-      end do
-      end do
-    else
-      do j=1,p%nlonf
-      do i=1,p%nlata
-        w(i,j)=p%f2a_lat%win(1,i)*f(p%f2a_lat%iwin(1,i),j)
-        do k=2,p%f2a_lat%nwin(i)
-          w(i,j)=w(i,j)+p%f2a_lat%win(k,i)*f(p%f2a_lat%iwin(k,i),j)
-        end do
-      end do
-      end do
-      do j=1,p%nlona
-        j1=p%f2a_lon%iwin(1,j)
-        w1=p%f2a_lon%win(1,j)
-        do i=1,p%nlata
-          a(i,j)=w1*w(i,j1)
-        end do
-        do k=2,p%f2a_lon%nwin(j)
-          j1=p%f2a_lon%iwin(k,j)
-          w1=p%f2a_lon%win(k,j)
-          do i=1,p%nlata
-            a(i,j)=a(i,j)+w1*w(i,j1)
+       do j=1,p%nlonf
+          do i=1,p%nlatf
+             a(i,j)=f(i,j)
           end do
-        end do
-      end do
+       end do
+    else
+       do j=1,p%nlonf
+          do i=1,p%nlata
+             w(i,j)=p%f2a_lat%win(1,i)*f(p%f2a_lat%iwin(1,i),j)
+             do k=2,p%f2a_lat%nwin(i)
+                w(i,j)=w(i,j)+p%f2a_lat%win(k,i)*f(p%f2a_lat%iwin(k,i),j)
+             end do
+          end do
+       end do
+       do j=1,p%nlona
+          j1=p%f2a_lon%iwin(1,j)
+          w1=p%f2a_lon%win(1,j)
+          do i=1,p%nlata
+             a(i,j)=w1*w(i,j1)
+          end do
+          do k=2,p%f2a_lon%nwin(j)
+             j1=p%f2a_lon%iwin(k,j)
+             w1=p%f2a_lon%win(k,j)
+             do i=1,p%nlata
+                a(i,j)=a(i,j)+w1*w(i,j1)
+             end do
+          end do
+       end do
     end if
 
   end subroutine fgrid2agrid
@@ -711,42 +712,42 @@ module fgrid2agrid_mod
 !$$$ end documentation block
     implicit none
 
-    type(fgrid2agrid_parm),intent(in):: p
-    real(r_kind),intent(out)::f(p%nlatf,p%nlonf)
-    real(r_kind),intent(in):: a(p%nlata,p%nlona)
+    type(fgrid2agrid_parm),intent(in   ) :: p
+    real(r_kind)          ,intent(  out) :: f(p%nlatf,p%nlonf)
+    real(r_kind)          ,intent(in   ) :: a(p%nlata,p%nlona)
 
     integer i,j,j1,k
     real(r_kind) w1,w(p%nlata,p%nlonf)
 
     if(p%identity) then
-      do j=1,p%nlonf
-        do i=1,p%nlatf
-          f(i,j)=a(i,j)
-        end do
-      end do
+       do j=1,p%nlonf
+          do i=1,p%nlatf
+             f(i,j)=a(i,j)
+          end do
+       end do
     else
-      do j=1,p%nlonf
-        j1=p%f2a_lon%itwin(1,j)
-        w1=p%f2a_lon%twin(1,j)
-        do i=1,p%nlata
-          w(i,j)=w1*a(i,j1)
-        end do
-        do k=2,p%f2a_lon%ntwin(j)
-          j1=p%f2a_lon%itwin(k,j)
-          w1=p%f2a_lon%twin(k,j)
+       do j=1,p%nlonf
+          j1=p%f2a_lon%itwin(1,j)
+          w1=p%f2a_lon%twin(1,j)
           do i=1,p%nlata
-            w(i,j)=w(i,j)+w1*a(i,j1)
+             w(i,j)=w1*a(i,j1)
           end do
-        end do
-      end do
-      do j=1,p%nlonf
-        do i=1,p%nlatf
-          f(i,j)=p%f2a_lat%twin(1,i)*w(p%f2a_lat%itwin(1,i),j)
-          do k=2,p%f2a_lat%ntwin(i)
-            f(i,j)=f(i,j)+p%f2a_lat%twin(k,i)*w(p%f2a_lat%itwin(k,i),j)
+          do k=2,p%f2a_lon%ntwin(j)
+             j1=p%f2a_lon%itwin(k,j)
+             w1=p%f2a_lon%twin(k,j)
+             do i=1,p%nlata
+                w(i,j)=w(i,j)+w1*a(i,j1)
+             end do
           end do
-        end do
-      end do
+       end do
+       do j=1,p%nlonf
+          do i=1,p%nlatf
+             f(i,j)=p%f2a_lat%twin(1,i)*w(p%f2a_lat%itwin(1,i),j)
+             do k=2,p%f2a_lat%ntwin(i)
+                f(i,j)=f(i,j)+p%f2a_lat%twin(k,i)*w(p%f2a_lat%itwin(k,i),j)
+             end do
+          end do
+       end do
     end if
 
   end subroutine tfgrid2agrid
@@ -781,42 +782,42 @@ module fgrid2agrid_mod
 !$$$ end documentation block
     implicit none
 
-    type(fgrid2agrid_parm),intent(in):: p
-    real(r_kind),intent(out)::f(p%nlatf,p%nlonf)
-    real(r_kind),intent(in):: a(p%nlata,p%nlona)
+    type(fgrid2agrid_parm),intent(in   ) :: p
+    real(r_kind)          ,intent(  out) :: f(p%nlatf,p%nlonf)
+    real(r_kind)          ,intent(in   ) :: a(p%nlata,p%nlona)
 
     integer(i_kind) i,j,j1,k
     real(r_kind) w1,w(p%nlata,p%nlonf)
 
     if(p%identity) then
-      do j=1,p%nlonf
-        do i=1,p%nlatf
-          f(i,j)=a(i,j)
-        end do
-      end do
-    else
-      do j=1,p%nlonf
-        j1=p%f2a_lon%iswin(1,j)
-        w1=p%f2a_lon%swin(1,j)
-        do i=1,p%nlata
-          w(i,j)=w1*a(i,j1)
-        end do
-        do k=2,p%f2a_lon%nswin(j)
-         j1=p%f2a_lon%iswin(k,j)
-         w1=p%f2a_lon%swin(k,j)
-         do i=1,p%nlata
-           w(i,j)=w(i,j)+w1*a(i,j1)
-         end do
-        end do
-      end do
-      do j=1,p%nlonf
-        do i=1,p%nlatf
-          f(i,j)=p%f2a_lat%swin(1,i)*w(p%f2a_lat%iswin(1,i),j)
-          do k=2,p%f2a_lat%nswin(i)
-            f(i,j)=f(i,j)+p%f2a_lat%swin(k,i)*w(p%f2a_lat%iswin(k,i),j)
+       do j=1,p%nlonf
+          do i=1,p%nlatf
+             f(i,j)=a(i,j)
           end do
-        end do
-      end do
+       end do
+    else
+       do j=1,p%nlonf
+          j1=p%f2a_lon%iswin(1,j)
+          w1=p%f2a_lon%swin(1,j)
+          do i=1,p%nlata
+             w(i,j)=w1*a(i,j1)
+          end do
+          do k=2,p%f2a_lon%nswin(j)
+             j1=p%f2a_lon%iswin(k,j)
+             w1=p%f2a_lon%swin(k,j)
+             do i=1,p%nlata
+                w(i,j)=w(i,j)+w1*a(i,j1)
+             end do
+          end do
+       end do
+       do j=1,p%nlonf
+          do i=1,p%nlatf
+             f(i,j)=p%f2a_lat%swin(1,i)*w(p%f2a_lat%iswin(1,i),j)
+             do k=2,p%f2a_lat%nswin(i)
+                f(i,j)=f(i,j)+p%f2a_lat%swin(k,i)*w(p%f2a_lat%iswin(k,i),j)
+             end do
+          end do
+       end do
     end if
 
   end subroutine agrid2fgrid

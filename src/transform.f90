@@ -60,13 +60,13 @@ subroutine sptez_s(wave,grid,idir)
 !$$$
   use kinds, only: r_kind,i_kind
   use specmod, only: nc,ijmax
-  use constants, only: zero,izero
+  use constants, only: izero,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: idir
-  real(r_kind),dimension(nc),intent(inout):: wave
-  real(r_kind),dimension(ijmax),intent(inout):: grid
+  integer(i_kind)              ,intent(in   ) :: idir
+  real(r_kind),dimension(nc)   ,intent(inout) :: wave
+  real(r_kind),dimension(ijmax),intent(inout) :: grid
 
 ! Declare local variables
   integer(i_kind) i
@@ -159,7 +159,7 @@ subroutine sptranf_s(wave,grid,idir)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,izero
+  use constants, only: izero,ione,zero
   use specmod, only: iromb,jcap,idrt,imax,jmax,ijmax,&
        jn,js,jb,je,nc,ioffset,&
        eps,epstop,enn1,elonn1,eon,eontop,&
@@ -167,26 +167,26 @@ subroutine sptranf_s(wave,grid,idir)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: idir
-  real(r_kind),dimension(nc),intent(inout):: wave
-  real(r_kind),dimension(ijmax),intent(inout):: grid
+  integer(i_kind)              ,intent(in   ) :: idir
+  real(r_kind),dimension(nc)   ,intent(inout) :: wave
+  real(r_kind),dimension(ijmax),intent(inout) :: grid
 
 ! Declare local variables
   integer(i_kind) i,j,jj,ijn,ijs,mp
-  real(r_kind),dimension(2*(jcap+1)):: wtop
-  real(r_kind),dimension(imax,2):: g
+  real(r_kind),dimension(2*(jcap+ione)):: wtop
+  real(r_kind),dimension(imax,2_i_kind):: g
   integer(i_kind) :: ldafft
-  ldafft=256+imax
+  ldafft=256_i_kind+imax
 
 ! Initialize local variables
   mp=izero
 
-  do i=1,2*(jcap+1)
+  do i=1,2*(jcap+ione)
      wtop(i)=zero
   end do
 
 ! Transform wave to grid
-  if(idir.gt.izero) then
+  if(idir>izero) then
 !$omp parallel do private(j,i,jj,ijn,ijs,g)
      do j=jb,je
         call sptranf1(iromb,jcap,idrt,imax,jmax,j,j, &
@@ -209,7 +209,7 @@ subroutine sptranf_s(wave,grid,idir)
 !!threading bug in this block
 !!$omp parallel do private(j,i,jj,ijn,ijs,g)
      do j=jb,je
-        if(wlat(j).gt.zero) then
+        if(wlat(j)>zero) then
            do i=1,imax
               jj  = j-jb
               ijn = i + jj*jn
@@ -300,13 +300,13 @@ subroutine sptez_v(waved,wavez,gridu,gridv,idir)
 !$$$
   use kinds, only: r_kind,i_kind
   use specmod, only: nc,ijmax
-  use constants, only: zero,izero
+  use constants, only: izero,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: idir
-  real(r_kind),dimension(nc),intent(inout):: waved,wavez
-  real(r_kind),dimension(ijmax),intent(inout):: gridu,gridv
+  integer(i_kind)              ,intent(in   ) :: idir
+  real(r_kind),dimension(nc)   ,intent(inout) :: waved,wavez
+  real(r_kind),dimension(ijmax),intent(inout) :: gridu,gridv
 
 ! Declare local variables
   integer(i_kind) i
@@ -408,7 +408,7 @@ subroutine sptranf_v(waved,wavez,gridu,gridv,idir)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,izero,ione
+  use constants, only: izero,ione,zero
   use specmod, only: iromb,jcap,idrt,imax,jmax,ijmax,&
        jn,js,jb,je,ncd2,nc,ioffset,&
        eps,epstop,enn1,elonn1,eon,eontop,&
@@ -416,26 +416,26 @@ subroutine sptranf_v(waved,wavez,gridu,gridv,idir)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: idir
-  real(r_kind),dimension(nc):: waved,wavez
-  real(r_kind),dimension(ijmax):: gridu,gridv
+  integer(i_kind)              ,intent(in   ) :: idir
+  real(r_kind),dimension(nc)   ,intent(inout) :: waved,wavez
+  real(r_kind),dimension(ijmax),intent(inout) :: gridu,gridv
 
 
 ! Declare local variables
   integer(i_kind) i,j,jj,ijn,ijs
   integer(i_kind),dimension(2):: mp
   real(r_kind),dimension(ncd2*2,2):: w
-  real(r_kind),dimension(2*(jcap+1),2):: wtop
+  real(r_kind),dimension(2*(jcap+ione),2):: wtop
   real(r_kind),dimension(imax,2,2):: g
   real(r_kind),dimension(ncd2*2,2):: winc
   integer(i_kind) :: ldafft
-  ldafft=256+imax
+  ldafft=256_i_kind+imax
 
 ! Set parameters
   mp=ione
 
 ! Transform wave to grid
-  if(idir.gt.izero) then
+  if(idir>izero) then
      call spdz2uv(iromb,jcap,enn1,elonn1,eon,eontop, &
           waved,wavez, &
           w(1,1),w(1,2),wtop(1,1),wtop(1,2))
@@ -467,7 +467,7 @@ subroutine sptranf_v(waved,wavez,gridu,gridv,idir)
      w=zero
      wtop=zero
      do j=jb,je
-        if(wlat(j).gt.zero) then
+        if(wlat(j)>zero) then
            do i=1,imax
               jj   = j-jb
               ijn = i + jj*jn
@@ -563,15 +563,39 @@ subroutine sptez_s_b(wave,grid,idir)
 !   language: fortran 77
 !
 !$$$
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:     sptez_s_bkg
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-01-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    idir
+!    wave
+!    grid
+!
+!   output argument list:
+!    wave
+!    grid
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use specmod, only: nc_b,ijmax_b
-  use constants, only: zero,izero
+  use constants, only: izero,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: idir
-  real(r_kind),dimension(nc_b),intent(inout):: wave
-  real(r_kind),dimension(ijmax_b),intent(inout):: grid
+  integer(i_kind)                ,intent(in   ) :: idir
+  real(r_kind),dimension(nc_b)   ,intent(inout) :: wave
+  real(r_kind),dimension(ijmax_b),intent(inout) :: grid
 
 ! Declare local variables
   integer(i_kind) i
@@ -594,8 +618,35 @@ subroutine sptez_s_b(wave,grid,idir)
 end subroutine sptez_s_b
 
 subroutine sptranf_s_b(wave,gridn,grids,idir)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    sptranf_s_bkg
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-01-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    idir
+!    wave
+!    gridn
+!    grids
+!
+!   output argument list:
+!    wave
+!    gridn
+!    grids
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,izero
+  use constants, only: izero,ione,zero
   use specmod, only: iromb_b,jcap_b,idrt_b,imax_b,jmax_b,ijmax_b,&
        jn_b,js_b,jb_b,je_b,nc_b,ioffset_b,&
        eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b,&
@@ -603,26 +654,26 @@ subroutine sptranf_s_b(wave,gridn,grids,idir)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: idir
-  real(r_kind),dimension(nc_b),intent(inout):: wave
-  real(r_kind),dimension(ijmax_b),intent(inout):: gridn
-  real(r_kind),dimension(ijmax_b),intent(inout):: grids
+  integer(i_kind)                ,intent(in   ) :: idir
+  real(r_kind),dimension(nc_b)   ,intent(inout) :: wave
+  real(r_kind),dimension(ijmax_b),intent(inout) :: gridn
+  real(r_kind),dimension(ijmax_b),intent(inout) :: grids
 
 
 ! Declare local variables
   integer(i_kind) i,j,jj,ijn,ijs,mp
-  real(r_kind),dimension(2*(jcap_b+1)):: wtop
+  real(r_kind),dimension(2*(jcap_b+ione)):: wtop
   real(r_kind),dimension(imax_b,2):: g
 
 ! Initialize local variables
   mp=izero
 
-  do i=1,2*(jcap_b+1)
+  do i=1,2*(jcap_b+ione)
      wtop(i)=zero
   end do
 
 ! Transform wave to grid
-  if(idir.gt.izero) then
+  if(idir>izero) then
 !$omp parallel do private(j,i,jj,ijn,ijs,g)
      do j=jb_b,je_b
         call sptranf1(iromb_b,jcap_b,idrt_b,imax_b,jmax_b,j,j, &
@@ -644,7 +695,7 @@ subroutine sptranf_s_b(wave,gridn,grids,idir)
   else
 !$omp parallel do private(j,i,jj,ijn,ijs,g)
      do j=jb_b,je_b
-        if(wlat_b(j).gt.zero) then
+        if(wlat_b(j)>zero) then
            do i=1,imax_b
               jj  = j-jb_b
               ijn = i + jj*jn_b
@@ -666,15 +717,43 @@ end subroutine sptranf_s_b
 
 
 subroutine sptez_v_b(waved,wavez,gridu,gridv,idir)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    sptez_v_bkg
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-01-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    idir
+!    waved
+!    wavez
+!    gridu
+!    gridv
+!
+!   output argument list:
+!    waved
+!    wavez
+!    gridu
+!    gridv
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use specmod, only: nc_b,ijmax_b
-  use constants, only: zero,izero
+  use constants, only: izero,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: idir
-  real(r_kind),dimension(nc_b),intent(inout):: waved,wavez
-  real(r_kind),dimension(ijmax_b),intent(inout):: gridu,gridv
+  integer(i_kind)                ,intent(in   ) :: idir
+  real(r_kind),dimension(nc_b)   ,intent(inout) :: waved,wavez
+  real(r_kind),dimension(ijmax_b),intent(inout) :: gridu,gridv
 
 ! Declare local variables
   integer(i_kind) i
@@ -698,25 +777,58 @@ subroutine sptez_v_b(waved,wavez,gridu,gridv,idir)
 end subroutine sptez_v_b
 
 subroutine sptranf_v_b(waved,wavez,gridun,gridus,gridvn,gridvs,idir)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    sptranf_v_bkg
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-01-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    idir
+!    waved
+!    wavez
+!    gridun
+!    gridus
+!    gridvn
+!    gridvs
+!
+!   output argument list:
+!    waved
+!    wavez
+!    gridun
+!    gridus
+!    gridvn
+!    gridvs
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,izero,ione
+  use constants, only: izero,ione,zero
   use specmod, only: iromb,jcap_b,idrt,imax_b,jmax_b,ijmax_b,&
        jn_b,js_b,jb_b,je_b,ncd2_b,nc_b,ioffset_b,&
        eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b,&
        afft_b,clat_b,slat_b,wlat_b,pln_b,plntop_b
+  use constants, only: izero,ione,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: idir
-  real(r_kind),dimension(nc_b):: waved,wavez
-  real(r_kind),dimension(ijmax_b):: gridun,gridus,gridvn,gridvs
+  integer(i_kind)                ,intent(in   ) :: idir
+  real(r_kind),dimension(nc_b)   ,intent(inout) :: waved,wavez
+  real(r_kind),dimension(ijmax_b),intent(inout) :: gridun,gridus,gridvn,gridvs
 
 
 ! Declare local variables
   integer(i_kind) i,j,jj,ijn,ijs
   integer(i_kind),dimension(2):: mp
   real(r_kind),dimension(ncd2_b*2,2):: w
-  real(r_kind),dimension(2*(jcap_b+1),2):: wtop
+  real(r_kind),dimension(2*(jcap_b+ione),2):: wtop
   real(r_kind),dimension(imax_b,2,2):: g
   real(r_kind),dimension(ncd2_b*2,2):: winc
 
@@ -724,7 +836,7 @@ subroutine sptranf_v_b(waved,wavez,gridun,gridus,gridvn,gridvs,idir)
   mp=ione
 
 ! Transform wave to grid
-  if(idir.gt.izero) then
+  if(idir>izero) then
      call spdz2uv(iromb,jcap_b,enn1_b,elonn1_b,eon_b,eontop_b, &
           waved,wavez, &
           w(1,1),w(1,2),wtop(1,1),wtop(1,2))
@@ -756,7 +868,7 @@ subroutine sptranf_v_b(waved,wavez,gridun,gridus,gridvn,gridvs,idir)
      w=zero
      wtop=zero
      do j=jb_b,je_b
-        if(wlat_b(j).gt.zero) then
+        if(wlat_b(j)>zero) then
            do i=1,imax_b
               jj   = j-jb_b
               ijn = i + jj*jn_b

@@ -57,13 +57,13 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
-  real(r_kind),intent(in):: dx,dy,obstime
-  real(r_kind),intent(out):: trop5
-  real(r_kind),dimension(nsig),intent(out):: h,q,poz,prsl
-  real(r_kind),dimension(nsig+ione),intent(out):: prsi
-  real(r_kind),intent(out):: uu5,vv5,dtsavg
-  real(r_kind),dimension(0:3),intent(out) :: dtskin
+  integer(i_kind)                  ,intent(in   ) :: mype
+  real(r_kind)                     ,intent(in   ) :: dx,dy,obstime
+  real(r_kind)                     ,intent(  out) :: trop5
+  real(r_kind),dimension(nsig)     ,intent(  out) :: h,q,poz,prsl
+  real(r_kind),dimension(nsig+ione),intent(  out) :: prsi
+  real(r_kind)                     ,intent(  out) :: uu5,vv5,dtsavg
+  real(r_kind),dimension(0:3)      ,intent(  out) :: dtskin
 
 ! Declare local parameters
   real(r_kind),parameter:: minsnow=one_tenth
@@ -264,57 +264,57 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
 
 
   do k=1,nsig
-    h(k)  =(ges_tsen(ix ,iy ,k,itsig )*w00+ &
-            ges_tsen(ixp,iy ,k,itsig )*w10+ &
-            ges_tsen(ix ,iyp,k,itsig )*w01+ &
-            ges_tsen(ixp,iyp,k,itsig )*w11)*dtsig + &
-           (ges_tsen(ix ,iy ,k,itsigp)*w00+ &
-            ges_tsen(ixp,iy ,k,itsigp)*w10+ &
-            ges_tsen(ix ,iyp,k,itsigp)*w01+ &
-            ges_tsen(ixp,iyp,k,itsigp)*w11)*dtsigp
-    q(k)  =(ges_q(ix ,iy ,k,itsig )*w00+ &
-            ges_q(ixp,iy ,k,itsig )*w10+ &
-            ges_q(ix ,iyp,k,itsig )*w01+ &
-            ges_q(ixp,iyp,k,itsig )*w11)*dtsig + &
-           (ges_q(ix ,iy ,k,itsigp)*w00+ &
-            ges_q(ixp,iy ,k,itsigp)*w10+ &
-            ges_q(ix ,iyp,k,itsigp)*w01+ &
-            ges_q(ixp,iyp,k,itsigp)*w11)*dtsigp
-    poz(k)=(ges_oz(ix ,iy ,k,itsig )*w00+ &
-            ges_oz(ixp,iy ,k,itsig )*w10+ &
-            ges_oz(ix ,iyp,k,itsig )*w01+ &
-            ges_oz(ixp,iyp,k,itsig )*w11)*dtsig + &
-           (ges_oz(ix ,iy ,k,itsigp)*w00+ &
-            ges_oz(ixp,iy ,k,itsigp)*w10+ &
-            ges_oz(ix ,iyp,k,itsigp)*w01+ &
-            ges_oz(ixp,iyp,k,itsigp)*w11)*dtsigp
-    prsl(k)=(ges_prsl(ix ,iy ,k,itsig )*w00+ &
-             ges_prsl(ixp,iy ,k,itsig )*w10+ &
-             ges_prsl(ix ,iyp,k,itsig )*w01+ &
-             ges_prsl(ixp,iyp,k,itsig )*w11)*dtsig + &
-            (ges_prsl(ix ,iy ,k,itsigp)*w00+ &
-             ges_prsl(ixp,iy ,k,itsigp)*w10+ &
-             ges_prsl(ix ,iyp,k,itsigp)*w01+ &
-             ges_prsl(ixp,iyp,k,itsigp)*w11)*dtsigp
-    tv    =(ges_tv(ix ,iy ,k,itsig )*w00+ &
-            ges_tv(ixp,iy ,k,itsig )*w10+ &
-            ges_tv(ix ,iyp,k,itsig )*w01+ &
-            ges_tv(ixp,iyp,k,itsig )*w11)*dtsig + &
-           (ges_tv(ix ,iy ,k,itsigp)*w00+ &
-            ges_tv(ixp,iy ,k,itsigp)*w10+ &
-            ges_tv(ix ,iyp,k,itsigp)*w01+ &
-            ges_tv(ixp,iyp,k,itsigp)*w11)*dtsigp
+     h(k)  =(ges_tsen(ix ,iy ,k,itsig )*w00+ &
+             ges_tsen(ixp,iy ,k,itsig )*w10+ &
+             ges_tsen(ix ,iyp,k,itsig )*w01+ &
+             ges_tsen(ixp,iyp,k,itsig )*w11)*dtsig + &
+            (ges_tsen(ix ,iy ,k,itsigp)*w00+ &
+             ges_tsen(ixp,iy ,k,itsigp)*w10+ &
+             ges_tsen(ix ,iyp,k,itsigp)*w01+ &
+             ges_tsen(ixp,iyp,k,itsigp)*w11)*dtsigp
+     q(k)  =(ges_q(ix ,iy ,k,itsig )*w00+ &
+             ges_q(ixp,iy ,k,itsig )*w10+ &
+             ges_q(ix ,iyp,k,itsig )*w01+ &
+             ges_q(ixp,iyp,k,itsig )*w11)*dtsig + &
+            (ges_q(ix ,iy ,k,itsigp)*w00+ &
+             ges_q(ixp,iy ,k,itsigp)*w10+ &
+             ges_q(ix ,iyp,k,itsigp)*w01+ &
+             ges_q(ixp,iyp,k,itsigp)*w11)*dtsigp
+     poz(k)=(ges_oz(ix ,iy ,k,itsig )*w00+ &
+             ges_oz(ixp,iy ,k,itsig )*w10+ &
+             ges_oz(ix ,iyp,k,itsig )*w01+ &
+             ges_oz(ixp,iyp,k,itsig )*w11)*dtsig + &
+            (ges_oz(ix ,iy ,k,itsigp)*w00+ &
+             ges_oz(ixp,iy ,k,itsigp)*w10+ &
+             ges_oz(ix ,iyp,k,itsigp)*w01+ &
+             ges_oz(ixp,iyp,k,itsigp)*w11)*dtsigp
+     prsl(k)=(ges_prsl(ix ,iy ,k,itsig )*w00+ &
+              ges_prsl(ixp,iy ,k,itsig )*w10+ &
+              ges_prsl(ix ,iyp,k,itsig )*w01+ &
+              ges_prsl(ixp,iyp,k,itsig )*w11)*dtsig + &
+             (ges_prsl(ix ,iy ,k,itsigp)*w00+ &
+              ges_prsl(ixp,iy ,k,itsigp)*w10+ &
+              ges_prsl(ix ,iyp,k,itsigp)*w01+ &
+              ges_prsl(ixp,iyp,k,itsigp)*w11)*dtsigp
+     tv    =(ges_tv(ix ,iy ,k,itsig )*w00+ &
+             ges_tv(ixp,iy ,k,itsig )*w10+ &
+             ges_tv(ix ,iyp,k,itsig )*w01+ &
+             ges_tv(ixp,iyp,k,itsig )*w11)*dtsig + &
+            (ges_tv(ix ,iy ,k,itsigp)*w00+ &
+             ges_tv(ixp,iy ,k,itsigp)*w10+ &
+             ges_tv(ix ,iyp,k,itsigp)*w01+ &
+             ges_tv(ixp,iyp,k,itsigp)*w11)*dtsigp
 
   end do
   do k=1,nsig+ione
-    prsi(k)=(ges_prsi(ix ,iy ,k,itsig )*w00+ &
-             ges_prsi(ixp,iy ,k,itsig )*w10+ &
-             ges_prsi(ix ,iyp,k,itsig )*w01+ &
-             ges_prsi(ixp,iyp,k,itsig )*w11)*dtsig + &
-            (ges_prsi(ix ,iy ,k,itsigp)*w00+ &
-             ges_prsi(ixp,iy ,k,itsigp)*w10+ &
-             ges_prsi(ix ,iyp,k,itsigp)*w01+ &
-             ges_prsi(ixp,iyp,k,itsigp)*w11)*dtsigp
+     prsi(k)=(ges_prsi(ix ,iy ,k,itsig )*w00+ &
+              ges_prsi(ixp,iy ,k,itsig )*w10+ &
+              ges_prsi(ix ,iyp,k,itsig )*w01+ &
+              ges_prsi(ixp,iyp,k,itsig )*w11)*dtsig + &
+             (ges_prsi(ix ,iy ,k,itsigp)*w00+ &
+              ges_prsi(ixp,iy ,k,itsigp)*w10+ &
+              ges_prsi(ix ,iyp,k,itsigp)*w01+ &
+              ges_prsi(ixp,iyp,k,itsigp)*w11)*dtsigp
   end do
 
   return

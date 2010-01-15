@@ -189,18 +189,18 @@
 
 ! !INPUT PARAMETERS:
 
-      character(len=*),           intent(in)  :: which    ! adm or tlm
-      character(len=*), optional, intent(in)  :: filename ! name of file w/ perturbation
-      logical,          optional, intent(in)  :: skiptraj ! allows skip of trajectory/ics 
+      character(len=*),           intent(in   ) :: which    ! adm or tlm
+      character(len=*), optional, intent(in   ) :: filename ! name of file w/ perturbation
+      logical,          optional, intent(in   ) :: skiptraj ! allows skip of trajectory/ics 
                                                                                                                            
 ! !OUTPUT PARAMETERS:
 
-      type(state_vector),       intent(inout) :: xx       ! GSI increment
+      type(state_vector)        , intent(inout) :: xx       ! GSI increment
 
-      integer(i_kind),                    intent(out) :: stat
+      integer(i_kind)           , intent(  out) :: stat
 
-      integer(i_kind),optional,           intent(out) :: nymd_in
-      integer(i_kind),optional,           intent(out) :: nhms_in
+      integer(i_kind),optional  , intent(  out) :: nymd_in
+      integer(i_kind),optional  , intent(  out) :: nhms_in
 
 ! !DESCRIPTION: Convert GEOS-5 perturbation vector to GSI increment vector
 !               (as pgcm2gsi1_, but reads GCM perturbation from file)
@@ -233,7 +233,7 @@
 !    Initializes this package
 !    ------------------------
      call init_ ( ierr, skiptraj=skiptraj )
-        if(ierr/=izero) return
+     if(ierr/=izero) return
 
 !    Set file to be read
 !    -------------------
@@ -248,38 +248,38 @@
 !    Create GCM perturbation vector
 !    ------------------------------
      if ( myimr/=imr .or. myjnp/=jnp .or. mynl/=nl .or. mync<nc ) then
-          stat = 89_i_kind
-          if (mype==ROOT) then
-             print*, 'myimr,myjnp,mynl,mync ', myimr,myjnp,mynl,mync
-             print*, '  imr,  jnp,  nl,  nc ',   imr,  jnp,  nl,  nc
-             print*, trim(myname_), ': Cannot handle resolution inconsistency '
-          endif
-          return
+        stat = 89_i_kind
+        if (mype==ROOT) then
+           print*, 'myimr,myjnp,mynl,mync ', myimr,myjnp,mynl,mync
+           print*, '  imr,  jnp,  nl,  nc ',   imr,  jnp,  nl,  nc
+           print*, trim(myname_), ': Cannot handle resolution inconsistency '
+        endif
+        return
      else
-         call prognostics_initial ( xpert )
+        call prognostics_initial ( xpert )
      endif
 
 !    Read in perturbation
 !    --------------------
      nymdp = izero; nhmsp = izero
      call getpert ( trim(fname), nymdp, nhmsp, xpert, pick=.false., stat=ierr, vectype=vectype_, forceflip=.true. )
-       if(ierr/=izero)then
-           stat = 90_i_kind
-           if(mype==ROOT) print*, trim(myname_), ': Error retrieving perturbation'
-           return
-       endif
-       dmodel = prognostics_dotp(xpert,xpert)
+     if(ierr/=izero)then
+        stat = 90_i_kind
+        if(mype==ROOT) print*, trim(myname_), ': Error retrieving perturbation'
+        return
+     endif
+     dmodel = prognostics_dotp(xpert,xpert)
 
-       if (present(nymd_in)) then
-           nymd_in = nymdp
-       endif
-       if (present(nhms_in)) then
-           nhms_in = nhmsp
-       endif
+     if (present(nymd_in)) then
+        nymd_in = nymdp
+     endif
+     if (present(nhms_in)) then
+        nhms_in = nhmsp
+     endif
 
 !    Convert to GSI perturbation vector
 !    ----------------------------------
-    if (nlon/=imr .or. nlat/=jnp ) then
+     if (nlon/=imr .or. nlat/=jnp ) then
         call die ( myname_,': this option is not fully implemented yet' )  ! RT: I am de-activating this for now
         if(mype==ROOT) print*, trim(myname_), ': Interpolating perturbation vector to GSI resolution: '
 
@@ -299,16 +299,16 @@
 
         call prognostics_final ( ypert)
 
-    else
+     else
 
 !       Simply convert
 !       --------------
         call pgcm2gsi1_ ( xpert, xx, which, stat, jgradf=.true. )
 
-    endif
-    dgsi = dot_product(xx,xx)
-    if(mype==ROOT) write(6,'(2a,1p,e24.18)') trim(myname_), ': magnitude of input vector in model    space ', dmodel
-    if(mype==ROOT) write(6,'(2a,1p,e24.18)') trim(myname_), ': magnitude of input vector in analysis space ', dgsi
+     endif
+     dgsi = dot_product(xx,xx)
+     if(mype==ROOT) write(6,'(2a,1p,e24.18)') trim(myname_), ': magnitude of input vector in model    space ', dmodel
+     if(mype==ROOT) write(6,'(2a,1p,e24.18)') trim(myname_), ': magnitude of input vector in analysis space ', dgsi
 
 !    Release GCM perturbation vector
 !    -------------------------------
@@ -334,15 +334,15 @@
 
 ! !INPUT PARAMETERS:
 
-      type(dyn_prog),             intent(in)  :: xpert  ! GCM perturbation vector 
-      character(len=*),           intent(in)  :: which  ! adm or tlm
-      logical, optional,          intent(in)  :: jgradf ! specify when input is forecast (error) gradient
+      type(dyn_prog)    , intent(in   ) :: xpert  ! GCM perturbation vector 
+      character(len=*)  , intent(in   ) :: which  ! adm or tlm
+      logical, optional , intent(in   ) :: jgradf ! specify when input is forecast (error) gradient
 
 ! !OUTPUT PARAMETERS:
 
-      type(state_vector),       intent(inout) :: xx     ! GSI increment
+      type(state_vector), intent(inout) :: xx     ! GSI increment
 
-      integer(i_kind),                    intent(out) :: stat
+      integer(i_kind)   , intent(  out) :: stat
 
 ! !DESCRIPTION: Convert GEOS-5 perturbation vector to GSI increment vector
 !
@@ -368,67 +368,67 @@
       scaleit = .true.  ! default: scale input vector as original var from G-5 GCM
       stat = izero
       if ( present(jgradf) ) then
-           if(jgradf) scaleit = .false. ! input vector is a gradient, don't scale vars
+         if(jgradf) scaleit = .false. ! input vector is a gradient, don't scale vars
       endif
 
 !     Initializes this package
 !     ------------------------
       call init_ ( ierr )
-        if(ierr/=izero) return
+      if(ierr/=izero) return
       call check_bks()
 
       allocate (sub_tv  (lat2,lon2,nsig), sub_u (lat2,lon2,nsig),&
                 sub_v   (lat2,lon2,nsig), sub_q (lat2,lon2,nsig),&
                 sub_delp(lat2,lon2,nsig), sub_ps(lat2,lon2), stat=ierr )
-        if ( ierr/=izero ) then
-            stat = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_)'
+         return
+      end if
       if ( nc>ione ) then
-          allocate (sub_oz  (lat2,lon2,nsig), stat=ierr )
-            if ( ierr/=izero ) then
-                stat = 91_i_kind
-                if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_oz)'
-                return
-            end if
+         allocate (sub_oz  (lat2,lon2,nsig), stat=ierr )
+         if ( ierr/=izero ) then
+            stat = 91_i_kind
+            if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_oz)'
+            return
+         end if
       endif
       if ( nc>2_i_kind ) then
-          allocate (sub_cw  (lat2,lon2,nsig), stat=ierr )
-            if ( ierr/=izero ) then
-                stat = 91_i_kind
-                if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_cw)'
-                return
-            end if
+         allocate (sub_cw  (lat2,lon2,nsig), stat=ierr )
+         if ( ierr/=izero ) then
+            stat = 91_i_kind
+            if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_cw)'
+            return
+         end if
       endif
 
 !     Gather from GCM/Scatter to GSI subdomains
 !     -----------------------------------------
-                     call pert2gsi_ ( xpert%u,          sub_u   , ng_d, ng_s, ierr )
-                     call pert2gsi_ ( xpert%v,          sub_v   , ng_s, ng_d, ierr )
-                     call pert2gsi_ ( xpert%pt,         sub_tv  , ng_d, ng_d, ierr )
-                     call pert2gsi_ ( xpert%delp,       sub_delp,izero,izero, ierr )
-                     call pert2gsi_ ( xpert%q(:,:,:,1), sub_q   , ng_d, ng_d, ierr )
+      call pert2gsi_ ( xpert%u,          sub_u   , ng_d, ng_s, ierr )
+      call pert2gsi_ ( xpert%v,          sub_v   , ng_s, ng_d, ierr )
+      call pert2gsi_ ( xpert%pt,         sub_tv  , ng_d, ng_d, ierr )
+      call pert2gsi_ ( xpert%delp,       sub_delp,izero,izero, ierr )
+      call pert2gsi_ ( xpert%q(:,:,:,1), sub_q   , ng_d, ng_d, ierr )
       if (nc>ione)   call pert2gsi_ ( xpert%q(:,:,:,2), sub_oz  , ng_d, ng_d, ierr )
       if (nc>2_kind) call pert2gsi_ ( xpert%q(:,:,:,3), sub_cw  , ng_d, ng_d, ierr )
-        if ( ierr/=izero ) then
-            stat = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': unfinished convertion ...'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': unfinished convertion ...'
+         return
+      end if
 
 !     Calculate perturbation ps for GSI
 !     ---------------------------------
       if (which == 'adm') then
-          if ( scaleit ) then
-               call ps2delp_ad_ ( Pa_per_kPa ) 
-          else
-               call delp2ps_    ( one ) 
-          endif
+         if ( scaleit ) then
+            call ps2delp_ad_ ( Pa_per_kPa ) 
+         else
+            call delp2ps_    ( one ) 
+         endif
       else if (which == 'tlm') then
-          call delp2ps_    ( kPa_per_Pa ) 
+         call delp2ps_    ( kPa_per_Pa ) 
       else
-          call die ( myname_,': invalid option' )
+         call die ( myname_,': invalid option' )
       endif
 
 !     Calculate all other perturbation for GSI
@@ -446,28 +446,28 @@
          enddo
       enddo
       if ( nc>ione ) then
-           ijk=izero
-           do k=1,nsig
-              do j=1,lon2
-                 do i=1,lat2
-                    ijk=ijk+ione
-                    xx%oz(ijk) = sub_oz (i,j,k)
-                 enddo
-              enddo
-           enddo
-           if(scaleit) xx%oz(:)  = xx%oz(:) * PPMV2DU
+         ijk=izero
+         do k=1,nsig
+            do j=1,lon2
+               do i=1,lat2
+                  ijk=ijk+ione
+                  xx%oz(ijk) = sub_oz (i,j,k)
+               enddo
+            enddo
+         enddo
+         if(scaleit) xx%oz(:)  = xx%oz(:) * PPMV2DU
       endif
       if ( nc>2_i_kind ) then
-           ijk=izero
-           do k=1,nsig
-              do j=1,lon2
-                 do i=1,lat2
-                    ijk=ijk+ione
-                    xx%cw(ijk) = sub_cw (i,j,k)
-                 enddo
-              enddo
-           enddo
-           xx%cw(:)  = xx%cw(:)
+         ijk=izero
+         do k=1,nsig
+            do j=1,lon2
+               do i=1,lat2
+                  ijk=ijk+ione
+                  xx%cw(ijk) = sub_cw (i,j,k)
+               enddo
+            enddo
+         enddo
+         xx%cw(:)  = xx%cw(:)
       endif
 
 !     The following will be left untouched
@@ -475,27 +475,27 @@
 !     xx%sst(:) = xx%sst(:)
 
       deallocate (sub_tv, sub_u, sub_v, sub_q, sub_delp, sub_ps, stat=ierr )
-        if ( ierr/=izero ) then
-            stat = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_)'
+         return
+      end if
       if ( nc>ione ) then
-          deallocate (sub_oz, stat=ierr )
-            if ( ierr/=izero ) then
-                stat = 99_i_kind
-                if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_oz)'
-                return
-            end if
-       endif
+         deallocate (sub_oz, stat=ierr )
+         if ( ierr/=izero ) then
+            stat = 99_i_kind
+            if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_oz)'
+            return
+         end if
+      endif
       if ( nc>2_i_kind ) then
-          deallocate (sub_cw, stat=ierr )
-            if ( ierr/=izero ) then
-                stat = 99_i_kind
-                if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_cw)'
-                return
-            end if
-       endif
+         deallocate (sub_cw, stat=ierr )
+         if ( ierr/=izero ) then
+            stat = 99_i_kind
+            if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_cw)'
+            return
+         end if
+      endif
 
       CONTAINS
 
@@ -523,17 +523,19 @@
 
 ! inverse
       implicit none
-      real(r_kind), intent(in) :: alpha
-        xx%p = zero
-        do k=1,nsig
-           ij=izero
-           do j=1,lon2
-              do i=1,lat2
-                 ij=ij+ione
-                 xx%p(ij) = xx%p(ij) + alpha * sub_delp(i,j,k)
-              end do
-           end do
-        end do
+
+      real(r_kind), intent(in   ) :: alpha
+
+      xx%p = zero
+      do k=1,nsig
+         ij=izero
+         do j=1,lon2
+            do i=1,lat2
+               ij=ij+ione
+               xx%p(ij) = xx%p(ij) + alpha * sub_delp(i,j,k)
+            end do
+         end do
+      end do
       end subroutine delp2ps_
 
       subroutine ps2delp_ad_ ( alpha )
@@ -560,19 +562,22 @@
 
 ! adm-only
       implicit none
-      real(r_kind), intent(in) :: alpha
+
+      real(r_kind), intent(in   ) :: alpha
+
       real(r_kind) bkweight
-        xx%p=zero
-        do k=1,nsig
-           bkweight = alpha * ( bk5(k) - bk5(k+ione) ) / ( bk5(1) - bk5(nsig+ione) )
-           ij=izero
-           do j=1,lon2
-              do i=1,lat2
-                 ij=ij+ione
-                 xx%p(ij) = xx%p(ij) + bkweight * sub_delp(i,j,k)
-              enddo
-           enddo
-        enddo
+
+      xx%p=zero
+      do k=1,nsig
+         bkweight = alpha * ( bk5(k) - bk5(k+ione) ) / ( bk5(1) - bk5(nsig+ione) )
+         ij=izero
+         do j=1,lon2
+            do i=1,lat2
+               ij=ij+ione
+               xx%p(ij) = xx%p(ij) + bkweight * sub_delp(i,j,k)
+            enddo
+         enddo
+      enddo
       end subroutine ps2delp_ad_
 
       subroutine pert2gsi_ ( fld, sub, ngd, ngs, stat_ )
@@ -601,10 +606,10 @@
 !$$$ end documentation block
       implicit none
 
-      integer(i_kind), intent(in)  :: ngd, ngs
-      real(r_kind),    intent(in)  :: fld(:,:,:)
-      real(r_kind),    intent(out) :: sub(:,:,:)
-      integer(i_kind), intent(out) :: stat_
+      integer(i_kind), intent(in   ) :: ngd, ngs
+      real(r_kind)   , intent(in   ) :: fld(:,:,:)
+      real(r_kind)   , intent(  out) :: sub(:,:,:)
+      integer(i_kind), intent(  out) :: stat_
 
       character(len=*), parameter :: myname_ = myname//'*pert2gsi_'
 
@@ -618,17 +623,17 @@
       stat_ = izero
 
       allocate ( work3d(nlon,nlat,nsig), stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(work3d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(work3d)'
+         return
+      end if
       allocate ( work4d(imr,jnp,nl,1), stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
+         return
+      end if
                                                                                                                            
 !     Gather GCM perturbations to root processor
 !     ------------------------------------------
@@ -637,48 +642,48 @@
 !     Flip horizontal and vertical
 !     ----------------------------
       if ( mype==ROOT ) then
-              if (imr/=nlon .or. jnp/=nlat ) then
-                  if (which=='adm') then
-                      work3d = zero
-                      call interpack_terpv_ad ( nlon,nlat,nsig,work3d,work3d, imr,jnp,nl,work4d(:,:,:,1), ierr )
-                  else if (which=='tlm') then
-                      work3d = zero
-                      call interpack_terpv    ( imr,jnp,nl,work4d(:,:,:,1),  nlon,nlat,nsig,work3d, ierr )
-                  else
-                      call die ( myname_,': invalid option' )
-                  endif
-              else
-                  work3d(:,:,:) = work4d(:,:,:,1)
-              endif
-           call SwapV_ ( work3d )
+         if (imr/=nlon .or. jnp/=nlat ) then
+            if (which=='adm') then
+               work3d = zero
+               call interpack_terpv_ad ( nlon,nlat,nsig,work3d,work3d, imr,jnp,nl,work4d(:,:,:,1), ierr )
+            else if (which=='tlm') then
+               work3d = zero
+               call interpack_terpv    ( imr,jnp,nl,work4d(:,:,:,1),  nlon,nlat,nsig,work3d, ierr )
+            else
+               call die ( myname_,': invalid option' )
+            endif
+         else
+            work3d(:,:,:) = work4d(:,:,:,1)
+         endif
+         call SwapV_ ( work3d )
       endif
 
 !     Swap work memory
 !     ----------------
       deallocate ( work4d, stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4d)'
+         return
+      end if
       allocate ( work(itotsub), stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(work)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(work)'
+         return
+      end if
       allocate ( work2d(lat2,lon2), stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
+         return
+      end if
 
 !     Scatter to GSI subdomains
 !     -------------------------
       do k=1,nsig
          if (mype==ROOT) then
-             call reorder21(work3d(:,:,k),work)
+            call reorder21(work3d(:,:,k),work)
          endif
          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
               work2d,ijn_s(mm1),mpi_rtype,root,mpi_comm_world,ierr)
@@ -692,23 +697,23 @@
 !     Release work memory
 !     -------------------
       deallocate ( work2d, stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4d)'
+         return
+      end if
       deallocate ( work, stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': delloc(work)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': delloc(work)'
+         return
+      end if
       deallocate ( work3d, stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': delloc(work3d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': delloc(work3d)'
+         return
+      end if
 
       end subroutine pert2gsi_
 
@@ -732,17 +737,17 @@
 
 ! !INPUT PARAMETERS:
                                                                                                                            
-      integer(i_kind),    intent(in)    :: nymd   ! date as in YYYYMMDD
-      integer(i_kind),    intent(in)    :: nhms   ! time as in HHMMSS
-      type(state_vector), intent(inout) :: xx     ! GSI increment
-      character(len=*),   intent(in)    :: which  ! adm or tlm
+      integer(i_kind)          , intent(in   ) :: nymd   ! date as in YYYYMMDD
+      integer(i_kind)          , intent(in   ) :: nhms   ! time as in HHMMSS
+      type(state_vector)       , intent(inout) :: xx     ! GSI increment
+      character(len=*)         , intent(in   ) :: which  ! adm or tlm
 
-      character(len=*),optional, intent(in) :: filename ! output filename
+      character(len=*),optional, intent(in   ) :: filename ! output filename
 
 ! !OUTPUT PARAMETERS:
 
-      type(dyn_prog),optional,intent(out) :: xp
-      integer(i_kind),        intent(out) :: stat
+      type(dyn_prog)  ,optional, intent(  out) :: xp
+      integer(i_kind)          , intent(  out) :: stat
 
 ! !DESCRIPTION: Convert GSI increment vector to GEOS-5 perturbation vector
 !               (as gsi2pgcm1_, but output GCM perturbation to file)
@@ -768,7 +773,7 @@
 !    Initializes this package
 !    ------------------------
      call init_ ( ierr )
-        if(ierr/=izero) return
+     if(ierr/=izero) return
      call check_bks()
 
 !    Create GCM perturbation vector
@@ -791,27 +796,27 @@
            do i=1,idim
               ps(i,j) = ps(i,j) + xpert%delp(i,j,k)
            end do
-       end do
+        end do
      end do
 
 !    Write out perturbation
 !    ----------------------
      mycount = mycount + ione
      if (present(filename)) then
-       write(fname,'(3a)')      trim(job), '.', trim(filename)
+        write(fname,'(3a)')      trim(job), '.', trim(filename)
      else
-       write(fname,'(4a,i3.3)') trim(job), '.', trim(fnxgsi), '_', mycount
+        write(fname,'(4a,i3.3)') trim(job), '.', trim(fnxgsi), '_', mycount
      endif
      call putpert ( job, nymd, nhms, xpert, fvpsasdt, nstep, &
                     ak, bk, Ts, oro, ps, fname, vectype=vectype_ )
-       if(ierr/=izero)then
-           stat = 90_i_kind
-           if(mype==ROOT) print*, trim(myname_), ': Error retrieving perturbation'
-           return
-       endif
+     if(ierr/=izero)then
+        stat = 90_i_kind
+        if(mype==ROOT) print*, trim(myname_), ': Error retrieving perturbation'
+        return
+     endif
 
      if (present(xp)) then
-         call prognostics_dup ( xpert, xp )
+        call prognostics_dup ( xpert, xp )
      endif
 
 !    Release GCM perturbation vector
@@ -839,12 +844,12 @@
 ! !INPUT PARAMETERS:
 
       type(state_vector), intent(inout) :: xx    ! GSI increment vector
-      character(len=*),   intent(in)    :: which ! adm or tlm
+      character(len=*)  , intent(in   ) :: which ! adm or tlm
 
 ! !OUTPUT PARAMETERS:
 
-      type(dyn_prog),     intent(out)   :: xpert ! GCM perturbation vector
-      integer(i_kind),    intent(out)   :: stat  ! return error code
+      type(dyn_prog)    , intent(  out) :: xpert ! GCM perturbation vector
+      integer(i_kind)   , intent(  out) :: stat  ! return error code
 
 ! !DESCRIPTION: Converts GSI increments in to ADM/TLM perturbations.
 !
@@ -871,31 +876,31 @@
 !     Initializes this package
 !     ------------------------
       call init_ ( ierr )
-        if(ierr/=izero) return
+      if(ierr/=izero) return
 
       allocate (sub_tv  (lat2,lon2,nsig), sub_u (lat2,lon2,nsig),&
                 sub_v   (lat2,lon2,nsig), sub_q (lat2,lon2,nsig),&
                 sub_delp(lat2,lon2,nsig), sub_ps(lat2,lon2), stat=ierr )
-        if ( ierr/=izero ) then
-            stat = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_)'
+         return
+      end if
       if ( nc>ione ) then
-          allocate (sub_oz  (lat2,lon2,nsig), stat=ierr )
-            if ( ierr/=izero ) then
-                stat = 91_i_kind
-                if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_oz)'
-                return
-            end if
+         allocate (sub_oz  (lat2,lon2,nsig), stat=ierr )
+         if ( ierr/=izero ) then
+            stat = 91_i_kind
+            if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_oz)'
+            return
+         end if
       endif
       if ( nc>2_i_kind ) then
-          allocate (sub_cw  (lat2,lon2,nsig), stat=ierr )
-            if ( ierr/=izero ) then
-                stat = 91_i_kind
-                if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_cw)'
-                return
-            end if
+         allocate (sub_cw  (lat2,lon2,nsig), stat=ierr )
+         if ( ierr/=izero ) then
+            stat = 91_i_kind
+            if(mype==ROOT) print*, trim(myname_), ': Alloc(sub_cw)'
+            return
+         end if
       endif
 
 !     Fill in subdomain arrays
@@ -913,27 +918,27 @@
          enddo
       enddo
       if ( nc>ione ) then
-           ijk=izero
-           do k=1,nsig
-              do j=1,lon2
-                 do i=1,lat2
-                    ijk=ijk+ione
-                    sub_oz(i,j,k) = xx%oz(ijk)
-                 enddo
-              enddo
-           enddo
-           sub_oz = sub_oz / PPMV2DU
+         ijk=izero
+         do k=1,nsig
+            do j=1,lon2
+               do i=1,lat2
+                  ijk=ijk+ione
+                  sub_oz(i,j,k) = xx%oz(ijk)
+               enddo
+            enddo
+         enddo
+         sub_oz = sub_oz / PPMV2DU
       endif
       if ( nc>2_i_kind ) then
-           ijk=izero
-           do k=1,nsig
-              do j=1,lon2
-                 do i=1,lat2
-                    ijk=ijk+ione
-                    sub_cw(i,j,k) = xx%cw(ijk)
-                 enddo
-              enddo
-           enddo
+         ijk=izero
+         do k=1,nsig
+            do j=1,lon2
+               do i=1,lat2
+                  ijk=ijk+ione
+                  sub_cw(i,j,k) = xx%cw(ijk)
+               enddo
+            enddo
+         enddo
       endif
       ij=izero
       do j=1,lon2
@@ -945,50 +950,50 @@
 !     Calculate perturbation delp
 !     ---------------------------
       if (which == 'adm') then
-          call delp2ps_ad_ ( kPa_per_Pa ) 
+         call delp2ps_ad_ ( kPa_per_Pa ) 
       else if (which == 'tlm') then
-          call ps2delp_    ( Pa_per_kPa ) 
+         call ps2delp_    ( Pa_per_kPa ) 
       else
-          call die ( myname_, ': invalid option' )
+         call die ( myname_, ': invalid option' )
       endif
 
 !     Gather from GSI subdomains/Scatter to GCM
 !     -----------------------------------------
-                      call gsi2pert_ ( sub_u,    xpert%u,          ng_d, ng_s, ierr )
-                      call gsi2pert_ ( sub_v,    xpert%v,          ng_s, ng_d, ierr )
-                      call gsi2pert_ ( sub_tv,   xpert%pt,         ng_d, ng_d, ierr )
-                      call gsi2pert_ ( sub_delp, xpert%delp,      izero,izero, ierr )
-                      call gsi2pert_ ( sub_q ,   xpert%q(:,:,:,1), ng_d, ng_d, ierr )
+      call gsi2pert_ ( sub_u,    xpert%u,          ng_d, ng_s, ierr )
+      call gsi2pert_ ( sub_v,    xpert%v,          ng_s, ng_d, ierr )
+      call gsi2pert_ ( sub_tv,   xpert%pt,         ng_d, ng_d, ierr )
+      call gsi2pert_ ( sub_delp, xpert%delp,      izero,izero, ierr )
+      call gsi2pert_ ( sub_q ,   xpert%q(:,:,:,1), ng_d, ng_d, ierr )
       if(nc>ione)     call gsi2pert_ ( sub_oz,   xpert%q(:,:,:,2), ng_d, ng_d, ierr )
       if(nc>2_i_kind) call gsi2pert_ ( sub_cw,   xpert%q(:,:,:,3), ng_d, ng_d, ierr )
-        if ( ierr/=izero ) then
-            stat = 98_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': unfinished convertion ...'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat = 98_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': unfinished convertion ...'
+         return
+      end if
 
       deallocate (sub_tv, sub_u, sub_v, sub_q, sub_delp, sub_ps, stat=ierr )
-        if ( ierr/=izero ) then
-            stat = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_)'
+         return
+      end if
       if ( nc>ione ) then
-          deallocate (sub_oz, stat=ierr )
-            if ( ierr/=izero ) then
-                stat = 99_i_kind
-                if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_oz)'
-                return
-            end if
-       endif
+         deallocate (sub_oz, stat=ierr )
+         if ( ierr/=izero ) then
+            stat = 99_i_kind
+            if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_oz)'
+            return
+         end if
+      endif
       if ( nc>2_i_kind ) then
-          deallocate (sub_cw, stat=ierr )
-            if ( ierr/=izero ) then
-                stat = 99_i_kind
-                if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_cw)'
-                return
-            end if
-       endif
+         deallocate (sub_cw, stat=ierr )
+         if ( ierr/=izero ) then
+            stat = 99_i_kind
+            if(mype==ROOT) print*, trim(myname_), ': Dealloc(sub_cw)'
+            return
+         end if
+      endif
 
 
       CONTAINS
@@ -1017,18 +1022,21 @@
  
 ! tlm-only
       implicit none
-      real(r_kind), intent(in) :: alpha
+
+      real(r_kind), intent(in   ) :: alpha
+
       real(r_kind) bkweight
-        do k=1,nsig
-           bkweight = alpha * ( bk5(k) - bk5(k+ione) ) / ( bk5(1) - bk5(nsig) )
-           ij=izero
-           do j=1,lon2
-              do i=1,lat2
-                 ij=ij+ione
-                 sub_delp(i,j,k) = bkweight * xx%p(ij)
-              enddo
-           enddo
-        enddo
+
+      do k=1,nsig
+         bkweight = alpha * ( bk5(k) - bk5(k+ione) ) / ( bk5(1) - bk5(nsig) )
+         ij=izero
+         do j=1,lon2
+            do i=1,lat2
+               ij=ij+ione
+               sub_delp(i,j,k) = bkweight * xx%p(ij)
+            enddo
+         enddo
+      enddo
       end subroutine ps2delp_
 
       subroutine delp2ps_ad_ ( alpha )
@@ -1055,16 +1063,18 @@
 
 ! inverse-adm
       implicit none
-      real(r_kind), intent(in) :: alpha
-        do k=1,nsig
-           ij=izero
-           do j=1,lon2
-              do i=1,lat2
-                 ij=ij+ione
-                 sub_delp(i,j,k) = alpha * xx%p(ij)
-              enddo
-           enddo
-        enddo
+
+      real(r_kind), intent(in   ) :: alpha
+
+      do k=1,nsig
+         ij=izero
+         do j=1,lon2
+            do i=1,lat2
+               ij=ij+ione
+               sub_delp(i,j,k) = alpha * xx%p(ij)
+            enddo
+         enddo
+      enddo
       end subroutine delp2ps_ad_
 
       subroutine gsi2pert_ ( sub, fld, ngd, ngs, stat_ )
@@ -1093,10 +1103,10 @@
 !$$$ end documentation block
       implicit none
 
-      integer(i_kind),      intent(in)  :: ngd, ngs
-      real(r_kind),         intent(in)  :: sub(:,:,:)
-      real(r_kind),         intent(out) :: fld(:,:,:)
-      integer(i_kind),      intent(out) :: stat_
+      integer(i_kind), intent(in   ) :: ngd, ngs
+      real(r_kind)   , intent(in   ) :: sub(:,:,:)
+      real(r_kind)   , intent(  out) :: fld(:,:,:)
+      integer(i_kind), intent(  out) :: stat_
 
       character(len=*), parameter :: myname_ = myname//'*gsi2pert_'
 
@@ -1111,23 +1121,23 @@
       stat_ = izero
 
       allocate ( work3d(nlon,nlat,nsig), stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(work3d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(work3d)'
+         return
+      end if
       allocate ( work(max(iglobal,itotsub)), stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(work)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(work)'
+         return
+      end if
       allocate ( fldsm(lat1*lon1,nsig), stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(fldsm)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(fldsm)'
+         return
+      end if
 
 !     Strip off boundary points from subdomains
 !     -----------------------------------------
@@ -1145,42 +1155,42 @@
       end do
 
       deallocate ( fldsm, stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': delloc(fldsm)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': delloc(fldsm)'
+         return
+      end if
       deallocate ( work, stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': delloc(work)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': delloc(work)'
+         return
+      end if
 
       allocate ( work4d(imr,jnp,nl,1), stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
+         return
+      end if
 
 !     Flip horizontal and vertical
 !     ----------------------------
       if ( mype==ROOT ) then
-              if (imr/=nlon .or. jnp/=nlat ) then
-                  if (which=='adm') then
-                      work4d = zero
-                      call interpack_terpv_ad ( imr,jnp,nl,work4d(:,:,:,1),work4d(:,:,:,1), nlon,nlat,nsig,work3d, ierr )
-                  else if (which=='tlm') then
-                      work4d = zero
-                      call interpack_terpv    ( nlon,nlat,nsig,work3d, imr,jnp,nl,work4d(:,:,:,1), ierr )
-                  else
-                      call die ( myname_,': invalid option' )
-                  endif
-              else
-                  work4d(:,:,:,1) = work3d(:,:,:)
-              endif
-           call SwapV_ ( work4d(:,:,:,1) )
+         if (imr/=nlon .or. jnp/=nlat ) then
+            if (which=='adm') then
+               work4d = zero
+               call interpack_terpv_ad ( imr,jnp,nl,work4d(:,:,:,1),work4d(:,:,:,1), nlon,nlat,nsig,work3d, ierr )
+            else if (which=='tlm') then
+               work4d = zero
+               call interpack_terpv    ( nlon,nlat,nsig,work3d, imr,jnp,nl,work4d(:,:,:,1), ierr )
+            else
+               call die ( myname_,': invalid option' )
+            endif
+         else
+            work4d(:,:,:,1) = work3d(:,:,:)
+         endif
+         call SwapV_ ( work4d(:,:,:,1) )
       endif
 
 !     Scatter perturbations to GCM decomposition
@@ -1190,18 +1200,18 @@
 !     Swap work memory
 !     ----------------
       deallocate ( work4d, stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4d)'
+         return
+      end if
 
       deallocate ( work3d, stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': delloc(work3d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': delloc(work3d)'
+         return
+      end if
 
       end subroutine gsi2pert_
 
@@ -1224,14 +1234,14 @@
 
 ! !INPUT PARAMETERS:
 
-      integer(i_kind), intent(in) :: myimr,myjnp,mynl
-      type(dyn_prog),  intent(in) :: ypert  ! incoming GCM perturbation vector
+      integer(i_kind), intent(in   ) :: myimr,myjnp,mynl
+      type(dyn_prog) , intent(in   ) :: ypert  ! incoming GCM perturbation vector
 
 ! !OUTPUT PARAMETERS:
 
-      type(dyn_prog), intent(out) :: xpert  ! interpolated GCM perturbation vector
+      type(dyn_prog) , intent(  out) :: xpert  ! interpolated GCM perturbation vector
 
-      integer(i_kind),intent(out) :: stat
+      integer(i_kind), intent(  out) :: stat
 
 ! !DESCRIPTION: Interpolate and convert GEOS-5 perturbation vector 
 !               into internal GEOS-5 perturbation vector.
@@ -1252,7 +1262,7 @@
       call pert2pert_ ( ng_d, ng_d, myimr,myjnp,mynl,ypert%pt,          xpert%pt,         ierr )
       call pert2pert_ (izero,izero, myimr,myjnp,mynl,ypert%delp,        xpert%delp,       ierr )
       do n = 1, nc
-      call pert2pert_ ( ng_d, ng_d, myimr,myjnp,mynl,ypert%q(:,:,:,n),  xpert%q(:,:,:,n), ierr )
+         call pert2pert_ ( ng_d, ng_d, myimr,myjnp,mynl,ypert%q(:,:,:,n),  xpert%q(:,:,:,n), ierr )
       enddo
 
       stat = ierr
@@ -1286,11 +1296,11 @@
 !$$$ end documentation block
       implicit none
 
-      integer(i_kind),  intent(in)  :: ngd,ngs
-      integer(i_kind),  intent(in)  :: myimr,myjnp,mynl
-      real(r_kind),     intent(in)  :: fldi(:,:,:)
-      real(r_kind),     intent(out) :: fldo(:,:,:)
-      integer(i_kind),  intent(out) :: stat_
+      integer(i_kind), intent(in   ) :: ngd,ngs
+      integer(i_kind), intent(in   ) :: myimr,myjnp,mynl
+      real(r_kind)   , intent(in   ) :: fldi(:,:,:)
+      real(r_kind)   , intent(  out) :: fldo(:,:,:)
+      integer(i_kind), intent(  out) :: stat_
 
       character(len=*), parameter :: myname_ = myname//'*pert2pert_'
 
@@ -1300,17 +1310,17 @@
       stat_ = izero
 
       allocate ( work4do(nlon,nlat,nl,1), stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(work3d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(work3d)'
+         return
+      end if
       allocate ( work4di(myimr,myjnp,mynl,1), stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 91_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Alloc(work4d)'
+         return
+      end if
                                                                                                                            
 !     Gather GCM perturbations to root processor
 !     ------------------------------------------
@@ -1319,8 +1329,8 @@
 !     Interpolate perturbation to internal resolution
 !     -----------------------------------------------
       if ( mype==ROOT ) then
-           work4do = zero
-           call interpack_terpv ( myimr,myjnp,mynl,work4di(:,:,:,1),  nlon,nlat,nl,work4do(:,:,:,1), ierr )
+         work4do = zero
+         call interpack_terpv ( myimr,myjnp,mynl,work4di(:,:,:,1),  nlon,nlat,nl,work4do(:,:,:,1), ierr )
       endif
 
 !     Scatter interpolated perturbations to internal vector
@@ -1330,17 +1340,17 @@
 !     Release work memory
 !     -------------------
       deallocate ( work4di, stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4di)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': Dealloc(work4di)'
+         return
+      end if
       deallocate ( work4do, stat=ierr )
-        if ( ierr/=izero ) then
-            stat_ = 99_i_kind
-            if(mype==ROOT) print*, trim(myname_), ': delloc(work4do)'
-            return
-        end if
+      if ( ierr/=izero ) then
+         stat_ = 99_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': delloc(work4do)'
+         return
+      end if
 
       end subroutine pert2pert_
 
@@ -1363,13 +1373,13 @@
 
 ! !INPUT PARAMETERS:
 
-!     integer(i_kind),   intent(in) :: nymd
-!     integer(i_kind),   intent(in) :: nhms
-      logical, optional, intent(in) :: skiptraj     ! when .t., trajectory not read in
+!     integer(i_kind)  , intent(in   ) :: nymd
+!     integer(i_kind)  , intent(in   ) :: nhms
+      logical, optional, intent(in   ) :: skiptraj     ! when .t., trajectory not read in
       
 ! !OUTPUT PARAMETERS:
   
-      integer(i_kind), intent(out) :: stat
+      integer(i_kind)  , intent(  out) :: stat
 
 ! !DESCRIPTION: Initializes GEOS-5 TLM and ADM
 !
@@ -1399,14 +1409,14 @@
 !     Consistency checking between ADM/TLM and GSI dims
 !     -------------------------------------------------
       if ( nc>3_i_kind ) then
-           stat = 90_i_kind
-           if(mype==ROOT) print*, trim(myname_), ': unacceptable number of tracers'
-           return
+         stat = 90_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': unacceptable number of tracers'
+         return
       endif
       if ( nsig/=nl ) then
-           stat = 91_i_kind
-           if(mype==ROOT) print*, trim(myname_), ': inconsistent number of levels, nsig,nl: ', nsig,nl
-           return
+         stat = 91_i_kind
+         if(mype==ROOT) print*, trim(myname_), ': inconsistent number of levels, nsig,nl: ', nsig,nl
+         return
       endif
 
       call setfunc ( n, m, prog )
@@ -1421,17 +1431,17 @@
 
       if ( .not. skiptraj_ ) then
 
-!         Initialize dynamics trajectory handle
-!         -------------------------------------
-          call getstate_init ( nymd, nhms, memtrj=memtraj, verbose=verbose )
-          call getstate      ( nymd, nhms )
+!        Initialize dynamics trajectory handle
+!        -------------------------------------
+         call getstate_init ( nymd, nhms, memtrj=memtraj, verbose=verbose )
+         call getstate      ( nymd, nhms )
 
-!         Initialize physics trajectory handle
-!         -------------------------------------
-          call physdrv1_get_init ( nymd, nhms, memphys=memtraj, verbose=verbose )
-          call physdrv1_get_all  ( nymd, nhms )
+!        Initialize physics trajectory handle
+!        -------------------------------------
+         call physdrv1_get_init ( nymd, nhms, memphys=memtraj, verbose=verbose )
+         call physdrv1_get_all  ( nymd, nhms )
 
-          traj_initzd_ = .true.
+         traj_initzd_ = .true.
 
       endif
 #else /* GEOS_PERT */
@@ -1489,14 +1499,14 @@
 
       if ( traj_initzd_ ) then
 
-!         Initialize dynamics trajectory handle
-!         -------------------------------------
-          call getstate_clean ( )
+!        Initialize dynamics trajectory handle
+!        -------------------------------------
+         call getstate_clean ( )
 
-!         Initialize physics trajectory handle
-!         -------------------------------------
-          call physdrv1_get_clean ( )
-          traj_initzd_ = .false.
+!        Initialize physics trajectory handle
+!        -------------------------------------
+         call physdrv1_get_clean ( )
+         traj_initzd_ = .false.
 
       endif
 
@@ -1604,7 +1614,9 @@
 !$$$ end documentation block
 
    implicit none
-   real(r_kind),intent(inout) ::  fld(:,:,:)
+
+   real(r_kind), intent(inout) ::  fld(:,:,:)
+
    real(r_kind),allocatable   :: work(:,:,:)
    integer(i_kind) im, jm, km
    im   = size(fld,1)
@@ -1643,8 +1655,10 @@
 !$$$ end documentation block
 
    implicit none
-   real(r_kind),dimension(:,:,:),intent(in)    :: aij
-   real(r_kind),dimension(:,:,:),intent(inout) :: aji
+
+   real(r_kind),dimension(:,:,:), intent(in   ) :: aij
+   real(r_kind),dimension(:,:,:), intent(inout) :: aji
+
    integer(i_kind) :: i,k,isz,jsz,ksz,kk
 !
    isz=size(aij,1)

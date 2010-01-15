@@ -15,6 +15,11 @@ module specmod
 !                         transforms
 !   2007-04-26  yang    - based on idrt value xxxx descriptionxxx
 !
+! subroutines included:
+!   sub init_spec
+!   sub init_spec_vars
+!   sub destroy_spec_vars
+!
 ! remarks: variable definitions below
 !   def jcap         - spectral (assumed triangular) truncation
 !   def jcap_b       - spectral (assumed triangular) truncation of background (guess)
@@ -46,6 +51,20 @@ module specmod
 !$$$   end documentation block
   use kinds, only: r_kind,r_double,i_kind
   implicit none
+
+! set default to private
+  private
+! set subroutines to public
+  public :: init_spec
+  public :: init_spec_vars
+  public :: destroy_spec_vars
+! set passed variables to public
+  public :: enn1,nc,ncd2,jcap_b,nc_b,factsml_b,factvml_b,jcap,jb,je,slat,wlat
+  public :: jb_b,je_b,slat_b,wlat_b,afft,eon,eontop,clat,pln,plntop,elonn1,factsml,factvml
+  public :: ijmax,js,jn,ioffset,epstop,eps,idrt,iromb,imax,jmax
+  public :: enn1_b,elonn1_b,eps_b,epstop_b,pln_b,plntop_b,eon_b,eontop_b
+  public :: iromb_b,idrt_b,ncd2_b,ijmax_b,ioffset_b,js_b,clat_b,afft_b,jmax_b
+  public :: imax_b,jn_b
 
   integer(i_kind),save :: jcap,nc,ncd2
   integer(i_kind),save :: iromb,idrt,imax,jmax,ijmax,jn,js,kw,jb,je,ioffset
@@ -126,13 +145,13 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero
+    use constants, only: izero,ione
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),intent(in) :: nlat_a,nlon_a,nlat_b,nlon_b
-    logical,intent(in):: hires_b
-    logical,optional,intent(in) :: eqspace
+    integer(i_kind) ,intent(in   ) :: nlat_a,nlon_a,nlat_b,nlon_b
+    logical         ,intent(in   ) :: hires_b
+    logical,optional,intent(in   ) :: eqspace
 
 !   Declare local variables    
     integer(i_kind) ii1,l,m
@@ -140,40 +159,40 @@ contains
 
 
 !   Set constants used in transforms for analysis grid
-    nc=(jcap+1)*(jcap+2)
+    nc=(jcap+ione)*(jcap+2_i_kind)
     ncd2=nc/2
-    iromb=0
-    idrt=4
+    iromb=izero
+    idrt=4_i_kind
     if(present(eqspace)) then
-      if(eqspace) idrt=256
+       if(eqspace) idrt=256_i_kind
     endif
     imax=nlon_a
-    jmax=nlat_a-2
+    jmax=nlat_a-2_i_kind
     ijmax=imax*jmax
-    ioffset=imax*(jmax-1)
+    ioffset=imax*(jmax-ione)
     jn=imax
     js=-jn
     kw=2*ncd2
-    jb=1
-    je=(jmax+1)/2
+    jb=ione
+    je=(jmax+ione)/2
 
 
 !   Set constants used in transforms for background grid
-    nc_b=(jcap_b+1)*(jcap_b+2)
+    nc_b=(jcap_b+ione)*(jcap_b+2_i_kind)
     ncd2_b=nc_b/2
-    iromb_b=0
-    idrt_b=4
+    iromb_b=izero
+    idrt_b=4_i_kind
     if(present(eqspace)) then
-      if(eqspace) idrt_b=256
+       if(eqspace) idrt_b=256_i_kind
     endif
     imax_b=nlon_b
-    jmax_b=nlat_b-2
+    jmax_b=nlat_b-2_i_kind
     ijmax_b=imax_b*jmax_b
-    ioffset_b=imax_b*(jmax_b-1)
+    ioffset_b=imax_b*(jmax_b-ione)
     jn_b=imax_b
     js_b=-jn_b
-    jb_b=1
-    je_b=(jmax_b+1)/2
+    jb_b=ione
+    je_b=(jmax_b+ione)/2
 
 
 
@@ -184,7 +203,7 @@ contains
     ii1=izero
     do l=izero,jcap
        do m=izero,jcap-l
-          ii1=ii1+2
+          ii1=ii1+2_i_kind
           if(l == izero)factsml(ii1)=.true.
           if(l == izero)factvml(ii1)=.true.
        end do
@@ -198,7 +217,7 @@ contains
     ii1=izero
     do l=izero,jcap_b
        do m=izero,jcap_b-l
-          ii1=ii1+2
+          ii1=ii1+2_i_kind
           if(l == izero)factsml_b(ii1)=.true.
           if(l == izero)factvml_b(ii1)=.true.
        end do
@@ -207,18 +226,18 @@ contains
 
 !   Allocate and initialize arrays used in transforms
     allocate( eps(ncd2) )
-    allocate( epstop(jcap+1) )
+    allocate( epstop(jcap+ione) )
     allocate( enn1(ncd2) )
     allocate( elonn1(ncd2) )
     allocate( eon(ncd2) )
-    allocate( eontop(jcap+1) )
-    ldafft=50000+4*imax ! ldafft=256+imax would be sufficient at GMAO.
+    allocate( eontop(jcap+ione) )
+    ldafft=50000_i_kind+4*imax ! ldafft=256+imax would be sufficient at GMAO.
     allocate( afft(ldafft))
     allocate( clat(jb:je) )
     allocate( slat(jb:je) ) 
     allocate( wlat(jb:je) ) 
     allocate( pln(ncd2,jb:je) )
-    allocate( plntop(jcap+1,jb:je) )
+    allocate( plntop(jcap+ione,jb:je) )
     call sptranf0(iromb,jcap,idrt,imax,jmax,jb,je, &
        eps,epstop,enn1,elonn1,eon,eontop, &
        afft,clat,slat,wlat,pln,plntop)
@@ -227,18 +246,18 @@ contains
 !   Allocate and initialize arrays used in transforms for background
     if (hires_b) then
        allocate( eps_b(ncd2_b) )
-       allocate( epstop_b(jcap_b+1) )
+       allocate( epstop_b(jcap_b+ione) )
        allocate( enn1_b(ncd2_b) )
        allocate( elonn1_b(ncd2_b) )
        allocate( eon_b(ncd2_b) )
-       allocate( eontop_b(jcap_b+1) )
-       ldafft_b=50000+4*imax_b
+       allocate( eontop_b(jcap_b+ione) )
+       ldafft_b=50000_i_kind+4*imax_b
        allocate( afft_b(ldafft_b))
        allocate( clat_b(jb_b:je_b) )
        allocate( slat_b(jb_b:je_b) )
        allocate( wlat_b(jb_b:je_b) )
        allocate( pln_b(ncd2_b,jb_b:je_b) )
-       allocate( plntop_b(jcap_b+1,jb_b:je_b) )
+       allocate( plntop_b(jcap_b+ione,jb_b:je_b) )
        call sptranf0(iromb_b,jcap_b,idrt_b,imax_b,jmax_b,jb_b,je_b, &
             eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
             afft_b,clat_b,slat_b,wlat_b,pln_b,plntop_b)
@@ -270,7 +289,7 @@ contains
 !
 !$$$
     implicit none
-    logical,intent(in):: hires_b
+    logical,intent(in   ) :: hires_b
 
     deallocate(factsml,factvml,factsml_b,factvml_b)
     deallocate(eps,epstop,enn1,elonn1,eon,eontop,afft,&

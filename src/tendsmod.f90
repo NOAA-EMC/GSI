@@ -51,6 +51,16 @@ module tendsmod
   use kinds, only: r_kind
   implicit none
 
+! set default to private
+  private
+! set subroutiens to public
+  public :: create_tendvars
+  public :: destroy_tendvars
+! set passed variables to public
+  public :: pr_ydif9,pr_ysum9,pr_xdif9,coriolis,curvy,curvx,r_prsum9,prsth9
+  public :: what9,pr_xsum9,prdif9,r_prdif9,wint9,wint9_f,r_bdiag9,factk9
+  public :: adiag9,bdiag9,cdiag9,tlm0,stph0,ctph0
+
   logical, save :: tndvar_initilized = .false.
 
   real(r_kind),allocatable,dimension(:,:,:):: what9,prsth9,r_prsum9,prdif9,r_prdif9,&

@@ -35,7 +35,7 @@ subroutine prt_guess(sgrep)
   implicit none
 
 ! Declare passed variables
-  character(len=*), intent(in) :: sgrep
+  character(len=*), intent(in   ) :: sgrep
 
 ! Declare local variables
   integer(i_kind), parameter :: nvars=12_i_kind
@@ -110,40 +110,40 @@ subroutine prt_guess(sgrep)
                    & zall,3*nvars+2_i_kind,mpi_rtype, mpi_comm_world,ierror)
 
   if (mype==izero) then
-    zmin=zero
-    zmax=zero
-    zavg=zero
-    zz=SUM(zall(3*nvars+ione,:))
-    do ii=1,nvars-2_i_kind
-       zavg(ii)=SUM(zall(ii,:))/zz
-    enddo
-    zz=SUM(zall(3*nvars+2_i_kind,:))
-    do ii=nvars-ione,nvars
-       zavg(ii)=SUM(zall(ii,:))/zz
-    enddo
-    do ii=1,nvars
-       zmin(ii)=MINVAL(zall(  nvars+ii,:))
-       zmax(ii)=MAXVAL(zall(2*nvars+ii,:))
-    enddo
+     zmin=zero
+     zmax=zero
+     zavg=zero
+     zz=SUM(zall(3*nvars+ione,:))
+     do ii=1,nvars-2_i_kind
+        zavg(ii)=SUM(zall(ii,:))/zz
+     enddo
+     zz=SUM(zall(3*nvars+2_i_kind,:))
+     do ii=nvars-ione,nvars
+        zavg(ii)=SUM(zall(ii,:))/zz
+     enddo
+     do ii=1,nvars
+        zmin(ii)=MINVAL(zall(  nvars+ii,:))
+        zmax(ii)=MAXVAL(zall(2*nvars+ii,:))
+     enddo
 
-!   Duplicated part of vector
-    if (nsclen>izero) then
-       zmin(nvars+ione)  = minval(predx(:,:))
-       zmax(nvars+ione)  = maxval(predx(:,:))
-       zavg(nvars+ione)  = sum(predx(:,:))/nsclen
-    endif
-    if (npclen>izero) then
-       zmin(nvars+2_i_kind) = minval(predxp(:,:))
-       zmax(nvars+2_i_kind) = maxval(predxp(:,:))
-       zavg(nvars+2_i_kind) = sum(predxp(:,:))/npclen
-    endif
+!    Duplicated part of vector
+     if (nsclen>izero) then
+        zmin(nvars+ione)  = minval(predx(:,:))
+        zmax(nvars+ione)  = maxval(predx(:,:))
+        zavg(nvars+ione)  = sum(predx(:,:))/nsclen
+     endif
+     if (npclen>izero) then
+        zmin(nvars+2_i_kind) = minval(predxp(:,:))
+        zmax(nvars+2_i_kind) = maxval(predxp(:,:))
+        zavg(nvars+2_i_kind) = sum(predxp(:,:))/npclen
+     endif
 
-    write(6,'(80a)') ('=',ii=1,80)
-    write(6,'(a,2x,a,10x,a,17x,a,20x,a)') 'Status ', 'Var', 'Mean', 'Min', 'Max'
-    do ii=1,nvars+2_i_kind
-       write(6,999)sgrep,cvar(ii),zavg(ii),zmin(ii),zmax(ii)
-    enddo
-    write(6,'(80a)') ('=',ii=1,80)
+     write(6,'(80a)') ('=',ii=1,80)
+     write(6,'(a,2x,a,10x,a,17x,a,20x,a)') 'Status ', 'Var', 'Mean', 'Min', 'Max'
+     do ii=1,nvars+2_i_kind
+        write(6,999)sgrep,cvar(ii),zavg(ii),zmin(ii),zmax(ii)
+     enddo
+     write(6,'(80a)') ('=',ii=1,80)
   endif
 999 format(A,1X,A,3(1X,ES20.12))
 
@@ -182,7 +182,7 @@ subroutine prt_guessfc(sgrep)
   implicit none
 
 ! Declare passed variables
-  character(len=*), intent(in) :: sgrep
+  character(len=*), intent(in   ) :: sgrep
 
 ! Declare local variables
   integer(i_kind), parameter :: nvars=8_i_kind
@@ -289,7 +289,7 @@ subroutine prt_guessfc2(sgrep)
   implicit none
 
 ! Declare passed variables
-  character(len=*), intent(in) :: sgrep
+  character(len=*), intent(in   ) :: sgrep
 
 ! Declare local variables
   integer(i_kind), parameter :: nvars=10_i_kind

@@ -87,9 +87,9 @@ subroutine intq_(qhead,rq,sq)
   implicit none
 
 ! Declare passed variables
-  type(q_ob_type),pointer,intent(in):: qhead
-  real(r_kind),dimension(latlon1n),intent(in):: sq
-  real(r_kind),dimension(latlon1n),intent(inout):: rq
+  type(q_ob_type),pointer         ,intent(in   ) :: qhead
+  real(r_kind),dimension(latlon1n),intent(in   ) :: sq
+  real(r_kind),dimension(latlon1n),intent(inout) :: rq
 
 ! Declare local variables  
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
@@ -121,66 +121,66 @@ subroutine intq_(qhead,rq,sq)
      val=w1* sq(j1)+w2* sq(j2)+w3* sq(j3)+w4* sq(j4)+ &
          w5* sq(j5)+w6* sq(j6)+w7* sq(j7)+w8* sq(j8)
      if ( l_foto ) then
-       time_q=qptr%time*r3600
-       val=val+&
-        (w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
-         w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4)+ &
-         w5*xhat_dt%q(j5)+w6*xhat_dt%q(j6)+ &
-         w7*xhat_dt%q(j7)+w8*xhat_dt%q(j8))*time_q
+        time_q=qptr%time*r3600
+        val=val+&
+          (w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
+           w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4)+ &
+           w5*xhat_dt%q(j5)+w6*xhat_dt%q(j6)+ &
+           w7*xhat_dt%q(j7)+w8*xhat_dt%q(j8))*time_q
      endif
 
      if (lsaveobsens) then
-       qptr%diags%obssen(jiter) = val*qptr%raterr2*qptr%err2
+        qptr%diags%obssen(jiter) = val*qptr%raterr2*qptr%err2
      else
-       if (qptr%luse) qptr%diags%tldepart(jiter)=val
+        if (qptr%luse) qptr%diags%tldepart(jiter)=val
      endif
 
-    if (l_do_adjoint) then
-      if (lsaveobsens) then
-        grad = qptr%diags%obssen(jiter)
+     if (l_do_adjoint) then
+        if (lsaveobsens) then
+           grad = qptr%diags%obssen(jiter)
   
-      else
-        val=val-qptr%res
+        else
+           val=val-qptr%res
+ 
+!          gradient of nonlinear operator
+ 
+           if (nlnqc_iter .and. qptr%pg > tiny_r_kind .and.  &
+                                qptr%b  > tiny_r_kind) then
+              q_pg=qptr%pg*varqc_iter
+              cg_q=cg_term/qptr%b
+              wnotgross= one-q_pg
+              wgross =q_pg*cg_q/wnotgross              ! wgross is gama in the reference by Enderson
+              p0=wgross/(wgross+exp(-half*qptr%err2*val**2))  ! p0 is P in the reference by Enderson
+              val=val*(one-p0)                         ! term is Wqc in the referenc by Enderson
+           endif
 
-!       gradient of nonlinear operator
-
-        if (nlnqc_iter .and. qptr%pg > tiny_r_kind .and.  &
-                             qptr%b  > tiny_r_kind) then
-          q_pg=qptr%pg*varqc_iter
-          cg_q=cg_term/qptr%b
-          wnotgross= one-q_pg
-          wgross =q_pg*cg_q/wnotgross              ! wgross is gama in the reference by Enderson
-          p0=wgross/(wgross+exp(-half*qptr%err2*val**2))  ! p0 is P in the reference by Enderson
-          val=val*(one-p0)                         ! term is Wqc in the referenc by Enderson
+           grad     = val*qptr%raterr2*qptr%err2
         endif
 
-        grad     = val*qptr%raterr2*qptr%err2
-      endif
+!       Adjoint
+        rq(j1)=rq(j1)+w1*grad
+        rq(j2)=rq(j2)+w2*grad
+        rq(j3)=rq(j3)+w3*grad
+        rq(j4)=rq(j4)+w4*grad
+        rq(j5)=rq(j5)+w5*grad
+        rq(j6)=rq(j6)+w6*grad
+        rq(j7)=rq(j7)+w7*grad
+        rq(j8)=rq(j8)+w8*grad
 
-!     Adjoint
-      rq(j1)=rq(j1)+w1*grad
-      rq(j2)=rq(j2)+w2*grad
-      rq(j3)=rq(j3)+w3*grad
-      rq(j4)=rq(j4)+w4*grad
-      rq(j5)=rq(j5)+w5*grad
-      rq(j6)=rq(j6)+w6*grad
-      rq(j7)=rq(j7)+w7*grad
-      rq(j8)=rq(j8)+w8*grad
+        if ( l_foto ) then
+           grad=grad*time_q
+           dhat_dt%q(j1)=dhat_dt%q(j1)+w1*grad
+           dhat_dt%q(j2)=dhat_dt%q(j2)+w2*grad
+           dhat_dt%q(j3)=dhat_dt%q(j3)+w3*grad
+           dhat_dt%q(j4)=dhat_dt%q(j4)+w4*grad
+           dhat_dt%q(j5)=dhat_dt%q(j5)+w5*grad
+           dhat_dt%q(j6)=dhat_dt%q(j6)+w6*grad
+           dhat_dt%q(j7)=dhat_dt%q(j7)+w7*grad
+           dhat_dt%q(j8)=dhat_dt%q(j8)+w8*grad
+        endif
+     endif
 
-      if ( l_foto ) then
-        grad=grad*time_q
-        dhat_dt%q(j1)=dhat_dt%q(j1)+w1*grad
-        dhat_dt%q(j2)=dhat_dt%q(j2)+w2*grad
-        dhat_dt%q(j3)=dhat_dt%q(j3)+w3*grad
-        dhat_dt%q(j4)=dhat_dt%q(j4)+w4*grad
-        dhat_dt%q(j5)=dhat_dt%q(j5)+w5*grad
-        dhat_dt%q(j6)=dhat_dt%q(j6)+w6*grad
-        dhat_dt%q(j7)=dhat_dt%q(j7)+w7*grad
-        dhat_dt%q(j8)=dhat_dt%q(j8)+w8*grad
-      endif
-    endif
-
-    qptr => qptr%llpoint
+     qptr => qptr%llpoint
 
   end do
   return

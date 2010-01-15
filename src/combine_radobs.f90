@@ -43,14 +43,14 @@ subroutine combine_radobs(mype_sub,mype_root,&
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype_sub
-  integer(i_kind),intent(in):: mype_root
-  integer(i_kind),intent(in):: npe_sub,itxmax
-  integer(i_kind),intent(in):: nele
-  integer(i_kind),intent(in):: mpi_comm_sub
-  integer(i_kind),intent(inout):: nread,ndata
-  real(r_kind),dimension(itxmax),intent(inout):: data_crit
-  real(r_kind),dimension(nele,itxmax),intent(inout):: data_all
+  integer(i_kind)                    ,intent(in   ) :: mype_sub
+  integer(i_kind)                    ,intent(in   ) :: mype_root
+  integer(i_kind)                    ,intent(in   ) :: npe_sub,itxmax
+  integer(i_kind)                    ,intent(in   ) :: nele
+  integer(i_kind)                    ,intent(in   ) :: mpi_comm_sub
+  integer(i_kind)                    ,intent(inout) :: nread,ndata
+  real(r_kind),dimension(itxmax)     ,intent(inout) :: data_crit
+  real(r_kind),dimension(nele,itxmax),intent(inout) :: data_all
 
 ! Declare local variables
   integer(i_kind):: i,k,l,ndata1,ndata2
@@ -61,78 +61,78 @@ subroutine combine_radobs(mype_sub,mype_root,&
 
   ndata=izero
   if(npe_sub > ione)then
-!   Determine total number of data read and retained.
-    ncounts=nread
-    call mpi_allreduce(ncounts,ncounts1,ione,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
+!    Determine total number of data read and retained.
+     ncounts=nread
+     call mpi_allreduce(ncounts,ncounts1,ione,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
 
-!   Set total number of observations summed over all tasks and
-!   construct starting location of subset in reduction array
+!    Set total number of observations summed over all tasks and
+!    construct starting location of subset in reduction array
 
-    nread=izero
-    if (mype_sub==mype_root) nread = ncounts1
-    if (ncounts1 == izero)return
+     nread=izero
+     if (mype_sub==mype_root) nread = ncounts1
+     if (ncounts1 == izero)return
 
-!   Allocate arrays to hold data
-      
-!   gather arrays over all tasks in mpi_comm_sub.  Reduction result
-!   is only needed on task mype_root
-    call mpi_allreduce(data_crit,data_crit_min,itxmax,mpi_rtype,mpi_min,mpi_comm_sub,ierror)
+!    Allocate arrays to hold data
 
-    ndata=izero
-    ndata1=izero
-    data_all_in=zero
-    do k=1,itxmax
-      if(data_crit_min(k) < 5.e9_r_kind)then
-         ndata=ndata+ione
-         if(data_crit_min(k) /= data_crit(k)) then
-            data_crit(ndata)=1.e10_r_kind
-            do l=1,nele
-               data_all_in(l,ndata)=zero
-            end do
-         else
-            ndata1=ndata1+ione
-            data_crit(ndata)=data_crit(k)
-            do l=1,nele
-               data_all_in(l,ndata)=data_all(l,k)
-            end do
-         end if
-       end if
-    end do
-    call mpi_allreduce(ndata1,ndata2,ione,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
+!    gather arrays over all tasks in mpi_comm_sub.  Reduction result
+!    is only needed on task mype_root
+     call mpi_allreduce(data_crit,data_crit_min,itxmax,mpi_rtype,mpi_min,mpi_comm_sub,ierror)
 
-!  Following code only in the unlikely circumstance that 2 min crit's in one grid box are identical
-    if(ndata /= ndata2)then
-      do i=1,ndata
-        data_crit(i)=data_crit(i)+float(mype_sub)
-      end do
-      call mpi_allreduce(data_crit,data_crit_min,ndata,mpi_rtype,mpi_min,mpi_comm_sub,ierror)
-
-      do k=1,ndata
+     ndata=izero
+     ndata1=izero
+     data_all_in=zero
+     do k=1,itxmax
         if(data_crit_min(k) < 5.e9_r_kind)then
+           ndata=ndata+ione
            if(data_crit_min(k) /= data_crit(k)) then
+              data_crit(ndata)=1.e10_r_kind
               do l=1,nele
-                 data_all_in(l,k)=zero
+                 data_all_in(l,ndata)=zero
+              end do
+           else
+              ndata1=ndata1+ione
+              data_crit(ndata)=data_crit(k)
+              do l=1,nele
+                 data_all_in(l,ndata)=data_all(l,k)
               end do
            end if
-         end if
-       end do
-      
-    end if
+        end if
+     end do
+     call mpi_allreduce(ndata1,ndata2,ione,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
 
-!  get all data on process mype_root
-    call mpi_reduce(data_all_in,data_all,nele*ndata,mpi_rtype,mpi_sum,&
-         mype_root,mpi_comm_sub,ierror)
+!    Following code only in the unlikely circumstance that 2 min crit's in one grid box are identical
+     if(ndata /= ndata2)then
+        do i=1,ndata
+           data_crit(i)=data_crit(i)+float(mype_sub)
+        end do
+        call mpi_allreduce(data_crit,data_crit_min,ndata,mpi_rtype,mpi_min,mpi_comm_sub,ierror)
+
+        do k=1,ndata
+           if(data_crit_min(k) < 5.e9_r_kind)then
+              if(data_crit_min(k) /= data_crit(k)) then
+                 do l=1,nele
+                    data_all_in(l,k)=zero
+                 end do
+              end if
+           end if
+        end do
+      
+     end if
+
+!    get all data on process mype_root
+     call mpi_reduce(data_all_in,data_all,nele*ndata,mpi_rtype,mpi_sum,&
+          mype_root,mpi_comm_sub,ierror)
   else
 
-    if(nread <= izero)return
-    do k=1,itxmax
-      if(data_crit(k) < 1.e9_r_kind)then
-        ndata=ndata+ione
-        do l=1,nele
-           data_all(l,ndata)=data_all(l,k)
-        end do
-      end if
-    end do
+     if(nread <= izero)return
+     do k=1,itxmax
+        if(data_crit(k) < 1.e9_r_kind)then
+           ndata=ndata+ione
+           do l=1,nele
+              data_all(l,ndata)=data_all(l,k)
+           end do
+        end if
+     end do
   end if
 
 ! End of routine

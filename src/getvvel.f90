@@ -35,9 +35,9 @@ subroutine getvvel(t,t_thor,prsth,prdif,what)
   implicit none
 
 ! Declare passed variables:
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,t_thor,prdif
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in):: prsth
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(out):: what
+  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: t,t_thor,prdif
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prsth
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: what
 
 ! Declare local variables:
   real(r_kind),dimension(lat2,lon2,nsig):: r_prdif,tsum,t_tsum,tdiff
@@ -113,80 +113,80 @@ subroutine getvvel(t,t_thor,prsth,prdif,what)
   end do
   
   do k=1,nsig-ione
-    do j=1,lon2
-      do i=1,lat2
-        tsum(i,j,k)=t(i,j,k)+t(i,j,k+ione)
-        t_tsum(i,j,k)=t_thor(i,j,k)+t_thor(i,j,k+ione)
-        tdiff(i,j,k)=t(i,j,k)-t(i,j,k+ione)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           tsum(i,j,k)=t(i,j,k)+t(i,j,k+ione)
+           t_tsum(i,j,k)=t_thor(i,j,k)+t_thor(i,j,k+ione)
+           tdiff(i,j,k)=t(i,j,k)-t(i,j,k+ione)
+        end do
+     end do
   end do
   do k=1,nsig
-    do j=1,lon2
-      do i=1,lat2
-        r_prdif(i,j,k)=one/prdif(i,j,k)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           r_prdif(i,j,k)=one/prdif(i,j,k)
+        end do
+     end do
   end do
 
 !    forward elimination:
-  k=2
+  k=2_i_kind
   do j=1,lon2
-    do i=1,lat2
-      factk9(i,j,k) = ck5(k)*half*kapr/tsum(i,j,k-ione) * &
-                      ( half*tsum(i,j,k-ione)/tref5(k-ione) )**kapr
-      bdiag9(i,j,k)=factk9(i,j,k)*tdiff(i,j,k-ione)*(r_prdif(i,j,k-ione) + &
-           r_prdif(i,j,k)) - one
-      cdiag9(i,j,k)=factk9(i,j,k)*tdiff(i,j,k)*r_prdif(i,j,k)
-      wint9(i,j,k)=bk5(k)*prsth(i,j,1)-prsth(i,j,k)+two*factk9(i,j,k)*t_tsum(i,j,k-ione)
-
-      wint9_f(i,j,k)=wint9(i,j,k)
-      r_bdiag9(i,j,k)=one/bdiag9(i,j,k)
-    end do
-  end do
-
-  do k=3,nsig
-    do j=1,lon2
-      do i=1,lat2
+     do i=1,lat2
         factk9(i,j,k) = ck5(k)*half*kapr/tsum(i,j,k-ione) * &
-                            ( half*tsum(i,j,k-ione)/tref5(k-ione) )**kapr
-
-        adiag9(i,j,k)=factk9(i,j,k)*tdiff(i,j,k-2_i_kind)*r_prdif(i,j,k-ione)
-        bdiag9(i,j,k)=factk9(i,j,k)*tdiff(i,j,k-ione)*(r_prdif(i,j,k-ione)+ &
+                        ( half*tsum(i,j,k-ione)/tref5(k-ione) )**kapr
+        bdiag9(i,j,k)=factk9(i,j,k)*tdiff(i,j,k-ione)*(r_prdif(i,j,k-ione) + &
              r_prdif(i,j,k)) - one
         cdiag9(i,j,k)=factk9(i,j,k)*tdiff(i,j,k)*r_prdif(i,j,k)
-
-        wint9 (i,j,k)=bk5(k)*prsth(i,j,1)-prsth(i,j,k)+two*factk9(i,j,k)*t_tsum(i,j,k-ione)
-        wint9 (i,j,k)=wint9 (i,j,k)-adiag9(i,j,k)*wint9 (i,j,k-ione)*r_bdiag9(i,j,k-ione)
-        bdiag9(i,j,k)=bdiag9(i,j,k)-adiag9(i,j,k)*cdiag9(i,j,k-ione)*r_bdiag9(i,j,k-ione)
+        wint9(i,j,k)=bk5(k)*prsth(i,j,1)-prsth(i,j,k)+two*factk9(i,j,k)*t_tsum(i,j,k-ione)
 
         wint9_f(i,j,k)=wint9(i,j,k)
         r_bdiag9(i,j,k)=one/bdiag9(i,j,k)
-      end do
-    end do
+     end do
+  end do
+
+  do k=3,nsig
+     do j=1,lon2
+        do i=1,lat2
+           factk9(i,j,k) = ck5(k)*half*kapr/tsum(i,j,k-ione) * &
+                              ( half*tsum(i,j,k-ione)/tref5(k-ione) )**kapr
+
+           adiag9(i,j,k)=factk9(i,j,k)*tdiff(i,j,k-2_i_kind)*r_prdif(i,j,k-ione)
+           bdiag9(i,j,k)=factk9(i,j,k)*tdiff(i,j,k-ione)*(r_prdif(i,j,k-ione)+ &
+                r_prdif(i,j,k)) - one
+           cdiag9(i,j,k)=factk9(i,j,k)*tdiff(i,j,k)*r_prdif(i,j,k)
+ 
+           wint9 (i,j,k)=bk5(k)*prsth(i,j,1)-prsth(i,j,k)+two*factk9(i,j,k)*t_tsum(i,j,k-ione)
+           wint9 (i,j,k)=wint9 (i,j,k)-adiag9(i,j,k)*wint9 (i,j,k-ione)*r_bdiag9(i,j,k-ione)
+           bdiag9(i,j,k)=bdiag9(i,j,k)-adiag9(i,j,k)*cdiag9(i,j,k-ione)*r_bdiag9(i,j,k-ione)
+
+           wint9_f(i,j,k)=wint9(i,j,k)
+           r_bdiag9(i,j,k)=one/bdiag9(i,j,k)
+        end do
+     end do
   end do
 
 !    back substitution
   k=nsig
   do j=1,lon2
-    do i=1,lat2
-      wint9(i,j,k)=wint9(i,j,k)*r_bdiag9(i,j,k)
-    end do
+     do i=1,lat2
+        wint9(i,j,k)=wint9(i,j,k)*r_bdiag9(i,j,k)
+     end do
   end do
   do k=nsig-ione,2,-1
-    do j=1,lon2
-      do i=1,lat2
-        wint9(i,j,k)=(wint9(i,j,k)-cdiag9(i,j,k)*wint9(i,j,k+ione))*r_bdiag9(i,j,k)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           wint9(i,j,k)=(wint9(i,j,k)-cdiag9(i,j,k)*wint9(i,j,k+ione))*r_bdiag9(i,j,k)
+        end do
+     end do
   end do
 
   do k=1,nsig+ione
-    do j=1,lon2
-      do i=1,lat2
-        what(i,j,k)=wint9(i,j,k)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           what(i,j,k)=wint9(i,j,k)
+        end do
+     end do
   end do
 
   return
@@ -233,9 +233,9 @@ subroutine getvvel_tl(t,t_thor,t_thor9,prsth,prdif,what)
   implicit none
 
 ! Declare passed variables:
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t,t_thor,t_thor9,prdif
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in):: prsth
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(out):: what
+  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: t,t_thor,t_thor9,prdif
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prsth
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: what
 
 ! Declare local variables:
   real(r_kind),dimension(lat2,lon2,nsig):: tsum,t_tsum,tdiff,factk
@@ -276,103 +276,103 @@ subroutine getvvel_tl(t,t_thor,t_thor9,prsth,prdif,what)
 
 ! 
   do k=1,nsig-ione
-    do j=1,lon2
-      do i=1,lat2
-        tsum(i,j,k)=t(i,j,k)+t(i,j,k+ione)
-        t_tsum(i,j,k)=t_thor(i,j,k)+t_thor(i,j,k+ione)
-        tdiff(i,j,k)=t(i,j,k)-t(i,j,k+ione)
-        tsum9(i,j,k)=ges_tv(i,j,k,it)+ges_tv(i,j,k+ione,it)
-        tdiff9(i,j,k)=ges_tv(i,j,k,it)-ges_tv(i,j,k+ione,it)
-        t_tsum9(i,j,k)=t_thor9(i,j,k)+t_thor9(i,j,k+ione)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           tsum(i,j,k)=t(i,j,k)+t(i,j,k+ione)
+           t_tsum(i,j,k)=t_thor(i,j,k)+t_thor(i,j,k+ione)
+           tdiff(i,j,k)=t(i,j,k)-t(i,j,k+ione)
+           tsum9(i,j,k)=ges_tv(i,j,k,it)+ges_tv(i,j,k+ione,it)
+           tdiff9(i,j,k)=ges_tv(i,j,k,it)-ges_tv(i,j,k+ione,it)
+           t_tsum9(i,j,k)=t_thor9(i,j,k)+t_thor9(i,j,k+ione)
+        end do
+     end do
   end do
 
 !    forward elimination:
   k=2_i_kind
   do j=1,lon2
-    do i=1,lat2
-      c1=ck5(k)*half*kapr
-      c2=half/tref5(k-ione)
-
-      fprime=kapr*c2*tsum(i,j,k-ione)*((c2*tsum9(i,j,k-ione))**kaprm1)
-      factk(i,j,k) = c1* ( (tsum9(i,j,k-ione)*fprime) - (tsum(i,j,k-ione)* &
-                  ((c2*tsum9(i,j,k-ione))**kapr)) ) / (tsum9(i,j,k-1)**two) 
-
-      terma = ( prdif9(i,j,k-ione)*(factk(i,j,k)*tdiff9(i,j,k-ione) + tdiff(i,j,k-ione)* &
-           factk9(i,j,k)) - (factk9(i,j,k)*tdiff9(i,j,k-ione)*prdif(i,j,k-ione)) ) * &
-           (r_prdif9(i,j,k-ione)**two)
-      termb= ( prdif9(i,j,k)*(factk(i,j,k)*tdiff9(i,j,k-ione) + tdiff(i,j,k-ione)* &
-           factk9(i,j,k)) - (factk9(i,j,k)*tdiff9(i,j,k-ione)*prdif(i,j,k)) ) * &
-           (r_prdif9(i,j,k)**two)
-      bdiag(i,j,k) = terma+termb
-
-      cdiag(i,j,k) = ( prdif9(i,j,k)*(factk(i,j,k)*tdiff9(i,j,k) + &
-           tdiff(i,j,k)*factk9(i,j,k)) - factk9(i,j,k)*tdiff9(i,j,k)* &
-           prdif(i,j,k) ) * (r_prdif9(i,j,k)**two)
-
-      what(i,j,k)=bk5(k)*prsth(i,j,1)-prsth(i,j,k) + two* &
-           (factk9(i,j,k)*t_tsum(i,j,k-ione) + factk(i,j,k)*t_tsum9(i,j,k-ione))
-   end do
-  end do
-
-  do k=3,nsig
-    do j=1,lon2
-      do i=1,lat2
+     do i=1,lat2
         c1=ck5(k)*half*kapr
         c2=half/tref5(k-ione)
-
+ 
         fprime=kapr*c2*tsum(i,j,k-ione)*((c2*tsum9(i,j,k-ione))**kaprm1)
         factk(i,j,k) = c1* ( (tsum9(i,j,k-ione)*fprime) - (tsum(i,j,k-ione)* &
-                    ((c2*tsum9(i,j,k-ione))**kapr)) ) / (tsum9(i,j,k-ione)**two)
-
-        adiag(i,j,k) = ( prdif9(i,j,k-ione)*(factk(i,j,k)*tdiff9(i,j,k-2_i_kind) + &
-             tdiff(i,j,k-2_i_kind)*factk9(i,j,k)) - factk9(i,j,k)*tdiff9(i,j,k-2_i_kind)* &
-             prdif(i,j,k-ione) ) * (r_prdif9(i,j,k-ione)**two)
-
-        terma = ( prdif9(i,j,k-ione)*(factk(i,j,k)*tdiff9(i,j,k-ione) + &
-             tdiff(i,j,k-ione)*factk9(i,j,k)) - factk9(i,j,k)*tdiff9(i,j,k-ione)* &
-             prdif(i,j,k-ione) ) * (r_prdif9(i,j,k-ione)**two)
-        termb = ( prdif9(i,j,k)*(factk(i,j,k)*tdiff9(i,j,k-ione) + &
-             tdiff(i,j,k-ione)*factk9(i,j,k)) - factk9(i,j,k)*tdiff9(i,j,k-ione)* &
-             prdif(i,j,k) ) * (r_prdif9(i,j,k)**two)
+                    ((c2*tsum9(i,j,k-ione))**kapr)) ) / (tsum9(i,j,k-1)**two) 
+ 
+        terma = ( prdif9(i,j,k-ione)*(factk(i,j,k)*tdiff9(i,j,k-ione) + tdiff(i,j,k-ione)* &
+             factk9(i,j,k)) - (factk9(i,j,k)*tdiff9(i,j,k-ione)*prdif(i,j,k-ione)) ) * &
+             (r_prdif9(i,j,k-ione)**two)
+        termb= ( prdif9(i,j,k)*(factk(i,j,k)*tdiff9(i,j,k-ione) + tdiff(i,j,k-ione)* &
+             factk9(i,j,k)) - (factk9(i,j,k)*tdiff9(i,j,k-ione)*prdif(i,j,k)) ) * &
+             (r_prdif9(i,j,k)**two)
         bdiag(i,j,k) = terma+termb
-
+ 
         cdiag(i,j,k) = ( prdif9(i,j,k)*(factk(i,j,k)*tdiff9(i,j,k) + &
              tdiff(i,j,k)*factk9(i,j,k)) - factk9(i,j,k)*tdiff9(i,j,k)* &
              prdif(i,j,k) ) * (r_prdif9(i,j,k)**two)
 
         what(i,j,k)=bk5(k)*prsth(i,j,1)-prsth(i,j,k) + two* &
              (factk9(i,j,k)*t_tsum(i,j,k-ione) + factk(i,j,k)*t_tsum9(i,j,k-ione))
+     end do
+  end do
 
-        what(i,j,k) = what(i,j,k) - ( (bdiag9(i,j,k-ione)*(adiag(i,j,k)*wint9_f(i,j,k-ione) + &
-              what(i,j,k-ione)*adiag9(i,j,k)) - adiag9(i,j,k)*wint9_f(i,j,k-ione)* &
-              bdiag(i,j,k-ione)) * (r_bdiag9(i,j,k-ione)**two) )
+  do k=3,nsig
+     do j=1,lon2
+        do i=1,lat2
+           c1=ck5(k)*half*kapr
+           c2=half/tref5(k-ione)
+ 
+           fprime=kapr*c2*tsum(i,j,k-ione)*((c2*tsum9(i,j,k-ione))**kaprm1)
+           factk(i,j,k) = c1* ( (tsum9(i,j,k-ione)*fprime) - (tsum(i,j,k-ione)* &
+                       ((c2*tsum9(i,j,k-ione))**kapr)) ) / (tsum9(i,j,k-ione)**two)
 
-        bdiag(i,j,k)=bdiag(i,j,k) - ( (bdiag9(i,j,k-ione)*(adiag(i,j,k)*cdiag9(i,j,k-ione) + &
-              cdiag(i,j,k-ione)*adiag9(i,j,k)) - adiag9(i,j,k)*cdiag9(i,j,k-ione)* &
-              bdiag(i,j,k-ione)) * (r_bdiag9(i,j,k-ione)**two) )
-      end do
-    end do
+           adiag(i,j,k) = ( prdif9(i,j,k-ione)*(factk(i,j,k)*tdiff9(i,j,k-2_i_kind) + &
+                tdiff(i,j,k-2_i_kind)*factk9(i,j,k)) - factk9(i,j,k)*tdiff9(i,j,k-2_i_kind)* &
+                prdif(i,j,k-ione) ) * (r_prdif9(i,j,k-ione)**two)
+ 
+           terma = ( prdif9(i,j,k-ione)*(factk(i,j,k)*tdiff9(i,j,k-ione) + &
+                tdiff(i,j,k-ione)*factk9(i,j,k)) - factk9(i,j,k)*tdiff9(i,j,k-ione)* &
+                prdif(i,j,k-ione) ) * (r_prdif9(i,j,k-ione)**two)
+           termb = ( prdif9(i,j,k)*(factk(i,j,k)*tdiff9(i,j,k-ione) + &
+                tdiff(i,j,k-ione)*factk9(i,j,k)) - factk9(i,j,k)*tdiff9(i,j,k-ione)* &
+                prdif(i,j,k) ) * (r_prdif9(i,j,k)**two)
+           bdiag(i,j,k) = terma+termb
+ 
+           cdiag(i,j,k) = ( prdif9(i,j,k)*(factk(i,j,k)*tdiff9(i,j,k) + &
+                tdiff(i,j,k)*factk9(i,j,k)) - factk9(i,j,k)*tdiff9(i,j,k)* &
+                prdif(i,j,k) ) * (r_prdif9(i,j,k)**two)
+
+           what(i,j,k)=bk5(k)*prsth(i,j,1)-prsth(i,j,k) + two* &
+                (factk9(i,j,k)*t_tsum(i,j,k-ione) + factk(i,j,k)*t_tsum9(i,j,k-ione))
+
+           what(i,j,k) = what(i,j,k) - ( (bdiag9(i,j,k-ione)*(adiag(i,j,k)*wint9_f(i,j,k-ione) + &
+                 what(i,j,k-ione)*adiag9(i,j,k)) - adiag9(i,j,k)*wint9_f(i,j,k-ione)* &
+                 bdiag(i,j,k-ione)) * (r_bdiag9(i,j,k-ione)**two) )
+
+           bdiag(i,j,k)=bdiag(i,j,k) - ( (bdiag9(i,j,k-ione)*(adiag(i,j,k)*cdiag9(i,j,k-ione) + &
+                 cdiag(i,j,k-ione)*adiag9(i,j,k)) - adiag9(i,j,k)*cdiag9(i,j,k-ione)* &
+                 bdiag(i,j,k-ione)) * (r_bdiag9(i,j,k-ione)**two) )
+        end do
+     end do
   end do
 
 !    back substitution
   k=nsig
   do j=1,lon2
-    do i=1,lat2
-       what(i,j,k) = (bdiag9(i,j,k)*what(i,j,k) - wint9_f(i,j,k)*bdiag(i,j,k)) * &
-           (r_bdiag9(i,j,k)**two)
-    end do
+     do i=1,lat2
+        what(i,j,k) = (bdiag9(i,j,k)*what(i,j,k) - wint9_f(i,j,k)*bdiag(i,j,k)) * &
+             (r_bdiag9(i,j,k)**two)
+     end do
   end do
 
   do k=nsig-ione,2,-1
-    do j=1,lon2
-      do i=1,lat2
-         what(i,j,k) = ( bdiag9(i,j,k)*(what(i,j,k)-(cdiag9(i,j,k)*what(i,j,k+ione) + &
-             cdiag(i,j,k)*wint9(i,j,k+ione)) ) - bdiag(i,j,k)*(wint9_f(i,j,k)- &
-             cdiag9(i,j,k)*wint9(i,j,k+ione)) ) * (r_bdiag9(i,j,k)**two)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           what(i,j,k) = ( bdiag9(i,j,k)*(what(i,j,k)-(cdiag9(i,j,k)*what(i,j,k+ione) + &
+               cdiag(i,j,k)*wint9(i,j,k+ione)) ) - bdiag(i,j,k)*(wint9_f(i,j,k)- &
+               cdiag9(i,j,k)*wint9(i,j,k+ione)) ) * (r_bdiag9(i,j,k)**two)
+        end do
+     end do
   end do
 
   return 
@@ -422,10 +422,10 @@ subroutine getvvel_ad(t,t_thor,t_thor9,prsth,prdif,whatin)
   implicit none
 
 ! Declare passed variables:
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in):: whatin
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: t_thor9
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,t_thor,prdif
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout):: prsth
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: whatin
+  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: t_thor9
+  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(inout) :: t,t_thor,prdif
+  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout) :: prsth
 
 ! Declare local variables:
   real(r_kind),dimension(lat2,lon2,nsig+ione):: what
@@ -460,140 +460,140 @@ subroutine getvvel_ad(t,t_thor,t_thor9,prsth,prdif,whatin)
   end do
 
   do k=1,nsig-ione
-    do j=1,lon2
-      do i=1,lat2
-        tsum9  (i,j,k)=ges_tv (i,j,k,it)+ges_tv (i,j,k+ione,it)
-        tdiff9 (i,j,k)=ges_tv (i,j,k,it)-ges_tv (i,j,k+ione,it)
-        t_tsum9(i,j,k)=t_thor9(i,j,k   )+t_thor9(i,j,k+ione   )
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           tsum9  (i,j,k)=ges_tv (i,j,k,it)+ges_tv (i,j,k+ione,it)
+           tdiff9 (i,j,k)=ges_tv (i,j,k,it)-ges_tv (i,j,k+ione,it)
+           t_tsum9(i,j,k)=t_thor9(i,j,k   )+t_thor9(i,j,k+ione   )
+        end do
+     end do
   end do
   do k=1,nsig+ione
-    do j=1,lon2
-      do i=1,lat2
-        what(i,j,k)=whatin(i,j,k)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           what(i,j,k)=whatin(i,j,k)
+        end do
+     end do
   end do
 
 !    back substitution
   do k=2,nsig-ione
-    do j=1,lon2
-      do i=1,lat2
+     do j=1,lon2
+        do i=1,lat2
 ! Use the _f (forwared/fixed) value of wint9 for the k-level here, but use the update
 ! real value of wint9 for the k+1 level
-         tmp1=what(i,j,k)*(r_bdiag9(i,j,k)**two)
-         what(i,j,k+ione) = what(i,j,k+ione) - tmp1*bdiag9(i,j,k)*cdiag9(i,j,k)
-         cdiag(i,j,k) = cdiag(i,j,k) - tmp1*bdiag9(i,j,k)*wint9(i,j,k+ione)
-         bdiag(i,j,k) = bdiag(i,j,k) - tmp1*(wint9_f(i,j,k)-cdiag9(i,j,k)*wint9(i,j,k+ione))
+           tmp1=what(i,j,k)*(r_bdiag9(i,j,k)**two)
+           what(i,j,k+ione) = what(i,j,k+ione) - tmp1*bdiag9(i,j,k)*cdiag9(i,j,k)
+           cdiag(i,j,k) = cdiag(i,j,k) - tmp1*bdiag9(i,j,k)*wint9(i,j,k+ione)
+           bdiag(i,j,k) = bdiag(i,j,k) - tmp1*(wint9_f(i,j,k)-cdiag9(i,j,k)*wint9(i,j,k+ione))
 ! Update what(i,j,k) last
-         what(i,j,k) = bdiag9(i,j,k)*tmp1
-      end do
-    end do
+           what(i,j,k) = bdiag9(i,j,k)*tmp1
+        end do
+     end do
   end do
 
   k=nsig
   do j=1,lon2
-    do i=1,lat2
+     do i=1,lat2
 ! use the _f (forward sub / fixed value) here at the k level
-       tmp1=what(i,j,k)*(r_bdiag9(i,j,k)**two)
-       bdiag(i,j,k) = bdiag(i,j,k) - wint9_f(i,j,k)*tmp1
-       what(i,j,k) = bdiag9(i,j,k)*tmp1
-    end do
+        tmp1=what(i,j,k)*(r_bdiag9(i,j,k)**two)
+        bdiag(i,j,k) = bdiag(i,j,k) - wint9_f(i,j,k)*tmp1
+        what(i,j,k) = bdiag9(i,j,k)*tmp1
+     end do
   end do
 
   do k=nsig,3,-1
-    do j=1,lon2
-      do i=1,lat2
-        c1=ck5(k)*half*kapr
-        c2=half/tref5(k-ione)
+     do j=1,lon2
+        do i=1,lat2
+           c1=ck5(k)*half*kapr
+           c2=half/tref5(k-ione)
 
-        tmp1=bdiag(i,j,k)*(r_bdiag9(i,j,k-ione)**two)
-        adiag(i,j,k     ) = adiag(i,j,k     ) - tmp1*bdiag9(i,j,k-ione)*cdiag9(i,j,k-ione)
-        cdiag(i,j,k-ione) = cdiag(i,j,k-ione) - tmp1*bdiag9(i,j,k-ione)*adiag9(i,j,k     )
-        bdiag(i,j,k-ione) = bdiag(i,j,k-ione) + tmp1*adiag9(i,j,k     )*cdiag9(i,j,k-ione)
+           tmp1=bdiag(i,j,k)*(r_bdiag9(i,j,k-ione)**two)
+           adiag(i,j,k     ) = adiag(i,j,k     ) - tmp1*bdiag9(i,j,k-ione)*cdiag9(i,j,k-ione)
+           cdiag(i,j,k-ione) = cdiag(i,j,k-ione) - tmp1*bdiag9(i,j,k-ione)*adiag9(i,j,k     )
+           bdiag(i,j,k-ione) = bdiag(i,j,k-ione) + tmp1*adiag9(i,j,k     )*cdiag9(i,j,k-ione)
 
-        tmp2=what(i,j,k)*(r_bdiag9(i,j,k-ione)**two)
-        adiag(i,j,k     ) = adiag(i,j,k     ) - tmp2*bdiag9(i,j,k-ione)*wint9_f(i,j,k-ione)
-        bdiag(i,j,k-ione) = bdiag(i,j,k-ione) + tmp2*adiag9(i,j,k     )*wint9_f(i,j,k-ione)
-        what (i,j,k-ione) = what (i,j,k-ione) - tmp2*bdiag9(i,j,k-ione)*adiag9(i,j,k      )
+           tmp2=what(i,j,k)*(r_bdiag9(i,j,k-ione)**two)
+           adiag(i,j,k     ) = adiag(i,j,k     ) - tmp2*bdiag9(i,j,k-ione)*wint9_f(i,j,k-ione)
+           bdiag(i,j,k-ione) = bdiag(i,j,k-ione) + tmp2*adiag9(i,j,k     )*wint9_f(i,j,k-ione)
+           what (i,j,k-ione) = what (i,j,k-ione) - tmp2*bdiag9(i,j,k-ione)*adiag9(i,j,k      )
 
-        prsth(i,j,1) = prsth(i,j,1) + bk5(k)*what(i,j,k)
-        prsth(i,j,k) = prsth(i,j,k) - what(i,j,k)
-        t_tsum(i,j,k-ione) = t_tsum(i,j,k-ione) + two*factk9(i,j,k)*what(i,j,k)
-        factk(i,j,k) = factk(i,j,k) + two*t_tsum9(i,j,k-ione)*what(i,j,k)
-
-        tmp1=cdiag(i,j,k)*(r_prdif9(i,j,k)**two)
-        factk(i,j,k) = factk(i,j,k) + tmp1*prdif9(i,j,k)*tdiff9(i,j,k)
-        tdiff(i,j,k) = tdiff(i,j,k) + tmp1*prdif9(i,j,k)*factk9(i,j,k)
-        prdif(i,j,k) = prdif(i,j,k) - tmp1*factk9(i,j,k)*tdiff9(i,j,k)
+           prsth(i,j,1) = prsth(i,j,1) + bk5(k)*what(i,j,k)
+           prsth(i,j,k) = prsth(i,j,k) - what(i,j,k)
+           t_tsum(i,j,k-ione) = t_tsum(i,j,k-ione) + two*factk9(i,j,k)*what(i,j,k)
+           factk(i,j,k) = factk(i,j,k) + two*t_tsum9(i,j,k-ione)*what(i,j,k)
  
-        tmp1=bdiag(i,j,k)*(r_prdif9(i,j,k)**two)
-        factk(i,j,k     ) = factk(i,j,k     ) + tmp1*prdif9(i,j,k)*tdiff9(i,j,k-ione)
-        tdiff(i,j,k-ione) = tdiff(i,j,k-ione) + tmp1*prdif9(i,j,k)*factk9(i,j,k     )
-        prdif(i,j,k     ) = prdif(i,j,k     ) - tmp1*factk9(i,j,k)*tdiff9(i,j,k-ione)
+           tmp1=cdiag(i,j,k)*(r_prdif9(i,j,k)**two)
+           factk(i,j,k) = factk(i,j,k) + tmp1*prdif9(i,j,k)*tdiff9(i,j,k)
+           tdiff(i,j,k) = tdiff(i,j,k) + tmp1*prdif9(i,j,k)*factk9(i,j,k)
+           prdif(i,j,k) = prdif(i,j,k) - tmp1*factk9(i,j,k)*tdiff9(i,j,k)
+ 
+           tmp1=bdiag(i,j,k)*(r_prdif9(i,j,k)**two)
+           factk(i,j,k     ) = factk(i,j,k     ) + tmp1*prdif9(i,j,k)*tdiff9(i,j,k-ione)
+           tdiff(i,j,k-ione) = tdiff(i,j,k-ione) + tmp1*prdif9(i,j,k)*factk9(i,j,k     )
+           prdif(i,j,k     ) = prdif(i,j,k     ) - tmp1*factk9(i,j,k)*tdiff9(i,j,k-ione)
 
-        tmp2=bdiag(i,j,k)*(r_prdif9(i,j,k-ione)**two)
-        factk(i,j,k     ) = factk(i,j,k     ) + tmp2*prdif9(i,j,k-ione)*tdiff9(i,j,k-ione)
-        tdiff(i,j,k-ione) = tdiff(i,j,k-ione) + tmp2*prdif9(i,j,k-ione)*factk9(i,j,k     )
-        prdif(i,j,k-ione) = prdif(i,j,k-ione) - tmp2*factk9(i,j,k     )*tdiff9(i,j,k-ione)
+           tmp2=bdiag(i,j,k)*(r_prdif9(i,j,k-ione)**two)
+           factk(i,j,k     ) = factk(i,j,k     ) + tmp2*prdif9(i,j,k-ione)*tdiff9(i,j,k-ione)
+           tdiff(i,j,k-ione) = tdiff(i,j,k-ione) + tmp2*prdif9(i,j,k-ione)*factk9(i,j,k     )
+           prdif(i,j,k-ione) = prdif(i,j,k-ione) - tmp2*factk9(i,j,k     )*tdiff9(i,j,k-ione)
 
-        tmp1=adiag(i,j,k)*(r_prdif9(i,j,k-1)**two)
-        factk(i,j,k         ) = factk(i,j,k         ) + tmp1*prdif9(i,j,k-ione)*tdiff9(i,j,k-2_i_kind)
-        tdiff(i,j,k-2_i_kind) = tdiff(i,j,k-2_i_kind) + tmp1*prdif9(i,j,k-ione)*factk9(i,j,k         )
-        prdif(i,j,k-ione    ) = prdif(i,j,k-ione    ) - tmp1*factk9(i,j,k     )*tdiff9(i,j,k-2_i_kind)
+           tmp1=adiag(i,j,k)*(r_prdif9(i,j,k-1)**two)
+           factk(i,j,k         ) = factk(i,j,k         ) + tmp1*prdif9(i,j,k-ione)*tdiff9(i,j,k-2_i_kind)
+           tdiff(i,j,k-2_i_kind) = tdiff(i,j,k-2_i_kind) + tmp1*prdif9(i,j,k-ione)*factk9(i,j,k         )
+           prdif(i,j,k-ione    ) = prdif(i,j,k-ione    ) - tmp1*factk9(i,j,k     )*tdiff9(i,j,k-2_i_kind)
 
-        tmp2=c1*factk(i,j,k)/(tsum9(i,j,k-ione)**two)
-        tsum(i,j,k-ione) = tsum(i,j,k-ione) - tmp2*((c2*tsum9(i,j,k-ione))**kapr)
-        fprime = tmp2*tsum9(i,j,k-ione)
-        tsum(i,j,k-ione) = tsum(i,j,k-ione) + kapr*c2*fprime*((c2*tsum9(i,j,k-ione))**kaprm1)
-      end do
-    end do
+           tmp2=c1*factk(i,j,k)/(tsum9(i,j,k-ione)**two)
+           tsum(i,j,k-ione) = tsum(i,j,k-ione) - tmp2*((c2*tsum9(i,j,k-ione))**kapr)
+           fprime = tmp2*tsum9(i,j,k-ione)
+           tsum(i,j,k-ione) = tsum(i,j,k-ione) + kapr*c2*fprime*((c2*tsum9(i,j,k-ione))**kaprm1)
+        end do
+     end do
   end do
 
   k=2_i_kind
   do j=1,lon2
-    do i=1,lat2
-      c1=ck5(k)*half*kapr
-      c2=half/tref5(k-ione)
+     do i=1,lat2
+        c1=ck5(k)*half*kapr
+        c2=half/tref5(k-ione)
+ 
+        prsth(i,j,1) = prsth(i,j,1) + bk5(k)*what(i,j,k)
+        prsth(i,j,k) = prsth(i,j,k) - what(i,j,k)
+        t_tsum(i,j,k-ione) = t_tsum(i,j,k-ione) + two*factk9(i,j,k)*what(i,j,k)
+        factk(i,j,k) = factk(i,j,k) + two*t_tsum9(i,j,k-ione)*what(i,j,k)
+ 
+        tmp1=cdiag(i,j,k)*(r_prdif9(i,j,k)**two)
+        factk(i,j,k) = factk(i,j,k) + tmp1*prdif9(i,j,k)*tdiff9(i,j,k)
+        tdiff(i,j,k) = tdiff(i,j,k) + tmp1*prdif9(i,j,k)*factk9(i,j,k)
+        prdif(i,j,k) = prdif(i,j,k) - tmp1*factk9(i,j,k)*tdiff9(i,j,k)
 
-      prsth(i,j,1) = prsth(i,j,1) + bk5(k)*what(i,j,k)
-      prsth(i,j,k) = prsth(i,j,k) - what(i,j,k)
-      t_tsum(i,j,k-ione) = t_tsum(i,j,k-ione) + two*factk9(i,j,k)*what(i,j,k)
-      factk(i,j,k) = factk(i,j,k) + two*t_tsum9(i,j,k-ione)*what(i,j,k)
+        terma = bdiag(i,j,k) ; termb=bdiag(i,j,k)
+        tmp1=bdiag(i,j,k)*(r_prdif9(i,j,k)**two)
+        factk(i,j,k) = factk(i,j,k) + tmp1*prdif9(i,j,k)*tdiff9(i,j,k-ione)
+        tdiff(i,j,k-ione) =  tdiff(i,j,k-ione) + tmp1*prdif9(i,j,k)*factk9(i,j,k)
+        prdif(i,j,k) = prdif(i,j,k) - tmp1*factk9(i,j,k)*tdiff9(i,j,k-ione)
 
-      tmp1=cdiag(i,j,k)*(r_prdif9(i,j,k)**two)
-      factk(i,j,k) = factk(i,j,k) + tmp1*prdif9(i,j,k)*tdiff9(i,j,k)
-      tdiff(i,j,k) = tdiff(i,j,k) + tmp1*prdif9(i,j,k)*factk9(i,j,k)
-      prdif(i,j,k) = prdif(i,j,k) - tmp1*factk9(i,j,k)*tdiff9(i,j,k)
+        tmp2=bdiag(i,j,k)*(r_prdif9(i,j,k-ione)**two)
+        factk(i,j,k) = factk(i,j,k) + tmp2*prdif9(i,j,k-ione)*tdiff9(i,j,k-ione)
+        tdiff(i,j,k-ione) = tdiff(i,j,k-ione) + tmp2*prdif9(i,j,k-ione)*factk9(i,j,k)
+        prdif(i,j,k-ione) = prdif(i,j,k-ione) - tmp2*factk9(i,j,k)*tdiff9(i,j,k-ione)
 
-      terma = bdiag(i,j,k) ; termb=bdiag(i,j,k)
-      tmp1=bdiag(i,j,k)*(r_prdif9(i,j,k)**two)
-      factk(i,j,k) = factk(i,j,k) + tmp1*prdif9(i,j,k)*tdiff9(i,j,k-ione)
-      tdiff(i,j,k-ione) =  tdiff(i,j,k-ione) + tmp1*prdif9(i,j,k)*factk9(i,j,k)
-      prdif(i,j,k) = prdif(i,j,k) - tmp1*factk9(i,j,k)*tdiff9(i,j,k-ione)
-
-      tmp2=bdiag(i,j,k)*(r_prdif9(i,j,k-ione)**two)
-      factk(i,j,k) = factk(i,j,k) + tmp2*prdif9(i,j,k-ione)*tdiff9(i,j,k-ione)
-      tdiff(i,j,k-ione) = tdiff(i,j,k-ione) + tmp2*prdif9(i,j,k-ione)*factk9(i,j,k)
-      prdif(i,j,k-ione) = prdif(i,j,k-ione) - tmp2*factk9(i,j,k)*tdiff9(i,j,k-ione)
-
-      tmp1=c1*factk(i,j,k)/(tsum9(i,j,k-ione)**two)
-      tsum(i,j,k-ione) = tsum(i,j,k-ione) - tmp1*((c2*tsum9(i,j,k-ione))**kapr)
-      fprime = tsum9(i,j,k-ione)*tmp1
-      tsum(i,j,k-ione) = tsum(i,j,k-ione) + kapr*c2*fprime*((c2*tsum9(i,j,k-ione))**kaprm1)
-    end do
+        tmp1=c1*factk(i,j,k)/(tsum9(i,j,k-ione)**two)
+        tsum(i,j,k-ione) = tsum(i,j,k-ione) - tmp1*((c2*tsum9(i,j,k-ione))**kapr)
+        fprime = tsum9(i,j,k-ione)*tmp1
+        tsum(i,j,k-ione) = tsum(i,j,k-ione) + kapr*c2*fprime*((c2*tsum9(i,j,k-ione))**kaprm1)
+     end do
   end do
 
   do k=1,nsig-ione
-    do j=1,lon2
-      do i=1,lat2
-        t(i,j,k) = t(i,j,k) + tsum(i,j,k) + tdiff(i,j,k)
-        t(i,j,k+ione) = t(i,j,k+ione) + tsum(i,j,k) - tdiff(i,j,k)
-        t_thor(i,j,k) = t_thor(i,j,k) + t_tsum(i,j,k)
-        t_thor(i,j,k+ione) = t_thor(i,j,k+ione) + t_tsum(i,j,k)
-      end do
-    end do
+     do j=1,lon2
+        do i=1,lat2
+           t(i,j,k) = t(i,j,k) + tsum(i,j,k) + tdiff(i,j,k)
+           t(i,j,k+ione) = t(i,j,k+ione) + tsum(i,j,k) - tdiff(i,j,k)
+           t_thor(i,j,k) = t_thor(i,j,k) + t_tsum(i,j,k)
+           t_thor(i,j,k+ione) = t_thor(i,j,k+ione) + t_tsum(i,j,k)
+        end do
+     end do
   end do
 
 

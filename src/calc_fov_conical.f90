@@ -140,9 +140,9 @@ subroutine instrument_init(instr,satid,expansion)
  implicit none
 
 ! Declare passed variables.
- character(len=*), intent(in)       :: satid
- integer(i_kind), intent(in)        :: instr
- real(r_kind), intent(in)           :: expansion
+ character(len=*), intent(in   ) :: satid
+ integer(i_kind) , intent(in   ) :: instr
+ real(r_kind)    , intent(in   ) :: expansion
 
 ! Declare local variables.
  integer(i_kind)                    :: i, jchan, minstr, mchan
@@ -257,11 +257,11 @@ subroutine fovconicalanglessizes(instr,chan,height,alongtrackangle, &
  implicit none
 
 ! Declare passed variables.
- integer(i_kind), intent(in)      :: instr
- integer(i_kind), intent(in)      :: chan
- real(r_kind), intent(in)         :: height
- real(r_kind), intent(out)        :: alongtrackangle,crosstrackangle
- real(r_kind), intent(out)        :: alongtrackfovsize,crosstrackfovsize
+ integer(i_kind), intent(in   ) :: instr
+ integer(i_kind), intent(in   ) :: chan
+ real(r_kind)   , intent(in   ) :: height
+ real(r_kind)   , intent(  out) :: alongtrackangle,crosstrackangle
+ real(r_kind)   , intent(  out) :: alongtrackfovsize,crosstrackfovsize
 
 ! Declare local parameters.
  real(r_kind), dimension(instrumentrange(1):instrumentrange(2)) &
@@ -374,12 +374,12 @@ subroutine fov_ellipse_conical(ichan,satellite_azimuth,lat,lon,elats,elons)
  implicit none
 
 ! Declare passed variables
- integer(i_kind), intent(in) :: ichan
- real(r_kind), intent(in)    :: lat
- real(r_kind), intent(in)    :: lon
- real(r_kind), intent(in)    :: satellite_azimuth
- real(r_kind), intent(out)   :: elats(npoly)
- real(r_kind), intent(out)   :: elons(npoly)
+ integer(i_kind), intent(in   ) :: ichan
+ real(r_kind)   , intent(in   ) :: lat
+ real(r_kind)   , intent(in   ) :: lon
+ real(r_kind)   , intent(in   ) :: satellite_azimuth
+ real(r_kind)   , intent(  out) :: elats(npoly)
+ real(r_kind)   , intent(  out) :: elons(npoly)
 
 ! Declare local variables
  integer(i_kind)                :: i ! loop counters
@@ -483,15 +483,15 @@ subroutine inside_fov_conical(instr,ichan,satellite_azimuth,lat,lon, &
  implicit none
 
 ! Declare passed variables
- integer(i_kind), intent(in) :: instr             
- integer(i_kind), intent(in) :: ichan             
- real(r_kind), intent(in)    :: satellite_azimuth 
- real(r_kind), intent(in)    :: lat               
- real(r_kind), intent(in)    :: lon               
- real(r_kind), intent(in)    :: testlat           
- real(r_kind), intent(in)    :: testlon           
- real(r_kind), intent(in)    :: expansion         
- real(r_kind), intent(out)   :: inside         
+ integer(i_kind), intent(in   ) :: instr             
+ integer(i_kind), intent(in   ) :: ichan             
+ real(r_kind)   , intent(in   ) :: satellite_azimuth 
+ real(r_kind)   , intent(in   ) :: lat               
+ real(r_kind)   , intent(in   ) :: lon               
+ real(r_kind)   , intent(in   ) :: testlat           
+ real(r_kind)   , intent(in   ) :: testlon           
+ real(r_kind)   , intent(in   ) :: expansion         
+ real(r_kind)   , intent(  out) :: inside         
 
 ! Declare local parameters
  real(r_kind), parameter  :: r1 = one ! Equatorial radius. Work in angular distance, 
@@ -1094,6 +1094,6 @@ subroutine inside_fov_conical(instr,ichan,satellite_azimuth,lat,lon, &
    
   endif
 
- return
+  return
  end subroutine inside_fov_conical
  end module calc_fov_conical

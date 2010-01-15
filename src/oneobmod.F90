@@ -171,11 +171,11 @@ contains
     wqm=one
     offtime_data=.true.
     if (oneob_type=='ps') then
-      typ(1)=87._r_kind
-      cat(1,1)=zero
+       typ(1)=87._r_kind
+       cat(1,1)=zero
     else
-      typ(1)=20._r_kind
-      cat(1,1)=one
+       typ(1)=20._r_kind
+       cat(1,1)=one
     endif
 ! keep errs small so the single ob passes the QC check
     poe=r0_01
@@ -193,58 +193,58 @@ contains
     call datelen(10)
     call openbf(lendian_in,'OUT',ludx)
     do n=1,nobs
-      hdr(1)=transfer(sid(n),hdr(1))
-      hdr(2)=xob(n)
-      hdr(3)=yob(n)
-      hdr(4)=dhr(n)
-      hdr(5)=r100+typ(n)
-      obs=bmiss
-      qms=bmiss
-      err=bmiss
-      do k=1,nlev
-        obs(1,k)=pob(k,n)
-        obs(2,k)=qob(k,n)
-        obs(3,k)=tob(k,n)
-        obs(4,k)=zob(k,n)
-        obs(7,k)=cat(k,n)
-        qms(1,k)=pqm(k,n)
-        qms(2,k)=qqm(k,n)
-        qms(3,k)=tqm(k,n)
-        qms(4,k)=zqm(k,n)
-        err(1,k)=poe(k,n)
-        err(2,k)=qoe(k,n)
-        err(3,k)=toe(k,n)
-      enddo
-      call openmb(lendian_in,subset,idate)
-      call ufbint(lendian_in,hdr,10,ione,iret,hdrstr)
-      call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
-      call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
-      call ufbint(lendian_in,err,10,nlev,iret,errstr)
-      call writsb(lendian_in)
-      hdr(1)=transfer(sid(n),hdr(1))
-      hdr(2)=xob(n)
-      hdr(3)=yob(n)
-      hdr(4)=dhr(n)
-      hdr(5)=200_r_kind+typ(n)
-      obs=bmiss
-      qms=bmiss
-      err=bmiss
-      do k=1,nlev
-        obs(1,k)=pob(k,n)
-        obs(5,k)=uob(k,n)
-        obs(6,k)=vob(k,n)
-        obs(7,k)=cat(k,n)
-        qms(1,k)=pqm(k,n)
-        qms(5,k)=wqm(k,n)
-        err(1,k)=poe(k,n)
-        err(4,k)=woe(k,n)
-      enddo
-      call openmb(lendian_in,subset,idate)
-      call ufbint(lendian_in,hdr,10,ione,iret,hdrstr)
-      call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
-      call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
-      call ufbint(lendian_in,err,10,nlev,iret,errstr)
-      call writsb(lendian_in)
+       hdr(1)=transfer(sid(n),hdr(1))
+       hdr(2)=xob(n)
+       hdr(3)=yob(n)
+       hdr(4)=dhr(n)
+       hdr(5)=r100+typ(n)
+       obs=bmiss
+       qms=bmiss
+       err=bmiss
+       do k=1,nlev
+          obs(1,k)=pob(k,n)
+          obs(2,k)=qob(k,n)
+          obs(3,k)=tob(k,n)
+          obs(4,k)=zob(k,n)
+          obs(7,k)=cat(k,n)
+          qms(1,k)=pqm(k,n)
+          qms(2,k)=qqm(k,n)
+          qms(3,k)=tqm(k,n)
+          qms(4,k)=zqm(k,n)
+          err(1,k)=poe(k,n)
+          err(2,k)=qoe(k,n)
+          err(3,k)=toe(k,n)
+       enddo
+       call openmb(lendian_in,subset,idate)
+       call ufbint(lendian_in,hdr,10_i_kind,ione,iret,hdrstr)
+       call ufbint(lendian_in,obs,10_i_kind,nlev,iret,obsstr)
+       call ufbint(lendian_in,qms,10_i_kind,nlev,iret,qmsstr)
+       call ufbint(lendian_in,err,10_i_kind,nlev,iret,errstr)
+       call writsb(lendian_in)
+       hdr(1)=transfer(sid(n),hdr(1))
+       hdr(2)=xob(n)
+       hdr(3)=yob(n)
+       hdr(4)=dhr(n)
+       hdr(5)=200_r_kind+typ(n)
+       obs=bmiss
+       qms=bmiss
+       err=bmiss
+       do k=1,nlev
+          obs(1,k)=pob(k,n)
+          obs(5,k)=uob(k,n)
+          obs(6,k)=vob(k,n)
+          obs(7,k)=cat(k,n)
+          qms(1,k)=pqm(k,n)
+          qms(5,k)=wqm(k,n)
+          err(1,k)=poe(k,n)
+          err(4,k)=woe(k,n)
+       enddo
+       call openmb(lendian_in,subset,idate)
+       call ufbint(lendian_in,hdr,10_i_kind,ione,iret,hdrstr)
+       call ufbint(lendian_in,obs,10_i_kind,nlev,iret,obsstr)
+       call ufbint(lendian_in,qms,10_i_kind,nlev,iret,qmsstr)
+       call ufbint(lendian_in,err,10_i_kind,nlev,iret,errstr)
+       call writsb(lendian_in)
     enddo
     call closbf(lendian_in)
 
@@ -290,13 +290,13 @@ contains
 
     rlnc = zero
     rlnc(2) = obhourset
-    ildat(1) = obdattim  / 1000000            ! year
-    ildat(2) = mod(obdattim,1000000)/10000    ! month
-    ildat(3) = mod(obdattim,10000)/100        ! day
+    ildat(1) = obdattim  / 1000000                   ! year
+    ildat(2) = mod(obdattim,1000000_i_kind)/10000    ! month
+    ildat(3) = mod(obdattim,10000_i_kind)/100        ! day
     ildat(4) = izero
-    ildat(5) = mod(obdattim,100)              ! hour
+    ildat(5) = mod(obdattim,100_i_kind)              ! hour
 
-    ildat(6:8) = izero                        ! (no minute/sec in obdattim)
+    ildat(6:8) = izero                               ! (no minute/sec in obdattim)
 
     call w3movdat(rlnc,ildat,jldat)
 

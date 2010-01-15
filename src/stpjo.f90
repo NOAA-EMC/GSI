@@ -156,6 +156,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !
 !$$$
   use kinds, only: r_kind,r_quad
+  use constants, only: ione
   use obsmod, only: obs_handle, &
                   & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
@@ -183,14 +184,14 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
   implicit none
 
 ! Declare passed variables
-  type(obs_handle),  intent(in):: yobs
-  type(state_vector),intent(in):: dval
-  type(predictors),  intent(in):: dbias
-  type(state_vector),intent(in):: xval
-  type(predictors),  intent(in):: xbias
-  integer(i_kind),   intent(in):: nstep
-  real(r_kind),dimension(max(1,nstep)),intent(in)::sges
-  real(r_quad),dimension(4,nobs_type),intent(out)::pbcjo
+  type(obs_handle)                       ,intent(in   ) :: yobs
+  type(state_vector)                     ,intent(in   ) :: dval
+  type(predictors)                       ,intent(in   ) :: dbias
+  type(state_vector)                     ,intent(in   ) :: xval
+  type(predictors)                       ,intent(in   ) :: xbias
+  integer(i_kind)                        ,intent(in   ) :: nstep
+  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(4,nobs_type)    ,intent(  out) :: pbcjo
 
 ! Declare local variables
 

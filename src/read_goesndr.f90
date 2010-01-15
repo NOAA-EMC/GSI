@@ -69,7 +69,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_single,r_double,i_kind
+  use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
              checkob,finalcheck,score_crit
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad 
@@ -372,7 +372,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         iscan   = nint(hdr(3))+0.001_r_kind   ! "scan" position
         ch8     = grad(ich8) -ang_rad(ichan8)*cbias(iscan,ichan8) -  &
                                  r01*predx(1,ichan8)*air_rad(ichan8)
-        emiss=0.992_r_single-0.013_r_single*(hdr(3)/65._r_single)**3.5_r_single-0.026_r_single*(hdr(3)/65._r_single)**7.0_r_single
+        emiss=0.992_r_kind-0.013_r_kind*(hdr(3)/65._r_kind)**3.5_r_kind-0.026_r_kind*(hdr(3)/65._r_kind)**7.0_r_kind
         pred = abs(ch8-tsavg*emiss)
 
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"

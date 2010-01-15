@@ -248,8 +248,8 @@ subroutine set_grdparm212(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
   use kinds, only: i_kind, r_kind
   implicit none
 
-  integer(i_kind),intent(out):: iy,jx,jxp
-  real(r_kind)   ,intent(out):: alat1,elon1,ds,elonv,alatan
+  integer(i_kind),intent(  out) :: iy,jx,jxp
+  real(r_kind)   ,intent(  out) :: alat1,elon1,ds,elonv,alatan
 
   iy=129_i_kind
   jx=185_i_kind
@@ -289,8 +289,8 @@ subroutine set_grdparm221(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
   use constants, only: one
   implicit none
 
-  integer(i_kind),intent(out):: iy,jx,jxp
-  real(r_kind)   ,intent(out):: alat1,elon1,ds,elonv,alatan
+  integer(i_kind),intent(  out) :: iy,jx,jxp
+  real(r_kind)   ,intent(  out) :: alat1,elon1,ds,elonv,alatan
 
   iy=277_i_kind
   jx=349_i_kind
@@ -1033,7 +1033,7 @@ subroutine intp_spl(xi,yi,xo,yo,ni,no)
   real(r_kind)   ,intent(in   ) :: yi(ni)
   real(r_kind)   ,intent(in   ) :: xo(no)
 
-  real(r_kind)   ,intent(  out):: yo(no)
+  real(r_kind)   ,intent(  out) :: yo(no)
 
   real(r_kind),dimension(ni):: hi,bi,di,gi,ui,ri,pi,qi,si
   real(r_kind):: xe

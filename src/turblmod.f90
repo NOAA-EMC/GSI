@@ -27,6 +27,20 @@ module turblmod
   use constants, only: one
   implicit none
 
+! set default to private
+  private
+! set subroutines to public
+  public :: init_turbl
+  public :: create_turblvars
+  public :: destroy_turblvars
+! set passed variables to public
+  public :: use_pbl,f5my20,f4my20,f7my20,f6my20,f3my20, &
+            d0my20,c0my20,f2my20,f1my20,f8my20,smcmy20, &
+            shcmy20,ri_int,eps_m,rfcmy20,karmy20,b1my20, &
+            ricmy20,l0my20,km,zi,sm,kh,rf,dvdz,dudz,ri, &
+            dodz,sh,kar0my20,rdzl,b0my20,a0my20,rdzi, &
+            dudtm,lmix,dtdtm,dvdtm,fsh_my20,fsm_my20
+
   logical use_pbl
   real(r_kind),allocatable,dimension(:,:,:):: dudz
   real(r_kind),allocatable,dimension(:,:,:):: dvdz
@@ -51,32 +65,32 @@ module turblmod
 
 ! Constants used in MY20 PBL parameterization  
 
- real(r_kind) a0my20,b0my20,c0my20,d0my20,f1my20,f2my20, &
-              f3my20,f4my20,f5my20,f6my20,f7my20,f8my20,b1my20, &
-              karmy20,l0my20,alf0my20, &
-              f85my20,f76my20
- real(r_kind) ricmy20,rfcmy20,shcmy20,smcmy20,eps_m
- real(r_kind) fsm_my20,fsh_my20
+  real(r_kind) a0my20,b0my20,c0my20,d0my20,f1my20,f2my20, &
+               f3my20,f4my20,f5my20,f6my20,f7my20,f8my20,b1my20, &
+               karmy20,l0my20,alf0my20, &
+               f85my20,f76my20
+  real(r_kind) ricmy20,rfcmy20,shcmy20,smcmy20,eps_m
+  real(r_kind) fsm_my20,fsh_my20
 
 !>>> These are original coefficients from MY(1974)
 
- parameter( ricmy20= 0.2338021249_r_kind )
- parameter( a0my20= 0.7162162662_r_kind )
- parameter( b0my20= 0.1886792481_r_kind )
- parameter( c0my20= 0.3197414279_r_kind )
- parameter( d0my20= 0.03559985757_r_kind )
- parameter( f1my20= 2.339999914_r_kind )
- parameter( f2my20= 0.2293333411_r_kind )
- parameter( f3my20= 1.074666739_r_kind )
- parameter( f4my20= 1.000000000_r_kind )
- parameter( f5my20= 2.600000143_r_kind )
- parameter( f6my20= 9.619999886_r_kind )
- parameter( f7my20= 3.440000057_r_kind )
- parameter( f8my20= 13.78000069_r_kind )
- parameter( f85my20=f8my20*f5my20)
- parameter( f76my20=f7my20*f6my20)
- parameter( b1my20=15.0_r_kind )
-
+  parameter( ricmy20= 0.2338021249_r_kind )
+  parameter( a0my20= 0.7162162662_r_kind )
+  parameter( b0my20= 0.1886792481_r_kind )
+  parameter( c0my20= 0.3197414279_r_kind )
+  parameter( d0my20= 0.03559985757_r_kind )
+  parameter( f1my20= 2.339999914_r_kind )
+  parameter( f2my20= 0.2293333411_r_kind )
+  parameter( f3my20= 1.074666739_r_kind )
+  parameter( f4my20= 1.000000000_r_kind )
+  parameter( f5my20= 2.600000143_r_kind )
+  parameter( f6my20= 9.619999886_r_kind )
+  parameter( f7my20= 3.440000057_r_kind )
+  parameter( f8my20= 13.78000069_r_kind )
+  parameter( f85my20=f8my20*f5my20)
+  parameter( f76my20=f7my20*f6my20)
+  parameter( b1my20=15.0_r_kind )
+ 
 !>>> These coefficients recalculated from Eta model based
 !>>> Janjic (1990) implementation
 
@@ -127,12 +141,13 @@ contains
 !$$$
 
     implicit none
-      use_pbl=.false.                      ! set to true to turn on effect of pbl
-      rfcmy20=a0my20*(ricmy20+b0my20-sqrt(ricmy20**2-c0my20*ricmy20+d0my20))
-      shcmy20=f1my20*(f2my20-f3my20*rfcmy20)/(one-rfcmy20)
-      smcmy20=f4my20*(f5my20-f6my20*rfcmy20)/(f7my20-f8my20*rfcmy20)*shcmy20
-      fsh_my20=f1my20*(f2my20-f3my20)
-      fsm_my20=f4my20*(f85my20-f76my20)
+
+    use_pbl=.false.                      ! set to true to turn on effect of pbl
+    rfcmy20=a0my20*(ricmy20+b0my20-sqrt(ricmy20**2-c0my20*ricmy20+d0my20))
+    shcmy20=f1my20*(f2my20-f3my20*rfcmy20)/(one-rfcmy20)
+    smcmy20=f4my20*(f5my20-f6my20*rfcmy20)/(f7my20-f8my20*rfcmy20)*shcmy20
+    fsh_my20=f1my20*(f2my20-f3my20)
+    fsm_my20=f4my20*(f85my20-f76my20)
     return
   end subroutine init_turbl
 

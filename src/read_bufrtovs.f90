@@ -1602,7 +1602,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
 ! approach.
 
   if (abs(dlat_earth_deg) > 88.0_r_kind) then
-!   print*,'USE NEAREST NEIGHBOR NEAR POLE'
+!    print*,'USE NEAREST NEIGHBOR NEAR POLE'
      if (regional) then
         lat_rad = dlat_earth_deg*deg2rad
         lon_rad = dlon_earth_deg*deg2rad
@@ -2071,8 +2071,8 @@ subroutine time_int_sfc(ix,iy,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
   implicit none
 
 ! Declare passed variables.
-  integer(i_kind), intent(in) :: ix,iy,itsfc, itsfcp
-  real(r_kind)   , intent(in) :: dtsfc, dtsfcp
+  integer(i_kind), intent(in   ) :: ix,iy,itsfc, itsfcp
+  real(r_kind)   , intent(in   ) :: dtsfc, dtsfcp
 
   type surface2
      sequence
@@ -2084,7 +2084,8 @@ subroutine time_int_sfc(ix,iy,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
      real(r_kind) :: sn
      real(r_kind) :: ts
   end type surface2
-  type(surface2), intent(out) :: sfc_mdl
+
+  type(surface2) , intent(  out) :: sfc_mdl
 
 ! Note, indices are reversed (y/x).
 
@@ -2134,8 +2135,8 @@ subroutine accum_sfc(i,j,power,sfc_mdl,sfc_sum)
   implicit none
 
 ! Declare passed variables.
-  integer(i_kind), intent(in) :: i, j
-  real(r_kind)   , intent(in) :: power
+  integer(i_kind), intent(in   ) :: i, j
+  real(r_kind)   , intent(in   ) :: power
 
   type surface2
      sequence
@@ -2148,7 +2149,7 @@ subroutine accum_sfc(i,j,power,sfc_mdl,sfc_sum)
      real(r_kind) :: ts     ! skin temperature
   end type surface2
 
-  type(surface2), intent(in) :: sfc_mdl
+  type(surface2) , intent(in   ) :: sfc_mdl
 
   type surface
      sequence
@@ -2165,7 +2166,7 @@ subroutine accum_sfc(i,j,power,sfc_mdl,sfc_sum)
      real(r_kind), dimension(0:16) :: count_sty ! count of each soil type
   end type surface
 
-  type(surface), intent(inout) :: sfc_sum
+  type(surface)  , intent(inout) :: sfc_sum
 
 ! Declare local parameters.
   real(r_kind),parameter:: minsnow=one_tenth
@@ -2263,9 +2264,9 @@ subroutine calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm, &
   implicit none
 
 ! Declare passed variables
-  integer(i_kind), intent(out) :: isflg, idomsfc(1)
-  real(r_kind)   , intent(out) :: sm, stp, sty, vty, vfr, sfcpct(0:3)
-  real(r_kind)   , intent(out) :: ff10, sfcr, zz, sn, ts(0:3), tsavg
+  integer(i_kind), intent(  out) :: isflg, idomsfc(1)
+  real(r_kind)   , intent(  out) :: sm, stp, sty, vty, vfr, sfcpct(0:3)
+  real(r_kind)   , intent(  out) :: ff10, sfcr, zz, sn, ts(0:3), tsavg
 
   type surface
      sequence
@@ -2282,7 +2283,7 @@ subroutine calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm, &
      real(r_kind), dimension(0:16) :: count_sty
   end type surface
 
-  type(surface), intent(in)   :: sfc_sum
+  type(surface)  , intent(in   ) :: sfc_sum
 
 ! Declare local variables
   integer(i_kind)   :: itmp(1), n

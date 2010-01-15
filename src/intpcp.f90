@@ -105,9 +105,9 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
   implicit none
 
 ! Declare passed variables
-  type(pcp_ob_type),pointer,intent(in):: pcphead
-  real(r_kind),dimension(latlon1n),intent(in):: st,sq,su,sv,scwm
-  real(r_kind),dimension(latlon1n),intent(inout):: rt,rq,ru,rv,rcwm
+  type(pcp_ob_type),pointer       ,intent(in   ) :: pcphead
+  real(r_kind),dimension(latlon1n),intent(in   ) :: st,sq,su,sv,scwm
+  real(r_kind),dimension(latlon1n),intent(inout) :: rt,rq,ru,rv,rcwm
   
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,nq,nu,nv,ncwm,n,nt,kx
@@ -141,21 +141,21 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
         dcwm=w1* scwm(j1)+w2* scwm(j2)+  &
              w3* scwm(j3)+w4* scwm(j4)
         if (l_foto) then
-          dt = dt+&
-              (w1*xhat_dt%t(j1)+w2*xhat_dt%t(j2)+ &
-               w3*xhat_dt%t(j3)+w4*xhat_dt%t(j4))*time_pcp
-          dq = dq+&
-              (w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
-               w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4))*time_pcp
-          du = du+&
-              (w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-               w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))*time_pcp
-          dv = dv+&
-              (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-               w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_pcp
-          dcwm=dcwm+&
-              (w1*xhat_dt%cw(j1)+w2*xhat_dt%cw(j2)+  &
-               w3*xhat_dt%cw(j3)+w4*xhat_dt%cw(j4))*time_pcp
+           dt = dt+&
+               (w1*xhat_dt%t(j1)+w2*xhat_dt%t(j2)+ &
+                w3*xhat_dt%t(j3)+w4*xhat_dt%t(j4))*time_pcp
+           dq = dq+&
+               (w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
+                w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4))*time_pcp
+           du = du+&
+               (w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
+                w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))*time_pcp
+           dv = dv+&
+               (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
+                w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_pcp
+           dcwm=dcwm+&
+               (w1*xhat_dt%cw(j1)+w2*xhat_dt%cw(j2)+  &
+                w3*xhat_dt%cw(j3)+w4*xhat_dt%cw(j4))*time_pcp
         endif
         
         nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig
@@ -180,136 +180,136 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
 
 !    Compute o-g 
      if (ltlint) then
-       if ( pcp_ges > tinym1_obs ) then
-         termges_tl = pcp_ges_tl/(one+pcp_ges)
-       else
-         termges_tl = zero
-       endif
-       obsges = termges + termges_tl - pcpptr%obs 
+        if ( pcp_ges > tinym1_obs ) then
+           termges_tl = pcp_ges_tl/(one+pcp_ges)
+        else
+           termges_tl = zero
+        endif
+        obsges = termges + termges_tl - pcpptr%obs 
      else
-       pcp_cur = max(pcp_cur,zero)
-       termcur = log(one+pcp_cur)
-       termges_tl = termcur - termges
-       obsges = termcur - pcpptr%obs 
+        pcp_cur = max(pcp_cur,zero)
+        termcur = log(one+pcp_cur)
+        termges_tl = termcur - termges
+        obsges = termcur - pcpptr%obs 
      endif
 
      if (lsaveobsens) then
-       pcpptr%diags%obssen(jiter) = termges_tl*pcpptr%err2*pcpptr%raterr2
+        pcpptr%diags%obssen(jiter) = termges_tl*pcpptr%err2*pcpptr%raterr2
      else
-       if (pcpptr%luse) pcpptr%diags%tldepart(jiter)=termges_tl
+        if (pcpptr%luse) pcpptr%diags%tldepart(jiter)=termges_tl
      endif
 
-   if (l_do_adjoint) then
-     if (lsaveobsens) then
-       termges_ad  = pcpptr%diags%obssen(jiter)
-    
-     else
-!      Adjoint model
-       kx=pcpptr%icxp
-       if (nlnqc_iter .and. pg_pcp(kx) > tiny_r_kind .and.  &
-                            b_pcp(kx)  > tiny_r_kind) then
-         cg_pcp=cg_term/b_pcp(kx)
-         wnotgross= one-pg_pcp(kx)*varqc_iter
-         wgross = varqc_iter*pg_pcp(kx)*cg_pcp/wnotgross
-         p0   = wgross/(wgross+exp(-half*pcpptr%err2*obsges**2))
-         obsges = obsges*(one-p0)
-       endif
+     if (l_do_adjoint) then
+        if (lsaveobsens) then
+           termges_ad  = pcpptr%diags%obssen(jiter)
 
-       termges_ad  = obsges*pcpptr%err2*pcpptr%raterr2
+        else
+!          Adjoint model
+           kx=pcpptr%icxp
+           if (nlnqc_iter .and. pg_pcp(kx) > tiny_r_kind .and.  &
+                                b_pcp(kx)  > tiny_r_kind) then
+              cg_pcp=cg_term/b_pcp(kx)
+              wnotgross= one-pg_pcp(kx)*varqc_iter
+              wgross = varqc_iter*pg_pcp(kx)*cg_pcp/wnotgross
+              p0   = wgross/(wgross+exp(-half*pcpptr%err2*obsges**2))
+              obsges = obsges*(one-p0)
+           endif
+
+           termges_ad  = obsges*pcpptr%err2*pcpptr%raterr2
+        endif
+
+!       Adjoint for logrithmic forumulation
+        if (ltlint) then
+           if ( pcp_ges > tinym1_obs ) then
+              pcp_ges_ad = termges_ad/(one+pcp_ges)
+           else
+              pcp_ges_ad = zero
+           endif
+        else
+           pcp_ges_ad = termges_ad/(one+pcp_cur)
+        endif
+
+!       Adjoint of pcp_ges update
+
+        j1=pcpptr%ij(1)
+        j2=pcpptr%ij(2)
+        j3=pcpptr%ij(3)
+        j4=pcpptr%ij(4)
+        do n=1,nsig
+           nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig
+
+           dcwm_ad = pcpptr%dpcp_dvar(ncwm)*pcp_ges_ad
+           dv_ad   = pcpptr%dpcp_dvar(nv)*pcp_ges_ad
+           du_ad   = pcpptr%dpcp_dvar(nu)*pcp_ges_ad
+           dq_ad   = pcpptr%dpcp_dvar(nq)*pcp_ges_ad
+           dt_ad   = pcpptr%dpcp_dvar(nt)*pcp_ges_ad
+
+           rcwm(j4) = rcwm(j4) + w4*dcwm_ad
+           rcwm(j3) = rcwm(j3) + w3*dcwm_ad
+           rcwm(j2) = rcwm(j2) + w2*dcwm_ad
+           rcwm(j1) = rcwm(j1) + w1*dcwm_ad
+
+           rv(j4) = rv(j4) + w4*dv_ad
+           rv(j3) = rv(j3) + w3*dv_ad
+           rv(j2) = rv(j2) + w2*dv_ad
+           rv(j1) = rv(j1) + w1*dv_ad
+ 
+           ru(j4) = ru(j4) + w4*du_ad
+           ru(j3) = ru(j3) + w3*du_ad
+           ru(j2) = ru(j2) + w2*du_ad
+           ru(j1) = ru(j1) + w1*du_ad
+
+           rq(j4) = rq(j4) + w4*dq_ad
+           rq(j3) = rq(j3) + w3*dq_ad
+           rq(j2) = rq(j2) + w2*dq_ad
+           rq(j1) = rq(j1) + w1*dq_ad
+
+           rt(j4) = rt(j4) + w4*dt_ad
+           rt(j3) = rt(j3) + w3*dt_ad
+           rt(j2) = rt(j2) + w2*dt_ad
+           rt(j1) = rt(j1) + w1*dt_ad
+
+           if (l_foto) then
+              dcwm_ad = time_pcp*dcwm_ad
+              dv_ad   = time_pcp*dv_ad
+              du_ad   = time_pcp*du_ad
+              dq_ad   = time_pcp*dq_ad
+              dt_ad   = time_pcp*dt_ad
+
+              dhat_dt%cw(j4) = dhat_dt%cw(j4) + w4*dcwm_ad
+              dhat_dt%cw(j3) = dhat_dt%cw(j3) + w3*dcwm_ad
+              dhat_dt%cw(j2) = dhat_dt%cw(j2) + w2*dcwm_ad
+              dhat_dt%cw(j1) = dhat_dt%cw(j1) + w1*dcwm_ad
+
+              dhat_dt%v(j4) = dhat_dt%v(j4) + w4*dv_ad
+              dhat_dt%v(j3) = dhat_dt%v(j3) + w3*dv_ad
+              dhat_dt%v(j2) = dhat_dt%v(j2) + w2*dv_ad
+              dhat_dt%v(j1) = dhat_dt%v(j1) + w1*dv_ad
+
+              dhat_dt%u(j4) = dhat_dt%u(j4) + w4*du_ad
+              dhat_dt%u(j3) = dhat_dt%u(j3) + w3*du_ad
+              dhat_dt%u(j2) = dhat_dt%u(j2) + w2*du_ad
+              dhat_dt%u(j1) = dhat_dt%u(j1) + w1*du_ad
+ 
+              dhat_dt%q(j4) = dhat_dt%q(j4) + w4*dq_ad
+              dhat_dt%q(j3) = dhat_dt%q(j3) + w3*dq_ad
+              dhat_dt%q(j2) = dhat_dt%q(j2) + w2*dq_ad
+              dhat_dt%q(j1) = dhat_dt%q(j1) + w1*dq_ad
+
+              dhat_dt%t(j4) = dhat_dt%t(j4) + w4*dt_ad
+              dhat_dt%t(j3) = dhat_dt%t(j3) + w3*dt_ad
+              dhat_dt%t(j2) = dhat_dt%t(j2) + w2*dt_ad
+              dhat_dt%t(j1) = dhat_dt%t(j1) + w1*dt_ad
+           endif
+
+           j1=j1+latlon11
+           j2=j2+latlon11
+           j3=j3+latlon11
+           j4=j4+latlon11
+
+        end do
      endif
-
-!    Adjoint for logrithmic forumulation
-     if (ltlint) then
-       if ( pcp_ges > tinym1_obs ) then
-         pcp_ges_ad = termges_ad/(one+pcp_ges)
-       else
-         pcp_ges_ad = zero
-       endif
-     else
-       pcp_ges_ad = termges_ad/(one+pcp_cur)
-     endif
-
-!    Adjoint of pcp_ges update
-
-     j1=pcpptr%ij(1)
-     j2=pcpptr%ij(2)
-     j3=pcpptr%ij(3)
-     j4=pcpptr%ij(4)
-     do n=1,nsig
-       nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig
-
-       dcwm_ad = pcpptr%dpcp_dvar(ncwm)*pcp_ges_ad
-       dv_ad   = pcpptr%dpcp_dvar(nv)*pcp_ges_ad
-       du_ad   = pcpptr%dpcp_dvar(nu)*pcp_ges_ad
-       dq_ad   = pcpptr%dpcp_dvar(nq)*pcp_ges_ad
-       dt_ad   = pcpptr%dpcp_dvar(nt)*pcp_ges_ad
-
-       rcwm(j4) = rcwm(j4) + w4*dcwm_ad
-       rcwm(j3) = rcwm(j3) + w3*dcwm_ad
-       rcwm(j2) = rcwm(j2) + w2*dcwm_ad
-       rcwm(j1) = rcwm(j1) + w1*dcwm_ad
-
-       rv(j4) = rv(j4) + w4*dv_ad
-       rv(j3) = rv(j3) + w3*dv_ad
-       rv(j2) = rv(j2) + w2*dv_ad
-       rv(j1) = rv(j1) + w1*dv_ad
-
-       ru(j4) = ru(j4) + w4*du_ad
-       ru(j3) = ru(j3) + w3*du_ad
-       ru(j2) = ru(j2) + w2*du_ad
-       ru(j1) = ru(j1) + w1*du_ad
-
-       rq(j4) = rq(j4) + w4*dq_ad
-       rq(j3) = rq(j3) + w3*dq_ad
-       rq(j2) = rq(j2) + w2*dq_ad
-       rq(j1) = rq(j1) + w1*dq_ad
-
-       rt(j4) = rt(j4) + w4*dt_ad
-       rt(j3) = rt(j3) + w3*dt_ad
-       rt(j2) = rt(j2) + w2*dt_ad
-       rt(j1) = rt(j1) + w1*dt_ad
-
-       if (l_foto) then
-         dcwm_ad = time_pcp*dcwm_ad
-         dv_ad   = time_pcp*dv_ad
-         du_ad   = time_pcp*du_ad
-         dq_ad   = time_pcp*dq_ad
-         dt_ad   = time_pcp*dt_ad
-
-         dhat_dt%cw(j4) = dhat_dt%cw(j4) + w4*dcwm_ad
-         dhat_dt%cw(j3) = dhat_dt%cw(j3) + w3*dcwm_ad
-         dhat_dt%cw(j2) = dhat_dt%cw(j2) + w2*dcwm_ad
-         dhat_dt%cw(j1) = dhat_dt%cw(j1) + w1*dcwm_ad
-
-         dhat_dt%v(j4) = dhat_dt%v(j4) + w4*dv_ad
-         dhat_dt%v(j3) = dhat_dt%v(j3) + w3*dv_ad
-         dhat_dt%v(j2) = dhat_dt%v(j2) + w2*dv_ad
-         dhat_dt%v(j1) = dhat_dt%v(j1) + w1*dv_ad
-
-         dhat_dt%u(j4) = dhat_dt%u(j4) + w4*du_ad
-         dhat_dt%u(j3) = dhat_dt%u(j3) + w3*du_ad
-         dhat_dt%u(j2) = dhat_dt%u(j2) + w2*du_ad
-         dhat_dt%u(j1) = dhat_dt%u(j1) + w1*du_ad
-
-         dhat_dt%q(j4) = dhat_dt%q(j4) + w4*dq_ad
-         dhat_dt%q(j3) = dhat_dt%q(j3) + w3*dq_ad
-         dhat_dt%q(j2) = dhat_dt%q(j2) + w2*dq_ad
-         dhat_dt%q(j1) = dhat_dt%q(j1) + w1*dq_ad
-
-         dhat_dt%t(j4) = dhat_dt%t(j4) + w4*dt_ad
-         dhat_dt%t(j3) = dhat_dt%t(j3) + w3*dt_ad
-         dhat_dt%t(j2) = dhat_dt%t(j2) + w2*dt_ad
-         dhat_dt%t(j1) = dhat_dt%t(j1) + w1*dt_ad
-       endif
-
-       j1=j1+latlon11
-       j2=j2+latlon11
-       j3=j3+latlon11
-       j4=j4+latlon11
-            
-     end do
-  endif
-  pcpptr => pcpptr%llpoint 
+     pcpptr => pcpptr%llpoint 
   end do
 
   return

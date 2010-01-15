@@ -53,7 +53,9 @@ module gsi_io
             reorder12s_, &
             reorder12d_
   end interface
+
 contains
+
   subroutine init_io(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -80,7 +82,7 @@ contains
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
 
 
 !   Set unit numbers reserved for little endian input and output
@@ -88,7 +90,7 @@ contains
     lendian_out = 66_i_kind
 
     if (mype==izero) write(6,*)'INIT_IO:  reserve units lendian_in=',lendian_in,&
-         ' and lendian_out=',lendian_out,' for little endian i/o'
+       ' and lendian_out=',lendian_out,' for little endian i/o'
 
   end subroutine init_io
 
@@ -143,12 +145,12 @@ contains
     integer(i_kind):: nsize=4_i_kind
 
 !   Declare passed variables
-    character(24),intent(in):: filename
-    integer(i_kind),intent(in):: mype
-    integer(i_kind),intent(in):: nbc
-    integer(i_kind),intent(out):: istatus
-    real(r_kind),dimension(lat2,lon2,nbc),intent(out):: sub_z,sub_ps,sub_tskin
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(out):: sub_u,sub_v,&
+    character(24)                             ,intent(in   ) :: filename
+    integer(i_kind)                           ,intent(in   ) :: mype
+    integer(i_kind)                           ,intent(in   ) :: nbc
+    integer(i_kind)                           ,intent(  out) :: istatus
+    real(r_kind),dimension(lat2,lon2,nbc)     ,intent(  out) :: sub_z,sub_ps,sub_tskin
+    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(  out) :: sub_u,sub_v,&
          sub_vor,sub_div,sub_cwmr,sub_q,sub_oz,sub_tv
     
 !   Declare local variables
@@ -173,7 +175,7 @@ contains
     call baopenr(lunin,filename,iret)
     if (iret/=izero) then
        if (mype==mype_in) write(6,*) &
-            'READ_BIAS:  ***ERROR*** opening output file, iret=',iret,lunin,filename
+          'READ_BIAS:  ***ERROR*** opening output file, iret=',iret,lunin,filename
        istatus=istatus+iret
        return
     endif
@@ -400,24 +402,24 @@ contains
 ! !INPUT PARAMETERS:
 !
 
-    character(24),intent(in):: filename     ! file to open and write to
+    character(24)                             ,intent(in):: filename     ! file to open and write to
 
-    integer(i_kind),intent(in) :: mype      ! mpi task number
-    integer(i_kind),intent(in) :: mype_out  ! mpi task to write output file
-    integer(i_kind),intent(in) :: nbc       ! number of bias coefficients in bias model
-    integer(i_kind),intent(out):: istatus   ! write status
+    integer(i_kind)                           ,intent(in   ) :: mype      ! mpi task number
+    integer(i_kind)                           ,intent(in   ) :: mype_out  ! mpi task to write output file
+    integer(i_kind)                           ,intent(in   ) :: nbc       ! number of bias coefficients in bias model
+    integer(i_kind)                           ,intent(  out) :: istatus   ! write status
     
-    real(r_kind),dimension(lat2,lon2,nbc),     intent(in):: sub_z    ! GFS terrain field on subdomains
-    real(r_kind),dimension(lat2,lon2,nbc),     intent(in):: sub_ps   ! ps on subdomains
-    real(r_kind),dimension(lat2,lon2,nbc),     intent(in):: sub_tskin! skin temperature
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in):: sub_vor  ! vorticity on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in):: sub_div  ! divergence on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in):: sub_u    ! u wind on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in):: sub_v    ! v wind on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in):: sub_tv   ! virtual temperature on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in):: sub_q    ! specific humidity on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in):: sub_oz   ! ozone on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in):: sub_cwmr ! cloud condensate mixing ratio on subdomains
+    real(r_kind),dimension(lat2,lon2,nbc)     ,intent(in   ) :: sub_z    ! GFS terrain field on subdomains
+    real(r_kind),dimension(lat2,lon2,nbc)     ,intent(in   ) :: sub_ps   ! ps on subdomains
+    real(r_kind),dimension(lat2,lon2,nbc)     ,intent(in   ) :: sub_tskin! skin temperature
+    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_vor  ! vorticity on subdomains
+    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_div  ! divergence on subdomains
+    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_u    ! u wind on subdomains
+    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_v    ! v wind on subdomains
+    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_tv   ! virtual temperature on subdomains
+    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_q    ! specific humidity on subdomains
+    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_oz   ! ozone on subdomains
+    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_cwmr ! cloud condensate mixing ratio on subdomains
     
 !
 ! !OUTPUT PARAMETERS:
@@ -653,8 +655,8 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   real(r_single),dimension(nlon,nlat),intent(in) :: grid_in   ! input grid
-   real(r_kind)  ,dimension(itotsub)  ,intent(out):: grid_out  ! output grid
+   real(r_single),dimension(nlon,nlat),intent(in   ) :: grid_in   ! input grid
+   real(r_kind)  ,dimension(itotsub)  ,intent(  out) :: grid_out  ! output grid
 
 ! !DESCRIPTION: This routine transfers the contents of a two-diemnsional,
 !               type r_single array into a one-dimension, type r_kind
@@ -705,8 +707,8 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   real(r_kind),dimension(nlon,nlat),intent(in) :: grid_in   ! input grid
-   real(r_kind),dimension(itotsub)  ,intent(out):: grid_out  ! output grid
+   real(r_kind),dimension(nlon,nlat),intent(in   ) :: grid_in   ! input grid
+   real(r_kind),dimension(itotsub)  ,intent(  out) :: grid_out  ! output grid
 
 ! !DESCRIPTION: This routine transfers the contents of a two-diemnsional,
 !               type r_single array into a one-dimension, type r_kind
@@ -758,8 +760,8 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   real(r_kind)  ,dimension(max(iglobal,itotsub)),intent(in) :: grid_in   ! input grid
-   real(r_single),dimension(nlon,nlat)           ,intent(out):: grid_out  ! input grid
+   real(r_kind)  ,dimension(max(iglobal,itotsub)),intent(in   ) :: grid_in   ! input grid
+   real(r_single),dimension(nlon,nlat)           ,intent(  out) :: grid_out  ! input grid
 
 ! !DESCRIPTION: This routine transfers the contents of a one-diemnsional,
 !               type r_kind array into a two-dimensional, type r_single
@@ -809,8 +811,8 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   real(r_kind),dimension(max(iglobal,itotsub)),intent(in) :: grid_in   ! input grid
-   real(r_kind),dimension(nlon,nlat)           ,intent(out):: grid_out  ! input grid
+   real(r_kind),dimension(max(iglobal,itotsub)),intent(in   ) :: grid_in   ! input grid
+   real(r_kind),dimension(nlon,nlat)           ,intent(  out) :: grid_out  ! input grid
 
 ! !DESCRIPTION: This routine transfers the contents of a one-diemnsional,
 !               type r_kind array into a two-dimensional, type r_single

@@ -101,6 +101,7 @@ contains
 !$$$
     use constants, only: izero,r3600,one
     implicit none
+
     real(r_kind),parameter:: r1200=1200.0_r_kind
 
     npredp    = 6_i_kind      ! number of predictors in precipitation bias correction
@@ -149,7 +150,7 @@ contains
     implicit none
 
 ! Declare passed variables
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
 
 ! Declare local varianbes
     logical lexist
@@ -313,8 +314,8 @@ contains
     implicit none
 
 ! Declare passed variables
-    integer(i_kind),intent(in):: mype
-    integer(i_kind),intent(in),dimension(5):: iadate    
+    integer(i_kind)             ,intent(in   ) :: mype
+    integer(i_kind),dimension(5),intent(in   ) :: iadate    
 
 ! Declare local variables
     integer(i_kind) krsize,i,j,k,mm1,myper

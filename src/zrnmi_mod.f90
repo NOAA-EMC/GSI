@@ -18,35 +18,74 @@ module zrnmi_mod
 !   2008-03-26  safford -- rm unused vars, add subroutine doc blocks
 !
 ! subroutines included:
+!   sub zrnmi_initialize       --- 
 !   sub zrnmi_sd2x0            --- setup to convert from subdomains to x direction
 !   sub zrnmi_sd2x1            --- additional setup
 !   sub zrnmi_x2sd1            --- additional setup
 !   sub zrnmi_sd2x             --- subdomains to x
+!   sub zrnmi_sd2x2            --- subdomains to x
+!   sub zrnmi_sd2x3            --- subdomains to x
 !   sub zrnmi_x2sd             --- x to subdomains
+!   sub zrnmi_x2sd2            --- x to subdomains
+!   sub zrnmi_x2sd3            --- x to subdomains
 !
 !    following required for finite difference derivatives and laplacians
 !   sub zrnmi_sd2y0            --- setup to convert from subdomains to y direction
 !   sub zrnmi_sd2y1            --- additional setup
 !   sub zrnmi_y2sd1            --- additional setup
 !   sub zrnmi_sd2y             --- subdomains to y
+!   sub zrnmi_sd2y2            --- subdomains to y
+!   sub zrnmi_sd2y3            --- subdomains to y
 !   sub zrnmi_y2sd             --- y to subdomains
+!   sub zrnmi_y2sd2            --- y to subdomains
+!   sub zrnmi_y2sd3            --- y to subdomains
 !
 !   sub zrnmi_x_strans0         - initialize constants for x transforms
 !   sub zrnmi_x_strans          - sin trans in x direction from grid to spectral
 !
+!   sub zrnmi_uvm2dzmhat
+!   sub zrnmi_uvm2dzmhat_ad
+!   sub zrnmi_pcmhat2uvm
+!   sub zrnmi_pcmhat2uvm_orig
+!   sub zrnmi_pcmhat2uvm_ad_orig
+!   sub zrnmi_pcmhat2uvm_ad
+!
 !   sub zrnmi_x2y0             - setup to convert from x to y
 !   sub zrnmi_x2y1             - additional setup for x to y
 !   sub zrnmi_x2y              - x to y
+!   sub zrnmi_x2y2             - x to y
+!   sub zrnmi_x2y3             - x to y
 !   sub zrnmi_y2x              - y to x
+!   sub zrnmi_y2x2             - y to x
+!   sub zrnmi_y2x3             - y to x
 !
 !   sub zrnmi_y_strans0         - initialize constants for y transforms
 !   sub zrnmi_y_strans          - almost copy of zrnmi_x_strans
 !
+!   sub zrnmi_delx_general
 ! * sub zrnmi_delx              - equivalent(*) to delx_reg in psichi2uv_reg.f90, but more scalable
 ! * sub zrnmi_delx_ad           - equivalent(*) to tdelx_reg in psichi2uvt_reg.f90, but more scalable
+!   sub zrnmi_dely_general
 ! * sub zrnmi_dely              - equivalent(*) to dely_reg in psichi2uv_reg.f90, but more scalable
 ! * sub zrnmi_dely_ad           - equivalent(*) to tdely_reg in psichi2uvt_reg.f90, but more scalable
 !                                    (*) :  except corner points are treated differently.
+!
+!   sub zrnmi_uv2dz
+!   sub zrnmi_uv2dz_ad
+!   sub zrnmi_pc2uv
+!   sub zrnmi_pc2uv_orig
+!   sub zrnmi_pc2uv_ad_orig
+!   sub zrnmi_constants
+!   sub zrnmi_strong_bal_correction
+!   sub zrnmi_strong_bal_correction_ad
+!   sub zrnmi_filter_uvm
+!   sub zrnmi_filter_uvm_ad
+!   sub zrnmi_filter_uvm2
+!   sub zrnmi_filter_uvm2_ad
+!   sub zrnmi_uvm2uvmhat
+!   sub zrnmi_uvm2uvmhat_ad
+!   sub zrnmi_uvmhat2uvm
+!   sub zrnmi_uvmhat2uvm_ad
 !
 ! Variable Definitions:
 !      
@@ -57,8 +96,71 @@ module zrnmi_mod
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_double
-  use constants, only: pi
+  use constants, only: izero,ione,pi
   implicit none
+
+! set default to private
+  private
+! set subroutines to public
+  public :: zrnmi_initialize
+  public :: zrnmi_sd2x0
+  public :: zrnmi_sd2x1
+  public :: zrnmi_x2sd1
+  public :: zrnmi_sd2x
+  public :: zrnmi_sd2x2
+  public :: zrnmi_sd2x3
+  public :: zrnmi_x2sd
+  public :: zrnmi_x2sd2
+  public :: zrnmi_x2sd3
+  public :: zrnmi_sd2y0
+  public :: zrnmi_sd2y1
+  public :: zrnmi_y2sd1
+  public :: zrnmi_sd2y
+  public :: zrnmi_sd2y2
+  public :: zrnmi_sd2y3
+  public :: zrnmi_y2sd
+  public :: zrnmi_y2sd2
+  public :: zrnmi_y2sd3
+  public :: zrnmi_x_strans0
+  public :: zrnmi_x_strans
+  public :: zrnmi_uvm2dzmhat
+  public :: zrnmi_uvm2dzmhat_ad
+  public :: zrnmi_pcmhat2uvm
+  public :: zrnmi_pcmhat2uvm_orig
+  public :: zrnmi_pcmhat2uvm_ad_orig
+  public :: zrnmi_pcmhat2uvm_ad
+  public :: zrnmi_x2y0
+  public :: zrnmi_x2y1
+  public :: zrnmi_x2y
+  public :: zrnmi_x2y2
+  public :: zrnmi_x2y3
+  public :: zrnmi_y2x
+  public :: zrnmi_y2x2
+  public :: zrnmi_y2x3
+  public :: zrnmi_y_strans0
+  public :: zrnmi_y_strans
+  public :: zrnmi_delx_general
+  public :: zrnmi_delx
+  public :: zrnmi_delx_ad
+  public :: zrnmi_dely_general
+  public :: zrnmi_dely
+  public :: zrnmi_dely_ad
+  public :: zrnmi_uv2dz
+  public :: zrnmi_uv2dz_ad
+  public :: zrnmi_pc2uv
+  public :: zrnmi_pc2uv_orig
+  public :: zrnmi_pc2uv_ad_orig
+  public :: zrnmi_constants
+  public :: zrnmi_strong_bal_correction
+  public :: zrnmi_strong_bal_correction_ad
+  public :: zrnmi_filter_uvm
+  public :: zrnmi_filter_uvm_ad
+  public :: zrnmi_filter_uvm2
+  public :: zrnmi_filter_uvm2_ad
+  public :: zrnmi_uvm2uvmhat
+  public :: zrnmi_uvm2uvmhat_ad
+  public :: zrnmi_uvmhat2uvm
+  public :: zrnmi_uvmhat2uvm_ad
 
   integer(i_kind) nx,ny
   integer(i_kind) nvert
@@ -137,7 +239,7 @@ contains
     use mod_vtrans, only: nvmodes_keep
     implicit none
 
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
 
     zrnmi_period_max=period_max
     zrnmi_period_width=period_width
@@ -198,7 +300,7 @@ contains
   use mpimod, only:  npe
   implicit none
 
-  integer(i_kind),intent(in)::mype
+  integer(i_kind),intent(in   ) :: mype
 
   integer(i_kind) i,k,kchk,kk,n,nn,ny_this,ny_tot
 
@@ -210,44 +312,44 @@ contains
 
   ny_tot=ny*nvert
   ny_this=ny_tot/npe
-  if(mod(ny_tot,npe)/=0) ny_this=ny_this+1
-  if(mod(ny_tot,npe)==0) then
-    kchk=npe
+  if(mod(ny_tot,npe)/=izero) ny_this=ny_this+ione
+  if(mod(ny_tot,npe)==izero) then
+     kchk=npe
   else
-    kchk=mod(ny_tot,npe)
+     kchk=mod(ny_tot,npe)
   end if
 
-  nn=0
+  nn=izero
   do k=1,nvert
-    do i=1,ny
-      nn=nn+1
-      list_sd2x(1,nn)=i
-      list_sd2x(2,nn)=k
-      list_sd2x(3,nn)=-1
-    end do
+     do i=1,ny
+        nn=nn+ione
+        list_sd2x(1,nn)=i
+        list_sd2x(2,nn)=k
+        list_sd2x(3,nn)=-ione
+     end do
   end do
 
-  if(mype == 0) write(6,*)' nn,ny_tot,ny,nvert=',nn,ny_tot,ny,nvert
+  if(mype == izero) write(6,*)' nn,ny_tot,ny,nvert=',nn,ny_tot,ny,nvert
 
-  ny_0=-1
-  ny_1=-2
-  nn=0
+  ny_0=-ione
+  ny_1=-2_i_kind
+  nn=izero
   do n=1,npe
-    if(n <= kchk) then
-      kk=ny_this
-    else
-      kk=ny_this-1
-    end if
-    if(kk >  0) then
-      if(mype+1 == n) then
-        ny_0=nn+1
-        ny_1=nn+kk
-      end if
-      do k=1,kk
-        nn=nn+1
-        list_sd2x(3,nn)=n
-      end do
-    end if
+     if(n <= kchk) then
+        kk=ny_this
+     else
+        kk=ny_this-ione
+     end if
+     if(kk > izero) then
+        if(mype+ione == n) then
+           ny_0=nn+ione
+           ny_1=nn+kk
+        end if
+        do k=1,kk
+           nn=nn+ione
+           list_sd2x(3,nn)=n
+        end do
+     end if
   end do
 
   end subroutine zrnmi_sd2x0
@@ -281,73 +383,74 @@ contains
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
     implicit none
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind),intent(in   ) :: mype
+
     integer(i_kind) list2(ny,nvert)
     integer(i_kind) i,ii,ii0,iy,ivert,j,mm1,nn,nxloc,ipe,iym,ix,mpi_string1
     integer(i_kind) ny_tot
 
-    allocate(nsend_sd2x(npe),nrecv_sd2x(npe),ndsend_sd2x(npe+1),ndrecv_sd2x(npe+1))
-    mm1=mype+1
+    allocate(nsend_sd2x(npe),nrecv_sd2x(npe),ndsend_sd2x(npe+ione),ndrecv_sd2x(npe+ione))
+    mm1=mype+ione
     ny_tot=ny*nvert
 
 
-    nn=0
-    list2=0
+    nn=izero
+    list2=izero
     do j=1,ny_tot
-      iy=list_sd2x(1,j)
-      ivert=list_sd2x(2,j)
-      if(list2(iy,ivert) /= 0) then
-             if(mype == 0) write(0,*)' problem in zrnmi_sd2x1'
-                          call mpi_finalize(i)
-                          stop
-      end if
-      list2(iy,ivert)=j
+       iy=list_sd2x(1,j)
+       ivert=list_sd2x(2,j)
+       if(list2(iy,ivert) /= izero) then
+          if(mype == izero) write(0,*)' problem in zrnmi_sd2x1'
+          call mpi_finalize(i)
+          stop
+       end if
+       list2(iy,ivert)=j
     end do
 
 !  obtain counts of points to send to each pe from this pe
 
-    nsend_sd2x=0
-    nxloc=lon2-2
+    nsend_sd2x=izero
+    nxloc=lon2-2_i_kind
     do ivert=1,nvert
-      do i=2,lat2-1
-        iy=i+istart(mm1)-2
-        j=list2(iy,ivert)
-        ipe=list_sd2x(3,j)
-        nsend_sd2x(ipe)=nsend_sd2x(ipe)+nxloc
-      end do
+       do i=2,lat2-ione
+          iy=i+istart(mm1)-2_i_kind
+          j=list2(iy,ivert)
+          ipe=list_sd2x(3,j)
+          nsend_sd2x(ipe)=nsend_sd2x(ipe)+nxloc
+       end do
     end do
 
-    ndsend_sd2x(1)=0
-    do i=2,npe+1
-      ndsend_sd2x(i)=ndsend_sd2x(i-1)+nsend_sd2x(i-1)
+    ndsend_sd2x(1)=izero
+    do i=2,npe+ione
+       ndsend_sd2x(i)=ndsend_sd2x(i-ione)+nsend_sd2x(i-ione)
     end do
-    nallsend_sd2x=ndsend_sd2x(npe+1)
+    nallsend_sd2x=ndsend_sd2x(npe+ione)
     allocate(info_send_sd2x(3,nallsend_sd2x))
-    nsend_sd2x=0
+    nsend_sd2x=izero
     do ivert=1,nvert
-      do i=2,lat2-1
-        iy=i+istart(mm1)-2
-        iym=list2(iy,ivert)
-        ipe=list_sd2x(3,iym)
-        do ii=2,lon2-1
-          ix=ii+jstart(mm1)-2
-          nsend_sd2x(ipe)=nsend_sd2x(ipe)+1
-          ii0=ndsend_sd2x(ipe)+nsend_sd2x(ipe)
-          info_send_sd2x(1,ii0)=ix
-          info_send_sd2x(2,ii0)=iym
-          info_send_sd2x(3,ii0)=ivert
-        end do
-      end do
+       do i=2,lat2-ione
+          iy=i+istart(mm1)-2_i_kind
+          iym=list2(iy,ivert)
+          ipe=list_sd2x(3,iym)
+          do ii=2,lon2-ione
+             ix=ii+jstart(mm1)-2_i_kind
+             nsend_sd2x(ipe)=nsend_sd2x(ipe)+ione
+             ii0=ndsend_sd2x(ipe)+nsend_sd2x(ipe)
+             info_send_sd2x(1,ii0)=ix
+             info_send_sd2x(2,ii0)=iym
+             info_send_sd2x(3,ii0)=ivert
+          end do
+       end do
     end do
 
-    call mpi_alltoall(nsend_sd2x,1,mpi_integer4,nrecv_sd2x,1,mpi_integer4,mpi_comm_world,ierror)
-    ndrecv_sd2x(1)=0
-    do i=2,npe+1
-      ndrecv_sd2x(i)=ndrecv_sd2x(i-1)+nrecv_sd2x(i-1)
+    call mpi_alltoall(nsend_sd2x,ione,mpi_integer4,nrecv_sd2x,ione,mpi_integer4,mpi_comm_world,ierror)
+    ndrecv_sd2x(1)=izero
+    do i=2,npe+ione
+       ndrecv_sd2x(i)=ndrecv_sd2x(i-ione)+nrecv_sd2x(i-ione)
     end do
-    nallrecv_sd2x=ndrecv_sd2x(npe+1)
+    nallrecv_sd2x=ndrecv_sd2x(npe+ione)
     allocate(info_recv_sd2x(3,nallrecv_sd2x))
-    call mpi_type_contiguous(3,mpi_integer4,mpi_string1,ierror)
+    call mpi_type_contiguous(3_i_kind,mpi_integer4,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     call mpi_alltoallv(info_send_sd2x,nsend_sd2x,ndsend_sd2x,mpi_string1, &
                      info_recv_sd2x,nrecv_sd2x,ndrecv_sd2x,mpi_string1,mpi_comm_world,ierror)
@@ -386,64 +489,65 @@ contains
     implicit none
 
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind),intent(in   ) :: mype
+
     integer(i_kind) i,iy,ivert,j,k,mm1,ipe,ix,mpi_string1,nn
 
-    allocate(nsend_x2sd(npe),nrecv_x2sd(npe),ndsend_x2sd(npe+1),ndrecv_x2sd(npe+1))
-    mm1=mype+1
+    allocate(nsend_x2sd(npe),nrecv_x2sd(npe),ndsend_x2sd(npe+ione),ndrecv_x2sd(npe+ione))
+    mm1=mype+ione
 
 !      1.  for each pe, gather up list of points from this set of lat strips destined
 !             for subdomain of pe
     do ipe=1,npe
-      nn=0
-      do k=ny_0,ny_1
-        iy=list_sd2x(1,k)
-        ivert=list_sd2x(2,k)
-        i=iy-istart(ipe)+2
-        if(i >= 1.and.i <= ilat1(ipe)+2) then
-          do j=1,jlon1(ipe)+2
-            ix=j+jstart(ipe)-2
-            if(ix >= 1.and.ix <= nx) nn=nn+1
-          end do
-        end if
-      end do
-      nsend_x2sd(ipe)=nn
+       nn=izero
+       do k=ny_0,ny_1
+          iy=list_sd2x(1,k)
+          ivert=list_sd2x(2,k)
+          i=iy-istart(ipe)+2_i_kind
+          if(i >= ione.and.i <= ilat1(ipe)+2_i_kind) then
+             do j=1,jlon1(ipe)+2_i_kind
+                ix=j+jstart(ipe)-2_i_kind
+                if(ix >= ione.and.ix <= nx) nn=nn+ione
+             end do
+          end if
+       end do
+       nsend_x2sd(ipe)=nn
     end do
 
-    ndsend_x2sd(1)=0
-    do i=2,npe+1
-      ndsend_x2sd(i)=ndsend_x2sd(i-1)+nsend_x2sd(i-1)
+    ndsend_x2sd(1)=izero
+    do i=2,npe+ione
+       ndsend_x2sd(i)=ndsend_x2sd(i-ione)+nsend_x2sd(i-ione)
     end do
-    nallsend_x2sd=ndsend_x2sd(npe+1)
+    nallsend_x2sd=ndsend_x2sd(npe+ione)
     allocate(info_send_x2sd(3,nallsend_x2sd))
-    nn=0
+    nn=izero
     do ipe=1,npe
-      do k=ny_0,ny_1
-        iy=list_sd2x(1,k)
-        ivert=list_sd2x(2,k)
-        i=iy-istart(ipe)+2
-        if(i >= 1.and.i <= ilat1(ipe)+2) then
-          do j=1,jlon1(ipe)+2
-            ix=j+jstart(ipe)-2
-            if(ix >= 1.and.ix <= nx) then
-              nn=nn+1
-              info_send_x2sd(1,nn)=ix
-              info_send_x2sd(2,nn)=j
-              info_send_x2sd(3,nn)=k
-            end if
-          end do
-        end if
-      end do
+       do k=ny_0,ny_1
+          iy=list_sd2x(1,k)
+          ivert=list_sd2x(2,k)
+          i=iy-istart(ipe)+2_i_kind
+          if(i >= ione.and.i <= ilat1(ipe)+2_i_kind) then
+             do j=1,jlon1(ipe)+2_i_kind
+                ix=j+jstart(ipe)-2_i_kind
+                if(ix >= ione.and.ix <= nx) then
+                   nn=nn+ione
+                   info_send_x2sd(1,nn)=ix
+                   info_send_x2sd(2,nn)=j
+                   info_send_x2sd(3,nn)=k
+                end if
+             end do
+          end if
+       end do
     end do
 
-    call mpi_alltoall(nsend_x2sd,1,mpi_integer4,nrecv_x2sd,1,mpi_integer4,mpi_comm_world,ierror)
-    ndrecv_x2sd(1)=0
-    do i=2,npe+1
-      ndrecv_x2sd(i)=ndrecv_x2sd(i-1)+nrecv_x2sd(i-1)
+    call mpi_alltoall(nsend_x2sd,ione,mpi_integer4,nrecv_x2sd,ione,mpi_integer4,mpi_comm_world,ierror)
+    ndrecv_x2sd(1)=izero
+    do i=2,npe+ione
+       ndrecv_x2sd(i)=ndrecv_x2sd(i-ione)+nrecv_x2sd(i-ione)
     end do
-    nallrecv_x2sd=ndrecv_x2sd(npe+1)
+    nallrecv_x2sd=ndrecv_x2sd(npe+ione)
     allocate(info_recv_x2sd(3,nallrecv_x2sd))
-    call mpi_type_contiguous(3,mpi_integer4,mpi_string1,ierror)
+    call mpi_type_contiguous(3_i_kind,mpi_integer4,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     call mpi_alltoallv(info_send_x2sd,nsend_x2sd,ndsend_x2sd,mpi_string1, &
                        info_recv_x2sd,nrecv_x2sd,ndrecv_x2sd,mpi_string1,mpi_comm_world,ierror)
@@ -481,23 +585,23 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind)                        ,intent(in   ) :: mype
 
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in)::u_sd
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(out)::u_x
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u_sd
+    real(r_kind),dimension(nx,ny_0:ny_1)   ,intent(  out) :: u_x
 
     integer(i_kind) iy,iym,ix,ivert,j,mm1
     real(r_kind),allocatable::sendbuf(:),recvbuf(:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(sendbuf(nallsend_sd2x))
     do j=1,nallsend_sd2x
-      ix=info_send_sd2x(1,j)
-      iym=info_send_sd2x(2,j)
-      iy=list_sd2x(1,iym)
-      ivert=list_sd2x(2,iym)
-      sendbuf(j)=u_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
+       ix=info_send_sd2x(1,j)
+       iym=info_send_sd2x(2,j)
+       iy=list_sd2x(1,iym)
+       ivert=list_sd2x(2,iym)
+       sendbuf(j)=u_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
     end do
     allocate(recvbuf(nallrecv_sd2x))
     call mpi_alltoallv(sendbuf,nsend_sd2x,ndsend_sd2x,mpi_rtype, &
@@ -505,9 +609,9 @@ contains
     deallocate(sendbuf)
 
     do j=1,nallrecv_sd2x
-      ix=info_recv_sd2x(1,j)
-      iym=info_recv_sd2x(2,j)
-      u_x(ix,iym)=recvbuf(j)
+       ix=info_recv_sd2x(1,j)
+       iym=info_recv_sd2x(2,j)
+       u_x(ix,iym)=recvbuf(j)
     end do
     deallocate(recvbuf)
 
@@ -545,26 +649,26 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind)                        ,intent(in   ) :: mype
 
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in)::u1_sd,u2_sd
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(out)::u1_x,u2_x
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u1_sd,u2_sd
+    real(r_kind),dimension(nx,ny_0:ny_1)   ,intent(  out) :: u1_x,u2_x
 
     integer(i_kind) iy,iym,ix,ivert,j,mm1,mpi_string1
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(sendbuf(2,nallsend_sd2x))
     do j=1,nallsend_sd2x
-      ix=info_send_sd2x(1,j)
-      iym=info_send_sd2x(2,j)
-      iy=list_sd2x(1,iym)
-      ivert=list_sd2x(2,iym)
-      sendbuf(1,j)=u1_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
-      sendbuf(2,j)=u2_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
+       ix=info_send_sd2x(1,j)
+       iym=info_send_sd2x(2,j)
+       iy=list_sd2x(1,iym)
+       ivert=list_sd2x(2,iym)
+       sendbuf(1,j)=u1_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
+       sendbuf(2,j)=u2_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
     end do
-    call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(2_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     allocate(recvbuf(2,nallrecv_sd2x))
     call mpi_alltoallv(sendbuf,nsend_sd2x,ndsend_sd2x,mpi_string1, &
@@ -573,10 +677,10 @@ contains
     deallocate(sendbuf)
 
     do j=1,nallrecv_sd2x
-      ix=info_recv_sd2x(1,j)
-      iym=info_recv_sd2x(2,j)
-      u1_x(ix,iym)=recvbuf(1,j)
-      u2_x(ix,iym)=recvbuf(2,j)
+       ix=info_recv_sd2x(1,j)
+       iym=info_recv_sd2x(2,j)
+       u1_x(ix,iym)=recvbuf(1,j)
+       u2_x(ix,iym)=recvbuf(2,j)
     end do
     deallocate(recvbuf)
 
@@ -614,27 +718,27 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind)                        ,intent(in   ) :: mype
 
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in)::u1_sd,u2_sd,u3_sd
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(out)::u1_x,u2_x,u3_x
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u1_sd,u2_sd,u3_sd
+    real(r_kind),dimension(nx,ny_0:ny_1)   ,intent(  out) :: u1_x,u2_x,u3_x
 
     integer(i_kind) iy,iym,ix,ivert,j,mm1,mpi_string1
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(sendbuf(3,nallsend_sd2x))
     do j=1,nallsend_sd2x
-      ix=info_send_sd2x(1,j)
-      iym=info_send_sd2x(2,j)
-      iy=list_sd2x(1,iym)
-      ivert=list_sd2x(2,iym)
-      sendbuf(1,j)=u1_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
-      sendbuf(2,j)=u2_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
-      sendbuf(3,j)=u3_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
+       ix=info_send_sd2x(1,j)
+       iym=info_send_sd2x(2,j)
+       iy=list_sd2x(1,iym)
+       ivert=list_sd2x(2,iym)
+       sendbuf(1,j)=u1_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
+       sendbuf(2,j)=u2_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
+       sendbuf(3,j)=u3_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
     end do
-    call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(3_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     allocate(recvbuf(3,nallrecv_sd2x))
     call mpi_alltoallv(sendbuf,nsend_sd2x,ndsend_sd2x,mpi_string1, &
@@ -643,11 +747,11 @@ contains
     deallocate(sendbuf)
 
     do j=1,nallrecv_sd2x
-      ix=info_recv_sd2x(1,j)
-      iym=info_recv_sd2x(2,j)
-      u1_x(ix,iym)=recvbuf(1,j)
-      u2_x(ix,iym)=recvbuf(2,j)
-      u3_x(ix,iym)=recvbuf(3,j)
+       ix=info_recv_sd2x(1,j)
+       iym=info_recv_sd2x(2,j)
+       u1_x(ix,iym)=recvbuf(1,j)
+       u2_x(ix,iym)=recvbuf(2,j)
+       u3_x(ix,iym)=recvbuf(3,j)
     end do
     deallocate(recvbuf)
 
@@ -687,32 +791,32 @@ contains
     implicit none
 
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u_sd
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(in)::u_x
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u_sd
+    real(r_kind),dimension(nx,ny_0:ny_1)   ,intent(in   ) :: u_x
 
     real(r_kind),allocatable::sendbuf(:),recvbuf(:)
     integer(i_kind) iy,ivert,j,mm1,iym,ix,ixloc
 
-    mm1=mype+1
+    mm1=mype+ione
 
     u_sd=zero
     allocate(sendbuf(nallsend_x2sd))
     do j=1,nallsend_x2sd
-      ix=info_send_x2sd(1,j)
-      iym=info_send_x2sd(3,j)
-      sendbuf(j)=u_x(ix,iym)
+       ix=info_send_x2sd(1,j)
+       iym=info_send_x2sd(3,j)
+       sendbuf(j)=u_x(ix,iym)
     end do
     allocate(recvbuf(nallrecv_x2sd))
     call mpi_alltoallv(sendbuf,nsend_x2sd,ndsend_x2sd,mpi_rtype, &
                        recvbuf,nrecv_x2sd,ndrecv_x2sd,mpi_rtype,mpi_comm_world,ierror)
     deallocate(sendbuf)
     do j=1,nallrecv_x2sd
-      ixloc=info_recv_x2sd(2,j)
-      iym=info_recv_x2sd(3,j)
-      iy=list_sd2x(1,iym)
-      ivert=list_sd2x(2,iym)
-      u_sd(iy-istart(mm1)+2,ixloc,ivert)=recvbuf(j)
+       ixloc=info_recv_x2sd(2,j)
+       iym=info_recv_x2sd(3,j)
+       iy=list_sd2x(1,iym)
+       ivert=list_sd2x(2,iym)
+       u_sd(iy-istart(mm1)+2_i_kind,ixloc,ivert)=recvbuf(j)
     end do
     deallocate(recvbuf)
 
@@ -754,25 +858,25 @@ contains
     implicit none
 
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u1_sd,u2_sd
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(in)::u1_x,u2_x
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u1_sd,u2_sd
+    real(r_kind),dimension(nx,ny_0:ny_1)   ,intent(in   ) :: u1_x,u2_x
 
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
     integer(i_kind) iy,ivert,j,mm1,iym,ix,ixloc,mpi_string1
 
-    mm1=mype+1
+    mm1=mype+ione
 
     u1_sd=zero
     u2_sd=zero
     allocate(sendbuf(2,nallsend_x2sd))
     do j=1,nallsend_x2sd
-      ix=info_send_x2sd(1,j)
-      iym=info_send_x2sd(3,j)
-      sendbuf(1,j)=u1_x(ix,iym)
-      sendbuf(2,j)=u2_x(ix,iym)
+       ix=info_send_x2sd(1,j)
+       iym=info_send_x2sd(3,j)
+       sendbuf(1,j)=u1_x(ix,iym)
+       sendbuf(2,j)=u2_x(ix,iym)
     end do
-    call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(2_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     allocate(recvbuf(2,nallrecv_x2sd))
     call mpi_alltoallv(sendbuf,nsend_x2sd,ndsend_x2sd,mpi_string1, &
@@ -780,12 +884,12 @@ contains
     call mpi_type_free(mpi_string1,ierror)
     deallocate(sendbuf)
     do j=1,nallrecv_x2sd
-      ixloc=info_recv_x2sd(2,j)
-      iym=info_recv_x2sd(3,j)
-      iy=list_sd2x(1,iym)
-      ivert=list_sd2x(2,iym)
-      u1_sd(iy-istart(mm1)+2,ixloc,ivert)=recvbuf(1,j)
-      u2_sd(iy-istart(mm1)+2,ixloc,ivert)=recvbuf(2,j)
+       ixloc=info_recv_x2sd(2,j)
+       iym=info_recv_x2sd(3,j)
+       iy=list_sd2x(1,iym)
+       ivert=list_sd2x(2,iym)
+       u1_sd(iy-istart(mm1)+2_i_kind,ixloc,ivert)=recvbuf(1,j)
+       u2_sd(iy-istart(mm1)+2_i_kind,ixloc,ivert)=recvbuf(2,j)
     end do
     deallocate(recvbuf)
 
@@ -829,27 +933,27 @@ contains
     implicit none
 
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u1_sd,u2_sd,u3_sd
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(in)::u1_x,u2_x,u3_x
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u1_sd,u2_sd,u3_sd
+    real(r_kind),dimension(nx,ny_0:ny_1)   ,intent(in   ) :: u1_x,u2_x,u3_x
 
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
     integer(i_kind) iy,ivert,j,mm1,iym,ix,ixloc, mpi_string1
 
-    mm1=mype+1
+    mm1=mype+ione
 
     u1_sd=zero
     u2_sd=zero
     u3_sd=zero
     allocate(sendbuf(3,nallsend_x2sd))
     do j=1,nallsend_x2sd
-      ix=info_send_x2sd(1,j)
-      iym=info_send_x2sd(3,j)
-      sendbuf(1,j)=u1_x(ix,iym)
-      sendbuf(2,j)=u2_x(ix,iym)
-      sendbuf(3,j)=u3_x(ix,iym)
+       ix=info_send_x2sd(1,j)
+       iym=info_send_x2sd(3,j)
+       sendbuf(1,j)=u1_x(ix,iym)
+       sendbuf(2,j)=u2_x(ix,iym)
+       sendbuf(3,j)=u3_x(ix,iym)
     end do
-    call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(3_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     allocate(recvbuf(3,nallrecv_x2sd))
     call mpi_alltoallv(sendbuf,nsend_x2sd,ndsend_x2sd,mpi_string1, &
@@ -857,13 +961,13 @@ contains
     call mpi_type_free(mpi_string1,ierror)
     deallocate(sendbuf)
     do j=1,nallrecv_x2sd
-      ixloc=info_recv_x2sd(2,j)
-      iym=info_recv_x2sd(3,j)
-      iy=list_sd2x(1,iym)
-      ivert=list_sd2x(2,iym)
-      u1_sd(iy-istart(mm1)+2,ixloc,ivert)=recvbuf(1,j)
-      u2_sd(iy-istart(mm1)+2,ixloc,ivert)=recvbuf(2,j)
-      u3_sd(iy-istart(mm1)+2,ixloc,ivert)=recvbuf(3,j)
+       ixloc=info_recv_x2sd(2,j)
+       iym=info_recv_x2sd(3,j)
+       iy=list_sd2x(1,iym)
+       ivert=list_sd2x(2,iym)
+       u1_sd(iy-istart(mm1)+2_i_kind,ixloc,ivert)=recvbuf(1,j)
+       u2_sd(iy-istart(mm1)+2_i_kind,ixloc,ivert)=recvbuf(2,j)
+       u3_sd(iy-istart(mm1)+2_i_kind,ixloc,ivert)=recvbuf(3,j)
     end do
     deallocate(recvbuf)
 
@@ -910,7 +1014,7 @@ contains
   use mpimod, only:  npe
   implicit none
 
-  integer(i_kind),intent(in)::mype
+  integer(i_kind),intent(in   ) :: mype
 
   integer(i_kind) i,k,kchk,kk,n,nn,nx_this,nx_tot
 
@@ -918,44 +1022,44 @@ contains
 
   nx_tot=nx*nvert
   nx_this=nx_tot/npe
-  if(mod(nx_tot,npe)/=0) nx_this=nx_this+1
-  if(mod(nx_tot,npe)==0) then
-    kchk=npe
+  if(mod(nx_tot,npe)/=izero) nx_this=nx_this+ione
+  if(mod(nx_tot,npe)==izero) then
+     kchk=npe
   else
-    kchk=mod(nx_tot,npe)
+     kchk=mod(nx_tot,npe)
   end if
 
-  nn=0
+  nn=izero
   do k=1,nvert
-    do i=1,nx
-      nn=nn+1
-      list_sd2y(1,nn)=i
-      list_sd2y(2,nn)=k
-      list_sd2y(3,nn)=-1
-    end do
+     do i=1,nx
+        nn=nn+ione
+        list_sd2y(1,nn)=i
+        list_sd2y(2,nn)=k
+        list_sd2y(3,nn)=-ione
+     end do
   end do
 
-  if(mype == 0) write(6,*)' in zrnmi_sd2x0, nn,nx_tot,nx,nvert=',nn,nx_tot,nx,nvert
+  if(mype == izero) write(6,*)' in zrnmi_sd2x0, nn,nx_tot,nx,nvert=',nn,nx_tot,nx,nvert
 
-  nx_0=-1
-  nx_1=-2
-  nn=0
+  nx_0=-ione
+  nx_1=-2_i_kind
+  nn=izero
   do n=1,npe
-    if(n <= kchk) then
-      kk=nx_this
-    else
-      kk=nx_this-1
-    end if
-    if(kk >  0) then
-      if(mype+1 == n) then
-        nx_0=nn+1
-        nx_1=nn+kk
-      end if
-      do k=1,kk
-        nn=nn+1
-        list_sd2y(3,nn)=n
-      end do
-    end if
+     if(n <= kchk) then
+        kk=nx_this
+     else
+        kk=nx_this-ione
+     end if
+     if(kk >  izero) then
+        if(mype+ione == n) then
+           nx_0=nn+ione
+           nx_1=nn+kk
+        end if
+        do k=1,kk
+           nn=nn+ione
+           list_sd2y(3,nn)=n
+        end do
+     end if
   end do
 
   end subroutine zrnmi_sd2y0
@@ -989,85 +1093,86 @@ contains
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
     implicit none
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind),intent(in   ) :: mype
+
     integer(i_kind) list2(nx,nvert)
     integer(i_kind) i,ii,ii0,ix,ivert,j,mm1,nn,nyloc,ipe,ixm,iy,mpi_string1
     integer(i_kind) nx_tot
 
     allocate(nsend_sd2y(npe),nrecv_sd2y(npe),ndsend_sd2y(npe+1),ndrecv_sd2y(npe+1))
-    mm1=mype+1
+    mm1=mype+ione
     nx_tot=nx*nvert
 
 
-    nn=0
-    list2=0
+    nn=izero
+    list2=izero
     do j=1,nx_tot
-      ix=list_sd2y(1,j)
-      ivert=list_sd2y(2,j)
-      if(list2(ix,ivert) /= 0) then
-             if(mype == 0) write(0,*)' problem in zrnmi_sd2y1'
-                          call mpi_finalize(i)
-                          stop
-      end if
-      list2(ix,ivert)=j
+       ix=list_sd2y(1,j)
+       ivert=list_sd2y(2,j)
+       if(list2(ix,ivert) /= izero) then
+          if(mype == izero) write(0,*)' problem in zrnmi_sd2y1'
+          call mpi_finalize(i)
+          stop
+       end if
+       list2(ix,ivert)=j
     end do
     do ivert=1,nvert
-      do ix=1,nx
-        if(list2(ix,ivert) == 0) then
-             if(mype == 0) write(0,*)' problem in zrnmi_sd2y1'
-                          call mpi_finalize(i)
-                          stop
-        end if
-      end do
+       do ix=1,nx
+          if(list2(ix,ivert) == izero) then
+             if(mype == izero) write(0,*)' problem in zrnmi_sd2y1'
+             call mpi_finalize(i)
+             stop
+          end if
+       end do
     end do
 
 !  obtain counts of points to send to each pe from this pe
 
-    nsend_sd2y=0
-    nyloc=lat2-2
+    nsend_sd2y=izero
+    nyloc=lat2-2_i_kind
     do ivert=1,nvert
-      do i=2,lon2-1
-        ix=i+jstart(mm1)-2
-        j=list2(ix,ivert)
-        ipe=list_sd2y(3,j)
-        nsend_sd2y(ipe)=nsend_sd2y(ipe)+nyloc
-      end do
+       do i=2,lon2-ione
+          ix=i+jstart(mm1)-2_i_kind
+          j=list2(ix,ivert)
+          ipe=list_sd2y(3,j)
+          nsend_sd2y(ipe)=nsend_sd2y(ipe)+nyloc
+       end do
     end do
 
-    ndsend_sd2y(1)=0
-    do i=2,npe+1
-      ndsend_sd2y(i)=ndsend_sd2y(i-1)+nsend_sd2y(i-1)
+    ndsend_sd2y(1)=izero
+    do i=2,npe+ione
+       ndsend_sd2y(i)=ndsend_sd2y(i-ione)+nsend_sd2y(i-ione)
     end do
-    nallsend_sd2y=ndsend_sd2y(npe+1)
+    nallsend_sd2y=ndsend_sd2y(npe+ione)
     allocate(info_send_sd2y(3,nallsend_sd2y))
-    nsend_sd2y=0
+    nsend_sd2y=izero
     do ivert=1,nvert
-      do i=2,lon2-1
-        ix=i+jstart(mm1)-2
-        ixm=list2(ix,ivert)
-        ipe=list_sd2y(3,ixm)
-        do ii=2,lat2-1
-          iy=ii+istart(mm1)-2
-          nsend_sd2y(ipe)=nsend_sd2y(ipe)+1
-          ii0=ndsend_sd2y(ipe)+nsend_sd2y(ipe)
-          info_send_sd2y(1,ii0)=iy
-          info_send_sd2y(2,ii0)=ixm
-          info_send_sd2y(3,ii0)=ivert
-        end do
-      end do
+       do i=2,lon2-ione
+          ix=i+jstart(mm1)-2_i_kind
+          ixm=list2(ix,ivert)
+          ipe=list_sd2y(3,ixm)
+          do ii=2,lat2-ione
+             iy=ii+istart(mm1)-2_i_kind
+             nsend_sd2y(ipe)=nsend_sd2y(ipe)+ione
+             ii0=ndsend_sd2y(ipe)+nsend_sd2y(ipe)
+             info_send_sd2y(1,ii0)=iy
+             info_send_sd2y(2,ii0)=ixm
+             info_send_sd2y(3,ii0)=ivert
+          end do
+       end do
     end do
 
-    call mpi_alltoall(nsend_sd2y,1,mpi_integer4,nrecv_sd2y,1,mpi_integer4,mpi_comm_world,ierror)
-    ndrecv_sd2y(1)=0
-    do i=2,npe+1
-      ndrecv_sd2y(i)=ndrecv_sd2y(i-1)+nrecv_sd2y(i-1)
+    call mpi_alltoall(nsend_sd2y,ione,mpi_integer4,nrecv_sd2y,ione,mpi_integer4,mpi_comm_world,ierror)
+    ndrecv_sd2y(1)=izero
+    do i=2,npe+ione
+       ndrecv_sd2y(i)=ndrecv_sd2y(i-ione)+nrecv_sd2y(i-ione)
     end do
-    nallrecv_sd2y=ndrecv_sd2y(npe+1)
+    nallrecv_sd2y=ndrecv_sd2y(npe+ione)
     allocate(info_recv_sd2y(3,nallrecv_sd2y))
-    call mpi_type_contiguous(3,mpi_integer4,mpi_string1,ierror)
+    call mpi_type_contiguous(3_i_kind,mpi_integer4,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     call mpi_alltoallv(info_send_sd2y,nsend_sd2y,ndsend_sd2y,mpi_string1, &
-                     info_recv_sd2y,nrecv_sd2y,ndrecv_sd2y,mpi_string1,mpi_comm_world,ierror)
+                       info_recv_sd2y,nrecv_sd2y,ndrecv_sd2y,mpi_string1,mpi_comm_world,ierror)
     call mpi_type_free(mpi_string1,ierror)
 
   end subroutine zrnmi_sd2y1
@@ -1103,64 +1208,65 @@ contains
     implicit none
 
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind),intent(in   ) :: mype
+
     integer(i_kind) i,ix,ivert,j,k,mm1,mpi_string1,ipe,iy,nn
 
-    allocate(nsend_y2sd(npe),nrecv_y2sd(npe),ndsend_y2sd(npe+1),ndrecv_y2sd(npe+1))
-    mm1=mype+1
+    allocate(nsend_y2sd(npe),nrecv_y2sd(npe),ndsend_y2sd(npe+ione),ndrecv_y2sd(npe+ione))
+    mm1=mype+ione
 
 !      1.  for each pe, gather up list of points from this set of lat strips destined
 !             for subdomain of pe
     do ipe=1,npe
-      nn=0
-      do k=nx_0,nx_1
-        ix=list_sd2y(1,k)
-        ivert=list_sd2y(2,k)
-        i=ix-jstart(ipe)+2
-        if(i >= 1.and.i <= jlon1(ipe)+2) then
-          do j=1,ilat1(ipe)+2
-            iy=j+istart(ipe)-2
-            if(iy >= 1.and.iy <= ny) nn=nn+1
-          end do
-        end if
-      end do
-      nsend_y2sd(ipe)=nn
+       nn=izero
+       do k=nx_0,nx_1
+          ix=list_sd2y(1,k)
+          ivert=list_sd2y(2,k)
+          i=ix-jstart(ipe)+2_i_kind
+          if(i >= ione.and.i <= jlon1(ipe)+2_i_kind) then
+             do j=1,ilat1(ipe)+2_i_kind
+                iy=j+istart(ipe)-2_i_kind
+                if(iy >= ione.and.iy <= ny) nn=nn+ione
+             end do
+          end if
+       end do
+       nsend_y2sd(ipe)=nn
     end do
 
-    ndsend_y2sd(1)=0
-    do i=2,npe+1
-      ndsend_y2sd(i)=ndsend_y2sd(i-1)+nsend_y2sd(i-1)
+    ndsend_y2sd(1)=izero
+    do i=2,npe+ione
+       ndsend_y2sd(i)=ndsend_y2sd(i-ione)+nsend_y2sd(i-ione)
     end do
-    nallsend_y2sd=ndsend_y2sd(npe+1)
+    nallsend_y2sd=ndsend_y2sd(npe+ione)
     allocate(info_send_y2sd(3,nallsend_y2sd))
-    nn=0
+    nn=izero
     do ipe=1,npe
-      do k=nx_0,nx_1
-        ix=list_sd2y(1,k)
-        ivert=list_sd2y(2,k)
-        i=ix-jstart(ipe)+2
-        if(i >= 1.and.i <= jlon1(ipe)+2) then
-          do j=1,ilat1(ipe)+2
-            iy=j+istart(ipe)-2
-            if(iy >= 1.and.iy <= ny) then
-              nn=nn+1
-              info_send_y2sd(1,nn)=iy
-              info_send_y2sd(2,nn)=j
-              info_send_y2sd(3,nn)=k
-            end if
-          end do
-        end if
-      end do
+       do k=nx_0,nx_1
+          ix=list_sd2y(1,k)
+          ivert=list_sd2y(2,k)
+          i=ix-jstart(ipe)+2_i_kind
+          if(i >= ione.and.i <= jlon1(ipe)+2_i_kind) then
+             do j=1,ilat1(ipe)+2_i_kind
+                iy=j+istart(ipe)-2_i_kind
+                if(iy >= ione.and.iy <= ny) then
+                   nn=nn+ione
+                   info_send_y2sd(1,nn)=iy
+                   info_send_y2sd(2,nn)=j
+                   info_send_y2sd(3,nn)=k
+                end if
+             end do
+          end if
+       end do
     end do
 
-    call mpi_alltoall(nsend_y2sd,1,mpi_integer4,nrecv_y2sd,1,mpi_integer4,mpi_comm_world,ierror)
-    ndrecv_y2sd(1)=0
-    do i=2,npe+1
-      ndrecv_y2sd(i)=ndrecv_y2sd(i-1)+nrecv_y2sd(i-1)
+    call mpi_alltoall(nsend_y2sd,ione,mpi_integer4,nrecv_y2sd,ione,mpi_integer4,mpi_comm_world,ierror)
+    ndrecv_y2sd(1)=izero
+    do i=2,npe+ione
+       ndrecv_y2sd(i)=ndrecv_y2sd(i-ione)+nrecv_y2sd(i-ione)
     end do
-    nallrecv_y2sd=ndrecv_y2sd(npe+1)
+    nallrecv_y2sd=ndrecv_y2sd(npe+ione)
     allocate(info_recv_y2sd(3,nallrecv_y2sd))
-    call mpi_type_contiguous(3,mpi_integer4,mpi_string1,ierror)
+    call mpi_type_contiguous(3_i_kind,mpi_integer4,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     call mpi_alltoallv(info_send_y2sd,nsend_y2sd,ndsend_y2sd,mpi_string1, &
                        info_recv_y2sd,nrecv_y2sd,ndrecv_y2sd,mpi_string1,mpi_comm_world,ierror)
@@ -1200,23 +1306,23 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind)                        ,intent(in   ) :: mype
 
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in)::u_sd
-    real(r_kind),dimension(ny,nx_0:nx_1),intent(out)::u_y
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u_sd
+    real(r_kind),dimension(ny,nx_0:nx_1)   ,intent(  out) :: u_y
 
     integer(i_kind) ix,ixm,iy,ivert,j,mm1
     real(r_kind),allocatable::sendbuf(:),recvbuf(:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(sendbuf(nallsend_sd2y))
     do j=1,nallsend_sd2y
-      iy=info_send_sd2y(1,j)
-      ixm=info_send_sd2y(2,j)
-      ix=list_sd2y(1,ixm)
-      ivert=list_sd2y(2,ixm)
-      sendbuf(j)=u_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
+       iy=info_send_sd2y(1,j)
+       ixm=info_send_sd2y(2,j)
+       ix=list_sd2y(1,ixm)
+       ivert=list_sd2y(2,ixm)
+       sendbuf(j)=u_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
     end do
     allocate(recvbuf(nallrecv_sd2y))
     call mpi_alltoallv(sendbuf,nsend_sd2y,ndsend_sd2y,mpi_rtype, &
@@ -1224,9 +1330,9 @@ contains
     deallocate(sendbuf)
 
     do j=1,nallrecv_sd2y
-      iy=info_recv_sd2y(1,j)
-      ixm=info_recv_sd2y(2,j)
-      u_y(iy,ixm)=recvbuf(j)
+       iy=info_recv_sd2y(1,j)
+       ixm=info_recv_sd2y(2,j)
+       u_y(iy,ixm)=recvbuf(j)
     end do
     deallocate(recvbuf)
 
@@ -1266,26 +1372,26 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind)                        ,intent(in   ) :: mype
 
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in)::u1_sd,u2_sd
-    real(r_kind),dimension(ny,nx_0:nx_1),intent(out)::u1_y,u2_y
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u1_sd,u2_sd
+    real(r_kind),dimension(ny,nx_0:nx_1)   ,intent(  out) :: u1_y,u2_y
 
     integer(i_kind) ix,ixm,iy,ivert,j,mm1,mpi_string1
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(sendbuf(2,nallsend_sd2y))
     do j=1,nallsend_sd2y
-      iy=info_send_sd2y(1,j)
-      ixm=info_send_sd2y(2,j)
-      ix=list_sd2y(1,ixm)
-      ivert=list_sd2y(2,ixm)
-      sendbuf(1,j)=u1_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
-      sendbuf(2,j)=u2_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
+       iy=info_send_sd2y(1,j)
+       ixm=info_send_sd2y(2,j)
+       ix=list_sd2y(1,ixm)
+       ivert=list_sd2y(2,ixm)
+       sendbuf(1,j)=u1_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
+       sendbuf(2,j)=u2_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
     end do
-    call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(2_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     allocate(recvbuf(2,nallrecv_sd2y))
     call mpi_alltoallv(sendbuf,nsend_sd2y,ndsend_sd2y,mpi_string1, &
@@ -1294,10 +1400,10 @@ contains
     deallocate(sendbuf)
 
     do j=1,nallrecv_sd2y
-      iy=info_recv_sd2y(1,j)
-      ixm=info_recv_sd2y(2,j)
-      u1_y(iy,ixm)=recvbuf(1,j)
-      u2_y(iy,ixm)=recvbuf(2,j)
+       iy=info_recv_sd2y(1,j)
+       ixm=info_recv_sd2y(2,j)
+       u1_y(iy,ixm)=recvbuf(1,j)
+       u2_y(iy,ixm)=recvbuf(2,j)
     end do
     deallocate(recvbuf)
 
@@ -1339,27 +1445,27 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind)                        ,intent(in   ) :: mype
 
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in)::u1_sd,u2_sd,u3_sd
-    real(r_kind),dimension(ny,nx_0:nx_1),intent(out)::u1_y,u2_y,u3_y
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u1_sd,u2_sd,u3_sd
+    real(r_kind),dimension(ny,nx_0:nx_1)   ,intent(  out) :: u1_y,u2_y,u3_y
 
     integer(i_kind) ix,ixm,iy,ivert,j,mm1,mpi_string1
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(sendbuf(3,nallsend_sd2y))
     do j=1,nallsend_sd2y
-      iy=info_send_sd2y(1,j)
-      ixm=info_send_sd2y(2,j)
-      ix=list_sd2y(1,ixm)
-      ivert=list_sd2y(2,ixm)
-      sendbuf(1,j)=u1_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
-      sendbuf(2,j)=u2_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
-      sendbuf(3,j)=u3_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
+       iy=info_send_sd2y(1,j)
+       ixm=info_send_sd2y(2,j)
+       ix=list_sd2y(1,ixm)
+       ivert=list_sd2y(2,ixm)
+       sendbuf(1,j)=u1_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
+       sendbuf(2,j)=u2_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
+       sendbuf(3,j)=u3_sd(iy-istart(mm1)+2_i_kind,ix-jstart(mm1)+2_i_kind,ivert)
     end do
-    call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(3_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     allocate(recvbuf(3,nallrecv_sd2y))
     call mpi_alltoallv(sendbuf,nsend_sd2y,ndsend_sd2y,mpi_string1, &
@@ -1368,11 +1474,11 @@ contains
     deallocate(sendbuf)
 
     do j=1,nallrecv_sd2y
-      iy=info_recv_sd2y(1,j)
-      ixm=info_recv_sd2y(2,j)
-      u1_y(iy,ixm)=recvbuf(1,j)
-      u2_y(iy,ixm)=recvbuf(2,j)
-      u3_y(iy,ixm)=recvbuf(3,j)
+       iy=info_recv_sd2y(1,j)
+       ixm=info_recv_sd2y(2,j)
+       u1_y(iy,ixm)=recvbuf(1,j)
+       u2_y(iy,ixm)=recvbuf(2,j)
+       u3_y(iy,ixm)=recvbuf(3,j)
     end do
     deallocate(recvbuf)
 
@@ -1412,32 +1518,32 @@ contains
     implicit none
 
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u_sd
-    real(r_kind),dimension(ny,nx_0:nx_1),intent(in)::u_y
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u_sd
+    real(r_kind),dimension(ny,nx_0:nx_1)   ,intent(in   ) :: u_y
 
     real(r_kind),allocatable::sendbuf(:),recvbuf(:)
     integer(i_kind) ix,ivert,j,mm1,ixm,iy,iyloc
 
-    mm1=mype+1
+    mm1=mype+ione
 
     u_sd=zero
     allocate(sendbuf(nallsend_y2sd))
     do j=1,nallsend_y2sd
-      iy=info_send_y2sd(1,j)
-      ixm=info_send_y2sd(3,j)
-      sendbuf(j)=u_y(iy,ixm)
+       iy=info_send_y2sd(1,j)
+       ixm=info_send_y2sd(3,j)
+       sendbuf(j)=u_y(iy,ixm)
     end do
     allocate(recvbuf(nallrecv_y2sd))
     call mpi_alltoallv(sendbuf,nsend_y2sd,ndsend_y2sd,mpi_rtype, &
                        recvbuf,nrecv_y2sd,ndrecv_y2sd,mpi_rtype,mpi_comm_world,ierror)
     deallocate(sendbuf)
     do j=1,nallrecv_y2sd
-      iyloc=info_recv_y2sd(2,j)
-      ixm=info_recv_y2sd(3,j)
-      ix=list_sd2y(1,ixm)
-      ivert=list_sd2y(2,ixm)
-      u_sd(iyloc,ix-jstart(mm1)+2,ivert)=recvbuf(j)
+       iyloc=info_recv_y2sd(2,j)
+       ixm=info_recv_y2sd(3,j)
+       ix=list_sd2y(1,ixm)
+       ivert=list_sd2y(2,ixm)
+       u_sd(iyloc,ix-jstart(mm1)+2_i_kind,ivert)=recvbuf(j)
     end do
     deallocate(recvbuf)
 
@@ -1479,25 +1585,25 @@ contains
     implicit none
 
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u1_sd,u2_sd
-    real(r_kind),dimension(ny,nx_0:nx_1),intent(in)::u1_y,u2_y
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u1_sd,u2_sd
+    real(r_kind),dimension(ny,nx_0:nx_1)   ,intent(in   ) :: u1_y,u2_y
 
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
     integer(i_kind) ix,ivert,j,mm1,ixm,iy,iyloc,mpi_string1
 
-    mm1=mype+1
+    mm1=mype+ione
 
     u1_sd=zero
     u2_sd=zero
     allocate(sendbuf(2,nallsend_y2sd))
     do j=1,nallsend_y2sd
-      iy=info_send_y2sd(1,j)
-      ixm=info_send_y2sd(3,j)
-      sendbuf(1,j)=u1_y(iy,ixm)
-      sendbuf(2,j)=u2_y(iy,ixm)
+       iy=info_send_y2sd(1,j)
+       ixm=info_send_y2sd(3,j)
+       sendbuf(1,j)=u1_y(iy,ixm)
+       sendbuf(2,j)=u2_y(iy,ixm)
     end do
-    call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(2_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     allocate(recvbuf(2,nallrecv_y2sd))
     call mpi_alltoallv(sendbuf,nsend_y2sd,ndsend_y2sd,mpi_string1, &
@@ -1505,12 +1611,12 @@ contains
     call mpi_type_free(mpi_string1,ierror)
     deallocate(sendbuf)
     do j=1,nallrecv_y2sd
-      iyloc=info_recv_y2sd(2,j)
-      ixm=info_recv_y2sd(3,j)
-      ix=list_sd2y(1,ixm)
-      ivert=list_sd2y(2,ixm)
-      u1_sd(iyloc,ix-jstart(mm1)+2,ivert)=recvbuf(1,j)
-      u2_sd(iyloc,ix-jstart(mm1)+2,ivert)=recvbuf(2,j)
+       iyloc=info_recv_y2sd(2,j)
+       ixm=info_recv_y2sd(3,j)
+       ix=list_sd2y(1,ixm)
+       ivert=list_sd2y(2,ixm)
+       u1_sd(iyloc,ix-jstart(mm1)+2_i_kind,ivert)=recvbuf(1,j)
+       u2_sd(iyloc,ix-jstart(mm1)+2_i_kind,ivert)=recvbuf(2,j)
     end do
     deallocate(recvbuf)
 
@@ -1554,26 +1660,26 @@ contains
     implicit none
 
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u1_sd,u2_sd,u3_sd
-    real(r_kind),dimension(ny,nx_0:nx_1),intent(in)::u1_y,u2_y,u3_y
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u1_sd,u2_sd,u3_sd
+    real(r_kind),dimension(ny,nx_0:nx_1)   ,intent(in   ) :: u1_y,u2_y,u3_y
 
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
     integer(i_kind) ix,ivert,j,mm1,ixm,iy,iyloc,mpi_string1
 
-    mm1=mype+1
+    mm1=mype+ione
 
     u1_sd=zero
     u2_sd=zero
     allocate(sendbuf(3,nallsend_y2sd))
     do j=1,nallsend_y2sd
-      iy=info_send_y2sd(1,j)
-      ixm=info_send_y2sd(3,j)
-      sendbuf(1,j)=u1_y(iy,ixm)
-      sendbuf(2,j)=u2_y(iy,ixm)
-      sendbuf(3,j)=u3_y(iy,ixm)
+       iy=info_send_y2sd(1,j)
+       ixm=info_send_y2sd(3,j)
+       sendbuf(1,j)=u1_y(iy,ixm)
+       sendbuf(2,j)=u2_y(iy,ixm)
+       sendbuf(3,j)=u3_y(iy,ixm)
     end do
-    call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(3_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     allocate(recvbuf(3,nallrecv_y2sd))
     call mpi_alltoallv(sendbuf,nsend_y2sd,ndsend_y2sd,mpi_string1, &
@@ -1581,13 +1687,13 @@ contains
     call mpi_type_free(mpi_string1,ierror)
     deallocate(sendbuf)
     do j=1,nallrecv_y2sd
-      iyloc=info_recv_y2sd(2,j)
-      ixm=info_recv_y2sd(3,j)
-      ix=list_sd2y(1,ixm)
-      ivert=list_sd2y(2,ixm)
-      u1_sd(iyloc,ix-jstart(mm1)+2,ivert)=recvbuf(1,j)
-      u2_sd(iyloc,ix-jstart(mm1)+2,ivert)=recvbuf(2,j)
-      u3_sd(iyloc,ix-jstart(mm1)+2,ivert)=recvbuf(3,j)
+       iyloc=info_recv_y2sd(2,j)
+       ixm=info_recv_y2sd(3,j)
+       ix=list_sd2y(1,ixm)
+       ivert=list_sd2y(2,ixm)
+       u1_sd(iyloc,ix-jstart(mm1)+2_i_kind,ivert)=recvbuf(1,j)
+       u2_sd(iyloc,ix-jstart(mm1)+2_i_kind,ivert)=recvbuf(2,j)
+       u3_sd(iyloc,ix-jstart(mm1)+2_i_kind,ivert)=recvbuf(3,j)
     end do
     deallocate(recvbuf)
 
@@ -1622,9 +1728,9 @@ contains
 
     allocate(sinx(nx,nx))
     do k=1,nx
-      do n=1,nx
-        sinx(n,k)=sqrt(two/(nx+one))*sin(pi*k*n/(nx+one))
-      end do
+       do n=1,nx
+          sinx(n,k)=sqrt(two/(nx+one))*sin(pi*k*n/(nx+one))
+       end do
     end do
 
   end subroutine zrnmi_x_strans0
@@ -1656,42 +1762,42 @@ contains
     use constants, only: zero,half,one
     implicit none
 
-    real(r_kind),intent(in):: g_x(nx,ny_0:ny_1)
-    real(r_kind),intent(out):: gt_x(nx,ny_0:ny_1)
+    real(r_kind),intent(in   ) :: g_x(nx,ny_0:ny_1)
+    real(r_kind),intent(  out) :: gt_x(nx,ny_0:ny_1)
 
     integer(i_kind) i,i1,j,k,k1
     real(r_kind) diff,factor,sum,diff1,sum1
 
     do j=ny_0,ny_1
-      do k=1,nx
-        gt_x(k,j)=zero
-      end do
-      do i=1,((nx+1)/2),2
-        factor=one
-        if(nx+1-i == i) factor=half
-        sum =factor*(g_x(i,j)+g_x(nx+1-i,j))
-        diff=        g_x(i,j)-g_x(nx+1-i,j)
-        i1=i+1
-        if(i1 <= (nx+1)/2) then
+       do k=1,nx
+          gt_x(k,j)=zero
+       end do
+       do i=1,((nx+ione)/2),2
           factor=one
-          if(nx+1-i1 == i1) factor=half
-          sum1 =factor*(g_x(i1,j)+g_x(nx+1-i1,j))
-          diff1=        g_x(i1,j)-g_x(nx+1-i1,j)
-          do k=1,nx-1,2
-            k1=k+1
-            gt_x(k ,j)=gt_x(k ,j)+sinx(k ,i)*sum +sinx(k ,i1)*sum1
-            gt_x(k1,j)=gt_x(k1,j)+sinx(k1,i)*diff+sinx(k1,i1)*diff1
-          end do
-          if(mod(nx,2) == 1) gt_x(nx,j)=gt_x(nx,j)+sinx(nx,i)*sum+sinx(nx,i1)*sum1
-        else
-          do k=1,nx-1,2
-            k1=k+1
-            gt_x(k,j)=gt_x(k,j)+sinx(k,i)*sum
-            gt_x(k1,j)=gt_x(k1,j)+sinx(k1,i)*diff
-          end do
-          if(mod(nx,2) == 1) gt_x(nx,j)=gt_x(nx,j)+sinx(nx,i)*sum
-        end if
-      end do
+          if(nx+ione-i == i) factor=half
+          sum =factor*(g_x(i,j)+g_x(nx+ione-i,j))
+          diff=        g_x(i,j)-g_x(nx+ione-i,j)
+          i1=i+ione
+          if(i1 <= (nx+ione)/2) then
+             factor=one
+             if(nx+ione-i1 == i1) factor=half
+             sum1 =factor*(g_x(i1,j)+g_x(nx+ione-i1,j))
+             diff1=        g_x(i1,j)-g_x(nx+ione-i1,j)
+             do k=1,nx-ione,2
+                k1=k+ione
+                gt_x(k ,j)=gt_x(k ,j)+sinx(k ,i)*sum +sinx(k ,i1)*sum1
+                gt_x(k1,j)=gt_x(k1,j)+sinx(k1,i)*diff+sinx(k1,i1)*diff1
+             end do
+             if(mod(nx,2_i_kind) == ione) gt_x(nx,j)=gt_x(nx,j)+sinx(nx,i)*sum+sinx(nx,i1)*sum1
+          else
+             do k=1,nx-ione,2
+                k1=k+ione
+                gt_x(k,j)=gt_x(k,j)+sinx(k,i)*sum
+                gt_x(k1,j)=gt_x(k1,j)+sinx(k1,i)*diff
+             end do
+             if(mod(nx,2_i_kind) == ione) gt_x(nx,j)=gt_x(nx,j)+sinx(nx,i)*sum
+          end if
+       end do
     end do
 
   end subroutine zrnmi_x_strans
@@ -1728,9 +1834,9 @@ contains
     use gridmod, only: lon2,lat2
     implicit none
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in)::u,v,m
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(out)::dhat,zhat,mhat
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1)   ,intent(  out) :: dhat,zhat,mhat
 
     real(r_kind),dimension(lat2,lon2,nvert):: d,z
     real(r_kind),dimension(nx,ny_0:ny_1):: d_x,z_x,m_x
@@ -1784,9 +1890,9 @@ contains
     use gridmod, only: lon2,lat2
     implicit none
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u,v,m
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(inout)::dhat,zhat,mhat
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1)   ,intent(inout) :: dhat,zhat,mhat
 
     real(r_kind),dimension(lat2,lon2,nvert):: d,z
     real(r_kind),dimension(nx,ny_0:ny_1):: d_x,z_x,m_x
@@ -1840,9 +1946,9 @@ contains
     use gridmod, only: lon2,lat2
     implicit none
  
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::p,c,m
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(inout)::phat,chat,mhat
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: p,c,m
+    real(r_kind),dimension(ny,mx_0:mx_1)   ,intent(inout) :: phat,chat,mhat
  
     real(r_kind),dimension(nx,ny_0:ny_1):: p_x,c_x,m_x
     real(r_kind),dimension(nx,ny_0:ny_1):: p4_x,c4_x,m4_x
@@ -1893,9 +1999,9 @@ contains
 
     use gridmod, only: lon2,lat2
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u,v,m
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(inout)::phat,chat,mhat
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1)   ,intent(inout) :: phat,chat,mhat
 
     real(r_kind),dimension(lat2,lon2,nvert):: p,c
     real(r_kind),dimension(nx,ny_0:ny_1):: p_x,c_x,m_x
@@ -1915,13 +2021,36 @@ contains
   end subroutine zrnmi_pcmhat2uvm_orig
 
   subroutine zrnmi_pcmhat2uvm_ad_orig(u,v,m,phat,chat,mhat,mype)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    zrnmi_pcmhat2uvm_ad_orig
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-01-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!    mype
+!    u,v,m
+!
+!   output argument list:
+!    u,v,m
+!    phat,chat,mhat
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use constants, only: zero
     use gridmod, only: lon2,lat2
+    implicit none
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::u,v,m
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(out)::phat,chat,mhat
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout) :: u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1)   ,intent(  out) :: phat,chat,mhat
 
     real(r_kind),dimension(lat2,lon2,nvert):: p,c
     real(r_kind),dimension(nx,ny_0:ny_1):: p_x,c_x,m_x
@@ -1975,9 +2104,9 @@ contains
     use gridmod, only: lon2,lat2
     implicit none
  
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::p,c,m
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(out)::phat,chat,mhat
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout) :: p,c,m
+    real(r_kind),dimension(ny,mx_0:mx_1)   ,intent(  out) :: phat,chat,mhat
  
     real(r_kind),dimension(nx,ny_0:ny_1):: p_x,c_x,m_x
     real(r_kind),dimension(nx,ny_0:ny_1):: p4_x,c4_x,m4_x
@@ -2035,7 +2164,7 @@ contains
     use mpimod, only:  npe
     implicit none
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind),intent(in   ) :: mype
 
     integer(i_kind) i,k,kchk,kk,n,nn,mx_this,mx_tot
 
@@ -2043,44 +2172,44 @@ contains
 
     mx_tot=nx*nvert
     mx_this=mx_tot/npe
-    if(mod(mx_tot,npe)/=0) mx_this=mx_this+1
-    if(mod(mx_tot,npe)==0) then
-      kchk=npe
+    if(mod(mx_tot,npe)/=izero) mx_this=mx_this+ione
+    if(mod(mx_tot,npe)==izero) then
+       kchk=npe
     else
-      kchk=mod(mx_tot,npe)
+       kchk=mod(mx_tot,npe)
     end if
 
-    nn=0
+    nn=izero
     do k=1,nvert
-      do i=1,nx
-        nn=nn+1
-        list_x2y(1,nn)=i
-        list_x2y(2,nn)=k
-        list_x2y(3,nn)=-1
-      end do
+       do i=1,nx
+          nn=nn+ione
+          list_x2y(1,nn)=i
+          list_x2y(2,nn)=k
+          list_x2y(3,nn)=-ione
+       end do
     end do
 
-    if(mype == 0) write(6,*)' in zrnmi_x2y0, nn,mx_tot,nx,nvert=',nn,mx_tot,nx,nvert
+    if(mype == izero) write(6,*)' in zrnmi_x2y0, nn,mx_tot,nx,nvert=',nn,mx_tot,nx,nvert
 
-    mx_0=-1
-    mx_1=-2
-    nn=0
+    mx_0=-ione
+    mx_1=-2_i_kind
+    nn=izero
     do n=1,npe
-      if(n <= kchk) then
-        kk=mx_this
-      else
-        kk=mx_this-1
-      end if
-      if(kk >  0) then
-        if(mype+1 == n) then
-          mx_0=nn+1
-          mx_1=nn+kk
-        end if
-        do k=1,kk
-          nn=nn+1
-          list_x2y(3,nn)=n
-        end do
-      end if
+       if(n <= kchk) then
+          kk=mx_this
+       else
+          kk=mx_this-ione
+       end if
+       if(kk >  izero) then
+          if(mype+ione == n) then
+             mx_0=nn+ione
+             mx_1=nn+kk
+          end if
+          do k=1,kk
+             nn=nn+ione
+             list_x2y(3,nn)=n
+          end do
+       end if
     end do
 
   end subroutine zrnmi_x2y0
@@ -2113,77 +2242,78 @@ contains
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4
     implicit none
 
-    integer(i_kind),intent(in)::mype
+    integer(i_kind),intent(in   ) :: mype
+
     integer(i_kind) list2(nx,nvert)
     integer(i_kind) i,ii0,ix,ivert,j,k,ipe,ixm,iy,mpi_string1
     integer(i_kind) mx_tot
 
-    allocate(nsend_x2y(npe),nrecv_x2y(npe),ndsend_x2y(npe+1),ndrecv_x2y(npe+1))
+    allocate(nsend_x2y(npe),nrecv_x2y(npe),ndsend_x2y(npe+ione),ndrecv_x2y(npe+ione))
     mx_tot=nx*nvert
 
-    list2=0
+    list2=izero
     do j=1,mx_tot
-      ix=list_x2y(1,j)
-      ivert=list_x2y(2,j)
-      if(list2(ix,ivert) /= 0) then
-             if(mype == 0) write(0,*)' problem in zrnmi_x2y1'
-                          call mpi_finalize(i)
-                          stop
-      end if
-      list2(ix,ivert)=j
+       ix=list_x2y(1,j)
+       ivert=list_x2y(2,j)
+       if(list2(ix,ivert) /= izero) then
+          if(mype == izero) write(0,*)' problem in zrnmi_x2y1'
+          call mpi_finalize(i)
+          stop
+       end if
+       list2(ix,ivert)=j
     end do
     do ivert=1,nvert
-      do ix=1,nx
-        if(list2(ix,ivert) == 0) then
-             if(mype == 0) write(0,*)' problem in zrnmi_x2y1'
-                          call mpi_finalize(i)
-                          stop
-        end if
-      end do
+       do ix=1,nx
+          if(list2(ix,ivert) == izero) then
+             if(mype == izero) write(0,*)' problem in zrnmi_x2y1'
+             call mpi_finalize(i)
+             stop
+          end if
+       end do
     end do
 
 !  obtain counts of points to send to each pe from this pe
 
-    nsend_x2y=0
+    nsend_x2y=izero
     do k=ny_0,ny_1
-      ivert=list_sd2x(2,k)
-      do ix=1,nx
-        j=list2(ix,ivert)
-        ipe=list_x2y(3,j)
-        nsend_x2y(ipe)=nsend_x2y(ipe)+1
-      end do
+       ivert=list_sd2x(2,k)
+       do ix=1,nx
+          j=list2(ix,ivert)
+          ipe=list_x2y(3,j)
+          nsend_x2y(ipe)=nsend_x2y(ipe)+ione
+       end do
     end do
 
-    ndsend_x2y(1)=0
-    do i=2,npe+1
-      ndsend_x2y(i)=ndsend_x2y(i-1)+nsend_x2y(i-1)
+    ndsend_x2y(1)=izero
+    do i=2,npe+ione
+       ndsend_x2y(i)=ndsend_x2y(i-ione)+nsend_x2y(i-ione)
     end do
-    nallsend_x2y=ndsend_x2y(npe+1)
+    nallsend_x2y=ndsend_x2y(npe+ione)
     allocate(info_send_x2y(4,nallsend_x2y))
-    nsend_x2y=0
+    nsend_x2y=izero
     do k=ny_0,ny_1
-      iy=list_sd2x(1,k)
-      ivert=list_sd2x(2,k)
-      do ix=1,nx
-        ixm=list2(ix,ivert)
-        ipe=list_x2y(3,ixm)
-        nsend_x2y(ipe)=nsend_x2y(ipe)+1
-        ii0=ndsend_x2y(ipe)+nsend_x2y(ipe)
-        info_send_x2y(1,ii0)=ix
-        info_send_x2y(2,ii0)=k
-        info_send_x2y(3,ii0)=iy
-        info_send_x2y(4,ii0)=ixm
-      end do
+       iy=list_sd2x(1,k)
+       ivert=list_sd2x(2,k)
+       do ix=1,nx
+          ixm=list2(ix,ivert)
+          ipe=list_x2y(3,ixm)
+          nsend_x2y(ipe)=nsend_x2y(ipe)+ione
+          ii0=ndsend_x2y(ipe)+nsend_x2y(ipe)
+          info_send_x2y(1,ii0)=ix
+          info_send_x2y(2,ii0)=k
+          info_send_x2y(3,ii0)=iy
+          info_send_x2y(4,ii0)=ixm
+       end do
     end do
 
-    call mpi_alltoall(nsend_x2y,1,mpi_integer4,nrecv_x2y,1,mpi_integer4,mpi_comm_world,ierror)
-    ndrecv_x2y(1)=0
-    do i=2,npe+1
-      ndrecv_x2y(i)=ndrecv_x2y(i-1)+nrecv_x2y(i-1)
+    call mpi_alltoall(nsend_x2y,ione,mpi_integer4,nrecv_x2y,ione,mpi_integer4,mpi_comm_world,ierror)
+    ndrecv_x2y(1)=izero
+    do i=2,npe+ione
+       ndrecv_x2y(i)=ndrecv_x2y(i-ione)+nrecv_x2y(i-ione)
     end do
-    nallrecv_x2y=ndrecv_x2y(npe+1)
+    nallrecv_x2y=ndrecv_x2y(npe+ione)
     allocate(info_recv_x2y(4,nallrecv_x2y))
-    call mpi_type_contiguous(4,mpi_integer4,mpi_string1,ierror)
+    call mpi_type_contiguous(4_i_kind,mpi_integer4,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     call mpi_alltoallv(info_send_x2y,nsend_x2y,ndsend_x2y,mpi_string1, &
                      info_recv_x2y,nrecv_x2y,ndrecv_x2y,mpi_string1,mpi_comm_world,ierror)
@@ -2219,20 +2349,20 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(in)::u_x
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(out)::u_y
+    integer(i_kind)                     ,intent(in   ) :: mype
+    real(r_kind),dimension(nx,ny_0:ny_1),intent(in   ) :: u_x
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(  out) :: u_y
 
     integer(i_kind) ixm,ix,iy,iym,j,mm1
     real(r_kind),allocatable::sendbuf(:),recvbuf(:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(sendbuf(nallsend_x2y))
     do j=1,nallsend_x2y
-      ix=info_send_x2y(1,j)
-      iym=info_send_x2y(2,j)
-      sendbuf(j)=u_x(ix,iym)
+       ix=info_send_x2y(1,j)
+       iym=info_send_x2y(2,j)
+       sendbuf(j)=u_x(ix,iym)
     end do
     allocate(recvbuf(nallrecv_x2y))
     call mpi_alltoallv(sendbuf,nsend_x2y,ndsend_x2y,mpi_rtype, &
@@ -2240,9 +2370,9 @@ contains
     deallocate(sendbuf)
 
     do j=1,nallrecv_x2y
-      iy=info_recv_x2y(3,j)
-      ixm=info_recv_x2y(4,j)
-      u_y(iy,ixm)=recvbuf(j)
+       iy=info_recv_x2y(3,j)
+       ixm=info_recv_x2y(4,j)
+       u_y(iy,ixm)=recvbuf(j)
     end do
     deallocate(recvbuf)
     
@@ -2279,23 +2409,23 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(in)::u1_x,u2_x
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(out)::u1_y,u2_y
+    integer(i_kind)                     ,intent(in   ) :: mype
+    real(r_kind),dimension(nx,ny_0:ny_1),intent(in   ) :: u1_x,u2_x
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(  out) :: u1_y,u2_y
 
     integer(i_kind) ixm,ix,iy,iym,j,mm1,mpi_string1
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(sendbuf(2,nallsend_x2y))
     do j=1,nallsend_x2y
-      ix=info_send_x2y(1,j)
-      iym=info_send_x2y(2,j)
-      sendbuf(1,j)=u1_x(ix,iym)
-      sendbuf(2,j)=u2_x(ix,iym)
+       ix=info_send_x2y(1,j)
+       iym=info_send_x2y(2,j)
+       sendbuf(1,j)=u1_x(ix,iym)
+       sendbuf(2,j)=u2_x(ix,iym)
     end do
-    call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(2_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     allocate(recvbuf(2,nallrecv_x2y))
     call mpi_alltoallv(sendbuf,nsend_x2y,ndsend_x2y,mpi_string1, &
@@ -2304,10 +2434,10 @@ contains
     deallocate(sendbuf)
 
     do j=1,nallrecv_x2y
-      iy=info_recv_x2y(3,j)
-      ixm=info_recv_x2y(4,j)
-      u1_y(iy,ixm)=recvbuf(1,j)
-      u2_y(iy,ixm)=recvbuf(2,j)
+       iy=info_recv_x2y(3,j)
+       ixm=info_recv_x2y(4,j)
+       u1_y(iy,ixm)=recvbuf(1,j)
+       u2_y(iy,ixm)=recvbuf(2,j)
     end do
     deallocate(recvbuf)
     
@@ -2345,24 +2475,24 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(in)::u1_x,u2_x,u3_x
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(out)::u1_y,u2_y,u3_y
+    integer(i_kind)                     ,intent(in   ) :: mype
+    real(r_kind),dimension(nx,ny_0:ny_1),intent(in   ) :: u1_x,u2_x,u3_x
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(  out) :: u1_y,u2_y,u3_y
 
     integer(i_kind) ixm,ix,iy,iym,j,mm1,mpi_string1
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(sendbuf(3,nallsend_x2y))
     do j=1,nallsend_x2y
-      ix=info_send_x2y(1,j)
-      iym=info_send_x2y(2,j)
-      sendbuf(1,j)=u1_x(ix,iym)
-      sendbuf(2,j)=u2_x(ix,iym)
-      sendbuf(3,j)=u3_x(ix,iym)
+       ix=info_send_x2y(1,j)
+       iym=info_send_x2y(2,j)
+       sendbuf(1,j)=u1_x(ix,iym)
+       sendbuf(2,j)=u2_x(ix,iym)
+       sendbuf(3,j)=u3_x(ix,iym)
     end do
-    call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(3_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     allocate(recvbuf(3,nallrecv_x2y))
     call mpi_alltoallv(sendbuf,nsend_x2y,ndsend_x2y,mpi_string1, &
@@ -2371,11 +2501,11 @@ contains
     deallocate(sendbuf)
 
     do j=1,nallrecv_x2y
-      iy=info_recv_x2y(3,j)
-      ixm=info_recv_x2y(4,j)
-      u1_y(iy,ixm)=recvbuf(1,j)
-      u2_y(iy,ixm)=recvbuf(2,j)
-      u3_y(iy,ixm)=recvbuf(3,j)
+       iy=info_recv_x2y(3,j)
+       ixm=info_recv_x2y(4,j)
+       u1_y(iy,ixm)=recvbuf(1,j)
+       u2_y(iy,ixm)=recvbuf(2,j)
+       u3_y(iy,ixm)=recvbuf(3,j)
     end do
     deallocate(recvbuf)
     
@@ -2409,29 +2539,29 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(out)::u_x
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(in)::u_y
+    integer(i_kind)                     ,intent(in   ) :: mype
+    real(r_kind),dimension(nx,ny_0:ny_1),intent(  out) :: u_x
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(in   ) :: u_y
 
     integer(i_kind) ixm,ix,iy,iym,j,mm1
     real(r_kind),allocatable::sendbuf(:),recvbuf(:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(recvbuf(nallrecv_x2y))
     do j=1,nallrecv_x2y
-      iy=info_recv_x2y(3,j)
-      ixm=info_recv_x2y(4,j)
-      recvbuf(j)=u_y(iy,ixm)
+       iy=info_recv_x2y(3,j)
+       ixm=info_recv_x2y(4,j)
+       recvbuf(j)=u_y(iy,ixm)
     end do
     allocate(sendbuf(nallsend_x2y))
     call mpi_alltoallv(recvbuf,nrecv_x2y,ndrecv_x2y,mpi_rtype, &
                        sendbuf,nsend_x2y,ndsend_x2y,mpi_rtype,mpi_comm_world,ierror)
     deallocate(recvbuf)
     do j=1,nallsend_x2y
-      ix=info_send_x2y(1,j)
-      iym=info_send_x2y(2,j)
-      u_x(ix,iym)=sendbuf(j)
+       ix=info_send_x2y(1,j)
+       iym=info_send_x2y(2,j)
+       u_x(ix,iym)=sendbuf(j)
     end do
     deallocate(sendbuf)
 
@@ -2467,34 +2597,34 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(out)::u1_x,u2_x
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(in)::u1_y,u2_y
+    integer(i_kind)                     ,intent(in   ) :: mype
+    real(r_kind),dimension(nx,ny_0:ny_1),intent(  out) :: u1_x,u2_x
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(in   ) :: u1_y,u2_y
 
     integer(i_kind) ixm,ix,iy,iym,j,mm1,mpi_string1
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(recvbuf(2,nallrecv_x2y))
     do j=1,nallrecv_x2y
-      iy=info_recv_x2y(3,j)
-      ixm=info_recv_x2y(4,j)
-      recvbuf(1,j)=u1_y(iy,ixm)
-      recvbuf(2,j)=u2_y(iy,ixm)
+       iy=info_recv_x2y(3,j)
+       ixm=info_recv_x2y(4,j)
+       recvbuf(1,j)=u1_y(iy,ixm)
+       recvbuf(2,j)=u2_y(iy,ixm)
     end do
     allocate(sendbuf(2,nallsend_x2y))
-    call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(2_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     call mpi_alltoallv(recvbuf,nrecv_x2y,ndrecv_x2y,mpi_string1, &
                        sendbuf,nsend_x2y,ndsend_x2y,mpi_string1,mpi_comm_world,ierror)
     call mpi_type_free(mpi_string1,ierror)
     deallocate(recvbuf)
     do j=1,nallsend_x2y
-      ix=info_send_x2y(1,j)
-      iym=info_send_x2y(2,j)
-      u1_x(ix,iym)=sendbuf(1,j)
-      u2_x(ix,iym)=sendbuf(2,j)
+       ix=info_send_x2y(1,j)
+       iym=info_send_x2y(2,j)
+       u1_x(ix,iym)=sendbuf(1,j)
+       u2_x(ix,iym)=sendbuf(2,j)
     end do
     deallocate(sendbuf)
 
@@ -2532,36 +2662,36 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     implicit none
 
-    integer(i_kind),intent(in)::mype
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(out)::u1_x,u2_x,u3_x
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(in)::u1_y,u2_y,u3_y
+    integer(i_kind)                     ,intent(in   ) :: mype
+    real(r_kind),dimension(nx,ny_0:ny_1),intent(  out) :: u1_x,u2_x,u3_x
+    real(r_kind),dimension(ny,mx_0:mx_1),intent(in   ) :: u1_y,u2_y,u3_y
 
     integer(i_kind) ixm,ix,iy,iym,j,mm1,mpi_string1
     real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
 
-    mm1=mype+1
+    mm1=mype+ione
 
     allocate(recvbuf(3,nallrecv_x2y))
     do j=1,nallrecv_x2y
-      iy=info_recv_x2y(3,j)
-      ixm=info_recv_x2y(4,j)
-      recvbuf(1,j)=u1_y(iy,ixm)
-      recvbuf(2,j)=u2_y(iy,ixm)
-      recvbuf(3,j)=u3_y(iy,ixm)
+       iy=info_recv_x2y(3,j)
+       ixm=info_recv_x2y(4,j)
+       recvbuf(1,j)=u1_y(iy,ixm)
+       recvbuf(2,j)=u2_y(iy,ixm)
+       recvbuf(3,j)=u3_y(iy,ixm)
     end do
     allocate(sendbuf(3,nallsend_x2y))
-    call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
+    call mpi_type_contiguous(3_i_kind,mpi_rtype,mpi_string1,ierror)
     call mpi_type_commit(mpi_string1,ierror)
     call mpi_alltoallv(recvbuf,nrecv_x2y,ndrecv_x2y,mpi_string1, &
                        sendbuf,nsend_x2y,ndsend_x2y,mpi_string1,mpi_comm_world,ierror)
     call mpi_type_free(mpi_string1,ierror)
     deallocate(recvbuf)
     do j=1,nallsend_x2y
-      ix=info_send_x2y(1,j)
-      iym=info_send_x2y(2,j)
-      u1_x(ix,iym)=sendbuf(1,j)
-      u2_x(ix,iym)=sendbuf(2,j)
-      u3_x(ix,iym)=sendbuf(3,j)
+       ix=info_send_x2y(1,j)
+       iym=info_send_x2y(2,j)
+       u1_x(ix,iym)=sendbuf(1,j)
+       u2_x(ix,iym)=sendbuf(2,j)
+       u3_x(ix,iym)=sendbuf(3,j)
     end do
     deallocate(sendbuf)
 
@@ -2596,9 +2726,9 @@ contains
 
     allocate(siny(ny,ny))
     do k=1,ny
-      do n=1,ny
-        siny(n,k)=sqrt(two/(ny+one))*sin(pi*k*n/(ny+one))
-      end do
+       do n=1,ny
+          siny(n,k)=sqrt(two/(ny+one))*sin(pi*k*n/(ny+one))
+       end do
     end do
 
   end subroutine zrnmi_y_strans0
@@ -2630,90 +2760,112 @@ contains
     use constants, only: zero,half,one
     implicit none
 
-    real(r_kind),intent(in):: g_y(ny,mx_0:mx_1)
-    real(r_kind),intent(out):: gt_y(ny,mx_0:mx_1)
+    real(r_kind),intent(in   ) :: g_y(ny,mx_0:mx_1)
+    real(r_kind),intent(  out) :: gt_y(ny,mx_0:mx_1)
 
     integer(i_kind) i,i1,j,k,k1
     real(r_kind) diff,factor,sum,diff1,sum1
 
     do j=mx_0,mx_1
-      do k=1,ny
-        gt_y(k,j)=zero
-      end do
-      do i=1,((ny+1)/2),2
-        factor=one
-        if(ny+1-i == i) factor=half
-        sum =factor*(g_y(i,j)+g_y(ny+1-i,j))
-        diff=        g_y(i,j)-g_y(ny+1-i,j)
-        i1=i+1
-        if(i1 <= (ny+1)/2) then
+       do k=1,ny
+          gt_y(k,j)=zero
+       end do
+       do i=1,((ny+ione)/2),2
           factor=one
-          if(ny+1-i1 == i1) factor=half
-          sum1 =factor*(g_y(i1,j)+g_y(ny+1-i1,j))
-          diff1=        g_y(i1,j)-g_y(ny+1-i1,j)
-          do k=1,ny-1,2
-            k1=k+1
-            gt_y(k ,j)=gt_y(k ,j)+siny(k ,i)*sum +siny(k ,i1)*sum1
-            gt_y(k1,j)=gt_y(k1,j)+siny(k1,i)*diff+siny(k1,i1)*diff1
-          end do
-          if(mod(ny,2) == 1) gt_y(ny,j)=gt_y(ny,j)+siny(ny,i)*sum+siny(ny,i1)*sum1
-        else
-          do k=1,ny-1,2
-            k1=k+1
-            gt_y(k,j)=gt_y(k,j)+siny(k,i)*sum
-            gt_y(k1,j)=gt_y(k1,j)+siny(k1,i)*diff
-          end do
-          if(mod(ny,2) == 1) gt_y(ny,j)=gt_y(ny,j)+siny(ny,i)*sum
-        end if
-      end do
+          if(ny+ione-i == i) factor=half
+          sum =factor*(g_y(i,j)+g_y(ny+ione-i,j))
+          diff=        g_y(i,j)-g_y(ny+ione-i,j)
+          i1=i+ione
+          if(i1 <= (ny+ione)/2) then
+             factor=one
+             if(ny+ione-i1 == i1) factor=half
+             sum1 =factor*(g_y(i1,j)+g_y(ny+ione-i1,j))
+             diff1=        g_y(i1,j)-g_y(ny+ione-i1,j)
+             do k=1,ny-ione,2
+                k1=k+ione
+                gt_y(k ,j)=gt_y(k ,j)+siny(k ,i)*sum +siny(k ,i1)*sum1
+                gt_y(k1,j)=gt_y(k1,j)+siny(k1,i)*diff+siny(k1,i1)*diff1
+             end do
+             if(mod(ny,2_i_kind) == ione) gt_y(ny,j)=gt_y(ny,j)+siny(ny,i)*sum+siny(ny,i1)*sum1
+          else
+             do k=1,ny-ione,2
+                k1=k+ione
+                gt_y(k,j)=gt_y(k,j)+siny(k,i)*sum
+                gt_y(k1,j)=gt_y(k1,j)+siny(k1,i)*diff
+             end do
+             if(mod(ny,2_i_kind) == ione) gt_y(ny,j)=gt_y(ny,j)+siny(ny,i)*sum
+          end if
+       end do
     end do
 
   end subroutine zrnmi_y_strans
 
   subroutine zrnmi_delx_general(f_x,fx_x,vector,iord)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    zrnmi_delx_general
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-01-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!    f_x
+!    vector
+!    iord
+!
+!   output argument list:
+!    fx_x
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use gridmod, only: region_dy,region_dyi
 
-    real(r_kind),intent(in)::  f_x(nx,ny_0:ny_1)
-    real(r_kind),intent(out):: fx_x(nx,ny_0:ny_1)
-    logical,intent(in):: vector
-    integer(i_kind),intent(in):: iord
+    real(r_kind)   ,intent(in   ) ::  f_x(nx,ny_0:ny_1)
+    real(r_kind)   ,intent(  out) :: fx_x(nx,ny_0:ny_1)
+    logical        ,intent(in   ) :: vector
+    integer(i_kind),intent(in   ) :: iord
 
     real(r_kind) work1(nx,ny_0:ny_1)
     real(r_kind) work2(nx,ny_0:ny_1)
     integer(i_kind) i,j,iy
 
     if(vector) then
-      do i=ny_0,ny_1
-        iy=list_sd2x(1,i)
-        do j=1,nx
-          work1(j,i)=f_x(j,i)*region_dy(iy,j)
-        end do
-      end do
+       do i=ny_0,ny_1
+          iy=list_sd2x(1,i)
+          do j=1,nx
+             work1(j,i)=f_x(j,i)*region_dy(iy,j)
+          end do
+       end do
     else
-      do i=ny_0,ny_1
-        do j=1,nx
-          work1(j,i)=f_x(j,i)
-        end do
-      end do
+       do i=ny_0,ny_1
+          do j=1,nx
+             work1(j,i)=f_x(j,i)
+          end do
+       end do
     end if
 
-    if(iord == 2) call zrnmi_delx(work1,work2)
-   !if(iord == 4) call zrnmi_delx_4th_ord(work1,work2)
+    if(iord == 2_i_kind) call zrnmi_delx(work1,work2)
+   !if(iord == 4_i_kind) call zrnmi_delx_4th_ord(work1,work2)
 
     if(vector) then
-      do i=ny_0,ny_1
-        iy=list_sd2x(1,i)
-        do j=1,nx
-          fx_x(j,i)=work2(j,i)*region_dyi(iy,j)
-        end do
-      end do
+       do i=ny_0,ny_1
+          iy=list_sd2x(1,i)
+          do j=1,nx
+             fx_x(j,i)=work2(j,i)*region_dyi(iy,j)
+          end do
+       end do
     else
-      do i=ny_0,ny_1
-        do j=1,nx
-          fx_x(j,i)=work2(j,i)
-        end do
-      end do
+       do i=ny_0,ny_1
+          do j=1,nx
+             fx_x(j,i)=work2(j,i)
+          end do
+       end do
     end if
 
   end subroutine zrnmi_delx_general
@@ -2745,18 +2897,18 @@ contains
     use gridmod, only: coeffx
     implicit none
 
-    real(r_kind),intent(in)::  f_x(nx,ny_0:ny_1)
-    real(r_double),intent(out):: fx_x(nx,ny_0:ny_1)
+    real(r_kind)  ,intent(in   ) :: f_x(nx,ny_0:ny_1)
+    real(r_double),intent(  out) :: fx_x(nx,ny_0:ny_1)
 
     integer(i_kind) i,j,iy
 
     do i=ny_0,ny_1
-      iy=list_sd2x(1,i)
-      fx_x(1,i)=(f_x(3,i)-f_x(1,i))*coeffx(iy,1)
-      do j=2,nx-1
-        fx_x(j,i)=(f_x(j+1,i)-f_x(j-1,i))*coeffx(iy,j)
-      end do
-      fx_x(nx,i)=(f_x(nx,i)-f_x(nx-2,i))*coeffx(iy,nx)
+       iy=list_sd2x(1,i)
+       fx_x(1,i)=(f_x(3,i)-f_x(1,i))*coeffx(iy,1)
+       do j=2,nx-ione
+          fx_x(j,i)=(f_x(j+ione,i)-f_x(j-ione,i))*coeffx(iy,j)
+       end do
+       fx_x(nx,i)=(f_x(nx,i)-f_x(nx-2_i_kind,i))*coeffx(iy,nx)
     end do
 
   end subroutine zrnmi_delx
@@ -2789,70 +2941,93 @@ contains
     use gridmod, only: coeffx
     implicit none
 
-    real(r_kind),intent(out)::  f_x(nx,ny_0:ny_1)
-    real(r_double),intent(in):: fx_x(nx,ny_0:ny_1)
+    real(r_kind)  ,intent(  out) :: f_x(nx,ny_0:ny_1)
+    real(r_double),intent(in   ) :: fx_x(nx,ny_0:ny_1)
 
     integer(i_kind) i,j,iy
 
     f_x=zero
     do i=ny_0,ny_1
-      iy=list_sd2x(1,i)
-      f_x(nx  ,i)=f_x(nx  ,i)+fx_x(nx,i)*coeffx(iy,nx)
-      f_x(nx-2,i)=f_x(nx-2,i)-fx_x(nx,i)*coeffx(iy,nx)
-      do j=2,nx-1
-        f_x(j+1,i)=f_x(j+1,i)+fx_x(j,i)*coeffx(iy,j)
-        f_x(j-1,i)=f_x(j-1,i)-fx_x(j,i)*coeffx(iy,j)
-      end do
-      f_x(1,i)=f_x(1,i)-fx_x(1,i)*coeffx(iy,1)
-      f_x(3,i)=f_x(3,i)+fx_x(1,i)*coeffx(iy,1)
+       iy=list_sd2x(1,i)
+       f_x(nx         ,i)=f_x(nx         ,i)+fx_x(nx,i)*coeffx(iy,nx)
+       f_x(nx-2_i_kind,i)=f_x(nx-2_i_kind,i)-fx_x(nx,i)*coeffx(iy,nx)
+       do j=2,nx-ione
+          f_x(j+ione,i)=f_x(j+ione,i)+fx_x(j,i)*coeffx(iy,j)
+          f_x(j-ione,i)=f_x(j-ione,i)-fx_x(j,i)*coeffx(iy,j)
+       end do
+       f_x(1,i)=f_x(1,i)-fx_x(1,i)*coeffx(iy,1)
+       f_x(3,i)=f_x(3,i)+fx_x(1,i)*coeffx(iy,1)
     end do
 
   end subroutine zrnmi_delx_ad
 
   subroutine zrnmi_dely_general(f_y,fy_y,vector,iord)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    zrnmi_dely_general
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-01-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!    f_y
+!    vector
+!    iord
+!
+!   output argument list:
+!    fy_y
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use gridmod, only: region_dx,region_dxi
+    implicit none
 
-    real(r_kind),intent(in)::  f_y(ny,nx_0:nx_1)
-    real(r_kind),intent(out):: fy_y(ny,nx_0:nx_1)
-    logical,intent(in):: vector
-    integer(i_kind) iord
+    real(r_kind)   ,intent(in   ) ::  f_y(ny,nx_0:nx_1)
+    real(r_kind)   ,intent(  out) :: fy_y(ny,nx_0:nx_1)
+    logical        ,intent(in   ) :: vector
+    integer(i_kind),intent(in   ) :: iord
 
     real(r_kind) work1(ny,nx_0:nx_1)
     real(r_kind) work2(ny,nx_0:nx_1)
     integer(i_kind) i,j,ix
 
     if(vector) then
-      do i=nx_0,nx_1
-        ix=list_sd2y(1,i)
-        do j=1,ny
-          work1(j,i)=f_y(j,i)*region_dx(j,ix)
-        end do
-      end do
+       do i=nx_0,nx_1
+          ix=list_sd2y(1,i)
+          do j=1,ny
+             work1(j,i)=f_y(j,i)*region_dx(j,ix)
+          end do
+       end do
     else
-      do i=nx_0,nx_1
-        do j=1,ny
-          work1(j,i)=f_y(j,i)
-        end do
-      end do
+       do i=nx_0,nx_1
+          do j=1,ny
+             work1(j,i)=f_y(j,i)
+          end do
+       end do
     end if
 
-    if(iord == 2) call zrnmi_dely(work1,work2)
-   !if(iord == 4) call zrnmi_dely_4th_ord(work1,work2)
+    if(iord == 2_i_kind) call zrnmi_dely(work1,work2)
+   !if(iord == 4_i_kind) call zrnmi_dely_4th_ord(work1,work2)
 
     if(vector) then
-      do i=nx_0,nx_1
-        ix=list_sd2y(1,i)
-        do j=1,ny
-          fy_y(j,i)=work2(j,i)*region_dxi(j,ix)
-        end do
-      end do
+       do i=nx_0,nx_1
+          ix=list_sd2y(1,i)
+          do j=1,ny
+             fy_y(j,i)=work2(j,i)*region_dxi(j,ix)
+          end do
+       end do
     else
-      do i=nx_0,nx_1
-        do j=1,ny
-          fy_y(j,i)=work2(j,i)
-        end do
-      end do
+       do i=nx_0,nx_1
+          do j=1,ny
+             fy_y(j,i)=work2(j,i)
+          end do
+       end do
     end if
 
   end subroutine zrnmi_dely_general
@@ -2884,18 +3059,18 @@ contains
     use gridmod, only: coeffy
     implicit none
 
-    real(r_kind),intent(in)::  f_y(ny,nx_0:nx_1)
-    real(r_double),intent(out):: fy_y(ny,nx_0:nx_1)
+    real(r_kind)  ,intent(in   ) :: f_y(ny,nx_0:nx_1)
+    real(r_double),intent(  out) :: fy_y(ny,nx_0:nx_1)
 
     integer(i_kind) i,j,ix
 
     do i=nx_0,nx_1
-      ix=list_sd2y(1,i)
-      fy_y(1,i)=(f_y(3,i)-f_y(1,i))*coeffy(1,ix)
-      do j=2,ny-1
-        fy_y(j,i)=(f_y(j+1,i)-f_y(j-1,i))*coeffy(j,ix)
-      end do
-      fy_y(ny,i)=(f_y(ny,i)-f_y(ny-2,i))*coeffy(ny,ix)
+       ix=list_sd2y(1,i)
+       fy_y(1,i)=(f_y(3,i)-f_y(1,i))*coeffy(1,ix)
+       do j=2,ny-ione
+          fy_y(j,i)=(f_y(j+ione,i)-f_y(j-ione,i))*coeffy(j,ix)
+       end do
+       fy_y(ny,i)=(f_y(ny,i)-f_y(ny-2_i_kind,i))*coeffy(ny,ix)
     end do
 
   end subroutine zrnmi_dely
@@ -2928,22 +3103,22 @@ contains
     use gridmod, only: coeffy
     implicit none
 
-    real(r_kind),intent(out)::  f_y(ny,nx_0:nx_1)
-    real(r_double),intent(in):: fy_y(ny,nx_0:nx_1)
+    real(r_kind)  ,intent(  out) :: f_y(ny,nx_0:nx_1)
+    real(r_double),intent(in   ) :: fy_y(ny,nx_0:nx_1)
 
     integer(i_kind) i,j,ix
 
     f_y=zero
     do i=nx_0,nx_1
-      ix=list_sd2y(1,i)
-      f_y(ny  ,i)=f_y(ny  ,i)+fy_y(ny,i)*coeffy(ny,ix)
-      f_y(ny-2,i)=f_y(ny-2,i)-fy_y(ny,i)*coeffy(ny,ix)
-      do j=2,ny-1
-        f_y(j+1,i)=f_y(j+1,i)+fy_y(j,i)*coeffy(j,ix)
-        f_y(j-1,i)=f_y(j-1,i)-fy_y(j,i)*coeffy(j,ix)
-      end do
-      f_y(3,i)=f_y(3,i)+fy_y(1,i)*coeffy(1,ix)
-      f_y(1,i)=f_y(1,i)-fy_y(1,i)*coeffy(1,ix)
+       ix=list_sd2y(1,i)
+       f_y(ny         ,i)=f_y(ny         ,i)+fy_y(ny,i)*coeffy(ny,ix)
+       f_y(ny-2_i_kind,i)=f_y(ny-2_i_kind,i)-fy_y(ny,i)*coeffy(ny,ix)
+       do j=2,ny-ione
+          f_y(j+ione,i)=f_y(j+ione,i)+fy_y(j,i)*coeffy(j,ix)
+          f_y(j-ione,i)=f_y(j-ione,i)-fy_y(j,i)*coeffy(j,ix)
+       end do
+       f_y(3,i)=f_y(3,i)+fy_y(1,i)*coeffy(1,ix)
+       f_y(1,i)=f_y(1,i)-fy_y(1,i)*coeffy(1,ix)
     end do
 
   end subroutine zrnmi_dely_ad
@@ -2981,9 +3156,9 @@ contains
     implicit none
 
 ! Declare passed variables
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in):: u,v
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out):: div,vort
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u,v
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: div,vort
 
 ! Declare local variables
     real(r_kind),dimension(nx,ny_0:ny_1)::u_x,v_x,ux_x,vx_x
@@ -2995,13 +3170,13 @@ contains
     u_y=zero ; v_y=zero
     call zrnmi_sd2y2(u,v,u_y,v_y,mype)
     ux_x=zero
-    call zrnmi_delx_general(u_x,ux_x,.true.,2)
+    call zrnmi_delx_general(u_x,ux_x,.true.,2_i_kind)
     vx_x=zero
-    call zrnmi_delx_general(v_x,vx_x,.true.,2)
+    call zrnmi_delx_general(v_x,vx_x,.true.,2_i_kind)
     uy_y=zero
-    call zrnmi_dely_general(u_y,uy_y,.true.,2)
+    call zrnmi_dely_general(u_y,uy_y,.true.,2_i_kind)
     vy_y=zero
-    call zrnmi_dely_general(v_y,vy_y,.true.,2)
+    call zrnmi_dely_general(v_y,vy_y,.true.,2_i_kind)
     ux=zero ; vx=zero
     call zrnmi_x2sd2(ux,vx,ux_x,vx_x,mype)
     uy=zero ; vy=zero
@@ -3045,9 +3220,9 @@ contains
     implicit none
 
 ! Declare passed variables
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out):: u,v
-    real(r_kind),dimension(lat2,lon2,nvert),intent(inout):: div,vort
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u,v
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout) :: div,vort
 
 ! Declare local variables
     real(r_kind),dimension(nx,ny_0:ny_1)::u_x,v_x,ux_x,vx_x
@@ -3079,16 +3254,37 @@ contains
   end subroutine zrnmi_uv2dz_ad
 
   subroutine zrnmi_pc2uv(psi,chi,u,v,mype)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    zrnmi_pc2uv
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-01-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!    mype
+!    psi,chi
+!
+!   output argument list:
+!    u,v
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use kinds, only: r_kind,i_kind
     use constants, only: zero
     use gridmod, only: lat2,lon2
     implicit none
 
 ! Declare passed variables
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in):: psi,chi
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out):: u,v
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: psi,chi
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u,v
 
 ! Declare local variables
     real(r_kind),dimension(nx,ny_0:ny_1)::p_x,c_x,px_x,cx_x
@@ -3100,13 +3296,13 @@ contains
     p_y=zero ; c_y=zero
     call zrnmi_sd2y2(psi,chi,p_y,c_y,mype)
     px_x=zero
-    call zrnmi_delx_general(p_x,px_x,.false.,2)
+    call zrnmi_delx_general(p_x,px_x,.false.,2_i_kind)
     cx_x=zero
-    call zrnmi_delx_general(c_x,cx_x,.false.,2)
+    call zrnmi_delx_general(c_x,cx_x,.false.,2_i_kind)
     py_y=zero
-    call zrnmi_dely_general(p_y,py_y,.false.,2)
+    call zrnmi_dely_general(p_y,py_y,.false.,2_i_kind)
     cy_y=zero
-    call zrnmi_dely_general(c_y,cy_y,.false.,2)
+    call zrnmi_dely_general(c_y,cy_y,.false.,2_i_kind)
     px=zero ; cx=zero
     call zrnmi_x2sd2(px,cx,px_x,cx_x,mype)
     py=zero ; cy=zero
@@ -3117,16 +3313,37 @@ contains
   end subroutine zrnmi_pc2uv
 
   subroutine zrnmi_pc2uv_orig(psi,chi,u,v,mype)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    zrnmi_pc2uv_orig
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-01-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!    mype
+!    psi,chi
+!
+!   output argument list:
+!    u,v
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use kinds, only: r_kind,i_kind
     use constants, only: zero
     use gridmod, only: lat2,lon2
     implicit none
 
 ! Declare passed variables
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in):: psi,chi
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out):: u,v
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: psi,chi
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u,v
 
 ! Declare local variables
     real(r_kind),dimension(nx,ny_0:ny_1)::p_x,c_x,px_x,cx_x
@@ -3155,16 +3372,38 @@ contains
   end subroutine zrnmi_pc2uv_orig
 
   subroutine zrnmi_pc2uv_ad_orig(psi,chi,u,v,mype)
-
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    zrnmi_pc2uv_ad_orig
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-01-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!    mype
+!    u,v
+!
+!   output argument list:
+!    psi,chi
+!    u,v
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use kinds, only: r_kind,i_kind
     use constants, only: zero
     use gridmod, only: lat2,lon2
     implicit none
 
 ! Declare passed variables
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out):: psi,chi
-    real(r_kind),dimension(lat2,lon2,nvert),intent(inout):: u,v
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: psi,chi
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout) :: u,v
 
 ! Declare local variables
     real(r_kind),dimension(nx,ny_0:ny_1)::p_x,c_x,px_x,cx_x
@@ -3222,7 +3461,7 @@ contains
     use mpimod,only: mpi_rtype,mpi_integer,mpi_max,mpi_min,mpi_sum,mpi_comm_world,ierror
     implicit none
 
-    integer(i_kind),intent(in):: mype
+    integer(i_kind),intent(in   ) :: mype
 
     integer(i_kind) i,j,k,mode
     real(r_kind) bigk,bigl,dxbar,dybar,a2,ak2,s2
@@ -3237,14 +3476,14 @@ contains
     dxbar=zero
     dybar=zero
     do j=1,nx
-      do i=1,ny
-        dxbar=dxbar+region_dx(i,j)
-        dybar=dybar+region_dy(i,j)
-      end do
+       do i=1,ny
+          dxbar=dxbar+region_dx(i,j)
+          dybar=dybar+region_dy(i,j)
+       end do
     end do
     dxbar=dxbar/(nx*ny)
     dybar=dybar/(nx*ny)
-    if(mype == 0) then
+    if(mype == izero) then
        write(6,*)' in zrnmi_constants, dxbar=',dxbar
        write(6,*)' in zrnmi_constants, dybar=',dybar
        write(6,*)' in zrnmi_constants,  fbar=', fbar
@@ -3269,40 +3508,40 @@ contains
     pmaskmax=-huge(pmaskmax)
     pmaskmin= huge(pmaskmin)
     do j=mx_0,mx_1
-      k=list_x2y(1,j)
-      bigk=k
-      ak2=( (two/dxbar)*sin(pi*bigk/(two*(nx+one))) )**2
-      mode=list_x2y(2,j)
-      do i=1,ny
-        bigl=i
-        a2 = ak2 + ( (two/dybar)*sin(pi*bigl/(two*(ny+one))) )**2
-        s2=depths(mode)*a2+fbar**2
-        am2(i,j)=one/a2
-        sm2(i,j)=one/s2
-        f_sm2_am2(i,j)=fbar*sm2(i,j)*am2(i,j)
-        p0_sm2(i,j)=depths(mode)*sm2(i,j)
-        a2_p0_sm2(i,j)=a2*p0_sm2(i,j)
-        f_p0_sm2(i,j)=fbar*p0_sm2(i,j)
-
-        thislength=two*pi*sqrt(am2(i,j))
-    !   if(thislength <  3._r_kind*max(dxbar,dybar)) cycle
-        thisperiod=thislength/(speeds(mode)*r3600)
-      ! pmask(i,j)=half*(one-tanh((thisperiod-zrnmi_period_max)/zrnmi_period_width))
-        if(thisperiod <= zrnmi_period_max) pmask(i,j)=one
-              permax(mode)=max(permax(mode),thisperiod)
-              rlenmax(mode)=max(rlenmax(mode),thislength)
-      end do
+       k=list_x2y(1,j)
+       bigk=k
+       ak2=( (two/dxbar)*sin(pi*bigk/(two*(nx+one))) )**2
+       mode=list_x2y(2,j)
+       do i=1,ny
+          bigl=i
+          a2 = ak2 + ( (two/dybar)*sin(pi*bigl/(two*(ny+one))) )**2
+          s2=depths(mode)*a2+fbar**2
+          am2(i,j)=one/a2
+          sm2(i,j)=one/s2
+          f_sm2_am2(i,j)=fbar*sm2(i,j)*am2(i,j)
+          p0_sm2(i,j)=depths(mode)*sm2(i,j)
+          a2_p0_sm2(i,j)=a2*p0_sm2(i,j)
+          f_p0_sm2(i,j)=fbar*p0_sm2(i,j)
+ 
+          thislength=two*pi*sqrt(am2(i,j))
+      !   if(thislength <  3._r_kind*max(dxbar,dybar)) cycle
+          thisperiod=thislength/(speeds(mode)*r3600)
+        ! pmask(i,j)=half*(one-tanh((thisperiod-zrnmi_period_max)/zrnmi_period_width))
+          if(thisperiod <= zrnmi_period_max) pmask(i,j)=one
+          permax(mode)=max(permax(mode),thisperiod)
+          rlenmax(mode)=max(rlenmax(mode),thislength)
+       end do
     end do
     numkeep=zero
     numtot=zero
     do j=mx_0,mx_1
-      mode=list_x2y(2,j)
-      do i=1,ny
-        numtot(mode)=numtot(mode)+1
-        if(pmask(i,j) >  one_tenth) numkeep(mode)=numkeep(mode)+1
-             pmaskmax(mode)=max(pmask(i,j),pmaskmax(mode))
-             pmaskmin(mode)=min(pmask(i,j),pmaskmin(mode))
-      end do
+       mode=list_x2y(2,j)
+       do i=1,ny
+          numtot(mode)=numtot(mode)+ione
+          if(pmask(i,j) >  one_tenth) numkeep(mode)=numkeep(mode)+ione
+          pmaskmax(mode)=max(pmask(i,j),pmaskmax(mode))
+          pmaskmin(mode)=min(pmask(i,j),pmaskmin(mode))
+       end do
     end do
     call mpi_allreduce(rlenmax,rlenmax0,nvert,mpi_rtype,mpi_max,mpi_comm_world,ierror)
     call mpi_allreduce(permax,permax0,nvert,mpi_rtype,mpi_max,mpi_comm_world,ierror)
@@ -3310,15 +3549,15 @@ contains
     call mpi_allreduce(pmaskmin,pmaskmin0,nvert,mpi_rtype,mpi_min,mpi_comm_world,ierror)
     call mpi_allreduce(numkeep,numkeep0,nvert,mpi_integer,mpi_sum,mpi_comm_world,ierror)
     call mpi_allreduce(numtot,numtot0,nvert,mpi_integer,mpi_sum,mpi_comm_world,ierror)
-     if(mype == 0) then
-          do k=1,nvert
-            write(6,*)' in zrnmi_constants, k,period_max,numkeep,numtot,lenmax,permax=', &
-                         k,zrnmi_period_max,numkeep0(k),numtot0(k),rlenmax0(k),permax0(k)
-          end do
-          do k=1,nvert
-            write(6,*)' in zrnmi_constants, k,pmaskmax,min=',k,pmaskmax0(k),pmaskmin0(k)
-          end do
-     end if
+    if(mype == izero) then
+       do k=1,nvert
+          write(6,*)' in zrnmi_constants, k,period_max,numkeep,numtot,lenmax,permax=', &
+                      k,zrnmi_period_max,numkeep0(k),numtot0(k),rlenmax0(k),permax0(k)
+       end do
+       do k=1,nvert
+          write(6,*)' in zrnmi_constants, k,pmaskmax,min=',k,pmaskmax0(k),pmaskmin0(k)
+       end do
+    end if
 
  
   end subroutine zrnmi_constants
@@ -3378,12 +3617,12 @@ contains
 
 !   initially just generate projections and make maps
 
-    real(r_kind),dimension(lat2,lon2,nsig),intent(inout)::ut,vt,tt
-    real(r_kind),dimension(lat2,lon2),intent(inout)::pst
-    real(r_kind),dimension(lat2,lon2,nsig),intent(inout)::psi,chi,t
-    real(r_kind),dimension(lat2,lon2),intent(inout)::ps
-    logical,intent(in)::baldiag,update,fullfield
-    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: ut,vt,tt
+    real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: pst
+    real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: psi,chi,t
+    real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: ps
+    logical                               ,intent(in   ) :: baldiag,update,fullfield
+    integer(i_kind)                       ,intent(in   ) :: mype
 
     real(r_kind),dimension(ny,mx_0:mx_1,2)::rbalg
     real(r_kind),dimension(lat2,lon2,nvert)::utilde,vtilde,mtilde
@@ -3414,62 +3653,62 @@ contains
 
     if(update) then
 !      compute gravity projected corrections:
-    ! chat2=f_sm2_am2*zhat+sm2*mhat                     !  original, similar to bourke-mcgregor scheme B
-      chat2=               sm2*mhat                     !  emulate bourke-mcgregor scheme A
-      phat2=-f_sm2_am2*dhat
-      mhat2=p0_sm2*dhat
+    !  chat2=f_sm2_am2*zhat+sm2*mhat                     !  original, similar to bourke-mcgregor scheme B
+       chat2=               sm2*mhat                     !  emulate bourke-mcgregor scheme A
+       phat2=-f_sm2_am2*dhat
+       mhat2=p0_sm2*dhat
 
 !   transform to grid space
-      if(uv_hyb_ens) then
-        call zrnmi_pcmhat2uvm_orig(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
-      else
-        call zrnmi_pcmhat2uvm(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
-      end if
-      call vtrans_inv(utilde,vtilde,mtilde,dpsi,dchi,dt,dps)
+       if(uv_hyb_ens) then
+          call zrnmi_pcmhat2uvm_orig(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
+       else
+          call zrnmi_pcmhat2uvm(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
+       end if
+       call vtrans_inv(utilde,vtilde,mtilde,dpsi,dchi,dt,dps)
 
-      t=t-dt ; ps=ps-dps
-      psi=psi-dpsi ; chi=chi-dchi
+       t=t-dt ; ps=ps-dps
+       psi=psi-dpsi ; chi=chi-dchi
     end if
 
 
 !     compute baldt, balagt, and bal=baldt+balagt
     if(baldiag) then
 
-!     compute gravity tendency amplitudes
-      do j=mx_0,mx_1
-        mode=list_x2y(2,j)
-        do i=1,ny
-          rbalg(i,j,1)=sqrt(am2(i,j)*depths(mode))*dhat(i,j)
-          rbalg(i,j,2)=sqrt(a2_p0_sm2(i,j))*(fbar*am2(i,j)*zhat(i,j)+mhat(i,j))
-        end do
-      end do
-      baldt=zero
-      balagt=zero
-      do j=mx_0,mx_1
-        mode=list_x2y(2,j)
-        do i=1,ny
-          baldt(mode)=baldt(mode)  +rbalg(i,j,1)**2
-          balagt(mode)=balagt(mode)+rbalg(i,j,2)**2
-        end do
-      end do
-      call mpi_allreduce(balagt,balagt0,nvert,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
-      call mpi_allreduce(baldt,baldt0,nvert,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
-      if(mype == 0) then
+!      compute gravity tendency amplitudes
+       do j=mx_0,mx_1
+          mode=list_x2y(2,j)
+          do i=1,ny
+             rbalg(i,j,1)=sqrt(am2(i,j)*depths(mode))*dhat(i,j)
+             rbalg(i,j,2)=sqrt(a2_p0_sm2(i,j))*(fbar*am2(i,j)*zhat(i,j)+mhat(i,j))
+          end do
+       end do
+       baldt=zero
+       balagt=zero
+       do j=mx_0,mx_1
+          mode=list_x2y(2,j)
+          do i=1,ny
+             baldt(mode)=baldt(mode)  +rbalg(i,j,1)**2
+             balagt(mode)=balagt(mode)+rbalg(i,j,2)**2
+          end do
+       end do
+       call mpi_allreduce(balagt,balagt0,nvert,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
+       call mpi_allreduce(baldt,baldt0,nvert,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
+       if(mype == izero) then
 
-         if (fullfield) then
-            write(6,*) 'ZRNMI_STRONG_BAL:   FULL FIELD BALANCE DIAGNOSTICS --  '
-         else
-            write(6,*) 'ZRNMI_STRONG_BAL:   INCREMENTAL BALANCE DIAGNOSTICS --  '
-         end if
+          if (fullfield) then
+             write(6,*) 'ZRNMI_STRONG_BAL:   FULL FIELD BALANCE DIAGNOSTICS --  '
+          else
+             write(6,*) 'ZRNMI_STRONG_BAL:   INCREMENTAL BALANCE DIAGNOSTICS --  '
+          end if
 
-        baldt_all=zero ; balagt_all=zero
-        do k=1,nvert
-          baldt_all=baldt_all+baldt0(k)
-          balagt_all=balagt_all+balagt0(k)
-          write(6,*)' jiter, k,baldt,balagt,bal=',jiter,k,baldt0(k),balagt0(k),baldt0(k)+balagt0(k)
-        end do
+          baldt_all=zero ; balagt_all=zero
+          do k=1,nvert
+             baldt_all=baldt_all+baldt0(k)
+             balagt_all=balagt_all+balagt0(k)
+             write(6,*)' jiter, k,baldt,balagt,bal=',jiter,k,baldt0(k),balagt0(k),baldt0(k)+balagt0(k)
+          end do
           write(6,*)' jiter, baldt,balagt,bal=',jiter,baldt_all,balagt_all,baldt_all+balagt_all
-      end if
+       end if
     end if
 
   end subroutine zrnmi_strong_bal_correction
@@ -3521,12 +3760,12 @@ contains
 
 !   initially just generate projections and make maps
 
-    real(r_kind),dimension(lat2,lon2,nsig),intent(inout)::ut,vt,tt
-    real(r_kind),dimension(lat2,lon2),intent(inout)::pst
-    real(r_kind),dimension(lat2,lon2,nsig),intent(in)::psi,chi,t
-    real(r_kind),dimension(lat2,lon2),intent(in)::ps
-    logical,intent(in)::update
-    integer(i_kind),intent(in):: mype
+    real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: ut,vt,tt
+    real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: pst
+    real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: psi,chi,t
+    real(r_kind),dimension(lat2,lon2)     ,intent(in   ) :: ps
+    logical                               ,intent(in   ) :: update
+    integer(i_kind)                       ,intent(in   ) :: mype
 
     real(r_kind),dimension(lat2,lon2,nvert)::utilde,vtilde,mtilde
     real(r_kind),dimension(ny,mx_0:mx_1)::dhat,zhat,mhat
@@ -3537,20 +3776,20 @@ contains
     dhat=zero ; zhat=zero ; mhat=zero
     dpsi=zero ; dchi=zero ; dt=zero ; dps=zero
     if(update) then
-      dpsi=-psi ; dchi=-chi ; dt=-t ; dps=-ps
+       dpsi=-psi ; dchi=-chi ; dt=-t ; dps=-ps
     
-      utilde=zero ; vtilde=zero ; mtilde=zero
-      call vtrans_inv_ad(utilde,vtilde,mtilde,dpsi,dchi,dt,dps)
-      phat2=zero ; chat2=zero ; mhat2=zero
-      if(uv_hyb_ens) then
-        call zrnmi_pcmhat2uvm_ad_orig(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
-      else
-        call zrnmi_pcmhat2uvm_ad(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
-      end if
+       utilde=zero ; vtilde=zero ; mtilde=zero
+       call vtrans_inv_ad(utilde,vtilde,mtilde,dpsi,dchi,dt,dps)
+       phat2=zero ; chat2=zero ; mhat2=zero
+       if(uv_hyb_ens) then
+          call zrnmi_pcmhat2uvm_ad_orig(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
+       else
+          call zrnmi_pcmhat2uvm_ad(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
+       end if
 !       adjoint of gravity projected corrections
-      dhat=p0_sm2*mhat2-f_sm2_am2*phat2
-      zhat=f_sm2_am2*chat2
-      mhat=sm2*chat2
+       dhat=p0_sm2*mhat2-f_sm2_am2*phat2
+       zhat=f_sm2_am2*chat2
+       mhat=sm2*chat2
     end if
 
 !      adjoint of apply mask to input spectral fields to limit periods considered
@@ -3602,8 +3841,8 @@ contains
 
 !   initially just generate projections and make maps
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::utilde,vtilde,mtilde
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout) :: utilde,vtilde,mtilde
 
     real(r_kind),dimension(ny,mx_0:mx_1)::dhat,zhat,mhat
 
@@ -3655,8 +3894,8 @@ contains
 
 !   initially just generate projections and make maps
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::utilde,vtilde,mtilde
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout) :: utilde,vtilde,mtilde
 
     real(r_kind),dimension(ny,mx_0:mx_1)::dhat,zhat,mhat
 
@@ -3708,8 +3947,8 @@ contains
 
 !   initially just generate projections and make maps
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::utilde,vtilde,mtilde
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout) :: utilde,vtilde,mtilde
 
     real(r_kind),dimension(ny,mx_0:mx_1)::uhat,vhat,mhat
 
@@ -3730,7 +3969,7 @@ contains
   subroutine zrnmi_filter_uvm2_ad(utilde,vtilde,mtilde,mype)
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    zrnmi_filter_uvm_ad
+! subprogram:    zrnmi_filter_uvm2_ad
 !
 !   prgrmmr:  parrish
 !
@@ -3758,11 +3997,12 @@ contains
 
     use gridmod, only: lat2,lon2
     use constants, only: zero
+    implicit none
 
 !   initially just generate projections and make maps
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::utilde,vtilde,mtilde
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout) :: utilde,vtilde,mtilde
 
     real(r_kind),dimension(ny,mx_0:mx_1)::uhat,vhat,mhat
 
@@ -3810,10 +4050,11 @@ contains
 !$$$
 
     use gridmod, only: lon2,lat2
+    implicit none
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in)::u,v,m
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(out)::uhat,vhat,mhat
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1)   ,intent(  out) :: uhat,vhat,mhat
 
     real(r_kind),dimension(nx,ny_0:ny_1):: u_x,v_x,m_x
     real(r_kind),dimension(nx,ny_0:ny_1):: u4_x,v4_x,m4_x
@@ -3863,10 +4104,11 @@ contains
 !$$$
 
     use gridmod, only: lon2,lat2
+    implicit none
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u,v,m
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(inout)::uhat,vhat,mhat
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1)   ,intent(inout) :: uhat,vhat,mhat
 
     real(r_kind),dimension(nx,ny_0:ny_1):: u_x,v_x,m_x
     real(r_kind),dimension(nx,ny_0:ny_1):: u4_x,v4_x,m4_x
@@ -3916,10 +4158,11 @@ contains
 !$$$
 
     use gridmod, only: lon2,lat2
+    implicit none
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(out)::u,v,m
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(inout)::uhat,vhat,mhat
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1)   ,intent(inout) :: uhat,vhat,mhat
 
     real(r_kind),dimension(nx,ny_0:ny_1):: u_x,v_x,m_x
     real(r_kind),dimension(nx,ny_0:ny_1):: u4_x,v4_x,m4_x
@@ -3937,13 +4180,36 @@ contains
   end subroutine zrnmi_uvmhat2uvm
 
   subroutine zrnmi_uvmhat2uvm_ad(u,v,m,uhat,vhat,mhat,mype)
-
+!$$$  subprogram doucmentation block
+!                .      .    .                                       .
+! subprogram:    zrnmi_uvmhat2uvm_ad
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-01-07  lueken - added subprogram doc block
+!
+!   input argument list:
+!    mype
+!    u,v,m
+!
+!   output argument list:
+!    uhat,vhat,mhat
+!    u,v,m
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
     use constants, only: zero
     use gridmod, only: lon2,lat2
+    implicit none
 
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(inout)::u,v,m
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(out)::uhat,vhat,mhat
+    integer(i_kind)                        ,intent(in   ) :: mype
+    real(r_kind),dimension(lat2,lon2,nvert),intent(inout) :: u,v,m
+    real(r_kind),dimension(ny,mx_0:mx_1)   ,intent(  out) :: uhat,vhat,mhat
 
     real(r_kind),dimension(nx,ny_0:ny_1):: u_x,v_x,m_x
     real(r_kind),dimension(nx,ny_0:ny_1):: u4_x,v4_x,m4_x

@@ -79,6 +79,33 @@ module mpimod
 !
 !EOP
 !-------------------------------------------------------------------------
+
+! set default to private
+  private
+! set subroutines to public
+  public :: init_mpi_vars
+  public :: destroy_mpi_vars
+  public :: reorder
+  public :: reorder2
+  public :: strip_single
+  public :: strip
+  public :: vectosub
+  public :: reload
+  public :: strip_periodic
+  public :: setcomm
+! set passed variables to public
+  public :: ierror,mpi_comm_world,npe,mpi_rtype,mpi_sum,mype,mpi_max,mpi_itype
+  public :: mpi_real4,mpi_integer4,levs_id,mpi_min,mpi_real8,mpi_real16,mpi_integer8
+  public :: mpi_integer,mpi_integer1,mpi_integer2,nvar_id,nnnuvlevs,iscuv_g
+  public :: nuvlevs,ircuv_g,irduv_g,irduv_s,iscuv_s,ircuv_s,isduv_g,isduv_s
+  public :: mpi_status_size,mpi_rtype4,nvar_pe,nype,nxpe,nnnvsbal,nlevsbal
+  public :: nvarbal_id,lu_gs,nlevsuv,nnnvsuv,irdvec_g,ircvec_g,lv_gs,ircvec_s
+  public :: irdvec_s,iscvec_s,iscvec_g,isdvec_g,isdvec_s,iscnt_s,isdsp_s
+  public :: irdsp_s,ircnt_s,kv_gs,ku_gs,kp_gs,kt_gs,ircbal_s,irdbal_s,isdbal_s
+  public :: iscbal_s,isdbal_g,irdbal_g,iscbal_g,ircbal_g,isdsp_g,irdsp_g
+  public :: iscnt_g,ircnt_g,mpi_mode_rdonly,mpi_info_null,mpi_offset_kind
+  public :: mpi_mode_rdwr,mpi_byte
+
 #ifdef HAVE_ESMF
   integer(i_kind) :: mpi_comm_world
 #endif
@@ -189,32 +216,6 @@ module mpimod
   integer(i_kind),allocatable,dimension(:):: iscuv_s !  for send from nuvlevs slabs
   integer(i_kind),allocatable,dimension(:):: ircuv_s !  for receive from nuvlevs slabs
 
-! set default to private
-  private
-! set subroutines to public
-  public :: init_mpi_vars
-  public :: destroy_mpi_vars
-  public :: reorder
-  public :: reorder2
-  public :: strip_single
-  public :: strip
-  public :: vectosub
-  public :: reload
-  public :: strip_periodic
-  public :: setcomm
-! set passed variables to public
-  public :: ierror,mpi_comm_world,npe,mpi_rtype,mpi_sum,mype,mpi_max,mpi_itype
-  public :: mpi_real4,mpi_integer4,levs_id,mpi_min,mpi_real8,mpi_real16,mpi_integer8
-  public :: mpi_integer,mpi_integer1,mpi_integer2,nvar_id,nnnuvlevs,iscuv_g
-  public :: nuvlevs,ircuv_g,irduv_g,irduv_s,iscuv_s,ircuv_s,isduv_g,isduv_s
-  public :: mpi_status_size,mpi_rtype4,nvar_pe,nype,nxpe,nnnvsbal,nlevsbal
-  public :: nvarbal_id,lu_gs,nlevsuv,nnnvsuv,irdvec_g,ircvec_g,lv_gs,ircvec_s
-  public :: irdvec_s,iscvec_s,iscvec_g,isdvec_g,isdvec_s,iscnt_s,isdsp_s
-  public :: irdsp_s,ircnt_s,kv_gs,ku_gs,kp_gs,kt_gs,ircbal_s,irdbal_s,isdbal_s
-  public :: iscbal_s,isdbal_g,irdbal_g,iscbal_g,ircbal_g,isdsp_g,irdsp_g
-  public :: iscnt_g,ircnt_g,mpi_mode_rdonly,mpi_info_null,mpi_offset_kind
-  public :: mpi_mode_rdwr,mpi_byte
-
 contains
 
 !-------------------------------------------------------------------------
@@ -235,9 +236,9 @@ contains
 
 ! !INPUT PARAMETERS:
 
-    integer(i_kind),intent(in):: nsig    ! number of levels
-    integer(i_kind),intent(in):: mype    ! task identifier
-    integer(i_kind),intent(in):: nsig1o  ! no. of levels distributed on each processor
+    integer(i_kind),intent(in   ) :: nsig    ! number of levels
+    integer(i_kind),intent(in   ) :: mype    ! task identifier
+    integer(i_kind),intent(in   ) :: nsig1o  ! no. of levels distributed on each processor
 
 ! !OUTPUT PARAMETERS:
 
@@ -288,65 +289,65 @@ contains
 
 ! redefine kchk for uv/stvp distribution
     if (mod(nsig,npe)==izero) then
-      kchk=npe
+       kchk=npe
     else
-      kchk=mod(nsig,npe)
+       kchk=mod(nsig,npe)
     end if
 
     levscnt=izero
     do n=1,npe
-      if(n<=kchk) then
-        kk=nuvlevs
-      else
-        kk=nuvlevs-ione
-      end if
+       if(n<=kchk) then
+          kk=nuvlevs
+       else
+          kk=nuvlevs-ione
+       end if
 
-      do k=1,kk
-        levscnt=levscnt+ione
-	if ( n==mm1 .and. levscnt<=nsig ) then
-          nnnuvlevs=kk
-        end if
-      end do
+       do k=1,kk
+          levscnt=levscnt+ione
+          if ( n==mm1 .and. levscnt<=nsig ) then
+             nnnuvlevs=kk
+          end if
+       end do
     end do
 
 ! Initialize slab/subdomain communicators, redefined in
 ! init_commvars
     do n=1,npe
-      iscnt_g(n)   = izero
-      isdsp_g(n)   = izero
-      ircnt_g(n)   = izero
-      irdsp_g(n)   = izero
-      iscnt_s(n)   = izero
-      isdsp_s(n)   = izero
-      ircnt_s(n)   = izero
-      irdsp_s(n)   = izero
+       iscnt_g(n)   = izero
+       isdsp_g(n)   = izero
+       ircnt_g(n)   = izero
+       irdsp_g(n)   = izero
+       iscnt_s(n)   = izero
+       isdsp_s(n)   = izero
+       ircnt_s(n)   = izero
+       irdsp_s(n)   = izero
 
-      iscbal_g(n)  = izero
-      isdbal_g(n)  = izero
-      ircbal_g(n)  = izero
-      irdbal_g(n)  = izero
-      iscbal_s(n)  = izero
-      isdbal_s(n)  = izero
-      ircbal_s(n)  = izero
-      irdbal_s(n)  = izero
+       iscbal_g(n)  = izero
+       isdbal_g(n)  = izero
+       ircbal_g(n)  = izero
+       irdbal_g(n)  = izero
+       iscbal_s(n)  = izero
+       isdbal_s(n)  = izero
+       ircbal_s(n)  = izero
+       irdbal_s(n)  = izero
+ 
+       iscvec_g(n)  = izero
+       isdvec_g(n)  = izero
+       ircvec_g(n)  = izero
+       irdvec_g(n)  = izero
+       iscvec_s(n)  = izero
+       isdvec_s(n)  = izero
+       ircvec_s(n)  = izero
+       irdvec_s(n)  = izero
 
-      iscvec_g(n)  = izero
-      isdvec_g(n)  = izero
-      ircvec_g(n)  = izero
-      irdvec_g(n)  = izero
-      iscvec_s(n)  = izero
-      isdvec_s(n)  = izero
-      ircvec_s(n)  = izero
-      irdvec_s(n)  = izero
-
-      iscuv_g(n)   = izero
-      isduv_g(n)   = izero
-      ircuv_g(n)   = izero
-      irduv_g(n)   = izero
-      iscuv_s(n)   = izero
-      isduv_s(n)   = izero
-      ircuv_s(n)   = izero
-      irduv_s(n)   = izero
+       iscuv_g(n)   = izero
+       isduv_g(n)   = izero
+       ircuv_g(n)   = izero
+       irduv_g(n)   = izero
+       iscuv_s(n)   = izero
+       isduv_s(n)   = izero
+       ircuv_s(n)   = izero
+       irduv_s(n)   = izero
 
     end do
     allocate(lu_gs(nsig),lv_gs(nsig),ku_gs(nsig),kv_gs(nsig),kt_gs(nsig),kp_gs(nsig+1))
@@ -366,9 +367,9 @@ contains
 ! Need to use a variable to know which tasks have a full nsig1o 
 ! array, and which one have the last level irrelevant
     if (mod((6*nsig)+4_i_kind,npe)==izero) then
-      kchk=npe
+       kchk=npe
     else
-      kchk=mod((nsig*6)+4_i_kind,npe)
+       kchk=mod((nsig*6)+4_i_kind,npe)
     end if
 
     nvar_id=izero
@@ -379,49 +380,49 @@ contains
 ! global slabs (levs_id,nvar_id)
     varcnt=izero
     do n=1,npe
-      if(n<=kchk) then
-        kk=nsig1o
-      else
-        kk=nsig1o-ione
-      end if
-      do k=1,kk
-        varcnt=varcnt+ione
-        nvar_pe(varcnt,1)=n-ione
-        nvar_pe(varcnt,2)=k
-        if (n==mm1) then
-          if (varcnt<vps) then
-            nvar_id(k)=ione
-            levs_id(k)=varcnt
-          else if (varcnt>=vps .and. varcnt<pss) then
-            nvar_id(k)=2_i_kind
-            levs_id(k)=varcnt-vps+ione
-          else if (varcnt==pss) then
-            nvar_id(k)=3_i_kind
-            levs_id(k)=1_i_kind
-          else if (varcnt>=ts .and. varcnt<qs) then
-            nvar_id(k)=4_i_kind
-            levs_id(k)=varcnt-ts+ione
-          else if (varcnt>=qs .and. varcnt<ozs) then
-            nvar_id(k)=5_i_kind
-            levs_id(k)=varcnt-qs+ione
-          else if (varcnt>=ozs .and. varcnt<tss) then
-            nvar_id(k)=6_i_kind
-            levs_id(k)=varcnt-ozs+ione
-          else if (varcnt==tss) then
-            nvar_id(k)=7_i_kind
-            levs_id(k)=ione
-          else if (varcnt==tls) then
-            nvar_id(k)=9_i_kind
-            levs_id(k)=ione
-          else if (varcnt==tis) then
-            nvar_id(k)=10_i_kind
-            levs_id(k)=ione
-          else
-            nvar_id(k)=8_i_kind
-            levs_id(k)=varcnt-cwms+ione
-          end if ! end if for varcnt
-        end if ! end if for task id
-      end do ! enddo over levs
+       if(n<=kchk) then
+          kk=nsig1o
+       else
+          kk=nsig1o-ione
+       end if
+       do k=1,kk
+          varcnt=varcnt+ione
+          nvar_pe(varcnt,1)=n-ione
+          nvar_pe(varcnt,2)=k
+          if (n==mm1) then
+             if (varcnt<vps) then
+                nvar_id(k)=ione
+                levs_id(k)=varcnt
+             else if (varcnt>=vps .and. varcnt<pss) then
+                nvar_id(k)=2_i_kind
+                levs_id(k)=varcnt-vps+ione
+             else if (varcnt==pss) then
+                nvar_id(k)=3_i_kind
+                levs_id(k)=1_i_kind
+             else if (varcnt>=ts .and. varcnt<qs) then
+                nvar_id(k)=4_i_kind
+                levs_id(k)=varcnt-ts+ione
+             else if (varcnt>=qs .and. varcnt<ozs) then
+                nvar_id(k)=5_i_kind
+                levs_id(k)=varcnt-qs+ione
+             else if (varcnt>=ozs .and. varcnt<tss) then
+                nvar_id(k)=6_i_kind
+                levs_id(k)=varcnt-ozs+ione
+             else if (varcnt==tss) then
+                nvar_id(k)=7_i_kind
+                levs_id(k)=ione
+             else if (varcnt==tls) then
+                nvar_id(k)=9_i_kind
+                levs_id(k)=ione
+             else if (varcnt==tis) then
+                nvar_id(k)=10_i_kind
+                levs_id(k)=ione
+             else
+                nvar_id(k)=8_i_kind
+                levs_id(k)=varcnt-cwms+ione
+             end if ! end if for varcnt
+          end if ! end if for task id
+       end do ! enddo over levs
     end do ! enddo over npe
 
 
@@ -512,11 +513,11 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   integer(i_kind), intent(in) ::  k_in, k_use    ! number of levs in work array
+   integer(i_kind)                                  , intent(in   ) ::  k_in, k_use    ! number of levs in work array
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-    real(r_kind),dimension(max(iglobal,itotsub)*k_in),intent(inout):: work ! array to reorder
+   real(r_kind),dimension(max(iglobal,itotsub)*k_in), intent(inout) :: work ! array to reorder
 
 ! !OUTPUT PARAMETERS:
 
@@ -552,26 +553,26 @@ contains
  
 ! Load temp array in desired order
     do k=1,k_use
-      iskip=izero
-      iloc=izero
-      do n=1,npe
-        if (n/=ione) then
-          iskip=iskip+ijn(n-ione)*k_in
-        end if
-        do i=1,ijn(n)
-          iloc=iloc+ione
-          temp(iloc,k)=work(i + iskip + (k-ione)*ijn(n))
-        end do
-      end do
+       iskip=izero
+       iloc=izero
+       do n=1,npe
+          if (n/=ione) then
+             iskip=iskip+ijn(n-ione)*k_in
+          end if
+          do i=1,ijn(n)
+             iloc=iloc+ione
+             temp(iloc,k)=work(i + iskip + (k-ione)*ijn(n))
+          end do
+       end do
     end do
 
 ! Load the temp array back into work
     iloc=izero
     do k=1,k_use
-      do i=1,itotsub
-        iloc=iloc+ione
-        work(iloc)=temp(i,k)
-      end do
+       do i=1,itotsub
+          iloc=iloc+ione
+          work(iloc)=temp(i,k)
+       end do
     end do
 
     return
@@ -598,11 +599,11 @@ contains
 
 ! !INPUT PARAMETERS:
 
-   integer(i_kind), intent(in) ::  k_in,k_use    ! number of levs in work array
+   integer(i_kind)                     , intent(in   ) ::  k_in,k_use    ! number of levs in work array
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-    real(r_kind),dimension(itotsub,k_in),intent(inout):: work
+   real(r_kind),dimension(itotsub,k_in), intent(inout) :: work
 
 ! !OUTPUT PARAMETERS:
 
@@ -632,23 +633,23 @@ contains
     iskip=izero
     do n=1,npe
 
-      do k=1,k_use
-        do i=1,ijn_s(n)
-          temp(iloc+i)=work(iskip+i,k)
-        end do
-        iloc=iloc+ijn_s(n)
-      end do
-      iloc=iloc+(k_in-k_use)*ijn_s(n)
-      iskip=iskip+ijn_s(n)
+       do k=1,k_use
+          do i=1,ijn_s(n)
+             temp(iloc+i)=work(iskip+i,k)
+          end do
+          iloc=iloc+ijn_s(n)
+       end do
+       iloc=iloc+(k_in-k_use)*ijn_s(n)
+       iskip=iskip+ijn_s(n)
     end do
 
 ! Now load the tmp array back into work
     iloc=izero
     do k=1,k_in
-      do i=1,itotsub
-        iloc=iloc+ione
-        work(i,k)=temp(iloc)
-      end do
+       do i=1,itotsub
+          iloc=iloc+ione
+          work(i,k)=temp(iloc)
+       end do
     end do
 
     return
@@ -674,15 +675,15 @@ contains
 
 ! !INPUT PARAMETERS:
 
-    integer(i_kind), intent(in)::  nz        !  number of levs in subdomain array
-    real(r_single),dimension(lat2,lon2,nz),intent(in):: field_in   ! full subdomain 
-                                                                 !    array containing 
-                                                                 !    buffer points
+    integer(i_kind)                       , intent(in   ) :: nz         !  number of levs in subdomain array
+    real(r_single),dimension(lat2,lon2,nz), intent(in   ) :: field_in   ! full subdomain 
+                                                                        !    array containing 
+                                                                        !    buffer points
 ! !OUTPUT PARAMETERS:
 
-    real(r_single),dimension(lat1,lon1,nz),intent(out):: field_out ! subdomain array
-                                                                 !   with buffer points
-                                                                 !   stripped off
+    real(r_single),dimension(lat1,lon1,nz), intent(  out) :: field_out ! subdomain array
+                                                                       !   with buffer points
+                                                                       !   stripped off
 
 ! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
 !               purposes
@@ -707,12 +708,12 @@ contains
     integer(i_kind) i,j,k,jp1
 
     do k=1,nz
-      do j=1,lon1
-        jp1 = j+ione
-        do i=1,lat1
-          field_out(i,j,k)=field_in(i+ione,jp1,k)
-        end do
-      end do
+       do j=1,lon1
+          jp1 = j+ione
+          do i=1,lat1
+             field_out(i,j,k)=field_in(i+ione,jp1,k)
+          end do
+       end do
     end do
 
     return
@@ -738,15 +739,15 @@ contains
 
 ! !INPUT PARAMETERS:
 
-    integer(i_kind), intent(in)::  nz        !  number of levs in subdomain array
-    real(r_kind),dimension(lat2,lon2,nz),intent(in):: field_in    ! full subdomain 
-                                                                  !    array containing 
-                                                                  !    buffer points
+    integer(i_kind)                     , intent(in   ) :: nz          !  number of levs in subdomain array
+    real(r_kind),dimension(lat2,lon2,nz), intent(in   ) :: field_in    ! full subdomain 
+                                                                       !    array containing 
+                                                                       !    buffer points
 ! !OUTPUT PARAMETERS:
 
-    real(r_kind),dimension(lat1,lon1,nz),intent(out):: field_out  ! subdomain array
-                                                                  !   with buffer points
-                                                                  !   stripped off
+    real(r_kind),dimension(lat1,lon1,nz), intent(  out) :: field_out  ! subdomain array
+                                                                      !   with buffer points
+                                                                      !   stripped off
 
 ! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
 !               purposes
@@ -771,12 +772,12 @@ contains
     integer(i_kind) i,j,k,jp1
 
     do k=1,nz
-      do j=1,lon1
-        jp1 = j+ione
-        do i=1,lat1
-          field_out(i,j,k)=field_in(i+ione,jp1,k)
-        end do
-      end do
+       do j=1,lon1
+          jp1 = j+ione
+          do i=1,lat1
+             field_out(i,j,k)=field_in(i+ione,jp1,k)
+          end do
+       end do
     end do
 
     return
@@ -800,14 +801,14 @@ contains
 
 ! !INPUT PARAMETERS:
 
-    integer(i_kind), intent(in) ::  npts  ! number of levs in subdomain array
-    real(r_kind),dimension(npts),intent(in):: fld_in ! subdomain array 
-                                                              !   in vector form
+    integer(i_kind)             , intent(in   ) :: npts   ! number of levs in subdomain array
+    real(r_kind),dimension(npts), intent(in   ) :: fld_in ! subdomain array 
+                                                          !   in vector form
 
 ! !OUTPUT PARAMETERS:
 
-    real(r_kind),dimension(npts),intent(out):: fld_out ! three dimensional 
-                                                                !  subdomain variable array
+    real(r_kind),dimension(npts), intent(  out) :: fld_out ! three dimensional 
+                                                           !  subdomain variable array
 
 ! !DESCRIPTION: Transform vector array into three dimensional subdomain
 !               array
@@ -831,7 +832,7 @@ contains
     integer(i_kind) k
 
     do k=1,npts
-          fld_out(k)=fld_in(k)
+       fld_out(k)=fld_in(k)
     end do
 
     return
@@ -856,11 +857,11 @@ subroutine reload(work_in,work_out)
 
 ! !INPUT PARAMETERS:
 
-  real(r_kind),dimension(lat2*lon2,nsig),intent(in):: work_in   ! 2-d array
+  real(r_kind),dimension(lat2*lon2,nsig),intent(in   ) :: work_in   ! 2-d array
 
 ! !OUTPUT PARAMETERS:
 
-  real(r_kind),dimension(lat2,lon2,nsig),intent(out) :: work_out  ! 3-d array
+  real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: work_out  ! 3-d array
 
 ! !DESCRIPTION: Transfer contents of 2-d array to 3-d array
 !
@@ -913,15 +914,15 @@ end subroutine reload
 
 ! !INPUT PARAMETERS:
 
-    integer(i_kind), intent(in)::  nz        !  number of levs in subdomain array
-    real(r_kind),dimension(lat2,lon2,nz),intent(in):: field_in   ! full subdomain
-                                                                  !    array containing
-                                                                  !    buffer points
+    integer(i_kind)                     , intent(in   ) :: nz         !  number of levs in subdomain array
+    real(r_kind),dimension(lat2,lon2,nz), intent(in   ) :: field_in   ! full subdomain
+                                                                      !    array containing
+                                                                      !    buffer points
 ! !OUTPUT PARAMETERS:
 
-    real(r_kind),dimension(lat1,lon1,nz),intent(out):: field_out ! subdomain array
-                                                                  !   with buffer points
-                                                                  !   stripped off
+    real(r_kind),dimension(lat1,lon1,nz), intent(  out) :: field_out ! subdomain array
+                                                                     !   with buffer points
+                                                                     !   stripped off
 
 ! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
 !               purposes
@@ -945,12 +946,12 @@ end subroutine reload
     integer(i_kind) i,j,k,jp1
 
     do k=1,nz
-      do j=1,lon1
-        jp1 = j+ione
-        do i=1,lat1
-          field_out(i,j,k)=field_in(i+ione,jp1,k)
-        end do
-      end do
+       do j=1,lon1
+          jp1 = j+ione
+          do i=1,lat1
+             field_out(i,j,k)=field_in(i+ione,jp1,k)
+          end do
+       end do
     end do
     do k=1,nz
        do i=1,lat1
@@ -978,15 +979,15 @@ end subroutine reload
 
 ! ! INPUT PARAMETERS:
 
-    integer(i_kind)                 ,intent(in   ):: iworld_group
-    integer(i_kind)                 ,intent(in   ):: ierr,nsize
-    integer(i_kind),dimension(nsize),intent(in   ):: members
+    integer(i_kind)                 ,intent(in   ) :: iworld_group
+    integer(i_kind)                 ,intent(in   ) :: ierr,nsize
+    integer(i_kind),dimension(nsize),intent(in   ) :: members
 
 ! ! OUTPUT PARAMETERS:
 
 ! ! INPUT/OUTPUT PARAMETERS:
 
-    integer(i_kind)                 ,intent(inout):: iworld,ncomma
+    integer(i_kind)                 ,intent(inout) :: iworld,ncomma
 
 ! !DESCRIPTION: set mpi communicator
 !

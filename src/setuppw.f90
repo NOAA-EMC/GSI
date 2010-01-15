@@ -66,7 +66,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use obsmod, only: pwhead,pwtail,rmiss_single,i_pw_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use constants, only: zero,one,tpwcon,r1000, &
+  use constants, only: izero,ione,zero,one,tpwcon,r1000, &
        tiny_r_kind,three,half,two,cg_term,huge_single,&
        wgtlim
   use jfunc, only: jiter,last,miter
@@ -80,10 +80,10 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   real(r_kind),parameter:: ten = 10.0_r_kind
 
 ! Declare passed variables
-  logical,intent(in):: conv_diagsave
-  integer(i_kind),intent(in):: lunin,mype,nele,nobs
-  real(r_kind),dimension(100+7*nsig),intent(inout):: awork
-  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout):: bwork
+  logical                                          ,intent(in   ) :: conv_diagsave
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(100_i_kind+7*nsig)        ,intent(inout) :: awork
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
 
 
 ! Declare local variables
@@ -117,7 +117,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 
   grsmlt=three  ! multiplier factor for gross check
-  mm1=mype+1
+  mm1=mype+ione
   scale=one
 
 !******************************************************************************
@@ -129,7 +129,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         do j=1,lon2
            do i=1,lat2
               rp2(i,j,jj)=rp2(i,j,jj) + ges_q(i,j,k,jj) * &
-                   tpwcon*ten*(ges_prsi(i,j,k,jj)-ges_prsi(i,j,k+1,jj))    ! integrate q
+                   tpwcon*ten*(ges_prsi(i,j,k,jj)-ges_prsi(i,j,k+ione,jj))    ! integrate q
            end do
         end do
      end do
@@ -138,52 +138,52 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   read(lunin)data,luse
 
 !        index information for data array (see reading routine)
-  ier=1       ! index of obs error
-  ilon=2      ! index of grid relative obs location (x)
-  ilat=3      ! index of grid relative obs location (y)
-  ipw = 4     ! index of pw observations
-  id=5        ! index of station id
-  itime=6     ! index of observation time in data array
-  ikxx=7      ! index of ob type
-  ipwmax=8    ! index of pw max error
-  iqc=9       ! index of quality mark
-  ier2=10     ! index of original-original obs error ratio
-  iuse=11     ! index of use parameter
-  idomsfc=12  ! index of dominant surface type
-  iskint=13   ! index of surface skin temperature
-  iff10=14    ! index of 10 meter wind factor
-  isfcr=15    ! index of surface roughness
-  ilone=16    ! index of longitude (degrees)
-  ilate=17    ! index of latitude (degrees)
-  istnelv=18  ! index of station elevation (m)
-  iobsprs=19  ! index of observation pressure (hPa)
-  iobshgt=20  ! index of observation height (m)
+  ier=ione           ! index of obs error
+  ilon=2_i_kind      ! index of grid relative obs location (x)
+  ilat=3_i_kind      ! index of grid relative obs location (y)
+  ipw = 4_i_kind     ! index of pw observations
+  id=5_i_kind        ! index of station id
+  itime=6_i_kind     ! index of observation time in data array
+  ikxx=7_i_kind      ! index of ob type
+  ipwmax=8_i_kind    ! index of pw max error
+  iqc=9_i_kind       ! index of quality mark
+  ier2=10_i_kind     ! index of original-original obs error ratio
+  iuse=11_i_kind     ! index of use parameter
+  idomsfc=12_i_kind  ! index of dominant surface type
+  iskint=13_i_kind   ! index of surface skin temperature
+  iff10=14_i_kind    ! index of 10 meter wind factor
+  isfcr=15_i_kind    ! index of surface roughness
+  ilone=16_i_kind    ! index of longitude (degrees)
+  ilate=17_i_kind    ! index of latitude (degrees)
+  istnelv=18_i_kind  ! index of station elevation (m)
+  iobsprs=19_i_kind  ! index of observation pressure (hPa)
+  iobshgt=20_i_kind  ! index of observation height (m)
 
   do i=1,nobs
-    muse(i)=nint(data(11,i)) <= jiter
+     muse(i)=nint(data(11,i)) <= jiter
   end do
 
   dup=one
   do k=1,nobs
-    do l=k+1,nobs
-      if(data(ilat,k) == data(ilat,l) .and.  &
-         data(ilon,k) == data(ilon,l) .and. &
-         data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-         muse(k) .and. muse(l)) then
-        tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-        dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-        dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-      end if
-    end do
+     do l=k+ione,nobs
+        if(data(ilat,k) == data(ilat,l) .and.  &
+           data(ilon,k) == data(ilon,l) .and. &
+           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
+           muse(k) .and. muse(l)) then
+           tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
+           dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
+           dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
+        end if
+     end do
   end do
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
-     nchar=1
-     nreal=19
-     if (lobsdiagsave) nreal=nreal+4*miter+1
+     nchar=ione
+     nreal=19_i_kind
+     if (lobsdiagsave) nreal=nreal+4*miter+ione
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
-     ii=0
+     ii=izero
   end if
 
 
@@ -202,61 +202,61 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      error=one/error
 
 !    Link observation to appropriate observation bin
-     if (nobs_bins>1) then
-       ibin = NINT( dtime/hr_obsbin ) + 1
+     if (nobs_bins>ione) then
+        ibin = NINT( dtime/hr_obsbin ) + ione
      else
-       ibin = 1
+        ibin = ione
      endif
-     IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+     IF (ibin<ione.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
   
 !    Link obs to diagnostics structure
      if (.not.lobsdiag_allocated) then
-       if (.not.associated(obsdiags(i_pw_ob_type,ibin)%head)) then
-         allocate(obsdiags(i_pw_ob_type,ibin)%head,stat=istat)
-         if (istat/=0) then
-           write(6,*)'setuppw: failure to allocate obsdiags',istat
-           call stop2(269)
-         end if
-         obsdiags(i_pw_ob_type,ibin)%tail => obsdiags(i_pw_ob_type,ibin)%head
-       else
-         allocate(obsdiags(i_pw_ob_type,ibin)%tail%next,stat=istat)
-         if (istat/=0) then
-           write(6,*)'setuppw: failure to allocate obsdiags',istat
-           call stop2(270)
-         end if
-         obsdiags(i_pw_ob_type,ibin)%tail => obsdiags(i_pw_ob_type,ibin)%tail%next
-       end if
-       allocate(obsdiags(i_pw_ob_type,ibin)%tail%muse(miter+1))
-       allocate(obsdiags(i_pw_ob_type,ibin)%tail%nldepart(miter+1))
-       allocate(obsdiags(i_pw_ob_type,ibin)%tail%tldepart(miter))
-       allocate(obsdiags(i_pw_ob_type,ibin)%tail%obssen(miter))
-       obsdiags(i_pw_ob_type,ibin)%tail%indxglb=i
-       obsdiags(i_pw_ob_type,ibin)%tail%nchnperobs=-99999
-       obsdiags(i_pw_ob_type,ibin)%tail%luse=.false.
-       obsdiags(i_pw_ob_type,ibin)%tail%muse(:)=.false.
-       obsdiags(i_pw_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-       obsdiags(i_pw_ob_type,ibin)%tail%tldepart(:)=zero
-       obsdiags(i_pw_ob_type,ibin)%tail%wgtjo=-huge(zero)
-       obsdiags(i_pw_ob_type,ibin)%tail%obssen(:)=zero
+        if (.not.associated(obsdiags(i_pw_ob_type,ibin)%head)) then
+           allocate(obsdiags(i_pw_ob_type,ibin)%head,stat=istat)
+           if (istat/=izero) then
+              write(6,*)'setuppw: failure to allocate obsdiags',istat
+              call stop2(269)
+           end if
+           obsdiags(i_pw_ob_type,ibin)%tail => obsdiags(i_pw_ob_type,ibin)%head
+        else
+           allocate(obsdiags(i_pw_ob_type,ibin)%tail%next,stat=istat)
+           if (istat/=izero) then
+              write(6,*)'setuppw: failure to allocate obsdiags',istat
+              call stop2(270)
+           end if
+           obsdiags(i_pw_ob_type,ibin)%tail => obsdiags(i_pw_ob_type,ibin)%tail%next
+        end if
+        allocate(obsdiags(i_pw_ob_type,ibin)%tail%muse(miter+ione))
+        allocate(obsdiags(i_pw_ob_type,ibin)%tail%nldepart(miter+ione))
+        allocate(obsdiags(i_pw_ob_type,ibin)%tail%tldepart(miter))
+        allocate(obsdiags(i_pw_ob_type,ibin)%tail%obssen(miter))
+        obsdiags(i_pw_ob_type,ibin)%tail%indxglb=i
+        obsdiags(i_pw_ob_type,ibin)%tail%nchnperobs=-99999_i_kind
+        obsdiags(i_pw_ob_type,ibin)%tail%luse=.false.
+        obsdiags(i_pw_ob_type,ibin)%tail%muse(:)=.false.
+        obsdiags(i_pw_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+        obsdiags(i_pw_ob_type,ibin)%tail%tldepart(:)=zero
+        obsdiags(i_pw_ob_type,ibin)%tail%wgtjo=-huge(zero)
+        obsdiags(i_pw_ob_type,ibin)%tail%obssen(:)=zero
      else
-       if (.not.associated(obsdiags(i_pw_ob_type,ibin)%tail)) then
-         obsdiags(i_pw_ob_type,ibin)%tail => obsdiags(i_pw_ob_type,ibin)%head
-       else
-         obsdiags(i_pw_ob_type,ibin)%tail => obsdiags(i_pw_ob_type,ibin)%tail%next
-       end if
-       if (obsdiags(i_pw_ob_type,ibin)%tail%indxglb/=i) then
-         write(6,*)'setuppw: index error'
-         call stop2(271)
-       end if
+        if (.not.associated(obsdiags(i_pw_ob_type,ibin)%tail)) then
+           obsdiags(i_pw_ob_type,ibin)%tail => obsdiags(i_pw_ob_type,ibin)%head
+        else
+           obsdiags(i_pw_ob_type,ibin)%tail => obsdiags(i_pw_ob_type,ibin)%tail%next
+        end if
+        if (obsdiags(i_pw_ob_type,ibin)%tail%indxglb/=i) then
+           write(6,*)'setuppw: index error'
+           call stop2(271)
+        end if
      endif
 
  
      call tintrp2a(rp2,pwges,dlat,dlon,dtime, &
-        hrdifsig,1,1,mype,nfldsig)
+        hrdifsig,ione,ione,mype,nfldsig)
 
 ! Interpolate pressure at interface values to obs location
      call tintrp2a(ges_prsi,prsitmp,dlat,dlon,dtime, &
-         hrdifsig,1,nsig+1,mype,nfldsig)
+         hrdifsig,ione,nsig+ione,mype,nfldsig)
 
 ! Compute innovations
      ddiff=dpw-pwges
@@ -277,10 +277,10 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         error = zero
         ratio_errors=zero
      else
-       ratio_errors=ratio_errors/sqrt(dup(i))
+        ratio_errors=ratio_errors/sqrt(dup(i))
      end if
      if (ratio_errors*error <= tiny_r_kind) muse(i)=.false.
-     if (nobskeep>0) muse(i)=obsdiags(i_pw_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>izero) muse(i)=obsdiags(i_pw_ob_type,ibin)%tail%muse(nobskeep)
 
      val      = error*ddiff
 
@@ -311,14 +311,14 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         rat_err2 = ratio_errors**2
 !       Accumulate statistics for obs belonging to this task
         if (muse(i) ) then
-          if(rwgt < one) awork(21) = awork(21)+one
-          awork(5) = awork(5)+val2*rat_err2
-          awork(4) = awork(4)+one
-          awork(22)=awork(22)+valqc
-          nn=1
+           if(rwgt < one) awork(21) = awork(21)+one
+           awork(5) = awork(5)+val2*rat_err2
+           awork(4) = awork(4)+one
+           awork(22)=awork(22)+valqc
+           nn=ione
         else
-          nn=2
-          if(ratio_errors*error >=tiny_r_kind)nn=3
+           nn=2_i_kind
+           if(ratio_errors*error >=tiny_r_kind)nn=3_i_kind
         end if
         bwork(1,ikx,1,nn)  = bwork(1,ikx,1,nn)+one             ! count
         bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+ress            ! (o-g)
@@ -338,16 +338,16 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      if ( .not. last .and. muse(i)) then
 
         if(.not. associated(pwhead(ibin)%head))then
-            allocate(pwhead(ibin)%head,stat=istat)
-            if(istat /= 0)write(6,*)' failure to write pwhead '
-            pwtail(ibin)%head => pwhead(ibin)%head
+           allocate(pwhead(ibin)%head,stat=istat)
+           if(istat /= izero)write(6,*)' failure to write pwhead '
+           pwtail(ibin)%head => pwhead(ibin)%head
         else
-            allocate(pwtail(ibin)%head%llpoint,stat=istat)
-            if(istat /= 0)write(6,*)' failure to write pwtail%llpoint '
-            pwtail(ibin)%head => pwtail(ibin)%head%llpoint
+           allocate(pwtail(ibin)%head%llpoint,stat=istat)
+           if(istat /= izero)write(6,*)' failure to write pwtail%llpoint '
+           pwtail(ibin)%head => pwtail(ibin)%head%llpoint
         end if
         allocate(pwtail(ibin)%head%dp(nsig),stat=istat)
-        if (istat/=0) write(6,*)'MAKECOBS:  allocate error for pwtail_dp, istat=',istat
+        if (istat/=izero) write(6,*)'MAKECOBS:  allocate error for pwtail_dp, istat=',istat
 
 
 !       Set (i,j) indices of guess gridpoint that bound obs location
@@ -363,7 +363,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 ! Load the delta pressures at the obs location
         do k=1,nsig
-           pwtail(ibin)%head%dp(k)=ten*(prsitmp(k)-prsitmp(k+1))
+           pwtail(ibin)%head%dp(k)=ten*(prsitmp(k)-prsitmp(k+ione))
         end do
         pwtail(ibin)%head%diags => obsdiags(i_pw_ob_type,ibin)%tail
 
@@ -372,7 +372,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 !    Save select output for diagnostic file
      if(conv_diagsave .and. luse(i))then
-        ii=ii+1
+        ii=ii+ione
         rstation_id     = data(id,i)
         cdiagbuf(ii)    = station_id         ! station id
 
@@ -420,27 +420,27 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         rdiagbuf(19,ii) = dpw-pwges          ! obs-ges w/o bias correction (kg/m**2) (future slot)
 
         if (lobsdiagsave) then
-          ioff=19
-          do jj=1,miter 
-            ioff=ioff+1 
-            if (obsdiags(i_pw_ob_type,ibin)%tail%muse(jj)) then
-              rdiagbuf(ioff,ii) = one
-            else
-              rdiagbuf(ioff,ii) = -one
-            endif
-          enddo
-          do jj=1,miter+1 
-            ioff=ioff+1 
-            rdiagbuf(ioff,ii) = obsdiags(i_pw_ob_type,ibin)%tail%nldepart(jj)
-          enddo
-          do jj=1,miter
-            ioff=ioff+1
-            rdiagbuf(ioff,ii) = obsdiags(i_pw_ob_type,ibin)%tail%tldepart(jj)
-          enddo
-          do jj=1,miter
-            ioff=ioff+1
-            rdiagbuf(ioff,ii) = obsdiags(i_pw_ob_type,ibin)%tail%obssen(jj)
-          enddo
+           ioff=19_i_kind
+           do jj=1,miter 
+              ioff=ioff+ione 
+              if (obsdiags(i_pw_ob_type,ibin)%tail%muse(jj)) then
+                 rdiagbuf(ioff,ii) = one
+              else
+                 rdiagbuf(ioff,ii) = -one
+              endif
+           enddo
+           do jj=1,miter+ione
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsdiags(i_pw_ob_type,ibin)%tail%nldepart(jj)
+           enddo
+           do jj=1,miter
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsdiags(i_pw_ob_type,ibin)%tail%tldepart(jj)
+           enddo
+           do jj=1,miter
+              ioff=ioff+ione
+              rdiagbuf(ioff,ii) = obsdiags(i_pw_ob_type,ibin)%tail%obssen(jj)
+           enddo
         endif
 
      end if

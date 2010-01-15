@@ -66,9 +66,9 @@ subroutine half_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: nx,ny,igtype,iorder
-  real(r_single),dimension(nx,ny),intent(in):: gin
-  real(r_single),dimension(itotsub),intent(out):: gout
+  integer(i_kind)                  ,intent(in   ) :: nx,ny,igtype,iorder
+  real(r_single),dimension(nx,ny)  ,intent(in   ) :: gin
+  real(r_single),dimension(itotsub),intent(  out) :: gout
 
 ! Declare local variables
   integer(i_kind) i,i0,im,j,jj,jm,jp

@@ -68,9 +68,9 @@ subroutine inttcp_(tcphead,rp,sp)
   implicit none
 
 ! Declare passed variables
-  type(tcp_ob_type),pointer,intent(in):: tcphead
-  real(r_kind),dimension(latlon1n1),intent(in):: sp
-  real(r_kind),dimension(latlon1n1),intent(inout):: rp
+  type(tcp_ob_type),pointer        ,intent(in   ) :: tcphead
+  real(r_kind),dimension(latlon1n1),intent(in   ) :: sp
+  real(r_kind),dimension(latlon1n1),intent(inout) :: rp
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4
@@ -93,37 +93,37 @@ subroutine inttcp_(tcphead,rp,sp)
 !    Forward model
      val=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)
      if(l_foto)then
-       time_tcp=tcpptr%time
-       val=val+ &
-        (w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
-         w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_tcp
+        time_tcp=tcpptr%time
+        val=val+ &
+         (w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
+          w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_tcp
      end if
 
      if (lsaveobsens) then
-       tcpptr%diags%obssen(jiter) = val*tcpptr%raterr2*tcpptr%err2
+        tcpptr%diags%obssen(jiter) = val*tcpptr%raterr2*tcpptr%err2
      else
-       if (tcpptr%luse) tcpptr%diags%tldepart(jiter)=val
+        if (tcpptr%luse) tcpptr%diags%tldepart(jiter)=val
      endif
 
      if(l_do_adjoint)then
         if (lsaveobsens) then
-          grad = tcpptr%diags%obssen(jiter)
+           grad = tcpptr%diags%obssen(jiter)
 
         else
-          val=val-tcpptr%res
-!         gradient of nonlinear operator
+           val=val-tcpptr%res
+!          gradient of nonlinear operator
+ 
+           if (nlnqc_iter .and. tcpptr%pg > tiny_r_kind .and.  &
+                                tcpptr%b  > tiny_r_kind) then
+              ps_pg=tcpptr%pg*varqc_iter
+              cg_ps=cg_term/tcpptr%b                           ! b is d in Enderson
+              wnotgross= one-ps_pg                            ! pg is A in Enderson
+              wgross =ps_pg*cg_ps/wnotgross                   ! wgross is gama in Enderson
+              p0=wgross/(wgross+exp(-half*tcpptr%err2*val**2)) ! p0 is P in Enderson
+              val=val*(one-p0)                                ! term is Wqc in Enderson
+           endif
 
-          if (nlnqc_iter .and. tcpptr%pg > tiny_r_kind .and.  &
-                               tcpptr%b  > tiny_r_kind) then
-            ps_pg=tcpptr%pg*varqc_iter
-            cg_ps=cg_term/tcpptr%b                           ! b is d in Enderson
-            wnotgross= one-ps_pg                            ! pg is A in Enderson
-            wgross =ps_pg*cg_ps/wnotgross                   ! wgross is gama in Enderson
-            p0=wgross/(wgross+exp(-half*tcpptr%err2*val**2)) ! p0 is P in Enderson
-            val=val*(one-p0)                                ! term is Wqc in Enderson
-          endif
-
-          grad     = val*tcpptr%raterr2*tcpptr%err2
+           grad     = val*tcpptr%raterr2*tcpptr%err2
         end if
 
 !       Adjoint
@@ -133,15 +133,15 @@ subroutine inttcp_(tcphead,rp,sp)
         rp(j4)=rp(j4)+w4*grad
    
         if (l_foto) then
-          grad=grad*time_tcp
-          dhat_dt%p3d(j1)=dhat_dt%p3d(j1)+w1*grad
-          dhat_dt%p3d(j2)=dhat_dt%p3d(j2)+w2*grad
-          dhat_dt%p3d(j3)=dhat_dt%p3d(j3)+w3*grad
-          dhat_dt%p3d(j4)=dhat_dt%p3d(j4)+w4*grad
+           grad=grad*time_tcp
+           dhat_dt%p3d(j1)=dhat_dt%p3d(j1)+w1*grad
+           dhat_dt%p3d(j2)=dhat_dt%p3d(j2)+w2*grad
+           dhat_dt%p3d(j3)=dhat_dt%p3d(j3)+w3*grad
+           dhat_dt%p3d(j4)=dhat_dt%p3d(j4)+w4*grad
         endif
 
-      end if
-      tcpptr => tcpptr%llpoint
+     end if
+     tcpptr => tcpptr%llpoint
   end do
   return
 end subroutine inttcp_

@@ -32,11 +32,11 @@ subroutine strong_baldiag_inc(sval)
   use gsi_4dvar, only: nsubwin
   use mod_vtrans,only: nvmodes_keep
   use state_vectors
-  use constants, only: zero
+  use constants, only: izero,zero
   implicit none
 
 ! Declare passed variables
-  type(state_vector),intent(inout)::sval(nsubwin)
+  type(state_vector),intent(inout) :: sval(nsubwin)
 
 ! Declare local variables
   integer(i_kind) ii
@@ -54,17 +54,17 @@ subroutine strong_baldiag_inc(sval)
 
   do ii=1,nsubwin
 
-   call calctends_tl( &
-     sval(ii)%u,sval(ii)%v ,sval(ii)%t   ,               &
-     sval(ii)%q,sval(ii)%oz,sval(ii)%cw  ,               &
-     mype, nnnn1o,          &
-     dhat_dt%u,dhat_dt%v ,dhat_dt%t,dhat_dt%p3d, &
-     dhat_dt%q,dhat_dt%oz,dhat_dt%cw,sval(ii)%p3d)
-   if(nvmodes_keep.gt.0) then
-      fullfield=.false.
-      call strong_bal_correction(dhat_dt%u,dhat_dt%v,dhat_dt%t,dhat_dt%p3d,&
-                  mype,sval(ii)%u,sval(ii)%v,sval(ii)%t,sval(ii)%p,.true.,fullfield,.false.)
-   end if
+     call calctends_tl( &
+       sval(ii)%u,sval(ii)%v ,sval(ii)%t   ,               &
+       sval(ii)%q,sval(ii)%oz,sval(ii)%cw  ,               &
+       mype, nnnn1o,          &
+       dhat_dt%u,dhat_dt%v ,dhat_dt%t,dhat_dt%p3d, &
+       dhat_dt%q,dhat_dt%oz,dhat_dt%cw,sval(ii)%p3d)
+     if(nvmodes_keep>izero) then
+        fullfield=.false.
+        call strong_bal_correction(dhat_dt%u,dhat_dt%v,dhat_dt%t,dhat_dt%p3d,&
+                    mype,sval(ii)%u,sval(ii)%v,sval(ii)%t,sval(ii)%p,.true.,fullfield,.false.)
+     end if
 
   enddo
 

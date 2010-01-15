@@ -35,10 +35,10 @@ subroutine evaljo(pjo,kobs,kprt,louter)
   implicit none
 
 ! Declare passed variables
-  real(r_quad),intent(out)    :: pjo
-  integer(i_kind),intent(out) :: kobs
-  integer(i_kind),intent(in)  :: kprt
-  logical, intent(in) :: louter
+  real(r_quad)   ,intent(  out) :: pjo
+  integer(i_kind),intent(  out) :: kobs
+  integer(i_kind),intent(in   ) :: kprt
+  logical        ,intent(in   ) :: louter
 
 ! Declare local variables
   integer(i_kind) :: ii,jj,ij,ilen
@@ -57,24 +57,24 @@ iobsglb(:,:)=izero
 
 ij=izero
 do ii=1,nobs_bins
-  do jj=1,nobs_type
-    ij=ij+ione
+   do jj=1,nobs_type
+      ij=ij+ione
 
-    obsptr => obsdiags(jj,ii)%head
-    do while (associated(obsptr))
-      if (obsptr%luse.and.obsptr%muse(jiter)) then
-        if (louter) then
-          zdep=obsptr%nldepart(jiter)
-        else
-          zdep=obsptr%tldepart(jiter)-obsptr%nldepart(jiter)
-        endif
-        zprods(ij) = zprods(ij) + obsptr%wgtjo * zdep * zdep
-        iobsgrp(jj,ii)=iobsgrp(jj,ii)+ione
-      endif
-      obsptr => obsptr%next
-    enddo
+      obsptr => obsdiags(jj,ii)%head
+      do while (associated(obsptr))
+         if (obsptr%luse.and.obsptr%muse(jiter)) then
+            if (louter) then
+               zdep=obsptr%nldepart(jiter)
+            else
+               zdep=obsptr%tldepart(jiter)-obsptr%nldepart(jiter)
+            endif
+            zprods(ij) = zprods(ij) + obsptr%wgtjo * zdep * zdep
+            iobsgrp(jj,ii)=iobsgrp(jj,ii)+ione
+         endif
+         obsptr => obsptr%next
+      enddo
 
-  enddo
+   enddo
 enddo
 
 ! Sum Jo contributions
@@ -87,76 +87,76 @@ call mpi_allreduce(iobsgrp,iobsglb,ilen, &
 
 ! Gather Jo contributions
 
-  ij=izero
-  do ii=1,nobs_bins
-    do jj=1,nobs_type
+ij=izero
+do ii=1,nobs_bins
+   do jj=1,nobs_type
       ij=ij+ione
       zjo2(jj,ii)=zprods(ij)
-    enddo
-  enddo
+   enddo
+enddo
 
-  zjo1=zero_quad
-  iobs=izero
-  DO ii=1,nobs_bins
-    zjo1(:)=zjo1(:)+zjo2(:,ii)
-    iobs(:)=iobs(:)+iobsglb(:,ii)
-  ENDDO
+zjo1=zero_quad
+iobs=izero
+DO ii=1,nobs_bins
+   zjo1(:)=zjo1(:)+zjo2(:,ii)
+   iobs(:)=iobs(:)+iobsglb(:,ii)
+ENDDO
 
-  zjo=zero_quad
-  kobs=izero
-  DO ii=1,nobs_type
-    zjo=zjo+zjo1(ii)
-    kobs=kobs+iobs(ii)
-  ENDDO
+zjo=zero_quad
+kobs=izero
+DO ii=1,nobs_type
+   zjo=zjo+zjo1(ii)
+   kobs=kobs+iobs(ii)
+ENDDO
 
-  pjo=zjo
+pjo=zjo
 
 ! Prints
-  IF (kprt>=2_i_kind.and.mype==izero) THEN
-    if (louter) then
+IF (kprt>=2_i_kind.and.mype==izero) THEN
+   if (louter) then
       write(6,*)'Begin Jo table outer loop'
-    else
+   else
       write(6,*)'Begin Jo table inner loop'
-    endif
+   endif
 
-    IF (kprt>=3_i_kind.and.nobs_bins>ione) THEN
+   IF (kprt>=3_i_kind.and.nobs_bins>ione) THEN
       write(6,400)'Observation Type','Bin','Nobs','Jo','Jo/n'
       DO ii=1,nobs_type
-        DO jj=1,nobs_bins
-          IF (iobsglb(ii,jj)>izero) THEN
-            zz=zjo2(ii,jj)/iobsglb(ii,jj)
-            write(6,100)cobstype(ii),jj,iobsglb(ii,jj),real(zjo2(ii,jj),r_kind),real(zz,r_kind)
-          ENDIF
-        ENDDO
+         DO jj=1,nobs_bins
+            IF (iobsglb(ii,jj)>izero) THEN
+               zz=zjo2(ii,jj)/iobsglb(ii,jj)
+               write(6,100)cobstype(ii),jj,iobsglb(ii,jj),real(zjo2(ii,jj),r_kind),real(zz,r_kind)
+            ENDIF
+         ENDDO
       ENDDO
-    ENDIF
+   ENDIF
 
-    write(6,400)'Observation Type',' ','Nobs','Jo','Jo/n'
-    DO ii=1,nobs_type
+   write(6,400)'Observation Type',' ','Nobs','Jo','Jo/n'
+   DO ii=1,nobs_type
       IF (iobs(ii)>izero) THEN
-        zz=zjo1(ii)/iobs(ii)
-        write(6,200)cobstype(ii),iobs(ii),real(zjo1(ii),r_kind),real(zz,r_kind)
+         zz=zjo1(ii)/iobs(ii)
+         write(6,200)cobstype(ii),iobs(ii),real(zjo1(ii),r_kind),real(zz,r_kind)
       ENDIF
-    ENDDO
+   ENDDO
 
-    IF (kobs>izero) THEN
+   IF (kobs>izero) THEN
       zz=zjo/kobs
-    ELSE
+   ELSE
       zz=-999.999_r_quad
-    ENDIF
-    write(6,400)'  ',' ','Nobs','Jo','Jo/n'
-    write(6,300)"Jo Global",kobs,real(zjo,r_kind),real(zz,r_kind)
+   ENDIF
+   write(6,400)'  ',' ','Nobs','Jo','Jo/n'
+   write(6,300)"Jo Global",kobs,real(zjo,r_kind),real(zz,r_kind)
 
-    if (louter) then
+   if (louter) then
       write(6,*)'End Jo table outer loop'
-    else
+   else
       write(6,*)'End Jo table inner loop'
-    endif
-  ENDIF
+   endif
+ENDIF
 
 if (.not.allocated(obscounts)) then
-  write(6,*)'evaljo: obscounts not allocated'
-  call stop2(125)
+   write(6,*)'evaljo: obscounts not allocated'
+   call stop2(125)
 end if
 obscounts(:,:)=iobsglb(:,:)
 

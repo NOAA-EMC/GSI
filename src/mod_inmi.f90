@@ -41,10 +41,6 @@ module mod_inmi
 use kinds,only: r_kind,i_kind
 implicit none
 
-  integer(i_kind) mmax
-  integer(i_kind) m
-  real(r_kind) gspeed
-
 ! set default to private
   private
 ! set subroutines to public
@@ -67,6 +63,10 @@ implicit none
   public :: solve_f2c2
 ! set passed variables to public
   public :: mmax,gspeed,m
+
+  integer(i_kind) mmax
+  integer(i_kind) m
+  real(r_kind) gspeed
 
 contains
 
@@ -110,10 +110,10 @@ contains
 
     implicit none
 
-    real(r_kind),intent(in)::vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
-    real(r_kind),intent(out)::vort_g(2,m:mmax),div_g(2,m:mmax),phi_g(2,m:mmax)
-    real(r_kind),intent(inout)::rmstend,rmstend_g
-    logical,intent(in)::filtered
+    real(r_kind),intent(in   ) :: vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
+    real(r_kind),intent(  out) :: vort_g(2,m:mmax),div_g(2,m:mmax),phi_g(2,m:mmax)
+    real(r_kind),intent(inout) :: rmstend,rmstend_g
+    logical     ,intent(in   ) :: filtered
 
     real(r_kind) pmask(m:mmax)
     real(r_kind) vort_hat(2,m:mmax),div_hat(2,m:mmax),phi_hat(2,m:mmax)
@@ -123,25 +123,25 @@ contains
 
     call scale_vars(vort,div,phi,vort_hat,div_hat,phi_hat)
     if(filtered) then
-      call get_periodmask(pmask)
-      do n=m,mmax
-        vort_hat(1,n)=pmask(n)*vort_hat(1,n)
-        vort_hat(2,n)=pmask(n)*vort_hat(2,n)
-        div_hat(1,n)=pmask(n)*div_hat(1,n)
-        div_hat(2,n)=pmask(n)*div_hat(2,n)
-        phi_hat(1,n)=pmask(n)*phi_hat(1,n)
-        phi_hat(2,n)=pmask(n)*phi_hat(2,n)
-      end do
+       call get_periodmask(pmask)
+       do n=m,mmax
+          vort_hat(1,n)=pmask(n)*vort_hat(1,n)
+          vort_hat(2,n)=pmask(n)*vort_hat(2,n)
+          div_hat(1,n)=pmask(n)*div_hat(1,n)
+          div_hat(2,n)=pmask(n)*div_hat(2,n)
+          phi_hat(1,n)=pmask(n)*phi_hat(1,n)
+          phi_hat(2,n)=pmask(n)*phi_hat(2,n)
+       end do
     end if
     call balm_1(vort_hat,div_hat,phi_hat,rmstendnm)
     do n=m,mmax
-      rmstend=rmstend+rmstendnm(n)
+       rmstend=rmstend+rmstendnm(n)
     end do
 
     call gproj0(vort_hat,div_hat,phi_hat,vort_hat_g,div_hat_g,phi_hat_g)
     call balm_1(vort_hat_g,div_hat_g,phi_hat_g,rmstendnm)
     do n=m,mmax
-      rmstend_g=rmstend_g+rmstendnm(n)
+       rmstend_g=rmstend_g+rmstendnm(n)
     end do
 
     call unscale_vars(vort_hat_g,div_hat_g,phi_hat_g,vort_g,div_g,phi_g)
@@ -184,8 +184,8 @@ contains
 
     implicit none
 
-    real(r_kind),dimension(2,m:mmax),intent(in):: vort_hat,div_hat,phi_hat
-    real(r_kind),dimension(2,m:mmax),intent(out):: vort_hat_g,div_hat_g,phi_hat_g
+    real(r_kind),dimension(2,m:mmax),intent(in   ) :: vort_hat,div_hat,phi_hat
+    real(r_kind),dimension(2,m:mmax),intent(  out) :: vort_hat_g,div_hat_g,phi_hat_g
 
     real(r_kind) b(m:mmax),c(m:mmax),f(m:mmax)
     real(r_kind) x(2,m:mmax),y(2,m:mmax)
@@ -243,8 +243,8 @@ contains
     use constants, only: zero
     implicit none
 
-    real(r_kind),intent(inout)::vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
-    real(r_kind),intent(in)::vort_g(2,m:mmax),div_g(2,m:mmax),phi_g(2,m:mmax)
+    real(r_kind),intent(inout) :: vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
+    real(r_kind),intent(in   ) :: vort_g(2,m:mmax),div_g(2,m:mmax),phi_g(2,m:mmax)
 
     real(r_kind) pmask(m:mmax)
     real(r_kind) vort_hat(2,m:mmax),div_hat(2,m:mmax),phi_hat(2,m:mmax)
@@ -258,12 +258,12 @@ contains
     call gproj0(vort_hat_g,div_hat_g,phi_hat_g,vort_hat,div_hat,phi_hat)
     call get_periodmask(pmask)
     do n=m,mmax
-      vort_hat(1,n)=pmask(n)*vort_hat(1,n)
-      vort_hat(2,n)=pmask(n)*vort_hat(2,n)
-      div_hat(1,n)=pmask(n)*div_hat(1,n)
-      div_hat(2,n)=pmask(n)*div_hat(2,n)
-      phi_hat(1,n)=pmask(n)*phi_hat(1,n)
-      phi_hat(2,n)=pmask(n)*phi_hat(2,n)
+       vort_hat(1,n)=pmask(n)*vort_hat(1,n)
+       vort_hat(2,n)=pmask(n)*vort_hat(2,n)
+       div_hat(1,n)=pmask(n)*div_hat(1,n)
+       div_hat(2,n)=pmask(n)*div_hat(2,n)
+       phi_hat(1,n)=pmask(n)*phi_hat(1,n)
+       phi_hat(2,n)=pmask(n)*phi_hat(2,n)
     end do
     call scale_vars_ad(vort,div,phi,vort_hat,div_hat,phi_hat)
 
@@ -309,8 +309,8 @@ contains
 
     implicit none
 
-    real(r_kind),intent(in)::vort_t(2,m:mmax),div_t(2,m:mmax),phi_t(2,m:mmax)
-    real(r_kind),intent(out)::del_vort(2,m:mmax),del_div(2,m:mmax),del_phi(2,m:mmax)
+    real(r_kind),intent(in   ) :: vort_t(2,m:mmax),div_t(2,m:mmax),phi_t(2,m:mmax)
+    real(r_kind),intent(  out) :: del_vort(2,m:mmax),del_div(2,m:mmax),del_phi(2,m:mmax)
 
     real(r_kind) pmask(m:mmax)
     real(r_kind) vort_t_hat(2,m:mmax),div_t_hat(2,m:mmax),phi_t_hat(2,m:mmax)
@@ -320,12 +320,12 @@ contains
     call scale_vars(vort_t,div_t,phi_t,vort_t_hat,div_t_hat,phi_t_hat)
     call get_periodmask(pmask)
     do n=m,mmax
-      vort_t_hat(1,n)=pmask(n)*vort_t_hat(1,n)
-      vort_t_hat(2,n)=pmask(n)*vort_t_hat(2,n)
-      div_t_hat(1,n)=pmask(n)*div_t_hat(1,n)
-      div_t_hat(2,n)=pmask(n)*div_t_hat(2,n)
-      phi_t_hat(1,n)=pmask(n)*phi_t_hat(1,n)
-      phi_t_hat(2,n)=pmask(n)*phi_t_hat(2,n)
+       vort_t_hat(1,n)=pmask(n)*vort_t_hat(1,n)
+       vort_t_hat(2,n)=pmask(n)*vort_t_hat(2,n)
+       div_t_hat(1,n)=pmask(n)*div_t_hat(1,n)
+       div_t_hat(2,n)=pmask(n)*div_t_hat(2,n)
+       phi_t_hat(1,n)=pmask(n)*phi_t_hat(1,n)
+       phi_t_hat(2,n)=pmask(n)*phi_t_hat(2,n)
     end do
     call dinmi0(vort_t_hat,div_t_hat,phi_t_hat,del_vort_hat,del_div_hat,del_phi_hat)
 
@@ -360,8 +360,11 @@ contains
 !   2008-05-05  safford -- add subprogram doc block, rm unused uses
 !               
 !   input argument list:
+!    del_vort,del_div,del_phi
+!    vort_t,div_t,phi_t
 !
 !   output argument list:
+!    vort_t,div_t,phi_t
 !   
 ! attributes:
 !   language:  f90
@@ -371,8 +374,8 @@ contains
     use constants, only: zero
     implicit none
 
-    real(r_kind),intent(inout)::vort_t(2,m:mmax),div_t(2,m:mmax),phi_t(2,m:mmax)
-    real(r_kind),intent(in)::del_vort(2,m:mmax),del_div(2,m:mmax),del_phi(2,m:mmax)
+    real(r_kind),intent(inout) :: vort_t(2,m:mmax),div_t(2,m:mmax),phi_t(2,m:mmax)
+    real(r_kind),intent(in   ) :: del_vort(2,m:mmax),del_div(2,m:mmax),del_phi(2,m:mmax)
 
     real(r_kind) pmask(m:mmax)
     real(r_kind) vort_t_hat(2,m:mmax),div_t_hat(2,m:mmax),phi_t_hat(2,m:mmax)
@@ -384,12 +387,12 @@ contains
     call dinmi0(del_vort_hat,del_div_hat,del_phi_hat,vort_t_hat,div_t_hat,phi_t_hat)
     call get_periodmask(pmask)
     do n=m,mmax
-      vort_t_hat(1,n)=-pmask(n)*vort_t_hat(1,n)
-      vort_t_hat(2,n)=-pmask(n)*vort_t_hat(2,n)
-      div_t_hat(1,n)=-pmask(n)*div_t_hat(1,n)
-      div_t_hat(2,n)=-pmask(n)*div_t_hat(2,n)
-      phi_t_hat(1,n)=-pmask(n)*phi_t_hat(1,n)
-      phi_t_hat(2,n)=-pmask(n)*phi_t_hat(2,n)
+       vort_t_hat(1,n)=-pmask(n)*vort_t_hat(1,n)
+       vort_t_hat(2,n)=-pmask(n)*vort_t_hat(2,n)
+       div_t_hat(1,n)=-pmask(n)*div_t_hat(1,n)
+       div_t_hat(2,n)=-pmask(n)*div_t_hat(2,n)
+       phi_t_hat(1,n)=-pmask(n)*phi_t_hat(1,n)
+       phi_t_hat(2,n)=-pmask(n)*phi_t_hat(2,n)
     end do
     call scale_vars_ad(vort_t,div_t,phi_t,vort_t_hat,div_t_hat,phi_t_hat)
 
@@ -418,8 +421,10 @@ contains
 !   2008-05-05  safford -- add subprogram doc block, rm unused uses
 !               
 !   input argument list:
+!    vort_t_hat,div_t_hat,phi_t_hat
 !
 !   output argument list:
+!    del_vort_hat,del_div_hat,del_phi_hat
 !   
 ! attributes:
 !   language:  f90
@@ -429,8 +434,8 @@ contains
 
     implicit none
 
-    real(r_kind),dimension(2,m:mmax),intent(in):: vort_t_hat,div_t_hat,phi_t_hat
-    real(r_kind),dimension(2,m:mmax),intent(out):: del_vort_hat,del_div_hat,del_phi_hat
+    real(r_kind),dimension(2,m:mmax),intent(in   ) :: vort_t_hat,div_t_hat,phi_t_hat
+    real(r_kind),dimension(2,m:mmax),intent(  out) :: del_vort_hat,del_div_hat,del_phi_hat
 
     real(r_kind) b(m:mmax),c(m:mmax),f(m:mmax)
     real(r_kind) x(2,m:mmax),y(2,m:mmax)
@@ -469,8 +474,10 @@ contains
 !   2008-05-05  safford -- add subprogram doc block, rm unused uses
 !               
 !   input argument list:
+!    vort_t_hat,div_t_hat,phi_t_hat
 !
 !   output argument list:
+!    balnm1
 !   
 ! attributes:
 !   language:  f90
@@ -480,15 +487,15 @@ contains
 
     implicit none
 
-    real(r_kind),intent(in)::vort_t_hat(2,m:mmax),div_t_hat(2,m:mmax),phi_t_hat(2,m:mmax)
-    real(r_kind),intent(out)::balnm1(m:mmax)
+    real(r_kind),intent(in   ) :: vort_t_hat(2,m:mmax),div_t_hat(2,m:mmax),phi_t_hat(2,m:mmax)
+    real(r_kind),intent(  out) :: balnm1(m:mmax)
 
     integer(i_kind) n
 
     do n=m,mmax
-      balnm1(n)=vort_t_hat(1,n)**2+vort_t_hat(2,n)**2 &
-               +div_t_hat(1,n)**2+div_t_hat(2,n)**2 &
-               +phi_t_hat(1,n)**2+phi_t_hat(2,n)**2
+       balnm1(n)=vort_t_hat(1,n)**2+vort_t_hat(2,n)**2 &
+                +div_t_hat(1,n)**2+div_t_hat(2,n)**2 &
+                +phi_t_hat(1,n)**2+phi_t_hat(2,n)**2
     end do
 
   end subroutine balm_1
@@ -529,18 +536,18 @@ contains
     use mod_strong, only: period_max,period_width
     implicit none
 
-    real(r_kind),intent(out)::pmask(m:mmax)
+    real(r_kind),intent(  out) :: pmask(m:mmax)
 
     real(r_kind) pi,thislength,thisperiod
     integer(i_kind) n
 
     pi=four*atan(one)
     do n=m,mmax
-      pmask(n)=zero
-      if(n==izero) cycle
-      thislength=two*pi*rearth/n
-      thisperiod=thislength/(gspeed*r3600)
-      pmask(n)=half*(one-tanh((thisperiod-period_max)/period_width))
+       pmask(n)=zero
+       if(n==izero) cycle
+       thislength=two*pi*rearth/n
+       thisperiod=thislength/(gspeed*r3600)
+       pmask(n)=half*(one-tanh((thisperiod-period_max)/period_width))
     end do
 
   end subroutine get_periodmask
@@ -574,8 +581,7 @@ contains
     use mod_strong, only: scheme
     implicit none
 
-
-    real(r_kind),intent(out)::b(m:mmax),c(m:mmax),f(m:mmax)
+    real(r_kind),intent(  out) :: b(m:mmax),c(m:mmax),f(m:mmax)
 
     integer(i_kind) n,nstart
     real(r_kind) eps,rn,rm
@@ -597,23 +603,23 @@ contains
     nstart=max(m,ione)
     rm=m
     do n=nstart,mmax
-      rn=n
-      eps=sqrt((rn*rn-rm*rm )/(four*rn*rn-one))
-      if(scheme=='B') then
-        b(n)=two*omega*rm/(rn*(rn+one))
-        f(n)=two*omega*sqrt(rn*rn-one)*eps/rn
-        c(n)=gspeed*sqrt(rn*(rn+one))/rearth
-      else if(scheme=='C') then
-        b(n)=zero
-        f(n)=two*omega*sqrt(rn*rn-one)*eps/rn
-        c(n)=gspeed*sqrt(rn*(rn+one))/rearth
-      else if(scheme=='D') then
-        b(n)=zero
-        f(n)=two*omega*eps
-        c(n)=gspeed*sqrt(rn*(rn+one))/rearth
-      else
-           write(6,*)' scheme = ',scheme,' incorrect, must be = B, C, or D'
-      end if
+       rn=n
+       eps=sqrt((rn*rn-rm*rm )/(four*rn*rn-one))
+       if(scheme=='B') then
+          b(n)=two*omega*rm/(rn*(rn+one))
+          f(n)=two*omega*sqrt(rn*rn-one)*eps/rn
+          c(n)=gspeed*sqrt(rn*(rn+one))/rearth
+       else if(scheme=='C') then
+          b(n)=zero
+          f(n)=two*omega*sqrt(rn*rn-one)*eps/rn
+          c(n)=gspeed*sqrt(rn*(rn+one))/rearth
+       else if(scheme=='D') then
+          b(n)=zero
+          f(n)=two*omega*eps
+          c(n)=gspeed*sqrt(rn*(rn+one))/rearth
+       else
+          write(6,*)' scheme = ',scheme,' incorrect, must be = B, C, or D'
+       end if
     end do
 
   end subroutine getbcf
@@ -658,8 +664,8 @@ contains
     use mod_strong, only: scheme
     implicit none
 
-    real(r_kind),intent(in)::vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
-    real(r_kind),intent(out)::vort_hat(2,m:mmax),div_hat(2,m:mmax),phi_hat(2,m:mmax)
+    real(r_kind),intent(in   ) :: vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
+    real(r_kind),intent(  out) :: vort_hat(2,m:mmax),div_hat(2,m:mmax),phi_hat(2,m:mmax)
 
     integer(i_kind) n,nstart
 
@@ -673,23 +679,23 @@ contains
     phi_hat(2,m)=zero
     nstart=max(m,ione)
     if(scheme/='D') then
-      do n=nstart,mmax
-        vort_hat(1,n)=rearth*vort(1,n)/sqrt(n*(n+one))
-        vort_hat(2,n)=rearth*vort(2,n)/sqrt(n*(n+one))
-        div_hat(2,n) =rearth*div (1,n)/sqrt(n*(n+one))
-        div_hat(1,n) =-rearth*div(2,n)/sqrt(n*(n+one))
-        phi_hat(1,n) =phi(1,n)/gspeed
-        phi_hat(2,n) =phi(2,n)/gspeed
-      end do
+       do n=nstart,mmax
+          vort_hat(1,n)=rearth*vort(1,n)/sqrt(n*(n+one))
+          vort_hat(2,n)=rearth*vort(2,n)/sqrt(n*(n+one))
+          div_hat(2,n) =rearth*div (1,n)/sqrt(n*(n+one))
+          div_hat(1,n) =-rearth*div(2,n)/sqrt(n*(n+one))
+          phi_hat(1,n) =phi(1,n)/gspeed
+          phi_hat(2,n) =phi(2,n)/gspeed
+       end do
     else
-      do n=nstart,mmax
-        vort_hat(1,n)=rearth*vort(1,n)
-        vort_hat(2,n)=rearth*vort(2,n)
-        div_hat(2,n) =rearth *div(1,n)
-        div_hat(1,n) =-rearth*div(2,n)
-        phi_hat(1,n) =sqrt(n*(n+one))*phi(1,n)/gspeed
-        phi_hat(2,n) =sqrt(n*(n+one))*phi(2,n)/gspeed
-      end do
+       do n=nstart,mmax
+          vort_hat(1,n)=rearth*vort(1,n)
+          vort_hat(2,n)=rearth*vort(2,n)
+          div_hat(2,n) =rearth *div(1,n)
+          div_hat(1,n) =-rearth*div(2,n)
+          phi_hat(1,n) =sqrt(n*(n+one))*phi(1,n)/gspeed
+          phi_hat(2,n) =sqrt(n*(n+one))*phi(2,n)/gspeed
+       end do
     end if
 
   end subroutine scale_vars
@@ -722,7 +728,7 @@ contains
 !     vort_hat,div_hat,phi_hat
 !
 !   output argument list:
-!     real(r_kind),intent(inout)::vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
+!     vort,div,phi
 !   
 ! attributes:
 !   language:  f90
@@ -734,30 +740,30 @@ contains
     use mod_strong, only: scheme
     implicit none
 
-    real(r_kind),intent(inout)::vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
-    real(r_kind),intent(in)::vort_hat(2,m:mmax),div_hat(2,m:mmax),phi_hat(2,m:mmax)
+    real(r_kind),intent(inout) :: vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
+    real(r_kind),intent(in   ) :: vort_hat(2,m:mmax),div_hat(2,m:mmax),phi_hat(2,m:mmax)
 
     integer(i_kind) n,nstart
 
     nstart=max(m,ione)
     if(scheme/='D') then
-      do n=nstart,mmax
-        vort(1,n)=vort(1,n)+vort_hat(1,n)*rearth/sqrt(n*(n+one))
-        vort(2,n)=vort(2,n)+vort_hat(2,n)*rearth/sqrt(n*(n+one))
-        div(1,n) =div(1,n) +div_hat (2,n)*rearth/sqrt(n*(n+one))
-        div(2,n) =div(2,n) -div_hat (1,n)*rearth/sqrt(n*(n+one))
-        phi(1,n) =phi(1,n) +phi_hat (1,n)/gspeed
-        phi(2,n) =phi(2,n) +phi_hat (2,n)/gspeed
-      end do
+       do n=nstart,mmax
+          vort(1,n)=vort(1,n)+vort_hat(1,n)*rearth/sqrt(n*(n+one))
+          vort(2,n)=vort(2,n)+vort_hat(2,n)*rearth/sqrt(n*(n+one))
+          div(1,n) =div(1,n) +div_hat (2,n)*rearth/sqrt(n*(n+one))
+          div(2,n) =div(2,n) -div_hat (1,n)*rearth/sqrt(n*(n+one))
+          phi(1,n) =phi(1,n) +phi_hat (1,n)/gspeed
+          phi(2,n) =phi(2,n) +phi_hat (2,n)/gspeed
+       end do
     else
-      do n=nstart,mmax
-        vort(1,n)=vort(1,n)+rearth*vort_hat(1,n)
-        vort(2,n)=vort(2,n)+rearth*vort_hat(2,n)
-        div(1,n) =div (1,n)+div_hat(2,n)*rearth
-        div(2,n) =div (2,n)-div_hat(1,n)*rearth
-        phi(1,n) =phi (1,n)+sqrt(n*(n+one))*phi_hat(1,n)/gspeed
-        phi(2,n) =phi (2,n)+sqrt(n*(n+one))*phi_hat(2,n)/gspeed
-      end do
+       do n=nstart,mmax
+          vort(1,n)=vort(1,n)+rearth*vort_hat(1,n)
+          vort(2,n)=vort(2,n)+rearth*vort_hat(2,n)
+          div(1,n) =div (1,n)+div_hat(2,n)*rearth
+          div(2,n) =div (2,n)-div_hat(1,n)*rearth
+          phi(1,n) =phi (1,n)+sqrt(n*(n+one))*phi_hat(1,n)/gspeed
+          phi(2,n) =phi (2,n)+sqrt(n*(n+one))*phi_hat(2,n)/gspeed
+       end do
     end if
 
   end subroutine scale_vars_ad
@@ -785,8 +791,10 @@ contains
 !   2008-05-05  safford -- add subprogram doc block, rm unused uses
 !               
 !   input argument list:
+!    vort_hat,div_hat,phi_hat
 !
 !   output argument list:
+!    vort,div,phi
 !   
 ! attributes:
 !   language:  f90
@@ -798,8 +806,8 @@ contains
     use mod_strong, only: scheme
     implicit none
 
-    real(r_kind),intent(in)::vort_hat(2,m:mmax),div_hat(2,m:mmax),phi_hat(2,m:mmax)
-    real(r_kind),intent(out)::vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
+    real(r_kind),intent(in   ) :: vort_hat(2,m:mmax),div_hat(2,m:mmax),phi_hat(2,m:mmax)
+    real(r_kind),intent(  out) :: vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
 
     integer(i_kind) n,nstart
 
@@ -813,23 +821,23 @@ contains
     phi(2,m)=zero
     nstart=max(m,ione)
     if(scheme/='D') then
-      do n=nstart,mmax
-        vort(1,n)=vort_hat(1,n)*sqrt(n*(n+one))/rearth
-        vort(2,n)=vort_hat(2,n)*sqrt(n*(n+one))/rearth
-        div (1,n)=div_hat (2,n)*sqrt(n*(n+one))/rearth
-        div (2,n)=-div_hat(1,n)*sqrt(n*(n+one))/rearth
-        phi (1,n)=phi_hat (1,n)*gspeed
-        phi (2,n)=phi_hat (2,n)*gspeed
-      end do
+       do n=nstart,mmax
+          vort(1,n)=vort_hat(1,n)*sqrt(n*(n+one))/rearth
+          vort(2,n)=vort_hat(2,n)*sqrt(n*(n+one))/rearth
+          div (1,n)=div_hat (2,n)*sqrt(n*(n+one))/rearth
+          div (2,n)=-div_hat(1,n)*sqrt(n*(n+one))/rearth
+          phi (1,n)=phi_hat (1,n)*gspeed
+          phi (2,n)=phi_hat (2,n)*gspeed
+       end do
     else
-      do n=nstart,mmax
-        vort(1,n)=vort_hat(1,n)/rearth
-        vort(2,n)=vort_hat(2,n)/rearth
-        div (1,n)=div_hat (2,n)/rearth
-        div (2,n)=-div_hat(1,n)/rearth
-        phi (1,n)=phi_hat (1,n)*gspeed/sqrt(n*(n+one))
-        phi (2,n)=phi_hat (2,n)*gspeed/sqrt(n*(n+one))
-      end do
+       do n=nstart,mmax
+          vort(1,n)=vort_hat(1,n)/rearth
+          vort(2,n)=vort_hat(2,n)/rearth
+          div (1,n)=div_hat (2,n)/rearth
+          div (2,n)=-div_hat(1,n)/rearth
+          phi (1,n)=phi_hat (1,n)*gspeed/sqrt(n*(n+one))
+          phi (2,n)=phi_hat (2,n)*gspeed/sqrt(n*(n+one))
+       end do
     end if
 
   end subroutine unscale_vars
@@ -857,9 +865,12 @@ contains
 !   2008-05-05  safford -- add subprogram doc block, rm unused uses
 !               
 !   input argument list:
+!    vort,div,phi
+!    vort_hat,div_hat,phi_hat
 !
 !   output argument list:
-!   
+!    vort_hat,div_hat,phi_hat
+!
 ! attributes:
 !   language:  f90
 !   machine:   ibm RS/6000 SP
@@ -870,30 +881,30 @@ contains
     use mod_strong, only:  scheme
     implicit none
 
-    real(r_kind),intent(inout)::vort_hat(2,m:mmax),div_hat(2,m:mmax),phi_hat(2,m:mmax)
-    real(r_kind),intent(in)::vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
+    real(r_kind),intent(inout) :: vort_hat(2,m:mmax),div_hat(2,m:mmax),phi_hat(2,m:mmax)
+    real(r_kind),intent(in   ) :: vort(2,m:mmax),div(2,m:mmax),phi(2,m:mmax)
 
     integer(i_kind) n,nstart
 
     nstart=max(m,ione)
     if(scheme/='D') then
-      do n=nstart,mmax
-        vort_hat(1,n)=vort_hat(1,n)+vort(1,n)*sqrt(n*(n+one))/rearth
-        vort_hat(2,n)=vort_hat(2,n)+vort(2,n)*sqrt(n*(n+one))/rearth
-        div_hat (2,n)=div_hat (2,n)+div (1,n)*sqrt(n*(n+one))/rearth
-        div_hat (1,n)=div_hat (1,n)-div (2,n)*sqrt(n*(n+one))/rearth
-        phi_hat (1,n)=phi_hat (1,n)+phi (1,n)*gspeed
-        phi_hat (2,n)=phi_hat (2,n)+phi (2,n)*gspeed
-      end do
+       do n=nstart,mmax
+          vort_hat(1,n)=vort_hat(1,n)+vort(1,n)*sqrt(n*(n+one))/rearth
+          vort_hat(2,n)=vort_hat(2,n)+vort(2,n)*sqrt(n*(n+one))/rearth
+          div_hat (2,n)=div_hat (2,n)+div (1,n)*sqrt(n*(n+one))/rearth
+          div_hat (1,n)=div_hat (1,n)-div (2,n)*sqrt(n*(n+one))/rearth
+          phi_hat (1,n)=phi_hat (1,n)+phi (1,n)*gspeed
+          phi_hat (2,n)=phi_hat (2,n)+phi (2,n)*gspeed
+       end do
     else
-      do n=nstart,mmax
-        vort_hat(1,n)=vort_hat(1,n)+vort(1,n)/rearth
-        vort_hat(2,n)=vort_hat(2,n)+vort(2,n)/rearth
-        div_hat (2,n)=div_hat (2,n)+div (1,n)/rearth
-        div_hat (1,n)=div_hat (1,n)-div (2,n)/rearth
-        phi_hat (1,n)=phi_hat (1,n)+phi (1,n)*gspeed/sqrt(n*(n+one))
-        phi_hat (2,n)=phi_hat (2,n)+phi (2,n)*gspeed/sqrt(n*(n+one))
-      end do
+       do n=nstart,mmax
+          vort_hat(1,n)=vort_hat(1,n)+vort(1,n)/rearth
+          vort_hat(2,n)=vort_hat(2,n)+vort(2,n)/rearth
+          div_hat (2,n)=div_hat (2,n)+div (1,n)/rearth
+          div_hat (1,n)=div_hat (1,n)-div (2,n)/rearth
+          phi_hat (1,n)=phi_hat (1,n)+phi (1,n)*gspeed/sqrt(n*(n+one))
+          phi_hat (2,n)=phi_hat (2,n)+phi (2,n)*gspeed/sqrt(n*(n+one))
+       end do
     end if
 
   end subroutine unscale_vars_ad
@@ -926,14 +937,14 @@ contains
     use constants, only: ione,zero
     implicit none
 
-    real(r_kind),intent(in)::y(2,m:mmax),f(m:mmax)
-    real(r_kind),intent(out)::x(2,m:mmax)
+    real(r_kind),intent(in   ) :: y(2,m:mmax),f(m:mmax)
+    real(r_kind),intent(  out) :: x(2,m:mmax)
 
     integer(i_kind) n,nstart
 
     if(m==mmax) then
-      x=zero
-      return
+       x=zero
+       return
     end if
 
 !   following is to account for 0,0 term being zero
@@ -946,14 +957,14 @@ contains
     x(2,mmax)=zero
     if(nstart<mmax) then
 
-      do n=nstart,mmax-ione
-        x(1,n)=f(n+ione)*y(1,n+ione)
-        x(2,n)=f(n+ione)*y(2,n+ione)
-      end do
-      do n=nstart+ione,mmax
-        x(1,n)=x(1,n)+f(n)*y(1,n-ione)
-        x(2,n)=x(2,n)+f(n)*y(2,n-ione)
-      end do
+       do n=nstart,mmax-ione
+          x(1,n)=f(n+ione)*y(1,n+ione)
+          x(2,n)=f(n+ione)*y(2,n+ione)
+       end do
+       do n=nstart+ione,mmax
+          x(1,n)=x(1,n)+f(n)*y(1,n-ione)
+          x(2,n)=x(2,n)+f(n)*y(2,n-ione)
+       end do
     end if
 
   end subroutine f_mult
@@ -986,8 +997,8 @@ contains
     use constants, only: ione,zero
     implicit none
 
-    real(r_kind),intent(in)::y(2,m:mmax),c(m:mmax)
-    real(r_kind),intent(out)::x(2,m:mmax)
+    real(r_kind),intent(in   ) :: y(2,m:mmax),c(m:mmax)
+    real(r_kind),intent(  out) :: x(2,m:mmax)
 
     integer(i_kind) n,nstart
 
@@ -999,8 +1010,8 @@ contains
     nstart=max(m,ione)
 
     do n=nstart,mmax
-      x(1,n)=c(n)*y(1,n)
-      x(2,n)=c(n)*y(2,n)
+       x(1,n)=c(n)*y(1,n)
+       x(2,n)=c(n)*y(2,n)
     end do
 
   end subroutine c_mult
@@ -1033,8 +1044,8 @@ contains
     use constants, only: ione,zero
     implicit none
 
-    real(r_kind),intent(in)::y(2,m:mmax)
-    real(r_kind),intent(out)::x(2,m:mmax)
+    real(r_kind),intent(in   ) :: y(2,m:mmax)
+    real(r_kind),intent(  out) :: x(2,m:mmax)
 
     integer(i_kind) n,nstart
 
@@ -1046,8 +1057,8 @@ contains
     nstart=max(m,ione)
 
     do n=nstart,mmax
-      x(1,n)=-y(2,n)
-      x(2,n)=y(1,n)
+       x(1,n)=-y(2,n)
+       x(2,n)=y(1,n)
     end do
 
   end subroutine i_mult
@@ -1080,8 +1091,8 @@ contains
     use constants, only: ione,zero
     implicit none
 
-    real(r_kind),intent(in)::y(2,m:mmax),f(m:mmax),c(m:mmax)
-    real(r_kind),intent(out)::x(2,m:mmax)
+    real(r_kind),intent(in   ) :: y(2,m:mmax),f(m:mmax),c(m:mmax)
+    real(r_kind),intent(  out) :: x(2,m:mmax)
 
     integer(i_kind) n,nstart
     real(r_kind) a(m:mmax),b(m:mmax),z(2,m:mmax)
@@ -1096,60 +1107,60 @@ contains
 !     copy forcing y to internal array
 
     do n=nstart,mmax
-      z(1,n)=y(1,n)
-      z(2,n)=y(2,n)
+       z(1,n)=y(1,n)
+       z(2,n)=y(2,n)
     end do
 
 !     if nstart==mmax, then trivial solution
 
     if(nstart==mmax) then
-      a(  nstart)=c(  nstart)*c(nstart)
-      x(1,nstart)=z(1,nstart)/a(nstart)
-      x(2,nstart)=z(2,nstart)/a(nstart)
+       a(  nstart)=c(  nstart)*c(nstart)
+       x(1,nstart)=z(1,nstart)/a(nstart)
+       x(2,nstart)=z(2,nstart)/a(nstart)
     else
 
 !       compute main diagonal of F*F + C*C
 
-      a(nstart)=f(nstart+ione)*f(nstart+ione)+c(nstart)*c(nstart)
-      if(nstart+ione<mmax) then
-        do n=nstart+ione,mmax-ione
-          a(n)=f(n)*f(n)+f(n+ione)*f(n+ione)+c(n)*c(n)
-        end do
-      end if
-      a(mmax)=f(mmax)*f(mmax)+c(mmax)*c(mmax)
+       a(nstart)=f(nstart+ione)*f(nstart+ione)+c(nstart)*c(nstart)
+       if(nstart+ione<mmax) then
+          do n=nstart+ione,mmax-ione
+             a(n)=f(n)*f(n)+f(n+ione)*f(n+ione)+c(n)*c(n)
+          end do
+       end if
+       a(mmax)=f(mmax)*f(mmax)+c(mmax)*c(mmax)
 
 !       compute only non-zero off-diagonal of F*F + C*C
 
-      if(nstart+2_i_kind<=mmax) then
-        do n=nstart+2_i_kind,mmax
-          b(n)=f(n-ione)*f(n)
-        end do
-      end if
+       if(nstart+2_i_kind<=mmax) then
+          do n=nstart+2_i_kind,mmax
+             b(n)=f(n-ione)*f(n)
+          end do
+       end if
 
 !        forward elimination:
 
-      if(nstart+2_i_kind<=mmax) then
+       if(nstart+2_i_kind<=mmax) then
 
-        do n=nstart,mmax-2_i_kind
-          z(1,n+2_i_kind)=z(1,n+2_i_kind)-b(n+2_i_kind)*z(1,       n)/a(n)
-          z(2,n+2_i_kind)=z(2,n+2_i_kind)-b(n+2_i_kind)*z(2,       n)/a(n)
-          a(  n+2_i_kind)=a(  n+2_i_kind)-b(n+2_i_kind)*b(n+2_i_kind)/a(n)
-        end do
+          do n=nstart,mmax-2_i_kind
+             z(1,n+2_i_kind)=z(1,n+2_i_kind)-b(n+2_i_kind)*z(1,       n)/a(n)
+             z(2,n+2_i_kind)=z(2,n+2_i_kind)-b(n+2_i_kind)*z(2,       n)/a(n)
+             a(  n+2_i_kind)=a(  n+2_i_kind)-b(n+2_i_kind)*b(n+2_i_kind)/a(n)
+          end do
 
-      end if
+       end if
 
 !        backward substitution:
 
-      x(1,mmax     )=z(1,mmax     )/a(mmax     )
-      x(2,mmax     )=z(2,mmax     )/a(mmax     )
-      x(1,mmax-ione)=z(1,mmax-ione)/a(mmax-ione)
-      x(2,mmax-ione)=z(2,mmax-ione)/a(mmax-ione)
-      if(nstart+2_i_kind<=mmax) then
-        do n=mmax-2_i_kind,nstart,-1
-          x(1,n)=(z(1,n) - b(n+2_i_kind)*x(1,n+2_i_kind))/a(n)
-          x(2,n)=(z(2,n) - b(n+2_i_kind)*x(2,n+2_i_kind))/a(n)
-        end do
-      end if
+       x(1,mmax     )=z(1,mmax     )/a(mmax     )
+       x(2,mmax     )=z(2,mmax     )/a(mmax     )
+       x(1,mmax-ione)=z(1,mmax-ione)/a(mmax-ione)
+       x(2,mmax-ione)=z(2,mmax-ione)/a(mmax-ione)
+       if(nstart+2_i_kind<=mmax) then
+          do n=mmax-2_i_kind,nstart,-1
+             x(1,n)=(z(1,n) - b(n+2_i_kind)*x(1,n+2_i_kind))/a(n)
+             x(2,n)=(z(2,n) - b(n+2_i_kind)*x(2,n+2_i_kind))/a(n)
+          end do
+       end if
 
     end if
 

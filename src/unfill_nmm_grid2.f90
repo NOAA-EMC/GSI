@@ -39,17 +39,18 @@ subroutine unfill_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 !
 !$$$
   use kinds, only: r_single,i_kind
+  use constants, only: ione
   use gridmod, only: itotsub,ltosi,ltosj,ltosi_s,ltosj_s,iglobal
   implicit none
   
-  integer(i_kind), intent(in)  :: nx,ny,igtype,iorder
-  real(r_single), intent(in)   :: gout(itotsub)
-  real(r_single), intent(inout):: gin(nx,ny)
+  integer(i_kind), intent(in   ) :: nx,ny,igtype,iorder
+  real(r_single) , intent(in   ) :: gout(itotsub)
+  real(r_single) , intent(inout) :: gin(nx,ny)
   
-  real(r_single) b(2*nx-1,ny)
+  real(r_single) b(2*nx-ione,ny)
   integer(i_kind) i,j
   
-  if(iorder==1)then
+  if(iorder==ione)then
      do i=1,itotsub
         b(ltosj_s(i),ltosi_s(i))=gout(i)
      end do
@@ -59,26 +60,26 @@ subroutine unfill_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
      end do
   endif
   
-  if(igtype.eq.1) then
+  if(igtype==ione) then
      do j=1,ny,2
         do i=1,nx
-           gin(i,j)=gin(i,j)+b(2*i-1,j)
+           gin(i,j)=gin(i,j)+b(2*i-ione,j)
         end do
      end do
      do j=2,ny,2
-        do i=1,nx-1
+        do i=1,nx-ione
            gin(i,j)=gin(i,j)+b(2*i,j)
         end do
      end do
   else
      do j=1,ny,2
-        do i=1,nx-1
+        do i=1,nx-ione
            gin(i,j)=gin(i,j)+b(2*i,j)
         end do
      end do
      do j=2,ny,2
         do i=1,nx
-           gin(i,j)=gin(i,j)+b(2*i-1,j)
+           gin(i,j)=gin(i,j)+b(2*i-ione,j)
         end do
      end do
   end if

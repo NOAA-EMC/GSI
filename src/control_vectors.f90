@@ -68,25 +68,25 @@ public control_state, control_vector, allocate_cv, deallocate_cv, assignment(=),
      & write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub
 
 type control_state
-  real(r_kind), pointer :: values(:) => NULL()
-  real(r_kind), pointer :: st(:)  => NULL()
-  real(r_kind), pointer :: vp(:)  => NULL()
-  real(r_kind), pointer :: t(:)   => NULL()
-  real(r_kind), pointer :: rh(:)  => NULL()
-  real(r_kind), pointer :: oz(:)  => NULL()
-  real(r_kind), pointer :: cw(:)  => NULL()
-  real(r_kind), pointer :: p(:)   => NULL()
-  real(r_kind), pointer :: sst(:) => NULL()
+   real(r_kind), pointer :: values(:) => NULL()
+   real(r_kind), pointer :: st(:)  => NULL()
+   real(r_kind), pointer :: vp(:)  => NULL()
+   real(r_kind), pointer :: t(:)   => NULL()
+   real(r_kind), pointer :: rh(:)  => NULL()
+   real(r_kind), pointer :: oz(:)  => NULL()
+   real(r_kind), pointer :: cw(:)  => NULL()
+   real(r_kind), pointer :: p(:)   => NULL()
+   real(r_kind), pointer :: sst(:) => NULL()
   real(r_kind), pointer :: a_en(:)=> NULL()    !  ensemble control variable (only used if l_hyb_ens=.true.)
 end type control_state
 
 type control_vector
-  integer(i_kind) :: lencv
-  real(r_kind), pointer :: values(:) => NULL()
-  type(control_state), allocatable :: step(:)
-  real(r_kind), pointer :: predr(:) => NULL()
-  real(r_kind), pointer :: predp(:) => NULL()
-  logical :: lallocated = .false.
+   integer(i_kind) :: lencv
+   real(r_kind), pointer :: values(:) => NULL()
+   type(control_state), allocatable :: step(:)
+   real(r_kind), pointer :: predr(:) => NULL()
+   real(r_kind), pointer :: predp(:) => NULL()
+   logical :: lallocated = .false.
 end type control_vector
 
 integer(i_kind) :: nclen,nclen1,nsclen,npclen,nrclen,nsubwin,nval_len
@@ -156,10 +156,10 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 !$$$ end documentation block
 
   implicit none
-  integer(i_kind), intent(in) :: ksig,klat,klon,katlon11,katlon1n, &
+  integer(i_kind)          , intent(in   ) :: ksig,klat,klon,katlon11,katlon1n, &
                                & ksclen,kpclen,kclen,ksubwin,kval_len
-  integer(i_kind), intent(in), optional :: k_ens
-  logical, intent(in) :: ldsqrtb
+  integer(i_kind), optional, intent(in   ) :: k_ens
+  logical                  , intent(in   ) :: ldsqrtb
 
   nsig=ksig
   lat2=klat
@@ -177,8 +177,8 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   n_ens=izero
   nlva_en=izero
   if(present(k_ens)) then
-    n_ens=k_ens
-    nlva_en=n_ens*nsig
+     n_ens=k_ens
+     nlva_en=n_ens*nsig
   end if
 
   llinit = .true.
@@ -216,12 +216,12 @@ subroutine allocate_cv(ycv)
 !$$$ end documentation block
 
   implicit none
-  type(control_vector), intent(out) :: ycv
+  type(control_vector), intent(  out) :: ycv
   integer(i_kind) :: ii,jj
 
   if (ycv%lallocated) then
-    write(6,*)'allocate_cv: vector already allocated'
-    call stop2(108)
+     write(6,*)'allocate_cv: vector already allocated'
+     call stop2(108)
   end if
 
   ycv%lallocated=.true.
@@ -231,40 +231,40 @@ subroutine allocate_cv(ycv)
 
   ii=izero
   do jj=1,nsubwin
-    ycv%step(jj)%values => ycv%values(ii+ione:ii+nval_len)
+     ycv%step(jj)%values => ycv%values(ii+ione:ii+nval_len)
 
-    if (lsqrtb) then
-      ycv%step(jj)%st  => NULL()
-      ycv%step(jj)%vp  => NULL()
-      ycv%step(jj)%t   => NULL()
-      ycv%step(jj)%rh  => NULL()
-      ycv%step(jj)%oz  => NULL()
-      ycv%step(jj)%cw  => NULL()
-      ycv%step(jj)%p   => NULL()
-      ycv%step(jj)%sst => NULL()
-      ii=ii+nval_len
-    else
-      ycv%step(jj)%st  => ycv%values(ii+ione:ii+latlon1n)
-      ii=ii+latlon1n
-      ycv%step(jj)%vp  => ycv%values(ii+ione:ii+latlon1n)
-      ii=ii+latlon1n
-      ycv%step(jj)%t   => ycv%values(ii+ione:ii+latlon1n)
-      ii=ii+latlon1n
-      ycv%step(jj)%rh  => ycv%values(ii+ione:ii+latlon1n)
-      ii=ii+latlon1n
-      ycv%step(jj)%oz  => ycv%values(ii+ione:ii+latlon1n)
-      ii=ii+latlon1n
-      ycv%step(jj)%cw  => ycv%values(ii+ione:ii+latlon1n)
-      ii=ii+latlon1n
-      ycv%step(jj)%p   => ycv%values(ii+ione:ii+latlon11)
-      ii=ii+latlon11
-      ycv%step(jj)%sst => ycv%values(ii+ione:ii+latlon11)
-      ii=ii+latlon11
-      if(n_ens >  izero) then
-        ycv%step(jj)%a_en => ycv%values(ii+1:ii+n_ens*latlon1n)
-        ii=ii+n_ens*latlon1n
-      end if
-    endif
+     if (lsqrtb) then
+        ycv%step(jj)%st  => NULL()
+        ycv%step(jj)%vp  => NULL()
+        ycv%step(jj)%t   => NULL()
+        ycv%step(jj)%rh  => NULL()
+        ycv%step(jj)%oz  => NULL()
+        ycv%step(jj)%cw  => NULL()
+        ycv%step(jj)%p   => NULL()
+        ycv%step(jj)%sst => NULL()
+        ii=ii+nval_len
+     else
+        ycv%step(jj)%st  => ycv%values(ii+ione:ii+latlon1n)
+        ii=ii+latlon1n
+        ycv%step(jj)%vp  => ycv%values(ii+ione:ii+latlon1n)
+        ii=ii+latlon1n
+        ycv%step(jj)%t   => ycv%values(ii+ione:ii+latlon1n)
+        ii=ii+latlon1n
+        ycv%step(jj)%rh  => ycv%values(ii+ione:ii+latlon1n)
+        ii=ii+latlon1n
+        ycv%step(jj)%oz  => ycv%values(ii+ione:ii+latlon1n)
+        ii=ii+latlon1n
+        ycv%step(jj)%cw  => ycv%values(ii+ione:ii+latlon1n)
+        ii=ii+latlon1n
+        ycv%step(jj)%p   => ycv%values(ii+ione:ii+latlon11)
+        ii=ii+latlon11
+        ycv%step(jj)%sst => ycv%values(ii+ione:ii+latlon11)
+        ii=ii+latlon11
+        if(n_ens >  izero) then
+           ycv%step(jj)%a_en => ycv%values(ii+1:ii+n_ens*latlon1n)
+           ii=ii+n_ens*latlon1n
+        end if
+     endif
   enddo
 
   ycv%predr => ycv%values(ii+ione:ii+nsclen)
@@ -273,8 +273,8 @@ subroutine allocate_cv(ycv)
   ii=ii+npclen
 
   if (ii/=nclen) then
-    write(6,*)'allocate_mods: error length',ii,nclen
-    call stop2(109)
+     write(6,*)'allocate_mods: error length',ii,nclen
+     call stop2(109)
   end if
 
   m_allocs=m_allocs+ione
@@ -313,29 +313,29 @@ subroutine deallocate_cv(ycv)
   integer(i_kind) :: ii
 
   if (ycv%lallocated) then
-    do ii=1,nsubwin
-      NULLIFY(ycv%step(ii)%st )
-      NULLIFY(ycv%step(ii)%vp )
-      NULLIFY(ycv%step(ii)%t  )
-      NULLIFY(ycv%step(ii)%rh )
-      NULLIFY(ycv%step(ii)%oz )
-      NULLIFY(ycv%step(ii)%cw )
-      NULLIFY(ycv%step(ii)%p  )
-      NULLIFY(ycv%step(ii)%sst)
-      if(n_ens >  izero) NULLIFY(ycv%step(ii)%a_en)
-    end do
-    NULLIFY(ycv%predr)
-    NULLIFY(ycv%predp)
+     do ii=1,nsubwin
+        NULLIFY(ycv%step(ii)%st )
+        NULLIFY(ycv%step(ii)%vp )
+        NULLIFY(ycv%step(ii)%t  )
+        NULLIFY(ycv%step(ii)%rh )
+        NULLIFY(ycv%step(ii)%oz )
+        NULLIFY(ycv%step(ii)%cw )
+        NULLIFY(ycv%step(ii)%p  )
+        NULLIFY(ycv%step(ii)%sst)
+        if(n_ens >  izero) NULLIFY(ycv%step(ii)%a_en)
+     end do
+     NULLIFY(ycv%predr)
+     NULLIFY(ycv%predp)
 
-    DEALLOCATE(ycv%step)
-    DEALLOCATE(ycv%values)
+     DEALLOCATE(ycv%step)
+     DEALLOCATE(ycv%values)
 
-    ycv%lallocated=.false.
+     ycv%lallocated=.false.
 
-    m_deallocs=m_deallocs+ione
-    m_vec_alloc=m_vec_alloc-ione
+     m_deallocs=m_deallocs+ione
+     m_vec_alloc=m_vec_alloc-ione
   else
-    if (mype==izero) write(6,*)'deallocate_cv warning: vector not allocated'
+     if (mype==izero) write(6,*)'deallocate_cv warning: vector not allocated'
   endif
 
   return
@@ -367,11 +367,11 @@ subroutine assign_scalar2cv(ycv,pval)
 
   implicit none
   type(control_vector), intent(inout) :: ycv
-  real(r_kind), intent(in) :: pval
+  real(r_kind)        , intent(in   ) :: pval
   integer(i_kind) :: ii
 
   DO ii=1,ycv%lencv
-    ycv%values(ii)=pval
+     ycv%values(ii)=pval
   ENDDO
 
   return
@@ -403,17 +403,17 @@ subroutine assign_cv2cv(ycv,xcv)
 
   implicit none
   type(control_vector), intent(inout) :: ycv
-  type(control_vector), intent(in) :: xcv
+  type(control_vector), intent(in   ) :: xcv
   integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
-      write(6,*)'assign_cv2cv: error length',xcv%lencv,ycv%lencv
-      call stop2(110)
+     write(6,*)'assign_cv2cv: error length',xcv%lencv,ycv%lencv
+     call stop2(110)
   end if
 
 !$omp parallel do
   DO ii=1,ycv%lencv
-    ycv%values(ii)=xcv%values(ii)
+     ycv%values(ii)=xcv%values(ii)
   ENDDO
 !$omp end parallel do
 
@@ -446,18 +446,18 @@ subroutine assign_array2cv(ycv,parray)
 
   implicit none
   type(control_vector), intent(inout) :: ycv
-  real(r_kind), intent(in) :: parray(:)
+  real(r_kind)        , intent(in   ) :: parray(:)
   integer(i_kind) :: ii
 
   if (size(parray)/=ycv%lencv) then
-      write(6,*)'assign_array2cv: array wrong length',size(parray),ycv%lencv
-      call stop2(111)
+     write(6,*)'assign_array2cv: array wrong length',size(parray),ycv%lencv
+     call stop2(111)
   end if
 
 
 !$omp parallel do
   DO ii=1,ycv%lencv
-    ycv%values(ii)=parray(ii)
+     ycv%values(ii)=parray(ii)
   ENDDO
 !$omp end parallel do
 
@@ -488,18 +488,18 @@ subroutine assign_cv2array(parray,ycv)
 !$$$ end documentation block
 
   implicit none
-  real(r_kind), intent(out) :: parray(:)
-  type(control_vector), intent(in) :: ycv
+  real(r_kind)        , intent(  out) :: parray(:)
+  type(control_vector), intent(in   ) :: ycv
   integer(i_kind) :: ii
 
   if (size(parray)/=ycv%lencv) then
-      write(6,*)'assign_cv2array: array wrong length',size(parray),ycv%lencv
-      call stop2(112)
+     write(6,*)'assign_cv2array: array wrong length',size(parray),ycv%lencv
+     call stop2(112)
   end if
 
 !$omp parallel do
   DO ii=1,ycv%lencv
-    parray(ii)=ycv%values(ii)
+     parray(ii)=ycv%values(ii)
   ENDDO
 !$omp end parallel do
 
@@ -530,8 +530,8 @@ real(r_quad) function dplevs(nlevs,dx,dy)
 !$$$ end documentation block
 
   implicit none
-  integer(i_kind),intent(in) :: nlevs
-  real(r_kind),intent(in)::dx(lat2,lon2,nlevs),dy(lat2,lon2,nlevs)
+  integer(i_kind),intent(in   ) :: nlevs
+  real(r_kind)   ,intent(in   ) :: dx(lat2,lon2,nlevs),dy(lat2,lon2,nlevs)
 
   integer(i_kind) :: ii,jj,kk
 
@@ -572,8 +572,8 @@ subroutine ddot_prod_vars(xcv,ycv,prods)
 !$$$ end documentation block
 
   implicit none
-  type(control_vector), intent(in) :: xcv, ycv
-  real(r_kind), intent(out) :: prods(nsubwin+1)
+  type(control_vector), intent(in   ) :: xcv, ycv
+  real(r_kind)        , intent(  out) :: prods(nsubwin+ione)
 
   real(r_kind) :: zz(nsubwin)
   integer(i_kind) :: ii
@@ -584,23 +584,23 @@ subroutine ddot_prod_vars(xcv,ycv,prods)
 ! Independent part of vector
   if (lsqrtb) then
 !$omp parallel do
-    do ii=1,nsubwin
-      zz(ii)=dot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
-    end do
+     do ii=1,nsubwin
+        zz(ii)=dot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
+     end do
 !$omp end parallel do
   else
-    do ii=1,nsubwin
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-      zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-      zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
-      if(n_ens >  izero) &
-      zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
-    end do
+     do ii=1,nsubwin
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
+        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
+        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+        if(n_ens >  izero) &
+        zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
+     end do
   end if
 
   call mpl_allreduce(nsubwin,zz)
@@ -608,10 +608,10 @@ subroutine ddot_prod_vars(xcv,ycv,prods)
 
 ! Duplicated part of vector
   if (nsclen>izero) then
-    prods(nsubwin+ione) = prods(nsubwin+ione) + dot_product(xcv%predr(:),ycv%predr(:))
+     prods(nsubwin+ione) = prods(nsubwin+ione) + dot_product(xcv%predr(:),ycv%predr(:))
   endif
   if (npclen>izero) then
-    prods(nsubwin+ione) = prods(nsubwin+ione) + dot_product(xcv%predp(:),ycv%predp(:))
+     prods(nsubwin+ione) = prods(nsubwin+ione) + dot_product(xcv%predp(:),ycv%predp(:))
   endif
 
 return
@@ -642,7 +642,7 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 !$$$ end documentation block
 
   implicit none
-  type(control_vector), intent(in) :: xcv, ycv
+  type(control_vector), intent(in   ) :: xcv, ycv
   integer(i_kind) :: ii,j
 
 
@@ -651,30 +651,30 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 ! Independent part of vector
   if (lsqrtb) then
 !$omp parallel do
-    do ii=1,nsubwin
-      qdot_prod_sub=qdot_prod_sub+qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
-    end do
+     do ii=1,nsubwin
+        qdot_prod_sub=qdot_prod_sub+qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
+     end do
 !$omp end parallel do
   else
-    do ii=1,nsubwin
-      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-      qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-      qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-      qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
-      if(n_ens >  izero) &
-      qdot_prod_sub = qdot_prod_sub + dplevs(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
-    end do
+     do ii=1,nsubwin
+        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
+        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
+        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
+        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
+        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
+        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
+        qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
+        qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+        if(n_ens >  izero) &
+        qdot_prod_sub = qdot_prod_sub + dplevs(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
+     end do
   end if
 
 ! Duplicated part of vector
   if(mype == izero)then
-    do j=nclen1+ione,nclen
-      qdot_prod_sub=qdot_prod_sub+xcv%values(j)*ycv%values(j) 
-    end do
+     do j=nclen1+ione,nclen
+        qdot_prod_sub=qdot_prod_sub+xcv%values(j)*ycv%values(j) 
+     end do
   end if
 
 return
@@ -705,8 +705,8 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
 !$$$ end documentation block
 
   implicit none
-  type(control_vector), intent(in) :: xcv, ycv
-  real(r_quad), intent(out) :: prods(nsubwin+ione)
+  type(control_vector), intent(in   ) :: xcv, ycv
+  real(r_quad)        , intent(  out) :: prods(nsubwin+ione)
 
   real(r_quad) :: zz(nsubwin)
   integer(i_kind) :: ii
@@ -717,23 +717,23 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
 ! Independent part of vector
   if (lsqrtb) then
 !$omp parallel do
-    do ii=1,nsubwin
-      zz(ii)=qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
-    end do
+     do ii=1,nsubwin
+        zz(ii)=qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
+     end do
 !$omp end parallel do
   else
-    do ii=1,nsubwin
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-      zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-      zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-      zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
-      if(n_ens >  izero) &
-      zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
-    end do
+     do ii=1,nsubwin
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
+        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
+        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
+        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+        if(n_ens >  izero) &
+        zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
+     end do
   end if
 
   call mpl_allreduce(nsubwin,zz)
@@ -741,10 +741,10 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
 
 ! Duplicated part of vector
   if (nsclen>izero) then
-    prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predr(:),ycv%predr(:))
+     prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predr(:),ycv%predr(:))
   endif
   if (npclen>izero) then
-    prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predp(:),ycv%predp(:))
+     prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predp(:),ycv%predp(:))
   endif
 
 return
@@ -779,9 +779,9 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 !$$$ end documentation block
 
   implicit none
-  type(control_vector), intent(in) :: xcv, ycv
-  character(len=*),intent(in):: eb
-  real(r_quad), intent(out) :: prods(nsubwin+ione)
+  type(control_vector), intent(in   ) :: xcv, ycv
+  character(len=*)    , intent(in   ) :: eb
+  real(r_quad)        , intent(  out) :: prods(nsubwin+ione)
 
   real(r_quad) :: zz(nsubwin)
   integer(i_kind) :: ii
@@ -792,29 +792,29 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 ! Independent part of vector
   if (lsqrtb) then
 !$omp parallel do
-    do ii=1,nsubwin
-      zz(ii)=qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
-    end do
+     do ii=1,nsubwin
+        zz(ii)=qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
+     end do
 !$omp end parallel do
   else
-    if(trim(eb) == 'cost_b') then
-      do ii=1,nsubwin
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-        zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-        zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
-      end do
-    end if
-    if(trim(eb) == 'cost_e') then
-      do ii=1,nsubwin
-        if(n_ens >  izero) &
-        zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
-      end do
-    end if
+     if(trim(eb) == 'cost_b') then
+        do ii=1,nsubwin
+           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
+           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
+           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
+           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
+           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
+           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
+           zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
+           zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+        end do
+     end if
+     if(trim(eb) == 'cost_e') then
+        do ii=1,nsubwin
+           if(n_ens >  izero) &
+           zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
+        end do
+     end if
   end if
 
   call mpl_allreduce(nsubwin,zz)
@@ -822,15 +822,15 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 
 ! Duplicated part of vector
   if(trim(eb) == 'cost_b') then
-    if (nsclen>0) then
-      prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predr(:),ycv%predr(:))
-    endif
-    if (npclen>0) then
-      prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predp(:),ycv%predp(:))
-    endif
+     if (nsclen>izero) then
+        prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predr(:),ycv%predr(:))
+     endif
+     if (npclen>izero) then
+        prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predp(:),ycv%predp(:))
+     endif
   end if
 
-return
+  return
 end subroutine qdot_prod_vars_eb
 ! ----------------------------------------------------------------------
 real(r_kind) function dot_prod_cv(xcv,ycv)
@@ -856,22 +856,22 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
 !$$$ end documentation block
 
   implicit none
-  type(control_vector), intent(in) :: xcv, ycv
+  type(control_vector), intent(in   ) :: xcv, ycv
 
 ! local variables
   real(r_kind) :: zz(nsubwin+ione)
   integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
-      write(6,*)'dot_prod_cv: error length',xcv%lencv,ycv%lencv
-      call stop2(113)
+     write(6,*)'dot_prod_cv: error length',xcv%lencv,ycv%lencv
+     call stop2(113)
   end if
 
   call dot_prod_vars(xcv,ycv,zz)
 
   dot_prod_cv = zero
   do ii=1,nsubwin+ione
-    dot_prod_cv = dot_prod_cv + zz(ii)
+     dot_prod_cv = dot_prod_cv + zz(ii)
   enddo
 
 return
@@ -901,23 +901,23 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
 !$$$ end documentation block
 
   implicit none
-  integer(i_kind),intent(in)::kind
-  type(control_vector), intent(in) :: xcv, ycv
+  integer(i_kind)     , intent(in   ) :: kind
+  type(control_vector), intent(in   ) :: xcv, ycv
 
 ! local variables
   real(r_quad) :: zz(nsubwin+ione)
   integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
-      write(6,*)'qdot_prod_cv: error length',xcv%lencv,ycv%lencv
-      call stop2(114)
+     write(6,*)'qdot_prod_cv: error length',xcv%lencv,ycv%lencv
+     call stop2(114)
   end if
 
   call qdot_prod_vars(xcv,ycv,zz)
 
   qdot_prod_cv = zero_quad
   do ii=1,nsubwin+ione
-    qdot_prod_cv = qdot_prod_cv + zz(ii)
+     qdot_prod_cv = qdot_prod_cv + zz(ii)
   enddo
 
 return
@@ -952,9 +952,9 @@ real(r_quad) function qdot_prod_cv_eb(xcv,ycv,kind,eb)
 !$$$ end documentation block
 
   implicit none
-  integer(i_kind),intent(in)::kind
-  character(len=*) eb
-  type(control_vector), intent(in) :: xcv, ycv
+  integer(i_kind)     , intent(in   ) :: kind
+  character(len=*)    , intent(in   ) :: eb
+  type(control_vector), intent(in   ) :: xcv, ycv
 
 ! local variables
   real(r_quad) :: zz(nsubwin+ione)
@@ -969,7 +969,7 @@ real(r_quad) function qdot_prod_cv_eb(xcv,ycv,kind,eb)
 
   qdot_prod_cv_eb= zero_quad
   do ii=1,nsubwin+ione
-    qdot_prod_cv_eb = qdot_prod_cv_eb + zz(ii)
+     qdot_prod_cv_eb = qdot_prod_cv_eb + zz(ii)
   enddo
 
 return
@@ -999,8 +999,8 @@ subroutine prt_norms(xcv,sgrep)
 !$$$ end documentation block
 
   implicit none
-  type(control_vector), intent(in) :: xcv
-  character(len=*), intent(in) :: sgrep
+  type(control_vector), intent(in   ) :: xcv
+  character(len=*)    , intent(in   ) :: sgrep
 
   real(r_quad) :: zz(nsubwin+ione),zt
   integer(i_kind) :: ii
@@ -1008,14 +1008,14 @@ subroutine prt_norms(xcv,sgrep)
   call dot_prod_vars(xcv,xcv,zz)
   zt = zero_quad
   do ii=1,nsubwin+ione
-    zt = zt + zz(ii)
+     zt = zt + zz(ii)
   enddo
   zt=sqrt(zt)
   zz(:) = SQRT(zz(:))
 
   if (mype==izero) then
-    write(6,*)sgrep,' partial norms=',real(zz(:),r_kind)
-    write(6,*)sgrep,' global  norm =',real(zt,r_kind)
+     write(6,*)sgrep,' partial norms=',real(zz(:),r_kind)
+     write(6,*)sgrep,' global  norm =',real(zt,r_kind)
   endif
 
 !!!  call prt_norms_vars(xcv,sgrep)
@@ -1048,8 +1048,8 @@ subroutine prt_norms_vars(xcv,sgrep)
 
   use m_stats,only : stats_sum,stats_allreduce
   implicit none
-  type(control_vector), intent(in) :: xcv
-  character(len=*), intent(in) :: sgrep
+  type(control_vector), intent(in   ) :: xcv
+  character(len=*)    , intent(in   ) :: sgrep
 
   real   (r_kind),dimension(8) :: vdot,vsum,vmin,vmax
   integer(i_kind),dimension(8) :: vnum
@@ -1064,33 +1064,33 @@ subroutine prt_norms_vars(xcv,sgrep)
   ivend=8_i_kind
   if(n_ens >  izero) ivend=9_i_kind
   do iv=1,ivend
-    do iw=1,nsw
-      piv => null()
-      select case(iv)
-      case(1); piv => xcv%step(iw)%st
-      case(2); piv => xcv%step(iw)%vp
-      case(3); piv => xcv%step(iw)%t
-      case(4); piv => xcv%step(iw)%rh
-      case(5); piv => xcv%step(iw)%oz
-      case(6); piv => xcv%step(iw)%cw
-      case(7); piv => xcv%step(iw)%p
-      case(8); piv => xcv%step(iw)%sst
-      case(9); piv => xcv%step(iw)%a_en
-      end select
+     do iw=1,nsw
+        piv => null()
+        select case(iv)
+           case(1); piv => xcv%step(iw)%st
+           case(2); piv => xcv%step(iw)%vp
+           case(3); piv => xcv%step(iw)%t
+           case(4); piv => xcv%step(iw)%rh
+           case(5); piv => xcv%step(iw)%oz
+           case(6); piv => xcv%step(iw)%cw
+           case(7); piv => xcv%step(iw)%p
+           case(8); piv => xcv%step(iw)%sst
+           case(9); piv => xcv%step(iw)%a_en
+        end select
 
-      call stats_sum(piv, &
-      	vdot(iv),vsum(iv),vmin(iv),vmax(iv),vnum(iv),add=iw>ione)
-    enddo
+        call stats_sum(piv, &
+                       vdot(iv),vsum(iv),vmin(iv),vmax(iv),vnum(iv),add=iw>ione)
+     enddo
 
-    call stats_allreduce(vdot(iv),vsum(iv),vmin(iv),vmax(iv),	&
-    	vnum(iv),MPI_comm_world)
-    nv=max(vnum(iv),ione)
+     call stats_allreduce(vdot(iv),vsum(iv),vmin(iv),vmax(iv),  &
+                          vnum(iv),MPI_comm_world)
+     nv=max(vnum(iv),ione)
   
-    if(mype==izero) then
-      write(6,'(2(1x,a),4(1x,ES20.12),1x,i10)')		&
-        sgrep,vnames(iv),sqrt(vdot(iv)/nv),vsum(iv)/nv,	&
-		vmin(iv),vmax(iv),vnum(iv)
-    endif
+     if(mype==izero) then
+        write(6,'(2(1x,a),4(1x,ES20.12),1x,i10)')               &
+          sgrep,vnames(iv),sqrt(vdot(iv)/nv),vsum(iv)/nv,       &
+          vmin(iv),vmax(iv),vnum(iv)
+     endif
   end do
   piv => null()
   
@@ -1121,18 +1121,18 @@ subroutine axpy(alpha,xcv,ycv)
 !$$$ end documentation block
 
   implicit none
-  real(r_kind) :: alpha
-  type(control_vector), intent(in) :: xcv
+  real(r_kind)        , intent(in   ) :: alpha
+  type(control_vector), intent(in   ) :: xcv
   type(control_vector), intent(inout) :: ycv
   integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
-      write(6,*)'axpy: error length',xcv%lencv,ycv%lencv
-      call stop2(115)
+     write(6,*)'axpy: error length',xcv%lencv,ycv%lencv
+     call stop2(115)
   end if
 
   DO ii=1,ycv%lencv
-    ycv%values(ii) = ycv%values(ii) + alpha * xcv%values(ii)
+     ycv%values(ii) = ycv%values(ii) + alpha * xcv%values(ii)
   ENDDO
 
   return
@@ -1162,8 +1162,8 @@ subroutine random_cv(ycv,kseed)
 !$$$ end documentation block
 
 implicit none
-type(control_vector), intent(inout) :: ycv
-integer(i_kind), optional, intent(in) :: kseed
+type(control_vector)     , intent(inout) :: ycv
+integer(i_kind), optional, intent(in   ) :: kseed
 
 integer(i_kind):: ii,jj,iseed
 integer, allocatable :: nseed(:) ! Intentionaly default integer
@@ -1184,29 +1184,29 @@ deallocate(nseed)
 
 allocate(zz(nval_len))
 do jj=1,nsubwin
-  call random_number(zz)
-  do ii=1,nval_len
-    ycv%step(jj)%values(ii) = two*zz(ii)-one
-  enddo
+   call random_number(zz)
+   do ii=1,nval_len
+      ycv%step(jj)%values(ii) = two*zz(ii)-one
+   enddo
 enddo
 deallocate(zz)
 
 if (nsclen>izero) then
-  allocate(zz(nsclen))
-  call random_number(zz)
-  do ii=1,nsclen
-    ycv%predr(ii) = two*zz(ii)-one
-  enddo
-  deallocate(zz)
+   allocate(zz(nsclen))
+   call random_number(zz)
+   do ii=1,nsclen
+      ycv%predr(ii) = two*zz(ii)-one
+   enddo
+   deallocate(zz)
 endif
 
 if (npclen>izero) then
-  allocate(zz(npclen))
-  call random_number(zz)
-  do ii=1,npclen
-    ycv%predr(ii) = two*zz(ii)-one
-  enddo
-  deallocate(zz)
+   allocate(zz(npclen))
+   call random_number(zz)
+   do ii=1,npclen
+      ycv%predr(ii) = two*zz(ii)-one
+   enddo
+   deallocate(zz)
 endif
 
 return
@@ -1236,8 +1236,8 @@ subroutine write_cv(xcv,cdfile)
 !$$$ end documentation block
 
   implicit none
-  type(control_vector), intent(in) :: xcv
-  character(len=*), intent(in) :: cdfile
+  type(control_vector), intent(in   ) :: xcv
+  character(len=*)    , intent(in   ) :: cdfile
 
   character(len=100) :: clfile
   character(len=5) :: clmype
@@ -1283,7 +1283,7 @@ subroutine read_cv(xcv,cdfile)
 
   implicit none
   type(control_vector), intent(inout) :: xcv
-  character(len=*), intent(in) :: cdfile
+  character(len=*)    , intent(in   ) :: cdfile
 
   character(len=100) :: clfile
   character(len=5) :: clmype
@@ -1331,13 +1331,13 @@ implicit none
 real(r_kind) :: zz
 
 if (mype==izero) then
-  zz=real(max_vec_alloc*nclen,r_kind)*8.0_r_kind/1.048e6_r_kind
-  write(6,*)'control_vectors: length=',nclen
-  write(6,*)'control_vectors: currently allocated=',m_vec_alloc
-  write(6,*)'control_vectors: maximum allocated=',max_vec_alloc
-  write(6,*)'control_vectors: number of allocates=',m_allocs
-  write(6,*)'control_vectors: number of deallocates=',m_deallocs
-  write(6,'(A,F8.1,A)')'control_vectors: Estimated max memory used= ',zz,' Mb'
+   zz=real(max_vec_alloc*nclen,r_kind)*8.0_r_kind/1.048e6_r_kind
+   write(6,*)'control_vectors: length=',nclen
+   write(6,*)'control_vectors: currently allocated=',m_vec_alloc
+   write(6,*)'control_vectors: maximum allocated=',max_vec_alloc
+   write(6,*)'control_vectors: number of allocates=',m_allocs
+   write(6,*)'control_vectors: number of deallocates=',m_deallocs
+   write(6,'(A,F8.1,A)')'control_vectors: Estimated max memory used= ',zz,' Mb'
 endif
 
 end subroutine inquire_cv
@@ -1365,15 +1365,15 @@ real(r_kind) function maxval_cv(ycv)
 !$$$ end documentation block
 
 implicit none
-type(control_vector), intent(in) :: ycv
+type(control_vector), intent(in   ) :: ycv
 real(r_kind) :: zloc(1),zglo(1)
 
 zloc(1)=maxval(ycv%values(:))
 
 call mpi_allreduce(zloc,zglo,ione,mpi_rtype,mpi_max,mpi_comm_world,ierror)
 if (ierror/=izero) then
-  write(6,*)'maxval_cv: MPI error',ierror
-  call stop2(117)
+   write(6,*)'maxval_cv: MPI error',ierror
+   call stop2(117)
 end if
 
 maxval_cv=zglo(1)
@@ -1404,14 +1404,14 @@ real(r_quad) function qdot_product(x,y)
 !$$$ end documentation block
 
   implicit none
-  real(r_kind),intent(in)::x(:),y(:)
+  real(r_kind),intent(in   ) :: x(:),y(:)
   real(r_quad):: zz
   integer(i_kind) :: nx,ny,i
   nx=size(x)
   ny=size(y)
   if(nx/=ny) then
-    write(6,*)'qdot_product: inconsistent dims',nx,ny
-    call stop2(118)
+     write(6,*)'qdot_product: inconsistent dims',nx,ny
+     call stop2(118)
   end if
   zz=zero_quad
 

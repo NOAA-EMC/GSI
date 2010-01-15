@@ -66,32 +66,32 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
 !==============================================
 ! define arguments
 !==============================================
-  logical,intent(in):: adjoint
-  integer(i_kind),intent(in):: im
-  integer(i_kind),intent(in):: km
-  real(r_kind),intent(inout):: advp_ad(km,im)
-  real(r_kind),intent(inout):: advq_ad(km,im)
-  real(r_kind),intent(inout):: advt_ad(km,im)
-  integer(i_kind),intent(in):: ix
-  real(r_kind),intent(out):: cwm_in_ad(km,ix)
-  real(r_kind),intent(inout):: cwm_out_ad(km,ix)
-  real(r_kind),intent(out):: q_in_ad(km,ix)
-  real(r_kind),intent(inout):: q_out_ad(km,ix)
-  real(r_kind),intent(out):: t_in_ad(km,ix)
-  real(r_kind),intent(inout):: t_out_ad(km,ix)
-  real(r_kind),intent(in):: advp(km,im)
-  real(r_kind),intent(in):: advq(km,im)
-  real(r_kind),intent(in):: advt(km,im)
-  real(r_kind),intent(in):: cwm_in(km,ix)
-  real(r_kind),intent(out):: cwm_out(km,ix)
-  real(r_kind),intent(in):: dt
-  real(r_kind),intent(in):: ps(im)
-  real(r_kind),intent(in):: q_in(km,ix)
-  real(r_kind),intent(out):: q_out(km,ix)
-  real(r_kind),intent(in):: rhc(km,ix)
-  real(r_kind),intent(in):: sl(km,ix)
-  real(r_kind),intent(in):: t_in(km,ix)
-  real(r_kind),intent(out):: t_out(km,ix)
+  logical        ,intent(in   ) :: adjoint
+  integer(i_kind),intent(in   ) :: im
+  integer(i_kind),intent(in   ) :: km
+  real(r_kind)   ,intent(inout) :: advp_ad(km,im)
+  real(r_kind)   ,intent(inout) :: advq_ad(km,im)
+  real(r_kind)   ,intent(inout) :: advt_ad(km,im)
+  integer(i_kind),intent(in   ) :: ix
+  real(r_kind)   ,intent(  out) :: cwm_in_ad(km,ix)
+  real(r_kind)   ,intent(inout) :: cwm_out_ad(km,ix)
+  real(r_kind)   ,intent(  out) :: q_in_ad(km,ix)
+  real(r_kind)   ,intent(inout) :: q_out_ad(km,ix)
+  real(r_kind)   ,intent(  out) :: t_in_ad(km,ix)
+  real(r_kind)   ,intent(inout) :: t_out_ad(km,ix)
+  real(r_kind)   ,intent(in   ) :: advp(km,im)
+  real(r_kind)   ,intent(in   ) :: advq(km,im)
+  real(r_kind)   ,intent(in   ) :: advt(km,im)
+  real(r_kind)   ,intent(in   ) :: cwm_in(km,ix)
+  real(r_kind)   ,intent(  out) :: cwm_out(km,ix)
+  real(r_kind)   ,intent(in   ) :: dt
+  real(r_kind)   ,intent(in   ) :: ps(im)
+  real(r_kind)   ,intent(in   ) :: q_in(km,ix)
+  real(r_kind)   ,intent(  out) :: q_out(km,ix)
+  real(r_kind)   ,intent(in   ) :: rhc(km,ix)
+  real(r_kind)   ,intent(in   ) :: sl(km,ix)
+  real(r_kind)   ,intent(in   ) :: t_in(km,ix)
+  real(r_kind)   ,intent(  out) :: t_out(km,ix)
 
 !==============================================
 ! define local variables

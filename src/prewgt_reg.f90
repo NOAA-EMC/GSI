@@ -63,7 +63,7 @@ subroutine prewgt_reg(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
   real(r_kind),parameter:: zero_3       = 0.3_r_kind
@@ -98,10 +98,10 @@ subroutine prewgt_reg(mype)
 
 ! Initialize local variables
 !  do j=1,nx
-!   do i=1,ny
-!    dx(i,j)=region_dx(i,j)
-!    dy(i,j)=region_dy(i,j)
-!   end do
+!     do i=1,ny
+!        dx(i,j)=region_dx(i,j)
+!        dy(i,j)=region_dy(i,j)
+!     end do
 !  end do
 
 

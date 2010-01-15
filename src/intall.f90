@@ -145,16 +145,13 @@ subroutine intall(sval,sbias,rval,rbias)
 !
 !   input argument list:
 !     sval     - solution on grid
-!     svalt  - t solution on grid
-!     svalp  - psfc solution on grid
-!     svaluv   - u,v solution on grid
-!     sval_x   - x derivative solution on grid
-!     sval_y   - y derivative solution on grid
-!     sval_t   - t derivative solution on grid
+!     sbias
+!     rval
+!     rbias
 !
 !   output argument list:      
 !     rval     - RHS on grid
-!
+!     rbias
 !
 ! remarks:
 !     if strong initialization, then svalt, svalp, svaluv, sval_x, sval_y, sval_t
@@ -180,10 +177,10 @@ subroutine intall(sval,sbias,rval,rbias)
   implicit none
 
 ! Declare passed variables
-  type(state_vector), intent(in) :: sval(nobs_bins)
-  type(predictors), intent(in)   :: sbias
+  type(state_vector), intent(in   ) :: sval(nobs_bins)
+  type(predictors)  , intent(in   ) :: sbias
   type(state_vector), intent(inout) :: rval(nobs_bins)
-  type(predictors), intent(inout)   :: rbias
+  type(predictors)  , intent(inout) :: rbias
 
 ! Declare local variables
   integer(i_kind) :: ibin,ii
@@ -194,12 +191,12 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! Zero gradient arrays
   if (l_foto) then
-    call allocate_state(dhat_dt)
-    call assign_scalar2state(dhat_dt,zero)
+     call allocate_state(dhat_dt)
+     call assign_scalar2state(dhat_dt,zero)
   endif
 
   do ii=1,nobs_bins
-    rval(ii)=zero
+     rval(ii)=zero
   enddo
   rbias=zero
 
@@ -207,7 +204,7 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for Jo
   do ibin=1,nobs_bins
-    call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
+     call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
   end do
 
 ! RHS for moisture constraint

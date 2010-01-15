@@ -313,9 +313,9 @@ contains
     end do
     close(lunin)
 100 format(a1,a120)
-110   format(i4,1x,a20,' chan= ',i4,  &
-            ' var= ',f7.3,' use= ',i2,' ermax= ',F7.3, &
-            ' b_rad= ',F7.2,' pg_rad=',F7.2)
+110 format(i4,1x,a20,' chan= ',i4,  &
+          ' var= ',f7.3,' use= ',i2,' ermax= ',F7.3, &
+          ' b_rad= ',F7.2,' pg_rad=',F7.2)
 
 
 !   Allocate arrays to receive angle dependent bias information.
@@ -545,8 +545,8 @@ contains
 
 ! !INPUT PARAMETERS:
 
-    character(len=20), intent(in) :: sis   ! satellite to search for
-    integer(i_kind)  , intent(in) :: ichan ! channel number to search for
+    character(len=20), intent(in   ) :: sis   ! satellite to search for
+    integer(i_kind)  , intent(in   ) :: ichan ! channel number to search for
 
     integer(i_kind) j
 

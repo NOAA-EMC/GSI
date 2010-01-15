@@ -83,12 +83,13 @@ subroutine convert_binary_mass
 !   has a subset of full ij fields over its designated k-index range.
 
   use kinds, only: r_single,i_llong,i_kind
+  use constants, only: izero,ione
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
   implicit none
 
 ! Declare local parameters
-  integer(i_kind),parameter:: in_unit = 15
+  integer(i_kind),parameter:: in_unit = 15_i_kind
   real(r_single),parameter:: one_single = 1.0_r_single
   real(r_single),parameter:: r45 = 45.0_r_single
   
@@ -124,7 +125,7 @@ subroutine convert_binary_mass
 
 ! Check for valid input file
   read(in_unit,iostat=status_hdr)hdrbuf
-  if(status_hdr /= 0) then
+  if(status_hdr /= izero) then
      write(6,*)'CONVERT_BINARY_MASS:  problem with wrfges = ',&
           trim(wrfges),', Status = ',status_hdr
      call stop2(74)
@@ -148,363 +149,363 @@ subroutine convert_binary_mass
 !   start with date record for date forecast was started
 
 !                   y,m,d,h,m,s
-     call retrieve_index(index,'START_DATE',varname_all,nrecs)
-     if(index.lt.0) stop
-     read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
-                iyear,imonth,iday,ihour,iminute,isecond
-           write(6,*)' convert_binary_mass: START_DATE =',&
-                iyear,imonth,iday,ihour,iminute,isecond
+  call retrieve_index(index,'START_DATE',varname_all,nrecs)
+  if(index<izero) stop
+  read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
+       iyear,imonth,iday,ihour,iminute,isecond
+  write(6,*)' convert_binary_mass: START_DATE =',&
+       iyear,imonth,iday,ihour,iminute,isecond
 
 !                  nlon_regional, nlat_regional, nsig_regional
-     call retrieve_index(index,'T',varname_all,nrecs)
-     if(index.lt.0) stop
+  call retrieve_index(index,'T',varname_all,nrecs)
+  if(index<izero) stop
 
-         if(trim(memoryorder_all(index)).eq.'XZY') then
-           nlon_regional=domainend_all(1,index)
-           nlat_regional=domainend_all(3,index)
-           nsig_regional=domainend_all(2,index)
-         end if
-         if(trim(memoryorder_all(index)).eq.'XYZ') then
-           nlon_regional=domainend_all(1,index)
-           nlat_regional=domainend_all(2,index)
-           nsig_regional=domainend_all(3,index)
-         end if
-           read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
-                iyear,imonth,iday,ihour,iminute,isecond
-           write(6,*)' convert_binary_mass: iy,m,d,h,m,s=',&
-                iyear,imonth,iday,ihour,iminute,isecond
-           write(6,*)' convert_binary_mass: nlon,lat,sig_regional=',&
-                nlon_regional,nlat_regional,nsig_regional
+  if(trim(memoryorder_all(index))=='XZY') then
+     nlon_regional=domainend_all(1,index)
+     nlat_regional=domainend_all(3,index)
+     nsig_regional=domainend_all(2,index)
+  end if
+  if(trim(memoryorder_all(index))=='XYZ') then
+     nlon_regional=domainend_all(1,index)
+     nlat_regional=domainend_all(2,index)
+     nsig_regional=domainend_all(3,index)
+  end if
+  read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
+       iyear,imonth,iday,ihour,iminute,isecond
+  write(6,*)' convert_binary_mass: iy,m,d,h,m,s=',&
+       iyear,imonth,iday,ihour,iminute,isecond
+  write(6,*)' convert_binary_mass: nlon,lat,sig_regional=',&
+       nlon_regional,nlat_regional,nsig_regional
   
 !                  pt_regional
-     call retrieve_index(index,'P_TOP',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,pt_regional,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+  call retrieve_index(index,'P_TOP',varname_all,nrecs)
+  if(index<izero) stop
+  call retrieve_field(in_unit,wrfges,pt_regional,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
 
-           write(6,*)' convert_binary_mass: pt_regional=',pt_regional
+  write(6,*)' convert_binary_mass: pt_regional=',pt_regional
 
   write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
        nlon_regional,nlat_regional,nsig_regional,pt_regional
   
-  allocate(field1(nsig_regional),field1p(nsig_regional+1))
+  allocate(field1(nsig_regional),field1p(nsig_regional+ione))
 
 !                  znu
-     call retrieve_index(index,'ZNU',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           do k=1,nsig_regional
-              write(6,*)' convert_binary_mass: k,znu(k)=',k,field1(k)
-           end do
+  call retrieve_index(index,'ZNU',varname_all,nrecs)
+  if(index<izero) stop
+  call retrieve_field(in_unit,wrfges,field1,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
+  do k=1,nsig_regional
+     write(6,*)' convert_binary_mass: k,znu(k)=',k,field1(k)
+  end do
   write(lendian_out)field1             !  ZNU
 
 !                  znw
-     call retrieve_index(index,'ZNW',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field1p,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           do k=1,nsig_regional+1
-              write(6,*)' convert_binary_mass: k,znw(k)=',k,field1p(k)
-           end do
+  call retrieve_index(index,'ZNW',varname_all,nrecs)
+  if(index<izero) stop
+  call retrieve_field(in_unit,wrfges,field1p,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
+  do k=1,nsig_regional+ione
+     write(6,*)' convert_binary_mass: k,znw(k)=',k,field1p(k)
+  end do
   write(lendian_out)field1p            !  ZNW
 
   deallocate(field1,field1p)
 
 !                  rdx
-     call retrieve_index(index,'RDX',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,rdx,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+  call retrieve_index(index,'RDX',varname_all,nrecs)
+  if(index<izero) stop
+  call retrieve_field(in_unit,wrfges,rdx,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
 
-           write(6,*)' convert_binary_mass: 1/rdx=',&
-                one_single/rdx   ! 1._4 necessary only to get bit reproducibility
+  write(6,*)' convert_binary_mass: 1/rdx=',&
+       one_single/rdx   ! 1._4 necessary only to get bit reproducibility
 
 !                  rdy
-     call retrieve_index(index,'RDY',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,rdy,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+  call retrieve_index(index,'RDY',varname_all,nrecs)
+  if(index<izero) stop
+  call retrieve_field(in_unit,wrfges,rdy,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
 
-           write(6,*)' convert_binary_mass: 1/rdy=',&
-                one_single/rdy  ! 1._4 necessary only to get bit reproducibility
+  write(6,*)' convert_binary_mass: 1/rdy=',&
+       one_single/rdy  ! 1._4 necessary only to get bit reproducibility
   
   allocate(field2(nlon_regional,nlat_regional))
   allocate(field2b(nlon_regional,nlat_regional))
   allocate(field2c(nlon_regional,nlat_regional))
 
 !                  mapfac_m
-     call retrieve_index(index,'MAPFAC_M',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+  call retrieve_index(index,'MAPFAC_M',varname_all,nrecs)
+  if(index<izero) stop
+  call retrieve_field(in_unit,wrfges,field2,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
 
-           write(6,*)' convert_binary_mass: max,min mapfac_m=',maxval(field2),minval(field2)
-           write(6,*)' convert_binary_mass: max,min MAPFAC_M(:,1)=', &
-                maxval(field2(:,1)),minval(field2(:,1))
-           write(6,*)' convert_binary_mass: max,min MAPFAC_M(1,:)=', &
-                maxval(field2(1,:)),minval(field2(1,:))
-           write(6,*)' convert_binary_mass: mapfac_m(1,1),mapfac_m(nlon,1)=', &
-                field2(1,1),field2(nlon_regional,1)
-           write(6,*)' convert_binary_mass: mapfac_m(1,nlat),mapfac_m(nlon,nlat)=', &
-                field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-           field2b=one_single/(field2*rdx)  !DX_MC
-           field2c=one_single/(field2*rdy)  !DY_MC
+  write(6,*)' convert_binary_mass: max,min mapfac_m=',maxval(field2),minval(field2)
+  write(6,*)' convert_binary_mass: max,min MAPFAC_M(:,1)=', &
+       maxval(field2(:,1)),minval(field2(:,1))
+  write(6,*)' convert_binary_mass: max,min MAPFAC_M(1,:)=', &
+       maxval(field2(1,:)),minval(field2(1,:))
+  write(6,*)' convert_binary_mass: mapfac_m(1,1),mapfac_m(nlon,1)=', &
+       field2(1,1),field2(nlon_regional,1)
+  write(6,*)' convert_binary_mass: mapfac_m(1,nlat),mapfac_m(nlon,nlat)=', &
+       field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+  field2b=one_single/(field2*rdx)  !DX_MC
+  field2c=one_single/(field2*rdy)  !DY_MC
 
 !                  XLAT
   rad2deg_single=r45/atan(one_single)
-     call retrieve_index(index,'XLAT',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+  call retrieve_index(index,'XLAT',varname_all,nrecs)
+  if(index<izero) stop
+  call retrieve_field(in_unit,wrfges,field2,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
 
-           write(6,*)' convert_binary_mass: max,min XLAT(:,1)=',&
-                maxval(field2(:,1)),minval(field2(:,1))
-           write(6,*)' convert_binary_mass: max,min XLAT(1,:)=',&
-                maxval(field2(1,:)),minval(field2(1,:))
-           write(6,*)' convert_binary_mass: xlat(1,1),xlat(nlon,1)=',&
-                field2(1,1),field2(nlon_regional,1)
-           write(6,*)' convert_binary_mass: xlat(1,nlat),xlat(nlon,nlat)=', &
-                field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-           field2=field2/rad2deg_single
+  write(6,*)' convert_binary_mass: max,min XLAT(:,1)=',&
+       maxval(field2(:,1)),minval(field2(:,1))
+  write(6,*)' convert_binary_mass: max,min XLAT(1,:)=',&
+       maxval(field2(1,:)),minval(field2(1,:))
+  write(6,*)' convert_binary_mass: xlat(1,1),xlat(nlon,1)=',&
+       field2(1,1),field2(nlon_regional,1)
+  write(6,*)' convert_binary_mass: xlat(1,nlat),xlat(nlon,nlat)=', &
+       field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+  field2=field2/rad2deg_single
   write(lendian_out)field2,field2b     !  XLAT,DX_MC
 
 !                  XLONG
-     call retrieve_index(index,'XLONG',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+  call retrieve_index(index,'XLONG',varname_all,nrecs)
+  if(index<izero) stop
+  call retrieve_field(in_unit,wrfges,field2,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
 
-           write(6,*)' convert_binary_mass: max,min XLONG(:,1)=',&
-                maxval(field2(:,1)),minval(field2(:,1))
-           write(6,*)' convert_binary_mass: max,min XLONG(1,:)=',&
-                maxval(field2(1,:)),minval(field2(1,:))
-           write(6,*)' convert_binary_mass: xlong(1,1),xlong(nlon,1)=',&
-                field2(1,1),field2(nlon_regional,1)
-           write(6,*)' convert_binary_mass: xlong(1,nlat),xlong(nlon,nlat)=', &
-                field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-           field2=field2/rad2deg_single
+  write(6,*)' convert_binary_mass: max,min XLONG(:,1)=',&
+       maxval(field2(:,1)),minval(field2(:,1))
+  write(6,*)' convert_binary_mass: max,min XLONG(1,:)=',&
+       maxval(field2(1,:)),minval(field2(1,:))
+  write(6,*)' convert_binary_mass: xlong(1,1),xlong(nlon,1)=',&
+       field2(1,1),field2(nlon_regional,1)
+  write(6,*)' convert_binary_mass: xlong(1,nlat),xlong(nlon,nlat)=', &
+       field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+  field2=field2/rad2deg_single
 
   write(lendian_out)field2,field2c     !  XLONG,DY_MC
 
   write(lendian_out) wrfges
 
 !      index for START_DATE record
-     call retrieve_index(index,'START_DATE',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index)
+  call retrieve_index(index,'START_DATE',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index)
   write(lendian_out)n_position    ! offset for START_DATE record
 
 !                  MUB
-     call retrieve_index(index,'MUB',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'MUB',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for MUB = ',n_position
+  write(6,*)'  byte offset for MUB = ',n_position
 
   write(lendian_out)n_position    ! offset for mub
 
 !                  MU
-     call retrieve_index(index,'MU',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'MU',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for MU = ',n_position
+  write(6,*)'  byte offset for MU = ',n_position
 
   write(lendian_out)n_position    ! offset for mu
   
 !                   PHB                  
-     call retrieve_index(index,'PHB',varname_all,nrecs)
-     if(index.lt.0) stop
-      n_position=file_offset(index+1)
-      write(6,*)'  byte offset, memoryorder for PHB(',k,') = ',n_position,memoryorder_all(index)
-      write(lendian_out)n_position,memoryorder_all(index)    ! offset for PHB 
-                                                             !     (zsfc*g is 1st level of this 3d field)
-                                   !  but more efficient to read in whole 3-d field because of ikj order
+  call retrieve_index(index,'PHB',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
+  write(6,*)'  byte offset, memoryorder for PHB(',k,') = ',n_position,memoryorder_all(index)
+  write(lendian_out)n_position,memoryorder_all(index)    ! offset for PHB 
+                                                         !     (zsfc*g is 1st level of this 3d field)
+                               !  but more efficient to read in whole 3-d field because of ikj order
 
 !                   T                  
-     call retrieve_index(index,'T',varname_all,nrecs)
-     if(index.lt.0) stop
-        n_position=file_offset(index+1)
-        write(6,*)'  byte offset, memoryorder for T(',k,') = ',n_position,memoryorder_all(index)
-        write(lendian_out)n_position,memoryorder_all(index)  ! offset for T(k)    ! POT TEMP (sensible)
+  call retrieve_index(index,'T',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
+  write(6,*)'  byte offset, memoryorder for T(',k,') = ',n_position,memoryorder_all(index)
+  write(lendian_out)n_position,memoryorder_all(index)  ! offset for T(k)    ! POT TEMP (sensible)
 
 
 !                   QVAPOR
-     call retrieve_index(index,'QVAPOR',varname_all,nrecs)
-     if(index.lt.0) stop
-        n_position=file_offset(index+1)
-        write(6,*)'  byte offset, memoryorder for QVAPOR(',k,' = ',n_position,memoryorder_all(index)
-        write(lendian_out)n_position,memoryorder_all(index)    ! offset for QVAPOR(k)
+  call retrieve_index(index,'QVAPOR',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
+  write(6,*)'  byte offset, memoryorder for QVAPOR(',k,' = ',n_position,memoryorder_all(index)
+  write(lendian_out)n_position,memoryorder_all(index)    ! offset for QVAPOR(k)
   
 !                   U                  
-     call retrieve_index(index,'U',varname_all,nrecs)
-     if(index.lt.0) stop
-        n_position=file_offset(index+1)
-        write(6,*)'  byte offset, memoryorder for U(',k,' = ',n_position,memoryorder_all(index)
-        write(lendian_out)n_position,memoryorder_all(index)    ! offset for U(k)
+  call retrieve_index(index,'U',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+1)
+  write(6,*)'  byte offset, memoryorder for U(',k,' = ',n_position,memoryorder_all(index)
+  write(lendian_out)n_position,memoryorder_all(index)    ! offset for U(k)
 
 !                   V                  
-     call retrieve_index(index,'V',varname_all,nrecs)
-     if(index.lt.0) stop
-        n_position=file_offset(index+1)
-        write(6,*)'  byte offset, memoryorder for V(',k,' = ',n_position,memoryorder_all(index)
-        write(lendian_out)n_position,memoryorder_all(index)    ! offset for V(k)
+  call retrieve_index(index,'V',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
+  write(6,*)'  byte offset, memoryorder for V(',k,' = ',n_position,memoryorder_all(index)
+  write(lendian_out)n_position,memoryorder_all(index)    ! offset for V(k)
 
 !                   LANDMASK          
-     call retrieve_index(index,'LANDMASK',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'LANDMASK',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for LANDMASK = ',n_position
+  write(6,*)'  byte offset for LANDMASK = ',n_position
 
   write(lendian_out)n_position     !  LANDMASK  (1=land, 0=water)
 
 !                   XICE                
-     call retrieve_index(index,'XICE',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'XICE',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for XICE = ',n_position
+  write(6,*)'  byte offset for XICE = ',n_position
 
   write(lendian_out)n_position     !  XICE
 
 !                   SST                
-     call retrieve_index(index,'SST',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'SST',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for SST = ',n_position
+  write(6,*)'  byte offset for SST = ',n_position
 
   write(lendian_out)n_position     !  SST
 
 !                   IVGTYP                
-     call retrieve_index(index,'IVGTYP',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'IVGTYP',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for IVGTYP = ',n_position
+  write(6,*)'  byte offset for IVGTYP = ',n_position
 
   write(lendian_out)n_position     !  IVGTYP
 
 !                   ISLTYP                
-     call retrieve_index(index,'ISLTYP',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'ISLTYP',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for ISLTYP = ',n_position
+  write(6,*)'  byte offset for ISLTYP = ',n_position
 
   write(lendian_out)n_position     !  ISLTYP
   
 !                   VEGFRA                
-     call retrieve_index(index,'VEGFRA',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'VEGFRA',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for VEGFRA = ',n_position
+  write(6,*)'  byte offset for VEGFRA = ',n_position
 
   write(lendian_out)n_position     !  VEGFRA
 
 !                   SNOW
-     call retrieve_index(index,'SNOW',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'SNOW',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for SNOW = ',n_position
+  write(6,*)'  byte offset for SNOW = ',n_position
 
   write(lendian_out)n_position     !  SNOW
 
 !                   U10                
-     call retrieve_index(index,'U10',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'U10',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for U10 = ',n_position
+  write(6,*)'  byte offset for U10 = ',n_position
 
   write(lendian_out)n_position     !  U10
   
 !                   V10                
-     call retrieve_index(index,'V10',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'V10',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for V10 = ',n_position
+  write(6,*)'  byte offset for V10 = ',n_position
 
   write(lendian_out)n_position     !  V10
 
 !                   SMOIS              
-     call retrieve_index(index,'SMOIS',varname_all,nrecs)
-     if(index.lt.0) stop
-         if(trim(memoryorder_all(index)).eq.'XZY') then
-           ksize=domainend_all(2,index)
-         end if
-         if(trim(memoryorder_all(index)).eq.'XYZ') then
-           ksize=domainend_all(3,index)
-         end if
-       n_position=file_offset(index+1)
-       write(6,*)'  byte offset, ksize, memoryorder for SMOIS(',k,') = ', &
-                                                n_position,ksize,memoryorder_all(index)
-       write(lendian_out)n_position,ksize,memoryorder_all(index)     !  SMOIS
+  call retrieve_index(index,'SMOIS',varname_all,nrecs)
+  if(index<izero) stop
+  if(trim(memoryorder_all(index))=='XZY') then
+     ksize=domainend_all(2,index)
+  end if
+  if(trim(memoryorder_all(index))=='XYZ') then
+     ksize=domainend_all(3,index)
+  end if
+  n_position=file_offset(index+ione)
+  write(6,*)'  byte offset, ksize, memoryorder for SMOIS(',k,') = ', &
+                                           n_position,ksize,memoryorder_all(index)
+  write(lendian_out)n_position,ksize,memoryorder_all(index)     !  SMOIS
 
 !                   TSLB               
-     call retrieve_index(index,'TSLB',varname_all,nrecs)
-     if(index.lt.0) stop
-         if(trim(memoryorder_all(index)).eq.'XZY') then
-           ksize=domainend_all(2,index)
-         end if
-         if(trim(memoryorder_all(index)).eq.'XYZ') then
-           ksize=domainend_all(3,index)
-         end if
-       n_position=file_offset(index+1)
-       write(6,*)'  byte offset, ksize, memoryorder for TSLB(',k,') = ', &
-                                                n_position,ksize,memoryorder_all(index)
-       write(lendian_out)n_position,ksize,memoryorder_all(index)     !  TSLB
+  call retrieve_index(index,'TSLB',varname_all,nrecs)
+  if(index<izero) stop
+  if(trim(memoryorder_all(index))=='XZY') then
+     ksize=domainend_all(2,index)
+  end if
+  if(trim(memoryorder_all(index))=='XYZ') then
+     ksize=domainend_all(3,index)
+  end if
+  n_position=file_offset(index+ione)
+  write(6,*)'  byte offset, ksize, memoryorder for TSLB(',k,') = ', &
+                                           n_position,ksize,memoryorder_all(index)
+  write(lendian_out)n_position,ksize,memoryorder_all(index)     !  TSLB
 
 !                   TSK                
-     call retrieve_index(index,'TSK',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+  call retrieve_index(index,'TSK',varname_all,nrecs)
+  if(index<izero) stop
+  n_position=file_offset(index+ione)
 
-     write(6,*)'  byte offset for TSK = ',n_position
+  write(6,*)'  byte offset for TSK = ',n_position
 
   write(lendian_out)n_position     !  TSK
 
 !??????????????????/later put in z0 here, but for now just fill with something
-     call retrieve_index(index,'TSK',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_mass: max,min Z0=', &
-                maxval(field2),minval(field2)
+  call retrieve_index(index,'TSK',varname_all,nrecs)
+  call retrieve_field(in_unit,wrfges,field2,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
+  write(6,*)' convert_binary_mass: max,min Z0=', &
+       maxval(field2),minval(field2)
   write(lendian_out)field2        !  Z0
-     call retrieve_index(index,'SST',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_mass: max,min SST=', &
-                maxval(field2),minval(field2)
+  call retrieve_index(index,'SST',varname_all,nrecs)
+  call retrieve_field(in_unit,wrfges,field2,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
+  write(6,*)' convert_binary_mass: max,min SST=', &
+       maxval(field2),minval(field2)
   write(lendian_out)field2        !  SST
-     call retrieve_index(index,'TSK',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_mass: max,min TSK=', &
-                maxval(field2),minval(field2)
+  call retrieve_index(index,'TSK',varname_all,nrecs)
+  call retrieve_field(in_unit,wrfges,field2,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
+  write(6,*)' convert_binary_mass: max,min TSK=', &
+       maxval(field2),minval(field2)
   write(lendian_out)field2        !  TSK
-     call retrieve_index(index,'LANDMASK',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_mass: max,min LANDMASK=', &
-                maxval(field2),minval(field2)
+  call retrieve_index(index,'LANDMASK',varname_all,nrecs)
+  call retrieve_field(in_unit,wrfges,field2,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
+  write(6,*)' convert_binary_mass: max,min LANDMASK=', &
+       maxval(field2),minval(field2)
   write(lendian_out)field2        !  LANDMASK
-     call retrieve_index(index,'XICE',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_mass: max,min XICE=', &
-                maxval(field2),minval(field2)
+  call retrieve_index(index,'XICE',varname_all,nrecs)
+  call retrieve_field(in_unit,wrfges,field2,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
+  write(6,*)' convert_binary_mass: max,min XICE=', &
+       maxval(field2),minval(field2)
   write(lendian_out)field2        !  XICE
-     call retrieve_index(index,'SNOW',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_mass: max,min SNOW=', &
-                maxval(field2),minval(field2)
+  call retrieve_index(index,'SNOW',varname_all,nrecs)
+  call retrieve_field(in_unit,wrfges,field2,start_block(index+ione),end_block(index+ione), &
+                               start_byte(index+ione),end_byte(index+ione))
+  write(6,*)' convert_binary_mass: max,min SNOW=', &
+       maxval(field2),minval(field2)
   write(lendian_out)field2        !  SNOW
 
   deallocate(field2,field2b,field2c)
@@ -562,15 +563,15 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !$$$
 
   use kinds, only: r_single,i_llong,r_kind,i_kind
-  use constants, only: rad2deg
+  use constants, only: izero,ione,zero,half,rad2deg
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
   implicit none
 
-  integer(i_kind),parameter:: in_unit = 15
+  integer(i_kind),parameter:: in_unit = 15_i_kind
 
-  logical,intent(inout)   :: update_pint
-  real(r_kind),intent(out):: ctph0,stph0,tlm0
+  logical     ,intent(inout) :: update_pint
+  real(r_kind),intent(  out) :: ctph0,stph0,tlm0
 
   character(9) wrfges,fileout
   integer(i_kind),allocatable:: start_block(:),end_block(:)
@@ -594,451 +595,451 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   
   n_loop: do n=1,3
 
-  if(n==1)then
-  wrfges = 'wrf_inout'
-  else
-   write(wrfges,'("wrf_inou",i1.1)')n
-  endif
-  open(in_unit,file=trim(wrfges),form='unformatted')
-  write(6,*)' convert_binary_nmm: in_unit,lendian_out=',in_unit,lendian_out
+     if(n==ione)then
+        wrfges = 'wrf_inout'
+     else
+        write(wrfges,'("wrf_inou",i1.1)')n
+     endif
+     open(in_unit,file=trim(wrfges),form='unformatted')
+     write(6,*)' convert_binary_nmm: in_unit,lendian_out=',in_unit,lendian_out
 
-! Check for valid input file
-  read(in_unit,iostat=status_hdr)hdrbuf
-  if(n==1)then
-    if(status_hdr /= 0) then
-       write(6,*)'CONVERT_BINARY_NMM:  problem with wrfges = ',&
-            trim(wrfges),', Status = ',status_hdr
-       call stop2(74)
-    endif
-  else
-    if(status_hdr /= 0) then
-       write(6,*)'CONVERT_BINARY_NMM:  no off hour guess   = ', fileout
-       close(in_unit)
-     cycle n_loop
-    endif
-  endif
-   write(fileout,'("sigf",i2.2)')n+nhr_assimilation-1
-  write(6,*)' convert_binary_nmm: in_unit,out_unit=',wrfges,',',fileout
-  open(lendian_out,file=fileout,form='unformatted')
-  rewind lendian_out
+!    Check for valid input file
+     read(in_unit,iostat=status_hdr)hdrbuf
+     if(n==ione)then
+        if(status_hdr /= izero) then
+           write(6,*)'CONVERT_BINARY_NMM:  problem with wrfges = ',&
+                trim(wrfges),', Status = ',status_hdr
+           call stop2(74)
+        endif
+     else
+        if(status_hdr /= izero) then
+           write(6,*)'CONVERT_BINARY_NMM:  no off hour guess   = ', fileout
+           close(in_unit)
+           cycle n_loop
+        endif
+     endif
+     write(fileout,'("sigf",i2.2)')n+nhr_assimilation-ione
+     write(6,*)' convert_binary_nmm: in_unit,out_unit=',wrfges,',',fileout
+     open(lendian_out,file=fileout,form='unformatted')
+     rewind lendian_out
 
-!   reopen for direct access reading of sequential file
+!    reopen for direct access reading of sequential file
 
-  close(in_unit)
+     close(in_unit)
+ 
+     call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
+     write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
 
-  call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
-                 write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
+     allocate(datestr_all(nrecs),varname_all(nrecs),domainend_all(3,nrecs))
+     allocate(memoryorder_all(nrecs))
+     allocate(start_block(nrecs),end_block(nrecs),start_byte(nrecs),end_byte(nrecs),file_offset(nrecs))
 
-  allocate(datestr_all(nrecs),varname_all(nrecs),domainend_all(3,nrecs))
-  allocate(memoryorder_all(nrecs))
-  allocate(start_block(nrecs),end_block(nrecs),start_byte(nrecs),end_byte(nrecs),file_offset(nrecs))
-
-  call inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
-                                 datestr_all,varname_all,memoryorder_all,domainend_all, &
-                                 start_block,end_block,start_byte,end_byte,file_offset)
-
-!   start with date record for date forecast was started
+     call inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
+                                    datestr_all,varname_all,memoryorder_all,domainend_all, &
+                                    start_block,end_block,start_byte,end_byte,file_offset)
+ 
+!    start with date record for date forecast was started
 
 !                   y,m,d,h,m,s
      call retrieve_index(index,'START_DATE',varname_all,nrecs)
-     if(index.lt.0) stop
+     if(index<izero) stop
      read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
                 iyear,imonth,iday,ihour,iminute,isecond
-           write(6,*)' convert_binary_nmm: START_DATE =',&
-                iyear,imonth,iday,ihour,iminute,isecond
+     write(6,*)' convert_binary_nmm: START_DATE =',&
+          iyear,imonth,iday,ihour,iminute,isecond
   
 !                  nlon_regional, nlat_regional, nsig_regional
      call retrieve_index(index,'T',varname_all,nrecs)
-     if(index.lt.0) stop
+     if(index<izero) stop
 
-         if(trim(memoryorder_all(index)).eq.'XZY') then
-           nlon_regional=domainend_all(1,index)
-           nlat_regional=domainend_all(3,index)
-           nsig_regional=domainend_all(2,index)
-         end if
-         if(trim(memoryorder_all(index)).eq.'XYZ') then
-           nlon_regional=domainend_all(1,index)
-           nlat_regional=domainend_all(2,index)
-           nsig_regional=domainend_all(3,index)
-         end if
-           read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
-                iyear,imonth,iday,ihour,iminute,isecond
-           write(6,*)' convert_binary_nmm: iy,m,d,h,m,s=',&
-                iyear,imonth,iday,ihour,iminute,isecond
-           write(6,*)' convert_binary_nmm: nlon,lat,sig_regional=',&
-                nlon_regional,nlat_regional,nsig_regional
+     if(trim(memoryorder_all(index))=='XZY') then
+        nlon_regional=domainend_all(1,index)
+        nlat_regional=domainend_all(3,index)
+        nsig_regional=domainend_all(2,index)
+     end if
+     if(trim(memoryorder_all(index))=='XYZ') then
+        nlon_regional=domainend_all(1,index)
+        nlat_regional=domainend_all(2,index)
+        nsig_regional=domainend_all(3,index)
+     end if
+     read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
+          iyear,imonth,iday,ihour,iminute,isecond
+     write(6,*)' convert_binary_nmm: iy,m,d,h,m,s=',&
+          iyear,imonth,iday,ihour,iminute,isecond
+     write(6,*)' convert_binary_nmm: nlon,lat,sig_regional=',&
+          nlon_regional,nlat_regional,nsig_regional
   
 !                  dlmd_regional
      call retrieve_index(index,'DLMD',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,dlmd_regional,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,dlmd_regional,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
 
-           write(6,*)' convert_binary_nmm: dlmd_regional=',dlmd_regional
+     write(6,*)' convert_binary_nmm: dlmd_regional=',dlmd_regional
   
 !                  dphd_regional
      call retrieve_index(index,'DPHD',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,dphd_regional,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,dphd_regional,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
 
-           write(6,*)' convert_binary_nmm: dphd_regional=',dphd_regional
+     write(6,*)' convert_binary_nmm: dphd_regional=',dphd_regional
 
 !                  pt_regional
      call retrieve_index(index,'PT',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,pt_regional,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_nmm: pt_regional=',pt_regional
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,pt_regional,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     write(6,*)' convert_binary_nmm: pt_regional=',pt_regional
 
 !                  pdtop_regional
      call retrieve_index(index,'PDTOP',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,pdtop_regional,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_nmm: pdtop_regional=',pdtop_regional
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,pdtop_regional,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     write(6,*)' convert_binary_nmm: pdtop_regional=',pdtop_regional
 
-  write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
-       nlon_regional,nlat_regional,nsig_regional, &
-       dlmd_regional,dphd_regional,pt_regional,pdtop_regional
+     write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
+          nlon_regional,nlat_regional,nsig_regional, &
+          dlmd_regional,dphd_regional,pt_regional,pdtop_regional
   
-  allocate(field1(nsig_regional),field1p(nsig_regional+1))
+     allocate(field1(nsig_regional),field1p(nsig_regional+ione))
   
 !                  deta1
      call retrieve_index(index,'DETA1',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,field1,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
 
-           do k=1,nsig_regional
-              write(6,*)' convert_binary_nmm: k,deta1(k)=',k,field1(k)
-           end do
+     do k=1,nsig_regional
+        write(6,*)' convert_binary_nmm: k,deta1(k)=',k,field1(k)
+     end do
 
-  write(lendian_out)field1             !  DETA1
+     write(lendian_out)field1             !  DETA1
 
 !                  aeta1
      call retrieve_index(index,'AETA1',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           do k=1,nsig_regional
-              write(6,*)' convert_binary_nmm: k,aeta1(k)=',k,field1(k)
-           end do
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,field1,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     do k=1,nsig_regional
+        write(6,*)' convert_binary_nmm: k,aeta1(k)=',k,field1(k)
+     end do
 
-  write(lendian_out)field1             !  AETA1
+     write(lendian_out)field1             !  AETA1
   
 !                  eta1
      call retrieve_index(index,'ETA1',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field1p,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           do k=1,nsig_regional+1
-              write(6,*)' convert_binary_nmm: k,eta1(k)=',k,field1p(k)
-           end do
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,field1p,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     do k=1,nsig_regional+ione
+        write(6,*)' convert_binary_nmm: k,eta1(k)=',k,field1p(k)
+     end do
 
-  write(lendian_out)field1p            !  ETA1
+     write(lendian_out)field1p            !  ETA1
 
 !                  deta2
      call retrieve_index(index,'DETA2',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           do k=1,nsig_regional
-              write(6,*)' convert_binary_nmm: k,deta2(k)=',k,field1(k)
-           end do
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,field1,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     do k=1,nsig_regional
+        write(6,*)' convert_binary_nmm: k,deta2(k)=',k,field1(k)
+     end do
 
-  write(lendian_out)field1             !  DETA2
+     write(lendian_out)field1             !  DETA2
 
 !                  aeta2
      call retrieve_index(index,'AETA2',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,field1,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
 
-           do k=1,nsig_regional
-              write(6,*)' convert_binary_nmm: k,aeta2(k)=',k,field1(k)
-           end do
+     do k=1,nsig_regional
+        write(6,*)' convert_binary_nmm: k,aeta2(k)=',k,field1(k)
+     end do
 
-  write(lendian_out)field1             !  AETA2
+     write(lendian_out)field1             !  AETA2
 
 !                  eta2
      call retrieve_index(index,'ETA2',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field1p,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,field1p,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
 
-           do k=1,nsig_regional+1
-              write(6,*)' convert_binary_nmm: k,eta2(k)=',k,field1p(k)
-           end do
-  write(lendian_out)field1p            !  ETA2
+     do k=1,nsig_regional+ione
+        write(6,*)' convert_binary_nmm: k,eta2(k)=',k,field1p(k)
+     end do
+     write(lendian_out)field1p            !  ETA2
 
-  deallocate(field1,field1p)
-  allocate(field2(nlon_regional,nlat_regional))
-  allocate(field2b(nlon_regional,nlat_regional))
+     deallocate(field1,field1p)
+     allocate(field2(nlon_regional,nlat_regional))
+     allocate(field2b(nlon_regional,nlat_regional))
 
 !                  GLAT
      call retrieve_index(index,'GLAT',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,field2,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
 
-           write(6,*)' convert_binary_nmm: max,min GLAT=', &
-                rad2deg*maxval(field2),rad2deg*minval(field2)
-           write(6,*)' convert_binary_nmm: glat(1,1),glat(nlon,1)=', &
-                rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
-           write(6,*)' convert_binary_nmm: glat(1,nlat),glat(nlon,nlat)=', &
-                rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
-           write(6,*)' convert_binary_nmm: my guess at tph0d = ', &
-                rad2deg*field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
-           ctph0=cos(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
-           stph0=sin(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+     write(6,*)' convert_binary_nmm: max,min GLAT=', &
+          rad2deg*maxval(field2),rad2deg*minval(field2)
+     write(6,*)' convert_binary_nmm: glat(1,1),glat(nlon,1)=', &
+          rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
+     write(6,*)' convert_binary_nmm: glat(1,nlat),glat(nlon,nlat)=', &
+          rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
+     write(6,*)' convert_binary_nmm: my guess at tph0d = ', &
+          rad2deg*field2(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2)
+     ctph0=cos(field2(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2))
+     stph0=sin(field2(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2))
 
 !                  DX_NMM
      call retrieve_index(index,'DX_NMM',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,field2b,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
 
-           write(6,*)' convert_binary_nmm: max,min DX_NMM=', &
-                maxval(field2b),minval(field2b)
-           write(6,*)' convert_binary_nmm: dx_nmm(1,1),dx_nmm(nlon,1)=', &
-                field2b(1,1),field2b(nlon_regional,1)
-           write(6,*)' convert_binary_nmm: dx_nmm(1,nlat),dx_nmm(nlon,nlat)=', &
-                field2b(1,nlat_regional),field2b(nlon_regional,nlat_regional)
+     write(6,*)' convert_binary_nmm: max,min DX_NMM=', &
+          maxval(field2b),minval(field2b)
+     write(6,*)' convert_binary_nmm: dx_nmm(1,1),dx_nmm(nlon,1)=', &
+          field2b(1,1),field2b(nlon_regional,1)
+     write(6,*)' convert_binary_nmm: dx_nmm(1,nlat),dx_nmm(nlon,nlat)=', &
+          field2b(1,nlat_regional),field2b(nlon_regional,nlat_regional)
 
-  write(lendian_out)field2,field2b     !  GLAT,DX_NMM
+     write(lendian_out)field2,field2b     !  GLAT,DX_NMM
 
 !                  GLON
      call retrieve_index(index,'GLON',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,field2,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
 
-           write(6,*)' convert_binary_nmm: max,min GLON=', &
-                rad2deg*maxval(field2),rad2deg*minval(field2)
-           write(6,*)' convert_binary_nmm: glon(1,1),glon(nlon,1)=', &
-                rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
-           write(6,*)' convert_binary_nmm: glon(1,nlat),glon(nlon,nlat)=', &
-                rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
-           write(6,*)' convert_binary_nmm: my guess at tlm0d = ', &
-                .5*rad2deg*(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
-                        field2(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
-           tlm0=.5*(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
-                        field2(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+     write(6,*)' convert_binary_nmm: max,min GLON=', &
+          rad2deg*maxval(field2),rad2deg*minval(field2)
+     write(6,*)' convert_binary_nmm: glon(1,1),glon(nlon,1)=', &
+          rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
+     write(6,*)' convert_binary_nmm: glon(1,nlat),glon(nlon,nlat)=', &
+          rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
+     write(6,*)' convert_binary_nmm: my guess at tlm0d = ', &
+          half*rad2deg*(field2(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2)+ &
+                      field2(2_i_kind+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2))
+     tlm0=half*(field2(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2)+ &
+              field2(2_i_kind+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2))
 
 !                  DY_NMM
      call retrieve_index(index,'DY_NMM',varname_all,nrecs)
-     if(index.lt.0) stop
-     call retrieve_field(in_unit,wrfges,dy_nmm,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_nmm: DY_NMM=',dy_nmm
-           field2b=dy_nmm
+     if(index<izero) stop
+     call retrieve_field(in_unit,wrfges,dy_nmm,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     write(6,*)' convert_binary_nmm: DY_NMM=',dy_nmm
+     field2b=dy_nmm
 
-  write(lendian_out)field2,field2b     !  GLON,DY_NMM
+     write(lendian_out)field2,field2b     !  GLON,DY_NMM
 
-  write(lendian_out) wrfges
+     write(lendian_out) wrfges
 
 !      index for START_DATE record
      call retrieve_index(index,'START_DATE',varname_all,nrecs)
-     if(index.lt.0) stop
+     if(index<izero) stop
      n_position=file_offset(index)
-  write(lendian_out)n_position    ! offset for START_DATE record
+     write(lendian_out)n_position    ! offset for START_DATE record
 
 !                  PD
      call retrieve_index(index,'PD',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
 
-  write(lendian_out)n_position   !  offset for PD
+     write(lendian_out)n_position   !  offset for PD
 
 !                   FIS                  
      call retrieve_index(index,'FIS',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
 
      write(6,*)'  byte offset for FIS = ',n_position
 
-  write(lendian_out)n_position  !  offset for FIS
+     write(lendian_out)n_position  !  offset for FIS
 
 !                   PINT               
      call retrieve_index(index,'PINT',varname_all,nrecs)
      update_pint=.false.
-     if(index.gt.0) then
-       update_pint=.true.
-       n_position=file_offset(index+1)
-       write(6,*)'  byte offset, memoryorder for PINT = ',n_position,memoryorder_all(index)
-       write(lendian_out)n_position,memoryorder_all(index)    ! offset for PINT !
+     if(index>izero) then
+        update_pint=.true.
+        n_position=file_offset(index+ione)
+        write(6,*)'  byte offset, memoryorder for PINT = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for PINT !
      end if
 
 !                   T                  
      call retrieve_index(index,'T',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset, memoryorder for T = ',n_position,memoryorder_all(index)
      write(lendian_out)n_position,memoryorder_all(index)    ! offset for T    !
   
 !                   Q                  
      call retrieve_index(index,'Q',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset, memoryorder for Q = ',n_position,memoryorder_all(index)
      write(lendian_out)n_position,memoryorder_all(index)    ! offset for Q    !
 
 !                   U                  
      call retrieve_index(index,'U',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset, memoryorder for U = ',n_position,memoryorder_all(index)
      write(lendian_out)n_position,memoryorder_all(index)    ! offset for U    !
 
 !                   V                  
      call retrieve_index(index,'V',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset, memoryorder for V = ',n_position,memoryorder_all(index)
      write(lendian_out)n_position,memoryorder_all(index)    ! offset for V    !
 
 !                   SM                
      call retrieve_index(index,'SM',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset for SM = ',n_position
      write(lendian_out)n_position    ! offset for SM    !
 
 !                   SICE                
      call retrieve_index(index,'SICE',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset for SICE = ',n_position
      write(lendian_out)n_position    ! offset for SICE  !
 
 !                   SST                
      call retrieve_index(index,'SST',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset for SST = ',n_position
      write(lendian_out)n_position    ! offset for SST   !
 
 !                   IVGTYP                
      call retrieve_index(index,'IVGTYP',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset for IVGTYP = ',n_position
      write(lendian_out)n_position    ! offset for IVGTYP    !
 
 !                   ISLTYP                
      call retrieve_index(index,'ISLTYP',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset for ISLTYP = ',n_position
      write(lendian_out)n_position    ! offset for ISLTYP    !
 
 !                   VEGFRC                
      call retrieve_index(index,'VEGFRC',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset for VEGFRC = ',n_position
      write(lendian_out)n_position    ! offset for VEGFRC    !
 
 !                   SNO                
      call retrieve_index(index,'SNO',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset for SNO = ',n_position
      write(lendian_out)n_position    ! offset for SNO   !
 
 !                   U10                
      call retrieve_index(index,'U10',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset for U10 = ',n_position
      write(lendian_out)n_position    ! offset for U10   !
 
 !                   V10                
      call retrieve_index(index,'V10',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset for V10 = ',n_position
      write(lendian_out)n_position    ! offset for V10   !
 
 !                   SMC                
      call retrieve_index(index,'SMC',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
-         if(trim(memoryorder_all(index)).eq.'XZY') then
-           ksize=domainend_all(2,index)
-         end if
-         if(trim(memoryorder_all(index)).eq.'XYZ') then
-           ksize=domainend_all(3,index)
-         end if
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
+     if(trim(memoryorder_all(index))=='XZY') then
+        ksize=domainend_all(2,index)
+     end if
+     if(trim(memoryorder_all(index))=='XYZ') then
+        ksize=domainend_all(3,index)
+     end if
      write(6,*)'  byte offset, ksize, memoryorder for SMC = ',n_position,ksize,memoryorder_all(index)
      write(lendian_out)n_position,ksize,memoryorder_all(index)    ! offset for SMC   !
 
 !                   STC                
      call retrieve_index(index,'STC',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
-         if(trim(memoryorder_all(index)).eq.'XZY') then
-           ksize=domainend_all(2,index)
-         end if
-         if(trim(memoryorder_all(index)).eq.'XYZ') then
-           ksize=domainend_all(3,index)
-         end if
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
+     if(trim(memoryorder_all(index))=='XZY') then
+        ksize=domainend_all(2,index)
+     end if
+     if(trim(memoryorder_all(index))=='XYZ') then
+        ksize=domainend_all(3,index)
+     end if
      write(6,*)'  byte offset, ksize, memoryorder for STC = ',n_position,ksize,memoryorder_all(index)
      write(lendian_out)n_position,ksize,memoryorder_all(index)    ! offset for STC   !
   
 !                   TSK                
      call retrieve_index(index,'TSK',varname_all,nrecs)
-     if(index.lt.0) stop
-     n_position=file_offset(index+1)
+     if(index<izero) stop
+     n_position=file_offset(index+ione)
      write(6,*)'  byte offset for TSK = ',n_position
      write(lendian_out)n_position    ! offset for TSK   !
 
 !????????????????????????????????????????????????????????????????read z0 here to see what it looks like
      call retrieve_index(index,'Z0',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_nmm: max,min Z0=', &
-                maxval(field2b),minval(field2b)
-  write(lendian_out)field2b     !  Z0
+     call retrieve_field(in_unit,wrfges,field2b,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     write(6,*)' convert_binary_nmm: max,min Z0=', &
+          maxval(field2b),minval(field2b)
+     write(lendian_out)field2b     !  Z0
 !?????????????????????????????????????????????????????????????????
      call retrieve_index(index,'SST',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_nmm: max,min SST=', &
-                maxval(field2b),minval(field2b)
-  write(lendian_out)field2b     !  SST
+     call retrieve_field(in_unit,wrfges,field2b,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     write(6,*)' convert_binary_nmm: max,min SST=', &
+          maxval(field2b),minval(field2b)
+     write(lendian_out)field2b     !  SST
      call retrieve_index(index,'TSK',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_nmm: max,min TSK=', &
-                maxval(field2b),minval(field2b)
-  write(lendian_out)field2b     !  TSK
+     call retrieve_field(in_unit,wrfges,field2b,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     write(6,*)' convert_binary_nmm: max,min TSK=', &
+          maxval(field2b),minval(field2b)
+     write(lendian_out)field2b     !  TSK
      call retrieve_index(index,'SM',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_nmm: max,min SM=', &
-                maxval(field2b),minval(field2b)
-  write(lendian_out)field2b     !  SM
+     call retrieve_field(in_unit,wrfges,field2b,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     write(6,*)' convert_binary_nmm: max,min SM=', &
+          maxval(field2b),minval(field2b)
+     write(lendian_out)field2b     !  SM
      call retrieve_index(index,'SICE',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_nmm: max,min SICE=', &
-                maxval(field2b),minval(field2b)
-  write(lendian_out)field2b     !  SICE
+     call retrieve_field(in_unit,wrfges,field2b,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     write(6,*)' convert_binary_nmm: max,min SICE=', &
+          maxval(field2b),minval(field2b)
+     write(lendian_out)field2b     !  SICE
      call retrieve_index(index,'SNO',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
-                                  start_byte(index+1),end_byte(index+1))
-           write(6,*)' convert_binary_nmm: max,min SNO=', &
-                maxval(field2b),minval(field2b)
-  write(lendian_out)field2b     !  SNO
-  deallocate(field2,field2b)
-  deallocate(datestr_all,varname_all,domainend_all,memoryorder_all)
-  deallocate(start_block,end_block,start_byte,end_byte,file_offset)
+     call retrieve_field(in_unit,wrfges,field2b,start_block(index+ione),end_block(index+ione), &
+                                  start_byte(index+ione),end_byte(index+ione))
+     write(6,*)' convert_binary_nmm: max,min SNO=', &
+          maxval(field2b),minval(field2b)
+     write(lendian_out)field2b     !  SNO
+     deallocate(field2,field2b)
+     deallocate(datestr_all,varname_all,domainend_all,memoryorder_all)
+     deallocate(start_block,end_block,start_byte,end_byte,file_offset)
   
-  close(in_unit)
-  close(lendian_out)
-enddo n_loop
+     close(in_unit)
+     close(lendian_out)
+  enddo n_loop
 
 end subroutine convert_binary_nmm
 
@@ -1088,20 +1089,20 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !$$$
 
   use kinds, only: r_single,r_kind,i_kind
-  use constants, only: deg2rad,rad2deg,one_tenth
+  use constants, only: izero,ione,one_tenth,half,deg2rad,rad2deg
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar,nemsio_readrecv
   implicit none
 
-! integer(i_kind),parameter:: in_unit = 15
+! integer(i_kind),parameter:: in_unit = 15_i_kind
   real(r_kind),parameter:: r0_01 = 0.01_r_kind
   real(r_kind),parameter:: r100  = 100.0_r_kind
   real(r_kind),parameter:: rd_over_cp = 0.285725661955006982_r_kind
 
-  logical,intent(inout)   :: update_pint
-  real(r_kind),intent(out):: ctph0,stph0,tlm0
+  logical     ,intent(inout) :: update_pint
+  real(r_kind),intent(  out) :: ctph0,stph0,tlm0
 
   type(nemsio_gfile) :: gfile
   character(255) wrfges,fileout
@@ -1132,35 +1133,35 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   real(r_kind) factor,ratio
 
   call nemsio_init(iret=iret)
-  if(iret.ne.0) then
-    write(6,*)'CONVERT_NEMS_NMMB: problem with nemsio_init, Status = ',iret
+  if(iret/=izero) then
+     write(6,*)'CONVERT_NEMS_NMMB: problem with nemsio_init, Status = ',iret
      call stop2(74)
   end if
   
   n_loop: do n=1,3
 
-     if(n==1)then
-      wrfges = 'wrf_inout'
+     if(n==ione)then
+        wrfges = 'wrf_inout'
      else
-      write(wrfges,'("wrf_inou",i1.1)')n
+        write(wrfges,'("wrf_inou",i1.1)')n
      endif
      call nemsio_open(gfile,wrfges,'READ',iret=iret)
      write(6,*)' convert_nems_nmmb: nemsio_open, file name, iret=',trim(wrfges),iret
-     if(n.eq.1) then
-       if(iret.ne.0) then
-         write(6,*)'CONVERT_NEMS_NMMB:  problem with wrfges = ',&
-               trim(wrfges),', Status = ',iret
-          call stop2(74)
-       end if
+     if(n==ione) then
+        if(iret/=izero) then
+           write(6,*)'CONVERT_NEMS_NMMB:  problem with wrfges = ',&
+                 trim(wrfges),', Status = ',iret
+           call stop2(74)
+        end if
      else
-       if(iret.ne.0) then
-         write(6,*)'CONVERT_NEMS_NMMB:  no off hour guess = ',trim(wrfges)
-         call nemsio_close(gfile,iret=iret)
-         write(6,*)' close nemsio file, iret=',iret
-         cycle n_loop
-       end if
+        if(iret/=izero) then
+           write(6,*)'CONVERT_NEMS_NMMB:  no off hour guess = ',trim(wrfges)
+           call nemsio_close(gfile,iret=iret)
+           write(6,*)' close nemsio file, iret=',iret
+           cycle n_loop
+        end if
      end if
-     write(fileout,'("sigf",i2.2)')n+nhr_assimilation-1
+     write(fileout,'("sigf",i2.2)')n+nhr_assimilation-ione
      write(6,*)' convert_nems_nmmb: in_unit,out_unit=',trim(wrfges),',',trim(fileout)
      open(lendian_out,file=trim(fileout),form='unformatted')
      rewind lendian_out
@@ -1196,27 +1197,27 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
      date6=idate(6) ; date7=idate(7)
      second=date6/date7
      isecond=nint(second)
-           write(6,*)' convert_nems_nmmb: START_DATE =',&
-                iyear,imonth,iday,ihour,iminute,isecond
+     write(6,*)' convert_nems_nmmb: START_DATE =',&
+          iyear,imonth,iday,ihour,iminute,isecond
   
   
 !                  dlmd_regional
 
      call nemsio_getheadvar(gfile,'DLMD',dlmd_regional,iret)
-           write(6,*)' convert_nems_nmmb: dlmd_regional,iret=',dlmd_regional,iret
+     write(6,*)' convert_nems_nmmb: dlmd_regional,iret=',dlmd_regional,iret
   
 !                  dphd_regional
 
      call nemsio_getheadvar(gfile,'DPHD',dphd_regional,iret)
-           write(6,*)' convert_nems_nmmb: dphd_regional,iret=',dphd_regional,iret
+     write(6,*)' convert_nems_nmmb: dphd_regional,iret=',dphd_regional,iret
 
 !                  pt_regional
      call nemsio_getheadvar(gfile,'PT',pt_regional,iret)
-           write(6,*)' convert_nems_nmmb: pt_regional,iret=',pt_regional,iret
+     write(6,*)' convert_nems_nmmb: pt_regional,iret=',pt_regional,iret
 
 !                  pdtop_regional
      call nemsio_getheadvar(gfile,'PDTOP',pdtop_regional,iret)
-           write(6,*)' convert_nems_nmmb: pdtop_regional,iret=',pdtop_regional,iret
+     write(6,*)' convert_nems_nmmb: pdtop_regional,iret=',pdtop_regional,iret
 
      fhour=nfhour
      write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond,fhour, &
@@ -1228,12 +1229,12 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 
      allocate(dsg1(nsig_regional),field1(nsig_regional))
      call nemsio_getheadvar(gfile,'DSG1',dsg1,iret)
-           write(6,*)' convert_nems_nmmb: retrieve dsg1,iret=',iret
+     write(6,*)' convert_nems_nmmb: retrieve dsg1,iret=',iret
 
-           do k=1,nsig_regional
-              field1(k)=dsg1(nsig_regional+1-k)
-              write(6,*)' convert_nems_nmmb: k,dsg1 (deta1)(k)=',k,field1(k)
-           end do
+     do k=1,nsig_regional
+        field1(k)=dsg1(nsig_regional+ione-k)
+        write(6,*)' convert_nems_nmmb: k,dsg1 (deta1)(k)=',k,field1(k)
+     end do
 
      write(lendian_out)field1             !  DETA1
 
@@ -1241,29 +1242,29 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 
      allocate(sgml1(nsig_regional))
      call nemsio_getheadvar(gfile,'SGML1',sgml1,iret)
-           write(6,*)' convert_nems_nmmb: retrieve sgml1,iret=',iret
+     write(6,*)' convert_nems_nmmb: retrieve sgml1,iret=',iret
 
-           do k=1,nsig_regional
-              field1(k)=sgml1(nsig_regional+1-k)
-              write(6,*)' convert_nems_nmmb: k,sgml1 (aeta1)(k)=',k,field1(k)
-           end do
-      nmmb_verttype='OLD'
-      if(field1(1).lt..6_r_single) then
+     do k=1,nsig_regional
+        field1(k)=sgml1(nsig_regional+ione-k)
+        write(6,*)' convert_nems_nmmb: k,sgml1 (aeta1)(k)=',k,field1(k)
+     end do
+     nmmb_verttype='OLD'
+     if(field1(1)<.6_r_single) then
         nmmb_verttype='NEW'
-      end if
+     end if
 
-  write(lendian_out)field1             !  AETA1
+     write(lendian_out)field1             !  AETA1
   
 !                  sg1       (used to be eta1)
 
-     allocate(sg1(nsig_regional+1),field1p(nsig_regional+1))
+     allocate(sg1(nsig_regional+ione),field1p(nsig_regional+ione))
      call nemsio_getheadvar(gfile,'SG1',sg1,iret)
-           write(6,*)' convert_nems_nmmb: retrieve sg1,iret=',iret
+     write(6,*)' convert_nems_nmmb: retrieve sg1,iret=',iret
 
-           do k=1,nsig_regional+1
-              field1p(k)=sg1(nsig_regional+2-k)
-              write(6,*)' convert_nems_nmmb: k,sg1 (eta1)(k)=',k,field1p(k)
-           end do
+     do k=1,nsig_regional+ione
+        field1p(k)=sg1(nsig_regional+2_i_kind-k)
+        write(6,*)' convert_nems_nmmb: k,sg1 (eta1)(k)=',k,field1p(k)
+     end do
 
      write(lendian_out)field1p            !  ETA1
 
@@ -1271,12 +1272,12 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 
      allocate(dsg2(nsig_regional))
      call nemsio_getheadvar(gfile,'DSG2',dsg2,iret)
-           write(6,*)' convert_nems_nmmb: retrieve dsg2,iret=',iret
+     write(6,*)' convert_nems_nmmb: retrieve dsg2,iret=',iret
 
-           do k=1,nsig_regional
-              field1(k)=dsg2(nsig_regional+1-k)
-              write(6,*)' convert_nems_nmmb: k,dsg2 (deta2)(k)=',k,field1(k)
-           end do
+     do k=1,nsig_regional
+        field1(k)=dsg2(nsig_regional+ione-k)
+        write(6,*)' convert_nems_nmmb: k,dsg2 (deta2)(k)=',k,field1(k)
+     end do
 
      write(lendian_out)field1             !  DETA2
 
@@ -1284,37 +1285,37 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 
      allocate(sgml2(nsig_regional))
      call nemsio_getheadvar(gfile,'SGML2',sgml2,iret)
-           write(6,*)' convert_nems_nmmb: retrieve sgml2,iret=',iret
+     write(6,*)' convert_nems_nmmb: retrieve sgml2,iret=',iret
 
-           do k=1,nsig_regional
-              field1(k)=sgml2(nsig_regional+1-k)
-              write(6,*)' convert_nems_nmmb: k,sgml2 (aeta2)(k)=',k,field1(k)
-           end do
+     do k=1,nsig_regional
+        field1(k)=sgml2(nsig_regional+ione-k)
+        write(6,*)' convert_nems_nmmb: k,sgml2 (aeta2)(k)=',k,field1(k)
+     end do
 
      write(lendian_out)field1             !  AETA2
 
 !                  sg2       (used to be eta2)
 
-     allocate(sg2(nsig_regional+1))
+     allocate(sg2(nsig_regional+ione))
      call nemsio_getheadvar(gfile,'SG2',sg2,iret)
-           write(6,*)' convert_nems_nmmb: retrieve sg2,iret=',iret
+     write(6,*)' convert_nems_nmmb: retrieve sg2,iret=',iret
 
-           do k=1,nsig_regional+1
-              field1p(k)=sg2(nsig_regional+2-k)
-              write(6,*)' convert_nems_nmmb: k,sg2 (eta2)(k)=',k,field1p(k)
-           end do
+     do k=1,nsig_regional+ione
+        field1p(k)=sg2(nsig_regional+2_i_kind-k)
+        write(6,*)' convert_nems_nmmb: k,sg2 (eta2)(k)=',k,field1p(k)
+     end do
 
      write(lendian_out)field1p            !  ETA2
 
-         write(6,*)' NEW NMMB EQUIVALENT VERTICAL COORDINATE PARAMETERS FOLLOW:'
+     write(6,*)' NEW NMMB EQUIVALENT VERTICAL COORDINATE PARAMETERS FOLLOW:'
 
-          do k=1,nsig_regional
-            write(6,'(" k,dsg1,sgml1,sg1,dsg2,sgml2,sg2=",i3,6f12.7)') &
-                      k,dsg1(k),sgml1(k),sg1(k),dsg2(k),sgml2(k),sg2(k)
-          end do
-            k=nsig_regional+1
-            write(6,'(" k,           sg1,           sg2=",i3,24x,f12.7,24x,f12.7)') &
-                      k,                   sg1(k),                   sg2(k)
+     do k=1,nsig_regional
+        write(6,'(" k,dsg1,sgml1,sg1,dsg2,sgml2,sg2=",i3,6f12.7)') &
+                  k,dsg1(k),sgml1(k),sg1(k),dsg2(k),sgml2(k),sg2(k)
+     end do
+     k=nsig_regional+ione
+     write(6,'(" k,           sg1,           sg2=",i3,24x,f12.7,24x,f12.7)') &
+               k,                   sg1(k),                   sg2(k)
 
      deallocate(field1,field1p,sg1,sg2,sgml1,sgml2,dsg1,dsg2)
      allocate(field2(nlon_regional*nlat_regional))
@@ -1328,62 +1329,62 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
      allocate(  dxa(nlon_regional*nlat_regional),  dya(nlon_regional*nlat_regional))
      call nemsio_getfilehead(gfile,iret=iret,recname=recname,reclevtyp=reclevtyp, &
            reclev=reclev,lat=glata(:),lon=glona(:),dx=dxa(:),dy=dya(:))
-     ii=0
+     ii=izero
      do j=1,nlat_regional
-       do i=1,nlon_regional
-         ii=ii+1
-         glat(i,j)=glata(ii)*deg2rad       ! input lat in degrees
-         glon(i,j)=glona(ii)*deg2rad       ! input lon in degrees
-         dx  (i,j)=    dxa  (ii)
-         dy  (i,j)=    dya  (ii)
-       end do
+        do i=1,nlon_regional
+           ii=ii+ione
+           glat(i,j)=glata(ii)*deg2rad       ! input lat in degrees
+           glon(i,j)=glona(ii)*deg2rad       ! input lon in degrees
+           dx  (i,j)=    dxa  (ii)
+           dy  (i,j)=    dya  (ii)
+        end do
      end do
   
 !                  GLAT
 
-           write(6,*)' convert_nems_nmmb: max,min GLAT=', &
-                        rad2deg*maxval(glat),rad2deg*minval(glat)
-           write(6,*)' convert_nems_nmmb: glat(1,1),glat(nlon,1)=', &
-                       rad2deg*glat(1,1),rad2deg*glat(nlon_regional,1)
-           write(6,*)' convert_nems_nmmb: glat(1,nlat),glat(nlon,nlat)=', &
-                rad2deg*glat(1,nlat_regional),rad2deg*glat(nlon_regional,nlat_regional)
-           write(6,*)' convert_nems_nmmb: my guess at tph0d = ', &
-                rad2deg*glat(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
-           ctph0=cos(glat(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
-           stph0=sin(glat(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+     write(6,*)' convert_nems_nmmb: max,min GLAT=', &
+          rad2deg*maxval(glat),rad2deg*minval(glat)
+     write(6,*)' convert_nems_nmmb: glat(1,1),glat(nlon,1)=', &
+          rad2deg*glat(1,1),rad2deg*glat(nlon_regional,1)
+     write(6,*)' convert_nems_nmmb: glat(1,nlat),glat(nlon,nlat)=', &
+          rad2deg*glat(1,nlat_regional),rad2deg*glat(nlon_regional,nlat_regional)
+     write(6,*)' convert_nems_nmmb: my guess at tph0d = ', &
+          rad2deg*glat(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2)
+     ctph0=cos(glat(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2))
+     stph0=sin(glat(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2))
 
 !                  DX_NMM
 
-           write(6,*)' convert_nems_nmmb: max,min DX_NMM=', &
-                maxval(dx),minval(dx)
-           write(6,*)' convert_nems_nmmb: dx_nmm(1,1),dx_nmm(nlon,1)=', &
-                     dx(1,1),     dx(nlon_regional,1)
-           write(6,*)' convert_nems_nmmb: dx_nmm(1,nlat),dx_nmm(nlon,nlat)=', &
-                     dx(1,nlat_regional),     dx(nlon_regional,nlat_regional)
+     write(6,*)' convert_nems_nmmb: max,min DX_NMM=', &
+          maxval(dx),minval(dx)
+     write(6,*)' convert_nems_nmmb: dx_nmm(1,1),dx_nmm(nlon,1)=', &
+          dx(1,1),     dx(nlon_regional,1)
+     write(6,*)' convert_nems_nmmb: dx_nmm(1,nlat),dx_nmm(nlon,nlat)=', &
+          dx(1,nlat_regional),     dx(nlon_regional,nlat_regional)
 
      write(lendian_out)glat,dx            !  GLAT,DX_NMM  !?????????????check to see if dx, dy backwards
                                                           !?????????????? in existing wrf nmm ????????
 
 !                  GLON
 
-           write(6,*)' convert_nems_nmmb: max,min GLON=',rad2deg*maxval(  glon),rad2deg*minval(  glon)
-           write(6,*)' convert_nems_nmmb: glon(1,1),glon(nlon,1)=',rad2deg*glon(1,1),rad2deg*glon(nlon_regional,1)
-           write(6,*)' convert_nems_nmmb: glon(1,nlat),glon(nlon,nlat)=', &
-                                          rad2deg*glon(1,nlat_regional),rad2deg*glon(nlon_regional,nlat_regional)
-           write(6,*)' convert_nems_nmmb: my guess at tlm0d = ', &
-                .5*rad2deg*(  glon(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
-                          glon(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
-           tlm0=.5*(  glon(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
-                          glon(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+     write(6,*)' convert_nems_nmmb: max,min GLON=',rad2deg*maxval(  glon),rad2deg*minval(  glon)
+     write(6,*)' convert_nems_nmmb: glon(1,1),glon(nlon,1)=',rad2deg*glon(1,1),rad2deg*glon(nlon_regional,1)
+     write(6,*)' convert_nems_nmmb: glon(1,nlat),glon(nlon,nlat)=', &
+          rad2deg*glon(1,nlat_regional),rad2deg*glon(nlon_regional,nlat_regional)
+     write(6,*)' convert_nems_nmmb: my guess at tlm0d = ', &
+          half*rad2deg*(  glon(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2)+ &
+                          glon(2_i_kind+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2))
+     tlm0=half*(  glon(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2)+ &
+                  glon(2_i_kind+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2))
 
 !                  DY_NMM
 
-           write(6,*)' convert_nems_nmmb: max,min DY_NMM=', &
-                maxval(dy),minval(dy)
-           write(6,*)' convert_nems_nmmb: dy_nmm(1,1),dy_nmm(nlon,1)=', &
-                     dy(1,1),     dy(nlon_regional,1)
-           write(6,*)' convert_nems_nmmb: dy_nmm(1,nlat),dy_nmm(nlon,nlat)=', &
-                     dy(1,nlat_regional),     dy(nlon_regional,nlat_regional)
+     write(6,*)' convert_nems_nmmb: max,min DY_NMM=', &
+          maxval(dy),minval(dy)
+     write(6,*)' convert_nems_nmmb: dy_nmm(1,1),dy_nmm(nlon,1)=', &
+          dy(1,1),     dy(nlon_regional,1)
+     write(6,*)' convert_nems_nmmb: dy_nmm(1,nlat),dy_nmm(nlon,nlat)=', &
+          dy(1,nlat_regional),     dy(nlon_regional,nlat_regional)
 
      write(lendian_out)glon,dy            !  GLON,DY_NMM
 
@@ -1391,70 +1392,70 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 
 !                   PINT               
 
-     call nemsio_readrecv(gfile,'pres','layer',1,field2(:),iret=iret)
+     call nemsio_readrecv(gfile,'pres','layer',ione,field2(:),iret=iret)
      update_pint=.false.
-     if(iret.eq.0) update_pint=.true.
+     if(iret==izero) update_pint=.true.
      write(6,*)' convert_nems_nmmb: pint, iret,update_pint=',iret,update_pint
 
 !????????????????????????????????????????????????????????????????read z0 here to see what it looks like
-     call nemsio_readrecv(gfile,'zorl','sfc',1,field2b(:),iret=iret)
-           write(6,*)' convert_nems_nmmb: iret,max,min Z0=',iret, &
-                maxval(field2b),minval(field2b)
+     call nemsio_readrecv(gfile,'zorl','sfc',ione,field2b(:),iret=iret)
+     write(6,*)' convert_nems_nmmb: iret,max,min Z0=',iret, &
+          maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  Z0 (?)  ask if zorl is same as z0
 !?????????????????????????????????????????????????????????????????
-     call nemsio_readrecv(gfile,'tsea','sfc',1,field2b(:),iret=iret)
-           write(6,*)' convert_nems_nmmb: iret,max,min SST=',iret, &
-                maxval(field2b),minval(field2b)
+     call nemsio_readrecv(gfile,'tsea','sfc',ione,field2b(:),iret=iret)
+     write(6,*)' convert_nems_nmmb: iret,max,min SST=',iret, &
+          maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  SST
 !????????????????????????????????????????????
-     call nemsio_readrecv(gfile,'tg','sfc',1,field2b(:),iret=iret)
-           write(6,*)' convert_nems_nmmb: iret,max,min TG=',iret, &
-                maxval(field2b),minval(field2b)
-     call nemsio_readrecv(gfile,'ths','sfc',1,field2b(:),iret=iret)
-           write(6,*)' convert_nems_nmmb: iret,max,min THS=',iret, &
-                maxval(field2b),minval(field2b)
-     call nemsio_readrecv(gfile,'dpres','hybrid sig lev',1,field2c(:),iret=iret)
-           write(6,*)' convert_nems_nmmb: iret,max,min PD=',iret, &
-                maxval(field2c),minval(field2c)
-  if(nmmb_verttype.eq.'OLD') then
-    pd_to_ps=r0_01*(pdtop_regional+pt_regional)
-  else
-    pd_to_ps=r0_01*pt_regional
-  end if
-             write(6,*)' pdtop_regional,pt_regional,pd_to_ps=',pdtop_regional,pt_regional,pd_to_ps
+     call nemsio_readrecv(gfile,'tg','sfc',ione,field2b(:),iret=iret)
+     write(6,*)' convert_nems_nmmb: iret,max,min TG=',iret, &
+          maxval(field2b),minval(field2b)
+     call nemsio_readrecv(gfile,'ths','sfc',ione,field2b(:),iret=iret)
+     write(6,*)' convert_nems_nmmb: iret,max,min THS=',iret, &
+          maxval(field2b),minval(field2b)
+     call nemsio_readrecv(gfile,'dpres','hybrid sig lev',ione,field2c(:),iret=iret)
+     write(6,*)' convert_nems_nmmb: iret,max,min PD=',iret, &
+          maxval(field2c),minval(field2c)
+     if(nmmb_verttype=='OLD') then
+        pd_to_ps=r0_01*(pdtop_regional+pt_regional)
+     else
+        pd_to_ps=r0_01*pt_regional
+     end if
+     write(6,*)' pdtop_regional,pt_regional,pd_to_ps=',pdtop_regional,pt_regional,pd_to_ps
      do i=1,nlon_regional*nlat_regional
-           pd=r0_01*field2c(i)
-           psfc_this=pd+pd_to_ps
-           ratio=(one_tenth*psfc_this/r100)
-           factor=ratio**rd_over_cp
-           field2c(i)=field2b(i)*factor
+        pd=r0_01*field2c(i)
+        psfc_this=pd+pd_to_ps
+        ratio=(one_tenth*psfc_this/r100)
+        factor=ratio**rd_over_cp
+        field2c(i)=field2b(i)*factor
      end do
-           write(6,*)' nmmb_verttype=',nmmb_verttype
-           write(6,*)' max diff ths-ts=',maxval(field2b-field2c)
-           write(6,*)' min diff ths-ts=',minval(field2b-field2c)
-           write(6,*)' convert_nems_nmmb: iret,max,min TS=',iret, &
-                maxval(field2c),minval(field2c)
+     write(6,*)' nmmb_verttype=',nmmb_verttype
+     write(6,*)' max diff ths-ts=',maxval(field2b-field2c)
+     write(6,*)' min diff ths-ts=',minval(field2b-field2c)
+     write(6,*)' convert_nems_nmmb: iret,max,min TS=',iret, &
+          maxval(field2c),minval(field2c)
 
      write(lendian_out)field2c     !  TSK   (ths converted to ts)
 !????????????????????????????????????????sm
-     call nemsio_readrecv(gfile,'sm','sfc',1,field2b(:),iret=iret)
-           write(6,*)' convert_nems_nmmb: iret,max,min SM=',iret, &
-                maxval(field2b),minval(field2b)
+     call nemsio_readrecv(gfile,'sm','sfc',ione,field2b(:),iret=iret)
+     write(6,*)' convert_nems_nmmb: iret,max,min SM=',iret, &
+          maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  SM
-     call nemsio_readrecv(gfile,'sice','sfc',1,field2b(:),iret=iret)
-           write(6,*)' convert_nems_nmmb: iret,max,min SICE=',iret, &
-                maxval(field2b),minval(field2b)
+     call nemsio_readrecv(gfile,'sice','sfc',ione,field2b(:),iret=iret)
+     write(6,*)' convert_nems_nmmb: iret,max,min SICE=',iret, &
+          maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  SICE
-     call nemsio_readrecv(gfile,'sno','sfc',1,field2b(:),iret=iret)
-           write(6,*)' convert_nems_nmmb: iret,max,min SNO=',iret, &
-                maxval(field2b),minval(field2b)
+     call nemsio_readrecv(gfile,'sno','sfc',ione,field2b(:),iret=iret)
+     write(6,*)' convert_nems_nmmb: iret,max,min SNO=',iret, &
+          maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  SNO
      deallocate(field2,field2b,field2c,recname,reclevtyp,reclev,glat,glon,dx,dy)
   
-    call nemsio_close(gfile,iret=iret)
-    write(6,*)' close nemsio file, iret=',iret
-    close(lendian_out)
-enddo n_loop
+     call nemsio_close(gfile,iret=iret)
+     write(6,*)' close nemsio file, iret=',iret
+     close(lendian_out)
+  enddo n_loop
 
 end subroutine convert_nems_nmmb
 
@@ -1502,11 +1503,12 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
 !   do an initial read through of a wrf binary file, and get total number of sequential file records
 
   use kinds, only: i_byte,i_long,i_llong,i_kind
+  use constants, only: izero,ione
   implicit none
 
-  integer(i_kind),intent(in)::in_unit
-  character(9),intent(in)::wrfges
-  integer(i_kind),intent(out)::nrecs
+  integer(i_kind),intent(in   ) :: in_unit
+  character(9)   ,intent(in   ) :: wrfges
+  integer(i_kind),intent(  out) :: nrecs
 
   character(10) cwrfges
   integer(i_llong) nextbyte,locbyte,thisblock
@@ -1516,7 +1518,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
   integer(i_byte) missing4(4)
   integer(i_long) missing
   equivalence (missing,missing4(1))
-  integer(i_llong),parameter:: lrecl=2**20
+  integer(i_llong),parameter:: lrecl=2**20_i_llong
   integer(i_byte) buf(lrecl)
   integer(i_kind) i,loc_count,nreads
   logical lastbuf
@@ -1526,91 +1528,91 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
   cwrfges(10:10) = char(0)
   call openfileread (in_unit, ierr, cwrfges)
 ! open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
-  nrecs=0
-  missing=-9999
+  nrecs=izero
+  missing=-9999_i_long
   nextbyte=0_i_llong
   locbyte=lrecl
-  nreads=0
+  nreads=izero
   lastbuf=.false.
   do
 
-!   get length of next record
+!    get length of next record
 
-    do i=1,4
+     do i=1,4
+        nextbyte=nextbyte+1_i_llong
+        locbyte=locbyte+1_i_llong
+        if(locbyte > lrecl .and. lastbuf) go to 900
+        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        lenrec4(i)=buf(locbyte)
+     end do
+     if(lenrec <= 0_i_long .and. lastbuf) go to 900
+     if(lenrec <= 0_i_long .and. .not.lastbuf) go to 885
      nextbyte=nextbyte+1_i_llong
      locbyte=locbyte+1_i_llong
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-     lenrec4(i)=buf(locbyte)
-    end do
-    if(lenrec <= 0 .and. lastbuf) go to 900
-    if(lenrec <= 0 .and. .not.lastbuf) go to 885
-    nextbyte=nextbyte+1_i_llong
-    locbyte=locbyte+1_i_llong
-    if(locbyte > lrecl .and. lastbuf) go to 900
-    if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
 
-    nrecs=nrecs+1
+     nrecs=nrecs+ione
     
-    loc_count=1
-    do i=2,4
-       if(loc_count.ge.lenrec) exit
-       loc_count=loc_count+1
-       nextbyte=nextbyte+1_i_llong
-       locbyte=locbyte+1_i_llong
-       if(locbyte > lrecl .and. lastbuf) go to 900
-       if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-    end do
-    do i=1,4
-       if(loc_count.ge.lenrec) exit
-       loc_count=loc_count+1
-       nextbyte=nextbyte+1_i_llong
-       locbyte=locbyte+1_i_llong
-       if(locbyte > lrecl .and. lastbuf) go to 900
-       if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-    end do
-    nextbyte=nextbyte-loc_count+lenrec
-    locbyte=locbyte-loc_count+lenrec
-    if(locbyte > lrecl .and. lastbuf) go to 900
-    if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-    lensave=lenrec
-    do i=1,4
-     nextbyte=nextbyte+1_i_llong
-     locbyte=locbyte+1_i_llong
+     loc_count=ione
+     do i=2,4
+        if(loc_count>=lenrec) exit
+        loc_count=loc_count+ione
+        nextbyte=nextbyte+1_i_llong
+        locbyte=locbyte+1_i_llong
+        if(locbyte > lrecl .and. lastbuf) go to 900
+        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+     end do
+     do i=1,4
+        if(loc_count>=lenrec) exit
+        loc_count=loc_count+ione
+        nextbyte=nextbyte+1_i_llong
+        locbyte=locbyte+1_i_llong
+        if(locbyte > lrecl .and. lastbuf) go to 900
+        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+     end do
+     nextbyte=nextbyte-loc_count+lenrec
+     locbyte=locbyte-loc_count+lenrec
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-     lenrec4(i)=buf(locbyte)
-    end do
-    if(lenrec /= lensave) go to 890
+     lensave=lenrec
+     do i=1,4
+        nextbyte=nextbyte+1_i_llong
+        locbyte=locbyte+1_i_llong
+        if(locbyte > lrecl .and. lastbuf) go to 900
+        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        lenrec4(i)=buf(locbyte)
+     end do
+     if(lenrec /= lensave) go to 890
     
   end do
 
-880  continue
-     write(6,*)' reached impossible place in count_recs_wrf_binary_file'
-     call closefile(in_unit,ierr)
-     return
+880 continue
+  write(6,*)' reached impossible place in count_recs_wrf_binary_file'
+  call closefile(in_unit,ierr)
+  return
 
-885  continue
-     write(6,*)' problem in count_recs_wrf_binary_file, lenrec has bad value before end of file'
-     write(6,*)'     lenrec =',lenrec
-     call closefile(in_unit,ierr)
-     return
+885 continue
+  write(6,*)' problem in count_recs_wrf_binary_file, lenrec has bad value before end of file'
+  write(6,*)'     lenrec =',lenrec
+  call closefile(in_unit,ierr)
+  return
 
-890  continue
-     write(6,*)' problem in count_recs_wrf_binary_file, beginning and ending rec len words unequal'
-     write(6,*)'     begining reclen =',lensave
-     write(6,*)'       ending reclen =',lenrec
-     write(6,*)'             in_unit =',in_unit
-     call closefile(in_unit,ierr)
-     return
+890 continue
+  write(6,*)' problem in count_recs_wrf_binary_file, beginning and ending rec len words unequal'
+  write(6,*)'     begining reclen =',lensave
+  write(6,*)'       ending reclen =',lenrec
+  write(6,*)'             in_unit =',in_unit
+  call closefile(in_unit,ierr)
+  return
 
-900  continue
-     write(6,*)' normal end of file reached in count_recs_wrf_binary_file'
-     write(6,*)'        nblocks=',thisblock
-     write(6,*)'          nrecs=',nrecs
-     write(6,*)'         nreads=',nreads
-     call closefile(in_unit,ierr)
- 
+900 continue
+  write(6,*)' normal end of file reached in count_recs_wrf_binary_file'
+  write(6,*)'        nblocks=',thisblock
+  write(6,*)'          nrecs=',nrecs
+  write(6,*)'         nreads=',nreads
+  call closefile(in_unit,ierr)
+
 end subroutine count_recs_wrf_binary_file
 
 subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
@@ -1661,18 +1663,19 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 !$$$
 
   use kinds, only: i_byte,i_long,i_llong,i_kind
+  use constants, only: izero,ione
 ! use module_internal_header_util, only: int_get_ti_header_char,int_get_write_field_header
   implicit none
 
-  integer(i_kind),intent(in)::in_unit,nrecs
-  character(9),intent(in)::wrfges
-  character(10) cwrfges
-  character(132),intent(out)::datestr_all(nrecs),varname_all(nrecs),memoryorder_all(nrecs)
-  integer(i_kind),intent(out)::domainend_all(3,nrecs)
-  integer(i_kind),intent(out)::start_block(nrecs),end_block(nrecs)
-  integer(i_kind),intent(out)::start_byte(nrecs),end_byte(nrecs)
-  integer(i_llong),intent(out)::file_offset(nrecs)
+  integer(i_kind) ,intent(in   ) :: in_unit,nrecs
+  character(9)    ,intent(in   ) :: wrfges
+  character(132)  ,intent(  out) :: datestr_all(nrecs),varname_all(nrecs),memoryorder_all(nrecs)
+  integer(i_kind) ,intent(  out) :: domainend_all(3,nrecs)
+  integer(i_kind) ,intent(  out) :: start_block(nrecs),end_block(nrecs)
+  integer(i_kind) ,intent(  out) :: start_byte(nrecs),end_byte(nrecs)
+  integer(i_llong),intent(  out) :: file_offset(nrecs)
 
+  character(10) cwrfges
   integer(i_kind) irecs
   integer(i_llong) nextbyte,locbyte,thisblock
   integer(i_byte) lenrec4(4)
@@ -1681,15 +1684,15 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
   integer(i_byte) missing4(4)
   integer(i_long) missing
   equivalence (missing,missing4(1))
-  integer(i_llong),parameter:: lrecl=2**20
+  integer(i_llong),parameter:: lrecl=2**20_i_llong
   integer(i_byte) buf(lrecl)
   integer(i_kind) i,loc_count,nreads
   logical lastbuf
   integer(i_byte) hdrbuf4(2048)
   integer(i_long) hdrbuf(512)
   equivalence(hdrbuf(1),hdrbuf4(1))
-  integer(i_kind),parameter:: int_field       =       530
-  integer(i_kind),parameter:: int_dom_ti_char =       220
+  integer(i_kind),parameter:: int_field       =       530_i_kind
+  integer(i_kind),parameter:: int_dom_ti_char =       220_i_kind
   integer(i_kind) hdrbufsize
   integer(i_kind) inttypesize
   integer(i_kind) datahandle
@@ -1716,138 +1719,138 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
   cwrfges(10:10) = char(0)
   call openfileread (in_unit, ierr, cwrfges)
 ! open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
-  irecs=0
-  missing=-9999
+  irecs=izero
+  missing=-9999_i_long
   nextbyte=0_i_llong
   locbyte=lrecl
-  nreads=0
+  nreads=izero
   lastbuf=.false.
   do
 
-!   get length of next record
+!    get length of next record
 
-    do i=1,4
+     do i=1,4
+        nextbyte=nextbyte+1_i_llong
+        locbyte=locbyte+1_i_llong
+        if(locbyte > lrecl .and. lastbuf) go to 900
+        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        lenrec4(i)=buf(locbyte)
+     end do
+     if(lenrec <= 0_i_long .and. lastbuf) go to 900
+     if(lenrec <= 0_i_long .and. .not. lastbuf) go to 885
      nextbyte=nextbyte+1_i_llong
      locbyte=locbyte+1_i_llong
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-     lenrec4(i)=buf(locbyte)
-    end do
-    if(lenrec <= 0 .and. lastbuf) go to 900
-    if(lenrec <= 0 .and. .not. lastbuf) go to 885
-    nextbyte=nextbyte+1_i_llong
-    locbyte=locbyte+1_i_llong
-    if(locbyte > lrecl .and. lastbuf) go to 900
-    if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
 
-    irecs=irecs+1
-    start_block(irecs)=thisblock
-    start_byte(irecs)=locbyte
-    file_offset(irecs)=nextbyte-1_i_llong
-    hdrbuf4(1)=buf(locbyte)
-    hdrbuf4(2:4)=missing4(2:4)
-    hdrbuf4(5:8)=missing4(1:4)
-    datestr_all(irecs)=blanks
-    varname_all(irecs)=blanks
-    memoryorder_all(irecs)=blanks
-    domainend_all(1:3,irecs)=0
-    
-    loc_count=1
-    do i=2,8
-       if(loc_count.ge.lenrec) exit
-       loc_count=loc_count+1
-       nextbyte=nextbyte+1_i_llong
-       locbyte=locbyte+1_i_llong
-       if(locbyte > lrecl .and. lastbuf) go to 900
-       if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-       hdrbuf4(i)=buf(locbyte)
-    end do
+     irecs=irecs+ione
+     start_block(irecs)=thisblock
+     start_byte(irecs)=locbyte
+     file_offset(irecs)=nextbyte-1_i_llong
+     hdrbuf4(1)=buf(locbyte)
+     hdrbuf4(2:4)=missing4(2:4)
+     hdrbuf4(5:8)=missing4(1:4)
+     datestr_all(irecs)=blanks
+     varname_all(irecs)=blanks
+     memoryorder_all(irecs)=blanks
+     domainend_all(1:3,irecs)=izero
 
-         if(lenrec==2048) write(6,*)' irecs,hdrbuf(2),int_dom_ti_char,int_field=', &
-                                      irecs,hdrbuf(2),int_dom_ti_char,int_field
-    if(lenrec==2048.and.(hdrbuf(2) == int_dom_ti_char .or. hdrbuf(2) == int_field)) then
+     loc_count=ione
+     do i=2,8
+        if(loc_count>=lenrec) exit
+        loc_count=loc_count+ione
+        nextbyte=nextbyte+1_i_llong
+        locbyte=locbyte+1_i_llong
+        if(locbyte > lrecl .and. lastbuf) go to 900
+        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        hdrbuf4(i)=buf(locbyte)
+     end do
+
+     if(lenrec==2048_i_long) write(6,*)' irecs,hdrbuf(2),int_dom_ti_char,int_field=', &
+                                       irecs,hdrbuf(2),int_dom_ti_char,int_field
+     if(lenrec==2048_i_long.and.(hdrbuf(2) == int_dom_ti_char .or. hdrbuf(2) == int_field)) then
 
 !    bring in next full record, so we can unpack datestr, varname, and domainend
-       do i=9,lenrec
-          loc_count=loc_count+1
-          nextbyte=nextbyte+1_i_llong
-          locbyte=locbyte+1_i_llong
-          if(locbyte > lrecl .and. lastbuf) go to 900
-          if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-          hdrbuf4(i)=buf(locbyte)
-       end do
+        do i=9,lenrec
+           loc_count=loc_count+ione
+           nextbyte=nextbyte+1_i_llong
+           locbyte=locbyte+1_i_llong
+           if(locbyte > lrecl .and. lastbuf) go to 900
+           if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+           hdrbuf4(i)=buf(locbyte)
+        end do
 
-       if(hdrbuf(2) == int_dom_ti_char) then
+        if(hdrbuf(2) == int_dom_ti_char) then
 
-          call int_get_ti_header_char(hdrbuf,hdrbufsize,inttypesize, &
-                   datahandle,element,dumstr,strdata,loccode)
-          varname_all(irecs)=trim(element)
-          datestr_all(irecs)=trim(strdata)
-              write(6,*)' irecs,varname,datestr = ',irecs,trim(varname_all(irecs)),trim(datestr_all(irecs))
+           call int_get_ti_header_char(hdrbuf,hdrbufsize,inttypesize, &
+                    datahandle,element,dumstr,strdata,loccode)
+           varname_all(irecs)=trim(element)
+           datestr_all(irecs)=trim(strdata)
+           write(6,*)' irecs,varname,datestr = ',irecs,trim(varname_all(irecs)),trim(datestr_all(irecs))
 
-       else
+        else
 
 
-          call int_get_write_field_header(hdrbuf,hdrbufsize,typesize, &
-             datahandle,datestr,varname,fieldtype, &
-             domaindesc,memoryorder,stagger,dimnames, &
-             domainstart,domainend,patchstart,patchend)
-          varname_all(irecs)=trim(varname)
-          datestr_all(irecs)=trim(datestr)
-          memoryorder_all(irecs)=trim(memoryorder)
-          domainend_all(1:3,irecs)=domainend(1:3)
-              write(6,*)' irecs,datestr,domend,varname = ', &
-                  irecs,trim(datestr_all(irecs)),domainend_all(1:3,irecs),trim(varname_all(irecs))
+           call int_get_write_field_header(hdrbuf,hdrbufsize,typesize, &
+              datahandle,datestr,varname,fieldtype, &
+              domaindesc,memoryorder,stagger,dimnames, &
+              domainstart,domainend,patchstart,patchend)
+           varname_all(irecs)=trim(varname)
+           datestr_all(irecs)=trim(datestr)
+           memoryorder_all(irecs)=trim(memoryorder)
+           domainend_all(1:3,irecs)=domainend(1:3)
+           write(6,*)' irecs,datestr,domend,varname = ', &
+                 irecs,trim(datestr_all(irecs)),domainend_all(1:3,irecs),trim(varname_all(irecs))
 
-       end if
+        end if
 
-    end if
+     end if
 
-    nextbyte=nextbyte-loc_count+lenrec
-    locbyte=locbyte-loc_count+lenrec
-    if(locbyte > lrecl .and. lastbuf) go to 900
-    if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-    end_block(irecs)=thisblock
-    end_byte(irecs)=locbyte
-    lensave=lenrec
-    do i=1,4
-     nextbyte=nextbyte+1_i_llong
-     locbyte=locbyte+1_i_llong
+     nextbyte=nextbyte-loc_count+lenrec
+     locbyte=locbyte-loc_count+lenrec
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-     lenrec4(i)=buf(locbyte)
-    end do
-    if(lenrec /= lensave) go to 890
+     end_block(irecs)=thisblock
+     end_byte(irecs)=locbyte
+     lensave=lenrec
+     do i=1,4
+        nextbyte=nextbyte+1_i_llong
+        locbyte=locbyte+1_i_llong
+        if(locbyte > lrecl .and. lastbuf) go to 900
+        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        lenrec4(i)=buf(locbyte)
+     end do
+     if(lenrec /= lensave) go to 890
     
   end do
 
-880  continue
-     write(6,*)' reached impossible place in inventory_wrf_binary_file'
-     call closefile(in_unit,ierr)
-     return
+880 continue
+  write(6,*)' reached impossible place in inventory_wrf_binary_file'
+  call closefile(in_unit,ierr)
+  return
 
-885  continue
-     write(6,*)' problem in inventory_wrf_binary_file, lenrec has bad value before end of file'
-     write(6,*)'     lenrec =',lenrec
-     call closefile(in_unit,ierr)
-     return
+885 continue
+  write(6,*)' problem in inventory_wrf_binary_file, lenrec has bad value before end of file'
+  write(6,*)'     lenrec =',lenrec
+  call closefile(in_unit,ierr)
+  return
 
-890  continue
-     write(6,*)' problem in inventory_wrf_binary_file, beginning and ending rec len words unequal'
-     write(6,*)'     begining reclen =',lensave
-     write(6,*)'       ending reclen =',lenrec
-     write(6,*)'               irecs =',irecs
-     write(6,*)'               nrecs =',nrecs
-     call closefile(in_unit,ierr)
-     return
+890 continue
+  write(6,*)' problem in inventory_wrf_binary_file, beginning and ending rec len words unequal'
+  write(6,*)'     begining reclen =',lensave
+  write(6,*)'       ending reclen =',lenrec
+  write(6,*)'               irecs =',irecs
+  write(6,*)'               nrecs =',nrecs
+  call closefile(in_unit,ierr)
+  return
 
-900  continue
-     write(6,*)' normal end of file reached in inventory_wrf_binary_file'
-     write(6,*)'        nblocks=',thisblock
-     write(6,*)'          irecs,nrecs=',irecs,nrecs
-     write(6,*)'         nreads=',nreads
-     call closefile(in_unit,ierr)
- 
+900 continue
+  write(6,*)' normal end of file reached in inventory_wrf_binary_file'
+  write(6,*)'        nblocks=',thisblock
+  write(6,*)'          irecs,nrecs=',irecs,nrecs
+  write(6,*)'         nreads=',nreads
+  call closefile(in_unit,ierr)
+
 end subroutine inventory_wrf_binary_file
 #else /* Start no WRF-library block */
 subroutine count_recs_wrf_binary_file()
@@ -1869,7 +1872,7 @@ subroutine count_recs_wrf_binary_file()
     implicit none
 
     write(6,*)'COUNT_RECS_WRF_BINARY_FILE:  dummy routine, does nothing'
-	return
+    return
 end subroutine count_recs_wrf_binary_file
 
 subroutine inventory_wrf_binary_file()
@@ -1888,10 +1891,10 @@ subroutine inventory_wrf_binary_file()
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-        implicit none
+    implicit none
 
-	write(6,*)'INVENTORY_WRF_BINARY_FILE:  dummy routine, does nothing'
-	return
+    write(6,*)'INVENTORY_WRF_BINARY_FILE:  dummy routine, does nothing'
+    return
 end subroutine inventory_wrf_binary_file
 #endif /* End no WRF-library block */
 
@@ -1931,23 +1934,24 @@ subroutine next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
 !$$$
 
   use kinds, only: i_byte,i_llong,i_kind
+  use constants, only: izero,ione
   implicit none
 
-  integer(i_llong),intent(in):: lrecl
-  integer(i_kind),intent(in):: in_unit
-  integer(i_llong),intent(in):: nextbyte
-  integer(i_byte),intent(out):: buf(lrecl)
-  integer(i_llong),intent(out):: thisblock
-  integer(i_kind),intent(inout):: nreads
-  integer(i_llong),intent(inout):: locbyte
-  logical,intent(inout):: lastbuf
+  integer(i_llong),intent(in   ) :: lrecl
+  integer(i_kind) ,intent(in   ) :: in_unit
+  integer(i_llong),intent(in   ) :: nextbyte
+  integer(i_byte) ,intent(  out) :: buf(lrecl)
+  integer(i_llong),intent(  out) :: thisblock
+  integer(i_kind) ,intent(inout) :: nreads
+  integer(i_llong),intent(inout) :: locbyte
+  logical         ,intent(inout) :: lastbuf
 
   integer(i_kind) ierr
 
   if(lastbuf) return
 
-  ierr=0
-  nreads=nreads+1
+  ierr=izero
+  nreads=nreads+ione
 
 !  compute thisblock:
 
@@ -1966,10 +1970,10 @@ subroutine next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
 ! to getbytes
 
 ! read(in_unit,rec=thisblock,iostat=ierr)buf
-! lastbuf = ierr /= 0
+! lastbuf = ierr /= izero
 
   call getbytes(in_unit, buf, thisblock, lrecl, ierr)
-  lastbuf = ierr == 1
+  lastbuf = ierr == ione
 
 end subroutine next_buf
 
@@ -2001,25 +2005,26 @@ subroutine retrieve_index(index,string,varname_all,nrecs)
 !
 !$$$
   use kinds, only: i_kind
+  use constants, only: ione
   implicit none
 
-  integer(i_kind),intent(in)::nrecs
-  integer(i_kind),intent(out):: index
-  character(*), intent(in):: string
-  character(132),intent(in)::varname_all(nrecs)
+  integer(i_kind),intent(in   ) :: nrecs
+  integer(i_kind),intent(  out) :: index
+  character(*)   ,intent(in   ) :: string
+  character(132) ,intent(in   ) :: varname_all(nrecs)
 
   integer(i_kind) i
 
   do i=1,nrecs
-   if(trim(string) == trim(varname_all(i))) then
-      index=i
-      return
-   end if
+     if(trim(string) == trim(varname_all(i))) then
+        index=i
+        return
+     end if
   end do
 
   write(6,*)'RETRIEVE_INDEX:  ***PROBLEM*** reading wrf nmm binary file, ',&
-	'rec id "',trim(string),'" not found'
-  index=-1
+       'rec id "',trim(string),'" not found'
+  index=-ione
   return
 
 end subroutine retrieve_index
@@ -2055,14 +2060,15 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
 !$$$
 
   use kinds, only: i_byte,i_kind
+  use constants, only: izero,ione
   implicit none
 
-  integer(i_kind),intent(in)::in_unit
-  character(9),intent(in)::wrfges
-  integer(i_kind),intent(in)::start_block,end_block,start_byte,end_byte
-  integer(i_byte),intent(out)::out(*)
+  integer(i_kind),intent(in   ) :: in_unit
+  character(9)   ,intent(in   ) :: wrfges
+  integer(i_kind),intent(in   ) :: start_block,end_block,start_byte,end_byte
+  integer(i_byte),intent(  out) :: out(*)
 
-  integer(i_kind),parameter:: lrecl=2**20
+  integer(i_kind),parameter:: lrecl=2**20_i_kind
   integer(i_byte) buf(lrecl)
   integer(i_kind) i,ii,k,ibegin,iend,ierr
 
@@ -2070,14 +2076,14 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
 
   write(6,*)'RETRIEVE_FIELD:  start_block,end_block,s_,e_byte=',&
        start_block,end_block,start_byte,end_byte
-  ii=0
+  ii=izero
   do k=start_block,end_block
      read(in_unit,rec=k,iostat=ierr)buf
-     ibegin=1 ; iend=lrecl
+     ibegin=ione ; iend=lrecl
      if(k == start_block) ibegin=start_byte
      if(k == end_block) iend=end_byte
      do i=ibegin,iend
-        ii=ii+1
+        ii=ii+ione
         out(ii)=buf(i)
      end do
   end do
@@ -2120,13 +2126,15 @@ SUBROUTINE int_get_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
 !
 !$$$
   use kinds, only: i_kind
+  use constants, only: ione
   IMPLICIT NONE
+
 ! INCLUDE 'intio_tags.h'
-  INTEGER(i_kind), INTENT(INOUT)       ::  hdrbuf(*)
-  INTEGER(i_kind), INTENT(OUT)         ::  hdrbufsize
-  INTEGER(i_kind), INTENT(IN)          ::  itypesize
-  CHARACTER*(*), INTENT(INOUT) ::  Element, Data, VarName
-  INTEGER(i_kind), INTENT(OUT)         ::  DataHandle, code
+  INTEGER(i_kind), INTENT(INOUT) ::  hdrbuf(*)
+  INTEGER(i_kind), INTENT(  OUT) ::  hdrbufsize
+  INTEGER(i_kind), INTENT(IN   ) ::  itypesize
+  CHARACTER*(*)  , INTENT(INOUT) ::  Element, Data, VarName
+  INTEGER(i_kind), INTENT(  OUT) ::  DataHandle, code
 !Local
   INTEGER(i_kind) i, n, DummyCount, typesize
   CHARACTER * 132  dummyData
@@ -2136,7 +2144,7 @@ SUBROUTINE int_get_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
   CALL int_get_ti_header_c ( hdrbuf, hdrbufsize, n, itypesize, typesize, &
                            DataHandle, dummyData, DummyCount, code )
 #endif /* WRF */
-  i = n/itypesize+1 ;
+  i = n/itypesize+ione ;
   CALL int_unpack_string ( Element, hdrbuf( i ), n ) ; i = i + n
   CALL int_unpack_string ( Data   , hdrbuf( i ), n ) ; i = i + n
   CALL int_unpack_string ( VarName  , hdrbuf( i ), n ) ; i = i + n
@@ -2191,57 +2199,58 @@ SUBROUTINE int_get_write_field_header ( hdrbuf, hdrbufsize, ftypesize, &
 !
 !$$$
   use kinds, only: i_kind
+  use  constants, only: ione
   IMPLICIT NONE
 
 ! INCLUDE 'intio_tags.h'
-  integer,parameter:: int_field       =       530
-  INTEGER(i_kind),               INTENT(INOUT)  ::  hdrbuf(*)
-  INTEGER(i_kind),               INTENT(OUT)    ::  hdrbufsize
-  INTEGER(i_kind),               INTENT(INOUT)  ::  ftypesize
-  INTEGER(i_kind) ,              INTENT(OUT)    :: DataHandle
-  CHARACTER*(*),                 INTENT(INOUT)  :: DateStr
-  CHARACTER*(*),                 INTENT(INOUT)  :: VarName
-  INTEGER(i_kind),               INTENT(OUT)    :: FieldType
-  INTEGER(i_kind),               INTENT(OUT)    :: DomainDesc
-  CHARACTER*(*),                INTENT(INOUT)   :: MemoryOrder
-  CHARACTER*(*),                INTENT(INOUT)   :: Stagger
-  CHARACTER*(*) , dimension (*),INTENT(INOUT)   :: DimNames
-  INTEGER(i_kind) ,dimension(*), INTENT(OUT)    :: DomainStart, DomainEnd
-  INTEGER(i_kind) ,dimension(*), INTENT(OUT)    :: PatchStart,  PatchEnd
+  INTEGER(i_kind)              , INTENT(INOUT) ::  hdrbuf(*)
+  INTEGER(i_kind)              , INTENT(  OUT) ::  hdrbufsize
+  INTEGER(i_kind)              , INTENT(INOUT) ::  ftypesize
+  INTEGER(i_kind)              , INTENT(  OUT) :: DataHandle
+  CHARACTER*(*)                , INTENT(INOUT) :: DateStr
+  CHARACTER*(*)                , INTENT(INOUT) :: VarName
+  INTEGER(i_kind)              , INTENT(  OUT) :: FieldType
+  INTEGER(i_kind)              , INTENT(  OUT) :: DomainDesc
+  CHARACTER*(*)                , INTENT(INOUT) :: MemoryOrder
+  CHARACTER*(*)                , INTENT(INOUT) :: Stagger
+  CHARACTER*(*)   ,dimension(*), INTENT(INOUT) :: DimNames
+  INTEGER(i_kind) ,dimension(*), INTENT(  OUT) :: DomainStart, DomainEnd
+  INTEGER(i_kind) ,dimension(*), INTENT(  OUT) :: PatchStart,  PatchEnd
 !Local
+  integer(i_kind),parameter:: int_field       =       530_i_kind
   CHARACTER*132 mess
   INTEGER(i_kind) i, n
 
   hdrbufsize = hdrbuf(1)
-  IF ( hdrbuf(2) .NE. int_field ) THEN
-    write(mess,*)'int_get_write_field_header: hdrbuf(2) ne int_field ',hdrbuf(2),int_field
-    CALL wrf_error_fatal3 ( "module_internal_header_util.b" , 220 ,  mess )
+  IF ( hdrbuf(2) /= int_field ) THEN
+     write(mess,*)'int_get_write_field_header: hdrbuf(2) ne int_field ',hdrbuf(2),int_field
+     CALL wrf_error_fatal3 ( "module_internal_header_util.b" , 220_i_kind ,  mess )
   ENDIF
   ftypesize = hdrbuf(3)
 
-   i = 4
-   DataHandle = hdrbuf(i)     ; i = i+1
+  i = 4_i_kind
+  DataHandle = hdrbuf(i)     ; i = i+ione
   call int_unpack_string( DateStr, hdrbuf(i), n )     ; i = i+n
   call int_unpack_string( VarName, hdrbuf(i), n )     ; i = i+n
-   FieldType = hdrbuf(i)      ; i = i+1
+  FieldType = hdrbuf(i)      ; i = i+ione
   call int_unpack_string( MemoryOrder, hdrbuf(i), n ) ; i = i+n
   call int_unpack_string( Stagger, hdrbuf(i), n )     ; i = i+n
   call int_unpack_string( DimNames(1), hdrbuf(i), n ) ; i = i+n
   call int_unpack_string( DimNames(2), hdrbuf(i), n ) ; i = i+n
   call int_unpack_string( DimNames(3), hdrbuf(i), n ) ; i = i+n
-   DomainStart(1) = hdrbuf(i)    ; i = i+1
-   DomainStart(2) = hdrbuf(i)    ; i = i+1
-   DomainStart(3) = hdrbuf(i)    ; i = i+1
-   DomainEnd(1) = hdrbuf(i)       ; i = i+1
-   DomainEnd(2) = hdrbuf(i)       ; i = i+1
-   DomainEnd(3) = hdrbuf(i)       ; i = i+1
-   PatchStart(1) = hdrbuf(i)     ; i = i+1
-   PatchStart(2) = hdrbuf(i)     ; i = i+1
-   PatchStart(3) = hdrbuf(i)     ; i = i+1
-   PatchEnd(1) = hdrbuf(i)       ; i = i+1
-   PatchEnd(2) = hdrbuf(i)       ; i = i+1
-   PatchEnd(3) = hdrbuf(i)       ; i = i+1
-   DomainDesc = hdrbuf(i)       ; i = i+1
+  DomainStart(1) = hdrbuf(i)    ; i = i+ione
+  DomainStart(2) = hdrbuf(i)    ; i = i+ione
+  DomainStart(3) = hdrbuf(i)    ; i = i+ione
+  DomainEnd(1) = hdrbuf(i)       ; i = i+ione
+  DomainEnd(2) = hdrbuf(i)       ; i = i+ione
+  DomainEnd(3) = hdrbuf(i)       ; i = i+ione
+  PatchStart(1) = hdrbuf(i)     ; i = i+ione
+  PatchStart(2) = hdrbuf(i)     ; i = i+ione
+  PatchStart(3) = hdrbuf(i)     ; i = i+ione
+  PatchEnd(1) = hdrbuf(i)       ; i = i+ione
+  PatchEnd(2) = hdrbuf(i)       ; i = i+ione
+  PatchEnd(3) = hdrbuf(i)       ; i = i+ione
+  DomainDesc = hdrbuf(i)       ; i = i+ione
 
   RETURN
 END SUBROUTINE int_get_write_field_header
@@ -2273,10 +2282,12 @@ SUBROUTINE int_unpack_string ( str, buf, n )
 !$$$
 
   use kinds, only: i_kind
+  use constants, only: ione
   IMPLICIT NONE
-  CHARACTER*(*), INTENT(OUT)                :: str
-  INTEGER(i_kind), INTENT(OUT)              :: n       ! on return, N is the number of ints copied from buf
-  INTEGER(i_kind), INTENT(IN), DIMENSION(*) :: buf
+
+  CHARACTER*(*)                , INTENT(  OUT) :: str
+  INTEGER(i_kind)              , INTENT(  OUT) :: n       ! on return, N is the number of ints copied from buf
+  INTEGER(i_kind), DIMENSION(*), INTENT(IN   ) :: buf
 !Local
   INTEGER(i_kind) i
   INTEGER(i_kind) strlen
@@ -2284,9 +2295,9 @@ SUBROUTINE int_unpack_string ( str, buf, n )
   strlen = buf(1)
   str = ""
   DO i = 1, strlen
-    str(i:i) = char(buf(i+1))
+     str(i:i) = char(buf(i+ione))
   ENDDO
-  n = strlen + 1
+  n = strlen + ione
 END SUBROUTINE int_unpack_string
 
 SUBROUTINE wrf_sizeof_integer( retval )
@@ -2312,8 +2323,10 @@ SUBROUTINE wrf_sizeof_integer( retval )
 !$$$
   use kinds, only: i_kind
   IMPLICIT NONE
-  INTEGER(i_kind) retval
+
+  INTEGER(i_kind),intent(  out) :: retval
 ! IWORDSIZE is defined by CPP
+
   retval = i_kind
   RETURN
 END SUBROUTINE wrf_sizeof_integer
@@ -2343,9 +2356,19 @@ MODULE module_wrf_error
 !
 !$$$ end documentation block
   use kinds, only: i_kind
+  use constants, only: izero
   implicit none
 
-  INTEGER(i_kind)      :: wrf_debug_level = 0
+! set default to private
+  private
+! set subroutines to public
+  public :: wrf_at_debug_level
+  public :: init_module_wrf_error
+! set passed variables to public
+  public :: wrf_debug_level
+
+  INTEGER(i_kind) :: wrf_debug_level = izero
+
 CONTAINS
 
   LOGICAL FUNCTION wrf_at_debug_level ( level )
@@ -2370,8 +2393,10 @@ CONTAINS
 !$$$ end documentation block
     use kinds, only: i_kind
     IMPLICIT NONE
-    INTEGER(i_kind) , INTENT(IN) :: level
-    wrf_at_debug_level = ( level .LE. wrf_debug_level )
+
+    INTEGER(i_kind) , INTENT(IN   ) :: level
+
+    wrf_at_debug_level = ( level <= wrf_debug_level )
     RETURN
   END FUNCTION wrf_at_debug_level
 
@@ -2422,7 +2447,9 @@ END MODULE module_wrf_error
     USE module_wrf_error
     use kinds, only: i_kind
     IMPLICIT NONE
-    INTEGER(i_kind) , INTENT(IN) :: level
+
+    INTEGER(i_kind) , INTENT(IN   ) :: level
+
     wrf_debug_level = level
     RETURN
   END SUBROUTINE set_wrf_debug_level
@@ -2450,7 +2477,9 @@ END MODULE module_wrf_error
     USE module_wrf_error
     use kinds, only: i_kind
     IMPLICIT NONE
-    INTEGER(i_kind) , INTENT(OUT) :: level
+
+    INTEGER(i_kind) , INTENT(  OUT) :: level
+
     level = wrf_debug_level
     RETURN
   END SUBROUTINE get_wrf_debug_level
@@ -2479,13 +2508,15 @@ SUBROUTINE wrf_debug( level , str )
   USE module_wrf_error
   use kinds, only: i_kind
   IMPLICIT NONE
+
   CHARACTER*(*) str
-  INTEGER(i_kind) , INTENT (IN) :: level
-  INTEGER(i_kind)               :: debug_level
+  INTEGER(i_kind) , INTENT (IN   ) :: level
+  INTEGER(i_kind)                  :: debug_level
+
   CALL get_wrf_debug_level( debug_level )
-  IF ( level .LE. debug_level ) THEN
+  IF ( level <= debug_level ) THEN
     ! old behavior
-      CALL wrf_message( str )
+     CALL wrf_message( str )
   ENDIF
   RETURN
 END SUBROUTINE wrf_debug
@@ -2512,7 +2543,9 @@ SUBROUTINE wrf_message( str )
 !$$$ end documentation block
   USE module_wrf_error
   IMPLICIT NONE
-  CHARACTER*(*), intent(in):: str
+
+  CHARACTER*(*), intent(in   ) :: str
+
   write(6,*) TRIM(str)
   print*, TRIM(str)
 !TBH:  Calls to logwrite cut off str in ESMF 2.2.0.
@@ -2547,7 +2580,9 @@ SUBROUTINE wrf_message2( str )
 !$$$ end documentation block
   USE module_wrf_error
   IMPLICIT NONE
-  CHARACTER*(*), intent(in):: str
+
+  CHARACTER*(*), intent(in   ) :: str
+
   write(6,*) str
 !TBH:  Calls to logwrite cut off str in ESMF 2.2.0.
 !TBH:  Restore this call once this ESMF bug is fixed.
@@ -2582,17 +2617,19 @@ SUBROUTINE wrf_error_fatal3( file_str, line, str )
 !$$$ end documentation block
   USE module_wrf_error
   use kinds, only: i_kind
+  use constants, only: izero
   IMPLICIT NONE
-  CHARACTER*(*),intent(in)      :: file_str
-  INTEGER(i_kind) , INTENT (IN) :: line  ! only print file and line if line > 0
-  CHARACTER*(*),intent(in)      :: str
+
+  CHARACTER*(*)   , intent (in   ) :: file_str
+  INTEGER(i_kind) , INTENT (IN   ) :: line  ! only print file and line if line > 0
+  CHARACTER*(*)   , intent (in   ) :: str
   CHARACTER*256 :: line_str
 
   write(line_str,'(i6)') line
   CALL wrf_message( '-------------- FATAL CALLED ---------------' )
   ! only print file and line if line is positive
-  IF ( line > 0 ) THEN
-    CALL wrf_message( 'FATAL CALLED FROM FILE:  '//file_str//'  LINE:  '//TRIM(line_str) )
+  IF ( line > izero ) THEN
+     CALL wrf_message( 'FATAL CALLED FROM FILE:  '//file_str//'  LINE:  '//TRIM(line_str) )
   ENDIF
   CALL wrf_message( str )
   CALL wrf_message( '-------------------------------------------' )
@@ -2621,9 +2658,12 @@ SUBROUTINE wrf_error_fatal( str )
 !
 !$$$ end documentation block
   USE module_wrf_error
+  use constants, only: izero
   IMPLICIT NONE
-  CHARACTER*(*),intent(in):: str
-  CALL wrf_error_fatal3 ( ' ', 0, str )
+
+  CHARACTER*(*),intent(in   ) :: str
+
+  CALL wrf_error_fatal3 ( ' ', izero, str )
 END SUBROUTINE wrf_error_fatal
 
 SUBROUTINE wrf_check_error( expected, actual, str, file_str, line )
@@ -2654,17 +2694,18 @@ SUBROUTINE wrf_check_error( expected, actual, str, file_str, line )
   USE module_wrf_error
   use kinds, only: i_kind
   IMPLICIT NONE
-  INTEGER(i_kind) , INTENT (IN) :: expected
-  INTEGER(i_kind) , INTENT (IN) :: actual
-  CHARACTER*(*) ,intent(in)     :: str
-  CHARACTER*(*) ,intent(in)     :: file_str
-  INTEGER(i_kind) , INTENT (IN) :: line
+
+  INTEGER(i_kind) , INTENT (IN   ) :: expected
+  INTEGER(i_kind) , INTENT (IN   ) :: actual
+  CHARACTER*(*)   , intent (in   ) :: str
+  CHARACTER*(*)   , intent (in   ) :: file_str
+  INTEGER(i_kind) , INTENT (IN   ) :: line
   CHARACTER (LEN=512)   :: rc_str
   CHARACTER (LEN=512)   :: str_with_rc
 
-  IF ( expected .ne. actual ) THEN
-    WRITE (rc_str,*) '  Routine returned error code = ',actual
-    str_with_rc = TRIM(str // rc_str)
-    CALL wrf_error_fatal3 ( file_str, line, str_with_rc )
+  IF ( expected /= actual ) THEN
+     WRITE (rc_str,*) '  Routine returned error code = ',actual
+     str_with_rc = TRIM(str // rc_str)
+     CALL wrf_error_fatal3 ( file_str, line, str_with_rc )
   ENDIF
 END SUBROUTINE wrf_check_error

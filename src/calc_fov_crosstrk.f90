@@ -763,9 +763,9 @@
  implicit none
 
 ! Declare passed variables.
- character(len=*), intent(in)       :: satid
- integer(i_kind), intent(in)        :: instr
- real(r_kind), intent(in)           :: expansion
+ character(len=*), intent(in   ) :: satid
+ integer(i_kind) , intent(in   ) :: instr
+ real(r_kind)    , intent(in   ) :: expansion
 
 ! Declare local variables.
  integer(i_kind)                    :: i, ifov
@@ -983,13 +983,13 @@
  implicit none
 
 ! Declare passed variables
- integer(i_kind), intent(in):: ifov
- integer(i_kind), intent(in):: instr
- real(r_kind), intent(in):: satellite_azimuth
- real(r_kind), intent(in):: lat
- real(r_kind), intent(in):: lon
- real(r_kind), intent(out):: elats(npoly)
- real(r_kind), intent(out):: elons(npoly)
+ integer(i_kind), intent(in   ) :: ifov
+ integer(i_kind), intent(in   ) :: instr
+ real(r_kind)   , intent(in   ) :: satellite_azimuth
+ real(r_kind)   , intent(in   ) :: lat
+ real(r_kind)   , intent(in   ) :: lon
+ real(r_kind)   , intent(  out) :: elats(npoly)
+ real(r_kind)   , intent(  out) :: elons(npoly)
 
 ! Declare local variables
  integer(i_kind):: i ! loop counters
@@ -1097,10 +1097,10 @@
  implicit none
 
 ! Declare passed variables
- integer(i_kind), intent(in):: fov, instr
- real(r_kind), intent(in) :: height
- real(r_kind), intent(out):: alongtrackangle, crosstrackangle
- real(r_kind), intent(out):: alongtrackfovsize, crosstrackfovsize
+ integer(i_kind), intent(in   ) :: fov, instr
+ real(r_kind)   , intent(in   ) :: height
+ real(r_kind)   , intent(  out) :: alongtrackangle, crosstrackangle
+ real(r_kind)   , intent(  out) :: alongtrackfovsize, crosstrackfovsize
 
 ! Declare local parameters
  real(r_kind), parameter:: radius = 6371.22_r_kind
@@ -1208,8 +1208,8 @@
  implicit none
 
 ! Declare passed variables
- character(len=*), intent(in)    :: satid
- real(r_kind), intent(out)       :: height
+ character(len=*), intent(in   ) :: satid
+ real(r_kind)    , intent(  out) :: height
 
  select case (trim(satid))
     case('tirosn')
@@ -1313,16 +1313,16 @@
  implicit none
 
 ! Declare passed variables.
- integer(i_kind),intent(in)      :: instr    
- integer(i_kind),intent(in)      :: ifov      
- integer(i_kind),intent(in)      :: ichan      
- real(r_kind),intent(in)         :: lat       
- real(r_kind),intent(in)         :: lon        
- real(r_kind),intent(in)         :: testlat    
- real(r_kind),intent(in)         :: testlon    
- real(r_kind),intent(in)         :: expansion  
- real(r_kind),intent(in)         :: satellite_azimuth
- real(r_kind),intent(out)        :: inside 
+ integer(i_kind),intent(in   ) :: instr    
+ integer(i_kind),intent(in   ) :: ifov      
+ integer(i_kind),intent(in   ) :: ichan      
+ real(r_kind)   ,intent(in   ) :: lat       
+ real(r_kind)   ,intent(in   ) :: lon        
+ real(r_kind)   ,intent(in   ) :: testlat    
+ real(r_kind)   ,intent(in   ) :: testlon    
+ real(r_kind)   ,intent(in   ) :: expansion  
+ real(r_kind)   ,intent(in   ) :: satellite_azimuth
+ real(r_kind)   ,intent(  out) :: inside 
 
 ! Declare local parameters.
  real(r_kind), parameter  :: r1 = one ! equatorial radius. work in angular distance, not km (otherwise r1=6371)
@@ -1474,9 +1474,9 @@
  implicit none
 
 ! Declare passed variables
- integer(i_kind), intent(in)     :: fov
- integer(i_kind), intent(in)     :: instr
- logical, intent(out)            :: valid
+ integer(i_kind), intent(in   ) :: fov
+ integer(i_kind), intent(in   ) :: instr
+ logical        , intent(  out) :: valid
 
  integer(i_kind):: ifov
 

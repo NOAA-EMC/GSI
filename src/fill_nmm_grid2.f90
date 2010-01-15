@@ -66,8 +66,9 @@ subroutine fill_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
   
   implicit none
   
-  integer(i_kind) nx,ny,igtype,iorder
-  real(r_single) gin(nx,ny),gout(itotsub)
+  integer(i_kind),intent(in   ) :: nx,ny,igtype,iorder
+  real(r_single) ,intent(in   ) :: gin(nx,ny)
+  real(r_single) ,intent(  out) :: gout(itotsub)
   
   real(r_single) b(2*nx-ione,ny)
   integer(i_kind) i,im,ip,j,jm,jp
@@ -125,7 +126,7 @@ subroutine fill_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
   
 ! Left and right rows:
   do j=1,ny
-     jp=j+ione ; if(jp>ny) jp=j-ione
+     jp=j+ione ; if(jp>ny)   jp=j-ione
      jm=j-ione ; if(jm<ione) jm=j+ione
      do i=1,2*nx-ione,2*nx-2_i_kind
         if(b(i,j)>test) b(i,j)=half*(b(i,jm)+b(i,jp))
@@ -140,7 +141,7 @@ subroutine fill_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
      do i=1,2*nx-ione
         if(b(i,j)>test) then
            ip=i+ione ; if(ip>2*nx-ione) ip=i-ione
-           im=i-ione ; if(im<ione) im=i+ione
+           im=i-ione ; if(im<ione)      im=i+ione
            b(i,j)=quarter*(b(ip,j)+b(im,j)+b(i,jp)+b(i,jm))
         end if
      end do

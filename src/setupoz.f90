@@ -82,7 +82,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
   use kinds, only: r_kind,r_single,i_kind
 
-  use constants, only : zero,izero,half,one,two,tiny_r_kind
+  use constants, only : izero,ione,zero,half,one,two,tiny_r_kind
   use constants, only : rozcon,cg_term,wgtlim,h300
 
   use obsmod, only : ozhead,oztail,i_oz_ob_type,dplat,nobskeep
@@ -104,26 +104,26 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   
 ! !INPUT PARAMETERS:
 
-  integer(i_kind), intent(in) :: lunin  ! unit from which to read observations
-  integer(i_kind), intent(in) :: mype   ! mpi task id
-  integer(i_kind), intent(in) :: nlevs  ! number of levels (layer amounts + total column) per obs   
-  integer(i_kind), intent(in) :: nreal  ! number of pieces of non-ozone info (location, time, etc) per obs
-  integer(i_kind), intent(in) :: nobs   ! number of observations
-  character(20), intent(in) :: isis     ! sensor/instrument/satellite id
-  integer(i_kind), intent(in) :: is     ! integer(i_kind) counter for number of obs types to process
+  integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
+  integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
+  integer(i_kind)                  , intent(in   ) :: nlevs  ! number of levels (layer amounts + total column) per obs   
+  integer(i_kind)                  , intent(in   ) :: nreal  ! number of pieces of non-ozone info (location, time, etc) per obs
+  integer(i_kind)                  , intent(in   ) :: nobs   ! number of observations
+  character(20)                    , intent(in   ) :: isis   ! sensor/instrument/satellite id
+  integer(i_kind)                  , intent(in   ) :: is     ! integer(i_kind) counter for number of obs types to process
 
-  character(10), intent(in)        :: obstype          ! type of ozone obs
-  logical, intent(in) :: ozone_diagsave                ! switch on diagnostic output (.false.=no output)
+  character(10)                    , intent(in   ) :: obstype          ! type of ozone obs
+  logical                          , intent(in   ) :: ozone_diagsave   ! switch on diagnostic output (.false.=no output)
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-  real(r_kind),dimension(9,jpch_oz),intent(inout):: stats_oz ! sums for various statistics as 
-                                                             ! a function of level
+  real(r_kind),dimension(9,jpch_oz), intent(inout) :: stats_oz ! sums for various statistics as 
+                                                               ! a function of level
 !-------------------------------------------------------------------------
 
 ! Declare local parameters  
-  integer(i_kind),parameter:: iint=1
-  integer(i_kind),parameter:: ireal=3
+  integer(i_kind),parameter:: iint=ione
+  integer(i_kind),parameter:: ireal=3_i_kind
   real(r_kind),parameter:: r10=10.0_r_kind
 
 ! Declare local variables  
@@ -133,10 +133,10 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind) psi,errorinv
   real(r_kind),dimension(nlevs):: ozges,varinv3,ozone_inv
   real(r_kind),dimension(nlevs):: ratio_errors,error
-  real(r_kind),dimension(nlevs-1):: ozp
+  real(r_kind),dimension(nlevs-ione):: ozp
   real(r_kind),dimension(nlevs):: pobs,gross,tnoise
   real(r_kind),dimension(nreal+nlevs,nobs):: data
-  real(r_kind),dimension(nsig+1)::prsitmp
+  real(r_kind),dimension(nsig+ione)::prsitmp
   real(r_single),dimension(nlevs):: pob4,grs4,err4
   real(r_single),dimension(ireal,nobs):: diagbuf
   real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
@@ -159,82 +159,82 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   logical,dimension(nobs):: luse
   logical:: l_may_be_passive
 
-  mm1=mype+1
+  mm1=mype+ione
 
 
 !
 !*********************************************************************************
 ! Initialize arrays
   do j=1,nlevs
-     ipos(j)=0
-     iouse(j)=-2
-     tnoise(j)=1.e10
-     gross(j)=1.e10
-     pobs(j)=1.e10
+     ipos(j)=izero
+     iouse(j)=-2_i_kind
+     tnoise(j)=1.e10_r_kind
+     gross(j)=1.e10_r_kind
+     pobs(j)=1.e10_r_kind
   end do
 
   if(ozone_diagsave)then
-    irdim1=3
-    if(lobsdiagsave) irdim1=irdim1+4*miter+1
-    allocate(rdiagbuf(irdim1,nlevs,nobs))
+     irdim1=3_i_kind
+     if(lobsdiagsave) irdim1=irdim1+4*miter+ione
+     allocate(rdiagbuf(irdim1,nlevs,nobs))
   end if
 
 ! Locate data for satellite in ozinfo arrays
-  itoss =1
+  itoss =ione
   l_may_be_passive=.false.
-  jc=0
+  jc=izero
   do j=1,jpch_oz
-    if (isis == nusis_oz(j)) then
-       jc=jc+1
-       if (jc > nlevs) then
-          write(6,*)'SETUPOZ:  ***ERROR*** in level numbers, jc,nlevs=',jc,nlevs,&
-               ' ***STOP IN SETUPOZ***'
-          call stop2(71)
-       endif
-       ipos(jc)=j
+     if (isis == nusis_oz(j)) then
+        jc=jc+ione
+        if (jc > nlevs) then
+           write(6,*)'SETUPOZ:  ***ERROR*** in level numbers, jc,nlevs=',jc,nlevs,&
+                ' ***STOP IN SETUPOZ***'
+           call stop2(71)
+        endif
+        ipos(jc)=j
 
-       iouse(jc)=iuse_oz(j)
-       tnoise(jc)=error_oz(j)
-       gross(jc)=min(r10*gross_oz(j),h300)
-       if (obstype == 'sbuv2' ) then
-         pobs(jc)=pob_oz(j) * 1.01325_r_kind
-       else
-	 pobs(jc)=pob_oz(j)
-       endif
+        iouse(jc)=iuse_oz(j)
+        tnoise(jc)=error_oz(j)
+        gross(jc)=min(r10*gross_oz(j),h300)
+        if (obstype == 'sbuv2' ) then
+           pobs(jc)=pob_oz(j) * 1.01325_r_kind
+        else
+           pobs(jc)=pob_oz(j)
+        endif
 
-       if (iouse(jc)<-1 .or. (iouse(jc)==-1 .and. &
-            .not.ozone_diagsave)) then
-          tnoise(jc)=1.e10
-          gross(jc) =1.e10
-          pobs(jc)  = zero
-       endif
-       if (iouse(jc)>-1) l_may_be_passive=.true.
-       if (tnoise(jc)<1.e4) itoss=izero
-    endif
+        if (iouse(jc)<-ione .or. (iouse(jc)==-ione .and. &
+             .not.ozone_diagsave)) then
+           tnoise(jc)=1.e10_r_kind
+           gross(jc) =1.e10_r_kind
+           pobs(jc)  = zero
+        endif
+        if (iouse(jc)>-ione) l_may_be_passive=.true.
+        if (tnoise(jc)<1.e4_r_kind) itoss=izero
+     endif
   end do
   nlev=jc
 
 ! Handle error conditions
   if (nlevs>nlev) write(6,*)'SETUPOZ:  level number reduced for ',obstype,' ', &
        nlevs,' --> ',nlev
-  if (nlev == 0) then
-     if (mype==0) write(6,*)'SETUPOZ:  no levels found for ',isis
-     if (nobs>0) read(lunin) 
+  if (nlev == izero) then
+     if (mype==izero) write(6,*)'SETUPOZ:  no levels found for ',isis
+     if (nobs>izero) read(lunin) 
      goto 135
   endif
-  if (itoss==1) then
-     if (mype==0) write(6,*)'SETUPOZ:  all obs variances > 1.e4.  Do not use ',&
+  if (itoss==ione) then
+     if (mype==izero) write(6,*)'SETUPOZ:  all obs variances > 1.e4.  Do not use ',&
           'data from satellite ',isis
-     if (nobs>0) read(lunin)
+     if (nobs>izero) read(lunin)
      goto 135
   endif
 
 ! Initialize variables used in ozone processing
-  nkeep=0
+  nkeep=izero
   do i=1,nobs
-     ikeep=0
+     ikeep=izero
      do k=1,nlev
-        if (iouse(k)>0 .or. ozone_diagsave) ikeep=1
+        if (iouse(k)>izero .or. ozone_diagsave) ikeep=ione
      end do
      nkeep=nkeep+ikeep
   end do
@@ -244,25 +244,25 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
 ! If none of the data will be assimilated and don't need diagnostics,
 ! return to calling program
-  if (nkeep==0) return
+  if (nkeep==izero) return
 
 !    index information for data array (see reading routine)
 
-  isd=1        ! index of satellite
-  itime=2     ! index of analysis relative obs time
-  ilon=3      ! index of grid relative obs location (x)
-  ilat=4      ! index of grid relative obs location (y)
-  ilone=5     ! index of earth relative longitude (degrees)
-  ilate=6     ! index of earth relative latitude (degrees)
-  itoq=7      ! index of total ozone error flag (sbuv2 only)
-  ipoq=8      ! index of profile ozone error flag (sbuv2 only)
-  isolz=8     ! index of solar zenith angle   (gome and omi only)
-  isolaz=9    ! index of solar azimuth angle   (gome only)
-  icldmnt=10  ! index of CLOUD AMOUNT IN SEGMENT (gome and omi only)
-  isnoc=11    ! index of snow cover (gome only)
-  iacidx=12   ! AEROSOL CONTAMINATION INDEX (gome and omi only)
-  istko=13    ! index of ASCENDING/DESCENDING ORBIT QUALIFIER (gome and omi only)
-  ifovn=14    ! index of scan position (gome and omi only)
+  isd=ione           ! index of satellite
+  itime=2_i_kind     ! index of analysis relative obs time
+  ilon=3_i_kind      ! index of grid relative obs location (x)
+  ilat=4_i_kind      ! index of grid relative obs location (y)
+  ilone=5_i_kind     ! index of earth relative longitude (degrees)
+  ilate=6_i_kind     ! index of earth relative latitude (degrees)
+  itoq=7_i_kind      ! index of total ozone error flag (sbuv2 only)
+  ipoq=8_i_kind      ! index of profile ozone error flag (sbuv2 only)
+  isolz=8_i_kind     ! index of solar zenith angle   (gome and omi only)
+  isolaz=9_i_kind    ! index of solar azimuth angle   (gome only)
+  icldmnt=10_i_kind  ! index of CLOUD AMOUNT IN SEGMENT (gome and omi only)
+  isnoc=11_i_kind    ! index of snow cover (gome only)
+  iacidx=12_i_kind   ! AEROSOL CONTAMINATION INDEX (gome and omi only)
+  istko=13_i_kind    ! index of ASCENDING/DESCENDING ORBIT QUALIFIER (gome and omi only)
+  ifovn=14_i_kind    ! index of scan position (gome and omi only)
 
 
 ! If requested, save data for diagnostic ouput
@@ -276,7 +276,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      dtime=data(itime,i)
 
      if (obstype == 'sbuv2' ) then
-        if (nobskeep>0) then
+        if (nobskeep>izero) then
            write(6,*)'setupoz: nobskeep',nobskeep
            call stop2(259)
         end if
@@ -286,25 +286,25 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
 !       Note:  ozp as log(pobs)
         call intrp2a(ges_prsi(1,1,1,ntguessig),prsitmp,dlat,&
-          dlon,1,nsig+1,mype)
+          dlon,ione,nsig+ione,mype)
   
 !       Map observation pressure to guess vertical coordinate
         psi=one/(prsitmp(1)*r10)  ! factor of 10 converts to hPa
-        do nz=1,nlevs-1
+        do nz=1,nlevs-ione
            if ((pobs(nz)*psi) < one) then
               ozp(nz) = pobs(nz)/r10
            else
               ozp(nz) = prsitmp(1)
            end if
-           call grdcrd(ozp(nz),1,prsitmp,nsig+1,-1)
+           call grdcrd(ozp(nz),ione,prsitmp,nsig+ione,-ione)
         enddo
      end if
 
      call intrp3oz(ges_oz,ozges,dlat,dlon,ozp,dtime,&
-          1,nlevs,mype)
+          ione,nlevs,mype)
 
      if(ozone_diagsave)then
-        ii=ii+1
+        ii=ii+ione
         idiagbuf(1,ii)=mype                  ! mpi task number
         diagbuf(1,ii) = data(ilate,i)        ! lat (degree)
         diagbuf(2,ii) = data(ilone,i)        ! lon (degree)
@@ -326,7 +326,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         error(k)     = tnoise(k)
 
 !       Set inverse obs error squared and ratio_errors
-        if (error(k)<1.e4) then
+        if (error(k)<1.e4_r_kind) then
            varinv3(k) = one/(error(k)**2)
            ratio_errors(k) = one
         else
@@ -335,7 +335,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         endif
 
 !       Perform gross check
-        if(abs(ozone_inv(k)) > gross(k) .or. ozobs > 1000. .or. &
+        if(abs(ozone_inv(k)) > gross(k) .or. ozobs > 1000._r_kind .or. &
              ozges(k)<tiny_r_kind) then
            varinv3(k)=zero
            ratio_errors(k)=zero
@@ -346,41 +346,41 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !       Accumulate numbers for statistics
         rat_err2 = ratio_errors(k)**2
         if (varinv3(k)>tiny_r_kind .or. &
-             (iouse(k)==-1 .and. ozone_diagsave)) then
-          if(luse(i))then
-           omg=ozone_inv(k)
-           stats_oz(1,j) = stats_oz(1,j) + one                          ! # obs
-           stats_oz(3,j) = stats_oz(3,j) + omg                          ! (o-g)
-           stats_oz(4,j) = stats_oz(4,j) + omg*omg                      ! (o-g)**2
-           stats_oz(5,j) = stats_oz(5,j) + omg*omg*varinv3(k)*rat_err2  ! penalty
-           stats_oz(6,j) = stats_oz(6,j) + ozobs                        ! obs
-
-           exp_arg = -half*varinv3(k)*omg**2
-           errorinv = sqrt(varinv3(k))
-           if (pg_oz(j) > tiny_r_kind .and. errorinv > tiny_r_kind) then
-              arg  = exp(exp_arg)
-              wnotgross= one-pg_oz(j)
-              cg_oz=b_oz(j)*errorinv
-              wgross = cg_term*pg_oz(j)/(cg_oz*wnotgross)
-              term = log((arg+wgross)/(one+wgross))
-              wgt  = one-wgross/(arg+wgross)
-           else
-              term = exp_arg
-              wgt  = one
-           endif
-           stats_oz(8,j) = stats_oz(8,j) -two*rat_err2*term
-           if(wgt < wgtlim) stats_oz(9,j)=stats_oz(9,j)+one
-          end if
+             (iouse(k)==-ione .and. ozone_diagsave)) then
+           if(luse(i))then
+              omg=ozone_inv(k)
+              stats_oz(1,j) = stats_oz(1,j) + one                          ! # obs
+              stats_oz(3,j) = stats_oz(3,j) + omg                          ! (o-g)
+              stats_oz(4,j) = stats_oz(4,j) + omg*omg                      ! (o-g)**2
+              stats_oz(5,j) = stats_oz(5,j) + omg*omg*varinv3(k)*rat_err2  ! penalty
+              stats_oz(6,j) = stats_oz(6,j) + ozobs                        ! obs
+ 
+              exp_arg = -half*varinv3(k)*omg**2
+              errorinv = sqrt(varinv3(k))
+              if (pg_oz(j) > tiny_r_kind .and. errorinv > tiny_r_kind) then
+                 arg  = exp(exp_arg)
+                 wnotgross= one-pg_oz(j)
+                 cg_oz=b_oz(j)*errorinv
+                 wgross = cg_term*pg_oz(j)/(cg_oz*wnotgross)
+                 term = log((arg+wgross)/(one+wgross))
+                 wgt  = one-wgross/(arg+wgross)
+              else
+                 term = exp_arg
+                 wgt  = one
+              endif
+              stats_oz(8,j) = stats_oz(8,j) -two*rat_err2*term
+              if(wgt < wgtlim) stats_oz(9,j)=stats_oz(9,j)+one
+           end if
         endif
 
 !       If not assimilating this observation, reset inverse variance to zero
-        if (iouse(k)<1) then
-            varinv3(k)=zero
-            ratio_errors(k)=zero
-            rat_err2 = zero
+        if (iouse(k)<ione) then
+           varinv3(k)=zero
+           ratio_errors(k)=zero
+           rat_err2 = zero
         end if
         if (rat_err2*varinv3(k)>tiny_r_kind .and. luse(i)) &
-             stats_oz(7,j) = stats_oz(7,j) + one
+           stats_oz(7,j) = stats_oz(7,j) + one
 
 !       Optionally save data for diagnostics
         if (ozone_diagsave) then
@@ -392,161 +392,161 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      end do
 !    Check all information for obs.  If there is at least one piece of
 !    information that passed quality control, use this observation.
-     ikeep=0
+     ikeep=izero
      do k=1,nlevs
-        if ((ratio_errors(k)**2)*varinv3(k)>1.e-10) ikeep=1
+        if ((ratio_errors(k)**2)*varinv3(k)>1.e-10_r_kind) ikeep=ione
      end do
 
 !    In principle, we want ALL obs in the diagnostics structure but for
 !    passive obs (monitoring), it is difficult to do if rad_diagsave
 !    is not on in the first outer loop. For now we use l_may_be_passive...
      if (l_may_be_passive) then
-!      Link observation to appropriate observation bin
-       if (nobs_bins>1) then
-         ibin = NINT( dtime/hr_obsbin ) + 1
-       else
-         ibin = 1
-       endif
-       IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+!       Link observation to appropriate observation bin
+        if (nobs_bins>ione) then
+           ibin = NINT( dtime/hr_obsbin ) + ione
+        else
+           ibin = ione
+        endif
+        IF (ibin<ione.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-!      Process obs have at least one piece of information that passed qc checks
-       if (.not. last .and. ikeep==1) then
+!       Process obs have at least one piece of information that passed qc checks
+        if (.not. last .and. ikeep==ione) then
 
-          if(.not. associated(ozhead(ibin)%head))then
+           if(.not. associated(ozhead(ibin)%head))then
               allocate(ozhead(ibin)%head,stat=istat)
-              if(istat /= 0)write(6,*)' failure to write ozhead '
+              if(istat /= izero)write(6,*)' failure to write ozhead '
               oztail(ibin)%head => ozhead(ibin)%head
-          else
+           else
               allocate(oztail(ibin)%head%llpoint,stat=istat)
-              if(istat /= 0)write(6,*)' failure to write oztail%llpoint '
+              if(istat /= izero)write(6,*)' failure to write oztail%llpoint '
               oztail(ibin)%head => oztail(ibin)%head%llpoint
-          end if
-          nlevp=max(nlev-1,1)
-          allocate(oztail(ibin)%head%res(nlev),oztail(ibin)%head%diags(nlev),&
-                   oztail(ibin)%head%err2(nlev),oztail(ibin)%head%raterr2(nlev),&
-                   oztail(ibin)%head%prs(nlevp), &
-                   oztail(ibin)%head%wij(4,nsig), &
-                   oztail(ibin)%head%ipos(nlev),stat=istatus)
-          if (istatus/=0) write(6,*)'SETUPOZ:  allocate error for oz_point, istatus=',istatus
+           end if
+           nlevp=max(nlev-ione,ione)
+           allocate(oztail(ibin)%head%res(nlev),oztail(ibin)%head%diags(nlev),&
+                    oztail(ibin)%head%err2(nlev),oztail(ibin)%head%raterr2(nlev),&
+                    oztail(ibin)%head%prs(nlevp), &
+                    oztail(ibin)%head%wij(4,nsig), &
+                    oztail(ibin)%head%ipos(nlev),stat=istatus)
+           if (istatus/=izero) write(6,*)'SETUPOZ:  allocate error for oz_point, istatus=',istatus
 
-!         Set number of levels for this obs
-          oztail(ibin)%head%nloz = nlev-1  ! NOTE: for OMI/GOME, nloz=0
+!          Set number of levels for this obs
+           oztail(ibin)%head%nloz = nlev-ione  ! NOTE: for OMI/GOME, nloz=0
 
-!         Set (i,j) indices of guess gridpoint that bound obs location
-          call get_ij(mm1,dlat,dlon,oztail(ibin)%head%ij(1),tempwij(1))
+!          Set (i,j) indices of guess gridpoint that bound obs location
+           call get_ij(mm1,dlat,dlon,oztail(ibin)%head%ij(1),tempwij(1))
 
-          call tintrp2a(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
-               1,nsig+1,mype,nfldsig)
+           call tintrp2a(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
+                ione,nsig+ione,mype,nfldsig)
 
-          do k = 1,nsig
-            oztail(ibin)%head%wij(1,k)=tempwij(1)*rozcon*(prsitmp(k)-prsitmp(k+1))
-            oztail(ibin)%head%wij(2,k)=tempwij(2)*rozcon*(prsitmp(k)-prsitmp(k+1))
-            oztail(ibin)%head%wij(3,k)=tempwij(3)*rozcon*(prsitmp(k)-prsitmp(k+1))
-            oztail(ibin)%head%wij(4,k)=tempwij(4)*rozcon*(prsitmp(k)-prsitmp(k+1))
-          end do
+           do k = 1,nsig
+              oztail(ibin)%head%wij(1,k)=tempwij(1)*rozcon*(prsitmp(k)-prsitmp(k+1))
+              oztail(ibin)%head%wij(2,k)=tempwij(2)*rozcon*(prsitmp(k)-prsitmp(k+1))
+              oztail(ibin)%head%wij(3,k)=tempwij(3)*rozcon*(prsitmp(k)-prsitmp(k+1))
+              oztail(ibin)%head%wij(4,k)=tempwij(4)*rozcon*(prsitmp(k)-prsitmp(k+1))
+           end do
 
-!         Increment data counter and save information used in
-!         inner loop minimization (int* and stp* routines)
+!          Increment data counter and save information used in
+!          inner loop minimization (int* and stp* routines)
 
-          oztail(ibin)%head%luse=luse(i)
-          oztail(ibin)%head%time=dtime
+           oztail(ibin)%head%luse=luse(i)
+           oztail(ibin)%head%time=dtime
 
-          if (obstype == 'sbuv2' ) then
-            do k=1,nlevs-1
-               oztail(ibin)%head%prs(k) = ozp(k)
-            enddo
-          else
-             oztail(ibin)%head%prs(1) = zero   ! any value is OK, never used
-          endif
+           if (obstype == 'sbuv2' ) then
+              do k=1,nlevs-ione
+                 oztail(ibin)%head%prs(k) = ozp(k)
+              enddo
+           else
+              oztail(ibin)%head%prs(1) = zero   ! any value is OK, never used
+           endif
 
-       endif ! < .not.last >
+        endif ! < .not.last >
 
-!      Link obs to diagnostics structure
-       do k=1,nlevs
-          if (.not.lobsdiag_allocated) then
-            if (.not.associated(obsdiags(i_oz_ob_type,ibin)%head)) then
-              allocate(obsdiags(i_oz_ob_type,ibin)%head,stat=istat)
-              if (istat/=0) then
-                write(6,*)'setupoz: failure to allocate obsdiags',istat
-                call stop2(260)
+!       Link obs to diagnostics structure
+        do k=1,nlevs
+           if (.not.lobsdiag_allocated) then
+              if (.not.associated(obsdiags(i_oz_ob_type,ibin)%head)) then
+                 allocate(obsdiags(i_oz_ob_type,ibin)%head,stat=istat)
+                 if (istat/=izero) then
+                    write(6,*)'setupoz: failure to allocate obsdiags',istat
+                    call stop2(260)
+                 end if
+                 obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%head
+              else
+                 allocate(obsdiags(i_oz_ob_type,ibin)%tail%next,stat=istat)
+                 if (istat/=izero) then
+                    write(6,*)'setupoz: failure to allocate obsdiags',istat
+                    call stop2(261)
+                 end if
+                 obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%tail%next
               end if
-              obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%head
-            else
-              allocate(obsdiags(i_oz_ob_type,ibin)%tail%next,stat=istat)
-              if (istat/=0) then
-                write(6,*)'setupoz: failure to allocate obsdiags',istat
-                call stop2(261)
+              allocate(obsdiags(i_oz_ob_type,ibin)%tail%muse(miter+ione))
+              allocate(obsdiags(i_oz_ob_type,ibin)%tail%nldepart(miter+ione))
+              allocate(obsdiags(i_oz_ob_type,ibin)%tail%tldepart(miter))
+              allocate(obsdiags(i_oz_ob_type,ibin)%tail%obssen(miter))
+              obsdiags(i_oz_ob_type,ibin)%tail%indxglb=i
+              obsdiags(i_oz_ob_type,ibin)%tail%nchnperobs=-99999_i_kind
+              obsdiags(i_oz_ob_type,ibin)%tail%luse=.false.
+              obsdiags(i_oz_ob_type,ibin)%tail%muse(:)=.false.
+              obsdiags(i_oz_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+              obsdiags(i_oz_ob_type,ibin)%tail%tldepart(:)=zero
+              obsdiags(i_oz_ob_type,ibin)%tail%wgtjo=-huge(zero)
+              obsdiags(i_oz_ob_type,ibin)%tail%obssen(:)=zero
+           else
+              if (.not.associated(obsdiags(i_oz_ob_type,ibin)%tail)) then
+                 obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%head
+              else
+                 obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%tail%next
               end if
-              obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%tail%next
-            end if
-            allocate(obsdiags(i_oz_ob_type,ibin)%tail%muse(miter+1))
-            allocate(obsdiags(i_oz_ob_type,ibin)%tail%nldepart(miter+1))
-            allocate(obsdiags(i_oz_ob_type,ibin)%tail%tldepart(miter))
-            allocate(obsdiags(i_oz_ob_type,ibin)%tail%obssen(miter))
-            obsdiags(i_oz_ob_type,ibin)%tail%indxglb=i
-            obsdiags(i_oz_ob_type,ibin)%tail%nchnperobs=-99999
-            obsdiags(i_oz_ob_type,ibin)%tail%luse=.false.
-            obsdiags(i_oz_ob_type,ibin)%tail%muse(:)=.false.
-            obsdiags(i_oz_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-            obsdiags(i_oz_ob_type,ibin)%tail%tldepart(:)=zero
-            obsdiags(i_oz_ob_type,ibin)%tail%wgtjo=-huge(zero)
-            obsdiags(i_oz_ob_type,ibin)%tail%obssen(:)=zero
-          else
-            if (.not.associated(obsdiags(i_oz_ob_type,ibin)%tail)) then
-              obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%head
-            else
-              obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%tail%next
-            end if
-            if (obsdiags(i_oz_ob_type,ibin)%tail%indxglb/=i) then
-              write(6,*)'setupoz: index error'
-              call stop2(262)
-            end if
-          endif
-          obsdiags(i_oz_ob_type,ibin)%tail%luse=luse(i)
-          obsdiags(i_oz_ob_type,ibin)%tail%muse(jiter)= (ikeep==1)
-          obsdiags(i_oz_ob_type,ibin)%tail%nldepart(jiter)=ozone_inv(k)
-          obsdiags(i_oz_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
-
-          if (.not. last .and. ikeep==1) then
+              if (obsdiags(i_oz_ob_type,ibin)%tail%indxglb/=i) then
+                 write(6,*)'setupoz: index error'
+                 call stop2(262)
+              end if
+           endif
+           obsdiags(i_oz_ob_type,ibin)%tail%luse=luse(i)
+           obsdiags(i_oz_ob_type,ibin)%tail%muse(jiter)= (ikeep==ione)
+           obsdiags(i_oz_ob_type,ibin)%tail%nldepart(jiter)=ozone_inv(k)
+           obsdiags(i_oz_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
+ 
+           if (.not. last .and. ikeep==ione) then
               oztail(ibin)%head%ipos(k)    = ipos(k)
               oztail(ibin)%head%res(k)     = ozone_inv(k)
               oztail(ibin)%head%err2(k)    = varinv3(k)
               oztail(ibin)%head%raterr2(k) = ratio_errors(k)**2
               oztail(ibin)%head%diags(k)%ptr => obsdiags(i_oz_ob_type,ibin)%tail
-          endif
+           endif
 
-          if (ozone_diagsave.and.lobsdiagsave) then
-            idia=3
-            do jj=1,miter
-              idia=idia+1
-              if (obsdiags(i_oz_ob_type,ibin)%tail%muse(jj)) then
-                rdiagbuf(idia,k,ii) = one
-              else
-                rdiagbuf(idia,k,ii) = -one
-              endif
-            enddo
-            do jj=1,miter+1
-              idia=idia+1
-              rdiagbuf(idia,k,ii) = obsdiags(i_oz_ob_type,ibin)%tail%nldepart(jj)
-            enddo
-            do jj=1,miter
-              idia=idia+1
-              rdiagbuf(idia,k,ii) = obsdiags(i_oz_ob_type,ibin)%tail%tldepart(jj)
-            enddo
-            do jj=1,miter
-              idia=idia+1
-              rdiagbuf(idia,k,ii) = obsdiags(i_oz_ob_type,ibin)%tail%obssen(jj)
-            enddo
-          endif
+           if (ozone_diagsave.and.lobsdiagsave) then
+              idia=3_i_kind
+              do jj=1,miter
+                 idia=idia+ione
+                 if (obsdiags(i_oz_ob_type,ibin)%tail%muse(jj)) then
+                    rdiagbuf(idia,k,ii) = one
+                 else
+                    rdiagbuf(idia,k,ii) = -one
+                 endif
+              enddo
+              do jj=1,miter+ione
+                 idia=idia+ione
+                 rdiagbuf(idia,k,ii) = obsdiags(i_oz_ob_type,ibin)%tail%nldepart(jj)
+              enddo
+              do jj=1,miter
+                 idia=idia+ione
+                 rdiagbuf(idia,k,ii) = obsdiags(i_oz_ob_type,ibin)%tail%tldepart(jj)
+              enddo
+              do jj=1,miter
+                 idia=idia+ione
+                 rdiagbuf(idia,k,ii) = obsdiags(i_oz_ob_type,ibin)%tail%obssen(jj)
+              enddo
+           endif
 
-       enddo ! < over nlevs >
+        enddo ! < over nlevs >
 
      else
 
-       if (ozone_diagsave.and.lobsdiagsave) then
+        if (ozone_diagsave.and.lobsdiagsave) then
            rdiagbuf(4:irdim1,1:nlevs,ii) = zero
-       endif
-
+        endif
+ 
      endif ! < l_may_be_passive >
 
   end do   ! end do i=1,nobs
@@ -559,7 +559,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      diag_ozone_file = trim(dirname) // trim(filex) // '_' // trim(dplat(is)) // (string)
      open(4,file=trim(diag_ozone_file),form='unformatted')     
      rewind(4)
-     iextra=0
+     iextra=izero
      if (mype==mype_diaghdr(is)) then
         write(4) isis,dplat(is),obstype,jiter,nlevs,ianldate,iint,ireal,iextra
         write(6,*)'SETUPOZ:   write header record for ',&

@@ -108,13 +108,13 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
   
 
 ! Declare passed variables
-  type(t_ob_type),pointer,intent(in):: thead
-  real(r_kind),dimension(latlon1n),intent(in):: st,stv,sq,su,sv
-  real(r_kind),dimension(latlon11),intent(in):: ssst
-  real(r_kind),dimension(latlon1n1),intent(in):: sp
-  real(r_kind),dimension(latlon1n),intent(inout):: rt,rtv,rq,ru,rv
-  real(r_kind),dimension(latlon11),intent(inout):: rsst
-  real(r_kind),dimension(latlon1n1),intent(inout):: rp
+  type(t_ob_type),pointer          ,intent(in   ) :: thead
+  real(r_kind),dimension(latlon1n) ,intent(in   ) :: st,stv,sq,su,sv
+  real(r_kind),dimension(latlon11) ,intent(in   ) :: ssst
+  real(r_kind),dimension(latlon1n1),intent(in   ) :: sp
+  real(r_kind),dimension(latlon1n) ,intent(inout) :: rt,rtv,rq,ru,rv
+  real(r_kind),dimension(latlon11) ,intent(inout) :: rsst
+  real(r_kind),dimension(latlon1n1),intent(inout) :: rp
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
@@ -153,222 +153,222 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
 
 !----------use surface model----------------------
 
-       if(tptr%tv_ob)then
-         ts_prime0=w1*stv(j1)+w2*stv(j2)+w3*stv(j3)+w4*stv(j4)
-       else
-         ts_prime0=w1*st(j1)+w2*st(j2)+w3*st(j3)+w4*st(j4)
-       end if 
-       tg_prime0=w1* ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
-       qs_prime0=w1*   sq(j1)+w2*  sq(j2)+w3*  sq(j3)+w4*  sq(j4)
-       us_prime0=w1*   su(j1)+w2*  su(j2)+w3*  su(j3)+w4*  su(j4)
-       vs_prime0=w1*   sv(j1)+w2*  sv(j2)+w3*  sv(j3)+w4*  sv(j4)
-       psfc_prime0=w1* sp(j1)+w2*  sp(j2)+w3*  sp(j3)+w4*  sp(j4)
-       if ( l_foto ) then
-         ts_prime0=ts_prime0+ &
-                  (w1*xhat_dt%tsen(j1)+w2*xhat_dt%tsen(j2)+ &
-                   w3*xhat_dt%tsen(j3)+w4*xhat_dt%tsen(j4))*time_t
-         qs_prime0=qs_prime0+ &
-                  (w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
-                   w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4))*time_t
-         us_prime0=us_prime0+&
-                  (w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-                   w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))*time_t
-         vs_prime0=vs_prime0+&
-                  (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-                   w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_t
-         psfc_prime0=psfc_prime0+ &
-                  (w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
-                   w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_t
-       endif
+        if(tptr%tv_ob)then
+           ts_prime0=w1*stv(j1)+w2*stv(j2)+w3*stv(j3)+w4*stv(j4)
+        else
+           ts_prime0=w1*st(j1)+w2*st(j2)+w3*st(j3)+w4*st(j4)
+        end if 
+        tg_prime0=w1* ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
+        qs_prime0=w1*   sq(j1)+w2*  sq(j2)+w3*  sq(j3)+w4*  sq(j4)
+        us_prime0=w1*   su(j1)+w2*  su(j2)+w3*  su(j3)+w4*  su(j4)
+        vs_prime0=w1*   sv(j1)+w2*  sv(j2)+w3*  sv(j3)+w4*  sv(j4)
+        psfc_prime0=w1* sp(j1)+w2*  sp(j2)+w3*  sp(j3)+w4*  sp(j4)
+        if ( l_foto ) then
+           ts_prime0=ts_prime0+ &
+                    (w1*xhat_dt%tsen(j1)+w2*xhat_dt%tsen(j2)+ &
+                     w3*xhat_dt%tsen(j3)+w4*xhat_dt%tsen(j4))*time_t
+           qs_prime0=qs_prime0+ &
+                    (w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
+                     w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4))*time_t
+           us_prime0=us_prime0+&
+                    (w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
+                     w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))*time_t
+           vs_prime0=vs_prime0+&
+                    (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
+                     w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_t
+           psfc_prime0=psfc_prime0+ &
+                    (w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
+                     w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_t
+        endif
 
-       val=psfc_prime0*tptr%tlm_tsfc(1) + tg_prime0*tptr%tlm_tsfc(2) + &
-           ts_prime0  *tptr%tlm_tsfc(3) + qs_prime0*tptr%tlm_tsfc(4) + &
-           us_prime0  *tptr%tlm_tsfc(5) + vs_prime0*tptr%tlm_tsfc(6)
-
+        val=psfc_prime0*tptr%tlm_tsfc(1) + tg_prime0*tptr%tlm_tsfc(2) + &
+            ts_prime0  *tptr%tlm_tsfc(3) + qs_prime0*tptr%tlm_tsfc(4) + &
+            us_prime0  *tptr%tlm_tsfc(5) + vs_prime0*tptr%tlm_tsfc(6)
+ 
      else
 
-!    Forward model (for interpolation)
-       if(tptr%tv_ob)then
-         val=w1*stv(j1)+w2*stv(j2)+w3*stv(j3)+w4*stv(j4)&
-            +w5*stv(j5)+w6*stv(j6)+w7*stv(j7)+w8*stv(j8)
-         if ( l_foto ) then
-           val=val&
-           +(w1*xhat_dt%t(j1)+w2*xhat_dt%t(j2)+ &
-             w3*xhat_dt%t(j3)+w4*xhat_dt%t(j4)+ &
-             w5*xhat_dt%t(j5)+w6*xhat_dt%t(j6)+ &
-             w7*xhat_dt%t(j7)+w8*xhat_dt%t(j8))*time_t
-         endif
-       else
-         val=w1*    st(j1)+w2*    st(j2)+w3*    st(j3)+w4*    st(j4)&
-            +w5*    st(j5)+w6*    st(j6)+w7*    st(j7)+w8*    st(j8)
-         if ( l_foto ) then
-           val=val&
-           +(w1*xhat_dt%tsen(j1)+w2*xhat_dt%tsen(j2)+ &
-             w3*xhat_dt%tsen(j3)+w4*xhat_dt%tsen(j4)+ &
-             w5*xhat_dt%tsen(j5)+w6*xhat_dt%tsen(j6)+ &
-             w7*xhat_dt%tsen(j7)+w8*xhat_dt%tsen(j8))*time_t
-         endif
-       end if
+!       Forward model (for interpolation)
+        if(tptr%tv_ob)then
+           val=w1*stv(j1)+w2*stv(j2)+w3*stv(j3)+w4*stv(j4)&
+              +w5*stv(j5)+w6*stv(j6)+w7*stv(j7)+w8*stv(j8)
+           if ( l_foto ) then
+              val=val&
+              +(w1*xhat_dt%t(j1)+w2*xhat_dt%t(j2)+ &
+                w3*xhat_dt%t(j3)+w4*xhat_dt%t(j4)+ &
+                w5*xhat_dt%t(j5)+w6*xhat_dt%t(j6)+ &
+                w7*xhat_dt%t(j7)+w8*xhat_dt%t(j8))*time_t
+           endif
+        else
+           val=w1*    st(j1)+w2*    st(j2)+w3*    st(j3)+w4*    st(j4)&
+              +w5*    st(j5)+w6*    st(j6)+w7*    st(j7)+w8*    st(j8)
+           if ( l_foto ) then
+              val=val&
+              +(w1*xhat_dt%tsen(j1)+w2*xhat_dt%tsen(j2)+ &
+                w3*xhat_dt%tsen(j3)+w4*xhat_dt%tsen(j4)+ &
+                w5*xhat_dt%tsen(j5)+w6*xhat_dt%tsen(j6)+ &
+                w7*xhat_dt%tsen(j7)+w8*xhat_dt%tsen(j8))*time_t
+           endif
+        end if
 
      end if
 
      if (lsaveobsens) then
-       tptr%diags%obssen(jiter) = val*tptr%raterr2*tptr%err2
+        tptr%diags%obssen(jiter) = val*tptr%raterr2*tptr%err2
      else
-       if (tptr%luse) tptr%diags%tldepart(jiter)=val
+        if (tptr%luse) tptr%diags%tldepart(jiter)=val
      endif
 
 !    Do adjoint
      if (l_do_adjoint) then
-       if (lsaveobsens) then
-         grad=tptr%diags%obssen(jiter)
+        if (lsaveobsens) then
+           grad=tptr%diags%obssen(jiter)
 
-       else
-         val=val-tptr%res
+        else
+           val=val-tptr%res
+ 
+!          gradient of nonlinear operator
 
-!        gradient of nonlinear operator
-
-         if (nlnqc_iter .and. tptr%pg > tiny_r_kind .and.  &
-                              tptr%b  > tiny_r_kind) then
-            t_pg=tptr%pg*varqc_iter
-            cg_t=cg_term/tptr%b
-            wnotgross= one-t_pg
-            wgross =t_pg*cg_t/wnotgross
-            p0=wgross/(wgross+exp(-half*tptr%err2*val**2))
-            val=val*(one-p0)                  
-         endif
-
-         grad = val*tptr%raterr2*tptr%err2
-       endif
-
-!      Adjoint of interpolation
-       if(tptr%use_sfc_model) then
-
-!        Surface model
-
-         psfc_grad=tptr%tlm_tsfc(1)*grad
-         rp(j1)=rp(j1)+w1*psfc_grad
-         rp(j2)=rp(j2)+w2*psfc_grad
-         rp(j3)=rp(j3)+w3*psfc_grad
-         rp(j4)=rp(j4)+w4*psfc_grad
-         vs_grad  =tptr%tlm_tsfc(6)*grad
-         rv(j1)=rv(j1)+w1*vs_grad
-         rv(j2)=rv(j2)+w2*vs_grad
-         rv(j3)=rv(j3)+w3*vs_grad
-         rv(j4)=rv(j4)+w4*vs_grad
-         us_grad  =tptr%tlm_tsfc(5)*grad
-         ru(j1)=ru(j1)+w1*us_grad
-         ru(j2)=ru(j2)+w2*us_grad
-         ru(j3)=ru(j3)+w3*us_grad
-         ru(j4)=ru(j4)+w4*us_grad
-         qs_grad  =tptr%tlm_tsfc(4)*grad
-         rq(j1)=rq(j1)+w1*qs_grad
-         rq(j2)=rq(j2)+w2*qs_grad
-         rq(j3)=rq(j3)+w3*qs_grad
-         rq(j4)=rq(j4)+w4*qs_grad
-         tg_grad  =tptr%tlm_tsfc(2)*grad
-         rsst(j1)=rsst(j1)+w1*tg_grad
-         rsst(j2)=rsst(j2)+w2*tg_grad
-         rsst(j3)=rsst(j3)+w3*tg_grad
-         rsst(j4)=rsst(j4)+w4*tg_grad
-         if (l_foto) then
-           dhat_dt%p3d(j1)=dhat_dt%p3d(j1)+w1*psfc_grad*time_t
-           dhat_dt%p3d(j2)=dhat_dt%p3d(j2)+w2*psfc_grad*time_t
-           dhat_dt%p3d(j3)=dhat_dt%p3d(j3)+w3*psfc_grad*time_t
-           dhat_dt%p3d(j4)=dhat_dt%p3d(j4)+w4*psfc_grad*time_t
-           dhat_dt%v(j1)=dhat_dt%v(j1)+w1*vs_grad*time_t
-           dhat_dt%v(j2)=dhat_dt%v(j2)+w2*vs_grad*time_t
-           dhat_dt%v(j3)=dhat_dt%v(j3)+w3*vs_grad*time_t
-           dhat_dt%v(j4)=dhat_dt%v(j4)+w4*vs_grad*time_t
-           dhat_dt%u(j1)=dhat_dt%u(j1)+w1*us_grad*time_t
-           dhat_dt%u(j2)=dhat_dt%u(j2)+w2*us_grad*time_t
-           dhat_dt%u(j3)=dhat_dt%u(j3)+w3*us_grad*time_t
-           dhat_dt%u(j4)=dhat_dt%u(j4)+w4*us_grad*time_t
-           dhat_dt%q(j1)=dhat_dt%q(j1)+w1*qs_grad*time_t
-           dhat_dt%q(j2)=dhat_dt%q(j2)+w2*qs_grad*time_t
-           dhat_dt%q(j3)=dhat_dt%q(j3)+w3*qs_grad*time_t
-           dhat_dt%q(j4)=dhat_dt%q(j4)+w4*qs_grad*time_t
-         endif
-
-
-         ts_grad  =tptr%tlm_tsfc(3)*grad
-         if(tptr%tv_ob)then
-           rtv(j1)=rtv(j1)+w1*ts_grad
-           rtv(j2)=rtv(j2)+w2*ts_grad
-           rtv(j3)=rtv(j3)+w3*ts_grad
-           rtv(j4)=rtv(j4)+w4*ts_grad
-
-           if (l_foto) then
-             dhat_dt%t(j1)=dhat_dt%t(j1)+w1*ts_grad*time_t
-             dhat_dt%t(j2)=dhat_dt%t(j2)+w2*ts_grad*time_t
-             dhat_dt%t(j3)=dhat_dt%t(j3)+w3*ts_grad*time_t
-             dhat_dt%t(j4)=dhat_dt%t(j4)+w4*ts_grad*time_t
+           if (nlnqc_iter .and. tptr%pg > tiny_r_kind .and.  &
+                                tptr%b  > tiny_r_kind) then
+              t_pg=tptr%pg*varqc_iter
+              cg_t=cg_term/tptr%b
+              wnotgross= one-t_pg
+              wgross =t_pg*cg_t/wnotgross
+              p0=wgross/(wgross+exp(-half*tptr%err2*val**2))
+              val=val*(one-p0)                  
            endif
 
-         else
-           rt(j1)=rt(j1)+w1*ts_grad
-           rt(j2)=rt(j2)+w2*ts_grad
-           rt(j3)=rt(j3)+w3*ts_grad
-           rt(j4)=rt(j4)+w4*ts_grad
+           grad = val*tptr%raterr2*tptr%err2
+        endif
 
+!       Adjoint of interpolation
+        if(tptr%use_sfc_model) then
+
+!          Surface model
+ 
+           psfc_grad=tptr%tlm_tsfc(1)*grad
+           rp(j1)=rp(j1)+w1*psfc_grad
+           rp(j2)=rp(j2)+w2*psfc_grad
+           rp(j3)=rp(j3)+w3*psfc_grad
+           rp(j4)=rp(j4)+w4*psfc_grad
+           vs_grad  =tptr%tlm_tsfc(6)*grad
+           rv(j1)=rv(j1)+w1*vs_grad
+           rv(j2)=rv(j2)+w2*vs_grad
+           rv(j3)=rv(j3)+w3*vs_grad
+           rv(j4)=rv(j4)+w4*vs_grad
+           us_grad  =tptr%tlm_tsfc(5)*grad
+           ru(j1)=ru(j1)+w1*us_grad
+           ru(j2)=ru(j2)+w2*us_grad
+           ru(j3)=ru(j3)+w3*us_grad
+           ru(j4)=ru(j4)+w4*us_grad
+           qs_grad  =tptr%tlm_tsfc(4)*grad
+           rq(j1)=rq(j1)+w1*qs_grad
+           rq(j2)=rq(j2)+w2*qs_grad
+           rq(j3)=rq(j3)+w3*qs_grad
+           rq(j4)=rq(j4)+w4*qs_grad
+           tg_grad  =tptr%tlm_tsfc(2)*grad
+           rsst(j1)=rsst(j1)+w1*tg_grad
+           rsst(j2)=rsst(j2)+w2*tg_grad
+           rsst(j3)=rsst(j3)+w3*tg_grad
+           rsst(j4)=rsst(j4)+w4*tg_grad
            if (l_foto) then
-             dhat_dt%tsen(j1)=dhat_dt%tsen(j1)+w1*ts_grad*time_t
-             dhat_dt%tsen(j2)=dhat_dt%tsen(j2)+w2*ts_grad*time_t
-             dhat_dt%tsen(j3)=dhat_dt%tsen(j3)+w3*ts_grad*time_t
-             dhat_dt%tsen(j4)=dhat_dt%tsen(j4)+w4*ts_grad*time_t
+              dhat_dt%p3d(j1)=dhat_dt%p3d(j1)+w1*psfc_grad*time_t
+              dhat_dt%p3d(j2)=dhat_dt%p3d(j2)+w2*psfc_grad*time_t
+              dhat_dt%p3d(j3)=dhat_dt%p3d(j3)+w3*psfc_grad*time_t
+              dhat_dt%p3d(j4)=dhat_dt%p3d(j4)+w4*psfc_grad*time_t
+              dhat_dt%v(j1)=dhat_dt%v(j1)+w1*vs_grad*time_t
+              dhat_dt%v(j2)=dhat_dt%v(j2)+w2*vs_grad*time_t
+              dhat_dt%v(j3)=dhat_dt%v(j3)+w3*vs_grad*time_t
+              dhat_dt%v(j4)=dhat_dt%v(j4)+w4*vs_grad*time_t
+              dhat_dt%u(j1)=dhat_dt%u(j1)+w1*us_grad*time_t
+              dhat_dt%u(j2)=dhat_dt%u(j2)+w2*us_grad*time_t
+              dhat_dt%u(j3)=dhat_dt%u(j3)+w3*us_grad*time_t
+              dhat_dt%u(j4)=dhat_dt%u(j4)+w4*us_grad*time_t
+              dhat_dt%q(j1)=dhat_dt%q(j1)+w1*qs_grad*time_t
+              dhat_dt%q(j2)=dhat_dt%q(j2)+w2*qs_grad*time_t
+              dhat_dt%q(j3)=dhat_dt%q(j3)+w3*qs_grad*time_t
+              dhat_dt%q(j4)=dhat_dt%q(j4)+w4*qs_grad*time_t
            endif
 
-         end if
 
-       else
+           ts_grad  =tptr%tlm_tsfc(3)*grad
+           if(tptr%tv_ob)then
+              rtv(j1)=rtv(j1)+w1*ts_grad
+              rtv(j2)=rtv(j2)+w2*ts_grad
+              rtv(j3)=rtv(j3)+w3*ts_grad
+              rtv(j4)=rtv(j4)+w4*ts_grad
+
+              if (l_foto) then
+                 dhat_dt%t(j1)=dhat_dt%t(j1)+w1*ts_grad*time_t
+                 dhat_dt%t(j2)=dhat_dt%t(j2)+w2*ts_grad*time_t
+                 dhat_dt%t(j3)=dhat_dt%t(j3)+w3*ts_grad*time_t
+                 dhat_dt%t(j4)=dhat_dt%t(j4)+w4*ts_grad*time_t
+              endif
+
+           else
+              rt(j1)=rt(j1)+w1*ts_grad
+              rt(j2)=rt(j2)+w2*ts_grad
+              rt(j3)=rt(j3)+w3*ts_grad
+              rt(j4)=rt(j4)+w4*ts_grad
+ 
+              if (l_foto) then
+                 dhat_dt%tsen(j1)=dhat_dt%tsen(j1)+w1*ts_grad*time_t
+                 dhat_dt%tsen(j2)=dhat_dt%tsen(j2)+w2*ts_grad*time_t
+                 dhat_dt%tsen(j3)=dhat_dt%tsen(j3)+w3*ts_grad*time_t
+                 dhat_dt%tsen(j4)=dhat_dt%tsen(j4)+w4*ts_grad*time_t
+              endif
+
+           end if
+
+        else
 
 !------bypass surface model--------------------------
 
-         if(tptr%tv_ob)then
-           rtv(j1)=rtv(j1)+w1*grad
-           rtv(j2)=rtv(j2)+w2*grad
-           rtv(j3)=rtv(j3)+w3*grad
-           rtv(j4)=rtv(j4)+w4*grad
-           rtv(j5)=rtv(j5)+w5*grad
-           rtv(j6)=rtv(j6)+w6*grad
-           rtv(j7)=rtv(j7)+w7*grad
-           rtv(j8)=rtv(j8)+w8*grad
+           if(tptr%tv_ob)then
+              rtv(j1)=rtv(j1)+w1*grad
+              rtv(j2)=rtv(j2)+w2*grad
+              rtv(j3)=rtv(j3)+w3*grad
+              rtv(j4)=rtv(j4)+w4*grad
+              rtv(j5)=rtv(j5)+w5*grad
+              rtv(j6)=rtv(j6)+w6*grad
+              rtv(j7)=rtv(j7)+w7*grad
+              rtv(j8)=rtv(j8)+w8*grad
+ 
+              if ( l_foto ) then
+                 dhat_dt%t(j1)=dhat_dt%t(j1)+w1*grad*time_t
+                 dhat_dt%t(j2)=dhat_dt%t(j2)+w2*grad*time_t
+                 dhat_dt%t(j3)=dhat_dt%t(j3)+w3*grad*time_t
+                 dhat_dt%t(j4)=dhat_dt%t(j4)+w4*grad*time_t
+                 dhat_dt%t(j5)=dhat_dt%t(j5)+w5*grad*time_t
+                 dhat_dt%t(j6)=dhat_dt%t(j6)+w6*grad*time_t
+                 dhat_dt%t(j7)=dhat_dt%t(j7)+w7*grad*time_t
+                 dhat_dt%t(j8)=dhat_dt%t(j8)+w8*grad*time_t
+              endif
 
-           if ( l_foto ) then
-             dhat_dt%t(j1)=dhat_dt%t(j1)+w1*grad*time_t
-             dhat_dt%t(j2)=dhat_dt%t(j2)+w2*grad*time_t
-             dhat_dt%t(j3)=dhat_dt%t(j3)+w3*grad*time_t
-             dhat_dt%t(j4)=dhat_dt%t(j4)+w4*grad*time_t
-             dhat_dt%t(j5)=dhat_dt%t(j5)+w5*grad*time_t
-             dhat_dt%t(j6)=dhat_dt%t(j6)+w6*grad*time_t
-             dhat_dt%t(j7)=dhat_dt%t(j7)+w7*grad*time_t
-             dhat_dt%t(j8)=dhat_dt%t(j8)+w8*grad*time_t
-           endif
+           else
+              rt(j1)=rt(j1)+w1*grad
+              rt(j2)=rt(j2)+w2*grad
+              rt(j3)=rt(j3)+w3*grad
+              rt(j4)=rt(j4)+w4*grad
+              rt(j5)=rt(j5)+w5*grad
+              rt(j6)=rt(j6)+w6*grad
+              rt(j7)=rt(j7)+w7*grad
+              rt(j8)=rt(j8)+w8*grad
+ 
+              if ( l_foto ) then
+                 dhat_dt%tsen(j1)=dhat_dt%tsen(j1)+w1*grad*time_t
+                 dhat_dt%tsen(j2)=dhat_dt%tsen(j2)+w2*grad*time_t
+                 dhat_dt%tsen(j3)=dhat_dt%tsen(j3)+w3*grad*time_t
+                 dhat_dt%tsen(j4)=dhat_dt%tsen(j4)+w4*grad*time_t
+                 dhat_dt%tsen(j5)=dhat_dt%tsen(j5)+w5*grad*time_t
+                 dhat_dt%tsen(j6)=dhat_dt%tsen(j6)+w6*grad*time_t
+                 dhat_dt%tsen(j7)=dhat_dt%tsen(j7)+w7*grad*time_t
+                 dhat_dt%tsen(j8)=dhat_dt%tsen(j8)+w8*grad*time_t
+              endif
 
-         else
-           rt(j1)=rt(j1)+w1*grad
-           rt(j2)=rt(j2)+w2*grad
-           rt(j3)=rt(j3)+w3*grad
-           rt(j4)=rt(j4)+w4*grad
-           rt(j5)=rt(j5)+w5*grad
-           rt(j6)=rt(j6)+w6*grad
-           rt(j7)=rt(j7)+w7*grad
-           rt(j8)=rt(j8)+w8*grad
+           end if
 
-           if ( l_foto ) then
-             dhat_dt%tsen(j1)=dhat_dt%tsen(j1)+w1*grad*time_t
-             dhat_dt%tsen(j2)=dhat_dt%tsen(j2)+w2*grad*time_t
-             dhat_dt%tsen(j3)=dhat_dt%tsen(j3)+w3*grad*time_t
-             dhat_dt%tsen(j4)=dhat_dt%tsen(j4)+w4*grad*time_t
-             dhat_dt%tsen(j5)=dhat_dt%tsen(j5)+w5*grad*time_t
-             dhat_dt%tsen(j6)=dhat_dt%tsen(j6)+w6*grad*time_t
-             dhat_dt%tsen(j7)=dhat_dt%tsen(j7)+w7*grad*time_t
-             dhat_dt%tsen(j8)=dhat_dt%tsen(j8)+w8*grad*time_t
-           endif
-
-         end if
-
-       end if
+        end if
 
      end if
 

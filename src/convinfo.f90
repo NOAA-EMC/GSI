@@ -165,7 +165,7 @@ contains
 !$$$
     implicit none
     
-    integer(i_kind),intent(in) ::mype
+    integer(i_kind),intent(in   ) :: mype
 
     character(len=1)cflg
     character(len=16) cob
@@ -181,12 +181,12 @@ contains
     nconvtype=izero
     nlines=izero
     read1: do
-        read(lunin,1030,iostat=istat)cflg,iotype
-1030    format(a1,a7,2x,a120)
-        if (istat /= izero) exit
-        nlines=nlines+ione
-        if(cflg == '!')cycle
-        nconvtype=nconvtype+ione
+       read(lunin,1030,iostat=istat)cflg,iotype
+1030   format(a1,a7,2x,a120)
+       if (istat /= izero) exit
+       nlines=nlines+ione
+       if(cflg == '!')cycle
+       nconvtype=nconvtype+ione
     enddo read1
     if (istat>izero) then
        write(6,*)'CONVINFO_READ:  ***ERROR*** error reading convinfo, istat=',istat
@@ -222,8 +222,8 @@ contains
     nc=zero
 
     if(nconvtype*npred_conv_max>izero) then
-      allocate(predx_conv (nconvtype,npred_conv_max))
-      predx_conv=zero
+       allocate(predx_conv (nconvtype,npred_conv_max))
+       predx_conv=zero
     endif
 
     rewind(lunin)
@@ -262,8 +262,8 @@ contains
        if (npred_conv_max > izero ) then
           read(iunit,*,iostat=ier) cob,iob,isub,np,(predx_conv(nc,n),n=1,np)
           if (ier /= izero ) then
-              write(6,*) 'CONVINFO_READ:,i/o error ',iunit,' reading convinfo file',ier
-              call stop2(48)
+             write(6,*) 'CONVINFO_READ:,i/o error ',iunit,' reading convinfo file',ier
+             call stop2(48)
           endif
           if ( trim(cob) /= trim(ioctype(nc)) .or. &
              iob /= ictype(nc) .or. &		
@@ -274,15 +274,15 @@ contains
           endif
           stndev_conv(nc)=one
           select case (cob) 
-          case('ps')
-            nconvtype_ps=nconvtype_ps+ione
-            stndev_conv(nc)=stndev_conv_ps
-          case('t')
-            nconvtype_t=nconvtype_t+ione
-            stndev_conv(nc)=stndev_conv_t
-          case('spd')
-            nconvtype_spd=nconvtype_spd+ione
-            stndev_conv(nc)=stndev_conv_spd
+             case('ps')
+                nconvtype_ps=nconvtype_ps+ione
+                stndev_conv(nc)=stndev_conv_ps
+             case('t')
+                nconvtype_t=nconvtype_t+ione
+                stndev_conv(nc)=stndev_conv_t
+             case('spd')
+                nconvtype_spd=nconvtype_spd+ione
+                stndev_conv(nc)=stndev_conv_spd
           end select
        endif
     enddo
@@ -418,11 +418,11 @@ contains
        call stop2(48)
     endif
     if(allocated(predx_conv)) then
-      deallocate(predx_conv ,stat=ier)
-      if ( ier /= izero )  then
-         write(6,*) 'CONVINFO_DESTROY: deallocate predx_conv  failed' 
-         call stop2(48)
-      endif
+       deallocate(predx_conv ,stat=ier)
+       if ( ier /= izero )  then
+          write(6,*) 'CONVINFO_DESTROY: deallocate predx_conv  failed' 
+          call stop2(48)
+       endif
     endif
 
     return

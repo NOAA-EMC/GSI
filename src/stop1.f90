@@ -25,7 +25,9 @@ subroutine stop2(ierror_code)
   use kinds, only: i_kind
   use mpimod, only: mpi_comm_world,ierror
   implicit none
+
   integer(i_kind) ierror_code
+
   write(6,*)'****STOP2****  ABORTING EXECUTION w/code=',ierror_code
   write(0,*)'****STOP2****  ABORTING EXECUTION w/code=',ierror_code
   flush(6)

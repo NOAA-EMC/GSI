@@ -46,9 +46,9 @@ subroutine bkgcov(st,vp,t,p,q,oz,skint,cwmr,nlevs)
   implicit none
 
 ! Passed Variables
-  integer(i_kind),intent(in):: nlevs
-  real(r_kind),dimension(lat2,lon2),intent(inout):: p,skint
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,q,cwmr,oz,st,vp
+  integer(i_kind)                       ,intent(in   ) :: nlevs
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p,skint
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,cwmr,oz,st,vp
 
 ! Local Variables
   integer(i_kind) i,j,k,nsloop,iflg
@@ -59,11 +59,11 @@ subroutine bkgcov(st,vp,t,p,q,oz,skint,cwmr,nlevs)
   iflg=ione
 
   do j=1,lon2
-    do i=1,lat2
-      sst(i,j)=zero
-      slndt(i,j)=zero
-      sicet(i,j)=zero
-    end do
+     do i=1,lat2
+        sst(i,j)=zero
+        slndt(i,j)=zero
+        sicet(i,j)=zero
+     end do
   end do
 
 ! Multiply by background error variances, and break up skin temp
@@ -73,12 +73,12 @@ subroutine bkgcov(st,vp,t,p,q,oz,skint,cwmr,nlevs)
 ! Apply vertical smoother
 !$omp parallel do  schedule(dynamic,1) private(k)
   do k=1,6
-   if(k == ione)    call frfhvo(st,k)
-   if(k == 2_i_kind)call frfhvo(vp,k)
-   if(k == 3_i_kind)call frfhvo(t,k)
-   if(k == 4_i_kind)call frfhvo(q,k)
-   if(k == 5_i_kind)call frfhvo(oz,k)
-   if(k == 6_i_kind)call frfhvo(cwmr,k)
+     if(k == ione)    call frfhvo(st,k)
+     if(k == 2_i_kind)call frfhvo(vp,k)
+     if(k == 3_i_kind)call frfhvo(t,k)
+     if(k == 4_i_kind)call frfhvo(q,k)
+     if(k == 5_i_kind)call frfhvo(oz,k)
+     if(k == 6_i_kind)call frfhvo(cwmr,k)
   end do
 
 ! Convert from subdomain to full horizontal field distributed among processors
@@ -93,12 +93,12 @@ subroutine bkgcov(st,vp,t,p,q,oz,skint,cwmr,nlevs)
 ! Apply vertical smoother
 !$omp parallel do  schedule(dynamic,1) private(k)
   do k=1,6
-   if(k == ione)    call frfhvo(st,k)
-   if(k == 2_i_kind)call frfhvo(vp,k)
-   if(k == 3_i_kind)call frfhvo(t,k)
-   if(k == 4_i_kind)call frfhvo(q,k)
-   if(k == 5_i_kind)call frfhvo(oz,k)
-   if(k == 6_i_kind)call frfhvo(cwmr,k)
+     if(k == ione)    call frfhvo(st,k)
+     if(k == 2_i_kind)call frfhvo(vp,k)
+     if(k == 3_i_kind)call frfhvo(t,k)
+     if(k == 4_i_kind)call frfhvo(q,k)
+     if(k == 5_i_kind)call frfhvo(oz,k)
+     if(k == 6_i_kind)call frfhvo(cwmr,k)
   end do
 
 ! Multiply by background error variances, and combine sst,sldnt, and sicet
@@ -154,10 +154,10 @@ subroutine ckgcov(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
   implicit none
 
 ! Passed Variables
-  integer(i_kind),intent(in):: nlevs
-  real(r_kind),dimension(nval_lenz),intent(in):: z
-  real(r_kind),dimension(lat2,lon2),intent(inout):: p,skint
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,q,cwmr,oz,st,vp
+  integer(i_kind)                       ,intent(in   ) :: nlevs
+  real(r_kind),dimension(nval_lenz)     ,intent(in   ) :: z
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p,skint
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,cwmr,oz,st,vp
 
 ! Local Variables
   integer(i_kind) i,j,k,nsloop
@@ -167,11 +167,11 @@ subroutine ckgcov(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
   nsloop=3_i_kind
 
   do j=1,lon2
-    do i=1,lat2
-      sst(i,j)=zero
-      slndt(i,j)=zero
-      sicet(i,j)=zero
-    end do
+     do i=1,lat2
+        sst(i,j)=zero
+        slndt(i,j)=zero
+        sicet(i,j)=zero
+     end do
   end do
 
 ! Apply horizontal smoother for number of horizontal scales
@@ -183,12 +183,12 @@ subroutine ckgcov(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
 ! Apply vertical smoother
 !$omp parallel do  schedule(dynamic,1) private(k)
   do k=1,6
-   if(k == ione)    call frfhvo(st,k)
-   if(k == 2_i_kind)call frfhvo(vp,k)
-   if(k == 3_i_kind)call frfhvo(t,k)
-   if(k == 4_i_kind)call frfhvo(q,k)
-   if(k == 5_i_kind)call frfhvo(oz,k)
-   if(k == 6_i_kind)call frfhvo(cwmr,k)
+     if(k == ione)    call frfhvo(st,k)
+     if(k == 2_i_kind)call frfhvo(vp,k)
+     if(k == 3_i_kind)call frfhvo(t,k)
+     if(k == 4_i_kind)call frfhvo(q,k)
+     if(k == 5_i_kind)call frfhvo(oz,k)
+     if(k == 6_i_kind)call frfhvo(cwmr,k)
   end do
 
 ! Multiply by background error variances, and combine sst,sldnt, and sicet
@@ -244,10 +244,10 @@ subroutine ckgcov_ad(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
   implicit none
 
 ! Passed Variables
-  integer(i_kind),intent(in):: nlevs
-  real(r_kind),dimension(lat2,lon2),intent(inout):: p,skint
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: t,q,cwmr,oz,st,vp
-  real(r_kind),dimension(nval_lenz),intent(inout):: z
+  integer(i_kind)                       ,intent(in   ) :: nlevs
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p,skint
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,cwmr,oz,st,vp
+  real(r_kind),dimension(nval_lenz)     ,intent(inout) :: z
 
 ! Local Variables
   integer(i_kind) i,j,k,nsloop,iflg
@@ -258,11 +258,11 @@ subroutine ckgcov_ad(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
   iflg=ione
 
   do j=1,lon2
-    do i=1,lat2
-      sst(i,j)=zero
-      slndt(i,j)=zero
-      sicet(i,j)=zero
-    end do
+     do i=1,lat2
+        sst(i,j)=zero
+        slndt(i,j)=zero
+        sicet(i,j)=zero
+     end do
   end do
 
 ! Multiply by background error variances, and break up skin temp
@@ -272,12 +272,12 @@ subroutine ckgcov_ad(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
 ! Apply vertical smoother
 !$omp parallel do  schedule(dynamic,1) private(k)
   do k=1,6
-   if(k == ione)    call frfhvo(st,k)
-   if(k == 2_i_kind)call frfhvo(vp,k)
-   if(k == 3_i_kind)call frfhvo(t,k)
-   if(k == 4_i_kind)call frfhvo(q,k)
-   if(k == 5_i_kind)call frfhvo(oz,k)
-   if(k == 6_i_kind)call frfhvo(cwmr,k)
+     if(k == ione)    call frfhvo(st,k)
+     if(k == 2_i_kind)call frfhvo(vp,k)
+     if(k == 3_i_kind)call frfhvo(t,k)
+     if(k == 4_i_kind)call frfhvo(q,k)
+     if(k == 5_i_kind)call frfhvo(oz,k)
+     if(k == 6_i_kind)call frfhvo(cwmr,k)
   end do
 
 ! Convert from subdomain to full horizontal field distributed among processors

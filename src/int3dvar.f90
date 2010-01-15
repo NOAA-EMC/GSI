@@ -78,8 +78,8 @@ subroutine int3dvar(rval,rval_dt)
   implicit none
   
 ! Declare passed variables  
-  type(state_vector),intent(inout):: rval
-  type(state_vector),intent(inout):: rval_dt
+  type(state_vector),intent(inout) :: rval
+  type(state_vector),intent(inout) :: rval_dt
 
 !******************************************************************************
 

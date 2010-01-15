@@ -81,9 +81,9 @@ subroutine setq(q,x,n)
 
 IMPLICIT NONE
 
-INTEGER(i_kind),          INTENT(in) :: n
-REAL(r_kind),DIMENSION(n),INTENT(out):: q
-REAL(r_kind),DIMENSION(n),INTENT(in) :: x
+INTEGER(i_kind)          ,INTENT(in   ) :: n
+REAL(r_kind),DIMENSION(n),INTENT(  out) :: q
+REAL(r_kind),DIMENSION(n),INTENT(in   ) :: x
 !-----------------------------------------------------------------------------
 INTEGER(i_kind)                      :: i,j
 !=============================================================================
@@ -93,7 +93,7 @@ DO i=1,n
       IF(j /= i)q(i)=q(i)/(x(i)-x(j))
    ENDDO
 ENDDO
-end subroutinE setq
+end subroutine setq
 
 
 !============================================================================
@@ -126,9 +126,10 @@ subroutine setq_TL(q,q_TL,x,x_TL,n)
 
 !============================================================================
 IMPLICIT NONE
-INTEGER(i_kind),          INTENT(in) :: n
-REAL(r_kind),DIMENSION(n),INTENT(out):: q,q_TL
-REAL(r_kind),DIMENSION(n),INTENT(in) :: x,x_TL
+
+INTEGER(i_kind)          ,INTENT(in   ) :: n
+REAL(r_kind),DIMENSION(n),INTENT(  out) :: q,q_TL
+REAL(r_kind),DIMENSION(n),INTENT(in   ) :: x,x_TL
 !-----------------------------------------------------------------------------
 INTEGER(i_kind)                      :: i,j
 REAL(r_kind)                         :: rat
@@ -138,9 +139,9 @@ DO i=1,n
    q_TL(i)=zero
    DO j=1,n
       IF(j /= i) THEN
-       rat=one/(x(i)-x(j))
-       q_TL(i)=(q_TL(i)-q(i)*(x_TL(i)-x_TL(j))*rat)*rat
-       q(i)=q(i)*rat
+         rat=one/(x(i)-x(j))
+         q_TL(i)=(q_TL(i)-q(i)*(x_TL(i)-x_TL(j))*rat)*rat
+         q(i)=q(i)*rat
       ENDIF
    ENDDO
 ENDDO
@@ -178,9 +179,10 @@ subroutine setq_AD(q_AD,x,x_AD,n)
 
 !============================================================================
 IMPLICIT NONE
-INTEGER(i_kind),          INTENT(in) :: n
-REAL(r_kind),DIMENSION(n),INTENT(in) :: x
-REAL(r_kind),DIMENSION(n),INTENT(inout):: x_AD
+
+INTEGER(i_kind)          ,INTENT(in   ) :: n
+REAL(r_kind),DIMENSION(n),INTENT(in   ) :: x
+REAL(r_kind),DIMENSION(n),INTENT(inout) :: x_AD
 REAL(r_kind),DIMENSION(n),INTENT(inout) :: q_AD
 !-----------------------------------------------------------------------------
 INTEGER(i_kind)                      :: i,j
@@ -192,8 +194,8 @@ jac=zero
 DO i=1,n
    DO j=1,n
       IF(j /= i) THEN
-       jac(j,i)=q(i)/(x(i)-x(j))
-       jac(i,i)=jac(i,i)-jac(j,i)
+         jac(j,i)=q(i)/(x(i)-x(j))
+         jac(i,i)=jac(i,i)-jac(j,i)
       ENDIF
    ENDDO
 ENDDO
@@ -234,10 +236,11 @@ subroutine lagdw(x,xt,q,w,dw,n)
 
 !============================================================================
 IMPLICIT NONE
-INTEGER(i_kind),          INTENT(IN) :: n
-REAL(r_kind),             INTENT(IN) :: xt
-REAL(r_kind),DIMENSION(n),INTENT(IN) :: x,q
-REAL(r_kind),DIMENSION(n),INTENT(OUT):: w,dw
+
+INTEGER(i_kind)          ,INTENT(IN   ) :: n
+REAL(r_kind)             ,INTENT(IN   ) :: xt
+REAL(r_kind),DIMENSION(n),INTENT(IN   ) :: x,q
+REAL(r_kind),DIMENSION(n),INTENT(  OUT) :: w,dw
 !-----------------------------------------------------------------------------
 REAL(r_kind),DIMENSION(n)            :: d,pa,pb,dpa,dpb
 INTEGER(i_kind)                      :: j
@@ -298,10 +301,11 @@ subroutine lagdw_TL(x,x_TL,xt,q,q_TL,w,w_TL,dw,dw_TL,n)
 
 !============================================================================
 IMPLICIT NONE
-INTEGER(i_kind),          INTENT(IN) :: n
-REAL(r_kind),             INTENT(IN) :: xt
-REAL(r_kind),DIMENSION(n),INTENT(IN) :: x,q,x_TL,q_TL
-REAL(r_kind),DIMENSION(n),INTENT(OUT):: w,dw,w_TL,dw_TL
+
+INTEGER(i_kind)          ,INTENT(IN   ) :: n
+REAL(r_kind)             ,INTENT(IN   ) :: xt
+REAL(r_kind),DIMENSION(n),INTENT(IN   ) :: x,q,x_TL,q_TL
+REAL(r_kind),DIMENSION(n),INTENT(  OUT) :: w,dw,w_TL,dw_TL
 !-----------------------------------------------------------------------------
 REAL(r_kind),DIMENSION(n)            :: d,pa,pb,dpa,dpb
 REAL(r_kind),DIMENSION(n)            :: d_TL,pa_TL,pb_TL,dpa_TL,dpb_TL
@@ -380,10 +384,11 @@ subroutine lagdw_AD(x,x_AD,xt,q,q_AD,w_AD,dw_AD,n)
 
 !============================================================================
 IMPLICIT NONE
-INTEGER(i_kind),          INTENT(IN) :: n
-REAL(r_kind),             INTENT(IN) :: xt
-REAL(r_kind),DIMENSION(n),INTENT(IN) :: x,q
-REAL(r_kind),DIMENSION(n),INTENT(INOUT):: q_AD,x_AD,w_AD,dw_AD
+
+INTEGER(i_kind)          ,INTENT(IN   ) :: n
+REAL(r_kind)             ,INTENT(IN   ) :: xt
+REAL(r_kind),DIMENSION(n),INTENT(IN   ) :: x,q
+REAL(r_kind),DIMENSION(n),INTENT(INOUT) :: q_AD,x_AD,w_AD,dw_AD
 !-----------------------------------------------------------------------------
 REAL(r_kind),DIMENSION(n)            :: d,pa,pb,dpa,dpb
 REAL(r_kind),DIMENSION(n)            :: d_AD,pa_AD,pb_AD,dpa_AD,dpb_AD
@@ -427,8 +432,8 @@ do j=2,n
    d_AD  (j)=d_AD  (j)+pb (j)*pb_AD (j-ione)
 enddo
 
-   dpb_AD(n)=zero ! not sure about it
-   pb_AD(n) =zero ! not sure about it
+dpb_AD(n)=zero ! not sure about it
+pb_AD(n) =zero ! not sure about it
 
 x_AD(n)=x_AD(n)-d_AD(n)
 do j=n-ione,1,-1
@@ -484,11 +489,12 @@ subroutine slagdw(x,xt,aq,bq,w,dw,n)
 
 !============================================================================
 IMPLICIT NONE
-INTEGER(i_kind),               INTENT(IN ) :: n
-REAL(r_kind),                  INTENT(IN ) :: xt
-REAL(r_kind),DIMENSION(n),     INTENT(IN ) :: x
-REAL(r_kind),DIMENSION(n-ione),INTENT(IN ) :: aq,bq
-REAL(r_kind),DIMENSION(n),     INTENT(OUT) :: w,dw
+
+INTEGER(i_kind)               ,INTENT(IN   ) :: n
+REAL(r_kind)                  ,INTENT(IN   ) :: xt
+REAL(r_kind),DIMENSION(n)     ,INTENT(IN   ) :: x
+REAL(r_kind),DIMENSION(n-ione),INTENT(IN   ) :: aq,bq
+REAL(r_kind),DIMENSION(n)     ,INTENT(  OUT) :: w,dw
 !-----------------------------------------------------------------------------
 REAL(r_kind),DIMENSION(n)                  :: aw,bw,daw,dbw
 REAL(r_kind)                               :: xa,xb,dwb,wb
@@ -552,11 +558,12 @@ subroutine slagdw_TL(x,x_TL,xt,aq,aq_TL,bq,bq_TL,dw,dw_TL,n)
 
 !============================================================================
 IMPLICIT NONE
-INTEGER(i_kind),               INTENT(IN ) :: n
-REAL(r_kind),                  INTENT(IN ) :: xt
-REAL(r_kind),DIMENSION(n),     INTENT(IN ) :: x,x_TL
-REAL(r_kind),DIMENSION(n-ione),INTENT(IN ) :: aq,bq,aq_TL,bq_TL
-REAL(r_kind),DIMENSION(n),     INTENT(OUT) :: dw_TL,dw
+
+INTEGER(i_kind)               ,INTENT(IN   ) :: n
+REAL(r_kind)                  ,INTENT(IN   ) :: xt
+REAL(r_kind),DIMENSION(n)     ,INTENT(IN   ) :: x,x_TL
+REAL(r_kind),DIMENSION(n-ione),INTENT(IN   ) :: aq,bq,aq_TL,bq_TL
+REAL(r_kind),DIMENSION(n)     ,INTENT(  OUT) :: dw_TL,dw
 !-----------------------------------------------------------------------------
 REAL(r_kind),DIMENSION(n)                  :: aw,bw,daw,dbw
 REAL(r_kind),DIMENSION(n)                  :: aw_TL,bw_TL,daw_TL,dbw_TL
@@ -645,13 +652,13 @@ SUBROUTINE slagdw_AD(x,x_AD,xt,aq,aq_AD,bq,bq_AD,w_AD,dw,dw_AD,n)
 
 !============================================================================
 IMPLICIT NONE
-INTEGER(i_kind),               INTENT(IN )   :: n
-REAL(r_kind),                  INTENT(IN )   :: xt
-REAL(r_kind),DIMENSION(n),     INTENT(IN )   :: x
-REAL(r_kind),DIMENSION(n-ione),INTENT(IN )   :: aq,bq
+INTEGER(i_kind)               ,INTENT(IN   ) :: n
+REAL(r_kind)                  ,INTENT(IN   ) :: xt
+REAL(r_kind),DIMENSION(n)     ,INTENT(IN   ) :: x
+REAL(r_kind),DIMENSION(n-ione),INTENT(IN   ) :: aq,bq
 REAL(r_kind),DIMENSION(n-ione),INTENT(INOUT) :: aq_AD,bq_AD
-REAL(r_kind),DIMENSION(n),     INTENT(OUT)   :: dw
-REAL(r_kind),DIMENSION(n),     INTENT(INOUT) :: x_AD,dw_AD,w_AD
+REAL(r_kind),DIMENSION(n)     ,INTENT(  OUT) :: dw
+REAL(r_kind),DIMENSION(n)     ,INTENT(INOUT) :: x_AD,dw_AD,w_AD
 !-----------------------------------------------------------------------------
 REAL(r_kind),DIMENSION(n)                    :: aw,bw,daw,dbw
 REAL(r_kind),DIMENSION(n)                    :: aw_AD,bw_AD,daw_AD,dbw_AD

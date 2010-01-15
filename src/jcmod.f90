@@ -35,16 +35,16 @@ module jcmod
   use kinds, only: r_kind
   implicit none
 
-  logical ljcdfi,ljcpdry
-  real(r_kind) alphajc,bamp_jcpdry
-  real(r_kind),allocatable :: wgtdfi(:)
-
 ! set default to private
   private
 ! set subroutines to public
   public :: init_jcvars
 ! set passed variables to public
   public :: ljcdfi,alphajc,wgtdfi,bamp_jcpdry,ljcpdry
+
+  logical ljcdfi,ljcpdry
+  real(r_kind) alphajc,bamp_jcpdry
+  real(r_kind),allocatable :: wgtdfi(:)
 
 contains
 

@@ -197,77 +197,77 @@ subroutine pcgsoi()
 ! Gradually turn on variational qc to avoid possible convergence problems
      nlnqc_iter = iter >= niter_no_qc(jiter)
      if(jiter == jiterstart) then
-         varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
-         if(varqc_iter >=one) varqc_iter= one
+        varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
+        if(varqc_iter >=one) varqc_iter= one
      else
-         varqc_iter=one
+        varqc_iter=one
      endif
 
      do ii=1,nobs_bins
-       rval(ii)=zero
+        rval(ii)=zero
      end do
      gradx=zero
      llprt=(mype==izero).and.(iter<=ione)
 
      if (l4dvar) then
-!      Convert from control space to model space
-       call control2state(xhat,mval,sbias)
+!       Convert from control space to model space
+        call control2state(xhat,mval,sbias)
 
-!      Perform test of AGCM TLM and ADM
-       call geos_pgcmtest(mval,sval,llprt)
+!       Perform test of AGCM TLM and ADM
+        call geos_pgcmtest(mval,sval,llprt)
 
-!      Run TL model to fill sval
-       call model_tl(mval,sval,llprt)
+!       Run TL model to fill sval
+        call model_tl(mval,sval,llprt)
      else
 
-!      Convert from control space directly to physical
-!      space for comparison with obs.
-       call control2state(xhat,sval,sbias)
+!       Convert from control space directly to physical
+!       space for comparison with obs.
+        call control2state(xhat,sval,sbias)
      end if
 
      if (iter<=ione .and. print_diag_pcg) then
-       do ii=1,nobs_bins
-         call prt_state_norms(sval(ii),'sval')
-       enddo
+        do ii=1,nobs_bins
+           call prt_state_norms(sval(ii),'sval')
+        enddo
      endif
 
 !    Compare obs to solution and transpose back to grid
      call intall(sval,sbias,rval,rbias)
 
      if (iter<=ione .and. print_diag_pcg) then
-       do ii=1,nobs_bins
-         call prt_state_norms(rval(ii),'rval')
-       enddo
+        do ii=1,nobs_bins
+           call prt_state_norms(rval(ii),'rval')
+        enddo
      endif
 
      if (l4dvar) then
-!      Run adjoint model
-       call model_ad(mval,rval,llprt)
+!       Run adjoint model
+        call model_ad(mval,rval,llprt)
 
-!      Adjoint of convert control var to physical space
-       call state2control(mval,rbias,gradx)
+!       Adjoint of convert control var to physical space
+        call state2control(mval,rbias,gradx)
      else
 
-!      Convert to control space directly from physical space.
-       if (nobs_bins>ione) then
-         do ii=nobs_bins,2,-1
-           call self_add(rval(1),rval(ii))
-         end do
-       end if
-       call state2control(rval,rbias,gradx)
+!       Convert to control space directly from physical space.
+        if (nobs_bins>ione) then
+           do ii=nobs_bins,2,-1
+              call self_add(rval(1),rval(ii))
+           end do
+        end if
+        call state2control(rval,rbias,gradx)
      end if
 
 !    Print initial Jo table
      if (iter==izero .and. print_diag_pcg) then
-       nprt=2_i_kind
-       call evaljo(zjo,iobs,nprt,llouter)
-       call prt_control_norms(gradx,'gradx')
+        nprt=2_i_kind
+        call evaljo(zjo,iobs,nprt,llouter)
+        call prt_control_norms(gradx,'gradx')
      endif
 
 !    Add contribution from background term
 !$omp parallel do
      do i=1,nclen
-       gradx%values(i)=gradx%values(i)+yhatsave%values(i)
+        gradx%values(i)=gradx%values(i)+yhatsave%values(i)
      end do
 !$omp end parallel do
 
@@ -276,44 +276,44 @@ subroutine pcgsoi()
         call anbkerror(gradx,grady)
         if(lanlerr .and. lgschmidt) call mgram_schmidt(gradx,grady)
      else
-       call bkerror(gradx,grady)
+        call bkerror(gradx,grady)
      end if
 
 !    If hybrid ensemble run, then multiply ensemble control variable a_en 
 !                                    by its localization correlation
      if(l_hyb_ens) then
-       if(aniso_a_en) then
-    !    call anbkerror_a_en(gradx,grady)    !  not available yet
-              write(6,*)' ANBKERROR_A_EN not written yet, program stops'
-              stop
-       else
-         call bkerror_a_en(gradx,grady)
-       end if
+        if(aniso_a_en) then
+    !      call anbkerror_a_en(gradx,grady)    !  not available yet
+           write(6,*)' ANBKERROR_A_EN not written yet, program stops'
+           stop
+        else
+           call bkerror_a_en(gradx,grady)
+        end if
 
-!      multiply static (Jb) part of grady by beta1_inv, and
-!      multiply ensemble (Je) part of grady by beta2_inv = ( 1 - beta1_inv )
-!        (this determines relative contributions from static background Jb and ensemble background Je)
+!       multiply static (Jb) part of grady by beta1_inv, and
+!       multiply ensemble (Je) part of grady by beta2_inv = ( 1 - beta1_inv )
+!         (this determines relative contributions from static background Jb and ensemble background Je)
 
-       call beta12mult(grady)
+        call beta12mult(grady)
 
      end if
 
      if (lanlerr) then
 !$omp parallel do
-       do i=1,nclen
-          ydiff%values(i)=gradx%values(i)
-       end do
+        do i=1,nclen
+           ydiff%values(i)=gradx%values(i)
+        end do
 !$omp end parallel do
      else
 !$omp parallel do
-       do i=1,nclen
-          ydiff%values(i)=gradx%values(i)-ydiff%values(i)
-       end do
+        do i=1,nclen
+           ydiff%values(i)=gradx%values(i)-ydiff%values(i)
+        end do
 !$omp end parallel do
      end if
 
      if (iter==izero .and. print_diag_pcg) then
-       call prt_control_norms(grady,'grady3')
+        call prt_control_norms(grady,'grady3')
      endif
 
 !    Calculate new norm of gradients
@@ -335,9 +335,9 @@ subroutine pcgsoi()
      if (.not. restart) then
 !$omp parallel do
         do i=1,nclen
-          ydiff%values(i)=gradx%values(i)
-          dirx%values(i)=-grady%values(i)+b*dirx%values(i)
-          diry%values(i)=-gradx%values(i)+b*diry%values(i)
+           ydiff%values(i)=gradx%values(i)
+           dirx%values(i)=-grady%values(i)+b*dirx%values(i)
+           diry%values(i)=-gradx%values(i)+b*diry%values(i)
         end do
 !$omp end parallel do
      else
@@ -348,18 +348,18 @@ subroutine pcgsoi()
      endif
 
      if (l4dvar) then
-!      Convert from control space to model space
-       call control2state(dirx,mval,rbias)
+!       Convert from control space to model space
+        call control2state(dirx,mval,rbias)
 
-!      Run TL model to fill rval
-!      The TLM being linear, rval could be updated in the same way as the
-!      control variable. That would eliminate the need for running the TLM
-!      at the cost of storing an additional 4D state variable.
-       call model_tl(mval,rval,llprt)
+!       Run TL model to fill rval
+!       The TLM being linear, rval could be updated in the same way as the
+!       control variable. That would eliminate the need for running the TLM
+!       at the cost of storing an additional 4D state variable.
+        call model_tl(mval,rval,llprt)
      else
 
-!      Convert search direction form control space to physical space
-       call control2state(dirx,rval,rbias)
+!       Convert search direction form control space to physical space
+        call control2state(dirx,rval,rbias)
      end if
 
 !    Calculate stepsize
@@ -370,16 +370,16 @@ subroutine pcgsoi()
 
 !    Diagnostic calculations
      if (iter==izero) then
-       zgini=gnorm(1)
-       zfini=penalty
-       if (mype==izero) then
-         write(6,888)'Initial cost function =',zfini
-         write(6,888)'Initial gradient norm =',sqrt(zgini)
-       endif
-       if(jiter==jiterstart .or. oberror_tune) then
-         gnormorig=gnorm(1)
-         penorig=penalty
-       end if
+        zgini=gnorm(1)
+        zfini=penalty
+        if (mype==izero) then
+           write(6,888)'Initial cost function =',zfini
+           write(6,888)'Initial gradient norm =',sqrt(zgini)
+        endif
+        if(jiter==jiterstart .or. oberror_tune) then
+           gnormorig=gnorm(1)
+           penorig=penalty
+        end if
      endif
 
      gnormx=gnorm(1)/gnormorig
@@ -389,9 +389,9 @@ subroutine pcgsoi()
         write(6,*)'Minimization iteration',iter
         write(6,999)'grepcost J,Jb,Jo,Jc,Jl =',jiter,iter,penalty,fjcost
         if (zgini>tiny_r_kind) then
-            write(6,999)'grepgrad grad,reduction=',jiter,iter,sqrt(gnorm(1)),sqrt(gnorm(1)/zgini)
+           write(6,999)'grepgrad grad,reduction=',jiter,iter,sqrt(gnorm(1)),sqrt(gnorm(1)/zgini)
         else
-            write(6,999)'grepgrad grad,reduction(N/A)=',jiter,iter,sqrt(gnorm(1))
+           write(6,999)'grepgrad grad,reduction(N/A)=',jiter,iter,sqrt(gnorm(1))
         endif
         write(6,999)'pcgsoi: cost,grad,step =',jiter,iter,penalty,sqrt(gnorm(1)),stp
         istep=ione
@@ -412,30 +412,30 @@ subroutine pcgsoi()
         penx >= pennorm .or. end_iter)then
 
         if(mype == izero)then
-          if(iout_6) write(6,101)
-          write(iout_iter,101)
+           if(iout_6) write(6,101)
+           write(iout_iter,101)
 
-          if(gnormx < converge) then
-               if(iout_6)write(6,130)gnormx,converge
-               write(iout_iter,130) gnormx,converge
-          end if
-          if(penalty < converge) then
-               if(iout_6)write(6,131)penalty,converge
-               write(iout_iter,131) penalty,converge
-          end if
-          if(penx >= pennorm) then
-             if(iout_6)write(6,100)jiter,iter,penx,pennorm
-             write(iout_iter,100)jiter,iter,penx,pennorm
-          end if
-          if(end_iter)then
-               if(stp > zero)then
+           if(gnormx < converge) then
+              if(iout_6)write(6,130)gnormx,converge
+              write(iout_iter,130) gnormx,converge
+           end if
+           if(penalty < converge) then
+              if(iout_6)write(6,131)penalty,converge
+              write(iout_iter,131) penalty,converge
+           end if
+           if(penx >= pennorm) then
+              if(iout_6)write(6,100)jiter,iter,penx,pennorm
+              write(iout_iter,100)jiter,iter,penx,pennorm
+           end if
+           if(end_iter)then
+              if(stp > zero)then
                  if(iout_6)write(6,140)
                  write(iout_iter,140)
-               else
+              else
                  if(iout_6)write(6,141)
                  write(iout_iter,141)
-               end if
-          end if
+              end if
+           end if
         end if
 101     format(' PCGSOI: WARNING **** Stopping inner iteration ***')
 100     format(' Penalty increase or constant ',I3,1x,i4,1x,2(e24.18,1x))
@@ -471,102 +471,102 @@ subroutine pcgsoi()
   if (mype==izero) write(6,*)'Minimization final diagnostics'
 
   do ii=1,nobs_bins
-    rval(ii)=zero
+     rval(ii)=zero
   end do
   gradx=zero
   llprt=(mype==izero)
   if (l4dvar) then
-    call control2state(xhat,mval,sbias)
-    call model_tl(mval,sval,llprt)
+     call control2state(xhat,mval,sbias)
+     call model_tl(mval,sval,llprt)
   else
-    call control2state(xhat,sval,sbias)
+     call control2state(xhat,sval,sbias)
   end if
   call intall(sval,sbias,rval,rbias)
   if (l4dvar) then
-    call model_ad(mval,rval,llprt)
-    call state2control(mval,rbias,gradx)
+     call model_ad(mval,rval,llprt)
+     call state2control(mval,rbias,gradx)
   else
-    if (nobs_bins>ione) then
-      do ii=nobs_bins,2,-1
-        call self_add(rval(1),rval(ii))
-      end do
-    end if
-    call state2control(rval,rbias,gradx)
+     if (nobs_bins>ione) then
+        do ii=nobs_bins,2,-1
+           call self_add(rval(1),rval(ii))
+        end do
+     end if
+     call state2control(rval,rbias,gradx)
   end if
 
 ! Multiply by background error
   if(anisotropic) then
-    call anbkerror(gradx,grady)
+     call anbkerror(gradx,grady)
   else
-    call bkerror(gradx,grady)
+     call bkerror(gradx,grady)
   end if
 
 !    If hybrid ensemble run, then multiply ensemble control variable a_en 
 !                                    by its localization correlation
-     if(l_hyb_ens) then
-       if(aniso_a_en) then
-    !    call anbkerror_a_en(gradx,grady)    !  not available yet
-              write(6,*)' ANBKERROR_A_EN not written yet, program stops'
-              stop
-       else
-         call bkerror_a_en(gradx,grady)
-       end if
-
-!      multiply static (Jb) part of grady by beta1_inv, and
-!      multiply ensemble (Je) part of grady by beta2_inv = ( 1 - beta1_inv )
-!        (this determines relative contributions from static background Jb and ensemble background Je)
-
-       call beta12mult(grady)
-
+  if(l_hyb_ens) then
+     if(aniso_a_en) then
+    !   call anbkerror_a_en(gradx,grady)    !  not available yet
+        write(6,*)' ANBKERROR_A_EN not written yet, program stops'
+        stop
+     else
+        call bkerror_a_en(gradx,grady)
      end if
+
+!    multiply static (Jb) part of grady by beta1_inv, and
+!    multiply ensemble (Je) part of grady by beta2_inv = ( 1 - beta1_inv )
+!      (this determines relative contributions from static background Jb and ensemble background Je)
+
+     call beta12mult(grady)
+
+  end if
 
 
 ! Print final Jo table
   if(print_diag_pcg)then
-    zgend=dot_product(gradx,grady,r_quad)
-    nprt=2_i_kind
-    call evaljo(zjo,iobs,nprt,llouter)
-    call prt_control_norms(gradx,'gradx')
+     zgend=dot_product(gradx,grady,r_quad)
+     nprt=2_i_kind
+     call evaljo(zjo,iobs,nprt,llouter)
+     call prt_control_norms(gradx,'gradx')
 
-    if(l_hyb_ens) then
+     if(l_hyb_ens) then
 
-!    If hybrid ensemble run, compute contribution to Jb and Je separately
+!       If hybrid ensemble run, compute contribution to Jb and Je separately
 
-      fjcost_e=   dot_product(xhatsave,yhatsave,r_quad,'cost_e')
-      fjcost(1) = dot_product(xhatsave,yhatsave,r_quad,'cost_b')
+        fjcost_e=   dot_product(xhatsave,yhatsave,r_quad,'cost_e')
+        fjcost(1) = dot_product(xhatsave,yhatsave,r_quad,'cost_b')
 
-    else
-      fjcost(1) = dot_product(xhatsave,yhatsave,r_quad)
-    end if
-    fjcost(2) = zjo
-    zfend=SUM(fjcost(:))
-    if(l_hyb_ens) zfend=zfend+fjcost_e
+     else
+        fjcost(1) = dot_product(xhatsave,yhatsave,r_quad)
+     end if
+     fjcost(2) = zjo
+     zfend=SUM(fjcost(:))
+     if(l_hyb_ens) zfend=zfend+fjcost_e
 
-    if (mype==izero) then
-      if(l_hyb_ens) then
+     if (mype==izero) then
+        if(l_hyb_ens) then
 
-!    If hybrid ensemble run, print out contribution to Jb and Je separately
+!          If hybrid ensemble run, print out contribution to Jb and Je separately
 
-        write(6,9991)'grepcost J,Jb,Je,Jo,Jc,Jl =',jiter,iter,zfend,fjcost(1),fjcost_e,fjcost(2:4)
+           write(6,9991)'grepcost J,Jb,Je,Jo,Jc,Jl =',jiter,iter,zfend,fjcost(1),fjcost_e,fjcost(2:4)
 
-      else
-        write(6,999)'grepcost J,Jb,Jo,Jc,Jl =',jiter,iter,zfend,fjcost
-      end if
-      if (zgini>tiny_r_kind) then
-          write(6,999)'grepgrad grad,reduction=',jiter,iter,sqrt(zgend),sqrt(zgend/zgini)
-      else
-          write(6,999)'grepgrad grad,reduction(N/A)=',jiter,iter,sqrt(zgend)
-      endif
-    endif
+        else
+           write(6,999)'grepcost J,Jb,Jo,Jc,Jl =',jiter,iter,zfend,fjcost
+        end if
+        if (zgini>tiny_r_kind) then
+           write(6,999)'grepgrad grad,reduction=',jiter,iter,sqrt(zgend),sqrt(zgend/zgini)
+        else
+           write(6,999)'grepgrad grad,reduction(N/A)=',jiter,iter,sqrt(zgend)
+        endif
+     endif
 
-! Print final diagnostics
-    if (mype==izero) then
-      write(6,888)'Final   cost function=',zfend
-      write(6,888)'Final   gradient norm=',sqrt(zgend)
-      write(6,888)'Final/Initial cost function=',zfend/zfini
-      if(zgini>tiny_r_kind) write(6,888)'Final/Initial gradient norm=',sqrt(zgend/zgini)
-    endif
-888 format(A,5(1X,ES25.18))
+!    Print final diagnostics
+     if (mype==izero) then
+        write(6,888)'Final   cost function=',zfend
+        write(6,888)'Final   gradient norm=',sqrt(zgend)
+        write(6,888)'Final/Initial cost function=',zfend/zfini
+        if(zgini>tiny_r_kind) write(6,888)'Final/Initial gradient norm=',sqrt(zgend/zgini)
+     endif
+888  format(A,5(1X,ES25.18))
 
   end if
 ! Calculate increments of vorticity/divergence
@@ -585,9 +585,9 @@ subroutine pcgsoi()
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (lwrtinc) then
-    call inc2guess(sval)
-    call write_all(lwrtinc,mype)
-    call prt_guess('increment')
+     call inc2guess(sval)
+     call write_all(lwrtinc,mype)
+     call prt_guess('increment')
   endif
 
 ! Clean up increments of vorticity/divergence
@@ -635,15 +635,15 @@ implicit none
   call allocate_cv(diry)
   call allocate_cv(ydiff)
   do ii=1,nobs_bins
-    call allocate_state(sval(ii))
-    call allocate_state(rval(ii))
+     call allocate_state(sval(ii))
+     call allocate_state(rval(ii))
   end do
   call allocate_preds(sbias)
   call allocate_preds(rbias)
   if (l4dvar) then
-    do ii=1,nsubwin
-      call allocate_state(mval(ii))
-    end do
+     do ii=1,nsubwin
+        call allocate_state(mval(ii))
+     end do
   end if
 
   gradx=zero
@@ -654,8 +654,8 @@ implicit none
   xhat=zero
 
   if(l_foto)then
-    call allocate_state(xhat_dt)
-    call assign_scalar2state(xhat_dt,zero)
+     call allocate_state(xhat_dt)
+     call assign_scalar2state(xhat_dt,zero)
   end if
 
 end subroutine init_
@@ -699,16 +699,16 @@ implicit none
   call deallocate_preds(rbias)
 
   do ii=1,nobs_bins
-    call deallocate_state(sval(ii))
-    call deallocate_state(rval(ii))
+     call deallocate_state(sval(ii))
+     call deallocate_state(rval(ii))
   end do
   if (l4dvar) then
-    do ii=1,nsubwin
-      call deallocate_state(mval(ii))
-    end do
+     do ii=1,nsubwin
+        call deallocate_state(mval(ii))
+     end do
   end if
   if(l_foto)then
-    call deallocate_state(xhat_dt)
+     call deallocate_state(xhat_dt)
   end if
   call inquire_state
 

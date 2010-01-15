@@ -71,8 +71,8 @@ subroutine intlimq(rq,sq)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in):: sq
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: rq
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: sq
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: rq
 
 ! Declare local variables
   integer(i_kind) i,j,k
@@ -87,11 +87,11 @@ subroutine intlimq(rq,sq)
            
 !          Lower constraint limit
            if (q < zero) then
-                rq(i,j,k) = rq(i,j,k) + factqmin*q/(qsatg(i,j,k)*qsatg(i,j,k))
+              rq(i,j,k) = rq(i,j,k) + factqmin*q/(qsatg(i,j,k)*qsatg(i,j,k))
 
 !          Upper constraint limit
            else if (q > qsatg(i,j,k)) then
-                rq(i,j,k) = rq(i,j,k) + factqmax*(q-qsatg(i,j,k))/(qsatg(i,j,k)*qsatg(i,j,k))
+              rq(i,j,k) = rq(i,j,k) + factqmax*(q-qsatg(i,j,k))/(qsatg(i,j,k)*qsatg(i,j,k))
            
            end if
         end do

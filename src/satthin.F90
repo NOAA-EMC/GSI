@@ -69,6 +69,22 @@ module satthin
   use kinds, only: r_kind,i_kind
   implicit none
 
+! set default to private
+  private
+! set subroutines to public
+  public :: makegvals
+  public :: makegrids
+  public :: getsfc
+  public :: map2tgrid
+  public :: destroygrids
+  public :: destroy_sfc
+  public :: indexx
+! set passed variables to public
+  public :: rlat_min,rlon_min,dlat_grid,dlon_grid,superp,super_val1,super_val
+  public :: veg_type_full,soil_type_full,sfc_rough_full,sno_full,sst_full
+  public :: fact10_full,isli_full,soil_moi_full,veg_frac_full,soil_temp_full
+  public :: checkob,score_crit,itxmax,finalcheck,zs_full_gfs,zs_full
+
   integer(i_kind) mlat,superp,maxthin,itxmax
   integer(i_kind),dimension(0:51):: istart_val
   
@@ -117,7 +133,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: deg2rad,rearth_equator,zero,two,pi,half,one,&
+    use constants, only: deg2rad,rearth_equator,izero,ione,zero,two,pi,half,one,&
        rad2deg,r1000
     use obsmod, only: dmesh,dthin,ndat
     use gridmod, only: regional,nlat,nlon,txy2ll
@@ -135,11 +151,11 @@ contains
     real(r_kind) rkm2dg,glatm,glatx
 
 !   Initialize variables, set constants
-    maxthin=0
+    maxthin=izero
     do i=1,ndat
        maxthin=max(maxthin,abs(dthin(i)))
     end do
-    istart_val=0
+    istart_val=izero
     twopi  = two*pi
     rkm2dg = r360/(twopi*rearth_equator)*r1000
 
@@ -174,7 +190,7 @@ contains
     do ii=1,maxthin
 
 !      Set up dimensions for thinning grids
-       istart_val(ii+1)=istart_val(ii)
+       istart_val(ii+ione)=istart_val(ii)
        if(abs(dmesh(ii)) > one)then
           dx    = dmesh(ii)*rkm2dg
           dy    = dx
@@ -183,11 +199,11 @@ contains
           delat = dlat_grid/mlat
           delonx= dlon_grid/mlonx	
           dgv   = delat*half
-          mlat=max(2,mlat);   mlonx=max(2,mlonx)
+          mlat=max(2_i_kind,mlat);   mlonx=max(2_i_kind,mlonx)
 
-          icnt=0
+          icnt=izero
           do j = 1,mlat
-             glatx = rlat_min + (j-1)*delat
+             glatx = rlat_min + (j-ione)*delat
              glatx = glatx*deg2rad
              glatm = glatx + dgv*deg2rad
              
@@ -201,14 +217,14 @@ contains
                 mlony = dlon_grid/delon
              endif
              do i = 1,mlony
-                icnt=icnt+1
-                istart_val(ii+1)=istart_val(ii+1)+1
+                icnt=icnt+ione
+                istart_val(ii+ione)=istart_val(ii+ione)+ione
              enddo
 
           enddo
        end if
     end do
-    superp=istart_val(maxthin+1)
+    superp=istart_val(maxthin+ione)
     
 !   Allocate and initialize arrays for superobs weighthing
     allocate(super_val(0:superp),super_val1(0:superp))
@@ -248,12 +264,12 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: rearth_equator,two,deg2rad,zero,half,one,pi
+    use constants, only: rearth_equator,deg2rad,izero,ione,zero,half,one,two,pi
 
     implicit none
 
-    real(r_kind),intent(in)::rmesh
-    integer(i_kind),intent(in)::ithin
+    real(r_kind)   ,intent(in   ) :: rmesh
+    integer(i_kind),intent(in   ) :: ithin
     real(r_kind),parameter:: r360 = 360.0_r_kind
     integer(i_kind) i,j
     integer(i_kind) mlonx,mlonj
@@ -265,9 +281,9 @@ contains
 
 !   If there is to be no thinning, simply return to calling routine
     use_all=.false.
-    if(abs(rmesh) <= one .or. ithin <= 0)then
+    if(abs(rmesh) <= one .or. ithin <= izero)then
       use_all=.true.
-      itxmax=2.e7
+      itxmax=2e7_i_kind
       return
     end if
 
@@ -285,23 +301,23 @@ contains
 	delat = dlat_grid/mlat
 	delonx= dlon_grid/mlonx
     dgv  = delat*half
-    mlat=max(2,mlat);   mlonx=max(2,mlonx)
+    mlat=max(2_i_kind,mlat);   mlonx=max(2_i_kind,mlonx)
 
     allocate(mlon(mlat),glat(mlat),glon(mlonx,mlat),hll(mlonx,mlat))
 
 
 !   Set up thinning grid lon & lat.  The lon & lat represent the location of the
 !   lower left corner of the thinning grid box.
-    itxmax=0
+    itxmax=izero
     do j = 1,mlat
-       glat(j) = rlat_min + (j-1)*delat
+       glat(j) = rlat_min + (j-ione)*delat
        glat(j) = glat(j)*deg2rad
        glatm = glat(j) + dgv*deg2rad
 
        factor = abs(cos(abs(glatm)))
        if (rmesh>zero) then
           mlonj   = nint(mlonx*factor)	
-          mlon(j) = max(2,mlonj)
+          mlon(j) = max(2_i_kind,mlonj)
           delon = dlon_grid/mlon(j)
        else
           delon = factor*rmesh
@@ -311,9 +327,9 @@ contains
 
        glat(j) = min(max(-halfpi,glat(j)),halfpi)
        do i = 1,mlon(j)
-          itxmax=itxmax+1
+          itxmax=itxmax+ione
           hll(i,j)=itxmax
-          glon(i,j) = rlon_min + (i-1)*delon
+          glon(i,j) = rlon_min + (i-ione)*delon
           glon(i,j) = glon(i,j)*deg2rad
           glon(i,j) = min(max(zero,glon(i,j)),twopi)
        enddo
@@ -368,14 +384,14 @@ contains
     use jfunc, only: biascor
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
-    use constants, only: zero,half,pi,two,one
+    use constants, only: izero,ione,zero,half,pi,two,one
     use ncepgfs_io, only: read_gfssfc,sfc_interpolate
     use sfcio_module, only: sfcio_realfill
 
     implicit none
 
-    integer(i_kind),intent(in):: mype
-    logical,intent(in)::use_sfc
+    integer(i_kind),intent(in   ) :: mype
+    logical        ,intent(in   ) :: use_sfc
 
 
 ! Local variables
@@ -393,15 +409,15 @@ contains
     integer(i_kind) mm1,i,j,k,it,il,jl,jmax,idrt
     character(24) filename
 
-    mm1=mype+1
+    mm1=mype+ione
 
-    if(mype == 0)write(6,*)'GETSFC:  enter with nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
+    if(mype == izero)write(6,*)'GETSFC:  enter with nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
 	' and nlat,nlon=',nlat,nlon
     if(regional)then
-      nlat_sfc=nlat
-      nlon_sfc=nlon
+       nlat_sfc=nlat
+       nlon_sfc=nlon
     end if
-    if(mype == 0)write(6,*)'GETSFC: set nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc
+    if(mype == izero)write(6,*)'GETSFC: set nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc
     allocate(rlats_sfc(nlat_sfc),rlons_sfc(nlon_sfc))
 
     allocate(isli_full(nlat_sfc,nlon_sfc),fact10_full(nlat_sfc,nlon_sfc,nfldsfc))
@@ -410,258 +426,258 @@ contains
     allocate(sfc_rough_full(nlat_sfc,nlon_sfc,nfldsfc))
 
     if(use_sfc)then
-      allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
-      allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
-      allocate(veg_type_full(nlat_sfc,nlon_sfc))
+       allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
+       allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
+       allocate(veg_type_full(nlat_sfc,nlon_sfc))
     else
-     allocate(dum(nlat_sfc,nlon_sfc))
+       allocate(dum(nlat_sfc,nlon_sfc))
     end if
 
 
 !  Global read
 #ifndef HAVE_ESMF
     if (.not. regional) then
-      if (nlon == nlon_sfc .and. nlat == nlat_sfc) then
-        rlats_sfc=rlats
-        rlons_sfc=rlons
-      else
-        idrt=4
-        jmax=nlat_sfc-2
-        allocate(slatx(jmax),wlatx(jmax))
-        call splat(idrt,jmax,slatx,wlatx)
-        dlon=two*pi/float(nlon_sfc)
-        do i=1,nlon_sfc
-          rlons_sfc(i)=float(i-1)*dlon
-        end do
-        do i=1,(nlat_sfc-1)/2
-          rlats_sfc(i+1)=-asin(slatx(i))
-          rlats_sfc(nlat_sfc-i)=asin(slatx(i))
-        end do
-        rlats_sfc(1)=-half*pi
-        rlats_sfc(nlat_sfc)=half*pi
-        deallocate(slatx,wlatx)
-      end if
-
-
-      allocate(zs_full_gfs(nlat_sfc,nlon_sfc))
-      if(use_sfc)then
-        do it=1,nfldsfc
-          write(filename,200)ifilesfc(it)
-200       format('sfcf',i2.2)
-          call read_gfssfc(filename,mype,&
-             fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
-             veg_type_full(1,1),veg_frac_full(1,1,it), &
-             soil_type_full(1,1),soil_temp_full(1,1,it),&
-             soil_moi_full(1,1,it),isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
-        end do
-      else
-        do it=1,nfldsfc
-          write(filename,200)ifilesfc(it)
-          call read_gfssfc(filename,mype,&
-             fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
-             dum,dum,dum,dum,dum,isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
-        end do
-        deallocate(dum)
-      end if
-
-      if (biascor > zero) then
-        if (mype==0) write(6,*)'GETSFC:   add bias correction to guess field ',&
- 		               filename
-        do j=1,lon1*lat1
-          zsm(j)=zero
-        end do
-
-        call compress_bias(b_tskin,bias_tskin,bias_hour)
-        do j=1,lon2
-          do i=1,lat2
-            work2(i,j)=b_tskin(i,j)
+       if (nlon == nlon_sfc .and. nlat == nlat_sfc) then
+          rlats_sfc=rlats
+          rlons_sfc=rlons
+       else
+          idrt=4_i_kind
+          jmax=nlat_sfc-2_i_kind
+          allocate(slatx(jmax),wlatx(jmax))
+          call splat(idrt,jmax,slatx,wlatx)
+          dlon=two*pi/float(nlon_sfc)
+          do i=1,nlon_sfc
+             rlons_sfc(i)=float(i-ione)*dlon
           end do
-        end do
-        call strip(work2,zsm,1)
+          do i=1,(nlat_sfc-ione)/2
+             rlats_sfc(i+ione)=-asin(slatx(i))
+             rlats_sfc(nlat_sfc-i)=asin(slatx(i))
+          end do
+          rlats_sfc(1)=-half*pi
+          rlats_sfc(nlat_sfc)=half*pi
+          deallocate(slatx,wlatx)
+       end if
 
-        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-           work1,ijn,displs_g,mpi_rtype,&
-           mpi_comm_world,ierror)
 
-        do k=1,iglobal
-          i=ltosi(k) ; j=ltosj(k)
-          bias(i,j)=nint(work1(k))
-        end do
-!  Need to add interpolation of bias to nlon_sfc, nlat_sfc grid if
-        if(nlon == nlon_sfc .and. nlat == nlat_sfc)then
+       allocate(zs_full_gfs(nlat_sfc,nlon_sfc))
+       if(use_sfc)then
           do it=1,nfldsfc
-            do j=1,nlon
-              do i=1,nlat
-                sst_full(i,j,it)=sst_full(i,j,it)+bias(i,j)
-              end do
-            end do
+             write(filename,200)ifilesfc(it)
+200          format('sfcf',i2.2)
+             call read_gfssfc(filename,mype,&
+                fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
+                veg_type_full(1,1),veg_frac_full(1,1,it), &
+                soil_type_full(1,1),soil_temp_full(1,1,it),&
+                soil_moi_full(1,1,it),isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
           end do
-        else
-          write(6,*)'GETSFC:  satthin bias correction - incompatible surface resolution',&
-              nlon,nlon_sfc,nlat,nlat_sfc
-          call stop2(82)
-        end if
-      end if
+       else
+          do it=1,nfldsfc
+             write(filename,200)ifilesfc(it)
+             call read_gfssfc(filename,mype,&
+                fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
+                dum,dum,dum,dum,dum,isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
+          end do
+          deallocate(dum)
+       end if
+ 
+       if (biascor > zero) then
+          if (mype==izero) write(6,*)'GETSFC:   add bias correction to guess field ',&
+                                      filename
+          do j=1,lon1*lat1
+             zsm(j)=zero
+          end do
+ 
+          call compress_bias(b_tskin,bias_tskin,bias_hour)
+          do j=1,lon2
+             do i=1,lat2
+                work2(i,j)=b_tskin(i,j)
+             end do
+          end do
+          call strip(work2,zsm,ione)
+ 
+          call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+             work1,ijn,displs_g,mpi_rtype,&
+             mpi_comm_world,ierror)
+ 
+          do k=1,iglobal
+             i=ltosi(k) ; j=ltosj(k)
+             bias(i,j)=nint(work1(k))
+          end do
+!  Need to add interpolation of bias to nlon_sfc, nlat_sfc grid if
+          if(nlon == nlon_sfc .and. nlat == nlat_sfc)then
+             do it=1,nfldsfc
+                do j=1,nlon
+                   do i=1,nlat
+                      sst_full(i,j,it)=sst_full(i,j,it)+bias(i,j)
+                   end do
+                end do
+             end do
+          else
+             write(6,*)'satthin bias correction - incompatible surface resolution',&
+                 nlon,nlon_sfc,nlat,nlat_sfc
+             call stop2(82)
+          end if
+       end if
 
     else
 #endif /* HAVE_ESMF */
 
-      it=ntguessfc
-      rlats_sfc=rlats
-      rlons_sfc=rlons
+       it=ntguessfc
+       rlats_sfc=rlats
+       rlons_sfc=rlons
 
 ! isli_full
-      do j=1,lon1*lat1
-        zsm(j)=zero
-      end do
-      do j=1,lon2
-        do i=1,lat2
-          work2(i,j)=isli(i,j,it)
-        end do
-      end do
-      call strip(work2,zsm,1)
-      call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-         work1,ijn,displs_g,mpi_rtype,&
-         mpi_comm_world,ierror)
-      do k=1,iglobal
-        i=ltosi(k) ; j=ltosj(k)
-        isli_full(i,j)=nint(work1(k))
-      end do
+       do j=1,lon1*lat1
+          zsm(j)=zero
+       end do
+       do j=1,lon2
+          do i=1,lat2
+             work2(i,j)=isli(i,j,it)
+          end do
+       end do
+       call strip(work2,zsm,ione)
+       call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+          work1,ijn,displs_g,mpi_rtype,&
+          mpi_comm_world,ierror)
+       do k=1,iglobal
+          i=ltosi(k) ; j=ltosj(k)
+          isli_full(i,j)=nint(work1(k))
+       end do
 
 ! Fields with multiple time levels
-      do it=1,nfldsfc
+       do it=1,nfldsfc
 
 ! sst_full
-        do j=1,lon1*lat1
-          zsm(j)=zero
-        end do
-        call strip(sfct(1,1,it),zsm,1)
-        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-           work1,ijn,displs_g,mpi_rtype,&
-           mpi_comm_world,ierror)
-        do k=1,iglobal
-          i=ltosi(k) ; j=ltosj(k)
-          sst_full(i,j,it)=work1(k)
-        end do
+          do j=1,lon1*lat1
+             zsm(j)=zero
+          end do
+          call strip(sfct(1,1,it),zsm,ione)
+          call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+             work1,ijn,displs_g,mpi_rtype,&
+             mpi_comm_world,ierror)
+          do k=1,iglobal
+             i=ltosi(k) ; j=ltosj(k)
+             sst_full(i,j,it)=work1(k)
+          end do
 
 ! fact10_full
-        do j=1,lon1*lat1
-          zsm(j)=zero
-        end do
-        call strip(fact10(1,1,it),zsm,1)
-        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-           work1,ijn,displs_g,mpi_rtype,&
-           mpi_comm_world,ierror)
-        do k=1,iglobal
-          i=ltosi(k) ; j=ltosj(k)
-          fact10_full(i,j,it)=work1(k)
-        end do
+          do j=1,lon1*lat1
+             zsm(j)=zero
+          end do
+          call strip(fact10(1,1,it),zsm,ione)
+          call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+             work1,ijn,displs_g,mpi_rtype,&
+             mpi_comm_world,ierror)
+          do k=1,iglobal
+             i=ltosi(k) ; j=ltosj(k)
+             fact10_full(i,j,it)=work1(k)
+          end do
 
 ! sfc_rough_full
-        do j=1,lon1*lat1
-          zsm(j)=zero
-        end do
-        call strip(sfc_rough(1,1,it),zsm,1)
-        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-           work1,ijn,displs_g,mpi_rtype,&
-           mpi_comm_world,ierror)
-        do k=1,iglobal
-          i=ltosi(k) ; j=ltosj(k)
-          sfc_rough_full(i,j,it)=work1(k)
-        end do
+          do j=1,lon1*lat1
+             zsm(j)=zero
+          end do
+          call strip(sfc_rough(1,1,it),zsm,ione)
+          call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+             work1,ijn,displs_g,mpi_rtype,&
+             mpi_comm_world,ierror)
+          do k=1,iglobal
+             i=ltosi(k) ; j=ltosj(k)
+             sfc_rough_full(i,j,it)=work1(k)
+          end do
 
 ! sno_full
-        do j=1,lon1*lat1
-          zsm(j)=zero
-        end do
-        call strip(sno(1,1,it),zsm,1)
-        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-           work1,ijn,displs_g,mpi_rtype,&
-           mpi_comm_world,ierror)
-        do k=1,iglobal
-          i=ltosi(k) ; j=ltosj(k)
-          sno_full(i,j,it)=work1(k)
-        end do
+          do j=1,lon1*lat1
+             zsm(j)=zero
+          end do
+          call strip(sno(1,1,it),zsm,ione)
+          call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+             work1,ijn,displs_g,mpi_rtype,&
+             mpi_comm_world,ierror)
+          do k=1,iglobal
+             i=ltosi(k) ; j=ltosj(k)
+             sno_full(i,j,it)=work1(k)
+          end do
 
 ! veg_frac_full
-        do j=1,lon1*lat1
-          zsm(j)=zero
-        end do
-        call strip(veg_frac(1,1,it),zsm,1)
-        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-           work1,ijn,displs_g,mpi_rtype,&
-           mpi_comm_world,ierror)
-        if(use_sfc)then
-          do k=1,iglobal
-            i=ltosi(k) ; j=ltosj(k)
-            veg_frac_full(i,j,it)=work1(k)
+          do j=1,lon1*lat1
+             zsm(j)=zero
           end do
-        end if
+          call strip(veg_frac(1,1,it),zsm,ione)
+          call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+             work1,ijn,displs_g,mpi_rtype,&
+             mpi_comm_world,ierror)
+          if(use_sfc)then
+             do k=1,iglobal
+                i=ltosi(k) ; j=ltosj(k)
+                veg_frac_full(i,j,it)=work1(k)
+             end do
+          end if
 ! soil_temp_full
-        do j=1,lon1*lat1
-          zsm(j)=zero
-        end do
-        call strip(soil_temp(1,1,it),zsm,1)
-        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-           work1,ijn,displs_g,mpi_rtype,&
-           mpi_comm_world,ierror)
-        if(use_sfc)then
-          do k=1,iglobal
-            i=ltosi(k) ; j=ltosj(k)
-            soil_temp_full(i,j,it)=work1(k)
+          do j=1,lon1*lat1
+             zsm(j)=zero
           end do
-        end if
+          call strip(soil_temp(1,1,it),zsm,ione)
+          call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+             work1,ijn,displs_g,mpi_rtype,&
+             mpi_comm_world,ierror)
+          if(use_sfc)then
+             do k=1,iglobal
+                i=ltosi(k) ; j=ltosj(k)
+                soil_temp_full(i,j,it)=work1(k)
+             end do
+          end if
 
 
 ! soil_moi_full
-        do j=1,lon1*lat1
-          zsm(j)=zero
-        end do
-        call strip(soil_moi(1,1,it),zsm,1)
-        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-           work1,ijn,displs_g,mpi_rtype,&
-           mpi_comm_world,ierror)
-        if(use_sfc)then
-          do k=1,iglobal
-            i=ltosi(k) ; j=ltosj(k)
-            soil_moi_full(i,j,it)=work1(k)
+          do j=1,lon1*lat1
+             zsm(j)=zero
           end do
-        end if
-      end do  !end do ntguessfc
+          call strip(soil_moi(1,1,it),zsm,ione)
+          call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+             work1,ijn,displs_g,mpi_rtype,&
+             mpi_comm_world,ierror)
+          if(use_sfc)then
+             do k=1,iglobal
+                i=ltosi(k) ; j=ltosj(k)
+                soil_moi_full(i,j,it)=work1(k)
+             end do
+          end if
+       end do  !end do ntguessfc
 
 
 
 ! Now single time level surface fields
-      it=ntguessfc
+       it=ntguessfc
 ! soil_type_full
-      do j=1,lon1*lat1
-        zsm(j)=zero
-      end do
-      call strip(soil_type(1,1,it),zsm,1)
-      call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-         work1,ijn,displs_g,mpi_rtype,&
-         mpi_comm_world,ierror)
-      if(use_sfc)then
-        do k=1,iglobal
-          i=ltosi(k) ; j=ltosj(k)
-          soil_type_full(i,j)=work1(k)
-        end do
-      end if
+       do j=1,lon1*lat1
+          zsm(j)=zero
+       end do
+       call strip(soil_type(1,1,it),zsm,ione)
+       call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+          work1,ijn,displs_g,mpi_rtype,&
+          mpi_comm_world,ierror)
+       if(use_sfc)then
+          do k=1,iglobal
+             i=ltosi(k) ; j=ltosj(k)
+             soil_type_full(i,j)=work1(k)
+          end do
+       end if
 
 ! veg_type_full
-      do j=1,lon1*lat1
-        zsm(j)=zero
-      end do
-      call strip(veg_type(1,1,it),zsm,1)
-      call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-         work1,ijn,displs_g,mpi_rtype,&
-         mpi_comm_world,ierror)
-      if(use_sfc)then
-        do k=1,iglobal
-          i=ltosi(k) ; j=ltosj(k)
-          veg_type_full(i,j)=work1(k)
-        end do
-      end if
+       do j=1,lon1*lat1
+          zsm(j)=zero
+       end do
+       call strip(veg_type(1,1,it),zsm,ione)
+       call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+          work1,ijn,displs_g,mpi_rtype,&
+          mpi_comm_world,ierror)
+       if(use_sfc)then
+          do k=1,iglobal
+             i=ltosi(k) ; j=ltosj(k)
+             veg_type_full(i,j)=work1(k)
+          end do
+       end if
 
 #ifndef HAVE_ESMF
     end if
@@ -671,69 +687,69 @@ contains
 ! zs_full
     it=ntguessig
     do j=1,lon1*lat1
-      zsm(j)=zero
+       zsm(j)=zero
     end do
-    call strip(ges_z(1,1,it),zsm,1)
+    call strip(ges_z(1,1,it),zsm,ione)
     call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
        work1,ijn,displs_g,mpi_rtype,&
        mpi_comm_world,ierror)
     do k=1,iglobal
-      i=ltosi(k) ; j=ltosj(k)
-      zs_full(i,j)=work1(k)
+       i=ltosi(k) ; j=ltosj(k)
+       zs_full(i,j)=work1(k)
     end do
 
 !   old gfs surface files do not have a terrain record.
 !   therefore, need to interpolate the terrain from the atm
 !   grid to the surface grid, which may not be the same.
     if (.not. regional) then
-      missing = sfcio_realfill + one
-      if (maxval(zs_full_gfs) < missing) then
-        if (nlon == nlon_sfc .and. nlat == nlat_sfc) then
-          zs_full_gfs = zs_full
-        else
-          allocate(dummy(nlat_sfc,nlon_sfc))
-          call sfc_interpolate(zs_full,nlon,nlat,dummy,nlon_sfc,nlat_sfc)
-          zs_full_gfs = dummy
-          deallocate(dummy)
-        endif
-      endif
+       missing = sfcio_realfill + one
+       if (maxval(zs_full_gfs) < missing) then
+          if (nlon == nlon_sfc .and. nlat == nlat_sfc) then
+             zs_full_gfs = zs_full
+          else
+             allocate(dummy(nlat_sfc,nlon_sfc))
+             call sfc_interpolate(zs_full,nlon,nlat,dummy,nlon_sfc,nlat_sfc)
+             zs_full_gfs = dummy
+             deallocate(dummy)
+          endif
+       endif
     endif
 
 !   find subdomain for isli2
     if (nlon == nlon_sfc .and. nlat == nlat_sfc) then
-      do j=1,lon2
-        jl=j+jstart(mm1)-2
-        jl=min0(max0(1,jl),nlon)
-        do i=1,lat2
-          il=i+istart(mm1)-2
-          il=min0(max0(1,il),nlat)
-          isli2(i,j)=isli_full(il,jl)
-	  do k=1,nfldsfc
-             sno2(i,j,k)=sno_full(il,jl,k)
-	  end do
-        end do
-      end do
+       do j=1,lon2
+          jl=j+jstart(mm1)-2_i_kind
+          jl=min0(max0(1,jl),nlon)
+          do i=1,lat2
+             il=i+istart(mm1)-2_i_kind
+             il=min0(max0(ione,il),nlat)
+             isli2(i,j)=isli_full(il,jl)
+ 	     do k=1,nfldsfc
+                sno2(i,j,k)=sno_full(il,jl,k)
+             end do
+          end do
+       end do
     else
-      ailoc=rlats
-      ajloc=rlons
-      call grdcrd(ailoc,nlat,rlats_sfc,nlat_sfc,1)
-      call grdcrd(ajloc,nlon,rlons_sfc,nlon_sfc,1)
-      do j=1,lon2
-        jl=j+jstart(mm1)-2
-        jl=min0(max0(1,jl),nlon)
-        jl=nint(ajloc(jl))
-        jl=min0(max0(1,jl),nlon_sfc)
-        do i=1,lat2
-          il=i+istart(mm1)-2
-          il=min0(max0(1,il),nlat)
-          il=nint(ailoc(il))
-          il=min0(max0(1,il),nlat_sfc)
-          isli2(i,j)=isli_full(il,jl)
-	  do k=1,nfldsfc
-            sno2(i,j,k) =sno_full(il,jl,k)
-	  end do
-        end do
-      end do
+       ailoc=rlats
+       ajloc=rlons
+       call grdcrd(ailoc,nlat,rlats_sfc,nlat_sfc,ione)
+       call grdcrd(ajloc,nlon,rlons_sfc,nlon_sfc,ione)
+       do j=1,lon2
+          jl=j+jstart(mm1)-2_i_kind
+          jl=min0(max0(ione,jl),nlon)
+          jl=nint(ajloc(jl))
+          jl=min0(max0(ione,jl),nlon_sfc)
+          do i=1,lat2
+             il=i+istart(mm1)-2_i_kind
+             il=min0(max0(ione,il),nlat)
+             il=nint(ailoc(il))
+             il=min0(max0(ione,il),nlat_sfc)
+             isli2(i,j)=isli_full(il,jl)
+             do k=1,nfldsfc
+                sno2(i,j,k) =sno_full(il,jl,k)
+             end do
+          end do
+       end do
 
     end if
     return
@@ -770,28 +786,29 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: one, half
+    use constants, only: izero, ione, one, half
     implicit none
-    logical,intent(out):: iuse
-    integer(i_kind),intent(in):: ithin
-    integer(i_kind),intent(out):: itt,itx
-    real(r_kind),intent(in):: dlat_earth,dlon_earth,crit1
-    real(r_kind),intent(out):: dist1
-    character(20),intent(in)::sis
+
+    logical        ,intent(  out) :: iuse
+    integer(i_kind),intent(in   ) :: ithin
+    integer(i_kind),intent(  out) :: itt,itx
+    real(r_kind)   ,intent(in   ) :: dlat_earth,dlon_earth,crit1
+    real(r_kind)   ,intent(  out) :: dist1
+    character(20)  ,intent(in   ) :: sis
 
     integer(i_kind) ix,iy
     real(r_kind) dlat1,dlon1,dx,dy,dxx,dyy
 
 
 !   If using all data (no thinning), simply return to calling routine
-    if(use_all .or. ithin <= 0)then
+    if(use_all .or. ithin <= izero)then
        iuse=.true.
-       itt=1
+       itt=ione
        if(itx < itxmax) then
-         itx=itx+1
+          itx=itx+ione
        else
-         iuse = .false.
-         write(6,*)'MAP2TGRID:  ndata > maxobs when reading data for ',sis,itxmax
+          iuse = .false.
+          write(6,*)'MAP2TGRID:  ndata > maxobs when reading data for ',sis,itxmax
        end if
        return
     end if
@@ -801,22 +818,22 @@ contains
     dlat1=dlat_earth
     dlon1=dlon_earth
 
-    call grdcrd(dlat1,1,glat,mlat,1)
+    call grdcrd(dlat1,ione,glat,mlat,ione)
     iy=int(dlat1)
     dy=dlat1-iy
-    iy=max(1,min(iy,mlat))
+    iy=max(ione,min(iy,mlat))
 
-    call grdcrd(dlon1,1,glon(1,iy),mlon(iy),1)
+    call grdcrd(dlon1,ione,glon(1,iy),mlon(iy),ione)
     ix=int(dlon1)
     dx=dlon1-ix
-    ix=max(1,min(ix,mlon(iy)))
+    ix=max(ione,min(ix,mlon(iy)))
 
     dxx=half-min(dx,one-dx)
     dyy=half-min(dy,one-dy)
     dist1=dxx*dxx+dyy*dyy+half
     itx=hll(ix,iy)
     itt=istart_val(ithin)+itx
-    if(ithin == 0) itt=0
+    if(ithin == izero) itt=izero
 
 !   Increment obs counter on coarse mesh grid.  Also accumulate observation
 !   score and distance functions
@@ -834,6 +851,7 @@ contains
 
     return
   end subroutine map2tgrid
+
   subroutine checkob(dist1,crit1,itx,iuse)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -861,9 +879,10 @@ contains
 !
 !$$$
     implicit none
-    logical,intent(inout):: iuse
-    integer(i_kind),intent(in):: itx
-    real(r_kind),intent(in):: dist1,crit1
+
+    logical        ,intent(inout) :: iuse
+    integer(i_kind),intent(in   ) :: itx
+    real(r_kind)   ,intent(in   ) :: dist1,crit1
 
 !   If using all data (no thinning), simply return to calling routine
     if(use_all .or. .not. iuse .or. icount(itx))return
@@ -872,6 +891,7 @@ contains
 
     return
   end subroutine checkob
+
   subroutine finalcheck(dist1,crit1,itx,iuse)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -899,9 +919,9 @@ contains
 !
 !$$$
     implicit none
-    logical,intent(inout):: iuse
-    integer(i_kind),intent(in):: itx
-    real(r_kind),intent(in):: dist1,crit1
+    logical        ,intent(inout) :: iuse
+    integer(i_kind),intent(in   ) :: itx
+    real(r_kind)   ,intent(in   ) :: dist1,crit1
 
     real(r_kind) crit
 
@@ -913,10 +933,10 @@ contains
 !   Increment obs counter
 
     if(icount(itx) .or. crit < score_crit(itx))then
-      score_crit(itx)= crit
-      icount(itx)=.false.
+       score_crit(itx)= crit
+       icount(itx)=.false.
     else
-      iuse = .false.
+       iuse = .false.
     end if
 
     return
@@ -1021,111 +1041,111 @@ contains
 !
 !$$$
     use kinds, only: r_double
+    use constants, only: izero, ione, one
     implicit none
 
     integer(i_kind) maxblock
-    parameter (maxblock=1000)
+    parameter (maxblock=1000_i_kind)
 
-    integer(i_kind),intent(in) :: n
-    real(r_kind),intent(in)    :: arr(n)
+    integer(i_kind),intent(in   ) :: n
+    real(r_kind)   ,intent(in   ) :: arr(n)
 
-    integer(i_kind),intent(out):: indx(n)
+    integer(i_kind),intent(  out) :: indx(n)
 
 #ifdef ibm_sp
     real(r_kind),dimension(maxblock)::work
     real(r_double) oned
-    real(r_kind) one
 
-    one=1.; oned=1.
+    oned=1._r_double
     if (digits(one)<digits(oned)) then
-      call ssorts(arr,1,n,indx,work,maxblock)
+       call ssorts(arr,ione,n,indx,work,maxblock)
     else
-      call dsorts(arr,1,n,indx,work,maxblock)
+       call dsorts(arr,ione,n,indx,work,maxblock)
     endif
 #else
     integer(i_kind) m,nstack
-    parameter (m=7,nstack=500)
+    parameter (m=7_i_kind,nstack=500_i_kind)
     integer(i_kind) i,indxt,ir,itemp,j,jstack,k,l,istack(nstack)
     real(r_kind) a
     
     do j=1,n
        indx(j)=j
     end do
-    jstack=0
-    l=1
+    jstack=izero
+    l=ione
     ir=n
     
 1   continue
     
-    if(ir-l.lt.m)then
-       do j=l+1,ir
+    if(ir-l<m)then
+       do j=l+ione,ir
           indxt=indx(j)
           a=arr(indxt)
-          do i=j-1,l,-1
-             if(arr(indx(i)).le.a)goto 2
-             indx(i+1)=indx(i)
+          do i=j-ione,l,-1
+             if(arr(indx(i))<=a)goto 2
+             indx(i+ione)=indx(i)
           end do
-          i=l-1
+          i=l-ione
 2         continue
-          indx(i+1)=indxt
+          indx(i+ione)=indxt
        end do
-       if(jstack.eq.0)return
+       if(jstack==izero)return
        ir=istack(jstack)
-       l=istack(jstack-1)
-       jstack=jstack-2
+       l=istack(jstack-ione)
+       jstack=jstack-2_i_kind
        
     else
        k=(l+ir)/2
        itemp=indx(k)
-       indx(k)=indx(l+1)
-       indx(l+1)=itemp
-       if(arr(indx(l)).gt.arr(indx(ir)))then
+       indx(k)=indx(l+ione)
+       indx(l+ione)=itemp
+       if(arr(indx(l))>arr(indx(ir)))then
           itemp=indx(l)
           indx(l)=indx(ir)
           indx(ir)=itemp
        endif
-       if(arr(indx(l+1)).gt.arr(indx(ir)))then
-          itemp=indx(l+1)
-          indx(l+1)=indx(ir)
+       if(arr(indx(l+ione))>arr(indx(ir)))then
+          itemp=indx(l+ione)
+          indx(l+ione)=indx(ir)
           indx(ir)=itemp
        endif
-       if(arr(indx(l)).gt.arr(indx(l+1)))then
+       if(arr(indx(l))>arr(indx(l+ione)))then
           itemp=indx(l)
-          indx(l)=indx(l+1)
-          indx(l+1)=itemp
+          indx(l)=indx(l+ione)
+          indx(l+ione)=itemp
        endif
-       i=l+1
+       i=l+ione
        j=ir
-       indxt=indx(l+1)
+       indxt=indx(l+ione)
        a=arr(indxt)
 3      continue
-       i=i+1
-       if(arr(indx(i)).lt.a)goto 3
+       i=i+ione
+       if(arr(indx(i))<a)goto 3
        
 4      continue
-       j=j-1
-       if(arr(indx(j)).gt.a)goto 4
-       if(j.lt.i)goto 5
+       j=j-ione
+       if(arr(indx(j))>a)goto 4
+       if(j<i)goto 5
        itemp=indx(i)
        indx(i)=indx(j)
        indx(j)=itemp
        goto 3
        
 5      continue
-       indx(l+1)=indx(j)
+       indx(l+ione)=indx(j)
        indx(j)=indxt
-       jstack=jstack+2
-       if(jstack.gt.nstack)then
+       jstack=jstack+2_i_kind
+       if(jstack>nstack)then
           write(6,*)'INDEXX:  nstack=',nstack,' too small in indexx'
           call stop2(32)
        endif
-       if(ir-i+1.ge.j-l)then
+       if(ir-i+ione>=j-l)then
           istack(jstack)=ir
-          istack(jstack-1)=i
-          ir=j-1
+          istack(jstack-ione)=i
+          ir=j-ione
        else
-          istack(jstack)=j-1
-          istack(jstack-1)=l
+          istack(jstack)=j-ione
+          istack(jstack-ione)=l
           l=i
        endif
     endif

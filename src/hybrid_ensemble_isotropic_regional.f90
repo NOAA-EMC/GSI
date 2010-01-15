@@ -116,10 +116,10 @@ module hybrid_ensemble_isotropic_regional
 
 !    following is for special subdomain to slab variables used when internally generating ensemble members
 
-    integer(i_kind) nval2f,nscl
-    integer(i_kind) nh_0,nh_1,nv_0,nv_1
-    integer(i_kind),allocatable,dimension(:):: nsend_sd2h,ndsend_sd2h,nrecv_sd2h,ndrecv_sd2h
-    integer(i_kind),allocatable,dimension(:):: i_recv,k_recv
+  integer(i_kind) nval2f,nscl
+  integer(i_kind) nh_0,nh_1,nv_0,nv_1
+  integer(i_kind),allocatable,dimension(:):: nsend_sd2h,ndsend_sd2h,nrecv_sd2h,ndrecv_sd2h
+  integer(i_kind),allocatable,dimension(:):: i_recv,k_recv
 
 contains
 
@@ -148,25 +148,25 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-
+    use constants, only: izero,ione
     use hybrid_ensemble_parameters, only: n_ens
     use gridmod, only: nsig
     implicit none
 
-   integer(i_kind),intent(in)::npe    ! number of mpi tasks
+    integer(i_kind),intent(in   ) :: npe    ! number of mpi tasks
 
     integer(i_kind) vlevs,k
 
 ! Initialize nsig1o_a_en to distribute levs/variables
 ! as evenly as possible over the tasks
-    vlevs=nsig*n_ens
-    nsig1o_a_en=vlevs/npe
-    if(mod(vlevs,npe)/=0) nsig1o_a_en=nsig1o_a_en+1
-    nnnn1o_a_en=nsig1o_a_en                  ! temporarily set the number of levels to nsig1o_a_en
+     vlevs=nsig*n_ens
+     nsig1o_a_en=vlevs/npe
+     if(mod(vlevs,npe)/=izero) nsig1o_a_en=nsig1o_a_en+ione
+     nnnn1o_a_en=nsig1o_a_en                  ! temporarily set the number of levels to nsig1o_a_en
      write(6,*)' in init_grid_vars_a_en, npe,vlevs,nsig1o_a_en,nnnn1o_a_en=', &
                                          npe,vlevs,nsig1o_a_en,nnnn1o_a_en
 
-    return
+     return
   end subroutine init_grid_vars_a_en
 
   subroutine init_mpi_vars_a_en
@@ -212,19 +212,19 @@ contains
        irdsp_g_a_en(npe),iscnt_s_a_en(npe),isdsp_s_a_en(npe),ircnt_s_a_en(npe),&
        irdsp_s_a_en(npe))
 
-    mm1=mype+1
+    mm1=mype+ione
 
 ! Initialize slab/subdomain communicators, redefined in
 ! init_commvars
     do n=1,npe
-      iscnt_g_a_en(n)   = izero
-      isdsp_g_a_en(n)   = izero
-      ircnt_g_a_en(n)   = izero
-      irdsp_g_a_en(n)   = izero
-      iscnt_s_a_en(n)   = izero
-      isdsp_s_a_en(n)   = izero
-      ircnt_s_a_en(n)   = izero
-      irdsp_s_a_en(n)   = izero
+       iscnt_g_a_en(n)   = izero
+       isdsp_g_a_en(n)   = izero
+       ircnt_g_a_en(n)   = izero
+       irdsp_g_a_en(n)   = izero
+       iscnt_s_a_en(n)   = izero
+       isdsp_s_a_en(n)   = izero
+       ircnt_s_a_en(n)   = izero
+       irdsp_s_a_en(n)   = izero
 
     end do
 
@@ -233,57 +233,57 @@ contains
 ! Need to use a variable to know which tasks have a full nsig1o_a_en 
 ! array, and which one have the last level irrelevant
     if (mod(n_ens*nsig,npe)==izero) then
-      kchk=npe
+       kchk=npe
     else
-      kchk=mod(nsig*n_ens,npe)
+       kchk=mod(nsig*n_ens,npe)
     end if
 
     levs_id_a_en=izero
     nvar_id_a_en=izero
-    nvar_pe_a_en=-999
+    nvar_pe_a_en=-999_i_kind
 
 ! Define which variable/level each task has for the
 ! global slabs (levs_id_a_en,nvar_id_a_en)
     varcnt=izero
     kthis=izero
-    nn=1
+    nn=ione
     do n=1,npe
-      if(n <= kchk) then
-        kk=nsig1o_a_en
-      else
-        kk=nsig1o_a_en-1
-      end if
-      do k=1,kk
-        varcnt=varcnt+1
-        kthis=kthis+1
-        if(kthis >  nsig) then
-          kthis=1
-          nn=nn+1
-        end if
-        nvar_pe_a_en(varcnt,1)=n-1
-        nvar_pe_a_en(varcnt,2)=k
-        if (n==mm1) then
-          levs_id_a_en(k)=kthis
-          nvar_id_a_en(k)=nn
-        end if
-      end do ! enddo over levs
+       if(n <= kchk) then
+          kk=nsig1o_a_en
+       else
+          kk=nsig1o_a_en-ione
+       end if
+       do k=1,kk
+          varcnt=varcnt+ione
+          kthis=kthis+ione
+          if(kthis >  nsig) then
+             kthis=ione
+             nn=nn+ione
+          end if
+          nvar_pe_a_en(varcnt,1)=n-ione
+          nvar_pe_a_en(varcnt,2)=k
+          if (n==mm1) then
+             levs_id_a_en(k)=kthis
+             nvar_id_a_en(k)=nn
+          end if
+       end do ! enddo over levs
     end do ! enddo over npe
 !?????????????????????????????????following is for initial debug
-    if(mype == 0) write(6,*)' in init_mpi_vars_a_en, kthis,varcnt=',kthis,varcnt
-    if(mype == 0) write(6,*)' in init_mpi_vars_a_en, nsig,n_ens*nsig=',nsig,n_ens*nsig
-    if(mype == 0) write(6,*)' in init_mpi_vars_a_en, nn,n_ens=',nn,n_ens
+    if(mype == izero) write(6,*)' in init_mpi_vars_a_en, kthis,varcnt=',kthis,varcnt
+    if(mype == izero) write(6,*)' in init_mpi_vars_a_en, nsig,n_ens*nsig=',nsig,n_ens*nsig
+    if(mype == izero) write(6,*)' in init_mpi_vars_a_en, nn,n_ens=',nn,n_ens
     if(kthis /= nsig.or.varcnt /= n_ens*nsig.or.nn /= n_ens) then
-      if(mype == 0) write(6,*)' problem with init_mpi_vars_a_en, above lines should be equal'
-      if(mype >  -1000) then
-        call mpi_finalize(k)
-        stop
-      end if
+       if(mype == izero) write(6,*)' problem with init_mpi_vars_a_en, above lines should be equal'
+       if(mype >  -1000_i_kind) then
+          call mpi_finalize(k)
+          stop
+       end if
     end if
 !?????????????????????????????????preceding is for initial debug
 
-    nnnn1o_a_en=0
+    nnnn1o_a_en=izero
     do k=1,nsig1o_a_en
-       if (levs_id_a_en(k)/=0) nnnn1o_a_en=nnnn1o_a_en+1
+       if (levs_id_a_en(k)/=izero) nnnn1o_a_en=nnnn1o_a_en+ione
     end do
 
 
@@ -351,13 +351,13 @@ subroutine init_commvars_a_en
   use mpimod, only: mype,npe
   use hybrid_ensemble_parameters, only: n_ens
 
-  use constants, only: izero
+  use constants, only: izero,ione
   implicit none
 
   integer(i_kind) ns,mm1
   integer(i_kind) i,j,n,kchk
   
-  mm1=mype+1
+  mm1=mype+ione
 
 ! vertical column / horizontal slice communicator arrays
   isdsp_g_a_en(1)=izero
@@ -366,34 +366,34 @@ subroutine init_commvars_a_en
   irdsp_s_a_en(1)=izero
 
   if (mod(n_ens*nsig,npe)==izero) then
-    kchk=npe
+     kchk=npe
   else
-    kchk=mod(n_ens*nsig,npe)
+     kchk=mod(n_ens*nsig,npe)
   end if
 
   do n=1,npe
-    if (n <= kchk) then
-      iscnt_g_a_en(n)=ijn(mm1)*nsig1o_a_en
-      ircnt_s_a_en(n)=ijn_s(mm1)*nsig1o_a_en
-    else
-      iscnt_g_a_en(n)=ijn(mm1)*(nsig1o_a_en-1)
-      ircnt_s_a_en(n)=ijn_s(mm1)*(nsig1o_a_en-1)
-    end if
+     if (n <= kchk) then
+        iscnt_g_a_en(n)=ijn(mm1)*nsig1o_a_en
+        ircnt_s_a_en(n)=ijn_s(mm1)*nsig1o_a_en
+     else
+        iscnt_g_a_en(n)=ijn(mm1)*(nsig1o_a_en-ione)
+        ircnt_s_a_en(n)=ijn_s(mm1)*(nsig1o_a_en-ione)
+     end if
 
-    if (mm1 <= kchk) then
-      ircnt_g_a_en(n)=ijn(n)*nsig1o_a_en
-      iscnt_s_a_en(n)=ijn_s(n)*nsig1o_a_en
-    else
-      ircnt_g_a_en(n)=ijn(n)*(nsig1o_a_en-1)
-      iscnt_s_a_en(n)=ijn_s(n)*(nsig1o_a_en-1)
-    end if
+     if (mm1 <= kchk) then
+        ircnt_g_a_en(n)=ijn(n)*nsig1o_a_en
+        iscnt_s_a_en(n)=ijn_s(n)*nsig1o_a_en
+     else
+        ircnt_g_a_en(n)=ijn(n)*(nsig1o_a_en-ione)
+        iscnt_s_a_en(n)=ijn_s(n)*(nsig1o_a_en-ione)
+     end if
 
-    if (n/=1) then
-      isdsp_g_a_en(n)=isdsp_g_a_en(n-1)+iscnt_g_a_en(n-1)
-      irdsp_g_a_en(n)=irdsp_g_a_en(n-1)+ijn(n-1)*nsig1o_a_en
-      isdsp_s_a_en(n)=isdsp_s_a_en(n-1)+ijn_s(n-1)*nsig1o_a_en
-      irdsp_s_a_en(n)=irdsp_s_a_en(n-1)+ircnt_s_a_en(n-1)
-    end if
+     if (n/=ione) then
+        isdsp_g_a_en(n)=isdsp_g_a_en(n-ione)+iscnt_g_a_en(n-ione)
+        irdsp_g_a_en(n)=irdsp_g_a_en(n-ione)+ijn(n-ione)*nsig1o_a_en
+        isdsp_s_a_en(n)=isdsp_s_a_en(n-ione)+ijn_s(n-ione)*nsig1o_a_en
+        irdsp_s_a_en(n)=irdsp_s_a_en(n-ione)+ircnt_s_a_en(n-ione)
+     end if
   end do
 
   return
@@ -427,7 +427,7 @@ subroutine init_rf_z(z_len)
   use gridmod, only: nsig
   use constants, only: half
 
-  real(r_kind),intent(in):: z_len
+  real(r_kind),intent(in   ) :: z_len
 
   integer(i_kind) k
   real(r_kind) aspect(nsig)
@@ -435,7 +435,7 @@ subroutine init_rf_z(z_len)
 !    use new factorization:
   allocate(fmatz(2,nsig,2),fmat0z(nsig,2))
   do k=1,nsig
-    aspect(k)=z_len**2
+     aspect(k)=z_len**2
   end do
   call get_new_alpha_beta(aspect,nsig,fmatz,fmat0z)
 
@@ -468,7 +468,7 @@ subroutine init_rf_x(x_len)
   use gridmod, only: nlat,nlon,region_dy,region_dx
   use constants, only: half
 
-  real(r_kind),intent(in):: x_len
+  real(r_kind),intent(in   ) :: x_len
 
   integer(i_kind) i,j,k,l,m
   real(r_kind) aspect(nlon)
@@ -479,18 +479,18 @@ subroutine init_rf_x(x_len)
   if(allocated(fmat0x)) deallocate(fmat0x)
   allocate(fmatx(nlat,2,nlon,2),fmat0x(nlat,nlon,2))
   do i=1,nlat
-    do j=1,nlon
-      aspect(j)=(x_len*region_dy(nlat/2,nlon/2)/region_dx(i,j))**2 ! only works for rotated lat-lon grids
-    end do
-    call get_new_alpha_beta(aspect,nlon,fmatc,fmat0c)
-    do k=1,2
-      do j=1,nlon
-        do l=1,2
-          fmatx(i,l,j,k)=fmatc(l,j,k)
+     do j=1,nlon
+        aspect(j)=(x_len*region_dy(nlat/2,nlon/2)/region_dx(i,j))**2 ! only works for rotated lat-lon grids
+     end do
+     call get_new_alpha_beta(aspect,nlon,fmatc,fmat0c)
+     do k=1,2
+        do j=1,nlon
+           do l=1,2
+              fmatx(i,l,j,k)=fmatc(l,j,k)
+           end do
+           fmat0x(i,j,k)=fmat0c(j,k)
         end do
-        fmat0x(i,j,k)=fmat0c(j,k)
-      end do
-    end do
+     end do
   end do
 
 end subroutine init_rf_x
@@ -522,7 +522,7 @@ subroutine init_rf_y(y_len)
   use gridmod, only: nlat
   use constants, only: half
 
-  real(r_kind),intent(in):: y_len
+  real(r_kind),intent(in   ) :: y_len
 
   real(r_kind) aspect(nlat)
   integer(i_kind) i,m
@@ -532,7 +532,7 @@ subroutine init_rf_y(y_len)
   if(allocated(fmat0y)) deallocate(fmat0y)
   allocate(fmaty(2,nlat,2),fmat0y(nlat,2))
   do i=1,nlat
-    aspect(i)=y_len**2
+     aspect(i)=y_len**2
   end do
   call get_new_alpha_beta(aspect,nlat,fmaty,fmat0y)
 
@@ -564,48 +564,49 @@ subroutine new_factorization_rf_z(f,iadvance,iback)
 !
 !$$$ end documentation block
 
-  use gridmod,only: latlon11,nsig
+  use gridmod, only: latlon11,nsig
+  use constants, only: ione
   implicit none
 
-  integer(i_kind),intent(in):: iadvance,iback
-  real(r_kind),intent(inout):: f(latlon11,nsig)
+  integer(i_kind),intent(in   ) :: iadvance,iback
+  real(r_kind)   ,intent(inout) :: f(latlon11,nsig)
 
   integer(i_kind) i,j,k,l,nxy,nz
 
   nxy=latlon11 ; nz=nsig
-  if(iadvance == 1) then
-    do k=1,nz
-      do i=1,nxy
-        f(i,k)=znorm_new(k)*f(i,k)
-      end do
-    end do
+  if(iadvance == ione) then
+     do k=1,nz
+        do i=1,nxy
+           f(i,k)=znorm_new(k)*f(i,k)
+        end do
+     end do
   end if
   do k=1,nz
-    do l=1,min(2,k-1)
-      do i=1,nxy
-        f(i,k)=f(i,k)-fmatz(l,k,iadvance)*f(i,k-l)
-      end do
-    end do
-    do i=1,nxy
-      f(i,k)=fmat0z(k,iadvance)*f(i,k)
-    end do
+     do l=1,min(2_i_kind,k-ione)
+        do i=1,nxy
+           f(i,k)=f(i,k)-fmatz(l,k,iadvance)*f(i,k-l)
+        end do
+     end do
+     do i=1,nxy
+        f(i,k)=fmat0z(k,iadvance)*f(i,k)
+     end do
   end do
   do k=nz,1,-1
-    do l=1,min(2,nz-k)
-      do i=1,nxy
-        f(i,k)=f(i,k)-fmatz(l,k+l,iback)*f(i,k+l)
-      end do
-    end do
-    do i=1,nxy
-      f(i,k)=fmat0z(k,iback)*f(i,k)
-    end do
+     do l=1,min(2_i_kind,nz-k)
+        do i=1,nxy
+           f(i,k)=f(i,k)-fmatz(l,k+l,iback)*f(i,k+l)
+        end do
+     end do
+     do i=1,nxy
+        f(i,k)=fmat0z(k,iback)*f(i,k)
+     end do
   end do
-  if(iadvance == 2) then
-    do k=1,nz
-      do i=1,nxy
-        f(i,k)=znorm_new(k)*f(i,k)
-      end do
-    end do
+  if(iadvance == 2_i_kind) then
+     do k=1,nz
+        do i=1,nxy
+           f(i,k)=znorm_new(k)*f(i,k)
+        end do
+     end do
   end if
 
 end subroutine new_factorization_rf_z
@@ -635,55 +636,55 @@ subroutine new_factorization_rf_x(f,iadvance,iback)
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-
+  use constants, only: ione
   use gridmod, only: nlat,nlon
   implicit none
 
-  integer(i_kind),intent(in):: iadvance,iback
-  real(r_kind),intent(inout):: f(nlat,nlon,nnnn1o_a_en)
+  integer(i_kind),intent(in   ) :: iadvance,iback
+  real(r_kind)   ,intent(inout) :: f(nlat,nlon,nnnn1o_a_en)
 
   integer(i_kind) i,j,k,l,ny,nx,nz
 
   ny=nlat ; nx=nlon ; nz=nnnn1o_a_en
   do k=1,nz
 
-    if(iadvance == 1) then
-      do j=1,nx
-        do i=1,ny
-          f(i,j,k)=xnorm_new(i,j)*f(i,j,k)
+     if(iadvance == ione) then
+        do j=1,nx
+           do i=1,ny
+              f(i,j,k)=xnorm_new(i,j)*f(i,j,k)
+           end do
         end do
-      end do
-    end if
+     end if
 
-    do j=1,nx
-      do l=1,min(2,j-1)
-        do i=1,ny
-          f(i,j,k)=f(i,j,k)-fmatx(i,l,j,iadvance)*f(i,j-l,k)
+     do j=1,nx
+        do l=1,min(2_i_kind,j-ione)
+           do i=1,ny
+              f(i,j,k)=f(i,j,k)-fmatx(i,l,j,iadvance)*f(i,j-l,k)
+           end do
         end do
-      end do
-      do i=1,ny
-        f(i,j,k)=fmat0x(i,j,iadvance)*f(i,j,k)
-      end do
-    end do
+        do i=1,ny
+           f(i,j,k)=fmat0x(i,j,iadvance)*f(i,j,k)
+        end do
+     end do
 
-    do j=nx,1,-1
-      do l=1,min(2,nx-j)
-        do i=1,ny
-          f(i,j,k)=f(i,j,k)-fmatx(i,l,j+l,iback)*f(i,j+l,k)
+     do j=nx,1,-1
+        do l=1,min(2_i_kind,nx-j)
+           do i=1,ny
+              f(i,j,k)=f(i,j,k)-fmatx(i,l,j+l,iback)*f(i,j+l,k)
+           end do
         end do
-      end do
-      do i=1,ny
-        f(i,j,k)=fmat0x(i,j,iback)*f(i,j,k)
-      end do
-    end do
+        do i=1,ny
+           f(i,j,k)=fmat0x(i,j,iback)*f(i,j,k)
+        end do
+     end do
 
-    if(iadvance == 2) then
-      do j=1,nx
-        do i=1,ny
-          f(i,j,k)=xnorm_new(i,j)*f(i,j,k)
+     if(iadvance == 2_i_kind) then
+        do j=1,nx
+           do i=1,ny
+              f(i,j,k)=xnorm_new(i,j)*f(i,j,k)
+           end do
         end do
-      end do
-    end if
+     end if
 
   end do
 
@@ -714,44 +715,44 @@ subroutine new_factorization_rf_y(f,iadvance,iback)
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-
+  use constants, only: ione
   use gridmod, only: nlat,nlon
                       !                  use mpimod, only: mype
   implicit none
 
-  integer(i_kind),intent(in):: iadvance,iback
-  real(r_kind),intent(inout):: f(nlat,nlon*nnnn1o_a_en)
+  integer(i_kind),intent(in   ) :: iadvance,iback
+  real(r_kind)   ,intent(inout) :: f(nlat,nlon*nnnn1o_a_en)
 
   integer(i_kind) i,k,l,nx,ny,nz
 
   nx=nlon ; ny=nlat ; nz=nnnn1o_a_en
   do k=1,nx*nz
 
-      if(iadvance == 1) then
+     if(iadvance == ione) then
         do i=1,ny
-          f(i,k)=ynorm_new(i)*f(i,k)
+           f(i,k)=ynorm_new(i)*f(i,k)
         end do
-      end if
+     end if
 
-      do i=1,ny
-        do l=1,min(2,i-1)
-          f(i,k)=f(i,k)-fmaty(l,i,iadvance)*f(i-l,k)
+     do i=1,ny
+        do l=1,min(2_i_kind,i-ione)
+           f(i,k)=f(i,k)-fmaty(l,i,iadvance)*f(i-l,k)
         end do
         f(i,k)=fmat0y(i,iadvance)*f(i,k)
-      end do
+     end do
 
-      do i=ny,1,-1
-        do l=1,min(2,ny-i)
-          f(i,k)=f(i,k)-fmaty(l,i+l,iback)*f(i+l,k)
+     do i=ny,1,-1
+        do l=1,min(2_i_kind,ny-i)
+           f(i,k)=f(i,k)-fmaty(l,i+l,iback)*f(i+l,k)
         end do
         f(i,k)=fmat0y(i,iback)*f(i,k)
-      end do
+     end do
 
-      if(iadvance == 2) then
+     if(iadvance == 2_i_kind) then
         do i=1,ny
-          f(i,k)=ynorm_new(i)*f(i,k)
+           f(i,k)=ynorm_new(i)*f(i,k)
         end do
-      end if
+     end if
 
   end do
 
@@ -781,7 +782,7 @@ subroutine normal_new_factorization_rf_z
 
   use kinds, only: r_kind,i_kind
   use gridmod, only: latlon11,nsig
-  use constants, only: zero,one,izero
+  use constants, only: izero,ione,zero,one
   implicit none
 
   integer(i_kind) k,kcount,lcount,iadvance,iback
@@ -794,46 +795,46 @@ subroutine normal_new_factorization_rf_z
   kcount=izero
   lcount=izero
   do
-    f=zero
-    do k=1,min(latlon11,nsig)
-      kcount=kcount+1
-      f(k,kcount)=one
-      if(kcount == nsig) exit
-    end do
-    iadvance=1 ; iback=2
-    call new_factorization_rf_z(f,iadvance,iback)
-    iadvance=2 ; iback=1
-    call new_factorization_rf_z(f,iadvance,iback)
-    do k=1,min(latlon11,nsig)
-      lcount=lcount+1
-      diag(lcount)=sqrt(one/f(k,lcount))
-      if(lcount == nsig) exit
-    end do
-    if(lcount == nsig) exit
+     f=zero
+     do k=1,min(latlon11,nsig)
+        kcount=kcount+ione
+        f(k,kcount)=one
+        if(kcount == nsig) exit
+     end do
+     iadvance=ione ; iback=2_i_kind
+     call new_factorization_rf_z(f,iadvance,iback)
+     iadvance=2_i_kind ; iback=ione
+     call new_factorization_rf_z(f,iadvance,iback)
+     do k=1,min(latlon11,nsig)
+        lcount=lcount+ione
+        diag(lcount)=sqrt(one/f(k,lcount))
+        if(lcount == nsig) exit
+     end do
+     if(lcount == nsig) exit
   end do
   do k=1,nsig
-    znorm_new(k)=diag(k)
+     znorm_new(k)=diag(k)
   end do
 !              check result:
   kcount=izero
   lcount=izero
   do
-    f=zero
-    do k=1,min(latlon11,nsig)
-      kcount=kcount+1
-      f(k,kcount)=one
-      if(kcount == nsig) exit
-    end do
-    iadvance=1 ; iback=2
-    call new_factorization_rf_z(f,iadvance,iback)
-    iadvance=2 ; iback=1
-    call new_factorization_rf_z(f,iadvance,iback)
-    do k=1,min(latlon11,nsig)
-      lcount=lcount+1
-      diag(lcount)=f(k,lcount)
-      if(lcount == nsig) exit
-    end do
-    if(lcount == nsig) exit
+     f=zero
+     do k=1,min(latlon11,nsig)
+        kcount=kcount+ione
+        f(k,kcount)=one
+        if(kcount == nsig) exit
+     end do
+     iadvance=ione ; iback=2_i_kind
+     call new_factorization_rf_z(f,iadvance,iback)
+     iadvance=2_i_kind ; iback=ione
+     call new_factorization_rf_z(f,iadvance,iback)
+     do k=1,min(latlon11,nsig)
+        lcount=lcount+ione
+        diag(lcount)=f(k,lcount)
+        if(lcount == nsig) exit
+     end do
+     if(lcount == nsig) exit
   end do
   write(6,*)' in normal_new_factorization_rf_z, min,max(diag)=',minval(diag),maxval(diag)
 
@@ -863,7 +864,7 @@ subroutine normal_new_factorization_rf_x
 
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
-  use constants, only: zero,one,izero
+  use constants, only: izero,ione,zero,one
 
   integer(i_kind) i,j,k,kcount,lcount,iadvance,iback
   real(r_kind) f(nlat,nlon,nnnn1o_a_en),diag(nlat,nlon)
@@ -875,57 +876,57 @@ subroutine normal_new_factorization_rf_x
   kcount=izero
   lcount=izero
   do
-    f=zero
-    do k=1,min(nlon,nnnn1o_a_en)
-      kcount=kcount+1
-      do i=1,nlat
-        f(i,kcount,k)=one
-      end do
-      if(kcount == nlon) exit
-    end do
-    iadvance=1 ; iback=2
-    call new_factorization_rf_x(f,iadvance,iback)
-    iadvance=2 ; iback=1
-    call new_factorization_rf_x(f,iadvance,iback)
-    do k=1,min(nlon,nnnn1o_a_en)
-      lcount=lcount+1
-      do i=1,nlat
-        diag(i,lcount)=sqrt(one/f(i,lcount,k))
-      end do
-      if(lcount == nlon) exit
-    end do
-    if(lcount == nlon) exit
+     f=zero
+     do k=1,min(nlon,nnnn1o_a_en)
+        kcount=kcount+ione
+        do i=1,nlat
+           f(i,kcount,k)=one
+        end do
+        if(kcount == nlon) exit
+     end do
+     iadvance=ione ; iback=2_i_kind
+     call new_factorization_rf_x(f,iadvance,iback)
+     iadvance=2_i_kind ; iback=ione
+     call new_factorization_rf_x(f,iadvance,iback)
+     do k=1,min(nlon,nnnn1o_a_en)
+        lcount=lcount+ione
+        do i=1,nlat
+           diag(i,lcount)=sqrt(one/f(i,lcount,k))
+        end do
+        if(lcount == nlon) exit
+     end do
+     if(lcount == nlon) exit
   end do
   do j=1,nlon
-    do i=1,nlat
-      xnorm_new(i,j)=diag(i,j)
-    end do
+     do i=1,nlat
+        xnorm_new(i,j)=diag(i,j)
+     end do
   end do
 
 !           check accuracy of xnorm
   kcount=izero
   lcount=izero
   do
-    f=zero
-    do k=1,min(nlon,nnnn1o_a_en)
-      kcount=kcount+1
-      do i=1,nlat
-        f(i,kcount,k)=one
-      end do
-      if(kcount == nlon) exit
-    end do
-    iadvance=1 ; iback=2
-    call new_factorization_rf_x(f,iadvance,iback)
-    iadvance=2 ; iback=1
-    call new_factorization_rf_x(f,iadvance,iback)
-    do k=1,min(nlon,nnnn1o_a_en)
-      lcount=lcount+1
-      do i=1,nlat
-        diag(i,lcount)=f(i,lcount,k)
-      end do
-      if(lcount == nlon) exit
-    end do
-    if(lcount == nlon) exit
+     f=zero
+     do k=1,min(nlon,nnnn1o_a_en)
+        kcount=kcount+ione
+        do i=1,nlat
+           f(i,kcount,k)=one
+        end do
+        if(kcount == nlon) exit
+     end do
+     iadvance=ione ; iback=2_i_kind
+     call new_factorization_rf_x(f,iadvance,iback)
+     iadvance=2_i_kind ; iback=ione
+     call new_factorization_rf_x(f,iadvance,iback)
+     do k=1,min(nlon,nnnn1o_a_en)
+        lcount=lcount+ione
+        do i=1,nlat
+           diag(i,lcount)=f(i,lcount,k)
+        end do
+        if(lcount == nlon) exit
+     end do
+     if(lcount == nlon) exit
   end do
   write(6,*)' in normal_new_factorization_rf_x, min,max(diag)=',minval(diag),maxval(diag)
 
@@ -955,8 +956,8 @@ subroutine normal_new_factorization_rf_y
 
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
-  use constants, only: zero,one,izero
-                                  use mpimod, only: mype
+  use constants, only: izero,ione,zero,one
+  use mpimod, only: mype
   implicit none
 
   integer(i_kind) k,kcount,lcount,iadvance,iback
@@ -969,47 +970,47 @@ subroutine normal_new_factorization_rf_y
   kcount=izero
   lcount=izero
   do
-    f=zero
-    do k=1,min(nlon*nnnn1o_a_en,nlat)
-      kcount=kcount+1
-      f(kcount,k)=one
-      if(kcount == nlat) exit
-    end do
-    iadvance=1 ; iback=2
-    call new_factorization_rf_y(f,iadvance,iback)
-    iadvance=2 ; iback=1
-    call new_factorization_rf_y(f,iadvance,iback)
-    do k=1,min(nlon*nnnn1o_a_en,nlat)
-      lcount=lcount+1
-      diag(lcount)=sqrt(one/f(lcount,k))
-      if(lcount == nlat) exit
-    end do
-    if(lcount == nlat) exit
+     f=zero
+     do k=1,min(nlon*nnnn1o_a_en,nlat)
+        kcount=kcount+ione
+        f(kcount,k)=one
+        if(kcount == nlat) exit
+     end do
+     iadvance=ione ; iback=2_i_kind
+     call new_factorization_rf_y(f,iadvance,iback)
+     iadvance=2_i_kind ; iback=ione
+     call new_factorization_rf_y(f,iadvance,iback)
+     do k=1,min(nlon*nnnn1o_a_en,nlat)
+        lcount=lcount+ione
+        diag(lcount)=sqrt(one/f(lcount,k))
+        if(lcount == nlat) exit
+     end do
+     if(lcount == nlat) exit
   end do
   do k=1,nlat
-    ynorm_new(k)=diag(k)
+     ynorm_new(k)=diag(k)
   end do
 
 !               check that ynorm is corect
   kcount=izero
   lcount=izero
   do
-    f=zero
-    do k=1,min(nlon*nnnn1o_a_en,nlat)
-      kcount=kcount+1
-      f(kcount,k)=one
-      if(kcount == nlat) exit
-    end do
-    iadvance=1 ; iback=2
-    call new_factorization_rf_y(f,iadvance,iback)
-    iadvance=2 ; iback=1
-    call new_factorization_rf_y(f,iadvance,iback)
-    do k=1,min(nlon*nnnn1o_a_en,nlat)
-      lcount=lcount+1
-      diag(lcount)=f(lcount,k)
-      if(lcount == nlat) exit
-    end do
-    if(lcount == nlat) exit
+     f=zero
+     do k=1,min(nlon*nnnn1o_a_en,nlat)
+        kcount=kcount+ione
+        f(kcount,k)=one
+        if(kcount == nlat) exit
+     end do
+     iadvance=ione ; iback=2_i_kind
+     call new_factorization_rf_y(f,iadvance,iback)
+     iadvance=2_i_kind ; iback=ione
+     call new_factorization_rf_y(f,iadvance,iback)
+     do k=1,min(nlon*nnnn1o_a_en,nlat)
+        lcount=lcount+ione
+        diag(lcount)=f(lcount,k)
+        if(lcount == nlat) exit
+     end do
+     if(lcount == nlat) exit
   end do
   write(6,*)' in normal_new_factorizaiton_rf_y, min,max(diag)=',minval(diag),maxval(diag)
 
@@ -1046,8 +1047,8 @@ end subroutine normal_new_factorization_rf_y
               t_en(latlon1n,n_ens), rh_en(latlon1n,n_ens), &
              oz_en(latlon1n,n_ens), cw_en(latlon1n,n_ens), &
               p_en(latlon11,n_ens),sst_en(latlon11,n_ens))
-                 write(6,*)' in create_ensemble, latlon11,latlon1n,n_ens=',latlon11,latlon1n,n_ens
-                 write(6,*)' in create_ensemble, total bytes allocated=',4*(6*latlon1n+2*latlon11)*n_ens
+    write(6,*)' in create_ensemble, latlon11,latlon1n,n_ens=',latlon11,latlon1n,n_ens
+    write(6,*)' in create_ensemble, total bytes allocated=',4*(6*latlon1n+2*latlon11)*n_ens
 
   end subroutine create_ensemble
 
@@ -1073,10 +1074,10 @@ end subroutine normal_new_factorization_rf_y
 !
 !$$$
     use gridmod, only: latlon11,latlon1n,nnnn1o,nlat,nlon
-                                    use gridmod, only: nsig
-    use constants, only: zero,one
+    use gridmod, only: nsig
+    use constants, only: izero,ione,zero,one
     use hybrid_ensemble_parameters, only: n_ens,generate_ens
-                                          use mpimod, only: mype,ierror
+    use mpimod, only: mype,ierror
     implicit none
 
     real(r_kind),dimension(latlon1n)::st,vp,t,rh,oz,cw
@@ -1086,64 +1087,64 @@ end subroutine normal_new_factorization_rf_y
     integer(i_kind) i,n
     real(r_kind),allocatable:: seed(:,:)
     real(r_kind) sig_norm,bar_norm
-                                      character(50) title
+    character(50) title
 
     sig_norm=sqrt(one/max(one,n_ens-one))
     bar_norm=one/n_ens
-    if(n_ens == 1) bar_norm=zero
+    if(n_ens == ione) bar_norm=zero
 
     if(generate_ens) then
 
 !                        initialize subdomain to slab routine special_sd2h
-      call special_sd2h0
-      allocate(seed(nval2f,nscl))
-      seed=-one
-      stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero
-      ozbar=zero ; cwbar=zero ; pbar=zero ; sstbar=zero
-      do n=1,n_ens
-        call generate_one_ensemble_perturbation(st,vp,t,rh,oz,cw,p,sst,seed)
-        do i=1,latlon1n
-          st_en(i,n)=st(i)
-          vp_en(i,n)=vp(i)
-           t_en(i,n)= t(i)
-          rh_en(i,n)=rh(i)
-          oz_en(i,n)=oz(i)
-          cw_en(i,n)=cw(i)
-          stbar(i)=stbar(i)+st(i)
-          vpbar(i)=vpbar(i)+vp(i)
-           tbar(i)= tbar(i)+ t(i)
-          rhbar(i)=rhbar(i)+rh(i)
-          ozbar(i)=ozbar(i)+oz(i)
-          cwbar(i)=cwbar(i)+cw(i)
-        end do
-        do i=1,latlon11
-          p_en(i,n)=p(i)
-          sst_en(i,n)=sst(i)
-          pbar(i)=pbar(i)+ p(i)
-          sstbar(i)=sstbar(i)+ sst(i)
-        end do
-      end do
+       call special_sd2h0
+       allocate(seed(nval2f,nscl))
+       seed=-one
+       stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero
+       ozbar=zero ; cwbar=zero ; pbar=zero ; sstbar=zero
+       do n=1,n_ens
+          call generate_one_ensemble_perturbation(st,vp,t,rh,oz,cw,p,sst,seed)
+          do i=1,latlon1n
+             st_en(i,n)=st(i)
+             vp_en(i,n)=vp(i)
+             t_en(i,n)= t(i)
+             rh_en(i,n)=rh(i)
+             oz_en(i,n)=oz(i)
+             cw_en(i,n)=cw(i)
+             stbar(i)=stbar(i)+st(i)
+             vpbar(i)=vpbar(i)+vp(i)
+             tbar(i) = tbar(i)+ t(i)
+             rhbar(i)=rhbar(i)+rh(i)
+             ozbar(i)=ozbar(i)+oz(i)
+             cwbar(i)=cwbar(i)+cw(i)
+          end do
+          do i=1,latlon11
+             p_en(i,n)=p(i)
+             sst_en(i,n)=sst(i)
+             pbar(i)=pbar(i)+ p(i)
+             sstbar(i)=sstbar(i)+ sst(i)
+          end do
+       end do
 !                          remove mean, which is locally significantly non-zero, due to sample size.
 !                           with real ensembles, the mean of the actual sample will be removed.
-      do n=1,n_ens
-        do i=1,latlon1n
-          st_en(i,n)=(st_en(i,n)-stbar(i)*bar_norm)*sig_norm
-          vp_en(i,n)=(vp_en(i,n)-vpbar(i)*bar_norm)*sig_norm
-           t_en(i,n)=( t_en(i,n)- tbar(i)*bar_norm)*sig_norm
-          rh_en(i,n)=(rh_en(i,n)-rhbar(i)*bar_norm)*sig_norm
-          oz_en(i,n)=(oz_en(i,n)-ozbar(i)*bar_norm)*sig_norm
-          cw_en(i,n)=(cw_en(i,n)-cwbar(i)*bar_norm)*sig_norm
-        end do
-        do i=1,latlon11
-          p_en(i,n)=(p_en(i,n)- pbar(i)*bar_norm)*sig_norm
-          sst_en(i,n)=(sst_en(i,n)-sstbar(i)*bar_norm)*sig_norm
-        end do
-      end do
+       do n=1,n_ens
+          do i=1,latlon1n
+             st_en(i,n)=(st_en(i,n)-stbar(i)*bar_norm)*sig_norm
+             vp_en(i,n)=(vp_en(i,n)-vpbar(i)*bar_norm)*sig_norm
+             t_en(i,n) =( t_en(i,n)- tbar(i)*bar_norm)*sig_norm
+             rh_en(i,n)=(rh_en(i,n)-rhbar(i)*bar_norm)*sig_norm
+             oz_en(i,n)=(oz_en(i,n)-ozbar(i)*bar_norm)*sig_norm
+             cw_en(i,n)=(cw_en(i,n)-cwbar(i)*bar_norm)*sig_norm
+          end do
+          do i=1,latlon11
+             p_en(i,n)=(p_en(i,n)- pbar(i)*bar_norm)*sig_norm
+             sst_en(i,n)=(sst_en(i,n)-sstbar(i)*bar_norm)*sig_norm
+          end do
+       end do
     
     else
 !            read in ensembles
-     write(6,*)' ENSEMBLE INPUT FOR HYBRID ENSEMBLE 3DVAR NOT WRITTEN YET.  PROGRAM STOPS.'
-     if(1 /= 0) stop
+       write(6,*)' ENSEMBLE INPUT FOR HYBRID ENSEMBLE 3DVAR NOT WRITTEN YET.  PROGRAM STOPS.'
+       if(ione /= izero) stop
     end if
 
   end subroutine load_ensemble
@@ -1188,45 +1189,46 @@ end subroutine normal_new_factorization_rf_y
     use berror, only: qvar3d
     use hybrid_ensemble_parameters, only: uv_hyb_ens
     use constants, only: izero,zero,one
+    implicit none
 
-    real(r_kind),intent(inout)::seed(nval2f,nscl)
-    real(r_kind),intent(out),dimension(lat2,lon2,nsig):: st,vp,t,rh,oz,cw
-    real(r_kind),intent(out),dimension(lat2,lon2):: p,sst
+    real(r_kind)                          ,intent(inout) :: seed(nval2f,nscl)
+    real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: st,vp,t,rh,oz,cw
+    real(r_kind),dimension(lat2,lon2)     ,intent(  out) :: p,sst
 
     real(r_kind),dimension(nval2f,nnnn1o,nscl):: z
-    real(r_kind) vert1(6*nsig+4)
+    real(r_kind) vert1(6*nsig+4_i_kind)
     integer(i_llong) iseed
     integer(i_kind) nvert,i,is,naux,k
     real(r_kind) aux
-    real(r_kind),dimension(nh_0:nh_1,6*nsig+4,nscl):: zsub
+    real(r_kind),dimension(nh_0:nh_1,6*nsig+4_i_kind,nscl):: zsub
     real(r_kind),dimension(lat2,lon2,nsig):: u,v
 
     naux=izero
-    nvert=(6*nsig+4)
+    nvert=(6*nsig+4_i_kind)
     if(maxval(seed) <  zero) then
 
 !       create initial seed for random numbers for each horizontal location.
   
-      if(mype == izero) then
-        call random_number(seed)
-        do is=1,nscl
-          do i=1,nval2f
-            iseed=1+nint(seed(i,is)*2147483000._r_kind)
-            seed(i,is)=iseed
+       if(mype == izero) then
+          call random_number(seed)
+          do is=1,nscl
+             do i=1,nval2f
+                iseed=1+nint(seed(i,is)*2147483000._r_kind)
+                seed(i,is)=iseed
+             end do
           end do
-        end do
-      end if
-      call mpi_bcast(seed,nval2f*nscl,mpi_rtype,0,mpi_comm_world,ierror)
+       end if
+       call mpi_bcast(seed,nval2f*nscl,mpi_rtype,izero,mpi_comm_world,ierror)
 
     end if
 
     do is=1,nscl
-      do i=nh_0,nh_1
-        call dnrand(seed(i,is),nvert,vert1,aux,naux)
-        do k=1,nvert
-          zsub(i,k,is)=vert1(k)
-        end do
-      end do
+       do i=nh_0,nh_1
+          call dnrand(seed(i,is),nvert,vert1,aux,naux)
+          do k=1,nvert
+             zsub(i,k,is)=vert1(k)
+          end do
+       end do
     end do
     call special_sd2h(zsub,z)
 
@@ -1243,9 +1245,9 @@ end subroutine normal_new_factorization_rf_y
 
 !     if uv_hyb_ens=.true., then convert st,vp to u,v
     if(uv_hyb_ens) then
-      call getuv(u,v,st,vp,izero)
-      st=u
-      vp=v
+       call getuv(u,v,st,vp,izero)
+       st=u
+       vp=v
     end if
 
   end subroutine generate_one_ensemble_perturbation
@@ -1283,33 +1285,33 @@ end subroutine normal_new_factorization_rf_y
     use constants, only: izero,ione
     implicit none
 
-    real(r_kind),intent(inout):: z(nval2f,nnnn1o,nscl)
+    real(r_kind),intent(inout) :: z(nval2f,nnnn1o,nscl)
 
     real(r_kind) zloc1(ny,nx)
     integer(i_kind) i,ii,j,jj,k
 
     do j=1,nscl
-      do k=1,nnnn1o
-        i=izero
-        do jj=1,nx
-          do ii=1,ny
-            i=i+ione
-            zloc1(ii,jj)=z(i,k,j)
+       do k=1,nnnn1o
+          i=izero
+          do jj=1,nx
+             do ii=1,ny
+                i=i+ione
+                zloc1(ii,jj)=z(i,k,j)
+             end do
           end do
-        end do
-        do jj=nlon+1,nx
-          do ii=1,ny
-            zloc1(ii,jj)=zloc1(ii,jj-nlon)
+          do jj=nlon+1,nx
+             do ii=1,ny
+                zloc1(ii,jj)=zloc1(ii,jj-nlon)
+             end do
           end do
-        end do
-        i=izero
-        do jj=1,nx
-          do ii=1,ny
-            i=i+ione
-            z(i,k,j)=zloc1(ii,jj)
+          i=izero
+          do jj=1,nx
+             do ii=1,ny
+                i=i+ione
+                z(i,k,j)=zloc1(ii,jj)
+             end do
           end do
-        end do
-      end do
+       end do
     end do
     
   end subroutine fix_belt
@@ -1344,15 +1346,15 @@ end subroutine normal_new_factorization_rf_y
     integer(i_kind) i,ii,j,k,n
 
     do n=1,n_ens
-      ii=izero
-      do k=1,nsig
-        do j=1,lon2
-          do i=1,lat2
-            ii=ii+1
-            rh_en(ii,n)=qvar3d(i,j,k)*rh_en(ii,n)
+       ii=izero
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                ii=ii+1
+                rh_en(ii,n)=qvar3d(i,j,k)*rh_en(ii,n)
+             end do
           end do
-        end do
-      end do
+       end do
     end do
 
   end subroutine rescale_ensemble_rh_perturbations
@@ -1382,7 +1384,7 @@ end subroutine normal_new_factorization_rf_y
     implicit none
 
     if(l_hyb_ens) then
-      deallocate(st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en)
+       deallocate(st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en)
     end if
 
   end subroutine destroy_ensemble
@@ -1431,25 +1433,25 @@ end subroutine normal_new_factorization_rf_y
     use hybrid_ensemble_parameters, only: n_ens
     use constants, only: zero
 
-    real(r_kind),dimension(latlon1n),intent(inout):: st,vp,t,rh,oz,cw
-    real(r_kind),dimension(latlon11),intent(inout):: p,sst
-    real(r_kind),dimension(latlon1n,n_ens),intent(in):: a_en
+    real(r_kind),dimension(latlon1n)      ,intent(inout) :: st,vp,t,rh,oz,cw
+    real(r_kind),dimension(latlon11)      ,intent(inout) :: p,sst
+    real(r_kind),dimension(latlon1n,n_ens),intent(in   ) :: a_en
 
     integer(i_kind) i,k
 
     do k=1,n_ens
-      do i=1,latlon1n
-        st(i)=st(i)+a_en(i,k)*st_en(i,k)
-        vp(i)=vp(i)+a_en(i,k)*vp_en(i,k)
-         t(i)= t(i)+a_en(i,k)* t_en(i,k)
-        rh(i)=rh(i)+a_en(i,k)*rh_en(i,k)
-        oz(i)=oz(i)+a_en(i,k)*oz_en(i,k)
-        cw(i)=cw(i)+a_en(i,k)*cw_en(i,k)
-      end do
-      do i=1,latlon11
-        p(i)  =p(i)  +a_en(i,k)*p_en(i,k)
-        sst(i)=sst(i)+a_en(i,k)*sst_en(i,k)
-      end do
+       do i=1,latlon1n
+          st(i)=st(i)+a_en(i,k)*st_en(i,k)
+          vp(i)=vp(i)+a_en(i,k)*vp_en(i,k)
+          t(i) = t(i)+a_en(i,k)* t_en(i,k)
+          rh(i)=rh(i)+a_en(i,k)*rh_en(i,k)
+          oz(i)=oz(i)+a_en(i,k)*oz_en(i,k)
+          cw(i)=cw(i)+a_en(i,k)*cw_en(i,k)
+       end do
+       do i=1,latlon11
+          p(i)  =p(i)  +a_en(i,k)*p_en(i,k)
+          sst(i)=sst(i)+a_en(i,k)*sst_en(i,k)
+       end do
     end do
 
   end subroutine ensemble_forward_model
@@ -1496,27 +1498,28 @@ end subroutine normal_new_factorization_rf_y
 
     use gridmod,only:       latlon1n,latlon11
     use hybrid_ensemble_parameters, only: n_ens
+    implicit none
 
-    real(r_kind),dimension(latlon1n),intent(in):: st,vp,t,rh,oz,cw
-    real(r_kind),dimension(latlon11),intent(in):: p,sst
-    real(r_kind),dimension(latlon1n,n_ens),intent(inout):: a_en
+    real(r_kind),dimension(latlon1n)      ,intent(in   ) :: st,vp,t,rh,oz,cw
+    real(r_kind),dimension(latlon11)      ,intent(in   ) :: p,sst
+    real(r_kind),dimension(latlon1n,n_ens),intent(inout) :: a_en
 
     integer(i_kind) i,k
 
 
     do k=1,n_ens
-      do i=1,latlon1n
-        a_en(i,k)=a_en(i,k)+st(i)*st_en(i,k)
-        a_en(i,k)=a_en(i,k)+vp(i)*vp_en(i,k)
-        a_en(i,k)=a_en(i,k)+ t(i)* t_en(i,k)
-        a_en(i,k)=a_en(i,k)+rh(i)*rh_en(i,k)
-        a_en(i,k)=a_en(i,k)+oz(i)*oz_en(i,k)
-        a_en(i,k)=a_en(i,k)+cw(i)*cw_en(i,k)
-      end do
-      do i=1,latlon11
-        a_en(i,k)=a_en(i,k)+p(i)*p_en(i,k)
-        a_en(i,k)=a_en(i,k)+sst(i)*sst_en(i,k)
-      end do
+       do i=1,latlon1n
+          a_en(i,k)=a_en(i,k)+st(i)*st_en(i,k)
+          a_en(i,k)=a_en(i,k)+vp(i)*vp_en(i,k)
+          a_en(i,k)=a_en(i,k)+ t(i)* t_en(i,k)
+          a_en(i,k)=a_en(i,k)+rh(i)*rh_en(i,k)
+          a_en(i,k)=a_en(i,k)+oz(i)*oz_en(i,k)
+          a_en(i,k)=a_en(i,k)+cw(i)*cw_en(i,k)
+       end do
+       do i=1,latlon11
+          a_en(i,k)=a_en(i,k)+p(i)*p_en(i,k)
+          a_en(i,k)=a_en(i,k)+sst(i)*sst_en(i,k)
+       end do
     end do
 
   end subroutine ensemble_forward_model_ad
@@ -1550,7 +1553,7 @@ end subroutine normal_new_factorization_rf_y
     use constants, only: izero,ione
     implicit none
 
-    integer(i_kind),dimension(0:npe-1):: nh_0_all,nh_1_all,nv_0_all,nv_1_all
+    integer(i_kind),dimension(0:npe-ione):: nh_0_all,nh_1_all,nv_0_all,nv_1_all
     integer(i_kind) nvert,nh_tot,nh_this,nn,nv_tot,nv_this,kchk,n,kk,i,k
     real(r_kind),allocatable:: zsub(:,:),z(:)
 
@@ -1558,13 +1561,13 @@ end subroutine normal_new_factorization_rf_y
 
     nscl=3_i_kind          !  hard-wired here, later generalize when generalizing control variables
     if(regional) then
-      nval2f=nlat*nlon
+       nval2f=nlat*nlon
     else
-      nval2f=ny*nx + 2_i_kind*(2_i_kind*nf+ione)*(2_i_kind*nf+ione)
+       nval2f=ny*nx + 2_i_kind*(2_i_kind*nf+ione)*(2_i_kind*nf+ione)
     end if
 
 
-    allocate(nsend_sd2h(0:npe-1),ndsend_sd2h(0:npe),nrecv_sd2h(0:npe-1),ndrecv_sd2h(0:npe-1))
+    allocate(nsend_sd2h(0:npe-ione),ndsend_sd2h(0:npe),nrecv_sd2h(0:npe-ione),ndrecv_sd2h(0:npe-ione))
     allocate(i_recv(nval2f*nnnn1o),k_recv(nval2f*nnnn1o))
     nvert=6_i_kind*nsig+4_i_kind
 
@@ -1574,35 +1577,35 @@ end subroutine normal_new_factorization_rf_y
     nv_this=nv_tot/npe
     if(mod(nv_tot,npe)/=izero) nv_this=nv_this+ione
     if(mod(nv_tot,npe)==izero) then
-      kchk=npe
+       kchk=npe
     else
-      kchk=mod(nv_tot,npe)
+       kchk=mod(nv_tot,npe)
     end if
 
     nv_0_all=-ione
     nv_1_all=-2_i_kind
     nn=izero
     do n=ione,npe
-      if(n<=kchk) then
-        kk=nv_this
-      else
-        kk=nv_this-ione
-      end if
-      if(kk>izero) then
-        nv_0_all(n-ione)=nn+ione
-        nv_1_all(n-ione)=nn+kk
-      end if
-      nn=nn+kk
+       if(n<=kchk) then
+          kk=nv_this
+       else
+          kk=nv_this-ione
+       end if
+       if(kk>izero) then
+          nv_0_all(n-ione)=nn+ione
+          nv_1_all(n-ione)=nn+kk
+       end if
+       nn=nn+kk
     end do
     nv_0=nv_0_all(mype)
     nv_1=nv_1_all(mype)
-                     !   write(0,*)' nv_0,nv_1,nv_1-nv_0+1,nnnn1o=',nv_0,nv_1,nv_1-nv_0+1,nnnn1o
-                     !   if(mype==izero) then
-                     !     do n=0,npe-1
-                     !       write(0,*)' n,nv_0_all(n),nv_1_all(n),size=',n,nv_0_all(n),nv_1_all(n),&
-                     !                                                      nv_1_all(n)-nv_0_all(n)+1
-                     !     end do
-                     !   end if
+!   write(0,*)' nv_0,nv_1,nv_1-nv_0+1,nnnn1o=',nv_0,nv_1,nv_1-nv_0+ione,nnnn1o
+!   if(mype==izero) then
+!      do n=0,npe-ione
+!         write(0,*)' n,nv_0_all(n),nv_1_all(n),size=',n,nv_0_all(n),nv_1_all(n),&
+!                                                     nv_1_all(n)-nv_0_all(n)+ione
+!      end do
+!   end if
 
 !     compute nh_0, nh_1
 
@@ -1610,25 +1613,25 @@ end subroutine normal_new_factorization_rf_y
     nh_this=nh_tot/npe
     if(mod(nh_tot,npe)/=izero) nh_this=nh_this+ione
     if(mod(nh_tot,npe)==izero) then
-      kchk=npe
+       kchk=npe
     else
-      kchk=mod(nh_tot,npe)
+       kchk=mod(nh_tot,npe)
     end if
 
     nh_0_all=-ione
     nh_1_all=-2_i_kind
     nn=izero
     do n=ione,npe
-      if(n<=kchk) then
-        kk=nh_this
-      else
-        kk=nh_this-ione
-      end if
-      if(kk>izero) then
-        nh_0_all(n-1)=nn+ione
-        nh_1_all(n-1)=nn+kk
-      end if
-      nn=nn+kk
+       if(n<=kchk) then
+          kk=nh_this
+       else
+          kk=nh_this-ione
+       end if
+       if(kk>izero) then
+          nh_0_all(n-ione)=nn+ione
+          nh_1_all(n-ione)=nn+kk
+       end if
+       nn=nn+kk
     end do
     nh_0=nh_0_all(mype)
     nh_1=nh_1_all(mype)
@@ -1638,32 +1641,32 @@ end subroutine normal_new_factorization_rf_y
     ndsend_sd2h(0)=izero
     ndrecv_sd2h(0)=izero
     do n=izero,npe-ione
-      nsend_sd2h(n)=max(izero,(nv_1_all(n)-nv_0_all(n)+ione)*(nh_1-nh_0+ione))
-      ndsend_sd2h(n+1)=ndsend_sd2h(n)+nsend_sd2h(n)
-      nrecv_sd2h(n)=max(izero,(nv_1-nv_0+ione)*(nh_1_all(n)-nh_0_all(n)+ione))
-      ndrecv_sd2h(n+1)=ndrecv_sd2h(n)+nrecv_sd2h(n)
+       nsend_sd2h(n)=max(izero,(nv_1_all(n)-nv_0_all(n)+ione)*(nh_1-nh_0+ione))
+       ndsend_sd2h(n+ione)=ndsend_sd2h(n)+nsend_sd2h(n)
+       nrecv_sd2h(n)=max(izero,(nv_1-nv_0+ione)*(nh_1_all(n)-nh_0_all(n)+ione))
+       ndrecv_sd2h(n+ione)=ndrecv_sd2h(n)+nrecv_sd2h(n)
     end do
     allocate(zsub(nh_0:nh_1,nvert),z(nval2f*(nv_1-nv_0+1)))
     do k=1,nvert
-      do i=nh_0,nh_1
-        zsub(i,k)=i
-      end do
+       do i=nh_0,nh_1
+          zsub(i,k)=i
+       end do
     end do
     call mpi_alltoallv(zsub,nsend_sd2h,ndsend_sd2h,mpi_rtype,&
                        z,nrecv_sd2h,ndrecv_sd2h,mpi_rtype,mpi_comm_world,ierror)
-    do i=1,nval2f*(nv_1-nv_0+1)
-      i_recv(i)=nint(z(i))
+    do i=1,nval2f*(nv_1-nv_0+ione)
+       i_recv(i)=nint(z(i))
     end do
 
     do k=1,nvert
-      do i=nh_0,nh_1
-        zsub(i,k)=k
-      end do
+       do i=nh_0,nh_1
+          zsub(i,k)=k
+       end do
     end do
     call mpi_alltoallv(zsub,nsend_sd2h,ndsend_sd2h,mpi_rtype,&
                        z,nrecv_sd2h,ndrecv_sd2h,mpi_rtype,mpi_comm_world,ierror)
-    do i=1,nval2f*(nv_1-nv_0+1)
-      k_recv(i)=nint(z(i))
+    do i=1,nval2f*(nv_1-nv_0+ione)
+       k_recv(i)=nint(z(i))
     end do
 
     deallocate(zsub,z)
@@ -1682,10 +1685,10 @@ end subroutine normal_new_factorization_rf_y
 !   2009-06-16  parrish
 !
 !   input argument list:
-!     st       - stream function input control variable
+!     zsub     - input array on "subdomains"
 !
 !   output argument list:
-!     st       - stream function output control variable
+!     z        - output array on slabs (form expected for input argument to ckgcov)
 !
 !   output argument list:
 !
@@ -1695,46 +1698,40 @@ end subroutine normal_new_factorization_rf_y
 !
 !$$$
 
-
-
-!     zsub:   input array on "subdomains"
-!     z:      output array on slabs (form expected for input argument to ckgcov).
-
   use kinds, only: r_kind,i_kind
   use gridmod, only: nnnn1o,nsig
-  use constants, only: izero
-                                            use constants, only: zero
+  use constants, only: izero,ione,zero
   use mpimod, only: mype,mpi_rtype,ierror,mpi_comm_world
   implicit none
 
-  real(r_kind),dimension(nh_0:nh_1,6*nsig+4,nscl),intent(in)::zsub
-  real(r_kind),dimension(nval2f,nv_0:nv_1,nscl),intent(out)::z
+  real(r_kind),dimension(nh_0:nh_1,6*nsig+4_i_kind,nscl),intent(in   ) :: zsub
+  real(r_kind),dimension(nval2f,nv_0:nv_1,nscl)         ,intent(  out) :: z
 
-  real(r_kind) zsub1(nh_0:nh_1,6*nsig+4),work(nval2f*(nv_1-nv_0+1))
+  real(r_kind) zsub1(nh_0:nh_1,6*nsig+4_i_kind),work(nval2f*(nv_1-nv_0+ione))
   integer(i_kind) i,ii,is,k
-                       !integer(i_kind) ibadp,ibadm,kbadp,kbadm
-                       !  logical good
+! integer(i_kind) ibadp,ibadm,kbadp,kbadm
+! logical good
 
 !      1 <= nh_0 <= nh_1 <= nval2f
 
 !      1 <= nv_0 <= nv_1 <= 6*nsig+4
 
-   z=zero
-   do is=1,nscl
-    do k=1,6*nsig+4
-      do i=nh_0,nh_1
-        zsub1(i,k)=zsub(i,k,is)
-      end do
-    end do
-    call mpi_alltoallv(zsub1,nsend_sd2h,ndsend_sd2h,mpi_rtype,&
-                       work,nrecv_sd2h,ndrecv_sd2h,mpi_rtype,mpi_comm_world,ierror)
-    do ii=1,nval2f*(nv_1-nv_0+1)
-      i=i_recv(ii) ; k=k_recv(ii)
-      z(i,k,is)=work(ii)
-    end do
-   end do
+  z=zero
+  do is=1,nscl
+     do k=1,6*nsig+4_i_kind
+        do i=nh_0,nh_1
+           zsub1(i,k)=zsub(i,k,is)
+        end do
+     end do
+     call mpi_alltoallv(zsub1,nsend_sd2h,ndsend_sd2h,mpi_rtype,&
+                        work,nrecv_sd2h,ndrecv_sd2h,mpi_rtype,mpi_comm_world,ierror)
+     do ii=1,nval2f*(nv_1-nv_0+ione)
+        i=i_recv(ii) ; k=k_recv(ii)
+        z(i,k,is)=work(ii)
+     end do
+  end do
   
-  end subroutine special_sd2h
+end subroutine special_sd2h
 
 end module hybrid_ensemble_isotropic_regional
 
@@ -1767,29 +1764,29 @@ subroutine get_new_alpha_beta(aspect,ng,fmat_out,fmat0_out)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: one
+  use constants, only: ione,one
   use raflib, only: stringop
   implicit none
 
-  integer(i_kind), intent(in):: ng
-  real(r_kind), dimension(ng), intent(in):: aspect
-  real(r_kind),intent(out):: fmat_out(2,ng,2),fmat0_out(ng,2)
+  integer(i_kind)            , intent(in   ) :: ng
+  real(r_kind), dimension(ng), intent(in   ) :: aspect
+  real(r_kind)               , intent(  out) :: fmat_out(2,ng,2),fmat0_out(ng,2)
 
   integer(i_kind) i,j
-  real(r_kind) sig(0:ng-1),fmat(0:ng-1,-2:0,2)
+  real(r_kind) sig(0:ng-ione),fmat(0:ng-ione,-2:0,2)
 
   do i=1,ng
-    sig(i-1)=sqrt(aspect(i))
+     sig(i-ione)=sqrt(aspect(i))
   end do
-  call stringop(ng-1,sig,fmat)
+  call stringop(ng-ione,sig,fmat)
 
   do i=1,ng
-    fmat_out(2,i,1)=fmat(i-1,-2,1)
-    fmat_out(1,i,1)=fmat(i-1,-1,1)
-    fmat0_out(i,1)=one/fmat(i-1,0,1)
-    fmat_out(2,i,2)=fmat(i-1,-2,2)
-    fmat_out(1,i,2)=fmat(i-1,-1,2)
-    fmat0_out(i,2)=one/fmat(i-1,0,2)
+     fmat_out(2,i,1)=fmat(i-ione,-2,1)
+     fmat_out(1,i,1)=fmat(i-ione,-1,1)
+     fmat0_out(i,1)=one/fmat(i-ione,0,1)
+     fmat_out(2,i,2)=fmat(i-ione,-2,2)
+     fmat_out(1,i,2)=fmat(i-ione,-1,2)
+     fmat0_out(i,2)=one/fmat(i-ione,0,2)
   end do
 
 end subroutine get_new_alpha_beta
@@ -1824,20 +1821,20 @@ subroutine bkerror_a_en(gradx,grady)
   use constants, only:  zero
   use control_vectors
   use timermod, only: timer_ini,timer_fnl
-                                             use mpimod, only: mype            ! debug
+  use mpimod, only: mype            ! debug
   implicit none
 
 ! Declare passed variables
-  type(control_vector),intent(inout):: gradx
-  type(control_vector),intent(inout):: grady
+  type(control_vector),intent(inout) :: gradx
+  type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
   integer(i_kind) ii,iflg
   real(r_kind),dimension(nlat,nlon,nnnn1o_a_en):: work
 
   if (lsqrtb) then
-    write(6,*)'bkerror_a_en: not for use with lsqrtb'
-    call stop2(317)
+     write(6,*)'bkerror_a_en: not for use with lsqrtb'
+     call stop2(317)
   end if
 
 ! Initialize timer
@@ -1848,23 +1845,23 @@ subroutine bkerror_a_en(gradx,grady)
 ! only needs to be done when running with a single mpi task and
 ! then only for array gradx.
   if (periodic) then
-    iflg=2
-    do ii=1,nsubwin
-      call sub2grid_a_en(work,gradx%step(ii)%a_en,iflg)
-      call grid2sub_a_en(work,gradx%step(ii)%a_en)
-    end do
+     iflg=2_i_kind
+     do ii=1,nsubwin
+        call sub2grid_a_en(work,gradx%step(ii)%a_en,iflg)
+        call grid2sub_a_en(work,gradx%step(ii)%a_en)
+     end do
   endif
 
 ! Put things in grady first since operations change input variables
   do ii=1,nsubwin
-    grady%step(ii)%a_en=gradx%step(ii)%a_en
+     grady%step(ii)%a_en=gradx%step(ii)%a_en
   end do
 
 ! Loop on control steps
   do ii=1,nsubwin
 
-!   Apply variances, as well as vertical & horizontal parts of background error
-    call bkgcov_a_en_new_factorization(grady%step(ii)%a_en,nnnn1o_a_en)
+!    Apply variances, as well as vertical & horizontal parts of background error
+     call bkgcov_a_en_new_factorization(grady%step(ii)%a_en,nnnn1o_a_en)
 
   end do
 
@@ -1915,7 +1912,7 @@ subroutine beta12mult(grady)
   implicit none
 
 ! Declare passed variables
-  type(control_vector),intent(inout):: grady
+  type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
   integer(i_kind) ii
@@ -1929,18 +1926,18 @@ subroutine beta12mult(grady)
   do ii=1,nsubwin
 
 !    multiply by beta1_inv first:
-    grady%step(ii)%st(:) =beta1_inv*grady%step(ii)%st(:)
-    grady%step(ii)%vp(:) =beta1_inv*grady%step(ii)%vp(:)
-    grady%step(ii)%t(:)  =beta1_inv*grady%step(ii)%t(:)
-    grady%step(ii)%p(:)  =beta1_inv*grady%step(ii)%p(:)
-    grady%step(ii)%rh(:) =beta1_inv*grady%step(ii)%rh(:)
-    grady%step(ii)%oz(:) =beta1_inv*grady%step(ii)%oz(:)
-    grady%step(ii)%sst(:)=beta1_inv*grady%step(ii)%sst(:)
-    grady%step(ii)%cw(:) =beta1_inv*grady%step(ii)%cw(:)
+     grady%step(ii)%st(:) =beta1_inv*grady%step(ii)%st(:)
+     grady%step(ii)%vp(:) =beta1_inv*grady%step(ii)%vp(:)
+     grady%step(ii)%t(:)  =beta1_inv*grady%step(ii)%t(:)
+     grady%step(ii)%p(:)  =beta1_inv*grady%step(ii)%p(:)
+     grady%step(ii)%rh(:) =beta1_inv*grady%step(ii)%rh(:)
+     grady%step(ii)%oz(:) =beta1_inv*grady%step(ii)%oz(:)
+     grady%step(ii)%sst(:)=beta1_inv*grady%step(ii)%sst(:)
+     grady%step(ii)%cw(:) =beta1_inv*grady%step(ii)%cw(:)
 
 !    next multiply by beta2inv:
-    grady%step(ii)%a_en(:) =beta2_inv*grady%step(ii)%a_en(:)
-
+     grady%step(ii)%a_en(:) =beta2_inv*grady%step(ii)%a_en(:)
+ 
   end do
 
 
@@ -1974,7 +1971,7 @@ subroutine bkgcov_a_en_new_factorization(a_en,nlevs)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: latlon1n,nlat,nlon,regional
   use hybrid_ensemble_parameters, only: n_ens
   use hybrid_ensemble_isotropic_regional, only: nnnn1o_a_en,&
@@ -1984,21 +1981,21 @@ subroutine bkgcov_a_en_new_factorization(a_en,nlevs)
   implicit none
 
 ! Passed Variables
-  integer(i_kind),intent(in):: nlevs
-  real(r_kind),dimension(latlon1n,n_ens),intent(inout):: a_en
+  integer(i_kind)                       ,intent(in   ) :: nlevs
+  real(r_kind),dimension(latlon1n,n_ens),intent(inout) :: a_en
 
 ! Local Variables
   integer(i_kind) i,j,k,iflg,iadvance,iback
   real(r_kind),dimension(nlat,nlon,nnnn1o_a_en):: hwork
 
-  iflg=1
+  iflg=ione
 
   do k=1,n_ens
 
 ! Apply vertical smoother
-   iadvance=1 ; iback=2
-   call new_factorization_rf_z(a_en(:,k),iadvance,iback)
-
+     iadvance=ione ; iback=2_i_kind
+     call new_factorization_rf_z(a_en(:,k),iadvance,iback)
+ 
   end do
 
 ! Convert from subdomain to full horizontal field distributed among processors
@@ -2006,14 +2003,14 @@ subroutine bkgcov_a_en_new_factorization(a_en,nlevs)
 
 ! Apply horizontal smoother for number of horizontal scales
   if(regional) then
-    iadvance=1 ; iback=2
-    call new_factorization_rf_x(hwork,iadvance,iback)
-    call new_factorization_rf_y(hwork,iadvance,iback)
-    iadvance=2 ; iback=1
-    call new_factorization_rf_y(hwork,iadvance,iback)
-    call new_factorization_rf_x(hwork,iadvance,iback)
+     iadvance=ione ; iback=2_i_kind
+     call new_factorization_rf_x(hwork,iadvance,iback)
+     call new_factorization_rf_y(hwork,iadvance,iback)
+     iadvance=2_i_kind ; iback=ione
+     call new_factorization_rf_y(hwork,iadvance,iback)
+     call new_factorization_rf_x(hwork,iadvance,iback)
   else
-    call sf_xy(hwork,nnnn1o_a_en)
+     call sf_xy(hwork,nnnn1o_a_en)
   end if
 
 ! Put back onto subdomains
@@ -2022,8 +2019,8 @@ subroutine bkgcov_a_en_new_factorization(a_en,nlevs)
   do k=1,n_ens
 
 ! Apply vertical smoother
-   iadvance=2 ; iback=1
-   call new_factorization_rf_z(a_en(:,k),iadvance,iback)
+     iadvance=2_i_kind ; iback=ione
+     call new_factorization_rf_z(a_en(:,k),iadvance,iback)
 
   end do
 
@@ -2064,8 +2061,8 @@ subroutine grid2sub_a_en(workout,a_en)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(nlat,nlon,nnnn1o_a_en),intent(in):: workout
-  real(r_kind),dimension(lat2,lon2,nsig*n_ens),intent(out):: a_en
+  real(r_kind),dimension(nlat,nlon,nnnn1o_a_en),intent(in   ) :: workout
+  real(r_kind),dimension(lat2,lon2,nsig*n_ens) ,intent(  out) :: a_en
 
 ! Declare local variables
   integer(i_kind) k,l,ni1,ni2
@@ -2122,14 +2119,14 @@ subroutine sub2grid_a_en(workin,a_en,iflg)
        nlat,nlon,nsig,ltosi,ltosj
   use hybrid_ensemble_isotropic_regional, only: nnnn1o_a_en,nsig1o_a_en,&
                          irdsp_g_a_en,ircnt_g_a_en,iscnt_g_a_en,isdsp_g_a_en
-  use constants, only: zero
+  use constants, only: ione,zero
   use hybrid_ensemble_parameters, only: n_ens
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in):: iflg
-  real(r_kind),dimension(lat2,lon2,n_ens*nsig),intent(in):: a_en
-  real(r_kind),dimension(nlat,nlon,nnnn1o_a_en),intent(out):: workin
+  integer(i_kind)                              ,intent(in   ) :: iflg
+  real(r_kind),dimension(lat2,lon2,n_ens*nsig) ,intent(in   ) :: a_en
+  real(r_kind),dimension(nlat,nlon,nnnn1o_a_en),intent(  out) :: workin
 
 ! Declare local variables
   integer(i_kind) j,k,l,ni1,ni2
@@ -2137,9 +2134,9 @@ subroutine sub2grid_a_en(workin,a_en,iflg)
   real(r_kind),dimension(max(iglobal,itotsub),nsig1o_a_en):: work1  !  contain nsig1o slab of any variables
 
 ! strip off boundary points and load vector for communication
-  if (iflg==1) then
+  if (iflg==ione) then
      call strip(a_en,xhatsm,n_ens*nsig)
-  elseif (iflg==2) then
+  elseif (iflg==2_i_kind) then
      call strip_periodic(a_en,xhatsm,n_ens*nsig)
   else
      write(6,*)'SUB2GRID_a_en:  ***ERROR*** iflg=',iflg,' is an illegal value'
@@ -2148,9 +2145,9 @@ subroutine sub2grid_a_en(workin,a_en,iflg)
 
 ! zero out work arrays
   do k=1,nsig1o_a_en
-    do j=1,itotsub
-      work1(j,k)=zero
-    end do
+     do j=1,itotsub
+        work1(j,k)=zero
+     end do
   end do
 ! send subdomain vector to global slabs
   call mpi_alltoallv(xhatsm(1),iscnt_g_a_en,isdsp_g_a_en,&
@@ -2160,10 +2157,10 @@ subroutine sub2grid_a_en(workin,a_en,iflg)
 ! reorder work1 array post communication
   call reorder(work1,nsig1o_a_en,nnnn1o_a_en)
   do k=1,nnnn1o_a_en
-   do l=1,iglobal
-      ni1=ltosi(l); ni2=ltosj(l)
-      workin(ni1,ni2,k)=work1(l,k)
-   end do
+     do l=1,iglobal
+        ni1=ltosi(l); ni2=ltosj(l)
+        workin(ni1,ni2,k)=work1(l,k)
+     end do
   end do
 
   return
@@ -2195,6 +2192,7 @@ subroutine hybrid_ensemble_setup
 
 
   use kinds, only: r_kind,i_kind
+  use constants, only: izero
   use hybrid_ensemble_parameters, only: aniso_a_en,generate_ens,n_ens,&
                       beta1_inv,s_ens_h,s_ens_v
   use gridmod,only: regional,nsig
@@ -2210,10 +2208,10 @@ subroutine hybrid_ensemble_setup
   real(r_kind) s_ens_h_gu_x,s_ens_h_gu_y
 
   if(aniso_a_en) then
-     if(mype == 0) write(6,*)' anisotropic option not available yet for hybrid ensemble localization'
-     if(mype >  -10) then
-       call mpi_finalize(ierror)
-       stop
+     if(mype == izero) write(6,*)' anisotropic option not available yet for hybrid ensemble localization'
+     if(mype >  -10_i_kind) then
+        call mpi_finalize(ierror)
+        stop
      end if
   end if
 
@@ -2238,14 +2236,14 @@ subroutine hybrid_ensemble_setup
 
   if(regional) then
 !     convert s_ens_h from km to grid units.
-    call convert_km_to_grid_units(s_ens_h,s_ens_h_gu_x,s_ens_h_gu_y)
-    call init_rf_x(s_ens_h_gu_x)
-    call normal_new_factorization_rf_x
-    call init_rf_y(s_ens_h_gu_y)
-    call normal_new_factorization_rf_y
-
+     call convert_km_to_grid_units(s_ens_h,s_ens_h_gu_x,s_ens_h_gu_y)
+     call init_rf_x(s_ens_h_gu_x)
+     call normal_new_factorization_rf_x
+     call init_rf_y(s_ens_h_gu_y)
+     call normal_new_factorization_rf_y
+ 
   else
-    call init_sf_xy(jcap)
+     call init_sf_xy(jcap)
   end if
 
 end subroutine hybrid_ensemble_setup
@@ -2278,8 +2276,8 @@ subroutine convert_km_to_grid_units(s_ens_h,s_ens_h_gu_x,s_ens_h_gu_y)
   use gridmod, only: region_dx,region_dy
   implicit none
 
-  real(r_kind),intent(in)::s_ens_h
-  real(r_kind),intent(out)::s_ens_h_gu_x,s_ens_h_gu_y
+  real(r_kind),intent(in   ) ::s_ens_h
+  real(r_kind),intent(  out) ::s_ens_h_gu_x,s_ens_h_gu_y
 
   write(6,*)' in convert_km_to_grid_units, min, max region_dx*.001=',&
                     .001_r_kind*minval(region_dx),.001_r_kind*maxval(region_dx)
@@ -2318,16 +2316,17 @@ subroutine grads1(f,nvert,mype,fname)
 !
 !$$$
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_single,r_kind,i_kind
+  use constants, only: izero,ione,one
   use gridmod, only: nlat,nlon,lon2,lat2
   implicit none
 
-  integer(i_kind) nvert,mype
-  character(*) fname
-  real(r_kind)   f(lat2,lon2,nvert)
+  integer(i_kind),intent(in   ) :: nvert,mype
+  character(*)   ,intent(in   ) :: fname
+  real(r_kind)   ,intent(in   ) :: f(lat2,lon2,nvert)
 
   real(r_kind),dimension(nlat,nlon)::work
-  real(4) outfield(nlon,nlat)
+  real(r_single) outfield(nlon,nlat)
 
   character(50) dsname,title,filename
 ! data dsname/'test.dat'/
@@ -2335,65 +2334,65 @@ subroutine grads1(f,nvert,mype,fname)
   character(112) datdes(50000)
   character(1) blank
   data blank/' '/
-  data undef/-9.99e33/
+  data undef/-9.99e33_r_single/
 
   integer(i_kind) i,k,kend,kstart,next,np,ioutdes,ioutdat
   integer(i_kind) last,j,koutmax
-  real(4) undef
-  real(4) startp,pinc
+  real(r_single) undef
+  real(r_single) startp,pinc
 
-  if(mype == 0) then
-    np=nvert
-    startp=1.
-    pinc=1.
-    ioutdes=98550
-    ioutdat=98551
-    write(filename,'(a,".des")')trim(fname)
-    write(dsname,'(a,".dat")')trim(fname)
-    open(unit=ioutdes,file=trim(filename),form='formatted')
-    open(unit=ioutdat,file=trim(dsname),form='unformatted')
-    rewind ioutdes
-    rewind ioutdat
-    do i=1,50000
-      write(datdes(i),'(112a1)')(blank,k=1,112)
-    end do
-    write(datdes(1),'("DSET ",a50)')dsname
-    write(datdes(2),'("options big_endian sequential")')
-    write(datdes(3),'("TITLE ",a50)')title
-    write(datdes(4),'("UNDEF ",e11.2)')undef
-    next=5
-    write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')nlon,startp,pinc
-    next=next+1
-    write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')nlat,startp,pinc
-    next=next+1
-    write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')np,startp,pinc
-    next=next+1
-    koutmax=1
-    write(datdes(next),'("TDEF ",i5," LINEAR 0Z23may1992 24hr")')koutmax
-    next=next+1
-    write(datdes(next),'("VARS 1")')
-    next=next+1
-    write(datdes(next),'("f   ",i5," 99 f   ")')nvert
-    next=next+1
-    write(datdes(next),'("ENDVARS")')
-    last=next
-    write(ioutdes,'(a112)')(datdes(i),i=1,last)
-
+  if(mype == izero) then
+     np=nvert
+     startp=1._r_single
+     pinc=1._r_single
+     ioutdes=98550_i_kind
+     ioutdat=98551_i_kind
+     write(filename,'(a,".des")')trim(fname)
+     write(dsname,'(a,".dat")')trim(fname)
+     open(unit=ioutdes,file=trim(filename),form='formatted')
+     open(unit=ioutdat,file=trim(dsname),form='unformatted')
+     rewind ioutdes
+     rewind ioutdat
+     do i=1,50000
+        write(datdes(i),'(112a1)')(blank,k=1,112)
+     end do
+     write(datdes(1),'("DSET ",a50)')dsname
+     write(datdes(2),'("options big_endian sequential")')
+     write(datdes(3),'("TITLE ",a50)')title
+     write(datdes(4),'("UNDEF ",e11.2)')undef
+     next=5_i_kind
+     write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')nlon,startp,pinc
+     next=next+ione
+     write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')nlat,startp,pinc
+     next=next+ione
+     write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')np,startp,pinc
+     next=next+ione
+     koutmax=ione
+     write(datdes(next),'("TDEF ",i5," LINEAR 0Z23may1992 24hr")')koutmax
+     next=next+ione
+     write(datdes(next),'("VARS 1")')
+     next=next+ione
+     write(datdes(next),'("f   ",i5," 99 f   ")')nvert
+     next=next+ione
+     write(datdes(next),'("ENDVARS")')
+     last=next
+     write(ioutdes,'(a112)')(datdes(i),i=1,last)
+ 
   end if
 
   do k=1,nvert
-    call sub2grid_1(f(1,1,k),work,0,mype)
-    if(mype == 0) then
-      do j=1,nlon ; do i=1,nlat
-          outfield(j,i)=work(i,j)
-      end do ; end do
-      write(ioutdat)outfield
-    end if
+     call sub2grid_1(f(1,1,k),work,izero,mype)
+     if(mype == izero) then
+        do j=1,nlon ; do i=1,nlat
+           outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+     end if
   end do
 
-  if(mype == 0) then
-    close(ioutdes)
-    close(ioutdat)
+  if(mype == izero) then
+     close(ioutdes)
+     close(ioutdat)
   end if
 
 end subroutine grads1
@@ -2426,34 +2425,34 @@ subroutine sub2grid_1(sub,grid,gridpe,mype)
 
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: ione,zero
   use gridmod, only: nlat,nlon,lat2,lon2,lat1,lon1,&
          ltosi,ltosj,iglobal,ijn,displs_g,itotsub
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
   implicit none
 
-  integer(i_kind), intent(in)::gridpe,mype
-  real(r_kind),dimension(lat2,lon2),intent(in):: sub
-  real(r_kind),dimension(nlat,nlon),intent(out)::grid
+  integer(i_kind)                  ,intent(in   ) :: gridpe,mype
+  real(r_kind),dimension(lat2,lon2),intent(in   ) :: sub
+  real(r_kind),dimension(nlat,nlon),intent(  out) :: grid
 
   real(r_kind),dimension(lat1*lon1):: zsm
   real(r_kind),dimension(itotsub):: work1
   integer(i_kind) mm1,i,j,k
 
-  mm1=mype+1
+  mm1=mype+ione
 
   do j=1,lon1*lat1
-    zsm(j)=zero
+     zsm(j)=zero
   end do
-  call strip(sub,zsm,1)
+  call strip(sub,zsm,ione)
   call mpi_gatherv(zsm,ijn(mm1),mpi_rtype, &
                  work1,ijn,displs_g,mpi_rtype, &
                  gridpe,mpi_comm_world,ierror)
   if(mype == gridpe) then
-    do k=1,iglobal
-      i=ltosi(k) ; j=ltosj(k)
-      grid(i,j)=work1(k)
-    end do
+     do k=1,iglobal
+        i=ltosi(k) ; j=ltosj(k)
+        grid(i,j)=work1(k)
+     end do
   end if
 
 end subroutine sub2grid_1
