@@ -139,7 +139,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=8)  :: subset
   character(len=4)  :: senname
   character(len=80) :: allspotlist
-  integer(i_kind)   :: nchanlr
+  integer(i_kind)   :: nchanlr,jstart
   integer(i_kind)   :: iret,ireadsb,ireadmg,irec,isub,next
 
 
@@ -290,10 +290,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax))
 
 ! Big loop to read data file
-  next=mype_sub+ione
+  next=izero
   do while(ireadmg(lnbufr,subset,idate)>=izero)
-     call ufbcnt(lnbufr,irec,isub)
-     if(irec/=next)cycle; next=next+npe_sub
+     next=next+1
+     if(next == npe_sub)next=izero
+     if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr)==izero)
 
 !    Read IASI FOV information
@@ -388,6 +389,18 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            if (abs(tdiff)>twind) cycle read_loop
         endif
      
+!   Increment nread counter by n_totchan
+        nread = nread + n_totchan
+
+        if (l4dvar) then
+           crit1 = 0.01_r_kind
+        else
+           timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
+           crit1 = 0.01_r_kind+timedif
+        endif
+        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+        if(.not. iuse)cycle read_loop
+
 !    Observational info
         sat_zenang  = allspot(10)            ! satellite zenith angle
         ifov = nint(linele(1))               ! field of view
@@ -421,11 +434,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            cycle read_loop
         endif
 
-!   Increment nread counter by n_totchan
-        nread = nread + n_totchan
-
-        timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-
 !   Clear Amount  (percent clear)
         call ufbrep(lnbufr,cloud_frac,ione,6_i_kind,iret,'FCPH')
         clr_amt = cloud_frac(1)
@@ -436,13 +444,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
         pred = 100.0_r_kind - clr_amt
 
-        if (l4dvar) then
-           crit1 = 0.01_r_kind
-        else
-           timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-           crit1 = 0.01_r_kind+timedif+pred
-        endif
-        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+        crit1 = crit1 + pred
+ 
+        call checkob(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
 !   "Score" observation.  We use this information to identify "best" obs
@@ -506,15 +510,17 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         endif
 
         iskip = izero
+        jstart=1
         do i=1,n_totchan
 !     check that channel number is within reason
            if (( allchan(1,i) > zero .and. allchan(1,i) < 99999._r_kind) .and. &  ! radiance bounds
                (allchan(2,i) < 8462._r_kind .and. allchan(2,i) > zero )) then     ! chan # bounds
 !         radiance to BT calculation
               radiance = allchan(1,i)
-              scaleloop: do j=1,10
+              scaleloop: do j=jstart,10
                  if(allchan(2,i) >= cscale(1,j) .and. allchan(2,i) <= cscale(2,j))then
                     radiance = allchan(1,i)*sscale(j)
+                    jstart=j
                     exit scaleloop
                  end if
               end do scaleloop

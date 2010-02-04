@@ -112,7 +112,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Declare local variables
   logical :: ssmis_las,ssmis_uas,ssmis_img,ssmis_env
   logical :: outside,iuse,assim
-  character(len=8)  :: subset,subfgn
+  character(len=8)  :: subset
   integer(i_kind) :: i,k,ifov,ifovoff,ntest
   integer(i_kind) :: nlv,idate,nchanl,nreal
   integer(i_kind) :: n,ireadsb,ireadmg,irec,isub,next
@@ -209,8 +209,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      ifovoff = izero
      kchanl = 6_i_kind
      kchssmis(1:6)=(/8_i_kind,9_i_kind,10_i_kind,11_i_kind,17_i_kind,18_i_kind/)
-!     subfgn = 'NC021201'
-     subfgn = 'NC021203'
      incangl = 53.0_r_kind
      rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
@@ -224,7 +222,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      ifovoff = 180_i_kind
      kchanl = 5_i_kind
      kchssmis(1:5)=(/12_i_kind,13_i_kind,14_i_kind,15_i_kind,16_i_kind/)
-     subfgn = 'NC021202'
      incangl = 53.1_r_kind
      rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
@@ -238,13 +235,11 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      ifovoff = 270_i_kind
 !     kchanl = 8_i_kind
 !     kchssmis(1:8)=(/ione,2_i_kind,3_i_kind,4_i_kind,5_i_kind,6_i_kind,7_i_kind,24_i_kind/)
-!     subfgn = 'NC021203'
      kchanl = 24_i_kind
      kchssmis(1:24)=(/ione,2_i_kind,3_i_kind,4_i_kind,5_i_kind,6_i_kind, &
                       7_i_kind,8_i_kind,9_i_kind,10_i_kind,11_i_kind,12_i_kind, &
                       13_i_kind,14_i_kind,15_i_kind,16_i_kind,17_i_kind,18_i_kind, &
                       19_i_kind,20_i_kind,21_i_kind,22_i_kind,23_i_kind,24_i_kind/)
-     subfgn = 'NC021201'
      incangl = 53.0_r_kind
      rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
@@ -258,7 +253,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      ifovoff = 330_i_kind
      kchanl = 5_i_kind
      kchssmis(1:5)=(/19_i_kind,20_i_kind,21_i_kind,22_i_kind,23_i_kind/)
-     subfgn = 'NC021204'
      incangl = 52.4_r_kind
      rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
@@ -291,12 +285,11 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Big loop to read data file
-  next=mype_sub+ione
-  do while(ireadmg(lnbufr,subset,idate)>=izero)
-     call ufbcnt(lnbufr,irec,isub)
-     if(irec/=next    ) cycle
-     next=next+npe_sub
-     if(subset/=subfgn) cycle
+  next=izero
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=izero)
+     next=next+ione
+     if(next == npe_sub)next=izero
+     if(next/=mype_sub) cycle
      read_loop: do while(ireadsb(lnbufr)==izero)
 
 !       BUFR read 1/3
@@ -305,7 +298,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Extract satellite id.  If not the one we want, read next record
         said = int( bufrinit(1) + MILLI ) 
-        if( said /= bufsat) exit read_loop
+        if( said /= bufsat) exit read_subset
         
         rsat=bufsat
         
@@ -516,7 +509,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         end do
 
      end do read_loop
-  end do
+  end do read_subset
   call closbf(lnbufr)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out

@@ -117,7 +117,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   logical ssmi,assim
   logical outside,iuse
 
-  character(8) subset,subfgn
+  character(8) subset
 
   integer(i_kind):: i,k,ntest,ireadsb,ireadmg,irec,isub,next
   integer(i_kind):: iret,idate,nchanl
@@ -181,7 +181,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
      nscan  = 64_i_kind   !for A-scan
 !    nscan  = 128_i_kind  !for B-scan
      nchanl = 7_i_kind
-     subfgn = 'NC012001'
      if(jsatid == 'f08')bufsat=241_i_kind
      if(jsatid == 'f10')bufsat=243_i_kind
      if(jsatid == 'f11')bufsat=244_i_kind
@@ -230,10 +229,11 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax))
 
 ! Big loop to read data file
-  next=mype_sub+ione
-  do while(ireadmg(lnbufr,subset,idate)>=izero)
-     call ufbcnt(lnbufr,irec,isub)
-     if(irec/=next)cycle; next=next+npe_sub
+  next=izero
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=izero)
+     next=next+ione
+     if(next == npe_sub)next=izero
+     if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr)==izero)
 
 ! ----- Read header record to extract satid,time information  
@@ -241,7 +241,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
         call ufbint(lnbufr,bfr1bhdr,ntime,ione,iret,hdr1b)
 
 !       Extract satellite id.  If not the one we want, read next record
-        if(bfr1bhdr(1) /= bufsat) cycle read_loop
+        if(nint(bfr1bhdr(1)) /= bufsat) cycle read_subset
 
 
 !       calc obs seqential time  If time outside window, skip this obs
@@ -442,7 +442,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
         end do  scan_loop    !js_loop end
 
      end do read_loop
-  end do
+  end do read_subset
   call closbf(lnbufr)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out

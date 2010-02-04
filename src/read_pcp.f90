@@ -61,8 +61,7 @@
   use kinds, only: r_kind,r_double,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use constants, only: izero,ione,zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600
-  use obsmod, only: offtime_data
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
 
   implicit none
 
@@ -151,21 +150,6 @@
   if (iret/=izero) goto 110
 
   iy=izero; im=izero; idd=izero; ihh=izero
-  write(date,'( i10)') idate
-  read (date,'(i4,3i2)') iy,im,idd,ihh
-  write(6,*)'READ_PCP:  ',ptype,'_pcp bufr file date is ',idate,infile
-  IF (idate<iadatebgn.OR.idate>iadateend) THEN
-     if(offtime_data) then
-        write(6,*)'***READ_BUFRTOVS analysis and data file date differ, but use anyway'
-     else
-        write(6,*)'***READ_PCP ERROR*** ',&
-           'incompatable analysis and observation date/time'
-     end if
-     write(6,*)'Analysis start  :',iadatebgn
-     write(6,*)'Analysis end    :',iadateend
-     write(6,*)'Observation time:',idate
-     if(.not.offtime_data) call stop2(93)
-  ENDIF
          
 ! Write header record to pcp obs output file
   ilon=3_i_kind

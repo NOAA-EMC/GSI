@@ -57,8 +57,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   use constants, only: izero,ione,zero,half,one,deg2rad,rearth,rad2deg, &
                        one_tenth,r1000,r60inv
   use qcmod, only: erradar_inflate,vadfile
-  use obsmod, only: iadate,offtime_data
-  use gsi_4dvar, only: l4dvar,iadatebgn,iadateend,iwinbgn,winlen,time_4dvar
+  use obsmod, only: iadate
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy
   use gridmod, only: check_rotate_wind
   use convinfo, only: nconvtype,ctwind, &
@@ -226,23 +226,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   write(date,'( i10)') idate
   read (date,'(i4,3i2)') iy,im,idd,ihh 
   write(6,*)'READ_RADAR:  first read vad winds--use vad quality marks to qc 2.5/3 radar winds'
-  write(6,*)'READ_RADAR: vad wind bufr file date is ',idate
-  IF (idate<iadatebgn.OR.idate>iadateend) THEN
-     if(offtime_data) then
-        write(6,*)'***READ_RADAR analysis and data file date differ, but use anyway'
-     else
-        write(6,*)'***READ_RADAR ERROR*** vad wind ',&
-              'incompatable analysis and observation date/time'
-     end if
-     write(6,*)'Analysis start  :',iadatebgn
-     write(6,*)'Analysis end    :',iadateend
-     write(6,*)'Observation time:',idate
-     write(6,*)' year  anal/obs ',iadate(1),iy
-     write(6,*)' month anal/obs ',iadate(2),im
-     write(6,*)' day   anal/obs ',iadate(3),idd
-     write(6,*)' hour  anal/obs ',iadate(4),ihh
-     if(.not.offtime_data) call stop2(92)
-  end if
 
 ! Big loop over vadwnd bufr file
 10 call readsb(lnbufr,iret)
@@ -746,26 +729,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
         call closbf(lnbufr)
         go to 1000
      end if
-
-     write(date,'( i10)') idate
-     read (date,'(i4,3i2)') iy,im,idd,ihh 
-     write(6,*)'READ_RADAR: bufr file date is ',idate
-     if (idate<iadatebgn.OR.idate>iadateend) THEN
-        if(offtime_data) then
-           write(6,*)'***READ_RADAR analysis and data file date differ, but use anyway'
-        else
-           write(6,*)'***READ_RADAR ERROR*** ',&
-              'incompatable analysis and observation date/time'
-        end if
-        write(6,*)'Analysis start  :',iadatebgn
-        write(6,*)'Analysis end    :',iadateend
-        write(6,*)'Observation time:',idate
-        write(6,*)' year  anal/obs ',iadate(1),iy
-        write(6,*)' month anal/obs ',iadate(2),im
-        write(6,*)' day   anal/obs ',iadate(3),idd
-        write(6,*)' hour  anal/obs ',iadate(4),ihh
-        if(.not.offtime_data) call stop2(92)
-     endif
 
      idate5(1) = iy    ! year
      idate5(2) = im    ! month

@@ -208,13 +208,13 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   call nemtab(lun,'NC012015',idummy1,cdummy,iret)
   if(iret>izero)  subset = 'NC012015'
 
-  next=mype_sub+ione
+  next=izero
 
 ! Read BUFR Navy data
   do while (ireadmg(lnbufr,subset,idate) >= izero)
-     call ufbcnt(lnbufr,irec,isub)
-     if(irec/=next)cycle
-     next=next+npe_sub
+     next=next+1
+     if(next == npe_sub)next=izero
+     if(next /= mype_sub)cycle
      read_loop:do while (ireadsb(lnbufr) == izero)
   
         call ufbint(lnbufr,bufrf(1),9_i_kind,ione,iret, &

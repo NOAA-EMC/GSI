@@ -66,8 +66,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
   use kinds, only: r_kind,i_kind,r_double
   use constants, only: izero,ione,deg2rad,zero,rad2deg,r60inv
-  use obsmod, only: iadate,ref_obs,offtime_data
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
+  use obsmod, only: iadate,ref_obs
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use convinfo, only: nconvtype,ctwind,cermax, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
   use gridmod, only: regional,nlon,nlat,tll2xy,rlats,rlons
@@ -181,20 +181,6 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
   if (iret/=izero) goto 1010
-
-  write(6,*)'READ_GPS: bufr file date is ',idate,infile
-  IF (idate<iadatebgn.OR.idate>iadateend) THEN
-     if(offtime_data) then
-        write(6,*)'***READ_GPS analysis and data file date differ, but use anyway'
-     else
-        write(6,*)'***READ_GPS ERROR*** ',&
-           'incompatable analysis and observation date/time'
-     end if
-     write(6,*)'Analysis start  :',iadatebgn
-     write(6,*)'Analysis end    :',iadateend
-     write(6,*)'Observation time:',idate
-     if(.not.offtime_data) goto 1010
-  ENDIF
 
 ! Allocate work array to hold observations
   allocate(cdata_all(nreal,maxobs))

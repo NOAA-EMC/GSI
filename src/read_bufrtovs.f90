@@ -2,7 +2,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
      mype_root,mype_sub,npe_sub,mpi_comm_sub, &
-     mype_sub_read,npe_sub_read,lll)
+     llb,lll)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_bufrtovs                  read bufr tovs 1b data
@@ -81,8 +81,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
-!     mype_sub_read
-!     npe_sub_read
+!     llb
 !     lll
 !
 !   output argument list:
@@ -102,12 +101,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use radinfo, only: crtm_coeffs_path
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: izero,ione,deg2rad,zero,one,two,three,five,izero,rad2deg,r60inv,r1000,h300
-  use obsmod, only: offtime_data
   use crtm_parameters, only: MAX_SENSOR_ZENITH_ANGLE
   use crtm_spccoeff, only: sc
   use crtm_module, only: crtm_destroy,crtm_init,success,crtm_channelinfo_type
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use antcorr_application
   implicit none
 
@@ -120,10 +118,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
   real(r_kind)    ,intent(inout) :: val_tovs
   integer(i_kind) ,intent(in   ) :: mype_root
-  integer(i_kind) ,intent(in   ) :: mype_sub,mype_sub_read
-  integer(i_kind) ,intent(in   ) :: npe_sub,npe_sub_read
+  integer(i_kind) ,intent(in   ) :: mype_sub
+  integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
-  integer(i_kind) ,intent(in   ) :: lll
+  integer(i_kind) ,intent(in   ) :: lll,llb
 
 ! Declare local parameters
 
@@ -144,7 +142,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   character(80) hdr1b,hdr2b
 
   integer(i_kind) ireadsb,ireadmg,irec,isub,next
-  integer(i_kind) i,j,k,ifov,ntest
+  integer(i_kind) i,j,k,ifov,ntest,llll
   integer(i_kind) iret,idate,nchanl,n,idomsfc
   integer(i_kind) ich1,ich2,ich8,ich15,kidsat,instrument
   integer(i_kind) nmind,itx,nele,itt,ninstruments
@@ -390,47 +388,37 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 ! Allocate arrays to hold all data for given satellite
   nele=maxinfo+nchanl
   allocate(data_all(nele,itxmax),data1b8(nchanl))
-  if(lll ==2_i_kind)allocate(data1b8x(nchanl))
 
 
 ! Big loop over standard data feed and possible ears data
+  do llll=llb,lll
+
 
 !    Set bufr subset names based on type of data to read
-  if(lll == 2_i_kind .and. amsua .and. kidsat >= 200_i_kind .and. kidsat <= 207_i_kind)go to 500
 
 !  Open unit to satellite bufr file
   infile2=infile
-  if(lll == 2)infile2=trim(infile)//'ears'
+  if(llll == 2_i_kind)then
+     infile2=trim(infile)//'ears'
+     if(amsua .and. kidsat >= 200_i_kind .and. kidsat <= 207_i_kind)go to 500
+  end if
+
+!  Reopen unit to satellite bufr file
+  call closbf(lnbufr)
   open(lnbufr,file=infile2,form='unformatted',status = 'old',err = 500)
   call openbf(lnbufr,'IN',lnbufr)
-  call datelen(10)
-  call readmg(lnbufr,subset,idate,iret)
 
-!  Extract date and check for consistency with analysis date     
-  write(6,*)'READ_BUFRTOVS: bufr file date is ',idate,infile2,jsatid
-  IF (idate<iadatebgn.OR.idate>iadateend) THEN
-     if(offtime_data) then
-        write(6,*)'***READ_BUFRTOVS analysis and data file date differ, but use anyway'
-     else
-        write(6,*)'***READ_BUFRTOVS ERROR*** ',&
-           'incompatable analysis and observation date/time'
-     end if
-     write(6,*)'Analysis start  :',iadatebgn
-     write(6,*)'Analysis end    :',iadateend
-     write(6,*)'Observation time:',idate
-     if(.not.offtime_data) go to 500
-  ENDIF
-
-  if(lll == 2_i_kind)then
+  if(llll == 2_i_kind)then
+     allocate(data1b8x(nchanl))
      sensorlist(1)=sis
      if( crtm_coeffs_path /= "" ) then
-        if(mype_sub_read==mype_root) write(6,*)'READ_BUFRTOVS: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
+        if(mype_sub==mype_root) write(6,*)'READ_BUFRTOVS: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
         error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-          Process_ID=mype_sub_read,Output_Process_ID=mype_root, &
+          Process_ID=mype_sub,Output_Process_ID=mype_root, &
           File_Path = crtm_coeffs_path )
      else
         error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-          Process_ID=mype_sub_read,Output_Process_ID=mype_root)
+          Process_ID=mype_sub,Output_Process_ID=mype_root)
      endif
      if (error_status /= success) then
         write(6,*)'READ_BUFRTOVS:  ***ERROR*** crtm_init error_status=',error_status,&
@@ -449,20 +437,16 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      end if
   end if
 
-!  Reopen unit to satellite bufr file
-  call closbf(lnbufr)
-  open(lnbufr,file=infile2,form='unformatted',status = 'old',err = 500)
-  call openbf(lnbufr,'IN',lnbufr)
    
 !  Loop to read bufr file
-  next=mype_sub_read+ione
+  next=izero
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=izero)
-     call ufbcnt(lnbufr,irec,isub)
-     if(irec/=next)cycle
-     next=next+npe_sub_read
+     next=next+ione
+     if(next == npe_sub)next=izero
+     if(next/=mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr)==izero)
 
-!          Read header record.  (lll=1 is normal feed, 2=EARS data)
+!          Read header record.  (llll=1 is normal feed, 2=EARS data)
            hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HOLS'
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,ione,iret,hdr1b)
 
@@ -537,8 +521,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               timedif = two*abs(tdiff)        ! range:  0 to 6
            endif
            terrain = 50._r_kind
-           if(lll == ione)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
-           crit1 = 0.01_r_kind+terrain + (lll-ione)*500.0_r_kind + timedif 
+           if(llll == ione)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
+           crit1 = 0.01_r_kind+terrain + (llll-ione)*500.0_r_kind + timedif 
 
            hdr2b ='SAZA SOZA BEARAZ SOLAZI'
            call ufbint(lnbufr,bfr2bhdr,n2bhdr,ione,iret,hdr2b)
@@ -551,7 +535,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            endif
 
 !          Read data record.  Increment data counter
-           if(lll == ione)then
+           if(llll == ione)then
               call ufbrep(lnbufr,data1b8,ione,nchanl,iret,'TMBR')
            else
               call ufbrep(lnbufr,data1b8,ione,nchanl,iret,'TMBRST')
@@ -769,7 +753,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   call closbf(lnbufr)
 
 
-  if(lll == 2_i_kind)then
+  if(llll == 2_i_kind)then
 ! deallocate crtm info
      error_status = crtm_destroy(channelinfo)
      if (error_status /= success) &
@@ -777,10 +761,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   end if
 
 !   Jump here when there is a problem opening the bufr file
+  if (llll==2_i_kind) deallocate(data1b8x)
 500  continue
-  deallocate(data1b8)
-  if (lll==2_i_kind) deallocate(data1b8x)
 
+  end do
+  deallocate(data1b8)
+!  end of llll loop
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
@@ -1178,8 +1164,8 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
 !   2006-02-01 parrish  - change names of sno,isli,sst
 !
 !   input argument list:
-!     dlat_earth
-!     dlon_earth
+!     dlat      
+!     dlon      
 !     obstime
 !
 !   output argument list:
@@ -1208,18 +1194,17 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
      integer(i_kind),intent(  out) :: isflg
      real(r_kind)   ,intent(  out) :: tsavg
 
+     logical outside
      integer(i_kind) istyp00,istyp01,istyp10,istyp11
      integer(i_kind):: ix,iy,ixp,iyp,j,itsfc,itsfcp
      real(r_kind):: dx,dy,dx1,dy1,w00,w10,w01,w11,dtsfc
-     real(r_kind):: dlat,dlon,dtsfcp
+     real(r_kind):: dtsfcp,dlat,dlon
      real(r_kind):: sst00,sst01,sst10,sst11
      real(r_kind):: sno00,sno01,sno10,sno11
 
      real(r_kind),parameter:: minsnow=one_tenth
 
      real(r_kind),dimension(0:3):: sfcpct
-     logical :: outside
-
 
      if(regional)then
         call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
@@ -1229,6 +1214,7 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
         call grdcrd(dlat,ione,rlats_sfc,nlat_sfc,ione)
         call grdcrd(dlon,ione,rlons_sfc,nlon_sfc,ione)
      end if
+
      iy=int(dlon); ix=int(dlat)
      dy  =dlon-iy; dx  =dlat-ix
      dx1 =one-dx;    dy1 =one-dy

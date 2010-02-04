@@ -51,7 +51,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
   use constants, only: izero,ione,deg2rad,rad2deg,zero,r60inv
   use obsmod, only: iadate,offtime_data
-  use gsi_4dvar, only: l4dvar,iadatebgn,iadateend,time_4dvar,winlen
+  use gsi_4dvar, only: l4dvar,time_4dvar,winlen
   implicit none
 
 ! Declare passed variables
@@ -149,22 +149,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
      time_correction=zero
   end if
 
-  write(6,*)'READ_LIDAR: bufr file date is ',idate
   write(6,*)'READ_LIDAR: time offset is ',toff,' hours.'
-  IF (idate<iadatebgn.OR.idate>iadateend) THEN
-     if(offtime_data) then
-        write(6,*)'***READ_BUFRTOVS analysis and data file date differ, but use anyway'
-     else
-        write(6,*)'***READ_LIDAR ERROR*** incompatable analysis ',&
-           'and observation date/time'
-     end if
-     write(6,*)'Analysis start  :',iadatebgn
-     write(6,*)'Analysis end    :',iadateend
-     write(6,*)'Observation time:',idate
-     if(offtime_data) write(6,'(" time_correction = ",f12.2)') time_correction
-     if(.not.offtime_data) call stop2(91)
-  ENDIF
-
 
 ! Big loop over bufr file	
 

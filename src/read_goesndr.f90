@@ -221,11 +221,13 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   allocate(data_all(nele,itxmax))
 
 ! Big loop to read data file
-  next=mype_sub+ione
-  do while(ireadmg(lnbufr,subset,idate)>=izero)
-     call ufbcnt(lnbufr,irec,isub)
-     if(irec/=next)cycle
-     next=next+npe_sub
+  next=izero
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=izero)
+!    Time offset
+     if(next == izero)call time_4dvar(idate,toff)
+     next=next+ione
+     if(next == npe_sub)next=izero
+     if(next/=mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr)==izero)
 
 !       Extract type, date, and location information
@@ -425,7 +427,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 
      end do read_loop
-  end do
+  end do read_subset
   call closbf(lnbufr)
 
 

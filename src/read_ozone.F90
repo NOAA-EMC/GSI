@@ -86,10 +86,10 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
                finalcheck,itxmax
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use constants, only: izero,ione,deg2rad,zero,rad2deg,one_tenth,r60inv,two
-  use obsmod, only: iadate,offtime_data,nloz_v6,nloz_v8
+  use obsmod, only: iadate,nloz_v6,nloz_v8
   use convinfo, only: nconvtype, &
         icuse,ictype,ioctype
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use qcmod, only: use_poq7
   implicit none
 
@@ -115,7 +115,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   
   character(2) version
   character(8) subset,subset6,subset8
-  character(10) date
   character(49) ozstr,ozostr
   character(63) lozstr
   character(51) ozgstr
@@ -228,19 +227,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      endif
 
      if(iret/=izero) goto 160
-     write(6,*)'READ_OZONE: bufr file date is ',idate,infile,jsatid
-     IF (idate<iadatebgn.OR.idate>iadateend) THEN
-        if(offtime_data) then
-           write(6,*)'***READ_OZONE analysis and data file date differ, but use anyway'
-        else
-           write(6,*)'***READ_OZONE ERROR*** ',&
-              'incompatable analysis and observation date/time'
-        end if
-        write(6,*)'Analysis start  :',iadatebgn
-        write(6,*)'Analysis end    :',iadateend
-        write(6,*)'Observation time:',idate
-        if(.not.offtime_data) call stop2(95)
-     ENDIF
      
 110  continue
      call readsb(lunin,iret)
@@ -428,9 +414,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      idd=0
      ihh=0
      if(iret/=0) goto 160
-     write(date,'( i10)') idate
-     read (date,'(i4,i3,i2)') iy,idd,ihh
-     write(6,*)'READ_OZONE:    ozone bufr file date is ',iy,idd,ihh,infile
 
 120  continue
      call readsb(lunin,iret)
@@ -578,23 +561,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      idd=izero
      ihh=izero
      if(iret/=izero) goto 160
-     write(date,'( i10)') idate
-     read (date,'(i4,3i2)') iy,im,idd,ihh
-     write(6,*)'READ_OZONE:    ozone bufr file date is ',iy,im,idd,ihh,infile
-     if(iy/=iadate(1).or.im/=iadate(2).or.idd/=iadate(3).or.&
-          ihh/=iadate(4)) then
-        if(offtime_data) then
-           write(6,*)'***READ_OZONE analysis and data file date differ, but use anyway'
-        else
-           write(6,*)'***READ_OZONE ERROR*** incompatable analysis and observation ',&
-               'date/time'
-        end if
-        write(6,*)' year  anal/obs ',iadate(1),iy
-        write(6,*)' month anal/obs ',iadate(2),im
-        write(6,*)' day   anal/obs ',iadate(3),idd
-        write(6,*)' hour  anal/obs ',iadate(4),ihh
-        if(.not.offtime_data) call stop2(95)
-     end if
 
 130  continue
      call readsb(lunin,iret)

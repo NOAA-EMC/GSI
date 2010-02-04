@@ -196,12 +196,12 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 ! latter to BUFRLIB software
   call openbf (lnbufr,'IN',lnbufr)
 
-  next=mype_sub+ione
+  next=izero
 ! Read BUFR AVHRR GAC 1b data
   do while (ireadmg(lnbufr,subset,idate) >= izero)
-     call ufbcnt(lnbufr,irec,isub)
-     if(irec/=next)cycle
-     next=next+npe_sub
+     next=next+1
+     if(next == npe_sub)next=izero
+     if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr) == izero)
         call ufbint(lnbufr,hdr,13_i_kind,ione,iret,headr)
         call ufbrep(lnbufr,bufrf, 3_i_kind,5_i_kind,iret,'INCN ALBD TMBR')

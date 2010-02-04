@@ -325,10 +325,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax))
 
 ! Big loop to read data file
-  next=mype_sub+ione
+  next=izero
   do while(ireadmg(lnbufr,subset,idate)>=izero)
-     call ufbcnt(lnbufr,irec,isub)
-     if(irec/=next)cycle;next=next+npe_sub
+     next=next+1
+     if(next == npe_sub)next=izero
+     if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr)==izero)
 
 !       Read AIRSSPOT , AMSUSPOT and HSBSPOT
@@ -481,16 +482,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Check that number of airs channel equals n_airschan
 !       only done until they match for one record and ndata is updated
 
-!       if(ndata == izero)then
-!          call ufbint(lnbufr,scbtseqn,ione,ione,iscbtseqn,'(SCBTSEQN)')
-!          iscbtseqn = nint(scbtseqn)
-!          if(iscbtseqn /= n_airschan)then
-!             write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' SEQUENCE:', &
-!                 iscbtseqn, ' CH DATA IS READ INSTEAD OF ',n_airschan
-!             cycle read_loop
-!          end if
-!        end if
-
 !        Read AIRSCHAN or AMSUCHAN or HSBCHAN
 
          call ufbrep(lnbufr,allchan,ione,n_totchan,iret,'TMBR')
@@ -640,7 +631,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
      
 !        Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-!        crit1 = pred + rlndsea(isflg) + timedif +10.0_r_kind*float(iskip)
          crit1 = crit1+pred 
 
 !        Map obs to grids

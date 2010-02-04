@@ -275,6 +275,7 @@
   real(r_kind) sstnv,sstfg,sstcu,dtp_avh
   real(r_kind) cosza,val_obs
   real(r_kind) cenlatx,tpw5
+  real(r_kind) bearaz,sun_zenith,sun_azimuth
   real(r_kind) uwind,vwind,f10
   real(r_kind) clw,tpwc,si85,sgagl,total_od
 
@@ -305,7 +306,7 @@
   real(r_kind),dimension(4):: sfcpct
   real(r_kind),dimension(5):: tmp_time
   real(r_kind),dimension(0:3):: dtskin
-  real(r_kind) dtsavg
+  real(r_kind) dtsavg,r90,coscon,sincon
   real(r_kind):: sqrt_tiny_r_kind
 
   integer(i_kind),dimension(nchanl):: ich,icxx,id_qc
@@ -345,7 +346,10 @@
   w2f4       = one/1.8_r_kind
   oneover25  = one/25._r_kind
   oneover400 = one/400._r_kind
+  r90 = 90._r_kind
   ncnt       = izero
+  coscon=cos( (r90-55.0_r_kind)*deg2rad )
+  sincon=sin( (r90-55.0_r_kind)*deg2rad )
 
   cld   = zero
   cldp  = zero
@@ -514,8 +518,6 @@
   elseif (avhrr) then
      iclavr        = 32_i_kind ! index CLAVR cloud flag with AVHRR data
      isst_hires    = 33_i_kind ! index of interpolated hires sst (K)
-  elseif (amsre) then
-     isgnt_ang     = 32_i_kind ! index of sun glint angle (degrees)
   endif
 
 ! Set number of extra pieces of information to write to diagnostic file
@@ -714,7 +716,19 @@
      end if
 
      if(amsre)then
-        sgagl = data_s(isgnt_ang,n)
+       bearaz= data_s(ilazi_ang,n)-180.0_r_kind
+       sun_zenith=data_s(iszen_ang,n)
+       sun_azimuth=data_s(isazi_ang,n)
+       sgagl =  acos(coscon * &
+          cos( (r90-bearaz)*deg2rad ) * &
+          cos( sun_zenith*deg2rad ) * &
+          cos( (r90-sun_azimuth)*deg2rad ) + &
+          coscon * &
+          sin( (r90-bearaz)*deg2rad ) * &
+          cos( sun_zenith*deg2rad ) * &
+          sin( (r90-sun_azimuth)*deg2rad ) + &
+          sincon *  sin( sun_zenith*deg2rad ) &
+          ) * rad2deg
      end if
 
 !    Extract nadir (scan step position)

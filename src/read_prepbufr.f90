@@ -105,14 +105,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
        rlats,rlons,twodvar_regional,check_rotate_wind
   use convinfo, only: nconvtype,ctwind, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-		ithin_conv,rmesh_conv,pmesh_conv, &
-		id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t
+       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
+       ithin_conv,rmesh_conv,pmesh_conv, &
+       id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t
 
-  use obsmod, only: iadate,oberrflg,offtime_data,perturb_obs,perturb_fact,ran01dom
-  use obsmod, only: blacklst
+  use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom
+  use obsmod, only: blacklst,offtime_data
   use converr,only: etabl
-  use gsi_4dvar, only: l4dvar,iadatebgn,iadateend,time_4dvar,winlen
+  use gsi_4dvar, only: l4dvar,time_4dvar,winlen
   use qcmod, only: errormod,noiqc
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
@@ -148,55 +148,74 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),parameter:: r2000= 2000.0_r_kind
   real(r_kind),parameter:: convert= 1.0e-6_r_kind
   real(r_kind),parameter:: emerr= 0.2_r_kind
+  real(r_kind),parameter:: bmiss= 10.e10_r_kind
+
+  integer(i_kind),parameter:: mxtb=5000000_i_kind
+  integer(i_kind),parameter:: nmsgmax=10000_i_kind ! max message count
 
 ! Declare local variables
   logical tob,qob,uvob,spdob,sstob,pwob,psob
   logical outside,driftl,convobs,inflate_error
   logical sfctype
   logical asort
+  logical luse,iflag
+  logical black
+  logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
-  character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr
+  character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr,hdstr2
   character(80) obstr
   character(10) date
   character(8) subset
-
   character(8) prvstr,sprvstr     
   character(8) c_prvstg,c_sprvstg 
   character(8) c_station_id
+  character(8) stnid
 
+  integer(i_kind) ireadmg,ireadsb
   integer(i_kind) lunin,i,maxobs,j,idomsfc,itemp,it29
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
-  integer(i_kind) nc,nx,id,isflg,ntread,itx
+  integer(i_kind) nc,nx,id,isflg,ntread,itx,ii
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
   integer(i_kind) kx,nreal,nchanl,ilat,ilon,ithin
   integer(i_kind) cat,zqm,pwq,sstq,qm,lim_qm,lim_zqm
   integer(i_kind) lim_tqm,lim_qqm
-  integer(i_kind),dimension(255):: pqm,qqm,tqm,wqm
   integer(i_kind) nlevp         ! vertical level for thinning
-  integer(i_kind),dimension(nconvtype+ione)::ntx
-
-! bias and thinning variables
-  logical luse
   integer(i_kind) ntmp,iout
-  integer(i_kind):: pflag
-  real(r_kind) crit1,timedif,xmesh,pmesh
+  integer(i_kind) pflag
+  integer(i_kind) ntest,nvtest,iosub,ixsub,isubsub,iobsub
+  integer(i_kind) kl,k1,k2
+  integer(i_kind) itypex
+  integer(i_kind) minobs,minan
+  integer(i_kind) ntb,ntbsave
+  integer(i_kind) nmsg                ! message index
+  integer(i_kind) tab(mxtb,2)
+  integer(i_kind),dimension(5):: idate5
+  integer(i_kind),dimension(nmsgmax):: nrep
+  integer(i_kind),dimension(255):: pqm,qqm,tqm,wqm
+  integer(i_kind),dimension(nconvtype+ione)::ntx
+  integer(i_kind),allocatable,dimension(:):: isort,iloc
 
-! solar angle variables
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
   real(r_kind) qtflg,tdry,rmesh,ediff,usage
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) qoe,qobcon,pwoe,pwmerr,dlnpob,ppb,poe,qmaxerr
   real(r_kind) toe,woe,errout,oelev,dlat,dlon,sstoe,dlat_earth,dlon_earth
   real(r_kind) selev,elev,stnelev
-  real(r_kind) :: tsavg,ff10,sfcr
+  real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
+  real(r_kind) vdisterrmax,u00,v00
+  real(r_kind) del,terrmin,werrmin,perrmin,qerrmin,pwerrmin
+  real(r_kind) tsavg,ff10,sfcr
+  real(r_kind) crit1,timedif,xmesh,pmesh
+  real(r_kind) time_correction
   real(r_kind),dimension(nsig):: presl
   real(r_kind),dimension(nsig-ione):: dpres
+  real(r_kind),dimension(255)::plevs
+  real(r_kind),dimension(255):: tvflg
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
-  integer(i_kind),allocatable,dimension(:):: isort,iloc
 
   real(r_double) rstation_id,qcmark_huge
-
+  real(r_double) vtcd
   real(r_double),dimension(8):: hdr
   real(r_double),dimension(8,255):: drfdat,qcmark,obserr
   real(r_double),dimension(9,255):: obsdat
@@ -204,33 +223,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double),dimension(4):: satqc
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg 
   real(r_double),dimension(1,255):: levdat
-  real(r_kind),dimension(255)::plevs
-
-  real(r_kind),dimension(255):: tvflg
   real(r_double),dimension(255,20):: tpc
   real(r_double),dimension(2,255,20):: tobaux
-  real(r_double) vtcd
-  real(r_kind) bmiss/10.e10_r_kind/
-  
-  real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
-  real(r_kind) vdisterrmax,u00,v00
-  integer(i_kind) ntest,nvtest,iosub,ixsub,isubsub,iobsub
 
-  integer(i_kind) kl,k1,k2
-  integer(i_kind) ikx,itypex
-  real(r_kind) del,terrmin,werrmin,perrmin,qerrmin,pwerrmin
-
-  character(len=8) stnid
-  logical black
-
-  integer(i_kind) idate5(5),minobs,minan
-  real(r_kind) time_correction
-
+!  equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg) 
   equivalence(r_sprvstg(1,1),c_sprvstg) 
   equivalence(rstation_id,c_station_id)
 
+!  data statements
   data hdstr  /'SID XOB YOB DHR TYP ELV SAID T29'/
+  data hdstr2 /'TYP SAID T29'/
   data obstr  /'POB QOB TOB ZOB UOB VOB PWO CAT PRSS' /
   data drift  /'XDR YDR HRDR                    '/
   data sststr /'MSST DBSS SST1 SSTQM SSTOE           '/
@@ -245,20 +248,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data ithin / -9_i_kind /
   data rmesh / -99.999_r_kind /
   
-!**************************************************************************
-! added by jw for speedup
-  integer(i_kind) ntb
-  integer(i_kind),parameter:: mxtb=5000000_i_kind
-  integer(i_kind) tab(mxtb)
-! added by woollen, kistler for speedup
-  integer(i_kind),parameter:: nmsgmax=10000_i_kind ! max message count
-  logical*1 lmsg(nmsgmax)           ! set true when convinfo entry id found in a message
-  integer(i_kind),dimension(nmsgmax):: nrep ! number of reports per message - enables skipping
-  integer(i_kind) nmsg                ! message index
-!**************************************************************************
 ! Initialize variables
 
-  lmsg = .false.
   nreal=izero
   satqc=zero
   tob = obstype == 't'
@@ -301,42 +292,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   open(lunin,file=infile,form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
-  call readmg(lunin,subset,idate,iret)
-  if (iret/=izero) goto 900
-
-! Time offset
-  call time_4dvar(idate,toff)
-
-! On temperature task, write out date information.  If date in prepbufr
-!    file does not agree with analysis date, print message and stop program
-!    execution.
-
-  if(tob) then
-     write(date,'( i10)') idate
-     read (date,'(i4,3i2)') iy,im,idd,ihh
-     write(6,*)'READ_PREPBUFR: bufr file date is ',idate
-     IF (idate<iadatebgn.OR.idate>iadateend) THEN
-        if(offtime_data) then
-           write(6,*)'***READ_PREPBUFR analysis and data file date differ, but use anyway'
-        else
-           write(6,*)'***READ_PREPBUFR ERROR*** incompatable analysis ',&
-                'and observation date/time'
-        endif
-        write(6,*)'Analysis start  :',iadatebgn
-        write(6,*)'Analysis end    :',iadateend
-        write(6,*)'Observation time:',idate
-        write(6,*)' month anal/obs ',iadate(2),im
-        write(6,*)' day   anal/obs ',iadate(3),idd
-        write(6,*)' hour  anal/obs ',iadate(4),ihh
-        if(.not.offtime_data) call stop2(94)
-     END IF
-     write(6,*)'READ_PREPBUFR: bufr file date is ',idate
-     write(6,*)'READ_PREPBUFR: time offset is ',toff,' hours.'
-
-!    compute day of the year, # days in year, true solar noon for today's date
-
-  end if
-
 
   ntread=ione
   ntx(ntread)=izero
@@ -350,97 +305,103 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      end if
   end do
 
-! Obtain program code (VTCD) associated with "VIRTMP" step
-  call ufbqcd(lunin,'VIRTMP',vtcd)
-
+  allocate(lmsg(nmsgmax,ntread))
+  lmsg = .false.
   maxobs=izero
   tab=-999_i_kind
-  nmsg=ione
+  nmsg=izero
+  nrep=izero
   ntb = izero
-  nrep(1)=izero
-  loop_report: do 
-     call readsb(lunin,iret)
-     if(iret/=izero) then
-        call readmg(lunin,subset,idate,iret)
-        if(iret/=izero) then
-           exit loop_report ! end of file
-        else
-           nmsg=nmsg+ione
-           nrep(nmsg) = izero
-           if (nmsg>nmsgmax) then
-              write(6,*)'READ_PREPBUFR: messages exceed maximum ',nmsgmax
-              call stop2(50)
-           endif
-        endif
-        cycle loop_report
-     else
-        nrep(nmsg)=nrep(nmsg)+ione  ! count reports per message 
-     endif
-!    Extract type, date, and location information
-     call ufbint(lunin,hdr,8_i_kind,ione,iret,hdstr)
-     kx=hdr(5)
-
-
-     iobsub = izero           ! temporary until put in bufr file
-     if(kx == 243_i_kind .or. kx == 253_i_kind .or. kx == 254_i_kind) iobsub = hdr(7)
-     if(kx == 280_i_kind) iobsub=hdr(8)
-
-     ntb = ntb+ione
-     if (ntb>mxtb) then
-        write(6,*)'READ_PREPBUFR: reports exceed maximum ',mxtb
+  msg_report: do while (ireadmg(lunin,subset,idate) == izero)
+!    Time offset
+     if(nmsg == izero) call time_4dvar(idate,toff)
+     ntbsave=ntb
+     nmsg=nmsg+ione
+     if (nmsg>nmsgmax) then
+        write(6,*)'READ_PREPBUFR: messages exceed maximum ',nmsgmax
         call stop2(50)
      endif
-     ikx=-999_i_kind
+     loop_report: do while (ireadsb(lunin) == izero)
+       ntb = ntb+ione
+       nrep(nmsg)=nrep(nmsg)+1
+       if (ntb>mxtb) then
+          write(6,*)'READ_PREPBUFR: reports exceed maximum ',mxtb
+          call stop2(50)
+       endif
 
-     loop_convinfo_test1: do nc=1,nconvtype
-        if (kx /= ictype(nc)) cycle loop_convinfo_test1
-        if (trim(ioctype(nc)) /= trim(obstype))cycle loop_convinfo_test1
-        if(icsubtype(nc) == iobsub) then
-           ikx=nc
-           call ufbint(lunin,levdat,ione,255_i_kind,levs,levstr)
-           maxobs=maxobs+max(ione,levs)
-           exit loop_convinfo_test1
-        end if
-     end do loop_convinfo_test1
+!      Extract type information
+       call ufbint(lunin,hdr,3_i_kind,ione,iret,hdstr2)
+       kx=hdr(1)
 
-     if(ikx == -999_i_kind)then
-        loop_convinfo_test2: do nc=1,nconvtype
-           if (kx /= ictype(nc)) cycle loop_convinfo_test2
-           if (trim(ioctype(nc)) /= trim(obstype))cycle loop_convinfo_test2
-           ixsub=icsubtype(nc)/10
-           iosub=iobsub/10
-           isubsub=icsubtype(nc)-ixsub*10
-           if(ixsub == iosub .and. isubsub == izero) then
-              ikx=nc
-              call ufbint(lunin,levdat,ione,255_i_kind,levs,levstr)
-              maxobs=maxobs+max(ione,levs)
-              exit loop_convinfo_test2
-           end if
-        end do loop_convinfo_test2
-        if(ikx == -999_i_kind)then
-           loop_convinfo_test3: do nc=1,nconvtype
-              if (kx /= ictype(nc)) cycle loop_convinfo_test3
-              if (trim(ioctype(nc)) /= trim(obstype))cycle loop_convinfo_test3
-              ixsub=icsubtype(nc)/10
-              iosub=iobsub/10
-              isubsub=icsubtype(nc)-ixsub*10
-              if (icsubtype(nc) == izero ) then
-                 ikx=nc
-                 call ufbint(lunin,levdat,ione,255_i_kind,levs,levstr)
-                 maxobs=maxobs+max(ione,levs)
-                 exit loop_convinfo_test3
-              endif
+       iobsub = izero           ! temporary until put in bufr file
+       if(kx == 280_i_kind) iobsub=hdr(3)
+       if(kx == 243_i_kind .or. kx == 253_i_kind .or. kx == 254_i_kind) iobsub = hdr(2)
 
-           end do loop_convinfo_test3
-        end if
-     end if
-     tab(ntb)=ikx
-     if(ikx < izero) cycle loop_report
-     lmsg(nmsg) = .true.
-  enddo loop_report
+!  Match ob to proper convinfo type
+       iflag=.false.
+       do nc=1,nconvtype
+          if (kx /= ictype(nc) .or.  trim(ioctype(nc)) /= trim(obstype))cycle 
+!  Find convtype which match ob type and subtype
+          if(icsubtype(nc) == iobsub) then
+             call ufbint(lunin,levdat,ione,255_i_kind,levs,levstr)
+             maxobs=maxobs+max(ione,levs)
+             nx=1
+             if(ithin_conv(nc) > izero)then
+               do ii=2,ntread
+                 if(ntx(ii) == nc)nx=ii
+               end do
+             end if
+             tab(ntb,1)=nc
+             tab(ntb,2)=nx
+             lmsg(nmsg,nx) = .true.
+             cycle loop_report
+          end if
+!  Find convtype which match ob type and subtype group (isubtype == ?*)
+!       where ? specifies the group and icsubtype = ?0)
+          ixsub=icsubtype(nc)/10
+          iosub=iobsub/10
+          isubsub=icsubtype(nc)-ixsub*10
+          if(ixsub == iosub .and. isubsub == izero) then
+             call ufbint(lunin,levdat,ione,255_i_kind,levs,levstr)
+             maxobs=maxobs+max(ione,levs)
+             nx=1
+             if(ithin_conv(nc) > izero)then
+               do ii=2,ntread
+                 if(ntx(ii) == nc)nx=ii
+               end do
+             end if
+             tab(ntb,1)=nc
+             tab(ntb,2)=nx
+             lmsg(nmsg,nx) = .true.
+             iflag=.true.
+          end if
+!  Find convtype which match ob type and subtype is all remaining 
+!       (icsubtype(nc) = 0)
+          if (icsubtype(nc) == izero  .and. .not. iflag) then
+             call ufbint(lunin,levdat,ione,255_i_kind,levs,levstr)
+             maxobs=maxobs+max(ione,levs)
+             nx=1
+             if(ithin_conv(nc) > izero)then
+               do ii=2,ntread
+                 if(ntx(ii) == nc)nx=ii
+               end do
+             end if
+             tab(ntb,1)=nc
+             tab(ntb,2)=nx
+             lmsg(nmsg,nx) = .true.
+          endif
+       end do 
+    end do loop_report
+  enddo msg_report
+  if (nmsg==izero) goto 900
   write(6,*)'READ_PREPBUFR: messages/reports = ',nmsg,'/',ntb,' ntread = ',ntread
 
+
+  if(tob) write(6,*)'READ_PREPBUFR: time offset is ',toff,' hours.'
 !------------------------------------------------------------------------
+
+! Obtain program code (VTCD) associated with "VIRTMP" step
+  if(tob)call ufbqcd(lunin,'VIRTMP',vtcd)
 
   call init_rjlists
 
@@ -498,37 +459,21 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
      ntb = izero
      nmsg = izero
-     loop_readsb: do
+     loop_msg: do while (ireadmg(lunin,subset,idate)== izero)
+       nmsg = nmsg+1
+       if(.not.lmsg(nmsg,nx)) then
+          ntb=ntb+nrep(nmsg)
+          cycle loop_msg ! no useable reports this mesage, skip ahead report count
+       end if 
+
+       loop_readsb: do while(ireadsb(lunin) == izero)
 !       use msg lookup table to decide which messages to skip
 !       use report id lookup table to only process matching reports
-        call readsb(lunin,iret) ! read next report of current message
-        if(iret/=izero) then ! read next message 
-           loop_msg: do
-              call readmg(lunin,subset,idate,iret)
-              if(iret/=izero) exit loop_readsb ! end of file
-              nmsg=nmsg+ione
-              if (lmsg(nmsg)) then
-                 exit loop_msg ! match found, break message loop
-              else
-                 ntb=ntb+nrep(nmsg) ! no reports this mesage, skip ahead report count
-              endif
-           enddo loop_msg
-           cycle loop_readsb
-        endif
         ntb = ntb+ione
-        nc=tab(ntb)
-        if(nc < izero) cycle loop_readsb
+        nc=tab(ntb,1)
+        if(nc < izero .or. tab(ntb,2) /= nx) cycle loop_readsb
         ithin=ithin_conv(nc)
-        if(ithin > izero)then
-           if(nx == ione)then
-              cycle loop_readsb
-           else
-              if(nc /= ntx(nx)) cycle loop_readsb
-           end if
-        else
-           if(nx > ione)cycle loop_readsb
-        end if
- 
+
 !       For the satellite wind to get quality information
         if( subset == 'SATWND' ) then
            id=ictype(nc)
@@ -1242,10 +1187,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !
 !    End k loop over levs
         end do  LOOP_K_LEVS
+       end do loop_readsb
 
 !
 !   End of bufr read loop
-     enddo loop_readsb
+     enddo loop_msg
 !    Close unit to bufr file
      call closbf(lunin)
 
@@ -1258,6 +1204,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
+  deallocate(lmsg)
 
 ! Write header record and data to output file for further processing
   allocate(iloc(ndata))

@@ -64,9 +64,8 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
             checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: izero,ione,deg2rad,zero,rad2deg,r60inv,r60
-  use obsmod, only: offtime_data
   use radinfo, only: iuse_rad,jpch_rad,nusis
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   implicit none
 
 ! Declare passed variables
@@ -95,7 +94,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 ! Declare local variables
   logical outside,iuse,assim
 
-  character(8) subset,subfgn
+  character(8) subset
 
   integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,isub,next
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon
@@ -143,7 +142,6 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   ilonh=9_i_kind        ! the position of longitude in the header
   ilzah=10_i_kind       ! satellite zenith angle
   iszah=11_i_kind       ! solar zenith angle
-  subfgn='NC021041'     ! sub message
 
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
@@ -169,53 +167,28 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   open(lnbufr,file=infile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
-  call readmg(lnbufr,subset,idate,iret)
-
-! Check the data set
-  if( iret/=izero .or. subset /= subfgn) then
-     write(6,*) 'READ_GOESIMG:  SKIP PROCESSING OF GOESIMG FILE'
-     write(6,*) 'infile=', lnbufr, infile,' subset=', &
-          subset, ' subfgn=',subfgn
-     go to 900
-  end if
-
-! Check the data time
-  write(6,*)'READ_GOESIMG: bufr file date is ',idate,infile
-  IF (idate<iadatebgn.OR.idate>iadateend) THEN
-     if(offtime_data) then
-        write(6,*)'***READ_GOESIMG analysis and data file date differ, but use anyway'
-     else
-        write(6,*)'***READ_GOESIMG ERROR*** ',&
-           'incompatable analysis and observation date/time'
-     end if
-     write(6,*)'Analysis start  :',iadatebgn
-     write(6,*)'Analysis end    :',iadateend
-     write(6,*)'Observation time:',idate
-     if(.not.offtime_data) go to 900
-  ENDIF
+  if(jsatid == 'g08') kidsat = 252_i_kind
+  if(jsatid == 'g09') kidsat = 253_i_kind
+  if(jsatid == 'g10') kidsat = 254_i_kind
+  if(jsatid == 'g11') kidsat = 255_i_kind
+  if(jsatid == 'g12') kidsat = 256_i_kind
+  if(jsatid == 'g13') kidsat = 257_i_kind
 
 ! Allocate arrays to hold all data for given satellite
   nele=maxinfo+nchanl
   allocate(data_all(nele,itxmax))
 
-  next=mype_sub+ione
+  next=izero
 
 ! Big loop over bufr file
   do while(IREADMG(lnbufr,subset,idate) >= izero)
-     call ufbcnt(lnbufr,irec,isub)
-     if(irec/=next)cycle
-     next=next+npe_sub
-
+     next=next+1
+     if(next == npe_sub)next=izero
+     if(next /= mype_sub)cycle
      read_loop: do while (IREADSB(lnbufr) == izero)
 
 !       Read through each reacord
         call ufbint(lnbufr,hdrgoesarr,nimghdr,ione,iret,hdrgoes)
-        if(jsatid == 'g08') kidsat = 252_i_kind
-        if(jsatid == 'g09') kidsat = 253_i_kind
-        if(jsatid == 'g10') kidsat = 254_i_kind
-        if(jsatid == 'g11') kidsat = 255_i_kind
-        if(jsatid == 'g12') kidsat = 256_i_kind
-        if(jsatid == 'g13') kidsat = 257_i_kind
         if(hdrgoesarr(1) /= kidsat) cycle read_loop
         call ufbrep(lnbufr,dataimg,3_i_kind,6_i_kind,iret,'TMBRST NCLDMNT SDTB')
         nread=nread+nchanl

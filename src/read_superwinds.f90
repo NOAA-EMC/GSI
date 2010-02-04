@@ -80,7 +80,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   use convinfo, only: nconvtype,ctwind, &
         ncmiter,ncgroup,ncnumgrp,icuse,ioctype
   use obsmod, only: iadate,offtime_data
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,winlen,time_4dvar
+  use gsi_4dvar, only: l4dvar,winlen,time_4dvar
   implicit none
 
 ! Declare passed variables
@@ -160,25 +160,6 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   end if
   idate=1000000*iyref+10000*imref+100*idref+ihref
   call time_4dvar(idate,toff)
-  write(6,*)'READ_SUPERWINDS: input file date is ',idate
-  if (idate<iadatebgn.OR.idate>iadateend) THEN
-     if(offtime_data) then
-        write(6,*)'***allow off time READ_PREPBUFR file ',&
-           'observation date/time and time_correction follow:'
-     else
-        write(6,*)'***READ_SUPERWINDS ERROR*** incompatable analysis ',&
-           'and observation date/time'
-     end if
-     write(6,*)'Analysis start  :',iadatebgn
-     write(6,*)'Analysis end    :',iadateend
-     write(6,*)'Observation time:',idate
-     write(6,*)' year  anal/obs ',iadate(1),iyref
-     write(6,*)' month anal/obs ',iadate(2),imref
-     write(6,*)' day   anal/obs ',iadate(3),idref
-     write(6,*)' hour  anal/obs ',iadate(4),ihref
-     if(offtime_data) write(6,'(" time_correction = ",f12.2)') time_correction
-     if(.not.offtime_data) call stop2(92)
-  endif
   rstation_id=999._r_kind
   write(6,*)'READ_SUPERWINDS:  ndata_in,iord_in,iuvw_in,nbar_in =', &
        ndata_in,iord_in,iuvw_in,nbar_in

@@ -283,7 +283,13 @@ contains
     use_all=.false.
     if(abs(rmesh) <= one .or. ithin <= izero)then
       use_all=.true.
-      itxmax=2e7_i_kind
+      itxmax=1e7_i_kind
+      allocate(icount(itxmax))
+      allocate(score_crit(itxmax))
+      do j=1,itxmax
+         icount(j) = .true.
+         score_crit(j) = 9.99e10_r_kind
+      end do
       return
     end if
 
@@ -925,8 +931,8 @@ contains
 
     real(r_kind) crit
 
-!   If using all data (no thinning), simply return to calling routine
-    if(.not. iuse .or. use_all)return
+!   If not using data, simply return to calling routine
+    if(.not. iuse)return
 
     crit=crit1*dist1
 
@@ -967,13 +973,14 @@ contains
     implicit none
 
 
+    deallocate(icount)
+    deallocate(score_crit)
+
 !   If using all data (no thinning), the arrays following the
 !   return are never allocated --> therefore nothing to deallocate
     if(use_all) return
 
     deallocate(mlon,glat,glon,hll)
-    deallocate(icount)
-    deallocate(score_crit)
     return
   end subroutine destroygrids
 

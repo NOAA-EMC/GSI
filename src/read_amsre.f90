@@ -45,6 +45,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !   2009-04-21  derber  - add ithin to call to makegrids
 !   2009-12-20  gayno - add option to calculate surface fields based on
 !                       the size/shape of field of view.
+!   2010-01-28  derber - move calculation of sun glint angle to setuprad
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -112,10 +113,10 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 ! integer(i_kind),parameter :: N_MAXCH   =  20_i_kind
   integer(i_kind) :: said, AQUA_SAID  = 784_i_kind  !WMO satellite identifier 
   integer(i_kind) :: siid, AMSRE_SIID = 345_i_kind  !WMO instrument identifier 
-  integer(i_kind),parameter :: maxinfo    =  34_i_kind
+  integer(i_kind),parameter :: maxinfo    =  33_i_kind
 
 ! BUFR file sequencial number
-  character(len=8)  :: subset,subfgn
+  character(len=8)  :: subset
   character(len=4)  :: senname
   integer(i_kind)   :: lnbufr = 10_i_kind
   integer(i_kind)   :: nchanl
@@ -160,8 +161,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   logical       :: amsre_hig
   integer(i_kind) ntest
   integer(i_kind) :: nscan,iskip,kskip,kch,kchanl
-  real(r_kind),parameter :: POINT001 =   0.001_r_kind
-! real(r_kind),parameter :: POINT01  =   0.01_r_kind
 ! real(r_kind),parameter :: TEN      =  10._r_kind
 ! real(r_kind),parameter :: R45      =  45._r_kind
   real(r_kind),parameter :: R90      =  90._r_kind
@@ -184,8 +183,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
 ! BUFR format for AMSRCHAN
   integer(i_kind),parameter :: N_AMSRCHAN_LIST = 4_i_kind
-! BUFR format for AMSRDICE
-! integer(i_kind),parameter :: N_AMSRDICE_LIST = 21_i_kind
 
 ! Variables for BUFR IO
   real(r_double),dimension(3):: aquaspot_d
@@ -196,7 +193,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
 ! ---- sun glint ----
   integer(i_kind) doy,mlen(12),mday(12),mon,m
-  real(r_kind) bearaz,sun_zenith,sun_azimuth,sun_gangle,coscon,sincon
+  real(r_kind) bearaz,sun_zenith,sun_azimuth
   data  mlen/31_i_kind,28_i_kind,31_i_kind,30_i_kind,31_i_kind,30_i_kind, &
              31_i_kind,31_i_kind,30_i_kind,31_i_kind,30_i_kind,31_i_kind/ 
 
@@ -207,13 +204,9 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
 ! data selection
 
-! tmp
-
 ! Initialize variables
   ilon = 3_i_kind
   ilat = 4_i_kind
-  coscon=cos( (R90-55.0_r_kind)*deg2rad ) 
-  sincon=sin( (R90-55.0_r_kind)*deg2rad ) 
   m = izero
   do mon=1,12 
     mday(mon) = m 
@@ -245,7 +238,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   if(amsre_low .or. amsre_mid .or. amsre_hig)then
      senname = 'AMSR'
      nchanl  = N_AMSRCH
-     subfgn = 'NC021254'
      nscan  = 196_i_kind  !for low frequency ch
 !    nscan  = 392_i_kind  !for 89.0GHz ch
      kidsat = 549_i_kind
@@ -305,12 +297,18 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   allocate(data_all(nele,itxmax))
 
 ! Big loop to read data file
-  next=mype_sub+ione
+  next=izero
   do while(ireadmg(lnbufr,subset,idate)>=izero)
-     call ufbcnt(lnbufr,irec,isub)
-     if(irec/=next)cycle; next=next+npe_sub
+     next=next+ione
+     if(next == npe_sub)next=izero
+     if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr)==0)
 
+!    Retrieve bufr 1/4 :get aquaspot (said,orbn,soza)
+        call ufbint(lnbufr,aquaspot_d,3_i_kind,ione,iret,'SAID ORBN SOZA')
+
+        said = nint(aquaspot_d(1))
+        if(said /= AQUA_SAID)  cycle read_loop
 
 !       Retrieve bufr 2/4 :get amsrspot (siid,ymdhs,lat,lon)
         call ufbrep(lnbufr,amsrspot_d,N_AMSRSPOT_LIST,ione,iret, &
@@ -318,7 +316,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
         siid = nint(amsrspot_d(1)) 
         if(siid /= AMSRE_SIID)  cycle read_loop
-
 
 !       Check obs time
         idate5(1) = amsrspot_d(02)! year
@@ -338,11 +335,11 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         call w3fs21(idate5,nmind)
         t4dv = (real((nmind-iwinbgn),r_kind) + amsrspot_d(7)*r60inv)*r60inv ! add in seconds
         if (l4dvar) then
-           if (t4dv<zero .OR. t4dv>winlen) exit
+           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
            sstime = real(nmind,r_kind) + amsrspot_d(7)*r60inv ! add in seconds
            tdiff  = (sstime - gstime)*r60inv
-           if (abs(tdiff)>twind) exit
+           if (abs(tdiff)>twind) cycle read_loop
         endif
         if (l4dvar) then
            timedif = zero
@@ -481,11 +478,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !    Set data quality predictor ***NEED TO COME UP WITH THIS***
         pred = zero
 
-!    Retrieve bufr 1/4 :get aquaspot (said,orbn,soza)
-        call ufbint(lnbufr,aquaspot_d,3_i_kind,ione,iret,'SAID ORBN SOZA')
-
-        said = int( aquaspot_d(1)  + POINT001 )
-        if(said /= AQUA_SAID)  cycle read_loop
 
 !    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 
@@ -508,7 +500,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
            doy = doy + ione
         end if 
 
-        ifov = int( fovn + POINT001 )
+        ifov = nint(fovn)
         bearaz=amsrspot_d(11)-180.0_r_kind    
 
         clath_sun_glint_calc = clath
@@ -516,19 +508,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         if(clonh>180_r_kind) clonh_sun_glint_calc = clonh -360.0_r_kind
         date5_4_sun_glint_calc = idate5(4)
         call zensun(doy,date5_4_sun_glint_calc,clath_sun_glint_calc,clonh_sun_glint_calc,sun_zenith,sun_azimuth)
-
-        sun_gangle =  &
-          acos(       &
-          coscon * &
-          cos( (R90-bearaz)*deg2rad ) * &
-          cos( sun_zenith*deg2rad ) * &
-          cos( (R90-sun_azimuth)*deg2rad ) + &
-          coscon * &
-          sin( (R90-bearaz)*deg2rad ) * &
-          cos( sun_zenith*deg2rad ) * &
-          sin( (R90-sun_azimuth)*deg2rad ) + &
-          sincon *  sin( sun_zenith*deg2rad ) &
-          ) * rad2deg
 
         if(amsre_low .or. amsre_mid) then
            saz = 55.0_r_kind*deg2rad   ! satellite zenith angle (rad) 
@@ -571,10 +550,9 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         data_all(29,itx)= ff10                    ! ten meter wind factor
         data_all(30,itx)= dlon_earth*rad2deg      ! earth relative longitude (degrees)
         data_all(31,itx)= dlat_earth*rad2deg      ! earth relative latitude (degrees)
-        data_all(32,itx)= sun_gangle              ! sun glint angle
 
-        data_all(33,itx)= val_amsre
-        data_all(34,itx)= itt
+        data_all(32,itx)= val_amsre
+        data_all(33,itx)= itt
 
         do l=1,nchanl
            data_all(l+nreal,itx) = tbob_org(l)
