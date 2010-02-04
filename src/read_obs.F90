@@ -96,7 +96,7 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype,jsatid,dtype,minuse)
   lexist = lhere .and. lbytes>0_i_llong
 #endif
   idate=0
-  if(lexist)then
+  if(lexist .and. trim(dtype) /= 'tcp')then
       lnbufr = 15_i_kind
       open(lnbufr,file=trim(filename),form='unformatted',status = 'old')
       call openbf(lnbufr,'IN',lnbufr)
