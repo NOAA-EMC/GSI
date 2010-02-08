@@ -185,6 +185,9 @@ module obsmod
 !
 !   def hilbert_curve - logical, if .true., then generate hilbert curve based
 !                      cross-validation datasets in 2dvar mode.
+!   def lread_obs_save - logical, if .true., then write out collective obs selection info
+!   def lread_obs_skip - logical, if .true., then read in collective obs selection info
+!   def obs_input_common - scratch file to receive collective obs selection info
 !
 ! attributes:
 !   langauge: f90
@@ -232,7 +235,7 @@ module obsmod
   public :: mype_uv,mype_dw,mype_rw,mype_srw,mype_q,mype_tcp,mype_lag,mype_ps,mype_t
   public :: mype_pw,iout_rw,iout_dw,iout_srw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
   public :: iout_lag,iout_uv,iout_gps,iout_ps,spdptr,srwptr,rwptr,dwptr,sstptr,pwptr
-  public :: ozptr,o3lptr,pcpptr,lagptr
+  public :: ozptr,o3lptr,pcpptr,lagptr,lread_obs_save,obs_input_common,lread_obs_skip
 
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200_i_kind  ! maximum number of observation files
@@ -824,6 +827,7 @@ module obsmod
   
   character(128) obs_setup
   character(128) dirname
+  character(128) obs_input_common
   character(14),dimension(ndatmax):: obsfile_all
   character(10),dimension(ndatmax):: dtype,ditype,dplat
   character(13),dimension(ndatmax):: dfile
@@ -836,6 +840,8 @@ module obsmod
   logical,dimension(0:50):: write_diag
   logical offtime_data
   logical hilbert_curve
+  logical lread_obs_save
+  logical lread_obs_skip
 
 contains
 
@@ -984,6 +990,10 @@ contains
     cobstype(i_lag_ob_type)="lagrangian tracer   " ! lag_ob_type
 
     hilbert_curve=.false.
+
+    obs_input_common = 'obs_input.common'
+    lread_obs_save = .false.
+    lread_obs_skip = .false.
 
     return
   end subroutine init_obsmod_dflts

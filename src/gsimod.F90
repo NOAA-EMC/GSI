@@ -18,7 +18,8 @@
      init_obsmod_dflts,create_obsmod_vars,write_diag,oberrflg,&
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,ndatmax,&
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune, &
-     blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve
+     blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
+     lread_obs_save,lread_obs_skip
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
@@ -228,6 +229,8 @@
 !                 from pcgsoi when twodvar_regional=.true.
 !     hilbert_curve - option for hilbert-curve based cross-validation. works only
 !                     with twodvar_regional=.true.
+!     lread_obs_save - option to write out collective obs selection info
+!     lread_obs_skip - option to read in collective obs selection info
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -251,7 +254,7 @@
        nwrvecs,ladtest,lgrtest,lobskeep,lsensrecompute, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
-       lferrscale,print_diag_pcg,tsensible,lgschmidt
+       lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -759,6 +762,14 @@
      if (mype==izero) write(6,*)'GSIMOD:  set hires_b=',hires_b,&
 	' with nlat_b,nlon_b=',nlat_b,nlon_b,&
 	' nlat,nlon=',nlat,nlon,' and jcap,jcap_b=',jcap,jcap_b
+  endif
+
+
+! Ensure no conflict between flag lread_obs_save and lread_obs_skip
+  if (lread_obs_save .and. lread_obs_skip) then
+     if (mype==izero) write(6,*)'GSIMOD:  ***ERROR*** lread_obs_save=',lread_obs_save,&
+          ' and lread_obs_skip=',lread_obs_skip,' can not both be TRUE'
+     call stop2(329)
   endif
 
 

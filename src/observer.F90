@@ -29,8 +29,10 @@ module observermod
        set_pointer,&
        switch_on_derivatives,tendsflag,create_jfunc
   use guess_grids, only: create_ges_grids,create_sfc_grids,&
-       destroy_sfct,destroy_ges_grids,destroy_gesfinfo
-  use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver
+       destroy_sfct,destroy_ges_grids,destroy_gesfinfo,destroy_sfc_grids
+  use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver,&
+       lread_obs_skip,nprof_gps,ditype,obs_input_common
+  use satthin, only: superp,super_val1,getsfc,destroy_sfc
   use gsi_4dvar, only: l4dvar
   use convinfo, only: convinfo_destroy
   use m_gsiBiases, only : create_bias_grids, destroy_bias_grids
@@ -226,6 +228,11 @@ subroutine set_
 ! Declare passed variables
 
 ! Declare local variables
+  logical:: lhere,use_sfc
+  integer(i_kind):: lunsave,istat1,istat2
+
+  data lunsave  / 22_i_kind /
+
 
 !*******************************************************************************************
  
@@ -235,8 +242,44 @@ subroutine set_
 ! in outer loop setup routines. 
   obs_setup = trim(dirname) // 'obs_setup'
 
-! Read observations
-  call read_obs(ndata,mype)
+! Read observations or collective observation information
+  if (.not.lread_obs_skip) then
+
+!    Read observations from data files
+     call read_obs(ndata,mype)
+
+  else
+
+!    Read collective obs selection information to scratch file.
+     inquire(file=obs_input_common,exist=lhere)
+     if (.not.lhere) then
+        if (mype==0) write(6,*)'OBSERVER_SET:  ***ERROR*** file ',&
+             trim(obs_input_common),' does NOT exist.  Terminate execution'
+        call stop2(329)
+     endif
+
+     open(lunsave,file=obs_input_common,form='unformatted')
+     read(lunsave,iostat=istat1) ndata,superp,nprof_gps,ditype
+     allocate(super_val1(0:superp))
+     read(lunsave,iostat=istat2) super_val1
+     if (istat1/=0 .or. istat2/=0) then
+        if (mype==0) write(6,*)'OBSERVER_SET:  ***ERROR*** reading file ',&
+             trim(obs_input_common),' istat1,istat2=',istat1,istat2,'  Terminate execution'
+        call stop2(329)
+     endif
+     close(lunsave)
+
+     if (mype==0) write(6,*)'OBSERVER_SET:  read collective obs selection info from ',&
+          trim(obs_input_common)
+
+!    Load isli2 and sno2 arrays using fields from surface guess file.  Arrays
+!    isli2 and sno2 are used in intppx (called from setuprad) and setuppcp.
+     use_sfc=.false.
+     call getsfc(mype,use_sfc)
+     call destroy_sfc_grids
+     call destroy_sfc
+
+  endif
   
 ! Locate observations within each subdomain (not to call in 4dvar inner loop)
   if(lobserver.or.(.not.l4dvar)) call obs_para(ndata,mype)

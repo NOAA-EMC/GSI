@@ -264,7 +264,7 @@ subroutine read_obs(ndata,mype)
          ltosi,ltosj,displs_g
     use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
            dtype,dval,dmesh,obsfile_all,ref_obs,nprof_gps,dsis,ditype,&
-           oberrflg,perturb_obs,lobserver
+           oberrflg,perturb_obs,lobserver,lread_obs_save,obs_input_common
     use gsi_4dvar, only: l4dvar
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
@@ -292,6 +292,7 @@ subroutine read_obs(ndata,mype)
     logical,dimension(ndat):: belong
     character(10):: obstype,platid
     character(13):: string,infile
+    character(16):: filesave
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
     integer(i_kind) nprof_gps1,npem1,krsize,len4file,npemax,ilarge,nlarge,npestart
@@ -299,7 +300,7 @@ subroutine read_obs(ndata,mype)
     integer(i_kind):: npetot,npeextra,mmdat
     integer(i_kind):: iworld,iworld_group,next_mype,mm1,iix
     integer(i_kind):: mype_root,ntask_read,mpi_comm_sub_read,lll,llb
-    integer(i_kind):: mype_sub_read,minuse
+    integer(i_kind):: mype_sub_read,minuse,lunsave
     integer(i_kind):: iworld_group_r1,iworld_r1,iworld_group_r2,iworld_r2
     integer(i_kind),dimension(ndat):: npe_sub,npe_sub3,mpi_comm_sub,mype_root_sub,npe_order
     integer(i_kind),dimension(ndat):: mpi_comm_sub_r1,mpi_comm_sub_r2
@@ -315,6 +316,7 @@ subroutine read_obs(ndata,mype)
     real(r_kind),allocatable,dimension(:,:,:):: prsl_full
 
     data lunout / 81_i_kind /
+    data lunsave  / 82_i_kind /
 
 !*****************************************************************************
 
@@ -813,6 +815,14 @@ subroutine read_obs(ndata,mype)
 !   Collect number of gps profiles (needed later for qc)
     call mpi_allreduce(nprof_gps1,nprof_gps,ione,mpi_integer,mpi_sum,mpi_comm_world,ierror)
 
+!   Write collective obs selection information to scratch file.
+    if (lread_obs_save .and. mype==0) then
+       write(6,*)'READ_OBS:  write collective obs selection info to ',trim(obs_input_common)
+       open(lunsave,file=obs_input_common,form='unformatted')
+       write(lunsave) ndata,superp,nprof_gps,ditype
+       write(lunsave) super_val1
+       close(lunsave)
+    endif
 
 !   End of routine
     return
