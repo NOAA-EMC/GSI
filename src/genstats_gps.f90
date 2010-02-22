@@ -150,8 +150,10 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,high_gps_sub,conv_diagsave,mype
            gps_allptr => gps_allptr%llpoint
         end do
      END DO
-     nreal =19_i_kind
-     allocate(cdiag(icnt),sdiag(nreal,icnt))
+     if(icnt > izero)then
+       nreal =19_i_kind
+       allocate(cdiag(icnt),sdiag(nreal,icnt))
+     end if
   endif
 
 
@@ -212,7 +214,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,high_gps_sub,conv_diagsave,mype
               factor = one / sqrt(max(super_gps(k-1,kprof),super_gps(k,kprof)))
            endif
            ratio_errors = ratio_errors * factor
-           if(conv_diagsave) then
+           if(conv_diagsave .and. luse) then
               if(gps_allptr%rdiag(16) >tiny_r_kind) sdiag(16,icnt)=ratio_errors*data_ier
            endif
  
@@ -233,11 +235,11 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,high_gps_sub,conv_diagsave,mype
         rhgt = gps_allptr%loc
         if (rhgt<=toss_gps(kprof)) then
            if(ratio_errors*data_ier > tiny_r_kind) then ! obs was good
-              if(conv_diagsave) then
-                 sdiag(10,icnt) = five
-                 sdiag(12,icnt) = -one
-              endif
               if (luse) then
+                 if(conv_diagsave) then
+                   sdiag(10,icnt) = five
+                   sdiag(12,icnt) = -one
+                 endif
                  if(elat > r20) then
                     awork(22) = awork(22)+one
                  else if(elat< -r20)then
