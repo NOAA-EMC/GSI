@@ -371,9 +371,6 @@ subroutine setuprhsall(ndata,mype)
 
   call inquire_obsdiags(miter)
 
-! Get moisture diagnostics
-! call q_diag(mype)
-
 ! Collect satellite and precip. statistics
   call mpi_reduce(aivals,aivals1,40*ndat,mpi_rtype,mpi_sum,mype_rad, &
        mpi_comm_world,ierror)

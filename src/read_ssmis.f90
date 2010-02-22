@@ -298,7 +298,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Extract satellite id.  If not the one we want, read next record
         said = int( bufrinit(1) + MILLI ) 
-        if( said /= bufsat) exit read_subset
+        if( said /= bufsat) cycle read_subset
         
         rsat=bufsat
         

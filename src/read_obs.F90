@@ -289,7 +289,7 @@ subroutine read_obs(ndata,mype)
 !   Declare local variables
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full
     logical :: use_sfc,nuse
-    logical,dimension(ndat):: belong
+    logical,dimension(ndat):: belong,parallel_read
     character(10):: obstype,platid
     character(13):: string,infile
     character(16):: filesave
@@ -330,6 +330,7 @@ subroutine read_obs(ndata,mype)
        ndata1(ii,2)=izero
        ndata1(ii,3)=izero
        ntasks1(ii) =izero
+       parallel_read=.false.
     end do
     npem1=npe-ione
     nprof_gps1=izero
@@ -363,6 +364,23 @@ subroutine read_obs(ndata,mype)
        sndr = index(obstype,'sndr') /= izero
        hirs = index(obstype,'hirs') /= izero
        avhrr = index(obstype,'avhrr') /= izero
+!  Control parallel read for each ob type (currently just rad obs).  
+!  To remove parallel read comment out line.
+       if(hirs .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(sndr .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(avhrr .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(amsre .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(ssmis .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(obstype == 'ssmi' .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(obstype == 'airs' .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(obstype == 'amsub' .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(obstype == 'hsb' .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(obstype == 'iasi' .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(obstype == 'amsua' .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(obstype == 'iasi' .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(obstype == 'mhs' .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(obstype == 'goes_img' .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(obstype == 'ssu' .and. dthin(i) > izero)parallel_read(i)= .true.
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
@@ -456,7 +474,7 @@ subroutine read_obs(ndata,mype)
 
           if(lexist .and. nuse) then
              ntasks1(i)=ione
-             if(ditype(i) == 'rad' .and. dthin(i) > zero) then
+             if(parallel_read(i)) then
 
 !  Allow up to 16 processors/file increase loop bounds to increase number of processors allowed
                 do j=1,4
@@ -492,7 +510,7 @@ subroutine read_obs(ndata,mype)
           iix=1
           do ii=1,5
              do i=1,ndat
-                if(iix == npe_sub3(i) .and. ditype(i) == 'rad' .and. dthin(i) > zero)then
+                if(iix == npe_sub3(i) .and. parallel_read(i))then
                    if(ntasks(i) > izero .and. ntasks(i) <= npeextra)then
                       npeextra=npeextra-ntasks(i)
                       npe_sub(i)=npe_sub(i)+ntasks(i)
