@@ -304,25 +304,38 @@ contains
 
   end subroutine gsi_nemsio_close
 
-  subroutine gsi_nemsio_read(varname,vartype,gridtype,lev,var,mype,mype_io)
+  subroutine gsi_nemsio_read(varname,vartype,gridtype,lev,var,mype,mype_io,good_var)
 !$$$  subprogram documentation block
 !                .      .    .                                        .
-! subprogram:    gsi_nemsio_open
-!   pgrmmr:
+! subprogram:    gsi_nemsio_read
+!   pgrmmr: parrish
 !
-! abstract:
+! abstract:  intermediate level routine to read nmmb model fields using nems_io. 
+!             the desired field is retrieved from the previously opened file as a
+!             full 2d horizontal field, then interpolated to the analysis grid
+!             from the nmmb model grid.  finally, the 2d field is scattered from
+!             processor mype_io to subdomains in output array var. 
+!             a copy of the original field on the nmmb grid is saved internally in array
+!             work_saved in case this field is to be updated by the analysis
+!             increment in a call to gsi_nemsio_write immediately after the call to
+!             gsi_nemsio_read.
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2010-01-22  parrish - added optional variable good_var to detect read errors in calling program
+!                            and have option to avoid program stop.
 !
 !   input argument list:
-!    varname,vartype,gridtype
-!    lev
+!    varname,vartype,gridtype - descriptors for variable to be retrieved from nmmb file
+!    lev                      - vertical level number
 !    mype     - mpi task id
-!    mype_io
+!    mype_io  - mpi task where field is read from disk
+!    good_var - optional, on input, set to .false.  if present(good_var) then error stop is
+!                bypassed and good_var is returned .true. for successful read, .false. otherwise.
 !
 !   output argument list:
-!    var
+!    var      - for successful read, contains desired variable on subdomains.
+!    good_var - see above
 !
 ! attributes:
 !   language: f90
@@ -330,7 +343,7 @@ contains
 !
 !$$$ end documentation block
 
-    use mpimod, only:        mpi_rtype,mpi_comm_world,ierror
+    use mpimod, only:        mpi_rtype,mpi_comm_world,ierror,mpi_integer4
     use gridmod, only:       lat2,lon2,nlon,nlat
     use gridmod, only:       ijn_s,displs_s,itotsub,ltosi_s,ltosj_s
     use nemsio_module, only: nemsio_readrecv
@@ -341,11 +354,13 @@ contains
     integer(i_kind),intent(in   ) :: lev              !   vertical level of desired variable
     real(r_kind)   ,intent(  out) :: var(lat2*lon2)
     integer(i_kind),intent(in   ) :: mype,mype_io
+    logical,optional,intent(inout):: good_var
 
     integer(i_kind) i,iret,j,mm1,n
     real(r_kind) work(itotsub)
     real(r_kind) work_a(nlat,nlon)
     real(r_single) work_b(nlon_regional*nlat_regional)
+    logical good_var_loc
 
     mm1=mype+ione
 
@@ -354,27 +369,37 @@ contains
 !            read field from file with nemsio
 
        call nemsio_readrecv(gfile,trim(varname),trim(vartype),lev,work_b,iret=iret)
-       if(iret/=izero) then
-          write(6,*)'  problem reading varname=',trim(varname),', vartype=',trim(vartype),', Status = ',iret
-          call stop2(74)
-       end if
-       work_saved=work_b
+       if(iret==izero) then
+          work_saved=work_b
 
-!      interpolate to analysis grid
+!         interpolate to analysis grid
 
-       if(trim(gridtype)=='H') call nmmb_h_to_a(work_b,work_a)
-       if(trim(gridtype)=='V') call nmmb_v_to_a(work_b,work_a)
+          if(trim(gridtype)=='H') call nmmb_h_to_a(work_b,work_a)
+          if(trim(gridtype)=='V') call nmmb_v_to_a(work_b,work_a)
 
 
 !        scatter to subdomains
 
-       do n=1,itotsub
-          i=ltosi_s(n)
-          j=ltosj_s(n)
-          work(n)=work_a(i,j)
-       end do
+          do n=1,itotsub
+             i=ltosi_s(n)
+             j=ltosj_s(n)
+             work(n)=work_a(i,j)
+          end do
+       end if
     end if
-    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype, &
+    call mpi_bcast(iret,ione,mpi_integer4,mype_io,mpi_comm_world,ierror)
+    good_var_loc=.true.
+    if(iret/=izero) then
+       good_var_loc=.false.
+       if(mype==izero) then
+          write(6,*)'  problem reading varname=',trim(varname),', vartype=',trim(vartype),', Status = ',iret
+          if(.not.present(good_var)) call stop2(74)
+       end if
+    end if
+    if(present(good_var)) good_var=good_var_loc
+
+    if(good_var_loc) &
+      call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype, &
                    var,ijn_s(mm1),mpi_rtype,mype_io,mpi_comm_world,ierror)
 
   end subroutine gsi_nemsio_read

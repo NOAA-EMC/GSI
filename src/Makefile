@@ -223,6 +223,7 @@ clean:
         cvsection.f90 \
 	deter_subdomain.f90 \
 	dtast.f90 \
+	egrid2agrid_mod.f90 \
         enorm_state.F90 \
         evaljgrad.f90 \
         evaljcdfi.F90 \
@@ -232,6 +233,11 @@ clean:
 	fill_mass_grid2.f90 \
 	fill_nmm_grid2.f90 \
 	fpvsx_ad.f90 \
+        general_read_gfsatm.f90 \
+        general_specmod.f90 \
+        general_spectral_transforms.f90 \
+        general_sub2grid_mod.f90 \
+        general_transform.f90 \
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
@@ -240,6 +246,7 @@ clean:
 	gesinfo.F90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
+        get_gefs_ensperts_dualres.f90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
 	getuv.f90 \

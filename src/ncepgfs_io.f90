@@ -9,6 +9,8 @@ module ncepgfs_io
 !
 ! program history log:
 !   2006-01-10 treadon
+!   2010-02-20 parrish - make sigio_cnvtdv8 public so can be accessed by general_read_gfsatm, when
+!                          reading in gefs sigma files at resolution different from analysis.
 !
 ! Subroutines Included:
 !   sub read_gfsatm       - read ncep gfs atmospheric ("sigma") file, scatter
@@ -40,6 +42,7 @@ module ncepgfs_io
   public write_gfsatm
   public write_gfssfc
   public sfc_interpolate
+  public sigio_cnvtdv8
 
 contains
 

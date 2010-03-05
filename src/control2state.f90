@@ -14,6 +14,9 @@ subroutine control2state(xhat,sval,bval)
 !   2009-08-14  lueken   - update documentation
 !   2009-11-27  parrish  - for uv_hyb_ens=.true., then ensemble perturbations contain u,v instead of st,vp
 !                            so introduce extra code to handle this case.
+!   2010-02-21  parrish  - introduce changes to allow dual resolution, with ensemble computation on
+!                            lower resolution grid compared to analysis grid.
+!                            new parameter dual_res=.true. if ensemble grid is different from analysis grid.
 !
 !   input argument list:
 !     xhat - Control variable
@@ -33,9 +36,9 @@ use bias_predictors
 use gsi_4dvar, only: nsubwin, nobs_bins, l4dvar, lsqrtb
 use gridmod, only: latlon1n,latlon11
 use jfunc, only: nsclen,npclen,nrclen
-use hybrid_ensemble_parameters, only: l_hyb_ens,uv_hyb_ens
+use hybrid_ensemble_parameters, only: l_hyb_ens,uv_hyb_ens,dual_res
 use balmod, only: strong_bk
-use hybrid_ensemble_isotropic_regional, only: ensemble_forward_model
+use hybrid_ensemble_isotropic_regional, only: ensemble_forward_model,ensemble_forward_model_dual_res
 implicit none
   
 ! Declare passed variables  
@@ -84,13 +87,21 @@ do jj=1,nsubwin
       if(uv_hyb_ens) then
 !        Convert streamfunction and velocity potential to u,v
          call getuv(u,v,st,vp,izero)
-         call ensemble_forward_model(u,v,t,rh,oz,cw,p,sst,xhat%step(jj)%a_en)
+         if(dual_res) then
+            call ensemble_forward_model_dual_res(u,v,t,rh,oz,cw,p,sst,xhat%step(jj)%a_en)
+         else
+            call ensemble_forward_model(u,v,t,rh,oz,cw,p,sst,xhat%step(jj)%a_en)
+         end if
 !        Apply strong constraint to sum of static background and ensemble background combinations to
 !        reduce imbalances introduced by ensemble localization in addition to known imbalances from
 !        static background
          call strong_bk(u,v,p,t)
       else
-         call ensemble_forward_model(st,vp,t,rh,oz,cw,p,sst,xhat%step(jj)%a_en)
+         if(dual_res) then
+            call ensemble_forward_model_dual_res(st,vp,t,rh,oz,cw,p,sst,xhat%step(jj)%a_en)
+         else
+            call ensemble_forward_model(st,vp,t,rh,oz,cw,p,sst,xhat%step(jj)%a_en)
+         end if
 !        Apply strong constraint to sum of static background and ensemble background combinations to
 !        reduce imbalances introduced by ensemble localization in addition to known imbalances from
 !        static background

@@ -74,6 +74,8 @@ module hybrid_ensemble_parameters
 !
 !      l_hyb_ens:  logical variable, if .true., then turn on hybrid ensemble option, default = .false. 
 !      n_ens:      ensemble size, default = 0
+!      nlon_ens            - number of longitudes to use for ensemble members and ensemble control vector
+!      nlat_ens            - number of latitudes to use for ensemble members and ensemble control vector
 !      beta1_inv:  value between 0 and 1, relative weight given to static background B, default = 1.0
 !      s_ens_h:    horizontal localization correlation length (units of km), default = 2828.0
 !      s_ens_v:    vertical localization correlation length (grid units), default = 30.0
@@ -90,6 +92,7 @@ module hybrid_ensemble_parameters
 !
 ! program history log:
 !   2009-09-16  parrish
+!   2010-02-20  parrish - add changes to allow dual resolution capability.
 !
 ! subroutines included:
 
@@ -101,10 +104,28 @@ module hybrid_ensemble_parameters
 !   def generate_ens   - if true, then create ensemble members internally
 !                              using sqrt of static background error acting on N(0,1) random vectors
 !   def n_ens               - number of ensemble members
+!   def nlon_ens            - number of longitudes to use for ensemble members and ensemble control vector
+!   def nlat_ens            - number of latitudes to use for ensemble members and ensemble control vector
+!   def jcap_ens            - for global spectral coef input, spectral truncation.
+!   def jcap_ens_test       - for global spectral coef input, test spectral truncation.
 !   def beta1_inv           - 1/beta1, the weight given to static background error covariance
 !                              beta2_inv = 1 - beta1_inv is weight given to ensemble derived covariance
 !   def s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
 !   def s_ens_v             - vertical localization scale (grid units for now)
+!   def grd_ens             - structure variable which is initialized by general_sub2grid_create_info in
+!                              module general_sub2grid_mod.f90.  the information stored in grd_ens is
+!                              used for subroutines general_grid2sub, general_sub2grid.  this has
+!                              been created to make it easier to have two different resolution grids,
+!                              one for analysis, and one for ensemble part.
+!   def grd_loc             - specifically used for ensemble control variable a_en
+!   def grd_anl             - same as grd_ens, but on analysis grid
+!   def grd_a1              - same as grd_anl, but with communication set up for a single 3d grid
+!   def grd_e1              - same as grd_ens, but with communication set up for a single 3d grid
+!   def sp_ens              - spectral structure variable, for use with reading gefs spectral files.
+!   def sp_loc              - spectral structure variable, for use with spectral localization filter.
+!   def p_e2a               - structure variable for interpolation from ensemble grid to analysis grid
+!                              when in dual resolution mode.
+!   def dual_res            - if true, then ensemble grid is different from analysis grid.
 !
 ! attributes:
 !   language: f90
@@ -113,6 +134,9 @@ module hybrid_ensemble_parameters
 !$$$ end documentation block
 
   use kinds, only: i_kind,r_kind
+  use general_sub2grid_mod, only: sub2grid_info
+  use general_specmod, only: spec_vars
+  use egrid2agrid_mod, only: egrid2agrid_parm
   implicit none
 
 ! set default to private
@@ -120,14 +144,27 @@ module hybrid_ensemble_parameters
 ! set subroutines to public
   public :: init_hybrid_ensemble_parameters
 ! set passed variables to public
-  public :: generate_ens,n_ens,l_hyb_ens,s_ens_h
+  public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,s_ens_h
   public :: uv_hyb_ens,s_ens_v,beta1_inv,aniso_a_en
+  public :: grd_ens
+  public :: grd_e1
+  public :: grd_loc
+  public :: grd_anl
+  public :: grd_a1
+  public :: sp_ens
+  public :: sp_loc
+  public :: p_e2a
+  public :: dual_res
 
   logical l_hyb_ens,uv_hyb_ens
   logical aniso_a_en
   logical generate_ens
-  integer(i_kind) n_ens
+  logical dual_res
+  integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
   real(r_kind) beta1_inv,s_ens_h,s_ens_v
+  type(sub2grid_info),save :: grd_ens,grd_loc,grd_anl,grd_e1,grd_a1
+  type(spec_vars),save :: sp_ens,sp_loc
+  type(egrid2agrid_parm),save :: p_e2a
 
 contains
 
@@ -160,6 +197,10 @@ subroutine init_hybrid_ensemble_parameters
   aniso_a_en=.false.
   generate_ens=.true.
   n_ens=izero
+  nlat_ens=izero
+  jcap_ens=izero
+  jcap_ens_test=izero
+  nlon_ens=izero
   beta1_inv=one
   s_ens_h = 2828._r_kind     !  km (this was optimal value in 
                              !   Wang, X.,D. M. Barker, C. Snyder, and T. M. Hamill, 2008: A hybrid

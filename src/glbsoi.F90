@@ -71,6 +71,8 @@ subroutine glbsoi(mype)
 !   2009-09-12  parrish - add call to hybrid_ensemble_setup.  if l_hyb_ens=.true., then
 !                          subroutine hybrid_ensemble_setup is called, which creates 
 !                          everything needed for a hybrid ensemble 3dvar analysis.
+!   2010-02-20  parrish - move hybrid_ensemble_setup to beginning of code and read
+!                          in ensemble perturbations where hybrid_ensemble_setup was previously located.
 !
 !   input argument list:
 !     mype - mpi task id
@@ -124,6 +126,7 @@ subroutine glbsoi(mype)
   use observermod, only: observer_init,observer_set,observer_finalize,ndata
   use timermod, only: timer_ini, timer_fnl
   use hybrid_ensemble_parameters, only: l_hyb_ens
+  use hybrid_ensemble_isotropic_regional, only: create_ensemble,load_ensemble
 
   implicit none
 
@@ -141,6 +144,12 @@ subroutine glbsoi(mype)
 !
 ! Initialize timer for this procedure
   call timer_ini('glbsoi')
+
+
+! If l_hyb_ens is true, then initialize machinery for hybrid ensemble 3dvar
+  if(l_hyb_ens) then
+     call hybrid_ensemble_setup
+  end if
 
 ! Initialize observer
   call observer_init
@@ -198,9 +207,10 @@ subroutine glbsoi(mype)
      end if
   end if
 
-! If l_hyb_ens is true, then initialize machinery for hybrid ensemble 3dvar
+! If l_hyb_ens is true, then read in ensemble perturbations
   if(l_hyb_ens) then
-     call hybrid_ensemble_setup
+     call create_ensemble
+     call load_ensemble
   end if
 
 ! Read output from previous min.

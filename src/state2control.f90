@@ -16,6 +16,8 @@ subroutine state2control(rval,bval,grad)
 !   2009-08-12  lueken   - update documentation
 !   2009-11-27  parrish  - for uv_hyb_ens=.true., then ensemble perturbations contain u,v instead of st,vp
 !                            so introduce extra code to handle this case.
+!   2010-02-20  parrish  - introduce modifications to allow dual resolution capability when running
+!                            in hybrid ensemble mode.
 !
 !   input argument list:
 !     rval - State variable
@@ -32,9 +34,10 @@ use bias_predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
 use gridmod, only: latlon1n,latlon11
 use jfunc, only: nsclen,npclen
-use hybrid_ensemble_parameters, only: l_hyb_ens,uv_hyb_ens
+use hybrid_ensemble_parameters, only: l_hyb_ens,uv_hyb_ens,dual_res
 use balmod, only: strong_bk_ad
 use hybrid_ensemble_isotropic_regional, only: ensemble_forward_model_ad
+use hybrid_ensemble_isotropic_regional, only: ensemble_forward_model_ad_dual_res
 implicit none
 
 ! Declare passed variables
@@ -99,14 +102,22 @@ do jj=1,nsubwin
 !        reduce imbalances introduced by ensemble localization in addition to known imbalances from
 !        static background
          call strong_bk_ad(u,v,p,t)
-         call ensemble_forward_model_ad(u,v,t,rh,oz,cw,p,sst,grad%step(jj)%a_en)
+         if(dual_res) then
+            call ensemble_forward_model_ad_dual_res(u,v,t,rh,oz,cw,p,sst,grad%step(jj)%a_en)
+         else
+            call ensemble_forward_model_ad(u,v,t,rh,oz,cw,p,sst,grad%step(jj)%a_en)
+         end if
          call getuv(u,v,st,vp,ione)
       else
 !        Adjoint apply strong constraint to sum of static background and ensemble background combinations to
 !        reduce imbalances introduced by ensemble localization in addition to known imbalances from
 !        static background
          call strong_bk_ad(st,vp,p,t)
-         call ensemble_forward_model_ad(st,vp,t,rh,oz,cw,p,sst,grad%step(jj)%a_en)
+         if(dual_res) then
+            call ensemble_forward_model_ad_dual_res(st,vp,t,rh,oz,cw,p,sst,grad%step(jj)%a_en)
+         else
+            call ensemble_forward_model_ad(st,vp,t,rh,oz,cw,p,sst,grad%step(jj)%a_en)
+         end if
       end if
    end if
 

@@ -82,7 +82,8 @@
   use lag_interp,only : lag_accur
   use lag_traj,only   : lag_stepduration
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
-                         n_ens,beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters
+                         n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
+                         beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters
   implicit none
 
   private
@@ -136,6 +137,11 @@
 !  09-22-2009 Parrish   Add read of namelist/hybrid_ensemble/.  contains parameters used for hybrid
 !                        ensemble option.
 !  10-09-2009 Wu        replace nhr_offset with min_offset since it's 1.5 hr for regional
+!  02-17-2010 Parrish   add nlon_ens, nlat_ens, jcap_ens to namelist/hybrid_ensemble/, in preparation for 
+!                         dual resolution capability when running gsi in hybrid ensemble mode.
+!  02-21-2010 Parrish   add jcap_ens_test to namelist/hybrid_ensemble/ so can simulate lower resolution
+!                         ensemble compared to analysis for case when ensemble and analysis resolution are
+!                         the same.  used for preliminary testing of dual resolution hybrid ensemble option.
 !                         
 !
 !EOP
@@ -502,6 +508,10 @@
 !     aniso_a_en - if true, then use anisotropic localization of hybrid ensemble control variable a_en.
 !     generate_ens - if true, then generate internal ensemble based on existing background error
 !     n_ens        - number of ensemble members.
+!     nlon_ens     - number of longitudes on ensemble grid (may be different from analysis grid nlon)
+!     nlat_ens     - number of latitudes on ensemble grid (may be different from analysis grid nlat)
+!     jcap_ens     - for global spectral model, spectral truncation
+!     jcap_ens_test- for global spectral model, test spectral truncation (to test dual resolution)
 !     beta1_inv           - 1/beta1, the weight given to static background error covariance
 !                              0 <= beta1_inv <= 1,  tuned for optimal performance
 !                             =1, then ensemble information turned off
@@ -510,8 +520,8 @@
 !     s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
 !     s_ens_v             - vertical localization scale (grid units for now)
 !                              s_ens_h, s_ens_v, and beta1_inv are tunable parameters.
-  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,&
-                beta1_inv,s_ens_h,s_ens_v
+  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
+                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v
 
 !EOC
 

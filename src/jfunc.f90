@@ -28,6 +28,7 @@ module jfunc
 !   2009-06-01  pondeca,sato - add tsensible initialization. used in 2dvar mode only
 !   2009-06-01  pondeca - add lgschmidt initalization. this variable controls the B-norm
 !                         re-orthogonalization of the gradx vectors in 2dvar mode
+!   2010-02-20  parrish - add change to get correct nval_len when using hybrid ensemble with dual resolution.
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -601,7 +602,7 @@ contains
     use pcpinfo, only: npredp,npcptype
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors
-    use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens
+    use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens
     implicit none
 
     integer(i_kind) nx,ny,mr,nr,nf
@@ -610,8 +611,10 @@ contains
     nvals_len=nvals_levs*latlon11
 
     nval_levs=6*nsig+2
-    if(l_hyb_ens) nval_levs=nval_levs+n_ens*nsig
     nval_len=nval_levs*latlon11
+    if(l_hyb_ens) then
+       nval_len=nval_levs*latlon11+n_ens*nsig*grd_ens%latlon11
+    end if
     nsclen=npred*jpch_rad
     npclen=npredp*npcptype
     nclen=nsubwin*nval_len+nsclen+npclen

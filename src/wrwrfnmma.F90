@@ -535,6 +535,7 @@ subroutine wrnemsnmma_binary(mype)
 !   2007-05-02  parrish - fix bug to prevent out of memory reference when pint missing
 !   2008-04-01  safford - rm unused uses
 !   2008-12-05  todling - adjustment for dsfct time dimension addition
+!   2010-01-18  parrish - add update of 10m wind, 2m pot temp, 2m specific humidity
 !
 !   input argument list:
 !     mype     - pe number
@@ -550,11 +551,12 @@ subroutine wrnemsnmma_binary(mype)
   use kinds, only: r_kind,i_kind
   use regional_io, only: update_pint
   use guess_grids, only: ges_ps,ges_pd,ges_u,ges_v,ges_q,&
-        ntguessfc,ntguessig,ges_tsen,dsfct,isli
+        ntguessfc,ntguessig,ges_tsen,dsfct,isli,geop_hgtl,ges_prsl
   use gridmod, only: pt_ll,update_regsfc,pdtop_ll,nsig,lat2,lon2,eta2_ll,nmmb_verttype
-  use constants, only: izero,ione,zero
+  use constants, only: izero,ione,zero,half,one,two,rd_over_cp
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read,gsi_nemsio_write
   use gsi_nemsio_mod, only: gsi_nemsio_update
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_integer4,mpi_min,mpi_max,mpi_sum
 
   implicit none
 
@@ -571,9 +573,39 @@ subroutine wrnemsnmma_binary(mype)
   logical add_saved
 
   integer(i_kind) i,it,j,k,kr,mype_input
-  real(r_kind) pd,psfc_this,pd_to_ps
-  real(r_kind),dimension(lat2,lon2):: work_sub,pd_new
+  integer(i_kind) near_sfc,kp
+  real(r_kind) pd,psfc_this,pd_to_ps,wmag
+  real(r_kind),dimension(lat2,lon2):: work_sub,pd_new,delu10,delv10,u10this,v10this,fact10_local
+  real(r_kind),dimension(lat2,lon2):: delt2,delq2,t2this,q2this,fact2t_local,fact2q_local
+  real(r_kind),dimension(lat2,lon2,6):: delu,delv,delt,delq,pott
+  real(r_kind) hmin,hmax,hmin0,hmax0,ten,wgt1,wgt2
+  logical use_fact10,use_fact2
+  logical good_u10,good_v10,good_tshltr,good_qshltr
 
+  use_fact10=.true.
+  use_fact2=.false.
+
+!   decide how many near surface layers to save for interpolation/extrapolation to get u10,v10,t2,q2
+
+  near_sfc=ione
+  do k=1,6
+     hmin=minval(geop_hgtl(:,:,k,ntguessig))
+     hmax=maxval(geop_hgtl(:,:,k,ntguessig))
+     call mpi_allreduce(hmin,hmin0,1,mpi_rtype,mpi_min,mpi_comm_world,ierror)
+     call mpi_allreduce(hmax,hmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
+     if(mype == izero) write(6,*)' k,min,max geop_hgtl=',k,hmin0,hmax0
+     if(hmin0 < 40._r_kind) near_sfc=k
+     hmin=minval(ges_prsl(:,:,k,ntguessig))
+     hmax=maxval(ges_prsl(:,:,k,ntguessig))
+     call mpi_allreduce(hmin,hmin0,1,mpi_rtype,mpi_min,mpi_comm_world,ierror)
+     call mpi_allreduce(hmax,hmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
+     if(mype == izero) write(6,*)' k,min,max ges_prsl=',k,hmin0,hmax0
+  end do
+  near_sfc=max(near_sfc,2_i_kind)
+  if(mype == izero) write(6,*)' in wrnemsnmma_binary near_sfc=',near_sfc
+
+                  
+                     
 !     get conversion factor for pd to psfc
 
   if(nmmb_verttype=='OLD') then
@@ -605,6 +637,13 @@ subroutine wrnemsnmma_binary(mype)
            work_sub(j,i)=ges_u(j,i,k,it)-work_sub(j,i)
         end do
      end do
+     if(k <= near_sfc) then
+        do i=1,lon2
+           do j=1,lat2
+              delu(j,i,k)=work_sub(j,i)
+           end do
+        end do
+     end if
      call gsi_nemsio_write('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
 
                                    !   v
@@ -615,6 +654,13 @@ subroutine wrnemsnmma_binary(mype)
            work_sub(j,i)=ges_v(j,i,k,it)-work_sub(j,i)
         end do
      end do
+     if(k <= near_sfc) then
+        do i=1,lon2
+           do j=1,lat2
+              delv(j,i,k)=work_sub(j,i)
+           end do
+        end do
+     end if
      call gsi_nemsio_write('vgrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
 
                                    !   q
@@ -625,6 +671,13 @@ subroutine wrnemsnmma_binary(mype)
            work_sub(j,i)=ges_q(j,i,k,it)-work_sub(j,i)
         end do
      end do
+     if(k <= near_sfc) then
+        do i=1,lon2
+           do j=1,lat2
+              delq(j,i,k)=work_sub(j,i)
+           end do
+        end do
+     end if
      call gsi_nemsio_write('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
 
                                    !   tsen
@@ -635,6 +688,14 @@ subroutine wrnemsnmma_binary(mype)
            work_sub(j,i)=ges_tsen(j,i,k,it)-work_sub(j,i)
         end do
      end do
+     if(k <= near_sfc) then
+        do i=1,lon2
+           do j=1,lat2
+              delt(j,i,k)=work_sub(j,i)*(r100/ges_prsl(j,i,k,it))**rd_over_cp  ! convert to pot temp
+              pott(j,i,k)=ges_tsen(j,i,k,it)*(r100/ges_prsl(j,i,k,it))**rd_over_cp
+           end do
+        end do
+     end if
      call gsi_nemsio_write('tmp','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
 
   end do
@@ -701,6 +762,125 @@ subroutine wrnemsnmma_binary(mype)
         end do
      end do
      call gsi_nemsio_write('tsea','sfc','H',ione,work_sub(:,:),mype,mype_input,add_saved)
+  end if
+
+!   fact10 method follows:
+
+  good_u10=.false.
+  good_v10=.false.
+  call gsi_nemsio_read ('u10' ,'10 m above gnd','H',ione,u10this(:,:),mype,mype_input,good_u10)
+  call gsi_nemsio_read ('v10' ,'10 m above gnd','H',ione,v10this(:,:),mype,mype_input,good_v10)
+  if(good_u10.and.good_v10) then
+     if(use_fact10) then
+!          recompute fact10 (store as fact10_local)  (this code lifted from read_wrf_nmm_guess.F90)
+        do i=1,lon2
+           do j=1,lat2
+              fact10_local(j,i)=one    !  later fix this by using correct w10/w(1)
+              wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
+              if(wmag > zero)fact10_local(j,i)=sqrt(u10this(j,i)**2+v10this(j,i)**2)/wmag
+              fact10_local(j,i)=min(max(fact10_local(j,i),half),0.95_r_kind)
+              delu10(j,i)=fact10_local(j,i)*delu(j,i,1)
+              delv10(j,i)=fact10_local(j,i)*delv(j,i,1)
+           end do
+        end do
+
+     else
+
+!    vertical interpolation/extrapolation follows:
+
+        ten=10._r_kind
+        do i=1,lon2
+           do j=1,lat2
+              if(ten <  geop_hgtl(j,i,1,it)) then
+                 delu10(j,i)=delu(j,i,1)
+                 delv10(j,i)=delv(j,i,1)
+              else
+                 do k=1,near_sfc-1
+                    kp=k+1
+                    if(ten >= geop_hgtl(j,i,k,it).and.ten <  geop_hgtl(j,i,kp,it)) then
+                       wgt1=(geop_hgtl(j,i,kp,it)-ten)/(geop_hgtl(j,i,kp,it)-geop_hgtl(j,i,k,it))
+                       wgt2=one-wgt1
+                       delu10(j,i)=wgt1*delu(j,i,k)+wgt2*delu(j,i,kp)
+                       delv10(j,i)=wgt1*delv(j,i,k)+wgt2*delv(j,i,kp)
+                       exit
+                    end if
+                 end do
+              end if
+           end do
+        end do
+
+     end if
+
+
+!         update 10m wind 
+!                     (read to work_sub, but only so u10 is saved internally in module gsi_nemsio_mod)
+     call gsi_nemsio_read ('u10' ,'10 m above gnd','H',ione,work_sub(:,:),mype,mype_input)
+!                previously computed 10m u increment added to guess u10 here:
+     call gsi_nemsio_write('u10' ,'10 m above gnd','H',ione,delu10(:,:),mype,mype_input,add_saved)
+!             repeat for 10m v component
+     call gsi_nemsio_read ('v10' ,'10 m above gnd','H',ione,work_sub(:,:),mype,mype_input)
+     call gsi_nemsio_write('v10' ,'10 m above gnd','H',ione,delv10(:,:),mype,mype_input,add_saved)
+
+  end if
+
+!         update 2m potential temp and 2m specific humidity
+
+!   fact2 method follows:
+
+  good_tshltr=.false.
+  good_qshltr=.false.
+  call gsi_nemsio_read ('tshltr' ,'sfc','H',ione,t2this(:,:),mype,mype_input,good_tshltr)
+  call gsi_nemsio_read ('qshltr' ,'sfc','H',ione,q2this(:,:),mype,mype_input,good_qshltr)
+  if(good_tshltr.and.good_qshltr) then
+     if(use_fact2) then
+!       compute fact2t, fact2q
+        call gsi_nemsio_read ('tshltr' ,'sfc','H',ione,t2this(:,:),mype,mype_input)
+        call gsi_nemsio_read ('qshltr' ,'sfc','H',ione,q2this(:,:),mype,mype_input)
+        do i=1,lon2
+           do j=1,lat2
+              fact2t_local(j,i)=max(half,min(t2this(j,i)/pott(j,i,1),two))
+              fact2q_local(j,i)=max(half,min(q2this(j,i)/ges_q(j,i,1,it),two))
+              delt2(j,i)=fact2t_local(j,i)*delt(j,i,1)
+              delq2(j,i)=fact2q_local(j,i)*delq(j,i,1)
+           end do
+        end do
+
+     else
+
+!    vertical interpolation/extrapolation follows:
+
+        do i=1,lon2
+           do j=1,lat2
+              if(two <  geop_hgtl(j,i,1,it)) then
+                 delt2(j,i)=delt(j,i,1)
+                 delq2(j,i)=delq(j,i,1)
+              else
+                 do k=1,near_sfc-1
+                    kp=k+1
+                    if(two >= geop_hgtl(j,i,k,it).and.two <  geop_hgtl(j,i,kp,it)) then
+                       wgt1=(geop_hgtl(j,i,kp,it)-two)/(geop_hgtl(j,i,kp,it)-geop_hgtl(j,i,k,it))
+                       wgt2=one-wgt1
+                       delt2(j,i)=wgt1*delt(j,i,k)+wgt2*delt(j,i,kp)
+                       delq2(j,i)=wgt1*delq(j,i,k)+wgt2*delq(j,i,kp)
+                       exit
+                    end if
+                 end do
+              end if
+           end do
+        end do
+
+     end if
+
+
+!         update 2m t and q
+!                     (read to work_sub, but only so tshltr is saved internally in module gsi_nemsio_mod)
+     call gsi_nemsio_read ('tshltr' ,'sfc','H',ione,work_sub(:,:),mype,mype_input)
+!                previously computed 2m t increment added to guess tshltr here:
+     call gsi_nemsio_write('tshltr' ,'sfc','H',ione,delt2(:,:),mype,mype_input,add_saved)
+!             repeat for 2m q
+     call gsi_nemsio_read ('qshltr' ,'sfc','H',ione,work_sub(:,:),mype,mype_input)
+     call gsi_nemsio_write('qshltr' ,'sfc','H',ione,delq2(:,:),mype,mype_input,add_saved)
+
   end if
 
   call gsi_nemsio_close(wrfanl,'WRNEMSNMMA_BINARY',mype,mype_input)

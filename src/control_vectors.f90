@@ -15,6 +15,7 @@ module control_vectors
 !   2009-08-12  lueken   - updated documentation
 !   2009-09-20  parrish  - add pointer variable a_en to definition of type control_state
 !                           also, add module variables n_ens, nlva_en
+!   2010-02-20  parrish  - add functions dplevs_ens for use with dual-resolution hybrid ensemble option.
 !
 ! subroutines included:
 !   sub setup_control_vectors
@@ -36,6 +37,7 @@ module control_vectors
 !
 ! functions included:
 !   dplevs
+!   dplevs_ens
 !   qdot_prod_sub
 !   dot_prod_cv
 !   qdot_prod_cv
@@ -203,6 +205,8 @@ subroutine allocate_cv(ycv)
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
 !   2009-09-20  parrish - add optional allocation of hybrid ensemble control variable a_en
+!   2010-02-20  parrish - add structure variable grd_ens as part of changes for dual-resolution
+!                           hybrid ensemble system.
 !
 !   input argument list:
 !
@@ -215,6 +219,7 @@ subroutine allocate_cv(ycv)
 !
 !$$$ end documentation block
 
+  use hybrid_ensemble_parameters, only: grd_ens
   implicit none
   type(control_vector), intent(  out) :: ycv
   integer(i_kind) :: ii,jj
@@ -261,8 +266,8 @@ subroutine allocate_cv(ycv)
         ycv%step(jj)%sst => ycv%values(ii+ione:ii+latlon11)
         ii=ii+latlon11
         if(n_ens >  izero) then
-           ycv%step(jj)%a_en => ycv%values(ii+1:ii+n_ens*latlon1n)
-           ii=ii+n_ens*latlon1n
+           ycv%step(jj)%a_en => ycv%values(ii+1:ii+n_ens*grd_ens%latlon1n)
+           ii=ii+n_ens*grd_ens%latlon1n
         end if
      endif
   enddo
@@ -547,6 +552,48 @@ real(r_quad) function dplevs(nlevs,dx,dy)
 return
 end function dplevs
 ! ----------------------------------------------------------------------
+real(r_quad) function dplevs_ens(nlevs,dx,dy)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    dplevs_ens  copy of dplevs for use with ensemble control variable a_en
+!   prgmmr: parrish          org: wx22                date: 2010-02-20
+!
+! abstract:
+!
+! program history log:
+!   2010-02-20  parrish, initial documentation
+!
+!   input argument list:
+!    nlevs
+!    dx,dy
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  use hybrid_ensemble_parameters, only: grd_ens
+  implicit none
+  integer(i_kind),intent(in   ) :: nlevs
+  real(r_kind)   ,intent(in   ) :: dx(grd_ens%lat2,grd_ens%lon2,nlevs),dy(grd_ens%lat2,grd_ens%lon2,nlevs)
+
+  integer(i_kind) :: ii,jj,kk
+
+  dplevs_ens=zero_quad
+  do kk=1,nlevs
+     do jj=2,grd_ens%lon2-ione
+        do ii=2,grd_ens%lat2-ione
+           dplevs_ens=dplevs_ens+dx(ii,jj,kk)*dy(ii,jj,kk)
+        end do
+     end do
+  end do
+
+return
+end function dplevs_ens
+! ----------------------------------------------------------------------
 subroutine ddot_prod_vars(xcv,ycv,prods)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -599,7 +646,7 @@ subroutine ddot_prod_vars(xcv,ycv,prods)
         zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
         zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
         if(n_ens >  izero) &
-        zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
+        zz(ii) = zz(ii) + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
      end do
   end if
 
@@ -666,7 +713,7 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
         qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
         qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
         if(n_ens >  izero) &
-        qdot_prod_sub = qdot_prod_sub + dplevs(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
+        qdot_prod_sub = qdot_prod_sub + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
      end do
   end if
 
@@ -732,7 +779,7 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
         zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
         zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
         if(n_ens >  izero) &
-        zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
+        zz(ii) = zz(ii) + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
      end do
   end if
 
@@ -812,7 +859,7 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
      if(trim(eb) == 'cost_e') then
         do ii=1,nsubwin
            if(n_ens >  izero) &
-           zz(ii) = zz(ii) + dplevs(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
+           zz(ii) = zz(ii) + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
         end do
      end if
   end if
