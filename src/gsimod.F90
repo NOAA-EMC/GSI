@@ -18,11 +18,10 @@
      init_obsmod_dflts,create_obsmod_vars,write_diag,oberrflg,&
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,ndatmax,&
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune, &
-     blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
-     lread_obs_save,lread_obs_skip
+     blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
-  use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
+  use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,nhr_offset, &
                        l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,&
                        lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,lgrtest,&
                        idmodel,clean_4dvar,lwrtinc,lanczosave
@@ -60,13 +59,13 @@
   use mod_strong, only: jcstrong,jcstrong_option,nstrong,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
 
-  use specmod, only: jcap,jcap_b,init_spec,init_spec_vars,destroy_spec_vars
+  use specmod, only: jcap,jcap_b,jcap_en,init_spec,init_spec_vars,destroy_spec_vars
   use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,nems_nmmb_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
-     nlayers,nlat_b,nlon_b,hires_b
+     nlayers
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
@@ -82,8 +81,7 @@
   use lag_interp,only : lag_accur
   use lag_traj,only   : lag_stepduration
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
-                         n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
-                         beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters
+                         n_ens,beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters
   implicit none
 
   private
@@ -136,12 +134,6 @@
 !  08-31-2009 Parrish   Add changes for version 3 regional tangent linear normal mode constraint
 !  09-22-2009 Parrish   Add read of namelist/hybrid_ensemble/.  contains parameters used for hybrid
 !                        ensemble option.
-!  10-09-2009 Wu        replace nhr_offset with min_offset since it's 1.5 hr for regional
-!  02-17-2010 Parrish   add nlon_ens, nlat_ens, jcap_ens to namelist/hybrid_ensemble/, in preparation for 
-!                         dual resolution capability when running gsi in hybrid ensemble mode.
-!  02-21-2010 Parrish   add jcap_ens_test to namelist/hybrid_ensemble/ so can simulate lower resolution
-!                         ensemble compared to analysis for case when ensemble and analysis resolution are
-!                         the same.  used for preliminary testing of dual resolution hybrid ensemble option.
 !                         
 !
 !EOP
@@ -175,7 +167,7 @@
 !     qoption  - option of analysis variable; 1:q/qsatg 2:norm RH
 !     fstat    - logical to seperate f from balance projection
 !     nhr_assimilation - assimilation time interval (currently 6hrs for global, 3hrs for reg)
-!     min_offset       - time in minutes of analysis in assimilation window (default 3 hours)
+!     nhr_offset       - time of analysis in assimilation window (default 3 hours)
 !     l4dvar           - turn 4D-Var on/off (default=off=3D-Var)
 !     idmodel          - uses identity model when running 4D-Var (test purposes)
 !     lwrtinc          - when .t., writes out increments instead of analysis
@@ -235,8 +227,6 @@
 !                 from pcgsoi when twodvar_regional=.true.
 !     hilbert_curve - option for hilbert-curve based cross-validation. works only
 !                     with twodvar_regional=.true.
-!     lread_obs_save - option to write out collective obs selection info
-!     lread_obs_skip - option to read in collective obs selection info
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -244,7 +234,7 @@
   namelist/setup/gencode,factqmin,factqmax,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
        ndat,npred,niter,niter_no_qc,miter,qoption,nhr_assimilation,&
-       min_offset, &
+       nhr_offset, &
        iout_iter,npredp,retrieval,&
        diag_rad,diag_pcp,diag_conv,diag_ozone,iguess,write_diag,&
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
@@ -260,7 +250,7 @@
        nwrvecs,ladtest,lgrtest,lobskeep,lsensrecompute, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
-       lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip
+       lferrscale,print_diag_pcg,tsensible,lgschmidt
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -268,6 +258,7 @@
 !     nlat     - number of latitudes
 !     nlon     - number of longitudes
 !     jcap_b   - spectral resolution of background
+!     jcap_en  - spectral resolution of ensemble for hybrid
 !     nlat_b   - number of latitudes on background grid
 !     nlon_b   - number of longitudes on background grid
 !     hybrid   - logical hybrid data file flag true=hybrid
@@ -295,7 +286,7 @@
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,hybrid,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nlayers,&
-       nmmb_reference_grid,grid_ratio_nmmb,nlat_b,nlon_b
+       nmmb_reference_grid,grid_ratio_nmmb
 
 ! BKGERR (background error related variables):
 !     as()     - normalized scale factor for background error
@@ -508,10 +499,6 @@
 !     aniso_a_en - if true, then use anisotropic localization of hybrid ensemble control variable a_en.
 !     generate_ens - if true, then generate internal ensemble based on existing background error
 !     n_ens        - number of ensemble members.
-!     nlon_ens     - number of longitudes on ensemble grid (may be different from analysis grid nlon)
-!     nlat_ens     - number of latitudes on ensemble grid (may be different from analysis grid nlat)
-!     jcap_ens     - for global spectral model, spectral truncation
-!     jcap_ens_test- for global spectral model, test spectral truncation (to test dual resolution)
 !     beta1_inv           - 1/beta1, the weight given to static background error covariance
 !                              0 <= beta1_inv <= 1,  tuned for optimal performance
 !                             =1, then ensemble information turned off
@@ -520,9 +507,8 @@
 !     s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
 !     s_ens_v             - vertical localization scale (grid units for now)
 !                              s_ens_h, s_ens_v, and beta1_inv are tunable parameters.
-  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
-                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v
-
+  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,&
+                beta1_inv,s_ens_h,s_ens_v
 !EOC
 
 !---------------------------------------------------------------------------
@@ -621,18 +607,18 @@
 ! 4D-Var setup
   call setup_4dvar(miter,mype)
   if (.not. l4dvar) then
-     ljcdfi=.false.
+    ljcdfi=.false.
   endif
   if (l4dvar.and.lsensrecompute) then
-     lobsensfc  =lobsensfc  .and.(jiterstart==jiterend)
-     lobsensjb  =lobsensjb  .and.(jiterstart==jiterend)
-     lobsensincr=lobsensincr.and.(jiterstart==jiterend)
+    lobsensfc  =lobsensfc  .and.(jiterstart==jiterend)
+    lobsensjb  =lobsensjb  .and.(jiterstart==jiterend)
+    lobsensincr=lobsensincr.and.(jiterstart==jiterend)
   endif
   lobsensfc=lobsensfc.or.lobsensjb.or.lobsensincr
   lsensrecompute=lsensrecompute.and.lobsensfc
   if (lobsensadj .and. .not.lcongrad) then
-     write(6,*)'gsimod: adjoint computation requires congrad',lobsensadj,lcongrad
-     call stop2(137)
+      write(6,*)'gsimod: adjoint computation requires congrad',lobsensadj,lcongrad
+      call stop2(137)
   end if
 
 
@@ -647,8 +633,8 @@
 ! Check that regional=.true. if jcstrong_option > 2
   if(jcstrong_option>2_i_kind.and..not.regional) then
      if(mype==izero) then
-        write(6,*) ' jcstrong_option>2 not allowed except for regional=.true.'
-        write(6,*) ' ERROR EXIT FROM GSI'
+       write(6,*) ' jcstrong_option>2 not allowed except for regional=.true.'
+       write(6,*) ' ERROR EXIT FROM GSI'
      end if
      call stop2(328)
   end if
@@ -656,12 +642,12 @@
 
 !  jcstrong_option=4 currently requires that 2*nvmodes_keep <= npe
   if(jcstrong_option==4_i_kind) then
-     if(2*nvmodes_keep>npe) then
-        if(mype==izero) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
-        if(mype==izero) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
-        nvmodes_keep=npe/2
-        if(mype==izero) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
-     end if
+    if(2*nvmodes_keep>npe) then
+      if(mype==izero) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
+      if(mype==izero) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
+      nvmodes_keep=npe/2
+      if(mype==izero) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
+    end if
   end if
 
 
@@ -676,7 +662,7 @@
   end do
   writediag=.false.
   do i=1,miter+ione
-     if(write_diag(i))writediag=.true.
+    if(write_diag(i))writediag=.true.
   end do
   if(.not. writediag)then
      diag_rad=.false.
@@ -728,6 +714,9 @@
      baldiag_inc =.false.
   end if
 
+! Turn off uv option if hybrid/ensemble options is false for purposes
+! of TLNMC
+  if (.not.l_hyb_ens) uv_hyb_ens=.false.
 
 ! Turn on derivatives if using dynamic constraint
 ! For now if wrf mass or 2dvar no dynamic constraint
@@ -762,24 +751,6 @@
            exit check_pcp
         endif
      end do check_pcp
-  endif
-
-! Check if using hires global background (guess)
-  if (jcap_b < izero) jcap_b = jcap
-  if ( (nlon_b > izero .and. nlon_b /= nlon) .and. &
-       (nlat_b > izero .and. nlat_b /= nlat) ) then
-     hires_b=.true.
-     if (mype==izero) write(6,*)'GSIMOD:  set hires_b=',hires_b,&
-	' with nlat_b,nlon_b=',nlat_b,nlon_b,&
-	' nlat,nlon=',nlat,nlon,' and jcap,jcap_b=',jcap,jcap_b
-  endif
-
-
-! Ensure no conflict between flag lread_obs_save and lread_obs_skip
-  if (lread_obs_save .and. lread_obs_skip) then
-     if (mype==izero) write(6,*)'GSIMOD:  ***ERROR*** lread_obs_save=',lread_obs_save,&
-          ' and lread_obs_skip=',lread_obs_skip,' can not both be TRUE'
-     call stop2(329)
   endif
 
 
@@ -821,8 +792,8 @@
      write(6,obsqc)
      ngroup=izero
      do i=1,ndat
-        dthin(i) = max(dthin(i),izero)
-        if(dthin(i) > ngroup)ngroup=dthin(i)
+       dthin(i) = max(dthin(i),izero)
+       if(dthin(i) > ngroup)ngroup=dthin(i)
      end do
      if(ngroup>izero)write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
      do i=1,ndat
@@ -844,7 +815,7 @@
   call init_constants(regional)
   call init_reg_glob_ll(mype,lendian_in)
   call init_grid_vars(jcap,npe)
-  if (.not.regional) call init_spec_vars(nlat,nlon,nlat_b,nlon_b,hires_b)
+  if (.not.regional) call init_spec_vars(nlat,nlon)
   call init_mpi_vars(nsig,mype,nsig1o)
   call create_obsmod_vars
 
@@ -893,7 +864,7 @@
   implicit none
 ! Deallocate arrays
   call clean_4dvar
-  if (.not.regional) call destroy_spec_vars(hires_b)
+  if (.not.regional) call destroy_spec_vars
   call destroy_obsmod_vars
   call destroy_mpi_vars
 
