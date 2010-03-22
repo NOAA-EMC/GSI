@@ -11,6 +11,7 @@ module egrid2agrid_mod
 !
 ! program history log:
 !   2010-02-05  parrish, initial documentation
+!   2010-03-04  parrish - add ability to interpolate from full global grid to general collecition of points.
 !
 ! subroutines included:
 !   sub init_egrid2agrid         - initialize interpolation variables and constants to defaults
@@ -27,6 +28,8 @@ module egrid2agrid_mod
 !   sub g_egrid2agrid_ad         - adjoint of g_egrid2agrid
 !   sub g_agrid2egrid            - full weight interpolate from analysis grid to ensemble grid
 !                                   (same code as g_egrid2agrid_ad, but weights normalized to 1)
+!   sub g_create_egrid2points    - used for full global lat-lon egrid to general collection of points
+!   sub g_egrid2points           - for full global lat-lon egrid, interpolate to general set of points.
 !
 ! Variable Definitions:
 !   def nord_e2a       - order of interpolation
@@ -68,6 +71,8 @@ module egrid2agrid_mod
    public :: g_egrid2agrid
    public :: g_egrid2agrid_ad
    public :: g_agrid2egrid
+   public :: g_create_egrid2points_slow
+   public :: g_egrid2points_faster
 ! set passed variables to public
    public :: egrid2agrid_parm
 
@@ -171,7 +176,7 @@ module egrid2agrid_mod
 
    end subroutine create_egrid2agrid
 
-   subroutine get_3ops(e2a,ngrida,rgrida,ngride,rgride,iord)
+   subroutine get_3ops(e2a,ngrida,rgrida,ngride,rgride,iord,e2a_only)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_3ops          compute interpolation operators
@@ -182,6 +187,8 @@ module egrid2agrid_mod
 !
 ! program history log:
 !   2010-02-06  parrish, initial documentation
+!   2010-03-09  parrish - add optional logical variable e2a_only, which if true, only compute 
+!                          egrid to agrid interpolation operator.
 !
 !   input argument list:
 !     e2a           - structure variable with previous/default interpolation information
@@ -214,6 +221,7 @@ module egrid2agrid_mod
       type(egrid2agrid_cons),intent(inout) :: e2a
       integer(i_kind)       ,intent(in   ) :: iord,ngrida,ngride
       real(r_kind)          ,intent(in   ) :: rgrida(ngrida),rgride(ngride)
+      logical,optional      ,intent(in   ) :: e2a_only
 
       integer(i_kind) i,ii,ipmaxmax,ipminmin,j,jord,k,lbig,n,ntwinmax
       integer(i_kind) ixi(0:iord)
@@ -260,6 +268,14 @@ module egrid2agrid_mod
             end if
          end do
       end do
+
+      if(present(e2a_only)) then
+         if(e2a_only) then
+            allocate(e2a%twin(1,1),e2a%itwin(1,1),e2a%ntwin(1),e2a%swin(1,1))
+            e2a%lallocated=.true.
+            return
+         end if
+      end if
             
 
 !--------------------------------------------------------
@@ -724,7 +740,7 @@ module egrid2agrid_mod
 !      construct extended ensemble grid used for actual interpolation 
 !               (note that analysis grid needs no extension)
 
-      nextend=(nord_e2a+2_i_kind)/2_i_kind
+      nextend=1+(nord_e2a+2_i_kind)/2_i_kind
       p%nextend=nextend
       nlone_half=nlone/2_i_kind
       p%nlone_half=nlone_half
@@ -1041,5 +1057,249 @@ module egrid2agrid_mod
       end if
 
    end subroutine g_egrid2agrid_ad
+
+   subroutine g_create_egrid2points_slow(na,rlata,rlona,nlate,rlate,nlone,rlone,nord_e2a,p)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    g_create_egrid2points_slow 1st version of grid to points
+!   prgmmr: parrish          org: np22                date: 2010-03-04
+!
+! abstract: setup routine for g_egrid2points_slow, inefficient version of interpolation
+!             from full global grid to general set of points.
+!
+!
+! program history log:
+!   2010-03-04  parrish, initial documentation
+!   2010-03-09  parrish - add logical flag e2a_only, which is set to true and passed in as
+!                            optional variable to get_3ops, so only forward interpolation from
+!                            grid to points is computed.
+!
+!   input argument list:
+!     na:     number of points to interpolate to
+!     rlata:  latitudes of points in radians within range from -pi/2 to pi/2 
+!     rlona:  longitudes of points in radians from 0 to 2*pi (values are transferred
+!               and then internally adjusted to be in this range modulo 2*pi)
+!     nlate:  number of ensemble latitudes
+!     rlate:  ensemble latitudes in radians from -pi/2 to pi/2, including pole points
+!     nlone:  number of ensemble longitudes (must be even)
+!     rlone:  ensemble longitudes in radians from 0 to 360, not including point at 360
+!     nord_e2a:     order of interpolation from ensemble to analysis grid
+!
+!   output argument list:
+!     p
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+      use constants, only: zero,half,one,two,pi,rad2deg
+      implicit none
+
+      integer(i_kind),intent(in) :: na,nlate,nlone,nord_e2a
+      real(r_kind),intent(in) :: rlata(na),rlona(na),rlate(nlate),rlone(nlone)
+      type(egrid2agrid_parm),intent(inout) :: p
+
+      integer(i_kind) i,ilona,ilone,j,j180,nextend,nlate_ex,nlone_ex,nlone_half
+      real(r_kind) half_pi,two_pi,dlona,dlone,errtest,diffmax,range_lat,range_lon
+      real(r_kind),allocatable::rlate_ex(:),rlone_ex(:)
+      real(r_kind) rlona0(na)
+      logical fail_tests,e2a_only
+
+      p%nlata=na
+      p%nlate=nlate
+      p%nlone=nlone
+      p%nlate_ex=nlate
+      p%nlone_ex=nlone
+      p%identity=.false.
+
+!   check that lats and lons satisfy requirements:
+
+      errtest=10._r_kind*pi*epsilon(one)
+      half_pi=half*pi
+      two_pi=two*pi
+      fail_tests=.false.
+
+!       points tests:
+      if(minval(rlata) < -half_pi ) then
+         write(6,*)' in g_create_egrid2points, some points beyond south pole--unphysical'
+         fail_tests=.true.
+      end if
+      if(maxval(rlata) >  half_pi ) then
+         write(6,*)' in g_create_egrid2points, some points beyond north pole--unphysical'
+         fail_tests=.true.
+      end if
+
+!       ensemble grid tests:
+      if(abs(rlate(1)+half_pi) > errtest) then
+         write(6,*)' in g_create_egrid2points, rlate(1) not within tolerance for south pole value' 
+         fail_tests=.true.
+      end if
+      if(abs(rlate(nlate)-half_pi) > errtest) then
+         write(6,*)' in g_create_egrid2points, rlate(nlate) not within tolerance for north pole value' 
+         fail_tests=.true.
+      end if
+      if(abs(rlone(1)) > errtest) then
+         write(6,*)' in g_create_egrid2points, rlone(1) not within tolerance for 0 meridian' 
+         fail_tests=.true.
+      end if
+      dlone=rlone(2)-rlone(1)
+      ilone=0
+      do j=1,nlone-1
+         if(abs(rlone(j+1)-rlone(j)-dlone) > errtest) then
+            fail_tests=.true.
+            ilone=ilone+1
+         end if
+      end do
+      if(ilone > 0) write(6,*)' in g_create_egrid2points, dlone not constant to within tolerance'
+      if(abs(rlone(nlone)+dlone-two_pi) > errtest) then
+         write(6,*)' in g_create_egrid2points, rlone(nlone) + dlone not within tolerance for 0 meridian' 
+         fail_tests=.true.
+      end if
+      if(mod(nlone,2) /= 0) then
+         write(6,*)' in g_create_egrid2points, nlone not even' 
+         fail_tests=.true.
+      end if
+ 
+      if(fail_tests) then
+         write(6,*)' incorrect input grid coordinates in subroutine g_create_egrid2points, program stops'
+         stop
+      end if
+
+!     copy rlona to internal array rlona0, adjusting values modulo 2*pi to be in range 0 to 2*pi
+
+      do j=1,na
+         rlona0(j)=rlona(j)
+      end do
+      do while(minval(rlona0) <= -errtest)
+         do j=1,na
+            if(rlona0(j) < zero) rlona0(j)=rlona0(j)+two_pi
+         end do
+      end do
+      do while(maxval(rlona0) >= two_pi+errtest)
+         do j=1,na
+            if(rlona0(j) >= two_pi) rlona0(j)=rlona0(j)-two_pi
+         end do
+      end do
+      
+
+!      construct extended ensemble grid used for actual interpolation 
+!               (note that analysis grid needs no extension)
+
+      nextend=1+(nord_e2a+2_i_kind)/2_i_kind
+      p%nextend=nextend
+      nlone_half=nlone/2_i_kind
+      p%nlone_half=nlone_half
+
+      nlate_ex=nlate+2*nextend
+      p%nlate_ex=nlate_ex
+      allocate(rlate_ex(nlate_ex))
+      do i=1,nlate
+         rlate_ex(nextend+i)=rlate(i)
+      end do
+      do i=1,nextend
+         rlate_ex(i)=-pi-rlate(nextend+2-i)
+         rlate_ex(nextend+nlate+i)=pi-rlate(nlate-i)
+      end do
+
+      nlone_ex=nlone+2*nextend
+      p%nlone_ex=nlone_ex
+      allocate(rlone_ex(nlone_ex))
+      do j=1,nlone
+         rlone_ex(nextend+j)=rlone(j)
+      end do
+      do j=1,nextend
+         rlone_ex(j)=rlone(nlone-nextend+j)-two_pi
+         rlone_ex(nextend+nlone+j)=two_pi+rlone(j)
+      end do
+      e2a_only=.true.
+      call get_3ops(p%e2a_lat,na,rlata,nlate_ex,rlate_ex,nord_e2a,e2a_only)
+      call get_3ops(p%e2a_lon,na,rlona0,nlone_ex,rlone_ex,nord_e2a,e2a_only)
+
+   end subroutine g_create_egrid2points_slow
+
+   subroutine g_egrid2points_faster(p,e,a,vector)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    g_egrid2points_slow interp full global grid to set of points
+!   prgmmr: parrish          org: np22                date: 2010-03-04
+!
+! abstract: interpolate from full global grid to general set of points (slow version)
+!
+! program history log:
+!   2010-03-04  parrish, initial documentation
+!
+!   input argument list:
+!     p              - parameters for egrid2agrid
+!     e              - ensemble grid on full global domain
+!     vector         - if true, then interpolating a vector component, so
+!                        need to multiply interpolating weights by p%vector
+!
+!   output argument list:
+!     a              - interpolated values on general set of points
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+      use constants, only: zero,one
+      implicit none
+
+      type(egrid2agrid_parm),intent(in   ) :: p
+      real(r_kind)          ,intent(in   ) :: e(p%nlate,p%nlone)
+      logical               ,intent(in   ) :: vector
+      real(r_kind)          ,intent(  out) :: a(p%nlata)
+
+      real(r_kind) e_ex(p%nlate_ex,p%nlone_ex)
+      real(r_kind) w(p%nlone_ex)                  !  this array is too big by nlone/(nord_e2a+1)
+                                                    !   which is why this is the slow version.
+      integer(i_kind) i,j,j1,je,jr,k
+      real(r_kind) w1,factor
+!               
+!           construct e_ex from input array e
+
+      factor=one
+      if(vector) factor=-one
+!           extend in latitude first
+      do j=1,p%nlone
+         je=j+p%nextend
+         jr=j+p%nlone_half
+         if(jr > p%nlone) jr=jr-p%nlone
+         do i=1,p%nlate
+            e_ex(p%nextend+i,je)=e(i,j)
+         end do
+         do i=1,p%nextend
+            e_ex(p%nextend+1-i,je)=factor*e(i+1,jr)
+            e_ex(p%nlate+p%nextend+i,je)=factor*e(p%nlate-i,jr)
+         end do
+      end do
+!           next extend in longitude
+      do j=1,p%nextend
+         je=j+p%nextend
+         do i=1,p%nlate_ex
+            e_ex(i,j)=e_ex(i,j+p%nlone)
+            e_ex(i,je+p%nlone)=e_ex(i,je)
+         end do
+      end do
+
+!       for each point, first interpolate in latitude at longitudes required for longitude interpolation,
+!         then finish up with longitude interpolation
+
+      do i=1,p%nlata
+         a(i)=zero
+         do j=1,p%e2a_lon%nwin(i)
+            j1=p%e2a_lon%iwin(j,i)
+            w1=p%e2a_lon%win(j,i)
+            w(j1)=zero
+            do k=1,p%e2a_lat%nwin(i)
+               w(j1)=w(j1)+p%e2a_lat%win(k,i)*e_ex(p%e2a_lat%iwin(k,i),j1)
+            end do
+            a(i)=a(i)+w1*w(j1)
+         end do
+      end do
+
+   end subroutine g_egrid2points_faster
 
 end module egrid2agrid_mod

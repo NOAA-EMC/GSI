@@ -66,7 +66,7 @@
      filled_grid,half_grid,wrf_mass_regional,nsig1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
-     nlayers,nlat_b,nlon_b,hires_b
+     nlayers,nlat_b,nlon_b,hires_b,use_gfs_ozone,check_gfs_ozone_date,regional_ozone
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
@@ -142,6 +142,10 @@
 !  02-21-2010 Parrish   add jcap_ens_test to namelist/hybrid_ensemble/ so can simulate lower resolution
 !                         ensemble compared to analysis for case when ensemble and analysis resolution are
 !                         the same.  used for preliminary testing of dual resolution hybrid ensemble option.
+!  03-06-2010 Parrish   add flag use_gfs_ozone to namelist SETUP--allows read of gfs ozone for regional runs
+!  03-09-2010 Parrish   add flag check_gfs_ozone_date to namelist SETUP--if true, date check gfs ozone
+!  03-15-2010 Parrish   add flag regional_ozone to namelist SETUP--if true, then turn on ozone in 
+!                         regional analysis
 !                         
 !
 !EOP
@@ -237,6 +241,9 @@
 !                     with twodvar_regional=.true.
 !     lread_obs_save - option to write out collective obs selection info
 !     lread_obs_skip - option to read in collective obs selection info
+!     use_gfs_ozone  - option to read in gfs ozone and interpolate to regional model domain
+!     check_gfs_ozone_date  - option to date check gfs ozone before interpolating to regional model domain
+!     regional_ozone  - option to turn on ozone in regional analysis
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -260,7 +267,8 @@
        nwrvecs,ladtest,lgrtest,lobskeep,lsensrecompute, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
-       lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip
+       lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
+       use_gfs_ozone,check_gfs_ozone_date,regional_ozone
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution

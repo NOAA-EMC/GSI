@@ -38,6 +38,9 @@ module gridmod
 !   2007-10-24  parrish - fix error in wind rotation reference angle field
 !   2009-01-28  todling - remove original GMAO interface
 !   2009-01-09  gayno   - added variables lpl_gfs and dx_gfs
+!   2010-03-06  parrish - add logical flag use_gfs_ozone for option to read gfs ozone for regional run
+!   2010-03-09  parrish - add logical flag check_gfs_ozone_date--if true, date check against analysis time
+!   2010-03-15  parrish - add logical flag regional_ozone to turn on ozone in regional analysis
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-09-25
@@ -92,6 +95,7 @@ module gridmod
   public :: diagnostic_reg,nmmb_reference_grid,hybrid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
   public :: nsig4,nsig3
+  public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone
 
   logical regional          ! .t. for regional background/analysis
   logical diagnostic_reg    ! .t. to activate regional analysis diagnostics
@@ -103,6 +107,9 @@ module gridmod
   logical nems_nmmb_regional! .t. to run with NEMS NMMB model
   logical wrf_mass_regional !
   logical twodvar_regional  ! .t. to run code in regional 2D-var mode
+  logical use_gfs_ozone     ! .t. to use gfs ozone in regional analysis
+  logical check_gfs_ozone_date ! .t. to date check gfs ozone against regional
+  logical regional_ozone    !    .t. to turn on ozone for regional analysis
   logical netcdf            ! .t. for regional netcdf i/o
 
   logical hybrid            ! .t. to set hybrid vertical coordinates
@@ -322,6 +329,9 @@ contains
 !   2004-07-15  todling, protex-compliant prologue
 !   2005-03-03  treadon - add implicit none
 !   2005-06-01  treadon - add initialization of msig and nlayers
+!   2010-03-06  parrish - add initialization of use_gfs_ozone flag
+!   2010-03-09  parrish - add initialization of check_gfs_ozone_date flag
+!   2010-03-15  parrish - add initialization of regional_ozone flag
 !
 ! !REMARKS:
 !   language: f90
@@ -359,6 +369,9 @@ contains
     wrf_mass_regional = .false.
     nems_nmmb_regional = .false.
     twodvar_regional = .false. 
+    use_gfs_ozone = .false.
+    check_gfs_ozone_date = .false.
+    regional_ozone = .false.
     netcdf = .false.
     hybrid = .false.
     filled_grid = .false.

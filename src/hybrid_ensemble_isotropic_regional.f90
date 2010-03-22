@@ -327,6 +327,7 @@ subroutine new_factorization_rf_x(f,iadvance,iback,nlevs)
 ! program history log:
 !   2009-09-28  parrish  initial documentation
 !   2010-02-20  parrish  modifications for dual resolution
+!   2010-03-11  parrish  adjust for possibility that nlevs=0
 !
 !   input argument list:
 !     f        - input field to be filtered
@@ -346,7 +347,7 @@ subroutine new_factorization_rf_x(f,iadvance,iback,nlevs)
   implicit none
 
   integer(i_kind),intent(in   ) :: iadvance,iback,nlevs
-  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat,grd_ens%nlon,nlevs)
+  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat,grd_ens%nlon,max(nlevs,1))
 
   integer(i_kind) i,j,k,l,ny,nx,nz
 
@@ -407,6 +408,7 @@ subroutine new_factorization_rf_y(f,iadvance,iback,nlevs)
 ! program history log:
 !   2009-09-28  parrish  initial documentation
 !   2010-02-20  parrish  modifications for dual resolution
+!   2010-03-11  parrish  adjust for possibility that nlevs=0
 !
 !   input argument list:
 !     f        - input field to be filtered
@@ -428,7 +430,7 @@ subroutine new_factorization_rf_y(f,iadvance,iback,nlevs)
   implicit none
 
   integer(i_kind),intent(in   ) :: iadvance,iback,nlevs
-  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat,grd_ens%nlon*nlevs)
+  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat,grd_ens%nlon*max(nlevs,1))
 
   integer(i_kind) i,k,l,nx,ny,nz
 
@@ -560,6 +562,8 @@ subroutine normal_new_factorization_rf_x
 ! program history log:
 !   2009-09-28  parrish  initial documentation
 !   2010-02-20  parrish  modifications for dual resolution
+!   2010-03-11  parrish  correct error that can lead to infinite loop, and introduce grd_ens%kend_alloc
+!                         in dimension statements
 !
 !   input argument list:
 !
@@ -577,7 +581,12 @@ subroutine normal_new_factorization_rf_x
   use constants, only: izero,ione,zero,one
 
   integer(i_kind) i,j,k,kcount,lcount,iadvance,iback
-  real(r_kind) f(grd_ens%nlat,nlon,grd_ens%kend_loc+1-grd_ens%kbegin_loc),diag(grd_ens%nlat,nlon)
+  real(r_kind) f(grd_ens%nlat,nlon,grd_ens%kend_alloc+1-grd_ens%kbegin_loc),diag(grd_ens%nlat,nlon)
+
+!                       possible to have kend_loc - kbegin_loc-1 for processors not involved
+!                          which results in infinite loops
+
+  if(grd_ens%kend_loc < grd_ens%kbegin_loc) return
 
   if(allocated(xnorm_new)) deallocate(xnorm_new)
   allocate(xnorm_new(grd_ens%nlat,nlon))
@@ -673,7 +682,12 @@ subroutine normal_new_factorization_rf_y
   implicit none
 
   integer(i_kind) k,kcount,lcount,iadvance,iback
-  real(r_kind) f(nlat,nlon*grd_ens%kend_loc+1-grd_ens%kbegin_loc),diag(nlat)
+  real(r_kind) f(nlat,nlon*(grd_ens%kend_alloc+1-grd_ens%kbegin_loc)),diag(nlat)
+
+!                       possible to have kend_loc - kbegin_loc-1 for processors not involved
+!                          which results in infinite loops
+
+  if(grd_ens%kend_loc < grd_ens%kbegin_loc) return
 
   if(allocated(ynorm_new)) deallocate(ynorm_new)
   allocate(ynorm_new(nlat))
@@ -683,7 +697,7 @@ subroutine normal_new_factorization_rf_y
   lcount=izero
   do
      f=zero
-     do k=1,min(nlon*grd_ens%kend_loc+1-grd_ens%kbegin_loc,nlat)
+     do k=1,min(nlon*(grd_ens%kend_loc+1-grd_ens%kbegin_loc),nlat)
         kcount=kcount+ione
         f(kcount,k)=one
         if(kcount == nlat) exit
@@ -692,7 +706,7 @@ subroutine normal_new_factorization_rf_y
      call new_factorization_rf_y(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
      iadvance=2_i_kind ; iback=ione
      call new_factorization_rf_y(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
-     do k=1,min(nlon*grd_ens%kend_loc+1-grd_ens%kbegin_loc,nlat)
+     do k=1,min(nlon*(grd_ens%kend_loc+1-grd_ens%kbegin_loc),nlat)
         lcount=lcount+ione
         diag(lcount)=sqrt(one/f(lcount,k))
         if(lcount == nlat) exit
@@ -708,7 +722,7 @@ subroutine normal_new_factorization_rf_y
   lcount=izero
   do
      f=zero
-     do k=1,min(nlon*grd_ens%kend_loc+1-grd_ens%kbegin_loc,nlat)
+     do k=1,min(nlon*(grd_ens%kend_loc+1-grd_ens%kbegin_loc),nlat)
         kcount=kcount+ione
         f(kcount,k)=one
         if(kcount == nlat) exit
@@ -717,7 +731,7 @@ subroutine normal_new_factorization_rf_y
      call new_factorization_rf_y(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
      iadvance=2_i_kind ; iback=ione
      call new_factorization_rf_y(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
-     do k=1,min(nlon*grd_ens%kend_loc+1-grd_ens%kbegin_loc,nlat)
+     do k=1,min(nlon*(grd_ens%kend_loc+1-grd_ens%kbegin_loc),nlat)
         lcount=lcount+ione
         diag(lcount)=f(lcount,k)
         if(lcount == nlat) exit
@@ -880,6 +894,8 @@ end subroutine normal_new_factorization_rf_y
 ! program history log:
 !   2009-09-28  parrish  initial documentation
 !   2010-02-20  parrish  modifications for dual resolution
+!   2010-03-13  parrish  add array qvar3d_save to save copy of qvar3d, which needs to be temporarily set
+!                         to 1 so generated ensemble moisture perturbations are in units of rh.
 !
 !   input argument list:
 !     seed     - old random number seeds (used for bit reproducibility of
@@ -926,6 +942,7 @@ end subroutine normal_new_factorization_rf_y
     real(r_kind) aux
     real(r_kind),dimension(nh_0:nh_1,6*grd_anl%nsig+4_i_kind,nscl):: zsub
     real(r_kind),dimension(grd_anl%latlon1n):: ua,va
+    real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig):: qvar3d_save
 
     naux=izero
     nvert=(6*grd_ens%nsig+4_i_kind)
@@ -962,6 +979,7 @@ end subroutine normal_new_factorization_rf_y
 !     set qvar3d=1 here to get non-zero rh ensemble member.  later, after setuprhs on first outer loop,
 !           rescale by proper qvar3d.  will take some thinking about how to do this for 
 !            input ensemble members as opposed to inernally generated from sqrt(B) ensemble members.
+    qvar3d_save=qvar3d
     qvar3d=one
     ist=1
     ivp=grd_anl%latlon1n+ist
@@ -973,7 +991,7 @@ end subroutine normal_new_factorization_rf_y
     isst=grd_anl%latlon11+ip
     call ckgcov(z,suba(ist),suba(ivp),suba(it),suba(ip),suba(irh),suba(ioz),suba(isst),suba(icw),nnnn1o)
 !      reset qvar3d to zero--will get recomputed in compute_derived
-    qvar3d=zero
+    qvar3d=qvar3d_save
 
 !     if uv_hyb_ens=.true., then convert st,vp to u,v
     if(uv_hyb_ens) then
@@ -1563,6 +1581,7 @@ end subroutine normal_new_factorization_rf_y
 !
 ! program history log:
 !   2009-06-16  parrish
+!   2010-02-10  parrish, correct allocate error on ndrecv_sd2h, found by Arthur Mizzi.
 !
 !   input argument list:
 !
@@ -1595,7 +1614,7 @@ end subroutine normal_new_factorization_rf_y
     end if
 
 
-    allocate(nsend_sd2h(0:npe-ione),ndsend_sd2h(0:npe),nrecv_sd2h(0:npe-ione),ndrecv_sd2h(0:npe-ione))
+    allocate(nsend_sd2h(0:npe-ione),ndsend_sd2h(0:npe),nrecv_sd2h(0:npe-ione),ndrecv_sd2h(0:npe))
     allocate(i_recv(nval2f*nnnn1o),k_recv(nval2f*nnnn1o))
     nvert=6_i_kind*nsig+4_i_kind
 
@@ -1840,7 +1859,6 @@ subroutine bkerror_a_en(gradx,grady)
   use constants, only:  zero
   use control_vectors
   use timermod, only: timer_ini,timer_fnl
-  use mpimod, only: mype            ! debug
   implicit none
 
 ! Declare passed variables
@@ -1993,7 +2011,7 @@ subroutine bkgcov_a_en_new_factorization(a_en)
 
 ! Local Variables
   integer(i_kind) i,j,k,iflg,iadvance,iback
-  real(r_kind) hwork(grd_loc%inner_vars,grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_loc)
+  real(r_kind) hwork(grd_loc%inner_vars,grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
 
   iflg=ione
 
@@ -2064,7 +2082,7 @@ subroutine hybrid_ensemble_setup
   use constants, only: izero
   use hybrid_ensemble_parameters, only: aniso_a_en,generate_ens,n_ens,&
                       beta1_inv,s_ens_h,s_ens_v,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
-                      grd_ens,grd_loc,grd_anl,sp_ens,p_e2a,dual_res,uv_hyb_ens
+                      grd_ens,grd_loc,grd_a1,grd_e1,grd_anl,sp_ens,p_e2a,dual_res,uv_hyb_ens
   use gridmod,only: regional,nsig,nlon,nlat,rlats,rlons
   use hybrid_ensemble_isotropic_regional, only: create_ensemble,load_ensemble, &
          init_rf_x,init_rf_y,init_rf_z,&
@@ -2099,14 +2117,20 @@ subroutine hybrid_ensemble_setup
   inner_vars=1
   allocate(vector(num_fields))
   vector=.false.
-  call general_sub2grid_create_info(grd_loc,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,vector)
+  call general_sub2grid_create_info(grd_loc,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,regional,vector)
   num_fields=6*nsig+2
   deallocate(vector)
   allocate(vector(num_fields))
   vector=.false.
   vector(1:2*nsig)=uv_hyb_ens     !  assume here that 1st two 3d variables are either u,v or psi,chi
-  call general_sub2grid_create_info(grd_ens,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,vector)
-  call general_sub2grid_create_info(grd_anl,inner_vars,nlat,nlon,nsig,num_fields,vector)
+  call general_sub2grid_create_info(grd_ens,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,regional,vector)
+  call general_sub2grid_create_info(grd_anl,inner_vars,nlat,nlon,nsig,num_fields,regional,vector)
+  deallocate(vector)
+  num_fields=nsig
+  allocate(vector(num_fields))
+  vector=.false.
+  call general_sub2grid_create_info(grd_e1,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,regional,vector)
+  call general_sub2grid_create_info(grd_a1,inner_vars,nlat,nlon,nsig,num_fields,regional,vector)
   deallocate(vector)
   if(jcap_ens /= izero) call general_init_spec_vars(sp_ens,jcap_ens,jcap_ens_test,grd_ens%nlat,grd_ens%nlon)
   if(regional) then

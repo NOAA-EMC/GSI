@@ -52,6 +52,8 @@ subroutine read_guess(mype)
 !   2007-05-30  h.liu   - remove ozmz
 !   2008-12-06  todling - some clean; generalized update biasa
 !   2009-01-28  todling - remove original GMAO interface
+!   2010-03-06  parrish - add option to read ozone from gfs
+!   2010-03-15  parrish - add flag regional_ozone to turn on ozone in regional analysis
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -77,7 +79,7 @@ subroutine read_guess(mype)
   use gridmod, only: lat2,lon2
   use gridmod, only: nsig
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,&
-       twodvar_regional,netcdf,regional,nems_nmmb_regional
+       twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone,regional_ozone
 
   use constants, only: izero,ione,zero,one,fv
   use ncepgfs_io, only: read_gfsatm
@@ -173,6 +175,9 @@ subroutine read_guess(mype)
 
 ! Compute 3d subdomain geopotential heights from the guess fields
   call load_geop_hgt
+
+!  If this is a regional run and ozone is desired from the gfs model, bring it in here:
+  if(regional.and.use_gfs_ozone.and.regional_ozone) call read_gfs_ozone_for_regional
   
   return
 end subroutine read_guess

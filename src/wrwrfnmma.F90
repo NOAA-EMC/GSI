@@ -536,6 +536,8 @@ subroutine wrnemsnmma_binary(mype)
 !   2008-04-01  safford - rm unused uses
 !   2008-12-05  todling - adjustment for dsfct time dimension addition
 !   2010-01-18  parrish - add update of 10m wind, 2m pot temp, 2m specific humidity
+!   2010-03-12  parrish - add write of ozone to 3d field labeled "o3mr"  (might be changed to "o3")
+!   2010-03-15  parrish - add flag regional_ozone to turn on ozone in regional analysis
 !
 !   input argument list:
 !     mype     - pe number
@@ -551,8 +553,9 @@ subroutine wrnemsnmma_binary(mype)
   use kinds, only: r_kind,i_kind
   use regional_io, only: update_pint
   use guess_grids, only: ges_ps,ges_pd,ges_u,ges_v,ges_q,&
-        ntguessfc,ntguessig,ges_tsen,dsfct,isli,geop_hgtl,ges_prsl
-  use gridmod, only: pt_ll,update_regsfc,pdtop_ll,nsig,lat2,lon2,eta2_ll,nmmb_verttype
+        ntguessfc,ntguessig,ges_tsen,dsfct,isli,geop_hgtl,ges_prsl,ges_oz
+  use gridmod, only: pt_ll,update_regsfc,pdtop_ll,nsig,lat2,lon2,eta2_ll,nmmb_verttype,&
+        use_gfs_ozone,regional_ozone
   use constants, only: izero,ione,zero,half,one,two,rd_over_cp
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read,gsi_nemsio_write
   use gsi_nemsio_mod, only: gsi_nemsio_update
@@ -580,7 +583,7 @@ subroutine wrnemsnmma_binary(mype)
   real(r_kind),dimension(lat2,lon2,6):: delu,delv,delt,delq,pott
   real(r_kind) hmin,hmax,hmin0,hmax0,ten,wgt1,wgt2
   logical use_fact10,use_fact2
-  logical good_u10,good_v10,good_tshltr,good_qshltr
+  logical good_u10,good_v10,good_tshltr,good_qshltr,good_o3mr
 
   use_fact10=.true.
   use_fact2=.false.
@@ -697,6 +700,29 @@ subroutine wrnemsnmma_binary(mype)
         end do
      end if
      call gsi_nemsio_write('tmp','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+                                   !   ozone
+
+     if(regional_ozone) then
+        good_o3mr=.false.
+        call gsi_nemsio_read('o3mr','mid layer','H',kr,work_sub(:,:),mype,mype_input,good_o3mr)
+        if(good_o3mr) then
+           if(use_gfs_ozone) then
+!                                  gfs ozone interpolated directly to analysis grid and nmmb guess
+!                                   not used, so set work_sub=zero
+              work_sub=zero
+           end if
+           do i=1,lon2
+              do j=1,lat2
+                 work_sub(j,i)=ges_oz(j,i,k,it)-work_sub(j,i)
+              end do
+           end do
+           call gsi_nemsio_write('o3mr','mid layer','H',kr,work_sub(:,:),mype,mype_input, &
+                                 add_saved.and..not.use_gfs_ozone)
+        else
+           if(mype==izero) write(6,*)' O3MR FIELD NOT YET AVAILABLE IN NMMB, OZONE DATA USED BUT NOT UPDATED'
+        end if
+     end if
 
   end do
 

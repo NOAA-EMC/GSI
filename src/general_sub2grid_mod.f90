@@ -25,6 +25,15 @@ module general_sub2grid_mod
 !
 ! program history log:
 !   2010-02-05  parrish, initial documentation
+!   2010-03-02  parrish - restore halo to size 1 and duplicate what is in current sub2grid/grid2sub.
+!                         also, make sure that periodic and periodic_s are properly specified.
+!                         there is a bug in existing use of periodic when running in regional mode.
+!                         periodic should always be false when regional=.true.  this has been
+!                         corrected in this version.
+!   2010-03-11  parrish - add parameter kend_alloc to type sub2grid_info.  this is to fix problem
+!                           of allocating arrays when kend_loc = kbegin_loc-1, which happens for
+!                           processors not involved with sub2grid/grid2sub.
+!                           to fix this, use kend_alloc = max(kend_loc,kbegin_loc) for allocation.
 !
 ! subroutines included:
 !   sub general_sub2grid_r_single  - convert from subdomains to grid for real single precision (4 byte)
@@ -75,6 +84,9 @@ module general_sub2grid_mod
       integer(i_kind) itotsub         ! number of horizontal points of all subdomains combined
       integer(i_kind) kbegin_loc      ! starting slab index for local processor
       integer(i_kind) kend_loc        ! ending slab index for local processor
+      integer(i_kind) kend_alloc      ! kend_loc can = kbegin_loc - 1, for a processor not involved.
+                                      !  this causes problems with array allocation:
+                                      !  to correct this, use kend_alloc=max(kend_loc,kbegin_loc)
       integer(i_kind) npe             ! total number of processors
       integer(i_kind) mype            ! local processor
       logical periodic                ! logical flag for periodic e/w domains
@@ -113,7 +125,7 @@ module general_sub2grid_mod
 
    contains
 
-   subroutine general_sub2grid_create_info(s,inner_vars,nlat,nlon,nsig,num_fields,vector)
+   subroutine general_sub2grid_create_info(s,inner_vars,nlat,nlon,nsig,num_fields,regional,vector)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_sub2grid_create_info populate info variable s
@@ -126,6 +138,9 @@ module general_sub2grid_mod
 !
 ! program history log:
 !   2010-02-11  parrish, initial documentation
+!   2010-03-02  parrish - add regional flag to input.  if regional=.true., 
+!                           then periodic, periodic_s=.false. always.  this corrects a bug
+!                           in existing code.  (never a problem, except when npe=1).
 !
 !   input argument list:
 !     s          - structure variable, waiting for all necessary information for
@@ -139,6 +154,7 @@ module general_sub2grid_mod
 !     vector     - optional logical array of length num_fields, set to true for
 !                    each field which will be a vector component.
 !                  if not present, s%vector = .false.
+!     regional   - if true, then no periodicity in "longitude" direction
 !
 !   output argument list:
 !     s          - structure variable, contains all necessary information for
@@ -157,6 +173,7 @@ module general_sub2grid_mod
 
       type(sub2grid_info),intent(inout) :: s
       integer(i_kind),    intent(in   ) :: inner_vars,nlat,nlon,nsig,num_fields
+      logical,            intent(in   ) :: regional 
       logical,optional,   intent(in   ) :: vector(num_fields)
 
       integer(i_kind) i,ierror,j,k,num_loc_groups,nextra,mm1,n,ns
@@ -190,7 +207,7 @@ module general_sub2grid_mod
       end if
 
 !      first determine subdomains
-      call general_deter_subdomain_nolayout(s%npe,s%mype,s%nlat,s%nlon, &
+      call general_deter_subdomain_nolayout(s%npe,s%mype,s%nlat,s%nlon,regional, &
             s%periodic,s%periodic_s,s%lon1,s%lon2,s%lat1,s%lat2,s%ilat1,s%istart,s%jlon1,s%jstart)
       s%latlon11=s%lat2*s%lon2
       s%latlon1n=s%latlon11*s%nsig
@@ -248,24 +265,23 @@ module general_sub2grid_mod
          s%ltosj_s(i)=izero
       end do
 
-     !if(regional)then
+      if(regional)then
 
-!???????????????????i don't see any difference between these options--comment our regional for now????
-     !   do n=1,s%npe
-     !      do j=1,s%jlon1(n)+2_i_kind
-     !         ns=s%displs_s(n)+(j-ione)*(s%ilat1(n)+2_i_kind)
-     !         do i=1,s%ilat1(n)+2_i_kind
-     !            ns=ns+ione
-     !            s%ltosi_s(ns)=s%istart(n)+i-2_i_kind
-     !            s%ltosj_s(ns)=s%jstart(n)+j-2_i_kind
-     !            if(s%ltosi_s(ns)==izero) s%ltosi_s(ns)=ione
-     !            if(s%ltosi_s(ns)==nlat+ione) s%ltosi_s(ns)=s%nlat
-     !            if(s%ltosj_s(ns)==izero) s%ltosj_s(ns)=ione
-     !            if(s%ltosj_s(ns)==nlon+ione) s%ltosj_s(ns)=s%nlon
-     !         end do
-     !      end do
-     !   end do  ! end do over npe
-     !else
+         do n=1,s%npe
+            do j=1,s%jlon1(n)+2_i_kind
+               ns=s%displs_s(n)+(j-ione)*(s%ilat1(n)+2_i_kind)
+               do i=1,s%ilat1(n)+2_i_kind
+                  ns=ns+ione
+                  s%ltosi_s(ns)=s%istart(n)+i-2_i_kind
+                  s%ltosj_s(ns)=s%jstart(n)+j-2_i_kind
+                  if(s%ltosi_s(ns)==izero) s%ltosi_s(ns)=ione
+                  if(s%ltosi_s(ns)==nlat+ione) s%ltosi_s(ns)=s%nlat
+                  if(s%ltosj_s(ns)==izero) s%ltosj_s(ns)=ione
+                  if(s%ltosj_s(ns)==nlon+ione) s%ltosj_s(ns)=s%nlon
+               end do
+            end do
+         end do  ! end do over npe
+      else
          do n=1,s%npe
             do j=1,s%jlon1(n)+2_i_kind
                ns=s%displs_s(n)+(j-ione)*(s%ilat1(n)+2_i_kind)
@@ -280,7 +296,7 @@ module general_sub2grid_mod
                end do
             end do
          end do  ! end do over npe
-     !endif
+      endif
 
       deallocate(isc_g,isd_g)
 
@@ -306,6 +322,7 @@ module general_sub2grid_mod
       end if
       s%kbegin_loc=s%kbegin(s%mype)
       s%kend_loc=s%kend(s%mype)
+      s%kend_alloc=max(s%kend_loc,s%kbegin_loc)
 
 !         get alltoallv indices for sub2grid
       allocate(s%sendcounts(0:s%npe-ione),s%sdispls(0:s%npe))
@@ -339,7 +356,7 @@ module general_sub2grid_mod
 
    end subroutine general_sub2grid_create_info
 
-   subroutine general_deter_subdomain_nolayout(npe,mype,nlat,nlon, &
+   subroutine general_deter_subdomain_nolayout(npe,mype,nlat,nlon,regional, &
                     periodic,periodic_s,lon1,lon2,lat1,lat2,ilat1,istart,jlon1,jstart)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -360,6 +377,9 @@ module general_sub2grid_mod
 !   2008-06-04  safford - rm unused vars
 !   2008-09-05  lueken - merged ed's changes into q1fy09 code
 !   2010-02-12  parrish - make copy for use in general_sub2grid_mod
+!   2010-03-02  parrish - add regional flag to input.  if regional=.true., 
+!                           then periodic, periodic_s=.false. always.  this corrects a bug
+!                           in existing code.  (never a problem, except when npe=1).
 !
 !   input argument list:
 !     mype      - mpi task number
@@ -377,6 +397,7 @@ module general_sub2grid_mod
 
 !     Declare passed variables
       integer(i_kind),intent(in   ) :: npe,mype,nlat,nlon
+      logical        ,intent(in   ) :: regional
       logical        ,intent(  out) :: periodic,periodic_s(npe)
       integer(i_kind),intent(  out) :: lon1,lon2,lat1,lat2
       integer(i_kind),intent(  out) :: ilat1(npe),istart(npe),jlon1(npe),jstart(npe)
@@ -388,6 +409,8 @@ module general_sub2grid_mod
       real(r_kind):: anperpe
 
 !************************************************************************
+      periodic=.false.
+      periodic_s=.false.
 !     Compute number of points on full grid and target number of
 !     point per mpi task (pe)
       npts=nlat*nlon
@@ -424,7 +447,7 @@ module general_sub2grid_mod
             if(j > ione)istart(k)=jjend(j-1)+ione
             jjend(j)=istart(k)+ilat1(k)-ione
 
-            if (jlon1(k)==nlon) then
+            if (jlon1(k)==nlon.and..not.regional) then
                periodic=.true.
                periodic_s(k)=.true.
             endif
@@ -489,10 +512,10 @@ module general_sub2grid_mod
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_single),     intent(in   ) :: sub_vars(s%inner_vars,s%lat2,s%lon2,s%num_fields)
-      real(r_single),    intent(  out)  :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_loc)
+      real(r_single),    intent(  out)  :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
 
       real(r_single) :: sub_vars0(s%inner_vars,s%lat1,s%lon1,s%num_fields)
-      real(r_single) :: work(s%inner_vars,s%itotsub*(s%kend_loc-s%kbegin_loc+ione)) 
+      real(r_single) :: work(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+ione)) 
       integer(i_kind) iloc,iskip,i,i0,ii,j,j0,k,n,k_in,ilat,jlon,ierror
       integer(i_long) mpi_string
 
@@ -532,7 +555,7 @@ module general_sub2grid_mod
                ilat=s%ltosi(iloc)
                jlon=s%ltosj(iloc)
                do ii=1,s%inner_vars
-               grid_vars(ii,ilat,jlon,k)=work(ii,i + iskip + (k-s%kbegin_loc)*s%ijn(n))
+                  grid_vars(ii,ilat,jlon,k)=work(ii,i + iskip + (k-s%kbegin_loc)*s%ijn(n))
                end do
             end do
          end do
@@ -561,6 +584,7 @@ module general_sub2grid_mod
 !
 ! program history log:
 !   2010-02-11  parrish, initial documentation
+!   2010-03-02  parrish - remove setting halo to zero in output
 !
 !   input argument list:
 !     s          - structure variable, contains all necessary information for
@@ -569,7 +593,7 @@ module general_sub2grid_mod
 !     grid_vars  - input grid values in horizontal slab mode.
 !
 !   output argument list:
-!     sub_vars   - output grid values in vertical subdomain mode (with one halo row, zeroed out)
+!     sub_vars   - output grid values in vertical subdomain mode
 !
 ! attributes:
 !   language: f90
@@ -582,17 +606,17 @@ module general_sub2grid_mod
       implicit none
 
       type(sub2grid_info),intent(in   ) :: s
-      real(r_single), intent(in   )     :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_loc)
+      real(r_single), intent(in   )     :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
       real(r_single),     intent(  out) :: sub_vars(s%inner_vars,s%lat2,s%lon2,s%num_fields)
 
       real(r_single),allocatable :: temp(:,:),work(:,:,:)
       integer(i_kind) iloc,iskip,i,ii,j,k,n,k_in,ilat,jlon,ierror
       integer(i_long) mpi_string
 
-      allocate(temp(s%inner_vars,s%itotsub*(s%kend_loc-s%kbegin_loc+ione)))
-      allocate(work(s%inner_vars,s%itotsub,s%kbegin_loc:s%kend_loc))
+      allocate(temp(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+ione)))
+      allocate(work(s%inner_vars,s%itotsub,s%kbegin_loc:s%kend_alloc))
 !     reorganize for eventual distribution to local domains
-      work=zero
+      work=zero    !????????????not needed??
       do k=s%kbegin_loc,s%kend_loc
          do i=1,s%itotsub
             ilat=s%ltosi_s(i)
@@ -641,23 +665,6 @@ module general_sub2grid_mod
                         sub_vars,s%recvcounts_s,s%rdispls_s,mpi_string,mpi_comm_world,ierror)
       deallocate(work)
       call mpi_type_free(mpi_string,ierror)
-!      zero halo row
-      do k=1,s%num_fields
-         do j=1,s%lon2,s%lon2-1
-            do i=1,s%lat2
-               do ii=1,s%inner_vars
-                  sub_vars(ii,i,j,k)=zero
-               end do
-            end do
-         end do
-         do j=1,s%lon2
-            do i=1,s%lat2,s%lat2-1
-               do ii=1,s%inner_vars
-                  sub_vars(ii,i,j,k)=zero
-               end do
-            end do
-         end do
-      end do
 
    end subroutine general_grid2sub_r_single
 
@@ -704,10 +711,10 @@ module general_sub2grid_mod
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_double),     intent(in   ) :: sub_vars(s%inner_vars,s%lat2,s%lon2,s%num_fields)
-      real(r_double),    intent(  out)  :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_loc)
+      real(r_double),    intent(  out)  :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
 
       real(r_double) :: sub_vars0(s%inner_vars,s%lat1,s%lon1,s%num_fields)
-      real(r_double) :: work(s%inner_vars,s%itotsub*(s%kend_loc-s%kbegin_loc+ione)) 
+      real(r_double) :: work(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+ione)) 
       integer(i_kind) iloc,iskip,i,i0,ii,j,j0,k,n,k_in,ilat,jlon,ierror
       integer(i_long) mpi_string
 
@@ -776,6 +783,7 @@ module general_sub2grid_mod
 !
 ! program history log:
 !   2010-02-11  parrish, initial documentation
+!   2010-03-02  parrish - remove setting halo to zero in output
 !
 !   input argument list:
 !     s          - structure variable, contains all necessary information for
@@ -797,15 +805,15 @@ module general_sub2grid_mod
       implicit none
 
       type(sub2grid_info),intent(in   ) :: s
-      real(r_double), intent(in   )     :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_loc)
+      real(r_double), intent(in   )     :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
       real(r_double),     intent(  out) :: sub_vars(s%inner_vars,s%lat2,s%lon2,s%num_fields)
 
       real(r_double),allocatable :: temp(:,:),work(:,:,:)
       integer(i_kind) iloc,iskip,i,ii,j,k,n,k_in,ilat,jlon,ierror
       integer(i_long) mpi_string
 
-      allocate(temp(s%inner_vars,s%itotsub*(s%kend_loc-s%kbegin_loc+ione)))
-      allocate(work(s%inner_vars,s%itotsub,s%kbegin_loc:s%kend_loc))
+      allocate(temp(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+ione)))
+      allocate(work(s%inner_vars,s%itotsub,s%kbegin_loc:s%kend_alloc))
 !     reorganize for eventual distribution to local domains
       work=zero
       do k=s%kbegin_loc,s%kend_loc
@@ -856,23 +864,6 @@ module general_sub2grid_mod
                         sub_vars,s%recvcounts_s,s%rdispls_s,mpi_string,mpi_comm_world,ierror)
       deallocate(work)
       call mpi_type_free(mpi_string,ierror)
-!      zero halo row
-      do k=1,s%num_fields
-         do j=1,s%lon2,s%lon2-1
-            do i=1,s%lat2
-               do ii=1,s%inner_vars
-                  sub_vars(ii,i,j,k)=zero
-               end do
-            end do
-         end do
-         do j=1,s%lon2
-            do i=1,s%lat2,s%lat2-1
-               do ii=1,s%inner_vars
-                  sub_vars(ii,i,j,k)=zero
-               end do
-            end do
-         end do
-      end do
 
    end subroutine general_grid2sub_r_double
 
@@ -920,9 +911,9 @@ module general_sub2grid_mod
       real(r_double),allocatable:: gride_vars(:,:),grida_vars(:,:)
       integer(i_kind) k
 
-      allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_loc))
+      allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_alloc))
       call general_sub2grid_r_double(se,sube_vars,gride_vars)
-      allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_loc))
+      allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_alloc))
       if(regional) then
          write(6,*)' not ready for regional dual_res yet'
          call mpi_finalize(k)
@@ -980,9 +971,9 @@ module general_sub2grid_mod
       real(r_double),allocatable:: gride_vars(:,:),grida_vars(:,:)
       integer(i_kind) k
 
-      allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_loc))
+      allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_alloc))
       call general_sub2grid_r_double(sa,suba_vars,grida_vars)
-      allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_loc))
+      allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_alloc))
       if(regional) then
          write(6,*)' not ready for regional dual_res yet'
          call mpi_finalize(k)
@@ -1041,9 +1032,9 @@ module general_sub2grid_mod
       real(r_double),allocatable:: gride_vars(:,:),grida_vars(:,:)
       integer(i_kind) k
 
-      allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_loc))
+      allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_alloc))
       call general_sub2grid_r_double(sa,suba_vars,grida_vars)
-      allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_loc))
+      allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_alloc))
       if(regional) then
          write(6,*)' not ready for regional dual_res yet'
          call mpi_finalize(k)

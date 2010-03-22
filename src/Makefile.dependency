@@ -185,6 +185,7 @@ read_avhrr.o : read_avhrr.f90 gsi_4dvar.o radinfo.o constants.o gridmod.o satthi
 read_avhrr_navy.o : read_avhrr_navy.f90 gsi_4dvar.o radinfo.o constants.o gridmod.o satthin.o kinds.o 
 read_bufrtovs.o : read_bufrtovs.f90 calc_fov_conical.o guess_grids.o antcorr_application.o gsi_4dvar.o calc_fov_crosstrk.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_files.o : read_files.f90 obsmod.o constants.o gridmod.o gsi_4dvar.o guess_grids.o mpimod.o kinds.o 
+read_gfs_ozone_for_regional.o : read_gfs_ozone_for_regional.f90 gridmod.o constants.o mpimod.o kinds.o general_sub2grid_mod.o general_specmod.o egrid2agrid_mod.o guess_grids.o aniso_ens_util.o obsmod.o
 read_goesimg.o : read_goesimg.f90 gsi_4dvar.o radinfo.o constants.o gridmod.o satthin.o kinds.o 
 read_goesndr.o : read_goesndr.f90 gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_gps.o : read_gps.f90 gridmod.o convinfo.o gsi_4dvar.o obsmod.o constants.o kinds.o 

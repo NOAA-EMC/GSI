@@ -369,6 +369,7 @@ clean:
 	read_avhrr_navy.f90 \
 	read_bufrtovs.f90 \
 	read_files.f90 \
+        read_gfs_ozone_for_regional.f90 \
 	read_goesimg.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \

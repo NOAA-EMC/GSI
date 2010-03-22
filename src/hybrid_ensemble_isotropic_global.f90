@@ -247,6 +247,7 @@ subroutine sf_xy(f,nlevs)
 !
 ! program history log:
 !   2009-10-16  parrish  initial documentation
+!   2010-03-11  parrish - adjust dimensions for f to allow for nlevs=0
 !
 !   input argument list:
 !     f        - input field to be filtered
@@ -266,7 +267,7 @@ subroutine sf_xy(f,nlevs)
   implicit none
 
   integer(i_kind),intent(in   ) :: nlevs
-  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat*grd_ens%nlon,nlevs)
+  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat*grd_ens%nlon,max(nlevs,1))
 
   real(r_kind) g(sp_loc%nc)
   integer(i_kind) k

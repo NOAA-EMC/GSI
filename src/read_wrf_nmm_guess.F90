@@ -1103,6 +1103,11 @@ subroutine read_nems_nmmb_guess(mype)
 !
 ! program history log:
 !   2009-03-18  parrish
+!   2010-03-12  parrish - add option to read ozone from location "o3mr".  If use_gfs_ozone =.true.
+!                           then skip reading of ozone, since it will be brought in directly
+!                           from gfs sigma file to analysis grid with later call to
+!                           read_gfs_ozone_for_regional.
+!   2010-03-15  parrish - add option regional_ozone to turn on ozone in regional analysis
 !
 !   input argument list:
 !     mype     - pe number
@@ -1129,8 +1134,8 @@ subroutine read_nems_nmmb_guess(mype)
   use mpimod, only: ierror,mpi_comm_world,mpi_integer,mpi_sum
   use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ges_tsen
-  use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype
+       isli,nfldsig,ges_tsen,ges_oz
+  use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype,use_gfs_ozone,regional_ozone
   use constants, only: izero,ione,zero,one_tenth,half,one,fv,rd_over_cp
   use regional_io, only: update_pint
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read
@@ -1152,6 +1157,7 @@ subroutine read_nems_nmmb_guess(mype)
   real(r_kind) pd,psfc_this,wmag,pd_to_ps
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
   real(r_kind),dimension(lat2,lon2):: smthis,sicethis,u10this,v10this,sstthis,tskthis
+  logical good_o3mr
 
 !     get conversion factor for pd to psfc
 
@@ -1205,6 +1211,15 @@ subroutine read_nems_nmmb_guess(mype)
               ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
            end do
         end do
+        if(regional_ozone) then
+           if(use_gfs_ozone) then
+              ges_oz(:,:,k,it)=zero
+           else
+              good_o3mr=.false.
+              call gsi_nemsio_read('o3mr' ,'mid layer','H',kr,ges_oz(:,:,k,it),mype,mype_input,good_o3mr)
+              if(.not.good_o3mr) write(6,*)' IN READ_NEMS_NMMB_GUESS, O3MR FIELD NOT YET AVAILABLE'
+           end if
+        end if
      end do
 
                                    !   pint
