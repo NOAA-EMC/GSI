@@ -14,6 +14,7 @@ module lanczos
 !   2009-01-18  todling  - minimal changes to interface w/ quad-based evaljgrad
 !                          NOTE: no attempt made to reproduce across pe's yet
 !   2009-08-18  lueken   - update documentation
+!   2010-03-10  treadon  - add ESSL interface
 !
 ! Subroutines Included:
 !   congrad       - Main minimization routine
@@ -623,8 +624,9 @@ return
 contains
 !-----------------------------------------------------------------------
 !   STEQR - Simplified interface to LAPACK routines SSTEQR/DSTEQR
+!           and to ESSL routines SGEEV/DGEEV
 !-----------------------------------------------------------------------
-subroutine steqr
+  subroutine steqr
 !$$$  subprogram documentation block
 !                .      .    .                                         .
 ! subprogram:    steqr
@@ -634,6 +636,7 @@ subroutine steqr
 !
 ! program history log:
 !   2009-08-05  lueken - added subprogram doc block
+!   2010-03-10  treadon - add ESSL interface
 !
 !   input argument list:
 !
@@ -644,29 +647,95 @@ subroutine steqr
 !   machine:
 !
 !$$$ end documentation block
-implicit none
+    implicit none
 
-integer(i_kind) :: info
+    integer(i_kind) :: info
 
-if (r_kind == N_DEFAULT_REAL_KIND) then
-   call SSTEQR ('I',iter,zlancs(1,4),zlancs,zv,kmaxit+ione,zsstwrk,info)
-ELSEIF (r_kind == N_DOUBLE_KIND) then
-   call DSTEQR ('I',iter,zlancs(1,4),zlancs,zv,kmaxit+ione,zsstwrk,info)
-else
-   write(6,*)'steqr: r_kind is neither default real nor double precision'
-   call stop2(319)
-endif
+#ifdef ibm_sp
+    logical,allocatable:: select(:)
+    integer(i_kind):: n,i,j,jj,ldz
+    integer(i_kind):: iopt,lda,naux
+    integer(i_kind),allocatable:: indx(:)
+    real(r_kind),allocatable:: a(:,:),aux(:),w_order(:)
+    complex(r_kind),allocatable:: w(:),z(:,:)
 
-if (info /= izero) then
-   write (6,*) 'Error in congrad: SSTEQR/DSTEQR returned info=',info
-   write(6,*) 'steqr: SSTEQR/DSTEQR returned non-zero info'
-   call stop2(320)
-endif
+!   Use ESSL
+    iopt=1
+    n=iter
+    lda=n
+    ldz=kmaxit+ione
+    naux=2*n
+    allocate(select(n),indx(n),a(lda,n),w(n),z(ldz,n),aux(naux),w_order(n))
+
+!   Load matrix A.
+    a=zero
+    do i=1,n-1
+       a(i,  i)=zlancs(i,4)  ! load diagonal
+       a(i+1,i)=zlancs(i,1)  ! load sub-diagnonal
+       a(i,i+1)=zlancs(i,1)  ! load super-diagonal
+    end do
+    a(n,n)=zlancs(n,4)       ! load diagonal
+
+!   Additional initializations
+    select=.false.    ! select not used for iopt=1
+    w=zero
+    z=zero
+    aux=zero
+
+!   Call ESSL routines
+    if (r_kind == N_DEFAULT_REAL_KIND) then
+       call SGEEV(iopt, a, lda, w, z, ldz, select, n, aux, naux)
+       do i=1,n
+          w_order(i)=real(w(i),r_kind)
+       end do
+       call SSORTX(w_order,1,n,indx)  ! sort eigenvalues into ascending order
+    ELSEIF (r_kind == N_DOUBLE_KIND) then
+       call DGEEV(iopt, a, lda, w, z, ldz, select, n, aux, naux)
+       do i=1,n
+          w_order(i)=real(w(i),r_kind)
+       end do
+       call DSORTX(w_order,1,n,indx)  ! sort eigenvalues into ascending order
+    else
+       write(6,*)'STEQR: r_kind is neither default real nor double precision'
+       call stop2(319)
+    endif
+
+!   Load ESSL eigenvalues and eigenvectors into output arrays
+    do j=1,n
+       zlancs(j,4)=w_order(j)          ! eigenvalues
+       jj=indx(j)
+       do i=1,ldz
+          zv(i,j)=real(z(i,jj),r_kind) ! eigenvectors
+       end do
+    end do
+
+!   Deallocate work arrays    
+    deallocate(select,indx,a,w,z,aux,w_order)
+    
+#else
+
+!   Use LAPACK
+    if (r_kind == N_DEFAULT_REAL_KIND) then
+       call SSTEQR ('I',iter,zlancs(1,4),zlancs,zv,kmaxit+ione,zsstwrk,info)
+    ELSEIF (r_kind == N_DOUBLE_KIND) then
+       call DSTEQR ('I',iter,zlancs(1,4),zlancs,zv,kmaxit+ione,zsstwrk,info)       
+    else
+       write(6,*)'STEQR: r_kind is neither default real nor double precision'
+       call stop2(319)
+    endif
+    if (info /= izero) then
+       write (6,*)'Error in congrad: SSTEQR/DSTEQR returned info=',info
+       write(6,*) 'STEQR: SSTEQR/DSTEQR returned non-zero info'
+       call stop2(320)
+    endif
+#endif
+
 
 end subroutine steqr
 
 !-----------------------------------------------------------------------
 !   PTSV - Simplified interface to LAPACK routines SPTSV/DPTSV
+!          and to ESSL routines SPTF,S/DPTF,S
 !-----------------------------------------------------------------------
 subroutine ptsv
 !$$$  subprogram documentation block
@@ -678,6 +747,7 @@ subroutine ptsv
 !
 ! program history log:
 !   2009-08-05  lueken - added subprogram doc block
+!   2010-03-10  treadon- add ESSL interface
 !
 !   input argument list:
 !
@@ -688,24 +758,67 @@ subroutine ptsv
 !   machine:
 !
 !$$$ end documentation block
-implicit none
+  implicit none
+  
+  integer(i_kind) :: info
 
-integer(i_kind) :: info
+#ifdef ibm_sp
+  integer(i_kind) :: i,n,iopt
+  real(r_kind),allocatable:: c(:),d(:),bx(:)
 
-if (r_kind == N_DEFAULT_REAL_KIND) then
-   call SPTSV (iter,ione,zlancs(1,1),zlancs(2,2),zlancs(1,3),kmaxit+ione,info)
-ELSEIF (r_kind == N_DOUBLE_KIND) then
-   call DPTSV (iter,ione,zlancs(1,1),zlancs(2,2),zlancs(1,3),kmaxit+ione,info)
-else
-   write(6,*) 'r_kind is neither default real nor double precision'
-   call stop2(321)
-endif
+! Use ESSL
+  iopt=0
+  n=iter
+  allocate(c(n),d(n),bx(n))
 
-if (info /= izero) then
-   write (6,*) 'Error in congrad: SPTSV/DPTSV returned ',info
-   write(6,*)'CONGRAD: SPTSV/DPTSV returned non-zero info'
-   call stop2(322)
-endif
+! Load matrices
+  c=zero
+  do i=1,n-1
+     c(i+1) = zlancs(i+1,2) ! lower subdiagonal of A
+     d(i) = zlancs(i,1)     ! main diagonal of A
+     bx(i)=zlancs(i,3)      ! right hand side B
+  end do
+  d(n) =zlancs(n,1)
+  bx(n)=zlancs(n,3)          
+
+! Factorize and solve system of equations using ESSL routines
+  if (r_kind == N_DEFAULT_REAL_KIND) then
+     call sptf(n,c,d,iopt)   ! factorize
+     call spts(n,c,d,bx)     ! solve
+  ELSEIF (r_kind == N_DOUBLE_KIND) then
+     call dptf(n,c,d,iopt)   ! factorize
+     call dpts(n,c,d,bx)     ! solve
+  else
+     write(6,*) 'r_kind is neither default real nor double precision'
+     call stop2(321)
+  endif
+  
+! Load ESSL result into output arrays
+  do i=1,n
+     zlancs(i,3)=bx(i)
+  end do
+  
+! Deallocate work arrays
+  deallocate(c,d,bx)
+
+#else
+
+! Use LAPACK
+  if (r_kind == N_DEFAULT_REAL_KIND) then
+     call SPTSV (iter,ione,zlancs(1,1),zlancs(2,2),zlancs(1,3),kmaxit+ione,info)
+  ELSEIF (r_kind == N_DOUBLE_KIND) then
+     call DPTSV (iter,ione,zlancs(1,1),zlancs(2,2),zlancs(1,3),kmaxit+ione,info)
+  else
+     write(6,*) 'r_kind is neither default real nor double precision'
+     call stop2(321)
+  endif
+  if (info /= izero) then
+     write (6,*) 'Error in congrad: SPTSV/DPTSV returned ',info
+     write(6,*)'CONGRAD: SPTSV/DPTSV returned non-zero info'
+     call stop2(322)
+  endif
+
+#endif
 
 end subroutine ptsv
 
@@ -957,6 +1070,7 @@ subroutine setup_precond()
 !
 ! program history log:
 !   2009-08-05  lueken - added subprogram doc block
+!   2010-03-10  treadon - add ESSL interface
 !
 !   input argument list:
 !
@@ -968,221 +1082,277 @@ subroutine setup_precond()
 !
 !$$$ end documentation block
 
-IMPLICIT NONE
+  IMPLICIT NONE
 
-INTEGER(i_kind), allocatable :: indarr(:)
-REAL(r_kind), allocatable :: zq(:),zlam(:),zU(:,:),zUUT(:,:),zwork(:),zzz(:)
-INTEGER(i_kind) :: info,ik,inpcv,ji,jj,jk,ii,iunit
-REAL(r_kind) :: za, zps
-CHARACTER(LEN=13) :: clfile
+  INTEGER(i_kind), allocatable :: indarr(:)
+  REAL(r_kind), allocatable :: zq(:),zlam(:),zU(:,:),zUUT(:,:),zwork(:),zzz(:)
+  INTEGER(i_kind) :: info,ik,inpcv,ji,jj,jk,ii,iunit
+  REAL(r_kind) :: za, zps
+  CHARACTER(LEN=13) :: clfile
+
+#ifdef ibm_sp
+! Declare variables and Work arrays used by ESSL
+  integer(i_kind):: iopt, ldz, n, naux
+  real(r_kind), allocatable ::  w(:),z(:,:),ap(:),aux(:)
+#endif
 
 !--- read vectors, apply change of variable and copy to work file
 
-if (l4dvar) then
-   iunit=78_i_kind
-   clfile='numpcvecs.XXX'
-   WRITE(clfile(11:13),'(I3.3)') jiter-ione
-   open(iunit,file=clfile)
-   read(iunit,*)npcvecs
-   close(iunit)
+  if (l4dvar) then
+     iunit=78_i_kind
+     clfile='numpcvecs.XXX'
+     WRITE(clfile(11:13),'(I3.3)') jiter-ione
+     open(iunit,file=clfile)
+     read(iunit,*)npcvecs
+     close(iunit)
+     
+     if (npcvecs<ione) then
+        write(6,*)'SETUP_PRECOND: no vectors for preconditioner',npcvecs
+        call stop2(140)
+     end if
+     
+     ALLOCATE(YVCGLWK(npcvecs))
+     DO ii=1,npcvecs
+        CALL allocate_cv(YVCGLWK(ii))
+     ENDDO
+     
+     do jj=1,npcvecs
+        clfile='evec.XXX.YYYY'
+        WRITE(clfile(6:8) ,'(I3.3)') jiter-ione
+        WRITE(clfile(10:13),'(I4.4)') jj
+        call read_cv(yvcglwk(jj),clfile)
+     ENDDO
+  endif
 
-   if (npcvecs<ione) then
-      write(6,*)'setup_precond: no vectors for preconditioner',npcvecs
-      call stop2(140)
-   end if
-
-   ALLOCATE(YVCGLWK(npcvecs))
-   DO ii=1,npcvecs
-      CALL allocate_cv(YVCGLWK(ii))
-   ENDDO
-
-   do jj=1,npcvecs
-      clfile='evec.XXX.YYYY'
-      WRITE(clfile(6:8) ,'(I3.3)') jiter-ione
-      WRITE(clfile(10:13),'(I4.4)') jj
-      call read_cv(yvcglwk(jj),clfile)
-   ENDDO
-endif
-
-allocate(indarr(npcvecs))
-allocate(zq(npcvecs),zlam(npcvecs),zU(npcvecs,npcvecs))
-allocate(zUUT(npcvecs,npcvecs),zwork(3*npcvecs),zzz(npcvecs))
+  if (mype==0) write(6,*)'allocate arrays with npcvecs=',npcvecs
+  allocate(indarr(npcvecs))
+  allocate(zq(npcvecs),zlam(npcvecs),zU(npcvecs,npcvecs))
+  allocate(zUUT(npcvecs,npcvecs),zwork(3*npcvecs),zzz(npcvecs))
 
 !--- Perform Householder transformations to reduce the matrix of vectors
 !--- to upper triangular
 
-do jj=1,npcvecs
-   CALL ALLGATHER_CVSECTION(yvcglwk(jj),zq(1:jj),ione,jj)
-
-   zps = DOT_PRODUCT(yvcglwk(jj),yvcglwk(jj)) - DOT_PRODUCT(zq(1:jj),zq(1:jj))
-
-   if (zq(jj) < zero) then
-      zU(jj,jj) = -sqrt(zps+zq(jj)*zq(jj))
-   else
-      zU(jj,jj) =  sqrt(zps+zq(jj)*zq(jj))
-   endif
-
-   zq(jj) = zq(jj) - zU(jj,jj)
-
-   do jk=1,jj-ione
-      zU(jk,jj) = zq(jk)
-   ENDDO
-
-   zps = zps + zq(jj)*zq(jj)
- 
-   zzz(1:jj-1)=zero
-   zzz(jj)=zq(jj)
-   CALL SET_CVSECTION(zzz(1:jj),yvcglwk(jj),ione,jj)
-
-   do jk=1,yvcglwk(jj)%lencv
-      yvcglwk(jj)%values(jk) = yvcglwk(jj)%values(jk) * sqrt(two/zps)
-   enddo
+  do jj=1,npcvecs
+     CALL ALLGATHER_CVSECTION(yvcglwk(jj),zq(1:jj),ione,jj)
+     
+     zps = DOT_PRODUCT(yvcglwk(jj),yvcglwk(jj)) - DOT_PRODUCT(zq(1:jj),zq(1:jj))
+     
+     if (zq(jj) < zero) then
+        zU(jj,jj) = -sqrt(zps+zq(jj)*zq(jj))
+     else
+        zU(jj,jj) =  sqrt(zps+zq(jj)*zq(jj))
+     endif
+     
+     zq(jj) = zq(jj) - zU(jj,jj)
+     
+     do jk=1,jj-ione
+        zU(jk,jj) = zq(jk)
+     ENDDO
+     
+     zps = zps + zq(jj)*zq(jj)
+     
+     zzz(1:jj-1)=zero
+     zzz(jj)=zq(jj)
+     CALL SET_CVSECTION(zzz(1:jj),yvcglwk(jj),ione,jj)
+     
+     do jk=1,yvcglwk(jj)%lencv
+        yvcglwk(jj)%values(jk) = yvcglwk(jj)%values(jk) * sqrt(two/zps)
+     enddo
 
 !--- we now have the Householder vector in yvcglwk(jj), and the non-zero
 !--- elements of the transformed vector in ZU. Now apply the Householder
 !--- transformations to the remaining vectors.
-
-   do ji=jj+ione,npcvecs
-      zps = DOT_PRODUCT (yvcglwk(jj),yvcglwk(ji))
-      do jk=1,yvcglwk(ji)%lencv
-         yvcglwk(ji)%values(jk) = yvcglwk(ji)%values(jk) - zps*yvcglwk(jj)%values(jk)
-      enddo
-   ENDDO
-ENDDO
+     
+     do ji=jj+ione,npcvecs
+        zps = DOT_PRODUCT (yvcglwk(jj),yvcglwk(ji))
+        do jk=1,yvcglwk(ji)%lencv
+           yvcglwk(ji)%values(jk) = yvcglwk(ji)%values(jk) - zps*yvcglwk(jj)%values(jk)
+        enddo
+     ENDDO
+  ENDDO
 
 !--- Multiply the upper triangle by its transpose and find eigenvectors
 !--- and eigenvalues
 
-do jj=1,npcvecs
-   do ji=jj+ione,npcvecs
-      zU(ji,jj) = zero
-   enddo
-enddo
+  do jj=1,npcvecs
+     do ji=jj+ione,npcvecs
+        zU(ji,jj) = zero
+     enddo
+  enddo
 
-do jj=1,npcvecs
-   do ji=jj,npcvecs
-      zUUT(ji,jj) = zero
-      do jk=ji,npcvecs
-         zUUT(ji,jj) = zUUT(ji,jj) + zU(ji,jk)*zU(jj,jk)
-      ENDDO
-   ENDDO
-ENDDO
+  do jj=1,npcvecs
+     do ji=jj,npcvecs
+        zUUT(ji,jj) = zero
+        do jk=ji,npcvecs
+           zUUT(ji,jj) = zUUT(ji,jj) + zU(ji,jk)*zU(jj,jk)
+        ENDDO
+     ENDDO
+  ENDDO
 
-if (r_kind==N_DEFAULT_REAL_KIND) then
-   call SSYEV('V','L',npcvecs,zUUT,npcvecs,zlam,zwork,SIZE(zwork),info)
-ELSEIF (r_kind==N_DOUBLE_KIND) then
-   call DSYEV('V','L',npcvecs,zUUT,npcvecs,zlam,zwork,SIZE(zwork),info)
-else
-   write(6,*)'setup_precond: r_kind is neither default real nor double precision'
-   call stop2(325)
-endif
 
-if (info/=izero) then
-   write(6,*)'setup_precond: SSYEV/DSYEV returned with info=',info
-   write(6,*)'setup_precond: SSYEV/DSYEV returned non-zero return code'
-   call stop2(326)
-endif
+#ifdef ibm_sp
+
+! USE ESSL
+  iopt=1
+  n=npcvecs
+  ldz=n
+  naux=3*n
+
+  allocate(w(n),z(n,n),aux(naux),ap(n*n))
+  w=zero
+  z=zero
+  aux=zero
+
+! Load zuut in ESSL lower-packed storage mode
+  ap=zero
+  jk=0
+  do jj=1,n
+     do ii=jj,n
+        jk=jk+1
+        ap(jk)=zuut(ii,jj)
+     end do
+  end do
+
+! Call ESSL routines
+  if (r_kind==N_DEFAULT_REAL_KIND) then
+     call sspev(iopt,ap,w,z,ldz,n,aux,naux)
+  ELSEIF (r_kind==N_DOUBLE_KIND) then
+     call dspev(iopt,ap,w,z,ldz,n,aux,naux)
+  else
+     write(6,*)'SETUP_PRECOND: r_kind is neither default real nor double precision'
+     call stop2(325)
+  endif
+
+! Load ESSL results into output arrays
+  do jj=1,n
+     zlam(jj)=w(jj)
+     do ii=1,n
+        zuut(ii,jj)=z(ii,jj)
+     end do
+  end do
+
+! Deallocate work arrays
+  deallocate(w,z,aux,ap)
+
+
+#else
+! Use LAPACK routines
+  if (r_kind==N_DEFAULT_REAL_KIND) then
+     call SSYEV('V','L',npcvecs,zUUT,npcvecs,zlam,zwork,SIZE(zwork),info)
+  ELSEIF (r_kind==N_DOUBLE_KIND) then
+     call DSYEV('V','L',npcvecs,zUUT,npcvecs,zlam,zwork,SIZE(zwork),info)
+  else
+     write(6,*)'SETUP_PRECOND: r_kind is neither default real nor double precision'
+     call stop2(325)
+  endif
+  if (info/=izero) then
+     write(6,*)'SETUP_PRECOND: SSYEV/DSYEV returned with info=',info
+     write(6,*)'SETUP_PRECOND: SSYEV/DSYEV returned non-zero return code'
+     call stop2(326)
+  endif
+  
+#endif
 
 !--- convert to eigenvalues of the preconditioner
 
-do jk=1,npcvecs
-   zlam(jk) = one / (one - zlam(jk))
-ENDDO
-
-if (mype==izero) write(6,*)'setup_precond: eigenvalues found are: ',(zlam(ji),ji=1,npcvecs)
+  do jk=1,npcvecs
+     zlam(jk) = one / (one - zlam(jk))
+  ENDDO
+  
+  if (mype==izero) write(6,*)'SETUP_PRECOND: eigenvalues found are: ',(zlam(ji),ji=1,npcvecs)
 
 !--- sort eigenvalues with eigenvalues larger than 1 after eigenvalues
 !--- smaller than 1 and with eigenvalues larger than 1 sorted in decreasing
 !--- order
 
-do ji=1,npcvecs
-   indarr(ji) = ji
-ENDDO
-
+  do ji=1,npcvecs
+     indarr(ji) = ji
+  ENDDO
+  
 !--- straight insertion sort courtesy of Numerical Recipies
 
-do jj=2,npcvecs
-   za = zlam(jj)
-   ik = indarr(jj)
-   do ji=jj-ione,1,-1
-      if (zlam(ji)>one .and. (zlam(ji)>=za .or. za<=one)) then
-         ii=ji
-         exit
-      else
-         ii=izero
-      endif
-      zlam(ji+ione) = zlam(ji)
-      indarr(ji+ione) = indarr(ji)
-   ENDDO
-   zlam(ii+ione) = za
-   indarr(ii+ione) = ik
-ENDDO
-
-inpcv = npcvecs
-
-do while (zlam(inpcv) <= zero)
-   if (mype==izero) write(6,*)'Warning - eigenvalue less than 1: ',zlam(inpcv)
-   inpcv = inpcv-ione
-   if (inpcv == izero) then
-      if (mype==izero) write(6,*)'setup_precond: cannot form preconditioner - '//&
-       & 'no positive eigenvalues.'
-      if (mype==izero) write(6,*)'setup_precond: minimisation will not be preconditioned.'
-      EXIT
-   endif
-enddo
-
-IF (inpcv>izero) THEN
-   if (mype==izero) write(6,*)'Number of preconditioning vectors selected is ',inpcv
-   if (mype==izero) write(6,*)'setup_precond: selected eigenvalues are: ',(zlam(ji),ji=1,inpcv)
-
-   IF (ALLOCATED(YVCGLPC)) THEN
-      DO jj=1,NVCGLPC
-         CALL DEALLOCATE_CV(YVCGLPC(jj))
-      ENDDO
-      DEALLOCATE(YVCGLPC)
-      NVCGLPC=izero
-   ENDIF
-   IF (ALLOCATED(RCGLPC)) DEALLOCATE(RCGLPC)
-
-!--- Save eigenvalues
-   NVCGLPC = inpcv
-   ALLOCATE (RCGLPC(NVCGLPC))
-   RCGLPC(:) = MIN(R_MAX_CNUM_PC,zlam(1:NVCGLPC))
-
-   ALLOCATE (YVCGLPC(NVCGLPC))
-   DO jj=1,NVCGLPC
-      CALL ALLOCATE_CV(YVCGLPC(jj))
-   ENDDO
+  do jj=2,npcvecs
+     za = zlam(jj)
+     ik = indarr(jj)
+     do ji=jj-ione,1,-1
+        if (zlam(ji)>one .and. (zlam(ji)>=za .or. za<=one)) then
+           ii=ji
+           exit
+        else
+           ii=izero
+        endif
+        zlam(ji+ione) = zlam(ji)
+        indarr(ji+ione) = indarr(ji)
+     ENDDO
+     zlam(ii+ione) = za
+     indarr(ii+ione) = ik
+  ENDDO
+  
+  inpcv = npcvecs
+  
+  do while (zlam(inpcv) <= zero)
+     if (mype==izero) write(6,*)'Warning - eigenvalue less than 1: ',zlam(inpcv)
+     inpcv = inpcv-ione
+     if (inpcv == izero) then
+        if (mype==izero) write(6,*)'SETUP_PRECOND: cannot form preconditioner - '//&
+             & 'no positive eigenvalues.'
+        if (mype==izero) write(6,*)'SETUP_PRECOND: minimisation will not be preconditioned.'
+        EXIT
+     endif
+  enddo
+  
+  IF (inpcv>izero) THEN
+     if (mype==izero) write(6,*)'Number of preconditioning vectors selected is ',inpcv
+     if (mype==izero) write(6,*)'SETUP_PRECOND: selected eigenvalues are: ',(zlam(ji),ji=1,inpcv)
+     
+     IF (ALLOCATED(YVCGLPC)) THEN
+        DO jj=1,NVCGLPC
+           CALL DEALLOCATE_CV(YVCGLPC(jj))
+        ENDDO
+        DEALLOCATE(YVCGLPC)
+        NVCGLPC=izero
+     ENDIF
+     IF (ALLOCATED(RCGLPC)) DEALLOCATE(RCGLPC)
+     
+     !--- Save eigenvalues
+     NVCGLPC = inpcv
+     ALLOCATE (RCGLPC(NVCGLPC))
+     RCGLPC(:) = MIN(R_MAX_CNUM_PC,zlam(1:NVCGLPC))
+     
+     ALLOCATE (YVCGLPC(NVCGLPC))
+     DO jj=1,NVCGLPC
+        CALL ALLOCATE_CV(YVCGLPC(jj))
+     ENDDO
 
 !--- apply Householder transformations to the eigenvectors to get the
 !--- eigenvectors of the preconditioner
 
-   DO jj=1,NVCGLPC
-      YVCGLPC(jj) = zero
-      CALL SET_CVSECTION(zuut(1:npcvecs,indarr(jj)),YVCGLPC(jj),ione,npcvecs)
+     DO jj=1,NVCGLPC
+        YVCGLPC(jj) = zero
+        CALL SET_CVSECTION(zuut(1:npcvecs,indarr(jj)),YVCGLPC(jj),ione,npcvecs)
+        
+        do ji=npcvecs,1,-1
+           zps = DOT_PRODUCT (yvcglwk(ji),YVCGLPC(jj))
+           do jk=1,YVCGLPC(jj)%lencv
+              YVCGLPC(jj)%values(jk) = YVCGLPC(jj)%values(jk) - zps*yvcglwk(ji)%values(jk)
+           enddo
+        ENDDO
+     ENDDO
+     LMPCGL = .true.
+  ELSE
+     NVCGLPC = izero
+     LMPCGL = .false.
+  ENDIF
 
-      do ji=npcvecs,1,-1
-         zps = DOT_PRODUCT (yvcglwk(ji),YVCGLPC(jj))
-         do jk=1,YVCGLPC(jj)%lencv
-            YVCGLPC(jj)%values(jk) = YVCGLPC(jj)%values(jk) - zps*yvcglwk(ji)%values(jk)
-         enddo
-      ENDDO
-   ENDDO
-   LMPCGL = .true.
-ELSE
-   NVCGLPC = izero
-   LMPCGL = .false.
-ENDIF
-
-DO jj=1,npcvecs
-   CALL DEALLOCATE_CV(YVCGLWK(jj))
-ENDDO
-DEALLOCATE(YVCGLWK)
-deallocate(indarr)
-deallocate(zq,zlam,zU,zUUT,zwork,zzz)
-NPCVECS = izero
-
-return
+  DO jj=1,npcvecs
+     CALL DEALLOCATE_CV(YVCGLWK(jj))
+  ENDDO
+  DEALLOCATE(YVCGLWK)
+  deallocate(indarr)
+  deallocate(zq,zlam,zU,zUUT,zwork,zzz)
+  NPCVECS = izero
+  
+  return
 end subroutine setup_precond
 
 ! ------------------------------------------------------------------------------

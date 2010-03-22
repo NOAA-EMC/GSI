@@ -20,7 +20,6 @@ INCnetcdf       = /nwprod/lib/sorc/netcdf/netcdf-3.5.0/include
 OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
 WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk)
 
-LAPACKLIB = /usrx/local/lapack/lapack.a
 
 # Empty out definition of libs use by GMAO GSI building structure
 LIBtransf = #-L$(CORELIB) -ltransf
@@ -43,7 +42,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   FC            = $(CF)
 
 #--- Normal mode options
-  PROF= #-g -pg -qfullpath
+  PROF= #-pg
   OMP = -qsmp=noauto
 
   FFLAGS_F90    = -qfree=f90 -qsuffix=f=f90:cpp=F90 -WF,-Dibm_sp,-DWRF
@@ -104,7 +103,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
   LIBS_N        = -L/nwprod/lib -lsp_d -lw3_d -lbufr_d_64 -lbacio_4 -lmpitrace \
                   -lsigio_4 -lsfcio_4 -lgfsio_4 -lnetcdf_64 \
-                  $(LIBcrtm) $(WRFLIB) $(LAPACKLIB)
+                  $(LIBcrtm) $(WRFLIB)
 
   LDFLAGS_N     = -lessl_r -lmass -bloadmap:loadmap.txt \
                   -bdatapsize:64K -bstackpsize:64K $(OMP) $(PROF)

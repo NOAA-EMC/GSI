@@ -303,7 +303,7 @@ clean:
         lag_interp.F90 \
         lag_traj.F90 \
 	lagmod.f90 \
-        lanczos.f90 \
+        lanczos.F90 \
         looplimits.f90 \
 	m_berror_stats.F90 \
 	m_dgeevx.F90 \
