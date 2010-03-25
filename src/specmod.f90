@@ -14,6 +14,7 @@ module specmod
 !                         splib routines for grid <---> spectral 
 !                         transforms
 !   2007-04-26  yang    - based on idrt value xxxx descriptionxxx
+!   2010-03-10  sela,iredell,lueken - remove hires_b, add double FFT
 !
 ! subroutines included:
 !   sub init_spec
@@ -22,7 +23,6 @@ module specmod
 !
 ! remarks: variable definitions below
 !   def jcap         - spectral (assumed triangular) truncation
-!   def jcap_b       - spectral (assumed triangular) truncation of background (guess)
 !   def nc           - (N+1)*(N+2); N=truncation
 !   def nc1          - 2*(N+1); N=truncation
 !   def ncd2         - [(N+1)*(N+2)]/2; N=truncation
@@ -60,11 +60,10 @@ module specmod
   public :: destroy_spec_vars
 ! set passed variables to public
   public :: enn1,nc,ncd2,jcap_b,nc_b,factsml_b,factvml_b,jcap,jb,je,slat,wlat
-  public :: jb_b,je_b,slat_b,wlat_b,afft,eon,eontop,clat,pln,plntop,elonn1,factsml,factvml
+  public :: afft,eon,eontop,clat,pln,plntop,elonn1,factsml,factvml
   public :: ijmax,js,jn,ioffset,epstop,eps,idrt,iromb,imax,jmax
   public :: enn1_b,elonn1_b,eps_b,epstop_b,pln_b,plntop_b,eon_b,eontop_b
-  public :: iromb_b,idrt_b,ncd2_b,ijmax_b,ioffset_b,js_b,clat_b,afft_b,jmax_b
-  public :: imax_b,jn_b
+  public :: iromb_b,idrt_b,ncd2_b,imax_b,afft_b
 
   integer(i_kind),save :: jcap,nc,ncd2
   integer(i_kind),save :: iromb,idrt,imax,jmax,ijmax,jn,js,kw,jb,je,ioffset
@@ -73,14 +72,13 @@ module specmod
   real(r_kind),allocatable,dimension(:),save :: clat,slat,wlat
   real(r_kind),allocatable,dimension(:,:),save :: pln,plntop
   real(r_double),allocatable,dimension(:),save :: afft
-
+  integer(i_kind),save:: imax_b
+  real(r_double),allocatable,dimension(:),save :: afft_b
   integer(i_kind),save :: jcap_b,nc_b,ncd2_b
-  integer(i_kind),save :: iromb_b,idrt_b,imax_b,jmax_b,ijmax_b,jn_b,js_b,jb_b,je_b,ioffset_b
+  integer(i_kind),save :: iromb_b,idrt_b
   logical,allocatable,dimension(:),save:: factsml_b,factvml_b
   real(r_kind),allocatable,dimension(:),save:: eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b
-  real(r_kind),allocatable,dimension(:),save :: clat_b,slat_b,wlat_b
   real(r_kind),allocatable,dimension(:,:),save:: pln_b,plntop_b
-  real(r_double),allocatable,dimension(:),save :: afft_b
 
 contains
   
@@ -109,12 +107,12 @@ contains
     implicit none
 
     jcap=62_i_kind
-    jcap_b=-999_i_kind
+    jcap_b=62_i_kind
 
     return
   end subroutine init_spec
 
-  subroutine init_spec_vars(nlat_a,nlon_a,nlat_b,nlon_b,hires_b,eqspace)
+  subroutine init_spec_vars(nlat,nlon,eqspace)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_spec_vars
@@ -129,13 +127,11 @@ contains
 !                         remove del21 and other unused arrays/variables
 !   2006-04-06  middlecoff - remove jc=ncpus() since not used
 !   2008-04-11  safford    - rm unused vars
+!   2010-03-10  sela,iredell,lueken - remove hires_b, add double FFT
 !
 !   input argument list:
-!     nlat_a - number of latitudes on analysis grid
-!     nlon_a - number of longitudes on analysis grid
-!     nlat_b - number of latitudes on background (guess) grid
-!     nlon_b - number of longitudes on background (guess) grid
-!     hires_b - .t. if background (guess) from hires grid
+!     nlat - number of latitudes
+!     nlon - number of longitudes
 !     eqspace
 !
 !   output argument list:
@@ -149,25 +145,58 @@ contains
     implicit none
 
 !   Declare passed variables
-    integer(i_kind) ,intent(in   ) :: nlat_a,nlon_a,nlat_b,nlon_b
-    logical         ,intent(in   ) :: hires_b
+    integer(i_kind) ,intent(in   ) :: nlat,nlon
     logical,optional,intent(in   ) :: eqspace
 
 !   Declare local variables    
     integer(i_kind) ii1,l,m
-    integer(i_kind) :: ldafft,ldafft_b
+    integer(i_kind) :: ldafft
+    integer(i_kind) :: ldafft_b
 
-
-!   Set constants used in transforms for analysis grid
+!   Set jcap dependent variables
     nc=(jcap+ione)*(jcap+2_i_kind)
     ncd2=nc/2
+    nc_b=(jcap_b+1)*(jcap_b+2)
+    ncd2_b=nc_b/2
+ 
+
+!   Allocate and initialize transform mask arrays
+    allocate(factsml(nc),factvml(nc))
+    allocate(factsml_b(nc_b),factvml_b(nc_b))
+
+    factsml=.false.
+    factvml=.false.
+    ii1=izero
+    do l=izero,jcap
+       do m=izero,jcap-l
+          ii1=ii1+2
+          if(l == izero)factsml(ii1)=.true.
+          if(l == izero)factvml(ii1)=.true.
+       end do
+    end do
+    factvml(1)=.true.
+
+    factsml_b=.false.
+    factvml_b=.false.
+    ii1=izero
+    do l=izero,jcap_b
+       do m=izero,jcap_b-l
+          ii1=ii1+2
+          if(l == izero)factsml_b(ii1)=.true.
+          if(l == izero)factvml_b(ii1)=.true.
+       end do
+    end do
+    factvml_b(1)=.true.
+
+
+!   Set other constants used in transforms
     iromb=izero
     idrt=4_i_kind
     if(present(eqspace)) then
        if(eqspace) idrt=256_i_kind
     endif
-    imax=nlon_a
-    jmax=nlat_a-2_i_kind
+    imax=nlon
+    jmax=nlat-2_i_kind
     ijmax=imax*jmax
     ioffset=imax*(jmax-ione)
     jn=imax
@@ -177,54 +206,7 @@ contains
     je=(jmax+ione)/2
 
 
-!   Set constants used in transforms for background grid
-    nc_b=(jcap_b+ione)*(jcap_b+2_i_kind)
-    ncd2_b=nc_b/2
-    iromb_b=izero
-    idrt_b=4_i_kind
-    if(present(eqspace)) then
-       if(eqspace) idrt_b=256_i_kind
-    endif
-    imax_b=nlon_b
-    jmax_b=nlat_b-2_i_kind
-    ijmax_b=imax_b*jmax_b
-    ioffset_b=imax_b*(jmax_b-ione)
-    jn_b=imax_b
-    js_b=-jn_b
-    jb_b=ione
-    je_b=(jmax_b+ione)/2
-
-
-
-!   Allocate and initialize fact arrays
-    allocate(factsml(nc),factvml(nc))
-    factsml=.false.
-    factvml=.false.
-    ii1=izero
-    do l=izero,jcap
-       do m=izero,jcap-l
-          ii1=ii1+2_i_kind
-          if(l == izero)factsml(ii1)=.true.
-          if(l == izero)factvml(ii1)=.true.
-       end do
-    end do
-    factvml(1)=.true.
-
-!   Always need factsml_b and factvml_b, thus do not check hires_b flag
-    allocate(factsml_b(nc_b),factvml_b(nc_b))
-    factsml_b=.false.
-    factvml_b=.false.
-    ii1=izero
-    do l=izero,jcap_b
-       do m=izero,jcap_b-l
-          ii1=ii1+2_i_kind
-          if(l == izero)factsml_b(ii1)=.true.
-          if(l == izero)factvml_b(ii1)=.true.
-       end do
-    end do
-    factvml_b(1)=.true.
-
-!   Allocate and initialize arrays used in transforms
+!   Allocate and initialize arrays used in spectral <--> grid transforms
     allocate( eps(ncd2) )
     allocate( epstop(jcap+ione) )
     allocate( enn1(ncd2) )
@@ -243,30 +225,28 @@ contains
        afft,clat,slat,wlat,pln,plntop)
 
 
-!   Allocate and initialize arrays used in transforms for background
-    if (hires_b) then
-       allocate( eps_b(ncd2_b) )
-       allocate( epstop_b(jcap_b+ione) )
-       allocate( enn1_b(ncd2_b) )
-       allocate( elonn1_b(ncd2_b) )
-       allocate( eon_b(ncd2_b) )
-       allocate( eontop_b(jcap_b+ione) )
-       ldafft_b=50000_i_kind+4*imax_b
-       allocate( afft_b(ldafft_b))
-       allocate( clat_b(jb_b:je_b) )
-       allocate( slat_b(jb_b:je_b) )
-       allocate( wlat_b(jb_b:je_b) )
-       allocate( pln_b(ncd2_b,jb_b:je_b) )
-       allocate( plntop_b(jcap_b+ione,jb_b:je_b) )
-       call sptranf0(iromb_b,jcap_b,idrt_b,imax_b,jmax_b,jb_b,je_b, &
-            eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
-            afft_b,clat_b,slat_b,wlat_b,pln_b,plntop_b)
-    endif
+!   Allocate and initialize arrays used in _b transforms (spectral --> grid only)
+    iromb_b=izero
+    idrt_b=4_i_kind
+    imax_b=((2*jcap_b+1)/imax+1)*imax
+    ldafft_b=50000+4*imax_b
+    allocate( eps_b(ncd2_b) )
+    allocate( epstop_b(jcap_b+1) )
+    allocate( enn1_b(ncd2_b) )
+    allocate( elonn1_b(ncd2_b) )
+    allocate( eon_b(ncd2_b) )
+    allocate( eontop_b(jcap_b+1) )
+    allocate( afft_b(ldafft_b))
+    allocate( pln_b(ncd2_b,jb:je) )
+    allocate( plntop_b(jcap_b+1,jb:je) )
+    call sptranf0(iromb_b,jcap_b,idrt_b,imax_b,jmax,jb,je, &
+       eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
+       afft_b,clat,slat,wlat,pln_b,plntop_b)
     
     return
   end subroutine init_spec_vars
 
-  subroutine destroy_spec_vars(hires_b)
+  subroutine destroy_spec_vars
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    destroy_spec_vars
@@ -277,9 +257,9 @@ contains
 ! program history log:
 !   2003-11-24  treadon
 !   2004-05-18  kleist, new variables and documentation
+!   2010-03-10  lueken - remove hires_b check
 !
 !   input argument list:
-!     hires_b - .t. if background (guess) from hires grid
 !
 !   output argument list:
 !
@@ -289,14 +269,12 @@ contains
 !
 !$$$
     implicit none
-    logical,intent(in   ) :: hires_b
 
     deallocate(factsml,factvml,factsml_b,factvml_b)
     deallocate(eps,epstop,enn1,elonn1,eon,eontop,afft,&
        clat,slat,wlat,pln,plntop)
-    if (hires_b) deallocate(eps_b,epstop_b,&
-         enn1_b,elonn1_b,eon_b,eontop_b,afft_b,&
-         clat_b,slat_b,wlat_b,pln_b,plntop_b)
+    deallocate(eps_b,epstop_b,enn1_b,elonn1_b,eon_b, &
+       eontop_b,afft_b,pln_b,plntop_b)
     return
   end subroutine destroy_spec_vars
 

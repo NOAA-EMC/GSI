@@ -40,6 +40,7 @@ module gridmod
 !   2009-01-09  gayno   - added variables lpl_gfs and dx_gfs
 !   2010-03-06  parrish - add logical flag use_gfs_ozone for option to read gfs ozone for regional run
 !   2010-03-09  parrish - add logical flag check_gfs_ozone_date--if true, date check against analysis time
+!   2010-03-10  lueken  - remove hires_b variables, section, and subroutines
 !   2010-03-15  parrish - add logical flag regional_ozone to turn on ozone in regional analysis
 !
 ! !AUTHOR: 
@@ -74,8 +75,6 @@ module gridmod
   public :: get_ij
   public :: get_ijk
   public :: check_rotate_wind
-  public :: compute_b2a
-  public :: interp_b2a
 ! set passed variables to public
   public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig
   public :: ncloud,nlat,nlon,ntracer,displs_s,displs_g,ltosj_s,ltosi_s
@@ -85,9 +84,7 @@ module gridmod
   public :: tref5,idvc5,nlayers,msig,jstart,istart,region_lat,nsig1o,rlats
   public :: region_dy,region_dx,region_lon,rlat_min_dd,rlat_max_dd,rlon_max_dd
   public :: rlon_min_dd,coslon,sinlon,rlons,ird_s,irc_s,periodic,idthrm5
-  public :: cp5,idvm5,ncep_sigio,ncepgfs_head,idpsfc5,nlon_sfc,nlat_sfc,hires_b
-  public :: nlat_b,nlon_b,rlats_b,rlons_b,coslon_b,sinlon_b,wgtlats_b,corlats_b,rbs2_b
-  public :: w00_b2a,w01_b2a,w10_b2a,w11_b2a,ix_b2a,ixp_b2a,iy_b2a,iyp_b2a
+  public :: cp5,idvm5,ncep_sigio,ncepgfs_head,idpsfc5,nlon_sfc,nlat_sfc
   public :: rlons_sfc,rlats_sfc,jlon1,ilat1,periodic_s,latlon1n1,nsig3p2
   public :: nsig3p3,nsig2,nsig3p1,wgtlats,corlats,rbs2,ncepgfs_headv,regional_time
   public :: regional_fhr,region_dyi,coeffx,region_dxi,coeffy,nsig_hlf
@@ -101,7 +98,6 @@ module gridmod
   logical diagnostic_reg    ! .t. to activate regional analysis diagnostics
 
   logical ncep_sigio        ! .t. if using ncep sigio format file
-  logical hires_b           ! .t. if using hires global background (guess)
 
   logical wrf_nmm_regional  !
   logical nems_nmmb_regional! .t. to run with NEMS NMMB model
@@ -131,8 +127,6 @@ module gridmod
   integer(i_kind) nlon              ! no. of longitudes
   integer(i_kind) nlat_sfc          ! no. of latitudes surface files
   integer(i_kind) nlon_sfc          ! no. of longitudes surface files
-  integer(i_kind) nlat_b            ! no. of latitudes atmosphere (background = guess) files
-  integer(i_kind) nlon_b            ! no. of longitudes atmosphere (background = guess) files
   integer(i_kind) nsig              ! no. of levels
   integer(i_kind) idvc5             ! vertical coordinate identifier
 !                                        1: sigma
@@ -211,8 +205,6 @@ module gridmod
   real(r_kind),allocatable,dimension(:):: dx_gfs  ! resolution of GFS grid in degrees
   real(r_kind),allocatable,dimension(:):: rlats   ! grid latitudes (radians)
   real(r_kind),allocatable,dimension(:):: rlons   ! grid longitudes (radians)
-  real(r_kind),allocatable,dimension(:):: rlats_b ! grid latitudes (radians) atmosphere
-  real(r_kind),allocatable,dimension(:):: rlons_b ! grid longitudes (radians) atmosphere
   real(r_kind),allocatable,dimension(:):: rlats_sfc   ! grid latitudes (radians) surface
   real(r_kind),allocatable,dimension(:):: rlons_sfc   ! grid longitudes (radians) surface
   real(r_kind),allocatable,dimension(:):: ak5,bk5,ck5,tref5 ! coefficients for generalized vertical coordinate
@@ -222,14 +214,6 @@ module gridmod
   real(r_kind),allocatable,dimension(:):: wgtlats !  gaussian integration weights
   real(r_kind),allocatable,dimension(:):: corlats ! coriolis parameter by latitude
   real(r_kind),allocatable,dimension(:):: rbs2    ! 1./sin(grid latitudes))**2
-  real(r_kind),allocatable,dimension(:):: coslon_b  ! cos(grid longitudes (radians))
-  real(r_kind),allocatable,dimension(:):: sinlon_b  ! sin(grid longitudes (radians))
-  real(r_kind),allocatable,dimension(:):: wgtlats_b !  gaussian integration weights
-  real(r_kind),allocatable,dimension(:):: corlats_b ! coriolis parameter by latitude
-  real(r_kind),allocatable,dimension(:):: rbs2_b    ! 1./sin(grid latitudes))**2
-
-  integer(i_kind),allocatable,dimension(:,:):: ix_b2a,ixp_b2a,iy_b2a,iyp_b2a
-  real(r_kind),allocatable,dimension(:,:):: w00_b2a,w01_b2a,w10_b2a,w11_b2a
 
 ! additional variables for regional mode
   real(r_kind),allocatable::  eta1_ll(:)          !
@@ -351,9 +335,6 @@ contains
     nsig1o = 7_i_kind
     nlat = 96_i_kind
     nlon = 384_i_kind
-    hires_b = .false.
-    nlat_b = -999_i_kind
-    nlon_b = -999_i_kind
     idvc5 = ione
     idvm5 = izero
     idpsfc5 = ione
@@ -544,13 +525,6 @@ contains
     allocate(rlats(nlat),rlons(nlon),coslon(nlon),sinlon(nlon),&
              wgtlats(nlat),rbs2(nlat),corlats(nlat))
     allocate(ak5(nsig+ione),bk5(nsig+ione),ck5(nsig+ione),tref5(nsig))
-    if (hires_b) then
-       allocate(rlats_b(nlat_b),rlons_b(nlon_b),coslon_b(nlon_b),sinlon_b(nlon_b),&
-            wgtlats_b(nlat_b),rbs2_b(nlat_b),corlats_b(nlat_b))
-       allocate(w00_b2a(nlon,nlat),w01_b2a(nlon,nlat),w10_b2a(nlon,nlat),&
-            w11_b2a(nlon,nlat),ix_b2a(nlon,nlat),ixp_b2a(nlon,nlat),&
-            iy_b2a(nlon,nlat),iyp_b2a(nlon,nlat))
-    endif
     return
   end subroutine create_grid_vars
     
@@ -587,10 +561,6 @@ contains
 
     deallocate(rlats,rlons,corlats,coslon,sinlon,wgtlats,rbs2)
     deallocate(ak5,bk5,ck5,tref5)
-    if (hires_b) then
-       deallocate(rlats_b,rlons_b,corlats_b,coslon_b,sinlon_b,wgtlats_b,rbs2_b)
-       deallocate(w00_b2a,w01_b2a,w10_b2a,w11_b2a,ix_b2a,ixp_b2a,iy_b2a,iyp_b2a)
-    endif
     if (allocated(cp5)) deallocate(cp5)
     if (allocated(dx_gfs)) deallocate(dx_gfs)
     if (allocated(lpl_gfs)) deallocate(lpl_gfs)
@@ -2878,176 +2848,5 @@ end subroutine init_general_transform
 115   format('   beta_diff_max_gt_20(deg)             = ',g18.12)
    end if
  end subroutine check_rotate_wind
-
- subroutine compute_b2a
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    compute_b2a --- setup for background (guess) grid
-!                                to analysis grid interpolation
-!   prgmmr:      treadon
-!
-! abstract:  This routine compute weights and indices for interpolation
-!            from a hires background (guess) to analysis grid
-!
-! program history log:
-!   2010-01-11  treadon - original routine
-!
-!   input argument list:
-!    string
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-   use kinds, only: i_kind,r_kind
-   use constants, only: izero,ione,zero,one
-   implicit none
-
-   integer(i_kind):: i,j,ixx
-   integer(i_kind),dimension(nlat):: iy,iyp
-   integer(i_kind),dimension(nlon):: ix,ixp
-
-   real(r_kind):: dlon,dlat
-   real(r_kind),dimension(nlat):: dy,dy1
-   real(r_kind),dimension(nlon):: dx,dx1
-
-!  Compute latitude info for background to analysis grid interpolation
-   do j=1,nlat
-      dlat=rlats(j)
-      call grdcrd(dlat,ione,rlats_b,nlat_b,ione)
-      iy(j)=int(dlat)
-      iy(j)=min(max(ione,iy(j)),nlat_b)
-      iyp(j)=min(iy(j)+ione,nlat_b)
-      dy(j)=dlat-iy(j)
-      dy1(j)=one-dy(j)
-   end do
-
-!  Compute longitude info for background to analysis grid interpolation
-   do i=1,nlon
-      dlon=rlons(i)
-      call grdcrd(dlon,ione,rlons_b,nlon_b,ione)
-      ixx=int(dlon)
-      ix(i)=min(max(izero,ixx),nlon_b)
-      ixp(i)=ix(i)+ione
-      if (ix(i)==izero) ix(i)=nlon_b
-      if (ixp(i)==nlon_b+ione) ixp(i)=ione
-      dx(i)=dlon-ixx
-      dx(i)=max(zero,min(dx(i),one))
-      dx1(i)=one-dx(i)
-   end do
-
-!  Save interpolation information in arrays
-   do j=1,nlat
-      do i=1,nlon
-         ix_b2a(i,j)=ix(i)
-         ixp_b2a(i,j)=ixp(i)
-         iy_b2a(i,j)=iy(j)
-         iyp_b2a(i,j)=iyp(j)
-
-         w11_b2a(i,j)=dx(i)*dy(j)
-         w10_b2a(i,j)=dx1(i)*dy(j)
-         w01_b2a(i,j)=dx(i)*dy1(j)
-         w00_b2a(i,j)=dx1(i)*dy1(j)
-      end do
-   end do
-
-   return
- end subroutine compute_b2a
-
-  subroutine interp_b2a(grid_b,nlon_b,nlat_b,grid_a,nlon_a,nlat_a)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    interp_b2a --- interpolate from background (guess)
-!                               grid to analysis grid
-!   prgrmmr:     treadon
-!
-! abstract:      This routine interpolates field grid_b on a background
-!                (guess) grid to grid_a on the analysis grid
-!
-! program history log:
-!   2010-01-11  treadon  - original routine
-!
-!   input argument list:
-!     grid_b  - field on hires background grid
-!     nlon_b  - number of logitudes on background grid
-!     nlat_b  - number of latitudes on background grid
-!     nlon_a  - number of logitudes on analysis grid
-!     nlat_a  - number of latitudes on analysis grid
-!
-!   output argument list:
-!     grib_a  - interpolated field on analysis grid
-!
-! attributes:
-!   language: f90
-!   machines: ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-    use kinds, only: i_kind,r_kind
-    use constants, only: zero,one
-    implicit none
-
-    integer(i_kind)                               ,intent(in   ) :: nlon_b,nlat_b,nlon_a,nlat_a
-    real(r_kind),dimension(nlon_b,nlat_b-2_i_kind),intent(in   ) :: grid_b
-    real(r_kind),dimension(nlon_a,nlat_a-2_i_kind),intent(  out) :: grid_a
-
-    integer(i_kind):: i,j,ix,ixp,iy,iyp
-    real(r_kind):: sumn,sums,dlon,dlat,dx,dx1,dy,dy1,w00,w01,w10,w11
-    real(r_kind),dimension(nlon_b,nlat_b):: grid_b_full
-    real(r_kind),dimension(nlon_a,nlat_a):: grid_a_full
-
-!   Compute averages for for pole rows
-    sumn=zero
-    sums=zero
-    do i=1,nlon_b
-       sumn=sumn+grid_b(i,1)
-       sums=sums+grid_b(i,nlat_b-2_i_kind)
-    end do
-    sumn=sumn/float(nlon_b)
-    sums=sums/float(nlon_b)
-
-!   Load grid with pole values.  Flip north / south for interpolation.
-    do i=1,nlon_b
-       grid_b_full(i,nlat_b)=sumn
-       grid_b_full(i,1)=sums
-    end do
-    do j=1,nlat_b-2_i_kind
-       do i=1,nlon_b
-          grid_b_full(i,nlat_b-j)=grid_b(i,j)
-       end do
-    end do
-    
-!   Interpolate from background grid to analysis grid
-    do j=1,nlat_a
-       do i=1,nlon_a
-          ix=ix_b2a(i,j)
-          iy=iy_b2a(i,j)
-          ixp=ixp_b2a(i,j)
-          iyp=iyp_b2a(i,j)
-
-          w00=w00_b2a(i,j)
-          w01=w01_b2a(i,j)
-          w10=w10_b2a(i,j)
-          w11=w11_b2a(i,j)
-
-          grid_a_full(i,j)=w00*grid_b_full(ix,iy) + w01*grid_b_full(ixp,iy) + &
-               w10*grid_b_full(ix,iyp) + w11*grid_b_full(ixp,iyp)
-       end do
-    end do
-
-!   Transfer to analysis grid without pole values.  Flip n/s
-    do j=1,nlat_a-2_i_kind
-       do i=1,nlon_a
-          grid_a(i,j)=grid_a_full(i,nlat_a-j)
-       end do
-    end do
-
-!   Return to calling routine
-    return
-  end subroutine interp_b2a
 
 end module gridmod

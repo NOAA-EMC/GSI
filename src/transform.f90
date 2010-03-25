@@ -565,7 +565,7 @@ subroutine sptez_s_b(wave,grid,idir)
 !$$$
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:     sptez_s_bkg
+! subprogram:     sptez_s_b
 !   prgmmr:
 !
 ! abstract:
@@ -588,14 +588,14 @@ subroutine sptez_s_b(wave,grid,idir)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use specmod, only: nc_b,ijmax_b
+  use specmod, only: nc_b,ijmax
   use constants, only: izero,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                ,intent(in   ) :: idir
-  real(r_kind),dimension(nc_b)   ,intent(inout) :: wave
-  real(r_kind),dimension(ijmax_b),intent(inout) :: grid
+  integer(i_kind)              ,intent(in   ) :: idir
+  real(r_kind),dimension(nc_b) ,intent(inout) :: wave
+  real(r_kind),dimension(ijmax),intent(inout) :: grid
 
 ! Declare local variables
   integer(i_kind) i
@@ -606,7 +606,7 @@ subroutine sptez_s_b(wave,grid,idir)
         wave(i)=zero
      end do
   elseif (idir>izero) then
-     do i=1,ijmax_b
+     do i=1,ijmax
         grid(i)=zero
      end do
   endif
@@ -620,13 +620,14 @@ end subroutine sptez_s_b
 subroutine sptranf_s_b(wave,gridn,grids,idir)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    sptranf_s_bkg
+! subprogram:    sptranf_s_b
 !   prgmmr:
 !
 ! abstract:
 !
 ! program history log:
 !   2010-01-04  lueken - added subprogram doc block
+!   2010-03-10  sela,iredell,lueken - add double FFT
 !
 !   input argument list:
 !    idir
@@ -647,23 +648,23 @@ subroutine sptranf_s_b(wave,gridn,grids,idir)
 
   use kinds, only: r_kind,i_kind
   use constants, only: izero,ione,zero
-  use specmod, only: iromb_b,jcap_b,idrt_b,imax_b,jmax_b,ijmax_b,&
-       jn_b,js_b,jb_b,je_b,nc_b,ioffset_b,&
+  use specmod, only: iromb_b,jcap_b,idrt_b,imax,jmax,ijmax,&
+       jn,js,jb,je,nc_b,ioffset,&
        eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b,&
-       afft_b,clat_b,slat_b,wlat_b,pln_b,plntop_b
+       imax_b,afft_b,clat,slat,wlat,pln_b,plntop_b
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                ,intent(in   ) :: idir
-  real(r_kind),dimension(nc_b)   ,intent(inout) :: wave
-  real(r_kind),dimension(ijmax_b),intent(inout) :: gridn
-  real(r_kind),dimension(ijmax_b),intent(inout) :: grids
+  integer(i_kind)              ,intent(in   ) :: idir
+  real(r_kind),dimension(nc_b) ,intent(inout) :: wave
+  real(r_kind),dimension(ijmax),intent(inout) :: gridn
+  real(r_kind),dimension(ijmax),intent(inout) :: grids
 
 
 ! Declare local variables
   integer(i_kind) i,j,jj,ijn,ijs,mp
   real(r_kind),dimension(2*(jcap_b+ione)):: wtop
-  real(r_kind),dimension(imax_b,2):: g
+  real(r_kind),dimension(imax_b,2):: g_b
 
 ! Initialize local variables
   mp=izero
@@ -673,45 +674,68 @@ subroutine sptranf_s_b(wave,gridn,grids,idir)
   end do
 
 ! Transform wave to grid
+!   The FFT used in the transform below projects the spectral
+!   coefficients onto double the desired number of longitudinal
+!   grid points.  This approach is needed when transforming high
+!   wavenumber spectral coefficients to a coarser resoultion grid.
+!   For example, using splib to directly transform T878 spectral 
+!   coefficients to an 1152 x 576 grid does not use Fourier modes
+!   above wavenumber 576.  Joe Sela insightfully suggested doubling
+!   the number of points in the FFT and using every other point in
+!   the output grid.   Mark Iredell coded up Joe's idea below.
+
   if(idir>izero) then
-!$omp parallel do private(j,i,jj,ijn,ijs,g)
-     do j=jb_b,je_b
-        call sptranf1(iromb_b,jcap_b,idrt_b,imax_b,jmax_b,j,j, &
+!$omp parallel do private(j,i,jj,ijn,ijs,g_b)
+     do j=jb,je
+        call sptranf1(iromb_b,jcap_b,idrt_b,imax_b,jmax,j,j, &
              eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
-             afft_b,clat_b(j),slat_b(j),wlat_b(j), &
+             afft_b,clat(j),slat(j),wlat(j), &
              pln_b(1,j),plntop_b(1,j),mp, &
-             wave,wtop,g,idir)
-        do i=1,imax_b
-           jj  = j-jb_b
-           ijn = i + jj*jn_b
-           ijs = i + jj*js_b + ioffset_b
-           gridn(ijn)=g(i,1)
-           grids(ijs)=g(i,2)
+             wave,wtop,g_b,idir)
+        do i=1,imax
+           jj  = j-jb
+           ijn = i + jj*jn
+           ijs = i + jj*js + ioffset
+           gridn(ijn)=g_b(imax_b/imax*(i-1)+1,1)
+           grids(ijs)=g_b(imax_b/imax*(i-1)+1,2)
         enddo
      enddo
 !$omp end parallel do
 
-! Transform grid to wave
+! Transform grid to wave (NOT RECOMMENDED!)
+!   The above spectral to grid transform projects spectral coefficients
+!   onto twice the desired number of longitudinal grid points.   The
+!   code below loads a lower resolution grid into a higher resolution 
+!   grid.   Every other longitudinal point on the hires grid is not
+!   defined.   It is unsafe to transform this type of hires grid to 
+!   hires spectral coefficients.   Since this functionality is not
+!   currently needed in the GSI, the prudent action to take here is
+!   to print an ERROR message and terminate program execution.
+
   else
-!$omp parallel do private(j,i,jj,ijn,ijs,g)
-     do j=jb_b,je_b
-        if(wlat_b(j)>zero) then
-           do i=1,imax_b
-              jj  = j-jb_b
-              ijn = i + jj*jn_b
-              ijs = i + jj*js_b + ioffset_b
-              g(i,1)=gridn(ijn)
-              g(i,2)=grids(ijs)
-              
-           enddo
-           call sptranf1(iromb_b,jcap_b,idrt_b,imax_b,jmax_b,j,j, &
-                eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
-                afft_b,clat_b(j),slat_b(j),wlat_b(j), &
-                pln_b(1,j),plntop_b(1,j),mp, &
-                wave,wtop,g,idir)
-        endif
-     enddo
-!$omp end parallel do
+     write(6,*)'SPTRANF_S_B:  ***ERROR*** grid --> spectral transform NOT SAFE'
+     call stop2(330)
+
+! DO NOT USE THIS CODE
+!!$omp parallel do private(j,i,jj,ijn,ijs,g_b)
+!     do j=jb,je
+!        if(wlat(j)>zero) then
+!           do i=1,imax
+!              jj  = j-jb
+!              ijn = i + jj*jn
+!              ijs = i + jj*js + ioffset
+!              g_b(imax_b/imax*(i-1)+1,1)=gridn(ijn)
+!              g_b(imax_b/imax*(i-1)+1,2)=grids(ijs)
+!           enddo
+!           call sptranf1(iromb_b,jcap_b,idrt_b,imax_b,jmax,j,j, &
+!                eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
+!                afft_b,clat(j),slat(j),wlat(j), &
+!                pln_b(1,j),plntop_b(1,j),mp, &
+!                wave,wtop,g_b,idir)
+!        endif
+!     enddo
+!!$omp end parallel do
+
   endif
 end subroutine sptranf_s_b
 
@@ -719,7 +743,7 @@ end subroutine sptranf_s_b
 subroutine sptez_v_b(waved,wavez,gridu,gridv,idir)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    sptez_v_bkg
+! subprogram:    sptez_v_b
 !   prgmmr:
 !
 ! abstract:
@@ -746,14 +770,14 @@ subroutine sptez_v_b(waved,wavez,gridu,gridv,idir)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use specmod, only: nc_b,ijmax_b
+  use specmod, only: nc_b,ijmax
   use constants, only: izero,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                ,intent(in   ) :: idir
-  real(r_kind),dimension(nc_b)   ,intent(inout) :: waved,wavez
-  real(r_kind),dimension(ijmax_b),intent(inout) :: gridu,gridv
+  integer(i_kind)              ,intent(in   ) :: idir
+  real(r_kind),dimension(nc_b) ,intent(inout) :: waved,wavez
+  real(r_kind),dimension(ijmax),intent(inout) :: gridu,gridv
 
 ! Declare local variables
   integer(i_kind) i
@@ -765,7 +789,7 @@ subroutine sptez_v_b(waved,wavez,gridu,gridv,idir)
         wavez(i)=zero
      end do
   elseif (idir>izero) then
-     do i=1,ijmax_b
+     do i=1,ijmax
         gridu(i)=zero
         gridv(i)=zero
      end do
@@ -779,13 +803,14 @@ end subroutine sptez_v_b
 subroutine sptranf_v_b(waved,wavez,gridun,gridus,gridvn,gridvs,idir)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    sptranf_v_bkg
+! subprogram:    sptranf_v_b
 !   prgmmr:
 !
 ! abstract:
 !
 ! program history log:
 !   2010-01-04  lueken - added subprogram doc block
+!   2010-03-10  sela,iredell,lueken - add double FFT
 !
 !   input argument list:
 !    idir
@@ -811,17 +836,17 @@ subroutine sptranf_v_b(waved,wavez,gridun,gridus,gridvn,gridvs,idir)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use constants, only: izero,ione,zero
-  use specmod, only: iromb,jcap_b,idrt,imax_b,jmax_b,ijmax_b,&
-       jn_b,js_b,jb_b,je_b,ncd2_b,nc_b,ioffset_b,&
+  use specmod, only: iromb_b,jcap_b,idrt_b,imax,jmax,ijmax,&
+       jn,js,jb,je,ncd2_b,nc_b,ioffset,&
        eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b,&
-       afft_b,clat_b,slat_b,wlat_b,pln_b,plntop_b
+       imax_b,afft_b,clat,slat,wlat,pln_b,plntop_b
   use constants, only: izero,ione,zero
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                ,intent(in   ) :: idir
-  real(r_kind),dimension(nc_b)   ,intent(inout) :: waved,wavez
-  real(r_kind),dimension(ijmax_b),intent(inout) :: gridun,gridus,gridvn,gridvs
+  integer(i_kind)              ,intent(in   ) :: idir
+  real(r_kind),dimension(nc_b) ,intent(inout) :: waved,wavez
+  real(r_kind),dimension(ijmax),intent(inout) :: gridun,gridus,gridvn,gridvs
 
 
 ! Declare local variables
@@ -829,76 +854,98 @@ subroutine sptranf_v_b(waved,wavez,gridun,gridus,gridvn,gridvs,idir)
   integer(i_kind),dimension(2):: mp
   real(r_kind),dimension(ncd2_b*2,2):: w
   real(r_kind),dimension(2*(jcap_b+ione),2):: wtop
-  real(r_kind),dimension(imax_b,2,2):: g
+  real(r_kind),dimension(imax_b,2,2):: g_b
   real(r_kind),dimension(ncd2_b*2,2):: winc
 
 ! Set parameters
   mp=ione
 
 ! Transform wave to grid
+!   The FFT used in the transform below projects the spectral
+!   coefficients onto double the desired number of longitudinal
+!   grid points.  This approach is needed when transforming high
+!   wavenumber spectral coefficients to a coarser resoultion grid.
+!   For example, using splib to directly transform T878 spectral
+!   coefficients to an 1152 x 576 grid does not use Fourier modes
+!   above wavenumber 576.  Joe Sela insightfully suggested doubling
+!   the number of points in the FFT and using every other point in
+!   the output grid.   Mark Iredell coded up Joe's idea below.
+
   if(idir>izero) then
-     call spdz2uv(iromb,jcap_b,enn1_b,elonn1_b,eon_b,eontop_b, &
+     call spdz2uv(iromb_b,jcap_b,enn1_b,elonn1_b,eon_b,eontop_b, &
           waved,wavez, &
           w(1,1),w(1,2),wtop(1,1),wtop(1,2))
-     do j=jb_b,je_b
-        call sptranf1(iromb,jcap_b,idrt,imax_b,jmax_b,j,j, &
+     do j=jb,je
+        call sptranf1(iromb_b,jcap_b,idrt_b,imax_b,jmax,j,j, &
              eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
-             afft_b,clat_b(j),slat_b(j),wlat_b(j), &
+             afft_b,clat(j),slat(j),wlat(j), &
              pln_b(1,j),plntop_b(1,j),mp, &
-             w(1,1),wtop(1,1),g(1,1,1),idir)
-        call sptranf1(iromb,jcap_b,idrt,imax_b,jmax_b,j,j, &
+             w(1,1),wtop(1,1),g_b(1,1,1),idir)
+        call sptranf1(iromb_b,jcap_b,idrt_b,imax_b,jmax,j,j, &
              eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
-             afft_b,clat_b(j),slat_b(j),wlat_b(j), &
+             afft_b,clat(j),slat(j),wlat(j), &
              pln_b(1,j),plntop_b(1,j),mp, &
-             w(1,2),wtop(1,2),g(1,1,2),idir)
-        do i=1,imax_b
-           jj   = j-jb_b
-           ijn = i + jj*jn_b
-           ijs = i + jj*js_b + ioffset_b
-           gridun(ijn)=g(i,1,1)
-           gridus(ijs)=g(i,2,1)
-           gridvn(ijn)=g(i,1,2)
-           gridvs(ijs)=g(i,2,2)
-           
+             w(1,2),wtop(1,2),g_b(1,1,2),idir)
+        do i=1,imax
+           jj   = j-jb
+           ijn = i + jj*jn
+           ijs = i + jj*js + ioffset
+           gridun(ijn)=g_b(imax_b/imax*(i-1)+1,1,1)
+           gridus(ijs)=g_b(imax_b/imax*(i-1)+1,2,1)
+           gridvn(ijn)=g_b(imax_b/imax*(i-1)+1,1,2)
+           gridvs(ijs)=g_b(imax_b/imax*(i-1)+1,2,2)
         enddo
      enddo
 
-!  Transform grid to wave
-  else
-     w=zero
-     wtop=zero
-     do j=jb_b,je_b
-        if(wlat_b(j)>zero) then
-           do i=1,imax_b
-              jj   = j-jb_b
-              ijn = i + jj*jn_b
-              ijs = i + jj*js_b + ioffset_b
+!  Transform grid to wave (NOT RECOMMENDED!)
+!   The above spectral to grid transform projects spectral coefficients
+!   onto twice the desired number of longitudinal grid points.   The
+!   code below loads a lower resolution grid into a higher resolution
+!   grid.   Every other longitudinal point on the hires grid is not
+!   defined.   It is unsafe to transform this type of hires grid to
+!   hires spectral coefficients.   Since this functionality is not
+!   currently needed in the GSI, the prudent action to take here is
+!   to print an ERROR message and terminate program execution.
 
-              g(i,1,1)=gridun(ijn)/clat_b(j)**2
-              g(i,2,1)=gridus(ijs)/clat_b(j)**2
-              g(i,1,2)=gridvn(ijn)/clat_b(j)**2
-              g(i,2,2)=gridvs(ijs)/clat_b(j)**2
-           enddo
-           call sptranf1(iromb,jcap_b,idrt,imax_b,jmax_b,j,j, &
-                eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
-                afft_b,clat_b(j),slat_b(j),wlat_b(j), &
-                pln_b(1,j),plntop_b(1,j),mp, &
-                w(1,1),wtop(1,1),g(1,1,1),idir)
-           call sptranf1(iromb,jcap_b,idrt,imax_b,jmax_b,j,j, &
-                eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
-                afft_b,clat_b(j),slat_b(j),wlat_b(j), &
-                pln_b(1,j),plntop_b(1,j),mp, &
-                w(1,2),wtop(1,2),g(1,1,2),idir)
-        endif
-     enddo
-     call spuv2dz(iromb,jcap_b,enn1_b,elonn1_b,eon_b,eontop_b, &
-          w(1,1),w(1,2),wtop(1,1),wtop(1,2), &
-          winc(1,1),winc(1,2))
-     
-     do j=1,2*ncd2_b
-        waved(j)=waved(j)+winc(j,1)
-        wavez(j)=wavez(j)+winc(j,2)
-     end do
+  else
+     write(6,*)'SPTRANF_V_B:  ***ERROR*** grid --> spectral transform NOT SAFE'
+     call stop2(330)
+
+! DO NOT USE THIS CODE
+!     w=zero
+!     wtop=zero
+!     do j=jb,je
+!        if(wlat(j)>zero) then
+!           do i=1,imax
+!              jj   = j-jb
+!              ijn = i + jj*jn
+!              ijs = i + jj*js + ioffset
+!
+!              g_b(imax_b/imax*(i-1)+1,1,1)=gridun(ijn)/clat(j)**2
+!              g_b(imax_b/imax*(i-1)+1,2,1)=gridus(ijs)/clat(j)**2
+!              g_b(imax_b/imax*(i-1)+1,1,2)=gridvn(ijn)/clat(j)**2
+!              g_b(imax_b/imax*(i-1)+1,2,2)=gridvs(ijs)/clat(j)**2
+!           enddo
+!           call sptranf1(iromb_b,jcap_b,idrt_b,imax_b,jmax,j,j, &
+!                eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
+!                afft_b,clat(j),slat(j),wlat(j), &
+!                pln_b(1,j),plntop_b(1,j),mp, &
+!                w(1,1),wtop(1,1),g_b(1,1,1),idir)
+!           call sptranf1(iromb_b,jcap_b,idrt_b,imax_b,jmax,j,j, &
+!                eps_b,epstop_b,enn1_b,elonn1_b,eon_b,eontop_b, &
+!                afft_b,clat(j),slat(j),wlat(j), &
+!                pln_b(1,j),plntop_b(1,j),mp, &
+!                w(1,2),wtop(1,2),g_b(1,1,2),idir)
+!        endif
+!     enddo
+!     call spuv2dz(iromb_b,jcap_b,enn1_b,elonn1_b,eon_b,eontop_b, &
+!          w(1,1),w(1,2),wtop(1,1),wtop(1,2), &
+!          winc(1,1),winc(1,2))
+!     do j=1,2*ncd2_b
+!        waved(j)=waved(j)+winc(j,1)
+!        wavez(j)=wavez(j)+winc(j,2)
+!     end do
+
   endif
 
  end subroutine sptranf_v_b
