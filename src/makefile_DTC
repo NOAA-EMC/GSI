@@ -1,0 +1,420 @@
+SHELL=/bin/sh
+
+#==============================================================================
+#
+# GSI Makefile
+#
+#==============================================================================
+
+#------------
+# Include machine dependent compile & load options
+#------------
+include ../../configure.gsi
+
+COREROOT = $(COREDIR)
+COREBIN  = $(COREROOT)/run
+CORELIB  = $(COREROOT)/lib
+COREINC  = $(COREROOT)/include
+COREETC  = $(COREROOT)/etc
+EXE_FILE = gsi.exe
+
+
+# ---------
+# Libraries
+# ---------
+## LIBmpeu   = -L$(CORELIB) -lmpeu
+LIBmpeu   = 
+LIBbufr   = -L$(CORELIB) -lbufr
+LIBw3     = -L$(CORELIB) -lw3
+LIBsp     = -L$(CORELIB) -lsp
+## LIBbacio  = -L$(CORELIB) -lbacio
+LIBbacio  = 
+LIBsfcio  = -L$(CORELIB) -lsfcio
+LIBsigio  = -L$(CORELIB) -lsigio
+LIBcrtm   = -L$(CORELIB) -lcrtm_gfsgsi
+LIBtransf = -L$(CORELIB) -ltransf
+LIBhermes = -L$(CORELIB) -lhermes
+LIBgfsio  = -L$(CORELIB) -lgfsio
+
+# --------------------------
+# Default Baselibs Libraries
+# --------------------------
+LIBnetcdf       = -L$(NETCDFPATH)/lib $(NETCDFLIBS)
+LIBwrf          = $(WRF_LIB)
+
+# ------------------------
+# Default System Libraries
+# ------------------------
+LIBmpi          = -lmpi
+## LIBsys          = -lessl_r -lmass -bdatapsize:64K -bstackpsize:64K
+LIBsys          = $(MYLIBsys) 
+
+
+# --------------------
+# Installing directory
+# --------------------
+
+  INSTALL_DIR = $(COREBIN)
+
+
+# --------
+# Log file
+# --------
+
+  LOG_FILE = log.make.$(EXE_FILE)
+
+
+#-----------------------------------------------------------------------------
+#                          -- Child make --
+#-----------------------------------------------------------------------------
+
+# ------------
+# Source files
+# ------------
+
+  OBJS	= \
+        abor1.o \
+        adjtest.o \
+        anberror.o \
+        anbkerror.o \
+        aniso_ens_util.o \
+        anisofilter.o \
+        anisofilter_glb.o \
+        antcorr_application.o \
+        antest_maps0.o \
+        antest_maps0_glb.o \
+        balmod.o \
+        berror.o \
+        bias_predictors.o \
+        bkerror.o \
+        bkgcov.o \
+        bkgvar.o \
+        bkgvar_rewgt.o \
+        blacklist.o \
+        calc_fov_conical.o \
+        calc_fov_crosstrk.o \
+        calctends.o \
+        calctends_ad.o \
+        calctends_tl.o \
+        calctends_no_ad.o \
+        calctends_no_tl.o \
+        combine_radobs.o \
+        compact_diffs.o \
+        compute_derived.o \
+        compute_fact10.o \
+        constants.o \
+        control2model.o \
+        control2state.o \
+        control_vectors.o \
+        converr.o \
+        convinfo.o \
+        convthin.o \
+        cvsection.o \
+        deter_subdomain.o \
+        dtast.o \
+        egrid2agrid_mod.o \
+        enorm_state.o \
+        evaljgrad.o \
+        evaljcdfi.o \
+        evaljo.o \
+        evalqlim.o \
+        fgrid2agrid_mod.o \
+        fill_mass_grid2.o \
+        fill_nmm_grid2.o \
+        fpvsx_ad.o \
+        general_read_gfsatm.o \
+        general_specmod.o \
+        general_spectral_transforms.o \
+        general_sub2grid_mod.o \
+        general_transform.o \
+        gengrid_vars.o \
+        genqsat.o \
+        genstats_gps.o \
+        geos_pertmod.o \
+        geos_pgcmtest.o \
+        gesinfo.o \
+        get_derivatives.o \
+        get_derivatives2.o \
+        get_gefs_ensperts_dualres.o \
+        get_semimp_mats.o \
+        getprs.o \
+        getuv.o \
+        getvvel.o \
+        glbsoi.o \
+        global_mean.o \
+        grtest.o \
+        grdcrd.o \
+        grid2sub.o \
+        gridmod.o \
+        gscond_ad.o \
+        gsi_4dvar.o \
+        gsi_io.o \
+        gsi_nemsio_mod.o \
+        gsimod.o \
+        gsisub.o \
+        guess_grids.o \
+        half_nmm_grid2.o \
+        hilbert_curve.o \
+        hybrid_ensemble_isotropic_regional.o \
+        hybrid_ensemble_isotropic_global.o \
+        hybrid_ensemble_parameters.o \
+        inc2guess.o \
+        init_commvars.o \
+        init_jcdfi.o \
+        int3dvar.o \
+        intall.o \
+        intdw.o \
+        intgps.o \
+        intjcpdry.o \
+        intjo.o \
+        intlag.o \
+        intlimq.o \
+        intoz.o \
+        intpcp.o \
+        intps.o \
+        intpw.o \
+        intq.o \
+        intrad.o \
+        intrp2a.o \
+        intrp3oz.o \
+        intrppx.o \
+        intrw.o \
+        intspd.o \
+        intsrw.o \
+        intsst.o \
+        intt.o \
+        inttcp.o \
+        intw.o \
+        jcmod.o \
+        jfunc.o \
+        kinds.o \
+        lag_fields.o \
+        lag_interp.o \
+        lag_traj.o \
+        lagmod.o \
+        lanczos.o \
+        looplimits.o \
+        m_berror_stats.o \
+        m_dgeevx.o \
+        m_gsiBiases.o \
+        m_stats.o \
+        m_tick.o \
+        mpeu_mpif.o \
+        mpeu_util.o \
+        missing_routines.o \
+        mod_inmi.o \
+        mod_nmmb_to_a.o \
+        mod_strong.o \
+        mod_vtrans.o \
+        model_ad.o \
+        model_tl.o \
+        model2control.o \
+        mp_compact_diffs_mod1.o \
+        mp_compact_diffs_support.o \
+        mpimod.o \
+        mpl_allreduce.o \
+        mpl_bcast.o \
+        ncepgfs_io.o \
+        nemsio_module.o \
+        nlmsas_ad.o \
+        normal_rh_to_q.o \
+        obs_ferrscale.o \
+        obs_para.o \
+        obs_sensitivity.o \
+        observer.o \
+        obsmod.o \
+        omegas_ad.o \
+        oneobmod.o \
+        ozinfo.o \
+        patch2grid_mod.o \
+        pcgsoi.o \
+        pcgsqrt.o \
+        pcp_k.o \
+        pcpinfo.o \
+        penal.o \
+        phil.o \
+        phil1.o \
+        plib8.o \
+        polcarf.o \
+        precpd_ad.o \
+        prewgt.o \
+        prewgt_reg.o \
+        projmethod_support.o \
+        prt_guess.o \
+        psichi2uv_reg.o \
+        psichi2uvt_reg.o \
+        q_diag.o \
+        qcmod.o \
+        qcssmi.o \
+        qnewton.o \
+        qnewton3.o \
+        radinfo.o \
+        raflib.o \
+        rdgrbsst.o \
+        rdgstat_reg.o \
+        read_airs.o \
+        read_amsre.o \
+        read_avhrr.o \
+        read_avhrr_navy.o \
+        read_bufrtovs.o \
+        read_files.o \
+        read_gfs_ozone_for_regional.o \
+        read_goesimg.o \
+        read_goesndr.o \
+        read_gps.o \
+        read_guess.o \
+        read_iasi.o \
+        read_l2bufr_mod.o \
+        read_lag.o \
+        read_lidar.o \
+        read_modsbufr.o \
+        read_obs.o \
+        read_obsdiags.o \
+        read_ozone.o \
+        read_pcp.o \
+        read_prepbufr.o \
+        read_radar.o \
+        read_ssmi.o \
+        read_ssmis.o \
+        read_superwinds.o \
+        read_tcps.o \
+        read_wrf_mass_files.o \
+        read_wrf_mass_guess.o \
+        read_wrf_nmm_files.o \
+        read_wrf_nmm_guess.o \
+        regional_io.o \
+        ret_ssmis.o \
+        retrieval_amsre.o \
+        retrieval_mi.o \
+        rfdpar.o \
+        rsearch.o \
+        rtlnmc_version3.o \
+        satthin.o \
+        setupbend.o \
+        setupdw.o \
+        setupo3lv.o \
+        setuplag.o \
+        setupoz.o \
+        setuppcp.o \
+        setupps.o \
+        setuppw.o \
+        setupq.o \
+        setuprad.o \
+        setupref.o \
+        setuprhsall.o \
+        setuprw.o \
+        setupspd.o \
+        setupsrw.o \
+        setupsst.o \
+        setupt.o \
+        setuptcp.o \
+        setupw.o \
+        setupyobs.o \
+        sfc_model.o \
+        sfcobsqc.o \
+        simpin1.o \
+        simpin1_init.o \
+        smooth_polcarf.o \
+        smoothrf.o \
+        smoothwwrf.o \
+        smoothzrf.o \
+        specmod.o \
+        spectral_transforms.o \
+        sqrtmin.o \
+        sst_retrieval.o \
+        state2control.o \
+        state_vectors.o \
+        statsconv.o \
+        statsoz.o \
+        statspcp.o \
+        statsrad.o \
+        stop1.o \
+        stp3dvar.o \
+        stpcalc.o \
+        stpdw.o \
+        stpgps.o \
+        stpjo.o \
+        stpjcpdry.o \
+        stplimq.o \
+        stpoz.o \
+        stppcp.o \
+        stpps.o \
+        stppw.o \
+        stpq.o \
+        stprad.o \
+        stprw.o \
+        stpspd.o \
+        stpsrw.o \
+        stpsst.o \
+        stpt.o \
+        stptcp.o \
+        stpw.o \
+        strong_bal_correction.o \
+        strong_baldiag_inc.o \
+        strong_fast_global_mod.o \
+        strong_slow_global_mod.o \
+        sub2fslab_mod.o \
+        sub2grid.o \
+        support_2dvar.o \
+        tendsmod.o \
+        test_obsens.o \
+        tcv_mod.o \
+        timermod.o \
+        tintrp2a.o \
+        tintrp3.o \
+        tpause.o \
+        tpause_t.o \
+        transform.o \
+        turbl.o \
+        turbl_ad.o \
+        turbl_tl.o \
+        turblmod.o \
+        tv_to_tsen.o \
+        unfill_mass_grid2.o \
+        unfill_nmm_grid2.o \
+        unhalf_nmm_grid2.o \
+        update_guess.o \
+        update_geswtend.o \
+        wind_fft.o \
+        wrf_binary_interface.o \
+        wrf_netcdf_interface.o \
+        write_all.o \
+        write_bkgvars_grid.o \
+        write_obsdiags.o \
+        wrwrfmassa.o \
+        wrwrfnmma.o \
+        xhat_vordivmod.o \
+        zrnmi_mod.o \
+        blockIO.o   \
+        bacio.v1.4.o  \
+
+# ----
+
+LIB =   libgsi.a
+
+# ------------------------
+# Call compiler and linker
+# ------------------------
+
+##all : $(LIB) $(EXE_FILE)
+all : $(LIB) gsi.exe
+
+
+$(LIB):	 $(OBJS)
+	echo $(OBJS)
+	$(AR) -ruv $(LIB) $(OBJS)
+
+#$(EXE_FILE) : $(OBJS) $(LIB) gsimain.o
+#	$(LD) $(LDFLAGS) -o $@ gsimain.o $(OBJS) $(LIBS)
+
+gsi.exe:  $(OBJS) $(LIB) gsimain.o
+	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBgfsio) $(LIBsp) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys) 
+	cp gsi.exe $(COREBIN)
+
+# DEPENDENCIES : only dependencies after this line (don't remove the word DEPENDENCIES)
+
+include Makefile.dependency
+
+clean:
+	rm -f *.o *.exe $(LIB)
+

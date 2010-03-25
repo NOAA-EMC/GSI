@@ -81,7 +81,7 @@ subroutine evalqlim(sq,pbc,rq)
   end do
 
 ! Reduce on all procs
-  call mpl_allreduce(2,zbc)
+  call mpl_allreduce(2,qpvals=zbc)
   pbc=pbc+zbc(1)+zbc(2)
 
   return

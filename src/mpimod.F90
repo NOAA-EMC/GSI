@@ -979,8 +979,8 @@ end subroutine reload
 
 ! ! INPUT PARAMETERS:
 
-    integer(i_kind)                 ,intent(in   ) :: iworld_group
-    integer(i_kind)                 ,intent(in   ) :: ierr,nsize
+    integer(i_kind)                 ,intent(inout) :: iworld_group
+    integer(i_kind)                 ,intent(in   ) :: nsize
     integer(i_kind),dimension(nsize),intent(in   ) :: members
 
 ! ! OUTPUT PARAMETERS:
@@ -988,6 +988,7 @@ end subroutine reload
 ! ! INPUT/OUTPUT PARAMETERS:
 
     integer(i_kind)                 ,intent(inout) :: iworld,ncomma
+    integer(i_kind)                 ,intent(inout) :: ierr
 
 ! !DESCRIPTION: set mpi communicator
 !

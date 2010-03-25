@@ -83,7 +83,7 @@ guess_grids.o : guess_grids.F90 mpimod.o regional_io.o gridmod.o constants.o kin
 half_nmm_grid2.o : half_nmm_grid2.f90 gridmod.o constants.o kinds.o 
 hilbert_curve.o : hilbert_curve.f90 constants.o kinds.o phil1.o phil.o 
 hybrid_ensemble_isotropic_global.o : hybrid_ensemble_isotropic_global.f90 mpimod.o constants.o general_specmod.o hybrid_ensemble_parameters.o kinds.o 
-hybrid_ensemble_isotropic_regional.o : hybrid_ensemble_isotropic_regional.f90 egrid2agrid_mod.o general_specmod.o hybrid_ensemble_isotropic_global.o timermod.o control_vectors.o gsi_4dvar.o raflib.o general_sub2grid_mod.o berror.o mpimod.o hybrid_ensemble_parameters.o constants.o gridmod.o kinds.o 
+hybrid_ensemble_isotropic_regional.o : hybrid_ensemble_isotropic_regional.F90 egrid2agrid_mod.o general_specmod.o hybrid_ensemble_isotropic_global.o timermod.o control_vectors.o gsi_4dvar.o raflib.o general_sub2grid_mod.o berror.o mpimod.o hybrid_ensemble_parameters.o constants.o gridmod.o kinds.o 
 hybrid_ensemble_parameters.o : hybrid_ensemble_parameters.f90 constants.o egrid2agrid_mod.o general_specmod.o general_sub2grid_mod.o kinds.o 
 inc2guess.o : inc2guess.f90 state_vectors.o xhat_vordivmod.o gsi_4dvar.o guess_grids.o gridmod.o mpimod.o constants.o kinds.o 
 init_commvars.o : init_commvars.f90 constants.o mpimod.o gridmod.o kinds.o 

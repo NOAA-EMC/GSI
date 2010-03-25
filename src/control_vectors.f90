@@ -650,7 +650,7 @@ subroutine ddot_prod_vars(xcv,ycv,prods)
      end do
   end if
 
-  call mpl_allreduce(nsubwin,zz)
+  call mpl_allreduce(nsubwin,rpvals=zz)
   prods(1:nsubwin) = zz(1:nsubwin)
 
 ! Duplicated part of vector
@@ -727,7 +727,7 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 return
 end function qdot_prod_sub
 ! ----------------------------------------------------------------------
-subroutine qdot_prod_vars(xcv,ycv,prods)
+subroutine qdot_prod_vars(xcv,ycv,qprods)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    qdot_prod_vars
@@ -753,12 +753,12 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
 
   implicit none
   type(control_vector), intent(in   ) :: xcv, ycv
-  real(r_quad)        , intent(  out) :: prods(nsubwin+ione)
+  real(r_quad)        , intent(  out) :: qprods(nsubwin+ione)
 
   real(r_quad) :: zz(nsubwin)
   integer(i_kind) :: ii
 
-  prods(:)=zero_quad
+  qprods(:)=zero_quad
   zz(:)=zero_quad
 
 ! Independent part of vector
@@ -783,15 +783,15 @@ subroutine qdot_prod_vars(xcv,ycv,prods)
      end do
   end if
 
-  call mpl_allreduce(nsubwin,zz)
-  prods(1:nsubwin) = zz(1:nsubwin)
+  call mpl_allreduce(nsubwin,qpvals=zz)
+  qprods(1:nsubwin) = zz(1:nsubwin)
 
 ! Duplicated part of vector
   if (nsclen>izero) then
-     prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predr(:),ycv%predr(:))
+     qprods(nsubwin+ione) = qprods(nsubwin+ione) + qdot_product(xcv%predr(:),ycv%predr(:))
   endif
   if (npclen>izero) then
-     prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predp(:),ycv%predp(:))
+     qprods(nsubwin+ione) = qprods(nsubwin+ione) + qdot_product(xcv%predp(:),ycv%predp(:))
   endif
 
 return
@@ -864,7 +864,7 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
      end if
   end if
 
-  call mpl_allreduce(nsubwin,zz)
+  call mpl_allreduce(nsubwin,qpvals=zz)
   prods(1:nsubwin) = zz(1:nsubwin)
 
 ! Duplicated part of vector
@@ -914,7 +914,7 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
      call stop2(113)
   end if
 
-  call dot_prod_vars(xcv,ycv,zz)
+  call dot_prod_vars(xcv,ycv,prods=zz)
 
   dot_prod_cv = zero
   do ii=1,nsubwin+ione
@@ -1052,7 +1052,7 @@ subroutine prt_norms(xcv,sgrep)
   real(r_quad) :: zz(nsubwin+ione),zt
   integer(i_kind) :: ii
 
-  call dot_prod_vars(xcv,xcv,zz)
+  call dot_prod_vars(xcv,xcv,qprods=zz)
   zt = zero_quad
   do ii=1,nsubwin+ione
      zt = zt + zz(ii)

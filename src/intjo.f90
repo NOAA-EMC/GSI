@@ -276,7 +276,7 @@ real(r_quad),dimension(max(ione,nrclen)):: qpred
 
 ! Take care of background error for bias correction terms
 
-  call mpl_allreduce(nrclen,qpred)
+  call mpl_allreduce(nrclen,qpvals=qpred)
 
   do i=1,nsclen
      rbias%predr(i)=qpred(i)

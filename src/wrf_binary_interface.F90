@@ -2138,7 +2138,7 @@ SUBROUTINE int_get_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
 !Local
   INTEGER(i_kind) i, n, DummyCount, typesize
   CHARACTER * 132  dummyData
-  logical, external :: debug_foo
+!  logical, external :: debug_foo
 !
 #ifdef WRF
   CALL int_get_ti_header_c ( hdrbuf, hdrbufsize, n, itypesize, typesize, &
@@ -2300,6 +2300,7 @@ SUBROUTINE int_unpack_string ( str, buf, n )
   n = strlen + ione
 END SUBROUTINE int_unpack_string
 
+#ifndef MACOS
 SUBROUTINE wrf_sizeof_integer( retval )
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -2330,6 +2331,7 @@ SUBROUTINE wrf_sizeof_integer( retval )
   retval = i_kind
   RETURN
 END SUBROUTINE wrf_sizeof_integer
+#endif
 
 !WRF:DRIVER_LAYER:UTIL
 !

@@ -67,6 +67,7 @@ module fgrid2agrid_mod
   public :: agrid2fgrid
 ! set passed variables to public
   public :: fgrid2agrid_parm,nord_f2a
+  public :: fgrid2agrid_cons
 
   integer(i_kind):: nord_f2a
 

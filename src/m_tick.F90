@@ -223,7 +223,6 @@ contains
 !   machine:
 !
 !$$$ end documentation block
-      implicit none
 !
 ! Determine if year ny is a leap year
 !

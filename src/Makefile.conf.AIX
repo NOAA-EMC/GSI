@@ -86,11 +86,11 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
 
-  CFLAGS_N      = -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(PROF)
+  CFLAGS_N      = -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -DIBM4 -O3 $(PROF)
 
 #--- Debug mode options
 
-  CFLAGS_D      = -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -g
+  CFLAGS_D      = -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -DIBM4 -g
 
 
 # ------------------

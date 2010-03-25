@@ -39,6 +39,7 @@ module tcv_mod
   public :: read_tcv_card
 ! set passed variables to public
   public :: stormpsmin,stormdattim,stormlon,numstorms,stormlat
+  public :: tcvcard
 
   integer(i_kind) numstorms
   integer(i_kind),dimension(:),allocatable:: stormswitch

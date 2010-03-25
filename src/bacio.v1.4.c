@@ -24,7 +24,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#ifdef MACOS
+#include <malloc/malloc.h>
+#else
 #include <malloc.h>
+#endif
 #include <ctype.h>
 #include <string.h>
 
@@ -45,7 +49,6 @@
 
 /* Declare the system type, supported options are: */
 /* LINUX, SGI, HP, CRAY90, IBM4, IBM8, LINUXF90 */
-#define IBM4
 #include <stdlib.h>
 
 /* Do not change things below here yourself */

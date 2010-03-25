@@ -965,7 +965,12 @@ end subroutine normal_new_factorization_rf_y
 
     do is=1,nscl
        do i=nh_0,nh_1
+#ifdef ibm_sp
           call dnrand(seed(i,is),nvert,vert1,aux,naux)
+#else
+! Generate a Vector of Normally Distributed Random Numbers (function from Lapack lib)
+          call dlarnv(3,seed(i,is),nvert,vert1)
+#endif
           do k=1,nvert
              zsub(i,k,is)=vert1(k)
           end do

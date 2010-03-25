@@ -780,7 +780,7 @@ real(r_quad) function dot_prod_st(xst,yst,which)
 
   endif
 
-  call mpl_allreduce(nvars,zz)
+  call mpl_allreduce(nvars,qpvals=zz)
 
   dot_prod_st=zero_quad
   do ii=1,nvars

@@ -75,6 +75,7 @@ module egrid2agrid_mod
    public :: g_egrid2points_faster
 ! set passed variables to public
    public :: egrid2agrid_parm
+   public :: egrid2agrid_cons
 
    type egrid2agrid_cons
 

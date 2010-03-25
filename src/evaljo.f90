@@ -78,7 +78,7 @@ do ii=1,nobs_bins
 enddo
 
 ! Sum Jo contributions
-call mpl_allreduce(nobs_type*nobs_bins,zprods)
+call mpl_allreduce(nobs_type*nobs_bins,qpvals=zprods)
 
 ! Sum number of observations
 ilen=nobs_bins*nobs_type

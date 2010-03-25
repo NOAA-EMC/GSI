@@ -38,7 +38,7 @@ END INTERFACE
 
 contains
 
-subroutine rmpl_allreduce(klen,pvals)
+subroutine rmpl_allreduce(klen,rpvals)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    rmpl_allreduce
@@ -68,7 +68,7 @@ subroutine rmpl_allreduce(klen,pvals)
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: klen
-  real(r_kind)   ,intent(inout) :: pvals(klen)
+  real(r_kind)   ,intent(inout) :: rpvals(klen)
 
 ! Declare local variables
   integer(i_kind) :: ii,jj
@@ -79,16 +79,16 @@ subroutine rmpl_allreduce(klen,pvals)
   if (npe>ione .and. klen>izero) then
 
 !    Gather contributions
-     call mpi_allgather(pvals,klen,mpi_rtype, &
+     call mpi_allgather(rpvals,klen,mpi_rtype, &
                       & zwork,klen,mpi_rtype, mpi_comm_world,ierror)
 
 !    Reproducible sum
      DO ii=1,klen
-        pvals(ii)=zwork(ii,1)
+        rpvals(ii)=zwork(ii,1)
      ENDDO
      DO jj=2,npe
         DO ii=1,klen
-           pvals(ii)=pvals(ii)+zwork(ii,jj)
+           rpvals(ii)=rpvals(ii)+zwork(ii,jj)
         ENDDO
      ENDDO
 
@@ -98,7 +98,7 @@ subroutine rmpl_allreduce(klen,pvals)
 return
 end subroutine rmpl_allreduce
 ! ----------------------------------------------------------
-subroutine qmpl_allreduce0(klen,pvals)
+subroutine qmpl_allreduce0(klen,qpvals)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    qmpl_allreduce0
@@ -128,7 +128,7 @@ subroutine qmpl_allreduce0(klen,pvals)
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: klen
-  real(r_quad)   ,intent(inout) :: pvals(klen)
+  real(r_quad)   ,intent(inout) :: qpvals(klen)
 
 ! Declare local variables
   integer(i_kind) :: ii,jj
@@ -140,8 +140,8 @@ subroutine qmpl_allreduce0(klen,pvals)
 
      zwork1=zero
      do ii=1,klen
-        zwork1(ii,1)=pvals(ii)
-        zwork1(ii,2)=pvals(ii)-zwork1(ii,1)
+        zwork1(ii,1)=qpvals(ii)
+        zwork1(ii,2)=qpvals(ii)-zwork1(ii,1)
      end do
 
 !    Gather contributions
@@ -152,11 +152,11 @@ subroutine qmpl_allreduce0(klen,pvals)
 
 !    Reproducible sum
      DO ii=1,klen
-        pvals(ii)=zero_quad
+        qpvals(ii)=zero_quad
      ENDDO
      DO jj=1,npe
         DO ii=1,klen
-           pvals(ii)=pvals(ii)+zwork2(ii,jj,1)+zwork2(ii,jj,2)
+           qpvals(ii)=qpvals(ii)+zwork2(ii,jj,1)+zwork2(ii,jj,2)
         ENDDO
      ENDDO
 

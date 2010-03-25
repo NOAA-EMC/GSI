@@ -135,7 +135,9 @@ subroutine guess_init_
   call create_jfunc(mlat)
 
 ! Intialize lagrangian data assimilation and read in initial position of balloons
-  call lag_guessini()
+  if(l4dvar) then
+    call lag_guessini()    ! only for 4dvar 
+  endif
  
 ! Read output from previous min.
   if (l4dvar.and.jiterstart>ione) then

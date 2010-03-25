@@ -236,6 +236,12 @@ module obsmod
   public :: mype_pw,iout_rw,iout_dw,iout_srw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
   public :: iout_lag,iout_uv,iout_gps,iout_ps,spdptr,srwptr,rwptr,dwptr,sstptr,pwptr
   public :: ozptr,o3lptr,pcpptr,lagptr,lread_obs_save,obs_input_common,lread_obs_skip
+!
+  public :: obs_diags,gps_all_ob_head,gps_all_ob_type,w_ob_head,ps_ob_head,q_ob_head
+  public :: t_ob_head,spd_ob_head,rw_ob_head,dw_ob_head,sst_ob_head
+  public :: pcp_ob_head,o3l_ob_head,gps_ob_head
+  public :: lag_ob_head,srw_ob_head,pw_ob_head,oz_ob_head,rad_ob_head
+  public :: tcp_ob_head,odiags
 
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200_i_kind  ! maximum number of observation files

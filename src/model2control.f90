@@ -97,7 +97,7 @@ do ii=1,npclen
    zwork(nsclen+ii)=bval%predp(ii)
 enddo
 
-call mpl_allreduce(nrclen,zwork)
+call mpl_allreduce(nrclen,rpvals=zwork)
 
 do ii=1,nsclen
    grad%predr(ii)=grad%predr(ii)+zwork(ii)*sqrt(varprd(ii))
