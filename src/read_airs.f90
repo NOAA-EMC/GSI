@@ -161,7 +161,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Other work variables
   integer(i_kind)  :: nreal, ichsst, ichansst, isflg,ioffset
   integer(i_kind)  :: itx, k, nele, itt, n,iscbtseqn,ix
-  real(r_kind)     :: chsstf,chsst,sfcr
+  real(r_kind)     :: chsstf,chsst,chsst_all,sfcr
   real(r_kind)     :: ch15, ch3, df2, tt
   real(r_kind)     :: dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth, lza
@@ -222,11 +222,15 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      ioffset=izero
      ichansst   = newchn(sis,914)
      ichsst     = ichansst-ioff+ioffset
-     rlndsea(0) = zero                       
-     rlndsea(1) = 10._r_kind
-     rlndsea(2) = 15._r_kind
-     rlndsea(3) = 10._r_kind
-     rlndsea(4) = 30._r_kind
+     if(isfcalc==ione)then
+        rlndsea = zero
+     else
+        rlndsea(0) = zero                       
+        rlndsea(1) = 10._r_kind
+        rlndsea(2) = 15._r_kind
+        rlndsea(3) = 10._r_kind
+        rlndsea(4) = 30._r_kind
+     endif
      if(isfcalc==ione) then
         instr=17_i_kind
         ichan=-999_i_kind  ! not used for airs
@@ -246,11 +250,15 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      ioffset=n_airschan
      ichansst   = newchn(sis,1)
      ichsst     = ioffset +ione            !channel 1
-     rlndsea(0) = zero                       
-     rlndsea(1) = 15._r_kind
-     rlndsea(2) = 20._r_kind
-     rlndsea(3) = 15._r_kind
-     rlndsea(4) = 100._r_kind
+     if(isfcalc==ione)then
+        rlndsea = zero
+     else
+        rlndsea(0) = zero                       
+        rlndsea(1) = 15._r_kind
+        rlndsea(2) = 20._r_kind
+        rlndsea(3) = 15._r_kind
+        rlndsea(4) = 100._r_kind
+     endif
      if(isfcalc==ione) then
         instr=11_i_kind
         ichan=15_i_kind  ! for now pick a surface channel
@@ -267,11 +275,15 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      ioffset=iscbtseqn+n_amsuchan
      ichansst   = newchn(sis,4)
      ichsst     = ichansst-ioff+ioffset
-     rlndsea(0) = zero                       
-     rlndsea(1) = 15._r_kind
-     rlndsea(2) = 20._r_kind
-     rlndsea(3) = 15._r_kind
-     rlndsea(4) = 100._r_kind
+     if(isfcalc==ione)then
+        rlndsea = zero
+     else
+        rlndsea(0) = zero                       
+        rlndsea(1) = 15._r_kind
+        rlndsea(2) = 20._r_kind
+        rlndsea(3) = 15._r_kind
+        rlndsea(4) = 100._r_kind
+     endif
      if(isfcalc==ione) then
         instr=12_i_kind ! similar to amsu-b according to tom kleespies
         ichan=-999_i_kind ! not used for hsb
@@ -556,7 +568,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
          else
 
-             if ( isflg == izero ) then
+             chsst_all=zero  ! value weighted according to surface type
+             if ( sfcpct(0) > zero ) then
 ! cloud checks over ocean
                 chsst = 8.28206_r_kind - 0.97957_r_kind * allchan(126_i_kind+ioffset) + 0.60529_r_kind * &  ! AIRS science team
                    allchan(129_i_kind+ioffset) + 1.74444_r_kind * allchan(165_i_kind+ioffset) &                 ! SST calculation for
@@ -574,7 +587,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
                     ch18ch19 < .50_r_kind .and. (chsst-tsavg) > -6.0_r_kind) then
                     chsst = tsavg
                 endif
-             elseif ( isflg == ione ) then
+                chsst_all=chsst_all + chsst*sfcpct(0)
+             endif ! water
+             if ( sfcpct(1) > zero ) then
 ! cloud checks over land
                 chsst = allchan(123_i_kind+ioffset)
                 ch8ch18 = abs(allchan(125_i_kind+ioffset) - allchan(263_i_kind+ioffset) - .39_r_kind)
@@ -584,7 +599,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
                     ch18ch19 < .55_r_kind .and. (chsst-tsavg) > -10.0_r_kind) then
                     chsst = tsavg
                 endif
-             elseif ( isflg == 2_i_kind .or. isflg == 3_i_kind ) then
+                chsst_all=chsst_all+ sfcpct(1)*chsst
+             endif  ! bare land
+             if ( sfcpct(2) > zero .or. sfcpct(3) > zero ) then
 
 ! cloud checks over snow and ice
 ! 801 cm-1 minus 1103 cm-1 test:
@@ -618,10 +635,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
                       chsst = tsavg
                    endif
                 endif
-             else
-                chsst = allchan(ichsst)
-             endif
-             chsstf = tsavg-chsst
+                chsst_all = chsst_all + (sfcpct(2)+sfcpct(3))*chsst
+             endif  ! snow or sea ice
+             chsstf = tsavg-chsst_all
              chsstf = max(zero,chsstf)
              pred = 15._r_kind*chsstf
 

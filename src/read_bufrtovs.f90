@@ -163,7 +163,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
 
-  real(r_kind) pred
+  real(r_kind) pred, pred_water, pred_not_water
   real(r_kind) rsat,dlat,panglr,dlon,rato,sstime,tdiff,t4dv
   real(r_kind) dlon_earth_deg,dlat_earth_deg,sat_aziang
   real(r_kind) dlon_earth,dlat_earth,r01
@@ -254,11 +254,15 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      start  = -49.5_r_kind
      nchanl=19_i_kind
 !   Set rlndsea for types we would prefer selecting
-     rlndsea(0) = zero
-     rlndsea(1) = 15._r_kind
-     rlndsea(2) = 10._r_kind
-     rlndsea(3) = 15._r_kind
-     rlndsea(4) = 30._r_kind
+     if (isfcalc==ione)then
+        rlndsea = zero
+     else
+        rlndsea(0) = zero
+        rlndsea(1) = 15._r_kind
+        rlndsea(2) = 10._r_kind
+        rlndsea(3) = 15._r_kind
+        rlndsea(4) = 30._r_kind
+     endif
      if (isfcalc == ione) then
         expansion=one  ! use one for ir sensors
         ichan=-999_i_kind  ! not used for hirs
@@ -297,11 +301,15 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         expansion=2.9_r_kind
      endif
 !   Set rlndsea for types we would prefer selecting
-     rlndsea(0) = zero
-     rlndsea(1) = 20._r_kind
-     rlndsea(2) = 15._r_kind
-     rlndsea(3) = 20._r_kind
-     rlndsea(4) = 100._r_kind
+     if (isfcalc==ione) then
+        rlndsea = zero
+     else
+        rlndsea(0) = zero
+        rlndsea(1) = 20._r_kind
+        rlndsea(2) = 15._r_kind
+        rlndsea(3) = 20._r_kind
+        rlndsea(4) = 100._r_kind
+     endif
   else if ( amsua ) then
      step   = three + one/three
      start = -48._r_kind - one/three
@@ -313,11 +321,15 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         expansion=2.9_r_kind ! use almost three for microwave sensors.
      endif
 !   Set rlndsea for types we would prefer selecting
-     rlndsea(0) = zero
-     rlndsea(1) = 15._r_kind
-     rlndsea(2) = 10._r_kind
-     rlndsea(3) = 15._r_kind
-     rlndsea(4) = 100._r_kind
+     if (isfcalc==ione) then
+        rlndsea = zero
+     else
+        rlndsea(0) = zero
+        rlndsea(1) = 15._r_kind
+        rlndsea(2) = 10._r_kind
+        rlndsea(3) = 15._r_kind
+        rlndsea(4) = 100._r_kind
+     endif
   else if ( amsub )  then
      step   = 1.1_r_kind
      start  = -48.95_r_kind
@@ -333,6 +345,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(2) = 20._r_kind
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 100._r_kind
+     if (isfcalc==ione) then
+        rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
+     endif
   else if ( mhs )  then
      step   = 10.0_r_kind/9.0_r_kind
      start  = -445.0_r_kind/9.0_r_kind
@@ -348,6 +363,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(2) = 20._r_kind
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 100._r_kind
+     if (isfcalc==ione) then
+        rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
+     endif
   else if ( ssu ) then
      step  =  10.00_r_kind
      start = -35.00_r_kind
@@ -358,11 +376,15 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         expansion=one
      endif
 !   Set rlndsea for types we would prefer selecting
-     rlndsea(0) = zero
-     rlndsea(1) = 15._r_kind
-     rlndsea(2) = 10._r_kind
-     rlndsea(3) = 15._r_kind
-     rlndsea(4) = 30._r_kind
+     if (isfcalc==ione) then
+        rlndsea = zero
+     else
+        rlndsea(0) = zero
+        rlndsea(1) = 15._r_kind
+        rlndsea(2) = 10._r_kind
+        rlndsea(3) = 15._r_kind
+        rlndsea(4) = 30._r_kind
+     endif
   end if
 
 ! Initialize variables for use by FOV-based surface code.
@@ -685,18 +707,18 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                     r01*predx(1,ichan1)*air_rad(ichan1)
               ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
                     r01*predx(1,ichan2)*air_rad(ichan2)
-              if(isflg == izero)then
+              pred_water = zero
+              if(sfcpct(0) > zero)then
                  cosza = cos(lza)
-!                 pred = (ch1-ch2)/cosza+30.0_r_kind
                  if(ch2 < h300)then 
-                    pred = (0.13_r_kind*(ch1+33.58_r_kind*log(h300-ch2)- &
+                    pred_water = (0.13_r_kind*(ch1+33.58_r_kind*log(h300-ch2)- &
                          341.17_r_kind))*five
                  else
-                    pred = 100._r_kind
+                    pred_water = 100._r_kind
                  end if
-              else
-                 pred = 42.72_r_kind + 0.85_r_kind*ch1-ch2
               end if
+              pred_not_water = 42.72_r_kind + 0.85_r_kind*ch1-ch2
+              pred = (sfcpct(0)*pred_water) + ((one-sfcpct(0))*pred_not_water)
               pred = max(zero,pred)
            endif
            

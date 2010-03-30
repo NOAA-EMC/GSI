@@ -88,6 +88,7 @@
 !   2008-05-21  safford - rm unused vars and uses
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-12-07  b.yan   - changed qc for channel 5 (relaxed)
+!   2010-03-01  gayno - allow assimilation of "mixed" amsua fovs
 !   input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
 !     mype    - mpi task id
@@ -1465,7 +1466,7 @@
          
         tpwc=factch4
 
-        if(factch6 >= one .or. mixed)then
+        if(factch6 >= one)then
            efactmc=zero
            vfactmc=zero
            errf(6)=zero

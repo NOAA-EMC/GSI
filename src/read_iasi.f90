@@ -215,11 +215,15 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   step_adjust = 0.625_r_kind
   senname = 'IASI'
   nchanlr = nchanl
-  rlndsea(0) = zero                       
-  rlndsea(1) = 10._r_kind
-  rlndsea(2) = 15._r_kind
-  rlndsea(3) = 10._r_kind
-  rlndsea(4) = 30._r_kind
+  if (isfcalc==ione)then
+     rlndsea = zero
+  else
+     rlndsea(0) = zero                       
+     rlndsea(1) = 10._r_kind
+     rlndsea(2) = 15._r_kind
+     rlndsea(3) = 10._r_kind
+     rlndsea(4) = 30._r_kind
+  endif
   
   allspotlist= &
    'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
