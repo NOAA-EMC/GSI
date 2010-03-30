@@ -46,6 +46,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2009-04-21  derber  - add ithin to call to makegrids
 !   2009-12-28  gayno - add option to calculate surface characteristics using
 !                       method that accounts for the size/shape of the fov.
+!   2010-02-25  collard - changes to call to crtm_init for CRTM v2.0
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -231,12 +232,14 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   sensorlist(1)=sis
   if( crtm_coeffs_path /= "" ) then
      if(mype_sub==mype_root) write(6,*)'READ_IASI: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
-     error_status = crtm_init(channelinfo,SensorID=sensorlist,&
+     error_status = crtm_init(sensorlist,channelinfo,&
         Process_ID=mype_sub,Output_Process_ID=mype_root, &
+        Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE., &
         File_Path = crtm_coeffs_path )
   else
-     error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-        Process_ID=mype_sub,Output_Process_ID=mype_root)
+     error_status = crtm_init(sensorlist,channelinfo,&
+        Process_ID=mype_sub,Output_Process_ID=mype_root, &
+        Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE.)
   endif
   if (error_status /= success) then
      write(6,*)'READ_IASI:  ***ERROR*** crtm_init error_status=',error_status,&

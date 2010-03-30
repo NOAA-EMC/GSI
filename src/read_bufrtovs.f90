@@ -59,8 +59,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2009-04-17  todling - zero out azimuth angle when unavailable (otherwise can't use old files)
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
-!   2009-12-20  gayno - modify for updated version of FOV surface code which calculates
-!                       relative antenna power for some instruments.
+!   2009-12-20  gayno - modify for updated version of FOV surface code which 
+!                       calculates relative antenna power for some instruments.
+!   2010-02-25  collard - changes to call to crtm_init for CRTM v2.0
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -435,12 +436,14 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      sensorlist(1)=sis
      if( crtm_coeffs_path /= "" ) then
         if(mype_sub==mype_root) write(6,*)'READ_BUFRTOVS: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
-        error_status = crtm_init(channelinfo,SensorID=sensorlist,&
+        error_status = crtm_init(sensorlist,channelinfo,&
           Process_ID=mype_sub,Output_Process_ID=mype_root, &
+          Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE., &
           File_Path = crtm_coeffs_path )
      else
-        error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-          Process_ID=mype_sub,Output_Process_ID=mype_root)
+        error_status = crtm_init(sensorlist,channelinfo,&
+          Process_ID=mype_sub,Output_Process_ID=mype_root,&
+          Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE.)
      endif
      if (error_status /= success) then
         write(6,*)'READ_BUFRTOVS:  ***ERROR*** crtm_init error_status=',error_status,&

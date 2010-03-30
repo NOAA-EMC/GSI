@@ -89,7 +89,10 @@
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-12-07  b.yan   - changed qc for channel 5 (relaxed)
 !   2010-03-01  gayno - allow assimilation of "mixed" amsua fovs
-!   input argument list:
+!   2010-03-30  collard - changes for interface with CRTM v2.0. 
+!   2010-03-30  collard - Add CO2 interface (fixed value for now).
+!
+!  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
 !     mype    - mpi task id
 !     nchanl  - number of channels per obs
@@ -112,20 +115,19 @@
 !$$$
 
   use kinds, only: r_kind,r_single,i_kind
-  use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometryinfo_type, &
-      crtm_allocate_surface,o3_id,wet_soil,crtm_k_matrix,mass_mixing_ratio_units, &
-      crtm_allocate_atmosphere,grass_scrub,grass_soil, meadow_grass,urban_concrete, &
+  use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type, &
+      crtm_surface_create,o3_id,co2_id,wet_soil,crtm_k_matrix,mass_mixing_ratio_units, &
+      crtm_atmosphere_create,grass_scrub,grass_soil, meadow_grass,urban_concrete, &
       irrigated_low_vegetation,broadleaf_pine_forest,pine_forest,compacted_soil, &
       broadleaf_forest,broadleaf_brush,tundra,tilled_soil,scrub,scrub_soil,&
-      crtm_options_type,crtm_init,crtm_destroy,success,crtm_destroy_options, &
-      crtm_allocate_options
-  use crtm_rtsolution_define, only: crtm_rtsolution_type, crtm_allocate_rtsolution, &
-      crtm_destroy_rtsolution
+      crtm_options_type,crtm_init,crtm_destroy,success,crtm_options_destroy,&
+      crtm_options_create, crtm_options_associated
+  use crtm_rtsolution_define, only: crtm_rtsolution_type, crtm_rtsolution_create, &
+      crtm_rtsolution_destroy, crtm_rtsolution_associated
   use crtm_spccoeff, only: sc
-  use crtm_atmosphere_define, only:h2o_id,crtm_assign_atmosphere, & 
-      crtm_destroy_atmosphere,volume_mixing_ratio_units,crtm_zero_atmosphere  
-  use crtm_surface_define, only: crtm_assign_surface,crtm_destroy_surface, &
-      crtm_zero_surface
+  use crtm_atmosphere_define, only:h2o_id,crtm_atmosphere_associated, & 
+      crtm_atmosphere_destroy,volume_mixing_ratio_units,crtm_atmosphere_zero
+  use crtm_surface_define, only: crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero
   use crtm_channelinfo_define, only: crtm_channelinfo_type
   use crtm_parameters, only: limit_exp,toa_pressure,max_n_layers
   use message_handler, only: success
@@ -163,7 +165,7 @@
   integer(i_kind),parameter:: ireal=26_i_kind
 
 ! CRTM structure variable declarations.
-  integer(i_kind),parameter::  n_absorbers = 2_i_kind
+  integer(i_kind),parameter::  n_absorbers = 3_i_kind
   integer(i_kind),parameter::  n_clouds = izero
   integer(i_kind),parameter::  n_aerosols = izero
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
@@ -225,14 +227,12 @@
   real(r_kind),parameter:: qsmall  = 1.e-6_r_kind
   real(r_kind),parameter:: ozsmall = 1.e-10_r_kind
   real(r_kind),parameter:: small_wind = 1.e-3_r_kind
-  real(r_kind),parameter:: distance_ratio = 0.888424_r_kind ! default value for 
-                                           ! (earth_radius/(earth_radius+satellite_height)
 
 ! Declare local variables
   character(128) diag_rad_file
 
   integer(i_kind) iextra,jextra,error_status,itype,istat
-  integer(i_kind) err1,err2,err3,err4,err5,ich9
+  integer(i_kind) err1,err2,err3,err4,ich9
   integer(i_kind) isatid,itime,ilon,ilat,ilzen_ang,iscan_ang,ilazi_ang
   integer(i_kind) iszen_ang,ifrac_sea,ifrac_lnd,ifrac_ice
   integer(i_kind) ifrac_sno,ilone,ilate
@@ -328,7 +328,7 @@
 
   type(crtm_atmosphere_type),dimension(1)   :: atmosphere
   type(crtm_surface_type),dimension(1)      :: surface
-  type(crtm_geometryinfo_type),dimension(1) :: geometryinfo
+  type(crtm_geometry_type),dimension(1) :: geometryinfo
   type(crtm_options_type),dimension(1)      :: options
 
   type(crtm_atmosphere_type),allocatable,dimension(:,:):: atmosphere_k
@@ -487,12 +487,14 @@
   sensorlist(1)=isis
   if( crtm_coeffs_path /= "" ) then
      if(mype==mype_diaghdr(is)) write(6,*)'SETUPRAD: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
-     error_status = crtm_init(channelinfo,SensorID=sensorlist,&
+     error_status = crtm_init(sensorlist,channelinfo,&
         Process_ID=mype,Output_Process_ID=mype_diaghdr(is), &
+        Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE., &
         File_Path = crtm_coeffs_path )
   else
-     error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-        Process_ID=mype,Output_Process_ID=mype_diaghdr(is))
+     error_status = crtm_init(sensorlist,channelinfo,&
+        Process_ID=mype,Output_Process_ID=mype_diaghdr(is), &
+        Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE.)
   endif
   if (error_status /= success) then
      write(6,*)'SETUPRAD:  ***ERROR*** crtm_init error_status=',error_status,&
@@ -502,10 +504,15 @@
 
   sensorindex = izero
 ! determine specific sensor
-  if (channelinfo(1)%sensor_id == isis ) sensorindex = ione
+! Added a fudge in here to prevent multiple script changes following change of AIRS naming
+! convention in CRTM.    A. Collard.   3/23/10
+  if (channelinfo(1)%sensor_id == isis .OR. &
+       (channelinfo(1)%sensor_id == 'airs281_aqua' .AND. &
+       isis == 'airs281SUBSET_aqua')) sensorindex = ione
   if (sensorindex == izero ) then
      write(6,*)'SETUPRAD:  ***WARNING*** problem with sensorindex=',isis,&
-          ' --> CAN NOT PROCESS isis=',isis,'   TERMINATE PROGRAM EXECUTION'
+          ' --> CAN NOT PROCESS isis=',isis,'   TERMINATE PROGRAM EXECUTION found ',&
+         channelinfo(1)%sensor_id
      call stop2(71)
   endif
 
@@ -559,30 +566,36 @@
        atmosphere_k(channelinfo(sensorindex)%n_channels,1),&
        surface_k   (channelinfo(sensorindex)%n_channels,1))
 
-  err1=izero; err2=izero; err3=izero; err4=izero; err5=izero
-  if(msig > max_n_layers)then
+   if(msig > max_n_layers)then
      write(6,*) 'SETUPRAD:  msig > max_n_layers - increase crtm max_n_layers ',&
           msig,max_n_layers
      call stop2(36)
   end if
-  err1 = crtm_allocate_atmosphere(msig,n_absorbers,n_clouds,n_aerosols,atmosphere(1))
-  err2 = crtm_allocate_surface(channelinfo(sensorindex)%n_channels,surface(1))
-  err3 = crtm_allocate_rtsolution(msig,rtsolution)
-  err4 = crtm_allocate_rtsolution(msig,rtsolution_k)
-  err5 = crtm_allocate_options(nchanl,options)
-  if (err1/=success) write(6,*)' ***ERROR** allocating atmosphere.    err=',err1
-  if (err2/=success) write(6,*)' ***ERROR** allocating surface.       err=',err2
-  if (err3/=success) write(6,*)' ***ERROR** allocating rtsolution.    err=',err3
-  if (err4/=success) write(6,*)' ***ERROR** allocating rtsolution_k.  err=',err4
-  if (err5/=success) write(6,*)' ***ERROR** allocating options.       err=',err5
+  CALL crtm_atmosphere_create(atmosphere(1),msig,n_absorbers,n_clouds,n_aerosols)
+  CALL crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
+  CALL crtm_rtsolution_create(rtsolution,msig)
+  CALL crtm_rtsolution_create(rtsolution_k,msig)
+  CALL crtm_options_create(options,nchanl)
+  if (.NOT.(crtm_atmosphere_associated(atmosphere(1)))) &
+       write(6,*)' ***ERROR** creating atmosphere.'
+  if (.NOT.(crtm_surface_associated(surface(1)))) &
+       write(6,*)' ***ERROR** creating surface.'
+  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution)))) &
+       write(6,*)' ***ERROR** creating rtsolution.'
+  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution_k)))) &
+       write(6,*)' ***ERROR** creating rtsolution_k.'
+  if (.NOT.(ANY(crtm_options_associated(options)))) &
+       write(6,*)' ***ERROR** creating options.'
 
 
   atmosphere(1)%n_layers = msig
 !  atmosphere%level_temperature_input = izero
   atmosphere(1)%absorber_id(1) = H2O_ID
   atmosphere(1)%absorber_id(2) = O3_ID
+  atmosphere(1)%absorber_id(3) = CO2_ID
   atmosphere(1)%absorber_units(1) = MASS_MIXING_RATIO_UNITS
   atmosphere(1)%absorber_units(2) = VOLUME_MIXING_RATIO_UNITS
+  atmosphere(1)%absorber_units(3) = VOLUME_MIXING_RATIO_UNITS
   atmosphere(1)%level_pressure(0) = TOA_PRESSURE
 
   if(nchanl /= channelinfo(sensorindex)%n_channels) write(6,*)'***ERROR** nchanl,n_channels ', &
@@ -593,22 +606,22 @@
 !! REL-1.2 CRTM
 !!  surface(1)%sensordata%select_wmo_sensor_id  = channelinfo(1)%wmo_sensor_id
 !! RB-1.1.rev1855 CRTM
-  surface(1)%sensordata%sensor_id  = channelinfo(sensorindex)%wmo_sensor_id
 
+  surface(1)%sensordata%sensor_id             = &
+       channelinfo(sensorindex)%sensor_id
+  surface(1)%sensordata%WMO_sensor_id         = &
+       channelinfo(sensorindex)%WMO_sensor_id
+  surface(1)%sensordata%WMO_Satellite_id      = &
+       channelinfo(sensorindex)%WMO_Satellite_id
+  surface(1)%sensordata%sensor_channel        = &
+       channelinfo(sensorindex)%sensor_channel
 
   do i=1,nchanl
 
-     error_status = crtm_assign_atmosphere(atmosphere(1),atmosphere_k(i,1))
-     if (error_status /= success) &
-        write(6,*)'  ***ERROR*** crtm_assign_atmosphere ',&
-        error_status
-     error_status = crtm_assign_surface(surface(1),surface_k(i,1))
-     if (error_status /= success) &
-        write(6,*)'  ***ERROR*** crtm_assign_surface ',&
-        error_status
+     atmosphere_k(i,1) = atmosphere(1)
+     surface_k(i,1)   = surface(1)
 
   end do
-
 
 ! Special setup for SST retrieval
   if (retrieval) call setup_sst_retrieval(obstype,dplat(is),mype)
@@ -737,21 +750,25 @@
      pangs  = data_s(iszen_ang,n)
 
 !    Turn off antenna correction
-     options(1)%antenna_correction = izero
+     options(1)% use_antenna_correction = .false.
 
 !    Load geometry structure
      geometryinfo(1)%sensor_zenith_angle = zasat*rad2deg  ! local zenith angle
      geometryinfo(1)%source_zenith_angle = pangs          ! solar zenith angle
+     geometryinfo(1)%sensor_azimuth_angle = data_s(ilazi_ang,n) ! local zenith angle
+     geometryinfo(1)%source_azimuth_angle = data_s(isazi_ang,n) ! solar zenith angle
      geometryinfo(1)%sensor_scan_angle   = panglr*rad2deg ! scan angle
      geometryinfo(1)%ifov                = nadir          ! field of view position
-     if(abs(geometryinfo(1)%sensor_zenith_angle) > half) then
-        geometryinfo(1)%distance_ratio = &
-             abs( sin(geometryinfo(1)%sensor_scan_angle*deg2rad)/ &
-             sin(geometryinfo(1)%sensor_zenith_angle*deg2rad) )
-     else
-        geometryinfo(1)%distance_ratio = distance_ratio
-     endif
 
+!    For some microwave instruments the solar and sensor azimuth angles can be 
+!    missing  (given a value of 10^11).  Set these to zero to get past CRTM QC.
+     if (geometryinfo(1)%source_azimuth_angle > 360.0_r_kind .OR. &
+         geometryinfo(1)%source_azimuth_angle < zero ) &
+         geometryinfo(1)%source_azimuth_angle = zero 
+     if (geometryinfo(1)%sensor_azimuth_angle > 360.0_r_kind .OR. &
+         geometryinfo(1)%sensor_azimuth_angle < zero ) &
+         geometryinfo(1)%sensor_azimuth_angle = zero 
+          
 !    Special block for SSU cell pressure leakage correction.   Need to compute
 !    observation time and load into Time component of geometryinfo structure.  
 !    geometryinfo%time is only defined in CFSRR CRTM.
@@ -892,11 +909,15 @@
      end if
 
      surface(1)%wind_speed            = f10*sqrt(uwind*uwind+vwind*vwind)
-     surface(1)%wind_direction        = rad2deg*atan2(-uwind,-vwind)
-     surface(1)%water_coverage        = sfcpct(1)
-     surface(1)%land_coverage         = sfcpct(2)
-     surface(1)%ice_coverage          = sfcpct(3)
-     surface(1)%snow_coverage         = sfcpct(4)
+     surface(1)%wind_direction       = rad2deg*atan2(-uwind,-vwind)
+     if ( surface(1)%wind_direction < ZERO ) surface(1)%wind_direction = &
+          surface(1)%wind_direction + 180._r_kind
+! CRTM will reject surface coverages if greater than one and it is possible for 
+! these values to be larger due to round off.
+     surface(1)%water_coverage        = min(max(ZERO,sfcpct(1)), ONE)
+     surface(1)%land_coverage         = min(max(ZERO,sfcpct(2)), ONE)
+     surface(1)%ice_coverage          = min(max(ZERO,sfcpct(3)), ONE)
+     surface(1)%snow_coverage         = min(max(ZERO,sfcpct(4)), ONE)     
      surface(1)%water_temperature     = max(data_s(its_sea,n)+dtskin(0),270._r_kind)
      surface(1)%land_temperature      = data_s(its_lnd,n)+dtskin(1)
      surface(1)%ice_temperature       = min(data_s(its_ice,n)+dtskin(2),280._r_kind)
@@ -945,7 +966,15 @@
         atmosphere(1)%temperature(k)    = tvp(kk2)
         atmosphere(1)%absorber(k,1)     = r1000*qvp(kk2)*c3(kk2)
         atmosphere(1)%absorber(k,2)     = max(ozsmall,poz(kk2)*constoz)
-     end do
+! CO2 amount fixed here!
+        atmosphere(1)%absorber(k,3)     = 390._r_kind
+! Add in a drop-off to absorber amount in the stratosphere to be in more 
+! agreement with ECMWF profiles.  This should be replaced when climatological fields
+! are introduced.
+        if (atmosphere(1)%level_pressure(k) < 200.0_r_kind) &
+           atmosphere(1)%absorber(k,3) = atmosphere(1)%absorber(k,3) * &
+           (0.977 + 0.000115_r_kind * atmosphere(1)%pressure(k))
+      end do
 
 !    Set up to return Tb jacobians.  Zero atmosphere
 !    and surface jacobian structures
@@ -953,8 +982,8 @@
         rtsolution_k(i,1)%radiance = zero
         rtsolution_k(i,1)%brightness_temperature = one
      end do
-     call crtm_zero_atmosphere(atmosphere_k(:,:))
-     call crtm_zero_surface(surface_k(:,:))
+     call crtm_atmosphere_zero(atmosphere_k(:,:))
+     call crtm_surface_zero(surface_k(:,:))
 
 
 !    Call CRTM K Matrix model
@@ -962,9 +991,16 @@
          geometryinfo,channelinfo(sensorindex:sensorindex),atmosphere_k,&
          surface_k,rtsolution,options=options)
 
-     if (error_status /=izero) &
+! If the CRTM returns an error flag, do not assimilate any channels for this ob 
+! and set the QC flag to 10.
+! We currently go through the rest of the QC steps, ensuring that the diagnostic
+! files are populated, but this could be changed if it causes problems.  
+     if (error_status /=izero) then
          write(6,*)'RAD_TRAN_K:  ***ERROR*** during crtm_k_matrix call ',&
          error_status
+         id_qc(1:nchanl) = 10_i_kind
+         varinv(1:nchanl) = zero
+     endif
 
 !    Compute transmittance from layer optical depths
      do i=1,nchanl
@@ -1139,7 +1175,7 @@
 !  ---------- IR -------------------
 !    QC HIRS/2, GOES, HIRS/3 and AIRS sounder data
 !
-     if (hirs .or. goessndr .or. airs .or. iasi) then
+     ObsQCs: if (hirs .or. goessndr .or. airs .or. iasi) then
 
 !     
 !       Reduce weight given to obs for shortwave ir if 
@@ -1911,7 +1947,7 @@
         end do
  
 !    End of SSU qc block
-     end if
+     end if ObsQCs
 
 !    Done with sensor qc blocks.  Now make final qc decisions.
 
@@ -2347,17 +2383,21 @@
   if (error_status /= success) &
   write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
 
-  err1=izero; err2=izero; err3=izero; err4=izero; err5=izero
-  err1 = crtm_destroy_atmosphere(atmosphere(1))
-  err2 = crtm_destroy_surface(surface(1))
-  err3 = crtm_destroy_rtsolution(rtsolution)
-  err4 = crtm_destroy_rtsolution(rtsolution_k)
-  err5 = crtm_destroy_options(options)
-  if (err1/=success) write(6,*)'***ERROR** destroy atmosphere.    err=',err1
-  if (err2/=success) write(6,*)'***ERROR** destroy surface.       err=',err2
-  if (err3/=success) write(6,*)'***ERROR** destroy rtsolution.    err=',err3
-  if (err4/=success) write(6,*)'***ERROR** destroy rtsolution_k.  err=',err4
-  if (err5/=success) write(6,*)'***ERROR** destroy options.       err=',err5
+  CALL crtm_atmosphere_destroy(atmosphere(1))
+  CALL crtm_surface_destroy(surface(1))
+  CALL crtm_rtsolution_destroy(rtsolution)
+  CALL crtm_rtsolution_destroy(rtsolution_k)
+  CALL crtm_options_destroy(options)
+  if (crtm_atmosphere_associated(atmosphere(1))) &
+       write(6,*)' ***ERROR** destroying atmosphere.'
+  if (crtm_surface_associated(surface(1))) &
+       write(6,*)' ***ERROR** destroying surface.'
+  if (ANY(crtm_rtsolution_associated(rtsolution))) &
+       write(6,*)' ***ERROR** destroying rtsolution.'
+  if (ANY(crtm_rtsolution_associated(rtsolution_k))) &
+       write(6,*)' ***ERROR** destroying rtsolution_k.'
+  if (ANY(crtm_options_associated(options))) &
+       write(6,*)' ***ERROR** destroying options.'
   deallocate(rtsolution,rtsolution_k,atmosphere_k,surface_k)
 
 

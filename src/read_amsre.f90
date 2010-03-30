@@ -46,6 +46,9 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !   2009-12-20  gayno - add option to calculate surface fields based on
 !                       the size/shape of field of view.
 !   2010-01-28  derber - move calculation of sun glint angle to setuprad
+!   2010-02-25  collard - move where nread is calculated to before thinning
+!                         step (more consistent with other obs).
+!   2010-03-22  collard - ensure solar azimuth is in the range 0-360 degrees.
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -398,8 +401,11 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
            call grdcrd(dlat,ione,rlats,nlat,ione)
            call grdcrd(dlon,ione,rlons,nlon,ione)
         endif
-     
 
+!    Sum number of read obs before thinning step.  Note that this number will contain
+!    some observations that may be rejected later due to bad BTs.
+        nread=nread+kchanl
+    
         crit1 = 0.01_r_kind+timedif 
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if (.not.iuse) cycle read_loop
@@ -467,8 +473,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
            kch=kchamsre(l)
            if(tbob_org(kch)<tbmin .or. tbob_org(kch)>tbmax)then
               kskip = kskip + ione
-           else
-              nread=nread+ione
            endif
         end do
         if(kskip == kchanl .or. iskip == nchanl) cycle read_loop
@@ -585,7 +589,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         itt=nint(data_all(nreal,n))
         super_val(itt)=super_val(itt)+val_amsre
 
-
      end do
 
 !    Write final set of "best" observations to output file
@@ -679,7 +682,7 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
 !$$$
 !
   use kinds, only: r_single,r_kind,i_kind
-  use constants, only: deg2rad,rad2deg,ione,one,r60inv
+  use constants, only: deg2rad,rad2deg,ione,one,r60inv,zero
 
   implicit none
 
@@ -842,6 +845,7 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
 
   sun_zenith=90_r_kind-acos(zz)*rad2deg
   sun_azimuth=atan2(xx,yy)*rad2deg
+  if (sun_azimuth < zero) sun_azimuth = sun_azimuth + 360.0_r_kind
 
   return
 end subroutine zensun
