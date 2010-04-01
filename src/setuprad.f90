@@ -1882,6 +1882,7 @@
              zsges,luse(n),sea,ice,snow,mixed, &
              ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl, &
              tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
+             ssmis_uas,ssmis_las,ssmis_env,ssmis_img, &
              varinv,errf,aivals(1,is),id_qc)
 
 !  ---------- SSU  -------------------

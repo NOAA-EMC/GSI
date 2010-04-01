@@ -2,6 +2,7 @@ subroutine qcssmi(nchanl,   &
      sfchgt,luse,sea,ice,snow,mixed, &
      ts,pems,ierrret,kraintype,tpwc,clw,sgagl,    &
      tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
+     ssmis_uas,ssmis_las,ssmis_env,ssmis_img, &
      varinv,errf,aivals,id_qc )
 
 !$$$ subprogram documentation block
@@ -46,6 +47,10 @@ subroutine qcssmi(nchanl,   &
 !     tb_obs  - obs TBB
 !     ssmi    - logical true if ssmi is processed 
 !     ssmis    - logical true if ssmis is processed 
+!     ssmis_uas   - logical true if ssmis_uas is processed 
+!     ssmis_las   - logical true if ssmis_las is processed 
+!     ssmis_env   - logical true if ssmis_env is processed 
+!     ssmis_img   - logical true if ssmis_img is processed 
 !     amsre_low   - logical true if amsre_low is processed 
 !     amsre_mid   - logical true if amsre_mid is processed 
 !     amsre_hig   - logical true if amsre_hig is processed 
@@ -92,6 +97,7 @@ subroutine qcssmi(nchanl,   &
 
   logical                          ,intent(in   ) :: sea,snow,ice,mixed,luse
   logical                          ,intent(in   ) :: ssmi,amsre_low,amsre_mid,amsre_hig,ssmis
+  logical                          ,intent(in   ) :: ssmis_uas,ssmis_las,ssmis_env,ssmis_img
 
   real(r_kind)                     ,intent(in   ) :: sfchgt,tpwc,clw,sgagl
   real(r_kind)   ,dimension(nchanl),intent(in   ) :: ts,pems
@@ -141,6 +147,22 @@ subroutine qcssmi(nchanl,   &
                10.0_r_kind,10.0_r_kind, &
                10.0_r_kind,10.0_r_kind, &
                10.0_r_kind,10.0_r_kind  /)
+     if(ssmis_img) then
+         varinv(1:7)=zero
+         varinv(12:16)=zero
+         varinv(19:24)=zero
+     end if
+     if(ssmis_env) then
+         varinv(1:11)=zero
+         varinv(17:24)=zero
+     end if
+     if(ssmis_las) then
+         varinv(8:23)=zero
+     endif
+     if(ssmis_uas) then
+         varinv(1:18)=zero
+         varinv(24)=zero
+     end if
   end if
   dtempf = half
   demisf_mi(1:nchanl) = 0.01_r_kind
