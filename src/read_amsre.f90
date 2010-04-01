@@ -171,7 +171,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   real(r_kind),parameter :: R360     = 360._r_kind
   real(r_kind),parameter :: tbmin    = 70._r_kind
   real(r_kind),parameter :: tbmax    = 330._r_kind       !tbmax is larger than same as ssmiqc
-  real(r_kind),parameter :: tbbad    = -9.99e11_r_kind                                        
+! real(r_kind),parameter :: tbbad    = -9.99e11_r_kind                                        
   real(r_kind) disterrmax
   real(r_kind),dimension(N_AMSRCH) :: tbob_org
   real(r_kind) :: clath, clonh, fovn, saza, soza
@@ -464,7 +464,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         iskip = izero
         do l=1,nchanl
            if(tbob_org(l)<tbmin .or. tbob_org(l)>tbmax)then
-              tbob_org(l) = tbbad
+!             tbob_org(l) = tbbad
               iskip = iskip + ione
            end if
         end do

@@ -107,7 +107,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=70.0_r_kind
   real(r_kind),parameter:: tbmax=320.0_r_kind
-  real(r_kind),parameter:: tbbad=-9.99e11_r_kind
+! real(r_kind),parameter:: tbbad=-9.99e11_r_kind
 
 ! Declare local variables
   logical :: ssmis_las,ssmis_uas,ssmis_img,ssmis_env
@@ -389,13 +389,16 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       If any temperature exceeds limits, reset observation 
 !       to "bad" value
         iskip=izero
-        tbob(:) = tbbad
+        do jc=1,maxchanl
+          tbob(jc)=bufrtbb(2,jc)
+        end do
         do jc=1,kchanl
            jch=kchssmis(jc)  !ch index specified in this code
            bch=int( bufrtbb(1,jch)+MILLI ) !ch index from bufr
            tbob(jch) = bufrtbb(2,jch)
-           if(tbob(jch)<tbmin .or. tbob(jch)>tbmax .or. bch/=jch) then
-              tbob(jch) = tbbad 
+           if(bch/=jch) cycle read_loop
+           if(tbob(jch)<tbmin .or. tbob(jch)>tbmax ) then
+!             tbob(jch) = tbbad 
               iskip = iskip + ione
            else
               nread=nread+ione
