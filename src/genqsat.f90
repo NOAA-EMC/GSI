@@ -1,4 +1,4 @@
-subroutine genqsat(qsat,ice,itime,dlnesdtv,dmax)
+subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    genqsat
@@ -21,15 +21,21 @@ subroutine genqsat(qsat,ice,itime,dlnesdtv,dmax)
 !   2006-09-18  derber - modify to limit saturated values near top
 !   2006-11-22  derber - correct bug:  es<esmax should be es<=esmax
 !   2008-06-04  safford - rm unused vars
+!   2010-03-23  derber - simplify and optimize
+!   2010-03-24  derber - generalize so that can be used for any lat,lon,nsig and any tsen and prsl (for hybrid)
 !
 !   input argument list:
-!     ggrid_g31 - guess grids, contains temperature and log(ps)               
-!     qsat      - guess specific humidity
+!     tsen      - input sensibile temperature field (lat2,lon2,nsig)
+!     prsl      - input layer mean pressure field (lat2,lon2,nsig)
+!     lat2      - number of latitudes                              
+!     lon2      - number of longitudes                             
+!     nsig      - number of levels                              
 !     ice       - logical flag:  T=include ice and ice-water effects,
 !                 depending on t, in qsat calcuations.
 !                 otherwise, compute qsat with respect to water surface
-!     npes      - last dimension of guess array
-!     itime     - integer id for position of time in array
+!     iderivative - if > 0 update derivatives in jfunc
+!                 - if == 1 only update dqdrh
+!                 - if == 2 update dqdrh, dqdt and dqdp
 !
 !   output argument list:
 !     qsat      - saturation specific humidity (output)
@@ -43,27 +49,31 @@ subroutine genqsat(qsat,ice,itime,dlnesdtv,dmax)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: ione,xai,tmix,xb,omeps,eps,xbi,one,zero,&
-       xa,psat,ttp
-  use gridmod, only: nsig,lon2,lat2
-  use guess_grids, only: ges_tsen,ges_prsl
+       xa,psat,ttp,half,one_tenth
+  use jfunc, only:  qgues,dqdt,dqdrh,dqdp
+  use gridmod, only:  wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional,aeta2_ll,regional
+  use guess_grids, only: tropprs,ges_prslavg,ges_psfcavg
   implicit none
 
   logical                               ,intent(in   ) :: ice
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: qsat
-  real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: dlnesdtv,dmax
-  integer(i_kind)                       ,intent(in   ) :: itime
+  real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: qsat
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: tsen,prsl
+  integer(i_kind)                       ,intent(in   ) :: lat2,lon2,nsig,iderivative
 
-  integer(i_kind) k,j,i
-  real(r_kind) pw,tdry,tr,es
+
+  integer(i_kind) k,j,i,kpres,k150
+  real(r_kind) pw,tdry,tr,es,es2
   real(r_kind) w,onep3,esmax
   real(r_kind) desidt,deswdt,dwdt,desdt,esi,esw
   real(r_kind),dimension(lat2,lon2):: mint,estmax
-  real(r_kind),dimension(nsig)::maxrh
   integer(i_kind),dimension(lat2,lon2):: lmint
+  logical:: idtupdate,idpupdate
+
+! Declare local parameters
+  real(r_kind),parameter:: r015 = 0.15_r_kind
 
   onep3 = 1.e3_r_kind
 
-  maxrh = zero
   lmint=ione
   do j=1,lon2
      do i=1,lat2
@@ -73,11 +83,11 @@ subroutine genqsat(qsat,ice,itime,dlnesdtv,dmax)
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
-           if((ges_prsl(i,j,k,itime) < 30._r_kind .and.  &
-               ges_prsl(i,j,k,itime) > 2._r_kind) .and.  &
-               ges_tsen(i,j,k,itime) < mint(i,j))then
+           if((prsl(i,j,k) < 30._r_kind .and.  &
+               prsl(i,j,k) > 2._r_kind) .and.  &
+               tsen(i,j,k) < mint(i,j))then
               lmint(i,j)=k
-              mint(i,j)=ges_tsen(i,j,k,itime)
+              mint(i,j)=tsen(i,j,k)
            end if
         end do
      end do
@@ -97,93 +107,118 @@ subroutine genqsat(qsat,ice,itime,dlnesdtv,dmax)
         endif
      end do
   end do
-  if (ice) then
-     do k = 1,nsig
-        do j = 1,lon2
-           do i = 1,lat2
- 
-              pw = onep3*ges_prsl(i,j,k,itime)
-              
-              tdry = ges_tsen(i,j,k,itime)
-              tr = ttp/tdry
-              if (tdry >= ttp) then
-                 es = psat * (tr**xa) * exp(xb*(one-tr))
-              elseif (tdry < tmix) then
-                 es = psat * (tr**xai) * exp(xbi*(one-tr))
-              else
-                 w  = (tdry - tmix) / (ttp - tmix)
-                 es =  w * psat * (tr**xa) * exp(xb*(one-tr)) &
-                       + (one-w) * psat * (tr**xai) * exp(xbi*(one-tr))
-              endif
-
-              esmax = es
-              if(lmint(i,j) < k)then
-                 esmax=0.1_r_kind*pw
-                 esmax=min(esmax,estmax(i,j))
-              end if
- 
-              if(es <= esmax)then
- 
-                 if (tdry >= ttp) then
-                    desdt = es * (-xa/tdry + xb*ttp/(tdry*tdry))
-                 elseif (tdry < tmix) then
-                    desdt = es * (-xai/tdry + xbi*ttp/(tdry*tdry))
-                 else
-                    esw = (psat * (tr**xa) * exp(xb*(one-tr))) 
-                    esi = (psat * (tr**xai) * exp(xbi*(one-tr))) 
-                    w  = (tdry - tmix) / (ttp - tmix)
-
-                    dwdt = one/(ttp-tmix)
-                    deswdt = esw * (-xa/tdry + xb*ttp/(tdry*tdry))
-                    desidt = esi * (-xai/tdry + xbi*ttp/(tdry*tdry))
-                    desdt = dwdt*esw + w*deswdt - dwdt*esi + (one-w)*desidt
-                 endif
-
-                 dlnesdtv(i,j,k) = desdt /es
-                 dmax(i,j,k) = one
-              else
-                 es = esmax
-                 dlnesdtv(i,j,k) = zero
-                 dmax(i,j,k) = zero
-              end if
-              qsat(i,j,k) = eps * es / (pw - omeps * es)
-
-           end do
+  if(iderivative > 0)then
+    if (regional) then
+        k150 = nsig
+        do k=1,nsig
+           if (ges_prslavg(k)<r015*ges_psfcavg) then
+              k150 = k
+              exit
+           endif
         end do
-     end do
+    end if
+    if (wrf_nmm_regional.or.nems_nmmb_regional) then
+        kpres = nsig
+        do k=1,nsig
+           if (aeta2_ll(k)==zero) then
+              kpres = k
+              exit
+           endif
+        end do
+    end if
+  end if
 
-! Compute saturation values with respect to water surface
-  else
-     do k = 1,nsig
-        do j = 1,lon2
-           do i = 1,lat2
-              
-              pw = onep3*ges_prsl(i,j,k,itime) 
+  do k = 1,nsig
+     do j = 1,lon2
+        do i = 1,lat2
 
-              tdry = ges_tsen(i,j,k,itime)
-              tr = ttp/tdry
+           tdry = tsen(i,j,k)
+           tr = ttp/tdry
+           if (tdry >= ttp .or. .not. ice) then
               es = psat * (tr**xa) * exp(xb*(one-tr))
-              esmax = es
-              if(lmint(i,j) < k)then
-                 esmax=0.1_r_kind*pw
-                 esmax=min(esmax,estmax(i,j))
-              end if
-              if(es <= esmax)then
-                 dlnesdtv(i,j,k) = (-xa/tdry + xb*ttp/(tdry*tdry))
-                 dmax(i,j,k) = one
+           elseif (tdry < tmix) then
+              es = psat * (tr**xai) * exp(xbi*(one-tr))
+           else
+              esw = psat * (tr**xa) * exp(xb*(one-tr)) 
+              esi = psat * (tr**xai) * exp(xbi*(one-tr)) 
+              w  = (tdry - tmix) / (ttp - tmix)
+!             es =  w * esw + (one-w) * esi
+              es =  w * psat * (tr**xa) * exp(xb*(one-tr)) &
+                       + (one-w) * psat * (tr**xai) * exp(xbi*(one-tr))
+
+           endif
+
+           pw = onep3*prsl(i,j,k)
+           esmax = es
+           if(lmint(i,j) < k)then
+              esmax=0.1_r_kind*pw
+              esmax=min(esmax,estmax(i,j))
+           end if
+           es2=min(es,esmax)
+           qsat(i,j,k) = eps * es2 / (pw - omeps * es2)
+
+           if(iderivative > 0)then
+            if(es <= esmax .and. iderivative == 2)then
+              idpupdate=.true.
+              idtupdate=.true.
+
+              if(regional)then
+
+!    Special block to decouple temperature and pressure from moisture
+!    above specified levels.  For mass core decouple T and p above
+!    same level (approximately 150 hPa).  For nmm core decouple T
+!    above ~150 hPa and p above level where aeta2_ll goes to zero
+
+                if(wrf_mass_regional .and. k >= k150)then
+!       For mass core, decouple T and p above 150 hPa
+                  idpupdate=.false.
+                  idtupdate=.false.
+                end if
+                if(wrf_nmm_regional .or. nems_nmmb_regional) then
+!       Decouple T and p at different levels for nmm core
+                  if(k >= kpres)idpupdate = .false.
+                  if(k >= k150 )idtupdate = .false.
+                end if
+             
               else
-                 dlnesdtv(i,j,k) = zero
-                 es = esmax
-                 dmax(i,j,k) = zero
+!                Decouple Q from T above the tropopause for global
+                if(prsl(i,j,k) < (one_tenth*tropprs(i,j)))then
+                   idpupdate=.false.  
+                   idtupdate=.false.
+                end if
               end if
-              qsat(i,j,k) = eps * es / (pw - omeps * es)
- 
-           end do
+
+              if(idtupdate)then
+                if (tdry >= ttp .or. .not. ice) then
+                   desdt = es * (-xa/tdry + xb*ttp/(tdry*tdry))
+                elseif (tdry < tmix) then
+                   desdt = es * (-xai/tdry + xbi*ttp/(tdry*tdry))
+                else
+                   dwdt = one/(ttp-tmix)
+                   deswdt = esw * (-xa/tdry + xb*ttp/(tdry*tdry))
+                   desidt = esi * (-xai/tdry + xbi*ttp/(tdry*tdry))
+                   desdt = dwdt*esw + w*deswdt - dwdt*esi + (one-w)*desidt
+                endif
+
+                dqdt(i,j,k)=(desdt/es)*qgues(i,j,k)
+              else
+                dqdt(i,j,k)=zero
+              end if
+              if(idpupdate)then
+                dqdp(i,j,k)=half*qgues(i,j,k)/prsl(i,j,k)
+              else
+                dqdp(i,j,k)=zero
+              end if
+            else
+              dqdt(i,j,k)=zero
+              dqdp(i,j,k)=zero
+            end if
+            dqdrh(i,j,k) = qsat(i,j,k)
+           end if
+
         end do
      end do
-     
-  endif   ! end if ice
-! write(6,*) (maxrh(k),k=1,nsig)
-  
+  end do
   return
 end subroutine genqsat
+

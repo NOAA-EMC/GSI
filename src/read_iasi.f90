@@ -534,13 +534,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
               call crtm_planck_temperature(sensorindex,i,radiance,temperature(i))
               if(temperature(i) < tbmin .or. temperature(i) > tbmax ) then
-                 temperature(i) = zero
+                 temperature(i) = min(tbmax,max(zero,temperature(i)))
                  if(iuse_rad(ioff+i) >= izero)iskip = iskip + ione
-                 write(6,*)'READ_IASI:  skipped',i,temperature(i),allchan(2,1),allchan(2,i-ione)
+!                write(6,*)'READ_IASI:  skipped',i,temperature(i),allchan(2,1),allchan(2,i-ione)
               endif
            else           ! error with channel number or radiance
 !             write(6,*)'READ_IASI:  iasi chan error',i,allchan(1,i), allchan(2,i)
-              temperature(i) = zero
+              temperature(i) = min(tbmax,max(zero,temperature(i)))
               if(iuse_rad(ioff+i) >= izero)iskip = iskip + ione
            endif
         end do

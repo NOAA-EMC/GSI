@@ -29,6 +29,7 @@ module jfunc
 !   2009-06-01  pondeca - add lgschmidt initalization. this variable controls the B-norm
 !                         re-orthogonalization of the gradx vectors in 2dvar mode
 !   2010-02-20  parrish - add change to get correct nval_len when using hybrid ensemble with dual resolution.
+!   2010-03-23  derber  - remove rhgues (not used)
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -113,7 +114,7 @@ module jfunc
   public :: set_pointer
 ! set passed variables to public
   public :: nrclen,npclen,nsclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
-  public :: switch_on_derivatives,qgues,qsatg,rhgues,jiterend,jiterstart,jiter,iter,niter,miter
+  public :: switch_on_derivatives,qgues,qsatg,jiterend,jiterstart,jiter,iter,niter,miter
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
   public :: factqmax,factqmin,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
@@ -132,7 +133,7 @@ module jfunc
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
   real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc
   integer(i_kind) bcoption
-  real(r_kind),allocatable,dimension(:,:,:):: qsatg,rhgues,qgues,dqdt,dqdrh,dqdp 
+  real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp 
   real(r_kind),allocatable,dimension(:,:):: varq
   type(control_vector),save :: xhatsave,yhatsave
   type(state_vector),save ::xhat_dt,dhat_dt
@@ -248,7 +249,7 @@ contains
     allocate(qsatg(lat2,lon2,nsig),&
          dqdt(lat2,lon2,nsig),dqdrh(lat2,lon2,nsig),&
          varq(ione:mlat,ione:nsig),dqdp(lat2,lon2,nsig),&
-         rhgues(lat2,lon2,nsig),qgues(lat2,lon2,nsig))
+         qgues(lat2,lon2,nsig))
 
     xhatsave=zero
     yhatsave=zero
@@ -267,7 +268,6 @@ contains
              dqdrh(i,j,k)=zero
              dqdp(i,j,k)=zero
              qgues(i,j,k)=zero
-             rhgues(i,j,k)=zero
           end do
        end do
     end do
@@ -301,7 +301,7 @@ contains
     call deallocate_cv(xhatsave)
     call deallocate_cv(yhatsave)
     deallocate(varq)
-    deallocate(dqdt,dqdrh,dqdp,qsatg,qgues,rhgues)
+    deallocate(dqdt,dqdrh,dqdp,qsatg,qgues)
 
     return
   end subroutine destroy_jfunc

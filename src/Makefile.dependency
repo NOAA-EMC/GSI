@@ -54,7 +54,7 @@ general_spectral_transforms.o : general_spectral_transforms.f90 guess_grids.o co
 general_sub2grid_mod.o : general_sub2grid_mod.f90 egrid2agrid_mod.o mpimod.o constants.o kinds.o 
 general_transform.o : general_transform.f90 general_specmod.o constants.o kinds.o 
 gengrid_vars.o : gengrid_vars.f90 constants.o specmod.o gridmod.o kinds.o 
-genqsat.o : genqsat.f90 guess_grids.o gridmod.o constants.o kinds.o 
+genqsat.o : genqsat.f90 guess_grids.o gridmod.o jfunc.o constants.o kinds.o 
 genstats_gps.o : genstats_gps.f90 convinfo.o gsi_4dvar.o jfunc.o mpimod.o qcmod.o constants.o gridmod.o obsmod.o kinds.o 
 geos_pertmod.o : geos_pertmod.F90 state_vectors.o constants.o gsi_io.o gridmod.o mpimod.o kinds.o 
 geos_pgcmtest.o : geos_pgcmtest.F90 state_vectors.o constants.o gsi_4dvar.o kinds.o 

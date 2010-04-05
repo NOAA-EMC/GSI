@@ -179,6 +179,21 @@ subroutine tpause(mype,method)
 ! End of tropopause location method blocks     
   endif
 
+!  *** NOTE ***
+!  The tropopause pressures are used to deflate the
+!  moisture sensitivity vectors for satellite radiance
+!  data and for IR quality control;
+!  here we are setting bounds on the tropopause
+!  pressure to make sure we are deflating at the very
+!  minimum above 150 mb, and nowhere below 350 mb
+
+   do j=1,lon2
+     do i=1,lat2
+        tropprs(i,j)=max(150.0_r_kind,min(350.0_r_kind,tropprs(i,j)))
+     end do
+  end do
+
+
 ! End of routine
   return
 end subroutine tpause

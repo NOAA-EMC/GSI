@@ -11,6 +11,7 @@ subroutine evalqlim(sq,pbc,rq)
 !   2008-12-8   todling - updated to GSI-May08
 !   2009-01-15  todling - carry summation in quadruple precision
 !   2009-08-14  lueken  - update documentation
+!   2010-03-23  derber - made consistent with stplimq and intlimq (but not checked)
 !
 !   input argument list:
 !    sq
@@ -29,7 +30,7 @@ subroutine evalqlim(sq,pbc,rq)
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: ione,zero,one,zero_quad
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
-  use jfunc, only: factqmin,factqmax,rhgues
+  use jfunc, only: factqmin,factqmax,qgues,qsatg
   use mpl_allreducemod, only: mpl_allreduce
   implicit none
 
@@ -42,42 +43,33 @@ subroutine evalqlim(sq,pbc,rq)
   integer(i_kind) i,j,k
   real(r_quad) :: zbc(2)
   real(r_kind) :: q,term
-  real(r_quad),dimension(nsig):: p1max,p1min
   
   if (factqmin==zero .and. factqmax==zero) return
   
+  zbc=zero_quad
 ! Loop over interior of subdomain          
 !$omp parallel do  schedule(dynamic,1) private(k,i,j,q)
   do k = 1,nsig
-     p1max(k)=zero_quad
-     p1min(k)=zero_quad
      do j = 2,lon1+ione
         do i = 2,lat1+ione
 !          Value for q
-           q = rhgues(i,j,k) + sq(i,j,k)
+           q = qgues(i,j,k) + sq(i,j,k)
 !          Compute penalty for neg q
            if (q<zero) then
-              term = factqmin*q
-              p1min(k) = p1min(k) + term
+              term = factqmin*q/(qsatg(i,j,k)*qsatg(i,j,k))
+              zbc(1) = zbc(1) + term*q
 !             Adjoint
               rq(i,j,k) = rq(i,j,k) + term
            endif
 !          Compute penalty for excess q
-           if (q>one) then
-              term=factqmax*(q-one)
-              p1max(k) = p1max(k) + term
+           if (q>qsatg(i,j,k)) then
+              term=factqmax*(q-qsatg(i,j,k))/(qsatg(i,j,k)*qsatg(i,j,k))
+              zbc(2) = zbc(2) + term*(q-qsatg(i,j,k))
 !             Adjoint
               rq(i,j,k) = rq(i,j,k) + term
            endif
         end do
      end do
-  end do
-
-! Sum cost
-  zbc=zero_quad
-  do k=1,nsig
-     zbc(1)=zbc(1)+p1min(k)
-     zbc(2)=zbc(2)+p1max(k)
   end do
 
 ! Reduce on all procs

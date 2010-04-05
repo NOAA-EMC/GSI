@@ -77,7 +77,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
        time_offset
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: oneobtest,maginnov,magoberr
-  use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps
+  use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps,ges_tsen,ges_prsl
   use gridmod, only: lat2,lon2,nsig,get_ijk
   use constants, only: izero,ione,zero,one,r1000
   use constants, only: huge_single,wgtlim
@@ -123,7 +123,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig):: qg
-  real(r_kind),dimension(lat2,lon2,nsig):: desdt,ddum 
   real(r_kind),dimension(nsig):: prsltmp
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
@@ -131,7 +130,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff
   integer(i_kind) ier,ilon,ilat,ipres,iqob,id,itime,ikx,iqmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,istat
-  integer(i_kind) idomsfc,iskint,isfcr,iff10
+  integer(i_kind) idomsfc,iskint,isfcr,iff10,iderivative
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -203,25 +202,14 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   huge_error = huge_r_kind/r1e16
   scale=one
 
-
-  do k=1,nsig
-     do jj=1,nfldsig
-        do j=1,lon2
-           do i=1,lat2
-              qg(i,j,k,jj) = ges_q(i,j,k,jj)
-              if (qg(i,j,k,jj)<zero) qg(i,j,k,jj)=zero
-           end do
-        end do
-     end do
-  end do
-
   ice=.false.   ! get larger (in rh) q obs error for mixed and ice phases
 
 ! new code
 ! ice=.true.  ! get same (in rh) q obs error for mixed and ice phases
 
+  iderivative=0
   do jj=1,nfldsig
-     call genqsat(qg(1,1,1,jj),ice,jj,desdt,ddum)
+     call genqsat(qg(1,1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,nsig,ice,iderivative)
   end do
 
 

@@ -108,7 +108,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=70.0_r_kind
   real(r_kind),parameter:: tbmax=320.0_r_kind
-  real(r_kind),parameter:: tbbad=-9.99e11_r_kind
   character(80),parameter:: hdr1b='SAID YEAR MNTH DAYS HOUR MINU SECO ORBN'   !use for ufbint()
   character(40),parameter:: str1='CLAT CLON SFTG POSN SAZA'   !use for ufbint()
   character(40),parameter:: str2='TMBR'                  !use for ufbrep()
@@ -317,7 +316,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
            do jc=1,nchanl
               ij = ij+ione
               if(mirad(ij)<tbmin .or. mirad(ij)>tbmax ) then
-                 mirad(ij) = tbbad
                  iskip = iskip + ione
                  if(jc == ione .or. jc == 3_i_kind .or. jc == 6_i_kind)iskip=iskip+nchanl
               else

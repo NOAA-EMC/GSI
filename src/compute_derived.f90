@@ -59,12 +59,12 @@ subroutine compute_derived(mype)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use jfunc, only: qsatg,qgues,rhgues,jiter,jiterstart,&
-       dqdt,dqdrh,dqdp,qoption,switch_on_derivatives,&
+  use jfunc, only: qsatg,qgues,jiter,jiterstart,&
+       dqdt,dqdp,qoption,switch_on_derivatives,&
        tendsflag,varq
   use mpimod, only: levs_id
   use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,&
-       ges_tv,ges_q,ges_oz,ges_cwmr,sfct,&
+       ges_tv,ges_q,ges_oz,ges_cwmr,ges_tsen,sfct,&
        tropprs,ges_prsl,ntguessig,&
        nfldsig,&
        ges_teta,fact_tv, &
@@ -72,8 +72,7 @@ subroutine compute_derived(mype)
        ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,ges_ozlat,ges_cwmr_lat
   use guess_grids, only: ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
        ges_oz_ten,ges_cwmr_ten
-  use guess_grids, only: ges_prslavg,ges_psfcavg
-  use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
+  use gridmod, only: lat2,lon2,nsig,nnnn1o,nsig1o
   use gridmod, only: regional
   use gridmod, only: twodvar_regional
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional
@@ -84,7 +83,7 @@ subroutine compute_derived(mype)
   use hybrid_ensemble_parameters, only: l_hyb_ens,generate_ens
   use hybrid_ensemble_isotropic_regional, only: rescale_ensemble_rh_perturbations
 
-  use constants, only: ione,zero,one,one_tenth,half,fv
+  use constants, only: ione,izero,zero,one,one_tenth,half,fv
 
 ! for anisotropic mode
   use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab
@@ -97,20 +96,18 @@ subroutine compute_derived(mype)
 
   implicit none
 
-! Declare local parameters
-  real(r_kind),parameter:: r015 = 0.15_r_kind
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   logical ice,fullfield
-  integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2
+  integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2,iderivative
   
   real(r_kind) d,dl1,dl2,psfc015,dn1,dn2
-  real(r_kind),allocatable,dimension(:,:,:):: dlnesdtv,dmax
   real(r_kind),dimension(lat2,lon2,nsig+ione):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
+  real(r_kind),dimension(lat2,lon2,nsig):: rhgues
 
 ! for anisotropic mode
   integer(i_kind):: k1,ivar,kvar,igauss
@@ -187,20 +184,6 @@ subroutine compute_derived(mype)
         call tpause(mype,'pvoz')
      end if
 
-!    *** NOTE ***
-!     The tropopause pressures are used to deflate the
-!     moisture sensitivity vectors for satellite radiance
-!     data and for IR quality control;
-!     here we are setting bounds on the tropopause
-!     pressure to make sure we are deflating at the very
-!     minimum above 150 mb, and nowhere below 350 mb
-
-     do j=1,lon2
-        do i=1,lat2
-           tropprs(i,j)=max(150.0_r_kind,min(350.0_r_kind,tropprs(i,j)))
-        end do
-     end do
-
   endif
 
 ! Load guess q for use in limq.  Initialize saturation array to guess.
@@ -208,28 +191,22 @@ subroutine compute_derived(mype)
      do j=1,lon2
         do i=1,lat2
            qgues(i,j,k)=ges_q(i,j,k,ntguessig) ! q guess
-           qsatg(i,j,k)=ges_q(i,j,k,ntguessig) ! q guess
-           fact_tv(i,j,k)=one/(one+fv*qsatg(i,j,k))      ! factor for tv to tsen conversion
+           fact_tv(i,j,k)=one/(one+fv*qgues(i,j,k))      ! factor for tv to tsen conversion
         end do
      end do
   end do
 
-! Compute saturation specific humidity.  Set up normalization factor 
-! for limq routines (1/qs*2)
+! Compute saturation specific humidity.   
+  iderivative = izero
+  if(qoption == ione)then
+      if(jiter == jiterstart)iderivative = ione
+  else
+      iderivative = 2
+  end if
+      
   ice=.true.
-  allocate(dlnesdtv(lat2,lon2,nsig),dmax(lat2,lon2,nsig))
-  call genqsat(qsatg,ice,ntguessig,dlnesdtv,dmax)
-
-  do k=1,nsig
-     do j=1,lon2
-        do i=1,lat2
-           rhgues(i,j,k)=qgues(i,j,k)/qsatg(i,j,k)
-        end do
-     end do
-  end do
-
-
-! Load arrays based on option for moisture background error
+  call genqsat(qsatg,ges_tsen(1,1,1,ntguessig),ges_prsl(1,1,1,ntguessig),lat2,lon2, &
+           nsig,ice,iderivative)
 
 ! qoption 1:  use psuedo-RH
   if(qoption==ione)then
@@ -251,9 +228,6 @@ subroutine compute_derived(mype)
                  else
                     qvar3d(i,j,k)=dssv(4,i,j,k)
                  end if
-                 dqdrh(i,j,k)= qsatg(i,j,k)
-                 dqdt(i,j,k) = zero
-                 dqdp(i,j,k) = zero
               end do
            end do
         end do
@@ -262,13 +236,12 @@ subroutine compute_derived(mype)
 ! qoption 2:  use normalized RH
   else
 
-!    dqdrh used as work array for guess RH
-!    for change of q variable, dqdt=d(ln(es))/d(tv) * q, dqdp=qgues
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              if (jiter==jiterstart) then
-                 d=20.0_r_kind*rhgues(i,j,k) + one
+
+     if (jiter==jiterstart) then
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                 d=20.0_r_kind*(qgues(i,j,k)/qsatg(i,j,k)) + one
                  n=int(d)
                  np=n+ione
                  dn2=d-float(n)
@@ -287,18 +260,22 @@ subroutine compute_derived(mype)
                  else
                     qvar3d(i,j,k)=(varq(n,k)*dn1 + varq(np,k)*dn2)*dssv(4,i,j,k) 
                  end if 
-              end if
-              dqdrh(i,j,k)=qsatg(i,j,k)
-              dqdt(i,j,k)=dmax(i,j,k)*dlnesdtv(i,j,k)*qgues(i,j,k)
-              dqdp(i,j,k)=dmax(i,j,k)*half*qgues(i,j,k)/ges_prsl(i,j,k,ntguessig)
+             end do
            end do
         end do
-     end do
+     end if
 
 ! variance update for anisotropic mode
      if( anisotropic .and. .not.rtma_subdomain_option ) then
         hswgtsum=sum(hswgt(1:ngauss))
         call setup_sub2fslab
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 rhgues(i,j,k)=qgues(i,j,k)/qsatg(i,j,k)
+              end do
+           end do
+        end do
         if( regional ) then
            allocate(rh0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o))
            call sub2fslab(rhgues,rh0f)
@@ -403,85 +380,15 @@ subroutine compute_derived(mype)
         call destroy_sub2fslab
      end if
 
-!    Special block to decouple temperature and pressure from moisture
-!    above specified levels.  For mass core decouple T and p above 
-!    same level (approximately 150 hPa).  For nmm core decouple T
-!    above ~150 hPa and p above level where aeta2_ll goes to zero
-
-     if (regional) then
-
-!       Determine k index of approximate 150 hPa layer
-        psfc015=r015*ges_psfcavg
-        k150 = nsig
-        do k=1,nsig
-           if (ges_prslavg(k)<psfc015) then
-              k150 = k
-              exit
-           endif
-        end do
-
-!       For mass core, decouple T and p above 150 hPa
-        if (wrf_mass_regional) then
-           do k=k150,nsig
-              do j=1,lon2
-                 do i=1,lat2
-                    dqdt(i,j,k)=zero
-                    dqdp(i,j,k)=zero
-                 end do
-              end do
-           end do
-
-!       Decouple T and p at different levels for nmm core
-        elseif (wrf_nmm_regional.or.nems_nmmb_regional) then
-           kpres = nsig
-           do k=1,nsig
-              if (aeta2_ll(k)==zero) then
-                 kpres = k
-                 exit
-              endif
-           end do
-           do k=k150,nsig
-              do j=1,lon2
-                 do i=1,lat2
-                    dqdt(i,j,k)=zero
-                 end do
-              end do
-           end do
-           do k=kpres,nsig
-              do j=1,lon2
-                 do i=1,lat2
-                    dqdp(i,j,k)=zero
-                 end do
-              end do
-           end do
-        endif
-
-!    End of regional block
-
-     else                      !  for global 
-        do k=1,nsig
-           do j=1,lon2
-              do i=1,lat2
-!                Decouple Q from T above the tropopause for global
-                 if ( (ges_prsl(i,j,k,ntguessig)) < (one_tenth*tropprs(i,j)) ) then
-                    dqdt(i,j,k)=zero
-                    dqdp(i,j,k)=zero
-                 end if
-              end do
-           end do
-        end do
- 
-     endif
-
 ! End of qoption block
   endif
+
 
 ! If this is hybrid ensemble run, then need to modify ensemble rh perturbations based on qvar3d
 !     (at this point, only for generate_ens=.true. -- have to figure out what to do for
 !                      real ensemble perturbations.
   if(l_hyb_ens.and.generate_ens) call rescale_ensemble_rh_perturbations
   
-  deallocate(dlnesdtv,dmax)
 
   call q_diag(mype)
   

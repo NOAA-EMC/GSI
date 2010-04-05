@@ -136,7 +136,7 @@ subroutine glbsoi(mype)
 ! Declare local variables
   logical slow_pole_in
 
-  integer(i_kind) nlev_mp,jiterlast,mlat
+  integer(i_kind) nlev_mp,jiterlast
   real(r_kind) :: zgg
   character(len=12) :: clfile
 
@@ -175,7 +175,7 @@ subroutine glbsoi(mype)
      else
         call create_berror_vars_reg
      end if
-     call prebal_reg(mlat)
+     call prebal_reg
      if(anisotropic) then
         call anprewgt_reg(mype)
      else
@@ -197,7 +197,7 @@ subroutine glbsoi(mype)
      nlev_mp=nsig+ione
      call init_mp_compact_diffs1(nlev_mp,mype,slow_pole_in)
 
-     call prebal(mlat)
+     call prebal
 
 !    Load background error arrays used by recursive filters
      if(anisotropic) then

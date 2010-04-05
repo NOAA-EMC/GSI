@@ -204,7 +204,7 @@ contains
     return
   end subroutine destroy_balance_vars_reg
 
-  subroutine prebal(mlat)
+  subroutine prebal
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    prebal
@@ -237,7 +237,6 @@ contains
 !   input argument list:
 !
 !   output argument list:
-!     mlat     - number of latitudes in stats
 !
 !
 ! attributes:
@@ -249,12 +248,9 @@ contains
     use mpimod, only: mype
     use gridmod, only: istart,lat2,nlat,nsig
     use constants, only: ione,zero
-    use m_berror_stats,only: berror_get_dims,berror_read_bal
+    use m_berror_stats,only: berror_read_bal
     implicit none
     
-!   Declare passed variables
-    integer(i_kind),intent(  out) :: mlat
-
 !   Declare local variables
     integer(i_kind) i,j,k,msig
     integer(i_kind) mm1
@@ -267,11 +263,6 @@ contains
     mm1=mype+ione
 
     call berror_read_bal(agvin,bvin,wgvin,mype)
-    call berror_get_dims(msig,mlat)
-    if(msig/=nsig) then
-       write(6,*) 'prebal: levs in file inconsistent with GSI',msig,nsig
-       call stop2(101)
-    end if
 
 !   Set ke_vp=nsig (note:  not used in global)
     ke_vp=nsig
@@ -301,7 +292,7 @@ contains
     return
   end subroutine prebal
   
-  subroutine prebal_reg(mlat)
+  subroutine prebal_reg
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    prebal_reg  setup balance vars
@@ -326,7 +317,6 @@ contains
 !   input argument list:
 !
 !   output argument list:
-!     mlat     - number of latitude grid points
 !
 !   other important variables
 !     nsig     - number of sigma levels
@@ -342,13 +332,12 @@ contains
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),intent(  out) :: mlat
 
 !   Declare local parameters
     real(r_kind),parameter:: r08 = 0.8_r_kind
 
 !   Declare local variables
-    integer(i_kind) k,i
+    integer(i_kind) k,i,mlat
     integer(i_kind) j
     integer(i_kind) ke,inerr
     integer(i_kind) msig                   ! stats dimensions

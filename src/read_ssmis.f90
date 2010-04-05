@@ -107,10 +107,9 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=70.0_r_kind
   real(r_kind),parameter:: tbmax=320.0_r_kind
-! real(r_kind),parameter:: tbbad=-9.99e11_r_kind
 
 ! Declare local variables
-  logical :: ssmis_las,ssmis_uas,ssmis_img,ssmis_env
+  logical :: ssmis_las,ssmis_uas,ssmis_img,ssmis_env,ssmis
   logical :: outside,iuse,assim
   character(len=8)  :: subset
   integer(i_kind) :: i,k,ifov,ifovoff,ntest
@@ -139,8 +138,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) :: fovn
 
 ! BUFR variables
-  integer(i_kind) :: kchanl,jch,bch
-  integer(i_kind),dimension(maxchanl) :: kchssmis
+  integer(i_kind) :: bch
   real(r_double),dimension(7)::   bufrinit
   real(r_double),dimension(3,5):: bufrymd
   real(r_double),dimension(2,2):: bufrhm
@@ -197,70 +195,42 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   ssmis_las=     obstype == 'ssmis_las'
   ssmis_img=     obstype == 'ssmis_img'
   ssmis_env=     obstype == 'ssmis_env'
+  ssmis    =     obstype == 'ssmis'
   
-  kchssmis(:) = izero
-
 ! Common
   bufsat = 249_i_kind
 
 ! Humidity imager:180
-  if(ssmis_img) then
+  if(ssmis)then
+     nscan  = mxscen_las
+     ifovoff = 270_i_kind
+     incangl = 53.0_r_kind
+  else if(ssmis_img) then
      nscan  = mxscen_img
      ifovoff = izero
-     kchanl = 6_i_kind
-     kchssmis(1:6)=(/8_i_kind,9_i_kind,10_i_kind,11_i_kind,17_i_kind,18_i_kind/)
      incangl = 53.0_r_kind
-     rlndsea(0) = zero
-     rlndsea(1) = 15._r_kind
-     rlndsea(2) = 10._r_kind
-     rlndsea(3) = 15._r_kind
-     rlndsea(4) = 100._r_kind
-
 ! env:90
   else if(ssmis_env) then
      nscan  = mxscen_env
      ifovoff = 180_i_kind
-     kchanl = 5_i_kind
-     kchssmis(1:5)=(/12_i_kind,13_i_kind,14_i_kind,15_i_kind,16_i_kind/)
      incangl = 53.1_r_kind
-     rlndsea(0) = zero
-     rlndsea(1) = 15._r_kind
-     rlndsea(2) = 10._r_kind
-     rlndsea(3) = 15._r_kind
-     rlndsea(4) = 100._r_kind
-
 ! las:60
   else if(ssmis_las) then
      nscan  = mxscen_las
      ifovoff = 270_i_kind
-!     kchanl = 8_i_kind
-!     kchssmis(1:8)=(/ione,2_i_kind,3_i_kind,4_i_kind,5_i_kind,6_i_kind,7_i_kind,24_i_kind/)
-     kchanl = 24_i_kind
-     kchssmis(1:24)=(/ione,2_i_kind,3_i_kind,4_i_kind,5_i_kind,6_i_kind, &
-                      7_i_kind,8_i_kind,9_i_kind,10_i_kind,11_i_kind,12_i_kind, &
-                      13_i_kind,14_i_kind,15_i_kind,16_i_kind,17_i_kind,18_i_kind, &
-                      19_i_kind,20_i_kind,21_i_kind,22_i_kind,23_i_kind,24_i_kind/)
      incangl = 53.0_r_kind
-     rlndsea(0) = zero
-     rlndsea(1) = 15._r_kind
-     rlndsea(2) = 10._r_kind
-     rlndsea(3) = 15._r_kind
-     rlndsea(4) = 100._r_kind
-
 ! uas:30
   else if(ssmis_uas) then
      nscan  = mxscen_uas
      ifovoff = 330_i_kind
-     kchanl = 5_i_kind
-     kchssmis(1:5)=(/19_i_kind,20_i_kind,21_i_kind,22_i_kind,23_i_kind/)
      incangl = 52.4_r_kind
-     rlndsea(0) = zero
-     rlndsea(1) = 15._r_kind
-     rlndsea(2) = 10._r_kind
-     rlndsea(3) = 15._r_kind
-     rlndsea(4) = 100._r_kind
 
   end if
+  rlndsea(0) = zero
+  rlndsea(1) = 15._r_kind
+  rlndsea(2) = 10._r_kind
+  rlndsea(3) = 15._r_kind
+  rlndsea(4) = 100._r_kind
 
 ! Open unit to satellite bufr file
   open(lnbufr,file=infile,form='unformatted')
@@ -390,23 +360,17 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       to "bad" value
         iskip=izero
         do jc=1,maxchanl
-          tbob(jc)=bufrtbb(2,jc)
-        end do
-        do jc=1,kchanl
-           jch=kchssmis(jc)  !ch index specified in this code
-           bch=int( bufrtbb(1,jch)+MILLI ) !ch index from bufr
-           tbob(jch) = bufrtbb(2,jch)
-           if(bch/=jch) cycle read_loop
-           if(tbob(jch)<tbmin .or. tbob(jch)>tbmax ) then
-!             tbob(jch) = tbbad 
+           bch=int( bufrtbb(1,jc)+MILLI ) !ch index from bufr
+           if(bch/=jc) cycle read_loop
+           tbob(jc) = bufrtbb(2,jc)
+           if(tbob(jc)<tbmin .or. tbob(jc)>tbmax) then
               iskip = iskip + ione
            else
               nread=nread+ione
            end if
         end do
         
-        if(iskip>=kchanl)  cycle read_loop!if all ch for any posion is bad, skip 
-
+        if(iskip>=maxchanl)  cycle read_loop!if all ch for any position are bad, skip 
 
         flgch = iskip*two   !used for thinning priority range 0-14
         if (l4dvar) then

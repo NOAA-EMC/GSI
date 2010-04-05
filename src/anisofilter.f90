@@ -115,7 +115,7 @@ module anisofilter
   use jfunc, only: varq,qoption
 
   use guess_grids, only: ges_u,ges_v,ges_prsl,ges_tv,ges_z,ntguessig,&
-                         ges_prslavg,ges_psfcavg,ges_ps,ges_q
+                         ges_prslavg,ges_psfcavg,ges_ps,ges_q,ges_tsen
 
   use mpimod, only: npe,levs_id,nvar_id,ierror,&
                     mpi_real8,mpi_real4,mpi_integer4,mpi_rtype,&
@@ -1389,14 +1389,14 @@ subroutine get_background(mype)
   real(r_kind) hwll_loc
   real(r_kind) asp1,asp2,asp3
 
-  real(r_kind),allocatable,dimension(:,:,:)::field,fld1,fld2
+  real(r_kind),allocatable,dimension(:,:,:)::field
   logical:: ice
 
   integer(i_long):: ngauss_smooth,npass_smooth,normal_smooth,ifilt_ord_smooth
   integer(i_long):: nsmooth_smooth,nsmooth_shapiro_smooth
   real(r_double) :: rgauss_smooth(1)
 
-  integer(i_kind):: nlatf,nlonf,it
+  integer(i_kind):: nlatf,nlonf,it,iderivative
 
   nlatf=pf2aP1%nlatf
   nlonf=pf2aP1%nlonf
@@ -1463,11 +1463,9 @@ subroutine get_background(mype)
   !-------------
   ! RH
   ice=.true.
-  allocate(fld1(lat2,lon2,nsig),fld2(lat2,lon2,nsig))
-  field(:,:,:)=ges_q(:,:,:,it)
-  call genqsat(field,ice,it,fld1,fld2)
+  iderivative=0
+  call genqsat(field,ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2,nsig,ice,iderivative)
   field(:,:,:)=ges_q(:,:,:,it)/field(:,:,:)
-  deallocate(fld1,fld2)
 
   call sub2fslab(field,rh0f)
 

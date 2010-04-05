@@ -12,6 +12,7 @@ subroutine get_gefs_ensperts_dualres
 ! program history log:
 !   2010-01-05  kleist, initial documentation
 !   2010-02-17  parrish - make changes to allow dual resolution capability
+!   2010-03-24  derber - use generalized genqsat rather than specialized for this resolution
 !
 !   input argument list:
 !
@@ -41,7 +42,7 @@ subroutine get_gefs_ensperts_dualres
   real(r_kind) bar_norm,sig_norm,kapr,kap1
 
   integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
-  integer(i_kind) iret,i,j,k,m,n,il,jl,mm1
+  integer(i_kind) iret,i,j,k,m,n,il,jl,mm1,iderivative
   character(24) filename
   logical ice
 
@@ -100,7 +101,8 @@ subroutine get_gefs_ensperts_dualres
     end if
 
     ice=.true.
-    call genqsat2_dualres(q,tsen,prsl,ice,qs)
+    iderivative=0
+    call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
 
     do k=1,grd_ens%nsig
       do j=1,grd_ens%lon2
@@ -350,182 +352,6 @@ subroutine ens_spread_dualres(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
 
   return
 end subroutine ens_spread_dualres
-
-
-subroutine genqsat2_dualres(q,tsen,prsl,ice,qsat)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    genqsat2_dualres   adapt genqsat for general resolution
-!   prgmmr: kleist           org: np22                date: 2010-01-05
-!
-! abstract: compute qsat on ensemble grid.
-!
-!
-! program history log:
-!   2010-01-05  kleist, initial documentation
-!   2010-02-28  parrish - make changes to allow dual resolution capability
-!
-!   input argument list:
-!     q    - input specific humidity
-!     tsen - input sensible temperature
-!     prsl - input 3d pressure field at layer mid-points.
-!     ice  - logical switch for ice phase
-!
-!   output argument list:
-!     qsat - output saturation specific humidity
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$ end documentation block
-  use kinds, only: r_single,r_kind,i_kind
-  use constants, only: ione,xai,tmix,xb,omeps,eps,xbi,one,zero,&
-       xa,psat,ttp
-  use hybrid_ensemble_parameters, only: grd_ens
-  implicit none
-  logical,intent(in):: ice
-
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(in):: q,tsen,prsl
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(inout):: qsat
-
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: dlnesdtv,dmax
-
-
-  integer(i_kind) k,j,i
-  real(r_kind) pw,tdry,tr,es
-  real(r_kind) w,onep3,esmax
-  real(r_kind) desidt,deswdt,dwdt,desdt,esi,esw
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: mint,estmax
-  real(r_kind),dimension(grd_ens%nsig)::maxrh
-  integer(i_kind),dimension(grd_ens%lat2,grd_ens%lon2):: lmint
-
-  onep3 = 1.e3_r_kind
-
-  maxrh = zero
-  lmint=ione
-  do j=1,grd_ens%lon2
-    do i=1,grd_ens%lat2
-      mint(i,j)=340._r_kind
-    end do
-  end do
-  do k=1,grd_ens%nsig
-    do j=1,grd_ens%lon2
-      do i=1,grd_ens%lat2
-        if((prsl(i,j,k) < 30._r_kind .and.  &
-            prsl(i,j,k) > 2._r_kind) .and.  &
-            tsen(i,j,k) < mint(i,j))then
-           lmint(i,j)=k
-           mint(i,j)=tsen(i,j,k)
-         end if
-       end do
-    end do
-  end do
-  do j=1,grd_ens%lon2
-    do i=1,grd_ens%lat2
-      tdry = mint(i,j)
-      tr = ttp/tdry
-      if (tdry >= ttp .or. .not. ice) then
-        estmax(i,j) = psat * (tr**xa) * exp(xb*(one-tr))
-      elseif (tdry < tmix) then
-        estmax(i,j) = psat * (tr**xai) * exp(xbi*(one-tr))
-      else
-        w  = (tdry - tmix) / (ttp - tmix)
-        estmax(i,j) =  w * psat * (tr**xa) * exp(xb*(one-tr)) &
-                + (one-w) * psat * (tr**xai) * exp(xbi*(one-tr))
-      endif
-    end do
-  end do
-  if (ice) then
-    do k = 1,grd_ens%nsig
-      do j = 1,grd_ens%lon2
-        do i = 1,grd_ens%lat2
-
-          pw = onep3*prsl(i,j,k)
-
-          tdry = tsen(i,j,k)
-          tr = ttp/tdry
-          if (tdry >= ttp) then
-            es = psat * (tr**xa) * exp(xb*(one-tr))
-          elseif (tdry < tmix) then
-            es = psat * (tr**xai) * exp(xbi*(one-tr))
-          else
-            w  = (tdry - tmix) / (ttp - tmix)
-            es =  w * psat * (tr**xa) * exp(xb*(one-tr)) &
-                  + (one-w) * psat * (tr**xai) * exp(xbi*(one-tr))
-          endif
-
-          esmax = es
-          if(lmint(i,j) < k)then
-             esmax=0.1_r_single*pw
-             esmax=min(esmax,estmax(i,j))
-          end if
-
-          if(es <= esmax)then
-
-            if (tdry >= ttp) then
-               desdt = es * (-xa/tdry + xb*ttp/(tdry*tdry))
-            elseif (tdry < tmix) then
-               desdt = es * (-xai/tdry + xbi*ttp/(tdry*tdry))
-            else
-               esw = (psat * (tr**xa) * exp(xb*(one-tr)))
-               esi = (psat * (tr**xai) * exp(xbi*(one-tr)))
-               w  = (tdry - tmix) / (ttp - tmix)
-
-               dwdt = one/(ttp-tmix)
-               deswdt = esw * (-xa/tdry + xb*ttp/(tdry*tdry))
-               desidt = esi * (-xai/tdry + xbi*ttp/(tdry*tdry))
-               desdt = dwdt*esw + w*deswdt - dwdt*esi + (one-w)*desidt
-            endif
-
-            dlnesdtv(i,j,k) = desdt /es
-            dmax(i,j,k) = one
-          else
-            es = esmax
-            dlnesdtv(i,j,k) = zero
-            dmax(i,j,k) = zero
-          end if
-          qsat(i,j,k) = eps * es / (pw - omeps * es)
-
-        end do
-      end do
-    end do
-
-! Compute saturation values with respect to water surface
-  else
-    do k = 1,grd_ens%nsig
-      do j = 1,grd_ens%lon2
-        do i = 1,grd_ens%lat2
-
-          pw = onep3*prsl(i,j,k)
-
-          tdry = tsen(i,j,k)
-          tr = ttp/tdry
-          es = psat * (tr**xa) * exp(xb*(one-tr))
-          esmax = es
-          if(lmint(i,j) < k)then
-             esmax=0.1_r_single*pw
-             esmax=min(esmax,estmax(i,j))
-          end if
-          if(es <= esmax)then
-            dlnesdtv(i,j,k) = (-xa/tdry + xb*ttp/(tdry*tdry))
-            dmax(i,j,k) = one
-          else
-            dlnesdtv(i,j,k) = zero
-            es = esmax
-            dmax(i,j,k) = zero
-          end if
-          qsat(i,j,k) = eps * es / (pw - omeps * es)
-
-        end do
-      end do
-    end do
-
-  endif   ! end if ice
-! write(6,*) (maxrh(k),k=1,grd_ens%nsig)
-
-  return
-end subroutine genqsat2_dualres
 
 
 subroutine write_spread_dualres(a,b,c,d,e,f,g,mype)

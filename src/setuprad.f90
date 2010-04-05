@@ -398,7 +398,7 @@
   ssmis_env  = obstype == 'ssmis_env'
   iasi       = obstype == 'iasi'
 
-  ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env
+  ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis 
 
   micrim=ssmi .or. ssmis .or. amsre   ! only used for MW-imager-QC and id_qc(ch)
 
@@ -1076,7 +1076,12 @@
                      amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
            end if
          
-        else if (ssmis_las) then
+        else if(ssmi) then
+
+           call retrieval_mi(tb_obs(1),nchanl, ssmi,ssmis,no85GHz, &
+                tpwc,clw,si85,kraintype,ierrret ) 
+
+        else if (ssmis) then
 
 !       Compute guess total precipitable water
 !          tpw5 = zero
@@ -1085,18 +1090,13 @@
 !                  tpwcon*r10*(prsitmp(k)-prsitmp(k+1))
 !          end do
 
-           call ret_ssmis( tb_obs(1),nchanl,ssmis_las,tpwc, clw, ierrret)
+           call ret_ssmis( tb_obs(1),nchanl,ssmis,tpwc, clw, ierrret)
 
         else if (amsre) then
 
            call retrieval_amsre(                                 &   
                 tb_obs(1),amsre_low,amsre_mid,amsre_hig,  &
                 uwind,vwind,f10,tsavg5,                          &
-                tpwc,clw,si85,kraintype,ierrret ) 
-
-        else if(ssmi .or. ssmis_uas) then
-
-           call retrieval_mi(tb_obs(1),nchanl, ssmi,ssmis,no85GHz, &
                 tpwc,clw,si85,kraintype,ierrret ) 
 
         endif
