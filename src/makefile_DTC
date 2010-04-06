@@ -31,7 +31,8 @@ LIBsp     = -L$(CORELIB) -lsp
 LIBbacio  = 
 LIBsfcio  = -L$(CORELIB) -lsfcio
 LIBsigio  = -L$(CORELIB) -lsigio
-LIBcrtm   = -L$(CORELIB) -lcrtm_gfsgsi
+## LIBcrtm   = -L$(CORELIB) -lcrtm_gfsgsi
+LIBcrtm   = -L$(CORELIB) -lCRTM
 LIBtransf = -L$(CORELIB) -ltransf
 LIBhermes = -L$(CORELIB) -lhermes
 LIBgfsio  = -L$(CORELIB) -lgfsio
@@ -387,6 +388,7 @@ LIBsys          = $(MYLIBsys)
         zrnmi_mod.o \
         blockIO.o   \
         bacio.v1.4.o  \
+        rapidrefresh_cldsurf_mod.o \
 
 # ----
 

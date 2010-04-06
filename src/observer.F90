@@ -41,6 +41,8 @@ module observermod
   use timermod, only: timer_ini, timer_fnl
   use read_obsmod, only: read_obs
   use lag_fields, only: lag_guessini
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use guess_grids, only: create_cld_grids,destroy_cld_grids
 
 
   implicit none
@@ -95,6 +97,7 @@ subroutine guess_init_
 !   2007-10-03  todling - created this file from slipt of glbsoi
 !   2009-01-28  todling - split observer into init/set/run/finalize
 !   2009-03-10  meunier - read in the original position of balloons
+!   2010-03-29  hu - If l_cloud_analysis is true, allocate arrays for hydrometeors
 !
 !   input argument list:
 !     mype - mpi task id
@@ -123,6 +126,9 @@ subroutine guess_init_
   call create_ges_grids(switch_on_derivatives,tendsflag)
   call create_bias_grids()
   call create_sfc_grids
+
+! If l_cloud_analysis is true, allocate arrays for hydrometeors
+  if(l_cloud_analysis) call create_cld_grids
 
 ! Read model guess fields.
   call read_guess(mype)
@@ -424,6 +430,7 @@ subroutine guess_final_
 !   1990-10-06  parrish
 !   2007-10-03  todling - created this file from slipt of glbsoi
 !   2009-01-28  todling - split observer into init/set/run/finalize
+!   2010-03-29  hu - If l_cloud_analysis is true, deallocate arrays for hydrometeors
 !
 !   input argument list:
 !     mype - mpi task id
@@ -450,6 +457,7 @@ subroutine guess_final_
   call destroy_bias_grids()
   call destroy_jfunc
   call destroy_gesfinfo
+  if(l_cloud_analysis) call destroy_cld_grids
 
   fg_finalized_ = .true.
 

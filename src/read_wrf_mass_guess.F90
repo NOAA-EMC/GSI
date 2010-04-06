@@ -704,6 +704,8 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !   2006-07-31  kleist - change to use ges_ps instead of lnps
 !   2007-03-13  derber - remove unused qsinv2 from jfunc use list
 !   2008-04-16  safford - rm unused uses
+!   2010-03-29  hu     - add code to read in cloud/hydrometeor fields 
+!                             and distributed them to all processors 
 !
 !   input argument list:
 !     mype     - pe number
@@ -731,10 +733,13 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen
+  use guess_grids, only: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg,   &
+       ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll
   use constants, only: izero,ione,zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth
   use gsi_io, only: lendian_in
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   implicit none
 
 ! Declare passed variables
@@ -771,6 +776,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
   real(r_kind) deltasigma
   real(r_kind):: work_prsl,work_prslk
+  integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_xlon,i_xlat,i_tt,ktt
 
 
 !  WRF MASS input grid dimensions in module gridmod
@@ -794,6 +800,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 
 !    Following is for convenient WRF MASS input
      num_mass_fields=14_i_kind+4_i_kind*lm
+     if(l_cloud_analysis) num_mass_fields=14_i_kind+4_i_kind*lm+6_i_kind*lm+2_i_kind
      num_all_fields=num_mass_fields*nfldsig
      num_loc_groups=num_all_fields/npe
      if(mype==izero) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
@@ -823,9 +830,22 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !     igtype < 0 for integer field
 
      i=izero
+! for cloud analysis
+     if(l_cloud_analysis) then
+       i=i+ione ; i_xlat=i                                                ! xlat
+       write(identity(i),'("record ",i3,"--xlat")')i
+       jsig_skip(i)=3_i_kind     ! number of files to skip before getting to xlat
+       igtype(i)=ione
+       i=i+ione ; i_xlon=i                                                ! xlon
+       write(identity(i),'("record ",i3,"--xlon")')i
+       jsig_skip(i)=izero     ! 
+       igtype(i)=ione
+     endif
+
      i=i+ione ; i_psfc=i                                                ! psfc
      write(identity(i),'("record ",i3,"--psfc")')i
      jsig_skip(i)=5_i_kind     ! number of files to skip before getting to psfc
+     if(l_cloud_analysis) jsig_skip(i)=0_i_kind ! number of files to skip before getting to psfc
      igtype(i)=ione
      i=i+ione ; i_fis=i                                               ! sfc geopotential
      write(identity(i),'("record ",i3,"--fis")')i
@@ -892,6 +912,45 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      i=i+ione ; i_tsk=i                                               ! tsk
      write(identity(i),'("record ",i3,"--sst")')i
      jsig_skip(i)=izero ; igtype(i)=ione
+! for cloud array
+     if(l_cloud_analysis) then
+       i_qc=i+ione
+       do k=1,lm
+          i=i+ione                                                      ! qc(k)
+          write(identity(i),'("record ",i3,"--qc(",i2,")")')i,k
+          jsig_skip(i)=izero ; igtype(i)=ione
+       end do
+       i_qr=i+ione
+       do k=1,lm
+          i=i+ione                                                    ! qi(k)
+          write(identity(i),'("record ",i3,"--qr(",i2,")")')i,k
+          jsig_skip(i)=izero ; igtype(i)=ione
+       end do
+       i_qs=i+ione
+       do k=1,lm
+          i=i+ione                                                    ! qr(k)
+          write(identity(i),'("record ",i3,"--qs(",i2,")")')i,k
+          jsig_skip(i)=izero ; igtype(i)=ione
+       end do
+       i_qi=i+ione
+       do k=1,lm
+          i=i+ione                                                    ! qs(k)
+          write(identity(i),'("record ",i3,"--qi(",i2,")")')i,k
+          jsig_skip(i)=izero ; igtype(i)=ione
+       end do
+       i_qg=i+ione
+       do k=1,lm
+          i=i+ione                                                    ! qg(k)
+          write(identity(i),'("record ",i3,"--qg(",i2,")")')i,k
+          jsig_skip(i)=izero ; igtype(i)=ione
+       end do
+       i_tt=i+ione
+       do k=1,lm
+          i=i+ione                                                    ! tt(k)
+          write(identity(i),'("record ",i3,"--tt(",i2,")")')i,k
+          jsig_skip(i)=izero ; igtype(i)=ione
+       end do
+     endif
 
 !    End of stuff from MASS restart file
 
@@ -979,7 +1038,15 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         kq=i_0+i_q-ione
         ku=i_0+i_u-ione
         kv=i_0+i_v-ione
-
+! hydrometeors
+        if(l_cloud_analysis) then
+          kqc=i_0+i_qc-ione
+          kqr=i_0+i_qr-ione
+          kqs=i_0+i_qs-ione
+          kqi=i_0+i_qi-ione
+          kqg=i_0+i_qg-ione
+          ktt=i_0+i_tt-ione
+        endif
 !             wrf pressure variable is dry air partial pressure--need to add water vapor contribution
 !              so accumulate 1 + total water vapor to use as correction factor
 
@@ -990,6 +1057,15 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            kq=kq+ione
            ku=ku+ione
            kv=kv+ione
+! hydrometeors
+           if(l_cloud_analysis) then
+             kqc=kqc+ione
+             kqr=kqr+ione
+             kqs=kqs+ione
+             kqi=kqi+ione
+             kqg=kqg+ione
+             ktt=ktt+ione
+           endif
            do i=1,lon2
               do j=1,lat2
                  ges_u(j,i,k,it) = all_loc(j,i,ku)
@@ -1000,6 +1076,15 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 
 !                Convert guess mixing ratio to specific humidity
                  ges_q(j,i,k,it) = ges_q(j,i,k,it)/(one+ges_q(j,i,k,it))
+! hydrometeors
+                 if(l_cloud_analysis) then
+                   ges_qc(j,i,k,it) = all_loc(j,i,kqc)
+                   ges_qi(j,i,k,it) = all_loc(j,i,kqi)
+                   ges_qr(j,i,k,it) = all_loc(j,i,kqr)
+                   ges_qs(j,i,k,it) = all_loc(j,i,kqs)
+                   ges_qg(j,i,k,it) = all_loc(j,i,kqg)
+                   ges_tten(j,i,k,it) = all_loc(j,i,ktt)
+                 endif
 
               end do
            end do
@@ -1017,6 +1102,13 @@ subroutine read_wrf_mass_netcdf_guess(mype)
               sno(j,i,it)=all_loc(j,i,i_0+i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_0+i_smois)
               soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
+! for cloud analysis
+              if(l_cloud_analysis) then
+                soil_temp_cld(j,i,it)=soil_temp(j,i,it)
+                ges_xlon(j,i,it)=all_loc(j,i,i_0+i_xlon)
+                ges_xlat(j,i,it)=all_loc(j,i,i_0+i_xlat)
+              endif
+
            end do
         end do
         
@@ -1069,6 +1161,9 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                       j,i,mype,sfct(j,i,it)
                  num_doubtful_sfct=num_doubtful_sfct+ione
               end if
+              if(l_cloud_analysis) then
+                isli_cld(j,i,it)=isli(j,i,it)
+              endif
            end do
         end do
      end do

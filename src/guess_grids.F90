@@ -58,6 +58,8 @@ module guess_grids
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes 
 !   2008-02-07  eliu    - fixed the unit difference between prsitmp
 !                         (kPa) and toa_pressure (hPa).
+!   2008-08-25  hu    - add array definitions for hydrometeor fields
+!                     - add subroutine create_cld_grids and destroy_cld_grids
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -69,10 +71,12 @@ module guess_grids
   private
 ! set subroutines to public
   public :: create_sfc_grids
+  public :: create_cld_grids
   public :: create_ges_grids
   public :: destroy_ges_grids
   public :: destroy_sfct
   public :: destroy_sfc_grids
+  public :: destroy_cld_grids
   public :: create_gesfinfo
   public :: destroy_gesfinfo
   public :: load_prsges
@@ -93,6 +97,8 @@ module guess_grids
   public :: sno2,ifilesfc,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
   public :: nfldsfc,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
+  public :: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg
+  public :: ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
 
   logical:: sfcmod_gfs = .false.    ! .true. = recompute 10m wind factor using gfs physics
   logical:: sfcmod_mm5 = .false.    ! .true. = recompute 10m wind factor using mm5 physics
@@ -192,6 +198,19 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_oz_ten   ! ozone tendency
   real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_ten ! cloud water tendency
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qc    ! cloud water
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qi    ! cloud ice
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qr    ! rain
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qs    ! snow
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qg    ! graupel
+
+  real(r_kind),allocatable,dimension(:,:,:):: ges_xlon    ! longitude
+  real(r_kind),allocatable,dimension(:,:,:):: ges_xlat    ! latitude
+  real(r_kind),allocatable,dimension(:,:,:):: soil_temp_cld    ! soil temperature
+  real(i_kind),allocatable,dimension(:,:,:):: isli_cld    !
+! for radar temperature tendency
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_tten    ! radar temperature tendency
+
  
   interface guess_grids_print
      module procedure print1r8_
@@ -309,6 +328,77 @@ contains
 
     return
   end subroutine create_sfc_grids
+
+!-------------------------------------------------------------------------
+!    NOAA/GSD, GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! IROUTINE:  create_cld_grids --- Alloc grid for guess of cloud
+!
+! INTERFACE:
+!
+  subroutine create_cld_grids
+
+! USES:
+
+    use constants,only: zero
+    use gridmod, only: lat2,lon2,nsig
+    implicit none
+
+! INPUT PARAMETERS:
+
+! OUTPUT PARAMETERS:
+
+! DESCRIPTION: allocate grids to hold guess cloud fields
+!
+! REVISION HISTORY:
+!   2007-08-16  Ming Hu, original code
+!   2008-09-26  Ming Hu, add ges_tten
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,k,n,istatus
+
+!   Allocate and zero guess grids
+    allocate (ges_qc(lat2,lon2,nsig,nfldsig),&
+         ges_qi(lat2,lon2,nsig,nfldsig),ges_qr(lat2,lon2,nsig,nfldsig),&
+         ges_qs(lat2,lon2,nsig,nfldsig),ges_qg(lat2,lon2,nsig,nfldsig),&
+         ges_xlon(lat2,lon2,nfldsig),ges_xlat(lat2,lon2,nfldsig),&
+         soil_temp_cld(lat2,lon2,nfldsig),isli_cld(lat2,lon2,nfldsig),&
+         ges_tten(lat2,lon2,nsig,nfldsig), &
+         stat=istatus)
+    if (istatus/=izero) write(6,*)'CREATE_CLD_GRIDS:  allocate error1, istatus=',&
+         istatus,lat2,lon2,nsig,nfldsig
+
+!  Default for cloud 
+    do n=1,nfldsig
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                ges_qc(i,j,k,n)=zero
+                ges_qi(i,j,k,n)=zero
+                ges_qr(i,j,k,n)=zero
+                ges_qs(i,j,k,n)=zero
+                ges_qg(i,j,k,n)=zero
+                ges_tten(i,j,k,n)=-20.0_r_kind
+             end do
+          end do
+       end do
+       ges_tten(:,:,nsig,n)=-10.0_r_kind
+       do j=1,lon2
+          do i=1,lat2
+             ges_xlon(i,j,n)=zero
+             ges_xlat(i,j,n)=zero
+             soil_temp_cld(i,j,n)=zero
+             isli_cld(i,j,n)=zero
+          end do
+       end do
+    enddo
+
+    return
+  end subroutine create_cld_grids
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
@@ -743,6 +833,48 @@ contains
     return
   end subroutine destroy_sfc_grids
 
+!-------------------------------------------------------------------------
+!    NOAA/GSD, GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! IROUTINE:  destroy_cld_grids --- Dealloc grid for guess of cloud
+!
+! INTERFACE:
+!
+  subroutine destroy_cld_grids
+
+! USES:
+    implicit none
+! INPUT PARAMETERS:
+! OUTPUT PARAMETERS:
+
+! DESCRIPTION: Dealloc grids that hold guess cloud fields
+!
+! REVISION HISTORY:
+!   2007-08-16  Ming Hu, original code
+!   2008-09-26  Ming Hu, add ges_tten
+!
+! REMARKS:
+!   language: f90
+!   machine:  ijet
+!
+! !AUTHOR:
+!   Ming Hu          org: w/gsd     date: 2007-08-16
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) istatus
+
+    deallocate (ges_qc, ges_qi,ges_qr,ges_qs,ges_qg,ges_xlon,ges_xlat,&
+                soil_temp_cld,isli_cld,ges_tten,stat=istatus)
+    if (istatus/=izero) &
+         write(6,*)'DESTROY_CLD_GRIDS:  deallocate error1, istatus=',&
+         istatus
+
+    return
+  end subroutine destroy_cld_grids
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !

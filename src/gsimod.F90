@@ -84,6 +84,8 @@
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,init_rapidrefresh_cldsurf, &
+                            dfi_radar_latent_heat_time_period
   implicit none
 
   private
@@ -146,7 +148,9 @@
 !  03-09-2010 Parrish   add flag check_gfs_ozone_date to namelist SETUP--if true, date check gfs ozone
 !  03-15-2010 Parrish   add flag regional_ozone to namelist SETUP--if true, then turn on ozone in 
 !                         regional analysis
-!                         
+!  03-29-2010 hu        add namelist variables for controling rapid refesh options
+!                                 including cloud analysis and surface enhancement
+!                       add and read namelist for RR
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -528,6 +532,12 @@
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 jcap_ens_test,beta1_inv,s_ens_h,s_ens_v
 
+! rapidrefresh_cldsurf (options for cloud analysis and surface 
+!                             enhancement for RR appilcation  ):
+!      l_cloud_analysis     -   if .true., turn cloud analysis on
+!      dfi_radar_latent_heat_time_period     -   DFI forward integration window in minutes
+  namelist/rapidrefresh_cldsurf/l_cloud_analysis,dfi_radar_latent_heat_time_period
+
 !EOC
 
 !---------------------------------------------------------------------------
@@ -586,6 +596,7 @@
   call init_vtrans
   call init_obsens
   call init_hybrid_ensemble_parameters
+  call init_rapidrefresh_cldsurf
   preserve_restart_date=.false.
 
 
@@ -606,6 +617,7 @@
   read(5,superob_radar)
   read(5,lag_data)
   read(5,hybrid_ensemble)
+  read(5,rapidrefresh_cldsurf)
 #else
   open(11,file='gsiparm.anl')
   read(11,setup)
@@ -619,6 +631,7 @@
   read(11,superob_radar)
   read(11,lag_data)
   read(11,hybrid_ensemble)
+  read(11,rapidrefresh_cldsurf)
   close(11)
 #endif
 

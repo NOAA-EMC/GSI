@@ -982,6 +982,7 @@ subroutine wrwrfmassa_netcdf(mype)
 !   2006-07-31  kleist - change to use ges_ps instead of lnps
 !   2008-03-27  safford - rm unused vars and uses
 !   2008-12-05  todling - adjustment for dsfct time dimension addition
+!   2010-03-29  hu     - add code to gether cloud/hydrometeor fields and write out
 !
 !   input argument list:
 !     mype     - pe number
@@ -997,12 +998,14 @@ subroutine wrwrfmassa_netcdf(mype)
   use kinds, only: r_kind,r_single,i_kind
   use guess_grids, only: ntguessfc,ntguessig,ifilesig,dsfct,ges_ps,&
        ges_q,ges_u,ges_v,ges_tsen
+  use guess_grids, only: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg,ges_tten
   use mpimod, only: mpi_comm_world,ierror,mpi_real4,strip_single
   use gridmod, only: pt_ll,eta1_ll,lat2,iglobal,itotsub,update_regsfc,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,&
        aeta1_ll
   use constants, only: izero,ione,one,zero_single,rd_over_cp_mass,one_tenth
   use gsi_io, only: lendian_in, lendian_out
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   implicit none
 
 ! Declare passed variables
@@ -1020,6 +1023,7 @@ subroutine wrwrfmassa_netcdf(mype)
   real(r_single),allocatable::strp(:)
   character(6) filename
   integer(i_kind) i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
+  integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_tt,ktt
   integer(i_kind) i_sst,i_skt
   integer(i_kind) num_mass_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
@@ -1037,6 +1041,7 @@ subroutine wrwrfmassa_netcdf(mype)
   lm=nsig
 
   num_mass_fields=3_i_kind+4*lm
+  if(l_cloud_analysis) num_mass_fields=3_i_kind+4_i_kind*lm + 6_i_kind*lm
   num_all_fields=num_mass_fields
   num_all_pad=num_all_fields
   allocate(all_loc(lat2,lon2,num_all_pad))
@@ -1049,6 +1054,15 @@ subroutine wrwrfmassa_netcdf(mype)
   i_v=i_u+lm
   i_sst=i_v+lm
   i_skt=i_sst+ione
+! for hydrometeors
+  if(l_cloud_analysis) then
+    i_qc=i_skt+ione
+    i_qr=i_qc+lm
+    i_qs=i_qr+lm
+    i_qi=i_qs+lm
+    i_qg=i_qi+lm
+    i_tt=i_qg+lm
+  endif
   
   allocate(temp1(im*jm),temp1u((im+ione)*jm),temp1v(im*(jm+ione)))
 
@@ -1071,6 +1085,15 @@ subroutine wrwrfmassa_netcdf(mype)
   kq=i_q-ione
   ku=i_u-ione
   kv=i_v-ione
+! for hydrometeors
+  if(l_cloud_analysis) then
+    kqc=i_qc-ione
+    kqi=i_qi-ione
+    kqr=i_qr-ione
+    kqs=i_qs-ione
+    kqg=i_qg-ione
+    ktt=i_tt-ione
+  endif
   q_integral=one
   do k=1,nsig
      deltasigma=eta1_ll(k)-eta1_ll(k+ione)
@@ -1078,6 +1101,15 @@ subroutine wrwrfmassa_netcdf(mype)
      kq=kq+ione
      ku=ku+ione
      kv=kv+ione
+! for hydrometeors
+     if(l_cloud_analysis) then
+       kqc=kqc+ione
+       kqi=kqi+ione
+       kqr=kqr+ione
+       kqs=kqs+ione
+       kqg=kqg+ione
+       ktt=ktt+ione
+     endif
      do i=1,lon2
         do j=1,lat2
            all_loc(j,i,ku)=ges_u(j,i,k,it)
@@ -1091,6 +1123,16 @@ subroutine wrwrfmassa_netcdf(mype)
 !          Convert specific humidity to mixing ratio
            all_loc(j,i,kq)= ges_q(j,i,k,it)/(one-ges_q(j,i,k,it))
            	
+! for hydrometeors      
+           if(l_cloud_analysis) then
+             all_loc(j,i,kqc)=ges_qc(j,i,k,it)
+             all_loc(j,i,kqi)=ges_qi(j,i,k,it)
+             all_loc(j,i,kqr)=ges_qr(j,i,k,it)
+             all_loc(j,i,kqs)=ges_qs(j,i,k,it)
+             all_loc(j,i,kqg)=ges_qg(j,i,k,it)
+             all_loc(j,i,ktt)=ges_tten(j,i,k,it)
+           endif
+
            q_integral(j,i)=q_integral(j,i)+deltasigma* &
                 ges_q(j,i,k,it)/(one-ges_q(j,i,k,it))
         end do
@@ -1293,6 +1335,118 @@ subroutine wrwrfmassa_netcdf(mype)
         write(lendian_out)temp1
      end if
   end if
+
+! for saving cloud analysis results
+  if(l_cloud_analysis) then
+! Update qc
+    kqc=i_qc-ione
+    do k=1,nsig
+       kqc=kqc+ione
+       if(mype == izero) read(lendian_in)temp1
+       call strip_single(all_loc(1,1,kqc),strp,ione)
+       call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+       if(mype == izero) then
+          call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+          do i=1,iglobal
+             tempa(i)=tempa(i)-tempb(i)
+          end do
+          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          write(lendian_out)temp1
+       end if
+    end do
+
+! Update qr     
+    kqr=i_qr-ione
+    do k=1,nsig
+       kqr=kqr+ione
+       if(mype == izero) read(lendian_in)temp1
+       call strip_single(all_loc(1,1,kqr),strp,ione)
+       call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+       if(mype == izero) then
+          call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+          do i=1,iglobal
+             tempa(i)=tempa(i)-tempb(i)
+          end do
+          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          write(lendian_out)temp1
+       end if
+    end do
+
+! Update qs     
+    kqs=i_qs-ione
+    do k=1,nsig
+       kqs=kqs+ione
+       if(mype == izero) read(lendian_in)temp1
+       call strip_single(all_loc(1,1,kqs),strp,ione)
+       call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+       if(mype == izero) then
+          call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+          do i=1,iglobal
+             tempa(i)=tempa(i)-tempb(i)
+          end do
+          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          write(lendian_out)temp1
+       end if
+    end do
+
+! Update qi     
+    kqi=i_qi-ione
+    do k=1,nsig
+       kqi=kqi+ione
+       if(mype == izero) read(lendian_in)temp1
+       call strip_single(all_loc(1,1,kqi),strp,ione)
+       call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+       if(mype == izero) then
+          call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+          do i=1,iglobal
+             tempa(i)=tempa(i)-tempb(i)
+          end do
+          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          write(lendian_out)temp1
+       end if
+    end do
+
+! Update qg     
+    kqg=i_qg-ione
+    do k=1,nsig
+       kqg=kqg+ione
+       if(mype == izero) read(lendian_in)temp1
+       call strip_single(all_loc(1,1,kqg),strp,ione)
+       call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+       if(mype == izero) then
+          call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+          do i=1,iglobal
+             tempa(i)=tempa(i)-tempb(i)
+          end do
+          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          write(lendian_out)temp1
+       end if
+    end do
+
+! Update tten     
+    ktt=i_tt-ione
+    do k=1,nsig
+       ktt=ktt+ione
+       if(mype == izero) read(lendian_in)temp1
+       call strip_single(all_loc(1,1,ktt),strp,ione)
+       call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
+       if(mype == izero) then
+          call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+          do i=1,iglobal
+             tempa(i)=tempa(i)-tempb(i)
+          end do
+          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          write(lendian_out)temp1
+       end if
+    end do
+
+  endif    ! l_cloud_analysis
 
   if (mype==izero) then
      close(lendian_in)

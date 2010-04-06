@@ -361,6 +361,7 @@ clean:
         qnewton3.F90 \
 	radinfo.f90 \
 	raflib.f90 \
+        rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
 	rdgstat_reg.f90 \
 	read_airs.f90 \
