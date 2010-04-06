@@ -125,6 +125,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   integer(i_kind),parameter:: iint=ione
   integer(i_kind),parameter:: ireal=3_i_kind
   real(r_kind),parameter:: r10=10.0_r_kind
+  real(r_kind),parameter:: rmiss = -9999.9_r_kind
 
 ! Declare local variables  
   
@@ -144,7 +145,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   integer(i_kind) i,nlev,ii,jj,iextra,istat,ibin
   integer(i_kind) k,j,nz,jc,idia,irdim1,istatus
   integer(i_kind) ioff,itoss,ikeep,nkeep,ierror_toq,ierror_poq
-  integer(i_kind) isolz,isolaz,icldmnt,isnoc,iacidx,istko,ifovn
+  integer(i_kind) isolz,icldmnt,isnoc,iacidx,istko,ifovn,itoqf
   integer(i_kind) mm1,itime,ilat,ilon,isd,ilate,ilone,itoq,ipoq
   integer(i_kind),dimension(iint,nobs):: idiagbuf
   integer(i_kind),dimension(nlevs):: ipos,iouse
@@ -174,7 +175,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   end do
 
   if(ozone_diagsave)then
-     irdim1=3_i_kind
+     irdim1=6_i_kind
      if(lobsdiagsave) irdim1=irdim1+4*miter+ione
      allocate(rdiagbuf(irdim1,nlevs,nobs))
   end if
@@ -257,7 +258,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   itoq=7_i_kind      ! index of total ozone error flag (sbuv2 only)
   ipoq=8_i_kind      ! index of profile ozone error flag (sbuv2 only)
   isolz=8_i_kind     ! index of solar zenith angle   (gome and omi only)
-  isolaz=9_i_kind    ! index of solar azimuth angle   (gome only)
+  itoqf=9_i_kind     ! index of row anomaly           (omi only)
   icldmnt=10_i_kind  ! index of CLOUD AMOUNT IN SEGMENT (gome and omi only)
   isnoc=11_i_kind    ! index of snow cover (gome only)
   iacidx=12_i_kind   ! AEROSOL CONTAMINATION INDEX (gome and omi only)
@@ -387,6 +388,18 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
            rdiagbuf(1,k,ii) = ozobs
            rdiagbuf(2,k,ii) = ozone_inv(k)           ! obs-ges
            rdiagbuf(3,k,ii) = varinv3(k)*rat_err2    ! inverse (obs error )**2
+           if (obstype == 'gome' .or. obstype == 'omi' ) then
+              rdiagbuf(4,k,ii) = data(isolz,i)       ! solar zenith angle
+              rdiagbuf(5,k,ii) = data(ifovn,i)       ! field of view number
+           else
+              rdiagbuf(4,k,ii) = rmiss                
+              rdiagbuf(5,k,ii) = rmiss               
+           endif
+           if (obstype == 'omi' ) then
+              rdiagbuf(6,k,ii) = data(itoqf,i)       ! row anomaly index
+           else
+              rdiagbuf(6,k,ii) = rmiss                
+           endif
         endif
 
      end do
@@ -516,7 +529,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
            endif
 
            if (ozone_diagsave.and.lobsdiagsave) then
-              idia=3_i_kind
+              idia=6_i_kind
               do jj=1,miter
                  idia=idia+ione
                  if (obsdiags(i_oz_ob_type,ibin)%tail%muse(jj)) then
@@ -544,7 +557,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      else
 
         if (ozone_diagsave.and.lobsdiagsave) then
-           rdiagbuf(4:irdim1,1:nlevs,ii) = zero
+           rdiagbuf(7:irdim1,1:nlevs,ii) = zero
         endif
  
      endif ! < l_may_be_passive >

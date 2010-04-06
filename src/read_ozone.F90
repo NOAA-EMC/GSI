@@ -132,6 +132,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   integer(i_kind) JULIAN,IDAYYR,IDAYWK
   integer(i_kind) itype, ikx
   integer(i_kind) isnd, ilev, iflg, mflg
+  integer(i_kind) decimal,binary(14)
 
 
   integer(i_kind) itx,itt,ipoq7
@@ -620,12 +621,19 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call ufbint(lunin,totoz,ione,ione,iret,'OZON')
      if (totoz > badoz ) goto 130
 
+!    Bit 10 in TOQF represents row anomaly. 
+     decimal=int(hdrozo2(6))
+     call dec2bin(decimal,binary)
+     if (binary(10) == 1 ) then
+        goto 130
+     endif
+
 !    only accept flag 0 1, flag 2 is high SZA data which is not used for now
      toq=hdrozo2(5)
      if (toq/=izero .and. toq/=ione) goto 130
 
-!    remove the bad scan position data: fovn beyond 28
-     if (hdrozo2(7) >=28.0_r_double) goto 130
+!    remove the bad scan position data: fovn beyond 25
+     if (hdrozo2(7) >=25.0_r_double) goto 130
 
 !    remove the data in which the C-pair algorithm ((331 and 360 nm) is used. 
      if (hdrozo2(8) == 3_r_double .or. hdrozo2(8) == 13_r_double) goto 130
@@ -654,7 +662,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      ozout(6,itx)=dlat_earth*rad2deg ! earth relative latitude (degrees)
      ozout(7,itx)=hdrozo2(5)         ! total ozone quality code
      ozout(8,itx)=hdrozo(10)         ! solar zenith angle
-     ozout(9,itx)=hdrozo2(6)         ! total ozone quality flag
+     ozout(9,itx)=binary(10)         ! row anomaly flag
      ozout(10,itx)=hdrozo2(1)        !  cloud amount
      ozout(11,itx)=hdrozo2(4)        !  vzan
      ozout(12,itx)=hdrozo2(2)        !  aerosol index
@@ -827,3 +835,65 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   
 end subroutine read_ozone
 
+
+
+
+
+
+SUBROUTINE dec2bin(dec,bin)
+ 
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    dec2bin                  convert decimal number to binary 
+!   prgmmr: unknown             org: np23                date: 2010-04-06
+!
+! abstract:  This routine convert a decimal number to binary
+!
+! program history log:
+!   2010-04-06  hliu
+
+!   input argument list:
+!     dec  - observation type to process
+!
+!   output argument list:
+!     bin    - number of sbuv/omi ozone observations read
+!
+! remarks:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+
+    use constants, only: izero
+    use kinds, only: i_kind
+
+    implicit none
+ 
+! Declare passed variables
+    integer(i_kind) ,intent(inout) :: dec
+    integer(i_kind) ,intent(out)   :: bin(14)
+
+! Declare local variables
+    integer(i_kind):: length, bindec, i
+
+!   Check to determine decimal # is within bounds
+    i = 14_i_kind
+    IF ((dec - 2**i) >= izero) THEN
+       STOP 'Decimal Number too Large. Must be < 2^13'
+    END IF
+
+!   Determine the scalar for each of the decimal positions
+    DO WHILE (i >= 1_i_kind)
+       bindec = 2**(i-1)
+       IF ((dec - bindec) >= izero) THEN
+          bin(i) = 1_i_kind
+          dec = dec - bindec
+       ELSE
+          bin(i) = izero
+       END IF
+       i = i - 1
+    END DO
+
+    RETURN
+END subroutine dec2bin
