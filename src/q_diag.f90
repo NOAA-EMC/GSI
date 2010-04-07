@@ -13,6 +13,7 @@ subroutine q_diag(mype)
 !   2008-02-13  treadon - add pdryin computation
 !   2008-04-23  safford - comment out unused local parameter
 !   2009-04-21  derber  - fix ierror error
+!   2010-04-01  treadon - move strip to gridmod
 !
 !   input argument list:
 !    mype       - mpi task id
@@ -27,10 +28,10 @@ subroutine q_diag(mype)
   use kinds, only: r_kind,i_kind
   use guess_grids, only: ges_q,ntguessig,ges_cwmr,ges_ps,ges_prsi
   use jfunc, only: qsatg,iout_iter
-  use mpimod, only: mpi_rtype,mpi_comm_world,mpi_sum,strip,ierror
+  use mpimod, only: mpi_rtype,mpi_comm_world,mpi_sum,ierror
   use constants,only: izero,ione,zero,two,one,half
   use gridmod, only: lat2,lon2,nsig,nlat,nlon,lat1,lon1,iglobal,&
-       displs_g,ijn,wgtlats,itotsub,load_grid
+       displs_g,ijn,wgtlats,itotsub,load_grid,strip
 
   implicit none
 

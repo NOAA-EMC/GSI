@@ -14,6 +14,7 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
 !   2004-10-26  kleist - remove u,v; do periodic update on st,vp
 !   2004-03-30  treaon - change work1 dimension to max(iglobal,itotsub)
 !   2008-04-03  safford - rm unused vars and uses                       
+!   2010-04-01  treadon - move strip,strip_periodic,reorder to gridmod
 !
 !   input argument list:
 !     t        - t grid values                    
@@ -38,10 +39,10 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: irdsp_g,ircnt_g,iscnt_g,isdsp_g,&
-       ierror,mpi_comm_world,mpi_rtype,&
-       strip,strip_periodic,reorder
+       ierror,mpi_comm_world,mpi_rtype
   use gridmod, only: itotsub,lat1,lon1,lat2,lon2,iglobal,&
-       nlat,nlon,nsig,ltosi,ltosj,nsig1o,nnnn1o
+       nlat,nlon,nsig,ltosi,ltosj,nsig1o,nnnn1o,&
+       strip,strip_periodic,reorder
   use jfunc, only: nsstsm,nozsm,nsltsm,ncwsm,nsitsm,nvpsm,nstsm,&
        npsm,nqsm,ntsm
   use constants, only: ione,zero
@@ -150,10 +151,11 @@ subroutine sub2grid2(workin,st,vp,pri,t,iflg)
   use kinds, only: r_kind,i_kind
   use mpimod, only: irdbal_g,ircbal_g,iscbal_g,isdbal_g,&
        ierror,mpi_comm_world,mpi_rtype,&
-       strip,strip_periodic,reorder,nnnvsbal,nlevsbal,ku_gs,kv_gs, &
+       nnnvsbal,nlevsbal,ku_gs,kv_gs, &
        kp_gs,kt_gs
   use gridmod, only: itotsub,lat1,lon1,lat2,lon2,iglobal,&
-       nlat,nlon,nsig,ltosi,ltosj
+       nlat,nlon,nsig,ltosi,ltosj,&
+       strip,strip_periodic,reorder
   use constants, only: ione,zero
   implicit none
 

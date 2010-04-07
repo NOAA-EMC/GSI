@@ -839,6 +839,7 @@ subroutine wr2d_binary(mype)
 !   2006-07-28 derber - include sensible temperature
 !   2006-07-31  kleist - make change to ges_ps instead of ln(ps)
 !   2008-04-03  safford - rm unused vars and uses
+!   2010-04-01  treadon - move strip_single to gridmod
 !
 !   input argument list:
 !     mype     - pe number
@@ -854,8 +855,8 @@ subroutine wr2d_binary(mype)
   use kinds, only: r_kind,r_single,i_kind
   use guess_grids, only: ntguessfc,ntguessig,ifilesig,sfct,ges_ps,&
        ges_q,ges_u,ges_v,ges_tsen
-  use mpimod, only: mpi_comm_world,ierror,mpi_real4,strip_single
-  use gridmod, only: lat2,iglobal,itotsub,update_regsfc,&
+  use mpimod, only: mpi_comm_world,ierror,mpi_real4
+  use gridmod, only: lat2,iglobal,itotsub,update_regsfc,strip_single,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g
   use constants, only: izero,ione,zero_single
   use jfunc, only: qsatg

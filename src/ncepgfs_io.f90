@@ -11,8 +11,10 @@ module ncepgfs_io
 !   2006-01-10 treadon
 !   2010-02-20 parrish - make sigio_cnvtdv8 public so can be accessed by general_read_gfsatm, when
 !                          reading in gefs sigma files at resolution different from analysis.
+!   2010-03-31 treadon - add read_gfs, use sp_a and sp_b
 !
 ! Subroutines Included:
+!   sub read_gfs          - driver to read ncep gfs atmospheric ("sigma") files
 !   sub read_gfsatm       - read ncep gfs atmospheric ("sigma") file, scatter
 !                           on grid to analysis subdomains
 !   sub read_gfssfc       - read ncep gfs surface file, scatter on grid to 
@@ -36,17 +38,79 @@ module ncepgfs_io
   implicit none
 
   private
-  public read_gfsatm
+  public read_gfs
   public read_gfssfc
   public write_gfs
-  public write_gfsatm
-  public write_gfssfc
   public sfc_interpolate
   public sigio_cnvtdv8
 
 contains
 
-  subroutine read_gfsatm(filename,mype,g_z,g_ps,g_vor,g_div,g_u,g_v,&
+  subroutine read_gfs(mype)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    read_gfs
+!
+!   prgrmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-03-31  treadon - create routine
+!
+!   input argument list:
+!     mype               - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+    use kinds, only: i_kind
+    use gridmod, only: hires_b,sp_a,sp_b
+    use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
+         ges_u,ges_v,ges_tv,ges_q,ges_cwmr,ges_oz,&
+         ifilesig,nfldsig
+    implicit none
+
+    integer(i_kind),intent(in   ) :: mype
+
+    character(24) filename
+    integer(i_kind):: it,iret
+
+!   If hires_b, spectral to grid transform for background
+!   uses double FFT.   Need to pass in sp_a and sp_b
+    if (hires_b) then
+       do it=1,nfldsig
+          write(filename,100) ifilesig(it)
+100       format('sigf',i2.2)
+          call read_gfsatm(filename,mype,sp_a,sp_b,&
+               ges_z(1,1,it),ges_ps(1,1,it),&
+               ges_vor(1,1,1,it),ges_div(1,1,1,it),&
+               ges_u(1,1,1,it),ges_v(1,1,1,it),&
+               ges_tv(1,1,1,it),ges_q(1,1,1,it),&
+               ges_cwmr(1,1,1,it),ges_oz(1,1,1,it),iret)
+       end do
+
+!   Otherwise, use standard transform.  Use sp_a in place of sp_b.
+    else
+       do it=1,nfldsig
+          write(filename,100) ifilesig(it)
+          call read_gfsatm(filename,mype,sp_a,sp_a,&
+               ges_z(1,1,it),ges_ps(1,1,it),&
+               ges_vor(1,1,1,it),ges_div(1,1,1,it),&
+               ges_u(1,1,1,it),ges_v(1,1,1,it),&
+               ges_tv(1,1,1,it),ges_q(1,1,1,it),&
+               ges_cwmr(1,1,1,it),ges_oz(1,1,1,it),iret)
+       end do
+    endif
+  end subroutine read_gfs
+
+
+  subroutine read_gfsatm(filename,mype,sp_a,sp_b,g_z,g_ps,g_vor,g_div,g_u,g_v,&
        g_tv,g_q,g_cwmr,g_oz,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -80,6 +144,7 @@ contains
 !   2008-05-28  safford - rm unused vars
 !   2010-03-10  sela,iredell,lueken - remove hires_b
 !   2010-03-18  treadon - remove zonal mean q check
+!   2010-03-31  treadon - add sp_a and sp_b
 !
 !   input argument list:
 !     inges    - unit number of guess coefs
@@ -99,9 +164,9 @@ contains
     use gridmod, only: displs_s,irc_s,ijn_s,&
          ird_s,nsig,nlat,nlon,lat2,lon2,&
          itotsub,fill_ns,filluv_ns,ncep_sigio,ncepgfs_head,idpsfc5,idthrm5,&
-         ntracer,idvc5,cp5,idvm5
-    use specmod, only: factsml_b,factvml_b,jcap_b,nc_b,jcap,nc
-    use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype,reload
+         ntracer,idvc5,cp5,idvm5,reload
+    use general_specmod, only: spec_vars
+    use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
     use constants, only: izero,ione,zero,one,fv
     use sigio_module, only: sigio_intkind,sigio_head,sigio_data,&
          sigio_srohdc,sigio_axdata
@@ -123,6 +188,7 @@ contains
     real(r_kind),dimension(lat2,lon2)     ,intent(  out) :: g_z,g_ps
     real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: g_u,g_v,&
          g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
+    type(spec_vars)                       ,intent(in   ) :: sp_a,sp_b
     
 !   Declare local variables
     integer(i_kind):: iret,nlatm2,ij,n,ii1,l,m
@@ -131,8 +197,8 @@ contains
     real(r_kind),dimension(nlon,nlat-2_i_kind):: grid,grid_u,grid_v,&
          grid_vor,grid_div,grid2
     real(r_kind),dimension(nlon,nlat-2_i_kind,ntracer):: grid_q
-    real(r_kind),dimension(nc_b):: spec_work,spec_vor,spec_div
-    real(r_kind),dimension(nc):: spec2_work,spec2_vor,spec2_div
+    real(r_kind),dimension(sp_b%nc):: spec_work,spec_vor,spec_div
+    real(r_kind),dimension(sp_a%nc):: spec2_work,spec2_vor,spec2_div
     real(r_kind),dimension(itotsub):: work,work_vor,work_div,&
          work_u,work_v
     real(r_kind),dimension(lat2*lon2,max(2*nsig,npe)):: sub,sub_div,sub_vor,&
@@ -161,7 +227,6 @@ contains
     mype_ps=npe-ione
     iret_read=izero
     nlatm2=nlat-2_i_kind
-!   rnlon=one/float(nlon)
 
 
 !   Read NCEP gfs guess file using appropriate io module
@@ -247,11 +312,11 @@ contains
 !   Terrain:  spectral --> grid transform, scatter to all mpi tasks
     if (mype==mype_hs) then
        if (ncep_sigio) then
-          do i=1,nc_b
+          do i=1,sp_b%nc
              spec_work(i)=sigdata%hs(i)
-             if(factsml_b(i))spec_work(i)=zero
+             if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call sptez_s_b(spec_work,grid,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
        else
           ij=izero
           do j=1,gfshead%latb
@@ -275,11 +340,11 @@ contains
 !   
     if (mype==mype_ps) then
        if (ncep_sigio) then
-          do i=1,nc_b
+          do i=1,sp_b%nc
              spec_work(i)=sigdata%ps(i)
-             if(factsml_b(i))spec_work(i)=zero
+             if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call sptez_s_b(spec_work,grid,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
           call fill_ns(grid,work)
 
 !         If ln(ps), take exponential to convert to ps in cb
@@ -316,11 +381,11 @@ contains
        icount=icount+ione
        if (mype==mod(icount-ione,npe)) then
           if (ncep_sigio) then
-             do i=1,nc_b
+             do i=1,sp_b%nc
                 spec_work(i)=sigdata%t(i,k)
-                if(factsml_b(i))spec_work(i)=zero
+                if(sp_b%factsml(i))spec_work(i)=zero
              end do
-             call sptez_s_b(spec_work,grid,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
 
 !            SIGIO has three possible thermodynamic variables
 !            Variable idthrm5 indicates the type
@@ -335,11 +400,11 @@ contains
 
 !               Convert tracers from spectral coefficients to grid
                 do n=1,ntracer
-                   do i=1,nc_b
+                   do i=1,sp_b%nc
                       spec_work(i)=sigdata%q(i,k,n)
-                      if(factsml_b(i))spec_work(i)=zero
+                      if(sp_b%factsml(i))spec_work(i)=zero
                    end do
-                   call sptez_s_b(spec_work,grid_q(1,1,n),ione)
+                   call general_sptez_s_b(sp_a,sp_b,spec_work,grid_q(1,1,n),ione)
                 end do
 
 !               Convert input thermodynamic variable to dry temperature
@@ -398,17 +463,17 @@ contains
 
 !         Convert spectral coefficients of div and vor to grid space
           if (ncep_sigio) then
-             do i=1,nc_b
+             do i=1,sp_b%nc
                 spec_div(i)=sigdata%d(i,k)   !div
                 spec_vor(i)=sigdata%z(i,k)   !vor
-                if(factvml_b(i))then
+                if(sp_b%factvml(i))then
                    spec_div(i)=zero
                    spec_vor(i)=zero
                 end if
              end do
-             call sptez_s_b(spec_div,grid_div,ione)
-             call sptez_s_b(spec_vor,grid_vor,ione)
-             call sptez_v_b(spec_div,spec_vor,grid_u,grid_v,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_div,grid_div,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_vor,grid_vor,ione)
+             call general_sptez_v_b(sp_a,sp_b,spec_div,spec_vor,grid_u,grid_v,ione)
 
 
 !         Convert grid u,v to div and vor
@@ -421,9 +486,9 @@ contains
                    grid_v(i,j)=gfsdata%v(ij,k)
                 end do
              end do
-             call sptez_v(spec2_div,spec2_vor,grid_u,grid_v,-ione)
-             call sptez_s(spec2_div,grid_div,ione)
-             call sptez_s(spec2_vor,grid_vor,ione)
+             call general_sptez_v(sp_b,spec2_div,spec2_vor,grid_u,grid_v,-ione)
+             call general_sptez_s(sp_b,spec2_div,grid_div,ione)
+             call general_sptez_s(sp_b,spec2_vor,grid_vor,ione)
           endif
           
           call fill_ns(grid_div,work_div)
@@ -465,11 +530,11 @@ contains
        icount=icount+ione
        if (mype==mod(icount-ione,npe)) then
           if (ncep_sigio) then
-             do i=1,nc_b
+             do i=1,sp_b%nc
                 spec_work(i)=sigdata%q(i,k,1)
-                if(factsml_b(i))spec_work(i)=zero
+                if(sp_b%factsml(i))spec_work(i)=zero
              end do
-             call sptez_s_b(spec_work,grid,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
           else
              ij=izero
              do j=1,gfshead%latb
@@ -499,11 +564,11 @@ contains
        icount=icount+ione
        if (mype==mod(icount-ione,npe)) then
           if (ncep_sigio) then
-             do i=1,nc_b
+             do i=1,sp_b%nc
                 spec_work(i)=sigdata%q(i,k,2)
-                if(factsml_b(i))spec_work(i)=zero
+                if(sp_b%factsml(i))spec_work(i)=zero
              end do
-             call sptez_s_b(spec_work,grid,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
           else
              ij=izero
              do j=1,gfshead%latb
@@ -534,11 +599,11 @@ contains
           icount=icount+ione
           if (mype==mod(icount-ione,npe)) then
              if (ncep_sigio) then
-                do i=1,nc_b
+                do i=1,sp_b%nc
                    spec_work(i)=sigdata%q(i,k,3)
-                   if(factsml_b(i))spec_work(i)=zero
+                   if(sp_b%factsml(i))spec_work(i)=zero
                 end do
-                call sptez_s_b(spec_work,grid,ione)
+                call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
              else
                 ij=izero
                 do j=1,gfshead%latb
@@ -788,6 +853,7 @@ contains
 !   2008-05-28  safford - rm unused vars, add doc block
 !   2008-12-05  todling - adjustment for dsfct time dimension addition
 !   2009-11-28  todling - add increment option (hook-only for now)
+!   2010-03-31  treadon - add hires_b, sp_a, and sp_b
 !
 !   input argument list:
 !     increment          - when .t. will name files as increment files
@@ -808,6 +874,7 @@ contains
          ges_tv,ges_q,ges_oz,ges_cwmr,ges_prsl,&
          ges_u,ges_v,ges_prsi,dsfct
     use guess_grids, only: ntguessig,ntguessfc
+    use gridmod, only: hires_b,sp_a,sp_b
 
     implicit none
 
@@ -823,13 +890,30 @@ contains
     else
        filename='siganl'
     endif
-    call write_gfsatm(filename,mype,mype_atm,&
-         ges_z(1,1,ntguessig),ges_ps(1,1,ntguessig),&
-         ges_vor(1,1,1,ntguessig),ges_div(1,1,1,ntguessig),&
-         ges_tv(1,1,1,ntguessig),ges_q(1,1,1,ntguessig),&
-         ges_oz(1,1,1,ntguessig),ges_cwmr(1,1,1,ntguessig),&
-         ges_prsl(1,1,1,ntguessig),ges_u(1,1,1,ntguessig),&
-         ges_v(1,1,1,ntguessig),ges_prsi(1,1,1,ntguessig))
+
+!   If hires_b, spectral to grid transform for background
+!   uses double FFT.   Need to pass in sp_a and sp_b
+    if (hires_b) then
+       call write_gfsatm(filename,mype,mype_atm,&
+            sp_a,sp_b,&
+            ges_z(1,1,ntguessig),ges_ps(1,1,ntguessig),&
+            ges_vor(1,1,1,ntguessig),ges_div(1,1,1,ntguessig),&
+            ges_tv(1,1,1,ntguessig),ges_q(1,1,1,ntguessig),&
+            ges_oz(1,1,1,ntguessig),ges_cwmr(1,1,1,ntguessig),&
+            ges_prsl(1,1,1,ntguessig),ges_u(1,1,1,ntguessig),&
+            ges_v(1,1,1,ntguessig),ges_prsi(1,1,1,ntguessig))
+
+!   Otherwise, use standard transform.  Use sp_a in place of sp_b.
+    else
+       call write_gfsatm(filename,mype,mype_atm,&
+            sp_a,sp_a,&
+            ges_z(1,1,ntguessig),ges_ps(1,1,ntguessig),&
+            ges_vor(1,1,1,ntguessig),ges_div(1,1,1,ntguessig),&
+            ges_tv(1,1,1,ntguessig),ges_q(1,1,1,ntguessig),&
+            ges_oz(1,1,1,ntguessig),ges_cwmr(1,1,1,ntguessig),&
+            ges_prsl(1,1,1,ntguessig),ges_u(1,1,1,ntguessig),&
+            ges_v(1,1,1,ntguessig),ges_prsi(1,1,1,ntguessig))
+    endif
 
 !   Write surface analysis file
     if (increment) then
@@ -841,7 +925,7 @@ contains
   end subroutine write_gfs
 
 
-  subroutine write_gfsatm(filename,mype,mype_out,sub_z,sub_ps,&
+  subroutine write_gfsatm(filename,mype,mype_out,sp_a,sp_b,sub_z,sub_ps,&
        sub_vor,sub_div,sub_tv,sub_q,sub_oz,sub_cwmr,sub_prsl,&
        sub_u,sub_v,sub_prsi)
 
@@ -876,6 +960,7 @@ contains
 !   2008-05-28  safford - rm unused vars and uses
 !   2009-06-11  kleist  - add sppad for multiple spectral resolutions
 !   2010-03-10  sela,iredell,lueken - remove hires_b
+!   2010-03-31  treadon - add sp_a and sp_b
 !
 !   input argument list:
 !     filename  - file to open and write to
@@ -909,7 +994,6 @@ contains
   
     use mpimod, only: mpi_rtype,mpi_rtype4
     use mpimod, only: mpi_comm_world
-    use mpimod, only: strip
     use mpimod, only: ierror
     use mpimod, only: mpi_status_size
     use mpimod, only: npe
@@ -934,13 +1018,11 @@ contains
     use gridmod, only: ncloud
     use gridmod, only: ncep_sigio
     use gridmod, only: ncepgfs_head
+    use gridmod, only: strip
     
     use obsmod, only: iadate
     
-    use specmod, only: nc_b,nc
-    use specmod, only: jcap_b,jcap
-    use specmod, only: factsml_b
-    use specmod, only: factvml_b
+    use general_specmod, only: spec_vars
     
     use sigio_module, only: sigio_intkind,sigio_head,sigio_data,&
          sigio_swopen,sigio_swhead,sigio_swdata,sigio_axdata,&
@@ -972,6 +1054,10 @@ contains
     real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_v    ! meridional wind
     real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: sub_prsi ! interface  pressure
 
+    type(spec_vars)                            ,intent(in   ) :: sp_a
+    type(spec_vars)                            ,intent(in   ) :: sp_b
+
+
 !-------------------------------------------------------------------------
 
     integer(i_kind),parameter::  lunges = 11_i_kind
@@ -990,8 +1076,8 @@ contains
     real(r_kind),dimension(max(iglobal,itotsub)):: work1
     real(r_kind),dimension(max(iglobal,itotsub),nsig):: work1_k
     real(r_kind),dimension(nlon,nlat-2_i_kind):: grid,grid2
-    real(r_kind),dimension(nc_b):: spec_work
-    real(r_kind),dimension(nc):: spec_work_sm
+    real(r_kind),dimension(sp_b%nc):: spec_work
+    real(r_kind),dimension(sp_a%nc):: spec_work_sm
 
 
     type(sigio_head):: sighead
@@ -1061,20 +1147,20 @@ contains
 !         Read header and spectral coefficients from guess
           call sigio_srohdc(lunges,fname_ges,sighead,sigdata,iret)
 !send data to compute pes
-          call mpi_send(sigdata%t,nc_b*nsig,mpi_rtype4,mype_th,&
+          call mpi_send(sigdata%t,sp_b%nc*nsig,mpi_rtype4,mype_th,&
                         itag_th,mpi_comm_world,ierror)
-          call mpi_send(sigdata%q(1,1,1),nc_b*nsig,mpi_rtype4,mype_sh,&
+          call mpi_send(sigdata%q(1,1,1),sp_b%nc*nsig,mpi_rtype4,mype_sh,&
                         itag_sh,mpi_comm_world,ierror)
-          call mpi_send(sigdata%q(1,1,2),nc_b*nsig,mpi_rtype4,mype_oz,&
+          call mpi_send(sigdata%q(1,1,2),sp_b%nc*nsig,mpi_rtype4,mype_oz,&
                         itag_oz,mpi_comm_world,ierror)
           if (ntracer>2_i_kind .or. ncloud>=ione) then
-             call mpi_send(sigdata%q(1,1,3),nc_b*nsig,mpi_rtype4,mype_clc,&
+             call mpi_send(sigdata%q(1,1,3),sp_b%nc*nsig,mpi_rtype4,mype_clc,&
                            itag_clc,mpi_comm_world,ierror)
           endif
-          call mpi_send(sigdata%d,nc_b*nsig,mpi_rtype4,mype_div,&
+          call mpi_send(sigdata%d,sp_b%nc*nsig,mpi_rtype4,mype_div,&
                         itag_div,mpi_comm_world,ierror)
 
-          call mpi_send(sigdata%z,nc_b*nsig,mpi_rtype4,mype_vort,&
+          call mpi_send(sigdata%z,sp_b%nc*nsig,mpi_rtype4,mype_vort,&
                         itag_vort,mpi_comm_world,ierror)
 !
 
@@ -1102,35 +1188,35 @@ contains
           call sigio_swhead(lunanl,sighead,iret)
        else
           if (mype==mype_th) then
-             allocate (temp(nc_b,nsig),stat=istat)
-             call mpi_recv(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+             allocate (temp(sp_b%nc,nsig),stat=istat)
+             call mpi_recv(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                            itag_th,mpi_comm_world,status,ierror)
           endif
           if (mype==mype_sh) then
-             allocate (temp(nc_b,nsig),stat=istat)
-             call mpi_recv(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+             allocate (temp(sp_b%nc,nsig),stat=istat)
+             call mpi_recv(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                            itag_sh,mpi_comm_world,status,ierror)
           endif
           if (mype==mype_oz) then
-             allocate (temp(nc_b,nsig),stat=istat)
-             call mpi_recv(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+             allocate (temp(sp_b%nc,nsig),stat=istat)
+             call mpi_recv(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                            itag_oz,mpi_comm_world,status,ierror)
           endif
           if (mype==mype_clc) then
              if (ntracer>2_i_kind .or. ncloud>=ione) then
-                allocate (temp(nc_b,nsig),stat=istat)
-                call mpi_recv(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+                allocate (temp(sp_b%nc,nsig),stat=istat)
+                call mpi_recv(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                               itag_clc,mpi_comm_world,status,ierror)
              endif
           endif
           if (mype==mype_div) then
-             allocate (temp(nc_b,nsig),stat=istat)
-             call mpi_recv(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+             allocate (temp(sp_b%nc,nsig),stat=istat)
+             call mpi_recv(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                            itag_div,mpi_comm_world,status,ierror)
           endif
           if (mype==mype_vort) then
-             allocate (temp(nc_b,nsig),stat=istat)
-             call mpi_recv(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+             allocate (temp(sp_b%nc,nsig),stat=istat)
+             call mpi_recv(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                            itag_vort,mpi_comm_world,status,ierror)
           endif
        endif
@@ -1282,17 +1368,17 @@ contains
     if (mype==mype_out) then
        call load_grid(work1,grid)
        if (ncep_sigio) then
-          do i=1,nc_b
+          do i=1,sp_b%nc
              spec_work(i) = sigdata%hs(i)
-             if(factsml_b(i))spec_work(i)=zero
+             if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call sptez_s_b(spec_work,grid2,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
           grid=grid-grid2
-          call sptez_s(spec_work_sm,grid,-ione)
-          call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
-          do i=1,nc_b
+          call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
+          call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+          do i=1,sp_b%nc
              sigdata%hs(i)=sigdata%hs(i)+spec_work(i)
-             if(factsml_b(i))sigdata%hs(i)=zero_single
+             if(sp_b%factsml(i))sigdata%hs(i)=zero_single
           end do
        else
           ij=izero
@@ -1321,17 +1407,17 @@ contains
     if (mype==mype_out) then
        call load_grid(work1,grid)
        if (ncep_sigio) then
-          do i=1,nc_b
+          do i=1,sp_b%nc
              spec_work(i) = sigdata%ps(i)
-             if(factsml_b(i))spec_work(i)=zero
+             if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call sptez_s_b(spec_work,grid2,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
           grid=grid-grid2
-          call sptez_s(spec_work_sm,grid,-ione)
-          call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
-          do i=1,nc_b
+          call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
+          call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+          do i=1,sp_b%nc
              sigdata%ps(i)=sigdata%ps(i)+spec_work(i)
-             if(factsml_b(i))sigdata%ps(i)=zero_single
+             if(sp_b%factsml(i))sigdata%ps(i)=zero_single
           end do
        else
           ij=izero
@@ -1351,22 +1437,22 @@ contains
 !$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
           do k=1,nsig
              call load_grid(work1_k(1,k),grid)
-             do i=1,nc_b
+             do i=1,sp_b%nc
                 spec_work(i) = temp(i,k)
-                if(factsml_b(i))spec_work(i)=zero
+                if(sp_b%factsml(i))spec_work(i)=zero
              end do
-             call sptez_s_b(spec_work,grid2,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
              grid=grid-grid2
-             call sptez_s(spec_work_sm,grid,-ione)
-             call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
-             do i=1,nc_b
+             call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
+             call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+             do i=1,sp_b%nc
                 temp(i,k)=temp(i,k)+spec_work(i)
-                if(factsml_b(i))temp(i,k)=zero_single
+                if(sp_b%factsml(i))temp(i,k)=zero_single
              end do
           end do
 !$omp end parallel do
 !send temperature back to mype_out
-          call mpi_send(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+          call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                         itag_th,mpi_comm_world,ierror)
        endif
     else                 !GFS I/O
@@ -1394,22 +1480,22 @@ contains
 !$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
           do k=1,nsig
              call load_grid(work1_k(1,k),grid)
-             do i=1,nc_b
+             do i=1,sp_b%nc
                 spec_work(i) = temp(i,k)
-                if(factsml_b(i))spec_work(i)=zero
+                if(sp_b%factsml(i))spec_work(i)=zero
              end do
-             call sptez_s_b(spec_work,grid2,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
              grid=grid-grid2
-             call sptez_s(spec_work_sm,grid,-ione)
-             call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
-             do i=1,nc_b
+             call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
+             call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+             do i=1,sp_b%nc
                 temp(i,k) =temp(i,k)+spec_work(i)
-                if(factsml_b(i))temp(i,k)=zero_single
+                if(sp_b%factsml(i))temp(i,k)=zero_single
              end do
           end do
 !$omp end parallel do
 !send sh back to mype_out
-          call mpi_send(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+          call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                         itag_sh,mpi_comm_world,ierror)
        endif
     else             !GFS I/O
@@ -1438,22 +1524,22 @@ contains
 !$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
           do k=1,nsig
              call load_grid(work1_k(1,k),grid)
-             do i=1,nc_b
+             do i=1,sp_b%nc
                 spec_work(i) = temp(i,k)
-                if(factsml_b(i))spec_work(i)=zero
+                if(sp_b%factsml(i))spec_work(i)=zero
              end do
-             call sptez_s_b(spec_work,grid2,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
              grid=grid-grid2
-             call sptez_s(spec_work_sm,grid,-ione)
-             call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
-             do i=1,nc_b
+             call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
+             call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+             do i=1,sp_b%nc
                 temp(i,k) =temp(i,k) + spec_work(i)
-                if(factsml_b(i))temp(i,k)=zero_single
+                if(sp_b%factsml(i))temp(i,k)=zero_single
              end do
           end do
 !$omp end parallel do
 !send sh back to mype_out
-          call mpi_send(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+          call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                         itag_oz,mpi_comm_world,ierror)
        endif
     else          !GFS I/O
@@ -1483,23 +1569,23 @@ contains
 !$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
              do k=1,nsig
                 call load_grid(work1_k(1,k),grid)
-                do i=1,nc_b
+                do i=1,sp_b%nc
                    spec_work(i) = temp(i,k)
-                   if(factsml_b(i))spec_work(i)=zero
+                   if(sp_b%factsml(i))spec_work(i)=zero
                 end do
-                call sptez_s_b(spec_work,grid2,ione)
+                call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
                 call load_grid(work1_k(1,k),grid)
                 grid=grid-grid2
-                call sptez_s(spec_work_sm,grid,-ione)
-                call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
-                do i=1,nc_b
+                call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
+                call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+                do i=1,sp_b%nc
                    temp(i,k) =temp(i,k)+spec_work(i)
-                   if(factsml_b(i))temp(i,k)=zero_single
+                   if(sp_b%factsml(i))temp(i,k)=zero_single
                 end do
              end do
 !$omp end parallel do
 !send sh back to mype_out
-             call mpi_send(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+             call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                            itag_clc,mpi_comm_world,ierror)
           endif
        else          !GFS I/O
@@ -1529,45 +1615,45 @@ contains
        if (mype==mype_div) then
 !$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
           do k=1,nsig
-             do i=1,nc_b
+             do i=1,sp_b%nc
                 spec_work(i) = temp(i,k)
-                if(factsml_b(i))spec_work(i)=zero
+                if(sp_b%factsml(i))spec_work(i)=zero
              end do
-             call sptez_s_b(spec_work,grid2,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
              call load_grid(work1_k(1,k),grid)
              grid=grid-grid2
-             call sptez_s(spec_work_sm,grid,-ione)
-             call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
-             do i=1,nc_b
+             call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
+             call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+             do i=1,sp_b%nc
                 temp(i,k) = temp(i,k) + spec_work(i)
-                if(factvml_b(i))temp(i,k)=zero_single
+                if(sp_b%factvml(i))temp(i,k)=zero_single
              end do
           end do
 !$omp end parallel do
 !send sh back to mype_out
-          call mpi_send(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+          call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                         itag_div,mpi_comm_world,ierror)
        endif
 
        if (mype==mype_vort) then
 !$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
           do k=1,nsig
-             do i=1,nc_b
+             do i=1,sp_b%nc
                 spec_work(i) = temp(i,k)
-                if(factsml_b(i))spec_work(i)=zero
+                if(sp_b%factsml(i))spec_work(i)=zero
              end do
-             call sptez_s_b(spec_work,grid2,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
              call load_grid(work1_k(1,k),grid)
              grid=grid-grid2
-             call sptez_s(spec_work_sm,grid,-ione)
-             call sppad(izero,jcap,spec_work_sm,izero,jcap_b,spec_work)
-             do i=1,nc_b
+             call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
+             call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+             do i=1,sp_b%nc
                 temp(i,k) =temp(i,k) + spec_work(i)
-                if(factvml_b(i))temp(i,k)=zero_single
+                if(sp_b%factvml(i))temp(i,k)=zero_single
              end do
           end do
 !$omp end parallel do
-          call mpi_send(temp,nc_b*nsig,mpi_rtype4,mype_out,&
+          call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                         itag_vort,mpi_comm_world,ierror)
        endif
     endif
@@ -1656,24 +1742,24 @@ contains
     if (mype==mype_out) then
        if (ncep_sigio) then
 !receive temperature from mype_th
-          call mpi_recv(sigdata%t,nc_b*nsig,mpi_rtype4,mype_th,&
+          call mpi_recv(sigdata%t,sp_b%nc*nsig,mpi_rtype4,mype_th,&
                         itag_th,mpi_comm_world,status,ierror)
 !receive specific humidity from mype_sh
-          call mpi_recv(sigdata%q(1,1,1),nc_b*nsig,mpi_rtype4,mype_sh,&
+          call mpi_recv(sigdata%q(1,1,1),sp_b%nc*nsig,mpi_rtype4,mype_sh,&
                         itag_sh,mpi_comm_world,status,ierror)
 !receive ozone from mype_oz
-          call mpi_recv(sigdata%q(1,1,2),nc_b*nsig,mpi_rtype4,mype_oz,&
+          call mpi_recv(sigdata%q(1,1,2),sp_b%nc*nsig,mpi_rtype4,mype_oz,&
                         itag_oz,mpi_comm_world,status,ierror)
 !receive cloud condensate mixing ratio from mype_clc
           if (ntracer>2_i_kind .or. ncloud>=ione) then
-             call mpi_recv(sigdata%q(1,1,3),nc_b*nsig,mpi_rtype4,mype_clc,&
+             call mpi_recv(sigdata%q(1,1,3),sp_b%nc*nsig,mpi_rtype4,mype_clc,&
                            itag_clc,mpi_comm_world,status,ierror)
           endif 
 !receive divergence from mype_div
-          call mpi_recv(sigdata%d,nc_b*nsig,mpi_rtype4,mype_div,&
+          call mpi_recv(sigdata%d,sp_b%nc*nsig,mpi_rtype4,mype_div,&
                         itag_div,mpi_comm_world,status,ierror)
 !receive vorticity from mype_vort
-          call mpi_recv(sigdata%z,nc_b*nsig,mpi_rtype4,mype_vort,&
+          call mpi_recv(sigdata%z,sp_b%nc*nsig,mpi_rtype4,mype_vort,&
                         itag_vort,mpi_comm_world,status,ierror)
 !
           string='sigio'

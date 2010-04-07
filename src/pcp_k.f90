@@ -30,6 +30,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 !   2006-09-15  treadon - change (k,i) arrays to (k) arrays
 !   2006-10-12  treadon - remove virtual temperature
 !   2008-04-29  safford - rm unused uses
+!   2010-03-31  treadon - replace jcap with sp_a%jcap
 !
 !   input argument list:
 !     km        - number of levels in vertical profile
@@ -99,8 +100,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
   use kinds, only: r_kind,i_kind
   use constants, only: rhcbot,rhctop,dx_inv,dx_min,izero,ione,one,zero
   use pcpinfo, only: tiny_obs
-  use gridmod, only: nlon
-  use specmod, only: jcap
+  use gridmod, only: nlon,sp_a
   implicit none
 
 
@@ -231,7 +231,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
   end do
 
   adjoint = .false.
-  call nlmsas_ad(im,ix,km,jcap,dtp,del_i,sl_i,rcs,&
+  call nlmsas_ad(im,ix,km,sp_a%jcap,dtp,del_i,sl_i,rcs,&
        slmask,xkt,ncloud,psexp,&
        
        tsas_i,qsas_i,cwmsas_i,usas_i,vsas_i,wsas_i,&
@@ -491,7 +491,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
      
   end do
   adjoint = .true.
-  call nlmsas_ad(im,ix,km,jcap,dtp,del_i,sl_i,rcs,&
+  call nlmsas_ad(im,ix,km,sp_a%jcap,dtp,del_i,sl_i,rcs,&
        slmask,xkt,ncloud,psexp,&
        
        tsas_i,qsas_i,cwmsas_i,usas_i,vsas_i,wsas_i,&

@@ -66,7 +66,7 @@
 !  -----------
       use kinds,       only : r_kind,i_kind
       use mpimod,      only : mype,mpi_rtype,mpi_comm_world
-      use mpimod,      only : strip
+      use gridmod,     only : strip
       use gridmod,     only : displs_s,ijn_s
       use gridmod,     only : nlat, nlon     ! no. lat/lon
       use gridmod,     only : lat1, lon1     ! no. lat/lon on subdomain (no buffer)
@@ -141,6 +141,7 @@
 ! !REVISION HISTORY:
 !
 !  08May2007  Todling   Initial code.
+!  01Apr2010  Treadon   move strip to gridmod
 !
 !EOP
 !-------------------------------------------------------------------------

@@ -8,6 +8,7 @@ module xhat_vordivmod
 !
 ! program history log:
 !   2009-08-14  lueken - added module doc block
+!   2010-04-01  treadon - move strip,reorder,reorder2 to gridmod
 !
 ! subroutines included:
 !   sub init_
@@ -23,11 +24,10 @@ module xhat_vordivmod
 
   use kinds, only: r_kind,i_kind
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,isduv_s,&
-       strip,reorder,reorder2
+       isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,isduv_s
   use constants, only: zero
   use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,&
-       regional
+       regional,strip,reorder,reorder2
   use compact_diffs, only: uv2vordiv
   use gsi_4dvar, only: nobs_bins
   use state_vectors

@@ -13,6 +13,7 @@
 ! program history log:
 !   2007-02-15  rancic -  add foto
 !   2008-12-02  todling - separated this routine from update_guess
+!   2010-04-01  treadon - move strip,reorder,reorder2 to gridmod
 !
 !   input argument list:
 !     xut,xvt,xtt,xqt,xozt,xcwt,xpt - tendencies
@@ -28,12 +29,11 @@
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,isduv_s,&
-       strip,reorder,reorder2
+       isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,isduv_s
   use constants, only: zero, one, fv, r3600
   use jfunc, only: l_foto
   use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,&
-       regional
+       regional,strip,reorder,reorder2
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,&
        nfldsig,hrdifsig

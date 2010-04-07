@@ -124,6 +124,7 @@ contains
 !   2008-04-11  safford    - rm unused vars
 !   2010-02-18  parrish - substantial changes to simplify and introduce input/output variable
 !                            type(spec_vars) sp
+!   2010-04-01  treadon - remove mpimod and rad2deg constants (not used)
 !
 !   input argument list:
 !     sp     - type(spec_vars) variable 
@@ -143,8 +144,6 @@ contains
 !
 !$$$
     use constants, only: izero,ione,zero,half,one,two,pi
-                                               use mpimod, only: mype    !  debug only
-                                               use constants, only: rad2deg ! debug only
     implicit none
 
 !   Declare passed variables
@@ -241,17 +240,11 @@ contains
        sp%clats(ione+i  )=      sp%clat(i)
        sp%slats(ione+i  )=     -sp%slat(i)
     end do
-        !do i=1,nlat_a
-        !   if(mype == 0) write(6,'(" in general_init_spec_vars, i,sp%r,s,clats(i)=",i4,f15.4,2f12.6)') &
-        !                                 i,sp%rlats(i)*rad2deg,sp%slats(i),sp%clats(i)
-        !end do
     dlon_a=two_pi/nlon_a
     do j=1,nlon_a
        sp%rlons(j)=(j-one)*dlon_a
        sp%clons(j)=cos(sp%rlons(j))
        sp%slons(j)=sin(sp%rlons(j))
-           !if(mype == 0) write(6,'(" in general_init_spec_vars, j,sp%r,s,clons(j)=",i4,f15.4,2f12.6)') &
-           !                              j,sp%rlons(j)*rad2deg,sp%slons(j),sp%clons(j)
     end do
     sp%lallocated=.true.
 

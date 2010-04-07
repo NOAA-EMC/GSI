@@ -17,6 +17,7 @@ subroutine gesinfo(mype)
 !   2009-01-07  todling - add logics to determine begin/end of analysis
 !   2009-01-28  todling - remove original GMAO interface
 !   2009-10-09  wu      - replace nhr_offset with min_offset since it's 1.5 hr for regional
+!   2010-03-31  treadon - move jcap_b to gridmod
 !
 !   input argument list:
 !     mype - mpi task id
@@ -37,8 +38,7 @@ subroutine gesinfo(mype)
        regional,nsig,regional_fhr,regional_time,&
        wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,&
        ntracer,ncloud,ncep_sigio,nlat,nlon,idvm5,&
-       ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5
-  use specmod, only: jcap_b
+       ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5,jcap_b
   use sigio_module, only: sigio_head,sigio_srhead,sigio_sclose,&
        sigio_sropen
   use gfsio_module, only: gfsio_gfile,gfsio_open,gfsio_close,&

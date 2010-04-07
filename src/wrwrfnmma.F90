@@ -933,6 +933,7 @@ subroutine wrwrfnmma_netcdf(mype)
 !   2006-07-31  kleist - change to use ges_ps instead of lnps
 !   2008-04-01  safford - rm unused uses
 !   2008-12-05  todling - adjustment for dsfct time dimension addition
+!   2010-04-01  treadon - move strip_single to gridmod
 !
 !   input argument list:
 !     mype     - pe number
@@ -949,10 +950,10 @@ subroutine wrwrfnmma_netcdf(mype)
   use regional_io, only: update_pint
   use guess_grids, only: ges_ps,ges_pint,ges_pd,ges_u,ges_v,ges_q,&
        ntguessfc,ntguessig,ifilesig,dsfct,ges_tsen
-  use mpimod, only: mpi_comm_world,ierror,mpi_real4,strip_single
+  use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
-       nsig,lat1,lon1,ijn,displs_g,eta2_ll
+       nsig,lat1,lon1,ijn,displs_g,eta2_ll,strip_single
   use constants, only: izero,ione,zero_single
   use gsi_io, only: lendian_in, lendian_out
   implicit none

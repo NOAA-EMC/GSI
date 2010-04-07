@@ -13,6 +13,7 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 !   2008-09-05  lueken - merged ed's changes into q1fy09 code
 !   2009-04-15  wgu - added fpsproj option
 !   2009-04-21  wgu - bug fix in routine smooth2d
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !     sfvar     - stream function variance
@@ -328,6 +329,7 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
 !   2007-07-03  kleist
 !   2008-06-05  safford - rm unused uses
 !   2008-09-05  lueken - merged ed's changes into q1fy09 code
+!   2010-04-01  treadon - move strip,reorder,reorder2 to gridmod
 !
 !   input argument list:
 !     vor       - vorticity on subdomains
@@ -345,11 +347,10 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
   use kinds, only: r_kind,i_kind
   use constants, only: ione,zero
   use gridmod, only: lat2,nsig,iglobal,lon1,itotsub,lon2,lat1,&
-       nlat,nlon,ltosi,ltosj,ltosi_s,ltosj_s
-  use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_s,isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
+       nlat,nlon,ltosi,ltosj,ltosi_s,ltosj_s,sp_a,grd_a,&
        strip,reorder,reorder2
-  use specmod, only: ncd2,nc,enn1
+  use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
+       isduv_s,isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype
   implicit none
 
 ! Declare passed variables
@@ -362,7 +363,7 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
   real(r_kind),dimension(lat1,lon1,nsig):: vordivsm1,vordivsm2
   real(r_kind),dimension(itotsub,nuvlevs):: work1,work2
   real(r_kind),dimension(nlat,nlon):: work3
-  real(r_kind),dimension(nc):: spc1
+  real(r_kind),dimension(sp_a%nc):: spc1
 
   dpsichi=zero 
 
@@ -396,18 +397,18 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
         work3(ni1,ni2)=work2(kk,k)
      end do
 
-     call g2s0(spc1,work3)
+     call general_g2s0(grd_a,sp_a,spc1,work3)
 
 ! Inverse laplacian
-     do i=2,ncd2
-        spc1(2*i-ione)=spc1(2*i-ione)/(-enn1(i))
-        spc1(2*i)=spc1(2*i)/(-enn1(i))
+     do i=2,sp_a%ncd2
+        spc1(2*i-ione)=spc1(2*i-ione)/(-sp_a%enn1(i))
+        spc1(2*i)=spc1(2*i)/(-sp_a%enn1(i))
      end do
      spc1(1)=zero
      spc1(2)=zero
 
      work3=zero 
-     call s2g0(spc1,work3)
+     call general_s2g0(grd_a,sp_a,spc1,work3)
 
      do kk=1,itotsub
         ni1=ltosi_s(kk); ni2=ltosj_s(kk)
@@ -543,6 +544,7 @@ subroutine gather_stuff2(f,g,mype,outpe)
 !
 ! program history log:
 !   2007-07-03  kleist
+!   2010-04-01  treadon - move strip and reorder to gridmod
 !
 !   input argument list:
 !     f        - field on subdomains
@@ -560,8 +562,8 @@ subroutine gather_stuff2(f,g,mype,outpe)
   use kinds, only: r_kind,i_kind
   use constants, only: ione
   use gridmod, only: iglobal,itotsub,nlat,nlon,lat1,lon1,lat2,lon2,ijn,displs_g,&
-     ltosi,ltosj
-  use mpimod, only: mpi_rtype,mpi_comm_world,ierror,strip,reorder
+     ltosi,ltosj,strip,reorder
+  use mpimod, only: mpi_rtype,mpi_comm_world,ierror
   implicit none
 
   integer(i_kind),intent(in   ) :: mype,outpe

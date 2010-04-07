@@ -13,6 +13,7 @@ subroutine getuv(u,v,st,vp,iflg)
 !   2005-01-22  parrish - add "use compact_diffs"
 !   2008-06-04  safford - rm unused var i
 !   2009-04-21  derber - rewrite for improved communication - combine with adjoint
+!   2010-04-01  treadon - move strip,reorder,reorder2,vectosub to gridmod
 !
 !   input argument list:
 !     st        - stream function grid values 
@@ -32,10 +33,11 @@ subroutine getuv(u,v,st,vp,iflg)
   use kinds, only: r_kind,i_kind
   use constants, only: izero,ione,zero
   use gridmod, only: regional,lat2,nsig,iglobal,lon1,itotsub,lon2,lat1, &
-        nlat,nlon,latlon11,ltosj_s,ltosi_s,ltosi,ltosj
+        nlat,nlon,latlon11,ltosj_s,ltosi_s,ltosi,ltosj,&
+        strip,reorder,reorder2,vectosub
   use mpimod, only: iscvec_s,ierror,mpi_comm_world,irdvec_s,ircvec_s,&
        isdvec_s,isdvec_g,iscvec_g,nnnvsuv,nlevsuv,mpi_rtype,&
-       strip,reorder,reorder2,lu_gs,lv_gs,ircvec_g,irdvec_g,vectosub
+       lu_gs,lv_gs,ircvec_g,irdvec_g
   use compact_diffs, only: stvp2uv,tstvp2uv
   implicit none
 

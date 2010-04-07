@@ -131,6 +131,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !   2008-10-08  derber  - modify to output streamfunction and vel. pot. and to not update time derivatives
 !   2009-11-27  parrish - add uv_hyb_ens.  if present and true, then
 !                          input/output variables psi=u, chi=v.
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -163,8 +164,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   use kinds, only: r_kind
   use mod_vtrans, only: depths,nvmodes_keep,vtrans,vtrans_inv
   use mod_inmi, only: m,gspeed,mmax,dinmi,gproj
-  use gridmod, only: nlat,nlon,lat2,lon2
-  use specmod, only: jcap,nc
+  use gridmod, only: nlat,nlon,lat2,lon2,sp_a,grd_a
   use constants, only: izero,ione,zero
   use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
@@ -187,7 +187,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind),dimension(nlat,nlon,nuvlevs)::uwork,vwork,mwork
   real(r_kind),dimension(nuvlevs)::rmstend_loc_uf,rmstend_g_loc_uf
   real(r_kind),dimension(nuvlevs)::rmstend_loc_f,rmstend_g_loc_f
-  real(r_kind),dimension(nc)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
+  real(r_kind),dimension(sp_a%nc)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
   real(r_kind) rmstend_all_uf,rmstend_all_g_uf,rmstend_all_f,rmstend_all_g_f
 
   integer(i_kind) i,j,k,kk,iad,mode
@@ -195,7 +195,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 
   filtered=.true.
 
-  mmax=jcap
+  mmax=sp_a%jcap
 
 !   1.  u,v,t,ps   -->    utilde,vtilde,mtilde  (vertical mode transform)
 !       (subdomains)         (subdomains)
@@ -229,15 +229,15 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !       (slabs)                  (slabs)
 
      vorthat=zero ; divhat=zero ; mhat=zero
-     call uvg2zds(vorthat,divhat,uwork(1,1,kk),vwork(1,1,kk))
-     call g2s0(mhat,mwork(1,1,kk))
+     call general_uvg2zds(grd_a,sp_a,vorthat,divhat,uwork(1,1,kk),vwork(1,1,kk))
+     call general_g2s0(grd_a,sp_a,mhat,mwork(1,1,kk))
 
 !   4.  divhat,vorthat,mhat --> deldivhat,delvorthat,delmhat   (inmi correction)
 !          (slabs)                        (slabs)
 
      gspeed=sqrt(depths(abs(mode)))
      iad=ione
-     do m=0,jcap
+     do m=0,sp_a%jcap
         if(mode >  izero) then
 !              here, delvorthat, etc contain field corrections necessary to zero out gravity component
 !                                         of tendencies
@@ -251,7 +251,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
            call gproj(vorthat(iad),divhat(iad),mhat(iad),delvorthat(iad),deldivhat(iad),delmhat(iad), &
                       rmstend_loc_f(kk),rmstend_g_loc_f(kk),filtered)
         end if
-        iad=iad+2*(jcap-m+ione)
+        iad=iad+2*(sp_a%jcap-m+ione)
      end do
 
 !   5.  deldivhat,delvorthat,delmhat    -->  uwork,vwork,mwork   (spectral inverse transform)
@@ -265,11 +265,11 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
         end do
      end do
      if(uv_hyb_ens) then
-        call zds2uvg(delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
+        call general_zds2uvg(grd_a,sp_a,delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
      else
-        call zds2pcg(delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
+        call general_zds2pcg(grd_a,sp_a,delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
      end if
-     call s2g0(delmhat,mwork(1,1,kk))
+     call general_s2g0(grd_a,sp_a,delmhat,mwork(1,1,kk))
 
   end do
   if(bal_diagnostic) then
@@ -362,6 +362,7 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 !   2006-07-15  parrish
 !   2009-11-27  parrish - add variable uv_hyb_ens.  if present and true, then
 !                          input/output variables psi=u, chi=v.
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -389,8 +390,7 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   use kinds, only: r_kind
   use mod_vtrans, only: depths,nvmodes_keep,vtrans_ad,vtrans_inv_ad
   use mod_inmi, only: m,gspeed,mmax,dinmi_ad,gproj_ad
-  use gridmod, only: nlat,nlon,lat2,lon2
-  use specmod, only: jcap,nc
+  use gridmod, only: nlat,nlon,lat2,lon2,sp_a,grd_a
   use constants, only: izero,ione,zero
   use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
@@ -408,12 +408,12 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delutilde,delvtilde,delmtilde
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t_g,vtilde_t_g,mtilde_t_g
   real(r_kind),dimension(nlat,nlon,nuvlevs)::uwork,vwork,mwork
-  real(r_kind),dimension(nc)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
+  real(r_kind),dimension(sp_a%nc)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
 
   integer(i_kind) mode,iad
   integer(i_kind) i,j,k,kk
 
-  mmax=jcap
+  mmax=sp_a%jcap
 
 !  adjoint of update u,v,t,ps
 
@@ -461,11 +461,11 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 !   5.  adjoint of deldivhat,delvorthat,delmhat    -->  uwork,vwork,mwork   (spectral inverse transform)
 !                     (slabs)                             (slabs)
 
-     call s2g0_ad(delmhat,mwork(1,1,kk))
+     call general_s2g0_ad(grd_a,sp_a,delmhat,mwork(1,1,kk))
      if(uv_hyb_ens) then
-        call zds2uvg_ad(delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
+        call general_zds2uvg_ad(grd_a,sp_a,delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
      else
-        call zds2pcg_ad(delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
+        call general_zds2pcg_ad(grd_a,sp_a,delvorthat,deldivhat,uwork(1,1,kk),vwork(1,1,kk))
      end if
 
 !   4.  divhat,vorthat,mhat --> deldivhat,delvorthat,delmhat   (inmi correction)
@@ -474,21 +474,21 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
      gspeed=sqrt(depths(abs(mode)))
      iad=ione
      vorthat=zero ; divhat=zero ; mhat=zero
-     do m=0,jcap
+     do m=0,sp_a%jcap
         if(mode >  izero) then
            call dinmi_ad(vorthat(iad),divhat(iad),mhat(iad),&
                        delvorthat(iad)   ,   deldivhat(iad),   delmhat(iad))
         else
            call gproj_ad(vorthat(iad),divhat(iad),mhat(iad),delvorthat(iad),deldivhat(iad),delmhat(iad))
         end if
-        iad=iad+2*(jcap-m+ione)
+        iad=iad+2*(sp_a%jcap-m+ione)
      end do
 
 !   3.  adjoint of uwork,vwork,mwork    --> divhat,vorthat,mhat  (spectral transform)
 !                       (slabs)                  (slabs)
 
-     call g2s0_ad(mhat,mwork(1,1,kk))
-     call uvg2zds_ad(vorthat,divhat,uwork(1,1,kk),vwork(1,1,kk))
+     call general_g2s0_ad(grd_a,sp_a,mhat,mwork(1,1,kk))
+     call general_uvg2zds_ad(grd_a,sp_a,vorthat,divhat,uwork(1,1,kk),vwork(1,1,kk))
 
   end do
 
@@ -538,10 +538,10 @@ subroutine inmi_sub2grid(utilde,utilde2,uwork)
 
   use kinds, only: r_kind
   use constants, only: izero,zero
-  use gridmod, only: lat2,iglobal,lon1,itotsub,lon2,lat1,ltosi,ltosj,nlon,nlat
-  use mpimod, only: ierror,mpi_comm_world,&
-       isduv_g,iscuv_g,irduv_g,ircuv_g,mpi_rtype,&
+  use gridmod, only: lat2,iglobal,lon1,itotsub,lon2,lat1,ltosi,ltosj,nlon,nlat,&
        strip,reorder
+  use mpimod, only: ierror,mpi_comm_world,&
+       isduv_g,iscuv_g,irduv_g,ircuv_g,mpi_rtype
   use mod_vtrans, only: nvmodes_keep
   implicit none
 
@@ -641,9 +641,10 @@ subroutine inmi_grid2sub(utilde,utilde2,uwork)
 !$$$
 
   use kinds, only: r_kind
-  use gridmod, only: lat2,iglobal,itotsub,lon2,nlat,nlon,ltosi_s,ltosj_s
+  use gridmod, only: lat2,iglobal,itotsub,lon2,nlat,nlon,ltosi_s,ltosj_s,&
+       reorder2
   use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_s,mpi_rtype,reorder2
+       isduv_s,mpi_rtype
   use mod_vtrans, only: nvmodes_keep
   use constants, only: izero
   implicit none

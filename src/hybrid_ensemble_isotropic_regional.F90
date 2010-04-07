@@ -2326,6 +2326,7 @@ subroutine sub2grid_1(sub,grid,gridpe,mype)
 !
 ! program history log:
 !   2009-09-17  parrish
+!   2010-04-01  treadon - move strip to gridmod
 !
 !   input argument list:
 !     sub   - field on subdomains
@@ -2345,8 +2346,8 @@ subroutine sub2grid_1(sub,grid,gridpe,mype)
   use kinds, only: r_kind,i_kind
   use constants, only: ione,zero
   use gridmod, only: nlat,nlon,lat2,lon2,lat1,lon1,&
-         ltosi,ltosj,iglobal,ijn,displs_g,itotsub
-  use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
+         ltosi,ltosj,iglobal,ijn,displs_g,itotsub,strip
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
   integer(i_kind)                  ,intent(in   ) :: gridpe,mype

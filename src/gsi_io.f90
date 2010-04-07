@@ -378,7 +378,6 @@ contains
   
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
-    use mpimod, only: strip
     use mpimod, only: ierror
     
     use gridmod, only: nlat, nlon     ! no. lat/lon
@@ -391,6 +390,8 @@ contains
     use gridmod, only: itotsub        ! no. of horizontal points of all subdomains combined
     use gridmod, only: ntracer        ! no. of tracers
     use gridmod, only: ncloud         ! no. of cloud types
+    use gridmod, only: strip
+
     
   
     implicit none
@@ -433,6 +434,7 @@ contains
 ! !REVISION HISTORY:
 !
 !   2006-12-04  todling - add nbc and loop over nbc
+!   2010-04-01  treadon - move strip to gridmod
 !
 ! !REMARKS:
 !

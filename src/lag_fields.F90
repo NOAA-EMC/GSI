@@ -562,6 +562,7 @@ module lag_fields
 !
 ! program history log:
 !   2009-08-05  lueken - added subprogram doc block
+!   2010-04-01  treadon - move strip and reorder to gridmod
 !
 !   input argument list:
 !    itt
@@ -574,7 +575,9 @@ module lag_fields
 !
 !$$$ end documentation block
  
-    use mpimod, only: mype,mpi_comm_world,mpi_rtype,strip,reorder
+    use mpimod, only: mype,mpi_comm_world,mpi_rtype
+    use gridmod, only: strip,reorder
+    
     implicit none
 
     integer(i_kind),intent(in   ) :: itt
@@ -631,6 +634,7 @@ module lag_fields
 !
 ! program history log:
 !   2009-08-05  lueken - added subprogram doc block
+!   2010-04-01  treadon - move strip and reorder to gridmod
 !
 !   input argument list:
 !    svalu,svalv
@@ -644,7 +648,8 @@ module lag_fields
 !
 !$$$ end documentation block
 
-    use mpimod, only: mype,mpi_comm_world,mpi_rtype,strip,reorder
+    use mpimod, only: mype,mpi_comm_world,mpi_rtype
+    use gridmod, only: strip,reorder
     implicit none
 
     real(r_kind),dimension(latlon1n),intent(in   ) :: svalu,svalv
@@ -704,6 +709,7 @@ module lag_fields
 !
 ! program history log:
 !   2009-08-05  lueken - added subprogram doc block
+!   2010-04-01  treadon - move reorder2 to gridmod
 !
 !   input argument list:
 !    svalu,svalv
@@ -718,7 +724,8 @@ module lag_fields
 !
 !$$$ end documentation block
 
-    use mpimod, only: mype,mpi_comm_world,mpi_rtype,mpi_sum,reorder2
+    use mpimod, only: mype,mpi_comm_world,mpi_rtype,mpi_sum
+    use gridmod, only: reorder2
     implicit none
 
     real(r_kind),dimension(latlon1n),intent(inout) :: svalu, svalv

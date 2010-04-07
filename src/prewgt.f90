@@ -48,6 +48,7 @@ subroutine prewgt(mype)
 !   2008-04-23  safford - rm unused uses and vars
 !   2008-07-30  guo     - read stats using m_berror_stats
 !   2009-01-12  gayno   - rm use of read_gfssfc_full
+!   2010-04-01  treadon - move strip to gridmod
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -67,10 +68,11 @@ subroutine prewgt(mype)
        pert_berr,bkgv_flowdep,tsfc_sdv,slw,slw1,slw2
   use m_berror_stats,only : berror_read_wgt
   use mpimod, only: nvar_id,levs_id
-  use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   use jfunc, only: qoption,varq
   use gridmod, only: istart,jstart,lat2,lon2,rlats,nlat,nlon,nsig,&
-       nnnn1o,lat1,lon1,itotsub,iglobal,ltosi,ltosj,ijn,displs_g
+       nnnn1o,lat1,lon1,itotsub,iglobal,ltosi,ltosj,ijn,displs_g,&
+       strip
   use constants, only: izero,ione,zero,quarter,half,one,two,three,&
        rearth_equator,pi,r1000
   use guess_grids, only: isli2

@@ -14,6 +14,7 @@ subroutine gengrid_vars
 !   2006-10-17  kleist  - add coriolis parameter
 !   2010-01-12  treadon - add hires_b section
 !   2010-03-10  lueken - remove hires_b section
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !
@@ -28,8 +29,7 @@ subroutine gengrid_vars
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: sinlon,coslon,region_lat,rbs2,&
-       rlons,rlats,corlats,nlon,nlat,regional,wgtlats
-  use specmod, only: slat,wlat,jb,je
+       rlons,rlats,corlats,nlon,nlat,regional,wgtlats,sp_a
   use constants, only: ione,zero,half,one,four,pi,two,omega
   implicit none
 
@@ -69,16 +69,16 @@ subroutine gengrid_vars
         sinlon(i)=sin(rlons(i))
      end do
 
-     do i=jb,je
+     do i=sp_a%jb,sp_a%je
         i1=i+ione
-        rlats(i1)=-asin(slat(i))
+        rlats(i1)=-asin(sp_a%slat(i))
         rbs2(i1)=one/cos(rlats(i1))**2
-        wgtlats(i1)=wlat(i)
+        wgtlats(i1)=sp_a%wlat(i)
 
         i1=nlat-i
-        rlats(i1)=asin(slat(i))
+        rlats(i1)=asin(sp_a%slat(i))
         rbs2(i1)=one/cos(rlats(i1))**2
-        wgtlats(i1)=wlat(i)
+        wgtlats(i1)=sp_a%wlat(i)
      end do
 
      rlats(1)=-pih

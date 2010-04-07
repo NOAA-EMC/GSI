@@ -13,6 +13,7 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
 !   2004-07-28  treadon - add only on use declarations; add intent in/out
 !   2004-10-26  kleist - u,v removed; periodicity accounted for only in 
 !               sub2grid routine if necessary
+!   2010-04-01  treadon - move reorder2 and vectosub to gridmod
 !
 !   input argument list:
 !     work1    - input grid values on full grid after horizontal part of cov.
@@ -36,8 +37,9 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: irdsp_s,ircnt_s,iscnt_s,isdsp_s,ierror,&
-       mpi_comm_world,mpi_rtype,reorder2,vectosub
-  use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,nsig1o,nnnn1o,latlon1n,latlon11
+       mpi_comm_world,mpi_rtype
+  use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,nsig1o,nnnn1o,latlon1n,latlon11,&
+       reorder2,vectosub
   use jfunc, only: nsst2,noz2,nslt2,ncw2,nsit2,nvp2,nst2,np2,nq2,nt2
   implicit none
 
@@ -93,6 +95,7 @@ subroutine grid2sub2(workout,st,vp,pri,t)
 !
 ! program history log:
 !   2008-05-21  derber, new mpi strategy
+!   2010-04-01  treadon - move reorder2 and vectosub to gridmod
 !
 !   input argument list:
 !     workout  - input grid values on full grid after horizontal part of cov.
@@ -111,9 +114,10 @@ subroutine grid2sub2(workout,st,vp,pri,t)
   use kinds, only: r_kind,i_kind
   use constants, only: ione
   use mpimod, only: irdbal_s,ircbal_s,iscbal_s,isdbal_s,ierror,&
-       mpi_comm_world,mpi_rtype,reorder2,vectosub,nlevsbal,nnnvsbal, &
+       mpi_comm_world,mpi_rtype,nlevsbal,nnnvsbal, &
        ku_gs,kv_gs,kt_gs,kp_gs
-  use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,latlon11
+  use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,latlon11,&
+       reorder2,vectosub
   implicit none
 
 ! Declare passed variables

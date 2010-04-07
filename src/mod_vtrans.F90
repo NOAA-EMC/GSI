@@ -162,7 +162,7 @@ contains
 ! program history log:
 !   2006-06-26  parrish
 !   2007-02-26  yang    - replace IBM subroutine of dgeev by GSI dgeev
-
+!   2010-04-01  treadon - move strip to gridmod
 !
 !
 ! usage:
@@ -179,8 +179,8 @@ contains
     use constants,only: izero,ione,zero,half,one,quarter,one_tenth
     use gridmod,only: lat2,lon2,nsig,&
          nlat,nlon,lat1,lon1,&
-         ltosi,ltosj,iglobal,ijn,displs_g
-    use mpimod,only: mpi_rtype,mpi_comm_world,ierror,strip
+         ltosi,ltosj,iglobal,ijn,displs_g,strip
+    use mpimod,only: mpi_rtype,mpi_comm_world,ierror
     use guess_grids, only: ges_tv,ges_ps,ntguessig
     use m_dgeevx,only : dgeevx
     implicit none

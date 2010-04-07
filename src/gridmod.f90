@@ -12,6 +12,8 @@ module gridmod
 ! !USES:
 
   use kinds, only: i_byte,r_kind,r_single,i_kind
+  use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
+  use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   implicit none
 
 ! !DESCRIPTION: module containing grid related variable declarations
@@ -42,6 +44,11 @@ module gridmod
 !   2010-03-09  parrish - add logical flag check_gfs_ozone_date--if true, date check against analysis time
 !   2010-03-10  lueken  - remove hires_b variables, section, and subroutines
 !   2010-03-15  parrish - add logical flag regional_ozone to turn on ozone in regional analysis
+!   2010-03-30  treadon - move jcap, jcap_b, hires_b, and spectral transform initialization and
+!                         destroy from specmod to gridmod; add grd_a and grd_b structures
+!   2010-04-01  treadon - move routines reorder, reorder2, strip_single, strip,
+!                         vectosub, reload, and strip_periodic from mpimod to gridmod
+!
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-09-25
@@ -75,6 +82,14 @@ module gridmod
   public :: get_ij
   public :: get_ijk
   public :: check_rotate_wind
+  public :: reorder
+  public :: reorder2
+  public :: strip_single
+  public :: strip
+  public :: vectosub
+  public :: reload
+  public :: strip_periodic
+
 ! set passed variables to public
   public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig
   public :: ncloud,nlat,nlon,ntracer,displs_s,displs_g,ltosj_s,ltosi_s
@@ -93,6 +108,7 @@ module gridmod
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
   public :: nsig4,nsig3
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone
+  public :: jcap,jcap_b,hires_b,sp_a,sp_b,grd_a,grd_b
 
   logical regional          ! .t. for regional background/analysis
   logical diagnostic_reg    ! .t. to activate regional analysis diagnostics
@@ -112,6 +128,7 @@ module gridmod
   logical filled_grid       ! 
   logical half_grid         !
   logical update_regsfc     !
+  logical hires_b           ! .t. when jcap_b requires double FFT
 
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
                                         ! ='V': use nmmb V grid as reference for analysis grid
@@ -168,6 +185,8 @@ module gridmod
   integer(i_kind) itotsub           ! number of horizontal points of all subdomains combined
   integer(i_kind) msig              ! number of profile layers to use when calling RTM
 
+  integer(i_kind) jcap              ! spectral triangular truncation of ncep global analysis
+  integer(i_kind) jcap_b            ! spectral triangular truncation of ncep global background
 
 
   logical periodic                              ! logical flag for periodic e/w domains
@@ -292,6 +311,9 @@ module gridmod
      real(r_single),allocatable:: cpi(:)    
   end type ncepgfs_headv
 
+  type(spec_vars),save:: sp_a,sp_b
+  type(sub2grid_info),save:: grd_a,grd_b
+
 contains
    
 !-------------------------------------------------------------------------
@@ -375,6 +397,10 @@ contains
        nlayers(k) = ione
     end do
 
+    jcap=62_i_kind
+    jcap_b=62_i_kind
+    hires_b=.false.
+
     return
   end subroutine init_grid
   
@@ -387,7 +413,7 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine init_grid_vars(jcap,npe)
+  subroutine init_grid_vars(jcap,npe,mype)
 
 ! !USES:
 
@@ -398,6 +424,7 @@ contains
 
    integer(i_kind),intent(in   ) :: jcap   ! spectral truncation
    integer(i_kind),intent(in   ) :: npe    ! number of mpi tasks
+   integer(i_kind),intent(in   ) :: mype   ! mpi task id
 
 ! !DESCRIPTION: set grid related variables (post namelist read)
 !
@@ -420,7 +447,8 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-    integer(i_kind) vlevs,k
+    integer(i_kind) vlevs,k,nlon_b,inner_vars,num_fields
+    logical,allocatable,dimension(:):: vector
 
     if(jcap==62_i_kind) gencode=80.0_r_kind
     ns1=2*nsig+ione
@@ -448,7 +476,43 @@ contains
        msig = msig + nlayers(k)
     end do
 
+! Initialize structure(s) for spectral <--> grid transforms
+    if (.not.regional) then
+!      Call general specmod for analysis grid
+       call general_init_spec_vars(sp_a,jcap,jcap,nlat,nlon)
+
+!      If needed, initialize for hires_b transforms
+       nlon_b=((2*jcap_b+1)/nlon+1)*nlon
+       if (nlon_b /= sp_a%imax) then
+          hires_b=.true.
+          call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
+       endif
+
+       if (mype==0) then
+          write(6,*) 'INIT_GRID_VARS:  allocate and load sp_a with jcap,imax,jmax=',&
+               sp_a%jcap,sp_a%imax,sp_a%jmax,' nlon_b=',nlon_b,' hires_b=',hires_b
+          if (hires_b) &
+               write(6,*)'INIT_GRID_VARS:  allocate and load sp_b with jcap,imax,jmax=',&
+               sp_b%jcap,sp_b%imax,sp_b%jmax
+       endif
+       
+    endif
+
+! Initialize structures for grid(s)
+    inner_vars=1
+    num_fields=6*nsig+2
+    allocate(vector(num_fields))
+    vector=.false.
+    vector(1:2*nsig)=.true.   !  assume here that 1st two 3d variables are either u,v or psi,chi
+    call general_sub2grid_create_info(grd_a,inner_vars,nlat,nlon,nsig,num_fields, &
+         regional,vector)
+    if (hires_b) &
+         call general_sub2grid_create_info(grd_b,inner_vars,nlat,nlon_b,nsig,num_fields, &
+         regional,vector)
+    deallocate(vector)
+
     return
+
   end subroutine init_grid_vars
 
 !-------------------------------------------------------------------------
@@ -564,6 +628,8 @@ contains
     if (allocated(cp5)) deallocate(cp5)
     if (allocated(dx_gfs)) deallocate(dx_gfs)
     if (allocated(lpl_gfs)) deallocate(lpl_gfs)
+    call general_destroy_spec_vars(sp_a)
+    if (hires_b) call general_destroy_spec_vars(sp_b)
     return
   end subroutine destroy_grid_vars
 
@@ -2848,5 +2914,477 @@ end subroutine init_general_transform
 115   format('   beta_diff_max_gt_20(deg)             = ',g18.12)
    end if
  end subroutine check_rotate_wind
+
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  reorder --- reorder work array post mpi communication
+!
+! !INTERFACE:
+!
+  subroutine reorder(work,k_in,k_use)
+
+! !USES:
+
+    use kinds, only: r_kind
+    use constants, only: izero,zero,ione
+    use mpimod, only: npe
+    implicit none
+
+! !INPUT PARAMETERS:
+
+   integer(i_kind)                                  , intent(in   ) ::  k_in, k_use    ! number of levs in work array
+
+! !INPUT/OUTPUT PARAMETERS:
+
+   real(r_kind),dimension(max(iglobal,itotsub)*k_in), intent(inout) :: work ! array to reorder
+
+! !OUTPUT PARAMETERS:
+
+! !DESCRIPTION: reorder work array post mpi communication
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!   2004-03-30  treadon - replace itotsub with max(iglobal,itotsub) in work dimension
+!
+! !REMAKRS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) iloc,iskip,i,k,n
+    real(r_kind),dimension(max(iglobal,itotsub),k_use):: temp
+
+! Zero out temp array
+    do k=1,k_use
+       do i=1,itotsub
+          temp(i,k)=zero
+       end do
+    end do
+ 
+! Load temp array in desired order
+    do k=1,k_use
+       iskip=izero
+       iloc=izero
+       do n=1,npe
+          if (n/=ione) then
+             iskip=iskip+ijn(n-ione)*k_in
+          end if
+          do i=1,ijn(n)
+             iloc=iloc+ione
+             temp(iloc,k)=work(i + iskip + (k-ione)*ijn(n))
+          end do
+       end do
+    end do
+
+! Load the temp array back into work
+    iloc=izero
+    do k=1,k_use
+       do i=1,itotsub
+          iloc=iloc+ione
+          work(iloc)=temp(i,k)
+       end do
+    end do
+
+    return
+  end subroutine reorder
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  reorder2 --- reorder work array post mpi communication
+!
+! !INTERFACE:
+!
+
+  subroutine reorder2(work,k_in,k_use)
+
+! !USES:
+
+    use kinds, only: r_kind
+    use constants, only: izero,ione
+    use mpimod, only: npe
+    implicit none
+
+
+! !INPUT PARAMETERS:
+
+   integer(i_kind)                     , intent(in   ) ::  k_in,k_use    ! number of levs in work array
+
+! !INPUT/OUTPUT PARAMETERS:
+
+   real(r_kind),dimension(itotsub,k_in), intent(inout) :: work
+
+! !OUTPUT PARAMETERS:
+
+! !DESCRIPTION: reorder work array pre mpi communication
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) iloc,iskip,i,k,n
+    real(r_kind),dimension(itotsub*k_in):: temp
+
+! Load temp array in order of subdomains
+    iloc=izero
+    iskip=izero
+    do n=1,npe
+
+       do k=1,k_use
+          do i=1,ijn_s(n)
+             temp(iloc+i)=work(iskip+i,k)
+          end do
+          iloc=iloc+ijn_s(n)
+       end do
+       iloc=iloc+(k_in-k_use)*ijn_s(n)
+       iskip=iskip+ijn_s(n)
+    end do
+
+! Now load the tmp array back into work
+    iloc=izero
+    do k=1,k_in
+       do i=1,itotsub
+          iloc=iloc+ione
+          work(i,k)=temp(iloc)
+       end do
+    end do
+
+    return
+  end subroutine reorder2
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  strip_single --- strip off buffer points froms subdomains for 
+!                       mpi comm purposes (works with 4 byte reals)
+!
+! !INTERFACE:
+!
+  subroutine strip_single(field_in,field_out,nz)
+
+! !USES:
+
+    use kinds, only: r_single
+    use constants, only: ione
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    integer(i_kind)                       , intent(in   ) :: nz         !  number of levs in subdomain array
+    real(r_single),dimension(lat2,lon2,nz), intent(in   ) :: field_in   ! full subdomain 
+                                                                        !    array containing 
+                                                                        !    buffer points
+! !OUTPUT PARAMETERS:
+
+    real(r_single),dimension(lat1,lon1,nz), intent(  out) :: field_out ! subdomain array
+                                                                       !   with buffer points
+                                                                       !   stripped off
+
+! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+!               purposes
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,k,jp1
+
+    do k=1,nz
+       do j=1,lon1
+          jp1 = j+ione
+          do i=1,lat1
+             field_out(i,j,k)=field_in(i+ione,jp1,k)
+          end do
+       end do
+    end do
+
+    return
+  end subroutine strip_single
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  strip --- strip off buffer points froms subdomains for 
+!                       mpi comm purposes
+!
+! !INTERFACE:
+!
+  subroutine strip(field_in,field_out,nz)
+
+! !USES:
+
+    use kinds, only: r_kind
+    use constants, only: ione
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    integer(i_kind)                     , intent(in   ) :: nz          !  number of levs in subdomain array
+    real(r_kind),dimension(lat2,lon2,nz), intent(in   ) :: field_in    ! full subdomain 
+                                                                       !    array containing 
+                                                                       !    buffer points
+! !OUTPUT PARAMETERS:
+
+    real(r_kind),dimension(lat1,lon1,nz), intent(  out) :: field_out  ! subdomain array
+                                                                      !   with buffer points
+                                                                      !   stripped off
+
+! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+!               purposes
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,k,jp1
+
+    do k=1,nz
+       do j=1,lon1
+          jp1 = j+ione
+          do i=1,lat1
+             field_out(i,j,k)=field_in(i+ione,jp1,k)
+          end do
+       end do
+    end do
+
+    return
+  end subroutine strip
+
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  vectosub --- transform vector array into three dimensional 
+!                          subdomain array
+!
+! !INTERFACE:
+!
+  subroutine vectosub(fld_in,npts,fld_out)
+
+    use kinds, only: r_kind
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    integer(i_kind)             , intent(in   ) :: npts   ! number of levs in subdomain array
+    real(r_kind),dimension(npts), intent(in   ) :: fld_in ! subdomain array 
+                                                          !   in vector form
+
+! !OUTPUT PARAMETERS:
+
+    real(r_kind),dimension(npts), intent(  out) :: fld_out ! three dimensional 
+                                                           !  subdomain variable array
+
+! !DESCRIPTION: Transform vector array into three dimensional subdomain
+!               array
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!   kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) k
+
+    do k=1,npts
+       fld_out(k)=fld_in(k)
+    end do
+
+    return
+  end subroutine vectosub
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  reload --- Transfer contents of 2-d array to 3-d array
+!
+! !INTERFACE:
+!
+subroutine reload(work_in,work_out)
+
+! !USES:
+
+  use kinds, only: r_kind
+  use constants, only: izero,ione
+  implicit none
+
+! !INPUT PARAMETERS:
+
+  real(r_kind),dimension(lat2*lon2,nsig),intent(in   ) :: work_in   ! 2-d array
+
+! !OUTPUT PARAMETERS:
+
+  real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: work_out  ! 3-d array
+
+! !DESCRIPTION: Transfer contents of 2-d array to 3-d array
+!
+! !REVISION HISTORY:
+!   2004-05-14  treadon
+!   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!   treadon          org: np23                date: 2004-05-14
+!
+!EOP
+!-------------------------------------------------------------------------
+
+  integer(i_kind) i,j,k,ij
+
+  do k=1,nsig
+     ij=izero
+     do j=1,lon2
+        do i=1,lat2
+           ij=ij+ione
+           work_out(i,j,k)=work_in(ij,k)
+        end do
+     end do
+  end do
+  return
+end subroutine reload
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  strip_periodic --- strip off buffer points from periodic
+!                       subdomains for mpi comm purposes
+!
+! !INTERFACE:
+!
+  subroutine strip_periodic(field_in,field_out,nz)
+
+! !USES:
+
+    use kinds, only: r_kind
+    use constants, only: ione
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    integer(i_kind)                     , intent(in   ) :: nz         !  number of levs in subdomain array
+    real(r_kind),dimension(lat2,lon2,nz), intent(in   ) :: field_in   ! full subdomain
+                                                                      !    array containing
+                                                                      !    buffer points
+! !OUTPUT PARAMETERS:
+
+    real(r_kind),dimension(lat1,lon1,nz), intent(  out) :: field_out ! subdomain array
+                                                                     !   with buffer points
+                                                                     !   stripped off
+
+! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+!               purposes
+!
+! !REVISION HISTORY:
+!
+!   2004-07-23  treadon
+!   2004-08-04  treadon - protex-compliant prologue
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR:
+!    treadon           org: np20                date: 2004-07-23
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,k,jp1
+
+    do k=1,nz
+       do j=1,lon1
+          jp1 = j+ione
+          do i=1,lat1
+             field_out(i,j,k)=field_in(i+ione,jp1,k)
+          end do
+       end do
+    end do
+    do k=1,nz
+       do i=1,lat1
+          field_out(i,1,k)    = field_out(i,1,k)    + field_in(i+ione,lon2,k)
+          field_out(i,lon1,k) = field_out(i,lon1,k) + field_in(i+ione,1,k)
+       end do
+    end do
+
+    return
+  end subroutine strip_periodic
 
 end module gridmod

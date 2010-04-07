@@ -308,6 +308,7 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
 ! program history log:
 !   2004-05-13  derber, document
 !   2004-07-28  treadon - add only on use declarations; add intent in/out
+!   2010-04-01  treadon - move strip to grimod
 !
 !   input argument list:
 !     dx       - input vector 1
@@ -325,8 +326,8 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
 
   use jfunc, only: nval_levs
   use gridmod, only: nlat,nlon,lat2,lon2,lat1,lon1,&
-     ltosi,ltosj,iglobal,ijn,displs_g
-  use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
+     ltosi,ltosj,iglobal,ijn,displs_g,strip
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   use constants, only: zero
   implicit none
 
@@ -398,6 +399,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !
 ! program history log:
 !   2006-10-17  pondeca, document
+!   2010-04-01  treadon - move strip to grimod
 !
 !   input argument list:
 !     nv
@@ -416,9 +418,9 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !$$$
 !*************************************************************************
   use kinds, only: r_kind,i_kind
-  use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   use gridmod, only: nsig,lat1,lon1,lat2,lon2,nlon,nlat,itotsub,iglobal, & 
-                     ltosi,ltosj,latlon11,ijn,displs_g
+                     ltosi,ltosj,latlon11,ijn,displs_g,strip
   use radinfo, only: npred,jpch_rad
   use pcpinfo, only: npredp,npcptype
   use jfunc, only: iter,jiter

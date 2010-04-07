@@ -245,6 +245,7 @@ subroutine read_obs(ndata,mype)
 !   2009-03-18  meunier - add a if statement to read lagrangian data
 !   2009-12-20  gayno - modify argument lists so that fov-based surface
 !                       calculation may be used.
+!   2010-04-01  treadon - move strip and reorder to gridmod
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -261,14 +262,14 @@ subroutine read_obs(ndata,mype)
 !$$$  end documentation block
     use kinds, only: r_kind,i_kind,i_llong
     use gridmod, only: nlon,nlat,nsig,iglobal,ijn,itotsub,lat1,lon1,&
-         ltosi,ltosj,displs_g
+         ltosi,ltosj,displs_g,strip,reorder
     use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
            dtype,dval,dmesh,obsfile_all,ref_obs,nprof_gps,dsis,ditype,&
            oberrflg,perturb_obs,lobserver,lread_obs_save,obs_input_common
     use gsi_4dvar, only: l4dvar
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
-         strip,reorder,setcomm
+         setcomm
     use constants, only: izero,ione,one,zero
     use converr, only: converr_read
     use guess_grids, only: ges_prsl,ntguessig,destroy_sfc_grids

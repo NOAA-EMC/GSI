@@ -59,14 +59,12 @@
   use mod_vtrans, only: nvmodes_keep,init_vtrans
   use mod_strong, only: jcstrong,jcstrong_option,nstrong,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
-
-  use specmod, only: jcap,jcap_b,init_spec,init_spec_vars,destroy_spec_vars
   use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,nems_nmmb_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,&
-     filled_grid,half_grid,wrf_mass_regional,nsig1o,update_regsfc,&
+     filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
-     nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone
+     nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
@@ -151,7 +149,8 @@
 !  03-29-2010 hu        add namelist variables for controling rapid refesh options
 !                                 including cloud analysis and surface enhancement
 !                       add and read namelist for RR
-!
+!  03-31-2010 Treadon   replace init_spec, init_spec_vars, destroy_spec_vars with general_* routines
+!                         
 !EOP
 !-------------------------------------------------------------------------
 
@@ -585,7 +584,6 @@
   call init_fgrid2agrid(pf2aP2)
   call init_fgrid2agrid(pf2aP3)
   call init_grid
-  call init_spec
   call init_turbl
   call init_compact_diffs
   call init_smooth_polcas  
@@ -853,9 +851,8 @@
 ! Initialize variables, create/initialize arrays
   call init_constants(regional)
   call init_reg_glob_ll(mype,lendian_in)
-  call init_grid_vars(jcap,npe)
-  if (.not.regional) call init_spec_vars(nlat,nlon)
-  call init_mpi_vars(nsig,mype,nsig1o)
+  call init_grid_vars(jcap,npe,mype)
+  call init_mpi_vars(nsig,mype,nsig1o,nnnn1o)
   call create_obsmod_vars
 
   
@@ -903,7 +900,6 @@
   implicit none
 ! Deallocate arrays
   call clean_4dvar
-  if (.not.regional) call destroy_spec_vars
   call destroy_obsmod_vars
   call destroy_mpi_vars
 

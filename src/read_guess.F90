@@ -54,6 +54,7 @@ subroutine read_guess(mype)
 !   2009-01-28  todling - remove original GMAO interface
 !   2010-03-06  parrish - add option to read ozone from gfs
 !   2010-03-15  parrish - add flag regional_ozone to turn on ozone in regional analysis
+!   2010-03-31  treadon - replace read_gfsatm with read_gfs
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -68,10 +69,7 @@ subroutine read_guess(mype)
 
   use kinds, only: r_kind,i_kind
   use jfunc, only: biascor,bcoption
-  use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,ges_vor,ges_div,&
-       ges_tv,ges_tsen,ges_q,ges_oz,ges_cwmr,&
-       ifilesig,&
-       nfldsig,load_prsges,load_geop_hgt
+  use guess_grids, only:  nfldsig,ges_tv,ges_q,ges_tsen,load_prsges,load_geop_hgt
   use m_gsiBiases,only : correct_bias,nbc
   use m_gsiBiases,only : bias_q,bias_tv,bias_cwmr,bias_oz,bias_ps,&
        bias_vor,bias_div,bias_tskin,bias_u,bias_v
@@ -82,7 +80,7 @@ subroutine read_guess(mype)
        twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone,regional_ozone
 
   use constants, only: izero,ione,zero,one,fv
-  use ncepgfs_io, only: read_gfsatm
+  use ncepgfs_io, only: read_gfs
 
   implicit none
 
@@ -91,7 +89,7 @@ subroutine read_guess(mype)
 
 ! Declare local variables
   character(24) filename
-  integer(i_kind) i,j,k,it,iret,iret_bias
+  integer(i_kind) i,j,k,it,iret_bias
 
   real(r_kind),dimension(lat2,lon2):: work
 
@@ -136,20 +134,9 @@ subroutine read_guess(mype)
         endif
         
 !       Read atmospheric fields
-        do it=1,nfldsig
 #ifndef HAVE_ESMF
-           write(filename,100) ifilesig(it)
-100        format('sigf',i2.2)
-           call read_gfsatm(filename,mype,&
-                ges_z(1,1,it),ges_ps(1,1,it),&
-                ges_vor(1,1,1,it),ges_div(1,1,1,it),&
-                ges_u(1,1,1,it),ges_v(1,1,1,it),&
-                ges_tv(1,1,1,it),ges_q(1,1,1,it),&
-                ges_cwmr(1,1,1,it),ges_oz(1,1,1,it),iret)
-#endif /* HAVE_ESMF */
-
-!       End of loop over atmospheric guess files
-        end do
+        call read_gfs(mype)
+#endif
 
 !    End of non-GMAO global interfaces
      endif

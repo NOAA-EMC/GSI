@@ -25,6 +25,7 @@ module anisofilter_glb
 !   2007-12-20  sato : add ensemble based aspect subroutines.
 !   2008-02-27  sato - change iso-aniso composition in get_aspect_reg_ens.
 !                      enable to use iensamp. delete some test code.
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 ! subroutines included:
 !   anprewgt                    - compute the anisotropic aspect tensor for the
@@ -93,7 +94,7 @@ module anisofilter_glb
                      lat2,lon2, &
                      itotsub,lon1,lat1,&
                      ltosi_s,ltosj_s, &
-                     displs_s,displs_g,ijn_s,ijn
+                     displs_s,displs_g,ijn_s,ijn,strip_single
 
   use constants, only: izero,                         ione, & ! for integer
                        zero_single, tiny_single,            & ! for real(4)
@@ -109,8 +110,7 @@ module anisofilter_glb
 
   use mpimod, only: npe,levs_id,nvar_id,ierror,&
                     mpi_real8,mpi_real4,mpi_integer4,&
-                    mpi_sum,mpi_comm_world,&
-                    strip_single
+                    mpi_sum,mpi_comm_world
 
   use anisofilter, only: lreadnorm, &
                          r015,r100, &
@@ -3772,7 +3772,7 @@ subroutine ens_uv2psichi(work1,work2)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use specmod, only: ncd2,nc,enn1
+  use gridmod, only: sp_a,grd_a
   use compact_diffs,only: noq, coef, xdcirdp, ydsphdp
 
   implicit none
@@ -3787,7 +3787,7 @@ subroutine ens_uv2psichi(work1,work2)
   real(r_kind) rnlon,div_n,div_s,vor_n,vor_s
   real(r_kind),dimension(nlat-2,nlon):: grdu,grdv,&
        grid_div,grid_vor,du_dlat,du_dlon,dv_dlat,dv_dlon
-  real(r_kind),dimension(nc):: spc1,spc2
+  real(r_kind),dimension(sp_a%nc):: spc1,spc2
 
   ny =nlat-2_i_kind
   nxh=nlon/2
@@ -3887,20 +3887,20 @@ subroutine ens_uv2psichi(work1,work2)
 ! this part is from getpsichi(bkgvar_rewgt.f90)
 !-----------------------------------------------
 
-  call g2s0(spc1,work3)
-  call g2s0(spc2,work4)
+  call general_g2s0(grd_a,sp_a,spc1,work3)
+  call general_g2s0(grd_a,sp_a,spc2,work4)
 
 ! Inverse laplacian
-  do ix=2,ncd2
-     spc1(2*ix-ione)=spc1(2*ix-ione)/(-enn1(ix))
-     spc1(2*ix     )=spc1(2*ix     )/(-enn1(ix))
-     spc2(2*ix-ione)=spc2(2*ix-ione)/(-enn1(ix))
-     spc2(2*ix     )=spc2(2*ix     )/(-enn1(ix))
+  do ix=2,sp_a%ncd2
+     spc1(2*ix-ione)=spc1(2*ix-ione)/(-sp_a%enn1(ix))
+     spc1(2*ix     )=spc1(2*ix     )/(-sp_a%enn1(ix))
+     spc2(2*ix-ione)=spc2(2*ix-ione)/(-sp_a%enn1(ix))
+     spc2(2*ix     )=spc2(2*ix     )/(-sp_a%enn1(ix))
   end do
 
   work3=zero ; work4=zero
-  call s2g0(spc1,work3)
-  call s2g0(spc2,work4)
+  call general_s2g0(grd_a,sp_a,spc1,work3)
+  call general_s2g0(grd_a,sp_a,spc2,work4)
 
   work1(:,:)=real(work3(:,:),r_single)
   work2(:,:)=real(work4(:,:),r_single)

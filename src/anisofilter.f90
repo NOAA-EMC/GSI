@@ -23,6 +23,7 @@ module anisofilter
 !   2008-02-27  sato - change iso-aniso composition in get_aspect_reg_ens.
 !                      enable to use iensamp. delete some test code.
 !   2008-09-22  sato - unified with 2dvar suboption case
+!   2010-04-01  treadon - move strip_single to gridmod
 !
 ! subroutines included:
 !
@@ -101,7 +102,7 @@ module anisofilter
                      lat2,lon2,twodvar_regional, &
                      itotsub,lon1,lat1,&
                      ltosi_s,ltosj_s, &
-                     displs_s,displs_g,ijn_s,ijn
+                     displs_s,displs_g,ijn_s,ijn,strip_single
 
   use constants, only: izero,                         ione, & ! for integer
                        zero_single, tiny_single,            & ! for real(4)
@@ -119,8 +120,7 @@ module anisofilter
 
   use mpimod, only: npe,levs_id,nvar_id,ierror,&
                     mpi_real8,mpi_real4,mpi_integer4,mpi_rtype,&
-                    mpi_sum,mpi_comm_world,&
-                    strip_single
+                    mpi_sum,mpi_comm_world
 
   use aniso_ens_util, only: ens_intpcoeffs_reg,fillanlgrd,ens_uv_to_psichi, &
                             pges_minmax,intp_spl

@@ -142,6 +142,7 @@ subroutine initialize_strong_fast_global(mype)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block
+!   2010-03-31  treadon - replace specmod jcap with sp_a structure
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -155,14 +156,13 @@ subroutine initialize_strong_fast_global(mype)
 !$$$
 
   use constants, only: ione
-  use gridmod, only: nlat
-  use specmod, only: jcap
+  use gridmod, only: nlat,sp_a
   use mod_vtrans, only: nvmodes_keep
   implicit none
 
   integer(i_kind),intent(in   ) :: mype
 
-  allocate(mode_list(3,nlat*nvmodes_keep),mmode_list(5,(jcap+ione)*nvmodes_keep))
+  allocate(mode_list(3,nlat*nvmodes_keep),mmode_list(5,(sp_a%jcap+ione)*nvmodes_keep))
   call inmi_coupler_sd2ew0(mype)
   call inmi_coupler_ew2ns0(mype)
   call gather_rmstends0
@@ -192,6 +192,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !   2008-10-08  parrish/derber - modify to output streamfunction and vel. pot. and not update time derivatives
 !   2009-11-27  parrish - add uv_hyb_ens.  if uv_hyb_ens=true, then
 !                          input/output variables psi=u, chi=v.
+!   2010-03-31  treadon - replace specmod jcap with sp_a structure
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -224,8 +225,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   use kinds, only: r_kind
   use mod_vtrans, only: depths,nvmodes_keep,vtrans,vtrans_inv
   use mod_inmi, only: m,gspeed,mmax,dinmi,gproj
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig
-  use specmod, only: jcap
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig,sp_a
   use constants, only: izero,ione,zero,one,rearth
   use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
@@ -247,7 +247,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t_g,vtilde_t_g,mtilde_t_g
   real(r_kind),allocatable,dimension(:,:)::rmstend_loc_uf,rmstend_g_loc_uf
   real(r_kind),allocatable,dimension(:,:)::rmstend_loc_f,rmstend_g_loc_f
-  real(r_kind),dimension(2,0:jcap)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
+  real(r_kind),dimension(2,0:sp_a%jcap)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
   real(r_kind) rmstend_all_uf,rmstend_all_g_uf,rmstend_all_f,rmstend_all_g_f
   real(r_kind),allocatable,dimension(:,:,:,:)::uvm_ew
   real(r_kind),allocatable,dimension(:,:,:,:,:)::uvm_ewtrans,uvm_ns,zdm_hat
@@ -258,14 +258,14 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 
   filtered=.true.
 
-  mmax=jcap
+  mmax=sp_a%jcap
 
 !   1.  u,v,t,ps   -->    utilde,vtilde,mtilde  (vertical mode transform)
 !       (subdomains)         (subdomains)
 
   call vtrans(u_t,v_t,t_t,ps_t,utilde_t,vtilde_t,mtilde_t)
 
-  allocate(uvm_ew(2,3,nlon,nlatm_0:nlatm_1),uvm_ewtrans(2,3,2,0:jcap,nlatm_0:nlatm_1))
+  allocate(uvm_ew(2,3,nlon,nlatm_0:nlatm_1),uvm_ewtrans(2,3,2,0:sp_a%jcap,nlatm_0:nlatm_1))
   allocate(uvm_ns(3,2,nlat,2,m_0:m_1),zdm_hat(3,2,nlat,2,m_0:m_1))
   allocate(rmstend_loc_uf(2,m_0:m_1))
   allocate(rmstend_g_loc_uf(2,m_0:m_1))
@@ -286,7 +286,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
         mode=mmode_list(ipair+2_i_kind,kk)
         gspeed=sqrt(depths(abs(mode)))
         i=izero
-        do n=m,jcap
+        do n=m,sp_a%jcap
            i=i+ione
            vorthat(1,n)=zdm_hat(1,1,i,ipair,kk)
            vorthat(2,n)=zdm_hat(1,2,i,ipair,kk)
@@ -314,7 +314,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 
         if(uv_hyb_ens) then
            i=izero
-           do n=m,jcap
+           do n=m,sp_a%jcap
               i=i+ione
               zdm_hat(1,1,i,ipair,kk)=delvorthat(1,n)
               zdm_hat(1,2,i,ipair,kk)=delvorthat(2,n)
@@ -325,7 +325,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
            end do
         else
            i=izero
-           do n=m,jcap
+           do n=m,sp_a%jcap
               del2inv=zero
               if(n >  izero) del2inv=rearth**2/(n*(n+one))
               i=i+ione
@@ -435,6 +435,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 !   2008-10-08  parrish/derber - modify to output streamfunction and vel. pot. and not update time derivatives
 !   2009-11-27  parrish - add uv_hyb_ens.  if present and true, then
 !                          input/output variables psi=u, chi=v.
+!   2010-03-31  treadon - replace specmod jcap with sp_a structure
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -462,8 +463,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   use kinds, only: r_kind
   use mod_vtrans, only: depths,nvmodes_keep,vtrans_ad,vtrans_inv_ad
   use mod_inmi, only: m,gspeed,mmax,dinmi_ad,gproj_ad
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig
-  use specmod, only: jcap
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig,sp_a
   use constants, only: izero,ione,zero,one,rearth
   use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
@@ -480,14 +480,14 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t2,vtilde_t2,mtilde_t2
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delutilde,delvtilde,delmtilde
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t_g,vtilde_t_g,mtilde_t_g
-  real(r_kind),dimension(2,0:jcap)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
+  real(r_kind),dimension(2,0:sp_a%jcap)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
   real(r_kind),allocatable,dimension(:,:,:,:)::uvm_ew
   real(r_kind),allocatable,dimension(:,:,:,:,:)::uvm_ewtrans,uvm_ns,zdm_hat
   real(r_kind) del2inv
 
   integer(i_kind) i,ipair,j,k,kk,mode,n
 
-  mmax=jcap
+  mmax=sp_a%jcap
 
 !  adjoint of update u,v,t,ps
 
@@ -514,7 +514,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   utilde_t_g=zero ; vtilde_t_g=zero ; mtilde_t_g=zero
   call vtrans_inv_ad(delutilde,delvtilde,delmtilde,delu,delv,delt,delps)
 
-  allocate(uvm_ew(2,3,nlon,nlatm_0:nlatm_1),uvm_ewtrans(2,3,2,0:jcap,nlatm_0:nlatm_1))
+  allocate(uvm_ew(2,3,nlon,nlatm_0:nlatm_1),uvm_ewtrans(2,3,2,0:sp_a%jcap,nlatm_0:nlatm_1))
   allocate(uvm_ns(3,2,nlat,2,m_0:m_1),zdm_hat(3,2,nlat,2,m_0:m_1))
   call inmi_coupler_sd2ew(delutilde,delvtilde,delmtilde,utilde_t_g,vtilde_t_g,mtilde_t_g,uvm_ew,mype)
   call inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
@@ -529,7 +529,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
         m=mmode_list(ipair,kk)
         mode=mmode_list(ipair+2_i_kind,kk)
         gspeed=sqrt(depths(abs(mode)))
-        do n=m,jcap
+        do n=m,sp_a%jcap
            vorthat(1,n)=zero
            vorthat(2,n)=zero
            divhat( 1,n)=zero
@@ -539,7 +539,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
         end do
         if(uv_hyb_ens) then
            i=izero
-           do n=m,jcap
+           do n=m,sp_a%jcap
               i=i+ione
               delvorthat(1,n)=zdm_hat(1,1,i,ipair,kk)
               delvorthat(2,n)=zdm_hat(1,2,i,ipair,kk)
@@ -550,7 +550,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
            end do
         else
            i=izero
-           do n=m,jcap
+           do n=m,sp_a%jcap
               del2inv=zero
               if(n >  izero) del2inv=rearth**2/(n*(n+one))
               i=i+ione
@@ -570,7 +570,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
         end if
 
         i=izero
-        do n=m,jcap
+        do n=m,sp_a%jcap
            i=i+ione
            zdm_hat(1,1,i,ipair,kk)=vorthat(1,n)
            zdm_hat(1,2,i,ipair,kk)=vorthat(2,n)
@@ -613,6 +613,7 @@ subroutine gather_rmstends0
 ! program history log:
 !   2006-08-03  parrish
 !   2008-04-04  safford  - rm unused uses
+!   2010-03-31  treadon - replace specmod jcap with sp_a structure
 !
 !   input argument list:
 !
@@ -627,14 +628,14 @@ subroutine gather_rmstends0
 
   use mpimod, only: ierror,mpi_comm_world,mpi_integer4,npe
   use mod_vtrans, only: nvmodes_keep
-  use specmod, only: jcap
+  use gridmod, only: sp_a
   use constants, only: izero,ione
   implicit none
 
   integer(i_kind) indexloc(m_0:m_1)
   integer(i_kind) i
   
-  allocate(mthis0(npe),ndisp(npe+ione),indexglob((jcap+ione)*nvmodes_keep))
+  allocate(mthis0(npe),ndisp(npe+ione),indexglob((sp_a%jcap+ione)*nvmodes_keep))
   do i=m_0,m_1
      indexloc(i)=i
   end do
@@ -680,14 +681,14 @@ subroutine gather_rmstends(rmstend_loc,rmstend)
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe
   use mod_vtrans, only: nvmodes_keep
   use constants, only: izero,ione,zero
-  use specmod, only: jcap
+  use gridmod, only: sp_a
   implicit none
 
   real(r_kind),intent(in   ) :: rmstend_loc(2,m_0:m_1)
   real(r_kind),intent(  out) :: rmstend(nvmodes_keep)
 
   integer(i_kind) i,ii,mode,mpi_string1
-  real(r_kind) work(2,(jcap+ione)*nvmodes_keep)
+  real(r_kind) work(2,(sp_a%jcap+ione)*nvmodes_keep)
   
   call mpi_type_contiguous(2_i_kind,mpi_rtype,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
@@ -1178,6 +1179,7 @@ subroutine inmi_ew_trans(uvm_ew,uvm_ewtrans)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !     uvm_ew   -
@@ -1192,13 +1194,12 @@ subroutine inmi_ew_trans(uvm_ew,uvm_ewtrans)
 !$$$
 
   use kinds, only: r_kind
-  use gridmod, only: nlon
-  use specmod, only: jcap,afft
+  use gridmod, only: nlon,sp_a
   use constants, only: ione
   implicit none
 
   real(r_kind),dimension(2,3,nlon,nlatm_0:nlatm_1)    ,intent(in   ) :: uvm_ew
-  real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(  out) :: uvm_ewtrans
+  real(r_kind),dimension(2,3,2,0:sp_a%jcap,nlatm_0:nlatm_1),intent(  out) :: uvm_ewtrans
 
   integer(i_kind) i,j,k
   real(r_kind) grid(nlon,2),halfwave(2,0:nlon/2,2)
@@ -1209,8 +1210,8 @@ subroutine inmi_ew_trans(uvm_ew,uvm_ewtrans)
            grid(i,1)=uvm_ew(1,j,i,k)
            grid(i,2)=uvm_ew(2,j,i,k)
         end do
-        call spffte(nlon,ione+nlon/2,nlon,2_i_kind,halfwave,grid,-ione,afft)
-        do i=0,jcap
+        call spffte(nlon,ione+nlon/2,nlon,2_i_kind,halfwave,grid,-ione,sp_a%afft)
+        do i=0,sp_a%jcap
            uvm_ewtrans(1,j,1,i,k)=halfwave(1,i,1)
            uvm_ewtrans(1,j,2,i,k)=halfwave(2,i,1)
            uvm_ewtrans(2,j,1,i,k)=halfwave(1,i,2)
@@ -1232,6 +1233,7 @@ subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !     uvm_ew   -
@@ -1246,13 +1248,12 @@ subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
 !$$$
 
   use kinds, only: r_kind
-  use gridmod, only: nlon
-  use specmod, only: jcap,afft
+  use gridmod, only: nlon,sp_a
   use constants, only: ione,two
   implicit none
 
   real(r_kind),dimension(2,3,nlon,nlatm_0:nlatm_1)    ,intent(in   ) :: uvm_ew
-  real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(  out) :: uvm_ewtrans
+  real(r_kind),dimension(2,3,2,0:sp_a%jcap,nlatm_0:nlatm_1),intent(  out) :: uvm_ewtrans
 
   integer(i_kind) i,j,k
   real(r_kind) grid(nlon,2),halfwave(2,0:nlon/2,2)
@@ -1263,12 +1264,12 @@ subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
            grid(i,1)=uvm_ew(1,j,i,k)
            grid(i,2)=uvm_ew(2,j,i,k)
         end do
-        call spffte(nlon,ione+nlon/2,nlon,2_i_kind,halfwave,grid,-ione,afft)
+        call spffte(nlon,ione+nlon/2,nlon,2_i_kind,halfwave,grid,-ione,sp_a%afft)
         uvm_ewtrans(1,j,1,0,k)=halfwave(1,0,1)*float(nlon)
         uvm_ewtrans(1,j,2,0,k)=halfwave(2,0,1)*float(nlon)
         uvm_ewtrans(2,j,1,0,k)=halfwave(1,0,2)*float(nlon)
         uvm_ewtrans(2,j,2,0,k)=halfwave(2,0,2)*float(nlon)
-        do i=1,jcap
+        do i=1,sp_a%jcap
            uvm_ewtrans(1,j,1,i,k)=halfwave(1,i,1)*two*float(nlon)
            uvm_ewtrans(1,j,2,i,k)=halfwave(2,i,1)*two*float(nlon)
            uvm_ewtrans(2,j,1,i,k)=halfwave(1,i,2)*two*float(nlon)
@@ -1291,6 +1292,7 @@ subroutine inmi_ew_invtrans(uvm_ew,uvm_ewtrans)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused vars
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !     uvm_ewtrans -
@@ -1305,32 +1307,31 @@ subroutine inmi_ew_invtrans(uvm_ew,uvm_ewtrans)
 !$$$
 
   use kinds, only: r_kind
-  use gridmod, only: nlon
-  use specmod, only: jcap,afft
+  use gridmod, only: nlon,sp_a
   use constants, only: ione,zero
   implicit none
 
   real(r_kind),dimension(2,3,nlon,nlatm_0:nlatm_1)    ,intent(  out) :: uvm_ew
-  real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(in   ) :: uvm_ewtrans
+  real(r_kind),dimension(2,3,2,0:sp_a%jcap,nlatm_0:nlatm_1),intent(in   ) :: uvm_ewtrans
 
   integer(i_kind) i,j,k
   real(r_kind) grid(nlon,2),halfwave(2,0:nlon/2,2)
 
   do k=nlatm_0,nlatm_1
      do j=1,3
-        do i=0,jcap
+        do i=0,sp_a%jcap
            halfwave(1,i,1)=uvm_ewtrans(1,j,1,i,k)
            halfwave(2,i,1)=uvm_ewtrans(1,j,2,i,k)
            halfwave(1,i,2)=uvm_ewtrans(2,j,1,i,k)
            halfwave(2,i,2)=uvm_ewtrans(2,j,2,i,k)
         end do
-        do i=jcap+ione,nlon/2
+        do i=sp_a%jcap+ione,nlon/2
            halfwave(1,i,1)=zero
            halfwave(2,i,1)=zero
            halfwave(1,i,2)=zero
            halfwave(2,i,2)=zero
         end do
-        call spffte(nlon,ione+nlon/2,nlon,2_i_kind,halfwave,grid,ione,afft)
+        call spffte(nlon,ione+nlon/2,nlon,2_i_kind,halfwave,grid,ione,sp_a%afft)
         do i=1,nlon
            uvm_ew(1,j,i,k)=grid(i,1)
            uvm_ew(2,j,i,k)=grid(i,2)
@@ -1351,6 +1352,7 @@ subroutine inmi_ew_trans_ad(uvm_ew,uvm_ewtrans)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused vars
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !     uvm_ewtrans -
@@ -1367,13 +1369,12 @@ subroutine inmi_ew_trans_ad(uvm_ew,uvm_ewtrans)
 
 
   use kinds, only: r_kind
-  use gridmod, only: nlon
-  use specmod, only: jcap,afft
+  use gridmod, only: nlon,sp_a
   use constants, only: ione,zero,half
   implicit none
 
   real(r_kind),dimension(2,3,nlon,nlatm_0:nlatm_1)    ,intent(  out) :: uvm_ew
-  real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(in   ) :: uvm_ewtrans
+  real(r_kind),dimension(2,3,2,0:sp_a%jcap,nlatm_0:nlatm_1),intent(in   ) :: uvm_ewtrans
 
   integer(i_kind) i,j,k
   real(r_kind) grid(nlon,2),halfwave(2,0:nlon/2,2)
@@ -1384,19 +1385,19 @@ subroutine inmi_ew_trans_ad(uvm_ew,uvm_ewtrans)
         halfwave(2,0,1)=zero
         halfwave(1,0,2)=uvm_ewtrans(2,j,1,0,k)/float(nlon)
         halfwave(2,0,2)=zero
-        do i=1,jcap
+        do i=1,sp_a%jcap
            halfwave(1,i,1)=half*uvm_ewtrans(1,j,1,i,k)/float(nlon)
            halfwave(2,i,1)=half*uvm_ewtrans(1,j,2,i,k)/float(nlon)
            halfwave(1,i,2)=half*uvm_ewtrans(2,j,1,i,k)/float(nlon)
            halfwave(2,i,2)=half*uvm_ewtrans(2,j,2,i,k)/float(nlon)
         end do
-        do i=jcap+ione,nlon/2
+        do i=sp_a%jcap+ione,nlon/2
            halfwave(1,i,1)=zero
            halfwave(2,i,1)=zero
            halfwave(1,i,2)=zero
            halfwave(2,i,2)=zero
         end do
-        call spffte(nlon,ione+nlon/2,nlon,2_i_kind,halfwave,grid,ione,afft)
+        call spffte(nlon,ione+nlon/2,nlon,2_i_kind,halfwave,grid,ione,sp_a%afft)
         do i=1,nlon
            uvm_ew(1,j,i,k)=grid(i,1)
            uvm_ew(2,j,i,k)=grid(i,2)
@@ -1418,6 +1419,7 @@ subroutine inmi_coupler_ew2ns0(mype)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
+!   2010-03-31  treadon - replace specmod jcap with sp_a structure
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -1432,7 +1434,7 @@ subroutine inmi_coupler_ew2ns0(mype)
 
   use mod_vtrans, only: nvmodes_keep
   use mpimod, only: npe
-  use specmod, only: jcap
+  use gridmod, only: sp_a
   use constants, only: izero,ione
   implicit none
 
@@ -1452,7 +1454,7 @@ subroutine inmi_coupler_ew2ns0(mype)
 
 !     0  (+,- mode pair together),  then   (m,jcap+1-m ) for m=1,jcap/2  single modes
 
-  total_groups=(jcap+ione)*nvmodes_keep
+  total_groups=(sp_a%jcap+ione)*nvmodes_keep
   num_per_pe=total_groups/npe
   if(mod(total_groups,npe)/=izero) num_per_pe=num_per_pe+ione
   if(mod(total_groups,npe)==izero) then
@@ -1461,7 +1463,7 @@ subroutine inmi_coupler_ew2ns0(mype)
      kchk=mod(total_groups,npe)
   end if
 
-  if(mod(jcap,2_i_kind) /= izero) then
+  if(mod(sp_a%jcap,2_i_kind) /= izero) then
 
 !    case  jcap odd:
    
@@ -1469,14 +1471,14 @@ subroutine inmi_coupler_ew2ns0(mype)
      do k=1,nvmodes_keep
         nn=nn+ione
         mmode_list(1,nn)=izero
-        mmode_list(2,nn)=(jcap+ione)/2
+        mmode_list(2,nn)=(sp_a%jcap+ione)/2
         mmode_list(3,nn)=k
         mmode_list(4,nn)=k
         mmode_list(5,nn)=-ione
-        do m=1,(jcap-ione)/2
+        do m=1,(sp_a%jcap-ione)/2
            nn=nn+ione
            mmode_list(1,nn)=m
-           mmode_list(2,nn)=jcap+ione-m
+           mmode_list(2,nn)=sp_a%jcap+ione-m
            mmode_list(3,nn)=k
            mmode_list(4,nn)=k
            mmode_list(5,nn)=-ione
@@ -1485,14 +1487,14 @@ subroutine inmi_coupler_ew2ns0(mype)
      do k=1,nvmodes_keep
         nn=nn+ione
         mmode_list(1,nn)=izero
-        mmode_list(2,nn)=(jcap+ione)/2
+        mmode_list(2,nn)=(sp_a%jcap+ione)/2
         mmode_list(3,nn)=-k
         mmode_list(4,nn)=-k
         mmode_list(5,nn)=-ione
-        do m=1,(jcap-ione)/2
+        do m=1,(sp_a%jcap-ione)/2
            nn=nn+ione
            mmode_list(1,nn)=m
-           mmode_list(2,nn)=jcap+ione-m
+           mmode_list(2,nn)=sp_a%jcap+ione-m
            mmode_list(3,nn)=-k
            mmode_list(4,nn)=-k
            mmode_list(5,nn)=-ione
@@ -1511,20 +1513,20 @@ subroutine inmi_coupler_ew2ns0(mype)
         mmode_list(3,nn)=k
         mmode_list(4,nn)=-k
         mmode_list(5,nn)=-ione
-        do m=1,jcap/2
+        do m=1,sp_a%jcap/2
            nn=nn+ione
            mmode_list(1,nn)=m
-           mmode_list(2,nn)=jcap+ione-m
+           mmode_list(2,nn)=sp_a%jcap+ione-m
            mmode_list(3,nn)=k
            mmode_list(4,nn)=k
            mmode_list(5,nn)=-ione
         end do
      end do
      do k=1,nvmodes_keep
-        do m=1,jcap/2
+        do m=1,sp_a%jcap/2
            nn=nn+ione
            mmode_list(1,nn)=m
-           mmode_list(2,nn)=jcap+ione-m
+           mmode_list(2,nn)=sp_a%jcap+ione-m
            mmode_list(3,nn)=-k
            mmode_list(4,nn)=-k
            mmode_list(5,nn)=-ione
@@ -1568,6 +1570,7 @@ subroutine inmi_coupler_ew2ns1(mype)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block
+!   2010-03-31  treadon - replace specmod jcap with sp_a structure
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -1582,13 +1585,13 @@ subroutine inmi_coupler_ew2ns1(mype)
 
   use mod_vtrans, only: nvmodes_keep
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_integer4,mpi_sum
-  use specmod, only: jcap
+  use gridmod, only: sp_a
   use constants, only: izero,ione
   implicit none
 
   integer(i_kind),intent(in   )::mype
 
-  integer(i_kind) mmode2_list(0:jcap,-nvmodes_keep:nvmodes_keep)
+  integer(i_kind) mmode2_list(0:sp_a%jcap,-nvmodes_keep:nvmodes_keep)
   integer(i_kind) i,ip12,ipe,j,k,m,nn,m1,m2,ilat,imode,imode1,imode2
   integer(i_kind) mpi_string1
   integer(i_kind) ibad,ibad0,loop
@@ -1596,7 +1599,7 @@ subroutine inmi_coupler_ew2ns1(mype)
   allocate(nsend(npe),nrecv(npe),ndsend(npe+ione),ndrecv(npe+ione))
   nn=izero
   mmode2_list=izero
-  do j=1,(jcap+ione)*nvmodes_keep
+  do j=1,(sp_a%jcap+ione)*nvmodes_keep
      m1=mmode_list(1,j)
      m2=mmode_list(2,j)
      imode1=mmode_list(3,j)
@@ -1622,7 +1625,7 @@ subroutine inmi_coupler_ew2ns1(mype)
   end do
   do imode=-nvmodes_keep,nvmodes_keep
      if(imode == izero) cycle
-     do m=0,jcap
+     do m=0,sp_a%jcap
         if(mmode2_list(m,imode) == izero) then
            if(mype == izero) write(6,*)' problem in inmi_coupler_ew2ns'
            call mpi_finalize(i)
@@ -1636,7 +1639,7 @@ subroutine inmi_coupler_ew2ns1(mype)
   nsend=izero
   do k=nlatm_0,nlatm_1
      imode=mode_list(2,k)
-     do m=0,jcap
+     do m=0,sp_a%jcap
         j=mmode2_list(m,imode)
         ipe=mmode_list(5,j)
         nsend(ipe)=nsend(ipe)+ione
@@ -1659,7 +1662,7 @@ subroutine inmi_coupler_ew2ns1(mype)
      do loop=1,2
         imode=mode_list(2,k)
         if(loop == 2_i_kind) imode=-mode_list(2,k)
-        do m=0,jcap
+        do m=0,sp_a%jcap
            j=mmode2_list(m,imode)
            m1=mmode_list(1,j)
            m2=mmode_list(2,j)
@@ -1718,6 +1721,7 @@ subroutine inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused vars and uses
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !     uvm_ewtrans -
@@ -1734,11 +1738,11 @@ subroutine inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns)
   use kinds, only: r_kind
   use gridmod, only: nlat
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-  use specmod, only: jcap
+  use gridmod, only: sp_a
   use constants, only: izero,ione
   implicit none
 
-  real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(in   ) :: uvm_ewtrans
+  real(r_kind),dimension(2,3,2,0:sp_a%jcap,nlatm_0:nlatm_1),intent(in   ) :: uvm_ewtrans
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1)          ,intent(  out) :: uvm_ns
 
   integer(i_kind) ip12,j,m,mm,ilat,ilatm,imode
@@ -1795,6 +1799,7 @@ subroutine inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused vars and uses
+!   2010-03-31  treadon - replace specmod jcap with sp_a structure
 !
 !   input argument list:
 !     uvm_ns   -
@@ -1811,11 +1816,11 @@ subroutine inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns)
   use kinds, only: r_kind
   use gridmod, only: nlat
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-  use specmod, only: jcap
+  use gridmod, only: sp_a
   use constants, only: izero,ione
   implicit none
 
-  real(r_kind),dimension(2,3,2,0:jcap,nlatm_0:nlatm_1),intent(  out) :: uvm_ewtrans
+  real(r_kind),dimension(2,3,2,0:sp_a%jcap,nlatm_0:nlatm_1),intent(  out) :: uvm_ewtrans
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1)          ,intent(in   ) :: uvm_ns
 
   integer(i_kind) ip12,j,m,mm,ilat,ilatm,imode
@@ -1872,6 +1877,7 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !     uvm_ns   -
@@ -1887,8 +1893,7 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
 !$$$
 
   use kinds, only: r_kind
-  use gridmod, only: nlat
-  use specmod, only: jcap,jb,je,pln,plntop,enn1,elonn1,eon,eontop,wlat,clat
+  use gridmod, only: nlat,sp_a
   use constants, only: izero,ione,zero
   implicit none
 
@@ -1896,61 +1901,66 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(  out) :: zdm_hat
 
   integer(i_kind) i,ics,j,jnorth,jsouth,m,mm,n,ipair
-  real(r_kind) spcz(2,0:jcap),spcd(2,0:jcap),spcp(2,0:jcap),spcu(2,0:jcap+ione),spcv(2,0:jcap+ione)
-  real(r_kind) plnloc(0:jcap+ione)
+  real(r_kind) spcz(2,0:sp_a%jcap),spcd(2,0:sp_a%jcap),spcp(2,0:sp_a%jcap),spcu(2,0:sp_a%jcap+ione),spcv(2,0:sp_a%jcap+ione)
+  real(r_kind) plnloc(0:sp_a%jcap+ione)
   real(r_kind) fu(2,2),fv(2,2),fp(2,2)
+  real(r_kind):: enn1_loc(sp_a%ncd2),elonn1_loc(sp_a%ncd2),eon_loc(sp_a%ncd2),eontop_loc(sp_a%jcap+ione)
 
+  enn1_loc  = sp_a%enn1
+  elonn1_loc= sp_a%elonn1
+  eon_loc   = sp_a%eon
+  eontop_loc= sp_a%eontop
 
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
-        ics=ione+m*(2*jcap+3_i_kind-m)/2
+        ics=ione+m*(2*sp_a%jcap+3_i_kind-m)/2
 
-        do n=m,jcap
+        do n=m,sp_a%jcap
            spcp(1,n)=zero
            spcp(2,n)=zero
         end do
-        do n=m,jcap+ione
+        do n=m,sp_a%jcap+ione
            spcu(1,n)=zero
            spcu(2,n)=zero
            spcv(1,n)=zero
            spcv(2,n)=zero
         end do
 
-        do j=jb,je
+        do j=sp_a%jb,sp_a%je
            jsouth=ione+j
            jnorth=nlat-j
 
-           fu(1,1)=uvm_ns(1,1,jnorth,ipair,mm)/clat(j)**2
-           fu(2,1)=uvm_ns(1,2,jnorth,ipair,mm)/clat(j)**2
-           fu(1,2)=uvm_ns(1,1,jsouth,ipair,mm)/clat(j)**2
-           fu(2,2)=uvm_ns(1,2,jsouth,ipair,mm)/clat(j)**2
-           fv(1,1)=uvm_ns(2,1,jnorth,ipair,mm)/clat(j)**2
-           fv(2,1)=uvm_ns(2,2,jnorth,ipair,mm)/clat(j)**2
-           fv(1,2)=uvm_ns(2,1,jsouth,ipair,mm)/clat(j)**2
-           fv(2,2)=uvm_ns(2,2,jsouth,ipair,mm)/clat(j)**2
+           fu(1,1)=uvm_ns(1,1,jnorth,ipair,mm)/sp_a%clat(j)**2
+           fu(2,1)=uvm_ns(1,2,jnorth,ipair,mm)/sp_a%clat(j)**2
+           fu(1,2)=uvm_ns(1,1,jsouth,ipair,mm)/sp_a%clat(j)**2
+           fu(2,2)=uvm_ns(1,2,jsouth,ipair,mm)/sp_a%clat(j)**2
+           fv(1,1)=uvm_ns(2,1,jnorth,ipair,mm)/sp_a%clat(j)**2
+           fv(2,1)=uvm_ns(2,2,jnorth,ipair,mm)/sp_a%clat(j)**2
+           fv(1,2)=uvm_ns(2,1,jsouth,ipair,mm)/sp_a%clat(j)**2
+           fv(2,2)=uvm_ns(2,2,jsouth,ipair,mm)/sp_a%clat(j)**2
            fp(1,1)=uvm_ns(3,1,jnorth,ipair,mm)
            fp(2,1)=uvm_ns(3,2,jnorth,ipair,mm)
            fp(1,2)=uvm_ns(3,1,jsouth,ipair,mm)
            fp(2,2)=uvm_ns(3,2,jsouth,ipair,mm)
 !           create plnloc
 
-           do n=m,jcap
-              plnloc(n)=pln(ics+n-m,j)
+           do n=m,sp_a%jcap
+              plnloc(n)=sp_a%pln(ics+n-m,j)
            end do
-           plnloc(jcap+ione)=plntop(m+ione,j)
+           plnloc(sp_a%jcap+ione)=sp_a%plntop(m+ione,j)
  
-           call spanaly_ns(izero,jcap,m,wlat(j),clat(j),plnloc(m),ione ,fu,spcu(1,m))
-           call spanaly_ns(izero,jcap,m,wlat(j),clat(j),plnloc(m),ione ,fv,spcv(1,m))
-           call spanaly_ns(izero,jcap,m,wlat(j),clat(j),plnloc(m),izero,fp,spcp(1,m))
+           call spanaly_ns(izero,sp_a%jcap,m,sp_a%wlat(j),sp_a%clat(j),plnloc(m),ione ,fu,spcu(1,m))
+           call spanaly_ns(izero,sp_a%jcap,m,sp_a%wlat(j),sp_a%clat(j),plnloc(m),ione ,fv,spcv(1,m))
+           call spanaly_ns(izero,sp_a%jcap,m,sp_a%wlat(j),sp_a%clat(j),plnloc(m),izero,fp,spcp(1,m))
 
         end do
 
-        call spuv2dz_ns(izero,jcap,m,enn1(ics),elonn1(ics),eon(ics),eontop(m+ione), &
-                spcu(1,m),spcv(1,m),spcu(1,jcap+ione),spcv(1,jcap+ione),spcd(1,m),spcz(1,m))
+        call spuv2dz_ns(izero,sp_a%jcap,m,enn1_loc(ics),elonn1_loc(ics),eon_loc(ics),eontop_loc(m+ione), &
+                spcu(1,m),spcv(1,m),spcu(1,sp_a%jcap+ione),spcv(1,sp_a%jcap+ione),spcd(1,m),spcz(1,m))
 
         i=izero
-        do n=m,jcap
+        do n=m,sp_a%jcap
            i=i+ione
            zdm_hat(1,1,i,ipair,mm)=spcz(1,n)
            zdm_hat(1,2,i,ipair,mm)=spcz(2,n)
@@ -1977,6 +1987,7 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !     uvm_ns   -
@@ -1991,8 +2002,7 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
 !$$$
 
   use kinds, only: r_kind
-  use gridmod, only: nlat
-  use specmod, only: jcap,jb,je,pln,plntop,enn1,elonn1,eon,eontop,wlat,clat
+  use gridmod, only: nlat,sp_a
   use constants, only: izero,ione,zero
   implicit none
 
@@ -2001,22 +2011,28 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
 
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1)::uvm_ns_temp
   integer(i_kind) i,ics,j,jnorth,jsouth,m,mm,n,ipair
-  real(r_kind) spcz(2,0:jcap),spcd(2,0:jcap),spcp(2,0:jcap),spcu(2,0:jcap+ione),spcv(2,0:jcap+ione)
-  real(r_kind) plnloc(0:jcap+ione)
+  real(r_kind) spcz(2,0:sp_a%jcap),spcd(2,0:sp_a%jcap),spcp(2,0:sp_a%jcap),spcu(2,0:sp_a%jcap+ione),spcv(2,0:sp_a%jcap+ione)
+  real(r_kind) plnloc(0:sp_a%jcap+ione)
   real(r_kind) fu(2,2),fv(2,2),fp(2,2)
+  real(r_kind):: enn1_loc(sp_a%ncd2),elonn1_loc(sp_a%ncd2),eon_loc(sp_a%ncd2),eontop_loc(sp_a%jcap+ione)
+
+  enn1_loc  = sp_a%enn1
+  elonn1_loc= sp_a%elonn1
+  eon_loc   = sp_a%eon
+  eontop_loc= sp_a%eontop
 
 
   uvm_ns_temp=uvm_ns
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
-        ics=ione+m*(2*jcap+3_i_kind-m)/2
+        ics=ione+m*(2*sp_a%jcap+3_i_kind-m)/2
 
-        do n=m,jcap
+        do n=m,sp_a%jcap
            spcp(1,n)=zero
            spcp(2,n)=zero
         end do
-        do n=m,jcap+ione
+        do n=m,sp_a%jcap+ione
            spcu(1,n)=zero
            spcu(2,n)=zero
            spcv(1,n)=zero
@@ -2038,37 +2054,37 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
            uvm_ns_temp(2,2,nlat-ione,ipair,mm)=uvm_ns_temp(2,2,nlat,ipair,mm)+uvm_ns_temp(2,2,nlat-ione,ipair,mm)
         end if
 
-        do j=jb,je
+        do j=sp_a%jb,sp_a%je
            jsouth=ione+j
            jnorth=nlat-j
 
-           fu(1,1)=uvm_ns_temp(1,1,jnorth,ipair,mm)/(wlat(j)*clat(j)**2)
-           fu(2,1)=uvm_ns_temp(1,2,jnorth,ipair,mm)/(wlat(j)*clat(j)**2)
-           fu(1,2)=uvm_ns_temp(1,1,jsouth,ipair,mm)/(wlat(j)*clat(j)**2)
-           fu(2,2)=uvm_ns_temp(1,2,jsouth,ipair,mm)/(wlat(j)*clat(j)**2)
-           fv(1,1)=uvm_ns_temp(2,1,jnorth,ipair,mm)/(wlat(j)*clat(j)**2)
-           fv(2,1)=uvm_ns_temp(2,2,jnorth,ipair,mm)/(wlat(j)*clat(j)**2)
-           fv(1,2)=uvm_ns_temp(2,1,jsouth,ipair,mm)/(wlat(j)*clat(j)**2)
-           fv(2,2)=uvm_ns_temp(2,2,jsouth,ipair,mm)/(wlat(j)*clat(j)**2)
-           fp(1,1)=uvm_ns_temp(3,1,jnorth,ipair,mm)/wlat(j)
-           fp(2,1)=uvm_ns_temp(3,2,jnorth,ipair,mm)/wlat(j)
-           fp(1,2)=uvm_ns_temp(3,1,jsouth,ipair,mm)/wlat(j)
-           fp(2,2)=uvm_ns_temp(3,2,jsouth,ipair,mm)/wlat(j)
+           fu(1,1)=uvm_ns_temp(1,1,jnorth,ipair,mm)/(sp_a%wlat(j)*sp_a%clat(j)**2)
+           fu(2,1)=uvm_ns_temp(1,2,jnorth,ipair,mm)/(sp_a%wlat(j)*sp_a%clat(j)**2)
+           fu(1,2)=uvm_ns_temp(1,1,jsouth,ipair,mm)/(sp_a%wlat(j)*sp_a%clat(j)**2)
+           fu(2,2)=uvm_ns_temp(1,2,jsouth,ipair,mm)/(sp_a%wlat(j)*sp_a%clat(j)**2)
+           fv(1,1)=uvm_ns_temp(2,1,jnorth,ipair,mm)/(sp_a%wlat(j)*sp_a%clat(j)**2)
+           fv(2,1)=uvm_ns_temp(2,2,jnorth,ipair,mm)/(sp_a%wlat(j)*sp_a%clat(j)**2)
+           fv(1,2)=uvm_ns_temp(2,1,jsouth,ipair,mm)/(sp_a%wlat(j)*sp_a%clat(j)**2)
+           fv(2,2)=uvm_ns_temp(2,2,jsouth,ipair,mm)/(sp_a%wlat(j)*sp_a%clat(j)**2)
+           fp(1,1)=uvm_ns_temp(3,1,jnorth,ipair,mm)/sp_a%wlat(j)
+           fp(2,1)=uvm_ns_temp(3,2,jnorth,ipair,mm)/sp_a%wlat(j)
+           fp(1,2)=uvm_ns_temp(3,1,jsouth,ipair,mm)/sp_a%wlat(j)
+           fp(2,2)=uvm_ns_temp(3,2,jsouth,ipair,mm)/sp_a%wlat(j)
 !           create plnloc
 
-           do n=m,jcap
-              plnloc(n)=pln(ics+n-m,j)
+           do n=m,sp_a%jcap
+              plnloc(n)=sp_a%pln(ics+n-m,j)
            end do
-           plnloc(jcap+ione)=plntop(m+ione,j)
+           plnloc(sp_a%jcap+ione)=sp_a%plntop(m+ione,j)
 
-           call spanaly_ns(izero,jcap,m,wlat(j),clat(j),plnloc(m),ione ,fu,spcu(1,m))
-           call spanaly_ns(izero,jcap,m,wlat(j),clat(j),plnloc(m),ione ,fv,spcv(1,m))
-           call spanaly_ns(izero,jcap,m,wlat(j),clat(j),plnloc(m),izero,fp,spcp(1,m))
+           call spanaly_ns(izero,sp_a%jcap,m,sp_a%wlat(j),sp_a%clat(j),plnloc(m),ione ,fu,spcu(1,m))
+           call spanaly_ns(izero,sp_a%jcap,m,sp_a%wlat(j),sp_a%clat(j),plnloc(m),ione ,fv,spcv(1,m))
+           call spanaly_ns(izero,sp_a%jcap,m,sp_a%wlat(j),sp_a%clat(j),plnloc(m),izero,fp,spcp(1,m))
 
         end do
 
-        call spuv2dz_ns(izero,jcap,m,enn1(ics),elonn1(ics),eon(ics),eontop(m+ione), &
-                spcu(1,m),spcv(1,m),spcu(1,jcap+ione),spcv(1,jcap+ione),spcd(1,m),spcz(1,m))
+        call spuv2dz_ns(izero,sp_a%jcap,m,enn1_loc(ics),elonn1_loc(ics),eon_loc(ics),eontop_loc(m+ione), &
+                spcu(1,m),spcv(1,m),spcu(1,sp_a%jcap+ione),spcv(1,sp_a%jcap+ione),spcd(1,m),spcz(1,m))
 
         i=izero
         if(m == izero) then
@@ -2080,12 +2096,12 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
            zdm_hat(3,1,i,ipair,mm)=spcp(1,0)
            zdm_hat(3,2,i,ipair,mm)=spcp(2,0)
         end if
-        do n=max(ione,m),jcap
+        do n=max(ione,m),sp_a%jcap
            i=i+ione
-           zdm_hat(1,1,i,ipair,mm)=spcz(1,n)/enn1(ics+n-m)
-           zdm_hat(1,2,i,ipair,mm)=spcz(2,n)/enn1(ics+n-m)
-           zdm_hat(2,1,i,ipair,mm)=spcd(1,n)/enn1(ics+n-m)
-           zdm_hat(2,2,i,ipair,mm)=spcd(2,n)/enn1(ics+n-m)
+           zdm_hat(1,1,i,ipair,mm)=spcz(1,n)/sp_a%enn1(ics+n-m)
+           zdm_hat(1,2,i,ipair,mm)=spcz(2,n)/sp_a%enn1(ics+n-m)
+           zdm_hat(2,1,i,ipair,mm)=spcd(1,n)/sp_a%enn1(ics+n-m)
+           zdm_hat(2,2,i,ipair,mm)=spcd(2,n)/sp_a%enn1(ics+n-m)
            zdm_hat(3,1,i,ipair,mm)=spcp(1,n)
            zdm_hat(3,2,i,ipair,mm)=spcp(2,n)
         end do
@@ -2107,6 +2123,7 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !     uvm_ns   -
@@ -2121,8 +2138,7 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
 !$$$
 
   use kinds, only: r_kind
-  use gridmod, only: nlat
-  use specmod, only: jcap,jb,je,pln,plntop,elonn1,eon,eontop,clat
+  use gridmod, only: nlat,sp_a
   use constants, only: izero,ione,zero
   implicit none
 
@@ -2130,20 +2146,26 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(in   ) :: zdm_hat
 
   integer(i_kind) i,ics,j,jnorth,jsouth,m,mm,n,ipair
-  real(r_kind) spcz(2,0:jcap),spcd(2,0:jcap),spcp(2,0:jcap),spcu(2,0:jcap+ione),spcv(2,0:jcap+ione)
-  real(r_kind) plnloc(0:jcap+ione)
+  real(r_kind) spcz(2,0:sp_a%jcap),spcd(2,0:sp_a%jcap),spcp(2,0:sp_a%jcap),spcu(2,0:sp_a%jcap+ione),spcv(2,0:sp_a%jcap+ione)
+  real(r_kind) plnloc(0:sp_a%jcap+ione)
   real(r_kind) fu(2,2),fv(2,2),fp(2,2)
+  real(r_kind):: enn1_loc(sp_a%ncd2),elonn1_loc(sp_a%ncd2),eon_loc(sp_a%ncd2),eontop_loc(sp_a%jcap+ione)
+
+  enn1_loc  = sp_a%enn1
+  elonn1_loc= sp_a%elonn1
+  eon_loc   = sp_a%eon
+  eontop_loc= sp_a%eontop
 
 
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
-        ics=ione+m*(2*jcap+3_i_kind-m)/2
+        ics=ione+m*(2*sp_a%jcap+3_i_kind-m)/2
 
 !           gather up spcz, spcd, spcp
 
         i=izero
-        do n=m,jcap
+        do n=m,sp_a%jcap
            i=i+ione
            spcz(1,n)=zdm_hat(1,1,i,ipair,mm)
            spcz(2,n)=zdm_hat(1,2,i,ipair,mm)
@@ -2155,25 +2177,25 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
 
 !           convert to spcu, spcv
 
-        call spdz2uv_ns(izero,jcap,m,elonn1(ics),eon(ics),eontop(m+ione), &
-                spcd(1,m),spcz(1,m),spcu(1,m),spcv(1,m),spcu(1,jcap+ione),spcv(1,jcap+ione))
+        call spdz2uv_ns(izero,sp_a%jcap,m,elonn1_loc(ics),eon_loc(ics),eontop_loc(m+ione), &
+                spcd(1,m),spcz(1,m),spcu(1,m),spcv(1,m),spcu(1,sp_a%jcap+ione),spcv(1,sp_a%jcap+ione))
 
-        do j=jb,je
+        do j=sp_a%jb,sp_a%je
            jsouth=ione+j
            jnorth=nlat-j
 
 !           create plnloc
 
-           do n=m,jcap
-              plnloc(n)=pln(ics+n-m,j)
+           do n=m,sp_a%jcap
+              plnloc(n)=sp_a%pln(ics+n-m,j)
            end do
-           plnloc(jcap+ione)=plntop(m+ione,j)
+           plnloc(sp_a%jcap+ione)=sp_a%plntop(m+ione,j)
  
 !          obtain f
 
-           call spsynth_ns(izero,jcap,m,clat(j),plnloc(m),ione ,spcu(1,m),fu)
-           call spsynth_ns(izero,jcap,m,clat(j),plnloc(m),ione ,spcv(1,m),fv)
-           call spsynth_ns(izero,jcap,m,clat(j),plnloc(m),izero,spcp(1,m),fp)
+           call spsynth_ns(izero,sp_a%jcap,m,sp_a%clat(j),plnloc(m),ione ,spcu(1,m),fu)
+           call spsynth_ns(izero,sp_a%jcap,m,sp_a%clat(j),plnloc(m),ione ,spcv(1,m),fv)
+           call spsynth_ns(izero,sp_a%jcap,m,sp_a%clat(j),plnloc(m),izero,spcp(1,m),fp)
 
 !          scatter back to output pairs of lats
  
@@ -2251,6 +2273,7 @@ subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat)
 !
 ! program history log:
 !   2009-08-13  lueken - added subprogram doc block
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !    pcm_hat
@@ -2265,8 +2288,7 @@ subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat)
 !$$$ end documentation block
 
   use kinds, only: r_kind
-  use gridmod, only: nlat
-  use specmod, only: jcap,jb,je,pln,plntop,clat
+  use gridmod, only: nlat,sp_a
   use constants, only: izero,ione,zero
   implicit none
 
@@ -2274,19 +2296,19 @@ subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat)
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(in   ) :: pcm_hat
 
   integer(i_kind) i,ics,j,jnorth,jsouth,m,mm,n,ipair
-  real(r_kind) spcp(2,0:jcap),spcc(2,0:jcap),spcm(2,0:jcap)
-  real(r_kind) plnloc(0:jcap+ione)
+  real(r_kind) spcp(2,0:sp_a%jcap),spcc(2,0:sp_a%jcap),spcm(2,0:sp_a%jcap)
+  real(r_kind) plnloc(0:sp_a%jcap+ione)
   real(r_kind) fp(2,2),fc(2,2),fm(2,2)
 
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
-        ics=ione+m*(2*jcap+3_i_kind-m)/2
+        ics=ione+m*(2*sp_a%jcap+3_i_kind-m)/2
 
 !           gather up spcp, spcc, spcm
 
         i=izero
-        do n=m,jcap
+        do n=m,sp_a%jcap
            i=i+ione
            spcp(1,n)=pcm_hat(1,1,i,ipair,mm)
            spcp(2,n)=pcm_hat(1,2,i,ipair,mm)
@@ -2296,22 +2318,22 @@ subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat)
            spcm(2,n)=pcm_hat(3,2,i,ipair,mm)
         end do
 
-        do j=jb,je
+        do j=sp_a%jb,sp_a%je
            jsouth=ione+j
            jnorth=nlat-j
 
 !           create plnloc
 
-           do n=m,jcap
-              plnloc(n)=pln(ics+n-m,j)
+           do n=m,sp_a%jcap
+              plnloc(n)=sp_a%pln(ics+n-m,j)
            end do
-           plnloc(jcap+1)=plntop(m+1,j)
+           plnloc(sp_a%jcap+1)=sp_a%plntop(m+1,j)
 
 !          obtain f
 
-           call spsynth_ns(izero,jcap,m,clat(j),plnloc(m),izero,spcp(1,m),fp)
-           call spsynth_ns(izero,jcap,m,clat(j),plnloc(m),izero,spcc(1,m),fc)
-           call spsynth_ns(izero,jcap,m,clat(j),plnloc(m),izero,spcm(1,m),fm)
+           call spsynth_ns(izero,sp_a%jcap,m,sp_a%clat(j),plnloc(m),izero,spcp(1,m),fp)
+           call spsynth_ns(izero,sp_a%jcap,m,sp_a%clat(j),plnloc(m),izero,spcc(1,m),fc)
+           call spsynth_ns(izero,sp_a%jcap,m,sp_a%clat(j),plnloc(m),izero,spcm(1,m),fm)
 
 !          scatter back to output pairs of lats
 
@@ -2376,6 +2398,7 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
 !
 ! program history log:
 !   2009-08-13  lueken - added subprogram doc block
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !    pcm_ns
@@ -2389,8 +2412,7 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
 !
 !$$$ end documentation block
   use kinds, only: r_kind
-  use gridmod, only: nlat
-  use specmod, only: jcap,jb,je,pln,plntop,wlat,clat
+  use gridmod, only: nlat,sp_a
   use constants, only: izero,ione,zero
   implicit none
 
@@ -2399,8 +2421,8 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
 
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1)::pcm_ns_temp
   integer(i_kind) i,ics,j,jnorth,jsouth,m,mm,n,ipair
-  real(r_kind) spcp(2,0:jcap),spcc(2,0:jcap),spcm(2,0:jcap)
-  real(r_kind) plnloc(0:jcap+ione)
+  real(r_kind) spcp(2,0:sp_a%jcap),spcc(2,0:sp_a%jcap),spcm(2,0:sp_a%jcap)
+  real(r_kind) plnloc(0:sp_a%jcap+ione)
   real(r_kind) fp(2,2),fc(2,2),fm(2,2)
 
   pcm_ns_temp=pcm_ns
@@ -2408,9 +2430,9 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
-        ics=ione+m*(2*jcap+3_i_kind-m)/2
+        ics=ione+m*(2*sp_a%jcap+3_i_kind-m)/2
  
-        do n=m,jcap
+        do n=m,sp_a%jcap
            spcp(1,n)=zero
            spcp(2,n)=zero
            spcc(1,n)=zero
@@ -2430,44 +2452,44 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
            pcm_ns_temp(3,1,nlat-ione,ipair,mm)=pcm_ns_temp(3,1,nlat,ipair,mm)+pcm_ns_temp(3,1,nlat-ione,ipair,mm)
         end if
 
-        do j=jb,je
+        do j=sp_a%jb,sp_a%je
            jsouth=ione+j
            jnorth=nlat-j
  
 !          adjoint of scatter back to output pairs of lats
 
-           fp(1,1)=pcm_ns_temp(1,1,jnorth,ipair,mm)/wlat(j)
-           fp(2,1)=pcm_ns_temp(1,2,jnorth,ipair,mm)/wlat(j)
-           fp(1,2)=pcm_ns_temp(1,1,jsouth,ipair,mm)/wlat(j)
-           fp(2,2)=pcm_ns_temp(1,2,jsouth,ipair,mm)/wlat(j)
-           fc(1,1)=pcm_ns_temp(2,1,jnorth,ipair,mm)/wlat(j)
-           fc(2,1)=pcm_ns_temp(2,2,jnorth,ipair,mm)/wlat(j)
-           fc(1,2)=pcm_ns_temp(2,1,jsouth,ipair,mm)/wlat(j)
-           fc(2,2)=pcm_ns_temp(2,2,jsouth,ipair,mm)/wlat(j)
-           fm(1,1)=pcm_ns_temp(3,1,jnorth,ipair,mm)/wlat(j)
-           fm(2,1)=pcm_ns_temp(3,2,jnorth,ipair,mm)/wlat(j)
-           fm(1,2)=pcm_ns_temp(3,1,jsouth,ipair,mm)/wlat(j)
-           fm(2,2)=pcm_ns_temp(3,2,jsouth,ipair,mm)/wlat(j)
+           fp(1,1)=pcm_ns_temp(1,1,jnorth,ipair,mm)/sp_a%wlat(j)
+           fp(2,1)=pcm_ns_temp(1,2,jnorth,ipair,mm)/sp_a%wlat(j)
+           fp(1,2)=pcm_ns_temp(1,1,jsouth,ipair,mm)/sp_a%wlat(j)
+           fp(2,2)=pcm_ns_temp(1,2,jsouth,ipair,mm)/sp_a%wlat(j)
+           fc(1,1)=pcm_ns_temp(2,1,jnorth,ipair,mm)/sp_a%wlat(j)
+           fc(2,1)=pcm_ns_temp(2,2,jnorth,ipair,mm)/sp_a%wlat(j)
+           fc(1,2)=pcm_ns_temp(2,1,jsouth,ipair,mm)/sp_a%wlat(j)
+           fc(2,2)=pcm_ns_temp(2,2,jsouth,ipair,mm)/sp_a%wlat(j)
+           fm(1,1)=pcm_ns_temp(3,1,jnorth,ipair,mm)/sp_a%wlat(j)
+           fm(2,1)=pcm_ns_temp(3,2,jnorth,ipair,mm)/sp_a%wlat(j)
+           fm(1,2)=pcm_ns_temp(3,1,jsouth,ipair,mm)/sp_a%wlat(j)
+           fm(2,2)=pcm_ns_temp(3,2,jsouth,ipair,mm)/sp_a%wlat(j)
  
 !           create plnloc
 
-           do n=m,jcap
-              plnloc(n)=pln(ics+n-m,j)
+           do n=m,sp_a%jcap
+              plnloc(n)=sp_a%pln(ics+n-m,j)
            end do
-           plnloc(jcap+ione)=plntop(m+ione,j)
+           plnloc(sp_a%jcap+ione)=sp_a%plntop(m+ione,j)
 
 !          adjoint of obtain f
 
-           call spanaly_ns(izero,jcap,m,wlat(j),clat(j),plnloc(m),izero,fp,spcp(1,m))
-           call spanaly_ns(izero,jcap,m,wlat(j),clat(j),plnloc(m),izero,fc,spcc(1,m))
-           call spanaly_ns(izero,jcap,m,wlat(j),clat(j),plnloc(m),izero,fm,spcm(1,m))
+           call spanaly_ns(izero,sp_a%jcap,m,sp_a%wlat(j),sp_a%clat(j),plnloc(m),izero,fp,spcp(1,m))
+           call spanaly_ns(izero,sp_a%jcap,m,sp_a%wlat(j),sp_a%clat(j),plnloc(m),izero,fc,spcc(1,m))
+           call spanaly_ns(izero,sp_a%jcap,m,sp_a%wlat(j),sp_a%clat(j),plnloc(m),izero,fm,spcm(1,m))
  
         end do
 
 !       adjoint of gather up spcp, spcc, spcm
 
         i=izero
-        do n=m,jcap
+        do n=m,sp_a%jcap
            i=i+ione
            pcm_hat(1,1,i,ipair,mm)=spcp(1,n)
            pcm_hat(1,2,i,ipair,mm)=spcp(2,n)
@@ -2494,6 +2516,7 @@ subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat)
 !
 ! program history log:
 !   2009-08-13  lueken - added subprogram doc block
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !    uvm_ns
@@ -2509,8 +2532,7 @@ subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat)
 !$$$ end documentation block
 
   use kinds, only: r_kind
-  use gridmod, only: nlat
-  use specmod, only: jcap,jb,je,pln,plntop,enn1,elonn1,eon,eontop,clat,wlat
+  use gridmod, only: nlat,sp_a
   use constants, only: izero,ione
   implicit none
 
@@ -2518,65 +2540,72 @@ subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat)
   real(r_kind),dimension(3,2,nlat,2,m_0:m_1),intent(in   ) :: zdm_hat
 
   integer(i_kind) i,ics,j,jnorth,jsouth,m,mm,n,ipair
-  real(r_kind) spcz(2,0:jcap),spcd(2,0:jcap),spcp(2,0:jcap),spcu(2,0:jcap+ione),spcv(2,0:jcap+ione)
-  real(r_kind) plnloc(0:jcap+ione)
+  real(r_kind) spcz(2,0:sp_a%jcap),spcd(2,0:sp_a%jcap),spcp(2,0:sp_a%jcap),spcu(2,0:sp_a%jcap+ione),spcv(2,0:sp_a%jcap+ione)
+  real(r_kind) plnloc(0:sp_a%jcap+ione)
   real(r_kind) fu(2,2),fv(2,2),fp(2,2)
+  real(r_kind):: enn1_loc(sp_a%ncd2),elonn1_loc(sp_a%ncd2),eon_loc(sp_a%ncd2),eontop_loc(sp_a%jcap+ione)
+
+  enn1_loc  = sp_a%enn1
+  elonn1_loc= sp_a%elonn1
+  eon_loc   = sp_a%eon
+  eontop_loc= sp_a%eontop
+
 
 
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
-        ics=ione+m*(2*jcap+3_i_kind-m)/2
+        ics=ione+m*(2*sp_a%jcap+3_i_kind-m)/2
 
 !           gather up spcz, spcd, spcp
 
         i=izero
-        do n=m,jcap
+        do n=m,sp_a%jcap
            i=i+ione
-           spcz(1,n)=zdm_hat(1,1,i,ipair,mm)*enn1(ics+n-m)
-           spcz(2,n)=zdm_hat(1,2,i,ipair,mm)*enn1(ics+n-m)
-           spcd(1,n)=zdm_hat(2,1,i,ipair,mm)*enn1(ics+n-m)
-           spcd(2,n)=zdm_hat(2,2,i,ipair,mm)*enn1(ics+n-m)
+           spcz(1,n)=zdm_hat(1,1,i,ipair,mm)*sp_a%enn1(ics+n-m)
+           spcz(2,n)=zdm_hat(1,2,i,ipair,mm)*sp_a%enn1(ics+n-m)
+           spcd(1,n)=zdm_hat(2,1,i,ipair,mm)*sp_a%enn1(ics+n-m)
+           spcd(2,n)=zdm_hat(2,2,i,ipair,mm)*sp_a%enn1(ics+n-m)
            spcp(1,n)=zdm_hat(3,1,i,ipair,mm)
            spcp(2,n)=zdm_hat(3,2,i,ipair,mm)
         end do
 
 !           convert to spcu, spcv
 
-        call spdz2uv_ns(izero,jcap,m,elonn1(ics),eon(ics),eontop(m+ione), &
-                spcd(1,m),spcz(1,m),spcu(1,m),spcv(1,m),spcu(1,jcap+ione),spcv(1,jcap+ione))
+        call spdz2uv_ns(izero,sp_a%jcap,m,elonn1_loc(ics),eon_loc(ics),eontop_loc(m+ione), &
+                spcd(1,m),spcz(1,m),spcu(1,m),spcv(1,m),spcu(1,sp_a%jcap+ione),spcv(1,sp_a%jcap+ione))
 
-        do j=jb,je
+        do j=sp_a%jb,sp_a%je
            jsouth=ione+j
            jnorth=nlat-j
  
 !           create plnloc
 
-           do n=m,jcap
-              plnloc(n)=pln(ics+n-m,j)
+           do n=m,sp_a%jcap
+              plnloc(n)=sp_a%pln(ics+n-m,j)
            end do
-           plnloc(jcap+ione)=plntop(m+ione,j)
+           plnloc(sp_a%jcap+ione)=sp_a%plntop(m+ione,j)
 
 !          obtain f
 
-           call spsynth_ns(izero,jcap,m,clat(j),plnloc(m),ione ,spcu(1,m),fu)
-           call spsynth_ns(izero,jcap,m,clat(j),plnloc(m),ione ,spcv(1,m),fv)
-           call spsynth_ns(izero,jcap,m,clat(j),plnloc(m),izero,spcp(1,m),fp)
+           call spsynth_ns(izero,sp_a%jcap,m,sp_a%clat(j),plnloc(m),ione ,spcu(1,m),fu)
+           call spsynth_ns(izero,sp_a%jcap,m,sp_a%clat(j),plnloc(m),ione ,spcv(1,m),fv)
+           call spsynth_ns(izero,sp_a%jcap,m,sp_a%clat(j),plnloc(m),izero,spcp(1,m),fp)
 
 !          scatter back to output pairs of lats
 
-           uvm_ns(1,1,jnorth,ipair,mm)=fu(1,1)*wlat(j)
-           uvm_ns(1,2,jnorth,ipair,mm)=fu(2,1)*wlat(j)
-           uvm_ns(1,1,jsouth,ipair,mm)=fu(1,2)*wlat(j)
-           uvm_ns(1,2,jsouth,ipair,mm)=fu(2,2)*wlat(j)
-           uvm_ns(2,1,jnorth,ipair,mm)=fv(1,1)*wlat(j)
-           uvm_ns(2,2,jnorth,ipair,mm)=fv(2,1)*wlat(j)
-           uvm_ns(2,1,jsouth,ipair,mm)=fv(1,2)*wlat(j)
-           uvm_ns(2,2,jsouth,ipair,mm)=fv(2,2)*wlat(j)
-           uvm_ns(3,1,jnorth,ipair,mm)=fp(1,1)*wlat(j)
-           uvm_ns(3,2,jnorth,ipair,mm)=fp(2,1)*wlat(j)
-           uvm_ns(3,1,jsouth,ipair,mm)=fp(1,2)*wlat(j)
-           uvm_ns(3,2,jsouth,ipair,mm)=fp(2,2)*wlat(j)
+           uvm_ns(1,1,jnorth,ipair,mm)=fu(1,1)*sp_a%wlat(j)
+           uvm_ns(1,2,jnorth,ipair,mm)=fu(2,1)*sp_a%wlat(j)
+           uvm_ns(1,1,jsouth,ipair,mm)=fu(1,2)*sp_a%wlat(j)
+           uvm_ns(1,2,jsouth,ipair,mm)=fu(2,2)*sp_a%wlat(j)
+           uvm_ns(2,1,jnorth,ipair,mm)=fv(1,1)*sp_a%wlat(j)
+           uvm_ns(2,2,jnorth,ipair,mm)=fv(2,1)*sp_a%wlat(j)
+           uvm_ns(2,1,jsouth,ipair,mm)=fv(1,2)*sp_a%wlat(j)
+           uvm_ns(2,2,jsouth,ipair,mm)=fv(2,2)*sp_a%wlat(j)
+           uvm_ns(3,1,jnorth,ipair,mm)=fp(1,1)*sp_a%wlat(j)
+           uvm_ns(3,2,jnorth,ipair,mm)=fp(2,1)*sp_a%wlat(j)
+           uvm_ns(3,1,jsouth,ipair,mm)=fp(1,2)*sp_a%wlat(j)
+           uvm_ns(3,2,jsouth,ipair,mm)=fp(2,2)*sp_a%wlat(j)
 
         end do
 

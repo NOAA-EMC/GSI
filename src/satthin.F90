@@ -369,6 +369,7 @@ contains
 !   2002-10-17  parrish
 !   2008-12-05  todling - add ESMF blocks; update bias_tskin
 !   2009-01-28  todling - remove reference to original GMAO interface
+!   2010-04-01  treadon - move strip to gridmod
 !
 !   input argument list:
 !
@@ -382,14 +383,14 @@ contains
     use kinds, only: r_single
     use gridmod, only:  nlat,nlon,lat2,lon2,lat1,lon1,jstart,&
        ltosi,ltosj,iglobal,itotsub,ijn,displs_g,regional,istart, &
-       rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
+       rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip
     use guess_grids, only: ntguessig,isli,sfct,sno,fact10,ges_z, &
        nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
        veg_frac,sfc_rough,ifilesfc,isli2,sno2
     use m_gsiBiases, only: bias_tskin,compress_bias,bias_hour
     use jfunc, only: biascor
 
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
+    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     use constants, only: izero,ione,zero,half,pi,two,one
     use ncepgfs_io, only: read_gfssfc,sfc_interpolate
     use sfcio_module, only: sfcio_realfill

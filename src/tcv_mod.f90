@@ -16,7 +16,7 @@ module tcv_mod
 !   sub read_tcv_card       - read data structure from tc vitals ascii file
 !
 ! Variable Definitions:
-!   def numsstorms   - number of storms in tc vitals file
+!   def numstorms    - number of storms in tc vitals file
 !   def stormswitch  - integer switch to turn on reading of individual storms
 !   def stormid      - storm character identifier
 !   def stormlat     - storm latitude
@@ -161,6 +161,7 @@ contains
 !
 ! program history log:
 !   2009-02-02  kleist
+!   2010-03-30  treadon - loop tcvitals read from 1 to nums
 !
 !   input argument list:
 !     nums     - integer number of storms to read
@@ -198,10 +199,8 @@ contains
     slonfg = zero; slatfg = zero
 !
     rewind(lucard)
-    ii=ione
-    do while (.true.)
+    do ii=1,nums
        read (lucard,21,END=901,ERR=991) storm(ii)
-       ii = ii + ione
     enddo 
  901 continue
 !
@@ -251,7 +250,7 @@ contains
   991 write(6,*)'READ_TCV_CARD:  ***ERROR*** in read_tcv_card reading unit lucard=',lucard
     iret = 98_i_kind
 !
-    write(6,*) 'END OF READ_TCV_CARD: number of storms to process = ',numstorms
+    write(6,*) 'END OF READ_TCV_CARD: number of storms to process = ',nums
 
     return
   end subroutine read_tcv_card

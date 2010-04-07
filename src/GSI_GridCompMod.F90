@@ -33,8 +33,8 @@
    use gsimod                ! GSI original interface
    use mpeu_util, only: StrTemplate         ! grads style templates
    use constants, only : grav
-   use specmod,only : init_spec_vars
-   use specmod,only : destroy_spec_vars
+   use general_specmod, only: general_init_spec_vars
+   use general_specmod, only: general_destroy_spec_vars   
    use m_tick, only: tick
 
 ! Access to GSI's global data segments
@@ -126,7 +126,10 @@
                          itotsub,  & ! number of horizontal points of all subdomains 
                                      ! combined
                          nsig1o,   & ! no. of levels distributed on each processor
-                         iglobal     ! number of horizontal points on global grid
+                         iglobal,  & ! number of horizontal points on global grid
+                         jcap,     &
+                         jcap_b    &
+                         sp_a
 
    ! from mpimod
    use mpimod,     only: npe,nxpe,nype,  & ! num of MPI tasks (total, along x, along y)
@@ -169,6 +172,7 @@
 !   08Jul2008 Todling  Merge fdda-b1p3 w/ das-215 (MAPL update)
 !   18Nov2008 Todling  Merge with NCEP-May-2008; add sfc_rough
 !  10-09-2009 Wu       replace nhr_offset with min_offset since it's 1.5 hr for regional
+!   31Mar2010 Treadon  replace specmod routines with general_specmod routines
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -593,8 +597,8 @@
 
    ! Reinitialize specmod for spectral transformation whereever needed.
    if(GsiGridType==0) then 
-      call destroy_spec_vars()
-      call init_spec_vars(nlat,nlon,eqspace=.true.)
+      call general_destroy_spec_vars()
+      call general_init_spec_vars(sp_a,jcap,jcap,nlat,nlon,eqspace=.true.)
    endif
 
    ! Fields (bkg files) on a uniform grid have longitude range on [-pi,pi]

@@ -880,6 +880,7 @@ subroutine pges_minmax(mype,pmin,pmax)
 !
 ! program history log:
 !   2007-04-05  pondeca
+!   2010-04-01  treadon - move strip to gridmod
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -895,9 +896,9 @@ subroutine pges_minmax(mype,pmin,pmax)
 !$$$ end documentation block
   use kinds, only: i_kind, r_kind
   use constants, only: izero,ione
-  use gridmod, only: lat1,lon1,nsig
+  use gridmod, only: lat1,lon1,nsig,strip
   use guess_grids, only: ges_prsl
-  use mpimod,only: mpi_real8, mpi_min, mpi_max, mpi_comm_world, strip
+  use mpimod,only: mpi_real8, mpi_min, mpi_max, mpi_comm_world
   implicit none
 
 ! Declare passed variables

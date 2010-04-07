@@ -983,6 +983,7 @@ subroutine wrwrfmassa_netcdf(mype)
 !   2008-03-27  safford - rm unused vars and uses
 !   2008-12-05  todling - adjustment for dsfct time dimension addition
 !   2010-03-29  hu     - add code to gether cloud/hydrometeor fields and write out
+!   2010-04-01  treadon - move strip_single to gridmod
 !
 !   input argument list:
 !     mype     - pe number
@@ -999,10 +1000,10 @@ subroutine wrwrfmassa_netcdf(mype)
   use guess_grids, only: ntguessfc,ntguessig,ifilesig,dsfct,ges_ps,&
        ges_q,ges_u,ges_v,ges_tsen
   use guess_grids, only: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg,ges_tten
-  use mpimod, only: mpi_comm_world,ierror,mpi_real4,strip_single
+  use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: pt_ll,eta1_ll,lat2,iglobal,itotsub,update_regsfc,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,&
-       aeta1_ll
+       aeta1_ll,strip_single
   use constants, only: izero,ione,one,zero_single,rd_over_cp_mass,one_tenth
   use gsi_io, only: lendian_in, lendian_out
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis

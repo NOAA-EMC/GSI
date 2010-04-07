@@ -303,6 +303,7 @@ subroutine get_zderivs(z,z_x,z_y,mype)
 !   2005-12-05  todling - reorder passed variable declarations
 !   2007-07-02  derber - modify for single time level and optimization
 !   2008-06-04  safford - complete doc block
+!   2010-04-01  treadon - move strip to gridmod
 !
 !   input argument list:
 !     z         - terrain grid
@@ -323,9 +324,9 @@ subroutine get_zderivs(z,z_x,z_y,mype)
   use constants, only: izero,ione,zero
   use gridmod, only: regional,nlat,nlon,lat2,lon2,lat1,lon1,&
      displs_s,ltosj_s,ijn_s,ltosi,ltosj,iglobal,ltosi_s,itotsub,&
-     ijn,displs_g
+     ijn,displs_g,strip
   use compact_diffs, only: compact_dlat,compact_dlon
-  use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
 ! Passed variables
