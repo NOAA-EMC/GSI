@@ -10,8 +10,8 @@ INCsfcio = $(COREINC)/sfcio_4
 INCsigio = $(COREINC)/sigio_4
 INCgfsio = $(COREINC)/gfsio_4
 
-INCcrtm = /nwprod/lib/incmod/crtm_gfsgsi
-LIBcrtm = /nwprod/lib/libcrtm_gfsgsi.a
+INCcrtm = /global/save/wx20ml/CRTM_REL-2.0/REL-2.0.JCSDA_CRTM/include
+LIBcrtm = /global/save/wx20ml/CRTM_REL-2.0/REL-2.0.JCSDA_CRTM/lib/libCRTM.a
 
 WRFPATH=/nwprod/sorc/nam_nmm_real_fcst.fd
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a

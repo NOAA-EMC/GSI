@@ -319,8 +319,6 @@ LIBsys          = $(MYLIBsys)
         smoothrf.o \
         smoothwwrf.o \
         smoothzrf.o \
-        specmod.o \
-        spectral_transforms.o \
         sqrtmin.o \
         sst_retrieval.o \
         state2control.o \
@@ -365,7 +363,6 @@ LIBsys          = $(MYLIBsys)
         tintrp3.o \
         tpause.o \
         tpause_t.o \
-        transform.o \
         turbl.o \
         turbl_ad.o \
         turbl_tl.o \

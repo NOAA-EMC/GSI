@@ -381,8 +381,6 @@ SRCS =	$(wildcard \
 	smoothrf.f90 \
 	smoothwwrf.f90 \
 	smoothzrf.f90 \
-	specmod.f90 \
-	spectral_transforms.f90 \
         sqrtmin.f90 \
 	sst_retrieval.f90 \
         state2control.f90 \
@@ -425,7 +423,6 @@ SRCS =	$(wildcard \
 	tintrp3.f90 \
 	tpause.f90 \
 	tpause_t.F90 \
-	transform.f90 \
 	turbl.f90 \
 	turbl_ad.f90 \
 	turbl_tl.f90 \
