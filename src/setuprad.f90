@@ -91,6 +91,7 @@
 !   2010-03-01  gayno - allow assimilation of "mixed" amsua fovs
 !   2010-03-30  collard - changes for interface with CRTM v2.0. 
 !   2010-03-30  collard - Add CO2 interface (fixed value for now).
+!   2010-04-08  h.liu   -add SEVIRI assimilation 
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -255,8 +256,8 @@
 
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
-  real(r_kind) vfact,vfactmc
-  real(r_kind) efact,efactmc
+  real(r_kind) vfact,vfactmc,vfactmp
+  real(r_kind) efact,efactmc,efactmp
   real(r_kind) demisf,fact,dtempf,dtbf,tbcx1,tbcx2
   real(r_kind) term,sum,tlap,dsval,tb_obsbc1,clwx
   real(r_kind) de1,de2,de3,dtde1,dtde2,dtde3
@@ -318,7 +319,7 @@
   character(len=20),dimension(1):: sensorlist
 
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
-  logical avhrr,avhrr_navy,lextra,ssu,iasi
+  logical avhrr,avhrr_navy,lextra,ssu,iasi,seviri
   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
   logical sea,mixed,land,ice,snow,toss,l_may_be_passive
@@ -397,6 +398,7 @@
   ssmis_img  = obstype == 'ssmis_img'
   ssmis_env  = obstype == 'ssmis_env'
   iasi       = obstype == 'iasi'
+  seviri     = obstype == 'seviri'
 
   ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis 
 
@@ -526,6 +528,8 @@
   elseif (avhrr) then
      iclavr        = 32_i_kind ! index CLAVR cloud flag with AVHRR data
      isst_hires    = 33_i_kind ! index of interpolated hires sst (K)
+  elseif (seviri) then
+     iclr_sky      =  7 ! index of clear sky amount
   endif
 
 ! Set number of extra pieces of information to write to diagnostic file
@@ -725,6 +729,9 @@
      if(goes_img)then
         panglr = zero
         cld = data_s(iclr_sky,n)
+     else if(seviri)then
+        panglr = zero
+        cld = 100-data_s(iclr_sky,n)
      else
         panglr = data_s(iscan_ang,n)
      end if
@@ -1842,6 +1849,96 @@
 
 !    End of GOES imager QC block
 !
+
+!  ---------- SEVIRI  -------------------
+!     SEVIRI Q C
+
+     else if (seviri) then
+
+         if(sea)then
+             demisf = r0_01
+             dtempf = half
+         else if(land)then
+             demisf = r0_02
+             dtempf = two
+         else if(ice)then
+             demisf = r0_02
+             dtempf = three
+         else if(snow)then
+             demisf = r0_02
+             dtempf = three
+         else
+             demisf = r0_02
+             dtempf = five
+         end if
+                                                                       
+         efact = one
+         vfact = one
+
+!        Reduce weight for obs over higher topography
+!        QC_terrain: If seviri and terrain height > 1km. do not use
+         if (zsges > r1000) then
+             efact   = zero
+             vfact   = zero
+!            QC2 in statsrad
+             if(luse(n))aivals(9,is)= aivals(9,is) + one
+         end if
+ 
+         do i=1,nchanl
+
+!           use chn 2 and 3 over both sea and land while other IR chns only over sea
+            if (sea) then
+               efact=efact
+               vfact=vfact
+            else if (land ) then
+               if (i == 2 .or. i ==3 ) then
+                  efact=efactmp
+                  vfact=vfactmp
+               else
+                  vfactmp=vfact
+                  efactmp=efact
+                  efact=zero
+                  vfact=zero
+               end if
+            else
+               efact=zero
+               vfact=zero
+            end if
+
+!           if ( (i == 2 .or. i ==3) .and. land ) then
+!               write(6,*) 'varinv(',i,')= ',varinv(i),vfact,efact,land
+!           end if
+
+!           gross check
+!           QC_o-g: If abs(o-g) > 2.0 do not use
+            if ( abs(tbc(i)) > two ) then
+                vfact = zero
+                efact = zero
+                if(id_qc(i) == izero ) id_qc(i)=2   !hliu check 
+!               QC1 in statsrad
+                if(luse(n))aivals(8,is)= aivals(8,is) + one  !hliu check
+            end if
+
+!           Generate q.c. bounds and modified variances.
+
+            errf(i)   = efact*errf(i)
+            varinv(i) = vfact*varinv(i)
+
+!           Modify error based on transmittance at top of model
+!           need this for SEVIRI??????
+!           varinv(i)=varinv(i)*ptau5(nsig,i)
+!           errf(i)=errf(i)*ptau5(nsig,i)
+
+            if(varinv(i) > tiny_r_kind)then
+                dtbf = demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
+                term = dtbf*dtbf
+                if(term > tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+            end if
+         end do
+
+!    End of SEVIRI imager QC block
+!
+
 !  ---------- AVRHRR --------------
 !    NAVY AVRHRR Q C
 

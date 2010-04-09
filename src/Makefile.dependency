@@ -202,6 +202,7 @@ read_ozone.o : read_ozone.F90 qcmod.o gsi_4dvar.o convinfo.o obsmod.o constants.
 read_pcp.o : read_pcp.f90 gsi_4dvar.o constants.o gridmod.o kinds.o 
 read_prepbufr.o : read_prepbufr.f90 jfunc.o sfcobsqc.o blacklist.o convthin.o qcmod.o gsi_4dvar.o converr.o obsmod.o convinfo.o gridmod.o constants.o kinds.o 
 read_radar.o : read_radar.f90 satthin.o convinfo.o gridmod.o gsi_4dvar.o obsmod.o qcmod.o constants.o kinds.o 
+read_seviri.o : read_seviri.f90 gsi_4dvar.o radinfo.o obsmod.o constants.o gridmod.o satthin.o kinds.o 
 read_ssmi.o : read_ssmi.f90 gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_ssmis.o : read_ssmis.f90 calc_fov_conical.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_superwinds.o : read_superwinds.f90 gsi_4dvar.o obsmod.o convinfo.o gridmod.o constants.o kinds.o 

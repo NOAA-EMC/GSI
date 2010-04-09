@@ -339,6 +339,7 @@ SRCS =	$(wildcard \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
 	read_radar.f90 \
+        read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \
 	read_superwinds.f90 \
@@ -523,6 +524,7 @@ OBJS_OPENBUFR	= read_airs.o		\
 		  read_pcp.o		\
 		  read_prepbufr.o	\
 		  read_radar.o		\
+                  read_seviri.o         \
 		  read_ssmi.o		\
 		  read_ssmis.o		\
 		  read_superwinds.o	\

@@ -246,6 +246,7 @@ subroutine read_obs(ndata,mype)
 !   2009-12-20  gayno - modify argument lists so that fov-based surface
 !                       calculation may be used.
 !   2010-04-01  treadon - move strip and reorder to gridmod
+!   2010-04-08  hliu - add seviri
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -390,6 +391,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'dw' .or. obstype == 'rw' ) then
           ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  &
+               obstype == 'seviri'    .or.  &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
                obstype == 'msu'       .or. obstype == 'iasi'      .or.  &
                obstype == 'amsub'     .or. obstype == 'mhs'       .or.  &
@@ -760,6 +762,13 @@ subroutine read_obs(ndata,mype)
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                 string='READ_GOESMIMG'
+
+!            Process Meteosat SEVIRI RADIANCE  data
+             else if(obstype == 'seviri') then
+                 call read_seviri(mype,val_dat,ithin,rmesh,platid,gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
+                string='READ_SEVIRI'
 
 !            Process NAVY AVHRR RADIANCE  data
              else if(obstype == 'avhrr_navy') then

@@ -275,6 +275,7 @@ LIBsys          = $(MYLIBsys)
         read_pcp.o \
         read_prepbufr.o \
         read_radar.o \
+        read_seviri.o \
         read_ssmi.o \
         read_ssmis.o \
         read_superwinds.o \
