@@ -150,6 +150,7 @@
 !                                 including cloud analysis and surface enhancement
 !                       add and read namelist for RR
 !  03-31-2010 Treadon   replace init_spec, init_spec_vars, destroy_spec_vars with general_* routines
+!  04-07-2010 Treadon   write rapidrefresh_cldsurf settings to stdout
 !                         
 !EOP
 !-------------------------------------------------------------------------
@@ -839,6 +840,7 @@
      write(6,superob_radar)
      write(6,lag_data)
      write(6,hybrid_ensemble)
+     write(6,rapidrefresh_cldsurf)	
      if (oneobtest) write(6,singleob_test)
   endif
 
