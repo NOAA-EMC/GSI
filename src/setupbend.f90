@@ -90,7 +90,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub)
   integer(i_kind)                         ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100_i_kind+7*nsig)      ,intent(inout) :: awork
   real(r_kind),dimension(max(ione,nprof_gps)),intent(inout) :: toss_gps_sub
-  real(r_kind),dimension(max(ione,nprof_gps)),intent(inout) :: high_gps_sub
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_01 = 0.01_r_kind
@@ -190,7 +189,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub)
   qcfail_loc=zero;qcfail_gross=zero;qcfail_stats_1=zero;qcfail_stats_2=zero
   qcfail_high=zero
   toss_gps_sub=zero 
-  high_gps_sub=zero
   dpressure=zero
   dbend_loc=zero
   dbend=zero
