@@ -1,4 +1,4 @@
-subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,high_gps_sub)
+subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupref    compute rhs of oi for gps refractivity
@@ -76,7 +76,11 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,high_gps_sub)
 !  2009-04-27  cucurull - update qc to enable GRAS and GRACE assimilation
 !  2009-10-22      shen - add regional obs error for regional GSI
 !			- add high_gps_sub
-!
+!  2010-04-09 cucurull - remove high_gps_sub (regional QC moved to genstats.f90)
+!                      - load obs dianostics structure into gps_alltail
+!                      - remove idia
+!                      - remove observation dianostics structure (I moved this structure to genstats.f90
+!                        a while back and shouldn't have been coded here again!)
 !   input argument list:
 !     lunin    - unit from which to read observations
 !     mype     - mpi task id
@@ -130,7 +134,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,high_gps_sub)
   integer(i_kind)                            ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100_i_kind+7*nsig)  ,intent(inout) :: awork
   real(r_kind),dimension(max(ione,nprof_gps)),intent(inout) :: toss_gps_sub
-  real(r_kind),dimension(max(ione,nprof_gps)),intent(inout) :: high_gps_sub
 
 ! Declare local variables
 
@@ -154,7 +157,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,high_gps_sub)
   
   integer(i_kind):: ier,ilon,ilat,ihgt,igps,itime,ikx,iuse,ikxx
   integer(i_kind):: iprof,ipctc,iroc,isatid,iptid
-  integer(i_kind):: ilate,ilone,mm1,ibin,ioff,idia
+  integer(i_kind):: ilate,ilone,mm1,ibin,ioff
   integer(i_kind) i,j,k,k1,k2,nreal,mreal,jj
   integer(i_kind) :: kl,k1l,k2l
   integer(i_kind) kprof,istat,jprof
@@ -197,7 +200,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,high_gps_sub)
   qcfail_stats_2=zero
   qcfail_high=zero 
   toss_gps_sub=zero
-  high_gps_sub=zero
 
 ! Allocate arrays for output to diagnostic file
   mreal=19_i_kind
@@ -578,23 +580,10 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,high_gps_sub)
            end if
         end if
      end if
-
-!    Get the height of the highest observation in a QC'd profile.
-!    Only effective in regional assimilation.
-
-     if (regional) then
-        if(.not.qcfail(i)) then
-           kprof = data(iprof,i)
-           if ( alt<=r30 ) then
-              high_gps_sub(kprof) = max(high_gps_sub(kprof),alt)
-           endif
-        endif
-     endif
   end do
 
 
 ! Loop to load arrays used in statistics output
-  idia=izero
   do i=1,nobs
      if (ratio_errors(i)*data(ier,i) <= tiny_r_kind) muse(i) = .false.
      ikx=nint(data(ikxx,i))
@@ -713,14 +702,41 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,high_gps_sub)
      gps_alltail(ibin)%head%luse     = luse(i) ! logical
      gps_alltail(ibin)%head%muse     = muse(i) ! logical
      gps_alltail(ibin)%head%cdiag    = cdiagbuf(i)
-     do j=1,nreal
-        gps_alltail(ibin)%head%rdiag(j)= rdiagbuf(j,i)
-     end do
 
+!    Fill obs diagnostics structure
      obsdiags(i_gps_ob_type,ibin)%tail%luse=luse(i)
      obsdiags(i_gps_ob_type,ibin)%tail%muse(jiter)=muse(i)
      obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jiter)=data(igps,i)
      obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=(data(ier,i)*ratio_errors(i))**2
+
+!    Load additional obs diagnostic structure
+     if (lobsdiagsave) then
+        ioff=mreal
+        do jj=1,miter
+           ioff=ioff+ione
+           if (obsdiags(i_gps_ob_type,ibin)%tail%muse(jj)) then
+              rdiagbuf(ioff,i) = one
+           else
+              rdiagbuf(ioff,i) = -one
+           endif
+        enddo
+        do jj=1,miter+ione
+           ioff=ioff+ione
+           rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jj)
+        enddo
+        do jj=1,miter
+           ioff=ioff+ione
+           rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%tldepart(jj)
+        enddo
+        do jj=1,miter
+           ioff=ioff+ione
+           rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%obssen(jj)
+        enddo
+     endif
+
+     do j=1,nreal
+        gps_alltail(ibin)%head%rdiag(j)= rdiagbuf(j,i)
+     end do
 
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
@@ -793,36 +809,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,high_gps_sub)
         gpstail(ibin)%head%luse      = luse(i)
         gpstail(ibin)%head%diags     => obsdiags(i_gps_ob_type,ibin)%tail
         
-     endif
-
-     if (lobsdiagsave.and.luse(i)) then
-        idia=idia+ione
-        do j=1,mreal
-           rdiagbuf(j,idia)=rdiagbuf(j,i)
-        end do
-        if (lobsdiagsave) then
-           ioff=mreal
-           do jj=1,miter
-              ioff=ioff+ione
-              if (obsdiags(i_gps_ob_type,ibin)%tail%muse(jj)) then
-                 rdiagbuf(ioff,idia) = one
-              else
-                 rdiagbuf(ioff,idia) = -one
-              endif
-           enddo
-           do jj=1,miter+ione
-              ioff=ioff+ione
-              rdiagbuf(ioff,idia) = obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jj)
-           enddo
-           do jj=1,miter
-              ioff=ioff+ione
-              rdiagbuf(ioff,idia) = obsdiags(i_gps_ob_type,ibin)%tail%tldepart(jj)
-           enddo
-           do jj=1,miter
-              ioff=ioff+ione
-              rdiagbuf(ioff,idia) = obsdiags(i_gps_ob_type,ibin)%tail%obssen(jj)
-           enddo
-        endif
      endif
 
   end do
