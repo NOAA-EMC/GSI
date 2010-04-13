@@ -103,6 +103,7 @@ LIBsys          = $(MYLIBsys)
         compact_diffs.o \
         compute_derived.o \
         compute_fact10.o \
+        compute_qvar3d.o \
         constants.o \
         control2model.o \
         control2state.o \
@@ -196,6 +197,7 @@ LIBsys          = $(MYLIBsys)
         lanczos.o \
         looplimits.o \
         m_berror_stats.o \
+        m_berror_stats_reg.o \
         m_dgeevx.o \
         m_gsiBiases.o \
         m_stats.o \
@@ -252,7 +254,6 @@ LIBsys          = $(MYLIBsys)
         radinfo.o \
         raflib.o \
         rdgrbsst.o \
-        rdgstat_reg.o \
         read_airs.o \
         read_amsre.o \
         read_avhrr.o \

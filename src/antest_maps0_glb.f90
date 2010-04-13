@@ -8,6 +8,7 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
 !
 ! program history log:
 !   2009-09-21  lueken - added subprogram doc block
+!   2010-03-30  zhu    - use nvars from control_vectors
 !
 !   input argument list:
 !    mype
@@ -27,12 +28,13 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_single
-  use anberror, only: nvars,kvar_start,kvar_end,var_names,indices,pf2aP1,pf2aP2,pf2aP3
+  use anberror, only: kvar_start,kvar_end,var_names,indices,pf2aP1,pf2aP2,pf2aP3
   use gridmod, only: nsig,nsig1o,nlon,nlat,istart,jstart,lat2,lon2
   use constants, only: zero_single,izero,ione,zero,one,rd_over_cp
   use mpimod, only: ierror,mpi_real4,mpi_real8,mpi_sum,mpi_comm_world
   use guess_grids, only: ges_tv,ges_z,ntguessig,ges_prsl
   use patch2grid_mod, only: vpatch2grid
+  use control_vectors, only: nvars
   implicit none
 
   integer(i_kind),intent(in   ) :: mype

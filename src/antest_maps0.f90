@@ -8,6 +8,7 @@ subroutine antest_maps0(mype,theta0f,z0f)
 !
 ! program history log:
 !   2009-09-18  lueken - added subprogram doc block
+!   2010-03-30  zhu    - use nvars from control_vectors
 !
 !   input argument list:
 !    mype
@@ -23,12 +24,13 @@ subroutine antest_maps0(mype,theta0f,z0f)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_single
-  use anberror, only: nvars,kvar_start,kvar_end,var_names,pf2aP1,indices
+  use anberror, only: kvar_start,kvar_end,var_names,pf2aP1,indices
   use gridmod, only: nsig,nsig1o,nlon,nlat,istart,jstart,lat2,lon2,twodvar_regional
   use constants, only: zero_single,izero,ione,zero,one,rd_over_cp
   use mpimod, only: ierror,mpi_real4,mpi_real8,mpi_sum,mpi_comm_world
   use guess_grids, only: ges_tv,ges_z,ntguessig,ges_prsl
   use fgrid2agrid_mod, only: fgrid2agrid
+  use control_vectors, only: nvars
   implicit none
 
   integer(i_kind),intent(in   ) :: mype
@@ -272,11 +274,12 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_single
-  use anberror, only: nvars,kvar_start,kvar_end,var_names,levs_jdvar,indices,pf2aP1
+  use anberror, only: kvar_start,kvar_end,var_names,levs_jdvar,indices,pf2aP1
   use gridmod, only: nsig,nlon,nlat,istart,jstart,lat2,lon2
   use constants, only: zero_single,izero,ione,zero,one,rd_over_cp
   use mpimod, only: ierror,mpi_real4,mpi_real8,mpi_sum,mpi_comm_world
   use guess_grids, only: ges_tv,ges_z,ntguessig,ges_prsl
+  use control_vectors, only: nvars
 
   implicit none
 

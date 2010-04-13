@@ -48,7 +48,11 @@ subroutine prewgt(mype)
 !   2008-04-23  safford - rm unused uses and vars
 !   2008-07-30  guo     - read stats using m_berror_stats
 !   2009-01-12  gayno   - rm use of read_gfssfc_full
+!   2010-02-25  zhu     - mv varq to m_berror_stats
+!                       - make changes for generalizing control variables,
+!                         change interface of berror_read_wgt,use nrf*
 !   2010-04-01  treadon - move strip to gridmod
+!   2010-04-10  parrish - remove rhgues, no longer needed
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -62,14 +66,16 @@ subroutine prewgt(mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
-  use berror, only: dssvp,dssvt,wtaxs,&
+  use berror, only: dssvs,wtaxs,&
        bw,wtxrs,inaxs,inxrs,as,nr,ny,nx,mr,ndeg,&
        nf,vs,be,dssv,norh,bl2,bl,init_rftable,hzscl,&
        pert_berr,bkgv_flowdep,tsfc_sdv,slw,slw1,slw2
   use m_berror_stats,only : berror_read_wgt
   use mpimod, only: nvar_id,levs_id
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-  use jfunc, only: qoption,varq
+  use jfunc, only: qoption
+  use control_vectors, only: nrf,nrf2,nrf3,nrf3_sf,nrf3_cw,nrf3_q,&
+       nrf3_vp,nrf3_t,nrf3_oz,nrf2_ps,nrf2_sst,nrf3_loc,nrf2_loc
   use gridmod, only: istart,jstart,lat2,lon2,rlats,nlat,nlon,nsig,&
        nnnn1o,lat1,lon1,itotsub,iglobal,ltosi,ltosj,ijn,displs_g,&
        strip
@@ -84,8 +90,8 @@ subroutine prewgt(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
-  integer(i_kind) nrr,iii,jjj,nxg,i2,im,jm,j2
-  integer(i_kind) i,j,k,nbuf,nmix,nxe,nor,ndx,ndy
+  integer(i_kind) n,nrr,iii,jjj,nxg,i2,im,jm,j2,loc
+  integer(i_kind) i,j,k,ii,nn,nbuf,nmix,nxe,nor,ndx,ndy
   integer(i_kind) nlathh,mm1,nolp,mm,ir,k1
   integer(i_kind) ix,jx,mlat
   integer(i_kind) kd,kt,kq,kc,koz,nf2p
@@ -95,10 +101,10 @@ subroutine prewgt(mype)
   real(r_kind) samp,y,s2u,x,dxx,df2,pi2
   real(r_kind),dimension(ndeg):: rate
   real(r_kind),dimension(ndeg,ndeg):: turn
-  real(r_kind),dimension(nsig,0:nlat+ione):: vz,vd,vt,vq,voz,vcwm
-  real(r_kind),dimension(0:nlat+ione,nsig,5):: hwll
+  real(r_kind),dimension(nsig,0:nlat+ione,nrf3):: vz
+  real(r_kind),dimension(0:nlat+ione,nsig,nrf3):: hwll
   real(r_kind),dimension(lat2,lon2)::temp
-  real(r_kind),dimension(0:nlat+ione):: hwllp
+  real(r_kind),dimension(0:nlat+ione,nrf2):: hwllp
   real(r_kind),dimension(nlat,nlon):: sl,factx
   real(r_kind),dimension(-nf:nf,-nf:nf) :: fact1,fact2
   real(r_kind),dimension(mr:nlat-2_i_kind):: rs
@@ -106,17 +112,19 @@ subroutine prewgt(mype)
   real(r_kind),dimension(itotsub)::work1
   real(r_kind),dimension(ny,nx,3):: scsli
   real(r_kind),dimension(-nf:nf,-nf:nf,3):: scs12
-  real(r_single),dimension(nlat,nsig):: corz,cord,corh,corq,corc,corq2,coroz
-  real(r_single),dimension(nlat):: corp
+  real(r_single),dimension(nlat,nsig,nrf3):: corz
+  real(r_single),dimension(nlat,nrf2):: corp
   real(r_single),dimension(nlat,nlon):: corsst
+  real(r_kind),dimension(lon2,nsig):: dsv
   real(r_single) hsstmin
-  real(r_kind) minhsst,corq2x
+  real(r_kind) minhsst
   real(r_kind),allocatable:: randfct(:)
   real(r_kind),allocatable,dimension(:,:,:,:):: sli,sli1,sli2
 
-  real(r_single),dimension(nlat,nsig*6+ione):: hwllin
+  real(r_single),dimension(nlat,nsig,nrf3):: hwllin
+  real(r_single),dimension(nlat,nrf2):: hwllinp
   real(r_single),dimension(nlat,nlon):: hsst
-  real(r_single),dimension(nlat,nsig*6):: vscalesin
+  real(r_single),dimension(nsig,nlat,nrf3):: vscalesin
 
   real(r_kind),dimension(lat2,lon2,nsig):: sfvar,vpvar,tvar
   real(r_kind),dimension(lat2,lon2):: psvar
@@ -223,30 +231,27 @@ subroutine prewgt(mype)
   end if
 
 ! Get background error statistics from a file ("berror_stats").
-  call berror_read_wgt(corz,cord,corh,corq,corq2,coroz,corc,corp,&
-    hwllin,vscalesin,corsst,hsst,mype)
+  call berror_read_wgt(corz,corp,hwllin,hwllinp,vscalesin,corsst,hsst,mype)
   mlat=nlat
 
-
 ! load the horizontal length scales
-  do k=1,nsig
-     kd=nsig+k
-     kt=nsig*2+k
-     kq=nsig*3+k
-     koz=nsig*4+k
-     do i=1,nlat
-        hwll(i,k,1)=hwllin(i,k)
-        hwll(i,k,2)=hwllin(i,kd)
-        hwll(i,k,3)=hwllin(i,kt)
-        hwll(i,k,4)=hwllin(i,kq)
-        hwll(i,k,5)=hwllin(i,koz)*three   !inflate scale
+  hwll=zero
+  do j=1,nrf3
+     do k=1,nsig
+        do i=1,nlat
+           hwll(i,k,j)=hwllin(i,k,j)
+        end do
      end do
   end do
+  hwll(:,:,nrf3_oz)=hwll(:,:,nrf3_oz)*three   !inflate scale
+  hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)          !use hwll of q for cw for now
 
 ! surface pressure
-  k=nsig*6+ione
-  do i=1,nlat
-     hwllp(i)=hwllin(i,k)
+  hwllp=zero
+  do j=1,nrf2
+     do i=1,nlat
+        hwllp(i,j)=hwllinp(i,j)
+     end do
   end do
 
 
@@ -296,51 +301,26 @@ subroutine prewgt(mype)
   vs=one/vs
 
 ! Initialize full array to zero before loading part of array below
-  do i=0,nlat+ione
+  vz=zero
+
+! load vertical length scales
+  do j=1,nrf3
      do k=1,nsig
-        vz(k,i)=zero
-        vd(k,i)=zero
-        vt(k,i)=zero
-        vq(k,i)=zero
-        voz(k,i)=zero
-        vcwm(k,i)=zero
+        do i=1,nlat
+           vz(k,i,j)=vs*vscalesin(k,i,j)
+        end do
      end do
   end do
 
-! load vertical length scales
+! for now use q error for cwm
   do k=1,nsig
      do i=1,nlat
-        kd=nsig+k
-        kt=nsig*2+k
-        kq=nsig*3+k
-        koz=nsig*4+k
-        kc=nsig*5+k
-        vz(k,i)=vs*vscalesin(i,k)
-        vd(k,i)=vs*vscalesin(i,kd)
-        vt(k,i)=vs*vscalesin(i,kt)
-        vq(k,i)=vs*vscalesin(i,kq)
-        voz(k,i)=vs*vscalesin(i,koz)
-        vcwm(k,i)=vs*vscalesin(i,kc)
+        vz(k,i,nrf3_cw)=vz(k,i,nrf3_q)
      end do
   end do
-  vcwm=vq   ! for now use q error for cwm
 
   call rfdpar1(be,rate,ndeg)
   call rfdpar2(be,rate,turn,samp,ndeg)
-
-  if(qoption==2_i_kind)then
-     do k=1,nsig
-        do j=1,mlat
-           corq2x=corq2(j,k)
-           varq(j,k)=min(max(corq2x,0.0015_r_kind),one)
-        enddo
-     enddo
-     do k=1,nsig
-        do j=1,nlat
-           corq(j,k)=one
-        end do
-     end do
-  endif
 
 ! Load background error variances onto subdomains
   do k=1,nsig
@@ -349,9 +329,9 @@ subroutine prewgt(mype)
         ix=max(ix,2_i_kind)
         ix=min(nlat-ione,ix)
         do j=1,lon2
-           sfvar(i,j,k)=corz(ix,k)
-           vpvar(i,j,k)=cord(ix,k)
-           tvar(i,j,k)=corh(ix,k)
+           sfvar(i,j,k)=corz(ix,k,nrf3_sf)
+           vpvar(i,j,k)=corz(ix,k,nrf3_vp)
+           tvar(i,j,k)=corz(ix,k,nrf3_t)
         end do
      end do
   end do
@@ -361,7 +341,7 @@ subroutine prewgt(mype)
      ix=max(ix,2_i_kind)
      ix=min(nlat-ione,ix)
      do j=1,lon2
-        psvar(i,j)=corp(ix)
+        psvar(i,j)=corp(ix,nrf2_ps)
      end do
   end do
 
@@ -369,49 +349,78 @@ subroutine prewgt(mype)
   if (bkgv_flowdep)  call bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 
 ! vertical length scales
-!$omp parallel do  schedule(dynamic,1) private(i,k,j,jx,ix)
-  do j=1,lat2         
-     jx=istart(mm1)+j-2_i_kind
-     jx=max(jx,2_i_kind)
-     jx=min(nlat-ione,jx)
-     call smoothzo(vz(1,jx),samp,rate,ione,j)
-     call smoothzo(vd(1,jx),samp,rate,2_i_kind,j)
-     call smoothzo(vt(1,jx),samp,rate,3_i_kind,j)
-     call smoothzo(vq(1,jx),samp,rate,4_i_kind,j)
-     call smoothzo(voz(1,jx),samp,rate,5_i_kind,j)
-     call smoothzo(vcwm(1,jx),samp,rate,6_i_kind,j)
-!    load variances onto subdomains
-     do k=1,nsig
-        do i=1,lon2
-           dssv(1,j,i,k)=dssv(1,j,i,k)*sfvar(j,i,k)*as(1)    ! streamfunction
-           dssv(2,j,i,k)=dssv(2,j,i,k)*vpvar(j,i,k)*as(2)    ! velocity potential
-           dssv(3,j,i,k)=dssv(3,j,i,k)*tvar(j,i,k)*as(4)     ! temperature
+!$omp parallel do  schedule(dynamic,1) private(i,n,k,j,jx,ix)
+  do n=1,nrf3
+     loc=nrf3_loc(n)
+     do j=1,lat2         
+        jx=istart(mm1)+j-2_i_kind
+        jx=max(jx,2_i_kind)
+        jx=min(nlat-ione,jx)
+        call smoothzo(vz(1,jx,n),samp,rate,n,j,dsv)
 
-           dssv(4,j,i,k)=dssv(4,j,i,k)*corq(jx,k)*as(5)      ! specific humidity
-           dssv(5,j,i,k)=dssv(5,j,i,k)*coroz(jx,k)*as(6)     ! ozone
-           dssv(6,j,i,k)=dssv(6,j,i,k)*corc(jx,k)*as(8)      ! cloud condensate mixing ratio
-        enddo
-     enddo
-
-     do i=1,lon2
-        dssvp(j,i)=psvar(j,i)*as(3)             ! surface pressure
-
-        if(isli2(j,i) == ione)then
-          dssvt(j,i,2)= tsfc_sdv(1)               ! land surface temperature
-        else if(isli2(j,i) == 2_i_kind)then
-          dssvt(j,i,3)= tsfc_sdv(2)               ! ice surface temperature
+!       load variances onto subdomains
+        if (n==nrf3_sf) then
+           do k=1,nsig
+              do i=1,lon2
+                 dssv(j,i,k,n)=dsv(i,k)*sfvar(j,i,k)*as(loc)   ! streamfunction
+              end do
+           end do
+        else if (n==nrf3_vp) then
+           do k=1,nsig
+              do i=1,lon2
+                 dssv(j,i,k,n)=dsv(i,k)*vpvar(j,i,k)*as(loc)   ! velocity potential
+              end do
+           end do
+        else if (n==nrf3_t) then
+           do k=1,nsig
+              do i=1,lon2
+                 dssv(j,i,k,n)=dsv(i,k)*tvar(j,i,k)*as(loc)    ! temperature
+              end do
+           end do
         else
-          ix=jstart(mm1)+i-2_i_kind
-          if (ix==izero) ix=nlon
-          ix=max(ix,ione)
-          if (ix==nlon+ione) ix=ione
-          ix=min(nlon,ix)
-          dssvt(j,i,1)=corsst(jx,ix)*as(7)        ! sea surface temperature
+           do k=1,nsig
+              do i=1,lon2
+                 dssv(j,i,k,n)=dsv(i,k)*corz(jx,k,n)*as(loc)
+              end do
+           end do
         end if
-
-     end do
+    enddo
   end do
 
+! Special case of dssv for qoption=2
+  if (qoption==2) call compute_qvar3d
+
+!$omp parallel do  schedule(dynamic,1) private(i,n,j,jx,ix)
+  do n=1,nrf2
+     loc=nrf2_loc(n)
+     if (n==nrf2_ps) then
+        do j=1,lat2         
+           do i=1,lon2
+              dssvs(j,i,n)=psvar(j,i)*as(loc)             ! surface pressure
+           end do
+        end do
+     else if (n==nrf2_sst) then
+        do j=1,lat2         
+           do i=1,lon2
+              if(isli2(j,i) == ione)then
+                 dssvs(j,i,nrf2+1)= tsfc_sdv(1)               ! land surface temperature
+              else if(isli2(j,i) == 2_i_kind)then
+                 dssvs(j,i,nrf2+2)= tsfc_sdv(2)               ! ice surface temperature
+              else
+                 jx=istart(mm1)+j-2_i_kind
+                 jx=max(jx,2_i_kind)
+                 jx=min(nlat-ione,jx)
+                 ix=jstart(mm1)+i-2_i_kind
+                 if (ix==izero) ix=nlon
+                 ix=max(ix,ione)
+                 if (ix==nlon+ione) ix=ione
+                 ix=min(nlon,ix)
+                 dssvs(j,i,n)=corsst(jx,ix)*as(loc)        ! sea surface temperature
+              end if
+           end do
+        end do
+     end if
+  end do
 
 ! distance of gaussian lat from pole on stereogaphic map
 ! r=r/(1+z)
@@ -482,7 +491,7 @@ subroutine prewgt(mype)
   allocate(sli(ny,nx,2,nnnn1o),sli1(-nf:nf,-nf:nf,2,nnnn1o), &
                             sli2(-nf:nf,-nf:nf,2,nnnn1o))
 
-!$omp parallel do  schedule(dynamic,1) private(k,k1,j,iii,jjj,i,factx,fact1,fact2)
+!$omp parallel do  schedule(dynamic,1) private(k,k1,j,ii,iii,jjj,i,n,nn,factx,fact1,fact2)
   do k=1,nnnn1o
      k1=levs_id(k)
      if (k1==izero) then
@@ -491,76 +500,49 @@ subroutine prewgt(mype)
               factx(i,j)=zero
            end do
         end do
-     else if (nvar_id(k)==ione) then
-! streamfunction
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,1)
-           end do
+     else 
+        n=nvar_id(k)
+        nn=-ione
+        do ii=1,nrf3
+           if (nrf3_loc(ii)==n) then
+              nn=ii
+              do j=1,nlon
+                 do i=2,nlat-ione
+                    factx(i,j)=s2u/hwll(i,k1,nn)
+                 end do
+              end do
+              exit
+           end if
         end do
-     else if (nvar_id(k)==2_i_kind) then
-! velocity potential
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,2)
+
+        if (nn==-ione) then
+           do ii=1,nrf2
+              if (nrf2_loc(ii)==n .or. n>nrf) then
+                 nn=ii
+                 if (n>nrf) nn=n-nrf3
+                 if (nn==nrf2_sst) then
+                    do j=1,nlon
+                       do i=2,nlat-ione
+                          factx(i,j)=s2u/hsst(i,j)
+                       end do
+                    end do
+                 else if (nn>nrf2) then 
+                    do j=1,nlon
+                       do i=2,nlat-ione
+                          factx(i,j)=two*s2u/minhsst
+                       end do
+                    end do
+                 else  
+                    do j=1,nlon
+                       do i=2,nlat-ione
+                          factx(i,j)=s2u/hwllp(i,nn)
+                       end do
+                    end do
+                 end if
+                 exit
+              end if
            end do
-        end do
-     else if (nvar_id(k)==3_i_kind) then
-! Surface pressure
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwllp(i)
-           end do
-        end do
-     else if (nvar_id(k)==4_i_kind) then    
-! Temperature
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,3)
-           end do
-        end do
-     else if (nvar_id(k)==5_i_kind) then
-! Specific humidity
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,4)
-           end do
-        end do
-     else if(nvar_id(k)==6_i_kind)then
-! Ozone
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,5)
-           end do
-        end do
-     else if(nvar_id(k)==7_i_kind)then
-! sst
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hsst(i,j)
-           end do
-        end do
-     else if (nvar_id(k)==8_i_kind) then
-! Cloud water
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,4)
-           end do
-        end do
-     else if(nvar_id(k)==9_i_kind)then
-! surface temp (land)
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=two*s2u/minhsst
-           end do
-        end do
-     else if(nvar_id(k)==10_i_kind)then
-! surface temp (ice)
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=two*s2u/minhsst
-           end do
-        end do
+        end if
      endif    ! end if over nvar_id
      do j=1,nlon
         factx(1,j)=factx(2,j)
@@ -594,7 +576,6 @@ subroutine prewgt(mype)
         enddo
      enddo
   end do ! end do over nsig1o/loadling of sli arrays
-
 
 ! Load tables used in recursive filters
   call init_rftable(mype,rate,nnnn1o,sli,sli1,sli2)

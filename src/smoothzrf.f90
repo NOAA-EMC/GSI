@@ -496,7 +496,7 @@ subroutine frfhvo(p1,iv)
   return
 end subroutine frfhvo
 
-subroutine smoothzo(vx,samp,rate,iv,jx)
+subroutine smoothzo(vx,samp,rate,iv,jx,dsv)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    smoothzo    initializes and renormalizes vertical smoothing coefs.
@@ -508,18 +508,14 @@ subroutine smoothzo(vx,samp,rate,iv,jx)
 ! program history log:
 !   2004-05-13  derber, document
 !   2004-11-30  treadon - add longitude dimension to variance array dssv
+!   2010-03-01  zhu     - decide the location in alv and dsv based on anavinfo
+!                       - add dsv in the interface, rm dssv in berror
 !
 !   input argument list:
 !     vx       - vertical smoothing scales
 !     samp     - parameter for smoothing        
 !     rate     - parameter for smoothing       
 !     iv       - location in alv and dssv for smoothing coefficients
-!              - iv = 1 streamfunction
-!              - iv = 2 velocity potential
-!              - iv = 3 temperature        
-!              - iv = 4 specific humidity  
-!              - iv = 5 ozone           
-!              - iv = 6 cloud condensate
 !     jx       - latitude index
 !
 !   output argument list
@@ -532,7 +528,7 @@ subroutine smoothzo(vx,samp,rate,iv,jx)
   use kinds, only: r_kind,i_kind
   use constants, only:  zero
   use gridmod, only: nsig,lon2
-  use berror, only: dssv,alv,ndeg
+  use berror, only: alv,ndeg
   implicit none
  
   integer(i_kind)             ,intent(in   ) :: jx,iv
@@ -544,6 +540,7 @@ subroutine smoothzo(vx,samp,rate,iv,jx)
   real(r_kind),dimension(nsig):: dss
   real(r_kind),dimension(nsig,nsig):: p1
   real(r_kind),dimension(nsig,ndeg):: al
+  real(r_kind),dimension(lon2,nsig):: dsv
 
   call rfdparv(vx,rate,al,nsig,ndeg)
   do m=1,ndeg
@@ -563,7 +560,7 @@ subroutine smoothzo(vx,samp,rate,iv,jx)
 
   do k=1,nsig
      do i=1,lon2
-        dssv(iv,jx,i,k)=sqrt(dss(k)/p1(k,k))
+        dsv(i,k)=sqrt(dss(k)/p1(k,k))
      end do
   end do
 

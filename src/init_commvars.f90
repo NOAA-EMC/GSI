@@ -15,6 +15,7 @@ subroutine init_commvars(mype)
 !   2008-06-02  safford - rm unused vars
 !   2009-04-21  derber - add communications for strong balance constraint (bal)
 !                        and unified uv (vec) transformation
+!   2010-03-22  zhu    - use vlevs for generalizing control variable
 !
 !   input argument list:
 !     mype     - task id
@@ -32,7 +33,7 @@ subroutine init_commvars(mype)
   use gridmod, only: displs_s,ird_s,istart,ltosj,&
        jstart,regional,itotsub,nsig,nsig1o,nlon,ltosi_s,ltosj_s,nlat,&
        ijn_s,irc_s,ijn,ilat1,jlon1,displs_g,&
-       ltosi,isc_g,isd_g
+       ltosi,isc_g,isd_g,vlevs
   use mpimod, only: npe,isduv_s,irduv_s,isduv_g,irduv_g,iscuv_g,&
        ircuv_g,iscuv_s,nuvlevs,ircuv_s,irdsp_g,isdsp_g,ircnt_g,&
        iscnt_g,ircnt_s,isdsp_s,irdsp_s,iscnt_s,irdbal_g,isdbal_g,ircbal_g, &
@@ -146,10 +147,10 @@ subroutine init_commvars(mype)
   isdsp_s(1)=izero
   irdsp_s(1)=izero
 
-  if (mod((6*nsig)+4_i_kind,npe)==izero) then
+  if (mod(vlevs,npe)==izero) then
      kchk=npe
   else
-     kchk=mod((nsig*6)+4_i_kind,npe)
+     kchk=mod(vlevs,npe)
   end if
 
   do n=1,npe

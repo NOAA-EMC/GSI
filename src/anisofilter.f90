@@ -23,7 +23,10 @@ module anisofilter
 !   2008-02-27  sato - change iso-aniso composition in get_aspect_reg_ens.
 !                      enable to use iensamp. delete some test code.
 !   2008-09-22  sato - unified with 2dvar suboption case
+!   2010-03-03  zhu  - make some changes for generalizing control variables,
+!                      add one more dimension to corp and hwllp
 !   2010-04-01  treadon - move strip_single to gridmod
+!
 !
 ! subroutines included:
 !
@@ -88,7 +91,7 @@ module anisofilter
   use kinds, only: r_kind,i_kind,r_single,r_double,i_long
 
   use anberror, only: indices,&
-                      nvars,idvar,jdvar,kvar_start,kvar_end,levs_jdvar,&
+                      idvar,jdvar,kvar_start,kvar_end,levs_jdvar,&
                       var_names,smooth_len, &
                       filter_all,pf2aP1, &
                       triad4,ifilt_ord,npass,normal,binom, &
@@ -115,6 +118,10 @@ module anisofilter
 
   use jfunc, only: varq,qoption
 
+  use control_vectors, only: nvars,nrf,nrf3,nrf2,nrf3_loc,nrf2_loc,nrf_3d,&
+                             nrf_var,nrf3_oz,nrf3_t,nrf3_sf,nrf3_vp,nrf3_q, &
+                             nrf3_cw,nrf2_ps,nrf2_sst
+
   use guess_grids, only: ges_u,ges_v,ges_prsl,ges_tv,ges_z,ntguessig,&
                          ges_prslavg,ges_psfcavg,ges_ps,ges_q,ges_tsen
 
@@ -124,6 +131,7 @@ module anisofilter
 
   use aniso_ens_util, only: ens_intpcoeffs_reg,fillanlgrd,ens_uv_to_psichi, &
                             pges_minmax,intp_spl
+
 
   implicit none
 
@@ -197,7 +205,8 @@ module anisofilter
   integer(i_kind):: mlat
   integer(i_kind),allocatable:: ks(:)
   real(r_kind)  ,allocatable::rfact0h(:),rfact0v(:)
-  real(r_kind)  ,allocatable::corz(:,:,:),corp(:),hwll(:,:,:),hwllp(:),vz(:,:,:)
+! real(r_kind)  ,allocatable::corz(:,:,:),corp(:),hwll(:,:,:),hwllp(:),vz(:,:,:)
+  real(r_kind)  ,allocatable::corz(:,:,:),corp(:,:),hwll(:,:,:),hwllp(:,:),vz(:,:,:)
 
   real(r_kind)  ,allocatable,dimension(:,:)    :: dxf,dyf,rllatf,hfilter
   real(r_kind)  ,allocatable,dimension(:,:,:)  :: hfine
@@ -274,6 +283,7 @@ subroutine anprewgt_reg(mype)
 !                      The pre & post processes to initialize the filter
 !                      are almost same, so they are moved back to anprewgt.
 !                      Some processes were moved to new subroutine.
+!   2010-03-10  zhu  - use nrf* for generalized control variable
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -291,7 +301,7 @@ subroutine anprewgt_reg(mype)
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
 
-  integer(i_kind):: i,j,k,ivar,kvar,k1,l,lp,igauss,nlatf,nlonf,ierr
+  integer(i_kind):: n,i,j,k,ivar,kvar,k1,l,lp,igauss,nlatf,nlonf,ierr
   real(r_kind):: dl1,dl2,factor,factoz,factk,anhswgtsum
   real(r_kind)  ,allocatable,dimension(:,:):: bckgvar,bckgvar0f,zaux,zsmooth
   real(r_single),allocatable,dimension(:,:):: bckgvar4,zsmooth4
@@ -299,10 +309,6 @@ subroutine anprewgt_reg(mype)
 
   character(len=10):: chvarname(10)
   character(len= 4):: clun
-
-  data chvarname/'psi', 'chi', 'ps', 't', 'pseudorh', 'oz', 'sst', &
-                 'lst', 'ist', 'qw'/
-
 
 !---
 ! Initialize low level amplitude adjustment parameters
@@ -378,6 +384,7 @@ subroutine anprewgt_reg(mype)
   if (twodvar_regional) then
      do k=indices%kps,indices%kpe
         ivar=idvar(k)
+        chvarname(ivar)=fvarname(ivar)
         open (94,file='fltnorm.dat_'//trim(chvarname(ivar)),form='unformatted')
         if(lreadnorm) then 
            read(94) filter_all(1)%amp(1:ngauss,indices%ips:indices%ipe, & 
@@ -448,7 +455,8 @@ subroutine anprewgt_reg(mype)
               print*, 'anprewgt_reg: llamp_coeff (',llamp_coeff,')must be >= 0.0 and < 1.0'
               call stop2(stpcode_namelist)
            end if
-           if ( (ivar==ione.or.ivar==2_i_kind.or.ivar==4_i_kind.or.ivar==5_i_kind) .and. (kvar<llamp_levtop) ) then
+           if ( (ivar==nrf3_loc(nrf3_sf).or.ivar==nrf3_loc(nrf3_vp) &
+              .or.ivar==nrf3_loc(nrf3_t).or.ivar==nrf3_loc(nrf3_q)) .and. (kvar<llamp_levtop) ) then
               an_amp(:,ivar)= an_amp0(ivar) &
                            *(one - ((cos(real(kvar,r_kind)/real(llamp_levtop,r_kind)*pi)+one)*half)*(one-llamp_coeff))
            end if
@@ -464,19 +472,35 @@ subroutine anprewgt_reg(mype)
            lp=min((l+ione),mlat)
            dl2=rllatf(i,j)-float(l)
            dl1=one-dl2
-           select case (ivar)
-              case(1); factk=dl1*corz(l,kvar,1)+dl2*corz(lp,kvar,1)               ! streamfunction
-              case(2); factk=dl1*corz(l,kvar,2)+dl2*corz(lp,kvar,2)               ! velocity potential
-              case(3); factk=dl1*corp(l)       +dl2*corp(lp)                      ! log(ps)
-              case(4); factk=dl1*corz(l,kvar,3)+dl2*corz(lp,kvar,3)               ! temperature
-              case(5); factk=dl1*corz(l,kvar,4)+dl2*corz(lp,kvar,4)               ! qoption=1
-                 if(qoption==2_i_kind) call fact_qopt2(factk,rh0f(i,j,k1),kvar)   ! correction for qoption=2
-              case(6); factk=factoz                                               ! ozone
-              case(7); factk=zero_3                                               ! sea surface temperature
-              case(8); factk=one                                                  ! land surface temperature
-              case(9); factk=one                                                  ! ice surface temperature
-              case(10);factk=dl1*corz(l,kvar,4)+dl2*corz(lp,kvar,4)               ! cloud condensate mixing ratio
-           end select
+           if (ivar>nrf) then
+              factk=one
+           else
+              if (nrf_3d(ivar)) then
+                 do n=1,nrf3
+                    if (nrf3_loc(n)==ivar) then
+                       if (n==nrf3_oz) then
+                          factk=factoz
+                       else
+                          factk=dl1*corz(l,kvar,n)+dl2*corz(lp,kvar,n)
+                          if ((nrf_var(ivar)=='q' .or. nrf_var(ivar)=='Q') .and. qoption==2_i_kind) & 
+                          call fact_qopt2(factk,rh0f(i,j,k1),kvar)
+                       end if
+                       exit
+                    end if
+                 end do
+              else
+                 do n=1,nrf2
+                    if (nrf2_loc(n)==ivar) then
+                       if (n==nrf2_sst) then
+                          factk=zero_3
+                       else
+                          factk=dl1*corp(l,n)+dl2*corp(lp,n)
+                       end if
+                       exit
+                    end if
+                 end do
+              end if ! end of nrf_3d
+           end if    ! end of ivar       
 
            do igauss=1,ngauss
               factor=anhswgt(igauss)*factk*an_amp(igauss,ivar)/sqrt(anhswgtsum)
@@ -584,6 +608,7 @@ subroutine get_aspect_reg_2d
 !   2007-12-20  sato    - replace get2berr with get_aspect_reg_2d,
 !                         in which some procedures are moved
 !                         to the parent subroutine anprewgt_reg().
+!   2008-11-26  zhu  - use nrf* for generalized control variable
 !
 !   input argument list:
 !
@@ -607,6 +632,7 @@ subroutine get_aspect_reg_2d
   real(r_kind):: afact,deta0,deta1
 
   integer(i_kind):: nlatf,nlonf
+  character(len=5) cvar
 
   nlatf=pf2aP1%nlatf
   nlonf=pf2aP1%nlonf
@@ -643,12 +669,13 @@ subroutine get_aspect_reg_2d
            rltop=rltop_wind
            afact=zero
  
-           select case(ivar)
-              case(1); rltop=rltop_wind
-              case(2); rltop=rltop_wind
-              case(3); rltop=rltop_psfc
-              case(4); rltop=rltop_temp
-              case(5); rltop=rltop_q
+           cvar=nrf_var(ivar)
+           select case(cvar)
+              case('sf','SF'); rltop=rltop_wind
+              case('vp','VP'); rltop=rltop_wind
+              case('ps','PS'); rltop=rltop_psfc
+              case('t','T'); rltop=rltop_temp
+              case('q','Q'); rltop=rltop_q
            end select
            if (jdvar(k) <= 5_i_kind) afact=afact0(ivar)
  
@@ -714,6 +741,7 @@ subroutine get_aspect_reg_pt(mype)
 !   2007-12-20  sato    - replace get3berr with get_aspect_reg_pt,
 !                         in which some procedures are moved
 !                         to the parent subroutine anprewgt_reg().
+!   2010-03-10  zhu     - use nrf* for generalizing control variable
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -760,9 +788,9 @@ subroutine get_aspect_reg_pt(mype)
   allocate(qlth_wind(nsig))
   allocate(qltv_wind(nsig))
 
-  allocate(asp1_max(10,nsig))
-  allocate(asp2_max(10,nsig))
-  allocate(asp3_max(10,nsig))
+  allocate(asp1_max(nvars,nsig))
+  allocate(asp2_max(nvars,nsig))
+  allocate(asp3_max(nvars,nsig))
 
   allocate(tx1_slab(nlatf,nlonf,nsig1o))
   allocate(tx2_slab(nlatf,nlonf,nsig1o))
@@ -791,13 +819,15 @@ subroutine get_aspect_reg_pt(mype)
            qlth=one
            qltv=one
 
-           select case(nvar_id(k))
-              case(1); qlth=qlth_wind(k1) ; qltv=qltv_wind(k1)
-              case(2); qlth=qlth_wind(k1) ; qltv=qltv_wind(k1)
-              case(4); qlth=qlth_temp(k1) ; qltv=qltv_temp(k1)
-           end select
+           if (nrf3_loc(nrf3_sf)==nvar_id(k) .or. nrf3_loc(nrf3_vp)==nvar_id(k)) then
+              qlth=qlth_wind(k1) ; qltv=qltv_wind(k1)
+           end if
+           if (nrf3_loc(nrf3_t)==nvar_id(k)) then
+              qlth=qlth_temp(k1) ; qltv=qltv_temp(k1)
+           end if
 
-           if ( (nvar_id(k)==ione .or. nvar_id(k)==2_i_kind .or. nvar_id(k)==4_i_kind) .and. afact0(nvar_id(k))>zero ) then
+           if ( (nvar_id(k)==nrf3_loc(nrf3_sf) .or. nvar_id(k)==nrf3_loc(nrf3_vp) &
+              .or. nvar_id(k)==nrf3_loc(nrf3_t)) .and. afact0(nvar_id(k))>zero ) then
               afact=real(afact0(nvar_id(k)),r_single)
               asp1=scalex1*asp1
               asp2=scalex2*asp2
@@ -816,7 +846,7 @@ subroutine get_aspect_reg_pt(mype)
 
 !---
 ! Note: not effective in the current settings...
-           if (nvar_id(k)==5_i_kind)  then
+           if (nvar_id(k)==nrf3_loc(nrf3_q))  then
 !             bfact=one
               qls=qls_rh
               asp1=scalex1*asp1
@@ -827,7 +857,7 @@ subroutine get_aspect_reg_pt(mype)
            rk1=float(k1-44_i_kind)
            fblend=half*(one-tanh(rk1))! one
 
-           if (nvar_id(k) /= 5_i_kind) then
+           if (nvar_id(k) /= nrf3_loc(nrf3_q)) then
               aspect(1,i,j,k) = real(one/asp1**2+afact*fblend*fx1*fx1/(qlth**2)  ,r_single) ! 1st (y) direction    x1*x1
               aspect(2,i,j,k) = real(one/asp2**2+afact*fblend*fx2*fx2/(qlth**2)  ,r_single) ! 2nd (x) direction    x2*x2
               aspect(3,i,j,k) = real(one/asp3**2+afact*fblend*fx3*fx3/(qltv**2)  ,r_single) ! 3rd (z) direction    x3*x3
@@ -835,7 +865,7 @@ subroutine get_aspect_reg_pt(mype)
               aspect(5,i,j,k) = real(            afact*fblend*fx3*fx1/(qlth*qltv),r_single) !  x3*x1
               aspect(6,i,j,k) = real(            afact*fblend*fx2*fx1/(qlth**2)  ,r_single) !  x2*x1
               aspect(7,i,j,k)=  zero_single
-           else if (nvar_id(k)==5_i_kind) then
+           else if (nvar_id(k)==nrf3_loc(nrf3_q)) then
               aspect(1,i,j,k) = real(one/asp1**2+bfact*fblend*ucomp*ucomp*dyf0*dyf0/qls**2,r_single)
               aspect(2,i,j,k) = real(one/asp2**2+bfact*fblend*vcomp*vcomp*dxf0*dxf0/qls**2,r_single)
               aspect(3,i,j,k) = real(one/asp3**2                                          ,r_single)
@@ -903,6 +933,47 @@ subroutine fact_qopt2(factk,rh,kvar)
 end subroutine fact_qopt2
 !=======================================================================
 !=======================================================================
+  character*10 function fvarname(ivar)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    fvarname
+!   prgmmr: zhu          org: np23                date: 2008-06-28
+!
+! abstract: set variable name for fltnorm.dat
+!
+! program history log:
+!   2008-11-28  zhu
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+
+  implicit none
+
+! Declar passed variables
+  integer(i_kind) ivar
+
+  if (ivar==nrf3_loc(nrf3_sf)) fvarname='psi'
+  if (ivar==nrf3_loc(nrf3_vp)) fvarname='chi'
+  if (ivar==nrf3_loc(nrf3_t))  fvarname='t'
+  if (ivar==nrf3_loc(nrf3_q))  fvarname='pseudorh'
+  if (nrf3_oz>0.and.ivar==nrf3_loc(nrf3_oz)) fvarname='oz'
+  if (nrf3_cw>0.and.ivar==nrf3_loc(nrf3_cw)) fvarname='qw'
+  if (ivar==nrf2_loc(nrf2_ps)) fvarname='lnps'
+  if (nrf2_sst>0.and.ivar==nrf2_loc(nrf2_sst)) fvarname='sst'
+  if (nrf2_sst>0.and.ivar==nrf+1) fvarname='lst'
+  if (nrf2_sst>0.and.ivar==nrf+2) fvarname='ist'
+
+  return
+end function fvarname
+
+!=======================================================================
 subroutine init_anisofilter_reg(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -913,6 +984,7 @@ subroutine init_anisofilter_reg(mype)
 !
 ! program history log:
 !   2006-08-01  pondeca
+!   2010-03-31  zhu - make changes using nvars,nrf* for generaling control variable
 !
 !   input argument list:
 !    mype
@@ -932,7 +1004,7 @@ subroutine init_anisofilter_reg(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
-  integer(i_kind):: i
+  integer(i_kind):: i,n
   logical:: fexist
   integer(i_kind)           :: nlatf,nlonf
 
@@ -971,40 +1043,48 @@ subroutine init_anisofilter_reg(mype)
 !   used in the 3dvar case only
 !-----------------------------------------------------------------------
 
-  allocate (rfact0h(10))
-  allocate (rfact0v(10))
+  allocate (rfact0h(nvars))
+  allocate (rfact0v(nvars))
 
 !--- fine tuning with rgauss tuning
   if(.not.twodvar_regional) then
      if(opt_sclclb==izero) then
-        rfact0h(1)=0.90_r_kind   ;  rfact0v(1)=1.60_r_kind
-        rfact0h(2)=one           ;  rfact0v(2)=1.60_r_kind
+        do n=1,nrf
+           select case(nrf_var(n))
+              case('sf','SF'); rfact0h(n)=0.90_r_kind;  rfact0v(n)=1.60_r_kind
+              case('vp','VP'); rfact0h(n)=one        ;  rfact0v(n)=1.60_r_kind
+              case('t','T')  ; rfact0h(n)=1.40_r_kind;  rfact0v(n)=1.40_r_kind
+              case('q','Q')  ; rfact0h(n)=1.40_r_kind;  rfact0v(n)=one
+              case('oz','OZ'); rfact0h(n)=1.00_r_kind;  rfact0v(n)=1.20_r_kind
+              case('cw','CW'); rfact0h(n)=1.40_r_kind;  rfact0v(n)=1.20_r_kind
+              case('ps','PS'); rfact0h(n)=1.40_r_kind;  rfact0v(n)=1.40_r_kind
+              case('sst','SST'); rfact0h(n)=one  ;  rfact0v(n)=1.20_r_kind;
+                                 rfact0h(nrf+1)=one    ;  rfact0v(nrf+1)=1.20_r_kind;
+                                 rfact0h(nrf+2)=one    ;  rfact0v(nrf+2)=1.20_r_kind
+           end select
+        end do
      else if(opt_sclclb==ione) then
         rfact0h(1)=1.20_r_kind   ;  rfact0v(1)=1.20_r_kind
         rfact0h(2)=0.20_r_kind   ;  rfact0v(2)=0.20_r_kind
      end if
-!---
-     rfact0h(3)=1.40_r_kind   ;  rfact0v(3)=1.40_r_kind
-     rfact0h(4)=1.40_r_kind   ;  rfact0v(4)=1.40_r_kind
-     rfact0h(5)=1.40_r_kind   ;  rfact0v(5)=one
-     rfact0h(6)=one           ;  rfact0v(6)=1.20_r_kind
-     rfact0h(7)=one           ;  rfact0v(7)=1.20_r_kind
-     rfact0h(8)=one           ;  rfact0v(8)=1.20_r_kind
-     rfact0h(9)=one           ;  rfact0v(9)=1.20_r_kind
-     rfact0h(10)=1.40_r_kind  ;  rfact0v(10)=1.20_r_kind
 
+!---
   else
 
-     rfact0h(1)=one           ;  rfact0v(1)=1.50_r_kind
-     rfact0h(2)=one           ;  rfact0v(2)=1.50_r_kind
-     rfact0h(3)=1.2_r_kind    ;  rfact0v(3)=1.50_r_kind
-     rfact0h(4)=1.5_r_kind    ;  rfact0v(4)=1.50_r_kind
-     rfact0h(5)=1.5_r_kind    ;  rfact0v(5)=1.25_r_kind
-     rfact0h(6)=one           ;  rfact0v(6)=1.25_r_kind
-     rfact0h(7)=one           ;  rfact0v(7)=1.25_r_kind
-     rfact0h(8)=one           ;  rfact0v(8)=1.25_r_kind
-     rfact0h(9)=one           ;  rfact0v(9)=1.25_r_kind
-     rfact0h(10)=one          ;  rfact0v(10)=1.25_r_kind
+     do n=1,nrf
+        select case(nrf_var(n))
+           case('sf','SF'); rfact0h(n)=one;  rfact0v(n)=1.50_r_kind
+           case('vp','VP'); rfact0h(n)=one;  rfact0v(n)=1.50_r_kind
+           case('t','T')  ; rfact0h(n)=1.5_r_kind;  rfact0v(n)=1.50_r_kind
+           case('q','Q')  ; rfact0h(n)=1.5_r_kind;  rfact0v(n)=1.25_r_kind
+           case('oz','OZ'); rfact0h(n)=one;  rfact0v(n)=1.25_r_kind
+           case('cw','CW'); rfact0h(n)=one;  rfact0v(n)=1.25_r_kind
+           case('ps','PS'); rfact0h(n)=1.2_r_kind;  rfact0v(n)=1.50_r_kind 
+           case('sst','SST'); rfact0h(n)=one    ;  rfact0v(n)=1.25_r_kind;
+                              rfact0h(nrf+1)=one;  rfact0v(nrf+1)=1.25_r_kind;
+                              rfact0h(nrf+2)=one;  rfact0v(nrf+2)=1.25_r_kind
+        end select
+     end do
 
      afact0=one     !(use "zero" for isotropic computations)
      hsteep=zero
@@ -1046,31 +1126,35 @@ subroutine init_anisofilter_reg(mype)
      endif
 
           !Rescaling of bckg error variances
-     an_amp(:,1) =svpsi
-     an_amp(:,2) =svchi
-     an_amp(:,3) =svpsfc
-     an_amp(:,4) =svtemp
-     an_amp(:,5) =svshum
-     an_amp(:,6) =0.80_r_double
-     an_amp(:,7) =0.60_r_double
-     an_amp(:,8) =0.60_r_double
-     an_amp(:,9) =0.60_r_double
-     an_amp(:,10)=0.60_r_double
-
           !Rescaling of correlation lengths
-     rfact0h(1)=sclpsi
-     rfact0h(2)=sclchi
-     rfact0h(3)=sclpsfc
-     rfact0h(4)=scltemp
-     rfact0h(5)=sclhum
-     rfact0h(6:10)=one
-
           !Rescaling of correlation lengths over water only
-     water_scalefact(1)=water_scalefactpsi
-     water_scalefact(2)=water_scalefactchi
-     water_scalefact(3)=water_scalefactpsfc
-     water_scalefact(4)=water_scalefacttemp
-     water_scalefact(5)=water_scalefactq
+     an_amp=0.60_r_double
+     rfact0h=one
+     do n=1,nrf
+        select case(nrf_var(n))
+           case('sf','SF') 
+              an_amp(:,n) =svpsi
+              rfact0h(n)=sclpsi
+              water_scalefact(n)=water_scalefactpsi
+           case('vp','VP')
+              an_amp(:,n) =svchi
+              rfact0h(n)=sclchi
+              water_scalefact(n)=water_scalefactchi
+           case('t','T')  
+              an_amp(:,n) =svtemp
+              rfact0h(n)=scltemp
+              water_scalefact(n)=water_scalefacttemp
+           case('q','Q')  
+              an_amp(:,n) =svshum
+              rfact0h(n)=sclhum
+              water_scalefact(n)=water_scalefactq
+           case('oz','OZ'); an_amp(:,n) =0.80_r_double
+           case('ps','PS')
+              an_amp(:,n) =svpsfc
+              rfact0h(n)=sclpsfc
+              water_scalefact(n)=water_scalefactpsfc
+        end select
+     end do
 
      if (mype==izero) then
         print*,'in init_anisofilter_reg: hsteep=',hsteep
@@ -1111,7 +1195,7 @@ subroutine init_anisofilter_reg(mype)
   endif
 
   if (mype==izero) then
-     do i=1,10
+     do i=1,nvars
         print*,'in init_anisofilter_reg: i,rfact0h,rfact0v,afact0=',i,rfact0h(i),rfact0v(i),afact0(i)
      enddo
   endif
@@ -1165,6 +1249,9 @@ subroutine read_bckgstats(mype)
 !
 ! program history log:
 !   2006-08-01  pondeca
+!   2008-15-25  zhu  - make changes for generalized control variables
+!                    - change structure of background error file
+!                    - varq was moved to berror_read_wgt_reg
 !
 !   input argument list:
 !    mype     - mpi task id
@@ -1177,6 +1264,8 @@ subroutine read_bckgstats(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+
+  use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_wgt_reg
   implicit none
 
 ! Declare passed variables
@@ -1187,47 +1276,29 @@ subroutine read_bckgstats(mype)
   integer(i_kind):: msig,kds,kde
 
   real(r_kind),allocatable:: rlsig(:),dlsig(:)
-  real(r_kind),allocatable:: agvi(:,:,:),bvi(:,:),wgvi(:,:)
   real(r_kind),allocatable:: vzimax(:,:),vzimin(:,:),vziavg(:,:)
   real(r_kind):: psfc015
   real(r_kind),allocatable:: corzavg(:,:),hwllavg(:,:)
-  real(r_kind)            :: corpavg,     hwllpavg
+  real(r_kind),allocatable:: corpavg(:),hwllpavg(:)
 
 ! Read dimension of stats file
   inerr=22_i_kind
-  open(inerr,file='berror_stats',form='unformatted')
-  rewind inerr
-  read(inerr)msig,mlat
+  call berror_get_dims_reg(msig,mlat,inerr)
 
 ! Allocate arrays in stats file
-  allocate ( corz(1:mlat,1:nsig,1:4) )
-  allocate ( corp(1:mlat) )
-  allocate ( hwll(0:mlat+ione,1:nsig,1:4),hwllp(0:mlat+ione) )
-  allocate ( vz(1:nsig,0:mlat+ione,1:6) )
-  allocate ( agvi(0:mlat+ione,1:nsig,1:nsig) )
-  allocate ( bvi(0:mlat+ione,1:nsig),wgvi(0:mlat+ione,1:nsig) )
-
-! Read in background error stats and interpolate in vertical
-! to that specified in namelist
+  allocate ( corz(1:mlat,1:nsig,1:nrf3) )
+  allocate ( corp(1:mlat,nrf2) )
+  allocate ( hwll(0:mlat+ione,1:nsig,1:nrf3),hwllp(0:mlat+ione,nvars-nrf3) )
+  allocate ( vz(1:nsig,0:mlat+ione,1:nrf3) )
 
   allocate(rlsig(nsig))
   allocate(dlsig(nsig))
 
-  call rdgstat_reg(msig,mlat,inerr,&
-       hwll,hwllp,vz,agvi,bvi,wgvi,corz,corp,rlsig)
-  deallocate(agvi,bvi,wgvi)
-  close(inerr)
+! Read in background error stats and interpolate in vertical
+! to that specified in namelist
+  call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,mype,inerr)
 
   if(mype==izero) write(6,*)'in read_bckgstats,mlat=',mlat
-
-  if(qoption==2_i_kind)then
-     do k=1,nsig
-        do j=1,mlat
-           varq(j,k)=min(max(real(corz(j,k,4),r_kind),0.0015_r_kind),one)
-           corz(j,k,4)=one
-        end do
-     end do
-  endif
 
 ! Normalize vz with del sigma and convert to vertical grid units!
   if(.not.twodvar_regional) then
@@ -1243,7 +1314,7 @@ subroutine read_bckgstats(mype)
   end if
 
   do k=1,nsig
-     vz(k,0:mlat+ione,1:6)=vz(k,0:mlat+ione,1:6)*dlsig(k)
+     vz(k,0:mlat+ione,1:nrf3)=vz(k,0:mlat+ione,1:nrf3)*dlsig(k)
   end do
 
   deallocate(rlsig)
@@ -1255,15 +1326,15 @@ subroutine read_bckgstats(mype)
   if(mype==izero) write(6,*)'in read_bckgstats,an_vs=',an_vs
   an_vs=one/an_vs
   vz=vz/an_vs
-  if (twodvar_regional) vz(1:nsig,0:mlat+ione,1:6)=sqrt(one)
+  if (twodvar_regional) vz(1:nsig,0:mlat+ione,1:nrf3)=sqrt(one)
 
 
 !-----compute and print out diagnostics for
 !     vertical length scales
-  allocate(vzimax(1:nsig,1:6))
-  allocate(vzimin(1:nsig,1:6))
-  allocate(vziavg(1:nsig,1:6))
-  do n=1,6
+  allocate(vzimax(1:nsig,1:nrf3))
+  allocate(vzimin(1:nsig,1:nrf3))
+  allocate(vziavg(1:nsig,1:nrf3))
+  do n=1,nrf3
      do k=1,nsig
         vzimax(k,n)=maxval(one/vz(k,0:mlat+ione,n))
         vzimin(k,n)=minval(one/vz(k,0:mlat+ione,n))
@@ -1280,30 +1351,36 @@ subroutine read_bckgstats(mype)
 !-----optionally, remove latitudinal dependence from statistics
   if (.not.latdepend) then
 
-     allocate(corzavg(1:nsig,1:4))
-     allocate(hwllavg(1:nsig,1:4))
+     allocate(corzavg(1:nsig,1:nrf3))
+     allocate(hwllavg(1:nsig,1:nrf3))
+     allocate(corpavg(1:nrf2))
+     allocate(hwllpavg(1:nrf2))
 
-     do n=1,4
+     do n=1,nrf3
         do k=1,nsig
            corzavg(k,n)=sum(corz(1:mlat,k,n))/float(mlat)
            hwllavg(k,n)=sum(hwll(0:mlat+ione,k,n))/float(mlat+2_i_kind)
         end do
      end do
-     corpavg=sum(corp(1:mlat))/float(mlat)
-     hwllpavg=sum(hwllp(0:mlat+ione))/float(mlat+2_i_kind)
+     do n=1,nrf2
+        corpavg(n)=sum(corp(1:mlat,n))/float(mlat)
+        hwllpavg(n)=sum(hwllp(0:mlat+ione,n))/float(mlat+2_i_kind)
+     end do
 
      do j=1,mlat
-        corz(j,1:nsig,1:4)=corzavg(1:nsig,1:4)
-        corp(j)=corpavg
+        corz(j,1:nsig,1:nrf3)=corzavg(1:nsig,1:nrf3)
+        corp(j,1:nrf2)=corpavg(1:nrf2)
      end do
      do j=0,mlat+ione
-        hwll(j,1:nsig,1:4)=hwllavg(1:nsig,1:4)
-        hwllp(j)=hwllpavg
-        vz(1:nsig,j,1:6)=one/vziavg(1:nsig,1:6)
+        hwll(j,1:nsig,1:nrf3)=hwllavg(1:nsig,1:nrf3)
+        hwllp(j,1:nrf2)=hwllpavg(1:nrf2)
+        vz(1:nsig,j,1:nrf3)=one/vziavg(1:nsig,1:nrf3)
      end do
 
      deallocate(corzavg)
      deallocate(hwllavg)
+     deallocate(corpavg)
+     deallocate(hwllpavg)
 
   end if
 
@@ -1503,12 +1580,12 @@ subroutine get_background(mype)
               aspect(3,i,j,k)=real( one**2                             ,r_single)
               aspect(4:7,i,j,k)=zero_single
            else
-              ivar=3_i_kind
+              ivar=nrf3_loc(nrf3_t)
               l=int(rllatf(nlatf/2,nlonf/2))
-              hwll_loc=hwll(l,k1,ivar)
+              hwll_loc=hwll(l,k1,nrf3_t)
               asp1=hwll_loc/min(dyf(nlatf/2,nlonf/2),dxf(nlatf/2,nlonf/2))*rfact0h(4)
               asp2=asp1
-              asp3=one/vz(k1,l,ivar)*rfact0v(4)
+              asp3=one/vz(k1,l,nrf3_t)*rfact0v(ivar)
               aspect(1,i,j,k)=real(asp1**2,r_single)
               aspect(2,i,j,k)=real(asp2**2,r_single)
               aspect(3,i,j,k)=real(asp3**2,r_single)
@@ -1596,6 +1673,7 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
 !
 ! program history log:
 !   2006-08-01  pondeca
+!   2010-03-10  zhu    - add changes for generalized control variables
 !
 !   input argument list:
 !    k        - level number of field in slab mode
@@ -1621,9 +1699,9 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
   real(r_kind)   ,intent(  out) :: scale3(pf2aP1%nlatf,pf2aP1%nlonf)
 
 ! Declare local variables
-  integer(i_kind) i,j,k1,ivar,l,lp
+  integer(i_kind) i,j,k1,ivar,l,lp,n,nn
 
-  real(r_kind) dl1,dl2,hwll_loc
+  real(r_kind) dl1,dl2,hwll_loc,cc
   real(r_kind) scaleaux1(pf2aP1%nlata,pf2aP1%nlona)
   real(r_kind) scaleaux2(pf2aP1%nlata,pf2aP1%nlona)
   integer(i_kind) nlatf,nlonf
@@ -1632,74 +1710,59 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
   nlonf=pf2aP1%nlonf
 
   k1=levs_id(k)
-
-  if (nvar_id(k)==ione)         ivar=ione          ! streamfunction
-  if (nvar_id(k)==2_i_kind)     ivar=2_i_kind      ! velocity potential
-  if (nvar_id(k)==4_i_kind)     ivar=3_i_kind      ! temperature
-  if (nvar_id(k)==5_i_kind)     ivar=4_i_kind      ! specific humidity
-  if (nvar_id(k)==6_i_kind)     ivar=5_i_kind      ! Ozone
-  if (nvar_id(k)==7_i_kind)     ivar=ione          ! SST
-  if (nvar_id(k)==8_i_kind)     ivar=4_i_kind      ! cloud water
-  if (nvar_id(k)==9_i_kind)     ivar=ione          ! surface temp (land)
-  if (nvar_id(k)==10_i_kind)    ivar=ione          ! surface temp (ice)
+  ivar=nvar_id(k)
 
   do j=1,nlonf
      do i=1,nlatf
 
-        if (nvar_id(k)==ione     .or. nvar_id(k)==2_i_kind .or. nvar_id(k)==4_i_kind .or. &
-            nvar_id(k)==5_i_kind .or. nvar_id(k)==8_i_kind )then
-           if(k1 >= ks(k))then
-              l=int(rllatf(nlatf/2,nlonf/2))
-              hwll_loc=hwll(l,k1,ivar)
-           else
-              l =max(min(int(rllatf(i,j)),mlat),ione)
-              lp=min((l+ione),mlat)
-              dl2=rllatf(i,j)-float(l)
-              dl1=one-dl2
-              hwll_loc=dl1*hwll(l,k1,ivar)+dl2*hwll(lp,k1,ivar)
+!       3d analysis variables
+        nn=-ione
+        do n=1,nrf3
+           if (nrf3_loc(n)==ivar) then
+              nn=n
+              if (nn==nrf3_oz) then  
+                 if(k1 <= nsig*3/4)then
+                    hwll_loc=r400000
+                 else
+                    hwll_loc=(r800000-r400000*(nsig-k1)/(nsig-nsig*3/4))
+                 end if
+                 l=int(rllatf(nlatf/2,nlonf/2))
+                 scale3(i,j)=one/vz(k1,l,nn)
+              else
+                 if(k1 >= ks(k))then
+                    l=int(rllatf(nlatf/2,nlonf/2))
+                    hwll_loc=hwll(l,k1,nn)
+                 else
+                    l =max(min(int(rllatf(i,j)),mlat),ione)
+                    lp=min((l+ione),mlat)
+                    dl2=rllatf(i,j)-float(l)
+                    dl1=one-dl2
+                    hwll_loc=dl1*hwll(l,k1,nn)+dl2*hwll(lp,k1,nn)
+                 end if
+                 scale3(i,j)=one/vz(k1,l,nn)
+              end if
+              exit
            end if
-           scale3(i,j)=one/vz(k1,l,ivar)
- 
-        else if (nvar_id(k)==3_i_kind) then        !surface pressure
-           l =max(min(int(rllatf(i,j)),mlat),ione)
-           lp=min((l+ione),mlat)
-           dl2=rllatf(i,j)-float(l)
-           dl1=one-dl2
-           hwll_loc=dl1*hwllp(l)+dl2*hwllp(lp)
-           scale3(i,j)=one
+        end do
 
-        else if (nvar_id(k)==6_i_kind) then
-           if(k1 <= nsig*3/4)then
-              hwll_loc=r400000
-           else
-              hwll_loc=(r800000-r400000*(nsig-k1)/(nsig-nsig*3/4))
-           end if
-           l=int(rllatf(nlatf/2,nlonf/2))
-           scale3(i,j)=one/vz(k1,l,ivar)
- 
-        else if (nvar_id(k)==7_i_kind) then ! SST
-           l =max(min(int(rllatf(i,j)),mlat),ione)
-           lp=min((l+ione),mlat)
-           dl2=rllatf(i,j)-float(l)
-           dl1=one-dl2
-           hwll_loc=half*(dl1*hwll(l,1,ivar)+dl2*hwll(lp,1,ivar))
-           scale3(i,j)=one
+        if (nn==-ione) then
+           do n=1,nrf2
+              if (nrf2_loc(n)==ivar .or. ivar>nrf) then
+                 nn=n
+                 if (ivar>nrf) nn=ivar-nrf3
 
-        else if (nvar_id(k)==9_i_kind) then ! surface temp (land)
-           l =max(min(int(rllatf(i,j)),mlat),ione)
-           lp=min((l+ione),mlat)
-           dl2=rllatf(i,j)-float(l)
-           dl1=one-dl2
-           hwll_loc=quarter*(dl1*hwll(l,1,ivar)+dl2*hwll(lp,1,ivar))
-           scale3(i,j)=one
- 
-        else if (nvar_id(k)==10_i_kind) then ! surface temp (ice)
-           l =max(min(int(rllatf(i,j)),mlat),ione)
-           lp=min((l+ione),mlat)
-           dl2=rllatf(i,j)-float(l)
-           dl1=one-dl2
-           hwll_loc=quarter*(dl1*hwll(l,1,ivar)+dl2*hwll(lp,1,ivar))
-           scale3(i,j)=one
+                 cc=one
+                 if (nn==nrf2_sst) cc=half
+                 if (ivar>nrf) cc=quarter 
+                 l =max(min(int(rllatf(i,j)),mlat),ione)
+                 lp=min((l+ione),mlat)
+                 dl2=rllatf(i,j)-float(l)
+                 dl1=one-dl2
+                 hwll_loc=cc*(dl1*hwllp(l,nn)+dl2*hwllp(lp,nn))
+                 scale3(i,j)=one
+                 exit
+              end if
+           end do
         end if
 
         scale1(i,j)=hwll_loc/dyf(i,j)
@@ -1722,8 +1785,7 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
         end if
  
         if (.not.twodvar_regional) then
-           if (nvar_id(k) /=3_i_kind .and. nvar_id(k) /=7_i_kind .and. &
-               nvar_id(k) /=9_i_kind .and. nvar_id(k) /=10_i_kind ) then
+           if (nrf_3d(ivar)) then
               if(opt_sclclb==izero) then
                  scale3(i,j)=rfact0v(nvar_id(k))*scale3(i,j)
               else if(opt_sclclb==ione) then
@@ -1769,6 +1831,7 @@ subroutine get_theta_corrl_lenghts(mype)
 ! program history log:
 !   2006-08-01  pondeca
 !   2007-12-20  sato - move the grad(pt) part to the other subroutine
+!   2010-03-10  zhu  - make changes using nrf* for generalizing cv
 !
 !   input argument list:
 !    mype     - mpi task id
@@ -1902,10 +1965,10 @@ subroutine get_theta_corrl_lenghts(mype)
 
      qlth=one
      qltv=one
-     select case(nvar_id(k))
-        case(1); qlth=qlth_wind(k1) ; qltv=qltv_wind(k1)
-        case(2); qlth=qlth_wind(k1) ; qltv=qltv_wind(k1)
-        case(4); qlth=qlth_temp(k1) ; qltv=qltv_temp(k1)
+     select case(nrf_var(nvar_id(k)))
+        case('sf','SF'); qlth=qlth_wind(k1) ; qltv=qltv_wind(k1)
+        case('vp','VP'); qlth=qlth_wind(k1) ; qltv=qltv_wind(k1)
+        case('t','T'); qlth=qlth_temp(k1) ; qltv=qltv_temp(k1)
      end select
 
      call mk_gradpt_slab(pf2aP1%nlatf,pf2aP1%nlonf, &
@@ -1940,6 +2003,7 @@ subroutine mk_gradpt_slab(nlatf,nlonf, &
 !
 ! program history log:
 !   2007-12-20  sato
+!   2010-03-10  zhu  - use nrf*
 !
 !   input argument list:
 !     nlatf    - # of lat for filtered space
@@ -2022,7 +2086,8 @@ subroutine mk_gradpt_slab(nlatf,nlonf, &
            fx2= dxi*real(thetaf(i,jp)-thetaf(i,jm),r_kind)
            fx3=     real(thetazf(i,j)             ,r_kind)
 
-           if ( nvarid==ione .or. nvarid==2_i_kind .or. nvarid==4_i_kind ) then
+           if ( nvarid==nrf3_loc(nrf3_sf) .or. nvarid==nrf3_loc(nrf3_vp) &
+               .or. nvarid==nrf3_loc(nrf3_t) ) then
               if (abs(fx1)>rvsmall) then
                  if(limcor) then
                     gmax=two*qlth/asp1max
@@ -2359,6 +2424,7 @@ subroutine get_aspect_reg_ens(mype)
 !                         in which some procedures are moved
 !                         to the parent subroutine anprewgt_reg().
 !   2008-01-15  sato - add more accurate blending of iso & aniso tensor
+!   2010-03-10  zhu  - use nvars
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -2393,7 +2459,7 @@ subroutine get_aspect_reg_ens(mype)
   integer(i_kind) kens,ntens
   integer(i_kind) nens(nsig1o,ngrds),nt1,nt2,nt3
   integer(i_kind) ifld
-  integer(i_kind) nflag(10),nkflag(nsig1o) !dimension is # of anl. variables
+  integer(i_kind) nflag(nvars),nkflag(nsig1o) !dimension is # of anl. variables
   integer(i_kind) kflag(nsig)
   integer(i_kind) iref(nlat,nlon,ngrds)
   integer(i_kind) jref(nlat,nlon,ngrds)
@@ -2405,9 +2471,9 @@ subroutine get_aspect_reg_ens(mype)
   real(r_single):: s1,s2,s3,smax,max_grad,min_grad
   real(r_single):: c(6,3)
   real(r_single):: afact,deta0,deta1,alpha,alphaz,mag
-  real(r_single):: qlxmin(10,nsig) !10 is # of analysis variables
-  real(r_single):: qlymin(10,nsig) !10 is # of analysis variables
-  real(r_single):: qlzmin(10,nsig) !10 is # of analysis variables
+  real(r_single):: qlxmin(nvars,nsig) !10 is # of analysis variables
+  real(r_single):: qlymin(nvars,nsig) !10 is # of analysis variables
+  real(r_single):: qlzmin(nvars,nsig) !10 is # of analysis variables
   real(r_single):: rescvar(10) ! -> change into namelist parameter
   real(r_single):: rescvarzadj(10) ! -> change into namelist parameter
   real(r_kind),parameter:: rperc=0.0001_r_kind
@@ -2985,6 +3051,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 ! program history log:
 !   2007-03-08  pondeca
 !   2007-12-07  sato : add unbalanced part mode
+!   2010-03-10  zhu  - use nvars,replace agvz,wgvz,bvz by agvk,wgvk,bvk
 !
 !   input argument list:
 !    mype           - mpi task id
@@ -3013,7 +3080,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 !
 !$$$ end documentation block
 
-  use balmod, only : bvz,agvz,wgvz,rllat1,ke_vp,f1
+  use balmod, only : bvk,agvk,wgvk,agvk_lm,ke_vp,f1
   use sub2fslab_mod, only : setup_sub2fslab, destroy_sub2fslab, &
                             sub2fslab, sub2fslabdz
 
@@ -3024,7 +3091,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   integer(i_kind),intent(in   ) :: igbox(4,ngrds)
   integer(i_kind),intent(in   ) :: iref(nlat,nlon,ngrds)
   integer(i_kind),intent(in   ) :: jref(nlat,nlon,ngrds)
-  integer(i_kind),intent(inout) :: nflag(10) !dim is # of anl variables
+  integer(i_kind),intent(inout) :: nflag(nvars) !dim is # of anl variables
   integer(i_kind),intent(inout) :: kflag(nsig)
   integer(i_kind),intent(in   ) :: ifldlevs(ntensmax,nensmax)
   integer(i_kind),intent(in   ) :: idiagens  !if = 1 then print out diganostic info
@@ -3231,7 +3298,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 
   if (n == ione) then
      do k=1,nsig
-        if(ivar==7_i_kind) then
+        if(ivar==nrf2_loc(nrf2_ps)) then
            field(:,:,k)=h_loc(:,:,1)*0.001_r_kind ! Pa->cb
         else
            field(:,:,k)=h_loc(:,:,1)
@@ -3321,11 +3388,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
            do k=1,ke_vp
               do j=1,lon2
                  do i=1,lat2
-                    l=int(rllat1(i,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(i,j)-float(l)
-                    dl1=one-dl2
-                    field(i,j,k)=field(i,j,k)-(dl1*bvz(l,k)+dl2*bvz(l2,k))*field_st(i,j,k)
+                    field(i,j,k)=field(i,j,k)-bvk(i,j,k)*field_st(i,j,k)
                  end do
               end do
            end do
@@ -3334,12 +3397,11 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
 !-------------------------------
         case(3)
            if(fstat) then
-              l=(llmax+llmin)*half
               do k=1,nsig
                  do m=1,nsig
                     do j=1,lon2
                        do i=1,lat2
-                          field(i,j,m)=field(i,j,m)-agvz(l,m,k)*f1(i,j)*field_st(i,j,k)
+                          field(i,j,m)=field(i,j,m)-agvk_lm(m,k)*f1(i,j)*field_st(i,j,k)
                        end do
                     end do
                  end do
@@ -3349,11 +3411,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
                  do m=1,nsig
                     do j=1,lon2
                        do i=1,lat2
-                          l=int(rllat1(i,j))
-                          l2=min0(l+ione,llmax)
-                          dl2=rllat1(i,j)-float(l)
-                          dl1=one-dl2
-                          field(i,j,m)=field(i,j,m)-(dl1*agvz(l,m,k)+dl2*agvz(l2,m,k))*field_st(i,j,k)
+                          field(i,j,m)=field(i,j,m)-agvk(i,j,m,k)*field_st(i,j,k)
                        end do
                     end do
                  end do
@@ -3366,11 +3424,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
            do j=1,lon2
               do i=1,lat2
                  do k=1,nsig
-                    l=int(rllat1(i,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(i,j)-float(l)
-                    dl1=one-dl2
-                    field(i,j,1)=field(i,j,1)-(dl1*wgvz(l,k)+dl2*wgvz(l2,k))*field_st(i,j,k)
+                    field(i,j,1)=field(i,j,1)-wgvk(i,j,k)*field_st(i,j,k)
                  end do
                  field(i,j,2:nsig)=field(i,j,1)
               end do
@@ -3763,6 +3817,7 @@ subroutine get2berr_reg_subdomain_option(mype)
 !   2006-07-01  pondeca - add terrain following covariances.
 !                         remove eigenvector decomposition
 !   2007-05-30  h.liu - remove ozmz, use factoz
+!   2010-03-10  zhu   - make changes for generalizing control variable
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -3784,7 +3839,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
-  integer(i_kind) i,j,k,l,lp,k1,kvar,ivar,im,ip,jm,jp,mm1,iloc,iploc,imloc,jloc,jploc,jmloc,igauss
+  integer(i_kind) n,i,j,k,l,lp,k1,kvar,ivar,im,ip,jm,jp,mm1,iloc,iploc,imloc,jloc,jploc,jmloc,igauss
   integer(i_kind) iglob,jglob
 
   real(r_kind) dl1,dl2,factk,factor,anhswgtsum
@@ -3798,13 +3853,13 @@ subroutine get2berr_reg_subdomain_option(mype)
   real(r_single),allocatable,dimension(:,:)::bckgvar4,bckgvar4a,zsmooth4,zsmooth4a
   real(r_single),allocatable,dimension(:,:)::region_dx4,region_dy4,psg4,psg4a
   real(r_single),allocatable,dimension(:,:,:):: fltvals0,fltvals
-  character*10 chvarname(5)
+  character*10 chvarname(nvars)
   character(80) fname
+  character(5) cvar
 
   integer(i_kind):: ids,ide,jds,jde,kds,kde,ips,ipe,jps,jpe,kps,kpe
   integer(i_kind):: nlatf,nlonf
 
-  data chvarname/'psi', 'chi', 'ps', 't', 'pseudorh'/
 
   ids=indices%ids; ide=indices%ide
   jds=indices%jds; jde=indices%jde
@@ -3863,11 +3918,14 @@ subroutine get2berr_reg_subdomain_option(mype)
            rltop=rltop_wind
            afact=zero
 
-           if (jdvar(k)==ione)        rltop=rltop_wind
-           if (jdvar(k)==2_i_kind)    rltop=rltop_wind
-           if (jdvar(k)==3_i_kind)    rltop=rltop_psfc
-           if (jdvar(k)==4_i_kind)    rltop=rltop_temp
-           if (jdvar(k)==5_i_kind)    rltop=rltop_q
+           cvar=nrf_var(ivar)
+           select case(cvar)
+              case('sf','SF'); rltop=rltop_wind
+              case('vp','VP'); rltop=rltop_wind
+              case('ps','PS'); rltop=rltop_psfc
+              case('t','T'); rltop=rltop_temp
+              case('q','Q'); rltop=rltop_q
+           end select
            if (jdvar(k) <= 5_i_kind)  afact=afact0(ivar)  !(use "zero" for isotropic computations)
 
            if (afact>zero) then
@@ -4015,11 +4073,21 @@ subroutine get2berr_reg_subdomain_option(mype)
            lp=min((l+ione),mlat)
            dl2=rllatf(i,j)-float(l)
            dl1=one-dl2
-           if(ivar==ione)     factk=dl1*corz(l,kvar,1)+dl2*corz(lp,kvar,1)     ! streamfunction
-           if(ivar==2_i_kind) factk=dl1*corz(l,kvar,2)+dl2*corz(lp,kvar,2)     ! velocity potential
-           if(ivar==3_i_kind) factk=dl1*corp(l)+dl2*corp(lp)                   ! ps
-           if(ivar==4_i_kind) factk=dl1*corz(l,kvar,3)+dl2*corz(lp,kvar,3)     ! temperature
-           if(ivar==5_i_kind) factk=dl1*corz(l,kvar,4)+dl2*corz(lp,kvar,4)     ! specific humidity
+           if (nrf_3d(ivar)) then
+              do n=1,nrf3
+                 if (nrf3_loc(n)==ivar) then
+                    factk=dl1*corz(l,kvar,n)+dl2*corz(lp,kvar,n)
+                    exit
+                 end if
+              end do
+           else
+              do n=1,nrf2
+                 if (nrf2_loc(n)==ivar) then
+                    factk=dl1*corp(l,n)+dl2*corp(lp,n)
+                    exit
+                 end if
+              end do
+           end if
 
            do igauss=1,ngauss
               ! if (j==(jps+2_i_kind) .and. (i==(ips+2_i_kind) .or. i==(ips+8_i_kind))) then
@@ -4324,6 +4392,7 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
 !
 ! program history log:
 !   2006-08-01  pondeca
+!   2010-03-10  zhu - add flexibility for more control variables
 !
 !   input argument list:
 !    mype     - mpi task id
@@ -4352,7 +4421,7 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
   real(r_kind)   ,intent(  out) :: scale3(lat2,lon2)
 
 ! Declare local variables
-  integer(i_kind) i,j,k1,ivar,l,lp,iglob,jglob,mm1
+  integer(i_kind) n,i,j,k1,ivar,l,lp,iglob,jglob,mm1
 
   real(r_kind) dl1,dl2,hwll_loc
   real(r_kind),dimension(pf2aP1%nlatf,pf2aP1%nlonf):: &
@@ -4364,17 +4433,9 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
   nlonf=pf2aP1%nlonf
 
   mm1=mype+ione
-  if (jdvar(k)==ione)         ivar=ione         ! streamfunction
-  if (jdvar(k)==2_i_kind)     ivar=2_i_kind     ! velocity potential
-  if (jdvar(k)==4_i_kind)     ivar=3_i_kind     ! temperature
-  if (jdvar(k)==5_i_kind)     ivar=4_i_kind     ! specific humidity
-  if (jdvar(k)==6_i_kind)     ivar=5_i_kind     ! Ozone
-  if (jdvar(k)==7_i_kind)     ivar=ione         ! SST
-  if (jdvar(k)==8_i_kind)     ivar=4_i_kind     ! cloud water
-  if (jdvar(k)==9_i_kind)     ivar=ione         ! surface temp (land)
-  if (jdvar(k)==10_i_kind)    ivar=ione         ! surface temp (ice)
 
   k1=levs_jdvar(k)
+  ivar=jdvar(k)
 
   do j=1,lon2
      jglob=j+jstart(mm1)-2_i_kind
@@ -4383,26 +4444,32 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
         iglob=i+istart(mm1)-2_i_kind
         if(iglob<ione.or.iglob>nlatf) cycle
 
-        if( jdvar(k)==ione     .or. jdvar(k)==2_i_kind .or. jdvar(k)==4_i_kind .or. &
-            jdvar(k)==5_i_kind .or. jdvar(k)==8_i_kind ) then
-
-           l=int(rllatf(iglob,jglob))
-           lp=l+ione
-           dl2=rllatf(iglob,jglob)-float(l)
-           dl1=one-dl2
-           hwll_loc=dl1*hwll(l,k1,ivar)+dl2*hwll(lp,k1,ivar)
-
-           scale3(i,j)=one/vz(k1,l,ivar)
-
-        else if (jdvar(k)==3_i_kind) then        !surface pressure
-           l=int(rllatf(iglob,jglob))
-           lp=l+ione
-           dl2=rllatf(iglob,jglob)-float(l)
-           dl1=one-dl2
-           hwll_loc=dl1*hwllp(l)+dl2*hwllp(lp)
-           scale3(i,j)=one
-
+        if (nrf_3d(ivar)) then
+           do n=1,nrf3
+              if (nrf3_loc(n)==ivar) then
+                 l=int(rllatf(iglob,jglob))
+                 lp=l+ione
+                 dl2=rllatf(iglob,jglob)-float(l)
+                 dl1=one-dl2
+                 hwll_loc=dl1*hwll(l,k1,n)+dl2*hwll(lp,k1,n)
+                 scale3(i,j)=one/vz(k1,l,n)
+                 exit
+              end if
+           end do
+        else
+           do n=1,nrf2
+              if (nrf2_loc(n)==ivar) then
+                 l=int(rllatf(iglob,jglob))
+                 lp=l+ione
+                 dl2=rllatf(iglob,jglob)-float(l)
+                 dl1=one-dl2
+                 hwll_loc=dl1*hwllp(l,n)+dl2*hwllp(lp,n)
+                 scale3(i,j)=one
+                 exit
+              end if
+           end do
         end if
+
 
         scale1(i,j)=hwll_loc/dyf(iglob,jglob)
         scale2(i,j)=hwll_loc/dxf(iglob,jglob)

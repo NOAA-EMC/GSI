@@ -93,6 +93,17 @@ module hybrid_ensemble_parameters
 ! program history log:
 !   2009-09-16  parrish
 !   2010-02-20  parrish - add changes to allow dual resolution capability.
+!   2010-04-06  parrish - add 2nd option for units of vertical localization:
+!                             if s_ens_v < 0, then abs(s_ens_v) is vertical localization length scale in
+!                             units of ln(p).  otherwise, when s_ens_v > 0, localization is in vertical
+!                             grid units.  The ln(p) distance measurement is approximate, based on a
+!                             fixed surface pressure of 1000mb.  This is because at the point where filter
+!                             constants are currently generated, the background 3d pressure field is not
+!                             yet available.  A later update will correct this.
+!                             For the current s_ens_v > 0, the measure is vertical grid units.
+!                             s_ens_v = 20 and s_ens_v = -0.44 are roughly comparable, and
+!                             connection of .44 is .44 = (sqrt(.15)/sqrt(2))*1.6, where 1.6 is the value used
+!                             by Jeff Whitaker for his distance in which the Gaspari-Cohn function 1st = 0.
 !
 ! subroutines included:
 

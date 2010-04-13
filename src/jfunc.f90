@@ -29,12 +29,15 @@ module jfunc
 !   2009-06-01  pondeca - add lgschmidt initalization. this variable controls the B-norm
 !                         re-orthogonalization of the gradx vectors in 2dvar mode
 !   2010-02-20  parrish - add change to get correct nval_len when using hybrid ensemble with dual resolution.
+!   2010-02-20  zhu     - add nrf_levb and nrf_leve
 !   2010-03-23  derber  - remove rhgues (not used)
+!   2010-03-25  zhu     - add pointer_state
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
 !   sub create_jfunc         - allocate cost function arrays 
 !   sub destroy_jfunc        - deallocate cost function arrays
+!   anav_info                - control variables information
 !   sub read_guess_solution  - read guess solution
 !   sub write_guess_solution - write guess solution
 !   sub strip2               - strip off halo from subdomain arrays
@@ -92,6 +95,20 @@ module jfunc
 !                    inner iteration using the modified gram-schmidt method. useful for
 !                    estimating the analysis error via the projection method. 
 !
+!   def nrf        - total number of control variables
+!   def nrf2       - total number of 2D control variables
+!   def nrf3       - total number of 3D control variables
+!   def nrf2_loc   - location of 2D control variables
+!   def nrf3_loc   - location of 3D control variables
+!   def nrf_tracer - location of tracer variables
+!   def nrf_3d     - indicator of 2D/3D control variables
+!   def nrf_levb   - starting level of 2D/3D control variables
+!   def nrf_leve   - ending level of 2D/3D control variables
+!   def ntracer    - total number of tracer variables
+!   def nrft       - total number of time tendencies for upper level control variables
+!   def nrft_      - order of time tendencies for 3d control variables
+!   def nvars      - total number of 2d & 3d variables
+
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
@@ -112,6 +129,7 @@ module jfunc
   public :: write_guess_solution
   public :: strip2
   public :: set_pointer
+  public :: pointer_state
 ! set passed variables to public
   public :: nrclen,npclen,nsclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
   public :: switch_on_derivatives,qgues,qsatg,jiterend,jiterstart,jiter,iter,niter,miter
@@ -130,6 +148,7 @@ module jfunc
   integer(i_kind) nst2,nvp2,np2,nt2,nq2,noz2,nsst2,nslt2,nsit2,ncw2
   integer(i_kind) nclen1,nclen2,nrclen,nsclen,npclen
   integer(i_kind) nval2d,nclenz
+
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
   real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc
   integer(i_kind) bcoption
@@ -209,6 +228,7 @@ contains
 
     return
   end subroutine init_jfunc
+
 
   subroutine create_jfunc(mlat)
 !$$$  subprogram documentation block
@@ -585,6 +605,8 @@ contains
 !   2006-04-21  kleist - include pointers for more time tendency arrays
 !   2008-12-04  todling - increase number of 3d fields from 6 to 8 
 !   2009-09-16  parrish - add hybrid_ensemble connection in call to setup_control_vectors
+!   2010-03-01  zhu     - add nrf_levb and nrf_leve, generalize nval_levs
+!                       - generalize vector starting points such as nvpsm, nst2, and others
 !
 !   input argument list:
 !
@@ -603,14 +625,16 @@ contains
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors
     use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens
+    use control_vectors, only: nrf,nrf2,nrf3,nrf_3d,nrf_levb,nrf_leve,nrf_var,nrf2_sst
     implicit none
 
-    integer(i_kind) nx,ny,mr,nr,nf
+    integer(i_kind) ii,nx,ny,mr,nr,nf,n,klevb,kleve,ngrid
+    character(len=5) cvar
 
     nvals_levs=8*nsig+2+ione        ! +1 for extra level in p3d
     nvals_len=nvals_levs*latlon11
 
-    nval_levs=6*nsig+2
+    nval_levs=nrf3*nsig+nrf2
     nval_len=nval_levs*latlon11
     if(l_hyb_ens) then
        nval_len=nval_levs*latlon11+n_ens*nsig*grd_ens%latlon11
@@ -644,33 +668,108 @@ contains
        nval2d=latlon11
     end if
 
+    klevb=ione
+    if (nrf_3d(1)) then
+       kleve=klevb+nsig-ione
+    else
+       kleve=klevb
+    end if
+    nrf_levb(1)=klevb
+    nrf_leve(1)=kleve
+    do n=2,nrf 
+       klevb=nrf_leve(n-1)+ione
+       if (nrf_3d(n)) then 
+          kleve=klevb+nsig-ione
+       else
+          kleve=klevb
+       end if 
+       nrf_levb(n)=klevb
+       nrf_leve(n)=kleve
+    end do
 
 !   For new mpi communication, define vector starting points
 !   for each variable type using the subdomains size without 
 !   buffer points
-    nstsm=ione                             ! streamfunction small 
-    nvpsm=nstsm  +(lat1*lon1*nsig)         ! vel. pot. small
-    npsm=nvpsm   +(lat1*lon1*nsig)         ! sfc. p. small
-    ntsm=npsm    +(lat1*lon1)              ! temp. small
-    nqsm=ntsm    +(lat1*lon1*nsig)         ! q small
-    nozsm=nqsm   +(lat1*lon1*nsig)         ! oz small
-    nsstsm=nozsm +(lat1*lon1*nsig)         ! sst small
-    nsltsm=nsstsm+(lat1*lon1)              ! land sfc. temp small
-    nsitsm=nsltsm+(lat1*lon1)              ! ice sfc. temp small
-    ncwsm=nsitsm +(lat1*lon1)              ! cloud water small
-    
+!   For new mpi communication, define vector starting points
+!   for each variable type using the subdomains size without
+!   buffer points
+    ii=izero
+    do n=1,nrf
+       if (nrf_3d(n)) then
+          ngrid=lat1*lon1*nsig
+       else
+          ngrid=lat1*lon1
+       end if
+
+       cvar=nrf_var(n)
+       select case(cvar)
+          case('sf','SF')
+             nstsm=ii+ione
+          case('vp','VP')
+             nvpsm=ii+ione
+          case('t','T')
+             ntsm=ii+ione
+          case('q','Q')
+             nqsm=ii+ione
+          case('oz','OZ')
+             nozsm=ii+ione
+          case('cw','CW')
+             ncwsm=ii+ione   
+          case('ps','PS')
+             npsm=ii+ione
+          case('sst','SST')
+             nsstsm=ii+ione
+          case default
+             write(6,*) 'allocate_cv: ERROR, unrecognized control variable ',cvar
+             call stop2(100)
+       end select
+      ii=ii+ngrid
+    end do
+    if (nrf2_sst>izero) then
+       nsltsm=ii+ione
+       nsitsm=nsltsm+(lat1*lon1)
+    end if      
+
+
 !   Define vector starting points for subdomains which include
 !   buffer points
-    nst2=ione                            ! streamfunction mpi
-    nvp2=nst2  +latlon1n                 ! vel pot mpi
-    np2=nvp2   +latlon1n                 ! sfc p mpi
-    nt2=np2    +latlon11                 ! temp mpi
-    nq2=nt2    +latlon1n                 ! q mpi
-    noz2=nq2   +latlon1n                 ! oz mpi
-    nsst2=noz2 +latlon1n                 ! sst mpi
-    nslt2=nsst2+latlon11                 ! sfc land temp mpi
-    nsit2=nslt2+latlon11                 ! ice sfc temp mpi
-    ncw2=nsit2 +latlon11                 ! cloud water mpi
+    ii=izero
+    do n=1,nrf
+       if (nrf_3d(n)) then
+          ngrid=latlon1n
+       else
+          ngrid=latlon11
+       end if
+
+       cvar=nrf_var(n)
+       select case(cvar)
+          case('sf','SF')
+             nst2=ii+ione
+          case('vp','VP')
+             nvp2=ii+ione
+          case('t','T')
+             nt2=ii+ione
+          case('q','Q')
+             nq2=ii+ione
+          case('oz','OZ')
+             noz2=ii+ione
+          case('cw','CW')
+             ncw2=ii+ione
+          case('ps','PS')
+             np2=ii+ione
+          case('sst','SST')
+             nsst2=ii+ione
+          case default
+             write(6,*) 'allocate_cv: ERROR, unrecognized control variable ',cvar
+             call stop2(100)
+       end select
+       ii=ii+ngrid
+    end do
+    if (nrf2_sst>izero) then
+       nslt2=ii+ione
+       nsit2=nslt2+latlon11
+    end if
+
 
     if (lsqrtb) then
        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
@@ -688,4 +787,67 @@ contains
     CALL setup_predictors(nrclen,nsclen,npclen)
 
   end subroutine set_pointer
+
+subroutine pointer_state(yst,u,v,t,tsen,q,oz,cw,p3d,p,sst)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    pointer_state
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2010-03-25  zhu
+!
+!   input argument list:
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use constants, only: izero
+  use control_vectors, only: nrf3_oz,nrf3_cw,nrf2_sst
+  use mpimod, only: mype
+  use state_vectors
+  implicit none
+  type(state_vector), intent(in) :: yst
+  real(r_kind),dimension(:),pointer,optional,intent(out) :: t,tsen,q,u,v,oz,cw
+  real(r_kind),dimension(:),pointer,optional,intent(out) :: sst,p
+  real(r_kind),dimension(:),pointer,optional,intent(out) :: p3d
+
+  if (present(u   )) u   => yst%u
+  if (present(v   )) v   => yst%v
+  if (present(t   )) t   => yst%t
+  if (present(tsen)) tsen => yst%tsen
+  if (present(q   )) q   => yst%q
+  if (present(oz  )) then
+     if (nrf3_oz>izero) then
+        oz  => yst%oz
+     else
+        if (mype==izero) write(6,*) 'OZ is not a control variable'
+     end if
+  end if
+  if (present(cw  )) then
+     if (nrf3_cw>izero) then
+        cw  => yst%cw
+     else
+        if (mype==izero) write(6,*) 'CW is not a control variable'
+     end if
+  end if
+  if (present(p3d )) p3d => yst%p3d
+  if (present(sst )) then
+     if (nrf2_sst>izero) then
+        sst => yst%sst
+     else
+        if (mype==izero) write(6,*) 'SST is not a control variable'
+     end if
+  end if
+
+  return
+end subroutine pointer_state
+
 end module jfunc

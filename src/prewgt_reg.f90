@@ -29,6 +29,11 @@ subroutine prewgt_reg(mype)
 !                         with ges_prslavg/ges_psfcavg
 !   2007-05-30  h.liu - remove ozmz
 !   2008-04-23  safford - rm unused uses and vars
+!   2010-03-12  zhu     - move interpolations of dssv and dssvs into this subroutine
+!                       - move varq & factoz to berror_read_wgt_reg
+!                       - add changes using nrf* for generalized control variables
+!   2010-03-15  zhu     - move the calculation of compute_qvar3d here
+!   2010-04-10  parrish - remove rhgues, no longer used
 !
 !   input argument list:
 !     mype     - pe number
@@ -49,16 +54,18 @@ subroutine prewgt_reg(mype)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use balmod, only: rllat,llmin,llmax
-  use berror, only: as,dssvp,dssvt,&
+  use balmod, only: rllat,rllat1,llmin,llmax
+  use berror, only: as,dssvs,&
        bw,ny,nx,dssv,vs,be,ndeg,&
        init_rftable,hzscl,tsfc_sdv,slw
   use mpimod, only: nvar_id,levs_id
-  use jfunc, only: qoption,varq          
-  use gridmod, only: lon2,nsig,nnnn1o,&
+  use jfunc, only: qoption
+  use control_vectors, only: nrf,nrf3_oz,nrf3,nrf2,nrf2_sst,nvars,nrf3_loc,nrf2_loc,nrf_var
+  use gridmod, only: lon2,lat2,nsig,nnnn1o,&
        region_dx,region_dy
   use constants, only: ione,zero,half,one,two,four
   use guess_grids, only: ges_prslavg,ges_psfcavg
+  use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_wgt_reg
 
   implicit none
 
@@ -66,34 +73,34 @@ subroutine prewgt_reg(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: zero_3       = 0.3_r_kind
 ! real(r_kind),parameter:: six          = 6.0_r_kind
 ! real(r_kind),parameter:: eight        = 8.0_r_kind
   real(r_kind),parameter:: r400000      = 400000.0_r_kind
   real(r_kind),parameter:: r800000      = 800000.0_r_kind
 ! real(r_kind),parameter:: r1000        = 1000.0_r_kind
-  real(r_kind),parameter:: r25          = one/25.0_r_kind
   real(r_kind),parameter:: r015         = 0.15_r_kind
 
 
 ! Declare local variables
-  integer(i_kind) k,i
-  integer(i_kind) n
-  integer(i_kind) j,k1
-  integer(i_kind) inerr,l,lp
+  integer(i_kind) k,i,ii
+  integer(i_kind) n,nn
+  integer(i_kind) j,k1,loc
+  integer(i_kind) inerr,l,lp,l2
   integer(i_kind) msig,mlat              ! stats dimensions
   integer(i_kind),dimension(nnnn1o):: ks
 
   real(r_kind) samp2,dl1,dl2
-  real(r_kind) samp,hwl
+  real(r_kind) samp,hwl,cc
   real(r_kind),dimension(nsig):: rate,dlsig,rlsig
   real(r_kind),dimension(nsig,nsig):: turn
   real(r_kind),dimension(ny,nx)::sl
   real(r_kind) fact,factoz,psfc015
 
-  real(r_kind),allocatable,dimension(:):: corp, hwllp
-  real(r_kind),allocatable,dimension(:,:):: wgvi ,bvi
-  real(r_kind),allocatable,dimension(:,:,:):: corz, hwll, agvi ,vz
+  real(r_kind),dimension(lon2,nsig,llmin:llmax):: dsv
+  real(r_kind),dimension(lon2,llmin:llmax):: dsvs
+
+  real(r_kind),allocatable,dimension(:,:):: corp, hwllp
+  real(r_kind),allocatable,dimension(:,:,:):: corz, hwll, vz
   real(r_kind),allocatable,dimension(:,:,:,:)::sli
 
 ! Initialize local variables
@@ -116,22 +123,16 @@ subroutine prewgt_reg(mype)
 
 ! Read dimension of stats file
   inerr=22_i_kind
-  open(inerr,file='berror_stats',form='unformatted')
-  rewind inerr
-  read(inerr)msig,mlat
+  call berror_get_dims_reg(msig,mlat,inerr)
 
 ! Allocate arrays in stats file
-  allocate ( corz(1:mlat,1:nsig,1:4) )
-  allocate ( corp(1:mlat) )
-  allocate ( hwll(0:mlat+ione,1:nsig,1:4),hwllp(0:mlat+ione) )
-  allocate ( vz(1:nsig,0:mlat+ione,1:6) )
-  allocate ( agvi(0:mlat+ione,1:nsig,1:nsig) )
-  allocate ( bvi(0:mlat+ione,1:nsig),wgvi(0:mlat+ione,1:nsig) )
+  allocate ( corz(1:mlat,1:nsig,1:nrf3) )
+  allocate ( corp(1:mlat,nrf2) )
+  allocate ( hwll(0:mlat+ione,1:nsig,1:nrf3),hwllp(0:mlat+ione,nvars-nrf3) )
+  allocate ( vz(1:nsig,0:mlat+ione,1:nrf3) )
 
 ! Read in background error stats and interpolate in vertical to that specified in namelist
-  call rdgstat_reg(msig,mlat,inerr,&
-       hwll,hwllp,vz,agvi,bvi,wgvi,corz,corp,rlsig)
-  close(inerr)
+  call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,mype,inerr)
 
 ! Normalize vz with del sigmma and convert to vertical grid units!
   dlsig(1)=rlsig(1)-rlsig(2)
@@ -140,7 +141,7 @@ subroutine prewgt_reg(mype)
   enddo
   dlsig(nsig)=rlsig(nsig-ione)-rlsig(nsig)
 
-  do n=1,6
+  do n=1,nrf3
      do j=0,mlat+ione
         do k=1,nsig
            vz(k,j,n)=vz(k,j,n)*dlsig(k)
@@ -163,46 +164,54 @@ subroutine prewgt_reg(mype)
   call rfdpar1(be,rate,ndeg)
   call rfdpar2(be,rate,turn,samp,ndeg)
 
-  if(qoption==2_i_kind)then
-     do k=1,nsig
-        do j=1,mlat
-           varq(j,k)=min(max(corz(j,k,4),0.0015_r_kind),one)
-        enddo
-     enddo
-     do k=1,nsig
-        do j=llmin,llmax
-           corz(j,k,4)=one
+  do n=1,nrf3
+     loc=nrf3_loc(n)
+     do j=llmin,llmax
+        call smoothzo(vz(1,j,n),samp,rate,n,j,dsv(1,1,j))
+        do k=1,nsig
+           do i=1,lon2
+              dsv(i,k,j)=dsv(i,k,j)*corz(j,k,n)*as(loc)
+           end do
         end do
      end do
-  endif
 
-
-  do n=1,6
-     do j=llmin,llmax
-        call smoothzo(vz(1,j,n),samp,rate,n,j)
+     do j=1,lat2
+        do i=1,lon2
+           l=int(rllat1(j,i))
+           l2=min0(l+1,llmax)
+           dl2=rllat1(j,i)-float(l)
+           dl1=one-dl2
+           do k=1,nsig
+              dssv(j,i,k,n)=dl1*dsv(i,k,l)+dl2*dsv(i,k,l2)
+           enddo
+        end do
      end do
   end do
-  factoz = 0.0002_r_kind*r25
-  do k=1,nsig
-     do i=1,lon2
-        do j=llmin,llmax
-           dssv(1,j,i,k)=dssv(1,j,i,k)*corz(j,k,1)*as(1)      ! streamfunction
-           dssv(2,j,i,k)=dssv(2,j,i,k)*corz(j,k,2)*as(2)      ! velocity potential
-           dssv(3,j,i,k)=dssv(3,j,i,k)*corz(j,k,3)*as(4)      ! temperature
-           dssv(4,j,i,k)=dssv(4,j,i,k)*corz(j,k,4)*as(5)      ! specific humidity
-           dssv(5,j,i,k)=dssv(5,j,i,k)*factoz*as(6)           ! ozone 
-           dssv(6,j,i,k)=dssv(6,j,i,k)*corz(j,k,4)*as(8)      ! cloud condensate mixing ratio
-        enddo
-     end do
-  end do
+
+! Special case of dssv for qoption=2
+  if (qoption==2) call compute_qvar3d
 
 ! Background error arrays for sfp, sst, land t, and ice t
-  do j=1,lon2
-     do i=llmin,llmax
-        dssvp(i,j)  =corp(i)*as(3)
-        dssvt(i,j,1)=as(7)*zero_3       ! sea t
-        dssvt(i,j,2)=tsfc_sdv(1)*as(7)  ! land t
-        dssvt(i,j,3)=tsfc_sdv(2)*as(7)  ! ice t
+  do n=1,nrf2
+     loc=nrf2_loc(n)
+     do j=llmin,llmax
+        do i=1,lon2
+           dsvs(i,j)  =corp(j,n)*as(loc)
+        end do
+     end do
+
+     do j=1,lat2
+        do i=1,lon2
+           l=int(rllat1(j,i))
+           l2=min0(l+1,llmax)
+           dl2=rllat1(j,i)-float(l)
+           dl1=one-dl2
+           dssvs(j,i,n)=dl1*dsvs(i,l)+dl2*dsvs(i,l2)
+           if (n==nrf2_sst) then
+              dssvs(j,i,nrf2+1)=tsfc_sdv(1)*as(loc)  
+              dssvs(j,i,nrf2+2)=tsfc_sdv(2)*as(loc)  
+           end if
+        end do
      end do
   end do
 
@@ -215,7 +224,8 @@ subroutine prewgt_reg(mype)
   psfc015=r015*ges_psfcavg
   do l=1,nnnn1o
      ks(l)=nsig+ione
-     if(nvar_id(l)<3_i_kind)then
+     if(nrf_var(nvar_id(l))=='sf' .or. nrf_var(nvar_id(l))=='SF' &
+       .or. nrf_var(nvar_id(l))=='vp' .or. nrf_var(nvar_id(l))=='VP')then
         k_loop: do k=1,nsig
            if (ges_prslavg(k) < psfc015) then
               ks(l)=k
@@ -246,222 +256,83 @@ subroutine prewgt_reg(mype)
 ! surface pressure, skin temperature, or ozone
   do k=nnnn1o,1,-1
      k1=levs_id(k)
-     if (nvar_id(k)==ione) then
-! streamfunction
-        if(k1 >= ks(k))then
-           l=int(rllat(ny/2,nx/2))
-           fact=one/hwll(l,k1,1)
-           do i=1,nx
-              do j=1,ny
-                 slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-                 sli(j,i,1,k)=sli(j,i,1,1)*fact
-                 sli(j,i,2,k)=sli(j,i,2,1)*fact
+     n=nvar_id(k)
+
+     nn=-ione
+     do ii=1,nrf3
+        if (nrf3_loc(ii)==n) then 
+           nn=ii
+           if (nn/=nrf3_oz) then
+              if (k1 >= ks(k))then
+                 l=int(rllat(ny/2,nx/2))
+                 fact=one/hwll(l,k1,nn)
+                 do i=1,nx
+                    do j=1,ny
+                       slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
+                       sli(j,i,1,k)=sli(j,i,1,1)*fact
+                       sli(j,i,2,k)=sli(j,i,2,1)*fact
+                    enddo
+                 enddo
+              else
+                 do i=1,nx
+                   do j=1,ny
+                     l=int(rllat(j,i))
+                     lp=min0(l+ione,llmax)
+                     dl2=rllat(j,i)-float(l)
+                     dl1=one-dl2
+                     fact=one/(dl1*hwll(l,k1,nn)+dl2*hwll(lp,k1,nn))
+                     slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
+                     sli(j,i,1,k)=sli(j,i,1,1)*fact
+                     sli(j,i,2,k)=sli(j,i,2,1)*fact
+                   enddo
+                 enddo
+              endif
+           else
+              if (k1 <= nsig*3/4)then
+                 hwl=r400000
+              else
+                 hwl=(r800000-r400000*(nsig-k1)/(nsig-nsig*3/4))
+              endif
+              fact=one/hwl
+              do i=1,nx
+                 do j=1,ny
+                    slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
+                    sli(j,i,1,k)=sli(j,i,1,1)*fact
+                    sli(j,i,2,k)=sli(j,i,2,1)*fact
+                 enddo
               enddo
-           enddo
+           end if 
+           exit
+        end if
+     end do
 
-        else
-           do i=1,nx
-              do j=1,ny
-                 l=int(rllat(j,i))
-                 lp=min0(l+ione,llmax)
-                 dl2=rllat(j,i)-float(l)
-                 dl1=one-dl2
-                 fact=one/(dl1*hwll(l,k1,1)+dl2*hwll(lp,k1,1))
-                 slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-                 sli(j,i,1,k)=sli(j,i,1,1)*fact
-                 sli(j,i,2,k)=sli(j,i,2,1)*fact
-              enddo
-           enddo
-        endif
-     else if (nvar_id(k)==2_i_kind) then
-! velocity potential
-        if(k1 >= ks(k))then
-           l=int(rllat(ny/2,nx/2))
-           fact=one/hwll(l,k1,2)
-           do i=1,nx
-              do j=1,ny
-                 slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-                 sli(j,i,1,k)=sli(j,i,1,1)*fact
-                 sli(j,i,2,k)=sli(j,i,2,1)*fact
-              enddo
-           enddo
+     if (nn==-ione) then 
+        do ii=1,nrf2
+           if (nrf2_loc(ii)==n .or. n>nrf) then 
+              nn=ii
+              if (n>nrf) nn=n-nrf3
+              cc=one 
+              if (nn==nrf2_sst) cc=two
+              if (nn==nrf2+ione .or. nn==nrf2+2_i_kind) cc=four
+              do i=1,nx
+                 do j=1,ny
+                    l=int(rllat(j,i))
+                    lp=min0(l+ione,llmax)
+                    dl2=rllat(j,i)-float(l)
+                    dl1=one-dl2
+                    fact=cc/(dl1*hwllp(l,nn)+dl2*hwllp(lp,nn))
+                    slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
+                    sli(j,i,1,k)=sli(j,i,1,1)*fact
+                    sli(j,i,2,k)=sli(j,i,2,1)*fact
+                 end do
+              end do
+              exit
+           end if
+        end do
+     end if 
 
-        else
-           do i=1,nx
-              do j=1,ny
-                 l=int(rllat(j,i))
-                 lp=min0(l+ione,llmax)
-                 dl2=rllat(j,i)-float(l)
-                 dl1=one-dl2
-                 fact=one/(dl1*hwll(l,k1,2)+dl2*hwll(lp,k1,2))
-                 slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-                 sli(j,i,1,k)=sli(j,i,1,1)*fact
-                 sli(j,i,2,k)=sli(j,i,2,1)*fact
-              enddo
-           enddo
-        endif
-     elseif (nvar_id(k)==3_i_kind) then
-! Surface pressure
-        do i=1,nx
-           do j=1,ny
-              l=int(rllat(j,i))
-              lp=min0(l+ione,llmax)
-              dl2=rllat(j,i)-float(l)
-              dl1=one-dl2
-              fact=one/(dl1*hwllp(l)+dl2*hwllp(lp))
-              slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-              sli(j,i,1,k)=sli(j,i,1,1)*fact
-              sli(j,i,2,k)=sli(j,i,2,1)*fact
-           enddo
-        enddo
-
-     else if (nvar_id(k)==4_i_kind) then    
-! Temperature
-        if(k1 >= ks(k))then
-           l=int(rllat(ny/2,nx/2))
-           fact=one/hwll(l,k1,3)
-           do i=1,nx
-              do j=1,ny
-                 slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-                 sli(j,i,1,k)=sli(j,i,1,1)*fact
-                 sli(j,i,2,k)=sli(j,i,2,1)*fact
-              enddo
-           enddo
-
-        else
-           do i=1,nx
-              do j=1,ny
-                 l=int(rllat(j,i))
-                 lp=min0(l+ione,llmax)
-                 dl2=rllat(j,i)-float(l)
-                 dl1=one-dl2
-                 fact=one/(dl1*hwll(l,k1,3)+dl2*hwll(lp,k1,3))
-                 slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-                 sli(j,i,1,k)=sli(j,i,1,1)*fact
-                 sli(j,i,2,k)=sli(j,i,2,1)*fact
-              enddo
-           enddo
-        endif
-     else if (nvar_id(k)==5_i_kind) then
-! Specific humidity
-        if(k1 >= ks(k))then
-           l=int(rllat(ny/2,nx/2))
-           fact=one/hwll(l,k1,4)
-           do i=1,nx
-              do j=1,ny
-                 slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-                 sli(j,i,1,k)=sli(j,i,1,1)*fact
-                 sli(j,i,2,k)=sli(j,i,2,1)*fact
-              enddo
-           enddo
-
-        else
-           do i=1,nx
-              do j=1,ny
-                 l=int(rllat(j,i))
-                 lp=min0(l+ione,llmax)
-                 dl2=rllat(j,i)-float(l)
-                 dl1=one-dl2
-                 fact=one/(dl1*hwll(l,k1,4)+dl2*hwll(lp,k1,4))
-                 slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-                 sli(j,i,1,k)=sli(j,i,1,1)*fact
-                 sli(j,i,2,k)=sli(j,i,2,1)*fact
-              enddo
-           enddo
-        endif
-     elseif (nvar_id(k)==6_i_kind) then
-! Ozone
-        if(k1 <= nsig*3/4)then
-           hwl=r400000
-        else
-           hwl=(r800000-r400000*(nsig-k1)/(nsig-nsig*3/4))
-        endif
-        fact=one/hwl
-        do i=1,nx
-           do j=1,ny
-              slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-              sli(j,i,1,k)=sli(j,i,1,1)*fact
-              sli(j,i,2,k)=sli(j,i,2,1)*fact
-           enddo
-        enddo
-
-
-     elseif (nvar_id(k)==7_i_kind) then
-! SST
-        do i=1,nx
-           do j=1,ny
-              l=int(rllat(j,i))
-              lp=min0(l+ione,llmax)
-              dl2=rllat(j,i)-float(l)
-              dl1=one-dl2
-                fact=two/( dl1*hwll(l,1,1)+dl2*hwll(lp,1,1))
-              slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-              sli(j,i,1,k)=sli(j,i,1,1)*fact
-              sli(j,i,2,k)=sli(j,i,2,1)*fact
-           enddo
-        enddo
-
-     else if (nvar_id(k)==8_i_kind) then
-! Cloud water
-        if(k1 >= ks(k))then
-           l=int(rllat(ny/2,nx/2))
-           fact=one/hwll(l,k1,4)
-           do i=1,nx
-              do j=1,ny
-                 slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-                 sli(j,i,1,k)=sli(j,i,1,1)*fact
-                 sli(j,i,2,k)=sli(j,i,2,1)*fact
-              enddo
-           enddo
-
-        else
-           do i=1,nx
-              do j=1,ny
-                 l=int(rllat(j,i))
-                 lp=min0(l+ione,llmax)
-                 dl2=rllat(j,i)-float(l)
-                 dl1=one-dl2
-                 fact=one/(dl1*hwll(l,k1,4)+dl2*hwll(lp,k1,4))
-                 slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-                 sli(j,i,1,k)=sli(j,i,1,1)*fact
-                 sli(j,i,2,k)=sli(j,i,2,1)*fact
-              enddo
-           enddo
-        endif
-
-     elseif (nvar_id(k)==9_i_kind) then
-! surface temp (land)
-        do i=1,nx
-           do j=1,ny
-              l=int(rllat(j,i))
-              lp=min0(l+ione,llmax)
-              dl2=rllat(j,i)-float(l)
-              dl1=one-dl2
-                fact=four/( dl1*hwll(l,1,1)+dl2*hwll(lp,1,1))
-              slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-              sli(j,i,1,k)=sli(j,i,1,1)*fact
-              sli(j,i,2,k)=sli(j,i,2,1)*fact
-           enddo
-        enddo
-
-     elseif (nvar_id(k)==10_i_kind) then
-! surface temp (ice)
-        do i=1,nx
-           do j=1,ny
-              l=int(rllat(j,i))
-              lp=min0(l+ione,llmax)
-              dl2=rllat(j,i)-float(l)
-              dl1=one-dl2
-                fact=four/( dl1*hwll(l,1,1)+dl2*hwll(lp,1,1))
-              slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-              sli(j,i,1,k)=sli(j,i,1,1)*fact
-              sli(j,i,2,k)=sli(j,i,2,1)*fact
-           enddo
-        enddo
-
-     endif
   end do
-  deallocate( corz,corp,hwll,hwllp,vz,agvi,bvi,wgvi)
+  deallocate( corz,corp,hwll,hwllp,vz)
 
 
 ! Load tables used in recursive filters

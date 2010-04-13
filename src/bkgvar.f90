@@ -1,4 +1,4 @@
-subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
+subroutine bkgvar(cstate,sst,slndt,sicet,iflg)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    bkgvar      apply background error variances
@@ -17,6 +17,9 @@ subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
 !   2007-03-13  derber - modify to allow use qvar3d array
 !   2007-07-03  kleist - add full 2d error array for surface pressure (global only)
 !   2007-11-26  s.liu - correct bug in water point skin temperature variances
+!   2010-03-01  zhu   - replace explicit use of each control variable by one array
+!                       'cstate' and use nrf* for generalized control variable
+!                     - merge global and regional cases
 !
 !   input argument list:
 !     t        - t grid values
@@ -55,139 +58,79 @@ subroutine bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,iflg)
   use kinds, only: r_kind,i_kind
   use constants, only: izero,ione,one
   use balmod, only: rllat1,llmax
-  use berror, only: dssv,dssvp,dssvt,qvar3d
+  use berror, only: dssv,dssvs
   use gridmod, only: nsig,regional,lat2,lon2
   use guess_grids, only: isli2
+  use jfunc, only: nval_levs
+  use control_vectors, only: nrf3,nrf2,nrf2_sst,nrf3_q,nrf2_loc,nrf3_loc,nrf_levb
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                       ,intent(in   ) :: iflg
-  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p,skint,sst,slndt,sicet
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,cwmr,oz,st,vp
+  integer(i_kind),intent(in   ) :: iflg
+  real(r_kind),dimension(lat2,lon2,nval_levs),intent(inout) :: cstate
+  real(r_kind),dimension(lat2,lon2),intent(inout) :: sst,slndt,sicet
 
 ! Declare local variables
-  integer(i_kind) i,j,k,l,l2
+  integer(i_kind) i,j,k,n,nk,l,l2,loc
   real(r_kind) dl1,dl2
 
-! REGIONAL BRANCH
-  if (regional) then
-
-! Apply variances
-!$omp parallel do  schedule(dynamic,1) private(k,i,j,l,l2,dl2,dl1)
+! Multipy by variances
+!$omp parallel do  schedule(dynamic,1) private(n,nk,k,i,j,loc)
+  do n=1,nrf3
+     loc=nrf3_loc(n)
+     nk=nrf_levb(loc)
      do k=1,nsig
         do i=1,lon2
            do j=1,lat2
-              l=int(rllat1(j,i))
-              l2=min0(l+ione,llmax)
-              dl2=rllat1(j,i)-float(l)
-              dl1=one-dl2
-              st(j,i,k)  =st(j,i,k)  *(dl1*dssv(1,l,i,k)+dl2*dssv(1,l2,i,k))
-              vp(j,i,k)  =vp(j,i,k)  *(dl1*dssv(2,l,i,k)+dl2*dssv(2,l2,i,k))
-              t(j,i,k)   =t(j,i,k)   *(dl1*dssv(3,l,i,k)+dl2*dssv(3,l2,i,k))
-              q(j,i,k)   =q(j,i,k)   *qvar3d(j,i,k)
-              oz(j,i,k)  =oz(j,i,k)  *(dl1*dssv(5,l,i,k)+dl2*dssv(5,l2,i,k))
-              cwmr(j,i,k)=cwmr(j,i,k)*(dl1*dssv(6,l,i,k)+dl2*dssv(6,l2,i,k))
+              cstate(j,i,nk)  =cstate(j,i,nk)*dssv(j,i,k,n)
            end do
         enddo
-        if(k == ione)then
-
-           if(iflg == izero) then
-! Surface fields
-              do j=1,lon2
-                 do i=1,lat2
-                    l=int(rllat1(i,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(i,j)-float(l)
-                    dl1=one-dl2
-                    p(i,j)=p(i,j)*(dl1*dssvp(l,j)+dl2*dssvp(l2,j))
-! Break skin temperature into components
-!          If land point
-                    if(isli2(i,j) == ione) then
-                       slndt(i,j)=skint(i,j)*(dl1*dssvt(l,j,2)+dl2*dssvt(l2,j,2))
-!          If ice
-                    else if(isli2(i,j) == 2_i_kind) then
-                       sicet(i,j)=skint(i,j)*(dl1*dssvt(l,j,3)+dl2*dssvt(l2,j,3))
-!          Else treat as a water point
-                    else
-                       sst(i,j)=skint(i,j)*(dl1*dssvt(l,j,1)+dl2*dssvt(l2,j,1))
-                    end if
-                 end do
-              end do
-
-           else if (iflg==ione) then
-! Surface fields
-              do j=1,lon2
-                 do i=1,lat2
-                    l=int(rllat1(i,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(i,j)-float(l)
-                    dl1=one-dl2
-                    p(i,j)=p(i,j)*(dl1*dssvp(l,j)+dl2*dssvp(l2,j))
-! Combine sst,slndt, and sicet into skin temperature field
-!          Land point, load land sfc t into skint
-                    if(isli2(i,j) == ione) then
-                       skint(i,j)=slndt(i,j)*(dl1*dssvt(l,j,2)+dl2*dssvt(l2,j,2))
-!          Ice, load ice temp into skint
-                    else if(isli2(i,j) == 2_i_kind) then
-                       skint(i,j)=sicet(i,j)*(dl1*dssvt(l,j,3)+dl2*dssvt(l2,j,3))
-!          Treat as a water point, load sst into skint
-                    else
-                       skint(i,j)=sst(i,j)*(dl1*dssvt(l,j,1)+dl2*dssvt(l2,j,1))
-                    end if
-                 end do
-              end do
-           end if
-        end if
+        nk=nk+1
      enddo
+  end do
 
-! GLOBAL BRANCH
 
-  else
-! Multipy by variances
-!$omp parallel do  schedule(dynamic,1) private(k,i,j)
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              st(i,j,k)  =st(i,j,k)  *dssv(1,i,j,k)
-              vp(i,j,k)  =vp(i,j,k)  *dssv(2,i,j,k)
-              t(i,j,k)   =t(i,j,k)   *dssv(3,i,j,k)
-              q(i,j,k)   =q(i,j,k)   *qvar3d(i,j,k)
-              oz(i,j,k)  =oz(i,j,k)  *dssv(5,i,j,k)
-              cwmr(i,j,k)=cwmr(i,j,k)*dssv(6,i,j,k)
-           end do
-        enddo
-
-        if(k == ione)then
 ! Surface fields
-           do j=1,lon2
-              do i=1,lat2
-                 p(i,j)=p(i,j)*dssvp(i,j)
-              end do
+!$omp parallel do  schedule(dynamic,1) private(n,nk,i,j,loc)
+  do n=1,nrf2
+     loc=nrf2_loc(n)
+     nk=nrf_levb(loc)
+     if (n/=nrf2_sst) then
+        do i=1,lon2
+           do j=1,lat2
+              cstate(j,i,nk)=cstate(j,i,nk)*dssvs(j,i,n)
            end do
-           if (iflg == izero) then
-! Break skin temperature into components
-              do j=1,lon2
-                 do i=1,lat2
-                    sst(i,j)  =skint(i,j)*dssvt(i,j,1)
-                    slndt(i,j)=skint(i,j)*dssvt(i,j,2)
-                    sicet(i,j)=skint(i,j)*dssvt(i,j,3)
-                 end do
-              end do
-           else
-! Combine sst,slndt, and sicet into skin temperature field
-              do j=1,lon2
-                 do i=1,lat2
-                    skint(i,j)=sst(i,j)  *dssvt(i,j,1)+ &
-                               slndt(i,j)*dssvt(i,j,2)+ &
-                               sicet(i,j)*dssvt(i,j,3)
-
-                 end do
-              end do
-           end if
-        end if
-     enddo
-
-  end if  ! end if global/regional
+        end do
+     else
+        if (iflg == izero) then
+!       Break skin temperature into components
+            do i=1,lon2
+               do j=1,lat2
+                  if(isli2(j,i) == ione) then
+                     slndt(j,i)=cstate(j,i,nk)*dssvs(j,i,nrf2+1)
+                  else if(isli2(j,i) == 2_i_kind) then
+                     sicet(j,i)=cstate(j,i,nk)*dssvs(j,i,nrf2+2)
+                  else
+                     sst(j,i)  =cstate(j,i,nk)*dssvs(j,i,n)
+                  end if
+               end do
+            end do
+         else
+!        Combine sst,slndt, and sicet into skin temperature field
+            do i=1,lon2
+               do j=1,lat2
+                  if(isli2(j,i) == ione) then
+                     cstate(j,i,nk)=slndt(j,i)*dssvs(j,i,nrf2+1)
+                  else if(isli2(j,i) == 2_i_kind) then
+                     cstate(j,i,nk)=sicet(j,i)*dssvs(j,i,nrf2+2)
+                  else
+                     cstate(j,i,nk)=sst(j,i)*dssvs(j,i,n)
+                  end if
+               end do
+            end do
+         end if
+     end if
+  end do
 
   return
 end subroutine bkgvar

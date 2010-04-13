@@ -83,8 +83,7 @@ module berror
 !   def inxrs     - index for polar-cascade interpolation
 !   def dssv      - vertical smoother coefficients including variances
 !   def qvar3d    - 3d q variance for qoption =2
-!   def dssvp     - variances (lat,lon) for surface pressure
-!   def dssvt     - variances (lat,lon) for surface temperature
+!   def dssvs     - variances (lat,lon) for surface variables
 !   def alv       - vertical smoother coefficients
 !   def hzscl     - scale factor for background error horizontal scales
 !   def hswgt     - empirical weights to apply to each horizontal scale
@@ -117,7 +116,7 @@ module berror
   public :: destroy_berror_vars_reg
 ! set passed variables to public
   public :: qvar3d,nr,nf,varprd,fpsproj,bkgv_flowdep,tsfc_sdv
-  public :: dssvt,dssvp,dssv,bkgv_write,bkgv_rewgtfct,hswgt
+  public :: dssvs,dssv,bkgv_write,bkgv_rewgtfct,hswgt
   public :: hzscl,bw,pert_berr_fct,pert_berr,ndeg,norh,as,vs
   public :: bl,bl2,be,slw2,slw1,slw,mr,inaxs,wtxrs,wtaxs,nx,ny
   public :: inxrs,jj1,ii2,jj2,ii,jj,ii1,table,alv
@@ -135,8 +134,8 @@ module berror
   real(r_kind),allocatable,dimension(:):: be,bl,bl2,varprd
   real(r_kind),allocatable,dimension(:,:):: table,&
        slw,slw1,slw2
-  real(r_kind),allocatable,dimension(:,:):: dssvp
-  real(r_kind),allocatable,dimension(:,:,:):: wtaxs,wtxrs,qvar3d,dssvt
+  real(r_kind),allocatable,dimension(:,:,:):: dssvs
+  real(r_kind),allocatable,dimension(:,:,:):: wtaxs,wtxrs,qvar3d
   real(r_kind),allocatable,dimension(:,:,:,:):: alv,dssv
 
   logical pert_berr,bkgv_flowdep,bkgv_write
@@ -219,6 +218,8 @@ contains
 !   2004-01-01  kleist
 !   2004-07-28  treadon - remove subroutine argument list to --> use modules
 !   2004-11-16  treadon - add longitude dimension to array dssv
+!   2008-10-24  zhu     - use nrf3,nvars & dssvs,remove dssvt
+!                       - change the order of dssv's dimensions
 !
 !   input argument list:
 !
@@ -232,6 +233,7 @@ contains
   use balmod, only: llmin,llmax
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
   use jfunc, only: nrclen
+  use control_vectors, only: nrf3,nvars
   use constants, only: izero,ione,zero
   implicit none
   
@@ -256,12 +258,11 @@ contains
            be(ndeg), &
            bl(nx-nlon), &
            bl2(nr+ione+(ny-nlat)/2), &
-           alv(lat2,ndeg,nsig,6), &
-           dssv(6,lat2,lon2,nsig),&
-           qvar3d(lat2,lon2,nsig),&
-           dssvp(lat2,lon2),&
-           dssvt(lat2,lon2,3))
-  dssvt = zero
+           alv(lat2,ndeg,nsig,nrf3), &
+           dssv(lat2,lon2,nsig,nrf3),&
+           dssvs(lat2,lon2,nvars-nrf3),&
+           qvar3d(lat2,lon2,nsig))
+  dssvs = zero
   allocate(varprd(nrclen))
   allocate(inaxs(nf,nlon/8), &
            inxrs(nlon/8,mr:nr) )
@@ -288,6 +289,7 @@ contains
 ! program history log:
 !   2004-01-01  kleist
 !   2005-03-03  treadon - add implicit none
+!   2008-10-24  zhu     - remove dssvt (dssvs includes dssvt)
 !
 !   input argument list:
 !
@@ -300,7 +302,7 @@ contains
 !$$$
     implicit none
     deallocate(wtaxs,wtxrs,be,table,bl,bl2,alv,&
-               dssv,qvar3d,dssvp,dssvt,inaxs,inxrs,&
+               dssv,qvar3d,dssvs,inaxs,inxrs,&
                varprd)
     deallocate(slw,slw1,slw2)
     deallocate(ii,jj,ii1,jj1,ii2,jj2)
@@ -611,6 +613,9 @@ contains
 !                         for 2dvar only surface analysis option
 !   2005-06-23  middlecoff/treadon - iniitalize mr,nr,nf
 !   2009-01-04  todling - remove mype
+!   2010-03-05  zhu - use nrf3 and nvars,remove dssvt
+!                   - change lat dimension of dssv and dssvs
+!                   - change the order of dssv's dimensions
 !
 !   input argument list:
 !
@@ -621,10 +626,11 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: ione
+    use constants, only: ione,zero
     use balmod, only: llmin,llmax
     use gridmod, only: nlat,nlon,nsig,nnnn1o,lat2,lon2
     use jfunc, only: nrclen
+    use control_vectors, only: nrf3,nvars
     implicit none
     
     nx=nlon
@@ -636,11 +642,11 @@ contains
 !   Grid constant for background error
 
     allocate(be(ndeg), &
-         alv(llmin:llmax,ndeg,nsig,6), &
-         dssv(6,llmin:llmax,lon2,nsig), &
-         qvar3d(lat2,lon2,nsig), &
-         dssvp(llmin:llmax,lon2),&
-         dssvt(llmin:llmax,lon2,3))
+         alv(llmin:llmax,ndeg,nsig,nrf3), &
+         dssv(lat2,lon2,nsig,nrf3), &
+         dssvs(lat2,lon2,nvars-nrf3),&
+         qvar3d(lat2,lon2,nsig))
+    dssvs=zero
     
     allocate(varprd(max(ione,nrclen) ) )     
 
@@ -663,6 +669,7 @@ contains
 ! program history log:
 !   2004-01-01  kleist
 !   2005-03-03  treadon - add implicit none
+!   2010-03-09  zhu     - remove dssvt
 !
 !   input argument list:
 !
@@ -676,8 +683,8 @@ contains
     implicit none
 
     deallocate(be,table,alv,&
-               dssv,qvar3d,dssvp,&
-               dssvt,varprd)
+               dssv,qvar3d,dssvs,&
+               varprd)
     deallocate(slw)
     deallocate(ii,jj)
 

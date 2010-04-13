@@ -13,6 +13,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   2005-06-06  parrish
 !   2005=07-10  kleist, clean up and fix skint
 !   2008-06-04  safford - rm unused var nbad and uses
+!   2010-03-25  zhu     - made changes to interface of sub2grid and grid2sub
 !
 !   input argument list:
 !     u        - longitude velocity component
@@ -71,6 +72,8 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nsig1o
   use compact_diffs, only: compact_dlat,compact_dlon
   use mpimod, only: nvar_id
+  use control_vectors, only: control_state,allocate_cs,deallocate_cs, &
+                             assign_array2cs,assign_cs2array
 
   implicit none
 
@@ -92,6 +95,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   real(r_kind),dimension(lat2,lon2):: slndt_x,sicet_x
   real(r_kind),dimension(lat2,lon2):: slndt_y,sicet_y
   real(r_kind),dimension(nlat,nlon,nsig1o):: hwork,hworkd
+  type(control_state):: cstate
   logical vector
 
   iflg=ione
@@ -109,9 +113,9 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   end if
 
   do it=1,nfldsig
-     call sub2grid(hwork,t,p(1,1,it),q,oz, &
-                   skint,slndt,sicet,cwmr,u, &
-                   v,iflg)
+     call allocate_cs(cstate)
+     call assign_array2cs(cstate,u,v,t,q,oz,cwmr,p(1,1,it))
+     call sub2grid(hwork,cstate,skint,slndt,sicet,iflg)
 
 
 !    x derivative
@@ -125,9 +129,8 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
         end if
      end do
 !$omp end parallel do
-     call grid2sub(hworkd,t_x,p_x(1,1,it),q_x, &
-                   oz_x,skint_x,slndt_x,sicet_x, &
-                   cwmr_x,u_x,v_x)
+     call grid2sub(hworkd,cstate,skint_x,slndt_x,sicet_x)
+     call assign_cs2array(cstate,u_x,v_x,t_x,q_x,oz_x,cwmr_x,p_x(1,1,it))
 
 !    y derivative
 !$omp parallel do private(vector)
@@ -140,9 +143,9 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
         end if
      end do
 !$omp end parallel do
-     call grid2sub(hworkd,t_y,p_y(1,1,it),q_y, &
-                   oz_y,skint_y,slndt_y,sicet_y, &
-                   cwmr_y,u_y,v_y)
+     call grid2sub(hworkd,cstate,skint_y,slndt_y,sicet_y)
+     call assign_cs2array(cstate,u_y,v_y,t_y,q_y,oz_y,cwmr_y,p_y(1,1,it))
+     call deallocate_cs(cstate)
   end do  ! end do it
 
   return
@@ -204,6 +207,8 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nsig1o
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
   use mpimod, only: nvar_id
+  use control_vectors, only: control_state,allocate_cs,deallocate_cs, &
+            assign_array2cs,assign_cs2array
   implicit none
 
 ! Passed variables
@@ -220,6 +225,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   real(r_kind),dimension(lat2,lon2):: slndt_x,sicet_x
   real(r_kind),dimension(lat2,lon2):: slndt_y,sicet_y
   real(r_kind),dimension(nlat,nlon,nsig1o):: hwork,hworkd
+  type(control_state):: cstate
   logical vector
 
   iflg=ione
@@ -234,8 +240,9 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
 !   adjoint of y derivative
 
-  call sub2grid(hworkd,t_y,p_y,q_y,oz_y,skint_y,slndt_y,sicet_y,cwmr_y, &
-                u_y,v_y,iflg)
+  call allocate_cs(cstate)
+  call assign_array2cs(cstate,u_y,v_y,t_y,q_y,oz_y,cwmr_y,p_y)
+  call sub2grid(hworkd,cstate,skint_y,slndt_y,sicet_y,iflg)
 !$omp parallel do private(vector)
   do k=1,nlevs
      vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
@@ -249,8 +256,8 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
 !   adjoint of x derivative
 
-  call sub2grid(hworkd,t_x,p_x,q_x,oz_x,skint_x,slndt_x,sicet_x,cwmr_x, &
-                u_x,v_x,iflg)
+  call assign_array2cs(cstate,u_x,v_x,t_x,q_x,oz_x,cwmr_x,p_x)
+  call sub2grid(hworkd,cstate,skint_x,slndt_x,sicet_x,iflg)
 !$omp parallel do private(vector)
   do k=1,nlevs
      vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
@@ -263,7 +270,9 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !$omp end parallel do
 
 !       use t_x,etc since don't need to save contents
-  call grid2sub(hwork,t_x,p_x,q_x,oz_x,skint_x,slndt_x,sicet_x,cwmr_x,u_x,v_x)
+  call grid2sub(hwork,cstate,skint_x,slndt_x,sicet_x)
+  call assign_cs2array(cstate,u_x,v_x,t_x,q_x,oz_x,cwmr_x,p_x)
+  call deallocate_cs(cstate)
 
 !   accumulate to contents of t,p,etc (except st,vp, which are zero on input
 !$omp parallel do

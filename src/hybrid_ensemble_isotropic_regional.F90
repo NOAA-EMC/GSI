@@ -13,6 +13,10 @@ module hybrid_ensemble_isotropic_regional
 !   2009-09-28  parrish, initial documentation.
 !   2010-02-26  parrish, remove redundant special spectral and sub2grid/grid2sub code.  replaced
 !                 by general purpose code as part of adding dual resolution option.
+!   2010-03-17  zhu  - use vlevs from gridmod
+!   2010-04-06  parrish - fix dimension error in ensemble_forward_model_ad_dual_res and
+!                           add array deallocation in ensemble_forward_model_ad_dual_res and
+!                            ensemble_forward_model_dual_res
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
@@ -113,6 +117,17 @@ subroutine init_rf_z(z_len)
 !
 ! program history log:
 !   2009-12-16  parrish
+!   2010-04-06  parrish - add 2nd option for units of vertical localization:
+!                             if z_len < 0, then abs(z_len) is vertical localization length scale in
+!                             units of ln(p).  otherwise, when z_len > 0, localization is in vertical
+!                             grid units.  The ln(p) distance measurement is approximate, based on a
+!                             fixed surface pressure of 1000mb.  This is because at the point where this
+!                             is currently called, the background 3d pressure field is not yet available.
+!                             A later version will correct this.
+!                             For the current s_ens_v > 0, the measure is vertical grid units.  
+!                             s_ens_v = 20 and s_ens_v = -0.44 are roughly comparable, and
+!                             connection of .44 is .44 = (sqrt(.15)/sqrt(2))*1.6, where 1.6 is the value used
+!                             by Jeff Whitaker for his distance in which the Gaspari-Cohn function 1st = 0.
 !
 !   input argument list:
 !     z_len    - filter length scale in grid units
@@ -127,19 +142,58 @@ subroutine init_rf_z(z_len)
 !
 !$$$
 
-  use gridmod, only: nsig
-  use constants, only: half
+  use gridmod, only: nsig,ak5,bk5
+  use mpimod, only: mype
+  use constants, only: ione,half,one,rd_over_cp,zero
 
   real(r_kind),intent(in   ) :: z_len
 
-  integer(i_kind) k
-  real(r_kind) aspect(nsig)
+  integer(i_kind) k,km,k0m,kp,k0p
+  real(r_kind) aspect(nsig),p_interface(nsig+1),lnp_layer(nsig)
+  real(r_kind) p_layer,dlnp,kap1,kapr
+
+    kap1=rd_over_cp+one
+    kapr=one/rd_over_cp
 
 !    use new factorization:
   allocate(fmatz(2,nsig,2),fmat0z(nsig,2))
-  do k=1,nsig
-     aspect(k)=z_len**2
-  end do
+
+!   for z_len < zero, use abs val z_len and assume localization scale is in units of ln(p)
+  if(z_len > zero) then
+
+!  z_len is in grid units
+     do k=1,nsig
+        aspect(k)=z_len**2
+     end do
+
+  else
+
+!  abs(z_len) is in units of ln(p)
+
+!              put in approximate vertical scale which depends on ln(p)
+!             to do this with minimal change, use psfc=1000, and construct a pressure profile
+!                 from the vertical coordinate definition for the GFS model.
+     do k=1,nsig+1
+        p_interface(k)=ak5(k)+(bk5(k)*100._r_kind)
+     end do
+     do k=1,nsig
+        p_layer=((p_interface(k)**kap1-p_interface(k+ione)**kap1)/&
+                           (kap1*(p_interface(k)-p_interface(k+ione))))**kapr
+               if(mype==0) write(6,*)' k,p_layer=',k,p_layer
+        lnp_layer(k)=log(p_layer)
+     end do
+     do k=1,nsig
+        kp=min(k+1,nsig)
+        k0p=kp-1
+        km=max(k-1,1)
+        k0m=km+1
+        dlnp=half*((lnp_layer(k0p)-lnp_layer(kp))+(lnp_layer(km)-lnp_layer(k0m)))
+        aspect(k)=(z_len/dlnp)**2
+        if(mype == 0) write(6,'(" k, vertical localization in grid units for ln(p) scaling =",i4,f10.2)') &
+                                        k,sqrt(aspect(k))
+     end do
+
+  end if
   call get_new_alpha_beta(aspect,nsig,fmatz,fmat0z)
 
 end subroutine init_rf_z
@@ -791,6 +845,7 @@ end subroutine normal_new_factorization_rf_y
 ! program history log:
 !   2009-09-11  parrish
 !   2010-02-20  parrish  modifications for dual resolution
+!   2010-03-15  zhu      make changes using cstate
 !
 !   input argument list:
 !
@@ -805,12 +860,14 @@ end subroutine normal_new_factorization_rf_y
     use constants, only: izero,ione,zero,one
     use hybrid_ensemble_parameters, only: n_ens,generate_ens,grd_ens
     use mpimod, only: mype,ierror
+    use control_vectors, only: control_state,allocate_cs,deallocate_cs
     implicit none
 
     real(r_kind),dimension(grd_ens%latlon1n)::st,vp,t,rh,oz,cw
     real(r_kind),dimension(grd_ens%latlon11)::p,sst
     real(r_kind),dimension(grd_ens%latlon1n)::stbar,vpbar,tbar,rhbar,ozbar,cwbar
     real(r_kind),dimension(grd_ens%latlon11)::pbar,sstbar
+    type(control_state):: cstate
     integer(i_kind) i,n
     real(r_kind),allocatable:: seed(:,:)
     real(r_kind) sig_norm,bar_norm
@@ -829,27 +886,29 @@ end subroutine normal_new_factorization_rf_y
        stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero
        ozbar=zero ; cwbar=zero ; pbar=zero ; sstbar=zero
        do n=1,n_ens
-          call generate_one_ensemble_perturbation(st,vp,t,rh,oz,cw,p,sst,seed)
+          call allocate_cs(cstate)
+          call generate_one_ensemble_perturbation(cstate,seed)
           do i=1,grd_ens%latlon1n
-             st_en(i,n)=st(i)
-             vp_en(i,n)=vp(i)
-             t_en(i,n)= t(i)
-             rh_en(i,n)=rh(i)
-             oz_en(i,n)=oz(i)
-             cw_en(i,n)=cw(i)
-             stbar(i)=stbar(i)+st(i)
-             vpbar(i)=vpbar(i)+vp(i)
-             tbar(i) = tbar(i)+ t(i)
-             rhbar(i)=rhbar(i)+rh(i)
-             ozbar(i)=ozbar(i)+oz(i)
-             cwbar(i)=cwbar(i)+cw(i)
+             st_en(i,n)=cstate%st(i)
+             vp_en(i,n)=cstate%vp(i)
+             t_en(i,n)= cstate%t(i)
+             rh_en(i,n)=cstate%rh(i)
+             oz_en(i,n)=cstate%oz(i)
+             cw_en(i,n)=cstate%cw(i)
+             stbar(i)=stbar(i)+cstate%st(i)
+             vpbar(i)=vpbar(i)+cstate%vp(i)
+             tbar(i) = tbar(i)+ cstate%t(i)
+             rhbar(i)=rhbar(i)+cstate%rh(i)
+             ozbar(i)=ozbar(i)+cstate%oz(i)
+             cwbar(i)=cwbar(i)+cstate%cw(i)
           end do
           do i=1,grd_ens%latlon11
-             p_en(i,n)=p(i)
-             sst_en(i,n)=sst(i)
-             pbar(i)=pbar(i)+ p(i)
-             sstbar(i)=sstbar(i)+ sst(i)
+             p_en(i,n)=cstate%p(i)
+             sst_en(i,n)=cstate%sst(i)
+             pbar(i)=pbar(i)+ cstate%p(i)
+             sstbar(i)=sstbar(i)+ cstate%sst(i)
           end do
+          call deallocate_cs(cstate)
        end do
 !                          remove mean, which is locally significantly non-zero, due to sample size.
 !                           with real ensembles, the mean of the actual sample will be removed.
@@ -882,7 +941,7 @@ end subroutine normal_new_factorization_rf_y
 
   end subroutine load_ensemble
      
-  subroutine generate_one_ensemble_perturbation(st,vp,t,rh,oz,cw,p,sst,seed)
+  subroutine generate_one_ensemble_perturbation(cstate,seed)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    generate_one_ensemble_perturbation
@@ -894,8 +953,8 @@ end subroutine normal_new_factorization_rf_y
 ! program history log:
 !   2009-09-28  parrish  initial documentation
 !   2010-02-20  parrish  modifications for dual resolution
-!   2010-03-13  parrish  add array qvar3d_save to save copy of qvar3d, which needs to be temporarily set
-!                         to 1 so generated ensemble moisture perturbations are in units of rh.
+!   2010-03-14  zhu     - make changes using cstate
+!   2010-03-15  derber  - fix qvar3d for ensemble
 !
 !   input argument list:
 !     seed     - old random number seeds (used for bit reproducibility of
@@ -920,32 +979,38 @@ end subroutine normal_new_factorization_rf_y
 !$$$ end documentation block
 
     use kinds, only: r_kind,i_kind,i_llong
-    use gridmod, only: nnnn1o,regional
+    use gridmod, only: vlevs,nnnn1o,regional
     use mpimod, only: mype,mpi_rtype,mpi_comm_world,ierror,nvar_pe
-    use berror, only: qvar3d
     use hybrid_ensemble_parameters, only: uv_hyb_ens,grd_ens,grd_anl,p_e2a
+    use control_vectors, only: control_state
     use general_sub2grid_mod, only: general_suba2sube_r_double
-    use constants, only: izero,zero,one
+    use constants, only: izero,zero,one,ione
     implicit none
 
-    real(r_kind),dimension(nval2f,nscl)          ,intent(inout) :: seed
-    real(r_kind),dimension(grd_ens%latlon1n)     ,intent(  out) :: st,vp,t,rh,oz,cw
-    real(r_kind),dimension(grd_ens%latlon11)     ,intent(  out) :: p,sst
+    real(r_kind)       ,intent(inout) :: seed(nval2f,nscl)
+    type(control_state),intent(inout) :: cstate
 
-    real(r_kind),dimension(grd_anl%latlon11*(grd_anl%nsig*6+2)):: suba
-    real(r_kind),dimension(grd_ens%latlon11*(grd_ens%nsig*6+2)):: sube
+    real(r_kind),dimension(grd_anl%latlon11*vlevs):: suba
+    real(r_kind),dimension(grd_ens%latlon11*vlevs):: sube
     real(r_kind),dimension(nval2f,nnnn1o,nscl):: z
-    real(r_kind) vert1(6*grd_anl%nsig+4_i_kind)
+    real(r_kind) vert1(vlevs)
+!????????????????????????????????here--note that vlevs in vert1 is 6*nvert+4, but vlevs in suba,sube above
+!????????????????????????????????????  is 6*nvert+2  -- need to seriously think about all this before 
+!????????????????????????????????????????    continuing
+!??????????????????????????????????????????????
+!????do crude patches for now, and fix dual res part
+!????????after all existing regression tests pass
+!??????????????????????????????????????????????
+!??????????????????????????????????????????????
     integer(i_llong) iseed
-    integer(i_kind) nvert,i,is,naux,k
+    integer(i_kind) nvert,i,j,ii,is,naux,k
     integer(i_kind) ist,ivp,it,irh,ioz,icw,ip,isst
     real(r_kind) aux
-    real(r_kind),dimension(nh_0:nh_1,6*grd_anl%nsig+4_i_kind,nscl):: zsub
+    real(r_kind),dimension(nh_0:nh_1,vlevs,nscl):: zsub
     real(r_kind),dimension(grd_anl%latlon1n):: ua,va
-    real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig):: qvar3d_save
 
     naux=izero
-    nvert=(6*grd_ens%nsig+4_i_kind)
+    nvert=vlevs
     if(maxval(seed) <  zero) then
 
 !       create initial seed for random numbers for each horizontal location.
@@ -981,56 +1046,28 @@ end subroutine normal_new_factorization_rf_y
 !     if this is a global run, then need to fix tropical belt part of z so periodic overlap is correct
     if(.not.regional) call fix_belt(z)
 
-!     set qvar3d=1 here to get non-zero rh ensemble member.  later, after setuprhs on first outer loop,
-!           rescale by proper qvar3d.  will take some thinking about how to do this for 
-!            input ensemble members as opposed to inernally generated from sqrt(B) ensemble members.
-    qvar3d_save=qvar3d
-    qvar3d=one
-    ist=1
-    ivp=grd_anl%latlon1n+ist
-    it =grd_anl%latlon1n+ivp
-    irh=grd_anl%latlon1n+it
-    ioz=grd_anl%latlon1n+irh
-    icw=grd_anl%latlon1n+ioz
-    ip =grd_anl%latlon1n+icw
-    isst=grd_anl%latlon11+ip
-    call ckgcov(z,suba(ist),suba(ivp),suba(it),suba(ip),suba(irh),suba(ioz),suba(isst),suba(icw),nnnn1o)
-!      reset qvar3d to zero--will get recomputed in compute_derived
-    qvar3d=qvar3d_save
+    call ckgcov(z,cstate,nnnn1o)
 
 !     if uv_hyb_ens=.true., then convert st,vp to u,v
     if(uv_hyb_ens) then
-       call getuv(ua,va,suba(ist),suba(ivp),izero)
-       do i=1,grd_anl%latlon1n
-          suba(ist+i-1)=ua(i)
-          suba(ivp+i-1)=va(i)
+       call getuv(ua,va,cstate%st,cstate%vp,izero)
+       ii=izero
+       do k=1,grd_anl%nsig
+          do j=1,grd_anl%lon2
+             do i=1,grd_anl%lat2
+                ii=ii+ione
+                cstate%st(ii)=ua(ii)
+                cstate%vp(ii)=va(ii)
+             end do
+          end do
        end do
     end if
-    if(grd_anl%latlon11 == grd_ens%latlon11) then
-       sube=suba
-    else
-       call general_suba2sube_r_double(grd_anl,grd_ens,p_e2a,suba,sube,regional)
-    end if
-    ist=1
-    ivp=grd_ens%latlon1n+ist
-    it =grd_ens%latlon1n+ivp
-    irh=grd_ens%latlon1n+it
-    ioz=grd_ens%latlon1n+irh
-    icw=grd_ens%latlon1n+ioz
-    ip =grd_ens%latlon1n+icw
-    isst=grd_ens%latlon11+ip
-    do i=1,grd_ens%latlon1n
-       st(i)=sube(ist+i)
-       vp(i)=sube(ivp+i)
-        t(i)=sube( it+i)
-       rh(i)=sube(irh+i)
-       oz(i)=sube(ioz+i)
-       cw(i)=sube(icw+i)
-    end do
-    do i=1,grd_ens%latlon11
-       p(i)  =sube(  ip+i)
-       sst(i)=sube(isst+i)
-    end do
+!????????????????????????????????????????????????????revisit this after all else is working
+   !if(grd_anl%latlon11 == grd_ens%latlon11) then
+   !   sube=suba
+   !else
+   !   call general_suba2sube_r_double(grd_anl,grd_ens,p_e2a,suba,sube,regional)
+   !end if
 
   end subroutine generate_one_ensemble_perturbation
 
@@ -1181,7 +1218,7 @@ end subroutine normal_new_factorization_rf_y
 
   end subroutine destroy_ensemble
 
-  subroutine ensemble_forward_model(st,vp,t,rh,oz,cw,p,sst,a_en)
+  subroutine ensemble_forward_model(cstate,a_en)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ensemble_forward_model  add ensemble part to anl vars
@@ -1194,6 +1231,8 @@ end subroutine normal_new_factorization_rf_y
 ! program history log:
 !   2009-09-11  parrish
 !   2010-02-20  parrish  modifications for dual resolution
+!   2010-03-23  zhu - use cstate
+!???????????????????????????????????????dual res may require changes before able to use again???
 !
 !   input argument list:
 !     st       - stream function input control variable
@@ -1222,33 +1261,40 @@ end subroutine normal_new_factorization_rf_y
 !
 !$$$
 
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens
+    use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl
     use constants, only: zero
+    use control_vectors,only: control_state
 
-    real(r_kind),dimension(grd_ens%latlon1n)      ,intent(inout) :: st,vp,t,rh,oz,cw
-    real(r_kind),dimension(grd_ens%latlon11)      ,intent(inout) :: p,sst
-    real(r_kind),dimension(grd_ens%latlon1n,n_ens),intent(in   ) :: a_en
+    type (control_state),intent(inout) :: cstate
+    real(r_kind),dimension(grd_ens%latlon1n,n_ens),intent(in) :: a_en
 
     integer(i_kind) i,k
 
+!????????????????????????????following inserted as precaution until fixes are made to restore
+!????????????????????????????? dual res capability, temporarily disabled by generalized control variable
+!????????????????????????????  changes.
+     if(grd_ens%latlon1n /= grd_anl%latlon1n) then
+       write(6,*) ' FAILURE IN ensemble_forward_model, DUAL RESOLUTION OPTION TEMPORARILY OUT OF SERVICE'
+                      call stop2(317)
+     end if
     do k=1,n_ens
        do i=1,grd_ens%latlon1n
-          st(i)=st(i)+a_en(i,k)*st_en(i,k)
-          vp(i)=vp(i)+a_en(i,k)*vp_en(i,k)
-          t(i) = t(i)+a_en(i,k)* t_en(i,k)
-          rh(i)=rh(i)+a_en(i,k)*rh_en(i,k)
-          oz(i)=oz(i)+a_en(i,k)*oz_en(i,k)
-          cw(i)=cw(i)+a_en(i,k)*cw_en(i,k)
+          cstate%st(i)=cstate%st(i)+a_en(i,k)*st_en(i,k)
+          cstate%vp(i)=cstate%vp(i)+a_en(i,k)*vp_en(i,k)
+          cstate%t(i) = cstate%t(i)+a_en(i,k)* t_en(i,k)
+          cstate%rh(i)=cstate%rh(i)+a_en(i,k)*rh_en(i,k)
+          cstate%oz(i)=cstate%oz(i)+a_en(i,k)*oz_en(i,k)
+          cstate%cw(i)=cstate%cw(i)+a_en(i,k)*cw_en(i,k)
        end do
        do i=1,grd_ens%latlon11
-          p(i)  =p(i)  +a_en(i,k)*p_en(i,k)
-          sst(i)=sst(i)+a_en(i,k)*sst_en(i,k)
+          cstate%p(i)  =cstate%p(i)  +a_en(i,k)*p_en(i,k)
+          cstate%sst(i)=cstate%sst(i)+a_en(i,k)*sst_en(i,k)
        end do
     end do
 
   end subroutine ensemble_forward_model
 
-  subroutine ensemble_forward_model_dual_res(st,vp,t,rh,oz,cw,p,sst,a_en)
+  subroutine ensemble_forward_model_dual_res(cstate,a_en)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ensemble_forward_model_dual_res  use for dualres option
@@ -1258,6 +1304,8 @@ end subroutine normal_new_factorization_rf_y
 
 ! program history log:
 !   2010-02-20  parrish
+!   2010-03-23  zhu - use cstate
+!   2010-04-06  parrish - add deallocate(sube_vars)
 !
 !   input argument list:
 !     st       - stream function input control variable
@@ -1290,94 +1338,117 @@ end subroutine normal_new_factorization_rf_y
     use general_sub2grid_mod, only: general_sube2suba_r_double  
     use gridmod,only: regional
     use constants, only: zero,ione
+    use control_vectors, only: control_state
 
-    real(r_kind),dimension(grd_anl%latlon1n)      ,intent(inout) :: st,vp,t,rh,oz,cw
-    real(r_kind),dimension(grd_anl%latlon11)      ,intent(inout) :: p,sst
-    real(r_kind),dimension(grd_ens%latlon1n,n_ens),intent(in   ) :: a_en
+    type (control_state),intent(inout) :: cstate
+    real(r_kind),dimension(grd_ens%latlon1n,n_ens),intent(in) :: a_en
 
     integer(i_kind) i,ii,k
     real(r_kind),allocatable:: sube_vars(:),suba_vars(:)
     logical vector(grd_ens%num_fields)
 
-    allocate(sube_vars(grd_ens%latlon11*grd_ens%num_fields))
-    sube_vars=zero
-    vector=.false.
-    vector(1:2_i_kind*grd_ens%nsig)=uv_hyb_ens
+!????????????????????????????following inserted as precaution until fixes are made to restore
+!????????????????????????????? dual res capability, temporarily disabled by generalized control variable
+!????????????????????????????  changes.
+     if(grd_ens%latlon1n /= grd_anl%latlon1n) then
+       write(6,*) ' FAILURE IN ensemble_forward_model, DUAL RESOLUTION OPTION TEMPORARILY OUT OF SERVICE'
+                      call stop2(317)
+     end if
+
+!   allocate(sube_vars(grd_ens%latlon11*grd_ens%num_fields))
+!   sube_vars=zero
+!   vector=.false.
+!   vector(1:2_i_kind*grd_ens%nsig)=uv_hyb_ens
+!   do k=1,n_ens
+!      ii=0
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         sube_vars(ii)=sube_vars(ii)+a_en(i,k)*st_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         sube_vars(ii)=sube_vars(ii)+a_en(i,k)*vp_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         sube_vars(ii)=sube_vars(ii)+a_en(i,k)*t_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         sube_vars(ii)=sube_vars(ii)+a_en(i,k)*rh_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         sube_vars(ii)=sube_vars(ii)+a_en(i,k)*oz_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         sube_vars(ii)=sube_vars(ii)+a_en(i,k)*cw_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon11
+!         ii=ii+1
+!         sube_vars(ii)=sube_vars(ii)+a_en(i,k)*p_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon11
+!         ii=ii+1
+!         sube_vars(ii)=sube_vars(ii)+a_en(i,k)*sst_en(i,k)
+!      end do
+!   end do
+!   allocate(suba_vars(grd_anl%latlon11*grd_anl%num_fields))
+!   call general_sube2suba_r_double(grd_ens,grd_anl,p_e2a,sube_vars,suba_vars,regional)
+!   deallocate(sube_vars)
+!   ii=0
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      st(i)=st(i)+suba_vars(ii)
+!   end do
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      vp(i)=vp(i)+suba_vars(ii)
+!   end do
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      t(i)=t(i)+suba_vars(ii)
+!   end do
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      rh(i)=rh(i)+suba_vars(ii)
+!   end do
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      oz(i)=oz(i)+suba_vars(ii)
+!   end do
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      cw(i)=cw(i)+suba_vars(ii)
+!   end do
+!   do i=1,grd_anl%latlon11
+!      ii=ii+1
+!      p(i)=p(i)+suba_vars(ii)
+!   end do
+!   do i=1,grd_anl%latlon11
+!      ii=ii+1
+!      sst(i)=sst(i)+suba_vars(ii)
+!   end do
+!   deallocate(suba_vars)
     do k=1,n_ens
-       ii=0
        do i=1,grd_ens%latlon1n
-          ii=ii+1
-          sube_vars(ii)=sube_vars(ii)+a_en(i,k)*st_en(i,k)
-       end do
-       do i=1,grd_ens%latlon1n
-          ii=ii+1
-          sube_vars(ii)=sube_vars(ii)+a_en(i,k)*vp_en(i,k)
-       end do
-       do i=1,grd_ens%latlon1n
-          ii=ii+1
-          sube_vars(ii)=sube_vars(ii)+a_en(i,k)*t_en(i,k)
-       end do
-       do i=1,grd_ens%latlon1n
-          ii=ii+1
-          sube_vars(ii)=sube_vars(ii)+a_en(i,k)*rh_en(i,k)
-       end do
-       do i=1,grd_ens%latlon1n
-          ii=ii+1
-          sube_vars(ii)=sube_vars(ii)+a_en(i,k)*oz_en(i,k)
-       end do
-       do i=1,grd_ens%latlon1n
-          ii=ii+1
-          sube_vars(ii)=sube_vars(ii)+a_en(i,k)*cw_en(i,k)
+          cstate%st(i)=cstate%st(i)+a_en(i,k)*st_en(i,k)
+          cstate%vp(i)=cstate%vp(i)+a_en(i,k)*vp_en(i,k)
+          cstate%t(i) = cstate%t(i)+a_en(i,k)* t_en(i,k)
+          cstate%rh(i)=cstate%rh(i)+a_en(i,k)*rh_en(i,k)
+          cstate%oz(i)=cstate%oz(i)+a_en(i,k)*oz_en(i,k)
+          cstate%cw(i)=cstate%cw(i)+a_en(i,k)*cw_en(i,k)
        end do
        do i=1,grd_ens%latlon11
-          ii=ii+1
-          sube_vars(ii)=sube_vars(ii)+a_en(i,k)*p_en(i,k)
-       end do
-       do i=1,grd_ens%latlon11
-          ii=ii+1
-          sube_vars(ii)=sube_vars(ii)+a_en(i,k)*sst_en(i,k)
+          cstate%p(i)  =cstate%p(i)  +a_en(i,k)*p_en(i,k)
+          cstate%sst(i)=cstate%sst(i)+a_en(i,k)*sst_en(i,k)
        end do
     end do
-    allocate(suba_vars(grd_anl%latlon11*grd_anl%num_fields))
-    call general_sube2suba_r_double(grd_ens,grd_anl,p_e2a,sube_vars,suba_vars,regional)
-    ii=0
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       st(i)=st(i)+suba_vars(ii)
-    end do
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       vp(i)=vp(i)+suba_vars(ii)
-    end do
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       t(i)=t(i)+suba_vars(ii)
-    end do
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       rh(i)=rh(i)+suba_vars(ii)
-    end do
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       oz(i)=oz(i)+suba_vars(ii)
-    end do
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       cw(i)=cw(i)+suba_vars(ii)
-    end do
-    do i=1,grd_anl%latlon11
-       ii=ii+1
-       p(i)=p(i)+suba_vars(ii)
-    end do
-    do i=1,grd_anl%latlon11
-       ii=ii+1
-       sst(i)=sst(i)+suba_vars(ii)
-    end do
-    deallocate(suba_vars)
 
   end subroutine ensemble_forward_model_dual_res
 
-  subroutine ensemble_forward_model_ad(st,vp,t,rh,oz,cw,p,sst,a_en)
+  subroutine ensemble_forward_model_ad(cstate,a_en)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ensemble_forward_model  add ensemble part to anl vars
@@ -1390,6 +1461,7 @@ end subroutine normal_new_factorization_rf_y
 ! program history log:
 !   2009-09-11  parrish
 !   2010-02-20  parrish - adapt for dual resolution
+!   2010-03-23  zhu - use cstate
 !
 !   input argument list:
 !     st       - stream function input control variable
@@ -1418,34 +1490,41 @@ end subroutine normal_new_factorization_rf_y
 !
 !$$$
 
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens
+    use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl
+    use control_vectors, only: control_state
     implicit none
 
-    real(r_kind),dimension(grd_ens%latlon1n)      ,intent(in   ) :: st,vp,t,rh,oz,cw
-    real(r_kind),dimension(grd_ens%latlon11)      ,intent(in   ) :: p,sst
+    type (control_state),intent(in) :: cstate
     real(r_kind),dimension(grd_ens%latlon1n,n_ens),intent(inout) :: a_en
 
     integer(i_kind) i,k
 
+!????????????????????????????following inserted as precaution until fixes are made to restore
+!????????????????????????????? dual res capability, temporarily disabled by generalized control variable
+!????????????????????????????  changes.
+     if(grd_ens%latlon1n /= grd_anl%latlon1n) then
+       write(6,*) ' FAILURE IN ensemble_forward_model_ad, DUAL RESOLUTION OPTION TEMPORARILY OUT OF SERVICE'
+                      call stop2(317)
+     end if
 
     do k=1,n_ens
        do i=1,grd_ens%latlon1n
-          a_en(i,k)=a_en(i,k)+st(i)*st_en(i,k)
-          a_en(i,k)=a_en(i,k)+vp(i)*vp_en(i,k)
-          a_en(i,k)=a_en(i,k)+ t(i)* t_en(i,k)
-          a_en(i,k)=a_en(i,k)+rh(i)*rh_en(i,k)
-          a_en(i,k)=a_en(i,k)+oz(i)*oz_en(i,k)
-          a_en(i,k)=a_en(i,k)+cw(i)*cw_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%st(i)*st_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%vp(i)*vp_en(i,k)
+          a_en(i,k)=a_en(i,k)+ cstate%t(i)* t_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%rh(i)*rh_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%oz(i)*oz_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%cw(i)*cw_en(i,k)
        end do
        do i=1,grd_ens%latlon11
-          a_en(i,k)=a_en(i,k)+p(i)*p_en(i,k)
-          a_en(i,k)=a_en(i,k)+sst(i)*sst_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%p(i)*p_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%sst(i)*sst_en(i,k)
        end do
     end do
 
   end subroutine ensemble_forward_model_ad
 
-  subroutine ensemble_forward_model_ad_dual_res(st,vp,t,rh,oz,cw,p,sst,a_en)
+  subroutine ensemble_forward_model_ad_dual_res(cstate,a_en)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ensemble_forward_model_ad_dual_res  use for dualres option
@@ -1455,6 +1534,8 @@ end subroutine normal_new_factorization_rf_y
 
 ! program history log:
 !   2010-02-20  parrish
+!   2010-03-23  zhu - use cstate
+!   2010-04-06  parrish - correct dimensions of st,vp,t,rh,oz,cw,p,sst. add deallocate(suba_vars)
 !
 !   input argument list:
 !     st       - stream function input control variable
@@ -1487,91 +1568,116 @@ end subroutine normal_new_factorization_rf_y
     use general_sub2grid_mod, only: general_sube2suba_r_double_ad
     use gridmod,only: regional
     use constants, only: zero,ione
+    use control_vectors, only: control_state
     implicit none
 
-    real(r_kind),dimension(grd_ens%latlon1n)      ,intent(in   ) :: st,vp,t,rh,oz,cw
-    real(r_kind),dimension(grd_ens%latlon11)      ,intent(in   ) :: p,sst
+    type (control_state),intent(in) :: cstate
     real(r_kind),dimension(grd_ens%latlon1n,n_ens),intent(inout) :: a_en
 
     integer(i_kind) i,ii,k
     real(r_kind),allocatable:: sube_vars(:),suba_vars(:)
     logical vector(grd_ens%num_fields)
 
-    allocate(suba_vars(grd_anl%latlon11*grd_anl%num_fields))
-    vector=.false.
-    vector(1:2_i_kind*grd_ens%nsig)=uv_hyb_ens
+!????????????????????????????following inserted as precaution until fixes are made to restore
+!????????????????????????????? dual res capability, temporarily disabled by generalized control variable
+!????????????????????????????  changes.
+     if(grd_ens%latlon1n /= grd_anl%latlon1n) then
+       write(6,*) &
+         ' FAILURE IN ensemble_forward_model_ad_dual_res, DUAL RESOLUTION OPTION TEMPORARILY OUT OF SERVICE'
+                      call stop2(317)
+     end if
 
-    ii=0
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       suba_vars(ii)=st(i)
-    end do
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       suba_vars(ii)=vp(i)
-    end do
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       suba_vars(ii)=t(i)
-    end do
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       suba_vars(ii)=rh(i)
-    end do
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       suba_vars(ii)=oz(i)
-    end do
-    do i=1,grd_anl%latlon1n
-       ii=ii+1
-       suba_vars(ii)=cw(i)
-    end do
-    do i=1,grd_anl%latlon11
-       ii=ii+1
-       suba_vars(ii)=p(i)
-    end do
-    do i=1,grd_anl%latlon11
-       ii=ii+1
-       suba_vars(ii)=sst(i)
-    end do
-    allocate(sube_vars(grd_ens%latlon11*grd_ens%num_fields))
-    call general_sube2suba_r_double_ad(grd_ens,grd_anl,p_e2a,sube_vars,suba_vars,regional)
+!   allocate(suba_vars(grd_anl%latlon11*grd_anl%num_fields))
+!   vector=.false.
+!   vector(1:2_i_kind*grd_ens%nsig)=uv_hyb_ens
+
+!   ii=0
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      suba_vars(ii)=st(i)
+!   end do
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      suba_vars(ii)=vp(i)
+!   end do
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      suba_vars(ii)=t(i)
+!   end do
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      suba_vars(ii)=rh(i)
+!   end do
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      suba_vars(ii)=oz(i)
+!   end do
+!   do i=1,grd_anl%latlon1n
+!      ii=ii+1
+!      suba_vars(ii)=cw(i)
+!   end do
+!   do i=1,grd_anl%latlon11
+!      ii=ii+1
+!      suba_vars(ii)=p(i)
+!   end do
+!   do i=1,grd_anl%latlon11
+!      ii=ii+1
+!      suba_vars(ii)=sst(i)
+!   end do
+!   allocate(sube_vars(grd_ens%latlon11*grd_ens%num_fields))
+!   call general_sube2suba_r_double_ad(grd_ens,grd_anl,p_e2a,sube_vars,suba_vars,regional)
+!   deallocate(suba_vars)
+!   do k=1,n_ens
+!      ii=0
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         a_en(i,k)=a_en(i,k)+sube_vars(ii)*st_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         a_en(i,k)=a_en(i,k)+sube_vars(ii)*vp_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         a_en(i,k)=a_en(i,k)+sube_vars(ii)*t_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         a_en(i,k)=a_en(i,k)+sube_vars(ii)*rh_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         a_en(i,k)=a_en(i,k)+sube_vars(ii)*oz_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon1n
+!         ii=ii+1
+!         a_en(i,k)=a_en(i,k)+sube_vars(ii)*cw_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon11
+!         ii=ii+1
+!         a_en(i,k)=a_en(i,k)+sube_vars(ii)*p_en(i,k)
+!      end do
+!      do i=1,grd_ens%latlon11
+!         ii=ii+1
+!         a_en(i,k)=a_en(i,k)+sube_vars(ii)*sst_en(i,k)
+!      end do
+!   end do
+!   deallocate(sube_vars)
+
     do k=1,n_ens
-       ii=0
        do i=1,grd_ens%latlon1n
-          ii=ii+1
-          a_en(i,k)=a_en(i,k)+sube_vars(ii)*st_en(i,k)
-       end do
-       do i=1,grd_ens%latlon1n
-          ii=ii+1
-          a_en(i,k)=a_en(i,k)+sube_vars(ii)*vp_en(i,k)
-       end do
-       do i=1,grd_ens%latlon1n
-          ii=ii+1
-          a_en(i,k)=a_en(i,k)+sube_vars(ii)*t_en(i,k)
-       end do
-       do i=1,grd_ens%latlon1n
-          ii=ii+1
-          a_en(i,k)=a_en(i,k)+sube_vars(ii)*rh_en(i,k)
-       end do
-       do i=1,grd_ens%latlon1n
-          ii=ii+1
-          a_en(i,k)=a_en(i,k)+sube_vars(ii)*oz_en(i,k)
-       end do
-       do i=1,grd_ens%latlon1n
-          ii=ii+1
-          a_en(i,k)=a_en(i,k)+sube_vars(ii)*cw_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%st(i)*st_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%vp(i)*vp_en(i,k)
+          a_en(i,k)=a_en(i,k)+ cstate%t(i)* t_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%rh(i)*rh_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%oz(i)*oz_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%cw(i)*cw_en(i,k)
        end do
        do i=1,grd_ens%latlon11
-          ii=ii+1
-          a_en(i,k)=a_en(i,k)+sube_vars(ii)*p_en(i,k)
-       end do
-       do i=1,grd_ens%latlon11
-          ii=ii+1
-          a_en(i,k)=a_en(i,k)+sube_vars(ii)*sst_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%p(i)*p_en(i,k)
+          a_en(i,k)=a_en(i,k)+cstate%sst(i)*sst_en(i,k)
        end do
     end do
-    deallocate(sube_vars)
 
   end subroutine ensemble_forward_model_ad_dual_res
 
@@ -1600,7 +1706,7 @@ end subroutine normal_new_factorization_rf_y
 
     use kinds, only: r_kind,i_kind
     use mpimod, only: npe,mype,mpi_comm_world,ierror,mpi_rtype
-    use gridmod, only: nlat,nlon,nsig,nnnn1o,regional
+    use gridmod, only: nlat,nlon,nsig,nnnn1o,regional,vlevs
     use berror, only: nx,ny,nf
     use constants, only: izero,ione
     implicit none
@@ -1621,7 +1727,7 @@ end subroutine normal_new_factorization_rf_y
 
     allocate(nsend_sd2h(0:npe-ione),ndsend_sd2h(0:npe),nrecv_sd2h(0:npe-ione),ndrecv_sd2h(0:npe))
     allocate(i_recv(nval2f*nnnn1o),k_recv(nval2f*nnnn1o))
-    nvert=6_i_kind*nsig+4_i_kind
+    nvert=vlevs
 
 !  compute nv_0,nv_1
 
@@ -1744,26 +1850,26 @@ end subroutine normal_new_factorization_rf_y
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use gridmod, only: nnnn1o,nsig
+  use gridmod, only: nnnn1o,nsig,vlevs
   use constants, only: izero,ione,zero
   use mpimod, only: mype,mpi_rtype,ierror,mpi_comm_world
   implicit none
 
-  real(r_kind),dimension(nh_0:nh_1,6*nsig+4_i_kind,nscl),intent(in   ) :: zsub
+  real(r_kind),dimension(nh_0:nh_1,vlevs,nscl),intent(in   ) :: zsub
   real(r_kind),dimension(nval2f,nv_0:nv_1,nscl)         ,intent(  out) :: z
 
-  real(r_kind) zsub1(nh_0:nh_1,6*nsig+4_i_kind),work(nval2f*(nv_1-nv_0+ione))
+  real(r_kind) zsub1(nh_0:nh_1,vlevs),work(nval2f*(nv_1-nv_0+ione))
   integer(i_kind) i,ii,is,k
 ! integer(i_kind) ibadp,ibadm,kbadp,kbadm
 ! logical good
 
 !      1 <= nh_0 <= nh_1 <= nval2f
 
-!      1 <= nv_0 <= nv_1 <= 6*nsig+4
+!      1 <= nv_0 <= nv_1 <= vlevs
 
   z=zero
   do is=1,nscl
-     do k=1,6*nsig+4_i_kind
+     do k=1,vlevs
         do i=nh_0,nh_1
            zsub1(i,k)=zsub(i,k,is)
         end do
@@ -1920,6 +2026,7 @@ subroutine beta12mult(grady)
 !
 ! program history log:
 !   2009-10-12  parrish  initial documentation
+!   2010-03-29  kleist   comment out beta1_inv for SST
 !
 !   input argument list:
 !     grady    - input field  grady_x1 : grady_a_en
@@ -1961,7 +2068,8 @@ subroutine beta12mult(grady)
      grady%step(ii)%p(:)  =beta1_inv*grady%step(ii)%p(:)
      grady%step(ii)%rh(:) =beta1_inv*grady%step(ii)%rh(:)
      grady%step(ii)%oz(:) =beta1_inv*grady%step(ii)%oz(:)
-     grady%step(ii)%sst(:)=beta1_inv*grady%step(ii)%sst(:)
+! Default to static B estimate for SST
+!    grady%step(ii)%sst(:)=beta1_inv*grady%step(ii)%sst(:)
      grady%step(ii)%cw(:) =beta1_inv*grady%step(ii)%cw(:)
 
 !    next multiply by beta2inv:

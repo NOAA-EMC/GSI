@@ -13,6 +13,8 @@ subroutine get_gefs_ensperts_dualres
 !   2010-01-05  kleist, initial documentation
 !   2010-02-17  parrish - make changes to allow dual resolution capability
 !   2010-03-24  derber - use generalized genqsat rather than specialized for this resolution
+!   2010-04-06  parrish - comment out call to ensemble_spread_dualres for now--there is a bug
+!                           and daryl has a newer version which is faster and uses less memory.
 !
 !   input argument list:
 !
@@ -159,7 +161,7 @@ subroutine get_gefs_ensperts_dualres
 
   call mpi_barrier(mpi_comm_world,ierror)
 ! Before converting to perturbations, get ensemble spread
-  call ens_spread_dualres(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
+! call ens_spread_dualres(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
 ! call mpi_barrier(mpi_comm_world,ierror)
 
 ! Convert ensemble members to perturbations

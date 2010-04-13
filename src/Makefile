@@ -213,6 +213,7 @@ clean:
 	compact_diffs.f90 \
 	compute_derived.f90 \
 	compute_fact10.f90 \
+        compute_qvar3d.f90 \
 	constants.f90 \
         control2model.f90 \
         control2state.f90 \
@@ -306,6 +307,7 @@ clean:
         lanczos.F90 \
         looplimits.f90 \
 	m_berror_stats.F90 \
+        m_berror_stats_reg.f90 \
 	m_dgeevx.F90 \
  	m_gsiBiases.F90 \
         m_stats.F90 \
@@ -363,7 +365,6 @@ clean:
 	raflib.f90 \
         rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
-	rdgstat_reg.f90 \
 	read_airs.f90 \
 	read_amsre.f90 \
 	read_avhrr.f90 \

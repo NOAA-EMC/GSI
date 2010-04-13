@@ -128,6 +128,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   2008-12-02  todling - remove omp optimization (sorry, won't fly in this context)
 !                       - revisited split of stpcalc in light of 4dvar merge with May08 version
 !   2009-01-08  todling - remove reference to ozohead
+!   2010-03-25  zhu     - change the interfaces of stprad,stpt,stppcp;add nrf* conditions 
 !
 !   input argument list:
 !     yobs
@@ -156,7 +157,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !
 !$$$
   use kinds, only: r_kind,r_quad
-  use constants, only: ione
+  use constants, only: ione,izero
   use obsmod, only: obs_handle, &
                   & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
@@ -179,6 +180,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
   use stpdwmod, only: stpdw
   use stppcpmod, only: stppcp
   use stpozmod, only: stpoz
+  use control_vectors, only: nrf3_oz,nrf2_sst
   use bias_predictors
   use state_vectors
   implicit none
@@ -204,19 +206,12 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 
 !$omp section
 !   penalty, b, and c for radiances
-    call stprad(yobs%rad,&
-                dval%t,dval%q,dval%oz,dval%u,dval%v,dval%sst, &
-                xval%t,xval%q,xval%oz,xval%u,xval%v,xval%sst, &
-                dbias%predr,xbias%predr,&
+    call stprad(yobs%rad,dval,xval,dbias%predr,xbias%predr,&
                 pbcjo(1,i_rad_ob_type),sges,nstep)
 
 !$omp section
 !   penalty, b, and c for temperature
-    call stpt(yobs%t,&
-              dval%tsen,xval%tsen,dval%t,xval%t,dval%q,xval%q, &
-              dval%u,xval%u,dval%v,xval%v, &
-              dval%p3d,xval%p3d,dval%sst,xval%sst, &
-              pbcjo(1,i_t_ob_type),sges,nstep) 
+    call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep) 
 
 !$omp section
 !   penalty, b, and c for precipitable water
@@ -228,7 +223,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 
 !$omp section
 !   penalty, b, and c for ozone
-    call stpoz(yobs%oz,yobs%o3l,dval%oz,xval%oz,pbcjo(1,i_oz_ob_type),sges,nstep)
+    if (nrf3_oz>izero) call stpoz(yobs%oz,yobs%o3l,dval%oz,xval%oz,pbcjo(1,i_oz_ob_type),sges,nstep)
 
 !$omp section
 !   penalty, b, and c for wind lidar
@@ -252,7 +247,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 
 !$omp section
 !   penalty, b, and c for conventional sst
-    call stpsst(yobs%sst,dval%sst,xval%sst,pbcjo(1,i_sst_ob_type),sges,nstep)
+    if (nrf2_sst>izero) call stpsst(yobs%sst,dval%sst,xval%sst,pbcjo(1,i_sst_ob_type),sges,nstep)
 
 !$omp section
 !   penalty, b, and c for wind speed
@@ -261,10 +256,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 
 !$omp section
 !   penalty, b, and c for precipitation
-    call stppcp(yobs%pcp,&
-                dval%tsen,dval%q,dval%u,dval%v,dval%cw, &
-                xval%tsen,xval%q,xval%u,xval%v,xval%cw, &
-                pbcjo(1,i_pcp_ob_type),sges,nstep)
+    call stppcp(yobs%pcp,dval,xval,pbcjo(1,i_pcp_ob_type),sges,nstep)
 
 !$omp section
 !   penalty, b, and c for surface pressure

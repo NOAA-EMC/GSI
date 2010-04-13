@@ -16,8 +16,12 @@ module control_vectors
 !   2009-09-20  parrish  - add pointer variable a_en to definition of type control_state
 !                           also, add module variables n_ens, nlva_en
 !   2010-02-20  parrish  - add functions dplevs_ens for use with dual-resolution hybrid ensemble option.
+!   2010-03-11  zhu      - add changes for generalizing control variables,i.e.,
+!                          anav_info,nvars,nrf*,allocate_cs,deallocate_cs,
+!                          assign_cs2array,assign_array2cs
 !
 ! subroutines included:
+!   sub anav_info   
 !   sub setup_control_vectors
 !   sub allocate_cv
 !   sub deallocate_cv
@@ -67,7 +71,11 @@ save
 private
 public control_state, control_vector, allocate_cv, deallocate_cv, assignment(=), &
      & dot_product, prt_control_norms, axpy, random_cv, setup_control_vectors, &
-     & write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub
+     & write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub, anav_info,&
+     & allocate_cs, deallocate_cs, assign_cs2array, assign_array2cs
+public nrf_3d,nrf_var,nrf2_loc,nrf3_loc,nrf_tracer,nrf_levb,nrf_leve, &
+     & nrf,nrf2,nrf3,nvars,ntracer,nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw, &
+     & nrf2_ps,nrf2_sst
 
 type control_state
    real(r_kind), pointer :: values(:) => NULL()
@@ -96,6 +104,15 @@ integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens,nlva_en
 logical :: lsqrtb
 
 integer(i_kind) :: m_vec_alloc, max_vec_alloc, m_allocs, m_deallocs
+
+logical,allocatable,dimension(:):: nrf_3d
+character(len=5),allocatable,dimension(:):: nrf_var
+integer(i_kind),allocatable,dimension(:):: nrf2_loc,nrf3_loc
+integer(i_kind),allocatable,dimension(:):: nrf_tracer,nrf_levb,nrf_leve
+integer(i_kind) nrf,nrf2,nrf3,nvars
+integer(i_kind) ntracer
+integer(i_kind) nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw
+integer(i_kind) nrf2_ps,nrf2_sst
 
 logical :: llinit = .false.
 
@@ -194,6 +211,303 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   return
 end subroutine setup_control_vectors
 ! ----------------------------------------------------------------------
+  subroutine anav_info(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    anav_info
+!   prgmmr: zhu          org: np23               date:  2008-03-29
+!
+! abstract: read in control variables information
+!
+! program history log:
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    use kinds, only: i_kind
+    use constants, only: izero,ione
+    implicit none
+
+    character(len=1) cf
+    character(len=5) cvar
+    character(len=120) crecord
+    integer(i_kind) mype,clevs,cuse_idx,ctrace_idx
+    integer(i_kind) lunin,istat,nvar,loc
+
+    lunin = 47
+    open(lunin,file='anavinfo',form='formatted')
+    rewind(lunin)
+
+    nvar=izero
+    nrf2=izero
+    nrf3=izero
+    ntracer=izero
+    read1: do
+       read(lunin,1030,iostat=istat) cf,cvar,crecord
+1030   format(a1,a5,2x,a120)
+       if (istat /= izero) exit
+       if (cf == '!')cycle
+
+       read(crecord,*) cuse_idx,clevs,ctrace_idx
+       if (cuse_idx < izero) cycle
+       nvar=nvar+ione
+       if (clevs > ione) then
+          nrf3=nrf3+ione
+       else
+          nrf2=nrf2+ione
+       end if
+       if (ctrace_idx > izero) ntracer=ntracer+ione
+    enddo read1
+    if (istat>izero) then
+       write(6,*)'ANAV_INFO:  ***ERROR*** error reading anavinfo, istat=',istat
+    end if
+
+    if (nvar==izero) then
+       write(6,*)'ANAV_INFO: NO CONTROL VARIABLES ARE SPECIFIED'
+       write(6,*)'ANAV_INFO: stop'
+       call stop2(76)
+    end if
+
+!   Allocate and initialize
+    nrf=nvar
+    allocate(nrf_var(nrf),nrf_3d(nrf),nrf_levb(nrf),nrf_leve(nrf))
+    allocate(nrf2_loc(nrf2),nrf3_loc(nrf3),nrf_tracer(ntracer))
+    nrf_3d=.false.
+    nrf_var=' '
+    nrf_levb=-ione
+    nrf_leve=-ione
+    nrf2_loc=-ione
+    nrf3_loc=-ione
+    nrf_tracer=-ione
+
+!   Read in analysis variables
+    nvar=izero
+    nrf2=izero
+    nrf3=izero
+    ntracer=izero
+    rewind(lunin)
+    read2: do
+       read(lunin,1031,iostat=istat) cf,cvar,crecord
+1031   format(a1,a5,2x,a120)
+       if (istat /= izero) exit
+       if (cf == '!')cycle
+
+       read(crecord,*) cuse_idx,clevs,ctrace_idx
+       if (cuse_idx < izero) cycle
+       nvar=nvar+ione
+       nrf_var(nvar)=cvar
+
+       if (clevs > ione) then
+          nrf_3d(nvar)=.true.
+          nrf3=nrf3+ione
+          nrf3_loc(nrf3)=nvar
+       else
+          nrf2=nrf2+ione
+          nrf2_loc(nrf2)=nvar
+       end if
+       if (ctrace_idx > izero) then
+          ntracer=ntracer+ione
+          nrf_tracer(ntracer)=nvar
+       end if
+    enddo read2
+    close(lunin)
+
+    nrf3_sf=-ione
+    nrf3_vp=-ione
+    nrf3_t=-ione
+    nrf3_q=-ione
+    nrf3_oz=-ione
+    nrf3_cw=-ione
+    nrf2_ps=-ione
+    nrf2_sst=-ione
+    do nvar=1,nrf3
+       loc=nrf3_loc(nvar)
+       cvar=nrf_var(loc)
+       select case(cvar)
+               case ('sf','SF'); nrf3_sf=nvar
+               case ('vp','VP'); nrf3_vp=nvar
+               case ('t','T')  ; nrf3_t=nvar
+               case ('q','Q')  ; nrf3_q=nvar
+               case ('oz','OZ'); nrf3_oz=nvar
+               case ('cw','CW'); nrf3_cw=nvar
+       end select
+    end do
+    do nvar=1,nrf2
+       loc=nrf2_loc(nvar)
+       cvar=nrf_var(loc)
+       select case(cvar)
+               case ('sst','SST'); nrf2_sst=nvar
+               case ('ps','PS'); nrf2_ps=nvar
+       end select
+    end do
+
+    if (nrf2_sst>izero) then
+       nvars=nrf+2_i_kind
+    else
+       nvars=nrf
+    end if
+
+    if (mype==0) then
+       write(6,*) 'ANAV_INFO: CONTROL VARIABLES ARE ', (nrf_var(nvar),nvar=1,nrf)
+    end if
+
+    return
+  end subroutine anav_info
+
+! ----------------------------------------------------------------------
+subroutine allocate_cs(ycs)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    allocate_cs
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2010-02-25  zhu     - use for control state
+!
+!   input argument list:
+!
+!   output argument list:
+!    ycv
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+  type(control_state), intent(  out) :: ycs
+  character(len=5) cvar
+  integer(i_kind) :: ii,n,ngrid
+
+  ALLOCATE(ycs%values(nval_len))
+
+  ii=izero
+  if (lsqrtb) then
+     do n=1,nrf
+        cvar=nrf_var(n)
+        select case(cvar)
+           case('sf','SF')
+              ycs%st  => NULL()
+           case('vp','VP')
+              ycs%vp  => NULL()
+           case('t','T')
+              ycs%t   => NULL()
+           case('q','Q')
+              ycs%rh  => NULL()
+           case('oz','OZ')
+              ycs%oz  => NULL()
+           case('cw','CW')
+              ycs%cw  => NULL()
+           case('ps','PS')
+               ycs%p   => NULL()
+           case('sst','SST')
+              ycs%sst => NULL()
+           case default
+              write(6,*) 'allocate_cs: ERROR, unrecognized control variable ',cvar
+              call stop2(100)
+        end select
+        ii=ii+ngrid
+     end do
+  else
+     do n=1,nrf
+        if (nrf_3d(n)) then
+           ngrid=latlon1n
+        else
+           ngrid=latlon11
+        end if
+
+        cvar=nrf_var(n)
+        select case(cvar)
+           case('sf','SF')
+              ycs%st  => ycs%values(ii+ione:ii+ngrid)
+           case('vp','VP')
+              ycs%vp  => ycs%values(ii+ione:ii+ngrid)
+           case('t','T')
+              ycs%t   => ycs%values(ii+ione:ii+ngrid)
+           case('q','Q')
+              ycs%rh  => ycs%values(ii+ione:ii+ngrid)
+           case('oz','OZ')
+              ycs%oz  => ycs%values(ii+ione:ii+ngrid)
+           case('cw','CW')
+              ycs%cw  => ycs%values(ii+ione:ii+ngrid)
+           case('ps','PS')
+              ycs%p   => ycs%values(ii+ione:ii+ngrid)
+           case('sst','SST')
+              ycs%sst => ycs%values(ii+ione:ii+ngrid)
+           case default
+              write(6,*) 'allocate_cs: ERROR, unrecognized control variable ',cvar
+              call stop2(100)
+        end select
+        ii=ii+ngrid
+     end do
+     if(n_ens >  izero) then
+        ycs%a_en => ycs%values(ii+1:ii+n_ens*latlon1n)
+        ii=ii+n_ens*latlon1n
+     end if
+  endif
+
+  m_allocs=m_allocs+ione
+
+  return
+end subroutine allocate_cs
+
+! ----------------------------------------------------------------------
+subroutine deallocate_cs(ycs)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    deallocate_cs
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2010-03-11 zhu - for control state
+!
+!   input argument list:
+!    yst
+!
+!   output argument list:
+!    ycs
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
+  type(control_state), intent(inout) :: ycs
+  integer n 
+
+  do n=1,nrf
+     select case(trim(nrf_var(n)))
+        case('sf','SF') ;  NULLIFY(ycs%st )
+        case('vp','VP') ;  NULLIFY(ycs%vp )
+        case('t','T')   ;  NULLIFY(ycs%t  )
+        case('q','Q') ;  NULLIFY(ycs%rh )
+        case('oz','OZ') ;  NULLIFY(ycs%oz )
+        case('cw','CW') ;  NULLIFY(ycs%cw )
+        case('ps','PS')   ;  NULLIFY(ycs%p  )
+        case('sst','SST'); NULLIFY(ycs%sst)
+     end select
+  end do
+
+  if(n_ens >  izero) NULLIFY(ycs%a_en)
+  DEALLOCATE(ycs%values)
+
+  m_deallocs=m_deallocs+ione
+  return
+end subroutine deallocate_cs
+
+! ----------------------------------------------------------------------
 subroutine allocate_cv(ycv)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -207,6 +521,7 @@ subroutine allocate_cv(ycv)
 !   2009-09-20  parrish - add optional allocation of hybrid ensemble control variable a_en
 !   2010-02-20  parrish - add structure variable grd_ens as part of changes for dual-resolution
 !                           hybrid ensemble system.
+!   2010-02-25  zhu     - use nrf_var and nrf_3d to specify the order control variables
 !
 !   input argument list:
 !
@@ -222,7 +537,8 @@ subroutine allocate_cv(ycv)
   use hybrid_ensemble_parameters, only: grd_ens
   implicit none
   type(control_vector), intent(  out) :: ycv
-  integer(i_kind) :: ii,jj
+  character(len=5) cvar
+  integer(i_kind) :: ii,jj,n,ngrid
 
   if (ycv%lallocated) then
      write(6,*)'allocate_cv: vector already allocated'
@@ -239,32 +555,63 @@ subroutine allocate_cv(ycv)
      ycv%step(jj)%values => ycv%values(ii+ione:ii+nval_len)
 
      if (lsqrtb) then
-        ycv%step(jj)%st  => NULL()
-        ycv%step(jj)%vp  => NULL()
-        ycv%step(jj)%t   => NULL()
-        ycv%step(jj)%rh  => NULL()
-        ycv%step(jj)%oz  => NULL()
-        ycv%step(jj)%cw  => NULL()
-        ycv%step(jj)%p   => NULL()
-        ycv%step(jj)%sst => NULL()
+        do n=1,nrf
+           cvar=nrf_var(n)
+           select case(cvar)
+              case('sf','SF')
+                 ycv%step(jj)%st  => NULL()
+              case('vp','VP')
+                 ycv%step(jj)%vp  => NULL()
+              case('t','T')
+                 ycv%step(jj)%t   => NULL()
+              case('q','Q')
+                 ycv%step(jj)%rh  => NULL()
+              case('oz','OZ')
+                 ycv%step(jj)%oz  => NULL()
+              case('cw','CW')
+                 ycv%step(jj)%cw  => NULL()
+              case('ps','PS')
+                 ycv%step(jj)%p   => NULL()
+              case('sst','SST')
+                 ycv%step(jj)%sst => NULL()
+              case default
+                 write(6,*) 'allocate_cv: ERROR, unrecognized control variable ',cvar
+                 call stop2(100)
+           end select
+        end do
         ii=ii+nval_len
      else
-        ycv%step(jj)%st  => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%vp  => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%t   => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%rh  => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%oz  => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%cw  => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%p   => ycv%values(ii+ione:ii+latlon11)
-        ii=ii+latlon11
-        ycv%step(jj)%sst => ycv%values(ii+ione:ii+latlon11)
-        ii=ii+latlon11
+        do n=1,nrf
+           if (nrf_3d(n)) then 
+              ngrid=latlon1n
+           else
+              ngrid=latlon11
+           end if
+
+           cvar=nrf_var(n)
+           select case(cvar)
+              case('sf','SF')
+                 ycv%step(jj)%st  => ycv%values(ii+ione:ii+ngrid)
+              case('vp','VP')
+                 ycv%step(jj)%vp  => ycv%values(ii+ione:ii+ngrid)
+              case('t','T')
+                 ycv%step(jj)%t   => ycv%values(ii+ione:ii+ngrid)
+              case('q','Q')
+                 ycv%step(jj)%rh  => ycv%values(ii+ione:ii+ngrid)
+              case('oz','OZ')
+                 ycv%step(jj)%oz  => ycv%values(ii+ione:ii+ngrid)
+              case('cw','CW')
+                 ycv%step(jj)%cw  => ycv%values(ii+ione:ii+ngrid)
+              case('ps','PS')
+                 ycv%step(jj)%p   => ycv%values(ii+ione:ii+ngrid)
+              case('sst','SST')
+                 ycv%step(jj)%sst => ycv%values(ii+ione:ii+ngrid)
+              case default
+                 write(6,*) 'allocate_cv: ERROR, unrecognized control variable ',cvar
+                 call stop2(100)
+           end select
+           ii=ii+ngrid
+        end do
         if(n_ens >  izero) then
            ycv%step(jj)%a_en => ycv%values(ii+1:ii+n_ens*grd_ens%latlon1n)
            ii=ii+n_ens*grd_ens%latlon1n
@@ -300,6 +647,7 @@ subroutine deallocate_cv(ycv)
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
 !   2009-09-20  parrish - add optional removal of pointer to hybrid ensemble control variable a_en
+!   2010-02-25  zhu     - add flexibility to control variable
 !
 !   input argument list:
 !    ycv
@@ -315,18 +663,23 @@ subroutine deallocate_cv(ycv)
 
   implicit none
   type(control_vector), intent(inout) :: ycv
-  integer(i_kind) :: ii
+  integer(i_kind) :: ii,n
 
   if (ycv%lallocated) then
      do ii=1,nsubwin
-        NULLIFY(ycv%step(ii)%st )
-        NULLIFY(ycv%step(ii)%vp )
-        NULLIFY(ycv%step(ii)%t  )
-        NULLIFY(ycv%step(ii)%rh )
-        NULLIFY(ycv%step(ii)%oz )
-        NULLIFY(ycv%step(ii)%cw )
-        NULLIFY(ycv%step(ii)%p  )
-        NULLIFY(ycv%step(ii)%sst)
+        do n=1,nrf
+           select case(trim(nrf_var(n)))
+              case('sf','SF') ;  NULLIFY(ycv%step(ii)%st )
+              case('vp','VP') ;  NULLIFY(ycv%step(ii)%vp )
+              case('t','T')   ;  NULLIFY(ycv%step(ii)%t  )
+              case('q','Q') ;  NULLIFY(ycv%step(ii)%rh )
+              case('oz','OZ') ;  NULLIFY(ycv%step(ii)%oz )
+              case('cw','CW') ;  NULLIFY(ycv%step(ii)%cw )
+              case('ps','PS')   ;  NULLIFY(ycv%step(ii)%p  )
+              case('sst','SST'); NULLIFY(ycv%step(ii)%sst)
+           end select
+        end do
+
         if(n_ens >  izero) NULLIFY(ycv%step(ii)%a_en)
      end do
      NULLIFY(ycv%predr)
@@ -511,6 +864,112 @@ subroutine assign_cv2array(parray,ycv)
   return
 end subroutine assign_cv2array
 ! ----------------------------------------------------------------------
+ subroutine assign_array2cs(ycs,st,vp,t,rh,oz,cw,ps,sst)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    assign_array2cs
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2010-03-15  zhu
+!
+!   input argument list:
+!    ycs
+!
+!   output argument list:
+!    st,vp,t,q,oz,cw,ps,sst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use gridmod, only: latlon1n,latlon11
+  implicit none
+
+  real(r_kind),dimension(latlon1n),intent(in) :: st,vp,t,rh,oz,cw
+  real(r_kind),dimension(latlon11),intent(in) :: ps
+  real(r_kind),dimension(latlon11),optional,intent(in) :: sst
+  type(control_state),intent(inout) :: ycs
+  integer(i_kind) :: ii
+
+!$omp parallel do
+  DO ii=1,latlon1n
+     ycs%st(ii)=st(ii)
+     ycs%vp(ii)=vp(ii)
+     ycs%t(ii)=t(ii)
+     ycs%rh(ii)=rh(ii)
+     if (nrf3_oz>izero) ycs%oz(ii)=oz(ii)
+     if (nrf3_cw>izero) ycs%cw(ii)=cw(ii)
+  ENDDO
+!$omp end parallel do
+
+!$omp parallel do
+  DO ii=1,latlon11
+     ycs%p(ii)=ps(ii)
+     if (present(sst) .and. nrf2_sst>izero) ycs%sst(ii)=sst(ii)
+  ENDDO
+!$omp end parallel do
+
+  return
+end subroutine assign_array2cs
+
+! ----------------------------------------------------------------------
+ subroutine assign_cs2array(ycs,st,vp,t,rh,oz,cw,ps,sst)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    assign_cs2array
+!   prgmmr:                  org:                     date:
+!
+! abstract:
+!
+! program history log:
+!   2010-03-15  zhu
+!
+!   input argument list:
+!    ycs
+!
+!   output argument list:
+!    st,vp,t,q,oz,cw,ps,sst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use gridmod, only: latlon1n,latlon11
+  implicit none
+
+  type(control_state),intent(in) :: ycs
+  real(r_kind),dimension(latlon1n),intent(out) :: st,vp,t,rh,oz,cw
+  real(r_kind),dimension(latlon11),intent(out) :: ps
+  real(r_kind),dimension(latlon11),optional,intent(out) :: sst
+  integer(i_kind) :: ii
+
+!$omp parallel do
+  DO ii=1,latlon1n
+     st(ii)=ycs%st(ii)
+     vp(ii)=ycs%vp(ii)
+      t(ii)=ycs%t(ii)
+     rh(ii)=ycs%rh(ii)
+     if (nrf3_oz>izero) oz(ii)=ycs%oz(ii)
+     if (nrf3_cw>izero) cw(ii)=ycs%cw(ii)
+  ENDDO
+!$omp end parallel do
+
+!$omp parallel do
+  DO ii=1,latlon11
+     ps(ii)=ycs%p(ii)
+     if (present(sst) .and. nrf2_sst>izero) sst(ii)=ycs%sst(ii)
+  ENDDO
+!$omp end parallel do
+
+  return
+end subroutine assign_cs2array
+
+! ----------------------------------------------------------------------
 real(r_quad) function dplevs(nlevs,dx,dy)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -641,10 +1100,10 @@ subroutine ddot_prod_vars(xcv,ycv,prods)
         zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
         zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
         zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
+        if (nrf3_oz>izero) zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
+        if (nrf3_cw>izero) zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
         zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+        if (nrf2_sst>izero) zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
         if(n_ens >  izero) &
         zz(ii) = zz(ii) + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
      end do
@@ -708,10 +1167,10 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
         qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
         qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
         qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
+        if (nrf3_oz>izero) qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
+        if (nrf3_cw>izero) qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
         qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-        qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+        if (nrf2_sst>izero) qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
         if(n_ens >  izero) &
         qdot_prod_sub = qdot_prod_sub + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
      end do
@@ -774,10 +1233,10 @@ subroutine qdot_prod_vars(xcv,ycv,qprods)
         zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
         zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
         zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
+        if (nrf3_oz>izero) zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
+        if (nrf3_cw>izero) zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
         zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+        if (nrf2_sst>izero) zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
         if(n_ens >  izero) &
         zz(ii) = zz(ii) + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
      end do
@@ -850,10 +1309,13 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
            zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
            zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
            zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
+           if (nrf3_oz>izero) &
            zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
+           if (nrf3_cw>izero) &
            zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
            zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-           zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+           if (nrf2_sst>izero) &
+           zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
         end do
      end if
      if(trim(eb) == 'cost_e') then

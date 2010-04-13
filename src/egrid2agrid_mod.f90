@@ -12,6 +12,9 @@ module egrid2agrid_mod
 ! program history log:
 !   2010-02-05  parrish, initial documentation
 !   2010-03-04  parrish - add ability to interpolate from full global grid to general collecition of points.
+!   2010-04-06  parrish - in subroutine get_3ops, correct for possible divide by zero when obtaining
+!                          normalized adjoint interpolation weights, used for smoothing interpolation
+!                          from fine to coarse grid.
 !
 ! subroutines included:
 !   sub init_egrid2agrid         - initialize interpolation variables and constants to defaults
@@ -190,6 +193,8 @@ module egrid2agrid_mod
 !   2010-02-06  parrish, initial documentation
 !   2010-03-09  parrish - add optional logical variable e2a_only, which if true, only compute 
 !                          egrid to agrid interpolation operator.
+!   2010-04-06  parrish - correct for possible divide by zero when obtaining normalized adjoint
+!                          interpolation weights, used for smoothing interpolation from fine to coarse grid.
 !
 !   input argument list:
 !     e2a           - structure variable with previous/default interpolation information
@@ -339,9 +344,8 @@ module egrid2agrid_mod
          do i=1,e2a%ntwin(j)
             workc(j)=workc(j)+e2a%twin(i,j)
          end do
-         workc(j)=one/workc(j)
          do i=1,e2a%ntwin(j)
-            e2a%swin(i,j)=workc(j)*e2a%twin(i,j)
+            e2a%swin(i,j)=workc(j)*e2a%twin(i,j)/workc(j)
          end do
       end do
 

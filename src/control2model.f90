@@ -13,6 +13,7 @@ subroutine control2model(xhat,sval,bval)
 !   2008-12-29  todling  - add call to strong balance contraint
 !   2009-04-21  derber   - modify call to getuv to getuv(*,0)
 !   2009-08-14  lueken   - update documentation
+!   2010-03-15  zhu      - make changes to ckbcov, add assign_cs2array
 !
 !   input argument list:
 !     xhat - Control variable
@@ -47,6 +48,7 @@ type(predictors)    , intent(inout) :: bval
 
 ! Declare local variables  	
 real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
+type(control_state) :: cstate
 integer(i_kind) :: ii,jj
 
 !******************************************************************************
@@ -67,9 +69,11 @@ do jj=1,nsubwin
 !  -----------------------------------------------------------------------------
 !  Apply sqrt of variance, as well as vertical & horizontal parts of background
 !  error
-   call ckgcov(xhat%step(jj)%values(:),workst,workvp, &
-               sval(jj)%t,sval(jj)%p,workrh,sval(jj)%oz, &
-               sval(jj)%sst,sval(jj)%cw,nnnn1o)
+   call allocate_cs(cstate)
+   call ckgcov(xhat%step(jj)%values(:),cstate,nnnn1o)
+   call assign_cs2array(cstate,workst,workvp,sval(jj)%t,workrh, &
+                  sval(jj)%oz,sval(jj)%cw,sval(jj)%p,sval(jj)%sst)
+   call deallocate_cs(cstate)
 
 !  Balance equation
    call balance(sval(jj)%t,sval(jj)%p,workst,workvp,fpsproj)

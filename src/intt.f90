@@ -34,7 +34,8 @@ end interface
 
 contains
 
-subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
+subroutine intt_(thead,rval,sval)
+!subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intt        apply nonlin qc observation operator for temps
@@ -66,6 +67,8 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
 !   2007-07-09  tremolet - observation sensitivity
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2008-11-26  Todling - turned FOTO optional; changed ptr%time handle
+!   2010-03-25  zhu  - use state_vector in the interface; 
+!                    - add nrf2_sst case; add pointer_state
 !
 !   input argument list:
 !     thead    - obs type pointer to obs structure
@@ -99,22 +102,27 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,zero,izero,tiny_r_kind,cg_term,r3600
   use obsmod, only: t_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n,latlon11,latlon1n1
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt,pointer_state
+  use control_vectors, only: nrf2_sst
+  use state_vectors
   implicit none
   
 
 ! Declare passed variables
-  type(t_ob_type),pointer          ,intent(in   ) :: thead
-  real(r_kind),dimension(latlon1n) ,intent(in   ) :: st,stv,sq,su,sv
-  real(r_kind),dimension(latlon11) ,intent(in   ) :: ssst
-  real(r_kind),dimension(latlon1n1),intent(in   ) :: sp
-  real(r_kind),dimension(latlon1n) ,intent(inout) :: rt,rtv,rq,ru,rv
-  real(r_kind),dimension(latlon11) ,intent(inout) :: rsst
-  real(r_kind),dimension(latlon1n1),intent(inout) :: rp
+  type(t_ob_type),pointer,intent(in) :: thead
+  type(state_vector),intent(in     ) :: sval
+  type(state_vector),intent(inout  ) :: rval
+
+  real(r_kind),dimension(:),pointer :: st,stv,sq,su,sv
+  real(r_kind),dimension(:),pointer :: ssst
+  real(r_kind),dimension(:),pointer :: sp
+  real(r_kind),dimension(:),pointer :: rt,rtv,rq,ru,rv
+  real(r_kind),dimension(:),pointer :: rsst
+  real(r_kind),dimension(:),pointer :: rp
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
@@ -126,6 +134,10 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
   real(r_kind) qs_prime0,tg_prime0,ts_prime0,psfc_prime0
   real(r_kind) us_prime0,vs_prime0
   type(t_ob_type), pointer :: tptr
+
+! prepare pointers
+  call pointer_state(sval,tsen=st,t=stv,q=sq,u=su,v=sv,p3d=sp,sst=ssst)
+  call pointer_state(rval,tsen=rt,t=rtv,q=rq,u=ru,v=rv,p3d=rp,sst=rsst)
 
   time_t=zero
   tptr => thead
@@ -158,7 +170,11 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
         else
            ts_prime0=w1*st(j1)+w2*st(j2)+w3*st(j3)+w4*st(j4)
         end if 
-        tg_prime0=w1* ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
+        if (nrf2_sst>izero) then 
+           tg_prime0=w1* ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
+        else 
+           tg_prime0=zero
+        end if
         qs_prime0=w1*   sq(j1)+w2*  sq(j2)+w3*  sq(j3)+w4*  sq(j4)
         us_prime0=w1*   su(j1)+w2*  su(j2)+w3*  su(j3)+w4*  su(j4)
         vs_prime0=w1*   sv(j1)+w2*  sv(j2)+w3*  sv(j3)+w4*  sv(j4)
@@ -266,11 +282,13 @@ subroutine intt_(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst)
            rq(j2)=rq(j2)+w2*qs_grad
            rq(j3)=rq(j3)+w3*qs_grad
            rq(j4)=rq(j4)+w4*qs_grad
-           tg_grad  =tptr%tlm_tsfc(2)*grad
-           rsst(j1)=rsst(j1)+w1*tg_grad
-           rsst(j2)=rsst(j2)+w2*tg_grad
-           rsst(j3)=rsst(j3)+w3*tg_grad
-           rsst(j4)=rsst(j4)+w4*tg_grad
+           if (nrf2_sst>izero) then
+              tg_grad  =tptr%tlm_tsfc(2)*grad
+              rsst(j1)=rsst(j1)+w1*tg_grad
+              rsst(j2)=rsst(j2)+w2*tg_grad
+              rsst(j3)=rsst(j3)+w3*tg_grad
+              rsst(j4)=rsst(j4)+w4*tg_grad
+           end if
            if (l_foto) then
               dhat_dt%p3d(j1)=dhat_dt%p3d(j1)+w1*psfc_grad*time_t
               dhat_dt%p3d(j2)=dhat_dt%p3d(j2)+w2*psfc_grad*time_t

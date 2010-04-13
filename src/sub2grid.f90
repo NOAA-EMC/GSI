@@ -1,4 +1,4 @@
-subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
+subroutine sub2grid(workin,cstate,sst,slndt,sicet,iflg)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    sub2grid adjoint of grid2sub
@@ -41,22 +41,22 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
   use mpimod, only: irdsp_g,ircnt_g,iscnt_g,isdsp_g,&
        ierror,mpi_comm_world,mpi_rtype
   use gridmod, only: itotsub,lat1,lon1,lat2,lon2,iglobal,&
-       nlat,nlon,nsig,ltosi,ltosj,nsig1o,nnnn1o,&
-       strip,strip_periodic,reorder
+       nlat,nlon,nsig,ltosi,ltosj,nsig1o,nnnn1o,vlevs,strip,strip_periodic,reorder
   use jfunc, only: nsstsm,nozsm,nsltsm,ncwsm,nsitsm,nvpsm,nstsm,&
        npsm,nqsm,ntsm
-  use constants, only: ione,zero
+  use constants, only: ione,izero,zero
+  use control_vectors
   implicit none
 
 ! Declare passed variables
   integer(i_kind)                         ,intent(in   ) :: iflg
-  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: p,sst,slndt,sicet
-  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: t,q,oz,cwmr,vp,st
+  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: sst,slndt,sicet
   real(r_kind),dimension(nlat,nlon,nnnn1o),intent(  out) :: workin
+  type(control_state)                     ,intent(in   ) :: cstate
 
 ! Declare local variables
   integer(i_kind) j,k,l,ni1,ni2
-  real(r_kind),dimension(lat1*lon1*(nsig*6+4_i_kind)):: xhatsm
+  real(r_kind),dimension(lat1*lon1*vlevs):: xhatsm
   real(r_kind),dimension(max(iglobal,itotsub),nsig1o):: work1  !  contain nsig1o slab of any variables
 
 ! Initialize variables
@@ -70,30 +70,36 @@ subroutine sub2grid(workin,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
 ! do k=1,lat1*lon1*(nsig*6+4_i_kind)
 !    xhatsm(k)=zero
 ! end do
+  xhatsm=zero
+  workin=zero
 
 ! strip off boundary points and load vector for communication
   if (iflg==ione) then
-     call strip(st   ,xhatsm(nstsm) ,nsig)
-     call strip(vp   ,xhatsm(nvpsm) ,nsig)
-     call strip(p    ,xhatsm(npsm)  ,ione)
-     call strip(t    ,xhatsm(ntsm)  ,nsig)
-     call strip(q    ,xhatsm(nqsm)  ,nsig)
-     call strip(oz   ,xhatsm(nozsm) ,nsig)
-     call strip(sst  ,xhatsm(nsstsm),ione)
-     call strip(slndt,xhatsm(nsltsm),ione)
-     call strip(sicet,xhatsm(nsitsm),ione)
-     call strip(cwmr ,xhatsm(ncwsm) ,nsig)
+     call strip(cstate%st   ,xhatsm(nstsm) ,nsig)
+     call strip(cstate%vp   ,xhatsm(nvpsm) ,nsig)
+     call strip(cstate%p    ,xhatsm(npsm)  ,ione)
+     call strip(cstate%t    ,xhatsm(ntsm)  ,nsig)
+     call strip(cstate%rh   ,xhatsm(nqsm)  ,nsig)
+     if (nrf3_oz>izero) call strip(cstate%oz,xhatsm(nozsm),nsig)
+     if (nrf2_sst>izero) then
+        call strip(sst  ,xhatsm(nsstsm),ione)
+        call strip(slndt,xhatsm(nsltsm),ione)
+        call strip(sicet,xhatsm(nsitsm),ione)
+     end if
+     if (nrf3_cw>izero) call strip(cstate%cw ,xhatsm(ncwsm) ,nsig)
   elseif (iflg==2_i_kind) then
-     call strip_periodic(st   ,xhatsm(nstsm) ,nsig)
-     call strip_periodic(vp   ,xhatsm(nvpsm) ,nsig)
-     call strip_periodic(p    ,xhatsm(npsm)  ,ione)
-     call strip_periodic(t    ,xhatsm(ntsm)  ,nsig)
-     call strip_periodic(q    ,xhatsm(nqsm)  ,nsig)
-     call strip_periodic(oz   ,xhatsm(nozsm) ,nsig)
-     call strip_periodic(sst  ,xhatsm(nsstsm),ione)
-     call strip_periodic(slndt,xhatsm(nsltsm),ione)
-     call strip_periodic(sicet,xhatsm(nsitsm),ione)
-     call strip_periodic(cwmr ,xhatsm(ncwsm) ,nsig)
+     call strip_periodic(cstate%st   ,xhatsm(nstsm) ,nsig)
+     call strip_periodic(cstate%vp   ,xhatsm(nvpsm) ,nsig)
+     call strip_periodic(cstate%p    ,xhatsm(npsm)  ,ione)
+     call strip_periodic(cstate%t    ,xhatsm(ntsm)  ,nsig)
+     call strip_periodic(cstate%rh   ,xhatsm(nqsm)  ,nsig)
+     if (nrf3_oz>izero) call strip_periodic(cstate%oz,xhatsm(nozsm),nsig)
+     if (nrf2_sst>izero) then
+        call strip_periodic(sst  ,xhatsm(nsstsm),ione)
+        call strip_periodic(slndt,xhatsm(nsltsm),ione)
+        call strip_periodic(sicet,xhatsm(nsitsm),ione)
+     end if
+     if (nrf3_cw>izero) call strip_periodic(cstate%cw ,xhatsm(ncwsm) ,nsig)
   else
      write(6,*)'SUB2GRID:  ***ERROR*** iflg=',iflg,' is an illegal value'
   endif

@@ -44,6 +44,7 @@ module gridmod
 !   2010-03-09  parrish - add logical flag check_gfs_ozone_date--if true, date check against analysis time
 !   2010-03-10  lueken  - remove hires_b variables, section, and subroutines
 !   2010-03-15  parrish - add logical flag regional_ozone to turn on ozone in regional analysis
+!   2010-03-10  zhu     - make variable vlevs public and general
 !   2010-03-30  treadon - move jcap, jcap_b, hires_b, and spectral transform initialization and
 !                         destroy from specmod to gridmod; add grd_a and grd_b structures
 !   2010-04-01  treadon - move routines reorder, reorder2, strip_single, strip,
@@ -96,7 +97,7 @@ module gridmod
   public :: ltosj,ltosi,bk5,regional,latlon11,latlon1n,twodvar_regional
   public :: netcdf,nems_nmmb_regional,wrf_mass_regional,wrf_nmm_regional
   public :: aeta2_ll,pdtop_ll,pt_ll,eta1_ll,eta2_ll,aeta1_ll,idsl5,ck5,ak5
-  public :: tref5,idvc5,nlayers,msig,jstart,istart,region_lat,nsig1o,rlats
+  public :: tref5,idvc5,nlayers,msig,jstart,istart,region_lat,vlevs,nsig1o,rlats
   public :: region_dy,region_dx,region_lon,rlat_min_dd,rlat_max_dd,rlon_max_dd
   public :: rlon_min_dd,coslon,sinlon,rlons,ird_s,irc_s,periodic,idthrm5
   public :: cp5,idvm5,ncep_sigio,ncepgfs_head,idpsfc5,nlon_sfc,nlat_sfc
@@ -138,6 +139,7 @@ module gridmod
                                !   'NEW' for new vertical coordinate definition
                                !                new def: p = eta1*pdtop+eta2*(psfc-ptop)+ptop
 
+  integer(i_kind) vlevs             ! no. of levels distributed on all processors
   integer(i_kind) nsig1o            ! max no. of levels distributed on each processor
   integer(i_kind) nnnn1o            ! actual of levels distributed on current processor
   integer(i_kind) nlat              ! no. of latitudes
@@ -413,7 +415,7 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine init_grid_vars(jcap,npe,mype)
+  subroutine init_grid_vars(jcap,npe,nrf3,nvars)
 
 ! !USES:
 
@@ -424,6 +426,8 @@ contains
 
    integer(i_kind),intent(in   ) :: jcap   ! spectral truncation
    integer(i_kind),intent(in   ) :: npe    ! number of mpi tasks
+   integer(i_kind),intent(in   ) :: nvars
+   integer(i_kind),intent(in   ) :: nrf3
    integer(i_kind),intent(in   ) :: mype   ! mpi task id
 
 ! !DESCRIPTION: set grid related variables (post namelist read)
@@ -433,6 +437,7 @@ contains
 !   2004-05-13  kleist, documentation
 !   2004-07-15  todling, protex-compliant prologue
 !   2005-06-01  treadon - add computation of msig
+!   2010-03-15  zhu - add nrf3 and nvars for generalized control variable
 !
 !   input argument list:
 !
@@ -447,7 +452,7 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-    integer(i_kind) vlevs,k,nlon_b,inner_vars,num_fields
+    integer(i_kind) k,nlon_b,inner_vars,num_fields
     logical,allocatable,dimension(:):: vector
 
     if(jcap==62_i_kind) gencode=80.0_r_kind
@@ -465,7 +470,7 @@ contains
 
 ! Initialize nsig1o to distribute levs/variables
 ! as evenly as possible over the tasks
-    vlevs=(6*nsig)+4_i_kind
+    vlevs=(nrf3*nsig)+nvars-nrf3
     nsig1o=vlevs/npe
     if(mod(vlevs,npe)/=izero) nsig1o=nsig1o+ione
     nnnn1o=nsig1o                  ! temporarily set the number of levels to nsig1o

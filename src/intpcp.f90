@@ -35,7 +35,7 @@ end interface
 
 contains
 
-subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
+subroutine intpcp_(pcphead,rval,sval)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -68,6 +68,9 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
 !                        - turn FOTO optional; changed ptr%time handle
 !                        - internal copy of pred's to avoid reshape in calling program
 !   2009-01-26 todling   - bug fix in linearlization 
+!   2010-03-25 zhu       - use state_vector in the interface for generalizing control variable
+!                        - add treatment when cw is not control variable
+!                        - use pointer_state
 !
 !   input argument list:
 !     pcphead  - obs type pointer to obs structure
@@ -98,17 +101,19 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
   use obsmod, only: pcp_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use pcpinfo, only: npcptype,npredp,b_pcp,pg_pcp,tinym1_obs
-  use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
+  use constants, only: izero,zero,one,half,tiny_r_kind,cg_term,r3600
   use gridmod, only: nsig,latlon11,latlon1n
   use gsi_4dvar, only: ltlint
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt,pointer_state
+  use control_vectors, only: nrf3_cw
+  use state_vectors
   implicit none
 
 ! Declare passed variables
-  type(pcp_ob_type),pointer       ,intent(in   ) :: pcphead
-  real(r_kind),dimension(latlon1n),intent(in   ) :: st,sq,su,sv,scwm
-  real(r_kind),dimension(latlon1n),intent(inout) :: rt,rq,ru,rv,rcwm
-  
+  type(pcp_ob_type),pointer,intent(in) :: pcphead
+  type(state_vector), intent(in   ) :: sval
+  type(state_vector), intent(inout) :: rval
+
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,nq,nu,nv,ncwm,n,nt,kx
   real(r_kind) dt,dq,du,dv,dcwm,dcwm_ad,termges_ad,w1,w2,w3,w4
@@ -116,6 +121,13 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
   real(r_kind) obsges,termges,time_pcp,termges_tl,pcp_ges_tl,pcp_cur,termcur
   real(r_kind) cg_pcp,p0,wnotgross,wgross
   type(pcp_ob_type), pointer :: pcpptr
+
+  real(r_kind),pointer,dimension(:):: st,sq,su,sv,scwm
+  real(r_kind),pointer,dimension(:):: rt,rq,ru,rv,rcwm
+  
+! Prepare pointers
+  call pointer_state(sval,u=su,v=sv,tsen=st,q=sq,cw=scwm)
+  call pointer_state(rval,u=ru,v=rv,tsen=rt,q=rq,cw=rcwm)
 
   pcpptr => pcphead
   do while(associated(pcpptr))
@@ -138,8 +150,12 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
         dq = w1* sq(j1)+w2* sq(j2)+ w3* sq(j3)+w4* sq(j4)
         du = w1* su(j1)+w2* su(j2)+ w3* su(j3)+w4* su(j4)
         dv = w1* sv(j1)+w2* sv(j2)+ w3* sv(j3)+w4* sv(j4)
-        dcwm=w1* scwm(j1)+w2* scwm(j2)+  &
-             w3* scwm(j3)+w4* scwm(j4)
+        if (nrf3_cw>izero) then
+           dcwm=w1* scwm(j1)+w2* scwm(j2)+  &
+                w3* scwm(j3)+w4* scwm(j4)
+        else
+           dcwm=zero
+        end if
         if (l_foto) then
            dt = dt+&
                (w1*xhat_dt%t(j1)+w2*xhat_dt%t(j2)+ &
@@ -153,9 +169,11 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
            dv = dv+&
                (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
                 w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_pcp
-           dcwm=dcwm+&
-               (w1*xhat_dt%cw(j1)+w2*xhat_dt%cw(j2)+  &
-                w3*xhat_dt%cw(j3)+w4*xhat_dt%cw(j4))*time_pcp
+           if (nrf3_cw>izero) then
+              dcwm=dcwm+&
+                  (w1*xhat_dt%cw(j1)+w2*xhat_dt%cw(j2)+  &
+                   w3*xhat_dt%cw(j3)+w4*xhat_dt%cw(j4))*time_pcp
+           end if
         endif
         
         nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig
@@ -238,16 +256,18 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
         do n=1,nsig
            nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig
 
-           dcwm_ad = pcpptr%dpcp_dvar(ncwm)*pcp_ges_ad
+           if (nrf3_cw>izero) dcwm_ad = pcpptr%dpcp_dvar(ncwm)*pcp_ges_ad
            dv_ad   = pcpptr%dpcp_dvar(nv)*pcp_ges_ad
            du_ad   = pcpptr%dpcp_dvar(nu)*pcp_ges_ad
            dq_ad   = pcpptr%dpcp_dvar(nq)*pcp_ges_ad
            dt_ad   = pcpptr%dpcp_dvar(nt)*pcp_ges_ad
 
-           rcwm(j4) = rcwm(j4) + w4*dcwm_ad
-           rcwm(j3) = rcwm(j3) + w3*dcwm_ad
-           rcwm(j2) = rcwm(j2) + w2*dcwm_ad
-           rcwm(j1) = rcwm(j1) + w1*dcwm_ad
+           if (nrf3_cw>izero) then
+              rcwm(j4) = rcwm(j4) + w4*dcwm_ad
+              rcwm(j3) = rcwm(j3) + w3*dcwm_ad
+              rcwm(j2) = rcwm(j2) + w2*dcwm_ad
+              rcwm(j1) = rcwm(j1) + w1*dcwm_ad
+           end if
 
            rv(j4) = rv(j4) + w4*dv_ad
            rv(j3) = rv(j3) + w3*dv_ad
@@ -270,16 +290,18 @@ subroutine intpcp_(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm)
            rt(j1) = rt(j1) + w1*dt_ad
 
            if (l_foto) then
-              dcwm_ad = time_pcp*dcwm_ad
+              if (nrf3_cw>izero) dcwm_ad = time_pcp*dcwm_ad
               dv_ad   = time_pcp*dv_ad
               du_ad   = time_pcp*du_ad
               dq_ad   = time_pcp*dq_ad
               dt_ad   = time_pcp*dt_ad
 
-              dhat_dt%cw(j4) = dhat_dt%cw(j4) + w4*dcwm_ad
-              dhat_dt%cw(j3) = dhat_dt%cw(j3) + w3*dcwm_ad
-              dhat_dt%cw(j2) = dhat_dt%cw(j2) + w2*dcwm_ad
-              dhat_dt%cw(j1) = dhat_dt%cw(j1) + w1*dcwm_ad
+              if (nrf3_cw>izero) then
+                 dhat_dt%cw(j4) = dhat_dt%cw(j4) + w4*dcwm_ad
+                 dhat_dt%cw(j3) = dhat_dt%cw(j3) + w3*dcwm_ad
+                 dhat_dt%cw(j2) = dhat_dt%cw(j2) + w2*dcwm_ad
+                 dhat_dt%cw(j1) = dhat_dt%cw(j1) + w1*dcwm_ad
+              end if
 
               dhat_dt%v(j4) = dhat_dt%v(j4) + w4*dv_ad
               dhat_dt%v(j3) = dhat_dt%v(j3) + w3*dv_ad

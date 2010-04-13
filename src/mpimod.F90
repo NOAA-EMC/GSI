@@ -223,10 +223,11 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine init_mpi_vars(nsig,mype,nsig1o,nnnn1o)
+  subroutine init_mpi_vars(nsig,mype,nsig1o,nnnn1o,nrf,nvars,nrf_3d,vlevs)
 
 ! !USES:
 
+ !  use gridmod, only: vlevs
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -235,6 +236,10 @@ contains
     integer(i_kind),intent(in   ) :: mype    ! task identifier
     integer(i_kind),intent(in   ) :: nsig1o  ! no. of levels distributed on each processor
     integer(i_kind),intent(out  ) :: nnnn1o  ! actual of levels distributed on current processor
+    integer(i_kind),intent(in   ) :: nrf     ! no. of control variables
+    integer(i_kind),intent(in   ) :: nvars   ! no. of variables
+    integer(i_kind),intent(in   ) :: vlevs   ! total number of levels*variables
+    logical,dimension(nrf),intent(in):: nrf_3d
 
 ! !OUTPUT PARAMETERS:
 
@@ -247,7 +252,10 @@ contains
 !   2003-09-30  kleist
 !   2004-05-18  kleist, new variables and documentation
 !   2004-07-15  todling, protex-compliant prologue
+!   2010-03-04  zhu, make changes using nrf* in allignment with control variables
+!   2010-03-17  zhu  add vlevs
 !   2010-04-01  treadon - add nnnn1o to subroutine argument list
+!   2010-04-10  parrish - move vlevs to arg list, cannot have use gridmod, because gridmod uses mpimod
 !
 ! !REMARKS:
 !
@@ -260,12 +268,13 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-    integer(i_kind) k,kk,n,mm1
+    integer(i_kind) i,k,kk,n,mm1
     integer(i_kind) vps,pss,ts,qs,ozs,tss,tls,tis,cwms,varcnt,kchk
     integer(i_kind) levscnt
+    integer(i_kind),allocatable,dimension(:):: ns
 
     allocate(levs_id(nsig1o),nvar_id(nsig1o))
-    allocate(nvar_pe(6*nsig+4_i_kind,2))
+    allocate(nvar_pe(vlevs,2))
     allocate(iscnt_g(npe),isdsp_g(npe),ircnt_g(npe),&
        irdsp_g(npe),iscnt_s(npe),isdsp_s(npe),ircnt_s(npe),&
        irdsp_s(npe))
@@ -351,22 +360,26 @@ contains
 
 ! Distribute variables as evenly as possible over the tasks
 ! start by defining starting points for each variable
-    vps =nsig+ione
-    pss =vps +nsig
-    ts  =pss +ione
-    qs  =ts  +nsig
-    ozs =qs  +nsig
-    tss =ozs +nsig
-    tls =tss +ione
-    tis =tls +ione
-    cwms=tis +ione
+    allocate(ns(nvars+1))
+    ns(1)=ione
+    do k=2,nrf+1
+       if (nrf_3d(k-1)) then
+          ns(k)=ns(k-1)+nsig
+       else
+          ns(k)=ns(k-1)+ione
+       end if
+    end do
+    if (nvars>nrf) then
+       ns(nvars)=ns(nrf+1)+ione
+       ns(nvars+1)=ns(nrf+2)+ione
+    end if
 
 ! Need to use a variable to know which tasks have a full nsig1o 
 ! array, and which one have the last level irrelevant
-    if (mod((6*nsig)+4_i_kind,npe)==izero) then
+    if (mod(vlevs,npe)==izero) then
        kchk=npe
     else
-       kchk=mod((nsig*6)+4_i_kind,npe)
+       kchk=mod(vlevs,npe)
     end if
 
     nvar_id=izero
@@ -387,41 +400,17 @@ contains
           nvar_pe(varcnt,1)=n-ione
           nvar_pe(varcnt,2)=k
           if (n==mm1) then
-             if (varcnt<vps) then
-                nvar_id(k)=ione
-                levs_id(k)=varcnt
-             else if (varcnt>=vps .and. varcnt<pss) then
-                nvar_id(k)=2_i_kind
-                levs_id(k)=varcnt-vps+ione
-             else if (varcnt==pss) then
-                nvar_id(k)=3_i_kind
-                levs_id(k)=1_i_kind
-             else if (varcnt>=ts .and. varcnt<qs) then
-                nvar_id(k)=4_i_kind
-                levs_id(k)=varcnt-ts+ione
-             else if (varcnt>=qs .and. varcnt<ozs) then
-                nvar_id(k)=5_i_kind
-                levs_id(k)=varcnt-qs+ione
-             else if (varcnt>=ozs .and. varcnt<tss) then
-                nvar_id(k)=6_i_kind
-                levs_id(k)=varcnt-ozs+ione
-             else if (varcnt==tss) then
-                nvar_id(k)=7_i_kind
-                levs_id(k)=ione
-             else if (varcnt==tls) then
-                nvar_id(k)=9_i_kind
-                levs_id(k)=ione
-             else if (varcnt==tis) then
-                nvar_id(k)=10_i_kind
-                levs_id(k)=ione
-             else
-                nvar_id(k)=8_i_kind
-                levs_id(k)=varcnt-cwms+ione
-             end if ! end if for varcnt
+             do i=1,nvars
+                if (varcnt>=ns(i) .and. varcnt<ns(i+1)) then
+                   nvar_id(k)=i
+                   levs_id(k)=varcnt-ns(i)+ione
+                end if
+             end do
           end if ! end if for task id
        end do ! enddo over levs
     end do ! enddo over npe
 
+    deallocate(ns)
 
     nnnn1o=izero
     do k=1,nsig1o

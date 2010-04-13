@@ -10,6 +10,7 @@ subroutine model2control(rval,bval,grad)
 !   2008-12-04  todling  - update interface to ckgcov_ad; add tsen and p3d
 !   2008-12-29  todling  - add call to strong balance contraint
 !   2009-04-21  derber   - modify call to getstvp to getuv(*,1)
+!   2010-03-15  zhu      - make changes to ckgcov_ad, use cstate
 !
 !   input argument list:
 !     rval - State variable
@@ -40,6 +41,7 @@ real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
 integer(i_kind) :: ii,jj
 real(r_kind) :: zwork(nrclen)
 real(r_kind) :: gradz(nval_lenz)
+type(control_state) :: cstate
 
 !******************************************************************************
 
@@ -78,8 +80,11 @@ do jj=1,nsubwin
 ! Apply variances, as well as vertical & horizontal parts of background error
    gradz(:)=zero
 
-   call ckgcov_ad(gradz,workst,workvp,rval(jj)%t,rval(jj)%p,workrh,&
-                  rval(jj)%oz,rval(jj)%sst,rval(jj)%cw,nnnn1o)
+   call allocate_cs(cstate)
+   call assign_array2cs(cstate,workst,workvp,rval(jj)%t,workrh,&
+                        rval(jj)%oz,rval(jj)%cw,rval(jj)%p,rval(jj)%sst)
+   call ckgcov_ad(gradz,cstate,nnnn1o)
+   call deallocate_cs(cstate)
 
    do ii=1,nval_lenz
       grad%step(jj)%values(ii)=grad%step(jj)%values(ii)+gradz(ii)

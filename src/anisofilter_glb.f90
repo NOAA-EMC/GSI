@@ -80,7 +80,7 @@ module anisofilter_glb
 
   use kinds, only: r_kind,i_kind,r_single,r_double,i_long
   use anberror, only: indices,indices_p,&
-                      nvars,idvar,kvar_start,kvar_end, &
+                      idvar,kvar_start,kvar_end, &
                       var_names, &
                       filter_all,pf2aP1, &
                       filter_p2, pf2aP2, &
@@ -104,6 +104,9 @@ module anisofilter_glb
   use raflib,only: init_raf4_wrap,raf_sm4_wrap,raf_sm4_ad_wrap
 
   use jfunc, only: varq,qoption
+
+  use control_vectors, only: nrf3,nrf2,nrf3_cw,nrf3_q,nrf3_sf,nrf3_vp,nrf3_t,nrf3_oz, &
+                   nrf3_cw,nrf2_ps,nrf2_sst,nrf_var,nrf_3d,nrf,nvars,nrf2_loc,nrf3_loc
 
   use guess_grids, only: ges_u,ges_v,ges_prsl,ges_tv,ges_z,ntguessig,&
                          ges_ps,ges_q,ges_tsen
@@ -228,6 +231,7 @@ subroutine anprewgt(mype)
 !
 ! program history log:
 !   2007-09-19  sato
+!   2010-03-11  zhu - make changes for generalized control variable,
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -246,12 +250,9 @@ subroutine anprewgt(mype)
 
   integer(i_kind):: i,j,k,k1,kvar,ivar,idiagflg,igauss,istat
   real(r_kind):: factk,factor,anhswgtsum
+  logical flowvar
 
-  character(len=10):: chvarname(10)
   character(len= 4):: clun
-
-  data chvarname/'psi', 'chi', 'lnps', 't', 'pseudorh', 'oz', 'sst', &
-                 'lst', 'ist', 'qw'/
 
   data idiagflg /izero/
 
@@ -381,33 +382,38 @@ subroutine anprewgt(mype)
 
      an_amp(:,ivar)=an_amp0(ivar)
 
+     flowvar=nrf_var(ivar)=='sf' .or. nrf_var(ivar)=='SF' .or. &
+             nrf_var(ivar)=='vp' .or. nrf_var(ivar)=='VP' .or. &
+             nrf_var(ivar)=='ps' .or. nrf_var(ivar)=='PS' .or. &
+             nrf_var(ivar)=='t' .or. nrf_var(ivar)=='T'
+
      if(idiagflg==ione) then
-        if(bkgv_flowdep .and. (ivar>=ione.and.ivar<=4_i_kind)) then
-           select case (ivar)
-              case(1); write(6,*) 'ivar,k1,kvar,sfvar',ivar,k1,kvar,&
+        if(bkgv_flowdep .and. flowvar) then
+           select case (nrf_var(ivar))
+              case('sf','SF'); write(6,*) 'ivar,k1,kvar,sfvar',ivar,k1,kvar,&
                        maxval(sfvar0f(:,:,k1)),minval(sfvar0f(:,:,k1)),&
-                       maxval(corz(:,kvar,1)) ,minval(corz(:,kvar,1))
-              case(2); write(6,*) 'ivar,k1,kvar,vpvar',ivar,k1,kvar,&
+                       maxval(corz(:,kvar,nrf3_sf)) ,minval(corz(:,kvar,nrf3_sf))
+              case('vp','VP'); write(6,*) 'ivar,k1,kvar,vpvar',ivar,k1,kvar,&
                        maxval(vpvar0f(:,:,k1)),minval(vpvar0f(:,:,k1)),&
-                       maxval(corz(:,kvar,2)) ,minval(corz(:,kvar,2))
-              case(3); write(6,*) 'ivar,k1,kvar,psvar',ivar,k1,kvar,&
+                       maxval(corz(:,kvar,nrf3_vp)) ,minval(corz(:,kvar,nrf3_vp))
+              case('ps','PS'); write(6,*) 'ivar,k1,kvar,psvar',ivar,k1,kvar,&
                        maxval(psvar0f(:,:))   ,minval(psvar0f(:,:))   ,&
-                       maxval(corp)           ,minval(corp)
-              case(4); write(6,*) 'ivar,k1,kvar,tvar' ,ivar,k1,kvar,&
+                       maxval(corp(:,nrf2_ps))           ,minval(corp(:,nrf2_ps))
+              case('t','T'); write(6,*) 'ivar,k1,kvar,tvar' ,ivar,k1,kvar,&
                        maxval(tvar0f (:,:,k1)),minval(tvar0f (:,:,k1)),&
-                       maxval(corz(:,kvar,3)) ,minval(corz(:,kvar,3))
+                       maxval(corz(:,kvar,nrf3_t)) ,minval(corz(:,kvar,nrf3_t))
            end select
         end if
      end if
 
      do j=indices%jps,indices%jpe
         do i=indices%ips,indices%ipe
-           if(bkgv_flowdep .and. (ivar>=ione.and.ivar<=4_i_kind)) then
-              select case (ivar)
-                 case(1); factk=real(sfvar0f(i,j,k1),r_kind);
-                 case(2); factk=real(vpvar0f(i,j,k1),r_kind);
-                 case(3); factk=real(psvar0f(i,j)   ,r_kind);
-                 case(4); factk=real(tvar0f (i,j,k1),r_kind);
+           if(bkgv_flowdep .and. flowvar) then
+              select case (nrf_var(ivar))
+                 case('sf','SF'); factk=real(sfvar0f(i,j,k1),r_kind);
+                 case('vp','VP'); factk=real(vpvar0f(i,j,k1),r_kind);
+                 case('ps','PS'); factk=real(psvar0f(i,j)   ,r_kind);
+                 case('t','T'); factk=real(tvar0f (i,j,k1),r_kind);
               end select
            else
               call get_stat_factk(p0ilatf(i),ivar,kvar,factk, &
@@ -436,18 +442,23 @@ subroutine anprewgt(mype)
 
      an_amp(:,ivar)=an_amp0(ivar)
 
+     flowvar=nrf_var(ivar)=='sf' .or. nrf_var(ivar)=='SF' .or. &
+             nrf_var(ivar)=='vp' .or. nrf_var(ivar)=='VP' .or. &
+             nrf_var(ivar)=='ps' .or. nrf_var(ivar)=='PS' .or. &
+             nrf_var(ivar)=='t' .or. nrf_var(ivar)=='T'
+
      do j=indices_p%jps,indices_p%jpe
         do i=indices_p%ips,indices_p%ipe
  
       !-----------------------
       ! North polar
       !-----------------------
-           if(bkgv_flowdep .and. (ivar>=ione.and.ivar<=4_i_kind)) then
-              select case (ivar)
-                 case(1); factk=real(sfvar2f(i,j,k1),r_kind)
-                 case(2); factk=real(vpvar2f(i,j,k1),r_kind)
-                 case(3); factk=real(psvar2f(i,j)   ,r_kind)
-                 case(4); factk=real(tvar2f (i,j,k1),r_kind)
+           if(bkgv_flowdep .and. flowvar) then
+              select case (nrf_var(ivar))
+                 case('sf','SF'); factk=real(sfvar2f(i,j,k1),r_kind)
+                 case('vp','VP'); factk=real(vpvar2f(i,j,k1),r_kind)
+                 case('ps','PS'); factk=real(psvar2f(i,j)   ,r_kind)
+                 case('t','T'); factk=real(tvar2f (i,j,k1),r_kind)
               end select
            else
               if(p2ilatf(i,j)/=zero) then
@@ -469,12 +480,12 @@ subroutine anprewgt(mype)
       !-----------------------
       ! South polar
       !-----------------------
-           if(bkgv_flowdep .and. (ivar>=ione.and.ivar<=4_i_kind)) then
-              select case (ivar)
-                 case(1); factk=real(sfvar3f(i,j,k1),r_kind)
-                 case(2); factk=real(vpvar3f(i,j,k1),r_kind)
-                 case(3); factk=real(psvar3f(i,j)   ,r_kind)
-                 case(4); factk=real(tvar3f (i,j,k1),r_kind)
+           if(bkgv_flowdep .and. flowvar) then
+              select case (nrf_var(ivar))
+                 case('sf','SF'); factk=real(sfvar3f(i,j,k1),r_kind)
+                 case('vp','VP'); factk=real(vpvar3f(i,j,k1),r_kind)
+                 case('ps','PS'); factk=real(psvar3f(i,j)   ,r_kind)
+                 case('t','T'); factk=real(tvar3f (i,j,k1),r_kind)
               end select
            else
               if(p3ilatf(i,j)/=zero) then
@@ -539,6 +550,7 @@ subroutine get_stat_factk(platf,ivar,kvar,factk,rh,dvsst)
 !
 ! program history log:
 !   2007-12-18  sato
+!   2010-03-11  zhu  - make changes for generalized control variable
 !
 !   input argument list:
 !     platf - latitude grid info (global)
@@ -563,7 +575,7 @@ subroutine get_stat_factk(platf,ivar,kvar,factk,rh,dvsst)
   real(r_single), intent(in   ) :: rh
   real(r_kind),   intent(in   ) :: dvsst
 
-  integer(i_kind):: l,lp
+  integer(i_kind):: l,lp,n
   real(r_kind)   :: dl1,dl2
 
   l =int(platf)
@@ -573,19 +585,27 @@ subroutine get_stat_factk(platf,ivar,kvar,factk,rh,dvsst)
   l = min(max(ione,l ),mlat)
   lp= min(max(ione,lp),mlat)
 
-  select case (ivar)
-     case(1); factk=dl1*corz(l,kvar,1)+dl2*corz(lp,kvar,1)  ! streamfunction
-     case(2); factk=dl1*corz(l,kvar,2)+dl2*corz(lp,kvar,2)  ! velocity potential
-     case(3); factk=dl1*corp(l)       +dl2*corp(lp)         ! log(ps)
-     case(4); factk=dl1*corz(l,kvar,3)+dl2*corz(lp,kvar,3)  ! temperature
-     case(5); factk=dl1*corz(l,kvar,4)+dl2*corz(lp,kvar,4)  ! qoption=1
-        if(qoption==2_i_kind) call fact_qopt2(factk,rh,kvar)! correction for qoption=2
-     case(6); factk=dl1*corz(l,kvar,5)+dl2*corz(lp,kvar,5)  ! ozone
-     case(7); factk=dvsst                                   ! sea surface temperature
-     case(8); factk=tsfc_sdv(1)                             ! land surface temperature
-     case(9); factk=tsfc_sdv(2)                             ! ice surface temperature
-     case(10);factk=dl1*corz(l,kvar,6)+dl2*corz(lp,kvar,6)  ! cloud condensate mixing ratio
-  end select
+  if (ivar==nrf+ione) then
+     factk=tsfc_sdv(1)    ! land surface temperature
+  else if (ivar==nrf+2_i_kind) then
+     factk=tsfc_sdv(2)    ! ice surface temperature
+  else if (nrf_3d(ivar))then
+     do n=1,nrf3
+        if (nrf3_loc(n)==ivar) then
+           factk=dl1*corz(l,kvar,n)+dl2*corz(lp,kvar,n)
+           if (n==nrf3_q .and. qoption==2_i_kind) &
+                call fact_qopt2(factk,rh,kvar)! correction for qoption=2
+        end if
+     end do
+  else
+     do n=1,nrf2
+        if (n==nrf2_sst) then
+           factk=dvsst
+        else if (nrf2_loc(n)==ivar) then
+           factk=dl1*corp(l,n)+dl2*corp(lp,n)
+        end if
+     end do
+  end if
 
   return
 end subroutine get_stat_factk
@@ -667,6 +687,7 @@ subroutine init_anisofilter
 ! program history log:
 !   2006-08-01  pondeca
 !   2007-09-04  sato
+!   2010-03-11  zhu - make changes using nvars,nrf* for generlized control variable
 !
 !   input argument list:
 !
@@ -683,12 +704,14 @@ subroutine init_anisofilter
 
   implicit none
 
+  integer(i_kind) :: n 
+
   scalex1=1.2_r_kind
   scalex2=1.2_r_kind
   scalex3=1.2_r_kind
 
-  allocate (rfact0h(10))
-  allocate (rfact0v(10))
+  allocate (rfact0h(nvars))
+  allocate (rfact0v(nvars))
 !--- original
 ! rfact0h(1)=one            ;  rfact0v(1)=1.50_r_kind
 ! rfact0h(2)=one            ;  rfact0v(2)=1.50_r_kind
@@ -697,23 +720,27 @@ subroutine init_anisofilter
 ! rfact0h(5)=1.50_r_kind    ;  rfact0v(5)=1.25_r_kind
 !-- fine tuning with rgauss tuning
   if(opt_sclclb_glb==izero) then
-     rfact0h(1)=1.20_r_kind ;  rfact0v(1)=1.40_r_kind
-     rfact0h(2)=1.20_r_kind ;  rfact0v(2)=2.20_r_kind
+        do n=1,nrf
+           select case(nrf_var(n))
+              case('sf','SF'); rfact0h(n)=1.20_r_kind ;  rfact0v(n)=1.40_r_kind
+              case('vp','VP'); rfact0h(n)=1.20_r_kind ;  rfact0v(n)=2.20_r_kind
+              case('t','T')  ; rfact0h(n)=1.20_r_kind ;  rfact0v(n)=1.20_r_kind
+              case('q','Q')  ; rfact0h(n)=1.50_r_kind ;  rfact0v(n)=1.50_r_kind
+              case('oz','OZ'); rfact0h(n)=one         ;  rfact0v(n)=1.25_r_kind
+              case('cw','CW'); rfact0h(n)=one         ;  rfact0v(n)=1.25_r_kind
+              case('ps','PS'); rfact0h(n)=1.20_r_kind ;  rfact0v(n)=1.20_r_kind
+              case('sst','SST'); rfact0h(n)=one       ;  rfact0v(n)=1.25_r_kind;
+                                 rfact0h(nrf+1)=one   ;  rfact0v(nrf+1)=1.25_r_kind;
+                                 rfact0h(nrf+2)=one   ;  rfact0v(nrf+2)=1.25_r_kind
+           end select
+        end do
+
 !--  for exponent component =scale**rfact(1)+rfact(2)
   else if(opt_sclclb_glb==ione) then
      rfact0h(1)=1.20_r_kind ;  rfact0v(1)=1.20_r_kind
      rfact0h(2)=0.20_r_kind ;  rfact0v(2)=0.20_r_kind
   end if
 !---
-  rfact0h(3)=1.20_r_kind    ;  rfact0v(3)=1.20_r_kind
-  rfact0h(4)=1.20_r_kind    ;  rfact0v(4)=1.20_r_kind
-  rfact0h(5)=1.50_r_kind    ;  rfact0v(5)=1.50_r_kind
-!---
-  rfact0h(6)=one            ;  rfact0v(6)=1.25_r_kind
-  rfact0h(7)=one            ;  rfact0v(7)=1.25_r_kind
-  rfact0h(8)=one            ;  rfact0v(8)=1.25_r_kind
-  rfact0h(9)=one            ;  rfact0v(9)=1.25_r_kind
-  rfact0h(10)=one           ;  rfact0v(10)=1.25_r_kind
 
   call setup_smooth_polcas
   call setup_patch2grid
@@ -731,6 +758,10 @@ subroutine read_bckgstats_glb(mype)
 !
 ! program history log:
 !   2007-12-14  sato
+!   2010-03-03  zhu - change the structure of error covariance file
+!                   - read in the error info for used control variables only 
+!                   - use nrf* for generalized control variables
+!                   - mv varq to berror_read_wgt
 !
 !   input argument list:
 !    mype    - mpi task id
@@ -744,6 +775,7 @@ subroutine read_bckgstats_glb(mype)
 !$$$ end documentation block
   use constants, only: r1000, three
   use patch2grid_mod, only: grid2patch
+  use m_berror_stats, only: berror_get_dims,berror_read_wgt
   implicit none
 
   integer(i_kind),intent(in   ) :: mype
@@ -751,13 +783,12 @@ subroutine read_bckgstats_glb(mype)
   integer(i_kind):: mcount0,mcount,ierror
   real(r_kind) :: pbar4a,pbar4(nsig)
 
-  integer(i_kind):: inerr, i,j,k,kc,kd,kt,kq,koz,l
-  real(r_single),dimension(nlat,nsig):: corzin,cord,corh,corq,corq2,coroz,corc
-  real(r_single),dimension(nlat):: corpin
-  real(r_single),dimension(nlat,nsig*6+ione):: hwllin
-  real(r_single),dimension(nlat,nsig*6):: vscalesin
-  real(r_single),dimension(nlat,nsig,nsig):: agvin
-  real(r_single),dimension(nlat,nsig) :: bvin,wgvin
+  integer(i_kind):: inerr,n,i,j,k,kc,kd,kt,kq,koz,l
+  real(r_single),dimension(nlat,nsig,nrf3):: corzin
+  real(r_single),dimension(nlat,nrf2):: corpin
+  real(r_single),dimension(nlat,nsig,nrf3):: hwllin
+  real(r_single),dimension(nlat,nrf2):: hwllpin
+  real(r_single),dimension(nsig,nlat,nrf3):: vscalesin
   real(r_single),dimension(nlat,nlon) :: corsstin
   real(r_single),dimension(nlat,nlon) :: hsst
 
@@ -767,12 +798,9 @@ subroutine read_bckgstats_glb(mype)
   data inerr / 22_i_kind /
 
 ! Open background error statistics file
-  open(inerr,file='berror_stats',form='unformatted')
-
 ! Read header.  Ensure that vertical resolution is consistent
 ! with that specified via the user namelist
-
-  read(inerr)nsigstat,mlat
+  call berror_get_dims(nsigstat,mlat,inerr)
   if(mype==izero) then
      write(6,*)'read_bckgstats_glb(): read error amplitudes.  mype,nsigstat,mlat =',&
      mype,nsigstat,mlat
@@ -786,60 +814,45 @@ subroutine read_bckgstats_glb(mype)
      call stop2(stpcode_statdata)
   end if
 
-  allocate ( corz(mlat,nsig,6), corp(mlat),  corsst(nlat,nlon) )
-  allocate ( hwll(mlat,nsig,5), hwllp(mlat), hwllsst(nlat,nlon) )
-  allocate ( vz(nsig,mlat,6) )
+  allocate ( corz(mlat,nsig,nrf3), corp(mlat,nrf2),  corsst(nlat,nlon) )
+  allocate ( hwll(mlat,nsig,nrf3), hwllp(mlat,nrf2), hwllsst(nlat,nlon) )
+  allocate ( vz(nsig,mlat,nrf3) )
 
 ! Read amplitudes
-  rewind inerr
-  read(inerr)nsigstat,mlat,&
-       corzin,cord,corh,corq,corq2,coroz,corc,corpin,&
-       hwllin,vscalesin,&
-       agvin,bvin,wgvin,&
-       corsstin,hsst
-  close(inerr)
+  call berror_read_wgt(corzin,corpin,hwllin,hwllpin,vscalesin,corsstin,hsst,mype,inerr)
 
   if(mype==izero) then
      write(6,*) '--- start read_bckgstats_glb ---'
-     write(6,*) 'maxmin-corzin:',   maxval(corzin),   minval(corzin)
-     write(6,*) 'maxmin-cordin:',   maxval(cord),     minval(cord)
-     write(6,*) 'maxmin-corhin:',   maxval(corh),     minval(corh)
-     write(6,*) 'maxmin-corqin:',   maxval(corq),     minval(corq)
-     write(6,*) 'maxmin-corq2in:',  maxval(corq2),    minval(corq2)
-     write(6,*) 'maxmin-corozin:',  maxval(coroz),    minval(coroz)
-     write(6,*) 'maxmin-corcin:',   maxval(corc),     minval(corc)
-     write(6,*) 'maxmin-corpin:',   maxval(corpin),   minval(corpin)
+     write(6,*) 'maxmin-corzin:',  maxval(corzin(:,:,nrf3_sf)),minval(corzin(:,:,nrf3_sf))
+     write(6,*) 'maxmin-cordin:',  maxval(corzin(:,:,nrf3_vp)),minval(corzin(:,:,nrf3_vp))
+     write(6,*) 'maxmin-corhin:',  maxval(corzin(:,:,nrf3_t)),minval(corzin(:,:,nrf3_t))
+     write(6,*) 'maxmin-corqin:',  maxval(corzin(:,:,nrf3_q)),minval(corzin(:,:,nrf3_q))
+     write(6,*) 'maxmin-corozin:', maxval(corzin(:,:,nrf3_oz)),minval(corzin(:,:,nrf3_oz))
      write(6,*) 'maxmin-corsstin:', maxval(corsstin), minval(corsstin)
      write(6,*) '---'
-     write(6,*) 'maxmin-hwllin:',   maxval(hwllin),   minval(hwllin)
+     write(6,*) 'maxmin-hwllzin:',  maxval(hwllin(:,:,nrf3_sf)),minval(hwllin(:,:,nrf3_sf))
+     write(6,*) 'maxmin-hwlldin:',  maxval(hwllin(:,:,nrf3_vp)),minval(hwllin(:,:,nrf3_vp))
+     write(6,*) 'maxmin-hwllhin:',  maxval(hwllin(:,:,nrf3_t)),minval(hwllin(:,:,nrf3_t))
+     write(6,*) 'maxmin-hwllqin:',  maxval(hwllin(:,:,nrf3_q)),minval(hwllin(:,:,nrf3_q))
+     write(6,*) 'maxmin-hwllozin:',  maxval(hwllin(:,:,nrf3_oz)),minval(hwllin(:,:,nrf3_oz))
      write(6,*) 'maxmin-hsstin:',   maxval(hsst),     minval(hsst)
-     write(6,*) '---'
-     write(6,*) 'maxmin-vscalesin:',maxval(vscalesin),minval(vscalesin)
-     write(6,*) 'maxmin-agvin:' ,   maxval(agvin),    minval(agvin)
-     write(6,*) 'maxmin-bvin:'  ,   maxval(bvin),     minval(bvin)
-     write(6,*) 'maxmin-wgvin:' ,   maxval(wgvin),    minval(wgvin)
      write(6,*) '--- end read_bckgstats_glb ---'
   end if
 
 ! load the horizontal length scales
-  do k=1,nsig
-     kd =nsig+k
-     kt =nsig*2+k
-     kq =nsig*3+k
-     koz=nsig*4+k
-     do i=1,nlat
-        hwll(i,k,1)=real(hwllin(i,k)  ,r_kind)
-        hwll(i,k,2)=real(hwllin(i,kd) ,r_kind)
-        hwll(i,k,3)=real(hwllin(i,kt) ,r_kind)
-        hwll(i,k,4)=real(hwllin(i,kq) ,r_kind)
-        hwll(i,k,5)=real(hwllin(i,koz),r_kind)*three   !inflate scale
+  do n=1,nrf3
+     do k=1,nsig
+        do i=1,nlat
+           hwll(i,k,n)=real(hwllin(i,k,n),r_kind)
+        end do
      end do
   end do
 
 ! surface pressure
-  k=nsig*6+ione
-  do i=1,nlat
-     hwllp(i)=real(hwllin(i,k),r_kind)
+  do n=1,nrf2
+     do i=1,nlat
+        hwllp(i,n)=real(hwllpin(i,n),r_kind)
+     end do
   end do
 
 
@@ -887,39 +900,16 @@ subroutine read_bckgstats_glb(mype)
   an_vs=one/an_vs
 
 ! load vertical length scales
-  do k=1,nsig
-     do i=1,nlat
-        kd =nsig  +k
-        kt =nsig*2+k
-        kq =nsig*3+k
-        koz=nsig*4+k
-        kc =nsig*5+k
-        vz(k,i,1)=real(vscalesin(i,k  ),r_kind)*an_vs
-        vz(k,i,2)=real(vscalesin(i,kd ),r_kind)*an_vs
-        vz(k,i,3)=real(vscalesin(i,kt ),r_kind)*an_vs
-        vz(k,i,4)=real(vscalesin(i,kq ),r_kind)*an_vs
-        vz(k,i,5)=real(vscalesin(i,koz),r_kind)*an_vs
-        vz(k,i,6)=real(vscalesin(i,kc ),r_kind)*an_vs
+  do n=1,nrf3
+     do k=1,nsig
+        do i=1,nlat
+           vz(k,i,n)=real(vscalesin(k,i,n),r_kind)*an_vs
+        end do
      end do
   end do
-  vz(:,:,6)=vz(:,:,4)   ! for now use q error for cwm
+  vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)   ! for now use q error for cwm
 
-  if(qoption==2_i_kind)then
-     do k=1,nsig
-        do j=1,mlat
-           varq(j,k)=min(max(real(corq2(j,k),r_kind),0.0015_r_kind),one)
-           corq(j,k)=real(one,r_single)
-        end do
-     enddo
-  end if
-
-  corz(:,:,1)=real(corzin(:,:),r_kind)
-  corz(:,:,2)=real(cord  (:,:),r_kind)
-  corz(:,:,3)=real(corh  (:,:),r_kind)
-  corz(:,:,4)=real(corq  (:,:),r_kind)
-  corz(:,:,5)=real(coroz (:,:),r_kind)
-  corz(:,:,6)=real(corc  (:,:),r_kind)
-
+  corz  =real(corzin,r_kind)
   corp  =real(corpin,r_kind)
   corsst=real(corsstin,r_kind)
 
@@ -958,7 +948,8 @@ subroutine read_bckgstats_glb(mype)
   allocate (ks(nsig1o))
   do l=1,nsig1o
      ks(l)=nsig+ione
-     if(nvar_id(l)<3_i_kind)then
+     if(nrf_var(nvar_id(l))=='sf' .or. nrf_var(nvar_id(l))=='SF' & 
+        .or. nrf_var(nvar_id(l))=='vp' .or. nrf_var(nvar_id(l))=='VP')then
         k_loop: do k=1,nsig
            if (pbar4(k)< psfc015) then
               ks(l)=k
@@ -986,6 +977,7 @@ subroutine get_background_glb(mype)
 ! program history log:
 !   2006-08-01  pondeca
 !   2007-09-05  sato : for global
+!   2010-03-03  zhu  - use nrf3_t
 !
 !   input argument list:
 !    mype     - mpi task id
@@ -1009,7 +1001,7 @@ subroutine get_background_glb(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
-  integer(i_kind) i,j,k,mm1,k1,ivar,nlonfc,ier,it,iderivative
+  integer(i_kind) i,j,k,mm1,k1,ivar,nlonfc,ier,it,loc,iderivative
   integer(i_kind) iflm,ilat,ilon,ilatp,ilatm,ilonp,ilonm
 
   real(r_kind) hwll_loc,rnf2,rnf212
@@ -1355,15 +1347,16 @@ subroutine get_background_glb(mype)
      k1=levs_id(k)
      if (k1==izero) cycle
 
-     ivar=3_i_kind
+     ivar=nrf3_t
+     loc=nrf3_loc(ivar)
      iflm = aint(p0ilatf(pf2aP1%nlatf/2))
      hwll_loc=hwll(iflm,k1,ivar)
  
      do i=1,pf2aP1%nlatf
 
-        asp1=hwll_loc/dyzf(i)*rfact0h(4)
-        asp2=hwll_loc/dxzf(i)*rfact0h(4)
-        asp3=one/vz(k1,iflm,ivar)*rfact0v(4)
+        asp1=hwll_loc/dyzf(i)*rfact0h(loc)
+        asp2=hwll_loc/dxzf(i)*rfact0h(loc)
+        asp3=one/vz(k1,iflm,ivar)*rfact0v(loc)
         do j=1,pf2aP1%nlonf
            aspect(1,i,j,k)=real(asp1**2,r_single)
            aspect(2,i,j,k)=real(asp2**2,r_single)
@@ -1372,11 +1365,11 @@ subroutine get_background_glb(mype)
         end do
      end do
 
-     asp3=one/vz(k1,iflm,ivar)*rfact0v(4)
+     asp3=one/vz(k1,iflm,ivar)*rfact0v(loc)
      do i=1,pf2aP2%nlatf
         do j=1,pf2aP2%nlonf
-           asp1=hwll_loc/dxpf(i,j)*rfact0h(4)
-           asp2=hwll_loc/dypf(i,j)*rfact0h(4)
+           asp1=hwll_loc/dxpf(i,j)*rfact0h(loc)
+           asp2=hwll_loc/dypf(i,j)*rfact0h(loc)
            aspect_p2(1,i,j,k)=real(asp1**2,r_single)
            aspect_p2(2,i,j,k)=real(asp2**2,r_single)
            aspect_p2(3,i,j,k)=real(asp3**2,r_single)
@@ -1490,6 +1483,7 @@ subroutine get_aspect_pt(mype)
 !
 ! program history log:
 !   2007-11-16  sato : for global
+!   2010-03-11  zhu  - make changes using nrf*
 !
 !   input argument list:
 !    mype     - mpi task id
@@ -1505,6 +1499,8 @@ subroutine get_aspect_pt(mype)
   implicit none
 
   integer(i_kind),intent(in   ) :: mype
+  character(len= 5):: cvar
+  logical flowvar
 
   integer(i_kind):: i,j,k,k1
   real(r_kind):: fx1,fx2,fx3,asp1,asp2,asp3
@@ -1553,10 +1549,15 @@ subroutine get_aspect_pt(mype)
                                asp13f,asp23f,asp33f,k)
      qlth=one
      qltv=one
-     if (nvar_id(k)==ione)     then ; qlth=qlth_wind(k1) ; qltv=qltv_wind(k1) ; endif
-     if (nvar_id(k)==2_i_kind) then ; qlth=qlth_wind(k1) ; qltv=qltv_wind(k1) ; endif
-     if (nvar_id(k)==4_i_kind) then ; qlth=qlth_temp(k1) ; qltv=qltv_temp(k1) ; endif
+     cvar=trim(nrf_var(nvar_id(k)))
+     if (cvar=='sf' .or. cvar=='SF') then ; qlth=qlth_wind(k1) ; qltv=qltv_wind(k1) ; endif
+     if (cvar=='vp' .or. cvar=='VP') then ; qlth=qlth_wind(k1) ; qltv=qltv_wind(k1) ; endif
+     if (cvar=='t' .or. cvar=='T') then ; qlth=qlth_temp(k1) ; qltv=qltv_temp(k1) ; endif
  
+     flowvar=cvar=='sf' .or. cvar=='SF' .or. &
+             cvar=='vp' .or. cvar=='VP' .or. &
+             cvar=='t' .or. cvar=='T'
+
      rk1=float(k1-kthres)
      fblend=half*(one-tanh(rk1))
  
@@ -1566,7 +1567,7 @@ subroutine get_aspect_pt(mype)
            asp1=asp10f(i,j); asp2=asp20f(i,j); asp3=asp30f(i,j)
 
            afact=zero_single; fx1=one; fx2=one; fx3=one
-           if ( (nvar_id(k)==ione .or. nvar_id(k)==2_i_kind .or. nvar_id(k)==4_i_kind) .and. afact0(nvar_id(k))>zero ) then
+           if (flowvar .and. afact0(nvar_id(k))>zero ) then
               afact=real(afact0(nvar_id(k)),r_single)
               asp1=scalex1*asp1; fx1=real(tx1_slab(i,j,k),r_kind)
               asp2=scalex2*asp2; fx2=real(tx2_slab(i,j,k),r_kind)
@@ -1590,7 +1591,7 @@ subroutine get_aspect_pt(mype)
            asp1=asp12f(i,j); asp2=asp22f(i,j); asp3=asp32f(i,j)
  
            afact=zero; fx1=one; fx2=one; fx3=one
-           if ( (nvar_id(k)==ione .or. nvar_id(k)==2_i_kind .or. nvar_id(k)==4_i_kind) .and. afact0(nvar_id(k))>zero ) then
+           if ( flowvar .and. afact0(nvar_id(k))>zero ) then
               afact=afact0(nvar_id(k))
               asp1=scalex1*asp1; fx1=real(tx1p2_slab(i,j,k),r_kind)
               asp2=scalex2*asp2; fx2=real(tx2p2_slab(i,j,k),r_kind)
@@ -1614,7 +1615,7 @@ subroutine get_aspect_pt(mype)
            asp1=asp13f(i,j); asp2=asp23f(i,j); asp3=asp33f(i,j)
 
            afact=zero; fx1=one; fx2=one; fx3=one
-           if ( (nvar_id(k)==ione .or. nvar_id(k)==2_i_kind .or. nvar_id(k)==4_i_kind) .and. afact0(nvar_id(k))>zero ) then
+           if ( flowvar .and. afact0(nvar_id(k))>zero ) then
               afact=afact0(nvar_id(k))
               asp1=scalex1*asp1; fx1=real(tx1p3_slab(i,j,k),r_kind)
               asp2=scalex2*asp2; fx2=real(tx2p3_slab(i,j,k),r_kind)
@@ -1662,6 +1663,7 @@ subroutine get_theta_corrl_lenghts_glb(mype)
 ! program history log:
 !   2006-08-01  pondeca
 !   2007-09-19  sato : for global
+!   2010-03-11  zhu  - use nrf* for generalized control variable
 !
 !   input argument list:
 !    mype     - mpi task id
@@ -1682,6 +1684,7 @@ subroutine get_theta_corrl_lenghts_glb(mype)
 ! Declare local variables
   integer(i_kind) i,j,k,kp,km,k1,it
   integer(i_kind) mcount0,mcount
+  character(len= 5):: cvar
 
   real(r_kind) dzi
 
@@ -1808,10 +1811,11 @@ subroutine get_theta_corrl_lenghts_glb(mype)
 
      qlth=one
      qltv=one
-     select case(nvar_id(k))
-        case(1); qlth=qlth_wind(k1) ; qltv=qltv_wind(k1)
-        case(2); qlth=qlth_wind(k1) ; qltv=qltv_wind(k1)
-        case(4); qlth=qlth_temp(k1) ; qltv=qltv_temp(k1)
+     cvar=trim(nrf_var(nvar_id(k)))
+     select case(cvar)
+        case('sf','SF'); qlth=qlth_wind(k1) ; qltv=qltv_wind(k1)
+        case('vp','VP'); qlth=qlth_wind(k1) ; qltv=qltv_wind(k1)
+        case('t','T'); qlth=qlth_temp(k1) ; qltv=qltv_temp(k1)
      end select
 
      call mk_gradpt_slab( &
@@ -1873,6 +1877,7 @@ subroutine isotropic_scales_glb( &
 !
 ! program history log:
 !   2007-09-19  sato
+!   2010-03-11  zhu - use nrf* for generalized control variables
 !
 !   input argument list:
 !    k        - level number of field in slab mode
@@ -1913,24 +1918,12 @@ subroutine isotropic_scales_glb( &
   real(r_kind)   ,intent(  out) :: scale_sp3(pf2aP3%nlatf,pf2aP3%nlonf)
 
 !Declare local variables
-  integer(i_kind) i,j,k1,ivar,ifl,iflm,smx
+  integer(i_kind) i,j,k1,ivar,ifl,iflm,smx,n
 
   real(r_kind) hwll_loc
 
   k1=levs_id(k)
-
-  select case (nvar_id(k))
-     case(1); ivar=ione         ! streamfunction
-     case(2); ivar=2_i_kind     ! velocity potential
-     case(4); ivar=3_i_kind     ! temperature
-     case(5); ivar=4_i_kind     ! specific humidity
-     case(6); ivar=5_i_kind     ! Ozone
-     case(7); ivar=ione         ! SST
-     case(8); ivar=4_i_kind     ! cloud water
-     case(9); ivar=ione         ! surface temp (land)
-     case(10);ivar=ione         ! surface temp (ice)
-  end select
-
+  ivar=nvar_id(k)
 
   !--- zonal patch
   iflm = aint(p0ilatf(pf2aP1%nlatf/2))
@@ -1941,20 +1934,33 @@ subroutine isotropic_scales_glb( &
         ifl  = min(max(ione,ifl),nlat)
         scale3(i,j)=one
  
-        select case (nvar_id(k))           ! 3d elements
-           case(1,2,4,5,6,8)
-!             if(k1 >= ks(k))then
-!                hwll_loc=hwll(iflm,k1,ivar)
-!                scale3(i,j)=one/vz(k1,iflm,ivar)
-!             else
-              hwll_loc=hwll(ifl,k1,ivar)
-              scale3(i,j)=one/vz(k1,ifl,ivar)
-!             end if
-           case(3); hwll_loc=hwllp(ifl)     ! surface pressure
-           case(7); hwll_loc=hwllsst0f(i,j) ! SST
-           case(9); hwll_loc=hwllsstmin     ! surface temp (land)
-           case(10);hwll_loc=hwllsstmin     ! surface temp (ice)
-        end select
+        if (nrf2_sst>0 .and. ivar>nrf) then
+           hwll_loc=hwllsstmin     ! surface temp (land & ice)
+        else if (nrf_3d(ivar)) then
+           do n=1,nrf3
+              if (nrf3_loc(n)==ivar) then 
+!                if(k1 >= ks(k))then
+!                   hwll_loc=hwll(iflm,k1,n)
+!                   scale3(i,j)=one/vz(k1,iflm,n)
+!                else
+                    hwll_loc=hwll(ifl,k1,n)
+                    scale3(i,j)=one/vz(k1,ifl,n)
+!                end if
+                 exit
+              end if
+           end do
+        else
+           do n=1,nrf2
+              if (nrf2_loc(n)==ivar) then
+                 if (n==nrf2_sst) then 
+                    hwll_loc=hwllsst0f(i,j) ! SST
+                 else
+                    hwll_loc=hwllp(ifl,n)
+                 end if
+                 exit
+              end if
+           end do   
+        end if
 
         scale1(i,j)=hwll_loc/dyzf(i)
         scale2(i,j)=hwll_loc/dxzf(i)
@@ -1963,21 +1969,20 @@ subroutine isotropic_scales_glb( &
         ! option, ie.. when anisotropic=.false. in namelist "anbkgerr".
  
         if(opt_sclclb_glb==izero) then
-           scale1(i,j)=rfact0h(nvar_id(k))*scale1(i,j)
-           scale2(i,j)=rfact0h(nvar_id(k))*scale2(i,j)
+           scale1(i,j)=rfact0h(ivar)*scale1(i,j)
+           scale2(i,j)=rfact0h(ivar)*scale2(i,j)
         else if(opt_sclclb_glb==ione) then
            scale1(i,j)=scale1(i,j)**rfact0h(1) + rfact0h(2)
            scale2(i,j)=scale2(i,j)**rfact0h(1) + rfact0h(2)
         end if
-        select case (nvar_id(k))
-           case(1,2,4,5,6,8)
-              if(opt_sclclb_glb==izero) then
-                 scale3(i,j)=rfact0v(nvar_id(k))*scale3(i,j)
-              else if(opt_sclclb_glb==ione) then
-                 scale3(i,j)=scale3(i,j)**rfact0v(1) + rfact0v(2)
-              end if
-        end select
-
+        if (nrf_3d(ivar)) then 
+           if(opt_sclclb_glb==izero) then
+              scale3(i,j)=rfact0v(ivar)*scale3(i,j)
+           else if(opt_sclclb_glb==ione) then
+              scale3(i,j)=scale3(i,j)**rfact0v(1) + rfact0v(2)
+           end if
+        end if
+      
      end do
   end do
 
@@ -2000,40 +2005,52 @@ subroutine isotropic_scales_glb( &
         end if
         scale_np3(i,j)=one
 
-        select case (nvar_id(k))           ! 3d elements
-           case(1,2,4,5,6,8)
-!             if(k1 >= ks(k))then
-!                hwll_loc=hwll(iflm,k1,ivar)
-!                scale_np3(i,j)=one/vz(k1,iflm,ivar)
-!             else
-              hwll_loc=hwll(ifl,k1,ivar)
-              scale_np3(i,j)=one/vz(k1,ifl,ivar)
-!             end if
-           case(3); hwll_loc=hwllp(ifl)     ! surface pressure
-           case(7); hwll_loc=hwllsst2f(i,j) ! SST
-           case(9); hwll_loc=hwllsstmin     ! surface temp (land)
-           case(10);hwll_loc=hwllsstmin     ! surface temp (ice)
-        end select
+        if (nrf2_sst>0 .and. ivar>nrf) then
+           hwll_loc=hwllsstmin     ! surface temp (land & ice)
+        else if (nrf_3d(ivar)) then
+           do n=1,nrf3
+              if (nrf3_loc(n)==ivar) then
+!                if(k1 >= ks(k))then
+!                   hwll_loc=hwll(iflm,k1,n)
+!                   scale_np3(i,j)=one/vz(k1,iflm,n)
+!                else
+                 hwll_loc=hwll(ifl,k1,n)
+                 scale_np3(i,j)=one/vz(k1,ifl,n)
+!                end if
+                 exit
+              end if
+           end do
+        else
+           do n=1,nrf2
+              if (nrf2_loc(n)==ivar) then
+                 if (n==nrf2_sst) then
+                    hwll_loc=hwllsst2f(i,j)  ! SST
+                 else
+                    hwll_loc=hwllp(ifl,n) 
+                 end if
+                 exit
+              end if
+           end do
+        end if
 
         scale_np1(i,j)=hwll_loc/dypf(i,j)
         scale_np2(i,j)=hwll_loc/dxpf(i,j)
 
         if(opt_sclclb_glb==izero) then
-           scale_np1(i,j)=rfact0h(nvar_id(k))*scale_np1(i,j)
-           scale_np2(i,j)=rfact0h(nvar_id(k))*scale_np2(i,j)
+           scale_np1(i,j)=rfact0h(ivar)*scale_np1(i,j)
+           scale_np2(i,j)=rfact0h(ivar)*scale_np2(i,j)
         else if(opt_sclclb_glb==ione) then
            scale_np1(i,j)=scale_np1(i,j)**rfact0h(1) + rfact0h(2)
            scale_np2(i,j)=scale_np2(i,j)**rfact0h(1) + rfact0h(2)
         end if
  
-        select case (nvar_id(k))
-           case(1,2,4,5,6,8)
-              if(opt_sclclb_glb==izero) then
-                 scale_np3(i,j)=rfact0v(nvar_id(k))*scale_np3(i,j)
-              else if(opt_sclclb_glb==ione) then
-                 scale_np3(i,j)=scale_np3(i,j)**rfact0v(1) + rfact0v(2)
-              end if
-        end select
+        if (nrf_3d(ivar)) then
+           if(opt_sclclb_glb==izero) then
+              scale_np3(i,j)=rfact0v(ivar)*scale_np3(i,j)
+           else if(opt_sclclb_glb==ione) then
+              scale_np3(i,j)=scale_np3(i,j)**rfact0v(1) + rfact0v(2)
+           end if
+        end if
 
      end do
   end do
@@ -2056,40 +2073,52 @@ subroutine isotropic_scales_glb( &
         end if
         scale_sp3(i,j)=one
  
-        select case (nvar_id(k))           ! 3d elements
-           case(1,2,4,5,6,8)
-!             if(k1 >= ks(k))then
-!                hwll_loc=hwll(iflm,k1,ivar)
-!                scale_sp3(i,j)=one/vz(k1,iflm,ivar)
-!             else
-              hwll_loc=hwll(ifl,k1,ivar)
-              scale_sp3(i,j)=one/vz(k1,ifl,ivar)
-!             end if
-           case(3); hwll_loc=hwllp(ifl)     ! surface pressure
-           case(7); hwll_loc=hwllsst3f(i,j) ! SST
-           case(9); hwll_loc=hwllsstmin     ! surface temp (land)
-           case(10);hwll_loc=hwllsstmin     ! surface temp (ice)
-        end select
+        if (nrf2_sst>0 .and. ivar>nrf) then
+           hwll_loc=hwllsstmin     ! surface temp (land & ice)
+        else if (nrf_3d(ivar)) then
+           do n=1,nrf3
+              if (nrf3_loc(n)==ivar) then
+!                if(k1 >= ks(k))then
+!                   hwll_loc=hwll(iflm,k1,n)
+!                   scale_sp3(i,j)=one/vz(k1,iflm,n)
+!                else
+                 hwll_loc=hwll(ifl,k1,n)
+                 scale_sp3(i,j)=one/vz(k1,ifl,n)
+!                end if
+                 exit
+              end if
+           end do
+        else
+           do n=1,nrf2
+              if (nrf2_loc(n)==ivar) then
+                 if (n==nrf2_sst) then
+                    hwll_loc=hwllsst3f(i,j) ! SST
+                 else
+                    hwll_loc=hwllp(ifl,n)
+                 end if
+                 exit
+              end if
+           end do
+        end if
 
         scale_sp1(i,j)=hwll_loc/dypf(i,j)
         scale_sp2(i,j)=hwll_loc/dxpf(i,j)
  
         if(opt_sclclb_glb==izero) then
-           scale_sp1(i,j)=rfact0h(nvar_id(k))*scale_sp1(i,j)
-           scale_sp2(i,j)=rfact0h(nvar_id(k))*scale_sp2(i,j)
+           scale_sp1(i,j)=rfact0h(ivar)*scale_sp1(i,j)
+           scale_sp2(i,j)=rfact0h(ivar)*scale_sp2(i,j)
         else if(opt_sclclb_glb==ione) then
            scale_sp1(i,j)=scale_sp1(i,j)**rfact0h(1) + rfact0h(2)
            scale_sp2(i,j)=scale_sp2(i,j)**rfact0h(1) + rfact0h(2)
         end if
 
-        select case (nvar_id(k))
-           case(1,2,4,5,6,8)
-              if(opt_sclclb_glb==izero) then
-                 scale_sp3(i,j)=rfact0v(nvar_id(k))*scale_sp3(i,j)
-              else if(opt_sclclb_glb==ione) then
-                 scale_sp3(i,j)=scale_sp3(i,j)**rfact0v(1) + rfact0v(2)
-              end if
-        end select
+        if (nrf_3d(ivar)) then
+           if(opt_sclclb_glb==izero) then
+              scale_sp3(i,j)=rfact0v(ivar)*scale_sp3(i,j)
+           else if(opt_sclclb_glb==ione) then
+              scale_sp3(i,j)=scale_sp3(i,j)**rfact0v(1) + rfact0v(2)
+           end if
+        end if
 
      end do
   end do
@@ -2112,6 +2141,7 @@ subroutine anbkgvar_rewgt(mype)
 !
 ! program history log:
 !   2007-11-07  sato
+!   2010-03-03  zhu  - use nrf*
 !
 !   input argument list:
 !    mype     - mpi task id
@@ -2145,9 +2175,9 @@ subroutine anbkgvar_rewgt(mype)
         ix=max(ix,2_i_kind)
         ix=min(nlat-ione,ix)
         do j=1,lon2
-           sfvar(i,j,k)=corz(ix,k,1)
-           vpvar(i,j,k)=corz(ix,k,2)
-           tvar (i,j,k)=corz(ix,k,3)
+           sfvar(i,j,k)=corz(ix,k,nrf3_sf)
+           vpvar(i,j,k)=corz(ix,k,nrf3_vp)
+           tvar (i,j,k)=corz(ix,k,nrf3_t)
         end do
      end do
   end do
@@ -2157,7 +2187,7 @@ subroutine anbkgvar_rewgt(mype)
      ix=max(ix,2_i_kind)
      ix=min(nlat-ione,ix)
      do j=1,lon2
-        psvar(i,j)=corp(ix)
+        psvar(i,j)=corp(ix,nrf2_ps)
      end do
   end do
 
@@ -2213,6 +2243,7 @@ subroutine get_aspect_ens(mype)
 ! program history log:
 !   2007-11-16  sato - for global
 !   2008-01-15  sato - add more accurate blending of iso & aniso tensor
+!   2010-03-11  zhu  - use nvars from control_vectors
 !
 !   input argument list:
 !    mype     - mpi task id
@@ -2243,12 +2274,12 @@ subroutine get_aspect_ens(mype)
   integer(i_kind) ifldlevs(nmax_ensfld)      !# of vert levels in each physical fld of each ens member
   integer(i_kind) kens,ntens
 
-  integer(i_kind) nflag(10),nkflag(nsig1o) !dimension is # of anl. variables
+  integer(i_kind) nflag(nvars),nkflag(nsig1o) !dimension is # of anl. variables
   integer(i_kind) kflag(nsig)
 
-  real(r_single) qlxmin(10,nsig) !10 is # of analysis variables
-  real(r_single) qlymin(10,nsig) !10 is # of analysis variables
-  real(r_single) qlzmin(10,nsig) !10 is # of analysis variables
+  real(r_single) qlxmin(nvars,nsig) !10 is # of analysis variables
+  real(r_single) qlymin(nvars,nsig) !10 is # of analysis variables
+  real(r_single) qlzmin(nvars,nsig) !10 is # of analysis variables
 
   real(r_single):: afact
   real(r_single):: rescvar(10)
@@ -2275,14 +2306,9 @@ subroutine get_aspect_ens(mype)
   integer(i_kind):: i,j,k,k1,nt1,m,nens(nsig1o),igrid,ifld,ivar,ier
   real(r_kind):: scalex1ens,scalex2ens,scalex3ens,asp1,asp2,asp3
 
-  character(len=10):: chvarname(10)
-
   namelist/ensparam/ntens,nflds,ifldlevs, &
                     rescvar,rescvarzadj,idiagens,icovmap,icorlim, &
                     unbalens,ibldani,iensamp,scalex1ens, scalex2ens, scalex3ens
-
-  data chvarname/'psi', 'chi', 'ps', 't', 'pseudorh', 'oz', 'sst', &
-                 'lst', 'ist', 'qw'/
 
   data idiagens  / izero /
   data icovmap   / izero /
@@ -3222,7 +3248,7 @@ subroutine get_ensmber_glb(kens,ifld,igrid,ifldlevs, &
 
   read(lun,rec=kstart) slab
 
-  do i=1,10
+  do i=1,nvars
      nflag(i)=nint(slab(i))
   end do
 
@@ -3897,6 +3923,7 @@ subroutine ens_uv2psichi(work1,work2)
      spc2(2*ix-ione)=spc2(2*ix-ione)/(-sp_a%enn1(ix))
      spc2(2*ix     )=spc2(2*ix     )/(-sp_a%enn1(ix))
   end do
+
 
   work3=zero ; work4=zero
   call general_s2g0(grd_a,sp_a,spc1,work3)

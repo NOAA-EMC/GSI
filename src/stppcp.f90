@@ -29,8 +29,7 @@ PUBLIC  stppcp
 
 contains
 
-subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
-     out,sges,nstep)
+subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stppcp     compute contribution to penalty and
@@ -58,6 +57,8 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
 !   2009-01-26  todling - re-implement Tremolet's linearization for q1fy10
+!   2010-03-25  zhu     - use state_vector in the interface;
+!                       - add handlings of cw case; add pointer_state
 !
 !   input argument list:
 !     pcphead
@@ -89,7 +90,9 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11,nsig,latlon1n
   use gsi_4dvar, only: ltlint
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use jfunc, only: l_foto,xhat_dt,dhat_dt,pointer_state
+  use control_vectors, only: nrf3_cw
+  use state_vectors
   implicit none
 
 ! Declare passed variables
@@ -97,8 +100,8 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
   integer(i_kind)                        ,intent(in   ) :: nstep
   real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
   real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: rt,st,rq,sq,ru,su,&
-       rv,sv,rcwm,scwm
+  type(state_vector),intent(in) :: dval
+  type(state_vector),intent(in) :: xval
 
 ! Declare local variables
   integer(i_kind) n,ncwm,nq,nt,nu,nv,kx
@@ -112,9 +115,14 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
   real(r_kind),dimension(max(ione,nstep)):: pen
   real(r_kind) cg_pcp,wgross,wnotgross
   type(pcp_ob_type), pointer :: pcpptr
+  real(r_kind),pointer,dimension(:):: rt,st,rq,sq,ru,su,rv,sv,rcwm,scwm
 
 ! Initialize penalty, b1, and b3 to zero  
   out=zero_quad
+
+! prepare pointers
+  call pointer_state(xval,tsen=st,q=sq,u=su,v=sv,cw=scwm)
+  call pointer_state(dval,tsen=rt,q=rq,u=ru,v=rv,cw=rcwm)
 
 ! Loop over number of observations.
   pcpptr => pcphead
@@ -139,13 +147,21 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
               dq  =w1*   sq(j1)+w2*   sq(j2)+ w3*   sq(j3)+w4*   sq(j4)
               du  =w1*   su(j1)+w2*   su(j2)+ w3*   su(j3)+w4*   su(j4)
               dv  =w1*   sv(j1)+w2*   sv(j2)+ w3*   sv(j3)+w4*   sv(j4)
-              dcwm=w1* scwm(j1)+w2* scwm(j2)+ w3* scwm(j3)+w4* scwm(j4)
+              if (nrf3_cw>izero) then
+                 dcwm=w1* scwm(j1)+w2* scwm(j2)+ w3* scwm(j3)+w4* scwm(j4)
+              else
+                 dcwm=zero
+              end if
 
               dt0  =w1*   rt(j1)+w2*   rt(j2)+ w3*   rt(j3)+w4*   rt(j4)
               dq0  =w1*   rq(j1)+w2*   rq(j2)+ w3*   rq(j3)+w4*   rq(j4)
               du0  =w1*   ru(j1)+w2*   ru(j2)+ w3*   ru(j3)+w4*   ru(j4)
               dv0  =w1*   rv(j1)+w2*   rv(j2)+ w3*   rv(j3)+w4*   rv(j4)
-              dcwm0=w1* rcwm(j1)+w2* rcwm(j2)+ w3* rcwm(j3)+w4* rcwm(j4)
+              if (nrf3_cw>izero) then
+                 dcwm0=w1* rcwm(j1)+w2* rcwm(j2)+ w3* rcwm(j3)+w4* rcwm(j4)
+              else
+                 dcwm0=zero
+              end if
               if(l_foto) then
                  time_pcp=pcpptr%time*r3600
                  dt=dt+(w1*  xhat_dt%tsen(j1)+w2*  xhat_dt%tsen(j2)+ &
@@ -156,6 +172,7 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
                         w3*  xhat_dt%u(j3)+w4*  xhat_dt%u(j4))*time_pcp
                  dv=dv+(w1*  xhat_dt%v(j1)+w2*  xhat_dt%v(j2)+ &
                         w3*  xhat_dt%v(j3)+w4*  xhat_dt%v(j4))*time_pcp
+                 if (nrf3_cw>izero) &
                  dcwm=dcwm+(w1*xhat_dt%cw(j1)+w2*xhat_dt%cw(j2)+ &
                             w3*xhat_dt%cw(j3)+w4*xhat_dt%cw(j4))*time_pcp
                  dt0=dt0+(w1*  dhat_dt%tsen(j1)+w2*  dhat_dt%tsen(j2)+  &
@@ -166,6 +183,7 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
                           w3*  dhat_dt%u(j3)+w4*  dhat_dt%u(j4))*time_pcp
                  dv0=dv0+(w1*  dhat_dt%v(j1)+w2*  dhat_dt%v(j2)+  &
                           w3*  dhat_dt%v(j3)+w4*  dhat_dt%v(j4))*time_pcp
+                 if (nrf3_cw>izero) &
                  dcwm0=dcwm0+(w1*dhat_dt%cw(j1)+w2*dhat_dt%cw(j2)+ &
                               w3*dhat_dt%cw(j3)+w4*dhat_dt%cw(j4))*time_pcp
               end if

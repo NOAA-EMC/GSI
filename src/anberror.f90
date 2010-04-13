@@ -13,6 +13,7 @@ module anberror
 !   2005-11-29  derber - remove anset_ozone_var (included in anprewgt_reg)
 !   2007-08-21  pondeca - add qvar3d allocate (bug fix)
 !   2008-11-03  sato - update for global mode and sub-domain mode
+!   2008-12-10  zhu  - use nvars from jfunc,add changes for generalized control variables
 !
 ! subroutines included:
 !   sub init_anberror             - initialize extra anisotropic background error
@@ -35,7 +36,6 @@ module anberror
 !   def ancovmdl    - covariance model settings - 0: pt-based, 1: ensemble-based
 !   def indices     - rf-indices for zonal patch
 !   def indices_p   - rf-indices for polar patches
-!   def nvars       - number of analysis variables
 !   def idvar       - used by anisotropic filter code
 !   def jdvar       -  to apply filter simultaneously
 !   def kvar_start  -  to all variables, when stored
@@ -94,6 +94,7 @@ module anberror
   use berror, only: qvar3d
   use gridmod, only: lat2,lon2,nsig
   use fgrid2agrid_mod, only: fgrid2agrid_parm
+  use control_vectors, only: nvars
   implicit none
 
 ! set default to private
@@ -111,7 +112,7 @@ module anberror
 ! set passed variables to public
   public :: pf2aP1,pf2aP2,pf2aP3,nx,ny,mr,nr,nf,rtma_subdomain_option
   public :: nsmooth,nsmooth_shapiro,indices,indices_p,ngauss,filter_all,filter_p2,filter_p3
-  public :: nvars,kvar_start,kvar_end,var_names,levs_jdvar,anisotropic
+  public :: kvar_start,kvar_end,var_names,levs_jdvar,anisotropic
   public :: idvar,triad4,ifilt_ord,npass,normal,binom,rgauss,anhswgt,an_amp,an_amp0,an_vs
   public :: ancovmdl,covmap,lreadnorm,afact0,smooth_len,jdvar
   public :: an_flen_t,an_flen_z,an_flen_u,grid_ratio,grid_ratio_p
@@ -125,8 +126,6 @@ module anberror
 
   type(filter_indices):: indices
   type(filter_indices):: indices_p
-
-  integer(i_kind) nvars
 
   integer(i_kind),allocatable::idvar(:),jdvar(:),kvar_start(:),kvar_end(:),levs_jdvar(:)
   character(80),allocatable::var_names(:)
@@ -472,6 +471,8 @@ contains
 !
 ! program history log:
 !   2008-06-05  safford -- add subprogram doc block
+!   2008-12-10 zhu     - add changes with nrf* for generalized control variables
+!                      - use vlevs from gridmod
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -485,36 +486,33 @@ contains
 !$$$ end documentation block
 
     use constants, only: izero,ione
-    use gridmod, only: nsig,nsig1o
+    use gridmod, only: nsig,nsig1o,vlevs
     use mpimod, only: levs_id,nvar_id,npe,ierror,mpi_comm_world, &
            mpi_max,mpi_integer4
+    use control_vectors, only: nrf_var,nrf,nrf2_sst
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
-    integer(i_kind) idvar_last,k,kk,vlevs
+    integer(i_kind) idvar_last,k,kk
     integer(i_kind) nlevs0(0:npe-ione),nlevs1(0:npe-ione),nvar_id0(nsig1o*npe),nvar_id1(nsig1o*npe)
 
-    vlevs=6*nsig+4_i_kind       !  all variables
     indices%kds=  ione ; indices%kde=vlevs
     indices_p%kds=ione ; indices_p%kde=vlevs
 
-!  initialize nvars,idvar,kvar_start,kvar_end
+!  initialize idvar,kvar_start,kvar_end
 ! Determine how many vertical levels each mpi task will
 ! handle in the horizontal smoothing
-    nvars=10_i_long
     allocate(idvar(indices%kds:indices%kde),jdvar(indices%kds:indices%kde),kvar_start(nvars),kvar_end(nvars))
     allocate(var_names(nvars))
-    var_names( 1)="st"
-    var_names( 2)="vp"
-    var_names( 3)="ps"
-    var_names( 4)="tv"
-    var_names( 5)="q"
-    var_names( 6)="oz"
-    var_names( 7)="sst"
-    var_names( 8)="stl"
-    var_names( 9)="sti"
-    var_names(10)="cw"
+    do k=1,nrf
+       var_names(k)=nrf_var(k)
+    end do
+    if (nrf2_sst>izero) then
+       var_names(nrf+1)="stl"
+       var_names(nrf+2)="sti"
+    end if
+
 
 !                     idvar  jdvar
 !                       1      1       stream function
@@ -640,6 +638,8 @@ contains
 !
 ! program history log:
 !   2008-06-05  safford -- add subprogram doc block
+!   2008-12-10  zhu - add changes with nrf_var,nrf* for generalized control variables
+!                   - use vlevs from gridmod
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -653,85 +653,53 @@ contains
 !$$$ end documentation block
 
     use constants, only: izero,ione
-    use gridmod, only: nsig
+    use gridmod, only: nsig,vlevs
+    use control_vectors, only: nrf_var,nrf,nrf2_sst,nrf_3d,nrf_levb,nrf_leve
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
-    integer(i_kind) k,kk,vlevs
+    integer(i_kind) n,k,kk
 
-  ! vlevs=6*nsig+4_i_kind       !  all variables
-    vlevs=4*nsig+ione                          !  for rtma, currently do only u,v,psfc,t,q
     indices%kds=ione        ; indices%kde=vlevs
     indices%kps=indices%kds ; indices%kpe=indices%kde
 
 !  initialize nvars,idvar,kvar_start,kvar_end
 ! Determine how many vertical levels each mpi task will
 ! handle in the horizontal smoothing
-  ! nvars=10_i_kind
-    nvars=5_i_long
     allocate(idvar(indices%kds:indices%kde),jdvar(indices%kds:indices%kde),kvar_start(nvars),kvar_end(nvars))
     allocate(var_names(nvars),levs_jdvar(indices%kds:indices%kde))
-    var_names( 1)="st"
-    var_names( 2)="vp"
-    var_names( 3)="ps"
-    var_names( 4)="tv"
-    var_names( 5)="q"
-  ! var_names( 6)="oz"
-  ! var_names( 7)="sst"
-  ! var_names( 8)="stl"
-  ! var_names( 9)="sti"
-  ! var_names(10)="cw"
+    do k=1,nrf
+       var_names(k)=nrf_var(k)
+    end do
+    if (nrf2_sst>0) then
+       var_names(nrf+1)="stl"
+       var_names(nrf+2)="sti"
+    end if
 
-!                     idvar  jdvar
-!                       1      1       stream function
-!                       2      2       velocity potential
-!                       3      3       surface pressure
-!                       4      4       virtual temperature
-!                       5      5       specific humidity
-!!                      6      6       ozone
-!!                      7      7       sst
-!!                     10      8       cloud water
-!!                      8      9       surface temp (land)
-!!                      9     10       surface temp (ice)
-
-    idvar(1              :nsig  )     =ione      ! st
-    idvar(nsig+ione      :2*nsig)     =2_i_long  ! vp
-    idvar(2*nsig+ione)                =3_i_long  ! ps
-    idvar(2*nsig+2_i_kind:3*nsig+ione)=4_i_long  ! tv
-    idvar(3*nsig+2_i_kind:4*nsig+ione)=5_i_long  ! q
+    do n=1,nrf
+       kvar_start(n)=nrf_levb(n) 
+       kvar_end(n)  =nrf_leve(n)
+       idvar(kvar_start(n):kvar_end(n))=n
+    end do
+    if (nrf2_sst>0) then
+       idvar(kvar_end(nrf)+1)=nrf+ione
+       idvar(kvar_end(nrf)+2)=nrf+2_i_kind
+    end if
     jdvar=idvar
 
     kk=izero
-    do k=1,nsig
-       kk=kk+ione
-       levs_jdvar(kk)=k     ! st
+    do n=1,nrf
+       if (nrf_3d(n)) then
+          do k=1,nsig
+             kk=kk+ione
+             levs_jdvar(kk)=k
+          end do
+       else
+          kk=kk+ione
+          levs_jdvar(kk)=ione
+       end if
     end do
-    do k=1,nsig
-       kk=kk+ione
-       levs_jdvar(kk)=k     ! vp
-    end do
-    kk=kk+ione
-    levs_jdvar(kk)=ione    ! ps
-    do k=1,nsig
-       kk=kk+ione
-       levs_jdvar(kk)=k     ! tv
-    end do
-    do k=1,nsig
-       kk=kk+ione
-       levs_jdvar(kk)=k     ! q
-    end do
-
-    kvar_start(1) =ione
-    kvar_end(1)   =nsig
-    kvar_start(2) =kvar_end(1)+ione
-    kvar_end(2)   =kvar_end(1)+nsig
-    kvar_start(3) =kvar_end(2)+ione
-    kvar_end(3)   =kvar_end(2)+ione
-    kvar_start(4) =kvar_end(3)+ione
-    kvar_end(4)   =kvar_end(3)+nsig
-    kvar_start(5) =kvar_end(4)+ione
-    kvar_end(5)   =kvar_end(4)+nsig
 
     if(mype==izero) then
        do k=indices%kds,indices%kde

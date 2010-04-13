@@ -399,6 +399,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !
 ! program history log:
 !   2006-10-17  pondeca, document
+!   2010-03-29  zhu      - make changes for generalizing control variables
 !   2010-04-01  treadon - move strip to grimod
 !
 !   input argument list:
@@ -467,13 +468,13 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      write (lun) nlon,nlat,nsig,jpch_rad,npred,npcptype,npredp,jiter,nv,alpha,gamma
 
      ii=ione
-     do ifield=1,6
-        if (ifield==ione)        field=dz%step(ii)%st
-        if (ifield==2_i_kind)    field=dz%step(ii)%vp
-        if (ifield==3_i_kind)    field=dz%step(ii)%t
-        if (ifield==4_i_kind)    field=dz%step(ii)%rh
-        if (ifield==5_i_kind)    field=dz%step(ii)%oz
-        if (ifield==6_i_kind)    field=dz%step(ii)%cw
+     do ifield=1,nrf3
+        if (ifield==nrf3_sf)     field=dz%step(ii)%st
+        if (ifield==nrf3_vp)     field=dz%step(ii)%vp
+        if (ifield==nrf3_t)      field=dz%step(ii)%t
+        if (ifield==nrf3_q)      field=dz%step(ii)%rh
+        if (ifield==nrf3_oz)     field=dz%step(ii)%oz
+        if (ifield==nrf3_cw)     field=dz%step(ii)%cw
 
         do k=1,nsig
            k1=ione+(k-ione)*latlon11
@@ -506,15 +507,17 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      endif
 
 !                               gradient wrt sfct
-     call strip(dz%step(ii)%sst,strp,ione)
-     call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
-         tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+     if (nrf2_sst>izero) then
+        call strip(dz%step(ii)%sst,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+            tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
-     if(mype == izero) then
-        do i=1,iglobal
-           slab(ltosj(i),ltosi(i))=tempa(i)
-        end do
-        write(lun) slab
+        if(mype == izero) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
      endif
 
 !                   gradient wrt satellite radiance bias correction coefficients

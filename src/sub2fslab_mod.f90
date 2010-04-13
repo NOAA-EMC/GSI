@@ -9,6 +9,8 @@ module sub2fslab_mod
 !
 ! program history log:
 !   2008-01-23  sato
+!   2010-03-25  zhu   - change work_* from arrays to a data structure work;
+!                     - change interface of sub2grid 
 !
 ! subroutines included:
 !   sub setup_sub2fslab
@@ -39,6 +41,7 @@ module sub2fslab_mod
   use anberror, only: prm0 => pf2aP1, &
                       prm2 => pf2aP2,  &
                       prm3 => pf2aP3
+  use control_vectors, only: nrf,nrf_3d,control_state,allocate_cs,deallocate_cs
 
   implicit none
 
@@ -55,9 +58,8 @@ module sub2fslab_mod
   public :: sub2fslab2d
   public :: sub2fslab2d_glb
 
-  real(r_kind),allocatable,dimension(:,:,:)::work_st,work_vp,work_t,work_q, &
-                                             work_oz,work_cwmr
-  real(r_kind),allocatable,dimension(:,:)  ::work_p,work_sst,work_slndt,work_sicet
+  type(control_state),save :: work
+  real(r_kind),allocatable,dimension(:,:)  :: work_sst,work_slndt,work_sicet
 
   real(r_kind)  ,allocatable,dimension(:,:,:)  :: hfine
   real(r_kind)  ,allocatable,dimension(:,:)    :: hfilter
@@ -87,10 +89,8 @@ subroutine setup_sub2fslab
 !$$$ end documentation block
   implicit none
 
-  allocate(work_st(lat2,lon2,nsig),work_vp(lat2,lon2,nsig),work_t   (lat2,lon2,nsig))
-  allocate(work_q (lat2,lon2,nsig),work_oz(lat2,lon2,nsig),work_cwmr(lat2,lon2,nsig))
-  allocate(work_p    (lat2,lon2),work_sst  (lat2,lon2))
-  allocate(work_slndt(lat2,lon2),work_sicet(lat2,lon2))
+  call allocate_cs(work)
+  allocate(work_sst(lat2,lon2),work_slndt(lat2,lon2),work_sicet(lat2,lon2))
 
   allocate(hfine(nlat,nlon,nsig1o))
 
@@ -130,8 +130,8 @@ subroutine destroy_sub2fslab
 !$$$ end documentation block
   implicit none
 
-  deallocate(work_st, work_vp, work_t, work_q, work_oz, work_cwmr)
-  deallocate(work_p, work_sst, work_slndt, work_sicet)
+  call deallocate_cs(work)
+  deallocate(work_sst,work_slndt,work_sicet)
 
   if( regional ) then
   !  for regional mode
@@ -158,6 +158,8 @@ subroutine sub2fslab(fsub,fslab)
 !
 ! program history log:
 !   2008-01-23  sato
+!   2010-03-25  zhu   - change work_* from arrays to a data structure work;
+!                     - change interface of sub2grid 
 !
 !   input argument list:
 !    fsub     - subdomain data array
@@ -170,7 +172,7 @@ subroutine sub2fslab(fsub,fslab)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block\
-  use constants, only: ione
+  use constants, only: ione,izero
   use fgrid2agrid_mod, only: agrid2fgrid
   implicit none
 
@@ -179,18 +181,34 @@ subroutine sub2fslab(fsub,fslab)
   real(r_single),intent(  out) :: fslab(prm0%nlatf,prm0%nlonf,nsig1o)
 
 ! Declare local variables
-  integer(i_kind):: k,iflg
+  integer(i_kind):: k,iflg,i,j,nk,n
 
-  work_t =fsub; work_st=fsub; work_vp  =fsub
-  work_q =fsub; work_oz=fsub; work_cwmr=fsub
-  work_p    (:,:)=fsub(:,:,1)
+  nk=izero
+  do n=1,nrf
+     if (nrf_3d(n)) then 
+        do k=1,nsig
+           do i=1,lon2
+              do j=1,lat2
+                 nk=nk+ione
+                 work%values(nk) =fsub(j,i,k)
+              end do
+           end do
+        end do
+     else
+        do i=1,lon2
+           do j=1,lat2
+              nk=nk+ione
+              work%values(nk) =fsub(j,i,1)
+           end do
+        end do
+     end if
+  end do
   work_sst  (:,:)=fsub(:,:,1)
   work_slndt(:,:)=fsub(:,:,1)
   work_sicet(:,:)=fsub(:,:,1)
 
   iflg=ione
-  call sub2grid(hfine,work_t,work_p,work_q,work_oz,work_sst, &
-                work_slndt,work_sicet,work_cwmr,work_st,work_vp,iflg)
+  call sub2grid(hfine,work,work_sst,work_slndt,work_sicet,iflg)
 
   do k=1,nsig1o
      call agrid2fgrid(prm0,hfine(1,1,k),hfilter) !analysis to filter grid
@@ -212,6 +230,8 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
 !
 ! program history log:
 !   2008-01-23  sato
+!   2010-03-25  zhu   - change work_* from arrays to a data structure work;
+!                     - change interface of sub2grid 
 !
 !   input argument list:
 !    fsub                 - subdomain data array
@@ -224,7 +244,7 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use constants, only: ione
+  use constants, only: ione,izero
   use patch2grid_mod, only: grid2patch
   implicit none
 
@@ -235,18 +255,34 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
   real(r_single),intent(  out) :: fslb3(prm3%nlatf,prm3%nlonf,nsig1o)
 
 ! Declare local variables
-  integer(i_kind):: k,iflg
+  integer(i_kind):: k,iflg,i,j,nk,n
 
-  work_t =fsub; work_st=fsub; work_vp  =fsub
-  work_q =fsub; work_oz=fsub; work_cwmr=fsub
-  work_p    (:,:)=fsub(:,:,1)
+  nk=izero
+  do n=1,nrf
+     if (nrf_3d(n)) then
+        do k=1,nsig
+           do i=1,lon2
+              do j=1,lat2
+                 nk=nk+ione
+                 work%values(nk) =fsub(j,i,k)
+              end do
+           end do
+        end do
+     else
+        do i=1,lon2
+           do j=1,lat2
+              nk=nk+ione
+              work%values(nk) =fsub(j,i,1)
+           end do
+        end do
+     end if
+  end do
   work_sst  (:,:)=fsub(:,:,1)
   work_slndt(:,:)=fsub(:,:,1)
   work_sicet(:,:)=fsub(:,:,1)
 
   iflg=ione
-  call sub2grid(hfine,work_t,work_p,work_q,work_oz,work_sst, &
-                work_slndt,work_sicet,work_cwmr,work_st,work_vp,iflg)
+  call sub2grid(hfine,work,work_sst,work_slndt,work_sicet,iflg)
 
   do k=1,nsig1o
      call grid2patch(hfine(1,1,k),hflt0,hflt2,hflt3) !analysis to filter grid
@@ -367,6 +403,8 @@ subroutine sub2slab2d(fsub,slab)
 !
 ! program history log:
 !   2008-01-23  sato
+!   2010-03-25  zhu   - change work_* from arrays to a data structure work;
+!                     - change interface of sub2grid 
 !
 !   input argument list:
 !    fsub     - subdomain data array
@@ -379,30 +417,43 @@ subroutine sub2slab2d(fsub,slab)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use constants, only: ione
+  use constants, only: ione,izero
   implicit none
 
 ! Declare passed variables
   real(r_kind),intent(in   ) :: fsub(lat2,lon2)
   real(r_kind),intent(  out) :: slab(nlat,nlon,nsig1o)
-
+  
 ! Declare local variables
-  integer(i_kind):: k,iflg
+  integer(i_kind):: k,iflg,i,j,nk,n
+  real(r_kind)   :: work_t(lat2,lon2,nsig)
 
-  do k=1,nsig
-     work_t(:,:,k)=fsub(:,:)
+  nk=izero
+  do n=1,nrf
+     if (nrf_3d(n)) then
+        do k=1,nsig
+           do i=1,lon2
+              do j=1,lat2
+                 nk=nk+ione
+                 work%values(nk) =fsub(j,i)
+              end do
+           end do
+        end do
+     else
+        do i=1,lon2
+           do j=1,lat2
+              nk=nk+ione
+              work%values(nk) =fsub(j,i)
+           end do
+        end do
+     end if
   end do
-
-  work_st=work_t; work_vp=work_t
-  work_q =work_t; work_oz=work_t; work_cwmr=work_t
-  work_p    (:,:)=fsub(:,:)
   work_sst  (:,:)=fsub(:,:)
   work_slndt(:,:)=fsub(:,:)
   work_sicet(:,:)=fsub(:,:)
 
   iflg=ione
-  call sub2grid(slab,work_t,work_p,work_q,work_oz,work_sst, &
-                work_slndt,work_sicet,work_cwmr,work_st,work_vp,iflg)
+  call sub2grid(slab,work,work_sst,work_slndt,work_sicet,iflg)
 
   return
 end subroutine sub2slab2d

@@ -15,6 +15,8 @@ subroutine anbkerror(gradx,grady)
 !   2008-12-29  todling - update interface to strong_bk/bk_ad
 !   2009-04-13  derber - move strong_bk into balance
 !   2009-07-01  sato - update for global mode
+!   2010-03-09  zhu    - change anbkgcov interface for generalized control variables
+!                      - make changes to interfaces of sub2grid and grid2sub
 !
 !   input argument list:
 !     gradx    - input field  
@@ -65,9 +67,7 @@ subroutine anbkerror(gradx,grady)
                    grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
 
 !    Apply variances, as well as vertical & horizontal parts of background error
-     call anbkgcov(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%t, &
-                   grady%step(ii)%p ,grady%step(ii)%rh,grady%step(ii)%oz, &
-                   grady%step(ii)%sst,sst,slndt,sicet,grady%step(ii)%cw)
+     call anbkgcov(grady%step(ii),sst,slndt,sicet)
 
 !    Balance equation
      call balance(grady%step(ii)%t ,grady%step(ii)%p ,&
@@ -90,7 +90,7 @@ subroutine anbkerror(gradx,grady)
 end subroutine anbkerror
 
 
-subroutine anbkgcov(st,vp,t,p,q,oz,skint,sst,slndt,sicet,cwmr)
+subroutine anbkgcov(cstate,sst,slndt,sicet)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    anbkgcov    apply anisotropic background error covar
@@ -101,6 +101,10 @@ subroutine anbkgcov(st,vp,t,p,q,oz,skint,sst,slndt,sicet,cwmr)
 ! program history log:
 !   2005-02-14  parrish
 !   2009-07-01  sato - update for global mode
+!   2010-03-09  zhu     - make changes for generalizing control vectors
+!                       - replace explicit use of each control variable
+!                         by a control_state 'cstate'
+!                       - use nrf* for generalized control variables
 !
 !   input argument list:
 !     t        - t on subdomain
@@ -134,67 +138,67 @@ subroutine anbkgcov(st,vp,t,p,q,oz,skint,sst,slndt,sicet,cwmr)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nlat,nlon,nsig,nsig1o
+  use gridmod, only: lat2,lon2,nlat,nlon,nsig,nsig1o,latlon11
   use anberror, only: rtma_subdomain_option,nsmooth, nsmooth_shapiro
+  use control_vectors, only: nrf_levb,control_state,nrf3,nrf3_loc,nrf2_sst
   use constants, only: izero,ione,zero
   implicit none
 
 ! Passed Variables
-  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p,skint,sst,slndt,sicet
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,cwmr,oz,st,vp
+  type(control_state),intent(inout) :: cstate
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: sst,slndt,sicet
 
 ! Local Variables
-  integer(i_kind) iflg
+  integer(i_kind) iflg,n,k,nk,loc
   real(r_kind),dimension(nlat,nlon,nsig1o):: hwork
 
 
 ! break up skin temp into components
-  call anbkgvar(skint,sst,slndt,sicet,izero)
+  if (nrf2_sst>izero) call anbkgvar(cstate%sst,sst,slndt,sicet,izero)
 
 ! Perform simple vertical smoothing while fields are in sudomain mode.
 ! The accompanying smoothing in the horizontal is performed inside the
 ! recursive filter. Motivation: Reduce possible high frequency noise in
 ! the analysis that would arise from the use of a "non-blending" RF algorithm.
 
-  call vert_smther(t   ,nsmooth,nsmooth_shapiro)
-  call vert_smther(q   ,nsmooth,nsmooth_shapiro)
-  call vert_smther(oz  ,nsmooth,nsmooth_shapiro)
-  call vert_smther(cwmr,nsmooth,nsmooth_shapiro)
-  call vert_smther(st  ,nsmooth,nsmooth_shapiro)
-  call vert_smther(vp  ,nsmooth,nsmooth_shapiro)
+  
+  do k=1,nrf3
+     loc=nrf3_loc(k)
+     nk=(nrf_levb(loc)-ione)*latlon11+ione
+     call vert_smther(cstate%values(nk),nsmooth,nsmooth_shapiro)
+  end do
 
   if(rtma_subdomain_option) then
 
-     oz=zero
-     cwmr=zero
+     cstate%oz=zero
+     cstate%cw=zero
      sst=zero
      slndt=zero
      sicet=zero
-     call ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
+     call ansmoothrf_reg_subdomain_option(cstate%values)
 
   else
 
 ! Convert from subdomain to full horizontal field distributed among processors
      iflg=ione
-     call sub2grid(hwork,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
+     call sub2grid(hwork,cstate,sst,slndt,sicet,iflg) 
 
 ! Apply horizontal smoother for number of horizontal scales
      call ansmoothrf(hwork)
 
 ! Put back onto subdomains
-     call grid2sub(hwork,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
+     call grid2sub(hwork,cstate,sst,slndt,sicet)
 
   end if
 
-  call tvert_smther(vp  ,nsmooth,nsmooth_shapiro)
-  call tvert_smther(st  ,nsmooth,nsmooth_shapiro)
-  call tvert_smther(cwmr,nsmooth,nsmooth_shapiro)
-  call tvert_smther(oz  ,nsmooth,nsmooth_shapiro)
-  call tvert_smther(q   ,nsmooth,nsmooth_shapiro)
-  call tvert_smther(t   ,nsmooth,nsmooth_shapiro)
+  do k=nrf3,1,-1
+     loc=nrf3_loc(k)
+     nk=(nrf_levb(loc)-ione)*latlon11+ione
+     call tvert_smther(cstate%values(nk),nsmooth,nsmooth_shapiro)
+  end do
 
 ! combine sst,sldnt, and sicet into skin temperature field
-  call anbkgvar(skint,sst,slndt,sicet,ione)
+  if (nrf2_sst>izero) call anbkgvar(cstate%sst,sst,slndt,sicet,ione)
 
 end subroutine anbkgcov
 
@@ -615,7 +619,7 @@ subroutine tvert_smther(g,nsmooth,nsmooth_shapiro)
 end subroutine tvert_smther
 
 
-subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
+subroutine ansmoothrf_reg_subdomain_option(grady)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ansmoothrf_reg_subdomain_option  anisotropic rf for regional mode
@@ -626,6 +630,7 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
 !
 ! program history log:
 !   2005-02-14  parrish
+!   2010-03-16  zhu - use an array grady for generalized control variables
 !
 !   input argument list:
 !     t,p,q,oz,st,slndt,sicet,cwmr,st,vp   -  fields to be smoothed
@@ -643,11 +648,12 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
   use constants, only: izero,ione,zero
   use gridmod, only: lat2,lon2,istart,jstart,nsig
   use raflib, only: raf4_ad_wrap,raf4_wrap
+  use jfunc, only: nval_levs
+  use control_vectors, only: nrf2,nrf3,nvars
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,vp,st
+  real(r_kind),dimension(lat2,lon2,nval_levs):: grady
 
 ! Declare local variables
   integer(i_kind) i,igauss,iloc,j,jloc,k,kk,mm1
@@ -669,60 +675,14 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
 
 !  transfer variables to ngauss copies
   kk=izero
-  do k=1,nsig
+  do k=1,nval_levs
      kk=kk+ione
      do j=jps,jpe
         jloc=j-jstart(mm1)+2_i_kind
         do i=ips,ipe
            iloc=i-istart(mm1)+2_i_kind
            do igauss=1,ngauss
-              workb(igauss,i,j,kk)=st(iloc,jloc,k)
-           end do
-        end do
-     end do
-  end do
-  do k=1,nsig
-     kk=kk+ione
-     do j=jps,jpe
-        jloc=j-jstart(mm1)+2_i_kind
-        do i=ips,ipe
-           iloc=i-istart(mm1)+2_i_kind
-           do igauss=1,ngauss
-              workb(igauss,i,j,kk)=vp(iloc,jloc,k)
-           end do
-        end do
-     end do
-  end do
-  kk=kk+ione
-  do j=jps,jpe
-     jloc=j-jstart(mm1)+2_i_kind
-     do i=ips,ipe
-        iloc=i-istart(mm1)+2_i_kind
-        do igauss=1,ngauss
-           workb(igauss,i,j,kk)=p(iloc,jloc)
-        end do
-     end do
-  end do
-  do k=1,nsig
-     kk=kk+ione
-     do j=jps,jpe
-        jloc=j-jstart(mm1)+2_i_kind
-        do i=ips,ipe
-           iloc=i-istart(mm1)+2_i_kind
-           do igauss=1,ngauss
-              workb(igauss,i,j,kk)=t(iloc,jloc,k)
-           end do
-        end do
-     end do
-  end do
-  do k=1,nsig
-     kk=kk+ione
-     do j=jps,jpe
-        jloc=j-jstart(mm1)+2_i_kind
-        do i=ips,ipe
-           iloc=i-istart(mm1)+2_i_kind
-           do igauss=1,ngauss
-              workb(igauss,i,j,kk)=q(iloc,jloc,k)
+              workb(igauss,i,j,kk)=grady(iloc,jloc,k)
            end do
         end do
      end do
@@ -735,75 +695,21 @@ subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
 
 !  add together ngauss copies
   kk=izero
-  do k=1,nsig
+  do k=1,nval_levs
      kk=kk+ione
      do j=jps,jpe
         jloc=j-jstart(mm1)+2_i_kind
         do i=ips,ipe
            iloc=i-istart(mm1)+2_i_kind
-           st(iloc,jloc,k)=zero
+           grady(iloc,jloc,k)=zero
            do igauss=1,ngauss
-              st(iloc,jloc,k)=st(iloc,jloc,k)+workb(igauss,i,j,kk)
-           end do
-        end do
-     end do
-  end do
-  do k=1,nsig
-     kk=kk+ione
-     do j=jps,jpe
-        jloc=j-jstart(mm1)+2_i_kind
-        do i=ips,ipe
-           iloc=i-istart(mm1)+2_i_kind
-           vp(iloc,jloc,k)=zero
-           do igauss=1,ngauss
-              vp(iloc,jloc,k)=vp(iloc,jloc,k)+workb(igauss,i,j,kk)
-           end do
-        end do
-     end do
-  end do
-  kk=kk+ione
-  do j=jps,jpe
-     jloc=j-jstart(mm1)+2_i_kind
-     do i=ips,ipe
-        iloc=i-istart(mm1)+2_i_kind
-        p(iloc,jloc)=zero
-        do igauss=1,ngauss
-           p(iloc,jloc)=p(iloc,jloc)+workb(igauss,i,j,kk)
-        end do
-     end do
-  end do
-  do k=1,nsig
-     kk=kk+ione
-     do j=jps,jpe
-        jloc=j-jstart(mm1)+2_i_kind
-        do i=ips,ipe
-           iloc=i-istart(mm1)+2_i_kind
-           t(iloc,jloc,k)=zero
-           do igauss=1,ngauss
-              t(iloc,jloc,k)=t(iloc,jloc,k)+workb(igauss,i,j,kk)
-           end do
-        end do
-     end do
-  end do
-  do k=1,nsig
-     kk=kk+ione
-     do j=jps,jpe
-        jloc=j-jstart(mm1)+2_i_kind
-        do i=ips,ipe
-           iloc=i-istart(mm1)+2_i_kind
-           q(iloc,jloc,k)=zero
-           do igauss=1,ngauss
-              q(iloc,jloc,k)=q(iloc,jloc,k)+workb(igauss,i,j,kk)
+              grady(iloc,jloc,k)=grady(iloc,jloc,k)+workb(igauss,i,j,kk)
            end do
         end do
      end do
   end do
 
 !   update halos:
-  call halo_update_reg(p,ione)
-  call halo_update_reg(t,nsig)
-  call halo_update_reg(q,nsig)
-  call halo_update_reg(vp,nsig)
-  call halo_update_reg(st,nsig)
+  call halo_update_reg(grady,nval_levs)
 
 end subroutine ansmoothrf_reg_subdomain_option

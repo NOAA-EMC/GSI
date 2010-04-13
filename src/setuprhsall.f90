@@ -98,6 +98,7 @@ subroutine setuprhsall(ndata,mype)
   use convinfo, only: nconvtype,diag_conv
   use timermod, only: timer_ini,timer_fnl
   use lag_fields, only: lag_presetup,lag_state_write,lag_state_read,lag_destroy_uv
+  use control_vectors, only: nrf3_oz,nrf2_sst
   implicit none
 
 ! Declare passed variables
@@ -140,7 +141,7 @@ subroutine setuprhsall(ndata,mype)
   rad_diagsave  = write_diag(jiter) .and. diag_rad
   pcp_diagsave  = write_diag(jiter) .and. diag_pcp
   conv_diagsave = write_diag(jiter) .and. diag_conv
-  ozone_diagsave= write_diag(jiter) .and. diag_ozone
+  ozone_diagsave= write_diag(jiter) .and. diag_ozone .and. nrf3_oz>izero
 
   aivals   = zero
   stats    = zero
@@ -318,7 +319,7 @@ subroutine setuprhsall(ndata,mype)
               call setupsrw(lunin,mype,bwork,awork(1,i_srw),nele,nobs,conv_diagsave)
 
 !          Set up conventional sst data
-           else if(obstype=='sst') then 
+           else if(obstype=='sst' .and. nrf2_sst>izero) then 
               call setupsst(lunin,mype,bwork,awork(1,i_sst),nele,nobs,conv_diagsave)
 
 !          Set up conventional lagrangian data
@@ -328,7 +329,7 @@ subroutine setuprhsall(ndata,mype)
            end if
 
 !       Set up ozone (sbuv/omi/mls) data
-        else if(ditype(is) == 'ozone')then
+        else if(ditype(is) == 'ozone' .and. nrf3_oz>izero)then
            if (obstype == 'mlsoz') then
               call setupo3lv(lunin,mype,bwork,awork(1,i_o3),nele,nobs,&
                    isis,is,obstype,ozone_diagsave)
@@ -377,7 +378,7 @@ subroutine setuprhsall(ndata,mype)
   call mpi_reduce(stats,stats1,7*jpch_rad,mpi_rtype,mpi_sum,mype_rad, &
        mpi_comm_world,ierror)
 
-  call mpi_reduce(stats_oz,stats_oz1,9*jpch_oz,mpi_rtype,mpi_sum,mype_oz, &
+  if (nrf3_oz>izero) call mpi_reduce(stats_oz,stats_oz1,9*jpch_oz,mpi_rtype,mpi_sum,mype_oz, &
        mpi_comm_world,ierror)
 
 ! Collect conventional data statistics
@@ -403,7 +404,7 @@ subroutine setuprhsall(ndata,mype)
         if(mype==mype_rad) call statspcp(aivals1,ndata)
 
 !       Compute and print statistics for ozone
-        if (mype==mype_oz) call statsoz(stats_oz1,bwork1,awork1(1,i_o3),ndata)
+        if (mype==mype_oz .and. nrf3_oz>izero) call statsoz(stats_oz1,bwork1,awork1(1,i_o3),ndata)
 
      endif
 

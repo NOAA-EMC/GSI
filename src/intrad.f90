@@ -35,7 +35,7 @@ end interface
 
 contains
 
-subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
+subroutine intrad_(radhead,rval,sval,rpred,spred)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intrad      sat radiance nonlin qc obs operator
@@ -70,6 +70,9 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
 !   2008-11-28  todling  - remove quad precision; mpi_allgather is reproducible
 !                        - turn FOTO optional; changed ptr%time handle
 !                        - internal copy of pred's to avoid reshape in calling program
+!   2010-03-25  zhu - use state_vector in the interface for generalizing control variable
+!                   - add treatment when sst and oz are not control variables
+!                   - add pointer_state
 !
 !   input argument list:
 !     radhead  - obs type pointer to obs structure
@@ -105,20 +108,20 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
   use kinds, only: r_kind,i_kind,r_quad
   use radinfo, only: npred,jpch_rad,pg_rad,b_rad
   use obsmod, only: rad_ob_type,lsaveobsens,l_do_adjoint
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt,pointer_state
   use gridmod, only: latlon11,latlon1n,nsig,nsig2,&
        nsig3p1,nsig3p2,nsig3p3
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: ione,zero,half,one,tiny_r_kind,cg_term,r3600
+  use constants, only: ione,izero,zero,half,one,tiny_r_kind,cg_term,r3600
+  use control_vectors, only: nrf2_sst,nrf3_oz
+  use state_vectors
   implicit none
 
 ! Declare passed variables
-  type(rad_ob_type),pointer             ,intent(in   ) :: radhead
-  real(r_kind),dimension(latlon1n)      ,intent(in   ) :: st,sq,soz,su,sv
-  real(r_kind),dimension(latlon11)      ,intent(in   ) :: sst
+  type(rad_ob_type),pointer,intent(in) :: radhead
+  type(state_vector), intent(in   ) :: sval
+  type(state_vector), intent(inout) :: rval
   real(r_kind),dimension(npred*jpch_rad),intent(in   ) :: spred
-  real(r_kind),dimension(latlon1n)      ,intent(inout) :: rt,rq,roz,ru,rv
-  real(r_kind),dimension(latlon11)      ,intent(inout) :: rst
   real(r_quad),dimension(npred*jpch_rad),intent(inout) :: rpred
 
 ! Declare local variables
@@ -130,6 +133,14 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
   real(r_kind) cg_rad,p0,wnotgross,wgross,time_rad
   type(rad_ob_type), pointer :: radptr
 
+  real(r_kind),pointer,dimension(:) :: st,sq,soz,su,sv
+  real(r_kind),pointer,dimension(:) :: sst
+  real(r_kind),pointer,dimension(:) :: rt,rq,roz,ru,rv
+  real(r_kind),pointer,dimension(:) :: rst
+
+! Prepare pointers
+  call pointer_state(sval,u=su,v=sv,t=st,q=sq,oz=soz,sst=sst)
+  call pointer_state(rval,u=ru,v=rv,t=rt,q=rq,oz=roz,sst=rst)
 
   radptr => radhead
   do while (associated(radptr))
@@ -168,16 +179,24 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
                       w3*  st(i3)+w4*  st(i4)
         tdir(nsig+k)= w1*  sq(i1)+w2*  sq(i2)+ &
                       w3*  sq(i3)+w4*  sq(i4)
-        tdir(nsig2+k)=w1* soz(i1)+w2* soz(i2)+ &
-                      w3* soz(i3)+w4* soz(i4)
+        if (nrf3_oz>izero) then
+           tdir(nsig2+k)=w1* soz(i1)+w2* soz(i2)+ &
+                         w3* soz(i3)+w4* soz(i4)
+        else
+           tdir(nsig2+k)=zero
+        end if
      end do
 !$omp end parallel do
      tdir(nsig3p1)=   w1* su(j1) +w2* su(j2)+ &
                       w3* su(j3) +w4* su(j4)
      tdir(nsig3p2)=   w1* sv(j1) +w2* sv(j2)+ &
                       w3* sv(j3) +w4* sv(j4)
-     tdir(nsig3p3)=   w1*sst(j1) +w2*sst(j2)+ &
+     if (nrf2_sst>izero) then
+        tdir(nsig3p3)=w1*sst(j1) +w2*sst(j2)+ &
                       w3*sst(j3) +w4*sst(j4)
+     else
+        tdir(nsig3p3)=zero
+     end if
 
 
      if (l_foto) then
@@ -193,9 +212,11 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
            tdir(nsig+k)= tdir(nsig+k)+&
                         (w1* xhat_dt%q(i1)+w2*xhat_dt%q(i2)+ &
                          w3* xhat_dt%q(i3)+w4*xhat_dt%q(i4))*time_rad
-           tdir(nsig2+k)= tdir(nsig2+k)+&
-                        (w1*xhat_dt%oz(i1)+w2*xhat_dt%oz(i2)+ &
-                         w3*xhat_dt%oz(i3)+w4*xhat_dt%oz(i4))*time_rad
+           if (nrf3_oz>izero) then 
+              tdir(nsig2+k)= tdir(nsig2+k)+&
+                            (w1*xhat_dt%oz(i1)+w2*xhat_dt%oz(i2)+ &
+                             w3*xhat_dt%oz(i3)+w4*xhat_dt%oz(i4))*time_rad
+           end if
         end do
         tdir(nsig3p1)=   tdir(nsig3p1)+&
                         (w1*xhat_dt%u(j1) +w2*xhat_dt%u(j2)+ &
@@ -288,10 +309,12 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
            dhat_dt%v(j4)=dhat_dt%v(j4)+w4*tval(nsig3p2)*time_rad
         endif
 
-        rst(j1)=rst(j1)+w1*tval(nsig3p3)
-        rst(j2)=rst(j2)+w2*tval(nsig3p3)
-        rst(j3)=rst(j3)+w3*tval(nsig3p3)
-        rst(j4)=rst(j4)+w4*tval(nsig3p3)
+        if (nrf2_sst>izero) then
+           rst(j1)=rst(j1)+w1*tval(nsig3p3)
+           rst(j2)=rst(j2)+w2*tval(nsig3p3)
+           rst(j3)=rst(j3)+w3*tval(nsig3p3)
+           rst(j4)=rst(j4)+w4*tval(nsig3p3)
+        end if
  
         do k=1,nsig
            n_1=k+nsig
@@ -309,10 +332,12 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
            rq(i2)=rq(i2)+w2*tval(n_1)
            rq(i3)=rq(i3)+w3*tval(n_1)
            rq(i4)=rq(i4)+w4*tval(n_1)
-           roz(i1)=roz(i1)+w1*tval(n_2)
-           roz(i2)=roz(i2)+w2*tval(n_2)
-           roz(i3)=roz(i3)+w3*tval(n_2)
-           roz(i4)=roz(i4)+w4*tval(n_2)
+           if (nrf3_oz>izero) then
+              roz(i1)=roz(i1)+w1*tval(n_2)
+              roz(i2)=roz(i2)+w2*tval(n_2)
+              roz(i3)=roz(i3)+w3*tval(n_2)
+              roz(i4)=roz(i4)+w4*tval(n_2)
+           end if
            if (l_foto) then
               dhat_dt%t(i1)=dhat_dt%t(i1)+w1*tval(k)*time_rad
               dhat_dt%t(i2)=dhat_dt%t(i2)+w2*tval(k)*time_rad
@@ -322,10 +347,12 @@ subroutine intrad_(radhead,rt,rq,roz,ru,rv,rst,st,sq,soz,su,sv,sst,rpred,spred)
               dhat_dt%q(i2)=dhat_dt%q(i2)+w2*tval(n_1)*time_rad
               dhat_dt%q(i3)=dhat_dt%q(i3)+w3*tval(n_1)*time_rad
               dhat_dt%q(i4)=dhat_dt%q(i4)+w4*tval(n_1)*time_rad
-              dhat_dt%oz(i1)=dhat_dt%oz(i1)+w1*tval(n_2)*time_rad
-              dhat_dt%oz(i2)=dhat_dt%oz(i2)+w2*tval(n_2)*time_rad
-              dhat_dt%oz(i3)=dhat_dt%oz(i3)+w3*tval(n_2)*time_rad
-              dhat_dt%oz(i4)=dhat_dt%oz(i4)+w4*tval(n_2)*time_rad
+              if (nrf3_oz>izero) then
+                 dhat_dt%oz(i1)=dhat_dt%oz(i1)+w1*tval(n_2)*time_rad
+                 dhat_dt%oz(i2)=dhat_dt%oz(i2)+w2*tval(n_2)*time_rad
+                 dhat_dt%oz(i3)=dhat_dt%oz(i3)+w3*tval(n_2)*time_rad
+                 dhat_dt%oz(i4)=dhat_dt%oz(i4)+w4*tval(n_2)*time_rad
+              end if
            endif
 
         end do

@@ -10,7 +10,7 @@
 
     module m_berror_stats
       use kinds,only : i_kind
-      use constants, only: izero,ione
+      use constants, only: izero,ione,one
 
       implicit none
 
@@ -18,7 +18,6 @@
 
         ! reconfigurable parameters, via NAMELIST/setup/
       public :: berror_stats	! reconfigurable filename
-      public :: berror_nvars	! reconfigurable number of variables
 
         ! interfaces to file berror_stats.
       public :: berror_get_dims	! get dimensions, jfunc::createj_func()
@@ -34,13 +33,15 @@
 ! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
 !		- initial prototype/prolog/code to wrap up all file
 !		  "berror_stats" related operations.
+!       25Feb10 - Zhu
+!               - made changes for generalizing control variables
+!               - remove berror_nvars
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname='m_berror_stats'
 
   	! Reconfigurable parameters, vai NAMELISt/setup/
   character(len=256),save :: berror_stats = "berror_stats"	! filename
-  integer(i_kind)   ,save :: berror_nvars = 6_i_kind            ! variable count.
 
   integer(i_kind),parameter :: default_unit_ = 22_i_kind
   integer(i_kind),parameter :: ERRCODE=2_i_kind
@@ -105,19 +106,14 @@ end subroutine get_dims
 ! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
 !		- the main body of code for input is extracted from
 !		  prebal() in balmod.f90.
+!       25Feb10 - Zhu 
+!               - change the structure of background error file
+!               - read in agvin,wgvin,bvin only
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::read_bal'
 
 !   workspaces/variables for data not returned
-
-  real(r_single),dimension(nlat,nsig):: corz,cord,corh,corq,corq2
-  real(r_single),dimension(nlat,nsig):: corc,coroz
-  real(r_single),dimension(nlat):: corp
-  real(r_single),dimension(nlat,nlon):: corsst
-  real(r_single),dimension(nlat,nsig*berror_nvars+ione):: hwllin
-  real(r_single),dimension(nlat,nlon):: hsst
-  real(r_single),dimension(nlat,nsig*berror_nvars):: vscalesin
 
   integer(i_kind):: nsigstat,nlatstat
   integer(i_kind):: inerr
@@ -133,50 +129,29 @@ end subroutine get_dims
 
     rewind inerr
     read(inerr) nsigstat,nlatstat
+
     if(mype==izero) then
-       write(6,*) myname_,'(PREBAL):  read error amplitudes ', &
+      if (nsig/=nsigstat .or. nlat/=nlatstat) then
+         write(6,*) myname_,'(PREBAL):  ***ERROR*** resolution of ', &
+           '"',trim(berror_stats),'"', &
+              'incompatiable with guess'
+         write(6,*) myname_,'(PREBAL):  ***ERROR*** nsigstat,nlatstat=', &
+           nsigstat,nlatstat
+         write(6,*) myname_,'(PREBAL):  ***ERROR*** expects nsig,nlat=', &
+           nsig,nlat
+         call stop2(ERRCODE)
+       end if
+
+       write(6,*) myname_,'(PREBAL):  get balance variables', &
          '"',trim(berror_stats),'".  ', &
          'mype,nsigstat,nlatstat =', &
           mype,nsigstat,nlatstat
-       write(6,'(1x,2a,6i5)') myname_, &
-         '(PREBAL):  berror_nvars, etc. = ', &
-         berror_nvars,nsig,berror_nvars*nsig, &
-         size(vscalesin,2),size(hwllin,2)
-    end if
-
-    if (nsig/=nsigstat .or. nlat/=nlatstat) then
-       write(6,*) myname_,'(PREBAL):  ***ERROR*** resolution of ', &
-         '"',trim(berror_stats),'"', &
-            'incompatiable with guess'
-       write(6,*) myname_,'(PREBAL):  ***ERROR*** nsigstat,nlatstat=', &
-         nsigstat,nlatstat
-       write(6,*) myname_,'(PREBAL):  ***ERROR*** expects nsig,nlat=', &
-         nsig,nlat
-       call stop2(ERRCODE)
     end if
 
 !   Read background error file to get balance variables
-    rewind inerr
-    select case(berror_nvars)
-       case(6)
-          read(inerr)nsigstat,nlatstat,&
-          corz,cord,corh,corq,corq2,coroz,corc,corp,&
-          hwllin,vscalesin,&
-          agvin,bvin,wgvin,&
-          corsst,hsst
-
-       case(5)
-          read(inerr)nsigstat,nlatstat,&
-          corz,cord,corh,corq,corq2,corc,corp,&
-          hwllin,vscalesin,&
-          agvin,bvin,wgvin,&
-          corsst,hsst
-
-       case default
-          write(6,*) myname_,'(PREBAL):  unknown format, []_nvars = ',berror_nvars
-          call stop2(ERRCODE)
-    endselect
+    read(inerr) agvin,bvin,wgvin
     close(inerr)
+
     return
 end subroutine read_bal
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -189,28 +164,24 @@ end subroutine read_bal
 !
 ! !INTERFACE:
 
-    subroutine read_wgt(corz,cord,corh,corq,corq2,coroz,corc,corp,&
-       hwllin,vscalesin,corsst,hsst,mype,unit)
+    subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,mype,unit)
 
-      use kinds,only : r_single
+      use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
+      use control_vectors,only: nrf,nrf2,nrf3,nrf_var,nrf2_loc,nrf3_loc,nrf3_oz
+      use jfunc,only: varq,qoption
 
       implicit none
 
-      real(r_single),dimension(nlat,nsig),intent(  out) :: corz  ! #1
-      real(r_single),dimension(nlat,nsig),intent(  out) :: cord  ! #2
-      real(r_single),dimension(nlat,nsig),intent(  out) :: corh  ! #3
-      real(r_single),dimension(nlat,nsig),intent(  out) :: corq  ! #4
-      real(r_single),dimension(nlat,nsig),intent(  out) :: corq2 ! #4a
-      real(r_single),dimension(nlat,nsig),intent(  out) :: coroz ! #5
-      real(r_single),dimension(nlat,nsig),intent(  out) :: corc  ! #6
-      real(r_single),dimension(nlat     ),intent(  out) :: corp  ! #7
+      real(r_single),dimension(nlat,nsig,nrf3),intent(out) :: corz 
+      real(r_single),dimension(nlat,nrf2),intent(out) :: corp  
 
-      real(r_single),dimension(:,:)      ,intent(  out) :: hwllin
-      real(r_single),dimension(:,:)      ,intent(  out) :: vscalesin
+      real(r_single),dimension(nlat,nsig,nrf3),intent(out) :: hwll
+      real(r_single),dimension(nlat,nrf2)     ,intent(out) :: hwllp
+      real(r_single),dimension(nsig,nlat,nrf3),intent(out) :: vz
 
-      real(r_single),dimension(nlat,nlon),intent(  out) :: corsst
-      real(r_single),dimension(nlat,nlon),intent(  out) :: hsst
+      real(r_single),dimension(nlat,nlon),intent(out) :: corsst
+      real(r_single),dimension(nlat,nlon),intent(out) :: hsst
 
       integer(i_kind)                    ,intent(in   ) :: mype  ! "my" processor ID
       integer(i_kind),optional           ,intent(in   ) :: unit ! an alternative unit
@@ -219,6 +190,10 @@ end subroutine read_bal
 ! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
 !		- the main body of the code for input is extracted from
 !		  prewgt() in prewgt.f90.
+!       25Feb10 - Zhu 
+!               - change the structure of background error file
+!               - make changes for generalizing control variables
+!               - move varq here from prewgt
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::read_wgt'
@@ -227,48 +202,22 @@ end subroutine read_bal
   real(r_single),dimension(nlat,nsig,nsig):: agvin
   real(r_single),dimension(nlat,nsig) :: wgvin,bvin
  
-  integer(i_kind) :: inerr
+  integer(i_kind) :: i,n,k
+  integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat
-  integer(i_kind) :: msigvars,msigvarsp1
+  integer(i_kind) :: loc,nn,isig
+  real(r_kind) :: corq2x
+  character*5 var
+  logical,dimension(nrf):: nrf_err
 
-  if(nlat /= size(hwllin,1) .or. nlat /= size(vscalesin,1)) then
-     if(nlat /= size(hwllin,1)) then
-        write(6,*) myname_, &
-          '(PREWGT):  ***ERROR*** size(hwllin,1) = ',size(hwllin,1)
-        write(6,*) myname_, &
-          '(PREWGT):  ***ERROR*** while expecting ',nlat
-     endif
-     if(nlat /= size(vscalesin,1)) then
-        write(6,*) myname_, &
-          '(PREWGT):  ***ERROR*** size(vscalesin,1) = ',size(vscalesin,1)
-        write(6,*) myname_, &
-          '(PREWGT):  ***ERROR*** while expecting ',nlat
-     endif
-     call stop2(ERRCODE)
-  endif
-
-  msigvarsp1=size(hwllin,2)
-  msigvars  =size(vscalesin,2)
-  if(msigvarsp1 /= nsig*6+ione .or. msigvars /= nsig*6) then
-     if(msigvarsp1/=nsig*6+ione) then
-        write(6,*) myname_, &
-          '(PREWGT):  ***ERROR*** size(hwllin,2) = ',msigvarsp1
-        write(6,*) myname_, &
-          '(PREWGT):  ***ERROR*** while expecting ',nsig*6+ione
-     endif
-     if(msigvars/=nsig*6) then
-        write(6,*) myname_, &
-          '(PREWGT):  ***ERROR*** size(vscalesin,2) = ',msigvars
-        write(6,*) myname_, &
-          '(PREWGT):  ***ERROR*** while expecting ',nsig*6
-     endif
-     call stop2(ERRCODE)
-  endif
-
-  inerr=default_unit_
-  if(present(unit)) inerr=unit
+  real(r_single),allocatable,dimension(:,:):: hwllin
+  real(r_single),allocatable,dimension(:,:):: corzin
+  real(r_single),allocatable,dimension(:,:):: corq2
+  real(r_single),allocatable,dimension(:,:):: vscalesin
 
 ! Open background error statistics file
+  inerr=default_unit_
+  if(present(unit)) inerr=unit
   open(inerr,file=berror_stats,form='unformatted',status='old')
 
 ! Read header.  Ensure that vertical resolution is consistent
@@ -276,65 +225,115 @@ end subroutine read_bal
 
   rewind inerr
   read(inerr)nsigstat,nlatstat
-! write(6,*) 'nsigstat,nlatstat',nsigstat,nlatstat
   if(mype==izero) then
+     if(nsigstat/=nsig .or. nlatstat/=nlat) then
+        write(6,*)'PREBAL: **ERROR** resolution of berror_stats incompatiable with GSI'
+        write(6,*)'PREBAL:  berror nsigstat,nlatstat=', nsigstat,nlatstat, &
+             ' -vs- GSI nsig,nlat=',nsig,nlat
+        call stop2(101)
+     end if
+
      write(6,*) myname_,'(PREWGT):  read error amplitudes ', &
        '"',trim(berror_stats),'".  ', &
        'mype,nsigstat,nlatstat =', &
         mype,nsigstat,nlatstat
-     write(6,'(1x,2a,6i5)') myname_, &
-       '(PREWGT):  berror_nvars,etc. = ', &
-       berror_nvars,nsig,berror_nvars*nsig, &
-       size(vscalesin,2),size(hwllin,2)
   end if
-
-  if (nsig/=nsigstat .or. nlat/=nlatstat) then
-     write(6,*) myname_,'(PREWGT):  ***ERROR*** resolution of ', &
-       '"',trim(berror_stats),'"', &
-          'incompatiable with guess'
-     write(6,*) myname_,'(PREWGT):  ***ERROR*** nsigstat,nlatstat=', &
-       nsigstat,nlatstat
-     write(6,*) myname_,'(PREWGT):  ***ERROR*** expects nsig,nlat=', &
-       nsig,nlat
-     call stop2(ERRCODE)
-  end if
+  read(inerr) agvin,bvin,wgvin
 
 ! Read amplitudes
-  rewind inerr
-  select case(berror_nvars)
+  nrf_err=.false.
+  read: do
+     read(inerr,iostat=istat) var, isig
+     if (istat/=0) exit
 
-     case(6)	! stats. for 6 variables including ozone
-        read(inerr)nsigstat,nlatstat,&
-        corz,cord,corh,corq,corq2,coroz,corc,corp,&
-        hwllin,vscalesin,&
-        agvin,bvin,wgvin,&
-        corsst,hsst
+     allocate ( corzin(nlat,isig) )
+     if (var=='q') allocate ( corq2(nlat,isig) )
+     allocate ( hwllin(nlat,isig) )
+     if (isig>1) allocate ( vscalesin(nlat,isig) )
 
-     case(5)	! stats. for 5 variabls not including ozone
-!       corz,cord,corh,corq,corq2,coroz,corc,corp,&
-!       hwlz,hwld,hwlh,hwlq,      hwloz,hwlc,hwlp,&
-!       vscz,vscd,vsch,vscq,      vscoz,vscc,     &
+     if (var/='sst') then
+        if (var=='q' .or. var=='Q') then
+           read(inerr) corzin,corq2
+        else
+           read(inerr) corzin
+        end if
+        read(inerr) hwllin
+        if (isig>1) read(inerr) vscalesin
+     else
+        read(inerr) corsst
+        read(inerr) hsst
+     end if
 
-        read(inerr)nsigstat,nlatstat,&
-        corz,cord,corh,corq,corq2,corc,corp,&
-        hwllin   (:,0*nsig+ione:4*nsig),&
-        hwllin   (:,5*nsig+ione:6*nsig),&
-        hwllin   (:,6*nsig+ione       ),&
-        vscalesin(:,0*nsig+ione:4*nsig),&
-        vscalesin(:,5*nsig+ione:6*nsig),&
-        agvin,bvin,wgvin,&
-        corsst,hsst
- 
-	! set ozone related data.
-        call setcoroz_(coroz,mype)
-        call sethwlloz_   (hwllin   (:,4*nsig+ione:5*nsig),mype)
-        call setvscalesoz_(vscalesin(:,4*nsig+ione:5*nsig))
+!    load the variances
+     do n=1,nrf
+        if (var==nrf_var(n)) then
+           nrf_err(n)=.true.
+           loc=n
+           exit
+        end if
+     end do
 
-     case default
-        write(6,*) myname_,'(PREBAL):  unknown format, []_nvars = ',berror_nvars
-        call stop2(ERRCODE)
-  endselect
+     if (isig>1) then
+        do n=1,nrf3
+           if (nrf3_loc(n)==loc) then
+              do k=1,isig
+                 do i=1,nlat
+                    corz(i,k,n)=corzin(i,k)
+                    vz(k,i,n)=vscalesin(i,k)
+                 end do
+              end do
+              if (var=='q' .and. qoption==2)then
+                 do k=1,isig
+                    do i=1,nlat
+                       corq2x=corq2(i,k)
+                       varq(i,k)=min(max(corq2x,0.0015_r_kind),one)
+                    enddo
+                 enddo
+                 do k=1,isig
+                    do i=1,nlat
+                       corz(i,k,n)=one
+                    end do
+                 end do
+              end if
+              do k=1,isig
+                 do i=1,nlat
+                    hwll(i,k,n)=hwllin(i,k)
+                 end do
+              end do
+              exit
+           end if ! end of nrf3_loc
+        end do ! end of nrf3
+     end if ! end of isig
+
+     if (isig==1) then
+       do n=1,nrf2
+          if (nrf2_loc(n)==loc .and. var/='sst') then
+             do i=1,nlat
+                corp(i,n)=corzin(i,1)
+                hwllp(i,n)=hwllin(i,1)
+             end do
+             exit
+          end if
+       end do
+     end if
+
+     deallocate(corzin,hwllin)
+     if (isig>1) deallocate(vscalesin)
+     if (var=='q') deallocate(corq2)
+  enddo read 
   close(inerr)
+
+! corz, hwll & vz for undefined variable
+  do n=1,nrf3
+     loc=nrf3_loc(n)
+     if (nrf_err(loc)) cycle
+     if (n==nrf3_oz) then
+        call setcoroz_(corz(1,1,n),mype)
+        call sethwlloz_(hwll(1,1,n),mype)
+        call setvscalesoz_(vz(1,1,n))
+     end if   
+  end do
+
   return
 end subroutine read_wgt
 
@@ -362,7 +361,7 @@ end subroutine read_wgt
 
       implicit none
 
-      real(r_single),dimension(:,:),intent(  out) :: coroz ! of ozone
+      real(r_single),dimension(nlat,nsig),intent(  out) :: coroz ! of ozone
       integer(i_kind)              ,intent(in   ) :: mype     ! ID of this processor
 
 ! !REVISION HISTORY:
@@ -459,11 +458,11 @@ end subroutine setcoroz_
     subroutine sethwlloz_(hwlloz,mype)
       use kinds,   only: r_single,r_kind
       use mpimod,  only: levs_id
-      use gridmod, only: nnnn1o,nsig,nlon
+      use gridmod, only: nnnn1o,nsig,nlon,nlat
       use constants,only: two,three,pi,rearth_equator
       implicit none
 
-      real(r_single),dimension(:,:),intent(  out) :: hwlloz
+      real(r_single),dimension(nlat,nsig),intent(  out) :: hwlloz
       integer(i_kind)              ,intent(in   ) :: mype ! ID of this processor
 
 ! !REVISION HISTORY:
@@ -489,6 +488,7 @@ end subroutine setcoroz_
   do k=1,nnnn1o
      k1=levs_id(k)
      if(k1>izero) then
+     write(6,*) myname_,'(PREWGT): mype = ',mype, k1
         if(k1<=nsig*3/4)then
         !  fact=1./hwl
            fact=r40000/(r400*nlon)
@@ -499,6 +499,12 @@ end subroutine setcoroz_
         hwlloz(:,k1)=s2u/fact
      endif
   enddo
+
+
+  if(mype==izero) then
+     write(6,*) myname_,'(PREWGT): mype = ',mype, 'finish sethwlloz_'
+  endif
+
 
 end subroutine sethwlloz_
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -512,10 +518,11 @@ end subroutine sethwlloz_
 ! !INTERFACE:
 
     subroutine setvscalesoz_(vscalesoz)
+      use gridmod,only : nlat,nlon,nsig
       use kinds,only: r_single,r_kind
       implicit none
 
-      real(r_single),dimension(:,:),intent(  out) :: vscalesoz
+      real(r_single),dimension(nsig,nlat),intent(  out) :: vscalesoz
 
 ! !REVISION HISTORY:
 ! 	31Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>

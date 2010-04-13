@@ -28,7 +28,7 @@ PUBLIC stpt
 
 contains
 
-subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,nstep)
+subroutine stpt(thead,dval,xval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpt        calculate penalty and contribution to stepsize
@@ -57,6 +57,8 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
+!   2010-03-25  zhu     - use state_vector in the interface;
+!                       - add handling of sst case; add pointer_state
 !
 !   input argument list:
 !     thead
@@ -88,19 +90,20 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: t_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: izero,ione,zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n,latlon11,latlon1n1
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use jfunc, only: l_foto,xhat_dt,dhat_dt,pointer_state
+  use control_vectors, only: nrf2_sst
+  use state_vectors
   implicit none
 
 ! Declare passed variables
   type(t_ob_type),pointer                ,intent(in   ) :: thead
   integer(i_kind)                        ,intent(in   ) :: nstep
   real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: rt,st,rtv,stv,rq,sq,ru,su,rv,sv
-  real(r_kind),dimension(latlon11)       ,intent(in   ) :: rsst,ssst
-  real(r_kind),dimension(latlon1n1)      ,intent(in   ) :: rp,sp
   real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(state_vector),intent(in) :: dval
+  type(state_vector),intent(in) :: xval
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
@@ -115,8 +118,15 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
   real(r_kind) psfc_prime
   real(r_kind) time_t
   type(t_ob_type), pointer :: tptr
+  real(r_kind),pointer,dimension(:) :: rt,st,rtv,stv,rq,sq,ru,su,rv,sv
+  real(r_kind),pointer,dimension(:) :: rsst,ssst
+  real(r_kind),pointer,dimension(:) :: rp,sp
 
   out=zero_quad
+
+! prepare pointers
+  call pointer_state(xval,tsen=st,t=stv,q=sq,u=su,v=sv,p3d=sp,sst=ssst)
+  call pointer_state(dval,tsen=rt,t=rtv,q=rq,u=ru,v=rv,p3d=rp,sst=rsst)
 
   tptr => thead
   do while (associated(tptr))
@@ -181,8 +191,13 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
 
            if(tptr%use_sfc_model) then
 
-              valsst =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
-              valsst2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
+              if (nrf2_sst>izero) then
+                 valsst =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
+                 valsst2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
+              else
+                 valsst =zero
+                 valsst2=zero
+              end if
               valq =w1* rq(j1)+w2* rq(j2)+w3* rq(j3)+w4* rq(j4)
               valq2=w1* sq(j1)+w2* sq(j2)+w3* sq(j3)+w4* sq(j4)
               valu =w1* ru(j1)+w2* ru(j2)+w3* ru(j3)+w4* ru(j4)

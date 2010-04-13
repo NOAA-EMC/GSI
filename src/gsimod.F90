@@ -46,6 +46,7 @@
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt
+  use control_vectors, only: anav_info,nrf,nvars,nrf_3d,nrf3
   use berror, only: norh,ndeg,vs,as,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
      bkgv_flowdep,bkgv_rewgtfct,bkgv_write,tsfc_sdv,fpsproj
   use anberror, only: anisotropic,ancovmdl,init_anberror,npass,ifilt_ord,triad4, &
@@ -64,7 +65,7 @@
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
-     nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b
+     nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
@@ -74,7 +75,6 @@
   use read_l2bufr_mod, only: minnum,del_azimuth,del_elev,del_range,del_time,&
      range_max,elev_angle_max,initialize_superob_radar,l2superob_only
   use m_berror_stats,only : berror_stats ! filename if other than "berror_stats"
-  use m_berror_stats,only : berror_nvars ! format parameter, if 5 instead of 6
   use lag_fields,only : infile_lag,lag_nmax_bal,&
                         &lag_vorcore_stderr_a,lag_vorcore_stderr_b,lag_modini
   use lag_interp,only : lag_accur
@@ -139,18 +139,25 @@
 !  10-09-2009 Wu        replace nhr_offset with min_offset since it's 1.5 hr for regional
 !  02-17-2010 Parrish   add nlon_ens, nlat_ens, jcap_ens to namelist/hybrid_ensemble/, in preparation for 
 !                         dual resolution capability when running gsi in hybrid ensemble mode.
+!  02-20-2010 Zhu       Add anav_info,nrf,nvars,nrf_3d for control variables;
 !  02-21-2010 Parrish   add jcap_ens_test to namelist/hybrid_ensemble/ so can simulate lower resolution
 !                         ensemble compared to analysis for case when ensemble and analysis resolution are
 !                         the same.  used for preliminary testing of dual resolution hybrid ensemble option.
+!  02-25-2010 Zhu       Remove berror_nvars
 !  03-06-2010 Parrish   add flag use_gfs_ozone to namelist SETUP--allows read of gfs ozone for regional runs
 !  03-09-2010 Parrish   add flag check_gfs_ozone_date to namelist SETUP--if true, date check gfs ozone
 !  03-15-2010 Parrish   add flag regional_ozone to namelist SETUP--if true, then turn on ozone in 
 !                         regional analysis
+!  03-17-2010 Zhu       Add nrf3 and nvars in init_grid_vars interface
 !  03-29-2010 hu        add namelist variables for controling rapid refesh options
 !                                 including cloud analysis and surface enhancement
 !                       add and read namelist for RR
 !  03-31-2010 Treadon   replace init_spec, init_spec_vars, destroy_spec_vars with general_* routines
 !  04-07-2010 Treadon   write rapidrefresh_cldsurf settings to stdout
+!  04-10-2010 Parrish   add vlevs from gridmod, so can pass as argument to init_mpi_vars, which must
+!                        be called after init_grid_vars, as it currently is.  This must be done to
+!                        avoid "use gridmod" in mpimod.F90, which causes compiler conflict, since
+!                        "use mpimod" appears in gridmod.f90.
 !                         
 !EOP
 !-------------------------------------------------------------------------
@@ -265,7 +272,7 @@
        stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path, &
-       berror_stats,berror_nvars, &
+       berror_stats, &
        lobsdiagsave, &
        l4dvar,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        nwrvecs,ladtest,lgrtest,lobskeep,lsensrecompute, &
@@ -816,6 +823,8 @@
      dsis(1)=dtype(1)
   endif
 
+! Read in user specification for analysis variables
+  call anav_info(mype)
 
 ! Write namelist output to standard out
   if(mype==izero) then
@@ -853,8 +862,8 @@
 ! Initialize variables, create/initialize arrays
   call init_constants(regional)
   call init_reg_glob_ll(mype,lendian_in)
-  call init_grid_vars(jcap,npe,mype)
-  call init_mpi_vars(nsig,mype,nsig1o,nnnn1o)
+  call init_grid_vars(jcap,npe,nrf3,nvars)
+  call init_mpi_vars(nsig,mype,nsig1o,nnnn1o,nrf,nvars,nrf_3d,vlevs)
   call create_obsmod_vars
 
   

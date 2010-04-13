@@ -21,6 +21,8 @@ subroutine bkerror(gradx,grady)
 !   2007-10-01  todling  - add timer
 !   2008-12-29  todling - update interface to strong_bk/bk_ad
 !   2009-04-13  derber - move strong_bk into balance
+!   2010-03-01  zhu    - change bkgcov interface for generalized control variables
+!                      - make changes with iterfaces of sub2grid and grid2sub
 !
 !   input argument list:
 !     gradx    - input field  
@@ -37,9 +39,9 @@ subroutine bkerror(gradx,grady)
   use berror, only: varprd,fpsproj
   use balmod, only: balance,tbalance
   use gsi_4dvar, only: nsubwin, lsqrtb
-  use gridmod, only: lat2,lon2,nlat,nlon,nnnn1o,periodic
+  use gridmod, only: lat2,lon2,nlat,nlon,nnnn1o,periodic,latlon11
   use jfunc, only: nsclen,npclen
-  use constants, only:  zero
+  use constants, only:  zero,izero
   use control_vectors
   use timermod, only: timer_ini,timer_fnl
   implicit none
@@ -52,6 +54,7 @@ subroutine bkerror(gradx,grady)
   integer(i_kind) i,j,iflg,ii
   real(r_kind),dimension(nlat,nlon,nnnn1o):: work
   real(r_kind),dimension(lat2,lon2):: slndt,sicet
+  real(r_kind),pointer,dimension(:):: sst
 
   if (lsqrtb) then
      write(6,*)'bkerror: not for use with lsqrtb'
@@ -84,13 +87,14 @@ subroutine bkerror(gradx,grady)
            sicet(i,j)=zero
         end do
      end do
+     if (nrf2_sst>izero) then
+        sst => gradx%step(ii)%sst(1:latlon11)
+     else
+        sst => NULL() 
+     end if
      do ii=1,nsubwin
-        call sub2grid(work,gradx%step(ii)%t,gradx%step(ii)%p,gradx%step(ii)%rh, &
-                      gradx%step(ii)%oz,gradx%step(ii)%sst,slndt,sicet, &
-                      gradx%step(ii)%cw,gradx%step(ii)%st,gradx%step(ii)%vp,iflg)
-        call grid2sub(work,gradx%step(ii)%t,gradx%step(ii)%p,gradx%step(ii)%rh, &
-                      gradx%step(ii)%oz,gradx%step(ii)%sst,slndt,sicet, &
-                      gradx%step(ii)%cw,gradx%step(ii)%st,gradx%step(ii)%vp)
+        call sub2grid(work,gradx%step(ii),sst,slndt,sicet,iflg)
+        call grid2sub(work,gradx%step(ii),sst,slndt,sicet)
      end do
   endif
 
@@ -105,9 +109,7 @@ subroutine bkerror(gradx,grady)
                    grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
 
 !    Apply variances, as well as vertical & horizontal parts of background error
-     call bkgcov(grady%step(ii)%st,grady%step(ii)%vp,grady%step(ii)%t, &
-                 grady%step(ii)%p ,grady%step(ii)%rh,grady%step(ii)%oz, &
-                 grady%step(ii)%sst,grady%step(ii)%cw,nnnn1o)
+     call bkgcov(grady%step(ii),nnnn1o)
 
 !    Balance equation
      call balance(grady%step(ii)%t ,grady%step(ii)%p ,&

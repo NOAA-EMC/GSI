@@ -46,6 +46,7 @@ subroutine compute_derived(mype)
 !   2008-12-08  todling - move 3dprs/geop-hght calculation from here into setuprhsall
 !   2009-10-15  parrish - add rescale of ensemble rh perturbations
 !                           (currently for internal generated ensemble only)
+!   2010-03-11  derber/zhu - add qvar3d to prewgt and prewgt_reg, remove rescale_ensemble_rh_perturbations
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -62,6 +63,7 @@ subroutine compute_derived(mype)
   use jfunc, only: qsatg,qgues,jiter,jiterstart,&
        dqdt,dqdp,qoption,switch_on_derivatives,&
        tendsflag,varq
+  use control_vectors, only: nrf3_q,nrf3_loc
   use mpimod, only: levs_id
   use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,&
        ges_tv,ges_q,ges_oz,ges_cwmr,ges_tsen,sfct,&
@@ -76,12 +78,10 @@ subroutine compute_derived(mype)
   use gridmod, only: regional
   use gridmod, only: twodvar_regional
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional
-  use berror, only: qvar3d,dssv,hswgt
+  use berror, only: hswgt
   use balmod, only: rllat1,llmax
   use mod_strong, only: jcstrong,baldiag_full
   use obsmod, only: write_diag
-  use hybrid_ensemble_parameters, only: l_hyb_ens,generate_ens
-  use hybrid_ensemble_isotropic_regional, only: rescale_ensemble_rh_perturbations
 
   use constants, only: ione,izero,zero,one,one_tenth,half,fv
 
@@ -208,62 +208,16 @@ subroutine compute_derived(mype)
   call genqsat(qsatg,ges_tsen(1,1,1,ntguessig),ges_prsl(1,1,1,ntguessig),lat2,lon2, &
            nsig,ice,iderivative)
 
-! qoption 1:  use psuedo-RH
-  if(qoption==ione)then
-
-!    On first outer iteration only, load array used for pseudo-RH
-!    moisture analysis variable.  
-     if (jiter==jiterstart) then
-        do k=1,nsig
-           do j=1,lon2
-              do i=1,lat2
-                 if(regional)then
-                    l=int(rllat1(i,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(i,j)-float(l)
-                    dl1=one-dl2
-                    if(.not.twodvar_regional)then
-                       qvar3d(i,j,k)=dl1*dssv(4,l,j,k)+dl2*dssv(4,l2,j,k)
-                    endif
-                 else
-                    qvar3d(i,j,k)=dssv(4,i,j,k)
-                 end if
-              end do
-           end do
-        end do
-     endif
-
-! qoption 2:  use normalized RH
-  else
+!??????????????????????????  need any of this????
+!! qoption 1:  use psuedo-RH
+!  if(qoption==ione)then
+!
+!
+!! qoption 2:  use normalized RH
+!  else
+  if(qoption == 2) then
 
 
-     if (jiter==jiterstart) then
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                 d=20.0_r_kind*(qgues(i,j,k)/qsatg(i,j,k)) + one
-                 n=int(d)
-                 np=n+ione
-                 dn2=d-float(n)
-                 dn1=one-dn2
-                 n=min0(max(ione,n),25_i_kind)
-                 np=min0(max(ione,np),25_i_kind)
-                 if(regional)then
-                    l=int(rllat1(i,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(i,j)-float(l)
-                    dl1=one-dl2
-                    if(.not.twodvar_regional)then
-                       qvar3d(i,j,k)=(varq(n,k)*dn1 + varq(np,k)*dn2)* &
-                         (dl1*dssv(4,l,j,k)+dl2*dssv(4,l2,j,k))
-                    endif 
-                 else
-                    qvar3d(i,j,k)=(varq(n,k)*dn1 + varq(np,k)*dn2)*dssv(4,i,j,k) 
-                 end if 
-             end do
-           end do
-        end do
-     end if
 
 ! variance update for anisotropic mode
      if( anisotropic .and. .not.rtma_subdomain_option ) then
@@ -281,7 +235,7 @@ subroutine compute_derived(mype)
            call sub2fslab(rhgues,rh0f)
            do k=indices%kps,indices%kpe
               ivar=idvar(k)
-              if(ivar==5_i_kind) then
+              if(ivar==nrf3_loc(nrf3_q)) then
                  kvar=k-kvar_start(ivar)+ione
                  do k1=1,nsig1o
                     if(levs_id(k1)==kvar) exit
@@ -293,7 +247,7 @@ subroutine compute_derived(mype)
                        dl2=rllatf(i,j)-float(l)
                        dl1=one-dl2
 
-                       factk=dl1*corz(l,kvar,4)+dl2*corz(l2,kvar,4)
+                       factk=dl1*corz(l,kvar,nrf3_q)+dl2*corz(l2,kvar,nrf3_q)
                        call fact_qopt2(factk,rh0f(i,j,k1),kvar)
  
                        do igauss=1,ngauss
@@ -316,7 +270,7 @@ subroutine compute_derived(mype)
            call sub2fslab_glb (rhgues,rh0f,rh2f,rh3f)
            do k=indices%kps,indices%kpe
               ivar=idvar(k)
-              if(ivar==5_i_kind) then
+              if(ivar==nrf3_loc(nrf3_q)) then
                  kvar=k-kvar_start(ivar)+ione
                  do k1=1,nsig1o
                     if(levs_id(k1)==kvar) exit
@@ -382,13 +336,6 @@ subroutine compute_derived(mype)
 
 ! End of qoption block
   endif
-
-
-! If this is hybrid ensemble run, then need to modify ensemble rh perturbations based on qvar3d
-!     (at this point, only for generate_ens=.true. -- have to figure out what to do for
-!                      real ensemble perturbations.
-  if(l_hyb_ens.and.generate_ens) call rescale_ensemble_rh_perturbations
-  
 
   call q_diag(mype)
   

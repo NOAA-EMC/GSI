@@ -1,4 +1,4 @@
-subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
+subroutine grid2sub(workout,cstate,sst,slndt,sicet)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    grid2sub   converts from full horizontal grid to subdomains
@@ -38,20 +38,22 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
   use kinds, only: r_kind,i_kind
   use mpimod, only: irdsp_s,ircnt_s,iscnt_s,isdsp_s,ierror,&
        mpi_comm_world,mpi_rtype
-  use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,nsig1o,nnnn1o,latlon1n,latlon11,&
-       reorder2,vectosub
+  use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,nsig1o,nnnn1o, &
+       latlon1n,latlon11,vlevs,reorder2,vectosub
   use jfunc, only: nsst2,noz2,nslt2,ncw2,nsit2,nvp2,nst2,np2,nq2,nt2
+  use constants, only: izero
+  use control_vectors
   implicit none
 
 ! Declare passed variables
   real(r_kind),dimension(nlat,nlon,nnnn1o),intent(in   ) :: workout
-  real(r_kind),dimension(lat2,lon2)       ,intent(  out) :: p,sst,slndt,sicet
-  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(  out) :: t,q,cwmr,oz,st,vp
+  real(r_kind),dimension(lat2,lon2)       ,intent(  out) :: sst,slndt,sicet
+  type(control_state)                     ,intent(inout) :: cstate
 
 ! Declare local variables
   integer(i_kind) k,l,ni1,ni2
   real(r_kind),dimension(itotsub,nsig1o):: work1
-  real(r_kind),dimension(lat2*lon2*(nsig*6+4_i_kind)):: xtmp
+  real(r_kind),dimension(lat2*lon2*vlevs):: xtmp
 
 
 ! Transfer input array to local work array
@@ -71,16 +73,18 @@ subroutine grid2sub(workout,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
        mpi_rtype,mpi_comm_world,ierror)
 
 ! load the received subdomain vector
-  call vectosub(xtmp(nst2),latlon1n,st)
-  call vectosub(xtmp(nvp2),latlon1n,vp)
-  call vectosub(xtmp(np2),latlon11,p)
-  call vectosub(xtmp(nt2),latlon1n,t)
-  call vectosub(xtmp(nq2),latlon1n,q)
-  call vectosub(xtmp(noz2),latlon1n,oz)
-  call vectosub(xtmp(nsst2),latlon11,sst)
-  call vectosub(xtmp(nslt2),latlon11,slndt)
-  call vectosub(xtmp(nsit2),latlon11,sicet)
-  call vectosub(xtmp(ncw2),latlon1n,cwmr)
+  call vectosub(xtmp(nst2),latlon1n,cstate%st)
+  call vectosub(xtmp(nvp2),latlon1n,cstate%vp)
+  call vectosub(xtmp(np2),latlon11,cstate%p)
+  call vectosub(xtmp(nt2),latlon1n,cstate%t)
+  call vectosub(xtmp(nq2),latlon1n,cstate%rh)
+  if (nrf3_oz>izero) call vectosub(xtmp(noz2),latlon1n,cstate%oz)
+  if (nrf2_sst>izero) then
+     call vectosub(xtmp(nsst2),latlon11,sst)
+     call vectosub(xtmp(nslt2),latlon11,slndt)
+     call vectosub(xtmp(nsit2),latlon11,sicet)
+  end if
+  if (nrf3_cw>izero) call vectosub(xtmp(ncw2),latlon1n,cstate%cw)
 
   return
 end subroutine grid2sub
