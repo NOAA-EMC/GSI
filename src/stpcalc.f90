@@ -428,7 +428,13 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      end if
 
 !    Check for negative stepsize or cx <= 0. (probable error or large nonlinearity)
-     if(cx < 1.e-20_r_kind .or. stpinout < zero) then
+     if(cx < 1.e-20_r_kind .or. stpinout <= zero) then
+        if(mype == izero) then
+          write(iout_iter,*) ' entering negative stepsize option',stpinout
+          write(iout_iter,101) (stpx(i),i=1,ipen)
+          write(iout_iter,105) (bsum(i),i=1,ipen)
+          write(iout_iter,110) (csum(i),i=1,ipen)
+        end if
         stpinout=outstp(1)
         outpensave=outpen(1)
         do i=1,nsteptot
@@ -440,11 +446,12 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         end do
 !       Try different (better?) stepsize
         if(stpinout <= zero .and. ii /= istp_iter)then
-           stp(ii)=outstp(2)
-           do i=1,nsteptot
-              if(outstp(i) < stp(ii) .and. stp(ii) > zero)stp(ii)=outstp(i)
+           stp(ii)=max(outstp(1),1.0e-20_r_kind)
+           do i=2,nsteptot
+              if(outstp(i) < stp(ii) .and. outstp(i) > 1.0e-20_r_kind)stp(ii)=outstp(i)
            end do
            stp(ii)=one_tenth*stp(ii)
+           stpinout=stp(ii)
         end if
      end if
 
@@ -477,7 +484,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 ! Check for final stepsize negative (probable error)
   stpinout=stp(istp_use)
-  if(stpinout < zero)then
+  if(stpinout <= zero)then
      if(mype == izero)then
         write(iout_iter,130) ii,bx,cx,stp(ii)
         write(iout_iter,101) (stpx(i),i=1,ipen)

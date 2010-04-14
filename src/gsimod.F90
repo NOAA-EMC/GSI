@@ -862,7 +862,7 @@
 ! Initialize variables, create/initialize arrays
   call init_constants(regional)
   call init_reg_glob_ll(mype,lendian_in)
-  call init_grid_vars(jcap,npe,nrf3,nvars)
+  call init_grid_vars(jcap,npe,nrf3,nvars,mype)
   call init_mpi_vars(nsig,mype,nsig1o,nnnn1o,nrf,nvars,nrf_3d,vlevs)
   call create_obsmod_vars
 

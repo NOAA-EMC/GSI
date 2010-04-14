@@ -415,7 +415,7 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine init_grid_vars(jcap,npe,nrf3,nvars)
+  subroutine init_grid_vars(jcap,npe,nrf3,nvars,mype)
 
 ! !USES:
 
