@@ -196,13 +196,16 @@ read_iasi.o : read_iasi.f90 calc_fov_crosstrk.o gsi_4dvar.o constants.o gridmod.
 read_l2bufr_mod.o : read_l2bufr_mod.f90 obsmod.o mpimod.o constants.o kinds.o 
 read_lag.o : read_lag.F90 lag_fields.o gsi_4dvar.o convinfo.o constants.o gridmod.o kinds.o 
 read_lidar.o : read_lidar.f90 gsi_4dvar.o obsmod.o constants.o convinfo.o gridmod.o kinds.o 
+read_Lightning.o : read_Lightning.f90 gsi_4dvar.o convinfo.o constants.o kinds.o 
 read_modsbufr.o : read_modsbufr.f90 gsi_4dvar.o obsmod.o convinfo.o gridmod.o constants.o kinds.o 
+read_NASA_LaRC.o : read_NASA_LaRC.f90 gsi_4dvar.o convinfo.o constants.o kinds.o 
 read_obs.o : read_obs.F90 pcpinfo.o ozinfo.o radinfo.o guess_grids.o converr.o mpimod.o satthin.o gridmod.o convinfo.o obsmod.o gsi_4dvar.o constants.o kinds.o 
 read_obsdiags.o : read_obsdiags.F90 radinfo.o pcpinfo.o gridmod.o lag_traj.o jfunc.o constants.o mpimod.o gsi_4dvar.o obs_sensitivity.o obsmod.o kinds.o 
 read_ozone.o : read_ozone.F90 qcmod.o gsi_4dvar.o convinfo.o obsmod.o constants.o gridmod.o satthin.o kinds.o 
 read_pcp.o : read_pcp.f90 gsi_4dvar.o constants.o gridmod.o kinds.o 
 read_prepbufr.o : read_prepbufr.f90 jfunc.o sfcobsqc.o blacklist.o convthin.o qcmod.o gsi_4dvar.o converr.o obsmod.o convinfo.o gridmod.o constants.o kinds.o 
 read_radar.o : read_radar.f90 satthin.o convinfo.o gridmod.o gsi_4dvar.o obsmod.o qcmod.o constants.o kinds.o 
+read_RadarRef_mosaic.o : read_RadarRef_mosaic.f90 gsi_4dvar.o convinfo.o constants.o kinds.o 
 read_seviri.o : read_seviri.f90 gsi_4dvar.o radinfo.o obsmod.o constants.o gridmod.o satthin.o kinds.o 
 read_ssmi.o : read_ssmi.f90 gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_ssmis.o : read_ssmis.f90 calc_fov_conical.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 

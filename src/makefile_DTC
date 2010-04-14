@@ -27,8 +27,8 @@ LIBmpeu   =
 LIBbufr   = -L$(CORELIB) -lbufr
 LIBw3     = -L$(CORELIB) -lw3
 LIBsp     = -L$(CORELIB) -lsp
-## LIBbacio  = -L$(CORELIB) -lbacio
 LIBbacio  = 
+##LIBrrcld  = -L$(CORELIB) -lgnrlcld
 LIBsfcio  = -L$(CORELIB) -lsfcio
 LIBsigio  = -L$(CORELIB) -lsigio
 ## LIBcrtm   = -L$(CORELIB) -lcrtm_gfsgsi
@@ -388,6 +388,10 @@ LIBsys          = $(MYLIBsys)
         blockIO.o   \
         bacio.v1.4.o  \
         rapidrefresh_cldsurf_mod.o \
+        read_Lightning.o \
+        read_NASA_LaRC.o \
+        read_RadarRef_mosaic.o \
+
 
 # ----
 
@@ -409,7 +413,7 @@ $(LIB):	 $(OBJS)
 #	$(LD) $(LDFLAGS) -o $@ gsimain.o $(OBJS) $(LIBS)
 
 gsi.exe:  $(OBJS) $(LIB) gsimain.o
-	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBgfsio) $(LIBsp) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys) 
+	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBrrcld) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBgfsio) $(LIBsp) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys) 
 	cp gsi.exe $(COREBIN)
 
 # DEPENDENCIES : only dependencies after this line (don't remove the word DEPENDENCIES)

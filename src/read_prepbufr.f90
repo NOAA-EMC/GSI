@@ -78,6 +78,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                         obs into sensible temperature for 2dvar
 !   2009-07-08  pondeca - move handling of "provider use_list" for mesonet winds 
 !                         to the new module sfcobsqc
+!   2010-03-29  hu - add code to read cloud observation from METAR and NESDIS cloud products
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -155,6 +156,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Declare local variables
   logical tob,qob,uvob,spdob,sstob,pwob,psob
+  logical metarcldobs,geosctpobs
   logical outside,driftl,convobs,inflate_error
   logical sfctype
   logical asort
@@ -163,6 +165,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
   character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr,hdstr2
+  character(40) metarcldstr,geoscldstr,metarvisstr,metarwthstr
   character(80) obstr
   character(10) date
   character(8) subset
@@ -176,6 +179,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nc,nx,id,isflg,ntread,itx,ii
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
+  integer(i_kind) metarcldlevs,metarwthlevs
   integer(i_kind) kx,nreal,nchanl,ilat,ilon,ithin
   integer(i_kind) cat,zqm,pwq,sstq,qm,lim_qm,lim_zqm
   integer(i_kind) lim_tqm,lim_qqm
@@ -220,6 +224,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double),dimension(8,255):: drfdat,qcmark,obserr
   real(r_double),dimension(9,255):: obsdat
   real(r_double),dimension(8,1):: sstdat
+  real(r_double),dimension(2,10):: metarcld
+  real(r_double),dimension(1,10):: metarwth
+  real(r_double),dimension(1,1) :: metarvis
+  real(r_double),dimension(4,1) :: geoscld
   real(r_double),dimension(4):: satqc
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg 
   real(r_double),dimension(1,255):: levdat
@@ -243,6 +251,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data prvstr /'PRVSTG'/   
   data sprvstr /'SPRVSTG'/ 
   data levstr  /'POB'/ 
+  data metarcldstr /'CLAM HOCB'/      ! cloud amount and cloud base height
+  data metarwthstr /'PRWE'/           ! present weather
+  data metarvisstr /'HOVI'/           ! visibility
+  data geoscldstr /'CDTP TOCC GCDTT CDTP_QM'/   ! NESDIS cloud products: cloud top pressure, temperature,amount
 
   data lunin / 13_i_kind /
   data ithin / -9_i_kind /
@@ -259,6 +271,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   qob = obstype == 'q'
   pwob = obstype == 'pw'
   sstob = obstype == 'sst'
+  metarcldobs = obstype == 'mta_cld'
+  geosctpobs = obstype == 'gos_ctp'
   convobs = tob .or. uvob .or. spdob .or. qob
   if(tob)then
      nreal=20_i_kind
@@ -274,6 +288,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      nreal=20_i_kind
   else if(sstob) then
      nreal=20_i_kind
+  else if(metarcldobs) then
+     nreal=22_i_kind
+  else if(geosctpobs) then
+     nreal=8_i_kind
   else 
      write(6,*) ' illegal obs type in READ_PREPBUFR '
      call stop2(94)
@@ -583,7 +601,22 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            sstdat=1.e11_r_kind
            call ufbint(lunin,sstdat,8_i_kind,ione,levs,sststr)
         end if
-
+        if(metarcldobs) then
+          metarcld=1.e11_r_kind
+          metarwth=1.e11_r_kind
+          metarvis=1.e11_r_kind
+          call ufbint(lunin,metarcld,2_i_kind,10_i_kind,metarcldlevs,metarcldstr)
+          call ufbint(lunin,metarwth,1_i_kind,10_i_kind,metarwthlevs,metarwthstr)
+          call ufbint(lunin,metarvis,1_i_kind,1_i_kind,iret,metarvisstr)
+          if(levs /= ione ) then
+            write(6,*) 'READ_PREPBUFR: error in Metar observations, levs sould be 1 !!!'
+            call stop2(110)
+          endif
+        endif
+        if(geosctpobs) then
+           geoscld=1.e11_r_kind
+           call ufbint(lunin,geoscld,4_i_kind,1_i_kind,levs,geoscldstr)
+        endif
 
 !       If available, get obs errors from error table
         if(oberrflg)then
@@ -656,6 +689,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               plevs(k)=one_tenth*obsdat(1,k)   ! convert mb to cb
            endif
            if (kx == 290_i_kind) plevs(k)=101.0_r_kind  ! Assume 1010 mb = 101.0 cb
+           if (geosctpobs) plevs(k)=geoscld(1,k)/1000.0_r_kind ! cloud top pressure in cb
            pqm(k)=nint(qcmark(1,k))
            qqm(k)=nint(qcmark(2,k))
            tqm(k)=nint(qcmark(3,k))
@@ -738,6 +772,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               sstq=100_i_kind
               if (k==ione) sstq=nint(min(sstdat(4,k),qcmark_huge))
               qm=sstq
+           else if(metarcldobs) then
+              qm=izero      
+           else if(geosctpobs) then
+              qm=izero
            end if
 
 !          Set inflate_error logical and qc limits based on noiqc flag
@@ -1181,8 +1219,51 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             10      Micro-wave scanner
 !             11-14   Reserved
 
+! METAR cloud observation
+           else if(metarcldobs) then
+              cdata_all(1,iout)=rstation_id    !  station ID
+              cdata_all(2,iout)=dlon           !  grid relative longitude
+              cdata_all(3,iout)=dlat           !  grid relative latitude
+              cdata_all(4,iout)=stnelev        !  station  elevation
+              if(metarvis(1,1) < 1.e10_r_kind) then
+                cdata_all(5,iout)=metarvis(1,1)  !  visibility (m)
+              else
+                cdata_all(5,iout) = -99999.0_r_kind
+              endif
+              do kk=1, 6
+                if(metarcld(1,kk) < 1.e10_r_kind) then
+                  cdata_all(5+kk,iout) =metarcld(1,kk)  !  cloud amount
+                else
+                  cdata_all(5+kk,iout) = -99999.0_r_kind
+                endif
+                if(metarcld(2,kk) < 1.e10_r_kind) then
+                  cdata_all(11+kk,iout)=metarcld(2,kk)  !  cloud bottom height (m)
+                else
+                  cdata_all(11+kk,iout)= -99999.0_r_kind
+                endif
+              enddo
+              do kk=1, 3
+                if(metarwth(1,kk) < 1.e10_r_kind) then
+                  cdata_all(17+kk,iout)=metarwth(1,kk)  !  weather
+                else
+                  cdata_all(17+kk,iout)= -99999.0_r_kind
+                endif
+              enddo
+              cdata_all(21,iout)=timeobs     !  time observation
+              cdata_all(22,iout)=usage
+! NESDIS cloud products
+           else if(geosctpobs) then
+              cdata_all(1,iout)=rstation_id    !  station ID
+              cdata_all(2,iout)=dlon                 !  grid relative longitude
+              cdata_all(3,iout)=dlat                 !  grid relative latitude
+              cdata_all(4,iout)=geoscld(1,k)/100.0_r_kind   !  cloud top pressure (pa)
+              cdata_all(5,iout)=geoscld(2,k)         !  cloud cover
+              cdata_all(6,iout)=geoscld(3,k)         !  Cloud top temperature (K)
+              cdata_all(7,iout)=timeobs              !  time
+              cdata_all(8,iout)=usage
            end if
            isort(iout)=ntb*1000_i_kind+k
+           if(metarcldobs .or. geosctpobs) isort(iout)=iout
 
 !
 !    End k loop over levs

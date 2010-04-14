@@ -245,6 +245,9 @@ subroutine read_obs(ndata,mype)
 !   2009-03-18  meunier - add a if statement to read lagrangian data
 !   2009-12-20  gayno - modify argument lists so that fov-based surface
 !                       calculation may be used.
+!   2010-03-29  hu    - add code to read in cloud observations  including:
+!                            prepbufr (metar, nesdis cloud product)
+!                            radar reflectivity, lightning, NASA LaRC cloud
 !   2010-04-01  treadon - move strip and reorder to gridmod
 !   2010-04-08  hliu - add seviri
 !
@@ -388,7 +391,10 @@ subroutine read_obs(ndata,mype)
            obstype == 'pw' .or. obstype == 'spd'.or. &
            obstype == 'sst'.or. obstype == 'srw'.or. &
            obstype == 'tcp'.or. obstype == "lag".or. &
-           obstype == 'dw' .or. obstype == 'rw' ) then
+           obstype == 'dw' .or. obstype == 'rw' .or. &
+           obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
+           obstype == 'rad_ref' .or. obstype=='lghtn' .or. &
+           obstype == 'larccld' )  then
           ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  &
                obstype == 'seviri'    .or.  &
@@ -644,7 +650,8 @@ subroutine read_obs(ndata,mype)
           if(ditype(i) == 'conv')then
              if (obstype == 't'  .or. obstype == 'uv' .or. &
                  obstype == 'q'  .or. obstype == 'ps' .or. &
-                 obstype == 'pw' .or. obstype == 'spd' ) then
+                 obstype == 'pw' .or. obstype == 'spd'.or. &
+                 obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
                 call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full)
                 string='READ_PREPBUFR'
@@ -660,6 +667,21 @@ subroutine read_obs(ndata,mype)
                         prsl_full)
                    string='READ_PREPBUFR'
                 endif
+
+!            Process radar reflectivity Mosaic
+             else if (obstype == 'rad_ref' ) then
+                call read_RadarRef_mosaic(nread,npuse,infile,obstype,lunout,twind,sis)
+                string='READ_RADARREF_MOSAIC'
+
+!            Process  lightning
+             else if (obstype == 'lghtn' ) then
+                call read_lightning(nread,npuse,infile,obstype,lunout,twind,sis)
+                string='READ_LIGHTNING'
+
+!            Process  NASA LaRC 
+             else if (obstype == 'larccld' ) then
+                call read_NASA_LaRC(nread,npuse,infile,obstype,lunout,twind,sis)
+                string='READ_NASA_LaRC'
 
 !            Process radar winds
              else if (obstype == 'rw') then

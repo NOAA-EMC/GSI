@@ -380,13 +380,16 @@ clean:
 	read_l2bufr_mod.f90 \
         read_lag.F90 \
 	read_lidar.f90 \
+        read_Lightning.f90 \
 	read_modsbufr.f90 \
+        read_NASA_LaRC.f90 \
 	read_obs.F90 \
 	read_obsdiags.F90 \
 	read_ozone.F90 \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
 	read_radar.f90 \
+        read_RadarRef_mosaic.f90 \
 	read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \
