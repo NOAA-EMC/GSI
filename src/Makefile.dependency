@@ -133,7 +133,7 @@ mod_inmi.o : mod_inmi.f90 mod_strong.o constants.o kinds.o
 mod_nmmb_to_a.o : mod_nmmb_to_a.f90 constants.o kinds.o 
 mod_strong.o : mod_strong.f90 constants.o kinds.o 
 mod_vtrans.o : mod_vtrans.F90 m_dgeevx.o guess_grids.o mpimod.o gridmod.o constants.o kinds.o 
-model2control.o : model2control.f90 mpl_allreduce.o jfunc.o balmod.o berror.o gridmod.o gsi_4dvar.o bias_predictors.o state_vectors.o control_vectors.o constants.o kinds.o 
+model2control.o : model2control.f90 jfunc.o balmod.o berror.o gridmod.o gsi_4dvar.o bias_predictors.o state_vectors.o control_vectors.o constants.o kinds.o 
 model_ad.o : model_ad.F90 lag_traj.o lag_fields.o timermod.o m_tick.o geos_pertmod.o state_vectors.o constants.o gsi_4dvar.o kinds.o 
 model_tl.o : model_tl.F90 lag_traj.o lag_fields.o timermod.o m_tick.o geos_pertmod.o state_vectors.o constants.o gsi_4dvar.o kinds.o 
 mp_compact_diffs_mod1.o : mp_compact_diffs_mod1.f90 compact_diffs.o mpimod.o gridmod.o constants.o kinds.o 

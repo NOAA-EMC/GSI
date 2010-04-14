@@ -57,19 +57,19 @@ $(TARGETS):
 #                   User Defined Targets
 #                  ----------------------
 
-ifeq ( $(wildcard $(LIB_MAPL_BASE)),$(null))
+#ifeq ( $(wildcard $(LIB_MAPL_BASE)),$(null))
    HAVE_ESMF  =
    INC_ESMF   =
-   INC_GEOS   =
+   INC_GEOS   = 
    GSIGC_SRCS =
    BIN       += gsi.x
-else
-   HAVE_ESMF = -DHAVE_ESMF
-   INC_GEOS  = $(INC_MAPL_BASE) $(INC_GEOS_SHARED)
-   GSIGC_SRCS = GSI_GridCompMod.F90
-endif
-LIB_GMAO = $(LIB_TRANSF) $(LIB_HERMES)  $(LIB_GFIO) $(LIB_MPEU)
-LIB_GMAO = 
+#else
+#   HAVE_ESMF = -DHAVE_ESMF
+#   INC_GEOS  = $(INC_MAPL_BASE) $(INC_GEOS_SHARED)
+#   GSIGC_SRCS = GSI_GridCompMod.F90
+#endif
+LIB_GMAO = $(LIB_TRANSF) $(LIB_HERMES)  $(LIB_GFIO)
+LIB_GMAO =
 
 # To deactivate GEOS_PERT-related routines
 # ----------------------------------------
@@ -79,6 +79,7 @@ INC_FVGCM =
 LIB_FVGCM =
 
 RSRC =	gmao_airs_bufr.tbl		\
+        gmao_global_anavinfo.txt        \
 	gmao_global_blacklist.txt	\
 	gmao_global_convinfo.txt	\
 	gmao_global_ozinfo.txt		\
@@ -167,9 +168,13 @@ SRCS =	$(wildcard \
 	abor1.f90 \
         adjtest.f90 \
 	anberror.f90 \
-	anbkerror_reg.f90 \
+	anbkerror.f90 \
+	aniso_ens_util.f90 \
 	anisofilter.f90 \
+	anisofilter_glb.f90 \
         antcorr_application.f90 \
+	antest_maps0.f90 \
+	antest_maps0_glb.f90 \
 	balmod.f90 \
 	berror.f90 \
         bias_predictors.f90 \
@@ -200,6 +205,7 @@ SRCS =	$(wildcard \
         cvsection.f90 \
 	deter_subdomain.f90 \
 	dtast.f90 \
+	egrid2agrid_mod.f90 \
         enorm_state.F90 \
         evaljgrad.f90 \
         evaljcdfi.F90 \
@@ -209,6 +215,11 @@ SRCS =	$(wildcard \
 	fill_mass_grid2.f90 \
 	fill_nmm_grid2.f90 \
 	fpvsx_ad.f90 \
+        general_read_gfsatm.f90 \
+        general_specmod.f90 \
+        general_spectral_transforms.f90 \
+        general_sub2grid_mod.f90 \
+        general_transform.f90 \
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
@@ -217,11 +228,13 @@ SRCS =	$(wildcard \
 	gesinfo.F90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
+        get_gefs_ensperts_dualres.f90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
 	getuv.f90 \
 	getvvel.f90 \
 	glbsoi.F90 \
+	global_mean.f90 \
         grtest.f90 \
 	grdcrd.f90 \
 	grid2sub.f90 \
@@ -229,10 +242,15 @@ SRCS =	$(wildcard \
 	gscond_ad.f90 \
 	gsi_4dvar.f90 \
 	gsi_io.f90 \
+        gsi_nemsio_mod.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
 	guess_grids.F90 \
 	half_nmm_grid2.f90 \
+	hilbert_curve.f90 \
+        hybrid_ensemble_isotropic_regional.F90 \
+        hybrid_ensemble_isotropic_global.f90 \
+        hybrid_ensemble_parameters.f90 \
         inc2guess.f90 \
 	init_commvars.f90 \
         init_jcdfi.F90 \
@@ -240,6 +258,7 @@ SRCS =	$(wildcard \
 	intall.f90 \
 	intdw.f90 \
 	intgps.f90 \
+	intjcpdry.f90 \
 	intjo.f90 \
 	intlag.F90 \
 	intlimq.f90 \
@@ -257,7 +276,7 @@ SRCS =	$(wildcard \
 	intsrw.f90 \
 	intsst.f90 \
 	intt.f90 \
-        inttcp.f90 \
+	inttcp.f90 \
 	intw.f90 \
 	jcmod.f90 \
 	jfunc.f90 \
@@ -266,17 +285,19 @@ SRCS =	$(wildcard \
         lag_interp.F90 \
         lag_traj.F90 \
 	lagmod.f90 \
-        lanczos.f90 \
+        lanczos.F90 \
         looplimits.f90 \
 	m_berror_stats.F90 \
-	m_berror_stats_reg.f90 \
+        m_berror_stats_reg.f90 \
 	m_dgeevx.F90 \
-	m_gsiBiases.F90 \
+ 	m_gsiBiases.F90 \
         m_stats.F90 \
         m_tick.F90 \
         mpeu_mpif.F90 \
         mpeu_util.F90 \
+        missing_routines.f90 \
 	mod_inmi.f90 \
+        mod_nmmb_to_a.f90 \
 	mod_strong.f90 \
 	mod_vtrans.F90 \
         model_ad.F90 \
@@ -288,6 +309,7 @@ SRCS =	$(wildcard \
         mpl_allreduce.f90 \
         mpl_bcast.f90 \
 	ncepgfs_io.f90 \
+        nemsio_module.f90 \
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
         obs_ferrscale.F90 \
@@ -298,17 +320,21 @@ SRCS =	$(wildcard \
 	omegas_ad.f90 \
 	oneobmod.F90 \
 	ozinfo.f90 \
+	patch2grid_mod.f90 \
 	pcgsoi.f90 \
 	pcgsqrt.f90 \
 	pcp_k.f90 \
 	pcpinfo.f90 \
         penal.f90 \
+	phil.f90 \
+	phil1.f90 \
 	plib8.f90 \
 	polcarf.f90 \
-        prt_guess.f90 \
 	precpd_ad.f90 \
 	prewgt.f90 \
 	prewgt_reg.f90 \
+	projmethod_support.f90 \
+        prt_guess.f90 \
 	psichi2uv_reg.f90 \
 	psichi2uvt_reg.f90 \
 	q_diag.f90 \
@@ -318,6 +344,7 @@ SRCS =	$(wildcard \
         qnewton3.F90 \
 	radinfo.f90 \
 	raflib.f90 \
+        rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
 	read_airs.f90 \
 	read_amsre.f90 \
@@ -325,6 +352,7 @@ SRCS =	$(wildcard \
 	read_avhrr_navy.f90 \
 	read_bufrtovs.f90 \
 	read_files.f90 \
+        read_gfs_ozone_for_regional.f90 \
 	read_goesimg.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
@@ -333,18 +361,21 @@ SRCS =	$(wildcard \
 	read_l2bufr_mod.f90 \
         read_lag.F90 \
 	read_lidar.f90 \
+        read_Lightning.f90 \
 	read_modsbufr.f90 \
+        read_NASA_LaRC.f90 \
 	read_obs.F90 \
 	read_obsdiags.F90 \
 	read_ozone.F90 \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
 	read_radar.f90 \
+        read_RadarRef_mosaic.f90 \
         read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \
 	read_superwinds.f90 \
-        read_tcps.f90 \
+	read_tcps.f90 \
 	read_wrf_mass_files.f90 \
 	read_wrf_mass_guess.F90 \
 	read_wrf_nmm_files.f90 \
@@ -355,6 +386,7 @@ SRCS =	$(wildcard \
 	retrieval_mi.f90 \
 	rfdpar.f90 \
 	rsearch.F90 \
+        rtlnmc_version3.f90 \
 	satthin.F90 \
         setupbend.f90 \
 	setupdw.f90 \
@@ -373,10 +405,11 @@ SRCS =	$(wildcard \
 	setupsrw.f90 \
 	setupsst.f90 \
 	setupt.f90 \
-        setuptcp.f90 \
+	setuptcp.f90 \
 	setupw.f90 \
 	setupyobs.f90 \
 	sfc_model.f90 \
+	sfcobsqc.f90 \
 	simpin1.f90 \
 	simpin1_init.f90 \
 	smooth_polcarf.f90 \
@@ -397,6 +430,7 @@ SRCS =	$(wildcard \
 	stpdw.f90 \
 	stpgps.f90 \
 	stpjo.f90 \
+	stpjcpdry.f90 \
 	stplimq.f90 \
 	stpoz.f90 \
 	stppcp.f90 \
@@ -409,17 +443,18 @@ SRCS =	$(wildcard \
 	stpsrw.f90 \
 	stpsst.f90 \
 	stpt.f90 \
-        stptcp.f90 \
+	stptcp.f90 \
 	stpw.f90 \
 	strong_bal_correction.f90 \
 	strong_baldiag_inc.f90 \
 	strong_fast_global_mod.f90 \
 	strong_slow_global_mod.f90 \
+	sub2fslab_mod.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
-        tcv_mod.f90 \
 	tendsmod.f90 \
         test_obsens.F90 \
+        tcv_mod.f90 \
         timermod.F90 \
 	tintrp2a.f90 \
 	tintrp3.f90 \
@@ -435,6 +470,7 @@ SRCS =	$(wildcard \
 	unhalf_nmm_grid2.f90 \
 	update_guess.f90 \
 	update_geswtend.f90 \
+	wind_fft.f90 \
 	wrf_binary_interface.F90 \
 	wrf_netcdf_interface.F90 \
 	write_all.F90 \
@@ -444,7 +480,7 @@ SRCS =	$(wildcard \
 	wrwrfnmma.F90 \
         xhat_vordivmod.f90 \
 	zrnmi_mod.f90 \
-	blockIO.c $(GSIGC_SRCS) )
+	blockIO.c bacio.v1.4.c $(GSIGC_SRCS) )
 
 
 ALLSRCS = $(SRCS) gsimain.F90 prepbykx.f
@@ -464,21 +500,22 @@ FPE        =
 
 THIS_SP    = NCEP_sp_r8i4
 THIS_W3    = NCEP_w3_r8i4
-THIS_BACIO = NCEP_bacio_r4i4
+THIS_BACIO = # NCEP_bacio_r4i4
 THIS_BUFR  = NCEP_bufr_r8i4
 THIS_GFSIO = NCEP_gfsio
 LIB_GFSIO  = $(ESMADIR)/$(ARCH)/lib/lib$(THIS_GFSIO).a   # move to proper place
 INC_GFSIO  = $(ESMADIR)/$(ARCH)/include/$(THIS_GFSIO)   # move to proper place
+INC_BACIO  = # $(ESMADIR)/$(ARCH)/include/$(THIS_BACIO)   # move to proper place
 
-MOD_DIRS = . $(INC_ESMF) $(INC_HERMES) $(INC_CRTM) $(INC_IRSSE) \
-	     $(INC_SIGIO) $(INC_GFSIO) \
-             $(INC_SFCIO) $(INC_TRANSF) $(INC_IRUTIL) $(INC_RADTRANS) $(INC_GEOS) $(INC_MPI)
+MOD_DIRS = . $(INC_ESMF) $(INC_HERMES) $(INC_CRTM)              \
+	     $(INC_SIGIO) $(INC_GFSIO) $(INC_BACIO) \
+             $(INC_SFCIO) $(INC_GEOS) $(INC_MPI)
 USER_FDEFS = $(_D) $(HAVE_ESMF)
 USER_FFLAGS = -CB $(BIG_ENDIAN) $(BYTERECLEN)
 USER_FFLAGS = $(BYTERECLEN)
 USER_FFLAGS =
 USER_FFLAGS = $(BIG_ENDIAN) $(BYTERECLEN)
-USER_CFLAGS = -I . -Dfunder -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3
+USER_CFLAGS = -I . -DLINUX -Dfunder -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
 
 vpath % $(MOD_DIRS)
@@ -491,10 +528,10 @@ $(LIB) lib : $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $*.o $(LIB) $(LIB_SYS)
 
 gsi.x:  $(OBJS) $(LIB) gsimain.o
-	$(FC) $(LDFLAGS) -o gsi.x gsimain.o $(LIB) $(LIB_CRTM) $(LIB_IRSSE) \
-	     $(LIB_SFCIO) $(LIB_BACIO)  $(LIB_BUFR) $(LIB_GFSIO) $(LIB_SIGIO) \
+	$(FC) $(LDFLAGS) -o gsi.x gsimain.o $(LIB) $(LIB_CRTM)              \
+	     $(LIB_SFCIO)  $(LIB_BUFR) $(LIB_GFSIO) $(LIB_SIGIO) \
 	     $(LIB_SP) $(LIB_W3) $(LIB_GMAO) \
-	     $(LIB_SDF) $(LIB_MPI) $(LIB_SYS)
+	     $(LIB_SDF) $(LIB_MPI) $(LIB_SCI) $(LIB_SYS)
 
 prepbykx.x: prepbykx.o
 	$(LD) $(LDFLAGS) -o prepbykx.x prepbykx.o $(LIB_BUFR)
@@ -502,6 +539,10 @@ prepbykx.x: prepbykx.o
 blockIO.o : blockIO.c
 	@echo '---> Special handling of C code $<'
 	$(CC) $(USER_CFLAGS) -c $<
+
+bacio.v1.4.o : bacio.v1.4.c
+	@echo '---> Special handling of C code $<'
+	$(CC) -DLINUX -c $<
 
 blockIO.d : blockIO.c
 	@ touch $@
@@ -525,7 +566,7 @@ OBJS_OPENBUFR	= read_airs.o		\
 		  read_pcp.o		\
 		  read_prepbufr.o	\
 		  read_radar.o		\
-                  read_seviri.o         \
+                  read_seviri.f90       \
 		  read_ssmi.o		\
 		  read_ssmis.o		\
 		  read_superwinds.o	\

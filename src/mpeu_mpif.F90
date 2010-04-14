@@ -76,7 +76,7 @@
 	  public :: MPIPRIV	! the common block name
 #endif
 
-include "mpif.h"
+#include "mpif.h"
 
 ! !REVISION HISTORY:
 ! 	01Apr98 - Jing Guo <guo@thunder> - initial prototype/prolog/code

@@ -29,7 +29,7 @@ module read_obsmod
 
 contains
 
-subroutine gsi_inquire (lbytes,lexist,filename,mype,jsatid,dtype,minuse)
+subroutine gsi_inquire (lbytes,lexist,filename,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsi_inquire        inquire file presence and size
@@ -66,16 +66,11 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype,jsatid,dtype,minuse)
   integer(i_llong),intent(  out) :: lbytes
   logical         ,intent(  out) :: lexist
   character(len=*),intent(in   ) :: filename
-  character(len=*),intent(in   ) :: jsatid
-  character(len=*),intent(in   ) :: dtype
-  integer(i_kind) ,intent(in   ) :: mype,minuse
+  integer(i_kind) ,intent(in   ) :: mype
 
   logical :: lhere
-  integer(i_kind) :: lenb,lnbufr,idate,idate2,iret,kidsat
-  integer(i_kind) :: ireadsb,ireadmg,kx,nc
-  real(r_double) :: satid,type
+  integer(i_kind) :: lenb,iret
   character(len=256) command, fname
-  character(8) subset
   
 
 #ifdef ibm_sp
@@ -95,10 +90,68 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype,jsatid,dtype,minuse)
   endif
   lexist = lhere .and. lbytes>0_i_llong
 #endif
+  return
+end subroutine gsi_inquire
+
+subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_obs_check     inquire file presence and size
+!   prgmmr: todling      org: np22                date: 2010-03-05
+!
+! abstract:  Reset file status depending on whether observation time
+!            matches analysis time and how offtime_date is set. This
+!            also checks for consistency in satellite data files and 
+!            known types.  
+!            WARNING: some of it looks inconsistent with long-window 4dvar
+!
+! program history log:
+!   2009-??-??  derber   - originally placed inside inquire
+!   2009-01-05  todling  - move time/type-check out of inquire
+!
+!   input argument list:
+!    lexist    - file status
+!    filename  - input filename
+!    jsatid    - satellite id
+!    dtype     - satellite type
+!
+!   output argument list:
+!    lexist    - file status
+!
+! attributes:
+!   language: f90
+!   machine:  Linux-cluster
+!
+!$$$  end documentation block
+
+  use kinds, only: i_kind,i_llong,r_kind,r_double
+  use constants, only: izero
+  use gsi_4dvar, only: iadatebgn,iadateend
+  use obsmod, only: offtime_data
+  use convinfo, only: nconvtype,ictype,ioctype,icuse
+
+  implicit none
+
+  logical         ,intent(inout) :: lexist
+  character(len=*),intent(in)    :: filename
+  character(len=*),intent(in)    :: jsatid
+  character(len=*),intent(in)    :: dtype
+  integer(i_kind) ,intent(in)    :: minuse
+
+  logical :: lhere
+  integer(i_kind) :: lenb,lnbufr,idate,idate2,iret,kidsat
+  integer(i_kind) :: ireadsb,ireadmg,kx,nc
+  real(r_double) :: satid,rtype
+  character(len=256) command, fname
+  character(8) subset
+
   idate=0
+! RTod: For some odd reason the block below does not work on the GMAO Linux Cluster
+!       Anyone else on a Linux Cluster willing to try?
+#ifdef ibm_sp
   if(lexist .and. trim(dtype) /= 'tcp')then
-      lnbufr = 15_i_kind
-      open(lnbufr,file=trim(filename),form='unformatted',status = 'old')
+      lnbufr = 15
+      open(lnbufr,file=trim(filename),form='unformatted',status ='unknown')
       call openbf(lnbufr,'IN',lnbufr)
       call datelen(10)
       call readmg(lnbufr,subset,idate,iret)
@@ -106,9 +159,9 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype,jsatid,dtype,minuse)
 !     Extract date and check for consistency with analysis date
       if (idate<iadatebgn.or.idate>iadateend) then
          if(offtime_data) then
-           write(6,*)'***gsi_inquire analysis and data file date differ, but use anyway'
+           write(6,*)'***read_obs_check analysis and data file date differ, but use anyway'
          else
-            write(6,*)'***gsi_inquire*** ',&
+            write(6,*)'***read_obs_check*** ',&
               'incompatable analysis and observation date/time'
          end if
          write(6,*)'Analysis start  :',iadatebgn
@@ -117,38 +170,38 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype,jsatid,dtype,minuse)
          if(.not.offtime_data) lexist=.false.
       endif
       kidsat=0
-      if(jsatid == 'metop-a')kidsat=4_i_kind
-      if(jsatid == 'metop-b')kidsat=5_i_kind
-      if(jsatid == 'metop-c')kidsat=6_i_kind
-      if(jsatid == 'n08')kidsat=200_i_kind
-      if(jsatid == 'n09')kidsat=201_i_kind
-      if(jsatid == 'n10')kidsat=202_i_kind
-      if(jsatid == 'n11')kidsat=203_i_kind
-      if(jsatid == 'n12')kidsat=204_i_kind
-      if(jsatid == 'n14')kidsat=205_i_kind
-      if(jsatid == 'n15')kidsat=206_i_kind
-      if(jsatid == 'n16')kidsat=207_i_kind
-      if(jsatid == 'n17')kidsat=208_i_kind
-      if(jsatid == 'n18')kidsat=209_i_kind
-      if(jsatid == 'n19')kidsat=223_i_kind
-      if(jsatid == 'f08')kidsat=241_i_kind
-      if(jsatid == 'f10')kidsat=243_i_kind
-      if(jsatid == 'f11')kidsat=244_i_kind
-      if(jsatid == 'f13')kidsat=246_i_kind
-      if(jsatid == 'f14')kidsat=247_i_kind
-      if(jsatid == 'f15')kidsat=248_i_kind
-      if(jsatid == 'f16')kidsat=249_i_kind
-      if(jsatid == 'f17')kidsat=250_i_kind
-      if(jsatid == 'g08' .or. jsatid == 'g08_prep')kidsat=252_i_kind
-      if(jsatid == 'g09' .or. jsatid == 'g09_prep')kidsat=253_i_kind
-      if(jsatid == 'g10' .or. jsatid == 'g10_prep')kidsat=254_i_kind
-      if(jsatid == 'g11' .or. jsatid == 'g11_prep')kidsat=255_i_kind
-      if(jsatid == 'g12' .or. jsatid == 'g12_prep')kidsat=256_i_kind
-      if(jsatid == 'g13' .or. jsatid == 'g13_prep')kidsat=257_i_kind
-      if(jsatid == 'n05')kidsat=705_i_kind
-      if(jsatid == 'n06')kidsat=706_i_kind
-      if(jsatid == 'n07')kidsat=707_i_kind
-      if(jsatid == 'tirosn')kidsat=708_i_kind
+      if(jsatid == 'metop-a')kidsat=4
+      if(jsatid == 'metop-b')kidsat=5
+      if(jsatid == 'metop-c')kidsat=6
+      if(jsatid == 'n08')kidsat=200
+      if(jsatid == 'n09')kidsat=201
+      if(jsatid == 'n10')kidsat=202
+      if(jsatid == 'n11')kidsat=203
+      if(jsatid == 'n12')kidsat=204
+      if(jsatid == 'n14')kidsat=205
+      if(jsatid == 'n15')kidsat=206
+      if(jsatid == 'n16')kidsat=207
+      if(jsatid == 'n17')kidsat=208
+      if(jsatid == 'n18')kidsat=209
+      if(jsatid == 'n19')kidsat=223
+      if(jsatid == 'f08')kidsat=241
+      if(jsatid == 'f10')kidsat=243
+      if(jsatid == 'f11')kidsat=244
+      if(jsatid == 'f13')kidsat=246
+      if(jsatid == 'f14')kidsat=247
+      if(jsatid == 'f15')kidsat=248
+      if(jsatid == 'f16')kidsat=249
+      if(jsatid == 'f17')kidsat=250
+      if(jsatid == 'g08' .or. jsatid == 'g08_prep')kidsat=252
+      if(jsatid == 'g09' .or. jsatid == 'g09_prep')kidsat=253
+      if(jsatid == 'g10' .or. jsatid == 'g10_prep')kidsat=254
+      if(jsatid == 'g11' .or. jsatid == 'g11_prep')kidsat=255
+      if(jsatid == 'g12' .or. jsatid == 'g12_prep')kidsat=256
+      if(jsatid == 'g13' .or. jsatid == 'g13_prep')kidsat=257
+      if(jsatid == 'n05')kidsat=705
+      if(jsatid == 'n06')kidsat=706
+      if(jsatid == 'n07')kidsat=707
+      if(jsatid == 'tirosn')kidsat=708
 
       if(lexist)then
        if(kidsat /= 0)then
@@ -162,12 +215,12 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype,jsatid,dtype,minuse)
              exit
            end if
         end do
-       else if(trim(filename) == 'prepbufr')then
+       else if(trim(filename) == 'prepbufr')then  ! RTod: wired-in filename is not a good idea
          lexist = .false.
          fileloop: do while(ireadmg(lnbufr,subset,idate2) >= izero)
           do while(ireadsb(lnbufr)>=izero)
-           call ufbint(lnbufr,type,1,1,iret,'TYP')
-           kx=nint(type)
+           call ufbint(lnbufr,rtype,1,1,iret,'TYP')
+           kx=nint(rtype)
            do nc=1,nconvtype
              if(trim(ioctype(nc)) == trim(dtype) .and. kx == ictype(nc) .and. icuse(nc) > minuse)then
                lexist = .true.
@@ -180,14 +233,13 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype,jsatid,dtype,minuse)
       end if
 
       call closbf(lnbufr)
-  end if
-  if(lexist)then
-      write(6,*)'gsi_inquire: bufr file date is ',idate,trim(filename),' ',dtype
+      write(6,*)'read_obs_check: bufr file date is ',idate,trim(filename),' ',dtype
   else
-      write(6,*)'gsi_inquire: bufr file date is ',idate,trim(filename),' ',dtype,' not used '
+      write(6,*)'read_obs_check: bufr file date is ',idate,trim(filename),' ',dtype,' not used '
   end if
+#endif /* ibm_sp */
   return
-  end subroutine gsi_inquire
+end subroutine read_obs_check
 
 subroutine read_obs(ndata,mype)
 !$$$  subprogram documentation block
@@ -320,8 +372,8 @@ subroutine read_obs(ndata,mype)
     real(r_kind),dimension(max(iglobal,itotsub)):: work1
     real(r_kind),allocatable,dimension(:,:,:):: prsl_full
 
-    data lunout / 81_i_kind /
-    data lunsave  / 82_i_kind /
+    data lunout / 81 /
+    data lunsave  / 82 /
 
 !*****************************************************************************
 
@@ -426,17 +478,17 @@ subroutine read_obs(ndata,mype)
        nuse=.false.
        minuse=-ione
        if(ditype(i) == 'conv')then
-          if(diag_conv)minuse=-2_i_kind
+          if(diag_conv)minuse=-2
           do j=1,nconvtype
              if(trim(dtype(i)) == trim(ioctype(j)) .and. icuse(j) > minuse)nuse=.true.
           end do
        else if(ditype(i) == 'rad')then
-          if(diag_rad)minuse=-2_i_kind
+          if(diag_rad)minuse=-2
           do j=1,jpch_rad
              if(trim(dsis(i)) == trim(nusis(j)) .and. iuse_rad(j) > minuse)nuse=.true.
           end do
        else if(ditype(i) == 'ozone')then
-          if(diag_ozone)minuse=-2_i_kind
+          if(diag_ozone)minuse=-2
           if (dtype(i) == 'o3lev') then
              do j=1,nconvtype
                 if(trim(dtype(i)) == trim(ioctype(j)) .and. icuse(j) > minuse)nuse=.true.
@@ -447,7 +499,7 @@ subroutine read_obs(ndata,mype)
              end do
           endif
        else if(ditype(i) == 'pcp')then
-          if(diag_pcp)minuse=-2_i_kind
+          if(diag_pcp)minuse=-2
              do j=1,npcptype
                 if(trim(dsis(i)) == trim(nupcp(j)) .and. iusep(j) > minuse)nuse=.true.
              end do
@@ -464,7 +516,8 @@ subroutine read_obs(ndata,mype)
        ii=ii+ione
        if (ii>npem1) ii=izero
        if(mype==ii)then
-          call gsi_inquire(lenbytes,lexist,dfile(i),mype,dplat(i),dtype(i),minuse)
+          call gsi_inquire(lenbytes,lexist,dfile(i),mype)
+          call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
 
           len4file=lenbytes/4
           if (ditype(i) == 'rad' .and. nuse .and.           &
@@ -473,7 +526,8 @@ subroutine read_obs(ndata,mype)
                     obstype == 'mhs' )) then
 !                   obstype == 'mhs'   .or. hirs )) then
 
-             call gsi_inquire(lenbytes,lexistears,trim(dfile(i))//'ears',mype,dplat(i),dtype(i),minuse)
+             call gsi_inquire(lenbytes,lexistears,trim(dfile(i))//'ears',mype)
+             call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
 
              lexist=lexist .or. lexistears
              len4file=len4file+lenbytes/4
@@ -561,9 +615,9 @@ subroutine read_obs(ndata,mype)
 !   Define sub-communicators for each data file
     mm1=mype+ione
     belong=.false.
-    mype_sub=-999_i_kind
-    mype_sub_r1=-999_i_kind
-    mype_sub_r2=-999_i_kind
+    mype_sub=-999
+    mype_sub_r1=-999
+    mype_sub_r2=-999
     mype_root=izero
     next_mype=izero
     do ii=1,mmdat
@@ -585,7 +639,8 @@ subroutine read_obs(ndata,mype)
     end do
     do ii=1,mmdat
        i=npe_order(ii)
-       if(mype == izero .and. npe_sub(i) > izero)write(6,*)'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i),mype_root_sub(i),npe_sub(i) 
+       if(mype == izero .and. npe_sub(i) > izero) write(6,'(1x,a,i4,1x,a,1x,2a,3i4)') &
+        'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i),mype_root_sub(i),npe_sub(i) 
     end do
 
 
@@ -650,8 +705,7 @@ subroutine read_obs(ndata,mype)
           if(ditype(i) == 'conv')then
              if (obstype == 't'  .or. obstype == 'uv' .or. &
                  obstype == 'q'  .or. obstype == 'ps' .or. &
-                 obstype == 'pw' .or. obstype == 'spd'.or. &
-                 obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
+                 obstype == 'pw' .or. obstype == 'spd' ) then
                 call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full)
                 string='READ_PREPBUFR'

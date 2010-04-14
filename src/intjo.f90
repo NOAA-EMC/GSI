@@ -147,6 +147,8 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !   2008-11-27  todling  - add tendencies for FOTO support and new interface to int's
 !   2009-01-08  todling  - remove reference to ozohead
 !   2009-03-23  meunier  - Add call to intlag (lagrangian observations)
+!   2009-11-15  todling  - Protect call to mpl_allreduce (evaljo calls it as well)
+!   2010-01-11  zhang,b  - Bug fix: bias predictors need to be accumulated over nbins
 !   2010-03-24  zhu      - change the interfaces of intt,intrad,intpcp for generalizing control variable
 !
 !   input argument list:
@@ -273,10 +275,10 @@ real(r_quad),dimension(max(ione,nrclen)):: qpred
   call mpl_allreduce(nrclen,qpvals=qpred)
 
   do i=1,nsclen
-     rbias%predr(i)=qpred(i)
+     rbias%predr(i)=rbias%predr(i)+qpred(i)
   end do
   do i=1,npclen
-     rbias%predp(i)=qpred(nsclen+i)
+     rbias%predp(i)=rbias%predp(i)+qpred(nsclen+i)
   end do
 
 return

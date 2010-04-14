@@ -60,6 +60,8 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
 !   2007-07-09  tremolet - observation sensitivity
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2008-11-28  todling  - turn FOTO optional; changed handling of ptr%time
+!   2010-01-29  zhang,b  - fix adjoint of linearization
+!   2010-02-26  todling  - fix for observation sensitivity
 !
 !   input argument list:
 !     spdhead  - obs type pointer to obs structure
@@ -69,6 +71,7 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
 !     rv
 !
 !   output argument list:
+!     spdhead  - obs type pointer to obs structure
 !     ru       - u results from observation operator 
 !     rv       - v results from observation operator 
 !
@@ -114,6 +117,8 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
      w4 = spdptr%wij(4)
 
 
+     valu=zero
+     valv=zero
      spdtra=sqrt(spdptr%uges*spdptr%uges+spdptr%vges*spdptr%vges)
 
      if (ltlint) then
@@ -140,9 +145,8 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
               endif
 
 !             Adjoint
-              spdtra=sqrt(spdptr%err2)*spdtra
-              valu=grad*min(one,max(spdptr%uges/spdtra,-one))
-              valv=grad*min(one,max(spdptr%vges/spdtra,-one))
+              valu=grad*spdptr%uges/spdtra
+              valv=grad*spdptr%vges/spdtra
            endif
         else
            if (spdptr%luse) spdptr%diags%tldepart(jiter)=zero

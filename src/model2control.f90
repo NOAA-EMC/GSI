@@ -10,6 +10,7 @@ subroutine model2control(rval,bval,grad)
 !   2008-12-04  todling  - update interface to ckgcov_ad; add tsen and p3d
 !   2008-12-29  todling  - add call to strong balance contraint
 !   2009-04-21  derber   - modify call to getstvp to getuv(*,1)
+!   2009-11-10  todling  - remove preditors call to mpl_addreduce
 !   2010-03-15  zhu      - make changes to ckgcov_ad, use cstate
 !
 !   input argument list:
@@ -19,7 +20,7 @@ subroutine model2control(rval,bval,grad)
 !
 !$$$
 use kinds, only: r_kind,i_kind
-use constants, only: ione,zero
+use constants, only: zero
 use control_vectors
 use state_vectors
 use bias_predictors
@@ -28,7 +29,6 @@ use gridmod, only: lat2,lon2,nsig,nnnn1o
 use berror, only: varprd,fpsproj
 use balmod, only: tbalance
 use jfunc, only: nsclen,npclen,nrclen,nval_lenz
-use mpl_allreducemod, only: mpl_allreduce
 implicit none
 
 ! Declare passed variables
@@ -39,7 +39,6 @@ type(control_vector), intent(inout) :: grad
 ! Declare local variables
 real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
 integer(i_kind) :: ii,jj
-real(r_kind) :: zwork(nrclen)
 real(r_kind) :: gradz(nval_lenz)
 type(control_state) :: cstate
 
@@ -59,7 +58,7 @@ do jj=1,nsubwin
 
 ! Convert RHS calculations for u,v to st/vp for application of
 ! background error
-   call getuv(rval(jj)%u,rval(jj)%v,workst,workvp,ione)
+   call getuv(rval(jj)%u,rval(jj)%v,workst,workvp,1)
 
 ! Calculate sensible temperature
    call tv_to_tsen_ad(rval(jj)%t,rval(jj)%q,rval(jj)%tsen)
@@ -96,19 +95,10 @@ end do
 
 ! Bias predictors are duplicated
 do ii=1,nsclen
-   zwork(ii)=bval%predr(ii)
+   grad%predr(ii)=grad%predr(ii)+bval%predr(ii)*sqrt(varprd(ii))
 enddo
 do ii=1,npclen
-   zwork(nsclen+ii)=bval%predp(ii)
-enddo
-
-call mpl_allreduce(nrclen,rpvals=zwork)
-
-do ii=1,nsclen
-   grad%predr(ii)=grad%predr(ii)+zwork(ii)*sqrt(varprd(ii))
-enddo
-do ii=1,npclen
-   grad%predp(ii)=grad%predp(ii)+zwork(nsclen+ii)*sqrt(varprd(nsclen+ii))
+   grad%predp(ii)=grad%predp(ii)+bval%predp(ii)*sqrt(varprd(nsclen+ii))
 enddo
 
 return

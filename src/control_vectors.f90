@@ -15,6 +15,8 @@ module control_vectors
 !   2009-08-12  lueken   - updated documentation
 !   2009-09-20  parrish  - add pointer variable a_en to definition of type control_state
 !                           also, add module variables n_ens, nlva_en
+!   2009-11-10  todling  - remove redundant dot products
+!   2010-02-17  treadon  - fix in predictor part of random vector
 !   2010-02-20  parrish  - add functions dplevs_ens for use with dual-resolution hybrid ensemble option.
 !   2010-03-11  zhu      - add changes for generalizing control variables,i.e.,
 !                          anav_info,nvars,nrf*,allocate_cs,deallocate_cs,
@@ -29,7 +31,6 @@ module control_vectors
 !   sub assign_cv2cv
 !   sub assign_array2cv
 !   sub assign_cv2array
-!   sub ddot_prod_vars
 !   sub qdot_prod_vars
 !   sub prt_norms
 !   sub prt_norms_vars
@@ -123,10 +124,6 @@ END INTERFACE
 
 INTERFACE DOT_PRODUCT
 MODULE PROCEDURE dot_prod_cv,qdot_prod_cv,qdot_prod_cv_eb
-END INTERFACE
-
-INTERFACE DOT_PROD_VARS
-MODULE PROCEDURE ddot_prod_vars,qdot_prod_vars
 END INTERFACE
 
 INTERFACE MAXVAL
@@ -1053,76 +1050,6 @@ real(r_quad) function dplevs_ens(nlevs,dx,dy)
 return
 end function dplevs_ens
 ! ----------------------------------------------------------------------
-subroutine ddot_prod_vars(xcv,ycv,prods)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    ddot_prod_vars
-!   prgmmr:                  org:                     date:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-04  lueken - added subprogram doc block
-!   2009-09-20  parrish - add hybrid ensemble control variable a_en contribution to dot product
-!
-!   input argument list:
-!    xcv,ycv
-!
-!   output argument list:
-!    prods
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-  implicit none
-  type(control_vector), intent(in   ) :: xcv, ycv
-  real(r_kind)        , intent(  out) :: prods(nsubwin+ione)
-
-  real(r_kind) :: zz(nsubwin)
-  integer(i_kind) :: ii
-
-  prods(:)=zero
-  zz(:)=zero
-
-! Independent part of vector
-  if (lsqrtb) then
-!$omp parallel do
-     do ii=1,nsubwin
-        zz(ii)=dot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
-     end do
-!$omp end parallel do
-  else
-     do ii=1,nsubwin
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-        if (nrf3_oz>izero) zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-        if (nrf3_cw>izero) zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-        if (nrf2_sst>izero) zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
-        if(n_ens >  izero) &
-        zz(ii) = zz(ii) + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
-     end do
-  end if
-
-  call mpl_allreduce(nsubwin,rpvals=zz)
-  prods(1:nsubwin) = zz(1:nsubwin)
-
-! Duplicated part of vector
-  if (nsclen>izero) then
-     prods(nsubwin+ione) = prods(nsubwin+ione) + dot_product(xcv%predr(:),ycv%predr(:))
-  endif
-  if (npclen>izero) then
-     prods(nsubwin+ione) = prods(nsubwin+ione) + dot_product(xcv%predp(:),ycv%predp(:))
-  endif
-
-return
-end subroutine ddot_prod_vars
-! ----------------------------------------------------------------------
 real(r_quad) function qdot_prod_sub(xcv,ycv)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1185,76 +1112,6 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 
 return
 end function qdot_prod_sub
-! ----------------------------------------------------------------------
-subroutine qdot_prod_vars(xcv,ycv,qprods)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    qdot_prod_vars
-!   prgmmr:                  org:                     date:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-04  lueken - added subprogram doc block
-!   2009-09-20  parrish - add hybrid ensemble control variable a_en contribution to dot product
-!
-!   input argument list:
-!    xcv,ycv
-!
-!   output argument list:
-!    prods
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-  implicit none
-  type(control_vector), intent(in   ) :: xcv, ycv
-  real(r_quad)        , intent(  out) :: qprods(nsubwin+ione)
-
-  real(r_quad) :: zz(nsubwin)
-  integer(i_kind) :: ii
-
-  qprods(:)=zero_quad
-  zz(:)=zero_quad
-
-! Independent part of vector
-  if (lsqrtb) then
-!$omp parallel do
-     do ii=1,nsubwin
-        zz(ii)=qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
-     end do
-!$omp end parallel do
-  else
-     do ii=1,nsubwin
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-        if (nrf3_oz>izero) zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-        if (nrf3_cw>izero) zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-        if (nrf2_sst>izero) zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
-        if(n_ens >  izero) &
-        zz(ii) = zz(ii) + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
-     end do
-  end if
-
-  call mpl_allreduce(nsubwin,qpvals=zz)
-  qprods(1:nsubwin) = zz(1:nsubwin)
-
-! Duplicated part of vector
-  if (nsclen>izero) then
-     qprods(nsubwin+ione) = qprods(nsubwin+ione) + qdot_product(xcv%predr(:),ycv%predr(:))
-  endif
-  if (npclen>izero) then
-     qprods(nsubwin+ione) = qprods(nsubwin+ione) + qdot_product(xcv%predp(:),ycv%predp(:))
-  endif
-
-return
-end subroutine qdot_prod_vars
 ! ----------------------------------------------------------------------
 subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 !$$$  subprogram documentation block
@@ -1368,7 +1225,7 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
   type(control_vector), intent(in   ) :: xcv, ycv
 
 ! local variables
-  real(r_kind) :: zz(nsubwin+ione)
+  real(r_quad) :: dd(ione)
   integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
@@ -1376,12 +1233,9 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
      call stop2(113)
   end if
 
-  call dot_prod_vars(xcv,ycv,prods=zz)
-
-  dot_prod_cv = zero
-  do ii=1,nsubwin+ione
-     dot_prod_cv = dot_prod_cv + zz(ii)
-  enddo
+  dd(ione) = qdot_prod_sub(xcv,ycv)
+  call mpl_allreduce(ione,qpvals=dd)
+  dot_prod_cv = dd(ione)
 
 return
 end function dot_prod_cv
@@ -1414,7 +1268,7 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
   type(control_vector), intent(in   ) :: xcv, ycv
 
 ! local variables
-  real(r_quad) :: zz(nsubwin+ione)
+  real(r_quad) :: dd(ione)
   integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
@@ -1422,12 +1276,9 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
      call stop2(114)
   end if
 
-  call qdot_prod_vars(xcv,ycv,zz)
-
-  qdot_prod_cv = zero_quad
-  do ii=1,nsubwin+ione
-     qdot_prod_cv = qdot_prod_cv + zz(ii)
-  enddo
+  dd(ione) = qdot_prod_sub(xcv,ycv)
+  call mpl_allreduce(ione,qpvals=dd)
+  qdot_prod_cv = dd(ione)
 
 return
 end function qdot_prod_cv
@@ -1511,19 +1362,12 @@ subroutine prt_norms(xcv,sgrep)
   type(control_vector), intent(in   ) :: xcv
   character(len=*)    , intent(in   ) :: sgrep
 
-  real(r_quad) :: zz(nsubwin+ione),zt
-  integer(i_kind) :: ii
+  real(r_quad) :: zt
 
-  call dot_prod_vars(xcv,xcv,qprods=zz)
-  zt = zero_quad
-  do ii=1,nsubwin+ione
-     zt = zt + zz(ii)
-  enddo
+  zt = qdot_prod_cv(xcv,xcv,r_quad)
   zt=sqrt(zt)
-  zz(:) = SQRT(zz(:))
 
   if (mype==izero) then
-     write(6,*)sgrep,' partial norms=',real(zz(:),r_kind)
      write(6,*)sgrep,' global  norm =',real(zt,r_kind)
   endif
 
@@ -1713,7 +1557,7 @@ if (npclen>izero) then
    allocate(zz(npclen))
    call random_number(zz)
    do ii=1,npclen
-      ycv%predr(ii) = two*zz(ii)-one
+      ycv%predp(ii) = two*zz(ii)-one
    enddo
    deallocate(zz)
 endif
