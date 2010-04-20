@@ -256,8 +256,8 @@
 
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
-  real(r_kind) vfact,vfactmc,vfactmp
-  real(r_kind) efact,efactmc,efactmp
+  real(r_kind) vfact,vfactmc
+  real(r_kind) efact,efactmc
   real(r_kind) demisf,fact,dtempf,dtbf,tbcx1,tbcx2
   real(r_kind) term,sum,tlap,dsval,tb_obsbc1,clwx
   real(r_kind) de1,de2,de3,dtde1,dtde2,dtde3
@@ -732,6 +732,7 @@
      else if(seviri)then
         panglr = zero
         cld = 100-data_s(iclr_sky,n)
+        if(abs(data_s(iszen_ang,n)) > 180.0_r_kind) data_s(iszen_ang,n)=r100
      else
         panglr = data_s(iscan_ang,n)
      end if
@@ -1872,8 +1873,24 @@
              dtempf = five
          end if
                                                                        
-         efact = one
-         vfact = one
+         do i=1,nchanl
+
+!           use chn 2 and 3 over both sea and land while other IR chns only over sea
+            if (sea) then
+               efact=one
+               vfact=one
+            else if (land ) then
+               if (i == 2 .or. i ==3 ) then
+                  efact=one
+                  vfact=one
+               else
+                  efact=zero
+                  vfact=zero
+               end if
+            else
+               efact=zero
+               vfact=zero
+            end if
 
 !        Reduce weight for obs over higher topography
 !        QC_terrain: If seviri and terrain height > 1km. do not use
@@ -1883,44 +1900,18 @@
 !            QC2 in statsrad
              if(luse(n))aivals(9,is)= aivals(9,is) + one
          end if
- 
-         do i=1,nchanl
-
-!           use chn 2 and 3 over both sea and land while other IR chns only over sea
-            if (sea) then
-               efact=efact
-               vfact=vfact
-            else if (land ) then
-               if (i == 2 .or. i ==3 ) then
-                  efact=efactmp
-                  vfact=vfactmp
-               else
-                  vfactmp=vfact
-                  efactmp=efact
-                  efact=zero
-                  vfact=zero
-               end if
-            else
-               efact=zero
-               vfact=zero
-            end if
-
-!           if ( (i == 2 .or. i ==3) .and. land ) then
-!               write(6,*) 'varinv(',i,')= ',varinv(i),vfact,efact,land
-!           end if
 
 !           gross check
 !           QC_o-g: If abs(o-g) > 2.0 do not use
             if ( abs(tbc(i)) > two ) then
                 vfact = zero
                 efact = zero
-                if(id_qc(i) == izero ) id_qc(i)=2   !hliu check 
+                if(id_qc(i) == izero ) id_qc(i)=2_i_kind   !hliu check 
 !               QC1 in statsrad
                 if(luse(n))aivals(8,is)= aivals(8,is) + one  !hliu check
             end if
 
-!           Generate q.c. bounds and modified variances.
-
+!           modified variances.
             errf(i)   = efact*errf(i)
             varinv(i) = vfact*varinv(i)
 
