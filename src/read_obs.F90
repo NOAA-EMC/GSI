@@ -705,7 +705,8 @@ subroutine read_obs(ndata,mype)
           if(ditype(i) == 'conv')then
              if (obstype == 't'  .or. obstype == 'uv' .or. &
                  obstype == 'q'  .or. obstype == 'ps' .or. &
-                 obstype == 'pw' .or. obstype == 'spd' ) then
+                 obstype == 'pw' .or. obstype == 'spd'.or. & 
+                 obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
                 call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full)
                 string='READ_PREPBUFR'
