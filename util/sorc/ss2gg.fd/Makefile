@@ -1,0 +1,7 @@
+FC	=xlf90_r
+INCS	=-I /nwprod/lib/incmod/sigio_4
+FOPTS	=-qnosave -qsmp=noauto -O2 -qarch=auto -qmaxmem=-1
+LOPTS	=
+LIBS	=-L/nwprod/lib -lbacio_4 -lw3_4 -lsp_4 -lsigio_4 -lessl
+ss2gg:	ss2gg_sfvp.f
+	xlf90_r $(INCS) $(FOPTS) $(LOPTS) ss2gg_sfvp.f $(LIBS) -o ss2gg
