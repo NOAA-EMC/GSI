@@ -30,9 +30,10 @@ subroutine pcgsqrt(xhat,costf,gradx,itermax,nprt)
 
 use kinds, only: r_kind,i_kind,r_quad
 use jfunc, only: iter,jiter
-use constants, only: izero,zero,zero_quad,tiny_r_kind
+use constants, only: zero,zero_quad,tiny_r_kind
 use mpimod, only: mype
 use control_vectors
+use timermod,only: timer_ini,timer_fnl
 
 implicit none
 
@@ -43,18 +44,20 @@ integer(i_kind)     , intent(in   ) :: itermax,nprt
 
 ! Declare local variables
 character(len=*), parameter :: myname='pcgsqrt'
-type(control_vector) :: dirx,xtry,grtry,grad0
+type(control_vector) :: dirx,xtry,grtry,grad0,gradf
 real(r_quad) :: beta,alpha,zg0,zgk,zgnew,zfk,dkqk
 integer(i_kind) :: ii
 logical lsavinc
 
 !**********************************************************************
+call timer_ini('pcgsqrt')
 
 ! Allocate local variables
 call allocate_cv(dirx)
 call allocate_cv(xtry)
 call allocate_cv(grtry)
 call allocate_cv(grad0)
+if (nprt>=1) call allocate_cv(gradf)
 
 ! Initializations
 dirx=zero
@@ -68,7 +71,7 @@ zgk=zg0
 
 ! Perform inner iteration
 inner_iteration: do iter=1,itermax
-   if (mype==izero) write(6,*)trim(myname),': Minimization iteration',iter
+   if (mype==0) write(6,*)trim(myname),': Minimization iteration',iter
 
 !  Search direction
    do ii=1,dirx%lencv
@@ -81,7 +84,7 @@ inner_iteration: do iter=1,itermax
    end do
 
 !  Evaluate cost and gradient
-   call evaljgrad(xtry,zfk,grtry,lsavinc,nprt,myname)
+   call evaljgrad(xtry,zfk,grtry,lsavinc,0,myname)
 
 !  Get A q_k
    do ii=1,grtry%lencv
@@ -104,14 +107,17 @@ inner_iteration: do iter=1,itermax
    if(abs(zgk)>tiny_r_kind) beta=zgnew/zgk
    zgk=zgnew
 
-   if (mype==izero) then
+!  Evaluate cost for printout
+   if (nprt>=1) call evaljgrad(xhat,zfk,gradf,lsavinc,nprt,myname)
+
+   if (mype==0) then
       if (abs(zg0)>tiny_r_kind) then
-         write(6,999)trim(myname),': grepgrad grad,reduction=',jiter,iter,sqrt(real(zgk,r_kind)),&
-                                                           sqrt(real(zgk,r_kind)/real(zg0,r_kind))
+         write(6,999)trim(myname),': grepgrad grad,reduction,step=',jiter,iter,sqrt(real(zgk,r_kind)),&
+              sqrt(real(zgk,r_kind)/real(zg0,r_kind)),real(alpha,r_kind)
       else
-         write(6,999)trim(myname),': grepgrad grad,reduction=',jiter,iter,sqrt(real(zgk,r_kind)),zero
+         write(6,999)trim(myname),': grepgrad grad,reduction,step=',jiter,iter,sqrt(real(zgk,r_kind)),&
+              zero,real(alpha,r_kind)
       endif
-      write(6,999)trim(myname),': cost,grad,step=',jiter,iter,zfk,sqrt(real(zgk,r_kind)),real(alpha,r_kind)
    endif
 
 end do inner_iteration
@@ -122,8 +128,10 @@ call deallocate_cv(dirx)
 call deallocate_cv(xtry)
 call deallocate_cv(grtry)
 call deallocate_cv(grad0)
+if (nprt>=1) call deallocate_cv(gradf)
 
 999 format(2A,2(1X,I3),3(1X,ES24.18))
 
+call timer_fnl('pcgsqrt')
 return
 end subroutine pcgsqrt

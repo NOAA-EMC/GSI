@@ -53,6 +53,7 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges,nstep)
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !
 !   input argument list:
 !     rwhead
@@ -74,23 +75,23 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: rw_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
-  type(rw_ob_type),pointer               ,intent(in   ) :: rwhead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: ru,rv,su,sv
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(rw_ob_type),pointer            ,intent(in   ) :: rwhead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: ru,rv,su,sv
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
   real(r_kind) valrw,facrw,w1,w2,w3,w4,w5,w6,w7,w8,time_rw
   real(r_kind) cg_rw,rw,wgross,wnotgross
-  real(r_kind),dimension(max(ione,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind) pg_rw
   type(rw_ob_type), pointer :: rwptr
 
@@ -99,7 +100,7 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges,nstep)
   rwptr => rwhead
   do while (associated(rwptr))
      if(rwptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1=rwptr%ij(1)
            j2=rwptr%ij(2)
            j3=rwptr%ij(3)
@@ -159,7 +160,7 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges,nstep)
            cg_rw=cg_term/rwptr%b
            wnotgross= one-pg_rw
            wgross = pg_rw*cg_rw/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk)= -two*log((exp(-half*pen(kk)) + wgross)/(one+wgross))
            end do
         endif

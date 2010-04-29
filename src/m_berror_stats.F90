@@ -1,3 +1,28 @@
+module m_berror_stats
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 module m_berror_stats
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:	 2010-03-24
+!
+! abstract:  a module of berror_stats input
+!
+! program history log:
+!   2010-03-24  j guo   - added this document block
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
+! module interface:
+
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
 !BOP -------------------------------------------------------------------
@@ -8,9 +33,8 @@
 !
 ! !INTERFACE:
 
-    module m_berror_stats
       use kinds,only : i_kind
-      use constants, only: izero,ione,one
+      use constants, only: one
 
       implicit none
 
@@ -43,8 +67,8 @@
   	! Reconfigurable parameters, vai NAMELISt/setup/
   character(len=256),save :: berror_stats = "berror_stats"	! filename
 
-  integer(i_kind),parameter :: default_unit_ = 22_i_kind
-  integer(i_kind),parameter :: ERRCODE=2_i_kind
+  integer(i_kind),parameter :: default_unit_ = 22
+  integer(i_kind),parameter :: ERRCODE=2
 contains
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
@@ -130,7 +154,7 @@ end subroutine get_dims
     rewind inerr
     read(inerr) nsigstat,nlatstat
 
-    if(mype==izero) then
+    if(mype==0) then
       if (nsig/=nsigstat .or. nlat/=nlatstat) then
          write(6,*) myname_,'(PREBAL):  ***ERROR*** resolution of ', &
            '"',trim(berror_stats),'"', &
@@ -225,7 +249,7 @@ end subroutine read_bal
 
   rewind inerr
   read(inerr)nsigstat,nlatstat
-  if(mype==izero) then
+  if(mype==0) then
      if(nsigstat/=nsig .or. nlatstat/=nlat) then
         write(6,*)'PREBAL: **ERROR** resolution of berror_stats incompatiable with GSI'
         write(6,*)'PREBAL:  berror nsigstat,nlatstat=', nsigstat,nlatstat, &
@@ -374,7 +398,7 @@ end subroutine read_wgt
 
 !! -- workspace and working variables
 
-    real(r_kind),dimension(nsig+ione,npe) :: work_oz,work_oz1
+    real(r_kind),dimension(nsig+1,npe) :: work_oz,work_oz1
     real(r_kind),dimension(nsig) :: ozmz
     real(r_kind) :: asum,bsum
 
@@ -383,7 +407,7 @@ end subroutine read_wgt
     integer(i_kind) :: ierror
 
 !! -- synity check
-    if(mype==izero) then
+    if(mype==0) then
        write(6,*) myname_,'(PREWGT): mype = ',mype
     endif
 
@@ -401,21 +425,21 @@ end subroutine read_wgt
 
 ! Calculate global means for ozone
 ! Calculate sums for ozone to estimate variance.
-  mm1=mype+ione
+  mm1=mype+1
   work_oz = zero
   do k = 1,nsig
-     do j = 2,lon1+ione
-        do i = 2,lat1+ione
+     do j = 2,lon1+1
+        do i = 2,lat1+1
            work_oz(k,mm1) = work_oz(k,mm1) + ges_oz(i,j,k,ntguessig)* &
-                rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+ione,ntguessig))
+                rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
         end do
      end do
   end do
-  work_oz(nsig+ione,mm1)=float(lon1*lat1)
+  work_oz(nsig+1,mm1)=float(lon1*lat1)
 
-  call mpi_allreduce(work_oz,work_oz1,(nsig+ione)*npe,mpi_rtype,mpi_sum,&
+  call mpi_allreduce(work_oz,work_oz1,(nsig+1)*npe,mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)
-  if(ierror/=izero) then
+  if(ierror/=0) then
      write(6,*) myname_,'(PREWGT): MPI_allreduce() error on PE ',mype
      call stop2(ierror)
   endif
@@ -426,7 +450,7 @@ end subroutine read_wgt
 
   bsum=zero
   do n=1,npe
-     bsum=bsum+work_oz1(nsig+ione,n)
+     bsum=bsum+work_oz1(nsig+1,n)
   end do
   do k=1,nsig
      ozmz(k)=zero
@@ -480,14 +504,14 @@ end subroutine setcoroz_
   real(r_kind) :: fact
   real(r_kind) :: s2u
     
-  if(mype==izero) then
+  if(mype==0) then
      write(6,*) myname_,'(PREWGT): mype = ',mype
   endif
 
   s2u=(two*pi*rearth_equator)/nlon
   do k=1,nnnn1o
      k1=levs_id(k)
-     if(k1>izero) then
+     if(k1>0) then
      write(6,*) myname_,'(PREWGT): mype = ',mype, k1
         if(k1<=nsig*3/4)then
         !  fact=1./hwl
@@ -501,7 +525,7 @@ end subroutine setcoroz_
   enddo
 
 
-  if(mype==izero) then
+  if(mype==0) then
      write(6,*) myname_,'(PREWGT): mype = ',mype, 'finish sethwlloz_'
   endif
 

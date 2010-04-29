@@ -57,6 +57,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-03-25  zhu     - use state_vector in the interface;
 !                       - add handling of sst case; add pointer_state
 !
@@ -90,7 +91,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: t_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n,latlon11,latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt,pointer_state
   use control_vectors, only: nrf2_sst
@@ -98,18 +99,18 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
   implicit none
 
 ! Declare passed variables
-  type(t_ob_type),pointer                ,intent(in   ) :: thead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
-  type(state_vector),intent(in) :: dval
-  type(state_vector),intent(in) :: xval
+  type(t_ob_type),pointer             ,intent(in   ) :: thead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  type(state_vector)                  ,intent(in   ) :: dval
+  type(state_vector)                  ,intent(in   ) :: xval
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
   real(r_kind) cg_t,val,val2,wgross,wnotgross,t_pg
-  real(r_kind),dimension(max(ione,nstep))::pen,tt
+  real(r_kind),dimension(max(1,nstep))::pen,tt
   real(r_kind) tg_prime,valq,valq2,valp,valp2,valu,valu2
   real(r_kind) ts_prime,valv,valv2,valsst,valsst2
   real(r_kind) qs_prime
@@ -132,7 +133,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
   do while (associated(tptr))
 
      if(tptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1=tptr%ij(1)
            j2=tptr%ij(2)
            j3=tptr%ij(3)
@@ -191,7 +192,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
 
            if(tptr%use_sfc_model) then
 
-              if (nrf2_sst>izero) then
+              if (nrf2_sst>0) then
                  valsst =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
                  valsst2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
               else
@@ -246,7 +247,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
            tt(1)=tptr%res
         end if
 
-        do kk=1,max(ione,nstep)
+        do kk=1,max(1,nstep)
            pen(kk) = tt(kk)*tt(kk)*tptr%err2
         end do
 
@@ -257,7 +258,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
            cg_t=cg_term/tptr%b
            wnotgross= one-t_pg
            wgross =t_pg*cg_t/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk) = -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
            end do
         endif

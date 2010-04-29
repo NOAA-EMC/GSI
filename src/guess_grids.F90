@@ -13,7 +13,6 @@ module guess_grids
 ! !USES:
  
   use kinds, only: r_single,r_kind,i_kind
-  use constants, only: izero
   use gridmod, only: regional
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional
   use gridmod, only: eta1_ll
@@ -54,10 +53,14 @@ module guess_grids
 !   2007-05-30  h.liu - remove ozmz
 !   2007-06-21  rancic - add pbl (ges_teta)
 !   2006-12-01  todling - remove bias stuff; merging GMAO bias correction scheme
-!   2006-12-15  todling - add _initilized parameters to control allocations
+!   2006-12-15  todling - add _initialized parameters to control allocations
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes 
 !   2008-02-07  eliu    - fixed the unit difference between prsitmp
 !                         (kPa) and toa_pressure (hPa).
+!   2009-08-19  guo     - added sfc_grids_allocated_, ges_grids_allocated_,
+!			  and gesfinfo_created_ to track the state of the data.
+!			  for multi-pass observer.
+!			- merged destroy_sfc_grids() and destroy_sfct().
 !   2008-08-25  hu    - add array definitions for hydrometeor fields
 !                     - add subroutine create_cld_grids and destroy_cld_grids
 !
@@ -74,7 +77,9 @@ module guess_grids
   public :: create_cld_grids
   public :: create_ges_grids
   public :: destroy_ges_grids
+#ifdef TO_BE_REMOVED
   public :: destroy_sfct
+#endif
   public :: destroy_sfc_grids
   public :: destroy_cld_grids
   public :: create_gesfinfo
@@ -100,24 +105,55 @@ module guess_grids
   public :: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg
   public :: ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
 
+  public :: ges_initialized
+  public :: tnd_initialized
+  public :: drv_initialized
+
+  public :: nfldsig_all,nfldsig_now,hrdifsig_all
+  public :: nfldsfc_all,nfldsfc_now,hrdifsfc_all
+  public :: extrap_intime
+  public :: ntguessig_ref
+  public :: ntguessfc_ref
+
+  public ::  tracers  ! number or tracers read in/written out
+  public ::  vtid     ! tracer variable id from sigma header
+  public ::  pdryini  ! global mean dry mass of the atmosphere in kPa
+  public ::  xncld    ! number of clouds from sigma header
+
   logical:: sfcmod_gfs = .false.    ! .true. = recompute 10m wind factor using gfs physics
   logical:: sfcmod_mm5 = .false.    ! .true. = recompute 10m wind factor using mm5 physics
 
-  logical, save :: ges_initilized = .false.
-  logical, save :: tnd_initilized = .false.
-  logical, save :: drv_initilized = .false.
+  logical, save :: ges_initialized = .false.
+  logical, save :: tnd_initialized = .false.
+  logical, save :: drv_initialized = .false.
 
   integer(i_kind) ntguessig         ! location of actual guess time for sigma fields
   integer(i_kind) ntguessfc         ! location of actual guess time for sfc fields
 
-  integer(i_kind):: ifact10 = izero ! 0 = use 10m wind factor from guess
+  integer(i_kind), save:: ntguessig_ref	! replace ntguessig as the storage for its original value
+  integer(i_kind), save:: ntguessfc_ref	! replace ntguessfc as the storage for its original value
+
+  integer(i_kind):: ifact10 = 0     ! 0 = use 10m wind factor from guess
 
   ! number of guess sigma/surface times are set in GSI_gridComp.rc
-  integer(i_kind):: nfldsig
-  integer(i_kind):: nfldsfc
-  real(r_kind), allocatable, dimension(:):: hrdifsig  ! times for
-                                                      ! guess sigma fields
-  real(r_kind), allocatable, dimension(:):: hrdifsfc  ! times for
+
+  real(r_kind), allocatable, dimension(:), save:: hrdifsig_all  ! a list of all times
+  real(r_kind), allocatable, dimension(:), save:: hrdifsfc_all  ! a list of all times
+
+  integer(i_kind), save:: nfldsig_all	! expected total count of time slots
+  integer(i_kind), save:: nfldsfc_all
+
+  integer(i_kind), save:: nfldsig	! actual count of in-cache time slots
+  integer(i_kind), save:: nfldsfc
+
+  integer(i_kind), save:: nfldsig_now	! current count of filled time slots
+  integer(i_kind), save:: nfldsfc_now
+
+  logical, save:: extrap_intime		! compute o-f interpolate within the time ranges of guess_grids,
+  					! or also extrapolate outside the time ranges.
+
+  real(r_kind), allocatable, dimension(:):: hrdifsig  ! times for cached sigma guess_grid
+  real(r_kind), allocatable, dimension(:):: hrdifsfc  ! times for cached surface guess_grid
 
   integer(i_kind),allocatable, dimension(:)::ifilesfc  ! array used to open the correct surface guess files
   integer(i_kind),allocatable, dimension(:)::ifilesig  ! array used to open the correct sigma guess files
@@ -223,6 +259,11 @@ module guess_grids
      module procedure guess_grids_stats2d_
   end interface
 
+
+  logical,save:: sfc_grids_allocated_=.false.
+  logical,save:: ges_grids_allocated_=.false.
+  logical,save:: gesfinfo_created_=.false.
+
 contains
 
 !-------------------------------------------------------------------------
@@ -241,6 +282,7 @@ contains
    use gridmod, only: lat2,lon2,nlat,nlon
    use constants, only: zero
 
+   use mpeu_util, only: die,tell
    implicit none
 
 ! !DESCRIPTION: allocate memory for surface related grids
@@ -266,11 +308,13 @@ contains
 !-------------------------------------------------------------------------
 
     integer(i_kind) :: i,j,it,istatus
+    if(sfc_grids_allocated_) call die('create_sfc_grids','alread allocated')
+    sfc_grids_allocated_=.true.
 
     allocate( isli_g(nlat,nlon,nfldsfc),&
          isli2(lat2,lon2),sno2(lat2,lon2,nfldsfc),&
          stat=istatus)
-    if (istatus/=izero) write(6,*)'CREATE_SFC_GRIDS(1):  allocate error, istatus=',&
+    if (istatus/=0) write(6,*)'CREATE_SFC_GRIDS(1):  allocate error, istatus=',&
          istatus,lat2,lon2,nlat,nlon,nfldsfc
 
 #ifndef HAVE_ESMF
@@ -281,14 +325,14 @@ contains
          soil_type(lat2,lon2,nfldsfc),soil_temp(lat2,lon2,nfldsfc),&
          soil_moi(lat2,lon2,nfldsfc), &
          stat=istatus)
-    if (istatus/=izero) write(6,*)'CREATE_SFC_GRIDS(2):  allocate error, istatus=',&
+    if (istatus/=0) write(6,*)'CREATE_SFC_GRIDS(2):  allocate error, istatus=',&
          istatus,lat2,lon2,nlat,nlon,nfldsfc
 #endif /* HAVE_ESMF */
 
     do it=1,nfldsfc
        do j=1,nlon
           do i=1,nlat
-             isli_g(i,j,it)=izero
+             isli_g(i,j,it)=0
           end do
        end do
     end do
@@ -297,9 +341,10 @@ contains
     do it=1,nfldsfc
        do j=1,lon2
           do i=1,lat2
-             isli(i,j,it)=izero
+             isli(i,j,it)=0
              fact10(i,j,it)=zero
              sfct(i,j,it)=zero
+             dsfct(i,j,it)=zero
              sno(i,j,it)=zero
              veg_type(i,j,it)=zero
              veg_frac(i,j,it)=zero
@@ -314,7 +359,6 @@ contains
     do it=1,nfldsfc
        do j=1,lon2
           do i=1,lat2
-             dsfct(i,j,it)=zero
              sno2(i,j,it)=zero
           end do
        end do
@@ -322,7 +366,7 @@ contains
 
     do j=1,lon2
        do i=1,lat2
-          isli2(i,j)=izero
+          isli2(i,j)=0
        end do
     end do
 
@@ -369,7 +413,7 @@ contains
          soil_temp_cld(lat2,lon2,nfldsig),isli_cld(lat2,lon2,nfldsig),&
          ges_tten(lat2,lon2,nsig,nfldsig), &
          stat=istatus)
-    if (istatus/=izero) write(6,*)'CREATE_CLD_GRIDS:  allocate error1, istatus=',&
+    if (istatus/=0) write(6,*)'CREATE_CLD_GRIDS:  allocate error1, istatus=',&
          istatus,lat2,lon2,nsig,nfldsig
 
 !  Default for cloud 
@@ -415,6 +459,7 @@ contains
 
     use constants,only: ione,zero,one
     use gridmod, only: lat2,lon2,nsig
+    use mpeu_util, only: die, tell
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -453,8 +498,18 @@ contains
 !-------------------------------------------------------------------------
 
     integer(i_kind) i,j,k,n,istatus
+    if(ges_grids_allocated_) call die('create_ges_grids','already allocated')
+    ges_grids_allocated_=.true.
 
-    if ( .not. ges_initilized ) then
+    if ( .not. ges_initialized ) then
+
+#ifndef HAVE_ESMF
+    nfldsig_all=nfldsig
+    nfldsfc_all=nfldsfc
+    nfldsig_now=0	! _now variables are not used if not for ESMF
+    nfldsfc_now=0
+    extrap_intime=.true.
+#endif /* HAVE_ESMF */
 
 !      Allocate and zero guess grids
        allocate ( ges_prsi(lat2,lon2,nsig+ione,nfldsig),ges_prsl(lat2,lon2,nsig,nfldsig),&
@@ -464,7 +519,7 @@ contains
             geop_hgtl(lat2,lon2,nsig,nfldsig), &
             geop_hgti(lat2,lon2,nsig+ione,nfldsig),ges_prslavg(nsig),&
             tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),stat=istatus)
-       if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS(1):  allocate error1, istatus=',&
+       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prsi,..):  allocate error1, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
 #ifndef HAVE_ESMF
        allocate (ges_z(lat2,lon2,nfldsig),ges_ps(lat2,lon2,nfldsig),&
@@ -473,17 +528,17 @@ contains
             ges_cwmr(lat2,lon2,nsig,nfldsig),ges_q(lat2,lon2,nsig,nfldsig),&
             ges_oz(lat2,lon2,nsig,nfldsig),ges_tv(lat2,lon2,nsig,nfldsig),&
             stat=istatus)
-       if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS(2):  allocate error1, istatus=',&
+       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_z,..):  allocate error1, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
 #endif /* HAVE_ESMF */
        if(update_pint) then
           allocate(ges_pint(lat2,lon2,nsig+ione,nfldsig),ges_pd(lat2,lon2,nfldsig),&
                stat=istatus)
-          if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS:  allocate error2, istatus=',&
+          if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_pint,..):  allocate error2, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
        endif
 
-       ges_initilized = .true.
+       ges_initialized = .true.
 
 !  Default for ges_psfcavg
        ges_psfcavg=zero
@@ -526,7 +581,7 @@ contains
                    ges_q(i,j,k,n)=zero
                    ges_oz(i,j,k,n)=zero
                    ges_tv(i,j,k,n)=zero
-!                   ges_pint(i,j,k,n)=zero
+!                  ges_pint(i,j,k,n)=zero
                 end do
              end do
           end do
@@ -571,17 +626,17 @@ contains
           end do
        end if
 
-    end if ! ges_initilized
+    end if ! ges_initialized
     
 !   If tendencies option on, allocate/initialize _ten arrays to zero
-    if (.not.tnd_initilized .and. tendsflag) then
+    if (.not.tnd_initialized .and. tendsflag) then
        allocate(ges_prs_ten(lat2,lon2,nsig+ione),ges_u_ten(lat2,lon2,nsig),&
                 ges_v_ten(lat2,lon2,nsig),ges_tv_ten(lat2,lon2,nsig),&
                 ges_q_ten(lat2,lon2,nsig),ges_oz_ten(lat2,lon2,nsig),&
                 ges_cwmr_ten(lat2,lon2,nsig),stat=istatus)
-       if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS:  allocate error3, istatus=',&
+       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prs_ten,..):  allocate error3, istatus=',&
             istatus,lat2,lon2,nsig
-       tnd_initilized = .true.
+       tnd_initialized = .true.
        do k=1,nsig
           do j=1,lon2
              do i=1,lat2
@@ -603,7 +658,7 @@ contains
     end if
 
 !   If derivatives option on, allocate and initialize derivatives arrays to 0.0
-    if (.not.drv_initilized .and. switch_on_derivatives) then
+    if (.not.drv_initialized .and. switch_on_derivatives) then
        allocate(ges_u_lat(lat2,lon2,nsig),ges_u_lon(lat2,lon2,nsig),&
             ges_v_lat(lat2,lon2,nsig),ges_v_lon(lat2,lon2,nsig),&
             ges_cwmr_lat(lat2,lon2,nsig),ges_cwmr_lon(lat2,lon2,nsig),&
@@ -612,9 +667,9 @@ contains
             ges_tvlat(lat2,lon2,nsig),ges_tvlon(lat2,lon2,nsig),&
             ges_qlat(lat2,lon2,nsig),ges_qlon(lat2,lon2,nsig),&
             stat=istatus)
-       if (istatus/=izero) write(6,*)'CREATE_GES_GRIDS:  allocate error4, istatus=',&
+       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_u_lat,..):  allocate error4, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
-       drv_initilized = .true.
+       drv_initialized = .true.
        do k=1,nsig
           do j=1,lon2
              do i=1,lat2
@@ -659,6 +714,7 @@ contains
 
 ! !USES:
 
+    use mpeu_util, only: die, tell
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -694,43 +750,44 @@ contains
     deallocate(ges_prsi,ges_prsl,ges_lnprsl,ges_lnprsi,&
          ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_prslavg,&
          tropprs,fact_tv,stat=istatus)
-    if (istatus/=izero) &
-         write(6,*)'DESTROY_GES_GRIDS(1):  deallocate error1, istatus=',&
+    if (istatus/=0) &
+         write(6,*)'DESTROY_GES_GRIDS(ges_prsi,..):  deallocate error1, istatus=',&
          istatus
 #ifndef HAVE_ESMF
     deallocate(ges_z,ges_ps,&
          ges_u,ges_v,ges_vor,ges_div,ges_cwmr,ges_q,&
          ges_oz,ges_tv,&
          stat=istatus)
-    if (istatus/=izero) &
-         write(6,*)'DESTROY_GES_GRIDS(2):  deallocate error1, istatus=',&
+    if (istatus/=0) &
+         write(6,*)'DESTROY_GES_GRIDS(ges_z,..):  deallocate error1, istatus=',&
          istatus
 #endif /* HAVE_ESMF */
     if(update_pint) then
        deallocate(ges_pint,ges_pd,stat=istatus)
-       if (istatus/=izero) &
-            write(6,*)'DESTROY_GES_GRIDS:  deallocate error2, istatus=',&
+       if (istatus/=0) &
+            write(6,*)'DESTROY_GES_GRIDS(ges_pint,..):  deallocate error2, istatus=',&
             istatus
     endif
-    if (drv_initilized .and.switch_on_derivatives) then
+    if (drv_initialized .and.switch_on_derivatives) then
        deallocate(ges_u_lat,ges_u_lon,ges_v_lat,ges_v_lon,ges_cwmr_lat,&
             ges_cwmr_lon,ges_ozlat,ges_ozlon,&
             ges_ps_lat,ges_ps_lon,ges_tvlat,ges_tvlon,&
             ges_qlat,ges_qlon,stat=istatus)
-       if (istatus/=izero) &
-            write(6,*)'DESTROY_GES_GRIDS:  deallocate error3, istatus=',&
+       if (istatus/=0) &
+            write(6,*)'DESTROY_GES_GRIDS(ges_u_lat,..):  deallocate error3, istatus=',&
             istatus
     endif
-    if (tnd_initilized .and. tendsflag) then
+    if (tnd_initialized .and. tendsflag) then
        deallocate(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
             ges_oz_ten,ges_cwmr_ten,stat=istatus)
-       if (istatus/=izero) &
-            write(6,*)'DESTROY_GES_GRIDS:  deallocate error4, istatus=',&
+       if (istatus/=0) &
+            write(6,*)'DESTROY_GES_GRIDS(ges_u_ten,..):  deallocate error4, istatus=',&
             istatus
     endif
     return
   end subroutine destroy_ges_grids
 
+#ifdef TO_BE_REMOVED
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
@@ -744,6 +801,7 @@ contains
 
 ! !USES:
 
+   use mpeu_util, only: die, tell
    implicit none
 
 ! !DESCRIPTION: deallocate surface temperature field
@@ -767,18 +825,19 @@ contains
     integer(i_kind):: istatus
 
     deallocate(isli2,sno2,stat=istatus)
-    if (istatus/=izero) &
+    if (istatus/=0) &
          write(6,*)'DESTROY_SFCT:  deallocate error, istatus=',&
          istatus
 #ifndef HAVE_ESMF
     deallocate(sfct,dsfct,stat=istatus)
-    if (istatus/=izero) &
+    if (istatus/=0) &
          write(6,*)'DESTROY_SFCT:  deallocate error, istatus=',&
          istatus
 #endif /* HAVE_ESMF */
 
     return
   end subroutine destroy_sfct
+#endif
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
@@ -793,6 +852,7 @@ contains
 
 ! !USES:
 
+   use mpeu_util, only: die, tell
    implicit none
    
 ! !DESCRIPTION: deallocate surface related grids
@@ -817,15 +877,17 @@ contains
 !-------------------------------------------------------------------------
 
     integer(i_kind):: istatus
+    if(.not.sfc_grids_allocated_) call die('destroy_sfc_grids_','not allocated')
+    sfc_grids_allocated_=.false.
 
-    deallocate(isli_g,stat=istatus)
-    if (istatus/=izero) &
+    deallocate(isli_g,isli2,sno2,stat=istatus)
+    if (istatus/=0) &
          write(6,*)'DESTROY_SFC_GRIDS:  deallocate error, istatus=',&
          istatus
 #ifndef HAVE_ESMF
-    deallocate(isli,fact10,sno,veg_type,veg_frac,soil_type,&
+    deallocate(isli,fact10,dsfct,sfct,sno,veg_type,veg_frac,soil_type,&
          sfc_rough,soil_temp,soil_moi,stat=istatus)
-    if (istatus/=izero) &
+    if (istatus/=0) &
          write(6,*)'DESTROY_SFC_GRIDS:  deallocate error, istatus=',&
          istatus
 #endif /* HAVE_ESMF */
@@ -869,7 +931,7 @@ contains
 
     deallocate (ges_qc, ges_qi,ges_qr,ges_qs,ges_qg,ges_xlon,ges_xlat,&
                 soil_temp_cld,isli_cld,ges_tten,stat=istatus)
-    if (istatus/=izero) &
+    if (istatus/=0) &
          write(6,*)'DESTROY_CLD_GRIDS:  deallocate error1, istatus=',&
          istatus
 
@@ -889,6 +951,7 @@ contains
 
 ! !USES:
 
+   use mpeu_util, only: die, tell
    implicit none
 
 ! !DESCRIPTION: allocate guess-files information arrays
@@ -907,12 +970,22 @@ contains
 !-------------------------------------------------------------------------
 
     integer(i_kind):: istatus
+    if(gesfinfo_created_) call die('create_gesfinfo','already created')
+    gesfinfo_created_=.true.
 
 #ifndef HAVE_ESMF
+    nfldsig_all=nfldsig
+    nfldsfc_all=nfldsfc
+    nfldsig_now=0	! _now variables are not used if not for ESMF
+    nfldsfc_now=0
+    extrap_intime=.true.
     allocate(hrdifsfc(nfldsfc),ifilesfc(nfldsfc), &
-             hrdifsig(nfldsig),ifilesig(nfldsig),stat=istatus)
-    if (istatus/=izero) &
-         write(6,*)'CREATE_GESFINFO:  allocate error, istatus=',&
+             hrdifsig(nfldsig),ifilesig(nfldsig), &
+	     hrdifsfc_all(nfldsfc_all), &
+	     hrdifsig_all(nfldsig_all), &
+	     stat=istatus)
+    if (istatus/=0) &
+         write(6,*)'CREATE_GESFINFO(hrdifsfc,..):  allocate error, istatus=',&
          istatus
 #endif /* HAVE_ESMF */
 
@@ -932,6 +1005,7 @@ contains
 
 ! !USES:
 
+   use mpeu_util, only: die
    implicit none
 
 ! !DESCRIPTION: deallocate guess-files information
@@ -950,12 +1024,20 @@ contains
 !-------------------------------------------------------------------------
 
     integer(i_kind):: istatus
+    if(.not.gesfinfo_created_) call die('destroy_gesfinfo','not created')
+    gesfinfo_created_=.false.
 
 #ifndef HAVE_ESMF
-    deallocate(hrdifsfc,ifilesfc,hrdifsig,ifilesig,stat=istatus)
-    if (istatus/=izero) &
+    deallocate(hrdifsfc,ifilesfc,hrdifsig,ifilesig, &
+    	hrdifsfc_all,hrdifsig_all,stat=istatus)
+    if (istatus/=0) &
          write(6,*)'DESTROY_GESFINFO:  deallocate error, istatus=',&
          istatus
+
+    nfldsfc_all=0
+    nfldsig_all=0
+    nfldsfc    =0
+    nfldsig    =0
 #endif /* HAVE_ESMF */
 
     return
@@ -1029,9 +1111,9 @@ contains
                    if (wrf_mass_regional .or. twodvar_regional) &
                       ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j,jj)-pt_ll) + pt_ll)
                 else
-                   if (idvc5==ione .or. idvc5==2_i_kind) then
+                   if (idvc5==ione .or. idvc5==2) then
                       ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j,jj))
-                   else if (idvc5==3_i_kind) then
+                   else if (idvc5==3) then
                       if (k==ione) then
                          ges_prsi(i,j,k,jj)=ges_ps(i,j,jj)
                       else if (k==nsig+ione) then
@@ -1082,7 +1164,7 @@ contains
     else
 
 !      load mid-layer pressure by using phillips vertical interpolation
-       if (idsl5/=2_i_kind) then
+       if (idsl5/=2) then
           do jj=1,nfldsig
              do j=1,lon2
                 do i=1,lat2
@@ -1293,7 +1375,7 @@ contains
     end if
 
 !   Linear in pressure sub-divsions
-    kk=izero
+    kk=0
     do k = 1,nsig
        if (nlayers(k)<=ione) then
           kk = kk + ione
@@ -1361,7 +1443,7 @@ contains
     integer(i_kind),dimension(nfldsfc):: indx
     real(r_kind):: u10ges,v10ges,t2ges,q2ges
 
-    nt=izero
+    nt=0
     indx=ione
     do i=1,nfldsfc
        if(abs(hrdifsfc(i)-hrdifsig(i))<0.001_r_kind) then
@@ -1468,14 +1550,14 @@ contains
     real(r_kind):: prsigesin2,lnpgesin1,lnpgesin2,tgesin2,qgesin2,geopgesin,ts
 
     islimsk2=islimsk
-    if(islimsk2 > 2_i_kind)islimsk2=islimsk2-3_i_kind
+    if(islimsk2 > 2)islimsk2=islimsk2-3
     m1=mype+ione
 !   Set spatial interpolation indices and weights
     ix1=dlat
     ix1=max(ione,min(ix1,nlat))
     delx=dlat-ix1
     delx=max(zero,min(delx,one))
-    ix=ix1-istart(m1)+2_i_kind
+    ix=ix1-istart(m1)+2
     ixp=ix+ione
     if(ix1==nlat) then
        ixp=ix
@@ -1484,14 +1566,14 @@ contains
 
     iy1=dlon
     dely=dlon-iy1
-    iy=iy1-jstart(m1)+2_i_kind
+    iy=iy1-jstart(m1)+2
     if(iy<ione) then
        iy1=iy1+nlon
-       iy=iy1-jstart(m1)+2_i_kind
+       iy=iy1-jstart(m1)+2
     end if
     if(iy>lon1+ione) then
        iy1=iy1-nlon
-       iy=iy1-jstart(m1)+2_i_kind
+       iy=iy1-jstart(m1)+2
     end if
     iyp=iy+ione
     dely1=one-dely
@@ -1690,7 +1772,7 @@ contains
    do k=1,nsig
       if (work_a1(nsig+ione)>zero) amz(k)=work_a1(k)/work_a1(nsig+ione)
       rms=sqrt(amz(k)**2/work_a1(nsig+ione))
-      if (mype==izero) write(*,100) trim(name),k,amz(k),rms
+      if (mype==0) write(*,100) trim(name),k,amz(k),rms
    enddo
 100 format(a,': Level, Global mean, RMS = ',i3,1P2E16.8)
 
@@ -1757,7 +1839,7 @@ contains
    amz=zero
    if (work_a1(2)>zero) amz=work_a1(1)/work_a1(2)
    rms=sqrt(amz**2/work_a1(2))      
-   if (mype==izero) write(*,100) trim(name),amz,rms
+   if (mype==0) write(*,100) trim(name),amz,rms
 100 format(a,': Global mean, RMS = ',1P2E16.8)
 
    end subroutine guess_grids_stats2d_
@@ -1801,8 +1883,8 @@ contains
 
 ! start
 
-   allcnt=izero
-   cnt=izero
+   allcnt=0
+   cnt=0
    avg=zero
    rms=zero
    do i=1,size(a,1)

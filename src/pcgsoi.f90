@@ -108,14 +108,15 @@ subroutine pcgsoi()
        nclen,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution, &
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg,lgschmidt
-  use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, lwrtinc
+  use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, lwrtinc, ladtest
   use gridmod, only: twodvar_regional
-  use constants, only: zero,izero,one,five,tiny_r_kind,ione
+  use constants, only: zero,one,five,tiny_r_kind
   use anberror, only: anisotropic
   use mpimod, only: mype
   use intallmod, only: intall
   use stpcalcmod, only: stpcalc
   use mod_strong, only: jcstrong,baldiag_inc
+  use adjtest, only : adtest
   use control_vectors
   use state_vectors
   use bias_predictors
@@ -164,13 +165,15 @@ subroutine pcgsoi()
 ! Initialize timer
   call timer_ini('pcgsoi')
 
+  if (ladtest) call adtest()
+
 ! Set constants.  Initialize variables.
   restart=.false.
-  if (jiter==izero .and. (iguess==ione .or. iguess==2_i_kind)) restart=.true.
+  if (jiter==0 .and. (iguess==1 .or. iguess==2)) restart=.true.
   pennorm=10.e50_r_kind
   iout_6=.true.
   stp=start_step
-  if (iout_iter==6_i_kind) iout_6=.false.
+  if (iout_iter==6) iout_6=.false.
   end_iter=.false.
   gsave=zero
   llouter=.false.
@@ -188,11 +191,11 @@ subroutine pcgsoi()
   if(print_diag_pcg)call prt_guess('guess')
 
   lanlerr=.false.
-  if ( twodvar_regional .and. jiter==ione ) lanlerr=.true.
+  if ( twodvar_regional .and. jiter==1 ) lanlerr=.true.
   if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
 
 ! Perform inner iteration
-  inner_iteration: do iter=izero,niter(jiter)
+  inner_iteration: do iter=0,niter(jiter)
 
 ! Gradually turn on variational qc to avoid possible convergence problems
      nlnqc_iter = iter >= niter_no_qc(jiter)
@@ -207,7 +210,7 @@ subroutine pcgsoi()
         rval(ii)=zero
      end do
      gradx=zero
-     llprt=(mype==izero).and.(iter<=ione)
+     llprt=(mype==0).and.(iter<=1)
 
      if (l4dvar) then
 !       Convert from control space to model space
@@ -225,7 +228,7 @@ subroutine pcgsoi()
         call control2state(xhat,sval,sbias)
      end if
 
-     if (iter<=ione .and. print_diag_pcg) then
+     if (iter<=1 .and. print_diag_pcg) then
         do ii=1,nobs_bins
            call prt_state_norms(sval(ii),'sval')
         enddo
@@ -234,7 +237,7 @@ subroutine pcgsoi()
 !    Compare obs to solution and transpose back to grid
      call intall(sval,sbias,rval,rbias)
 
-     if (iter<=ione .and. print_diag_pcg) then
+     if (iter<=1 .and. print_diag_pcg) then
         do ii=1,nobs_bins
            call prt_state_norms(rval(ii),'rval')
         enddo
@@ -249,7 +252,7 @@ subroutine pcgsoi()
      else
 
 !       Convert to control space directly from physical space.
-        if (nobs_bins>ione) then
+        if (nobs_bins>1) then
            do ii=nobs_bins,2,-1
               call self_add(rval(1),rval(ii))
            end do
@@ -258,8 +261,8 @@ subroutine pcgsoi()
      end if
 
 !    Print initial Jo table
-     if (iter==izero .and. print_diag_pcg) then
-        nprt=2_i_kind
+     if (iter==0 .and. print_diag_pcg) then
+        nprt=2
         call evaljo(zjo,iobs,nprt,llouter)
         call prt_control_norms(gradx,'gradx')
      endif
@@ -312,24 +315,24 @@ subroutine pcgsoi()
 !$omp end parallel do
      end if
 
-     if (iter==izero .and. print_diag_pcg) then
+     if (iter==0 .and. print_diag_pcg) then
         call prt_control_norms(grady,'grady3')
      endif
 
 !    Calculate new norm of gradients
-     if (iter>izero) gsave=gnorm(1)
+     if (iter>0) gsave=gnorm(1)
      gnorm(1)=dot_product(gradx,grady,r_quad)
      gnorm(2)=dot_product(ydiff,grady,r_quad)
      b=zero
-     if (gsave>1.e-16_r_kind .and. iter>izero) b=gnorm(2)/gsave
+     if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
      if (b<zero .or. b>five) then
-        if (mype==izero) then
+        if (mype==0) then
            if (iout_6) write(6,105) gnorm(2),gsave,b
            write(iout_iter,105) gnorm(2),gsave,b
         endif
         b=zero
      endif
-     if (mype==izero) write(6,888)'pcgsoi: gnorm(1:2),b=',gnorm,b
+     if (mype==0) write(6,888)'pcgsoi: gnorm(1:2),b=',gnorm,b
 
 !    Calculate new search direction
      if (.not. restart) then
@@ -369,10 +372,10 @@ subroutine pcgsoi()
      if (lanlerr) call writeout_gradients(gradx,grady,niter(jiter),stp,b,mype)
 
 !    Diagnostic calculations
-     if (iter==izero) then
+     if (iter==0) then
         zgini=gnorm(1)
         zfini=penalty
-        if (mype==izero) then
+        if (mype==0) then
            write(6,888)'Initial cost function =',zfini
            write(6,888)'Initial gradient norm =',sqrt(zgini)
         endif
@@ -385,7 +388,7 @@ subroutine pcgsoi()
      gnormx=gnorm(1)/gnormorig
      penx=penalty/penorig
 
-     if (mype==izero) then
+     if (mype==0) then
         write(6,*)'Minimization iteration',iter
         write(6,999)'grepcost J,Jb,Jo,Jc,Jl =',jiter,iter,penalty,fjcost
         if (zgini>tiny_r_kind) then
@@ -394,8 +397,8 @@ subroutine pcgsoi()
            write(6,999)'grepgrad grad,reduction(N/A)=',jiter,iter,sqrt(gnorm(1))
         endif
         write(6,999)'pcgsoi: cost,grad,step =',jiter,iter,penalty,sqrt(gnorm(1)),stp
-        istep=ione
-        if (stp<small_step) istep=2_i_kind
+        istep=1
+        if (stp<small_step) istep=2
 !       if (iout_6) write(6,110) jiter,iter,penalty,gnorm(1),stp,b
 !       if (iout_6) write(6,120) jiter,iter,penx,gnormx,step(istep)
         write(iout_iter,110) jiter,iter,penalty,gnorm(1),stp,b
@@ -411,7 +414,7 @@ subroutine pcgsoi()
      if(gnormx < converge .or. penalty < converge  .or.  &
         penx >= pennorm .or. end_iter)then
 
-        if(mype == izero)then
+        if(mype == 0)then
            if(iout_6) write(6,101)
            write(iout_iter,101)
 
@@ -454,7 +457,7 @@ subroutine pcgsoi()
 
 ! Calculate adjusted observation error factor
   if( oberror_tune .and. (.not.l4dvar) ) then
-     if (mype == izero) write(6,*) 'PCGSOI:  call penal for obs perturbation'
+     if (mype == 0) write(6,*) 'PCGSOI:  call penal for obs perturbation'
      call control2state(xhat,sval,sbias)
      call penal(sval(1))
      xhatsave=zero
@@ -468,13 +471,13 @@ subroutine pcgsoi()
   if (jcstrong .and. baldiag_inc) call strong_baldiag_inc(sval)
 
 ! Evaluate final cost function and gradient
-  if (mype==izero) write(6,*)'Minimization final diagnostics'
+  if (mype==0) write(6,*)'Minimization final diagnostics'
 
   do ii=1,nobs_bins
      rval(ii)=zero
   end do
   gradx=zero
-  llprt=(mype==izero)
+  llprt=(mype==0)
   if (l4dvar) then
      call control2state(xhat,mval,sbias)
      call model_tl(mval,sval,llprt)
@@ -486,7 +489,7 @@ subroutine pcgsoi()
      call model_ad(mval,rval,llprt)
      call state2control(mval,rbias,gradx)
   else
-     if (nobs_bins>ione) then
+     if (nobs_bins>1) then
         do ii=nobs_bins,2,-1
            call self_add(rval(1),rval(ii))
         end do
@@ -524,7 +527,7 @@ subroutine pcgsoi()
 ! Print final Jo table
   if(print_diag_pcg)then
      zgend=dot_product(gradx,grady,r_quad)
-     nprt=2_i_kind
+     nprt=2
      call evaljo(zjo,iobs,nprt,llouter)
      call prt_control_norms(gradx,'gradx')
 
@@ -542,7 +545,7 @@ subroutine pcgsoi()
      zfend=SUM(fjcost(:))
      if(l_hyb_ens) zfend=zfend+fjcost_e
 
-     if (mype==izero) then
+     if (mype==0) then
         if(l_hyb_ens) then
 
 !          If hybrid ensemble run, print out contribution to Jb and Je separately
@@ -560,7 +563,7 @@ subroutine pcgsoi()
      endif
 
 !    Print final diagnostics
-     if (mype==izero) then
+     if (mype==0) then
         write(6,888)'Final   cost function=',zfend
         write(6,888)'Final   gradient norm=',sqrt(zgend)
         write(6,888)'Final/Initial cost function=',zfend/zfini
@@ -574,7 +577,7 @@ subroutine pcgsoi()
   call xhat_vordiv_calc(sval)
 
 ! Update guess (model background, bias correction) fields
-  if (mype==izero) write(6,*)'pcgsoi: Updating guess'
+  if (mype==0) write(6,*)'pcgsoi: Updating guess'
   call update_guess(sval,sbias)
   if(l_foto) call update_geswtend(xhat_dt%u,xhat_dt%v,xhat_dt%t,&
                                   xhat_dt%q,xhat_dt%oz,xhat_dt%cw,&

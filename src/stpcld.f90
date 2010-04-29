@@ -40,8 +40,8 @@ subroutine stpcld(rq,sq,rc,sc,out,sges,nstep)
 !
 ! program history log:
 !   2007-02-27  derber
-!   2007-06-04  derber  - use quad precision to get reproducability over number
-of processors
+!   2007-06-04  derber  - use quad precision to get reproducability over number of processors
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !
 !   input argument list:
 !     rq       - search direction for q
@@ -63,19 +63,19 @@ of processors
   use obsmod, only: cldptr,cldhead
   use qcmod, only: nlnqc_iter
   use gridmod, only: latlon1n
-  use constants, only: izero,ione,half,one,two,tiny_r_kind,cg_term,zero_quad
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                        ,intent(in   ) : :nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: rq,sq,rc,sc
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  integer(i_kind)                     ,intent(in   ) : :nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: rq,sq,rc,sc
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,itype
   real(r_kind) cg_q,val,val2,wgross,wnotgross
-  real(r_kind),dimension(max(ione,nstep):: pen
+  real(r_kind),dimension(max(1,nstep):: pen
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,cc
 
   out=zero_quad
@@ -84,7 +84,7 @@ of processors
   do while (associated(cldptr))
      if(cldptr%luse)then
         itype = cldptr%itype
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1=cldptr%ij(1)
            j2=cldptr%ij(2)
            j3=cldptr%ij(3)
@@ -102,7 +102,7 @@ of processors
            w7=cldptr%wij(7)
            w8=cldptr%wij(8)
  
-           if(itype == izero)then
+           if(itype == 0)then
               val= w1*rq(j1)+w2*rq(j2)+w3*rq(j3)+w4*rq(j4)+ &
                    w5*rq(j5)+w6*rq(j6)+w7*rq(j7)+w8*rq(j8)
               val2=w1*sq(j1)+w2*sq(j2)+w3*sq(j3)+w4*sq(j4)+ &
@@ -129,7 +129,7 @@ of processors
            cg_q=cg_term/cldptr%b
            wnotgross= one-cldptr%pg
            wgross = cldptr%pg*cg_q/wnotgross
-           do kk=1,max(nstep,ione)
+           do kk=1,max(nstep,1)
               pen(kk)= -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
            end do
         endif

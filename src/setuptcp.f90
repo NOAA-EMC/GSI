@@ -1,4 +1,4 @@
-subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs)
+subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setuptcp                     setup tcpel data
@@ -8,6 +8,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs)
 !
 ! program history log:
 !   2009-02-02  kleist
+!   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !
 !   input argument list:
 !
@@ -18,24 +19,35 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use mpeu_util, only: die,perr
   use kinds, only: r_kind,i_kind
   use obsmod, only: tcptail,tcphead,obsdiags,i_tcp_ob_type, &
              nobskeep,lobsdiag_allocated,oberror_tune,perturb_obs
+  use obsmod, only: tcp_ob_type
+  use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print
   use guess_grids, only: ges_z,ges_ps,ges_lnprsl,nfldsig,hrdifsig,ges_tv, &
           ntguessig
   use gridmod, only: get_ij,nsig
-  use constants, only: izero,ione,zero,half,one,tiny_r_kind,two,cg_term, &
+  use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
           wgtlim,g_over_rd,huge_r_kind,pi
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg
   use jfunc, only: jiter,last,jiterstart,miter
+  use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
 
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
 
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork ! obs-ges stats
-  real(r_kind),dimension(100_i_kind+7*nsig)        ,intent(inout) :: awork ! data counts and gross checks
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork ! data counts and gross checks
+
+! Declare external calls for code analysis
+  external:: tintrp2a
+  external:: tintrp3
+  external:: grdcrd
+  external:: stop2
 
 ! DECLARE LOCAL PARMS HERE
   logical,dimension(nobs):: luse,muse
@@ -58,21 +70,29 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs)
   integer(i_kind) ikxx,nn,istat,iuse,ibin,iptrb
   integer(i_kind) ier,ilon,ilat,ipres,itime,ikx
 
+  logical:: in_curbin, in_anybin
+  integer(i_kind),dimension(nobs_bins) :: n_alloc
+  integer(i_kind),dimension(nobs_bins) :: m_alloc
+  type(tcp_ob_type),pointer:: my_head
+  type(obs_diag),pointer:: my_diag
+  character(len=*),parameter:: myname='setuptcp'
 
+  n_alloc(:)=0
+  m_alloc(:)=0
 !******************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse
 
 !    index information for data array (see reading routine)
-  ier=ione           ! index of obs error
-  ilon=2_i_kind      ! index of grid relative obs location (x)
-  ilat=3_i_kind      ! index of grid relative obs location (y)
-  ipres=4_i_kind     ! index of pressure
-  itime=5_i_kind     ! index of time observation
-  ikxx=6_i_kind      ! index of observation type in data array
-  iuse=9_i_kind      ! index of usage parameter
+  ier=1       ! index of obs error
+  ilon=2      ! index of grid relative obs location (x)
+  ilat=3      ! index of grid relative obs location (y)
+  ipres=4     ! index of pressure
+  itime=5     ! index of time observation
+  ikxx=6      ! index of observation type in data array
+  iuse=9      ! index of usage parameter
 
-  mm1=mype+ione
+  mm1=mype+1
   scale=one
   rsig=nsig
   halfpi = half*pi
@@ -87,50 +107,63 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs)
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
 
+  call dtime_setup()
   do i=1,nobs
-     dlat=data(ilat,i)
-     dlon=data(ilon,i)
-     pob=data(ipres,i)
      dtime=data(itime,i)
-     error=data(ier,i)
-     ikx=nint(data(ikxx,i))
+     call dtime_check(dtime, in_curbin, in_anybin)
+     if(.not.in_anybin) cycle
+
+     if(in_curbin) then
+        dlat=data(ilat,i)
+        dlon=data(ilon,i)
+        pob=data(ipres,i)
+
+        error=data(ier,i)
+        ikx=nint(data(ikxx,i))
+     endif
 
 !    Link observation to appropriate observation bin
-     if (nobs_bins>ione) then
-        ibin = NINT( dtime/hr_obsbin ) + ione
+     if (nobs_bins>1) then
+        ibin = NINT( dtime/hr_obsbin ) + 1
      else
-        ibin = ione
+        ibin = 1
      endif
-     IF (ibin<ione.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
-!     Link obs to diagnostics structure
+     IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+!    Link obs to diagnostics structure
      if (.not.lobsdiag_allocated) then
         if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%head)) then
            allocate(obsdiags(i_tcp_ob_type,ibin)%head,stat=istat)
-           if (istat/=izero) then
+           if (istat/=0) then
               write(6,*)'setuptcp: failure to allocate obsdiags',istat
               call stop2(301)
            end if
            obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
         else
            allocate(obsdiags(i_tcp_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=izero) then
+           if (istat/=0) then
               write(6,*)'setuptcp: failure to allocate obsdiags',istat
               call stop2(302)
            end if
            obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
         end if
-        allocate(obsdiags(i_tcp_ob_type,ibin)%tail%muse(miter+ione))
-        allocate(obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(miter+ione))
+        allocate(obsdiags(i_tcp_ob_type,ibin)%tail%muse(miter+1))
+        allocate(obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(miter+1))
         allocate(obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(miter))
         allocate(obsdiags(i_tcp_ob_type,ibin)%tail%obssen(miter))
         obsdiags(i_tcp_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_tcp_ob_type,ibin)%tail%nchnperobs=-99999_i_kind
+        obsdiags(i_tcp_ob_type,ibin)%tail%nchnperobs=-99999
         obsdiags(i_tcp_ob_type,ibin)%tail%luse=.false.
         obsdiags(i_tcp_ob_type,ibin)%tail%muse(:)=.false.
         obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
         obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(:)=zero
         obsdiags(i_tcp_ob_type,ibin)%tail%wgtjo=-huge(zero)
         obsdiags(i_tcp_ob_type,ibin)%tail%obssen(:)=zero
+
+        n_alloc(ibin) = n_alloc(ibin) +1
+        my_diag => obsdiags(i_tcp_ob_type,ibin)%tail
+        my_diag%idv = is
+        my_diag%iob = i
+        my_diag%ich = 1
      else
         if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%tail)) then
            obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
@@ -143,35 +176,37 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs)
         end if
      endif
 
+     if(.not.in_curbin) cycle
+
 ! Get guess sfc hght at obs location
-     call intrp2a(ges_z(1,1,ntguessig),zsges,dlat,dlon,ione,ione,mype)
+     call intrp2a(ges_z(1,1,ntguessig),zsges,dlat,dlon,1,1,mype)
 
 ! Interpolate to get log(ps) and log(pres) at mid-layers
 ! at obs location/time
      call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-        ione,ione,mype,nfldsig)
+        1,1,mype,nfldsig)
      call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-        ione,nsig,mype,nfldsig)
+        1,nsig,mype,nfldsig)
 
 ! Convert pressure to grid coordinates
      pgesorig = psges
 
 ! Take log for vertical interpolation
      psges = log(psges)
-     call grdcrd(psges,ione,prsltmp,nsig,-ione)
+     call grdcrd(psges,1,prsltmp,nsig,-1)
 
 ! Get guess temperature at observation location and surface
      call tintrp3(ges_tv,tges,dlat,dlon,psges,dtime, &
-          hrdifsig,ione,mype,nfldsig)
+          hrdifsig,1,mype,nfldsig)
 
 ! Adjust observation error and obs value due to differences in surface height
      rdelz=-zsges
 
 !  No observed temperature
      psges2=data(ipres,i)
-     call grdcrd(psges2,ione,prsltmp,nsig,-ione)
+     call grdcrd(psges2,1,prsltmp,nsig,-1)
      call tintrp3(ges_tv,tges2,dlat,dlon,psges2,dtime, &
-          hrdifsig,ione,mype,nfldsig)
+          hrdifsig,1,mype,nfldsig)
 
      drbx = half*abs(tges-tges2)+r2_5+r0_005*abs(rdelz)
      tges = half*(tges+tges2)
@@ -265,13 +300,13 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs)
            awork(4)=awork(4)+val2*rat_err2
            awork(5)=awork(5)+one
            awork(22)=awork(22)+valqc
-           nn=ione
+           nn=1
         else
 
 !          rejected obs
-           nn=2_i_kind
+           nn=2
 !          monitored obs
-           if(ratio_errors*error >=tiny_r_kind)nn=3_i_kind
+           if(ratio_errors*error >=tiny_r_kind)nn=3
         end if
 
 
@@ -296,13 +331,18 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs)
 
         if(.not. associated(tcphead(ibin)%head))then
            allocate(tcphead(ibin)%head,stat=istat)
-           if(istat /= izero)write(6,*)' failure to write tcphead '
+           if(istat /= 0)write(6,*)' failure to write tcphead '
            tcptail(ibin)%head => tcphead(ibin)%head
         else
            allocate(tcptail(ibin)%head%llpoint,stat=istat)
            tcptail(ibin)%head => tcptail(ibin)%head%llpoint
-           if(istat /= izero)write(6,*)' failure to write tcptail%llpoint '
+           if(istat /= 0)write(6,*)' failure to write tcptail%llpoint '
         end if
+
+        m_alloc(ibin) = m_alloc(ibin) +1
+        my_head => tcptail(ibin)%head
+        my_head%idv=is
+        my_head%iob=i
 
         call get_ij(mm1,dlat,dlon,tcptail(ibin)%head%ij(1),tcptail(ibin)%head%wij(1))
 
@@ -317,12 +357,26 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs)
            tcptail(ibin)%head%kx    = ikx        ! data type for oberror tuning
            tcptail(ibin)%head%ppertb= data(iptrb,i)/error/ratio_errors ! obs perturbation
         endif
+
         tcptail(ibin)%head%diags => obsdiags(i_tcp_ob_type,ibin)%tail
 
+        my_head => tcptail(ibin)%head
+        my_diag => tcptail(ibin)%head%diags
+        if(my_head%idv /= my_diag%idv .or. &
+           my_head%iob /= my_diag%iob ) then
+           call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                 (/is,i,ibin/))
+           call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+           call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+           call die(myname)
+        endif
      endif
 
 ! End of loop over observations
   end do
 
+  call dtime_show(myname,'diagsave:tcp',i_tcp_ob_type)
+
+! End of routine
   return
 end subroutine setuptcp

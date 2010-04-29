@@ -1,61 +1,138 @@
-!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
-!BOP -------------------------------------------------------------------
+module mpeu_util
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 module mpeu_util
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:	 2010-03-17
 !
-! !MODULE: mpeu_util - utilities
+! abstract: - utilities for runtime messaging, etc.
 !
+! program history log:
+!   2010-03-17  j guo   - added this document block
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
 ! !DESCRIPTION:
-!   to be compiled with -Dsys`uname -s`
 !
-! !INTERFACE:
+!   This module provides some basic utilities with generic interfaces.
+!   These generic interfaces support limited argument type-kind-ranks,
+!   such as default INTERGER, default REAL and DOUBLE PRECISION, etc..
+!   The combination of these argument type-kinds, is efficient to most
+!   user applications, without additional KIND specifications.  The
+!   matching(or mismatching) of the type-kinds in this module to user
+!   specific calls is left to the compiler to handle.  Therefore, this
+!   implementation is designed NOT having to explicitly use user
+!   defined KIND parameters.
+!
+!   To be compiled with -Dsys`uname -s` if necessary.
+!
 
-    module mpeu_util
-    use kinds, only: i_kind,r_single,r_double
-    use constants, only: izero,ione
-    implicit none
-    private	! except
+#define USE_MPI
+#ifdef USE_MPI
+!#define USE_MPI_ABORT
+#define USE_GSI_ABOR1
+#endif
 
-    public :: die, perr, warn, tell, assert_
-    public :: luavail
-    public :: stdin, stdout, stderr
-    public :: strTemplate
+#define INCLUDE_MPOUT
 
-    integer(i_kind),parameter :: STDIN = 5_i_kind
-    integer(i_kind),parameter :: STDOUT= 6_i_kind
+! module interface:
+
+#if NCEP_ENV
+      use kinds, only: IK => i_kind     ! default INTEGER kind
+      use kinds, only: SP => r_single   ! default REAL kind
+      use kinds, only: DP => r_double   ! DOUBLE PRECISION kind
+#endif
+      implicit none
+      private	! except
+
+      public :: die, perr, warn, tell, assert_
+      public :: luavail
+      public :: stdin, stdout, stderr
+      public :: strTemplate
+
+        ! a stable sorting tool.  See <Use indexed sorting> section below
+      public :: IndexSet                ! setup an index array
+      public :: IndexSort               ! (stable)sort through the index array
+
+#ifdef INCLUDE_MPOUT
+      public :: stdout_open
+      public :: stdout_close
+#endif
+
+    integer,parameter :: STDIN = 5
+    integer,parameter :: STDOUT= 6
 #ifdef sysHP_UX
-    integer(i_kind),parameter :: STDERR= 7_i_kind
+    integer,parameter :: STDERR= 7
 #else
-    integer(i_kind),parameter :: STDERR= izero
+    integer,parameter :: STDERR= 0
 #endif
     interface luavail; module procedure luavail_; end interface
 
     interface die; module procedure &
+      die_bul_, &
       die_chr_, &
       die_int_, &
+      die_vint_, &
       die_flt_, &
       die_dbl_, &
       die2_,	&
       die_; end interface
     interface perr; module procedure &
+      perr_bul_, &
       perr_chr_, &
       perr_int_, &
+      perr_vint_, &
       perr_flt_, &
       perr_dbl_, &
       perr_; end interface
     interface warn; module procedure &
+      warn_bul_, &
       warn_chr_, &
       warn_int_, &
+      warn_vint_, &
       warn_flt_, &
       warn_dbl_, &
       warn_; end interface
     interface tell; module procedure &
+      tell_bul_, &
       tell_chr_, &
       tell_int_, &
+      tell_vint_, &
       tell_flt_, &
       tell_dbl_, &
       tell_; end interface
 
+    interface mprint; module procedure &
+      mprint_bul_, &
+      mprint_chr_, &
+      mprint_int_, &
+      mprint_vint_, &
+      mprint_flt_, &
+      mprint_dbl_, &
+      mprint_; end interface
+
+    interface IndexSet; module procedure &
+      set_; end interface
+
+    interface IndexSort; module procedure &
+      iSort_, & ! by an INTEGER key
+      rSort_, & ! by a REAL key
+      dSort_, & ! by a DOUBLE PRECISION key
+      cSort_    ! by a CHARACTER(len=*) key
+      end interface
+
 ! !REVISION HISTORY:
+!	19Aug09 - Jing Guo <Jing.Guo@nasa.gov>
+!		- modified format, abort() message and interface, etc.
 !	19Feb09	- Jing Guo <Jing.Guo@nasa.gov>
 !		- Implemented for GSI to avoid the dependency on
 !		  GMAO_mpeu/.
@@ -71,830 +148,800 @@
 
   character(len=*),parameter :: myname="mpeu_util"
 
-  integer(i_kind),parameter :: MAX_LUNIT=1024_i_kind
+#ifndef NCEP_ENV
+  integer,parameter :: Ix=1
+  real*4,parameter :: R4=1.E+0
+  real*8,parameter :: R8=1.D+0
 
-contains
-
-function luavail_() result(lu)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    luavail_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-  implicit none
-
-  integer(i_kind) :: lu
-
-  character(len=*),parameter :: myname_=myname//'::luavail_'
-  integer(i_kind) ios
-  logical inuse
-
-  lu=-ione
-  ios=izero
-  inuse=.true.
-
-  do while(ios==izero.and.inuse)
-     lu=lu+ione
-
-        ! Test #1, reserved units
-
-     inuse = lu==stdout .or. lu==stdin .or. lu==stderr
-
-#ifdef sysSunOS
-        ! Reserved units under SunOS
-     inuse = lu==100_i_kind .or. lu==101_i_kind .or. lu==102_i_kind
+  integer,parameter :: IK=kind(Ix)      ! kind of default INTEGER
+  integer,parameter :: SP=kind(R4)      ! kind of default REAL
+  integer,parameter :: DP=kind(R8)      ! kind of DOUBLE PRECISION real
 #endif
 
-        ! Test #2, in-use
+  integer,parameter :: PAGESIZE_=64
+  integer,parameter :: MAX_LUNIT=1024
 
-     if(.not.inuse) inquire(unit=lu,opened=inuse,iostat=ios)
+  integer,save :: mype=-1
+  integer,save :: npes=-1
 
-     if(lu >= MAX_LUNIT) ios=-ione
+#ifdef INCLUDE_MPOUT
+  type node
+    private
+    character(len=1),dimension(:),pointer:: name
+    type(node),pointer:: next => null()
+  end type node
+  integer:: topsize_=-1
+
+  type(node),pointer:: filelist => null()
+#endif
+
+!-----------------------------------------------------------------------
+! Use indexed sorting
+!
+!	...
+!	integer,intent(in) :: N
+!       type Observations
+!         real:: prs,lon,lat
+!         integer:: kt,ks,kx
+!       end type Observations
+!	type(Observations), dimension(N), intent(inout) :: obs
+!
+!	integer, dimension(size(obs)) :: indx	! automatic array
+!
+!                       ! This tool allows incremental sorting.
+!                       ! An incremental sorting can only be done
+!                       ! with a stable-sorting algorithm, and
+!                       ! in a reversed sequence.
+!
+!	call IndexSet(indx)
+!	call IndexSort(indx(:),obs(:)%prs,descend=.true.)
+!	call IndexSort(indx(:),obs(:)%lon,descend=.false.)
+!	call IndexSort(indx(:),obs(:)%lat,descend=.false.)
+!	call IndexSort(indx(:),obs(:)%kt,descend=.false.)
+!	call IndexSort(indx(:),obs(:)%ks,descend=.false.)
+!	call IndexSort(indx(:),obs(:)%kx,descend=.false.)
+!
+!		! Sorting
+!	obs(1:N) = obs( indx(1:N) )
+!     	...
+!		! Unsorting (restore the original order)
+!	obs( (indx(1:N) ) = obs(1:N)
+!_______________________________________________________________________
+
+contains
+#ifdef INCLUDE_MPOUT
+
+subroutine push_(name)
+  implicit none
+  character(len=*),intent(in) :: name
+
+  type(node),pointer:: hold
+  integer:: ic
+
+  hold => filelist
+  allocate(filelist)
+  filelist%next => hold
+
+  topsize_=len_trim(name)
+  allocate(filelist%name(topsize_))
+    do ic=1,topsize_
+      filelist%name(ic)=name(ic:ic)
+    enddo
+end subroutine push_
+
+subroutine pop_(stat)
+  implicit none
+  integer,intent(out) :: stat
+  character(len=*),parameter:: myname_=myname//'.pop_'
+  type(node),pointer:: hold
+
+  stat=0
+  if(topsize_<0 .or. .not.associated(filelist)) then
+    call perr(myname_,'_filelist_ stack underflow')
+    call perr(myname_,'topsize_ =',topsize_)
+    call perr(myname_,'associated(fileist) =',associated(filelist))
+    stat=-1
+    return
+  endif
+
+  hold => filelist%next
+  deallocate(filelist%name)
+  deallocate(filelist)
+  filelist => hold
+
+  topsize_=-1
+  if(associated(filelist)) topsize_=size(filelist%name)
+end subroutine pop_
+
+function top_()
+  implicit none
+  character(len=max(topsize_,0)):: top_
+  integer:: ic
+  if(topsize_==0) return
+  do ic=1,topsize_
+    top_(ic:ic) = filelist%name(ic)
+  enddo
+end function top_
+
+subroutine stdout_open(prefix,rewind,stat,mask,comm)
+  use mpeu_mpif, only : MPI_comm_world
+!! -- This routine redirects local STDOUT to a file, named as
+!!    "<prefix>.<pid>", where "<pid>" is the local PE rank in
+!!    a leading-zero-filling format, determined by the size of
+!!    the communicator, and started from at least "i3.3".
+!!
+
+!! -- call stdout_open(prefix='stdout',rewind=.true.,mask=3,comm=mycomm,stat=ier)
+!!	rewind: default is append
+!!	mask:	apply only if (mask>=0 .and. (iPE && mask)) == 0
+!!		mask=-1, none
+!!		mask=0, all, default
+!!		mask=1, PE #0, 2, 4, 6, 8, every another PE
+!!		mask=2, PE #0, 1, 4, 5, etc.
+!!		mask=3, PE #0, 4, 8, 12, etc.
+!!		mask=4, PE #0:3, not #4:7
+!!		mask=12, PE #0:3, not #4:15
+
+!! -- call stdout_close(stat=ier)
+  implicit none
+  character(len=*),optional,intent(in) :: prefix
+  logical,optional,intent(in) :: rewind
+  integer,optional,intent(out) :: stat
+  integer,optional,intent(in) :: mask
+  integer,optional,intent(in) :: comm
+
+  logical:: yes_prefix_
+
+  yes_prefix_=.false.
+  if(present(prefix)) yes_prefix_=prefix/=""
+  if(yes_prefix_) then
+    call stdout_open__( prefix ,rewind=rewind,stat=stat,mask=mask,comm=comm)
+  else
+    call stdout_open__('stdout',rewind=rewind,stat=stat,mask=mask,comm=comm)
+  endif
+end subroutine stdout_open
+
+subroutine stdout_open__(prefix,rewind,stat,mask,comm)
+  implicit none
+  character(len=*),intent(in) :: prefix
+  logical,optional,intent(in) :: rewind
+  integer,optional,intent(out) :: stat
+  integer,optional,intent(in) :: mask
+  integer,optional,intent(in) :: comm
+
+  integer:: ier,ipe,npe,i
+  character(len=len(prefix)+9) :: fname
+  character(len=*),parameter:: myname_=myname//'::stdout_open'
+  character(len=len('append')) :: position
+  character(len=8) :: cmype_
+
+  if(mype<0) call mype_get_(mype,npes,trim(myname_))
+
+  call mype_get_(ipe,npe,trim(myname_),comm=comm)
+  if(present(mask)) then
+    !!!! while _ipe_ of _comm_ is used to check against mask, mype
+    !!!! is always used to define the local file suffix, since it is
+    !!!! used to identify output streams after runs.
+
+    if(and(mask,ipe)/=0) return
+  endif
+
+  select case(npes)
+  case(0:999)
+    write(cmype_,'(i3.3)') mype
+  case(1000:9999)
+    write(cmype_,'(i4.4)') mype
+  case(10000:99999)
+    write(cmype_,'(i5.5)') mype
+  case(100000:999999)
+    write(cmype_,'(i6.6)') mype
+  case default
+    write(cmype_,'(i8.8)') mype
+  endselect
+
+  position='append'	! this is default
+  if(present(rewind)) then
+    if(rewind) position='rewind'
+  endif
+
+  i=len_trim(prefix)
+  if(prefix(i:i)=='/'.or.prefix(i:i)=='.') then
+    fname=trim(prefix)//trim(cmype_)
+  else
+    fname=trim(prefix)//'.'//trim(cmype_)
+  endif
+
+  call close_if_(top_(),stat=ier)
+	if(ier/=0) then
+	  call perr(myname_,'close_if_(STDOUT), STDOUT =',stdout)
+	  call perr(myname_,'close_if_(STDOUT), iostat =',ier)
+	  if(.not.present(stat)) call die(myname_)
+	  stat=ier
+	  return
+	endif
+  call mprint(stdout,myname_,'switching STDOUT to file "'//trim(fname)//'"')
+  call push_(fname)
+  open(stdout,file=fname,position=position,iostat=ier,action='write')
+	if(ier/=0) then
+	  call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), STDOUT =',stdout)
+	  call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), iostat =',ier)
+	  if(.not.present(stat)) call die(myname_)
+	  stat=ier
+	  return
+	endif
+end subroutine stdout_open__
+
+subroutine stdout_close(stat)
+!! -- this routine ends redirected local STDOUT.
+  implicit none
+  integer,optional,intent(out):: stat
+
+  character(len=*),parameter:: myname_=myname//'::stdout_close'
+  integer:: ier
+
+  if(present(stat)) stat=0
+  call mprint(stdout,myname_,'switching back to default STDOUT')
+  close(stdout,iostat=ier)
+	if(ier/=0) then
+	  call perr(myname_,'close(STDOUT), stdout =',stdout)
+	  call perr(myname_,'close(STDOUT), iostat =',ier)
+	  if(.not.present(stat)) call die(myname_)
+	  stat=ier
+	  return
+	endif
+  call pop_(stat=ier)
+	if(ier/=0) then
+	  call perr(myname_,'pop_(), stat =',ier)
+	  if(.not.present(stat)) call die(myname_)
+	  stat=ier
+	  return
+	endif
+  call open_if_(top_(),stat=ier)
+	if(ier/=0) then
+	  call perr(myname_,'open_if_(STDOUT,"'//trim(top_())//'"), STDOUT =',stdout)
+	  call perr(myname_,'open_if_(STDOUT,"'//trim(top_())//'"), iostat =',ier)
+	  if(.not.present(stat)) call die(myname_)
+	  stat=ier
+	  return
+	endif
+end subroutine stdout_close
+
+subroutine open_if_(fname,stat)
+  implicit none
+  character(len=*),intent(in):: fname
+  integer,optional,intent(out) :: stat
+  character(len=*),parameter:: myname_=myname//'.open_if_'
+  integer:: ier
+  if(present(stat)) stat=0
+  if(fname=="") return
+  open(stdout,file=fname,position='append',iostat=ier,action='write')
+	if(ier/=0) then
+	  call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), STDOUT =',stdout)
+	  call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), iostat =',ier)
+	  if(.not.present(stat)) call die(myname_)
+	  stat=ier
+	  return
+	endif
+end subroutine open_if_
+
+subroutine close_if_(fname,stat)
+  implicit none
+  character(len=*),intent(in):: fname
+  integer,optional,intent(out) :: stat
+  character(len=*),parameter:: myname_=myname//'.close_if_'
+  integer:: ier
+  if(present(stat)) stat=0
+  if(fname=="") return
+  close(stdout,iostat=ier)
+	if(ier/=0) then
+	  call perr(myname_,'close(STDOUT,"'//trim(fname)//'"), STDOUT =',stdout)
+	  call perr(myname_,'close(STDOUT,"'//trim(fname)//'"), iostat =',ier)
+	  if(.not.present(stat)) call die(myname_)
+	  stat=ier
+	  return
+	endif
+end subroutine close_if_
+
+#ifdef _NEW_CODE_
+!! need to send outputs to variables.
+!! need to set return code (stat=).
+subroutine ls_(files)	! show information? or just inquire(exists(file))
+  call system("ls "//files)
+end subroutine ls_
+subroutine rm_(files)	! delete, open();close(status='delete')
+  call system("rm "//files)
+end subroutine rm_
+subroutine mkdir_(dir,mode,parents)
+  call system("mkdir "//files)
+end subroutine mkdir_
+subroutine size_(file)	! faster access?
+  call system("wc -c "//files)
+end subroutine size_
+#endif
+#endif
+
+function myid_(who)
+  implicit none
+  character(len=*),intent(in) :: who
+  character(len=10+len(who)) :: myid_
+
+  character(len=10) :: fmtid
+  if(mype<0) call mype_get_(mype,npes,trim(who)//'>myid_')
+  select case(npes)
+  case(0:999)
+    fmtid='(i3.3,2a)'
+  case(1000:9999)
+    fmtid='(i4.4,2a)'
+  case(10000:99999)
+    fmtid='(i5.5,2a)'
+  case(100000:999999)
+    fmtid='(i6.6,2a)'
+  case default
+    fmtid='(i8.8,2a)'
+  endselect
+
+  if(who/="") then
+    write(myid_,fmtid) mype,']',trim(who)
+    myid_='['//adjustl(myid_)
+  else
+    write(myid_,fmtid) mype
+    myid_=adjustl(myid_)
+  endif
+end function myid_
+
+subroutine mype_get_(mype,npes,who,comm)
+  use mpeu_mpif, only : MPI_comm_world
+  implicit none
+  integer,intent(out) :: mype
+  integer,intent(out) :: npes
+  character(len=*),intent(in) :: who
+  integer,optional,intent(in) :: comm
+
+  integer :: ier
+  integer :: mycomm
+  mycomm=MPI_comm_world
+  if(present(comm)) mycomm=comm
+  mype=0;npes=1
+#ifdef USE_MPI
+  call MPI_comm_rank(mycomm,mype,ier)
+    if(ier/=0) then
+      write(stderr,'(3a)') &
+	trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_rank(), ier= ',ier
+      if(stderr==stdout) return
+      write(stdout,'(3a)') &
+	trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_rank(), ier= ',ier
+      call dropdead_()
+    endif
+  call MPI_comm_size(mycomm,npes,ier)
+    if(ier/=0) then
+      write(stderr,'(3a)') &
+	trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_size(), ier= ',ier
+      if(stderr==stdout) return
+      write(stdout,'(3a)') &
+	trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_size(), ier= ',ier
+      call dropdead_()
+    endif
+#endif
+end subroutine mype_get_
+
+function luavail_() result(lu)
+  implicit none
+  integer :: lu
+
+  character(len=*),parameter :: myname_=myname//'::luavail_'
+  integer ios
+  logical inuse
+  character*8 attr
+
+  lu=-1
+  ios=0
+  inuse=.true.
+
+  do while(ios==0.and.inuse)
+    lu=lu+1
+
+	! Test #1, reserved units
+
+    inuse = lu==stdout .or. lu==stdin .or. lu==stderr
+
+#ifdef sysSunOS
+	! Reserved units under SunOS
+    inuse = lu==100 .or. lu==101 .or. lu==102
+#endif
+
+	! Test #2, in-use
+
+    if(.not.inuse) inquire(unit=lu,opened=inuse,iostat=ios)
+
+    if(lu >= MAX_LUNIT) ios=-1
   end do
-  if(ios/=izero) lu=-ione
+  if(ios/=0) lu=-1
 end function luavail_
 
-subroutine perr_(who,what)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    perr_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
+subroutine mprint_(lu,who,what)
   implicit none
+  integer,intent(in) :: lu
+  character(len=*),intent(in) :: who,what
+  write(lu,'(3a)') &
+    trim(myid_(who)),'(): ',trim(what)
+end subroutine mprint_
+subroutine mprint_chr_(lu,who,what,val)
+  implicit none
+  integer,intent(in) :: lu
+  character(len=*),intent(in) :: who,what,val
+  write(lu,'(3a)',advance='no') &
+    trim(myid_(who)),'(): ',trim(what)
+  write(lu,'(1x,3a)') '"',trim(val),'"'
+end subroutine mprint_chr_
+subroutine mprint_bul_(lu,who,what,val)
+  implicit none
+  integer,intent(in) :: lu
+  character(len=*),intent(in) :: who,what
+  logical,intent(in) :: val
+  write(lu,'(3a)',advance='no') &
+    trim(myid_(who)),'(): ',trim(what)
+  write(lu,'(1x,l1)') val
+end subroutine mprint_bul_
+subroutine mprint_int_(lu,who,what,val,base)
+  implicit none
+  integer,intent(in) :: lu
+  character(len=*),intent(in) :: who,what
+  integer,intent(in) :: val
+  character(len=*),optional,intent(in) :: base
+        ! base is either z(hex), o(oct), b(binary), default(decimal)
+  write(lu,'(3a)',advance='no') &
+    trim(myid_(who)),'(): ',trim(what)
+  if(present(base)) then
+    select case(base)
+    case('z','Z')
+      write(lu,'(1x,z8.8)') val
+    case('o','O')
+      write(lu,'(1x,o11.11)') val
+    case('b','B')
+      write(lu,'(1x,b32.32)') val
+    case default
+      write(lu,'(1x,i0)') val
+    endselect
+  else
+    write(lu,'(1x,i0)') val
+  endif
+end subroutine mprint_int_
+subroutine mprint_vint_(lu,who,what,vals,base,format,sum)
+  implicit none
+  integer,intent(in) :: lu
+  character(len=*),intent(in) :: who,what
+  integer,dimension(:),intent(in) :: vals
+  character(len=*),optional,intent(in) :: base
+  character(len=*),optional,intent(in) :: format
+  logical,optional,intent(in) :: sum
+  integer:: i
+  write(lu,'(3a)',advance='no') &
+    trim(myid_(who)),'(): ',trim(what)
+  if(present(sum)) then
+    if(sum) then
+      if(present(format)) then
+        write(lu,fmt=format,advance='no') sumof_(vals(:))
+      else
+        write(lu,'(1x,i0)',advance='no') sumof_(vals(:))
+      endif
+    endif
+  endif
+  do i=1,size(vals)
+  if(present(base)) then
+    select case(base)
+    case('z','Z')
+      write(lu,'(1x,z8.8)',advance='no') vals(i)
+    case('o','O')
+      write(lu,'(1x,o11.11)',advance='no') vals(i)
+    case('b','B')
+      write(lu,'(1x,b32.32)',advance='no') vals(i)
+    case default
+      if(present(format)) then
+        write(lu,fmt=format,advance='no') vals(i)
+      else
+        write(lu,'(1x,i0)',advance='no') vals(i)
+      endif
+    endselect
+  else
+    if(present(format)) then
+      write(lu,fmt=format,advance='no') vals(i)
+    else
+      write(lu,'(1x,i0)',advance='no') vals(i)
+    endif
+  endif
+  enddo
+  write(lu,'()',advance='yes')
+end subroutine mprint_vint_
+function sumof_(vals)
+  implicit none
+  integer,dimension(:),intent(in) :: vals
+  integer:: sumof_
+  sumof_=sum(vals(:))
+end function sumof_
+subroutine mprint_flt_(lu,who,what,val)
+  implicit none
+  integer,intent(in) :: lu
+  character(len=*),intent(in) :: who,what
+  real(SP),intent(in) :: val
+  write(lu,'(3a)',advance='no') &
+    trim(myid_(who)),'(): ',trim(what)
+  write(lu,'(1x,g15.7)') val
+end subroutine mprint_flt_
+subroutine mprint_dbl_(lu,who,what,val)
+  implicit none
+  integer,intent(in) :: lu
+  character(len=*),intent(in) :: who,what
+  real(DP),intent(in) :: val
+  write(lu,'(3a)',advance='no') &
+    trim(myid_(who)),'(): ',trim(what)
+  write(lu,'(1x,g23.15)') val
+end subroutine mprint_dbl_
+subroutine mprint_err_(lu,who,what,errm)
+  implicit none
+  integer,intent(in) :: lu
+  character(len=*),intent(in) :: who,what,errm
+  write(lu,'(3a)',advance='no') &
+    trim(myid_(who)),'(): >>> ERROR <<< ',trim(what)
+  write(lu,'(1x,3a)') '"',trim(errm),'"'
+end subroutine mprint_err_
 
-  character(len=*),intent(in   ) :: who,what
-
-  write(stderr,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> ERROR <<< ',trim(what),' '
-  write(stderr,*)
+subroutine perr_(who,what)
+  implicit none
+  character(len=*),intent(in) :: who,what
+  call mprint(stderr,who,'>>> ERROR <<< '//trim(what))
   if(stderr==stdout) return
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> ERROR <<< ',trim(what),' '
-  write(stdout,*)
+  call mprint(stdout,who,'>>> ERROR <<< '//trim(what))
 end subroutine perr_
 
 subroutine perr_chr_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    perr_chr_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what,val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what,val
-
-  write(stderr,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> ERROR <<< ',trim(what),' '
-  write(stderr,'(1x,3a)') '"',trim(val),'"'
+  character(len=*),intent(in) :: who,what,val
+  call mprint(stderr,who,'>>> ERROR <<< '//trim(what),val)
   if(stderr==stdout) return
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> ERROR <<< ',trim(what),' '
-  write(stdout,'(1x,3a)') '"',trim(val),'"'
+  call mprint(stdout,who,'>>> ERROR <<< '//trim(what),val)
 end subroutine perr_chr_
-
-subroutine perr_int_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    perr_int_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
+subroutine perr_bul_(who,what,val)
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  integer(i_kind) ,intent(in   ) :: val
-
-  write(stderr,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> ERROR <<< ',trim(what),' '
-  write(stderr,*) val
+  character(len=*),intent(in) :: who,what
+  logical,intent(in) :: val
+  call mprint(stderr,who,'>>> ERROR <<< '//trim(what),val)
   if(stderr==stdout) return
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> ERROR <<< ',trim(what),' '
-  write(stdout,*) val
+  call mprint(stdout,who,'>>> ERROR <<< '//trim(what),val)
+end subroutine perr_bul_
+subroutine perr_int_(who,what,val,base)
+  implicit none
+  character(len=*),intent(in) :: who,what
+  integer,intent(in) :: val
+  character(len=*),optional,intent(in) :: base
+  call mprint(stderr,who,'>>> ERROR <<< '//trim(what),val,base=base)
+  if(stderr==stdout) return
+  call mprint(stdout,who,'>>> ERROR <<< '//trim(what),val,base=base)
 end subroutine perr_int_
-
+subroutine perr_vint_(who,what,vals,base,format,sum)
+  implicit none
+  character(len=*),intent(in) :: who,what
+  integer,dimension(:),intent(in) :: vals
+  character(len=*),optional,intent(in) :: base
+  character(len=*),optional,intent(in) :: format
+  logical,optional,intent(in) :: sum
+  call mprint(stderr,who,'>>> ERROR <<< '//trim(what),vals,base=base,format=format,sum=sum)
+  if(stderr==stdout) return
+  call mprint(stdout,who,'>>> ERROR <<< '//trim(what),vals,base=base,format=format,sum=sum)
+end subroutine perr_vint_
 subroutine perr_flt_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    perr_flt_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  real(r_single)  ,intent(in   ) :: val
-
-  write(stderr,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> ERROR <<< ',trim(what),' '
-  write(stderr,*) val
+  character(len=*),intent(in) :: who,what
+  real(SP),intent(in) :: val
+  call mprint(stderr,who,'>>> ERROR <<< '//trim(what),val)
   if(stderr==stdout) return
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> ERROR <<< ',trim(what),' '
-  write(stdout,*) val
+  call mprint(stdout,who,'>>> ERROR <<< '//trim(what),val)
 end subroutine perr_flt_
-
 subroutine perr_dbl_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    perr_dbl_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  real(r_double)  ,intent(in   ) :: val
-
-  write(stderr,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> ERROR <<< ',trim(what),' '
-  write(stderr,*) val
+  character(len=*),intent(in) :: who,what
+  real(DP),intent(in) :: val
+  call mprint(stderr,who,'>>> ERROR <<< '//trim(what),val)
   if(stderr==stdout) return
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> ERROR <<< ',trim(what),' '
-  write(stdout,*) val
+  call mprint(stdout,who,'>>> ERROR <<< '//trim(what),val)
 end subroutine perr_dbl_
 
 subroutine warn_(who,what)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    warn_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> WARNING <<< ',trim(what),' '
-  write(stdout,*)
+  character(len=*),intent(in) :: who,what
+  call mprint(stdout,who,'>>> WARNING <<< '//trim(what))
 end subroutine warn_
-
 subroutine warn_chr_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    warn_chr_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what,val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what,val
-
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> WARNING <<< ',trim(what),' '
-  write(stdout,'(1x,3a)') '"',trim(val),'"'
+  character(len=*),intent(in) :: who,what,val
+  call mprint(stdout,who,'>>> WARNING <<< '//trim(what),val)
 end subroutine warn_chr_
-
-subroutine warn_int_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    warn_int_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
+subroutine warn_bul_(who,what,val)
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  integer(i_kind) ,intent(in   ) :: val
-
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> WARNING <<< ',trim(what),' '
-  write(stdout,*) val
+  character(len=*),intent(in) :: who,what
+  logical,intent(in) :: val
+  call mprint(stdout,who,'>>> WARNING <<< '//trim(what),val)
+end subroutine warn_bul_
+subroutine warn_int_(who,what,val,base)
+  implicit none
+  character(len=*),intent(in) :: who,what
+  integer,intent(in) :: val
+  character(len=*),optional,intent(in) :: base
+  call mprint(stdout,who,'>>> WARNING <<< '//trim(what),val,base=base)
 end subroutine warn_int_
-
+subroutine warn_vint_(who,what,vals,base,format,sum)
+  implicit none
+  character(len=*),intent(in) :: who,what
+  integer,dimension(:),intent(in) :: vals
+  character(len=*),optional,intent(in) :: base
+  character(len=*),optional,intent(in) :: format
+  logical,optional,intent(in) :: sum
+  call mprint(stdout,who,'>>> WARNING <<< '//trim(what),vals,base=base,format=format,sum=sum)
+end subroutine warn_vint_
 subroutine warn_flt_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    warn_flt_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  real(r_single)  ,intent(in   ) :: val
-
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> WARNING <<< ',trim(what),' '
-  write(stdout,*) val
+  character(len=*),intent(in) :: who,what
+  real(SP),intent(in) :: val
+  call mprint(stdout,who,'>>> WARNING <<< '//trim(what),val)
 end subroutine warn_flt_
-
 subroutine warn_dbl_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    warn_dbl_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  real(r_double)  ,intent(in   ) :: val
-
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): >>> WARNING <<< ',trim(what),' '
-  write(stdout,*) val
+  character(len=*),intent(in) :: who,what
+  real(DP),intent(in) :: val
+  call mprint(stdout,who,'>>> WARNING <<< '//trim(what),val)
 end subroutine warn_dbl_
 
 subroutine tell_(who,what)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    tell_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): ',trim(what),' '
-  write(stdout,*)
+  character(len=*),intent(in) :: who,what
+  call mprint(stdout,who,what)
 end subroutine tell_
-
 subroutine tell_chr_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    tell_chr_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what,val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what,val
-
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): ',trim(what),' '
-  write(stdout,'(1x,3a)') '"',trim(val),'"'
+  character(len=*),intent(in) :: who,what,val
+  call mprint(stdout,who,what,val)
 end subroutine tell_chr_
-
-subroutine tell_int_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    tell_int_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
+subroutine tell_bul_(who,what,val)
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  integer(i_kind) ,intent(in   ) :: val
-
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): ',trim(what),' '
-  write(stdout,*) val
+  character(len=*),intent(in) :: who,what
+  logical,intent(in) :: val
+  call mprint(stdout,who,what,val)
+end subroutine tell_bul_
+subroutine tell_int_(who,what,val,base)
+  implicit none
+  character(len=*),intent(in) :: who,what
+  integer,intent(in) :: val
+  character(len=*),optional,intent(in) :: base
+  call mprint(stdout,who,what,val,base)
 end subroutine tell_int_
-
+subroutine tell_vint_(who,what,vals,base,format,sum)
+  implicit none
+  character(len=*),intent(in) :: who,what
+  integer,dimension(:),intent(in) :: vals
+  character(len=*),optional,intent(in) :: base
+  character(len=*),optional,intent(in) :: format
+  logical,optional,intent(in) :: sum
+  call mprint(stdout,who,what,vals,base=base,format=format,sum=sum)
+end subroutine tell_vint_
 subroutine tell_flt_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    tell_flt_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  real(r_single)  ,intent(in   ) :: val
-
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): ',trim(what),' '
-  write(stdout,*) val
+  character(len=*),intent(in) :: who,what
+  real(SP),intent(in) :: val
+  call mprint(stdout,who,what,val)
 end subroutine tell_flt_
-
 subroutine tell_dbl_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    tell_dbl_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  real(r_double)  ,intent(in   ) :: val
-
-  write(stdout,'(1x,4a)',advance='no') &
-    trim(who),'(): ',trim(what),' '
-  write(stdout,*) val
+  character(len=*),intent(in) :: who,what
+  real(DP),intent(in) :: val
+  call mprint(stdout,who,what,val)
 end subroutine tell_dbl_
 
 subroutine dropdead_()
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    dropdead_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
+#ifdef USE_MPI_ABORT
+  use mpeu_mpif, only: mpi_comm_world
+#endif
   implicit none
+  integer:: ier
+  integer,parameter:: myer=2
 
-! this is a GSI_GridComp::abort()
-  call abor1(myname//"dropdead_()")
-!!  call exit(2)
+  character(len=08):: cdate
+  character(len=10):: ctime
+  character(len=05):: czone
+
+  call date_and_time(date=cdate,time=ctime,zone=czone)
+  call mprint(stdout,'dropdead',ctime//'('//czone//') '//cdate)
+  call mprint(stderr,'dropdead',ctime//'('//czone//') '//cdate)
+
+#ifdef USE_MPI_ABORT
+  call mpi_abort(mpi_comm_world,myer,ier)
+#else
+  ! this is a GSI_GridComp::abort()
+# ifdef USE_GSI_ABOR1
+    call abor1(myname//"::dropdead_()")
+# else
+    call exit(myer)
+# endif
+#endif
 end subroutine dropdead_
 
 subroutine die_(who)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    die_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who
-
-  call perr_(who,'presence of a fatal condition')
+  character(len=*),intent(in) :: who
+  call perr_(who,'terminated')
   call dropdead_()
 end subroutine die_
-
 subroutine die2_(who,what)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    die2_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-
+  character(len=*),intent(in) :: who,what
   call perr_(who,what)
   call dropdead_()
 end subroutine die2_
-
 subroutine die_chr_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    die_chr_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what,val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what,val
-
+  character(len=*),intent(in) :: who,what,val
   call perr_chr_(who,what,val)
   call dropdead_()
 end subroutine die_chr_
-
-subroutine die_int_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    die_int_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
+subroutine die_bul_(who,what,val)
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  integer(i_kind) ,intent(in   ) :: val
-
-  call perr_int_(who,what,val)
+  character(len=*),intent(in) :: who,what
+  logical,intent(in) :: val
+  call perr_bul_(who,what,val)
+  call dropdead_()
+end subroutine die_bul_
+subroutine die_int_(who,what,val,base)
+  implicit none
+  character(len=*),intent(in) :: who,what
+  integer,intent(in) :: val
+  character(len=*),optional,intent(in) :: base
+  call perr_int_(who,what,val,base=base)
   call dropdead_()
 end subroutine die_int_
-
-subroutine die_flt_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    die_flt_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
+subroutine die_vint_(who,what,vals,base,format,sum)
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  real(r_single)  ,intent(in   ) :: val
-
+  character(len=*),intent(in) :: who,what
+  integer,dimension(:),intent(in) :: vals
+  character(len=*),optional,intent(in) :: base
+  character(len=*),optional,intent(in) :: format
+  logical,optional,intent(in) :: sum
+  call perr_vint_(who,what,vals,base=base,format=format,sum=sum)
+  call dropdead_()
+end subroutine die_vint_
+subroutine die_flt_(who,what,val)
+  implicit none
+  character(len=*),intent(in) :: who,what
+  real(SP),intent(in) :: val
   call perr_flt_(who,what,val)
   call dropdead_()
 end subroutine die_flt_
-
 subroutine die_dbl_(who,what,val)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    die_dbl_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    who,what
-!    val
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: who,what
-  real(r_double)  ,intent(in   ) :: val
-
+  character(len=*),intent(in) :: who,what
+  real(DP),intent(in) :: val
   call perr_dbl_(who,what,val)
   call dropdead_()
 end subroutine die_dbl_
-
 subroutine assert_(str,from,line)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    assert_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    str
-!    from
-!    line
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: str    ! a message of assert_()
-  character(len=*),intent(in   ) :: from   ! where assert_() is invoked.
-  integer(i_kind) ,intent(in   ) :: line   ! where assert_() is invoked.
-
+  character(len=*),intent(in) :: str	! a message of assert_()
+  character(len=*),intent(in) :: from	! where assert_() is invoked.
+  integer,         intent(in) :: line	! where assert_() is invoked.
   character(len=*),parameter :: myname_='ASSERT_'
-
-  call perr_(myname_,'failed: "'//str//'"')
-  call die(myname_,from,line)
+  call perr(myname_,'failed',str)
+  call perr(myname_,'file =',from)
+  call perr(myname_,'line #',line)
+  call die(myname_)
 end subroutine assert_
-
 subroutine assert_GE_(m,n,who,str)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    assert_GE_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    m,n
-!    who
-!    str
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  integer(i_kind) ,intent(in   ) :: m,n
-  character(len=*),intent(in   ) :: who    ! where assert_GE_() is invoked.
-  character(len=*),intent(in   ) :: str    ! a message of assert_GE_()
-
+  integer,intent(in) :: m,n
+  character(len=*),intent(in) :: who	! where assert_GE_() is invoked.
+  character(len=*),intent(in) :: str	! a message of assert_GE_()
   character(len=*),parameter :: myname_='ASSERT_GE_'
-
   if(.not.(m>=n)) then
-     call perr(myname_,'failed: "'//str//'"')
-     call perr(myname_,'operand 1 = ',m)
-     call perr(myname_,'operand 2 = ',n)
-     call die(myname_,who)
+    call perr(myname_,'test failed',str)
+    call perr(myname_,'operand 1 = ',m)
+    call perr(myname_,'operand 2 = ',n)
+    call die(myname_,who)
   endif
 end subroutine assert_GE_
 
@@ -907,7 +954,7 @@ end subroutine assert_GE_
 ! !DESCRIPTION:
 !
 !	A template resolver formatting a string with string, time, and
-!   dimension variables.  The format descriptors are similar to those
+!   dimensioin variables.  The format descriptors are similar to those
 !   used in the GrADS, with some extensions.
 !
 !	"${E}"	substitute environment variable ${E}
@@ -938,27 +985,27 @@ end subroutine assert_GE_
       !! use m_die,   only : die,perr
       implicit none
 
-      character(len=*)                     ,intent(  out) :: str	! the output
+      character(len=*),intent(out) :: str	! the output
 
-      character(len=*)                     ,intent(in   ) :: tmpl	! a "format"
+      character(len=*),intent(in ) :: tmpl	! a "format"
 
-      integer(i_kind)             ,optional,intent(in   ) :: nymd
-                        ! yyyymmdd, substituting "%y4", "%y2", "%m1",
-                        ! "%m2", "%mc", "%Mc', and "%MC"
+      integer,intent(in ),optional :: nymd
+			! yyyymmdd, substituting "%y4", "%y2", "%m1",
+			! "%m2", "%mc", "%Mc', and "%MC"
 
-      integer(i_kind)             ,optional,intent(in   ) :: nhms
-                        ! hhmmss, substituting "%h1", "%h2", "%h3",
-                        ! and "%n2"
+      integer,intent(in ),optional :: nhms
+			! hhmmss, substituting "%h1", "%h2", "%h3",
+			! and "%n2"
 
-      integer(i_kind),dimension(:),optional,intent(in   ) :: dims
-                        ! integers, substituing "%i", "%j", "%k", "%l"
+      integer,dimension(:),intent(in ),optional :: dims
+			! integers, substituing "%i", "%j", "%k", "%l"
 
-      character(len=*)            ,optional,intent(in   ) :: xid
-                        ! a string substituting a "%s".  Trailing
-                        ! spaces will be ignored
+      character(len=*),intent(in ),optional :: xid
+			! a string substituting a "%s".  Trailing
+			! spaces will be ignored
 
-      integer(i_kind)             ,optional,intent(  out) :: stat
-                        ! error code
+      integer,intent(out),optional :: stat
+			! error code
 
 ! !REVISION HISTORY:
 ! 	18Feb09	- Jing Guo <Jing.Guo@nasa.gov>
@@ -977,406 +1024,375 @@ end subroutine assert_GE_
 
   character(len=*),parameter :: myname_=myname//'::strTemplate'
 
-  character(len=3),parameter,dimension(12) :: mon_lc =	(/  &
-        'jan','feb','mar','apr','may','jun',	&
-        'jul','aug','sep','oct','nov','dec' /)
+  character(len=3),parameter,dimension(12) :: mon_lc =	(/	&
+	'jan','feb','mar','apr','may','jun',	&
+	'jul','aug','sep','oct','nov','dec'	/)
 
-  character(len=3),parameter,dimension(12) :: mon_wd =	(/  &
-        'Jan','Feb','Mar','Apr','May','Jun',	&
-        'Jul','Aug','Sep','Oct','Nov','Dec' /)
+  character(len=3),parameter,dimension(12) :: mon_wd =	(/	&
+	'Jan','Feb','Mar','Apr','May','Jun',	&
+	'Jul','Aug','Sep','Oct','Nov','Dec'	/)
 
-  character(len=3),parameter,dimension(12) :: mon_uc =	(/  &
-        'JAN','FEB','MAR','APR','MAY','JUN',	&
-        'JUL','AUG','SEP','OCT','NOV','DEC' /)
+  character(len=3),parameter,dimension(12) :: mon_uc =	(/	&
+	'JAN','FEB','MAR','APR','MAY','JUN',	&
+	'JUL','AUG','SEP','OCT','NOV','DEC'	/)
 
 
-  integer(i_kind) :: iy4,iy2,imo,idy
-  integer(i_kind) :: ihr,imn
-  integer(i_kind) :: i,i1,i2,m,k
-  integer(i_kind) :: ln_tmpl,ln_str
-  integer(i_kind) :: istp,kstp
-  integer(i_kind) :: ier
+  integer :: iy4,iy2,imo,idy
+  integer :: ihr,imn
+  integer :: i,i1,i2,m,k
+  integer :: ln_tmpl,ln_str
+  integer :: istp,kstp
+  integer :: ier
 
   character(len=1) :: c0,c1,c2
   character(len=8) :: sbuf
 !________________________________________
-! Determine iyr, imo, and idy
-  iy4=-ione
-  iy2=-ione
-  imo=-ione
-  idy=-ione
+	! Determine iyr, imo, and idy
+  iy4=-1
+  iy2=-1
+  imo=-1
+  idy=-1
   if(present(nymd)) then
-     if(nymd <= izero) then
-        call perr(myname_,'nymd <= 0',nymd)
-        if(.not.present(stat)) call die(myname_)
-        stat=ione
-        return
-     endif
+	if(nymd <= 0) then
+	  call perr(myname_,'nymd <= 0',nymd)
+	  if(.not.present(stat)) call die(myname_)
+	  stat=1
+	  return
+	endif
 
-     i=nymd
-     iy4=i/10000
-     iy2=mod(iy4,100_i_kind)
-     i=mod(i,10000_i_kind)
-     imo=i/100
-     i=mod(i,100_i_kind)
-     idy=i
+    i=nymd
+    iy4=i/10000
+    iy2=mod(iy4,100)
+      i=mod(i,10000)
+    imo=i/100
+      i=mod(i,100)
+    idy=i
   endif
 !________________________________________
-! Determine ihr and imn
-  ihr=-ione
-  imn=-ione
+	! Determine ihr and imn
+  ihr=-1
+  imn=-1
   if(present(nhms)) then
-     if(nhms < izero) then
-        call perr(myname_,'nhms < 0',nhms)
-        if(.not.present(stat)) call die(myname_)
-        stat=ione
-        return
-     endif
+	if(nhms < 0) then
+	  call perr(myname_,'nhms < 0',nhms)
+	  if(.not.present(stat)) call die(myname_)
+	  stat=1
+	  return
+	endif
 
-     i=nhms
-     ihr=i/10000
-     i=mod(i,10000_i_kind)
-     imn=i/100
+    i=nhms
+    ihr=i/10000
+      i=mod(i,10000)
+    imn=i/100
   endif
 !________________________________________
 
-  ln_tmpl=len_trim(tmpl)   ! size of the format template
-  ln_str =len(str)         ! size of the output string
+  ln_tmpl=len_trim(tmpl)	! size of the format template
+  ln_str =len(str)		! size of the output string
 !________________________________________
 
-  if(present(stat)) stat=izero
+  if(present(stat)) stat=0
 
-  str=""
+str=""
 
-  i=izero; istp=ione
-  k=ione ; kstp=ione
+i=0; istp=1
+k=1; kstp=1
 
-  do while( i+istp <= ln_tmpl )    ! A loop over all tokens in (tmpl)
+do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
 
-     if(k>ln_Str) exit    ! truncate the output here.
+  if(k>ln_Str) exit	! truncate the output here.
 
-     i=i+istp
-     c0=tmpl(i:i)
+  i=i+istp
+  c0=tmpl(i:i)
 
-     select case(c0)
-        case ("$")
-           call genv_(tmpl,ln_tmpl,i,istp,str,ln_str,k,ier)
-           if(ier/=izero) then
-              call perr(myname_,'genv_("'//tmpl(i:ln_tmpl)//'"',ier)
-              if(.not.present(stat)) call die(myname_)
-              stat=ione
-              return
-           endif
+  select case(c0)
+  case ("$")
+    call genv_(tmpl,ln_tmpl,i,istp,str,ln_str,k,ier)
+    if(ier/=0) then
+      call perr(myname_,'genv_("'//tmpl(i:ln_tmpl)//'"',ier)
+      if(.not.present(stat)) call die(myname_)
+      stat=1
+      return
+    endif
 
-        case ("%")
-    !________________________________________
+  case ("%")
+	!________________________________________
 
-           c1=""
-           i1=i+ione
-           if(i1 <= ln_Tmpl) c1=tmpl(i1:i1)
-      !________________________________________
+    c1=""
+    i1=i+1
+    if(i1 <= ln_Tmpl) c1=tmpl(i1:i1)
+	!________________________________________
 
-           select case(c1)
+    select case(c1)
 
-              case("s")
-                 if(.not.present(xid)) then
-                    write(stderr,'(2a)') myname_, &
-                            ': optional argument expected, "xid="'
-                    if(.not.present(stat)) call die(myname_)
-                    stat=ione
-                    return
-                 endif
+    case("s")
+      if(.not.present(xid)) then
+	write(stderr,'(2a)') myname_,	&
+		': optional argument expected, "xid="'
+	if(.not.present(stat)) call die(myname_)
+	stat=1
+	return
+      endif
 
-                 istp=2_i_kind
-                 m=min(k+len_trim(xid)-ione,ln_str)
-                 str(k:m)=xid
-                 k=m+ione
-                 cycle
+      istp=2
+      m=min(k+len_trim(xid)-1,ln_str)
+      str(k:m)=xid
+      k=m+1
+      cycle
 
-              case("i":"l")    ! from "i" to "l", (i,j,k,l)
-                 if(.not.present(dims)) then
-                 write(stderr,'(2a)') myname_, &
-                         ': optional argument expected, "dims=(/./)"'
-                 if(.not.present(stat)) call die(myname_)
-                 stat=ione
-                 return
-              endif
+    case("i":"l")	! from "i" to "l", (i,j,k,l)
+      if(.not.present(dims)) then
+	write(stderr,'(2a)') myname_,	&
+		': optional argument expected, "dims=(/./)"'
+	if(.not.present(stat)) call die(myname_)
+	stat=1
+	return
+      endif
 
-              m=ichar(c1)-ichar("i")+ione    ! m=1,2,3,4 for i,j,k,l
+      m=ichar(c1)-ichar("i")+1	! m=1,2,3,4 for i,j,k,l
 
-              if(m>size(dims)) then
-                 write(stderr,'(2a)') myname_, &
-                         ': additional "dims=(/./)" element expected'
-                 write(stderr,'(2a,i4)') myname_,': size(dims) = ',size(dims)
-                 write(stderr,'(2a,2a)') myname_,': %-keyword  = "%',c1,'"'
-                 if(.not.present(stat)) call die(myname_)
-                 stat=ione
-                 return
-              endif
-      	      !If m<size(dims), any extra dims elements are ignored
+      if(m>size(dims)) then
+	write(stderr,'(2a)') myname_,	&
+		': additional "dims=(/./)" element expected'
+	write(stderr,'(2a,i4)') myname_,': size(dims) = ',size(dims)
+	write(stderr,'(2a,2a)') myname_,': %-keyword  = "%',c1,'"'
+	if(.not.present(stat)) call die(myname_)
+	stat=1
+	return
+      endif
+      	! If m<size(dims), any extra dims elements are ignored
 
-              write(sbuf,'(i8)') dims(m)
-              sbuf=adjustl(sbuf)    ! adjust left all digits
+      write(sbuf,'(i8)') dims(m)
+      sbuf=adjustl(sbuf)	! adjust left all digits
 
-              istp=2_i_kind         ! size of the "%" keyword
+      istp=2			! size of the "%" keyword
 
-              m=min(k+len_trim(sbuf)-ione,ln_str)
-              str(k:m)=sbuf
-              k=m+ione
-              cycle
+      m=min(k+len_trim(sbuf)-1,ln_str)
+      str(k:m)=sbuf
+      k=m+1
+      cycle
 
-           case("%","$")
+    case("%","$")
 
-              istp=2_i_kind
-              str(k:k)=c1
-              k=k+ione    ! kstp=ione
-              cycle
+      istp=2
+      str(k:k)=c1
+      k=k+1	! kstp=1
+      cycle
 
-           case default
+    case default
 
-              c2=""
-              i2=i+2_i_kind
-              if(i2 <= ln_Tmpl) c2=tmpl(i2:i2)
-        !________________________________________
+      c2=""
+      i2=i+2
+      if(i2 <= ln_Tmpl) c2=tmpl(i2:i2)
+	!________________________________________
 
-              select case(c1//c2)
+      select case(c1//c2)
 
-                 case("y4","y2","m1","m2","mc","Mc","MC","d1","d2")
-                    if(.not.present(nymd)) then
-                       write(stderr,'(2a)') myname_, &
-                               ': optional argument expected, "nymd="'
-                       if(.not.present(stat)) call die(myname_)
-                       stat=ione
-                       return
-                    endif
-                    istp=3_i_kind
+      case("y4","y2","m1","m2","mc","Mc","MC","d1","d2")
+        if(.not.present(nymd)) then
+	  write(stderr,'(2a)') myname_,	&
+		': optional argument expected, "nymd="'
+	  if(.not.present(stat)) call die(myname_)
+	  stat=1
+	  return
+        endif
+        istp=3
 
-                 case("h1","h2","h3","n2")
-                    if(.not.present(nhms)) then
-                       write(stderr,'(2a)') myname_, &
-                               ': optional argument expected, "nhms="'
-                       if(.not.present(stat)) call die(myname_)
-                       stat=ione
-                       return
-                    endif
-                    istp=3_i_kind
+      case("h1","h2","h3","n2")
+        if(.not.present(nhms)) then
+	  write(stderr,'(2a)') myname_,	&
+		': optional argument expected, "nhms="'
+	  if(.not.present(stat)) call die(myname_)
+	  stat=1
+	  return
+        endif
+        istp=3
 
-                 case default
+      case default
 
-                    write(stderr,'(4a)') myname_, &
-                            ': invalid template entry, "',trim(tmpl(i:)),'"'
-                    if(.not.present(stat)) call die(myname_)
-                    stat=2_i_kind
-                    return
+        write(stderr,'(4a)') myname_,	&
+	  ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2
+        return
 
-              end select           ! case(c1//c2)
-           end select            ! case(c1)
-    !________________________________________
+      end select	  ! case(c1//c2)
+    end select		! case(c1)
+	!________________________________________
 
-           select case(c1)
+    select case(c1)
 
-              case("y")
-                 select case(c2)
-                    case("2")
-                       write(sbuf,'(i2.2)') iy2
-                       kstp=2_i_kind
-                    case("4")
-                       write(sbuf,'(i4.4)') iy4
-                       kstp=4_i_kind
-                    case default
-                       write(stderr,'(4a)') myname_, &
-                               ': invalid template entry, "',trim(tmpl(i:)),'"'
-                       if(.not.present(stat)) call die(myname_)
-                       stat=2_i_kind
-                       return
-                 end select
+    case("y")
+      select case(c2)
+      case("2")
+	write(sbuf,'(i2.2)') iy2
+	kstp=2
+      case("4")
+	write(sbuf,'(i4.4)') iy4
+	kstp=4
+      case default
+	write(stderr,'(4a)') myname_,	&
+	  ': invalid template entry, "',trim(tmpl(i:)),'"'
+	if(.not.present(stat)) call die(myname_)
+	stat=2
+	return
+      end select
 
-              case("m")
-                 select case(c2)
-                    case("1")
-                       if(imo < 10_i_kind) then
-                          write(sbuf,'(i1)') imo
-                          kstp=ione
-                       else
-                          write(sbuf,'(i2)') imo
-                          kstp=2_i_kind
-                       endif
-                    case("2")
-                       write(sbuf,'(i2.2)') imo
-                       kstp=2_i_kind
-                    case("c")
-                       sbuf=mon_lc(imo)
-                       kstp=3_i_kind
-                    case default
-                       write(stderr,'(4a)') myname_, &
-                               ': invalid template entry, "',trim(tmpl(i:)),'"'
-                       if(.not.present(stat)) call die(myname_)
-                       stat=2_i_kind
-                       return
-                 end select
+    case("m")
+      select case(c2)
+      case("1")
+	if(imo < 10) then
+	  write(sbuf,'(i1)') imo
+	  kstp=1
+	else
+	  write(sbuf,'(i2)') imo
+	  kstp=2
+	endif
+      case("2")
+	write(sbuf,'(i2.2)') imo
+	kstp=2
+      case("c")
+	sbuf=mon_lc(imo)
+	kstp=3
+      case default
+	write(stderr,'(4a)') myname_,	&
+	  ': invalid template entry, "',trim(tmpl(i:)),'"'
+	if(.not.present(stat)) call die(myname_)
+	stat=2
+	return
+      end select
 
-              case("M")
-                 select case(c2)
-                    case("c")
-                       sbuf=mon_wd(imo)
-                       kstp=3_i_kind
-                    case("C")
-                       sbuf=mon_uc(imo)
-                       kstp=3_i_kind
-                    case default
-                       write(stderr,'(4a)') myname_, &
-                               ': invalid template entry, "',trim(tmpl(i:)),'"'
-                       if(.not.present(stat)) call die(myname_)
-                       stat=2_i_kind
-                       return
-                 end select
+    case("M")
+      select case(c2)
+      case("c")
+	sbuf=mon_wd(imo)
+	kstp=3
+      case("C")
+	sbuf=mon_uc(imo)
+	kstp=3
+      case default
+	write(stderr,'(4a)') myname_,	&
+	  ': invalid template entry, "',trim(tmpl(i:)),'"'
+	if(.not.present(stat)) call die(myname_)
+	stat=2
+	return
+      end select
 
-              case("d")
-                 select case(c2)
-                    case("1")
-                       if(idy < 10_i_kind) then
-                          write(sbuf,'(i1)') idy
-                          kstp=ione
-                       else
-                          write(sbuf,'(i2)') idy
-                          kstp=2_i_kind
-                       endif
-                    case("2")
-                       write(sbuf,'(i2.2)') idy
-                       kstp=2_i_kind
-                    case default
-                       write(stderr,'(4a)') myname_, &
-                               ': invalid template entry, "',trim(tmpl(i:)),'"'
-                       if(.not.present(stat)) call die(myname_)
-                       stat=2_i_kind
-                       return
-                 end select
+    case("d")
+      select case(c2)
+      case("1")
+	if(idy < 10) then
+	  write(sbuf,'(i1)') idy
+	  kstp=1
+	else
+	  write(sbuf,'(i2)') idy
+	  kstp=2
+	endif
+      case("2")
+	write(sbuf,'(i2.2)') idy
+	kstp=2
+      case default
+	write(stderr,'(4a)') myname_,	&
+	  ': invalid template entry, "',trim(tmpl(i:)),'"'
+	if(.not.present(stat)) call die(myname_)
+	stat=2
+	return
+      end select
 
-              case("h")
-                 select case(c2)
-                    case("1")
-                       if(ihr < 10_i_kind) then
-                          write(sbuf,'(i1)') ihr
-                          kstp=ione
-                       else
-                          write(sbuf,'(i2)') ihr
-                          kstp=2_i_kind
-                       endif
-                    case("2")
-                       write(sbuf,'(i2.2)') ihr
-                       kstp=2_i_kind
-                    case("3")
-                       write(sbuf,'(i3.3)') ihr
-                       kstp=3_i_kind
-                    case default
-                       write(stderr,'(4a)') myname_, &
-                               ': invalid template entry, "',trim(tmpl(i:)),'"'
-                       if(.not.present(stat)) call die(myname_)
-                       stat=2_i_kind
-                       return
-                 end select
+    case("h")
+      select case(c2)
+      case("1")
+	if(ihr < 10) then
+	  write(sbuf,'(i1)') ihr
+	  kstp=1
+	else
+	  write(sbuf,'(i2)') ihr
+	  kstp=2
+	endif
+      case("2")
+	write(sbuf,'(i2.2)') ihr
+	kstp=2
+      case("3")
+	write(sbuf,'(i3.3)') ihr
+	kstp=3
+      case default
+	write(stderr,'(4a)') myname_,	&
+	  ': invalid template entry, "',trim(tmpl(i:)),'"'
+	if(.not.present(stat)) call die(myname_)
+	stat=2
+	return
+      end select
 
-              case("n")
-                 select case(c2)
-                    case("2")
-                       write(sbuf,'(i2.2)') imn
-                       kstp=2_i_kind
-                    case default
-                       write(stderr,'(4a)') myname_, &
-                               ': invalid template entry, "',trim(tmpl(i:)),'"'
-                       if(.not.present(stat)) call die(myname_)
-                       stat=2_i_kind
-                       return
-                 end select
+    case("n")
+      select case(c2)
+      case("2")
+	write(sbuf,'(i2.2)') imn
+	kstp=2
+      case default
+	write(stderr,'(4a)') myname_,	&
+	  ': invalid template entry, "',trim(tmpl(i:)),'"'
+	if(.not.present(stat)) call die(myname_)
+	stat=2
+	return
+      end select
 
-              case default
-                 write(stderr,'(4a)') myname_, &
-                         ': invalid template entry, "',trim(tmpl(i:)),'"'
-                 if(.not.present(stat)) call die(myname_)
-                 stat=2_i_kind
-                 return
-           end select   ! case(c1)
+    case default
+	write(stderr,'(4a)') myname_,	&
+	  ': invalid template entry, "',trim(tmpl(i:)),'"'
+	if(.not.present(stat)) call die(myname_)
+	stat=2
+      return
+    end select	! case(c1)
 
-           m=min(k+kstp-ione,ln_Str)
-           str(k:m)=sbuf
-           k=m+ione
+    m=min(k+kstp-1,ln_Str)
+    str(k:m)=sbuf
+    k=m+1
 
-        case default
+  case default
 
-           istp=ione
-           str(k:k)=tmpl(i:i)
-           k=k+ione
+    istp=1
+    str(k:k)=tmpl(i:i)
+    k=k+1
 
-     end select	! case(c0)
-  end do
+  end select	! case(c0)
+end do
 
 contains
-
 subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    genv_
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-06  lueken - added subprogram doc block
-!
-!   input argument list:
-!    tmpl
-!    lnt
-!    i
-!    str
-!    lns
-!    k
-!
-!   output argument list:
-!    istp
-!    str
-!    k
-!    ier
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
   implicit none
-
-  character(len=*),intent(in   ) :: tmpl
-  integer(i_kind) ,intent(in   ) :: lnt
-  integer(i_kind) ,intent(in   ) :: i
-  integer(i_kind) ,intent(  out) :: istp
+  character(len=*),intent(in) :: tmpl
+  integer,intent(in)  :: lnt
+  integer,intent(in)  :: i
+  integer,intent(out) :: istp
   character(len=*),intent(inout) :: str
-  integer(i_kind) ,intent(in   ) :: lns
-  integer(i_kind) ,intent(inout) :: k
-  integer(i_kind) ,intent(  out) :: ier
+  integer         ,intent(in)    :: lns
+  integer         ,intent(inout) :: k
+  integer,intent(out) :: ier
 
-  integer(i_kind) :: j,jb,je
-  integer(i_kind) :: l,m
+  integer :: j,jb,je
+  integer :: l,m
   logical :: bracket,more
   character(len=256) :: env
 
-  j=i+ione    ! skip "$"
-  ier=izero
+  j=i+1		! skip "$"
+  ier=0
 
   if(j>lnt) then
-     ier=ione
-     return
+    ier=1
+    return
   endif
 
   bracket = tmpl(j:j)=='{'
-  if(bracket) j=j+ione
+  if(bracket) j=j+1
 
-! There is at least one a letter (including "_") to start a
-! variable name
+  	! There is at least one a letter (including "_") to start a
+	! variable name
 
   select case(tmpl(j:j))
-     case ("A":"Z","a":"z","_")
-     case default
-        ier=2_i_kind
-        return
+  case ("A":"Z","a":"z","_")
+  case default
+    ier=2
+    return
   end select
 
   jb=j
@@ -1384,45 +1400,465 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
 
   if(bracket) then
 
-     more=.true.
-     do while(more)
-        select case(tmpl(j:j))
-           case ("A":"Z","a":"z","_","0":"9")
-              je=j
-              j=j+ione
-           case ("}")	! End if "}" or eos
-              j=j+ione
-              exit
-           case default
-              ier=3_i_kind
-              return
-        end select
-        more=j<=lnt
-     enddo
+    more=.true.
+    do while(more)
+      select case(tmpl(j:j))
+      case ("A":"Z","a":"z","_","0":"9")
+	je=j
+        j=j+1
+      case ("}")	! End if "}" or eos
+        j=j+1
+        exit
+      case default
+        ier=3
+        return
+      end select
+      more=j<=lnt
+    enddo
 
   else
 
-     more=.true.
-     do while(more)
-        select case(tmpl(j:j))
-           case ("A":"Z","a":"z","_","0":"9")
-              je=j
-              j=j+ione
-           case default
-              exit
-        end select
-        more=j<=lnt
-     enddo
+    more=.true.
+    do while(more)
+      select case(tmpl(j:j))
+      case ("A":"Z","a":"z","_","0":"9")
+        je=j
+	j=j+1
+      case default
+        exit
+      end select
+      more=j<=lnt
+    enddo
   endif
 
   istp=j-i
 
   call getenv(tmpl(jb:je),env)
   l=len_trim(env)
-  m=min(k+l-ione,lns)
+  m=min(k+l-1,lns)
   str(k:m)=env
-  k=m+ione
+  k=m+1
 
 end subroutine genv_
 end subroutine strTemplate
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+!       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
+!BOP -------------------------------------------------------------------
+!
+! !IROUTINE: set_ - Initialize an array of data location indices
+!
+! !DESCRIPTION:
+!
+! !INTERFACE:
+
+    subroutine set_(indx)
+      implicit none
+      integer, dimension(:), intent(out) :: indx	! indices
+
+! !REVISION HISTORY:
+!	15Mar00	- Jing Guo
+!		. Modified the interface, by removing the explicit size
+! 	09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
+! 	04Jan99 - Jing Guo <guo@thunder> - revised prolog format
+!EOP ___________________________________________________________________
+
+  integer :: i
+
+  do i=1,size(indx)
+    indx(i)=i
+  end do
+
+end subroutine set_
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+!       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
+!BOP -------------------------------------------------------------------
+!
+! !IROUTINE: iSort_ - A stable merge index sorting of INTs.
+!
+! !DESCRIPTION:
+!
+! !INTERFACE:
+
+    subroutine iSort_(indx,keys,descend)
+      implicit none
+
+      integer, dimension(:), intent(inout) :: indx
+      integer, dimension(:), intent(in) :: keys
+      logical, optional, intent(in)  :: descend
+
+! !REVISION HISTORY:
+!	15Mar00	- Jing Guo
+!		. Modified the interface, by removing the explicit size
+!	02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
+! 	04Jan99 - Jing Guo <guo@thunder> - revised the prolog
+! 	09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
+!EOP ___________________________________________________________________
+
+  logical :: dsnd
+  integer :: ierr
+  integer, dimension(size(indx)) :: mtmp
+  integer :: n
+
+  character(len=*),parameter :: myname_=myname//'::iSort_'
+
+  n=size(indx)
+  dsnd=.false.
+  if(present(descend)) dsnd=descend
+
+  call MergeSort_()
+contains
+subroutine MergeSort_()
+  implicit none
+  integer :: mstep,lstep
+  integer :: lb,lm,le
+
+  mstep=1
+  do while(mstep < n)
+    lstep=mstep*2
+
+    lb=1
+    do while(lb < n)
+      lm=lb+mstep
+      le=min(lm-1+mstep,n)
+
+      call merge_(lb,lm,le)
+      indx(lb:le)=mtmp(lb:le)
+      lb=le+1
+    end do
+
+    mstep=lstep
+  end do
+end subroutine MergeSort_
+
+subroutine merge_(lb,lm,le)
+  integer,intent(in) :: lb,lm,le
+  integer :: l1,l2,l
+
+  l1=lb
+  l2=lm
+  do l=lb,le
+    if(l2>le) then
+      mtmp(l)=indx(l1)
+      l1=l1+1
+    elseif(l1>=lm) then
+      mtmp(l)=indx(l2)
+      l2=l2+1
+    else
+      if(dsnd) then
+        if(keys(indx(l1)) >= keys(indx(l2))) then
+          mtmp(l)=indx(l1)
+          l1=l1+1
+        else
+          mtmp(l)=indx(l2)
+          l2=l2+1
+        endif
+      else
+        if(keys(indx(l1)) <= keys(indx(l2))) then
+          mtmp(l)=indx(l1)
+          l1=l1+1
+        else
+          mtmp(l)=indx(l2)
+          l2=l2+1
+        endif
+      endif
+    endif
+  end do
+end subroutine merge_
+
+end subroutine iSort_
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+!       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
+!BOP -------------------------------------------------------------------
+!
+! !IROUTINE: rSort_ - A stable merge index sorting REALs.
+!
+! !DESCRIPTION:
+!
+! !INTERFACE:
+
+    subroutine rSort_(indx,keys,descend)
+      implicit none
+
+      integer, dimension(:), intent(inout) :: indx
+      real(SP),dimension(:), intent(in) :: keys
+      logical, optional, intent(in)  :: descend
+
+! !REVISION HISTORY:
+!	15Mar00	- Jing Guo
+!		. Modified the interface, by removing the explicit size
+!	02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
+! 	04Jan99 - Jing Guo <guo@thunder> - revised the prolog
+! 	09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
+!EOP ___________________________________________________________________
+
+  logical :: dsnd
+  integer :: ierr
+  integer, dimension(size(indx)) :: mtmp
+  integer :: n
+
+  character(len=*),parameter :: myname_=myname//'::rSort_'
+
+  n=size(indx)
+  dsnd=.false.
+  if(present(descend)) dsnd=descend
+
+  call MergeSort_()
+contains
+subroutine MergeSort_()
+  implicit none
+  integer :: mstep,lstep
+  integer :: lb,lm,le
+
+  mstep=1
+  do while(mstep < n)
+    lstep=mstep*2
+
+    lb=1
+    do while(lb < n)
+      lm=lb+mstep
+      le=min(lm-1+mstep,n)
+
+      call merge_(lb,lm,le)
+      indx(lb:le)=mtmp(lb:le)
+      lb=le+1
+    end do
+
+    mstep=lstep
+  end do
+end subroutine MergeSort_
+
+subroutine merge_(lb,lm,le)
+  integer,intent(in) :: lb,lm,le
+  integer :: l1,l2,l
+
+  l1=lb
+  l2=lm
+  do l=lb,le
+    if(l2>le) then
+      mtmp(l)=indx(l1)
+      l1=l1+1
+    elseif(l1>=lm) then
+      mtmp(l)=indx(l2)
+      l2=l2+1
+    else
+      if(dsnd) then
+        if(keys(indx(l1)) >= keys(indx(l2))) then
+          mtmp(l)=indx(l1)
+          l1=l1+1
+        else
+          mtmp(l)=indx(l2)
+          l2=l2+1
+        endif
+      else
+        if(keys(indx(l1)) <= keys(indx(l2))) then
+          mtmp(l)=indx(l1)
+          l1=l1+1
+        else
+          mtmp(l)=indx(l2)
+          l2=l2+1
+        endif
+      endif
+    endif
+  end do
+end subroutine merge_
+
+end subroutine rSort_
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+!       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
+!BOP -------------------------------------------------------------------
+!
+! !IROUTINE: dSort_ - A stable merge index sorting DOUBLEs.
+!
+! !DESCRIPTION:
+!
+! !INTERFACE:
+
+    subroutine dSort_(indx,keys,descend)
+      implicit none
+
+      integer, dimension(:), intent(inout) :: indx
+      real(DP), dimension(:), intent(in) :: keys
+      logical, optional, intent(in)  :: descend
+
+! !REVISION HISTORY:
+!	15Mar00	- Jing Guo
+!		. Modified the interface, by removing the explicit size
+!	02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
+! 	04Jan99 - Jing Guo <guo@thunder> - revised the prolog
+! 	09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
+!EOP ___________________________________________________________________
+
+  logical :: dsnd
+  integer :: ierr
+  integer, dimension(size(indx)) :: mtmp
+  integer :: n
+
+  character(len=*),parameter :: myname_=myname//'::dSort_'
+
+  n=size(indx)
+  dsnd=.false.
+  if(present(descend)) dsnd=descend
+
+  call MergeSort_()
+contains
+subroutine MergeSort_()
+  implicit none
+  integer :: mstep,lstep
+  integer :: lb,lm,le
+
+  mstep=1
+  do while(mstep < n)
+    lstep=mstep*2
+
+    lb=1
+    do while(lb < n)
+      lm=lb+mstep
+      le=min(lm-1+mstep,n)
+
+      call merge_(lb,lm,le)
+      indx(lb:le)=mtmp(lb:le)
+      lb=le+1
+    end do
+
+    mstep=lstep
+  end do
+end subroutine MergeSort_
+
+subroutine merge_(lb,lm,le)
+  integer,intent(in) :: lb,lm,le
+  integer :: l1,l2,l
+
+  l1=lb
+  l2=lm
+  do l=lb,le
+    if(l2>le) then
+      mtmp(l)=indx(l1)
+      l1=l1+1
+    elseif(l1>=lm) then
+      mtmp(l)=indx(l2)
+      l2=l2+1
+    else
+      if(dsnd) then
+        if(keys(indx(l1)) >= keys(indx(l2))) then
+          mtmp(l)=indx(l1)
+          l1=l1+1
+        else
+          mtmp(l)=indx(l2)
+          l2=l2+1
+        endif
+      else
+        if(keys(indx(l1)) <= keys(indx(l2))) then
+          mtmp(l)=indx(l1)
+          l1=l1+1
+        else
+          mtmp(l)=indx(l2)
+          l2=l2+1
+        endif
+      endif
+    endif
+  end do
+end subroutine merge_
+
+end subroutine dSort_
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+!       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
+!BOP -------------------------------------------------------------------
+!
+! !IROUTINE: cSort_ - A stable merge index sorting of CHAR(*)s.
+!
+! !DESCRIPTION:
+!
+! !INTERFACE:
+
+    subroutine cSort_(indx,keys,descend)
+      implicit none
+
+      integer, dimension(:), intent(inout) :: indx
+      character(len=*), dimension(:), intent(in) :: keys
+      logical, optional, intent(in)  :: descend
+
+! !REVISION HISTORY:
+!	15Mar00	- Jing Guo
+!		. Modified the interface, by removing the explicit size
+!	02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
+! 	04Jan99 - Jing Guo <guo@thunder> - revised the prolog
+! 	09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
+!EOP ___________________________________________________________________
+
+  logical :: dsnd
+  integer :: ierr
+  integer, dimension(size(indx)) :: mtmp
+  integer :: n
+
+  character(len=*),parameter :: myname_=myname//'::cSort_'
+
+  n=size(indx)
+  dsnd=.false.
+  if(present(descend)) dsnd=descend
+
+  call MergeSort_()
+contains
+subroutine MergeSort_()
+  implicit none
+  integer :: mstep,lstep
+  integer :: lb,lm,le
+
+  mstep=1
+  do while(mstep < n)
+    lstep=mstep*2
+
+    lb=1
+    do while(lb < n)
+      lm=lb+mstep
+      le=min(lm-1+mstep,n)
+
+      call merge_(lb,lm,le)
+      indx(lb:le)=mtmp(lb:le)
+      lb=le+1
+    end do
+
+    mstep=lstep
+  end do
+end subroutine MergeSort_
+
+subroutine merge_(lb,lm,le)
+  integer,intent(in) :: lb,lm,le
+  integer :: l1,l2,l
+
+  l1=lb
+  l2=lm
+  do l=lb,le
+    if(l2>le) then
+      mtmp(l)=indx(l1)
+      l1=l1+1
+    elseif(l1>=lm) then
+      mtmp(l)=indx(l2)
+      l2=l2+1
+    else
+      if(dsnd) then
+        if(keys(indx(l1)) >= keys(indx(l2))) then
+          mtmp(l)=indx(l1)
+          l1=l1+1
+        else
+          mtmp(l)=indx(l2)
+          l2=l2+1
+        endif
+      else
+        if(keys(indx(l1)) <= keys(indx(l2))) then
+          mtmp(l)=indx(l1)
+          l1=l1+1
+        else
+          mtmp(l)=indx(l2)
+          l2=l2+1
+        endif
+      endif
+    endif
+  end do
+end subroutine merge_
+
+end subroutine cSort_
 end module mpeu_util

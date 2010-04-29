@@ -14,6 +14,8 @@ subroutine evaljgrad(xhat,fjcost,gradx,lupdfgs,nprt,calledby)
 !   2009-01-18  todling - calc dot-prods in quad precision
 !                       - add diagnostic call when using strong constraint
 !   2009-08-14  lueken  - update documentation
+!   2009-11-20  todling - add geos_pgcmtest
+!   2010-01-11  todling - bypass call to model_xx based on idmodel as well
 !
 !   input argument list:
 !    xhat - current state estimate (in control space)
@@ -32,8 +34,8 @@ subroutine evaljgrad(xhat,fjcost,gradx,lupdfgs,nprt,calledby)
 !$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
-use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, lwrtinc
-use constants, only: izero,ione,zero,zero_quad
+use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, lwrtinc, idmodel
+use constants, only: zero,zero_quad
 use mpimod, only: mype
 use jfunc, only: xhatsave
 use jcmod, only: ljcdfi
@@ -69,7 +71,7 @@ character(len=255) :: seqcalls
 
 !**********************************************************************
 
-llprt=(mype==izero.and.nprt>=2_i_kind)
+llprt=(mype==0.and.nprt>=2)
 llouter=.false.
 seqcalls = trim(calledby)//'::'//trim(myname)
 
@@ -104,14 +106,14 @@ zjb=dot_product(gradx,gradx,r_quad)
 ! Convert from control space to model space
 call control2model(xhat,mval,sbias)
 
-if (nprt>=2_i_kind) then
+if (nprt>=2) then
    do ii=1,nsubwin
       call prt_state_norms(mval(ii),'mval')
    enddo
 endif
 
 ! Run TL model to fill sval
-if (l4dvar) then
+if ((.not.idmodel).and.l4dvar) then
    call model_tl(mval,sval,llprt)
 else
    do ii=1,nobs_bins
@@ -119,7 +121,10 @@ else
    enddo
 end if
 
-if (nprt>=2_i_kind) then
+! Perform test of AGCM TLM and ADM
+call geos_pgcmtest(mval,sval,.true.)
+
+if (nprt>=2) then
    do ii=1,nobs_bins
       call prt_state_norms(sval(ii),'sval')
    enddo
@@ -160,14 +165,14 @@ if (l_do_adjoint) then
       zjc=zero_quad
    endif
 
-   if (nprt>=2_i_kind) then
+   if (nprt>=2) then
       do ii=1,nobs_bins
          call prt_state_norms(rval(ii),'rval')
       enddo
    endif
 
 !  Run adjoint model
-   if (l4dvar) then
+   if ((.not.idmodel).and.l4dvar) then
       call model_ad(mval,rval,llprt)
    else
       mval(1)=rval(1)
@@ -176,7 +181,7 @@ if (l_do_adjoint) then
       enddo
    end if
 
-   if (nprt>=2_i_kind) then
+   if (nprt>=2) then
       do ii=1,nsubwin
          call prt_state_norms(mval(ii),'mval')
       enddo
@@ -189,8 +194,8 @@ if (l_do_adjoint) then
    fjcost=zjb+zjo+zjc+zjl
 
 !  Print diagnostics
-   if (nprt>=2_i_kind) call prt_control_norms(gradx,'gradx')
-   if (nprt>=ione.and.mype==izero) write(6,999)trim(seqcalls),': grepcost J,Jb,Jo,Jc,Jl=',&
+   if (nprt>=2) call prt_control_norms(gradx,'gradx')
+   if (nprt>=1.and.mype==0) write(6,999)trim(seqcalls),': grepcost J,Jb,Jo,Jc,Jl=',&
                                       fjcost,zjb,zjo,zjc,zjl
 endif
 
@@ -201,7 +206,7 @@ if (lupdfgs.and.jcstrong.and.baldiag_inc) call strong_baldiag_inc(sval)
 if (lupdfgs) then
    call xhat_vordiv_init
    call xhat_vordiv_calc(sval)
-   if (nprt>=ione.and.mype==izero) write(6,*)trim(seqcalls),': evaljgrad: Updating guess'
+   if (nprt>=1.and.mype==0) write(6,*)trim(seqcalls),': evaljgrad: Updating guess'
    call update_guess(sval,sbias)
    call write_all(.false.,mype)
    if (lwrtinc) then

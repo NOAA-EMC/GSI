@@ -56,7 +56,6 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
 !$$$  end documentation block
 
   use kinds, only: i_kind,i_llong,r_kind,r_double
-  use constants, only: izero
   use gsi_4dvar, only: iadatebgn,iadateend
   use obsmod, only: offtime_data
   use convinfo, only: nconvtype,ictype,ioctype,icuse
@@ -77,7 +76,7 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
   inquire(file=trim(filename),exist=lhere,size=lbytes)
   lexist = lhere .and. lbytes>0_i_llong
 #else
-  lenb=izero; lbytes = lenb
+  lenb=0; lbytes = lenb
   inquire(file=trim(filename),exist=lhere)
   if(lhere)then
     write(fname,'(2a,i4.4)') 'fsize_',trim(filename),mype
@@ -125,7 +124,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 !$$$  end documentation block
 
   use kinds, only: i_kind,i_llong,r_kind,r_double
-  use constants, only: izero
   use gsi_4dvar, only: iadatebgn,iadateend
   use obsmod, only: offtime_data
   use convinfo, only: nconvtype,ictype,ioctype,icuse
@@ -206,8 +204,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
       if(lexist)then
        if(kidsat /= 0)then
         lexist=.false.
-        do while(ireadmg(lnbufr,subset,idate2) >= izero)
-           if(ireadsb(lnbufr)==izero)then
+        do while(ireadmg(lnbufr,subset,idate2) >= 0)
+           if(ireadsb(lnbufr)==0)then
               call ufbint(lnbufr,satid,1,1,iret,'SAID')
            end if
            if(nint(satid) == kidsat) then
@@ -217,8 +215,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
         end do
        else if(trim(filename) == 'prepbufr')then  ! RTod: wired-in filename is not a good idea
          lexist = .false.
-         fileloop: do while(ireadmg(lnbufr,subset,idate2) >= izero)
-          do while(ireadsb(lnbufr)>=izero)
+         fileloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+          do while(ireadsb(lnbufr)>=0)
            call ufbint(lnbufr,rtype,1,1,iret,'TYP')
            kx=nint(rtype)
            do nc=1,nconvtype
@@ -295,6 +293,7 @@ subroutine read_obs(ndata,mype)
 !   2009-01-05  todling - need tendency alloc in observer mode
 !   2009-01-23  todling - echo surface state info 
 !   2009-03-18  meunier - add a if statement to read lagrangian data
+!   2009-08-19  guo     - moved destroy_sfc_grid() to observer_finalize().
 !   2009-12-20  gayno - modify argument lists so that fov-based surface
 !                       calculation may be used.
 !   2010-03-29  hu    - add code to read in cloud observations  including:
@@ -326,7 +325,7 @@ subroutine read_obs(ndata,mype)
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
          setcomm
-    use constants, only: izero,ione,one,zero
+    use constants, only: one,zero
     use converr, only: converr_read
     use guess_grids, only: ges_prsl,ntguessig,destroy_sfc_grids
     use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad
@@ -383,14 +382,14 @@ subroutine read_obs(ndata,mype)
 
     call makegvals
     do ii=1,ndat
-       ndata1(ii,1)=izero
-       ndata1(ii,2)=izero
-       ndata1(ii,3)=izero
-       ntasks1(ii) =izero
+       ndata1(ii,1)=0
+       ndata1(ii,2)=0
+       ndata1(ii,3)=0
+       ntasks1(ii) =0
        parallel_read=.false.
     end do
-    npem1=npe-ione
-    nprof_gps1=izero
+    npem1=npe-1
+    nprof_gps1=0
 
     if(oberrflg .or. perturb_obs) then
        call converr_read(mype)
@@ -412,32 +411,32 @@ subroutine read_obs(ndata,mype)
 
 !   Set data class and number of reader tasks.  Set logical flag to indicate 
 !   type type of GPS data (if present)
-    ii=izero
+    ii=0
     ref_obs = .false.    !.false. = assimilate GPS bending angle
     do i=1,ndat
        obstype=dtype(i)                   !     obstype  - observation types to process
-       amsre= index(obstype,'amsre') /= izero
-       ssmis= index(obstype,'ssmis') /= izero
-       sndr = index(obstype,'sndr') /= izero
-       hirs = index(obstype,'hirs') /= izero
-       avhrr = index(obstype,'avhrr') /= izero
+       amsre= index(obstype,'amsre') /= 0
+       ssmis= index(obstype,'ssmis') /= 0
+       sndr = index(obstype,'sndr') /= 0
+       hirs = index(obstype,'hirs') /= 0
+       avhrr = index(obstype,'avhrr') /= 0
 !  Control parallel read for each ob type (currently just rad obs).  
 !  To remove parallel read comment out line.
-       if(hirs .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(sndr .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(avhrr .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(amsre .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(ssmis .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(obstype == 'ssmi' .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(obstype == 'airs' .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(obstype == 'amsub' .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(obstype == 'hsb' .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(obstype == 'iasi' .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(obstype == 'amsua' .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(obstype == 'iasi' .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(obstype == 'mhs' .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(obstype == 'goes_img' .and. dthin(i) > izero)parallel_read(i)= .true.
-       if(obstype == 'ssu' .and. dthin(i) > izero)parallel_read(i)= .true.
+       if(hirs .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(sndr .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(avhrr .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(amsre .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(ssmis .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'ssmi' .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'airs' .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'amsub' .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'hsb' .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'iasi' .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'amsua' .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'iasi' .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'mhs' .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'goes_img' .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'ssu' .and. dthin(i) > 0)parallel_read(i)= .true.
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
@@ -461,7 +460,7 @@ subroutine read_obs(ndata,mype)
        else if (obstype == 'sbuv2' .or. obstype == 'omi' &
            .or. obstype == 'gome'  .or. obstype == 'o3lev') then
           ditype(i) = 'ozone'
-       else if (index(obstype,'pcp')/=izero )then
+       else if (index(obstype,'pcp')/=0 )then
           ditype(i) = 'pcp'
        else if (obstype == 'gps_ref' .or. obstype == 'gps_bnd') then
           ditype(i) = 'gps'
@@ -471,12 +470,12 @@ subroutine read_obs(ndata,mype)
 
 !   Set data class and number of reader tasks.  Set logical flag to indicate 
 !   type type of GPS data (if present)
-       if (index(dtype(i),'gps_ref') /= izero) ref_obs = .true.
+       if (index(dtype(i),'gps_ref') /= 0) ref_obs = .true.
 
 !   Check info files to see if data is used.
 
        nuse=.false.
-       minuse=-ione
+       minuse=-1
        if(ditype(i) == 'conv')then
           if(diag_conv)minuse=-2
           do j=1,nconvtype
@@ -507,14 +506,14 @@ subroutine read_obs(ndata,mype)
              nuse=.true.
           end if
        if(.not. nuse)then
-          if(mype == izero)write(6,*) 'data type ',dsis(i), &
+          if(mype == 0)write(6,*) 'data type ',dsis(i), &
                 'not used in info file -- do not read file',dfile(i)
        end if
 
 
 !   Inquire data set to deterimine if input data available and size of dataset
-       ii=ii+ione
-       if (ii>npem1) ii=izero
+       ii=ii+1
+       if (ii>npem1) ii=0
        if(mype==ii)then
           call gsi_inquire(lenbytes,lexist,dfile(i),mype)
           call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
@@ -536,7 +535,7 @@ subroutine read_obs(ndata,mype)
 !      only allow number of reader tasks >= 1 for select obstype.
 
           if(lexist .and. nuse) then
-             ntasks1(i)=ione
+             ntasks1(i)=1
              if(parallel_read(i)) then
 
 !  Allow up to 16 processors/file increase loop bounds to increase number of processors allowed
@@ -545,7 +544,7 @@ subroutine read_obs(ndata,mype)
                    ntasks1(i)=2*ntasks1(i)
                    len4file=len4file/2
                 end do
-!               if(ntasks1(i)*lenbuf < len4file) ntasks1(i)=ntasks1(i)+ione
+!               if(ntasks1(i)*lenbuf < len4file) ntasks1(i)=ntasks1(i)+1
              end if
           end if
        end if
@@ -555,8 +554,8 @@ subroutine read_obs(ndata,mype)
 !   Distribute optimal number of reader tasks to all mpi tasks
     call mpi_allreduce(ntasks1,ntasks,ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror)
 
-    npemax=izero
-    npetot=izero
+    npemax=0
+    npetot=0
     do i=1,ndat
        npe_sub(i)=ntasks(i)
        npetot=npetot+npe_sub(i)
@@ -566,15 +565,15 @@ subroutine read_obs(ndata,mype)
     if(l4dvar.and.(.not.lobserver)) return
     
     npeextra=npe-mod(npetot,npe)
-    if(npeextra > izero)then
-       if(mype == izero)write(6,*) ' number of extra processors ',npeextra
+    if(npeextra > 0)then
+       if(mype == 0)write(6,*) ' number of extra processors ',npeextra
        npe_sub3=npe_sub
        extraloop: do j=1,npeextra
           iix=1
           do ii=1,5
              do i=1,ndat
                 if(iix == npe_sub3(i) .and. parallel_read(i))then
-                   if(ntasks(i) > izero .and. ntasks(i) <= npeextra)then
+                   if(ntasks(i) > 0 .and. ntasks(i) <= npeextra)then
                       npeextra=npeextra-ntasks(i)
                       npe_sub(i)=npe_sub(i)+ntasks(i)
                       ntasks(i)=2*ntasks(i)
@@ -589,47 +588,47 @@ subroutine read_obs(ndata,mype)
 
 !   Set up locations of first processor
 
-    ilarge=izero
-    npestart=izero
+    ilarge=0
+    npestart=0
     npe_sub3=npe_sub
-    mype_root_sub=izero
-    mmdat=izero
+    mype_root_sub=0
+    mmdat=0
     loopx: do j=1,ndat
-       nlarge=izero
+       nlarge=0
        do i=1,ndat
           if(npe_sub3(i) > nlarge .and. npe_sub3(i)+npestart <= npe)then
              ilarge=i
              nlarge=npe_sub3(i)
           end if
        end do
-       if(nlarge == izero)exit loopx
+       if(nlarge == 0)exit loopx
        npe_order(j)=ilarge
        mype_root_sub(ilarge)=npestart
        npestart=npestart+npe_sub3(ilarge)
-       mmdat=mmdat+ione
-       if(npestart == npe)npestart=izero
-       npe_sub3(ilarge)=izero
+       mmdat=mmdat+1
+       if(npestart == npe)npestart=0
+       npe_sub3(ilarge)=0
     end do loopx
 
         
 !   Define sub-communicators for each data file
-    mm1=mype+ione
+    mm1=mype+1
     belong=.false.
     mype_sub=-999
     mype_sub_r1=-999
     mype_sub_r2=-999
-    mype_root=izero
-    next_mype=izero
+    mype_root=0
+    next_mype=0
     do ii=1,mmdat
        i=npe_order(ii)
-       if(npe_sub(i) > izero)then
+       if(npe_sub(i) > 0)then
           next_mype=mype_root_sub(i)
           do k=1,npe_sub(i)
              mype_work(k,i) = next_mype
-             mype_sub(mype_work(k,i)+ione,i)=k-ione
+             mype_sub(mype_work(k,i)+1,i)=k-1
              if(next_mype == mype)belong(i) = .true.
-             next_mype = next_mype + ione
-             if (next_mype>npem1) next_mype=izero
+             next_mype = next_mype + 1
+             if (next_mype>npem1) next_mype=0
           end do               
 
           call setcomm(iworld,iworld_group,npe_sub(i),mype_work(1,i),&
@@ -639,7 +638,7 @@ subroutine read_obs(ndata,mype)
     end do
     do ii=1,mmdat
        i=npe_order(ii)
-       if(mype == izero .and. npe_sub(i) > izero) write(6,'(1x,a,i4,1x,a,1x,2a,3i4)') &
+       if(mype == 0 .and. npe_sub(i) > 0) write(6,'(1x,a,i4,1x,a,1x,2a,3i4)') &
         'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i),mype_root_sub(i),npe_sub(i) 
     end do
 
@@ -659,11 +658,11 @@ subroutine read_obs(ndata,mype)
 !   Get guess 3d pressure on full grid
     if(use_prsl_full)allocate(prsl_full(nlat,nlon,nsig))
     do k=1,nsig
-       call strip(ges_prsl(1,1,k,ntguessig),prslsm,ione)
-       call mpi_allgatherv(prslsm,ijn(mype+ione),mpi_rtype,&
+       call strip(ges_prsl(1,1,k,ntguessig),prslsm,1)
+       call mpi_allgatherv(prslsm,ijn(mype+1),mpi_rtype,&
             work1,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
        if(use_prsl_full)then
-          call reorder(work1,ione,ione)
+          call reorder(work1,1,1)
           do ii=1,iglobal
              i=ltosi(ii)
              j=ltosj(ii)
@@ -674,13 +673,12 @@ subroutine read_obs(ndata,mype)
 !   Create full horizontal surface fields from local fields in guess_grids
     call getsfc(mype,use_sfc)
     if(use_sfc) call prt_guessfc2('sfcges2')
-    call destroy_sfc_grids
 
 !   Loop over data files.  Each data file is read by a sub-communicator
     do ii=1,mmdat
 
        i=npe_order(ii)
-       if (i > izero .and. belong(i)) then
+       if (i > 0 .and. belong(i)) then
 
           platid=dplat(i)                    !     platid   - satellites to read
           obstype=dtype(i)                   !     obstype  - observation types to process
@@ -688,13 +686,13 @@ subroutine read_obs(ndata,mype)
           sis=dsis(i)                        !     sensor/instrument/satellite indicator
           val_dat=dval(i)                    !     weighting factors applied to super obs
           ithin=dthin(i)                     !     ithin    - flags to thin data
-          ithinx=max(ione,abs(ithin))
+          ithinx=max(1,abs(ithin))
           rmesh=dmesh(ithinx)                !     rmesh    - thinning mesh sizes (km)
           twind=time_window(i)               !     time window (hours) for input group
           isfcalc=dsfcalc(i)                 !     method to calculate surface fields within fov
-          nread=izero
-          nouse=izero
-          npuse=izero
+          nread=0
+          nouse=0
+          npuse=0
 
           if (mype_sub(mm1,i)==mype_root) then
              open(lunout,file=obsfile_all(i),form='unformatted')
@@ -918,7 +916,7 @@ subroutine read_obs(ndata,mype)
     deallocate(super_val)
 
 !   Collect number of gps profiles (needed later for qc)
-    call mpi_allreduce(nprof_gps1,nprof_gps,ione,mpi_integer,mpi_sum,mpi_comm_world,ierror)
+    call mpi_allreduce(nprof_gps1,nprof_gps,1,mpi_integer,mpi_sum,mpi_comm_world,ierror)
 
 !   Write collective obs selection information to scratch file.
     if (lread_obs_save .and. mype==0) then

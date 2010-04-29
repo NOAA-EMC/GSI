@@ -65,12 +65,14 @@ subroutine glbsoi(mype)
 !   2008-12-02  todling - remove references to pcgsoi_tl and old obs_sen
 !   2009-01-28  todling - move write_all to pcgsoi (for consistency w/ 4dvar branch of code)
 !                       - use observer to avoid redundant code
+!   2009-08-19  guo     - changed setuprhsall() interface for multi-pass observer.
 !   2009-08-31  parrish - add call to fmg_initialize_e when jcstrong_option=4.  Initializes
 !                          alternative regional tangent linear normal mode constraint which
 !                          allows for variation of coriolis parameter and map factor.
 !   2009-09-12  parrish - add call to hybrid_ensemble_setup.  if l_hyb_ens=.true., then
 !                          subroutine hybrid_ensemble_setup is called, which creates 
 !                          everything needed for a hybrid ensemble 3dvar analysis.
+!   2009-09-14  guo     - move compact_diff related statements to observer_init() in observer.F90
 !   2010-02-20  parrish - move hybrid_ensemble_setup to beginning of code and read
 !                          in ensemble perturbations where hybrid_ensemble_setup was previously located.
 !
@@ -85,7 +87,7 @@ subroutine glbsoi(mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,rearth
+  use constants, only: rearth
   use mpimod, only: npe
   use jfunc, only: miter,jiter,jiterstart,jiterend,iguess,&
        write_guess_solution,&
@@ -100,11 +102,10 @@ subroutine glbsoi(mype)
        destroy_berror_vars,bkgv_flowdep
   use balmod, only: create_balance_vars_reg,create_balance_vars, &
        destroy_balance_vars_reg,destroy_balance_vars,prebal,prebal_reg
-  use compact_diffs, only: create_cdiff_coefs,inisph,destroy_cdiff_coefs
+  use compact_diffs, only: create_cdiff_coefs,inisph
   use gridmod, only: nlat,nlon,nsig,rlats,regional,&
        twodvar_regional,wgtlats
   use guess_grids, only: nfldsig
-  use tendsmod, only: create_tendvars,destroy_tendvars
   use obsmod, only: write_diag,perturb_obs
   use turblmod, only: create_turblvars,destroy_turblvars
   use obs_sensitivity, only: lobsensfc, iobsconv, lsensrecompute, &
@@ -117,12 +118,9 @@ subroutine glbsoi(mype)
   use radinfo, only: radinfo_write
   use pcpinfo, only: pcpinfo_write
   use converr, only: converr_destroy
-  use mod_strong, only: jcstrong,jcstrong_option
-  use mod_vtrans, only: nvmodes_keep,create_vtrans,destroy_vtrans
   use zrnmi_mod, only: zrnmi_initialize
   use strong_slow_global_mod, only: init_strongvars_1
   use strong_fast_global_mod, only: init_strongvars_2
-  use mp_compact_diffs_mod1, only: init_mp_compact_diffs1,destroy_mp_compact_diffs1
   use observermod, only: observer_init,observer_set,observer_finalize,ndata
   use timermod, only: timer_ini, timer_fnl
   use hybrid_ensemble_parameters, only: l_hyb_ens
@@ -155,10 +153,10 @@ subroutine glbsoi(mype)
   call observer_init
 
 ! Check GSI options against available number of guess time levels
-  if (nfldsig == ione) then
+  if (nfldsig == 1) then
      if (bkgv_flowdep) then
         bkgv_flowdep = .false.
-        if (mype==izero) &
+        if (mype==0) &
            write(6,*)'GLBSOI: ***WARNING*** reset bkgv_flowdep=',bkgv_flowdep,&
            ', because only ',nfldsig,' guess time level available'
      endif
@@ -189,14 +187,6 @@ subroutine glbsoi(mype)
         call create_berror_vars
      end if
      
-!    Generate coefficients for compact differencing
-     call create_cdiff_coefs
-     call inisph(rearth,rlats(2),wgtlats(2),nlon,nlat-2_i_kind)
-
-     slow_pole_in=.false.
-     nlev_mp=nsig+ione
-     call init_mp_compact_diffs1(nlev_mp,mype,slow_pole_in)
-
      call prebal
 
 !    Load background error arrays used by recursive filters
@@ -214,28 +204,16 @@ subroutine glbsoi(mype)
   end if
 
 ! Read output from previous min.
-  if (l4dvar.and.jiterstart>ione) then
+  if (l4dvar.and.jiterstart>1) then
      clfile='xhatsave.ZZZ'
-     write(clfile(10:12),'(I3.3)') jiterstart-ione
+     write(clfile(10:12),'(I3.3)') jiterstart-1
      call read_cv(xhatsave,clfile)
      zgg=dot_product(xhatsave,xhatsave)
-     if (mype==izero) write(6,*)'Norm xhatsave=',sqrt(zgg)
+     if (mype==0) write(6,*)'Norm xhatsave=',sqrt(zgg)
   endif
 
 ! Set error (variance) for predictors (only use guess)
   call set_predictors_var
-
-  if (tendsflag) then
-     call create_tendvars
-     call create_turblvars
-  endif
-  if ( (jcstrong) .and. nvmodes_keep>izero) then
-     call create_vtrans(mype)
-     if(jcstrong_option==ione)     call init_strongvars_1(mype)
-     if(jcstrong_option==2_i_kind) call init_strongvars_2(mype)
-     if(jcstrong_option==3_i_kind) call zrnmi_initialize(mype)
-     if(jcstrong_option==4_i_kind) call fmg_initialize_e(mype)
-  end if
 
 ! Set errors and create variables for dynamical constraint
   if (ljcdfi) call init_jcdfi
@@ -247,61 +225,62 @@ subroutine glbsoi(mype)
 ! Main outer analysis loop
   do jiter=jiterstart,jiterlast
 
-     if (mype==izero) write(6,*)'GLBSOI: jiter,jiterstart,jiterlast,jiterend=', &
+     if (mype==0) write(6,*)'GLBSOI: jiter,jiterstart,jiterlast,jiterend=', &
                                          jiter,jiterstart,jiterlast,jiterend
 
 !    Set up right hand side of analysis equation
-     call setuprhsall(ndata,mype)
+     call setuprhsall(ndata,mype,.true.,.true.)
 
      if (jiter<=miter) then
 
 !       Set up right hand side of adjoint of analysis equation
         if (lsensrecompute) lobsensfc=(jiter==jiterend)
-        if (lobsensfc.or.iobsconv>izero) call init_fc_sens
+        if (lobsensfc.or.iobsconv>0) call init_fc_sens
  
 !       Call inner minimization loop
         if (lsqrtb) then
-           if (mype==izero) write(6,*)'GLBSOI: Using sqrt(B), jiter=',jiter
+           if (mype==0) write(6,*)'GLBSOI: Using sqrt(B), jiter=',jiter
            call sqrtmin
         else
 !          Standard run
-           if (mype==izero) write(6,*)'GLBSOI:  START pcgsoi jiter=',jiter
+           if (mype==0) write(6,*)'GLBSOI:  START pcgsoi jiter=',jiter
            call pcgsoi
         end if
 
 !       Save information for next minimization
         if (lobsensfc) then
            clfile='obsdiags.ZZZ'
-           write(clfile(10:12),'(I3.3)') 100_i_kind+jiter
+           write(clfile(10:12),'(I3.3)') 100+jiter
            call write_obsdiags(clfile)
         else
            if (l4dvar.or.lanczosave) then
               clfile='obsdiags.ZZZ'
               write(clfile(10:12),'(I3.3)') jiter
               call write_obsdiags(clfile)
- 
-              clfile='xhatsave.ZZZ'
-              write(clfile(10:12),'(I3.3)') jiter
-              call write_cv(xhatsave,clfile)
-              zgg=dot_product(xhatsave,xhatsave)
-              if (mype==izero) write(6,*)'Norm xhatsave=',sqrt(zgg)
            endif
+
+           clfile='xhatsave.ZZZ'   ! normally don't needs this written in 3dvar,
+                                      ! except when wanting to debug adjoint of GSI
+           write(clfile(10:12),'(I3.3)') jiter
+           call write_cv(xhatsave,clfile)
+           zgg=dot_product(xhatsave,xhatsave)
+           if (mype==0) write(6,*)'Norm xhatsave=',sqrt(zgg)
         endif
 
 !       Save output of adjoint of analysis equation
-        if (lobsensfc.or.iobsconv>izero) call save_fc_sens
+        if (lobsensfc.or.iobsconv>0) call save_fc_sens
      endif
 
 ! End of outer iteration loop
   end do
 
   if (.not.l4dvar) then
-     jiter=jiterlast+ione
+     jiter=jiterlast+1
 !    If requested, write obs-anl information to output files
-     if (write_diag(jiter)) call setuprhsall(ndata,mype)
+     if (write_diag(jiter)) call setuprhsall(ndata,mype,.true.,.true.)
 
 !    Write xhat- and yhat-save for use as a guess for the solution
-     if (iguess==izero .or. iguess==ione) call write_guess_solution(mype)
+     if (iguess==0 .or. iguess==1) call write_guess_solution(mype)
   endif
 
 ! Deallocate arrays
@@ -320,25 +299,18 @@ subroutine glbsoi(mype)
         call destroy_berror_vars
      end if
      call destroy_balance_vars
-     call destroy_cdiff_coefs
-     call destroy_mp_compact_diffs1
-     if (norsp > izero) call destroy_smooth_polcas
+     if (norsp > 0) call destroy_smooth_polcas
   endif
-  if (tendsflag) then
-     call destroy_tendvars
-     call destroy_turblvars
-  endif
-  if ( (jcstrong ) .and. nvmodes_keep>izero) call destroy_vtrans
 
 ! Write updated bias correction coefficients
   if (.not.twodvar_regional) then
      if (l4dvar) then
-        if(mype == izero) call radinfo_write
-        if(mype == npe-ione) call pcpinfo_write
+        if(mype == 0) call radinfo_write
+        if(mype == npe-1) call pcpinfo_write
      else
-        if (jiter==miter+ione ) then
-           if(mype == izero) call radinfo_write
-           if(mype == npe-ione) call pcpinfo_write
+        if (jiter==miter+1 ) then
+           if(mype == 0) call radinfo_write
+           if(mype == npe-1) call pcpinfo_write
         endif
      endif
   endif

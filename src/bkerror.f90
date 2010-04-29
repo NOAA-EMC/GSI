@@ -41,7 +41,7 @@ subroutine bkerror(gradx,grady)
   use gsi_4dvar, only: nsubwin, lsqrtb
   use gridmod, only: lat2,lon2,nlat,nlon,nnnn1o,periodic,latlon11
   use jfunc, only: nsclen,npclen
-  use constants, only:  zero,izero
+  use constants, only:  zero
   use control_vectors
   use timermod, only: timer_ini,timer_fnl
   implicit none
@@ -87,12 +87,12 @@ subroutine bkerror(gradx,grady)
            sicet(i,j)=zero
         end do
      end do
-     if (nrf2_sst>izero) then
-        sst => gradx%step(ii)%sst(1:latlon11)
-     else
-        sst => NULL() 
-     end if
      do ii=1,nsubwin
+        if (nrf2_sst>0) then
+           sst => gradx%step(ii)%sst(1:latlon11)
+        else
+           sst => NULL() 
+        end if
         call sub2grid(work,gradx%step(ii),sst,slndt,sicet,iflg)
         call grid2sub(work,gradx%step(ii),sst,slndt,sicet)
      end do

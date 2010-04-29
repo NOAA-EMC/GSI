@@ -1,4 +1,5 @@
-subroutine gsisub(mype)
+!#define VERBOSE
+subroutine gsisub(mype,init_pass,last_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  gsisub                  high level driver for gridpoint 
@@ -47,7 +48,7 @@ subroutine gsisub(mype)
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes
 !   2007-10-03  todling - add observer call
 !   2009-01-28  todling - update observer calling procedure 
-!                         
+!   2009-08-19  guo     - #ifdef out destroy_gesfinfo() call for multi-pass observer.
 !
 !   input argument list:
 !     mype - mpi task id
@@ -60,7 +61,6 @@ subroutine gsisub(mype)
 !
 !$$$
   use kinds, only: i_kind
-  use constants, only: izero
   use obsmod, only: iadate,lobserver
   use observermod, only: observer_init,observer_run,observer_finalize
   use gridmod, only: twodvar_regional,regional,&
@@ -75,11 +75,29 @@ subroutine gsisub(mype)
   use ozinfo, only: ozinfo_read
   use read_l2bufr_mod, only: radar_bufr_read_all
   use oneobmod, only: oneobtest,oneobmakebufr
+#ifndef HAVE_ESMF
+  use guess_grids, only: destroy_gesfinfo
+#endif
+
+  use mpeu_util, only: die,tell
 
   implicit none
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
+  logical        ,intent(in) :: init_pass
+  logical        ,intent(in) :: last_pass
+
+#ifdef VERBOSE
+  call tell('gsisub','entered ..')
+  call tell('gsisub','init_pass =',init_pass)
+  call tell('gsisub','last_pass =',last_pass)
+  call tell('gsisub','iadate(1)=',iadate(1))
+  call tell('gsisub','iadate(2)=',iadate(2))
+  call tell('gsisub','iadate(3)=',iadate(3))
+  call tell('gsisub','iadate(4)=',iadate(4))
+  call tell('gsisub','iadate(5)=',iadate(5))
+#endif
 
 #ifndef HAVE_ESMF
 
@@ -92,7 +110,7 @@ subroutine gsisub(mype)
 
 ! If single ob test, create prep.bufr file with single ob in it
   if (oneobtest) then
-     if(mype==izero)call oneobmakebufr
+     if(mype==0)call oneobmakebufr
      call mpi_barrier(mpi_comm_world,ierror)
   end if
 
@@ -101,18 +119,23 @@ subroutine gsisub(mype)
   call deter_subdomain(mype)
   call init_subdomain_vars
 
-#endif /* HAVE_ESMF */
+#endif /* !HAVE_ESMF */
 
 ! Process any level 2 bufr format land doppler radar winds and create radar wind superob file
   if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional) call radar_bufr_read_all(npe,mype)
 
 ! Read info files for assimilation of various obs
-  if (.not.twodvar_regional) then
-     call radinfo_read
-     call ozinfo_read(mype)
-     call pcpinfo_read(mype)
+  if (init_pass) then
+     if (.not.twodvar_regional) then
+        call radinfo_read
+        call ozinfo_read(mype)
+        call pcpinfo_read(mype)
+     endif
+     call convinfo_read(mype)
+#ifdef VERBOSE
+     call tell('gsisub','returned from convinfo_read()')
+#endif
   endif
-  call convinfo_read(mype)
 
 #ifndef HAVE_ESMF
 ! Set communicators between subdomain and global/horizontal slabs
@@ -120,25 +143,47 @@ subroutine gsisub(mype)
 #endif /* HAVE_ESMF */
 
 ! Compute random number for precipitation forward model.  
-  call create_pcp_random(iadate,mype)
+  if(init_pass) then
+     call create_pcp_random(iadate,mype)
+#ifdef VERBOSE
+     call tell('gsisub','returned from create_pcp_random()')
+#endif
+  endif
 
 ! Complete setup and execute external and internal minimization loops
+#ifdef VERBOSE
+  call tell('gsisub','lobserver=',lobserver)
+#endif
   if (lobserver) then
-     call observer_init
-     call observer_run
-     call observer_finalize
+    if(init_pass) call observer_init()
+#ifdef VERBOSE
+    call tell('gsisub','calling observer_run()')
+#endif
+    call observer_run(init_pass=init_pass,last_pass=last_pass)
+#ifdef VERBOSE
+    call tell('gsisub','returned from observer_run()')
+#endif
+    if(last_pass) call observer_finalize()
+#ifndef HAVE_ESMF
+      call destroy_gesfinfo()	! paired with gesinfo()
+#endif
   else
      call glbsoi(mype)
   endif
 
   
-! Deallocate arrays
-  call destroy_pcp_random
+  if(last_pass) then
+!    Deallocate arrays
+     call destroy_pcp_random
 #ifndef HAVE_ESMF
-  call destroy_mapping
-  call destroy_grid_vars
+     call destroy_mapping
+     call destroy_grid_vars
 #endif /* HAVE_ESMF */
+  endif
 
+#ifdef VERBOSE
+  call tell('gsisub','exiting ..')
+#endif
 ! End of gsi driver routine
   return
 end subroutine gsisub

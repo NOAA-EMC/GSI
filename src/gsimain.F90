@@ -501,6 +501,7 @@
 !          = 328 - jcstrong_option > 2 not allowed except for regional=.true.
 !          = 329 - problem with logicals or collective obs selection info file
 !          = 330 - grid --> spectral transform not safe for sptranf_s,v_b
+!          = 331 - trouble writing analysis errors
 !
 !
 ! remarks: resolution, unit numbers and several constants are
@@ -582,7 +583,7 @@
 
    call gsimain_initialize
 
-   call gsimain_run
+   call gsimain_run(init_pass=.true.,last_pass=.true.)
 
    call gsimain_finalize
 

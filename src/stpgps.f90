@@ -63,6 +63,7 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges,nstep)
 !   2007-07-26  cucurull - input 3d pressure to update code to generalized vertical coordinate
 !   2008-04-11  safford - rm unused vars
 !   2008-12-03  todling - changed handling of ptr%time
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !
 !   input argument list:
 !     gpshead
@@ -86,19 +87,19 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: gps_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,zero,one,two,half,tiny_r_kind,cg_term,zero_quad,&
+  use constants, only: zero,one,two,half,tiny_r_kind,cg_term,zero_quad,&
                        r3600
   use gridmod, only: latlon1n,latlon1n1,nsig
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
-  type(gps_ob_type),pointer              ,intent(in   ) :: gpshead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: rt,rq,st,sq
-  real(r_kind),dimension(latlon1n1)      ,intent(in   ) :: rp,sp
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(gps_ob_type),pointer           ,intent(in   ) :: gpshead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: rt,rq,st,sq
+  real(r_kind),dimension(latlon1n1)   ,intent(in   ) :: rp,sp
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
   integer(i_kind) j,kk
@@ -111,7 +112,7 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges,nstep)
 
   real(r_kind) cg_gps,wgross,wnotgross
   real(r_kind) pg_gps,nref
-  real(r_kind),dimension(max(ione,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen
 
 ! Initialize penalty, b1, and b3 to zero
   out=zero_quad
@@ -123,7 +124,7 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges,nstep)
      if(gpsptr%luse)then
 
         val2=-gpsptr%res
-        if(nstep > izero)then
+        if(nstep > 0)then
            do j=1,nsig
               i1(j)= gpsptr%ij(1,j)
               i2(j)= gpsptr%ij(2,j)

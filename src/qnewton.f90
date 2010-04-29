@@ -25,7 +25,7 @@ module qnewton
 ! ------------------------------------------------------------------------------
 
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: izero, ione, zero, one
+use constants, only: zero, one
 use mpimod, only: mype
 use control_vectors
 
@@ -254,7 +254,7 @@ logical :: lldone
 !     INITIALIZE
 !     ----------
 !
-IF (maxvecs<=izero) then
+IF (maxvecs<=0) then
    write(6,*)'LBFGS: maxvecs is not positive.',maxvecs
    call stop2(158)
 end if
@@ -270,9 +270,9 @@ do ii=1,maxvecs
    call allocate_cv(wy(ii))
 enddo
 
-ITER= izero
-NFUN= ione
-POINT= ione
+ITER= 0
+NFUN= 1
+POINT= 1
 lldone= .FALSE.
 
 !diag=zero
@@ -290,10 +290,10 @@ STP1= ONE/GNORM
 main_loop: DO WHILE (.not.lldone)
 
    nlnqc_iter = iter >= niter_no_qc(jiter)
-   ITER= ITER+ione
-   if (mype==izero) write(6,*)'Minimization iteration',iter
-   BOUND=ITER-ione
-   IF (ITER==ione) GO TO 165
+   ITER= ITER+1
+   if (mype==0) write(6,*)'Minimization iteration',iter
+   BOUND=ITER-1
+   IF (ITER==1) GO TO 165
    IF (ITER>maxvecs) BOUND=maxvecs
 
    YS=dot_product(WY(NPT),WS(NPT))
@@ -312,8 +312,8 @@ main_loop: DO WHILE (.not.lldone)
    end do
 
    DO I=1,BOUND
-      CP=CP-ione
-      IF (CP==izero) CP=maxvecs
+      CP=CP-1
+      IF (CP==0) CP=maxvecs
       SQ=dot_product(WS(CP),WW)
       alpha(CP)=rho(CP)*SQ
       CALL AXPY(-alpha(CP),WY(CP),WW)
@@ -329,8 +329,8 @@ main_loop: DO WHILE (.not.lldone)
       BETA= rho(CP)*YR
       BETA= alpha(CP)-BETA
       CALL AXPY(BETA,WS(CP),WW)
-      CP=CP+ione
-      IF (CP>maxvecs) CP=ione
+      CP=CP+1
+      IF (CP>maxvecs) CP=1
    end do
 !
 !  STORE THE NEW SEARCH DIRECTION
@@ -342,15 +342,15 @@ main_loop: DO WHILE (.not.lldone)
 !  BY USING THE LINE SEARCH ROUTINE MCSRCH
 !  ----------------------------------------------------
  165  CONTINUE
-   NFEV=izero
-   INFO=izero
+   NFEV=0
+   INFO=0
    STP=ONE
-   IF (ITER==ione) STP=STP1
+   IF (ITER==1) STP=STP1
    WW=grad
 
    CALL MCSRCH(xhat,cost,grad,WS(POINT),STP,MAXFEV,INFO,NFEV,DIAG,nprt)
 
-   IF (INFO/=ione.and.info/=3_i_kind) then
+   IF (INFO/=1.and.info/=3) then
       WRITE(6,200) INFO
       write(6,*)'LBFGS: line search failed'
       call stop2(160)
@@ -367,8 +367,8 @@ main_loop: DO WHILE (.not.lldone)
       WY(NPT)%values(jj)= grad%values(jj)-WW%values(jj)
    enddo
 
-   POINT=POINT+ione
-   IF (POINT>maxvecs) POINT=ione
+   POINT=POINT+1
+   IF (POINT>maxvecs) POINT=1
 !
 !  TERMINATION TEST
 !  ----------------
@@ -380,7 +380,7 @@ main_loop: DO WHILE (.not.lldone)
    IF (GNORM/XNORM<=EPS) lldone=.TRUE.
    IF (NFUN>=MAXFEV) lldone=.true.
 
-   if (mype==izero) then
+   if (mype==0) then
       write(6,999)'LBFGS iter,step,gnorm=',iter,stp,gnorm
    endif
 
@@ -554,13 +554,13 @@ real(r_quad) :: FQUAD
 real(r_kind), parameter :: p66=0.66_r_kind
 real(r_kind), parameter :: xtrapf=four
 
-INFOC = ione
+INFOC = 1
 !
 !     CHECK THE INPUT PARAMETERS FOR ERRORS.
 !
 IF (STP<=ZERO .OR. FTOL<ZERO .OR. &
    & GTOL<ZERO .OR. XTOL<ZERO .OR. STPMIN<ZERO &
-   & .OR. STPMAX<STPMIN .OR. MAXFEV<=izero) then
+   & .OR. STPMAX<STPMIN .OR. MAXFEV<=0) then
    write(6,*)'MCSRCH: Error input',stp,ftol,gtol,xtol,stpmin,stpmax,maxfev
    call stop2(161)
 endif
@@ -624,7 +624,7 @@ do ifev=1,maxfev
 !        STP BE THE LOWEST POINT OBTAINED SO FAR.
 !
    IF ((BRACKT .AND. (STP<=STMIN .OR. STP>=STMAX)) &
-    &  .OR. iFEV>=MAXFEV-ione .OR. INFOC==izero &
+    &  .OR. iFEV>=MAXFEV-1 .OR. INFOC==0 &
     &  .OR. (BRACKT .AND. STMAX-STMIN<=XTOL*STMAX)) STP = STX
 !
 !        EVALUATE THE FUNCTION AND GRADIENT AT STP
@@ -643,16 +643,16 @@ do ifev=1,maxfev
 !
 !        TEST FOR CONVERGENCE.
 !
-   IF ((BRACKT .AND. (STP<=STMIN .OR. STP>=STMAX)) .OR. INFOC==0) INFO = 6_i_kind
-   IF (STP==STPMAX .AND. F<=FTEST1 .AND. DG<=DGTEST) INFO = 5_i_kind
-   IF (STP==STPMIN .AND. (F>FTEST1 .OR. DG>=DGTEST)) INFO = 4_i_kind
-   IF (iFEV>=MAXFEV) INFO = 3_i_kind
-   IF (BRACKT .AND. STMAX-STMIN<=XTOL*STMAX) INFO = 2_i_kind
-   IF (F<=FTEST1 .AND. ABS(DG)<=GTOL*(-DGINIT)) INFO = ione
+   IF ((BRACKT .AND. (STP<=STMIN .OR. STP>=STMAX)) .OR. INFOC==0) INFO = 6
+   IF (STP==STPMAX .AND. F<=FTEST1 .AND. DG<=DGTEST) INFO = 5
+   IF (STP==STPMIN .AND. (F>FTEST1 .OR. DG>=DGTEST)) INFO = 4
+   IF (iFEV>=MAXFEV) INFO = 3
+   IF (BRACKT .AND. STMAX-STMIN<=XTOL*STMAX) INFO = 2
+   IF (F<=FTEST1 .AND. ABS(DG)<=GTOL*(-DGINIT)) INFO = 1
 !
 !        CHECK FOR TERMINATION.
 !
-   IF (INFO/=izero) exit
+   IF (INFO/=0) exit
 !
 !        IN THE FIRST STAGE WE SEEK A STEP FOR WHICH THE MODIFIED
 !        FUNCTION HAS A NONPOSITIVE VALUE AND NONNEGATIVE DERIVATIVE.
@@ -782,7 +782,7 @@ logical        , intent(inout) :: BRACKT
 real(r_kind) :: GAMMA,P,Q,R,S,SGND,STPC,STPF,STPQ,THETA
 LOGICAL BOUND
 ! ------------------------------------------------------------------------------
-INFO = izero
+INFO = 0
 !
 !     CHECK THE INPUT PARAMETERS FOR ERRORS.
 !
@@ -803,7 +803,7 @@ SGND = DP*(DX/ABS(DX))
 !     ELSE THE AVERAGE OF THE CUBIC AND QUADRATIC STEPS IS TAKEN.
 !
 IF (FP>FX) THEN
-   INFO  = ione
+   INFO  = 1
    BOUND = .TRUE.
    THETA = three*(FX - FP)/(STP - STX) + DX + DP
    S     = MAX(ABS(THETA),ABS(DX),ABS(DP))
@@ -827,7 +827,7 @@ IF (FP>FX) THEN
 !     THE CUBIC STEP IS TAKEN, ELSE THE QUADRATIC STEP IS TAKEN.
 !
 ELSE IF (SGND<zero) THEN
-   INFO  = 2_i_kind
+   INFO  = 2
    BOUND = .FALSE.
    THETA = three*(FX - FP)/(STP - STX) + DX + DP
    S     = MAX(ABS(THETA),ABS(DX),ABS(DP))
@@ -855,7 +855,7 @@ ELSE IF (SGND<zero) THEN
 !     CLOSEST TO STX IS TAKEN, ELSE THE STEP FARTHEST AWAY IS TAKEN.
 !
 ELSE IF (ABS(DP)<ABS(DX)) THEN
-   INFO  = 3_i_kind
+   INFO  = 3
    BOUND = .TRUE.
    THETA = three*(FX - FP)/(STP - STX) + DX + DP
    S     = MAX(ABS(THETA),ABS(DX),ABS(DP))
@@ -896,7 +896,7 @@ ELSE IF (ABS(DP)<ABS(DX)) THEN
 !     IS EITHER STPMIN OR STPMAX, ELSE THE CUBIC STEP IS TAKEN.
 !
 ELSE
-   INFO = 4_i_kind
+   INFO = 4
    BOUND = .FALSE.
    IF (BRACKT) THEN
       THETA = three*(FP - FY)/(STY - STP) + DY + DP
@@ -986,23 +986,23 @@ integer(i_kind) :: info,iwork(2*kmaxit)
 
 if (r_kind==N_DEFAULT_REAL_KIND) then
    call SGETRF(2*kiter,2*kiter,pmat,2*kmaxit,iwork,info)
-   if (info/=izero) then
+   if (info/=0) then
       write(6,*)'Error in qnewton: SGETRF returned info=',info
       call ABOR1('QNEWTON: SGETRF returned non-zero info')
    endif
-   call SGETRS('N',2*kiter,ione,pmat,2*kmaxit,iwork,pvec,2*kmaxit,info)
-   if (info/=izero) then
+   call SGETRS('N',2*kiter,1,pmat,2*kmaxit,iwork,pvec,2*kmaxit,info)
+   if (info/=0) then
       write(6,*)'Error in qnewton: SGETRS returned info=',info
       call ABOR1('QNEWTON: SGETRS returned non-zero info')
    endif
 ELSEIF (r_kind==N_DOUBLE_KIND) then
    call DGETRF(2*kiter,2*kiter,pmat,2*kmaxit,iwork,info)
-   if (info/=izero) then
+   if (info/=0) then
       write(6,*)'Error in qnewton: DGETRF returned info=',info
       call ABOR1('QNEWTON: DGETRF returned non-zero info')
    endif
-   call DGETRS('N',2*kiter,ione,pmat,2*kmaxit,iwork,pvec,2*kmaxit,info)
-   if (info/=izero) then
+   call DGETRS('N',2*kiter,1,pmat,2*kmaxit,iwork,pvec,2*kmaxit,info)
+   if (info/=0) then
       write(6,*)'Error in qnewton: DGETRS returned info=',info
       call ABOR1('QNEWTON: DGETRS returned non-zero info')
    endif

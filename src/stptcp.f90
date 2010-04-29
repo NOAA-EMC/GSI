@@ -39,6 +39,7 @@ subroutine stptcp(tcphead,rp,sp,out,sges,nstep)
 !
 ! program history log:
 !   2009-02-02  kleist
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !
 !   input argument list:
 !     tcphead
@@ -58,23 +59,23 @@ subroutine stptcp(tcphead,rp,sp,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: tcp_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
-  type(tcp_ob_type),pointer              ,intent(in   ) :: tcphead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n1)      ,intent(in   ) :: rp,sp
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(tcp_ob_type),pointer           ,intent(in   ) :: tcphead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  real(r_kind),dimension(latlon1n1)   ,intent(in   ) :: rp,sp
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,kk
   real(r_kind) val,val2,w1,w2,w3,w4,time_tcp
   real(r_kind) cg_ps,wgross,wnotgross,ps_pg,ps
-  real(r_kind),dimension(max(ione,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen
   type(tcp_ob_type), pointer :: tcpptr
 
   out=zero_quad
@@ -82,7 +83,7 @@ subroutine stptcp(tcphead,rp,sp,out,sges,nstep)
   tcpptr => tcphead
   do while (associated(tcpptr))
      if(tcpptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1 = tcpptr%ij(1)
            j2 = tcpptr%ij(2)
            j3 = tcpptr%ij(3)
@@ -118,7 +119,7 @@ subroutine stptcp(tcphead,rp,sp,out,sges,nstep)
            cg_ps=cg_term/tcpptr%b
            wnotgross= one-ps_pg
            wgross =ps_pg*cg_ps/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk) = -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
            end do
         endif

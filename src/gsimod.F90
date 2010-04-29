@@ -25,7 +25,7 @@
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
                        l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,&
                        lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,lgrtest,&
-                       idmodel,clean_4dvar,lwrtinc,lanczosave
+                       idmodel,clean_4dvar,lwrtinc,lanczosave,lsiga
   use obs_ferrscale, only: lferrscale
   use mpimod, only: npe,mpi_comm_world,ierror,init_mpi_vars,destroy_mpi_vars,mype
   use radinfo, only: retrieval,diag_rad,npred,init_rad,init_rad_vars
@@ -69,7 +69,7 @@
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
-  use constants, only: izero,ione,zero,one,init_constants,init_constants_derived,three
+  use constants, only: zero,one,init_constants,init_constants_derived,three
   use fgrid2agrid_mod, only: nord_f2a,init_fgrid2agrid
   use smooth_polcarf, only: norsp,init_smooth_polcas
   use read_l2bufr_mod, only: minnum,del_azimuth,del_elev,del_range,del_time,&
@@ -148,6 +148,7 @@
 !  03-09-2010 Parrish   add flag check_gfs_ozone_date to namelist SETUP--if true, date check gfs ozone
 !  03-15-2010 Parrish   add flag regional_ozone to namelist SETUP--if true, then turn on ozone in 
 !                         regional analysis
+!  03-17-2010 todling   add knob for analysis error estimate (lsiga)
 !  03-17-2010 Zhu       Add nrf3 and nvars in init_grid_vars interface
 !  03-29-2010 hu        add namelist variables for controling rapid refesh options
 !                                 including cloud analysis and surface enhancement
@@ -192,6 +193,7 @@
 !     nhr_assimilation - assimilation time interval (currently 6hrs for global, 3hrs for reg)
 !     min_offset       - time in minutes of analysis in assimilation window (default 3 hours)
 !     l4dvar           - turn 4D-Var on/off (default=off=3D-Var)
+!     lsiga            - calculate approximate analysis errors from lanczos
 !     idmodel          - uses identity model when running 4D-Var (test purposes)
 !     lwrtinc          - when .t., writes out increments instead of analysis
 !     nhr_obsbin       - length of observation bins
@@ -275,7 +277,7 @@
        berror_stats, &
        lobsdiagsave, &
        l4dvar,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
-       nwrvecs,ladtest,lgrtest,lobskeep,lsensrecompute, &
+       nwrvecs,ladtest,lgrtest,lobskeep,lsensrecompute,lsiga, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
@@ -565,13 +567,16 @@
 !*************************************************************
 ! Begin gsi code
 !
+  use mpeu_util,only: die
   implicit none
+  character(len=*),parameter :: myname_='gsimod.gsimain_initialize'
+  integer(i_kind):: ios
 
   call parallel_init
 
   call mpi_comm_size(mpi_comm_world,npe,ierror)
   call mpi_comm_rank(mpi_comm_world,mype,ierror)
-  if (mype==izero) call w3tagb('GSI_ANL',1999,0232,0055,'NP23')
+  if (mype==0) call w3tagb('GSI_ANL',1999,0232,0055,'NP23')
 
 
 ! Initialize defaults of vars in modules
@@ -626,18 +631,30 @@
   read(5,rapidrefresh_cldsurf)
 #else
   open(11,file='gsiparm.anl')
-  read(11,setup)
-  read(11,gridopts)
-  read(11,bkgerr)
-  read(11,anbkgerr)
-  read(11,jcopts)
-  read(11,strongopts)
-  read(11,obsqc)
-  read(11,obs_input)
-  read(11,superob_radar)
-  read(11,lag_data)
-  read(11,hybrid_ensemble)
-  read(11,rapidrefresh_cldsurf)
+  read(11,setup,iostat=ios)
+  if(ios/=0) call die(myname_,'read(setup)',ios)
+  read(11,gridopts,iostat=ios)
+  if(ios/=0) call die(myname_,'read(gridopts)',ios)
+  read(11,bkgerr,iostat=ios)
+  if(ios/=0) call die(myname_,'read(bkgerr)',ios)
+  read(11,anbkgerr,iostat=ios)
+  if(ios/=0) call die(myname_,'read(anbkgerr)',ios)
+  read(11,jcopts,iostat=ios)
+  if(ios/=0) call die(myname_,'read(jcopts)',ios)
+  read(11,strongopts,iostat=ios)
+  if(ios/=0) call die(myname_,'read(strongopts)',ios)
+  read(11,obsqc,iostat=ios)
+  if(ios/=0) call die(myname_,'read(obsqc)',ios)
+  read(11,obs_input,iostat=ios)
+  if(ios/=0) call die(myname_,'read(obs_input)',ios)
+  read(11,superob_radar,iostat=ios)
+  if(ios/=0) call die(myname_,'read(superob_radar)',ios)
+  read(11,lag_data,iostat=ios)
+  if(ios/=0) call die(myname_,'read(lag_data)',ios)
+  read(11,hybrid_ensemble,iostat=ios)
+  if(ios/=0) call die(myname_,'read(hybrid_ensemble)',ios)
+  read(11,rapidrefresh_cldsurf,iostat=ios)
+  if(ios/=0) call die(myname_,'read(rapidrefresh_cldsurf)',ios)
   close(11)
 #endif
 
@@ -658,6 +675,10 @@
      write(6,*)'gsimod: adjoint computation requires congrad',lobsensadj,lcongrad
      call stop2(137)
   end if
+  if (lsiga .and. .not.lcongrad) then
+     write(6,*)'gsimod: analysis error estimate requires congrad',lsiga,lcongrad
+     call stop2(137)
+  endif
 
 
 ! Check user input for consistency among parameters for given setups.
@@ -669,8 +690,8 @@
 
 
 ! Check that regional=.true. if jcstrong_option > 2
-  if(jcstrong_option>2_i_kind.and..not.regional) then
-     if(mype==izero) then
+  if(jcstrong_option>2.and..not.regional) then
+     if(mype==0) then
         write(6,*) ' jcstrong_option>2 not allowed except for regional=.true.'
         write(6,*) ' ERROR EXIT FROM GSI'
      end if
@@ -679,12 +700,12 @@
 
 
 !  jcstrong_option=4 currently requires that 2*nvmodes_keep <= npe
-  if(jcstrong_option==4_i_kind) then
+  if(jcstrong_option==4) then
      if(2*nvmodes_keep>npe) then
-        if(mype==izero) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
-        if(mype==izero) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
+        if(mype==0) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
+        if(mype==0) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
         nvmodes_keep=npe/2
-        if(mype==izero) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
+        if(mype==0) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
      end if
   end if
 
@@ -699,7 +720,7 @@
      endif
   end do
   writediag=.false.
-  do i=1,miter+ione
+  do i=1,miter+1
      if(write_diag(i))writediag=.true.
   end do
   if(.not. writediag)then
@@ -710,7 +731,7 @@
   end if
 
 
-  if (mype==izero .and. limit) &
+  if (mype==0 .and. limit) &
        write(6,*)'GSIMOD:  reset time window for one or ',&
        'more OBS_INPUT entries to ',time_window_max
 
@@ -718,7 +739,7 @@
 ! Force use of perturb_obs for oberror_tune
   if (oberror_tune ) then
      perturb_obs=.true.
-     if (mype==izero) write(6,*)'GSIMOD:  ***WARNING*** reset perturb_obs=',perturb_obs
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** reset perturb_obs=',perturb_obs
   endif
 
 
@@ -729,22 +750,22 @@
 ! Force use of external observation error table for regional runs
   if (regional .and. .not.oberrflg) then
      oberrflg=.true.
-     if (mype==izero) write(6,*)'GSIMOD:  ***WARNING*** reset oberrflg=',oberrflg
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** reset oberrflg=',oberrflg
   endif
 
 
 ! Set 10m wind factor logicals based on ifact10
-  if (ifact10==ione .or. ifact10==2_i_kind) then
-     if (ifact10==ione)     sfcmod_gfs = .true.
-     if (ifact10==2_i_kind) sfcmod_mm5 = .true.
+  if (ifact10==1 .or. ifact10==2) then
+     if (ifact10==1)     sfcmod_gfs = .true.
+     if (ifact10==2)     sfcmod_mm5 = .true.
   endif
 
 
 ! If strong constraint is turned off (jcstrong=.false.), 
 ! force other strong constraint variables to zero
-  if ((.not.jcstrong) .and. nstrong/=izero ) then
-     nstrong=izero
-     if (mype==izero) write(6,*)'GSIMOD:  reset nstrong=',nstrong,&
+  if ((.not.jcstrong) .and. nstrong/=0 ) then
+     nstrong=0
+     if (mype==0) write(6,*)'GSIMOD:  reset nstrong=',nstrong,&
           ' because jcstrong=',jcstrong
   endif
   if (.not.jcstrong) then
@@ -781,10 +802,10 @@
 ! NOTE: only applicable for global run when not using observer
   if (.not.tendsflag .and. .not.regional) then
      check_pcp: do i=1,ndat
-        if ( .not.tendsflag .and. index(dtype(i),'pcp') /=izero ) then
+        if ( .not.tendsflag .and. index(dtype(i),'pcp') /=0 ) then
            tendsflag = .true.
            switch_on_derivatives=.true.
-           if (mype==izero) write(6,*)'GSIMOD:  set tendsflag,switch_on_derivatives=',&
+           if (mype==0) write(6,*)'GSIMOD:  set tendsflag,switch_on_derivatives=',&
                 tendsflag,switch_on_derivatives,' for pcp data'
            exit check_pcp
         endif
@@ -793,7 +814,7 @@
 
 ! Ensure no conflict between flag lread_obs_save and lread_obs_skip
   if (lread_obs_save .and. lread_obs_skip) then
-     if (mype==izero) write(6,*)'GSIMOD:  ***ERROR*** lread_obs_save=',lread_obs_save,&
+     if (mype==0) write(6,*)'GSIMOD:  ***ERROR*** lread_obs_save=',lread_obs_save,&
           ' and lread_obs_skip=',lread_obs_skip,' can not both be TRUE'
      call stop2(329)
   endif
@@ -801,12 +822,12 @@
 
 ! Optionally read in namelist for single observation run
   if (oneobtest) then
-     miter=ione
-     ndat=ione
+     miter=1
+     ndat=1
      dfile(1)='prepqc'
      time_window(1)=three
      dplat='oneob'
-     dthin=ione
+     dthin=1
      dval=one
      dmesh=one
      factqmin=zero
@@ -815,7 +836,8 @@
      read(5,singleob_test)
 #else
      open(11,file='gsiparm.anl')
-     read(11,singleob_test)
+     read(11,singleob_test,iostat=ios)
+     if(ios/=0) call die(myname_,'read(singleob_test)',ios)
      close(11)
 #endif
      dtype(1)=oneob_type
@@ -827,7 +849,7 @@
   call anav_info(mype)
 
 ! Write namelist output to standard out
-  if(mype==izero) then
+  if(mype==0) then
      write(6,200)
 200  format(' calling gsisub with following input parameters:',//)
      write(6,setup)
@@ -837,12 +859,12 @@
      write(6,jcopts)
      write(6,strongopts)
      write(6,obsqc)
-     ngroup=izero
+     ngroup=0
      do i=1,ndat
-        dthin(i) = max(dthin(i),izero)
+        dthin(i) = max(dthin(i),0)
         if(dthin(i) > ngroup)ngroup=dthin(i)
      end do
-     if(ngroup>izero)write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
+     if(ngroup>0)write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
      do i=1,ndat
         write(6,*)dfile(i),dtype(i),dplat(i),dsis(i),dval(i),dthin(i),dsfcalc(i),time_window(i)
      end do
@@ -882,16 +904,25 @@
 
 ! ! INTERFACE:
 
-  subroutine gsimain_run
+  subroutine gsimain_run(init_pass,last_pass)
+    use mpeu_util, only: tell
+    implicit none
+    logical, optional, intent(in):: init_pass  ! initial pass through multiple background bins
+    logical, optional, intent(in):: last_pass  ! last pass through multiple background bins
 
 !EOC
 
 !---------------------------------------------------------------------------
+  logical :: init_pass_
+  logical :: last_pass_
  
-  implicit none
-! Call the main gsi driver routine
-  call gsisub(mype)
+  init_pass_ =.false.
+  if(present(init_pass)) init_pass_=init_pass
+  last_pass_  =.false.
+  if(present(last_pass)) last_pass_ =last_pass
 
+! Call the main gsi driver routine
+  call gsisub(mype, init_pass_,last_pass_)
 
   end subroutine gsimain_run
 
@@ -916,7 +947,7 @@
 
 
 ! Done with GSI.
-  if (mype==izero)  call w3tage('GSI_ANL')
+  if (mype==0)  call w3tage('GSI_ANL')
   
   call mpi_finalize(ierror)
  

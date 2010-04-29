@@ -246,7 +246,7 @@ real(r_quad),dimension(max(ione,nrclen)):: qpred
   call intspd(yobs%spd,rval%u,rval%v,sval%u,sval%v)
 
 ! RHS for ozone observations
-  if (nrf3_oz>izero) call intoz(yobs%oz,yobs%o3l,rval%oz,sval%oz)
+  if (nrf3_oz>0) call intoz(yobs%oz,yobs%o3l,rval%oz,sval%oz)
 
 ! RHS for surface pressure observations
   call intps(yobs%ps,rval%p3d,sval%p3d)
@@ -255,7 +255,7 @@ real(r_quad),dimension(max(ione,nrclen)):: qpred
   call inttcp(yobs%tcp,rval%p3d,sval%p3d)
 
 ! RHS for conventional sst observations
-  if (nrf2_sst>izero) call intsst(yobs%sst,rval%sst,sval%sst)
+  if (nrf2_sst>0) call intsst(yobs%sst,rval%sst,sval%sst)
 
 ! RHS for GPS local observations
   call intgps(yobs%gps, &

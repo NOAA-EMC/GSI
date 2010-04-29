@@ -14,6 +14,7 @@ subroutine read_wrf_mass_files(mype)
 !                         standard mpi_bcast
 !   2005-03-30  treadon - reformat code (cosmetic changes only)
 !   2009-10-09  wu      - reset time reference (using iwinbgn and winlen...) in preparation for 4dvar
+!   2010-04-20  jing    - set hrdifsig_all and hrdifsfc_all for non-ESMF cases.
 !   
 !   input argument list:
 !     mype     - pe number
@@ -30,6 +31,7 @@ subroutine read_wrf_mass_files(mype)
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
   use guess_grids, only: nfldsig,nfldsfc,ntguessig,ntguessfc,&
        ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
+  use guess_grids, only: hrdifsig_all,hrdifsfc_all
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen, nhr_assimilation
   use gridmod, only: regional_time,regional_fhr
   use constants, only: izero,ione,zero,one,zero_single,r60inv
@@ -201,6 +203,7 @@ subroutine read_wrf_mass_files(mype)
   do i=1,nfldsig
      hrdifsig(i) = time_ges(i,1)
      ifilesig(i) = nint(time_ges(i+100_i_kind,1))
+     hrdifsig_all(i) = hrdifsig(i)
   end do
   if(mype == izero) write(6,*)'READ_wrf_mass_FILES:  sigma fcst files used in analysis  :  ',&
        (ifilesig(i),i=1,nfldsig),(hrdifsig(i),i=1,nfldsig),ntguessig
@@ -211,6 +214,7 @@ subroutine read_wrf_mass_files(mype)
   do i=1,nfldsfc
      hrdifsfc(i) = time_ges(i,2)
      ifilesfc(i) = nint(time_ges(i+100_i_kind,2))
+     hrdifsfc_all(i) = hrdifsfc(i)
   end do
 
 ! Below is a temporary fix. The wrf_mass regional mode does not have a surface
@@ -226,6 +230,7 @@ subroutine read_wrf_mass_files(mype)
   do i=1,nfldsfc
      hrdifsfc(i) = hrdifsig(ntguessig)
      ifilesfc(i) = ifilesig(ntguessig)
+     hrdifsfc_all(i) = hrdifsfc(i)
   end do
   if(mype == izero) write(6,*)'READ_wrf_mass_FILES:  surface fcst files used in analysis:  ',&
        (ifilesfc(i),i=1,nfldsfc),(hrdifsfc(i),i=1,nfldsfc),ntguessfc

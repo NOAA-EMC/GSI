@@ -57,6 +57,7 @@ subroutine stppw(pwhead,rq,sq,out,sges,nstep)
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !
 !   input argument list:
 !     pwhead
@@ -78,24 +79,24 @@ subroutine stppw(pwhead,rq,sq,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: pw_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,zero,tpwcon,half,one,two,tiny_r_kind,cg_term,zero_quad,&
+  use constants, only: zero,tpwcon,half,one,two,tiny_r_kind,cg_term,zero_quad,&
        r3600
   use gridmod, only: latlon1n,latlon11,nsig
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
-  type(pw_ob_type),pointer               ,intent(in   ) :: pwhead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: rq,sq
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(pw_ob_type),pointer            ,intent(in   ) :: pwhead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: rq,sq
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables  
   integer(i_kind) i1,i2,i3,i4,k,kk
   real(r_kind) val,val2,w1,w2,w3,w4,time_pw,pg_pw
   real(r_kind) cg_pw,pw,wgross,wnotgross,pwx
-  real(r_kind),dimension(max(ione,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen
   type(pw_ob_type), pointer :: pwptr
 
 
@@ -104,7 +105,7 @@ subroutine stppw(pwhead,rq,sq,out,sges,nstep)
   pwptr => pwhead
   do while (associated(pwptr))
      if(pwptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            val=zero
            val2=zero
            w1 = pwptr%wij(1)
@@ -116,10 +117,10 @@ subroutine stppw(pwhead,rq,sq,out,sges,nstep)
 !      Calculate precipitable water increment and delta precip water increment
            do k=1,nsig
  
-              i1 = pwptr%ij(1)+(k-ione)*latlon11
-              i2 = pwptr%ij(2)+(k-ione)*latlon11
-              i3 = pwptr%ij(3)+(k-ione)*latlon11
-              i4 = pwptr%ij(4)+(k-ione)*latlon11
+              i1 = pwptr%ij(1)+(k-1)*latlon11
+              i2 = pwptr%ij(2)+(k-1)*latlon11
+              i3 = pwptr%ij(3)+(k-1)*latlon11
+              i4 = pwptr%ij(4)+(k-1)*latlon11
               val =val +(w1* rq(i1)+w2* rq(i2)&
                        + w3* rq(i3)+w4* rq(i4))*tpwcon * pwptr%dp(k)
               val2=val2+(w1* sq(i1)+w2* sq(i2)&
@@ -159,7 +160,7 @@ subroutine stppw(pwhead,rq,sq,out,sges,nstep)
            cg_pw=cg_term/pwptr%b
            wnotgross= one-pg_pw
            wgross = pg_pw*cg_pw/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk) = -two*log((exp(-half*pen(kk)) + wgross)/(one+wgross))
            end do
         endif

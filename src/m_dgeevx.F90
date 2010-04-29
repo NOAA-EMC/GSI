@@ -1,3 +1,28 @@
+module m_dgeevx
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 module m_dgeevx
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:	 2010-03-24
+!
+! abstract: an alternative interface of LAPACK DGEEV()
+!
+! program history log:
+!   2010-03-24  j guo   - added this document block
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
+! module interface:
+
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
 !BOP -------------------------------------------------------------------
@@ -8,7 +33,6 @@
 !
 ! !INTERFACE:
 
-    module m_dgeevx
       implicit none
       private   ! except
 

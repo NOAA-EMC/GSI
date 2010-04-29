@@ -250,6 +250,7 @@ clean:
         get_gefs_ensperts_dualres.f90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
+	getsiga.F90 \
 	getuv.f90 \
 	getvvel.f90 \
 	glbsoi.F90 \
@@ -267,8 +268,8 @@ clean:
 	guess_grids.F90 \
 	half_nmm_grid2.f90 \
 	hilbert_curve.f90 \
-        hybrid_ensemble_isotropic_regional.f90 \
         hybrid_ensemble_isotropic_global.f90 \
+        hybrid_ensemble_isotropic_regional.F90 \
         hybrid_ensemble_parameters.f90 \
         inc2guess.f90 \
 	init_commvars.f90 \
@@ -309,7 +310,10 @@ clean:
 	m_berror_stats.F90 \
         m_berror_stats_reg.f90 \
 	m_dgeevx.F90 \
+	m_dtime.F90	\
  	m_gsiBiases.F90 \
+	m_obdiag.F90	\
+	m_rhs.F90	\
         m_stats.F90 \
         m_tick.F90 \
         mpeu_mpif.F90 \

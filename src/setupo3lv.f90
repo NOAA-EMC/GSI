@@ -8,27 +8,31 @@
 ! !INTERFACE:
 
 subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
-              obstype,ozone_diagsave)
+              obstype,ozone_diagsave,init_pass,last_pass)
 
 ! !USES
 
+  use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,i_kind
 
   use obsmod, only: o3ltail,o3lhead,dplat,i_o3l_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,dirname,&
                     ianldate,time_offset,mype_diaghdr
+  use obsmod, only: o3l_ob_type
+  use obsmod, only: obs_diag
   use oneobmod, only: oneobtest,maginnov,magoberr,pctswitch
   use guess_grids, only: ges_lnprsl,ges_oz,hrdifsig,nfldsig,ges_ps
   use gridmod, only: nsig
   use gridmod, only: get_ijk
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use constants, only: izero,ione,zero,one,four,r1000,wgtlim
+  use constants, only: zero,one,four,r1000,wgtlim
   use constants, only: tiny_r_kind,half,two,cg_term
   use constants, only: constoz
   use qcmod, only: npres_print,ptopo3,pboto3,dfact,dfact1
   use jfunc, only: jiter,last, miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
 
+  use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
 
 
@@ -42,10 +46,11 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
   integer(i_kind)                                  , intent(in   ) :: is     ! integer(i_kind) counter for number of obs types to process
   character(10)                                    , intent(in   ) :: obstype          ! type of ozone obs
   logical                                          , intent(in   ) :: ozone_diagsave ! switch on diagnostic output (.false.=no output)
+  logical                                          , intent(in   ) :: init_pass,last_pass	! state of "setup" processing
 
 ! !INPUT/OUTPUT PARAMETERS:
   
-  real(r_kind),dimension(100_i_kind+7*nsig)        , intent(inout) :: owork   ! data counts and gross chk
+  real(r_kind),dimension(100+7*nsig)               , intent(inout) :: owork   ! data counts and gross chk
   real(r_kind),dimension(npres_print,nconvtype,5,3), intent(inout) :: bwork ! obs-ges statistics
   
 ! !DESCRIPTION:
@@ -74,6 +79,8 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 !  2008-12-30  todling      - remove unused vars
 !  2009-01-20  Sienkiewicz  - adjust for new analysis (g/g not Dobson units)
 !  2009-04-28  Sienkiewicz  - adjust 'one-ob' test, add pctswitch option
+!  2009-08-19  guo          - changed for multi-pass setup with dtime_check().
+!  2009-12-08  guo          - cleaned diag output rewind with open(position='rewind')
 !
 ! !REMARKS:
 !   language: f90
@@ -86,6 +93,12 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 ! Declare local parameters
   real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r0_001 = 0.001_r_kind
+
+! Declare external calls for code analysis
+  external:: tintrp2a
+  external:: tintrp3
+  external:: grdcrd
+  external:: stop2
 
 ! Declare local variables    
 
@@ -114,26 +127,35 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
   character(128)diag_o3lev_file
   character(12) string
 
+  logical:: in_curbin, in_anybin
+  integer(i_kind),dimension(nobs_bins) :: n_alloc
+  integer(i_kind),dimension(nobs_bins) :: m_alloc
+  type(o3l_ob_type),pointer:: my_head
+  type(obs_diag),pointer:: my_diag
+  character(len=*),parameter:: myname="setupo3lv"
+
+  n_alloc(:)=0
+  m_alloc(:)=0
 
 !*******************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse
 
-  isat=ione          ! index of satellite
-  itime=2_i_kind     ! index of observation time in data array
-  ilon=3_i_kind      ! index of grid relative obs location (x)
-  ilat=4_i_kind      ! index of grid relative obs location (y)
-  ilone=5_i_kind     ! index of longitude (degrees)
-  ilate=6_i_kind     ! index of latitude (degrees)
-  io3ob=7_i_kind     ! index of o3 level observation (gm/gm)
-  ipres=8_i_kind     ! index of pressure
-  id= 9_i_kind       ! index of sounding/retrieval id
-  ikxx=10_i_kind     ! index of ob type
-  iuse=11_i_kind     ! index of use parameter
-  ier=12_i_kind      ! index of obs error
-  istat = 13_i_kind  ! index of status flag
-  iqual = 14_i_kind  ! index of quality flag
-  iprec = 15_i_kind  ! index of precision value
+  isat=1      ! index of satellite
+  itime=2     ! index of observation time in data array
+  ilon=3      ! index of grid relative obs location (x)
+  ilat=4      ! index of grid relative obs location (y)
+  ilone=5     ! index of longitude (degrees)
+  ilate=6     ! index of latitude (degrees)
+  io3ob=7     ! index of o3 level observation (gm/gm)
+  ipres=8     ! index of pressure
+  id= 9       ! index of sounding/retrieval id
+  ikxx=10     ! index of ob type
+  iuse=11     ! index of use parameter
+  ier=12      ! index of obs error
+  istat = 13  ! index of status flag
+  iqual = 14  ! index of quality flag
+  iprec = 15  ! index of precision value
 
 
 ! Set flag for observation use, based on current outer iteration
@@ -147,7 +169,7 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 ! adjustment
   dup=one
   do k=1,nobs
-     do l=k+ione,nobs
+     do l=k+1,nobs
         if(data(ilat,k) == data(ilat,l) .and.  &
              data(ilon,k) == data(ilon,l) .and.  &
              data(ipres,k) == data(ipres,l) .and. &
@@ -163,66 +185,80 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 
 ! If requested, save select data for output to diagnostic file
   if(ozone_diagsave)then
-     ii=izero
-     nreal=15_i_kind
-     if (lobsdiagsave) nreal=nreal+4*miter+ione
+     ii=0
+     nreal=15
+     if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(rdiagbuf(nreal,nobs))
   end if
 
   rsig=float(nsig)
 
-  mm1=mype+ione
+  mm1=mype+1
 
   scale=one
 
 ! Prepare ozone level data
+  call dtime_setup()
   do i=1,nobs
-
-! Convert obs lats and lons to grid coordinates
-     dlat=data(ilat,i)
-     dlon=data(ilon,i)
-     dpres=data(ipres,i)
      dtime=data(itime,i)
-     error=data(ier,i)
-     ikx=nint(data(ikxx,i))
+     call dtime_check(dtime, in_curbin, in_anybin)
+     if(.not.in_anybin) cycle
+
+     if(in_curbin) then
+! Convert obs lats and lons to grid coordinates
+        dlat=data(ilat,i)
+        dlon=data(ilon,i)
+        dpres=data(ipres,i)
+ 
+        error=data(ier,i)
+        ikx=nint(data(ikxx,i))
+     endif
 
 !    Link observation to appropriate observation bin
-     if (nobs_bins>ione) then
-        ibin = NINT( dtime/hr_obsbin ) + ione
+     if (nobs_bins>1) then
+        ibin = NINT( dtime/hr_obsbin ) + 1
      else
-        ibin = ione
+        ibin = 1
      endif
-     IF (ibin<ione.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+     IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
      if (.not.lobsdiag_allocated) then
         if (.not.associated(obsdiags(i_o3l_ob_type,ibin)%head)) then
            allocate(obsdiags(i_o3l_ob_type,ibin)%head,stat=istat)
-           if (istat/=izero) then
+           if (istat/=0) then
               write(6,*)'setupo3l: failure to allocate obsdiags',istat
               call stop2(256)
            end if
            obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%head
         else
            allocate(obsdiags(i_o3l_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=izero) then
+           if (istat/=0) then
               write(6,*)'setupo3l: failure to allocate obsdiags',istat
               call stop2(257)
            end if
            obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%tail%next
         end if
-        allocate(obsdiags(i_o3l_ob_type,ibin)%tail%muse(miter+ione))
-        allocate(obsdiags(i_o3l_ob_type,ibin)%tail%nldepart(miter+ione))
+
+        allocate(obsdiags(i_o3l_ob_type,ibin)%tail%muse(miter+1))
+        allocate(obsdiags(i_o3l_ob_type,ibin)%tail%nldepart(miter+1))
         allocate(obsdiags(i_o3l_ob_type,ibin)%tail%tldepart(miter))
         allocate(obsdiags(i_o3l_ob_type,ibin)%tail%obssen(miter))
         obsdiags(i_o3l_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_o3l_ob_type,ibin)%tail%nchnperobs=-99999_i_kind
+        obsdiags(i_o3l_ob_type,ibin)%tail%nchnperobs=-99999
         obsdiags(i_o3l_ob_type,ibin)%tail%luse=.false.
         obsdiags(i_o3l_ob_type,ibin)%tail%muse(:)=.false.
         obsdiags(i_o3l_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
         obsdiags(i_o3l_ob_type,ibin)%tail%tldepart(:)=zero
         obsdiags(i_o3l_ob_type,ibin)%tail%wgtjo=-huge(zero)
         obsdiags(i_o3l_ob_type,ibin)%tail%obssen(:)=zero
+
+        n_alloc(ibin) = n_alloc(ibin) +1
+        my_diag => obsdiags(i_o3l_ob_type,ibin)%tail
+        my_diag%idv = is
+        my_diag%iob = i
+        my_diag%ich = 1
+
      else
         if (.not.associated(obsdiags(i_o3l_ob_type,ibin)%tail)) then
            obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%head
@@ -235,23 +271,25 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
         end if
      endif
 
+     if(.not.in_curbin) cycle
+
 ! Interpolate ps & log(pres) at mid-layers to obs locations/times
      call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-          ione,ione,mype,nfldsig)
+          1,1,mype,nfldsig)
      call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          ione,nsig,mype,nfldsig)
+          1,nsig,mype,nfldsig)
 
      preso3l =r10*exp(dpres)
 
 
 ! Pressure level of data (dpres) converted to grid coordinate
 ! (wrt mid-layer pressure)
-     call grdcrd(dpres,ione,prsltmp,nsig,-ione)
+     call grdcrd(dpres,1,prsltmp,nsig,-1)
 
 ! Get approximate k value of surface by using surface pressure
 ! for surface check.
      sfcchk=log(psges)
-     call grdcrd(sfcchk,ione,prsltmp,nsig,-ione)
+     call grdcrd(sfcchk,1,prsltmp,nsig,-1)
 
 ! Check if observation above model top or below model surface
 
@@ -276,7 +314,7 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 
 ! Interpolate guess ozone to observation location and time
      call tintrp3(ges_oz,o3ges,dlat,dlon,dpres,dtime, &
-          hrdifsig,ione,mype,nfldsig)
+          hrdifsig,1,mype,nfldsig)
 
 ! Compute innovations - background o3ges in g/g so adjust units
 ! Leave increment in ppmv for gross checks,  etc.
@@ -309,7 +347,7 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 
 ! check if gross check failed, mark failed obs for non-use
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
-     if (nobskeep>izero) muse(i)=obsdiags(i_o3l_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0) muse(i)=obsdiags(i_o3l_ob_type,ibin)%tail%muse(nobskeep)
 
 ! Compute penalty terms   (note: nonlin QC not tested)
      val = error*ddiff
@@ -333,24 +371,24 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
         valqc = -two*rat_err2*term
 
         jsig = dpres
-        jsig=max(ione,min(jsig,nsig))
+        jsig=max(1,min(jsig,nsig))
 
 ! Accumulate statistics for obs belonging to this task
         if(muse(i))then
            if(rwgt < one) owork(21) = owork(21)+one
-           owork(jsig+3*nsig+100_i_kind)=owork(jsig+3*nsig+100_i_kind)+valqc
-           owork(jsig+5*nsig+100_i_kind)=owork(jsig+5*nsig+100_i_kind)+one
-           owork(jsig+6*nsig+100_i_kind)=owork(jsig+6*nsig+100_i_kind)+val2*rat_err2
+           owork(jsig+3*nsig+100)=owork(jsig+3*nsig+100)+valqc
+           owork(jsig+5*nsig+100)=owork(jsig+5*nsig+100)+one
+           owork(jsig+6*nsig+100)=owork(jsig+6*nsig+100)+val2*rat_err2
         end if
 
 ! Loop over pressure level groupings and obs to accumulate statistics
 ! as a function of observation type.
         ress  = scale*ddiff
         ressw2= ress*ress
-        nn = ione
+        nn = 1
         if (.not. muse(i)) then
-           nn = 2_i_kind
-           if(ratio_errors*error >=tiny_r_kind)nn=3_i_kind
+           nn = 2
+           if(ratio_errors*error >=tiny_r_kind)nn=3
         end if
 
         do k = 1,npres_print
@@ -376,13 +414,18 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 
         if (.not. associated(o3lhead(ibin)%head)) then
            allocate(o3lhead(ibin)%head,stat=istat)
-           if(istat /=izero)write(6,*)'failure to write o3lhead'
+           if(istat /=0)write(6,*)'failure to write o3lhead'
            o3ltail(ibin)%head => o3lhead(ibin)%head
         else
            allocate(o3ltail(ibin)%head%llpoint,stat=istat)
-           if(istat /= izero)write(6,*)' failure to write o3ltail%llpoint '
+           if(istat /= 0)write(6,*)' failure to write o3ltail%llpoint '
            o3ltail(ibin)%head => o3ltail(ibin)%head%llpoint
         end if
+
+        m_alloc(ibin) = m_alloc(ibin) +1
+        my_head => o3ltail(ibin)%head
+        my_head%idv = is
+        my_head%iob = i
 
 ! Set (i,j,k) indices of guess gridpoint that bound obs location
         call get_ijk(mm1,dlat,dlon,dpres,&
@@ -403,13 +446,25 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
         o3ltail(ibin)%head%b       = cvar_b(ikx)
         o3ltail(ibin)%head%pg      = cvar_pg(ikx)
         o3ltail(ibin)%head%luse    = luse(i)
+
         o3ltail(ibin)%head%diags => obsdiags(i_o3l_ob_type,ibin)%tail
+
+        my_head => o3ltail(ibin)%head
+        my_diag => o3ltail(ibin)%head%diags
+        if(my_head%idv /= my_diag%idv .or. &
+           my_head%iob /= my_diag%iob ) then
+           call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                 (/is,i,ibin/))
+           call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+           call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+           call die(myname)
+	endif
 
      endif
 
 ! Save select output for diagnostic file   (still need reorganize for new)
      if(ozone_diagsave .and. luse(i))then
-        ii=ii+ione
+        ii=ii+1
         rdiagbuf(1,ii)= ictype(ikx)              ! type
         rdiagbuf(2,ii)= data(ilate,i)            ! lat
         rdiagbuf(3,ii)= data(ilone,i)            ! lon
@@ -431,25 +486,25 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
         endif
 
         if (lobsdiagsave) then
-           ioff=24_i_kind
+           ioff=24
            do jj=1,miter
-              ioff=ioff+ione
+              ioff=ioff+1
               if (obsdiags(i_o3l_ob_type,ibin)%tail%muse(jj)) then
                  rdiagbuf(ioff,ii) = one
               else
                  rdiagbuf(ioff,ii) = -one
               endif
            enddo
-           do jj=1,miter+ione
-              ioff=ioff+ione
+           do jj=1,miter+1
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_o3l_ob_type,ibin)%tail%nldepart(jj)
            enddo
            do jj=1,miter
-              ioff=ioff+ione
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_o3l_ob_type,ibin)%tail%tldepart(jj)
            enddo
            do jj=1,miter
-              ioff=ioff+ione
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_o3l_ob_type,ibin)%tail%obssen(jj)
            enddo
         endif
@@ -462,8 +517,12 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
      filex = obstype
      write(string,'(''_'',i2.2,''.'',i4.4)') jiter,mype
      diag_o3lev_file = trim(dirname) // trim(filex) // '_' // trim(dplat(is)) // string
-     open(4,file=trim(diag_o3lev_file),form='unformatted')
-     rewind(4)
+     if(init_pass) then
+       open(4,file=trim(diag_o3lev_file),form='unformatted',status='unknown',position='rewind')
+     else
+       open(4,file=trim(diag_o3lev_file),form='unformatted',status='old',position='append')
+     endif
+     call dtime_show('setupo3lv','diagsave:o3lv',i_o3l_ob_type)
      if (mype==mype_diaghdr(is)) then
         write(4) isis, dplat(is),obstype,jiter,ianldate,nreal
         write(6,*)'SETUPO3LV:   write header record for ',&

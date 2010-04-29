@@ -1,31 +1,28 @@
-!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-!       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
-!-----------------------------------------------------------------------
-!BOP
+module mpeu_mpif
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 module mpeu_mpif
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:	 2010-03-22
 !
-! !MODULE: mpeu_mpif - a portable interface to the MPI "mpif.h" COMMONs.
+! abstract: a portable interface to include "mpif.h" for MPI.
 !
-! !DESCRIPTION:
+! program history log:
+!   2010-03-22  j guo   - added this document block
 !
-!   The purpose of \verb"mpeu_mpif" module is to provide a portable
-!   interface of \verb"mpif.h" with different MPI implementation.
-!   By combining module \verb"mpeu_mpif" and \verb"mpeu_mpif90", it may be
-!   possible to build a Fortran 90 MPI binding module graduately.
+!   input argument list: see Fortran 90 style document below
 !
-!   Although it is possible to use \verb'include "mpif.h"' directly
-!   in individual modules, it has several problems:
-!   \begin{itemize}
-!   \item It may conflict with either the source code of a {\sl fixed}
-!	format or the code of a {\sl free} format;
-!   \item It does not provide the protection and the safety of using
-!	these variables as what a \verb"MODULE" would provide.
-!   \end{itemize}
+!   output argument list: see Fortran 90 style document below
 !
-!   More information may be found in the module \verb"mpeu_mpif90".
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
 !
-! !INTERFACE:
+!$$$  end subprogram documentation block
 
-	module mpeu_mpif
+! module interface:
+
 	  implicit none
 	  private	! except
 
@@ -75,6 +72,33 @@
 #ifdef MPICH_
 	  public :: MPIPRIV	! the common block name
 #endif
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+!       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
+!-----------------------------------------------------------------------
+!BOP
+!
+! !MODULE: mpeu_mpif - a portable interface to the MPI "mpif.h" COMMONs.
+!
+! !DESCRIPTION:
+!
+!   The purpose of \verb"mpeu_mpif" module is to provide a portable
+!   interface of \verb"mpif.h" with different MPI implementation.
+!   By combining module \verb"mpeu_mpif" and \verb"mpeu_mpif90", it may be
+!   possible to build a Fortran 90 MPI binding module graduately.
+!
+!   Although it is possible to use \verb'include "mpif.h"' directly
+!   in individual modules, it has several problems:
+!   \begin{itemize}
+!   \item It may conflict with either the source code of a {\sl fixed}
+!	format or the code of a {\sl free} format;
+!   \item It does not provide the protection and the safety of using
+!	these variables as what a \verb"MODULE" would provide.
+!   \end{itemize}
+!
+!   More information may be found in the module \verb"mpeu_mpif90".
+!
+! !INTERFACE:
 
 #include "mpif.h"
 

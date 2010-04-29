@@ -1,4 +1,5 @@
 module observermod
+!#define VERBOSE
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -10,6 +11,9 @@ module observermod
 !
 ! program history log:
 !   2009-01-28  todling - split observer into init/set/run/finalize
+!   2009-08-19  guo     - modified to support multi-pass observer_run
+!   2009-09-14  guo     - moved compact_diff related statements from
+!			  glbsoi here.
 !
 !   input argument list:
 !     mype - mpi task id
@@ -23,13 +27,14 @@ module observermod
 !$$$
 
   use kinds, only: i_kind
-  use constants, only: izero,ione
+  use constants, only: rearth
   use mpimod, only: mype
   use jfunc, only: miter,jiter,jiterstart,destroy_jfunc,&
        set_pointer,&
        switch_on_derivatives,tendsflag,create_jfunc
+  use gridmod, only: nlat,nlon,rlats,regional,twodvar_regional,wgtlats,nsig
   use guess_grids, only: create_ges_grids,create_sfc_grids,&
-       destroy_sfct,destroy_ges_grids,destroy_gesfinfo,destroy_sfc_grids
+       destroy_ges_grids,destroy_sfc_grids
   use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver,&
        lread_obs_skip,nprof_gps,ditype,obs_input_common
   use satthin, only: superp,super_val1,getsfc,destroy_sfc
@@ -41,9 +46,16 @@ module observermod
   use timermod, only: timer_ini, timer_fnl
   use read_obsmod, only: read_obs
   use lag_fields, only: lag_guessini
+
+  use mod_strong, only: jcstrong,jcstrong_option
+  use mod_vtrans, only: nvmodes_keep,create_vtrans,destroy_vtrans
+  use strong_slow_global_mod, only: init_strongvars_1
+  use strong_fast_global_mod, only: init_strongvars_2
+  use zrnmi_mod, only: zrnmi_initialize
+  use tendsmod, only: create_tendvars,destroy_tendvars
+  use turblmod, only: create_turblvars,destroy_turblvars
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   use guess_grids, only: create_cld_grids,destroy_cld_grids
-
 
   implicit none
 
@@ -79,7 +91,8 @@ module observermod
 
   logical,save:: iamset_         = .false.
   logical,save:: fg_initialized_ = .false.
-  logical,save:: fg_finalized_   = .false.
+
+  logical,save:: ob_initialized_ = .false.
 
 contains
 
@@ -110,6 +123,11 @@ subroutine guess_init_
 !
 !$$$
 
+  use compact_diffs,only: cdiff_created
+  use compact_diffs,only: cdiff_initialized
+  use compact_diffs,only: create_cdiff_coefs, inisph
+  use mp_compact_diffs_mod1, only: init_mp_compact_diffs1
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
@@ -120,12 +138,13 @@ subroutine guess_init_
 
 !*******************************************************************************************
 !
-  if( fg_initialized_ ) return
+  if( fg_initialized_ ) call die('observer.guess_init_','already initialized')
+  fg_initialized_ = .true.
 
 ! Allocate arrays to hold surface and sigma guess fields.
   call create_ges_grids(switch_on_derivatives,tendsflag)
   call create_bias_grids()
-  call create_sfc_grids
+  call create_sfc_grids()
 
 ! If l_cloud_analysis is true, allocate arrays for hydrometeors
   if(l_cloud_analysis) call create_cld_grids
@@ -142,16 +161,33 @@ subroutine guess_init_
 
 ! Intialize lagrangian data assimilation and read in initial position of balloons
   if(l4dvar) then
-    call lag_guessini()    ! only for 4dvar 
+    call lag_guessini()
   endif
  
 ! Read output from previous min.
-  if (l4dvar.and.jiterstart>ione) then
+  if (l4dvar.and.jiterstart>1) then
   else
   ! If requested and if available, read guess solution.
   endif
 
-  fg_initialized_ = .true.
+! Generate coefficients for compact differencing
+  if(.not.regional)then
+     if(.not.cdiff_created()) call create_cdiff_coefs()
+     if(.not.cdiff_initialized()) call inisph(rearth,rlats(2),wgtlats(2),nlon,nlat-2)
+     call init_mp_compact_diffs1(nsig+1,mype,.false.)
+  endif
+
+  if (tendsflag) then
+     call create_tendvars()
+     call create_turblvars()
+  endif
+  if ( (jcstrong) .and. nvmodes_keep>0) then
+     call create_vtrans(mype)
+     if(jcstrong_option==1) call init_strongvars_1(mype)
+     if(jcstrong_option==2) call init_strongvars_2(mype)
+     if(jcstrong_option==3) call zrnmi_initialize(mype)
+     if(jcstrong_option==4) call fmg_initialize_e(mype)
+  end if
 
 ! End of routine
 end subroutine guess_init_
@@ -182,28 +218,52 @@ subroutine init_
 !
 !$$$
 
+  use mpeu_util,only : tell, die
   implicit none
+  character(len=*),parameter:: Iam='observer_init'
 
 ! Declare passed variables
 
 ! Declare local variables
 
 
+  if(ob_initialized_) call die(Iam,'already initialized')
+  ob_initialized_=.true.
+  iamset_ = .false.
+
+#ifdef VERBOSE
+  call tell('observer.init_','entered')
+#endif
 !*******************************************************************************************
 !
 ! Initialize timer for this procedure
   call timer_ini('observer')
+  call timer_ini('observer.init_')
+#ifdef VERBOSE
+  call tell('observer.init_','timer_ini_()')
+#endif
 
 ! Initialize guess
   call guess_init_
+#ifdef VERBOSE
+  call tell('observer.init_','guess_init_()')
+#endif
 
 !     ndata(*,1)- number of prefiles retained for further processing
 !     ndata(*,2)- number of observations read
 !     ndata(*,3)- number of observations keep after read
+#ifdef VERBOSE
+  call tell('observer.init_','ndat =',ndat)
+#endif
   allocate(ndata(ndat,3))
+#ifdef VERBOSE
+  call tell('observer.init_','allocate(ndata)')
 
 
+  call tell('observer.init_','exiting')
+#endif
 ! End of routine
+  call timer_fnl('observer.init_')
 end subroutine init_
 
 subroutine set_
@@ -231,20 +291,22 @@ subroutine set_
 !
 !$$$
 
+  use mpeu_util, only: tell,die
   implicit none
+  character(len=*), parameter :: Iam="observer_set"
 
 ! Declare passed variables
 
 ! Declare local variables
   logical:: lhere,use_sfc
   integer(i_kind):: lunsave,istat1,istat2
-
-  data lunsave  / 22_i_kind /
-
+  
+  data lunsave  / 22 /
 
 !*******************************************************************************************
+  call timer_ini('observer.set_')
  
-  if ( iamset_ ) return
+  if ( iamset_ ) call die(Iam,'already set')
 
 ! Create file names for pe relative observation data.  obs_setup files are used
 ! in outer loop setup routines. 
@@ -265,7 +327,7 @@ subroutine set_
              trim(obs_input_common),' does NOT exist.  Terminate execution'
         call stop2(329)
      endif
-
+  
      open(lunsave,file=obs_input_common,form='unformatted')
      read(lunsave,iostat=istat1) ndata,superp,nprof_gps,ditype
      allocate(super_val1(0:superp))
@@ -273,7 +335,7 @@ subroutine set_
      if (istat1/=0 .or. istat2/=0) then
         if (mype==0) write(6,*)'OBSERVER_SET:  ***ERROR*** reading file ',&
              trim(obs_input_common),' istat1,istat2=',istat1,istat2,'  Terminate execution'
-        call stop2(329)
+        call stop2(329) 
      endif
      close(lunsave)
 
@@ -295,9 +357,10 @@ subroutine set_
   iamset_ = .true.
 
 ! End of routine
+  call timer_fnl('observer.set_')
 end subroutine set_
 
-subroutine run_
+subroutine run_(init_pass,last_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    observer_run       driver for gridpoint statistical 
@@ -322,20 +385,39 @@ subroutine run_
 !
 !$$$
 
+  use mpeu_util, only: tell,die
   implicit none
+  logical,optional,intent(in) :: init_pass
+  logical,optional,intent(in) :: last_pass
 
 ! Declare passed variables
 
 ! Declare local variables
+  character(len=*), parameter :: Iam="observer_run"
 
   integer(i_kind) jiterlast
   logical :: last
   character(len=12) :: clfile
+  logical :: init_pass_
+  logical :: last_pass_
+  
+  call timer_ini('observer.run_')
+  init_pass_=.false.
+  if(present(init_pass)) init_pass_=init_pass
+  last_pass_=.false.
+  if(present(last_pass)) last_pass_= last_pass
+
+#ifdef VERBOSE
+  call tell(Iam,'init_pass =',init_pass_)
+  call tell(Iam,'last_pass =',last_pass_)
+#endif
+
+  if(.not.ob_initialized_) call die(Iam,'not initialized')
 
 !*******************************************************************************************
  
-! Read observations and scatter
-  call set_
+! Read observations and scatter, if it is not already been done.
+  if(.not.iamset_) call set_
 
   jiterlast=miter
   if (l4dvar) then
@@ -344,16 +426,24 @@ subroutine run_
      write(6,*)'observer should only be called in 4dvar'
      call stop2(157)
   endif
-  if (mype==izero) write(6,*)'OBSERVER: jiterstart,jiterlast=',jiterstart,jiterlast
+#ifdef VERBOSE
+  if(mype==0) then
+     call tell(Iam,'miter =',miter)
+     call tell(Iam,'jiterstart =',jiterstart)
+     call tell(Iam,'jiterlast  =',jiterlast )
+  endif
+#endif
+  if (mype==0) write(6,*)'OBSERVER: jiterstart,jiterlast=',jiterstart,jiterlast
 
 ! Main outer analysis loop
   do jiter=jiterstart,jiterlast
 
 !    Set up right hand side of analysis equation
-     call setuprhsall(ndata,mype)
+     call setuprhsall(ndata,mype,init_pass_,last_pass_)
 
-     last  = jiter == miter+ione
-     if (l4dvar.and.(.not.last)) then
+     last  = jiter == miter+1 ! there is no obsdiags output if
+                              ! jiterstart==miter+1.  e.g. miter=2 and jiterstart=3
+     if (l4dvar.and.(.not.last) .and. last_pass_) then
         clfile='obsdiags.ZZZ'
         write(clfile(10:12),'(I3.3)') jiter
         call write_obsdiags(clfile)
@@ -363,12 +453,13 @@ subroutine run_
   end do
 
   if (.not.l4dvar) then
-     jiter=miter+ione
+     jiter=miter+1
 !    If requested, write obs-anl information to output files
-     if (write_diag(jiter)) call setuprhsall(ndata,mype)
+     if (write_diag(jiter)) call setuprhsall(ndata,mype,.true.,.true.)
 
   endif
 
+  call timer_ini('observer.run_')
 ! End of routine
 end subroutine run_
 
@@ -396,14 +487,33 @@ subroutine final_
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use compact_diffs,only: destroy_cdiff_coefs
+  use mp_compact_diffs_mod1, only: destroy_mp_compact_diffs1
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
 
 ! Declare local variables
+  integer(i_kind) error_status
+  character(len=*),parameter:: Iam="observer_final"
 
 !*******************************************************************************************
+  call timer_ini('observer.final_')
+
+  if(.not.ob_initialized_) call die(Iam,'not initialized')
+  ob_initialized_=.false.
  
+  if (tendsflag) then
+     call destroy_tendvars()
+     call destroy_turblvars()
+  endif
+  if ( (jcstrong ) .and. nvmodes_keep>0) call destroy_vtrans
+
+  if(.not.regional)then
+     call destroy_cdiff_coefs()
+     call destroy_mp_compact_diffs1()
+  endif
   call guess_final_
 
 ! Deallocate arrays
@@ -412,6 +522,7 @@ subroutine final_
   deallocate(ndata)
 
 ! Finalize timer for this procedure
+  call timer_fnl('observer.final_')
   call timer_fnl('observer')
 
 ! End of routine
@@ -442,6 +553,7 @@ subroutine guess_final_
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
@@ -449,17 +561,15 @@ subroutine guess_final_
 ! Declare local variables
 
 !*******************************************************************************************
-  if ( fg_finalized_ ) return
+  if ( .not. fg_initialized_ ) call die('observer.guess_final_','object not initialized')
+  fg_initialized_=.false.
  
 ! Deallocate remaining arrays
-  call destroy_sfct
+  if(l_cloud_analysis) call destroy_cld_grids
+  call destroy_sfc_grids()
   call destroy_ges_grids(switch_on_derivatives,tendsflag)
   call destroy_bias_grids()
   call destroy_jfunc
-  call destroy_gesfinfo
-  if(l_cloud_analysis) call destroy_cld_grids
-
-  fg_finalized_ = .true.
 
 ! End of routine
 end subroutine guess_final_

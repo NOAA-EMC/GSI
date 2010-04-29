@@ -12,6 +12,7 @@ module gsi_4dvar
 !   2007-07-10 todling  - flag to allow writing of increment
 !   2009-10-09 wu       - replace nhr_offset with min_offset and
 !                         set default 1.5 hr for regional not for 4dvar but for FGAT
+!   2010-03-16 todling  - add knob to calculate analysis error from lanczos
 !
 ! Subroutines Included:
 !   sub init_4dvar    -
@@ -27,6 +28,7 @@ module gsi_4dvar
 !   lbfgsmin          - Use L-BFGS minimizer
 !   ltlint            - Use TL inner loop (ie TL intall)
 !   lanczosave        - Save Lanczos vectors to file
+!   lsiga             - Calculate approximate analysis errors
 !   nwrvecs           - Number of precond vectors (Lanczos) or pairs of vectors (QN)
 !                       being saved
 !
@@ -61,7 +63,7 @@ module gsi_4dvar
 
 ! --------------------------------------------------------------------
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,one
+  use constants, only: one
   use geos_pertmod, only: model_init
   use geos_pertmod, only: model_clean
 ! --------------------------------------------------------------------
@@ -80,6 +82,7 @@ module gsi_4dvar
   public :: hr_obsbin,ltlint,idmodel,lwrtinc,winsub,winlen,iwinbgn
   public :: min_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
   public :: ladtest,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
+  public :: lsiga
 
   logical         :: l4dvar
   logical         :: lsqrtb
@@ -91,6 +94,7 @@ module gsi_4dvar
   logical         :: idmodel
   logical         :: lwrtinc
   logical         :: lanczosave
+  logical         :: lsiga
 
   integer(i_kind) :: iadatebgn, iadateend
   integer(i_kind) :: ibdate(5), iedate(5)
@@ -133,23 +137,24 @@ lsqrtb = .false.
 lcongrad = .false.
 lbfgsmin = .false.
 ltlint = .false.
+lsiga  = .false.
 
-nhr_assimilation=6_i_kind
-min_offset=180_i_kind
+nhr_assimilation=6
+min_offset=180
 
 if(regional)then
-   nhr_assimilation=3_i_kind
-   min_offset=90_i_kind
+   nhr_assimilation=3
+   min_offset=90
 endif
 
-nhr_subwin=-ione
-nhr_obsbin=-ione
+nhr_subwin=-1
+nhr_obsbin=-1
 ladtest=.false.
 lgrtest=.false.
 idmodel= .false.
 lwrtinc= .false.
 lanczosave = .false.
-nwrvecs=-ione
+nwrvecs=-1
 
 end subroutine init_4dvar
 ! --------------------------------------------------------------------
@@ -186,7 +191,7 @@ integer(i_kind) :: ibin,ierr
 winlen = real(nhr_assimilation,r_kind)
 winoff = real(min_offset/60._r_kind,r_kind)
 
-if (nhr_obsbin>izero.and.nhr_obsbin<=nhr_assimilation) then
+if (nhr_obsbin>0.and.nhr_obsbin<=nhr_assimilation) then
    hr_obsbin = real(nhr_obsbin,r_kind)
 else
    if (l4dvar) then
@@ -211,13 +216,13 @@ IF (hr_obsbin<winlen) THEN
       call stop2(132)
    ENDIF
 ELSE
-   ibin = izero
+   ibin = 0
 ENDIF
 
-nobs_bins = ibin + ione
+nobs_bins = ibin + 1
 
 ! Setup weak constraint 4dvar
-if (nhr_subwin<=izero) nhr_subwin = nhr_assimilation
+if (nhr_subwin<=0) nhr_subwin = nhr_assimilation
 winsub = real(nhr_subwin,r_kind)
 
 IF (nhr_subwin<nhr_assimilation) THEN
@@ -228,17 +233,17 @@ IF (nhr_subwin<nhr_assimilation) THEN
       call stop2(133)
    ENDIF
 ELSE
-   nsubwin = ione
+   nsubwin = 1
 ENDIF
 
-if (nwrvecs<izero) then
-   if (lbfgsmin) nwrvecs=10_i_kind
-   if (lcongrad) nwrvecs=20_i_kind
+if (nwrvecs<0) then
+   if (lbfgsmin) nwrvecs=10
+   if (lcongrad) nwrvecs=20
 endif
 
 !! Consistency check: presently, can only write inc when miter=1
 !if (lwrtinc) then
-!   if (miter>ione) then
+!   if (miter>1) then
 !      write(6,*) 'SETUP_4DVAR: Not able to write increment when miter>1, lwrtinc,miter=',lwrtinc,miter
 !      write(6,*)'SETUP_4DVAR: Unable to fullfil request for increment output'
 !      call stop2(134)
@@ -250,7 +255,7 @@ if (lwrtinc .neqv. l4dvar) then
 end if
 
 ! Prints
-if (mype==izero) then
+if (mype==0) then
    write(6,*)'SETUP_4DVAR: l4dvar=',l4dvar
    write(6,*)'SETUP_4DVAR: winlen=',winlen
    write(6,*)'SETUP_4DVAR: winoff=',winoff
@@ -264,6 +269,7 @@ if (mype==izero) then
    write(6,*)'SETUP_4DVAR: ladtest,lgrtest=',ladtest,lgrtest
    write(6,*)'SETUP_4DVAR: lwrtinc=',lwrtinc
    write(6,*)'SETUP_4DVAR: lanczosave=',lanczosave
+   write(6,*)'SETUP_4DVAR: lsiga=',lsiga
    write(6,*)'SETUP_4DVAR: nwrvecs=',nwrvecs
 endif
 
@@ -307,8 +313,8 @@ imo=ihr/10000
 ihr=ihr-10000*imo
 idy=ihr/100
 ihr=ihr-100*idy
-call w3fs21((/iyr,imo,idy,ihr,izero/),nmin_obs)
-if (MOD(nmin_obs,60_i_kind)/=izero) then
+call w3fs21((/iyr,imo,idy,ihr,0/),nmin_obs)
+if (MOD(nmin_obs,60)/=0) then
    write(6,*)'time_4dvar: minutes should be 0',nmin_obs
    call stop2(136)
 end if

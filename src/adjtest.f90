@@ -9,7 +9,9 @@ module adjtest
 !
 ! program history log:
 !   2007-05-09  tremolet - initial code
-!   2009-08-14  lueken - update documentation
+!   2009-08-14  lueken   - update documentation
+!   2010-01-07  todling  - add test for state-vector
+!                        - bias-component only contributes to dotp on pe=0
 !
 ! subroutines included:
 !   sub adtest
@@ -23,8 +25,8 @@ module adjtest
 !$$$ end documentation block
 
 use kinds, only: r_kind,i_kind
-use gsi_4dvar, only: nsubwin
-use constants, only: izero, zero, two
+use gsi_4dvar, only: lsqrtb, nsubwin
+use constants, only: zero, two
 use jfunc, only: nrclen
 use mpimod, only: mype
 use control_vectors
@@ -71,10 +73,10 @@ type(control_vector), optional, intent(in   ) :: xhat
 ! Declare local variables  
 type(state_vector) :: stest1(nsubwin),stest2(nsubwin)
 type(predictors) :: sbias1,sbias2
-integer(i_kind) :: ii
-real(r_kind) :: zz1,zz2,zz3,zz4
+integer(i_kind) :: ii,idig
+real(r_kind) :: zz1,zz2,zz3
 
-if (mype==izero) write(6,*)'ADTEST starting'
+if (mype==0) write(6,*)'ADTEST starting'
 
 ! ----------------------------------------------------------------------
 ! Allocate local variables
@@ -90,8 +92,10 @@ call allocate_preds(sbias2)
 ! Initialize control space vectors
 if (present(xhat)) then
    xtest1=xhat
+   if (mype==0) write(6,*)'ADTEST use input xhat'
 else
    call random_cv(xtest1)
+   if (mype==0) write(6,*)'ADTEST use random_cv(xhat)'
 endif
 xtest2=zero
 
@@ -104,12 +108,20 @@ sbias1=zero
 sbias2=zero
 
 ! Run test
-call control2model(xtest1,stest1,sbias1)
+if(lsqrtb)then
+   call control2model(xtest1,stest1,sbias1)
+else
+   call control2state(xtest1,stest1,sbias1)
+endif
 do ii=1,nsubwin
    stest2(ii)=stest1(ii)
 enddo
 sbias2=sbias1
-call model2control(stest2,sbias2,xtest2)
+if(lsqrtb)then
+   call model2control(stest2,sbias2,xtest2)
+else
+   call state2control(stest2,sbias2,xtest2)
+endif
 
 ! Diagnostics
 zz1=dot_product(xtest1,xtest2)
@@ -127,15 +139,15 @@ if ( abs(zz1+zz2) > sqrt(tiny(zz3)) ) then
 else
    zz3=abs(zz1-zz2)
 endif
-zz4 = zz3/epsilon(zz3)
+idig= int(-log(zz3+tiny(zz3))/log(10.0_r_kind))
 
-if (mype==izero) then
+if (mype==0) then
    write(6,'(A)')' ADTEST            0.123456789012345678'
    write(6,'(A,ES24.18)')' ADTEST <F*F.Y,X>= ',zz1
    write(6,'(A,ES24.18)')' ADTEST <F.Y,F.Y>= ',zz2
+   write(6,'(A,i3,   A)')' ADTEST ',idig,' digits are identical'
    write(6,'(A,ES24.18)')' ADTEST rel. err.= ',zz3
-   write(6,'(A,F10.2,A)')' ADTEST The difference is ',zz4, &
-    & ' times machine precision.'
+   write(6,'(A,ES24.18)')' ADTEST mach.eps = ',epsilon(zz3)
 endif
 
 ! Release local variables
@@ -149,7 +161,7 @@ call deallocate_preds(sbias1)
 call deallocate_preds(sbias2)
 ! ----------------------------------------------------------------------
 
-if (mype==izero) write(6,*)'ADTEST finished'
+if (mype==0) write(6,*)'ADTEST finished'
 
 return
 end subroutine adtest

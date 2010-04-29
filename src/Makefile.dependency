@@ -1,4 +1,4 @@
-GSI_GridCompMod.o : GSI_GridCompMod.F90 xhat_vordivmod.o compact_diffs.o obsmod.o kinds.o gsi_4dvar.o mpimod.o gridmod.o guess_grids.o m_tick.o general_specmod.o constants.o mpeu_util.o gsimod.o 
+GSI_GridCompMod.o : GSI_GridCompMod.F90 xhat_vordivmod.o compact_diffs.o kinds.o gsi_4dvar.o mpimod.o gridmod.o guess_grids.o obsmod.o m_tick.o general_specmod.o constants.o mpeu_util.o gsimod.o 
 abor1.o : abor1.f90 mpimod.o kinds.o 
 adjtest.o : adjtest.f90 bias_predictors.o state_vectors.o control_vectors.o mpimod.o jfunc.o constants.o gsi_4dvar.o kinds.o 
 anberror.o : anberror.f90 mpimod.o jfunc.o constants.o control_vectors.o fgrid2agrid_mod.o gridmod.o berror.o raflib.o kinds.o 
@@ -16,7 +16,7 @@ bkerror.o : bkerror.f90 timermod.o control_vectors.o constants.o jfunc.o gridmod
 bkgcov.o : bkgcov.f90 jfunc.o control_vectors.o gridmod.o constants.o kinds.o 
 bkgvar.o : bkgvar.f90 control_vectors.o jfunc.o guess_grids.o gridmod.o berror.o balmod.o constants.o kinds.o 
 bkgvar_rewgt.o : bkgvar_rewgt.f90 berror.o balmod.o mpimod.o guess_grids.o gridmod.o constants.o kinds.o 
-blacklist.o : blacklist.f90 constants.o kinds.o 
+blacklist.o : blacklist.f90 kinds.o 
 calc_fov_conical.o : calc_fov_conical.f90 constants.o calc_fov_crosstrk.o kinds.o 
 calc_fov_crosstrk.o : calc_fov_crosstrk.f90 constants.o kinds.o 
 calctends.o : calctends.f90 tendsmod.o constants.o gridmod.o kinds.o 
@@ -25,12 +25,12 @@ calctends_no_ad.o : calctends_no_ad.F90 guess_grids.o tendsmod.o constants.o gri
 calctends_no_tl.o : calctends_no_tl.F90 guess_grids.o tendsmod.o constants.o gridmod.o kinds.o 
 calctends_tl.o : calctends_tl.F90 guess_grids.o tendsmod.o constants.o gridmod.o kinds.o 
 combine_radobs.o : combine_radobs.f90 mpimod.o constants.o kinds.o 
-compact_diffs.o : compact_diffs.f90 gridmod.o constants.o kinds.o 
-compute_derived.o : compute_derived.f90 anisofilter_glb.o anisofilter.o anberror.o sub2fslab_mod.o constants.o obsmod.o mod_strong.o balmod.o berror.o gridmod.o guess_grids.o mpimod.o control_vectors.o jfunc.o kinds.o 
+compact_diffs.o : compact_diffs.f90 constants.o gridmod.o mpeu_util.o kinds.o 
+compute_derived.o : compute_derived.f90 mpeu_util.o anisofilter_glb.o anisofilter.o anberror.o sub2fslab_mod.o constants.o hybrid_ensemble_isotropic_regional.o hybrid_ensemble_parameters.o obsmod.o mod_strong.o balmod.o berror.o gridmod.o guess_grids.o mpimod.o control_vectors.o jfunc.o kinds.o 
 compute_fact10.o : compute_fact10.f90 constants.o kinds.o 
 compute_qvar3d.o : compute_qvar3d.f90 guess_grids.o constants.o gridmod.o control_vectors.o jfunc.o berror.o kinds.o 
 constants.o : constants.f90 kinds.o 
-control2model.o : control2model.f90 balmod.o berror.o jfunc.o gridmod.o gsi_4dvar.o bias_predictors.o state_vectors.o control_vectors.o constants.o kinds.o 
+control2model.o : control2model.f90 balmod.o berror.o jfunc.o gridmod.o gsi_4dvar.o bias_predictors.o state_vectors.o control_vectors.o kinds.o 
 control2state.o : control2state.f90 hybrid_ensemble_isotropic_regional.o balmod.o hybrid_ensemble_parameters.o jfunc.o gridmod.o gsi_4dvar.o bias_predictors.o state_vectors.o control_vectors.o constants.o kinds.o 
 control_vectors.o : control_vectors.f90 m_stats.o gridmod.o hybrid_ensemble_parameters.o mpl_allreduce.o gsi_4dvar.o constants.o mpimod.o kinds.o 
 converr.o : converr.f90 obsmod.o constants.o kinds.o 
@@ -58,16 +58,17 @@ gengrid_vars.o : gengrid_vars.f90 constants.o gridmod.o kinds.o
 genqsat.o : genqsat.f90 guess_grids.o gridmod.o jfunc.o constants.o kinds.o 
 genstats_gps.o : genstats_gps.f90 convinfo.o gsi_4dvar.o jfunc.o mpimod.o qcmod.o constants.o gridmod.o obsmod.o kinds.o 
 geos_pertmod.o : geos_pertmod.F90 state_vectors.o constants.o gsi_io.o gridmod.o mpimod.o kinds.o 
-geos_pgcmtest.o : geos_pgcmtest.F90 state_vectors.o constants.o gsi_4dvar.o kinds.o 
+geos_pgcmtest.o : geos_pgcmtest.F90 state_vectors.o constants.o gsi_4dvar.o mpimod.o kinds.o 
 gesinfo.o : gesinfo.F90 constants.o gridmod.o mpimod.o gsi_4dvar.o obsmod.o kinds.o 
 get_derivatives.o : get_derivatives.f90 control_vectors.o mpimod.o compact_diffs.o gridmod.o constants.o kinds.o 
 get_derivatives2.o : get_derivatives2.f90 hybrid_ensemble_parameters.o mpimod.o compact_diffs.o gridmod.o constants.o kinds.o 
 get_gefs_ensperts_dualres.o : get_gefs_ensperts_dualres.f90 general_sub2grid_mod.o kinds.o mpimod.o constants.o hybrid_ensemble_isotropic_regional.o hybrid_ensemble_parameters.o gridmod.o 
 get_semimp_mats.o : get_semimp_mats.f90 gridmod.o constants.o kinds.o 
 getprs.o : getprs.f90 compact_diffs.o mpimod.o guess_grids.o gridmod.o constants.o kinds.o 
+getsiga.o : getsiga.F90 state_vectors.o lanczos.o jfunc.o gsi_4dvar.o constants.o mpimod.o kinds.o 
 getuv.o : getuv.f90 compact_diffs.o mpimod.o gridmod.o constants.o kinds.o 
 getvvel.o : getvvel.f90 guess_grids.o tendsmod.o gridmod.o constants.o kinds.o 
-glbsoi.o : glbsoi.F90 hybrid_ensemble_isotropic_regional.o hybrid_ensemble_parameters.o timermod.o observer.o mp_compact_diffs_mod1.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o mod_vtrans.o mod_strong.o converr.o pcpinfo.o radinfo.o control_vectors.o pcgsoi.o gsi_4dvar.o jcmod.o smooth_polcarf.o obs_sensitivity.o turblmod.o obsmod.o tendsmod.o guess_grids.o gridmod.o compact_diffs.o balmod.o berror.o anisofilter_glb.o anisofilter.o anberror.o jfunc.o mpimod.o constants.o kinds.o 
+glbsoi.o : glbsoi.F90 hybrid_ensemble_isotropic_regional.o hybrid_ensemble_parameters.o timermod.o observer.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o converr.o pcpinfo.o radinfo.o control_vectors.o pcgsoi.o gsi_4dvar.o jcmod.o smooth_polcarf.o obs_sensitivity.o turblmod.o obsmod.o guess_grids.o gridmod.o compact_diffs.o balmod.o berror.o anisofilter_glb.o anisofilter.o anberror.o jfunc.o mpimod.o constants.o kinds.o 
 global_mean.o : global_mean.f90 constants.o gridmod.o kinds.o 
 grdcrd.o : grdcrd.f90 constants.o kinds.o 
 grid2sub.o : grid2sub.f90 control_vectors.o constants.o jfunc.o gridmod.o mpimod.o kinds.o 
@@ -78,9 +79,9 @@ gsi_4dvar.o : gsi_4dvar.f90 gridmod.o geos_pertmod.o constants.o kinds.o
 gsi_io.o : gsi_io.f90 mpimod.o gridmod.o constants.o kinds.o 
 gsi_nemsio_mod.o : gsi_nemsio_mod.f90 mod_nmmb_to_a.o mpimod.o regional_io.o gridmod.o nemsio_module.o constants.o kinds.o 
 gsimain.o : gsimain.F90 timermod.o gsimod.o 
-gsimod.o : gsimod.F90 rapidrefresh_cldsurf_mod.o hybrid_ensemble_parameters.o lag_traj.o lag_interp.o lag_fields.o m_berror_stats.o read_l2bufr_mod.o smooth_polcarf.o fgrid2agrid_mod.o constants.o regional_io.o gsi_io.o guess_grids.o gridmod.o mod_strong.o mod_vtrans.o tendsmod.o jcmod.o compact_diffs.o anberror.o berror.o control_vectors.o jfunc.o pcpinfo.o qcmod.o turblmod.o balmod.o oneobmod.o convinfo.o ozinfo.o radinfo.o mpimod.o obs_ferrscale.o gsi_4dvar.o obs_sensitivity.o obsmod.o geos_pertmod.o kinds.o 
-gsisub.o : gsisub.F90 oneobmod.o read_l2bufr_mod.o ozinfo.o convinfo.o pcpinfo.o radinfo.o mpimod.o gridmod.o observer.o obsmod.o constants.o kinds.o 
-guess_grids.o : guess_grids.F90 mpimod.o regional_io.o gridmod.o constants.o kinds.o 
+gsimod.o : gsimod.F90 mpeu_util.o rapidrefresh_cldsurf_mod.o hybrid_ensemble_parameters.o lag_traj.o lag_interp.o lag_fields.o m_berror_stats.o read_l2bufr_mod.o smooth_polcarf.o fgrid2agrid_mod.o constants.o regional_io.o gsi_io.o guess_grids.o gridmod.o mod_strong.o mod_vtrans.o tendsmod.o jcmod.o compact_diffs.o anberror.o berror.o control_vectors.o jfunc.o pcpinfo.o qcmod.o turblmod.o balmod.o oneobmod.o convinfo.o ozinfo.o radinfo.o mpimod.o obs_ferrscale.o gsi_4dvar.o obs_sensitivity.o obsmod.o geos_pertmod.o kinds.o 
+gsisub.o : gsisub.F90 mpeu_util.o guess_grids.o oneobmod.o read_l2bufr_mod.o ozinfo.o convinfo.o pcpinfo.o radinfo.o mpimod.o gridmod.o observer.o obsmod.o kinds.o 
+guess_grids.o : guess_grids.F90 mpimod.o mpeu_util.o constants.o regional_io.o gridmod.o kinds.o 
 half_nmm_grid2.o : half_nmm_grid2.f90 gridmod.o constants.o kinds.o 
 hilbert_curve.o : hilbert_curve.f90 constants.o kinds.o phil1.o phil.o 
 hybrid_ensemble_isotropic_global.o : hybrid_ensemble_isotropic_global.f90 mpimod.o constants.o general_specmod.o hybrid_ensemble_parameters.o kinds.o 
@@ -120,12 +121,15 @@ lag_fields.o : lag_fields.F90 mpimod.o lag_interp.o lag_traj.o state_vectors.o g
 lag_interp.o : lag_interp.F90 constants.o gridmod.o kinds.o 
 lag_traj.o : lag_traj.F90 lag_interp.o constants.o kinds.o 
 lagmod.o : lagmod.f90 constants.o kinds.o 
-lanczos.o : lanczos.F90 timermod.o control_vectors.o jfunc.o constants.o kinds.o 
+lanczos.o : lanczos.F90 bias_predictors.o state_vectors.o gsi_4dvar.o timermod.o control_vectors.o jfunc.o constants.o kinds.o 
 looplimits.o : looplimits.f90 constants.o kinds.o 
 m_berror_stats.o : m_berror_stats.F90 guess_grids.o mpimod.o jfunc.o control_vectors.o gridmod.o constants.o kinds.o 
 m_berror_stats_reg.o : m_berror_stats_reg.f90 jfunc.o control_vectors.o guess_grids.o gridmod.o constants.o kinds.o 
 m_dgeevx.o : m_dgeevx.F90 constants.o kinds.o 
+m_dtime.o : m_dtime.F90 mpeu_util.o guess_grids.o kinds.o 
 m_gsiBiases.o : m_gsiBiases.F90 guess_grids.o state_vectors.o gridmod.o jfunc.o constants.o kinds.o 
+m_obdiag.o : m_obdiag.F90 mytrace.H timermod.o obsmod.o mpeu_util.o kinds.o 
+m_rhs.o : m_rhs.F90 mytrace.H convinfo.o gridmod.o qcmod.o ozinfo.o radinfo.o obsmod.o constants.o mpeu_util.o kinds.o 
 m_stats.o : m_stats.F90 mpimod.o constants.o kinds.o 
 m_tick.o : m_tick.F90 constants.o kinds.o 
 missing_routines.o : missing_routines.f90 kinds.o 
@@ -139,7 +143,7 @@ model_tl.o : model_tl.F90 lag_traj.o lag_fields.o timermod.o m_tick.o geos_pertm
 mp_compact_diffs_mod1.o : mp_compact_diffs_mod1.f90 compact_diffs.o mpimod.o gridmod.o constants.o kinds.o 
 mp_compact_diffs_support.o : mp_compact_diffs_support.f90 constants.o kinds.o 
 mpeu_mpif.o : mpeu_mpif.F90 
-mpeu_util.o : mpeu_util.F90 constants.o kinds.o 
+mpeu_util.o : mpeu_util.F90 mpeu_mpif.o kinds.o 
 mpimod.o : mpimod.F90 mpeu_mpif.o constants.o kinds.o 
 mpl_allreduce.o : mpl_allreduce.f90 mpimod.o constants.o kinds.o 
 mpl_bcast.o : mpl_bcast.f90 mpimod.o constants.o kinds.o 
@@ -150,14 +154,14 @@ normal_rh_to_q.o : normal_rh_to_q.f90 gridmod.o jfunc.o constants.o kinds.o
 obs_ferrscale.o : obs_ferrscale.F90 intjo.o obsmod.o bias_predictors.o state_vectors.o mpimod.o gsi_4dvar.o constants.o kinds.o 
 obs_para.o : obs_para.f90 lag_fields.o gridmod.o obsmod.o mpimod.o jfunc.o constants.o kinds.o 
 obs_sensitivity.o : obs_sensitivity.F90 mpl_allreduce.o bias_predictors.o state_vectors.o control_vectors.o mpimod.o obsmod.o jfunc.o gsi_4dvar.o constants.o kinds.o 
-observer.o : observer.F90 rapidrefresh_cldsurf_mod.o lag_fields.o read_obs.o timermod.o m_berror_stats.o control_vectors.o m_gsiBiases.o convinfo.o gsi_4dvar.o satthin.o obsmod.o guess_grids.o jfunc.o mpimod.o constants.o kinds.o 
+observer.o : observer.F90 mpeu_util.o mp_compact_diffs_mod1.o compact_diffs.o rapidrefresh_cldsurf_mod.o turblmod.o tendsmod.o zrnmi_mod.o strong_fast_global_mod.o strong_slow_global_mod.o mod_vtrans.o mod_strong.o lag_fields.o read_obs.o timermod.o m_berror_stats.o control_vectors.o m_gsiBiases.o convinfo.o gsi_4dvar.o satthin.o obsmod.o guess_grids.o gridmod.o jfunc.o mpimod.o constants.o kinds.o 
 obsmod.o : obsmod.F90 gridmod.o mpimod.o constants.o gsi_4dvar.o kinds.o 
 omegas_ad.o : omegas_ad.f90 constants.o kinds.o 
 oneobmod.o : oneobmod.F90 obsmod.o gsi_io.o constants.o kinds.o 
 ozinfo.o : ozinfo.f90 obsmod.o mpimod.o constants.o kinds.o 
 patch2grid_mod.o : patch2grid_mod.f90 fgrid2agrid_mod.o smooth_polcarf.o gridmod.o anberror.o constants.o kinds.o 
-pcgsoi.o : pcgsoi.f90 hybrid_ensemble_parameters.o projmethod_support.o timermod.o xhat_vordivmod.o bias_predictors.o state_vectors.o control_vectors.o mod_strong.o stpcalc.o intall.o mpimod.o anberror.o constants.o gridmod.o gsi_4dvar.o jfunc.o obsmod.o qcmod.o kinds.o 
-pcgsqrt.o : pcgsqrt.f90 control_vectors.o mpimod.o constants.o jfunc.o kinds.o 
+pcgsoi.o : pcgsoi.f90 hybrid_ensemble_parameters.o projmethod_support.o timermod.o xhat_vordivmod.o bias_predictors.o state_vectors.o control_vectors.o adjtest.o mod_strong.o stpcalc.o intall.o mpimod.o anberror.o constants.o gridmod.o gsi_4dvar.o jfunc.o obsmod.o qcmod.o kinds.o 
+pcgsqrt.o : pcgsqrt.f90 timermod.o control_vectors.o mpimod.o constants.o jfunc.o kinds.o 
 pcp_k.o : pcp_k.f90 gridmod.o pcpinfo.o constants.o kinds.o 
 pcpinfo.o : pcpinfo.f90 mpimod.o gridmod.o obsmod.o constants.o kinds.o 
 penal.o : penal.f90 state_vectors.o convinfo.o jfunc.o converr.o obsmod.o gsi_4dvar.o constants.o mpimod.o kinds.o 
@@ -176,11 +180,14 @@ q_diag.o : q_diag.f90 gridmod.o constants.o mpimod.o jfunc.o guess_grids.o kinds
 qcmod.o : qcmod.f90 constants.o kinds.o 
 qcssmi.o : qcssmi.f90 constants.o kinds.o 
 qnewton.o : qnewton.f90 jfunc.o qcmod.o control_vectors.o mpimod.o constants.o kinds.o 
-qnewton3.o : qnewton3.F90 jfunc.o qcmod.o control_vectors.o mpimod.o constants.o kinds.o 
+qnewton3.o : qnewton3.F90 timermod.o jfunc.o qcmod.o control_vectors.o mpimod.o constants.o kinds.o 
 radinfo.o : radinfo.f90 mpimod.o obsmod.o constants.o kinds.o 
 raflib.o : raflib.f90 plib8.o constants.o mpimod.o kinds.o 
 rapidrefresh_cldsurf_mod.o : rapidrefresh_cldsurf_mod.f90 kinds.o 
 rdgrbsst.o : rdgrbsst.f90 constants.o kinds.o 
+read_Lightning.o : read_Lightning.f90 gsi_4dvar.o convinfo.o constants.o kinds.o 
+read_NASA_LaRC.o : read_NASA_LaRC.f90 gsi_4dvar.o convinfo.o constants.o kinds.o 
+read_RadarRef_mosaic.o : read_RadarRef_mosaic.f90 gsi_4dvar.o convinfo.o constants.o kinds.o 
 read_airs.o : read_airs.f90 calc_fov_crosstrk.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_amsre.o : read_amsre.f90 guess_grids.o calc_fov_conical.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_avhrr.o : read_avhrr.f90 gsi_4dvar.o radinfo.o constants.o gridmod.o satthin.o kinds.o 
@@ -196,16 +203,13 @@ read_iasi.o : read_iasi.f90 calc_fov_crosstrk.o gsi_4dvar.o constants.o gridmod.
 read_l2bufr_mod.o : read_l2bufr_mod.f90 obsmod.o mpimod.o constants.o kinds.o 
 read_lag.o : read_lag.F90 lag_fields.o gsi_4dvar.o convinfo.o constants.o gridmod.o kinds.o 
 read_lidar.o : read_lidar.f90 gsi_4dvar.o obsmod.o constants.o convinfo.o gridmod.o kinds.o 
-read_Lightning.o : read_Lightning.f90 gsi_4dvar.o convinfo.o constants.o kinds.o 
 read_modsbufr.o : read_modsbufr.f90 gsi_4dvar.o obsmod.o convinfo.o gridmod.o constants.o kinds.o 
-read_NASA_LaRC.o : read_NASA_LaRC.f90 gsi_4dvar.o convinfo.o constants.o kinds.o 
-read_obs.o : read_obs.F90 pcpinfo.o ozinfo.o radinfo.o guess_grids.o converr.o mpimod.o satthin.o gridmod.o convinfo.o obsmod.o gsi_4dvar.o constants.o kinds.o 
-read_obsdiags.o : read_obsdiags.F90 radinfo.o pcpinfo.o gridmod.o lag_traj.o jfunc.o constants.o mpimod.o gsi_4dvar.o obs_sensitivity.o obsmod.o kinds.o 
+read_obs.o : read_obs.F90 pcpinfo.o ozinfo.o radinfo.o guess_grids.o converr.o constants.o mpimod.o satthin.o gridmod.o convinfo.o obsmod.o gsi_4dvar.o kinds.o 
+read_obsdiags.o : read_obsdiags.F90 mytrace.H radinfo.o pcpinfo.o gridmod.o m_obdiag.o lag_traj.o jfunc.o constants.o mpimod.o gsi_4dvar.o obs_sensitivity.o obsmod.o kinds.o timermod.o mpeu_util.o 
 read_ozone.o : read_ozone.F90 qcmod.o gsi_4dvar.o convinfo.o obsmod.o constants.o gridmod.o satthin.o kinds.o 
 read_pcp.o : read_pcp.f90 gsi_4dvar.o constants.o gridmod.o kinds.o 
 read_prepbufr.o : read_prepbufr.f90 jfunc.o sfcobsqc.o blacklist.o convthin.o qcmod.o gsi_4dvar.o converr.o obsmod.o convinfo.o gridmod.o constants.o kinds.o 
 read_radar.o : read_radar.f90 satthin.o convinfo.o gridmod.o gsi_4dvar.o obsmod.o qcmod.o constants.o kinds.o 
-read_RadarRef_mosaic.o : read_RadarRef_mosaic.f90 gsi_4dvar.o convinfo.o constants.o kinds.o 
 read_seviri.o : read_seviri.f90 gsi_4dvar.o radinfo.o obsmod.o constants.o gridmod.o satthin.o kinds.o 
 read_ssmi.o : read_ssmi.f90 gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_ssmis.o : read_ssmis.f90 calc_fov_conical.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
@@ -222,26 +226,26 @@ retrieval_mi.o : retrieval_mi.f90 constants.o kinds.o
 rfdpar.o : rfdpar.f90 constants.o kinds.o 
 rsearch.o : rsearch.F90 constants.o kinds.o 
 rtlnmc_version3.o : rtlnmc_version3.f90 hybrid_ensemble_parameters.o jfunc.o mpimod.o zrnmi_mod.o mod_vtrans.o gridmod.o constants.o kinds.o 
-satthin.o : satthin.F90 ncepgfs_io.o mpimod.o jfunc.o m_gsiBiases.o guess_grids.o gridmod.o obsmod.o constants.o kinds.o 
+satthin.o : satthin.F90 ncepgfs_io.o mpimod.o jfunc.o m_gsiBiases.o guess_grids.o gridmod.o obsmod.o constants.o mpeu_util.o kinds.o 
 setupbend.o : setupbend.f90 convinfo.o jfunc.o lagmod.o qcmod.o constants.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o 
-setupdw.o : setupdw.f90 convinfo.o jfunc.o gsi_4dvar.o obsmod.o constants.o guess_grids.o gridmod.o qcmod.o kinds.o 
-setuplag.o : setuplag.F90 lag_interp.o lag_traj.o lag_fields.o convinfo.o jfunc.o constants.o qcmod.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o 
-setupo3lv.o : setupo3lv.f90 convinfo.o jfunc.o qcmod.o constants.o gsi_4dvar.o gridmod.o guess_grids.o oneobmod.o obsmod.o kinds.o 
-setupoz.o : setupoz.f90 jfunc.o ozinfo.o guess_grids.o gridmod.o gsi_4dvar.o obsmod.o constants.o kinds.o 
-setuppcp.o : setuppcp.f90 jfunc.o constants.o gsi_4dvar.o obsmod.o guess_grids.o gridmod.o pcpinfo.o kinds.o 
-setupps.o : setupps.f90 convinfo.o guess_grids.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o obsmod.o kinds.o 
-setuppw.o : setuppw.f90 convinfo.o qcmod.o jfunc.o constants.o gsi_4dvar.o obsmod.o gridmod.o guess_grids.o kinds.o 
-setupq.o : setupq.f90 converr.o convinfo.o jfunc.o qcmod.o constants.o gridmod.o guess_grids.o oneobmod.o gsi_4dvar.o obsmod.o kinds.o 
-setuprad.o : setuprad.f90 sst_retrieval.o jfunc.o constants.o satthin.o gridmod.o gsi_4dvar.o obsmod.o guess_grids.o radinfo.o kinds.o 
+setupdw.o : setupdw.f90 m_dtime.o convinfo.o jfunc.o gsi_4dvar.o obsmod.o constants.o guess_grids.o gridmod.o qcmod.o kinds.o mpeu_util.o 
+setuplag.o : setuplag.F90 lag_interp.o lag_traj.o lag_fields.o m_dtime.o convinfo.o jfunc.o constants.o qcmod.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
+setupo3lv.o : setupo3lv.f90 m_dtime.o convinfo.o jfunc.o qcmod.o constants.o gsi_4dvar.o gridmod.o guess_grids.o oneobmod.o obsmod.o kinds.o mpeu_util.o 
+setupoz.o : setupoz.f90 m_dtime.o jfunc.o ozinfo.o guess_grids.o gridmod.o gsi_4dvar.o obsmod.o constants.o kinds.o mpeu_util.o 
+setuppcp.o : setuppcp.f90 m_dtime.o jfunc.o constants.o gsi_4dvar.o obsmod.o guess_grids.o gridmod.o pcpinfo.o kinds.o mpeu_util.o 
+setupps.o : setupps.f90 m_dtime.o convinfo.o guess_grids.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
+setuppw.o : setuppw.f90 m_dtime.o convinfo.o qcmod.o jfunc.o constants.o gsi_4dvar.o obsmod.o gridmod.o guess_grids.o kinds.o mpeu_util.o 
+setupq.o : setupq.f90 m_dtime.o converr.o convinfo.o jfunc.o qcmod.o constants.o gridmod.o guess_grids.o oneobmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
+setuprad.o : setuprad.f90 m_dtime.o sst_retrieval.o jfunc.o constants.o satthin.o gridmod.o gsi_4dvar.o obsmod.o guess_grids.o radinfo.o kinds.o mpeu_util.o 
 setupref.o : setupref.f90 convinfo.o jfunc.o qcmod.o constants.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o 
-setuprhsall.o : setuprhsall.f90 control_vectors.o lag_fields.o timermod.o convinfo.o qcmod.o jfunc.o gsi_4dvar.o gridmod.o mpimod.o ozinfo.o pcpinfo.o radinfo.o obs_sensitivity.o obsmod.o guess_grids.o constants.o kinds.o 
-setuprw.o : setuprw.f90 convinfo.o jfunc.o constants.o gridmod.o guess_grids.o qcmod.o gsi_4dvar.o obsmod.o kinds.o 
-setupspd.o : setupspd.f90 convinfo.o jfunc.o constants.o qcmod.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o 
-setupsrw.o : setupsrw.f90 convinfo.o jfunc.o constants.o qcmod.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o 
-setupsst.o : setupsst.f90 convinfo.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o obsmod.o guess_grids.o kinds.o 
-setupt.o : setupt.f90 converr.o convinfo.o constants.o guess_grids.o jfunc.o gridmod.o oneobmod.o qcmod.o gsi_4dvar.o obsmod.o kinds.o 
-setuptcp.o : setuptcp.f90 jfunc.o convinfo.o constants.o gridmod.o guess_grids.o qcmod.o gsi_4dvar.o obsmod.o kinds.o 
-setupw.o : setupw.f90 converr.o convinfo.o jfunc.o constants.o guess_grids.o gridmod.o oneobmod.o qcmod.o gsi_4dvar.o obsmod.o kinds.o 
+setuprhsall.o : setuprhsall.f90 mpeu_util.o m_rhs.o control_vectors.o lag_fields.o timermod.o convinfo.o qcmod.o jfunc.o gsi_4dvar.o gridmod.o mpimod.o ozinfo.o pcpinfo.o radinfo.o obs_sensitivity.o obsmod.o guess_grids.o constants.o kinds.o 
+setuprw.o : setuprw.f90 m_dtime.o convinfo.o jfunc.o constants.o gridmod.o guess_grids.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
+setupspd.o : setupspd.f90 m_dtime.o convinfo.o jfunc.o constants.o qcmod.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
+setupsrw.o : setupsrw.f90 m_dtime.o convinfo.o jfunc.o constants.o qcmod.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
+setupsst.o : setupsst.f90 m_dtime.o convinfo.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o obsmod.o guess_grids.o kinds.o mpeu_util.o 
+setupt.o : setupt.f90 m_dtime.o converr.o convinfo.o constants.o guess_grids.o jfunc.o gridmod.o oneobmod.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
+setuptcp.o : setuptcp.f90 m_dtime.o jfunc.o convinfo.o constants.o gridmod.o guess_grids.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
+setupw.o : setupw.f90 m_dtime.o converr.o convinfo.o jfunc.o constants.o guess_grids.o gridmod.o oneobmod.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
 setupyobs.o : setupyobs.f90 gsi_4dvar.o obsmod.o kinds.o 
 sfc_model.o : sfc_model.f90 constants.o kinds.o 
 sfcobsqc.o : sfcobsqc.f90 constants.o kinds.o 
@@ -251,7 +255,7 @@ smooth_polcarf.o : smooth_polcarf.f90 berror.o gridmod.o constants.o kinds.o
 smoothrf.o : smoothrf.f90 jfunc.o smooth_polcarf.o mpimod.o berror.o constants.o gridmod.o kinds.o 
 smoothwwrf.o : smoothwwrf.f90 constants.o kinds.o 
 smoothzrf.o : smoothzrf.f90 berror.o balmod.o gridmod.o constants.o kinds.o 
-sqrtmin.o : sqrtmin.f90 timermod.o obs_ferrscale.o state_vectors.o control_vectors.o adjtest.o lanczos.o qnewton3.o obsmod.o obs_sensitivity.o mpimod.o constants.o qcmod.o jfunc.o gsi_4dvar.o kinds.o 
+sqrtmin.o : sqrtmin.f90 timermod.o obs_ferrscale.o state_vectors.o control_vectors.o grtest.o adjtest.o lanczos.o qnewton3.o obsmod.o obs_sensitivity.o mpimod.o constants.o qcmod.o jfunc.o gsi_4dvar.o kinds.o 
 sst_retrieval.o : sst_retrieval.f90 obsmod.o gridmod.o gsi_io.o constants.o radinfo.o kinds.o 
 state2control.o : state2control.f90 hybrid_ensemble_isotropic_regional.o balmod.o hybrid_ensemble_parameters.o jfunc.o gridmod.o gsi_4dvar.o bias_predictors.o state_vectors.o control_vectors.o constants.o kinds.o 
 state_vectors.o : state_vectors.f90 mpl_allreduce.o mpimod.o constants.o kinds.o 
@@ -266,7 +270,7 @@ stpcld.o : stpcld.f90 constants.o gridmod.o qcmod.o obsmod.o kinds.o
 stpdw.o : stpdw.f90 jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
 stpgps.o : stpgps.f90 jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
 stpjcpdry.o : stpjcpdry.f90 jcmod.o guess_grids.o gridmod.o constants.o kinds.o 
-stpjo.o : stpjo.f90 state_vectors.o bias_predictors.o control_vectors.o stpoz.o stppcp.o stpdw.o stptcp.o stpsst.o stpsrw.o stpspd.o stprw.o stpgps.o stprad.o stpq.o stppw.o stpps.o stpw.o stpt.o obsmod.o constants.o kinds.o 
+stpjo.o : stpjo.f90 state_vectors.o bias_predictors.o control_vectors.o stpoz.o stppcp.o stpdw.o stptcp.o stpsst.o stpsrw.o stpspd.o stprw.o stpgps.o stprad.o stpq.o stppw.o stpps.o stpw.o stpt.o obsmod.o kinds.o 
 stplimq.o : stplimq.f90 jfunc.o gridmod.o constants.o kinds.o 
 stpoz.o : stpoz.f90 jfunc.o constants.o gridmod.o obsmod.o kinds.o 
 stppcp.o : stppcp.f90 state_vectors.o control_vectors.o jfunc.o gsi_4dvar.o gridmod.o qcmod.o constants.o obsmod.o pcpinfo.o kinds.o 
@@ -287,7 +291,7 @@ strong_fast_global_mod.o : strong_fast_global_mod.f90 mpimod.o hybrid_ensemble_p
 strong_slow_global_mod.o : strong_slow_global_mod.f90 hybrid_ensemble_parameters.o constants.o mod_inmi.o mod_vtrans.o mpimod.o gridmod.o kinds.o 
 sub2fslab_mod.o : sub2fslab_mod.f90 patch2grid_mod.o fgrid2agrid_mod.o constants.o control_vectors.o anberror.o gridmod.o kinds.o 
 sub2grid.o : sub2grid.f90 control_vectors.o constants.o jfunc.o gridmod.o mpimod.o kinds.o 
-support_2dvar.o : support_2dvar.f90 convinfo.o jfunc.o gridmod.o obsmod.o guess_grids.o mpimod.o gsi_io.o gsi_4dvar.o constants.o kinds.o 
+support_2dvar.o : support_2dvar.f90 convinfo.o jfunc.o gridmod.o obsmod.o constants.o guess_grids.o mpimod.o gsi_io.o gsi_4dvar.o kinds.o 
 tcv_mod.o : tcv_mod.f90 constants.o kinds.o 
 tendsmod.o : tendsmod.f90 gridmod.o kinds.o 
 test_obsens.o : test_obsens.F90 control_vectors.o obs_sensitivity.o mpimod.o obsmod.o jfunc.o constants.o kinds.o 
@@ -307,12 +311,12 @@ unhalf_nmm_grid2.o : unhalf_nmm_grid2.f90 gridmod.o constants.o kinds.o
 update_geswtend.o : update_geswtend.f90 compact_diffs.o guess_grids.o gridmod.o jfunc.o constants.o mpimod.o kinds.o 
 update_guess.o : update_guess.f90 state_vectors.o bias_predictors.o m_gsiBiases.o pcpinfo.o radinfo.o gsi_4dvar.o xhat_vordivmod.o guess_grids.o gridmod.o jfunc.o constants.o mpimod.o kinds.o 
 wind_fft.o : wind_fft.f90 constants.o kinds.o 
-wrf_binary_interface.o : wrf_binary_interface.F90 nemsio_module.o gsi_io.o gsi_4dvar.o constants.o kinds.o 
+wrf_binary_interface.o : wrf_binary_interface.F90 nemsio_module.o constants.o gsi_io.o gsi_4dvar.o kinds.o 
 wrf_netcdf_interface.o : wrf_netcdf_interface.F90 
 write_all.o : write_all.F90 ncepgfs_io.o regional_io.o gsi_io.o m_gsiBiases.o guess_grids.o jfunc.o constants.o gridmod.o mpimod.o kinds.o 
 write_bkgvars_grid.o : write_bkgvars_grid.f90 gridmod.o constants.o kinds.o 
-write_obsdiags.o : write_obsdiags.F90 radinfo.o pcpinfo.o gridmod.o jfunc.o mpimod.o gsi_4dvar.o obsmod.o constants.o kinds.o 
+write_obsdiags.o : write_obsdiags.F90 mytrace.H radinfo.o pcpinfo.o gridmod.o m_obdiag.o timermod.o jfunc.o mpimod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
 wrwrfmassa.o : wrwrfmassa.F90 rapidrefresh_cldsurf_mod.o gsi_io.o guess_grids.o gridmod.o mpimod.o constants.o kinds.o 
-wrwrfnmma.o : wrwrfnmma.F90 constants.o kinds.o 
+wrwrfnmma.o : wrwrfnmma.F90 kinds.o 
 xhat_vordivmod.o : xhat_vordivmod.f90 state_vectors.o gsi_4dvar.o compact_diffs.o gridmod.o constants.o mpimod.o kinds.o 
 zrnmi_mod.o : zrnmi_mod.f90 hybrid_ensemble_parameters.o jfunc.o mpimod.o gridmod.o mod_vtrans.o mod_strong.o constants.o kinds.o 

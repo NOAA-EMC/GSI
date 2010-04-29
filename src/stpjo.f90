@@ -128,6 +128,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   2008-12-02  todling - remove omp optimization (sorry, won't fly in this context)
 !                       - revisited split of stpcalc in light of 4dvar merge with May08 version
 !   2009-01-08  todling - remove reference to ozohead
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-03-25  zhu     - change the interfaces of stprad,stpt,stppcp;add nrf* conditions 
 !
 !   input argument list:
@@ -157,7 +158,6 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !
 !$$$
   use kinds, only: r_kind,r_quad
-  use constants, only: ione,izero
   use obsmod, only: obs_handle, &
                   & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
@@ -186,14 +186,14 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
   implicit none
 
 ! Declare passed variables
-  type(obs_handle)                       ,intent(in   ) :: yobs
-  type(state_vector)                     ,intent(in   ) :: dval
-  type(predictors)                       ,intent(in   ) :: dbias
-  type(state_vector)                     ,intent(in   ) :: xval
-  type(predictors)                       ,intent(in   ) :: xbias
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(4,nobs_type)    ,intent(  out) :: pbcjo
+  type(obs_handle)                    ,intent(in   ) :: yobs
+  type(state_vector)                  ,intent(in   ) :: dval
+  type(predictors)                    ,intent(in   ) :: dbias
+  type(state_vector)                  ,intent(in   ) :: xval
+  type(predictors)                    ,intent(in   ) :: xbias
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(4,nobs_type)    ,intent(inout) :: pbcjo
 
 ! Declare local variables
 
@@ -223,7 +223,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 
 !$omp section
 !   penalty, b, and c for ozone
-    if (nrf3_oz>izero) call stpoz(yobs%oz,yobs%o3l,dval%oz,xval%oz,pbcjo(1,i_oz_ob_type),sges,nstep)
+    if (nrf3_oz>0) call stpoz(yobs%oz,yobs%o3l,dval%oz,xval%oz,pbcjo(1,i_oz_ob_type),sges,nstep)
 
 !$omp section
 !   penalty, b, and c for wind lidar
@@ -247,7 +247,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 
 !$omp section
 !   penalty, b, and c for conventional sst
-    if (nrf2_sst>izero) call stpsst(yobs%sst,dval%sst,xval%sst,pbcjo(1,i_sst_ob_type),sges,nstep)
+    if (nrf2_sst>0) call stpsst(yobs%sst,dval%sst,xval%sst,pbcjo(1,i_sst_ob_type),sges,nstep)
 
 !$omp section
 !   penalty, b, and c for wind speed

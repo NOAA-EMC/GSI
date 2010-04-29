@@ -54,6 +54,7 @@ subroutine stpq(qhead,rq,sq,out,sges,nstep)
 !   2007-02-15  rancic  - add foto
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-12-03  todling - changed handling of ptr%time
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !
 !   input argument list:
 !     qhead
@@ -74,21 +75,21 @@ subroutine stpq(qhead,rq,sq,out,sges,nstep)
   use obsmod, only: q_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
-  use constants, only: izero,ione,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use jfunc, only: l_foto,dhat_dt,xhat_dt
   implicit none
 
 ! Declare passed variables
-  type(q_ob_type),pointer                ,intent(in   ) :: qhead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: rq,sq
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(q_ob_type),pointer             ,intent(in   ) :: qhead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: rq,sq
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
   real(r_kind) cg_q,val,val2,wgross,wnotgross,q_pg
-  real(r_kind),dimension(max(ione,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_q,qq
   type(q_ob_type), pointer :: qptr
 
@@ -97,7 +98,7 @@ subroutine stpq(qhead,rq,sq,out,sges,nstep)
   qptr => qhead
   do while (associated(qptr))
      if(qptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1=qptr%ij(1)
            j2=qptr%ij(2)
            j3=qptr%ij(3)
@@ -147,7 +148,7 @@ subroutine stpq(qhead,rq,sq,out,sges,nstep)
            cg_q=cg_term/qptr%b
            wnotgross= one-q_pg
            wgross = q_pg*cg_q/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk)= -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
            end do
         endif

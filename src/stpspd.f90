@@ -56,6 +56,7 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-12-03  todling - changed handling of ptr%time
 !   2009-01-19  todling - re-implement Tremolet's linearization for q1fy10
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !
 !   input argument list:
 !     spdhead
@@ -77,24 +78,24 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: spd_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_4dvar, only: ltlint
   implicit none
 
 ! Declare passed variables
-  type(spd_ob_type),pointer              ,intent(in   ) :: spdhead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: ru,rv,su,sv
+  type(spd_ob_type),pointer           ,intent(in   ) :: spdhead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: ru,rv,su,sv
 
 ! Declare local variables
   integer(i_kind) i,j1,j2,j3,j4,kk
   real(r_kind) w1,w2,w3,w4,time_spd
   real(r_kind) valu,valv,ucur,vcur,spdnl,spdtl,uu,vv,spd
-  real(r_kind),dimension(max(ione,nstep)):: pen,pentl
+  real(r_kind),dimension(max(1,nstep)):: pen,pentl
   real(r_kind) cg_spd,pencur,wgross,wnotgross
   real(r_kind) pg_spd
   type(spd_ob_type), pointer :: spdptr
@@ -111,7 +112,7 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
   do while (associated(spdptr))
 
      if(spdptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1 = spdptr%ij(1)
            j2 = spdptr%ij(2)
            j3 = spdptr%ij(3)
@@ -169,7 +170,7 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
            wnotgross= one-pg_spd
            wgross = pg_spd*cg_spd/wnotgross
            pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk) = -two*log((exp(-half*pen(kk)  ) + wgross)/(one+wgross))
            enddo
         endif

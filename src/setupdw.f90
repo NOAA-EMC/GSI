@@ -7,10 +7,11 @@
 !
 ! !INTERFACE:
 !
-subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
+subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! !USES:
 
+  use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
 
@@ -21,19 +22,22 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use guess_grids, only: hrdifsig,ges_ps,geop_hgtl,ges_lnprsl,&
        nfldsig,ges_u,ges_v,sfcmod_gfs,sfcmod_mm5,comp_fact10
 
-  use constants, only: izero,ione,grav_ratio,flattening,grav,zero,rad2deg,deg2rad, &
+  use constants, only: grav_ratio,flattening,grav,zero,rad2deg,deg2rad, &
        grav_equator,one,two,somigliana,semi_major_axis,eccentricity,r1000,&
        wgtlim
   use constants, only: tiny_r_kind,half,cg_term,huge_single
 
   use obsmod, only: rmiss_single,dwtail,dwhead,i_dw_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
+  use obsmod, only: dw_ob_type
+  use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
   use jfunc, only: last, jiter, miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
 
+  use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
 
 ! !INPUT PARAMETERS:
@@ -42,11 +46,12 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   integer(i_kind)                                  ,intent(in   ) :: mype    ! mpi task id
   integer(i_kind)                                  ,intent(in   ) :: nele    ! number of data elements per observation
   integer(i_kind)                                  ,intent(in   ) :: nobs    ! number of observations
+  integer(i_kind)                                  ,intent(in   ) :: is      ! ndat index
   logical                                          ,intent(in   ) :: conv_diagsave ! logical to save innovation dignostics
 
 ! !INPUT/OUTPUT PARAMETERS:
                                                   ! array containing information about ...
-  real(r_kind),dimension(100_i_kind+7*nsig)        ,intent(inout) :: awork !  data counts and gross checks
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork !  data counts and gross checks
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork !  obs-ges stats 
 
 ! !DESCRIPTION:  For doppler lidar wind observations, this routine
@@ -90,6 +95,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !   2008-05-23  safford - rm unused vars
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-03-19  mccarty - set initial obs error to that from bufr
+!   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !
 ! !REMARKS:
 !   language: f90
@@ -101,10 +107,17 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !EOP
 !-------------------------------------------------------------------------
 
+! Declare external calls for code analysis
+  external:: tintrp2a
+  external:: tintrp3
+  external:: grdcrd
+  external:: stop2
+
 ! Declare local parameters
   real(r_kind),parameter:: r0_001 = 0.001_r_kind
   real(r_kind),parameter:: r8 = 8.0_r_kind
   real(r_kind),parameter:: ten = 10.0_r_kind
+  character(len=*),parameter:: myname="setupdw"
 
 ! Declare local variables
   
@@ -137,34 +150,42 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   character(8),allocatable,dimension(:):: cdiagbuf
 
   logical,dimension(nobs):: luse,muse
+
+  logical:: in_curbin,in_anybin
+  integer(i_kind),dimension(nobs_bins):: n_alloc
+  integer(i_kind),dimension(nobs_bins):: m_alloc
+  type(dw_ob_type),pointer:: my_head
+  type(obs_diag),pointer:: my_diag
   
   equivalence(rstation_id,station_id)
 
+  n_alloc(:)=0
+  m_alloc(:)=0
 !*********************************************************************************
 ! Read and reformat observations in work arrays.  
   read(lunin)data,luse
 
 !    index information for data array (see reading routine)
-  ikxx=ione          ! index of ob type
-  ilon=2_i_kind      ! index of grid relative obs location (x)
-  ilat=3_i_kind      ! index of grid relative obs location (y)
-  itime=4_i_kind     ! index of observation time in data array
-  ihgt=5_i_kind      ! index of obs vertical coordinate in data array(height-m)
-  ielva=6_i_kind     ! index of elevation angle(radians)
-  iazm=7_i_kind      ! index of azimuth angle(radians) in data array
-  inls=8_i_kind      ! index of number of laser shots
-  incls=9_i_kind     ! index of number of cloud laser shots
-  iatd=10_i_kind     ! index of atmospheric depth     
-  ilob=11_i_kind     ! index of lidar observation
-  ier=12_i_kind      ! index of obs error
-  id=13_i_kind       ! index of station id
-  iuse=14_i_kind     ! index of use parameter
-  idomsfc=15_i_kind  ! index of dominate surface type
-  iskint=16_i_kind   ! index of skin temperature
-  iff10 = 17_i_kind  ! index of 10 m wind factor
-  isfcr = 18_i_kind  ! index of surface roughness
-  ilone=19_i_kind    ! index of longitude (degrees)
-  ilate=20_i_kind    ! index of latitude (degrees)
+  ikxx=1      ! index of ob type
+  ilon=2      ! index of grid relative obs location (x)
+  ilat=3      ! index of grid relative obs location (y)
+  itime=4     ! index of observation time in data array
+  ihgt=5      ! index of obs vertical coordinate in data array(height-m)
+  ielva=6     ! index of elevation angle(radians)
+  iazm=7      ! index of azimuth angle(radians) in data array
+  inls=8      ! index of number of laser shots
+  incls=9     ! index of number of cloud laser shots
+  iatd=10     ! index of atmospheric depth     
+  ilob=11     ! index of lidar observation
+  ier=12      ! index of obs error
+  id=13       ! index of station id
+  iuse=14     ! index of use parameter
+  idomsfc=15  ! index of dominate surface type
+  iskint=16   ! index of skin temperature
+  iff10 = 17  ! index of 10 m wind factor
+  isfcr = 18  ! index of surface roughness
+  ilone=19    ! index of longitude (degrees)
+  ilate=20    ! index of latitude (degrees)
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
@@ -173,7 +194,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
   dup=one
   do k=1,nobs
-     do l=k+ione,nobs
+     do l=k+1,nobs
         if(data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
            data(ihgt,k) == data(ihgt,l) .and. &
@@ -188,62 +209,75 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
-     ii=izero
-     nchar=ione
-     nreal=26_i_kind
-     if (lobsdiagsave) nreal=nreal+4*miter+ione
+     ii=0
+     nchar=1
+     nreal=26
+     if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
 
   scale=one
   rsig=float(nsig)
-  mm1=mype+ione
+  mm1=mype+1
 
+  call dtime_setup()
   do i=1,nobs
 ! Convert obs lats and lons to grid coordinates
-     dlat=data(ilat,i)
-     dlon=data(ilon,i)
-     dpres=data(ihgt,i)
      dtime=data(itime,i)
-     ikx=nint(data(ikxx,i))
+     call dtime_check(dtime, in_curbin, in_anybin)
+     if(.not.in_anybin) cycle
+
+     if(in_curbin) then
+        dlat=data(ilat,i)
+        dlon=data(ilon,i)
+        dpres=data(ihgt,i)
+ 
+        ikx=nint(data(ikxx,i))
+     endif
 
 !    Link observation to appropriate observation bin
-     if (nobs_bins>ione) then
-        ibin = NINT( dtime/hr_obsbin ) + ione
+     if (nobs_bins>1) then
+        ibin = NINT( dtime/hr_obsbin ) + 1
      else
-        ibin = ione
+        ibin = 1
      endif
-     IF (ibin<ione.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+     IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
      if (.not.lobsdiag_allocated) then
         if (.not.associated(obsdiags(i_dw_ob_type,ibin)%head)) then
            allocate(obsdiags(i_dw_ob_type,ibin)%head,stat=istat)
-           if (istat/=izero) then
+           if (istat/=0) then
               write(6,*)'setupdw: failure to allocate obsdiags',istat
               call stop2(253)
            end if
            obsdiags(i_dw_ob_type,ibin)%tail => obsdiags(i_dw_ob_type,ibin)%head
         else
            allocate(obsdiags(i_dw_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=izero) then
+           if (istat/=0) then
               write(6,*)'setupdw: failure to allocate obsdiags',istat
               call stop2(254)
            end if
            obsdiags(i_dw_ob_type,ibin)%tail => obsdiags(i_dw_ob_type,ibin)%tail%next
         end if
-        allocate(obsdiags(i_dw_ob_type,ibin)%tail%muse(miter+ione))
-        allocate(obsdiags(i_dw_ob_type,ibin)%tail%nldepart(miter+ione))
+        allocate(obsdiags(i_dw_ob_type,ibin)%tail%muse(miter+1))
+        allocate(obsdiags(i_dw_ob_type,ibin)%tail%nldepart(miter+1))
         allocate(obsdiags(i_dw_ob_type,ibin)%tail%tldepart(miter))
         allocate(obsdiags(i_dw_ob_type,ibin)%tail%obssen(miter))
         obsdiags(i_dw_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_dw_ob_type,ibin)%tail%nchnperobs=-99999_i_kind
+        obsdiags(i_dw_ob_type,ibin)%tail%nchnperobs=-99999
         obsdiags(i_dw_ob_type,ibin)%tail%luse=.false.
         obsdiags(i_dw_ob_type,ibin)%tail%muse(:)=.false.
         obsdiags(i_dw_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
         obsdiags(i_dw_ob_type,ibin)%tail%tldepart(:)=zero
         obsdiags(i_dw_ob_type,ibin)%tail%wgtjo=-huge(zero)
         obsdiags(i_dw_ob_type,ibin)%tail%obssen(:)=zero
+
+        n_alloc(ibin)=n_alloc(ibin)+1
+        my_diag => obsdiags(i_dw_ob_type,ibin)%tail
+        my_diag%idv = is
+        my_diag%iob = i
+        my_diag%ich = 1
      else
         if (.not.associated(obsdiags(i_dw_ob_type,ibin)%tail)) then
            obsdiags(i_dw_ob_type,ibin)%tail => obsdiags(i_dw_ob_type,ibin)%head
@@ -255,6 +289,8 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
            call stop2(255)
         end if
      endif
+
+     if(.not.in_curbin) cycle
 
 ! Save observation latitude.  This is needed when converting 
 ! geopotential to geometric height (hges --> zges below)
@@ -271,11 +307,11 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      end if
 
      call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-          ione,ione,mype,nfldsig)
+          1,1,mype,nfldsig)
      call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          ione,nsig,mype,nfldsig)
+          1,nsig,mype,nfldsig)
      call tintrp2a(geop_hgtl,hges,dlat,dlon,dtime,hrdifsig,&
-          ione,nsig,mype,nfldsig)
+          1,nsig,mype,nfldsig)
 
 ! Convert geopotential height at layer midpoints to geometric height using
 ! equations (17, 20, 23) in MJ Mahoney's note "A discussion of various
@@ -317,12 +353,12 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 ! Convert observation height (in dpres) from meters to grid relative
 ! units.  Save the observation height in zob for later use.
      zob = dpres
-     call grdcrd(dpres,ione,zges,nsig,ione)
+     call grdcrd(dpres,1,zges,nsig,1)
 
 ! Set indices of model levels below (k1) and above (k2) observation.
      k=dpres
-     k1=max(ione,k)
-     k2=min(k+ione,nsig)
+     k1=max(1,k)
+     k2=min(k+1,nsig)
 
 ! Compute observation pressure (only used for diagnostics)
      dz       = zges(k2)-zges(k1)
@@ -333,7 +369,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 ! Determine location in terms of grid units for midpoint of
 ! first layer above surface
      sfcchk=log(psges)
-     call grdcrd(sfcchk,ione,prsltmp,nsig,-ione)
+     call grdcrd(sfcchk,1,prsltmp,nsig,-1)
 
 ! Check to see if observation is below midpoint of first
 ! above surface layer.  If so, set rlow to that difference
@@ -368,10 +404,10 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 ! Simulate dw wind from guess (forward model)
 ! First, interpolate u,v guess to observation location
      call tintrp3(ges_u,ugesindw,dlat,dlon,dpres,dtime,&
-        hrdifsig,ione,mype,nfldsig)
+        hrdifsig,1,mype,nfldsig)
      call tintrp3(ges_v,vgesindw,dlat,dlon,dpres,dtime,&
-        hrdifsig,ione,mype,nfldsig)
-  
+        hrdifsig,1,mype,nfldsig)
+ 
 ! Next, convert wind components to line of sight value
      cosazm  = cos(data(iazm,i))  ! cos(azimuth)
      sinazm  = sin(data(iazm,i))  ! sin(azimuth)
@@ -394,7 +430,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
      if (ratio_errors*error <= tiny_r_kind) muse(i) = .false.
      if (nobskeep>0) muse(i)=obsdiags(i_dw_ob_type,ibin)%tail%muse(nobskeep)
-
+ 
 !    Compute penalty terms
      val   = error*ddiff
      if(luse(i))then
@@ -415,18 +451,18 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
            rwgt = wgt/wgtlim
         endif
         valqc = -two*rat_err2*term
- 
+
 
 !       Accumulate statistics for obs belonging to this task
         if(muse(i))then
            if(rwgt < one) awork(21) = awork(21)+one
            jsig = dpres
-           jsig=max(ione,min(jsig,nsig))
-           awork(jsig+6*nsig+100_i_kind)=awork(jsig+6*nsig+100_i_kind)+val2*rat_err2
-           awork(jsig+5*nsig+100_i_kind)=awork(jsig+5*nsig+100_i_kind)+one
-           awork(jsig+3*nsig+100_i_kind)=awork(jsig+3*nsig+100_i_kind)+valqc   
+           jsig=max(1,min(jsig,nsig))
+           awork(jsig+6*nsig+100)=awork(jsig+6*nsig+100)+val2*rat_err2
+           awork(jsig+5*nsig+100)=awork(jsig+5*nsig+100)+one
+           awork(jsig+3*nsig+100)=awork(jsig+3*nsig+100)+valqc   
         endif
-   
+
 
 ! Loop over pressure level groupings and obs to accumulate statistics
 ! as a function of observation type.
@@ -437,12 +473,12 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
               ressw=ress*ress
               val2 =val*val
               rat_err2 = ratio_errors**2
-              nn=ione
+              nn=1
               if (.not. muse(i)) then
-                 nn=2_i_kind
-                 if(ratio_errors*error >=tiny_r_kind)nn=3_i_kind
+                 nn=2
+                 if(ratio_errors*error >=tiny_r_kind)nn=3
               end if
-  
+
               bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one             ! count
               bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+ddiff           ! bias    
               bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw           ! (o-g)**2
@@ -461,16 +497,21 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
      if (.not. last .and. muse(i)) then
-
+ 
         if(.not. associated(dwhead(ibin)%head))then
            allocate(dwhead(ibin)%head,stat=istat)
-           if(istat /= izero)write(6,*)' failure to write dwhead '
+           if(istat /= 0)write(6,*)' failure to write dwhead '
            dwtail(ibin)%head => dwhead(ibin)%head
         else
            allocate(dwtail(ibin)%head%llpoint,stat=istat)
-           if(istat /= izero)write(6,*)' failure to write dwtail%llpoint '
+           if(istat /= 0)write(6,*)' failure to write dwtail%llpoint '
            dwtail(ibin)%head => dwtail(ibin)%head%llpoint
         end if
+
+        m_alloc(ibin) = m_alloc(ibin) +1
+        my_head => dwtail(ibin)%head
+        my_head%idv = is
+        my_head%iob = i
 
 !       Set (i,j,k) indices of guess gridpoint that bound obs location
         call get_ijk(mm1,dlat,dlon,dpres,dwtail(ibin)%head%ij(1),dwtail(ibin)%head%wij(1))
@@ -488,19 +529,30 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         dwtail(ibin)%head%cosazm = cosazm                  ! v factor
         dwtail(ibin)%head%sinazm = sinazm                  ! u factor
         dwtail(ibin)%head%luse   = luse(i)
-        dwtail(ibin)%head%diags => obsdiags(i_dw_ob_type,ibin)%tail
 
+        dwtail(ibin)%head%diags => obsdiags(i_dw_ob_type,ibin)%tail
+ 
+        my_head => dwtail(ibin)%head
+        my_diag => dwtail(ibin)%head%diags
+        if(my_head%idv /= my_diag%idv .or. &
+           my_head%iob /= my_diag%iob ) then
+           call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                 (/is,i,ibin/))
+           call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+           call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+           call die(myname)
+        endif
      endif
 
 ! Save select output for diagnostic file  
      if(conv_diagsave)then
-        ii=ii+ione
+        ii=ii+1
         rstation_id     = data(id,i)
         cdiagbuf(ii)    = station_id         ! station id
 
         rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
         rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
-    
+
         rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
         rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
         rdiagbuf(5,ii)  = rmiss_single       ! station elevation (meters)
@@ -540,7 +592,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         rdiagbuf(17,ii) = data(ilob,i)         ! observation
         rdiagbuf(18,ii) = ddiff                ! obs-ges used in analysis 
         rdiagbuf(19,ii) = data(ilob,i)-dwwind  ! obs-ges w/o bias correction (future slot)
-
+ 
         rdiagbuf(20,ii) = factw                ! 10m wind reduction factor
         rdiagbuf(21,ii) = data(ielva,i)*rad2deg! elevation angle (degrees)
         rdiagbuf(22,ii) = data(iazm,i)*rad2deg ! bearing or azimuth (degrees)
@@ -550,25 +602,25 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         rdiagbuf(26,ii) = data(ilob,i)         ! line of sight component of wind orig.
 
         if (lobsdiagsave) then
-           ioff=26_i_kind
+           ioff=26
            do jj=1,miter 
-              ioff=ioff+ione 
+              ioff=ioff+1 
               if (obsdiags(i_dw_ob_type,ibin)%tail%muse(jj)) then
                  rdiagbuf(ioff,ii) = one
               else
                  rdiagbuf(ioff,ii) = -one
               endif
            enddo
-           do jj=1,miter+ione
-              ioff=ioff+ione
+           do jj=1,miter+1
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_dw_ob_type,ibin)%tail%nldepart(jj)
            enddo
            do jj=1,miter
-              ioff=ioff+ione
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_dw_ob_type,ibin)%tail%tldepart(jj)
            enddo
            do jj=1,miter
-              ioff=ioff+ione
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_dw_ob_type,ibin)%tail%obssen(jj)
            enddo
         endif
@@ -579,6 +631,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 ! Write information to diagnostic file
   if(conv_diagsave)then
+     call dtime_show('setupdw','diagsave:dw',i_dw_ob_type)
      write(7)' dw',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)

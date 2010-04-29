@@ -39,7 +39,7 @@ subroutine statsoz(stats_oz,bwork,awork,ndata)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero,one
+  use constants, only: zero,one
   use obsmod, only: ndat,iout_oz,dtype,dsis,dplat,ditype
   use ozinfo, only: error_oz,nusis_oz,nulev,iuse_oz,jpch_oz
   use jfunc, only: jiter
@@ -52,7 +52,7 @@ subroutine statsoz(stats_oz,bwork,awork,ndata)
   integer(i_kind),dimension(ndat,3)                ,intent(in   ) :: ndata
   real(r_kind),dimension(9,jpch_oz)                ,intent(inout) :: stats_oz
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
-  real(r_kind),dimension(7*nsig+100_i_kind)        ,intent(inout) :: awork
+  real(r_kind),dimension(7*nsig+100)               ,intent(inout) :: awork
 
 
 ! Declare local variables
@@ -83,7 +83,7 @@ subroutine statsoz(stats_oz,bwork,awork,ndata)
   qcpenalty_all=zero
   do i=1,jpch_oz
      iasim = nint(stats_oz(7,i))
-     if (iasim>izero) then
+     if (iasim>0) then
         penalty_all=penalty_all+stats_oz(5,i)
         qcpenalty_all=qcpenalty_all+stats_oz(8,i)
      endif
@@ -92,8 +92,8 @@ subroutine statsoz(stats_oz,bwork,awork,ndata)
   write(iout_oz,*)'ozone total qcpenalty_all=',qcpenalty_all
 
 ! Print counts, bias, rms, stndev as a function of level
-  icount_asim=izero
-  iqccount_asim=izero
+  icount_asim=0
+  iqccount_asim=0
   rpenal=zero
   qcpenal=zero
   idisplay=.false.
@@ -101,8 +101,8 @@ subroutine statsoz(stats_oz,bwork,awork,ndata)
      if(ditype(ii) == 'ozone')then
         do i = 1,jpch_oz
            iasim = nint(stats_oz(1,i))
-           if (iasim > izero .and. nusis_oz(i) == dsis(ii) ) then
-              if (iuse_oz(i)==ione) then
+           if (iasim > 0 .and. nusis_oz(i) == dsis(ii) ) then
+              if (iuse_oz(i)==1) then
                  icount_asim(ii) = icount_asim(ii) + iasim
                  rpenal(ii) = rpenal(ii) + stats_oz(5,i)
                  iqccount_asim(ii) = iqccount_asim(ii) + nint(stats_oz(9,i))
@@ -115,9 +115,9 @@ subroutine statsoz(stats_oz,bwork,awork,ndata)
   end do
   do i = 1,jpch_oz
      iasim = nint(stats_oz(1,i))
-     if (iasim > izero) then
+     if (iasim > 0) then
         svar = error_oz(i)
-        if (iuse_oz(i)/=ione) svar = -svar
+        if (iuse_oz(i)/=1) svar = -svar
         rsum = one/float(iasim)
         icerr = nint(stats_oz(2,i))
         do j=3,6   ! j=3=obs-mod(w_biascor)
@@ -128,7 +128,7 @@ subroutine statsoz(stats_oz,bwork,awork,ndata)
            stats_oz(j,i) = stats_oz(j,i)*rsum
         end do
         stats_oz(4,i) = sqrt(stats_oz(4,i))
-        if (iasim > ione) then
+        if (iasim > 1) then
            stdev  = sqrt(stats_oz(4,i)*stats_oz(4,i)-stats_oz(3,i)*stats_oz(3,i))
         else
            stdev = zero
@@ -144,7 +144,7 @@ subroutine statsoz(stats_oz,bwork,awork,ndata)
   do i=1,ndat
      if (idisplay(i)) then
         cpen=zero
-        if (icount_asim(i)>izero) cpen=rpenal(i)/float(icount_asim(i))
+        if (icount_asim(i)>0) cpen=rpenal(i)/float(icount_asim(i))
         write(iout_oz,1115) jiter,dplat(i),dtype(i),ndata(i,2), &
              ndata(i,3),icount_asim(i),rpenal(i),cpen,qcpenal(i),iqccount_asim(i)
      endif
@@ -163,33 +163,33 @@ subroutine statsoz(stats_oz,bwork,awork,ndata)
 
 ! ozone level data diagnostics
 
-  o3plty=zero; o3qcplty=zero ; ntot=izero
+  o3plty=zero; o3qcplty=zero ; ntot=0
   o3t=zero ; qco3t = zero;
-  nread = izero
-  nkeep = izero
+  nread = 0
+  nkeep = 0
   do i=1,ndat
-     if (dtype(i)== 'mlsoz') then
+     if (dtype(i)== 'o3lev') then
         nread=nread+ndata(i,2)
         nkeep=nkeep+ndata(i,3)
      end if
   end do
-  if (nkeep > izero) then
+  if (nkeep > 0) then
      mesage='current fit of ozone level data, ranges in ppmv $'
      do j = 1,nconvtype
         pflag(j)=trim(ioctype(j)) == 'o3lev'
      end do
      call dtast(bwork,npres_print,pboto3,ptopo3,mesage,jiter,iout_oz,pflag)
      do k=1,nsig
-        num(k)=nint(awork(5*nsig+k+100_i_kind))
+        num(k)=nint(awork(5*nsig+k+100))
         rat=zero ; rat3=zero
-        if(num(k) > izero) then
-           rat=awork(6*nsig+k+100_i_kind)/float(num(k))
-           rat3=awork(3*nsig+k+100_i_kind)/float(num(k))
+        if(num(k) > 0) then
+           rat=awork(6*nsig+k+100)/float(num(k))
+           rat3=awork(3*nsig+k+100)/float(num(k))
         end if
-        ntot=ntot+num(k); o3plty=o3plty+awork(6*nsig+k+100_i_kind)
-        o3qcplty=o3qcplty+awork(3*nsig+k+100_i_kind)
-        write(iout_oz,240) 'o3l',num(k),k,awork(6*nsig+k+100_i_kind), &
-             awork(3*nsig+k+100_i_kind),rat,rat3
+        ntot=ntot+num(k); o3plty=o3plty+awork(6*nsig+k+100)
+        o3qcplty=o3qcplty+awork(3*nsig+k+100)
+        write(iout_oz,240) 'o3l',num(k),k,awork(6*nsig+k+100), &
+             awork(3*nsig+k+100),rat,rat3
      end do
      numgross=nint(awork(4))
      numfailqc=nint(awork(21))

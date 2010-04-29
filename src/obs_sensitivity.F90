@@ -25,14 +25,15 @@ module obs_sensitivity
 !$$$ end documentation block
 ! ------------------------------------------------------------------------------
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: izero, ione, zero, zero_quad
-use gsi_4dvar, only: nobs_bins, idmodel, nsubwin
+use constants, only: zero, zero_quad, two
+use gsi_4dvar, only: nobs_bins, l4dvar, idmodel, nsubwin
 use jfunc, only: jiter, miter, niter, iter
-use obsmod, only: nobs_type, obsdiags, obsptr, obscounts, &
+use obsmod, only: cobstype, nobs_type, obsdiags, obsptr, obscounts, &
                 & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                 & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                 & i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
-                & i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type
+                & i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
+                & i_lag_ob_type
 use mpimod, only: mype
 use control_vectors
 use state_vectors
@@ -90,7 +91,7 @@ lobsensadj=.false.
 lobsensmin=.false.
 lsensrecompute=.false.
 llancdone=.false.
-iobsconv=izero
+iobsconv=0
 
 end subroutine init_obsens
 ! ------------------------------------------------------------------------------
@@ -125,7 +126,7 @@ type(control_vector) :: xwork
 real(r_kind) :: zjx
 integer(i_kind) :: ii,ierr
 
-if (mype==izero) then
+if (mype==0) then
    write(6,*)'init_fc_sens: lobsensincr,lobsensfc,lobsensjb=', &
                             lobsensincr,lobsensfc,lobsensjb
    write(6,*)'init_fc_sens: lobsensadj,lobsensmin,iobsconv=', &
@@ -141,7 +142,7 @@ if (lobsensadj.and.lobsensmin) then
    call stop2(155)
 end if
 
-if (iobsconv>=2_i_kind) then
+if (iobsconv>=2) then
    allocate(sensincr(nobs_bins,nobs_type,niter(jiter)))
 else
    allocate(sensincr(nobs_bins,nobs_type,1))
@@ -154,9 +155,9 @@ if (lobsensfc) then
       clfile='xhatsave.ZZZ'
       write(clfile(10:12),'(I3.3)') jiter
       call read_cv(fcsens,clfile)
-      if (jiter>ione) then
+      if (jiter>1) then
          clfile='xhatsave.ZZZ'
-         write(clfile(10:12),'(I3.3)') jiter-ione
+         write(clfile(10:12),'(I3.3)') jiter-1
          call allocate_cv(xwork)
          call read_cv(xwork,clfile)
          do ii=1,fcsens%lencv
@@ -179,7 +180,13 @@ if (lobsensfc) then
             zbias=zero
 #ifdef GEOS_PERT
             call model_init(ierr,skiptraj=idmodel)
-            call pgcm2gsi(fcgrad,'adm',ierr)
+            if (ii>1) then 
+                write(6,*)'init_fc_sens: not ready for subwin>1, nsubwin=', nsubwin
+                call stop2(999)
+             endif
+            do ii=1,nsubwin
+               call pgcm2gsi(fcgrad(ii),'adm',ierr)
+            enddo
             call model_clean()
 #else /* GEOS_PERT */
             do ii=1,nsubwin
@@ -195,12 +202,12 @@ if (lobsensfc) then
       else
 !        read gradient from outer loop jiter+1
          clfile='fgsens.ZZZ'
-         WRITE(clfile(8:10),'(I3.3)') jiter+ione
+         WRITE(clfile(8:10),'(I3.3)') jiter+1
          call read_cv(fcsens,clfile)
       endif
    endif
    zjx=dot_product(fcsens,fcsens)
-   if (mype==izero) write(6,888)'init_fc_sens: Norm fcsens=',sqrt(zjx)
+   if (mype==0) write(6,888)'init_fc_sens: Norm fcsens=',sqrt(zjx)
 endif
 888 format(A,3(1X,ES24.18))
 
@@ -221,6 +228,7 @@ cobtype(i_o3l_ob_type)="o3l"
 cobtype(i_gps_ob_type)="gps"
 cobtype(i_rad_ob_type)="rad"
 cobtype(i_tcp_ob_type)="tcp"
+cobtype(i_lag_ob_type)="lag"
 
 return
 end subroutine init_fc_sens
@@ -252,7 +260,7 @@ real(r_kind) :: zz
 integer(i_kind) :: ii,jj,kk
 
 ! Save statistics
-if (mype==izero) then
+if (mype==0) then
 
 !  Full stats
    do jj=1,nobs_type
@@ -271,7 +279,7 @@ if (mype==izero) then
 
    write(6,*)'Obs Impact Begin'
    do kk=1,SIZE(sensincr,3)
-      if (SIZE(sensincr,3)==ione) then
+      if (SIZE(sensincr,3)==1) then
          write(6,'(A,I4)')'Obs Impact iteration= ',niter(jiter)
       else
          write(6,'(A,I4)')'Obs Impact iteration= ',kk
@@ -341,10 +349,10 @@ real(r_quad)    :: zprods(nobs_type*nobs_bins)
 
 zprods(:)=zero_quad
 
-ij=izero
+ij=0
 do ii=1,nobs_bins
    do jj=1,nobs_type
-      ij=ij+ione
+      ij=ij+1
 
       obsptr => obsdiags(jj,ii)%head
       do while (associated(obsptr))
@@ -361,18 +369,18 @@ enddo
 call mpl_allreduce(nobs_type*nobs_bins,qpvals=zprods)
 
 ! Save intermediate values
-it=-ione
-if (iobsconv>=2_i_kind) then
-   if (iter>=ione.and.iter<=niter(jiter)) it=iter
+it=-1
+if (iobsconv>=2) then
+   if (iter>=1.and.iter<=niter(jiter)) it=iter
 else
-   it=ione
+   it=1
 endif
 
-if (it>izero) then
-   ij=izero
+if (it>0) then
+   ij=0
    do ii=1,nobs_bins
       do jj=1,nobs_type
-         ij=ij+ione
+         ij=ij+1
          sensincr(ii,jj,it)=zprods(ij)
       enddo
    enddo
@@ -381,10 +389,10 @@ endif
 ! Sum
 zzz=zero_quad
 
-ij=izero
+ij=0
 do ii=1,nobs_bins
    do jj=1,nobs_type
-      ij=ij+ione
+      ij=ij+1
       zzz=zzz+zprods(ij)
    enddo
 enddo

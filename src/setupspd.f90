@@ -1,4 +1,4 @@
-subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
+subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupspd    compute rhs of oi for wind speed obs
@@ -48,6 +48,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !   2007-08-28      su - modify the observation gross check error 
 !   2008-05-23  safford - rm unused vars and uses
 !   2008-12-03  todling - changed handling of ptr%time
+!   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -64,31 +65,42 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
   use obsmod, only: spdhead,spdtail,rmiss_single,i_spd_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
+  use obsmod, only: spd_ob_type
+  use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_u,ges_v,nfldsig,hrdifsig,ges_tv,ges_lnprsl, &
            ges_ps,comp_fact10,sfcmod_gfs,sfcmod_mm5
   use gridmod, only: nsig,get_ij
   use qcmod, only: npres_print,ptop,pbot
-  use constants, only: izero,ione,one,grav,rd,zero,four,tiny_r_kind, &
+  use constants, only: one,grav,rd,zero,four,tiny_r_kind, &
        half,two,cg_term,huge_single,r1000,wgtlim
   use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
+  use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
-
-! Declare local variables
-  real(r_kind),parameter:: ten=10.0_r_kind
 
 ! Declare passed variables
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
-  real(r_kind),dimension(100_i_kind+7*nsig)        ,intent(inout) :: awork
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
+  integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
 
+! Declare local variables
+  real(r_kind),parameter:: ten=10.0_r_kind
+  character(len=*),parameter:: myname='setupspd'
+
+! Declare external calls for code analysis
+  external:: tintrp2a
+  external:: tintrp3
+  external:: grdcrd
+  external:: stop2
 
 ! Declare local variables
   
@@ -121,36 +133,45 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
 
+  logical:: in_curbin, in_anybin
+  integer(i_kind),dimension(nobs_bins) :: n_alloc
+  integer(i_kind),dimension(nobs_bins) :: m_alloc
+  type(spd_ob_type),pointer:: my_head
+  type(obs_diag),pointer:: my_diag
+
+
   equivalence(rstation_id,station_id)
 
 
+  n_alloc(:)=0
+  m_alloc(:)=0
 !******************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse
 
 !        index information for data array (see reading routine)
-  ier=ione           ! index of obs error
-  ilon=2_i_kind      ! index of grid relative obs location (x)
-  ilat=3_i_kind      ! index of grid relative obs location (y)
-  ipres=4_i_kind     ! index of pressure
-  iuob=5_i_kind      ! index of u observation
-  ivob=6_i_kind      ! index of v observation
-  id=7_i_kind        ! index of station id
-  itime=8_i_kind     ! index of observation time in data array
-  ikxx=9_i_kind      ! index of ob type
-  ihgt=10_i_kind     ! index of observation elevation
-  iqc=11_i_kind      ! index of quality mark
-  ier2=12_i_kind     ! index of original-original obs error ratio
-  iuse=13_i_kind     ! index of use parameter
-  idomsfc=14_i_kind  ! index of dominant surface type
-  iskint=15_i_kind   ! index of surface skin temperature
-  iff10=16_i_kind    ! index of 10 meter wind factor
-  isfcr=17_i_kind    ! index of surface roughness
-  ilone=18_i_kind    ! index of longitude (degrees)
-  ilate=19_i_kind    ! index of latitude (degrees)
-  istnelv=20_i_kind  ! index of station elevation (m)
+  ier=1       ! index of obs error
+  ilon=2      ! index of grid relative obs location (x)
+  ilat=3      ! index of grid relative obs location (y)
+  ipres=4     ! index of pressure
+  iuob=5      ! index of u observation
+  ivob=6      ! index of v observation
+  id=7        ! index of station id
+  itime=8     ! index of observation time in data array
+  ikxx=9      ! index of ob type
+  ihgt=10     ! index of observation elevation
+  iqc=11      ! index of quality mark
+  ier2=12     ! index of original-original obs error ratio
+  iuse=13     ! index of use parameter
+  idomsfc=14  ! index of dominant surface type
+  iskint=15   ! index of surface skin temperature
+  iff10=16    ! index of 10 meter wind factor
+  isfcr=17    ! index of surface roughness
+  ilone=18    ! index of longitude (degrees)
+  ilate=19    ! index of latitude (degrees)
+  istnelv=20  ! index of station elevation (m)
 
-  mm1=mype+ione
+  mm1=mype+1
   scale=one
   rsig=nsig
   thirty = 30.0_r_kind
@@ -160,10 +181,10 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
-     ii=izero
-     nchar=ione
-     nreal=20_i_kind
-     if (lobsdiagsave) nreal=nreal+4*miter+ione
+     ii=0
+     nchar=1
+     nreal=20
+     if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
 
@@ -188,52 +209,65 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      end do
   end do
 
+  call dtime_setup()
   do i=1,nobs
-
-     dlat=data(ilat,i)
-     dlon=data(ilon,i)
      dtime=data(itime,i)
-     dpres=data(ipres,i)
-     error=data(ier2,i)
-     ikx=nint(data(ikxx,i))
+     call dtime_check(dtime, in_curbin, in_anybin)
+     if(.not.in_anybin) cycle
+
+     if(in_curbin) then
+        dlat=data(ilat,i)
+        dlon=data(ilon,i)
+ 
+        dpres=data(ipres,i)
+        error=data(ier2,i)
+        ikx=nint(data(ikxx,i))
+     endif
 
 !    Link observation to appropriate observation bin
-     if (nobs_bins>ione) then
-        ibin = NINT( dtime/hr_obsbin ) + ione
+     if (nobs_bins>1) then
+        ibin = NINT( dtime/hr_obsbin ) + 1
      else
-        ibin = ione
+        ibin = 1
      endif
-     IF (ibin<ione.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+     IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
      if (.not.lobsdiag_allocated) then
         if (.not.associated(obsdiags(i_spd_ob_type,ibin)%head)) then
            allocate(obsdiags(i_spd_ob_type,ibin)%head,stat=istat)
-           if (istat/=izero) then
+           if (istat/=0) then
               write(6,*)'setupspd: failure to allocate obsdiags',istat
               call stop2(289)
            end if
            obsdiags(i_spd_ob_type,ibin)%tail => obsdiags(i_spd_ob_type,ibin)%head
         else
            allocate(obsdiags(i_spd_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=izero) then
+           if (istat/=0) then
               write(6,*)'setupspd: failure to allocate obsdiags',istat
               call stop2(290)
            end if
            obsdiags(i_spd_ob_type,ibin)%tail => obsdiags(i_spd_ob_type,ibin)%tail%next
         end if
-        allocate(obsdiags(i_spd_ob_type,ibin)%tail%muse(miter+ione))
-        allocate(obsdiags(i_spd_ob_type,ibin)%tail%nldepart(miter+ione))
+        allocate(obsdiags(i_spd_ob_type,ibin)%tail%muse(miter+1))
+        allocate(obsdiags(i_spd_ob_type,ibin)%tail%nldepart(miter+1))
         allocate(obsdiags(i_spd_ob_type,ibin)%tail%tldepart(miter))
         allocate(obsdiags(i_spd_ob_type,ibin)%tail%obssen(miter))
         obsdiags(i_spd_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_spd_ob_type,ibin)%tail%nchnperobs=-99999_i_kind
+        obsdiags(i_spd_ob_type,ibin)%tail%nchnperobs=-99999
         obsdiags(i_spd_ob_type,ibin)%tail%luse=.false.
         obsdiags(i_spd_ob_type,ibin)%tail%muse(:)=.false.
         obsdiags(i_spd_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
         obsdiags(i_spd_ob_type,ibin)%tail%tldepart(:)=zero
         obsdiags(i_spd_ob_type,ibin)%tail%wgtjo=-huge(zero)
         obsdiags(i_spd_ob_type,ibin)%tail%obssen(:)=zero
+
+        n_alloc(ibin) = n_alloc(ibin) +1
+        my_diag => obsdiags(i_spd_ob_type,ibin)%tail
+        my_diag%idv = is
+        my_diag%iob = i
+        my_diag%ich = 1
+
      else
         if (.not.associated(obsdiags(i_spd_ob_type,ibin)%tail)) then
            obsdiags(i_spd_ob_type,ibin)%tail => obsdiags(i_spd_ob_type,ibin)%head
@@ -246,6 +280,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         end if
      endif
 
+     if(.not.in_curbin) cycle
 
 !    Load obs error and u,v obs
      obserror = max(cermin(ikx),min(cermax(ikx),data(ier,i)))
@@ -255,11 +290,11 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
  
      spdob=sqrt(uob*uob+vob*vob)
      call tintrp2a(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
-          ione,nsig,mype,nfldsig)
+          1,nsig,mype,nfldsig)
      call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-          ione,ione,mype,nfldsig)
+          1,1,mype,nfldsig)
      call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          ione,nsig,mype,nfldsig)
+          1,nsig,mype,nfldsig)
 
      factw = data(iff10,i)
      if(sfcmod_gfs .or. sfcmod_mm5)then
@@ -273,10 +308,10 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      dpres = dpres-log(psges)
      nty=ictype(ikx)
      drpx=zero
-     if(nty >= 280_i_kind .and. nty < 290_i_kind)then
+     if(nty >= 280 .and. nty < 290)then
         dpresave=dpres
         dpres=-goverrd*data(ihgt,i)/tges(1)
-        if(nty < 283_i_kind)drpx=abs(dpres-dpresave)*factw*thirty
+        if(nty < 283)drpx=abs(dpres-dpresave)*factw*thirty
      end if
 
      prsfc=psges
@@ -293,10 +328,10 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 !    Put obs pressure in correct units to get grid coord. number
      dpres=log(exp(dpres)*prsfc)
-     call grdcrd(dpres,ione,prsltmp(1),nsig,-ione)
+     call grdcrd(dpres,1,prsltmp(1),nsig,-1)
 
 !    Get approx k value of sfc by using surface pressure of 1st ob
-     call grdcrd(sfcchk,ione,prsltmp(1),nsig,-ione)
+     call grdcrd(sfcchk,1,prsltmp(1),nsig,-1)
 
 
 !    Check to see if observations is below what is seen to be the surface
@@ -320,9 +355,9 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 ! Interpolate guess u and v to observation location and time.
      call tintrp3(ges_u,ugesin,dlat,dlon,dpres,dtime, &
-        hrdifsig,ione,mype,nfldsig)
+        hrdifsig,1,mype,nfldsig)
      call tintrp3(ges_v,vgesin,dlat,dlon,dpres,dtime, &
-        hrdifsig,ione,mype,nfldsig)
+        hrdifsig,1,mype,nfldsig)
  
 
 ! Apply 10-meter wind reduction factor to guess winds.  Compute
@@ -347,7 +382,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      end if
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
-     if (nobskeep>izero) muse(i)=obsdiags(i_spd_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0) muse(i)=obsdiags(i_spd_ob_type,ibin)%tail%muse(nobskeep)
 
 !    Compute penalty terms (linear & nonlinear qc).
      val      = error*ddiff
@@ -384,10 +419,10 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         if(luse(i) .and.presw >=ptop(k) .and. presw<=pbot(k))then
            ress  = scale*ddiff
            ressw = ress*ress
-           nn=ione
+           nn=1
            if (.not. muse(i)) then
-              nn=2_i_kind
-              if(ratio_errors*error >=tiny_r_kind)nn=3_i_kind
+              nn=2
+              if(ratio_errors*error >=tiny_r_kind)nn=3
            end if
            bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one            ! count
            bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+ddiff          ! bias
@@ -409,13 +444,18 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
         if(.not. associated(spdhead(ibin)%head))then
            allocate(spdhead(ibin)%head,stat=istat)
-           if(istat /= izero)write(6,*)' failure to write spdhead '
+           if(istat /= 0)write(6,*)' failure to write spdhead '
            spdtail(ibin)%head => spdhead(ibin)%head
         else
            allocate(spdtail(ibin)%head%llpoint,stat=istat)
-           if(istat /= izero)write(6,*)' failure to write spdtail%llpoint '
+           if(istat /= 0)write(6,*)' failure to write spdtail%llpoint '
            spdtail(ibin)%head => spdtail(ibin)%head%llpoint
         end if
+
+        m_alloc(ibin) = m_alloc(ibin) +1
+        my_head => spdtail(ibin)%head
+        my_head%idv = is
+        my_head%iob = i
 
 !       Set (i,j) indices of guess gridpoint that bound obs location
         call get_ij(mm1,dlat,dlon,spdtail(ibin)%head%ij(1),spdtail(ibin)%head%wij(1))
@@ -432,12 +472,23 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         spdtail(ibin)%head%luse   = luse(i)
         spdtail(ibin)%head%b      = cvar_b(ikx)
         spdtail(ibin)%head%pg     = cvar_pg(ikx)
+
         spdtail(ibin)%head%diags => obsdiags(i_spd_ob_type,ibin)%tail
 
+        my_head => spdtail(ibin)%head
+        my_diag => spdtail(ibin)%head%diags
+        if(my_head%idv /= my_diag%idv .or. &
+           my_head%iob /= my_diag%iob ) then
+           call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                 (/is,i,ibin/))
+           call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+           call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+           call die(myname)
+        endif
      end if
 ! Save select output for diagnostic file
      if(conv_diagsave .and. luse(i))then
-        ii=ii+ione
+        ii=ii+1
         rstation_id     = data(id,i)
         cdiagbuf(ii)    = station_id         ! station id
 
@@ -488,25 +539,25 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         rdiagbuf(20,ii) = factw              ! 10m wind reduction factor
 
         if (lobsdiagsave) then
-           ioff=20_i_kind
+           ioff=20
            do jj=1,miter 
-              ioff=ioff+ione 
+              ioff=ioff+1 
               if (obsdiags(i_spd_ob_type,ibin)%tail%muse(jj)) then
                  rdiagbuf(ioff,ii) = one
               else
                  rdiagbuf(ioff,ii) = -one
               endif
            enddo
-           do jj=1,miter+ione
-              ioff=ioff+ione
+           do jj=1,miter+1
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_spd_ob_type,ibin)%tail%nldepart(jj)
            enddo
            do jj=1,miter
-              ioff=ioff+ione
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_spd_ob_type,ibin)%tail%tldepart(jj)
            enddo
            do jj=1,miter
-              ioff=ioff+ione
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_spd_ob_type,ibin)%tail%obssen(jj)
            enddo
         endif
@@ -516,6 +567,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 ! Write information to diagnostic file
   if(conv_diagsave)then
+     call dtime_show(myname,'diagsave:spd',i_spd_ob_type)
      write(7)'spd',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)

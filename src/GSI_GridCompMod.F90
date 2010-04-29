@@ -1,6 +1,7 @@
 #include "MAPL_ErrLog.h" 
 !#define SFCverbose
 !#define UPAverbose
+!#define VERBOSE
 !-------------------------------------------------------------------------
 !  NASA/GSFC, Global Modeling and Assimilation Office, Code 610.3, GMAO  !
 !-------------------------------------------------------------------------
@@ -33,14 +34,16 @@
    use gsimod                ! GSI original interface
    use mpeu_util, only: StrTemplate         ! grads style templates
    use constants, only : grav
-   use general_specmod, only: general_init_spec_vars
-   use general_specmod, only: general_destroy_spec_vars   
+   use general_specmod,only : general_init_spec_vars
+   use general_specmod,only : general_destroy_spec_vars
    use m_tick, only: tick
+   use obsmod, only: lobserver
 
 ! Access to GSI's global data segments
 
    ! guess fields and related variables
 
+   	!>>> sfc_grids <<< all of them
    use guess_grids, only: isli,         & ! snow/land/ice mask
                           fact10,       & ! 10 meter wind factor
                           sfct,         & ! guess skin temp
@@ -51,8 +54,10 @@
                           soil_type,    & ! soil type
                           soil_temp,    & ! soil temperature
                           soil_moi,     & ! soil moisture
-                          sfc_rough,    & ! surface roughness
-                          ges_z,        & ! topography
+                          sfc_rough       ! surface roughness
+
+   	!>>> ges_grids <<< 
+   use guess_grids, only: ges_z,        & ! topography
                           ges_ps,       & ! surface pressure
                           ges_u,        & ! zonal wind
                           ges_v,        & ! meridional wind
@@ -61,20 +66,32 @@
                           ges_cwmr,     & ! cloud condensate mixing ratio 
                           ges_q,        & ! vapor mixing ratio
                           ges_oz,       & ! ozone mixing ratio
-                          ges_tv,       & ! virtual temperature
-                          nfldsig,      & ! number of guess sigma times
+                          ges_tv          ! virtual temperature
+
+   use guess_grids, only: nfldsig,      & ! number of guess sigma times
                           nfldsfc,      & ! number of guess surface times
                           hrdifsig,     & ! times for guess sigma fields
                           hrdifsfc,     & ! times for guess surface fields 
                           tracers,      & ! number or tracers 
                           vtid,         & ! tracer variable id
                           xncld,        & ! number of clouds
-                          pdryini,      & ! global mean dry mass of the 
+                          pdryini         ! global mean dry mass of the 
                                           ! atmosphere in kPa
-                          ntguessig,    & ! These variables are used  
+   use guess_grids, only: ntguessig,    & ! These variables are used  
                           ntguessfc,    & ! to handle file names and are
                           ifilesfc,     & ! included for compatibility
                           ifilesig        ! with the legacy code.
+
+   use guess_grids, only: nfldsig_all,	& ! all background times count
+   			  nfldsfc_all,	&
+			  nfldsig_now,	& ! filled guess_grids count
+			  nfldsfc_now,	&
+   			  hrdifsig_all,	& ! hour list of all backgrounds
+			  hrdifsfc_all,	&
+			  extrap_intime	  ! do time-extrapolation or not
+
+   use guess_grids, only: ntguessig_ref	! a fixed reference ntguessig value
+   use guess_grids, only: ntguessfc_ref	! a fixed reference ntguessfc value
 
    use guess_grids, only: guess_grids_stats
 
@@ -93,8 +110,8 @@
    ! variables for create_mapping and deter_subdomain
                          nlat_sfc, & ! no. of latitudes surface files
                          nlon_sfc, & ! no. of longitudes surface files
-                         nlat,     & ! no. of latitudes
-                         nlon,     & ! no. of longitudes
+                         nlat,     & ! no. of analysis grid latitudes
+                         nlon,     & ! no. of analysis grid longitudes
                          nsig,     & ! no. of levels
                          istart,   & ! start lat of the whole array on each pe
                          jstart,   & ! start lon of the whole array on each pe
@@ -126,9 +143,8 @@
                          itotsub,  & ! number of horizontal points of all subdomains 
                                      ! combined
                          nsig1o,   & ! no. of levels distributed on each processor
-                         iglobal,  & ! number of horizontal points on global grid
+                         iglobal,  &  ! number of horizontal points on global grid
                          jcap,     &
-                         jcap_b    &
                          sp_a
 
    ! from mpimod
@@ -145,7 +161,7 @@
    ! others...
    use constants, only: pi, rearth, zero, one, half, izero
    use kinds,     only: r_kind,r_single,i_kind
-   use obsmod,    only: iadate, ndat, ndatmax, ndat_times
+   use obsmod,    only: iadate, ianldate, ndat, ndatmax, ndat_times
 
    implicit none
 
@@ -172,7 +188,10 @@
 !   08Jul2008 Todling  Merge fdda-b1p3 w/ das-215 (MAPL update)
 !   18Nov2008 Todling  Merge with NCEP-May-2008; add sfc_rough
 !  10-09-2009 Wu       replace nhr_offset with min_offset since it's 1.5 hr for regional
-!   31Mar2010 Treadon  replace specmod routines with general_specmod routines
+!   10Jul2009 Todling  Remove vertical halo
+!   19Aug2009 Guo      Added hrdifsig_all etc. and other changes for
+!		       multi-pass observer.
+!   31Mar2010 Treadon  replace specmod routines with general_specmod
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -180,7 +199,7 @@
 ! GLOBAL scope vars
 
    ! parameters
-   integer, parameter  :: HW = 1    ! halowidth of distributed GSI fields
+   integer, parameter  :: HW = 1    ! horizontal halowidth of distributed GSI fields
    real, parameter     :: UNDEF_SSI_      = -9.9899991E33 
    real, parameter     :: UNDEF_SOIL_TEMP = 1.E+15
    real, parameter     :: UNDEF_SNOW_DEP  = 1.E+12
@@ -199,6 +218,8 @@
    logical, save       :: doVflip = .true.
 
    character(len=ESMF_MAXSTR),save,allocatable :: obstab(:,:)
+
+   integer,parameter :: NFLDSLOT=2 ! in lobserver mode, internal guess grid size is controlled
 
 ! local utilities
 
@@ -222,6 +243,8 @@
    interface GSI_GridCompFlipLons_
      module procedure GSI_GridCompFlipLons2_
    end interface
+
+   logical, save :: rc_obstable_initialized_=.false.
 
 !---------------------------------------------------------------------------
 
@@ -258,13 +281,13 @@
 
    integer                               :: STATUS
    logical                               :: IamRoot    
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompSetServices'
+   character(len=*), parameter :: IAm='GSI_GridCompSetServices'
 
 ! start
 
    IamRoot = MAPL_AM_I_ROOT()
 
-   if(IamRoot) print *, "Start ",trim(Iam)
+   if(IamRoot) print *, Iam,": Start ",trim(Iam)
 
 ! Set the Initialize, Run, Finalize entry points
 
@@ -295,7 +318,7 @@
    call MAPL_GenericSetServices ( gc, RC=STATUS)
    VERIFY_(STATUS)
 
-   if(IamRoot.and.verbose) print *, "End ",trim(Iam)
+   if(IamRoot.and.verbose) print *,Iam,": End ",trim(Iam)
 
    RETURN_(ESMF_SUCCESS)
 
@@ -353,12 +376,12 @@
    integer                          :: i, mype, atime
    integer                          :: yy, mm, dd, h, m
    character(len=ESMF_MAXSTR)       :: aname
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompInitialize'
+   character(len=*), parameter :: IAm='GSI_GridCompInitialize'
 
 ! start
 
    IamRoot =  MAPL_AM_I_ROOT()
-   if(IamRoot.and.verbose) print *, "Start ",trim(Iam)
+   if(IamRoot.and.verbose) print *, Iam,": Start ",trim(Iam)
 
 ! Get vm, config objects
 
@@ -429,7 +452,7 @@
 
    call GSI_GridCompSetAlarms (GENSTATE, GC, cf, clock)
 
-   if(IamRoot.and.verbose) print *, "End ",trim(Iam)
+   if(IamRoot.and.verbose) print *, Iam,": End ",trim(Iam)
 
    RETURN_(STATUS)
 
@@ -438,6 +461,7 @@
 !-------------------------------------------------------------------------
    subroutine GSI_GridCompDeterSubdomain_()
 !-------------------------------------------------------------------------
+   character(len=*), parameter :: IAm='GSI_GridCompDeterSubdomain_'
 
    if(IamRoot.and.verbose) print *,trim(Iam),': determine GSI domain decomposition'
 
@@ -460,7 +484,7 @@
 
    ! the following routines are called in gsisub:
 
-   call create_grid_vars   
+   call create_grid_vars()
    
    call create_mapping(npe)
 
@@ -505,7 +529,7 @@
    real(ESMF_KIND_R8)  :: deltaZ
    real(ESMF_KIND_R8), allocatable  :: deltaX(:), deltaY(:)
    real(kind(half))    :: dlon,dlat,pih
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompGridCreate'
+   character(len=*), parameter :: IAm='GSI_GridCompGridCreate'
 
 ! start
 
@@ -597,7 +621,8 @@
 
    ! Reinitialize specmod for spectral transformation whereever needed.
    if(GsiGridType==0) then 
-      call general_destroy_spec_vars()
+   	! re-initialize spec_vars, but leave hires_b untouched (for now).
+      call general_destroy_spec_vars(sp_a)
       call general_init_spec_vars(sp_a,jcap,jcap,nlat,nlon,eqspace=.true.)
    endif
 
@@ -648,7 +673,7 @@
    integer, allocatable, dimension(:) :: mylevs(:)
    character(len=16)                  :: vgridlabl
    character(len=2)                   :: cnsig
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompGetVertParms'
+   character(len=*), parameter :: IAm='GSI_GridCompGetVertParms'
 
 ! start
 
@@ -712,6 +737,7 @@
 !-------------------------------------------------------------------------
    subroutine GSI_GridCompGetBKGTimes_()
 !-------------------------------------------------------------------------
+   use mpeu_util, only: tell
    implicit none
    
 ! local variables
@@ -753,31 +779,63 @@
    ANAfreq_hr = ANAfreq / 10000
 
    if ( mod(BKGfreq_sc,6*3600)==0) then
-        nfldsig = nhr_assimilation*3600 / BKGfreq_sc
+        nfldsig_all = nhr_assimilation*3600 / BKGfreq_sc
    else
-        nfldsig = nhr_assimilation*3600 / BKGfreq_sc + 1
+        nfldsig_all = nhr_assimilation*3600 / BKGfreq_sc + 1
    endif
-   nfldsfc = nfldsig   ! In GEOS-5 upper-air bkg and surface bkg come equal numbers
+   nfldsfc_all = nfldsig_all   ! In GEOS-5 upper-air bkg and surface bkg come equal numbers
+
+	! to use gsimod in a clock-driving mode, only upto two time slots are
+	! needed for guess_grid
+
+   nfldsig = nfldsig_all
+   nfldsfc = nfldsfc_all
+   if(lobserver) then
+     nfldsig = min(NFLDSLOT,nfldsig_all)
+     nfldsfc = min(NFLDSLOT,nfldsfc_all)
+   endif
+
+   extrap_intime = .not.lobserver .or. nfldsig_all==1
+
+   nfldsig_now = 0	! no data has filled into guess_grids
+   nfldsfc_now = 0
 
    ! these are internal GSI global variables
    ! and are deallocated in Finalize
-   allocate(hrdifsig(1:nfldsig), hrdifsfc(1:nfldsfc), stat=STATUS)
+   allocate(hrdifsig    (1:nfldsig    ), &
+   	    hrdifsfc    (1:nfldsfc    ), &
+	    hrdifsig_all(1:nfldsig_all), &
+   	    hrdifsfc_all(1:nfldsfc_all), stat=STATUS)
    VERIFY_(STATUS)
-   allocate(ifilesig(1:nfldsig), ifilesfc(1:nfldsfc), stat=STATUS)
+   allocate(ifilesig(1:nfldsig_all), ifilesfc(1:nfldsfc_all), stat=STATUS)
    VERIFY_(STATUS)
 
-   ifilesig(1:nfldsig)=6    ! it doesn't matter what goes in ifilesig
-   
+   ifilesig(1:nfldsig_all)=6    ! it doesn't matter what goes in ifilesig
+   ifilesfc(1:nfldsig_all)=6    ! it doesn't matter what goes in ifilesfc
+
+#ifdef VERBOSE
+   call tell(Iam,'nfldsig_all=',nfldsig_all)
+   call tell(Iam,'nfldsfc_all=',nfldsfc_all)
+   call tell(Iam,'BKGfreq_hr =',BKGfreq_hr )
+#endif
    bkgbits = 0
-   do i = 1, nfldsig
-      hrdifsig(i)  = bkgbits
+   do i = 1, nfldsig_all
+      hrdifsig_all(i)  = bkgbits
       bkgbits      = bkgbits + BKGfreq_hr
+#ifdef VERBOSE
+      call tell(Iam,'             i =',i)
+      call tell(Iam,'hrdifsig_all(i)=',hrdifsig_all(i))
+#endif
    enddo
 
    bkgbits = 0
-   do i = 1, nfldsfc
-      hrdifsfc(i)  = bkgbits
+   do i = 1, nfldsfc_all
+      hrdifsfc_all(i)  = bkgbits
       bkgbits      = bkgbits + BKGfreq_hr
+#ifdef VERBOSE
+      call tell(Iam,'             i =',i)
+      call tell(Iam,'hrdifsfc_all(i)=',hrdifsfc_all(i))
+#endif
    enddo
 
    end subroutine GSI_GridCompGetBKGTimes_
@@ -788,7 +846,7 @@
 
 ! allocation of GSI internal state variables
 
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompAlloc'
+   character(len=*), parameter :: IAm='GSI_GridCompAlloc'
    integer(i_kind) ii,jj,kk,nn
 
    allocate( isli     (lat2,lon2,nfldsfc),&
@@ -810,6 +868,7 @@
             isli(ii,jj,nn)=izero
             fact10(ii,jj,nn)=zero
             sfct(ii,jj,nn)=zero
+            dsfct(ii,jj,nn)=zero
             sno(ii,jj,nn)=zero
             veg_type(ii,jj,nn)=zero
             veg_frac(ii,jj,nn)=zero
@@ -878,6 +937,7 @@
 !
 ! !USES:
 !
+   use mpeu_util, only: tell
    implicit NONE
 
 ! !ARGUMENTS:
@@ -908,9 +968,9 @@
    type(ESMF_Config)                 :: CF        ! coneiguration data
    type(ESMF_VM)                     :: VM        ! virtual machine
    type(ESMF_Grid)                   :: GSIGrid   ! this component's grid
-   type(ESMF_Alarm), pointer         :: ALARM(:)
    type(ESMF_Alarm)                  :: GSIALARM
    logical                           :: do_analysis
+   logical                           :: do_observer
    logical                           :: get_background
    logical                           :: IamRoot
    ! import state upper air pointers
@@ -961,12 +1021,14 @@
    real(4),dimension(:,:  ), pointer :: dfrseaice  ! sea-ice fraction
    character(len=ESMF_MAXSTR)        :: aname
    character(len=ESMF_MAXSTR)        :: opt
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompRun'
+   character(len=*), parameter :: IAm='GSI_GridCompRun'
+   integer :: ier
+   integer :: atime
 
 ! start
 
    IamRoot = MAPL_AM_I_ROOT() 
-   if(IamRoot.and.verbose) print *, "Start ",trim(Iam)
+   if(IamRoot.and.verbose) print *, Iam,": Start ",trim(Iam)
 
    call ESMF_VMGetGlobal(vm=vm, rc=STATUS)
    VERIFY_(STATUS)
@@ -993,11 +1055,7 @@
 ! Get ALARMs
 !-----------
 
-   call MAPL_GetObjectFromGC ( GC, GENSTATE, RC=STATUS)
-   VERIFY_(STATUS)
-   allocate(ALARM(nfldsig), stat=STATUS)
-   VERIFY_(STATUS)
-   call GSI_GridCompGetAlarms_()
+   call MAPL_GetObjectFromGC ( GC, GENSTATE, RC=STATUS); VERIFY_(STATUS)
 
    nthTimeIndex = nthTimeIndex + 1
    if(IamRoot) print *,trim(Iam)//': time index = ',nthTimeIndex, ' bkgfreq = ', nbkgfreq
@@ -1015,7 +1073,25 @@
 !  --------------------------------------------------
    do_analysis = .false.
    call MAPL_StateAlarmGet(GENSTATE, GSIALARM, NAME='last-bkg', RC=STATUS); VERIFY_(STATUS)
-   do_analysis = ESMF_AlarmIsRinging(GSIALARM, rc=status)
+   do_analysis = ESMF_AlarmIsRinging(GSIALARM, RC=STATUS); VERIFY_(STATUS)
+   do_analysis = do_analysis .and. (.not.lobserver)
+
+   do_observer = L>=nfldsig  .and. lobserver
+
+#ifdef VERBOSE
+   if(IamRoot) then
+     call tell(Iam,'lobserver =',lobserver)
+     call tell(Iam,'do_analysis =',do_analysis)
+     call tell(Iam,'do_observer =',do_observer)
+     call tell(Iam,'nthTimeIndex =',nthTimeIndex)
+     call tell(Iam,"L =",L)
+     call tell(Iam,"nfldsig_all",nfldsig_all)
+     call tell(Iam,"nfldsig_now",nfldsig_now)
+     call tell(Iam,"nfldsig",nfldsig)
+     call tell(Iam,'init_pass(L==nfldsig) =',(L==nfldsig))
+     call tell(Iam,'last_pass(L==nfldsig_all) =',(L==nfldsig_all))
+   endif
+#endif
 
    call GSI_GridCompGetPointers_()
    call GSI_GridCompCopyImportDyn2Internal_(L)
@@ -1023,53 +1099,83 @@
    call GSI_GridCompCopyImportSfc2Internal_(L)
    call GSI_GridCompGetNCEPsfcFromFile_(L)
 
-   if (.not. do_analysis) then
-     if(IamRoot) print *,trim(Iam),': Back to AANA'
-!    deallocate(ALARM, stat=STATUS)
-!    VERIFY_(STATUS)
-     RETURN_(ESMF_SUCCESS)
-   end if
-
-   if(IamRoot) print *,trim(Iam),': Will do analysis now ... '
-
 !  Set alarm
 !  ---------
+
    call GSI_GridCompSetAnaTime_()
+#ifdef VERBOSE
+   call tell(Iam,"returned from GSI_GridCompSetAnaTime_()")
+#endif
 
 !  Set observations input
 !  ----------------------
-   if(IamRoot) call GSI_GridCompSetObsNames_()
+   if(L==1.and.IamRoot) call GSI_GridCompSetObsNames_(L)
+#ifdef VERBOSE
+   call tell(Iam,"returned from GSI_GridCompSetObsNames_(L) at L =",L)
+#endif
 
-!  Run analysis
+!  Run observer or analysis
 !  ------------
-   call gsimain_run 
-      
+   if(lobserver) then
+     if(.not. do_observer) then
+#ifdef VERBOSE
+       if(IamRoot) call tell(Iam,'skip back to AANA with do_observer =',do_observer)
+#endif
+       RETURN_(ESMF_SUCCESS)
+     endif
+
+     call gsimain_run(  init_pass=(L==nfldsig), &
+     			last_pass=(L==nfldsig_all)) 	! if in "observer" mode
+#ifdef VERBOSE
+     call tell(Iam,"returned from gsimain_run()")
+#endif
+
+   else
+
+     if(.not. do_analysis) then
+#ifdef VERBOSE
+       if(IamRoot) call tell(Iam,'skip back to AANA with do_analysis =',do_analysis)
+#endif
+       RETURN_(ESMF_SUCCESS)
+     endif
+
+     call gsimain_run( init_pass=.true.,last_pass=.true.)
+#ifdef VERBOSE
+     call tell(Iam,"returned from gsimain_run()")
+#endif
+
 !  Copy analysis to export state
 !  -----------------------------
-   call GSI_GridCompCopyInternal2Export_(ntguessig)
+     call GSI_GridCompCopyInternal2Export_(ntguessig)
+#ifdef VERBOSE
+     call tell(Iam,"returned from GSI_GridCompCopyInternal2Export_(), ntguessig=",ntguessig)
+#endif
 
-
-   deallocate(ALARM, stat=STATUS)
-   VERIFY_(STATUS)
+   endif
 
 !  Done
 !  ----
-   if(IamRoot) print *, "End ",trim(Iam)
-      
+#ifdef VERBOSE
+   if(IamRoot) call tell(Iam,'Exiting ...')
+#endif
+
    RETURN_(ESMF_SUCCESS)
 
    CONTAINS
 
 !-------------------------------------------------------------------------
-   subroutine GSI_GridCompGetAlarms_()
+   subroutine GSI_GridCompGetAlarms_(GENSTATE,nfldsig_all)
 !-------------------------------------------------------------------------
+   type(MAPL_MetaComp),intent(inout)   :: GENSTATE  ! GEOS Generic state
+   integer,intent(in)               :: nfldsig_all
 
+   type(ESMF_Alarm), pointer        :: ALARM(:)
    type(ESMF_Time)                  :: CurrTime
    type(ESMF_Time)                  :: AlaTime
    integer                          :: atime
    integer                          :: yy, mm, dd, hh, mn, sec, n
    character*2                      :: idxtime
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompGetAlarms'
+   character(len=*), parameter :: IAm='GSI_GridCompGetAlarms'
                                                                                                                                 
 ! start
                                                                                                                                 
@@ -1082,9 +1188,17 @@
                                       YY, "/", MM, "/", DD, " ", HH, ":", MN, ":", SEC
    end if
                                                                                                                                 
+!!$ Is this part of code doing anything useful?  It seems ALARM is first allocated
+!!$ and (shallow) assigned to 'some-bkg' and 'lat-bkg' alarms of GENSTATE.  Then
+!!$ throughed away after geting one of alarm for its ESMF_Time value, known only
+!!$ locally, as AlaTime.
+!!$ 
+
 !  get alarm at ana-t
+
+   allocate(ALARM(nfldsig_all), stat=STATUS); VERIFY_(STATUS)
                                                                                                                                 
-   do atime=1,nfldsig-1
+   do atime=1,nfldsig_all-1
      write(idxtime,'(i2)',iostat=STATUS) atime
      aname = "some-bkg " // idxtime
      VERIFY_(STATUS)
@@ -1092,11 +1206,12 @@
      VERIFY_(STATUS)
    end do
 
-   call MAPL_StateAlarmGet(GENSTATE, ALARM(nfldsig), NAME='last-bkg', RC=STATUS)
+   call MAPL_StateAlarmGet(GENSTATE, ALARM(nfldsig_all), NAME='last-bkg', RC=STATUS)
    VERIFY_(STATUS)
-   call ESMF_AlarmGet(ALARM(nfldsig), ringTime=AlaTime, rc=status)
+   call ESMF_AlarmGet(ALARM(nfldsig_all), ringTime=AlaTime, rc=status)
    VERIFY_(STATUS)
                                                                                                                                 
+   deallocate(ALARM, stat=STATUS); VERIFY_(STATUS)
    RETURN_(ESMF_SUCCESS)
 
 
@@ -1127,6 +1242,8 @@
 !-------------------------------------------------------------------------
 !   type(ESMF_Grid)                   :: GEOSGrid 
 !   type(ESMF_Field)                  :: GEOSFld
+
+   character(len=*), parameter :: IAm='GSI_GridCompGetPointers_'
 
 ! imports
 ! -------
@@ -1218,6 +1335,7 @@
    end subroutine GSI_GridCompGetPointers_
 
    subroutine Scale_Import_()
+   character(len=*), parameter :: IAm='GSI_GridComp.Scale_Import_'
 
    where ( psp /= MAPL_UNDEF )
            psp = psp * kPa_per_Pa       ! convert ps to cb
@@ -1237,15 +1355,16 @@
 !-------------------------------------------------------------------------
 !BOPI
 
-! !IROUTINE: GSI_GridCompCopyDynImport2Internal  -- get vars from impGSI
+! !IROUTINE: GSI_GridCompCopyImportDyn2Internal  -- get vars from impGSI
 
 ! !INTERFACE:
 
-   subroutine GSI_GridCompCopyImportDyn2Internal_(it)
+   subroutine GSI_GridCompCopyImportDyn2Internal_(lit)
 
+   use mpeu_util, only: tell
    implicit none
 
-   integer, intent(in) :: it ! first guess time level to copy
+   integer, intent(in) :: lit ! logical index of first guess time level to copy
 
 ! !DESCRIPTION: Extract all upper air fields from GSI import state to
 !                define the corresponding GSI internal variables
@@ -1260,12 +1379,13 @@
 
 ! local variables
 
-   character(len=ESMF_MAXSTR), parameter    :: &
+   character(len=*), parameter    :: &
             IAm='GSI_GridCompCopyImportDyn2Internal_'
+   integer(i_kind) :: it,nn,itguessig
 
 ! start   
 
-   if(IamRoot) print *,trim(Iam),': Copy contents of import to internal state, it= ', it
+   if(IamRoot) print *,trim(Iam),': Copy contents of import to internal state, it= ', lit
 
 ! The upper air fields from the GEOS import state are already decomposed 
 ! for the GSI. A final operation before updating the corresponding GSI 
@@ -1273,6 +1393,45 @@
 ! to JIK (GSI). TODO: this could be done during coupling.
 
    call Scale_Import_()
+
+   nfldsig_now = lit
+   if(lit > nfldsig) then	! rotate the storage
+
+     nfldsig_now = nfldsig	! take over the last storage slot
+
+     do nn = 1,nfldsig-1	! by first moving data slots up
+
+       hrdifsig(nn) = hrdifsig(nn+1)
+
+       ges_z (:,:,nn) = ges_z (:,:,nn+1)
+       ges_ps(:,:,nn) = ges_ps(:,:,nn+1)
+
+       ges_u   (:,:,:,nn) = ges_u   (:,:,:,nn+1)
+       ges_v   (:,:,:,nn) = ges_v   (:,:,:,nn+1)
+       ges_tv  (:,:,:,nn) = ges_tv  (:,:,:,nn+1)
+       ges_q   (:,:,:,nn) = ges_q   (:,:,:,nn+1)
+       ges_oz  (:,:,:,nn) = ges_oz  (:,:,:,nn+1)
+       ges_cwmr(:,:,:,nn) = ges_cwmr(:,:,:,nn+1)
+     enddo
+   endif
+
+   it = nfldsig_now
+   ntguessig = ntguessig_ref - lit + it
+   itguessig = max(1,min(ntguessig,nfldsig))
+   if(IamRoot) call tell(Iam, &
+   	'reset ntguessig, (from, to) =',(/ntguessig,itguessig/))
+   ntguessig = itguessig
+
+#ifdef VERBOSE
+   call tell(Iam,'nfldsig.it  =',it)
+   call tell(Iam,'nfldsig.lit =',lit)
+   call tell(Iam,'nfldsig     =',nfldsig)
+#endif
+   hrdifsig(it)=hrdifsig_all(lit)
+#ifdef VERBOSE
+   call tell(Iam,'hrfldsig(it) =',hrdifsig(it))
+   call tell(Iam,"ntguessig =",ntguessig)
+#endif
 
 ! Terrain:
 
@@ -1335,23 +1494,24 @@
 
 ! !INTERFACE:
 
-   subroutine GSI_GridCompComputeVorDiv_(it)
+   subroutine GSI_GridCompComputeVorDiv_(lit)
 
 #ifdef _GMAO_FVGSI_
    use m_ggGradient,only : ggGradient
    use m_ggGradient,only : ggGradient_init,clean
    use m_ggGradient,only : ggDivo
 #else /* _GMAO_FVGSI_ */
+   use compact_diffs, only: cdiff_created
+   use compact_diffs, only: cdiff_initialized
    use compact_diffs, only: create_cdiff_coefs
    use compact_diffs, only: inisph
    use compact_diffs, only: uv2vordiv
-   use compact_diffs, only: destroy_cdiff_coefs
    use xhat_vordivmod, only: xhat_vordiv_calc2
 #endif /* _GMAO_FVGSI_ */
 
    implicit none
 
-   integer, intent(in) :: it ! first guess time level to copy
+   integer, intent(in) :: lit ! logical index of first guess time level to copy
 
 ! !DESCRIPTION: vorticity-divergence calculation 
 !
@@ -1364,7 +1524,8 @@
 
 ! local variables
 
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompComputeVorDiv_'
+   character(len=*), parameter :: IAm='GSI_GridCompComputeVorDiv_'
+   integer(i_kind) :: it,nn
 #ifdef _GMAO_FVGSI_
    type(ggGradient) :: gr
    integer :: iGdim,iGloc,iGlen
@@ -1376,6 +1537,14 @@
 ! start
 
    if(IamRoot.and.verbose) print *,trim(Iam),': Compute vorticity and divergence'
+
+   it = nfldsig_now
+   if(lit > nfldsig) then	! rotate the storage
+     do nn=1,nfldsig-1
+       ges_div(:,:,:,nn) = ges_div(:,:,:,nn+1)
+       ges_vor(:,:,:,nn) = ges_vor(:,:,:,nn+1)
+     enddo
+   endif
 
 #ifdef _GMAO_FVGSI_
    allocate(up8 (lat2,lon2,nsig), &
@@ -1399,7 +1568,7 @@
    call ggGradient_init(gr,nlon,rlats(1:nlat),	&
   	iGloc,iGlen,jGloc,jGlen,nsig, mpi_comm_world)
 
-   if(IamRoot.and.verbose) print *,'call ggDivo '
+   if(IamRoot.and.verbose) print *,Iam,': call ggDivo '
    call ggDivo(gr,		&
 	up8  (:,:,:),	        &	! in: u
 	vp8  (:,:,:),	        &	! in: v
@@ -1412,10 +1581,10 @@
    VERIFY_(STATUS)
 
 #else /* _GMAO_FVGSI_ */
-   call create_cdiff_coefs
-   call inisph(rearth,rlats(2),wgtlats(2),nlon,nlat-2)
+   if(.not.cdiff_created()) call create_cdiff_coefs()
+   if(.not.cdiff_initialized()) call inisph(rearth,rlats(2),wgtlats(2),nlon,nlat-2)
    call xhat_vordiv_calc2 (ges_u(:,:,:,it),ges_v(:,:,:,it),ges_vor(:,:,:,it),ges_div(:,:,:,it))
-   call destroy_cdiff_coefs
+!!   call destroy_cdiff_coefs
 #endif /* _GMAO_FVGSI_ */
 
 ! simple statistics
@@ -1436,11 +1605,11 @@
 
 ! !INTERFACE:
 
-   subroutine GSI_GridCompCopyImportSfc2Internal_(it)
+   subroutine GSI_GridCompCopyImportSfc2Internal_(lit)
 
    implicit none
 
-   integer, intent(in) :: it ! first guess time level to copy
+   integer, intent(in) :: lit ! logical index of first guess time level to copy
 
 ! !DESCRIPTION: Extract all surface fields from GSI import state to
 !                define the corresponding GSI internal variables
@@ -1456,14 +1625,52 @@
 
 ! local variables
 
-   character(len=ESMF_MAXSTR), parameter :: &
+   character(len=*), parameter :: &
             IAm='GSI_GridCompCopyImportSfc2Internal_'
    real                              :: wspd
    integer,allocatable,dimension(:,:):: islip
+   integer(i_kind) :: it,nn,itguessfc
 
 ! start
 
-   if(IamRoot) print *,trim(Iam),': Copy contents of import to internal state, it= ',it
+   if(IamRoot) print *,trim(Iam),': Copy contents of import to internal state, it= ',lit
+
+   nfldsfc_now = lit
+   if(lit > nfldsfc) then
+     nfldsfc_now = nfldsfc	! take over the last storage slot
+
+     do nn=1,nfldsfc-1
+       hrdifsfc(nn) = hrdifsfc(nn+1)
+
+       dsfct(:,:,nn) = dsfct(:,:,nn+1)
+        sfct(:,:,nn) =  sfct(:,:,nn+1)
+	sno (:,:,nn) =  sno (:,:,nn+1)
+
+       soil_moi (:,:,nn) = soil_moi (:,:,nn+1)
+       soil_temp(:,:,nn) = soil_temp(:,:,nn+1)
+       sfc_rough(:,:,nn) = sfc_rough(:,:,nn+1)
+
+        isli(:,:,nn) =   isli(:,:,nn+1)
+      fact10(:,:,nn) = fact10(:,:,nn+1)
+     enddo
+   endif
+
+   it = nfldsfc_now
+   ntguessfc = ntguessfc_ref - lit + it
+   itguessfc = max(1,min(ntguessfc,nfldsfc))
+   if(IamRoot) call tell(Iam, &
+   	'reset ntguessfc, (from, to) =',(/ntguessfc,itguessfc/))
+   ntguessfc = itguessfc
+
+#ifdef VERBOSE
+   call tell(Iam,'nfldsfc.it  =',it)
+   call tell(Iam,'nfldsfc.lit =',lit)
+#endif
+   hrdifsfc(it)=hrdifsfc_all(lit)
+#ifdef VERBOSE
+   call tell(Iam,'hrfldsfc(it) =',hrdifsfc(it))
+   call tell(Iam,"ntguessfc =",ntguessfc)
+#endif
 
 ! The surface fields from the GEOS import state are already decomposed 
 ! for the GSI. A final operation before updating the corresponding GSI 
@@ -1537,7 +1744,10 @@
 ! Set output (export) land/water/etc information
 ! RT: Is there a more decent way to set outputs from inputs in ESMF?
 !     Why can't I use fr-arrays directly?
-   if ( it==ntguessfc ) then
+!   if ( it==ntguessfc ) then
+!
+! Check stored hrdifsfc(:) for expected time (J.G.)
+   if ( hrdifsfc(it)==hrdifsfc_all(ntguessfc_ref) ) then
        dts        = tskp
        dfrland    = frland
        dfrlandice = frlandice
@@ -1562,8 +1772,8 @@
    call undef_2ssi(v10p,MAPL_UNDEF,trim(Iam),	&
         verb=.false.,vname='V10M')
 #ifdef SFCverbose
-   print *,' u10m (PE,min,max,sum): ',mype,minval(u10p),maxval(u10p),sum(u10p)
-   print *,' v10m (PE,min,max,sum): ',mype,minval(v10p),maxval(v10p),sum(v10p)
+   print *,Iam,':  u10m (PE,min,max,sum): ',mype,minval(u10p),maxval(u10p),sum(u10p)
+   print *,Iam,':  v10m (PE,min,max,sum): ',mype,minval(v10p),maxval(v10p),sum(v10p)
 #endif
    allocate(f10p(lon2,lat2), stat=STATUS)
    VERIFY_(STATUS)
@@ -1625,11 +1835,11 @@
 
 ! !INTERFACE:
 
-   subroutine GSI_GridCompGetNCEPsfcFromFile_(it)
+   subroutine GSI_GridCompGetNCEPsfcFromFile_(lit)
 
    implicit none
 
-   integer, intent(in) :: it ! first guess time level to copy
+   integer, intent(in) :: lit ! logical index of first guess time level to copy
 
 ! !DESCRIPTION: read NCEP global surface fields, vegetation fraction,
 !               vegetation and soil type,  from a file.
@@ -1649,12 +1859,23 @@
    integer version
    integer,dimension(4):: igdate
 
-   character(len=ESMF_MAXSTR), parameter    :: &
+   character(len=*), parameter    :: &
             IAm='GSI_GridCompGetNCEPsfcFromFile_'
+
+   integer(i_kind) :: it,nn
 
 ! start
 
    if(IamRoot.and.verbose) print *,trim(Iam),': read NCEP global surface fields from a file'
+
+   if(lit > nfldsfc) then
+     do nn=1,nfldsfc-1
+        veg_type(:,:,nn) = veg_type(:,:,nn+1)
+       soil_type(:,:,nn) =soil_type(:,:,nn+1)   
+        veg_frac(:,:,nn) = veg_frac(:,:,nn+1)
+     enddo
+   endif
+   it = nfldsfc_now
 
 ! Now we use hinterp to regrid ncepsfc fields as well as swap lats, add poles
 ! and flip longitudes before using hinterp (also flip lons after hinterp).
@@ -1767,11 +1988,11 @@
 
 ! !INTERFACE:
 
-   subroutine GSI_GridCompCopyInternal2Export_(it)
+   subroutine GSI_GridCompCopyInternal2Export_(lit)
 
    implicit none
 
-   integer, intent(in) :: it ! first guess time level to copy
+   integer, intent(in) :: lit ! logical index of first guess time level to copy
 
 ! !DESCRIPTION: Extract GSI internal variables and put into GSI
 !                export state.
@@ -1788,18 +2009,25 @@
 !   05Dec2008 Todling  Update SST before writing out
 !   10Mar2009 Todling  Place cwmr into qimr; zero out qltot
 !   12Mar2009 Todling  Revamp skin temperature imp/exp
+!   20Jan2010 Todling  Fix for dealing w/ delp when writing out ainc
 !
 !EOPI
 !-------------------------------------------------------------------------
 
 ! local variables
 
-   character(len=ESMF_MAXSTR), parameter    :: &
+   character(len=*), parameter    :: &
             IAm='GSI_GridCompCopyInternal2Export_'
    integer kk
    real(r_kind),allocatable, dimension(:,:) :: wrk
+   integer :: it
 
-   if(IamRoot) print *,trim(Iam),': Copy contents of internal state to export, it= ',it
+   if(IamRoot) print *,trim(Iam),': Copy contents of internal state to export, it= ',lit
+
+   it = 1
+   do it=1,nfldsig
+     if (hrdifsig(it) == hrdifsig_all(lit)) exit
+   enddo
 
 ! simple statistics
 
@@ -1839,32 +2067,33 @@
        deallocate(wrk)
    endif
 #ifdef SFCverbose
-   print *,' dts (PE,min,max,sum): ',mype,minval(dts),maxval(dts),sum(dts)
+   print *,Iam,':  dts (PE,min,max,sum): ',mype,minval(dts),maxval(dts),sum(dts)
 #endif
 
    call UnScale_Export_()
 
    if ( lwrtinc ) then
         do k=1,nsig
-           kk = nsig-k+1+1
+           kk = nsig-k+1
            ddp(:,:,kk)=(bk5(k+1)-bk5(k))*dps(:,:)
         end do
    else
         do k=1,nsig
-           kk = nsig-k+1+1
+           kk = nsig-k+1
            ddp(:,:,kk)=Pa_per_kPa*(ak5(k+1)-ak5(k)) +  &
                                   (bk5(k+1)-bk5(k))*dps(:,:)
         end do
-
-!       If ak(1)+bk(1)*ps is the surface, then ak(2)+bk(2)*ps would
-!       be smaller, then dp would be negtive and should be reset to -dp.
-
-        if(sfcFirst_(Pa_per_kPa*ak5,bk5,maxval(dps))) ddp(:,:,:)=-ddp(:,:,:)
    endif
+
+!  If ak(1)+bk(1)*ps is the surface, then ak(2)+bk(2)*ps would
+!  be smaller, then dp would be negtive and should be reset to -dp.
+
+   if(sfcFirst_(Pa_per_kPa*ak5,bk5,maxval(dps),lwrtinc)) ddp(:,:,:)=-ddp(:,:,:)
 
    end subroutine GSI_GridCompCopyInternal2Export_
 
    subroutine UnScale_Export_()
+   character(len=*), parameter :: IAm='GSI_GridComp.UnScale_Export_'
                       dps = dps  * Pa_per_kPa
    if(GsiGridType==0) dhs = grav * dhs
    if(GsiGridType==0) doz = doz  / PPMV2DU
@@ -1873,7 +2102,7 @@
 !-------------------------------------------------------------------------
    subroutine GSI_GridCompSetAnaTime_()
 !-------------------------------------------------------------------------
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompSetAnaTime'
+   character(len=*), parameter :: IAm='GSI_GridCompSetAnaTime'
    integer(i_kind)              :: nmin_an
    integer(i_kind),dimension(8) :: ida,jda
    integer(i_kind)              :: iyr,ihourg
@@ -1918,13 +2147,14 @@
    iadate(3)=jda(3) ! day
    iadate(4)=jda(5) ! hour
    iadate(5)=0      ! minute
+   ianldate =jda(1)*1000000+jda(2)*10000+jda(3)*100+jda(5)
                                                                                                                                 
 !  Determine date and time at start of assimilation window
    ida(:)=0
    jda(:)=0
    fha(:)=0.0
-   fha(2)=-float(int(min_offset/60))
-   fha(3)=-(min_offset+fha(2)*60.)
+   fha(2)=-real(min_offset/60)
+   fha(3)=-real(mod(min_offset,60))
    ida(1:3)=iadate(1:3)
    ida(5:6)=iadate(4:5)
    call w3movdat(fha,ida,jda)
@@ -1979,9 +2209,11 @@
 
 ! !INTERFACE:
 
-   subroutine GSI_GridCompSetObsNames_()
+   subroutine GSI_GridCompSetObsNames_(lit)
 
+   use mpeu_util, only: tell
    implicit none
+   integer, intent(in) :: lit ! logical index of first guess time level
 
 ! !DESCRIPTION: temporary routine to set names of GSI obs data files
 !
@@ -1994,7 +2226,7 @@
 ! obs file name templates defined in GSI_GridComp.rc
 ! ...are there any more than 9?
 
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompSetObsNames_'
+   character(len=*), parameter :: IAm='GSI_GridCompSetObsNames_'
    character(len=ESMF_MAXSTR) :: DateStamp
    character(len=ESMF_MAXSTR) :: expid
    character(len=8)           :: cymd
@@ -2003,6 +2235,9 @@
    integer(i_kind)            :: OBSfreq, OBSfreq_sc, OBSfreq_mn, OBSfreq_hr
 
 ! start
+#ifdef VERBOSE
+   call tell(Iam,'entered with lit =',lit)
+#endif
 
    call ESMF_GridCompGet( gc, config=CF, RC=STATUS )
    VERIFY_(STATUS)
@@ -2011,10 +2246,20 @@
    call ESMF_ConfigGetAttribute( CF, OBSfreq, label ='OBS_FREQUENCY:', rc = STATUS )
    VERIFY_(STATUS)
 
+#ifdef VERBOSE
+   call tell(Iam,'returned from ESMF_ConfiGetAttribute()')
+#endif
+
    OBSfreq_hr = OBSfreq/10000
    OBSfreq_mn = mod(OBSfreq,10000)/100
    OBSfreq_sc = mod(OBSfreq,100)
    OBSfreq_sc = OBSfreq_hr*3600 + OBSFreq_mn*60 + OBSfreq_sc
+#ifdef VERBOSE
+   call tell(Iam,'OBSfreq_hr =',OBSfreq_hr)
+   call tell(Iam,'OBSfreq_mn =',OBSfreq_mn)
+   call tell(Iam,'OBSfreq_sc =',OBSfreq_sc)
+   call tell(Iam,'OBSfreq_sc =',OBSfreq_sc)
+#endif
 
 !_RT#ifdef USING_GEOS_FILE_MODEL
 ! temporarily we get it from iadate...
@@ -2022,6 +2267,10 @@
    VERIFY_(STATUS)
    write(chms,'(i2.2,i2.2,i2.2)',iostat=STATUS) iadate(4),0,0
    VERIFY_(STATUS)
+#ifdef VERBOSE
+   call tell(Iam,'cymd =',trim(cymd))
+   call tell(Iam,'chms =',trim(chms))
+#endif
 !_RT#else
 ! This is the way to do it if the GSI clock's current time is the analysis 
 ! time (should be available during coupling to model):
@@ -2029,30 +2278,80 @@
 !_RT   VERIFY_(STATUS)
 !_RT#endif
 
+
    read(cymd,'(i8.8)',iostat=STATUS) nymd
    VERIFY_(STATUS)
    read(chms,'(i6.6)',iostat=STATUS) nhms
    VERIFY_(STATUS)
+#ifdef VERBOSE
+   call tell(Iam,'nymd =',nymd)
+   call tell(Iam,'nhms =',nhms)
+#endif
 
 !  Read in observation files table
 !  -------------------------------
-   call RC_obstable_ ( nobfiles )
 
+!     Allocate obs table array
+!     ------------------------
+      allocate( obstab(ndatmax,2) )
+      obstab(:,:)=""
+
+   call RC_obstable_ ( nobfiles )
+#ifdef VERBOSE
+   call tell(Iam,'returned from RC_obstable_()')
+
+   call tell(Iam,'ndat_times =',ndat_times)
+#endif
    if ( ndat_times > 1 ) then
+#ifdef VERBOSE
+      call tell(Iam,'ndat_times > 1')
+#endif
+      call tell(Iam,'observation time yyyymmdd:hhmmss = '//cymd//':'//chms)
       do indx = 1, ndat_times
-         print *, trim(IAm),':  observation time yyyymmdd:hhmmss = '//cymd//':'//chms
+#ifdef VERBOSE
+         call tell(Iam,'indx =',indx)
+         call tell(Iam,'nobfiles =',nobfiles)
+#endif
+         ! print *, trim(IAm),':  observation time yyyymmdd:hhmmss = '//cymd//':'//chms
          do i=1,nobfiles
+#ifdef VERBOSE
+            call tell(Iam,'iobfiles =',i)
+#endif
             call setObsFile_( trim(obstab(i,2)), trim(obstab(i,1)), nymd, nhms, indx )
+#ifdef VERBOSE
+            call tell(Iam,'returned from setObsFile_(), iobfiles =',i)
+#endif
          enddo
          call tick ( nymd, nhms, obsfreq_sc ) ! _RT: now this is cheating ... needs generalization
+#ifdef VERBOSE
+         call tell(Iam,'returned from tick()',i)
+#endif
       enddo
    else
-      print *, trim(IAm),':  observation time yyyymmdd:hhmmss = '//cymd//':'//chms
+#ifdef VERBOSE
+      call tell(Iam,'ndat_times !> 1')
+#endif
+      call tell(Iam,'observation time yyyymmdd:hhmmss = '//cymd//':'//chms)
+      ! print *, trim(IAm),':  observation time yyyymmdd:hhmmss = '//cymd//':'//chms
+#ifdef VERBOSE
+      call tell(Iam,'nobfiles =',nobfiles)
+#endif
       do i=1,nobfiles
+#ifdef VERBOSE
+         call tell(Iam,'iobfiles =',i)
+#endif
          call setObsFile_( trim(obstab(i,2)), trim(obstab(i,1)), nymd, nhms )
+#ifdef VERBOSE
+         call tell(Iam,'returned from setObsFile_(), iobfiles =',i)
+#endif
       enddo
    endif ! < ndat_times >
+#ifdef VERBOSE
+   call tell(Iam,'endif(ndat_times>1)')
+   call tell(Iam,'exiting..')
+#endif
 
+   deallocate(obstab)
    end subroutine GSI_GridCompSetObsNames_
 
    subroutine RC_obstable_ ( nobfiles )
@@ -2066,11 +2365,13 @@
 !  18Feb2009 Jing Guo	- replaced mpeu dependency using m_strtemplate
 !			  with local module mpeu_util.
 
+      use mpeu_util,only: warn,tell
       implicit none
 
       integer(i_kind), intent(out) :: nobfiles
  
-      character(len=*), parameter :: myname_   = 'RC_obstable_'
+      character(len=*), parameter :: IAm='GSI_GridComp.RC_obstable_'
+      character(len=*), parameter :: myname_   = IAm
       character(len=*), parameter :: tablename = 'observation_files::'
 
       integer iret, ientry, iamroot
@@ -2080,11 +2381,6 @@
 !     ----------
       iamroot = MAPL_AM_I_ROOT()
       iret    = 0
-
-!     Allocate obs table array
-!     ------------------------
-      allocate( obstab(ndatmax,2) )
-      obstab(:,:)=""
 
 !     Read table with paired datatypes:
 !     --------------------------------
@@ -2136,6 +2432,7 @@
      character(len=*),intent(out) :: token
      character(len=*),intent(in ) :: myname
      integer         ,intent(out) :: rc
+     character(len=*), parameter :: IAm='GSI_GridComp.getnexttoken1_'
 
      token=""
      call ESMF_ConfigNextLine(cf, rc=rc)
@@ -2155,6 +2452,7 @@
      type(ESMF_Config),intent(inout) :: cf
      character(len=*),intent(out) :: token
      character(len=*),intent(in ) :: myname
+     character(len=*), parameter :: IAm='GSI_GridComp.getnexttoken2_'
 
      integer :: rc
 
@@ -2170,6 +2468,7 @@
 !-------------------------------------------------------------------------
    subroutine setObsFile_(tmpl,gsiname,nymd,nhms,indx)
 !-------------------------------------------------------------------------
+   use mpeu_util, only: tell,warn
 ! args
    character(len=*), intent(in)           :: tmpl, gsiname
    integer(i_kind),  intent(in)           :: nymd, nhms
@@ -2179,7 +2478,7 @@
    logical                               :: fexist
    character(len=ESMF_MAXSTR)            :: syscmd1,syscmd2
    character(len=ESMF_MAXSTR)            :: obsfile, obs_file
-   character(len=ESMF_MAXSTR), parameter :: Iam='setObsFile_'
+   character(len=*), parameter :: Iam='GSI_GridComp.setObsFile_'
 
    call StrTemplate ( obsfile, tmpl, nymd=nymd, nhms=nhms, stat=STATUS )
    VERIFY_(STATUS)
@@ -2191,23 +2490,28 @@
    endif
    if(fexist) then
       call system(syscmd1)
-      print *,trim(syscmd2)
       call system(syscmd2)
    else
-      print *,' WARNING: '//trim(obsfile)//' does not exist'
+      call warn(Iam,"does not exist",obsfile)
    end if
 
    end subroutine setObsFile_
 
-   function sfcFirst_(ak,bk,ps)
+   function sfcFirst_(ak,bk,ps,amIinc)
      implicit none
      real(r_kind),dimension(:),intent(in) :: ak,bk
      real,intent(in) :: ps
      logical :: sfcFirst_
+     logical :: amIinc
      integer :: m
      m=size(ak)
-           !   p_sfc=pres(1)   >  p_top=pres(m)
-     sfcFirst_= ak(1)+bk(1)*ps > ak(m)+bk(m)*ps
+     if (amIinc) then
+             !   p_sfc=bk(1) > p_top=bk(m)
+       sfcFirst_= bk(1)      > bk(m)    ! simplified test when dealing w/ increment
+     else
+             !   p_sfc=pres(1)   >  p_top=pres(m)
+       sfcFirst_= ak(1)+bk(1)*ps > ak(m)+bk(m)*ps
+     endif
    end function sfcFirst_
 
 
@@ -2248,12 +2552,12 @@
 
    integer                           :: STATUS    ! error code STATUS
    logical                           :: IamRoot    
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompFinalize'
+   character(len=*), parameter :: IAm='GSI_GridCompFinalize'
 
 ! start
 
    IamRoot = MAPL_AM_I_ROOT()
-   if(IamRoot.and.verbose) print *, "Start ",trim(Iam)
+   if(IamRoot.and.verbose) print *, Iam,": Start ",trim(Iam)
 
 ! Call GEOS Generic Finalize
 
@@ -2268,8 +2572,10 @@
    VERIFY_(STATUS)
    deallocate(hrdifsig, hrdifsfc, stat=STATUS)
    VERIFY_(STATUS)
+   deallocate(hrdifsig_all, hrdifsfc_all, stat=STATUS)
+   VERIFY_(STATUS)
    
-   if(IamRoot) print *, "End ",trim(Iam)
+   if(IamRoot) print *, Iam,": End ",trim(Iam)
 
    RETURN_(ESMF_SUCCESS)
 
@@ -2278,7 +2584,7 @@
 !-------------------------------------------------------------------------
    subroutine GSI_GridCompDealloc_()
 !-------------------------------------------------------------------------
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompDealloc'
+   character(len=*), parameter :: IAm='GSI_GridCompDealloc'
 
    deallocate( isli     ,&
                fact10   ,&
@@ -2357,7 +2663,7 @@
 !-------------------------------------------------------------------------
 
    integer                               :: STATUS, local_hw
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompSetupSpecs'
+   character(len=*), parameter :: IAm='GSI_GridCompSetupSpecs'
 
    integer(i_kind) ii
 
@@ -2559,6 +2865,7 @@
 !-------------------------------------------------------------------------
    subroutine GSI_GridCompSetAlarms (GENSTATE, GC, cf, clock)
 !-------------------------------------------------------------------------
+   use mpeu_util,only : tell,perr,die
    type(MAPL_MetaComp), pointer     :: GENSTATE  ! GEOS Generic state
    type(ESMF_GridComp)              :: GC
    type(ESMF_Config)                :: cf
@@ -2566,7 +2873,7 @@
 
 !  locals
 !  ------
-   character(len=ESMF_MAXSTR), parameter :: IAm='GSI_GridCompSetAlarms'
+   character(len=*), parameter :: IAm='GSI_GridCompSetAlarms'
 
    type(ESMF_Alarm), pointer        :: ALARM(:)  ! this component's alarms
    type(ESMF_Time)                  :: CurrTime
@@ -2635,7 +2942,7 @@
    call ESMF_TimeIntervalSet(FrqANA, h=ANAfreq_hr, rc=STATUS)
      VERIFY_(STATUS)
 
-   call ESMF_TimeIntervalSet(AnaOST, h=int(min_offset/60), rc=STATUS)
+   call ESMF_TimeIntervalSet(AnaOST, h=min_offset/60,m=mod(min_offset,60), rc=STATUS)
      VERIFY_(STATUS)
 
 
@@ -2651,44 +2958,75 @@
 ! n+1 th alarm rings when all BKG time levels have been collected
 !
 
-   allocate(ALARM(nfldsig), stat=STATUS); VERIFY_(STATUS)
+   allocate(ALARM(nfldsig_all), stat=STATUS); VERIFY_(STATUS)
 
    AnaTime    = AlarmTime + AnaOST  ! alarm to indicate analysis time
    AlarmTime0 = AlarmTime
-   do atime = 1,nfldsig-1
+   do atime = 1,nfldsig_all-1
       write(idxtime,'(i2)',iostat=STATUS) atime;                                     VERIFY_(STATUS)
       aname = "some-bkg " // idxtime
       ALARM(atime) = ESMF_AlarmCreate(aname, clock, ringTime=alarmTime0, rc=rc);     VERIFY_(STATUS)
       call MAPL_StateAlarmAdd(GENSTATE,ALARM(atime),RC=status);                      VERIFY_(STATUS)
       call ESMF_AlarmGet(ALARM(atime), ringTime=AlaTime, rc=status);                 VERIFY_(STATUS)
       call ESMF_TimeGet(AlaTime, yy=YY, mm=MM, dd=DD, h=HH, m=MN, s=SEC, rc=status); VERIFY_(STATUS)
-      if(IamRoot) print *, trim(aname)," background time set to ", YY, "/", MM, "/", DD, " ", HH, ":", MN, ":", SEC
+      if(IamRoot) print *, Iam,": ",trim(aname)," background time set to ", YY, "/", MM, "/", DD, " ", HH, ":", MN, ":", SEC
       if( AlaTime == RefTime ) then
-          ntguessig = atime
-          ntguessfc = atime
-          if (IamRoot) print *, "Upper-air updated pointer (ntguessig): ", ntguessig
-          if (IamRoot) print *, "Surface   updated pointer (ntguessig): ", ntguessfc
+          ntguessig_ref = atime
+          ntguessfc_ref = atime
+          if (IamRoot) print *, Iam,": Upper-air updated pointer (ntguessig_ref): ", ntguessig_ref
+          if (IamRoot) print *, Iam,": Surface   updated pointer (ntguessig_ref): ", ntguessfc_ref
       endif
+#ifdef VERBOSE
+      call tell(Iam,"if(Alatime==AnaTime)")
+#endif
       if( AlaTime == AnaTime ) then
           MYIDATE = (/ HH, MM, DD, YY /)
       endif
+#ifdef VERBOSE
+      call tell(Iam,"endif(Alatime==AnaTime)")
+#endif
       alarmTime0 = alarmTime0 + FrqBKG
    end do
+#ifdef VERBOSE
+   call tell(Iam,"enddo")
+#endif
+
+   	! locate where the slot is available
+#ifdef VERBOSE
+   call tell(Iam,"nfldsig =",nfldsig)
+   call tell(Iam,"ntguessig_ref =",ntguessig_ref)
+   call tell(Iam,"allocated(hrdifsig) =",allocated(hrdifsig))
+   call tell(Iam,"allocated(hrdifsig_all) =",allocated(hrdifsig_all))
+   call tell(Iam,"size(hrdifsig,1) =",size(hrdifsig,1))
+   call tell(Iam,"size(hrdifsig_all,1) =",size(hrdifsig_all,1))
+   call tell(Iam,"hrdifsig_all(ntguessig_ref) =",hrdifsig_all(ntguessig_ref))
+#endif
 
    ! the last alarm notifies aana that analysis is done
 
-   atime = nfldsig
+   atime = nfldsig_all
    aname = "last-bkg"
    ALARM(atime) = ESMF_AlarmCreate(aname, clock, ringTime=alarmTime0, rc=rc);     VERIFY_(STATUS)
    call MAPL_StateAlarmAdd(GENSTATE,ALARM(atime),RC=status);                      VERIFY_(STATUS)
    call ESMF_AlarmGet(ALARM(atime), ringTime=AlaTime, rc=status);                 VERIFY_(STATUS)
    call ESMF_TimeGet(AlaTime, yy=YY, mm=MM, dd=DD, h=HH, m=MN, s=SEC, rc=status); VERIFY_(STATUS)
-   if(IamRoot) print *, trim(aname)," at ana time set to ", YY, "/", MM, "/", DD, " ", HH, ":", MN, ":", SEC
+   if(IamRoot) print *,Iam,": ",trim(aname)," at ana time set to ", YY, "/", MM, "/", DD, " ", HH, ":", MN, ":", SEC
    if( AlaTime == RefTime ) then
-       ntguessig = atime
-       ntguessfc = atime
-       if (IamRoot) print *, "Upper-air updated pointer (ntguessig): ", ntguessig
-       if (IamRoot) print *, "Surface   updated pointer (ntguessig): ", ntguessfc
+       ntguessig_ref = atime
+       ntguessfc_ref = atime
+       if (IamRoot) print *, Iam,": Upper-air updated pointer (ntguessig_ref): ", ntguessig_ref
+       if (IamRoot) print *, Iam,": Surface   updated pointer (ntguessig_ref): ", ntguessfc_ref
+
+   	! locate where the slot is available
+#ifdef VERBOSE
+   call tell(Iam,"nfldsig =",nfldsig)
+   call tell(Iam,"ntguessig_ref =",ntguessig_ref)
+   call tell(Iam,"allocated(hrdifsig) =",allocated(hrdifsig))
+   call tell(Iam,"allocated(hrdifsig_all) =",allocated(hrdifsig_all))
+   call tell(Iam,"size(hrdifsig,1) =",size(hrdifsig,1))
+   call tell(Iam,"size(hrdifsig_all,1) =",size(hrdifsig_all,1))
+   call tell(Iam,"hrdifsig_all(ntguessig_ref) =",hrdifsig_all(ntguessig_ref))
+#endif
    endif
 
    deallocate(ALARM, stat=STATUS); VERIFY_(STATUS)
@@ -2712,6 +3050,7 @@
   real(4),dimension(:,:),intent(inout) :: rbufr
   real(4),dimension(:,:),intent(in ) :: sfcin
   integer :: im,jm,j
+  character(len=*), parameter :: IAm='GSI_GridCompSP2NP_'
 
   im=size(rbufr,1)
   jm=size(rbufr,2)
@@ -2730,6 +3069,7 @@
    implicit none
    real(r_kind),intent(inout) ::  fld(:,:,:)
    real(r_kind),allocatable   :: work(:,:,:)
+   character(len=*), parameter :: IAm='GSI_GridComp.SwapVr_'
    integer im, jm, km
    if(.not.doVflip)return
    im   = size(fld,1)
@@ -2746,6 +3086,7 @@
    implicit none
    real(4),intent(inout) ::  fld(:,:,:)
    real(4),allocatable   :: work(:,:,:)
+   character(len=*), parameter :: IAm='GSI_GridComp.SwapV4_'
    integer im, jm, km
    if(.not.doVflip)return
    im   = size(fld,1)
@@ -2760,25 +3101,22 @@
    subroutine SwapIJ3r_(aij,aji)
 !-------------------------------------------------------------------------
 ! transpose IJK-ordered array to JIK-ordered array
-! Note that since vertical grid is haloed we exclude k=1 and k=ksz
    implicit none
    real(4),dimension(:,:,:),intent(in) :: aij
    real(r_kind),  dimension(:,:,:),intent(inout) :: aji
-   character(len=*),parameter :: Iam='SwapIJ3'
-   integer :: i,j,k,isz,jsz,ksz,kk
+   character(len=*), parameter :: IAm='GSI_GridComp.SwapIJ3r_'
+   integer :: i,j,k,isz,jsz,ksz
 !
    isz=size(aij,1)
    jsz=size(aij,2)
    ksz=size(aij,3)
-   kk=1
-   do k=2,ksz-1
+   do k=1,ksz
       do i=1,isz
-         aji(1:jsz,i,kk)=aij(i,1:jsz,k)
+         aji(1:jsz,i,k)=aij(i,1:jsz,k)
       end do
-      kk=kk+1
    end do
-   call Halo3d_Undef_OutJI_(aji(:,:,1:kk-1))
-   call GSI_GridCompSwapV_(aji(:,:,1:kk-1))
+   call Halo3d_Undef_OutJI_(aji(:,:,1:ksz))
+   call GSI_GridCompSwapV_(aji(:,:,1:ksz))
    end subroutine SwapIJ3r_
 
 !-------------------------------------------------------------------------
@@ -2788,20 +3126,18 @@
    implicit none
    real(4),dimension(:,:,:),intent(inout) :: aij
    real(r_kind),  dimension(:,:,:),intent(in) :: aji
-   character(len=*),parameter :: Iam='::SwapJI3'
-   integer :: i,j,k,isz,jsz,ksz,kk
+   character(len=*), parameter :: IAm='GSI_GridComp.SwapJI3r_'
+   integer :: i,j,k,isz,jsz,ksz
 !
    isz=size(aji,2)
    jsz=size(aji,1)
    ksz=size(aji,3)
-   kk=2
    do k=1,ksz
       do i=1,isz
-         aij(i,1:jsz,kk)=aji(1:jsz,i,k)
+         aij(i,1:jsz,k)=aji(1:jsz,i,k)
       end do
-      kk=kk+1
    end do
-   call GSI_GridCompSwapV_(aij(:,:,2:kk-1))
+   call GSI_GridCompSwapV_(aij(:,:,1:ksz))
 
    end subroutine SwapJI3r_
 
@@ -2812,8 +3148,8 @@
    implicit none
    real(4),dimension(:,:),intent(in) :: aij
    real(r_kind),  dimension(:,:),intent(inout) :: aji
+   character(len=*), parameter :: IAm='GSI_GridComp.SwapIJ2r_'
 !
-   character(len=*),parameter :: Iam='SwapIJ2'
    integer :: i,j,isz,jsz
 !
    isz=size(aij,1)
@@ -2833,7 +3169,7 @@
    integer, dimension(:,:),intent(in   ) :: aij
    integer, dimension(:,:),intent(inout) :: aji
 !
-   character(len=*),parameter :: Iam='SwapIJ2i'
+   character(len=*), parameter :: IAm='GSI_GridComp.SwapIJ2i_'
    integer :: i,j,isz,jsz
 !
      isz=size(aij,1)
@@ -2852,7 +3188,7 @@
    real(4),dimension(:,:),intent(inout) :: aij
    real(r_kind), dimension(:,:),intent(in) :: aji
 !
-   character(len=*),parameter :: Iam='SwapJI2'
+   character(len=*), parameter :: IAm='GSI_GridComp.SwapJI2r_'
    integer :: i,j,isz,jsz
 !
    jsz=size(aji,1)
@@ -2870,11 +3206,11 @@
 !    21Aug2007 Todling Implemented to remove MAPL_UNDEF from halo
 !                      This is a temporary fix that needs better handling
 !                      to differentiate between scalar and vector fields
-!  THIS ASSUMES HW=1
+!  THIS ASSUMES horizontal HW=1
 !-------------------------------------------------------------------------
    implicit none
    real(r_kind),  dimension(:,:),intent(inout) :: aji
-   character(len=*),parameter :: Iam='Halo2d_Undef_OutJI_'
+   character(len=*), parameter :: IAm='GSI_GridComp.Halo2d_Undef_OutJI_'
    integer :: j,i,k,isz,jsz
    jsz=size(aji,1)
    isz=size(aji,2)
@@ -2891,11 +3227,11 @@
 !    21Aug2007 Todling Implemented to remove MAPL_UNDEF from halo
 !                      This is a temporary fix that needs better handling
 !                      to differentiate between scalar and vector fields
-!  THIS ASSUMES HW=1
+!  THIS ASSUMES horizontal HW=1
 !-------------------------------------------------------------------------
    implicit none
    real(r_kind),  dimension(:,:,:),intent(inout) :: aji
-   character(len=*),parameter :: Iam='Halo3d_Undef_OutJI_'
+   character(len=*), parameter :: IAm='GSI_GridComp.Halo3d_Undef_OutJI_'
    integer :: j,i,k,isz,jsz,ksz
    jsz=size(aji,1)
    isz=size(aji,2)
@@ -2913,6 +3249,7 @@
 !-------------------------------------------------------------------------
      implicit none
      real,dimension(:,:),intent(inout) :: q
+     character(len=*), parameter :: IAm='GSI_GridCompFlipLons2_'
      integer :: j
      do j=1,size(q,2)
         call GSI_GridCompFlipLonsi_(q(:,j))
@@ -2924,6 +3261,7 @@
 !-------------------------------------------------------------------------
      implicit none
      real,dimension(:),intent(inout) :: q
+     character(len=*), parameter :: IAm='GSI_GridCompFlipLonsi_'
      integer :: im
      real,dimension(size(q,1)/2) :: d
      im=size(q,1)
@@ -2946,6 +3284,8 @@
     character(len=ESMF_MAXSTR)        :: expid
     type(ESMF_TimeInterval), optional :: offset
     integer, optional                 :: rc
+
+    character(len=*), parameter :: IAm='GSI_GridComp.get_DateStamp'
 
     type(ESMF_Time)                   :: currentTime
     type(ESMF_TimeInterval)           :: TimeStep
@@ -3021,7 +3361,7 @@
 !EOPI
 !-------------------------------------------------------------------------
 
-   character(len=*), parameter :: Iam = 'ncep_rwsurf'
+   character(len=*), parameter :: IAm='GSI_GridComp.get_ncep_rwsurf_'
 
    real(4) :: sdum4
    real(4), allocatable :: fdum4(:,:)
@@ -3042,7 +3382,7 @@
    writeout = .false.
    if (present(jrec)) then
        if(.not.present(fld))then
-          print *, trim(Iam), ' Error, missing fld array'
+          print *, trim(Iam), ': Error, missing fld array'
           rc = 1
           return
        endif
@@ -3076,142 +3416,142 @@
    read(34) fdum4                      ! record 1  tsf
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum42                     ! record 2  soilm
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum42
           fld = fdum42(:,:,1)
        end if
    read(34) fdum4                      ! record 3  snow
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum42                     ! record 4  soilt
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum42
           fld = fdum42(:,:,1)
        end if
    read(34) fdum4                      ! record 5  tg3
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum4                      ! record 6  zor
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum4                      ! record 7  cv
        icount = icount + 1
-       if(verbose_) print*,icount, ' ', maxval(fdum4)
+       if(verbose_) print*,Iam,': ',icount, ' ', maxval(fdum4)
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum4                      ! record 8  cvb
        icount = icount + 1
-       if(verbose_) print*,icount,' ', maxval(fdum4)
+       if(verbose_) print*,Iam,': ',icount,' ', maxval(fdum4)
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum4                      ! record 9  cvt
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) albedo4                    ! record 10 albedo
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) albedo4
           fld = albedo4(:,:,1)
        end if
    read(34) fdum4                      ! record 11 slimsk
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum4                      ! record 12 vegetation cover
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum4                      ! record 13 canopy water
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum4                      ! record 14 f10m
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum4                      ! record 15 vegetation type
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum4                      ! record 16 soil type
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) zenith2                    ! record 17 zenith
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) zenith2
           fld = zenith2(:,:,1)
        end if
    read(34) fdum4                      ! record 18 ustar
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum4                      ! record 19 ffmm
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
    read(34) fdum4                      ! record 20 ffhh
        icount = icount + 1
        if(irec==icount) then
-          if(verbose_) print *,' reading record ',irec
+          if(verbose_) print *,Iam,': reading record ',irec
           if(writeout) write(35) fdum4
           fld = fdum4
        end if
@@ -3242,6 +3582,8 @@
      logical,optional ,intent(in) :: verb
      character(len=*),optional,intent(in) :: vname
 
+     character(len=*), parameter :: IAm='GSI_GridComp.undef_2ssi_'
+
      real :: reltol_
 
      reltol_=.01
@@ -3271,6 +3613,7 @@
        real,dimension(:,:),intent(in) :: v
        integer,intent(in) :: lu
        character(len=*),intent(in) :: where,vname
+       character(len=*), parameter :: IAm='GSI_GridComp.lookfor_'
 
        integer :: n,m
        n=count(abs(v-spval)<=abs(reltol*spval))
@@ -3298,6 +3641,8 @@
      real,optional,intent(in) :: reltol
      logical,optional,intent(in) :: verb
      character(len=*),optional,intent(in) :: vname
+
+     character(len=*), parameter :: IAm='GSI_GridComp.udf2udf2d_'
 
      integer  i,j
      integer  nonmiss

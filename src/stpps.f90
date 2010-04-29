@@ -54,6 +54,7 @@ subroutine stpps(pshead,rp,sp,out,sges,nstep)
 !   2007-02-15  rancic  - add foto
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-12-03  todling - changed handling of ptr%time
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !
 !   input argument list:
 !     pshead
@@ -73,23 +74,23 @@ subroutine stpps(pshead,rp,sp,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: ps_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
-  type(ps_ob_type),pointer               ,intent(in   ) :: pshead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n1)      ,intent(in   ) :: rp,sp
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(ps_ob_type),pointer            ,intent(in   ) :: pshead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  real(r_kind),dimension(latlon1n1)   ,intent(in   ) :: rp,sp
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,kk
   real(r_kind) val,val2,w1,w2,w3,w4,time_ps
   real(r_kind) cg_ps,ps,wgross,wnotgross,ps_pg
-  real(r_kind),dimension(max(ione,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen
   type(ps_ob_type), pointer :: psptr
 
   out=zero_quad
@@ -97,7 +98,7 @@ subroutine stpps(pshead,rp,sp,out,sges,nstep)
   psptr => pshead
   do while (associated(psptr))
      if(psptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1 = psptr%ij(1)
            j2 = psptr%ij(2)
            j3 = psptr%ij(3)
@@ -131,7 +132,7 @@ subroutine stpps(pshead,rp,sp,out,sges,nstep)
            cg_ps=cg_term/psptr%b
            wnotgross= one-ps_pg
            wgross =ps_pg*cg_ps/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk) = -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
            end do
         endif

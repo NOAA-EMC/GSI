@@ -1,4 +1,4 @@
-subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
+subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setuplag    compute rhs of oi for lagrangian data    
@@ -25,20 +25,26 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
   use obsmod, only: laghead,lagtail,i_lag_ob_type,obsdiags,&
                     obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
                     time_offset
+  use obsmod, only: lag_ob_type
+  use obsmod, only: obs_diag
+
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use guess_grids, only: nfldsig,hrdifsig
   use gridmod, only: nsig
   use qcmod, only: npres_print,ptop,pbot
-  use constants, only: izero,ione,wgtlim,&
+  use constants, only: wgtlim,&
        zero,two,one,deg2rad,r3600,&
        tiny_r_kind,half,cg_term,huge_single,rearth,pi,rad2deg
   use jfunc, only: jiter,last,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype,icuse
+
+  use m_dtime,only: dtime_setup,dtime_check,dtime_show
 
   use lag_fields, only: orig_lag_num,lag_kfirst
   use lag_fields, only: lag_nl_vec,lag_u_full,lag_v_full
@@ -48,21 +54,26 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   use lag_traj, only: lag_trajfail
   use lag_traj, only: lag_d_haversin
   use lag_interp, only: lag_gridrel_ijk
-
   implicit none
 
 ! Declare passed variables
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
-  real(r_kind),dimension(7*nsig+100_i_kind)        ,intent(inout) :: awork
+  real(r_kind),dimension(7*nsig+100)               ,intent(inout) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
+  integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_001 = 0.001_r_kind
   real(r_kind),parameter:: r8 = 8.0_r_kind
   real(r_kind),parameter:: ten = 10.0_r_kind
 
-  integer(i_kind),parameter:: iv_debug = ione
+  integer(i_kind),parameter:: iv_debug = 1
+
+  character(len=*),parameter:: myname='setuplag'
+
+! Declare external calls for code analysis
+  external:: abor1
 
 ! Declare local variables
   real(r_double):: rstation_id
@@ -92,60 +103,73 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
   character(8),allocatable,dimension(:):: cdiagbuf
 
   logical,dimension(nobs):: luse,muse
+  logical:: in_curbin, in_anybin
+  integer,dimension(nobs_bins) :: n_alloc
+  integer,dimension(nobs_bins) :: m_alloc
+  type(lag_ob_type),pointer :: my_head
+  type(obs_diag),pointer :: my_diag
 
-
+  n_alloc(:)=0
+  m_alloc(:)=0
 !******************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse
 
 !    index information for data array (see reading routine)
 
-  inum=ione          ! index of the balloon number in array
-  itime=2_i_kind     ! index of observation time (sec)
-  ilon=3_i_kind      ! index of grid relative obs location (x)
-  ilat=4_i_kind      ! index of grid relative obs location (y)
-  ilone=5_i_kind     ! index of longitude (degrees)
-  ilate=6_i_kind     ! index of latitude (degrees)
-  ipress=7_i_kind    ! index of pressure (hPa)
-  ikxx=8_i_kind      ! index of ob type
-  ier=9_i_kind       ! index of error
+  inum=1      ! index of the balloon number in array
+  itime=2     ! index of observation time (sec)
+  ilon=3      ! index of grid relative obs location (x)
+  ilat=4      ! index of grid relative obs location (y)
+  ilone=5     ! index of longitude (degrees)
+  ilate=6     ! index of latitude (degrees)
+  ipress=7    ! index of pressure (hPa)
+  ikxx=8      ! index of ob type
+  ier=9       ! index of error
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
-     ii=izero
-     nchar=ione
-     nreal=17_i_kind
-     if (lobsdiagsave) nreal=nreal+7*miter+2_i_kind
+     ii=0
+     nchar=1
+     nreal=17
+     if (lobsdiagsave) nreal=nreal+7*miter+2
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
   scale=one
   rsig=float(nsig)
-  mm1=mype+ione
+  mm1=mype+1
 
+  call dtime_setup()
   do i=1,nobs
 
-     dnum=int(data(inum,i),i_kind)
-     dlat=data(ilate,i)
-     dlon=data(ilone,i)
-     dpres=data(ipress,i)
      dtime=data(itime,i)
-     ikx=int(data(ikxx,i),i_kind)
-     error=data(ier,i)
+     call dtime_check(dtime, in_curbin, in_anybin)
+     if(.not.in_anybin) cycle
 
-     ! Ini muse
-     muse(i)=luse(i).and.(icuse(ikx)>izero)
+     if(in_curbin) then
+        dnum=int(data(inum,i),i_kind)
+        dlat=data(ilate,i)
+        dlon=data(ilone,i)
+        dpres=data(ipress,i)
+
+        ikx=int(data(ikxx,i),i_kind)
+        error=data(ier,i)
+
+        ! Ini muse
+        muse(i)=luse(i).and.(icuse(ikx)>0)
+     endif
 
 !    Link observation to appropriate observation bin
-     if (nobs_bins>ione) then
-        ibin = int( dtime/hr_obsbin ) + ione
-      ! ibin = NINT( dtime/hr_obsbin ) + ione
+     if (nobs_bins>1) then
+        ibin = int( dtime/hr_obsbin ) + 1
+      ! ibin = NINT( dtime/hr_obsbin ) + 1
      else
-        ibin = ione
+        ibin = 1
      endif
-     if (ibin<ione.OR.ibin>nobs_bins) &
+     if (ibin<1.OR.ibin>nobs_bins) &
         write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     if (iv_debug>=2_i_kind) then
+     if (iv_debug>=2) then
         print '(A,I2.2,A,I4.4,A,I4.4,A)'  ,'mype ',mype,' data ',i,' on ',nobs,' read'
         print '(A,I2.2,A,I4.4,A,I4)'      ,'mype ',mype,' data ',i,' dnum ',dnum
         print '(A,I2.2,A,I4.4,A,F12.6,F12.6,F12.6)','mype ',mype,' data ',i,&
@@ -160,25 +184,31 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         if (.not.lobsdiag_allocated) then
            if (.not.associated(obsdiags(i_lag_ob_type,ibin)%head)) then
               allocate(obsdiags(i_lag_ob_type,ibin)%head,stat=istat)
-              if (istat/=izero) call abor1('setuplag: failure to allocate obsdiags')
+              if (istat/=0) call abor1('setuplag: failure to allocate obsdiags')
               obsdiags(i_lag_ob_type,ibin)%tail => obsdiags(i_lag_ob_type,ibin)%head
            else
               allocate(obsdiags(i_lag_ob_type,ibin)%tail%next,stat=istat)
-              if (istat/=izero) call abor1('setuplag: failure to allocate obsdiags')
+              if (istat/=0) call abor1('setuplag: failure to allocate obsdiags')
               obsdiags(i_lag_ob_type,ibin)%tail => obsdiags(i_lag_ob_type,ibin)%tail%next
            end if
-           allocate(obsdiags(i_lag_ob_type,ibin)%tail%muse(miter+ione))
-           allocate(obsdiags(i_lag_ob_type,ibin)%tail%nldepart(miter+ione))
+           allocate(obsdiags(i_lag_ob_type,ibin)%tail%muse(miter+1))
+           allocate(obsdiags(i_lag_ob_type,ibin)%tail%nldepart(miter+1))
            allocate(obsdiags(i_lag_ob_type,ibin)%tail%tldepart(miter))
            allocate(obsdiags(i_lag_ob_type,ibin)%tail%obssen(miter))
            obsdiags(i_lag_ob_type,ibin)%tail%indxglb=i
-           obsdiags(i_lag_ob_type,ibin)%tail%nchnperobs=-99999_i_kind
+           obsdiags(i_lag_ob_type,ibin)%tail%nchnperobs=-99999
            obsdiags(i_lag_ob_type,ibin)%tail%luse=.false.
            obsdiags(i_lag_ob_type,ibin)%tail%muse(:)=.false.
            obsdiags(i_lag_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
            obsdiags(i_lag_ob_type,ibin)%tail%tldepart(:)=zero
            obsdiags(i_lag_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_lag_ob_type,ibin)%tail%obssen(:)=zero
+
+           n_alloc(ibin)=n_alloc(ibin)+1
+           my_diag => obsdiags(i_lag_ob_type,ibin)%tail
+           my_diag%idv = is
+           my_diag%iob = i
+           my_diag%ich = jj
         else
            if (.not.associated(obsdiags(i_lag_ob_type,ibin)%tail)) then
               obsdiags(i_lag_ob_type,ibin)%tail => obsdiags(i_lag_ob_type,ibin)%head
@@ -187,12 +217,17 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
            end if
            if (obsdiags(i_lag_ob_type,ibin)%tail%indxglb/=i) call abor1('setuplag: index error')
         endif
-        if (jj==ione) obsptr => obsdiags(i_lag_ob_type,ibin)%tail
+        if (jj==1) obsptr => obsdiags(i_lag_ob_type,ibin)%tail
      end do
+
+!--------
+! Skip this o-g calculation, if there is no ges field to use.
+
+     if(.not. in_curbin) cycle
 
 !    Pressure grid relative 
      call lag_gridrel_ijk(dlon,dlat,dpres,rmute,rmute,dpresR)
-     dpresR=lag_kfirst-ione+dpresR
+     dpresR=lag_kfirst-1+dpresR
 
 !    Local number for this balloon
      laglocnum=orig_lag_num(dnum,3)
@@ -204,11 +239,11 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 !    4d var : computation done using the obsbins
      if (l4dvar) then
 
-        fieldtime=(ibin-ione)*hr_obsbin
+        fieldtime=(ibin-1)*hr_obsbin
         if(fieldtime>=hrdifsig(1) .and. fieldtime<=hrdifsig(nfldsig)) then
          ! Which guess field to use ?
-           do k=1,nfldsig-ione
-              if(fieldtime >= hrdifsig(k) .and. fieldtime < hrdifsig(k+ione)) then
+           do k=1,nfldsig-1
+              if(fieldtime >= hrdifsig(k) .and. fieldtime < hrdifsig(k+1)) then
                  fieldindex=k
               end if
            end do
@@ -216,7 +251,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
            call abor1('setuplag: Inapropriate velocity guess fields')
         end if
  
-        hsteptime = (dtime - (ibin-ione)*hr_obsbin)* r3600
+        hsteptime = (dtime - (ibin-1)*hr_obsbin)* r3600
  
         lonfcst=lag_nl_vec(laglocnum,ibin,1)
         latfcst=lag_nl_vec(laglocnum,ibin,2)
@@ -228,8 +263,8 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         fieldtime=dtime
         if(fieldtime>=hrdifsig(1) .and. fieldtime<=hrdifsig(nfldsig)) then
          ! Which guess field to use ?
-           do k=1,nfldsig-ione
-              if(fieldtime >= hrdifsig(k) .and. fieldtime < hrdifsig(k+ione)) then
+           do k=1,nfldsig-1
+              if(fieldtime >= hrdifsig(k) .and. fieldtime < hrdifsig(k+1)) then
                  fieldindex=k
               end if
            end do
@@ -281,7 +316,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      error_lon = one/error_lon
      error_lat = one/error_lat
  
-     if (iv_debug>=ione) then
+     if (iv_debug>=1) then
         print '(A,I2.2,A,I4.4,A,I4)','mype ',mype,' data ',i,' guess used',fieldindex
         print '(A,I2.2,A,I4.4,A,F12.2)','mype ',mype,' data ',i,' timestep ',hsteptime
         print '(A,I2.2,A,I4.4,A,F12.6)','mype ',mype,' data ',i,' obs lon  ',dlon
@@ -290,7 +325,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         print '(A,I2.2,A,I4.4,A,F12.6)','mype ',mype,' data ',i,' res lat  ',reslat
         print '(A,I2.2,A,I4.4,A,F12.6,F12.6)','mype ',mype,' data ',i,' errors lon/lat',one/error_lon,one/error_lat
      end if
-     if (iv_debug>=2_i_kind) then
+     if (iv_debug>=2) then
         print '(A,I2.2,A,I4.4,A,F12.6)','mype ',mype,' data ',i,' guess lon',lonfcst
         print '(A,I2.2,A,I4.4,A,F12.6)','mype ',mype,' data ',i,' guess lat',latfcst
      end if
@@ -325,9 +360,9 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      
      if ((ratio_errors*error_lat <= tiny_r_kind) .or. &
          (ratio_errors*error_lon <= tiny_r_kind)) muse(i)=.false.
-     if (nobskeep>izero) muse(i)=obsdiags(i_lag_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0) muse(i)=obsdiags(i_lag_ob_type,ibin)%tail%muse(nobskeep)
  
-     if (iv_debug>=ione) then
+     if (iv_debug>=1) then
         print '(A,I2.2,A,I4.4,A,F12.6,F12.6)','mype ',mype,' data ',i,' ratios ',ratio_lon,ratio_lat
         print '(A,I2.2,A,I4.4,A,L7)','mype ',mype,' data ',i,' muse ' ,muse(i)
      end if
@@ -358,20 +393,20 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         if(muse(i))then
            if(rwgt < one) awork(21) = awork(21)+one
            jsig=int(dpresR,i_kind)
-           jsig=max(ione,min(jsig,nsig))
-           awork(4*nsig+jsig+100_i_kind)=awork(4*nsig+jsig+100_i_kind)+val1*val1*rat_err2
-           awork(5*nsig+jsig+100_i_kind)=awork(5*nsig+jsig+100_i_kind)+val2*val2*rat_err2
-           awork(6*nsig+jsig+100_i_kind)=awork(6*nsig+jsig+100_i_kind)+one
-           awork(3*nsig+jsig+100_i_kind)=awork(3*nsig+jsig+100_i_kind)+valqc
+           jsig=max(1,min(jsig,nsig))
+           awork(4*nsig+jsig+100)=awork(4*nsig+jsig+100)+val1*val1*rat_err2
+           awork(5*nsig+jsig+100)=awork(5*nsig+jsig+100)+val2*val2*rat_err2
+           awork(6*nsig+jsig+100)=awork(6*nsig+jsig+100)+one
+           awork(3*nsig+jsig+100)=awork(3*nsig+jsig+100)+valqc
         endif
 
         ress = scale*lag_d_haversin(dlon,dlat,lonfcst,latfcst)*1e-3_r_kind
         ressw= ress*ress
-        nn=ione
+        nn=1
         if (.not. muse(i)) then
-           nn=2_i_kind
+           nn=2
            if (ratio_errors*error_lon >=tiny_r_kind .or. &
-               ratio_errors*error_lat >=tiny_r_kind) nn=3_i_kind
+               ratio_errors*error_lat >=tiny_r_kind) nn=3
         end if
         do k = 1,npres_print
            if(dpres >= ptop(k) .and. dpres <= pbot(k))then
@@ -396,7 +431,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
      obsdiags(i_lag_ob_type,ibin)%tail%nldepart(jiter)=reslat
      obsdiags(i_lag_ob_type,ibin)%tail%wgtjo= (error_lat*ratio_errors)**2
  
-     if (iv_debug>=ione) then
+     if (iv_debug>=1) then
         print '(A,I2.2,A,I4.4,A,F12.6)','mype ',mype,' data ',i,' jo lon ',&
           &reslon*reslon* (error_lon*ratio_errors)**2
         print '(A,I2.2,A,I4.4,A,F12.6)','mype ',mype,' data ',i,' jo lat ',&
@@ -409,17 +444,23 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
  
         if (.not. associated(laghead(ibin)%head))then
            allocate(laghead(ibin)%head,stat=istat)
-           if(istat /= izero)write(6,*)' failure to write laghead '
+           if(istat /= 0)write(6,*)' failure to write laghead '
            lagtail(ibin)%head => laghead(ibin)%head
         else
            allocate(lagtail(ibin)%head%llpoint,stat=istat)
-           if(istat /= izero)write(6,*)' failure to write lagtail%llpoint '
+           if(istat /= 0)write(6,*)' failure to write lagtail%llpoint '
            lagtail(ibin)%head => lagtail(ibin)%head%llpoint
         end if
+
+        m_alloc(ibin) = m_alloc(ibin) +1
+        my_head => lagtail(ibin)%head
+        my_head%idv = is
+        my_head%iob = i
+
         allocate(lagtail(ibin)%head%speci(lag_rk2itenpara_i),stat=istat)
-        if(istat /= izero)write(6,*)' failure to allocate lagtail%speci '
+        if(istat /= 0)write(6,*)' failure to allocate lagtail%speci '
         allocate(lagtail(ibin)%head%specr(lag_rk2itenpara_r),stat=istat)
-        if(istat /= izero)write(6,*)' failure to allocate lagtail%specr '
+        if(istat /= 0)write(6,*)' failure to allocate lagtail%specr '
  
         lagtail(ibin)%head%res_lon=reslon
         lagtail(ibin)%head%res_lat=reslat
@@ -437,14 +478,39 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
         lagtail(ibin)%head%b=cvar_b(ikx)
         lagtail(ibin)%head%pg=cvar_pg(ikx)
         lagtail(ibin)%head%luse=luse(i)
+
         lagtail(ibin)%head%diag_lon => obsptr
+
+        my_head => lagtail(ibin)%head
+        my_diag => lagtail(ibin)%head%diag_lon
+        if(my_head%idv /= my_diag%idv .or. &
+           my_head%iob /= my_diag%iob .or. &
+                  1 /= my_diag%ich ) then
+           call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
+                 (/is,i,1,ibin/))
+           call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,1/))
+           call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+           call die(myname)
+        endif
+
         lagtail(ibin)%head%diag_lat => obsdiags(i_lag_ob_type,ibin)%tail
  
+        my_head => lagtail(ibin)%head
+        my_diag => lagtail(ibin)%head%diag_lat
+        if(my_head%idv /= my_diag%idv .or. &
+           my_head%iob /= my_diag%iob .or. &
+                     2 /= my_diag%ich ) then
+           call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
+                 (/is,i,2,ibin/))
+           call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,2/))
+           call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+           call die(myname)
+        endif
      end if
 
 ! Save select output for diagnostic file
      if(conv_diagsave)then
-        ii=ii+ione
+        ii=ii+1
         rstation_id     = orig_lag_num(dnum,1)
         write(cdiagbuf(ii),fmt='(I5.5)') int(rstation_id)
  
@@ -491,25 +557,25 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 
         if (lobsdiagsave) then
-           ioff=17_i_kind
+           ioff=17
            do jj=1,miter
-              ioff=ioff+ione
+              ioff=ioff+1
               if (obsdiags(i_lag_ob_type,ibin)%tail%muse(jj)) then
                  rdiagbuf(ioff,ii) = one
               else
                  rdiagbuf(ioff,ii) = -one
               endif
            enddo
-           do jj=1,miter+ione
-              ioff=ioff+ione
+           do jj=1,miter+1
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_lag_ob_type,ibin)%tail%nldepart(jj)
            enddo
            do jj=1,miter
-              ioff=ioff+ione
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_lag_ob_type,ibin)%tail%tldepart(jj)
            enddo
            do jj=1,miter
-              ioff=ioff+ione
+              ioff=ioff+1
               rdiagbuf(ioff,ii) = obsdiags(i_lag_ob_type,ibin)%tail%obssen(jj)
            enddo
         endif
@@ -520,6 +586,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,conv_diagsave)
 
 ! Write information to diagnostic file
   if(conv_diagsave)then
+     call dtime_show('setuplag','diagsave:lag',i_lag_ob_type)
      write(7)'lag',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)

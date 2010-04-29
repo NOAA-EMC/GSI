@@ -25,6 +25,7 @@ subroutine read_files(mype)
 !   2007-04-17  todling  - getting nhr_assimilation from gsi_4dvar
 !   2008-05-27  safford - rm unused vars
 !   2009-01-07  todling - considerable revamp (no pre-assigned dims)
+!   2010-04-20  jing    - set hrdifsig_all and hrdifsfc_all for non-ESMF cases.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -40,6 +41,7 @@ subroutine read_files(mype)
   use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mpi_itype
   use guess_grids, only: nfldsig,nfldsfc,ntguessig,ntguessfc,&
        ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
+  use guess_grids, only: hrdifsig_all,hrdifsfc_all
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen, nhr_assimilation
   use gridmod, only: ncep_sigio,nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs
   use constants, only: izero,ione,zero,r60inv
@@ -228,6 +230,7 @@ subroutine read_files(mype)
   do i=1,nfldsig
      hrdifsig(i) = time_atm(i,1)
      ifilesig(i) = nint(time_atm(i,2))
+     hrdifsig_all(i) = hrdifsig(i)
   end do
   if(mype == izero) write(6,*)'READ_FILES:  atm fcst files used in analysis  :  ',&
        (ifilesig(i),i=1,nfldsig),(hrdifsig(i),i=1,nfldsig),ntguessig
@@ -238,6 +241,7 @@ subroutine read_files(mype)
   do i=1,nfldsfc
      hrdifsfc(i) = time_sfc(i,1)
      ifilesfc(i) = nint(time_sfc(i,2))
+     hrdifsfc_all(i) = hrdifsfc(i)
   end do
   if(mype == izero) write(6,*)'READ_FILES:  sfc fcst files used in analysis:  ',&
        (ifilesfc(i),i=1,nfldsfc),(hrdifsfc(i),i=1,nfldsfc),ntguessfc

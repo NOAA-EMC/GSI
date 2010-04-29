@@ -210,6 +210,7 @@ subroutine ckgcov_ad(z,cstate,nlevs)
 !                         update to bkgcov above.
 !   2010-03-15  zhu - use nrf* and cstate for generalized control variable
 !                   - make changes to interface of sub2grid 
+!   2010-04-15  treadon - add %values to cstate in bkgvar call
 !
 !   input argument list:
 !     t        - t on subdomain
@@ -267,7 +268,7 @@ subroutine ckgcov_ad(z,cstate,nlevs)
 
 ! Multiply by background error variances, and break up skin temp
 ! into components
-  call bkgvar(cstate,sst,slndt,sicet,izero)
+  call bkgvar(cstate%values,sst,slndt,sicet,izero)
 
 ! Apply vertical smoother
 !$omp parallel do  schedule(dynamic,1) private(k,loc,nk)

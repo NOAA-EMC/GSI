@@ -28,6 +28,9 @@ module satthin
 !                         defines longitude range on regional grid when domain
 !                         includes north pole.
 !   2009-04-21  derber  - add ithin to call to makegrids - account for negative ithin
+!   2009-08-19  guo     - added assertions of ntguessig and ntguessfc.
+!   2009-09-14  guo     - added an experimenting description of the usecase.
+!			- added an an array size assertion on istart_val(:).
 !
 ! Subroutines Included:
 !   sub makegvals      - set up for superob weighting
@@ -37,6 +40,18 @@ module satthin
 !   sub destroygrids   - deallocate thinning grid arrays
 !   sub destroy_sfc    - deallocate full horizontal surface arrays
 !   sub indexx         - sort array into ascending order
+!
+! Usecase destription:
+!     read_obs    -->  read_airs, etc
+!   []_makegvals			- set up for superob weighting
+!   []_getsfc				- create full horizontal fields of surface arrays
+!                     []_makegrids	- set up thinning grids
+!                     []_map2tgrid	- map observation to location on thinning grid
+!                     []_checkob	- intermediate ob checking to see if it should not be used
+!                     []_finalcheck	- the final criterion check for sat obs and increments counters
+!                     combine_radobs    - 
+!                     []_destroygrids	- deallocate thinning grid arrays
+!   []_destroy_sfc			- deallocate full horizontal fields of surface arrays
 !
 ! Variable Definitions:
 !   def mlat           - number of latitudes in thinning grid
@@ -67,6 +82,7 @@ module satthin
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
+  use mpeu_util, only: die, perr
   implicit none
 
 ! set default to private
@@ -133,10 +149,11 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: deg2rad,rearth_equator,izero,ione,zero,two,pi,half,one,&
+    use constants, only: deg2rad,rearth_equator,zero,two,pi,half,one,&
        rad2deg,r1000
     use obsmod, only: dmesh,dthin,ndat
     use gridmod, only: regional,nlat,nlon,txy2ll
+    use mpeu_util, only: die
     implicit none
 
     real(r_kind),parameter:: r90   = 90.0_r_kind
@@ -151,11 +168,11 @@ contains
     real(r_kind) rkm2dg,glatm,glatx
 
 !   Initialize variables, set constants
-    maxthin=izero
+    maxthin=0
     do i=1,ndat
        maxthin=max(maxthin,abs(dthin(i)))
     end do
-    istart_val=izero
+    istart_val=0
     twopi  = two*pi
     rkm2dg = r360/(twopi*rearth_equator)*r1000
 
@@ -190,7 +207,7 @@ contains
     do ii=1,maxthin
 
 !      Set up dimensions for thinning grids
-       istart_val(ii+ione)=istart_val(ii)
+       istart_val(ii+1)=istart_val(ii)
        if(abs(dmesh(ii)) > one)then
           dx    = dmesh(ii)*rkm2dg
           dy    = dx
@@ -199,11 +216,11 @@ contains
           delat = dlat_grid/mlat
           delonx= dlon_grid/mlonx	
           dgv   = delat*half
-          mlat=max(2_i_kind,mlat);   mlonx=max(2_i_kind,mlonx)
+          mlat=max(2,mlat);   mlonx=max(2,mlonx)
 
-          icnt=izero
+          icnt=0
           do j = 1,mlat
-             glatx = rlat_min + (j-ione)*delat
+             glatx = rlat_min + (j-1)*delat
              glatx = glatx*deg2rad
              glatm = glatx + dgv*deg2rad
              
@@ -217,14 +234,14 @@ contains
                 mlony = dlon_grid/delon
              endif
              do i = 1,mlony
-                icnt=icnt+ione
-                istart_val(ii+ione)=istart_val(ii+ione)+ione
+                icnt=icnt+1
+                istart_val(ii+1)=istart_val(ii+1)+1
              enddo
 
           enddo
        end if
     end do
-    superp=istart_val(maxthin+ione)
+    superp=istart_val(maxthin+1)
     
 !   Allocate and initialize arrays for superobs weighthing
     allocate(super_val(0:superp),super_val1(0:superp))
@@ -264,7 +281,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: rearth_equator,deg2rad,izero,ione,zero,half,one,two,pi
+    use constants, only: rearth_equator,deg2rad,zero,half,one,two,pi
 
     implicit none
 
@@ -281,9 +298,9 @@ contains
 
 !   If there is to be no thinning, simply return to calling routine
     use_all=.false.
-    if(abs(rmesh) <= one .or. ithin <= izero)then
+    if(abs(rmesh) <= one .or. ithin <= 0)then
       use_all=.true.
-      itxmax=1e7_i_kind
+      itxmax=1e7
       allocate(icount(itxmax))
       allocate(score_crit(itxmax))
       do j=1,itxmax
@@ -307,23 +324,23 @@ contains
 	delat = dlat_grid/mlat
 	delonx= dlon_grid/mlonx
     dgv  = delat*half
-    mlat=max(2_i_kind,mlat);   mlonx=max(2_i_kind,mlonx)
+    mlat=max(2,mlat);   mlonx=max(2,mlonx)
 
     allocate(mlon(mlat),glat(mlat),glon(mlonx,mlat),hll(mlonx,mlat))
 
 
 !   Set up thinning grid lon & lat.  The lon & lat represent the location of the
 !   lower left corner of the thinning grid box.
-    itxmax=izero
+    itxmax=0
     do j = 1,mlat
-       glat(j) = rlat_min + (j-ione)*delat
+       glat(j) = rlat_min + (j-1)*delat
        glat(j) = glat(j)*deg2rad
        glatm = glat(j) + dgv*deg2rad
 
        factor = abs(cos(abs(glatm)))
        if (rmesh>zero) then
           mlonj   = nint(mlonx*factor)	
-          mlon(j) = max(2_i_kind,mlonj)
+          mlon(j) = max(2,mlonj)
           delon = dlon_grid/mlon(j)
        else
           delon = factor*rmesh
@@ -333,9 +350,9 @@ contains
 
        glat(j) = min(max(-halfpi,glat(j)),halfpi)
        do i = 1,mlon(j)
-          itxmax=itxmax+ione
+          itxmax=itxmax+1
           hll(i,j)=itxmax
-          glon(i,j) = rlon_min + (i-ione)*delon
+          glon(i,j) = rlon_min + (i-1)*delon
           glon(i,j) = glon(i,j)*deg2rad
           glon(i,j) = min(max(zero,glon(i,j)),twopi)
        enddo
@@ -386,12 +403,12 @@ contains
        rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip
     use guess_grids, only: ntguessig,isli,sfct,sno,fact10,ges_z, &
        nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
-       veg_frac,sfc_rough,ifilesfc,isli2,sno2
+       veg_frac,sfc_rough,ifilesfc,nfldsig,isli2,sno2
     use m_gsiBiases, only: bias_tskin,compress_bias,bias_hour
     use jfunc, only: biascor
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    use constants, only: izero,ione,zero,half,pi,two,one
+    use constants, only: zero,half,pi,two,one
     use ncepgfs_io, only: read_gfssfc,sfc_interpolate
     use sfcio_module, only: sfcio_realfill
 
@@ -416,15 +433,21 @@ contains
     integer(i_kind) mm1,i,j,k,it,il,jl,jmax,idrt
     character(24) filename
 
-    mm1=mype+ione
+    if( (ntguessig<1.or.ntguessig>nfldsig) .or. &
+        (ntguessfc<1.or.ntguessfc>nfldsfc) ) then
+        call perr('satthin.getsfc','ntguessig = ',ntguessig)
+        call perr('satthin.getsfc','ntguessfc = ',ntguessfc)
+	call die('satthin.getsfc')
+    endif
+    mm1=mype+1
 
-    if(mype == izero)write(6,*)'GETSFC:  enter with nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
+    if(mype == 0)write(6,*)'GETSFC:  enter with nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
 	' and nlat,nlon=',nlat,nlon
     if(regional)then
        nlat_sfc=nlat
        nlon_sfc=nlon
     end if
-    if(mype == izero)write(6,*)'GETSFC: set nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc
+    if(mype == 0)write(6,*)'GETSFC: set nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc
     allocate(rlats_sfc(nlat_sfc),rlons_sfc(nlon_sfc))
 
     allocate(isli_full(nlat_sfc,nlon_sfc),fact10_full(nlat_sfc,nlon_sfc,nfldsfc))
@@ -448,16 +471,16 @@ contains
           rlats_sfc=rlats
           rlons_sfc=rlons
        else
-          idrt=4_i_kind
-          jmax=nlat_sfc-2_i_kind
+          idrt=4
+          jmax=nlat_sfc-2
           allocate(slatx(jmax),wlatx(jmax))
           call splat(idrt,jmax,slatx,wlatx)
           dlon=two*pi/float(nlon_sfc)
           do i=1,nlon_sfc
-             rlons_sfc(i)=float(i-ione)*dlon
+             rlons_sfc(i)=float(i-1)*dlon
           end do
-          do i=1,(nlat_sfc-ione)/2
-             rlats_sfc(i+ione)=-asin(slatx(i))
+          do i=1,(nlat_sfc-1)/2
+             rlats_sfc(i+1)=-asin(slatx(i))
              rlats_sfc(nlat_sfc-i)=asin(slatx(i))
           end do
           rlats_sfc(1)=-half*pi
@@ -488,7 +511,7 @@ contains
        end if
  
        if (biascor > zero) then
-          if (mype==izero) write(6,*)'GETSFC:   add bias correction to guess field ',&
+          if (mype==0) write(6,*)'GETSFC:   add bias correction to guess field ',&
                                       filename
           do j=1,lon1*lat1
              zsm(j)=zero
@@ -500,7 +523,7 @@ contains
                 work2(i,j)=b_tskin(i,j)
              end do
           end do
-          call strip(work2,zsm,ione)
+          call strip(work2,zsm,1)
  
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
@@ -542,7 +565,7 @@ contains
              work2(i,j)=isli(i,j,it)
           end do
        end do
-       call strip(work2,zsm,ione)
+       call strip(work2,zsm,1)
        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
           work1,ijn,displs_g,mpi_rtype,&
           mpi_comm_world,ierror)
@@ -558,7 +581,7 @@ contains
           do j=1,lon1*lat1
              zsm(j)=zero
           end do
-          call strip(sfct(1,1,it),zsm,ione)
+          call strip(sfct(1,1,it),zsm,1)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
              mpi_comm_world,ierror)
@@ -571,7 +594,7 @@ contains
           do j=1,lon1*lat1
              zsm(j)=zero
           end do
-          call strip(fact10(1,1,it),zsm,ione)
+          call strip(fact10(1,1,it),zsm,1)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
              mpi_comm_world,ierror)
@@ -584,7 +607,7 @@ contains
           do j=1,lon1*lat1
              zsm(j)=zero
           end do
-          call strip(sfc_rough(1,1,it),zsm,ione)
+          call strip(sfc_rough(1,1,it),zsm,1)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
              mpi_comm_world,ierror)
@@ -597,7 +620,7 @@ contains
           do j=1,lon1*lat1
              zsm(j)=zero
           end do
-          call strip(sno(1,1,it),zsm,ione)
+          call strip(sno(1,1,it),zsm,1)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
              mpi_comm_world,ierror)
@@ -610,7 +633,7 @@ contains
           do j=1,lon1*lat1
              zsm(j)=zero
           end do
-          call strip(veg_frac(1,1,it),zsm,ione)
+          call strip(veg_frac(1,1,it),zsm,1)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
              mpi_comm_world,ierror)
@@ -624,7 +647,7 @@ contains
           do j=1,lon1*lat1
              zsm(j)=zero
           end do
-          call strip(soil_temp(1,1,it),zsm,ione)
+          call strip(soil_temp(1,1,it),zsm,1)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
              mpi_comm_world,ierror)
@@ -640,7 +663,7 @@ contains
           do j=1,lon1*lat1
              zsm(j)=zero
           end do
-          call strip(soil_moi(1,1,it),zsm,ione)
+          call strip(soil_moi(1,1,it),zsm,1)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
              mpi_comm_world,ierror)
@@ -660,7 +683,7 @@ contains
        do j=1,lon1*lat1
           zsm(j)=zero
        end do
-       call strip(soil_type(1,1,it),zsm,ione)
+       call strip(soil_type(1,1,it),zsm,1)
        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
           work1,ijn,displs_g,mpi_rtype,&
           mpi_comm_world,ierror)
@@ -675,7 +698,7 @@ contains
        do j=1,lon1*lat1
           zsm(j)=zero
        end do
-       call strip(veg_type(1,1,it),zsm,ione)
+       call strip(veg_type(1,1,it),zsm,1)
        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
           work1,ijn,displs_g,mpi_rtype,&
           mpi_comm_world,ierror)
@@ -696,7 +719,7 @@ contains
     do j=1,lon1*lat1
        zsm(j)=zero
     end do
-    call strip(ges_z(1,1,it),zsm,ione)
+    call strip(ges_z(1,1,it),zsm,1)
     call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
        work1,ijn,displs_g,mpi_rtype,&
        mpi_comm_world,ierror)
@@ -725,11 +748,11 @@ contains
 !   find subdomain for isli2
     if (nlon == nlon_sfc .and. nlat == nlat_sfc) then
        do j=1,lon2
-          jl=j+jstart(mm1)-2_i_kind
+          jl=j+jstart(mm1)-2
           jl=min0(max0(1,jl),nlon)
           do i=1,lat2
-             il=i+istart(mm1)-2_i_kind
-             il=min0(max0(ione,il),nlat)
+             il=i+istart(mm1)-2
+             il=min0(max0(1,il),nlat)
              isli2(i,j)=isli_full(il,jl)
  	     do k=1,nfldsfc
                 sno2(i,j,k)=sno_full(il,jl,k)
@@ -739,18 +762,18 @@ contains
     else
        ailoc=rlats
        ajloc=rlons
-       call grdcrd(ailoc,nlat,rlats_sfc,nlat_sfc,ione)
-       call grdcrd(ajloc,nlon,rlons_sfc,nlon_sfc,ione)
+       call grdcrd(ailoc,nlat,rlats_sfc,nlat_sfc,1)
+       call grdcrd(ajloc,nlon,rlons_sfc,nlon_sfc,1)
        do j=1,lon2
-          jl=j+jstart(mm1)-2_i_kind
-          jl=min0(max0(ione,jl),nlon)
+          jl=j+jstart(mm1)-2
+          jl=min0(max0(1,jl),nlon)
           jl=nint(ajloc(jl))
-          jl=min0(max0(ione,jl),nlon_sfc)
+          jl=min0(max0(1,jl),nlon_sfc)
           do i=1,lat2
-             il=i+istart(mm1)-2_i_kind
-             il=min0(max0(ione,il),nlat)
+             il=i+istart(mm1)-2
+             il=min0(max0(1,il),nlat)
              il=nint(ailoc(il))
-             il=min0(max0(ione,il),nlat_sfc)
+             il=min0(max0(1,il),nlat_sfc)
              isli2(i,j)=isli_full(il,jl)
              do k=1,nfldsfc
                 sno2(i,j,k) =sno_full(il,jl,k)
@@ -793,7 +816,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero, ione, one, half
+    use constants, only: one, half
     implicit none
 
     logical        ,intent(  out) :: iuse
@@ -808,11 +831,11 @@ contains
 
 
 !   If using all data (no thinning), simply return to calling routine
-    if(use_all .or. ithin <= izero)then
+    if(use_all .or. ithin <= 0)then
        iuse=.true.
-       itt=ione
+       itt=1
        if(itx < itxmax) then
-          itx=itx+ione
+          itx=itx+1
        else
           iuse = .false.
           write(6,*)'MAP2TGRID:  ndata > maxobs when reading data for ',sis,itxmax
@@ -825,22 +848,22 @@ contains
     dlat1=dlat_earth
     dlon1=dlon_earth
 
-    call grdcrd(dlat1,ione,glat,mlat,ione)
+    call grdcrd(dlat1,1,glat,mlat,1)
     iy=int(dlat1)
     dy=dlat1-iy
-    iy=max(ione,min(iy,mlat))
+    iy=max(1,min(iy,mlat))
 
-    call grdcrd(dlon1,ione,glon(1,iy),mlon(iy),ione)
+    call grdcrd(dlon1,1,glon(1,iy),mlon(iy),1)
     ix=int(dlon1)
     dx=dlon1-ix
-    ix=max(ione,min(ix,mlon(iy)))
+    ix=max(1,min(ix,mlon(iy)))
 
     dxx=half-min(dx,one-dx)
     dyy=half-min(dy,one-dy)
     dist1=dxx*dxx+dyy*dyy+half
     itx=hll(ix,iy)
     itt=istart_val(ithin)+itx
-    if(ithin == izero) itt=izero
+    if(ithin == 0) itt=0
 
 !   Increment obs counter on coarse mesh grid.  Also accumulate observation
 !   score and distance functions
@@ -1049,11 +1072,11 @@ contains
 !
 !$$$
     use kinds, only: r_double
-    use constants, only: izero, ione, one
+    use constants, only: one
     implicit none
 
     integer(i_kind) maxblock
-    parameter (maxblock=1000_i_kind)
+    parameter (maxblock=1000)
 
     integer(i_kind),intent(in   ) :: n
     real(r_kind)   ,intent(in   ) :: arr(n)
@@ -1066,72 +1089,72 @@ contains
 
     oned=1._r_double
     if (digits(one)<digits(oned)) then
-       call ssorts(arr,ione,n,indx,work,maxblock)
+       call ssorts(arr,1,n,indx,work,maxblock)
     else
-       call dsorts(arr,ione,n,indx,work,maxblock)
+       call dsorts(arr,1,n,indx,work,maxblock)
     endif
 #else
     integer(i_kind) m,nstack
-    parameter (m=7_i_kind,nstack=500_i_kind)
+    parameter (m=7,nstack=500)
     integer(i_kind) i,indxt,ir,itemp,j,jstack,k,l,istack(nstack)
     real(r_kind) a
     
     do j=1,n
        indx(j)=j
     end do
-    jstack=izero
-    l=ione
+    jstack=0
+    l=1
     ir=n
     
 1   continue
     
     if(ir-l<m)then
-       do j=l+ione,ir
+       do j=l+1,ir
           indxt=indx(j)
           a=arr(indxt)
-          do i=j-ione,l,-1
+          do i=j-1,l,-1
              if(arr(indx(i))<=a)goto 2
-             indx(i+ione)=indx(i)
+             indx(i+1)=indx(i)
           end do
-          i=l-ione
+          i=l-1
 2         continue
-          indx(i+ione)=indxt
+          indx(i+1)=indxt
        end do
-       if(jstack==izero)return
+       if(jstack==0)return
        ir=istack(jstack)
-       l=istack(jstack-ione)
-       jstack=jstack-2_i_kind
+       l=istack(jstack-1)
+       jstack=jstack-2
        
     else
        k=(l+ir)/2
        itemp=indx(k)
-       indx(k)=indx(l+ione)
-       indx(l+ione)=itemp
+       indx(k)=indx(l+1)
+       indx(l+1)=itemp
        if(arr(indx(l))>arr(indx(ir)))then
           itemp=indx(l)
           indx(l)=indx(ir)
           indx(ir)=itemp
        endif
-       if(arr(indx(l+ione))>arr(indx(ir)))then
-          itemp=indx(l+ione)
-          indx(l+ione)=indx(ir)
+       if(arr(indx(l+1))>arr(indx(ir)))then
+          itemp=indx(l+1)
+          indx(l+1)=indx(ir)
           indx(ir)=itemp
        endif
-       if(arr(indx(l))>arr(indx(l+ione)))then
+       if(arr(indx(l))>arr(indx(l+1)))then
           itemp=indx(l)
-          indx(l)=indx(l+ione)
-          indx(l+ione)=itemp
+          indx(l)=indx(l+1)
+          indx(l+1)=itemp
        endif
-       i=l+ione
+       i=l+1
        j=ir
-       indxt=indx(l+ione)
+       indxt=indx(l+1)
        a=arr(indxt)
 3      continue
-       i=i+ione
+       i=i+1
        if(arr(indx(i))<a)goto 3
        
 4      continue
-       j=j-ione
+       j=j-1
        if(arr(indx(j))>a)goto 4
        if(j<i)goto 5
        itemp=indx(i)
@@ -1140,20 +1163,20 @@ contains
        goto 3
        
 5      continue
-       indx(l+ione)=indx(j)
+       indx(l+1)=indx(j)
        indx(j)=indxt
-       jstack=jstack+2_i_kind
+       jstack=jstack+2
        if(jstack>nstack)then
           write(6,*)'INDEXX:  nstack=',nstack,' too small in indexx'
           call stop2(32)
        endif
-       if(ir-i+ione>=j-l)then
+       if(ir-i+1>=j-l)then
           istack(jstack)=ir
-          istack(jstack-ione)=i
-          ir=j-ione
+          istack(jstack-1)=i
+          ir=j-1
        else
-          istack(jstack)=j-ione
-          istack(jstack-ione)=l
+          istack(jstack)=j-1
+          istack(jstack-1)=l
           l=i
        endif
     endif

@@ -1,5 +1,10 @@
 module m_stats
-!$$$  module documentation block
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 module m_stats
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:	 2010-03-24
 !
 ! abstract: summarize contents of input vectors
 !
@@ -8,12 +13,23 @@ module m_stats
 !   2008-12-09  todling - add comments/prologue
 !   2008-12-12  todling - remove dependence on mpeu
 !   2008-04-02  todling - mpi_allreduce cannot alias buffer
+!   2010-03-24  j guo   - updated this document block
 !
-!$$$
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
+! module interface:
 
 use kinds,only : r_kind
 use kinds,only : i_kind
-use constants, only: izero,ione,zero
+use constants, only: zero
 use mpimod, only: ierror,mpi_rtype,mpi_sum,mpi_max
 
 implicit none
@@ -98,7 +114,7 @@ subroutine sum_(v,vdot,vsum,vmin,vmax,vdim,add)
      vsum=zero
      vmin=+HUGE(vmin)
      vmax=-HUGE(vmax)
-     vdim=izero
+     vdim=0
   endif
 
   vdot = vdot + dot_product(v,v)
@@ -150,7 +166,7 @@ subroutine allreduce_(vdot,vsum,vmin,vmax,vdim,comm)
 
   call mpi_allreduce((/vdot,vsum/),bufr,size(bufr),mpi_rtype, &
                      mpi_sum,comm,ierror)
-  if(ierror/=izero) then
+  if(ierror/=0) then
      write(6,*)'m_stats: MPI_allreduce(dot-sum)'
      call stop2(143)
   end if
@@ -159,7 +175,7 @@ subroutine allreduce_(vdot,vsum,vmin,vmax,vdim,comm)
 
   call mpi_allreduce((/-vmin,vmax/),bufr,size(bufr),mpi_rtype, &
                      mpi_max,comm,ierror)
-  if(ierror/=izero) then
+  if(ierror/=0) then
      write(6,*)'m_stats: MPI_allreduce(min-max)'
      call stop2(144)
   end if
@@ -167,8 +183,8 @@ subroutine allreduce_(vdot,vsum,vmin,vmax,vdim,comm)
   vmax=+bufr(2)
 
   vdim_local=vdim
-  call mpi_allreduce(vdim_local,vdim,ione,mpi_rtype,mpi_sum,comm,ierror)
-  if(ierror/=izero) then
+  call mpi_allreduce(vdim_local,vdim,1,mpi_rtype,mpi_sum,comm,ierror)
+  if(ierror/=0) then
      write(6,*)'m_stats: MPI_allreduce(dim)'
      call stop2(145)
   end if

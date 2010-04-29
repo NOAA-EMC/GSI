@@ -6,6 +6,7 @@
 # 3mar2004  Zaslavsky  Initial imlementation.
 # 20Oct2004  da Silva  Standardization
 # 16Mar2007  Kokron    Remove default optimization; Add LOOP_VECT 
+# 19Aug2009 Jing Guo   Add m_rhs.F90 and m_dtime.F90 to support multi-pass observer
 #
 
 # Make sure ESMADIR is defined
@@ -29,6 +30,14 @@ THIS = $(shell basename `pwd`)
 LIB  = lib$(THIS).a
 BIN  = prepbykx.x
 
+test:
+	: test  = "$@"
+	: SHELL = $(SHELL)
+	: PWD   = `pwd`
+	: THIS  = $(THIS)
+	: LIB   = $(LIB)
+	: MODD	= $(MOD_DIRS)
+
 #                  --------------------------------
 #                   Recurse Make in Sub-directories
 #                  --------------------------------
@@ -38,7 +47,7 @@ ALLDIRS = mksi
 SUBDIRS = $(wildcard $(ALLDIRS))
 
 TARGETS = esma_install esma_clean esma_distclean esma_doc \
-          install clean distclean doc 
+	  install clean distclean doc 
 
 .PHONY: install local_install install_lib install_inc install_bin install_etc
 
@@ -57,19 +66,20 @@ $(TARGETS):
 #                   User Defined Targets
 #                  ----------------------
 
-#ifeq ( $(wildcard $(LIB_MAPL_BASE)),$(null))
+MAPL_MOD	= $(wildcard $(LIB_MAPL_BASE))
+ifeq ("$(MAPL_MOD)", "")
    HAVE_ESMF  =
    INC_ESMF   =
-   INC_GEOS   = 
+   INC_GEOS   =
    GSIGC_SRCS =
    BIN       += gsi.x
-#else
-#   HAVE_ESMF = -DHAVE_ESMF
-#   INC_GEOS  = $(INC_MAPL_BASE) $(INC_GEOS_SHARED)
-#   GSIGC_SRCS = GSI_GridCompMod.F90
-#endif
-LIB_GMAO = $(LIB_TRANSF) $(LIB_HERMES)  $(LIB_GFIO)
-LIB_GMAO =
+   LIB_GMAO   =
+else
+   HAVE_ESMF = -DHAVE_ESMF
+   INC_GEOS  = $(INC_MAPL_BASE) $(INC_GEOS_SHARED) $(INC_MPEU)
+   GSIGC_SRCS = GSI_GridCompMod.F90
+   LIB_GMAO =  $(LIB_GFIO) $(LIB_MPEU)
+endif
 
 # To deactivate GEOS_PERT-related routines
 # ----------------------------------------
@@ -85,7 +95,10 @@ RSRC =	gmao_airs_bufr.tbl		\
 	gmao_global_ozinfo.txt		\
 	gmao_global_pcpinfo.txt		\
 	gmao_global_satinfo.txt		\
-	gsi_fdda.rc.tmpl 		\
+	gsi_fdda_1.rc.tmpl 		\
+	gsi_fdda_2.rc.tmpl 		\
+	gsi_fgat_1.rc.tmpl 		\
+	gsi_fgat_2.rc.tmpl 		\
 	gsi.rc.tmpl			\
 	gsi_sens.rc.tmpl		\
 	obs.rc.tmpl
@@ -166,25 +179,25 @@ show_fflags:
 
 SRCS =	$(wildcard \
 	abor1.f90 \
-        adjtest.f90 \
+	adjtest.f90 \
 	anberror.f90 \
 	anbkerror.f90 \
 	aniso_ens_util.f90 \
 	anisofilter.f90 \
 	anisofilter_glb.f90 \
-        antcorr_application.f90 \
+	antcorr_application.f90 \
 	antest_maps0.f90 \
 	antest_maps0_glb.f90 \
 	balmod.f90 \
 	berror.f90 \
-        bias_predictors.f90 \
+	bias_predictors.f90 \
 	bkerror.f90 \
 	bkgcov.f90 \
 	bkgvar.f90 \
 	bkgvar_rewgt.f90 \
 	blacklist.f90 \
-        calc_fov_conical.f90 \
-        calc_fov_crosstrk.f90 \
+	calc_fov_conical.f90 \
+	calc_fov_crosstrk.f90 \
 	calctends.f90 \
 	calctends_ad.F90 \
 	calctends_tl.F90 \
@@ -196,13 +209,13 @@ SRCS =	$(wildcard \
 	compute_fact10.f90 \
         compute_qvar3d.f90 \
 	constants.f90 \
-        control2model.f90 \
-        control2state.f90 \
-        control_vectors.f90 \
+	control2model.f90 \
+	control2state.f90 \
+	control_vectors.f90 \
 	converr.f90 \
 	convinfo.f90 \
 	convthin.f90 \
-        cvsection.f90 \
+	cvsection.f90 \
 	deter_subdomain.f90 \
 	dtast.f90 \
 	egrid2agrid_mod.f90 \
@@ -223,38 +236,39 @@ SRCS =	$(wildcard \
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
-        geos_pertmod.F90 \
-        geos_pgcmtest.F90 \
+	geos_pertmod.F90 \
+	geos_pgcmtest.F90 \
 	gesinfo.F90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
         get_gefs_ensperts_dualres.f90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
+        getsiga.F90 \
 	getuv.f90 \
 	getvvel.f90 \
 	glbsoi.F90 \
 	global_mean.f90 \
-        grtest.f90 \
+	grtest.f90 \
 	grdcrd.f90 \
 	grid2sub.f90 \
 	gridmod.f90 \
 	gscond_ad.f90 \
 	gsi_4dvar.f90 \
 	gsi_io.f90 \
-        gsi_nemsio_mod.f90 \
+	gsi_nemsio_mod.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
 	guess_grids.F90 \
 	half_nmm_grid2.f90 \
 	hilbert_curve.f90 \
-        hybrid_ensemble_isotropic_regional.F90 \
-        hybrid_ensemble_isotropic_global.f90 \
-        hybrid_ensemble_parameters.f90 \
-        inc2guess.f90 \
+	hybrid_ensemble_isotropic_global.f90 \
+	hybrid_ensemble_isotropic_regional.F90 \
+	hybrid_ensemble_parameters.f90 \
+	inc2guess.f90 \
 	init_commvars.f90 \
-        init_jcdfi.F90 \
-        int3dvar.f90 \
+	init_jcdfi.F90 \
+	int3dvar.f90 \
 	intall.f90 \
 	intdw.f90 \
 	intgps.f90 \
@@ -281,41 +295,44 @@ SRCS =	$(wildcard \
 	jcmod.f90 \
 	jfunc.f90 \
 	kinds.f90 \
-        lag_fields.F90 \
-        lag_interp.F90 \
-        lag_traj.F90 \
+	lag_fields.F90 \
+	lag_interp.F90 \
+	lag_traj.F90 \
 	lagmod.f90 \
         lanczos.F90 \
         looplimits.f90 \
 	m_berror_stats.F90 \
         m_berror_stats_reg.f90 \
 	m_dgeevx.F90 \
- 	m_gsiBiases.F90 \
-        m_stats.F90 \
-        m_tick.F90 \
-        mpeu_mpif.F90 \
-        mpeu_util.F90 \
-        missing_routines.f90 \
+	m_gsiBiases.F90 \
+	m_stats.F90 \
+	m_tick.F90 \
+	mpeu_mpif.F90 \
+	mpeu_util.F90 \
+	missing_routines.f90 \
+	m_dtime.F90 \
+	m_obdiag.F90 \
+	m_rhs.F90 \
 	mod_inmi.f90 \
-        mod_nmmb_to_a.f90 \
+	mod_nmmb_to_a.f90 \
 	mod_strong.f90 \
 	mod_vtrans.F90 \
-        model_ad.F90 \
-        model_tl.F90 \
-        model2control.f90 \
+	model_ad.F90 \
+	model_tl.F90 \
+	model2control.f90 \
 	mp_compact_diffs_mod1.f90 \
 	mp_compact_diffs_support.f90 \
 	mpimod.F90 \
-        mpl_allreduce.f90 \
-        mpl_bcast.f90 \
+	mpl_allreduce.f90 \
+	mpl_bcast.f90 \
 	ncepgfs_io.f90 \
-        nemsio_module.f90 \
+	nemsio_module.f90 \
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
-        obs_ferrscale.F90 \
+	obs_ferrscale.F90 \
 	obs_para.f90 \
-        obs_sensitivity.F90 \
-        observer.F90 \
+	obs_sensitivity.F90 \
+	observer.F90 \
 	obsmod.F90 \
 	omegas_ad.f90 \
 	oneobmod.F90 \
@@ -325,7 +342,7 @@ SRCS =	$(wildcard \
 	pcgsqrt.f90 \
 	pcp_k.f90 \
 	pcpinfo.f90 \
-        penal.f90 \
+	penal.f90 \
 	phil.f90 \
 	phil1.f90 \
 	plib8.f90 \
@@ -334,14 +351,14 @@ SRCS =	$(wildcard \
 	prewgt.f90 \
 	prewgt_reg.f90 \
 	projmethod_support.f90 \
-        prt_guess.f90 \
+	prt_guess.f90 \
 	psichi2uv_reg.f90 \
 	psichi2uvt_reg.f90 \
 	q_diag.f90 \
 	qcmod.f90 \
 	qcssmi.f90 \
-        qnewton.f90 \
-        qnewton3.F90 \
+	qnewton.f90 \
+	qnewton3.F90 \
 	radinfo.f90 \
 	raflib.f90 \
         rapidrefresh_cldsurf_mod.f90 \
@@ -359,7 +376,7 @@ SRCS =	$(wildcard \
 	read_guess.F90 \
 	read_iasi.f90 \
 	read_l2bufr_mod.f90 \
-        read_lag.F90 \
+	read_lag.F90 \
 	read_lidar.f90 \
         read_Lightning.f90 \
 	read_modsbufr.f90 \
@@ -386,12 +403,12 @@ SRCS =	$(wildcard \
 	retrieval_mi.f90 \
 	rfdpar.f90 \
 	rsearch.F90 \
-        rtlnmc_version3.f90 \
+	rtlnmc_version3.f90 \
 	satthin.F90 \
-        setupbend.f90 \
+	setupbend.f90 \
 	setupdw.f90 \
-        setupo3lv.f90 \
-        setuplag.F90 \
+	setupo3lv.f90 \
+	setuplag.F90 \
 	setupoz.f90 \
 	setuppcp.f90 \
 	setupps.f90 \
@@ -418,8 +435,8 @@ SRCS =	$(wildcard \
 	smoothzrf.f90 \
         sqrtmin.f90 \
 	sst_retrieval.f90 \
-        state2control.f90 \
-        state_vectors.f90 \
+	state2control.f90 \
+	state_vectors.f90 \
 	statsconv.f90 \
 	statsoz.f90 \
 	statspcp.f90 \
@@ -453,9 +470,9 @@ SRCS =	$(wildcard \
 	sub2grid.f90 \
 	support_2dvar.f90 \
 	tendsmod.f90 \
-        test_obsens.F90 \
-        tcv_mod.f90 \
-        timermod.F90 \
+	test_obsens.F90 \
+	tcv_mod.f90 \
+	timermod.F90 \
 	tintrp2a.f90 \
 	tintrp3.f90 \
 	tpause.f90 \
@@ -475,10 +492,10 @@ SRCS =	$(wildcard \
 	wrf_netcdf_interface.F90 \
 	write_all.F90 \
 	write_bkgvars_grid.f90 \
-        write_obsdiags.F90 \
+	write_obsdiags.F90 \
 	wrwrfmassa.F90 \
 	wrwrfnmma.F90 \
-        xhat_vordivmod.f90 \
+	xhat_vordivmod.f90 \
 	zrnmi_mod.f90 \
 	blockIO.c bacio.v1.4.c $(GSIGC_SRCS) )
 
@@ -507,9 +524,9 @@ LIB_GFSIO  = $(ESMADIR)/$(ARCH)/lib/lib$(THIS_GFSIO).a   # move to proper place
 INC_GFSIO  = $(ESMADIR)/$(ARCH)/include/$(THIS_GFSIO)   # move to proper place
 INC_BACIO  = # $(ESMADIR)/$(ARCH)/include/$(THIS_BACIO)   # move to proper place
 
-MOD_DIRS = . $(INC_ESMF) $(INC_HERMES) $(INC_CRTM)              \
+MOD_DIRS = . $(INC_ESMF) $(INC_CRTM)              \
 	     $(INC_SIGIO) $(INC_GFSIO) $(INC_BACIO) \
-             $(INC_SFCIO) $(INC_GEOS) $(INC_MPI)
+	     $(INC_SFCIO) $(INC_GEOS) $(INC_MPI)
 USER_FDEFS = $(_D) $(HAVE_ESMF)
 USER_FFLAGS = -CB $(BIG_ENDIAN) $(BYTERECLEN)
 USER_FFLAGS = $(BYTERECLEN)
@@ -543,6 +560,12 @@ blockIO.o : blockIO.c
 bacio.v1.4.o : bacio.v1.4.c
 	@echo '---> Special handling of C code $<'
 	$(CC) -DLINUX -c $<
+
+	# Bypass .c.d: rule, which won't produce bacio.v1.4.d, but only useless bacio.d
+bacio.v1.4.d : bacio.v1.4.c
+	@echo "Building dependency file" $@
+	@echo "$@ : $<" >$@
+	@echo "`basename $@ .d`.o : $<" >>$@
 
 blockIO.d : blockIO.c
 	@ touch $@

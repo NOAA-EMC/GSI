@@ -29,7 +29,7 @@ module qnewton3
 !$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: izero, ione, zero, one
+use constants, only: zero, one
 use mpimod, only: mype
 use control_vectors
 
@@ -77,6 +77,7 @@ subroutine m1qn3(x,f,g,epsg,nsim,nprt,maxvecs)
 use constants, only: two
 use qcmod, only: nlnqc_iter
 use jfunc, only: iter,jiter,niter,niter_no_qc
+use timermod, only: timer_ini,timer_fnl
 
 implicit none
 
@@ -92,13 +93,15 @@ type(control_vector) :: d,gg,aux,ztemp
 integer(i_kind) :: isim,jcour,jmin,jmax,ii,jj
 real(r_kind) :: r1,t,tmin,tmax,gnorm,eps1,ff,precos,ys,ps,hp0,dxmin,df1
 real(r_kind) :: yy,ss
+
+call timer_ini('m1qn3')
 !
 !---- impressions initiales et controle des arguments
 !
 dxmin=sqrt(EPSILON(dxmin))
 df1=f/10.0_r_kind
 
-if (mype==izero) then
+if (mype==0) then
    write(6,*)'m1qn3: number of updates (maxvecs):',maxvecs
    write(6,*)'m1qn3: absolute precision on x (dxmin):',dxmin
    write(6,*)'m1qn3: expected decrease for f (df1):',df1
@@ -107,7 +110,7 @@ if (mype==izero) then
    write(6,*)'m1qn3: maximal number of simulations (nsim):',nsim
 endif
 
-if ((niter(jiter)<=izero).or.(nsim<=izero).or.(maxvecs<=izero).or.(dxmin<=zero).or.(epsg<=zero).or.(epsg>one)) then
+if ((niter(jiter)<=0).or.(nsim<=0).or.(maxvecs<=0).or.(dxmin<=zero).or.(epsg<=zero).or.(epsg>one)) then
    write(6,*)'m1qn3: inconsistent call',niter(jiter),nsim,maxvecs,dxmin,epsg,epsg
    call stop2(164)
 endif
@@ -127,8 +130,8 @@ enddo
 call inquire_cv
 
 !
-iter=izero
-isim=ione
+iter=0
+isim=1
 eps1=one
 tmax=1.e+20_r_kind
 !
@@ -142,8 +145,8 @@ end if
 !
 ! --- initialisation pour dd
 !
-jmin=ione
-jmax=izero
+jmin=1
+jmax=0
 jcour=jmax
 !
 ! --- mise a l'echelle de la premiere direction de descente
@@ -169,8 +172,8 @@ iter_loop:do
       call stop2(166)
    endif
 !
-   iter=iter+ione
-   if (mype==izero.and.nprt>=ione) then
+   iter=iter+1
+   if (mype==0.and.nprt>=1) then
       write(6,910) iter,isim,f,hp0
       910 format (" m1qn3: iter ",i3,", simul ",i3,", f=",es15.7,", h'(0)=",es15.7)
    endif
@@ -194,16 +197,17 @@ iter_loop:do
    call mlis0(x,f,r1,t,tmin,tmax,d,g,nprt,isim,nsim,aux,ztemp)
 !
    eps1=dot_product(g,g)
-   if (mype==izero) write(6,*)'m1qn3: iteration=',iter,' t,grad =',t,eps1
+   if (mype==0) write(6,*)'m1qn3: iteration=',iter,' t,grad =',t,eps1
    eps1=sqrt(eps1)/gnorm
+
 !
 ! --- mise a jour des pointeurs
 !
-   jmax=jmax+ione
-   if (jmax>maxvecs) jmax=ione
+   jmax=jmax+1
+   if (jmax>maxvecs) jmax=1
    if (iter>maxvecs) then
-      jmin=jmin+ione
-      if (jmin>maxvecs) jmin=ione
+      jmin=jmin+1
+      if (jmin>maxvecs) jmin=1
    endif
    jcour=jmax
 !
@@ -219,7 +223,7 @@ iter_loop:do
    yy = DOT_PRODUCT (ybar(jcour),ybar(jcour))
    ss = DOT_PRODUCT (sbar(jcour),sbar(jcour))
    ys = DOT_PRODUCT (ybar(jcour),sbar(jcour))
-   if (mype==izero) write(6,*)'m1qn3: iteration=',iter,' ys,yy,ss =',ys,yy,ss
+   if (mype==0) write(6,*)'m1qn3: iteration=',iter,' ys,yy,ss =',ys,yy,ss
    if (ys<=zero) then
       write(6,*)'m1qn3: iteration=',iter,' (y,s) =',ys
       write(6,*)'m1qn3: the scalar product (y,s) is not positive'
@@ -242,16 +246,16 @@ iter_loop:do
 !
 ! --- tests d'arret
 !
-   if (mype==izero) write(6,*)'m1qn3: gradient norm reduction=',eps1
+   if (mype==0) write(6,*)'m1qn3: gradient norm reduction=',eps1
    if (eps1<epsg) exit iter_loop
 
    if (iter==niter(jiter)) then
-      if (mype==izero) write(6,*)'m1qn3: maximal number of iterations reached'
+      if (mype==0) write(6,*)'m1qn3: maximal number of iterations reached'
       exit iter_loop
    endif
 
    if (isim>=nsim) then
-      if (mype==izero) write(6,*)'m1qn3: maximal number of simulations reached'
+      if (mype==0) write(6,*)'m1qn3: maximal number of simulations reached'
       exit iter_loop
    endif
 !
@@ -272,7 +276,7 @@ epsg=eps1
 !
 !---- impressions finales
 !
-if (mype==izero) then
+if (mype==0) then
    write(6,*)'m1qn3: number of iterations =',iter
    write(6,*)'m1qn3: number of simulations =',isim
    write(6,*)'m1qn3: achieved relative precision on g=',epsg
@@ -287,6 +291,7 @@ do ii=1,maxvecs
    call deallocate_cv(ybar(ii))
 enddo
 
+call timer_fnl('m1qn3')
 return
 end subroutine m1qn3
 ! ------------------------------------------------------------------------------
@@ -460,7 +465,7 @@ d2    = dot_product(d,d)
 if(t<=tmin) then
    t=tmin
    if(t>tmax) then
-      if (imp>izero) write (io,1007)
+      if (imp>0) write (io,1007)
       tmin=tmax
    endif
 endif
@@ -470,12 +475,12 @@ do
    t=two*t
 enddo
 
-logic=izero
+logic=0
 if (t>tmax) then
    t=tmax
-   logic=ione
+   logic=1
 endif
-if (imp>=4_i_kind) write (io,1000) fpn,d2,tmin,tmax
+if (imp>=4) write (io,1000) fpn,d2,tmin,tmax
 !
 !     --- nouveau x
 !
@@ -486,9 +491,9 @@ enddo
 ! --- boucle
 !
 boucle:do
-   nap=nap+ione
+   nap=nap+1
    if (nap>napmax) then
-      logic=4_i_kind
+      logic=4
       fn=fg
       do jj=1,xn%lencv
          xn%values(jj) = xn%values(jj) + tg * d%values(jj)
@@ -513,19 +518,19 @@ boucle:do
       td   =t
       fd   =f
       fpd  =fp
-      logic=izero
-      if (imp>=4_i_kind) write (io,1002) t,ffn,fp
+      logic=0
+      if (imp>=4) write (io,1002) t,ffn,fp
       go to 500
    endif
 !
 ! --- test 1 ok, donc deuxieme test de Wolfe
 !
-   if (imp>=4_i_kind) write (io,1003) t,ffn,fp
+   if (imp>=4) write (io,1003) t,ffn,fp
    if (fp>tesd) then
-      logic=izero
+      logic=0
       go to 320
    endif
-   if (logic==izero) go to 350
+   if (logic==0) go to 350
 !
 !     --- test 2 ok, donc pas serieux, on sort
 !
@@ -550,7 +555,7 @@ boucle:do
       call ecube(t,f,fp,ta,fa,fpa,gauche,droite)
       ta=taa
       if(t>=tmax) then
-         logic=ione
+         logic=1
          t=tmax
       endif
       go to 900
@@ -599,7 +604,7 @@ boucle:do
 ! --- arret sur dxmin ou de secours
 !
       endif
-      logic=6_i_kind
+      logic=6
 !
 !     si tg=0, xn = xn_depart,
 !     sinon on prend xn=x_gauche qui fait decroitre f
@@ -613,8 +618,8 @@ boucle:do
 
       write (io,1001)
       write (io,1005) tg,fg,fpg
-      if (logic==6_i_kind) write (io,1005) td,fd,fpd
-      if (logic==7_i_kind) write (io,1006) td
+      if (logic==6) write (io,1005) td,fd,fpd
+      if (logic==7) write (io,1006) td
       exit
    endif
 

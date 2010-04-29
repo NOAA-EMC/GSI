@@ -45,6 +45,7 @@ subroutine stpoz(ozhead,o3lhead,roz,soz,out,sges,nstep)
 !
 ! program history log:
 !   2009-01-22  Sienkiewicz - incorporation of level ozone routine
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !
 !   input argument list:
 !     ozhead
@@ -65,18 +66,18 @@ subroutine stpoz(ozhead,o3lhead,roz,soz,out,sges,nstep)
   use kinds, only: r_kind,r_quad,i_kind
   use obsmod, only: oz_ob_type,o3l_ob_type
   use gridmod, only: latlon1n
-  use constants, only: ione,zero_quad
+  use constants, only: zero_quad
   implicit none
 
 ! Declare passed variables
 
-  type( oz_ob_type),pointer              ,intent(in   ) :: ozhead
-  type(o3l_ob_type),pointer              ,intent(in   ) :: o3lhead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: soz
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: roz
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
+  type( oz_ob_type),pointer           ,intent(in   ) :: ozhead
+  type(o3l_ob_type),pointer           ,intent(in   ) :: o3lhead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: soz
+  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: roz
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
 
   out=zero_quad
 
@@ -134,23 +135,23 @@ subroutine stpozlay_(ozhead,roz,soz,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: oz_ob_type
-  use constants, only: izero,ione,one,half,two,zero_quad,r3600
+  use constants, only: one,half,two,zero_quad,r3600
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer              ,intent(in   ) ::  ozhead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(inout) :: out
-  real(r_kind),dimension(lat2*lon2,nsig) ,intent(in   ) :: roz,soz
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type( oz_ob_type),pointer             ,intent(in   ) ::  ozhead
+  integer(i_kind)                       ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep))  ,intent(inout) :: out
+  real(r_kind),dimension(lat2*lon2,nsig),intent(in   ) :: roz,soz
+  real(r_kind),dimension(max(1,nstep))  ,intent(in   ) :: sges
 
 ! Declare local variables
   integer(i_kind) k,j1,j2,j3,j4,iz1,iz2,j1x,j2x,j3x,j4x,kk
   real(r_kind) dz1,pob,delz
   real(r_kind) w1,w2,w3,w4,time_oz,oz
-  real(r_kind),dimension(max(ione,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen
   type( oz_ob_type), pointer ::  ozptr
 
   real(r_quad) val,val1
@@ -163,7 +164,7 @@ subroutine stpozlay_(ozhead,roz,soz,out,sges,nstep)
   do while (associated(ozptr))
      if(ozptr%luse)then
 
-        if(nstep > izero)then
+        if(nstep > 0)then
 !          Get location
            j1=ozptr%ij(1)
            j2=ozptr%ij(2)
@@ -172,13 +173,13 @@ subroutine stpozlay_(ozhead,roz,soz,out,sges,nstep)
            if(l_foto)time_oz=ozptr%time*r3600
 
 !          Accumulate contribution from layer observations
-           dz1=nsig+ione
+           dz1=nsig+1
         end if
 
-        if ( ozptr%nloz >= ione ) then
+        if ( ozptr%nloz >= 1 ) then
 
            do k=1,ozptr%nloz
-              if(nstep > izero)then
+              if(nstep > 0)then
                  val1= -ozptr%res(k)
                  val = zero_quad
                  pob = ozptr%prs(k)
@@ -205,10 +206,10 @@ subroutine stpozlay_(ozhead,roz,soz,out,sges,nstep)
                          w3* soz(j3,kk)+ &
                          w4* soz(j4,kk))*delz
                     if(l_foto) then
-                       j1x=j1+(kk-ione)*lat2*lon2
-                       j2x=j2+(kk-ione)*lat2*lon2
-                       j3x=j3+(kk-ione)*lat2*lon2
-                       j4x=j4+(kk-ione)*lat2*lon2
+                       j1x=j1+(kk-1)*lat2*lon2
+                       j2x=j2+(kk-1)*lat2*lon2
+                       j3x=j3+(kk-1)*lat2*lon2
+                       j4x=j4+(kk-1)*lat2*lon2
                        val=val + ( &
                          (w1*dhat_dt%oz(j1x)+ &
                           w2*dhat_dt%oz(j2x)+ &
@@ -239,8 +240,8 @@ subroutine stpozlay_(ozhead,roz,soz,out,sges,nstep)
         end if
 
 !       Add contribution from total column observation
-        if(nstep > izero)then
-           k   = ozptr%nloz+ione
+        if(nstep > 0)then
+           k   = ozptr%nloz+1
            val1= -ozptr%res(k)
            val  = zero_quad
            do kk=1,nsig
@@ -259,10 +260,10 @@ subroutine stpozlay_(ozhead,roz,soz,out,sges,nstep)
                    w3* soz(j3,kk)+ & 
                    w4* soz(j4,kk))
               if(l_foto)then
-                 j1x=j1+(kk-ione)*lat2*lon2
-                 j2x=j2+(kk-ione)*lat2*lon2
-                 j3x=j3+(kk-ione)*lat2*lon2
-                 j4x=j4+(kk-ione)*lat2*lon2
+                 j1x=j1+(kk-1)*lat2*lon2
+                 j2x=j2+(kk-1)*lat2*lon2
+                 j3x=j3+(kk-1)*lat2*lon2
+                 j4x=j4+(kk-1)*lat2*lon2
                  val=val+ ( &
                    (w1*xhat_dt%oz(j1x)+ &
                     w2*xhat_dt%oz(j2x)+ &
@@ -315,6 +316,7 @@ subroutine stpozlev_(o3lhead,roz1d,soz1d,out,sges,nstep)
 !   2007-01-02  sienkiewicz - separate subroutine
 !   2007-01-05  sienkiewicz - update to 9/2006 GSI (new obs structure)
 !   2009-01-21  sienkiewicz - update to 1/2009 GSI, changes based on stpq & stpoz
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !
 !   input argument list:
 !     o3lhead - level ozone obs type pointer to obs structure
@@ -333,22 +335,22 @@ subroutine stpozlev_(o3lhead,roz1d,soz1d,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: o3l_ob_type
-  use constants, only: izero,ione,zero,one,half,two,r3600
+  use constants, only: zero,one,half,two,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   implicit none
 
 ! Declare passed variables
-  type(o3l_ob_type),pointer              ,intent(in   ) :: o3lhead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: roz1d,soz1d
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(o3l_ob_type),pointer           ,intent(in   ) :: o3lhead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: roz1d,soz1d
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
   real(r_kind) oz
-  real(r_kind),dimension(max(ione,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,val,val2, time_oz
   type(o3l_ob_type), pointer :: o3lptr
 
@@ -362,7 +364,7 @@ subroutine stpozlev_(o3lhead,roz1d,soz1d,out,sges,nstep)
 !
   do while (associated(o3lptr))
      if(o3lptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1=o3lptr%ij(1)
            j2=o3lptr%ij(2)
            j3=o3lptr%ij(3)

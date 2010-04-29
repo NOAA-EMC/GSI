@@ -1,4 +1,4 @@
-subroutine compute_derived(mype)
+subroutine compute_derived(mype,init_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    compute_derived     compute derived quantites from current solution
@@ -44,6 +44,8 @@ subroutine compute_derived(mype)
 !   2008-10-10  derber  - add calculation of fact_tv
 !   2008-11-03  sato - add anisotropic mode procedures
 !   2008-12-08  todling - move 3dprs/geop-hght calculation from here into setuprhsall
+!   2009-08-19  guo     - add verifications of drv_initialized and tnd_initialized
+!			  before the use of related module variables.
 !   2009-10-15  parrish - add rescale of ensemble rh perturbations
 !                           (currently for internal generated ensemble only)
 !   2010-03-11  derber/zhu - add qvar3d to prewgt and prewgt_reg, remove rescale_ensemble_rh_perturbations
@@ -74,16 +76,21 @@ subroutine compute_derived(mype)
        ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,ges_ozlat,ges_cwmr_lat
   use guess_grids, only: ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
        ges_oz_ten,ges_cwmr_ten
-  use gridmod, only: lat2,lon2,nsig,nnnn1o,nsig1o
+  use guess_grids, only: ges_prslavg,ges_psfcavg
+  use guess_grids, only: tnd_initialized
+  use guess_grids, only: drv_initialized
+  use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
   use gridmod, only: regional
   use gridmod, only: twodvar_regional
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional
   use berror, only: hswgt
   use balmod, only: rllat1,llmax
   use mod_strong, only: jcstrong,baldiag_full
-  use obsmod, only: write_diag
+  use obsmod, only: write_diag,lobserver
+  use hybrid_ensemble_parameters, only: l_hyb_ens,generate_ens
+  use hybrid_ensemble_isotropic_regional, only: rescale_ensemble_rh_perturbations
 
-  use constants, only: ione,izero,zero,one,one_tenth,half,fv
+  use constants, only: zero,one,one_tenth,half,fv
 
 ! for anisotropic mode
   use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab
@@ -94,24 +101,30 @@ subroutine compute_derived(mype)
   use anisofilter_glb, only: rh2f, rh3f, ensamp0f, ensamp2f, ensamp3f, &
                              p0ilatf, p2ilatf, p3ilatf, p2ilatfm, p3ilatfm, get_stat_factk
 
+  use constants, only: zero,one,one_tenth,half,fv
+  use mpeu_util, only: die, tell
   implicit none
 
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
+  logical        ,intent(in   ) :: init_pass
 
 ! Declare local variables
   logical ice,fullfield
   integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2,iderivative
   
   real(r_kind) d,dl1,dl2,psfc015,dn1,dn2
-  real(r_kind),dimension(lat2,lon2,nsig+ione):: ges_3dp
+  real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
   real(r_kind),dimension(lat2,lon2,nsig):: rhgues
 
 ! for anisotropic mode
   integer(i_kind):: k1,ivar,kvar,igauss
   real(r_kind):: factor,factk,hswgtsum
+
+  if(init_pass .and. (ntguessig<1 .or. ntguessig>nfldsig)) &
+	call die('compute_derived','invalid init_pass, ntguessig =',ntguessig)
 
 ! Limit q to be >= 1.e-10_r_kind
   do it=1,nfldsig
@@ -128,6 +141,8 @@ subroutine compute_derived(mype)
   if (.not. twodvar_regional)then
 
      if (switch_on_derivatives) then
+        if(.not.drv_initialized) &
+                call die('compute_derived','unexpected drv_initialized =',drv_initialized)
 
 !       Instead, update gradients of all guess fields.  these will
 !       be used for forward models that need gradient of background field,
@@ -146,30 +161,38 @@ subroutine compute_derived(mype)
              nnnn1o,nfldsig)
 
         if(.not. wrf_mass_regional .and. tendsflag)then
+           if(.not.tnd_initialized) &
+                call die('compute_derived','unexpected tnd_initialized =',tnd_initialized)
+
 
 ! now that we have derivs, get time tendencies if necessary
+           if(init_pass) then
+              it=ntguessig
 
-           call getprs(ges_ps(1,1,it),ges_3dp)
+              call getprs(ges_ps(1,1,it),ges_3dp)
 
-           call calctends(ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it), &
-              ges_q(1,1,1,it),ges_oz(1,1,1,it),ges_cwmr(1,1,1,it),&
-              ges_teta(1,1,1,it),ges_z(1,1,it), &
-              ges_u_lon,ges_u_lat,ges_v_lon,&
-              ges_v_lat,ges_tvlon,ges_tvlat,ges_ps_lon(1,1,it), &
-              ges_ps_lat(1,1,it),ges_qlon,ges_qlat,ges_ozlon,&
-              ges_ozlat,ges_cwmr_lon,ges_cwmr_lat,&
-              mype,ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
-              ges_oz_ten,ges_cwmr_ten,ges_3dp)
+              call calctends(ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it), &
+                 ges_q(1,1,1,it),ges_oz(1,1,1,it),ges_cwmr(1,1,1,it),&
+                 ges_teta(1,1,1,it),ges_z(1,1,it), &
+                 ges_u_lon,ges_u_lat,ges_v_lon,&
+                 ges_v_lat,ges_tvlon,ges_tvlat,ges_ps_lon(1,1,it), &
+                 ges_ps_lat(1,1,it),ges_qlon,ges_qlat,ges_ozlon,&
+                 ges_ozlat,ges_cwmr_lon,ges_cwmr_lat,&
+                 mype,ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
+                 ges_oz_ten,ges_cwmr_ten,ges_3dp)
 
-           if(jcstrong .and. write_diag(jiter) .and. baldiag_full) then
-              fullfield=.true.
+              if(jcstrong .and. write_diag(jiter) .and. baldiag_full) then
+                 fullfield=.true.
 
 
-              call strong_bal_correction(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,mype, &
-                                         ges_u,ges_v,ges_tv,ges_ps,.true.,fullfield,.false.)
-           end if
+                 call strong_bal_correction(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,mype, &
+                                            ges_u,ges_v,ges_tv,ges_ps,.true.,fullfield,.false.)
+              end if
+           end if ! (init_pass)
         end if
      end if
+
+     if(init_pass) then
 
 ! Compute tropopause level (in pressure, hPa).  The 'pvoz'
 ! string means compute tropopause using potential vorticity
@@ -178,13 +201,16 @@ subroutine compute_derived(mype)
 
 ! NOTE:  tropopause pressure is not needed for 2dvar option
 
-     if(regional)then
-        call tpause(mype,'temp')
-     else
-        call tpause(mype,'pvoz')
-     end if
+        if(regional)then
+           call tpause(mype,'temp')
+        else   ! (regional)
+           call tpause(mype,'pvoz')
+        end if ! (regional)
+   
+     endif       ! (init_pass)
+  endif         ! (!twodvar_regional)
 
-  endif
+  if(.not. init_pass) return
 
 ! Load guess q for use in limq.  Initialize saturation array to guess.
   do k=1,nsig
@@ -197,9 +223,9 @@ subroutine compute_derived(mype)
   end do
 
 ! Compute saturation specific humidity.   
-  iderivative = izero
-  if(qoption == ione)then
-      if(jiter == jiterstart)iderivative = ione
+  iderivative = 0
+  if(qoption == 1)then
+      if(jiter == jiterstart)iderivative = 1
   else
       iderivative = 2
   end if
@@ -210,7 +236,7 @@ subroutine compute_derived(mype)
 
 !??????????????????????????  need any of this????
 !! qoption 1:  use psuedo-RH
-!  if(qoption==ione)then
+!  if(qoption==1)then
 !
 !
 !! qoption 2:  use normalized RH
@@ -218,6 +244,7 @@ subroutine compute_derived(mype)
   if(qoption == 2) then
 
 
+! Load arrays based on option for moisture background error
 
 ! variance update for anisotropic mode
      if( anisotropic .and. .not.rtma_subdomain_option ) then
@@ -236,14 +263,14 @@ subroutine compute_derived(mype)
            do k=indices%kps,indices%kpe
               ivar=idvar(k)
               if(ivar==nrf3_loc(nrf3_q)) then
-                 kvar=k-kvar_start(ivar)+ione
+                 kvar=k-kvar_start(ivar)+1
                  do k1=1,nsig1o
                     if(levs_id(k1)==kvar) exit
                  end do
                  do j=indices%jps,indices%jpe
                     do i=indices%ips,indices%ipe
-                       l =max(min(int(rllatf(i,j)),mlat),ione)
-                       l2=min((l+ione),mlat)
+                       l =max(min(int(rllatf(i,j)),mlat),1)
+                       l2=min((l+1),mlat)
                        dl2=rllatf(i,j)-float(l)
                        dl1=one-dl2
 
@@ -271,7 +298,7 @@ subroutine compute_derived(mype)
            do k=indices%kps,indices%kpe
               ivar=idvar(k)
               if(ivar==nrf3_loc(nrf3_q)) then
-                 kvar=k-kvar_start(ivar)+ione
+                 kvar=k-kvar_start(ivar)+1
                  do k1=1,nsig1o
                     if(levs_id(k1)==kvar) exit
                  end do

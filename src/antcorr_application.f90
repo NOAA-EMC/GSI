@@ -66,7 +66,7 @@ MODULE AntCorr_Application
   ! Module parameters
   ! -----------------
   CHARACTER(*),  PARAMETER :: MODULE_RCS_ID = &
-  '$Id: antcorr_application.f90,v 1.1 2008/12/11 22:26:27 jguo Exp $'
+  '$Id: antcorr_application.f90,v 1.1.6.1.2.1.2.1 2010-04-08 10:15:23 rtodling Exp $'
 
   ! Invalid result
   REAL(fp), PARAMETER :: INVALID = -1.0_fp

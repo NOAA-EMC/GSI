@@ -368,6 +368,7 @@ subroutine allocate_cs(ycs)
 !
 ! program history log:
 !   2010-02-25  zhu     - use for control state
+!   2010-04-15  treadon - remove lsqrtb branch
 !
 !   input argument list:
 !
@@ -388,69 +389,41 @@ subroutine allocate_cs(ycs)
   ALLOCATE(ycs%values(nval_len))
 
   ii=izero
-  if (lsqrtb) then
-     do n=1,nrf
-        cvar=nrf_var(n)
-        select case(cvar)
-           case('sf','SF')
-              ycs%st  => NULL()
-           case('vp','VP')
-              ycs%vp  => NULL()
-           case('t','T')
-              ycs%t   => NULL()
-           case('q','Q')
-              ycs%rh  => NULL()
-           case('oz','OZ')
-              ycs%oz  => NULL()
-           case('cw','CW')
-              ycs%cw  => NULL()
-           case('ps','PS')
-               ycs%p   => NULL()
-           case('sst','SST')
-              ycs%sst => NULL()
-           case default
-              write(6,*) 'allocate_cs: ERROR, unrecognized control variable ',cvar
-              call stop2(100)
-        end select
-        ii=ii+ngrid
-     end do
-  else
-     do n=1,nrf
-        if (nrf_3d(n)) then
-           ngrid=latlon1n
-        else
-           ngrid=latlon11
-        end if
-
-        cvar=nrf_var(n)
-        select case(cvar)
-           case('sf','SF')
-              ycs%st  => ycs%values(ii+ione:ii+ngrid)
-           case('vp','VP')
-              ycs%vp  => ycs%values(ii+ione:ii+ngrid)
-           case('t','T')
-              ycs%t   => ycs%values(ii+ione:ii+ngrid)
-           case('q','Q')
-              ycs%rh  => ycs%values(ii+ione:ii+ngrid)
-           case('oz','OZ')
-              ycs%oz  => ycs%values(ii+ione:ii+ngrid)
-           case('cw','CW')
-              ycs%cw  => ycs%values(ii+ione:ii+ngrid)
-           case('ps','PS')
-              ycs%p   => ycs%values(ii+ione:ii+ngrid)
-           case('sst','SST')
-              ycs%sst => ycs%values(ii+ione:ii+ngrid)
-           case default
-              write(6,*) 'allocate_cs: ERROR, unrecognized control variable ',cvar
-              call stop2(100)
-        end select
-        ii=ii+ngrid
-     end do
-     if(n_ens >  izero) then
-        ycs%a_en => ycs%values(ii+1:ii+n_ens*latlon1n)
-        ii=ii+n_ens*latlon1n
+  do n=1,nrf
+     if (nrf_3d(n)) then
+        ngrid=latlon1n
+     else
+        ngrid=latlon11
      end if
-  endif
+
+     cvar=nrf_var(n)
+     select case(cvar)
+        case('sf','SF')
+           ycs%st  => ycs%values(ii+ione:ii+ngrid)
+        case('vp','VP')
+           ycs%vp  => ycs%values(ii+ione:ii+ngrid)
+        case('t','T')
+           ycs%t   => ycs%values(ii+ione:ii+ngrid)
+        case('q','Q')
+           ycs%rh  => ycs%values(ii+ione:ii+ngrid)
+        case('oz','OZ')
+           ycs%oz  => ycs%values(ii+ione:ii+ngrid)
+        case('cw','CW')
+           ycs%cw  => ycs%values(ii+ione:ii+ngrid)
+        case('ps','PS')
+           ycs%p   => ycs%values(ii+ione:ii+ngrid)
+        case('sst','SST')
+           ycs%sst => ycs%values(ii+ione:ii+ngrid)
+        case default
+           write(6,*) 'allocate_cs: ERROR, unrecognized control variable ',cvar
+           call stop2(100)
+     end select
+     ii=ii+ngrid
+  end do
+  if(n_ens >  izero) then
+     ycs%a_en => ycs%values(ii+1:ii+n_ens*latlon1n)
+     ii=ii+n_ens*latlon1n
+  end if
 
   m_allocs=m_allocs+ione
 
