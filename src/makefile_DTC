@@ -217,6 +217,7 @@ LIBsys          = $(MYLIBsys)
         mpimod.o \
         mpl_allreduce.o \
         mpl_bcast.o \
+        ncepgfs_ghg.o \
         ncepgfs_io.o \
         nemsio_module.o \
         nlmsas_ad.o \

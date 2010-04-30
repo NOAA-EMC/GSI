@@ -1,4 +1,4 @@
-subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
+subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
                    trop5,dtskin,dtsavg,uu5,vv5,dx,dy,mype)       
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -27,6 +27,7 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
 !   2006-07-31  kleist - remove interpolation of ln(ps) to ob location
 !   2007-12-12  kim - add cloud profiles
 !   2008-12-05  todling - use dsfct(:,:,ntguessfc) for calculation
+!   2010-04-15  hou - add co2 to output arguments
 !
 !   input argument list:
 !     obstime  - time of observations for which to get profile
@@ -37,6 +38,7 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
 !     h        - interpolated temperature
 !     q        - interpolated specific humidity
 !     poz      - interpolated ozone
+!     co2      - interpolated co2 mixing ratio
 !     uu5      - interpolated bottom sigma level zonal wind    
 !     vv5      - interpolated bottom sigma level meridional wind  
 !     trop5    - interpolated tropopause pressure
@@ -50,7 +52,7 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
 !--------
   use kinds, only: r_kind,i_kind
   use guess_grids, only: ges_u,ges_v,ges_tsen,ges_q,ges_oz,&
-       ges_prsl,ges_prsi,tropprs,dsfct, &
+       ges_prsl,ges_prsi,tropprs,dsfct,ges_co2, &
        hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,ges_tv,isli2,sno2
   use gridmod, only: istart,jstart,nlon,nlat,nsig,lon1
   use constants, only: ione,zero,one,one_tenth
@@ -60,7 +62,7 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
   integer(i_kind)                  ,intent(in   ) :: mype
   real(r_kind)                     ,intent(in   ) :: dx,dy,obstime
   real(r_kind)                     ,intent(  out) :: trop5
-  real(r_kind),dimension(nsig)     ,intent(  out) :: h,q,poz,prsl
+  real(r_kind),dimension(nsig)     ,intent(  out) :: h,q,poz,prsl,co2
   real(r_kind),dimension(nsig+ione),intent(  out) :: prsi
   real(r_kind)                     ,intent(  out) :: uu5,vv5,dtsavg
   real(r_kind),dimension(0:3)      ,intent(  out) :: dtskin
@@ -305,6 +307,10 @@ subroutine intrppx(obstime,h,q,poz,prsl,prsi, &
              ges_tv(ix ,iyp,k,itsigp)*w01+ &
              ges_tv(ixp,iyp,k,itsigp)*w11)*dtsigp
 
+     co2(k) =(ges_co2(ix ,iy ,k)*w00+ &
+              ges_co2(ixp,iy ,k)*w10+ &
+              ges_co2(ix ,iyp,k)*w01+ &
+              ges_co2(ixp,iyp,k)*w11)
   end do
   do k=1,nsig+ione
      prsi(k)=(ges_prsi(ix ,iy ,k,itsig )*w00+ &

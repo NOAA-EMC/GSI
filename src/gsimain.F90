@@ -114,6 +114,7 @@
 !   2008-05-20  Guo, J. - removed obsolete gmao_rtm control
 !			- removed diurnal bias correction implmented by Zhang, B.
 !   2010-03-18  treadon - add comment for return code 330
+!   2010-04-26  kistler - add comment for return code 331
 !
 ! usage:
 !   input files:
@@ -502,6 +503,7 @@
 !          = 329 - problem with logicals or collective obs selection info file
 !          = 330 - grid --> spectral transform not safe for sptranf_s,v_b
 !          = 331 - trouble writing analysis errors
+!          = 332 - co2 file i/o error
 !
 !
 ! remarks: resolution, unit numbers and several constants are

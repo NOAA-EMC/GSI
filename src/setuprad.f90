@@ -96,6 +96,7 @@
 !   2010-03-30  collard - changes for interface with CRTM v2.0. 
 !   2010-03-30  collard - Add CO2 interface (fixed value for now).
 !   2010-04-08  h.liu   -add SEVIRI assimilation 
+!   2010-04-16  hou/kistler add interface to module ncepgfs_ghg
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -141,7 +142,7 @@
        npred,jpch_rad,varch,iuse_rad,nusis,fbias,retrieval,b_rad,pg_rad,&
        crtm_coeffs_path,air_rad,ang_rad
   use guess_grids, only: add_rtm_layers,sfcmod_gfs,sfcmod_mm5,&
-       comp_fact10
+       comp_fact10,igfsco2
   use obsmod, only: ianldate,iadate,ndat,mype_diaghdr,nchan_total, &
            dplat,dtbduv_on,radhead,radtail,&
            i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
@@ -159,6 +160,7 @@
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
        finish_sst_retrieval,spline_cub
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use ncepgfs_ghg, only: co2vmr_def
   implicit none
 
 ! Declare passed variables
@@ -314,7 +316,7 @@
   real(r_kind),dimension(nreal+nchanl,nobs)::data_s
   real(r_kind),dimension(nsig+1):: pin5
   real(r_kind),dimension(nsig):: c2,c3,c4,c5,prsltmp
-  real(r_kind),dimension(nsig):: prsr5,temp5,qvp,tvp,poz
+  real(r_kind),dimension(nsig):: prsr5,temp5,qvp,tvp,poz,co2
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(msig)::  prsltmp_rtm
   real(r_kind),dimension(msig+1)::  prsitmp_rtm
@@ -893,13 +895,14 @@
         end if
 
 
-        tsavg5=data_s(itsavg,n)
-        vegtype5=data_s(ivty,n)
-!       Interpolate model fields to observation location
-        call intrppx(dtime,tvp,qvp,poz,prsltmp,prsitmp, &
-              trop5,dtskin,dtsavg,uwind,vwind,slats,slons,mype)
-        tsavg5=tsavg5+dtsavg
- 
+     tsavg5=data_s(itsavg,n)
+     vegtype5=data_s(ivty,n)
+!    Interpolate model fields to observation location
+!      extend intrppx to include co2
+     call intrppx(dtime,tvp,qvp,poz,co2,prsltmp,prsitmp, &
+            trop5,dtskin,dtsavg,uwind,vwind,slats,slons,mype)
+
+     tsavg5=tsavg5+dtsavg
 
 !  check for microwave and thin snow - if thin then reset to land 
 !               but type == mixed
@@ -1004,8 +1007,13 @@
            atmosphere(1)%temperature(k)    = tvp(kk2)
            atmosphere(1)%absorber(k,1)     = r1000*qvp(kk2)*c3(kk2)
            atmosphere(1)%absorber(k,2)     = max(ozsmall,poz(kk2)*constoz)
-! CO2 amount fixed here!
-           atmosphere(1)%absorber(k,3)     = 390._r_kind
+! CO2 profile here!
+		  if (igfsco2 == 0) then
+           atmosphere(1)%absorber(k,3)     = co2vmr_def
+		  else
+           atmosphere(1)%absorber(k,3)     = co2(kk2)
+		  endif
+			
 ! Add in a drop-off to absorber amount in the stratosphere to be in more 
 ! agreement with ECMWF profiles.  This should be replaced when climatological fields
 ! are introduced.

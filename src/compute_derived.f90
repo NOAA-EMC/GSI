@@ -49,6 +49,8 @@ subroutine compute_derived(mype,init_pass)
 !   2009-10-15  parrish - add rescale of ensemble rh perturbations
 !                           (currently for internal generated ensemble only)
 !   2010-03-11  derber/zhu - add qvar3d to prewgt and prewgt_reg, remove rescale_ensemble_rh_perturbations
+!   2010-04-15  hou - add importing gfs co2 historical data through calling
+!                        read_gfsco2.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -79,16 +81,20 @@ subroutine compute_derived(mype,init_pass)
   use guess_grids, only: ges_prslavg,ges_psfcavg
   use guess_grids, only: tnd_initialized
   use guess_grids, only: drv_initialized
+  use guess_grids, only: ges_prsi,ges_co2,igfsco2
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
   use gridmod, only: regional
   use gridmod, only: twodvar_regional
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional
+  use gridmod, only: rlats,istart,nlat
   use berror, only: hswgt
   use balmod, only: rllat1,llmax
   use mod_strong, only: jcstrong,baldiag_full
   use obsmod, only: write_diag,lobserver
   use hybrid_ensemble_parameters, only: l_hyb_ens,generate_ens
   use hybrid_ensemble_isotropic_regional, only: rescale_ensemble_rh_perturbations
+  use obsmod, only: iadate
+  use ncepgfs_ghg, only: read_gfsco2
 
   use constants, only: zero,one,one_tenth,half,fv
 
@@ -113,11 +119,14 @@ subroutine compute_derived(mype,init_pass)
 ! Declare local variables
   logical ice,fullfield
   integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2,iderivative
+  integer(i_kind) :: iyear, month
   
   real(r_kind) d,dl1,dl2,psfc015,dn1,dn2
   real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
   real(r_kind),dimension(lat2,lon2,nsig):: rhgues
+  real(r_kind),dimension(lat2):: xlats
+  real(r_kind),dimension(lat2,lon2,nsig+1):: prsi
 
 ! for anisotropic mode
   integer(i_kind):: k1,ivar,kvar,igauss
@@ -366,6 +375,33 @@ subroutine compute_derived(mype,init_pass)
 
   call q_diag(mype)
   
+! get subdomain latitude array
+  j = mype + 1
+  do i = 1, lat2
+     n = min(max(1, istart(j)+i-2), nlat)
+     xlats(i) = rlats(n)
+  enddo
+
+! get corresponding pressure interface
+  do k = 1, nsig+1
+     do j = 1, lon2
+        do i = 1, lat2
+           prsi(i,j,k) = ges_prsi(i,j,k,ntguessig)
+        enddo
+     enddo
+  enddo
+
+! import gfs co2 data
+
+  iyear = iadate(1)
+  month = iadate(2)
+
+  call read_gfsco2  &
+!  ---  inputs:
+     ( iyear,month,igfsco2,xlats,prsi,lat2,lon2,nsig,mype,  &
+!  ---  outputs:
+       ges_co2 )
+
 ! End of routine
   return
 end subroutine compute_derived

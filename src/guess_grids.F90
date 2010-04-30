@@ -63,6 +63,8 @@ module guess_grids
 !			- merged destroy_sfc_grids() and destroy_sfct().
 !   2008-08-25  hu    - add array definitions for hydrometeor fields
 !                     - add subroutine create_cld_grids and destroy_cld_grids
+!   2010-04-16  hou   - add array definitions ges_co2 (co2 mixing ratio) and
+!                       control variable igfsco2
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -104,6 +106,7 @@ module guess_grids
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
   public :: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg
   public :: ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
+  public :: ges_co2,igfsco2
 
   public :: ges_initialized
   public :: tnd_initialized
@@ -132,6 +135,9 @@ module guess_grids
 
   integer(i_kind), save:: ntguessig_ref	! replace ntguessig as the storage for its original value
   integer(i_kind), save:: ntguessfc_ref	! replace ntguessfc as the storage for its original value
+  integer(i_kind):: igfsco2 = 0     ! 0 = use gfs predefined co2 value
+                                    ! 1 = use gfs yearly global annual mean historical co2 value
+                                    ! 2 = use gfs monthly horizontal 2d historical co2 value
 
   integer(i_kind):: ifact10 = 0     ! 0 = use 10m wind factor from guess
 
@@ -224,6 +230,7 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_teta  ! potential temperature
   real(r_kind),allocatable,dimension(:,:,:):: ges_tvlat ! tv/lat for pcp routine advection calc
   real(r_kind),allocatable,dimension(:,:,:):: ges_tvlon ! tv/lon for pcp routine advection calc 
+  real(r_kind),allocatable,dimension(:,:,:):: ges_co2   ! co2 mixing ratio
 
   real(r_kind),allocatable,dimension(:,:,:)::ges_pd        ! pdges (for nmm only)
   real(r_kind),allocatable,dimension(:,:,:):: ges_prs_ten  ! 3d pressure tendency
@@ -527,6 +534,7 @@ contains
             ges_vor(lat2,lon2,nsig,nfldsig),ges_div(lat2,lon2,nsig,nfldsig),&
             ges_cwmr(lat2,lon2,nsig,nfldsig),ges_q(lat2,lon2,nsig,nfldsig),&
             ges_oz(lat2,lon2,nsig,nfldsig),ges_tv(lat2,lon2,nsig,nfldsig),&
+            ges_co2(lat2,lon2,nsig), &
             stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_z,..):  allocate error1, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
@@ -583,6 +591,13 @@ contains
                    ges_tv(i,j,k,n)=zero
 !                  ges_pint(i,j,k,n)=zero
                 end do
+             end do
+          end do
+       end do
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                ges_co2(i,j,k)=zero
              end do
           end do
        end do
@@ -756,7 +771,7 @@ contains
 #ifndef HAVE_ESMF
     deallocate(ges_z,ges_ps,&
          ges_u,ges_v,ges_vor,ges_div,ges_cwmr,ges_q,&
-         ges_oz,ges_tv,&
+         ges_oz,ges_tv,ges_co2,&
          stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GES_GRIDS(ges_z,..):  deallocate error1, istatus=',&

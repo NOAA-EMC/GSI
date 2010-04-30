@@ -66,7 +66,7 @@
      diagnostic_reg,gencode,nlon_regional,nlat_regional,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs
-  use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
+  use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,igfsco2
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
   use constants, only: zero,one,init_constants,init_constants_derived,three
@@ -159,6 +159,8 @@
 !                        be called after init_grid_vars, as it currently is.  This must be done to
 !                        avoid "use gridmod" in mpimod.F90, which causes compiler conflict, since
 !                        "use mpimod" appears in gridmod.f90.
+!  04-16-2010 hou       add igfsco2 from guess_grids, a control variable read in from namelist/setup/
+!                       it used to control the type of co2 data used for crtm calculation.
 !                         
 !EOP
 !-------------------------------------------------------------------------
@@ -257,6 +259,10 @@
 !     use_gfs_ozone  - option to read in gfs ozone and interpolate to regional model domain
 !     check_gfs_ozone_date  - option to date check gfs ozone before interpolating to regional model domain
 !     regional_ozone  - option to turn on ozone in regional analysis
+!     igfsco2  - integer flag to control co2 data type used for crtm
+!                igfsco2 = 0 use predefined global mean co2 mixing ration
+!                igfsco2 = 1 use gfs yearly global annual mean historical co2 value
+!                igfsco2 = 2 use gfs monthly horizontal 2-d historical co2 value
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -281,7 +287,7 @@
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
-       use_gfs_ozone,check_gfs_ozone_date,regional_ozone
+       use_gfs_ozone,check_gfs_ozone_date,regional_ozone,igfsco2
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -688,6 +694,8 @@
   if(filled_grid.and.half_grid) filled_grid=.false.
   regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional
 
+! turn off if global CO2 profiles are set for regional
+  if (regional .and. igfsco2 > 0 ) igfsco2=0
 
 ! Check that regional=.true. if jcstrong_option > 2
   if(jcstrong_option>2.and..not.regional) then

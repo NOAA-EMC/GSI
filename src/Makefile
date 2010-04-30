@@ -331,6 +331,7 @@ clean:
 	mpimod.F90 \
         mpl_allreduce.f90 \
         mpl_bcast.f90 \
+	ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \
         nemsio_module.f90 \
 	nlmsas_ad.f90 \
