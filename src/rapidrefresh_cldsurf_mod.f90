@@ -33,9 +33,11 @@ module rapidrefresh_cldsurf_mod
   public :: init_rapidrefresh_cldsurf
   public :: l_cloud_analysis 
   public :: dfi_radar_latent_heat_time_period
+  public :: metar_impact_radius
 
   logical l_cloud_analysis
   real(r_kind)  dfi_radar_latent_heat_time_period
+  real(r_kind)  metar_impact_radius
 
 
 contains
@@ -66,6 +68,7 @@ contains
 !   Set logical flag
     l_cloud_analysis = .false.   ! .true. = turn on GSD cloud analysis
     dfi_radar_latent_heat_time_period = 30.0_r_kind   ! in minutes
+    metar_impact_radius = 10.0_r_kind   ! in grid
 
     return
   end subroutine init_rapidrefresh_cldsurf

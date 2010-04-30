@@ -392,6 +392,7 @@ LIBsys          = $(MYLIBsys)
         read_Lightning.o \
         read_NASA_LaRC.o \
         read_RadarRef_mosaic.o \
+        reorg_metar_cloud.o \
 
 
 # ----

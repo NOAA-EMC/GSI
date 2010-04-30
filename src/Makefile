@@ -408,6 +408,7 @@ clean:
 	ret_ssmis.f90 \
 	retrieval_amsre.f90 \
 	retrieval_mi.f90 \
+        reorg_metar_cloud.f90 \
 	rfdpar.f90 \
 	rsearch.F90 \
         rtlnmc_version3.f90 \

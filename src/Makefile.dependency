@@ -221,6 +221,7 @@ read_wrf_mass_guess.o : read_wrf_mass_guess.F90 constants.o kinds.o gridmod.o mp
 read_wrf_nmm_files.o : read_wrf_nmm_files.f90 obsmod.o constants.o gsi_4dvar.o guess_grids.o mpimod.o kinds.o 
 read_wrf_nmm_guess.o : read_wrf_nmm_guess.F90 
 regional_io.o : regional_io.f90 constants.o kinds.o mpimod.o gridmod.o 
+reorg_metar_cloud.o : reorg_metar_cloud.f90 rapidrefresh_cldsurf_mod.o constants.o gridmod.o kinds.o 
 ret_ssmis.o : ret_ssmis.f90 constants.o kinds.o 
 retrieval_amsre.o : retrieval_amsre.f90 constants.o kinds.o 
 retrieval_mi.o : retrieval_mi.f90 constants.o kinds.o 

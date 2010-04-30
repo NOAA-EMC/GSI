@@ -289,7 +289,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(sstob) then
      nreal=20_i_kind
   else if(metarcldobs) then
-     nreal=22_i_kind
+     nreal=23_i_kind
   else if(geosctpobs) then
      nreal=8_i_kind
   else 
@@ -1251,6 +1251,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               enddo
               cdata_all(21,iout)=timeobs     !  time observation
               cdata_all(22,iout)=usage
+              cdata_all(23,iout)=0.0_r_kind  ! reserved for distance between obs and grid
 ! NESDIS cloud products
            else if(geosctpobs) then
               cdata_all(1,iout)=rstation_id    !  station ID
@@ -1315,8 +1316,20 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      end do
   end do
   deallocate(iloc,isort,cdata_all)
-  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) cdata_out
+
+! define a closest METAR cloud observation for each grid point
+  if(metarcldobs .and. ndata > 0) then
+     maxobs=200000
+     allocate(cdata_all(nreal,maxobs))
+     call reorg_metar_cloud(cdata_out,nreal,ndata,cdata_all,maxobs,iout)
+     ndata=iout
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+     write(lunout) ((cdata_all(i,j),i=1,nreal),j=1,ndata)
+     deallocate(cdata_all)
+  else
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+     write(lunout) cdata_out
+  endif
 
   deallocate(cdata_out)
   call destroy_rjlists
