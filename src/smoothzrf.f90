@@ -535,12 +535,12 @@ subroutine smoothzo(vx,samp,rate,iv,jx,dsv)
   real(r_kind),dimension(nsig),intent(in   ) :: vx
   real(r_kind)                ,intent(in   ) :: samp
   real(r_kind),dimension(ndeg),intent(in   ) :: rate
+  real(r_kind),dimension(lon2,nsig),intent(out):: dsv
  
   integer(i_kind) i,k,m
   real(r_kind),dimension(nsig):: dss
   real(r_kind),dimension(nsig,nsig):: p1
   real(r_kind),dimension(nsig,ndeg):: al
-  real(r_kind),dimension(lon2,nsig):: dsv
 
   call rfdparv(vx,rate,al,nsig,ndeg)
   do m=1,ndeg

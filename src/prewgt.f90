@@ -349,13 +349,13 @@ subroutine prewgt(mype)
   if (bkgv_flowdep)  call bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 
 ! vertical length scales
-!$omp parallel do  schedule(dynamic,1) private(i,n,k,j,jx,ix)
+!!!$omp parallel do  schedule(dynamic,1) private(i,n,k,j,jx,ix,loc,dsv)
   do n=1,nrf3
      loc=nrf3_loc(n)
      do j=1,lat2         
-        jx=istart(mm1)+j-2_i_kind
-        jx=max(jx,2_i_kind)
-        jx=min(nlat-ione,jx)
+        jx=istart(mm1)+j-2
+        jx=max(jx,2)
+        jx=min(nlat-1,jx)
         call smoothzo(vz(1,jx,n),samp,rate,n,j,dsv)
 
 !       load variances onto subdomains
@@ -390,7 +390,7 @@ subroutine prewgt(mype)
 ! Special case of dssv for qoption=2
   if (qoption==2) call compute_qvar3d
 
-!$omp parallel do  schedule(dynamic,1) private(i,n,j,jx,ix)
+!!!$omp parallel do  schedule(dynamic,1) private(i,n,j,jx,ix,loc)
   do n=1,nrf2
      loc=nrf2_loc(n)
      if (n==nrf2_ps) then
@@ -491,7 +491,7 @@ subroutine prewgt(mype)
   allocate(sli(ny,nx,2,nnnn1o),sli1(-nf:nf,-nf:nf,2,nnnn1o), &
                             sli2(-nf:nf,-nf:nf,2,nnnn1o))
 
-!$omp parallel do  schedule(dynamic,1) private(k,k1,j,ii,iii,jjj,i,n,nn,factx,fact1,fact2)
+!!!$omp parallel do  schedule(dynamic,1) private(k,k1,j,ii,iii,jjj,i,n,nn,factx,fact1,fact2)
   do k=1,nnnn1o
      k1=levs_id(k)
      if (k1==izero) then

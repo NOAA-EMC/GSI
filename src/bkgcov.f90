@@ -76,7 +76,7 @@ subroutine bkgcov(cstate,nlevs)
   call bkgvar(cstate%values,sst,slndt,sicet,izero)
 
 ! Apply vertical smoother
-!$omp parallel do  schedule(dynamic,1) private(k)
+!$omp parallel do  schedule(dynamic,1) private(k,loc,nk)
   do k=1,nrf3
      loc=nrf3_loc(k)
      nk=(nrf_levb(loc)-ione)*latlon11+ione
@@ -93,7 +93,7 @@ subroutine bkgcov(cstate,nlevs)
   call grid2sub(hwork,cstate,sst,slndt,sicet)
 
 ! Apply vertical smoother
-!$omp parallel do  schedule(dynamic,1) private(k)
+!$omp parallel do  schedule(dynamic,1) private(k,loc,nk)
   do k=1,nrf3
      loc=nrf3_loc(k)
      nk=(nrf_levb(loc)-ione)*latlon11+ione

@@ -21,6 +21,7 @@ module control_vectors
 !   2010-03-11  zhu      - add changes for generalizing control variables,i.e.,
 !                          anav_info,nvars,nrf*,allocate_cs,deallocate_cs,
 !                          assign_cs2array,assign_array2cs
+!   2010-05-05  derber - omp commands removed
 !
 ! subroutines included:
 !   sub anav_info   
@@ -739,11 +740,9 @@ subroutine assign_cv2cv(ycv,xcv)
      call stop2(110)
   end if
 
-!$omp parallel do
   DO ii=1,ycv%lencv
      ycv%values(ii)=xcv%values(ii)
   ENDDO
-!$omp end parallel do
 
   return
 end subroutine assign_cv2cv
@@ -783,11 +782,9 @@ subroutine assign_array2cv(ycv,parray)
   end if
 
 
-!$omp parallel do
   DO ii=1,ycv%lencv
      ycv%values(ii)=parray(ii)
   ENDDO
-!$omp end parallel do
 
   return
 end subroutine assign_array2cv
@@ -825,11 +822,9 @@ subroutine assign_cv2array(parray,ycv)
      call stop2(112)
   end if
 
-!$omp parallel do
   DO ii=1,ycv%lencv
      parray(ii)=ycv%values(ii)
   ENDDO
-!$omp end parallel do
 
   return
 end subroutine assign_cv2array
@@ -865,7 +860,6 @@ end subroutine assign_cv2array
   type(control_state),intent(inout) :: ycs
   integer(i_kind) :: ii
 
-!$omp parallel do
   DO ii=1,latlon1n
      ycs%st(ii)=st(ii)
      ycs%vp(ii)=vp(ii)
@@ -874,14 +868,11 @@ end subroutine assign_cv2array
      if (nrf3_oz>izero) ycs%oz(ii)=oz(ii)
      if (nrf3_cw>izero) ycs%cw(ii)=cw(ii)
   ENDDO
-!$omp end parallel do
 
-!$omp parallel do
   DO ii=1,latlon11
      ycs%p(ii)=ps(ii)
      if (present(sst) .and. nrf2_sst>izero) ycs%sst(ii)=sst(ii)
   ENDDO
-!$omp end parallel do
 
   return
 end subroutine assign_array2cs
@@ -918,7 +909,6 @@ end subroutine assign_array2cs
   real(r_kind),dimension(latlon11),optional,intent(out) :: sst
   integer(i_kind) :: ii
 
-!$omp parallel do
   DO ii=1,latlon1n
      st(ii)=ycs%st(ii)
      vp(ii)=ycs%vp(ii)
@@ -927,14 +917,11 @@ end subroutine assign_array2cs
      if (nrf3_oz>izero) oz(ii)=ycs%oz(ii)
      if (nrf3_cw>izero) cw(ii)=ycs%cw(ii)
   ENDDO
-!$omp end parallel do
 
-!$omp parallel do
   DO ii=1,latlon11
      ps(ii)=ycs%p(ii)
      if (present(sst) .and. nrf2_sst>izero) sst(ii)=ycs%sst(ii)
   ENDDO
-!$omp end parallel do
 
   return
 end subroutine assign_cs2array
@@ -1056,11 +1043,9 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 
 ! Independent part of vector
   if (lsqrtb) then
-!$omp parallel do
      do ii=1,nsubwin
         qdot_prod_sub=qdot_prod_sub+qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
      end do
-!$omp end parallel do
   else
      do ii=1,nsubwin
         qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
@@ -1127,11 +1112,9 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 
 ! Independent part of vector
   if (lsqrtb) then
-!$omp parallel do
      do ii=1,nsubwin
         zz(ii)=qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
      end do
-!$omp end parallel do
   else
      if(trim(eb) == 'cost_b') then
         do ii=1,nsubwin
@@ -1741,14 +1724,9 @@ real(r_quad) function qdot_product(x,y)
   end if
   zz=zero_quad
 
-! -- add omp reduction to get the correct qdot product
-!$omp parallel do &
-!$omp private( i ) &
-!$omp reduction( + : zz )
   do i=1,nx
      zz = zz + x(i)*y(i)
   enddo
-!$omp end parallel do
   qdot_product=zz
 end function qdot_product
 ! ----------------------------------------------------------------------

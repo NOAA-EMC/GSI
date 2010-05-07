@@ -73,6 +73,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !   2010-03-25  zhu - use state_vector in the interface for generalizing control variable
 !                   - add treatment when sst and oz are not control variables
 !                   - add pointer_state
+!   2010-05-05  derber - omp commands removed
 !
 !   input argument list:
 !     radhead  - obs type pointer to obs structure
@@ -169,7 +170,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         i3n(k) = i3n(k-ione)+latlon11
         i4n(k) = i4n(k-ione)+latlon11
      enddo
-!$omp parallel do private(k,i1,i2,i3,i4)
      do k=1,nsig
         i1 = i1n(k)
         i2 = i2n(k)
@@ -186,7 +186,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            tdir(nsig2+k)=zero
         end if
      end do
-!$omp end parallel do
      tdir(nsig3p1)=   w1* su(j1) +w2* su(j2)+ &
                       w3* su(j3) +w4* su(j4)
      tdir(nsig3p2)=   w1* sv(j1) +w2* sv(j2)+ &

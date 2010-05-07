@@ -12,6 +12,7 @@ subroutine evalqlim(sq,pbc,rq)
 !   2009-01-15  todling - carry summation in quadruple precision
 !   2009-08-14  lueken  - update documentation
 !   2010-03-23  derber - made consistent with stplimq and intlimq (but not checked)
+!   2010-05-05  derber - omp commands removed
 !
 !   input argument list:
 !    sq
@@ -48,7 +49,6 @@ subroutine evalqlim(sq,pbc,rq)
   
   zbc=zero_quad
 ! Loop over interior of subdomain          
-!$omp parallel do  schedule(dynamic,1) private(k,i,j,q)
   do k = 1,nsig
      do j = 2,lon1+ione
         do i = 2,lat1+ione

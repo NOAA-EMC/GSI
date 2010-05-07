@@ -125,8 +125,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !                          and remove ps in calctends_tl argument list;
 !                          use getprs_tl 
 !   2007-08-08  derber - optimize, ensure that only necessary time derivatives are calculated
-!   2008-12-02  todling - remove omp optimization (sorry, won't fly in this context)
-!                       - revisited split of stpcalc in light of 4dvar merge with May08 version
+!   2008-12-02  todling - revisited split of stpcalc in light of 4dvar merge with May08 version
 !   2009-01-08  todling - remove reference to ozohead
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-03-25  zhu     - change the interfaces of stprad,stpt,stppcp;add nrf* conditions 

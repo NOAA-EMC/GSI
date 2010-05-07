@@ -14,6 +14,7 @@ module state_vectors
 !   2008-11-27  todling  - add tsen and p3d for Map-2008 update
 !   2009-01-27  todling  - rename prt_norms to prevent IBM compiler confusion
 !   2009-08-12  lueken   - update documentation
+!   2010-05-05  derber - omp commands removed
 !
 ! subroutines included:
 !   sub setup_state_vectors
@@ -951,11 +952,9 @@ real(r_quad) function rsum(x)
 
   idim=size(x)
   rsum=zero_quad
-!$omp parallel do
   do i=1,idim
      rsum=rsum + x(i)
   enddo
-!$omp end parallel do
 end function rsum
 ! ----------------------------------------------------------------------
 real(r_quad) function qsum(x)
@@ -986,11 +985,9 @@ real(r_quad) function qsum(x)
 
   idim=size(x)
   qsum=zero_quad
-!$omp parallel do
   do i=1,idim
      qsum=qsum + x(i)
   enddo
-!$omp end parallel do
 end function qsum
 ! ----------------------------------------------------------------------
 end module state_vectors

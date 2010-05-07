@@ -55,7 +55,6 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: compact_dlat,compact_dlon,stvp2uv
   use mpimod, only: nvarbal_id,nlevsbal,nnnvsbal
@@ -64,11 +63,11 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
   implicit none
 
 ! Passed variables
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: p3d
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: t,st,vp
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: p3d_x,p3d_y
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(  out) :: t_x,u_x,v_x,u,v
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(  out) :: t_y,u_y,v_y
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: p3d
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: t,st,vp
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: p3d_x,p3d_y
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(  out) :: t_x,u_x,v_x,u,v
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(  out) :: t_y,u_y,v_y
 
 ! Local Variables
   integer(i_kind) iflg,k,i,j
@@ -77,41 +76,45 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
   logical vector
 
 
-  iflg=ione
+  iflg=1
 
 ! substitute u for q, v for oz, t for cwmr and p for tskin
   call sub2grid2(hwork,st,vp,p3d,t,iflg)
 ! x derivative
   if(regional)then
-!_$omp parallel do 
      do k=1,nnnvsbal
-        if(nvarbal_id(k) ==ione.and..not.uv_hyb_ens)then
+        if(nvarbal_id(k) ==1.and..not.uv_hyb_ens)then
            do j=1,nlon
               do i=1,nlat
                  stx(i,j)=hwork(i,j,k)
-                 vpx(i,j)=hwork(i,j,k+ione)
+                 vpx(i,j)=hwork(i,j,k+1)
               end do
            end do
-           call psichi2uv_reg(stx,vpx,hwork(1,1,k),hwork(1,1,k+ione))
+           call psichi2uv_reg(stx,vpx,hwork(1,1,k),hwork(1,1,k+1))
         end if
+     end do
+!$omp parallel do private (k,vector)
+     do k=1,nnnvsbal
         vector=.false.
-        if(nvarbal_id(k) <= 2_i_kind)vector=.true.
+        if(nvarbal_id(k) <= 2)vector=.true.
         call delx_reg(hwork(1,1,k),hwork_x(1,1,k),vector)
         call dely_reg(hwork(1,1,k),hwork_y(1,1,k),vector)
      end do
-!_$omp end parallel do
+!$omp end parallel do
   else
-!_$omp parallel do private(vector)
      do k=1,nnnvsbal
-        if(nvarbal_id(k) ==ione.and..not.uv_hyb_ens)then
-           call stvp2uv(hwork(1,1,k),hwork(1,1,k+ione))
+        if(nvarbal_id(k) == 1 .and..not.uv_hyb_ens)then
+           call stvp2uv(hwork(1,1,k),hwork(1,1,k+1))
         end if
+     end do
+!$omp parallel do private(k,vector)
+     do k=1,nnnvsbal
         vector=.false.
-        if(nvarbal_id(k) <= 2_i_kind)vector=.true.
+        if(nvarbal_id(k) <= 2)vector=.true.
         call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),vector)
         call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),vector)
      end do
-!_$omp end parallel do
+!$omp end parallel do
   end if
 ! p3d_x and t_x are dummy arrays in first call
   call grid2sub2(hwork,u,v,p3d_x,t_x)
@@ -163,7 +166,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
 !    adjoint of get_derivatives
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: tcompact_dlat,tcompact_dlon,tstvp2uv
   use mpimod, only: nvarbal_id,nnnvsbal
@@ -171,12 +174,12 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   implicit none
 
 ! Passed variables
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout) :: p3d
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(inout) :: t,st,vp
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout) :: p3d_x
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(inout) :: t_x,u_x,v_x,u,v
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout) :: p3d_y
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(inout) :: t_y,u_y,v_y
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout) :: p3d
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: t,st,vp
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout) :: p3d_x
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: t_x,u_x,v_x,u,v
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout) :: p3d_y
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: t_y,u_y,v_y
 
 ! Local Variables
   integer(i_kind) iflg,k,i,j
@@ -184,7 +187,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   real(r_kind),dimension(nlat,nlon):: ux,vx
   logical vector
 
-  iflg=ione
+  iflg=1
 
 !             initialize hwork to zero, so can accumulate contribution from
 !             all derivatives
@@ -198,30 +201,30 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   if(regional)then
      do k=nnnvsbal,1,-1
         vector=.false.
-        if(nvarbal_id(k) <= 2_i_kind)vector=.true.
+        if(nvarbal_id(k) <= 2)vector=.true.
         call tdelx_reg(hwork_x(1,1,k),hwork(1,1,k),vector)
         call tdely_reg(hwork_y(1,1,k),hwork(1,1,k),vector)
-        if(nvarbal_id(k) ==ione.and..not.uv_hyb_ens)then
+        if(nvarbal_id(k) == 1 .and..not.uv_hyb_ens)then
            do j=1,nlon
               do i=1,nlat
                  ux(i,j)=hwork(i,j,k)
-                 vx(i,j)=hwork(i,j,k+ione)
+                 vx(i,j)=hwork(i,j,k+1)
                  hwork(i,j,k)=zero
-                 hwork(i,j,k+ione)=zero
+                 hwork(i,j,k+1)=zero
               end do
            end do
-           call psichi2uvt_reg(ux,vx,hwork(1,1,k),hwork(1,1,k+ione))
+           call psichi2uvt_reg(ux,vx,hwork(1,1,k),hwork(1,1,k+1))
 
         end if
      end do
   else
      do k=nnnvsbal,1,-1
         vector=.false.
-        if(nvarbal_id(k) <= 2_i_kind)vector=.true.
+        if(nvarbal_id(k) <= 2)vector=.true.
         call tcompact_dlon(hwork(1,1,k),hwork_x(1,1,k),vector)
         call tcompact_dlat(hwork(1,1,k),hwork_y(1,1,k),vector)
-        if(nvarbal_id(k) ==ione.and..not.uv_hyb_ens)then
-           call tstvp2uv(hwork(1,1,k),hwork(1,1,k+ione))
+        if(nvarbal_id(k) == 1 .and..not.uv_hyb_ens)then
+           call tstvp2uv(hwork(1,1,k),hwork(1,1,k+1))
         end if
      end do
   end if
@@ -230,7 +233,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   call grid2sub2(hwork,u_x,v_x,p3d_x,t_x)
 
 ! accumulate to contents of t,p,etc (except st,vp, which are zero on input
-!$omp parallel do
+!$omp parallel do private(i,j,k)
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
@@ -241,7 +244,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
      end do
   end do
 !$omp end parallel do
-  do k=1,nsig+ione
+  do k=1,nsig+1
      do j=1,lon2
         do i=1,lat2
            p3d(i,j,k)=p3d(i,j,k)+p3d_x(i,j,k)

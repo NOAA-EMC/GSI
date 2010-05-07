@@ -119,7 +119,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
 
 !    x derivative
-!$omp parallel do private(vector)
+!$omp parallel do private(k,vector)
      do k=1,nlevs
         vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
         if(regional) then
@@ -133,7 +133,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
      call assign_cs2array(cstate,u_x,v_x,t_x,q_x,oz_x,cwmr_x,p_x(1,1,it))
 
 !    y derivative
-!$omp parallel do private(vector)
+!$omp parallel do private(k,vector)
      do k=1,nlevs
         vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
         if(regional) then
@@ -243,7 +243,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   call allocate_cs(cstate)
   call assign_array2cs(cstate,u_y,v_y,t_y,q_y,oz_y,cwmr_y,p_y)
   call sub2grid(hworkd,cstate,skint_y,slndt_y,sicet_y,iflg)
-!$omp parallel do private(vector)
+!$omp parallel do private(k,vector)
   do k=1,nlevs
      vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
      if(regional) then
@@ -258,7 +258,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
   call assign_array2cs(cstate,u_x,v_x,t_x,q_x,oz_x,cwmr_x,p_x)
   call sub2grid(hworkd,cstate,skint_x,slndt_x,sicet_x,iflg)
-!$omp parallel do private(vector)
+!$omp parallel do private(k,vector)
   do k=1,nlevs
      vector = nvar_id(k) == ione .or. nvar_id(k) == 2_i_kind
      if(regional) then
@@ -275,7 +275,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   call deallocate_cs(cstate)
 
 !   accumulate to contents of t,p,etc (except st,vp, which are zero on input
-!$omp parallel do
+!$omp parallel do private (k,j,i) 
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2

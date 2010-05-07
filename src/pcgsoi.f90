@@ -86,6 +86,7 @@ subroutine pcgsoi()
 !                         control variable a_en
 !   2009-10-12  parrish - add beta12mult for scaling by hybrid blending parameters beta1inv, beta2inv
 !                           called only when l_hyb_ens=.true.
+!   2010-05-05  derber - omp commands removed
 !
 ! input argument list:
 !
@@ -268,11 +269,9 @@ subroutine pcgsoi()
      endif
 
 !    Add contribution from background term
-!$omp parallel do
      do i=1,nclen
         gradx%values(i)=gradx%values(i)+yhatsave%values(i)
      end do
-!$omp end parallel do
 
 !    Multiply by background error
      if(anisotropic) then
@@ -302,17 +301,13 @@ subroutine pcgsoi()
      end if
 
      if (lanlerr) then
-!$omp parallel do
         do i=1,nclen
            ydiff%values(i)=gradx%values(i)
         end do
-!$omp end parallel do
      else
-!$omp parallel do
         do i=1,nclen
            ydiff%values(i)=gradx%values(i)-ydiff%values(i)
         end do
-!$omp end parallel do
      end if
 
      if (iter==0 .and. print_diag_pcg) then
@@ -336,13 +331,11 @@ subroutine pcgsoi()
 
 !    Calculate new search direction
      if (.not. restart) then
-!$omp parallel do
         do i=1,nclen
            ydiff%values(i)=gradx%values(i)
            dirx%values(i)=-grady%values(i)+b*dirx%values(i)
            diry%values(i)=-gradx%values(i)+b*diry%values(i)
         end do
-!$omp end parallel do
      else
 !    If previous solution available, transfer into local arrays.
         ydiff=zero

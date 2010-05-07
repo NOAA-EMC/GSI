@@ -18,6 +18,7 @@ subroutine smoothrf(work,nsc,nlevs)
 !               if (norsp==0) will default to polar cascade
 !   2005-11-16  wgu - set nmix=nr+1+(ny-nlat)/2 to make sure
 !               nmix+nrmxb=nr no matter what number nlat is.   
+!   2010-05-05  derber create diag2tr - diag2nh -diag2sh routines to simplify smoothrf routines
 !   input argument list:
 !     work     - horizontal fields to be smoothed
 !     nsc      - number of horizontal scales to smooth over 
@@ -32,9 +33,9 @@ subroutine smoothrf(work,nsc,nlevs)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,regional
-  use constants, only: izero,ione,zero,half
-  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
-       ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,hswgt
+  use constants, only: zero,half
+  use berror, only: ii,jj,ii1,jj1,ii2,jj2,slw,slw1,slw2, &
+       nx,ny,mr,nr,nf,hzscl,hswgt
   use mpimod, only:  nvar_id
   use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
   implicit none
@@ -44,20 +45,18 @@ subroutine smoothrf(work,nsc,nlevs)
   real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
 
 ! Declare local variables
-  integer(i_kind) ndx,ndy,nxe,nmix,nfg
-  integer(i_kind) j,naxr,i,nrmxb,nmixp,nymx,norm,nxem
-  integer(i_kind) ndx2,nlatxb,nfnf
-  integer(i_kind) i1,i2,j1,k
+  integer(i_kind) nfg
+  integer(i_kind) j,i
+  integer(i_kind) k,kk,kkk
 
   real(r_kind),dimension(nsc):: totwgt
-  real(r_kind),dimension(ny,nx):: p1all
-  real(r_kind),dimension(nlon+ione,mr:nr):: p2all,p3all
-  real(r_kind),dimension(-nf:nf,-nf:nf):: afg1
+  real(r_kind),allocatable,dimension(:,:) :: pall,zloc
+  real(r_kind),dimension(nlat,nlon,3*nlevs) :: workout
 
 
 ! Regional case
   if(regional)then
-!_$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
+!$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
      do k=1,nlevs
 
 !       apply horizontal recursive filters
@@ -81,209 +80,59 @@ subroutine smoothrf(work,nsc,nlevs)
         totwgt(j)=hswgt(j)*hzscl(j)*hzscl(j)
      end do
      
-     ndx=(nx-nlon)/2
-     ndy=(nlat-ny)/2
-     ndx2=2*ndx
-     norm=norh*2-ione
-     nxe=nlon/8
-     nxem=nxe-ione
-     nmix=nr+ione+(ny-nlat)/2
-     naxr=nlon+ione
-     nfg=nf*2+ione
-     nrmxb=ndy-ione
-     nlatxb=nlat-nrmxb
-     nmixp=nmix+ione
-     nymx=ny-nmix
-     nfnf=(2*nf+ione)*(2*nf+ione)
+     nfg=nf*2+1
+     workout=zero
      
-!_$omp parallel do  schedule(dynamic,1) private(k) &
-!_$omp private(i,j,i1,i2,j1,p1all,p2all,p3all,afg1)
-     do k=1,nlevs
+!$omp parallel do  schedule(dynamic,1) private(kk) &
+!$omp private(i,j,k,kkk,pall)
+     do kk=1,3*nlevs
 
-!       Zero p1, p2, and p3
-        do j=1,nx
-           do i=1,ny
-              p1all(i,j)=zero
-           end do
-        end do
-        
-!       Extract central patch (band) from full grid (work --> p1)
-!       Blending zones
-        do i=1,ndx
-           i1=i-ndx+nlon
-           i2=nx-ndx+i
-           do j=1,ny
-              j1=j+ndy
-              p1all(j,i) =work(j1,i1,k)      ! left (west) blending zone
-              p1all(j,i2)=work(j1,i,k)       ! right (east) blending zone
-           enddo
-        enddo
+        k=(kk-1)/3+1
+        kkk=mod(kk-1,3)+1
 
-!       Middle zone (no blending)
-        do i=ndx+ione,nx-ndx
-           i1=i-ndx
-           do j=1,ny
-              p1all(j,i)=work(j+ndy,i1,k)
-           enddo
-        enddo
-        
-!       Apply blending coefficients to central patch
-        do i=1,ndx2
-           i1=ndx2+ione-i
-           i2=nx-ndx2+i
-           do j=1,ny
-              p1all(j,i) =p1all(j,i) *bl(i1)  ! left (west) blending zone
-              p1all(j,i2)=p1all(j,i2)*bl(i)   ! right (east) blending zone
-           enddo
-        enddo
-        
-!       bl2 of p1
-        do i=1,nx
-           do j=1,nmix
-              p1all(j,i)=p1all(j,i)*bl2(nmixp-j)
-           enddo
-           do j=nymx+ione,ny
-              p1all(j,i)=p1all(j,i)*bl2(j-nymx)
-           enddo
-        enddo
-
-!       Handle polar patches 
-        do j=mr,nr
-           do i=1,naxr
-              p2all(i,j)=zero
-              p3all(i,j)=zero
-           end do
-        end do
-        
-!       North pole patch(p2) -- blending and transfer to grid
-!       South pole patch(p3) -- blending and transfer to grid
-
-        do i=1,nlon
-!          Load field into patches
-           do j=mr,nrmxb+nmix
-              p2all(i,j)=work(nlat-j,i,k)
-              p3all(i,j)=work(j+1,i,k)
-           enddo
-        enddo
-
-!       Apply blending coefficients
-        do j=nrmxb+ione,nrmxb+nmix
-           j1=j-nrmxb
-           do i=1,nlon
-              p2all(i,j)=p2all(i,j)*bl2(j1)
-              p3all(i,j)=p3all(i,j)*bl2(j1)
-           enddo
-        enddo
-        
 !       Recursive filter applications
 
-!       First do equatorial/mid-latitude band
-        call rfxyyx(p1all,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),nsc,totwgt)
+        if(kkk == 1)then
 
-!       North pole patch --interpolate - recursive filter - adjoint interpolate
-        if(norsp>izero) then
-           call smooth_polcasa(afg1,p2all)
-        else
-           call polcasa(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
-        end if
-        call rfxyyx(afg1,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
-        if(norsp>izero) then
-           call smooth_polcas(afg1,p2all)
-        else
-           call polcas(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
-        end if
+!         equatorial/mid-latitude band
+          allocate(pall(ny,nx))
+          call grid2tr(work(1,1,k),pall)
+          call rfxyyx(pall,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),nsc,totwgt)
+          call grid2tr_ad(workout(1,1,kk),pall)
+          deallocate(pall)
 
-!       South pole patch --interpolate - recursive filter - adjoint interpolate
-        if(norsp>izero) then
-           call smooth_polcasa(afg1,p3all)
-        else
-           call polcasa(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
-        end if
-        call rfxyyx(afg1,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
-        if(norsp>izero) then
-           call smooth_polcas(afg1,p3all)
-        else
-           call polcas(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
-        end if
+        else if(kkk == 2)then
 
+!         North pole patch --interpolate - recursive filter - adjoint interpolate
+          allocate(pall(-nf:nf,-nf:nf))
+          call grid2nh(work(1,1,k),pall)
+          call rfxyyx(pall,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
+          call grid2nh_ad(workout(1,1,kk),pall)
+          deallocate(pall)
+ 
+        else if (kkk == 3)then
 
-!       Equatorial patch
-!       Adjoint of central patch blending on left/right sides of patch
-        do i=1,ndx2
-           i1=ndx2+ione-i
-           i2=nx-ndx2+i
-           do j=1,ny
-              p1all(j,i) =p1all(j,i) *bl(i1)   ! left (west) blending zone
-              p1all(j,i2)=p1all(j,i2)*bl(i)    ! right (east) blending zone
-           enddo
-        enddo
+!         South pole patch --interpolate - recursive filter - adjoint interpolate
+          allocate(pall(-nf:nf,-nf:nf))
+          call grid2sh(work(1,1,k),pall)
+          call rfxyyx(pall,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
+          call grid2sh_ad(workout(1,1,kk),pall)
+          deallocate(pall)
+
+        end if
         
-!       bl2 of p1
-        do i=1,nx
-           do j=1,nmix
-              p1all(j,i)=p1all(j,i)*bl2(nmixp-j)
-           enddo
-           do j=nymx+ione,ny
-              p1all(j,i)=p1all(j,i)*bl2(j-nymx)
-           enddo
-        enddo
+!    End of kk loop over 3*nlevs
+     end do
 
-!       zero output array
-        do i=1,nlon
-           do j=1,nlat
-              work(j,i,k)=zero
-           end do
-        end do
-
-!       Adjoint of transfer between central band and full grid (p1 --> work)
-        do i=1,ndx
-           i1=i-ndx+nlon
-           i2=nx-ndx+i
-           do j=1,ny
-              j1=j+ndy
-              work(j1,i1,k)=work(j1,i1,k)+p1all(j,i)  ! left (west) blending zone
-              work(j1,i,k) =work(j1,i,k) +p1all(j,i2) ! right (east) blending zone
-           enddo
-        enddo
-
-!       Middle zone (no blending)
-        do i=ndx+ione,nx-ndx
-           i1=i-ndx
-           do j=1,ny
-              j1=j+ndy
-              work(j1,i1,k)=work(j1,i1,k)+p1all(j,i)
-           enddo
-        enddo
-        
-!       Adjoint of North pole patch(p2) -- blending and transfer to grid
-!       Adjoint of South pole patch(p3) -- blending and transfer to grid
-
-        do j=nlatxb-nmix,nlatxb-ione
-
-!          Adjoint of blending
-           do i=1,nlon
-              p2all(i,nlat-j)=p2all(i,nlat-j)*bl2(nlatxb-j)
-           enddo
-        end do
-        do j=nrmxb+ione,nrmxb+nmix
-
-!          Adjoint of blending
-           do i=1,nlon
-              p3all(i,j)=p3all(i,j)*bl2(j-nrmxb)
-           enddo
-        enddo
-        do i=1,nlon
-
-!          Adjoint of transfer
-           do j=mr,nrmxb+nmix
-              work(j+ione,i,k)=work(j+ione,i,k)+p3all(i,j)
-           enddo
-           do j=nlatxb-nmix,nlat-mr
-              work(j,i,k)=work(j,i,k)+p2all(i,nlat-j)
-           enddo
-        enddo
-
-!    End of k loop over nlevs
+!    Sum up three different patches  for each level
+     do kk=1,nlevs
+       do j=1,nlon
+         do i=1,nlat
+           kkk=(kk-1)*3
+           work(i,j,kk)=workout(i,j,kkk+1) + workout(i,j,kkk+2) + &
+                        workout(i,j,kkk+3)
+         end do
+       end do
      end do
 
 ! End of global block
@@ -291,7 +140,463 @@ subroutine smoothrf(work,nsc,nlevs)
 
   return
 end subroutine smoothrf
+
+subroutine grid2tr(work,p1all)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    grid2tr    perform transformation from grid to tropics patch
+!   prgmmr: derber           org: np2                date: 2010-04-29
+!
+! abstract: grid2tr perform transformation from grid to tropics patch
+!
+! program history log:
+!   2010-04-29  derber
+!   input argument list:
+!     work     - horizontal field to be transformed
+!
+!   output argument list:
+!     p1all    - output tropics field
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!$$$
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: nlat,nlon
+  use constants, only: zero
+  use berror, only: bl,bl2,nx,ny,nr
+  implicit none
+
+! Declare passed variables
+  real(r_kind),dimension(nlat,nlon),intent(in)  :: work
+  real(r_kind),dimension(ny,nx),intent(out)     :: p1all
+
+! Declare local variables
+  integer(i_kind) ndy,ndx,nmix,ndx2,nymx
+  integer(i_kind) j,i,i2,i1,j1
+
 ! -----------------------------------------------------------------------------
+  ndx=(nx-nlon)/2
+  ndy=(nlat-ny)/2
+  ndx2=2*ndx
+  nmix=nr+1-ndy
+  nymx=ny-nmix
+  do j=1,nx
+     do i=1,ny
+        p1all(i,j)=zero
+     end do
+  end do
+! Extract central patch (band) from full grid (work --> p1)
+! Blending zones
+  do i=1,ndx
+     i1=i-ndx+nlon
+     i2=nx-ndx+i
+     do j=1,ny
+        j1=j+ndy
+        p1all(j,i) =work(j1,i1)      ! left (west) blending zone
+        p1all(j,i2)=work(j1,i)       ! right (east) blending zone
+     enddo
+  enddo
+
+! Middle zone (no blending)
+  do i=ndx+1,nx-ndx
+     i1=i-ndx
+     do j=1,ny
+        p1all(j,i)=work(j+ndy,i1)
+     enddo
+  enddo
+
+! Apply blending coefficients to central patch
+  do i=1,ndx2
+     i1=ndx2+1-i
+     i2=nx-ndx2+i
+     do j=1,ny
+        p1all(j,i) =p1all(j,i) *bl(i1)  ! left (west) blending zone
+        p1all(j,i2)=p1all(j,i2)*bl(i)   ! right (east) blending zone
+     enddo
+  enddo
+
+! bl2 of p1
+  do i=1,nx
+     do j=1,nmix
+        p1all(j,i)=p1all(j,i)*bl2(nmix+1-j)
+     enddo
+     do j=nymx+1,ny
+        p1all(j,i)=p1all(j,i)*bl2(j-nymx)
+     enddo
+  enddo
+
+
+  return
+  stop
+end subroutine grid2tr
+
+subroutine grid2tr_ad(work,p1all)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    grid2tr    perform adjoint of transformation from grid to tropics patch
+!   prgmmr: derber           org: np2                date: 2010-04-29
+!
+! abstract: grid2tr perform adjoint of transformation from grid to tropics patch
+!
+! program history log:
+!   2010-04-29  derber
+!   input argument list:
+!     p1all    - input nh field
+!
+!   output argument list:
+!     work     - horizontal field to be transformed
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!$$$
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: nlat,nlon
+  use constants, only: zero
+  use berror, only: bl,bl2,nx,ny,nr
+  implicit none
+
+! Declare passed variables
+  real(r_kind),dimension(nlat,nlon),intent(inout)  :: work
+  real(r_kind),dimension(ny,nx),intent(inout)      :: p1all
+
+! Declare local variables
+  integer(i_kind) ndy,ndx,nmix,ndx2,nymx
+  integer(i_kind) j,i,i2,i1,j1
+
+! -----------------------------------------------------------------------------
+  ndx=(nx-nlon)/2
+  ndy=(nlat-ny)/2
+  ndx2=2*ndx
+  nmix=nr+1-ndy
+  nymx=ny-nmix
+
+! Equatorial patch
+! Adjoint of central patch blending on left/right sides of patch
+  do i=1,ndx2
+     i1=ndx2+1-i
+     i2=nx-ndx2+i
+     do j=1,ny
+        p1all(j,i) =p1all(j,i) *bl(i1)   ! left (west) blending zone
+        p1all(j,i2)=p1all(j,i2)*bl(i)    ! right (east) blending zone
+     enddo
+  enddo
+
+! bl2 of p1
+  do i=1,nx
+     do j=1,nmix
+        p1all(j,i)=p1all(j,i)*bl2(nmix+1-j)
+     enddo
+     do j=nymx+1,ny
+        p1all(j,i)=p1all(j,i)*bl2(j-nymx)
+     enddo
+  enddo
+
+!   Adjoint of transfer between central band and full grid (p1 --> work)
+  do i=1,ndx
+     i1=i-ndx+nlon
+     i2=nx-ndx+i
+     do j=1,ny
+        j1=j+ndy
+        work(j1,i1)=work(j1,i1)+p1all(j,i)  ! left (west) blending zone
+        work(j1,i) =work(j1,i) +p1all(j,i2) ! right (east) blending zone
+     enddo
+  enddo
+
+! Middle zone (no blending)
+  do i=ndx+1,nx-ndx
+     i1=i-ndx
+     do j=1,ny
+        j1=j+ndy
+        work(j1,i1)=work(j1,i1)+p1all(j,i)
+     enddo
+  enddo
+
+  return
+  stop
+end subroutine grid2tr_ad
+subroutine grid2nh(work,pall)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    grid2nh    perform transformation from grid to nh patch
+!   prgmmr: derber           org: np2                date: 2010-04-29
+!
+! abstract: grid2nh perform transformation from grid to nh patch
+!
+! program history log:
+!   2010-04-29  derber
+!   input argument list:
+!     work     - horizontal field to be transformed
+!
+!   output argument list:
+!     pall     - output nh field
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!$$$
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: nlat,nlon
+  use constants, only: zero
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,norh,nx,ny,mr,nr,nf
+  use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
+  implicit none
+
+! Declare passed variables
+  real(r_kind),dimension(nlat,nlon),intent(in)  :: work
+  real(r_kind),dimension(-nf:nf,-nf:nf),intent(inout)    :: pall
+
+! Declare local variables
+  real(r_kind),dimension(nlon+1,mr:nr)    :: p2all
+  integer(i_kind) ndy,nxem,norm
+  integer(i_kind) j,i,j1
+
+! -----------------------------------------------------------------------------
+  ndy=(nlat-ny)/2
+  norm=norh*2-1
+  nxem=nlon/8-1
+  do j=mr,nr
+     do i=1,nlon+1
+        p2all(i,j)=zero
+     end do
+  end do
+! North pole patch(p2) -- blending and transfer to grid
+
+  do i=1,nlon
+!    Load field into patches
+     do j=mr,nr
+        p2all(i,j)=work(nlat-j,i)
+     enddo
+  enddo
+! Apply blending coefficients
+  do j=ndy,nr
+     j1=j-ndy+1
+     do i=1,nlon
+        p2all(i,j)=p2all(i,j)*bl2(j1)
+     enddo
+  enddo
+! Interpolation to polar grid
+  if(norsp>0) then
+     call smooth_polcasa(pall,p2all)
+  else
+     call polcasa(pall,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+  end if
+
+  return
+  stop
+end subroutine grid2nh
+
+subroutine grid2nh_ad(work,pall)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    grid2nh    perform adjoint of transformation from grid to nh patch
+!   prgmmr: derber           org: np2                date: 2010-04-29
+!
+! abstract: grid2nh perform adjoint of transformation from grid to nh patch
+!
+! program history log:
+!   2010-04-29  derber
+!   input argument list:
+!     pall     - input nh field
+!
+!   output argument list:
+!     work     - horizontal field to be transformed
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!$$$
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: nlat,nlon
+  use constants, only: zero
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,norh,nx,ny,mr,nr,nf
+  use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
+  implicit none
+
+! Declare passed variables
+  real(r_kind),dimension(nlat,nlon),intent(inout)  :: work
+  real(r_kind),dimension(-nf:nf,-nf:nf),intent(inout)    :: pall
+
+! Declare local variables
+  real(r_kind),dimension(nlon+1,mr:nr)     :: p2all
+  integer(i_kind) ndy,nxem,norm
+  integer(i_kind) j,i,j1
+
+! -----------------------------------------------------------------------------
+  ndy=(nlat-ny)/2
+  norm=norh*2-1
+  nxem=nlon/8-1
+
+! Adjoint of interpolation to polar grid
+  if(norsp>0) then
+     call smooth_polcas(pall,p2all)
+  else
+     call polcas(pall,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+  end if
+! North pole patch(p2) -- adjoint of blending and transfer to grid
+
+! Apply blending coefficients
+  do j=ndy,nr
+     j1=j-ndy+1
+     do i=1,nlon
+        p2all(i,j)=p2all(i,j)*bl2(j1)
+     enddo
+  enddo
+
+  do i=1,nlon
+!    Load field into patches
+     do j=mr,nr
+        work(nlat-j,i)=work(nlat-j,i)+p2all(i,j)
+     enddo
+  enddo
+
+  return
+  stop
+end subroutine grid2nh_ad
+
+subroutine grid2sh(work,pall)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    grid2sh    perform transformation from grid to sh patch
+!   prgmmr: derber           org: np2                date: 2010-04-29
+!
+! abstract: grid2sh perform transformation from grid to sh patch
+!
+! program history log:
+!   2010-04-29  derber
+!   input argument list:
+!     work     - horizontal field to be transformed
+!
+!   output argument list:
+!     pall     - output sh field
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!$$$
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: nlat,nlon
+  use constants, only: zero
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,norh,nx,ny,mr,nr,nf
+  use smooth_polcarf, only: norsp,smooth_polcasa
+  implicit none
+
+! Declare passed variables
+  real(r_kind),dimension(nlat,nlon),intent(in)  :: work
+  real(r_kind),dimension(-nf:nf,-nf:nf),intent(inout)    :: pall
+
+! Declare local variables
+  real(r_kind),dimension(nlon+1,mr:nr)    :: p3all
+  integer(i_kind) ndy,nxem,norm
+  integer(i_kind) j,i,j1
+
+! -----------------------------------------------------------------------------
+  ndy=(nlat-ny)/2
+  norm=norh*2-1
+  nxem=nlon/8-1
+
+  do j=mr,nr
+     do i=1,nlon+1
+        p3all(i,j)=zero
+     end do
+  end do
+! south pole patch(p3) -- blending and transfer to grid
+
+  do i=1,nlon
+!    Load field into patches
+     do j=mr,nr
+        p3all(i,j)=work(j+1,i)
+     enddo
+  enddo
+! Apply blending coefficients
+  do j=ndy,nr
+     j1=j-ndy+1
+     do i=1,nlon
+        p3all(i,j)=p3all(i,j)*bl2(j1)
+     enddo
+  enddo
+! Interpolate to polar grid
+  if(norsp>0) then
+     call smooth_polcasa(pall,p3all)
+  else
+     call polcasa(pall,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+  end if
+
+  return
+  stop
+end subroutine grid2sh
+
+subroutine grid2sh_ad(work,pall)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    grid2sh    perform adjoint of transformation from grid to sh patch
+!   prgmmr: derber           org: np2                date: 2010-04-29
+!
+! abstract: grid2sh perform adjoint of transformation from grid to sh patch
+!
+! program history log:
+!   2010-04-29  derber
+!   input argument list:
+!     pall     - input sh field
+!
+!   output argument list:
+!     work     - horizontal field to be transformed
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!$$$
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: nlat,nlon
+  use constants, only: zero
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,norh,nx,ny,mr,nr,nf
+  use smooth_polcarf, only: norsp,smooth_polcas
+  implicit none
+
+! Declare passed variables
+  real(r_kind),dimension(nlat,nlon),intent(inout)        :: work
+  real(r_kind),dimension(-nf:nf,-nf:nf),intent(inout)    :: pall
+
+! Declare local variables
+  real(r_kind),dimension(nlon+1,mr:nr)     :: p3all
+  integer(i_kind) ndy,nxem,norm
+  integer(i_kind) j,i,j1
+
+! -----------------------------------------------------------------------------
+  ndy=(nlat-ny)/2
+  norm=norh*2-1
+  nxem=nlon/8-1
+
+! Interpolate to polar grid
+  if(norsp>0) then
+     call smooth_polcas(pall,p3all)
+  else
+     call polcas(pall,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+  end if
+
+! South pole patch(p2) -- adjoint of blending and transfer to grid
+
+! Apply blending coefficients
+  do j=ndy,nr
+     j1=j-ndy+1
+     do i=1,nlon
+        p3all(i,j)=p3all(i,j)*bl2(j1)
+     enddo
+  enddo
+
+  do i=1,nlon
+!    Load field into patches
+     do j=mr,nr
+        work(j+1,i)=work(j+1,i)+p3all(i,j)
+     enddo
+  enddo
+
+  return
+  stop
+end subroutine grid2sh_ad
+
+
 subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
   
 !$$$  subprogram documentation block
@@ -479,7 +784,6 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
   implicit none
 
   integer(i_kind)                   ,intent(in   ) :: nx,ny,ndeg
@@ -495,7 +799,7 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
 
   kmod2=mod(ndeg,2_i_kind)
 
-  if (kmod2 == ione) then  
+  if (kmod2 == 1) then  
 
 !    Advancing filter:
      do ix=1,nx
@@ -505,8 +809,8 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
         enddo
 
                            ! treat remaining complex roots:
-        do kr=kmod2+ione,ndeg,2  ! <-- index of "real" components
-           ki=kr+ione      ! <-- index of "imag" components
+        do kr=kmod2+1,ndeg,2  ! <-- index of "real" components
+           ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do iy=1,ny
@@ -529,8 +833,8 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
            dep(1,iy)=alx(ix,iy,1)*(dep(1,iy)+be(1)*p1(ix,iy))
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-           ki=kr+ione      ! <-- index of "imag" components
+        do kr=kmod2+1,ndeg,2   ! <-- index of "real" components
+           ki=kr+1      ! <-- index of "imag" components
            do iy=1,ny
               p2(ix,iy)=p2(ix,iy)+dep(kr,iy)
               dekr=dep(kr,iy)+bekr*p1(ix,iy)
@@ -546,8 +850,8 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
 
         !       Advancing filter
         ! treat remaining complex roots:
-        do kr=kmod2+ione,ndeg,2  ! <-- index of "real" components
-           ki=kr+ione      ! <-- index of "imag" components
+        do kr=kmod2+1,ndeg,2  ! <-- index of "real" components
+           ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -609,7 +913,7 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
   integer(i_kind)                    ,intent(in   ) :: nx,ny,ndegy
@@ -638,7 +942,7 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
      enddo
   enddo
 
-  if (kmod2 == ione) then
+  if (kmod2 == 1) then
 
 ! Advancing filter:
      do iy=1,ny
@@ -648,8 +952,8 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
            p2(ix,iy)=p2(ix,iy)+gap(ix,1)
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
-           ki=kr+ione      ! <-- index of "imag" components
+        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+           ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -672,8 +976,8 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
            dep(ix,1)=aly(ix,iy,1)*(dep(ix,1)+be(1)*p1(ix,iy))
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
-           ki=kr+ione      ! <-- index of "imag" components
+        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+           ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -691,8 +995,8 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
 !    Advancing filter:
      do iy=1,ny
         ! treat remaining complex roots:
-        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
-           ki=kr+ione      ! <-- index of "imag" components
+        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+           ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -710,8 +1014,8 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
 !    Backing filter:
      do iy=ny,1,-1
         ! treat remaining complex roots:
-        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
-           ki=kr+ione      ! <-- index of "imag" components
+        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+           ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -762,7 +1066,7 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
   integer(i_kind)                    ,intent(in   ) :: nx,ny,ndegx,ndegy
@@ -808,7 +1112,7 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
      end do
   end do
 
-  if (kmod2 == ione) then
+  if (kmod2 == 1) then
 
 ! Advancing filter:
      do iy=1,ny
@@ -826,8 +1130,8 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
            en2(lx,iy)=en2(lx,iy)+gaen(lx,1)
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
-           ki=kr+ione      ! <-- index of "imag" components
+        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+           ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -874,8 +1178,8 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
            deen(lx,1)=aln1*deen(lx,1)
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
-           ki=kr+ione      ! <-- index of "imag" components
+        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+           ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -909,8 +1213,8 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
 !    Advancing filter:
      do iy=1,ny
         ! treat remaining complex roots:
-        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
-           ki=kr+ione      ! <-- index of "imag" components
+        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+           ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -944,8 +1248,8 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
 !    Backing filter:
      do iy=ny,1,-1
         ! treat remaining complex roots:
-        do kr=kmod2+ione,ndegy,2  ! <-- index of "real" components
-           ki=kr+ione      ! <-- index of "imag" components
+        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+           ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
@@ -1012,9 +1316,9 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,regional,nnnn1o
   use jfunc,only: nval_lenz
-  use constants, only: izero,ione,zero,half
-  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
-       ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,hswgt
+  use constants, only: zero,half
+  use berror, only: ii,jj,ii1,jj1,&
+       ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt
   use mpimod, only:  nvar_id
   use smooth_polcarf, only: norsp,smooth_polcas
   implicit none
@@ -1025,22 +1329,18 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
 
 ! Declare local variables
-  integer(i_kind) ndx,ndy,nxe,nmix,nfg
-  integer(i_kind) j,naxr,i,nrmxb,nmixp,nymx,norm,nxem
-  integer(i_kind) ndx2,nlatxb,nfnf
-  integer(i_kind) i1,i2,j1,k,iz
+  integer(i_kind) nfg,nfnf
+  integer(i_kind) j,i
+  integer(i_kind) k,iz,kk,kkk
 
   real(r_kind),dimension(nsc):: totwgt
-  real(r_kind),dimension(ny,nx):: p1all
-  real(r_kind),dimension(nlon+ione,mr:nr):: p2all,p3all
-  real(r_kind),dimension(-nf:nf,-nf:nf):: afg1
-  real(r_kind),dimension(nlat*nlon,nsc):: zloc
-  real(r_kind),dimension(ny*nx,nsc):: zloc1
-  real(r_kind),dimension((2*nf+ione)*(2*nf+ione),nsc):: zloc2,zloc3
+  real(r_kind),allocatable,dimension(:,:)::pall,zloc
+  real(r_kind),dimension(nlat,nlon,3*nlevs) :: workout
 
 ! Regional case
   if(regional)then
-!_$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
+     allocate(zloc(nlat*nlon,nsc))
+!$omp parallel do  schedule(dynamic,1) private(k,j,iz,totwgt)
      do k=1,nlevs
 
 !       apply horizontal recursive filters
@@ -1053,7 +1353,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
         end if
 
         do j=1,nsc
-           iz=nlat*nlon*(k-ione)+nlat*nlon*nnnn1o*(j-ione)
+           iz=nlat*nlon*(k-1)+nlat*nlon*nnnn1o*(j-1)
            do i=1,nlat*nlon
               zloc(i,j)=z(i+iz)
            end do
@@ -1063,6 +1363,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
              jj(1,1,1,k),slw(1,k),nsc,totwgt)
         
      end do
+     deallocate(zloc)
 
 ! Global case
   else
@@ -1071,146 +1372,83 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
         totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
      end do
      
-     ndx=(nx-nlon)/2
-     ndy=(nlat-ny)/2
-     ndx2=2*ndx
-     norm=norh*2-ione
-     nxe=nlon/8
-     nxem=nxe-ione
-     nmix=nr+ione+(ny-nlat)/2
-     naxr=nlon+ione
-     nfg=nf*2+ione
-     nrmxb=ndy-ione
-     nlatxb=nlat-nrmxb
-     nmixp=nmix+ione
-     nymx=ny-nmix
-     nfnf=(2*nf+ione)*(2*nf+ione)
+     nfg=nf*2+1
+     nfnf=nfg*nfg
      
-!_$omp parallel do  schedule(dynamic,1) private(k) &
-!_$omp private(i,j,i1,i2,j1,p1all,p2all,p3all,afg1)
-     do k=1,nlevs
-
-!       Zero p1, p2, and p3
-        do j=1,nx
-           do i=1,ny
-              p1all(i,j)=zero
-           end do
-        end do
-        
-        do j=1,nsc
-           iz=(ny*nx+2*nfnf)*(k-ione)+(ny*nx+2*nfnf)*nnnn1o*(j-ione)
-           do i=1,ny*nx
-              zloc1(i,j)=z(i+iz)
-           end do
-           iz=iz+ny*nx
-           do i=1,nfnf
-              zloc2(i,j)=z(i+iz)
-           end do
-           iz=iz+nfnf
-           do i=1,nfnf
-              zloc3(i,j)=z(i+iz)
-           end do
-        end do
-
-!       Recursive filter applications
-
-!       First do equatorial/mid-latitude band
-        call sqrt_rfxyyx(zloc1,p1all,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),nsc,totwgt)
-
-!       North pole patch --interpolate - recursive filter - adjoint interpolate
-
-        call sqrt_rfxyyx(zloc2,afg1,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
-        if(norsp>izero) then
-           call smooth_polcas(afg1,p2all)
-        else
-           call polcas(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
-        end if
-
-!       South pole patch --interpolate - recursive filter - adjoint interpolate
-        call sqrt_rfxyyx(zloc3,afg1,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
-        if(norsp>izero) then
-           call smooth_polcas(afg1,p3all)
-        else
-           call polcas(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
-        end if
-
-!       Equatorial patch
-!       Adjoint of central patch blending on left/right sides of patch
-        do i=1,ndx2
-           i1=ndx2+ione-i
-           i2=nx-ndx2+i
-           do j=1,ny
-              p1all(j,i) =p1all(j,i) *bl(i1)   ! left (west) blending zone
-              p1all(j,i2)=p1all(j,i2)*bl(i)    ! right (east) blending zone
-           enddo
-        enddo
-
-!       bl2 of p1
-        do i=1,nx
-           do j=1,nmix
-              p1all(j,i)=p1all(j,i)*bl2(nmixp-j)
-           enddo
-           do j=nymx+ione,ny
-              p1all(j,i)=p1all(j,i)*bl2(j-nymx)
-           enddo
-        enddo
-
 !       zero output array
+     do k=1,nlevs
+     end do
+!$omp parallel do  schedule(dynamic,1) private(kk) &
+!$omp private(i,j,k,iz,kkk,pall,zloc)
+     do kk=1,3*nlevs
+
+        k=(kk-1)/3+1
+        kkk=mod(kk-1,3)+1
+
         do i=1,nlon
            do j=1,nlat
-              work(j,i,k)=zero
+              workout(j,i,kk)=zero
            end do
         end do
+!       Recursive filter applications
 
-!       Adjoint of transfer between central band and full grid (p1 --> work)
-        do i=1,ndx
-           i1=i-ndx+nlon
-           i2=nx-ndx+i
-           do j=1,ny
-              j1=j+ndy
-              work(j1,i1,k)=work(j1,i1,k)+p1all(j,i)  ! left (west) blending zone
-              work(j1,i,k) =work(j1,i,k) +p1all(j,i2) ! right (east) blending zone
-           enddo
-        enddo
+        if(kkk == 1)then
 
-!       Middle zone (no blending)
-        do i=ndx+ione,nx-ndx
-           i1=i-ndx
-           do j=1,ny
-              j1=j+ndy
-              work(j1,i1,k)=work(j1,i1,k)+p1all(j,i)
-           enddo
-        enddo
+!          First do equatorial/mid-latitude band
+
+           allocate(pall(ny,nx),zloc(ny*nx,nsc))
+           do j=1,nsc
+              iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))
+              do i=1,ny*nx
+                 zloc(i,j)=z(i+iz)
+              end do
+           end do
+           call sqrt_rfxyyx(zloc,pall,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),nsc,totwgt)
+           call grid2tr_ad(workout(1,1,kk),pall)
+           deallocate(pall,zloc)
+
+        else if(kkk == 2)then
+
+!          North pole patch --interpolate - recursive filter - adjoint interpolate
+
+           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nsc))
+           do j=1,nsc
+              iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))+ny*nx
+              do i=1,nfnf
+                 zloc(i,j)=z(i+iz)
+              end do
+           end do
+           call sqrt_rfxyyx(zloc,pall,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
+           call grid2nh_ad(workout(1,1,kk),pall)
+           deallocate(pall,zloc)
+        else if(kkk == 3)then
+
+!          South pole patch --interpolate - recursive filter - adjoint interpolate
+
+           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nsc))
+           do j=1,nsc
+              iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))+ny*nx+nfnf
+              do i=1,nfnf
+                 zloc(i,j)=z(i+iz)
+              end do
+           end do
+           call sqrt_rfxyyx(zloc,pall,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
+           call grid2sh_ad(workout(1,1,kk),pall)
+           deallocate(pall,zloc)
+        end if
         
-!       Adjoint of North pole patch(p2) -- blending and transfer to grid
-!       Adjoint of South pole patch(p3) -- blending and transfer to grid
-
-        do j=nlatxb-nmix,nlatxb-ione
-
-!          Adjoint of blending
-           do i=1,nlon
-              p2all(i,nlat-j)=p2all(i,nlat-j)*bl2(nlatxb-j)
-           enddo
-        end do
-        do j=nrmxb+ione,nrmxb+nmix
-
-!          Adjoint of blending
-           do i=1,nlon
-              p3all(i,j)=p3all(i,j)*bl2(j-nrmxb)
-           enddo
-        enddo
-        do i=1,nlon
-
-!          Adjoint of transfer
-           do j=mr,nrmxb+nmix
-              work(j+ione,i,k)=work(j+ione,i,k)+p3all(i,j)
-           enddo
-           do j=nlatxb-nmix,nlat-mr
-              work(j,i,k)=work(j,i,k)+p2all(i,nlat-j)
-           enddo
-        enddo
-
 !    End of k loop over nlevs
+     end do
+
+!    Sum up three different patches  for each level
+     do kk=1,nlevs
+       do j=1,nlon
+         do i=1,nlat
+           kkk=(kk-1)*3
+           work(i,j,kk)=workout(i,j,kkk+1) + workout(i,j,kkk+2) + &
+                        workout(i,j,kkk+3)
+         end do
+       end do
      end do
 
 ! End of global block
@@ -1245,7 +1483,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 !     nlevs    - number of vertical levels for smoothing
 !
 !   output argument list:
-!     work     - smoothed horizontal field
+!     z        - smoothed horizontal field
 !
 ! attributes:
 !   language: f90
@@ -1254,36 +1492,30 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,nnnn1o,regional
   use jfunc,only: nval_lenz
-  use constants, only: izero,ione,zero,half
-  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl,bl2,ii,jj,ii1,jj1,&
-       ii2,jj2,slw,slw1,slw2,norh,nx,ny,mr,nr,nf,hzscl,hswgt
+  use constants, only: zero,half
+  use berror, only: ii,jj,ii1,jj1,&
+       ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt
   use mpimod, only:  nvar_id
-  use smooth_polcarf, only: norsp,smooth_polcasa
   implicit none
 
 ! Declare passed variables
   integer(i_kind)                        ,intent(in   ) :: nsc,nlevs
   real(r_kind),dimension(nval_lenz)      ,intent(inout) :: z
-  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
+  real(r_kind),dimension(nlat,nlon,nlevs),intent(in   ) :: work
 
 ! Declare local variables
-  integer(i_kind) ndx,ndy,nxe,nmix,nfg
-  integer(i_kind) j,naxr,i,nrmxb,nmixp,nymx,norm,nxem
-  integer(i_kind) ndx2,nlatxb,nfnf
-  integer(i_kind) i1,i2,j1,k,iz
+  integer(i_kind) nfg
+  integer(i_kind) j,i,nfnf
+  integer(i_kind) k,iz,kk,kkk
 
   real(r_kind),dimension(nsc):: totwgt
-  real(r_kind),dimension(ny,nx):: p1all
-  real(r_kind),dimension(nlon+ione,mr:nr):: p2all,p3all
-  real(r_kind),dimension(-nf:nf,-nf:nf):: afg1
-  real(r_kind),dimension(nlat*nlon,nsc):: zloc
-  real(r_kind),dimension(ny*nx,nsc):: zloc1
-  real(r_kind),dimension((2*nf+ione)*(2*nf+ione),nsc):: zloc2,zloc3
+  real(r_kind),allocatable,dimension(:,:):: zloc,pall
 
 
 ! Regional case
   if(regional)then
-!_$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
+     allocate(zloc(nlat*nlon,nsc))
+!$omp parallel do  schedule(dynamic,1) private(k,j,iz,totwgt)
      do k=1,nlevs
 
 !       apply horizontal recursive filters
@@ -1299,13 +1531,14 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
              jj(1,1,1,k),slw(1,k),nsc,totwgt)
 
         do j=1,nsc
-           iz=nlat*nlon*(k-ione)+nlat*nlon*nnnn1o*(j-ione)
+           iz=nlat*nlon*(k-1)+nlat*nlon*nnnn1o*(j-1)
            do i=1,nlat*nlon
               z(i+iz)=zloc(i,j)
            end do
         end do
         
      end do
+     deallocate(zloc)
 
 ! Global case
   else
@@ -1314,136 +1547,63 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
         totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
      end do
      
-     ndx=(nx-nlon)/2
-     ndy=(nlat-ny)/2
-     ndx2=2*ndx
-     norm=norh*2-ione
-     nxe=nlon/8
-     nxem=nxe-ione
-     nmix=nr+ione+(ny-nlat)/2
-     naxr=nlon+ione
-     nfg=nf*2+ione
-     nrmxb=ndy-ione
-     nlatxb=nlat-nrmxb
-     nmixp=nmix+ione
-     nymx=ny-nmix
-     nfnf=(2*nf+ione)*(2*nf+ione)
+     nfg=nf*2+1
+     nfnf=nfg*nfg
 
-!  suspect a bug in this threading     
-!_$omp parallel do  schedule(dynamic,1) private(k) &
-!_$omp private(i,j,i1,i2,j1,p1all,p2all,p3all,afg1)
-     do k=1,nlevs
+!$omp parallel do  schedule(dynamic,1) private(kk) &
+!$omp private(i,j,k,iz,kkk,pall,zloc)
+     do kk=1,3*nlevs
 
-!       Zero p1, p2, and p3
-        do j=1,nx
-           do i=1,ny
-              p1all(i,j)=zero
-           end do
-        end do
-        
-!       Extract central patch (band) from full grid (work --> p1)
-!       Blending zones
-        do i=1,ndx
-           i1=i-ndx+nlon
-           i2=nx-ndx+i
-           do j=1,ny
-              j1=j+ndy
-              p1all(j,i) =work(j1,i1,k)      ! left (west) blending zone
-              p1all(j,i2)=work(j1,i,k)       ! right (east) blending zone
-           enddo
-        enddo
+        k=(kk-1)/3+1
+        kkk=mod(kk-1,3)+1
 
-!       Middle zone (no blending)
-        do i=ndx+ione,nx-ndx
-           i1=i-ndx
-           do j=1,ny
-              p1all(j,i)=work(j+ndy,i1,k)
-           enddo
-        enddo
-        
-!       Apply blending coefficients to central patch
-        do i=1,ndx2
-           i1=ndx2+ione-i
-           i2=nx-ndx2+i
-           do j=1,ny
-              p1all(j,i) =p1all(j,i) *bl(i1)  ! left (west) blending zone
-              p1all(j,i2)=p1all(j,i2)*bl(i)   ! right (east) blending zone
-           enddo
-        enddo
-        
-!       bl2 of p1
-        do i=1,nx
-           do j=1,nmix
-              p1all(j,i)=p1all(j,i)*bl2(nmixp-j)
-           enddo
-           do j=nymx+ione,ny
-              p1all(j,i)=p1all(j,i)*bl2(j-nymx)
-           enddo
-        enddo
-
-!       Handle polar patches 
-        do j=mr,nr
-           do i=1,naxr
-              p2all(i,j)=zero
-              p3all(i,j)=zero
-           end do
-        end do
-        
-!       North pole patch(p2) -- blending and transfer to grid
-!       South pole patch(p3) -- blending and transfer to grid
-
-        do i=1,nlon
-!          Load field into patches
-           do j=mr,nrmxb+nmix
-              p2all(i,j)=work(nlat-j,i,k)
-              p3all(i,j)=work(j+1,i,k)
-           enddo
-        enddo
-
-!       Apply blending coefficients
-        do j=nrmxb+ione,nrmxb+nmix
-           j1=j-nrmxb
-           do i=1,nlon
-              p2all(i,j)=p2all(i,j)*bl2(j1)
-              p3all(i,j)=p3all(i,j)*bl2(j1)
-           enddo
-        enddo
-        
 !       Recursive filter applications
 
-!       First do equatorial/mid-latitude band
-        call sqrt_rfxyyx_ad(zloc1,p1all,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),nsc,totwgt)
+        if(kkk == 1)then
 
-!       North pole patch --interpolate - recursive filter - adjoint interpolate
-        if(norsp>izero) then
-           call smooth_polcasa(afg1,p2all)
-        else
-           call polcasa(afg1,p2all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
+!          First do equatorial/mid-latitude band
+           allocate(pall(ny,nx),zloc(ny*nx,nsc))
+           call grid2tr(work(1,1,k),pall)
+           call sqrt_rfxyyx_ad(zloc,pall,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),nsc,totwgt)
+           do j=1,nsc
+              iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))
+              do i=1,ny*nx
+                 z(i+iz)=z(i+iz)+zloc(i,j)
+              end do
+           end do
+           deallocate(pall,zloc)
+
+        else if(kkk == 2)then
+
+!          North pole patch --interpolate - recursive filter - adjoint interpolate
+
+           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nsc))
+           call grid2nh(work(1,1,k),pall)
+           call sqrt_rfxyyx_ad(zloc,pall,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
+           do j=1,nsc
+              iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))+ny*nx
+              do i=1,nfnf
+                 z(i+iz)=z(i+iz)+zloc(i,j)
+              end do
+           end do
+           deallocate(pall,zloc)
+
+        else if(kkk == 3)then
+
+!          South pole patch --interpolate - recursive filter - adjoint interpolate
+
+           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nsc))
+           call grid2sh(work(1,1,k),pall)
+           call sqrt_rfxyyx_ad(zloc,pall,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
+
+           do j=1,nsc
+              iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))+ny*nx+nfnf
+              do i=1,nfnf
+                 z(i+iz)=z(i+iz)+zloc(i,j)
+              end do
+           end do
+           deallocate(pall,zloc)
         end if
-        call sqrt_rfxyyx_ad(zloc2,afg1,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
-
-!       South pole patch --interpolate - recursive filter - adjoint interpolate
-        if(norsp>izero) then
-           call smooth_polcasa(afg1,p3all)
-        else
-           call polcasa(afg1,p3all,nxem,norm,nlon,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
-        end if
-        call sqrt_rfxyyx_ad(zloc3,afg1,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
-
-        do j=1,nsc
-           iz=(ny*nx+2*nfnf)*(k-ione)+(ny*nx+2*nfnf)*nnnn1o*(j-ione)
-           do i=1,ny*nx
-              z(i+iz)=z(i+iz)+zloc1(i,j)
-           end do
-           iz=iz+ny*nx
-           do i=1,nfnf
-              z(i+iz)=z(i+iz)+zloc2(i,j)
-           end do
-           iz=iz+nfnf
-           do i=1,nfnf
-              z(i+iz)=z(i+iz)+zloc3(i,j)
-           end do
-        end do
 
 !    End of k loop over nlevs
      end do
@@ -1494,21 +1654,21 @@ subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
   integer(i_kind)                     ,intent(in   ) :: nx,ny,nsc
   integer(i_kind),dimension(nx,ny,nsc),intent(in   ) :: iix,jjx
   real(r_kind)   ,dimension(nx,ny,3)  ,intent(in   ) :: z
-  real(r_kind)   ,dimension(nx,ny)    ,intent(inout) :: p1
+  real(r_kind)   ,dimension(nx,ny)    ,intent(  out) :: p1
   real(r_kind)   ,dimension(nx,ny)    ,intent(in   ) :: dssx
   real(r_kind)   ,dimension(nsc)      ,intent(in   ) :: totwgt
 
 ! Declare local variables
   integer(i_kind) ix,iy,i,j,im,n
 
-  real(r_kind),dimension(nx,ny):: p2,p1out,p1t
+  real(r_kind),dimension(nx,ny):: p2,p1t
   real(r_kind),dimension(ndeg,ny):: gax2,dex2
   real(r_kind),dimension(nx,ny,ndeg):: alx,aly
 
 ! Zero local arrays
   do iy=1,ny
      do ix=1,nx
-        p1out(ix,iy)=zero
+        p1(ix,iy)=zero
      enddo
   enddo
 
@@ -1549,7 +1709,7 @@ subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 !           .   |     .    |   .           <-- IY < 0
 !   ---------------------------------------
 
-     call rfhx0(p2,p1out,gax2,dex2,nx,ny,ndeg,alx,be)
+     call rfhx0(p2,p1,gax2,dex2,nx,ny,ndeg,alx,be)
 
 !    IX < 0     |          |     IX > NX
 !   ---------------------------------------
@@ -1560,12 +1720,6 @@ subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 
 ! end loop over number of horizontal scales
   end do
-
-  do iy=1,ny
-     do ix=1,nx
-        p1(ix,iy)=p1out(ix,iy)
-     enddo
-  enddo
 
   return
 end subroutine sqrt_rfxyyx
