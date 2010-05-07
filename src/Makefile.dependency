@@ -61,7 +61,7 @@ geos_pertmod.o : geos_pertmod.F90 state_vectors.o constants.o gsi_io.o gridmod.o
 geos_pgcmtest.o : geos_pgcmtest.F90 state_vectors.o constants.o gsi_4dvar.o mpimod.o kinds.o 
 gesinfo.o : gesinfo.F90 constants.o gridmod.o mpimod.o gsi_4dvar.o obsmod.o kinds.o 
 get_derivatives.o : get_derivatives.f90 control_vectors.o mpimod.o compact_diffs.o gridmod.o constants.o kinds.o 
-get_derivatives2.o : get_derivatives2.f90 hybrid_ensemble_parameters.o mpimod.o compact_diffs.o gridmod.o constants.o kinds.o 
+get_derivatives2.o : get_derivatives2.f90 constants.o hybrid_ensemble_parameters.o mpimod.o compact_diffs.o gridmod.o kinds.o 
 get_gefs_ensperts_dualres.o : get_gefs_ensperts_dualres.f90 general_sub2grid_mod.o kinds.o mpimod.o constants.o hybrid_ensemble_isotropic_regional.o hybrid_ensemble_parameters.o gridmod.o 
 get_semimp_mats.o : get_semimp_mats.f90 gridmod.o constants.o kinds.o 
 getprs.o : getprs.f90 compact_diffs.o mpimod.o guess_grids.o gridmod.o constants.o kinds.o 

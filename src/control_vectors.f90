@@ -235,8 +235,9 @@ end subroutine setup_control_vectors
     character(len=1) cf
     character(len=5) cvar
     character(len=120) crecord
-    integer(i_kind) mype,clevs,cuse_idx,ctrace_idx
+    integer(i_kind) k,mype,clevs,cuse_idx,ctrace_idx
     integer(i_kind) lunin,istat,nvar,loc
+    character(len=5),allocatable,dimension(:):: nrf_var0
 
     lunin = 47
     open(lunin,file='anavinfo',form='formatted')
@@ -274,10 +275,10 @@ end subroutine setup_control_vectors
 
 !   Allocate and initialize
     nrf=nvar
-    allocate(nrf_var(nrf),nrf_3d(nrf),nrf_levb(nrf),nrf_leve(nrf))
+    allocate(nrf_var0(nrf),nrf_3d(nrf),nrf_levb(nrf),nrf_leve(nrf))
     allocate(nrf2_loc(nrf2),nrf3_loc(nrf3),nrf_tracer(ntracer))
     nrf_3d=.false.
-    nrf_var=' '
+    nrf_var0=' '
     nrf_levb=-ione
     nrf_leve=-ione
     nrf2_loc=-ione
@@ -299,7 +300,7 @@ end subroutine setup_control_vectors
        read(crecord,*) cuse_idx,clevs,ctrace_idx
        if (cuse_idx < izero) cycle
        nvar=nvar+ione
-       nrf_var(nvar)=cvar
+       nrf_var0(nvar)=cvar
 
        if (clevs > ione) then
           nrf_3d(nvar)=.true.
@@ -326,7 +327,7 @@ end subroutine setup_control_vectors
     nrf2_sst=-ione
     do nvar=1,nrf3
        loc=nrf3_loc(nvar)
-       cvar=nrf_var(loc)
+       cvar=nrf_var0(loc)
        select case(cvar)
                case ('sf','SF'); nrf3_sf=nvar
                case ('vp','VP'); nrf3_vp=nvar
@@ -338,7 +339,7 @@ end subroutine setup_control_vectors
     end do
     do nvar=1,nrf2
        loc=nrf2_loc(nvar)
-       cvar=nrf_var(loc)
+       cvar=nrf_var0(loc)
        select case(cvar)
                case ('sst','SST'); nrf2_sst=nvar
                case ('ps','PS'); nrf2_ps=nvar
@@ -352,8 +353,19 @@ end subroutine setup_control_vectors
     end if
 
     if (mype==0) then
-       write(6,*) 'ANAV_INFO: CONTROL VARIABLES ARE ', (nrf_var(nvar),nvar=1,nrf)
+       write(6,*) 'ANAV_INFO: CONTROL VARIABLES ARE ', (nrf_var0(nvar),nvar=1,nrf)
     end if
+
+    allocate(nrf_var(nvars))
+    do k=1,nrf
+       nrf_var(k)=nrf_var0(k)
+    end do
+    if (nrf2_sst>izero) then
+       nrf_var(nrf+1)="stl"
+       nrf_var(nrf+2)="sti"
+    end if
+
+    deallocate(nrf_var0)
 
     return
   end subroutine anav_info
