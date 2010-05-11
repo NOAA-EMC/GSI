@@ -59,6 +59,7 @@ subroutine update_guess(sval,sbias)
 !   2008-10-10  derber  - flip indices for predx and predxp
 !   2009-01-28  todling - remove reference to original GMAO interface
 !   2009-07-08  pondeca - add logical 'tsensible' for use with 2dvar only
+!   2010-04-30  wu - setup for regional ozone analysis
 !
 !   input argument list:
 !    sval
@@ -80,7 +81,7 @@ subroutine update_guess(sval,sbias)
   use constants, only: izero,ione,zero,one,fv
   use jfunc, only: iout_iter,biascor,tsensible
   use gridmod, only: lat2,lon2,nsig,&
-       regional,twodvar_regional
+       regional,twodvar_regional,regional_ozone
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,nfldsig,hrdifsig,hrdifsfc,&
        nfldsfc,dsfct
@@ -115,13 +116,25 @@ subroutine update_guess(sval,sbias)
            do j=1,lon2
               do i=1,lat2
                  ijk=ijk+ione
-                 sval(ii)%oz(ijk)=zero
                  sval(ii)%cw(ijk)=zero
               end do
            end do
         end do
      end do
-  endif
+    if(.not. regional_ozone)then
+     do ii=1,nobs_bins
+        ijk=izero
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 ijk=ijk+ione
+                 sval(ii)%oz(ijk)=zero
+              end do
+           end do
+        end do
+     end do
+    endif
+   endif
 
 ! Add increment to background
   do it=1,nfldsig
@@ -182,6 +195,17 @@ subroutine update_guess(sval,sbias)
      end do
   end do
 
+  if (regional_ozone) then
+     do it=1,nfldsig
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 if(ges_oz(i,j,k,it) < zero) ges_oz(i,j,k,it)   = 1.e-10_r_kind
+              end do
+           end do
+        end do
+     end do
+  endif
 
 ! If requested, update background bias correction
   if (biascor >= zero) then

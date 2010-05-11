@@ -11,6 +11,7 @@ subroutine read_gfs_ozone_for_regional
 !   2010-03-06  parrish, initial documentation
 !   2010-03-19  parrish - correct for extrapolation error in subroutine intp_spl
 !   2010-03-19  parrish - correct diagnostic output of reg_ozmin, reg_ozmax
+!   2010-04-15  wu - set ges_oz to a small number if the gfs input negative
 !
 !   input argument list:
 !
@@ -48,8 +49,8 @@ subroutine read_gfs_ozone_for_regional
   integer(i_kind) iret,i,j,k,k2,m,n,il,jl,mm1
   character(24) filename
   logical ice
-    integer(sigio_intkind):: lunges = 11
-    type(sigio_head):: sighead
+  integer(sigio_intkind):: lunges = 11
+  type(sigio_head):: sighead
   type(egrid2agrid_parm) :: p_g2r
   integer(i_kind) inner_vars,num_fields,nlat_gfs,nlon_gfs,nsig_gfs,jcap_gfs,jcap_gfs_test
   integer(i_kind) nord_g2r
@@ -66,8 +67,8 @@ subroutine read_gfs_ozone_for_regional
   integer(i_kind),dimension(5) :: iadate_gfs
   real(r_kind) hourg
   real(r_kind),dimension(5):: fha
-        real(r_kind),allocatable,dimension(:)::glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax
-        real(r_kind),allocatable,dimension(:)::glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0
+  real(r_kind),allocatable,dimension(:)::glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax
+  real(r_kind),allocatable,dimension(:)::glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0
 
 !     figure out what are acceptable dimensions for global grid, based on resolution of input spectral coefs
 !   need to inquire from file what is spectral truncation, then setup general spectral structure variable
@@ -77,24 +78,24 @@ subroutine read_gfs_ozone_for_regional
   open(lunges,file=trim(filename),form='unformatted')
   call sigio_srhead(lunges,sighead,iret)
   close(lunges)
- if(mype == 0) then
-  write(6,*) ' sighead%fhour,sighead%idate=',sighead%fhour,sighead%idate
-  write(6,*) ' iadate(y,m,d,hr,min)=',iadate
-  write(6,*) ' sighead%jcap,sighead%levs=',sighead%jcap,sighead%levs
-  write(6,*) ' sighead%latf,sighead%lonf=',sighead%latf,sighead%lonf
-  write(6,*) ' sighead%idvc,sighead%nvcoord=',sighead%idvc,sighead%nvcoord
-  write(6,*) ' sighead%idsl=',sighead%idsl
-  do k=1,sighead%levs+1
-     write(6,*)' k,vcoord=',k,sighead%vcoord(k,:)
-  end do
- end if
+  if(mype == 0) then
+     write(6,*) ' sighead%fhour,sighead%idate=',sighead%fhour,sighead%idate
+     write(6,*) ' iadate(y,m,d,hr,min)=',iadate
+     write(6,*) ' sighead%jcap,sighead%levs=',sighead%jcap,sighead%levs
+     write(6,*) ' sighead%latf,sighead%lonf=',sighead%latf,sighead%lonf
+     write(6,*) ' sighead%idvc,sighead%nvcoord=',sighead%idvc,sighead%nvcoord
+     write(6,*) ' sighead%idsl=',sighead%idsl
+     do k=1,sighead%levs+1
+        write(6,*)' k,vcoord=',k,sighead%vcoord(k,:)
+     end do
+  end if
 
-!    Extract header information
-     hourg    = sighead%fhour
-     idate4(1)= sighead%idate(1)
-     idate4(2)= sighead%idate(2)
-     idate4(3)= sighead%idate(3)
-     idate4(4)= sighead%idate(4)
+! Extract header information
+  hourg    = sighead%fhour
+  idate4(1)= sighead%idate(1)
+  idate4(2)= sighead%idate(2)
+  idate4(3)= sighead%idate(3)
+  idate4(4)= sighead%idate(4)
 
 ! Compute valid time from guess date and forecast length and compare to iadate, the analysis time
   iyr=idate4(4)
@@ -124,7 +125,7 @@ subroutine read_gfs_ozone_for_regional
      write(6,*)' in read_gfs_ozone_for_regional, iadate    =',iadate
   end if
   if(iadate_gfs(1)/=iadate(1).or.iadate_gfs(2)/=iadate(2).or.iadate_gfs(3)/=iadate(3).or.&
-                                iadate_gfs(4)/=iadate(4).or.iadate_gfs(5)/=iadate(5) ) then
+                                 iadate_gfs(4)/=iadate(4).or.iadate_gfs(5)/=iadate(5) ) then
      if(mype == 0) write(6,*)' WARNING: GFS OZONE FIELD DATE NOT EQUAL TO ANALYSIS DATE'
      if(check_gfs_ozone_date) then
         if(mype == 0) write(6,*)' CHECK_GFS_OZONE_DATE = .true., PROGRAM STOPS DUE TO OZONE DATE MISMATCH'
@@ -144,50 +145,50 @@ subroutine read_gfs_ozone_for_regional
      bk5(k)=zero
      ck5(k)=zero
   end do
-     if (sighead%nvcoord == ione) then
-        do k=1,sighead%levs+ione
-           bk5(k) = sighead%vcoord(k,1)
-        end do
-     elseif (sighead%nvcoord == 2_i_kind) then
-        do k = 1,sighead%levs+ione
-           ak5(k) = sighead%vcoord(k,1)*zero_001
-           bk5(k) = sighead%vcoord(k,2)
-        end do
-     elseif (sighead%nvcoord == 3_i_kind) then
-        do k = 1,sighead%levs+ione
-           ak5(k) = sighead%vcoord(k,1)*zero_001
-           bk5(k) = sighead%vcoord(k,2)
-           ck5(k) = sighead%vcoord(k,3)*zero_001
-        end do
-     else
-        write(6,*)'READ_GFS_OZONE_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord
-        call stop2(85)
-     endif
-!    Load reference temperature array (used by general coordinate)
-     do k=1,sighead%levs
-        tref5(k)=h300
+  if (sighead%nvcoord == ione) then
+     do k=1,sighead%levs+ione
+        bk5(k) = sighead%vcoord(k,1)
      end do
+  elseif (sighead%nvcoord == 2_i_kind) then
+     do k = 1,sighead%levs+ione
+        ak5(k) = sighead%vcoord(k,1)*zero_001
+        bk5(k) = sighead%vcoord(k,2)
+     end do
+  elseif (sighead%nvcoord == 3_i_kind) then
+     do k = 1,sighead%levs+ione
+        ak5(k) = sighead%vcoord(k,1)*zero_001
+        bk5(k) = sighead%vcoord(k,2)
+        ck5(k) = sighead%vcoord(k,3)*zero_001
+     end do
+  else
+     write(6,*)'READ_GFS_OZONE_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord
+     call stop2(85)
+  endif
+! Load reference temperature array (used by general coordinate)
+  do k=1,sighead%levs
+     tref5(k)=h300
+  end do
 
 
 
- inner_vars=1
- nlat_gfs=sighead%latf+2
- nlon_gfs=sighead%lonf
- nsig_gfs=sighead%levs
- num_fields=2*nsig_gfs           !  want to transfer ozone and 3d pressure from gfs subdomain to slab
- allocate(vector(num_fields))
- vector=.false.
- call general_sub2grid_create_info(grd_gfs,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fields, &
+  inner_vars=1
+  nlat_gfs=sighead%latf+2
+  nlon_gfs=sighead%lonf
+  nsig_gfs=sighead%levs
+  num_fields=2*nsig_gfs           !  want to transfer ozone and 3d pressure from gfs subdomain to slab
+  allocate(vector(num_fields))
+  vector=.false.
+  call general_sub2grid_create_info(grd_gfs,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fields, &
                                   .not.regional,vector)
- jcap_gfs=sighead%jcap
- jcap_gfs_test=jcap_gfs
- call general_init_spec_vars(sp_gfs,jcap_gfs,jcap_gfs_test,grd_gfs%nlat,grd_gfs%nlon)
+  jcap_gfs=sighead%jcap
+  jcap_gfs_test=jcap_gfs
+  call general_init_spec_vars(sp_gfs,jcap_gfs,jcap_gfs_test,grd_gfs%nlat,grd_gfs%nlon)
 
 !  also want to set up regional grid structure variable grd_mix, which still has number of
 !   vertical levels set to nsig_gfs, but horizontal dimensions set to regional domain.
 
- call general_sub2grid_create_info(grd_mix,inner_vars,nlat,nlon,nsig_gfs,num_fields,regional,vector)
- deallocate(vector)
+  call general_sub2grid_create_info(grd_mix,inner_vars,nlat,nlon,nsig_gfs,num_fields,regional,vector)
+  deallocate(vector)
 
 
 !!   allocate necessary space on global grid
@@ -215,37 +216,37 @@ subroutine read_gfs_ozone_for_regional
      if(mype == 0) write(6,'(" k,min,max gfs oz = ",i3,2e15.4)')k,ozmin0,ozmax0
   end do
 
-!  compute 3d pressure on interfaces
-     kap1=rd_over_cp+one
-     kapr=one/rd_over_cp
-     pri=zero
-     k=ione
-     k2=grd_gfs%nsig+ione
-     do j=1,grd_gfs%lon2
-        do i=1,grd_gfs%lat2
-           pri(i,j,k)=ps(i,j)
-           pri(i,j,k2)=zero
+! compute 3d pressure on interfaces
+  kap1=rd_over_cp+one
+  kapr=one/rd_over_cp
+  pri=zero
+  k=ione
+  k2=grd_gfs%nsig+ione
+  do j=1,grd_gfs%lon2
+     do i=1,grd_gfs%lat2
+        pri(i,j,k)=ps(i,j)
+        pri(i,j,k2)=zero
+     end do
+  end do
+  if (sighead%idvc /= 3_i_kind) then
+     do k=2,grd_gfs%nsig
+        do j=1,grd_gfs%lon2
+           do i=1,grd_gfs%lat2
+              pri(i,j,k)=ak5(k)+bk5(k)*ps(i,j)
+           end do
         end do
      end do
-     if (sighead%idvc /= 3_i_kind) then
-        do k=2,grd_gfs%nsig
-           do j=1,grd_gfs%lon2
-              do i=1,grd_gfs%lat2
-                 pri(i,j,k)=ak5(k)+bk5(k)*ps(i,j)
-              end do
+  else
+     do k=2,grd_gfs%nsig
+        do j=1,grd_gfs%lon2
+           do i=1,grd_gfs%lat2
+              trk=(half*(tv(i,j,k-ione)+tv(i,j,k))/tref5(k))**kapr
+              pri(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
            end do
         end do
-     else
-        do k=2,grd_gfs%nsig
-           do j=1,grd_gfs%lon2
-              do i=1,grd_gfs%lat2
-                 trk=(half*(tv(i,j,k-ione)+tv(i,j,k))/tref5(k))**kapr
-                 pri(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
-              end do
-           end do
-        end do
-     end if
-     deallocate(tv,ps,ak5,bk5,ck5,tref5)
+     end do
+  end if
+  deallocate(tv,ps,ak5,bk5,ck5,tref5)
   do k=1,grd_gfs%nsig+1
      ozmin=minval(pri(:,:,k))
      ozmax=maxval(pri(:,:,k))
@@ -254,25 +255,25 @@ subroutine read_gfs_ozone_for_regional
      if(mype == 0) write(6,'(" k,min,max gfs pri = ",i3,2e15.4)')k,ozmin0,ozmax0
   end do
 
-!   next get pressure at layer midpoints.
-    if (sighead%idsl/=2_i_kind) then
-      do j=1,grd_gfs%lon2
+! next get pressure at layer midpoints.
+  if (sighead%idsl/=2_i_kind) then
+     do j=1,grd_gfs%lon2
         do i=1,grd_gfs%lat2
-          do k=1,grd_gfs%nsig
-            prsl(i,j,k)=((pri(i,j,k)**kap1-pri(i,j,k+ione)**kap1)/&
+           do k=1,grd_gfs%nsig
+              prsl(i,j,k)=((pri(i,j,k)**kap1-pri(i,j,k+ione)**kap1)/&
                            (kap1*(pri(i,j,k)-pri(i,j,k+ione))))**kapr
-          end do
+           end do
         end do
-      end do
-    else
-      do j=1,grd_gfs%lon2
+     end do
+  else
+     do j=1,grd_gfs%lon2
         do i=1,grd_gfs%lat2
-          do k=1,grd_gfs%nsig
-            prsl(i,j,k)=(pri(i,j,k)+pri(i,j,k+ione))*half
-          end do
+           do k=1,grd_gfs%nsig
+              prsl(i,j,k)=(pri(i,j,k)+pri(i,j,k+ione))*half
+           end do
         end do
-      end do
-    end if
+     end do
+  end if
   deallocate(pri)
   do k=1,grd_gfs%nsig
      ozmin=minval(prsl(:,:,k))
@@ -282,7 +283,7 @@ subroutine read_gfs_ozone_for_regional
      if(mype == 0) write(6,'(" k,min,max gfs prsl = ",i3,2e15.4)')k,ozmin0,ozmax0
   end do
 
-!   use general_sub2grid to go to horizontal slabs 
+! use general_sub2grid to go to horizontal slabs 
 
   allocate(work_sub(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig,2))
   do k=1,grd_gfs%nsig
@@ -298,7 +299,7 @@ subroutine read_gfs_ozone_for_regional
   call general_sub2grid_r_double(grd_gfs,work_sub,work)
   deallocate(work_sub)
 
-!   then interpolate to regional analysis grid
+! then interpolate to regional analysis grid
   nord_g2r=4
   call g_create_egrid2points_slow(nlat*nlon,region_lat,region_lon, &
                     grd_gfs%nlat,sp_gfs%rlats,grd_gfs%nlon,sp_gfs%rlons,nord_g2r,p_g2r)
@@ -309,7 +310,7 @@ subroutine read_gfs_ozone_for_regional
   end do
   deallocate(work)
 
-!   next general_grid2sub to go to regional grid subdomains.
+! next general_grid2sub to go to regional grid subdomains.
   allocate(work_sub(grd_mix%lat2,grd_mix%lon2,grd_gfs%nsig,2))
   call general_grid2sub_r_double(grd_mix,work_reg,work_sub)
   deallocate(work_reg)
@@ -326,12 +327,12 @@ subroutine read_gfs_ozone_for_regional
      call mpi_allreduce(ozmax,ozmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
   end do
 
-!   finally, interpolate/extrapolate in vertical using yoshi's spline code.  deposit result in ges_oz.
+! finally, interpolate/extrapolate in vertical using yoshi's spline code.  deposit result in ges_oz.
   allocate(xspli(grd_mix%nsig),yspli(grd_mix%nsig),xsplo(nsig),ysplo(nsig))
-     allocate(glb_ozmin(grd_mix%nsig),glb_ozmax(grd_mix%nsig))
-     allocate(reg_ozmin(        nsig),reg_ozmax(        nsig))
-     allocate(glb_ozmin0(grd_mix%nsig),glb_ozmax0(grd_mix%nsig))
-     allocate(reg_ozmin0(        nsig),reg_ozmax0(        nsig))
+  allocate(glb_ozmin(grd_mix%nsig),glb_ozmax(grd_mix%nsig))
+  allocate(reg_ozmin(        nsig),reg_ozmax(        nsig))
+  allocate(glb_ozmin0(grd_mix%nsig),glb_ozmax0(grd_mix%nsig))
+  allocate(reg_ozmin0(        nsig),reg_ozmax0(        nsig))
   glb_ozmin= huge(glb_ozmin)
   glb_ozmax=-huge(glb_ozmax)
   reg_ozmin= huge(reg_ozmin)
@@ -341,8 +342,8 @@ subroutine read_gfs_ozone_for_regional
         do k=1,grd_mix%nsig
            xspli(k)=log(work_sub(i,j,k,1)*10.0_r_kind)
            yspli(k)=work_sub(i,j,k,2)
-               glb_ozmax(k)=max(yspli(k),glb_ozmax(k))
-               glb_ozmin(k)=min(yspli(k),glb_ozmin(k))
+           glb_ozmax(k)=max(yspli(k),glb_ozmax(k))
+           glb_ozmin(k)=min(yspli(k),glb_ozmin(k))
                  
         end do
         do k=1,nsig
@@ -355,25 +356,26 @@ subroutine read_gfs_ozone_for_regional
            if(xsplo(k) > xspli(1)) ysplo(k)=yspli(1)
         end do
         do k=1,nsig
+           if(ysplo(k) < zero)ysplo(k)=1.e-10_r_kind
            ges_oz(i,j,k,:)=ysplo(k)   !  for now, only read in ges at analysis time and copy to time levels
-               reg_ozmax(k)=max(ysplo(k),reg_ozmax(k))
-               reg_ozmin(k)=min(ysplo(k),reg_ozmin(k))
+           reg_ozmax(k)=max(ysplo(k),reg_ozmax(k))
+           reg_ozmin(k)=min(ysplo(k),reg_ozmin(k))
         end do
      end do
   end do
   deallocate(work_sub)
-            call mpi_allreduce(reg_ozmax,reg_ozmax0,nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-            call mpi_allreduce(reg_ozmin,reg_ozmin0,nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-            call mpi_allreduce(glb_ozmax,glb_ozmax0,grd_mix%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-            call mpi_allreduce(glb_ozmin,glb_ozmin0,grd_mix%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-                 if(mype == 0) then
-                    do k=1,grd_mix%nsig
-                       write(6,'(" k,glb_ozmin,max=",i4,2e15.4)') k,glb_ozmin0(k),glb_ozmax0(k)
-                    end do
-                    do k=1,nsig
-                       write(6,'(" k,reg_ozmin,max=",i4,2e15.4)') k,reg_ozmin0(k),reg_ozmax0(k)
-                    end do
-                 end if
+  call mpi_allreduce(reg_ozmax,reg_ozmax0,nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
+  call mpi_allreduce(reg_ozmin,reg_ozmin0,nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
+  call mpi_allreduce(glb_ozmax,glb_ozmax0,grd_mix%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
+  call mpi_allreduce(glb_ozmin,glb_ozmin0,grd_mix%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
+  if(mype == 0) then
+     do k=1,grd_mix%nsig
+        write(6,'(" k,glb_ozmin,max=",i4,2e15.4)') k,glb_ozmin0(k),glb_ozmax0(k)
+     end do
+     do k=1,nsig
+        write(6,'(" k,reg_ozmin,max=",i4,2e15.4)') k,reg_ozmin0(k),reg_ozmax0(k)
+     end do
+  end if
 
   return
 end subroutine read_gfs_ozone_for_regional

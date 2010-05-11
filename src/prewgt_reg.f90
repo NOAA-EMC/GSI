@@ -34,6 +34,7 @@ subroutine prewgt_reg(mype)
 !                       - add changes using nrf* for generalized control variables
 !   2010-03-15  zhu     - move the calculation of compute_qvar3d here
 !   2010-04-10  parrish - remove rhgues, no longer used
+!   2010-04-29  wu      - set up background error for oz
 !
 !   input argument list:
 !     mype     - pe number
@@ -58,13 +59,13 @@ subroutine prewgt_reg(mype)
   use berror, only: as,dssvs,&
        bw,ny,nx,dssv,vs,be,ndeg,&
        init_rftable,hzscl,tsfc_sdv,slw
-  use mpimod, only: nvar_id,levs_id
+  use mpimod, only: nvar_id,levs_id,mpi_sum,mpi_comm_world,ierror,mpi_rtype
   use jfunc, only: qoption
   use control_vectors, only: nrf,nrf3_oz,nrf3,nrf2,nrf2_sst,nvars,nrf3_loc,nrf2_loc,nrf_var
-  use gridmod, only: lon2,lat2,nsig,nnnn1o,&
-       region_dx,region_dy
-  use constants, only: ione,zero,half,one,two,four
-  use guess_grids, only: ges_prslavg,ges_psfcavg
+  use gridmod, only: lon2,lat2,nsig,nnnn1o,regional_ozone,&
+       region_dx,region_dy,nlon,nlat,istart,jstart,region_lat
+  use constants, only: ione,zero,half,one,two,four,rad2deg
+  use guess_grids, only: ges_prslavg,ges_psfcavg,ges_oz
   use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_wgt_reg
 
   implicit none
@@ -84,17 +85,17 @@ subroutine prewgt_reg(mype)
 ! Declare local variables
   integer(i_kind) k,i,ii
   integer(i_kind) n,nn
-  integer(i_kind) j,k1,loc
+  integer(i_kind) j,k1,loc,kb,mm1,ix,jl,il
   integer(i_kind) inerr,l,lp,l2
   integer(i_kind) msig,mlat              ! stats dimensions
   integer(i_kind),dimension(nnnn1o):: ks
 
-  real(r_kind) samp2,dl1,dl2
+  real(r_kind) samp2,dl1,dl2,d
   real(r_kind) samp,hwl,cc
   real(r_kind),dimension(nsig):: rate,dlsig,rlsig
   real(r_kind),dimension(nsig,nsig):: turn
   real(r_kind),dimension(ny,nx)::sl
-  real(r_kind) fact,factoz,psfc015
+  real(r_kind) fact,psfc015
 
   real(r_kind),dimension(lon2,nsig,llmin:llmax):: dsv
   real(r_kind),dimension(lon2,llmin:llmax):: dsvs
@@ -102,6 +103,7 @@ subroutine prewgt_reg(mype)
   real(r_kind),allocatable,dimension(:,:):: corp, hwllp
   real(r_kind),allocatable,dimension(:,:,:):: corz, hwll, vz
   real(r_kind),allocatable,dimension(:,:,:,:)::sli
+  real(r_kind),dimension(180,nsig):: ozmz,ozmzt,cnt,cntt
 
 ! Initialize local variables
 !  do j=1,nx
@@ -111,14 +113,13 @@ subroutine prewgt_reg(mype)
 !     end do
 !  end do
 
-
 ! Setup sea-land mask
   sl=one
-  do j=1,nx
-     do i=1,ny
-        sl(i,j)=min(max(sl(i,j),zero),one)
-     enddo
-  enddo
+!  do j=1,nx
+!     do i=1,ny
+!        sl(i,j)=min(max(sl(i,j),zero),one)
+!     enddo
+!  enddo
 
 
 ! Read dimension of stats file
@@ -133,6 +134,41 @@ subroutine prewgt_reg(mype)
 
 ! Read in background error stats and interpolate in vertical to that specified in namelist
   call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,mype,inerr)
+
+! find ozmz for background error variance
+  if(regional_ozone) then
+
+     kb_loop: do k=1,nsig
+        if(rlsig(k) <  log(0.35_r_kind))then
+           kb=k
+           exit kb_loop
+        endif
+     enddo kb_loop
+     mm1=mype+1
+
+     ozmz=zero
+     cnt=zero
+     do k=1,nsig
+        do j=2,lon2-1
+           jl=j+jstart(mm1)-2_i_kind
+           jl=min0(max0(ione,jl),nlon)
+           do i=2,lat2-1
+              il=i+istart(mm1)-2_i_kind
+              il=min0(max0(ione,il),nlat)
+              ix=region_lat(il,jl)*rad2deg+half+90._r_kind
+              ozmz(ix,k)=ozmz(ix,k)+ges_oz(i,j,k,1)*ges_oz(i,j,k,1)
+              cnt(ix,k)=cnt(ix,k)+one
+           end do
+        end do
+     end do
+     call mpi_allreduce(ozmz,ozmzt,nsig*180,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
+     call mpi_allreduce(cnt,cntt,nsig*180,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
+     do k=1,nsig
+        do i=1,180
+           if(cntt(i,k)>zero) ozmzt(i,k)=sqrt(ozmzt(i,k)/cntt(i,k))
+        enddo
+     enddo
+  endif ! regional_ozone
 
 ! Normalize vz with del sigmma and convert to vertical grid units!
   dlsig(1)=rlsig(1)-rlsig(2)
@@ -165,27 +201,56 @@ subroutine prewgt_reg(mype)
   call rfdpar2(be,rate,turn,samp,ndeg)
 
   do n=1,nrf3
-     loc=nrf3_loc(n)
-     do j=llmin,llmax
-        call smoothzo(vz(1,j,n),samp,rate,n,j,dsv(1,1,j))
-        do k=1,nsig
-           do i=1,lon2
-              dsv(i,k,j)=dsv(i,k,j)*corz(j,k,n)*as(loc)
+     if(n==nrf3_oz .and. regional_ozone)then   ! spetial treament for ozone variance
+        loc=nrf3_loc(n)
+        vz(:,:,n)=1.5_r_kind   ! ozone vertical scale fixed
+        do j=llmin,llmax
+           call smoothzo(vz(1,j,n),samp,rate,n,j,dsv(1,1,j))
+           do k=1,nsig
+              do i=1,lon2
+                 dsv(i,k,j)=dsv(i,k,j)*as(loc)
+              end do
            end do
         end do
-     end do
-
-     do j=1,lat2
-        do i=1,lon2
-           l=int(rllat1(j,i))
-           l2=min0(l+1,llmax)
-           dl2=rllat1(j,i)-float(l)
-           dl1=one-dl2
-           do k=1,nsig
-              dssv(j,i,k,n)=dl1*dsv(i,k,l)+dl2*dsv(i,k,l2)
-           enddo
+        do j=1,lon2
+           jl=j+jstart(mm1)-2_i_kind
+           jl=min0(max0(ione,jl),nlon)
+           do i=1,lat2
+              il=i+istart(mm1)-2_i_kind
+              il=min0(max0(ione,il),nlat)
+              d=region_lat(il,jl)*rad2deg+90._r_kind
+              l=int(d)
+              l2=l+ione
+              dl2=d-float(l)
+              dl1=one-dl2
+              do k=1,nsig
+                 dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,llmin)
+              end do
+           end do
         end do
-     end do
+     else
+        loc=nrf3_loc(n)
+        do j=llmin,llmax
+           call smoothzo(vz(1,j,n),samp,rate,n,j,dsv(1,1,j))
+           do k=1,nsig
+              do i=1,lon2
+                 dsv(i,k,j)=dsv(i,k,j)*corz(j,k,n)*as(loc)
+              end do
+           end do
+        end do
+
+        do j=1,lat2
+           do i=1,lon2
+              l=int(rllat1(j,i))
+              l2=min0(l+1,llmax)
+              dl2=rllat1(j,i)-float(l)
+              dl1=one-dl2
+              do k=1,nsig
+                 dssv(j,i,k,n)=dl1*dsv(i,k,l)+dl2*dsv(i,k,l2)
+              enddo
+           end do
+        end do
+     endif
   end do
 
 ! Special case of dssv for qoption=2
@@ -275,23 +340,23 @@ subroutine prewgt_reg(mype)
                  enddo
               else
                  do i=1,nx
-                   do j=1,ny
-                     l=int(rllat(j,i))
-                     lp=min0(l+ione,llmax)
-                     dl2=rllat(j,i)-float(l)
-                     dl1=one-dl2
-                     fact=one/(dl1*hwll(l,k1,nn)+dl2*hwll(lp,k1,nn))
-                     slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
-                     sli(j,i,1,k)=sli(j,i,1,1)*fact
-                     sli(j,i,2,k)=sli(j,i,2,1)*fact
-                   enddo
+                    do j=1,ny
+                       l=int(rllat(j,i))
+                       lp=min0(l+ione,llmax)
+                       dl2=rllat(j,i)-float(l)
+                       dl1=one-dl2
+                       fact=one/(dl1*hwll(l,k1,nn)+dl2*hwll(lp,k1,nn))
+                       slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
+                       sli(j,i,1,k)=sli(j,i,1,1)*fact
+                       sli(j,i,2,k)=sli(j,i,2,1)*fact
+                    enddo
                  enddo
               endif
            else
-              if (k1 <= nsig*3/4)then
+              if (k1 <= kb )then
                  hwl=r400000
               else
-                 hwl=(r800000-r400000*(nsig-k1)/(nsig-nsig*3/4))
+                 hwl=r800000-r400000*(nsig-k1)/(nsig-kb)
               endif
               fact=one/hwl
               do i=1,nx
