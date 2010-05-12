@@ -134,7 +134,7 @@ subroutine guess_init_
 
 ! Declare local variables
 
-  integer(i_kind):: msig,mlat
+  integer(i_kind):: msig,mlat,mlon
 
 !*******************************************************************************************
 !
@@ -156,7 +156,7 @@ subroutine guess_init_
   call set_pointer
 
 ! Allocate arrays used in minimization
-  call berror_get_dims(msig,mlat)  ! _RT: observer should not depend on B
+  call berror_get_dims(msig,mlat,mlon)  ! _RT: observer should not depend on B
   call create_jfunc(mlat)
 
 ! Intialize lagrangian data assimilation and read in initial position of balloons

@@ -123,7 +123,7 @@ module anisofilter_glb
                          stpcode_ensdata, stpcode_statdata, &
                          fact_qopt2,mk_gradpt_slab,smther_one,hanning_smther, &
                          invert_aspect_tensor, &
-                         mlat, ks, rfact0h, rfact0v, corz, corp, hwll, hwllp, vz, &
+                         mlat, mlon, ks, rfact0h, rfact0v, corz, corp, hwll, hwllp, vz, &
                          aspect, &
                          tx1_slab,tx2_slab,tx3_slab, &
                          asp1_max,asp2_max,asp3_max, &
@@ -800,10 +800,10 @@ subroutine read_bckgstats_glb(mype)
 ! Open background error statistics file
 ! Read header.  Ensure that vertical resolution is consistent
 ! with that specified via the user namelist
-  call berror_get_dims(nsigstat,mlat,inerr)
+  call berror_get_dims(nsigstat,mlat,mlon,inerr)
   if(mype==izero) then
-     write(6,*)'read_bckgstats_glb(): read error amplitudes.  mype,nsigstat,mlat =',&
-     mype,nsigstat,mlat
+     write(6,*)'read_bckgstats_glb(): read error amplitudes.  mype,nsigstat,mlat,mlon =',&
+     mype,nsigstat,mlat,mlon
   end if
 
   if (nsig/=nsigstat .or. nlat/=mlat) then

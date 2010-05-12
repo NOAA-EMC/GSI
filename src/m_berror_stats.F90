@@ -80,12 +80,13 @@ contains
 !
 ! !INTERFACE:
 
-    subroutine get_dims(msig,mlat,unit)
+    subroutine get_dims(msig,mlat,mlon,unit)
 
       implicit none
 
       integer(i_kind)         ,intent(  out) :: msig  ! dimension of levels
       integer(i_kind)         ,intent(  out) :: mlat  ! dimension of latitudes
+      integer(i_kind)         ,intent(  out) :: mlon  ! dimension of latitudes
       integer(i_kind),optional,intent(in   ) :: unit  ! logical unit [22]
 
 ! !REVISION HISTORY:
@@ -102,7 +103,7 @@ contains
   if(present(unit)) inerr = unit
   open(inerr,file=berror_stats,form='unformatted',status='old')
   rewind inerr
-  read(inerr) msig,mlat
+  read(inerr) msig,mlat,mlon
   close(inerr)
 end subroutine get_dims
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -139,7 +140,7 @@ end subroutine get_dims
 
 !   workspaces/variables for data not returned
 
-  integer(i_kind):: nsigstat,nlatstat
+  integer(i_kind):: nsigstat,nlatstat,nlonstat
   integer(i_kind):: inerr
 
 
@@ -152,24 +153,25 @@ end subroutine get_dims
 !   with that specified via the user namelist
 
     rewind inerr
-    read(inerr) nsigstat,nlatstat
+    read(inerr) nsigstat,nlatstat,nlonstat
 
     if(mype==0) then
-      if (nsig/=nsigstat .or. nlat/=nlatstat) then
+      if (nsig/=nsigstat .or. nlat/=nlatstat .or. nlon/=nlonstat) then
          write(6,*) myname_,'(PREBAL):  ***ERROR*** resolution of ', &
            '"',trim(berror_stats),'"', &
               'incompatiable with guess'
-         write(6,*) myname_,'(PREBAL):  ***ERROR*** nsigstat,nlatstat=', &
-           nsigstat,nlatstat
-         write(6,*) myname_,'(PREBAL):  ***ERROR*** expects nsig,nlat=', &
-           nsig,nlat
+         write(6,*) myname_,'(PREBAL):  ***ERROR*** nsigstat,nlatstat,nlonstat=', &
+           nsigstat,nlatstat,nlonstat
+         write(6,*) myname_,'(PREBAL):  ***ERROR*** expects nsig,nlat,nlon=', &
+           nsig,nlat,nlon
+
          call stop2(ERRCODE)
        end if
 
        write(6,*) myname_,'(PREBAL):  get balance variables', &
          '"',trim(berror_stats),'".  ', &
-         'mype,nsigstat,nlatstat =', &
-          mype,nsigstat,nlatstat
+         'mype,nsigstat,nlatstat,nlonstat =', &
+          mype,nsigstat,nlatstat,nlonstat
     end if
 
 !   Read background error file to get balance variables
@@ -228,7 +230,7 @@ end subroutine read_bal
  
   integer(i_kind) :: i,n,k
   integer(i_kind) :: inerr,istat
-  integer(i_kind) :: nsigstat,nlatstat
+  integer(i_kind) :: nsigstat,nlatstat,nlonstat
   integer(i_kind) :: loc,nn,isig
   real(r_kind) :: corq2x
   character*5 var
@@ -248,19 +250,19 @@ end subroutine read_bal
 ! with that specified via the user namelist
 
   rewind inerr
-  read(inerr)nsigstat,nlatstat
+  read(inerr)nsigstat,nlatstat,nlonstat
   if(mype==0) then
-     if(nsigstat/=nsig .or. nlatstat/=nlat) then
+     if(nsigstat/=nsig .or. nlatstat/=nlat .or.nlonstat/=nlon) then
         write(6,*)'PREBAL: **ERROR** resolution of berror_stats incompatiable with GSI'
-        write(6,*)'PREBAL:  berror nsigstat,nlatstat=', nsigstat,nlatstat, &
-             ' -vs- GSI nsig,nlat=',nsig,nlat
+        write(6,*)'PREBAL:  berror nsigstat,nlatstat,nlonstat=', nsigstat,nlatstat,nlonstat, &
+             ' -vs- GSI nsig,nlat,nlon=',nsig,nlat,nlon
         call stop2(101)
      end if
 
      write(6,*) myname_,'(PREWGT):  read error amplitudes ', &
        '"',trim(berror_stats),'".  ', &
-       'mype,nsigstat,nlatstat =', &
-        mype,nsigstat,nlatstat
+       'mype,nsigstat,nlatstat,nlonstat =', &
+        mype,nsigstat,nlatstat,nlonstat
   end if
   read(inerr) agvin,bvin,wgvin
 

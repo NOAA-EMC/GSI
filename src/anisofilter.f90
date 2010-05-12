@@ -167,7 +167,7 @@ module anisofilter
   public :: qltv_wind,qlth_wind,qltv_temp,eampmax,pgesmax,pgesmin,eampmin,asp10f,rh0f,z0f,asp20f,qlth_temp,psg,asp30f
   public :: qlth_wind0,qltv_temp0,qlth_temp0,qltv_wind0,scalex3,scalex2,scalex1,lreadnorm
   public :: r100,r015,corp,corz,rfact0v,hwll,aspect,vz,hwllp,stpcode_ensdata,stpcode_namelist,stpcode_alloc
-  public :: stpcode_statdata,rfact0h,ks,mlat,rllatf,ensamp
+  public :: stpcode_statdata,rfact0h,ks,mlat,mlon,rllatf,ensamp
 
 ! Declare passed variables
 
@@ -202,7 +202,7 @@ module anisofilter
                                              ! 1: isoscale=isoscale**rfact0(1)+rfact0(2)
                                              ! 2: H:0 / V:1
 
-  integer(i_kind):: mlat
+  integer(i_kind):: mlat,mlon
   integer(i_kind),allocatable:: ks(:)
   real(r_kind)  ,allocatable::rfact0h(:),rfact0v(:)
 ! real(r_kind)  ,allocatable::corz(:,:,:),corp(:),hwll(:,:,:),hwllp(:),vz(:,:,:)
