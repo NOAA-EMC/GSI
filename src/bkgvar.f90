@@ -71,64 +71,67 @@ subroutine bkgvar(cstate,sst,slndt,sicet,iflg)
   real(r_kind),dimension(lat2,lon2),intent(inout) :: sst,slndt,sicet
 
 ! Declare local variables
-  integer(i_kind) i,j,k,n,nk,l,l2,loc
+  integer(i_kind) i,j,k,n,nk,l,l2,loc,nn
   real(r_kind) dl1,dl2
 
 ! Multipy by variances
-!$omp parallel do  schedule(dynamic,1) private(n,nk,k,i,j,loc)
-  do n=1,nrf3
-     loc=nrf3_loc(n)
-     nk=nrf_levb(loc)
-     do k=1,nsig
-        do i=1,lon2
-           do j=1,lat2
-              cstate(j,i,nk)  =cstate(j,i,nk)*dssv(j,i,k,n)
-           end do
-        enddo
-        nk=nk+1
-     enddo
-  end do
-
+!$omp parallel do  schedule(dynamic,1) private(n,nn,nk,k,i,j,loc)
+  do nn=1,nrf3+nrf2
+! 3-D fields
+     if(nn <= nrf3)then
+       n=nn
+       loc=nrf3_loc(n)
+       nk=nrf_levb(loc)
+       do k=1,nsig
+          do i=1,lon2
+             do j=1,lat2
+                cstate(j,i,nk)  =cstate(j,i,nk)*dssv(j,i,k,n)
+             end do
+          enddo
+          nk=nk+1
+       enddo
+     else
 
 ! Surface fields
-!$omp parallel do  schedule(dynamic,1) private(n,nk,i,j,loc)
-  do n=1,nrf2
-     loc=nrf2_loc(n)
-     nk=nrf_levb(loc)
-     if (n/=nrf2_sst) then
-        do i=1,lon2
-           do j=1,lat2
-              cstate(j,i,nk)=cstate(j,i,nk)*dssvs(j,i,n)
-           end do
-        end do
-     else
-        if (iflg == izero) then
-!       Break skin temperature into components
-            do i=1,lon2
-               do j=1,lat2
-                  if(isli2(j,i) == ione) then
-                     slndt(j,i)=cstate(j,i,nk)*dssvs(j,i,nrf2+1)
-                  else if(isli2(j,i) == 2_i_kind) then
-                     sicet(j,i)=cstate(j,i,nk)*dssvs(j,i,nrf2+2)
-                  else
-                     sst(j,i)  =cstate(j,i,nk)*dssvs(j,i,n)
-                  end if
-               end do
-            end do
-         else
-!        Combine sst,slndt, and sicet into skin temperature field
-            do i=1,lon2
-               do j=1,lat2
-                  if(isli2(j,i) == ione) then
-                     cstate(j,i,nk)=slndt(j,i)*dssvs(j,i,nrf2+1)
-                  else if(isli2(j,i) == 2_i_kind) then
-                     cstate(j,i,nk)=sicet(j,i)*dssvs(j,i,nrf2+2)
-                  else
-                     cstate(j,i,nk)=sst(j,i)*dssvs(j,i,n)
-                  end if
-               end do
-            end do
-         end if
+
+       n=nn-nrf3
+       loc=nrf2_loc(n)
+       nk=nrf_levb(loc)
+       if (n/=nrf2_sst) then
+          do i=1,lon2
+             do j=1,lat2
+                cstate(j,i,nk)=cstate(j,i,nk)*dssvs(j,i,n)
+             end do
+          end do
+       else
+          if (iflg == izero) then
+!         Break skin temperature into components
+              do i=1,lon2
+                 do j=1,lat2
+                    if(isli2(j,i) == ione) then
+                       slndt(j,i)=cstate(j,i,nk)*dssvs(j,i,nrf2+1)
+                    else if(isli2(j,i) == 2_i_kind) then
+                       sicet(j,i)=cstate(j,i,nk)*dssvs(j,i,nrf2+2)
+                    else
+                       sst(j,i)  =cstate(j,i,nk)*dssvs(j,i,n)
+                    end if
+                 end do
+              end do
+           else
+!          Combine sst,slndt, and sicet into skin temperature field
+              do i=1,lon2
+                 do j=1,lat2
+                    if(isli2(j,i) == ione) then
+                       cstate(j,i,nk)=slndt(j,i)*dssvs(j,i,nrf2+1)
+                    else if(isli2(j,i) == 2_i_kind) then
+                       cstate(j,i,nk)=sicet(j,i)*dssvs(j,i,nrf2+2)
+                    else
+                       cstate(j,i,nk)=sst(j,i)*dssvs(j,i,n)
+                    end if
+                 end do
+              end do
+           end if
+       end if
      end if
   end do
 

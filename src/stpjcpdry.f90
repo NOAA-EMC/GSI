@@ -61,7 +61,7 @@ contains
 !
 !$$$
   use kinds, only: r_quad,r_kind,i_kind
-  use constants, only: izero,ione,zero,zero_quad
+  use constants, only: zero,zero_quad
   use gridmod, only: lat2,lon2,nsig
   use guess_grids, only:  ges_prsi,ntguessig
   use jcmod, only: bamp_jcpdry
@@ -86,9 +86,9 @@ contains
      do j=1,lon2
         do i=1,lat2
            sqint(i,j)=sqint(i,j) + ( (sq(i,j,k)+sc(i,j,k))* &
-                (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it)) )
+                (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it)) )
            rqint(i,j)=rqint(i,j) + ( (rq(i,j,k)+rc(i,j,k))* &
-                (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+ione,it)) ) 
+                (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it)) ) 
         end do
      end do
   end do
@@ -99,7 +99,7 @@ contains
   call global_mean(sqint,sqave,mype)
   call global_mean(rqint,rqave,mype)
 
-  if (mype==izero) then
+  if (mype==0) then
 !    Subtract out water to get incremental dry mass
      sdmass=spave-sqave
      rdmass=rpave-rqave

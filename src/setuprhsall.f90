@@ -141,7 +141,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupdw
   external:: setuplag
   external:: setupo3lv
-  external:: setupobs
   external:: setupoz
   external:: setuppcp
   external:: setupps

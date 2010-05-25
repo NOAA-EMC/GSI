@@ -200,10 +200,6 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !$omp parallel sections
 
 !$omp section
-!   penalty, b, and c for winds
-    call stpw(yobs%w,dval%u,dval%v,xval%u,xval%v,pbcjo(1,i_w_ob_type),sges,nstep)
-
-!$omp section
 !   penalty, b, and c for radiances
     call stprad(yobs%rad,dval,xval,dbias%predr,xbias%predr,&
                 pbcjo(1,i_rad_ob_type),sges,nstep)
@@ -212,39 +208,34 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   penalty, b, and c for temperature
     call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep) 
 
-!$omp section
+!   penalty, b, and c for winds
+    call stpw(yobs%w,dval%u,dval%v,xval%u,xval%v,pbcjo(1,i_w_ob_type),sges,nstep)
 !   penalty, b, and c for precipitable water
     call stppw(yobs%pw,dval%q,xval%q,pbcjo(1,i_pw_ob_type),sges,nstep)
 
-!$omp section
-!   penalty, b, and c for moisture
-    call stpq(yobs%q,dval%q,xval%q,pbcjo(1,i_q_ob_type),sges,nstep)
-
-!$omp section
-!   penalty, b, and c for ozone
-    if (nrf3_oz>0) call stpoz(yobs%oz,yobs%o3l,dval%oz,xval%oz,pbcjo(1,i_oz_ob_type),sges,nstep)
-
-!$omp section
 !   penalty, b, and c for wind lidar
     call stpdw(yobs%dw,dval%u,dval%v,xval%u,xval%v, &
                pbcjo(1,i_dw_ob_type),sges,nstep) 
 
-!$omp section
 !   penalty, b, and c for radar
     call stprw(yobs%rw,dval%u,dval%v,xval%u,xval%v, &
                pbcjo(1,i_rw_ob_type),sges,nstep) 
 
 !$omp section
-!   penalty, b, and c for radar superob wind
-    call stpsrw(yobs%srw,dval%u,dval%v,xval%u,xval%v, &
-                pbcjo(1,i_srw_ob_type),sges,nstep)
+!   penalty, b, and c for moisture
+    call stpq(yobs%q,dval%q,xval%q,pbcjo(1,i_q_ob_type),sges,nstep)
 
-!$omp section
+!   penalty, b, and c for ozone
+    if (nrf3_oz>0) call stpoz(yobs%oz,yobs%o3l,dval%oz,xval%oz,pbcjo(1,i_oz_ob_type),sges,nstep)
+
 !   penalty, b, and c for GPS local observation
     call stpgps(yobs%gps,dval%t,dval%q,dval%p3d,xval%t,xval%q,xval%p3d,&
          pbcjo(1,i_gps_ob_type),sges,nstep) 
 
-!$omp section
+!   penalty, b, and c for radar superob wind
+    call stpsrw(yobs%srw,dval%u,dval%v,xval%u,xval%v, &
+                pbcjo(1,i_srw_ob_type),sges,nstep)
+
 !   penalty, b, and c for conventional sst
     if (nrf2_sst>0) call stpsst(yobs%sst,dval%sst,xval%sst,pbcjo(1,i_sst_ob_type),sges,nstep)
 
@@ -253,20 +244,15 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
     call stpspd(yobs%spd,dval%u,dval%v,xval%u,xval%v, &
                 pbcjo(1,i_spd_ob_type),sges,nstep) 
 
-!$omp section
 !   penalty, b, and c for precipitation
     call stppcp(yobs%pcp,dval,xval,pbcjo(1,i_pcp_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for surface pressure
     call stpps(yobs%ps,dval%p3d,xval%p3d,pbcjo(1,i_ps_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for MSLP TC obs
     call stptcp(yobs%tcp,dval%p3d,xval%p3d,pbcjo(1,i_tcp_ob_type),sges,nstep)
 
-
-!_$omp section
 !   penalty, b, and c for clouds
 !   call stpcld(dirx(nq),xhat(nq),dirx(ncw),xhat(ncw),pbcjo(:,i_cld_ob_type),sges,nstep)
 

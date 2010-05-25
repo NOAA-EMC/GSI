@@ -176,7 +176,6 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
               j3n(n) = j3n(n-1)+latlon11
               j4n(n) = j4n(n-1)+latlon11
            enddo
-!$omp parallel do private(n,j1,j2,j3,j4)
            do n=1,nsig
               j1 = j1n(n)
               j2 = j2n(n)
@@ -202,9 +201,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
               end if
 
            end do
-!$omp end parallel do
            if(l_foto)then
-!$omp parallel do private(n,j1,j2,j3,j4)
               do n=1,nsig
                  j1 = j1n(n)
                  j2 = j2n(n)
@@ -238,7 +235,6 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
                  end if
 
               end do
-!$omp end parallel do
            end if
         end if
         do nn=1,radptr%nchan

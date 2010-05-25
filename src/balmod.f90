@@ -515,12 +515,9 @@ contains
     logical                               ,intent(in   ) :: fpsproj
 
 !   Declare local variables
-    integer(i_kind) i,j,k,l,m,isize
+    integer(i_kind) i,j,k,l,m
 
     real(r_kind) dl1,dl2
-
-!   Initialize variables
-    isize=max(iglobal,itotsub)
 
 
 !   REGIONAL BRANCH
@@ -542,7 +539,7 @@ contains
              do m=1,nsig
                 do j=1,lon2
                    do i=1,lat2
-                      t(i,j,m)=t(i,j,m)+agvk_lm(m,k)*f1(i,j)*st(i,j,k)
+                      t(i,j,k)=t(i,j,k)+agvk_lm(k,m)*f1(i,j)*st(i,j,m)
                    end do
                 end do
              end do
@@ -555,7 +552,7 @@ contains
              do m=1,nsig
                 do j=1,lon2
                    do i=1,lat2
-                      t(i,j,m)=t(i,j,m)+agvk(i,j,m,k)*st(i,j,k)
+                      t(i,j,k)=t(i,j,k)+agvk(i,j,k,m)*st(i,j,m)
                    end do
                 end do
              end do
@@ -585,31 +582,34 @@ contains
              end do
           end do
        else
-          do j=1,lon2
-             do i=1,lat2
-                do k=1,nsig-ione
+          do k=1,nsig-1
+             do j=1,lon2
+                do i=1,lat2
                    p(i,j)=p(i,j)+wgvz(i,k)*st(i,j,k)
                 end do
+             end do
+          end do
+          do j=1,lon2
+             do i=1,lat2
                 p(i,j)=p(i,j)+wgvz(i,nsig)*vp(i,j,1)
              end do
           end do
        endif
 
-!      Add contribution from streamfunction to veloc. potential
+!$omp parallel do  schedule(dynamic,1) private(k,l,j,i)
        do k=1,nsig
+!      Add contribution from streamfunction to veloc. potential
           do j=1,lon2
              do i=1,lat2
                 vp(i,j,k)=vp(i,j,k)+bvz(i,k)*st(i,j,k)
              end do
           end do
-       end do
 
 !      Add contribution from streamfunction to unbalanced temperature.
-       do k=1,nsig
           do l=1,nsig
              do j=1,lon2
                 do i=1,lat2
-                   t(i,j,l)=t(i,j,l)+agvz(i,l,k)*st(i,j,k)
+                   t(i,j,k)=t(i,j,k)+agvz(i,k,l)*st(i,j,l)
                 end do
              end do
           end do
@@ -690,16 +690,12 @@ contains
     logical                               ,intent(in   ) :: fpsproj
 
 !   Declare local variables
-    integer(i_kind) l,m,l2,i,j,k,igrid,isize
+    integer(i_kind) l,m,l2,i,j,k
 
     real(r_kind) dl1,dl2
   
 !  Adjoint of strong balance constraint
     if(.not.l_hyb_ens) call strong_bk_ad(st,vp,p,t)
-
-!   Initialize variables
-    igrid=lat2*lon2
-    isize=max(iglobal,itotsub)
 
 !   REGIONAL BRANCH
     if (regional) then
@@ -752,8 +748,9 @@ contains
 !   GLOBAL BRANCH
     else
 
-!      Adjoint of contribution to temperature from streamfunction.
+!$omp parallel do  schedule(dynamic,1) private(k,l,j,i)
        do k=1,nsig
+!         Adjoint of contribution to temperature from streamfunction.
           do l=1,nsig
              do j=1,lon2
                 do i=1,lat2
@@ -761,37 +758,40 @@ contains
                 end do
              end do
           end do
-       end do
 
-!      Adjoint of contribution to velocity potential from streamfunction.
-       do k=1,nsig
+!         Adjoint of contribution to velocity potential from streamfunction.
           do j=1,lon2
              do i=1,lat2
                 st(i,j,k)=st(i,j,k)+bvz(i,k)*vp(i,j,k)
              end do
           end do
-       end do
 
-!      Adjoint of streamfunction and unbalanced velocity potential
-!      contribution to surface pressure.
-       if ( fpsproj ) then
-          do k=1,nsig
+!         Adjoint of streamfunction and unbalanced velocity potential
+!         contribution to surface pressure.
+          if ( fpsproj ) then
              do j=1,lon2
                 do i=1,lat2
                    st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
                 end do
              end do
-          end do
-       else
-          do j=1,lon2
-             do i=1,lat2
-                do k=1,nsig-ione
-                   st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
-                end do
-                vp(i,j,1)=vp(i,j,1)+wgvz(i,nsig)*p(i,j)
-             end do
-          end do
-       endif
+          else
+             if(k < nsig)then
+                 do j=1,lon2
+                   do i=1,lat2
+                      st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
+                   end do
+                 end do
+             end if
+             if(k == 1)then
+                 do j=1,lon2
+                   do i=1,lat2
+                     vp(i,j,1)=vp(i,j,1)+wgvz(i,nsig)*p(i,j)
+                   end do
+                 end do
+              end if
+             
+          endif
+       end do
 !   End of REGIONAL/GLOBAL if-then block
     endif
 

@@ -23,7 +23,7 @@ subroutine global_mean(psfc,psave,mype)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,lat2,lon2,wgtlats
-  use constants, only: izero,zero,one,two
+  use constants, only: zero,one,two
   implicit none
 
   real(r_kind),dimension(lat2,lon2),intent(in   ) :: psfc
@@ -35,12 +35,12 @@ subroutine global_mean(psfc,psave,mype)
   integer(i_kind) i,j,wrkpe
 
   psave=zero
-  r_npts=one/(two*float(nlon))
-  wrkpe=izero
+  wrkpe=0
  
   call gather_stuff2(psfc,psg,mype,wrkpe)
 
   if (mype==wrkpe) then
+     r_npts=one/(two*float(nlon))
      do i=1,nlat
         do j=1,nlon
            psave = psave + psg(i,j)*wgtlats(i)
@@ -79,7 +79,7 @@ subroutine global_mean_ad(psfc,psave,mype)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,lat2,lon2,wgtlats
-  use constants, only: izero,ione,zero,one,two
+  use constants, only: zero,one,two
   implicit none
 
   real(r_kind),dimension(lat2,lon2),intent(inout) :: psfc
@@ -91,11 +91,11 @@ subroutine global_mean_ad(psfc,psave,mype)
   real(r_kind) r_npts
   integer(i_kind) i,j,wrkpe
 
-  r_npts=one/(two*float(nlon))
   pstmp=zero
-  wrkpe=izero
+  wrkpe=0
 
   if (mype==wrkpe) then
+     r_npts=one/(two*float(nlon))
      psave = psave*r_npts
      do j=1,nlon
         do i=1,nlat
@@ -106,8 +106,8 @@ subroutine global_mean_ad(psfc,psave,mype)
 
   call scatter_stuff2(psg,pstmp,mype,wrkpe)
 
-  do j=2,lon2-ione
-     do i=2,lat2-ione
+  do j=2,lon2-1
+     do i=2,lat2-1
         psfc(i,j)=psfc(i,j) + pstmp(i,j)
      end do
   end do

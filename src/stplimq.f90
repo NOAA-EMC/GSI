@@ -56,14 +56,13 @@ subroutine stplimq(rq,sq,sges,outmin,outmax,nstep)
 !
 !$$$
   use kinds, only: r_kind,r_quad,i_kind
-  use constants, only: ione
   use gridmod, only: lat2,lon2,nsig
   implicit none
 
 ! Declare passed variables
   integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: outmin,outmax
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(1,nstep)),intent(  out) :: outmin,outmax
   real(r_kind),dimension(lat2*lon2*nsig) ,intent(in   ) :: rq,sq
 
   call stplimq_(rq,sq,sges,outmin,outmax,nstep)
@@ -107,41 +106,40 @@ subroutine stplimq_(rq,sq,sges,outmin,outmax,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use constants, only: izero,ione,zero,two,one,half,zero_quad
+  use constants, only: zero,two,one,half,zero_quad
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
   use jfunc, only: factqmin,factqmax,qgues,qsatg
   implicit none
 
 ! Declare passed variables
   integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: outmin,outmax
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(1,nstep)),intent(  out) :: outmin,outmax
   real(r_kind),dimension(lat2,lon2,nsig) ,intent(in   ) :: rq,sq
 
 ! Declare local variables
   integer(i_kind) i,j,k,kk
-  real(r_kind) q
-  real(r_kind),dimension(nstep):: qx
+  real(r_kind) q,qx
   
   outmin=zero_quad; outmax=zero_quad
 
   if (factqmin==zero .and. factqmax==zero) return
 
 ! Loop over interior of subdomain          
-  if(nstep > izero)then
+  if(nstep > 0)then
      do k = 1,nsig
-        do j = 2,lon1+ione
-           do i = 2,lat1+ione
+        do j = 2,lon1+1
+           do i = 2,lat1+1
 
 !             Values for q using stepsizes
               q  = qgues(i,j,k) + sq(i,j,k)
               do kk=1,nstep
-                 qx(kk) = q + sges(kk)*rq(i,j,k)
-                 if(qx(kk) < zero)then
-                    outmin(kk)=outmin(kk)+factqmin*qx(kk)*qx(kk)/(qsatg(i,j,k)*qsatg(i,j,k))
+                 qx = q + sges(kk)*rq(i,j,k)
+                 if(qx < zero)then
+                    outmin(kk)=outmin(kk)+factqmin*qx*qx/(qsatg(i,j,k)*qsatg(i,j,k))
                  else
-                    if(qx(kk) > qsatg(i,j,k))then
-                       outmax(kk)=outmax(kk)+factqmax*(qx(kk)-qsatg(i,j,k))*(qx(kk)-qsatg(i,j,k))/(qsatg(i,j,k)*qsatg(i,j,k))
+                    if(qx > qsatg(i,j,k))then
+                       outmax(kk)=outmax(kk)+factqmax*(qx-qsatg(i,j,k))*(qx-qsatg(i,j,k))/(qsatg(i,j,k)*qsatg(i,j,k))
                     end if
                  end if
               end do
@@ -150,8 +148,8 @@ subroutine stplimq_(rq,sq,sges,outmin,outmax,nstep)
      end do
   else
      do k = 1,nsig
-        do j = 2,lon1+ione
-           do i = 2,lat1+ione
+        do j = 2,lon1+1
+           do i = 2,lat1+1
 
 !             Values for q using stepsizes
               q  = qgues(i,j,k) 
