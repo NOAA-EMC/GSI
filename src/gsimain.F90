@@ -504,7 +504,7 @@
 !          = 330 - grid --> spectral transform not safe for sptranf_s,v_b
 !          = 331 - trouble writing analysis errors
 !          = 332 - co2 file i/o error
-!
+!          = 333 - mismatch between variable info file and background error fixed file
 !
 ! remarks: resolution, unit numbers and several constants are
 !          in the input data cards

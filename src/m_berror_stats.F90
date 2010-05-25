@@ -357,8 +357,19 @@ end subroutine read_bal
         call setcoroz_(corz(1,1,n),mype)
         call sethwlloz_(hwll(1,1,n),mype)
         call setvscalesoz_(vz(1,1,n))
+	nrf_err(loc)=.true.
      end if   
   end do
+
+! Do final check to make sure that background errors have been loaded for all variables
+  if(mype==0) then
+     do n=1,nrf
+        if (.not. nrf_err(n)) then
+           write(6,*) 'READ_WGT: ***ERROR*** fail to load error variance for ', nrf_var(n)
+	   call stop2(333)
+        end if
+     end do
+  end if
 
   return
 end subroutine read_wgt

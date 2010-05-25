@@ -427,19 +427,23 @@ end subroutine berror_read_bal_reg
      enddo
   endif
 
-  if (nrf3_oz>0) then 
-     factoz = 0.0002_r_kind*r25
-     corz(:,:,nrf3_oz)=factoz
-!    hwll:,:,nrf3_oz)=400000.0_r_kind
-     vz(:,:,nrf3_oz)=vz_oz
-  end if
+  do n=1,nrf3
+     loc=nrf3_loc(n)
+     if (nrf_err(loc)) cycle
+     if (n==nrf3_oz) then
+        factoz = 0.0002_r_kind*r25
+        corz(:,:,nrf3_oz)=factoz
+!       hwll(:,:,nrf3_oz)=400000.0_r_kind
+        vz(:,:,nrf3_oz)=vz_oz
+        nrf_err(loc)=.true.
+     else if (n==nrf3_cw) then
+        corz(:,:,nrf3_cw)=corz(:,:,nrf3_q)
+        hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)
+        vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)
+        nrf_err(loc)=.true.
+     end if
+  end do
 
-  if (nrf3_cw>0) then 
-     corz(:,:,nrf3_cw)=corz(:,:,nrf3_q)
-     hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)
-     vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)
-  end if
-  
 ! 2d variable
   do n=1,nrf2
      loc=nrf2_loc(n)
@@ -453,8 +457,19 @@ end subroutine berror_read_bal_reg
            hwllp(i,nrf2+1)=hwll(i,1,nrf3_sf)
            hwllp(i,nrf2+2)=hwll(i,1,nrf3_sf)
         end do
+        nrf_err(loc)=.true.
      end if
   enddo
+
+! Do final check to make sure that background errors have been loaded for all variables
+  if(mype==0) then
+     do n=1,nrf
+        if (.not. nrf_err(n)) then
+           write(6,*) 'READ_WGT_REG: ***ERROR*** fail to load error variance for ', nrf_var(n)
+           call stop2(333)
+        end if
+     end do
+  end if
 
 
   return
