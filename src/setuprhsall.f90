@@ -361,7 +361,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
  
 !             Set up tc-mslp data
               else if(obstype=='tcp')then
-                 call setuptcp(lunin,mype,bwork,awork(1,i_tcp),nele,nobs,is)
+                 call setuptcp(lunin,mype,bwork,awork(1,i_tcp),nele,nobs,is,conv_diagsave)
 
 !             Set up moisture data
               else if(obstype=='q') then

@@ -1,14 +1,15 @@
-subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is)
+subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setuptcp                     setup tcpel data
 !   prgmmr: kleist            org: np20                date: 2009-02-02
 !
-! abstract:  Setup routine for TC MSLP BOGUS
+! abstract:  Setup routine for TC MSLP data
 !
 ! program history log:
 !   2009-02-02  kleist
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2010-05-25  kleist  - output tc_ps observations to conv diag file
 !
 !   input argument list:
 !
@@ -20,9 +21,10 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is)
 !
 !$$$
   use mpeu_util, only: die,perr
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_single,r_double
   use obsmod, only: tcptail,tcphead,obsdiags,i_tcp_ob_type, &
-             nobskeep,lobsdiag_allocated,oberror_tune,perturb_obs
+             nobskeep,lobsdiag_allocated,oberror_tune,perturb_obs, &
+             time_offset,rmiss_single
   use obsmod, only: tcp_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -31,8 +33,9 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is)
           ntguessig
   use gridmod, only: get_ij,nsig
   use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
-          wgtlim,g_over_rd,huge_r_kind,pi
-  use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg
+          wgtlim,g_over_rd,huge_r_kind,pi,huge_single,tiny_single
+  use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,&
+          icsubtype
   use jfunc, only: jiter,last,jiterstart,miter
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
@@ -43,6 +46,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is)
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork ! obs-ges stats
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork ! data counts and gross checks
 
+  logical                                          ,intent(in)    :: conv_diagsave
+
 ! Declare external calls for code analysis
   external:: tintrp2a
   external:: tintrp3
@@ -50,8 +55,13 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is)
   external:: stop2
 
 ! DECLARE LOCAL PARMS HERE
+  real(r_double) rstation_id
+  character(8) station_id
+  equivalence(rstation_id,station_id)
+
   logical,dimension(nobs):: luse,muse
 
+  real(r_kind) err_input,err_adjst,err_final,errinv_input,errinv_adjst,errinv_final
   real(r_kind) scale,ratio,obserror,obserrlm
   real(r_kind) residual,ress,ressw2,val,val2
   real(r_kind) valqc,tges,tges2
@@ -67,8 +77,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is)
 
   integer(i_kind) i
   integer(i_kind) mm1
-  integer(i_kind) ikxx,nn,istat,iuse,ibin,iptrb
-  integer(i_kind) ier,ilon,ilat,ipres,itime,ikx
+  integer(i_kind) ikxx,nn,istat,iuse,ibin,iptrb,id
+  integer(i_kind) ier,ilon,ilat,ipres,itime,ikx,ilate,ilone
 
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -76,6 +86,10 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is)
   type(tcp_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   character(len=*),parameter:: myname='setuptcp'
+
+  character(8),allocatable,dimension(:):: cdiagbuf
+  real(r_single),allocatable,dimension(:,:)::rdiagbuf
+  integer(i_kind) nchar,nreal,ii
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -90,7 +104,10 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is)
   ipres=4     ! index of pressure
   itime=5     ! index of time observation
   ikxx=6      ! index of observation type in data array
+  ilone=7     ! index of longitude (degrees)
+  ilate=8     ! index of latitude (degrees)
   iuse=9      ! index of usage parameter
+  id=10       ! index of storm name
 
   mm1=mype+1
   scale=one
@@ -106,6 +123,14 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is)
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
+
+  if(conv_diagsave)then
+     nchar=1
+     nreal=19
+     allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
+     ii=0
+  end if
+
 
   call dtime_setup()
   do i=1,nobs
@@ -372,10 +397,70 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is)
         endif
      endif
 
+! Save obs and simulated surface pressure data for diagnostic output
+
+     if(conv_diagsave .and. luse(i))then
+        ii=ii+1
+        rstation_id     = data(id,i)
+        cdiagbuf(ii)    = station_id         ! station id
+        rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
+        rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
+        rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
+        rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
+        rdiagbuf(5,ii)  = 0                  ! station elevation (meters)
+        rdiagbuf(6,ii)  = data(ipres,i)*r10  ! observation pressure (hPa)
+        rdiagbuf(7,ii)  = 0                  ! observation height (meters)
+        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
+
+        rdiagbuf(9,ii)  = 1                  ! input prepbufr qc or event mark
+        rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
+        rdiagbuf(11,ii) = 1                  ! read_prepbufr data usage flag
+        if(muse(i)) then
+           rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
+        else
+           rdiagbuf(12,ii) = -one
+        endif
+
+        pob      = pob*r10
+        pges     = pges*r10
+        pgesorig = pgesorig*r10
+        err_input = data(ier,i)*r10   ! r10 converts cb to mb
+        err_adjst = data(ier,i)*r10
+        if (ratio_errors*error/r10>tiny_r_kind) then
+           err_final = r10/(ratio_errors*error)
+        else
+           err_final = huge_single
+        endif
+
+        errinv_input = huge_single
+        errinv_adjst = huge_single
+        errinv_final = huge_single
+        if (err_input>tiny_single) errinv_input = one/err_input
+        if (err_adjst>tiny_single) errinv_adjst = one/err_adjst
+        if (err_final>tiny_single) errinv_final = one/err_final
+
+        rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
+        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (hPa**-1)
+        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (hPa**-1)
+        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (hPa**-1)
+
+        rdiagbuf(17,ii) = pob                ! surface pressure observation (hPa)
+        rdiagbuf(18,ii) = pob-pges           ! obs-ges used in analysis (coverted to hPa)
+        rdiagbuf(19,ii) = pob-pgesorig       ! obs-ges w/o adjustment to guess surface pressure (hPa)
+
+    end if ! conv_diagsave .true. and luse .true.
+
 ! End of loop over observations
   end do
 
-  call dtime_show(myname,'diagsave:tcp',i_tcp_ob_type)
+! Write information to diagnostic file
+  if(conv_diagsave)then
+     call dtime_show(myname,'diagsave:tcp',i_tcp_ob_type)
+     write(7)'tcp',nchar,nreal,ii,mype
+     write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+     deallocate(cdiagbuf,rdiagbuf)
+  end if
+
 
 ! End of routine
   return
