@@ -64,7 +64,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 ! Declare local parameters
   integer(i_kind),parameter:: maxobs=2e6_i_kind
   integer(i_kind),parameter:: maxdat=20_i_kind
-  real(r_kind),parameter:: r360=360.0_r_kind
+  real(r_double),parameter:: r360=360.0_r_double
 
 ! Declare local variables
   logical dwl,outside
@@ -185,8 +185,8 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 
   rstation_id=hdr(1)
 
-  if (abs(hdr(3))<89.9_r_double) then      !msq
-     if (hdr(2) >= r360) hdr(2)=hdr(2)-r360
+  if (abs(hdr(3))<89.9_r_double .and. abs(hdr(2))<=r360) then      !msq
+     if (hdr(2) == r360) hdr(2)=hdr(2)-r360
      if (hdr(2) < zero)  hdr(2)=hdr(2)+r360
 
      dlat_earth = hdr(3) * deg2rad
@@ -254,7 +254,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,maxdat),i=1,ndata)
 
-  write(6,*)'READ_LIDAR:  number of bad latitudes = ',nbadlat
+  write(6,*)'READ_LIDAR:  number of bad latitudes or longitudes = ',nbadlat
 
 ! Close unit to bufr file
 1010 continue

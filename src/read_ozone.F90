@@ -260,8 +260,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    Convert observation location to radians
      slats0= hdroz(2)
      slons0= hdroz(3)
+     if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) go to 110  
      if(slons0< zero) slons0=slons0+r360
-     if(slons0>=r360) slons0=slons0-r360
+     if(slons0==r360) slons0=zero
      dlat_earth = slats0 * deg2rad
      dlon_earth = slons0 * deg2rad
 
@@ -441,8 +442,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    Convert observation location to radians
      slats0= hdrozg(2)
      slons0= hdrozg(3)
+     if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) go to 120  
      if(slons0< zero) slons0=slons0+r360
-     if(slons0>=r360) slons0=slons0-r360
+     if(slons0==r360) slons0=zero
      dlat_earth = slats0 * deg2rad
      dlon_earth = slons0 * deg2rad
 
@@ -585,8 +587,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    Convert observation location to radians
      slats0= hdrozo(2)
      slons0= hdrozo(3)
+     if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) go to 130  
      if(slons0< zero) slons0=slons0+r360
-     if(slons0>=r360) slons0=slons0-r360
+     if(slons0==r360) slons0=zero
      dlat_earth = slats0 * deg2rad
      dlon_earth = slons0 * deg2rad
 
@@ -724,8 +727,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    convert observation location to radians
            slons0=slons
            slats0=slats
+           if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) cycle
            if(slons0< zero) slons0=slons0+r360
-           if(slons0>=r360) slons0=slons0-r360
+           if(slons0==r360) slons0=zero
            dlat_earth = slats0 * deg2rad
            dlon_earth = slons0 * deg2rad
         

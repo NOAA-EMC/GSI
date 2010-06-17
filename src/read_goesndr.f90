@@ -286,8 +286,9 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
            if (abs(tdiff)>twind) cycle read_loop
         endif
 
+        if(abs(hdr(2))>90._r_kind .or. abs(hdr(1))>r360) cycle read_loop
 !       Convert obs location to radians
-        if (hdr(1)>=r360) hdr(1)=hdr(1)-r360
+        if (hdr(1)==r360) hdr(1)=zero
         if (hdr(1)< zero) hdr(1)=hdr(1)+r360
 
         dlon_earth = hdr(1)*deg2rad   !convert degrees to radians

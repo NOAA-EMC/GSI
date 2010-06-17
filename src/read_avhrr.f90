@@ -83,7 +83,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind),parameter:: mlat_sst = 3000_i_kind
   integer(i_kind),parameter:: mlon_sst = 5000_i_kind
   real(r_kind),parameter:: r6=6.0_r_kind
-  real(r_kind),parameter:: r360=360.0_r_kind
+  real(r_double),parameter:: r360=360.0_r_double
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
 
@@ -238,7 +238,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         endif
 
 !       Convert obs location to radians
-        if (hdr(8)>=r360) hdr(8)=hdr(8)-r360
+        if (abs(hdr(7))>90.0_r_double .or. abs(hdr(8))>r360) cycle read_loop
+        if (hdr(8)==r360) hdr(8)=hdr(8)-r360
         if (hdr(8)< zero) hdr(8)=hdr(8)+r360
 
         dlon_earth = hdr(8)*deg2rad   !convert degrees to radians

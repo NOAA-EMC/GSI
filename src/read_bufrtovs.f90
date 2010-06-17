@@ -481,12 +481,14 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if(ksatid /= kidsat) cycle read_subset
 
 !          Extract observation location and other required information
-           if(abs(bfr1bhdr(11)) <= 91._r_kind .and. abs(bfr1bhdr(12)) <= 361._r_kind)then
+           if(abs(bfr1bhdr(11)) <= 90._r_kind .and. abs(bfr1bhdr(12)) <= r360)then
               dlat_earth = bfr1bhdr(11)
               dlon_earth = bfr1bhdr(12)
-           else
+           elseif(abs(bfr1bhdr(9)) <= 90._r_kind .and. abs(bfr1bhdr(10)) <= r360)then
               dlat_earth = bfr1bhdr(9)
               dlon_earth = bfr1bhdr(10)
+           else
+              cycle read_loop
            end if
            if(dlon_earth<zero)  dlon_earth = dlon_earth+r360
            if(dlon_earth>=r360) dlon_earth = dlon_earth-r360

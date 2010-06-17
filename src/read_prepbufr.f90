@@ -504,7 +504,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  
 !       Extract type, date, and location information
         call ufbint(lunin,hdr,8_i_kind,ione,iret,hdstr)
-        if(hdr(2)>= r360)hdr(2)=hdr(2)-r360
+        if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
+        if(hdr(2)== r360)hdr(2)=hdr(2)-r360
         if(hdr(2) < zero)hdr(2)=hdr(2)+r360
         dlon_earth=hdr(2)*deg2rad
         dlat_earth=hdr(3)*deg2rad

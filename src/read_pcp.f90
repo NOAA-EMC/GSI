@@ -262,8 +262,9 @@
 ! If regional mode, see if observation falls within limited area domain
   dlat_earth = pcpdat(1)
   dlon_earth = pcpdat(2)
+  if (abs(dlat_earth)>90._r_kind .or. abs(dlon_earth)>r360) goto 10
   if (dlon_earth< zero) dlon_earth=dlon_earth+r360
-  if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
+  if (dlon_earth==r360) dlon_earth=dlon_earth-r360
   dlat_earth=dlat_earth*deg2rad
   dlon_earth=dlon_earth*deg2rad
   if(regional)then

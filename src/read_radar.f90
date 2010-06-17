@@ -266,7 +266,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   dlon_earth=hdr(2)       !station lat (degrees)
   dlat_earth=hdr(3)       !station lon (degrees)
 
-  if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
+  if (abs(dlat_earth)>90.0_r_kind .or. abs(dlon_earth)>r360) go to 10  ! bad lat/lon
+  if (dlon_earth==r360) dlon_earth=dlon_earth-r360
   if (dlon_earth<zero ) dlon_earth=dlon_earth+r360
   dlat_earth = dlat_earth * deg2rad
   dlon_earth = dlon_earth * deg2rad
@@ -424,7 +425,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 
      dlat_earth=this_stalat    !station lat (degrees)
      dlon_earth=this_stalon    !station lon (degrees)
-     if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
+     if (abs(dlat_earth)>90.0_r_kind .or. abs(dlon_earth)>r360) cycle
+     if (dlon_earth==r360) dlon_earth=dlon_earth-r360
      if (dlon_earth<zero ) dlon_earth=dlon_earth+r360
      dlat_earth = dlat_earth * deg2rad
      dlon_earth = dlon_earth * deg2rad
@@ -503,7 +505,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 !    Get observation (lon,lat).  Compute distance from radar.
      dlat_earth=thislat
      dlon_earth=thislon
-     if(dlon_earth>=r360) dlon_earth=dlon_earth-r360
+     if (abs(dlat_earth)>90.0_r_kind .or. abs(dlon_earth)>r360) cycle
+     if(dlon_earth==r360) dlon_earth=dlon_earth-r360
      if(dlon_earth<zero ) dlon_earth=dlon_earth+r360
      
      dlat_earth = dlat_earth*deg2rad
@@ -763,7 +766,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
      if(cstaid(1:1)==' ')cstaid(1:1)='S'
      dlat_earth=hdr(1)         !station lat (degrees)
      dlon_earth=hdr(2)         !station lon (degrees)
-     if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
+     if (abs(dlat_earth)>90.0_r_kind .or. abs(dlon_earth)>r360) go to 50
+     if (dlon_earth==r360) dlon_earth=dlon_earth-r360
      if (dlon_earth<zero ) dlon_earth=dlon_earth+r360
      dlat_earth = dlat_earth * deg2rad
      dlon_earth = dlon_earth * deg2rad
@@ -892,7 +896,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
         end if
 
 !       Get observation (lon,lat).  Compute distance from radar.
-        if(radar_obs(3,k)>=r360) radar_obs(3,k)=radar_obs(3,k)-r360
+        if(abs(radar_obs(2,k))>90.0_r_kind .or. abs(radar_obs(3,k))>r360) cycle
+        if(radar_obs(3,k)==r360) radar_obs(3,k)=radar_obs(3,k)-r360
         if(radar_obs(3,k)<zero ) radar_obs(3,k)=radar_obs(3,k)+r360
 
         dlat_earth = radar_obs(2,k)*deg2rad

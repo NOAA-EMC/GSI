@@ -274,8 +274,9 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !          Regional case
            dlat_earth = midat(1,js)  !deg
            dlon_earth = midat(2,js)  !deg
+           if(abs(dlat_earth)>90.0_r_kind .or. abs(dlon_earth)>r360) cycle scan_loop
            if(dlon_earth< zero) dlon_earth = dlon_earth+r360
-           if(dlon_earth>=r360) dlon_earth = dlon_earth-r360
+           if(dlon_earth==r360) dlon_earth = dlon_earth-r360
            dlat_earth = dlat_earth*deg2rad
            dlon_earth = dlon_earth*deg2rad
 
@@ -290,6 +291,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
               end if
 
 !             Check to see if in domain
+!cggg should this be cycle scan_loop?
               if(outside) cycle read_loop
 
 !          Global case

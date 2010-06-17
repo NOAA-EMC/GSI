@@ -326,8 +326,9 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Regional case
         dlat_earth = bufrloc(1,1)  !degrees
         dlon_earth = bufrloc(2,1)  !degrees
+        if(abs(dlat_earth)>90.0_r_kind .or. abs(dlon_earth)>r360) cycle read_loop
         if(dlon_earth<zero ) dlon_earth = dlon_earth+r360
-        if(dlon_earth>=r360) dlon_earth = dlon_earth-r360
+        if(dlon_earth==r360) dlon_earth = dlon_earth-r360
         dlat_earth_deg = dlat_earth
         dlon_earth_deg = dlon_earth
 

@@ -307,7 +307,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
 ! Preliminary (sanity) QC checks for bad and missing data
            good=.true.
-           if((rlat>=1.e+9_r_kind).or.(rlon>=1.e+9_r_kind).or.(height<=zero)) then
+           if((abs(rlat)>90._r_kind).or.(abs(rlon)>r360).or.(height<=zero)) then
               good=.false.
            endif
            if (ref_obs) then
@@ -335,7 +335,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
                  endif
               endif
 
-              if (rlon>=r360)  rlon=rlon-r360
+              if (rlon==r360)  rlon=zero
               if (rlon<zero  ) rlon=rlon+r360
 
               dlat_earth = rlat * deg2rad  !convert to radians
