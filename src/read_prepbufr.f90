@@ -813,7 +813,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          Set usage variable              
            usage = zero
            if(icuse(nc) <= izero)usage=100._r_kind
-           if(qm == 15_i_kind .or. qm == 9_i_kind)usage=100._r_kind
+           if(qm == 15_i_kind .or. qm == 12_i_kind .or. qm == 9_i_kind)usage=100._r_kind
            if(qm >=lim_qm )usage=101._r_kind
            if(convobs .and. pqm(k) >=lim_qm )usage=102._r_kind
 
