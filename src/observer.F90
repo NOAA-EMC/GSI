@@ -43,6 +43,7 @@ module observermod
   use m_gsiBiases, only : create_bias_grids, destroy_bias_grids
   use control_vectors
   use m_berror_stats, only: berror_get_dims
+  use m_berror_stats_reg, only: berror_get_dims_reg
   use timermod, only: timer_ini, timer_fnl
   use read_obsmod, only: read_obs
   use lag_fields, only: lag_guessini
@@ -156,7 +157,11 @@ subroutine guess_init_
   call set_pointer
 
 ! Allocate arrays used in minimization
-  call berror_get_dims(msig,mlat,mlon)  ! _RT: observer should not depend on B
+  if(.not.regional)then                    ! If global, use msig, mlat, and mlon
+     call berror_get_dims(msig,mlat,mlon)  ! _RT: observer should not depend on B
+  else                                     ! If regional, use msig and mlat only
+     call berror_get_dims_reg(msig,mlat)
+  endif
   call create_jfunc(mlat)
 
 ! Intialize lagrangian data assimilation and read in initial position of balloons

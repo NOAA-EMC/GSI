@@ -100,7 +100,7 @@ module mpeu_mpif
 !
 ! !INTERFACE:
 
-#include "mpif.h"
+include "mpif.h"
 
 ! !REVISION HISTORY:
 ! 	01Apr98 - Jing Guo <guo@thunder> - initial prototype/prolog/code

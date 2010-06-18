@@ -2299,39 +2299,6 @@ SUBROUTINE int_unpack_string ( str, buf, n )
   n = strlen + 1
 END SUBROUTINE int_unpack_string
 
-#ifndef MACOS
-SUBROUTINE wrf_sizeof_integer( retval )
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    wrf_sizeof_integer
-!   prgmmr: 
-!
-! abstract:  
-!
-! program history log:
-!     2008-03-31  safford - add subroutine doc block
-!
-!   input argument list:
-!
-!   output argument list:
-!     retval - integer size
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use kinds, only: i_kind
-  IMPLICIT NONE
-
-  INTEGER(i_kind),intent(  out) :: retval
-! IWORDSIZE is defined by CPP
-
-  retval = i_kind
-  RETURN
-END SUBROUTINE wrf_sizeof_integer
-#endif
-
 !WRF:DRIVER_LAYER:UTIL
 !
 
