@@ -1019,7 +1019,7 @@
 ! are introduced.
            if (atmosphere(1)%level_pressure(k) < 200.0_r_kind) &
                atmosphere(1)%absorber(k,3) = atmosphere(1)%absorber(k,3) * &
-              (0.977 + 0.000115_r_kind * atmosphere(1)%pressure(k))
+              (0.977_r_kind + 0.000115_r_kind * atmosphere(1)%pressure(k))
         end do
 
 !    Set up to return Tb jacobians.  Zero atmosphere

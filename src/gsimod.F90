@@ -83,7 +83,8 @@
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,init_rapidrefresh_cldsurf, &
-                            dfi_radar_latent_heat_time_period,metar_impact_radius
+                            dfi_radar_latent_heat_time_period,metar_impact_radius,&
+                            metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs
   implicit none
 
   private
@@ -552,8 +553,11 @@
 !      l_cloud_analysis     -   if .true., turn cloud analysis on
 !      dfi_radar_latent_heat_time_period     -   DFI forward integration window in minutes
 !      metar_impact_radius  - metar cloud observation impact radius in grid number
+!      metar_impact_radius  - metar low cloud observation impact radius in grid number
+!      l_gsd_terrain_match_surfTobs - if .true., GSD terrain match for surface temperature observation
   namelist/rapidrefresh_cldsurf/l_cloud_analysis,dfi_radar_latent_heat_time_period, &
-                                metar_impact_radius
+                                metar_impact_radius,metar_impact_radius_lowCloud,   &
+                                l_gsd_terrain_match_surfTobs
 
 !EOC
 

@@ -17,6 +17,11 @@ module rapidrefresh_cldsurf_mod
 ! Variable Definitions:
 !   def l_cloud_analysis    - namelist logical for cloud analysis (=true) 
 !   def dfi_radar_latent_heat_time_period - DFI forward integration window in minutes
+!   def metar_impact_radius - impact radius for METAR cloud observation
+!   def metar_impact_radius_lowCloud - impact radius for METAR cloud observation
+!                                      that indicate low cloud base
+!   def l_gsd_terrain_match_surfTobs - namelist logical for GSD terrain
+!                                       match for  surface temperature observation
 !
 ! attributes:
 !   language: f90
@@ -34,10 +39,14 @@ module rapidrefresh_cldsurf_mod
   public :: l_cloud_analysis 
   public :: dfi_radar_latent_heat_time_period
   public :: metar_impact_radius
+  public :: metar_impact_radius_lowCloud
+  public :: l_gsd_terrain_match_surfTobs
 
   logical l_cloud_analysis
   real(r_kind)  dfi_radar_latent_heat_time_period
   real(r_kind)  metar_impact_radius
+  real(r_kind)  metar_impact_radius_lowCloud
+  logical l_gsd_terrain_match_surfTobs
 
 
 contains
@@ -66,9 +75,13 @@ contains
     implicit none
 
 !   Set logical flag
-    l_cloud_analysis = .false.   ! .true. = turn on GSD cloud analysis
+    l_cloud_analysis = .false.                        ! .true. = turn on GSD cloud analysis
     dfi_radar_latent_heat_time_period = 30.0_r_kind   ! in minutes
-    metar_impact_radius = 10.0_r_kind   ! in grid
+    metar_impact_radius = 10.0_r_kind                 ! in grid
+    metar_impact_radius_lowCloud = 4.0_r_kind         ! in grid
+    l_gsd_terrain_match_surfTobs = .false.            ! .true. = turn on GSD terrain 
+                                                      !          match for  surface
+                                                      !          temperature observation
 
     return
   end subroutine init_rapidrefresh_cldsurf

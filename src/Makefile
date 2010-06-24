@@ -266,6 +266,7 @@ clean:
 	gsimod.F90 \
 	gsisub.F90 \
 	guess_grids.F90 \
+        gsdcloudanalysis.F90 \
 	half_nmm_grid2.f90 \
 	hilbert_curve.f90 \
         hybrid_ensemble_isotropic_global.f90 \

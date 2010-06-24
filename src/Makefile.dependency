@@ -75,6 +75,7 @@ grid2sub.o : grid2sub.f90 control_vectors.o constants.o jfunc.o gridmod.o mpimod
 gridmod.o : gridmod.f90 mpimod.o mod_nmmb_to_a.o constants.o general_sub2grid_mod.o general_specmod.o kinds.o 
 grtest.o : grtest.f90 control_vectors.o mpimod.o constants.o kinds.o 
 gscond_ad.o : gscond_ad.f90 constants.o kinds.o 
+gsdcloudanalysis.o : gsdcloudanalysis.F90 kinds.o 
 gsi_4dvar.o : gsi_4dvar.f90 gridmod.o geos_pertmod.o constants.o kinds.o 
 gsi_io.o : gsi_io.f90 mpimod.o gridmod.o constants.o kinds.o 
 gsi_nemsio_mod.o : gsi_nemsio_mod.f90 mod_nmmb_to_a.o mpimod.o regional_io.o gridmod.o nemsio_module.o constants.o kinds.o 
@@ -161,7 +162,7 @@ omegas_ad.o : omegas_ad.f90 constants.o kinds.o
 oneobmod.o : oneobmod.F90 obsmod.o gsi_io.o constants.o kinds.o 
 ozinfo.o : ozinfo.f90 obsmod.o mpimod.o constants.o kinds.o 
 patch2grid_mod.o : patch2grid_mod.f90 fgrid2agrid_mod.o smooth_polcarf.o gridmod.o anberror.o constants.o kinds.o 
-pcgsoi.o : pcgsoi.f90 hybrid_ensemble_parameters.o projmethod_support.o timermod.o xhat_vordivmod.o bias_predictors.o state_vectors.o control_vectors.o adjtest.o mod_strong.o stpcalc.o intall.o mpimod.o anberror.o constants.o gridmod.o gsi_4dvar.o jfunc.o obsmod.o qcmod.o kinds.o 
+pcgsoi.o : pcgsoi.f90 rapidrefresh_cldsurf_mod.o hybrid_ensemble_parameters.o projmethod_support.o timermod.o xhat_vordivmod.o bias_predictors.o state_vectors.o control_vectors.o adjtest.o mod_strong.o stpcalc.o intall.o mpimod.o anberror.o constants.o gridmod.o gsi_4dvar.o jfunc.o obsmod.o qcmod.o kinds.o 
 pcgsqrt.o : pcgsqrt.f90 timermod.o control_vectors.o mpimod.o constants.o jfunc.o kinds.o 
 pcp_k.o : pcp_k.f90 gridmod.o pcpinfo.o constants.o kinds.o 
 pcpinfo.o : pcpinfo.f90 mpimod.o gridmod.o obsmod.o constants.o kinds.o 

@@ -87,6 +87,7 @@ subroutine pcgsoi()
 !   2009-10-12  parrish - add beta12mult for scaling by hybrid blending parameters beta1inv, beta2inv
 !                           called only when l_hyb_ens=.true.
 !   2010-05-05  derber - omp commands removed
+!   2010-05-28  Hu      - add call for cloud analysis driver : gsdcloudanalysis
 !
 ! input argument list:
 !
@@ -126,6 +127,7 @@ subroutine pcgsoi()
   use projmethod_support, only: init_mgram_schmidt, &
                                 mgram_schmidt,destroy_mgram_schmidt
   use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
 
   implicit none
 
@@ -575,6 +577,12 @@ subroutine pcgsoi()
   if(l_foto) call update_geswtend(xhat_dt%u,xhat_dt%v,xhat_dt%t,&
                                   xhat_dt%q,xhat_dt%oz,xhat_dt%cw,&
                                   xhat_dt%p)
+
+! cloud analysis  after iteration
+  if(jiter == miter .and. l_cloud_analysis) then
+     call gsdcloudanalysis(mype)
+  endif
+
 ! Write output analysis files
   if(jiter == miter)call write_all(.false.,mype)
   call prt_guess('analysis')

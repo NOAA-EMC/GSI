@@ -28,7 +28,7 @@ LIBbufr   = -L$(CORELIB) -lbufr
 LIBw3     = -L$(CORELIB) -lw3
 LIBsp     = -L$(CORELIB) -lsp
 LIBbacio  = 
-##LIBrrcld  = -L$(CORELIB) -lgnrlcld
+LIBrrcld  = -L$(CORELIB) -lgsdcloud
 LIBsfcio  = -L$(CORELIB) -lsfcio
 LIBsigio  = -L$(CORELIB) -lsigio
 ## LIBcrtm   = -L$(CORELIB) -lcrtm_gfsgsi
@@ -139,6 +139,7 @@ LIBsys          = $(MYLIBsys)
         get_derivatives2.o \
         get_gefs_ensperts_dualres.o \
         get_semimp_mats.o \
+        getsiga.o \
         getprs.o \
         getuv.o \
         getvvel.o \
@@ -199,6 +200,9 @@ LIBsys          = $(MYLIBsys)
         m_berror_stats.o \
         m_berror_stats_reg.o \
         m_dgeevx.o \
+        m_dtime.o \
+        m_obdiag.o \
+        m_rhs.o \
         m_gsiBiases.o \
         m_stats.o \
         m_tick.o \
@@ -393,6 +397,7 @@ LIBsys          = $(MYLIBsys)
         read_NASA_LaRC.o \
         read_RadarRef_mosaic.o \
         reorg_metar_cloud.o \
+        gsdcloudanalysis.o 
 
 
 # ----
@@ -415,12 +420,21 @@ $(LIB):	 $(OBJS)
 #	$(LD) $(LDFLAGS) -o $@ gsimain.o $(OBJS) $(LIBS)
 
 gsi.exe:  $(OBJS) $(LIB) gsimain.o
-	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBrrcld) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBgfsio) $(LIBsp) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys) 
+	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBsp) $(LIBgfsio) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys) $(LIBrrcld)
 	cp gsi.exe $(COREBIN)
 
 # DEPENDENCIES : only dependencies after this line (don't remove the word DEPENDENCIES)
 
 include Makefile.dependency
+
+.SUFFIXES : .F90 .o
+
+.F90.o:
+	$(SED_FTN) $*.F90 > $*.b
+	$(CPP) $(CPPFLAGS) $*.b  > $*.f90
+	$(RM) $*.b
+	$(F90) -c $(FFLAGS) $*.f90
+	$(RM) $*.f90
 
 clean:
 	rm -f *.o *.exe $(LIB)
