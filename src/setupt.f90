@@ -38,6 +38,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use constants, only: huge_single,r1000,wgtlim
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
   use converr, only: ptabl 
+  use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surfTobs
 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
@@ -117,6 +118,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2010-06-10  Hu      - add call for terrain match for surface T obs    
 !
 ! !REMARKS:
 !   language: f90
@@ -194,6 +196,11 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse
+
+!  call GSD terrain match for surface temperature observation
+  if(l_gsd_terrain_match_surfTobs .and. jiter==1) then
+    call gsd_terrain_match_surfTobs(mype,nele,nobs,data)
+  endif
 
 !    index information for data array (see reading routine)
   ier=1       ! index of obs error

@@ -75,6 +75,7 @@ grid2sub.o : grid2sub.f90 control_vectors.o constants.o jfunc.o gridmod.o mpimod
 gridmod.o : gridmod.f90 mpimod.o mod_nmmb_to_a.o constants.o general_sub2grid_mod.o general_specmod.o kinds.o 
 grtest.o : grtest.f90 control_vectors.o mpimod.o constants.o kinds.o 
 gscond_ad.o : gscond_ad.f90 constants.o kinds.o 
+gsd_terrain_match_surfTobs.o : gsd_terrain_match_surfTobs.f90 convinfo.o guess_grids.o gridmod.o constants.o kinds.o 
 gsdcloudanalysis.o : gsdcloudanalysis.F90 kinds.o 
 gsi_4dvar.o : gsi_4dvar.f90 gridmod.o geos_pertmod.o constants.o kinds.o 
 gsi_io.o : gsi_io.f90 mpimod.o gridmod.o constants.o kinds.o 
@@ -246,7 +247,7 @@ setuprw.o : setuprw.f90 m_dtime.o convinfo.o jfunc.o constants.o gridmod.o guess
 setupspd.o : setupspd.f90 m_dtime.o convinfo.o jfunc.o constants.o qcmod.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
 setupsrw.o : setupsrw.f90 m_dtime.o convinfo.o jfunc.o constants.o qcmod.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
 setupsst.o : setupsst.f90 m_dtime.o convinfo.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o obsmod.o guess_grids.o kinds.o mpeu_util.o 
-setupt.o : setupt.f90 m_dtime.o converr.o convinfo.o constants.o guess_grids.o jfunc.o gridmod.o oneobmod.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
+setupt.o : setupt.f90 m_dtime.o rapidrefresh_cldsurf_mod.o converr.o convinfo.o constants.o guess_grids.o jfunc.o gridmod.o oneobmod.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
 setuptcp.o : setuptcp.f90 m_dtime.o jfunc.o convinfo.o constants.o gridmod.o guess_grids.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
 setupw.o : setupw.f90 m_dtime.o converr.o convinfo.o jfunc.o constants.o guess_grids.o gridmod.o oneobmod.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
 setupyobs.o : setupyobs.f90 gsi_4dvar.o obsmod.o kinds.o 

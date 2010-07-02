@@ -397,7 +397,8 @@ LIBsys          = $(MYLIBsys)
         read_NASA_LaRC.o \
         read_RadarRef_mosaic.o \
         reorg_metar_cloud.o \
-        gsdcloudanalysis.o 
+        gsdcloudanalysis.o \
+        gsd_terrain_match_surfTobs.o
 
 
 # ----

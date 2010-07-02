@@ -260,13 +260,14 @@ clean:
 	grid2sub.f90 \
 	gridmod.f90 \
 	gscond_ad.f90 \
+        gsdcloudanalysis.F90 \
+        gsd_terrain_match_surfTobs.f90 \
 	gsi_4dvar.f90 \
 	gsi_io.f90 \
         gsi_nemsio_mod.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
 	guess_grids.F90 \
-        gsdcloudanalysis.F90 \
 	half_nmm_grid2.f90 \
 	hilbert_curve.f90 \
         hybrid_ensemble_isotropic_global.f90 \
