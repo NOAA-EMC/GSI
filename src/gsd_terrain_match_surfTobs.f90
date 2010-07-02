@@ -85,11 +85,11 @@ subroutine gsd_terrain_match_surfTobs(mype,nreal,ndata,cdata_all)
         call intrp2a(ges_z(1,1,ntguessfc),topo1,dlat,dlon,1,1,mype)
         call intrp2a(ges_ps(1,1,ntguessfc),pres1,dlat,dlon,1,1,mype)
         if(iqtflg)then
-          call intrp2a(ges_tv(1,1,1,ntguessig),temp1,dlat,dlon,1,1,mype)
-          call intrp2a(ges_tv(1,1,5,ntguessig),temp5,dlat,dlon,1,1,mype)
+           call intrp2a(ges_tv(1,1,1,ntguessig),temp1,dlat,dlon,1,1,mype)
+           call intrp2a(ges_tv(1,1,5,ntguessig),temp5,dlat,dlon,1,1,mype)
         else
-          call intrp2a(ges_tsen(1,1,1,ntguessig),temp1,dlat,dlon,1,1,mype)
-          call intrp2a(ges_tsen(1,1,5,ntguessig),temp5,dlat,dlon,1,1,mype)
+           call intrp2a(ges_tsen(1,1,1,ntguessig),temp1,dlat,dlon,1,1,mype)
+           call intrp2a(ges_tsen(1,1,5,ntguessig),temp5,dlat,dlon,1,1,mype)
         endif
 
         gamcorr=(temp1-temp5)/geop5  

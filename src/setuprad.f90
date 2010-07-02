@@ -1349,50 +1349,53 @@
               end if
            
            end do
-       
-           do i=1,nchanl
-              delta=max(r0_05*tnoise(i),r0_02)
-              if ( airs) delta=.0002_r_kind
-              do k=1,lcloud
-                 if(abs(cld*dtb(i,k)) > delta)then
+      
+           if ( lcloud > 0 ) then  ! If cloud detected, reject channels affected by it. 
+
+              do i=1,nchanl
+
+!                If more than 2% of the transmittance comes from the cloud layer,
+!                   reject the channel (0.02 is a tunable parameter)
+
+                 if ( ptau5(lcloud,i) > 0.02_r_kind) then 
 !                   QC4 in statsrad
                     if(luse(n))aivals(11,is)   = aivals(11,is) + one
                     varinv(i) = zero
                     varinv_use(i) = zero
                     if(id_qc(i) == 0)id_qc(i)=6
-                    exit
                  end if
               end do
-           end do
 
-!          If no clouds check surface temperature/emissivity
+!             If no clouds check surface temperature/emissivity
 
-           sum=zero
-           sum2=zero
-           do i=1,nchanl
-              sum=sum+tbc(i)*ts(i)*varinv_use(i)
-              sum2=sum2+ts(i)*ts(i)*varinv_use(i)
-           end do
-           if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
-           dts=abs(sum/sum2)
-           if(abs(dts) > one)then
-              if(.not. sea)then
-                 dts=min(dtempf,dts)
-              else
-                 dts=min(three,dts)
-              end if
+           else                 ! If no cloud was detected, do surface temp/emiss checks
+              sum=zero
+              sum2=zero
               do i=1,nchanl
-                 delta=max(r0_05*tnoise(i),r0_02)
-                 if ( airs) delta=.0002_r_kind
-                 if(abs(dts*ts(i)) > delta)then
-!                   QC3 in statsrad
-                    if(luse(n) .and. varinv(i) > zero) &
-                         aivals(10,is)   = aivals(10,is) + one
-                    varinv(i) = zero
-                    if(id_qc(i) == 0)id_qc(i)=7
-                 end if
+                 sum=sum+tbc(i)*ts(i)*varinv_use(i)
+                 sum2=sum2+ts(i)*ts(i)*varinv_use(i)
               end do
-           end if
+              if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
+              dts=abs(sum/sum2)
+              if(abs(dts) > one)then
+                 if(.not. sea)then
+                    dts=min(dtempf,dts)
+                 else
+                    dts=min(three,dts)
+                 end if
+                 do i=1,nchanl
+                    delta=max(r0_05*tnoise(i),r0_02)
+                    if(abs(dts*ts(i)) > delta)then
+!                      QC3 in statsrad
+                       if(luse(n) .and. varinv(i) > zero) &
+                            aivals(10,is)   = aivals(10,is) + one
+                       varinv(i) = zero
+                       if(id_qc(i) == 0)id_qc(i)=7
+                    end if
+                 end do
+              end if
+           endif
+
            cenlatx=abs(cenlat)*oneover25
            if (cenlatx < one) then
               if(luse(n))aivals(6,is) = aivals(6,is) + one

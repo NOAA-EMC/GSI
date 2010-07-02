@@ -199,7 +199,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !  call GSD terrain match for surface temperature observation
   if(l_gsd_terrain_match_surfTobs .and. jiter==1) then
-    call gsd_terrain_match_surfTobs(mype,nele,nobs,data)
+     call gsd_terrain_match_surfTobs(mype,nele,nobs,data)
   endif
 
 !    index information for data array (see reading routine)
