@@ -50,6 +50,8 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2009-01-28  todling - update observer calling procedure 
 !   2009-08-19  guo     - #ifdef out destroy_gesfinfo() call for multi-pass observer.
 !
+!   2010-05-13  huang   - add read_aerosol
+!
 !   input argument list:
 !     mype - mpi task id
 !
@@ -73,6 +75,7 @@ subroutine gsisub(mype,init_pass,last_pass)
        destroy_pcp_random
   use convinfo, only: convinfo_read
   use ozinfo, only: ozinfo_read
+  use aeroinfo, only: aeroinfo_read
   use read_l2bufr_mod, only: radar_bufr_read_all
   use oneobmod, only: oneobtest,oneobmakebufr
 #ifndef HAVE_ESMF
@@ -130,6 +133,7 @@ subroutine gsisub(mype,init_pass,last_pass)
         call radinfo_read
         call ozinfo_read(mype)
         call pcpinfo_read(mype)
+        call aeroinfo_read(mype)
      endif
      call convinfo_read(mype)
 #ifdef VERBOSE

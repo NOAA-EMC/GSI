@@ -186,6 +186,7 @@ clean:
   SRCSF90C = \
 	abor1.f90 \
         adjtest.f90 \
+	aeroinfo.f90 \
 	anberror.f90 \
 	anbkerror.f90 \
 	aniso_ens_util.f90 \
@@ -371,6 +372,7 @@ clean:
 	raflib.f90 \
         rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
+	read_aerosol.F90 \
 	read_airs.f90 \
 	read_amsre.f90 \
 	read_avhrr.f90 \

@@ -302,6 +302,9 @@ subroutine read_obs(ndata,mype)
 !   2010-04-01  treadon - move strip and reorder to gridmod
 !   2010-04-08  hliu - add seviri
 !
+!   2010-04-05  huang   - add aero and modis for reading modis aod from satellite
+!                         currently read BUFR file only
+!
 !   input argument list:
 !     mype     - mpi task id
 !
@@ -329,6 +332,7 @@ subroutine read_obs(ndata,mype)
     use converr, only: converr_read
     use guess_grids, only: ges_prsl,ntguessig,destroy_sfc_grids
     use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad
+    use aeroinfo, only: nusis_aero,iuse_aero,jpch_aero,diag_aero
     use ozinfo, only: nusis_oz,iuse_oz,jpch_oz,diag_ozone
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv
@@ -346,6 +350,7 @@ subroutine read_obs(ndata,mype)
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full
     logical :: use_sfc,nuse
     logical,dimension(ndat):: belong,parallel_read
+    logical :: modis
     character(10):: obstype,platid
     character(13):: string,infile
     character(16):: filesave
@@ -420,6 +425,7 @@ subroutine read_obs(ndata,mype)
        sndr = index(obstype,'sndr') /= 0
        hirs = index(obstype,'hirs') /= 0
        avhrr = index(obstype,'avhrr') /= 0
+       modis = index(obstype,'modis') /= 0
 !  Control parallel read for each ob type (currently just rad obs).  
 !  To remove parallel read comment out line.
        if(hirs .and. dthin(i) > 0)parallel_read(i)= .true.
@@ -464,6 +470,8 @@ subroutine read_obs(ndata,mype)
           ditype(i) = 'pcp'
        else if (obstype == 'gps_ref' .or. obstype == 'gps_bnd') then
           ditype(i) = 'gps'
+       else if ( modis ) then
+          ditype(i) = 'aero'
        else
           write(6,*)'READ_OBS:  ***ERROR*** - unknown ob type ',obstype
        end if
@@ -499,12 +507,18 @@ subroutine read_obs(ndata,mype)
           endif
        else if(ditype(i) == 'pcp')then
           if(diag_pcp)minuse=-2
-             do j=1,npcptype
-                if(trim(dsis(i)) == trim(nupcp(j)) .and. iusep(j) > minuse)nuse=.true.
-             end do
-          else
-             nuse=.true.
-          end if
+          do j=1,npcptype
+             if(trim(dsis(i)) == trim(nupcp(j)) .and. iusep(j) > minuse)nuse=.true.
+          end do
+       else if(ditype(i) == 'aero')then
+          if(diag_aero)minuse=-2_i_kind
+          do j=1,jpch_aero
+             if(trim(dsis(i)) == trim(nusis_aero(j)) .and. iuse_aero(j) > minuse)nuse=.true.
+          end do
+       else
+          nuse=.true.
+       end if
+
        if(.not. nuse)then
           if(mype == 0)write(6,*) 'data type ',dsis(i), &
                 'not used in info file -- do not read file',dfile(i)
@@ -877,6 +891,12 @@ subroutine read_obs(ndata,mype)
              call read_gps(nread,npuse,nouse,infile,lunout,obstype,twind, &
                   nprof_gps1,sis)
              string='READ_GPS'
+
+!         Process aerosol data
+          else if (ditype(i) == 'aero' )then
+             call read_aerosol(nread,npuse,nouse,&
+                  platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh)
+             string='READ_AEROSOL'
              
           end if
 

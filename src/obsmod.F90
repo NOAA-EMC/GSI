@@ -72,6 +72,7 @@ module obsmod
 !                                     cross-validation in 2dvar
 !   2010-02-10  jing     - merge in obs key set (idv,iob,ich) in obs types for unique
 !                          run-time identification (in sorting and searching).
+!   2010-06-14  huang    - add aerosol variable (*aero*)
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -149,6 +150,7 @@ module obsmod
 !   def iout_q       - output unit for moisture stats
 !   def iout_uv      - output unit for wind stats
 !   def iout_oz      - output unit for ozone stats
+!   def iout_aero    - output unit for aerosol stats
 !   def iout_ps      - output unit for surface pressure stats
 !   def iout_pw      - output unit for precipitable water stats
 !   def iout_rw      - output unit for radar wind stats
@@ -168,6 +170,7 @@ module obsmod
 !   def mype_gps     - task to handle gps observation stats
 !   def mype_sst     - task to handle conventional sst stats
 !   def mype_lag     - task to handle conventional lag stats
+!   def mype_aero    - task to handle aerosol stats
 !   def oberrflg     - logical for reading in new observation error table
 !                      .true.  will read in obs errors from file 'errtable'
 !                      .false. will not read in new obs errors
@@ -245,6 +248,7 @@ module obsmod
   public :: pcp_ob_head,o3l_ob_head,gps_ob_head
   public :: lag_ob_head,srw_ob_head,pw_ob_head,oz_ob_head,rad_ob_head
   public :: tcp_ob_head,odiags
+  public :: mype_aero, iout_aero, nlaero
 
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
@@ -269,8 +273,10 @@ module obsmod
   integer(i_kind),parameter:: i_rad_ob_type=15    ! rad_ob_type
   integer(i_kind),parameter:: i_tcp_ob_type=16    ! tcp_ob_type
   integer(i_kind),parameter:: i_lag_ob_type=17    ! lag_ob_type
+  integer(i_kind),parameter:: i_aero_ob_type =18  ! aero_ob_type
+  integer(i_kind),parameter:: i_aerol_ob_type=19  ! aero_ob_type
 
-  integer(i_kind),parameter:: nobs_type = 17      ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 19      ! number of observation types
 
 ! Structure for diagnostics
 
@@ -641,6 +647,47 @@ module obsmod
      type(o3l_ob_type),pointer :: head => NULL()
   end type o3l_ob_head
 
+  type aero_ob_type
+     sequence
+     type(aero_ob_type),pointer :: llpoint => NULL()
+     type(odiags),dimension(:),pointer    :: diags => NULL()
+     real(r_kind),dimension(:),pointer    :: res  => NULL()    !  aerosol property residual
+     real(r_kind),dimension(:),pointer    :: err2 => NULL()    !  aerosol property error squared
+     real(r_kind),dimension(:),pointer    :: raterr2 => NULL() !  square of ratio of final obs error
+                                                               !  to original obs error
+     real(r_kind)                         :: time              !  observation time in sec
+     real(r_kind),dimension(:,:),pointer  :: wij => NULL()     !  horizontal interpolation weights
+     real(r_kind),dimension(:),pointer    :: prs => NULL()     !  pressure levels
+     integer(i_kind),dimension(:),pointer :: ipos  => NULL()
+     integer(i_kind) :: ij(4)                                  !  horizontal locations
+     integer(i_kind) :: nlaero                                 !  number of levels for this profile
+     logical         :: luse                                   !  flag indicating if ob is used in pen.
+  end type aero_ob_type
+
+  type aero_ob_head
+     type(aero_ob_type),pointer :: head => NULL()
+  end type aero_ob_head
+
+  type aerol_ob_type
+    sequence
+     type(aerol_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  aerosol residual
+     real(r_kind)    :: err2          !  aerosol obs error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(8)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(8)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+  end type aerol_ob_type
+
+  type aerol_ob_head
+     type(aerol_ob_type),pointer :: head => NULL()
+  end type aerol_ob_head
+
   type gps_ob_type
      sequence
      type(gps_ob_type),pointer :: llpoint => NULL()
@@ -789,23 +836,25 @@ module obsmod
 
   type obs_handle
      sequence
-     type(ps_ob_type),pointer  :: ps  => NULL() 
-     type(t_ob_type),pointer   :: t   => NULL()
-     type(w_ob_type),pointer   :: w   => NULL()
-     type(q_ob_type),pointer   :: q   => NULL()
-     type(spd_ob_type),pointer :: spd => NULL()
-     type(srw_ob_type),pointer :: srw => NULL()
-     type(rw_ob_type),pointer  :: rw  => NULL()
-     type(dw_ob_type),pointer  :: dw  => NULL()
-     type(sst_ob_type),pointer :: sst => NULL()
-     type(pw_ob_type),pointer  :: pw  => NULL()
-     type(oz_ob_type),pointer  :: oz  => NULL()
-     type(o3l_ob_type),pointer :: o3l => NULL()
-     type(gps_ob_type),pointer :: gps => NULL()
-     type(rad_ob_type),pointer :: rad => NULL()
-     type(pcp_ob_type),pointer :: pcp => NULL()
-     type(tcp_ob_type),pointer :: tcp => NULL()
-     type(lag_ob_type),pointer :: lag => NULL()
+     type(ps_ob_type),pointer    :: ps  => NULL() 
+     type(t_ob_type),pointer     :: t   => NULL()
+     type(w_ob_type),pointer     :: w   => NULL()
+     type(q_ob_type),pointer     :: q   => NULL()
+     type(spd_ob_type),pointer   :: spd => NULL()
+     type(srw_ob_type),pointer   :: srw => NULL()
+     type(rw_ob_type),pointer    :: rw  => NULL()
+     type(dw_ob_type),pointer    :: dw  => NULL()
+     type(sst_ob_type),pointer   :: sst => NULL()
+     type(pw_ob_type),pointer    :: pw  => NULL()
+     type(oz_ob_type),pointer    :: oz  => NULL()
+     type(o3l_ob_type),pointer   :: o3l => NULL()
+     type(gps_ob_type),pointer   :: gps => NULL()
+     type(rad_ob_type),pointer   :: rad => NULL()
+     type(pcp_ob_type),pointer   :: pcp => NULL()
+     type(tcp_ob_type),pointer   :: tcp => NULL()
+     type(lag_ob_type),pointer   :: lag => NULL()
+     type(aero_ob_type),pointer  :: aero  => NULL()
+     type(aerol_ob_type),pointer :: aerol => NULL()
   end type obs_handle
 
 ! Declare types
@@ -852,6 +901,12 @@ module obsmod
   type(o3l_ob_head),dimension(:),pointer :: o3lhead
   type(o3l_ob_head),dimension(:),pointer :: o3ltail
   type(o3l_ob_type),pointer :: o3lptr => NULL()
+  type(aero_ob_head),dimension(:),pointer :: aerohead => NULL()
+  type(aero_ob_head),dimension(:),pointer :: aerotail => NULL()
+  type(aero_ob_type),pointer :: aeroptr => NULL()
+  type(aerol_ob_head),dimension(:),pointer :: aerolhead
+  type(aerol_ob_head),dimension(:),pointer :: aeroltail
+  type(aerol_ob_type),pointer :: aerolptr => NULL()
   type(gps_ob_head),dimension(:),pointer :: gpshead
   type(gps_ob_head),dimension(:),pointer :: gpstail
   type(gps_ob_type),pointer :: gpsptr => NULL()
@@ -887,6 +942,7 @@ module obsmod
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_srw,mype_gps,mype_sst, &
                   mype_tcp,mype_lag
+  integer(i_kind) nlaero, iout_aero, mype_aero
   integer(i_kind),dimension(5):: iadate
   integer(i_kind),dimension(ndatmax):: dsfcalc,dthin,ipoint
   integer(i_kind),allocatable,dimension(:)::  nsat1,mype_diaghdr
@@ -994,6 +1050,7 @@ contains
     iout_sst=213   ! conventional sst
     iout_tcp=214   ! synthetic tc-mslp
     iout_lag=215   ! lagrangian tracers
+    iout_aero=216  ! aerosol product (aod)
 
     mype_ps = npe-1          ! surface pressure
     mype_uv = max(0,npe-2)   ! u,v wind components
@@ -1007,6 +1064,7 @@ contains
     mype_sst= max(0,npe-10)  ! conventional sst
     mype_tcp= max(0,npe-11)  ! synthetic tc-mslp
     mype_lag= max(0,npe-12)  ! lagrangian tracers
+    mype_aero= max(0,npe-13) ! aerosol product (aod)
     
 !   Initialize arrays used in namelist obs_input 
     ndat = ndatmax          ! number of observation types (files)
@@ -1039,23 +1097,25 @@ contains
     nprof_gps = 0
 
 !   Define a name for obs types
-    cobstype( i_ps_ob_type)="surface pressure    " ! ps_ob_type
-    cobstype(  i_t_ob_type)="temperature         " ! t_ob_type
-    cobstype(  i_w_ob_type)="wind                " ! w_ob_type
-    cobstype(  i_q_ob_type)="moisture            " ! q_ob_type
-    cobstype(i_spd_ob_type)="wind speed          " ! spd_ob_type
-    cobstype(i_srw_ob_type)="srw                 " ! srw_ob_type
-    cobstype( i_rw_ob_type)="radial wind         " ! rw_ob_type
-    cobstype( i_dw_ob_type)="doppler wind        " ! dw_ob_type
-    cobstype(i_sst_ob_type)="sst                 " ! sst_ob_type
-    cobstype( i_pw_ob_type)="precipitable water  " ! pw_ob_type
-    cobstype(i_pcp_ob_type)="precipitation       " ! pcp_ob_type
-    cobstype( i_oz_ob_type)="ozone               " ! oz_ob_type
-    cobstype(i_o3l_ob_type)="level ozone         " ! o3l_ob_type
-    cobstype(i_gps_ob_type)="gps                 " ! gps_ob_type
-    cobstype(i_rad_ob_type)="radiance            " ! rad_ob_type
-    cobstype(i_tcp_ob_type)="tcp (tropic cyclone)" ! tcp_ob_type
-    cobstype(i_lag_ob_type)="lagrangian tracer   " ! lag_ob_type
+    cobstype( i_ps_ob_type)  ="surface pressure    " ! ps_ob_type
+    cobstype(  i_t_ob_type)  ="temperature         " ! t_ob_type
+    cobstype(  i_w_ob_type)  ="wind                " ! w_ob_type
+    cobstype(  i_q_ob_type)  ="moisture            " ! q_ob_type
+    cobstype(i_spd_ob_type)  ="wind speed          " ! spd_ob_type
+    cobstype(i_srw_ob_type)  ="srw                 " ! srw_ob_type
+    cobstype( i_rw_ob_type)  ="radial wind         " ! rw_ob_type
+    cobstype( i_dw_ob_type)  ="doppler wind        " ! dw_ob_type
+    cobstype(i_sst_ob_type)  ="sst                 " ! sst_ob_type
+    cobstype( i_pw_ob_type)  ="precipitable water  " ! pw_ob_type
+    cobstype(i_pcp_ob_type)  ="precipitation       " ! pcp_ob_type
+    cobstype( i_oz_ob_type)  ="ozone               " ! oz_ob_type
+    cobstype(i_o3l_ob_type)  ="level ozone         " ! o3l_ob_type
+    cobstype(i_gps_ob_type)  ="gps                 " ! gps_ob_type
+    cobstype(i_rad_ob_type)  ="radiance            " ! rad_ob_type
+    cobstype(i_tcp_ob_type)  ="tcp (tropic cyclone)" ! tcp_ob_type
+    cobstype(i_lag_ob_type)  ="lagrangian tracer   " ! lag_ob_type
+    cobstype( i_aero_ob_type)="modis aerosol aod   " ! aero_ob_type
+    cobstype(i_aerol_ob_type)="level modis aero aod" ! aerol_ob_type
 
     hilbert_curve=.false.
 
@@ -1165,6 +1225,10 @@ contains
     ALLOCATE(oztail (nobs_bins))
     ALLOCATE(o3lhead(nobs_bins))
     ALLOCATE(o3ltail(nobs_bins))
+    ALLOCATE(aerohead (nobs_bins))
+    ALLOCATE(aerotail (nobs_bins))
+    ALLOCATE(aerolhead(nobs_bins))
+    ALLOCATE(aeroltail(nobs_bins))
     ALLOCATE(radhead(nobs_bins))
     ALLOCATE(radtail(nobs_bins))
     ALLOCATE(gpshead(nobs_bins))
@@ -1438,6 +1502,30 @@ contains
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for o3l, istatus=',istatus
           o3ltail(ii)%head => o3lhead(ii)%head
        end do
+    end do
+
+    do ii=1,nobs_bins
+      aerotail(ii)%head => aerohead(ii)%head
+      do while (associated(aerotail(ii)%head))
+        aerohead(ii)%head => aerotail(ii)%head%llpoint
+        deallocate(aerotail(ii)%head%res, aerotail(ii)%head%wij,&
+                   aerotail(ii)%head%err2,aerotail(ii)%head%raterr2, &
+                   aerotail(ii)%head%prs,aerotail(ii)%head%ipos,stat=istatus)
+        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for aero arrays, istatus=',istatus
+        deallocate(aerotail(ii)%head,stat=istatus)
+        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for aero, istatus=',istatus
+        aerotail(ii)%head => aerohead(ii)%head
+      end do
+    end do
+
+    do ii=1,nobs_bins
+      aeroltail(ii)%head => aerolhead(ii)%head
+      do while (associated(aeroltail(ii)%head))
+        aerolhead(ii)%head => aeroltail(ii)%head%llpoint
+        deallocate(aeroltail(ii)%head,stat=istatus)
+        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for aerol, istatus=',istatus
+        aeroltail(ii)%head => aerolhead(ii)%head
+      end do
     end do
 
     do ii=1,nobs_bins
