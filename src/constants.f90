@@ -49,7 +49,7 @@ module constants
   public :: rad2deg,zero_quad,r3600,r1000,r60inv,five,four,rd_over_cp,grav
   public :: rd,rozcon,rearth_equator,zero_single,tiny_r_kind,tiny_single
   public :: omega,rcp,rearth,fv,h300,cp,cg_term,tpwcon,xb,ttp,psatk,xa,tmix
-  public :: xai,xbi,psat,eps,omeps,wgtlim,one_quad,epsq,climit,epsm1,hvap
+  public :: xai,xbi,psat,eps,omeps,wgtlim,one_quad,two_quad,epsq,climit,epsm1,hvap
   public :: hsub,cclimit,el2orc,elocp,h1000,cpr,pcpeff0,pcpeff2,delta,pcpeff1
   public :: factor1,c0,pcpeff3,factor2,dx_inv,dx_min,rhcbot,rhctop,hfus,ke2
   public :: rrow,cmr,cws,r60,huge_i_kind,huge_r_kind,t0c,rd_over_cp_mass
@@ -103,6 +103,7 @@ module constants
 
   real(r_quad),parameter::  zero_quad = 0.0_r_quad
   real(r_quad),parameter::  one_quad  = 1.0_r_quad
+  real(r_quad),parameter::  two_quad  = 2.0_r_quad
 
 
 ! Constants for gps refractivity (Bevis et al 1994)

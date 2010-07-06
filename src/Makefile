@@ -254,7 +254,6 @@ clean:
 	getuv.f90 \
 	getvvel.f90 \
 	glbsoi.F90 \
-	global_mean.f90 \
         grtest.f90 \
 	grdcrd.f90 \
 	grid2sub.f90 \

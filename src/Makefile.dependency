@@ -69,7 +69,6 @@ getsiga.o : getsiga.F90 state_vectors.o lanczos.o jfunc.o gsi_4dvar.o constants.
 getuv.o : getuv.f90 compact_diffs.o mpimod.o gridmod.o constants.o kinds.o 
 getvvel.o : getvvel.f90 guess_grids.o tendsmod.o gridmod.o constants.o kinds.o 
 glbsoi.o : glbsoi.F90 hybrid_ensemble_isotropic_regional.o hybrid_ensemble_parameters.o timermod.o observer.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o converr.o pcpinfo.o radinfo.o control_vectors.o pcgsoi.o gsi_4dvar.o jcmod.o smooth_polcarf.o obs_sensitivity.o turblmod.o obsmod.o guess_grids.o gridmod.o compact_diffs.o balmod.o berror.o anisofilter_glb.o anisofilter.o anberror.o jfunc.o mpimod.o constants.o kinds.o 
-global_mean.o : global_mean.f90 constants.o gridmod.o kinds.o 
 grdcrd.o : grdcrd.f90 constants.o kinds.o 
 grid2sub.o : grid2sub.f90 control_vectors.o constants.o jfunc.o gridmod.o mpimod.o kinds.o 
 gridmod.o : gridmod.f90 mpimod.o mod_nmmb_to_a.o constants.o general_sub2grid_mod.o general_specmod.o kinds.o 
@@ -96,7 +95,7 @@ int3dvar.o : int3dvar.f90 state_vectors.o gridmod.o jfunc.o mpimod.o kinds.o
 intall.o : intall.f90 timermod.o intjcpdry.o intlimq.o state_vectors.o bias_predictors.o intjo.o obsmod.o jfunc.o jcmod.o constants.o gsi_4dvar.o kinds.o 
 intdw.o : intdw.f90 jfunc.o gridmod.o qcmod.o obsmod.o constants.o kinds.o 
 intgps.o : intgps.f90 jfunc.o constants.o gridmod.o qcmod.o obsmod.o kinds.o 
-intjcpdry.o : intjcpdry.f90 jcmod.o guess_grids.o gridmod.o constants.o kinds.o 
+intjcpdry.o : intjcpdry.f90 jcmod.o mpl_allreduce.o guess_grids.o gridmod.o constants.o kinds.o 
 intjo.o : intjo.f90 intlag.o intoz.o intpcp.o intdw.o intsst.o intsrw.o intspd.o intrw.o intgps.o inttcp.o intrad.o intq.o intpw.o intps.o intw.o intt.o bias_predictors.o state_vectors.o control_vectors.o jfunc.o obsmod.o constants.o kinds.o mpl_allreduce.o 
 intlag.o : intlag.F90 mpimod.o lag_traj.o lag_fields.o jfunc.o gridmod.o qcmod.o obsmod.o constants.o kinds.o 
 intlimq.o : intlimq.f90 jfunc.o gridmod.o constants.o kinds.o 
@@ -273,7 +272,7 @@ stpcalc.o : stpcalc.f90 timermod.o mpl_allreduce.o state_vectors.o control_vecto
 stpcld.o : stpcld.f90 constants.o gridmod.o qcmod.o obsmod.o kinds.o 
 stpdw.o : stpdw.f90 jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
 stpgps.o : stpgps.f90 jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
-stpjcpdry.o : stpjcpdry.f90 jcmod.o guess_grids.o gridmod.o constants.o kinds.o 
+stpjcpdry.o : stpjcpdry.f90 jcmod.o mpl_allreduce.o guess_grids.o gridmod.o constants.o kinds.o 
 stpjo.o : stpjo.f90 state_vectors.o bias_predictors.o control_vectors.o stpoz.o stppcp.o stpdw.o stptcp.o stpsst.o stpsrw.o stpspd.o stprw.o stpgps.o stprad.o stpq.o stppw.o stpps.o stpw.o stpt.o obsmod.o kinds.o 
 stplimq.o : stplimq.f90 jfunc.o constants.o gridmod.o kinds.o 
 stpoz.o : stpoz.f90 jfunc.o constants.o gridmod.o obsmod.o kinds.o 

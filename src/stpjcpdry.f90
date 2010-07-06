@@ -2,16 +2,13 @@ module stpjcpdrymod
 
 !$$$ module documentation block
 !           .      .    .                                       .
-! module:   stpjcpdrymod    module for stpps and its tangent linear stpps_tl
+! module:   stpjcpdrymod    module for stpjcpdry
 !  prgmmr:
 !
-! abstract: module for stpps and its tangent linear stpps_tl
+! abstract: module for stpjcpdry
 !
 ! program history log:
-!   2005-05-18  Yanqiu zhu - wrap stpps and its tangent linear stpps_tl into one module
-!   2005-11-16  Derber - remove interfaces
-!   2008-12-02  Todling - remove stpps_tl
-!   2009-08-12  lueken - update documentation
+!   2009-07-07  kleist
 !
 ! subroutines included:
 !   sub stpjcpdry
@@ -40,6 +37,7 @@ contains
 !
 ! program history log:
 !   2009-07-07  kleist
+!   2010-05-25  derber - modify to decrease number of communications
 !
 !   input argument list:
 !     rq       - q search direction
@@ -61,9 +59,10 @@ contains
 !
 !$$$
   use kinds, only: r_quad,r_kind,i_kind
-  use constants, only: zero,zero_quad
-  use gridmod, only: lat2,lon2,nsig
+  use constants, only: zero,zero_quad,one_quad,two_quad
+  use gridmod, only: lat2,lon2,nsig,wgtlats,nlon,istart
   use guess_grids, only:  ges_prsi,ntguessig
+  use mpl_allreducemod, only: mpl_allreduce
   use jcmod, only: bamp_jcpdry
   implicit none
 
@@ -74,42 +73,48 @@ contains
   integer(i_kind)                       ,intent(in   ) :: mype
 
 ! Declare local variables
-  real(r_kind),dimension(lat2,lon2):: sqint,rqint
-  real(r_kind) spave,rpave,sqave,rqave,sdmass,rdmass
-  integer(i_kind) i,j,k,it
+  real(r_quad),dimension(2):: dmass
+  real(r_quad) :: rcon,con
+  integer(i_kind) i,j,k,it,mm1,ii
 
   pen=zero_quad ; b=zero_quad ; c=zero_quad
-  sqint=zero ; rqint=zero
   it=ntguessig
 
+  dmass=zero_quad
+  rcon=one_quad/(two_quad*float(nlon))
+  mm1=mype+1
+
+! Calculate mean surface pressure contribution in subdomain
+  do j=2,lon2-1
+    do i=2,lat2-1
+      ii=istart(mm1)+i-2
+      con=wgtlats(ii)*rcon
+      dmass(1)=dmass(1)+sp(i,j)*con
+      dmass(2)=dmass(2)+rp(i,j)*con
+    end do
+  end do
+! Remove water to get incremental dry ps
   do k=1,nsig
-     do j=1,lon2
-        do i=1,lat2
-           sqint(i,j)=sqint(i,j) + ( (sq(i,j,k)+sc(i,j,k))* &
-                (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it)) )
-           rqint(i,j)=rqint(i,j) + ( (rq(i,j,k)+rc(i,j,k))* &
-                (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it)) ) 
+     do j=2,lon2-1
+        do i=2,lat2-1
+           ii=istart(mm1)+i-2
+           con=(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))*wgtlats(ii)*rcon
+           dmass(1)=dmass(1) - (sq(i,j,k)+sc(i,j,k))*con
+           dmass(2)=dmass(2) - (rq(i,j,k)+rc(i,j,k))*con
         end do
      end do
   end do
 
-! First, use MPI to get global mean increment
-  call global_mean(sp,spave,mype)
-  call global_mean(rp,rpave,mype)
-  call global_mean(sqint,sqave,mype)
-  call global_mean(rqint,rqave,mype)
+  call mpl_allreduce(2,dmass)
 
   if (mype==0) then
-!    Subtract out water to get incremental dry mass
-     sdmass=spave-sqave
-     rdmass=rpave-rqave
 
 !    Now penalize non-zero global mean dry ps increment
 !    Notice there will only be a contribution from PE=0
 
-     pen = bamp_jcpdry*sdmass*sdmass
-     b  = -bamp_jcpdry*rdmass*sdmass
-     c  = bamp_jcpdry*rdmass*rdmass
+     pen = bamp_jcpdry*dmass(1)*dmass(1)
+     b  = -bamp_jcpdry*dmass(2)*dmass(1)
+     c  =  bamp_jcpdry*dmass(2)*dmass(2)
   end if
 
   return

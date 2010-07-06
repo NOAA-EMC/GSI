@@ -2,17 +2,13 @@ module intjcpdrymod
 
 !$$$ module documentation block
 !           .      .    .                                       .
-! module:   intjcpdrymod    module for intlimq and its tangent linear intlimq_tl
+! module:   intjcpdrymod    module for intjcpdry
 !   prgmmr:
 !
-! abstract: module for intlimq and its tangent linear intlimq_tl
+! abstract: module for intjcpdry
 !
 ! program history log:
-!   2005-05-11  Yanqiu zhu - wrap intlimq and its tangent linear intlimq_tl into one module
-!   2005-11-16  Derber - remove interfaces
-!   2005-11-22  Wu - return if factq's = zero
-!   2008-11-26  Todling - remove intlimq_tl
-!   2009-08-13  lueken - update documentation
+!   2009-07-07  kleist
 !
 ! subroutines included:
 !   sub intjcpdry
@@ -43,6 +39,7 @@ contains
 !
 ! program history log:
 !   2009-07-07  kleist
+!   2010-05-25  derber - modify to minimize number of communications
 !
 !   input argument list:
 !     rq       - q search direction
@@ -63,10 +60,11 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
-  use constants, only: zero
-  use gridmod, only: lat2,lon2,nsig
+  use kinds, only: r_kind,i_kind,r_quad
+  use constants, only: zero_quad,one_quad,two_quad
+  use gridmod, only: lat2,lon2,nsig,wgtlats,nlon,istart
   use guess_grids, only: ges_prsi,ntguessig
+  use mpl_allreducemod, only: mpl_allreduce
   use jcmod, only: bamp_jcpdry
   implicit none
 
@@ -78,41 +76,53 @@ contains
   integer(i_kind)                       ,intent(in   ) :: mype
 
 ! Declare local variables
-  real(r_kind),dimension(lat2,lon2):: sqint,rqint
-  real(r_kind) spave,rpave,sqave,rqave,sdmass,rdmass
-  integer(i_kind) i,j,k,it
+  real(r_quad),dimension(1) :: dmass
+  real(r_quad) rcon,con
+  integer(i_kind) i,j,k,it,ii,mm1
   
-  sqint=zero ; rqint=zero
   it=ntguessig
+  dmass(1)=zero_quad
+  rcon=one_quad/(two_quad*float(nlon))
+  mm1=mype+1
 
+! Calculate mean surface pressure contribution in subdomain
+  do j=2,lon2-1
+    do i=2,lat2-1
+      ii=istart(mm1)+i-2
+      dmass(1)=dmass(1)+sp(i,j)*wgtlats(ii)
+    end do
+  end do
+! Remove water to get incremental dry ps
   do k=1,nsig
-     do j=1,lon2
-        do i=1,lat2
-           sqint(i,j)=sqint(i,j) + ( (sq(i,j,k)+sc(i,j,k))* &
-               (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it)) )
+     do j=2,lon2-1
+        do i=2,lat2-1
+           ii=istart(mm1)+i-2
+           con = (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))*wgtlats(ii)
+           dmass(1)=dmass(1) - (sq(i,j,k)+sc(i,j,k))* con
         end do
      end do
   end do
 
 ! First, use MPI to get global mean increment
-  call global_mean(sp,spave,mype)
-  call global_mean(sqint,sqave,mype)
+  call mpl_allreduce(1,dmass)
 
-! Subtract out water to get incremental dry ps
-  sdmass=spave-sqave
+  dmass(1)=bamp_jcpdry*dmass(1)*rcon*rcon
 
-  rdmass=bamp_jcpdry*sdmass
-
-  rpave=rdmass
-  rqave=-rdmass
-  call global_mean_ad(rp,rpave,mype)
-  call global_mean_ad(rqint,rqave,mype)
-
+! Calculate mean surface pressure contribution in subdomain
+  do j=2,lon2-1
+    do i=2,lat2-1
+      ii=istart(mm1)+i-2
+      rp(i,j)=rp(i,j)+dmass(1)*wgtlats(ii)
+    end do
+  end do
+! Remove water to get incremental dry ps
   do k=1,nsig
-     do j=2,lon2-1
-        do i=2,lat2-1
-           rq(i,j,k)=rq(i,j,k) + rqint(i,j)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))
-           rc(i,j,k)=rc(i,j,k) + rqint(i,j)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))
+     do j=1,lon2
+        do i=1,lat2
+           ii=istart(mm1)+i-2
+           con = dmass(1)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))*wgtlats(ii)
+           rq(i,j,k)=rq(i,j,k) - con
+           rc(i,j,k)=rc(i,j,k) - con
         end do
      end do
   end do
