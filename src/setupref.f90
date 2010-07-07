@@ -108,7 +108,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   use constants, only: izero,ione,zero,one,two,eccentricity,semi_major_axis,&
        grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,&
        three,four,five,half
-  use qcmod, only: repe_gps
   use jfunc, only: jiter,last,miter
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   implicit none
@@ -139,7 +138,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
 
   real(r_kind) cutoff,cutoff1,cutoff2,cutoff3,cutoff12,cutoff23
   real(r_kind) rsig,dtime,dlat,dlon,tmean,mult_p
-  real(r_kind) errinv_input,errinv_adjst,errinv_final,err_final
+  real(r_kind) errinv_input,errinv_adjst,errinv_final,err_final,repe_gps
   real(r_kind) hgeso,trefges,pobl
   real(r_kind) sin2,termg,termr,termrg,hob,hobl,qrefges,zsges
   real(r_kind) fact,pw,nrefges1,nrefges2,nrefges3,nrefges,dpres,elev,k4,alt
@@ -418,8 +417,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
               cutoff1=quarter+half*cos(data(ilate,i)*deg2rad)
               if(trefges<=r240) then
                  cutoff2=half
- 
-
               else
                  cutoff2=r1em3*trefges**2-r0_455*trefges+r52_075
               endif

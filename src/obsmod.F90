@@ -1092,7 +1092,7 @@ contains
                                ! related to brightness temperature and 
                                ! precipitation rate observations
 
-    grids_dim= 161             ! grid points for integration of GPS bend
+    grids_dim= 80              ! grid points for integration of GPS bend
 
     nprof_gps = 0
 

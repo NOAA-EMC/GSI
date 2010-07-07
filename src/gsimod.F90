@@ -39,7 +39,7 @@
      oneobtest,magoberr,maginnov,init_oneobmod,pctswitch
   use balmod, only: fstat
   use turblmod, only: use_pbl,init_turbl
-  use qcmod, only: dfact,dfact1,repe_gps,&
+  use qcmod, only: dfact,dfact1,&
       erradar_inflate,use_poq7,&
       repe_dw,init_qcvars,vadfile,noiqc,c_varqc
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
@@ -453,7 +453,6 @@
 !
 !     Parameters below use for nonlinear (variational) quality control
 !     repe_dw  - factor for representativeness error in radar doppler winds
-!     repe_gps - factor for representativeness error in gps local observations
 !     dfact    - factor for duplicate obs at same location for conv. data
 !     dfact1   - time factor for duplicate obs at same location for conv. data
 !     erradar_inflate - radar error inflation factor
@@ -464,7 +463,7 @@
 !     blacklst - logical for reading in raob blacklist (if set to true)
 !     use_poq7 - logical flag to accept (.true.) sbuv profile quality flag 7
 
-  namelist/obsqc/ repe_dw,repe_gps,dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
+  namelist/obsqc/ repe_dw,dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
        c_varqc,blacklst,use_poq7,hilbert_curve
 
 ! OBS_INPUT (controls input data):

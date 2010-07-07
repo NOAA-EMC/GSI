@@ -34,7 +34,6 @@ module qcmod
 !   def dfact           - factor for duplicate obs at same location for conv. data
 !   def dfact1          - time factor for duplicate obs at same location for conv. data
 !   def repe_dw         - factor for error in radar doppler winds
-!   def repe_gps        - factor for error in gps local refractivity or bending angle
 !   def erradar_inflate - radar error inflation factor
 !   def npres_print     - number of levels for print
 !   def ptop,pbot       - arrays containing top pressure and bottom pressure of print levels
@@ -66,7 +65,7 @@ module qcmod
   public :: errormod
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,repe_dw
-  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,repe_gps
+  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
   public :: pboto3,ptopo3,pbotq,ptopq
 
   logical nlnqc_iter
@@ -75,7 +74,7 @@ module qcmod
 
   character(10):: vadfile
   integer(i_kind) npres_print
-  real(r_kind) dfact,dfact1,repe_dw,repe_gps,erradar_inflate,c_varqc
+  real(r_kind) dfact,dfact1,repe_dw,erradar_inflate,c_varqc
   real(r_kind) varqc_iter
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
 
@@ -162,7 +161,6 @@ contains
     dfact    = zero
     dfact1   = three
     repe_dw  = one
-    repe_gps = one
     varqc_iter=one
 
     erradar_inflate   = one

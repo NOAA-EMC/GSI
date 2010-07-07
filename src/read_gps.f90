@@ -45,6 +45,9 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !   2008-09-25 treadon  - skip report if ref_obs=.t. but no refractivity data
 !   2009-02-05 cucurull - assing instrument error (ref) to a nominal value
 !   2009-04-01 cucurull - add QC for Metop/GRAS
+!   2010-05-26 cucurull - add QC flag for Metop/GRAS bending angle
+!                       - modify code to read nested delayed replication to get GRAS
+!                         ionospheric-compensated bending angles 
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -82,9 +85,9 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   integer(i_kind) ,intent(inout) :: nprof_gps
 
 ! Declare local parameters  
-  integer(i_kind),parameter:: maxlevs=500_i_kind
-  integer(i_kind),parameter:: maxinfo=16_i_kind
-  integer(i_kind),parameter:: said_unknown=401_i_kind
+  integer(i_kind),parameter:: maxlevs=500
+  integer(i_kind),parameter:: maxinfo=16
+  integer(i_kind),parameter:: said_unknown=401
   real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r10000=10000.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
@@ -103,34 +106,35 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   character(len=16),allocatable,dimension(:):: gpsro_ctype
 
   
-  integer(i_kind) lnbufr,i,k,maxobs,ireadmg,ireadsb,said,ptid
+  integer(i_kind) lnbufr,i,k,m,maxobs,ireadmg,ireadsb,said,ptid
   integer(i_kind) nmrecs
   integer(i_kind) notgood,idate
-  integer(i_kind) iret,levs,levsr,mincy,minobs
+  integer(i_kind) iret,levs,levsr,nreps_ROSEQ1,mincy,minobs
   integer(i_kind) nreal,nchanl,ilat,ilon
   integer(i_kind),dimension(5):: idate5
   integer(i_kind)             :: ikx
   integer(i_kind):: ngpsro_type,ikx_unknown,igpsro_type
   integer(i_kind),parameter:: mxib=31_i_kind
   integer(i_kind) ibit(mxib),nib
-  logical six
+  logical lone
 
 
   integer(i_kind),allocatable,dimension(:):: gpsro_itype,gpsro_ikx,nmrecs_id
   
   real(r_kind) timeo,t4dv
-  real(r_kind) pcc,qfro,usage,dlat,dlat_earth,dlon,dlon_earth
+  real(r_kind) pcc,qfro,usage,dlat,dlat_earth,dlon,dlon_earth,freq_chk,freq
   real(r_kind) height,rlat,rlon,ref,bend,impact,roc,geoid,&
                bend_error,ref_error,bend_pccf,ref_pccf
 
   real(r_kind),allocatable,dimension(:,:):: cdata_all
  
-  integer(i_kind),parameter:: n1ahdr=10_i_kind
+  integer(i_kind),parameter:: n1ahdr=10
   real(r_double),dimension(n1ahdr):: bfr1ahdr
-  real(r_double),dimension(25,maxlevs):: data1b
-  real(r_double),dimension(25,maxlevs):: data2a
+  real(r_double),dimension(50,maxlevs):: data1b
+  real(r_double),dimension(50,maxlevs):: data2a
+  real(r_double),dimension(maxlevs):: nreps_this_ROSEQ2
  
-  data lnbufr/10_i_kind/
+  data lnbufr/10/
   data hdr1a / 'YEAR MNTH DAYS HOUR MINU PCCF ELRC SAID PTID GEODU' / 
   data nemo /'QFRO'/
   
@@ -139,8 +143,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   maxobs=2e6_i_kind
   nreal=maxinfo
   nchanl=izero
-  ilon=2_i_kind
-  ilat=3_i_kind
+  ilon=2
+  ilat=3
 
   nmrecs=izero
   notgood=izero
@@ -190,7 +194,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   do while(ireadmg(lnbufr,subset,idate)==izero)
      read_loop:  do while(ireadsb(lnbufr)==izero)
 
-! Read/decode data in subset
+! Read/decode data in subset (profile)
 
 ! Extract header information
         call ufbint(lnbufr,bfr1ahdr,n1ahdr,ione,iret,hdr1a)
@@ -249,27 +253,55 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
         if (said == gpsro_itype(2)) then ! Gras
            call upftbv(lnbufr,nemo,qfro,mxib,ibit,nib)
-           six = .false.
-           if(nib > izero) then
-              do i=1,nib
-                 if(ibit(i)== 6_i_kind) then
-                    six = .true.
-                    exit
+           lone = .false.
+             if(nib > izero) then
+               do i=1,nib
+                 if(ref_obs) then
+                    if(ibit(i)== 6) then
+                       lone = .true.
+                       exit
+                    endif
+                 else
+                    if(ibit(i)== 5) then
+                       lone = .true.
+                       exit
+                    endif
                  endif
-              enddo
-           endif
+               enddo
+             endif 
 
-           if(six) then
+           if(lone) then
               write(6,*)'READ_GPS:  **WARNING** bad GRAS SAID=',said,'PTID=',ptid,'profile',&
                    ' SKIP this report'
               cycle read_loop
            endif
         endif
 
-!  Check we have the same number of levels for ref and bending angle
-!  when ref_obs on
-        call ufbseq(lnbufr,data1b,25_i_kind,maxlevs,levs,'ROSEQ1')  ! bending angle
-        call ufbseq(lnbufr,data2a,25_i_kind,maxlevs,levsr,'ROSEQ3') ! refractivity
+
+! Read bending angle information
+! Get the number of occurences of sequence ROSEQ2 in this subset
+! (will also be the number of replications of sequence ROSEQ1), nreps_ROSEQ1
+! Also determine the number of replications of sequence ROSEQ2 nested inside
+! each replication of ROSEQ1,
+! nreps_this_ROSEQ2(1:nreps_ROSEQ1) - currently = 3 frequencies (L1, L2, zero)
+
+        call ufbint(lnbufr,nreps_this_ROSEQ2,1,maxlevs,nreps_ROSEQ1,'{ROSEQ2}')
+
+! Store entire contents of ROSEQ1 sequence (including contents of nested ROSEQ2 sequence)
+! in array data1b
+        call ufbseq(lnbufr,data1b,50,maxlevs,levs,'ROSEQ1') 
+
+        if(levs.ne.nreps_ROSEQ1) then
+           write(6,*) 'READ_GPS:  **WARNING** said,ptid=',said,ptid,&
+                ' mismatch between sequence of ROSEQ1 and ROSEQ2 occurence',levs,nreps_ROSEQ1, &
+                ' SKIP this report'
+           cycle read_loop
+        endif
+
+! Check we have the same number of levels for ref and bending angle
+! when ref_obs on to get lat/lon information
+
+        call ufbseq(lnbufr,data2a,50,maxlevs,levsr,'ROSEQ3') ! refractivity
         if ((ref_obs).and.(levs/=levsr)) then
            write(6,*) 'READ_GPS:  **WARNING** said,ptid=',said,ptid,&
                 ' with gps_bnd levs=',levs,&
@@ -278,31 +310,39 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            cycle read_loop
         endif
 
-!  Increment report counters
+! Increment report counters
         nmrecs = nmrecs + ione      ! count reports in bufr file
         nmrecs_id(igpsro_type) = nmrecs_id(igpsro_type) + ione
 
-!  Set usage flag
+! Set usage flag
         usage = zero
         if(icuse(ikx) < izero)usage=r100
         if(ncnumgrp(ikx) > izero )then                     ! cross validation on
            if(mod(nmrecs,ncnumgrp(ikx))== ncgroup(ikx)-ione)usage=ncmiter(ikx)
         end if
 
-!  Loop over levs in profile
+! Loop over levs in profile
         do k=1, levs
            nread=nread+ione  ! count observations
            rlat=data1b(1,k)  ! earth relative latitude (degrees)
            rlon=data1b(2,k)  ! earth relative longitude (degrees)
-           impact=data1b(5,k)
-           bend=data1b(6,k)
-           bend_error=data1b(8,k)
-           bend_pccf=data1b(10,k)
            height=data2a(1,k)
            ref=data2a(2,k)
            ref_error=data2a(4,k)
            ref_pccf=data2a(6,k)
- 
+
+       ! Loop over number of replications of ROSEQ2 nested inside this particular replication of ROSEQ1
+           do i=1,nreps_this_ROSEQ2(k)
+              m=(6*i)-2
+              freq_chk=data1b(m,k)      ! frequency (hertz)
+              if(nint(freq_chk).ne.0) cycle ! do not want non-zero freq., go on to next replication of ROSEQ2
+              freq=data1b(m,k)
+              impact=data1b(m+1,k)      ! impact parameter (m)
+              bend=data1b(m+2,k)        ! bending angle (rad)
+              bend_error=data1b(m+4,k)  ! RMSE in bending angle (rad)
+           enddo
+           bend_pccf=data1b((6*nreps_this_ROSEQ2(k))+4,k)  ! percent confidence for this ROSEQ1 replication
+
 ! Check domain in regional model
 
 ! Preliminary (sanity) QC checks for bad and missing data
@@ -359,7 +399,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
                  cdata_all(1,ndata) = ref_error      ! gps ref obs error (units of N)
                  cdata_all(4,ndata) = height         ! geometric height above geoid (m)
                  cdata_all(5,ndata) = ref            ! refractivity obs (units of N)
-!                cdata_all(9,ndata) = ref_pccf       ! per cent confidence
+!                cdata_all(9,ndata) = ref_pccf       ! per cent confidence (%)
               else
                  cdata_all(1,ndata) = bend_error     ! gps bending error (radians)
                  cdata_all(4,ndata) = impact         ! impact parameter (m)
@@ -379,7 +419,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               cdata_all(14,ndata)= dlon_earth*rad2deg  ! earth relative longitude (degrees)
               cdata_all(15,ndata)= dlat_earth*rad2deg  ! earth relative latitude (degrees)
               cdata_all(16,ndata)= geoid           ! geoid undulation (m)
- 
+
            else
               notgood = notgood + ione
            end if
