@@ -94,7 +94,7 @@ end if
 call gsi_chemtracer_get('dim',ngases,istatus)
 if (ngases>0) then
     allocate(gases(ngases))
-    call gsi_chemtracer_get('list',gases,istatus)
+    call gsi_chemtracer_get('shortnames',gases,istatus)
 endif
 
 ! Since each internal vector of xhat has the same structure, pointers are
@@ -155,12 +155,12 @@ do jj=1,nsubwin
    do ic=1,ngases
       id=getindex(cvars3d,gases(ic))
       if (id>0) then
-!        call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank3,istatus)
+         call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank3,istatus)
          call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank3,istatus)
       endif
       id=getindex(cvars2d,gases(ic))
       if (id>0) then
-!        call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank2,istatus)
+         call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank2,istatus)
          call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank2,istatus)
       endif
    enddo
