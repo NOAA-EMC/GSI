@@ -267,6 +267,8 @@
 !     use_gfs_ozone  - option to read in gfs ozone and interpolate to regional model domain
 !     check_gfs_ozone_date  - option to date check gfs ozone before interpolating to regional model domain
 !     regional_ozone  - option to turn on ozone in regional analysis
+!     lwrite_predterms - option to write out actual predictor terms instead of predicted bias to the
+!                        radiance diagnostic files
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -291,7 +293,7 @@
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
-       use_gfs_ozone,check_gfs_ozone_date,regional_ozone
+       use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution

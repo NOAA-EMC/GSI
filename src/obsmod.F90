@@ -203,6 +203,9 @@ module obsmod
 !   def lread_obs_save - logical, if .true., then write out collective obs selection info
 !   def lread_obs_skip - logical, if .true., then read in collective obs selection info
 !   def obs_input_common - scratch file to receive collective obs selection info
+!   def lwrite_predterms - logical to write out actual predictor terms in diagnostic files
+!                          .true. will write out actual predictor terms (for EnKF)
+!                          .false. will write out predicted bias (default)
 !
 ! attributes:
 !   langauge: f90
@@ -253,7 +256,7 @@ module obsmod
   public :: mype_pw,iout_rw,iout_dw,iout_srw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
   public :: iout_lag,iout_uv,iout_gps,iout_ps,spdptr,srwptr,rwptr,dwptr,sstptr,pwptr
   public :: ozptr,o3lptr,coptr,pcpptr,lagptr,lread_obs_save,obs_input_common,lread_obs_skip
-  public :: ndat_times
+  public :: ndat_times,lwrite_predterms
 !
   public :: obs_diags,gps_all_ob_head,w_ob_head,ps_ob_head,q_ob_head
   public :: t_ob_head,spd_ob_head,rw_ob_head,dw_ob_head,sst_ob_head
@@ -1027,6 +1030,7 @@ module obsmod
   logical hilbert_curve
   logical lread_obs_save
   logical lread_obs_skip
+  logical lwrite_predterms
 
   character(len=*),parameter:: myname='obsmod'
 contains
@@ -1187,6 +1191,7 @@ contains
     obs_input_common = 'obs_input.common'
     lread_obs_save = .false.
     lread_obs_skip = .false.
+    lwrite_predterms =.false.
 
     return
   end subroutine init_obsmod_dflts

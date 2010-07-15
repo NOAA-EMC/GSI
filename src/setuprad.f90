@@ -100,6 +100,8 @@
 !   2010-05-19  todling - revisit intrppx CO2 handle
 !   2010-06-10  todling - reduce pointer check by getting CO2 pointer at this level
 !                       - start adding hooks of aerosols influence on RTM
+!   2010-07-15  kleist  - reintroduce capability to write out predictor terms (not predicted bias) and
+!                         pressure level that corresponds to peak of weighting function
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -149,7 +151,7 @@
   use obsmod, only: ianldate,iadate,ndat,mype_diaghdr,nchan_total, &
            dplat,dtbduv_on,radhead,radtail,&
            i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
-           dirname,time_offset
+           dirname,time_offset,lwrite_predterms
   use obsmod, only: rad_ob_type
   use obsmod, only: obs_diag
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -186,7 +188,7 @@
   external:: qcssmi
 
 ! Declare local parameters
-  integer(i_kind),parameter:: ipchan=7
+  integer(i_kind),parameter:: ipchan=8
   integer(i_kind),parameter:: ireal=26
 
 ! CRTM structure variable declarations.
@@ -265,7 +267,7 @@
   integer(i_kind) j,k,ncnt,i
   integer(i_kind) mm1
   integer(i_kind) ixx
-  integer(i_kind) kk,n,nlev,kval,kk2,ibin,ioff,iii
+  integer(i_kind) kk,n,nlev,kval,kk2,ibin,ioff,iii,kmax
   integer(i_kind) ii,jj,lcloud,idiag
   integer(i_kind) nadir
   integer(i_kind) kraintype,ierrret
@@ -308,7 +310,7 @@
   real(r_single),allocatable,dimension(:,:):: diagbufex
   real(r_single),allocatable,dimension(:,:):: diagbufchan
 
-  real(r_kind),dimension(npred+1,nchanl)::predterms
+  real(r_kind),dimension(npred+1,nchanl)::predterms,predbias
   real(r_kind),dimension(npred,nchanl):: pred
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
@@ -331,6 +333,8 @@
   real(r_kind),dimension(0:3):: dtskin
   real(r_kind) dtsavg,r90,coscon,sincon
   real(r_kind):: sqrt_tiny_r_kind
+  real(r_kind),dimension(nchanl):: weightmax
+  real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
 
   integer(i_kind)                              :: n_aerosols  ! number of aerosols
   character(len=20),allocatable,dimension(:)   :: aero_names  ! aerosols names
@@ -1213,11 +1217,30 @@
         end if
 
 !       Apply bias correction
-        predterms=zero
+        predbias=zero
         do i=1,nchanl
            mm=ich(i)
  
-           predterms(1,i) = cbias(nadir,mm)*ang_rad(mm)             !global_satangbias
+           ptau5derivmax = -9.9e31
+! maximum of weighting function is level at which transmittance
+! (ptau5) is changing the fastest.  This is used for the level
+! assignment (needed for vertical localization).
+           weightmax(i) = 0.
+           kmax = 0
+           do k=2,nsig
+              ptau5deriv(k,i) = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
+              (log(prsltmp(k-1))-log(prsltmp(k))) )
+              if (ptau5deriv(k,i) .gt. ptau5derivmax) then
+                 ptau5derivmax = ptau5deriv(k,i)
+                 kmax = k
+                 weightmax(i) = r10*prsitmp(k) ! cb to mb.
+              end if
+           enddo
+! normalize weighting function
+           ptau5deriv(:,i) = ptau5deriv(:,i)/ptau5deriv(kmax,i)
+           ptau5deriv(1,i) = ptau5deriv(2,i)
+
+           predbias(1,i) = cbias(nadir,mm)*ang_rad(mm)             !global_satangbias
            tlapchn(i)= (ptau5(2,i)-ptau5(1,i))*(tsavg5-temp5(2))
            do k=2,nsig-1
               tlapchn(i)=tlapchn(i)+&
@@ -1231,16 +1254,16 @@
               pred(j,i)=pred(j,i)*air_rad(mm)
            end do
  
-           predterms(2,i) = pred(5,i)*predx(npred,mm)                 !tlap
-           predterms(3,i) = pred(4,i)*predx(npred-1,mm)               !tlap*tlap
+           predbias(2,i) = pred(5,i)*predx(npred,mm)                 !tlap
+           predbias(3,i) = pred(4,i)*predx(npred-1,mm)               !tlap*tlap
            do j = 1,npred-2
-              predterms(j+3,i) = predx(j,mm)*pred(j,i)
+              predbias(j+3,i) = predx(j,mm)*pred(j,i)
            end do
  
 !          Apply SST dependent bias correction with cubic spline
            if (retrieval) then
               call spline_cub(fbias(:,mm),tsavg5,ys_bias_sst)
-              predterms(6,i) = ys_bias_sst
+              predbias(6,i) = ys_bias_sst
            endif
 
 !          tbc    = obs - guess after bias correction
@@ -1250,7 +1273,7 @@
            tbc(i)       = tbcnob(i)                     
  
            do j=1,npred+1
-              tbc(i)=tbc(i) - predterms(j,i) !obs-ges with bias correction
+              tbc(i)=tbc(i) - predbias(j,i) !obs-ges with bias correction
            end do
  
            error0(i)     = tnoise(i)
@@ -2198,7 +2221,7 @@
            if(avhrr_navy .or. avhrr) then
               call avhrr_sst_retrieval(obstype,dplat(is),nchanl,tnoise,&
                    varinv,tsavg5,sstnv,sstcu,temp,wmix,ts,tbc,cenlat,cenlon,zasat,&
-                   dtime,dtp_avh,tlapchn,predterms,emissivity,pangs,tbcnob,tb_obs,&
+                   dtime,dtp_avh,tlapchn,predbias,emissivity,pangs,tbcnob,tb_obs,&
                    rad_diagsave,sfcpct,id_qc,nadir,ireal,ipchan,luse(n))
               go to 100
            endif
@@ -2535,9 +2558,25 @@
 
               diagbufchan(6,i)=emissivity(i)   ! surface emissivity
               diagbufchan(7,i)=tlapchn(i)      ! stability index
-              do j=1,npred+1
-                 diagbufchan(7+j,i)=predterms(j,i) ! Tb bias correction terms (K)
-              end do
+              diagbufchan(8,i)=weightmax(i)    ! press. at max of weighting fn (mb)
+
+              if (lwrite_predterms) then
+                 predterms(1,i) = cbias(nadir,ich(i))
+                 tlap = tlapchn(i)-tlapmean(ich(i))
+                 predterms(2,i) = tlap
+                 predterms(3,i) = tlap*tlap
+                 do j = 1,npred-2
+                    predterms(j+3,i) = pred(j,i)
+                 end do
+
+                 do j=1,npred+1
+                    diagbufchan(ipchan+j,i)=predterms(j,i) ! Tb bias correction terms (K)
+                 end do
+              else   ! Default to write out predicted bias
+                 do j=1,npred+1
+                    diagbufchan(ipchan+j,i)=predbias(j,i) ! Tb bias correction terms (K)
+                 end do
+              end if
            end do
 
            if (lobsdiagsave) then
