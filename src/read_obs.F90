@@ -304,6 +304,7 @@ subroutine read_obs(ndata,mype)
 !
 !   2010-04-05  huang   - add aero and modis for reading modis aod from satellite
 !                         currently read BUFR file only
+!   2010-04-22  tangborn - read for carbon monoxide
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -466,6 +467,8 @@ subroutine read_obs(ndata,mype)
        else if (obstype == 'sbuv2' .or. obstype == 'omi' &
            .or. obstype == 'gome'  .or. obstype == 'o3lev') then
           ditype(i) = 'ozone'
+       else if (obstype == 'mopitt') then
+          ditype(i) = 'co'
        else if (index(obstype,'pcp')/=0 )then
           ditype(i) = 'pcp'
        else if (obstype == 'gps_ref' .or. obstype == 'gps_bnd') then
@@ -576,7 +579,11 @@ subroutine read_obs(ndata,mype)
        npemax=max(npemax,npe_sub(i))
     end do
 
-    if(l4dvar.and.(.not.lobserver)) return
+    if(l4dvar.and.(.not.lobserver)) then
+!_RTod use_sfc=.false.
+!_RTod call getsfc(mype,use_sfc)
+       return
+    endif
     
     npeextra=npe-mod(npetot,npe)
     if(npeextra > 0)then
@@ -879,6 +886,12 @@ subroutine read_obs(ndata,mype)
              call read_ozone(nread,npuse,nouse,&
                   platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh)
              string='READ_OZONE'
+
+!         Process co data
+          else if (ditype(i) =='co')then 
+             call read_co(nread,npuse,nouse,&
+                 platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh)
+             string='READ_CO'
 
 !         Process precipitation             
           else if (ditype(i) == 'pcp')then

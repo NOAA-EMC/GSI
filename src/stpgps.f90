@@ -11,6 +11,7 @@ module stpgpsmod
 !   2005-05-19  Yanqiu zhu - wrap stpref and its tangent linear stpref_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2009-08-12  lueken - updated documentation
+!   2010-05-13  todling - uniform interface across stp routines
 !
 ! subroutines included:
 !   sub stpgps
@@ -28,7 +29,7 @@ PUBLIC stpgps
 
 contains
 
-subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges,nstep)
+subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram: stpref    compute contribution to penalty and stepsize
@@ -64,6 +65,7 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges,nstep)
 !   2008-04-11  safford - rm unused vars
 !   2008-12-03  todling - changed handling of ptr%time
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
+!   2010-05-13  todling - update to use gsi_bundle
 !
 !   input argument list:
 !     gpshead
@@ -87,27 +89,33 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: gps_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: zero,one,two,half,tiny_r_kind,cg_term,zero_quad,&
-                       r3600
+  use constants, only: zero,one,two,half,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n,latlon1n1,nsig
   use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
   type(gps_ob_type),pointer           ,intent(in   ) :: gpshead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
-  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: rt,rq,st,sq
-  real(r_kind),dimension(latlon1n1)   ,intent(in   ) :: rp,sp
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
-  integer(i_kind) j,kk
+  integer(i_kind) j,kk,ier,istatus
   integer(i_kind),dimension(nsig):: i1,i2,i3,i4
   real(r_kind) :: val,val2
   real(r_kind) :: w1,w2,w3,w4
   real(r_kind) :: q_TL,p_TL,t_TL,time_gps
   real(r_kind) :: rq_TL,rp_TL,rt_TL
+  real(r_kind),pointer,dimension(:) :: st,sq
+  real(r_kind),pointer,dimension(:) :: rt,rq
+  real(r_kind),pointer,dimension(:) :: sp
+  real(r_kind),pointer,dimension(:) :: rp
+  real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_p3d
+  real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_p3d
   type(gps_ob_type), pointer :: gpsptr
 
   real(r_kind) cg_gps,wgross,wnotgross
@@ -116,6 +124,27 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges,nstep)
 
 ! Initialize penalty, b1, and b3 to zero
   out=zero_quad
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'tv', st,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'q',  sq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'p3d',sp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'tv', rt,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'q',  rq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'p3d',rp,istatus);ier=istatus+ier
+  if(ier/=0)return
+  if (l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'tv',   xhat_dt_t,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'q',    xhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'p3d',xhat_dt_p3d,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'tv',   dhat_dt_t,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'q',    dhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'p3d',dhat_dt_p3d,istatus);ier=istatus+ier
+     if(ier/=0)return
+  endif
+
 
 ! Loop over observations
   gpsptr => gpshead
@@ -149,18 +178,18 @@ subroutine stpgps(gpshead,rt,rq,rp,st,sq,sp,out,sges,nstep)
               rp_TL=w1* rp(i1(j))+w2* rp(i2(j))+w3* rp(i3(j))+w4* rp(i4(j))
               if(l_foto)then
                  time_gps=gpsptr%time*r3600
-                 t_TL=t_TL+(w1*xhat_dt%t(i1(j))+w2*xhat_dt%t(i2(j))+ &
-                            w3*xhat_dt%t(i3(j))+w4*xhat_dt%t(i4(j)))*time_gps
-                 rt_TL=rt_TL+(w1*dhat_dt%t(i1(j))+w2*dhat_dt%t(i2(j))+ &
-                              w3*dhat_dt%t(i3(j))+w4*dhat_dt%t(i4(j)))*time_gps
-                 q_TL=q_TL+(w1*xhat_dt%q(i1(j))+w2*xhat_dt%q(i2(j))+ &
-                            w3*xhat_dt%q(i3(j))+w4*xhat_dt%q(i4(j)))*time_gps
-                 rq_TL=rq_TL+(w1*dhat_dt%q(i1(j))+w2*dhat_dt%q(i2(j))+ &
-                              w3*dhat_dt%q(i3(j))+w4*dhat_dt%q(i4(j)))*time_gps
-                 p_TL=p_TL+(w1*xhat_dt%p3d(i1(j))+w2*xhat_dt%p3d(i2(j))+ &
-                            w3*xhat_dt%p3d(i3(j))+w4*xhat_dt%p3d(i4(j)))*time_gps
-                 rp_TL=rp_TL+(w1*dhat_dt%p3d(i1(j))+w2*dhat_dt%p3d(i2(j))+ &
-                              w3*dhat_dt%p3d(i3(j))+w4*dhat_dt%p3d(i4(j)))*time_gps
+                 t_TL=t_TL+(w1*xhat_dt_t(i1(j))+w2*xhat_dt_t(i2(j))+ &
+                            w3*xhat_dt_t(i3(j))+w4*xhat_dt_t(i4(j)))*time_gps
+                 rt_TL=rt_TL+(w1*dhat_dt_t(i1(j))+w2*dhat_dt_t(i2(j))+ &
+                              w3*dhat_dt_t(i3(j))+w4*dhat_dt_t(i4(j)))*time_gps
+                 q_TL=q_TL+(w1*xhat_dt_q(i1(j))+w2*xhat_dt_q(i2(j))+ &
+                            w3*xhat_dt_q(i3(j))+w4*xhat_dt_q(i4(j)))*time_gps
+                 rq_TL=rq_TL+(w1*dhat_dt_q(i1(j))+w2*dhat_dt_q(i2(j))+ &
+                              w3*dhat_dt_q(i3(j))+w4*dhat_dt_q(i4(j)))*time_gps
+                 p_TL=p_TL+(w1*xhat_dt_p3d(i1(j))+w2*xhat_dt_p3d(i2(j))+ &
+                            w3*xhat_dt_p3d(i3(j))+w4*xhat_dt_p3d(i4(j)))*time_gps
+                 rp_TL=rp_TL+(w1*dhat_dt_p3d(i1(j))+w2*dhat_dt_p3d(i2(j))+ &
+                              w3*dhat_dt_p3d(i3(j))+w4*dhat_dt_p3d(i4(j)))*time_gps
               end if
               val2 = val2 + t_tl*gpsptr%jac_t(j)+ q_tl*gpsptr%jac_q(j)+p_tl*gpsptr%jac_p(j) 
               val  = val + rt_tl*gpsptr%jac_t(j)+rq_tl*gpsptr%jac_q(j)+rp_tl*gpsptr%jac_p(j)

@@ -12,7 +12,7 @@ module convinfo
 !   2006-04-20  kistler  - extensions for thinning and bias corrections
 !   2006-06-29  kistler  - ithin_conv,rmesh_conv moved added to convinfo file entry
 !   2007-11-03       su  - add pmesh_conv 
-!   2009-01-22  todling - add convinfo_inilialized
+!   2009-01-22  todling - add convinfo_initialized
 !
 ! Subroutines Included:
 !   sub init_convinfo    - initialize conventional obs related variables
@@ -56,7 +56,7 @@ module convinfo
 !$$$ enddocumentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero,one
+  use constants, only: zero,one
   implicit none
 
 ! set default as private
@@ -119,26 +119,26 @@ contains
     implicit none
 
     diag_conv = .true.    ! .true.=generate conv obs diagnostic file
-    mype_conv = izero     ! mpi task to collect and print conv obs use information 
+    mype_conv = 0         ! mpi task to collect and print conv obs use information 
 
-    npred_conv_max=izero      ! max of all conv bias predictors 
-    nconvtype_ps  =izero
-    nconvtype_t   =izero
-    nconvtype_spd =izero
+    npred_conv_max=0      ! max of all conv bias predictors 
+    nconvtype_ps  =0
+    nconvtype_t   =0
+    nconvtype_spd =0
     stndev_conv_t =one
     stndev_conv_ps =one
     stndev_conv_spd =one
 
-    id_bias_ps = izero        ! prepbufr id to have conv_bias added for testing 
-    id_bias_t  = izero        ! prepbufr id to have conv_bias added for testing 
-    id_bias_spd= 120_i_kind   ! prepbufr id to have conv_bias added for testing 
+    id_bias_ps = 0            ! prepbufr id to have conv_bias added for testing 
+    id_bias_t  = 0            ! prepbufr id to have conv_bias added for testing 
+    id_bias_spd= 120          ! prepbufr id to have conv_bias added for testing 
     conv_bias_ps = zero       ! magnitude of ps bias(mb)
     conv_bias_t  = zero       ! magnitude of t  bias(deg K)
     conv_bias_spd= zero       ! magnitude of spd bias(m/sec)
 						  
   end subroutine init_convinfo
 
-  subroutine convinfo_read(mype)
+  subroutine convinfo_read
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    convinfo_read      read conventional information file
@@ -152,6 +152,7 @@ contains
 !   2008-06-04  safford - rm unused vars
 !   2008-09-05  lueken - merged ed's changes into q1fy09 code
 !   2009-01-22  todling - protect against non-initialized destroy call
+!   2010-05-29  todling - interface consistent w/ similar routines
 !
 !   input argument list:
 !     mype - mpi task id
@@ -163,10 +164,9 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
+    use mpimod, only: mype
     implicit none
     
-    integer(i_kind),intent(in   ) :: mype
-
     character(len=1)cflg
     character(len=16) cob
     character(len=11) bias_file_in/'convbias_in'/
@@ -175,27 +175,27 @@ contains
     integer(i_kind) lunin,i,n,nc,ier,istat
     integer(i_kind) iunit,iob,isub,np,nlines
 
-    lunin = 47_i_kind
+    lunin = 47
     open(lunin,file='convinfo',form='formatted')
     rewind(lunin)
-    nconvtype=izero
-    nlines=izero
+    nconvtype=0
+    nlines=0
     read1: do
        read(lunin,1030,iostat=istat)cflg,iotype
 1030   format(a1,a7,2x,a120)
-       if (istat /= izero) exit
-       nlines=nlines+ione
+       if (istat /= 0) exit
+       nlines=nlines+1
        if(cflg == '!')cycle
-       nconvtype=nconvtype+ione
+       nconvtype=nconvtype+1
     enddo read1
-    if (istat>izero) then
+    if (istat>0) then
        write(6,*)'CONVINFO_READ:  ***ERROR*** error reading convinfo, istat=',istat
        close(lunin)
        write(6,*)'CONVINFO_READ:  stop program execution'
        call stop2(79)
     endif
 
-    if(nconvtype == izero) then
+    if(nconvtype == 0) then
        write(6,*) 'CONVINFO_READ: NO CONVENTIONAL DATA USED'
        return
     endif
@@ -208,20 +208,20 @@ contains
              npred_conv(nconvtype), &
              stndev_conv(nconvtype), &
              stat=ier )
-    if ( ier /= izero )  then
+    if ( ier /= 0 )  then
        write(6,*) 'CONVINFO_READ: allocate 1 failed' 
        call stop2(48)
     endif
     do i=1,nconvtype
-       ithin_conv(i)=izero            ! 0=no thinning
-       npred_conv(i)=izero            ! number of bias predictors
+       ithin_conv(i)=0                ! 0=no thinning
+       npred_conv(i)=0                ! number of bias predictors
        rmesh_conv(i)=99999.0_r_kind
        pmesh_conv(i)=zero
        stndev_conv(i)=one
     enddo
     nc=zero
 
-    if(nconvtype*npred_conv_max>izero) then
+    if(nconvtype*npred_conv_max>0) then
        allocate(predx_conv (nconvtype,npred_conv_max))
        predx_conv=zero
     endif
@@ -229,10 +229,10 @@ contains
     rewind(lunin)
 
 ! open convbias.in file
-    if (npred_conv_max > izero ) then
-       iunit=49_i_kind
+    if (npred_conv_max > 0 ) then
+       iunit=49
        open(iunit,file=bias_file_in,form='formatted',iostat=ier)
-       if (ier /= izero) then  
+       if (ier /= 0) then  
           write(6,*) 'CONVINFO_READ: open error = ',ier,' for ',bias_file_in
           call stop2(48)
        endif
@@ -241,7 +241,7 @@ contains
     do i=1,nlines
        read(lunin,1030)cflg,iotype,crecord
        if(cflg == '!')cycle
-       nc=nc+ione
+       nc=nc+1
        ioctype(nc)=iotype
            !otype   type isub iuse twindow numgrp ngroup nmiter gross ermax ermin var_b var_pg ithin rmesh pmesh npred
            !ps       120    0    1     3.0      0      0      0   5.0   3.0   1.0  10.0  0.000 0 99999.    5
@@ -255,13 +255,13 @@ contains
        read(crecord,*)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
             ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc) &
             ,ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc)
-       if(mype == izero)write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
+       if(mype == 0)write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
             ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc) &
             ,ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc)
 1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g12.6,1x,3(I3,1x),5g12.6,i5,2g12.6,i5)
-       if (npred_conv_max > izero ) then
+       if (npred_conv_max > 0 ) then
           read(iunit,*,iostat=ier) cob,iob,isub,np,(predx_conv(nc,n),n=1,np)
-          if (ier /= izero ) then
+          if (ier /= 0 ) then
              write(6,*) 'CONVINFO_READ:,i/o error ',iunit,' reading convinfo file',ier
              call stop2(48)
           endif
@@ -275,19 +275,19 @@ contains
           stndev_conv(nc)=one
           select case (cob) 
              case('ps')
-                nconvtype_ps=nconvtype_ps+ione
+                nconvtype_ps=nconvtype_ps+1
                 stndev_conv(nc)=stndev_conv_ps
              case('t')
-                nconvtype_t=nconvtype_t+ione
+                nconvtype_t=nconvtype_t+1
                 stndev_conv(nc)=stndev_conv_t
              case('spd')
-                nconvtype_spd=nconvtype_spd+ione
+                nconvtype_spd=nconvtype_spd+1
                 stndev_conv(nc)=stndev_conv_spd
           end select
        endif
     enddo
 
-    if (npred_conv_max > izero) call conv_bias_print
+    if (npred_conv_max > 0) call conv_bias_print
 	
     close(lunin)
     convinfo_initialized=.true.
@@ -324,13 +324,13 @@ contains
     integer(i_kind) np,n,nc,ier
     integer (i_kind) iunit
 
-    iunit=53_i_kind
+    iunit=53
     open(iunit,file='convbias_out',form='formatted')
     rewind iunit
     do nc=1,nconvtype
        np=npred_conv(nc)
        write(iunit,*,iostat=ier) ioctype(nc),ictype(nc),icsubtype(nc), np, (predx_conv(nc,n),n=1,np)
-       if (ier /= izero) then
+       if (ier /= 0) then
           write(6,*) 'CONVINFO_WRITE:,i/o error ',iunit,' writing convbias_out file '
           call stop2(48)
        endif
@@ -413,13 +413,13 @@ contains
              npred_conv, &
              stndev_conv, &
              stat=ier )
-    if ( ier /= izero )  then
+    if ( ier /= 0 )  then
        write(6,*) 'CONVINFO_DESTROY: deallocate  failed' 
        call stop2(48)
     endif
     if(allocated(predx_conv)) then
        deallocate(predx_conv ,stat=ier)
-       if ( ier /= izero )  then
+       if ( ier /= 0 )  then
           write(6,*) 'CONVINFO_DESTROY: deallocate predx_conv  failed' 
           call stop2(48)
        endif

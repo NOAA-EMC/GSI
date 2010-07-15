@@ -10,7 +10,7 @@
 
     module m_berror_stats_reg
       use kinds,only : i_kind,r_kind
-      use constants, only: izero,ione,zero,one
+      use constants, only: zero,one
       use gridmod, only: nsig
 
       implicit none
@@ -38,8 +38,8 @@
   	! Reconfigurable parameters, vai NAMELISt/setup/
   character(len=256),save :: berror_stats = "berror_stats"	! filename
 
-  integer(i_kind),parameter :: default_unit_ = 22_i_kind
-  integer(i_kind),parameter :: ERRCODE=2_i_kind
+  integer(i_kind),parameter :: default_unit_ = 22
+  integer(i_kind),parameter :: ERRCODE=2
 
   integer(i_kind),allocatable,dimension(:):: lsig
   real(r_kind),allocatable,dimension(:):: coef1,coef2
@@ -96,9 +96,9 @@ end subroutine berror_get_dims_reg
       implicit none
 
       integer(i_kind)                              ,intent(in   ) :: msig,mlat
-      real(r_kind),dimension(0:mlat+ione,nsig,nsig),intent(  out) :: agvi
-      real(r_kind),dimension(0:mlat+ione,nsig)     ,intent(  out) :: wgvi
-      real(r_kind),dimension(0:mlat+ione,nsig)     ,intent(  out) :: bvi
+      real(r_kind),dimension(0:mlat+1,nsig,nsig),intent(  out) :: agvi
+      real(r_kind),dimension(0:mlat+1,nsig)     ,intent(  out) :: wgvi
+      real(r_kind),dimension(0:mlat+1,nsig)     ,intent(  out) :: bvi
       integer(i_kind)                              ,intent(in   ) :: mype  ! "my" processor ID
       integer(i_kind),optional                     ,intent(in   ) :: unit ! an alternative unit
 
@@ -131,7 +131,7 @@ end subroutine berror_get_dims_reg
     rewind inerr
     read(inerr) nsigstat,nlatstat
 
-    if(mype==izero) then
+    if(mype==0) then
        write(6,*) myname_,'(PREBAL_REG):  get balance variables', &
          '"',trim(berror_stats),'".  ', &
          'mype,nsigstat,nlatstat =', &
@@ -141,8 +141,8 @@ end subroutine berror_get_dims_reg
     allocate ( clat_avn(mlat) )
     allocate ( sigma_avn(1:msig) )
     allocate ( rlsigo(1:msig) )
-    allocate ( agv_avn(0:mlat+ione,1:msig,1:msig) )
-    allocate ( bv_avn(0:mlat+ione,1:msig),wgv_avn(0:mlat+ione,1:msig) )
+    allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
+    allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
 
 !   Read background error file to get balance variables
     read(inerr)clat_avn,(sigma_avn(k),k=1,msig)
@@ -160,20 +160,20 @@ end subroutine berror_get_dims_reg
     allocate(lsig(nsig),coef1(nsig),coef2(nsig))
     do k=1,nsig
        if(rlsig(k)>=rlsigo(1))then
-          m=ione
-          m1=2_i_kind
-          lsig(k)=ione
+          m=1
+          m1=2
+          lsig(k)=1
           coef1(k)=one
           coef2(k)=zero
        else if(rlsig(k)<=rlsigo(msig))then
-          m=msig-ione
+          m=msig-1
           m1=msig
-          lsig(k)=msig-ione
+          lsig(k)=msig-1
           coef1(k)=zero
           coef2(k)=one
        else
-          m_loop: do m=1,msig-ione
-             m1=m+ione
+          m_loop: do m=1,msig-1
+             m1=m+1
              if((rlsig(k)<=rlsigo(m))   .and.  &
                   (rlsig(k)>rlsigo(m1))     )then
                 lsig(k)=m
@@ -183,7 +183,7 @@ end subroutine berror_get_dims_reg
           coef1(k)=(rlsigo(m1)-rlsig(k))/(rlsigo(m1)-rlsigo(m))
           coef2(k)=one-coef1(k)
           if(lsig(k)==msig)then
-             lsig(k)=msig-ione
+             lsig(k)=msig-1
              coef2(k)=one
              coef1(k)=zero
           endif
@@ -193,7 +193,7 @@ end subroutine berror_get_dims_reg
 !   Load agv wgv bv
     do k=1,nsig
        m=lsig(k)
-       m1=m+ione
+       m1=m+1
        do i=1,mlat
           wgvi(i,k)=wgv_avn(i,m)*coef1(k)+wgv_avn(i,m1)*coef2(k)
           bvi (i,k)=bv_avn (i,m)*coef1(k)+bv_avn (i,m1)*coef2(k)
@@ -201,7 +201,7 @@ end subroutine berror_get_dims_reg
 
        do j=1,nsig
           l=lsig(j)
-          l1=l+ione
+          l1=l+1
           do i=1,mlat
              agvi(i,j,k)=(agv_avn(i,l,m)*coef1(j)+agv_avn(i,l1,m)*coef2(j))*coef1(k) &
                       +(agv_avn(i,l,m1)*coef1(j)+agv_avn(i,l1,m1)*coef2(j))*coef2(k)
@@ -212,9 +212,9 @@ end subroutine berror_get_dims_reg
     agvi(0,:,:)=agvi(1,:,:)
     wgvi(0,:)=wgvi(1,:)
     bvi(0,:)=bvi(1,:)
-    agvi(mlat+ione,:,:)=agvi(mlat,:,:)
-    wgvi(mlat+ione,:)=wgvi(mlat,:)
-    bvi(mlat+ione,:)=bvi(mlat,:)
+    agvi(mlat+1,:,:)=agvi(mlat,:,:)
+    wgvi(mlat+1,:)=wgvi(mlat,:)
+    bvi(mlat+1,:)=bvi(mlat,:)
      
     deallocate (agv_avn,bv_avn,wgv_avn,clat_avn,sigma_avn,rlsigo)
     return
@@ -233,11 +233,13 @@ end subroutine berror_read_bal_reg
 
       use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
-      use control_vectors,only: nrf,nrf2,nrf3,nrf_var,nrf2_loc,nrf3_loc, &
-                      nrf3_oz,nrf3_q,nrf3_cw,nrf3_sf,nrf2_sst,nvars
+      use control_vectors,only: nrf,nc2d,nc3d,nvars
+      use control_vectors,only: cvars => nrf_var !_RT ,nrf2_loc,nrf3_loc
+      use control_vectors,only: cvars2d,cvars3d
       use jfunc,only: varq,qoption
       use guess_grids, only:  ges_psfcavg,ges_prslavg
-      use constants, only: ione,zero,one
+      use constants, only: zero,one
+      use mpeu_util,only: getindex
 
       implicit none
 
@@ -245,13 +247,13 @@ end subroutine berror_read_bal_reg
       integer(i_kind)                    ,intent(in   ) :: mype  ! "my" processor ID
       integer(i_kind),optional           ,intent(in   ) :: unit ! an alternative unit
 
-      real(r_kind),dimension(1:mlat,nsig,nrf3),intent(inout):: corz
-      real(r_kind),dimension(1:mlat,nrf2),intent(out):: corp
+      real(r_kind),dimension(:,:,:),intent(inout):: corz
+      real(r_kind),dimension(:,:)  ,intent(inout)  :: corp
 
-      real(r_kind),dimension(0:mlat+1,nsig,nrf3),intent(out):: hwll
-      real(r_kind),dimension(0:mlat+1,nvars-nrf3),intent(out):: hwllp
-      real(r_kind),dimension(nsig,0:mlat+1,1:nrf3),intent(out):: vz
-     
+      real(r_kind),dimension(0:mlat+1,1:nsig,1:nc3d), intent(inout):: hwll
+      real(r_kind),dimension(0:mlat+1,nvars-nc3d)   , intent(inout):: hwllp
+      real(r_kind),dimension(nsig,0:mlat+1,1:nc3d),intent(inout):: vz
+
       real(r_kind),dimension(nsig),intent(out):: rlsig
 
 ! !REVISION HISTORY:
@@ -259,6 +261,10 @@ end subroutine berror_read_bal_reg
 !                     - change the structure of background error file
 !                     - make changes for generalizing control variables
 !                     - move varq,factoz here from prewgt_reg
+!       28May10 Todling Obtain variable id's on the fly (add getindex)
+!       01Jun10 Todling These are now alloctable: corz,corp,hwll,hwllp,vz
+!       22Jun10 Treadon - move nrf3_loc and nrf2_loc allocate outside read loop
+!       23Jun10 Treadon - explicitly specify dimensions for hwll,hwllp,vz
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::berror_read_wgt_reg'
@@ -281,16 +287,18 @@ end subroutine berror_read_bal_reg
   character*5 var
   logical,dimension(nrf):: nrf_err
 
+  integer(i_kind) :: nrf3_oz,nrf3_q,nrf3_cw,nrf3_sf,nrf2_sst
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
   integer(i_kind) :: loc,nn,m1,m,i,n,j,k
+  integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc
   real(r_kind) :: corq2x
   real(r_kind) :: factoz
 
   allocate ( clat_avn(mlat) )
   allocate ( sigma_avn(1:msig) )
-  allocate ( agv_avn(0:mlat+ione,1:msig,1:msig) )
-  allocate ( bv_avn(0:mlat+ione,1:msig),wgv_avn(0:mlat+ione,1:msig) )
+  allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
+  allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
 
 ! Open background error statistics file
   inerr=default_unit_
@@ -310,12 +318,21 @@ end subroutine berror_read_bal_reg
      rlsig(k)=log(ges_prslavg(k)/ges_psfcavg)
   enddo
 
-  if(mype==izero) then
+  if(mype==0) then
      write(6,*) myname_,'(PREWGT_REG):  read error amplitudes ', &
        '"',trim(berror_stats),'".  ', &
        'mype,nsigstat,nlatstat =', &
         mype,nsigstat,nlatstat
   end if
+
+   allocate(nrf3_loc(nc3d),nrf2_loc(nc2d))
+   do n=1,nc3d
+      nrf3_loc(n)=getindex(cvars,cvars3d(n))
+   enddo
+   do n=1,nc2d
+      nrf2_loc(n)=getindex(cvars,cvars2d(n))
+   enddo
+
 
 ! Read amplitudes
   nrf_err=.false.
@@ -340,7 +357,7 @@ end subroutine berror_read_bal_reg
 
 !    load the variances
      do n=1,nrf
-        if (var==nrf_var(n)) then
+        if (var==cvars(n)) then
            nrf_err(n)=.true.
            loc=n
            exit
@@ -348,7 +365,7 @@ end subroutine berror_read_bal_reg
      end do
 
      if (isig==msig) then
-        do n=1,nrf3
+        do n=1,nc3d
            if (nrf3_loc(n)==loc) then
               if (var=='q' .and. qoption==2) then
 !                choose which q stat to use
@@ -365,7 +382,7 @@ end subroutine berror_read_bal_reg
                  end do
               end if
               do k=1,msig
-                 do i=0,mlat+ione
+                 do i=0,mlat+1
                     hwll_tmp(i,k,n)=hwll_avn(i,k)
                     vz_tmp(k,i,n)=vztdq_avn(k,i)
                  end do
@@ -376,7 +393,7 @@ end subroutine berror_read_bal_reg
      end if
 
      if (isig==1) then
-       do n=1,nrf2
+       do n=1,nc2d
           if (nrf2_loc(n)==loc) then
              do i=1,mlat
                  corp(i,n)=corz_avn(i,1)
@@ -400,7 +417,7 @@ end subroutine berror_read_bal_reg
   deallocate(agv_avn,bv_avn,wgv_avn)
 
 ! 3d variable
-  do n=1,nrf3
+  do n=1,nc3d
      loc=nrf3_loc(n)
      if (nrf_err(loc)) then
         do k=1,nsig
@@ -410,13 +427,20 @@ end subroutine berror_read_bal_reg
               corz(i,k,n)=corz_tmp(i,m,n)*coef1(k)+corz_tmp(i,m1,n)*coef2(k)
            enddo
 
-           do i=0,mlat+ione
+           do i=0,mlat+1
               hwll(i,k,n)=hwll_tmp(i,m,n)*coef1(k)+hwll_tmp(i,m1,n)*coef2(k)
               vz(k,i,n)=vz_tmp(m,i,n)*coef1(k)+vz_tmp(m1,i,n)*coef2(k)
            enddo
         enddo
      end if
   enddo
+
+! Get control variable indexes
+  nrf3_q  =getindex(cvars3d,'q')
+  nrf3_oz =getindex(cvars3d,'oz')
+  nrf3_cw =getindex(cvars3d,'cw')
+  nrf3_sf =getindex(cvars3d,'sf')
+  nrf2_sst=getindex(cvars2d,'sst')
 
   if(nrf3_q>0 .and. qoption==2)then
      do k=1,nsig
@@ -427,25 +451,21 @@ end subroutine berror_read_bal_reg
      enddo
   endif
 
-  do n=1,nrf3
-     loc=nrf3_loc(n)
-     if (nrf_err(loc)) cycle
-     if (n==nrf3_oz) then
-        factoz = 0.0002_r_kind*r25
-        corz(:,:,nrf3_oz)=factoz
-!       hwll(:,:,nrf3_oz)=400000.0_r_kind
-        vz(:,:,nrf3_oz)=vz_oz
-        nrf_err(loc)=.true.
-     else if (n==nrf3_cw) then
-        corz(:,:,nrf3_cw)=corz(:,:,nrf3_q)
-        hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)
-        vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)
-        nrf_err(loc)=.true.
-     end if
-  end do
+  if (nrf3_oz>0) then 
+     factoz = 0.0002_r_kind*r25
+     corz(:,:,nrf3_oz)=factoz
+!    hwll:,:,nrf3_oz)=400000.0_r_kind
+     vz(:,:,nrf3_oz)=vz_oz
+  end if
 
+  if (nrf3_cw>0) then 
+     corz(:,:,nrf3_cw)=corz(:,:,nrf3_q)
+     hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)
+     vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)
+  end if
+  
 ! 2d variable
-  do n=1,nrf2
+  do n=1,nc2d
      loc=nrf2_loc(n)
      if (nrf_err(loc)) cycle
      if (n==nrf2_sst) then
@@ -454,23 +474,13 @@ end subroutine berror_read_bal_reg
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_sf)
-           hwllp(i,nrf2+1)=hwll(i,1,nrf3_sf)
-           hwllp(i,nrf2+2)=hwll(i,1,nrf3_sf)
+           hwllp(i,nc2d+1)=hwll(i,1,nrf3_sf)
+           hwllp(i,nc2d+2)=hwll(i,1,nrf3_sf)
         end do
-        nrf_err(loc)=.true.
      end if
   enddo
 
-! Do final check to make sure that background errors have been loaded for all variables
-  if(mype==0) then
-     do n=1,nrf
-        if (.not. nrf_err(n)) then
-           write(6,*) 'READ_WGT_REG: ***ERROR*** fail to load error variance for ', nrf_var(n)
-           call stop2(333)
-        end if
-     end do
-  end if
-
+  deallocate(nrf3_loc,nrf2_loc)
 
   return
 end subroutine berror_read_wgt_reg

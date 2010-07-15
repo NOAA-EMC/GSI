@@ -14,6 +14,8 @@ subroutine grid2sub(workout,cstate,sst,slndt,sicet)
 !   2004-10-26  kleist - u,v removed; periodicity accounted for only in 
 !               sub2grid routine if necessary
 !   2010-04-01  treadon - move reorder2 and vectosub to gridmod
+!   2010-04-28  todling - update to use gsi_bundle
+!   2010-05-22  todling - replace individual pointers to xtmp w/ global pointer nsubwhalo
 !
 !   input argument list:
 !     work1    - input grid values on full grid after horizontal part of cov.
@@ -40,20 +42,26 @@ subroutine grid2sub(workout,cstate,sst,slndt,sicet)
        mpi_comm_world,mpi_rtype
   use gridmod, only: itotsub,nsig,ltosj_s,ltosi_s,lat2,lon2,nlat,nlon,nsig1o,nnnn1o, &
        latlon1n,latlon11,vlevs,reorder2,vectosub
-  use jfunc, only: nsst2,noz2,nslt2,ncw2,nsit2,nvp2,nst2,np2,nq2,nt2
+  use control_vectors, only: nrf,nrf_var,nrf_3d
+  use control_vectors, only: mvars  ! need to pass motley to avoid passing this via common
   use constants, only: izero
-  use control_vectors
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
   real(r_kind),dimension(nlat,nlon,nnnn1o),intent(in   ) :: workout
   real(r_kind),dimension(lat2,lon2)       ,intent(  out) :: sst,slndt,sicet
-  type(control_state)                     ,intent(inout) :: cstate
+  type(gsi_bundle)                        ,intent(inout) :: cstate
 
 ! Declare local variables
-  integer(i_kind) k,l,ni1,ni2
+  character(len=*), parameter :: myname='grid2sub'
+  integer(i_kind) ii,jj,i,k,l,ni1,ni2,n,istatus
+  integer(i_kind),allocatable,dimension(:):: nsubwhalo ! indexes to sub-domain with halo
   real(r_kind),dimension(itotsub,nsig1o):: work1
   real(r_kind),dimension(lat2*lon2*vlevs):: xtmp
+  real(r_kind),pointer:: rank2(:,:)
+  real(r_kind),pointer:: rank3(:,:,:)
 
 
 ! Transfer input array to local work array
@@ -72,19 +80,70 @@ subroutine grid2sub(workout,cstate,sst,slndt,sicet)
        mpi_rtype,xtmp(1),ircnt_s,irdsp_s,&
        mpi_rtype,mpi_comm_world,ierror)
 
-! load the received subdomain vector
-  call vectosub(xtmp(nst2),latlon1n,cstate%st)
-  call vectosub(xtmp(nvp2),latlon1n,cstate%vp)
-  call vectosub(xtmp(np2),latlon11,cstate%p)
-  call vectosub(xtmp(nt2),latlon1n,cstate%t)
-  call vectosub(xtmp(nq2),latlon1n,cstate%rh)
-  if (nrf3_oz>izero) call vectosub(xtmp(noz2),latlon1n,cstate%oz)
-  if (nrf2_sst>izero) then
-     call vectosub(xtmp(nsst2),latlon11,sst)
-     call vectosub(xtmp(nslt2),latlon11,slndt)
-     call vectosub(xtmp(nsit2),latlon11,sicet)
-  end if
-  if (nrf3_cw>izero) call vectosub(xtmp(ncw2),latlon1n,cstate%cw)
+! do some checking
+  if (cstate%grid%im*cstate%grid%jm/=latlon11) then
+      write(6,*) trim(myname),': inconsistent 2d dims'
+      call stop2(999)
+  endif
+  if (cstate%grid%im*cstate%grid%jm*cstate%grid%km/=latlon1n) then
+      write(6,*) trim(myname),': inconsistent 3d dims'
+      call stop2(999)
+  endif
+
+  allocate(nsubwhalo(nrf+mvars))
+
+  ii=0
+  do i=1,nrf
+     if(nrf_3d(i)) then
+        n=latlon1n
+     else
+        n=latlon11
+     endif
+     nsubwhalo(i)=ii+1
+     ii=ii+n
+  enddo
+  do i=nrf+1,nrf+mvars
+     nsubwhalo(i)=ii+1
+     ii=ii+latlon11
+  enddo
+
+  ii=0
+  do i=1,nrf
+     if(nrf_3d(i)) then
+        call gsi_bundlegetpointer (cstate,trim(nrf_var(i)),rank3,istatus)
+        if(istatus==0) then
+           n=size(rank3)
+           call vectosub(xtmp(nsubwhalo(i)),n,rank3)
+        else
+           write(6,*) myname,': cannot find 3d pointer'
+           call stop2(999)
+        endif
+     else
+        call gsi_bundlegetpointer (cstate,trim(nrf_var(i)),rank2,istatus)
+        if(istatus==0) then
+           if(trim(nrf_var(i))=='sst') then ! _RT better handled via motley
+              n=size(sst)
+              call vectosub(xtmp(nsubwhalo(i)),n,sst)
+           else
+              n=size(rank2)
+              call vectosub(xtmp(nsubwhalo(i)),n,rank2)
+           endif
+        else
+           write(6,*) myname,': cannot find 2d pointer'
+           call stop2(999)
+        endif
+     endif
+  enddo
+  if(mvars>0) then  ! _RT should be done via motley
+     ii=nrf+1
+     n=size(slndt)
+     call vectosub(xtmp(nsubwhalo(ii)),n,slndt)
+     ii=ii+1
+     n=size(sicet)
+     call vectosub(xtmp(nsubwhalo(ii)),n,sicet)
+  endif
+
+  deallocate(nsubwhalo)
 
   return
 end subroutine grid2sub

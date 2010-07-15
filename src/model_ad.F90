@@ -15,21 +15,15 @@ use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
 use gsi_4dvar, only: iadateend,idmodel
 use constants, only: zero,r3600
-use state_vectors
-use geos_pertmod, only: ndtpert
+use state_vectors, only: allocate_state,deallocate_state,dot_product
+use gsi_bundlemod, only: gsi_bundle
+use gsi_bundlemod, only: gsi_bundlegetpointer
+use gsi_bundlemod, only: self_add,assignment(=)
+use gsi_4dcouplermod, only: gsi_4dcoupler_init_model_ad
+use gsi_4dcouplermod, only: gsi_4dcoupler_model_ad
+use gsi_4dcouplermod, only: gsi_4dcoupler_final_model_ad
 use m_tick, only: tick
 use timermod, only: timer_ini,timer_fnl
-
-#ifdef GEOS_PERT
-use prognostics, only: dyn_prog
-use prognostics, only: prognostics_initial
-use prognostics, only: prognostics_final
-use geos_pertmod, only: gsi2pgcm
-use geos_pertmod, only: pgcm2gsi
-use m_model_ad, only: initial_ad
-use m_model_ad, only: amodel_ad
-use m_model_ad, only: final_ad
-#endif /* GEOS_PERT */
 
 use lag_fields, only: nlocal_orig_lag, ntotal_orig_lag
 use lag_fields, only: lag_ad_vec,lag_tl_spec_i,lag_tl_spec_r
@@ -42,12 +36,12 @@ implicit none
 
 ! !INPUT PARAMETERS:
 
-type(state_vector), intent(in   ) :: xobs(nobs_bins) ! Adjoint state variable at observations times
-logical           , intent(in   ) :: ldprt           ! Print-out flag
+type(gsi_bundle), intent(in   ) :: xobs(nobs_bins) ! Adjoint state variable at observations times
+logical         , intent(in   ) :: ldprt           ! Print-out flag
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-type(state_vector), intent(inout) :: xini(nsubwin)   ! Adjoint state variable at control times
+type(gsi_bundle), intent(inout) :: xini(nsubwin)   ! Adjoint state variable at control times
 
 ! !DESCRIPTION: Run AGCM adjoint model.
 !
@@ -58,6 +52,8 @@ type(state_vector), intent(inout) :: xini(nsubwin)   ! Adjoint state variable at
 !  29Jun2007  todling  - adm verified against tlm
 !  30Sep2007  todling  - add timer
 !  30Apr2009  meunier  - add trajectory model for lagrangian data
+!  13May2010  todling  - update to use gsi_bundle
+!  27May2010  todling  - gsi_4dcoupler; remove all user-specific TL-related references
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -65,22 +61,22 @@ type(state_vector), intent(inout) :: xini(nsubwin)   ! Adjoint state variable at
 ! Declare local variables
 character(len=*), parameter :: myname = 'model_ad'
 
-type(state_vector) :: xx
+type(gsi_bundle) :: xx
 integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ii,jj,ierr
-integer(i_kind)    :: nymdi,nhmsi,ndt,dt
+integer(i_kind)    :: nymdi,nhmsi,ndt,dt,ndtpert
 real(r_kind)       :: d0,tstep
+real(r_kind),pointer,dimension(:,:,:)  :: xx_u,xx_v
 
 ! Temporary vector for lagrangian backward integration
 real(r_kind),dimension(3):: ad_tmp_locvect
-
-#ifdef GEOS_PERT
-type(dyn_prog) :: xpert
-#endif /* GEOS_PERT */
 
 !******************************************************************************
 
 ! Initialize timer
 call timer_ini('model_ad')
+
+! Initialize AD model
+call gsi_4dcoupler_init_model_ad(ndtpert)
 
 ! Initialize variables
 if (idmodel) then
@@ -103,14 +99,6 @@ call allocate_state(xx)
 xx = zero
 d0 = zero
 
-! Initialize GCM ADM and its perturbation vector
-#ifdef GEOS_PERT
-if (.not.idmodel ) then
-   call initial_ad
-   call prognostics_initial(xpert)
-endif
-#endif /* GEOS_PERT */
-
 ii=nobs_bins
 
 ! Post-process final state
@@ -126,15 +114,9 @@ do istep=nstep-1,0,-1
    call tick(nymdi,nhmsi,-dt)
 
 !  Apply AD model
-#ifdef GEOS_PERT
-   if (.not.idmodel) then
-      call gsi2pgcm  (xx,xpert,'adm',ierr)                          ! T'(-1)
-      call amodel_ad (xpert,nymdi,nhmsi,ntsteps=ndt,g5pert=.true.)  ! M'
-      call pgcm2gsi  (xpert,xx,'adm',ierr)                          ! T'
-   endif
-#endif /* GEOS_PERT */
+   call gsi_4dcoupler_model_ad(xx,nymdi,nhmsi,ndt)
 
-! Apply AD trajectory model (same time steps as obsbin)
+!  Apply AD trajectory model (same time steps as obsbin)
    if (MOD(istep,nfrobs)==0 .and. ntotal_orig_lag>0) then
       ii=istep/nfrobs+1
       if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_ad: trajectory model nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
@@ -151,7 +133,9 @@ do istep=nstep-1,0,-1
          lag_ad_vec(jj,ii,:)=lag_ad_vec(jj,ii,:)+ad_tmp_locvect
       end do
       ! Give the sensitivity back to the GCM
-      call lag_ADscatter_stateuv(xx%u,xx%v,ii)
+      call gsi_bundlegetpointer(xx,'u',xx_u,ierr)
+      call gsi_bundlegetpointer(xx,'v',xx_v,ierr)
+      call lag_ADscatter_stateuv(xx_u,xx_v,ii)
       ! To not add the contribution 2 times
       lag_u_full(:,:,ii)=zero; lag_v_full(:,:,ii)=zero;
    endif
@@ -174,12 +158,9 @@ do istep=nstep-1,0,-1
 enddo
 
 if(ldprt) print *, myname, ': total (gsi) dot product ', d0
-#ifdef GEOS_PERT
-if (.not.idmodel ) then
-   call prognostics_final(xpert)
-   call final_ad
-endif
-#endif /* GEOS_PERT */
+
+! Finalize AD model
+call gsi_4dcoupler_final_model_ad()
 
 call deallocate_state(xx)
 

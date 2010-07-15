@@ -27,7 +27,7 @@ subroutine getprs(ps,prs)
 !$$$ end documentation block
 
   use kinds,only: r_kind,i_kind
-  use constants,only: ione,zero,half,one_tenth,rd_over_cp,one
+  use constants,only: zero,half,one_tenth,rd_over_cp,one
   use gridmod,only: nsig,lat2,lon2,ak5,bk5,ck5,tref5,idvc5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,&
        regional,wrf_mass_regional,twodvar_regional
@@ -35,8 +35,8 @@ subroutine getprs(ps,prs)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs
+  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: ps
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: prs
 
 ! Declare local variables
   real(r_kind) kapr,trk
@@ -51,7 +51,7 @@ subroutine getprs(ps,prs)
 
   if (regional) then
      if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs(i,j,k)=one_tenth* &
@@ -62,7 +62,7 @@ subroutine getprs(ps,prs)
            end do
         end do
      elseif (wrf_mass_regional .or. twodvar_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + pt_ll)
@@ -71,15 +71,15 @@ subroutine getprs(ps,prs)
         end do
      endif
   else
-     k=ione
-     k2=nsig+ione
+     k=1
+     k2=nsig+1
      do j=1,lon2
         do i=1,lat2
            prs(i,j,k)=ps(i,j)
            prs(i,j,k2)=zero
         end do
      end do
-     if (idvc5 /= 3_i_kind) then
+     if (idvc5 /= 3) then
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
@@ -91,7 +91,7 @@ subroutine getprs(ps,prs)
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
-                 trk=(half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k))**kapr
+                 trk=(half*(ges_tv(i,j,k-1,it)+ges_tv(i,j,k,it))/tref5(k))**kapr
                  prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
               end do
            end do
@@ -132,27 +132,28 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
 !$$$
   
   use kinds,only: r_kind,i_kind
-  use constants,only: ione,zero
+  use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
   use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: compact_dlat,compact_dlon
+  use control_vectors, only: nrf_var
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps_x,ps_y
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prs
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs_x,prs_y
+  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: ps_x,ps_y
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: prs
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: prs_x,prs_y
 
 ! Declare local variables
-  integer(i_kind) i,j,k,iflg
+  integer(i_kind) i,j,k,iflg,ips
   real(r_kind),dimension(lat2,lon2,nsig):: st,vp,t
   real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
 
 
   if(regional)then
      if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs_x(i,j,k)=eta2_ll(k)*ps_x(i,j)
@@ -164,14 +165,17 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
         prs_x=zero ; prs_y=zero
      end if
   else
-     iflg=ione
+     iflg=1
      st=zero
      vp=zero
      t=zero
      hwork=zero
+     do k=1,size(nrf_var)
+        if(trim(nrf_var(k))=='ps') ips=k
+     enddo
      call sub2grid2(hwork,st,vp,prs,t,iflg)
      do k=1,nnnvsbal
-        if(nvarbal_id(k) == 3_i_kind)then
+        if(nvarbal_id(k) == ips)then
            call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
            call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
         end if
@@ -216,7 +220,7 @@ subroutine getprs_tl(ps,t,prs)
 !$$$ end documentation block
   
   use kinds,only: r_kind,i_kind
-  use constants,only: ione,zero,one,rd_over_cp,half
+  use constants,only: zero,one,rd_over_cp,half
   use gridmod,only: nsig,lat2,lon2,bk5,ck5,idvc5,tref5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,eta1_ll,regional,wrf_mass_regional,&
        twodvar_regional
@@ -224,9 +228,9 @@ subroutine getprs_tl(ps,t,prs)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: t
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs
+  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: ps
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: t
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: prs
 
 ! Declare local variables
   real(r_kind) kapr,kaprm1,trk,tc1,t9trm
@@ -234,7 +238,7 @@ subroutine getprs_tl(ps,t,prs)
 
   if (regional) then
      if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs(i,j,k)=eta2_ll(k)*ps(i,j)
@@ -242,7 +246,7 @@ subroutine getprs_tl(ps,t,prs)
            end do
         end do
      elseif (wrf_mass_regional .or. twodvar_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs(i,j,k)=eta1_ll(k)*ps(i,j)
@@ -251,15 +255,15 @@ subroutine getprs_tl(ps,t,prs)
         end do
      endif
   else
-     k=ione
-     k2=nsig+ione
+     k=1
+     k2=nsig+1
      do j=1,lon2
         do i=1,lat2
            prs(i,j,k)=ps(i,j)
            prs(i,j,k2)=zero
         end do
      end do
-     if (idvc5 /= 3_i_kind) then
+     if (idvc5 /= 3) then
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
@@ -274,9 +278,9 @@ subroutine getprs_tl(ps,t,prs)
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
-                 t9trm=half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k)
+                 t9trm=half*(ges_tv(i,j,k-1,it)+ges_tv(i,j,k,it))/tref5(k)
                  tc1=half/tref5(k)
-                 trk=kapr*tc1*(t(i,j,k-ione)+t(i,j,k))*(t9trm**kaprm1)
+                 trk=kapr*tc1*(t(i,j,k-1)+t(i,j,k))*(t9trm**kaprm1)
                  prs(i,j,k)=bk5(k)*ps(i,j) + ck5(k)*trk
               end do
            end do
@@ -300,6 +304,7 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
 ! program history log:
 !   2008-06-04  safford - complete doc block
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!   2010-05-23  todling - unwired location of ps in control array
 !
 !   input argument list:
 !     prs      - 3d pressure
@@ -317,27 +322,28 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
 !$$$ end documentation block
 
   use kinds,only: r_kind,i_kind
-  use constants,only: ione,zero
+  use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
   use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: compact_dlat,compact_dlon
+  use control_vectors, only: nrf_var
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps_x,ps_y
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prs
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs_x,prs_y
+  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: ps_x,ps_y
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: prs
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: prs_x,prs_y
 
 ! Declare local variables
-  integer(i_kind) i,j,k,iflg
+  integer(i_kind) i,j,k,iflg,ips
   real(r_kind),dimension(lat2,lon2,nsig):: st,vp,t
   real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
 
 
   if(regional)then
      if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs_x(i,j,k)=eta2_ll(k)*ps_x(i,j)
@@ -350,13 +356,16 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
         prs_y=zero
      end if
   else
-     iflg=ione
+     do k=1,size(nrf_var)
+        if(trim(nrf_var(k))=='ps') ips=k
+     enddo
+     iflg=1
      st=zero
      vp=zero
      t=zero
      call sub2grid2(hwork,st,vp,prs,t,iflg)
      do k=1,nnnvsbal
-        if(nvarbal_id(k) == 3_i_kind)then
+        if(nvarbal_id(k) == ips)then
            call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
            call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
         end if
@@ -407,14 +416,14 @@ subroutine getprs_ad(ps,t,prs)
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,regional,wrf_mass_regional,eta1_ll,&
        twodvar_regional
   use guess_grids, only: ges_tv,ntguessig 
-  use constants,only: ione,zero,half,one,rd_over_cp
+  use constants,only: zero,half,one,rd_over_cp
 
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout) :: prs
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(inout) :: t
-  real(r_kind),dimension(lat2,lon2)          ,intent(inout) :: ps
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout) :: prs
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: t
+  real(r_kind),dimension(lat2,lon2)       ,intent(inout) :: ps
 
 ! Declare local variables
   real(r_kind) kapr,kaprm1,trk,tc1,t9trm
@@ -423,7 +432,7 @@ subroutine getprs_ad(ps,t,prs)
 
   if (regional) then
      if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  ps(i,j) = ps(i,j) + eta2_ll(k)*prs(i,j,k)
@@ -431,7 +440,7 @@ subroutine getprs_ad(ps,t,prs)
            end do
         end do
      elseif (wrf_mass_regional .or. twodvar_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  ps(i,j) = ps(i,j) + eta1_ll(k)*prs(i,j,k)
@@ -440,7 +449,7 @@ subroutine getprs_ad(ps,t,prs)
         end do
      endif
   else
-     if (idvc5 /= 3_i_kind) then
+     if (idvc5 /= 3) then
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
@@ -455,17 +464,17 @@ subroutine getprs_ad(ps,t,prs)
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
-                 t9trm=half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k)
+                 t9trm=half*(ges_tv(i,j,k-1,it)+ges_tv(i,j,k,it))/tref5(k)
                  tc1=half/tref5(k)
                  ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
                  trk = ck5(k)*prs(i,j,k)
-                 t(i,j,k-ione) = t(i,j,k-ione) + kapr*tc1*trk*(t9trm**kaprm1)
+                 t(i,j,k-1) = t(i,j,k-1) + kapr*tc1*trk*(t9trm**kaprm1)
                  t(i,j,k     ) = t(i,j,k     ) + kapr*tc1*trk*(t9trm**kaprm1)
               end do
            end do
         end do
      end if
-     k=ione
+     k=1
      do j=1,lon2
         do i=1,lat2
            ps(i,j)=ps(i,j) + prs(i,j,k)
@@ -473,7 +482,7 @@ subroutine getprs_ad(ps,t,prs)
      end do
   end if
 
-  do k=1,nsig+ione
+  do k=1,nsig+1
      do j=1,lon2
         do i=1,lat2
            prs(i,j,k)=zero
@@ -497,6 +506,7 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
 ! program history log:
 !   2008-06-04  safford - complete doc block
 !   2008-09-05  lueken  - merged ed's changes into q1fy09
+!   2010-05-23  todling - unwired location of ps in control array
 !
 !   input argument list:
 !     prs_x      - dp/dx
@@ -517,28 +527,29 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
 !$$$ end documentation block
 
   use kinds,only: r_kind,i_kind
-  use constants,only: ione,zero
+  use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
   use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
+  use control_vectors, only: nrf_var
 
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prs_x,prs_y
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout) :: prs
-  real(r_kind),dimension(lat2,lon2)          ,intent(inout) :: ps_x,ps_y
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: prs_x,prs_y
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout) :: prs
+  real(r_kind),dimension(lat2,lon2)       ,intent(inout) :: ps_x,ps_y
 
 ! Declare local variables
-  integer(i_kind) i,j,k,iflg
+  integer(i_kind) i,j,k,iflg,ips
   real(r_kind),dimension(lat2,lon2,nsig):: st,vp,t
   real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
 
 ! Adjoint of horizontal derivatives
   if (regional) then
      if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  ps_y(i,j) = ps_y(i,j) + eta2_ll(k)*prs_y(i,j,k)
@@ -548,7 +559,10 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
         end do
      end if
   else
-     iflg=ione
+     do k=1,size(nrf_var)
+        if(trim(nrf_var(k))=='ps') ips=k
+     enddo
+     iflg=1
      st=zero
      vp=zero
      t=zero
@@ -556,13 +570,13 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
      call sub2grid2(hwork_x,st,vp,prs_x,t,iflg)
      call sub2grid2(hwork_y,st,vp,prs_y,t,iflg)
      do k=1,nnnvsbal
-        if(nvarbal_id(k) == 3_i_kind)then
+        if(nvarbal_id(k) == ips)then
            call tcompact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
            call tcompact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
         end if
      end do
      call grid2sub2(hwork,st,vp,prs_x,t)
-     do k=1,nsig+ione
+     do k=1,nsig+1
         do j=1,lon2
            do i=1,lat2
               prs(i,j,k)=prs(i,j,k)+prs_x(i,j,k)

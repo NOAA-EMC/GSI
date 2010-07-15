@@ -34,7 +34,7 @@ end interface
 
 contains
 
-subroutine intsrw_(srwhead,ru,rv,su,sv)
+subroutine intsrw_(srwhead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intsrw      apply nonlin qc operator for radar superob winds
@@ -58,6 +58,7 @@ subroutine intsrw_(srwhead,ru,rv,su,sv)
 !   2007-07-09  tremolet - observation sensitivity
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
+!   2010-05-13  todling  - update to use gsi_bundle; udpate interface
 !
 !   input argument list:
 !     srwhead
@@ -81,21 +82,42 @@ subroutine intsrw_(srwhead,ru,rv,su,sv)
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(srw_ob_type),pointer       ,intent(in   ) :: srwhead
-  real(r_kind),dimension(latlon1n),intent(in   ) :: su,sv
-  real(r_kind),dimension(latlon1n),intent(inout) :: ru,rv
+  type(srw_ob_type),pointer,intent(in   ) :: srwhead
+  type(gsi_bundle),         intent(in   ) :: sval
+  type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables  
+  integer(i_kind) ier,istatus
   integer(i_kind) i1,i2,i3,i4,i5,i6,i7,i8
 ! real(r_kind) penalty
   real(r_kind) valu,valv,w1,w2,w3,w4,w5,w6,w7,w8,valsrw1,valsrw2
   real(r_kind) bigu11,bigu21,bigu12,bigu22,time_srw
   real(r_kind) cg_srw,p0,gradsrw1,gradsrw2,wnotgross,wgross,term,pg_srw
+  real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
+  real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
+  real(r_kind),pointer,dimension(:) :: su,sv
+  real(r_kind),pointer,dimension(:) :: ru,rv
   type(srw_ob_type), pointer :: srwptr
 
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'u',xhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'v',xhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'u',dhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'v',dhat_dt_v,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
 
   srwptr => srwhead
   do while (associated(srwptr))
@@ -128,15 +150,15 @@ subroutine intsrw_(srwhead,ru,rv,su,sv)
      if ( l_foto ) then
         time_srw=srwptr%time*r3600
         valu=valu+&
-          (w1*xhat_dt%u(i1)+w2*xhat_dt%u(i2)+ &
-           w3*xhat_dt%u(i3)+w4*xhat_dt%u(i4)+ &
-           w5*xhat_dt%u(i5)+w6*xhat_dt%u(i6)+ &
-           w7*xhat_dt%u(i7)+w8*xhat_dt%u(i8))*time_srw
+          (w1*xhat_dt_u(i1)+w2*xhat_dt_u(i2)+ &
+           w3*xhat_dt_u(i3)+w4*xhat_dt_u(i4)+ &
+           w5*xhat_dt_u(i5)+w6*xhat_dt_u(i6)+ &
+           w7*xhat_dt_u(i7)+w8*xhat_dt_u(i8))*time_srw
         valv=valv+&
-          (w1*xhat_dt%v(i1)+w2*xhat_dt%v(i2)+ &
-           w3*xhat_dt%v(i3)+w4*xhat_dt%v(i4)+ &
-           w5*xhat_dt%v(i5)+w6*xhat_dt%v(i6)+ &
-           w7*xhat_dt%v(i7)+w8*xhat_dt%v(i8))*time_srw
+          (w1*xhat_dt_v(i1)+w2*xhat_dt_v(i2)+ &
+           w3*xhat_dt_v(i3)+w4*xhat_dt_v(i4)+ &
+           w5*xhat_dt_v(i5)+w6*xhat_dt_v(i6)+ &
+           w7*xhat_dt_v(i7)+w8*xhat_dt_v(i8))*time_srw
      endif
 
      valsrw1=bigu11*valu+bigu12*valv
@@ -202,22 +224,22 @@ subroutine intsrw_(srwhead,ru,rv,su,sv)
         valu=valu*time_srw
         valv=valv*time_srw
         if ( l_foto ) then
-           dhat_dt%u(i1)=dhat_dt%u(i1)+w1*valu
-           dhat_dt%u(i2)=dhat_dt%u(i2)+w2*valu
-           dhat_dt%u(i3)=dhat_dt%u(i3)+w3*valu
-           dhat_dt%u(i4)=dhat_dt%u(i4)+w4*valu
-           dhat_dt%u(i5)=dhat_dt%u(i5)+w5*valu
-           dhat_dt%u(i6)=dhat_dt%u(i6)+w6*valu
-           dhat_dt%u(i7)=dhat_dt%u(i7)+w7*valu
-           dhat_dt%u(i8)=dhat_dt%u(i8)+w8*valu
-           dhat_dt%v(i1)=dhat_dt%v(i1)+w1*valv
-           dhat_dt%v(i2)=dhat_dt%v(i2)+w2*valv
-           dhat_dt%v(i3)=dhat_dt%v(i3)+w3*valv
-           dhat_dt%v(i4)=dhat_dt%v(i4)+w4*valv
-           dhat_dt%v(i5)=dhat_dt%v(i5)+w5*valv
-           dhat_dt%v(i6)=dhat_dt%v(i6)+w6*valv
-           dhat_dt%v(i7)=dhat_dt%v(i7)+w7*valv
-           dhat_dt%v(i8)=dhat_dt%v(i8)+w8*valv
+           dhat_dt_u(i1)=dhat_dt_u(i1)+w1*valu
+           dhat_dt_u(i2)=dhat_dt_u(i2)+w2*valu
+           dhat_dt_u(i3)=dhat_dt_u(i3)+w3*valu
+           dhat_dt_u(i4)=dhat_dt_u(i4)+w4*valu
+           dhat_dt_u(i5)=dhat_dt_u(i5)+w5*valu
+           dhat_dt_u(i6)=dhat_dt_u(i6)+w6*valu
+           dhat_dt_u(i7)=dhat_dt_u(i7)+w7*valu
+           dhat_dt_u(i8)=dhat_dt_u(i8)+w8*valu
+           dhat_dt_v(i1)=dhat_dt_v(i1)+w1*valv
+           dhat_dt_v(i2)=dhat_dt_v(i2)+w2*valv
+           dhat_dt_v(i3)=dhat_dt_v(i3)+w3*valv
+           dhat_dt_v(i4)=dhat_dt_v(i4)+w4*valv
+           dhat_dt_v(i5)=dhat_dt_v(i5)+w5*valv
+           dhat_dt_v(i6)=dhat_dt_v(i6)+w6*valv
+           dhat_dt_v(i7)=dhat_dt_v(i7)+w7*valv
+           dhat_dt_v(i8)=dhat_dt_v(i8)+w8*valv
         endif
      endif
 

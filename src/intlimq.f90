@@ -13,6 +13,7 @@ module intlimqmod
 !   2005-11-22  Wu - return if factq's = zero
 !   2008-11-26  Todling - remove intlimq_tl
 !   2009-08-13  lueken - update documentation
+!   2010-05-13  todling - change interface
 !
 ! subroutines included:
 !   sub intlimq
@@ -33,7 +34,7 @@ PUBLIC intlimq
 
 contains
 
-subroutine intlimq(rq,sq)
+subroutine intlimq(rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intlimq
@@ -50,6 +51,7 @@ subroutine intlimq(rq,sq)
 !   2004-08-02  treadon - add only to module use, add intent in/out
 !   2007-02-13  derber - modify to use rh rather than q
 !   2008-06-02  safford - rm unused vars
+!   2010-05-13  todling - update to use gsi_bundle
 !
 !   input argument list:
 !     sq       - increment in grid space
@@ -65,24 +67,35 @@ subroutine intlimq(rq,sq)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   use gridmod, only: lat2,lon2,nsig,lat1,lon1
   use jfunc, only: factqmin,factqmax,qgues,qsatg
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: sq
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: rq
+  type(gsi_bundle),intent(in   ) :: sval
+  type(gsi_bundle),intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) i,j,k
+  integer(i_kind) i,j,k,ier,istatus
   real(r_kind) q
+  real(r_kind),pointer,dimension(:,:,:) :: sq
+  real(r_kind),pointer,dimension(:,:,:) :: rq
 
   if (factqmin==zero .and. factqmax==zero) return
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'q',sq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=istatus+ier
+  if(ier/=0)return
  
   do k = 1,nsig
-     do j = 2,lon1+ione
-        do i = 2,lat1+ione
+     do j = 2,lon1+1
+        do i = 2,lat1+1
            q = qgues(i,j,k) + sq(i,j,k)
            
 !          Lower constraint limit

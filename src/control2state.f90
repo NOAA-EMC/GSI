@@ -18,6 +18,12 @@ subroutine control2state(xhat,sval,bval)
 !                            lower resolution grid compared to analysis grid.
 !                            new parameter dual_res=.true. if ensemble grid is different from analysis grid.
 !   2010-03-23  zhu      - use cstate for generalizing control variable
+!   2010-04-29  todling  - update to use gsi_bundle; some changes toward bypassing standard atmos analysis
+!   2010-05-12  todling  - rename cstate to wbundle; state_vector now a bundle
+!   2010-05-31  todling  - better consistency checks; add co/co2
+!                        - ready to bypass analysis of (any) meteorological fields
+!   2010-06-04  parrish  - bug fix: u,v copy to wbundle after getuv for hyb ensemble
+!   2010-06-15  todling  - generalized handling of chemistry
 !
 !   input argument list:
 !     xhat - Control variable
@@ -30,97 +36,207 @@ subroutine control2state(xhat,sval,bval)
 !
 !$$$ end documentation block
 use kinds, only: r_kind,i_kind
-use constants, only: izero,ione
-use control_vectors
-use state_vectors
-use bias_predictors
+use control_vectors, only: control_vector
+use control_vectors, only: cvars3d,cvars2d
+use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, nobs_bins, l4dvar, lsqrtb
 use gridmod, only: latlon1n,latlon11
 use jfunc, only: nsclen,npclen,nrclen
 use hybrid_ensemble_parameters, only: l_hyb_ens,uv_hyb_ens,dual_res
 use balmod, only: strong_bk
 use hybrid_ensemble_isotropic_regional, only: ensemble_forward_model,ensemble_forward_model_dual_res
+use gsi_bundlemod, only: gsi_bundlecreate
+use gsi_bundlemod, only: gsi_bundle
+use gsi_bundlemod, only: gsi_bundlegetpointer
+use gsi_bundlemod, only: gsi_bundlegetvar
+use gsi_bundlemod, only: gsi_bundleputvar
+use gsi_bundlemod, only: gsi_bundledestroy
+use gsi_bundlemod, only: assignment(=)
+use gsi_chemtracer_mod, only: gsi_chemtracer_get
+use mpeu_util, only: getindex
 implicit none
   
 ! Declare passed variables  
 type(control_vector), intent(in   ) :: xhat
-type(state_vector)  , intent(inout) :: sval(nsubwin)
+type(gsi_bundle)    , intent(inout) :: sval(nsubwin)
 type(predictors)    , intent(inout) :: bval
 
 ! Declare local variables  	
-integer(i_kind) :: ii,jj
-real(r_kind),dimension(latlon1n):: u,v
-type(control_state):: cstate
+character(len=*),parameter::myname='control2state'
+character(len=10),allocatable,dimension(:) :: gases
+integer(i_kind) :: i,j,k,ii,jj,im,jm,km,ic,id,ngases,istatus
+real(r_kind),dimension(:,:,:),allocatable:: u,v
+type(gsi_bundle):: wbundle ! work bundle
+
+! Note: The following does not aim to get all variables in
+!       the state and control vectors, but rather the ones
+!       this routines knows how to handle.
+! Declare required local control variables
+integer(i_kind), parameter :: ncvars = 5
+integer(i_kind) :: icps(ncvars)
+character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
+                               'sf ', 'vp ', 'ps ', 't  ',    &
+                               'q  '/)
+logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh
+real(r_kind),pointer,dimension(:,:)   :: cv_ps
+real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_t,cv_rh
+
+! Declare required local state variables
+integer(i_kind), parameter :: nsvars = 5
+integer(i_kind) :: isps(nsvars)
+character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
+                               'u   ', 'v   ', 'p3d ', 'q   ', 'tsen' /)
+logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen
+real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
+real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_oz,sv_cw
+real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
+real(r_kind),pointer,dimension(:,:)   :: sv_rank2
+
+logical :: do_strong_bk,do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv
 
 !******************************************************************************
 
 if (lsqrtb) then
-   write(6,*)'control2state: not for sqrt(B)'
+   write(6,*)trim(myname),': not for sqrt(B)'
    call stop2(106)
 end if
-if (nsubwin/=ione .and. .not.l4dvar) then
-   write(6,*)'control2state: error 3dvar',nsubwin,l4dvar
+if (nsubwin/=1 .and. .not.l4dvar) then
+   write(6,*)trim(myname),': error 3dvar',nsubwin,l4dvar
    call stop2(107)
 end if
+
+im=xhat%step(1)%grid%im
+jm=xhat%step(1)%grid%jm
+km=xhat%step(1)%grid%km
+
+! Inquire about chemistry
+call gsi_chemtracer_get('dim',ngases,istatus)
+if (ngases>0) then
+    allocate(gases(ngases))
+    call gsi_chemtracer_get('list',gases,istatus)
+endif
+
+! Since each internal vector of xhat has the same structure, pointers are
+! the same independent of the subwindow jj
+call gsi_bundlegetpointer (xhat%step(1),mycvars,icps,istatus)
+lc_sf =icps(1)>0; lc_vp =icps(2)>0; lc_ps =icps(3)>0
+lc_t  =icps(4)>0; lc_rh =icps(5)>0
+
+! Since each internal vector of xhat has the same structure, pointers are
+! the same independent of the subwindow jj
+call gsi_bundlegetpointer (sval(1),mysvars,isps,istatus)
+ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
+ls_q  =isps(4)>0; ls_tsen=isps(5)>0
+
+! Define what to do depending on what's in CV and SV
+do_strong_bk     =lc_ps.and.lc_sf.and.lc_vp .and.lc_t
+do_getprs_tl     =lc_ps.and.lc_t .and.ls_p3d
+do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_p3d.and.ls_q
+do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
+do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
 
 ! Loop over control steps
 do jj=1,nsubwin
 
-! If this is hybrid ensemble run, then call strong constraint here:
-!    first need to transfer variables, since xhat is input only.
-   call allocate_cs(cstate)
-   cstate%values(:)=xhat%step(jj)%values(:)
+!  Create a temporary bundle similar to xhat, and copy contents of xhat into it
+   call gsi_bundlecreate ( wbundle, xhat%step(jj), 'control2state work', istatus )
+   if(istatus/=0) then
+      write(6,*) trim(myname), ': trouble creating work bundle'
+      call stop2(999)
+   endif
+   wbundle=xhat%step(jj)
+
+!  Get pointers to required control variables
+   call gsi_bundlegetpointer (wbundle,'sf' ,cv_sf ,istatus)
+   call gsi_bundlegetpointer (wbundle,'vp' ,cv_vp ,istatus)
+   call gsi_bundlegetpointer (wbundle,'ps' ,cv_ps ,istatus)
+   call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
+   call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
+
+!  Get pointers to required state variables
+   call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)
+   call gsi_bundlegetpointer (sval(jj),'v'   ,sv_v,   istatus)
+   call gsi_bundlegetpointer (sval(jj),'ps'  ,sv_ps,  istatus)
+   call gsi_bundlegetpointer (sval(jj),'p3d' ,sv_p3d, istatus)
+   call gsi_bundlegetpointer (sval(jj),'tv'  ,sv_tv,  istatus)
+   call gsi_bundlegetpointer (sval(jj),'tsen',sv_tsen,istatus)
+   call gsi_bundlegetpointer (sval(jj),'q'   ,sv_q ,  istatus)
+   call gsi_bundlegetpointer (sval(jj),'oz'  ,sv_oz , istatus)
+   call gsi_bundlegetpointer (sval(jj),'cw'  ,sv_cw , istatus)
+   call gsi_bundlegetpointer (sval(jj),'sst' ,sv_sst, istatus)
 
 ! If this is ensemble run, then add ensemble contribution sum(a_en(k)*xe(k)),  where a_en(k) are the ensemble
 !   control variables and xe(k), k=1,n_ens are the ensemble perturbations.
    if(l_hyb_ens) then
       if(uv_hyb_ens) then
 !        Convert streamfunction and velocity potential to u,v
-         call getuv(u,v,cstate%st,cstate%vp,izero)
-         cstate%st(:)=u(:)
-         cstate%vp(:)=v(:)
+         if (do_getuv) then
+            allocate(u(im,jm,km))
+            allocate(v(im,jm,km))
+            call getuv(u,v,cv_sf,cv_vp,0)
+            call gsi_bundleputvar ( wbundle, 'sf', u, istatus )
+            call gsi_bundleputvar ( wbundle, 'vp', v, istatus )
+            deallocate(v)
+            deallocate(u)
+         endif
       end if
       if(dual_res) then
-         call ensemble_forward_model_dual_res(cstate,xhat%step(jj)%a_en)
+         call ensemble_forward_model_dual_res(wbundle,xhat%aens(jj,:))
       else
-         call ensemble_forward_model(cstate,xhat%step(jj)%a_en)
+         call ensemble_forward_model(wbundle,xhat%aens(jj,:))
       end if
 !     Apply strong constraint to sum of static background and ensemble background combinations to
 !     reduce imbalances introduced by ensemble localization in addition to known imbalances from
 !     static background
-      call strong_bk(cstate%st,cstate%vp,cstate%p,cstate%t)
+      if(do_strong_bk) call strong_bk(cv_sf,cv_vp,cv_ps,cv_t)
    end if
 
 !  Get 3d pressure
-   call getprs_tl(cstate%p,cstate%t,sval(jj)%p3d)
+   if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_p3d)
 
 !  Convert input normalized RH to q
-   call normal_rh_to_q(cstate%rh,cstate%t,sval(jj)%p3d,sval(jj)%q)
+   if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_t,sv_p3d,sv_q)
 
 !  Calculate sensible temperature
-   call tv_to_tsen(cstate%t,sval(jj)%q,sval(jj)%tsen)
+   if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)
 
 !  Convert streamfunction and velocity potential to u,v
-   if(l_hyb_ens.and.uv_hyb_ens) then
-      sval(jj)%u(:)=cstate%st(:)
-      sval(jj)%v(:)=cstate%vp(:)
-   else
-      call getuv(sval(jj)%u,sval(jj)%v,cstate%st,cstate%vp,izero)
+   if(do_getuv) then
+      if(l_hyb_ens.and.uv_hyb_ens) then
+         call gsi_bundlegetvar ( wbundle, 'sf', sv_u, istatus )
+         call gsi_bundlegetvar ( wbundle, 'vp', sv_v, istatus )
+      else
+         call getuv(sv_u,sv_v,cv_sf,cv_vp,0)
+      end if
    end if
 
 !  Copy other variables
-   do ii=1,latlon1n
-      sval(jj)%t (ii)=cstate%t(ii)
-      if (nrf3_oz>izero) sval(jj)%oz(ii)=cstate%oz(ii)
-      if (nrf3_cw>izero) sval(jj)%cw(ii)=cstate%cw(ii)
+   call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )
+   call gsi_bundlegetvar ( wbundle, 'oz' , sv_oz,  istatus )
+   call gsi_bundlegetvar ( wbundle, 'cw' , sv_cw,  istatus )
+   call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
+   call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
+
+!  Take care of chemistry
+   do ic=1,ngases
+      id=getindex(cvars3d,gases(ic))
+      if (id>0) then
+          call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank3,istatus)
+          call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank3,istatus)
+      endif
+      id=getindex(cvars2d,gases(ic))
+      if (id>0) then
+          call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank2,istatus)
+          call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank2,istatus)
+      endif
    enddo
 
-   do ii=1,latlon11
-      sval(jj)%p(ii)=cstate%p(ii)
-      if (nrf2_sst>izero) sval(jj)%sst(ii)=cstate%sst(ii)
-   enddo
+   call gsi_bundledestroy(wbundle,istatus)
+   if(istatus/=0) then
+      write(6,*) trim(myname), ': trouble destroying work bundle'
+      call stop2(999)
+   endif
 
-   call deallocate_cs(cstate)
 end do
 
 ! Biases
@@ -131,6 +247,11 @@ enddo
 do ii=1,npclen
    bval%predp(ii)=xhat%predp(ii)
 enddo
+
+! Clean up
+if (ngases>0) then
+    deallocate(gases)
+endif
 
 return
 end subroutine control2state

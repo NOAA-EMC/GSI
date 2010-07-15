@@ -37,7 +37,7 @@ end interface
 
 contains
 
-subroutine intoz_(ozhead,o3lhead,roz,soz)
+subroutine intoz_(ozhead,o3lhead,rval,sval)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -50,6 +50,7 @@ subroutine intoz_(ozhead,o3lhead,roz,soz)
 ! program history log:
 !   2008-11-28  todling
 !   2009-01-08  todling - remove reference to ozohead
+!   2010-05-13  todling - update to use gsi_bundle
 !
 !   input argument list:
 !     ozhead  - layer ozone obs type pointer to obs structure
@@ -65,23 +66,22 @@ subroutine intoz_(ozhead,o3lhead,roz,soz)
 !
 !$$$
 !--------
-  use kinds, only: r_kind
   use obsmod, only: oz_ob_type,o3l_ob_type
-  use gridmod, only: latlon1n
+  use gsi_bundlemod, only: gsi_bundle
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer       ,intent(in   ) :: ozhead
-  type(o3l_ob_type),pointer       ,intent(in   ) :: o3lhead
-  real(r_kind),dimension(latlon1n),intent(in   ) :: soz
-  real(r_kind),dimension(latlon1n),intent(inout) :: roz
+  type( oz_ob_type),pointer,intent(in   ) :: ozhead
+  type(o3l_ob_type),pointer,intent(in   ) :: o3lhead
+  type(gsi_bundle),intent(in   ) :: sval
+  type(gsi_bundle),intent(inout) :: rval
 
-  call intozlay_( ozhead,roz,soz)
-  call intozlev_(o3lhead,roz,soz)
+  call intozlay_( ozhead,rval,sval)
+  call intozlev_(o3lhead,rval,sval)
 
 end subroutine intoz_
 
-subroutine intozlay_(ozhead,roz,soz)
+subroutine intozlay_(ozhead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intoz       apply nonlin qc obs operator for ozone
@@ -113,6 +113,7 @@ subroutine intozlay_(ozhead,roz,soz)
 !   2008-??-??  ??????   - remove nonlinear qc gradient; folded OMI within layer O3
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2009-01-18  todling  - treat val in quad precision (revisit later)
+!   2010-05-13  todling  - update to use gsi_bundle; update interface
 !
 !   input argument list:
 !     ozhead  - layer ozone obs type pointer to obs structure
@@ -133,20 +134,52 @@ subroutine intozlay_(ozhead,roz,soz)
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use constants, only: ione,one,zero,r3600,zero_quad
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer             ,intent(in   ) :: ozhead
-  real(r_kind),dimension(lat2*lon2,nsig),intent(in   ) :: soz
-  real(r_kind),dimension(lat2*lon2,nsig),intent(inout) :: roz
+  type( oz_ob_type),pointer,intent(in   ) :: ozhead
+  type(gsi_bundle),         intent(in   ) :: sval
+  type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables
+  integer(i_kind) i,j,ij,ier,istatus
   integer(i_kind) k,j1,j2,j3,j4,kk,iz1,iz2,j1x,j2x,j3x,j4x
   real(r_kind) dz1,pob,delz,time_oz
   real(r_quad) val1,valx
   real(r_kind) w1,w2,w3,w4
+  real(r_kind),pointer,dimension(:) :: xhat_dt_oz
+  real(r_kind),pointer,dimension(:) :: dhat_dt_oz
+  real(r_kind),pointer,dimension(:,:,:)  :: sozp
+  real(r_kind),pointer,dimension(:,:,:)  :: rozp
+  real(r_kind),allocatable,dimension(:,:) :: soz
+  real(r_kind),allocatable,dimension(:,:) :: roz
   type(oz_ob_type), pointer :: ozptr
 
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0 
+  call gsi_bundlegetpointer(sval,'oz',sozp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'oz',rozp,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'oz',xhat_dt_oz,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'oz',dhat_dt_oz,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
+
+! Can't do rank-2 pointer into rank-2, therefore, allocate work space
+  allocate(soz(lat2*lon2,nsig),roz(lat2*lon2,nsig))
+  do k=1,nsig
+     ij=0
+     do j=1,lon2
+        do i=1,lat2
+           ij=ij+1
+           soz(ij,k) = sozp(i,j,k)
+           roz(ij,k) = rozp(i,j,k)
+        enddo
+     enddo
+  enddo
 !
 ! SBUV OZONE: LAYER O3 and TOTAL O3
 !
@@ -191,10 +224,10 @@ subroutine intozlay_(ozhead,roz,soz)
                  j3x=w3+(kk-ione)*lat2*lon2
                  j4x=w4+(kk-ione)*lat2*lon2
                  val1=val1 + ( &
-                     (w1*xhat_dt%oz(j1x)+ &
-                      w2*xhat_dt%oz(j2x)+ &
-                      w3*xhat_dt%oz(j3x)+ &
-                      w4*xhat_dt%oz(j4x))*time_oz)*delz
+                     (w1*xhat_dt_oz(j1x)+ &
+                      w2*xhat_dt_oz(j2x)+ &
+                      w3*xhat_dt_oz(j3x)+ &
+                      w4*xhat_dt_oz(j4x))*time_oz)*delz
               endif
            enddo
 
@@ -241,10 +274,10 @@ subroutine intozlay_(ozhead,roz,soz)
                     j2x=w2+(kk-ione)*lat2*lon2
                     j3x=w3+(kk-ione)*lat2*lon2
                     j4x=w4+(kk-ione)*lat2*lon2
-                    dhat_dt%oz(j1x) = dhat_dt%oz(j1x) + valx*w1*delz*time_oz
-                    dhat_dt%oz(j2x) = dhat_dt%oz(j2x) + valx*w2*delz*time_oz
-                    dhat_dt%oz(j3x) = dhat_dt%oz(j3x) + valx*w3*delz*time_oz
-                    dhat_dt%oz(j4x) = dhat_dt%oz(j4x) + valx*w4*delz*time_oz
+                    dhat_dt_oz(j1x) = dhat_dt_oz(j1x) + valx*w1*delz*time_oz
+                    dhat_dt_oz(j2x) = dhat_dt_oz(j2x) + valx*w2*delz*time_oz
+                    dhat_dt_oz(j3x) = dhat_dt_oz(j3x) + valx*w3*delz*time_oz
+                    dhat_dt_oz(j4x) = dhat_dt_oz(j4x) + valx*w4*delz*time_oz
                  enddo
               endif
               dz1=pob
@@ -278,10 +311,10 @@ subroutine intozlay_(ozhead,roz,soz)
            j3x=w3+(kk-ione)*lat2*lon2
            j4x=w4+(kk-ione)*lat2*lon2
            val1=val1 + &
-               (w1*xhat_dt%oz(j1x)+ &
-                w2*xhat_dt%oz(j2x)+ &
-                w3*xhat_dt%oz(j3x)+ &
-                w4*xhat_dt%oz(j4x))*time_oz
+               (w1*xhat_dt_oz(j1x)+ &
+                w2*xhat_dt_oz(j2x)+ &
+                w3*xhat_dt_oz(j3x)+ &
+                w4*xhat_dt_oz(j4x))*time_oz
         enddo
      endif
 
@@ -322,10 +355,10 @@ subroutine intozlay_(ozhead,roz,soz)
               j2x=w2+(kk-ione)*lat2*lon2
               j3x=w3+(kk-ione)*lat2*lon2
               j4x=w4+(kk-ione)*lat2*lon2
-              dhat_dt%oz(j1x) =dhat_dt%oz(j1x) + valx*w1*time_oz
-              dhat_dt%oz(j2x) =dhat_dt%oz(j2x) + valx*w2*time_oz
-              dhat_dt%oz(j3x) =dhat_dt%oz(j3x) + valx*w3*time_oz
-              dhat_dt%oz(j4x) =dhat_dt%oz(j4x) + valx*w4*time_oz
+              dhat_dt_oz(j1x) =dhat_dt_oz(j1x) + valx*w1*time_oz
+              dhat_dt_oz(j2x) =dhat_dt_oz(j2x) + valx*w2*time_oz
+              dhat_dt_oz(j3x) =dhat_dt_oz(j3x) + valx*w3*time_oz
+              dhat_dt_oz(j4x) =dhat_dt_oz(j4x) + valx*w4*time_oz
            enddo
         endif
      endif
@@ -335,11 +368,23 @@ subroutine intozlay_(ozhead,roz,soz)
 ! End loop over observations
   enddo
 
+! Copy output and clean up 
+  do k=1,nsig
+     ij=0
+     do j=1,lon2
+        do i=1,lat2
+           ij=ij+1
+           rozp(i,j,k) = roz(ij,k)
+        enddo
+     enddo
+  enddo
+  deallocate(soz,roz)
+
 ! End of routine
   return
 end subroutine intozlay_
 
-subroutine intozlev_(o3lhead,roz1d,soz1d)
+subroutine intozlev_(o3lhead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    into3l       apply nonlin qc obs operator for o3 level
@@ -357,6 +402,7 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
 !   2007-02-16  sienkiewicz - changes for new inner loop obs data structure
 !   2009-01-08  todling - remove nonlinear qc
 !   2009-01-22  sienkiewicz - add time derivative
+!   2010-05-13  todling  - update to use gsi_bundle; update interface
 !
 !   input argument list:
 !     o3lhead - level ozone obs type pointer to obs structure
@@ -378,18 +424,36 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
   use gridmod, only: latlon1n
   use constants, only: r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(o3l_ob_type),pointer       ,intent(in   ) :: o3lhead
-  real(r_kind),dimension(latlon1n),intent(in   ) :: soz1d
-  real(r_kind),dimension(latlon1n),intent(inout) :: roz1d
+  type(o3l_ob_type),pointer,intent(in   ) :: o3lhead
+  type(gsi_bundle),         intent(in   ) :: sval
+  type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables
+  integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
   real(r_kind) val,grad
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_o3l
+  real(r_kind),pointer,dimension(:) :: xhat_dt_oz
+  real(r_kind),pointer,dimension(:) :: dhat_dt_oz
+  real(r_kind),pointer,dimension(:) :: soz1d
+  real(r_kind),pointer,dimension(:) :: roz1d
   type(o3l_ob_type), pointer :: o3lptr
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0 
+  call gsi_bundlegetpointer(sval,'oz',soz1d,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'oz',roz1d,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'oz',xhat_dt_oz,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'oz',dhat_dt_oz,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
 
 ! LEVEL-OZONE OBSERVATIONS
 
@@ -424,10 +488,10 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
      if ( l_foto ) then
         time_o3l=o3lptr%time*r3600
         val=val+&
-            (w1*xhat_dt%oz(j1)+w2*xhat_dt%oz(j2)+ &
-             w3*xhat_dt%oz(j3)+w4*xhat_dt%oz(j4)+ &
-             w5*xhat_dt%oz(j5)+w6*xhat_dt%oz(j6)+ &
-             w7*xhat_dt%oz(j7)+w8*xhat_dt%oz(j8))*time_o3l
+            (w1*xhat_dt_oz(j1)+w2*xhat_dt_oz(j2)+ &
+             w3*xhat_dt_oz(j3)+w4*xhat_dt_oz(j4)+ &
+             w5*xhat_dt_oz(j5)+w6*xhat_dt_oz(j6)+ &
+             w7*xhat_dt_oz(j7)+w8*xhat_dt_oz(j8))*time_o3l
      endif
 
      if (lsaveobsens) then
@@ -458,14 +522,14 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
 
         if ( l_foto ) then
            grad=grad*time_o3l
-           dhat_dt%oz(j1)=dhat_dt%oz(j1)+w1*grad
-           dhat_dt%oz(j2)=dhat_dt%oz(j2)+w2*grad
-           dhat_dt%oz(j3)=dhat_dt%oz(j3)+w3*grad
-           dhat_dt%oz(j4)=dhat_dt%oz(j4)+w4*grad
-           dhat_dt%oz(j5)=dhat_dt%oz(j5)+w5*grad
-           dhat_dt%oz(j6)=dhat_dt%oz(j6)+w6*grad
-           dhat_dt%oz(j7)=dhat_dt%oz(j7)+w7*grad
-           dhat_dt%oz(j8)=dhat_dt%oz(j8)+w8*grad
+           dhat_dt_oz(j1)=dhat_dt_oz(j1)+w1*grad
+           dhat_dt_oz(j2)=dhat_dt_oz(j2)+w2*grad
+           dhat_dt_oz(j3)=dhat_dt_oz(j3)+w3*grad
+           dhat_dt_oz(j4)=dhat_dt_oz(j4)+w4*grad
+           dhat_dt_oz(j5)=dhat_dt_oz(j5)+w5*grad
+           dhat_dt_oz(j6)=dhat_dt_oz(j6)+w6*grad
+           dhat_dt_oz(j7)=dhat_dt_oz(j7)+w7*grad
+           dhat_dt_oz(j8)=dhat_dt_oz(j8)+w8*grad
         endif
 
      endif

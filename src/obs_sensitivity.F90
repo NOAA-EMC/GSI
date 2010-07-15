@@ -11,6 +11,8 @@ module obs_sensitivity
 !   2007-06-26 tremolet
 !   2007-07-19 tremolet - increment sensitivity to observations
 !   2009-08-07 lueken   - updated documentation
+!   2010-04-30 tangborn - add pointer to carbon monoxide
+!   2010-05-27 todling  - remove all user-specific TL-related references
 !
 ! Subroutines Included:
 !   init_fc_sens  - Initialize computations
@@ -33,15 +35,15 @@ use obsmod, only: cobstype, nobs_type, obsdiags, obsptr, obscounts, &
                 & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                 & i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
                 & i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
-                & i_lag_ob_type
+                & i_lag_ob_type, i_co3l_ob_type
 use mpimod, only: mype
 use control_vectors
 use state_vectors
+use gsi_bundlemod, only: assignment(=)
+use gsi_bundlemod, only: gsi_bundle
 use bias_predictors
 use mpl_allreducemod, only: mpl_allreduce
-#ifdef GEOS_PERT
-use geos_pertmod, only: model_init, model_clean, pgcm2gsi
-#endif /* GEOS_PERT */
+use gsi_4dcouplermod, only: gsi_4dcoupler_getpert
 ! ------------------------------------------------------------------------------
 implicit none
 save
@@ -58,7 +60,7 @@ integer(i_kind) :: iobsconv
 ! ------------------------------------------------------------------------------
 type(control_vector) :: fcsens
 real(r_kind), allocatable :: sensincr(:,:,:)
-character(len=3) :: cobtype(nobs_type)
+character(len=4) :: cobtype(nobs_type)
 ! ------------------------------------------------------------------------------
 contains
 ! ------------------------------------------------------------------------------
@@ -106,6 +108,7 @@ subroutine init_fc_sens
 ! program history log:
 !   2007-06-26  tremolet - initial code
 !   2009-08-07  lueken - added subprogram doc block
+!   2010-05-27  todling - gsi_4dcoupler; remove dependence on GMAO specifics
 !
 !   input argument list:
 !
@@ -120,7 +123,7 @@ subroutine init_fc_sens
 implicit none
 
 character(len=12) :: clfile
-type(state_vector) :: fcgrad(nsubwin)
+type(gsi_bundle) :: fcgrad(nsubwin)
 type(predictors) :: zbias
 type(control_vector) :: xwork
 real(r_kind) :: zjx
@@ -178,21 +181,7 @@ if (lobsensfc) then
             end do
             call allocate_preds(zbias)
             zbias=zero
-#ifdef GEOS_PERT
-            call model_init(ierr,skiptraj=idmodel)
-            if (ii>1) then 
-                write(6,*)'init_fc_sens: not ready for subwin>1, nsubwin=', nsubwin
-                call stop2(999)
-             endif
-            do ii=1,nsubwin
-               call pgcm2gsi(fcgrad(ii),'adm',ierr)
-            enddo
-            call model_clean()
-#else /* GEOS_PERT */
-            do ii=1,nsubwin
-               fcgrad(ii) = zero ! not yet implemented
-            end do
-#endif /* GEOS_PERT */
+            call gsi_4dcoupler_getpert(fcgrad,nsubwin,'adm')
             call model2control(fcgrad,zbias,fcsens)
             do ii=1,nsubwin
                call deallocate_state(fcgrad(ii))
@@ -212,23 +201,24 @@ endif
 888 format(A,3(1X,ES24.18))
 
 ! Define short name for obs types
-cobtype( i_ps_ob_type)="spr"
-cobtype(  i_t_ob_type)="tem"
-cobtype(  i_w_ob_type)="uv "
-cobtype(  i_q_ob_type)="hum"
-cobtype(i_spd_ob_type)="spd"
-cobtype(i_srw_ob_type)="srw"
-cobtype( i_rw_ob_type)="rw "
-cobtype( i_dw_ob_type)="dw "
-cobtype(i_sst_ob_type)="sst"
-cobtype( i_pw_ob_type)="pw "
-cobtype(i_pcp_ob_type)="pcp"
-cobtype( i_oz_ob_type)="oz "
-cobtype(i_o3l_ob_type)="o3l"
-cobtype(i_gps_ob_type)="gps"
-cobtype(i_rad_ob_type)="rad"
-cobtype(i_tcp_ob_type)="tcp"
-cobtype(i_lag_ob_type)="lag"
+cobtype( i_ps_ob_type)="spr "
+cobtype(  i_t_ob_type)="tem "
+cobtype(  i_w_ob_type)="uv  "
+cobtype(  i_q_ob_type)="hum "
+cobtype(i_spd_ob_type)="spd "
+cobtype(i_srw_ob_type)="srw "
+cobtype( i_rw_ob_type)="rw  "
+cobtype( i_dw_ob_type)="dw  "
+cobtype(i_sst_ob_type)="sst "
+cobtype( i_pw_ob_type)="pw  "
+cobtype(i_pcp_ob_type)="pcp "
+cobtype( i_oz_ob_type)="oz  "
+cobtype(i_co3l_ob_type)="co3l"
+cobtype(i_o3l_ob_type)="o3l "
+cobtype(i_gps_ob_type)="gps "
+cobtype(i_rad_ob_type)="rad "
+cobtype(i_tcp_ob_type)="tcp "
+cobtype(i_lag_ob_type)="lag "
 
 return
 end subroutine init_fc_sens

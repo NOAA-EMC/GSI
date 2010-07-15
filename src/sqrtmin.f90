@@ -13,6 +13,7 @@ subroutine sqrtmin()
 !   2008-01-04  tremolet - forecast sensitivity option
 !   2009-01-18  todling  - calc dot-prod in quad precision
 !   2009-08-12  lueken   - updated documentation
+!   2010-05-15  todling  - add only for all used variables
 !
 !   input argument list:
 !
@@ -26,7 +27,7 @@ subroutine sqrtmin()
 
 use kinds, only: r_kind,i_kind,r_quad
 use gsi_4dvar, only: l4dvar, lsqrtb, lcongrad, lbfgsmin, ltlint, &
-                     ladtest, lgrtest, lanczosave, lsiga, nwrvecs
+                     ladtest, lgrtest, lanczosave, jsiga, nwrvecs
 use jfunc, only: jiter,miter,niter,xhatsave,jiterstart
 use qcmod, only: nlnqc_iter
 use constants, only: zero
@@ -38,8 +39,9 @@ use qnewton3, only: m1qn3
 use lanczos, only: congrad,setup_congrad,save_precond,congrad_ad,read_lanczos
 use adjtest, only: adtest
 use grdtest, only: grtest
-use control_vectors
-use state_vectors
+use control_vectors, only: control_vector
+use control_vectors, only: allocate_cv,deallocate_cv,write_cv,inquire_cv
+use control_vectors, only: dot_product,assignment(=)
 use obs_ferrscale, only: lferrscale, apply_hrm1h
 use timermod, only: timer_ini, timer_fnl
 
@@ -113,7 +115,8 @@ elseif (lcongrad) then
    end if
    call setup_congrad(mype,nprt,jiter,jiterstart,itermax,nwrvecs, &
                       l4dvar,lanczosave)
-   lsavev=(.not.lobsensfc).and.(jiter<miter)
+   lsavev=(.not.lobsensfc)
+   if(jsiga<miter) lsavev=lsavev.and.(jiter<miter)
 
    if (lobsensfc.and.lobsensadj) then
 !     Get Lanczos vectors
@@ -133,7 +136,7 @@ elseif (lcongrad) then
       call congrad(xhat,costf,gradx,eps,itermax,iobsconv,lsavev)
 
 !     Calculate estimate of analysis errors
-      if(lsiga) call getsiga()
+      if(jsiga==jiter) call getsiga()
    endif
 
 !  Finish CONGRAD
@@ -246,7 +249,6 @@ call deallocate_cv(xhat)
 call deallocate_cv(gradx)
 call deallocate_cv(gradf)
 call inquire_cv
-call inquire_state
 
 ! Finalize timer
 call timer_fnl('sqrtmin')

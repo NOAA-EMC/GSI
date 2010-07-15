@@ -23,6 +23,8 @@ subroutine bkerror(gradx,grady)
 !   2009-04-13  derber - move strong_bk into balance
 !   2010-03-01  zhu    - change bkgcov interface for generalized control variables
 !                      - make changes with iterfaces of sub2grid and grid2sub
+!   2010-04-28  todling - update to use gsi_bundle
+!   2010-05-31  todling - revisit check on pointers
 !
 !   input argument list:
 !     gradx    - input field  
@@ -44,6 +46,7 @@ subroutine bkerror(gradx,grady)
   use constants, only:  zero
   use control_vectors
   use timermod, only: timer_ini,timer_fnl
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
@@ -52,9 +55,12 @@ subroutine bkerror(gradx,grady)
 
 ! Declare local variables
   integer(i_kind) i,j,iflg,ii
+  integer(i_kind) i_t,i_p,i_st,i_vp
+  integer(i_kind) ipnts(4),istatus
   real(r_kind),dimension(nlat,nlon,nnnn1o):: work
   real(r_kind),dimension(lat2,lon2):: slndt,sicet
-  real(r_kind),pointer,dimension(:):: sst
+  real(r_kind),pointer,dimension(:,:)  :: p_sst
+  logical dobal
 
   if (lsqrtb) then
      write(6,*)'bkerror: not for use with lsqrtb'
@@ -63,17 +69,6 @@ subroutine bkerror(gradx,grady)
 
 ! Initialize timer
   call timer_ini('bkerror')
-
-!  nvar_id = 1 vorticity
-!            2 divergence
-!            3 surface pressure
-!            4 temperature
-!            5 specific humidity
-!            6 ozone
-!            7 sea surface temperature
-!            8 cw
-!            9 land skin temperature
-!           10 ice temperature
 
 ! If dealing with periodic (sub)domain, gather full domain grids,
 ! account for periodicity, and redistribute to subdomains.  This
@@ -88,32 +83,44 @@ subroutine bkerror(gradx,grady)
         end do
      end do
      do ii=1,nsubwin
-        if (nrf2_sst>0) then
-           sst => gradx%step(ii)%sst(1:latlon11)
+        call gsi_bundlegetpointer ( gradx%step(ii),(/'sst'/),ipnts,istatus )
+        if (istatus==0) then
+           p_sst => gradx%step(ii)%r2(ipnts(1))%q
         else
-           sst => NULL() 
+           p_sst => NULL() 
         end if
-        call sub2grid(work,gradx%step(ii),sst,slndt,sicet,iflg)
-        call grid2sub(work,gradx%step(ii),sst,slndt,sicet)
+        call sub2grid(work,gradx%step(ii),p_sst,slndt,sicet,iflg)
+        call grid2sub(work,gradx%step(ii),p_sst,slndt,sicet)
      end do
   endif
 
 ! Put things in grady first since operations change input variables
   grady=gradx
 
+! Only need to get pointer for ii=1 - all other are the same
+  call gsi_bundlegetpointer ( grady%step(1), (/'t ','sf','vp','ps'/), &
+                              ipnts, istatus )
+  i_t  = ipnts(1)
+  i_st = ipnts(2)
+  i_vp = ipnts(3)
+  i_p  = ipnts(4)
+  dobal = i_t>0.and.i_p>0.and.i_st>0.and.i_vp>0
+
 ! Loop on control steps
   do ii=1,nsubwin
 
 !    Transpose of balance equation
-     call tbalance(grady%step(ii)%t ,grady%step(ii)%p , &
-                   grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
+     if(dobal) &
+     call tbalance(grady%step(ii)%r3(i_t )%q,grady%step(ii)%r2(i_p )%q, &
+                   grady%step(ii)%r3(i_st)%q,grady%step(ii)%r3(i_vp)%q,fpsproj)
 
 !    Apply variances, as well as vertical & horizontal parts of background error
      call bkgcov(grady%step(ii),nnnn1o)
 
 !    Balance equation
-     call balance(grady%step(ii)%t ,grady%step(ii)%p ,&
-                  grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
+     if(dobal) &
+     call balance(grady%step(ii)%r3(i_t )%q,grady%step(ii)%r2(i_p )%q, &
+                  grady%step(ii)%r3(i_st)%q,grady%step(ii)%r3(i_vp)%q,fpsproj)
 
   end do
 

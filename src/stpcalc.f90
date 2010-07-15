@@ -160,6 +160,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   2007-10-01  todling - add timers
 !   2008-11-28  todling - revisited Tremolet's split in light of changes from May08 version
 !   2009-06-02  derber - modify the calculation of the b term for the background to increase accuracy
+!   2010-06-01  treadon - accumulate pbcjo over nobs_bins 
 !
 !   input argument list:
 !     stpinout - guess stepsize
@@ -193,7 +194,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use mpimod, only: mype
-  use constants, only: izero,ione,zero,one_tenth,half,one,zero_quad
+  use constants, only: zero,one_tenth,half,one,zero_quad
   use gsi_4dvar, only: nobs_bins, ltlint
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
        l_foto,xhat_dt,dhat_dt,nvals_len
@@ -203,7 +204,10 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use stpjcpdrymod, only: stpjcpdry
   use bias_predictors
   use control_vectors
-  use state_vectors
+  use state_vectors, only: allocate_state,deallocate_state
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: assignment(=)
   use mpl_allreducemod, only: mpl_allreduce
   use timermod, only: timer_ini,timer_fnl
   implicit none
@@ -216,8 +220,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
   type(control_vector),intent(inout) :: xhat
   type(control_vector),intent(in   ) :: dirx,diry
-  type(state_vector)  ,intent(in   ) :: sval(nobs_bins)
-  type(state_vector)  ,intent(in   ) :: dval(nobs_bins)
+  type(gsi_bundle)    ,intent(in   ) :: sval(nobs_bins)
+  type(gsi_bundle)    ,intent(in   ) :: dval(nobs_bins)
   type(predictors)    ,intent(in   ) :: sbias,dbias
 
 
@@ -228,9 +232,10 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   integer(i_kind),parameter:: ioutpen = istp_iter*4
 
 ! Declare local variables
-  integer(i_kind) i,j,mm1,ii,ibin,ipenloc
+  integer(i_kind) i,j,mm1,ii,ibin,ipenloc,ier,istatus
   integer(i_kind) istp_use,nstep,nsteptot
   real(r_quad),dimension(4,ipen):: pbc
+  real(r_quad),dimension(4,nobs_type):: pbcjo,pbcjoi 
   real(r_quad),dimension(3,ipenlin):: pstart 
   real(r_quad) bx,cx,ccoef,bcoef,dels,sges1,sgesj
   real(r_quad),dimension(0:istp_iter):: stp   
@@ -240,16 +245,17 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_kind) outpensave,stprat
   real(r_kind),dimension(4)::sges
   real(r_kind),dimension(ioutpen):: outpen,outstp
+  real(r_kind),pointer,dimension(:,:,:):: xhat_dt_t,xhat_dt_q,xhat_dt_tsen
 
 !************************************************************************************  
 ! Initialize timer
   call timer_ini('stpcalc')
 
 ! Initialize variable
-  mm1=mype+ione
+  mm1=mype+1
   stp(0)=stpinout
   outpen = zero
-  nsteptot=izero
+  nsteptot=0
 
 !   Begin calculating contributions to penalty and stepsize for various terms
 !
@@ -302,14 +308,12 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 ! Contraint and 3dvar terms
   if(l_foto )then
      call allocate_state(dhat_dt)
-     call assign_scalar2state(dhat_dt,zero)
+     dhat_dt=zero
      call stp3dvar(dval(1),dhat_dt)
-
   end if
 
 ! Penalty, b, c for dry pressure
-  if (ljcpdry) call stpjcpdry(dval(1)%q,dval(1)%cw,dval(1)%p,sval(1)%q,sval(1)%cw,sval(1)%p,mype, &
-                 pstart(1,3),pstart(2,3),pstart(3,3))
+  if (ljcpdry) call stpjcpdry(dval(1),sval(1),pstart(1,3),pstart(2,3),pstart(3,3))
 
 ! iterate over number of stepsize iterations (istp_iter - currently set to 2)
   stepsize: do ii=1,istp_iter
@@ -317,14 +321,14 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    Delta stepsize
      dels=one_tenth ** ii
   
-     sges(1)= stp(ii-ione)
-     sges(2)=(one-dels)*stp(ii-ione)
-     sges(3)=(one+dels)*stp(ii-ione)
+     sges(1)= stp(ii-1)
+     sges(2)=(one-dels)*stp(ii-1)
+     sges(3)=(one+dels)*stp(ii-1)
 
-     bcoef=0.25_r_quad/(dels*stp(ii-ione))
-     ccoef=0.5_r_quad/(dels*dels*stp(ii-ione)*stp(ii-ione))
+     bcoef=0.25_r_quad/(dels*stp(ii-1))
+     ccoef=0.5_r_quad/(dels*dels*stp(ii-1)*stp(ii-1))
 
-     if(ii == ione)then
+     if(ii == 1)then
 !       First stepsize iteration include current J calculation in position ipenloc
         nstep=4_i_kind
         sges(4)=zero
@@ -348,25 +352,37 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    Do nonlinear terms
 
 !    penalties for moisture constraint
-     if(.not.ltlint) call stplimq(dval(1)%q,sval(1)%q,sges,pbc(1,4),pbc(1,5),nstep)
+     if(.not.ltlint) call stplimq(dval(1),sval(1),sges,pbc(1,4),pbc(1,5),nstep)
 
 !    penalties for Jo
+     pbcjo=zero_quad
      do ibin=1,nobs_bins
-        call stpjo(yobs(ibin),dval(ibin),dbias,sval(ibin),sbias,sges,pbc(1,6),nstep)
+        pbcjoi=zero_quad 
+        call stpjo(yobs(ibin),dval(ibin),dbias,sval(ibin),sbias,sges,pbcjoi,nstep) 
+        do j=1,nobs_type 
+           do i=1,nstep 
+              pbcjo(i,j)=pbcjo(i,j)+pbcjoi(i,j) 
+           end do 
+        end do 
      enddo
+     do j=1,nobs_type 
+        do i=1,nstep 
+           pbc(i,5+j)=pbcjo(i,j) 
+        end do 
+     end do 
 
 !    Gather J contributions
      call mpl_allreduce(4,ipen,pbc)
 
 
 !    save penalty  and stepsizes
-     nsteptot=nsteptot+ione
+     nsteptot=nsteptot+1
      do j=1,ipen
         outpen(nsteptot) = outpen(nsteptot)+pbc(1,j)
      end do
      outstp(nsteptot) = sges(1)
      do i=2,nstep
-        nsteptot=nsteptot+ione
+        nsteptot=nsteptot+1
         do j=1,ipen
            outpen(nsteptot) = outpen(nsteptot)+pbc(i,j)+pbc(1,j)
         end do
@@ -393,14 +409,14 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !    estimate of stepsize
 
-     stp(ii)=stp(ii-ione)
+     stp(ii)=stp(ii-1)
      if(cx > 1.e-20_r_kind) stp(ii)=stp(ii)+bx/cx         ! step size estimate
 
 !    estimate of change in penalty
      delpen = stp(ii)*(bx - 0.5_r_quad*stp(ii)*cx ) 
 
 !    estimate various terms in penalty on first iteration
-     if(ii == ione)then
+     if(ii == 1)then
         pjcost(1) =  pbc(ipenloc,1) + pbc(1,1)                                ! Jb
         pjcost(3) = (pbc(ipenloc,2) + pbc(1,2)) + (pbc(ipenloc,3) + pbc(1,3)) ! Jc
         pjcost(4) = (pbc(ipenloc,5) + pbc(1,5)) + (pbc(ipenloc,4) + pbc(1,4)) ! Jl
@@ -414,8 +430,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      stpinout=stp(ii)
 !    If change in penalty is very small end stepsize calculation
      if(abs(delpen/penalty) < 1.e-17_r_kind) then
-        if(mype == izero)then
-           if(ii == ione)write(iout_iter,100) (pbc(ipenloc,i),i=1,ipen)
+        if(mype == 0)then
+           if(ii == 1)write(iout_iter,100) (pbc(ipenloc,i),i=1,ipen)
            write(iout_iter,140) ii,delpen,bx,cx,stp(ii)
            write(iout_iter,101) (stpx(i),i=1,ipen)
            write(iout_iter,105) (bsum(i),i=1,ipen)
@@ -429,7 +445,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !    Check for negative stepsize or cx <= 0. (probable error or large nonlinearity)
      if(cx < 1.e-20_r_kind .or. stpinout <= zero) then
-        if(mype == izero) then
+        if(mype == 0) then
           write(iout_iter,*) ' entering negative stepsize option',stpinout
           write(iout_iter,101) (stpx(i),i=1,ipen)
           write(iout_iter,105) (bsum(i),i=1,ipen)
@@ -456,7 +472,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      end if
 
 !    Write out detailed results to iout_iter
-     if(ii == ione .and. mype == izero) then
+     if(ii == 1 .and. mype == 0) then
         write(iout_iter,100) (pbc(1,i) + pbc(ipenloc,i),i=1,ipen)
         write(iout_iter,101) (stpx(i),i=1,ipen)
         write(iout_iter,105) (bsum(i),i=1,ipen)
@@ -477,7 +493,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      if(stp(ii) > zero)then
         stprat=abs((stp(ii)-stp(ii-1))/stp(ii))
      end if
-     if(mype == izero)write(6,*)' stprat ',stprat
+     if(mype == 0)write(6,*)' stprat ',stprat
      if(stprat < 1.e-4_r_kind) exit stepsize
 
   end do stepsize
@@ -485,7 +501,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 ! Check for final stepsize negative (probable error)
   stpinout=stp(istp_use)
   if(stpinout <= zero)then
-     if(mype == izero)then
+     if(mype == 0)then
         write(iout_iter,130) ii,bx,cx,stp(ii)
         write(iout_iter,101) (stpx(i),i=1,ipen)
         write(iout_iter,105) (bsum(i),i=1,ipen)
@@ -493,7 +509,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      end if
      end_iter = .true.
   end if
-  if(mype == izero)then
+  if(mype == 0)then
      write(iout_iter,200) (stp(i),i=0,istp_use)
      write(iout_iter,201) (outstp(i),i=1,nsteptot)
      write(iout_iter,202) (outpen(i)-outpen(1),i=1,nsteptot)
@@ -520,7 +536,16 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      do i=1,nvals_len
         xhat_dt%values(i)=xhat_dt%values(i)+stpinout*dhat_dt%values(i)
      end do
-     call tv_to_tsen(xhat_dt%t,xhat_dt%q,xhat_dt%tsen)
+     ier=0
+     call gsi_bundlegetpointer(xhat_dt,'t',   xhat_dt_t,   istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'q',   xhat_dt_q,   istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,istatus);ier=istatus+ier
+     if (ier==0) then
+        call tv_to_tsen(xhat_dt_t,xhat_dt_q,xhat_dt_tsen)
+     else
+        write(6,*) 'stpcalc: trouble getting pointers to xhat_dt'
+        call stop2(999)
+     endif
      call deallocate_state(dhat_dt)
   end if
 

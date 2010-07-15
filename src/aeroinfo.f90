@@ -75,7 +75,7 @@ contains
   end subroutine init_aero
   
 
-  subroutine aeroinfo_read(mype)
+  subroutine aeroinfo_read
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    aeroinfo_read      read aerosol information file
@@ -85,9 +85,9 @@ contains
 !
 ! program history log:
 !   2009-08-10  HCHuang  original code modified from ozinfo_read
+!   2010-07-10  Todling  mype from mpimod
 !
 !   input argument list:
-!     mype - mpi task id
 !
 !   output argument list:
 !
@@ -96,10 +96,9 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
+    use mpimod, only: mype
     use obsmod, only: iout_aero
     implicit none
-
-    integer(i_kind), intent(in) :: mype
 
     character(len=1)   :: cflg
     character(len=120) :: crecord

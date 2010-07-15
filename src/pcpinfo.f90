@@ -99,24 +99,24 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero,r3600,one
+    use constants, only: r3600,one
     implicit none
 
     real(r_kind),parameter:: r1200=1200.0_r_kind
 
-    npredp    = 6_i_kind      ! number of predictors in precipitation bias correction
-    npcptype  = izero         ! number of entries read from pcpinfo
+    npredp    = 6             ! number of predictors in precipitation bias correction
+    npcptype  = 0             ! number of entries read from pcpinfo
     deltim    = r1200         ! model timestep
     dtphys    = r3600         ! relaxation time scale for convection
     diag_pcp =.true.          ! flag to toggle creation of precipitation diagnostic file
-    mype_pcp  = izero         ! task to print pcp info to.  Note that mype_pcp MUST equal
+    mype_pcp  = 0             ! task to print pcp info to.  Note that mype_pcp MUST equal
                               !    mype_rad (see radinfo.f90) in order for statspcp.f90
                               !    to print out the correct information          
     tiny_obs = 1.e-9_r_kind   ! "small" observation
     tinym1_obs = tiny_obs - one
   end subroutine init_pcp
 
-  subroutine pcpinfo_read(mype)
+  subroutine pcpinfo_read
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    pcpinfo_read
@@ -134,6 +134,7 @@ contains
 !   2005-10-11  treadon - change pcpinfo read to free format
 !   2008-04-29  safford - rm redundent uses
 !   2008-10-10  derber  - flip indices for predxp
+!   2010-05-29  todling - interface consistent w/ similar routines
 !
 !   input argument list:
 !      mype - mpi task id
@@ -145,12 +146,10 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero,ione,zero
+    use mpimod, only: mype
+    use constants, only: zero
     use obsmod, only: iout_pcp
     implicit none
-
-! Declare passed variables
-    integer(i_kind),intent(in   ) :: mype
 
 ! Declare local varianbes
     logical lexist
@@ -159,20 +158,20 @@ contains
     integer(i_kind) lunin,i,j,k,istat,nlines
     real(r_kind),dimension(npredp):: predrp
 
-    data lunin / 48_i_kind /
+    data lunin / 48 /
     
 !   Determine number of entries in pcp information file
     open(lunin,file='pcpinfo',form='formatted')
-    j=izero
-    nlines=izero
+    j=0
+    nlines=0
     read1:  do
        read(lunin,100,iostat=istat) cflg,crecord
-       if (istat /= izero) exit
-       nlines=nlines+ione
+       if (istat /= 0) exit
+       nlines=nlines+1
        if (cflg == '!') cycle
-       j=j+ione
+       j=j+1
     end do read1
-    if (istat>izero) then
+    if (istat>0) then
        write(6,*)'PCPINFO_READ:  ***ERROR*** error reading pcpinfo, istat=',istat
        close(lunin)
        write(6,*)'PCPINFO_READ:  stop program execution'
@@ -194,11 +193,11 @@ contains
        write(iout_pcp,*)'PCPINFO_READ:  npcptype=',npcptype
     endif
     rewind(lunin)
-    j=izero
+    j=0
     do k=1,nlines
        read(lunin,100)  cflg,crecord
        if (cflg == '!') cycle
-       j=j+ione
+       j=j+1
        read(crecord,*) nupcp(j),iusep(j),ibias(j),&
             varchp(j),gross_pcp(j),b_pcp(j),pg_pcp(j)
 
@@ -228,7 +227,7 @@ contains
             write(iout_pcp,*)'PCPINFO_READ:  read pcpbias coefs with npredp=',npredp
        read2: do
           read(lunin,'(I5,10f12.6)') i,(predrp(j),j=1,npredp)
-          if (istat /= izero) exit
+          if (istat /= 0) exit
           do j=1,npredp
              predxp(j,i)=predrp(j)
           end do
@@ -269,7 +268,7 @@ contains
     implicit none
     integer(i_kind) iobcof,ityp,ip
 
-    iobcof=52_i_kind
+    iobcof=52
     open(iobcof,file='pcpbias_out',form='formatted')
     rewind iobcof
     do ityp=1,npcptype
@@ -307,7 +306,6 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: ione
     use gridmod, only: ijn_s,ltosj_s,ltosi_s,displs_s,itotsub,&
        lat2,lon2,nlat,nlon
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
@@ -326,9 +324,9 @@ contains
     real(r_kind),allocatable,dimension(:,:):: rgrid
 
 ! Compute random number for precipitation forward model.  
-    mm1=mype+ione
+    mm1=mype+1
     allocate(rwork(itotsub),xkt2d(lat2,lon2))
-    myper=npe-ione
+    myper=npe-1
     if (mype==myper) then
        allocate(rgrid(nlat,nlon))
        call random_seed(size=krsize)

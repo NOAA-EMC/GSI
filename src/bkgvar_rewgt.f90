@@ -545,6 +545,7 @@ subroutine gather_stuff2(f,g,mype,outpe)
 ! program history log:
 !   2007-07-03  kleist
 !   2010-04-01  treadon - move strip and reorder to gridmod
+!   2010-06-02  kokron - protect my reorder & copy to work on outpe only
 !
 !   input argument list:
 !     f        - field on subdomains
@@ -582,14 +583,15 @@ subroutine gather_stuff2(f,g,mype,outpe)
   call strip(f,fsm,ione)
   call mpi_gatherv(fsm,ijn(mype+ione),mpi_rtype, &
                   tempa,ijn,displs_g,mpi_rtype,outpe,mpi_comm_world,ierror)
-  call reorder(tempa,ione,ione)
 
-  do ii=1,iglobal
-     i=ltosi(ii)
-     j=ltosj(ii)
-     g(i,j)=tempa(ii)
-  end do
-
+  if(mype==outpe) then
+     call reorder(tempa,ione,ione)
+     do ii=1,iglobal
+        i=ltosi(ii)
+        j=ltosj(ii)
+        g(i,j)=tempa(ii)
+     end do
+  endif
 
   deallocate(tempa)
 

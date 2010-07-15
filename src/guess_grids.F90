@@ -22,6 +22,13 @@ module guess_grids
   use gridmod, only: pdtop_ll
   use gridmod, only: pt_ll
   use regional_io, only: update_pint
+
+  ! chem trace gases
+  use gsi_chemtracer_mod, only: gsi_chemtracer_create_grids
+  use gsi_chemtracer_mod, only: gsi_chemtracer_destroy_grids
+  use gsi_chemtracer_mod, only: gsi_chemtracer_get
+  use gsi_chemtracer_mod, only: gsi_chem_bundle
+
   implicit none
 
 ! !DESCRIPTION: module containing variables related to the guess fields
@@ -65,6 +72,8 @@ module guess_grids
 !                     - add subroutine create_cld_grids and destroy_cld_grids
 !   2010-04-16  hou   - add array definitions ges_co2 (co2 mixing ratio) and
 !                       control variable igfsco2
+!   2010-04-22  todling - remove tracers,vtid,pdryini,xncld
+!   2010-05-19  todling - add chem init and destroy (revamp Hou's implementation)
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -93,6 +102,8 @@ module guess_grids
   public :: comp_fact10
   public :: guess_grids_print
   public :: guess_grids_stats
+  public :: create_chemges_grids
+  public :: destroy_chemges_grids
 ! set passed variables to public
   public :: ntguessig,ges_ps,ges_tv,ges_prsi,ges_oz,ges_psfcavg,ges_prslavg
   public :: isli2,ges_prsl,ges_z,ges_q,ges_v,ges_u,nfldsig,ges_vor,ges_div
@@ -106,7 +117,6 @@ module guess_grids
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
   public :: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg
   public :: ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
-  public :: ges_co2,igfsco2
 
   public :: ges_initialized
   public :: tnd_initialized
@@ -117,11 +127,6 @@ module guess_grids
   public :: extrap_intime
   public :: ntguessig_ref
   public :: ntguessfc_ref
-
-  public ::  tracers  ! number or tracers read in/written out
-  public ::  vtid     ! tracer variable id from sigma header
-  public ::  pdryini  ! global mean dry mass of the atmosphere in kPa
-  public ::  xncld    ! number of clouds from sigma header
 
   logical:: sfcmod_gfs = .false.    ! .true. = recompute 10m wind factor using gfs physics
   logical:: sfcmod_mm5 = .false.    ! .true. = recompute 10m wind factor using mm5 physics
@@ -135,9 +140,6 @@ module guess_grids
 
   integer(i_kind), save:: ntguessig_ref	! replace ntguessig as the storage for its original value
   integer(i_kind), save:: ntguessfc_ref	! replace ntguessfc as the storage for its original value
-  integer(i_kind):: igfsco2 = 0     ! 0 = use gfs predefined co2 value
-                                    ! 1 = use gfs yearly global annual mean historical co2 value
-                                    ! 2 = use gfs monthly horizontal 2d historical co2 value
 
   integer(i_kind):: ifact10 = 0     ! 0 = use 10m wind factor from guess
 
@@ -171,12 +173,6 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: sno2  ! sno depth on subdomain
 
  
-  real(r_single)::  tracers  ! number or tracers read in/written out
-  real(r_single)::  vtid     ! tracer variable id from sigma header
-  real(r_single)::  pdryini  ! global mean dry mass of the atmosphere in kPa
-  real(r_single)::  xncld    ! number of clouds from sigma header
-
-
   real(r_kind):: ges_psfcavg                            ! average guess surface pressure 
   real(r_kind),allocatable,dimension(:):: ges_prslavg   ! average guess pressure profile
 
@@ -230,7 +226,6 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_teta  ! potential temperature
   real(r_kind),allocatable,dimension(:,:,:):: ges_tvlat ! tv/lat for pcp routine advection calc
   real(r_kind),allocatable,dimension(:,:,:):: ges_tvlon ! tv/lon for pcp routine advection calc 
-  real(r_kind),allocatable,dimension(:,:,:):: ges_co2   ! co2 mixing ratio
 
   real(r_kind),allocatable,dimension(:,:,:)::ges_pd        ! pdges (for nmm only)
   real(r_kind),allocatable,dimension(:,:,:):: ges_prs_ten  ! 3d pressure tendency
@@ -534,7 +529,6 @@ contains
             ges_vor(lat2,lon2,nsig,nfldsig),ges_div(lat2,lon2,nsig,nfldsig),&
             ges_cwmr(lat2,lon2,nsig,nfldsig),ges_q(lat2,lon2,nsig,nfldsig),&
             ges_oz(lat2,lon2,nsig,nfldsig),ges_tv(lat2,lon2,nsig,nfldsig),&
-            ges_co2(lat2,lon2,nsig), &
             stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_z,..):  allocate error1, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
@@ -591,13 +585,6 @@ contains
                    ges_tv(i,j,k,n)=zero
 !                  ges_pint(i,j,k,n)=zero
                 end do
-             end do
-          end do
-       end do
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                ges_co2(i,j,k)=zero
              end do
           end do
        end do
@@ -721,6 +708,104 @@ contains
 !-------------------------------------------------------------------------
 !BOP
 !
+! !IROUTINE: create_chemges_grids --- initialize chem component
+!
+! !INTERFACE:
+!
+  subroutine create_chemges_grids(istatus)
+
+! !USES:
+  use gridmod, only: lat2,lon2,nsig
+  implicit none
+
+! !OUTPUT PARAMETERS:
+
+  integer(i_kind), intent(out) :: istatus
+
+! !DESCRIPTION: initialize chem background
+!
+! !REVISION HISTORY:
+!   2010-05-19  todling
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; Linux Cluster
+!
+! !AUTHOR: 
+!   todling         org: w/nmc20     date: 2010-05-19
+!
+!EOP
+!-------------------------------------------------------------------------
+  character(len=*),parameter::myname_='create_chemges_grids'
+   integer(i_kind) :: ntgases                   ! number of tracer gases (namelist)
+   character(len=256),allocatable:: tgases(:)   ! names of tracer gases
+
+  istatus=0
+  
+!  When proper connection to ESMF is complete,
+!  the following will not be needed here
+!  ------------------------------------------
+   call gsi_chemtracer_get('dim',ntgases,istatus)
+   if(istatus/=0) then
+      write(6,*) myname_, ': trouble getting number of chem/gases'
+      return
+   endif
+   if(ntgases==0) return
+   if (ntgases>0) then
+       allocate (tgases(ntgases))
+       call gsi_chemtracer_get('shortnames',tgases,istatus)
+       if(istatus/=0) then
+          write(6,*) myname_, ': trouble getting name of chem/gases'
+          return
+       endif
+
+!      Allocate memory for guess files for trace gases
+!      ------------------------------------------------
+       call gsi_chemtracer_create_grids(lat2,lon2,nsig,nfldsig,istatus)
+       if(istatus/=0) then
+          write(6,*) myname_, ': trouble allocating mem for chem/gases'
+          return
+       endif
+   endif
+
+  end subroutine create_chemges_grids
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: destroy_chemges_grids --- destroy chem background
+!
+! !INTERFACE:
+!
+  subroutine destroy_chemges_grids(istatus)
+! !USES:
+  implicit none
+! !OUTPUT PARAMETERS:
+  integer(i_kind),intent(out)::istatus
+! !DESCRIPTION: destroy chem background
+!
+! !REVISION HISTORY:
+!   2010-05-19  todling
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; Linux Cluster
+!
+! !AUTHOR: 
+!   todling         org: w/nmc20     date: 2010-05-19
+!
+!EOP
+  istatus=0
+  call gsi_chemtracer_destroy_grids(istatus)
+  end subroutine destroy_chemges_grids
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
 ! !IROUTINE: destroy_ges_grids --- Dealloc guess and bias fields
 !
 ! !INTERFACE:
@@ -771,7 +856,7 @@ contains
 #ifndef HAVE_ESMF
     deallocate(ges_z,ges_ps,&
          ges_u,ges_v,ges_vor,ges_div,ges_cwmr,ges_q,&
-         ges_oz,ges_tv,ges_co2,&
+         ges_oz,ges_tv,&
          stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GES_GRIDS(ges_z,..):  deallocate error1, istatus=',&

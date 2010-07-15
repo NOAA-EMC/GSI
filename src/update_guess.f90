@@ -60,6 +60,8 @@ subroutine update_guess(sval,sbias)
 !   2009-01-28  todling - remove reference to original GMAO interface
 !   2009-07-08  pondeca - add logical 'tsensible' for use with 2dvar only
 !   2010-04-30  wu - setup for regional ozone analysis
+!   2010-05-13  todling - update to use gsi_bundle
+!   2010-06-01  todling - skip upd when pointer not defined
 !
 !   input argument list:
 !    sval
@@ -78,29 +80,39 @@ subroutine update_guess(sval,sbias)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use constants, only: izero,ione,zero,one,fv
+  use constants, only: zero,one,fv
   use jfunc, only: iout_iter,biascor,tsensible
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,nfldsig,hrdifsig,hrdifsfc,&
        nfldsfc,dsfct
+  use state_vectors, only: svars3d,svars2d
   use xhat_vordivmod, only: xhat_vor,xhat_div
   use gsi_4dvar, only: nobs_bins, hr_obsbin
   use radinfo, only: npred,jpch_rad,predx
   use pcpinfo, only: npredp,npcptype,predxp
   use m_gsiBiases,only : bias_hour, update_bias
-  use bias_predictors
-  use state_vectors
+  use bias_predictors, only: predictors
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundleputvar
+  use gsi_chemtracer_mod, only: gsi_chem_bundle
+  use gsi_chemtracer_mod, only: gsi_chemtracer_get
+  use mpeu_util, only: getindex
 
   implicit none
 
 ! Declare passed variables
-  type(state_vector), intent(inout) :: sval(nobs_bins)
-  type(predictors)  , intent(inout) :: sbias
+  type(gsi_bundle), intent(inout) :: sval(nobs_bins)
+  type(predictors), intent(inout) :: sbias
 
 ! Declare local variables
-  integer(i_kind) i,j,k,it,ij,ijk,ii
+  character(len=10),allocatable,dimension(:) :: gases
+  integer(i_kind) i,j,k,it,ij,ii,ier,ic,id,ngases,istatus
+  integer(i_kind) is_u,is_v,is_t,is_q,is_oz,is_cw,is_ps,is_sst,is_co,is_co2
+  real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
+  real(r_kind),pointer,dimension(:,:)   :: sv_rank2
   real(r_kind) :: zt
 
 !*******************************************************************************
@@ -108,108 +120,144 @@ subroutine update_guess(sval,sbias)
 ! written in a way that is more efficient in that case but might not
 ! be the best in 4dvar.
 
+! Get required pointers and abort if not found (RTod: needs revision)
+  call gsi_bundlegetpointer(sval(1),'u',  is_u,  istatus)
+  call gsi_bundlegetpointer(sval(1),'v',  is_v,  istatus)
+  call gsi_bundlegetpointer(sval(1),'tv', is_t,  istatus)
+  call gsi_bundlegetpointer(sval(1),'q',  is_q,  istatus)
+  call gsi_bundlegetpointer(sval(1),'oz', is_oz, istatus)
+  call gsi_bundlegetpointer(sval(1),'cw', is_cw, istatus)
+  call gsi_bundlegetpointer(sval(1),'ps', is_ps, istatus)
+  call gsi_bundlegetpointer(sval(1),'sst',is_sst,istatus)
+
+! Inquire about chemistry
+call gsi_chemtracer_get('dim',ngases,istatus)
+if (ngases>0) then
+    allocate(gases(ngases))
+    call gsi_chemtracer_get('list',gases,istatus)
+endif
+
 ! Initialize local arrays
   if (regional) then
-     do ii=1,nobs_bins
-        ijk=izero
-        do k=1,nsig
-           do j=1,lon2
-              do i=1,lat2
-                 ijk=ijk+ione
-                 sval(ii)%cw(ijk)=zero
+     if(is_cw>0)then
+        do ii=1,nobs_bins
+           do k=1,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    sval(ii)%r3(is_cw)%q(i,j,k)=zero
+                 end do
               end do
            end do
         end do
-     end do
-    if(.not. regional_ozone)then
-     do ii=1,nobs_bins
-        ijk=izero
-        do k=1,nsig
-           do j=1,lon2
-              do i=1,lat2
-                 ijk=ijk+ione
-                 sval(ii)%oz(ijk)=zero
+     endif
+     if(.not.regional_ozone) then
+        if(is_oz>0)then
+           do ii=1,nobs_bins
+              do k=1,nsig
+                 do j=1,lon2
+                    do i=1,lat2
+                       sval(ii)%r3(is_oz)%q(i,j,k)=zero
+                    end do
+                 end do
               end do
            end do
-        end do
-     end do
-    endif
-   endif
+        endif
+     endif
+  endif
 
 ! Add increment to background
   do it=1,nfldsig
-     if (nobs_bins>ione) then
+     if (nobs_bins>1) then
         zt = hrdifsig(it)
-        ii = NINT(zt/hr_obsbin)+ione
+        ii = NINT(zt/hr_obsbin)+1
      else
-        ii = ione
+        ii = 1
      endif
-     ijk=izero
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ijk=ijk+ione
-              ges_u(i,j,k,it)    =                 ges_u(i,j,k,it)    + sval(ii)%u(ijk)
-              ges_v(i,j,k,it)    =                 ges_v(i,j,k,it)    + sval(ii)%v(ijk)
-              ges_q(i,j,k,it)    =             max(ges_q(i,j,k,it)    + sval(ii)%q(ijk),1.e-10_r_kind) 
+              if(is_u>0) ges_u(i,j,k,it)    =                 ges_u(i,j,k,it)    + sval(ii)%r3(is_u)%q(i,j,k)
+              if(is_v>0) ges_v(i,j,k,it)    =                 ges_v(i,j,k,it)    + sval(ii)%r3(is_v)%q(i,j,k)
+              if(is_q>0) ges_q(i,j,k,it)    =             max(ges_q(i,j,k,it)    + sval(ii)%r3(is_q)%q(i,j,k),1.e-10_r_kind) 
               if (.not.twodvar_regional .or. .not.tsensible) then
-                 ges_tv(i,j,k,it)   =              ges_tv(i,j,k,it)   + sval(ii)%t(ijk)
+                 if(is_t >0) ges_tv(i,j,k,it)   =              ges_tv(i,j,k,it)   + sval(ii)%r3(is_t)%q(i,j,k)
 !  produce sensible temperature
-                 ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*ges_q(i,j,k,it))
+                 if(is_t >0) ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*ges_q(i,j,k,it))
               else
-                 ges_tsen(i,j,k,it) =              ges_tsen(i,j,k,it) + sval(ii)%t(ijk)
+                 if(is_t >0) ges_tsen(i,j,k,it) =              ges_tsen(i,j,k,it) + sval(ii)%r3(is_t)%q(i,j,k)
 !  produce virtual temperature
-                 ges_tv(i,j,k,it)   = ges_tsen(i,j,k,it)*(one+fv*ges_q(i,j,k,it))
+                 if(is_t >0) ges_tv(i,j,k,it)   = ges_tsen(i,j,k,it)*(one+fv*ges_q(i,j,k,it))
               endif
 
 !             Note:  Below variables only used in NCEP GFS model
-              ges_oz(i,j,k,it)   =                 ges_oz(i,j,k,it)   + sval(ii)%oz(ijk)
-              ges_cwmr(i,j,k,it) =                 ges_cwmr(i,j,k,it) + sval(ii)%cw(ijk)
-              ges_div(i,j,k,it)  =                 ges_div(i,j,k,it)  + xhat_div(i,j,k,ii)
-              ges_vor(i,j,k,it)  =                 ges_vor(i,j,k,it)  + xhat_vor(i,j,k,ii)
+              if(is_oz>0) ges_oz(i,j,k,it)   =                 ges_oz(i,j,k,it)   + sval(ii)%r3(is_oz)%q(i,j,k)
+              if(is_cw>0) ges_cwmr(i,j,k,it) =                 ges_cwmr(i,j,k,it) + sval(ii)%r3(is_cw)%q(i,j,k)
+                          ges_div(i,j,k,it)  =                 ges_div(i,j,k,it)  + xhat_div(i,j,k,ii)
+                          ges_vor(i,j,k,it)  =                 ges_vor(i,j,k,it)  + xhat_vor(i,j,k,ii)
            end do
         end do
      end do
-     ij=izero
-     do j=1,lon2
-        do i=1,lat2
-           ij=ij+ione
-           ges_ps(i,j,it) = ges_ps(i,j,it) + sval(ii)%p(ij)
+     ij=0
+     if(is_ps>0) then
+        do j=1,lon2
+           do i=1,lat2
+              ges_ps(i,j,it) = ges_ps(i,j,it) + sval(ii)%r2(is_ps)%q(i,j)
+           end do
         end do
-     end do
-  end do
-
-  do k=1,nfldsfc
-     if (nobs_bins>ione) then
-        zt = hrdifsfc(it)
-        ii = NINT(zt/hr_obsbin)+ione
-     else
-        ii = ione
      endif
-     ij=izero
-     do j=1,lon2
-        do i=1,lat2
-           ij=ij+ione
-           dsfct(i,j,k)=dsfct(i,j,k)+sval(ii)%sst(ij)
-        end do
-     end do
+     do ic=1,ngases
+        id=getindex(svars3d,gases(ic))
+        if (id>0) then
+           call gsi_bundlegetpointer (sval(it),           gases(ic),sv_rank3,istatus)
+           call gsi_bundleputvar     (gsi_chem_bundle(it),gases(ic),sv_rank3,istatus)
+        endif
+        id=getindex(svars2d,gases(ic))
+        if (id>0) then
+           call gsi_bundlegetpointer (sval(it),           gases(ic),sv_rank2,istatus)
+           call gsi_bundleputvar     (gsi_chem_bundle(it),gases(ic),sv_rank2,istatus)
+        endif
+     enddo
+
   end do
 
-  if (regional_ozone) then
-     do it=1,nfldsig
-        do k=1,nsig
-           do j=1,lon2
-              do i=1,lat2
-                 if(ges_oz(i,j,k,it) < zero) ges_oz(i,j,k,it)   = 1.e-10_r_kind
-              end do
+  if(ngases>0)then
+    deallocate(gases)
+  endif
+
+  if(is_sst>0) then
+     do k=1,nfldsfc
+        if (nobs_bins>1) then
+           zt = hrdifsfc(it)
+           ii = NINT(zt/hr_obsbin)+1
+        else
+           ii = 1
+        endif
+        ij=0
+        do j=1,lon2
+           do i=1,lat2
+              dsfct(i,j,k)=dsfct(i,j,k)+sval(ii)%r2(is_sst)%q(i,j)
            end do
         end do
      end do
   endif
 
+  if (regional_ozone) then
+     if(is_oz>0) then
+        do it=1,nfldsig
+           do k=1,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    if(ges_oz(i,j,k,it)<zero) ges_oz(i,j,k,it) = 1.e-10_r_kind
+                 enddo
+              enddo
+           enddo
+        enddo
+     endif
+  endif
+
 ! If requested, update background bias correction
   if (biascor >= zero) then
-     if (mype==izero) write(iout_iter,*) &
+     if (mype==0) write(iout_iter,*) &
         'UPDATE_GUESS:  update background bias correction.  biascor=',biascor
 
 !    Update bias correction field
@@ -225,19 +273,19 @@ subroutine update_guess(sval,sbias)
   if (.not.twodvar_regional) then
 
 !    Satellite radiance biases
-     ij=izero
+     ij=0
      do j=1,jpch_rad
         do i=1,npred
-           ij=ij+ione
+           ij=ij+1
            predx(i,j)=predx(i,j)+sbias%predr(ij)
         end do
      end do
 
 !    Precipitation biases
-     ij=izero
+     ij=0
      do j=1,npcptype
         do i=1,npredp
-           ij=ij+ione
+           ij=ij+1
            predxp(i,j)=predxp(i,j)+sbias%predp(ij)
         end do
      end do

@@ -16,6 +16,8 @@ subroutine evaljgrad(xhat,fjcost,gradx,lupdfgs,nprt,calledby)
 !   2009-08-14  lueken  - update documentation
 !   2009-11-20  todling - add geos_pgcmtest
 !   2010-01-11  todling - bypass call to model_xx based on idmodel as well
+!   2010-05-13  todling - update interface to evalqlim; use gsi_bundle
+!   2010-05-27  todling - replace geos_pgcmtest w/ general gsi_4dcoupler
 !
 !   input argument list:
 !    xhat - current state estimate (in control space)
@@ -44,9 +46,12 @@ use obsmod, only: yobs, lsaveobsens, l_do_adjoint
 use obs_sensitivity, only: fcsens
 use mod_strong, only: jcstrong,baldiag_inc
 use control_vectors
-use state_vectors
+use state_vectors, only: allocate_state,deallocate_state,prt_state_norms
 use bias_predictors
 use intjomod, only: intjo
+use gsi_4dcouplermod, only: gsi_4dcoupler_grtests
+use gsi_bundlemod, only: gsi_bundle
+use gsi_bundlemod, only: self_add,assignment(=)
 use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 
 implicit none
@@ -61,8 +66,8 @@ character(len=*)    , intent(in   ) :: calledby
 
 ! Declare local variables  
 character(len=*), parameter :: myname='evaljgrad'
-type(state_vector) :: sval(nobs_bins), rval(nobs_bins)
-type(state_vector) :: mval(nsubwin)
+type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
+type(gsi_bundle) :: mval(nsubwin)
 type(predictors) :: sbias, rbias
 real(r_quad) :: zjb,zjo,zjc,zjl
 integer(i_kind) :: ii,iobs,ibin
@@ -122,7 +127,7 @@ else
 end if
 
 ! Perform test of AGCM TLM and ADM
-call geos_pgcmtest(mval,sval,.true.)
+call gsi_4dcoupler_grtests(mval,sval,nsubwin,nobs_bins)
 
 if (nprt>=2) then
    do ii=1,nobs_bins
@@ -152,7 +157,7 @@ if (l_do_adjoint) then
    zjl=zero_quad
    if (.not.ltlint) then
       do ibin=1,nobs_bins
-         call evalqlim(sval(ibin)%q,zjl,rval(ibin)%q)
+         call evalqlim(sval(ibin),zjl,rval(ibin))
       enddo
    endif
 

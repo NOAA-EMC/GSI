@@ -186,7 +186,7 @@ clean:
   SRCSF90C = \
 	abor1.f90 \
         adjtest.f90 \
-	aeroinfo.f90 \
+        aeroinfo.f90 \
 	anberror.f90 \
 	anbkerror.f90 \
 	aniso_ens_util.f90 \
@@ -210,6 +210,7 @@ clean:
 	calctends_tl.F90 \
 	calctends_no_ad.F90 \
 	calctends_no_tl.F90 \
+        coinfo.f90 \
 	combine_radobs.f90 \
 	compact_diffs.f90 \
 	compute_derived.f90 \
@@ -243,8 +244,6 @@ clean:
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
-        geos_pertmod.F90 \
-        geos_pgcmtest.F90 \
 	gesinfo.F90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
@@ -260,9 +259,12 @@ clean:
 	grid2sub.f90 \
 	gridmod.f90 \
 	gscond_ad.f90 \
-        gsdcloudanalysis.F90 \
         gsd_terrain_match_surfTobs.f90 \
+        gsdcloudanalysis.F90 \
 	gsi_4dvar.f90 \
+        gsi_4dcouplermod.F90 \
+        gsi_bundlemod.F90 \
+        gsi_chemtracer_mod.F90 \
 	gsi_io.f90 \
         gsi_nemsio_mod.f90 \
 	gsimod.F90 \
@@ -278,6 +280,7 @@ clean:
         init_jcdfi.F90 \
         int3dvar.f90 \
 	intall.f90 \
+        intco.f90 \
 	intdw.f90 \
 	intgps.f90 \
 	intjcpdry.f90 \
@@ -291,6 +294,7 @@ clean:
 	intq.f90 \
 	intrad.f90 \
 	intrp2a.f90 \
+	intrp3co.f90 \
 	intrp3oz.f90 \
 	intrppx.f90 \
 	intrw.f90 \
@@ -313,7 +317,9 @@ clean:
         m_berror_stats_reg.f90 \
 	m_dgeevx.F90 \
 	m_dtime.F90	\
+        m_gpsrhs.F90 \
  	m_gsiBiases.F90 \
+        m_rerank.F90 \
 	m_obdiag.F90	\
 	m_rhs.F90	\
         m_stats.F90 \
@@ -333,7 +339,7 @@ clean:
 	mpimod.F90 \
         mpl_allreduce.f90 \
         mpl_bcast.f90 \
-	ncepgfs_ghg.f90 \
+        ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \
         nemsio_module.f90 \
 	nlmsas_ad.f90 \
@@ -372,12 +378,13 @@ clean:
 	raflib.f90 \
         rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
-	read_aerosol.F90 \
+        read_aerosol.F90 \
 	read_airs.f90 \
 	read_amsre.f90 \
 	read_avhrr.f90 \
 	read_avhrr_navy.f90 \
 	read_bufrtovs.f90 \
+	read_co.F90 \
 	read_files.f90 \
         read_gfs_ozone_for_regional.f90 \
 	read_goesimg.f90 \
@@ -408,15 +415,16 @@ clean:
 	read_wrf_nmm_files.f90 \
 	read_wrf_nmm_guess.F90 \
 	regional_io.f90 \
+        reorg_metar_cloud.f90 \
 	ret_ssmis.f90 \
 	retrieval_amsre.f90 \
 	retrieval_mi.f90 \
-        reorg_metar_cloud.f90 \
 	rfdpar.f90 \
 	rsearch.F90 \
         rtlnmc_version3.f90 \
 	satthin.F90 \
         setupbend.f90 \
+        setupco.f90 \
 	setupdw.f90 \
         setupo3lv.f90 \
         setuplag.F90 \
@@ -448,6 +456,7 @@ clean:
 	sst_retrieval.f90 \
         state2control.f90 \
         state_vectors.f90 \
+	statsco.f90 \
 	statsconv.f90 \
 	statsoz.f90 \
 	statspcp.f90 \
@@ -455,6 +464,7 @@ clean:
 	stop1.f90 \
 	stp3dvar.f90 \
 	stpcalc.f90 \
+	stpco.f90 \
 	stpdw.f90 \
 	stpgps.f90 \
 	stpjo.f90 \
@@ -480,6 +490,8 @@ clean:
 	sub2fslab_mod.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
+        stub_pertmod.F90 \
+        stub_timermod.F90 \
 	tendsmod.f90 \
         test_obsens.F90 \
         tcv_mod.f90 \
@@ -622,6 +634,9 @@ lib: $(LIB)
 
 gsi.x:  $(OBJS) $(LIB) gsimain.o
 	$(FC) $(LDFLAGS) -o gsi.x gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbfr) $(LIBsp) $(LIBtransf) $(LIBhermes) $(LIBmpeu) $(LIBgfio) $(LIBhdf) $(LIBmpi) $(LIBsys)
+
+ut_gsibundle.x:  $(OBJS) $(LIB) ut_gsibundle.o
+	$(FC) $(LDFLAGS) -o ut_gsibundle.x ut_gsibundle.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbfr) $(LIBsp) $(LIBtransf) $(LIBhermes) $(LIBmpeu) $(LIBgfio) $(LIBhdf) $(LIBmpi) $(LIBsys)
 
 prepbykx.x: prepbykx.o
 	$(FC) $(LDFLAGS) -o prepbykx.x prepbykx.o $(LIBbfr)

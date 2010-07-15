@@ -15,8 +15,9 @@ subroutine anbkerror(gradx,grady)
 !   2008-12-29  todling - update interface to strong_bk/bk_ad
 !   2009-04-13  derber - move strong_bk into balance
 !   2009-07-01  sato - update for global mode
-!   2010-03-09  zhu    - change anbkgcov interface for generalized control variables
-!                      - make changes to interfaces of sub2grid and grid2sub
+!   2010-05-05  todling - update to use gsi_bundle
+!   2010-06-22  todling - update to better handle bundle pointers
+!   2010-06-29  lueken - replaced tv with t in call to gsi_bundlegetpointer
 !
 !   input argument list:
 !     gradx    - input field  
@@ -37,6 +38,7 @@ subroutine anbkerror(gradx,grady)
   use constants, only: izero,zero
   use control_vectors
   use gsi_4dvar, only: nsubwin
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
@@ -44,8 +46,17 @@ subroutine anbkerror(gradx,grady)
   type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
-  integer(i_kind) i,j,ii
+  integer(i_kind) i,j,ii,istatus
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
+  real(r_kind),dimension(:,:,:),pointer::p_t,p_st,p_vp,p_cw
+  real(r_kind),dimension(:,:  ),pointer::p_ps
+  logical lc_sf,lc_vp,lc_ps,lc_t
+  logical do_balance
+  integer(i_kind), parameter :: myvars = 4
+  integer(i_kind) :: ipnts(myvars)
+  character(len=3), parameter :: myvnames(myvars) = (/  &
+                               'sf ', 'vp ', 'ps ', 't  '/)
+
 
 ! Put things in grady first since operations change input variables
   grady=gradx
@@ -59,19 +70,31 @@ subroutine anbkerror(gradx,grady)
      end do
   end do
 
+! Since each internal vector [step(jj)] of grad has the same structure, pointers
+! are the same independent of the subwindow jj
+call gsi_bundlegetpointer (grady%step(1),myvnames,ipnts,istatus)
+lc_sf =ipnts(1)>0;lc_vp =ipnts(2)>0;lc_ps=ipnts(3)>0;lc_t=ipnts(4)>0
+
+! Define what to do depending on what's in CV and SV
+do_balance=lc_sf.and.lc_vp.and.lc_ps .and.lc_t
+
 ! Loop on control steps
   do ii=1,nsubwin
 
+!    Get pointers to this subwin require state variables
+     call gsi_bundlegetpointer (grady%step(ii),'sf',p_st,  istatus)
+     call gsi_bundlegetpointer (grady%step(ii),'vp',p_vp,  istatus)
+     call gsi_bundlegetpointer (grady%step(ii),'ps',p_ps,  istatus)
+     call gsi_bundlegetpointer (grady%step(ii),'t ',p_t,   istatus)
+
 !    Transpose of balance equation
-     call tbalance(grady%step(ii)%t ,grady%step(ii)%p , &
-                   grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
+     if(do_balance) call tbalance(p_t,p_ps,p_st,p_vp,fpsproj)
 
 !    Apply variances, as well as vertical & horizontal parts of background error
      call anbkgcov(grady%step(ii),sst,slndt,sicet)
 
 !    Balance equation
-     call balance(grady%step(ii)%t ,grady%step(ii)%p ,&
-                  grady%step(ii)%st,grady%step(ii)%vp,fpsproj)
+     if(do_balance) call balance(p_t,p_ps,p_st,p_vp,fpsproj)
 
   end do
 
@@ -90,7 +113,7 @@ subroutine anbkerror(gradx,grady)
 end subroutine anbkerror
 
 
-subroutine anbkgcov(cstate,sst,slndt,sicet)
+subroutine anbkgcov(bundle,sst,slndt,sicet)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    anbkgcov    apply anisotropic background error covar
@@ -101,10 +124,9 @@ subroutine anbkgcov(cstate,sst,slndt,sicet)
 ! program history log:
 !   2005-02-14  parrish
 !   2009-07-01  sato - update for global mode
-!   2010-03-09  zhu     - make changes for generalizing control vectors
-!                       - replace explicit use of each control variable
-!                         by a control_state 'cstate'
-!                       - use nrf* for generalized control variables
+!   2010-05-20  todling - update fit interface to sug2grid/grid2sub (bundle)
+!   2010-06-22  todling - update interface (remove cwmr since it's in bunlde)
+!   2010-06-29  lueken - added if(ipnts(2)>0) to second call of anbkgvar
 !
 !   input argument list:
 !     t        - t on subdomain
@@ -115,7 +137,6 @@ subroutine anbkgcov(cstate,sst,slndt,sicet)
 !     sst      - sea surface temperature on subdomain
 !     slndt    - land surface temperature on subdomain
 !     sicet    - ice surface temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
 !     st       - streamfunction on subdomain
 !     vp       - velocity potential on subdomain
 !
@@ -129,7 +150,6 @@ subroutine anbkgcov(cstate,sst,slndt,sicet)
 !     sst      - sea surface temperature on subdomain
 !     slndt    - land surface temperature on subdomain
 !     sicet    - ice surface temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
 !     st       - streamfunction on subdomain
 !     vp       - velocity potential on subdomain
 !
@@ -138,67 +158,91 @@ subroutine anbkgcov(cstate,sst,slndt,sicet)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nlat,nlon,nsig,nsig1o,latlon11
+  use gridmod, only: lat2,lon2,nlat,nlon,nsig,nsig1o
   use anberror, only: rtma_subdomain_option,nsmooth, nsmooth_shapiro
-  use control_vectors, only: nrf_levb,control_state,nrf3,nrf3_loc,nrf2_sst
   use constants, only: izero,ione,zero
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Passed Variables
-  type(control_state),intent(inout) :: cstate
-  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: sst,slndt,sicet
+  real(r_kind),dimension(lat2,lon2),intent(inout) :: sst,slndt,sicet
+  type(gsi_bundle),                 intent(inout) :: bundle
 
 ! Local Variables
-  integer(i_kind) iflg,n,k,nk,loc
+  integer(i_kind) iflg,ier,istatus
   real(r_kind),dimension(nlat,nlon,nsig1o):: hwork
+  real(r_kind),pointer,dimension(:,:)  :: p,skint
+  real(r_kind),pointer,dimension(:,:,:):: t,q,cwmr,oz,st,vp
 
+  logical do_ansmoothrf
+  integer(i_kind), parameter :: myvars = 8
+  integer(i_kind) :: ipnts(myvars)
+  character(len=3), parameter :: myvnames(myvars) = (/  &
+                               'ps ', 'sst', 't  ', 'q  ', 'oz ', &
+                               'cw ', 'sf ', 'vp '/)
+
+! Get pointer indexes
+  call gsi_bundlegetpointer (bundle,myvnames,ipnts,istatus)
+
+! Get required pointers
+  call gsi_bundlegetpointer (bundle, 'ps', p,    istatus)
+  call gsi_bundlegetpointer (bundle, 'sst',skint,istatus)
+  call gsi_bundlegetpointer (bundle, 't',  t,    istatus)
+  call gsi_bundlegetpointer (bundle, 'q',  q,    istatus)
+  call gsi_bundlegetpointer (bundle, 'cw',cwmr,  istatus)
+  call gsi_bundlegetpointer (bundle, 'oz',oz,    istatus)
+  call gsi_bundlegetpointer (bundle, 'sf',st,    istatus)
+  call gsi_bundlegetpointer (bundle, 'vp',vp,    istatus)
 
 ! break up skin temp into components
-  if (nrf2_sst>izero) call anbkgvar(cstate%sst,sst,slndt,sicet,izero)
+  if(ipnts(2)>0) call anbkgvar(skint,sst,slndt,sicet,izero)
 
 ! Perform simple vertical smoothing while fields are in sudomain mode.
 ! The accompanying smoothing in the horizontal is performed inside the
 ! recursive filter. Motivation: Reduce possible high frequency noise in
 ! the analysis that would arise from the use of a "non-blending" RF algorithm.
 
-  
-  do k=1,nrf3
-     loc=nrf3_loc(k)
-     nk=(nrf_levb(loc)-ione)*latlon11+ione
-     call vert_smther(cstate%values(nk),nsmooth,nsmooth_shapiro)
-  end do
+  if(ipnts(3)>0) call vert_smther(t   ,nsmooth,nsmooth_shapiro)
+  if(ipnts(4)>0) call vert_smther(q   ,nsmooth,nsmooth_shapiro)
+  if(ipnts(5)>0) call vert_smther(oz  ,nsmooth,nsmooth_shapiro)
+  if(ipnts(6)>0) call vert_smther(cwmr,nsmooth,nsmooth_shapiro)
+  if(ipnts(7)>0) call vert_smther(st  ,nsmooth,nsmooth_shapiro)
+  if(ipnts(8)>0) call vert_smther(vp  ,nsmooth,nsmooth_shapiro)
 
   if(rtma_subdomain_option) then
 
-     cstate%oz=zero
-     cstate%cw=zero
+     do_ansmoothrf=ipnts(1)>0.and.ipnts(3)>0.and.ipnts(4)>0.and.ipnts(7)>0.and.ipnts(8)>0
+     oz=zero
+     cwmr=zero
      sst=zero
      slndt=zero
      sicet=zero
-     call ansmoothrf_reg_subdomain_option(cstate%values)
+     if(do_ansmoothrf) call ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
 
   else
 
 ! Convert from subdomain to full horizontal field distributed among processors
      iflg=ione
-     call sub2grid(hwork,cstate,sst,slndt,sicet,iflg) 
+     call sub2grid(hwork,bundle,sst,slndt,sicet,iflg)
 
 ! Apply horizontal smoother for number of horizontal scales
      call ansmoothrf(hwork)
 
 ! Put back onto subdomains
-     call grid2sub(hwork,cstate,sst,slndt,sicet)
+     call grid2sub(hwork,bundle,sst,slndt,sicet)
 
   end if
 
-  do k=nrf3,1,-1
-     loc=nrf3_loc(k)
-     nk=(nrf_levb(loc)-ione)*latlon11+ione
-     call tvert_smther(cstate%values(nk),nsmooth,nsmooth_shapiro)
-  end do
+  if(ipnts(8)>0) call tvert_smther(vp  ,nsmooth,nsmooth_shapiro)
+  if(ipnts(7)>0) call tvert_smther(st  ,nsmooth,nsmooth_shapiro)
+  if(ipnts(6)>0) call tvert_smther(cwmr,nsmooth,nsmooth_shapiro)
+  if(ipnts(5)>0) call tvert_smther(oz  ,nsmooth,nsmooth_shapiro)
+  if(ipnts(4)>0) call tvert_smther(q   ,nsmooth,nsmooth_shapiro)
+  if(ipnts(3)>0) call tvert_smther(t   ,nsmooth,nsmooth_shapiro)
 
 ! combine sst,sldnt, and sicet into skin temperature field
-  if (nrf2_sst>izero) call anbkgvar(cstate%sst,sst,slndt,sicet,ione)
+  if(ipnts(2)>0) call anbkgvar(skint,sst,slndt,sicet,ione)
 
 end subroutine anbkgcov
 
@@ -619,7 +663,7 @@ subroutine tvert_smther(g,nsmooth,nsmooth_shapiro)
 end subroutine tvert_smther
 
 
-subroutine ansmoothrf_reg_subdomain_option(grady)
+subroutine ansmoothrf_reg_subdomain_option(t,p,q,st,vp)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ansmoothrf_reg_subdomain_option  anisotropic rf for regional mode
@@ -630,7 +674,6 @@ subroutine ansmoothrf_reg_subdomain_option(grady)
 !
 ! program history log:
 !   2005-02-14  parrish
-!   2010-03-16  zhu - use an array grady for generalized control variables
 !
 !   input argument list:
 !     t,p,q,oz,st,slndt,sicet,cwmr,st,vp   -  fields to be smoothed
@@ -648,12 +691,11 @@ subroutine ansmoothrf_reg_subdomain_option(grady)
   use constants, only: izero,ione,zero
   use gridmod, only: lat2,lon2,istart,jstart,nsig
   use raflib, only: raf4_ad_wrap,raf4_wrap
-  use jfunc, only: nval_levs
-  use control_vectors, only: nrf2,nrf3,nvars
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nval_levs):: grady
+  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,vp,st
 
 ! Declare local variables
   integer(i_kind) i,igauss,iloc,j,jloc,k,kk,mm1
@@ -675,14 +717,60 @@ subroutine ansmoothrf_reg_subdomain_option(grady)
 
 !  transfer variables to ngauss copies
   kk=izero
-  do k=1,nval_levs
+  do k=1,nsig
      kk=kk+ione
      do j=jps,jpe
         jloc=j-jstart(mm1)+2_i_kind
         do i=ips,ipe
            iloc=i-istart(mm1)+2_i_kind
            do igauss=1,ngauss
-              workb(igauss,i,j,kk)=grady(iloc,jloc,k)
+              workb(igauss,i,j,kk)=st(iloc,jloc,k)
+           end do
+        end do
+     end do
+  end do
+  do k=1,nsig
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           do igauss=1,ngauss
+              workb(igauss,i,j,kk)=vp(iloc,jloc,k)
+           end do
+        end do
+     end do
+  end do
+  kk=kk+ione
+  do j=jps,jpe
+     jloc=j-jstart(mm1)+2_i_kind
+     do i=ips,ipe
+        iloc=i-istart(mm1)+2_i_kind
+        do igauss=1,ngauss
+           workb(igauss,i,j,kk)=p(iloc,jloc)
+        end do
+     end do
+  end do
+  do k=1,nsig
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           do igauss=1,ngauss
+              workb(igauss,i,j,kk)=t(iloc,jloc,k)
+           end do
+        end do
+     end do
+  end do
+  do k=1,nsig
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           do igauss=1,ngauss
+              workb(igauss,i,j,kk)=q(iloc,jloc,k)
            end do
         end do
      end do
@@ -695,21 +783,75 @@ subroutine ansmoothrf_reg_subdomain_option(grady)
 
 !  add together ngauss copies
   kk=izero
-  do k=1,nval_levs
+  do k=1,nsig
      kk=kk+ione
      do j=jps,jpe
         jloc=j-jstart(mm1)+2_i_kind
         do i=ips,ipe
            iloc=i-istart(mm1)+2_i_kind
-           grady(iloc,jloc,k)=zero
+           st(iloc,jloc,k)=zero
            do igauss=1,ngauss
-              grady(iloc,jloc,k)=grady(iloc,jloc,k)+workb(igauss,i,j,kk)
+              st(iloc,jloc,k)=st(iloc,jloc,k)+workb(igauss,i,j,kk)
+           end do
+        end do
+     end do
+  end do
+  do k=1,nsig
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           vp(iloc,jloc,k)=zero
+           do igauss=1,ngauss
+              vp(iloc,jloc,k)=vp(iloc,jloc,k)+workb(igauss,i,j,kk)
+           end do
+        end do
+     end do
+  end do
+  kk=kk+ione
+  do j=jps,jpe
+     jloc=j-jstart(mm1)+2_i_kind
+     do i=ips,ipe
+        iloc=i-istart(mm1)+2_i_kind
+        p(iloc,jloc)=zero
+        do igauss=1,ngauss
+           p(iloc,jloc)=p(iloc,jloc)+workb(igauss,i,j,kk)
+        end do
+     end do
+  end do
+  do k=1,nsig
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           t(iloc,jloc,k)=zero
+           do igauss=1,ngauss
+              t(iloc,jloc,k)=t(iloc,jloc,k)+workb(igauss,i,j,kk)
+           end do
+        end do
+     end do
+  end do
+  do k=1,nsig
+     kk=kk+ione
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2_i_kind
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2_i_kind
+           q(iloc,jloc,k)=zero
+           do igauss=1,ngauss
+              q(iloc,jloc,k)=q(iloc,jloc,k)+workb(igauss,i,j,kk)
            end do
         end do
      end do
   end do
 
 !   update halos:
-  call halo_update_reg(grady,nval_levs)
+  call halo_update_reg(p,ione)
+  call halo_update_reg(t,nsig)
+  call halo_update_reg(q,nsig)
+  call halo_update_reg(vp,nsig)
+  call halo_update_reg(st,nsig)
 
 end subroutine ansmoothrf_reg_subdomain_option

@@ -14,6 +14,7 @@ module anberror
 !   2007-08-21  pondeca - add qvar3d allocate (bug fix)
 !   2008-11-03  sato - update for global mode and sub-domain mode
 !   2008-12-10  zhu  - use nvars from jfunc,add changes for generalized control variables
+!   2010-06-05  todling - an_amp no longer has wired-in order of variables in CV
 !
 ! subroutines included:
 !   sub init_anberror             - initialize extra anisotropic background error
@@ -60,17 +61,6 @@ module anberror
 !   def ngauss      - number of gaussians to add together in each factor
 !   def rgauss      - multipliers on reference aspect tensor for each gaussian factor
 !   def an_amp      - multiplying factors on reference background error variances
-!                      an_amp(k, 1) - streamfunction          (k=1,ngauss)
-!                      an_amp(k, 2) - velocity potential
-!                      an_amp(k, 3) - log(ps)
-!                      an_amp(k, 4) - temperature
-!                      an_amp(k, 5) - water vapor mixing ratio
-!                      an_amp(k, 6) - ozone
-!                      an_amp(k, 7) - sea surface temperature
-!                      an_amp(k, 8) - cloud condensate mixing ratio
-!                      an_amp(k, 9) - land surface temperature
-!                      an_amp(k,10) - ice surface temperature
-!   def an_amp0     - 1-dimension an_amp, the omitted dimension is for ngauss
 !   def an_vs       - scale factor for background error vertical scales (temporary carry over from
 !                      isotropic inhomogeneous option)
 !   def grid_ratio  - ratio of coarse to fine grid, in fine grid units (coarse grid
@@ -90,6 +80,7 @@ module anberror
 !$$$ end documentation block
 
   use kinds, only: r_kind,r_single,i_kind,i_long,r_double
+  use constants, only:  izero,ione,zero,half,one,two,three,four
   use raflib, only: filter_cons, filter_indices
   use berror, only: qvar3d
   use gridmod, only: lat2,lon2,nsig
@@ -113,7 +104,7 @@ module anberror
   public :: pf2aP1,pf2aP2,pf2aP3,nx,ny,mr,nr,nf,rtma_subdomain_option
   public :: nsmooth,nsmooth_shapiro,indices,indices_p,ngauss,filter_all,filter_p2,filter_p3
   public :: kvar_start,kvar_end,var_names,levs_jdvar,anisotropic
-  public :: idvar,triad4,ifilt_ord,npass,normal,binom,rgauss,anhswgt,an_amp,an_amp0,an_vs
+  public :: idvar,triad4,ifilt_ord,npass,normal,binom,rgauss,anhswgt,an_amp,an_vs
   public :: ancovmdl,covmap,lreadnorm,afact0,smooth_len,jdvar
   public :: an_flen_t,an_flen_z,an_flen_u,grid_ratio,grid_ratio_p
 
@@ -136,7 +127,7 @@ module anberror
   integer(i_long) ifilt_ord,npass,ngauss,normal,nsmooth,nsmooth_shapiro
   real(r_kind):: anhswgt(max_ngauss)
   real(r_double) rgauss(max_ngauss)
-  real(r_double) an_amp(max_ngauss,10), an_amp0(10)
+  real(r_double),allocatable,dimension(:,:) :: an_amp
   real(r_double) an_vs
   real(r_kind) grid_ratio, grid_ratio_p
   real(r_double) an_flen_u,an_flen_t,an_flen_z
@@ -166,6 +157,7 @@ contains
 ! program history log:
 !   2005-02-08  parrish
 !   2008-11-03  sato - update for global mode
+!   2010-06-05  todling - an_amp0 moved to control_vectors
 !
 !   input argument list:
 !
@@ -177,7 +169,6 @@ contains
 !
 !$$$ end documentation block
 
-    use constants, only:  izero,ione,zero,half,one,two,three,four
     use raflib, only: set_indices
     implicit none
 
@@ -230,8 +221,6 @@ contains
     nsmooth_shapiro=izero
     ngauss=3_i_long
     rgauss=zero
-    an_amp=one/three
-    an_amp0=one/three
     an_vs=one
     grid_ratio=two
     grid_ratio_p=zero
@@ -275,7 +264,6 @@ contains
 !
 !$$$ end documentation block
 
-    use constants, only:  izero,ione,zero
     use fgrid2agrid_mod, only: create_fgrid2agrid
     use jfunc, only: nrclen
     use berror, only: varprd,bnf=>nf,bnr=>nr
@@ -285,6 +273,8 @@ contains
     integer(i_kind),intent(in   ) :: mype
 
     allocate(varprd(max(ione,nrclen)))
+    allocate(an_amp(max_ngauss,nvars))
+    an_amp=one/three
 
 !  compute vertical partition variables used by anisotropic filter code
 
@@ -365,6 +355,7 @@ contains
 ! program history log:
 !   2005-02-08  parrish
 !   2007-09-04  sato - add actual procedures
+!   2010-06-05  todling - add an_amp
 !
 !   input argument list:
 !
@@ -378,6 +369,7 @@ contains
     use fgrid2agrid_mod, only: destroy_fgrid2agrid
     implicit none
 
+    deallocate(an_amp)
     deallocate(qvar3d)
 
     call destroy_fgrid2agrid(pf2aP1)
@@ -409,7 +401,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: one,ione
     use fgrid2agrid_mod, only: create_fgrid2agrid
     use jfunc, only: nrclen
     use berror, only: varprd
@@ -419,6 +410,8 @@ contains
     integer(i_kind),intent(in   ) :: mype
 
     allocate(varprd(max(ione,nrclen)))
+    allocate(an_amp(max_ngauss,nvars))
+    an_amp=one/three
 
 !   initialize fgrid2agrid interpolation constants
     if(rtma_subdomain_option) grid_ratio=one
@@ -470,9 +463,10 @@ contains
 !                modified indexing compatable with anisotropic filter code.
 !
 ! program history log:
-!   2008-06-05  safford -- add subprogram doc block
+!   2008-06-05 safford - add subprogram doc block
 !   2008-12-10 zhu     - add changes with nrf* for generalized control variables
 !                      - use vlevs from gridmod
+!   2010-05-28 todling - obtain variable id's on the fly (add getindex)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -485,20 +479,22 @@ contains
 !
 !$$$ end documentation block
 
-    use constants, only: izero,ione
     use gridmod, only: nsig,nsig1o,vlevs
     use mpimod, only: levs_id,nvar_id,npe,ierror,mpi_comm_world, &
            mpi_max,mpi_integer4
-    use control_vectors, only: nrf_var,nrf,nrf2_sst
+    use control_vectors, only: nrf_var,nrf
+    use control_vectors, only: cvars2d
+    use mpeu_util, only: getindex
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
-    integer(i_kind) idvar_last,k,kk
+    integer(i_kind) idvar_last,k,kk,nrf2_sst
     integer(i_kind) nlevs0(0:npe-ione),nlevs1(0:npe-ione),nvar_id0(nsig1o*npe),nvar_id1(nsig1o*npe)
 
     indices%kds=  ione ; indices%kde=vlevs
     indices_p%kds=ione ; indices_p%kde=vlevs
+    nrf2_sst=getindex(cvars2d,'sst')
 
 !  initialize idvar,kvar_start,kvar_end
 ! Determine how many vertical levels each mpi task will
@@ -604,6 +600,7 @@ contains
 !   2005-02-08  parrish
 !   2007-08-21  pondeca - add qvar3d deallocate
 !   2008-06-05  safford - rm unused var
+!   2010-06-05  todling - add an_amp
 !
 !   input argument list:
 !
@@ -620,6 +617,7 @@ contains
 
     integer(i_kind) k
 
+    deallocate(an_amp)
     deallocate(qvar3d)
     call destroy_fgrid2agrid(pf2aP1)
 
@@ -640,6 +638,8 @@ contains
 !   2008-06-05  safford -- add subprogram doc block
 !   2008-12-10  zhu - add changes with nrf_var,nrf* for generalized control variables
 !                   - use vlevs from gridmod
+!   2010-05-25  todling - move levb, leve from jfunc here (only used here)
+!   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -652,23 +652,27 @@ contains
 !
 !$$$ end documentation block
 
-    use constants, only: izero,ione
     use gridmod, only: nsig,vlevs
-    use control_vectors, only: nrf_var,nrf,nrf2_sst,nrf_3d,nrf_levb,nrf_leve
+    use control_vectors, only: nrf_var,nrf,nrf_3d
+    use control_vectors, only: cvars2d
+    use mpeu_util, only: getindex
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
-    integer(i_kind) n,k,kk
+    integer(i_kind) n,k,kk,klevb,kleve,nrf2_sst
+    integer(i_kind),allocatable,dimension(:):: nrf_levb,nrf_leve
 
     indices%kds=ione        ; indices%kde=vlevs
     indices%kps=indices%kds ; indices%kpe=indices%kde
+    nrf2_sst=getindex(cvars2d,'sst')
 
 !  initialize nvars,idvar,kvar_start,kvar_end
 ! Determine how many vertical levels each mpi task will
 ! handle in the horizontal smoothing
     allocate(idvar(indices%kds:indices%kde),jdvar(indices%kds:indices%kde),kvar_start(nvars),kvar_end(nvars))
     allocate(var_names(nvars),levs_jdvar(indices%kds:indices%kde))
+    allocate(nrf_levb(nrf),nrf_leve(nrf))
     do k=1,nrf
        var_names(k)=nrf_var(k)
     end do
@@ -676,6 +680,26 @@ contains
        var_names(nrf+1)="stl"
        var_names(nrf+2)="sti"
     end if
+
+! initialize level pointer to each control variable
+    klevb=1
+    if (nrf_3d(1)) then
+       kleve=klevb+nsig-1
+    else
+       kleve=klevb
+    end if
+    nrf_levb(1)=klevb
+    nrf_leve(1)=kleve
+    do n=2,nrf
+       klevb=nrf_leve(n-1)+1
+       if (nrf_3d(n)) then
+          kleve=klevb+nsig-1
+       else
+          kleve=klevb
+       end if
+       nrf_levb(n)=klevb
+       nrf_leve(n)=kleve
+    end do
 
     do n=1,nrf
        kvar_start(n)=nrf_levb(n) 
@@ -700,6 +724,8 @@ contains
           levs_jdvar(kk)=ione
        end if
     end do
+
+    deallocate(nrf_levb,nrf_leve)
 
     if(mype==izero) then
        do k=indices%kds,indices%kde
@@ -737,7 +763,6 @@ subroutine halo_update_reg0(mype)
 !
 !$$$ end documentation block
 
-  use constants, only: izero,ione
   use gridmod, only: lat2,lon2,istart,jstart,nlat,nlon
   use mpimod, only: npe,mpi_integer4,mpi_sum,mpi_comm_world,ierror
   use raflib, only: indexxi4
@@ -874,7 +899,6 @@ subroutine halo_update_reg(f,nvert)
 !
 !$$$ end documentation block
 
-  use constants, only: ione
   use gridmod, only: lat2,lon2
   use mpimod, only: npe,mpi_rtype,mpi_comm_world,ierror
   implicit none

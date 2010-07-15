@@ -15,10 +15,12 @@ subroutine smoothrf(work,nsc,nlevs)
 !   2004-11-22  derber - add openMP
 !   2005-03-09  wgu/kleist - square hzscl in totwgt calculation
 !   2005-05-27  kleist/parrish - add option to use new patch interpolation
-!               if (norsp==0) will default to polar cascade
+!                  if (norsp==0) will default to polar cascade
 !   2005-11-16  wgu - set nmix=nr+1+(ny-nlat)/2 to make sure
-!               nmix+nrmxb=nr no matter what number nlat is.   
+!                  nmix+nrmxb=nr no matter what number nlat is.   
 !   2010-05-05  derber create diag2tr - diag2nh -diag2sh routines to simplify smoothrf routines
+!   2010-05-22  todling - remove implicit ordering requirement in nvar_id
+!
 !   input argument list:
 !     work     - horizontal fields to be smoothed
 !     nsc      - number of horizontal scales to smooth over 
@@ -36,6 +38,7 @@ subroutine smoothrf(work,nsc,nlevs)
   use constants, only: zero,half
   use berror, only: ii,jj,ii1,jj1,ii2,jj2,slw,slw1,slw2, &
        nx,ny,mr,nr,nf,hzscl,hswgt
+  use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
   use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
   implicit none
@@ -64,7 +67,7 @@ subroutine smoothrf(work,nsc,nlevs)
            totwgt(j)=hswgt(j)*hzscl(j)*hzscl(j)
         end do
         
-        if(nvar_id(k)<3_i_kind)then
+        if(nrf_var(nvar_id(k))=='sf'.or.nrf_var(nvar_id(k))=='vp')then
            totwgt(3)=half*totwgt(3)
         end if
         
@@ -1298,9 +1301,11 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 !   2004-11-22  derber - add openMP
 !   2005-03-09  wgu/kleist - square hzscl in totwgt calculation
 !   2005-05-27  kleist/parrish - add option to use new patch interpolation
-!               if (norsp==0) will default to polar cascade
+!                  if (norsp==0) will default to polar cascade
 !   2005-11-16  wgu - set nmix=nr+1+(ny-nlat)/2 to make sure
-!               nmix+nrmxb=nr no matter what number nlat is.   
+!                  nmix+nrmxb=nr no matter what number nlat is.   
+!   2010-05-22  todling - remove implicit ordering requirement in nvar_id
+!
 !   input argument list:
 !     work     - horizontal fields to be smoothed
 !     nsc      - number of horizontal scales to smooth over 
@@ -1319,6 +1324,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   use constants, only: zero,half
   use berror, only: ii,jj,ii1,jj1,&
        ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt
+  use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
   use smooth_polcarf, only: norsp,smooth_polcas
   implicit none
@@ -1348,7 +1354,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
            totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
         end do
         
-        if(nvar_id(k)<3_i_kind)then
+        if(nrf_var(nvar_id(k))=='sf'.or.nrf_var(nvar_id(k))=='vp')then
            totwgt(3)=sqrt(half)*totwgt(3)
         end if
 
@@ -1474,9 +1480,11 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 !   2004-11-22  derber - add openMP
 !   2005-03-09  wgu/kleist - square hzscl in totwgt calculation
 !   2005-05-27  kleist/parrish - add option to use new patch interpolation
-!               if (norsp==0) will default to polar cascade
+!                   if (norsp==0) will default to polar cascade
 !   2005-11-16  wgu - set nmix=nr+1+(ny-nlat)/2 to make sure
-!               nmix+nrmxb=nr no matter what number nlat is.   
+!                   nmix+nrmxb=nr no matter what number nlat is.   
+!   2010-05-22  todling - remove implicit ordering requirement in nvar_id
+!
 !   input argument list:
 !     work     - horizontal fields to be smoothed
 !     nsc      - number of horizontal scales to smooth over 
@@ -1495,6 +1503,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
   use constants, only: zero,half
   use berror, only: ii,jj,ii1,jj1,&
        ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt
+  use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
   implicit none
 
@@ -1523,7 +1532,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
            totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
         end do
 
-        if(nvar_id(k)<3_i_kind)then
+        if(nrf_var(nvar_id(k))=='sf'.or.nrf_var(nvar_id(k))=='vp')then
            totwgt(3)=sqrt(half)*totwgt(3)
         end if
 		

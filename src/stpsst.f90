@@ -12,6 +12,7 @@ module stpsstmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stpsst_tl
 !   2009-08-12  lueken - update documentation
+!   2010-05-13  todling - uniform interface across stp routines
 !
 ! subroutines included:
 !   sub stpsst
@@ -29,7 +30,7 @@ PUBLIC stpsst
 
 contains
 
-subroutine stpsst(ssthead,rsst,ssst,out,sges,nstep)
+subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpsst      calculate penalty and contribution to stepsize
@@ -53,6 +54,7 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges,nstep)
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
+!   2010-05-13  todling  - update to use gsi_bundle
 !
 !   input argument list:
 !     ssthead
@@ -74,25 +76,36 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges,nstep)
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
   type(sst_ob_type),pointer           ,intent(in   ) :: ssthead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
-  real(r_kind),dimension(latlon11)    ,intent(in   ) :: rsst,ssst
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables  
-  integer(i_kind) j1,j2,j3,j4,kk
+  integer(i_kind) j1,j2,j3,j4,kk,ier,istatus
   real(r_kind) w1,w2,w3,w4
   real(r_kind) val,val2
   real(r_kind) cg_sst,sst,wgross,wnotgross
   real(r_kind),dimension(max(1,nstep)):: pen
   real(r_kind) pg_sst
+  real(r_kind),pointer,dimension(:) :: ssst
+  real(r_kind),pointer,dimension(:) :: rsst
   type(sst_ob_type), pointer :: sstptr
 
   out=zero_quad
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'sst',ssst,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'sst',rsst,istatus);ier=istatus+ier
+  if(ier/=0)return
 
   sstptr => ssthead
   do while (associated(sstptr))

@@ -114,7 +114,7 @@ subroutine glbsoi(mype)
   use jcmod, only: ljcdfi
   use gsi_4dvar, only: l4dvar, lsqrtb, lanczosave
   use pcgsoimod, only: pcgsoi
-  use control_vectors
+  use control_vectors, only: dot_product,read_cv,write_cv
   use radinfo, only: radinfo_write
   use pcpinfo, only: pcpinfo_write
   use converr, only: converr_destroy

@@ -49,8 +49,9 @@ subroutine compute_derived(mype,init_pass)
 !   2009-10-15  parrish - add rescale of ensemble rh perturbations
 !                           (currently for internal generated ensemble only)
 !   2010-03-11  derber/zhu - add qvar3d to prewgt and prewgt_reg, remove rescale_ensemble_rh_perturbations
-!   2010-04-15  hou - add importing gfs co2 historical data through calling
-!                        read_gfsco2.
+!   2010-05-28  todling - obtain variable id's on the fly (add getindex)
+!   2010-06-01  todling - remove nrf3 pointer
+!   2010-06-05  todling - an_amp0 coming from control_vectors
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -65,9 +66,11 @@ subroutine compute_derived(mype,init_pass)
 
   use kinds, only: r_kind,i_kind
   use jfunc, only: qsatg,qgues,jiter,jiterstart,&
-       dqdt,dqdp,qoption,switch_on_derivatives,&
+       qoption,switch_on_derivatives,&
        tendsflag,varq
-  use control_vectors, only: nrf3_q,nrf3_loc
+  use control_vectors, only: cvars3d
+  use control_vectors, only: nrf_var
+  use control_vectors, only: an_amp0
   use mpimod, only: levs_id
   use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,&
        ges_tv,ges_q,ges_oz,ges_cwmr,ges_tsen,sfct,&
@@ -81,26 +84,22 @@ subroutine compute_derived(mype,init_pass)
   use guess_grids, only: ges_prslavg,ges_psfcavg
   use guess_grids, only: tnd_initialized
   use guess_grids, only: drv_initialized
-  use guess_grids, only: ges_prsi,ges_co2,igfsco2
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
   use gridmod, only: regional
   use gridmod, only: twodvar_regional
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional
-  use gridmod, only: rlats,istart,nlat
   use berror, only: hswgt
   use balmod, only: rllat1,llmax
   use mod_strong, only: jcstrong,baldiag_full
   use obsmod, only: write_diag,lobserver
   use hybrid_ensemble_parameters, only: l_hyb_ens,generate_ens
   use hybrid_ensemble_isotropic_regional, only: rescale_ensemble_rh_perturbations
-  use obsmod, only: iadate
-  use ncepgfs_ghg, only: read_gfsco2
 
   use constants, only: zero,one,one_tenth,half,fv
 
 ! for anisotropic mode
   use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab
-  use anberror, only: anisotropic, idvar, kvar_start, an_amp0, ngauss, indices, indices_p, &
+  use anberror, only: anisotropic, idvar, kvar_start, ngauss, indices, indices_p, &
                     & filter_all,   filter_p2,   filter_p3, &
                     & pf2aP1, pf2aP2, pf2aP3, rtma_subdomain_option
   use anisofilter, only: rh0f, corz, ensamp, mlat, rllatf, fact_qopt2
@@ -108,6 +107,7 @@ subroutine compute_derived(mype,init_pass)
                              p0ilatf, p2ilatf, p3ilatf, p2ilatfm, p3ilatfm, get_stat_factk
 
   use constants, only: zero,one,one_tenth,half,fv
+  use mpeu_util, only: getindex
   use mpeu_util, only: die, tell
   implicit none
 
@@ -118,22 +118,23 @@ subroutine compute_derived(mype,init_pass)
 
 ! Declare local variables
   logical ice,fullfield
-  integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2,iderivative
-  integer(i_kind) :: iyear, month
+  integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2,iderivative,nrf3_q
   
   real(r_kind) d,dl1,dl2,psfc015,dn1,dn2
   real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
   real(r_kind),dimension(lat2,lon2,nsig):: rhgues
-  real(r_kind),dimension(lat2):: xlats
-  real(r_kind),dimension(lat2,lon2,nsig+1):: prsi
 
 ! for anisotropic mode
-  integer(i_kind):: k1,ivar,kvar,igauss
+  integer(i_kind):: k1,ivar,kvar,igauss,iq_loc
   real(r_kind):: factor,factk,hswgtsum
 
   if(init_pass .and. (ntguessig<1 .or. ntguessig>nfldsig)) &
 	call die('compute_derived','invalid init_pass, ntguessig =',ntguessig)
+
+! Get required indexes from control vector names
+  nrf3_q=getindex(cvars3d,'q')
+  iq_loc=getindex(nrf_var,'q')
 
 ! Limit q to be >= 1.e-10_r_kind
   do it=1,nfldsig
@@ -151,7 +152,7 @@ subroutine compute_derived(mype,init_pass)
 
      if (switch_on_derivatives) then
         if(.not.drv_initialized) &
-                call die('compute_derived','unexpected drv_initialized =',drv_initialized)
+		call die('compute_derived','unexpected drv_initialized =',drv_initialized)
 
 !       Instead, update gradients of all guess fields.  these will
 !       be used for forward models that need gradient of background field,
@@ -170,34 +171,34 @@ subroutine compute_derived(mype,init_pass)
              nnnn1o,nfldsig)
 
         if(.not. wrf_mass_regional .and. tendsflag)then
-           if(.not.tnd_initialized) &
-                call die('compute_derived','unexpected tnd_initialized =',tnd_initialized)
+          if(.not.tnd_initialized) &
+		call die('compute_derived','unexpected tnd_initialized =',tnd_initialized)
 
 
 ! now that we have derivs, get time tendencies if necessary
-           if(init_pass) then
-              it=ntguessig
+	  if(init_pass) then
+           it=ntguessig
 
-              call getprs(ges_ps(1,1,it),ges_3dp)
+           call getprs(ges_ps(1,1,it),ges_3dp)
 
-              call calctends(ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it), &
-                 ges_q(1,1,1,it),ges_oz(1,1,1,it),ges_cwmr(1,1,1,it),&
-                 ges_teta(1,1,1,it),ges_z(1,1,it), &
-                 ges_u_lon,ges_u_lat,ges_v_lon,&
-                 ges_v_lat,ges_tvlon,ges_tvlat,ges_ps_lon(1,1,it), &
-                 ges_ps_lat(1,1,it),ges_qlon,ges_qlat,ges_ozlon,&
-                 ges_ozlat,ges_cwmr_lon,ges_cwmr_lat,&
-                 mype,ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
-                 ges_oz_ten,ges_cwmr_ten,ges_3dp)
+           call calctends(ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it), &
+              ges_q(1,1,1,it),ges_oz(1,1,1,it),ges_cwmr(1,1,1,it),&
+              ges_teta(1,1,1,it),ges_z(1,1,it), &
+              ges_u_lon,ges_u_lat,ges_v_lon,&
+              ges_v_lat,ges_tvlon,ges_tvlat,ges_ps_lon(1,1,it), &
+              ges_ps_lat(1,1,it),ges_qlon,ges_qlat,ges_ozlon,&
+              ges_ozlat,ges_cwmr_lon,ges_cwmr_lat,&
+              mype,ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
+              ges_oz_ten,ges_cwmr_ten,ges_3dp)
 
-              if(jcstrong .and. write_diag(jiter) .and. baldiag_full) then
-                 fullfield=.true.
+           if(jcstrong .and. write_diag(jiter) .and. baldiag_full) then
+              fullfield=.true.
 
 
-                 call strong_bal_correction(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,mype, &
-                                            ges_u,ges_v,ges_tv,ges_ps,.true.,fullfield,.false.)
-              end if
-           end if ! (init_pass)
+              call strong_bal_correction(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,mype, &
+                                         ges_u,ges_v,ges_tv,ges_ps,.true.,fullfield,.false.)
+           end if
+          end if	! (init_pass)
         end if
      end if
 
@@ -210,12 +211,12 @@ subroutine compute_derived(mype,init_pass)
 
 ! NOTE:  tropopause pressure is not needed for 2dvar option
 
-        if(regional)then
-           call tpause(mype,'temp')
-        else   ! (regional)
-           call tpause(mype,'pvoz')
-        end if ! (regional)
-   
+       if(regional)then
+          call tpause(mype,'temp')
+       else	! (regional)
+          call tpause(mype,'pvoz')
+       end if	! (regional)
+  
      endif       ! (init_pass)
   endif         ! (!twodvar_regional)
 
@@ -271,7 +272,7 @@ subroutine compute_derived(mype,init_pass)
            call sub2fslab(rhgues,rh0f)
            do k=indices%kps,indices%kpe
               ivar=idvar(k)
-              if(ivar==nrf3_loc(nrf3_q)) then
+              if(ivar==iq_loc) then
                  kvar=k-kvar_start(ivar)+1
                  do k1=1,nsig1o
                     if(levs_id(k1)==kvar) exit
@@ -306,7 +307,7 @@ subroutine compute_derived(mype,init_pass)
            call sub2fslab_glb (rhgues,rh0f,rh2f,rh3f)
            do k=indices%kps,indices%kpe
               ivar=idvar(k)
-              if(ivar==nrf3_loc(nrf3_q)) then
+              if(ivar==iq_loc) then
                  kvar=k-kvar_start(ivar)+1
                  do k1=1,nsig1o
                     if(levs_id(k1)==kvar) exit
@@ -375,33 +376,6 @@ subroutine compute_derived(mype,init_pass)
 
   call q_diag(mype)
   
-! get subdomain latitude array
-  j = mype + 1
-  do i = 1, lat2
-     n = min(max(1, istart(j)+i-2), nlat)
-     xlats(i) = rlats(n)
-  enddo
-
-! get corresponding pressure interface
-  do k = 1, nsig+1
-     do j = 1, lon2
-        do i = 1, lat2
-           prsi(i,j,k) = ges_prsi(i,j,k,ntguessig)
-        enddo
-     enddo
-  enddo
-
-! import gfs co2 data
-
-  iyear = iadate(1)
-  month = iadate(2)
-
-  call read_gfsco2  &
-!  ---  inputs:
-     ( iyear,month,igfsco2,xlats,prsi,lat2,lon2,nsig,mype,  &
-!  ---  outputs:
-       ges_co2 )
-
 ! End of routine
   return
 end subroutine compute_derived

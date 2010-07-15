@@ -640,7 +640,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         open(4,file=diag_ozone_file,form='unformatted',status='old',position='append')
      endif
      iextra=0
-     if (mype==mype_diaghdr(is)) then
+     if (init_pass .and. mype==mype_diaghdr(is)) then
         write(4) isis,dplat(is),obstype,jiter,nlevs,ianldate,iint,ireal,iextra
         write(6,*)'SETUPOZ:   write header record for ',&
              isis,iint,ireal,iextra,' to file ',trim(diag_ozone_file),' ',ianldate

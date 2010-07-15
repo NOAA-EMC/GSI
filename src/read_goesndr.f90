@@ -41,6 +41,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !   2008-04-21  safford - rm unused vars
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2010-06-27  kokron  - added test for returned value of bmiss in hdr(15)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -74,7 +75,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
              checkob,finalcheck,score_crit
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad 
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,izero,ione,zero,rad2deg, r60inv,two
+  use constants, only: deg2rad,izero,ione,zero,rad2deg, r60inv,two,tiny_r_kind
   use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
 
   implicit none
@@ -99,6 +100,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
+  real(r_kind),parameter:: bmiss = 1.0E11_r_kind
   character(80),parameter:: hdstr = &
                'CLON CLAT ELEV SOEL BEARAZ SOLAZI SAID DINU YEAR MNTH DAYS HOUR MINU SECO ACAV' 
   character(80),parameter:: hdstr5 = &
@@ -260,11 +262,15 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
               if(ldetect /= nint(hdr(8)))cycle read_loop
            end if
 
-           ifov = nint(hdr(15)) ! number of averaged FOVS
-
-           if(ifov < mfov .and. ifov > izero)then
-              if(ifov <= 3_i_kind) cycle read_loop
-           end if
+!          test for case when hdr(15) comes back with bmiss signifying 1x1 data
+           if (abs(dble(hdr(15))-bmiss)<tiny_r_kind) then
+              ifov = izero
+           else ! 5x5 data
+              ifov = nint(hdr(15)) ! number of averaged FOVS
+              if(ifov < mfov .and. ifov > izero)then
+                 if(ifov <= 3_i_kind) cycle read_loop
+              end if
+           endif
 
 !          Extract obs time.  If not within analysis window, skip obs
 !          Extract date information.  If time outside window, skip this obs

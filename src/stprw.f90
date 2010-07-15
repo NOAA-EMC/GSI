@@ -12,6 +12,7 @@ module stprwmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stprw_tl
 !   2009-08-12  lueken - update documentation
+!   2010-05-13  todling - uniform interface across stp routines
 !
 ! subroutines included:
 !   sub stprw
@@ -29,7 +30,7 @@ PUBLIC stprw
 
 contains
 
-subroutine stprw(rwhead,ru,rv,su,sv,out,sges,nstep)
+subroutine stprw(rwhead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stprw       calculate penalty and contribution to
@@ -54,6 +55,7 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges,nstep)
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
+!   2010-05-13  todling - update to use gsi_bundle
 !
 !   input argument list:
 !     rwhead
@@ -78,24 +80,46 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges,nstep)
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
   type(rw_ob_type),pointer            ,intent(in   ) :: rwhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
-  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: ru,rv,su,sv
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
+  integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
   real(r_kind) valrw,facrw,w1,w2,w3,w4,w5,w6,w7,w8,time_rw
   real(r_kind) cg_rw,rw,wgross,wnotgross
   real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind) pg_rw
+  real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
+  real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
+  real(r_kind),pointer,dimension(:) :: su,sv
+  real(r_kind),pointer,dimension(:) :: ru,rv
   type(rw_ob_type), pointer :: rwptr
 
   out=zero_quad
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'u',xhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'v',xhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'u',dhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'v',dhat_dt_v,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
 
   rwptr => rwhead
   do while (associated(rwptr))
@@ -128,22 +152,22 @@ subroutine stprw(rwhead,ru,rv,su,sv,out,sges,nstep)
                   rwptr%res
            if(l_foto) then
               time_rw=rwptr%time*r3600
-              valrw=valrw+((w1*dhat_dt%u(j1)+w2*dhat_dt%u(j2)+ &
-                            w3*dhat_dt%u(j3)+w4*dhat_dt%u(j4)+              &
-                            w5*dhat_dt%u(j5)+w6*dhat_dt%u(j6)+ &
-                            w7*dhat_dt%u(j7)+w8*dhat_dt%u(j8))*rwptr%cosazm+&
-                           (w1*dhat_dt%v(j1)+w2*dhat_dt%v(j2)+ &
-                            w3*dhat_dt%v(j3)+w4*dhat_dt%v(j4)+              &
-                            w5*dhat_dt%v(j5)+w6*dhat_dt%v(j6)+ &
-                            w7*dhat_dt%v(j7)+w8*dhat_dt%v(j8))*rwptr%sinazm)*time_rw
-              facrw=facrw+((w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-                            w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4)+              &
-                            w5*xhat_dt%u(j5)+w6*xhat_dt%u(j6)+ &
-                            w7*xhat_dt%u(j7)+w8*xhat_dt%u(j8))*rwptr%cosazm+&
-                           (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-                            w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4)+              &
-                            w5*xhat_dt%v(j5)+w6*xhat_dt%v(j6)+ &
-                            w7*xhat_dt%v(j7)+w8*xhat_dt%v(j8))*rwptr%sinazm)*time_rw  
+              valrw=valrw+((w1*dhat_dt_u(j1)+w2*dhat_dt_u(j2)+ &
+                            w3*dhat_dt_u(j3)+w4*dhat_dt_u(j4)+              &
+                            w5*dhat_dt_u(j5)+w6*dhat_dt_u(j6)+ &
+                            w7*dhat_dt_u(j7)+w8*dhat_dt_u(j8))*rwptr%cosazm+&
+                           (w1*dhat_dt_v(j1)+w2*dhat_dt_v(j2)+ &
+                            w3*dhat_dt_v(j3)+w4*dhat_dt_v(j4)+              &
+                            w5*dhat_dt_v(j5)+w6*dhat_dt_v(j6)+ &
+                            w7*dhat_dt_v(j7)+w8*dhat_dt_v(j8))*rwptr%sinazm)*time_rw
+              facrw=facrw+((w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
+                            w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4)+              &
+                            w5*xhat_dt_u(j5)+w6*xhat_dt_u(j6)+ &
+                            w7*xhat_dt_u(j7)+w8*xhat_dt_u(j8))*rwptr%cosazm+&
+                           (w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
+                            w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4)+              &
+                            w5*xhat_dt_v(j5)+w6*xhat_dt_v(j6)+ &
+                            w7*xhat_dt_v(j7)+w8*xhat_dt_v(j8))*rwptr%sinazm)*time_rw  
            end if
            do kk=1,nstep
               rw=facrw+sges(kk)*valrw

@@ -901,7 +901,7 @@ end subroutine congrad_ad
 ! ------------------------------------------------------------------------------
 
 ! ------------------------------------------------------------------------------
-subroutine congrad_siga(siga,ivecs)
+subroutine congrad_siga(siga,ivecs,rc)
 !$$$  subprogram documentation block
 !                .      .    .                                         .
 ! subprogram:    congrad_siga
@@ -911,6 +911,7 @@ subroutine congrad_siga(siga,ivecs)
 !
 ! program history log:
 !  2010-03-17  todling  - initia code
+!  2010-05-16  todling  - update to use gsi_bundle
 !
 !   input argument list:
 !    siga
@@ -925,23 +926,28 @@ subroutine congrad_siga(siga,ivecs)
 !
 !$$$ end documentation block
 use gsi_4dvar, only : nsubwin
-use state_vectors
-use bias_predictors
+use bias_predictors, only: predictors,allocate_preds,deallocate_preds
+use state_vectors, only: allocate_state,deallocate_state
+use gsi_bundlemod, only: gsi_bundlehadamard
+use gsi_bundlemod, only: gsi_bundle
+use gsi_bundlemod, only: assignment(=)
 implicit none
-type(state_vector),intent(inout) :: siga
-integer(i_kind),   intent(  out) :: ivecs
+type(gsi_bundle),intent(inout) :: siga  ! analysis errors
+integer(i_kind), intent(  out) :: ivecs ! 
+integer(i_kind), intent(  out) :: rc    ! error return code
 ! local variables
 type(control_vector) :: aux
-type(state_vector)   :: mval(nsubwin)
+type(gsi_bundle)     :: mval(nsubwin)
 type(predictors)     :: sbias
-integer(i_kind) :: ii,jj
-real(r_kind) :: zz
+integer(i_kind)      :: ii,jj
+real(r_kind)         :: zz
 
-NPCVECS = NVCGLEV+NVCGLPC
+rc=0
+NPCVECS = NVCGLEV
 ivecs=MIN(npcvecs,nwrvecs)
 if (ivecs<1) then
-  if (mype==0) write(6,*)'save_precond: cannot get siga, ivecs=', &
-                          ivecs
+  if (mype==0) write(6,*)'save_precond: cannot get siga, ivecs=', ivecs
+  rc=1
   return
 endif
 
@@ -951,16 +957,24 @@ do ii=1,nsubwin
 end do
 call allocate_cv(aux)
 
-!-- calculate analysis errors
+!-- calculate increment on analysis error covariance diag(Delta P)
 siga=zero
 DO jj=1,ivecs
   zz=sqrt(one-one/sqrt(RCGLEV(jj)))
   aux%values = zz * YVCGLEV(jj)%values
   call control2model(aux,mval,sbias)
   do ii=1,nsubwin
-     call hadamard_upd_st(siga,mval(ii),mval(ii))
+     call gsi_bundlehadamard(siga,mval(ii),mval(ii))
   enddo
 ENDDO
+
+do ii=1,nsubwin
+!-- get B standard deviations
+   call bkg_stddev(aux,mval(ii))
+!-- calculate diag(Pa) = diag(B) - diag(Delta P)
+!   i.e., add diag(B) as rank-1 update to diag(Delta P)
+   call gsi_bundlehadamard(siga,mval(ii),mval(ii))
+enddo
 
 call deallocate_cv(aux)
 do ii=1,nsubwin

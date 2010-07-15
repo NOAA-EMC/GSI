@@ -11,6 +11,7 @@ module stpcldmod
 !   2005-05-19  Yanqiu zhu - wrap stpq and its tangent linear stpq_tl into one module
 !   2005-11-16  Derber - remove interfaces
 !   2009-08-12  lueken - updated documentation
+!   2010-05-15  todling - uniform interface across stp routines
 !
 ! subroutines included:
 !   sub stpcld
@@ -28,7 +29,7 @@ PUBLIC stpcld
 
 contains
 
-subroutine stpcld(rq,sq,rc,sc,out,sges,nstep)
+subroutine stpcld(rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpcld      calcuate penalty and stepsize from cld
@@ -42,6 +43,7 @@ subroutine stpcld(rq,sq,rc,sc,out,sges,nstep)
 !   2007-02-27  derber
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
+!   2010-05-15  todling - update to use gsi_bundle
 !
 !   input argument list:
 !     rq       - search direction for q
@@ -64,21 +66,32 @@ subroutine stpcld(rq,sq,rc,sc,out,sges,nstep)
   use qcmod, only: nlnqc_iter
   use gridmod, only: latlon1n
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
   integer(i_kind)                     ,intent(in   ) : :nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
-  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: rq,sq,rc,sc
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,itype
+  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,itype,ier,istatus
   real(r_kind) cg_q,val,val2,wgross,wnotgross
   real(r_kind),dimension(max(1,nstep):: pen
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,cc
+  real(r_kind),pointer,dimension(:) :: rq,sq,rc,sc
 
   out=zero_quad
+
+! Retrieve pointers; return if not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'q', sq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'cw',sc,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'q', rq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'cw',rc,istatus);ier=istatus+ier
+  if(ier/=0) return
 
   cldptr => cldhead
   do while (associated(cldptr))

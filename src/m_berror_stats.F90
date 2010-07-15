@@ -34,7 +34,9 @@ module m_berror_stats
 ! !INTERFACE:
 
       use kinds,only : i_kind
-      use constants, only: one
+      use constants, only: izero,ione,one
+      use control_vectors,only: cvars2d,cvars3d
+      use mpeu_util,only: getindex
 
       implicit none
 
@@ -67,8 +69,8 @@ module m_berror_stats
   	! Reconfigurable parameters, vai NAMELISt/setup/
   character(len=256),save :: berror_stats = "berror_stats"	! filename
 
-  integer(i_kind),parameter :: default_unit_ = 22
-  integer(i_kind),parameter :: ERRCODE=2
+  integer(i_kind),parameter :: default_unit_ = 22_i_kind
+  integer(i_kind),parameter :: ERRCODE=2_i_kind
 contains
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
@@ -86,25 +88,29 @@ contains
 
       integer(i_kind)         ,intent(  out) :: msig  ! dimension of levels
       integer(i_kind)         ,intent(  out) :: mlat  ! dimension of latitudes
-      integer(i_kind)         ,intent(  out) :: mlon  ! dimension of latitudes
+      integer(i_kind),optional,intent(  out) :: mlon  ! dimension of longitudes
       integer(i_kind),optional,intent(in   ) :: unit  ! logical unit [22]
 
 ! !REVISION HISTORY:
 ! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
 !		- the main body of the code is extracted from jfunc.f90
+!       18Jun10 - todling - turn mlon into optional
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::get_dims'
 
-  integer(i_kind) :: inerr
+  integer(i_kind) :: inerr,mlon_
 
 ! Read dimension of stats file
   inerr=default_unit_
   if(present(unit)) inerr = unit
   open(inerr,file=berror_stats,form='unformatted',status='old')
   rewind inerr
-  read(inerr) msig,mlat,mlon
+  read(inerr) msig,mlat,mlon_
   close(inerr)
+  if(present(mlon))then
+     mlon=mlon_
+  endif
 end subroutine get_dims
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
@@ -140,7 +146,7 @@ end subroutine get_dims
 
 !   workspaces/variables for data not returned
 
-  integer(i_kind):: nsigstat,nlatstat,nlonstat
+  integer(i_kind):: nsigstat,nlatstat
   integer(i_kind):: inerr
 
 
@@ -153,25 +159,24 @@ end subroutine get_dims
 !   with that specified via the user namelist
 
     rewind inerr
-    read(inerr) nsigstat,nlatstat,nlonstat
+    read(inerr) nsigstat,nlatstat
 
-    if(mype==0) then
-      if (nsig/=nsigstat .or. nlat/=nlatstat .or. nlon/=nlonstat) then
+    if(mype==izero) then
+      if (nsig/=nsigstat .or. nlat/=nlatstat) then
          write(6,*) myname_,'(PREBAL):  ***ERROR*** resolution of ', &
            '"',trim(berror_stats),'"', &
               'incompatiable with guess'
-         write(6,*) myname_,'(PREBAL):  ***ERROR*** nsigstat,nlatstat,nlonstat=', &
-           nsigstat,nlatstat,nlonstat
-         write(6,*) myname_,'(PREBAL):  ***ERROR*** expects nsig,nlat,nlon=', &
-           nsig,nlat,nlon
-
+         write(6,*) myname_,'(PREBAL):  ***ERROR*** nsigstat,nlatstat=', &
+           nsigstat,nlatstat
+         write(6,*) myname_,'(PREBAL):  ***ERROR*** expects nsig,nlat=', &
+           nsig,nlat
          call stop2(ERRCODE)
        end if
 
        write(6,*) myname_,'(PREBAL):  get balance variables', &
          '"',trim(berror_stats),'".  ', &
-         'mype,nsigstat,nlatstat,nlonstat =', &
-          mype,nsigstat,nlatstat,nlonstat
+         'mype,nsigstat,nlatstat =', &
+          mype,nsigstat,nlatstat
     end if
 
 !   Read background error file to get balance variables
@@ -194,17 +199,16 @@ end subroutine read_bal
 
       use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
-      use control_vectors,only: nrf,nrf2,nrf3,nrf_var,nrf2_loc,nrf3_loc,nrf3_oz
       use jfunc,only: varq,qoption
 
       implicit none
 
-      real(r_single),dimension(nlat,nsig,nrf3),intent(out) :: corz 
-      real(r_single),dimension(nlat,nrf2),intent(out) :: corp  
+      real(r_single),dimension(:,:,:),intent(inout) :: corz 
+      real(r_single),dimension(:,:)  ,intent(inout) :: corp  
 
-      real(r_single),dimension(nlat,nsig,nrf3),intent(out) :: hwll
-      real(r_single),dimension(nlat,nrf2)     ,intent(out) :: hwllp
-      real(r_single),dimension(nsig,nlat,nrf3),intent(out) :: vz
+      real(r_single),dimension(:,:,:),intent(inout) :: hwll
+      real(r_single),dimension(:,:)  ,intent(inout) :: hwllp
+      real(r_single),dimension(:,:,:),intent(inout) :: vz
 
       real(r_single),dimension(nlat,nlon),intent(out) :: corsst
       real(r_single),dimension(nlat,nlon),intent(out) :: hsst
@@ -216,10 +220,12 @@ end subroutine read_bal
 ! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
 !		- the main body of the code for input is extracted from
 !		  prewgt() in prewgt.f90.
-!       25Feb10 - Zhu 
-!               - change the structure of background error file
-!               - make changes for generalizing control variables
-!               - move varq here from prewgt
+!       25Feb10  - Zhu - change the structure of background error file
+!                      - make changes for generalizing control variables
+!                      - move varq here from prewgt
+!       28May10 - Todling - Obtain variable id's on the fly (add getindex) 
+!                         - simpler logics to associate cv w/ berrors
+!       14Jun10 - Todling - Allow any 3d berror not in file to be templated 
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::read_wgt'
@@ -230,11 +236,12 @@ end subroutine read_bal
  
   integer(i_kind) :: i,n,k
   integer(i_kind) :: inerr,istat
-  integer(i_kind) :: nsigstat,nlatstat,nlonstat
+  integer(i_kind) :: nsigstat,nlatstat
   integer(i_kind) :: loc,nn,isig
   real(r_kind) :: corq2x
   character*5 var
-  logical,dimension(nrf):: nrf_err
+  logical,allocatable,dimension(:) :: found3d
+  logical,allocatable,dimension(:) :: found2d
 
   real(r_single),allocatable,dimension(:,:):: hwllin
   real(r_single),allocatable,dimension(:,:):: corzin
@@ -250,24 +257,26 @@ end subroutine read_bal
 ! with that specified via the user namelist
 
   rewind inerr
-  read(inerr)nsigstat,nlatstat,nlonstat
-  if(mype==0) then
-     if(nsigstat/=nsig .or. nlatstat/=nlat .or.nlonstat/=nlon) then
+  read(inerr)nsigstat,nlatstat
+  if(mype==izero) then
+     if(nsigstat/=nsig .or. nlatstat/=nlat) then
         write(6,*)'PREBAL: **ERROR** resolution of berror_stats incompatiable with GSI'
-        write(6,*)'PREBAL:  berror nsigstat,nlatstat,nlonstat=', nsigstat,nlatstat,nlonstat, &
-             ' -vs- GSI nsig,nlat,nlon=',nsig,nlat,nlon
+        write(6,*)'PREBAL:  berror nsigstat,nlatstat=', nsigstat,nlatstat, &
+             ' -vs- GSI nsig,nlat=',nsig,nlat
         call stop2(101)
      end if
 
      write(6,*) myname_,'(PREWGT):  read error amplitudes ', &
        '"',trim(berror_stats),'".  ', &
-       'mype,nsigstat,nlatstat,nlonstat =', &
-        mype,nsigstat,nlatstat,nlonstat
+       'mype,nsigstat,nlatstat =', &
+        mype,nsigstat,nlatstat
   end if
   read(inerr) agvin,bvin,wgvin
 
 ! Read amplitudes
-  nrf_err=.false.
+  allocate(found3d(size(cvars3d)),found2d(size(cvars2d)))
+  found3d=.false.
+  found2d=.false.
   read: do
      read(inerr,iostat=istat) var, isig
      if (istat/=0) exit
@@ -290,58 +299,47 @@ end subroutine read_bal
         read(inerr) hsst
      end if
 
-!    load the variances
-     do n=1,nrf
-        if (var==nrf_var(n)) then
-           nrf_err(n)=.true.
-           loc=n
-           exit
-        end if
-     end do
-
      if (isig>1) then
-        do n=1,nrf3
-           if (nrf3_loc(n)==loc) then
+        n=getindex(cvars3d,var)
+        if(n>0)then
+           found3d(n)=.true.
+           do k=1,isig
+              do i=1,nlat
+                 corz(i,k,n)=corzin(i,k)
+                 vz(k,i,n)=vscalesin(i,k)
+              end do
+           end do
+           if (var=='q' .and. qoption==2)then
               do k=1,isig
                  do i=1,nlat
-                    corz(i,k,n)=corzin(i,k)
-                    vz(k,i,n)=vscalesin(i,k)
-                 end do
-              end do
-              if (var=='q' .and. qoption==2)then
-                 do k=1,isig
-                    do i=1,nlat
-                       corq2x=corq2(i,k)
-                       varq(i,k)=min(max(corq2x,0.0015_r_kind),one)
-                    enddo
+                    corq2x=corq2(i,k)
+                    varq(i,k)=min(max(corq2x,0.0015_r_kind),one)
                  enddo
-                 do k=1,isig
-                    do i=1,nlat
-                       corz(i,k,n)=one
-                    end do
-                 end do
-              end if
+              enddo
               do k=1,isig
                  do i=1,nlat
-                    hwll(i,k,n)=hwllin(i,k)
+                    corz(i,k,n)=one
                  end do
               end do
-              exit
-           end if ! end of nrf3_loc
-        end do ! end of nrf3
+           end if
+           do k=1,isig
+              do i=1,nlat
+                 hwll(i,k,n)=hwllin(i,k)
+              end do
+           end do
+        endif ! n>0
      end if ! end of isig
 
      if (isig==1) then
-       do n=1,nrf2
-          if (nrf2_loc(n)==loc .and. var/='sst') then
-             do i=1,nlat
-                corp(i,n)=corzin(i,1)
-                hwllp(i,n)=hwllin(i,1)
-             end do
-             exit
-          end if
-       end do
-     end if
+        n= getindex(cvars2d,var)
+        if (n>0.and.var/='sst') then
+           found2d(n)=.true.
+           do i=1,nlat
+              corp(i,n)=corzin(i,1)
+              hwllp(i,n)=hwllin(i,1)
+           end do
+        end if ! n>0
+     end if ! isig=1
 
      deallocate(corzin,hwllin)
      if (isig>1) deallocate(vscalesin)
@@ -349,27 +347,21 @@ end subroutine read_bal
   enddo read 
   close(inerr)
 
-! corz, hwll & vz for undefined variable
-  do n=1,nrf3
-     loc=nrf3_loc(n)
-     if (nrf_err(loc)) cycle
-     if (n==nrf3_oz) then
-        call setcoroz_(corz(1,1,n),mype)
-        call sethwlloz_(hwll(1,1,n),mype)
-        call setvscalesoz_(vz(1,1,n))
-	nrf_err(loc)=.true.
-     end if   
-  end do
+! corz, hwll & vz for undefined 3d variables
+  do n=1,size(cvars3d)
+     if(.not.found3d(n)) then
+        if(n>0) then
+           call setcoroz_(corz(:,:,n),mype)
+           call sethwlloz_(hwll(:,:,n),mype)
+           call setvscalesoz_(vz(:,:,n))
+        endif
+        if(mype==0) write(6,*) myname_, ': WARNING, using general Berror template for ', cvars3d(n)
+     endif
+  enddo
 
-! Do final check to make sure that background errors have been loaded for all variables
-  if(mype==0) then
-     do n=1,nrf
-        if (.not. nrf_err(n)) then
-           write(6,*) 'READ_WGT: ***ERROR*** fail to load error variance for ', nrf_var(n)
-	   call stop2(333)
-        end if
-     end do
-  end if
+! need simliar general template for undefined 2d variables ...
+
+  deallocate(found3d,found2d)
 
   return
 end subroutine read_wgt
@@ -411,7 +403,7 @@ end subroutine read_wgt
 
 !! -- workspace and working variables
 
-    real(r_kind),dimension(nsig+1,npe) :: work_oz,work_oz1
+    real(r_kind),dimension(nsig+ione,npe) :: work_oz,work_oz1
     real(r_kind),dimension(nsig) :: ozmz
     real(r_kind) :: asum,bsum
 
@@ -420,7 +412,7 @@ end subroutine read_wgt
     integer(i_kind) :: ierror
 
 !! -- synity check
-    if(mype==0) then
+    if(mype==izero) then
        write(6,*) myname_,'(PREWGT): mype = ',mype
     endif
 
@@ -438,21 +430,21 @@ end subroutine read_wgt
 
 ! Calculate global means for ozone
 ! Calculate sums for ozone to estimate variance.
-  mm1=mype+1
+  mm1=mype+ione
   work_oz = zero
   do k = 1,nsig
-     do j = 2,lon1+1
-        do i = 2,lat1+1
+     do j = 2,lon1+ione
+        do i = 2,lat1+ione
            work_oz(k,mm1) = work_oz(k,mm1) + ges_oz(i,j,k,ntguessig)* &
-                rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
+                rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+ione,ntguessig))
         end do
      end do
   end do
-  work_oz(nsig+1,mm1)=float(lon1*lat1)
+  work_oz(nsig+ione,mm1)=float(lon1*lat1)
 
-  call mpi_allreduce(work_oz,work_oz1,(nsig+1)*npe,mpi_rtype,mpi_sum,&
+  call mpi_allreduce(work_oz,work_oz1,(nsig+ione)*npe,mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)
-  if(ierror/=0) then
+  if(ierror/=izero) then
      write(6,*) myname_,'(PREWGT): MPI_allreduce() error on PE ',mype
      call stop2(ierror)
   endif
@@ -463,7 +455,7 @@ end subroutine read_wgt
 
   bsum=zero
   do n=1,npe
-     bsum=bsum+work_oz1(nsig+1,n)
+     bsum=bsum+work_oz1(nsig+ione,n)
   end do
   do k=1,nsig
      ozmz(k)=zero
@@ -517,14 +509,14 @@ end subroutine setcoroz_
   real(r_kind) :: fact
   real(r_kind) :: s2u
     
-  if(mype==0) then
+  if(mype==izero) then
      write(6,*) myname_,'(PREWGT): mype = ',mype
   endif
 
   s2u=(two*pi*rearth_equator)/nlon
   do k=1,nnnn1o
      k1=levs_id(k)
-     if(k1>0) then
+     if(k1>izero) then
      write(6,*) myname_,'(PREWGT): mype = ',mype, k1
         if(k1<=nsig*3/4)then
         !  fact=1./hwl
@@ -538,7 +530,7 @@ end subroutine setcoroz_
   enddo
 
 
-  if(mype==0) then
+  if(mype==izero) then
      write(6,*) myname_,'(PREWGT): mype = ',mype, 'finish sethwlloz_'
   endif
 

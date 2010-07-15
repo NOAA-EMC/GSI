@@ -79,6 +79,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2009-07-08  pondeca - move handling of "provider use_list" for mesonet winds 
 !                         to the new module sfcobsqc
 !   2010-03-29  hu - add code to read cloud observation from METAR and NESDIS cloud products
+!   2010-05-15  kokron - safety measure: initialize cdata_all to zero
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -426,6 +427,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! loop over convinfo file entries; operate on matches
   
   allocate(cdata_all(nreal,maxobs),isort(maxobs))
+  cdata_all=zero
   nread=izero
   ntest=izero
   nvtest=izero

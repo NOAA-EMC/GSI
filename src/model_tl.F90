@@ -15,21 +15,15 @@ use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
 use gsi_4dvar, only: iadatebgn,idmodel
 use constants, only: zero,r3600
-use state_vectors
-use geos_pertmod, only: ndtpert
+use state_vectors, only: allocate_state,deallocate_state,dot_product
+use gsi_bundlemod, only: gsi_bundle
+use gsi_bundlemod, only: gsi_bundlegetpointer
+use gsi_bundlemod, only: self_add,assignment(=)
+use gsi_4dcouplermod, only: gsi_4dcoupler_init_model_tl
+use gsi_4dcouplermod, only: gsi_4dcoupler_model_tl
+use gsi_4dcouplermod, only: gsi_4dcoupler_final_model_tl
 use m_tick, only: tick
 use timermod, only: timer_ini,timer_fnl
-
-#ifdef GEOS_PERT
-use prognostics, only: dyn_prog
-use prognostics, only: prognostics_initial
-use prognostics, only: prognostics_final
-use geos_pertmod, only: gsi2pgcm
-use geos_pertmod, only: pgcm2gsi
-use m_model_tl, only: initial_tl
-use m_model_tl, only: amodel_tl
-use m_model_tl, only: final_tl
-#endif /* GEOS_PERT */
 
 use lag_fields, only: nlocal_orig_lag, ntotal_orig_lag
 use lag_fields, only: lag_tl_vec,lag_ad_vec,lag_tl_spec_i,lag_tl_spec_r
@@ -42,12 +36,12 @@ implicit none
 
 ! !INPUT PARAMETERS:
 
-type(state_vector), intent(in   ) :: xini(nsubwin)   ! State variable at control times
-logical           , intent(in   ) :: ldprt           ! Print-out flag 
+type(gsi_bundle), intent(in   ) :: xini(nsubwin)   ! State variable at control times
+logical         , intent(in   ) :: ldprt           ! Print-out flag 
 
 ! !OUTPUT PARAMETERS:
 
-type(state_vector), intent(inout) :: xobs(nobs_bins) ! State variable at observations times
+type(gsi_bundle), intent(inout) :: xobs(nobs_bins) ! State variable at observations times
 
 ! !DESCRIPTION: Run AGCM tangent linear model.
 !
@@ -59,6 +53,8 @@ type(state_vector), intent(inout) :: xobs(nobs_bins) ! State variable at observa
 !  29May2007  todling  - add actual calls to interface and AGCM TL model
 !  30Sep2007  todling  - add timer
 !  30Apr2009  meunier  - add trajectory model for lagrangian data
+!  13May2010  todling  - update to use gsi_bundle
+!  27May2010  todling  - gsi_4dcoupler; remove all user-specific TL-related references
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -66,19 +62,19 @@ type(state_vector), intent(inout) :: xobs(nobs_bins) ! State variable at observa
 ! Declare local variables
 character(len=*), parameter :: myname = 'model_tl'
 
-type(state_vector) :: xx
+type(gsi_bundle) :: xx
 integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ii,jj,ierr
-integer(i_kind)    :: nymdi,nhmsi,ndt,dt
+integer(i_kind)    :: nymdi,nhmsi,ndt,dt,ndtpert
 real(r_kind)       :: tstep,zz,d0
-
-#ifdef GEOS_PERT
-type(dyn_prog) :: xpert
-#endif /* GEOS_PERT */
+real(r_kind),pointer,dimension(:,:,:)  :: xx_u,xx_v
 
 !******************************************************************************
 
 ! Initialize timer
 call timer_ini('model_tl')
+
+! Initialize TL model
+call gsi_4dcoupler_init_model_tl(ndtpert)
 
 ! Initialize variables
 d0=zero
@@ -124,14 +120,6 @@ end if
 
 if (ldprt) write(6,'(a,3(1x,i4))')'model_tl: nstep,nfrctl,nfrobs=',nstep,nfrctl,nfrobs
 
-! Initialize GCM TLM and its perturbation vector
-#ifdef GEOS_PERT
-if (.not.idmodel) then
-   call initial_tl
-   call prognostics_initial ( xpert )
-endif
-#endif /* GEOS_PERT */
-
 ! Initialize trajectory TLM and vectors
 lag_tl_vec(:,:,:)=zero
 lag_ad_vec(:,:,:)=zero
@@ -168,7 +156,9 @@ do istep=0,nstep-1
       if (ldprt) write(6,'(a,i8.8,1x,i6.6,2(1x,i4))')'model_tl: trajectory model nymd,nhms,istep,ii=',nymdi,nhmsi,istep,ii
       if (ii<1.or.ii>nobs_bins) call abor1('model_tl: error xobs')
       ! Gather winds from the increment
-      call lag_gather_stateuv(xx%u,xx%v,ii)
+      call gsi_bundlegetpointer(xx,'u',xx_u,ierr)
+      call gsi_bundlegetpointer(xx,'v',xx_v,ierr)
+      call lag_gather_stateuv(xx_u,xx_v,ii)
       ! Execute TL model
       do jj=1,nlocal_orig_lag
          lag_tl_vec(jj,ii+1,:)=lag_tl_vec(jj,ii,:)
@@ -182,13 +172,7 @@ do istep=0,nstep-1
    endif
 
 !  Apply TL model
-#ifdef GEOS_PERT
-   if (.not.idmodel) then
-      call gsi2pgcm ( xx, xpert, 'tlm', ierr )                                    ! T
-      call amodel_tl (xpert,nymdi=nymdi,nhmsi=nhmsi,ntsteps=ndt,g5pert=.true.)    ! M
-      call pgcm2gsi ( xpert, xx, 'tlm', ierr )                                    ! T(-1)
-   endif
-#endif /* GEOS_PERT */
+   call gsi_4dcoupler_model_tl(xx,nymdi,nhmsi,ndt)
 
    call tick (nymdi,nhmsi,dt)
 enddo
@@ -201,13 +185,8 @@ if (nobs_bins>1) then
 endif
 if(ldprt) print *, myname, ': total (gsi) dot product ', d0
 
-! Finalize GCM TLM and its perturbation vector
-#ifdef GEOS_PERT
-if (.not.idmodel) then
-   call prognostics_final ( xpert )
-   call final_tl
-endif
-#endif /* GEOS_PERT */
+! Finalize TL model
+call gsi_4dcoupler_final_model_tl()
 
 call deallocate_state(xx)
 

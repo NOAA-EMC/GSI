@@ -35,7 +35,7 @@ end interface
 
 contains
 
-subroutine intq_(qhead,rq,sq)
+subroutine intq_(qhead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intq        apply nonlin qc obs operator for q 
@@ -64,6 +64,7 @@ subroutine intq_(qhead,rq,sq)
 !   2008-05-31  safford - rm unused vars
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
+!   2010-05-13  todling  - update to use gsi_bundle; update interface 
 !
 !   input argument list:
 !     qhead    - obs type pointer to obs structure
@@ -84,19 +85,36 @@ subroutine intq_(qhead,rq,sq)
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(q_ob_type),pointer         ,intent(in   ) :: qhead
-  real(r_kind),dimension(latlon1n),intent(in   ) :: sq
-  real(r_kind),dimension(latlon1n),intent(inout) :: rq
+  type(q_ob_type),pointer,intent(in   ) :: qhead
+  type(gsi_bundle)       ,intent(in   ) :: sval
+  type(gsi_bundle)       ,intent(inout) :: rval
 
 ! Declare local variables  
-  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
+  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,ier,istatus
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_q
 ! real(r_kind) penalty
+  real(r_kind),pointer,dimension(:) :: xhat_dt_q
+  real(r_kind),pointer,dimension(:) :: dhat_dt_q
   real(r_kind) cg_q,val,p0,grad,wnotgross,wgross,q_pg
+  real(r_kind),pointer,dimension(:) :: sq
+  real(r_kind),pointer,dimension(:) :: rq
   type(q_ob_type), pointer :: qptr
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'q',sq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'q',xhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'q',dhat_dt_q,istatus);ier=istatus+ier
+  endif
+  if(ier/=0) return
 
   qptr => qhead
   do while (associated(qptr))
@@ -123,10 +141,10 @@ subroutine intq_(qhead,rq,sq)
      if ( l_foto ) then
         time_q=qptr%time*r3600
         val=val+&
-          (w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
-           w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4)+ &
-           w5*xhat_dt%q(j5)+w6*xhat_dt%q(j6)+ &
-           w7*xhat_dt%q(j7)+w8*xhat_dt%q(j8))*time_q
+          (w1*xhat_dt_q(j1)+w2*xhat_dt_q(j2)+ &
+           w3*xhat_dt_q(j3)+w4*xhat_dt_q(j4)+ &
+           w5*xhat_dt_q(j5)+w6*xhat_dt_q(j6)+ &
+           w7*xhat_dt_q(j7)+w8*xhat_dt_q(j8))*time_q
      endif
 
      if (lsaveobsens) then
@@ -169,14 +187,14 @@ subroutine intq_(qhead,rq,sq)
 
         if ( l_foto ) then
            grad=grad*time_q
-           dhat_dt%q(j1)=dhat_dt%q(j1)+w1*grad
-           dhat_dt%q(j2)=dhat_dt%q(j2)+w2*grad
-           dhat_dt%q(j3)=dhat_dt%q(j3)+w3*grad
-           dhat_dt%q(j4)=dhat_dt%q(j4)+w4*grad
-           dhat_dt%q(j5)=dhat_dt%q(j5)+w5*grad
-           dhat_dt%q(j6)=dhat_dt%q(j6)+w6*grad
-           dhat_dt%q(j7)=dhat_dt%q(j7)+w7*grad
-           dhat_dt%q(j8)=dhat_dt%q(j8)+w8*grad
+           dhat_dt_q(j1)=dhat_dt_q(j1)+w1*grad
+           dhat_dt_q(j2)=dhat_dt_q(j2)+w2*grad
+           dhat_dt_q(j3)=dhat_dt_q(j3)+w3*grad
+           dhat_dt_q(j4)=dhat_dt_q(j4)+w4*grad
+           dhat_dt_q(j5)=dhat_dt_q(j5)+w5*grad
+           dhat_dt_q(j6)=dhat_dt_q(j6)+w6*grad
+           dhat_dt_q(j7)=dhat_dt_q(j7)+w7*grad
+           dhat_dt_q(j8)=dhat_dt_q(j8)+w8*grad
         endif
      endif
 

@@ -1,4 +1,5 @@
 #include "MAPL_ErrLog.h" 
+!#define PRINT_STATES
 !#define SFCverbose
 !#define UPAverbose
 !#define VERBOSE
@@ -39,6 +40,10 @@
    use m_tick, only: tick
    use obsmod, only: lobserver
 
+   use gsi_bundlemod, only : GSI_BundleGetPointer
+   use gsi_bundlemod, only : GSI_Bundle
+   use gsi_bundlemod, only : GSI_BundlePrint
+
 ! Access to GSI's global data segments
 
    ! guess fields and related variables
@@ -71,11 +76,7 @@
    use guess_grids, only: nfldsig,      & ! number of guess sigma times
                           nfldsfc,      & ! number of guess surface times
                           hrdifsig,     & ! times for guess sigma fields
-                          hrdifsfc,     & ! times for guess surface fields 
-                          tracers,      & ! number or tracers 
-                          vtid,         & ! tracer variable id
-                          xncld,        & ! number of clouds
-                          pdryini         ! global mean dry mass of the 
+                          hrdifsfc        ! times for guess surface fields 
                                           ! atmosphere in kPa
    use guess_grids, only: ntguessig,    & ! These variables are used  
                           ntguessfc,    & ! to handle file names and are
@@ -94,6 +95,9 @@
    use guess_grids, only: ntguessfc_ref	! a fixed reference ntguessfc value
 
    use guess_grids, only: guess_grids_stats
+
+   use guess_grids, only: create_chemges_grids, &
+                          destroy_chemges_grids
 
    ! routines from gridmod
    use gridmod,   only : create_mapping,     &
@@ -163,6 +167,12 @@
    use kinds,     only: r_kind,r_single,i_kind
    use obsmod,    only: iadate, ianldate, ndat, ndatmax, ndat_times
 
+   ! chem trace gases
+   use gsi_chemtracer_mod, only: gsi_chemtracer_create_grids
+   use gsi_chemtracer_mod, only: gsi_chemtracer_destroy_grids
+   use gsi_chemtracer_mod, only: gsi_chemtracer_get
+   use gsi_chemtracer_mod, only: gsi_chem_bundle
+
    implicit none
 
    private
@@ -187,11 +197,14 @@
 !   10Jul2007 Todling  Adjustment to cope w/ write out of increment
 !   08Jul2008 Todling  Merge fdda-b1p3 w/ das-215 (MAPL update)
 !   18Nov2008 Todling  Merge with NCEP-May-2008; add sfc_rough
-!  10-09-2009 Wu       replace nhr_offset with min_offset since it's 1.5 hr for regional
+!   09Oct2009 Wu       replace nhr_offset with min_offset since it's 1.5 hr for regional
 !   10Jul2009 Todling  Remove vertical halo
 !   19Aug2009 Guo      Added hrdifsig_all etc. and other changes for
 !		       multi-pass observer.
 !   31Mar2010 Treadon  replace specmod routines with general_specmod
+!   21Apr2010 Todling  - Add chem tracers capability
+!                      - Rename Initalize/Run/Finalize
+!   20May2010 Todling  Change initialization of chem
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -216,6 +229,9 @@
    integer(i_kind), save :: MYHOURG = 0.
 
    logical, save       :: doVflip = .true.
+
+   integer(i_kind) :: ntgases                          ! number of tracer gases (namelist)
+   character(len=ESMF_MAXSTR),allocatable:: tgases(:)  ! names of tracer gases
 
    character(len=ESMF_MAXSTR),save,allocatable :: obstab(:,:)
 
@@ -291,15 +307,15 @@
 
 ! Set the Initialize, Run, Finalize entry points
 
-   call MAPL_GridCompSetEntryPoint ( gc, ESMF_SETINIT, GSI_GridCompInitialize, &
+   call MAPL_GridCompSetEntryPoint ( gc, ESMF_SETINIT, Initialize, &
                                                        STATUS)
    VERIFY_(STATUS)
 
-   call MAPL_GridCompSetEntryPoint ( gc, ESMF_SETRUN, GSI_GridCompRun,         &
+   call MAPL_GridCompSetEntryPoint ( gc, ESMF_SETRUN, Run,         &
                                                        STATUS)
    VERIFY_(STATUS)
 
-   call MAPL_GridCompSetEntryPoint ( gc, ESMF_SETFINAL, GSI_GridCompFinalize,  &
+   call MAPL_GridCompSetEntryPoint ( gc, ESMF_SETFINAL, Finalize,  &
                                                        STATUS)
    VERIFY_(STATUS)
 
@@ -329,11 +345,11 @@
 !-------------------------------------------------------------------------
 !BOPI
 
-! !IROUTINE: GSI_GridCompInitialize -- Initialize the GSI Gridded Comp
+! !IROUTINE: Initialize -- Initialize the GSI Gridded Comp
 
 ! !INTERFACE:
 
-   subroutine GSI_GridCompInitialize ( gc, import, export, clock, rc )
+   subroutine Initialize ( gc, import, export, clock, rc )
 
 !
 ! !USES:
@@ -376,7 +392,7 @@
    integer                          :: i, mype, atime
    integer                          :: yy, mm, dd, h, m
    character(len=ESMF_MAXSTR)       :: aname
-   character(len=*), parameter :: IAm='GSI_GridCompInitialize'
+   character(len=*), parameter :: IAm='Initialize'
 
 ! start
 
@@ -453,6 +469,13 @@
    call GSI_GridCompSetAlarms (GENSTATE, GC, cf, clock)
 
    if(IamRoot.and.verbose) print *, Iam,": End ",trim(Iam)
+
+#ifdef PRINT_STATES
+    call WRITE_PARALLEL ( trim(Iam)//": IMPORT State" )
+    if ( MAPL_am_I_root() ) call ESMF_StatePrint ( import, rc=STATUS )
+    call WRITE_PARALLEL ( trim(Iam)//": EXPORT State" )
+    if ( MAPL_am_I_root() ) call ESMF_StatePrint ( export, rc=STATUS )
+#endif
 
    RETURN_(STATUS)
 
@@ -727,10 +750,10 @@
 
 ! these parameters are usually obtained for a first guess' file header:
 
-   CALL ESMF_ConfigGetAttribute(CF, tracers, label = 'tracers:', RC=STATUS); VERIFY_(STATUS)
-   CALL ESMF_ConfigGetAttribute(CF, vtid   , label = 'vtid:'   , RC=STATUS); VERIFY_(STATUS)
-   CALL ESMF_ConfigGetAttribute(CF, pdryini, label = 'pdryini:', RC=STATUS); VERIFY_(STATUS)
-   CALL ESMF_ConfigGetAttribute(CF, xncld  , label = 'xncld:'  , RC=STATUS); VERIFY_(STATUS)
+!  CALL ESMF_ConfigGetAttribute(CF, nchemtr, label = 'tracers:', RC=STATUS); VERIFY_(STATUS)
+!  CALL ESMF_ConfigGetAttribute(CF, vtid   , label = 'vtid:'   , RC=STATUS); VERIFY_(STATUS)
+!  CALL ESMF_ConfigGetAttribute(CF, pdryini, label = 'pdryini:', RC=STATUS); VERIFY_(STATUS)
+!  CALL ESMF_ConfigGetAttribute(CF, xncld  , label = 'xncld:'  , RC=STATUS); VERIFY_(STATUS)
 
    end subroutine GSI_GridCompGetVertParms_
 
@@ -916,23 +939,36 @@
        end do
     end do
 
+!  When proper connection to ESMF is complete,
+!  the following will not be needed here
+!  ------------------------------------------
+   call gsi_chemtracer_get('dim',ntgases,status)
+   VERIFY_(STATUS)
+   if (ntgases>0) then
+       allocate (tgases(ntgases))
+       call gsi_chemtracer_get('shortnames',tgases,status)
+       VERIFY_(STATUS)
+
+       call create_chemges_grids(status)
+       VERIFY_(STATUS)
+   endif
 
    RETURN_(ESMF_SUCCESS)
 
    end subroutine GSI_GridCompAlloc_
 
-   end subroutine GSI_GridCompInitialize
+   end subroutine Initialize
 
 !-------------------------------------------------------------------------
 !  NASA/GSFC, Global Modeling and Assimilation Office, Code 610.3, GMAO  !
 !-------------------------------------------------------------------------
 !BOPI
 
-! !IROUTINE: GSI_GridCompRun -- Run the GSI Gridded Component
+! !IROUTINE: Run -- Run the GSI Gridded Component
 
 ! !INTERFACE:
 
-   subroutine GSI_GridCompRun ( gc, import, export, clock, rc )
+   subroutine Run ( gc, import, export, clock, rc )
 
 !
 ! !USES:
@@ -983,6 +1019,9 @@
    real(4),dimension(:,:,:), pointer :: ozp  ! ozone
    real(4),dimension(:,:,:), pointer :: qimr ! cloud ice    mixing ratio
    real(4),dimension(:,:,:), pointer :: qlmr ! cloud liquid mixing ratio
+   ! import chem tracers ... preliminary (dummy implementation)
+   real(4),dimension(:,:,:), pointer :: cop   ! carbone monoxide
+   real(4),dimension(:,:,:), pointer :: co2p  ! carbone dioxide
    ! import state surface pointers
    real(4),dimension(:,:  ), pointer :: f10p ! 10m winf factors
    real(4),dimension(:,:  ), pointer :: tskp ! skin Temp.
@@ -1019,9 +1058,12 @@
    real(4),dimension(:,:  ), pointer :: dfrlake    ! lake fraction
    real(4),dimension(:,:  ), pointer :: dfrocean   ! ocean fraction
    real(4),dimension(:,:  ), pointer :: dfrseaice  ! sea-ice fraction
+   ! export chem tracers ... preliminary (dummy implementation)
+   real(4),dimension(:,:,:), pointer :: dcop  ! carbone monoxide
+   real(4),dimension(:,:,:), pointer :: dco2p ! carbone dioxide
    character(len=ESMF_MAXSTR)        :: aname
    character(len=ESMF_MAXSTR)        :: opt
-   character(len=*), parameter :: IAm='GSI_GridCompRun'
+   character(len=*), parameter :: IAm='Run'
    integer :: ier
    integer :: atime
 
@@ -1245,6 +1287,10 @@
 
    character(len=*), parameter :: IAm='GSI_GridCompGetPointers_'
 
+   integer(i_kind) :: nt
+   character(len=ESMF_MAXSTR) :: cvar
+    
+
 ! imports
 ! -------
 
@@ -1296,6 +1342,26 @@
       VERIFY_(STATUS)
    end if
 
+! Chemistry tracer imports
+! When proper connection w/ Tracer Bundel is made
+! the following won't be necessary
+! -----------------------------------------------
+   do nt=1,ntgases
+      cvar = trim(tgases(nt))
+      select case (cvar)
+         case ( 'co' )
+            call ESMFL_StateGetPointerToData(import, cop, trim(cvar), rc=STATUS)
+            VERIFY_(STATUS)
+         case ('co2')
+            call ESMFL_StateGetPointerToData(import, co2p, trim(cvar), rc=STATUS)
+            VERIFY_(STATUS)
+         case default
+            if(mype==0) write(6,*) trim(Iam), ': no such chem variable, aborting ...'
+            status = 1
+            VERIFY_(STATUS)
+      end select
+   enddo
+
 ! exports
 ! -------
 
@@ -1331,6 +1397,27 @@
    VERIFY_(STATUS)
    call ESMFL_StateGetPointerToData(export, dqlmr,           'qltot', alloc=.true., rc=STATUS)
    VERIFY_(STATUS)
+
+! Chemistry tracer exports
+! When proper connection w/ Tracer Bundel is made
+! the following won't be necessary
+! -----------------------------------------------
+   do nt=1,ntgases
+      cvar = trim(tgases(nt))
+      select case (cvar)
+         case ('co')
+            call ESMFL_StateGetPointerToData(export, dcop, trim(cvar), alloc=.true., rc=STATUS)
+            VERIFY_(STATUS)
+         case ('co2')
+            call ESMFL_StateGetPointerToData(export, dco2p, trim(cvar), alloc=.true., rc=STATUS)
+            VERIFY_(STATUS)
+         case default
+            if(mype==0) write(6,*) trim(Iam), ': no such chem variable, aborting ...'
+            status = 1
+            VERIFY_(STATUS)
+      end select
+   enddo
+
 
    end subroutine GSI_GridCompGetPointers_
 
@@ -1381,7 +1468,9 @@
 
    character(len=*), parameter    :: &
             IAm='GSI_GridCompCopyImportDyn2Internal_'
-   integer(i_kind) :: it,nn,itguessig
+   integer(i_kind) :: it,nn,nt,itguessig
+   integer(i_kind) :: irank, ipnt
+   character(len=ESMF_MAXSTR) :: cvar
 
 ! start   
 
@@ -1412,6 +1501,7 @@
        ges_q   (:,:,:,nn) = ges_q   (:,:,:,nn+1)
        ges_oz  (:,:,:,nn) = ges_oz  (:,:,:,nn+1)
        ges_cwmr(:,:,:,nn) = ges_cwmr(:,:,:,nn+1)
+       if(ntgases>0) GSI_chem_bundle(nn)= GSI_chem_bundle(nn+1)
      enddo
    endif
 
@@ -1470,6 +1560,25 @@
    endwhere 
    call GSI_GridCompSwapIJ_(qimr,ges_cwmr(:,:,:,it))
 
+!  Handle trace gases
+!  ------------------
+   do nt = 1,ntgases
+      cvar=trim(tgases(nt))
+      call GSI_BundleGetPointer ( GSI_chem_bundle(it), cvar, ipnt, status, irank=irank )
+      VERIFY_(STATUS)
+      if(irank/=3) status=1 ! better be 3d
+      VERIFY_(STATUS)
+      select case (cvar) ! unfortunately this package still separates chem tracers
+         case ('co')
+           call GSI_GridCompSwapIJ_(cop,GSI_chem_bundle(it)%r3(ipnt)%q)
+         case ('co2')
+           call GSI_GridCompSwapIJ_(co2p,GSI_chem_bundle(it)%r3(ipnt)%q)
+      end select
+#ifdef UPAverbose
+       call guess_grids_stats(cvar, GSI_chem_bundle(it)%r3(ipnt)%q, mype)
+#endif
+   enddo
+
 ! simple statistics
 
 #ifdef UPAverbose
@@ -1481,6 +1590,10 @@
    call guess_grids_stats('GCges_q',    ges_q   (:,:,:,it), mype)
    call guess_grids_stats('GCges_oz',   ges_oz  (:,:,:,it), mype)
    call guess_grids_stats('GCges_cwmr', ges_cwmr(:,:,:,it), mype)
+#endif
+
+#ifdef VERBOSE
+   if(IamRoot) print *,trim(Iam),': Complete copy contents of import to internal state, it= ', lit
 #endif
 
    end subroutine GSI_GridCompCopyImportDyn2Internal_
@@ -2010,6 +2123,7 @@
 !   10Mar2009 Todling  Place cwmr into qimr; zero out qltot
 !   12Mar2009 Todling  Revamp skin temperature imp/exp
 !   20Jan2010 Todling  Fix for dealing w/ delp when writing out ainc
+!   21Apr2010 Todling  Add trace gases - eventually own GridComp
 !
 !EOPI
 !-------------------------------------------------------------------------
@@ -2020,7 +2134,9 @@
             IAm='GSI_GridCompCopyInternal2Export_'
    integer kk
    real(r_kind),allocatable, dimension(:,:) :: wrk
-   integer :: it
+   integer :: nt,it
+   integer(i_kind) :: irank, ipnt
+   character(len=ESMF_MAXSTR) :: cvar
 
    if(IamRoot) print *,trim(Iam),': Copy contents of internal state to export, it= ',lit
 
@@ -2059,6 +2175,22 @@
    call GSI_GridCompSwapJI_(doz,  ges_oz  (:,:,:,it))
    call GSI_GridCompSwapJI_(dqimr,ges_cwmr(:,:,:,it))
    dqlmr = zero
+
+!  Now handle trace gases
+!  ----------------------
+   do nt=1,ntgases
+      cvar = trim(tgases(nt))
+      call GSI_BundleGetPointer ( GSI_chem_bundle(it), cvar, ipnt, status, irank=irank )
+      VERIFY_(STATUS)
+      if(irank/=3) status=1 ! better be 3d
+      VERIFY_(STATUS)
+      select case (cvar)  ! unfortunately this package still separates varibles chem tracers
+        case('co')
+           call GSI_GridCompSwapJI_(dcop,GSI_chem_bundle(it)%r3(ipnt)%q)
+        case ('co2')
+           call GSI_GridCompSwapJI_(dco2p,GSI_chem_bundle(it)%r3(ipnt)%q)
+      end select
+   enddo
 
 !  SST needs to be updated before being written out 
 !  ------------------------------------------------
@@ -2515,18 +2647,18 @@
    end function sfcFirst_
 
 
-   end subroutine GSI_GridCompRun
+   end subroutine Run
 
 !-------------------------------------------------------------------------
 !  NASA/GSFC, Global Modeling and Assimilation Office, Code 610.3, GMAO  !
 !-------------------------------------------------------------------------
 !BOPI
 
-! !IROUTINE: GSI_GridCompFinalize -- Finalizes the GSI gridded component
+! !IROUTINE: Finalize -- Finalizes the GSI gridded component
 
 ! !INTERFACE:
 
-  subroutine GSI_GridCompFinalize ( gc, import, export, clock, rc )
+  subroutine Finalize ( gc, import, export, clock, rc )
 
 !
 ! !USES:
@@ -2552,7 +2684,7 @@
 
    integer                           :: STATUS    ! error code STATUS
    logical                           :: IamRoot    
-   character(len=*), parameter :: IAm='GSI_GridCompFinalize'
+   character(len=*), parameter :: IAm='Finalize'
 
 ! start
 
@@ -2586,6 +2718,11 @@
 !-------------------------------------------------------------------------
    character(len=*), parameter :: IAm='GSI_GridCompDealloc'
 
+!  Deallocate memory for guess files for trace gases
+!  ------------------------------------------------
+   call destroy_chemges_grids(status)
+   VERIFY_(STATUS)
+
    deallocate( isli     ,&
                fact10   ,&
                sfct     ,&
@@ -2614,7 +2751,7 @@
 
    end subroutine GSI_GridCompDealloc_
 
-   end subroutine GSI_GridCompFinalize	
+   end subroutine Finalize	
 
 !-------------------------------------------------------------------------
 !  NASA/GSFC, Global Modeling and Assimilation Office, Code 610.3, GMAO  !
@@ -2744,6 +2881,21 @@
                                    '1               ',    &
                                    '1               '    /)
 
+!  Declare import 3d-fields for trace gases - this needs 
+!  to come from gsi_chemtracer_mod
+!  -----------------------------------------------------
+   integer, parameter :: nin3dg=2
+   character(len=16), parameter :: insname3dg(nin3dg) = (/ &
+                                   'co              ',     &
+                                   'co2             '/)
+   character(len=32), parameter :: inlname3dg(nin3dg) = (/ &
+                      'carbon monoxide                 ',  &
+                      'carbon dioxide                  '/)
+   character(len=16), parameter :: inunits3dg(nin3dg) = (/ &
+                                   'g/g             ',     &
+                                   'g/g             '     /)
+
+
 !  Declare export 2d-fields
 !  ------------------------
    integer, parameter :: nex2d=8
@@ -2806,6 +2958,37 @@
                                    '1               ',    &
                                    '1               '    /)
 
+!  Declare import 3d-fields for trace gases - this needs 
+!  to come from gsi_chemtracer_mod
+!  -----------------------------------------------------
+   integer, parameter :: nex3dg=2
+   character(len=16), parameter :: exsname3dg(nin3dg) = (/ &
+                                   'co              ',     &
+                                   'co2             '/)
+   character(len=32), parameter :: exlname3dg(nin3dg) = (/ &
+                      'carbon monoxide inc             ',  &
+                      'carbon dioxide inc              '/)
+   character(len=16), parameter :: exunits3dg(nin3dg) = (/ &
+                                   'g/g             ',     &
+                                   'g/g             '     /)
+
+
+! Begin
+
+   if(present(opthw)) then
+      local_hw=opthw
+   else
+      local_hw=HW
+   end if
+
+! Get variables from chem
+! call gsi_chemtracer_get('shortnames')
+! call gsi_chemtracer_get('longnames')
+! call gsi_chemtracer_get('units')
+
+! Imports
+
+
 ! Begin
 
    if(present(opthw)) then
@@ -2836,6 +3019,16 @@
          HALOWIDTH = local_hw,             &
          RC=STATUS  ); VERIFY_(STATUS)
     enddo
+    do ii = 1, nin3dg 
+      call MAPL_AddImportSpec(GC,           &
+         SHORT_NAME= trim(insname3dg(ii)), &
+         LONG_NAME = trim(inlname3dg(ii)), &
+         UNITS     = trim(inunits3dg(ii)), &
+         DIMS      = MAPL_DimsHorzVert,    &
+         VLOCATION = MAPL_VLocationCenter, &
+         HALOWIDTH = local_hw,             &
+         RC=STATUS  ); VERIFY_(STATUS)
+    enddo
 
 ! Exports
 
@@ -2854,6 +3047,16 @@
          SHORT_NAME= trim(exsname3d(ii)),  &
          LONG_NAME = trim(exlname3d(ii)),  &
          UNITS     = trim(exunits3d(ii)),  &
+         DIMS      = MAPL_DimsHorzVert,    &
+         VLOCATION = MAPL_VLocationCenter, &
+         HALOWIDTH = local_hw,             &
+         RC=STATUS  );  VERIFY_(STATUS)
+    enddo
+    do ii = 1, nex3dg
+       call MAPL_AddExportSpec(GC,         &
+         SHORT_NAME= trim(exsname3dg(ii)), &
+         LONG_NAME = trim(exlname3dg(ii)), &
+         UNITS     = trim(exunits3dg(ii)), &
          DIMS      = MAPL_DimsHorzVert,    &
          VLOCATION = MAPL_VLocationCenter, &
          HALOWIDTH = local_hw,             &

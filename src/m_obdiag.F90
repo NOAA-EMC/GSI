@@ -13,6 +13,8 @@ module m_obdiag
 !   2009-12-09	Guo - changed an argument name from "size" to "count".
 !   2009-12-09	Guo - fixed an error in verification of %nloz
 !   2010-03-17  j guo   - added this document block
+!   2010-04-27  tangborn - added carbon monoxide
+!   2010-05-26  treadon - add tcp_verify to ob_verify interface
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -74,7 +76,9 @@ module m_obdiag
     gps_verify_, &
     pcp_verify_, &
     rad_verify_, &
-    lag_verify_; end interface
+    tcp_verify_, & 
+    lag_verify_, & 
+    co_verify_; end interface
 
 !!! usage:
 !!!
@@ -1486,6 +1490,104 @@ _EXIT_(myname_)
   call timer_fnl(ob_verify_name)
 _EXIT_(myname_)
 end function oz_verify_
+function co_verify_(hd,count,perr) result(good)
+  use obsmod,only: co3l_ob_head
+  use obsmod,only: co3l_ob_type
+  use obsmod,only: obs_diag
+  use mpeu_util, only: iperr => perr
+  use timermod, only: timer_ini,timer_fnl
+  implicit none
+  logical:: good
+  type(co3l_ob_head),intent(in) :: hd
+  integer(i_kind),optional,intent(in) :: count
+  logical,optional,intent(in) :: perr
+
+  character(len=*),parameter :: myname_=myname//'.co_verify_'
+
+  logical:: perr_
+  type(co3l_ob_type),pointer:: my_node
+  type(obs_diag),pointer:: my_diag
+  integer(i_kind):: k,n,nlco
+_ENTRY_(myname_)
+  good = .true.
+  if(SKIP_VERIFY_) then
+_EXIT_(myname_)
+    return
+  endif
+  call timer_ini(ob_verify_name)
+
+  perr_=.false.
+  if(present(perr)) perr_=perr
+
+  my_node => hd%head    ! top
+  n=0
+  do while(associated(my_node))
+    n=n+1
+
+    if(good) then
+                ! check #0
+      good = associated(my_node%diags)
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated node%diags, @count =',n)
+        call iperr(myname_,'node%(idv,iob,nlco) =',(/my_node%idv,my_node%iob,my_node%nlco/))
+      endif
+
+                ! check #0.1
+      if(good) then
+        good = my_node%nlco+1 == size(my_node%diags)
+        if(.not.good .and. perr_) then
+          call iperr(myname_,'mismatching [%nlco,size(%diags)], @count =',n)
+          call iperr(myname_,'node%(idv,iob,nlco,size(%diags)) =', &
+                      (/my_node%idv,my_node%iob,my_node%nlco,size(my_node%diags)/))
+        endif
+      endif
+
+      if(good) then
+        do k=1,my_node%nlco+1
+          my_diag => my_node%diags(k)%ptr
+
+                ! check #1
+          good = associated(my_diag)
+          if(.not.good .and. perr_) then
+            call iperr(myname_,'unassociated node%diags(k)%ptr, @(count,k) =',(/n,k/))
+            call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
+          endif
+
+                ! check #2
+          good = my_node%idv == my_diag%idv .and. &
+                 my_node%iob == my_diag%iob .and. &
+                         k   == my_diag%ich
+          if(.not.good .and. perr_) then
+            call iperr(myname_,'mismatching keys, @(count,k) =',(/n,k/))
+            call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
+            call iperr(myname_,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          endif
+        enddo
+      endif
+
+      if(.not.(good.or.present(count))) then
+        call iperr(myname_,'test failed, @count =',n)
+        call timer_fnl(ob_verify_name)
+_EXIT_(myname_)
+        return
+      endif
+    endif
+
+    my_node => my_node%llpoint  ! next
+  enddo
+
+                ! check #3, is done when some other test is already failed.
+  if(present(count)) then
+    if(n/=count) then
+      good=.false.
+      if(perr_) call iperr(myname_,'mismatching count, (expected,actual) =',(/count,n/))
+    endif
+  endif
+  call timer_fnl(ob_verify_name)
+_EXIT_(myname_)
+end function co_verify_
+
+
 function rad_verify_(hd,count,perr) result(good)
   use obsmod,only: rad_ob_head
   use obsmod,only: rad_ob_type

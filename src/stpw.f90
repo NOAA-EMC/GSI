@@ -12,6 +12,7 @@ module stpwmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-01  Todling - remove stpw_tl; add interface back
 !   2009-08-12  lueken - update documentation
+!   2010-05-13  todling - uniform interface across stp routines
 !
 ! subroutines included:
 !   sub stpw
@@ -29,7 +30,7 @@ PUBLIC stpw
 
 contains
 
-subroutine stpw(whead,ru,rv,su,sv,out,sges,nstep)
+subroutine stpw(whead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpw        calculate penalty and contribution to stepsize
@@ -57,6 +58,7 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges,nstep)
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
+!   2010-05-13  todling - update to use gsi_bundle
 !
 !   input argument list:
 !     whead
@@ -78,32 +80,51 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: w_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(w_ob_type),pointer                ,intent(in):: whead
-  integer(i_kind)                        ,intent(in):: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(inout):: out
-  real(r_kind),dimension(latlon1n)       ,intent(in):: ru,rv,su,sv
-  real(r_kind),dimension(max(ione,nstep)),intent(in):: sges
+  type(w_ob_type),pointer             ,intent(in):: whead
+  integer(i_kind)                     ,intent(in):: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout):: out
+  type(gsi_bundle)                    ,intent(in):: rval,sval
+  real(r_kind),dimension(max(1,nstep)),intent(in):: sges
 
 ! Declare local variables
+  integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
+  real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
+  real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
   real(r_kind) valu,facu,valv,facv,w1,w2,w3,w4,w5,w6,w7,w8,time_w
   real(r_kind) cg_w,wgross,wnotgross,w_pg
   real(r_kind) uu,vv
-  real(r_kind),dimension(max(ione,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen
+  real(r_kind),pointer,dimension(:):: ru,rv,su,sv
   type(w_ob_type), pointer :: wptr
 
   out=zero_quad
 
+  ier=0
+  call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'u',xhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'v',xhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'u',dhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'v',dhat_dt_v,istatus);ier=istatus+ier
+  endif
+  if(ier/=0) return
+
   wptr => whead
   do while (associated(wptr))
      if(wptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1=wptr%ij(1)
            j2=wptr%ij(2)
            j3=wptr%ij(3)
@@ -134,22 +155,22 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges,nstep)
                +w5* sv(j5)+w6* sv(j6)+w7* sv(j7)+w8* sv(j8) - wptr%vres
            if(l_foto) then
               time_w=wptr%time*r3600
-              valu=valu+(w1*dhat_dt%u(j1)+w2*dhat_dt%u(j2)+ &
-                         w3*dhat_dt%u(j3)+w4*dhat_dt%u(j4)+ &
-                         w5*dhat_dt%u(j5)+w6*dhat_dt%u(j6)+ &
-                         w7*dhat_dt%u(j7)+w8*dhat_dt%u(j8))*time_w
-              facu=facu+(w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-                         w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4)+ &
-                         w5*xhat_dt%u(j5)+w6*xhat_dt%u(j6)+ &
-                         w7*xhat_dt%u(j7)+w8*xhat_dt%u(j8))*time_w 
-              valv=valv+(w1*dhat_dt%v(j1)+w2*dhat_dt%v(j2)+ &
-                         w3*dhat_dt%v(j3)+w4*dhat_dt%v(j4)+ &
-                         w5*dhat_dt%v(j5)+w6*dhat_dt%v(j6)+ &
-                         w7*dhat_dt%v(j7)+w8*dhat_dt%v(j8))*time_w
-              facv=facv+(w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-                         w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4)+ &
-                         w5*xhat_dt%v(j5)+w6*xhat_dt%v(j6)+ &
-                         w7*xhat_dt%v(j7)+w8*xhat_dt%v(j8))*time_w 
+              valu=valu+(w1*dhat_dt_u(j1)+w2*dhat_dt_u(j2)+ &
+                         w3*dhat_dt_u(j3)+w4*dhat_dt_u(j4)+ &
+                         w5*dhat_dt_u(j5)+w6*dhat_dt_u(j6)+ &
+                         w7*dhat_dt_u(j7)+w8*dhat_dt_u(j8))*time_w
+              facu=facu+(w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
+                         w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4)+ &
+                         w5*xhat_dt_u(j5)+w6*xhat_dt_u(j6)+ &
+                         w7*xhat_dt_u(j7)+w8*xhat_dt_u(j8))*time_w 
+              valv=valv+(w1*dhat_dt_v(j1)+w2*dhat_dt_v(j2)+ &
+                         w3*dhat_dt_v(j3)+w4*dhat_dt_v(j4)+ &
+                         w5*dhat_dt_v(j5)+w6*dhat_dt_v(j6)+ &
+                         w7*dhat_dt_v(j7)+w8*dhat_dt_v(j8))*time_w
+              facv=facv+(w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
+                         w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4)+ &
+                         w5*xhat_dt_v(j5)+w6*xhat_dt_v(j6)+ &
+                         w7*xhat_dt_v(j7)+w8*xhat_dt_v(j8))*time_w 
            end if
      
            do kk=1,nstep
@@ -169,7 +190,7 @@ subroutine stpw(whead,ru,rv,su,sv,out,sges,nstep)
            cg_w=cg_term/wptr%b
            wnotgross= one-w_pg
            wgross =w_pg*cg_w/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk)= -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
            end do
         endif

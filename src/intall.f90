@@ -169,18 +169,20 @@ subroutine intall(sval,sbias,rval,rbias)
   use jfunc, only: l_foto,dhat_dt
   use obsmod, only: yobs
   use intjomod, only: intjo
-  use bias_predictors
-  use state_vectors
+  use bias_predictors, only : predictors,assignment(=)
+  use state_vectors, only: allocate_state,deallocate_state
   use intlimqmod, only: intlimq
   use intjcpdrymod, only: intjcpdry
   use timermod, only: timer_ini,timer_fnl
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: assignment(=)
   implicit none
 
 ! Declare passed variables
-  type(state_vector), intent(in   ) :: sval(nobs_bins)
-  type(predictors)  , intent(in   ) :: sbias
-  type(state_vector), intent(inout) :: rval(nobs_bins)
-  type(predictors)  , intent(inout) :: rbias
+  type(gsi_bundle), intent(in   ) :: sval(nobs_bins)
+  type(predictors), intent(in   ) :: sbias
+  type(gsi_bundle), intent(inout) :: rval(nobs_bins)
+  type(predictors), intent(inout) :: rbias
 
 ! Declare local variables
   integer(i_kind) :: ibin,ii
@@ -192,7 +194,7 @@ subroutine intall(sval,sbias,rval,rbias)
 ! Zero gradient arrays
   if (l_foto) then
      call allocate_state(dhat_dt)
-     call assign_scalar2state(dhat_dt,zero)
+     dhat_dt=zero
   endif
 
   do ii=1,nobs_bins
@@ -208,10 +210,10 @@ subroutine intall(sval,sbias,rval,rbias)
   end do
 
 ! RHS for moisture constraint
-  if (.not.ltlint) call intlimq(rval(1)%q,sval(1)%q)
+  if (.not.ltlint) call intlimq(rval(1),sval(1))
 
 ! RHS for dry ps constraint
-  if (ljcpdry) call intjcpdry(rval(1)%q,rval(1)%cw,rval(1)%p,sval(1)%q,sval(1)%cw,sval(1)%p,mype)
+  if (ljcpdry) call intjcpdry(rval(1),sval(1))
 
 ! RHS calculation for Jc and other 3D-Var terms
   call int3dvar(rval(1),dhat_dt)

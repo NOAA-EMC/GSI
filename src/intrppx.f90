@@ -1,5 +1,10 @@
-subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
-                   trop5,dtskin,dtsavg,uu5,vv5,dx,dy,mype)       
+module intrppx
+! 2010-06-10 Todling turn into module (lightly)
+public 
+contains
+subroutine intrppx1(obstime,h,q,poz,co2,aero,prsl,prsi, &
+                   trop5,dtskin,dtsavg,uu5,vv5,dx,dy,&
+                   ico2,n_aerosols,iaero)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intrppx     creates vertical profile of t,q,p,zs    
@@ -28,6 +33,9 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
 !   2007-12-12  kim - add cloud profiles
 !   2008-12-05  todling - use dsfct(:,:,ntguessfc) for calculation
 !   2010-04-15  hou - add co2 to output arguments
+!   2010-05-19  todling - revisit Hou's implementation of CO2
+!   2010-06-10  todling - remove (frequent) CO2 pointer check from inside this routine
+!                       - add aerosols capability (also update interface)
 !
 !   input argument list:
 !     obstime  - time of observations for which to get profile
@@ -51,26 +59,34 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
 !$$$
 !--------
   use kinds, only: r_kind,i_kind
+  use mpimod, only: mype
   use guess_grids, only: ges_u,ges_v,ges_tsen,ges_q,ges_oz,&
-       ges_prsl,ges_prsi,tropprs,dsfct,ges_co2, &
+       ges_prsl,ges_prsi,tropprs,dsfct, &
        hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,ges_tv,isli2,sno2
+  use ncepgfs_ghg, only: co2vmr_def
+  use gsi_chemtracer_mod, only: gsi_chem_bundle   ! for now, a common block
+  use gsi_chemtracer_mod, only: gsi_chemtracer_get
   use gridmod, only: istart,jstart,nlon,nlat,nsig,lon1
-  use constants, only: ione,zero,one,one_tenth
+  use constants, only: zero,one,one_tenth
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                  ,intent(in   ) :: mype
-  real(r_kind)                     ,intent(in   ) :: dx,dy,obstime
-  real(r_kind)                     ,intent(  out) :: trop5
-  real(r_kind),dimension(nsig)     ,intent(  out) :: h,q,poz,prsl,co2
-  real(r_kind),dimension(nsig+ione),intent(  out) :: prsi
-  real(r_kind)                     ,intent(  out) :: uu5,vv5,dtsavg
-  real(r_kind),dimension(0:3)      ,intent(  out) :: dtskin
+  real(r_kind)                  ,intent(in   ) :: dx,dy,obstime
+  integer(i_kind)               ,intent(in   ) :: n_aerosols
+  integer(i_kind),dimension(:)  ,intent(in   ) :: iaero
+  integer(i_kind)               ,intent(in   ) :: ico2
+  real(r_kind)                  ,intent(  out) :: trop5
+  real(r_kind),dimension(nsig)  ,intent(  out) :: h,q,poz,prsl,co2
+  real(r_kind),dimension(:,:)   ,intent(  out) :: aero
+  real(r_kind),dimension(nsig+1),intent(  out) :: prsi
+  real(r_kind)                  ,intent(  out) :: uu5,vv5,dtsavg
+  real(r_kind),dimension(0:3)   ,intent(  out) :: dtskin
 
 ! Declare local parameters
   real(r_kind),parameter:: minsnow=one_tenth
 
 ! Declare local variables  
+  integer(i_kind) ier,ii,igfsco2
   integer(i_kind) j,k,m1,ix,ix1,ixp,iy,iy1,iyp
   integer(i_kind) itsig,itsigp,itsfc,itsfcp
   integer(i_kind) istyp00,istyp01,istyp10,istyp11
@@ -82,15 +98,21 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
   real(r_kind):: sno00,sno01,sno10,sno11
 
 
-  m1=mype+ione
+! Get information for how to use CO2
+  igfsco2=0
+  if (ico2>0) then
+     call gsi_chemtracer_get ( 'i4crtm::co2', igfsco2, ier )
+  endif
+
+  m1=mype+1
 
 ! Set spatial interpolation indices and weights
   ix1=dx
-  ix1=max(ione,min(ix1,nlat))
+  ix1=max(1,min(ix1,nlat))
   delx=dx-ix1
   delx=max(zero,min(delx,one))
-  ix=ix1-istart(m1)+2_i_kind
-  ixp=ix+ione
+  ix=ix1-istart(m1)+2
+  ixp=ix+1
   if(ix1==nlat) then
      ixp=ix
   end if
@@ -98,16 +120,16 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
 
   iy1=dy
   dely=dy-iy1
-  iy=iy1-jstart(m1)+2_i_kind
-  if(iy<ione) then
+  iy=iy1-jstart(m1)+2
+  if(iy<1) then
      iy1=iy1+nlon
-     iy=iy1-jstart(m1)+2_i_kind
+     iy=iy1-jstart(m1)+2
   end if
-  if(iy>lon1+ione) then
+  if(iy>lon1+1) then
      iy1=iy1-nlon
-     iy=iy1-jstart(m1)+2_i_kind
+     iy=iy1-jstart(m1)+2
   end if
-  iyp=iy+ione
+  iyp=iy+1
   dely1=one-dely
 
   w00=delx1*dely1; w10=delx*dely1; w01=delx1*dely; w11=delx*dely
@@ -119,16 +141,16 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
 
 ! Get time interpolation factors for sigma files
   if(obstime > hrdifsig(1) .and. obstime < hrdifsig(nfldsig))then
-     do j=1,nfldsig-ione
-        if(obstime > hrdifsig(j) .and. obstime <= hrdifsig(j+ione))then
+     do j=1,nfldsig-1
+        if(obstime > hrdifsig(j) .and. obstime <= hrdifsig(j+1))then
            itsig=j
-           itsigp=j+ione
-           dtsig=((hrdifsig(j+ione)-obstime)/(hrdifsig(j+ione)-hrdifsig(j)))
+           itsigp=j+1
+           dtsig=((hrdifsig(j+1)-obstime)/(hrdifsig(j+1)-hrdifsig(j)))
         end if
      end do
   else if(obstime <=hrdifsig(1))then
-     itsig=ione
-     itsigp=ione
+     itsig=1
+     itsigp=1
      dtsig=one
   else
      itsig=nfldsig
@@ -139,16 +161,16 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
 
 ! Get time interpolation factors for surface files
   if(obstime > hrdifsfc(1) .and. obstime < hrdifsfc(nfldsfc))then
-     do j=1,nfldsfc-ione
-        if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+ione))then
+     do j=1,nfldsfc-1
+        if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+1))then
            itsfc=j
-           itsfcp=j+ione
-           dtsfc=((hrdifsfc(j+ione)-obstime)/(hrdifsfc(j+ione)-hrdifsfc(j)))
+           itsfcp=j+1
+           dtsfc=((hrdifsfc(j+1)-obstime)/(hrdifsfc(j+1)-hrdifsfc(j)))
         end if
      end do
   else if(obstime <=hrdifsfc(1))then
-     itsfc=ione
-     itsfcp=ione
+     itsfc=1
+     itsfcp=1
      dtsfc=one
   else
      itsfc=nfldsfc
@@ -166,10 +188,10 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
   sno01= sno2(ix ,iyp,itsfc)*dtsfc+sno2(ix ,iyp,itsfcp)*dtsfcp
   sno10= sno2(ixp,iy ,itsfc)*dtsfc+sno2(ixp,iy ,itsfcp)*dtsfcp
   sno11= sno2(ixp,iyp,itsfc)*dtsfc+sno2(ixp,iyp,itsfcp)*dtsfcp
-  if(istyp00 >= ione .and. sno00 > minsnow)istyp00 = 3_i_kind
-  if(istyp01 >= ione .and. sno01 > minsnow)istyp01 = 3_i_kind
-  if(istyp10 >= ione .and. sno10 > minsnow)istyp10 = 3_i_kind
-  if(istyp11 >= ione .and. sno11 > minsnow)istyp11 = 3_i_kind
+  if(istyp00 >= 1 .and. sno00 > minsnow)istyp00 = 3
+  if(istyp01 >= 1 .and. sno01 > minsnow)istyp01 = 3
+  if(istyp10 >= 1 .and. sno10 > minsnow)istyp10 = 3
+  if(istyp11 >= 1 .and. sno11 > minsnow)istyp11 = 3
 
   sst00= dsfct(ix ,iy,ntguessfc) ; sst01= dsfct(ix ,iyp,ntguessfc)
   sst10= dsfct(ixp,iy,ntguessfc) ; sst11= dsfct(ixp,iyp,ntguessfc) 
@@ -178,13 +200,13 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
   dtskin(0:3)=zero
   wgtavg(0:3)=zero
 
-  if(istyp00 == ione)then
+  if(istyp00 == 1)then
      wgtavg(1) = wgtavg(1) + w00
      dtskin(1)=dtskin(1)+w00*sst00
-  else if(istyp00 == 2_i_kind)then
+  else if(istyp00 == 2)then
      wgtavg(2) = wgtavg(2) + w00
      dtskin(2)=dtskin(2)+w00*sst00
-  else if(istyp00 == 3_i_kind)then
+  else if(istyp00 == 3)then
      wgtavg(3) = wgtavg(3) + w00
      dtskin(3)=dtskin(3)+w00*sst00
   else
@@ -192,13 +214,13 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
      dtskin(0)=dtskin(0)+w00*sst00
   end if
 
-  if(istyp01 == ione)then
+  if(istyp01 == 1)then
      wgtavg(1) = wgtavg(1) + w01
      dtskin(1)=dtskin(1)+w01*sst01
-  else if(istyp01 == 2_i_kind)then
+  else if(istyp01 == 2)then
      wgtavg(2) = wgtavg(2) + w01
      dtskin(2)=dtskin(2)+w01*sst01
-  else if(istyp01 == 3_i_kind)then
+  else if(istyp01 == 3)then
      wgtavg(3) = wgtavg(3) + w01
      dtskin(3)=dtskin(3)+w01*sst01
   else
@@ -206,13 +228,13 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
      dtskin(0)=dtskin(0)+w01*sst01
   end if
 
-  if(istyp10 == ione)then
+  if(istyp10 == 1)then
      wgtavg(1) = wgtavg(1) + w10
      dtskin(1)=dtskin(1)+w10*sst10
-  else if(istyp10 == 2_i_kind)then
+  else if(istyp10 == 2)then
      wgtavg(2) = wgtavg(2) + w10
      dtskin(2)=dtskin(2)+w10*sst10
-  else if(istyp10 == 3_i_kind)then
+  else if(istyp10 == 3)then
      wgtavg(3) = wgtavg(3) + w10
      dtskin(3)=dtskin(3)+w10*sst10
   else
@@ -220,13 +242,13 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
      dtskin(0)=dtskin(0)+w10*sst10
   end if
 
-  if(istyp11 == ione)then
+  if(istyp11 == 1)then
      wgtavg(1) = wgtavg(1) + w11
      dtskin(1)=dtskin(1)+w11*sst11
-  else if(istyp11 == 2_i_kind)then
+  else if(istyp11 == 2)then
      wgtavg(2) = wgtavg(2) + w11
      dtskin(2)=dtskin(2)+w11*sst11
-  else if(istyp11 == 3_i_kind)then
+  else if(istyp11 == 3)then
      wgtavg(3) = wgtavg(3) + w11
      dtskin(3)=dtskin(3)+w11*sst11
   else
@@ -307,12 +329,50 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
              ges_tv(ix ,iyp,k,itsigp)*w01+ &
              ges_tv(ixp,iyp,k,itsigp)*w11)*dtsigp
 
-     co2(k) =(ges_co2(ix ,iy ,k)*w00+ &
-              ges_co2(ixp,iy ,k)*w10+ &
-              ges_co2(ix ,iyp,k)*w01+ &
-              ges_co2(ixp,iyp,k)*w11)
+     if(ico2>0.and.igfsco2/=0)then
+        if(size(gsi_chem_bundle)==1) then
+           co2(k) =(gsi_chem_bundle(1)%r3(ico2)%q(ix ,iy ,k)*w00+ &
+                    gsi_chem_bundle(1)%r3(ico2)%q(ixp,iy ,k)*w10+ &
+                    gsi_chem_bundle(1)%r3(ico2)%q(ix ,iyp,k)*w01+ &
+                    gsi_chem_bundle(1)%r3(ico2)%q(ixp,iyp,k)*w11)
+        else
+           co2(k) =(gsi_chem_bundle(itsig )%r3(ico2)%q(ix ,iy ,k)*w00+ &
+                    gsi_chem_bundle(itsig )%r3(ico2)%q(ixp,iy ,k)*w10+ &
+                    gsi_chem_bundle(itsig )%r3(ico2)%q(ix ,iyp,k)*w01+ &
+                    gsi_chem_bundle(itsig )%r3(ico2)%q(ixp,iyp,k)*w11)*dtsig + &
+                   (gsi_chem_bundle(itsigp)%r3(ico2)%q(ix ,iy ,k)*w00+ &
+                    gsi_chem_bundle(itsigp)%r3(ico2)%q(ixp,iy ,k)*w10+ &
+                    gsi_chem_bundle(itsigp)%r3(ico2)%q(ix ,iyp,k)*w01+ &
+                    gsi_chem_bundle(itsigp)%r3(ico2)%q(ixp,iyp,k)*w11)*dtsigp
+        endif
+     else
+        co2(k) = co2vmr_def
+     endif
+
+     if(n_aerosols>0)then
+        if(size(gsi_chem_bundle)==1) then
+           do ii=1,n_aerosols
+              aero(k,ii) =(gsi_chem_bundle(1)%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
+                           gsi_chem_bundle(1)%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
+                           gsi_chem_bundle(1)%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
+                           gsi_chem_bundle(1)%r3(iaero(ii))%q(ixp,iyp,k)*w11)
+           enddo
+        else
+           do ii=1,n_aerosols
+              aero(k,ii) =(gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
+                           gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
+                           gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
+                           gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ixp,iyp,k)*w11)*dtsig + &
+                          (gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
+                           gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
+                           gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
+                           gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ixp,iyp,k)*w11)*dtsigp
+           enddo
+        endif
+     endif
+
   end do
-  do k=1,nsig+ione
+  do k=1,nsig+1
      prsi(k)=(ges_prsi(ix ,iy ,k,itsig )*w00+ &
               ges_prsi(ixp,iy ,k,itsig )*w10+ &
               ges_prsi(ix ,iyp,k,itsig )*w01+ &
@@ -324,4 +384,5 @@ subroutine intrppx(obstime,h,q,poz,co2,prsl,prsi, &
   end do
 
   return
-  end subroutine intrppx
+  end subroutine intrppx1
+  end module intrppx

@@ -34,7 +34,7 @@ end interface
 
 contains
 
-subroutine intspd_(spdhead,ru,rv,su,sv)
+subroutine intspd_(spdhead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intspd      apply nonlin qc obs operator for wind speed
@@ -62,6 +62,7 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
 !   2008-11-28  todling  - turn FOTO optional; changed handling of ptr%time
 !   2010-01-29  zhang,b  - fix adjoint of linearization
 !   2010-02-26  todling  - fix for observation sensitivity
+!   2010-05-13  todling  - update to use gsi_bundle; udpate interface
 !
 !   input argument list:
 !     spdhead  - obs type pointer to obs structure
@@ -87,22 +88,43 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
   use gridmod, only: latlon1n
   use gsi_4dvar, only: ltlint
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(spd_ob_type),pointer       ,intent(in   ) :: spdhead
-  real(r_kind),dimension(latlon1n),intent(in   ) :: su,sv
-  real(r_kind),dimension(latlon1n),intent(inout) :: ru,rv
+  type(spd_ob_type),pointer,intent(in   ) :: spdhead
+  type(gsi_bundle),         intent(in   ) :: sval
+  type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables
+  integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4
   real(r_kind) w1,w2,w3,w4,term,time_spd
 ! real(r_kind) penalty
   real(r_kind) uanl,vanl,spdanl,spd,valv,valu
   real(r_kind) uatl,vatl,spdatl,spdtra,grad
   real(r_kind) cg_spd,p0,wnotgross,wgross,pg_spd
+  real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
+  real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
+  real(r_kind),pointer,dimension(:) :: su,sv
+  real(r_kind),pointer,dimension(:) :: ru,rv
   type(spd_ob_type), pointer :: spdptr
 
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'u',xhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'v',xhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'u',dhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'v',dhat_dt_v,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
 
   spdptr => spdhead
   do while (associated(spdptr))
@@ -162,11 +184,11 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
         if ( l_foto ) then
            time_spd=spdptr%time*r3600
            uanl=uanl+&
-                time_spd*(w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-                          w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))
+                time_spd*(w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
+                          w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4))
            vanl=vanl+&
-                time_spd*(w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-                          w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))
+                time_spd*(w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
+                          w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))
         endif
         spdanl=sqrt(uanl*uanl+vanl*vanl)
         if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdanl-spdtra
@@ -215,14 +237,14 @@ subroutine intspd_(spdhead,ru,rv,su,sv)
         if (l_foto) then
            valu=valu*time_spd
            valv=valv*time_spd
-           dhat_dt%u(j1)=dhat_dt%u(j1)+w1*valu
-           dhat_dt%u(j2)=dhat_dt%u(j2)+w2*valu
-           dhat_dt%u(j3)=dhat_dt%u(j3)+w3*valu
-           dhat_dt%u(j4)=dhat_dt%u(j4)+w4*valu
-           dhat_dt%v(j1)=dhat_dt%v(j1)+w1*valv
-           dhat_dt%v(j2)=dhat_dt%v(j2)+w2*valv
-           dhat_dt%v(j3)=dhat_dt%v(j3)+w3*valv
-           dhat_dt%v(j4)=dhat_dt%v(j4)+w4*valv
+           dhat_dt_u(j1)=dhat_dt_u(j1)+w1*valu
+           dhat_dt_u(j2)=dhat_dt_u(j2)+w2*valu
+           dhat_dt_u(j3)=dhat_dt_u(j3)+w3*valu
+           dhat_dt_u(j4)=dhat_dt_u(j4)+w4*valu
+           dhat_dt_v(j1)=dhat_dt_v(j1)+w1*valv
+           dhat_dt_v(j2)=dhat_dt_v(j2)+w2*valv
+           dhat_dt_v(j3)=dhat_dt_v(j3)+w3*valv
+           dhat_dt_v(j4)=dhat_dt_v(j4)+w4*valv
         endif
      endif
 

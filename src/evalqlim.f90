@@ -1,4 +1,4 @@
-subroutine evalqlim(sq,pbc,rq)
+subroutine evalqlim(sval,pbc,rval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    evalqlim
@@ -13,6 +13,7 @@ subroutine evalqlim(sq,pbc,rq)
 !   2009-08-14  lueken  - update documentation
 !   2010-03-23  derber - made consistent with stplimq and intlimq (but not checked)
 !   2010-05-05  derber - omp commands removed
+!   2010-05-13  todling - udpate to use gsi_bundle; interface change
 !
 !   input argument list:
 !    sq
@@ -33,20 +34,32 @@ subroutine evalqlim(sq,pbc,rq)
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
   use jfunc, only: factqmin,factqmax,qgues,qsatg
   use mpl_allreducemod, only: mpl_allreduce
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: sq
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: rq
-  real(r_quad)                          ,intent(inout) :: pbc
+  type(gsi_bundle),intent(in   ) :: sval
+  type(gsi_bundle),intent(inout) :: rval
+  real(r_quad)      ,intent(inout) :: pbc
 
 ! Declare local variables
-  integer(i_kind) i,j,k
+  integer(i_kind) i,j,k,ier,istatus
   real(r_quad) :: zbc(2)
   real(r_kind) :: q,term
+  real(r_kind),pointer,dimension(:,:,:) :: sq
+  real(r_kind),pointer,dimension(:,:,:) :: rq
   
+  pbc=zero_quad
   if (factqmin==zero .and. factqmax==zero) return
   
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'q',sq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=istatus+ier
+  if(ier/=0)return
+
   zbc=zero_quad
 ! Loop over interior of subdomain          
   do k = 1,nsig

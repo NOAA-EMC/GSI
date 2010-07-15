@@ -49,8 +49,11 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2007-10-03  todling - add observer call
 !   2009-01-28  todling - update observer calling procedure 
 !   2009-08-19  guo     - #ifdef out destroy_gesfinfo() call for multi-pass observer.
-!
-!   2010-05-13  huang   - add read_aerosol
+!   2010-04-22  tangborn - add carbon monoxide settings
+!   2010-05-13  huang   - add aeroinfo_read call
+!   2010-05-19  todling - move oneob test outside esmf ifdef
+!   2010-05-29  todling - update interface to ozinfo_read,pcpinfo_read,&convinfo_read
+!   2010-06-05  todling - repositioned call to init_commvars
 !
 !   input argument list:
 !     mype - mpi task id
@@ -73,9 +76,10 @@ subroutine gsisub(mype,init_pass,last_pass)
   use radinfo, only: radinfo_read
   use pcpinfo, only: pcpinfo_read,create_pcp_random,&
        destroy_pcp_random
+  use aeroinfo, only: aeroinfo_read
   use convinfo, only: convinfo_read
   use ozinfo, only: ozinfo_read
-  use aeroinfo, only: aeroinfo_read
+  use coinfo, only: coinfo_read
   use read_l2bufr_mod, only: radar_bufr_read_all
   use oneobmod, only: oneobtest,oneobmakebufr
 #ifndef HAVE_ESMF
@@ -111,18 +115,21 @@ subroutine gsisub(mype,init_pass,last_pass)
 ! Get date, grid, and other information from model guess files
   call gesinfo(mype)
 
-! If single ob test, create prep.bufr file with single ob in it
-  if (oneobtest) then
-     if(mype==0)call oneobmakebufr
-     call mpi_barrier(mpi_comm_world,ierror)
-  end if
-
 ! Create analysis subdomains and initialize subdomain variables
   call create_mapping(npe)
   call deter_subdomain(mype)
   call init_subdomain_vars
 
+! Set communicators between subdomain and global/horizontal slabs
+  call init_commvars(mype)
+
 #endif /* !HAVE_ESMF */
+
+! If single ob test, create prep.bufr file with single ob in it
+  if (oneobtest) then
+     if(mype==0)call oneobmakebufr
+     call mpi_barrier(mpi_comm_world,ierror)
+  end if
 
 ! Process any level 2 bufr format land doppler radar winds and create radar wind superob file
   if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional) call radar_bufr_read_all(npe,mype)
@@ -131,20 +138,16 @@ subroutine gsisub(mype,init_pass,last_pass)
   if (init_pass) then
      if (.not.twodvar_regional) then
         call radinfo_read
-        call ozinfo_read(mype)
-        call pcpinfo_read(mype)
-        call aeroinfo_read(mype)
+        call ozinfo_read
+        call coinfo_read
+        call pcpinfo_read
+        call aeroinfo_read
      endif
-     call convinfo_read(mype)
+     call convinfo_read
 #ifdef VERBOSE
      call tell('gsisub','returned from convinfo_read()')
 #endif
   endif
-
-#ifndef HAVE_ESMF
-! Set communicators between subdomain and global/horizontal slabs
-  call init_commvars(mype)
-#endif /* HAVE_ESMF */
 
 ! Compute random number for precipitation forward model.  
   if(init_pass) then

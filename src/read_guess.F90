@@ -1,4 +1,4 @@
-subroutine read_guess(mype)
+subroutine read_guess(iyear,month,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_guess          read/compute various guess fields
@@ -55,6 +55,8 @@ subroutine read_guess(mype)
 !   2010-03-06  parrish - add option to read ozone from gfs
 !   2010-03-15  parrish - add flag regional_ozone to turn on ozone in regional analysis
 !   2010-03-31  treadon - replace read_gfsatm with read_gfs
+!   2010-05-19  todling - pass year and month for read_gsf_chem; read_guess should never
+!                         depend on obsmod - that's why idate not passed via common block
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -80,11 +82,13 @@ subroutine read_guess(mype)
        twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone,regional_ozone
 
   use constants, only: izero,ione,zero,one,fv
-  use ncepgfs_io, only: read_gfs
+  use ncepgfs_io, only: read_gfs,read_gfs_chem
 
   implicit none
 
 ! Declare passed variables
+  integer(i_kind),intent(in   ) :: iyear
+  integer(i_kind),intent(in   ) :: month
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
@@ -136,6 +140,7 @@ subroutine read_guess(mype)
 !       Read atmospheric fields
 #ifndef HAVE_ESMF
         call read_gfs(mype)
+        call read_gfs_chem(iyear,month)
 #endif
 
 !    End of non-GMAO global interfaces

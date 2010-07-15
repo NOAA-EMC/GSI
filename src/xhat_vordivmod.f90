@@ -30,7 +30,8 @@ module xhat_vordivmod
        regional,strip,reorder,reorder2
   use compact_diffs, only: uv2vordiv
   use gsi_4dvar, only: nobs_bins
-  use state_vectors
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
 
   implicit none
   private
@@ -112,6 +113,8 @@ subroutine calc_(sval)
 !
 ! program history log:
 !   2007-07-05  todling - intial code; stripped off from update_guess
+!   2010-05-13  todling - update to use gsi_bundle
+!   2010-06-01  todling - gracefully exit when (u,v) pointers not found
 !
 !   input argument list:
 !     sval     - analysis increment in grid space
@@ -128,12 +131,14 @@ subroutine calc_(sval)
   implicit none
 
 ! Declare passed variables
-  type(state_vector), intent(in   ) :: sval(nobs_bins)
+  type(gsi_bundle), intent(in   ) :: sval(nobs_bins)
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ii
+  integer(i_kind) i,j,k,ii,istatus,ier
   real(r_kind),dimension(lat1,lon1,nsig):: usm,vsm
   real(r_kind),dimension(itotsub,nuvlevs):: work1,work2
+  real(r_kind),pointer,dimension(:,:,:):: uptr,vptr
+  logical docalc
 
 !*******************************************************************************
 
@@ -176,9 +181,14 @@ subroutine calc_(sval)
            end do
         end do
   
+!       Get pointers to u and v
+        call gsi_bundlegetpointer(sval(ii),'u',uptr,istatus);docalc=istatus==0
+        call gsi_bundlegetpointer(sval(ii),'v',vptr,istatus);docalc=istatus==0.and.docalc
+        if(.not.docalc) exit
+
 !       Strip off halo for u,v grids on subdomains
-        call strip(sval(ii)%u,usm,nsig)
-        call strip(sval(ii)%v,vsm,nsig)
+        call strip(uptr,usm,nsig)
+        call strip(vptr,vsm,nsig)
 
 !       Put u,v subdomains on global slabs
 !       Note:  u --> work1, v --> work2
@@ -188,11 +198,11 @@ subroutine calc_(sval)
         call mpi_alltoallv(vsm,iscuv_g,isduv_g,&
              mpi_rtype,work2,ircuv_g,irduv_g,mpi_rtype,&
              mpi_comm_world,ierror)
-
+   
 !       Reorder work arrays before converting u,v to vor,div
         call reorder(work1,nuvlevs,nnnuvlevs)
         call reorder(work2,nuvlevs,nnnuvlevs)
- 
+
 !       Call u,v --> vor,div routine (conversion uses compact differences)
         do k=1,nnnuvlevs
            call uv2vordiv(work1(1,k),work2(1,k))

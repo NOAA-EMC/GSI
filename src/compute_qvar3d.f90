@@ -10,6 +10,7 @@ subroutine compute_qvar3d
 ! program history log:
 ! 2010-03-15 zhu - extracted out from compute_derived
 ! 2010-04-10 parrish - make rhgues local, since removed from jfunc by derber (no longer used)
+! 2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -25,18 +26,21 @@ subroutine compute_qvar3d
   use kinds, only: r_kind,i_kind,r_single
   use berror, only: dssv
   use jfunc, only: qsatg,qgues,varq,qoption
-  use control_vectors, only: nrf3_q
+  use control_vectors, only: cvars3d
   use gridmod, only: lat2,lon2,nsig
   use constants, only: izero,one,ione,fv
   use guess_grids, only: fact_tv,ges_q,ntguessig,nfldsig,ges_tsen,ges_prsl
+  use mpeu_util, only: getindex
 
   implicit none
 
 ! Declare local variables
   logical ice
-  integer(i_kind) :: i,j,k,it,n,np,iderivative
+  integer(i_kind) :: i,j,k,it,n,np,iderivative,nrf3_q
   real(r_kind) d,dn1,dn2
   real(r_kind),allocatable,dimension(:,:,:):: rhgues
+
+  nrf3_q=getindex(cvars3d,'q')
 
 ! Limit q to be >= 1.e-10_r_kind
   do it=1,nfldsig

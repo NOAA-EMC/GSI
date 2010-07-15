@@ -17,6 +17,8 @@ subroutine read_obsdiags(cdfile)
 !   2009-01-08  todling  - remove reference to ozohead
 !   2009-01-23  todling  - add read_gpshead
 !   2009-04-02  meunier  - add read_laghead
+!   2010-04-27  tangborn - addded read_co3lhead
+!   2010-05-26  treadon  - add read_tcphead
 !
 !   input argument list:
 !     cdfile - filename to read data from
@@ -37,10 +39,11 @@ use kinds, only: r_kind,i_kind
 use obsmod, only: nobs_type,obsdiags,obsptr,lobsdiag_allocated,lobserver
 use obsmod, only: destroyobs
 use obsmod, only: obs_diag	! type of linked-list records
-use obsmod, only: i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
-                  i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
-                  i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
-                  i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_lag_ob_type
+use obsmod, only: i_ps_ob_type,  i_t_ob_type,   i_w_ob_type,   i_q_ob_type, &
+                  i_spd_ob_type, i_srw_ob_type, i_rw_ob_type,  i_dw_ob_type, &
+                  i_sst_ob_type, i_pw_ob_type,  i_pcp_ob_type, i_oz_ob_type, &
+                  i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_lag_ob_type,& 
+                  i_co3l_ob_type, i_tcp_ob_type
 
 use obs_sensitivity, only: lobsensfc, lsensrecompute
 use gsi_4dvar, only: l4dvar, nobs_bins
@@ -111,6 +114,17 @@ do ii=1,nobs_bins
             end if
          endif
       endif
+#ifdef VERBOSE
+    call tell(myname,'obsdiags read in, (ob_type,ibin,mobs =',(/kj,ki,kobs/))
+
+    call tell(myname,'   ii =',ki)
+    call tell(myname,'   jj =',kj)
+    call tell(myname,' kobs =',kobs)
+    call tell(myname,'kiter =',kiter)
+
+_TRACE_(myname,'looping through obshead pointers')
+#endif
+
 
       do kk=1,kobs
          if (.not.associated(obsdiags(jj,ii)%head)) then
@@ -190,7 +204,9 @@ do ii=1,nobs_bins
          if(jj==i_pcp_ob_type) call read_pcphead_ ()
          if(jj==i_gps_ob_type) call read_gpshead_ ()
          if(jj==i_rad_ob_type) call read_radhead_ ()
+         if(jj==i_tcp_ob_type) call read_tcphead_ ()
          if(jj==i_lag_ob_type) call read_laghead_ ()
+         if(jj==i_co3l_ob_type)  call read_co3lhead_ ()
       endif
       call timer_fnl(myname//'.obhead_')
       call obdiag_cleanSearcher()
@@ -2115,6 +2131,120 @@ _EXIT_(myname_)
 _EXIT_(myname_)
 end subroutine read_radhead_
 
+subroutine read_tcphead_ () 
+!$$$  subprogram documentation block 
+!                .      .    .
+
+! subprogram:    read_tcphead_ 
+!   prgmmr:      todling 
+! 
+! abstract: Read obs-specific data structure from file. 
+! 
+! program history log: 
+!   2007-10-03  todling 
+!   2008-12-08  todling - update to May08 version 
+! 
+!   input argument list: 
+! 
+!   output argument list: 
+! 
+! attributes: 
+!   language: f90 
+!   machine: 
+! 
+!$$$ end documentation block 
+ 
+    use obsmod, only: tcphead,tcptail 
+    use obsmod, only: tcp_ob_type 
+    use m_obdiag, only: obdiag_locate 
+    use m_obdiag, only: ob_verify 
+    implicit none 
+ 
+    real(r_kind)    :: zres           !  residual 
+    real(r_kind)    :: zerr2          !  error squared 
+    real(r_kind)    :: zraterr2       !  square of ratio of final obs error 
+                                      !  to original obs error 
+    real(r_kind)    :: ztime          !  observation time 
+    real(r_kind)    :: zb             !  variational quality control parameter 
+    real(r_kind)    :: zpg            !  variational quality control parameter 
+    real(r_kind)    :: zppertb        !  random number added to obs 
+    real(r_kind)    :: zwij(4)        !  horizontal interpolation weights 
+    integer(i_kind) :: zij(4)         !  horizontal locations 
+    integer(i_kind) :: zkx            !  observation type 
+    logical         :: zluse          !  flag indicating if ob is used in pen. 
+ 
+    integer(i_kind) :: j,mobs,jread,icount,iostat 
+    logical         :: mymuse    
+    logical         :: passed 
+    type(tcp_ob_type),pointer :: my_node 
+    character(len=*),parameter:: myname_=myname//".read_tcphead_" 
+_ENTRY_(myname_) 
+ 
+!   Read in obs-specific entries 
+!   ----------------------------    
+    read(iunit,iostat=iostat) mobs,jread 
+    if(iostat/=0) call die(myname_,'read(mobs,jread), iostat =',iostat) 
+    if(jj/=jread) then 
+      call perr(myname_,'unmatched ob type, (jj,jread,mobs) =',(/jj,jread,mobs/)) 
+       call stop2(181) 
+    end if 
+    if(kobs<=0.or.mobs<=0) then 
+_EXIT_(myname_) 
+      return 
+    endif 
+ 
+    do kk=1,mobs 
+       if(.not. associated(tcphead(ii)%head))then 
+          allocate(tcphead(ii)%head,stat=ierr) 
+          if(ierr /= 0)write(6,*)' fail to alloc tcphead ' 
+          tcptail(ii)%head => tcphead(ii)%head 
+       else 
+          allocate(tcptail(ii)%head%llpoint,stat=ierr) 
+          if(ierr /= 0)write(6,*)' fail to alloc tcptail%llpoint '
+          tcptail(ii)%head => tcptail(ii)%head%llpoint 
+       end if 
+ 
+       my_node => tcptail(ii)%head 
+       read(iunit,iostat=iostat) my_node%idv,my_node%iob 
+                if(iostat/=0) then 
+                  call die(myname_,'read(idv,iob), (iostat,type,ibin,mobs,iobs) =',(/iostat,jj,ii,mobs,kk/)) 
+                endif 
+       read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,& 
+                                 ztime, zb,       zpg, & 
+                                 zluse, zppertb,  zkx, zwij, zij 
+       if (iostat/=0) then 
+          write(6,*)'read_tcphead_: error reading record',iostat 
+          call stop2(182) 
+       end if 
+       tcptail(ii)%head%res      = zres 
+       tcptail(ii)%head%err2     = zerr2 
+       tcptail(ii)%head%raterr2  = zraterr2 
+       tcptail(ii)%head%time     = ztime 
+       tcptail(ii)%head%b        = zb 
+       tcptail(ii)%head%pg       = zpg 
+       tcptail(ii)%head%wij      = zwij 
+       tcptail(ii)%head%ij       = zij 
+       tcptail(ii)%head%luse     = zluse 
+       tcptail(ii)%head%ppertb   = zppertb 
+       tcptail(ii)%head%kx       = zkx 
+ 
+       if(.not.lobserver) then 
+          my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_) 
+                if(.not.associated(my_node%diags)) then 
+                  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/)) 
+                endif 
+       endif 
+    enddo 
+    if(.not. lobserver) then 
+       passed = ob_verify(tcphead(ii),count=mobs,perr=.true.) 
+       if(.not. passed) then 
+          call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/)) 
+          call stop2(183) 
+       end if 
+    endif 
+_EXIT_(myname_) 
+end subroutine read_tcphead_ 
+
 subroutine read_laghead_ ()
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -2251,5 +2381,150 @@ _EXIT_(myname_)
     endif
 _EXIT_(myname_)
 end subroutine read_laghead_
+
+
+subroutine read_co3lhead_ ()
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_co3lhead_
+!   prgmmr:      tangborn 
+!
+! abstract: Read obs-specific data structure from file.
+!
+! program history log:
+!   2007-10-03  todling
+!   2008-11-25  todling - merged with NCEP-May-2008
+!   2009-01-28  todling - accommodate single level-type data
+!   2010-04-27  tangborn - created carbon monoxide version
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+    use gridmod, only: nsig
+    use obsmod, only: co3lhead,co3ltail
+    use obsmod, only: co3l_ob_type
+    use m_obdiag, only: obdiag_locate
+    use m_obdiag, only: ob_verify
+    implicit none
+
+    real(r_kind),dimension(:),allocatable :: zres      ! residual
+    real(r_kind),dimension(:),allocatable :: zerr2     ! error squared
+    real(r_kind),dimension(:),allocatable :: zraterr2  ! square of ratio of final obs error
+                                                       ! to original obs error
+    real(r_kind),dimension(:,:),allocatable :: zak     ! 
+    real(r_kind),dimension(:)  ,allocatable :: zap     ! 
+    real(r_kind)    :: ztime                           ! observation time
+    real(r_kind)    :: zwij(8,nsig)                    ! horizontal interpolation weights
+    real(r_kind),dimension(:),allocatable :: zprs      ! delta pressure at mid layers at obs locations
+    integer(i_kind),dimension(:),allocatable :: zipos  !
+    integer(i_kind) :: zij(4)                          ! horizontal locations
+    logical         :: zluse                           ! flag indicating if ob is used in pen.
+
+    integer(i_kind) :: j,k,mobs,jread,nlco,nlevp,iostat,icount,istatus
+    logical         :: first,mymuse
+    logical         :: passed
+    type(co3l_ob_type),pointer:: my_node
+    character(len=*),parameter:: myname_=myname//".read_co3lhead_"
+_ENTRY_(myname_)
+
+    read(iunit,iostat=iostat) mobs,jread
+    if(iostat/=0) call die(myname_,'read(mobs,jread), iostat =',iostat)
+    if(  jj/=jread) then
+      call perr(myname_,'unmatched ob type, (jj,jread,mobs) =',(/jj,jread,mobs/))
+       call stop2(212)
+    end if
+    if(kobs<=0.or.mobs<=0) then
+_EXIT_(myname_)
+      return
+    endif
+
+    do kk=1,mobs
+
+       read(iunit,iostat=iostat) nlco
+       nlevp=max(nlco,1)
+       allocate(zres(nlco),zerr2(nlco),zraterr2(nlco), &
+                zprs(nlevp),zipos(nlco),zak(nlco,nlco), zap(nlco), stat=istatus)
+       if (istatus/=0) write(6,*)'read_co3lhead:  allocate error for zco_point, istatus=',istatus
+
+       if(.not. associated(co3lhead(ii)%head))then
+          allocate(co3lhead(ii)%head,stat=ierr)
+          if(ierr /= 0)write(6,*)' fail to alloc co3lhead '
+          co3ltail(ii)%head => co3lhead(ii)%head
+       else
+          allocate(co3ltail(ii)%head%llpoint,stat=ierr)
+          if(ierr /= 0)write(6,*)' fail to alloc co3ltail%llpoint '
+          co3ltail(ii)%head => co3ltail(ii)%head%llpoint
+       end if
+       allocate(co3ltail(ii)%head%res(nlco),co3ltail(ii)%head%diags(nlco), &
+                co3ltail(ii)%head%err2(nlco),co3ltail(ii)%head%raterr2(nlco), &
+                co3ltail(ii)%head%prs(nlevp),co3ltail(ii)%head%ipos(nlco), &
+                co3ltail(ii)%head%wij(8,nsig),&
+                co3ltail(ii)%head%ak(nlco,nlco),co3ltail(ii)%head%ap(nlco),stat=istatus)
+       if (istatus/=0) write(6,*)'read_co3lhead:  allocate error for co_point, istatus=',istatus
+
+       my_node => co3ltail(ii)%head
+       read(iunit,iostat=iostat) my_node%idv,my_node%iob
+                if(iostat/=0) then
+                  call die(myname_,'read(idv,iob), (iostat,type,ibin,mobs,iobs,nlco) =',(/iostat,jj,ii,mobs,kk,nlco/))
+                endif
+       read(iunit,iostat=iostat) zres,  zerr2, zraterr2, ztime, &
+                                 zluse, zwij, zij, zprs, zipos, &
+                                 zak, zap
+       if (iostat/=0) then
+          write(6,*)'read_co3lhead: error reading record',iostat
+          call stop2(213)
+       end if
+       co3ltail(ii)%head%nlco     = nlco
+       co3ltail(ii)%head%time     = ztime
+       co3ltail(ii)%head%luse     = zluse
+       co3ltail(ii)%head%wij      = zwij
+       co3ltail(ii)%head%ij       = zij
+
+       do k=1,nlco
+          co3ltail(ii)%head%res(k)       = zres(k)
+          co3ltail(ii)%head%err2(k)      = zerr2(k)
+          co3ltail(ii)%head%raterr2(k)   = zraterr2(k)
+          co3ltail(ii)%head%ipos(k)      = zipos(k)
+          co3ltail(ii)%head%ap(k)        = zap(k)
+          do j=1,nlco
+             co3ltail(ii)%head%ak(k,j)   = zak(k,j)
+          enddo
+       enddo
+       do k=1,nlevp
+          co3ltail(ii)%head%prs(k)       = zprs(k)
+       enddo
+
+       deallocate(zres,zerr2,zraterr2,zprs,zipos,stat=istatus)
+       if (istatus/=0) write(6,*)'read_co3lhead:  deallocate error for zco_point, istatus=',istatus
+
+       if(.not. lobserver) then
+         do k=1,nlco+1
+           my_node%diags(k)%ptr => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,k,who=myname_)
+                if(.not.associated(my_node%diags(k)%ptr)) then
+                  call die(myname_,'obdiag_located(), '// &
+                    '(type,ibin,mobs,iobs,nlco,idv,iob,ich) =',&
+                    (/jj,ii,mobs,kk,nlco,my_node%idv,my_node%iob,k/))
+                end if
+         enddo
+          endif
+       enddo
+
+    if(.not. lobserver) then
+      passed = ob_verify(co3lhead(ii),count=mobs,perr=.true.)
+        if(.not. passed) then
+          call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
+       call stop2(214)
+    end if
+    endif
+_EXIT_(myname_)
+end subroutine read_co3lhead_
+
 
 end subroutine read_obsdiags

@@ -1,4 +1,4 @@
- subroutine update_geswtend(xut,xvt,xtt,xqt,xozt,xcwt,xpt)
+ subroutine update_geswtend(xhat_dt)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    update_geswtend              add tendency to analysis
@@ -14,6 +14,7 @@
 !   2007-02-15  rancic -  add foto
 !   2008-12-02  todling - separated this routine from update_guess
 !   2010-04-01  treadon - move strip,reorder,reorder2 to gridmod
+!   2010-05-13  todling - udpate to use gsi_bundle; interface via state vector
 !
 !   input argument list:
 !     xut,xvt,xtt,xqt,xozt,xcwt,xpt - tendencies
@@ -38,24 +39,39 @@
        ges_tsen,ges_oz,ges_u,ges_v,&
        nfldsig,hrdifsig
   use compact_diffs, only: uv2vordiv
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
 
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: xut,xvt,xtt,xqt, &
-                                                          xozt,xcwt
-  real(r_kind),dimension(lat2,lon2)     ,intent(in   ) :: xpt
+  type(gsi_bundle),intent(in   ) :: xhat_dt
 
 ! Declare local variables
-  integer(i_kind) i,j,k,it
+  integer(i_kind) i,j,k,it,ier,istatus
   real(r_kind),dimension(lat1,lon1,nsig):: usm,vsm
   real(r_kind),dimension(lat2,lon2,nsig):: dvor_t,ddiv_t
   real(r_kind),dimension(itotsub,nuvlevs):: work1,work2
+  real(r_kind),pointer,dimension(:,:,:) :: xut,xvt,xtt,xqt,xozt,xcwt
+  real(r_kind),pointer,dimension(:,:)   :: xpt
 
 
   real(r_kind) tcon
 
   if (.not.l_foto) return
+
+  ier=0
+  call gsi_bundlegetpointer(xhat_dt,'u', xut, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'v', xvt, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'tv',xtt, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'q', xqt, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'oz',xozt,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'cw',xcwt,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'ps',xpt, istatus);ier=istatus+ier
+  if (ier/=0) then
+     write(6,*) 'update_geswtend: cannot find pointer to do update'
+     call stop2(999) 
+  endif
 
 ! Initialize local arrays
   do k=1,nsig

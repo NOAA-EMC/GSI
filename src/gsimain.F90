@@ -115,6 +115,7 @@
 !			- removed diurnal bias correction implmented by Zhang, B.
 !   2010-03-18  treadon - add comment for return code 330
 !   2010-04-26  kistler - add comment for return code 331
+!   2010-05-27  todling - error codes 127-130 no longer apply (slots emptied)
 !
 ! usage:
 !   input files:
@@ -297,10 +298,10 @@
 !          = 124 - enorm_state: error in ilat
 !          = 125 - evaljo: obscounts not allocated
 !          = 126 - check_bks: troubled vertical coord system
-!          = 127 - geos_pgcmtest: error nstep
-!          = 128 - geos_pgcmtest: error nfrctl
-!          = 129 - geos_pgcmtest: error nfrobs
-!          = 130 - geos_pgcmtest: error ndt
+!          = 127 - 
+!          = 128 - 
+!          = 129 - 
+!          = 130 - 
 !          = 131 - grtest: pdx too small
 !          = 132 - gsi_4dvar: Error in observation binning
 !          = 133 - gsi_4dvar: Error in sub-windows definition
@@ -505,6 +506,7 @@
 !          = 331 - trouble writing analysis errors
 !          = 332 - co2 file i/o error
 !          = 333 - mismatch between variable info file and background error fixed file
+!
 !
 ! remarks: resolution, unit numbers and several constants are
 !          in the input data cards

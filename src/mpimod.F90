@@ -71,6 +71,8 @@ module mpimod
 !   2010-04-01  treadon - remove routines reorder, reorder2, strip_single, strip,
 !                         vectosub, reload, and strip_periodic from mpimod - these
 !                         routines are now found in gridmod
+!   2010-05-23  todling - nvarbal_id no longer wired to 1,2,3,4, rather linked
+!                         to where fields are in control vector
 !
 ! !REMARKS:
 !
@@ -152,12 +154,8 @@ module mpimod
                                              !    8: cloud water
                                              !    9: land skin temperature
                                              !   10: sfc ice temperature
-  integer(i_kind),allocatable,dimension(:):: nvarbal_id ! variable id for each level 
-                                             !   of the nsig1o slabs:
-                                             !    1: streamfunction
-                                             !    2: velocity potential
-                                             !    3: pressure
-                                             !    4: temperature
+  integer(i_kind),allocatable,dimension(:):: nvarbal_id ! id used nsig1o levels to 
+                                             !  indicate variables used in balance operator
   integer(i_kind),allocatable,dimension(:,:):: nvar_pe ! pe where each var is kept
   integer(i_kind),allocatable,dimension(:):: ku_gs,kv_gs,kp_gs,kt_gs  ! pointers for balanced level reordering
   integer(i_kind),allocatable,dimension(:):: lu_gs,lv_gs              ! pointers for balanced level reordering
@@ -239,7 +237,7 @@ contains
     integer(i_kind),intent(in   ) :: nrf     ! no. of control variables
     integer(i_kind),intent(in   ) :: nvars   ! no. of variables
     integer(i_kind),intent(in   ) :: vlevs   ! total number of levels*variables
-    logical,dimension(nrf),intent(in):: nrf_3d
+    logical,dimension(nrf),intent(in):: nrf_3d ! when .t., indicates 3d variable
 
 ! !OUTPUT PARAMETERS:
 

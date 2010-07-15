@@ -13,6 +13,7 @@ module stplimqmod
 !   2005-11-22  Wu - return in factq's are zero
 !   2008-12-02  Todling - remove stpqlimq_tl
 !   2009-08-12  lueken - update documentation
+!   2010-05-13  todling - uniform interface across stp routines
 !
 ! subroutines included:
 !   sub stplimq
@@ -31,45 +32,7 @@ PUBLIC stplimq
 
 contains
  
-subroutine stplimq(rq,sq,sges,outmin,outmax,nstep)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stplimq     calculate penalty and stepsize for limit of q 
-!   prgmmr: todling           org: np23                date: 2007-12-02
-!
-! abstract: interface to the actual stplimq
-!
-! program history log:
-!   2008-12-02  todling - adapted interface for state vector convenience
-!   2009-08-12  lueken  - update documentation
-!
-!   input argument list:
-!    sges
-!    rq,sq
-!
-!   output argument list:
-!    outmin,outmax
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$
-  use kinds, only: r_kind,r_quad,i_kind
-  use gridmod, only: lat2,lon2,nsig
-  implicit none
-
-! Declare passed variables
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(max(1,nstep)),intent(  out) :: outmin,outmax
-  real(r_kind),dimension(lat2*lon2*nsig) ,intent(in   ) :: rq,sq
-
-  call stplimq_(rq,sq,sges,outmin,outmax,nstep)
-
-end subroutine stplimq
- 
-subroutine stplimq_(rq,sq,sges,outmin,outmax,nstep)
+subroutine stplimq(rval,sval,sges,outmin,outmax,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stplimq     calculate penalty and stepsize for limit of q 
@@ -89,6 +52,8 @@ subroutine stplimq_(rq,sq,sges,outmin,outmax,nstep)
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-08-14  derber  - optimize
+!   2010-05-13  todling - update to use gsi_bundle
+!   2010-07-10  todling - merge w/ r8741 (trunk); qx(:)->qx (who made the change?)
 !
 !   input argument list:
 !     rq       - search direction                               
@@ -109,21 +74,31 @@ subroutine stplimq_(rq,sq,sges,outmin,outmax,nstep)
   use constants, only: zero,two,one,half,zero_quad
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
   use jfunc, only: factqmin,factqmax,qgues,qsatg
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                        ,intent(in   ) :: nstep
+  integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
   real(r_quad),dimension(max(1,nstep)),intent(  out) :: outmin,outmax
-  real(r_kind),dimension(lat2,lon2,nsig) ,intent(in   ) :: rq,sq
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk
+  integer(i_kind) i,j,k,kk,ier,istatus
   real(r_kind) q,qx
+  real(r_kind),pointer,dimension(:,:,:) :: rq,sq
   
   outmin=zero_quad; outmax=zero_quad
 
   if (factqmin==zero .and. factqmax==zero) return
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'q',sq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=istatus+ier
+  if(ier/=0)return
 
 ! Loop over interior of subdomain          
   if(nstep > 0)then
@@ -170,6 +145,6 @@ subroutine stplimq_(rq,sq,sges,outmin,outmax,nstep)
      outmax(kk)=outmax(kk)-outmax(1)
   end do
   return
-end subroutine stplimq_
+end subroutine stplimq
 
 end module stplimqmod

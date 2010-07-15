@@ -52,6 +52,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2009-04-21  derber  - add ithin to call to makegrids
 !   2009-3-05   h.liu   - read in OMI bufr, QC GOME2 and OMI
 !   2009-7-02   h.liu   - toss the OMI data with AFBO=3 (c-pair correction) and clean up codes
+!   2010-05-26  treadon - add timedif=zero for l4dvar (used in thinning)
+!   2010-06-02  sienkiewicz - care for closing bufr other than for o3lev
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -495,7 +497,11 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    thin GOME data
 !    GOME data has bias when the satellite looks to the east. Consider QC out this data.
 
-     timedif = r6*abs(tdiff)        ! range:  0 to 18
+     if (l4dvar) then 
+        timedif = zero 
+     else 
+        timedif = r6*abs(tdiff)        ! range:  0 to 18 
+     endif 
      crit1 = 0.01_r_kind+timedif
      call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
      if(.not. iuse) goto 120
@@ -644,7 +650,11 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 !    thin OMI data
 
-     timedif = r6*abs(tdiff)        ! range:  0 to 18
+     if (l4dvar) then 
+        timedif = zero 
+     else 
+        timedif = r6*abs(tdiff)        ! range:  0 to 18 
+     endif 
      crit1 = 0.01_r_kind+timedif
      call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
      if(.not. iuse)go to 130
@@ -678,16 +688,31 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! End of OMI block
 
-  else if (obstype == 'mlsoz') then
+  else if (obstype == 'o3lev') then
 
      nreal = 15_i_kind
      nchanl = izero
      nozdat = nreal+nchanl
      allocate (ozout(nozdat,maxobs))
 
-     itype = 304_i_kind
-     if (sis == 'mls_aura_ozpc') itype = 303_i_kind
+     select case (sis)
+        case('mls_aura_ozpc')
+           itype = 303
+        case('mls_aura_ozlv')
+           itype = 304
+        case('saber_timed_ozlv')
+           itype = 305
+        case('lims_nb7_ozlv')
+           itype = 306
+        case default
+           write(6,*) 'READ_OZONE: unknown SIS ',trim(sis),          &
+             ', using type=302'
+           itype = 302
+     end select
+!_RT     itype = 304_i_kind
+!_RT     if (sis == 'mls_aura_ozpc') itype = 303_i_kind
 
+     ikx = 0
      do i=1,nconvtype
         if( trim(ioctype(i)) == 'o3lev' .and. itype == ictype(i)  &
              .and. abs(icuse(i))== 1) ikx=i
@@ -696,6 +721,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      if (ikx == izero) then
         write(6,*)'READ_OZONE: ozone type ',itype,&
              ' not found or flagged for non-use'
+        return
 
      else  ! obs type to be used
 
@@ -768,9 +794,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
            pob = log(pres * one_tenth)
         
-! use 'precision' as obs error if itype equals 303
+! use 'precision' as obs error if sis is 'mls_aura_ozpc'
 ! (needed a way to switch for testing)
-           if (itype == 303_i_kind) obserr = prec
+           if (sis == 'mls_aura_ozpc') obserr = prec
            
            ndata=ndata+ione
            nodata = nodata + ione      
@@ -829,7 +855,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! Close unit to input data file
 170 continue
-  call closbf(lunin)
+  if (obstype .ne. 'o3lev') call closbf(lunin)
   close(lunin)
 
 ! Deallocate satthin arrays

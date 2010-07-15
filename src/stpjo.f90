@@ -129,6 +129,9 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   2009-01-08  todling - remove reference to ozohead
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-03-25  zhu     - change the interfaces of stprad,stpt,stppcp;add nrf* conditions 
+!   2010-05-13  todling - harmonized all stp interfaces to use state vector; gsi_bundle use
+!   2010-06-14  todling - add stpco call 
+!   2010-07-10  todling - somebody reordered calls to stpw, stpq, and stpoz - any reason?
 !
 !   input argument list:
 !     yobs
@@ -144,23 +147,25 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !
 !
 ! remarks:
-!     The part of xhat and dirx containing temps and psfc are values before strong initialization,
+!  1. The part of xhat and dirx containing temps and psfc are values before strong initialization,
 !     xhatt, xhatp and dirxt, dirxp contain temps and psfc after strong initialization.
 !     If strong initialization is turned off, then xhatt, etc are equal to the corresponding 
 !     fields in xhat, dirx.
 !     xhatuv, xhat_t and dirxuv, dirx_t are all after
 !     strong initialization if it is turned on.
-!
+!  2. Notice that now (2010-05-13) stp routines handle non-essential variables
+!     internally; also, when pointers non-existent, stp routines simply return.
+!     
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_quad
+  use kinds, only: i_kind,r_kind,r_quad
   use obsmod, only: obs_handle, &
                   & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
-                  & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, &
+                  & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, i_co3l_ob_type, &
                   & i_gps_ob_type, i_rad_ob_type, i_pcp_ob_type,i_tcp_ob_type, &
                     nobs_type
   use stptmod, only: stpt
@@ -179,16 +184,16 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
   use stpdwmod, only: stpdw
   use stppcpmod, only: stppcp
   use stpozmod, only: stpoz
-  use control_vectors, only: nrf3_oz,nrf2_sst
-  use bias_predictors
-  use state_vectors
+  use stpcomod, only: stpco
+  use bias_predictors, only: predictors
+  use gsi_bundlemod, only: gsi_bundle
   implicit none
 
 ! Declare passed variables
   type(obs_handle)                    ,intent(in   ) :: yobs
-  type(state_vector)                  ,intent(in   ) :: dval
+  type(gsi_bundle)                    ,intent(in   ) :: dval
   type(predictors)                    ,intent(in   ) :: dbias
-  type(state_vector)                  ,intent(in   ) :: xval
+  type(gsi_bundle)                    ,intent(in   ) :: xval
   type(predictors)                    ,intent(in   ) :: xbias
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
@@ -208,53 +213,66 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   penalty, b, and c for temperature
     call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep) 
 
+!$omp section
 !   penalty, b, and c for winds
-    call stpw(yobs%w,dval%u,dval%v,xval%u,xval%v,pbcjo(1,i_w_ob_type),sges,nstep)
+    call stpw(yobs%w,dval,xval,pbcjo(1,i_w_ob_type),sges,nstep)
+
+!$omp section
 !   penalty, b, and c for precipitable water
-    call stppw(yobs%pw,dval%q,xval%q,pbcjo(1,i_pw_ob_type),sges,nstep)
+    call stppw(yobs%pw,dval,xval,pbcjo(1,i_pw_ob_type),sges,nstep)
 
+!$omp section
+!   penalty, b, and c for ozone
+    call stpco(yobs%co3l,dval,xval,pbcjo(1,i_co3l_ob_type),sges,nstep)
+
+!$omp section
 !   penalty, b, and c for wind lidar
-    call stpdw(yobs%dw,dval%u,dval%v,xval%u,xval%v, &
-               pbcjo(1,i_dw_ob_type),sges,nstep) 
+    call stpdw(yobs%dw,dval,xval,pbcjo(1,i_dw_ob_type),sges,nstep) 
 
+!$omp section
 !   penalty, b, and c for radar
-    call stprw(yobs%rw,dval%u,dval%v,xval%u,xval%v, &
-               pbcjo(1,i_rw_ob_type),sges,nstep) 
+    call stprw(yobs%rw,dval,xval,pbcjo(1,i_rw_ob_type),sges,nstep) 
 
 !$omp section
 !   penalty, b, and c for moisture
-    call stpq(yobs%q,dval%q,xval%q,pbcjo(1,i_q_ob_type),sges,nstep)
+    call stpq(yobs%q,dval,xval,pbcjo(1,i_q_ob_type),sges,nstep)
 
+!$omp section
 !   penalty, b, and c for ozone
-    if (nrf3_oz>0) call stpoz(yobs%oz,yobs%o3l,dval%oz,xval%oz,pbcjo(1,i_oz_ob_type),sges,nstep)
+    call stpoz(yobs%oz,yobs%o3l,dval,xval,pbcjo(1,i_oz_ob_type),sges,nstep)
 
-!   penalty, b, and c for GPS local observation
-    call stpgps(yobs%gps,dval%t,dval%q,dval%p3d,xval%t,xval%q,xval%p3d,&
-         pbcjo(1,i_gps_ob_type),sges,nstep) 
-
+!$omp section
 !   penalty, b, and c for radar superob wind
-    call stpsrw(yobs%srw,dval%u,dval%v,xval%u,xval%v, &
-                pbcjo(1,i_srw_ob_type),sges,nstep)
+    call stpsrw(yobs%srw,dval,xval,pbcjo(1,i_srw_ob_type),sges,nstep)
 
+!$omp section
+!   penalty, b, and c for GPS local observation
+    call stpgps(yobs%gps,dval,xval,pbcjo(1,i_gps_ob_type),sges,nstep) 
+
+!$omp section
 !   penalty, b, and c for conventional sst
-    if (nrf2_sst>0) call stpsst(yobs%sst,dval%sst,xval%sst,pbcjo(1,i_sst_ob_type),sges,nstep)
+    call stpsst(yobs%sst,dval,xval,pbcjo(1,i_sst_ob_type),sges,nstep)
 
 !$omp section
 !   penalty, b, and c for wind speed
-    call stpspd(yobs%spd,dval%u,dval%v,xval%u,xval%v, &
-                pbcjo(1,i_spd_ob_type),sges,nstep) 
+    call stpspd(yobs%spd,dval,xval,pbcjo(1,i_spd_ob_type),sges,nstep) 
 
+!$omp section
 !   penalty, b, and c for precipitation
     call stppcp(yobs%pcp,dval,xval,pbcjo(1,i_pcp_ob_type),sges,nstep)
 
+!$omp section
 !   penalty, b, and c for surface pressure
-    call stpps(yobs%ps,dval%p3d,xval%p3d,pbcjo(1,i_ps_ob_type),sges,nstep)
+    call stpps(yobs%ps,dval,xval,pbcjo(1,i_ps_ob_type),sges,nstep)
 
+!$omp section
 !   penalty, b, and c for MSLP TC obs
-    call stptcp(yobs%tcp,dval%p3d,xval%p3d,pbcjo(1,i_tcp_ob_type),sges,nstep)
+    call stptcp(yobs%tcp,dval,xval,pbcjo(1,i_tcp_ob_type),sges,nstep)
 
+
+!_$omp section
 !   penalty, b, and c for clouds
-!   call stpcld(dirx(nq),xhat(nq),dirx(ncw),xhat(ncw),pbcjo(:,i_cld_ob_type),sges,nstep)
+!   call stpcld(dval,xhat,pbcjo(:,i_cld_ob_type),sges,nstep)
 
 !$omp end parallel sections
 

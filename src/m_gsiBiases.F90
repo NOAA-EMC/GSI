@@ -1,3 +1,28 @@
+module m_gsiBiases
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 module m_gsiBiases
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:	 2010-03-24
+!
+! abstract: background bias estimation/correction
+!
+! program history log:
+!   2010-03-24  j guo   - added this document block
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
+! module interface:
+
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !    &    NASA/GMAO, Global Modeling and Assimilation Office             !
@@ -8,8 +33,6 @@
 !
 ! !INTERFACE:
 !
-
-module m_gsiBiases
 
 ! !USES:
 
@@ -628,11 +651,12 @@ end subroutine updateall_
 subroutine update_st(xhat,xhat_div,xhat_vor,hour)
 
   use gridmod, only: lat2,lon2,nsig
-  use state_vectors
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
 
   implicit none
 
-  type(state_vector)           ,intent(in   ) :: xhat
+  type(gsi_bundle)             ,intent(in   ) :: xhat
   real(r_kind),dimension(:,:,:),intent(in   ) :: xhat_vor,xhat_div
   integer(i_kind),optional     ,intent(in   ) :: hour
 
@@ -641,6 +665,7 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
 ! !REVISION HISTORY:
 !
 !   2007-04-13  tremolet - initial code
+!   2010-05-13  todling  - update to use gsi_bundle (not fully up-to-date)
 !
 ! !REMARKS:
 !   language: f90
@@ -648,17 +673,40 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
 !
 !EOP
 !-------------------------------------------------------------------------
+
+   character(len=*),parameter::myname_='update_st'
+   integer(i_kind) ier,istatus
+   real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
+   real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_oz,sv_cw
+
+!  Get pointers to require state variables
+   ier=0
+   call gsi_bundlegetpointer (xhat,'u'   ,sv_u,   istatus); ier=istatus+ier
+   call gsi_bundlegetpointer (xhat,'v'   ,sv_v,   istatus); ier=istatus+ier
+   call gsi_bundlegetpointer (xhat,'tv'  ,sv_tv,  istatus); ier=istatus+ier
+   call gsi_bundlegetpointer (xhat,'q'   ,sv_q ,  istatus); ier=istatus+ier
+   call gsi_bundlegetpointer (xhat,'oz'  ,sv_oz , istatus); ier=istatus+ier
+   call gsi_bundlegetpointer (xhat,'cw'  ,sv_cw , istatus); ier=istatus+ier
+   call gsi_bundlegetpointer (xhat,'ps'  ,sv_ps,  istatus); ier=istatus+ier
+!  call gsi_bundlegetpointer (xhat,'p3d' ,sv_p3d, istatus); ier=istatus+ier
+!  call gsi_bundlegetpointer (xhat,'tsen',sv_tsen,istatus); ier=istatus+ier
+   call gsi_bundlegetpointer (xhat,'sst' ,sv_sst, istatus); ier=istatus+ier
+   if(ier/=0) then
+      write(6,*) trim(myname_), ': trouble getting SV pointers, ier=',ier
+      call stop2(999)
+   endif
+
  
-  call update3d_  (bias_u    ,lat2,lon2,nsig,xhat%u  ,hour)
-  call update3d_  (bias_v    ,lat2,lon2,nsig,xhat%v  ,hour)
-  call update3d_  (bias_tv   ,lat2,lon2,nsig,xhat%t  ,hour)
-  call update3d_  (bias_q    ,lat2,lon2,nsig,xhat%q  ,hour)
-  call update3d_  (bias_oz   ,lat2,lon2,nsig,xhat%oz ,hour)
-  call update3d_  (bias_cwmr ,lat2,lon2,nsig,xhat%cw ,hour)
+  call update3d_  (bias_u    ,lat2,lon2,nsig,sv_u    ,hour)
+  call update3d_  (bias_v    ,lat2,lon2,nsig,sv_v    ,hour)
+  call update3d_  (bias_tv   ,lat2,lon2,nsig,sv_tv   ,hour)
+  call update3d_  (bias_q    ,lat2,lon2,nsig,sv_q    ,hour)
+  call update3d_  (bias_oz   ,lat2,lon2,nsig,sv_oz   ,hour)
+  call update3d_  (bias_cwmr ,lat2,lon2,nsig,sv_cw   ,hour)
   call update3d3d_(bias_vor  ,               xhat_div,hour)
   call update3d3d_(bias_div  ,               xhat_vor,hour)
-  call update2d_  (bias_ps   ,lat2,lon2     ,xhat%p  ,hour)
-  call update2d_  (bias_tskin,lat2,lon2     ,xhat%sst,hour)
+  call update2d_  (bias_ps   ,lat2,lon2     ,sv_ps   ,hour)
+  call update2d_  (bias_tskin,lat2,lon2     ,sv_sst  ,hour)
 
 end subroutine update_st
 

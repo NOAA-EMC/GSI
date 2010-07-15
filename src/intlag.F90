@@ -28,7 +28,7 @@ PUBLIC intlag
 
 contains
 
-subroutine intlag(laghead,ru,rv,su,sv,obsbin)
+subroutine intlag(laghead,rval,sval,obsbin)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intlag      apply nonlin qc obs operator for conv. lag
@@ -39,6 +39,7 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
 !
 ! program history log:
 !   2009-03-23  meunier
+!   2010-05-13  todling - update to use gsi_bundle; interface change
 !
 !   input argument list:
 !     laghead - obs type pointer to appropriate obs structure
@@ -61,6 +62,8 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
   use qcmod, only: nlnqc_iter
   use gridmod, only: latlon1n,iglobal
   use jfunc, only: jiter
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
 
   use lag_fields, only: lag_gather_stateuv,lag_ADscatter_stateuv
   use lag_fields, only: lag_u_full,lag_v_full,lag_uv_alloc,lag_uv_fill
@@ -73,10 +76,10 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
   implicit none
 
 ! Declare passed variables
-  type(lag_ob_type),pointer       ,intent(in   ) :: laghead
-  real(r_kind),dimension(latlon1n),intent(in   ) :: su,sv
-  real(r_kind),dimension(latlon1n),intent(inout) :: ru,rv
-  integer(i_kind)                 ,intent(in   ) :: obsbin
+  type(lag_ob_type),pointer,intent(in   ) :: laghead
+  type(gsi_bundle),         intent(in   ) :: sval
+  type(gsi_bundle),         intent(inout) :: rval
+  integer(i_kind),          intent(in   ) :: obsbin
 
 ! Print level
   integer(i_kind),parameter::iv_debug = izero
@@ -85,13 +88,24 @@ subroutine intlag(laghead,ru,rv,su,sv,obsbin)
   real(r_kind) cg_lag,p0,wnotgross,wgross
   real(r_kind) lon_tl,lat_tl,p_tl
   real(r_kind) grad_lon,grad_lat,grad_p
+  real(r_kind),pointer,dimension(:) :: su,sv
+  real(r_kind),pointer,dimension(:) :: ru,rv
   type(lag_ob_type), pointer :: lagptr
-  integer(i_kind) i,j
+  integer(i_kind) i,j,ier,istatus
 
   real(r_kind),dimension(:,:),allocatable:: adu_tmp,adv_tmp
 
   ! If no balloons at all exit (save time)
   if (ntotal_orig_lag==izero) return
+
+  ! Retrieve pointers
+  ! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
+  if(ier/=0)return
 
   ! Gather the wind fields if not already done
   if (.not.lag_uv_alloc) then

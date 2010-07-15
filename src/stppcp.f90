@@ -12,6 +12,7 @@ module stppcpmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stppcp_tl
 !   2009-08-12  lueken - update documentation
+!   2010-05-13  todling - uniform interface across stp routines
 !
 ! subroutines included:
 !   sub stppcp
@@ -60,6 +61,8 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-03-25  zhu     - use state_vector in the interface;
 !                       - add handlings of cw case; add pointer_state
+!   2010-05-13 todling   - update to use gsi_bundle
+!                        - on-the-spot handling of non-essential vars
 !
 !   input argument list:
 !     pcphead
@@ -91,9 +94,9 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11,nsig,latlon1n
   use gsi_4dvar, only: ltlint
-  use jfunc, only: l_foto,xhat_dt,dhat_dt,pointer_state
-  use control_vectors, only: nrf3_cw
-  use state_vectors
+  use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
@@ -101,11 +104,11 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
-  type(state_vector)                  ,intent(in   ) :: dval
-  type(state_vector)                  ,intent(in   ) :: xval
+  type(gsi_bundle),intent(in) :: dval
+  type(gsi_bundle),intent(in) :: xval
 
 ! Declare local variables
-  integer(i_kind) n,ncwm,nq,nt,nu,nv,kx
+  integer(i_kind) n,ncwm,nq,nt,nu,nv,kx,ier,istatus,icw
   integer(i_kind) i,j1,j2,j3,j4,kk
   real(r_kind) dt,dt0,w1,w2,w3,w4,time_pcp
   real(r_kind) dq,dq0
@@ -117,13 +120,43 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   real(r_kind) cg_pcp,wgross,wnotgross
   type(pcp_ob_type), pointer :: pcpptr
   real(r_kind),pointer,dimension(:):: rt,st,rq,sq,ru,su,rv,sv,rcwm,scwm
+  real(r_kind),pointer,dimension(:):: xhat_dt_tsen,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_cw
+  real(r_kind),pointer,dimension(:):: dhat_dt_tsen,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_cw
 
 ! Initialize penalty, b1, and b3 to zero  
   out=zero_quad
 
-! prepare pointers
-  call pointer_state(xval,tsen=st,q=sq,u=su,v=sv,cw=scwm)
-  call pointer_state(dval,tsen=rt,q=rq,u=ru,v=rv,cw=rcwm)
+! Retrieve pointers
+  ier=0; icw=0
+  call gsi_bundlegetpointer(xval,'u',    su,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'v',    sv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'tsen' ,st,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'q',    sq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'cw', scwm,istatus);icw=istatus+icw
+  if(ier/=0)return
+
+  call gsi_bundlegetpointer(dval,'u',    ru,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'v',    rv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'tsen' ,rt,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'q',    rq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'cw', rcwm,istatus);icw=istatus+icw
+  if(ier/=0)return
+
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'u',      xhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'v',      xhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'q',      xhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'cw',    xhat_dt_cw,istatus);icw=istatus+icw
+     if(ier/=0)return
+
+     call gsi_bundlegetpointer(dhat_dt,'u',      dhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'v',      dhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'tsen',dhat_dt_tsen,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'q',      dhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'cw',    dhat_dt_cw,istatus);icw=istatus+icw
+     if(ier/=0)return
+  endif
 
 ! Loop over number of observations.
   pcpptr => pcphead
@@ -148,7 +181,7 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
               dq  =w1*   sq(j1)+w2*   sq(j2)+ w3*   sq(j3)+w4*   sq(j4)
               du  =w1*   su(j1)+w2*   su(j2)+ w3*   su(j3)+w4*   su(j4)
               dv  =w1*   sv(j1)+w2*   sv(j2)+ w3*   sv(j3)+w4*   sv(j4)
-              if (nrf3_cw>0) then
+              if (icw==0) then
                  dcwm=w1* scwm(j1)+w2* scwm(j2)+ w3* scwm(j3)+w4* scwm(j4)
               else
                  dcwm=zero
@@ -158,35 +191,35 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
               dq0  =w1*   rq(j1)+w2*   rq(j2)+ w3*   rq(j3)+w4*   rq(j4)
               du0  =w1*   ru(j1)+w2*   ru(j2)+ w3*   ru(j3)+w4*   ru(j4)
               dv0  =w1*   rv(j1)+w2*   rv(j2)+ w3*   rv(j3)+w4*   rv(j4)
-              if (nrf3_cw>0) then
+              if (icw==0) then
                  dcwm0=w1* rcwm(j1)+w2* rcwm(j2)+ w3* rcwm(j3)+w4* rcwm(j4)
               else
                  dcwm0=zero
               end if
               if(l_foto) then
                  time_pcp=pcpptr%time*r3600
-                 dt=dt+(w1*  xhat_dt%tsen(j1)+w2*  xhat_dt%tsen(j2)+ &
-                        w3*  xhat_dt%tsen(j3)+w4*  xhat_dt%tsen(j4))*time_pcp
-                 dq=dq+(w1*  xhat_dt%q(j1)+w2*  xhat_dt%q(j2)+ &
-                        w3*  xhat_dt%q(j3)+w4*  xhat_dt%q(j4))*time_pcp
-                 du=du+(w1*  xhat_dt%u(j1)+w2*  xhat_dt%u(j2)+ &
-                        w3*  xhat_dt%u(j3)+w4*  xhat_dt%u(j4))*time_pcp
-                 dv=dv+(w1*  xhat_dt%v(j1)+w2*  xhat_dt%v(j2)+ &
-                        w3*  xhat_dt%v(j3)+w4*  xhat_dt%v(j4))*time_pcp
-                 if (nrf3_cw>0) &
-                 dcwm=dcwm+(w1*xhat_dt%cw(j1)+w2*xhat_dt%cw(j2)+ &
-                            w3*xhat_dt%cw(j3)+w4*xhat_dt%cw(j4))*time_pcp
-                 dt0=dt0+(w1*  dhat_dt%tsen(j1)+w2*  dhat_dt%tsen(j2)+  &
-                          w3*  dhat_dt%tsen(j3)+w4*  dhat_dt%tsen(j4))*time_pcp
-                 dq0=dq0+(w1*  dhat_dt%q(j1)+w2*  dhat_dt%q(j2)+  &
-                          w3*  dhat_dt%q(j3)+w4*  dhat_dt%q(j4))*time_pcp
-                 du0=du0+(w1*  dhat_dt%u(j1)+w2*  dhat_dt%u(j2)+  &
-                          w3*  dhat_dt%u(j3)+w4*  dhat_dt%u(j4))*time_pcp
-                 dv0=dv0+(w1*  dhat_dt%v(j1)+w2*  dhat_dt%v(j2)+  &
-                          w3*  dhat_dt%v(j3)+w4*  dhat_dt%v(j4))*time_pcp
-                 if (nrf3_cw>0) &
-                 dcwm0=dcwm0+(w1*dhat_dt%cw(j1)+w2*dhat_dt%cw(j2)+ &
-                              w3*dhat_dt%cw(j3)+w4*dhat_dt%cw(j4))*time_pcp
+                 dt=dt+(w1*  xhat_dt_tsen(j1)+w2*  xhat_dt_tsen(j2)+ &
+                        w3*  xhat_dt_tsen(j3)+w4*  xhat_dt_tsen(j4))*time_pcp
+                 dq=dq+(w1*  xhat_dt_q(j1)+w2*  xhat_dt_q(j2)+ &
+                        w3*  xhat_dt_q(j3)+w4*  xhat_dt_q(j4))*time_pcp
+                 du=du+(w1*  xhat_dt_u(j1)+w2*  xhat_dt_u(j2)+ &
+                        w3*  xhat_dt_u(j3)+w4*  xhat_dt_u(j4))*time_pcp
+                 dv=dv+(w1*  xhat_dt_v(j1)+w2*  xhat_dt_v(j2)+ &
+                        w3*  xhat_dt_v(j3)+w4*  xhat_dt_v(j4))*time_pcp
+                 if (icw==0) &
+                 dcwm=dcwm+(w1*xhat_dt_cw(j1)+w2*xhat_dt_cw(j2)+ &
+                            w3*xhat_dt_cw(j3)+w4*xhat_dt_cw(j4))*time_pcp
+                 dt0=dt0+(w1*  dhat_dt_tsen(j1)+w2*  dhat_dt_tsen(j2)+  &
+                          w3*  dhat_dt_tsen(j3)+w4*  dhat_dt_tsen(j4))*time_pcp
+                 dq0=dq0+(w1*  dhat_dt_q(j1)+w2*  dhat_dt_q(j2)+  &
+                          w3*  dhat_dt_q(j3)+w4*  dhat_dt_q(j4))*time_pcp
+                 du0=du0+(w1*  dhat_dt_u(j1)+w2*  dhat_dt_u(j2)+  &
+                          w3*  dhat_dt_u(j3)+w4*  dhat_dt_u(j4))*time_pcp
+                 dv0=dv0+(w1*  dhat_dt_v(j1)+w2*  dhat_dt_v(j2)+  &
+                          w3*  dhat_dt_v(j3)+w4*  dhat_dt_v(j4))*time_pcp
+                 if (icw==0) &
+                 dcwm0=dcwm0+(w1*dhat_dt_cw(j1)+w2*dhat_dt_cw(j2)+ &
+                              w3*dhat_dt_cw(j3)+w4*dhat_dt_cw(j4))*time_pcp
               end if
         
               nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig

@@ -13,22 +13,15 @@ module timermod
 !   2009-08-13  lueken - update documentation
 !
 ! subroutines included:
-!   sub init_
-!   sub final_
-!   sub flush_
+!   sub timer_ini
+!   sub timer_fnl
+!   sub timer_pri
 !
 ! attributes:
 !   language: f90
 !   machine:
 !
 !$$$ end documentation block
-
-use kinds, only : i_kind
-#ifdef GEOS_PERT
-use m_zeit, only : zeit_ci
-use m_zeit, only : zeit_co
-use m_zeit, only : zeit_flush
-#endif /* GEOS_PERT */
 
 implicit none
 
@@ -38,106 +31,26 @@ public timer_ini
 public timer_fnl
 public timer_pri
 
-interface timer_ini; module procedure &
-          init_
-end interface
-interface timer_fnl; module procedure &
-          final_
-end interface
-interface timer_pri; module procedure &
-          flush_
+interface timer_ini
+  subroutine timer_init_ (str)
+  implicit none
+  character(len=*),intent(in   ) :: str
+  end subroutine timer_init_
 end interface
 
-contains
+interface timer_fnl
+  subroutine timer_final_ (str)
+  implicit none
+  character(len=*),intent(in   ) :: str
+  end subroutine timer_final_
+end interface
 
-subroutine init_ (str)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    init_       initialize procedure timing
-!
-!   prgmmr: todling          org: gmao                date: 2007-10-01
-!
-! abstract: initializes timer
-!
-! program history log:
-!   2007-10-01  todling
-!
-!   input argument list:
-!     str - string designation for process to be timed
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-implicit none
-character(len=*),intent(in   ) :: str
-#ifdef GEOS_PERT
-call zeit_ci(str)
-#endif /* GEOS_PERT */
-end subroutine init_
-
-subroutine final_ (str)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    final_       finalize procedure timing
-!
-!   prgmmr: todling          org: gmao                date: 2007-10-01
-!
-! abstract: finalize timer
-!
-! program history log:
-!   2007-10-01  todling
-!
-!   input argument list:
-!     str - string designation for process timed
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-implicit none
-character(len=*),intent(in   ) :: str
-#ifdef GEOS_PERT
-call zeit_co(str)
-#endif /* GEOS_PERT */
-end subroutine final_
-
-subroutine flush_ (lu)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    flush_       summarizes timing results
-!
-!   prgmmr: todling          org: gmao                date: 2007-10-01
-!
-! abstract: summary of timing results
-!
-! program history log:
-!   2007-10-01  todling
-!
-!   input argument list:
-!     str - string designation for process timed
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-implicit none
-integer(i_kind),intent(in   ) :: lu
-#ifdef GEOS_PERT
-call zeit_flush(lu)
-#endif /* GEOS_PERT */
-end subroutine flush_
+interface timer_pri
+  subroutine timer_pri_ (lu)
+  use kinds, only : i_kind
+  implicit none
+  integer(i_kind),intent(in   ) :: lu
+  end subroutine timer_pri_
+end interface
 
 end module timermod

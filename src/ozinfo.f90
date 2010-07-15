@@ -42,7 +42,6 @@ module ozinfo
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione
   implicit none
 
 ! set default to private
@@ -53,12 +52,15 @@ module ozinfo
 ! set passed variables to pubic
   public :: jpch_oz,diag_ozone,nusis_oz,iuse_oz,b_oz,pg_oz,gross_oz
   public :: error_oz,pob_oz,mype_oz,nulev
+  public :: ihave_oz
 
   logical diag_ozone
   integer(i_kind) mype_oz,jpch_oz
   real(r_kind),allocatable,dimension(:)::pob_oz,gross_oz,error_oz,pg_oz,b_oz
   integer(i_kind),allocatable,dimension(:):: nulev,iuse_oz
   character(len=20),allocatable,dimension(:):: nusis_oz
+
+  logical :: ihave_oz
 
 contains
   
@@ -75,6 +77,7 @@ contains
 !   2004-04-10  treadon
 !   2004-06-16  treadon, documentation
 !   2005-07-28  treadon - increase jpch_oz from 52 to 53 (add omi data)
+!   2010-05-29  todling - check existence in state vector (viz., guess)
 !
 !   input argument list:
 !
@@ -85,17 +88,20 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use mpimod, only: npe                  ! contains the number of mpi tasks, variable "npe"
+    use mpimod, only: npe              ! contains the number of mpi tasks, variable "npe"
+    use state_vectors, only: svars3d
+    use mpeu_util, only: getindex
     implicit none
 
-    jpch_oz = izero                        ! number of enteries read from ozinfo
-    diag_ozone = .true.                    ! default is to generate ozone diagnostic file
-    mype_oz     = max(izero,npe-6_i_kind)  ! mpi task to write ozone summary report
+    jpch_oz = 0                        ! number of enteries read from ozinfo
+    diag_ozone = .true.                ! default is to generate ozone diagnostic file
+    mype_oz     = max(0,npe-6)         ! mpi task to write ozone summary report
+    ihave_oz=(getindex(svars3d,'oz')>0)! .t. when OZ present in state-vector
 
   end subroutine init_oz
   
 
-  subroutine ozinfo_read(mype)
+  subroutine ozinfo_read
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ozinfo_read      read ozone information file
@@ -108,9 +114,9 @@ contains
 !   2004-06-16  treadon, documentation
 !   2005-10-11  treadon - change ozinfo read to free format
 !   2008-04-29  safford - rm redundant use
+!   2010-05-29  todling - update interface
 !
 !   input argument list:
-!     mype - mpi task id
 !
 !   output argument list:
 !
@@ -119,29 +125,28 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
+    use mpimod, only: mype
     use obsmod, only: iout_oz
     implicit none
-
-    integer(i_kind), intent(in   ) :: mype
 
     character(len=1):: cflg
     character(len=120) crecord
     integer(i_kind) lunin,j,k,istat,nlines
-    data lunin / 47_i_kind /
+    data lunin / 47 /
 
 
 !   Determine number of entries in ozone information file
     open(lunin,file='ozinfo',form='formatted')
-    j=izero
-    nlines=izero
+    j=0
+    nlines=0
     read1:  do 
        read(lunin,100,iostat=istat) cflg,crecord
-       if (istat /= izero) exit
-       nlines=nlines+ione
+       if (istat /= 0) exit
+       nlines=nlines+1
        if (cflg == '!') cycle
-       j=j+ione
+       j=j+1
     end do read1
-    if (istat>izero) then
+    if (istat>0) then
        write(6,*)'OZINFO_READ:  ***ERROR*** error reading ozinfo, istat=',istat
        close(lunin)
        write(6,*)'OZINFO_READ:  stop program execution'
@@ -164,11 +169,11 @@ contains
        write(iout_oz,*)'OZINFO_READ:  jpch_oz=',jpch_oz
     endif
     rewind(lunin)
-    j=izero
+    j=0
     do k=1,nlines
        read(lunin,100) cflg,crecord
        if (cflg == '!') cycle
-       j=j+ione
+       j=j+1
        read(crecord,*) nusis_oz(j),&
             nulev(j),iuse_oz(j),pob_oz(j),gross_oz(j),error_oz(j), &
             b_oz(j),pg_oz(j)

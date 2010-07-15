@@ -35,7 +35,7 @@ end interface
 
 contains
 
-subroutine intps_(pshead,rp,sp)
+subroutine intps_(pshead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intps       apply nonlin qc obs operator for ps
@@ -63,6 +63,7 @@ subroutine intps_(pshead,rp,sp)
 !   2008-06-02  safford - rm unused vars
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
+!   2010-05-13  todling  - update to use gsi_bundlemod; update interface
 !
 !   input argument list:
 !     pshead  - obs type pointer to obs structure
@@ -83,19 +84,38 @@ subroutine intps_(pshead,rp,sp)
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n1
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(ps_ob_type),pointer         ,intent(in   ) :: pshead
-  real(r_kind),dimension(latlon1n1),intent(in   ) :: sp
-  real(r_kind),dimension(latlon1n1),intent(inout) :: rp
+  type(ps_ob_type),pointer,intent(in   ) :: pshead
+  type(gsi_bundle),        intent(in   ) :: sval
+  type(gsi_bundle),        intent(inout) :: rval
 
 ! Declare local variables
+  integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4
 ! real(r_kind) penalty
   real(r_kind) cg_ps,val,p0,grad,wnotgross,wgross,ps_pg
   real(r_kind) w1,w2,w3,w4,time_ps
+  real(r_kind),pointer,dimension(:) :: xhat_dt_p3d
+  real(r_kind),pointer,dimension(:) :: dhat_dt_p3d
+  real(r_kind),pointer,dimension(:) :: sp
+  real(r_kind),pointer,dimension(:) :: rp
   type(ps_ob_type), pointer :: psptr
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'p3d',sp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'p3d',rp,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'p3d',xhat_dt_p3d,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'p3d',dhat_dt_p3d,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
+
   psptr => pshead
   do while (associated(psptr))
      j1=psptr%ij(1)
@@ -113,8 +133,8 @@ subroutine intps_(pshead,rp,sp)
      if (l_foto) then
         time_ps=psptr%time*r3600
         val=val+&
-          (w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
-           w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_ps
+          (w1*xhat_dt_p3d(j1)+w2*xhat_dt_p3d(j2)+ &
+           w3*xhat_dt_p3d(j3)+w4*xhat_dt_p3d(j4))*time_ps
      endif
 
      if (lsaveobsens) then
@@ -153,10 +173,10 @@ subroutine intps_(pshead,rp,sp)
 
         if (l_foto) then
            grad=grad*time_ps
-           dhat_dt%p3d(j1)=dhat_dt%p3d(j1)+w1*grad
-           dhat_dt%p3d(j2)=dhat_dt%p3d(j2)+w2*grad
-           dhat_dt%p3d(j3)=dhat_dt%p3d(j3)+w3*grad
-           dhat_dt%p3d(j4)=dhat_dt%p3d(j4)+w4*grad
+           dhat_dt_p3d(j1)=dhat_dt_p3d(j1)+w1*grad
+           dhat_dt_p3d(j2)=dhat_dt_p3d(j2)+w2*grad
+           dhat_dt_p3d(j3)=dhat_dt_p3d(j3)+w3*grad
+           dhat_dt_p3d(j4)=dhat_dt_p3d(j4)+w4*grad
         endif
 
      endif

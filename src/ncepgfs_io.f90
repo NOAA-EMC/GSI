@@ -12,6 +12,7 @@ module ncepgfs_io
 !   2010-02-20 parrish - make sigio_cnvtdv8 public so can be accessed by general_read_gfsatm, when
 !                          reading in gefs sigma files at resolution different from analysis.
 !   2010-03-31 treadon - add read_gfs, use sp_a and sp_b
+!   2010-05-19 todling - add read_gfs_chem
 !
 ! Subroutines Included:
 !   sub read_gfs          - driver to read ncep gfs atmospheric ("sigma") files
@@ -39,6 +40,7 @@ module ncepgfs_io
 
   private
   public read_gfs
+  public read_gfs_chem
   public read_gfssfc
   public write_gfs
   public sfc_interpolate
@@ -109,6 +111,80 @@ contains
     endif
   end subroutine read_gfs
 
+  subroutine read_gfs_chem ( iyear, month )
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    read_gfs_chem
+!
+!   prgrmmr: todling
+!
+! abstract: fills chem_bundle with GFS chemistry. 
+!
+! remarks: 
+!    1. Right now, only CO2 is done and even this is treated 
+!        as constant througout the assimialation window.
+!    2. iyear and month could come from obsmod, but logically
+!       this program should never depend on obsmod
+! 
+!
+! program history log:
+!   2010-04-15  hou - Initial code
+!   2010-05-19  todling - Port Hou's code from compute_derived(!)
+!                         into this module and linked with the chem_bundle
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+    use kinds, only: i_kind,r_kind
+    use mpimod, only: mype
+    use gridmod, only: lat2,lon2,nsig,nlat,rlats,istart
+    use ncepgfs_ghg, only: read_gfsco2
+    use guess_grids, only: ges_prsi,nfldsig,ntguessig
+    use gsi_bundlemod, only: gsi_bundlegetpointer
+    use gsi_chemtracer_mod, only: gsi_chem_bundle
+    use gsi_chemtracer_mod, only: gsi_chemtracer_get
+
+    implicit none
+
+!   Declared argument list
+    integer(i_kind), intent(in):: iyear
+    integer(i_kind), intent(in):: month
+
+!   Declare local variables
+    integer(i_kind) igfsco2,i,j,k,n,ico2,ier
+    real(r_kind),dimension(lat2):: xlats
+
+    if(.not.associated(gsi_chem_bundle)) return
+    call gsi_bundlegetpointer(gsi_chem_bundle(1),'co2',ico2,ier)
+    if(ier/=0) return
+
+!   Get subdomain latitude array
+    j = mype + 1
+    do i = 1, lat2
+       n = min(max(1, istart(j)+i-2), nlat)
+       xlats(i) = rlats(n)
+    enddo
+
+!   Read in CO2
+    call gsi_chemtracer_get ( 'i4crtm::co2', igfsco2, ier )
+    call read_gfsco2 ( iyear,month,igfsco2,xlats,ges_prsi(:,:,:,ntguessig),&
+                       lat2,lon2,nsig,mype,  &
+                       gsi_chem_bundle(1)%r3(ico2)%q )
+
+! For now, I don't know what best to do other than setting all times to have
+! equal CO2 ... anybody?
+    do n=2,ntguessig
+       gsi_chem_bundle(n)%r3(ico2)%q = gsi_chem_bundle(1)%r3(ico2)%q
+    enddo
+
+  end subroutine read_gfs_chem
 
   subroutine read_gfsatm(filename,mype,sp_a,sp_b,g_z,g_ps,g_vor,g_div,g_u,g_v,&
        g_tv,g_q,g_cwmr,g_oz,iret_read)
@@ -1026,7 +1102,7 @@ contains
     
     use sigio_module, only: sigio_intkind,sigio_head,sigio_data,&
          sigio_swopen,sigio_swhead,sigio_swdata,sigio_axdata,&
-         sigio_srohdc,sigio_realkind
+         sigio_srohdc,sigio_realkind,sigio_sclose
 
     use gfsio_module, only: gfsio_gfile,gfsio_open,gfsio_init,&
          gfsio_getfilehead,gfsio_close,gfsio_writerecv
@@ -1764,6 +1840,7 @@ contains
 !
           string='sigio'
           call sigio_swdata(lunanl,sighead,sigdata,iret)
+          call sigio_sclose(lunanl,iret)
           call sigio_axdata(sigdata,iret)
        else        !GFS IO
           string='gfsio'

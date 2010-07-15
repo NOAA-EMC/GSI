@@ -12,6 +12,7 @@ module stppwmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stppw_tl
 !   2009-08-12  lueken - update documentation
+!   2010-05-13  todling - uniform interface across stp routines
 !
 ! subroutines included:
 !   sub stppw
@@ -29,7 +30,7 @@ PUBLIC stppw
 
 contains
 
-subroutine stppw(pwhead,rq,sq,out,sges,nstep)
+subroutine stppw(pwhead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stppw       calculate penalty and contribution to stepsize
@@ -58,6 +59,7 @@ subroutine stppw(pwhead,rq,sq,out,sges,nstep)
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
+!   2010-05-13  todling - udpate to use gsi_bundle
 !
 !   input argument list:
 !     pwhead
@@ -83,24 +85,40 @@ subroutine stppw(pwhead,rq,sq,out,sges,nstep)
        r3600
   use gridmod, only: latlon1n,latlon11,nsig
   use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
   type(pw_ob_type),pointer            ,intent(in   ) :: pwhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
-  real(r_kind),dimension(latlon1n)    ,intent(in   ) :: rq,sq
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables  
+  integer(i_kind) ier,istatus
   integer(i_kind) i1,i2,i3,i4,k,kk
   real(r_kind) val,val2,w1,w2,w3,w4,time_pw,pg_pw
   real(r_kind) cg_pw,pw,wgross,wnotgross,pwx
   real(r_kind),dimension(max(1,nstep))::pen
+  real(r_kind),pointer,dimension(:) :: rq,sq
+  real(r_kind),pointer,dimension(:) :: xhat_dt_q
+  real(r_kind),pointer,dimension(:) :: dhat_dt_q
   type(pw_ob_type), pointer :: pwptr
 
 
   out=zero_quad
+
+! Retrieve pointers
+  ier=0
+  call gsi_bundlegetpointer(sval,'q',sq, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'q',rq, istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'q',xhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'q',dhat_dt_q,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
 
   pwptr => pwhead
   do while (associated(pwptr))
@@ -134,11 +152,11 @@ subroutine stppw(pwhead,rq,sq,out,sges,nstep)
                  i2 = pwptr%ij(2)+(k-1)*latlon11
                  i3 = pwptr%ij(3)+(k-1)*latlon11
                  i4 = pwptr%ij(4)+(k-1)*latlon11
-                 val =val +(w1*dhat_dt%q(i1)+w2*dhat_dt%q(i2)&
-                          + w3*dhat_dt%q(i3)+w4*dhat_dt%q(i4))*time_pw*tpwcon &
+                 val =val +(w1*dhat_dt_q(i1)+w2*dhat_dt_q(i2)&
+                          + w3*dhat_dt_q(i3)+w4*dhat_dt_q(i4))*time_pw*tpwcon &
                           * pwptr%dp(k)
-                 val2=val2+(w1*xhat_dt%q(i1)+w2*xhat_dt%q(i2)&
-                          + w3*xhat_dt%q(i3)+w4*xhat_dt%q(i4))*time_pw*tpwcon &
+                 val2=val2+(w1*xhat_dt_q(i1)+w2*xhat_dt_q(i2)&
+                          + w3*xhat_dt_q(i3)+w4*xhat_dt_q(i4))*time_pw*tpwcon &
                           * pwptr%dp(k)
               end do
            end if

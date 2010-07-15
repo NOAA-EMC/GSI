@@ -10,6 +10,7 @@ subroutine enorm_state(xst,enorm,yst)
 !   2007-10-19  tremolet - initial code
 !   2009-01-18  todling  - carry summation in quad precision
 !   2009-08-14  lueken   - update documentation
+!   2010-05-13  todling  - update to use gsi_bundle
 !
 !   input argument list:
 !    xst
@@ -30,19 +31,24 @@ use constants, only: ione,zero,one,cp,rd,pi,two,r1000
 use gridmod, only: nsig,nlat,nlon,lon2,lat2,istart,rlats,ak5,bk5
 use mpimod, only: mype
 use guess_grids, only: ges_ps,ntguessig
-use state_vectors
+use state_vectors, only: dot_product
+use gsi_bundlemod, only: assignment(=)
+use gsi_bundlemod, only: gsi_bundle
+use gsi_bundlemod, only: gsi_bundlegetpointer
 
 implicit none
 
-type(state_vector), intent(in   ) :: xst
-real(r_quad)      , intent(  out) :: enorm
-type(state_vector), intent(inout) :: yst
+type(gsi_bundle), intent(inout) :: xst
+real(r_quad)    , intent(  out) :: enorm
+type(gsi_bundle), intent(inout) :: yst
 
 ! Declare local variables
 real(r_kind) :: tfact, pfact, pref, tref, gridfac, zps
 real(r_kind) :: coslat(lat2), dsig(lat2,lon2,nsig), akk(nsig)
-integer(i_kind) :: ii,jj,kk,ijk,ilat
+integer(i_kind) :: ii,jj,kk,ijk,ilat,ier
 real(r_kind), parameter :: Pa_per_kPa = r1000
+real(r_kind),pointer,dimension(:) :: xst_u,xst_v,xst_t,xst_p
+real(r_kind),pointer,dimension(:) :: yst_u,yst_v,yst_t,yst_p
 
 ! ----------------------------------------------------------------------
 tref=280.0_r_kind
@@ -92,12 +98,22 @@ enddo
 yst=zero
 ! ----------------------------------------------------------------------
 
+call gsi_bundlegetpointer(xst,'u', xst_u,ier)
+call gsi_bundlegetpointer(xst,'v', xst_v,ier)
+call gsi_bundlegetpointer(xst,'tv',xst_t,ier)
+call gsi_bundlegetpointer(xst,'ps',xst_p,ier)
+
+call gsi_bundlegetpointer(yst,'u', yst_u,ier)
+call gsi_bundlegetpointer(yst,'v', yst_v,ier)
+call gsi_bundlegetpointer(yst,'tv',yst_t,ier)
+call gsi_bundlegetpointer(yst,'ps',yst_p,ier)
+
 ! U
 do kk=1,nsig
    do jj=2,lon2-ione
       do ii=2,lat2-ione
          ijk=(kk-ione)*lon2*lat2 + (jj-ione)*lat2 + ii
-         yst%u(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst%u(ijk)
+         yst_u(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst_u(ijk)
       enddo
    enddo
 enddo
@@ -107,7 +123,7 @@ do kk=1,nsig
    do jj=2,lon2-ione
       do ii=2,lat2-ione
          ijk=(kk-ione)*lon2*lat2 + (jj-ione)*lat2 + ii
-         yst%v(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst%v(ijk)
+         yst_v(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*xst_v(ijk)
       enddo
    enddo
 enddo
@@ -117,7 +133,7 @@ do kk=1,nsig
    do jj=2,lon2-ione
       do ii=2,lat2-ione
          ijk=(kk-ione)*lon2*lat2 + (jj-ione)*lat2 + ii
-         yst%t(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*tfact*xst%t(ijk)
+         yst_t(ijk)=gridfac*coslat(ii)*dsig(ii,jj,kk)*tfact*xst_t(ijk)
       enddo
    enddo
 enddo
@@ -126,7 +142,7 @@ enddo
 do jj=2,lon2-ione
    do ii=2,lat2-ione
       ijk= (jj-ione)*lat2 + ii
-      yst%p(ijk)=gridfac*coslat(ii)*pfact*xst%p(ijk)
+      yst_p(ijk)=gridfac*coslat(ii)*pfact*xst_p(ijk)
    enddo
 enddo
 

@@ -26,6 +26,8 @@ module anisofilter_glb
 !   2008-02-27  sato - change iso-aniso composition in get_aspect_reg_ens.
 !                      enable to use iensamp. delete some test code.
 !   2010-03-31  treadon - replace specmod components with sp_a structure
+!   2010-05-28  todling - obtain variable id's on the fly (add getindex)
+!   2010-06-05  todling - an_amp0 coming from control_vectors
 !
 ! subroutines included:
 !   anprewgt                    - compute the anisotropic aspect tensor for the
@@ -86,7 +88,7 @@ module anisofilter_glb
                       filter_p2, pf2aP2, &
                       filter_p3, pf2aP3, &
                       triad4,ifilt_ord,npass,normal,binom, &
-                      ngauss,rgauss,anhswgt,an_amp,an_amp0,an_vs, &
+                      ngauss,rgauss,anhswgt,an_amp,an_vs, &
                       ancovmdl, covmap, &
                       nsmooth,nsmooth_shapiro
 
@@ -105,8 +107,11 @@ module anisofilter_glb
 
   use jfunc, only: varq,qoption
 
-  use control_vectors, only: nrf3,nrf2,nrf3_cw,nrf3_q,nrf3_sf,nrf3_vp,nrf3_t,nrf3_oz, &
-                   nrf3_cw,nrf2_ps,nrf2_sst,nrf_var,nrf_3d,nrf,nvars,nrf2_loc,nrf3_loc
+  use control_vectors, only: an_amp0
+  use control_vectors, only: cvars2d,cvars3d,cvarsmd
+  use control_vectors, only: nrf_var,nrf_3d,nrf,nvars,nrf2_loc,nrf3_loc
+  use control_vectors, only: nrf3 => nc3d
+  use control_vectors, only: nrf2 => nc2d
 
   use guess_grids, only: ges_u,ges_v,ges_prsl,ges_tv,ges_z,ntguessig,&
                          ges_ps,ges_q,ges_tsen
@@ -123,7 +128,7 @@ module anisofilter_glb
                          stpcode_ensdata, stpcode_statdata, &
                          fact_qopt2,mk_gradpt_slab,smther_one,hanning_smther, &
                          invert_aspect_tensor, &
-                         mlat, mlon, ks, rfact0h, rfact0v, corz, corp, hwll, hwllp, vz, &
+                         mlat, ks, rfact0h, rfact0v, corz, corp, hwll, hwllp, vz, &
                          aspect, &
                          tx1_slab,tx2_slab,tx3_slab, &
                          asp1_max,asp2_max,asp3_max, &
@@ -138,6 +143,7 @@ module anisofilter_glb
 
 
   use berror, only: bkgv_flowdep
+  use mpeu_util, only: getindex
 
   implicit none
 
@@ -214,6 +220,9 @@ module anisofilter_glb
   real(r_kind),allocatable :: field_st(:,:,:)
   integer(i_kind) :: kens_p
 
+  integer(i_kind) :: nrf3_cw,nrf3_q,nrf3_sf,nrf3_vp,nrf3_t,nrf3_oz
+  integer(i_kind) :: nrf2_ps,nrf2_sst,nrf2_stl,nrf2_sti
+
 !-------------------------------------------------------------------------
 contains
 !-------------------------------------------------------------------------
@@ -255,6 +264,18 @@ subroutine anprewgt(mype)
   character(len= 4):: clun
 
   data idiagflg /izero/
+
+! Get indexes to required CV variables
+  nrf3_oz   = getindex(cvars3d,'oz')
+  nrf3_t    = getindex(cvars3d,'t')
+  nrf3_sf   = getindex(cvars3d,'sf')
+  nrf3_vp   = getindex(cvars3d,'vp')
+  nrf3_q    = getindex(cvars3d,'q')
+  nrf3_cw   = getindex(cvars3d,'cw')
+  nrf2_ps   = getindex(cvars2d,'ps')
+  nrf2_sst  = getindex(cvars2d,'sst')
+  nrf2_stl  = getindex(cvarsmd,'stl')
+  nrf2_sti  = getindex(cvarsmd,'sti')
 
   call init_anisofilter
   call read_bckgstats_glb(mype)
@@ -551,6 +572,7 @@ subroutine get_stat_factk(platf,ivar,kvar,factk,rh,dvsst)
 ! program history log:
 !   2007-12-18  sato
 !   2010-03-11  zhu  - make changes for generalized control variable
+!   2010-06-05  todling  - atsfc_sdv now comes from control vectors
 !
 !   input argument list:
 !     platf - latitude grid info (global)
@@ -566,7 +588,7 @@ subroutine get_stat_factk(platf,ivar,kvar,factk,rh,dvsst)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use berror     ,only: tsfc_sdv
+  use control_vectors,only: atsfc_sdv
   implicit none
 
   real(r_kind),   intent(in   ) :: platf
@@ -586,9 +608,9 @@ subroutine get_stat_factk(platf,ivar,kvar,factk,rh,dvsst)
   lp= min(max(ione,lp),mlat)
 
   if (ivar==nrf+ione) then
-     factk=tsfc_sdv(1)    ! land surface temperature
+     factk=atsfc_sdv(1)    ! land surface temperature
   else if (ivar==nrf+2_i_kind) then
-     factk=tsfc_sdv(2)    ! ice surface temperature
+     factk=atsfc_sdv(2)    ! ice surface temperature
   else if (nrf_3d(ivar))then
      do n=1,nrf3
         if (nrf3_loc(n)==ivar) then
@@ -800,10 +822,10 @@ subroutine read_bckgstats_glb(mype)
 ! Open background error statistics file
 ! Read header.  Ensure that vertical resolution is consistent
 ! with that specified via the user namelist
-  call berror_get_dims(nsigstat,mlat,mlon,inerr)
+  call berror_get_dims(nsigstat,mlat,inerr)
   if(mype==izero) then
-     write(6,*)'read_bckgstats_glb(): read error amplitudes.  mype,nsigstat,mlat,mlon =',&
-     mype,nsigstat,mlat,mlon
+     write(6,*)'read_bckgstats_glb(): read error amplitudes.  mype,nsigstat,mlat =',&
+     mype,nsigstat,mlat
   end if
 
   if (nsig/=nsigstat .or. nlat/=mlat) then

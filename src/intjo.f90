@@ -150,6 +150,8 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !   2009-11-15  todling  - Protect call to mpl_allreduce (evaljo calls it as well)
 !   2010-01-11  zhang,b  - Bug fix: bias predictors need to be accumulated over nbins
 !   2010-03-24  zhu      - change the interfaces of intt,intrad,intpcp for generalizing control variable
+!   2010-05-13  todling  - harmonized interfaces to int* routines when it comes to state_vector (add only's)
+!   2010-06-13  todling  - add intco call
 !
 !   input argument list:
 !     ibin
@@ -172,6 +174,9 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !        an approximate M and M' to the model matrices in 4dvar. Once that
 !        is done, the int-routines should no longer need the time derivatives.
 !        (Todling)
+!     3) Notice that now (2010-05-13) int routines handle non-essential
+!        variables internally; also, when pointers non-existent, int routines 
+!        simply return (Todling).
 !
 ! attributes:
 !   language: f90
@@ -179,90 +184,100 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !
 !$$$
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: ione,zero_quad
+use constants, only: zero_quad
 use obsmod, only: obs_handle
 use jfunc, only: nrclen,nsclen,npclen,l_foto,xhat_dt
-use control_vectors, only: nrf3_oz,nrf2_sst
-use state_vectors
-use bias_predictors
-use inttmod 
-use intwmod
-use intpsmod
-use intpwmod
-use intqmod
-use intradmod
-use inttcpmod
-use intgpsmod
-use intrwmod
-use intspdmod
-use intsrwmod
-use intsstmod
-use intdwmod
-use intpcpmod
-use intozmod
-use intlagmod
+use bias_predictors, only: predictors
+use inttmod, only: intt
+use intwmod, only: intw
+use intpsmod, only: intps
+use intpwmod, only: intpw
+use intqmod, only: intq
+use intradmod, only: intrad
+use inttcpmod, only: inttcp
+use intgpsmod, only: intgps
+use intrwmod, only: intrw
+use intspdmod, only: intspd
+use intsrwmod, only: intsrw
+use intsstmod, only: intsst
+use intdwmod, only: intdw
+use intpcpmod, only: intpcp
+use intozmod, only: intoz
+use intcomod, only: intco
+use intlagmod, only: intlag
+use gsi_bundlemod, only: gsi_bundle
+use gsi_bundlemod, only: gsi_bundlegetpointer
 implicit none
 
 ! Declare passed variables
-integer(i_kind)   , intent(in   ) :: ibin
-type(obs_handle)  , intent(in   ) :: yobs
-type(state_vector), intent(in   ) :: sval
-type(predictors)  , intent(in   ) :: sbias
-type(state_vector), intent(inout) :: rval
-type(predictors)  , intent(inout) :: rbias
+integer(i_kind) , intent(in   ) :: ibin
+type(obs_handle), intent(in   ) :: yobs
+type(gsi_bundle), intent(in   ) :: sval
+type(predictors), intent(in   ) :: sbias
+type(gsi_bundle), intent(inout) :: rval
+type(predictors), intent(inout) :: rbias
 
 ! Declare local variables
-integer(i_kind) :: i
-real(r_quad),dimension(max(ione,nrclen)):: qpred
+integer(i_kind) :: i,ier
+real(r_kind),pointer,dimension(:,:,:) :: xhat_dt_tsen,xhat_dt_q,xhat_dt_t
+real(r_quad),dimension(max(1,nrclen)):: qpred
+
 
 !******************************************************************************
   qpred=zero_quad
 
 ! Calculate sensible temperature time derivative
-  if(l_foto)call tv_to_tsen(xhat_dt%t,xhat_dt%q,xhat_dt%tsen)
+  if(l_foto)then
+     call gsi_bundlegetpointer(xhat_dt,'tv'  ,xhat_dt_t,   ier)
+     call gsi_bundlegetpointer(xhat_dt,'q'   ,xhat_dt_q,   ier)
+     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,ier)
+     call tv_to_tsen(xhat_dt_t,xhat_dt_q,xhat_dt_tsen)
+  endif
 
 ! RHS for conventional temperatures
   call intt(yobs%t,rval,sval)
 
 ! RHS for precipitable water
-  call intpw(yobs%pw,rval%q,sval%q)
+  call intpw(yobs%pw,rval,sval)
 
 ! RHS for conventional moisture
-  call intq(yobs%q,rval%q,sval%q)
+  call intq(yobs%q,rval,sval)
 
 ! RHS for conventional winds
-  call intw(yobs%w,rval%u,rval%v,sval%u,sval%v)
+  call intw(yobs%w,rval,sval)
 
 ! RHS for radar superob winds
-  call intsrw(yobs%srw,rval%u,rval%v,sval%u,sval%v) 
+  call intsrw(yobs%srw,rval,sval)
 
 ! RHS for lidar winds
-  call intdw(yobs%dw,rval%u,rval%v,sval%u,sval%v)
+  call intdw(yobs%dw,rval,sval)
 
 ! RHS for radar winds
-  call intrw(yobs%rw,rval%u,rval%v,sval%u,sval%v)
+  call intrw(yobs%rw,rval,sval)
 
 ! RHS for wind speed observations
-  call intspd(yobs%spd,rval%u,rval%v,sval%u,sval%v)
+  call intspd(yobs%spd,rval,sval)
 
 ! RHS for ozone observations
-  if (nrf3_oz>0) call intoz(yobs%oz,yobs%o3l,rval%oz,sval%oz)
+  call intoz(yobs%oz,yobs%o3l,rval,sval)
+
+! RHS for carbon monoxide
+  call intco(yobs%co3l,rval,sval)
 
 ! RHS for surface pressure observations
-  call intps(yobs%ps,rval%p3d,sval%p3d)
+  call intps(yobs%ps,rval,sval)
 
 ! RHS for MSLP obs for TCs
-  call inttcp(yobs%tcp,rval%p3d,sval%p3d)
+  call inttcp(yobs%tcp,rval,sval)
 
 ! RHS for conventional sst observations
-  if (nrf2_sst>0) call intsst(yobs%sst,rval%sst,sval%sst)
+  call intsst(yobs%sst,rval,sval)
 
 ! RHS for GPS local observations
-  call intgps(yobs%gps, &
-              rval%t,rval%q,rval%p3d,sval%t,sval%q,sval%p3d)
+  call intgps(yobs%gps,rval,sval)
 
 ! RHS for conventional lag observations
-  call intlag(yobs%lag,rval%u,rval%v,sval%u,sval%v,ibin)
+  call intlag(yobs%lag,rval,sval,ibin)
 
 ! RHS calculation for radiances
   call intrad(yobs%rad,rval,sval,qpred(1:nsclen),sbias%predr)

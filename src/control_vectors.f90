@@ -14,17 +14,21 @@ module control_vectors
 !   2009-01-27  todling  - rename prt_norms to prevent IBM compiler confusion
 !   2009-08-12  lueken   - updated documentation
 !   2009-09-20  parrish  - add pointer variable a_en to definition of type control_state
-!                           also, add module variables n_ens, nlva_en
+!                           also, add module variables n_ens
 !   2009-11-10  todling  - remove redundant dot products
 !   2010-02-17  treadon  - fix in predictor part of random vector
 !   2010-02-20  parrish  - add functions dplevs_ens for use with dual-resolution hybrid ensemble option.
 !   2010-03-11  zhu      - add changes for generalizing control variables,i.e.,
-!                          anav_info,nvars,nrf*,allocate_cs,deallocate_cs,
+!                          init_anacv,nvars,nrf*,allocate_cs,deallocate_cs,
 !                          assign_cs2array,assign_array2cs
-!   2010-05-21  derber - omp commands modified
+!   2010-05-01  todling  - introduce gsi_bundle
+!   2010-05-05  derber   - omp commands removed
+!   2010-05-22  todling  - add a wired-in set of variables composing a motley (not fully part of CVector)
+!   2010-05-28  todling  - remove all nrf2/3_VAR-specific "pointers"
 !
 ! subroutines included:
-!   sub anav_info   
+!   sub init_anacv   
+!   sub final_anacv   
 !   sub setup_control_vectors
 !   sub allocate_cv
 !   sub deallocate_cv
@@ -42,7 +46,6 @@ module control_vectors
 !   sub inquire_cv
 !
 ! functions included:
-!   dplevs
 !   dplevs_ens
 !   qdot_prod_sub
 !   dot_prod_cv
@@ -53,7 +56,6 @@ module control_vectors
 !
 ! variable definitions:
 !   def n_ens     - number of ensemble perturbations (=0 except when hybrid ensemble option turned on)
-!   def nlva_en   - total number of levels for hybrid ensemble control variable a_en
 !
 ! attributes:
 !   language: f90
@@ -63,58 +65,98 @@ module control_vectors
 
 use kinds, only: r_kind,i_kind,r_quad
 use mpimod, only: mpi_comm_world,mpi_max,mpi_rtype,mype,npe,ierror
-use constants, only: zero, one, two, zero_quad
+use constants, only: zero, one, two, three, zero_quad, tiny_r_kind
 use gsi_4dvar, only: iadatebgn
 use file_utility, only : get_lun
 use mpl_allreducemod, only: mpl_allreduce
+use hybrid_ensemble_parameters, only: beta1_inv,l_hyb_ens
+use hybrid_ensemble_parameters, only: grd_ens
+
+use m_rerank, only : rerank
+use GSI_BundleMod, only : GSI_BundleCreate
+use GSI_BundleMod, only : GSI_BundleSet
+use GSI_BundleMod, only : GSI_Bundle
+use GSI_BundleMod, only : GSI_BundleGetPointer
+use GSI_BundleMod, only : dplevs => GSI_BundleDpLevs
+use GSI_BundleMod, only : GSI_BundleUnSet
+use GSI_BundleMod, only : GSI_BundleDestroy
+
+use GSI_BundleMod, only : GSI_Grid
+use GSI_BundleMod, only : GSI_GridCreate
+
+use mpeu_util, only: gettablesize
+use mpeu_util, only: gettable
 
 implicit none
 save
 private
-public control_state, control_vector, allocate_cv, deallocate_cv, assignment(=), &
-     & dot_product, prt_control_norms, axpy, random_cv, setup_control_vectors, &
-     & write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub, anav_info,&
-     & allocate_cs, deallocate_cs, assign_cs2array, assign_array2cs
-public nrf_3d,nrf_var,nrf2_loc,nrf3_loc,nrf_tracer,nrf_levb,nrf_leve, &
-     & nrf,nrf2,nrf3,nvars,ntracer,nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw, &
-     & nrf2_ps,nrf2_sst
+! 
+! Public functions
+!
+public control_vector
+public allocate_cv
+public deallocate_cv
+public assignment(=)
+public dot_product  
+public prt_control_norms, axpy, random_cv, setup_control_vectors, &
+     & write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub, init_anacv, &
+     & final_anacv
 
-type control_state
-   real(r_kind), pointer :: values(:) => NULL()
-   real(r_kind), pointer :: st(:)  => NULL()
-   real(r_kind), pointer :: vp(:)  => NULL()
-   real(r_kind), pointer :: t(:)   => NULL()
-   real(r_kind), pointer :: rh(:)  => NULL()
-   real(r_kind), pointer :: oz(:)  => NULL()
-   real(r_kind), pointer :: cw(:)  => NULL()
-   real(r_kind), pointer :: p(:)   => NULL()
-   real(r_kind), pointer :: sst(:) => NULL()
-  real(r_kind), pointer :: a_en(:)=> NULL()    !  ensemble control variable (only used if l_hyb_ens=.true.)
-end type control_state
+! 
+! Public variables
+!
+public cvars2d, cvars3d, cvarsmd, evars2d, evars3d, nrf_var
+public nc2d        ! number of 2d static control fields
+public nc3d        ! number of 3d static control fields
+public mvars       ! number of motley fields
+public nrf         ! total number of static control fields
+public nvars       ! total number of static plus motley fields
+public nrf_3d      ! when .t., indicates 3d-fields
+public as3d        ! normalized scale factor for background error 3d-variables
+public as2d        ! normalized scale factor for background error 2d-variables
+public atsfc_sdv   ! standard deviation of surface temperature error over (1) land (and (2) ice
+public an_amp0     ! multiplying factors on reference background error variances
+
+public nrf2_loc,nrf3_loc   ! what are these for??
+public ntracer
 
 type control_vector
    integer(i_kind) :: lencv
    real(r_kind), pointer :: values(:) => NULL()
-   type(control_state), allocatable :: step(:)
+   type(GSI_Grid)  :: grid_step
+   type(GSI_Bundle), pointer :: step(:)
+   type(GSI_Bundle), pointer :: motley(:)
+   type(GSI_Grid)  :: grid_aens
+   type(GSI_Bundle), pointer :: aens(:,:)
    real(r_kind), pointer :: predr(:) => NULL()
    real(r_kind), pointer :: predp(:) => NULL()
    logical :: lallocated = .false.
 end type control_vector
 
+character(len=*),parameter:: myname='control_vectors'
+
 integer(i_kind) :: nclen,nclen1,nsclen,npclen,nrclen,nsubwin,nval_len
-integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens,nlva_en
+integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens
 logical :: lsqrtb
 
 integer(i_kind) :: m_vec_alloc, max_vec_alloc, m_allocs, m_deallocs
 
 logical,allocatable,dimension(:):: nrf_3d
-character(len=5),allocatable,dimension(:):: nrf_var
 integer(i_kind),allocatable,dimension(:):: nrf2_loc,nrf3_loc
-integer(i_kind),allocatable,dimension(:):: nrf_tracer,nrf_levb,nrf_leve
-integer(i_kind) nrf,nrf2,nrf3,nvars
+integer(i_kind) nrf,nvars
 integer(i_kind) ntracer
-integer(i_kind) nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw
-integer(i_kind) nrf2_ps,nrf2_sst
+
+integer(i_kind) :: nc2d,nc3d,mvars
+character(len=8),allocatable,dimension(:) :: nrf_var  ! names of all variables
+character(len=8),allocatable,dimension(:) :: cvars2d  ! 2-d fields for static   CV
+character(len=8),allocatable,dimension(:) :: cvars3d  ! 3-d fields for static   CV
+character(len=8),allocatable,dimension(:) :: evars2d  ! 2-d fields for ensemble CV
+character(len=8),allocatable,dimension(:) :: evars3d  ! 3-d fields for ensemble CV
+character(len=8),allocatable,dimension(:) :: cvarsmd  ! motley variable names
+real(r_kind)    ,allocatable,dimension(:) :: as3d
+real(r_kind)    ,allocatable,dimension(:) :: as2d
+real(r_kind)    ,allocatable,dimension(:) :: atsfc_sdv
+real(r_kind)    ,allocatable,dimension(:) :: an_amp0
 
 logical :: llinit = .false.
 
@@ -134,6 +176,7 @@ END INTERFACE
 INTERFACE PRT_CONTROL_NORMS
 MODULE PROCEDURE prt_norms
 END INTERFACE
+
 ! ----------------------------------------------------------------------
 contains
 ! ----------------------------------------------------------------------
@@ -149,7 +192,9 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
 !   2009-09-20  parrish - add optional input variable k_ens, which communicates size
-!                          of ensemble used when hybrid ensemble option is turned on.
+!                         of ensemble used when hybrid ensemble option is turned on.
+!   2010-05-19  todling - k_ens no longer optional
+!   2010-05-23  todling - move lev pointer init from jfunc here
 !
 !   input argument list:
 !    ksig
@@ -162,7 +207,7 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 !    ksubwin
 !    kval_len
 !    ldsqrtb
-!    k_ens     - optional, if present, then size of ensemble used in hybrid ensemble option
+!    k_ens     - if applicable, size of ensemble used in hybrid ensemble option
 !
 !   output argument list:
 !
@@ -174,9 +219,10 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 
   implicit none
   integer(i_kind)          , intent(in   ) :: ksig,klat,klon,katlon11,katlon1n, &
-                               & ksclen,kpclen,kclen,ksubwin,kval_len
-  integer(i_kind), optional, intent(in   ) :: k_ens
+                               & ksclen,kpclen,kclen,ksubwin,kval_len,k_ens
   logical                  , intent(in   ) :: ldsqrtb
+
+  integer(i_kind) n
 
   nsig=ksig
   lat2=klat
@@ -191,12 +237,7 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   nsubwin=ksubwin
   nval_len=kval_len
   lsqrtb=ldsqrtb
-  n_ens=0
-  nlva_en=0
-  if(present(k_ens)) then
-     n_ens=k_ens
-     nlva_en=n_ens*nsig
-  end if
+  n_ens=k_ens
 
   llinit = .true.
   m_vec_alloc=0
@@ -209,15 +250,17 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   return
 end subroutine setup_control_vectors
 ! ----------------------------------------------------------------------
-  subroutine anav_info(mype)
+subroutine init_anacv
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    anav_info
+! subprogram:    init_anacv
 !   prgmmr: zhu          org: np23               date:  2008-03-29
 !
 ! abstract: read in control variables information
 !
 ! program history log:
+!   2010-03-11  zhu     - initial code
+!   2010-05-30  todling - revamp initial code
 !
 !   input argument list:
 !
@@ -227,267 +270,120 @@ end subroutine setup_control_vectors
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !
-!$$$
-    use kinds, only: i_kind
-    implicit none
+implicit none
+!character(len=*),parameter:: rcname='anavinfo.txt'
+character(len=*),parameter:: rcname='anavinfo'  ! filename should have extension
+character(len=*),parameter:: tbname='control_vector::'
+character(len=256),allocatable,dimension(:):: utable
+character(len=20) var,source,funcof
+character(len=*),parameter::myname_=myname//'*init_anacv'
+integer(i_kind) luin,i,ii,ntot
+integer(i_kind) ilev, itracer
+real(r_kind) aas,amp
 
-    character(len=1) cf
-    character(len=5) cvar
-    character(len=120) crecord
-    integer(i_kind) k,mype,clevs,cuse_idx,ctrace_idx
-    integer(i_kind) lunin,istat,nvar,loc
-    character(len=5),allocatable,dimension(:):: nrf_var0
+! load file
+luin=get_lun()
+open(luin,file=rcname,form='formatted')
 
-    lunin = 47
-    open(lunin,file='anavinfo',form='formatted')
-    rewind(lunin)
+! Scan file for desired table first
+! and get size of table
+call gettablesize(tbname,luin,ntot,nvars)
 
-    nvar=0
-    nrf2=0
-    nrf3=0
-    ntracer=0
-    read1: do
-       read(lunin,1030,iostat=istat) cf,cvar,crecord
-1030   format(a1,a5,2x,a120)
-       if (istat /= 0) exit
-       if (cf == '!')cycle
+! Get contents of table
+allocate(utable(nvars))
+call gettable(tbname,luin,ntot,nvars,utable)
 
-       read(crecord,*) cuse_idx,clevs,ctrace_idx
-       if (cuse_idx < 0) cycle
-       nvar=nvar+1
-       if (clevs > 1) then
-          nrf3=nrf3+1
-       else
-          nrf2=nrf2+1
-       end if
-       if (ctrace_idx > 0) ntracer=ntracer+1
-    enddo read1
-    if (istat>0) then
-       write(6,*)'ANAV_INFO:  ***ERROR*** error reading anavinfo, istat=',istat
-    end if
+! release file unit
+close(luin)
 
-    if (nvar==0) then
-       write(6,*)'ANAV_INFO: NO CONTROL VARIABLES ARE SPECIFIED'
-       write(6,*)'ANAV_INFO: stop'
-       call stop2(76)
-    end if
+! Retrieve each token of interest from table and define
+! variables participating in state vector
 
-!   Allocate and initialize
-    nrf=nvar
-    allocate(nrf_var0(nrf),nrf_3d(nrf),nrf_levb(nrf),nrf_leve(nrf))
-    allocate(nrf2_loc(nrf2),nrf3_loc(nrf3),nrf_tracer(ntracer))
-    nrf_3d=.false.
-    nrf_var0=' '
-    nrf_levb=-1
-    nrf_leve=-1
-    nrf2_loc=-1
-    nrf3_loc=-1
-    nrf_tracer=-1
+! Count variables first
+nc3d=0; nc2d=0;mvars=0
+do ii=1,nvars
+   read(utable(ii),*) var, ilev, itracer, aas, amp, source, funcof
+   if(trim(adjustl(source))=='motley') then
+      mvars=mvars+1
+   else
+      if(ilev>1) then
+          nc3d=nc3d+1
+      else if(ilev==1) then
+          nc2d=nc2d+1
+      else
+          write(6,*) myname_,': error, unknown number of levels'
+          call stop2(999)
+      endif
+   endif
+enddo
 
-!   Read in analysis variables
-    nvar=0
-    nrf2=0
-    nrf3=0
-    ntracer=0
-    rewind(lunin)
-    read2: do
-       read(lunin,1031,iostat=istat) cf,cvar,crecord
-1031   format(a1,a5,2x,a120)
-       if (istat /= 0) exit
-       if (cf == '!')cycle
+allocate(nrf_var(nvars),cvars3d(nc3d),cvars2d(nc2d))
+allocate(as3d(nc3d),as2d(nc2d))
+allocate(cvarsmd(mvars))
+allocate(atsfc_sdv(mvars))
+allocate(an_amp0(nvars))
 
-       read(crecord,*) cuse_idx,clevs,ctrace_idx
-       if (cuse_idx < 0) cycle
-       nvar=nvar+1
-       nrf_var0(nvar)=cvar
+! want to rid code from the following ...
+nrf=nc2d+nc3d
+allocate(nrf_3d(nrf),nrf2_loc(nc2d),nrf3_loc(nc3d))
 
-       if (clevs > 1) then
-          nrf_3d(nvar)=.true.
-          nrf3=nrf3+1
-          nrf3_loc(nrf3)=nvar
-       else
-          nrf2=nrf2+1
-          nrf2_loc(nrf2)=nvar
-       end if
-       if (ctrace_idx > 0) then
-          ntracer=ntracer+1
-          nrf_tracer(ntracer)=nvar
-       end if
-    enddo read2
-    close(lunin)
+! Now load information from table
+nc3d=0;nc2d=0;mvars=0
+nrf_3d=.false.
+do ii=1,nvars
+   read(utable(ii),*) var, ilev, itracer, aas, amp, source, funcof
+   if(trim(adjustl(source))=='motley') then
+       mvars=mvars+1
+       cvarsmd(mvars)=trim(adjustl(var))
+       atsfc_sdv(mvars)=aas
+   else
+      if(ilev>1) then
+         nc3d=nc3d+1
+         cvars3d(nc3d)=trim(adjustl(var))
+         nrf3_loc(nc3d)=ii  ! rid of soon
+         nrf_3d(ii)=.true.
+         as3d(nc3d)=aas
+      else
+         nc2d=nc2d+1
+         cvars2d(nc2d)=trim(adjustl(var))
+         nrf2_loc(nc2d)=ii  ! rid of soon
+         as2d(nc2d)=aas
+      endif
+   endif
+   nrf_var(ii)=trim(adjustl(var))
+   if(amp>zero) then
+      an_amp0(ii)=amp
+   else
+      an_amp0(ii)=one/three
+   endif
+enddo
 
-    nrf3_sf=-1
-    nrf3_vp=-1
-    nrf3_t=-1
-    nrf3_q=-1
-    nrf3_oz=-1
-    nrf3_cw=-1
-    nrf2_ps=-1
-    nrf2_sst=-1
-    do nvar=1,nrf3
-       loc=nrf3_loc(nvar)
-       cvar=nrf_var0(loc)
-       select case(cvar)
-               case ('sf','SF'); nrf3_sf=nvar
-               case ('vp','VP'); nrf3_vp=nvar
-               case ('t','T')  ; nrf3_t=nvar
-               case ('q','Q')  ; nrf3_q=nvar
-               case ('oz','OZ'); nrf3_oz=nvar
-               case ('cw','CW'); nrf3_cw=nvar
-       end select
-    end do
-    do nvar=1,nrf2
-       loc=nrf2_loc(nvar)
-       cvar=nrf_var0(loc)
-       select case(cvar)
-               case ('sst','SST'); nrf2_sst=nvar
-               case ('ps','PS'); nrf2_ps=nvar
-       end select
-    end do
+deallocate(utable)
 
-    if (nrf2_sst>0) then
-       nvars=nrf+2_i_kind
-    else
-       nvars=nrf
-    end if
+! right now, ens is made ideantical to static CV
+allocate(evars2d(nc2d),evars3d(nc3d))
+evars2d=cvars2d
+evars3d=cvars3d
 
-    if (mype==0) then
-       write(6,*) 'ANAV_INFO: CONTROL VARIABLES ARE ', (nrf_var0(nvar),nvar=1,nrf)
-    end if
+if (mype==0) then
+    write(6,*) myname_,': 2D-CONTROL VARIABLES ARE ', cvars2d
+    write(6,*) myname_,': 3D-CONTROL VARIABLES ARE ', cvars3d
+    write(6,*) myname_,': MOTLEY CONTROL VARIABLES ', cvarsmd
+    write(6,*) myname_,': ALL CONTROL VARIABLES    ', nrf_var
+end if
 
-    allocate(nrf_var(nvars))
-    do k=1,nrf
-       nrf_var(k)=nrf_var0(k)
-    end do
-    if (nrf2_sst>0) then
-       nrf_var(nrf+1)="stl"
-       nrf_var(nrf+2)="sti"
-    end if
-
-    deallocate(nrf_var0)
-
-    return
-  end subroutine anav_info
-
-! ----------------------------------------------------------------------
-subroutine allocate_cs(ycs)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    allocate_cs
-!   prgmmr:                  org:                     date:
-!
-! abstract:
-!
-! program history log:
-!   2010-02-25  zhu     - use for control state
-!   2010-04-15  treadon - remove lsqrtb branch
-!
-!   input argument list:
-!
-!   output argument list:
-!    ycv
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
+end subroutine init_anacv
+subroutine final_anacv
   implicit none
-  type(control_state), intent(  out) :: ycs
-  character(len=5) cvar
-  integer(i_kind) :: ii,n,ngrid
-
-  ALLOCATE(ycs%values(nval_len))
-
-  ii=0
-  do n=1,nrf
-     if (nrf_3d(n)) then
-        ngrid=latlon1n
-     else
-        ngrid=latlon11
-     end if
-
-     cvar=nrf_var(n)
-     select case(cvar)
-        case('sf','SF')
-           ycs%st  => ycs%values(ii+1:ii+ngrid)
-        case('vp','VP')
-           ycs%vp  => ycs%values(ii+1:ii+ngrid)
-        case('t','T')
-           ycs%t   => ycs%values(ii+1:ii+ngrid)
-        case('q','Q')
-           ycs%rh  => ycs%values(ii+1:ii+ngrid)
-        case('oz','OZ')
-           ycs%oz  => ycs%values(ii+1:ii+ngrid)
-        case('cw','CW')
-           ycs%cw  => ycs%values(ii+1:ii+ngrid)
-        case('ps','PS')
-           ycs%p   => ycs%values(ii+1:ii+ngrid)
-        case('sst','SST')
-           ycs%sst => ycs%values(ii+1:ii+ngrid)
-        case default
-           write(6,*) 'allocate_cs: ERROR, unrecognized control variable ',cvar
-           call stop2(100)
-     end select
-     ii=ii+ngrid
-  end do
-  if(n_ens >  0) then
-     ycs%a_en => ycs%values(ii+1:ii+n_ens*latlon1n)
-     ii=ii+n_ens*latlon1n
-  end if
-
-  m_allocs=m_allocs+1
-
-  return
-end subroutine allocate_cs
-
-! ----------------------------------------------------------------------
-subroutine deallocate_cs(ycs)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    deallocate_cs
-!   prgmmr:                  org:                     date:
-!
-! abstract:
-!
-! program history log:
-!   2010-03-11 zhu - for control state
-!
-!   input argument list:
-!    yst
-!
-!   output argument list:
-!    ycs
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-  type(control_state), intent(inout) :: ycs
-  integer n 
-
-  do n=1,nrf
-     select case(trim(nrf_var(n)))
-        case('sf','SF') ;  NULLIFY(ycs%st )
-        case('vp','VP') ;  NULLIFY(ycs%vp )
-        case('t','T')   ;  NULLIFY(ycs%t  )
-        case('q','Q') ;  NULLIFY(ycs%rh )
-        case('oz','OZ') ;  NULLIFY(ycs%oz )
-        case('cw','CW') ;  NULLIFY(ycs%cw )
-        case('ps','PS')   ;  NULLIFY(ycs%p  )
-        case('sst','SST'); NULLIFY(ycs%sst)
-     end select
-  end do
-
-  if(n_ens >  0) NULLIFY(ycs%a_en)
-  DEALLOCATE(ycs%values)
-
-  m_deallocs=m_deallocs+1
-  return
-end subroutine deallocate_cs
+  deallocate(nrf_var)
+  deallocate(nrf_3d,nrf2_loc,nrf3_loc)
+  deallocate(as3d,as2d)
+  deallocate(an_amp0)
+  deallocate(atsfc_sdv)
+  deallocate(cvarsmd)
+  deallocate(cvars2d,cvars3d)
+  deallocate(evars2d,evars3d)
+end subroutine final_anacv
 
 ! ----------------------------------------------------------------------
 subroutine allocate_cv(ycv)
@@ -504,6 +400,9 @@ subroutine allocate_cv(ycv)
 !   2010-02-20  parrish - add structure variable grd_ens as part of changes for dual-resolution
 !                           hybrid ensemble system.
 !   2010-02-25  zhu     - use nrf_var and nrf_3d to specify the order control variables
+!   2010-05-01  todling - update to use gsi_bundle
+!   2010-05-17  todling - add back ens control; w/ a twist from original
+!   2010-05-22  todling - add support for motley variables
 !
 !   input argument list:
 !
@@ -520,7 +419,10 @@ subroutine allocate_cv(ycv)
   implicit none
   type(control_vector), intent(  out) :: ycv
   character(len=5) cvar
-  integer(i_kind) :: ii,jj,n,ngrid
+  integer(i_kind) :: ii,jj,n,nn,ngrid,ndim,ierror,n_step,n_aens
+  integer(i_kind) :: mold2(2,2), mold3(2,2,2)
+  character(len=256)::bname
+  type(gsi_grid) :: grid_motley
 
   if (ycv%lallocated) then
      write(6,*)'allocate_cv: vector already allocated'
@@ -530,75 +432,93 @@ subroutine allocate_cv(ycv)
   ycv%lallocated=.true.
   ycv%lencv = nclen
   ALLOCATE(ycv%values(ycv%lencv))
-  ALLOCATE(ycv%step(nsubwin))
 
-  ii=0
+! If so, define grid of regular control vector
+  n_step=0
+! if (beta1_inv>tiny_r_kind) then
+      ALLOCATE(ycv%step(nsubwin))
+      call GSI_GridCreate(ycv%grid_step,lat2,lon2,nsig)
+         if (lsqrtb) then
+            n_step=nval_len
+         else
+            n_step=nc3d*latlon1n+nc2d*latlon11
+         endif
+      if(mvars>0) then
+         ALLOCATE(ycv%motley(nsubwin))
+         call GSI_GridCreate(grid_motley,lat2,lon2,-1) ! this is sort of wired-in
+      endif
+! endif
+
+! If so, define grid of ensemble control vector
+  n_aens=0
+  if (l_hyb_ens) then
+      ALLOCATE(ycv%aens(nsubwin,n_ens))
+      call GSI_GridCreate(ycv%grid_aens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+         if (lsqrtb) then
+            write(6,*) 'allocate_cv: this opt not ready (lsqrtb+ens), aborting ...'
+            call stop2(999)
+         else
+            n_aens=grd_ens%latlon11*grd_ens%nsig
+         endif
+  endif
+
+! Loop over sub-windows in time
+  ii=0; ndim=0
   do jj=1,nsubwin
-     ycv%step(jj)%values => ycv%values(ii+1:ii+nval_len)
 
-     if (lsqrtb) then
-        do n=1,nrf
-           cvar=nrf_var(n)
-           select case(cvar)
-              case('sf','SF')
-                 ycv%step(jj)%st  => NULL()
-              case('vp','VP')
-                 ycv%step(jj)%vp  => NULL()
-              case('t','T')
-                 ycv%step(jj)%t   => NULL()
-              case('q','Q')
-                 ycv%step(jj)%rh  => NULL()
-              case('oz','OZ')
-                 ycv%step(jj)%oz  => NULL()
-              case('cw','CW')
-                 ycv%step(jj)%cw  => NULL()
-              case('ps','PS')
-                 ycv%step(jj)%p   => NULL()
-              case('sst','SST')
-                 ycv%step(jj)%sst => NULL()
-              case default
-                 write(6,*) 'allocate_cv: ERROR, unrecognized control variable ',cvar
-                 call stop2(100)
-           end select
-        end do
-        ii=ii+nval_len
-     else
-        do n=1,nrf
-           if (nrf_3d(n)) then 
-              ngrid=latlon1n
-           else
-              ngrid=latlon11
-           end if
+!    Set static part of control vector (non-ensemble-based)
+!    if (beta1_inv>tiny_r_kind) then
+         ycv%step(jj)%values => ycv%values(ii+1:ii+n_step)
 
-           cvar=nrf_var(n)
-           select case(cvar)
-              case('sf','SF')
-                 ycv%step(jj)%st  => ycv%values(ii+1:ii+ngrid)
-              case('vp','VP')
-                 ycv%step(jj)%vp  => ycv%values(ii+1:ii+ngrid)
-              case('t','T')
-                 ycv%step(jj)%t   => ycv%values(ii+1:ii+ngrid)
-              case('q','Q')
-                 ycv%step(jj)%rh  => ycv%values(ii+1:ii+ngrid)
-              case('oz','OZ')
-                 ycv%step(jj)%oz  => ycv%values(ii+1:ii+ngrid)
-              case('cw','CW')
-                 ycv%step(jj)%cw  => ycv%values(ii+1:ii+ngrid)
-              case('ps','PS')
-                 ycv%step(jj)%p   => ycv%values(ii+1:ii+ngrid)
-              case('sst','SST')
-                 ycv%step(jj)%sst => ycv%values(ii+1:ii+ngrid)
-              case default
-                 write(6,*) 'allocate_cv: ERROR, unrecognized control variable ',cvar
-                 call stop2(100)
-           end select
-           ii=ii+ngrid
-        end do
-        if(n_ens >  0) then
-           ycv%step(jj)%a_en => ycv%values(ii+1:ii+n_ens*grd_ens%latlon1n)
-           ii=ii+n_ens*grd_ens%latlon1n
-        end if
+         write(bname,'(a,i3.3)') 'Static Control Bundle subwin-',jj
+         call GSI_BundleSet(ycv%step(jj),ycv%grid_step,bname,ierror,names2d=cvars2d,names3d=cvars3d)
+         if (ierror/=0) then
+             write(6,*)'allocate_cv: error alloc(static bundle)'
+             call stop2(109)
+         endif
+         ndim=ndim+ycv%step(jj)%ndim
+
+         if (lsqrtb) then
+            ii=ii+nval_len
+         else
+            ii=ii+n_step
+         endif
+
+!        If motley variables needed (these don't contribute to CV size)
+!        Presently, there are thankfully only 2d-fields in this category
+         if(mvars>0) then
+            write(bname,'(a,i3.3,a,i4.4)') 'Motley Control Bundle subwin-',jj
+            call GSI_BundleCreate(ycv%motley(jj),grid_motley,bname,ierror,names2d=cvarsmd)
+            if (ierror/=0) then
+                write(6,*)'allocate_cv: error alloc(motley bundle)'
+                call stop2(109)
+            endif
+         endif
+!    endif ! beta1_inv
+
+!    Set ensemble-based part of control vector
+     if (l_hyb_ens) then
+
+         do nn=1,n_ens
+            ycv%aens(jj,nn)%values => ycv%values(ii+1:ii+n_aens)
+            write(bname,'(a,i3.3,a,i4.4)') 'Ensemble Control Bundle subwin-',jj,' and member-',nn
+            call GSI_BundleSet(ycv%aens(jj,nn),ycv%grid_aens,bname,ierror,names3d=(/'a_en'/))
+            if (ierror/=0) then
+                write(6,*)'allocate_cv: error alloc(ensemble bundle)'
+                call stop2(109)
+            endif
+            ndim=ndim+ycv%aens(jj,nn)%ndim
+
+            if (lsqrtb) then
+               ii=ii+nval_len
+               call stop2(999) ! code will not get here (see above)
+            else
+               ii=ii+n_aens
+            endif
+         enddo
+
      endif
+
   enddo
 
   ycv%predr => ycv%values(ii+1:ii+nsclen)
@@ -607,9 +527,38 @@ subroutine allocate_cv(ycv)
   ii=ii+npclen
 
   if (ii/=nclen) then
-     write(6,*)'allocate_mods: error length',ii,nclen
+     write(6,*)'allocate_cv: error length',ii,nclen
      call stop2(109)
   end if
+
+! Construct a list of integer pointers to the static and motley part of the 
+! control vector (this is to support operations on current (mpi) distribution)
+! it's enough to get these pointers to nsubwin=1, since they only serve the 
+! purpose of indexing arrays operating on single window (e.g. see grid2sub)
+! allocate(ycv%ivalues(n3d+n2d+mvars))
+! ii=0
+! do i=1,nc3d
+!    call gsi_bundlegetpointer (ycv%step(1),cvars3d,iptr,istatus,ival=ival)
+!    if(istatus==0) then
+!       ii=ii+1
+!       ycv%ivalues(ii)=ival
+!    endif
+! enddo
+! do i=1,nc2d
+!    call gsi_bundlegetpointer (ycv%step(1),cvars2d,iptr,istatus,ival=ival)
+!    if(istatus==0) then
+!       ii=ii+1
+!       ycv%ivalues(ii)=ival
+!    endif
+! enddo
+! do i=1,mvars
+!    call gsi_bundlegetpointer (ycv%motley(1),cvarsmd,iptr,istatus,ival=ival)
+!    if(istatus==0) then
+!       ii=ii+1
+!       ycv%ivalues(ii)=ival
+!    endif
+! enddo
+
 
   m_allocs=m_allocs+1
   m_vec_alloc=m_vec_alloc+1
@@ -630,7 +579,10 @@ subroutine deallocate_cv(ycv)
 !   2009-08-04  lueken - added subprogram doc block
 !   2009-09-20  parrish - add optional removal of pointer to hybrid ensemble control variable a_en
 !   2010-02-25  zhu     - add flexibility to control variable
-!
+!   2010-05-01  todling - update to use gsi_bundle
+!   2010-05-17  todling - add back ens control; w/ a twist from original
+!   2010-05-22  todling - add support for motley variables
+
 !   input argument list:
 !    ycv
 !
@@ -645,28 +597,42 @@ subroutine deallocate_cv(ycv)
 
   implicit none
   type(control_vector), intent(inout) :: ycv
-  integer(i_kind) :: ii,n
+  integer(i_kind) :: ii,n,nn,m3d,m2d,nd,ierror
 
   if (ycv%lallocated) then
      do ii=1,nsubwin
-        do n=1,nrf
-           select case(trim(nrf_var(n)))
-              case('sf','SF') ;  NULLIFY(ycv%step(ii)%st )
-              case('vp','VP') ;  NULLIFY(ycv%step(ii)%vp )
-              case('t','T')   ;  NULLIFY(ycv%step(ii)%t  )
-              case('q','Q') ;  NULLIFY(ycv%step(ii)%rh )
-              case('oz','OZ') ;  NULLIFY(ycv%step(ii)%oz )
-              case('cw','CW') ;  NULLIFY(ycv%step(ii)%cw )
-              case('ps','PS')   ;  NULLIFY(ycv%step(ii)%p  )
-              case('sst','SST'); NULLIFY(ycv%step(ii)%sst)
-           end select
-        end do
-
-        if(n_ens >  0) NULLIFY(ycv%step(ii)%a_en)
+        if (l_hyb_ens) then
+           do nn=n_ens,1,-1
+              m3d=ycv%aens(ii,nn)%n3d
+              do n = 1,m3d
+                 nullify(ycv%aens(ii,nn)%r3(n)%q)
+              enddo
+              m2d=ycv%aens(ii,nn)%n2d
+              do n = 1,m2d
+                 nullify(ycv%aens(ii,nn)%r2(n)%q)
+              enddo
+              call GSI_BundleUnset(ycv%aens(ii,nn),ierror)
+           enddo
+        endif
+!       if (beta1_inv>tiny_r_kind) then
+           if(mvars>0) then
+              call GSI_BundleDestroy(ycv%motley(ii),ierror)
+           endif
+           m3d=ycv%step(ii)%n3d
+           do n = 1,m3d
+              nullify(ycv%step(ii)%r3(n)%q)
+           enddo
+           m2d=ycv%step(ii)%n2d
+           do n = 1,m2d
+              nullify(ycv%step(ii)%r2(n)%q)
+           enddo
+           call GSI_BundleUnset(ycv%step(ii),ierror)
+!       endif ! beta1_inv
      end do
      NULLIFY(ycv%predr)
      NULLIFY(ycv%predp)
 
+     if(mvars>0) DEALLOCATE(ycv%motley)
      DEALLOCATE(ycv%step)
      DEALLOCATE(ycv%values)
 
@@ -840,187 +806,6 @@ subroutine assign_cv2array(parray,ycv)
   return
 end subroutine assign_cv2array
 ! ----------------------------------------------------------------------
- subroutine assign_array2cs(ycs,st,vp,t,rh,oz,cw,ps,sst)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    assign_array2cs
-!   prgmmr:                  org:                     date:
-!
-! abstract:
-!
-! program history log:
-!   2010-03-15  zhu
-!
-!   input argument list:
-!    ycs
-!
-!   output argument list:
-!    st,vp,t,q,oz,cw,ps,sst
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  use gridmod, only: latlon1n,latlon11
-  implicit none
-
-  real(r_kind),dimension(latlon1n),intent(in) :: st,vp,t,rh,oz,cw
-  real(r_kind),dimension(latlon11),intent(in) :: ps
-  real(r_kind),dimension(latlon11),optional,intent(in) :: sst
-  type(control_state),intent(inout) :: ycs
-  integer(i_kind) :: ii
-
-  DO ii=1,latlon1n
-     ycs%st(ii)=st(ii)
-     ycs%vp(ii)=vp(ii)
-     ycs%t(ii)=t(ii)
-     ycs%rh(ii)=rh(ii)
-     if (nrf3_oz>0) ycs%oz(ii)=oz(ii)
-     if (nrf3_cw>0) ycs%cw(ii)=cw(ii)
-  ENDDO
-
-  DO ii=1,latlon11
-     ycs%p(ii)=ps(ii)
-     if (present(sst) .and. nrf2_sst>0) ycs%sst(ii)=sst(ii)
-  ENDDO
-
-  return
-end subroutine assign_array2cs
-
-! ----------------------------------------------------------------------
- subroutine assign_cs2array(ycs,st,vp,t,rh,oz,cw,ps,sst)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    assign_cs2array
-!   prgmmr:                  org:                     date:
-!
-! abstract:
-!
-! program history log:
-!   2010-03-15  zhu
-!
-!   input argument list:
-!    ycs
-!
-!   output argument list:
-!    st,vp,t,q,oz,cw,ps,sst
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  use gridmod, only: latlon1n,latlon11
-  implicit none
-
-  type(control_state),intent(in) :: ycs
-  real(r_kind),dimension(latlon1n),intent(out) :: st,vp,t,rh,oz,cw
-  real(r_kind),dimension(latlon11),intent(out) :: ps
-  real(r_kind),dimension(latlon11),optional,intent(out) :: sst
-  integer(i_kind) :: ii
-
-  DO ii=1,latlon1n
-     st(ii)=ycs%st(ii)
-     vp(ii)=ycs%vp(ii)
-      t(ii)=ycs%t(ii)
-     rh(ii)=ycs%rh(ii)
-     if (nrf3_oz>0) oz(ii)=ycs%oz(ii)
-     if (nrf3_cw>0) cw(ii)=ycs%cw(ii)
-  ENDDO
-
-  DO ii=1,latlon11
-     ps(ii)=ycs%p(ii)
-     if (present(sst) .and. nrf2_sst>0) sst(ii)=ycs%sst(ii)
-  ENDDO
-
-  return
-end subroutine assign_cs2array
-
-! ----------------------------------------------------------------------
-real(r_quad) function dplevs(nlevs,dx,dy)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    dplevs
-!   prgmmr:                  org:                     date:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-04  lueken - added subprogram doc block
-!
-!   input argument list:
-!    nlevs
-!    dx,dy
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-  implicit none
-  integer(i_kind),intent(in   ) :: nlevs
-  real(r_kind)   ,intent(in   ) :: dx(lat2,lon2,nlevs),dy(lat2,lon2,nlevs)
-
-  integer(i_kind) :: ii,jj,kk
-
-  dplevs=zero_quad
-  do kk=1,nlevs
-     do jj=2,lon2-1
-        do ii=2,lat2-1
-           dplevs=dplevs+dx(ii,jj,kk)*dy(ii,jj,kk)
-        end do
-     end do
-  end do
-
-return
-end function dplevs
-! ----------------------------------------------------------------------
-real(r_quad) function dplevs_ens(nlevs,dx,dy)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    dplevs_ens  copy of dplevs for use with ensemble control variable a_en
-!   prgmmr: parrish          org: wx22                date: 2010-02-20
-!
-! abstract:
-!
-! program history log:
-!   2010-02-20  parrish, initial documentation
-!
-!   input argument list:
-!    nlevs
-!    dx,dy
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-  use hybrid_ensemble_parameters, only: grd_ens
-  implicit none
-  integer(i_kind),intent(in   ) :: nlevs
-  real(r_kind)   ,intent(in   ) :: dx(grd_ens%lat2,grd_ens%lon2,nlevs),dy(grd_ens%lat2,grd_ens%lon2,nlevs)
-
-  integer(i_kind) :: ii,jj,kk
-
-  dplevs_ens=zero_quad
-  do kk=1,nlevs
-     do jj=2,grd_ens%lon2-1
-        do ii=2,grd_ens%lat2-1
-           dplevs_ens=dplevs_ens+dx(ii,jj,kk)*dy(ii,jj,kk)
-        end do
-     end do
-  end do
-
-return
-end function dplevs_ens
-! ----------------------------------------------------------------------
 real(r_quad) function qdot_prod_sub(xcv,ycv)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1032,6 +817,8 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
 !   2009-09-20  parrish - add hybrid ensemble control variable a_en contribution to dot product
+!   2010-05-17  todling - update to use bundle
+!   2010-06-02  parrish - add contribution from ensemble control variable to dot product
 !
 !   input argument list:
 !    xcv,ycv
@@ -1047,8 +834,8 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 
   implicit none
   type(control_vector), intent(in   ) :: xcv, ycv
-  integer(i_kind) :: ii,j
-  real(r_quad),dimension(9):: zz
+  integer(i_kind) :: ii,m3d,m2d,i,j
+
 
   qdot_prod_sub=zero_quad
 
@@ -1057,50 +844,30 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
      do ii=1,nsubwin
         qdot_prod_sub=qdot_prod_sub+qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
      end do
-!    Duplicated part of vector
-     if(mype == 0)then
-        do j=nclen1+1,nclen
-           qdot_prod_sub=qdot_prod_sub+xcv%values(j)*ycv%values(j) 
-        end do
-     end if
   else
      do ii=1,nsubwin
-!$omp parallel sections
-!$omp section
-        qdot_prod_sub = qdot_prod_sub+dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-!       Duplicated part of vector
-        if(mype == 0 .and. ii == 1)then
-           do j=nclen1+1,nclen
-              qdot_prod_sub=qdot_prod_sub+xcv%values(j)*ycv%values(j) 
+        m3d=xcv%step(ii)%n3d
+        do i = 1,m3d
+           qdot_prod_sub = qdot_prod_sub + dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
+        enddo
+        m2d=xcv%step(ii)%n2d
+        do i = 1,m2d
+           qdot_prod_sub = qdot_prod_sub + dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
+        enddo
+        if(l_hyb_ens) then
+           do i = 1,n_ens
+              qdot_prod_sub = qdot_prod_sub + dplevs(xcv%aens(ii,i)%r3(1)%q,ycv%aens(ii,i)%r3(1)%q,ihalo=1)
            end do
         end if
-!$omp section
-        zz(1) = dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-        if(nrf3_oz > 0) then
-           zz(1) = zz(1)+dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-        end if
-!$omp section
-        zz(2) = dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-        if(nrf3_cw > 0) then
-          zz(2) = zz(2) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-        end if
-!$omp section
-        zz(3) = dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-        if(nrf2_sst > 0) then
-          zz(3) = zz(3) + dplevs(1,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
-        end if
-!$omp section
-        zz(4) = dplevs(1,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-        if(n_ens > 0) then
-          zz(4) = zz(4)+dplevs_ens(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
-        end if
-!$omp end parallel sections
-        do j=1,4
-          qdot_prod_sub = qdot_prod_sub + zz(j)
-        end do
      end do
   end if
 
+! Duplicated part of vector
+  if(mype == 0)then
+     do j=nclen1+1,nclen
+        qdot_prod_sub=qdot_prod_sub+xcv%values(j)*ycv%values(j) 
+     end do
+  end if
 
 return
 end function qdot_prod_sub
@@ -1118,6 +885,7 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 !
 ! program history log:
 !   2009-09-20  parrish - initial documentation
+!   2010-05-17  todling - update to use bundle
 !
 !   input argument list:
 !    xcv,ycv
@@ -1139,7 +907,7 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
   real(r_quad)        , intent(  out) :: prods(nsubwin+1)
 
   real(r_quad) :: zz(nsubwin)
-  integer(i_kind) :: ii
+  integer(i_kind) :: ii,i,nn,m3d,m2d,istatus
 
   prods(:)=zero_quad
   zz(:)=zero_quad
@@ -1151,24 +919,29 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
      end do
   else
      if(trim(eb) == 'cost_b') then
-        do ii=1,nsubwin
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-           if (nrf3_oz>0) &
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-           if (nrf3_cw>0) &
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-           zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-           if (nrf2_sst>0) &
-           zz(ii) = zz(ii) + dplevs(1,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+        do ii=1,nsubwin ! RTod: somebody could work in opt/zing this ...
+           m3d=xcv%step(ii)%n3d
+           do i = 1,m3d
+              zz(ii) = zz(ii) + dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
+           enddo
+           m2d=xcv%step(ii)%n2d
+           do i = 1,m2d
+              zz(ii) = zz(ii) + dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
+           enddo
         end do
      end if
      if(trim(eb) == 'cost_e') then
-        do ii=1,nsubwin
-           if(n_ens >  0) &
-           zz(ii) = zz(ii) + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
+        do ii=1,nsubwin ! RTod: somebody could work in opt/zing this ...
+           do nn=1,n_ens
+              m3d=xcv%aens(ii,nn)%n3d
+              do i = 1,m3d
+                 zz(ii) = zz(ii) + dplevs(xcv%aens(ii,nn)%r3(i)%q,ycv%aens(ii,nn)%r3(i)%q,ihalo=1)
+              enddo
+              m2d=xcv%aens(ii,nn)%n2d
+              do i = 1,m2d
+                 zz(ii) = zz(ii) + dplevs(xcv%aens(ii,nn)%r2(i)%q,ycv%aens(ii,nn)%r2(i)%q,ihalo=1)
+              enddo
+           enddo
         end do
      end if
   end if
@@ -1361,7 +1134,7 @@ subroutine prt_norms(xcv,sgrep)
      write(6,*)sgrep,' global  norm =',real(zt,r_kind)
   endif
 
-!!!  call prt_norms_vars(xcv,sgrep)
+!_RT  call prt_norms_vars(xcv,sgrep) --->> this routine is hanging
 
   return
 end subroutine prt_norms
@@ -1370,12 +1143,13 @@ subroutine prt_norms_vars(xcv,sgrep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    prt_norms_vars
-!   prgmmr:                  org:                     date:
+!   prgmmr: Jing Guo         org:  gmao               date:
 !
 ! abstract:
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2010-05-06  todling- update to use gsi_bundle-like vector
 !
 !   input argument list:
 !    xcv
@@ -1394,35 +1168,21 @@ subroutine prt_norms_vars(xcv,sgrep)
   type(control_vector), intent(in   ) :: xcv
   character(len=*)    , intent(in   ) :: sgrep
 
-  real   (r_kind),dimension(8) :: vdot,vsum,vmin,vmax
-  integer(i_kind),dimension(8) :: vnum
-  integer :: iw,nsw,iv,ivend,nv
+  real   (r_kind),allocatable,dimension(:) :: vdot,vsum,vmin,vmax
+  integer(i_kind),allocatable,dimension(:) :: vnum
+  integer :: jj,nsw,iv,nv
   real(r_kind),pointer,dimension(:) :: piv
-
-  character(len=4),dimension(9) :: vnames = &
-                        (/'st  ','vp  ','t   ','rh  ','oz  ','cw  ','p   ','sst ','a_en'/)
 
   nsw=size(xcv%step)
 
-  ivend=8_i_kind
-  if(n_ens >  0) ivend=9_i_kind
-  do iv=1,ivend
-     do iw=1,nsw
-        piv => null()
-        select case(iv)
-           case(1); piv => xcv%step(iw)%st
-           case(2); piv => xcv%step(iw)%vp
-           case(3); piv => xcv%step(iw)%t
-           case(4); piv => xcv%step(iw)%rh
-           case(5); piv => xcv%step(iw)%oz
-           case(6); piv => xcv%step(iw)%cw
-           case(7); piv => xcv%step(iw)%p
-           case(8); piv => xcv%step(iw)%sst
-           case(9); piv => xcv%step(iw)%a_en
-        end select
+! process 3d variables first
+  allocate(vdot(nc3d),vsum(nc3d),vmin(nc3d),vmax(nc3d),vnum(nc3d))
+  do iv=1,nc3d
+     do jj=1,nsw
+        piv => rerank(xcv%step(jj)%r3(iv)%q)
 
         call stats_sum(piv, &
-                       vdot(iv),vsum(iv),vmin(iv),vmax(iv),vnum(iv),add=iw>1)
+                       vdot(iv),vsum(iv),vmin(iv),vmax(iv),vnum(iv),add=jj>1)
      enddo
 
      call stats_allreduce(vdot(iv),vsum(iv),vmin(iv),vmax(iv),  &
@@ -1431,10 +1191,35 @@ subroutine prt_norms_vars(xcv,sgrep)
   
      if(mype==0) then
         write(6,'(2(1x,a),4(1x,ES20.12),1x,i10)')               &
-          sgrep,vnames(iv),sqrt(vdot(iv)/nv),vsum(iv)/nv,       &
+          sgrep,cvars3d(iv),sqrt(vdot(iv)/nv),vsum(iv)/nv,       &
           vmin(iv),vmax(iv),vnum(iv)
      endif
   end do
+  deallocate(vdot,vsum,vmin,vmax,vnum)
+
+! process 2d now
+  allocate(vdot(nc2d),vsum(nc2d),vmin(nc2d),vmax(nc2d),vnum(nc2d))
+  do iv=1,nc2d
+     do jj=1,nsw
+        piv => rerank(xcv%step(jj)%r2(iv)%q)
+
+        call stats_sum(piv, &
+                       vdot(iv),vsum(iv),vmin(iv),vmax(iv),vnum(iv),add=jj>1)
+     enddo
+
+     call stats_allreduce(vdot(iv),vsum(iv),vmin(iv),vmax(iv),  &
+                          vnum(iv),MPI_comm_world)
+     nv=max(vnum(iv),1)
+  
+     if(mype==0) then
+        write(6,'(2(1x,a),4(1x,ES20.12),1x,i10)')               &
+          sgrep,cvars2d(iv),sqrt(vdot(iv)/nv),vsum(iv)/nv,       &
+          vmin(iv),vmax(iv),vnum(iv)
+     endif
+  end do
+  deallocate(vdot,vsum,vmin,vmax,vnum)
+
+! release pointer
   piv => null()
   
 end subroutine prt_norms_vars
@@ -1443,9 +1228,9 @@ subroutine axpy(alpha,xcv,ycv)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    axpy
-!   prgmmr:                  org:                     date:
+!   prgmmr: todling          org: gmao                date:
 !
-! abstract:
+! abstract: similar to BLAS axpy
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
@@ -1485,7 +1270,7 @@ subroutine random_cv(ycv,kseed)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    random_cv
-!   prgmmr:                  org:                     date:
+!   prgmmr: tremolet         org: gmao                date:
 !
 ! abstract:
 !
@@ -1559,7 +1344,7 @@ subroutine write_cv(xcv,cdfile)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    write_cv
-!   prgmmr:                  org:                     date:
+!   prgmmr: tremolet         org:  gmao               date:
 !
 ! abstract:
 !
@@ -1604,7 +1389,7 @@ subroutine read_cv(xcv,cdfile)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_cv
-!   prgmmr:                  org:                     date:
+!   prgmmr:  tremolet        org: gmao                date:
 !
 ! abstract:
 !
@@ -1654,7 +1439,7 @@ subroutine inquire_cv
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    inquire_cv
-!   prgmmr:                  org:                     date:
+!   prgmmr: tremolet         org: gmao                date:
 !
 ! abstract:
 !
@@ -1689,7 +1474,7 @@ real(r_kind) function maxval_cv(ycv)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    maxval_cv
-!   prgmmr:                  org:                     date:
+!   prgmmr: tremolet         org: gmao                date:
 !
 ! abstract:
 !
@@ -1728,7 +1513,7 @@ real(r_quad) function qdot_product(x,y)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    qdot_product
-!   prgmmr:                  org:                     date:
+!   prgmmr: todling         org: gmao                date:
 !
 ! abstract:
 !
@@ -1758,6 +1543,7 @@ real(r_quad) function qdot_product(x,y)
   end if
   zz=zero_quad
 
+! -- add omp reduction to get the correct qdot product
   do i=1,nx
      zz = zz + x(i)*y(i)
   enddo

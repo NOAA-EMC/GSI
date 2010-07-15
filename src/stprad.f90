@@ -60,6 +60,9 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-03-25  zhu     - use state_vector in the interface;
 !                       - add handlings of sst,oz cases; add pointer_state
+!   2010-05-13  todling - update to use gsi_bundle
+!                       - on-the-spot handling of non-essential vars
+!   2010-07-10  todling - remove omp directives (per merge w/ r8741; Derber?)
 !
 !   input argument list:
 !     radhead
@@ -95,21 +98,22 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,r3600,zero_quad,one_quad
   use gridmod, only: nsig,nsig2,nsig3p1,nsig3p2,nsig3p3,&
        latlon11,latlon1n
-  use jfunc, only: l_foto,xhat_dt,dhat_dt,pointer_state
-  use control_vectors, only: nrf2_sst,nrf3_oz
-  use state_vectors
+  use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
   
 ! Declare passed variables
-  type(rad_ob_type),pointer             ,intent(in   ) :: radhead
-  integer(i_kind)                       ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(1,nstep))  ,intent(inout) :: out
-  real(r_kind),dimension(npred,jpch_rad),intent(in   ) :: rpred,spred
-  real(r_kind),dimension(max(1,nstep))  ,intent(in   ) :: sges
-  type(state_vector)                    ,intent(in   ) :: dval
-  type(state_vector)                    ,intent(in   ) :: xval
+  type(rad_ob_type),pointer              ,intent(in   ) :: radhead
+  integer(i_kind)                        ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep))   ,intent(inout) :: out
+  real(r_kind),dimension(npred,jpch_rad) ,intent(in   ) :: rpred,spred
+  real(r_kind),dimension(max(1,nstep))   ,intent(in   ) :: sges
+  type(gsi_bundle),intent(in) :: dval
+  type(gsi_bundle),intent(in) :: xval
 
 ! Declare local variables
+  integer(i_kind) ier,istatus,isst,ioz
   integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4,kk
   real(r_kind) val2,val,w1,w2,w3,w4
   real(r_kind),dimension(nsig3p3):: tdir,rdir
@@ -120,12 +124,44 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   type(rad_ob_type), pointer :: radptr
   real(r_kind),pointer,dimension(:) :: rt,st,rq,sq,roz,soz,ru,su,rv,sv
   real(r_kind),pointer,dimension(:) :: rst,sst
+  real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_oz,xhat_dt_u,xhat_dt_v
+  real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_oz,dhat_dt_u,dhat_dt_v
 
   out=zero_quad
 
-! prepare pointers
-  call pointer_state(xval,t=st,q=sq,u=su,v=sv,oz=soz,sst=sst)
-  call pointer_state(dval,t=rt,q=rq,u=ru,v=rv,oz=roz,sst=rst)
+! Retrieve pointers
+  ier=0; isst=0; ioz=0
+  call gsi_bundlegetpointer(xval,'u',  su, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'v',  sv, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'tv' ,st, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'q',  sq, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'oz' ,soz,istatus);ioz=istatus+ioz
+  call gsi_bundlegetpointer(xval,'sst',sst,istatus);isst=istatus+isst
+  if(ier/=0)return
+
+  call gsi_bundlegetpointer(dval,'u',  ru, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'v',  rv, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'tv' ,rt, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'q',  rq, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'oz' ,roz,istatus);ioz=istatus+ioz
+  call gsi_bundlegetpointer(dval,'sst',rst,istatus);isst=istatus+isst
+  if(ier/=0)return
+
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'u',  xhat_dt_u, istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'v',  xhat_dt_v, istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'tv' ,xhat_dt_t, istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'q',  xhat_dt_q, istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'oz' ,xhat_dt_oz,istatus);ioz=istatus+ioz
+     if(ier/=0)return
+
+     call gsi_bundlegetpointer(dhat_dt,'u',  dhat_dt_u, istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'v',  dhat_dt_v, istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'tv' ,dhat_dt_t, istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'q',  dhat_dt_q, istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'oz' ,dhat_dt_oz,istatus);ioz=istatus+ioz
+     if(ier/=0)return
+  endif
 
   radptr=>radhead
   do while(associated(radptr))
@@ -143,7 +179,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            rdir(nsig3p1)=w1* ru(j1) + w2* ru(j2) + w3* ru(j3) + w4* ru(j4)
            tdir(nsig3p2)=w1* sv(j1) + w2* sv(j2) + w3* sv(j3) + w4* sv(j4)
            rdir(nsig3p2)=w1* rv(j1) + w2* rv(j2) + w3* rv(j3) + w4* rv(j4)
-           if (nrf2_sst>0) then
+           if (isst==0) then
               tdir(nsig3p3)=w1*sst(j1) + w2*sst(j2) + w3*sst(j3) + w4*sst(j4)   
               rdir(nsig3p3)=w1*rst(j1) + w2*rst(j2) + w3*rst(j3) + w4*rst(j4)   
            else
@@ -153,17 +189,17 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            if(l_foto)then
               time_rad=radptr%time*r3600
               tdir(nsig3p1)=tdir(nsig3p1)+ &
-                     (w1*xhat_dt%u(j1) + w2*xhat_dt%u(j2) + &
-                      w3*xhat_dt%u(j3) + w4*xhat_dt%u(j4))*time_rad
+                     (w1*xhat_dt_u(j1) + w2*xhat_dt_u(j2) + &
+                      w3*xhat_dt_u(j3) + w4*xhat_dt_u(j4))*time_rad
               rdir(nsig3p1)=rdir(nsig3p1)+ &
-                     (w1*dhat_dt%u(j1) + w2*dhat_dt%u(j2) + &
-                      w3*dhat_dt%u(j3) + w4*dhat_dt%u(j4))*time_rad
+                     (w1*dhat_dt_u(j1) + w2*dhat_dt_u(j2) + &
+                      w3*dhat_dt_u(j3) + w4*dhat_dt_u(j4))*time_rad
               tdir(nsig3p2)=tdir(nsig3p2)+ &
-                     (w1*xhat_dt%v(j1) + w2*xhat_dt%v(j2) + &
-                      w3*xhat_dt%v(j3) + w4*xhat_dt%v(j4))*time_rad
+                     (w1*xhat_dt_v(j1) + w2*xhat_dt_v(j2) + &
+                      w3*xhat_dt_v(j3) + w4*xhat_dt_v(j4))*time_rad
               rdir(nsig3p2)=rdir(nsig3p2)+ &
-                     (w1*dhat_dt%v(j1) + w2*dhat_dt%v(j2) + &
-                      w3*dhat_dt%v(j3) + w4*dhat_dt%v(j4))*time_rad
+                     (w1*dhat_dt_v(j1) + w2*dhat_dt_v(j2) + &
+                      w3*dhat_dt_v(j3) + w4*dhat_dt_v(j4))*time_rad
            end if
 
            j1n(1) = j1
@@ -185,7 +221,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !             Input state vector
               tdir(n)    =  w1* st(j1) +w2* st(j2) + w3* st(j3) +w4*  st(j4)
               tdir(nsig+n)= w1* sq(j1) +w2* sq(j2) + w3* sq(j3) +w4*  sq(j4)
-              if (nrf3_oz>0) then
+              if (ioz==0) then
                  tdir(nsig2+n)=w1*soz(j1)+w2*soz(j2)+ w3*soz(j3)+w4*soz(j4)
               else
                  tdir(nsig2+n)=zero
@@ -194,7 +230,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !             Input search direction vector
               rdir(n)    =  w1* rt(j1) +w2* rt(j2) + w3* rt(j3) +w4*  rt(j4)
               rdir(nsig+n)= w1* rq(j1) +w2* rq(j2) + w3* rq(j3) +w4*  rq(j4)
-              if (nrf3_oz>0) then
+              if (ioz==0) then
                  rdir(nsig2+n)=w1*roz(j1)+w2*roz(j2)+ w3*roz(j3)+w4*roz(j4)
               else
                  rdir(nsig2+n)=zero
@@ -210,28 +246,28 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 
 !                Input state vector
                  tdir(n)    =  tdir(n)+                                &
-                          (w1*xhat_dt%t(j1) +w2*xhat_dt%t(j2) +        &
-                           w3*xhat_dt%t(j3) +w4*xhat_dt%t(j4))*time_rad
+                          (w1*xhat_dt_t(j1) +w2*xhat_dt_t(j2) +        &
+                           w3*xhat_dt_t(j3) +w4*xhat_dt_t(j4))*time_rad
                  tdir(nsig+n)= tdir(nsig+n)+                           &
-                          (w1*xhat_dt%q(j1) +w2*xhat_dt%q(j2) +        &
-                           w3*xhat_dt%q(j3) +w4*xhat_dt%q(j4))*time_rad
-                 if (nrf3_oz>0) then
+                          (w1*xhat_dt_q(j1) +w2*xhat_dt_q(j2) +        &
+                           w3*xhat_dt_q(j3) +w4*xhat_dt_q(j4))*time_rad
+                 if (ioz==0) then
                     tdir(nsig2+n)=tdir(nsig2+n)+                          &
-                             (w1*xhat_dt%oz(j1)+w2*xhat_dt%oz(j2)+        &
-                              w3*xhat_dt%oz(j3)+w4*xhat_dt%oz(j4))*time_rad
+                             (w1*xhat_dt_oz(j1)+w2*xhat_dt_oz(j2)+        &
+                              w3*xhat_dt_oz(j3)+w4*xhat_dt_oz(j4))*time_rad
                  end if
  
 !                Input search direction vector
                  rdir(n)    =  rdir(n)+                                &
-                          (w1*dhat_dt%t(j1) +w2*dhat_dt%t(j2) +        &
-                           w3*dhat_dt%t(j3) +w4*dhat_dt%t(j4))*time_rad
+                          (w1*dhat_dt_t(j1) +w2*dhat_dt_t(j2) +        &
+                           w3*dhat_dt_t(j3) +w4*dhat_dt_t(j4))*time_rad
                  rdir(nsig+n)= rdir(nsig+n)+                           &
-                          (w1*dhat_dt%q(j1) +w2*dhat_dt%q(j2) +        &
-                           w3*dhat_dt%q(j3) +w4*dhat_dt%q(j4))*time_rad
-                 if (nrf3_oz>0) then
+                          (w1*dhat_dt_q(j1) +w2*dhat_dt_q(j2) +        &
+                           w3*dhat_dt_q(j3) +w4*dhat_dt_q(j4))*time_rad
+                 if (ioz==0) then
                     rdir(nsig2+n)=rdir(nsig2+n)+                          &
-                             (w1*dhat_dt%oz(j1)+w2*dhat_dt%oz(j2)+        &
-                              w3*dhat_dt%oz(j3)+w4*dhat_dt%oz(j4))*time_rad
+                             (w1*dhat_dt_oz(j1)+w2*dhat_dt_oz(j2)+        &
+                              w3*dhat_dt_oz(j3)+w4*dhat_dt_oz(j4))*time_rad
                  end if
 
               end do

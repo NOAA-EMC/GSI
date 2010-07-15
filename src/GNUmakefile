@@ -180,6 +180,7 @@ show_fflags:
 SRCS =	$(wildcard \
 	abor1.f90 \
 	adjtest.f90 \
+        aeroinfo.f90 \
 	anberror.f90 \
 	anbkerror.f90 \
 	aniso_ens_util.f90 \
@@ -203,6 +204,7 @@ SRCS =	$(wildcard \
 	calctends_tl.F90 \
 	calctends_no_ad.F90 \
 	calctends_no_tl.F90 \
+        coinfo.f90 \
 	combine_radobs.f90 \
 	compact_diffs.f90 \
 	compute_derived.f90 \
@@ -236,8 +238,6 @@ SRCS =	$(wildcard \
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
-	geos_pertmod.F90 \
-	geos_pgcmtest.F90 \
 	gesinfo.F90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
@@ -247,14 +247,18 @@ SRCS =	$(wildcard \
         getsiga.F90 \
 	getuv.f90 \
 	getvvel.f90 \
+        gsi_bundlemod.F90 \
+        gsi_chemtracer_mod.F90 \
 	glbsoi.F90 \
-	global_mean.f90 \
 	grtest.f90 \
 	grdcrd.f90 \
 	grid2sub.f90 \
 	gridmod.f90 \
 	gscond_ad.f90 \
+        gsd_terrain_match_surfTobs.f90 \
+        gsdcloudanalysis.F90 \
 	gsi_4dvar.f90 \
+        gsi_4dcouplermod.F90 \
 	gsi_io.f90 \
 	gsi_nemsio_mod.f90 \
 	gsimod.F90 \
@@ -270,6 +274,7 @@ SRCS =	$(wildcard \
 	init_jcdfi.F90 \
 	int3dvar.f90 \
 	intall.f90 \
+	intco.f90 \
 	intdw.f90 \
 	intgps.f90 \
 	intjcpdry.f90 \
@@ -283,6 +288,7 @@ SRCS =	$(wildcard \
 	intq.f90 \
 	intrad.f90 \
 	intrp2a.f90 \
+	intrp3co.f90 \
 	intrp3oz.f90 \
 	intrppx.f90 \
 	intrw.f90 \
@@ -305,12 +311,14 @@ SRCS =	$(wildcard \
         m_berror_stats_reg.f90 \
 	m_dgeevx.F90 \
 	m_gsiBiases.F90 \
+	m_rerank.F90 \
 	m_stats.F90 \
 	m_tick.F90 \
 	mpeu_mpif.F90 \
 	mpeu_util.F90 \
 	missing_routines.f90 \
 	m_dtime.F90 \
+	m_gpsrhs.F90 \
 	m_obdiag.F90 \
 	m_rhs.F90 \
 	mod_inmi.f90 \
@@ -325,6 +333,7 @@ SRCS =	$(wildcard \
 	mpimod.F90 \
 	mpl_allreduce.f90 \
 	mpl_bcast.f90 \
+        ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \
 	nemsio_module.f90 \
 	nlmsas_ad.f90 \
@@ -363,11 +372,13 @@ SRCS =	$(wildcard \
 	raflib.f90 \
         rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
+        read_aerosol.F90 \
 	read_airs.f90 \
 	read_amsre.f90 \
 	read_avhrr.f90 \
 	read_avhrr_navy.f90 \
 	read_bufrtovs.f90 \
+	read_co.F90 \
 	read_files.f90 \
         read_gfs_ozone_for_regional.f90 \
 	read_goesimg.f90 \
@@ -398,6 +409,7 @@ SRCS =	$(wildcard \
 	read_wrf_nmm_files.f90 \
 	read_wrf_nmm_guess.F90 \
 	regional_io.f90 \
+        reorg_metar_cloud.f90 \
 	ret_ssmis.f90 \
 	retrieval_amsre.f90 \
 	retrieval_mi.f90 \
@@ -406,6 +418,7 @@ SRCS =	$(wildcard \
 	rtlnmc_version3.f90 \
 	satthin.F90 \
 	setupbend.f90 \
+	setupco.f90 \
 	setupdw.f90 \
 	setupo3lv.f90 \
 	setuplag.F90 \
@@ -437,6 +450,7 @@ SRCS =	$(wildcard \
 	sst_retrieval.f90 \
 	state2control.f90 \
 	state_vectors.f90 \
+	statsco.f90 \
 	statsconv.f90 \
 	statsoz.f90 \
 	statspcp.f90 \
@@ -444,6 +458,7 @@ SRCS =	$(wildcard \
 	stop1.f90 \
 	stp3dvar.f90 \
 	stpcalc.f90 \
+	stpco.f90 \
 	stpdw.f90 \
 	stpgps.f90 \
 	stpjo.f90 \
@@ -466,6 +481,8 @@ SRCS =	$(wildcard \
 	strong_baldiag_inc.f90 \
 	strong_fast_global_mod.f90 \
 	strong_slow_global_mod.f90 \
+        stub_pertmod.F90 \
+        stub_timermod.F90 \
 	sub2fslab_mod.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
@@ -550,6 +567,12 @@ gsi.x:  $(OBJS) $(LIB) gsimain.o
 	     $(LIB_SP) $(LIB_W3) $(LIB_GMAO) \
 	     $(LIB_SDF) $(LIB_MPI) $(LIB_SCI) $(LIB_SYS)
 
+ut_gsibundle.x:  $(OBJS) $(LIB) ut_gsibundle.o
+	$(FC) $(LDFLAGS) -o ut_gsibundle.x ut_gsibundle.o $(LIB) $(LIB_CRTM)              \
+	     $(LIB_SFCIO)  $(LIB_BUFR) $(LIB_GFSIO) $(LIB_SIGIO) \
+	     $(LIB_SP) $(LIB_W3) $(LIB_GMAO) \
+	     $(LIB_SDF) $(LIB_MPI) $(LIB_SCI) $(LIB_SYS)
+
 prepbykx.x: prepbykx.o
 	$(LD) $(LDFLAGS) -o prepbykx.x prepbykx.o $(LIB_BUFR)
 
@@ -599,6 +622,13 @@ $(OBJS_OPENBUFR) :
 	@echo '---> Special handling of Fortran "native" BUFR-OPEN $<'
 	$(FC) -c $(patsubst $(BIG_ENDIAN),,$(f90FLAGS)) $<
 
+ifeq ($(BOPT),g)
+FOPTx = $(patsubst -O0,-O1,$(FOPT))
+f90FLAGSx  = $(FDEFS) $(FINCS) $(FMODS) $(FOPTx) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
+nlmsas_ad.o: nlmsas_ad.f90
+	$(ESMA_TIMER) $(FC) -c $(f90FLAGSx) $<
+endif
+
 FFLAGS_OPENBUFR = $(patsubst $(BIG_ENDIAN),,$(f90FLAGS))
 
 #
@@ -611,6 +641,21 @@ $(OBJS_OPENBIG) :
 	$(FC) -c $(BIG_ENDIAN) $(f90FLAGS) $<
 
 FFLAGS_OPENBIG = $(BIG_ENDIAN) $(f90FLAGS)
+
+#                  --------------------
+#                     Documentation
+#                  --------------------
+
+PDF_DOCS = GSI_BundleUserGuide.pdf
+
+esma_doc doc: $(PDF_DOCS)
+
+UG_SRCS = gsi_bundlemod.F90
+
+GSI_BundleUserGuide.tex: $(UG_SRCS)
+	$(PROTEX) -g ut_gsibundle.F90 > ut_gsibundle.tex
+	$(PROTEX) -g -b -f $(UG_SRCS) > GSI_BundleUserGuide___.tex
+	$(CAT) ut_gsibundle.tex GSI_BundleUserGuide___.tex > GSI_BundleUserGuide.tex
 
 # Hack to prevent remaking dep files during cleaning
 # --------------------------------------------------

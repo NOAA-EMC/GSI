@@ -26,6 +26,8 @@ module anisofilter
 !   2010-03-03  zhu  - make some changes for generalizing control variables,
 !                      add one more dimension to corp and hwllp
 !   2010-04-01  treadon - move strip_single to gridmod
+!   2010-05-28  todling - obtain variable id's on the fly (add getindex)
+!   2010-06-05  todling - an_amp0 coming from control_vectors
 !
 !
 ! subroutines included:
@@ -95,7 +97,7 @@ module anisofilter
                       var_names,smooth_len, &
                       filter_all,pf2aP1, &
                       triad4,ifilt_ord,npass,normal,binom, &
-                      ngauss,rgauss,anhswgt,an_amp,an_amp0,an_vs, &
+                      ngauss,rgauss,anhswgt,an_amp,an_vs, &
                       ancovmdl, covmap, lreadnorm, &
                       rtma_subdomain_option,nsmooth,nsmooth_shapiro
 
@@ -118,9 +120,11 @@ module anisofilter
 
   use jfunc, only: varq,qoption
 
-  use control_vectors, only: nvars,nrf,nrf3,nrf2,nrf3_loc,nrf2_loc,nrf_3d,&
-                             nrf_var,nrf3_oz,nrf3_t,nrf3_sf,nrf3_vp,nrf3_q, &
-                             nrf3_cw,nrf2_ps,nrf2_sst
+  use control_vectors, only: cvars2d,cvars3d,cvarsmd
+  use control_vectors, only: nvars,nrf,nrf3_loc,nrf2_loc,nrf_3d,nrf_var
+  use control_vectors, only: nrf3 => nc3d
+  use control_vectors, only: nrf2 => nc2d
+  use control_vectors, only: an_amp0
 
   use guess_grids, only: ges_u,ges_v,ges_prsl,ges_tv,ges_z,ntguessig,&
                          ges_prslavg,ges_psfcavg,ges_ps,ges_q,ges_tsen
@@ -131,6 +135,7 @@ module anisofilter
 
   use aniso_ens_util, only: ens_intpcoeffs_reg,fillanlgrd,ens_uv_to_psichi, &
                             pges_minmax,intp_spl
+  use mpeu_util, only: getindex
 
 
   implicit none
@@ -167,7 +172,7 @@ module anisofilter
   public :: qltv_wind,qlth_wind,qltv_temp,eampmax,pgesmax,pgesmin,eampmin,asp10f,rh0f,z0f,asp20f,qlth_temp,psg,asp30f
   public :: qlth_wind0,qltv_temp0,qlth_temp0,qltv_wind0,scalex3,scalex2,scalex1,lreadnorm
   public :: r100,r015,corp,corz,rfact0v,hwll,aspect,vz,hwllp,stpcode_ensdata,stpcode_namelist,stpcode_alloc
-  public :: stpcode_statdata,rfact0h,ks,mlat,mlon,rllatf,ensamp
+  public :: stpcode_statdata,rfact0h,ks,mlat,rllatf,ensamp
 
 ! Declare passed variables
 
@@ -202,7 +207,7 @@ module anisofilter
                                              ! 1: isoscale=isoscale**rfact0(1)+rfact0(2)
                                              ! 2: H:0 / V:1
 
-  integer(i_kind):: mlat,mlon
+  integer(i_kind):: mlat
   integer(i_kind),allocatable:: ks(:)
   real(r_kind)  ,allocatable::rfact0h(:),rfact0v(:)
 ! real(r_kind)  ,allocatable::corz(:,:,:),corp(:),hwll(:,:,:),hwllp(:),vz(:,:,:)
@@ -253,6 +258,11 @@ module anisofilter
   real(r_kind) water_scalefact(10),hsmooth_len
   real(r_kind),allocatable,dimension(:,:,:)::rsliglb      !sea-land-ice mask on analysis grid. type real
   real(r_kind):: rltop,rltop_wind,rltop_temp,rltop_q,rltop_psfc
+
+  integer(i_kind):: nrf3_oz,nrf3_t,nrf3_sf,nrf3_vp,nrf3_q,nrf3_cw
+  integer(i_kind):: nrf2_ps,nrf2_sst,nrf2_stl,nrf2_sti
+
+!_RT  integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc  ! should !become local
 
 !-------------------------------------------------------------------------
 contains
@@ -320,6 +330,18 @@ subroutine anprewgt_reg(mype)
 
   nlatf=pf2aP1%nlatf
   nlonf=pf2aP1%nlonf
+
+! Get indexes to required CV variables
+  nrf3_oz   = getindex(cvars3d,'oz')
+  nrf3_t    = getindex(cvars3d,'t')
+  nrf3_sf   = getindex(cvars3d,'sf')
+  nrf3_vp   = getindex(cvars3d,'vp')
+  nrf3_q    = getindex(cvars3d,'q')
+  nrf3_cw   = getindex(cvars3d,'cw')
+  nrf2_ps   = getindex(cvars2d,'ps')
+  nrf2_sst  = getindex(cvars2d,'sst')
+  nrf2_stl  = getindex(cvarsmd,'stl')
+  nrf2_sti  = getindex(cvarsmd,'sti')
 
   call init_anisofilter_reg(mype)
   call read_bckgstats(mype)
@@ -455,8 +477,8 @@ subroutine anprewgt_reg(mype)
               print*, 'anprewgt_reg: llamp_coeff (',llamp_coeff,')must be >= 0.0 and < 1.0'
               call stop2(stpcode_namelist)
            end if
-           if ( (ivar==nrf3_loc(nrf3_sf).or.ivar==nrf3_loc(nrf3_vp) &
-              .or.ivar==nrf3_loc(nrf3_t).or.ivar==nrf3_loc(nrf3_q)) .and. (kvar<llamp_levtop) ) then
+           if ( (ivar==nrf3_loc(nrf3_sf).or.ivar==nrf3_loc(nrf3_vp) .or.&
+                 ivar==nrf3_loc(nrf3_t) .or.ivar==nrf3_loc(nrf3_q)) .and. (kvar<llamp_levtop) ) then
               an_amp(:,ivar)= an_amp0(ivar) &
                            *(one - ((cos(real(kvar,r_kind)/real(llamp_levtop,r_kind)*pi)+one)*half)*(one-llamp_coeff))
            end if
@@ -742,6 +764,7 @@ subroutine get_aspect_reg_pt(mype)
 !                         in which some procedures are moved
 !                         to the parent subroutine anprewgt_reg().
 !   2010-03-10  zhu     - use nrf* for generalizing control variable
+!   2010-05-28  todling - obtain variable id's on the fly (add getcvi)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -879,6 +902,7 @@ subroutine get_aspect_reg_pt(mype)
      end do
   end do
 
+
   deallocate(qlth_temp,qltv_temp)
   deallocate(qlth_wind,qltv_wind)
 
@@ -948,6 +972,9 @@ end subroutine fact_qopt2
 !
 !   output argument list:
 !
+! remarks:
+!   - this routine is a bottle neck. Must vars really be renamed? (Todling)
+!
 ! attributes:
 !   language: f90
 !   machine:  ibm rs/6000 sp
@@ -967,8 +994,8 @@ end subroutine fact_qopt2
   if (nrf3_cw>0.and.ivar==nrf3_loc(nrf3_cw)) fvarname='qw'
   if (ivar==nrf2_loc(nrf2_ps)) fvarname='lnps'
   if (nrf2_sst>0.and.ivar==nrf2_loc(nrf2_sst)) fvarname='sst'
-  if (nrf2_sst>0.and.ivar==nrf+1) fvarname='lst'
-  if (nrf2_sst>0.and.ivar==nrf+2) fvarname='ist'
+  if (nrf2_sst>0.and.ivar==nrf+1) fvarname='lst'   ! _RTod this is a disaster!
+  if (nrf2_sst>0.and.ivar==nrf+2) fvarname='ist'   ! _RTod this is a disaster!
 
   return
 end function fvarname
@@ -1233,6 +1260,15 @@ subroutine init_anisofilter_reg(mype)
      write(6,*)'in anisofilter_reg, min,max(dyf)=',minval(dyf),maxval(dyf)
  
   end if
+
+!_RT soon
+! allocate(nrf3_loc(nrf3),nrf2_loc(nrf2))
+! do n=1,nrf3
+!    nrf3_loc(n)=getindex(nrf_var,cvars3d(n))
+! enddo
+! do n=1,nrf2
+!    nrf2_loc(n)=getindex(nrf_var,cvars2d(n))
+! enddo
 
 end subroutine init_anisofilter_reg
 !=======================================================================

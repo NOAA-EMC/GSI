@@ -97,6 +97,9 @@
 !   2010-03-30  collard - Add CO2 interface (fixed value for now).
 !   2010-04-08  h.liu   -add SEVIRI assimilation 
 !   2010-04-16  hou/kistler add interface to module ncepgfs_ghg
+!   2010-05-19  todling - revisit intrppx CO2 handle
+!   2010-06-10  todling - reduce pointer check by getting CO2 pointer at this level
+!                       - start adding hooks of aerosols influence on RTM
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -142,25 +145,28 @@
        npred,jpch_rad,varch,iuse_rad,nusis,fbias,retrieval,b_rad,pg_rad,&
        crtm_coeffs_path,air_rad,ang_rad
   use guess_grids, only: add_rtm_layers,sfcmod_gfs,sfcmod_mm5,&
-       comp_fact10,igfsco2
+       comp_fact10
   use obsmod, only: ianldate,iadate,ndat,mype_diaghdr,nchan_total, &
            dplat,dtbduv_on,radhead,radtail,&
            i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
            dirname,time_offset
   use obsmod, only: rad_ob_type
   use obsmod, only: obs_diag
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_chemtracer_mod, only: gsi_chem_bundle    ! for now, a common block
+  use gsi_chemtracer_mod, only: gsi_chemtracer_get
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use gridmod, only: nsig,nsig2,nsig3p1,&
        regional,nsig3p2,nsig3p3,msig,get_ij
   use satthin, only: super_val1
   use constants, only: half,constoz,amsua_clw_d1,amsua_clw_d2,tiny_r_kind,&
        fv,zero,one,deg2rad,rad2deg,one_tenth,quarter,two,three,four,five,&
-       cg_term,tpwcon,t0c,r1000,wgtlim,r60,h300
+       cg_term,tpwcon,t0c,r1000,wgtlim,r60,h300,grav
   use jfunc, only: jiter,miter
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
        finish_sst_retrieval,spline_cub
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
-  use ncepgfs_ghg, only: co2vmr_def
+  use intrppx
   implicit none
 
 ! Declare passed variables
@@ -173,7 +179,6 @@
   logical                           ,intent(in   ) :: init_pass,last_pass	! state of "setup" processing
 
 ! Declare external calls for code analysis
-  external:: intrppx
   external:: stop2
   external:: ret_ssmis
   external:: retrieval_amsre
@@ -187,7 +192,6 @@
 ! CRTM structure variable declarations.
   integer(i_kind),parameter::  n_absorbers = 3
   integer(i_kind),parameter::  n_clouds = 0
-  integer(i_kind),parameter::  n_aerosols = 0
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
 
 ! Mapping land surface type of GFS to CRTM
@@ -267,6 +271,7 @@
   integer(i_kind) kraintype,ierrret
   integer(i_kind) sensorindex
   integer(i_kind):: leap_day,day_of_year
+  integer(i_kind):: ico2,ier
   integer(i_kind),dimension(8):: obs_time,anal_time
 
 
@@ -295,6 +300,7 @@
   real(r_kind) bearaz,sun_zenith,sun_azimuth
   real(r_kind) uwind,vwind,f10
   real(r_kind) clw,tpwc,si85,sgagl,total_od
+  real(r_kind) kgkg_gm2
 
 ! Declare local arrays
 
@@ -325,6 +331,13 @@
   real(r_kind),dimension(0:3):: dtskin
   real(r_kind) dtsavg,r90,coscon,sincon
   real(r_kind):: sqrt_tiny_r_kind
+
+  integer(i_kind)                              :: n_aerosols  ! number of aerosols
+  character(len=20),allocatable,dimension(:)   :: aero_names  ! aerosols names
+  character(len=20),allocatable,dimension(:)   :: aero_types  ! aerosols types
+  integer(i_kind)   ,allocatable,dimension(:)  :: iaero       ! index pointers to aerosols in chem_bundle
+  integer(i_kind)   ,allocatable,dimension(:)  :: iaero_types ! maps user aerosols to CRTM conventions
+  real(r_kind)      ,allocatable,dimension(:,:):: aero        ! aerosols (guess) profiles at obs location
 
   integer(i_kind),dimension(nchanl):: ich,icxx,id_qc
   integer(i_kind),dimension(msig):: klevel
@@ -462,6 +475,28 @@
   ilone     = 30 ! index of earth relative longitude (degrees)
   ilate     = 31 ! index of earth relative latitude (degrees)
 
+! Get pointer to CO2
+! NOTE: for now, not to rock the boat, this takes CO2 from 1st time slot
+!       eventually this could do the time interpolation by taking CO2 from
+!       two proper time slots.
+  ico2=-1
+  if(size(gsi_chem_bundle)>0) & ! check to see if bundle's allocated
+  call gsi_bundlegetpointer(gsi_chem_bundle(1),'co2',ico2,ier)
+
+! Are there aerosols to affect CRTM?
+  call gsi_chemtracer_get ('aerosols::3d',n_aerosols,ier)
+  if(n_aerosols>0)then
+     allocate(aero(nsig,n_aerosols),iaero(n_aerosols))
+     allocate(aero_names(n_aerosols))
+     call gsi_chemtracer_get ('aerosols::3d',aero_names,ier)
+     call gsi_bundlegetpointer(gsi_chem_bundle(1),aero_names,iaero,ier)
+
+     allocate(aero_types(n_aerosols),iaero_types(n_aerosols))
+     call gsi_chemtracer_get ('aerosol_types::3d',aero_types,ier)
+  else
+     n_aerosols=0 
+     allocate(aero(0,0),iaero(0))
+  endif
 
 ! Initialize channel related information
   tnoise = r1e10
@@ -511,7 +546,7 @@
 
   sensorlist(1)=isis
   if( crtm_coeffs_path /= "" ) then
-     if(mype==mype_diaghdr(is)) write(6,*)'SETUPRAD: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
+     if(init_pass .and. mype==mype_diaghdr(is)) write(6,*)'SETUPRAD: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
      error_status = crtm_init(sensorlist,channelinfo,&
         Process_ID=mype,Output_Process_ID=mype_diaghdr(is), &
         Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE., &
@@ -624,6 +659,12 @@
   atmosphere(1)%absorber_units(2) = VOLUME_MIXING_RATIO_UNITS
   atmosphere(1)%absorber_units(3) = VOLUME_MIXING_RATIO_UNITS
   atmosphere(1)%level_pressure(0) = TOA_PRESSURE
+
+! Take care of possible aerosols
+  call set_aero_types_(iaero_types,aero_types)
+  do ii=1,n_aerosols
+     atmosphere(1)%aerosol(ii)%Type = iaero_types(ii)
+  enddo
 
   if(nchanl /= channelinfo(sensorindex)%n_channels) write(6,*)'***ERROR** nchanl,n_channels ', &
            nchanl,channelinfo(sensorindex)%n_channels
@@ -898,9 +939,9 @@
      tsavg5=data_s(itsavg,n)
      vegtype5=data_s(ivty,n)
 !    Interpolate model fields to observation location
-!      extend intrppx to include co2
-     call intrppx(dtime,tvp,qvp,poz,co2,prsltmp,prsitmp, &
-            trop5,dtskin,dtsavg,uwind,vwind,slats,slons,mype)
+     call intrppx1(dtime,tvp,qvp,poz,co2,aero,prsltmp,prsitmp, &
+            trop5,dtskin,dtsavg,uwind,vwind,slats,slons, &
+            ico2,n_aerosols,iaero)
 
      tsavg5=tsavg5+dtsavg
 
@@ -1007,13 +1048,25 @@
            atmosphere(1)%temperature(k)    = tvp(kk2)
            atmosphere(1)%absorber(k,1)     = r1000*qvp(kk2)*c3(kk2)
            atmosphere(1)%absorber(k,2)     = max(ozsmall,poz(kk2)*constoz)
-! CO2 profile here!
-		  if (igfsco2 == 0) then
-           atmosphere(1)%absorber(k,3)     = co2vmr_def
-		  else
            atmosphere(1)%absorber(k,3)     = co2(kk2)
-		  endif
-			
+
+!          Get aerosols into CRTM
+           kgkg_gm2=(atmosphere(1)%level_pressure(k)-atmosphere(1)%level_pressure(k-1))*r100/grav*r1000
+           do ii=1,n_aerosols
+
+!              copy and convert from kg/kg to g/m2
+               atmosphere(1)%aerosol(ii)%concentration(k) = aero(kk2,ii)*kgkg_gm2
+
+!              calculate effective radius
+               atmosphere(1)%aerosol(ii)%effective_radius(k) &
+                = GOCART_Aerosol_size( ii,atmosphere(1)%aerosol(ii)%Type, &
+                                          aero_names(ii),aero_types(ii), &
+                                          atmosphere(1)%temperature(k),&
+                                          atmosphere(1)%absorber(k,1),&
+                                          atmosphere(1)%pressure(k) )
+
+           enddo
+
 ! Add in a drop-off to absorber amount in the stratosphere to be in more 
 ! agreement with ECMWF profiles.  This should be replaced when climatological fields
 ! are introduced.
@@ -2579,6 +2632,168 @@
 
 135 continue
 
+  if(n_aerosols>0)then
+     deallocate(aero_names)
+     deallocate(aero_types,iaero_types)
+  endif
+  deallocate(aero,iaero)
+
 ! End of routine
   return
+
+  contains
+
+  subroutine set_aero_types_(iaero_types,aero_types)
+  use crtm_module, only: SULFATE_AEROSOL,BLACK_CARBON_AEROSOL,ORGANIC_CARBON_AEROSOL,&
+      DUST_AEROSOL,SEASALT_SSAM_AEROSOL,SEASALT_SSCM1_AEROSOL,SEASALT_SSCM2_AEROSOL,SEASALT_SSCM3_AEROSOL
+  implicit none
+  integer(i_kind), dimension(:),intent(out) :: iaero_types
+  character(len=*),dimension(:),intent(in ) ::  aero_types
+  if(n_aerosols<=0) return
+  iaero_types=-1
+  do i=1,n_aerosols
+     if(aero_types(i)=='sulfate'            ) iaero_types(i)=SULFATE_AEROSOL
+     if(aero_types(i)=='dust'               ) iaero_types(i)=DUST_AEROSOL 
+     if(aero_types(i)=='dry_black_carbon'   ) iaero_types(i)=BLACK_CARBON_AEROSOL   ! crtm does not distinguish dry/wet
+     if(aero_types(i)=='wet_black_carbon'   ) iaero_types(i)=BLACK_CARBON_AEROSOL   ! crtm does not distinguish dry/wet
+     if(aero_types(i)=='dry_organic_carbon' ) iaero_types(i)=ORGANIC_CARBON_AEROSOL ! crtm does not distinguish dry/wet
+     if(aero_types(i)=='wet_organic_carbon' ) iaero_types(i)=ORGANIC_CARBON_AEROSOL ! crtm does not distinguish dry/wet
+     if(aero_types(i)=='ssam'               ) iaero_types(i)=SEASALT_SSAM_AEROSOL
+     if(aero_types(i)=='sscm1'              ) iaero_types(i)=SEASALT_SSCM1_AEROSOL
+     if(aero_types(i)=='sscm2'              ) iaero_types(i)=SEASALT_SSCM2_AEROSOL
+     if(aero_types(i)=='sscm3'              ) iaero_types(i)=SEASALT_SSCM3_AEROSOL
+  enddo
+  if(any(iaero_types<0)) then
+    write(6,*) 'set_aero_types_: trouble in aero settings for CRTM'
+    call stop2(999)
+  endif
+  end subroutine set_aero_types_
+
+  FUNCTION GOCART_Aerosol_size( kk,ITYPE,          &  ! Input
+                                AERONAME,AEROTYPE, &  ! Input
+                                                t, &  ! Input in K
+                                                q, &  ! Input in g/kg
+                                                p) &  ! Input in hPa
+                                   RESULT( R_eff )    ! in micrometer
+  use kinds, only: i_kind,r_kind
+  use constants, only: g  => grav
+  use constants, only: rd
+  use constants, only: eps
+  use crtm_module, only: SULFATE_AEROSOL,&
+                         BLACK_CARBON_AEROSOL,&
+                         ORGANIC_CARBON_AEROSOL,&
+                         DUST_AEROSOL, &
+                         SEASALT_SSAM_AEROSOL, &
+                         SEASALT_SSCM1_AEROSOL, &
+                         SEASALT_SSCM2_AEROSOL, &
+                         SEASALT_SSCM3_AEROSOL
+  use crtm_aerosolcoeff, ONLY: AeroC
+  implicit none
+! NOTES:
+!   2010-06-10 todling  placed this function here temporarily
+! REMARKS:
+!   This function came from Mark in Paul van Delst's group.
+!
+!   Conversation with Arlindo da Silva suggests that the
+!   ideal way to deal with the dependence of particle size on
+!   humidity is to have a look-up table, instead of this function
+!   here - which is tailored to a particular user.  A look up table
+!   provides a more general for making the aerosols influence on GSI-CRTM
+!   to the radiative transfer used in the underlying GCM. 
+!   I am putting this function here temporarily until implementing a
+!   look up table. Here is what I plan to do:
+!   I'll introduce an aeroinfo.txt file that will have a table of the form:
+!      aerosols_size::
+!      ! aero_name  dim values
+!      ::
+!   e.g.,
+!      aerosols_size::
+!      ! aero_name  dim values
+!      rh           50  0  2 4 6 8 ... 100
+!      ss001        50  0.001 0.002 0.0023 ... (50 values of size as function of rh)
+!      ss002        50  0.023 0.043 0.0063 ... (50 values of size as function of rh)
+!      so4          50  0.003 0.003 0.0003 ... (constant in this case, for example)
+!      ::
+!   the first row in the table will always be rh, followed by
+!   how many values of RH there are (50, here), followed by the relative humidity
+!   themselves (doesn't have to be a linear scale). Then, all other rows
+!   will correspond to a given aerosol, the same number of entries (50, in
+!   the example here), followed by the effective size for that value of RH.
+!
+!   I will change radinfo to check for the presence of aerosols in the
+!   gsi_chem_bundle and, when applicable, to consequently load the above table 
+!   in memory. Lastly, this function will simple calculate RH and do a table
+!   look-up, interpolating between two values to return the effective size.
+!   
+  integer(i_kind) ,INTENT(IN) :: kk,ITYPE
+  REAL(r_kind)    ,INTENT(IN) :: t, q, p
+  character(len=*),INTENT(IN) :: aeroname
+  character(len=*),INTENT(IN) :: aerotype
+!
+  REAL(r_kind), PARAMETER :: CC = (1.0_r_kind/0.622_r_kind-1.0_r_kind)/1000.0_r_kind
+!_RT  REAL(r_kind), PARAMETER :: Rd = 287.054_r_kind
+!_RT  REAL(r_kind), PARAMETER :: g = 9.80665_r_kind
+  REAL(r_kind), PARAMETER :: T0 = 273.16_r_kind
+  REAL(r_kind), PARAMETER :: R3 = 21.875_r_kind
+  REAL(r_kind), PARAMETER :: R4 = 7.66_r_kind  
+  REAL(r_kind), PARAMETER :: R3w = 17.269_r_kind
+  REAL(r_kind), PARAMETER :: R4w = 35.86_r_kind
+!_RT  REAL(r_kind), PARAMETER :: eps = 0.622_r_kind
+  REAL(r_kind) :: esat, eh, H1
+  REAL(r_kind), PARAMETER :: reff_seasalt(4) = Reshape( (/0.3_r_kind, 1.0_r_kind, 3.25_r_kind, 7.5_r_kind/), (/4/) )
+  INTEGER(i_kind) :: j1,j2,k
+  REAL(r_kind) :: R_eff
+
+  ! compute relative humidity
+  esat = t - T0
+  IF( esat < -15.0_r_kind ) THEN
+    esat = 6.1078_r_kind*exp( R3*esat/(t-R4) )
+  ELSE
+    esat = 6.1078_r_kind*exp( R3w*esat/(t-R4w) )
+  END IF
+  
+  eh = 0.001_r_kind*p*q/(0.001_r_kind*q*(1.0-eps)+eps)
+  eh = eh/esat
+  
+  IF( ITYPE == DUST_AEROSOL ) THEN    
+    if(trim(aeroname)=='du0001') R_eff = 0.55_r_kind
+    if(trim(aeroname)=='du0002') R_eff = 1.4_r_kind
+    if(trim(aeroname)=='du0003') R_eff = 2.4_r_kind
+    if(trim(aeroname)=='du0004') R_eff = 4.5_r_kind
+    if(trim(aeroname)=='du0005') R_eff = 8.0_r_kind   
+    RETURN
+  ELSE IF( ITYPE== BLACK_CARBON_AEROSOL .and. aerotype(1:3)=='wet' ) THEN
+    R_eff = AeroC%Reff(1,IType )
+    RETURN
+  ELSE IF( ITYPE== ORGANIC_CARBON_AEROSOL .and. aerotype(1:3)=='wet' ) THEN
+    R_eff = AeroC%Reff(1,IType )
+    RETURN
+  END IF
+
+  j2 = 0
+  IF( eh < AeroC%RH(1) ) THEN
+    j1 = 1
+  ELSE IF( eh > AeroC%RH(AeroC%n_RH) ) THEN
+    j1 = AeroC%n_RH
+  ELSE
+    DO k = 1, AeroC%n_RH-1
+      IF( eh <= AeroC%RH(k+1) .and. eh > AeroC%RH(k) ) THEN
+        j1 = k
+        j2 = k+1
+        H1 = (eh-AeroC%RH(k))/(AeroC%RH(k+1)-AeroC%RH(k))
+        go to 311
+      END IF
+    END DO
+  END IF
+  311 CONTINUE
+
+  IF( j2 == 0 ) THEN
+    R_eff = AeroC%Reff(j1,IType )
+  ELSE
+    R_eff = (1.0_r_kind-H1)*AeroC%Reff(j1,IType ) + H1*AeroC%Reff(j2,IType )
+  END IF
+  
+  RETURN
+  END FUNCTION GOCART_Aerosol_size
+ 
  end subroutine setuprad

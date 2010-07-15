@@ -72,7 +72,10 @@ module obsmod
 !                                     cross-validation in 2dvar
 !   2010-02-10  jing     - merge in obs key set (idv,iob,ich) in obs types for unique
 !                          run-time identification (in sorting and searching).
+!   2010-03-24  tangborn - added carbon monoxide (co) observation type type 
+!   2010-05-26  treadon  - add tcpptr to public list 
 !   2010-06-14  huang    - add aerosol variable (*aero*)
+!   2010-07-10  todling  - turn aerosol heads/tails public
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -137,6 +140,12 @@ module obsmod
 !   def oztail       - sbuv ozone profile linked list tail
 !   def o3lhead      - ozone level data linked list head
 !   def o3ltail      - ozone level data linked list tail
+!   def co3lhead     - carbon monoxide level data linked list head 
+!   def co3ltail     - carbon monoxide level data linked list tail 
+!   def aerohead     - aerosol profile linked list head
+!   def aerotail     - aerosol profile linked list tail
+!   def aerolhead    - aerosol level data linked list head
+!   def aeroltail    - aerosol level data linked list tail
 !   def radhead      - radiance linked list head
 !   def radtail      - radiance linked list tail
 !   def pcphead      - precipitation linked list head
@@ -150,6 +159,7 @@ module obsmod
 !   def iout_q       - output unit for moisture stats
 !   def iout_uv      - output unit for wind stats
 !   def iout_oz      - output unit for ozone stats
+!   def iout_co      - output unit for co stats 
 !   def iout_aero    - output unit for aerosol stats
 !   def iout_ps      - output unit for surface pressure stats
 !   def iout_pw      - output unit for precipitable water stats
@@ -220,35 +230,37 @@ module obsmod
   public :: inquire_obsdiags
 ! set passed variables to public
   public :: iout_pcp,iout_rad,iadate,write_diag,oberrflg,ndat,dthin,dmesh,l_do_adjoint
-  public :: lsaveobsens,lag_ob_type,o3l_ob_type,oz_ob_type,pcp_ob_type,dw_ob_type
+  public :: lsaveobsens,lag_ob_type,o3l_ob_type,oz_ob_type,co3l_ob_type,pcp_ob_type,dw_ob_type
   public :: sst_ob_type,srw_ob_type,spd_ob_type,rw_ob_type,gps_ob_type,gps_all_ob_type,tcp_ob_type
   public :: rad_ob_type,q_ob_type,pw_ob_type,ps_ob_type,w_ob_type,t_ob_type
   public :: obs_handle,yobs,i_ps_ob_type,i_t_ob_type,i_w_ob_type,i_q_ob_type
   public :: i_spd_ob_type,i_srw_ob_type,i_rw_ob_type,i_dw_ob_type,i_sst_ob_type
-  public :: i_pw_ob_type,i_pcp_ob_type,i_oz_ob_type,i_o3l_ob_type,i_gps_ob_type
+  public :: i_pw_ob_type,i_pcp_ob_type,i_oz_ob_type,i_o3l_ob_type,i_co3l_ob_type,i_gps_ob_type
   public :: i_rad_ob_type,i_tcp_ob_type,i_lag_ob_type,obscounts,obsptr,nobs_type,obsdiags
   public :: cobstype,gpsptr,obs_diag,nprof_gps,gps_allhead,gps_allptr,time_offset,ianldate
-  public :: iout_oz,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
+  public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel
   public :: perturb_fact,dtbduv_on,ndatmax,nsat1,mype_diaghdr,wptr,whead,psptr,pshead
   public :: qptr,qhead,tptr,thead,lobsdiag_allocated,pstail,ttail,wtail,qtail,spdtail
   public :: spdhead,srwtail,srwhead,rwtail,rwhead,dwtail,dwhead,ssttail,ssthead,pwtail
-  public :: pwhead,oztail,ozhead,o3ltail,o3lhead,pcptail,pcphead,gpstail,gpshead
-  public :: radptr,radtail,radhead,lagtail,laghead,nloz_v8,nloz_v6,nobskeep,gps_alltail
-  public :: grids_dim,rmiss_single,nchan_total,tcphead,tcptail,mype_sst,mype_gps
+  public :: pwhead,oztail,ozhead,o3ltail,o3lhead,co3ltail,co3lhead,pcptail,pcphead,gpstail,gpshead
+  public :: aero_ob_head,aero_ob_type,aerohead,aerotail,i_aero_ob_type
+  public :: aerol_ob_head,aerol_ob_type,aerolhead,aeroltail,i_aerol_ob_type
+  public :: radptr,radtail,radhead,lagtail,laghead,nloz_v8,nloz_v6,nlco,nobskeep,gps_alltail
+  public :: grids_dim,rmiss_single,nchan_total,tcpptr,tcphead,tcptail,mype_sst,mype_gps
   public :: mype_uv,mype_dw,mype_rw,mype_srw,mype_q,mype_tcp,mype_lag,mype_ps,mype_t
   public :: mype_pw,iout_rw,iout_dw,iout_srw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
   public :: iout_lag,iout_uv,iout_gps,iout_ps,spdptr,srwptr,rwptr,dwptr,sstptr,pwptr
-  public :: ozptr,o3lptr,pcpptr,lagptr,lread_obs_save,obs_input_common,lread_obs_skip
+  public :: ozptr,o3lptr,coptr,pcpptr,lagptr,lread_obs_save,obs_input_common,lread_obs_skip
   public :: ndat_times
 !
   public :: obs_diags,gps_all_ob_head,w_ob_head,ps_ob_head,q_ob_head
   public :: t_ob_head,spd_ob_head,rw_ob_head,dw_ob_head,sst_ob_head
   public :: pcp_ob_head,o3l_ob_head,gps_ob_head
   public :: lag_ob_head,srw_ob_head,pw_ob_head,oz_ob_head,rad_ob_head
-  public :: tcp_ob_head,odiags
-  public :: mype_aero, iout_aero, nlaero
+  public :: tcp_ob_head,co3l_ob_head,odiags
+  public :: mype_aero,iout_aero,nlaero
 
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
@@ -273,10 +285,11 @@ module obsmod
   integer(i_kind),parameter:: i_rad_ob_type=15    ! rad_ob_type
   integer(i_kind),parameter:: i_tcp_ob_type=16    ! tcp_ob_type
   integer(i_kind),parameter:: i_lag_ob_type=17    ! lag_ob_type
-  integer(i_kind),parameter:: i_aero_ob_type =18  ! aero_ob_type
-  integer(i_kind),parameter:: i_aerol_ob_type=19  ! aero_ob_type
+  integer(i_kind),parameter:: i_co3l_ob_type= 18  ! co3l_ob_type
+  integer(i_kind),parameter:: i_aero_ob_type =19  ! aero_ob_type
+  integer(i_kind),parameter:: i_aerol_ob_type=20  ! aerol_ob_type
 
-  integer(i_kind),parameter:: nobs_type = 19      ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 20      ! number of observation types
 
 ! Structure for diagnostics
 
@@ -306,6 +319,11 @@ module obsmod
      sequence
      type(obs_diag), pointer :: ptr => NULL()
   end type odiags
+
+  type codiags 
+      sequence 
+      type(obs_diag), pointer :: ptr => NULL()
+  end type codiags
 
 ! Main observation data structure
 
@@ -647,6 +665,43 @@ module obsmod
      type(o3l_ob_type),pointer :: head => NULL()
   end type o3l_ob_head
 
+  type co3l_ob_type
+     sequence
+     type(co3l_ob_type),pointer :: llpoint => NULL()
+     type(codiags), dimension(:), pointer :: diags => NULL()
+     real(r_kind),dimension(:),pointer :: res => NULL()
+                                      !  co residual
+     real(r_kind),dimension(:),pointer :: err2 => NULL()
+                                      !  co error squared
+     real(r_kind),dimension(:),pointer :: raterr2 => NULL()
+                                      !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind),dimension(:,:),pointer :: wij => NULL()
+                                      !  horizontal interpolation weights
+     real(r_kind),dimension(:),pointer :: prs => NULL()
+                                      !  pressure levels
+     integer(i_kind),dimension(:),pointer :: ipos  => NULL()
+     real(r_kind),dimension(:,:),pointer :: ak  => NULL()   
+                                      ! MOPITT vertical averaging kernel
+     real(r_kind),dimension(:),pointer :: ap  => NULL()   
+                                      ! MOPITT a priori
+     real(r_kind),dimension(:),pointer   :: wkk1 => NULL()
+     real(r_kind),dimension(:),pointer   :: wkk2 => NULL()
+                                      ! vertical intropolation weights for MOPITT
+
+     integer(i_kind) :: nlco          ! number of levels for this profile
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob         ! device id and obs index for sorting
+  end type co3l_ob_type
+
+  type co3l_ob_head
+     integer(i_kind):: n_alloc=0
+     type(co3l_ob_type),pointer :: head => NULL()
+  end type co3l_ob_head
+
   type aero_ob_type
      sequence
      type(aero_ob_type),pointer :: llpoint => NULL()
@@ -853,6 +908,7 @@ module obsmod
      type(pcp_ob_type),pointer   :: pcp => NULL()
      type(tcp_ob_type),pointer   :: tcp => NULL()
      type(lag_ob_type),pointer   :: lag => NULL()
+     type(co3l_ob_type),pointer  :: co3l  => NULL()
      type(aero_ob_type),pointer  :: aero  => NULL()
      type(aerol_ob_type),pointer :: aerol => NULL()
   end type obs_handle
@@ -919,6 +975,10 @@ module obsmod
   type(lag_ob_head),dimension(:),pointer :: laghead
   type(lag_ob_head),dimension(:),pointer :: lagtail
   type(lag_ob_type),pointer :: lagptr => NULL()
+  type(co3l_ob_head),dimension(:),pointer :: co3lhead
+  type(co3l_ob_head),dimension(:),pointer :: co3ltail
+  type(co3l_ob_type),pointer :: coptr => NULL()
+
 
   type(obs_handle),dimension(:),pointer :: yobs
 
@@ -936,12 +996,14 @@ module obsmod
   integer(i_kind) grids_dim,nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep
+  integer(i_kind) nlco  
   integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &
                   iout_oz,iout_ps,iout_pw,iout_rw
   integer(i_kind) iout_dw,iout_srw,iout_gps,iout_sst,iout_tcp,iout_lag
+  integer(i_kind) iout_co
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_srw,mype_gps,mype_sst, &
-                  mype_tcp,mype_lag
+                  mype_tcp,mype_lag,mype_co
   integer(i_kind) nlaero, iout_aero, mype_aero
   integer(i_kind),dimension(5):: iadate
   integer(i_kind),dimension(ndatmax):: dsfcalc,dthin,ipoint
@@ -1050,7 +1112,8 @@ contains
     iout_sst=213   ! conventional sst
     iout_tcp=214   ! synthetic tc-mslp
     iout_lag=215   ! lagrangian tracers
-    iout_aero=216  ! aerosol product (aod)
+    iout_co=216    ! co tracers
+    iout_aero=217  ! aerosol product (aod)
 
     mype_ps = npe-1          ! surface pressure
     mype_uv = max(0,npe-2)   ! u,v wind components
@@ -1087,6 +1150,7 @@ contains
 !   Other initializations
     nloz_v6 = 12               ! number of "levels" in ozone version8 data
     nloz_v8 = 21               ! number of "levels" in ozone version6 data
+    nlco    = 10               ! number of "levels" in MOPITT version 4 CO data
 
     lunobs_obs = 2             ! unit to which to write/read information
                                ! related to brightness temperature and 
@@ -1114,6 +1178,7 @@ contains
     cobstype(i_rad_ob_type)  ="radiance            " ! rad_ob_type
     cobstype(i_tcp_ob_type)  ="tcp (tropic cyclone)" ! tcp_ob_type
     cobstype(i_lag_ob_type)  ="lagrangian tracer   " ! lag_ob_type
+    cobstype( i_co3l_ob_type)="carbon monoxide     " ! co3l_ob_type
     cobstype( i_aero_ob_type)="modis aerosol aod   " ! aero_ob_type
     cobstype(i_aerol_ob_type)="level modis aero aod" ! aerol_ob_type
 
@@ -1237,6 +1302,8 @@ contains
     ALLOCATE(gps_alltail(nobs_bins))
     ALLOCATE(laghead(nobs_bins))
     ALLOCATE(lagtail(nobs_bins))
+    ALLOCATE(co3lhead(nobs_bins))
+    ALLOCATE(co3ltail(nobs_bins))
 
     ALLOCATE(yobs(nobs_bins))
 
@@ -1590,6 +1657,23 @@ contains
           lagtail(ii)%head => laghead(ii)%head
        end do
     end do
+
+    do ii=1,nobs_bins
+       co3ltail(ii)%head => co3lhead(ii)%head
+       do while (associated(co3ltail(ii)%head))
+          co3lhead(ii)%head => co3ltail(ii)%head%llpoint
+          deallocate(co3ltail(ii)%head%res, co3ltail(ii)%head%wij,&
+                     co3ltail(ii)%head%err2,co3ltail(ii)%head%raterr2, &
+                     co3ltail(ii)%head%prs,co3ltail(ii)%head%ipos, &
+                     co3ltail(ii)%head%ak, co3ltail(ii)%head%ap, &
+                     stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for co arrays, istatus=',istatus
+          deallocate(co3ltail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for co, istatus=',istatus
+          co3ltail(ii)%head => co3lhead(ii)%head
+       end do
+    end do
+
 
     if (l4dvar) then
        if (.not. skipit_) then

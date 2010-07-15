@@ -87,6 +87,8 @@ subroutine pcgsoi()
 !   2009-10-12  parrish - add beta12mult for scaling by hybrid blending parameters beta1inv, beta2inv
 !                           called only when l_hyb_ens=.true.
 !   2010-05-05  derber - omp commands removed
+!   2010-05-13  todling - update interface to update_geswtend; update to gsi_bundle for state vector
+!                       - declare all use explicitly
 !   2010-05-28  Hu      - add call for cloud analysis driver : gsdcloudanalysis
 !
 ! input argument list:
@@ -119,15 +121,22 @@ subroutine pcgsoi()
   use stpcalcmod, only: stpcalc
   use mod_strong, only: jcstrong,baldiag_inc
   use adjtest, only : adtest
-  use control_vectors
-  use state_vectors
-  use bias_predictors
+  use control_vectors, only: control_vector, allocate_cv, deallocate_cv,&
+       prt_control_norms,dot_product,assignment(=)
+  use state_vectors, only : allocate_state,deallocate_state,&
+       prt_state_norms,inquire_state
+  use bias_predictors, only: allocate_preds,deallocate_preds,predictors,assignment(=)
   use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
   use timermod, only: timer_ini,timer_fnl
   use projmethod_support, only: init_mgram_schmidt, &
                                 mgram_schmidt,destroy_mgram_schmidt
   use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use hybrid_ensemble_isotropic_regional, only: beta12mult
+  use gsi_bundlemod, only : gsi_bundle
+  use gsi_bundlemod, only : self_add,assignment(=)
+  use gsi_bundlemod, only : gsi_bundleprint
+  use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
 
   implicit none
 
@@ -148,8 +157,8 @@ subroutine pcgsoi()
   real(r_kind) :: zgini,zfini,fjcost(4),zgend,zfend
   real(r_kind) :: fjcost_e
   type(control_vector) :: xhat,gradx,grady,dirx,diry,ydiff
-  type(state_vector) :: sval(nobs_bins), rval(nobs_bins)
-  type(state_vector) :: mval(nsubwin)
+  type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
+  type(gsi_bundle) :: mval(nsubwin)
   type(predictors) :: sbias, rbias
   logical:: lanlerr
   
@@ -220,7 +229,7 @@ subroutine pcgsoi()
         call control2state(xhat,mval,sbias)
 
 !       Perform test of AGCM TLM and ADM
-        call geos_pgcmtest(mval,sval,llprt)
+        call gsi_4dcoupler_grtests(mval,sval,nsubwin,nobs_bins)
 
 !       Run TL model to fill sval
         call model_tl(mval,sval,llprt)
@@ -313,7 +322,7 @@ subroutine pcgsoi()
      end if
 
      if (iter==0 .and. print_diag_pcg) then
-        call prt_control_norms(grady,'grady3')
+        call prt_control_norms(grady,'grady')
      endif
 
 !    Calculate new norm of gradients
@@ -574,9 +583,7 @@ subroutine pcgsoi()
 ! Update guess (model background, bias correction) fields
   if (mype==0) write(6,*)'pcgsoi: Updating guess'
   call update_guess(sval,sbias)
-  if(l_foto) call update_geswtend(xhat_dt%u,xhat_dt%v,xhat_dt%t,&
-                                  xhat_dt%q,xhat_dt%oz,xhat_dt%cw,&
-                                  xhat_dt%p)
+  if(l_foto) call update_geswtend(xhat_dt)
 
 ! cloud analysis  after iteration
   if(jiter == miter .and. l_cloud_analysis) then
@@ -659,7 +666,7 @@ implicit none
 
   if(l_foto)then
      call allocate_state(xhat_dt)
-     call assign_scalar2state(xhat_dt,zero)
+     xhat_dt=zero
   end if
 
 end subroutine init_

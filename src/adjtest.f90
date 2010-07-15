@@ -31,6 +31,8 @@ use jfunc, only: nrclen
 use mpimod, only: mype
 use control_vectors
 use state_vectors
+use gsi_bundlemod, only: gsi_bundle
+use gsi_bundlemod, only: assignment(=)
 use bias_predictors
 
 implicit none
@@ -71,7 +73,7 @@ implicit none
 type(control_vector), optional, intent(in   ) :: xhat
 
 ! Declare local variables  
-type(state_vector) :: stest1(nsubwin),stest2(nsubwin)
+type(gsi_bundle) :: stest1(nsubwin),stest2(nsubwin)
 type(predictors) :: sbias1,sbias2
 integer(i_kind) :: ii,idig
 real(r_kind) :: zz1,zz2,zz3

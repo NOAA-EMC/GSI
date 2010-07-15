@@ -22,6 +22,7 @@ module constants
 !   2006-07-28  derber   - add r1000
 !   2007-03-20  rancic   - add r3600
 !   2009-02-05  cucurull - modify refractive indexes for gpsro data
+!   2010-06-010 tangborn - add constants for CO assimilation
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
@@ -56,6 +57,7 @@ module constants
   public :: somigliana,grav_equator,grav_ratio,flattening,semi_major_axis
   public :: n_b,n_a,eccentricity,huge_single,constoz,g_over_rd,amsua_clw_d2
   public :: amsua_clw_d1,n_c,rd_over_g,zero_ilong
+  public :: cocon,rcocon
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
@@ -65,6 +67,7 @@ module constants
   real(r_kind):: factor1, huge_r_kind, tiny_r_kind, deg2rad, pi, rad2deg, cg_term
   real(r_kind):: eccentricity_linear, cv, rv, rd_over_cp_mass, cliq, rd, cp_mass
   real(r_kind):: eccentricity, grav, rearth, r60inv
+  real(r_kind):: cocon,rcocon
 
 
 ! Define constants common to global and regional applications
@@ -297,6 +300,10 @@ contains
 !   Constants related to ozone assimilation
     ozcon = grav*21.4e-9_r_kind
     rozcon= one/ozcon
+
+!   Constants related to co assimilation 
+    cocon = 1.0e+9_r_kind
+    rcocon = one/cocon 
 
 !   Constant used in vertical integral for precipitable water
     tpwcon = 100.0_r_kind/grav

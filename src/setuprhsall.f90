@@ -71,6 +71,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2009-10-22     shen - add high_gps and high_gps_sub
 !   2009-12-08  guo     - fixed diag_conv output rewind while is not init_pass, with open(position='rewind')
 !   2010-04-09  cucurull - remove high_gps and high_gps_sub
+!   2010-04-01  tangborn - start adding call for carbon monoxide data. 
+!   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -99,7 +101,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use obs_sensitivity, only: lobsensfc, lsensrecompute
   use radinfo, only: mype_rad,diag_rad,jpch_rad,retrieval,fbias
   use pcpinfo, only: diag_pcp
-  use ozinfo, only: diag_ozone,mype_oz,jpch_oz
+  use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
+  use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
   use gridmod, only: nsig,twodvar_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
@@ -108,7 +111,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use convinfo, only: nconvtype,diag_conv
   use timermod, only: timer_ini,timer_fnl
   use lag_fields, only: lag_presetup,lag_state_write,lag_state_read,lag_destroy_uv
-  use control_vectors, only: nrf3_oz,nrf2_sst
+  use state_vectors, only: svars2d
+  use mpeu_util, only: getindex
 
   use m_rhs, only: rhs_alloc
   use m_rhs, only: rhs_dealloc
@@ -117,6 +121,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use m_rhs, only: bwork  => rhs_bwork
   use m_rhs, only: aivals => rhs_aivals
   use m_rhs, only: stats    => rhs_stats
+  use m_rhs, only: stats_co => rhs_stats_co
   use m_rhs, only: stats_oz => rhs_stats_oz
   use m_rhs, only: toss_gps_sub => rhs_toss_gps
 
@@ -163,7 +168,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: w3tage
 
 ! Delcare local variables
-  logical rad_diagsave,ozone_diagsave,pcp_diagsave,conv_diagsave,llouter,getodiag
+  logical rad_diagsave,ozone_diagsave,pcp_diagsave,conv_diagsave,llouter,getodiag,co_diagsave
 
   character(80):: string
   character(10)::obstype
@@ -173,15 +178,16 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   integer(i_kind) lunin,nobs,nchanl,nreal,nele,&
        is,idate,i_dw,i_rw,i_srw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,&
-       i_t,i_pw,i_q,i_o3,iobs,nprt,ii,jj
+       i_t,i_pw,i_q,i_o3,i_co,iobs,nprt,ii,jj
   integer(i_kind) ier
 
   real(r_quad):: zjo
   real(r_kind),dimension(40,ndat):: aivals1
   real(r_kind),dimension(7,jpch_rad):: stats1
   real(r_kind),dimension(9,jpch_oz):: stats_oz1
+  real(r_kind),dimension(9,jpch_co):: stats_co1
   real(r_kind),dimension(npres_print,nconvtype,5,3):: bwork1
-  real(r_kind),dimension(7*nsig+100,13):: awork1
+  real(r_kind),dimension(7*nsig+100,14):: awork1
   
   if(.not.init_pass .and. .not.lobsdiag_allocated) call die('setuprhsall','multiple lobsdiag_allocated',lobsdiag_allocated)
 !******************************************************************************
@@ -198,9 +204,10 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   rad_diagsave  = write_diag(jiter) .and. diag_rad
   pcp_diagsave  = write_diag(jiter) .and. diag_pcp
   conv_diagsave = write_diag(jiter) .and. diag_conv
-  ozone_diagsave= write_diag(jiter) .and. diag_ozone .and. nrf3_oz>0
+  ozone_diagsave= write_diag(jiter) .and. diag_ozone .and. ihave_oz
+  co_diagsave   = write_diag(jiter) .and. diag_co    .and. ihave_co
 
-  if(.not.rhs_allocated) call rhs_alloc()
+  if(.not.rhs_allocated) call rhs_alloc(aworkdim2=size(awork1,2))
 
   i_ps = 1
   i_uv = 2
@@ -215,6 +222,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   i_o3 = 11
   i_tcp= 12
   i_lag= 13
+  i_co = 14
 
 ! Reset observation pointers
   if(init_pass) call destroyobs
@@ -384,7 +392,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
                  call setupsrw(lunin,mype,bwork,awork(1,i_srw),nele,nobs,is,conv_diagsave)
 
 !             Set up conventional sst data
-              else if(obstype=='sst' .and. nrf2_sst>0) then 
+              else if(obstype=='sst' .and. getindex(svars2d,'sst')>0) then 
                  call setupsst(lunin,mype,bwork,awork(1,i_sst),nele,nobs,is,conv_diagsave)
 
 !             Set up conventional lagrangian data
@@ -394,7 +402,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
            end if
 
 !          Set up ozone (sbuv/omi/mls) data
-           else if(ditype(is) == 'ozone' .and. nrf3_oz>0)then
+           else if(ditype(is) == 'ozone' .and. ihave_oz)then
               if (obstype == 'o3lev') then
                  call setupo3lv(lunin,mype,bwork,awork(1,i_o3),nele,nobs,&
                       isis,is,obstype,ozone_diagsave,init_pass,last_pass)
@@ -402,6 +410,11 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
                  call setupoz(lunin,mype,stats_oz,nchanl,nreal,nobs,&
                       obstype,isis,is,ozone_diagsave,init_pass,last_pass)
               end if
+
+!          Set up co (mopitt) data
+           else if(ditype(is) == 'co')then 
+              call setupco(lunin,mype,stats_co,nchanl,nreal,nobs,&
+                   obstype,isis,is,co_diagsave,init_pass,last_pass)
 
 !          Set up GPS local refractivity data
            else if(ditype(is) == 'gps')then
@@ -451,7 +464,10 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   call mpi_reduce(stats,stats1,7*jpch_rad,mpi_rtype,mpi_sum,mype_rad, &
        mpi_comm_world,ierror)
 
-  if (nrf3_oz>0) call mpi_reduce(stats_oz,stats_oz1,9*jpch_oz,mpi_rtype,mpi_sum,mype_oz, &
+  if (ihave_oz) call mpi_reduce(stats_oz,stats_oz1,9*jpch_oz,mpi_rtype,mpi_sum,mype_oz, &
+       mpi_comm_world,ierror)
+
+  if (ihave_co) call mpi_reduce(stats_co,stats_co1,9*jpch_co,mpi_rtype,mpi_sum,mype_co, &
        mpi_comm_world,ierror)
 
 ! Collect conventional data statistics
@@ -477,7 +493,10 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         if(mype==mype_rad) call statspcp(aivals1,ndata)
 
 !       Compute and print statistics for ozone
-        if (mype==mype_oz .and. nrf3_oz>0) call statsoz(stats_oz1,bwork1,awork1(1,i_o3),ndata)
+        if (mype==mype_oz .and. ihave_oz) call statsoz(stats_oz1,bwork1,awork1(1,i_o3),ndata)
+
+!       Compute and print statistics for carbon monoxide
+!????   if (mype==mype_co .and. ihave_co) call statsco(stats_co1,bwork1,awork1(1,i_co),ndata)
 
      endif
 

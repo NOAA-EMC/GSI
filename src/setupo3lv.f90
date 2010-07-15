@@ -523,7 +523,7 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
        open(4,file=trim(diag_o3lev_file),form='unformatted',status='old',position='append')
      endif
      call dtime_show('setupo3lv','diagsave:o3lv',i_o3l_ob_type)
-     if (mype==mype_diaghdr(is)) then
+     if (init_pass.and.mype==mype_diaghdr(is)) then
         write(4) isis, dplat(is),obstype,jiter,ianldate,nreal
         write(6,*)'SETUPO3LV:   write header record for ',&
              isis,nreal,' to file ',trim(diag_o3lev_file),' ',ianldate

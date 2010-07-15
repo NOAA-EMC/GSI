@@ -28,6 +28,7 @@ module berror
 !   2006-11-30  todling - add fpsproj to control full nsig projection onto ps
 !   2007-03-13  derber - add qvar3d array to allow qoption=2 to work similar to others
 !   2007-07-03  kleist - add variables for flow-dependent background error variances
+!   2010-06-01  todling - revist as,tsfc_sdv to allow alloc depending on size of CVec
 !
 ! subroutines included:
 !   sub init_berror         - initialize background error related variables
@@ -101,6 +102,7 @@ module berror
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
+  use control_vectors, only: nc3d,nvars,mvars
   implicit none
 
 ! set default to private
@@ -115,9 +117,9 @@ module berror
   public :: create_berror_vars_reg
   public :: destroy_berror_vars_reg
 ! set passed variables to public
-  public :: qvar3d,nr,nf,varprd,fpsproj,bkgv_flowdep,tsfc_sdv
+  public :: qvar3d,nr,nf,varprd,fpsproj,bkgv_flowdep
   public :: dssvs,dssv,bkgv_write,bkgv_rewgtfct,hswgt
-  public :: hzscl,bw,pert_berr_fct,pert_berr,ndeg,norh,as,vs
+  public :: hzscl,bw,pert_berr_fct,pert_berr,ndeg,norh,vs
   public :: bl,bl2,be,slw2,slw1,slw,mr,inaxs,wtxrs,wtaxs,nx,ny
   public :: inxrs,jj1,ii2,jj2,ii,jj,ii1,table,alv
 
@@ -127,9 +129,12 @@ module berror
   integer(i_kind),allocatable,dimension(:,:,:,:):: ii,jj,ii1,jj1,ii2,jj2
 
   real(r_kind) bw,vs
-  real(r_kind),dimension(10):: as
   real(r_kind),dimension(3):: hzscl,hswgt
-  real(r_kind),dimension(2):: tsfc_sdv
+
+! hack to cope w/ namelist
+  integer(i_kind),parameter::maxvars=50
+  real(r_kind),dimension(maxvars):: as
+  real(r_kind),dimension(maxvars):: tsfc_sdv
 
   real(r_kind),allocatable,dimension(:):: be,bl,bl2,varprd
   real(r_kind),allocatable,dimension(:,:):: table,&
@@ -188,17 +193,16 @@ contains
 
     fpsproj = .true.
 
-    do i=1,10
-       as(i)=0.60_r_kind
-    end do
-
     do i=1,3
        hzscl(i)=one
        hswgt(i)=one/three
     end do
     vs=one/1.5_r_kind
 
-    do i=1,2
+    do i=1,maxvars
+       as(i)=0.60_r_kind
+    end do
+    do i=1,maxvars
        tsfc_sdv(i)=one
     end do
 
@@ -220,6 +224,7 @@ contains
 !   2004-11-16  treadon - add longitude dimension to array dssv
 !   2008-10-24  zhu     - use nrf3,nvars & dssvs,remove dssvt
 !                       - change the order of dssv's dimensions
+!   2010-06-01  todling - aas/atsfc_sdv now alloc/ble and initialized here
 !
 !   input argument list:
 !
@@ -233,10 +238,11 @@ contains
   use balmod, only: llmin,llmax
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
   use jfunc, only: nrclen
-  use control_vectors, only: nrf3,nvars
-  use constants, only: izero,ione,zero
+  use constants, only: izero,ione,zero,one
   implicit none
   
+  integer(i_kind) i
+
   llmin=ione
   llmax=nlat
 
@@ -258,11 +264,15 @@ contains
            be(ndeg), &
            bl(nx-nlon), &
            bl2(nr+ione+(ny-nlat)/2), &
-           alv(lat2,ndeg,nsig,nrf3), &
-           dssv(lat2,lon2,nsig,nrf3),&
-           dssvs(lat2,lon2,nvars-nrf3),&
            qvar3d(lat2,lon2,nsig))
-  dssvs = zero
+  if(nc3d>0)then
+     allocate(alv(lat2,ndeg,nsig,nc3d),&
+              dssv(lat2,lon2,nsig,nc3d))
+  endif
+  if(nvars-nc3d>0)then
+     allocate(dssvs(lat2,lon2,nvars-nc3d))
+     dssvs = zero
+  endif
   allocate(varprd(nrclen))
   allocate(inaxs(nf,nlon/8), &
            inxrs(nlon/8,mr:nr) )
@@ -290,6 +300,7 @@ contains
 !   2004-01-01  kleist
 !   2005-03-03  treadon - add implicit none
 !   2008-10-24  zhu     - remove dssvt (dssvs includes dssvt)
+!   2010-06-01  todling - dealloc as/tsfc_sdv; protect dealloc of some variables
 !
 !   input argument list:
 !
@@ -301,9 +312,16 @@ contains
 !
 !$$$
     implicit none
-    deallocate(wtaxs,wtxrs,be,table,bl,bl2,alv,&
-               dssv,qvar3d,dssvs,inaxs,inxrs,&
-               varprd)
+    if(allocated(table)) deallocate(table)
+    deallocate(wtaxs)
+    deallocate(wtxrs)
+    deallocate(be,bl,bl2)
+!_RT    if(allocated(qvar3d)) deallocate(qvar3d) ! _RTod somehow this makes GSI crash!when only single var in CV/SV
+    deallocate(inaxs,inxrs)
+    deallocate(varprd)
+    if(allocated(alv))   deallocate(alv)
+    if(allocated(dssv))  deallocate(dssv)
+    if(allocated(dssvs)) deallocate(dssvs)
     deallocate(slw,slw1,slw2)
     deallocate(ii,jj,ii1,jj1,ii2,jj2)
     return
@@ -630,7 +648,6 @@ contains
     use balmod, only: llmin,llmax
     use gridmod, only: nlat,nlon,nsig,nnnn1o,lat2,lon2
     use jfunc, only: nrclen
-    use control_vectors, only: nrf3,nvars
     implicit none
     
     nx=nlon
@@ -642,11 +659,13 @@ contains
 !   Grid constant for background error
 
     allocate(be(ndeg), &
-         alv(llmin:llmax,ndeg,nsig,nrf3), &
-         dssv(lat2,lon2,nsig,nrf3), &
-         dssvs(lat2,lon2,nvars-nrf3),&
          qvar3d(lat2,lon2,nsig))
-    dssvs=zero
+    if(nc3d>0)then
+       allocate(alv(llmin:llmax,ndeg,nsig,nc3d), &
+            dssv(lat2,lon2,nsig,nc3d), &
+            dssvs(lat2,lon2,nvars-nc3d))
+       dssvs=zero
+    endif
     
     allocate(varprd(max(ione,nrclen) ) )     
 
@@ -682,11 +701,14 @@ contains
 !$$$
     implicit none
 
-    deallocate(be,table,alv,&
-               dssv,qvar3d,dssvs,&
-               varprd)
-    deallocate(slw)
+    deallocate(be,qvar3d)
+    if(allocated(table)) deallocate(table)
+    if(allocated(alv)) deallocate(alv)
+    if(allocated(dssv)) deallocate(dssv)
+    if(allocated(dssvs)) deallocate(dssvs)
     deallocate(ii,jj)
+    deallocate(slw)
+    deallocate(varprd)
 
     return
   end subroutine destroy_berror_vars_reg

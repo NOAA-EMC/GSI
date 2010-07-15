@@ -35,6 +35,9 @@ subroutine prewgt_reg(mype)
 !   2010-03-15  zhu     - move the calculation of compute_qvar3d here
 !   2010-04-10  parrish - remove rhgues, no longer used
 !   2010-04-29  wu      - set up background error for oz
+!   2010-05-28  todling - obtain variable id's on the fly (add getindex)
+!   2010-06-01  todling - rename as,tsfc_sdv to as2d,as3d,atsfc_sdv (alloc now)
+!   2010-06-03  todling - protect dssvs w/ mvars check
 !
 !   input argument list:
 !     mype     - pe number
@@ -56,17 +59,21 @@ subroutine prewgt_reg(mype)
 !$$$
   use kinds, only: r_kind,i_kind
   use balmod, only: rllat,rllat1,llmin,llmax
-  use berror, only: as,dssvs,&
+  use berror, only: dssvs,&
        bw,ny,nx,dssv,vs,be,ndeg,&
-       init_rftable,hzscl,tsfc_sdv,slw
+       init_rftable,hzscl,slw
   use mpimod, only: nvar_id,levs_id,mpi_sum,mpi_comm_world,ierror,mpi_rtype
   use jfunc, only: qoption
-  use control_vectors, only: nrf,nrf3_oz,nrf3,nrf2,nrf2_sst,nvars,nrf3_loc,nrf2_loc,nrf_var
+  use control_vectors, only: cvars2d,cvars3d
+  use control_vectors, only: as2d,as3d,atsfc_sdv
+  use control_vectors, only: nrf,nc3d,nc2d,nvars,mvars !_RT ,nrf3_loc,nrf2_loc,nrf_var
+  use control_vectors, only: cvars => nrf_var
   use gridmod, only: lon2,lat2,nsig,nnnn1o,regional_ozone,&
        region_dx,region_dy,nlon,nlat,istart,jstart,region_lat
   use constants, only: ione,zero,half,one,two,four,rad2deg
   use guess_grids, only: ges_prslavg,ges_psfcavg,ges_oz
   use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_wgt_reg
+  use mpeu_util, only: getindex
 
   implicit none
 
@@ -89,6 +96,8 @@ subroutine prewgt_reg(mype)
   integer(i_kind) inerr,l,lp,l2
   integer(i_kind) msig,mlat              ! stats dimensions
   integer(i_kind),dimension(nnnn1o):: ks
+  integer(i_kind) nrf3_oz,nrf2_sst
+  integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc
 
   real(r_kind) samp2,dl1,dl2,d
   real(r_kind) samp,hwl,cc
@@ -121,16 +130,19 @@ subroutine prewgt_reg(mype)
 !     enddo
 !  enddo
 
+! Get required indexes from CV var names
+  nrf3_oz  = getindex(cvars3d,'oz')
+  nrf2_sst = getindex(cvars2d,'sst')
 
 ! Read dimension of stats file
   inerr=22_i_kind
   call berror_get_dims_reg(msig,mlat,inerr)
 
 ! Allocate arrays in stats file
-  allocate ( corz(1:mlat,1:nsig,1:nrf3) )
-  allocate ( corp(1:mlat,nrf2) )
-  allocate ( hwll(0:mlat+ione,1:nsig,1:nrf3),hwllp(0:mlat+ione,nvars-nrf3) )
-  allocate ( vz(1:nsig,0:mlat+ione,1:nrf3) )
+  allocate ( corz(1:mlat,1:nsig,1:nc3d) )
+  allocate ( corp(1:mlat,nc2d) )
+  allocate ( hwll(0:mlat+ione,1:nsig,1:nc3d),hwllp(0:mlat+ione,nvars-nc3d) )
+  allocate ( vz(1:nsig,0:mlat+ione,1:nc3d) )
 
 ! Read in background error stats and interpolate in vertical to that specified in namelist
   call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,mype,inerr)
@@ -177,7 +189,7 @@ subroutine prewgt_reg(mype)
   enddo
   dlsig(nsig)=rlsig(nsig-ione)-rlsig(nsig)
 
-  do n=1,nrf3
+  do n=1,nc3d
      do j=0,mlat+ione
         do k=1,nsig
            vz(k,j,n)=vz(k,j,n)*dlsig(k)
@@ -200,7 +212,15 @@ subroutine prewgt_reg(mype)
   call rfdpar1(be,rate,ndeg)
   call rfdpar2(be,rate,turn,samp,ndeg)
 
-  do n=1,nrf3
+  allocate(nrf3_loc(nc3d),nrf2_loc(nc2d))
+  do ii=1,nc3d
+     nrf3_loc(ii)=getindex(cvars,cvars3d(ii))
+  enddo
+  do ii=1,nc2d
+     nrf2_loc(ii)=getindex(cvars,cvars2d(ii))
+  enddo
+
+  do n=1,nc3d
      if(n==nrf3_oz .and. regional_ozone)then   ! spetial treament for ozone variance
         loc=nrf3_loc(n)
         vz(:,:,n)=1.5_r_kind   ! ozone vertical scale fixed
@@ -208,7 +228,7 @@ subroutine prewgt_reg(mype)
            call smoothzo(vz(1,j,n),samp,rate,n,j,dsv(1,1,j))
            do k=1,nsig
               do i=1,lon2
-                 dsv(i,k,j)=dsv(i,k,j)*as(loc)
+                 dsv(i,k,j)=dsv(i,k,j)*as3d(n)
               end do
            end do
         end do
@@ -234,7 +254,7 @@ subroutine prewgt_reg(mype)
            call smoothzo(vz(1,j,n),samp,rate,n,j,dsv(1,1,j))
            do k=1,nsig
               do i=1,lon2
-                 dsv(i,k,j)=dsv(i,k,j)*corz(j,k,n)*as(loc)
+                 dsv(i,k,j)=dsv(i,k,j)*corz(j,k,n)*as3d(n)
               end do
            end do
         end do
@@ -257,11 +277,11 @@ subroutine prewgt_reg(mype)
   if (qoption==2) call compute_qvar3d
 
 ! Background error arrays for sfp, sst, land t, and ice t
-  do n=1,nrf2
+  do n=1,nc2d
      loc=nrf2_loc(n)
      do j=llmin,llmax
         do i=1,lon2
-           dsvs(i,j)  =corp(j,n)*as(loc)
+           dsvs(i,j)  =corp(j,n)*as2d(n)
         end do
      end do
 
@@ -272,9 +292,9 @@ subroutine prewgt_reg(mype)
            dl2=rllat1(j,i)-float(l)
            dl1=one-dl2
            dssvs(j,i,n)=dl1*dsvs(i,l)+dl2*dsvs(i,l2)
-           if (n==nrf2_sst) then
-              dssvs(j,i,nrf2+1)=tsfc_sdv(1)*as(loc)  
-              dssvs(j,i,nrf2+2)=tsfc_sdv(2)*as(loc)  
+           if (mvars>=2.and.n==nrf2_sst) then
+              dssvs(j,i,nc2d+1)=atsfc_sdv(1)*as2d(n)  
+              dssvs(j,i,nc2d+2)=atsfc_sdv(2)*as2d(n)  
            end if
         end do
      end do
@@ -289,8 +309,8 @@ subroutine prewgt_reg(mype)
   psfc015=r015*ges_psfcavg
   do l=1,nnnn1o
      ks(l)=nsig+ione
-     if(nrf_var(nvar_id(l))=='sf' .or. nrf_var(nvar_id(l))=='SF' &
-       .or. nrf_var(nvar_id(l))=='vp' .or. nrf_var(nvar_id(l))=='VP')then
+     if(cvars(nvar_id(l))=='sf' .or. cvars(nvar_id(l))=='SF'.or. &
+        cvars(nvar_id(l))=='vp' .or. cvars(nvar_id(l))=='VP')then
         k_loop: do k=1,nsig
            if (ges_prslavg(k) < psfc015) then
               ks(l)=k
@@ -324,7 +344,7 @@ subroutine prewgt_reg(mype)
      n=nvar_id(k)
 
      nn=-ione
-     do ii=1,nrf3
+     do ii=1,nc3d
         if (nrf3_loc(ii)==n) then 
            nn=ii
            if (nn/=nrf3_oz) then
@@ -372,13 +392,13 @@ subroutine prewgt_reg(mype)
      end do
 
      if (nn==-ione) then 
-        do ii=1,nrf2
+        do ii=1,nc2d
            if (nrf2_loc(ii)==n .or. n>nrf) then 
               nn=ii
-              if (n>nrf) nn=n-nrf3
+              if (n>nrf) nn=n-nc3d
               cc=one 
               if (nn==nrf2_sst) cc=two
-              if (nn==nrf2+ione .or. nn==nrf2+2_i_kind) cc=four
+              if (nn==nc2d+ione .or. nn==nc2d+2_i_kind) cc=four
               do i=1,nx
                  do j=1,ny
                     l=int(rllat(j,i))
@@ -397,7 +417,8 @@ subroutine prewgt_reg(mype)
      end if 
 
   end do
-  deallocate( corz,corp,hwll,hwllp,vz)
+  deallocate(corz,corp,hwll,hwllp,vz)
+  deallocate(nrf3_loc,nrf2_loc)
 
 
 ! Load tables used in recursive filters

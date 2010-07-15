@@ -34,7 +34,7 @@ end interface
 
 contains
 
-subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
+subroutine intgps_(gpshead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intref      apply nonlinqc obs operator refractivity
@@ -68,7 +68,8 @@ subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
 !   2007-07-26  cucurull - in/out 3d pressure to update code to generalized vertical coordinate
 !   2008-06-02  safford - rm unused vars
 !   2008-11-26  todling  - add 4dvar and GSI adjoint capability (obs binning, obsens, etc) 
-!   2008-11-26  Todling - turned FOTO optional; changed ptr%time handle
+!   2008-11-26  todling - turned FOTO optional; changed ptr%time handle
+!   2010-05-13  todling - update to use gsi_bundle; update interface
 !   
 !   input argument list:
 !     gpshead  - obs type pointer to obs structure
@@ -93,24 +94,48 @@ subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
   use gridmod, only: latlon1n,nsig,latlon1n1
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(gps_ob_type),pointer        ,intent(in   ) :: gpshead
-  real(r_kind),dimension(latlon1n) ,intent(in   ) :: st,sq
-  real(r_kind),dimension(latlon1n) ,intent(inout) :: rt,rq
-  real(r_kind),dimension(latlon1n1),intent(in   ) :: sp
-  real(r_kind),dimension(latlon1n1),intent(inout) :: rp
+  type(gps_ob_type),pointer,intent(in   ) :: gpshead
+  type(gsi_bundle),         intent(in   ) :: sval
+  type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) j
+  integer(i_kind) j,ier,istatus
   integer(i_kind),dimension(nsig):: i1,i2,i3,i4
   real(r_kind) :: w1,w2,w3,w4
   real(r_kind) :: p_TL,p_AD,t_TL,t_AD,q_TL,q_AD
   real(r_kind) :: val,time_gps,pg_gps
   real(r_kind) ::cg_gps,grad,p0,wnotgross,wgross
+  real(r_kind),pointer,dimension(:) :: st,sq
+  real(r_kind),pointer,dimension(:) :: rt,rq
+  real(r_kind),pointer,dimension(:) :: sp
+  real(r_kind),pointer,dimension(:) :: rp
+  real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_p3d
+  real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_p3d
   type(gps_ob_type), pointer :: gpsptr
 
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'tv', st,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'q',  sq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'p3d',sp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'tv', rt,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'q',  rq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'p3d',rp,istatus);ier=istatus+ier
+  if (l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'tv',   xhat_dt_t,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'q',    xhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'p3d',xhat_dt_p3d,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'tv',   dhat_dt_t,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'q',    dhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'p3d',dhat_dt_p3d,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
 
   gpsptr => gpshead
   do while (associated(gpsptr))
@@ -139,14 +164,14 @@ subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
         if (l_foto) then
            time_gps=gpsptr%time*r3600
            t_TL=t_TL+&
-              (w1*xhat_dt%t(i1(j))+w2*xhat_dt%t(i2(j))+ &
-               w3*xhat_dt%t(i3(j))+w4*xhat_dt%t(i4(j)))*time_gps
+              (w1*xhat_dt_t(i1(j))+w2*xhat_dt_t(i2(j))+ &
+               w3*xhat_dt_t(i3(j))+w4*xhat_dt_t(i4(j)))*time_gps
            q_TL=q_TL+&
-              (w1*xhat_dt%q(i1(j))+w2*xhat_dt%q(i2(j))+ &
-               w3*xhat_dt%q(i3(j))+w4*xhat_dt%q(i4(j)))*time_gps
+              (w1*xhat_dt_q(i1(j))+w2*xhat_dt_q(i2(j))+ &
+               w3*xhat_dt_q(i3(j))+w4*xhat_dt_q(i4(j)))*time_gps
            p_TL=p_TL+&
-              (w1*xhat_dt%p3d(i1(j))+w2*xhat_dt%p3d(i2(j))+ &
-               w3*xhat_dt%p3d(i3(j))+w4*xhat_dt%p3d(i4(j)))*time_gps
+              (w1*xhat_dt_p3d(i1(j))+w2*xhat_dt_p3d(i2(j))+ &
+               w3*xhat_dt_p3d(i3(j))+w4*xhat_dt_p3d(i4(j)))*time_gps
         endif
         val = val + p_TL*gpsptr%jac_p(j) + t_TL*gpsptr%jac_t(j)+q_TL*gpsptr%jac_q(j)
      end do
@@ -205,20 +230,20 @@ subroutine intgps_(gpshead,rt,rq,rp,st,sq,sp)
            grad=grad*time_gps
            do j=1,nsig
               t_AD = grad*gpsptr%jac_t(j)
-              dhat_dt%t(i1(j))=dhat_dt%t(i1(j))+w1*t_AD
-              dhat_dt%t(i2(j))=dhat_dt%t(i2(j))+w2*t_AD
-              dhat_dt%t(i3(j))=dhat_dt%t(i3(j))+w3*t_AD
-              dhat_dt%t(i4(j))=dhat_dt%t(i4(j))+w4*t_AD
+              dhat_dt_t(i1(j))=dhat_dt_t(i1(j))+w1*t_AD
+              dhat_dt_t(i2(j))=dhat_dt_t(i2(j))+w2*t_AD
+              dhat_dt_t(i3(j))=dhat_dt_t(i3(j))+w3*t_AD
+              dhat_dt_t(i4(j))=dhat_dt_t(i4(j))+w4*t_AD
               q_AD = grad*gpsptr%jac_q(j)
-              dhat_dt%q(i1(j))=dhat_dt%q(i1(j))+w1*q_AD
-              dhat_dt%q(i2(j))=dhat_dt%q(i2(j))+w2*q_AD
-              dhat_dt%q(i3(j))=dhat_dt%q(i3(j))+w3*q_AD
-              dhat_dt%q(i4(j))=dhat_dt%q(i4(j))+w4*q_AD
+              dhat_dt_q(i1(j))=dhat_dt_q(i1(j))+w1*q_AD
+              dhat_dt_q(i2(j))=dhat_dt_q(i2(j))+w2*q_AD
+              dhat_dt_q(i3(j))=dhat_dt_q(i3(j))+w3*q_AD
+              dhat_dt_q(i4(j))=dhat_dt_q(i4(j))+w4*q_AD
               p_AD = grad*gpsptr%jac_p(j)
-              dhat_dt%p3d(i1(j))=dhat_dt%p3d(i1(j))+w1*p_AD
-              dhat_dt%p3d(i2(j))=dhat_dt%p3d(i2(j))+w2*p_AD
-              dhat_dt%p3d(i3(j))=dhat_dt%p3d(i3(j))+w3*p_AD
-              dhat_dt%p3d(i4(j))=dhat_dt%p3d(i4(j))+w4*p_AD
+              dhat_dt_p3d(i1(j))=dhat_dt_p3d(i1(j))+w1*p_AD
+              dhat_dt_p3d(i2(j))=dhat_dt_p3d(i2(j))+w2*p_AD
+              dhat_dt_p3d(i3(j))=dhat_dt_p3d(i3(j))+w3*p_AD
+              dhat_dt_p3d(i4(j))=dhat_dt_p3d(i4(j))+w4*p_AD
            enddo
         endif
 

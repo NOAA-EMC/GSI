@@ -15,6 +15,8 @@ subroutine sub2grid(workin,cstate,sst,slndt,sicet,iflg)
 !   2004-03-30  treaon - change work1 dimension to max(iglobal,itotsub)
 !   2008-04-03  safford - rm unused vars and uses                       
 !   2010-04-01  treadon - move strip,strip_periodic,reorder to gridmod
+!   2010-04-28  todling - update to use gsi_bundle
+!   2010-05-22  todling - replace individual pointers to xtmp w/ global pointer nsubnhalo
 !
 !   input argument list:
 !     t        - t grid values                    
@@ -42,66 +44,118 @@ subroutine sub2grid(workin,cstate,sst,slndt,sicet,iflg)
        ierror,mpi_comm_world,mpi_rtype
   use gridmod, only: itotsub,lat1,lon1,lat2,lon2,iglobal,&
        nlat,nlon,nsig,ltosi,ltosj,nsig1o,nnnn1o,vlevs,strip,strip_periodic,reorder
-  use jfunc, only: nsstsm,nozsm,nsltsm,ncwsm,nsitsm,nvpsm,nstsm,&
-       npsm,nqsm,ntsm
-  use constants, only: ione,izero,zero
-  use control_vectors
+  use control_vectors, only: nrf,nrf_var,nrf_3d
+  use control_vectors, only: mvars  ! need to pass motley to avoid passing this via common
+  use constants, only: zero
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
   integer(i_kind)                         ,intent(in   ) :: iflg
   real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: sst,slndt,sicet
   real(r_kind),dimension(nlat,nlon,nnnn1o),intent(  out) :: workin
-  type(control_state)                     ,intent(in   ) :: cstate
+  type(gsi_bundle)                        ,intent(inout) :: cstate
 
 ! Declare local variables
-  integer(i_kind) j,k,l,ni1,ni2
+  character(len=*),parameter:: myname='sub2grid'
+  integer(i_kind) ii,i,j,k,l,n,ni1,ni2,istatus
+  integer(i_kind),allocatable,dimension(:):: nsubnhalo         ! indexes to sub-domain w/o halo
   real(r_kind),dimension(lat1*lon1*vlevs):: xhatsm
-  real(r_kind),dimension(max(iglobal,itotsub),nsig1o):: work1  !  contain nsig1o slab of any variables
+  real(r_kind),dimension(max(iglobal,itotsub),nsig1o):: work1  ! contain nsig1o slab of any variables
+  real(r_kind),pointer::rank2(:,:)
+  real(r_kind),pointer::rank3(:,:,:)
 
 ! Initialize variables
-! do k=1,nsig1o
-!    do j=1,nlon
-!       do i=1,nlat
-!          workin(i,j,k)=zero
-!       end do
-!    end do
-! end do
-! do k=1,lat1*lon1*(nsig*6+4_i_kind)
-!    xhatsm(k)=zero
-! end do
   xhatsm=zero
   workin=zero
 
+  allocate(nsubnhalo(nrf+mvars))
+
+  ii=0
+  do i=1,nrf
+     if(nrf_3d(i)) then
+        n=lat1*lon1*nsig
+     else
+        n=lat1*lon1
+     endif
+     nsubnhalo(i)=ii+1
+     ii=ii+n
+  enddo
+  do i=nrf+1,nrf+mvars
+     nsubnhalo(i)=ii+1
+     ii=ii+lat1*lon1
+  enddo
+
+
 ! strip off boundary points and load vector for communication
-  if (iflg==ione) then
-     call strip(cstate%st   ,xhatsm(nstsm) ,nsig)
-     call strip(cstate%vp   ,xhatsm(nvpsm) ,nsig)
-     call strip(cstate%p    ,xhatsm(npsm)  ,ione)
-     call strip(cstate%t    ,xhatsm(ntsm)  ,nsig)
-     call strip(cstate%rh   ,xhatsm(nqsm)  ,nsig)
-     if (nrf3_oz>izero) call strip(cstate%oz,xhatsm(nozsm),nsig)
-     if (nrf2_sst>izero) then
-        call strip(sst  ,xhatsm(nsstsm),ione)
-        call strip(slndt,xhatsm(nsltsm),ione)
-        call strip(sicet,xhatsm(nsitsm),ione)
-     end if
-     if (nrf3_cw>izero) call strip(cstate%cw ,xhatsm(ncwsm) ,nsig)
-  elseif (iflg==2_i_kind) then
-     call strip_periodic(cstate%st   ,xhatsm(nstsm) ,nsig)
-     call strip_periodic(cstate%vp   ,xhatsm(nvpsm) ,nsig)
-     call strip_periodic(cstate%p    ,xhatsm(npsm)  ,ione)
-     call strip_periodic(cstate%t    ,xhatsm(ntsm)  ,nsig)
-     call strip_periodic(cstate%rh   ,xhatsm(nqsm)  ,nsig)
-     if (nrf3_oz>izero) call strip_periodic(cstate%oz,xhatsm(nozsm),nsig)
-     if (nrf2_sst>izero) then
-        call strip_periodic(sst  ,xhatsm(nsstsm),ione)
-        call strip_periodic(slndt,xhatsm(nsltsm),ione)
-        call strip_periodic(sicet,xhatsm(nsitsm),ione)
-     end if
-     if (nrf3_cw>izero) call strip_periodic(cstate%cw ,xhatsm(ncwsm) ,nsig)
+  if (iflg==1) then
+
+     do i=1,nrf
+        if (nrf_3d(i)) then
+            call gsi_bundlegetpointer (cstate,trim(nrf_var(i)),rank3,istatus)
+            if(istatus==0) then 
+               call strip(rank3,xhatsm(nsubnhalo(i)),nsig)
+            else
+               write(6,*) myname,': cannot find 3d pointer'
+               call stop2(999)
+            endif
+        else
+            call gsi_bundlegetpointer (cstate,trim(nrf_var(i)),rank2,istatus)
+            if(istatus==0) then 
+               if(trim(nrf_var(i))=='sst') then ! _RT shouuld be done via motley
+                  call strip(sst  ,xhatsm(nsubnhalo(i)),1)
+               else
+                  call strip(rank2,xhatsm(nsubnhalo(i)),1)
+               endif
+            else
+               write(6,*) myname,': cannot find 2d pointer'
+               call stop2(999)
+            endif
+        endif
+        if(mvars>0) then  ! _RT should be done via motley
+           ii=nrf+1
+           call strip(slndt,xhatsm(nsubnhalo(ii)),1)
+           ii=ii+1
+           call strip(sicet,xhatsm(nsubnhalo(ii)),1)
+        endif
+     enddo
+
+  elseif (iflg==2) then
+
+     do i=1,nrf
+        if (nrf_3d(i)) then
+            call gsi_bundlegetpointer (cstate,trim(nrf_var(i)),rank3,istatus)
+            if(istatus==0) then 
+               call strip_periodic(rank3,xhatsm(i),nsig)
+            else
+               write(6,*) myname,': cannot find 3d pointer'
+               call stop2(999)
+            endif
+        else
+            call gsi_bundlegetpointer (cstate,trim(nrf_var(i)),rank2,istatus)
+            if(istatus==0) then 
+               if(trim(nrf_var(i))=='sst') then ! _RT shouuld be done via motley
+                  call strip_periodic(sst  ,xhatsm(i),1)
+               else
+                  call strip_periodic(rank2,xhatsm(i),1)
+               endif
+            else
+               write(6,*) myname,': cannot find 2d pointer'
+               call stop2(999)
+            endif
+        endif
+        if(mvars>0) then  ! _RT should be done via motley
+           ii=nrf+1
+           call strip_periodic(slndt,xhatsm(ii),1)
+           ii=ii+lat1*lon1+1
+           call strip_periodic(sicet,xhatsm(ii),1)
+        endif
+     enddo
+
   else
      write(6,*)'SUB2GRID:  ***ERROR*** iflg=',iflg,' is an illegal value'
+     call stop2(999)
   endif
 
 
@@ -124,6 +178,8 @@ subroutine sub2grid(workin,cstate,sst,slndt,sicet,iflg)
         workin(ni1,ni2,k)=work1(l,k)
      end do
   end do
+
+  deallocate(nsubnhalo)
 
   return
 end subroutine sub2grid
@@ -162,50 +218,51 @@ subroutine sub2grid2(workin,st,vp,pri,t,iflg)
   use gridmod, only: itotsub,lat1,lon1,lat2,lon2,iglobal,&
        nlat,nlon,nsig,ltosi,ltosj,&
        strip,strip_periodic,reorder
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Declare passed variables
   integer(i_kind)                            ,intent(in   ) :: iflg
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: pri
+  real(r_kind),dimension(lat2,lon2,nsig+1)   ,intent(in   ) :: pri
   real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: t,vp,st
   real(r_kind),dimension(nlat,nlon,nnnvsbal) ,intent(  out) :: workin
 
 ! Declare local variables
   integer(i_kind) j,k,l,ni1,ni2,ioff
-  real(r_kind),dimension(lat1*lon1*(nsig*4+ione)):: xhatsm
+  real(r_kind),dimension(lat1*lon1*(nsig*4+1)):: xhatsm
   real(r_kind),dimension(max(iglobal,itotsub),nlevsbal):: work1  !  contain nsig1o slab of any variables
 
 
 ! strip off boundary points and load vector for communication
-  if (iflg==ione) then
+  if (iflg==1) then
      do k=1,nsig
-        ioff=ku_gs(k)*lat1*lon1+ione
-        call strip(st (1,1,k),xhatsm(ioff),ione)
-        ioff=kv_gs(k)*lat1*lon1+ione
-        call strip(vp (1,1,k),xhatsm(ioff),ione)
-        ioff=kt_gs(k)*lat1*lon1+ione
-        call strip(t  (1,1,k),xhatsm(ioff),ione)
+        ioff=ku_gs(k)*lat1*lon1+1
+        call strip(st (1,1,k),xhatsm(ioff),1)
+        ioff=kv_gs(k)*lat1*lon1+1
+        call strip(vp (1,1,k),xhatsm(ioff),1)
+        ioff=kt_gs(k)*lat1*lon1+1
+        call strip(t  (1,1,k),xhatsm(ioff),1)
      end do
-     do k=1,nsig+ione
-        ioff=kp_gs(k)*lat1*lon1+ione
-        call strip(pri(1,1,k),xhatsm(ioff),ione)
+     do k=1,nsig+1
+        ioff=kp_gs(k)*lat1*lon1+1
+        call strip(pri(1,1,k),xhatsm(ioff),1)
      end do
-  elseif (iflg==2_i_kind) then
+  elseif (iflg==2) then
      do k=1,nsig
-        ioff=ku_gs(k)*lat1*lon1+ione
-        call strip_periodic(st (1,1,k),xhatsm(ioff),ione)
-        ioff=kv_gs(k)*lat1*lon1+ione
-        call strip_periodic(vp (1,1,k),xhatsm(ioff),ione)
-        ioff=kt_gs(k)*lat1*lon1+ione
-        call strip_periodic(t  (1,1,k),xhatsm(ioff),ione)
+        ioff=ku_gs(k)*lat1*lon1+1
+        call strip_periodic(st (1,1,k),xhatsm(ioff),1)
+        ioff=kv_gs(k)*lat1*lon1+1
+        call strip_periodic(vp (1,1,k),xhatsm(ioff),1)
+        ioff=kt_gs(k)*lat1*lon1+1
+        call strip_periodic(t  (1,1,k),xhatsm(ioff),1)
      end do
-     do k=1,nsig+ione
-        ioff=kp_gs(k)*lat1*lon1+ione
-        call strip_periodic(pri(1,1,k),xhatsm(ioff),ione)
+     do k=1,nsig+1
+        ioff=kp_gs(k)*lat1*lon1+1
+        call strip_periodic(pri(1,1,k),xhatsm(ioff),1)
      end do
   else
      write(6,*)'SUB2GRID:  ***ERROR*** iflg=',iflg,' is an illegal value'
+     call stop2(999)
   endif
 
 

@@ -32,6 +32,10 @@ module jfunc
 !   2010-02-20  zhu     - add nrf_levb and nrf_leve
 !   2010-03-23  derber  - remove rhgues (not used)
 !   2010-03-25  zhu     - add pointer_state
+!   2010-05-12  todling - use gsi_bundle for state vector; remove pointer_state
+!   2010-05-12  todling - replace some existing subdomain pointers w/ nsubwhalo/nsubnhalo
+!                       - declare all variables coming from use statements
+!   2010-05-20  todling - move nrf_levb and nrf_leve to control_vector where they belong
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -65,28 +69,6 @@ module jfunc
 !   def nvals_len  - number of 2d state-vector variables * subdomain size (with buffer)
 !   def nval_levs  - number of 2d (x/y) control-vector variables
 !   def nval_len   - number of 2d control-vector variables * subdomain size (with buffer)
-!   def nstsm      - starting point for streamfunction in control vector for comm.
-!                    from here on down, without buffer points
-!   def nvpsm      - starting point for velocity pot. in control vector for comm.
-!   def npsm       - starting point for ln(ps) in control vector for comm.
-!   def ntsm       - starting point for temperature in control vector for comm.
-!   def nqsm       - starting point for moisture in control vector for comm.
-!   def nozsm      - starting point for ozone in control vector for comm.
-!   def nsstsm     - starting point for sst in control vector for comm.
-!   def nsltsm     - starting point for skin/land temp. in control vector for comm.
-!   def nsitsm     - starting point for skin/ice temp. in control vector for comm.
-!   def ncwsm      - starting point for cloud water in control vector for comm.
-!   def nst2       - starting point for streamfunction in control vector for comm.
-!                    from here on down, including buffer points
-!   def nvp2       - starting point for velocity pot. in control vector for comm.
-!   def np2        - starting point for ln(ps) in control vector for comm.
-!   def nt2        - starting point for temperature in control vector for comm.
-!   def nq2        - starting point for moisture in control vector for comm.
-!   def noz2       - starting point for ozone in control vector for comm.
-!   def nsst2      - starting point for sst in control vector for comm.
-!   def nslt2      - starting point for skin/land temp. in control vector for comm.
-!   def nsit2      - starting point for skin/ice temp. in control vector for comm.
-!   def ncw2       - starting point for cloud water in control vector for comm.
 !   def l_foto     - option for foto
 !   def print_diag_pcg - option for turning on GMAO diagnostics in pcgsoi
 !   def tsensible  - option to use sensible temperature as the control variable. applicable
@@ -95,28 +77,26 @@ module jfunc
 !                    inner iteration using the modified gram-schmidt method. useful for
 !                    estimating the analysis error via the projection method. 
 !
-!   def nrf        - total number of control variables
-!   def nrf2       - total number of 2D control variables
-!   def nrf3       - total number of 3D control variables
-!   def nrf2_loc   - location of 2D control variables
-!   def nrf3_loc   - location of 3D control variables
-!   def nrf_tracer - location of tracer variables
-!   def nrf_3d     - indicator of 2D/3D control variables
-!   def nrf_levb   - starting level of 2D/3D control variables
-!   def nrf_leve   - ending level of 2D/3D control variables
 !   def ntracer    - total number of tracer variables
 !   def nrft       - total number of time tendencies for upper level control variables
 !   def nrft_      - order of time tendencies for 3d control variables
-!   def nvars      - total number of 2d & 3d variables
-
+!
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use control_vectors 
-  use state_vectors
+  use constants, only: zero
+  use control_vectors, only: nc2d,nc3d,mvars
+  use control_vectors, only: nrf,nrf_3d,nrf_var
+  use control_vectors, only: allocate_cv,deallocate_cv
+  use control_vectors, only: control_vector
+  use control_vectors, only: assignment(=)
+  use control_vectors, only: setup_control_vectors
+  use state_vectors, only: setup_state_vectors
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundle
   implicit none
 
 ! set default to private
@@ -129,15 +109,12 @@ module jfunc
   public :: write_guess_solution
   public :: strip2
   public :: set_pointer
-  public :: pointer_state
 ! set passed variables to public
   public :: nrclen,npclen,nsclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
   public :: switch_on_derivatives,qgues,qsatg,jiterend,jiterstart,jiter,iter,niter,miter
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
   public :: factqmax,factqmin,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
-  public :: nst2,nvp2,np2,nt2,nq2,noz2,nsst2,nslt2,nsit2,ncw2
-  public :: nstsm,nvpsm,npsm,ntsm,nqsm,nozsm,nsstsm,nsltsm,nsitsm,ncwsm
 
   logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
@@ -155,7 +132,7 @@ module jfunc
   real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp 
   real(r_kind),allocatable,dimension(:,:):: varq
   type(control_vector),save :: xhatsave,yhatsave
-  type(state_vector),save ::xhat_dt,dhat_dt
+  type(gsi_bundle),save :: xhat_dt,dhat_dt
 
 contains
 
@@ -185,7 +162,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero,ione,zero, one
+    use constants, only: zero, one
     implicit none
     integer(i_kind) i
 
@@ -200,21 +177,21 @@ contains
 
     factqmin=one
     factqmax=one
-    iout_iter=220_i_kind
-    miter=ione
-    qoption=ione
+    iout_iter=220
+    miter=1
+    qoption=1
     do i=0,50
-       niter(i)=izero
-       niter_no_qc(i)=1000000_i_kind
+       niter(i)=0
+       niter_no_qc(i)=1000000
     end do
-    jiterstart=ione
-    jiterend=ione
+    jiterstart=1
+    jiterend=1
     jiter=jiterstart
     biascor=-one        ! bias multiplicative coefficient
-    diurnalbc=izero     ! 1= diurnal bias; 0= persistent bias
-    bcoption=ione       ! 0=ibc; 1=sbc
-    nclen=ione
-    nclenz=ione
+    diurnalbc=0         ! 1= diurnal bias; 0= persistent bias
+    bcoption=1          ! 0=ibc; 1=sbc
+    nclen=1
+    nclenz=1
 
     penorig=zero
     gnormorig=zero
@@ -224,7 +201,7 @@ contains
 ! iguess =  1  read and write guess file
 ! iguess =  2  read only guess file
 
-    iguess=ione
+    iguess=1
 
     return
   end subroutine init_jfunc
@@ -256,7 +233,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: ione,zero
+    use constants, only: zero
     use gridmod, only: lat2,lon2,nsig
     implicit none
 
@@ -268,13 +245,13 @@ contains
     call allocate_cv(yhatsave)
     allocate(qsatg(lat2,lon2,nsig),&
          dqdt(lat2,lon2,nsig),dqdrh(lat2,lon2,nsig),&
-         varq(ione:mlat,ione:nsig),dqdp(lat2,lon2,nsig),&
+         varq(1:mlat,1:nsig),dqdp(lat2,lon2,nsig),&
          qgues(lat2,lon2,nsig))
 
     xhatsave=zero
     yhatsave=zero
 
-    do k=ione,nsig
+    do k=1,nsig
        do j=1,mlat
           varq(j,k)=zero
        end do
@@ -352,7 +329,6 @@ contains
 !
 !$$$
     use kinds, only: r_single
-    use constants, only: izero,ione
     use mpimod, only: ierror, mpi_comm_world,mpi_real4
     use gridmod, only: nlat,nlon,nsig,itotsub,ltosi_s,ltosj_s,&
          displs_s,ijn_s,latlon11,iglobal
@@ -369,39 +345,39 @@ contains
     real(r_single),dimension(nlat,nlon):: xhatsave_g,yhatsave_g
     real(r_single),dimension(nclen):: xhatsave_r4,yhatsave_r4
     
-    jiterstart = ione
-    mm1=mype+ione
-    myper=izero
+    jiterstart = 1
+    mm1=mype+1
+    myper=0
 
 ! Open unit to guess solution.  Read header.  If no header, file is
 ! empty and exit routine
     open(12,file='gesfile_in',form='unformatted')
-    iadateg=izero
-    nlatg=izero
-    nlong=izero
-    nsigg=izero
+    iadateg=0
+    nlatg=0
+    nlong=0
+    nsigg=0
     read(12,end=1234)iadateg,nlatg,nlong,nsigg
-    if(iadate(ione) == iadateg(ione) .and. iadate(2_i_kind) == iadate(2_i_kind) .and. &
-       iadate(3_i_kind) == iadateg(3_i_kind) .and. iadate(4_i_kind) == iadateg(4_i_kind) .and. &
-       iadate(5_i_kind) == iadateg(5_i_kind) .and. nlat == nlatg .and. &
+    if(iadate(1) == iadateg(1) .and. iadate(2) == iadate(2) .and. &
+       iadate(3) == iadateg(3) .and. iadate(4) == iadateg(4) .and. &
+       iadate(5) == iadateg(5) .and. nlat == nlatg .and. &
        nlon == nlong .and. nsig == nsigg) then
-       if(mype == izero) write(6,*)'READ_GUESS_SOLUTION:  read guess solution for ',&
+       if(mype == 0) write(6,*)'READ_GUESS_SOLUTION:  read guess solution for ',&
                      iadateg,nlatg,nlong,nsigg
-       jiterstart=izero
+       jiterstart=0
          
 ! Let all tasks read gesfile_in to pick up bias correction (second read)
 
 ! Loop to read input guess fields.  After reading in each field & level,
 ! scatter the grid to the appropriate location in the xhat and yhatsave
 ! arrays.
-       do k=ione,nval_levs
+       do k=1,nval_levs
           read(12,end=1236) xhatsave_g,yhatsave_g
           do kk=1,itotsub
              i1=ltosi_s(kk); i2=ltosj_s(kk)
              fieldx(kk)=xhatsave_g(i1,i2)
              fieldy(kk)=yhatsave_g(i1,i2)
           end do
-          i=(k-ione)*latlon11 + ione
+          i=(k-1)*latlon11 + 1
           call mpi_scatterv(fieldx,ijn_s,displs_s,mpi_real4,&
                    xhatsave_r4(i),ijn_s(mm1),mpi_real4,myper,mpi_comm_world,ierror)
           call mpi_scatterv(fieldy,ijn_s,displs_s,mpi_real4,&
@@ -409,14 +385,14 @@ contains
        end do  !end do over nval_levs
 
 !      Read radiance and precipitation bias correction terms
-       read(12,end=1236) (xhatsave_r4(i),i=nclen1+ione,nclen),(yhatsave_r4(i),i=nclen1+ione,nclen)
+       read(12,end=1236) (xhatsave_r4(i),i=nclen1+1,nclen),(yhatsave_r4(i),i=nclen1+1,nclen)
        do i=1,nclen
           dirx%values(i)=real(xhatsave_r4(i),r_kind)
           diry%values(i)=real(yhatsave_r4(i),r_kind)
        end do
 
     else
-       if(mype == izero) then
+       if(mype == 0) then
           write(6,*) 'READ_GUESS_SOLUTION:  INCOMPATABLE GUESS FILE, gesfile_in'
           write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
           write(6,*) 'READ_GUESS_SOLUTION:  nlat,nlatg,nlon,nlong,nsig,nsigg=',&
@@ -429,7 +405,7 @@ contains
 ! The guess file is empty.  Do not return an error code but print a message to
 ! standard out.
 1234 continue
-    if(mype == izero) then
+    if(mype == 0) then
        write(6,*) 'READ_GUESS_SOLUTION:  NO GUESS FILE, gesfile_in'
        write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
        write(6,*) 'READ_GUESS_SOLUTION:  nlat,nlatg,nlon,nlong,nsig,nsigg=',&
@@ -441,7 +417,7 @@ contains
 ! Error contition reading level or bias correction data.  Set error flag and
 ! return to the calling program.
 1236 continue
-    if (mype==izero) write(6,*) 'READ_GUESS_SOLUTION:  ERROR in reading guess'
+    if (mype==0) write(6,*) 'READ_GUESS_SOLUTION:  ERROR in reading guess'
     close(12)
     call stop2(76)
 
@@ -479,7 +455,7 @@ contains
     use gridmod, only: ijn,latlon11,displs_g,ltosj,ltosi,nsig,&
          nlat,nlon,lat1,lon1,itotsub,iglobal
     use obsmod, only: iadate
-    use constants, only: izero,ione,zero
+    use constants, only: zero
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
@@ -490,8 +466,8 @@ contains
     real(r_single),dimension(nlat,nlon):: xhatsave_g,yhatsave_g
     real(r_single),dimension(nrclen):: xhatsave4,yhatsave4
 
-    mm1=mype+ione
-    mypew=izero
+    mm1=mype+1
+    mypew=0
     
 ! Write header record to output file
     if (mype==mypew) then
@@ -500,8 +476,8 @@ contains
     endif
 
 ! Loop over levels.  Gather guess solution and write to output
-    do k=ione,nval_levs
-       ie=(k-ione)*latlon11 + ione
+    do k=1,nval_levs
+       ie=(k-1)*latlon11 + 1
        is=ie+latlon11
        call strip2(xhatsave%values(ie:is),yhatsave%values(ie:is),field)
        call mpi_gatherv(field(1,1,1),ijn(mm1),mpi_real4,&
@@ -570,7 +546,6 @@ contains
 !
 !$$$
     use kinds, only: r_single
-    use constants, only: ione
     use gridmod, only: lat1,lon1,lat2,lon2
     implicit none
 
@@ -581,10 +556,10 @@ contains
 
 
     do j=1,lon1
-       jp1 = j+ione
+       jp1 = j+1
        do i=1,lat1
-          field_out(i,j,1)=field_in1(i+ione,jp1)
-          field_out(i,j,2)=field_in2(i+ione,jp1)
+          field_out(i,j,1)=field_in1(i+1,jp1)
+          field_out(i,j,2)=field_in2(i+1,jp1)
        end do
     end do
 
@@ -607,6 +582,9 @@ contains
 !   2009-09-16  parrish - add hybrid_ensemble connection in call to setup_control_vectors
 !   2010-03-01  zhu     - add nrf_levb and nrf_leve, generalize nval_levs
 !                       - generalize vector starting points such as nvpsm, nst2, and others
+!   2010-05-23  todling - remove pointers such as nvpsm, nst2, and others (intro on 10/03/01)
+!                       - move nrf_levb and nrf_leve to anberror where they are needed
+!   2010-05-29  todling - generalized count for number of levels in state variables
 !
 !   input argument list:
 !
@@ -617,27 +595,27 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero,ione
     use gridmod, only: lat1,lon1,latlon11,latlon1n,nsig,lat2,lon2
     use gridmod, only: nnnn1o,regional,nlat,nlon
     use radinfo, only: npred,jpch_rad
     use pcpinfo, only: npredp,npcptype
+    use state_vectors, only: ns3d,ns2d,edges
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors
     use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens
-    use control_vectors, only: nrf,nrf2,nrf3,nrf_3d,nrf_levb,nrf_leve,nrf_var,nrf2_sst
     implicit none
 
-    integer(i_kind) ii,nx,ny,mr,nr,nf,n,klevb,kleve,ngrid
+    integer(i_kind) ii,jj,nx,ny,mr,nr,nf,n,klevb,kleve,nedges
     character(len=5) cvar
 
-    nvals_levs=8*nsig+2+ione        ! +1 for extra level in p3d
+    nedges=count(edges .eqv. .true.)
+    nvals_levs=ns3d*nsig+ns2d+nedges
     nvals_len=nvals_levs*latlon11
 
-    nval_levs=nrf3*nsig+nrf2
+    nval_levs=max(0,nc3d)*nsig+max(0,nc2d)
     nval_len=nval_levs*latlon11
     if(l_hyb_ens) then
-       nval_len=nval_levs*latlon11+n_ens*nsig*grd_ens%latlon11
+       nval_len=nval_len+n_ens*nsig*grd_ens%latlon11
     end if
     nsclen=npred*jpch_rad
     npclen=npredp*npcptype
@@ -656,11 +634,11 @@ contains
           nx=nx/2*2
           ny=nlat*8/9
           ny=ny/2*2
-          if(mod(nlat,2)/=izero)ny=ny+ione
-          mr=izero
+          if(mod(nlat,2)/=0)ny=ny+1
+          mr=0
           nr=nlat/4
           nf=nr
-          nval2d=(ny*nx + 2*(2*nf+ione)*(2*nf+ione))*3
+          nval2d=(ny*nx + 2*(2*nf+1)*(2*nf+1))*3
        end if
        nval_lenz=nval2d*nnnn1o
        nclenz=nsubwin*nval_lenz+nsclen+npclen
@@ -668,186 +646,17 @@ contains
        nval2d=latlon11
     end if
 
-    klevb=ione
-    if (nrf_3d(1)) then
-       kleve=klevb+nsig-ione
-    else
-       kleve=klevb
-    end if
-    nrf_levb(1)=klevb
-    nrf_leve(1)=kleve
-    do n=2,nrf 
-       klevb=nrf_leve(n-1)+ione
-       if (nrf_3d(n)) then 
-          kleve=klevb+nsig-ione
-       else
-          kleve=klevb
-       end if 
-       nrf_levb(n)=klevb
-       nrf_leve(n)=kleve
-    end do
-
-!   For new mpi communication, define vector starting points
-!   for each variable type using the subdomains size without 
-!   buffer points
-!   For new mpi communication, define vector starting points
-!   for each variable type using the subdomains size without
-!   buffer points
-    ii=izero
-    do n=1,nrf
-       if (nrf_3d(n)) then
-          ngrid=lat1*lon1*nsig
-       else
-          ngrid=lat1*lon1
-       end if
-
-       cvar=nrf_var(n)
-       select case(cvar)
-          case('sf','SF')
-             nstsm=ii+ione
-          case('vp','VP')
-             nvpsm=ii+ione
-          case('t','T')
-             ntsm=ii+ione
-          case('q','Q')
-             nqsm=ii+ione
-          case('oz','OZ')
-             nozsm=ii+ione
-          case('cw','CW')
-             ncwsm=ii+ione   
-          case('ps','PS')
-             npsm=ii+ione
-          case('sst','SST')
-             nsstsm=ii+ione
-          case default
-             write(6,*) 'allocate_cv: ERROR, unrecognized control variable ',cvar
-             call stop2(100)
-       end select
-      ii=ii+ngrid
-    end do
-    if (nrf2_sst>izero) then
-       nsltsm=ii+ione
-       nsitsm=nsltsm+(lat1*lon1)
-    end if      
-
-
-!   Define vector starting points for subdomains which include
-!   buffer points
-    ii=izero
-    do n=1,nrf
-       if (nrf_3d(n)) then
-          ngrid=latlon1n
-       else
-          ngrid=latlon11
-       end if
-
-       cvar=nrf_var(n)
-       select case(cvar)
-          case('sf','SF')
-             nst2=ii+ione
-          case('vp','VP')
-             nvp2=ii+ione
-          case('t','T')
-             nt2=ii+ione
-          case('q','Q')
-             nq2=ii+ione
-          case('oz','OZ')
-             noz2=ii+ione
-          case('cw','CW')
-             ncw2=ii+ione
-          case('ps','PS')
-             np2=ii+ione
-          case('sst','SST')
-             nsst2=ii+ione
-          case default
-             write(6,*) 'allocate_cv: ERROR, unrecognized control variable ',cvar
-             call stop2(100)
-       end select
-       ii=ii+ngrid
-    end do
-    if (nrf2_sst>izero) then
-       nslt2=ii+ione
-       nsit2=nslt2+latlon11
-    end if
-
 
     if (lsqrtb) then
        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                                & nsclen,npclen,nclenz,nsubwin,nval_lenz,lsqrtb)
+                                & nsclen,npclen,nclenz,nsubwin,nval_lenz,lsqrtb,n_ens)
     else
-       if(l_hyb_ens) then
-          CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                                 & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb,n_ens)
-       else
-          CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                                 & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb)
-       end if
+       CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
+                                & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb,n_ens)
     endif
     CALL setup_state_vectors(latlon11,latlon1n,nvals_len,lat2,lon2,nsig)
     CALL setup_predictors(nrclen,nsclen,npclen)
 
   end subroutine set_pointer
-
-subroutine pointer_state(yst,u,v,t,tsen,q,oz,cw,p3d,p,sst)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    pointer_state
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2010-03-25  zhu
-!
-!   input argument list:
-!
-!   output argument list:
-!    yst
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  use constants, only: izero
-  use control_vectors, only: nrf3_oz,nrf3_cw,nrf2_sst
-  use mpimod, only: mype
-  use state_vectors
-  implicit none
-  type(state_vector), intent(in) :: yst
-  real(r_kind),dimension(:),pointer,optional,intent(out) :: t,tsen,q,u,v,oz,cw
-  real(r_kind),dimension(:),pointer,optional,intent(out) :: sst,p
-  real(r_kind),dimension(:),pointer,optional,intent(out) :: p3d
-
-  if (present(u   )) u   => yst%u
-  if (present(v   )) v   => yst%v
-  if (present(t   )) t   => yst%t
-  if (present(tsen)) tsen => yst%tsen
-  if (present(q   )) q   => yst%q
-  if (present(oz  )) then
-     if (nrf3_oz>izero) then
-        oz  => yst%oz
-     else
-        if (mype==izero) write(6,*) 'OZ is not a control variable'
-     end if
-  end if
-  if (present(cw  )) then
-     if (nrf3_cw>izero) then
-        cw  => yst%cw
-     else
-        if (mype==izero) write(6,*) 'CW is not a control variable'
-     end if
-  end if
-  if (present(p3d )) p3d => yst%p3d
-  if (present(sst )) then
-     if (nrf2_sst>izero) then
-        sst => yst%sst
-     else
-        if (mype==izero) write(6,*) 'SST is not a control variable'
-     end if
-  end if
-
-  return
-end subroutine pointer_state
 
 end module jfunc

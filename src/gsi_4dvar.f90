@@ -13,6 +13,7 @@ module gsi_4dvar
 !   2009-10-09 wu       - replace nhr_offset with min_offset and
 !                         set default 1.5 hr for regional not for 4dvar but for FGAT
 !   2010-03-16 todling  - add knob to calculate analysis error from lanczos
+!   2010-05-27 todling  - add gsi_4dcoupler; remove dependence on GMAO's geos pertmod
 !
 ! Subroutines Included:
 !   sub init_4dvar    -
@@ -28,7 +29,7 @@ module gsi_4dvar
 !   lbfgsmin          - Use L-BFGS minimizer
 !   ltlint            - Use TL inner loop (ie TL intall)
 !   lanczosave        - Save Lanczos vectors to file
-!   lsiga             - Calculate approximate analysis errors
+!   jsiga             - Calculate approximate analysis errors for iteration jiter=jsiga
 !   nwrvecs           - Number of precond vectors (Lanczos) or pairs of vectors (QN)
 !                       being saved
 !
@@ -64,8 +65,8 @@ module gsi_4dvar
 ! --------------------------------------------------------------------
   use kinds, only: r_kind,i_kind
   use constants, only: one
-  use geos_pertmod, only: model_init
-  use geos_pertmod, only: model_clean
+  use gsi_4dcouplermod, only: gsi_4dcoupler_init_traj
+  use gsi_4dcouplermod, only: gsi_4dcoupler_final_traj
 ! --------------------------------------------------------------------
 
   implicit none
@@ -82,7 +83,7 @@ module gsi_4dvar
   public :: hr_obsbin,ltlint,idmodel,lwrtinc,winsub,winlen,iwinbgn
   public :: min_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
   public :: ladtest,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
-  public :: lsiga
+  public :: jsiga
 
   logical         :: l4dvar
   logical         :: lsqrtb
@@ -94,7 +95,6 @@ module gsi_4dvar
   logical         :: idmodel
   logical         :: lwrtinc
   logical         :: lanczosave
-  logical         :: lsiga
 
   integer(i_kind) :: iadatebgn, iadateend
   integer(i_kind) :: ibdate(5), iedate(5)
@@ -102,6 +102,7 @@ module gsi_4dvar
   integer(i_kind) :: nhr_subwin, nsubwin
   integer(i_kind) :: nhr_assimilation,min_offset
   integer(i_kind) :: nwrvecs
+  integer(i_kind) :: jsiga
   real(r_kind) :: iwinbgn, winlen, winoff, winsub, hr_obsbin
 
 ! --------------------------------------------------------------------
@@ -137,7 +138,6 @@ lsqrtb = .false.
 lcongrad = .false.
 lbfgsmin = .false.
 ltlint = .false.
-lsiga  = .false.
 
 nhr_assimilation=6
 min_offset=180
@@ -155,6 +155,7 @@ idmodel= .false.
 lwrtinc= .false.
 lanczosave = .false.
 nwrvecs=-1
+jsiga  =-1
 
 end subroutine init_4dvar
 ! --------------------------------------------------------------------
@@ -168,6 +169,8 @@ subroutine setup_4dvar(miter,mype)
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2010-05-27  todling - provide general interface to initialization of
+!                         tangent linead and adjoint model trajectory
 !
 !   input argument list:
 !    mype     - mpi task id
@@ -202,9 +205,9 @@ else
    end if
 end if
 
-! Initialize atmospheric AD and TL model
+! Initialize atmospheric AD and TL model trajectory
 if (l4dvar) then
-   if (.not.idmodel) call model_init (ierr)
+   call gsi_4dcoupler_init_traj(idmodel)
 endif
 
 ! Setup observation bins
@@ -269,7 +272,7 @@ if (mype==0) then
    write(6,*)'SETUP_4DVAR: ladtest,lgrtest=',ladtest,lgrtest
    write(6,*)'SETUP_4DVAR: lwrtinc=',lwrtinc
    write(6,*)'SETUP_4DVAR: lanczosave=',lanczosave
-   write(6,*)'SETUP_4DVAR: lsiga=',lsiga
+   write(6,*)'SETUP_4DVAR: jsiga=',jsiga
    write(6,*)'SETUP_4DVAR: nwrvecs=',nwrvecs
 endif
 
@@ -338,6 +341,8 @@ subroutine clean_4dvar()
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2010-05-27  todling - provide general interface to initialization of
+!                         tangent linead and adjoint model trajectory
 !
 !   input argument list:
 !
@@ -350,9 +355,9 @@ subroutine clean_4dvar()
 !$$$ end documentation block
 
 implicit none
-! Initialize atmospheric AD and TL model
+! Finalize atmospheric AD and TL model trajectory
 if (l4dvar) then
-   if(.not.idmodel) call model_clean ()
+   call gsi_4dcoupler_final_traj
 endif
 end subroutine clean_4dvar
 ! --------------------------------------------------------------------

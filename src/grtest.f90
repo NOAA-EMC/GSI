@@ -51,6 +51,7 @@ subroutine grtest(pdx,itertest,xhat_in)
 !
 ! program history log:
 !   2009-01-18 todling - some quad precision changes (incomplete)
+!   2010-05-05 treadon - use r_kind constant in huge()
 !
 !   input argument list:
 !    xhat
@@ -66,7 +67,7 @@ subroutine grtest(pdx,itertest,xhat_in)
 !$$$ end documentation block
 
 use kinds, only: i_kind, r_kind, r_quad
-use constants, only: zero_quad, one_quad
+use constants, only: zero,zero_quad, one_quad
 use mpimod, only: mype
 use control_vectors
 
@@ -273,7 +274,7 @@ if (mype==0) then
       ENDIF
    ELSE
 !     Find best gradient test index
-      ZERMIN=HUGE(ZERMIN)
+      ZERMIN=HUGE(zero)
       ibest=-1
       DO jj=1,itertest
          ZT1TST=(zfabuf(jj)-zf0)/(zabuf(jj)*zdf0)

@@ -415,20 +415,21 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine init_grid_vars(jcap,npe,nrf3,nvars,mype)
+  subroutine init_grid_vars(jcap,npe,cvars3d,cvars2d,cvars,mype)
 
 ! !USES:
 
-    use constants, only: izero,ione
+    use mpeu_util, only: getindex
     implicit none
 
 ! !INPUT PARAMETERS:
 
-   integer(i_kind),intent(in   ) :: jcap   ! spectral truncation
-   integer(i_kind),intent(in   ) :: npe    ! number of mpi tasks
-   integer(i_kind),intent(in   ) :: nvars
-   integer(i_kind),intent(in   ) :: nrf3
-   integer(i_kind),intent(in   ) :: mype   ! mpi task id
+   integer(i_kind) ,intent(in  ) :: jcap   ! spectral truncation
+   integer(i_kind) ,intent(in  ) :: npe    ! number of mpi tasks
+   character(len=*),intent(in  ) :: cvars3d(:)
+   character(len=*),intent(in  ) :: cvars2d(:)
+   character(len=*),intent(in  ) :: cvars  (:)
+   integer(i_kind) ,intent(in  ) :: mype   ! mpi task id
 
 ! !DESCRIPTION: set grid related variables (post namelist read)
 !
@@ -438,6 +439,7 @@ contains
 !   2004-07-15  todling, protex-compliant prologue
 !   2005-06-01  treadon - add computation of msig
 !   2010-03-15  zhu - add nrf3 and nvars for generalized control variable
+!   2010-06-04  todling - revisit Zhu's general CV settings, and vector fields
 !
 !   input argument list:
 !
@@ -453,30 +455,36 @@ contains
 !EOP
 !-------------------------------------------------------------------------
     integer(i_kind) k,nlon_b,inner_vars,num_fields
+    integer(i_kind) n3d,n2d,nvars
+    integer(i_kind) ipsf,ipvp,jpsf,jpvp,isfb,isfe,ivpb,ivpe
     logical,allocatable,dimension(:):: vector
 
-    if(jcap==62_i_kind) gencode=80.0_r_kind
-    ns1=2*nsig+ione
+    if(jcap==62) gencode=80.0_r_kind
+    ns1=2*nsig+1
     nsig2=2*nsig
     nsig3=3*nsig
-    nsig3p1=3*nsig+ione
-    nsig3p2=3*nsig+2_i_kind
-    nsig3p3=3*nsig+3_i_kind
+    nsig3p1=3*nsig+1
+    nsig3p2=3*nsig+2
+    nsig3p3=3*nsig+3
     nsig4=4*nsig
     nsig5=5*nsig
-    nsig5p1=5*nsig+ione
+    nsig5p1=5*nsig+1
     nsig_hlf=nsig/2
     iglobal=nlat*nlon
 
+    n3d  =size(cvars3d)
+    n2d  =size(cvars2d)
+    nvars=size(cvars)
+
 ! Initialize nsig1o to distribute levs/variables
 ! as evenly as possible over the tasks
-    vlevs=(nrf3*nsig)+nvars-nrf3
+    vlevs=(n3d*nsig)+nvars-n3d
     nsig1o=vlevs/npe
-    if(mod(vlevs,npe)/=izero) nsig1o=nsig1o+ione
+    if(mod(vlevs,npe)/=0) nsig1o=nsig1o+1
     nnnn1o=nsig1o                  ! temporarily set the number of levels to nsig1o
 
 ! Sum total number of vertical layers for RTM call
-    msig = izero
+    msig = 0
     do k=1,nsig
        msig = msig + nlayers(k)
     end do
@@ -505,10 +513,40 @@ contains
 
 ! Initialize structures for grid(s)
     inner_vars=1
-    num_fields=6*nsig+2
+    num_fields=n3d*nsig+n2d
     allocate(vector(num_fields))
     vector=.false.
-    vector(1:2*nsig)=.true.   !  assume here that 1st two 3d variables are either u,v or psi,chi
+
+! Find and flag vector fields (assumes motley at the end)
+    ipsf = getindex(cvars(1:n3d+n2d),'sf')
+    ipvp = getindex(cvars(1:n3d+n2d),'vp')
+    if(ipsf>0.and.ipvp>0) then
+!      The following assumes 3d-fields come first in CV
+
+!      is it a 3d-vector field?
+       jpsf = getindex(cvars3d,'sf')
+       jpvp = getindex(cvars3d,'vp')
+       if(jpsf>0.and.jpvp>0) then
+          isfb=(ipsf-1)*nsig+1
+          isfe= isfb+nsig-1
+          vector(isfb:isfe)=.true.
+          ivpb=(ipvp-1)*nsig+1
+          ivpe= ivpb+nsig-1
+          vector(ivpb:ivpe)=.true.
+       endif
+!      is it a 2d-vector field?
+       jpsf = getindex(cvars2d,'sf')
+       jpvp = getindex(cvars2d,'vp')
+       if(jpsf>0.and.jpvp>0) then
+          isfb= n3d*nsig+ipsf
+          isfe= isfb
+          vector(isfb:isfe)=.true.
+          ivpb= n3d*nsig+ipvp
+          ivpe= ivpb
+          vector(ivpb:ivpe)=.true.
+       endif
+
+    endif
     call general_sub2grid_create_info(grd_a,inner_vars,nlat,nlon,nsig,num_fields, &
          regional,vector)
     if (hires_b) &
@@ -551,8 +589,8 @@ contains
 !-------------------------------------------------------------------------
     implicit none
 
-    lat2 = lat1+2_i_kind
-    lon2 = lon1+2_i_kind
+    lat2 = lat1+2
+    lon2 = lon1+2
     latlon11 = lat2*lon2
     latlon1n = latlon11*nsig
     latlon1n1= latlon1n+latlon11

@@ -13,6 +13,8 @@ subroutine write_obsdiags(cdfile)
 !   2007-10-24  todling - add parameter nchnperobs to obsdiag 
 !   2009-01-08  todling - remove reference to ozohead
 !   2009-01-27  todling - add gps write
+!   2010-05-26  treadon - add write_tcphead
+!   2010-06-03  todling - add write_co3lhead
 !
 !   input argument list:
 !     cdfile - filename to write data
@@ -27,7 +29,8 @@ use obsmod, only: gpsptr
 use obsmod, only: i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
-                  i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_lag_ob_type
+                  i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
+                  i_lag_ob_type, i_co3l_ob_type
 use gsi_4dvar, only: nobs_bins,l4dvar
 use mpimod, only: mype
 use jfunc, only: jiter, miter, last
@@ -121,7 +124,9 @@ _TRACE_(myname,'looping through obshead pointers')
       if(jj==i_pcp_ob_type) call write_pcphead_ ()
       if(jj==i_gps_ob_type) call write_gpshead_ ()
       if(jj==i_rad_ob_type) call write_radhead_ ()
+      if(jj==i_tcp_ob_type) call write_tcphead_ ()
       if(jj==i_lag_ob_type) call write_laghead_ ()
+      if(jj==i_co3l_ob_type)  call write_co3lhead_  ()
 !tmp
     endif
 
@@ -1126,6 +1131,66 @@ _ENTRY_(myname_)
 _EXIT_(myname_)
 end subroutine write_radhead_
 
+subroutine write_tcphead_ () 
+!$$$  subprogram documentation block 
+! 
+! abstract: Write obs-specific data structure to file. 
+! 
+! program history log: 
+!   2007-10-03  todling 
+!   2008-12-08  todling - update to May08 version 
+! 
+!   input argument list: 
+! 
+!$$$ 
+    use obsmod, only: tcphead, tcpptr 
+    use m_obdiag, only: ob_verify 
+    implicit none  
+    integer(i_kind) mobs 
+    logical:: all_sorted,passed 
+    integer(i_kind):: idv,iob 
+    character(len=*),parameter:: myname_=myname//'.write_tcphead_' 
+_ENTRY_(myname_) 
+ 
+    tcpptr   => tcphead(ii)%head 
+    mobs=0 
+    idv=-huge(idv); iob=-huge(iob) 
+    all_sorted=.true. 
+    do while (associated(tcpptr)) 
+      if(all_sorted) then 
+        all_sorted = isinorder_((/idv,iob/),(/tcpptr%idv,tcpptr%iob/)) 
+        idv=tcpptr%idv; iob=tcpptr%iob 
+      endif 
+      tcpptr => tcpptr%llpoint 
+      mobs=mobs+1 
+    enddo 
+      passed = ob_verify(tcphead(ii),count=mobs,perr=.true.) 
+        if(.not.passed) then 
+          call die(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/)) 
+        endif 
+    icount(jj,ii) = mobs 
+    write(iunit)mobs,jj 
+#ifdef VERBOSE 
+    if(all_sorted) then 
+      call tell(myname_,'tcphead is sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/)) 
+    else 
+      call tell(myname_,'tcphead is NOT sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/)) 
+    endif 
+#endif 
+    if(mobs==0) return 
+    tcpptr   => tcphead(ii)%head 
+    do while (associated(tcpptr)) 
+       write(iunit) tcpptr%idv,  tcpptr%iob 
+       write(iunit) tcpptr%res,  tcpptr%err2,tcpptr%raterr2,& 
+                    tcpptr%time, tcpptr%b,   tcpptr%pg, & 
+                    tcpptr%luse, tcpptr%ppertb, tcpptr%kx, & 
+                    tcpptr%wij,  tcpptr%ij  
+       tcpptr => tcpptr%llpoint 
+    enddo 
+!   if (mobs>0) write(6,*)'Wrote tcp to obsdiag file, ii=', ii, ' mobs =', mobs 
+_EXIT_(myname_) 
+end subroutine write_tcphead_ 
+
 subroutine write_laghead_ ()
 !$$$  subprogram documentation block
 !
@@ -1184,4 +1249,81 @@ _ENTRY_(myname_)
     enddo
 _EXIT_(myname_)
 end subroutine write_laghead_
+
+subroutine write_co3lhead_ ()
+!$$$  subprogram documentation block
+!
+! abstract: Write obs-specific data structure to file.
+!
+! program history log:
+!   2007-10-03  todling
+!   2010-06-03  todling - created based on write_ozhead
+!
+!   input argument list:
+!
+!$$$
+    use obsmod, only: co3lhead, coptr
+    use m_obdiag, only: ob_verify
+    implicit none 
+    integer(i_kind) mobs
+    logical:: all_sorted,passed
+    integer(i_kind):: idv,iob,k,nlco
+    character(len=*),parameter:: myname_=myname//'.write_co3lhead_'
+_ENTRY_(myname_)
+
+    coptr   => co3lhead(ii)%head
+    mobs=0
+    idv=-huge(idv); iob=-huge(iob)
+    all_sorted=.true.
+    do while (associated(coptr))
+      if(all_sorted) then
+        all_sorted = isinorder_( (/idv,iob/), (/coptr%idv,coptr%iob/) )
+	idv=coptr%idv; iob=coptr%iob
+      endif
+      coptr => coptr%llpoint
+      mobs=mobs+1
+    enddo
+      passed = ob_verify(co3lhead(ii),count=mobs,perr=.true.)
+      	if(.not.passed) then
+	  call die(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
+	endif
+    write(iunit)mobs,jj
+    icount(jj,ii) = mobs
+#ifdef VERBOSE
+    if(all_sorted) then
+      call tell(myname_,'co3lhead is sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+    else
+      call tell(myname_,'co3lhead is NOT sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+    endif
+#endif
+    if(mobs==0) return
+    coptr   => co3lhead(ii)%head
+    do while (associated(coptr))
+       nlco = coptr%nlco
+       write(iunit) coptr%nlco
+       write(iunit) coptr%idv,coptr%iob
+       	if ( coptr%nlco+1 /= size(coptr%diags)) then
+	  call perr(myname_,'mismatching [%nlco,size(%diags)]')
+	  call perr(myname_,'%(idv,iob,nlco,size(%diags)) =', &
+	    (/coptr%idv,coptr%iob,coptr%nlco,size(coptr%diags)/))
+	  call die(myname_)
+	endif
+       	if ( any( (/(k,k=1,nlco+1)/) /=	&
+		  (/(coptr%diags(k)%ptr%ich,k=1,nlco+1)/) ) ) then
+	  call perr(myname_,'mismatching [%ich,%diags%ptr%ich]')
+	  call perr(myname_,'%(idv,iob,nlco,size(%diags)) =', &
+	    (/coptr%idv,coptr%iob,coptr%nlco,size(coptr%diags)/))
+	  call perr(myname_,'%ich(:) =',(/(k,k=1,nlco+1)/))
+	  call perr(myname_,'%diag(:)%ich =',(/(coptr%diags(k)%ptr%ich,k=1,nlco+1)/))
+	  call die(myname_)
+	endif
+       write(iunit) coptr%res,  coptr%err2,coptr%raterr2, coptr%time, & 
+                    coptr%luse, coptr%wij, coptr%ij, coptr%prs , coptr%ipos, &
+                    coptr%ak, coptr%ap
+       coptr => coptr%llpoint
+    enddo
+
+_EXIT_(myname_)
+end subroutine write_co3lhead_
+
 end subroutine write_obsdiags

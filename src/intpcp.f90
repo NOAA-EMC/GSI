@@ -71,6 +71,9 @@ subroutine intpcp_(pcphead,rval,sval)
 !   2010-03-25 zhu       - use state_vector in the interface for generalizing control variable
 !                        - add treatment when cw is not control variable
 !                        - use pointer_state
+!   2010-05-13 todling   - update to use gsi_bundle
+!                        - BUG FIX: foto was using TV instead of TSENS
+!                        - on-the-spot handling of non-essential vars
 !
 !   input argument list:
 !     pcphead  - obs type pointer to obs structure
@@ -101,21 +104,21 @@ subroutine intpcp_(pcphead,rval,sval)
   use obsmod, only: pcp_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use pcpinfo, only: npcptype,npredp,b_pcp,pg_pcp,tinym1_obs
-  use constants, only: izero,zero,one,half,tiny_r_kind,cg_term,r3600
+  use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
   use gridmod, only: nsig,latlon11,latlon1n
   use gsi_4dvar, only: ltlint
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt,pointer_state
-  use control_vectors, only: nrf3_cw
-  use state_vectors
+  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
   type(pcp_ob_type),pointer,intent(in) :: pcphead
-  type(state_vector), intent(in   ) :: sval
-  type(state_vector), intent(inout) :: rval
+  type(gsi_bundle),         intent(in   ) :: sval
+  type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4,nq,nu,nv,ncwm,n,nt,kx
+  integer(i_kind) j1,j2,j3,j4,nq,nu,nv,ncwm,n,nt,kx,ier,istatus,icw
   real(r_kind) dt,dq,du,dv,dcwm,dcwm_ad,termges_ad,w1,w2,w3,w4
   real(r_kind) pcp_ges_ad,dq_ad,dt_ad,dv_ad,du_ad,pcp_ges
   real(r_kind) obsges,termges,time_pcp,termges_tl,pcp_ges_tl,pcp_cur,termcur
@@ -124,10 +127,44 @@ subroutine intpcp_(pcphead,rval,sval)
 
   real(r_kind),pointer,dimension(:):: st,sq,su,sv,scwm
   real(r_kind),pointer,dimension(:):: rt,rq,ru,rv,rcwm
+  real(r_kind),pointer,dimension(:):: xhat_dt_tsen,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_cw
+  real(r_kind),pointer,dimension(:):: dhat_dt_tsen,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_cw
   
-! Prepare pointers
-  call pointer_state(sval,u=su,v=sv,tsen=st,q=sq,cw=scwm)
-  call pointer_state(rval,u=ru,v=rv,tsen=rt,q=rq,cw=rcwm)
+! Retrieve pointers
+  ier=0
+  call gsi_bundlegetpointer(sval,'u',    su,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'v',    sv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'tsen' ,st,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'q',    sq,istatus);ier=istatus+ier
+  if(ier/=0)return
+
+  call gsi_bundlegetpointer(rval,'u',    ru,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'v',    rv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'tsen' ,rt,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'q',    rq,istatus);ier=istatus+ier
+  if(ier/=0)return
+
+! Non-essentials:
+  icw=0
+  call gsi_bundlegetpointer(sval,'cw', scwm,istatus);icw=istatus+icw
+  call gsi_bundlegetpointer(rval,'cw', rcwm,istatus);icw=istatus+icw
+
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'u',      xhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'v',      xhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'q',      xhat_dt_q,istatus);ier=istatus+ier
+
+     call gsi_bundlegetpointer(dhat_dt,'u',      dhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'v',      dhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'tsen',dhat_dt_tsen,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'q',      dhat_dt_q,istatus);ier=istatus+ier
+     if(ier/=0)return
+
+! Non-essentials:
+     call gsi_bundlegetpointer(xhat_dt,'cw',    xhat_dt_cw,istatus);icw=istatus+icw
+     call gsi_bundlegetpointer(dhat_dt,'cw',    dhat_dt_cw,istatus);icw=istatus+icw
+  endif
 
   pcpptr => pcphead
   do while(associated(pcpptr))
@@ -150,7 +187,7 @@ subroutine intpcp_(pcphead,rval,sval)
         dq = w1* sq(j1)+w2* sq(j2)+ w3* sq(j3)+w4* sq(j4)
         du = w1* su(j1)+w2* su(j2)+ w3* su(j3)+w4* su(j4)
         dv = w1* sv(j1)+w2* sv(j2)+ w3* sv(j3)+w4* sv(j4)
-        if (nrf3_cw>izero) then
+        if (icw==0) then
            dcwm=w1* scwm(j1)+w2* scwm(j2)+  &
                 w3* scwm(j3)+w4* scwm(j4)
         else
@@ -158,21 +195,21 @@ subroutine intpcp_(pcphead,rval,sval)
         end if
         if (l_foto) then
            dt = dt+&
-               (w1*xhat_dt%t(j1)+w2*xhat_dt%t(j2)+ &
-                w3*xhat_dt%t(j3)+w4*xhat_dt%t(j4))*time_pcp
+               (w1*xhat_dt_tsen(j1)+w2*xhat_dt_tsen(j2)+ &
+                w3*xhat_dt_tsen(j3)+w4*xhat_dt_tsen(j4))*time_pcp
            dq = dq+&
-               (w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
-                w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4))*time_pcp
+               (w1*xhat_dt_q(j1)+w2*xhat_dt_q(j2)+ &
+                w3*xhat_dt_q(j3)+w4*xhat_dt_q(j4))*time_pcp
            du = du+&
-               (w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-                w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))*time_pcp
+               (w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
+                w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4))*time_pcp
            dv = dv+&
-               (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-                w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_pcp
-           if (nrf3_cw>izero) then
+               (w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
+                w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))*time_pcp
+           if (icw==0) then
               dcwm=dcwm+&
-                  (w1*xhat_dt%cw(j1)+w2*xhat_dt%cw(j2)+  &
-                   w3*xhat_dt%cw(j3)+w4*xhat_dt%cw(j4))*time_pcp
+                  (w1*xhat_dt_cw(j1)+w2*xhat_dt_cw(j2)+  &
+                   w3*xhat_dt_cw(j3)+w4*xhat_dt_cw(j4))*time_pcp
            end if
         endif
         
@@ -256,13 +293,13 @@ subroutine intpcp_(pcphead,rval,sval)
         do n=1,nsig
            nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig
 
-           if (nrf3_cw>izero) dcwm_ad = pcpptr%dpcp_dvar(ncwm)*pcp_ges_ad
+           if (icw==0) dcwm_ad = pcpptr%dpcp_dvar(ncwm)*pcp_ges_ad
            dv_ad   = pcpptr%dpcp_dvar(nv)*pcp_ges_ad
            du_ad   = pcpptr%dpcp_dvar(nu)*pcp_ges_ad
            dq_ad   = pcpptr%dpcp_dvar(nq)*pcp_ges_ad
            dt_ad   = pcpptr%dpcp_dvar(nt)*pcp_ges_ad
 
-           if (nrf3_cw>izero) then
+           if (icw==0) then
               rcwm(j4) = rcwm(j4) + w4*dcwm_ad
               rcwm(j3) = rcwm(j3) + w3*dcwm_ad
               rcwm(j2) = rcwm(j2) + w2*dcwm_ad
@@ -290,38 +327,38 @@ subroutine intpcp_(pcphead,rval,sval)
            rt(j1) = rt(j1) + w1*dt_ad
 
            if (l_foto) then
-              if (nrf3_cw>izero) dcwm_ad = time_pcp*dcwm_ad
+              if (icw==0) dcwm_ad = time_pcp*dcwm_ad
               dv_ad   = time_pcp*dv_ad
               du_ad   = time_pcp*du_ad
               dq_ad   = time_pcp*dq_ad
               dt_ad   = time_pcp*dt_ad
 
-              if (nrf3_cw>izero) then
-                 dhat_dt%cw(j4) = dhat_dt%cw(j4) + w4*dcwm_ad
-                 dhat_dt%cw(j3) = dhat_dt%cw(j3) + w3*dcwm_ad
-                 dhat_dt%cw(j2) = dhat_dt%cw(j2) + w2*dcwm_ad
-                 dhat_dt%cw(j1) = dhat_dt%cw(j1) + w1*dcwm_ad
+              if (icw==0) then
+                 dhat_dt_cw(j4) = dhat_dt_cw(j4) + w4*dcwm_ad
+                 dhat_dt_cw(j3) = dhat_dt_cw(j3) + w3*dcwm_ad
+                 dhat_dt_cw(j2) = dhat_dt_cw(j2) + w2*dcwm_ad
+                 dhat_dt_cw(j1) = dhat_dt_cw(j1) + w1*dcwm_ad
               end if
 
-              dhat_dt%v(j4) = dhat_dt%v(j4) + w4*dv_ad
-              dhat_dt%v(j3) = dhat_dt%v(j3) + w3*dv_ad
-              dhat_dt%v(j2) = dhat_dt%v(j2) + w2*dv_ad
-              dhat_dt%v(j1) = dhat_dt%v(j1) + w1*dv_ad
+              dhat_dt_v(j4) = dhat_dt_v(j4) + w4*dv_ad
+              dhat_dt_v(j3) = dhat_dt_v(j3) + w3*dv_ad
+              dhat_dt_v(j2) = dhat_dt_v(j2) + w2*dv_ad
+              dhat_dt_v(j1) = dhat_dt_v(j1) + w1*dv_ad
 
-              dhat_dt%u(j4) = dhat_dt%u(j4) + w4*du_ad
-              dhat_dt%u(j3) = dhat_dt%u(j3) + w3*du_ad
-              dhat_dt%u(j2) = dhat_dt%u(j2) + w2*du_ad
-              dhat_dt%u(j1) = dhat_dt%u(j1) + w1*du_ad
+              dhat_dt_u(j4) = dhat_dt_u(j4) + w4*du_ad
+              dhat_dt_u(j3) = dhat_dt_u(j3) + w3*du_ad
+              dhat_dt_u(j2) = dhat_dt_u(j2) + w2*du_ad
+              dhat_dt_u(j1) = dhat_dt_u(j1) + w1*du_ad
  
-              dhat_dt%q(j4) = dhat_dt%q(j4) + w4*dq_ad
-              dhat_dt%q(j3) = dhat_dt%q(j3) + w3*dq_ad
-              dhat_dt%q(j2) = dhat_dt%q(j2) + w2*dq_ad
-              dhat_dt%q(j1) = dhat_dt%q(j1) + w1*dq_ad
+              dhat_dt_q(j4) = dhat_dt_q(j4) + w4*dq_ad
+              dhat_dt_q(j3) = dhat_dt_q(j3) + w3*dq_ad
+              dhat_dt_q(j2) = dhat_dt_q(j2) + w2*dq_ad
+              dhat_dt_q(j1) = dhat_dt_q(j1) + w1*dq_ad
 
-              dhat_dt%t(j4) = dhat_dt%t(j4) + w4*dt_ad
-              dhat_dt%t(j3) = dhat_dt%t(j3) + w3*dt_ad
-              dhat_dt%t(j2) = dhat_dt%t(j2) + w2*dt_ad
-              dhat_dt%t(j1) = dhat_dt%t(j1) + w1*dt_ad
+              dhat_dt_tsen(j4) = dhat_dt_tsen(j4) + w4*dt_ad
+              dhat_dt_tsen(j3) = dhat_dt_tsen(j3) + w3*dt_ad
+              dhat_dt_tsen(j2) = dhat_dt_tsen(j2) + w2*dt_ad
+              dhat_dt_tsen(j1) = dhat_dt_tsen(j1) + w1*dt_ad
            endif
 
            j1=j1+latlon11

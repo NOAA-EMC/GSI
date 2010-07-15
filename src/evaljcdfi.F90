@@ -8,6 +8,7 @@ subroutine evaljcdfi(svalue,pjc,rvalue)
 !   2007-10-18  tremolet - initial version
 !   2009-01-18  todling  - carry sommation in quad precision
 !   2009-08-14  lueken   - updte documentation
+!   2010-05-14  todling  - updte to use gsi_bundle
 !
 !   input argument list:
 !    svalue
@@ -28,18 +29,20 @@ use constants, only: izero,ione,zero,one
 use jcmod, only: wgtdfi,alphajc
 use gsi_4dvar, only: nobs_bins
 use mpimod, only: mype
-use state_vectors
+use state_vectors, only : allocate_state,deallocate_state
+use gsi_bundlemod, only : gsi_bundle
+use gsi_bundlemod, only : self_add,self_mul,assignment(=)
 implicit none
 
 ! Declare passed variables
-type(state_vector), intent(in   ) :: svalue(nobs_bins)
-type(state_vector), intent(inout) :: rvalue(nobs_bins)
-real(r_quad)      , intent(  out) :: pjc
+type(gsi_bundle), intent(in   ) :: svalue(nobs_bins)
+type(gsi_bundle), intent(inout) :: rvalue(nobs_bins)
+real(r_quad)    , intent(  out) :: pjc
 
 ! Declare local variables
 integer(i_kind) :: jj,idfi
 real(r_quad),parameter :: half_quad=0.5_r_quad
-type(state_vector) :: sfilter,afilter
+type(gsi_bundle) :: sfilter,afilter
 
 !************************************************************************************  
 

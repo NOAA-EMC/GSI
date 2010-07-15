@@ -1,5 +1,7 @@
 module observermod
 !#define VERBOSE
+!#define DEBUG_TRACE
+#include "mytrace.H"
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -14,6 +16,7 @@ module observermod
 !   2009-08-19  guo     - modified to support multi-pass observer_run
 !   2009-09-14  guo     - moved compact_diff related statements from
 !			  glbsoi here.
+!   2010-05-19  todling - revist initialization/finalization of chem
 !
 !   input argument list:
 !     mype - mpi task id
@@ -32,16 +35,16 @@ module observermod
   use jfunc, only: miter,jiter,jiterstart,destroy_jfunc,&
        set_pointer,&
        switch_on_derivatives,tendsflag,create_jfunc
-  use gridmod, only: nlat,nlon,rlats,regional,twodvar_regional,wgtlats,nsig
+  use gridmod, only: nlat,nlon,rlats,regional,twodvar_regional,wgtlats,nsig,&
+                     lat2,lon2
   use guess_grids, only: create_ges_grids,create_sfc_grids,&
-       destroy_ges_grids,destroy_sfc_grids
+       destroy_ges_grids,destroy_sfc_grids,nfldsig
   use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver,&
-       lread_obs_skip,nprof_gps,ditype,obs_input_common
+       lread_obs_skip,nprof_gps,ditype,obs_input_common,iadate
   use satthin, only: superp,super_val1,getsfc,destroy_sfc
   use gsi_4dvar, only: l4dvar
   use convinfo, only: convinfo_destroy
   use m_gsiBiases, only : create_bias_grids, destroy_bias_grids
-  use control_vectors
   use m_berror_stats, only: berror_get_dims
   use m_berror_stats_reg, only: berror_get_dims_reg
   use timermod, only: timer_ini, timer_fnl
@@ -57,6 +60,8 @@ module observermod
   use turblmod, only: create_turblvars,destroy_turblvars
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   use guess_grids, only: create_cld_grids,destroy_cld_grids
+
+  use guess_grids, only: create_chemges_grids, destroy_chemges_grids
 
   implicit none
 
@@ -112,6 +117,9 @@ subroutine guess_init_
 !   2009-01-28  todling - split observer into init/set/run/finalize
 !   2009-03-10  meunier - read in the original position of balloons
 !   2010-03-29  hu - If l_cloud_analysis is true, allocate arrays for hydrometeors
+!   2010-04-20  todling - add call to create tracer grid
+!   2010-05-19  todling - update interface to read_guess
+!   2010-06-25  treadon - pass mlat into create_jfunc
 !
 !   input argument list:
 !     mype - mpi task id
@@ -136,6 +144,7 @@ subroutine guess_init_
 ! Declare local variables
 
   integer(i_kind):: msig,mlat,mlon
+  integer(i_kind):: ierr
 
 !*******************************************************************************************
 !
@@ -149,9 +158,12 @@ subroutine guess_init_
 
 ! If l_cloud_analysis is true, allocate arrays for hydrometeors
   if(l_cloud_analysis) call create_cld_grids
+#ifndef HAVE_ESMF
+  call create_chemges_grids(ierr)
+#endif /*/ HAVE_ESMF */
 
 ! Read model guess fields.
-  call read_guess(mype)
+  call read_guess(iadate(1),iadate(2),mype)
 
 ! Set length of control vector and other control vector constants
   call set_pointer
@@ -230,6 +242,7 @@ subroutine init_
 ! Declare passed variables
 
 ! Declare local variables
+_ENTRY_(Iam)
 
 
   if(ob_initialized_) call die(Iam,'already initialized')
@@ -269,6 +282,7 @@ subroutine init_
 #endif
 ! End of routine
   call timer_fnl('observer.init_')
+_EXIT_(Iam)
 end subroutine init_
 
 subroutine set_
@@ -307,6 +321,7 @@ subroutine set_
   integer(i_kind):: lunsave,istat1,istat2
   
   data lunsave  / 22 /
+_ENTRY_(Iam)
 
 !*******************************************************************************************
   call timer_ini('observer.set_')
@@ -363,6 +378,7 @@ subroutine set_
 
 ! End of routine
   call timer_fnl('observer.set_')
+_EXIT_(Iam)
 end subroutine set_
 
 subroutine run_(init_pass,last_pass)
@@ -406,6 +422,7 @@ subroutine run_(init_pass,last_pass)
   logical :: init_pass_
   logical :: last_pass_
   
+_ENTRY_(Iam)
   call timer_ini('observer.run_')
   init_pass_=.false.
   if(present(init_pass)) init_pass_=init_pass
@@ -466,6 +483,7 @@ subroutine run_(init_pass,last_pass)
 
   call timer_ini('observer.run_')
 ! End of routine
+_EXIT_(Iam)
 end subroutine run_
 
 subroutine final_
@@ -494,7 +512,7 @@ subroutine final_
 !$$$
   use compact_diffs,only: destroy_cdiff_coefs
   use mp_compact_diffs_mod1, only: destroy_mp_compact_diffs1
-  use mpeu_util, only: die
+  use mpeu_util, only: tell,die
   implicit none
 
 ! Declare passed variables
@@ -504,6 +522,7 @@ subroutine final_
   character(len=*),parameter:: Iam="observer_final"
 
 !*******************************************************************************************
+_ENTRY_(Iam)
   call timer_ini('observer.final_')
 
   if(.not.ob_initialized_) call die(Iam,'not initialized')
@@ -531,6 +550,7 @@ subroutine final_
   call timer_fnl('observer')
 
 ! End of routine
+_EXIT_(Iam)
 end subroutine final_
 
 subroutine guess_final_
@@ -547,6 +567,7 @@ subroutine guess_final_
 !   2007-10-03  todling - created this file from slipt of glbsoi
 !   2009-01-28  todling - split observer into init/set/run/finalize
 !   2010-03-29  hu - If l_cloud_analysis is true, deallocate arrays for hydrometeors
+!   2010-04-20  todling - add call to destroy tracer grid
 !
 !   input argument list:
 !     mype - mpi task id
@@ -564,12 +585,16 @@ subroutine guess_final_
 ! Declare passed variables
 
 ! Declare local variables
+  integer(i_kind):: ierr
 
 !*******************************************************************************************
   if ( .not. fg_initialized_ ) call die('observer.guess_final_','object not initialized')
   fg_initialized_=.false.
  
 ! Deallocate remaining arrays
+#ifndef HAVE_ESMF
+  call destroy_chemges_grids(ierr)
+#endif /* HAVE_ESMF */
   if(l_cloud_analysis) call destroy_cld_grids
   call destroy_sfc_grids()
   call destroy_ges_grids(switch_on_derivatives,tendsflag)

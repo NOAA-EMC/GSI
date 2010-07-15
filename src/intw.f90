@@ -34,7 +34,7 @@ end interface
 
 contains
 
-subroutine intw_(whead,ru,rv,su,sv)
+subroutine intw_(whead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intw        apply nonlin qc obs operator for winds
@@ -62,6 +62,7 @@ subroutine intw_(whead,ru,rv,su,sv)
 !   2007-07-09  tremolet - observation sensitivity
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
+!   2010-03-13  todling  - update to use gsi_bundle; update interface
 !
 !   input argument list:
 !     whead    - obs type pointer to obs structure
@@ -85,19 +86,39 @@ subroutine intw_(whead,ru,rv,su,sv)
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(w_ob_type),pointer         ,intent(in   ) :: whead
-  real(r_kind),dimension(latlon1n),intent(in   ) :: su,sv
-  real(r_kind),dimension(latlon1n),intent(inout) :: ru,rv
+  type(w_ob_type),pointer,intent(in   ) :: whead
+  type(gsi_bundle),       intent(in   ) :: sval
+  type(gsi_bundle),       intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) i1,i2,i3,i4,i5,i6,i7,i8
+  integer(i_kind) i1,i2,i3,i4,i5,i6,i7,i8,ier,istatus
 ! real(r_kind) penalty
+  real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
+  real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
   real(r_kind) valu,valv,w1,w2,w3,w4,w5,w6,w7,w8,time_w
   real(r_kind) cg_w,p0,gradu,gradv,wnotgross,wgross,term,w_pg
+  real(r_kind),pointer,dimension(:) :: su,sv
+  real(r_kind),pointer,dimension(:) :: ru,rv
   type(w_ob_type), pointer :: wptr
+
+! Retrieve pointers from xhat_dt and dhat_dt
+  ier=0
+  call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'u',xhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'v',xhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'u',dhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'v',dhat_dt_v,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
 
   wptr => whead
   do while(associated(wptr))
@@ -126,15 +147,15 @@ subroutine intw_(whead,ru,rv,su,sv)
      if (l_foto) then
         time_w=wptr%time*r3600
         valu=valu+&
-          (w1*xhat_dt%u(i1)+w2*xhat_dt%u(i2)+ &
-           w3*xhat_dt%u(i3)+w4*xhat_dt%u(i4)+ &
-           w5*xhat_dt%u(i5)+w6*xhat_dt%u(i6)+ &
-           w7*xhat_dt%u(i7)+w8*xhat_dt%u(i8))*time_w
+          (w1*xhat_dt_u(i1)+w2*xhat_dt_u(i2)+ &
+           w3*xhat_dt_u(i3)+w4*xhat_dt_u(i4)+ &
+           w5*xhat_dt_u(i5)+w6*xhat_dt_u(i6)+ &
+           w7*xhat_dt_u(i7)+w8*xhat_dt_u(i8))*time_w
         valv=valv+&
-          (w1*xhat_dt%v(i1)+w2*xhat_dt%v(i2)+ &
-           w3*xhat_dt%v(i3)+w4*xhat_dt%v(i4)+ &
-           w5*xhat_dt%v(i5)+w6*xhat_dt%v(i6)+ &
-           w7*xhat_dt%v(i7)+w8*xhat_dt%v(i8))*time_w
+          (w1*xhat_dt_v(i1)+w2*xhat_dt_v(i2)+ &
+           w3*xhat_dt_v(i3)+w4*xhat_dt_v(i4)+ &
+           w5*xhat_dt_v(i5)+w6*xhat_dt_v(i6)+ &
+           w7*xhat_dt_v(i7)+w8*xhat_dt_v(i8))*time_w
      endif
 
      if (lsaveobsens) then
@@ -197,23 +218,23 @@ subroutine intw_(whead,ru,rv,su,sv)
         if (l_foto) then
            gradu=gradu*time_w
            gradv=gradv*time_w
-           dhat_dt%u(i1)=dhat_dt%u(i1)+w1*gradu
-           dhat_dt%u(i2)=dhat_dt%u(i2)+w2*gradu
-           dhat_dt%u(i3)=dhat_dt%u(i3)+w3*gradu
-           dhat_dt%u(i4)=dhat_dt%u(i4)+w4*gradu
-           dhat_dt%u(i5)=dhat_dt%u(i5)+w5*gradu
-           dhat_dt%u(i6)=dhat_dt%u(i6)+w6*gradu
-           dhat_dt%u(i7)=dhat_dt%u(i7)+w7*gradu
-           dhat_dt%u(i8)=dhat_dt%u(i8)+w8*gradu
+           dhat_dt_u(i1)=dhat_dt_u(i1)+w1*gradu
+           dhat_dt_u(i2)=dhat_dt_u(i2)+w2*gradu
+           dhat_dt_u(i3)=dhat_dt_u(i3)+w3*gradu
+           dhat_dt_u(i4)=dhat_dt_u(i4)+w4*gradu
+           dhat_dt_u(i5)=dhat_dt_u(i5)+w5*gradu
+           dhat_dt_u(i6)=dhat_dt_u(i6)+w6*gradu
+           dhat_dt_u(i7)=dhat_dt_u(i7)+w7*gradu
+           dhat_dt_u(i8)=dhat_dt_u(i8)+w8*gradu
 
-           dhat_dt%v(i1)=dhat_dt%v(i1)+w1*gradv
-           dhat_dt%v(i2)=dhat_dt%v(i2)+w2*gradv
-           dhat_dt%v(i3)=dhat_dt%v(i3)+w3*gradv
-           dhat_dt%v(i4)=dhat_dt%v(i4)+w4*gradv
-           dhat_dt%v(i5)=dhat_dt%v(i5)+w5*gradv
-           dhat_dt%v(i6)=dhat_dt%v(i6)+w6*gradv
-           dhat_dt%v(i7)=dhat_dt%v(i7)+w7*gradv
-           dhat_dt%v(i8)=dhat_dt%v(i8)+w8*gradv
+           dhat_dt_v(i1)=dhat_dt_v(i1)+w1*gradv
+           dhat_dt_v(i2)=dhat_dt_v(i2)+w2*gradv
+           dhat_dt_v(i3)=dhat_dt_v(i3)+w3*gradv
+           dhat_dt_v(i4)=dhat_dt_v(i4)+w4*gradv
+           dhat_dt_v(i5)=dhat_dt_v(i5)+w5*gradv
+           dhat_dt_v(i6)=dhat_dt_v(i6)+w6*gradv
+           dhat_dt_v(i7)=dhat_dt_v(i7)+w7*gradv
+           dhat_dt_v(i8)=dhat_dt_v(i8)+w8*gradv
         endif
      endif
 

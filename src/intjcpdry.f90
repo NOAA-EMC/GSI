@@ -9,6 +9,7 @@ module intjcpdrymod
 !
 ! program history log:
 !   2009-07-07  kleist
+!   2010-05-13  todling - update interface
 !
 ! subroutines included:
 !   sub intjcpdry
@@ -29,7 +30,7 @@ PUBLIC intjcpdry
 
 contains
 
- subroutine intjcpdry(rq,rc,rp,sq,sc,sp,mype)
+ subroutine intjcpdry(rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intjcpdry   adjoint for mean dry ps conservation
@@ -39,6 +40,7 @@ contains
 !
 ! program history log:
 !   2009-07-07  kleist
+!   2010-05-13  todling - update to use gsi_bundle
 !   2010-05-25  derber - modify to minimize number of communications
 !
 !   input argument list:
@@ -60,27 +62,43 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_quad
-  use constants, only: zero_quad,one_quad,two_quad
+  use kinds, only: r_quad,r_kind,i_kind
+  use mpimod, only: mype
+  use constants, only: zero,zero_quad,one_quad,two_quad
   use gridmod, only: lat2,lon2,nsig,wgtlats,nlon,istart
   use guess_grids, only: ges_prsi,ntguessig
   use mpl_allreducemod, only: mpl_allreduce
   use jcmod, only: bamp_jcpdry
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: sq,sc
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: rq,rc
-  real(r_kind),dimension(lat2,lon2)     ,intent(in   ) :: sp
-  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: rp
-  integer(i_kind)                       ,intent(in   ) :: mype
+  type(gsi_bundle),intent(in   ) :: sval
+  type(gsi_bundle),intent(inout) :: rval
 
 ! Declare local variables
-  real(r_quad),dimension(1) :: dmass
+  real(r_quad),dimension(1) :: dmass 
   real(r_quad) rcon,con
-  integer(i_kind) i,j,k,it,ii,mm1
+  integer(i_kind) i,j,k,it,ii,mm1,ier,istatus
+  real(r_kind),pointer,dimension(:,:,:) :: sq,sc
+  real(r_kind),pointer,dimension(:,:,:) :: rq,rc
+  real(r_kind),pointer,dimension(:,:)   :: sp
+  real(r_kind),pointer,dimension(:,:)   :: rp
   
   it=ntguessig
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'q' ,sq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'cw',sc,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'ps',sp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'q' ,rq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'cw',rc,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'ps',rp,istatus);ier=istatus+ier
+  if(ier/=0)return
+
   dmass(1)=zero_quad
   rcon=one_quad/(two_quad*float(nlon))
   mm1=mype+1

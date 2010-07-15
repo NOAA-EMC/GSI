@@ -30,7 +30,7 @@ PUBLIC intsst
 
 contains
 
-subroutine intsst(ssthead,rsst,ssst)
+subroutine intsst(ssthead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intsst      apply nonlin qc obs operator for conv. sst
@@ -53,6 +53,7 @@ subroutine intsst(ssthead,rsst,ssst)
 !   2007-06-05  tremolet - use observation diagnostics structure
 !   2007-07-09  tremolet - observation sensitivity
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
+!   2010-05-13  todling  - update to use gsi_bundle; update interface
 !
 !   input argument list:
 !     ssthead
@@ -73,20 +74,32 @@ subroutine intsst(ssthead,rsst,ssst)
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(sst_ob_type),pointer       ,intent(in   ) :: ssthead
-  real(r_kind),dimension(latlon11),intent(in   ) :: ssst
-  real(r_kind),dimension(latlon11),intent(inout) :: rsst
+  type(sst_ob_type),pointer,intent(in   ) :: ssthead
+  type(gsi_bundle),         intent(in   ) :: sval
+  type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables
+  integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4
 ! real(r_kind) penalty
   real(r_kind) w1,w2,w3,w4
   real(r_kind) val
   real(r_kind) cg_sst,p0,grad,wnotgross,wgross,pg_sst
+  real(r_kind),pointer,dimension(:) :: ssst
+  real(r_kind),pointer,dimension(:) :: rsst
   type(sst_ob_type), pointer :: sstptr
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'sst',ssst,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'sst',rsst,istatus);ier=istatus+ier
+  if(ier/=0)return
 
   sstptr => ssthead
   do while (associated(sstptr))

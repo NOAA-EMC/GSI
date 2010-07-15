@@ -18,50 +18,38 @@ subroutine bkgcov(cstate,nlevs)
 !                         by a control_state 'cstate'
 !                       - use nrf* for generalized control variables
 !                       - make changes to interfaces of sub2grid and grid2sub
+!   2010-04-28  todling - update to use gsi_bundle
 !
 !   input argument list:
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     cstate   - bundle containing control fields
 !     nlevs    - number of vertical levels for smoothing
 !
 !   output argument list:
 !                 all after smoothing, combining scales
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     cstate   - bundle containing control fields
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero
+  use constants, only: zero
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o,latlon11
-  use control_vectors, only: nrf3,nrf3_loc,control_state,nrf_levb
+  use gsi_bundlemod, only: gsi_bundle
   implicit none
 
 ! Passed Variables
   integer(i_kind),intent(in) :: nlevs
-  type(control_state),intent(inout) :: cstate
+  type(gsi_bundle),intent(inout) :: cstate
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop,iflg,nk,loc
+  integer(i_kind) i,j,n,nsloop,iflg,loc,n3d
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
   real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
 
-  nsloop=3_i_kind
-  iflg=ione
+  nsloop=3
+  iflg=1
+  n3d=cstate%n3d
 
   do j=1,lon2
      do i=1,lat2
@@ -73,14 +61,12 @@ subroutine bkgcov(cstate,nlevs)
 
 ! Multiply by background error variances, and break up skin temp
 ! into components
-  call bkgvar(cstate%values,sst,slndt,sicet,izero)
+  call bkgvar(cstate,sst,slndt,sicet,0)
 
 ! Apply vertical smoother
-!$omp parallel do  schedule(dynamic,1) private(k,loc,nk)
-  do k=1,nrf3
-     loc=nrf3_loc(k)
-     nk=(nrf_levb(loc)-ione)*latlon11+ione
-     call frfhvo(cstate%values(nk),k)
+!$omp parallel do  schedule(dynamic,1) private(n)
+  do n=1,n3d
+     call frfhvo(cstate%r3(n)%q,n)
   end do
 
 ! Convert from subdomain to full horizontal field distributed among processors
@@ -93,16 +79,14 @@ subroutine bkgcov(cstate,nlevs)
   call grid2sub(hwork,cstate,sst,slndt,sicet)
 
 ! Apply vertical smoother
-!$omp parallel do  schedule(dynamic,1) private(k,loc,nk)
-  do k=1,nrf3
-     loc=nrf3_loc(k)
-     nk=(nrf_levb(loc)-ione)*latlon11+ione
-     call frfhvo(cstate%values(nk),k)
+!$omp parallel do  schedule(dynamic,1) private(n)
+  do n=1,n3d
+     call frfhvo(cstate%r3(n)%q,n)
   end do
 
 ! Multiply by background error variances, and combine sst,sldnt, and sicet
 ! into skin temperature field
-  call bkgvar(cstate%values,sst,slndt,sicet,ione)
+  call bkgvar(cstate,sst,slndt,sicet,1)
 
   return
 end subroutine bkgcov
@@ -121,51 +105,39 @@ subroutine ckgcov(z,cstate,nlevs)
 !                         update to bkgcov above.
 !   2010-03-15  zhu - use nrf* and cstate for generalized control variable
 !                   - make changes to interface of grid2sub
+!   2010-04-28  todling - udpate to use gsi_bundle
 !
 !   input argument list:
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     z        - long vector input control fields
+!     cstate   - bundle containing control fields
 !     nlevs    - number of vertical levels for smoothing
 !
 !   output argument list:
 !                 all after smoothing, combining scales
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     cstate   - bundle containing control fields
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o,latlon11
   use jfunc,only: nval_lenz,nval_levs
-  use control_vectors, only: control_state,nrf3,nrf3_loc,nrf_levb
+  use gsi_bundlemod, only: gsi_bundle
   implicit none
 
 ! Passed Variables
   integer(i_kind)    ,intent(in   ) :: nlevs
-  type(control_state),intent(inout) :: cstate
+  type(gsi_bundle),intent(inout) :: cstate
   real(r_kind),dimension(nval_lenz),intent(in   ) :: z
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop,loc,nk
+  integer(i_kind) i,j,k,nsloop,n3d
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
   real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
 
-  nsloop=3_i_kind
+  nsloop=3
 
   do j=1,lon2
      do i=1,lat2
@@ -182,16 +154,15 @@ subroutine ckgcov(z,cstate,nlevs)
   call grid2sub(hwork,cstate,sst,slndt,sicet)
 
 ! Apply vertical smoother
-!$omp parallel do  schedule(dynamic,1) private(k,loc,nk)
-  do k=1,nrf3
-     loc=nrf3_loc(k)
-     nk=(nrf_levb(loc)-ione)*latlon11+ione
-     call frfhvo(cstate%values(nk),k)
+  n3d=cstate%n3d
+!$omp parallel do  schedule(dynamic,1) private(k)
+  do k=1,n3d
+     call frfhvo(cstate%r3(k)%q,k)
   end do
 
 ! Multiply by background error variances, and combine sst,sldnt, and sicet
 ! into skin temperature field
-  call bkgvar(cstate%values,sst,slndt,sicet,ione)
+  call bkgvar(cstate,sst,slndt,sicet,1)
 
   return
 end subroutine ckgcov
@@ -211,52 +182,39 @@ subroutine ckgcov_ad(z,cstate,nlevs)
 !   2010-03-15  zhu - use nrf* and cstate for generalized control variable
 !                   - make changes to interface of sub2grid 
 !   2010-04-15  treadon - add %values to cstate in bkgvar call
+!   2010-04-28  todling - update to use gsi_bundle
 !
 !   input argument list:
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
-!     nlevs    - number of vertical levels for smoothing
+!     z        - long vector adjoint input/output control fields
+!     cstate   - bundle containing control fields
 !
 !   output argument list:
 !                 all after smoothing, combining scales
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     cstate   - bundle containing adjoint control fields
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero
+  use constants, only: zero
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o,latlon11
   use jfunc, only: nval_lenz
-  use control_vectors, only: control_state,nrf3,nrf3_loc,nrf_levb
+  use gsi_bundlemod, only: gsi_bundle
   implicit none
 
 ! Passed Variables
   integer(i_kind)    ,intent(in   ) :: nlevs
-  type(control_state),intent(inout) :: cstate
+  type(gsi_bundle),intent(inout) :: cstate
   real(r_kind),dimension(nval_lenz),intent(inout) :: z
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop,iflg,loc,nk
+  integer(i_kind) i,j,k,nsloop,iflg,n3d
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
   real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
 
-  nsloop=3_i_kind
-  iflg=ione
+  nsloop=3
+  iflg=1
 
   do j=1,lon2
      do i=1,lat2
@@ -268,14 +226,13 @@ subroutine ckgcov_ad(z,cstate,nlevs)
 
 ! Multiply by background error variances, and break up skin temp
 ! into components
-  call bkgvar(cstate%values,sst,slndt,sicet,izero)
+  call bkgvar(cstate,sst,slndt,sicet,0)
 
 ! Apply vertical smoother
-!$omp parallel do  schedule(dynamic,1) private(k,loc,nk)
-  do k=1,nrf3
-     loc=nrf3_loc(k)
-     nk=(nrf_levb(loc)-ione)*latlon11+ione
-     call frfhvo(cstate%values(nk),k)
+  n3d=cstate%n3d
+!$omp parallel do  schedule(dynamic,1) private(k)
+  do k=1,n3d
+     call frfhvo(cstate%r3(k)%q,k)
   end do
 
 ! Convert from subdomain to full horizontal field distributed among processors

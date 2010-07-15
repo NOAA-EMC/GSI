@@ -1,4 +1,4 @@
-subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
+subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupref    compute rhs of oi for gps refractivity
@@ -74,6 +74,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
 !                       - changed handle of tail%time
 !  2009-02-05  cucurull - update qc, obs error and refractivity operator
 !  2009-04-27  cucurull - update qc to enable GRAS and GRACE assimilation
+!  2009-08-19  guo      - changed for multi-pass setup with dtime_check().
 !  2009-10-22      shen - add regional obs error for regional GSI
 !			- add high_gps_sub
 !  2010-04-09 cucurull - remove high_gps_sub (regional QC moved to genstats.f90)
@@ -95,10 +96,13 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use mpeu_util, only: die,perr
   use kinds, only: r_kind,i_kind,r_single
   use obsmod, only: nprof_gps,gpshead,gpstail,gps_allhead,gps_alltail,&
        i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,&
        time_offset
+  use obsmod, only: gps_ob_type
+  use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig,&
        ges_z,ges_tv,ges_q
@@ -110,6 +114,22 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
        three,four,five,half
   use jfunc, only: jiter,last,miter
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
+  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_gpsrhs, only: muse
+  use m_gpsrhs, only: termq
+  use m_gpsrhs, only: termpk,termpl1,termpl2
+  use m_gpsrhs, only: termt ,termtk ,termtl
+  use m_gpsrhs, only: pressure,error,error_adjst
+  use m_gpsrhs, only: ratio_errors,dpresl
+  use m_gpsrhs, only: rdiagbuf,cdiagbuf
+  use m_gpsrhs, only: qcfail
+  use m_gpsrhs, only: qcfail_loc,qcfail_high,qcfail_gross
+  use m_gpsrhs, only: qcfail_stats_1,qcfail_stats_2
+  use m_gpsrhs, only: data_ier,data_igps,data_ihgt
+  use m_gpsrhs, only: gpsrhs_alloc
+  use m_gpsrhs, only: gpsrhs_dealloc
+  use m_gpsrhs, only: gpsrhs_aliases
+  use m_gpsrhs, only: gpsrhs_unaliases
   implicit none
 
 ! Declare local parameters
@@ -127,12 +147,22 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   real(r_kind),parameter:: nine = 9.0_r_kind
   real(r_kind),parameter:: eleven = 11.0_r_kind
   real(r_kind),parameter:: fifteen = 15.0_r_kind
+  character(len=*),parameter :: myname='setupref'
 
 
 ! Declare passed variables
   integer(i_kind)                            ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100_i_kind+7*nsig)  ,intent(inout) :: awork
   real(r_kind),dimension(max(ione,nprof_gps)),intent(inout) :: toss_gps_sub
+  integer(i_kind)                            ,intent(in   ) :: is	! ndat index
+  logical                                    ,intent(in   ) :: init_pass	! the pass with the first set of background bins
+  logical                                    ,intent(in   ) :: last_pass	! the pass with all background bins processed
+
+! Declare external calls for code analysis
+  external:: tintrp2a
+  external:: tintrp3
+  external:: grdcrd
+  external:: stop2
 
 ! Declare local variables
 
@@ -143,16 +173,9 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   real(r_kind) sin2,termg,termr,termrg,hob,hobl,qrefges,zsges
   real(r_kind) fact,pw,nrefges1,nrefges2,nrefges3,nrefges,dpres,elev,k4,alt
   real(r_kind) ratio,residual,obserror,obserrlm,delz
-  real(r_kind),dimension(nobs):: termq,termpk,termt,termtk
-  real(r_kind),dimension(nobs):: pressure,error,error_adjst
   real(r_kind),dimension(nele,nobs):: data
-  real(r_kind),dimension(nobs):: ratio_errors,dpresl
   real(r_kind),dimension(nsig):: tges,hgesl
   real(r_kind),dimension(nsig+ione) :: prsltmp,hges
-  real(r_kind),dimension(nsig,nobs):: termtl,termpl1,termpl2
-  real(r_kind),allocatable,dimension(:,:)::rdiagbuf
-  real(r_single),dimension(nobs):: qcfail_loc,qcfail_high,qcfail_gross
-  real(r_single),dimension(nobs):: qcfail_stats_1,qcfail_stats_2
   
   integer(i_kind):: ier,ilon,ilat,ihgt,igps,itime,ikx,iuse,ikxx
   integer(i_kind):: iprof,ipctc,iroc,isatid,iptid
@@ -163,11 +186,16 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
   integer(i_kind),dimension(4):: gps_ij
   integer(i_kind):: satellite_id,transmitter_id
 
-  character(8),allocatable,dimension(:):: cdiagbuf
+  logical,dimension(nobs):: luse
 
-  logical,dimension(nobs):: luse,muse
-  logical,dimension(nobs):: qcfail
+  logical:: in_curbin, in_anybin
+  integer(i_kind),dimension(nobs_bins) :: n_alloc
+  integer(i_kind),dimension(nobs_bins) :: m_alloc
+  type(gps_ob_type),pointer:: my_head
+  type(obs_diag),pointer:: my_diag
 
+  n_alloc(:)=izero
+  m_alloc(:)=izero
 !*******************************************************************************
 
 ! Read and reformat observations in work arrays.
@@ -194,31 +222,67 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
 ! Initialize variables
   rsig=float(nsig)
   mm1=mype+ione
-  qcfail=.false.
-  qcfail_loc=zero;qcfail_gross=zero;qcfail_stats_1=zero
-  qcfail_stats_2=zero
-  qcfail_high=zero 
-  toss_gps_sub=zero
 
 ! Allocate arrays for output to diagnostic file
   mreal=19_i_kind
   nreal=mreal
   if (lobsdiagsave) nreal=nreal+4*miter+ione
-  allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
+
+if(init_pass) call gpsrhs_alloc(is,'ref',nobs,nsig,nreal,-1)
+call gpsrhs_aliases(is)
+if(nreal/=size(rdiagbuf,1)) then
+  call perr(myname,'nreal/=size(rdiagbuf,1)')
+  call perr(myname,'nreal=',nreal)
+  call perr(myname,'size(rdiagbuf,1)=',size(rdiagbuf,1))
+  call die(myname)
+endif
+nreal=size(rdiagbuf,1)
+
+if(init_pass) then
+! Initialize saved arrays
+  data_ier (:)=data(ier ,:)
+  data_ihgt(:)=data(ihgt,:)
+  data_igps(:)=data(igps,:)
+
+	! these statements should moved into gpsrhs_alloc(), but
+	! left unchanged for verification purposes.
+  qcfail=.false.
+  qcfail_loc=zero
+  qcfail_gross=zero
+  qcfail_stats_1=zero
+  qcfail_stats_2=zero
+  qcfail_high=zero 
+
+  muse(:)=.false.
 
 ! Initialize arrays
   termtl=zero; termt= zero; termtk=zero; termq=zero
   termpk=zero; termpl1=zero; termpl2=zero
 
+else	! (init_pass)
+
+! Restore these arrays saved from the previous pass
+  data(ier ,:)=data_ier (:)
+  data(ihgt,:)=data_ihgt(:)
+  data(igps,:)=data_igps(:)
+endif	! (init_pass)
+
 ! Save height,lat, and lon of the observations for later
+  call dtime_setup()
   do i=1,nobs
+     dtime=data(itime,i)
+     call dtime_check(dtime, in_curbin, in_anybin)
+     if(.not.in_anybin) cycle
+
+if(in_curbin) then
+
      muse(i)=nint(data(iuse,i)) <= jiter
      sin2  = sin(data(ilate,i)*deg2rad)**2
      dlon=data(ilon,i)
      dlat=data(ilat,i)
      dpres=data(ihgt,i)
      elev=dpres
-     dtime=data(itime,i)
+
      ikx=nint(data(ikxx,i))
 
 !    Interpolate log(pres), terrain, and geop heights to obs location
@@ -511,10 +575,12 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
         endif
 
      end if ! obs inside the vertical grid
+endif	! (in_curbin)
   end do ! end of loop over observations
 
 ! Loop over observation profiles. Compute penalty
 ! terms, and accumulate statistics.
+if(last_pass) then
   do i=1,nobs
      
      if(qcfail(i)) then
@@ -578,10 +644,17 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
         end if
      end if
   end do
+endif	! (last_pass)
 
 
 ! Loop to load arrays used in statistics output
+  call dtime_setup()
   do i=1,nobs
+     dtime=data(itime,i)
+     call dtime_check(dtime, in_curbin, in_anybin)
+     if(.not.in_anybin) cycle
+
+if(last_pass) then
      if (ratio_errors(i)*data(ier,i) <= tiny_r_kind) muse(i) = .false.
      ikx=nint(data(ikxx,i))
      dtime=data(itime,i)
@@ -623,6 +696,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
      rdiagbuf(16,i) = errinv_final ! final inverse observation error due to 
                                    ! superob factor (N**-1)
                                    ! modified in genstats_gps
+endif	! (last_pass)
 
 !    Link observation to appropriate observation bin
      if (nobs_bins>ione) then
@@ -661,6 +735,13 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
         obsdiags(i_gps_ob_type,ibin)%tail%tldepart(:)=zero
         obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=-huge(zero)
         obsdiags(i_gps_ob_type,ibin)%tail%obssen(:)=zero
+
+        n_alloc(ibin) = n_alloc(ibin) +ione
+        my_diag => obsdiags(i_gps_ob_type,ibin)%tail
+        my_diag%idv = is
+        my_diag%iob = i
+        my_diag%ich = ione
+
      else 
         if (.not.associated(obsdiags(i_gps_ob_type,ibin)%tail)) then
            obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
@@ -673,6 +754,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
         end if
      endif
 
+if(last_pass) then
      if (nobskeep>0) muse(i)=obsdiags(i_gps_ob_type,ibin)%tail%muse(nobskeep)
 
 !    Save values needed for generation of statistics for all observations
@@ -685,6 +767,9 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
         if(istat /= izero)write(6,*)' failure to write gps_alltail%llpoint '
         gps_alltail(ibin)%head => gps_alltail(ibin)%head%llpoint
      end if
+     gps_alltail(ibin)%head%idv=is
+     gps_alltail(ibin)%head%iob=i
+
      allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istat)
      if (istat/=izero) write(6,*)'SETUPREF:  allocate error for gps_point, istat=',istat
 
@@ -749,6 +834,12 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
            if(istat /= izero)write(6,*)' failure to write gpstail%llpoint '
            gpstail(ibin)%head => gpstail(ibin)%head%llpoint
         end if
+
+	m_alloc(ibin) = m_alloc(ibin) +ione
+	my_head => gpstail(ibin)%head
+	my_head%idv = is
+	my_head%iob = i
+
         allocate(gpstail(ibin)%head%jac_t(nsig),gpstail(ibin)%head%jac_q(nsig), &
                  gpstail(ibin)%head%jac_p(nsig+1),gpstail(ibin)%head%ij(4,nsig),stat=istat)
         if (istat/=izero) write(6,*)'SETUPREF:  allocate error for gps_point, istat=',istat
@@ -804,12 +895,32 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub)
         gpstail(ibin)%head%b         = cvar_b(ikx)
         gpstail(ibin)%head%pg        = cvar_pg(ikx)
         gpstail(ibin)%head%luse      = luse(i)
+
         gpstail(ibin)%head%diags     => obsdiags(i_gps_ob_type,ibin)%tail
         
+	my_head => gpstail(ibin)%head
+	my_diag => gpstail(ibin)%head%diags
+        if(my_head%idv /= my_diag%idv .or. &
+	   my_head%iob /= my_diag%iob ) then
+	  call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+	  	(/is,i,ibin/))
+	  call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+	  call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+	  call die(myname)
+	endif
      endif
 
+endif	! (last_pass)
   end do
 
-  deallocate(cdiagbuf,rdiagbuf)
+  ! Save these arrays for later passes
+  data_ier (:)=data(ier ,:)
+  data_ihgt(:)=data(ihgt,:)
+  data_igps(:)=data(igps,:)
 
+  call dtime_show(myname,'diagsave:ref',i_gps_ob_type)
+  call gpsrhs_unaliases(is)
+  if(last_pass) call gpsrhs_dealloc(is)
+
+! End of routine
 end subroutine setupref

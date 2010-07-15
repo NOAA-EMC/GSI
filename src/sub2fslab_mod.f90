@@ -41,7 +41,12 @@ module sub2fslab_mod
   use anberror, only: prm0 => pf2aP1, &
                       prm2 => pf2aP2,  &
                       prm3 => pf2aP3
-  use control_vectors, only: nrf,nrf_3d,control_state,allocate_cs,deallocate_cs
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlecreate
+  use gsi_bundlemod, only: gsi_bundledestroy
+  use gsi_bundlemod, only: gsi_grid
+  use gsi_bundlemod, only: gsi_gridcreate
+  use control_vectors, only: cvars2d,cvars3d
 
   implicit none
 
@@ -58,7 +63,9 @@ module sub2fslab_mod
   public :: sub2fslab2d
   public :: sub2fslab2d_glb
 
-  type(control_state),save :: work
+  character(len=*),parameter::myname='sub2fslab_mod'
+
+  type(gsi_bundle),save :: work
   real(r_kind),allocatable,dimension(:,:)  :: work_sst,work_slndt,work_sicet
 
   real(r_kind)  ,allocatable,dimension(:,:,:)  :: hfine
@@ -77,6 +84,8 @@ subroutine setup_sub2fslab
 !
 ! program history log:
 !   2008-01-23  sato
+!   2010-04-28  todling - alloc/deall should always be: first in; last out
+!                       - update to use gsi_bundle
 !
 !   input argument list:
 !
@@ -88,8 +97,20 @@ subroutine setup_sub2fslab
 !
 !$$$ end documentation block
   implicit none
+  character(len=*),parameter::myname_=trim(myname)//'*setup_sub2fslab'
+  integer(i_kind) :: istatus
+  type(gsi_grid):: grid
 
-  call allocate_cs(work)
+! create an internal structure w/ the same vars as those in the control vector
+  call gsi_gridcreate(grid,lat2,lon2,nsig)
+  call gsi_bundlecreate (work,grid,'sub2fslab work',istatus, &
+                         names2d=cvars2d,names3d=cvars3d)
+  if (istatus/=0) then
+     write(6,*) trim(myname_),': trouble creating work bundle'
+     call stop2(999)
+  endif
+
+! allocate space for other internal arrays
   allocate(work_sst(lat2,lon2),work_slndt(lat2,lon2),work_sicet(lat2,lon2))
 
   allocate(hfine(nlat,nlon,nsig1o))
@@ -117,6 +138,8 @@ subroutine destroy_sub2fslab
 !
 ! program history log:
 !   2008-01-23  sato
+!   2010-04-28  todling - alloc/deall should always be: first in; last out
+!                       - update to use gsi_bundle
 !
 !   input argument list:
 !
@@ -129,9 +152,8 @@ subroutine destroy_sub2fslab
 !
 !$$$ end documentation block
   implicit none
-
-  call deallocate_cs(work)
-  deallocate(work_sst,work_slndt,work_sicet)
+  character(len=*),parameter::myname_=trim(myname)//'*destroy_sub2fslab'
+  integer(i_kind) :: istatus
 
   if( regional ) then
   !  for regional mode
@@ -142,6 +164,14 @@ subroutine destroy_sub2fslab
      deallocate(hflt2)
      deallocate(hflt3)
   end if
+
+  deallocate(work_sst,work_slndt,work_sicet)
+  call gsi_bundledestroy (work,istatus)
+   if (istatus/=0) then
+      write(6,*) trim(myname_),': trouble destroying work bundle'
+      call stop2(999)
+   endif
+
 
   deallocate(hfine)
 
@@ -160,6 +190,7 @@ subroutine sub2fslab(fsub,fslab)
 !   2008-01-23  sato
 !   2010-03-25  zhu   - change work_* from arrays to a data structure work;
 !                     - change interface of sub2grid 
+!   2010-04-28  todling - update to use bundle
 !
 !   input argument list:
 !    fsub     - subdomain data array
@@ -181,27 +212,25 @@ subroutine sub2fslab(fsub,fslab)
   real(r_single),intent(  out) :: fslab(prm0%nlatf,prm0%nlonf,nsig1o)
 
 ! Declare local variables
-  integer(i_kind):: k,iflg,i,j,nk,n
+  integer(i_kind):: k,iflg,i,j,n,n2d,n3d
 
-  nk=izero
-  do n=1,nrf
-     if (nrf_3d(n)) then 
-        do k=1,nsig
-           do i=1,lon2
-              do j=1,lat2
-                 nk=nk+ione
-                 work%values(nk) =fsub(j,i,k)
-              end do
-           end do
-        end do
-     else
+  n2d=work%n2d
+  n3d=work%n3d
+  do n=1,n3d
+     do k=1,nsig
         do i=1,lon2
            do j=1,lat2
-              nk=nk+ione
-              work%values(nk) =fsub(j,i,1)
+              work%r3(n)%q(j,i,k) =fsub(j,i,k)
            end do
         end do
-     end if
+     end do
+  end do
+  do n=1,n2d
+     do i=1,lon2
+        do j=1,lat2
+           work%r2(n)%q(j,i) =fsub(j,i,1)
+        end do
+     end do
   end do
   work_sst  (:,:)=fsub(:,:,1)
   work_slndt(:,:)=fsub(:,:,1)
@@ -232,6 +261,7 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
 !   2008-01-23  sato
 !   2010-03-25  zhu   - change work_* from arrays to a data structure work;
 !                     - change interface of sub2grid 
+!   2010-04-28  todling - update to use bundle
 !
 !   input argument list:
 !    fsub                 - subdomain data array
@@ -255,27 +285,25 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
   real(r_single),intent(  out) :: fslb3(prm3%nlatf,prm3%nlonf,nsig1o)
 
 ! Declare local variables
-  integer(i_kind):: k,iflg,i,j,nk,n
+  integer(i_kind):: k,iflg,i,j,n,n2d,n3d
 
-  nk=izero
-  do n=1,nrf
-     if (nrf_3d(n)) then
-        do k=1,nsig
-           do i=1,lon2
-              do j=1,lat2
-                 nk=nk+ione
-                 work%values(nk) =fsub(j,i,k)
-              end do
-           end do
-        end do
-     else
+  n2d=work%n2d
+  n3d=work%n3d
+  do n=1,n3d
+     do k=1,nsig
         do i=1,lon2
            do j=1,lat2
-              nk=nk+ione
-              work%values(nk) =fsub(j,i,1)
+              work%r3(n)%q(j,i,k) =fsub(j,i,k)
            end do
         end do
-     end if
+     end do
+  end do
+  do n=1,n2d
+     do i=1,lon2
+        do j=1,lat2
+           work%r2(n)%q(j,i) =fsub(j,i,1)
+        end do
+     end do
   end do
   work_sst  (:,:)=fsub(:,:,1)
   work_slndt(:,:)=fsub(:,:,1)
@@ -405,6 +433,7 @@ subroutine sub2slab2d(fsub,slab)
 !   2008-01-23  sato
 !   2010-03-25  zhu   - change work_* from arrays to a data structure work;
 !                     - change interface of sub2grid 
+!   2010-04-28  todling - update to use bundle
 !
 !   input argument list:
 !    fsub     - subdomain data array
@@ -425,28 +454,25 @@ subroutine sub2slab2d(fsub,slab)
   real(r_kind),intent(  out) :: slab(nlat,nlon,nsig1o)
   
 ! Declare local variables
-  integer(i_kind):: k,iflg,i,j,nk,n
-  real(r_kind)   :: work_t(lat2,lon2,nsig)
+  integer(i_kind):: k,iflg,i,j,n,n2d,n3d
 
-  nk=izero
-  do n=1,nrf
-     if (nrf_3d(n)) then
-        do k=1,nsig
-           do i=1,lon2
-              do j=1,lat2
-                 nk=nk+ione
-                 work%values(nk) =fsub(j,i)
-              end do
-           end do
-        end do
-     else
+  n2d=work%n2d
+  n3d=work%n3d
+  do n=1,n3d
+     do k=1,nsig
         do i=1,lon2
            do j=1,lat2
-              nk=nk+ione
-              work%values(nk) =fsub(j,i)
+              work%r3(n)%q(j,i,k) =fsub(j,i)
            end do
         end do
-     end if
+     end do
+  end do
+  do n=1,n2d
+     do i=1,lon2
+        do j=1,lat2
+           work%r2(n)%q(j,i) =fsub(j,i)
+        end do
+     end do
   end do
   work_sst  (:,:)=fsub(:,:)
   work_slndt(:,:)=fsub(:,:)

@@ -3,13 +3,14 @@ module mpeu_util
 !                .      .    .                                       .
 ! subprogram:	 module mpeu_util
 !   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.1
 !     date:	 2010-03-17
 !
 ! abstract: - utilities for runtime messaging, etc.
 !
 ! program history log:
 !   2010-03-17  j guo   - added this document block
+!   2010-05-30  todling - add some real dirty mimic of i90's table read 
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -58,6 +59,8 @@ module mpeu_util
       public :: luavail
       public :: stdin, stdout, stderr
       public :: strTemplate
+      public :: GetTableSize,GetTable
+      public :: GetIndex                ! get index in array given user entry
 
         ! a stable sorting tool.  See <Use indexed sorting> section below
       public :: IndexSet                ! setup an index array
@@ -129,6 +132,15 @@ module mpeu_util
       dSort_, & ! by a DOUBLE PRECISION key
       cSort_    ! by a CHARACTER(len=*) key
       end interface
+
+    interface GetTableSize; module procedure &
+      get_table_size_; end interface
+    interface GetTable; module procedure &
+      get_table_; end interface
+
+    interface GetIndex; module procedure &
+      getindex_; end interface
+
 
 ! !REVISION HISTORY:
 !	19Aug09 - Jing Guo <Jing.Guo@nasa.gov>
@@ -1861,4 +1873,122 @@ subroutine merge_(lb,lm,le)
 end subroutine merge_
 
 end subroutine cSort_
+
+! RTodling: The quickest and dirtiest version of i90 I can some up with
+subroutine get_table_size_(tname,lu,ntotal,nactual)
+implicit none
+integer,intent(in) :: lu
+character(len=*)::tname
+integer,intent(out) :: ntotal
+integer,intent(out) :: nactual
+integer(IK) ii,ier,ln,i,ios,n,ncomment
+character(len=256)::buf
+
+! Scan file for desired table first
+! and get size of table
+ncomment=0
+n=0
+rewind(lu)
+done_scan: do
+  read(lu,*,iostat=ier) buf
+  if(ier/=0) exit
+  if(trim(buf)==''.or.buf(1:1)=='#'.or.buf(1:1)=='!') cycle ! ignore comments outside table
+  ln=len(trim(tname))
+  if(index(buf(1:ln),trim(tname))>0) then ! found wanted table
+     n=0
+     table_scan: do  ! start reading table
+        line_scan: do ! start reading line
+           n=n+1
+           read(lu,'(a)',advance='no',eor=998,iostat=ios) buf ! read next line, save contents
+        enddo line_scan ! finished reading line
+998 continue
+        if(buf(1:2)=='::') exit  ! end of table
+        if(buf(1:1)=='#'.or.buf(1:1)=='!') ncomment=ncomment+1
+     enddo table_scan
+     exit ! finished reading table
+  endif
+enddo done_scan
+ntotal=n
+nactual=max(0,n-ncomment-1)
+
+end subroutine get_table_size_
+
+subroutine get_table_(tname,lu,ntot,nact,utable)
+implicit none
+integer,intent(in) :: lu,ntot,nact
+character(len=*),intent(in):: tname
+character(len=*),intent(inout):: utable(nact)
+
+character(len=256)::buf
+integer(IK) ii,ier,ln,i,n,ios
+
+! Now get contents
+n=ntot
+rewind(lu)
+done_read: do
+  read(lu,*,iostat=ier) buf
+  if(ier/=0) exit
+  if(trim(buf)==''.or.buf(1:1)=='#'.or.buf(1:1)=='!') cycle ! ignore comments outside table
+  ln=len(trim(tname))
+  if(index(buf(1:ln),trim(tname))>0) then ! found wanted table
+     i=0
+     table: do  ! start reading table
+        line: do ! start reading line
+           read(lu,'(a)',advance='no',eor=999,iostat=ios) buf ! read next line, save contents
+        enddo line ! finished reading line
+999 continue
+        if(buf(1:2)=='::') exit  ! end of table
+           if(buf(1:1)=='#'.or.buf(1:1)=='!') then
+              ! ignore
+           else
+              if(i>nact) then
+                 write(6,*) 'error reading table'  
+                stop
+              endif
+              i=i+1
+              utable(i)=trim(buf)
+           endif
+     enddo table
+     exit ! finished reading table
+  endif
+enddo done_read
+end subroutine get_table_
+
+integer(IK) function getindex_(varnames,usrname)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    getid_
+!   prgmmr: todling         org: gmao                date:
+!
+! abstract:
+!
+! program history log:
+!   2010-05-28  todling - initial code
+!
+!   input argument list:
+!    varnames - array w/ variable names (e.g., cvars3d, or nrf_var)
+!    usrname  - name of desired control variable
+!
+!   output argument list:
+!     getindex_ - variable index in varnames (control variable name array)
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+  character(len=*),intent(in) :: varnames(:)
+  character(len=*),intent(in) :: usrname
+  integer(IK) i
+  getindex_=-1
+  do i=1,size(varnames)
+     if(trim(usrname)==trim(varnames(i))) then
+        getindex_=i
+        exit
+     endif
+  enddo
+end function getindex_
+
 end module mpeu_util
