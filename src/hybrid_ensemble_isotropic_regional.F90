@@ -2332,6 +2332,8 @@ subroutine bkgcov_a_en_new_factorization(a_en)
 !   2009-09-17  parrish
 !   2010-02-20  parrish, adapt for dual resolution
 !   2010-05-21  todling, update to use bundle
+!   2010-07-02  parrish, modify arguments to call sf_xy to allow for vertical variation
+!                 of horizontal localization length
 !
 !   input argument list:
 !     a_en     - control variable for ensemble contribution to background error
@@ -2410,7 +2412,7 @@ subroutine bkgcov_a_en_new_factorization(a_en)
      call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
      call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
   else
-     call sf_xy(hwork,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+     call sf_xy(hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
   end if
 
 ! Put back onto subdomains
