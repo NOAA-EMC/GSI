@@ -113,7 +113,7 @@ km=xhat%step(1)%grid%km
 call gsi_chemtracer_get('dim',ngases,istatus)
 if (ngases>0) then
     allocate(gases(ngases))
-    call gsi_chemtracer_get('list',gases,istatus)
+    call gsi_chemtracer_get('shortnames',gases,istatus)
 endif
 
 ! Since each internal vector of xhat has the same structure, pointers are
