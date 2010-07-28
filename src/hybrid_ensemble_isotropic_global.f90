@@ -74,7 +74,7 @@ subroutine init_sf_xy(jcap_in)
 !$$$
 
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters,only: s_ens_h,sp_loc,grd_ens,grd_loc
+  use hybrid_ensemble_parameters,only: s_ens_hv,sp_loc,grd_ens,grd_loc
   use general_specmod, only: general_init_spec_vars 
   use constants, only: izero,ione,zero,half,one,two,three,rearth,pi
   use mpimod, only: mype
@@ -90,40 +90,11 @@ subroutine init_sf_xy(jcap_in)
   real(r_single),allocatable::pn0_npole(:)
   real(r_kind) s_ens_h_min
   real(r_single) s_ens_hv4(grd_ens%nsig)
-  real(r_kind) s_ens_hv(grd_ens%nsig)
   real(r_kind) hmin,hmax
   character(5) mapname
   logical make_test_maps
 
   make_test_maps=.false.
-
-!   setup array of horizontal localization lengths s_ens_hv
-
-  if(s_ens_h <= zero) then
-
-!    read in horizontal localization lengths which depend on model vertical level:
-!
-! ????????????? Daryl, I left this for you, unless you want me to do this.  I understand
-! ????????????? you have some code now to read in 3d fields of vertical and horizontal
-! ????????????? localization lengths.
-
-!!!!!!!!!!!!!! following for test, linear variation from 300km to 5500km
-     hmin=300._r_kind     !  too small I think for jcap_in=62, so will test lower bound
-     hmax=5501._r_kind    ! slightly too large to test upper bound 
-     do k=1,grd_ens%nsig
-        s_ens_hv(k)=hmin+(hmax-hmin)*(k-one)/(grd_ens%nsig-one)
-     end do
-!!!!!!!!!!!!!! preceding for test, linear variation from 300km to 5500km
-
-  else
-
-!          assign all levels to same value, s_ens_h  (ran with this on 20100702 and reproduced results from
-!                                                      rungsi62_hyb_dualres.sh)
-
-     s_ens_hv=s_ens_h
-
-  end if
-
 
 !    make sure s_ens_hv is within allowable range  ( pi*rearth*.001/jcap_in <= s_ens_hv <= 5500 )
 

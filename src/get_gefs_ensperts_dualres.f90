@@ -28,7 +28,7 @@ subroutine get_gefs_ensperts_dualres
 
   use gridmod, only: idsl5
   use hybrid_ensemble_parameters, only: n_ens
-  use hybrid_ensemble_isotropic_regional, only: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en
+  use hybrid_ensemble_isotropic_regional, only: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en,ps_bar
   use constants,only: zero,ione,izero,half,fv,rd_over_cp,one
   use mpimod, only: mpi_comm_world,ierror,mype
   use kinds, only: r_kind,i_kind
@@ -158,6 +158,10 @@ subroutine get_gefs_ensperts_dualres
   do i=1,grd_ens%latlon11
     pbar(i)=pbar(i)*bar_norm
   end do
+
+! Copy pbar to module array.  ps_bar may be needed for vertical localization
+! in terms of scale heights/normalized p/p
+  ps_bar(:)=pbar(:)
 
   call mpi_barrier(mpi_comm_world,ierror)
 ! Before converting to perturbations, get ensemble spread

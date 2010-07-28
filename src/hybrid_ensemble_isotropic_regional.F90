@@ -82,22 +82,24 @@ module hybrid_ensemble_isotropic_regional
   public :: ensemble_forward_model_ad_dual_res
   public :: beta12mult
 ! set passed variables to public
-  public :: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en
+  public :: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en,ps_bar
 
   character(len=*),parameter::myname='hybrid_ensemble_isotropic_regional'
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !      following variables are filter parameters for isotropic
 !       homogeneous localization of hybrid control variable a_en
 
-  real(r_kind),allocatable:: fmatz(:,:,:)
-  real(r_kind),allocatable:: fmat0z(:,:)
+  real(r_kind),allocatable:: fmatz(:,:,:,:)
+  real(r_kind),allocatable:: fmat0z(:,:,:)
   real(r_kind),allocatable:: fmatx(:,:,:,:)
   real(r_kind),allocatable:: fmat0x(:,:,:)
   real(r_kind),allocatable:: fmaty(:,:,:)
   real(r_kind),allocatable:: fmat0y(:,:)
-  real(r_kind),allocatable:: znorm_new(:)
+  real(r_kind),allocatable:: znorm_new(:,:)
   real(r_kind),allocatable:: xnorm_new(:,:)
   real(r_kind),allocatable:: ynorm_new(:)
+  real(r_kind),allocatable:: psbar(:)
+
 
 !    following is for storage of ensemble perturbations:
 
@@ -111,6 +113,7 @@ module hybrid_ensemble_isotropic_regional
 !   def sst_en              - array of skin temperature ensemble perturbations
 
   real(r_single),dimension(:,:),allocatable:: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en
+  real(r_single),dimension(:),allocatable:: ps_bar
 
 !    following is for special subdomain to slab variables used when internally generating ensemble members
 
@@ -171,56 +174,86 @@ subroutine init_rf_z(z_len)
 
   use gridmod, only: nsig,ak5,bk5
   use constants, only: half,one,rd_over_cp,zero
+  use hybrid_ensemble_parameters, only: grd_ens,s_ens_v
 
-  real(r_kind),intent(in   ) :: z_len
+!!  real(r_kind),intent(in   ) :: z_len
+  real(r_kind)   ,intent(in) :: z_len(grd_ens%nsig)
 
-  integer(i_kind) k,km,k0m,kp,k0p
+  integer(i_kind) k,km,kp,nxy,i
   real(r_kind) aspect(nsig),p_interface(nsig+1),lnp_layer(nsig)
-  real(r_kind) p_layer,dlnp,kap1,kapr
+  real(r_kind) p_layer,dlnp,kap1,kapr,d1,d2
 
     kap1=rd_over_cp+one
     kapr=one/rd_over_cp
+    nxy=grd_ens%latlon11
 
 !    use new factorization:
-  allocate(fmatz(2,nsig,2),fmat0z(nsig,2))
+  allocate(fmatz(2,nsig,2,nxy),fmat0z(nsig,2,nxy))
 
 !   for z_len < zero, use abs val z_len and assume localization scale is in units of ln(p)
-  if(z_len > zero) then
+!!  if(z_len > zero) then
+   if(s_ens_v > zero) then
 
 !  z_len is in grid units
      do k=1,nsig
-        aspect(k)=z_len**2
+        aspect(k)=z_len(k)**2
+     end do
+
+     do i=1,nxy
+       call get_new_alpha_beta(aspect,nsig,fmatz(1,1,1,i),fmat0z(1,1,i))
      end do
 
   else
 
 !  abs(z_len) is in units of ln(p)
-
 !              put in approximate vertical scale which depends on ln(p)
-!             to do this with minimal change, use psfc=1000, and construct a pressure profile
-!                 from the vertical coordinate definition for the GFS model.
-     do k=1,nsig+1
-        p_interface(k)=ak5(k)+(bk5(k)*100._r_kind)
-     end do
-     do k=1,nsig
-        p_layer=((p_interface(k)**kap1-p_interface(k+1)**kap1)/&
-                           (kap1*(p_interface(k)-p_interface(k+1))))**kapr
-               if(mype==0) write(6,*)' k,p_layer=',k,p_layer
-        lnp_layer(k)=log(p_layer)
-     end do
-     do k=1,nsig
-        kp=min(k+1,nsig)
-        k0p=kp-1
-        km=max(k-1,1)
-        k0m=km+1
-        dlnp=half*((lnp_layer(k0p)-lnp_layer(kp))+(lnp_layer(km)-lnp_layer(k0m)))
-        aspect(k)=(z_len/dlnp)**2
-        if(mype == 0) write(6,'(" k, vertical localization in grid units for ln(p) scaling =",i4,f10.2)') &
-                                        k,sqrt(aspect(k))
+!              use ensemble mean ps (ps_bar) to construct pressure
+!              profiles using GFS sigma-p coordinate [ add mods to be able
+!              to use fully generalized coordinate later** ]
+!
+     do i=1,nxy
+       do k=1,nsig+1
+         p_interface(k)=ak5(k)+(bk5(k)*ps_bar(i))
+       end do
+       do k=1,nsig
+          p_layer=((p_interface(k)**kap1-p_interface(k+1)**kap1)/&
+                             (kap1*(p_interface(k)-p_interface(k+1))))**kapr
+          lnp_layer(k)=log(p_layer)
+       end do
+
+! Start with assuming no localization
+       d1=float(nsig)**2. ; d2=float(nsig)**2.
+
+       do k=1,nsig
+! Search downward from k for dlnp difference larger than specified parameter
+          do km=k,1,-1
+             dlnp=abs(lnp_layer(k)-lnp_layer(km))
+             if (dlnp.ge.abs(z_len(k))) then
+                d1=float(abs(km-k))**2.
+                exit
+              end if
+           end do
+
+! Search upward from k for dlnp difference larger than specified parameter
+           do kp=k,nsig
+              dlnp=abs(lnp_layer(k)-lnp_layer(kp))
+              if (dlnp.ge.abs(z_len(k))) then
+                d2=float(abs(kp-k))**2.
+                 exit
+              end if
+           end do
+
+! Set aspect (localization distance in grid units squared) based on minimum of up/down searches
+           aspect(k)=min(d1,d2)
+
+!!         if(mype == 0) write(6,'(" k, vertical localization in grid units for ln(p) scaling =",i4,f10.2,f10.2,f10.2)') &
+!!                                         k,sqrt(aspect(k))
+
+           call get_new_alpha_beta(aspect,nsig,fmatz(1,1,1,i),fmat0z(1,1,i))
+        end do
      end do
 
   end if
-  call get_new_alpha_beta(aspect,nsig,fmatz,fmat0z)
 
 end subroutine init_rf_z
 
@@ -333,6 +366,7 @@ subroutine new_factorization_rf_z(f,iadvance,iback)
 ! program history log:
 !   2009-09-28  parrish  initial documentation
 !   2010-02-20  parrish  modifications for dual resolution
+!   2010-04-14  kleist   modifications for ln(ps) localization option
 !
 !   input argument list:
 !     f        - input field to be filtered
@@ -360,34 +394,34 @@ subroutine new_factorization_rf_z(f,iadvance,iback)
   if(iadvance == 1) then
      do k=1,nz
         do i=1,nxy
-           f(i,k)=znorm_new(k)*f(i,k)
+           f(i,k)=znorm_new(i,k)*f(i,k)
         end do
      end do
   end if
   do k=1,nz
-     do l=1,min(2,k-1)
+     do l=1,min(2_i_kind,k-1)
         do i=1,nxy
-           f(i,k)=f(i,k)-fmatz(l,k,iadvance)*f(i,k-l)
+           f(i,k)=f(i,k)-fmatz(l,k,iadvance,i)*f(i,k-l)
         end do
      end do
      do i=1,nxy
-        f(i,k)=fmat0z(k,iadvance)*f(i,k)
+        f(i,k)=fmat0z(k,iadvance,i)*f(i,k)
      end do
   end do
   do k=nz,1,-1
-     do l=1,min(2,nz-k)
+     do l=1,min(2_i_kind,nz-k)
         do i=1,nxy
-           f(i,k)=f(i,k)-fmatz(l,k+l,iback)*f(i,k+l)
+           f(i,k)=f(i,k)-fmatz(l,k+l,iback,i)*f(i,k+l)
         end do
      end do
      do i=1,nxy
-        f(i,k)=fmat0z(k,iback)*f(i,k)
+        f(i,k)=fmat0z(k,iback,i)*f(i,k)
      end do
   end do
-  if(iadvance == 2) then
+  if(iadvance == 2_i_kind) then
      do k=1,nz
         do i=1,nxy
-           f(i,k)=znorm_new(k)*f(i,k)
+           f(i,k)=znorm_new(i,k)*f(i,k)
         end do
      end do
   end if
@@ -556,6 +590,7 @@ subroutine normal_new_factorization_rf_z
 ! program history log:
 !   2009-09-28  parrish  initial documentation
 !   2010-02-20  parrish  modifications for dual resolution
+!   2010-04-14  kleist   modifications for ln(p) localization
 !
 !   input argument list:
 !
@@ -569,61 +604,49 @@ subroutine normal_new_factorization_rf_z
 
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: grd_ens
-  use constants, only: zero,one
+  use constants, only: izero,zero,one
   implicit none
 
-  integer(i_kind) k,kcount,lcount,iadvance,iback
-  real(r_kind) f(grd_ens%latlon11,grd_ens%nsig),diag(grd_ens%nsig)
+  integer(i_kind) k,iadvance,iback,nxy
+  real(r_kind) f(grd_ens%latlon11,grd_ens%nsig),diag(grd_ens%latlon11,grd_ens%nsig)
 
   if(allocated(znorm_new)) deallocate(znorm_new)
-  allocate(znorm_new(grd_ens%nsig))
+  allocate(znorm_new(grd_ens%latlon11,grd_ens%nsig))
+
+  nxy=grd_ens%latlon11
 
   znorm_new=one
-  kcount=0
-  lcount=0
-  do
-     f=zero
-     do k=1,min(grd_ens%latlon11,grd_ens%nsig)
-        kcount=kcount+1
-        f(k,kcount)=one
-        if(kcount == grd_ens%nsig) exit
-     end do
-     iadvance=1 ; iback=2
-     call new_factorization_rf_z(f,iadvance,iback)
-     iadvance=2 ; iback=1
-     call new_factorization_rf_z(f,iadvance,iback)
-     do k=1,min(grd_ens%latlon11,grd_ens%nsig)
-        lcount=lcount+1
-        diag(lcount)=sqrt(one/f(k,lcount))
-        if(lcount == grd_ens%nsig) exit
-     end do
-     if(lcount == grd_ens%nsig) exit
-  end do
+
+   do k=1,grd_ens%nsig
+      f=zero
+      f(:,k)=one
+
+      iadvance=1 ; iback=2_i_kind
+      call new_factorization_rf_z(f,iadvance,iback)
+      iadvance=2_i_kind ; iback=1
+      call new_factorization_rf_z(f,iadvance,iback)
+
+      diag(:,k)=sqrt(one/f(:,k))
+   end do
+
+   do k=1,grd_ens%nsig
+      znorm_new(:,k)=diag(:,k)
+   end do
+
+! Check result:
   do k=1,grd_ens%nsig
-     znorm_new(k)=diag(k)
-  end do
-!              check result:
-  kcount=0
-  lcount=0
-  do
      f=zero
-     do k=1,min(grd_ens%latlon11,grd_ens%nsig)
-        kcount=kcount+1
-        f(k,kcount)=one
-        if(kcount == grd_ens%nsig) exit
-     end do
-     iadvance=1 ; iback=2
+     f(:,k)=one
+
+     iadvance=1 ; iback=2_i_kind
      call new_factorization_rf_z(f,iadvance,iback)
-     iadvance=2 ; iback=1
+     iadvance=2_i_kind ; iback=1
      call new_factorization_rf_z(f,iadvance,iback)
-     do k=1,min(grd_ens%latlon11,grd_ens%nsig)
-        lcount=lcount+1
-        diag(lcount)=f(k,lcount)
-        if(lcount == grd_ens%nsig) exit
-     end do
-     if(lcount == grd_ens%nsig) exit
+
+     diag(:,k)=sqrt(one/f(:,k))
   end do
-  write(6,*)' in normal_new_factorization_rf_z, min,max(diag)=',minval(diag),maxval(diag)
+
+  write(6,*)'in normal_new_factorization_rf_z, min,max(diag)=',minval(diag),maxval(diag)
 
 end subroutine normal_new_factorization_rf_z
 
@@ -2467,8 +2490,9 @@ subroutine hybrid_ensemble_setup
 
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: aniso_a_en,generate_ens,n_ens,&
-                      beta1_inv,s_ens_h,s_ens_v,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
-                      grd_ens,grd_loc,grd_a1,grd_e1,grd_anl,sp_ens,p_e2a,dual_res,uv_hyb_ens
+                      beta1_inv,s_ens_h,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
+                      grd_ens,grd_loc,grd_a1,grd_e1,grd_anl,sp_ens,p_e2a,dual_res,uv_hyb_ens,&
+		      s_ens_vv,s_ens_hv,s_ens_h,s_ens_v,create_hybens_localization_parameters
   use gridmod,only: regional,nsig,nlon,nlat,rlats,rlons
   use hybrid_ensemble_isotropic_regional, only: create_ensemble,load_ensemble, &
          init_rf_x,init_rf_y,init_rf_z,&
@@ -2477,13 +2501,14 @@ subroutine hybrid_ensemble_setup
   use general_specmod, only: general_init_spec_vars
   use egrid2agrid_mod,only: g_create_egrid2agrid
   use mpimod, only: mype,ierror,npe
+  use constants, only: one,zero
   use hybrid_ensemble_isotropic_global, only: init_sf_xy
 
   implicit none
 
-  real(r_kind) s_ens_h_gu_x,s_ens_h_gu_y
+  real(r_kind) s_ens_h_gu_x,s_ens_h_gu_y,hmax,hmin
   integer(i_kind) inner_vars,num_fields
-  integer(i_kind) nord_e2a
+  integer(i_kind) nord_e2a,k
   logical,allocatable::vector(:)
 
              nord_e2a=4       !   soon, move this to hybrid_ensemble_parameters
@@ -2527,10 +2552,46 @@ subroutine hybrid_ensemble_setup
                                nord_e2a,p_e2a)
   end if
     
+!     3. set up localization parameters as function of level
 
-!     3.  set up localization filters
+  call create_hybens_localization_parameters
 
-  call init_rf_z(s_ens_v)
+  if(s_ens_h <= zero) then
+
+!    read in horizontal localization lengths which depend on model vertical level:
+!
+! ????????????? Daryl, I left this for you, unless you want me to do this.  I understand
+! ????????????? you have some code now to read in 3d fields of vertical and horizontal
+! ????????????? localization lengths.
+
+!!!!!!!!!!!!!! following for test, linear variation from 300km to 5500km
+     hmin=300._r_kind     !  too small I think for jcap_in=62, so will test lower bound
+     hmax=5501._r_kind    ! slightly too large to test upper bound
+     do k=1,grd_ens%nsig
+        s_ens_hv(k)=hmin+(hmax-hmin)*(k-one)/(grd_ens%nsig-one)
+     end do
+
+     hmin=0.5_r_kind     !  too small I think for jcap_in=62, so will test lower bound
+     hmax=4.5_r_kind      ! slightly too large to test upper bound
+     do k=1,grd_ens%nsig
+        s_ens_vv(k)=hmin+(hmax-hmin)*(k-one)/(grd_ens%nsig-one)
+     end do
+
+!!!!!!!!!!!!!! preceding for test, linear variation from 300km to 5500km
+
+  else
+
+!          assign all levels to same value, s_ens_h  (ran with this on 20100702 and reproduced results from
+!                                                      rungsi62_hyb_dualres.sh)
+
+     s_ens_hv=s_ens_h
+     s_ens_vv=s_ens_v
+
+  end if
+
+!     4.  set up localization filters
+
+  call init_rf_z(s_ens_vv)
   call normal_new_factorization_rf_z
 
   if(regional) then

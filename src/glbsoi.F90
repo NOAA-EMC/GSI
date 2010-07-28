@@ -123,7 +123,7 @@ subroutine glbsoi(mype)
   use strong_fast_global_mod, only: init_strongvars_2
   use observermod, only: observer_init,observer_set,observer_finalize,ndata
   use timermod, only: timer_ini, timer_fnl
-  use hybrid_ensemble_parameters, only: l_hyb_ens
+  use hybrid_ensemble_parameters, only: l_hyb_ens,destroy_hybens_localization_parameters
   use hybrid_ensemble_isotropic_regional, only: create_ensemble,load_ensemble
 
   implicit none
@@ -301,6 +301,8 @@ subroutine glbsoi(mype)
      call destroy_balance_vars
      if (norsp > 0) call destroy_smooth_polcas
   endif
+
+  if (l_hyb_ens) call destroy_hybens_localization_parameters
 
 ! Write updated bias correction coefficients
   if (.not.twodvar_regional) then
