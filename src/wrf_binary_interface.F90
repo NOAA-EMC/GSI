@@ -27,6 +27,8 @@ subroutine convert_binary_mass
 !   2006-09-15  treadon - use nhr_assimilation to build local guess filename
 !   2007-04-12  parrish - add modifications to allow any combination of ikj or ijk
 !                          grid ordering for input 3D fields
+!   2010-06-24  Hu  - bug fix: replace XICE with SEAICE
+!   2010-06-24  Hu  - add code to read 5 cloud/hydrometeor variables for cloud analysis
 !
 !   input argument list:
 !
@@ -85,6 +87,7 @@ subroutine convert_binary_mass
   use kinds, only: r_single,i_llong,i_kind
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   implicit none
 
 ! Declare local parameters
@@ -255,6 +258,7 @@ subroutine convert_binary_mass
   rad2deg_single=r45/atan(one_single)
   call retrieve_index(index,'XLAT',varname_all,nrecs)
   if(index<0) stop
+  n_position=file_offset(index+1)
   call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
                                start_byte(index+1),end_byte(index+1))
 
@@ -267,11 +271,12 @@ subroutine convert_binary_mass
   write(6,*)' convert_binary_mass: xlat(1,nlat),xlat(nlon,nlat)=', &
        field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
   field2=field2/rad2deg_single
-  write(lendian_out)field2,field2b     !  XLAT,DX_MC
+  write(lendian_out)field2,field2b,n_position     !  XLAT,DX_MC
 
 !                  XLONG
   call retrieve_index(index,'XLONG',varname_all,nrecs)
   if(index<0) stop
+  n_position=file_offset(index+1)
   call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
                                start_byte(index+1),end_byte(index+1))
 
@@ -285,7 +290,7 @@ subroutine convert_binary_mass
        field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
   field2=field2/rad2deg_single
 
-  write(lendian_out)field2,field2c     !  XLONG,DY_MC
+  write(lendian_out)field2,field2c,n_position     !  XLONG,DY_MC
 
   write(lendian_out) wrfges
 
@@ -361,7 +366,7 @@ subroutine convert_binary_mass
   write(lendian_out)n_position     !  LANDMASK  (1=land, 0=water)
 
 !                   XICE                
-  call retrieve_index(index,'XICE',varname_all,nrecs)
+  call retrieve_index(index,'SEAICE',varname_all,nrecs)
   if(index<0) stop
   n_position=file_offset(index+1)
 
@@ -469,6 +474,51 @@ subroutine convert_binary_mass
 
   write(lendian_out)n_position     !  TSK
 
+  if(l_cloud_analysis) then
+!      QCLOUD
+     call retrieve_index(index,'QCLOUD',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, memoryorder for QCLOUD(',k,' = ',n_position,memoryorder_all(index)
+     write(lendian_out)n_position,memoryorder_all(index)    ! offset for QCLOUD(k)
+
+!      QRAIN
+     call retrieve_index(index,'QRAIN',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, memoryorder for QRAIN(',k,' = ',n_position,memoryorder_all(index)
+     write(lendian_out)n_position,memoryorder_all(index)    ! offset for QRAIN(k)
+
+!      QICE
+     call retrieve_index(index,'QICE',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, memoryorder for QICE(',k,' = ',n_position,memoryorder_all(index)
+     write(lendian_out)n_position,memoryorder_all(index)    ! offset for QICE(k)
+
+!      QSNOW
+     call retrieve_index(index,'QSNOW',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, memoryorder for QSNOW(',k,' = ',n_position,memoryorder_all(index)
+     write(lendian_out)n_position,memoryorder_all(index)    ! offset for QSNOW(k)
+
+!      QGRAUP
+     call retrieve_index(index,'QGRAUP',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, memoryorder for QGRAUP(',k,' = ',n_position,memoryorder_all(index)
+     write(lendian_out)n_position,memoryorder_all(index)    ! offset for QGRAUP(k)
+
+!      RAD_TTEN_DFI
+     call retrieve_index(index,'RAD_TTEN_DFI',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, memoryorder for RAD_TTEN_DFI(',k,' = ',n_position,memoryorder_all(index)
+     write(lendian_out)n_position,memoryorder_all(index)    ! offset for RAD_TTEN_DFI(k)
+
+  endif     ! l_cloud_analysis
+
 !??????????????????/later put in z0 here, but for now just fill with something
   call retrieve_index(index,'TSK',varname_all,nrecs)
   call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
@@ -494,7 +544,7 @@ subroutine convert_binary_mass
   write(6,*)' convert_binary_mass: max,min LANDMASK=', &
        maxval(field2),minval(field2)
   write(lendian_out)field2        !  LANDMASK
-  call retrieve_index(index,'XICE',varname_all,nrecs)
+  call retrieve_index(index,'SEAICE',varname_all,nrecs)
   call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
                                start_byte(index+1),end_byte(index+1))
   write(6,*)' convert_binary_mass: max,min XICE=', &

@@ -329,7 +329,7 @@ update_geswtend.o : update_geswtend.f90 gsi_bundlemod.o compact_diffs.o guess_gr
 update_guess.o : update_guess.f90 mpeu_util.o gsi_chemtracer_mod.o gsi_bundlemod.o bias_predictors.o m_gsiBiases.o pcpinfo.o radinfo.o gsi_4dvar.o xhat_vordivmod.o state_vectors.o guess_grids.o gridmod.o jfunc.o constants.o mpimod.o kinds.o 
 ut_gsibundle.o : ut_gsibundle.F90 m_rerank.o gsi_bundlemod.o constants.o kinds.o 
 wind_fft.o : wind_fft.f90 constants.o kinds.o 
-wrf_binary_interface.o : wrf_binary_interface.F90 nemsio_module.o constants.o gsi_io.o gsi_4dvar.o kinds.o 
+wrf_binary_interface.o : wrf_binary_interface.F90 nemsio_module.o constants.o rapidrefresh_cldsurf_mod.o gsi_io.o gsi_4dvar.o kinds.o 
 wrf_netcdf_interface.o : wrf_netcdf_interface.F90 
 write_all.o : write_all.F90 ncepgfs_io.o regional_io.o gsi_io.o m_gsiBiases.o guess_grids.o jfunc.o constants.o gridmod.o mpimod.o kinds.o 
 write_bkgvars_grid.o : write_bkgvars_grid.f90 berror.o control_vectors.o mpimod.o gridmod.o constants.o kinds.o 
