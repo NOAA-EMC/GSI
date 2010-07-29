@@ -51,7 +51,7 @@ module hybrid_ensemble_parameters
 !            the actual stored size is one 3D grid.
 !
 !   Conversion from x1,a to x is implemented by  subroutine ensemble_forward_model, 
-!                located in file hybrid_ensemble_isotropic_regional.f90
+!                located in file hybrid_ensemble_isotropic.f90
 !
 !
 !  A = diag(S,S,...,S) is a block diagonal matrix, and each S is a correlation matrix, applied

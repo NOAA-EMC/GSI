@@ -93,7 +93,7 @@ subroutine compute_derived(mype,init_pass)
   use mod_strong, only: jcstrong,baldiag_full
   use obsmod, only: write_diag,lobserver
   use hybrid_ensemble_parameters, only: l_hyb_ens,generate_ens
-  use hybrid_ensemble_isotropic_regional, only: rescale_ensemble_rh_perturbations
+  use hybrid_ensemble_isotropic, only: rescale_ensemble_rh_perturbations
 
   use constants, only: zero,one,one_tenth,half,fv
 

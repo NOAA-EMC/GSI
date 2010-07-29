@@ -124,7 +124,7 @@ subroutine glbsoi(mype)
   use observermod, only: observer_init,observer_set,observer_finalize,ndata
   use timermod, only: timer_ini, timer_fnl
   use hybrid_ensemble_parameters, only: l_hyb_ens,destroy_hybens_localization_parameters
-  use hybrid_ensemble_isotropic_regional, only: create_ensemble,load_ensemble
+  use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble
 
   implicit none
 
@@ -146,7 +146,7 @@ subroutine glbsoi(mype)
 
 ! If l_hyb_ens is true, then initialize machinery for hybrid ensemble 3dvar
   if(l_hyb_ens) then
-     call hybrid_ensemble_setup
+     call hybens_grid_setup
   end if
 
 ! Initialize observer
@@ -201,6 +201,7 @@ subroutine glbsoi(mype)
   if(l_hyb_ens) then
      call create_ensemble
      call load_ensemble
+     call hybens_localization_setup
   end if
 
 ! Read output from previous min.

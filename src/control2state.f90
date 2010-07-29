@@ -44,7 +44,7 @@ use gridmod, only: latlon1n,latlon11
 use jfunc, only: nsclen,npclen,nrclen
 use hybrid_ensemble_parameters, only: l_hyb_ens,uv_hyb_ens,dual_res
 use balmod, only: strong_bk
-use hybrid_ensemble_isotropic_regional, only: ensemble_forward_model,ensemble_forward_model_dual_res
+use hybrid_ensemble_isotropic, only: ensemble_forward_model,ensemble_forward_model_dual_res
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
