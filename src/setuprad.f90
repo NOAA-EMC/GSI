@@ -100,6 +100,7 @@
 !   2010-05-19  todling - revisit intrppx CO2 handle
 !   2010-06-10  todling - reduce pointer check by getting CO2 pointer at this level
 !                       - start adding hooks of aerosols influence on RTM
+!   2010-07-16  yan     - update qaulity control of mw water vapor sounding channels (amsu-b and mhs)
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -1778,17 +1779,18 @@
 
 !          Generate q.c. bounds and modified variances.
            do i=1,nchanl
-
+              if ((mhs .or. amsub) .and. i >= 3 .and. varinv(i) > tiny_r_kind) then  ! wv sounding channels
+                 if (abs(tbc(i)) >= two) varinv(i) = zero
+              else   ! other channels or other sensors
 !             Modify error based on transmittance at top of model
-              varinv(i)=vfact*varinv(i)*ptau5(nsig,i)
-              errf(i)=efact*errf(i)*ptau5(nsig,i)
-
-              if(varinv(i)>tiny_r_kind)then
-                 dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
-                 term=dtbf*dtbf
-                 if(term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+                  varinv(i)=vfact*varinv(i)*ptau5(nsig,i)
+                  errf(i)=efact*errf(i)*ptau5(nsig,i)
+                  if(varinv(i)>tiny_r_kind)then
+                     dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
+                     term=dtbf*dtbf
+                     if(term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+                  end if
               end if
-            
            end do
 
 !       End of AMSU-B QC block
