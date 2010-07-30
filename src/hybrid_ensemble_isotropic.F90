@@ -183,7 +183,6 @@ subroutine init_rf_z(z_len)
   use constants, only: half,one,rd_over_cp,zero
   use hybrid_ensemble_parameters, only: grd_ens,s_ens_v
 
-!!  real(r_kind),intent(in   ) :: z_len
   real(r_kind)   ,intent(in) :: z_len(grd_ens%nsig)
 
   integer(i_kind) k,km,kp,nxy,i
@@ -228,36 +227,27 @@ subroutine init_rf_z(z_len)
        end do
 
 ! Start with assuming no localization
-       d1=float(nsig)**2. ; d2=float(nsig)**2.
-
        do k=1,nsig
+         d1=float(nsig)**2. ; d2=float(nsig)**2.
 ! Search downward from k for dlnp difference larger than specified parameter
           if(k.gt.1) then
             do km=k-1,1,-1
-               dlnp=abs(lnp_layer(k)-lnp_layer(km))
-!!	  if(mype==0) then
-!!	     write(400,*) 'k,km,dlnp = ',k,km,dlnp
-!!	  end if
+               dlnp=abs(lnp_layer(km)-lnp_layer(k))
                if (dlnp.ge.abs(z_len(k))) then
-                  d1=float(abs(km-k))**2.
+                  d1=(float(km-k))**2.
                   exit
                end if
              end do
 	  end if
 	
-
 ! Search upward from k for dlnp difference larger than specified parameter
 	   if (k.lt.nsig) then
              do kp=k+1,nsig,1
                 dlnp=abs(lnp_layer(k)-lnp_layer(kp))
                 if (dlnp.ge.abs(z_len(k))) then
-                  d2=float(abs(kp-k))**2.
+                  d2=(float(kp-k))**2.
                   exit
                 end if
-
-!!          if(mype==0) then
-!!             write(401,*) 'k,km,dlnp,lnp_layerk,kp = ',k,kp,dlnp,lnp_layer(k),lnp_layer(kp)
-!!          end if
 
              end do
 	   end if
@@ -265,7 +255,7 @@ subroutine init_rf_z(z_len)
 ! Set aspect (localization distance in grid units squared) based on minimum of up/down searches
            aspect(k)=min(d1,d2)
 
-!!         if(mype == 0) write(6,'(" k, vertical localization in grid units for ln(p) scaling =",i4,f10.2,f10.2,f10.2)') &
+!!         if(mype == 0) write(400,'(" k, vertical localization in grid units for ln(p) scaling =",i4,f10.2,f10.2,f10.2)') &
 !!                                         k,sqrt(aspect(k))
 	end do
 
@@ -2781,14 +2771,10 @@ subroutine hybens_grid_setup
 !$$$
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: aniso_a_en,generate_ens,n_ens,&
-                      beta1_inv,s_ens_h,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
-                      grd_ens,grd_loc,grd_a1,grd_e1,grd_anl,sp_ens,p_e2a,dual_res,uv_hyb_ens,&
-		      s_ens_vv,s_ens_hv,s_ens_h,s_ens_v,create_hybens_localization_parameters
+                      s_ens_h,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
+                      grd_ens,grd_loc,grd_a1,grd_e1,grd_anl,sp_ens,p_e2a,&
+                      dual_res,uv_hyb_ens
   use gridmod,only: regional,nsig,nlon,nlat,rlats,rlons
-  use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble, &
-         init_rf_x,init_rf_y,init_rf_z,&
-         normal_new_factorization_rf_z,normal_new_factorization_rf_x,&
-	 normal_new_factorization_rf_y,init_sf_xy
   use general_sub2grid_mod, only: general_sub2grid_create_info
   use general_specmod, only: general_init_spec_vars
   use egrid2agrid_mod,only: g_create_egrid2agrid
@@ -2846,65 +2832,80 @@ subroutine hybens_grid_setup
 end subroutine hybens_grid_setup
 
 subroutine hybens_localization_setup
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    hybens_localization_setup   setup for hybrid localization
+!   prgmmr: kleist          org: np22                date: 2010-07-30
+!
+! abstract: setup arrays used for control variable localization
+!
+! program history log:
+!   2010-07-30  kleist
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: aniso_a_en,generate_ens,n_ens,&
-                      beta1_inv,s_ens_h,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
-                      grd_ens,grd_loc,grd_a1,grd_e1,grd_anl,sp_ens,p_e2a,dual_res,uv_hyb_ens,&
-                      s_ens_vv,s_ens_hv,s_ens_h,s_ens_v,create_hybens_localization_parameters
-  use gridmod,only: regional,nsig,nlon,nlat,rlats,rlons
-  use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble, &
-         init_rf_x,init_rf_y,init_rf_z,&
+  use hybrid_ensemble_parameters, only: grd_ens,s_ens_v,jcap_ens,s_ens_vv,&
+	 s_ens_h,s_ens_hv,create_hybens_localization_parameters
+  use gridmod,only: regional
+  use hybrid_ensemble_isotropic, only: init_rf_x,init_rf_y,init_rf_z,&
          normal_new_factorization_rf_z,normal_new_factorization_rf_x,&
          normal_new_factorization_rf_y,init_sf_xy
   use constants, only: one,zero
   use mpimod, only: mype
   implicit none
 
-  real(r_kind) s_ens_h_gu_x,s_ens_h_gu_y,hmax,hmin
-  integer k    
+  character(len=40)  :: fname = 'hybens_locinfo'
+  integer(i_kind) k,msig,istat
+  integer(i_kind)    :: lunin = 47
+  logical            :: lexist
+  real(r_kind) s_ens_h_gu_x,s_ens_h_gu_y
 
-!     3. set up localization parameters as function of level
-
+! Allocate
   call create_hybens_localization_parameters
 
+! Set up localization parameters as function of level
+
+! if horizontal parameter is set <= 0, read in k-levels of localization parameters
   if(s_ens_h <= zero) then
 
-
-!!!!!!!!!!!!!! following for test, linear variation from 300km to 5500km
-     hmin=300._r_kind     !  too small I think for jcap_in=62, so will test lower bound
-     hmax=5501._r_kind    ! slightly too large to test upper bound
-     do k=1,grd_ens%nsig
-        s_ens_hv(k)=hmin+(hmax-hmin)*(k-one)/(grd_ens%nsig-one)
-     end do
-
-     hmin=1.5_r_kind     !  too small I think for jcap_in=62, so will test lower bound
-     hmax=1.5_r_kind      ! slightly too large to test upper bound
-     do k=1,grd_ens%nsig
-        s_ens_vv(k)=hmin+(hmax-hmin)*(k-one)/(grd_ens%nsig-one)
-     end do
-
-     if(mype==0) then
+!   Check the status of input file
+    inquire(file=trim(fname),exist=lexist)
+    if ( lexist ) then
+       open(lunin,file=trim(fname),form='formatted')
+       rewind(lunin)
+       read(lunin,100,iostat=istat) msig
+       if ( msig /= grd_ens%nsig ) then
+          write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** error in ',trim(fname)
+          write(6,*) 'HYBENS_LOCALIZATION_SETUP:  levels do not match,msig[read in],nsig[defined] = ',msig,grd_ens%nsig
+          close(lunin)
+          call stop2(123)
+       endif
        do k=1,grd_ens%nsig
-         write(300,512) s_ens_hv(k),s_ens_vv(k)
+         read(lunin,101) s_ens_hv(k),s_ens_vv(k)
        end do
-       close(300)
-     end if
-
- 512 format(F8.1,3x,F5.1)
-
-!!!!!!!!!!!!!! preceding for test, linear variation from 300km to 5500km
+       close(lunin)
+    else 
+      write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** INPUT FILE MISSING -- ',trim(fname)
+    end if 
+ 100 format(I4)
+ 101 format(F8.1,3x,F5.1)
 
   else
-
 !          assign all levels to same value, s_ens_h  (ran with this on 20100702 and reproduced results from
 !                                                      rungsi62_hyb_dualres.sh)
-
      s_ens_hv=s_ens_h
      s_ens_vv=s_ens_v
-
   end if
 
-!     4.  set up localization filters
+! Set up localization filters
 
   call init_rf_z(s_ens_vv)
   call normal_new_factorization_rf_z
@@ -2916,7 +2917,6 @@ subroutine hybens_localization_setup
      call normal_new_factorization_rf_x
      call init_rf_y(s_ens_h_gu_y)
      call normal_new_factorization_rf_y
- 
   else
      call init_sf_xy(jcap_ens)
   end if
