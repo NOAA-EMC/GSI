@@ -38,6 +38,10 @@ subroutine prewgt_reg(mype)
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !   2010-06-01  todling - rename as,tsfc_sdv to as2d,as3d,atsfc_sdv (alloc now)
 !   2010-06-03  todling - protect dssvs w/ mvars check
+!   2010-07-31  parrish - replace mpi_allreduce used for getting ozone background error with
+!                          mpl_allreduce, and introduce r_quad arithmetic to remove dependency of
+!                          results on number of tasks.  This is the same strategy currently used
+!                          in dot_product (see control_vectors.f90).
 !
 !   input argument list:
 !     mype     - pe number
@@ -57,7 +61,7 @@ subroutine prewgt_reg(mype)
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !$$$
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_quad
   use balmod, only: rllat,rllat1,llmin,llmax
   use berror, only: dssvs,&
        bw,ny,nx,dssv,vs,be,ndeg,&
@@ -70,10 +74,11 @@ subroutine prewgt_reg(mype)
   use control_vectors, only: cvars => nrf_var
   use gridmod, only: lon2,lat2,nsig,nnnn1o,regional_ozone,&
        region_dx,region_dy,nlon,nlat,istart,jstart,region_lat
-  use constants, only: ione,zero,half,one,two,four,rad2deg
+  use constants, only: ione,zero,half,one,two,four,rad2deg,zero_quad
   use guess_grids, only: ges_prslavg,ges_psfcavg,ges_oz
   use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_wgt_reg
   use mpeu_util, only: getindex
+  use mpl_allreducemod, only: mpl_allreduce
 
   implicit none
 
@@ -91,7 +96,7 @@ subroutine prewgt_reg(mype)
 
 ! Declare local variables
   integer(i_kind) k,i,ii
-  integer(i_kind) n,nn
+  integer(i_kind) n,nn,nsig180
   integer(i_kind) j,k1,loc,kb,mm1,ix,jl,il
   integer(i_kind) inerr,l,lp,l2
   integer(i_kind) msig,mlat              ! stats dimensions
@@ -112,7 +117,9 @@ subroutine prewgt_reg(mype)
   real(r_kind),allocatable,dimension(:,:):: corp, hwllp
   real(r_kind),allocatable,dimension(:,:,:):: corz, hwll, vz
   real(r_kind),allocatable,dimension(:,:,:,:)::sli
-  real(r_kind),dimension(180,nsig):: ozmz,ozmzt,cnt,cntt
+  real(r_quad),dimension(180,nsig):: ozmz,cnt
+  real(r_quad),dimension(180*nsig):: ozmz0,cnt0
+  real(r_kind),dimension(180,nsig):: ozmzt,cntt
 
 ! Initialize local variables
 !  do j=1,nx
@@ -158,8 +165,8 @@ subroutine prewgt_reg(mype)
      enddo kb_loop
      mm1=mype+1
 
-     ozmz=zero
-     cnt=zero
+     ozmz=zero_quad
+     cnt=zero_quad
      do k=1,nsig
         do j=2,lon2-1
            jl=j+jstart(mm1)-2_i_kind
@@ -173,8 +180,25 @@ subroutine prewgt_reg(mype)
            end do
         end do
      end do
-     call mpi_allreduce(ozmz,ozmzt,nsig*180,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
-     call mpi_allreduce(cnt,cntt,nsig*180,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
+     i=0
+     do k=1,nsig
+        do ix=1,180
+           i=i+1
+           ozmz0(i)=ozmz(ix,k)
+           cnt0(i)=cnt(ix,k)
+        end do
+     end do
+     nsig180=180*nsig
+     call mpl_allreduce(nsig180,qpvals=ozmz0)
+     call mpl_allreduce(nsig180,qpvals=cnt0)
+     i=0
+     do k=1,nsig
+        do ix=1,180
+           i=i+1
+           ozmzt(ix,k)=ozmz0(i)
+           cntt(ix,k)=cnt0(i)
+        end do
+     end do
      do k=1,nsig
         do i=1,180
            if(cntt(i,k)>zero) ozmzt(i,k)=sqrt(ozmzt(i,k)/cntt(i,k))
