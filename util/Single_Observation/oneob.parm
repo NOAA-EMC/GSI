@@ -1,0 +1,4 @@
+ &SETUP
+   oneob_type='t',oblat=26,oblon=-90,obpres=850.,ob1=30.,ob2=0.,
+	obhourset=0,oberror=1,idate=2008091200,
+/
