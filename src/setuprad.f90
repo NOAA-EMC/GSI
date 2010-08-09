@@ -100,7 +100,10 @@
 !   2010-05-19  todling - revisit intrppx CO2 handle
 !   2010-06-10  todling - reduce pointer check by getting CO2 pointer at this level
 !                       - start adding hooks of aerosols influence on RTM
-!   2010-07-16  yan     - update qaulity control of mw water vapor sounding channels (amsu-b and mhs)
+!   2010-07-16  yan     - update quality control of mw water vapor sounding channels (amsu-b and mhs)
+!                       - add a new input (tbc) to in call qcssmi(..) and
+!                         remove 'ssmis_uas,ssmis_las,ssmis_env,ssmis_img' in call qcssmi(..)
+!                         Purpose: to keep the consistent changes with qcssmi.f90
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -2065,8 +2068,7 @@
            call qcssmi(nchanl, &
                 zsges,luse(n),sea,ice,snow,mixed, &
                 ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl, &
-                tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
-                ssmis_uas,ssmis_las,ssmis_env,ssmis_img, &
+                tbc,tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
                 varinv,errf,aivals(1,is),id_qc)
 
 !  ---------- SSU  -------------------
