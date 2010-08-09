@@ -44,6 +44,8 @@ subroutine read_wrf_mass_binary_guess(mype)
 !   2007-04-12  parrish - add modifications to allow any combination of ikj or ijk
 !                          grid ordering for input 3D fields
 !   2008-04-16  safford - rm unused uses
+!   2010-06-24  hu     - add code to read in cloud/hydrometeor fields
+!                             and distributed them to all processors
 !
 !   input argument list:
 !     mype     - pe number
@@ -72,10 +74,13 @@ subroutine read_wrf_mass_binary_guess(mype)
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen
+  use guess_grids, only: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg,   &
+       ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,eta1_ll,pt_ll,itotsub,aeta1_ll
   use constants, only: izero,ione,zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300
   use gsi_io, only: lendian_in
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   implicit none
 
 ! Declare passed variables
@@ -125,6 +130,8 @@ subroutine read_wrf_mass_binary_guess(mype)
   integer(i_long) dummy9(9)
   real(r_single) pt_regional_single
   real(r_kind):: work_prsl,work_prslk
+  integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_xlon,i_xlat,i_tt,ktt
+
 
   integer(i_kind) iadd
   character(132) memoryorder
@@ -151,7 +158,8 @@ subroutine read_wrf_mass_binary_guess(mype)
      if(mype==izero) write(6,*)' in read_wrf_mass_binary_guess, im,jm,lm=',im,jm,lm
 
 !    Following is for convenient WRF MASS input
-     num_mass_fields=21_i_kind+5_i_kind*lm+2_i_kind
+     num_mass_fields=21_i_kind+5_i_kind*lm+2_i_kind+2_i_kind
+     if(l_cloud_analysis) num_mass_fields=21_i_kind+5_i_kind*lm+2_i_kind+2_i_kind+6_i_kind*lm+2_i_kind
      num_loc_groups=num_mass_fields/npe
      if(mype==izero) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
      if(mype==izero) write(6,'(" at 1 in read_wrf_mass_guess, num_mass_fields=",i6)')num_mass_fields
@@ -184,14 +192,34 @@ subroutine read_wrf_mass_binary_guess(mype)
         if(mype == izero) write(6,*)'READ_WRF_MASS_OFFSET_FILE:  open lendian_in=',lendian_in,' to file=',filename
         read(lendian_in) dummy9,pt_regional_single
         write(6,*)'READ_WRF_MASS_BINARY_GUESS:  dummy9=',dummy9
-        do iskip=2,5
-           read(lendian_in)
-        end do
+
+! for cloud analysis
+        if(l_cloud_analysis) then
+           i=izero
+           allocate(tempa(nlon_regional,nlat_regional))
+           do iskip=2,3
+              read(lendian_in)
+           end do
+           i=i+ione ; i_xlat=i                                                ! xlat
+           read(lendian_in) tempa,tempa,n_position
+           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=ione
+           if(mype == izero) write(6,*)' xlat, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+ 
+           i=i+ione ; i_xlon=i                                                ! xlon
+           read(lendian_in) tempa,tempa,n_position
+           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=ione
+           if(mype == izero) write(6,*)' xlon, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+           deallocate(tempa)
+        else
+           do iskip=2,5
+              read(lendian_in)
+           end do
+           i=izero
+        endif
         read(lendian_in) wrfges
         read(lendian_in) ! n_position          !  offset for START_DATE record
         write(6,*)'READ_WRF_MASS_BINARY_GUESS:  read wrfges,n_position= ',wrfges,' ',n_position
         
-        i=izero
         i=i+ione ; i_mub=i                                                ! mub
         read(lendian_in) n_position
         offset(i)=n_position ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=ione
@@ -382,6 +410,107 @@ subroutine read_wrf_mass_binary_guess(mype)
         offset(i)=n_position ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=ione
         if(mype == izero) write(6,*)' tsk i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
+! for cloud array
+        if(l_cloud_analysis) then
+
+           i_qc=i+ione
+           read(lendian_in) n_position,memoryorder
+           do k=1,lm
+              i=i+ione                                                       ! qc(k)
+              if(trim(memoryorder)=='XZY') then
+                 iadd=izero
+                 kord(i)=lm
+              else
+                 iadd=(k-ione)*im*jm*4
+                 kord(i)=ione
+              end if
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
+              if(mype == izero.and.k==ione) write(6,*)' qc i,igtype(i),offset(i),kord(i) = ', &
+                                                              i,igtype(i),offset(i),kord(i)
+           end do
+  
+           i_qr=i+ione
+           read(lendian_in) n_position,memoryorder
+           do k=1,lm
+              i=i+ione                                                       ! qr(k)
+              if(trim(memoryorder)=='XZY') then
+                 iadd=izero
+                 kord(i)=lm
+              else
+                 iadd=(k-ione)*im*jm*4
+                 kord(i)=ione
+              end if
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
+              if(mype == izero.and.k==ione) write(6,*)' qr i,igtype(i),offset(i),kord(i) = ', &
+                                                              i,igtype(i),offset(i),kord(i)
+           end do
+  
+           i_qi=i+ione
+           read(lendian_in) n_position,memoryorder
+           do k=1,lm
+              i=i+ione                                                       ! qi(k)
+              if(trim(memoryorder)=='XZY') then
+                 iadd=izero
+                 kord(i)=lm
+              else
+                 iadd=(k-ione)*im*jm*4
+                 kord(i)=ione
+              end if
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
+              if(mype == izero.and.k==ione) write(6,*)' qi i,igtype(i),offset(i),kord(i) = ', &
+                                                              i,igtype(i),offset(i),kord(i)
+           end do
+  
+           i_qs=i+ione
+           read(lendian_in) n_position,memoryorder
+           do k=1,lm
+              i=i+ione                                                       ! qs(k)
+              if(trim(memoryorder)=='XZY') then
+                 iadd=izero
+                 kord(i)=lm
+              else
+                 iadd=(k-ione)*im*jm*4
+                 kord(i)=ione
+              end if
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
+              if(mype == izero.and.k==ione) write(6,*)' qs i,igtype(i),offset(i),kord(i) = ', &
+                                                              i,igtype(i),offset(i),kord(i)
+           end do
+  
+           i_qg=i+ione
+           read(lendian_in) n_position,memoryorder
+           do k=1,lm
+              i=i+ione                                                       ! qg(k)
+              if(trim(memoryorder)=='XZY') then
+                 iadd=izero
+                 kord(i)=lm
+              else
+                 iadd=(k-ione)*im*jm*4
+                 kord(i)=ione
+              end if
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
+              if(mype == izero.and.k==ione) write(6,*)' qg i,igtype(i),offset(i),kord(i) = ', &
+                                                              i,igtype(i),offset(i),kord(i)
+           end do
+  
+           i_tt=i+ione
+           read(lendian_in) n_position,memoryorder
+           do k=1,lm
+              i=i+ione                                                       ! tt(k)
+              if(trim(memoryorder)=='XZY') then
+                 iadd=izero
+                 kord(i)=lm
+              else
+                 iadd=(k-ione)*im*jm*4
+                 kord(i)=ione
+              end if
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
+              if(mype == izero.and.k==ione) write(6,*)' tt i,igtype(i),offset(i),kord(i) = ', &
+                                                              i,igtype(i),offset(i),kord(i)
+           end do
+  
+        endif
+
         close(lendian_in)
         
 !    End of stuff from MASS restart file
@@ -516,6 +645,82 @@ subroutine read_wrf_mass_binary_guess(mype)
            deallocate(jbuf)
         end if
 
+! for cloud analysis
+        if(l_cloud_analysis) then
+!                                    read qc
+           if(kord(i_qc)/=ione) then
+              allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+              this_offset=offset(i_qc)+(jbegin(mype)-ione)*4*im*lm
+              this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+              call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
+                                  mpi_integer,status,ierror)
+              call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qc,i_qc+lm-ione)
+              deallocate(jbuf)
+           end if
+
+!                                    read qr
+           if(kord(i_qr)/=ione) then
+              allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+              this_offset=offset(i_qr)+(jbegin(mype)-ione)*4*im*lm
+              this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+              call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
+                                  mpi_integer,status,ierror)
+              call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qr,i_qr+lm-ione)
+              deallocate(jbuf)
+           end if
+
+!                                    read qi
+           if(kord(i_qi)/=ione) then
+              allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+              this_offset=offset(i_qi)+(jbegin(mype)-ione)*4*im*lm
+              this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+              call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
+                                  mpi_integer,status,ierror)
+              call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qi,i_qi+lm-ione)
+              deallocate(jbuf)
+           end if
+
+!                                    read qs
+           if(kord(i_qs)/=ione) then
+              allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+              this_offset=offset(i_qs)+(jbegin(mype)-ione)*4*im*lm
+              this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+              call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
+                                  mpi_integer,status,ierror)
+              call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qs,i_qs+lm-ione)
+              deallocate(jbuf)
+           end if
+
+!                                    read qg
+           if(kord(i_qg)/=ione) then
+              allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+              this_offset=offset(i_qg)+(jbegin(mype)-ione)*4*im*lm
+              this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+              call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
+                                  mpi_integer,status,ierror)
+              call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qg,i_qg+lm-ione)
+              deallocate(jbuf)
+           end if
+
+!                                    read tt  radar temperature tendency
+           if(kord(i_tt)/=ione) then
+              allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+              this_offset=offset(i_tt)+(jbegin(mype)-ione)*4*im*lm
+              this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+              call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
+                                  mpi_integer,status,ierror)
+              call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_tt,i_tt+lm-ione)
+              deallocate(jbuf)
+           end if
+
+        endif  ! l_cloud_analysis
+
 !---------------------- read surface files last
         do k=kbegin(mype),kend(mype)
            if(kdim(k)==ione.or.kord(k)==ione) then
@@ -560,7 +765,15 @@ subroutine read_wrf_mass_binary_guess(mype)
         kq=i_q-ione
         ku=i_u-ione
         kv=i_v-ione
-        
+! hydrometeors
+        if(l_cloud_analysis) then
+           kqc=i_qc-ione
+           kqr=i_qr-ione
+           kqs=i_qs-ione
+           kqi=i_qi-ione
+           kqg=i_qg-ione
+           ktt=i_tt-ione
+        endif
 !             wrf pressure variable is dry air partial pressure--need to add water vapor contribution
 !              so accumulate 1 + total water vapor to use as correction factor
 
@@ -571,6 +784,15 @@ subroutine read_wrf_mass_binary_guess(mype)
            kq=kq+ione
            ku=ku+ione
            kv=kv+ione
+! hydrometeors
+           if(l_cloud_analysis) then
+              kqc=kqc+ione
+              kqr=kqr+ione
+              kqs=kqs+ione
+              kqi=kqi+ione
+              kqg=kqg+ione
+              ktt=ktt+ione
+           endif
            do i=1,lon2
               do j=1,lat2
                  ges_u(j,i,k,it) = all_loc(j,i,ku)
@@ -583,6 +805,15 @@ subroutine read_wrf_mass_binary_guess(mype)
 
 !                Add offset to get guess potential temperature
                  ges_pot(j,i,k)  = all_loc(j,i,kt) + h300
+! hydrometeors
+                 if(l_cloud_analysis) then
+                    ges_qc(j,i,k,it) = all_loc(j,i,kqc)
+                    ges_qi(j,i,k,it) = all_loc(j,i,kqi)
+                    ges_qr(j,i,k,it) = all_loc(j,i,kqr)
+                    ges_qs(j,i,k,it) = all_loc(j,i,kqs)
+                    ges_qg(j,i,k,it) = all_loc(j,i,kqg)
+                    ges_tten(j,i,k,it) = all_loc(j,i,ktt)
+                 endif
 
               end do
            end do
@@ -600,6 +831,13 @@ subroutine read_wrf_mass_binary_guess(mype)
               sno(j,i,it)=all_loc(j,i,i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_smois)
               soil_temp(j,i,it)=all_loc(j,i,i_tslb)
+! for cloud analysis
+              if(l_cloud_analysis) then
+                 soil_temp_cld(j,i,it)=soil_temp(j,i,it)
+                 ges_xlon(j,i,it)=all_loc(j,i,i_xlon)
+                 ges_xlat(j,i,it)=all_loc(j,i,i_xlat)
+              endif
+
            end do
         end do
 
@@ -648,6 +886,9 @@ subroutine read_wrf_mass_binary_guess(mype)
                       'doubtful skint replaced with 1st sigma level t, j,i,mype,sfct=',&
                       j,i,mype,sfct(j,i,it)
               end if
+              if(l_cloud_analysis) then
+                 isli_cld(j,i,it)=isli(j,i,it)
+              endif
            end do
         end do
      end do
@@ -832,14 +1073,14 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      i=izero
 ! for cloud analysis
      if(l_cloud_analysis) then
-       i=i+ione ; i_xlat=i                                                ! xlat
-       write(identity(i),'("record ",i3,"--xlat")')i
-       jsig_skip(i)=3_i_kind     ! number of files to skip before getting to xlat
-       igtype(i)=ione
-       i=i+ione ; i_xlon=i                                                ! xlon
-       write(identity(i),'("record ",i3,"--xlon")')i
-       jsig_skip(i)=izero     ! 
-       igtype(i)=ione
+        i=i+ione ; i_xlat=i                                                ! xlat
+        write(identity(i),'("record ",i3,"--xlat")')i
+        jsig_skip(i)=3_i_kind     ! number of files to skip before getting to xlat
+        igtype(i)=ione
+        i=i+ione ; i_xlon=i                                                ! xlon
+        write(identity(i),'("record ",i3,"--xlon")')i
+        jsig_skip(i)=izero     ! 
+        igtype(i)=ione
      endif
 
      i=i+ione ; i_psfc=i                                                ! psfc
@@ -914,42 +1155,42 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      jsig_skip(i)=izero ; igtype(i)=ione
 ! for cloud array
      if(l_cloud_analysis) then
-       i_qc=i+ione
-       do k=1,lm
-          i=i+ione                                                      ! qc(k)
-          write(identity(i),'("record ",i3,"--qc(",i2,")")')i,k
-          jsig_skip(i)=izero ; igtype(i)=ione
-       end do
-       i_qr=i+ione
-       do k=1,lm
-          i=i+ione                                                    ! qi(k)
-          write(identity(i),'("record ",i3,"--qr(",i2,")")')i,k
-          jsig_skip(i)=izero ; igtype(i)=ione
-       end do
-       i_qs=i+ione
-       do k=1,lm
-          i=i+ione                                                    ! qr(k)
-          write(identity(i),'("record ",i3,"--qs(",i2,")")')i,k
-          jsig_skip(i)=izero ; igtype(i)=ione
-       end do
-       i_qi=i+ione
-       do k=1,lm
-          i=i+ione                                                    ! qs(k)
-          write(identity(i),'("record ",i3,"--qi(",i2,")")')i,k
-          jsig_skip(i)=izero ; igtype(i)=ione
-       end do
-       i_qg=i+ione
-       do k=1,lm
-          i=i+ione                                                    ! qg(k)
-          write(identity(i),'("record ",i3,"--qg(",i2,")")')i,k
-          jsig_skip(i)=izero ; igtype(i)=ione
-       end do
-       i_tt=i+ione
-       do k=1,lm
-          i=i+ione                                                    ! tt(k)
-          write(identity(i),'("record ",i3,"--tt(",i2,")")')i,k
-          jsig_skip(i)=izero ; igtype(i)=ione
-       end do
+        i_qc=i+ione
+        do k=1,lm
+           i=i+ione                                                      ! qc(k)
+           write(identity(i),'("record ",i3,"--qc(",i2,")")')i,k
+           jsig_skip(i)=izero ; igtype(i)=ione
+        end do
+        i_qr=i+ione
+        do k=1,lm
+           i=i+ione                                                    ! qi(k)
+           write(identity(i),'("record ",i3,"--qr(",i2,")")')i,k
+           jsig_skip(i)=izero ; igtype(i)=ione
+        end do
+        i_qs=i+ione
+        do k=1,lm
+           i=i+ione                                                    ! qr(k)
+           write(identity(i),'("record ",i3,"--qs(",i2,")")')i,k
+           jsig_skip(i)=izero ; igtype(i)=ione
+        end do
+        i_qi=i+ione
+        do k=1,lm
+           i=i+ione                                                    ! qs(k)
+           write(identity(i),'("record ",i3,"--qi(",i2,")")')i,k
+           jsig_skip(i)=izero ; igtype(i)=ione
+        end do
+        i_qg=i+ione
+        do k=1,lm
+           i=i+ione                                                    ! qg(k)
+           write(identity(i),'("record ",i3,"--qg(",i2,")")')i,k
+           jsig_skip(i)=izero ; igtype(i)=ione
+        end do
+        i_tt=i+ione
+        do k=1,lm
+           i=i+ione                                                    ! tt(k)
+           write(identity(i),'("record ",i3,"--tt(",i2,")")')i,k
+           jsig_skip(i)=izero ; igtype(i)=ione
+        end do
      endif
 
 !    End of stuff from MASS restart file
@@ -1040,12 +1281,12 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         kv=i_0+i_v-ione
 ! hydrometeors
         if(l_cloud_analysis) then
-          kqc=i_0+i_qc-ione
-          kqr=i_0+i_qr-ione
-          kqs=i_0+i_qs-ione
-          kqi=i_0+i_qi-ione
-          kqg=i_0+i_qg-ione
-          ktt=i_0+i_tt-ione
+           kqc=i_0+i_qc-ione
+           kqr=i_0+i_qr-ione
+           kqs=i_0+i_qs-ione
+           kqi=i_0+i_qi-ione
+           kqg=i_0+i_qg-ione
+           ktt=i_0+i_tt-ione
         endif
 !             wrf pressure variable is dry air partial pressure--need to add water vapor contribution
 !              so accumulate 1 + total water vapor to use as correction factor
@@ -1059,12 +1300,12 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            kv=kv+ione
 ! hydrometeors
            if(l_cloud_analysis) then
-             kqc=kqc+ione
-             kqr=kqr+ione
-             kqs=kqs+ione
-             kqi=kqi+ione
-             kqg=kqg+ione
-             ktt=ktt+ione
+              kqc=kqc+ione
+              kqr=kqr+ione
+              kqs=kqs+ione
+              kqi=kqi+ione
+              kqg=kqg+ione
+              ktt=ktt+ione
            endif
            do i=1,lon2
               do j=1,lat2
@@ -1078,12 +1319,12 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                  ges_q(j,i,k,it) = ges_q(j,i,k,it)/(one+ges_q(j,i,k,it))
 ! hydrometeors
                  if(l_cloud_analysis) then
-                   ges_qc(j,i,k,it) = all_loc(j,i,kqc)
-                   ges_qi(j,i,k,it) = all_loc(j,i,kqi)
-                   ges_qr(j,i,k,it) = all_loc(j,i,kqr)
-                   ges_qs(j,i,k,it) = all_loc(j,i,kqs)
-                   ges_qg(j,i,k,it) = all_loc(j,i,kqg)
-                   ges_tten(j,i,k,it) = all_loc(j,i,ktt)
+                    ges_qc(j,i,k,it) = all_loc(j,i,kqc)
+                    ges_qi(j,i,k,it) = all_loc(j,i,kqi)
+                    ges_qr(j,i,k,it) = all_loc(j,i,kqr)
+                    ges_qs(j,i,k,it) = all_loc(j,i,kqs)
+                    ges_qg(j,i,k,it) = all_loc(j,i,kqg)
+                    ges_tten(j,i,k,it) = all_loc(j,i,ktt)
                  endif
 
               end do
@@ -1104,9 +1345,9 @@ subroutine read_wrf_mass_netcdf_guess(mype)
               soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
 ! for cloud analysis
               if(l_cloud_analysis) then
-                soil_temp_cld(j,i,it)=soil_temp(j,i,it)
-                ges_xlon(j,i,it)=all_loc(j,i,i_0+i_xlon)
-                ges_xlat(j,i,it)=all_loc(j,i,i_0+i_xlat)
+                 soil_temp_cld(j,i,it)=soil_temp(j,i,it)
+                 ges_xlon(j,i,it)=all_loc(j,i,i_0+i_xlon)
+                 ges_xlat(j,i,it)=all_loc(j,i,i_0+i_xlat)
               endif
 
            end do
@@ -1162,7 +1403,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                  num_doubtful_sfct=num_doubtful_sfct+ione
               end if
               if(l_cloud_analysis) then
-                isli_cld(j,i,it)=isli(j,i,it)
+                 isli_cld(j,i,it)=isli(j,i,it)
               endif
            end do
         end do

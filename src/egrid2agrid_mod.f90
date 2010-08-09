@@ -195,6 +195,12 @@ module egrid2agrid_mod
 !                          egrid to agrid interpolation operator.
 !   2010-04-06  parrish - correct for possible divide by zero when obtaining normalized adjoint
 !                          interpolation weights, used for smoothing interpolation from fine to coarse grid.
+!   2010-07-28  parrish - fix bug introduced by above correction.  forgot to remove previous
+!                           multiply by workc.
+!   2010-07-28  parrish - make array hbig allocatable.  segfault sometimes occurs upon exit from
+!                           this routine when optional logical variable e2a_only is present and true.
+!                           Even though hbig is not used in this case, it can be very large (it was
+!                           4.7Gb for a high res nems-nmmb window run by Ed Colon, which seg-faulted).
 !
 !   input argument list:
 !     e2a           - structure variable with previous/default interpolation information
@@ -233,7 +239,8 @@ module egrid2agrid_mod
       integer(i_kind) ixi(0:iord)
       real(r_kind) tl(iord+ione,iord+ione,2*ngride),alocal(2*ngride),blocal(2*ngride),wgts(ngrida,iord+ione)
       integer(i_kind) iwgts(ngrida,iord+ione),iflag(ngrida)
-      real(r_kind) workc(ngride),hbig(ngrida,ngride)
+      real(r_kind) workc(ngride)
+      real(r_kind),allocatable::hbig(:,:)
       integer(i_kind) ipmax(ngride),ipmin(ngride)
 !
 !    actually, there are 4 types of operations, only 3 of which get saved.  We start by getting
@@ -292,6 +299,7 @@ module egrid2agrid_mod
       ipmaxmax=izero
       ipmin=1
       ipmax=-1
+      allocate(hbig(ngrida,ngride))
       do j=1,ngride
          do k=1,ngride
             workc(k)=zero
@@ -332,6 +340,7 @@ module egrid2agrid_mod
             e2a%twin(ii,j)=hbig(i,j)
          end do
       end do
+      deallocate(hbig)
 
 !--------------------------------------------------------
 !   next get smoothing interpolation from fine to coarse
@@ -345,7 +354,7 @@ module egrid2agrid_mod
             workc(j)=workc(j)+e2a%twin(i,j)
          end do
          do i=1,e2a%ntwin(j)
-            e2a%swin(i,j)=workc(j)*e2a%twin(i,j)/workc(j)
+            e2a%swin(i,j)=e2a%twin(i,j)/workc(j)
          end do
       end do
 

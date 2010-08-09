@@ -1,8 +1,7 @@
 subroutine qcssmi(nchanl,   &
      sfchgt,luse,sea,ice,snow,mixed, &
      ts,pems,ierrret,kraintype,tpwc,clw,sgagl,    &
-     tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
-     ssmis_uas,ssmis_las,ssmis_env,ssmis_img, &
+     tbc,tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
      varinv,errf,aivals,id_qc )
 
 !$$$ subprogram documentation block
@@ -27,6 +26,14 @@ subroutine qcssmi(nchanl,   &
 !     2006-12-01  derber - modify id_qc flags
 !     2007-01-24  kazumori - modify SSMIS qc and input of the subroutine
 !     2008-04-23  safford  - rm unused vars              
+!     2010-07-16  yan      - update the qc criteria for ssmis
+!      1) remove 'ssmis_uas,ssmis_las,ssmis_env,ssmis_img' 
+!      2) add an input 'tbc' which is used to detect cloud-affected data over land
+!      3) update the thresholds of cloud detection for some of the cloud-affected channels
+!      4) add a new qc for ssmis data over oceans
+!      5) update the qc criteria of the ssmis data over non-ocean surfaces
+!      6) realx the qc criteria for the data at channels from 1 to 2
+!      7) add two references
 !
 ! input argument list:
 !     nchanl  - number of channels per obs
@@ -43,14 +50,11 @@ subroutine qcssmi(nchanl,   &
 !     clw     - retrieve clw [kg/m2]
 !     sgagl   - sun glint angle [degrees]
 !     tpwc    - retrieve tpw [kg/m2]
+!     tbc     - Obs - Back TBB with bias correction
 !     tbcnob  - Obs - Back TBB without bias correction
 !     tb_obs  - obs TBB
 !     ssmi    - logical true if ssmi is processed 
 !     ssmis    - logical true if ssmis is processed 
-!     ssmis_uas   - logical true if ssmis_uas is processed 
-!     ssmis_las   - logical true if ssmis_las is processed 
-!     ssmis_env   - logical true if ssmis_env is processed 
-!     ssmis_img   - logical true if ssmis_img is processed 
 !     amsre_low   - logical true if amsre_low is processed 
 !     amsre_mid   - logical true if amsre_mid is processed 
 !     amsre_hig   - logical true if amsre_hig is processed 
@@ -76,6 +80,13 @@ subroutine qcssmi(nchanl,   &
 !     * decrease varinv at last several scan position
 !  
 !     clwcutofx is used to set cloud qc threshold  (kg/m2) 
+!     Refernces:
+!     (1) Weng, F. and N. C. Grody, 1994: Retrieval of cloud liquid water using the special sensor microwave
+!       imager (SSM/I), J. Geophys. Res., 99, 25,535 -25, 551.
+!     (2) Yan, B., F. Weng and J. Derber, 2010: An Effort toward Assimilation of F16 Special Sensor Microwave
+!       Imager/Sounder Data into the NCEP Global Forecast System, to be submitted to Journal of Weather and
+!       Forecasting
+!
 !     from Fuzhong Weng (need better reference) 
 !     ................................................
 !
@@ -97,11 +108,10 @@ subroutine qcssmi(nchanl,   &
 
   logical                          ,intent(in   ) :: sea,snow,ice,mixed,luse
   logical                          ,intent(in   ) :: ssmi,amsre_low,amsre_mid,amsre_hig,ssmis
-  logical                          ,intent(in   ) :: ssmis_uas,ssmis_las,ssmis_env,ssmis_img
 
   real(r_kind)                     ,intent(in   ) :: sfchgt,tpwc,clw,sgagl
   real(r_kind)   ,dimension(nchanl),intent(in   ) :: ts,pems
-  real(r_kind)   ,dimension(nchanl),intent(in   ) :: tbcnob,tb_obs
+  real(r_kind)   ,dimension(nchanl),intent(in   ) :: tbc,tbcnob,tb_obs
 
   real(r_kind)   ,dimension(nchanl),intent(inout) :: varinv,errf
   real(r_kind)   ,dimension(40)    ,intent(inout) :: aivals
@@ -135,34 +145,18 @@ subroutine qcssmi(nchanl,   &
      if(amsre_hig) varinv(1:10)=zero
   else if(ssmis) then
      clwcutofx(1:nchanl) =  &  !kg/m2  reject when clw>clwcutofx
-            (/ 0.20_r_kind, 0.20_r_kind, &
-               0.60_r_kind, 0.60_r_kind, &
-               0.60_r_kind, 0.60_r_kind, &
-               0.60_r_kind, 0.15_r_kind, &
-               0.60_r_kind, 0.60_r_kind, &
-               0.60_r_kind, 0.20_r_kind, &
+            (/ 0.10_r_kind, 0.20_r_kind, &
+               0.60_r_kind, 2.00_r_kind, &
+               2.00_r_kind, 2.00_r_kind, &
+               2.00_r_kind, 0.10_r_kind, &
+               0.10_r_kind, 0.10_r_kind, &
+               0.10_r_kind, 0.20_r_kind, &
                0.20_r_kind, 0.20_r_kind, &
                0.20_r_kind, 0.20_r_kind, &
-               0.20_r_kind, 0.15_r_kind, &
+               0.10_r_kind, 0.10_r_kind, &
                10.0_r_kind,10.0_r_kind, &
                10.0_r_kind,10.0_r_kind, &
                10.0_r_kind,10.0_r_kind  /)
-     if(ssmis_img) then
-         varinv(1:7)=zero
-         varinv(12:16)=zero
-         varinv(19:24)=zero
-     end if
-     if(ssmis_env) then
-         varinv(1:11)=zero
-         varinv(17:24)=zero
-     end if
-     if(ssmis_las) then
-         varinv(8:23)=zero
-     endif
-     if(ssmis_uas) then
-         varinv(1:18)=zero
-         varinv(24)=zero
-     end if
   end if
   dtempf = half
   demisf_mi(1:nchanl) = 0.01_r_kind
@@ -198,6 +192,11 @@ subroutine qcssmi(nchanl,   &
               if( id_qc(i)==izero .and. tpwc<=zero )       id_qc(i)=6_i_kind
            end do 
         end if
+     else if (ssmis) then  ! in case of ssmis bad data or cloud-contaminated data
+        do i = 1,24
+           if( abs(tbcnob(i)) >= 3.5_r_kind) varinv(i) = zero
+        enddo
+
      else if(amsre_low .and. sgagl < 25.0_r_kind) then
 
 ! ---- sun glint angle qc (for AMSR-E)
@@ -270,8 +269,16 @@ subroutine qcssmi(nchanl,   &
            if(id_qc(i)==izero.and.luse) id_qc(i)=2_i_kind
         end do
      else if (ssmis) then
-        varinv(1:2)=zero
-        varinv(12:16)=zero
+       !Use dtbc at 52.8 GHz to detect cloud-affected data
+        if (abs(tbc(2)) >= 1.5_r_kind) then  ! the data at cloud-affected channels are not used
+            varinv(1:2)  = zero
+            varinv(12:16)= zero
+        endif
+       !General qc criteria for all channels
+        do i = 1,24
+           if( abs(tbcnob(i)) >= 3.5_r_kind) varinv(i) = zero
+        enddo
+
         if (sfchgt > r2000) then
            varinv(9)=zero
         end if
@@ -283,14 +290,6 @@ subroutine qcssmi(nchanl,   &
         if(mixed) then
            varinv(1:3)=zero
            varinv(8:18)=zero
-        end if
-        if(ice) then
-           varinv(2:3)=zero
-           varinv(9:11)=zero
-        end if
-        if(snow) then
-           varinv(2:3)=zero
-           varinv(9:11)=zero
         end if
 
         do i=1,nchanl

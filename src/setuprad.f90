@@ -102,6 +102,10 @@
 !                       - start adding hooks of aerosols influence on RTM
 !   2010-07-15  kleist  - reintroduce capability to write out predictor terms (not predicted bias) and
 !                         pressure level that corresponds to peak of weighting function
+!   2010-07-16  yan     - update quality control of mw water vapor sounding channels (amsu-b and mhs)
+!                       - add a new input (tbc) to in call qcssmi(..) and
+!                         remove 'ssmis_uas,ssmis_las,ssmis_env,ssmis_img' in call qcssmi(..)
+!                         Purpose: to keep the consistent changes with qcssmi.f90
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -1801,17 +1805,18 @@
 
 !          Generate q.c. bounds and modified variances.
            do i=1,nchanl
-
+              if ((mhs .or. amsub) .and. i >= 3 .and. varinv(i) > tiny_r_kind) then  ! wv sounding channels
+                 if (abs(tbc(i)) >= two) varinv(i) = zero
+              else   ! other channels or other sensors
 !             Modify error based on transmittance at top of model
-              varinv(i)=vfact*varinv(i)*ptau5(nsig,i)
-              errf(i)=efact*errf(i)*ptau5(nsig,i)
-
-              if(varinv(i)>tiny_r_kind)then
-                 dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
-                 term=dtbf*dtbf
-                 if(term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+                  varinv(i)=vfact*varinv(i)*ptau5(nsig,i)
+                  errf(i)=efact*errf(i)*ptau5(nsig,i)
+                  if(varinv(i)>tiny_r_kind)then
+                     dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
+                     term=dtbf*dtbf
+                     if(term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+                  end if
               end if
-            
            end do
 
 !       End of AMSU-B QC block
@@ -2086,8 +2091,7 @@
            call qcssmi(nchanl, &
                 zsges,luse(n),sea,ice,snow,mixed, &
                 ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl, &
-                tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
-                ssmis_uas,ssmis_las,ssmis_env,ssmis_img, &
+                tbc,tbcnob,tb_obs,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
                 varinv,errf,aivals(1,is),id_qc)
 
 !  ---------- SSU  -------------------

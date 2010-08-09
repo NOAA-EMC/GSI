@@ -179,7 +179,7 @@ plib8.o : plib8.f90 constants.o kinds.o
 polcarf.o : polcarf.f90 gridmod.o constants.o kinds.o 
 precpd_ad.o : precpd_ad.f90 constants.o kinds.o 
 prewgt.o : prewgt.f90 obsmod.o mpeu_util.o smooth_polcarf.o guess_grids.o constants.o gridmod.o control_vectors.o jfunc.o mpimod.o m_berror_stats.o berror.o kinds.o 
-prewgt_reg.o : prewgt_reg.f90 mpeu_util.o m_berror_stats_reg.o guess_grids.o constants.o gridmod.o control_vectors.o jfunc.o mpimod.o berror.o balmod.o kinds.o 
+prewgt_reg.o : prewgt_reg.f90 mpl_allreduce.o mpeu_util.o m_berror_stats_reg.o guess_grids.o constants.o gridmod.o control_vectors.o jfunc.o mpimod.o berror.o balmod.o kinds.o 
 projmethod_support.o : projmethod_support.f90 gsi_bundlemod.o pcpinfo.o radinfo.o gridmod.o mpimod.o constants.o jfunc.o control_vectors.o kinds.o 
 prt_guess.o : prt_guess.f90 satthin.o jfunc.o pcpinfo.o radinfo.o guess_grids.o gridmod.o constants.o mpimod.o kinds.o 
 psichi2uv_reg.o : psichi2uv_reg.f90 gridmod.o constants.o kinds.o 
@@ -328,7 +328,7 @@ update_geswtend.o : update_geswtend.f90 gsi_bundlemod.o compact_diffs.o guess_gr
 update_guess.o : update_guess.f90 mpeu_util.o gsi_chemtracer_mod.o gsi_bundlemod.o bias_predictors.o m_gsiBiases.o pcpinfo.o radinfo.o gsi_4dvar.o xhat_vordivmod.o state_vectors.o guess_grids.o gridmod.o jfunc.o constants.o mpimod.o kinds.o 
 ut_gsibundle.o : ut_gsibundle.F90 m_rerank.o gsi_bundlemod.o constants.o kinds.o 
 wind_fft.o : wind_fft.f90 constants.o kinds.o 
-wrf_binary_interface.o : wrf_binary_interface.F90 nemsio_module.o constants.o gsi_io.o gsi_4dvar.o kinds.o 
+wrf_binary_interface.o : wrf_binary_interface.F90 nemsio_module.o constants.o rapidrefresh_cldsurf_mod.o gsi_io.o gsi_4dvar.o kinds.o 
 wrf_netcdf_interface.o : wrf_netcdf_interface.F90 
 write_all.o : write_all.F90 ncepgfs_io.o regional_io.o gsi_io.o m_gsiBiases.o guess_grids.o jfunc.o constants.o gridmod.o mpimod.o kinds.o 
 write_bkgvars_grid.o : write_bkgvars_grid.f90 berror.o control_vectors.o mpimod.o gridmod.o constants.o kinds.o 

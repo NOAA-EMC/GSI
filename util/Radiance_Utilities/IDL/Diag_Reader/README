@@ -1,0 +1,8 @@
+Procedures to read diag files directly into IDL structures and to calculate
+stats.
+===========================================================
+
+read_diags.pro:  Procedure to radiance diag files into IDL structures.
+
+diag_stats.pro:  Calculates simple statstics using structures produced by
+                 read_diags.pro
