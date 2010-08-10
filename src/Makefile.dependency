@@ -141,10 +141,9 @@ m_rhs.o : m_rhs.F90 mytrace.H convinfo.o gridmod.o qcmod.o coinfo.o ozinfo.o rad
 m_stats.o : m_stats.F90 mpimod.o constants.o kinds.o 
 m_tick.o : m_tick.F90 constants.o kinds.o 
 missing_routines.o : missing_routines.f90 kinds.o 
-mod_inmi.o : mod_inmi.f90 mod_strong.o constants.o kinds.o 
 mod_nmmb_to_a.o : mod_nmmb_to_a.f90 constants.o kinds.o 
 mod_strong.o : mod_strong.f90 constants.o kinds.o 
-mod_vtrans.o : mod_vtrans.F90 m_dgeevx.o guess_grids.o mpimod.o gridmod.o constants.o kinds.o 
+mod_vtrans.o : mod_vtrans.f90 m_dgeevx.o guess_grids.o mpimod.o gridmod.o constants.o kinds.o 
 model2control.o : model2control.f90 mpeu_util.o gsi_chemtracer_mod.o gsi_bundlemod.o jfunc.o balmod.o berror.o gridmod.o gsi_4dvar.o bias_predictors.o control_vectors.o constants.o kinds.o 
 model_ad.o : model_ad.F90 lag_traj.o lag_fields.o timermod.o m_tick.o gsi_4dcouplermod.o gsi_bundlemod.o state_vectors.o constants.o gsi_4dvar.o kinds.o 
 model_tl.o : model_tl.F90 lag_traj.o lag_fields.o timermod.o m_tick.o gsi_4dcouplermod.o gsi_bundlemod.o state_vectors.o constants.o gsi_4dvar.o kinds.o 
@@ -300,10 +299,10 @@ stpsst.o : stpsst.f90 gsi_bundlemod.o gridmod.o constants.o qcmod.o obsmod.o kin
 stpt.o : stpt.f90 gsi_bundlemod.o jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
 stptcp.o : stptcp.f90 gsi_bundlemod.o jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
 stpw.o : stpw.f90 gsi_bundlemod.o jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
-strong_bal_correction.o : strong_bal_correction.f90 gridmod.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o mod_strong.o constants.o kinds.o 
+strong_bal_correction.o : strong_bal_correction.f90 gridmod.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o mod_strong.o kinds.o 
 strong_baldiag_inc.o : strong_baldiag_inc.f90 constants.o gsi_bundlemod.o state_vectors.o mod_vtrans.o gsi_4dvar.o gridmod.o mpimod.o kinds.o 
-strong_fast_global_mod.o : strong_fast_global_mod.f90 mpimod.o hybrid_ensemble_parameters.o constants.o mod_inmi.o mod_vtrans.o gridmod.o kinds.o 
-strong_slow_global_mod.o : strong_slow_global_mod.f90 hybrid_ensemble_parameters.o constants.o mod_inmi.o mod_vtrans.o mpimod.o gridmod.o kinds.o 
+strong_fast_global_mod.o : strong_fast_global_mod.f90 hybrid_ensemble_parameters.o mod_strong.o mod_vtrans.o mpimod.o constants.o gridmod.o kinds.o 
+strong_slow_global_mod.o : strong_slow_global_mod.f90 hybrid_ensemble_parameters.o constants.o mod_strong.o mod_vtrans.o mpimod.o gridmod.o kinds.o 
 stub_pertmod.o : stub_pertmod.F90 gsi_bundlemod.o constants.o kinds.o 
 stub_timermod.o : stub_timermod.F90 kinds.o 
 sub2fslab_mod.o : sub2fslab_mod.f90 patch2grid_mod.o fgrid2agrid_mod.o constants.o control_vectors.o gsi_bundlemod.o anberror.o gridmod.o kinds.o 

@@ -118,13 +118,14 @@ module berror
   public :: destroy_berror_vars_reg
 ! set passed variables to public
   public :: qvar3d,nr,nf,varprd,fpsproj,bkgv_flowdep
+  public :: ndx,ndy,ndx2,nmix,nymx,nfg,nfnf,norm,nxem
   public :: dssvs,dssv,bkgv_write,bkgv_rewgtfct,hswgt
   public :: hzscl,bw,pert_berr_fct,pert_berr,ndeg,norh,vs
   public :: bl,bl2,be,slw2,slw1,slw,mr,inaxs,wtxrs,wtaxs,nx,ny
   public :: inxrs,jj1,ii2,jj2,ii,jj,ii1,table,alv
 
   integer(i_kind) norh,ndeg,nta,nlath
-  integer(i_kind) nx,ny,mr,nr,nf
+  integer(i_kind) nx,ny,mr,nr,nf,ndx,ndy,ndx2,nmix,nymx,norm,nxem,nfg,nfnf
   integer(i_kind),allocatable,dimension(:,:):: inaxs,inxrs
   integer(i_kind),allocatable,dimension(:,:,:,:):: ii,jj,ii1,jj1,ii2,jj2
 
@@ -258,6 +259,15 @@ contains
   nf=nr
   nlath=nlat/2
   if(mod(nlat,2)/=izero) nlath=nlath+ione
+  ndx=(nx-nlon)/2
+  ndy=(nlat-ny)/2
+  ndx2=2*ndx
+  nmix=nr+1-ndy
+  nymx=ny-nmix
+  norm=norh*2-1
+  nxem=nlon/8-1
+  nfg=2*nf+1
+  nfnf=nfg*nfg
 
   allocate(wtaxs(0:norh*2-ione,nf,0:(nlon/8)-ione), &
            wtxrs(0:norh*2-ione,0:(nlon/8)-ione,mr:nr), &
@@ -409,9 +419,9 @@ contains
 
     real(r_kind),parameter:: tin = 0.2e-3_r_kind
 
-    integer(i_kind) i,j,k,n,nynx,nfnf
+    integer(i_kind) i,j,k,n,nynx
     integer(i_kind) ihwlb
-    integer(i_kind) nfg,ntax,iloc
+    integer(i_kind) ntax,iloc
     
     real(r_kind):: hwlmax,hwlmin,hwlb,hwle,wni2
     real(r_kind),parameter:: r999         = 999.0_r_kind
@@ -426,8 +436,6 @@ contains
           write(6,*)'INIT_RFTABLE:  ***ERROR*** sli1 or sli2 not present'
           call stop2(34)
        end if
-       nfg=nf*2+ione
-       nfnf=nfg*nfg
     end if
 
 ! Determine lower/upper bounds on scales

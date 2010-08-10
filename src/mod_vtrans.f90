@@ -21,10 +21,6 @@ module mod_vtrans
 !   sub vtrans_inv_ad            - adjoint of vtrans_inv
 !   sub vtrans                   - vert transformed u,v,phi --> physical space u,v,T,p
 !   sub vtrans_ad                - adjoint of vtrans
-!   sub vtrans2                  -
-!   sub vtrans2_inv              -
-!   sub vtrans2_ad               -
-!   sub vtrans2_inv_ad           -
 !
 ! Variable Definitions:
 !   def nvmodes_keep             - number of vertical modes to keep ( <= nsig )
@@ -53,10 +49,6 @@ module mod_vtrans
   public :: vtrans_inv_ad
   public :: vtrans
   public :: vtrans_ad
-  public :: vtrans2
-  public :: vtrans2_inv
-  public :: vtrans2_ad
-  public :: vtrans2_inv_ad
 ! set passed variables to public
   public :: nvmodes_keep,depths,speeds
 
@@ -66,8 +58,6 @@ module mod_vtrans
   real(r_kind),dimension(:,:),allocatable:: t2phihat
   real(r_kind),dimension(:),allocatable:: p2phihat,phihat2p
 
-  real(r_kind),dimension(:),allocatable:: hmatsave,smatsave
-  real(r_kind),dimension(:,:),allocatable:: amatsave,bmatsave
 
 contains
 
@@ -91,10 +81,9 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-    use constants, only: izero
     implicit none
 
-    nvmodes_keep=izero
+    nvmodes_keep=0
 
   end subroutine init_vtrans
 
@@ -176,9 +165,8 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-    use constants,only: izero,ione,zero,half,one,quarter,one_tenth
-    use gridmod,only: lat2,lon2,nsig,&
-         nlat,nlon,lat1,lon1,&
+    use constants,only: zero,half,one,quarter,one_tenth,ten
+    use gridmod,only: lat2,lon2,nsig,nlat,nlon,lat1,lon1,&
          ltosi,ltosj,iglobal,ijn,displs_g,strip
     use mpimod,only: mpi_rtype,mpi_comm_world,ierror
     use guess_grids, only: ges_tv,ges_ps,ntguessig
@@ -189,29 +177,21 @@ contains
     integer(i_kind),intent(in   ) :: mype
 
 !   Declare local variables
-    integer(i_kind) i,j,k,n,kk,mm1
-    real(r_kind) count,factor
-    real(r_kind) psbar
-    real(r_kind),dimension(lat2,lon2):: ps
-    real(r_kind),dimension(nsig+ione)::pbar
-    real(r_kind),dimension(nsig)::tbar
-    real(r_kind),dimension(nsig+ione)::ahat,bhat,chat
-    real(r_kind),dimension(nsig)::hmat,smat
-    real(r_kind),dimension(nsig,nsig)::amat,bmat,qmat,qmatinv
-    real(r_kind) www(2,nsig),zzz(2,nsig,nsig)
-    real(r_kind) wwwd(2,nsig),zzzd(2,nsig,nsig)
-    integer(i_kind) info
+    integer(i_kind) i,j,k,n,kk,mm1,info
+    real(r_kind) count,factor,psbar
     real(r_kind) factord,sum,errormax
-    real(r_kind) bqmatinv(nsig,nsig),sqmatinv(nsig)
+    real(r_kind),dimension(lat2,lon2):: ps
+    real(r_kind),dimension(nsig+1)::pbar
+    real(r_kind),dimension(nsig)::tbar
+    real(r_kind),dimension(nsig+1)::ahat,bhat,chat
+    real(r_kind),dimension(nsig)::hmat,smat,sqmatinv
+    real(r_kind),dimension(nsig,nsig)::amat,bmat,qmat,qmatinv,bqmatinv
+    real(r_kind),dimension(2,nsig):: www,wwwd
+    real(r_kind),dimension(2,nsig,nsig):: zzz,zzzd
     real(r_kind),dimension(lat1*lon1):: zsm
     real(r_kind),dimension(iglobal):: work1
     real(r_kind),dimension(nlat,nlon):: sumall
 
-
-!   Declare local parameters
-    real(r_kind),parameter:: ten=10._r_kind
-
-    allocate(hmatsave(nsig),smatsave(nsig),amatsave(nsig,nsig),bmatsave(nsig,nsig))
 
 !    allocate variables used in vertical mode transformations:
 
@@ -232,20 +212,19 @@ contains
     end do
 
 !   count:
-!?????????????????????later refine to be area weighted
+!  Not clear if area weighting would be better.
     count=one/float(nlat*nlon)
 
 !   psbar:
-    mm1=mype+ione
+    mm1=mype+1
     do j=1,lon1*lat1
        zsm(j)=zero
     end do
 
-    call strip(ps,zsm,ione)
+    call strip(ps,zsm,1)
 
     call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-       work1,ijn,displs_g,mpi_rtype,&
-       mpi_comm_world,ierror)
+       work1,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
 
     do k=1,iglobal
        i=ltosi(k) ; j=ltosj(k)
@@ -259,7 +238,7 @@ contains
        end do
     end do
     psbar=ten*count*psbar
-    do k=1,nsig+ione
+    do k=1,nsig+1
        pbar(k)=ahat(k)+bhat(k)*psbar     !  + chat(k)*(T/T0)**(1/kappa)   --- add later
     end do
 
@@ -269,7 +248,7 @@ contains
           zsm(j)=zero
        end do
 
-       call strip(ges_tv(1,1,k,ntguessig),zsm,ione)
+       call strip(ges_tv(1,1,k,ntguessig),zsm,1)
 
        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
           work1,ijn,displs_g,mpi_rtype,&
@@ -291,11 +270,11 @@ contains
        tbar(k)=count*tbar(k)
     end do
   
-    if(mype==izero) then
+    if(mype==0) then
        do k=1,nsig
           write(6,'(" k,pbar,tbar = ",i5,2f15.2)')k,pbar(k),tbar(k)
        end do
-       k=nsig+ione
+       k=nsig+1
        write(6,'(" k,pbar      = ",i5,f15.2)')k,pbar(k)
     end if
 
@@ -303,7 +282,6 @@ contains
 
 ! Get matrices for variable transforms/vertical modes
     call get_semimp_mats(tbar,pbar,bhat,chat,amat,bmat,hmat,smat)
-    hmatsave=hmat ; smatsave=smat ; amatsave=amat ; bmatsave=bmat
 
 !   qmat = hmat*smat + amat*bmat
 
@@ -320,29 +298,32 @@ contains
 
     call dgeevx(nsig,qmat,size(qmat,1),www,wwwd,zzz,size(zzz,2),zzzd,size(zzzd,2),info,mype)
 
-    if (mype ==izero) write (6,*) ' AFTER CALL DGEEV', 'status: info =  ', info
+    if (mype ==0) write (6,*) ' AFTER CALL DGEEV', 'status: info =  ', info
 
 ! checks and print out eigenvalues
 !
-    do k=1,nsig
-       if(mype==izero) write(6,*)' c,eigenvalue(',k,') = ',(www(1,k)**2+www(2,k)**2)**quarter,www(1,k),www(2,k)
+    do k=1,nvmodes_keep
+       depths(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**half
+       speeds(k)=sqrt(depths(k))
     end do
+   
+    if(mype == 0)then
+      do k=1,nsig
+         write(6,*)' c,eigenvalue(',k,') = ',(www(1,k)**2+www(2,k)**2)**quarter,www(1,k),www(2,k)
+      end do
 
-    do k=1,nsig
-       if(mype==izero) write(6,'(" p, eigvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+ione)),zzz(1,k,1:4)
-    end do
+!     do k=1,nsig
+!        write(6,'(" p, eigvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+1)),zzz(1,k,1:4)
+!     end do
 
-    do k=1,nsig
-       if(k<=nvmodes_keep) then
-          depths(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**half
-          speeds(k)=(wwwd(1,k)**2+wwwd(2,k)**2)**quarter
-       end if
-       if(mype==izero) write(6,*)' c,eigenvalue(',k,') = ',(wwwd(1,k)**2+wwwd(2,k)**2)**quarter,wwwd(1,k),wwwd(2,k)
-    end do
+!     do k=1,nsig
+!      write(6,*)' c,eigenvalue(',k,') = ',(wwwd(1,k)**2+wwwd(2,k)**2)**quarter,wwwd(1,k),wwwd(2,k)
+!     end do
 
-    do k=1,nsig
-       if(mype==izero) write(6,'(" p, dualvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+ione)),zzzd(1,k,1:4)
-    end do
+!     do k=1,nsig
+!        write(6,'(" p, dualvectors 1-4 = ",f10.2,4f12.3)')half*(pbar(k)+pbar(k+1)),zzzd(1,k,1:4)
+!     end do
+    end if
 
 !  normalize and check for biorthogonality
 
@@ -369,18 +350,20 @@ contains
 
 ! check orthogonality
 
-    errormax=zero
-    do j=1,nsig
-       do i=1,nsig
-          sum=zero
-          if(i==j) sum=-one
-          do k=1,nsig
-             sum=sum+zzz(1,k,i)*zzzd(1,k,j)
-          end do
-          errormax=max(abs(sum),errormax)
-       end do
-    end do
-    if(mype==izero) write(6,*)' biorthonormal error = ',errormax
+    if(mype==0) then
+      errormax=zero
+      do j=1,nsig
+         do i=1,nsig
+            sum=zero
+            if(i==j) sum=-one
+            do k=1,nsig
+               sum=sum+zzz(1,k,i)*zzzd(1,k,j)
+            end do
+            errormax=max(abs(sum),errormax)
+         end do
+      end do
+      write(6,*)' biorthonormal error = ',errormax
+    end if
 
 !   now get inverse of Q, using eigenvector/value decomposition
 
@@ -395,18 +378,20 @@ contains
 
 !   check inverse
 
-    errormax=zero
-    do j=1,nsig
-       do i=1,nsig
-          sum=zero
-          if(i==j) sum=-one
-          do k=1,nsig
-             sum=sum+qmat(i,k)*qmatinv(k,j)
-          end do
-          errormax=max(abs(sum),errormax)
-       end do
-    end do
-    if(mype==izero) write(6,*)' error in qmatinv =',errormax
+    if(mype == 0)then
+      errormax=zero
+      do j=1,nsig
+         do i=1,nsig
+            sum=zero
+            if(i==j) sum=-one
+            do k=1,nsig
+               sum=sum+qmat(i,k)*qmatinv(k,j)
+            end do
+            errormax=max(abs(sum),errormax)
+         end do
+      end do
+      write(6,*)' error in qmatinv =',errormax
+    end if
 
 !   next compute p2phihat and t2phihat
 
@@ -457,12 +442,12 @@ contains
 
 !      print out phihat2t
 
-    if(mype==izero) then
-       write(6,*)' phihat2p = ',phihat2p(1:min(4,nvmodes_keep))
-       do i=1,nsig
-          write(6,*)' i,phihat2t=',i,phihat2t(i,1:min(4,nvmodes_keep))
-       end do
-    end if
+!   if(mype==0) then
+!      write(6,*)' phihat2p = ',phihat2p(1:min(4,nvmodes_keep))
+!      do i=1,nsig
+!         write(6,*)' i,phihat2t=',i,phihat2t(i,1:min(4,nvmodes_keep))
+!      end do
+!   end if
 
   end subroutine create_vtrans
 
@@ -500,7 +485,7 @@ contains
   subroutine getabc(ahat,bhat,chat)
 !$$$  subprogram documentation block
 !
-! subprogram:    getprs       get pressure constants
+! subprogram:    getabc       get pressure constants
 !
 !   prgmmr: parrish          org: np22                date: 2006-05-04
 !
@@ -519,28 +504,28 @@ contains
 !     chat       -
 !
 !$$$ end documentation block
-    use constants,only: ione,zero
+    use constants,only: zero,ten
     use gridmod,only: nsig,ak5,bk5,ck5
     use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll
     implicit none
 
 !   Declare passed variables
-    real(r_kind),dimension(nsig+ione),intent(  out) :: ahat,bhat,chat
+    real(r_kind),dimension(nsig+1),intent(  out) :: ahat,bhat,chat
 
 !   Declare local variables
     integer(i_kind) k
 
     if(wrf_nmm_regional.or.nems_nmmb_regional) then
-       do k=1,nsig+ione
+       do k=1,nsig+1
           ahat(k)=eta1_ll(k)*pdtop_ll-eta2_ll(k)*(pdtop_ll+pt_ll)+pt_ll
           bhat(k)=eta2_ll(k)
           chat(k)=zero
        end do
     else
-       do k=1,nsig+ione
-          ahat(k)=ak5(k)*10
+       do k=1,nsig+1
+          ahat(k)=ak5(k)*ten
           bhat(k)=bk5(k)
-          chat(k)=ck5(k)*10
+          chat(k)=ck5(k)*ten
        end do
     end if
 
@@ -582,10 +567,10 @@ contains
 
     integer(i_kind) i,j,k,n
 
-    u=zero ; v=zero ; t=zero ; p=zero
 
-    do n=1,nvmodes_keep
-       do k=1,nsig
+!$omp parallel do schedule(dynamic,1) private(n,i,j,k)
+    do k=1,nsig
+       do n=1,nvmodes_keep
           do j=1,lon2
              do i=1,lat2
                 u(i,j,k)=u(i,j,k)+vmodes(k,n)*uhat(i,j,n)
@@ -593,11 +578,13 @@ contains
                 t(i,j,k)=t(i,j,k)+phihat2t(k,n)*phihat(i,j,n)
              end do
           end do
-       end do
-       do j=1,lon2
-          do i=1,lat2
-             p(i,j)=p(i,j)+phihat2p(n)*phihat(i,j,n)
-          end do
+          if( k == 1)then
+             do j=1,lon2
+                do i=1,lat2
+                   p(i,j)=p(i,j)+phihat2p(n)*phihat(i,j,n)
+                end do
+             end do
+          end if
        end do
     end do
 
@@ -638,6 +625,7 @@ contains
 
     integer(i_kind) i,j,k,n
 
+!$omp parallel do schedule(dynamic,1) private(n,i,j,k)
     do n=1,nvmodes_keep
        do k=1,nsig
           do j=1,lon2
@@ -683,7 +671,7 @@ contains
 !$$$ end documentation block
 
     use gridmod,only: lat2,lon2,nsig
-    use constants,only: ione,zero
+    use constants,only: zero
     implicit none
 
     real(r_kind),dimension(lat2,lon2,nsig)        ,intent(in   ) :: u,v,t
@@ -691,31 +679,19 @@ contains
     real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(  out) :: uhat,vhat,phihat
 
     integer(i_kind) i,j,k,n
-    integer(i_kind) :: jstart,jstop
-#ifdef ibm_sp
-    integer(i_kind) :: nth,tid,omp_get_num_threads,omp_get_thread_num
-#endif
 
-    jstart=ione
-    jstop=lon2
 
-!$omp parallel private(nth,tid,i,j,k,n,jstart,jstop)
-#ifdef ibm_sp
-    nth = omp_get_num_threads()
-    tid = omp_get_thread_num()
-    call looplimits(tid, nth, ione, lon2, jstart, jstop)
-#endif
-
+!$omp parallel do schedule(dynamic,1) private(n,i,j,k)
     do n=1,nvmodes_keep
-       do j=jstart,jstop
+       do j=1,lon2
           do i=1,lat2
              uhat(i,j,n)=zero
              vhat(i,j,n)=zero
-             phihat(i,j,n)=zero
+             phihat(i,j,n)=p2phihat(n)*p(i,j)
           enddo
        enddo
        do k=1,nsig
-          do j=jstart,jstop
+          do j=1,lon2
              do i=1,lat2
                 uhat(i,j,n)=uhat(i,j,n)+dualmodes(k,n)*u(i,j,k)
                 vhat(i,j,n)=vhat(i,j,n)+dualmodes(k,n)*v(i,j,k)
@@ -723,13 +699,7 @@ contains
              end do
           end do
        end do
-       do j=jstart,jstop
-          do i=1,lat2
-             phihat(i,j,n)=phihat(i,j,n)+p2phihat(n)*p(i,j)
-          end do
-       end do
     end do
-!$omp end parallel
 
   end subroutine vtrans
 
@@ -769,8 +739,9 @@ contains
 
     integer(i_kind) i,j,k,n
 
-    do n=1,nvmodes_keep
-       do k=1,nsig
+!$omp parallel do schedule(dynamic,1) private(n,i,j,k)
+    do k=1,nsig
+       do n=1,nvmodes_keep
           do j=1,lon2
              do i=1,lat2
                 u(i,j,k)=u(i,j,k)+dualmodes(k,n)*uhat(i,j,n)
@@ -778,206 +749,16 @@ contains
                 t(i,j,k)=t(i,j,k)+t2phihat(k,n)*phihat(i,j,n)
              end do
           end do
-       end do
-       do j=1,lon2
-          do i=1,lat2
-             p(i,j)=p(i,j)+p2phihat(n)*phihat(i,j,n)
-          end do
+          if(k == 1)then
+             do j=1,lon2
+               do i=1,lat2
+                  p(i,j)=p(i,j)+p2phihat(n)*phihat(i,j,n)
+               end do
+             end do
+          end if
        end do
     end do
 
   end subroutine vtrans_ad
-
-  subroutine vtrans2(xin,yin,xhat,yhat)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    vtrans2
-!
-!   prgrmmr:
-!
-! abstract:
-!
-! program history log:
-!   2008-05-29  safford -- add subprogram doc block
-!
-!   input argument list:
-!     xin,yin
-!
-!   output argument list:
-!     xhat,yhat
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-    use gridmod,only: lat2,lon2,nsig
-    use constants,only: zero
-    implicit none
-
-    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(in   ) :: xin,yin
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(  out) :: xhat,yhat
-
-    integer(i_kind) i,j,k,n
-
-    xhat=zero ; yhat=zero
-
-    do n=1,nvmodes_keep
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                xhat(i,j,n)=xhat(i,j,n)+dualmodes(k,n)*xin(i,j,k)
-                yhat(i,j,n)=yhat(i,j,n)+dualmodes(k,n)*yin(i,j,k)
-             end do
-          end do
-       end do
-    end do ! end do n
-
-    return
-  end subroutine vtrans2
-
-  subroutine vtrans2_inv(xhat,yhat,xout,yout)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    vtrans2_inv
-!
-!   prgrmmr:
-!
-! abstract:
-!
-! program history log:
-!   2008-05-29  safford -- add subprogram doc block
-!
-!   input argument list:
-!     xhat,yhat
-!
-!   output argument list:
-!     xout,yout
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-    use gridmod,only: lat2,lon2,nsig
-    use constants,only: zero
-    implicit none
-
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in   ) :: xhat,yhat
-    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(  out) :: xout,yout
-
-    integer(i_kind) i,j,k,n
-
-    xout=zero ; yout=zero
-
-    do n=1,nvmodes_keep
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                xout(i,j,k)=xout(i,j,k) + vmodes(k,n)*xhat(i,j,n)
-                yout(i,j,k)=yout(i,j,k) + vmodes(k,n)*yhat(i,j,n)
-             end do
-          end do
-       end do
-    end do
-    
-    return
-  end subroutine vtrans2_inv
-
-  subroutine vtrans2_ad(x,y,xhat,yhat)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    vtrans2_ad
-!
-!   prgrmmr:
-!
-! abstract:
-!
-! program history log:
-!   2008-05-29  safford -- add subprogram doc block
-!
-!   input argument list:
-!      x,y
-!      xhat,yhat
-!
-!   output argument list:
-!      x,y
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-    use gridmod,only: lat2,lon2,nsig
-    implicit none
-
-    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(inout) :: x,y
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in   ) :: xhat,yhat
-
-    integer(i_kind) i,j,k,n
-
-    do n=1,nvmodes_keep
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                x(i,j,k)=x(i,j,k)+dualmodes(k,n)*xhat(i,j,n)
-                y(i,j,k)=y(i,j,k)+dualmodes(k,n)*yhat(i,j,n)
-             end do
-          end do
-       end do
-    end do
-
-    return
-  end subroutine vtrans2_ad
-
-  subroutine vtrans2_inv_ad(xhat,yhat,xin,yin)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    vtrans2_inv_ad
-!
-!   prgrmmr:
-!
-! abstract:
-!
-! program history log:
-!   2008-05-29  safford -- add subprogram doc block
-!
-!   input argument list:
-!     xhat,yhat
-!     xin,yin
-!
-!   output argument list:
-!     xhat,yhat
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-    use gridmod,only: lat2,lon2,nsig
-    implicit none
-
-    real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(inout) :: xhat,yhat
-    real(r_kind),dimension(lat2,lon2,nsig)        ,intent(in   ) :: xin,yin
-
-    integer(i_kind) i,j,k,n
-
-    do n=1,nvmodes_keep
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                xhat(i,j,n)=xhat(i,j,n)+vmodes(k,n)*xin(i,j,k)
-                yhat(i,j,n)=yhat(i,j,n)+vmodes(k,n)*yin(i,j,k)
-             end do
-          end do
-       end do
-    end do
-
-    return
-  end subroutine vtrans2_inv_ad
 
 end module mod_vtrans

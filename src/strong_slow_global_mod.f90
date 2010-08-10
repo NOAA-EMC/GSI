@@ -162,8 +162,8 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !$$$
 
   use kinds, only: r_kind
-  use mod_vtrans, only: depths,nvmodes_keep,vtrans,vtrans_inv
-  use mod_inmi, only: m,gspeed,mmax,dinmi,gproj
+  use mod_vtrans, only: speeds,nvmodes_keep,vtrans,vtrans_inv
+  use mod_strong, only: dinmi,gproj
   use gridmod, only: nlat,nlon,lat2,lon2,sp_a,grd_a
   use constants, only: izero,ione,zero
   use hybrid_ensemble_parameters, only: uv_hyb_ens
@@ -179,8 +179,6 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind),dimension(nvmodes_keep)::rmstend_uf,rmstend_g_uf
   real(r_kind),dimension(nvmodes_keep)::rmstend_f,rmstend_g_f
 
-  real(r_kind),dimension(lat2,lon2,nsig)::delu,delv,delt
-  real(r_kind),dimension(lat2,lon2)::delps
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t,vtilde_t,mtilde_t
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delutilde,delvtilde,delmtilde
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t_g,vtilde_t_g,mtilde_t_g
@@ -188,9 +186,9 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind),dimension(nuvlevs)::rmstend_loc_uf,rmstend_g_loc_uf
   real(r_kind),dimension(nuvlevs)::rmstend_loc_f,rmstend_g_loc_f
   real(r_kind),dimension(sp_a%nc)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
-  real(r_kind) rmstend_all_uf,rmstend_all_g_uf,rmstend_all_f,rmstend_all_g_f
+  real(r_kind) rmstend_all_uf,rmstend_all_g_uf,rmstend_all_f,rmstend_all_g_f,gspeed
 
-  integer(i_kind) i,j,k,kk,iad,mode
+  integer(i_kind) i,j,k,kk,iad,mode,m,mmax
   logical filtered
 
   filtered=.true.
@@ -235,21 +233,21 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !   4.  divhat,vorthat,mhat --> deldivhat,delvorthat,delmhat   (inmi correction)
 !          (slabs)                        (slabs)
 
-     gspeed=sqrt(depths(abs(mode)))
+     gspeed=speeds(abs(mode))
      iad=ione
      do m=0,sp_a%jcap
         if(mode >  izero) then
 !              here, delvorthat, etc contain field corrections necessary to zero out gravity component
 !                                         of tendencies
            call dinmi(vorthat  (iad),divhat  (iad),mhat  (iad),&
-                    delvorthat(iad),deldivhat(iad),delmhat(iad))
+                    delvorthat(iad),deldivhat(iad),delmhat(iad),m,mmax,gspeed)
         else
 !               here, delvorthat, etc contain gravity component of tendencies
            if(bal_diagnostic) &
               call gproj(vorthat(iad),divhat(iad),mhat(iad),delvorthat(iad),deldivhat(iad),delmhat(iad), &
-                      rmstend_loc_uf(kk),rmstend_g_loc_uf(kk),.not.filtered)
+                      rmstend_loc_uf(kk),rmstend_g_loc_uf(kk),.not.filtered,bal_diagnostic,m,mmax,gspeed)
            call gproj(vorthat(iad),divhat(iad),mhat(iad),delvorthat(iad),deldivhat(iad),delmhat(iad), &
-                      rmstend_loc_f(kk),rmstend_g_loc_f(kk),filtered)
+                      rmstend_loc_f(kk),rmstend_g_loc_f(kk),filtered,bal_diagnostic,m,mmax,gspeed)
         end if
         iad=iad+2*(sp_a%jcap-m+ione)
      end do
@@ -319,32 +317,18 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   call inmi_grid2sub(delvtilde,vtilde_t_g,vwork)
   call inmi_grid2sub(delmtilde,mtilde_t_g,mwork)
  
-!   7.  delutilde,delvtilde,delmtilde  -->  delu,delv,delt,delps   (vertical mode inverse transform)
+!   7.  delutilde,delvtilde,delmtilde  -->  psi,chi,t,ps   (vertical mode inverse transform)
 !       (subdomains)                      (subdomains)
-
-  call vtrans_inv(delutilde,delvtilde,delmtilde,delu,delv,delt,delps)
-!????????????????????????????????in here, can insert diagnostic based on utilde_t_g and utilde_t,etc.
-! call vtrans_inv(utilde_t_g,vtilde_t_g,mtilde_t_g,u_t_g,v_t_g,t_t_g,ps_t_g)
 
 
 !  update u,v,t,ps
 
 
   if(update) then
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              psi(i,j,k)=psi(i,j,k)+delu(i,j,k)
-              chi(i,j,k)=chi(i,j,k)+delv(i,j,k)
-              t(i,j,k)=t(i,j,k)+delt(i,j,k)
-           end do
-        end do
-     end do
-     do j=1,lon2
-        do i=1,lat2
-           ps(i,j)=ps(i,j)+delps(i,j)
-        end do
-     end do
+     call vtrans_inv(delutilde,delvtilde,delmtilde,psi,chi,t,ps)
+!????????????????????????????????in here, can insert diagnostic based on utilde_t_g and utilde_t,etc.
+!    u_t_g=zero;v_t_g=zero;t_t_g=zero;ps_t_g=zero
+!    call vtrans_inv(utilde_t_g,vtilde_t_g,mtilde_t_g,u_t_g,v_t_g,t_t_g,ps_t_g)
   end if
 
 end subroutine strong_bal_correction_slow_global
@@ -388,8 +372,8 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 !$$$
 
   use kinds, only: r_kind
-  use mod_vtrans, only: depths,nvmodes_keep,vtrans_ad,vtrans_inv_ad
-  use mod_inmi, only: m,gspeed,mmax,dinmi_ad,gproj_ad
+  use mod_vtrans, only: speeds,nvmodes_keep,vtrans_ad,vtrans_inv_ad
+  use mod_strong, only: dinmi_ad,gproj_ad
   use gridmod, only: nlat,nlon,lat2,lon2,sp_a,grd_a
   use constants, only: izero,ione,zero
   use hybrid_ensemble_parameters, only: uv_hyb_ens
@@ -401,44 +385,26 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: psi,chi,t
   real(r_kind),dimension(lat2,lon2)     ,intent(in   ) :: ps
 
-  real(r_kind),dimension(lat2,lon2,nsig)::delu,delv,delt
-  real(r_kind),dimension(lat2,lon2)::delps
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t,vtilde_t,mtilde_t
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t2,vtilde_t2,mtilde_t2
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delutilde,delvtilde,delmtilde
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t_g,vtilde_t_g,mtilde_t_g
   real(r_kind),dimension(nlat,nlon,nuvlevs)::uwork,vwork,mwork
   real(r_kind),dimension(sp_a%nc)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
+  real(r_kind)::gspeed
 
   integer(i_kind) mode,iad
-  integer(i_kind) i,j,k,kk
+  integer(i_kind) i,j,k,kk,m,mmax
 
   mmax=sp_a%jcap
 
 !  adjoint of update u,v,t,ps
-
-  do j=1,lon2
-     do i=1,lat2
-        delps(i,j)=ps(i,j)
-     end do
-  end do
-
-  do k=1,nsig
-     do j=1,lon2
-        do i=1,lat2
-           delu(i,j,k)=psi(i,j,k)
-           delv(i,j,k)=chi(i,j,k)
-           delt(i,j,k)=t(i,j,k)
-        end do
-     end do
-  end do
-
-!   7.  adjoint of delutilde,delvtilde,delmtilde  -->  delu,delv,delt,delps  (vert mode inverse transform)
+!   7.  adjoint of delutilde,delvtilde,delmtilde  -->  psi,chi,t,ps  (vert mode inverse transform)
 !       (subdomains)                      (subdomains)
 
   delutilde=zero ; delvtilde=zero ; delmtilde=zero
   utilde_t_g=zero ; vtilde_t_g=zero ; mtilde_t_g=zero
-  call vtrans_inv_ad(delutilde,delvtilde,delmtilde,delu,delv,delt,delps)
+  call vtrans_inv_ad(delutilde,delvtilde,delmtilde,psi,chi,t,ps)
 
   call inmi_sub2grid(delutilde,utilde_t_g,uwork)
   call inmi_sub2grid(delvtilde,vtilde_t_g,vwork)
@@ -471,15 +437,16 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 !   4.  divhat,vorthat,mhat --> deldivhat,delvorthat,delmhat   (inmi correction)
 !          (slabs)                        (slabs)
 
-     gspeed=sqrt(depths(abs(mode)))
+     gspeed=speeds(abs(mode))
      iad=ione
      vorthat=zero ; divhat=zero ; mhat=zero
      do m=0,sp_a%jcap
         if(mode >  izero) then
            call dinmi_ad(vorthat(iad),divhat(iad),mhat(iad),&
-                       delvorthat(iad)   ,   deldivhat(iad),   delmhat(iad))
+                       delvorthat(iad)   ,   deldivhat(iad),   delmhat(iad),m,mmax,gspeed)
         else
-           call gproj_ad(vorthat(iad),divhat(iad),mhat(iad),delvorthat(iad),deldivhat(iad),delmhat(iad))
+           call gproj_ad(vorthat(iad),divhat(iad),mhat(iad),delvorthat(iad),deldivhat(iad),delmhat(iad),&
+                        m,mmax,gspeed)
         end if
         iad=iad+2*(sp_a%jcap-m+ione)
      end do

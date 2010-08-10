@@ -34,8 +34,8 @@ ierr=100_i_kind
 write(6,*)'ABOR1 called: ',error_msg
 write(0,*)'ABOR1 called: ',error_msg
 
-call flush(6)
-call flush(0)
+flush(6)
+flush(0)
 
 call system("sleep 1")
 

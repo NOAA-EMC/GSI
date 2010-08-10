@@ -48,7 +48,7 @@ end if
 nymd = 10000*ibdate(1)+ibdate(2)*100+ibdate(3)
 nhms = 10000*ibdate(4)
 if(mype==0) write(6,'(a,i8.8,2x,i6.6)')'getsiga: starting to calculate analysis errors at ',&
-             nymd, nhms; call flush(6)
+             nymd, nhms; flush(6)
 
 ! allocate memory for working arrays
 call allocate_state(siga)

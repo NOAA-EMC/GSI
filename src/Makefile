@@ -326,11 +326,9 @@ clean:
         m_tick.F90 \
         mpeu_mpif.F90 \
         mpeu_util.F90 \
-        missing_routines.f90 \
-	mod_inmi.f90 \
         mod_nmmb_to_a.f90 \
 	mod_strong.f90 \
-	mod_vtrans.F90 \
+	mod_vtrans.f90 \
         model_ad.F90 \
         model_tl.F90 \
         model2control.f90 \

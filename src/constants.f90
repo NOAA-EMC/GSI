@@ -48,7 +48,7 @@ module constants
 ! set passed variables to public
   public :: one,two,ione,half,zero,izero,deg2rad,pi,three,quarter,one_tenth
   public :: rad2deg,zero_quad,r3600,r1000,r60inv,five,four,rd_over_cp,grav
-  public :: rd,rozcon,rearth_equator,zero_single,tiny_r_kind,tiny_single
+  public :: rd,rozcon,rearth_equator,zero_single,tiny_r_kind,tiny_single,ten
   public :: omega,rcp,rearth,fv,h300,cp,cg_term,tpwcon,xb,ttp,psatk,xa,tmix
   public :: xai,xbi,psat,eps,omeps,wgtlim,one_quad,two_quad,epsq,climit,epsm1,hvap
   public :: hsub,cclimit,el2orc,elocp,h1000,cpr,pcpeff0,pcpeff2,delta,pcpeff1
@@ -100,6 +100,7 @@ module constants
   real(r_kind),parameter::  three     = 3.0_r_kind
   real(r_kind),parameter::  four      = 4.0_r_kind
   real(r_kind),parameter::  five      = 5.0_r_kind
+  real(r_kind),parameter::  ten       = 10.0_r_kind
   real(r_kind),parameter::  r60       = 60._r_kind
   real(r_kind),parameter::  r1000     = 1000.0_r_kind
   real(r_kind),parameter::  r3600     = 3600.0_r_kind

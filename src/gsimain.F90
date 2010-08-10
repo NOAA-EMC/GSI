@@ -183,7 +183,7 @@
 !         setupref, setupbend, setuprhsall, setuprw, setupspd, setupsrw, setupsst,
 !         setupt, setupw, simpin1, simpin1_init, smooth121, smoothrf,
 !         smoothwwrf, smoothzrf, snwem_amsu, specmod, 
-!         sst_retrieval, statsconv, statsoz, statspcp, statsrad, stop1, stpbend,
+!         sst_retrieval, statsconv, statsoz, statspcp, statsrad, stop2, stpbend,
 !         stpcalc, stpcalc_qc, stpdw, stplimq, stpoz, stppcp, stpps, stppw,
 !         stpq, stprad, stpref, stprw, stpspd, stpsrw, stpsst, stpt, stpw,
 !         stvp2uv, stvp2uv_reg, sub2grid, tbalance, tintrp2a, tintrp3,
