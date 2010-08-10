@@ -2945,8 +2945,6 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delpsitilde,delchitilde,delmtilde,dummytilde
   real(r_kind),dimension(nlat,nlon)::u0t,v0t,m0t,div0t,vor0t,rhs,mtg,delm,divtg,vortg,mtg_x,mtg_y
   real(r_kind),dimension(nlat,nlon)::delvor,deldiv,delpsi,delchi,u_psi,v_psi,u_chi,v_chi,delf1,delf2
-  real(r_kind),dimension(lat2,lon2,nsig)::dpsi,dchi,dt
-  real(r_kind),dimension(lat2,lon2)::dps
   integer(i_kind) mode_number_a,mode_number_b
   real(r_kind) bal_a (nvmodes_keep),bal_b (nvmodes_keep)
   real(r_kind) bal_a0(nvmodes_keep),bal_b0(nvmodes_keep)
@@ -3144,13 +3142,7 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
       end do
     end if
     call special_for_llfmg_grid2sub2(delf1,delf2,delpsitilde,delmtilde,delchitilde,dummytilde,mype)
-    call vtrans_inv(delpsitilde,delchitilde,delmtilde,dpsi,dchi,dt,dps)
-    if(update) then
-      psi=psi+dpsi ; chi=chi+dchi
-    end if
-    if(update) then
-      t=t+dt ; ps=ps+dps
-    end if
+    if(update) call vtrans_inv(delpsitilde,delchitilde,delmtilde,psi,chi,t,ps)
 
 end subroutine fmg_strong_bal_correction
 

@@ -254,7 +254,7 @@ contains
     use kinds, only: r_single
     use mpimod, only: mype
     use gridmod, only: istart,lat2,nlat,nsig
-    use constants, only: ione,zero
+    use constants, only: zero
     use m_berror_stats,only: berror_read_bal
     implicit none
     
@@ -267,7 +267,7 @@ contains
     real(r_single),dimension(nlat,nsig) :: wgvin,bvin
     
 !   Initialize local variables
-    mm1=mype+ione
+    mm1=mype+1
 
 !   Read in balance variables
     call berror_read_bal(agvin,bvin,wgvin,mype)
@@ -284,14 +284,14 @@ contains
           do i=1,lat2
              jx=istart(mm1)+i-2_i_kind
              jx=max(jx,2_i_kind)
-             jx=min(nlat-ione,jx)
+             jx=min(nlat-1,jx)
              agvz(i,j,k)=agvin(jx,j,k)
           end do
        end do
        do i=1,lat2
           jx=istart(mm1)+i-2_i_kind
           jx=max(jx,2_i_kind)
-          jx=min(nlat-ione,jx)
+          jx=min(nlat-1,jx)
           wgvz(i,k)=wgvin(jx,k)
           bvz(i,k)=bvin(jx,k)
        end do
@@ -341,7 +341,7 @@ contains
     use guess_grids, only: ges_prslavg,ges_psfcavg
     use mpimod, only: mype
     use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_bal_reg
-    use constants, only: ione,zero,half,one
+    use constants, only: zero,half,one
     implicit none
 
 !   Declare passed variables
@@ -366,8 +366,8 @@ contains
     call berror_get_dims_reg(msig,mlat)
 
 !   Allocate arrays in stats file
-    allocate ( agvi(0:mlat+ione,1:nsig,1:nsig) )
-    allocate ( bvi(0:mlat+ione,1:nsig),wgvi(0:mlat+ione,1:nsig) )
+    allocate ( agvi(0:mlat+1,1:nsig,1:nsig) )
+    allocate ( bvi(0:mlat+1,1:nsig),wgvi(0:mlat+1,1:nsig) )
     
 !   Read in background error stats and interpolate in vertical to that specified in namelist
     call berror_read_bal_reg(msig,mlat,agvi,bvi,wgvi,mype,inerr)
@@ -387,7 +387,7 @@ contains
     agvk=zero
     bvk=zero
     wgvk=zero
-    ke_vp=ke-ione
+    ke_vp=ke-1
     if (twodvar_regional) ke_vp=ke
     if (.not.twodvar_regional) then
        do k=1,ke_vp
@@ -401,7 +401,7 @@ contains
              end do
           end do
        end do
-       do k=ke_vp+ione,nsig
+       do k=ke_vp+1,nsig
           do j=1,lon2
              do i=1,lat2
                 bvk(i,j,k)=zero
@@ -504,7 +504,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: ione,one,half
+    use constants, only: one,half
     use gridmod, only: regional,lat2,nsig,iglobal,itotsub,lon2
     use hybrid_ensemble_parameters, only: l_hyb_ens
     implicit none
@@ -678,7 +678,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants,   only: ione,one,half
+    use constants,   only: one,half
     use gridmod,     only: itotsub,regional,iglobal,lon2,lat2,nsig
     use hybrid_ensemble_parameters, only: l_hyb_ens
     implicit none
@@ -829,7 +829,7 @@ contains
 !$$$
     use kinds, only: r_single
     use gridmod, only: nlon,nlat,lat2,lon2,istart,jstart,region_lat
-    use constants, only: ione,deg2rad,one
+    use constants, only: deg2rad,one
     implicit none
     
 !   Declare passed variables
@@ -874,11 +874,11 @@ contains
              llmin=min0(mlat,llmin)
           else if(region_lat(i,j)<clat_avn(1))then
              rllat(i,j)=one
-             llmax=max0(ione,llmax)
-             llmin=min0(ione,llmin)
+             llmax=max0(1,llmax)
+             llmin=min0(1,llmin)
           else
-             do m=1,mlat-ione
-                m1=m+ione
+             do m=1,mlat-1
+                m1=m+1
                 if((region_lat(i,j)>=clat_avn(m)).and.  &
                    (region_lat(i,j)<clat_avn(m1)))then
                    rllat(i,j)=float(m)
@@ -892,18 +892,18 @@ contains
           endif
        end do
     end do
-    llmax=min0(mlat,llmax+ione)
-    llmin=max0(ione,llmin-ione)
+    llmax=min0(mlat,llmax+1)
+    llmin=max0(1,llmin-1)
     
     deallocate(clat_avn)
     
-    mm1=mype+ione
+    mm1=mype+1
     do j=1,lon2            
        jl=j+jstart(mm1)-2_i_kind
-       jl=min0(max0(ione,jl),nlon)
+       jl=min0(max0(1,jl),nlon)
        do i=1,lat2            
           il=i+istart(mm1)-2_i_kind
-          il=min0(max0(ione,il),nlat)
+          il=min0(max0(1,il),nlat)
           rllat1(i,j)=rllat(il,jl)
        enddo
     enddo
@@ -911,10 +911,10 @@ contains
        fmid=one/sin(region_lat(nlat/2,nlon/2))
        do j=1,lon2
           jl=j+jstart(mm1)-2_i_kind
-          jl=min0(max0(ione,jl),nlon)
+          jl=min0(max0(1,jl),nlon)
           do i=1,lat2
              il=i+istart(mm1)-2_i_kind
-             il=min0(max0(ione,il),nlat)
+             il=min0(max0(1,il),nlat)
              f1(i,j)=sin(region_lat(il,jl))*fmid
           enddo
        enddo
@@ -955,7 +955,6 @@ subroutine strong_bk(st,vp,p,t)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: izero
   use mpimod, only: mype
   use gridmod, only: latlon1n,latlon11
   use mod_vtrans,only: nvmodes_keep
@@ -973,7 +972,7 @@ subroutine strong_bk(st,vp,p,t)
   real(r_kind),dimension(latlon11):: ps_t
 
 !******************************************************************************  
-  if(nvmodes_keep <= izero .or. nstrong <= izero) return
+  if(nvmodes_keep <= 0 .or. nstrong <= 0) return
 
 ! compute derivatives
 
@@ -1023,7 +1022,7 @@ subroutine strong_bk_ad(st,vp,p,t)
 !
 !$$$
   use mpimod, only: mype
-  use constants, only: izero,zero
+  use constants, only: zero
   use gridmod, only: latlon1n,latlon11
   use mod_vtrans,only: nvmodes_keep
   use mod_strong,only: nstrong
@@ -1042,7 +1041,7 @@ subroutine strong_bk_ad(st,vp,p,t)
 
 !******************************************************************************
 
-  if(nvmodes_keep <= izero .or. nstrong <= izero) return
+  if(nvmodes_keep <= 0 .or. nstrong <= 0) return
      
   do istrong=1,nstrong
 ! Zero gradient arrays

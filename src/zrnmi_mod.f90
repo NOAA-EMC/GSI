@@ -3664,6 +3664,10 @@ contains
        else
           call zrnmi_pcmhat2uvm(utilde,vtilde,mtilde,phat2,chat2,mhat2,mype)
        end if
+       dt=zero
+       dpsi=zero
+       dchi=zero
+       dps=zero
        call vtrans_inv(utilde,vtilde,mtilde,dpsi,dchi,dt,dps)
 
        t=t-dt ; ps=ps-dps

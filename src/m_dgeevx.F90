@@ -59,7 +59,7 @@ contains
     subroutine dgeevx(nsig,qmat,ldqmat,www,wwwd,zzz,ldzzz,zzzd,ldzzzd,info,mype)
       use kinds,only : i_kind
       use kinds,only : r_double,r_kind
-      use constants,only : izero,ione,zero
+      use constants,only : zero
       implicit none
 
       integer(i_kind)                        ,intent(in   ) :: nsig   ! dimension matrix A (n-by-n (n=nsig))
@@ -96,18 +96,18 @@ contains
 ! next get eigenvalues, eigenvectors and compare to singular values, vectors.
 ! use essl routine dgeev
 
-    iopt=ione      !  eigenvalues and eigenvectors are computed
+    iopt=1      !  eigenvalues and eigenvectors are computed
 
     do j=1,nsig
        do i=1,nsig
           aaa(i,j)=qmat(i,j)
        end do
     end do
-    naux=izero
+    naux=0
     call dgeev(iopt,aaa,nsig,www,zzz,nsig,select,nsig,aux,naux)
 !   sort from largest to smallest eigenvalue
-    do j=1,nsig-ione
-       do i=j+ione,nsig
+    do j=1,nsig-1
+       do i=j+1,nsig
           if(www(1,i)>www(1,j)) then
              factor=www(1,j)
              www(1,j)=www(1,i)
@@ -130,17 +130,17 @@ contains
 ! checks and print out eigenvalues (removed)
 !
 
-    iopt=ione      !  eigenvalues and dual eigenvectors are computed next
+    iopt=1      !  eigenvalues and dual eigenvectors are computed next
     do j=1,nsig
        do i=1,nsig
           aaa(i,j)=qmat(j,i)         !  to get dual vectors, use transpose of qmat
        end do
     end do
-    naux=izero
+    naux=0
     call dgeev(iopt,aaa,nsig,wwwd,zzzd,nsig,select,nsig,aux,naux)
 !   sort from largest to smallest eigenvalue
-    do j=1,nsig-ione
-       do i=j+ione,nsig
+    do j=1,nsig-1
+       do i=j+1,nsig
           if(wwwd(1,i)>wwwd(1,j)) then
              factor=wwwd(1,j)
              wwwd(1,j)=wwwd(1,i)
@@ -160,7 +160,7 @@ contains
        end do
     end do
 
-    info=izero
+    info=0
   
 #else
 	! Use standard LAPACK routine dgeev()
@@ -174,7 +174,7 @@ contains
     real(r_double)  :: aaa(nsig,nsig)
     real(r_double)  :: wr(nsig),wi(nsig)
     real(r_double)  :: vl(nsig,nsig),vr(nsig,nsig)
-    real(r_double)  :: work(4*nsig+ione)
+    real(r_double)  :: work(4*nsig+1)
     integer(i_kind) :: lwork,i,j,k
     real(r_kind)    :: factor,factor2
 
@@ -191,11 +191,11 @@ contains
        end do
     end do
 
-    if (mype ==izero) write (6,*) 'in mod_vtrans_create_vtrans, before CALL DGEEV'
+    if (mype ==0) write (6,*) 'in mod_vtrans_create_vtrans, before CALL DGEEV'
     call dgeev(jobvl,jobvr,nsig,aaa,nsig,wr,wi,vl,nsig,vr,nsig,work,lwork,info)
 
 
-    if (mype ==izero) write (6,*) ' AFTER CALL DGEEV', 'status: info =  ', info
+    if (mype ==0) write (6,*) ' AFTER CALL DGEEV', 'status: info =  ', info
 
 ! use Dave's array names
     do j=1,nsig
@@ -220,8 +220,8 @@ contains
 ! back to Dave's code
 !sort from largest to smallest eigenvalues
 !   sort from largest to smallest eigenvalue
-    do j=1,nsig-ione
-       do i=j+ione,nsig
+    do j=1,nsig-1
+       do i=j+1,nsig
           if(www(1,i)>www(1,j)) then
              factor=www(1,j)
              www(1,j)=www(1,i)
@@ -259,8 +259,8 @@ contains
 !  using the component form
     wwwd=www
 
-    if (mype==izero) write (6,*) '****************************'
-    if (mype==izero) write (6,*) 'SECOND TIME CALL DGEEV'
+    if (mype==0) write (6,*) '****************************'
+    if (mype==0) write (6,*) 'SECOND TIME CALL DGEEV'
 #endif
 end subroutine dgeevx
 end module m_dgeevx

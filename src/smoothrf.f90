@@ -37,7 +37,7 @@ subroutine smoothrf(work,nsc,nlevs)
   use gridmod, only: nlat,nlon,regional
   use constants, only: zero,half
   use berror, only: ii,jj,ii1,jj1,ii2,jj2,slw,slw1,slw2, &
-       nx,ny,mr,nr,nf,hzscl,hswgt
+       nx,ny,mr,nr,nf,hzscl,hswgt,nfg
   use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
   use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
@@ -48,7 +48,6 @@ subroutine smoothrf(work,nsc,nlevs)
   real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
 
 ! Declare local variables
-  integer(i_kind) nfg
   integer(i_kind) j,i
   integer(i_kind) k,kk,kkk
 
@@ -83,7 +82,6 @@ subroutine smoothrf(work,nsc,nlevs)
         totwgt(j)=hswgt(j)*hzscl(j)*hzscl(j)
      end do
      
-     nfg=nf*2+1
      workout=zero
      
 !$omp parallel do  schedule(dynamic,1) private(kk) &
@@ -167,7 +165,7 @@ subroutine grid2tr(work,p1all)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: bl,bl2,nx,ny,nr
+  use berror, only: bl,bl2,nx,ny,nr,ndy,ndx,nmix,ndx2,nymx
   implicit none
 
 ! Declare passed variables
@@ -175,15 +173,9 @@ subroutine grid2tr(work,p1all)
   real(r_kind),dimension(ny,nx),intent(out)     :: p1all
 
 ! Declare local variables
-  integer(i_kind) ndy,ndx,nmix,ndx2,nymx
   integer(i_kind) j,i,i2,i1,j1
 
 ! -----------------------------------------------------------------------------
-  ndx=(nx-nlon)/2
-  ndy=(nlat-ny)/2
-  ndx2=2*ndx
-  nmix=nr+1-ndy
-  nymx=ny-nmix
   do j=1,nx
      do i=1,ny
         p1all(i,j)=zero
@@ -257,7 +249,7 @@ subroutine grid2tr_ad(work,p1all)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: bl,bl2,nx,ny,nr
+  use berror, only: bl,bl2,nx,ny,nr,ndx,ndy,ndx2,nmix,nymx
   implicit none
 
 ! Declare passed variables
@@ -265,15 +257,9 @@ subroutine grid2tr_ad(work,p1all)
   real(r_kind),dimension(ny,nx),intent(inout)      :: p1all
 
 ! Declare local variables
-  integer(i_kind) ndy,ndx,nmix,ndx2,nymx
   integer(i_kind) j,i,i2,i1,j1
 
 ! -----------------------------------------------------------------------------
-  ndx=(nx-nlon)/2
-  ndy=(nlat-ny)/2
-  ndx2=2*ndx
-  nmix=nr+1-ndy
-  nymx=ny-nmix
 
 ! Equatorial patch
 ! Adjoint of central patch blending on left/right sides of patch
@@ -342,7 +328,7 @@ subroutine grid2nh(work,pall)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,norh,nx,ny,mr,nr,nf
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,nx,ny,mr,nr,nf,ndy,norm,nxem
   use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
   implicit none
 
@@ -352,13 +338,9 @@ subroutine grid2nh(work,pall)
 
 ! Declare local variables
   real(r_kind),dimension(nlon+1,mr:nr)    :: p2all
-  integer(i_kind) ndy,nxem,norm
   integer(i_kind) j,i,j1
 
 ! -----------------------------------------------------------------------------
-  ndy=(nlat-ny)/2
-  norm=norh*2-1
-  nxem=nlon/8-1
   do j=mr,nr
      do i=1,nlon+1
         p2all(i,j)=zero
@@ -413,7 +395,7 @@ subroutine grid2nh_ad(work,pall)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,norh,nx,ny,mr,nr,nf
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,nx,ny,mr,nr,nf,ndy,norm,nxem
   use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
   implicit none
 
@@ -423,13 +405,9 @@ subroutine grid2nh_ad(work,pall)
 
 ! Declare local variables
   real(r_kind),dimension(nlon+1,mr:nr)     :: p2all
-  integer(i_kind) ndy,nxem,norm
   integer(i_kind) j,i,j1
 
 ! -----------------------------------------------------------------------------
-  ndy=(nlat-ny)/2
-  norm=norh*2-1
-  nxem=nlon/8-1
 
 ! Adjoint of interpolation to polar grid
   if(norsp>0) then
@@ -481,7 +459,7 @@ subroutine grid2sh(work,pall)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,norh,nx,ny,mr,nr,nf
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,nx,ny,mr,nr,nf,ndy,norm,nxem
   use smooth_polcarf, only: norsp,smooth_polcasa
   implicit none
 
@@ -491,13 +469,9 @@ subroutine grid2sh(work,pall)
 
 ! Declare local variables
   real(r_kind),dimension(nlon+1,mr:nr)    :: p3all
-  integer(i_kind) ndy,nxem,norm
   integer(i_kind) j,i,j1
 
 ! -----------------------------------------------------------------------------
-  ndy=(nlat-ny)/2
-  norm=norh*2-1
-  nxem=nlon/8-1
 
   do j=mr,nr
      do i=1,nlon+1
@@ -553,7 +527,7 @@ subroutine grid2sh_ad(work,pall)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,norh,nx,ny,mr,nr,nf
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,nx,ny,mr,nr,nf,ndy,norm,nxem
   use smooth_polcarf, only: norsp,smooth_polcas
   implicit none
 
@@ -563,13 +537,8 @@ subroutine grid2sh_ad(work,pall)
 
 ! Declare local variables
   real(r_kind),dimension(nlon+1,mr:nr)     :: p3all
-  integer(i_kind) ndy,nxem,norm
   integer(i_kind) j,i,j1
 
-! -----------------------------------------------------------------------------
-  ndy=(nlat-ny)/2
-  norm=norh*2-1
-  nxem=nlon/8-1
 
 ! Interpolate to polar grid
   if(norsp>0) then
@@ -1323,7 +1292,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   use jfunc,only: nval_lenz
   use constants, only: zero,half
   use berror, only: ii,jj,ii1,jj1,&
-       ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt
+       ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt,nfg,nfnf
   use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
   use smooth_polcarf, only: norsp,smooth_polcas
@@ -1335,7 +1304,6 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
 
 ! Declare local variables
-  integer(i_kind) nfg,nfnf
   integer(i_kind) j,i
   integer(i_kind) k,iz,kk,kkk
 
@@ -1377,9 +1345,6 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
      do j=1,nsc
         totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
      end do
-     
-     nfg=nf*2+1
-     nfnf=nfg*nfg
      
 !       zero output array
      do k=1,nlevs
@@ -1502,7 +1467,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
   use jfunc,only: nval_lenz
   use constants, only: zero,half
   use berror, only: ii,jj,ii1,jj1,&
-       ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt
+       ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt,nfg,nfnf
   use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
   implicit none
@@ -1513,8 +1478,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
   real(r_kind),dimension(nlat,nlon,nlevs),intent(in   ) :: work
 
 ! Declare local variables
-  integer(i_kind) nfg
-  integer(i_kind) j,i,nfnf
+  integer(i_kind) j,i
   integer(i_kind) k,iz,kk,kkk
 
   real(r_kind),dimension(nsc):: totwgt
@@ -1556,8 +1520,6 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
         totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
      end do
      
-     nfg=nf*2+1
-     nfnf=nfg*nfg
 
 !$omp parallel do  schedule(dynamic,1) private(kk) &
 !$omp private(i,j,k,iz,kkk,pall,zloc)

@@ -58,8 +58,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2010-05-26 cucurull - modify ds
 !   2010-06-11 cucurull - update Statistics QC
 !   2010-05-24 guo      - remerged/reimplmented multi-pass setup in observer mode;
-!			- skiped data outside "integration new grid", instead of die();
-!			- changed 3d temperature field used by tintrp3(), a possible "bug".
+!   2010-08-09 lueken   - removed n_5km variable from code.
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -197,7 +196,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   logical:: in_curbin, in_anybin, skipiobs
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
-  integer(i_kind):: n_5km
   type(gps_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
@@ -275,7 +273,6 @@ endif	! (init_pass)
   enddo
 
 ! A loop over all obs.
-  n_5km=0
   call dtime_setup()
 loopoverobs1: &
   do i=1,nobs ! loop over obs 
@@ -995,7 +992,6 @@ endif	! (last_pass)
 
   call tell(myname,'counts of obs total  =',n_alloc)
   call tell(myname,'counts of obs in use =',m_alloc)
-  call tell(myname,'rejected counts of obs+5km  =',n_5km  )
   call dtime_show(myname,'diagsave:bend',i_gps_ob_type)
   call gpsrhs_unaliases(is)
   if(last_pass) call gpsrhs_dealloc(is)

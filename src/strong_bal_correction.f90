@@ -55,7 +55,6 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
   use mod_strong, only: jcstrong_option
   use zrnmi_mod, only: zrnmi_strong_bal_correction
   use strong_slow_global_mod, only: strong_bal_correction_slow_global
@@ -70,25 +69,25 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: psi,chi,t
   real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: ps
 
-  if(jcstrong_option==ione) then
+  if(jcstrong_option==1) then
 
 !    slow global option:
 
      call strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update)
 
-  elseif(jcstrong_option==2_i_kind) then
+  elseif(jcstrong_option==2) then
 
 !    faster global option:
 
      call strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update)
 
-  elseif(jcstrong_option==3_i_kind) then
+  elseif(jcstrong_option==3) then
 
 !    regional option:
 
      call zrnmi_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnostic,fullfield,update,mype)
 
-  elseif(jcstrong_option==4_i_kind) then
+  elseif(jcstrong_option==4) then
 
 !    version 3 regional option
 
@@ -153,7 +152,6 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
   use mod_strong, only: jcstrong_option
   use zrnmi_mod, only: zrnmi_strong_bal_correction_ad
   use strong_slow_global_mod, only: strong_bal_correction_slow_global_ad
@@ -169,26 +167,26 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 
   logical update
 
-  if(jcstrong_option==ione) then
+  if(jcstrong_option==1) then
 
 !    slow global option:
 
      call strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 
-  elseif(jcstrong_option==2_i_kind) then
+  elseif(jcstrong_option==2) then
 
 !    faster global option:
 
      call strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 
-  elseif(jcstrong_option==3_i_kind) then
+  elseif(jcstrong_option==3) then
 
 !    regional option:
 
      update=.true.
      call zrnmi_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
 
-  elseif(jcstrong_option==4_i_kind) then
+  elseif(jcstrong_option==4) then
 
 !    version 3 regional option
 
