@@ -49,6 +49,7 @@ module gridmod
 !                         destroy from specmod to gridmod; add grd_a and grd_b structures
 !   2010-04-01  treadon - move routines reorder, reorder2, strip_single, strip,
 !                         vectosub, reload, and strip_periodic from mpimod to gridmod
+!   2010-07-19  lueken  - make required changes to use general_deter_subdomain
 !
 !
 ! !AUTHOR: 
@@ -554,6 +555,15 @@ contains
          regional,vector)
     deallocate(vector)
 
+! Set values from grd_a to pertinent gridmod variables 
+    lat1=grd_a%lat1 
+    lat2=grd_a%lat2 
+    lon1=grd_a%lon1 
+    lon2=grd_a%lon2 
+    ilat1=grd_a%ilat1 
+    jlon1=grd_a%jlon1 
+    periodic=grd_a%periodic
+
     return
 
   end subroutine init_grid_vars
@@ -734,6 +744,20 @@ contains
        isc_g(i)     = izero
        isd_g(i)     = izero
        displs_g(i)  = izero
+    end do
+
+    do i=1,npe 
+       istart(i)    =grd_a%istart(i) 
+       jstart(i)    =grd_a%jstart(i) 
+       periodic_s(i)=grd_a%periodic_s(i) 
+       ilat1(i)     =grd_a%ilat1(i) 
+       jlon1(i)     =grd_a%jlon1(i) 
+       ijn_s(i)     =grd_a%ijn_s(i) 
+       irc_s(i)     =grd_a%irc_s(i) 
+       ird_s(i)     =grd_a%ird_s(i) 
+       displs_s(i)  =grd_a%displs_s(i) 
+       ijn(i)       =grd_a%ijn(i) 
+       displs_g(i)  =grd_a%displs_g(i) 
     end do
 
     return
