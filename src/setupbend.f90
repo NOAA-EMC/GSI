@@ -62,6 +62,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2010-08-10 treadon  - remove last check for gpshead allocate; clean up use statements, 
 !                         replace (izero,ione) with (0,1), remove _i_kind suffix from integer 
 !                         constants
+!   2010-08-11 lcucurull - replace tpdpres with tpdpres(nobs) to fix bug in TL code
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -177,9 +178,10 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   real(r_kind),dimension(nsig,nsig)::dhdt,dndt,dxidt,dndq,dxidq
   real(r_kind),dimension(nsig+10) :: n_TL
   real(r_kind),dimension(0:nsig+11) :: ref_rad,xi_TL
-  real(r_kind) :: dlat,dlate,dlon,rocprof,unprof,tpdpres,dtime,dpressure,trefges
+  real(r_kind) :: dlat,dlate,dlon,rocprof,unprof,dtime,dpressure,trefges
   real(r_kind) :: dbetan,dbetaxi,rdog,elev,alt
   real(r_kind),dimension(nsig):: tges,qges
+  real(r_kind),dimension(nobs):: tpdpres
 
 
   logical,dimension(nobs):: luse
@@ -279,7 +281,7 @@ loopoverobs1: &
      dlon=data(ilon,i)
      rocprof=data(iroc,i)
      unprof=data(igeoid,i)
-     tpdpres=data(ihgt,i)
+     tpdpres(i)=data(ihgt,i)
      ikx=nint(data(ikxx,i))
 
 !    Interpolate log(pres),temperature,specific humidity, 
@@ -359,7 +361,7 @@ loopoverobs1: &
 !    error. They will be tuned in a later version
 
      repe_gps=one
-     alt=(tpdpres-rocprof)*r1em3
+     alt=(tpdpres(i)-rocprof)*r1em3
      if(alt > r30) then
        repe_gps=0.2_r_kind
      else
@@ -383,7 +385,7 @@ loopoverobs1: &
 !    Make no adjustment if observation falls within vertical
 !    domain.
 
-     hob=tpdpres
+     hob=tpdpres(i)
      call grdcrd(hob,1,ref_rad(1),nsig,1)
      if (hob<one .or. hob>rsig) then 
         data(ier,i) = zero
@@ -412,8 +414,8 @@ loopoverobs1: &
      rdiagbuf(2,i)         = data(iprof,i)     ! profile identifier
      rdiagbuf(3,i)         = data(ilate,i)     ! lat in degrees
      rdiagbuf(4,i)         = data(ilone,i)     ! lon in degrees
-     rdiagbuf(7,i)         = tpdpres-rocprof   ! impact height in meters
-!    rdiagbuf(7,i)         = tpdpres           ! impact parameter in meters
+     rdiagbuf(7,i)         = tpdpres(i)-rocprof   ! impact height in meters
+!    rdiagbuf(7,i)         = tpdpres(i)           ! impact parameter in meters
      rdiagbuf(8,i)         = dtime-time_offset ! obs time (hours relative to analysis time)
 !    rdiagbuf(9,i)         = data(ipctc,i)     ! input bufr qc - index of per cent confidence
      rdiagbuf(9,i)         = zsges             ! model terrain (m) 
@@ -450,7 +452,7 @@ loopoverobs1: &
 
 !       Get refractivity index-radius and [d(ln(n))/dx] in new grid.
         intloop: do j=1,grids_dim
-           ref_rad_s(j)=sqrt(grid_s(j)*grid_s(j)+tpdpres*tpdpres) !x_j
+           ref_rad_s(j)=sqrt(grid_s(j)*grid_s(j)+tpdpres(i)*tpdpres(i)) !x_j
            xj(j,i)=ref_rad_s(j)
            hob_s=ref_rad_s(j)
            call grdcrd(hob_s,1,ref_rad(1),nsig_up,1)
@@ -488,7 +490,7 @@ loopoverobs1: &
            ddbend=ds*ddnj(j)/ref_rad_s(j)
            dbend=dbend+two*ddbend
         end do
-        dbend=r1em6*tpdpres*dbend  
+        dbend=r1em6*tpdpres(i)*dbend  
 
 !       Accumulate diagnostic information
         rdiagbuf( 5,i)  = (data(igps,i)-dbend)/data(igps,i) ! incremental bending angle (x100 %)
@@ -933,8 +935,8 @@ if(last_pass) then
            end do intloop2
         end do
         do k=1,nsig
-           dbenddxi(k)=-dbenddxi(k)*ds*rdiagbuf(7,i)
-           dbenddn(k)=-dbenddn(k)*ds*rdiagbuf(7,i)
+           dbenddxi(k)=-dbenddxi(k)*ds*tpdpres(i)
+           dbenddn(k)=-dbenddn(k)*ds*tpdpres(i)
         end do
         do k=1,nsig
            gpstail(ibin)%head%jac_t(k)=zero
