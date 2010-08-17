@@ -54,6 +54,7 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2010-05-19  todling - move oneob test outside esmf ifdef
 !   2010-05-29  todling - update interface to ozinfo_read,pcpinfo_read,&convinfo_read
 !   2010-06-05  todling - repositioned call to init_commvars
+!   2010-07-19  lueken  - remove call to deter_subdomain (general_deter_subdomain is also used)
 !
 !   input argument list:
 !     mype - mpi task id
@@ -117,7 +118,6 @@ subroutine gsisub(mype,init_pass,last_pass)
 
 ! Create analysis subdomains and initialize subdomain variables
   call create_mapping(npe)
-  call deter_subdomain(mype)
   call init_subdomain_vars
 
 ! Set communicators between subdomain and global/horizontal slabs

@@ -82,6 +82,10 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !                      - remove idia
 !                      - remove observation dianostics structure (I moved this structure to genstats.f90
 !                        a while back and shouldn't have been coded here again!)
+!  2010-07-22 treadon  - remove last check for gpshead allocate
+!  2010-07-23 treadon  - clean up use statements, replace (izero,ione) with (0,1),
+!                        remove _i_kind suffix from integer constants
+!
 !   input argument list:
 !     lunin    - unit from which to read observations
 !     mype     - mpi task id
@@ -97,7 +101,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !
 !$$$
   use mpeu_util, only: die,perr
-  use kinds, only: r_kind,i_kind,r_single
+  use kinds, only: r_kind,i_kind
   use obsmod, only: nprof_gps,gpshead,gpstail,gps_allhead,gps_alltail,&
        i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,&
        time_offset
@@ -109,10 +113,10 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   use gridmod, only: nsig
   use gridmod, only: latlon11,get_ij,regional
   use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,quarter
-  use constants, only: izero,ione,zero,one,two,eccentricity,semi_major_axis,&
+  use constants, only: zero,one,two,eccentricity,semi_major_axis,&
        grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,&
        three,four,five,half
-  use jfunc, only: jiter,last,miter
+  use jfunc, only: jiter,miter
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use m_gpsrhs, only: muse
@@ -152,8 +156,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 
 ! Declare passed variables
   integer(i_kind)                            ,intent(in   ) :: lunin,mype,nele,nobs
-  real(r_kind),dimension(100_i_kind+7*nsig)  ,intent(inout) :: awork
-  real(r_kind),dimension(max(ione,nprof_gps)),intent(inout) :: toss_gps_sub
+  real(r_kind),dimension(100+7*nsig)  ,intent(inout) :: awork
+  real(r_kind),dimension(max(1,nprof_gps)),intent(inout) :: toss_gps_sub
   integer(i_kind)                            ,intent(in   ) :: is	! ndat index
   logical                                    ,intent(in   ) :: init_pass	! the pass with the first set of background bins
   logical                                    ,intent(in   ) :: last_pass	! the pass with all background bins processed
@@ -175,7 +179,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   real(r_kind) ratio,residual,obserror,obserrlm,delz
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nsig):: tges,hgesl
-  real(r_kind),dimension(nsig+ione) :: prsltmp,hges
+  real(r_kind),dimension(nsig+1) :: prsltmp,hges
   
   integer(i_kind):: ier,ilon,ilat,ihgt,igps,itime,ikx,iuse,ikxx
   integer(i_kind):: iprof,ipctc,iroc,isatid,iptid
@@ -194,8 +198,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   type(gps_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
-  n_alloc(:)=izero
-  m_alloc(:)=izero
+  n_alloc(:)=0
+  m_alloc(:)=0
 !*******************************************************************************
 
 ! Read and reformat observations in work arrays.
@@ -203,30 +207,30 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 
 
 ! Set indices for quantities in data array
-  ier=ione            ! index of obs error in data array (now 1/(original obs error))
-  ilon=2_i_kind       ! index of grid relative obs location (x)
-  ilat=3_i_kind       ! index of grid relative obs location (y)
-  ihgt=4_i_kind       ! index of obs vertical coordinate in data array
-  igps=5_i_kind       ! index of gps data (or residual) in data array
-  itime=6_i_kind      ! index of obs time in data array
-  ikxx=7_i_kind       ! index of observation type
-  iprof=8_i_kind      ! index of profile
-  ipctc=9_i_kind      ! index of percent confidence
-  iroc=10_i_kind      ! index of local radius of curvature
-  isatid=11_i_kind    ! index of satellite identifier
-  iptid=12_i_kind     ! index of platform transmitter id number
-  iuse=13_i_kind      ! index of use parameter
-  ilone=14_i_kind     ! index of earth relative longitude (degrees)
-  ilate=15_i_kind     ! index of earth relative latitude (degrees)
+  ier=1        ! index of obs error in data array (now 1/(original obs error))
+  ilon=2       ! index of grid relative obs location (x)
+  ilat=3       ! index of grid relative obs location (y)
+  ihgt=4       ! index of obs vertical coordinate in data array
+  igps=5       ! index of gps data (or residual) in data array
+  itime=6      ! index of obs time in data array
+  ikxx=7       ! index of observation type
+  iprof=8      ! index of profile
+  ipctc=9      ! index of percent confidence
+  iroc=10      ! index of local radius of curvature
+  isatid=11    ! index of satellite identifier
+  iptid=12     ! index of platform transmitter id number
+  iuse=13      ! index of use parameter
+  ilone=14     ! index of earth relative longitude (degrees)
+  ilate=15     ! index of earth relative latitude (degrees)
 
 ! Initialize variables
   rsig=float(nsig)
-  mm1=mype+ione
+  mm1=mype+1
 
 ! Allocate arrays for output to diagnostic file
-  mreal=19_i_kind
+  mreal=19
   nreal=mreal
-  if (lobsdiagsave) nreal=nreal+4*miter+ione
+  if (lobsdiagsave) nreal=nreal+4*miter+1
 
 if(init_pass) call gpsrhs_alloc(is,'ref',nobs,nsig,nreal,-1)
 call gpsrhs_aliases(is)
@@ -287,15 +291,15 @@ if(in_curbin) then
 
 !    Interpolate log(pres), terrain, and geop heights to obs location
      call tintrp2a(ges_lnprsi,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          ione,nsig+ione,mype,nfldsig)
+          1,nsig+1,mype,nfldsig)
      call tintrp2a(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
-          ione,nsig,mype,nfldsig)
+          1,nsig,mype,nfldsig)
      call tintrp2a(geop_hgti,hges,dlat,dlon,dtime,hrdifsig,&
-          ione,nsig+ione,mype,nfldsig)
+          1,nsig+1,mype,nfldsig)
      call tintrp2a(geop_hgtl,hgesl,dlat,dlon,dtime,hrdifsig,&
-          ione,nsig,mype,nfldsig)
+          1,nsig,mype,nfldsig)
      call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-          ione,ione,mype,nfldsig)
+          1,1,mype,nfldsig)
 
 !    Convert geometric height at observation to geopotential height using
 !    equations (17, 20, 23) in MJ Mahoney's note "A discussion of various
@@ -318,26 +322,26 @@ if(in_curbin) then
 !    Convert observation height (in dpres) from meters to grid relative units
      hob=hgeso
      hobl=hgeso
-     call grdcrd(hob,ione,hges,nsig,ione)   ! interface levels
-     call grdcrd(hobl,ione,hgesl,nsig,ione) ! midpoint layers
+     call grdcrd(hob,1,hges,nsig,1)   ! interface levels
+     call grdcrd(hobl,1,hgesl,nsig,1) ! midpoint layers
      dpres=hob
      dpresl(i)=hobl
      data(ihgt,i)=dpres
 
 !    Get temperature at observation location
      call tintrp3(ges_tv,trefges,dlat,dlon,hobl,&
-          dtime,hrdifsig,ione,mype,nfldsig)
+          dtime,hrdifsig,1,mype,nfldsig)
 
 !    Set indices of model levels below (k1) and above (k2) observation.
      k=dpres
-     k1=min(max(ione,k),nsig)
-     k2=max(ione,min(k+ione,nsig))
+     k1=min(max(1,k),nsig)
+     k2=max(1,min(k+1,nsig))
 
 !    Get observation pressure from hypsometric equation
-     if(k1==ione) then
+     if(k1==1) then
         pobl=two*grav*(hgeso-hges(k1))/(rd*(trefges+tges(k1)))
      else
-        tmean=(tges(k1)+tges(k1-ione))/two ! temperature at interface level k1
+        tmean=(tges(k1)+tges(k1-1))/two ! temperature at interface level k1
         pobl=two*grav*(hgeso-hges(k1))/(rd*(trefges+tmean))
      endif
      pobl=prsltmp(k1)-pobl
@@ -440,7 +444,7 @@ if(in_curbin) then
 !       Also compute terms needed in minimization
 
         call tintrp3(ges_q,qrefges,dlat,dlon,hobl,dtime,&
-              hrdifsig,ione,mype,nfldsig)
+              hrdifsig,1,mype,nfldsig)
 
 !       Compute guess local refractivity
         fact=(one+fv*qrefges)
@@ -484,8 +488,8 @@ if(in_curbin) then
               else
                  cutoff2=r1em3*trefges**2-r0_455*trefges+r52_075
               endif
-              if((ictype(ikx)==41_i_kind).or.(ictype(ikx)==722_i_kind).or.(ictype(ikx)==723_i_kind).or.&
-                 ictype(ikx)==4_i_kind) then !CL
+              if((ictype(ikx)==41).or.(ictype(ikx)==722).or.(ictype(ikx)==723).or.&
+                 ictype(ikx)==4) then !CL
                  cutoff3=(half+two*cos(data(ilate,i)*deg2rad))/three
               else
                  cutoff3=(one+r2_5*cos(data(ilate,i)*deg2rad))/three
@@ -525,10 +529,10 @@ if(in_curbin) then
 !       If obs is "acceptable", compute coefficients for adjoint
         if ((data(ier,i)*ratio_errors(i)) > tiny_r_kind) then
  
-           if(k1==ione) then
+           if(k1==1) then
               tmean=tges(k1)
            else
-              tmean=(tges(k1)+tges(k1-ione))/two
+              tmean=(tges(k1)+tges(k1-1))/two
            endif
  
            mult_p=pressure(i)*((n_a/trefges)*fact+&
@@ -547,11 +551,11 @@ if(in_curbin) then
            termpk(i) = mult_p/exp(prsltmp(k1))
 
 !          term for pl_TL(j) and pl_TL(j-1)
-           if (k1 >= 2_i_kind) then
+           if (k1 >= 2) then
               do j=2,k1
-                 termpl1(j,i) = mult_p*two*tges(j-ione)/&
-                               ((trefges+tmean)*exp(prsltmp(j-ione)))
-                 termpl2(j,i) = mult_p*two*tges(j-ione)/&
+                 termpl1(j,i) = mult_p*two*tges(j-1)/&
+                               ((trefges+tmean)*exp(prsltmp(j-1)))
+                 termpl2(j,i) = mult_p*two*tges(j-1)/&
                                ((trefges+tmean)*exp(prsltmp(j)))
               end do
            endif
@@ -566,10 +570,10 @@ if(in_curbin) then
            termtk(i) =mult_p*(prsltmp(k1)-pobl)/(two*(trefges+tmean))
  
 !          term for tl_TL(j-1)
-           if (k1 >= 2_i_kind) then
+           if (k1 >= 2) then
               do j=2,k1
                  termtl(j,i)= mult_p*&
-                     two*((prsltmp(j-ione)-prsltmp(j))/(trefges+tmean))
+                     two*((prsltmp(j-1)-prsltmp(j))/(trefges+tmean))
               end do
            endif
         endif
@@ -591,8 +595,8 @@ if(last_pass) then
            
 !          Remove data below
               if(r1em3*rdiagbuf(7,j) < r1em3*rdiagbuf(7,i))then
-                 if((rdiagbuf(1,i)==41_i_kind).or.(rdiagbuf(1,i)==722_i_kind).or.(rdiagbuf(1,i)==723_i_kind).or.&
-                    (rdiagbuf(1,i)==4_i_kind)) then
+                 if((rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.(rdiagbuf(1,i)==723).or.&
+                    (rdiagbuf(1,i)==4)) then
                     if(r1em3*rdiagbuf(7,i)<= ten) then
                        qcfail(j) = .true.
                        qcfail_stats_2(j)=one
@@ -617,8 +621,8 @@ if(last_pass) then
         data(ier,i) = zero
         ratio_errors(i) = zero
         muse(i) = .false.
-        if ( (rdiagbuf(1,i)==41_i_kind).or.(rdiagbuf(1,i)==722_i_kind).or.(rdiagbuf(1,i)==723_i_kind).or.&
-             (rdiagbuf(1,i)==4_i_kind) ) then
+        if ( (rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.(rdiagbuf(1,i)==723).or.&
+             (rdiagbuf(1,i)==4) ) then
            if(alt<=ten) then
               toss_gps_sub(kprof) = max(toss_gps_sub(kprof),data(ihgt,i))
            endif
@@ -699,36 +703,36 @@ if(last_pass) then
 endif	! (last_pass)
 
 !    Link observation to appropriate observation bin
-     if (nobs_bins>ione) then
-        ibin = NINT( dtime/hr_obsbin ) + ione
+     if (nobs_bins>1) then
+        ibin = NINT( dtime/hr_obsbin ) + 1
      else
-        ibin = ione
+        ibin = 1
      endif
-     IF (ibin<ione.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+     IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
      if (.not.lobsdiag_allocated) then
         if (.not.associated(obsdiags(i_gps_ob_type,ibin)%head)) then
            allocate(obsdiags(i_gps_ob_type,ibin)%head,stat=istat)
-           if (istat/=izero) then
+           if (istat/=0) then
               write(6,*)'setupref: failure to allocate obsdiags',istat
               call stop2(282)
            end if
            obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
         else
            allocate(obsdiags(i_gps_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=izero) then
+           if (istat/=0) then
               write(6,*)'setupref: failure to allocate obsdiags',istat
               call stop2(283)
            end if
            obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
         end if
-        allocate(obsdiags(i_gps_ob_type,ibin)%tail%muse(miter+ione))
-        allocate(obsdiags(i_gps_ob_type,ibin)%tail%nldepart(miter+ione))
+        allocate(obsdiags(i_gps_ob_type,ibin)%tail%muse(miter+1))
+        allocate(obsdiags(i_gps_ob_type,ibin)%tail%nldepart(miter+1))
         allocate(obsdiags(i_gps_ob_type,ibin)%tail%tldepart(miter))
         allocate(obsdiags(i_gps_ob_type,ibin)%tail%obssen(miter))
         obsdiags(i_gps_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_gps_ob_type,ibin)%tail%nchnperobs=-99999_i_kind
+        obsdiags(i_gps_ob_type,ibin)%tail%nchnperobs=-99999
         obsdiags(i_gps_ob_type,ibin)%tail%luse=.false.
         obsdiags(i_gps_ob_type,ibin)%tail%muse(:)=.false.
         obsdiags(i_gps_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
@@ -736,11 +740,11 @@ endif	! (last_pass)
         obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=-huge(zero)
         obsdiags(i_gps_ob_type,ibin)%tail%obssen(:)=zero
 
-        n_alloc(ibin) = n_alloc(ibin) +ione
+        n_alloc(ibin) = n_alloc(ibin) +1
         my_diag => obsdiags(i_gps_ob_type,ibin)%tail
         my_diag%idv = is
         my_diag%iob = i
-        my_diag%ich = ione
+        my_diag%ich = 1
 
      else 
         if (.not.associated(obsdiags(i_gps_ob_type,ibin)%tail)) then
@@ -760,18 +764,18 @@ if(last_pass) then
 !    Save values needed for generation of statistics for all observations
      if(.not. associated(gps_allhead(ibin)%head))then
         allocate(gps_allhead(ibin)%head,stat=istat)
-        if(istat /= izero)write(6,*)' failure to write gps_allhead '
+        if(istat /= 0)write(6,*)' failure to write gps_allhead '
         gps_alltail(ibin)%head => gps_allhead(ibin)%head
      else
         allocate(gps_alltail(ibin)%head%llpoint,stat=istat)
-        if(istat /= izero)write(6,*)' failure to write gps_alltail%llpoint '
+        if(istat /= 0)write(6,*)' failure to write gps_alltail%llpoint '
         gps_alltail(ibin)%head => gps_alltail(ibin)%head%llpoint
      end if
      gps_alltail(ibin)%head%idv=is
      gps_alltail(ibin)%head%iob=i
 
      allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istat)
-     if (istat/=izero) write(6,*)'SETUPREF:  allocate error for gps_point, istat=',istat
+     if (istat/=0) write(6,*)'SETUPREF:  allocate error for gps_point, istat=',istat
 
      gps_alltail(ibin)%head%ratio_err= ratio_errors(i)
      gps_alltail(ibin)%head%obserr   = data(ier,i)
@@ -795,23 +799,23 @@ if(last_pass) then
      if (lobsdiagsave) then
         ioff=mreal
         do jj=1,miter
-           ioff=ioff+ione
+           ioff=ioff+1
            if (obsdiags(i_gps_ob_type,ibin)%tail%muse(jj)) then
               rdiagbuf(ioff,i) = one
            else
               rdiagbuf(ioff,i) = -one
            endif
         enddo
-        do jj=1,miter+ione
-           ioff=ioff+ione
+        do jj=1,miter+1
+           ioff=ioff+1
            rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jj)
         enddo
         do jj=1,miter
-           ioff=ioff+ione
+           ioff=ioff+1
            rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%tldepart(jj)
         enddo
         do jj=1,miter
-           ioff=ioff+ione
+           ioff=ioff+1
            rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%obssen(jj)
         enddo
      endif
@@ -823,26 +827,26 @@ if(last_pass) then
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
 
-     if (.not. last .and. muse(i) ) then
+     if ( muse(i) ) then
 
         if(.not. associated(gpshead(ibin)%head))then
            allocate(gpshead(ibin)%head,stat=istat)
-           if(istat /= izero)write(6,*)' failure to write gpshead '
+           if(istat /= 0)write(6,*)' failure to write gpshead '
            gpstail(ibin)%head => gpshead(ibin)%head
         else
            allocate(gpstail(ibin)%head%llpoint,stat=istat)
-           if(istat /= izero)write(6,*)' failure to write gpstail%llpoint '
+           if(istat /= 0)write(6,*)' failure to write gpstail%llpoint '
            gpstail(ibin)%head => gpstail(ibin)%head%llpoint
         end if
 
-	m_alloc(ibin) = m_alloc(ibin) +ione
+	m_alloc(ibin) = m_alloc(ibin) +1
 	my_head => gpstail(ibin)%head
 	my_head%idv = is
 	my_head%iob = i
 
         allocate(gpstail(ibin)%head%jac_t(nsig),gpstail(ibin)%head%jac_q(nsig), &
                  gpstail(ibin)%head%jac_p(nsig+1),gpstail(ibin)%head%ij(4,nsig),stat=istat)
-        if (istat/=izero) write(6,*)'SETUPREF:  allocate error for gps_point, istat=',istat
+        if (istat/=0) write(6,*)'SETUPREF:  allocate error for gps_point, istat=',istat
 
 
         gps_alltail(ibin)%head%mmpoint => gpstail(ibin)%head
@@ -851,10 +855,10 @@ if(last_pass) then
         call get_ij(mm1,data(ilat,i),data(ilon,i),gps_ij,gpstail(ibin)%head%wij(1))
 
         do j=1,nsig
-           gpstail(ibin)%head%ij(1,j)=gps_ij(1)+(j-ione)*latlon11
-           gpstail(ibin)%head%ij(2,j)=gps_ij(2)+(j-ione)*latlon11
-           gpstail(ibin)%head%ij(3,j)=gps_ij(3)+(j-ione)*latlon11
-           gpstail(ibin)%head%ij(4,j)=gps_ij(4)+(j-ione)*latlon11
+           gpstail(ibin)%head%ij(1,j)=gps_ij(1)+(j-1)*latlon11
+           gpstail(ibin)%head%ij(2,j)=gps_ij(2)+(j-1)*latlon11
+           gpstail(ibin)%head%ij(3,j)=gps_ij(3)+(j-1)*latlon11
+           gpstail(ibin)%head%ij(4,j)=gps_ij(4)+(j-1)*latlon11
         enddo
         do j=1,nsig
            gpstail(ibin)%head%jac_q(j)=zero
@@ -864,24 +868,24 @@ if(last_pass) then
         gpstail(ibin)%head%jac_p(nsig+1)=zero
         dpres=data(ihgt,i)
         k=dpres
-        k1=min(max(ione,k),nsig)
-        k2=max(ione,min(k+ione,nsig))
+        k1=min(max(1,k),nsig)
+        k2=max(1,min(k+1,nsig))
         gpstail(ibin)%head%jac_t(k1)=gpstail(ibin)%head%jac_t(k1)+termtk(i)
         gpstail(ibin)%head%jac_p(k1)=gpstail(ibin)%head%jac_p(k1)+termpk(i)
-        if(k1 == ione)then
+        if(k1 == 1)then
            gpstail(ibin)%head%jac_t(k1)=gpstail(ibin)%head%jac_t(k1)+termtk(i)
         else
-           gpstail(ibin)%head%jac_t(k1-ione)=gpstail(ibin)%head%jac_t(k1-ione)+termtk(i)
+           gpstail(ibin)%head%jac_t(k1-1)=gpstail(ibin)%head%jac_t(k1-1)+termtk(i)
            do j=2,k1
-              gpstail(ibin)%head%jac_t(j-ione)=gpstail(ibin)%head%jac_t(j-ione)+termtl(j,i)
-              gpstail(ibin)%head%jac_p(j-ione)=gpstail(ibin)%head%jac_p(j-ione)+termpl1(j,i)
+              gpstail(ibin)%head%jac_t(j-1)=gpstail(ibin)%head%jac_t(j-1)+termtl(j,i)
+              gpstail(ibin)%head%jac_p(j-1)=gpstail(ibin)%head%jac_p(j-1)+termpl1(j,i)
               gpstail(ibin)%head%jac_p(j)=gpstail(ibin)%head%jac_p(j)-termpl2(j,i)
            end do
         end if
 !       delz=dpres-float(k1)
         kl=dpresl(i)
-        k1l=min(max(ione,kl),nsig)
-        k2l=max(ione,min(kl+ione,nsig))
+        k1l=min(max(1,kl),nsig)
+        k2l=max(1,min(kl+1,nsig))
         delz=dpresl(i)-float(k1l)
         delz=max(zero,min(delz,one))
         gpstail(ibin)%head%jac_t(k1l)=gpstail(ibin)%head%jac_t(k1l)+termt(i)*(one-delz)
