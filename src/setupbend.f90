@@ -63,6 +63,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !                         replace (izero,ione) with (0,1), remove _i_kind suffix from integer 
 !                         constants
 !   2010-08-11 lcucurull - replace tpdpres with tpdpres(nobs) to fix bug in TL code
+!   2010-08-18        hu - add tell to mpeu_util declaration
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -78,7 +79,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use mpeu_util, only: die,perr
+  use mpeu_util, only: die,perr,tell
   use kinds, only: r_kind,i_kind
   use obsmod, only: gpshead,nprof_gps,grids_dim,gpstail,lobsdiag_allocated,&
        gps_allhead,gps_alltail,i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,&

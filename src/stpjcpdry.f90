@@ -40,6 +40,7 @@ contains
 !   2009-07-07  kleist
 !   2010-05-13  todling - update to use gsi_bundle
 !   2010-05-25  derber - modify to decrease number of communications
+!   2010-08-18     hu  - add qpvals= to mpl_allreduce call
 !
 !   input argument list:
 !     rq       - q search direction
@@ -122,7 +123,7 @@ contains
      end do
   end do
 
-  call mpl_allreduce(2,dmass)
+  call mpl_allreduce(2,qpvals=dmass)
 
   if (mype==0) then
 

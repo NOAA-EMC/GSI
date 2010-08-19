@@ -76,6 +76,7 @@ module obsmod
 !   2010-05-26  treadon  - add tcpptr to public list 
 !   2010-06-14  huang    - add aerosol variable (*aero*)
 !   2010-07-10  todling  - turn aerosol heads/tails public
+!   2010-08-18       hu  - add codiags to public declaration
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -261,6 +262,7 @@ module obsmod
   public :: lag_ob_head,srw_ob_head,pw_ob_head,oz_ob_head,rad_ob_head
   public :: tcp_ob_head,co3l_ob_head,odiags
   public :: mype_aero,iout_aero,nlaero
+  public :: codiags
 
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
