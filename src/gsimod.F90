@@ -64,7 +64,7 @@
   use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,nems_nmmb_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
-     diagnostic_reg,gencode,nlon_regional,nlat_regional,&
+     diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
@@ -168,6 +168,7 @@
 !  05-30-2010 Todling   reposition init of control and state vectors; add init_anasv; update chem
 !  06-04-2010 Todling   update interface to init_grid_vars
 !  06-05-2010 Todling   remove as,tsfc_sdv,an_amp0 from bkgerr namelist (now in anavinfo table)
+!  08-10-2010 Wu        add nvege_type to gridopts namelist 
 !                         
 !EOP
 !-------------------------------------------------------------------------
@@ -316,13 +317,14 @@
 !     twodvar_regional  - logical for regional 2d-var analysis
 !     filled_grid       - logical to fill in puts on WRF-NMM E-grid
 !     half_grid         - logical to use every other row of WRF-NMM E-Grid
+!     nvege_type - number of types of vegetation; old=24, IGBP=20
 !     nlayers    - number of sub-layers to break indicated model layer into
 !                  prior to calling radiative transfer model
 
 
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,hybrid,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
-       wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nlayers,&
+       wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,&
        nmmb_reference_grid,grid_ratio_nmmb
 
 ! BKGERR (background error related variables):

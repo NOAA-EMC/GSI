@@ -50,6 +50,7 @@ module gridmod
 !   2010-04-01  treadon - move routines reorder, reorder2, strip_single, strip,
 !                         vectosub, reload, and strip_periodic from mpimod to gridmod
 !   2010-07-19  lueken  - make required changes to use general_deter_subdomain
+!   2010-08-10  wu      - add number of types of vegetation for regional: nvege_type
 !
 !
 ! !AUTHOR: 
@@ -109,7 +110,7 @@ module gridmod
   public :: diagnostic_reg,nmmb_reference_grid,hybrid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
   public :: nsig4,nsig3
-  public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone
+  public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
   public :: jcap,jcap_b,hires_b,sp_a,sp_b,grd_a,grd_b
 
   logical regional          ! .t. for regional background/analysis
@@ -149,6 +150,7 @@ module gridmod
   integer(i_kind) nlon_sfc          ! no. of longitudes surface files
   integer(i_kind) nsig              ! no. of levels
   integer(i_kind) idvc5             ! vertical coordinate identifier
+  integer(i_kind) nvege_type        ! no. of types of vegetation; old=24, IGBP=20
 !                                        1: sigma
 !                                        2: sigma-pressure
 !                                        3: sigma-pressure-theta
@@ -341,6 +343,7 @@ contains
 !   2010-03-06  parrish - add initialization of use_gfs_ozone flag
 !   2010-03-09  parrish - add initialization of check_gfs_ozone_date flag
 !   2010-03-15  parrish - add initialization of regional_ozone flag
+!   2010-08-10  wu      - add initialization of nvege_type          
 !
 ! !REMARKS:
 !   language: f90
@@ -403,6 +406,7 @@ contains
     jcap=62_i_kind
     jcap_b=62_i_kind
     hires_b=.false.
+    nvege_type=24
 
     return
   end subroutine init_grid

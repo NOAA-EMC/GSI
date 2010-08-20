@@ -104,6 +104,8 @@
 !                       - add a new input (tbc) to in call qcssmi(..) and
 !                         remove 'ssmis_uas,ssmis_las,ssmis_env,ssmis_img' in call qcssmi(..)
 !                         Purpose: to keep the consistent changes with qcssmi.f90
+!   2010-08-10  wu      - setup corresponding vegetation types (nmm_to_crtm) for IGBP in regional
+!                         parameter nvege_type: old=24, IGBP=20
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -135,7 +137,7 @@
       irrigated_low_vegetation,broadleaf_pine_forest,pine_forest,compacted_soil, &
       broadleaf_forest,broadleaf_brush,tundra,tilled_soil,scrub,scrub_soil,&
       crtm_options_type,crtm_init,crtm_destroy,success,crtm_options_destroy,&
-      crtm_options_create, crtm_options_associated
+      crtm_options_create, crtm_options_associated,invalid_land
   use crtm_rtsolution_define, only: crtm_rtsolution_type, crtm_rtsolution_create, &
       crtm_rtsolution_destroy, crtm_rtsolution_associated
   use crtm_spccoeff, only: sc
@@ -161,7 +163,7 @@
   use gsi_chemtracer_mod, only: gsi_chemtracer_get
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use gridmod, only: nsig,nsig2,nsig3p1,&
-       regional,nsig3p2,nsig3p3,msig,get_ij
+       regional,nsig3p2,nsig3p3,msig,get_ij,nvege_type
   use satthin, only: super_val1
   use constants, only: half,constoz,amsua_clw_d1,amsua_clw_d2,tiny_r_kind,&
        fv,zero,one,deg2rad,rad2deg,one_tenth,quarter,two,three,four,five,&
@@ -205,17 +207,6 @@
        BROADLEAF_FOREST, BROADLEAF_FOREST, BROADLEAF_PINE_FOREST, PINE_FOREST, &
        PINE_FOREST, BROADLEAF_BRUSH, SCRUB, SCRUB, SCRUB_SOIL, TUNDRA, &
        COMPACTED_SOIL, TILLED_SOIL, COMPACTED_SOIL/)
-
-! Mapping land surface type of NMM to CRTM
-!  Note: index 16 is water, and index 24 is ice. The two indices are not
-!        used and just assigned to COMPACTED_SOIL.
-  integer(i_kind), parameter, dimension(24) :: nmm_to_crtm=(/URBAN_CONCRETE, &
-       COMPACTED_SOIL, IRRIGATED_LOW_VEGETATION, GRASS_SOIL, MEADOW_GRASS, &
-       MEADOW_GRASS, MEADOW_GRASS, SCRUB, GRASS_SCRUB, MEADOW_GRASS, &
-       BROADLEAF_FOREST, PINE_FOREST, BROADLEAF_FOREST, PINE_FOREST, &
-       BROADLEAF_PINE_FOREST, COMPACTED_SOIL, WET_SOIL, WET_SOIL, &
-       IRRIGATED_LOW_VEGETATION, TUNDRA, TUNDRA, TUNDRA, TUNDRA, &
-       COMPACTED_SOIL/)
 
   integer(i_kind),parameter,dimension(12):: mday=(/0,31,59,90,&
        120,151,181,212,243,273,304,334/)
@@ -345,6 +336,7 @@
 
   integer(i_kind),dimension(nchanl):: ich,icxx,id_qc
   integer(i_kind),dimension(msig):: klevel
+  integer(i_kind),allocatable:: nmm_to_crtm(:)
 
   character(10) filex
   character(12) string
@@ -379,6 +371,34 @@
   n_alloc(:)=0
   m_alloc(:)=0
 !**************************************************************************************
+! Mapping land surface type of NMM to CRTM
+  if (regional) then
+     allocate(nmm_to_crtm(nvege_type) )
+
+     if(nvege_type==24)then
+!    Note: index 16 is water, and index 24 is ice. The two indices are not
+!          used and just assigned to COMPACTED_SOIL.
+        nmm_to_crtm=(/URBAN_CONCRETE, &
+          COMPACTED_SOIL, IRRIGATED_LOW_VEGETATION, GRASS_SOIL, MEADOW_GRASS, &
+          MEADOW_GRASS, MEADOW_GRASS, SCRUB, GRASS_SCRUB, MEADOW_GRASS, &
+          BROADLEAF_FOREST, PINE_FOREST, BROADLEAF_FOREST, PINE_FOREST, &
+          BROADLEAF_PINE_FOREST, COMPACTED_SOIL, WET_SOIL, WET_SOIL, &
+          IRRIGATED_LOW_VEGETATION, TUNDRA, TUNDRA, TUNDRA, TUNDRA, &
+          COMPACTED_SOIL/)
+     else if(nvege_type==20)then
+        nmm_to_crtm=(/PINE_FOREST, &
+          BROADLEAF_FOREST, PINE_FOREST, BROADLEAF_FOREST, &
+          BROADLEAF_PINE_FOREST, SCRUB, SCRUB_SOIL, BROADLEAF_BRUSH, &
+          BROADLEAF_BRUSH, SCRUB, BROADLEAF_BRUSH, TILLED_SOIL, URBAN_CONCRETE, &
+          TILLED_SOIL, INVALID_LAND, COMPACTED_SOIL, INVALID_LAND, TUNDRA, &
+          TUNDRA, TUNDRA/)
+     else 
+        write(6,*)'SETUPRAD:  ***ERROR*** invalid number of vegetation types', &
+                       ' (only 20 and 24 are setup)  nvege_type=',nvege_type, &
+               '  ***STOP IN SETUPRAD***'
+        call stop2(71)
+     endif ! nvege_type
+  endif ! regional
 ! Initialize variables and constants.
   mm1        = mype+1
   ten        = 10.0_r_kind
@@ -987,7 +1007,7 @@
 !                GFS and NNM as of September 2005
         itype = int(vegtype5)
         if (regional) then
-           itype = min(max(1,itype),24)
+           itype = min(max(1,itype),nvege_type)
            surface(1)%land_type = nmm_to_crtm(itype)
         else
            itype = min(max(0,itype),13)
@@ -2641,6 +2661,7 @@
      deallocate(aero_types,iaero_types)
   endif
   deallocate(aero,iaero)
+  if(regional) deallocate(nmm_to_crtm)
 
 ! End of routine
   return
