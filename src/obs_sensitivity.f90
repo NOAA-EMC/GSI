@@ -13,6 +13,7 @@ module obs_sensitivity
 !   2009-08-07 lueken   - updated documentation
 !   2010-04-30 tangborn - add pointer to carbon monoxide
 !   2010-05-27 todling  - remove all user-specific TL-related references
+!   2010-08-19 lueken   - add only to module use;no machine code, so use .f90
 !
 ! Subroutines Included:
 !   init_fc_sens  - Initialize computations
@@ -37,11 +38,13 @@ use obsmod, only: cobstype, nobs_type, obsdiags, obsptr, obscounts, &
                 & i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
                 & i_lag_ob_type, i_co3l_ob_type
 use mpimod, only: mype
-use control_vectors
-use state_vectors
+use control_vectors, only: control_vector,allocate_cv,read_cv,deallocate_cv, &
+    dot_product,assignment(=)
+use state_vectors, only: allocate_state,deallocate_state
 use gsi_bundlemod, only: assignment(=)
 use gsi_bundlemod, only: gsi_bundle
-use bias_predictors
+use bias_predictors, only: predictors,allocate_preds,deallocate_preds, &
+    assignment(=)
 use mpl_allreducemod, only: mpl_allreduce
 use gsi_4dcouplermod, only: gsi_4dcoupler_getpert
 ! ------------------------------------------------------------------------------

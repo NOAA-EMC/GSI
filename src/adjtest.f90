@@ -12,6 +12,7 @@ module adjtest
 !   2009-08-14  lueken   - update documentation
 !   2010-01-07  todling  - add test for state-vector
 !                        - bias-component only contributes to dotp on pe=0
+!   2010-08-19  lueken   - add only to module use
 !
 ! subroutines included:
 !   sub adtest
@@ -29,11 +30,13 @@ use gsi_4dvar, only: lsqrtb, nsubwin
 use constants, only: zero, two
 use jfunc, only: nrclen
 use mpimod, only: mype
-use control_vectors
-use state_vectors
+use control_vectors, only: control_vector,allocate_cv,random_cv, &
+    deallocate_cv,dot_product,assignment(=)
+use state_vectors, only: allocate_state,deallocate_state,dot_product
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: assignment(=)
-use bias_predictors
+use bias_predictors, only: predictors,allocate_preds,deallocate_preds, &
+    assignment(=)
 
 implicit none
 private

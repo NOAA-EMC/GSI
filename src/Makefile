@@ -250,7 +250,7 @@ clean:
         get_gefs_ensperts_dualres.f90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
-	getsiga.F90 \
+	getsiga.f90 \
 	getuv.f90 \
 	getvvel.f90 \
 	glbsoi.F90 \
@@ -307,7 +307,7 @@ clean:
 	jcmod.f90 \
 	jfunc.f90 \
 	kinds.f90 \
-        lag_fields.F90 \
+        lag_fields.f90 \
         lag_interp.F90 \
         lag_traj.F90 \
 	lagmod.f90 \
@@ -344,7 +344,7 @@ clean:
 	normal_rh_to_q.f90 \
         obs_ferrscale.F90 \
 	obs_para.f90 \
-        obs_sensitivity.F90 \
+        obs_sensitivity.f90 \
         observer.F90 \
 	obsmod.F90 \
 	omegas_ad.f90 \
@@ -371,7 +371,7 @@ clean:
 	qcmod.f90 \
 	qcssmi.f90 \
         qnewton.f90 \
-        qnewton3.F90 \
+        qnewton3.f90 \
 	radinfo.f90 \
 	raflib.f90 \
         rapidrefresh_cldsurf_mod.f90 \
@@ -491,7 +491,7 @@ clean:
         stub_pertmod.F90 \
         stub_timermod.F90 \
 	tendsmod.f90 \
-        test_obsens.F90 \
+        test_obsens.f90 \
         tcv_mod.f90 \
         timermod.F90 \
 	tintrp2a.f90 \

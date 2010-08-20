@@ -23,6 +23,7 @@ module hybrid_ensemble_isotropic_regional
 !   2010-05-20  todling - renamed all cstate to bundle to avoid confusion; the
 !                         bundles here are not necessarily idendical to the control vector,
 !                         but rather what this module take the ensemble to be composed of
+!   2010-08-19  lueken  - add only to module use
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
@@ -503,7 +504,6 @@ subroutine new_factorization_rf_y(f,iadvance,iback,nlevs)
 !$$$ end documentation block
   use gridmod, only: nlon
   use hybrid_ensemble_parameters, only: grd_ens
-                      !                  use mpimod, only: mype
   implicit none
 
   integer(i_kind),intent(in   ) :: iadvance,iback,nlevs
@@ -2141,7 +2141,7 @@ subroutine beta12mult(grady)
   use gsi_4dvar, only: nsubwin
   use hybrid_ensemble_parameters, only: beta1_inv,n_ens
   use constants, only:  one
-  use control_vectors
+  use control_vectors, only: control_vector
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use timermod, only: timer_ini,timer_fnl
   implicit none
@@ -2275,7 +2275,7 @@ subroutine bkerror_a_en(gradx,grady)
   use gsi_4dvar, only: nsubwin, lsqrtb
   use mpimod, only: mype ! _RT DEBUG
   use constants, only:  zero
-  use control_vectors
+  use control_vectors, only: control_vector
   use timermod, only: timer_ini,timer_fnl
   use hybrid_ensemble_parameters, only: n_ens
   use gsi_bundlemod,only: gsi_bundlegetpointer

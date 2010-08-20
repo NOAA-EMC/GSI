@@ -12,6 +12,7 @@ subroutine pcgsqrt(xhat,costf,gradx,itermax,nprt)
 !   2007-04-27  tremolet - initial code
 !   2009-01-14  todling  - zero-obs fix
 !   2009-01-18  todling  - carry summations in quad precision
+!   2010-08-19  lueken   - add only to module use
 !
 !   input argument lits:
 !    xhat,gradx
@@ -32,7 +33,8 @@ use kinds, only: r_kind,i_kind,r_quad
 use jfunc, only: iter,jiter
 use constants, only: zero,zero_quad,tiny_r_kind
 use mpimod, only: mype
-use control_vectors
+use control_vectors, only: control_vector,allocate_cv, &
+    deallocate_cv,dot_product,assignment(=)
 use timermod,only: timer_ini,timer_fnl
 
 implicit none

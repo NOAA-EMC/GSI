@@ -7,6 +7,7 @@ module projmethod_support
 !
 ! program history log:
 !   2007-10-01  pondeca
+!   2010-08-19  lueken  - add only to module use
 !
 ! subroutines included:
 !   sub init_mgram_schmidt
@@ -28,7 +29,7 @@ module projmethod_support
 
 ! Uses:
   use kinds, only: r_kind
-  use control_vectors
+  use control_vectors, only: control_vector
 
   implicit none
 
@@ -402,6 +403,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !   2010-03-29  zhu      - make changes for generalizing control variables
 !   2010-04-01  treadon - move strip to grimod
 !   2010-04-29  todling - update to use control vectory based on gsi_bundle
+!   2010-08-19  lueken  - add only to module use
 !
 !   input argument list:
 !     nv
@@ -429,7 +431,8 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   use gsi_bundlemod, only: gsi_bundlegetvar
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use constants, only: izero,ione
-  use control_vectors
+  use control_vectors, only: control_vector,allocate_cv,deallocate_cv, &
+      assignment(=)
   implicit none
 
 ! Declare passed variables

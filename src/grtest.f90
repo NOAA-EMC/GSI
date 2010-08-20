@@ -52,6 +52,7 @@ subroutine grtest(pdx,itertest,xhat_in)
 ! program history log:
 !   2009-01-18 todling - some quad precision changes (incomplete)
 !   2010-05-05 treadon - use r_kind constant in huge()
+!   2010-08-19 lueken  - add only to module use
 !
 !   input argument list:
 !    xhat
@@ -69,7 +70,8 @@ subroutine grtest(pdx,itertest,xhat_in)
 use kinds, only: i_kind, r_kind, r_quad
 use constants, only: zero,zero_quad, one_quad
 use mpimod, only: mype
-use control_vectors
+use control_vectors, only: control_vector,allocate_cv, &
+    random_cv,deallocate_cv,dot_product,assignment(=)
 
 implicit none
 

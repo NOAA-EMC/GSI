@@ -8,6 +8,7 @@ module qnewton3
 !
 ! program history log:
 !   2009-08-10  lueken - added module doc block
+!   2010-08-19  lueken - add only to module use;no machine code, so use .f90
 !
 ! subroutines included:
 !   sub m1qn3
@@ -31,7 +32,9 @@ module qnewton3
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero, one
 use mpimod, only: mype
-use control_vectors
+use control_vectors, only: control_vector,allocate_cv, &
+    deallocate_cv,inquire_cv,maxval,dot_product, &
+    assignment(=)
 
 implicit none
 

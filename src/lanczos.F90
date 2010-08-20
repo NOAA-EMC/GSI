@@ -16,6 +16,7 @@ module lanczos
 !   2009-08-18  lueken   - update documentation
 !   2010-03-10  treadon  - add ESSL interface
 !   2010-03-17  todling  - add analysis error estimate (congrad_siga)
+!   2010-08-19  lueken   - add only to module use
 !
 ! Subroutines Included:
 !   congrad       - Main minimization routine
@@ -48,7 +49,8 @@ module lanczos
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero, one, two, one_tenth
 use jfunc, only: iter
-use control_vectors
+use control_vectors, only: control_vector,allocate_cv,inquire_cv,deallocate_cv, &
+    write_cv,read_cv,dot_product,assignment(=)
 use file_utility, only : get_lun
 use timermod, only: timer_ini, timer_fnl
 ! ------------------------------------------------------------------------------
