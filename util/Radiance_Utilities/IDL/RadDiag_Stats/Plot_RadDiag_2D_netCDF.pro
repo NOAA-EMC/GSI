@@ -1,8 +1,8 @@
-file='AMSRE_Passive_amsre_mid_aqua_anl_AllSurf_2010051100_2010051412_2D' ; omit extension
+file='CRTM_2.0.2_iasi_metop-a_ges_AllSurf_2010051018_2010051300_2D' ; omit extension
 
-channel = 6
+channel = 404
 
-variable=2  ; 0=Bias Corrected, 1=NOT bias corrected, 2=bias correction
+variable=1  ; 0=Bias Corrected, 1=NOT bias corrected, 2=bias correction
 
 statistic=1 ; 0=Count, 1=Mean, 2=StdDev
 
@@ -11,16 +11,14 @@ latmax=90.
 lonmin=-180.
 lonmax=180.
 
-title='!CFirst-Guess Departure, NOAA 18 AMSU-A Channel 6, '+$
-        '2010051018-2010051018'
-
-Instrument = 'NOAA 18 AMSU-A'          ; for title
+Instrument = 'MetOp-A IASI'            ; for title
 GesAnl = 'First Guess Departure'       ; guess or analysis fields (for title)
-dates = '2010051018 - 2010051406'      ; for title
+dates = '2010051018 - 2010051300'      ; for title
+
+if (statistic eq 0) then GesAnl=''
 
 ; Change things above this line
 ;===============================================================
-
 
 infile=file+'.nc'
 psfile=file+'.ps'
