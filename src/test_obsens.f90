@@ -10,6 +10,7 @@ subroutine test_obsens(xincr,xsens)
 !   2007-11-15  tremolet
 !   2009-01-18  todling - carry summations in quad precision
 !   2009-08-13  lueken - update documentation
+!   2010-08-19  lueken - add only to module use;no machine code, so use .f90
 !
 !   input argument list:
 !    xincr - current increment in control space
@@ -29,7 +30,8 @@ use jfunc, only: xhatsave
 use obsmod, only: lsaveobsens,l_do_adjoint
 use mpimod, only: mype
 use obs_sensitivity, only: iobsconv, lobsensincr, dot_prod_obs
-use control_vectors
+use control_vectors, only: control_vector,allocate_cv,deallocate_cv, &
+    dot_product,assignment(=)
 ! ------------------------------------------------------------------------------
 implicit none
 type(control_vector), intent(in   ) :: xincr,xsens

@@ -179,7 +179,9 @@ for iobs=0,nobs-1 do begin
     obsdata(iobs).(i)=diagbufchan(i,*)
   endfor
 
-  obsdata(iobs).bias_terms=diagbufchan(7:7+npred,*)
+  for i=0,npred-1 do begin
+    obsdata(iobs).bias_terms(*,i)=diagbufchan(7+i,*)
+  endfor
 
 endfor
 

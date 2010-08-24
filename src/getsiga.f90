@@ -10,6 +10,7 @@ subroutine getsiga ()
 !   2010-03-16  todling  - initial code
 !   2010-05-14  todling  - update to use gsi_bundle
 !   2010-05-27  todling  - gsi_4dcoupler; remove all user-specific TL-related references
+!   2010-08-19  lueken   - add only to module use;no machine code, so use .f90
 !
 !   input argument list:
 !
@@ -27,7 +28,7 @@ use constants, only: zero,one
 use gsi_4dvar, only: nsubwin,ibdate,lsqrtb,idmodel,l4dvar
 use jfunc, only: jiter,miter
 use lanczos, only : congrad_siga
-use state_vectors
+use state_vectors, only: allocate_state,deallocate_state
 use gsi_4dcouplermod, only: gsi_4dcoupler_putpert
 use gsi_bundlemod, only: gsi_bundle
 implicit none

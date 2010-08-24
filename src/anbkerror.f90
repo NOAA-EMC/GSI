@@ -18,6 +18,7 @@ subroutine anbkerror(gradx,grady)
 !   2010-05-05  todling - update to use gsi_bundle
 !   2010-06-22  todling - update to better handle bundle pointers
 !   2010-06-29  lueken - replaced tv with t in call to gsi_bundlegetpointer
+!   2010-08-19  lueken - add only to module use
 !
 !   input argument list:
 !     gradx    - input field  
@@ -36,7 +37,7 @@ subroutine anbkerror(gradx,grady)
   use balmod, only: balance,tbalance
   use berror, only: varprd,fpsproj
   use constants, only: izero,zero
-  use control_vectors
+  use control_vectors, only: control_vector,assignment(=)
   use gsi_4dvar, only: nsubwin
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none

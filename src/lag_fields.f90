@@ -8,6 +8,7 @@ module lag_fields
 !
 ! program history log:
 !   2009-08-05  lueken - added module doc block
+!   2010-08-19  lueken - add only to module use;no machine code, so use .f90
 !
 ! subroutines included:
 !   sub lag_modini
@@ -39,7 +40,6 @@ module lag_fields
   use guess_grids, only: ges_u,ges_v,nfldsig,hrdifsig
   use constants, only: izero,ione,zero,two,pi,deg2rad
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
-  use state_vectors
 
   use lag_traj, only: lag_initlparam,lag_iteduration
   use lag_traj, only: lag_rk2itenpara_r,lag_rk2itenpara_i

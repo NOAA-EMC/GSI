@@ -161,6 +161,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   2008-11-28  todling - revisited Tremolet's split in light of changes from May08 version
 !   2009-06-02  derber - modify the calculation of the b term for the background to increase accuracy
 !   2010-06-01  treadon - accumulate pbcjo over nobs_bins 
+!   2010-08-19  lueken - add only to module use
 !
 !   input argument list:
 !     stpinout - guess stepsize
@@ -202,8 +203,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use obsmod, only: yobs,nobs_type
   use stplimqmod, only: stplimq
   use stpjcpdrymod, only: stpjcpdry
-  use bias_predictors
-  use control_vectors
+  use bias_predictors, only: predictors
+  use control_vectors, only: control_vector,qdot_prod_sub
   use state_vectors, only: allocate_state,deallocate_state
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer

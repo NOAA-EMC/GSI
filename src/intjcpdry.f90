@@ -42,6 +42,7 @@ contains
 !   2009-07-07  kleist
 !   2010-05-13  todling - update to use gsi_bundle
 !   2010-05-25  derber - modify to minimize number of communications
+!   2010-08-18     hu  - added qpvals= to mpl_allreduce call
 !
 !   input argument list:
 !     rq       - q search direction
@@ -122,7 +123,7 @@ contains
   end do
 
 ! First, use MPI to get global mean increment
-  call mpl_allreduce(1,dmass)
+  call mpl_allreduce(1,qpvals=dmass)
 
   dmass(1)=bamp_jcpdry*dmass(1)*rcon*rcon
 

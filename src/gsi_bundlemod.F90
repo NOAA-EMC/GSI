@@ -19,6 +19,9 @@ module GSI_BundleMod
 !
 ! !PUBLIC MEMBER FUNCTIONS:
 !
+   public GSI_1D
+   public GSI_2D
+   public GSI_3D
    public GSI_Bundle           ! Bundle
    public GSI_BundleCreate     ! Create a Bundle
    public GSI_BundleDPlevs     ! dot product w/ possible "halo"
@@ -211,6 +214,7 @@ module GSI_BundleMod
 !
 !  22Apr2010 Todling - initial code, based on discussion w/ Arlindo da Silva 
 !                      and his f90/ESMF's SimpleBundle.
+!  18Aug2010      Hu - declared GSI_1D, GSI_2D, and GSI_3D as public.
 !
 ! !SEE ALSO:  
 !           gsi_chemtracer_mod.F90

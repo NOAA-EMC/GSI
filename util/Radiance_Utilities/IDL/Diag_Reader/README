@@ -6,3 +6,12 @@ read_diags.pro:  Procedure to radiance diag files into IDL structures.
 
 diag_stats.pro:  Calculates simple statstics using structures produced by
                  read_diags.pro
+
+Plot_Observation_Summary.pro:
+                 Reads in observations from a specified list of instruments and
+                 times and produces summary plots for each instrument as a 
+                 function of channel.
+
+Plot_Histogram_2d_ScanAngle.pro:
+                 Reads in a series of diag files and produces 2D histograms for
+                 a specified range of channels. 

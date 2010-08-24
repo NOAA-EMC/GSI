@@ -18,6 +18,7 @@ subroutine evaljgrad(xhat,fjcost,gradx,lupdfgs,nprt,calledby)
 !   2010-01-11  todling - bypass call to model_xx based on idmodel as well
 !   2010-05-13  todling - update interface to evalqlim; use gsi_bundle
 !   2010-05-27  todling - replace geos_pgcmtest w/ general gsi_4dcoupler
+!   2010-08-19  lueken  - add only to module use
 !
 !   input argument list:
 !    xhat - current state estimate (in control space)
@@ -45,9 +46,9 @@ use gridmod, only: lat2,lon2,nsig
 use obsmod, only: yobs, lsaveobsens, l_do_adjoint
 use obs_sensitivity, only: fcsens
 use mod_strong, only: jcstrong,baldiag_inc
-use control_vectors
+use control_vectors, only: control_vector,prt_control_norms,dot_product,assignment(=)
 use state_vectors, only: allocate_state,deallocate_state,prt_state_norms
-use bias_predictors
+use bias_predictors, only: predictors,allocate_preds,deallocate_preds,assignment(=)
 use intjomod, only: intjo
 use gsi_4dcouplermod, only: gsi_4dcoupler_grtests
 use gsi_bundlemod, only: gsi_bundle

@@ -10,6 +10,7 @@ module obs_ferrscale
 ! program history log:
 !   2008-11-17 todling 
 !   2010-05-14 todling - update  to use gsi_bundle
+!   2010-08-19 lueken  - add only to module use
 !
 ! Subroutines Included:
 !   init_ferr_scale  - Initialize parameters
@@ -31,12 +32,12 @@ use kinds, only: r_kind, i_kind
 use constants, only: izero, ione, zero
 use gsi_4dvar, only: nobs_bins, idmodel, lsqrtb
 use mpimod, only: mype
-use state_vectors
+use state_vectors, only: allocate_state,deallocate_state,prt_state_norms,dot_product
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: self_add,assignment(=)
 use gsi_4dcouplermod, only: gsi_4dcoupler_init_traj
 use gsi_4dcouplermod, only: gsi_4dcoupler_final_traj
-use bias_predictors
+use bias_predictors, only: predictors,allocate_preds,deallocate_preds,assignment(=)
 use obsmod, only: l_do_adjoint
 ! ------------------------------------------------------------------------------
 implicit none

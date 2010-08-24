@@ -25,6 +25,7 @@ subroutine bkerror(gradx,grady)
 !                      - make changes with iterfaces of sub2grid and grid2sub
 !   2010-04-28  todling - update to use gsi_bundle
 !   2010-05-31  todling - revisit check on pointers
+!   2010-08-19  lueken  - add only to module use
 !
 !   input argument list:
 !     gradx    - input field  
@@ -44,7 +45,7 @@ subroutine bkerror(gradx,grady)
   use gridmod, only: lat2,lon2,nlat,nlon,nnnn1o,periodic,latlon11
   use jfunc, only: nsclen,npclen
   use constants, only:  zero
-  use control_vectors
+  use control_vectors, only: control_vector,assignment(=)
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
