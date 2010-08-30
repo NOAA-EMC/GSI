@@ -157,7 +157,7 @@
   use obsmod, only: ianldate,iadate,ndat,mype_diaghdr,nchan_total, &
            dplat,dtbduv_on,radhead,radtail,&
            i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
-           dirname,time_offset,lwrite_predterms
+           dirname,time_offset,lwrite_predterms,lwrite_peakwt
   use obsmod, only: rad_ob_type
   use obsmod, only: obs_diag
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -194,7 +194,7 @@
   external:: qcssmi
 
 ! Declare local parameters
-  integer(i_kind),parameter:: ipchan=8
+  integer(i_kind),parameter:: ipchan=7
   integer(i_kind),parameter:: ireal=26
 
 ! CRTM structure variable declarations.
@@ -623,10 +623,15 @@
 ! for GOES Imager data we write additional information.
   iextra=0
   jextra=0
-  if (goes_img) then
-     iextra=1
-     jextra=nchanl
-  endif
+  if (goes_img .or. lwrite_peakwt) then
+    jextra=nchanl
+    iextra=1
+  end if
+! If both, iextra=2!
+  if (goes_img .and. lwrite_peakwt) then
+    iextra=2
+  end if
+
   lextra = (iextra>0)
 
 ! Set CRTM to process given satellite/sensor
@@ -1245,24 +1250,26 @@
         do i=1,nchanl
            mm=ich(i)
  
-           ptau5derivmax = -9.9e31
+           if (lwrite_peakwt) then
+             ptau5derivmax = -9.9e31
 ! maximum of weighting function is level at which transmittance
 ! (ptau5) is changing the fastest.  This is used for the level
 ! assignment (needed for vertical localization).
-           weightmax(i) = 0.
-           kmax = 0
-           do k=2,nsig
-              ptau5deriv(k,i) = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
-              (log(prsltmp(k-1))-log(prsltmp(k))) )
-              if (ptau5deriv(k,i) .gt. ptau5derivmax) then
-                 ptau5derivmax = ptau5deriv(k,i)
-                 kmax = k
-                 weightmax(i) = r10*prsitmp(k) ! cb to mb.
-              end if
-           enddo
+             weightmax(i) = 0.
+             kmax = 0
+             do k=2,nsig
+                ptau5deriv(k,i) = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
+                (log(prsltmp(k-1))-log(prsltmp(k))) )
+                if (ptau5deriv(k,i) .gt. ptau5derivmax) then
+                   ptau5derivmax = ptau5deriv(k,i)
+                   kmax = k
+                   weightmax(i) = r10*prsitmp(k) ! cb to mb.
+                end if
+             enddo
 ! normalize weighting function
-           ptau5deriv(:,i) = ptau5deriv(:,i)/ptau5deriv(kmax,i)
-           ptau5deriv(1,i) = ptau5deriv(2,i)
+             ptau5deriv(:,i) = ptau5deriv(:,i)/ptau5deriv(kmax,i)
+             ptau5deriv(1,i) = ptau5deriv(2,i)
+           end if
 
            predbias(1,i) = cbias(nadir,mm)*ang_rad(mm)             !global_satangbias
            tlapchn(i)= (ptau5(2,i)-ptau5(1,i))*(tsavg5-temp5(2))
@@ -2564,11 +2571,20 @@
               diagbuf(26)  = tpwc                       ! total column precip. water (km/m**2)
            endif
 
-           if (goes_img) then
-              do i=1,nchanl
-                 diagbufex(1,i)=tb_obs_sdv(i)
-              end do
-           endif
+           if (lwrite_peakwt) then
+             do i=1,nchanl
+               diagbufex(1,i)=weightmax(i)   ! press. at max of weighting fn (mb)
+             end do
+             if (goes_img) then
+               do i=1,nchanl
+                  diagbufex(2,i)=tb_obs_sdv(i)
+               end do
+             end if
+           else if (goes_img .and. .not.lwrite_peakwt) then
+             do i=1,nchanl
+                diagbufex(1,i)=tb_obs_sdv(i)
+             end do
+           end if
 
            do i=1,nchanl
               diagbufchan(1,i)=tb_obs(i)       ! observed brightness temperature (K)
@@ -2582,7 +2598,6 @@
 
               diagbufchan(6,i)=emissivity(i)   ! surface emissivity
               diagbufchan(7,i)=tlapchn(i)      ! stability index
-              diagbufchan(8,i)=weightmax(i)    ! press. at max of weighting fn (mb)
 
               if (lwrite_predterms) then
                  predterms(1,i) = cbias(nadir,ich(i))

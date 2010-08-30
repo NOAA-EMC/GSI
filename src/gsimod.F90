@@ -18,7 +18,7 @@
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,ndatmax,&
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
-     lread_obs_save,lread_obs_skip,lwrite_predterms
+     lread_obs_save,lread_obs_skip,lwrite_predterms,lwrite_peakwt
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
@@ -270,6 +270,8 @@
 !     regional_ozone  - option to turn on ozone in regional analysis
 !     lwrite_predterms - option to write out actual predictor terms instead of predicted bias to the
 !                        radiance diagnostic files
+!     lwrite_peakwt    - option to writ out the approximate pressure of the peak of the weighting function
+!                        for satellite data to the radiance diagnostic files
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -294,7 +296,8 @@
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
-       use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms
+       use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
+       lwrite_peakwt
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
