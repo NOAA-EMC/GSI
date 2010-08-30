@@ -30,6 +30,7 @@
   use radinfo, only: retrieval,diag_rad,npred,init_rad,init_rad_vars
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
+  use aeroinfo, only: diag_aero, init_aero
   use coinfo, only: diag_co,init_co
   use convinfo, only: init_convinfo,npred_conv_max, &
                       id_bias_ps,id_bias_t,id_bias_spd, &
@@ -169,6 +170,7 @@
 !  06-04-2010 Todling   update interface to init_grid_vars
 !  06-05-2010 Todling   remove as,tsfc_sdv,an_amp0 from bkgerr namelist (now in anavinfo table)
 !  08-10-2010 Wu        add nvege_type to gridopts namelist 
+!  08-24-2010 hcHuang   add diag_aero and init_aero for aerosol observations
 !                         
 !EOP
 !-------------------------------------------------------------------------
@@ -214,6 +216,7 @@
 !     diag_rad - logical to turn off or on the diagnostic radiance file true=on
 !     diag_conv-logical to turn off or on the diagnostic conventional file (true=on)
 !     diag_ozone - logical to turn off or on the diagnostic ozone file (true=on)
+!     diag_aero  - logical to turn off or on the diagnostic aerosol file (true=on)
 !     diag_co - logical to turn off or on the diagnostic carbon monoxide file (true=on)
 !     write_diag - logical to write out diagnostic files on outer iteration
 !     lobsdiagsave - write out additional observation diagnostics
@@ -277,7 +280,7 @@
        ndat,npred,niter,niter_no_qc,miter,qoption,nhr_assimilation,&
        min_offset, &
        iout_iter,npredp,retrieval,&
-       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_co,iguess,write_diag,&
+       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess,write_diag,&
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
        npred_conv_max,&
        id_bias_ps,id_bias_t,id_bias_spd, &
@@ -590,6 +593,7 @@
   call init_pcp
   call init_rad
   call init_oz
+  call init_aero
   call init_co
   call init_convinfo
   call init_jfunc
@@ -729,6 +733,7 @@
      diag_rad=.false.
      diag_conv=.false.
      diag_ozone=.false.
+     diag_aero=.false.
      diag_co=.false.
      diag_pcp=.false.
   end if

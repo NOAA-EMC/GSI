@@ -269,4 +269,3 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   endif
 
 end subroutine read_aerosol
-
