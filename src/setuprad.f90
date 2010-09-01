@@ -627,7 +627,7 @@
     jextra=nchanl
     iextra=1
   end if
-! If both, iextra=2!
+! If both, iextra=2
   if (goes_img .and. lwrite_peakwt) then
     iextra=2
   end if

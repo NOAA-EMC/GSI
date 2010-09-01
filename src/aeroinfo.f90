@@ -37,9 +37,18 @@ module aeroinfo
   use kinds, only:r_kind,i_kind
   implicit none
 
+! set default to private
+  private
+! set subroutines to public
+  public :: init_aero
+  public :: aeroinfo_read
+! set passed variables to pubic
+  public :: jpch_aero,diag_aero,nusis_aero,iuse_aero,b_aero,pg_aero,gross_aero
+  public :: error_aero,pob_aero,mype_aero,nulev
+
   logical diag_aero
   integer(i_kind) mype_aero,jpch_aero
-  real(r_kind),allocatable,dimension(:)::pob_aero,gross_aero,error_aero,pg_aero,b_aero
+  real(r_kind),allocatable,dimension(:)::pob_aero,gross_aero,error_aero,b_aero,pg_aero
   integer(i_kind),allocatable,dimension(:):: nulev,iuse_aero
   character(len=20),allocatable,dimension(:):: nusis_aero
 
@@ -135,7 +144,7 @@ contains
 !      Allocate arrays to hold aerosol information
        allocate(nusis_aero(jpch_aero),nulev(jpch_aero),iuse_aero(jpch_aero), &
             pob_aero(jpch_aero),gross_aero(jpch_aero),error_aero(jpch_aero), &
-            pg_aero(jpch_aero),b_aero(jpch_aero))
+            b_aero(jpch_aero),pg_aero(jpch_aero))
 
 
 !      All mpi tasks open and read aerosol information file.
