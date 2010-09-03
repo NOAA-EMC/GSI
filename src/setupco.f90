@@ -48,7 +48,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,i_kind
 
-  use constants, only : zero,half,one,two,tiny_r_kind
+  use constants, only : zero,half,one,two,tiny_r_kind,r10
   use constants, only : cocon,cg_term,wgtlim,h300   ! AVT need to find value for co
                                                      ! use the ozone values for the moment
 
@@ -98,7 +98,6 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 ! Declare local parameters  
   integer(i_kind),parameter:: iint=1
   integer(i_kind),parameter:: ireal=3
-  real(r_kind),parameter:: r10=10.0_r_kind
   character(len=*),parameter:: myname="setupco"
 
 ! Declare local variables  

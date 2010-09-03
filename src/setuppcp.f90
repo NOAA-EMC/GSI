@@ -49,7 +49,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   
   use constants, only: rd,cp,pi,zero,quarter,r60, &
-       half,one,two,three,tiny_r_kind,one_tenth,cg_term,r1000,wgtlim,fv,r3600
+       half,one,two,three,tiny_r_kind,one_tenth,cg_term,r1000,wgtlim,fv,r3600,r10
 
   use jfunc, only: jiter,miter
 
@@ -225,7 +225,6 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
   real(r_kind),parameter::  zero_7  = 0.7_r_kind
   real(r_kind),parameter::  r1em6   = 0.000001_r_kind
-  real(r_kind),parameter::  r10     = 10.0_r_kind
   real(r_kind),parameter::  r15     = 15.0_r_kind
   real(r_kind),parameter::  r25     = 25.0_r_kind
 ! real(r_kind),parameter::  r40     = 40.0_r_kind

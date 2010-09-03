@@ -35,7 +35,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use constants, only: zero, one, four,t0c,rd_over_cp
   use constants, only: tiny_r_kind,half,two,cg_term
-  use constants, only: huge_single,r1000,wgtlim
+  use constants, only: huge_single,r1000,wgtlim,r10
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
   use converr, only: ptabl 
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surfTobs
@@ -131,7 +131,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !-------------------------------------------------------------------------
 
 ! Declare local parameters
-  real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r0_001 = 0.001_r_kind
   real(r_kind),parameter:: r8 = 8.0_r_kind
 

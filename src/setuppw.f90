@@ -72,7 +72,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use constants, only: zero,one,tpwcon,r1000, &
        tiny_r_kind,three,half,two,cg_term,huge_single,&
-       wgtlim
+       wgtlim,r10
   use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1,npres_print
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
@@ -88,8 +88,6 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
 
 ! Declare local parameter
-  real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: ten = 10.0_r_kind
   character(len=*),parameter:: myname='setuppw'
 
 ! Declare external calls for code analysis
@@ -147,7 +145,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         do j=1,lon2
            do i=1,lat2
               rp2(i,j,jj)=rp2(i,j,jj) + ges_q(i,j,k,jj) * &
-                   tpwcon*ten*(ges_prsi(i,j,k,jj)-ges_prsi(i,j,k+1,jj))    ! integrate q
+                   tpwcon*r10*(ges_prsi(i,j,k,jj)-ges_prsi(i,j,k+1,jj))    ! integrate q
            end do
         end do
      end do
@@ -401,7 +399,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Load the delta pressures at the obs location
         do k=1,nsig
-           pwtail(ibin)%head%dp(k)=ten*(prsitmp(k)-prsitmp(k+1))
+           pwtail(ibin)%head%dp(k)=r10*(prsitmp(k)-prsitmp(k+1))
         end do
 
         pwtail(ibin)%head%diags => obsdiags(i_pw_ob_type,ibin)%tail

@@ -90,7 +90,7 @@ subroutine prewgt(mype)
        nnnn1o,lat1,lon1,itotsub,iglobal,ltosi,ltosj,ijn,displs_g,&
        strip
   use constants, only: izero,ione,zero,quarter,half,one,two,three,&
-       rearth_equator,pi,r1000
+       rearth_equator,pi,r1000,r400
   use guess_grids, only: isli2
   use smooth_polcarf, only: norsp,setup_smooth_polcas
   use mpeu_util, only: getindex
@@ -145,7 +145,6 @@ subroutine prewgt(mype)
 
 ! real(r_kind),parameter:: eight_tenths = 0.8_r_kind
 ! real(r_kind),parameter:: six          = 6.0_r_kind
-! real(r_kind),parameter:: r400         = 400.0_r_kind
 ! real(r_kind),parameter:: r800         = 800.0_r_kind
 ! real(r_kind),parameter:: r40000       = 40000.0_r_kind
 ! real(r_kind),parameter:: r25          = one/25.0_r_kind

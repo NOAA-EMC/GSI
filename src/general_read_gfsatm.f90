@@ -36,7 +36,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,g_z,g_ps,g_vor,g_div,g_u,g_v
     use general_sub2grid_mod, only: sub2grid_info
     use general_specmod, only: spec_vars
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
-    use constants, only: izero,ione,zero,one,fv
+    use constants, only: izero,ione,zero,one,fv,r0_01
     use sigio_module, only: sigio_intkind,sigio_head,sigio_data,&
          sigio_srohdc,sigio_axdata
     use gfsio_module, only: gfsio_gfile,gfsio_open,gfsio_close,&
@@ -47,7 +47,6 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,g_z,g_ps,g_vor,g_div,g_u,g_v
     
 !   Declare local parameters
     integer(sigio_intkind):: lunges = 11
-    real(r_kind),parameter:: r0_01  = 0.01_r_kind
     real(r_kind),parameter:: r0_001 = 0.001_r_kind
     real(r_kind),parameter:: qsmall = 1.e-11_r_kind
 

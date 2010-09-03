@@ -78,7 +78,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gridmod, only: nsig,get_ij
   use constants, only: zero,one_tenth,one,half,pi,g_over_rd, &
              huge_r_kind,tiny_r_kind,two,cg_term,huge_single, &
-             r1000,wgtlim,tiny_single
+             r1000,wgtlim,tiny_single,r10
   use jfunc, only: jiter,last,jiterstart,miter
   use qcmod, only: dfact,dfact1,npres_print
   use guess_grids, only: hrdifsig,ges_lnprsl,ges_tv,ges_ps,nfldsig,ges_z,ntguessig
@@ -112,7 +112,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,tfact
   real(r_kind) zsges,pgesorig,rwgt
-  real(r_kind) r10,r0_005,r0_2,r2_5,tmin,tmax,half_tlapse
+  real(r_kind) r0_005,r0_2,r2_5,tmin,tmax,half_tlapse
   real(r_kind) ratio_errors,error,dhgt,ddiff,dtemp
   real(r_kind) val2,ress,ressw2,val,valqc
   real(r_kind) cg_ps,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2
@@ -170,7 +170,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Declare local constants
   halfpi = half*pi
-  r10=10.0_r_kind
   r0_005 = 0.005_r_kind
   r0_2=0.2_r_kind
   r2_5=2.5_r_kind

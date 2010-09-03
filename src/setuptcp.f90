@@ -33,7 +33,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           ntguessig
   use gridmod, only: get_ij,nsig
   use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
-          wgtlim,g_over_rd,huge_r_kind,pi,huge_single,tiny_single
+          wgtlim,g_over_rd,huge_r_kind,pi,huge_single,tiny_single,r10
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,&
           icsubtype
   use jfunc, only: jiter,last,jiterstart,miter
@@ -69,7 +69,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) rwgt,cg_ps,drbx
   real(r_kind) error,dtime,dlon,dlat,r0_001,r2_5,r0_2,rsig
   real(r_kind) ratio_errors,psges,zsges,rdp,drdp
-  real(r_kind) pob,pges,pgesorig,half_tlapse,r10,ddiff,halfpi,r0_005,rdelz,psges2
+  real(r_kind) pob,pges,pgesorig,half_tlapse,ddiff,halfpi,r0_005,rdelz,psges2
   real(r_kind) alpha,resfct,error_orig
 
   real(r_kind),dimension(nele,nobs):: data
@@ -113,7 +113,6 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   scale=one
   rsig=nsig
   halfpi = half*pi
-  r10=10.0_r_kind
   r0_005 = 0.005_r_kind
   r0_2=0.2_r_kind
   r2_5=2.5_r_kind

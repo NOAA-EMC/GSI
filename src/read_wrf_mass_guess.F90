@@ -78,7 +78,8 @@ subroutine read_wrf_mass_binary_guess(mype)
        ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,eta1_ll,pt_ll,itotsub,aeta1_ll
-  use constants, only: izero,ione,zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300
+  use constants, only: izero,ione,zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
+  use constants, only: r0_01
   use gsi_io, only: lendian_in
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   implicit none
@@ -87,9 +88,6 @@ subroutine read_wrf_mass_binary_guess(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r10   = 10.0_r_kind
-  real(r_kind),parameter:: r100  = 100.0_r_kind
 
 
 ! Declare local variables
@@ -978,7 +976,8 @@ subroutine read_wrf_mass_netcdf_guess(mype)
        ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll
-  use constants, only: izero,ione,zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth
+  use constants, only: izero,ione,zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,r10,r100
+  use constants, only: r0_01
   use gsi_io, only: lendian_in
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   implicit none
@@ -987,9 +986,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_01=0.01_r_kind
-  real(r_kind),parameter:: r10=10.0_r_kind
-  real(r_kind),parameter:: r100=100.0_r_kind
 
 ! Declare local variables
   integer(i_kind) kt,kq,ku,kv

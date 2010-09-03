@@ -57,7 +57,8 @@ module constants
   public :: somigliana,grav_equator,grav_ratio,flattening,semi_major_axis
   public :: n_b,n_a,eccentricity,huge_single,constoz,g_over_rd,amsua_clw_d2
   public :: amsua_clw_d1,n_c,rd_over_g,zero_ilong
-  public :: cocon,rcocon
+  public :: cocon,rcocon,r10,r100,sqrt_tiny_r_kind,r2000,r4000
+  public :: r0_01,r0_02,r0_03,r0_04,r0_05,r400,r2400
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
@@ -67,7 +68,7 @@ module constants
   real(r_kind):: factor1, huge_r_kind, tiny_r_kind, deg2rad, pi, rad2deg, cg_term
   real(r_kind):: eccentricity_linear, cv, rv, rd_over_cp_mass, cliq, rd, cp_mass
   real(r_kind):: eccentricity, grav, rearth, r60inv
-  real(r_kind):: cocon,rcocon
+  real(r_kind):: cocon,rcocon,sqrt_tiny_r_kind
 
 
 ! Define constants common to global and regional applications
@@ -93,6 +94,11 @@ module constants
   real(r_single),parameter::  zero_single= 0.0_r_single
 
   real(r_kind),parameter::  zero      = 0.0_r_kind
+  real(r_kind),parameter::  r0_01     = 0.01_r_kind
+  real(r_kind),parameter::  r0_02     = 0.02_r_kind
+  real(r_kind),parameter::  r0_03     = 0.03_r_kind
+  real(r_kind),parameter::  r0_04     = 0.04_r_kind
+  real(r_kind),parameter::  r0_05     = 0.05_r_kind
   real(r_kind),parameter::  one_tenth = 0.10_r_kind
   real(r_kind),parameter::  quarter   = 0.25_r_kind
   real(r_kind),parameter::  one       = 1.0_r_kind
@@ -101,8 +107,14 @@ module constants
   real(r_kind),parameter::  four      = 4.0_r_kind
   real(r_kind),parameter::  five      = 5.0_r_kind
   real(r_kind),parameter::  ten       = 10.0_r_kind
+  real(r_kind),parameter::  r10       = 10.0_r_kind
   real(r_kind),parameter::  r60       = 60._r_kind
+  real(r_kind),parameter::  r100      = 100.0_r_kind
+  real(r_kind),parameter::  r400      = 400.0_r_kind
   real(r_kind),parameter::  r1000     = 1000.0_r_kind
+  real(r_kind),parameter::  r2000     = 2000.0_r_kind
+  real(r_kind),parameter::  r2400     = 2400.0_r_kind
+  real(r_kind),parameter::  r4000     = 4000.0_r_kind
   real(r_kind),parameter::  r3600     = 3600.0_r_kind
 
   real(r_quad),parameter::  zero_quad = 0.0_r_quad
@@ -213,6 +225,7 @@ contains
     rad2deg = one/deg2rad
     cg_term = (sqrt(two*pi))/two                  ! constant for variational qc
     tiny_r_kind = tiny(zero)
+    sqrt_tiny_r_kind = r10*sqrt(tiny_r_kind)
     huge_r_kind = huge(zero)
     tiny_single = tiny(zero_single)
     huge_single = huge(zero_single)

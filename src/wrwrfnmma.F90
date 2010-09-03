@@ -44,7 +44,7 @@ subroutine wrwrfnmma_binary(mype)
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
        nsig,lat1,lon1,eta2_ll
-  use constants, only: zero_single
+  use constants, only: zero_single,r10,r100
   use gsi_io, only: lendian_in
   implicit none
 
@@ -52,8 +52,6 @@ subroutine wrwrfnmma_binary(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local constants
-  real(r_kind),parameter:: r10=10.0_r_kind
-  real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r225=225.0_r_kind
 
 ! Declare local variables
@@ -556,7 +554,7 @@ subroutine wrnemsnmma_binary(mype)
         ntguessfc,ntguessig,ges_tsen,dsfct,isli,geop_hgtl,ges_prsl,ges_oz
   use gridmod, only: pt_ll,update_regsfc,pdtop_ll,nsig,lat2,lon2,eta2_ll,nmmb_verttype,&
         use_gfs_ozone,regional_ozone
-  use constants, only: zero,half,one,two,rd_over_cp
+  use constants, only: zero,half,one,two,rd_over_cp,r10,r100
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read,gsi_nemsio_write
   use gsi_nemsio_mod, only: gsi_nemsio_update
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_integer4,mpi_min,mpi_max,mpi_sum
@@ -565,10 +563,6 @@ subroutine wrnemsnmma_binary(mype)
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
-
-! Declare local constants
-  real(r_kind),parameter:: r10=10.0_r_kind
-  real(r_kind),parameter:: r100=100.0_r_kind
 
 ! Declare local variables
 
@@ -954,7 +948,7 @@ subroutine wrwrfnmma_netcdf(mype)
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
        nsig,lat1,lon1,ijn,displs_g,eta2_ll,strip_single
-  use constants, only: zero_single
+  use constants, only: zero_single,r10,r100
   use gsi_io, only: lendian_in, lendian_out
   implicit none
 
@@ -962,8 +956,6 @@ subroutine wrwrfnmma_netcdf(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local constants
-  real(r_kind),parameter:: r10=10.0_r_kind
-  real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r225=225.0_r_kind
 
 ! Declare local variables

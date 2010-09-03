@@ -26,7 +26,7 @@ subroutine antest_maps0(mype,theta0f,z0f)
   use kinds, only: r_kind,i_kind,r_single
   use anberror, only: kvar_start,kvar_end,var_names,pf2aP1,indices
   use gridmod, only: nsig,nsig1o,nlon,nlat,istart,jstart,lat2,lon2,twodvar_regional
-  use constants, only: zero_single,izero,ione,zero,one,rd_over_cp
+  use constants, only: zero_single,izero,ione,zero,one,rd_over_cp,r100
   use mpimod, only: ierror,mpi_real4,mpi_real8,mpi_sum,mpi_comm_world
   use guess_grids, only: ges_tv,ges_z,ntguessig,ges_prsl
   use fgrid2agrid_mod, only: fgrid2agrid
@@ -47,7 +47,6 @@ subroutine antest_maps0(mype,theta0f,z0f)
   real(r_kind)h00,h000
   integer(i_kind) lunin,i,j,k,ivar,iglob,jglob,ivar_plot,k_plot
   integer(i_kind) it,mm1
-  real(r_kind),parameter:: r100=100.0_r_kind
 
   integer(i_kind):: iref, idxy
 
@@ -276,7 +275,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   use kinds, only: r_kind,i_kind,r_single
   use anberror, only: kvar_start,kvar_end,var_names,levs_jdvar,indices,pf2aP1
   use gridmod, only: nsig,nlon,nlat,istart,jstart,lat2,lon2
-  use constants, only: zero_single,izero,ione,zero,one,rd_over_cp
+  use constants, only: zero_single,izero,ione,zero,one,rd_over_cp,r100
   use mpimod, only: ierror,mpi_real4,mpi_real8,mpi_sum,mpi_comm_world
   use guess_grids, only: ges_tv,ges_z,ntguessig,ges_prsl
   use control_vectors, only: nvars
@@ -299,7 +298,6 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   real(r_kind) h00,h000
   integer(i_kind) lunin,i,j,k,ivar,iglob,jglob,ivar_plot,k_plot
   integer(i_kind) it,mm1
-  real(r_kind),parameter:: r100=100.0_r_kind
   integer(i_kind) lvar
   integer(i_kind):: ips,ipe,jps,jpe,kps,kpe
   integer(i_kind):: nlatf,nlonf

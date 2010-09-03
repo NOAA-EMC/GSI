@@ -101,7 +101,7 @@ module anisofilter_glb
   use constants, only: izero,                         ione, & ! for integer
                        zero_single, tiny_single,            & ! for real(4)
                        zero,        tiny_r_kind, half, one, two, & ! for real(8)
-                       rd_over_cp, rearth_equator
+                       rd_over_cp, rearth_equator, r100
 
   use raflib,only: init_raf4_wrap,raf_sm4_wrap,raf_sm4_ad_wrap
 
@@ -121,7 +121,7 @@ module anisofilter_glb
                     mpi_sum,mpi_comm_world
 
   use anisofilter, only: lreadnorm, &
-                         r015,r100, &
+                         r015, &
                          qlth_temp0, qltv_temp0, qlth_wind0, qltv_wind0, &
                          scalex1, scalex2, scalex3, &
                          stpcode_alloc,   stpcode_namelist, &

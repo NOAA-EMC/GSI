@@ -83,9 +83,9 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use oneobmod, only: oneobtest,maginnov,magoberr
   use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps,ges_tsen,ges_prsl
   use gridmod, only: lat2,lon2,nsig,get_ijk
-  use constants, only: zero,one,r1000
+  use constants, only: zero,one,r1000,r10,r100
   use constants, only: huge_single,wgtlim
-  use constants, only: tiny_r_kind,five,half,two,huge_r_kind,cg_term
+  use constants, only: tiny_r_kind,five,half,two,huge_r_kind,cg_term,r0_01
   use qcmod, only: npres_print,ptopq,pbotq,dfact,dfact1
   use jfunc, only: jiter,last,jiterstart,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
@@ -105,10 +105,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),parameter:: small1=0.0001_r_kind
   real(r_kind),parameter:: small2=0.0002_r_kind
   real(r_kind),parameter:: r8=8.0_r_kind
-  real(r_kind),parameter:: r10=10.0_r_kind
-  real(r_kind),parameter:: r0_01=0.01_r_kind
   real(r_kind),parameter:: r0_001 = 0.001_r_kind
-  real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r1e16=1.e16_r_kind
   character(len=*),parameter:: myname='setupq'
 

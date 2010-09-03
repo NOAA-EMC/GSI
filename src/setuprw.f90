@@ -74,7 +74,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gridmod, only: nsig,get_ijk
   use constants, only: flattening,semi_major_axis,grav_ratio,zero,grav,wgtlim,&
        half,one,two,grav_equator,eccentricity,somigliana,rad2deg,deg2rad
-  use constants, only: tiny_r_kind,cg_term,huge_single
+  use constants, only: tiny_r_kind,cg_term,huge_single,r2000
   use jfunc, only: jiter,last,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
@@ -94,7 +94,6 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),parameter:: r8     = 8.0_r_kind
   real(r_kind),parameter:: ten    = 10.0_r_kind
   real(r_kind),parameter:: r200   = 200.0_r_kind
-  real(r_kind),parameter:: r2000  = 2000.0_r_kind
 
 ! Declare external calls for code analysis
   external:: tintrp2a

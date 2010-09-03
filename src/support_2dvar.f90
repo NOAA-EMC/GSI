@@ -861,7 +861,7 @@ subroutine wr2d_binary(mype)
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: lat2,iglobal,itotsub,update_regsfc,strip_single,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g
-  use constants, only: zero_single
+  use constants, only: zero_single,r10,r100
   use jfunc, only: qsatg
   implicit none
 
@@ -869,8 +869,6 @@ subroutine wr2d_binary(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r10=10.0_r_kind
-  real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r225=225.0_r_kind
 
 ! Declare local variables
@@ -1995,7 +1993,7 @@ subroutine get_stndewpt(p,q,t,td,lboundtd)
 !
 !$$$ end documentation block
   use kinds, only: r_kind
-  use constants, only: one
+  use constants, only: one,r100
   implicit none
 
 ! Declare passed variables
@@ -2009,7 +2007,6 @@ subroutine get_stndewpt(p,q,t,td,lboundtd)
   real(r_kind),parameter::b=440.8_r_kind
   real(r_kind),parameter::c=19.48_r_kind
   real(r_kind),parameter::c2k=273.15_r_kind
-  real(r_kind),parameter:: r100=100.0_r_kind
 
 ! Declare local variables
   real(r_kind)  e, qv, eln

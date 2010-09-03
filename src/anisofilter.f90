@@ -112,7 +112,7 @@ module anisofilter
   use constants, only: izero,                         ione, & ! for integer
                        zero_single, tiny_single,            & ! for real(4)
                        zero,        tiny_r_kind, quarter, half, one, two, three, four, five, & ! for real(8)
-                       rd_over_cp, pi
+                       rd_over_cp, pi, r100
 
   use balmod,only: llmin,llmax,rllat,fstat
 
@@ -171,7 +171,7 @@ module anisofilter
   public :: theta0zf,theta0f,asp3_max,u0f,v0zf,v0f,u0zf,tx1_slab,hfilter,hfine,tx2_slab,asp2_max,asp1_max,tx3_slab
   public :: qltv_wind,qlth_wind,qltv_temp,eampmax,pgesmax,pgesmin,eampmin,asp10f,rh0f,z0f,asp20f,qlth_temp,psg,asp30f
   public :: qlth_wind0,qltv_temp0,qlth_temp0,qltv_wind0,scalex3,scalex2,scalex1,lreadnorm
-  public :: r100,r015,corp,corz,rfact0v,hwll,aspect,vz,hwllp,stpcode_ensdata,stpcode_namelist,stpcode_alloc
+  public :: r015,corp,corz,rfact0v,hwll,aspect,vz,hwllp,stpcode_ensdata,stpcode_namelist,stpcode_alloc
   public :: stpcode_statdata,rfact0h,ks,mlat,rllatf,ensamp
 
 ! Declare passed variables
@@ -189,7 +189,6 @@ module anisofilter
   real(r_kind),parameter:: r800000      = 800000.0_r_kind
   real(r_kind),parameter:: r25          =   one/25.0_r_kind
   real(r_kind),parameter:: r015         =   0.15_r_kind
-  real(r_kind),parameter:: r100         = 100.0_r_kind
 
   real(r_kind),parameter:: qlth_temp0   = half
   real(r_kind),parameter:: qltv_temp0   = five

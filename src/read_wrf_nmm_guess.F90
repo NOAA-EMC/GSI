@@ -85,7 +85,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
        pdtop_ll,pt_ll,nlon,nlat,nlon_regional,nsig,nlat_regional,half_grid,&
        filled_grid, &
       displs_s,ijn_s,ltosi_s,ltosj_s,half_nmm_grid2a,fill_nmm_grid2a3
-  use constants, only: izero,ione,zero,one_tenth,half,one,grav,fv,zero_single
+  use constants, only: izero,ione,zero,one_tenth,half,one,grav,fv,zero_single,r0_01
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
   implicit none
@@ -94,8 +94,6 @@ subroutine read_wrf_nmm_binary_guess(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r100  = 100.0_r_kind
 
 ! Declare local variables
   integer(i_kind) kpint,kt,kq,ku,kv
@@ -719,7 +717,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   use gridmod, only: lat2,lon2,itotsub,displs_s,ijn_s,&
        pdtop_ll,pt_ll,nlon_regional,nsig,nlat_regional,half_grid,&
        filled_grid
-  use constants, only: izero,ione,zero,one_tenth,half,one,grav,fv,zero_single
+  use constants, only: izero,ione,zero,one_tenth,half,one,grav,fv,zero_single,r0_01
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
   implicit none
@@ -728,7 +726,6 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_01=0.01_r_kind
 
 ! Declare local variables
   integer(i_kind) kpint,kt,kq,ku,kv
@@ -1136,7 +1133,7 @@ subroutine read_nems_nmmb_guess(mype)
        fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ges_tsen,ges_oz
   use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype,use_gfs_ozone,regional_ozone
-  use constants, only: izero,ione,zero,one_tenth,half,one,fv,rd_over_cp
+  use constants, only: izero,ione,zero,one_tenth,half,one,fv,rd_over_cp,r100,r0_01
   use regional_io, only: update_pint
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read
   implicit none
@@ -1145,8 +1142,6 @@ subroutine read_nems_nmmb_guess(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r100  = 100.0_r_kind
 
 ! Declare local variables
 

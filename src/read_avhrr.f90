@@ -346,7 +346,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         data_all(4, itx) = dlat                  ! grid relative latitude
         data_all(5, itx) = hdr(11)*deg2rad       ! satellite zenith angle (radians)
         data_all(6, itx) = bmiss                 ! satellite azimuth angle
-        data_all(7, itx) = bmiss                 ! look angle
+        data_all(7, itx) = zero                  ! look angle
         data_all(8, itx) = scan_pos              ! scan position
         data_all(9, itx) = hdr(12)               ! solar zenith angle (radians)
         data_all(10,itx) = bmiss                 ! solar azimuth angle (radians)

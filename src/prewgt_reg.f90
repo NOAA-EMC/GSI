@@ -90,7 +90,6 @@ subroutine prewgt_reg(mype)
 ! real(r_kind),parameter:: eight        = 8.0_r_kind
   real(r_kind),parameter:: r400000      = 400000.0_r_kind
   real(r_kind),parameter:: r800000      = 800000.0_r_kind
-! real(r_kind),parameter:: r1000        = 1000.0_r_kind
   real(r_kind),parameter:: r015         = 0.15_r_kind
 
 

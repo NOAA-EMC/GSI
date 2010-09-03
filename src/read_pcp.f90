@@ -60,7 +60,7 @@
 !$$$  end documentation block
   use kinds, only: r_kind,r_double,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: izero,ione,zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600
+  use constants, only: izero,ione,zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600,r100
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
 
   implicit none
@@ -75,7 +75,6 @@
   real(r_kind)    ,intent(in   ) :: twind
 
 ! Declare local parameters
-  real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
 
 ! Declare local variables
