@@ -68,7 +68,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_double
-  use constants, only: izero,ione,deg2rad,zero,rad2deg,r60inv
+  use constants, only: izero,ione,deg2rad,zero,rad2deg,r60inv,r100
   use obsmod, only: iadate,ref_obs
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use convinfo, only: nconvtype,ctwind,cermax, &
@@ -88,7 +88,6 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   integer(i_kind),parameter:: maxlevs=500
   integer(i_kind),parameter:: maxinfo=16
   integer(i_kind),parameter:: said_unknown=401
-  real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r10000=10000.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: r5000=5000.0_r_kind

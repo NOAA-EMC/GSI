@@ -92,7 +92,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
        ges_z,ges_tv,ges_q
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
-  use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind
+  use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,r0_01
   use constants, only: zero,half,one,two,eccentricity,semi_major_axis,&
        grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,three,four,five
   use lagmod, only: setq, setq_TL
@@ -128,7 +128,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   logical, intent(in):: last_pass	! flag the pass for the last background bin
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_01 = 0.01_r_kind
   real(r_kind),parameter:: r0_8= 0.8_r_kind
   real(r_kind),parameter:: r1_3 = 1.3_r_kind
   real(r_kind),parameter::  r240 = 240.0_r_kind

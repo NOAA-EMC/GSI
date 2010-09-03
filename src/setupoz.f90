@@ -87,7 +87,7 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use kinds, only: r_kind,r_single,i_kind
 
   use constants, only : zero,half,one,two,tiny_r_kind
-  use constants, only : rozcon,cg_term,wgtlim,h300
+  use constants, only : rozcon,cg_term,wgtlim,h300,r10
 
   use obsmod, only : ozhead,oztail,i_oz_ob_type,dplat,nobskeep
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
@@ -132,7 +132,6 @@ subroutine setupoz(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 ! Declare local parameters  
   integer(i_kind),parameter:: iint=1
   integer(i_kind),parameter:: ireal=3
-  real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: rmiss = -9999.9_r_kind
   character(len=*),parameter:: myname="setupoz"
 

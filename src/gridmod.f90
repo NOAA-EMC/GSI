@@ -820,7 +820,7 @@ contains
 
 ! !USES:
 
-    use constants, only: izero,ione,zero, one, three, deg2rad,pi,half, two
+    use constants, only: izero,ione,zero, one, three, deg2rad,pi,half, two,r0_01
     use mod_nmmb_to_a, only: init_nmmb_to_a,nxa,nya,nmmb_h_to_a
     implicit none
 
@@ -884,7 +884,6 @@ contains
     real(r_single),allocatable:: dx_nmm(:,:),dy_nmm(:,:)
     real(r_single),allocatable:: dx_mc(:,:),dy_mc(:,:)
 
-    real(r_kind),parameter:: r0_01=0.01_r_kind
     real(r_kind),parameter:: r1_5=1.5_r_kind
     real(r_kind),parameter:: six=6.0_r_kind
     real(r_kind),parameter:: r90=90.0_r_kind
@@ -1517,13 +1516,12 @@ contains
 !
 !$$$ end documentation block
 
-  use constants, only: izero,ione,zero,one,half,pi,deg2rad,two
+  use constants, only: izero,ione,zero,one,half,pi,deg2rad,two,r0_01
   implicit none
 
   real(r_kind)   ,intent(in   ) :: glats(nlon,nlat),glons(nlon,nlat)
   integer(i_kind),intent(in   ) :: mype
 
-  real(r_kind),parameter:: r0_01=0.01_r_kind
   real(r_kind),parameter:: rbig =1.0e30_r_kind
   real(r_kind) xbar_min,xbar_max,ybar_min,ybar_max
   real(r_kind) clon,slon,r_of_lat,xbar,ybar
@@ -1959,7 +1957,7 @@ end subroutine init_general_transform
 !
 !$$$ end documentation block
 
-   use constants, only: ione,one, deg2rad,half,zero
+   use constants, only: ione,one, deg2rad,half,zero,r10
 !  define parameters for xy domain which optimally overlays input grid
 
   implicit none
@@ -1969,7 +1967,6 @@ end subroutine init_general_transform
   integer(i_kind),intent(  out) :: nx,ny
   real(r_kind)   ,intent(  out) :: xminout,xmaxout,yminout,ymaxout
 
-  real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r37=37.0_r_kind
 
   real(r_kind) area,areamax,areamin,extra,rlats0max,rlats0min,testlambda

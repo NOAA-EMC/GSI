@@ -27,7 +27,7 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use constants, only: zero,one,four,r1000,wgtlim
   use constants, only: tiny_r_kind,half,two,cg_term
-  use constants, only: constoz
+  use constants, only: constoz,r10
   use qcmod, only: npres_print,ptopo3,pboto3,dfact,dfact1
   use jfunc, only: jiter,last, miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
@@ -91,7 +91,6 @@ subroutine setupo3lv(lunin,mype,bwork,owork,nele,nobs,isis,is,&
 
 
 ! Declare local parameters
-  real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r0_001 = 0.001_r_kind
 
 ! Declare external calls for code analysis

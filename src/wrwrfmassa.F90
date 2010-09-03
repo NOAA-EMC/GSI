@@ -50,7 +50,7 @@ subroutine wrwrfmassa_binary(mype)
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
        nsig,eta1_ll,pt_ll,itotsub,iglobal,update_regsfc,&
        aeta1_ll
-  use constants, only: izero,ione,one,zero_single,rd_over_cp_mass,one_tenth,h300
+  use constants, only: izero,ione,one,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use gsi_io, only: lendian_in
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
 
@@ -60,8 +60,6 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r10=10.0_r_kind
-  real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r225=225.0_r_kind
 
 ! Declare local variables
@@ -1271,7 +1269,7 @@ subroutine wrwrfmassa_netcdf(mype)
   use gridmod, only: pt_ll,eta1_ll,lat2,iglobal,itotsub,update_regsfc,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,&
        aeta1_ll,strip_single
-  use constants, only: izero,ione,one,zero_single,rd_over_cp_mass,one_tenth
+  use constants, only: izero,ione,one,zero_single,rd_over_cp_mass,one_tenth,r10,r100
   use gsi_io, only: lendian_in, lendian_out
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   implicit none
@@ -1280,8 +1278,6 @@ subroutine wrwrfmassa_netcdf(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r10=10.0_r_kind
-  real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r225=225.0_r_kind
 
 ! Declare local variables

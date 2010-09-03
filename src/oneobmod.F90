@@ -117,14 +117,12 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: ione, zero, one, five, one_tenth
+    use constants, only: ione, zero, one, five, one_tenth, r100, r0_01
     use gsi_io, only: lendian_in
     use obsmod, only: offtime_data,iadate
     implicit none
 
-    real(r_kind),parameter:: r0_01=0.01_r_kind
     real(r_kind),parameter:: r20=20.0_r_kind
-    real(r_kind),parameter:: r100=100.0_r_kind
 
     integer(i_kind) ludx,nobs,nlev,idate
     character(8) subset,sid(1)

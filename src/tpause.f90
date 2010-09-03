@@ -37,7 +37,7 @@ subroutine tpause(mype,method)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,rd_over_cp,grav,rad2deg,one,r1000
+  use constants, only: izero,ione,rd_over_cp,grav,rad2deg,one,r1000,r0_01
   use guess_grids, only: ges_ps,tropprs,ges_oz,ges_vor,geop_hgtl,&
        ntguessig,ges_prsl,ges_tv,ges_tsen
   use gridmod, only: istart,nlat,rlats,nsig,lat2,lon2
@@ -51,7 +51,6 @@ subroutine tpause(mype,method)
   real(r_kind),parameter:: r3em7=3.0e-7_r_kind
   real(r_kind),parameter:: r2em6=2.0e-6_r_kind
   real(r_kind),parameter:: r0_001=0.001_r_kind
-  real(r_kind),parameter:: r0_01=0.01_r_kind
   real(r_kind),parameter:: r0_7=0.7_r_kind
   real(r_kind),parameter:: r20=20.0_r_kind
   real(r_kind),parameter:: r40=40.0_r_kind

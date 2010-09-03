@@ -1,6 +1,534 @@
-subroutine retrieval_amsre(tb,amsre_low, amsre_mid, amsre_hig,  &
-                        uu5,vv5,f10, sst, &
-                        tpwc,clw,si85,kraintype,ierr )
+ module clw_mod
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   clw_mod
+!   prgmmr: derber      org: np2                 date: 2010-08-19
+!
+! abstract: This module contains routines to calculate cloud liquid water
+!
+! program history log:
+!   2010-08-19 derber combine retrieval_mi,ret_ssmis,retrieval_amsre and part of setuprad
+!
+! subroutines included:
+!   sub calc_clw        - calculates cloud liquid water (clw) for microwave channels over ocean (public)
+!   sub retrieval_mi    - calculates clw for ssmi
+!   sub ret_ssmis       - calculates clw for ssmis
+!   sub retrieval_amsre - calculates clw for amsre
+!   sub rcwps_alg       - makes retrieval for AMSR-E observation
+!   sub tbe_from_tbo    - perform corrections for scattering effect in amsr-e obs
+!   sub tba_from_tbe    - adjust amsr-e obs to algorithm based brightness temperature
+!   sub emis_water      - compute oceanic emissivity
+!   sub epsp            - calculate the real part of the dielectric constant for saline water
+!   sub epspp           - calculate the imaginary part of the dialectric constant for saline water
+!
+! Variable Definitions:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+implicit none
+! set default to private
+  private
+! set routines used externally to public
+  public :: calc_clw
+
+contains
+
+
+ subroutine calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre, &   
+          tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:   calc_clw    estimates cloud liquid water for micro. QC
+!   prgmmr: derber           org: np23                date: 1995-07-06
+!
+! abstract: estimates cloud liquid water for microwave quality control and
+!        bias correction.
+!
+! program history log:
+!   2010-08-19  derber
+!
+!  input argument list:
+!     nadir     - scan position
+!     tb_obs    - observed brightness temperatures
+!     tsim      - simulated brightness temperatures             
+!     ich       - channel number array
+!     nchanl    - number of channels    
+!     no85ghz   - flag for instrument with no 85ghz channel   
+!     amsua     - flag for amsua data
+!     ssmi      - flag for ssmi  data
+!     ssmis     - flag for ssmis data
+!     amsre     - flag for amsre data
+!     tsavg5    - Surface temperature value
+!     sfc_speed - surface wind speed (10m)
+!     zasat     - satellite zenith angle
+!
+!   output argument list:
+!     clw       - cloud liquid water                                                   
+!     tpwc      - total column water vapor                                           
+!     kraintype - rain type
+!     ierrret   - return flag
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind
+  use radinfo, only: ang_rad,cbias
+  use constants, only: zero,amsua_clw_d1,amsua_clw_d2,t0c
+
+  integer(i_kind)                   ,intent(in   ) :: nadir,nchanl
+  real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs,tsim
+  integer(i_kind),dimension(nchanl) ,intent(in   ) :: ich
+  logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua
+  real(r_kind)                      ,intent(in   ) :: tsavg5,sfc_speed,zasat
+  real(r_kind)                      ,intent(  out) :: clw,tpwc
+  integer(i_kind)                   ,intent(  out) :: kraintype,ierrret
+
+
+! Declare local parameters
+  real(r_kind),parameter:: r284=284.0_r_kind
+  real(r_kind),parameter:: r285=285.0_r_kind
+
+! Declare local variables
+  real(r_kind) tbcx1,tbcx2
+
+
+  if (amsua) then
+ 
+    if(tsavg5>t0c)then
+       tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))
+       tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))
+       if (tbcx1 <=r284 .and. tbcx2<=r284 .and. tb_obs(1) > zero &
+            .and. tb_obs(2) > zero) &
+          clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
+              amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
+    end if
+     
+ else if(ssmi) then
+
+    call retrieval_mi(tb_obs(1),nchanl,no85GHz, &
+         tpwc,clw,kraintype,ierrret ) 
+
+ else if (ssmis) then
+
+    call ret_ssmis( tb_obs(1),nchanl,tpwc, clw, ierrret)
+
+ else if (amsre) then
+
+    call retrieval_amsre(tb_obs(1),zasat,           &
+         sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret ) 
+
+ endif
+ clw = max(zero,clw)
+
+ return
+ end subroutine calc_clw
+
+  subroutine retrieval_mi(tb,nchanl,no85GHz,   &
+                          tpwc,clw,kraintype,ierr)   
+!$$$ subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    retrieval_mi    retrieve clw/tpw and identify rain for SSM/I
+!   prgmmr: okamoto          org: np23                date: 2003-12-27
+!
+! abstract: rain identification based on scattering index 
+!           retrieve cloud liquid water (clw) and total precipitable water (tpw) 
+!   These algorithm are based on  
+!    "SSM/I Algorithm Specification Document, 2000, Raytheon"
+!   However, to speed-up, rain rate algorithm is reduced to just 
+!   rain identification over sea using scattering index 
+!
+!   tpwc:: column water vapor over ocean  [kg/m2]
+!           range 0-80kg/m2, precision:0.5kg/m2
+!          Petty,G.,1993,Proceedings shared processing network 
+!           DMSP SSM/I Alogorithm symposium Monterey
+!   clw :: column cloud water ove ocean  [kg/m2]
+!           range 0-6.0kg/m2, precision:0.5kg/m2
+!          Weng et.al.,1997,J.Climate vol.10
+!   NOTE!  Assume that this code is run only over sea
+!   NOTE!  NOTE! if retrieved clw/tpwc not available over ocean, set -9.99e+11
+!
+!   NOTE!  This code is applicable to SSM/I only (20Jan2000)
+!
+! program history log:
+!   2003-12-27  okamoto
+!   2004-07-12  okamoto - simplify rain identification
+!   2005-09-20  sienkiewicz - move tb22v test to avoid negative log evaluation
+!   2005-10-20  kazumori - delete amsre
+!   2006-04-27  derber - clean up
+!   2006-12-20  sienkiewicz - add no85GHz workaround for f08 DMSP
+!   2008-04-16  safford - rm unused vars
+!
+!   input argument list:
+!     tb      - Observed brightness temperature [K]
+!     nchanl  - number of channels per obs
+!     no85GHz - SSM/I 85GHz channels not used
+!
+!   output argument list:
+!     tpwc    - column water vapor over ocean  [kg/m2]
+!     clw     - column water vapor over ocean  [kg/m2]
+!     kraintype-rain type
+!        [0]no rain or undefine  
+!        [1]retrieve by emission -> not available now  
+!        [2]by scattering
+!     ierr    - error flag
+!        [0]pass or escape this subroutine without doing anything
+!        [1]tbb gross error  [2]polarization gross erro 
+!
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+  use constants, only: ione,two,zero,izero,r10,r100
+
+  implicit none
+    
+! Declare passed variables
+  integer(i_kind)               ,intent(in   ) :: nchanl
+  real(r_kind),dimension(nchanl),intent(in   ) :: tb
+  logical                       ,intent(in   ) :: no85GHz
+
+  integer(i_kind)               ,intent(  out) :: kraintype,ierr
+  real(r_kind)                  ,intent(  out) :: tpwc,clw
+
+! Declare local variables
+  real(r_kind)::tbpol(3),tb19v,tb19h,tb22v,tb37v,tb37h,tb85v,tb85h
+  real(r_kind)::tpw,clw19,clw37,clw85
+  real(r_kind)::clw2term
+  real(r_kind)::rmis=-9.99e11_r_kind
+!     si85    - scattering index over ocean
+  real(r_kind):: si85
+ 
+  real(r_kind),parameter:: r20=20.0_r_kind
+  real(r_kind),parameter:: r80=80.0_r_kind
+  real(r_kind),parameter:: r290=290.0_r_kind
+  real(r_kind),parameter:: r285=285.0_r_kind
+ 
+!  ======  Initialize products to missing
+
+  tpwc   = rmis;  clw = rmis ;  si85 = rmis
+  clw19  = zero;  clw37  = zero
+  ierr = izero
+  kraintype  = izero
+
+  tb19v = tb(1); tb19h = tb(2); tb22v = tb(3)
+  tb37v = tb(4); tb37h = tb(5); tb85v = tb(6); tb85h = tb(7)
+ 
+ 
+!  =======  initial QC : gross check ===============
+
+! Gross error check on all channels.  If there are any
+! bad channels, skip this obs. 
+  if ( no85GHz ) then                ! if no 85GHz, only check ch 1-5
+     if ( any(tb(1:5)  < 70.0_r_kind) .or. any(tb(1:5) > 320.0_r_kind ) ) then
+        ierr = ione
+        return
+     endif
+  else
+     if ( any(tb < 70.0_r_kind) .or. any(tb > 320.0_r_kind ) ) then
+        ierr = ione
+        return
+     end if
+  endif
+ 
+! Polarization check based on SSMI/EDR Algorithm Specification Document
+  tbpol(1) = tb19v-tb19h     !tb19V-tb19h
+  tbpol(2) = tb37v-tb37h     !tb37V-tb37h
+  tbpol(3) = tb85v-tb85h     !tb85V-tb85h
+
+
+  if ( no85GHz ) then                ! if no 85GHz, just check 22,37 GHz
+     if (tbpol(1) < -two .or. tbpol(2) < -two) then
+        ierr = 2_i_kind
+     endif
+     
+  else if ( any(tbpol < -two ) ) then 
+     ierr = 2_i_kind
+     return
+  end if
+ 
+!
+! Use scattering index for rain rate, only if 85V channel can be used.
+!    note: this expression ~ Ferraro, et al 1988 JAS
+!
+  if ( .not. no85GHz ) then
+
+!  =======   Rain Rate  ==============
+
+! Generate rain rates over ocean using Sec 3.6 algorithm
+!
+
+!    Compute scattering index
+     si85 = -174.4_r_kind + 0.715_r_kind*tb19v +  &
+          2.439_r_kind*tb22v - 0.00504_r_kind*tb22v*tb22v - tb85v
+
+     if (si85 >= r10) then
+        kraintype=2_i_kind
+     end if
+
+  endif
+
+!   Skip emission-based rain rate retrieve process kraintype=1 to speedup 
+!   Observations contaminated by emission-based rain are tossed by 
+!    later clw-QC
+
+  if(kraintype==izero) then 
+
+!  =======   TPW over ocean (when no rain)  ====================
+!   Generate total precipitable water (tpw) using Sec 3.1 algorithm.
+!   If rain is present, can not retrieve tpw since squared tb22v
+!   term greatly increases error in tpw.  
+
+     tpw = 232.89393_r_kind - 0.148596_r_kind*tb19v - 0.36954_r_kind*tb37v - &
+           (1.829125_r_kind - 0.006193_r_kind*tb22v)*tb22v
+
+!   Apply cubic correction for high and low values.
+     tpwc = -3.75_r_kind + 1.507_r_kind*tpw - 0.01933_r_kind*(tpw**2) &
+           + 0.0002191_r_kind*(tpw**3)
+     tpwc = max(zero,tpwc)
+
+!  =======   CLW over ocean (when no rain)  ====================
+!   Generate cloud liquid water (clw) using algorithm in Sec 3.2.
+!   If rain or sea ice is present, operational algorithm does not
+!   generate a product.  
+
+     if (tb22v<r285) then
+        clw2term=log(r290-tb22v)
+!
+!      CLW using 37v as primary channel
+        if (tb37v<r285) then 
+           clw37 = -1.66_r_kind*( log(r290-tb37v ) -  &
+                    2.99_r_kind - 0.32_r_kind*clw2term )
+           clw = clw37           ! default if none of the other critera satisfied
+        end if
+
+!
+!      CLW using 19v as primary channel
+        if (tb19v<r285) then 
+           clw19  = -3.20_r_kind*( log(r290-tb19v) -  &
+                     2.84_r_kind - 0.4_r_kind*clw2term  ) 
+           if (clw19 > 0.7_r_kind) then 
+              clw = clw19
+           else if ( .not. no85GHz .and. &
+                clw37 <= 0.28_r_kind .and. tb85h<r285) then 
+!
+!          CLW using 85h as primary channel
+              if(tpwc < 30.0_r_kind)then
+                clw85 = -0.44_r_kind*( log(r290-tb85h) + & 
+                         1.11_r_kind - 1.26_r_kind*clw2term   )
+                if (clw85>zero ) clw = clw85
+              end if
+           end if
+        end if
+
+     end if
+
+!    upper limit of 6.0 kg/m2.  
+     clw=min(clw,6.0_r_kind)
+
+  end if                    
+ 
+  return
+end subroutine retrieval_mi
+subroutine ret_ssmis(tb,nchanl,tpwc,clw,ierr)
+!$$$ subprogram documentation block
+!
+! subprogram:    ret_ssmis    retrieve various parameters for SSMIS
+!
+! prgmmr: weng, okamoto     org: np23                date: 2005-03-22
+!
+! abstract: retrieve clw from sounding ch using only 50.3GHz channel 
+!     retrieve clw from SSM/I-like channels after mimicing frequency
+!
+!     These algorithm are based on
+!
+!     Weng, F., R. R. Ferraro, and N. C. Grody,2000: "Effects of AMSU cross-scan Symmetry of 
+!          brightness temperatures on  retrieval of atmospheric and surface parameters", 
+!          Ed. P. Pampaloni and S. Paloscia, VSP, Netherlands, 255-262, 2000 
+!
+!     Yan B. and F. Weng, 'Intercalibration between Special Sensor Microwave Imager and Sounder (SSMIS)
+!         and Special Sensor Microwave Imager (SSM/I)', TGARS Special Issue on the DMSP SSMIS, 46, 984-995.
+!
+!
+!     tpw:: total precipitable water 
+!     clw :: column cloud water ove ocean  [kg/m2]
+!         range 0-6.0kg/m2, precision:0.5kg/m2
+!         Weng et.al.,1997,J.Climate vol.10   
+!
+! program history log:
+!     2003-12-27  okamoto
+!     2004-07-12  okamoto - simplify rain identification
+!     2005-10-07  Xu & Pawlak - add documentation. Also, per Fuzhong Weng, deleted
+!                 code for retrieval based on ssmis_las instrument since
+!                 algorithm is intented only for ssmis_img, fixed indentation 
+!     2006-04-27  Derber - modify for single profile
+!     2007-01-24  kazumori - modify for UKMO preprocess SSMIS data, add retrieved tpw
+!                            and bias correction of retrieved clw.
+!     2008-04-16  safford  - rm unused uses and vars
+!
+!     2009-12-07  b.yan    - rewrite the ssmis TA level CLW agorithm and 
+!                            remove the sea ice identification algorithm since this code frequently 
+!                                   mis-identify ocean-pixels as sea ice-pixels
+!
+!     Reasons: in the previous version,there are the following bugs
+!              (a) the ssmis data used in the gsi is tb level insetad of ta level
+!              (b) the ssmis remapping coefficients are derived at ta level instead of tb level
+!              (c) the polarization of the ssmis data is mis-used which will result in a totally wrong
+!                  cloud liquid water path calculation
+!              (d) the comments for the coefficients are not correct
+!     In the new version of the code:
+!              (a) TB2TA is needed to use the ssmis remapping coefficients derived at the ta level
+!              (b) the remapping coefficients are updated , which are derived using the ssmis/ssmi SCO
+!                  observations
+!              (c) add the correct comments
+!              (d) remove sea ice index and subroutine
+!              (e) remove ssmis_las check if it is not necessary
+!   input argument list:
+!     tb      - Observed brightness temperature [K]
+!     nchanl  - number of channels per obs
+!     
+!   Internal variable list:
+!     tbx    - brightness temperatures at seven window channels
+!     tby    - brightness temperatures at seven window channels which are consistent to f15 ssmi tb results
+!     tax    - ssmis antenna temperatures at seven window channels
+!     tay    - remapped ssmis antenna temperatures at seven window channels
+!   output argument list:
+!     clw     - column cloud water vapor over ocean  [kg/m2]
+!     ierr    - error flag
+!               [0]pass or escape this subroutine without doing anything
+!               [1]tbb gross error
+!               [2]polarization gross erro
+!
+! attributes:
+!     language: f90
+!     machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+  use constants, only: izero,ione,zero,one
+  
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)               ,intent(in   ) :: nchanl
+  real(r_kind),dimension(nchanl),intent(in   ) :: tb
+  integer(i_kind)               ,intent(  out) :: ierr
+  real(r_kind)                  ,intent(  out) :: tpwc
+  real(r_kind)                  ,intent(  out) :: clw
+
+! Declare local variables
+  real(r_kind)::rmis=-9.99e11_r_kind
+  integer(i_kind) :: i
+  real(r_kind),parameter:: r285=285.0_r_kind
+  real(r_kind),parameter:: r290=290.0_r_kind
+  real(r_kind),dimension(7):: ap,bp,cp,dp,cp0,dp0,tbx,tby,tax,tay
+  real(r_kind):: alg1,alg2,alg3
+
+  ierr = izero
+  clw = rmis
+
+! Coefficients to remap SSMIS ssmi-like channels to SSMI TB
+! Simultaneous Conical Overpass (SCO) data set-derived coefficients which are more accurate
+!
+  ap = (/0.00424_r_kind, -2.03627_r_kind, -2.52875_r_kind, 0.80170_r_kind, &
+       -3.86053_r_kind, -7.43913_r_kind,1.53650_r_kind/)
+  bp = (/1.00027_r_kind, 1.00623_r_kind, 0.99642_r_kind, 0.99139_r_kind, &
+       1.00550_r_kind, 1.03121_r_kind, 0.99317_r_kind/)
+     
+! cp0 and dp0 for TA2TB
+  cp0 = (/.969_r_kind, .969_r_kind, .974_r_kind, .986_r_kind,  &
+          .986_r_kind, .988_r_kind, .988_r_kind/)
+  dp0 = (/.00415_r_kind,.00473_r_kind,.0107_r_kind,.02612_r_kind,  &
+           .0217_r_kind, .01383_r_kind, .01947_r_kind/)
+
+  alg1 = rmis; alg2 = rmis; alg3 = rmis 
+
+! save brightness temperatures at seven window channels
+  tbx(1:7) = tb(12:18)
+
+! get ta2tb coefficients
+  do i=1,7
+     cp(i) = one/( cp0(i)*(one-dp0(i)) )
+     dp(i) = cp(i) * dp0(i)
+  end do
+
+!   get ta from tb
+  tax(1) = (tbx(1)*cp(2) + tbx(2)*dp(1))/(cp(1)*cp(2) - dp(1)*dp(2))
+  tax(2) = (tbx(1)*dp(2) + tbx(2)*cp(1))/(cp(1)*cp(2) - dp(1)*dp(2))
+  tax(3) = one/cp(3)*(tbx(3) + dp(3)*(.653_r_kind*tax(2)+ 96.6_r_kind))
+  tax(4) = (tbx(4)*cp(5) + tbx(5)*dp(4))/(cp(4)*cp(5) - dp(4)*dp(5))
+  tax(5) = (tbx(4)*dp(5) + tbx(5)*cp(4))/(cp(4)*cp(5) - dp(4)*dp(5))
+  tax(6) = (tbx(6)*cp(7) + tbx(7)*dp(6))/(cp(6)*cp(7) - dp(6)*dp(7))
+  tax(7) = (tbx(6)*dp(7) + tbx(7)*cp(6))/(cp(6)*cp(7) - dp(6)*dp(7))
+
+! TAREMAPPING: Mimic ssmis imager channels to corresponding ssmis channels at ta level
+! (So, tay is antenna temperature consistent to f15 ssmi ta)
+  do i=1,7
+     tay(i) =  ap(i) + bp(i)*tax(i)
+  end do
+
+! TA level CLW algorithm
+  if( tay(2)<r285 .and. tay(3)<r285 ) then
+     alg1 = -3.20_r_kind*(  &
+          log( r290-tay(2) ) - 2.80_r_kind - 0.42_r_kind*log( r290-tay(3) )  )
+  end if
+
+  if( tay(5)<r285 .and. tay(3)<r285 ) then
+     alg2 = -1.66_r_kind*(  &
+          log( r290-tay(5) ) - 2.90_r_kind - 0.349_r_kind*log( r290-tay(3) )  );
+  end if
+
+! Determine clw
+  if( alg1 > 0.70_r_kind ) then 
+     clw = alg1
+  else
+     if( alg2 > 0.28_r_kind ) then 
+        clw = alg2
+     else
+!       Get ssmis tb consisitent to f15 ssmi tb
+!       TA2TB(F15): Coefficients for tay to tby conversion
+
+        tby(1)  =  cp(1)*tay(1) - dp(1)*tay(2);
+!       tby(2)  =  cp(2)*tay(2) - dp(2)*tay(1);
+        tby(3)  =  cp(3)*tay(3) - dp(3)*(.653_r_kind*tay(2) + 96.6_r_kind);
+        tby(4)  =  cp(4)*tay(4) - dp(4)*tay(5);
+!       tby(5)  =  cp(5)*tay(5) - dp(5)*tay(4);
+!       tby(6)  =  cp(6)*tay(6) - dp(6)*tay(7);
+!       tby(7)  =  cp(7)*tay(7) - dp(7)*tay(6);
+     
+!       Calculate parameter for clw
+        tpwc = 232.89_r_kind - 0.1486_r_kind*tby(1) - 0.3695_r_kind*tby(4)  & 
+            - ( 1.8291_r_kind - 0.006193_r_kind*tby(3) )*tby(3)
+        if( tpwc < 30.0_r_kind ) then 
+           if( tay(7)<r285 .and. tay(3)<r285 ) then
+              alg3 = -0.44_r_kind*( &
+                   log( r290-tay(7) ) + 1.60_r_kind - 1.354_r_kind*log( r290-tay(3) )  )
+           end if
+           clw = alg3
+        else
+           clw = alg2
+        end if
+     end if
+  end if
+! clw qc
+  clw = max(0.0_r_kind,min(clw,6.0_r_kind))
+
+  return
+end subroutine ret_ssmis
+
+subroutine retrieval_amsre(tb,degre,  &
+                        sfc_speed, sst, &
+                        tpwc,clw,kraintype,ierr )
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -23,15 +551,12 @@ subroutine retrieval_amsre(tb,amsre_low, amsre_mid, amsre_hig,  &
 !     amsre_low   - logical true if amsre_low is processed
 !     amsre_mid   - logical true if amsre_mid is processed
 !     amsre_hig   - logical true if amsre_hig is processed
-!     uu5   - guess surface wind (u-component)
-!     vv5   - guess surface wind (v-component)
-!     f10   - 10meter factor
+!     sfc_speed   - guess wind speed at 10m
 !     sst   - sea surface temperature[K]
 !
 !   output argument list:
 !     tpwc    - column water vapor over ocean  [kg/m2]
 !     clw     - column water vapor over ocean  [kg/m2]
-!     si85    - scattering index over ocean
 !     kraintype - kraintype flag
 !     ierr    - error flag
 !
@@ -50,30 +575,24 @@ subroutine retrieval_amsre(tb,amsre_low, amsre_mid, amsre_hig,  &
   
 ! Input variable
   real(r_kind),dimension(12),intent(in   ) :: tb
-  real(r_kind)              ,intent(in   ) :: uu5,vv5,f10
-  real(r_kind)              ,intent(in   ) :: sst
-  logical                   ,intent(in   ) :: amsre_low
-  logical                   ,intent(in   ) :: amsre_mid
-  logical                   ,intent(in   ) :: amsre_hig
+  real(r_kind)              ,intent(in   ) :: sfc_speed
+  real(r_kind)              ,intent(in   ) :: sst,degre
 
 ! Output variable
   integer(i_kind)           ,intent(  out) :: kraintype,ierr
   real(r_kind)              ,intent(  out) :: tpwc,clw
-  real(r_kind)              ,intent(  out) :: si85
 
 ! Internal variable
   integer(i_kind) :: nchanl1
-  real(r_kind) :: degre,wind
+  real(r_kind) :: wind
   real(r_kind) :: rwp,cwp,vr,vc
-  real(r_kind),dimension(12)::tbo
+!     si85    - scattering index over ocean
+  real(r_kind) :: si85
 
 ! Initialize variable
   nchanl1 = 12_i_kind   ! Total AMSR-E channel number=12
   ierr = izero; kraintype=izero
   rwp =zero;cwp=zero;vr=zero;vc=zero
-
-  if(amsre_low .or. amsre_mid) degre=55.0_r_kind
-  if(amsre_hig) degre=54.5_r_kind
 
 ! Gross error check on all channels.  If there are any
 ! bad channels, skip this obs.
@@ -83,11 +602,8 @@ subroutine retrieval_amsre(tb,amsre_low, amsre_mid, amsre_hig,  &
      return
   end if
 
-  tbo(:)=tb(:)
-
-  wind = f10*sqrt(uu5*uu5+vv5*vv5)
-
-  call RCWPS_Alg(degre,tbo,sst,wind,rwp,cwp,vr,vc)
+! Currently rwp and vc computations commented out since not used
+  call RCWPS_Alg(degre,tb,sst,sfc_speed,rwp,cwp,vr,vc)
 
   tpwc=vr  ! 18.7GHz
 !  tpwc=vc ! 36.5GHz
@@ -99,11 +615,9 @@ subroutine retrieval_amsre(tb,amsre_low, amsre_mid, amsre_hig,  &
 
   if(kraintype==izero) then
      tpwc = max(zero,tpwc)
-  end if !no rain
 
 !  =======   CLW over ocean (when no rain)  ====================
 
-  if(kraintype==izero) then
 
 !    Ensure clw is non-negative.
      clw    = max(zero,clw)
@@ -210,9 +724,11 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 
   integer(i_kind) ich,i,polar_status
   real(r_kind)  angle,frequency,emissivity
-  real(r_kind)  freq(nch),ev(nch),eh(nch)
-  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),kw(nch),tv(nch),th(nch),tvmin(nch),thmin(nch)
-  real(r_kind)  ko2_coe(nch,3),kl_coe(nch,3)
+  real(r_kind)  ev(nch),eh(nch)
+  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),tv(nch),th(nch),tvmin(nch),thmin(nch)
+  real(r_kind),save :: freq(nch)
+  real(r_kind),save :: kw(nch)
+  real(r_kind),save :: ko2_coe(nch,3),kl_coe(nch,3)
   real(r_kind)  umu,tl
   real(r_kind)  a0,a1,a2,b0,b1,b2
   data freq/6.925_r_kind,10.65_r_kind,18.7_r_kind,23.8_r_kind,37._r_kind,89.0_r_kind/
@@ -231,9 +747,10 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   data (kl_coe(5,i),i=1,3)/ 2.677390e-001_r_kind, -6.890666e-003_r_kind,  8.319393e-005_r_kind/
   data (kl_coe(6,i),i=1,3)/ 1.034859e+000_r_kind, -9.715101e-003_r_kind, -6.591484e-005_r_kind/
 
-! Convert degree to radian
-  angle = theta *deg2rad
+  angle = theta 
   umu = cos(angle)
+  vc  = 0.0_r_kind ! Since this variable is not used, calculation commented out!
+  rwp = 0.0_r_kind ! Since this variable is not used, calculation commented out!
 
 ! A temporal assumption about cloud layer temperature (to be updated when it is available)
   tl = sst-20.0_r_kind-273.15_r_kind
@@ -250,18 +767,18 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
      tauo(ich) = ko2_coe(ich,1) +  ko2_coe(ich,2)*sst + ko2_coe(ich,3)*sst*sst
      kl(ich)   = kl_coe(ich,1)  +  kl_coe(ich,2)*tl   + kl_coe(ich,3)*tl*tl
      frequency = freq(ich)
-     polar_status = izero
-     call emis_water(angle,frequency,sst,wind,polar_status, emissivity)
-     eh(ich) = emissivity
+!    polar_status = izero
+!    call emis_water(angle,frequency,sst,wind,polar_status, emissivity)
+!    eh(ich) = emissivity
      polar_status = ione
      call emis_water(angle,frequency,sst,wind,polar_status, emissivity)
      ev(ich) = emissivity
      tvmin(ich) = sst*( one - dexp(-tauo(ich)/umu)*dexp(-tauo(ich)/umu)*(one-ev(ich)) )
-     thmin(ich) = sst*( one - dexp(-tauo(ich)/umu)*dexp(-tauo(ich)/umu)*(one-eh(ich)) )
+!    thmin(ich) = sst*( one - dexp(-tauo(ich)/umu)*dexp(-tauo(ich)/umu)*(one-eh(ich)) )
 
 ! Quality control
      if (tv(ich) < tvmin(ich)) tv(ich) = tvmin(ich)
-     if (th(ich) < thmin(ich)) th(ich) = thmin(ich)
+!    if (th(ich) < thmin(ich)) th(ich) = thmin(ich)
   enddo
 
 ! Calculate a0, a1, a2 and b0, b1 and b2 at 18.7 GHz over 23.8 GHz
@@ -271,45 +788,45 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   b0 =  half*kl(4)/(kw(4)*kl(3)-kw(3)*kl(4))
   a1 =  kw(3)/kw(4)
   b1 =  kl(3)/kl(4)
-  a2 = -two*(tauo(3) - a1*tauo(4))/umu  +(one-a1)*dlog(sst) + dlog(one-ev(3)) - a1*dlog(one-ev(4))
-  b2 = -two*(tauo(3)  - b1*tauo(4))/umu +(one-b1)*dlog(sst) + dlog(one-ev(3)) - b1*dlog(one-ev(4))
+  a2 = -two*(tauo(3) - a1*tauo(4))/umu +(one-a1)*dlog(sst) + dlog(one-ev(3)) - a1*dlog(one-ev(4))
+  b2 = -two*(tauo(3) - b1*tauo(4))/umu +(one-b1)*dlog(sst) + dlog(one-ev(3)) - b1*dlog(one-ev(4))
 
   if ( ( sst-tv(3) > 0.01_r_kind ) .and. ( sst-tv(4) > 0.01_r_kind ) ) then
-     rwp = a0*umu*( dlog(sst-tv(3) ) - a1*dlog(sst-tv(4))-a2)
-     vr = b0*umu*( dlog(sst-tv(3)) - b1*dlog(sst-tv(4))-b2 )
+!    rwp = a0*umu*( dlog(sst-tv(3)) - a1*dlog(sst-tv(4))-a2)
+     vr  = b0*umu*( dlog(sst-tv(3)) - b1*dlog(sst-tv(4))-b2)
 
 ! Clear conditions
-     if (rwp < zero) rwp = zero
+!    if (rwp < zero) rwp = zero
      if (vr < zero) vr = zero
   else
 
 ! Invalid retrieval
-     rwp = -999.0_r_kind
+!    rwp = -999.0_r_kind
      vr  = -999.0_r_kind
   endif
 
 ! 36.5 over 23.8 GHz: cloud water path
   a0 = -half*kw(4)/(kw(4)*kl(5)-kw(5)*kl(4))
-  b0 =  half*kl(4)/(kw(4)*kl(5)-kw(5)*kl(4))
+! b0 =  half*kl(4)/(kw(4)*kl(5)-kw(5)*kl(4))
   a1 =  kw(5)/kw(4)
-  b1 =  kl(5)/kl(4)
+! b1 =  kl(5)/kl(4)
   a2 = -two*(tauo(5) - a1*tauo(4))/umu  +(one-a1)*dlog(sst) + &
                            dlog(one-ev(5)) - a1*dlog(one-ev(4))
-  b2 = -two*(tauo(5)  - b1*tauo(4))/umu +(one-b1)*dlog(sst) + &
-                           dlog(one-ev(5)) - b1*dlog(one-ev(4))
+! b2 = -two*(tauo(5)  - b1*tauo(4))/umu +(one-b1)*dlog(sst) + &
+!                          dlog(one-ev(5)) - b1*dlog(one-ev(4))
   if ( ( sst-tv(4) > 0.01_r_kind ) .and. ( sst-tv(5) > 0.01_r_kind ) ) then
      cwp = a0*umu*( dlog(sst-tv(5) ) - a1*dlog(sst-tv(4))-a2)
-     vc = b0*umu*( dlog(sst-tv(5)) - b1*dlog(sst-tv(4))-b2 )
+!    vc = b0*umu*( dlog(sst-tv(5)) - b1*dlog(sst-tv(4))-b2 )
      if(cwp < zero) cwp = zero
-     if(vc < zero) vc = zero
+!    if(vc < zero) vc = zero
   else
      cwp = -999.0_r_kind
-     vc  = -999.0_r_kind
+!    vc  = -999.0_r_kind
   endif
 
 ! Quality control: remove residual effect of sea roughness on 18.7 GHz
-  if ( cwp <= 0.3_r_kind) rwp = cwp
-  if (cwp <= 0.2_r_kind .and. wind >= five) rwp = zero
+! if ( cwp <= 0.3_r_kind) rwp = cwp
+! if (cwp <= 0.2_r_kind .and. wind >= five) rwp = zero
 
 end subroutine RCWPS_Alg
 
@@ -356,7 +873,7 @@ subroutine TBE_FROM_TBO(tbo,tb)
 
   integer(i_kind) i,j,k
   real(r_kind) tbe(nch*2),tv18
-  real(r_kind) coe_tbs(10,11)
+  real(r_kind),save :: coe_tbs(10,11)
   data (coe_tbs(1,k),k=1,11)/  &
     2.836349e+000_r_kind, 1.001083e+000_r_kind,-1.245813e-002_r_kind,-1.431959e-002_r_kind, 3.735422e-002_r_kind, &
     4.765791e-002_r_kind,-9.139793e-002_r_kind,-5.571145e-002_r_kind, 9.269717e-002_r_kind, 2.102336e-002_r_kind, &
@@ -503,17 +1020,19 @@ subroutine TBA_FROM_TBE(tbo,tvs,ths)
   tb(11) = tbo(12)
   tb(12) = tbo(11)
 
-  ths(1) = 2.617433e+001_r_kind + 6.600980e-001_r_kind*tb(1)
+!  Currently ths commented out since it is not used.  
+
+! ths(1) = 2.617433e+001_r_kind + 6.600980e-001_r_kind*tb(1)
   tvs(1) = 6.504761e+000_r_kind + 9.540653e-001_r_kind*tb(2)
-  ths(2) = 1.402604e+001_r_kind + 8.144087e-001_r_kind*tb(3)
+! ths(2) = 1.402604e+001_r_kind + 8.144087e-001_r_kind*tb(3)
   tvs(2) = 5.405548e+000_r_kind + 9.632518e-001_r_kind*tb(4)
-  ths(3) = 4.261467e+000_r_kind + 9.567850e-001_r_kind*tb(5)
+! ths(3) = 4.261467e+000_r_kind + 9.567850e-001_r_kind*tb(5)
   tvs(3) = 2.251144e+000_r_kind + 9.880477e-001_r_kind*tb(6)
-  ths(4) = 3.366165e+000_r_kind + 9.979538e-001_r_kind*tb(7)
+! ths(4) = 3.366165e+000_r_kind + 9.979538e-001_r_kind*tb(7)
   tvs(4) = -3.358444e+000_r_kind + 1.028767e+000_r_kind*tb(8)
-  ths(5) = 2.409077e+001_r_kind + 8.443854e-001_r_kind*tb(9)
+! ths(5) = 2.409077e+001_r_kind + 8.443854e-001_r_kind*tb(9)
   tvs(5) = 3.148166e+001_r_kind + 8.714348e-001_r_kind*tb(10)
-  ths(6) = 1.919507e+001_r_kind + 9.322882e-001_r_kind*tb(11)
+! ths(6) = 1.919507e+001_r_kind + 9.322882e-001_r_kind*tb(11)
   tvs(6) = 2.861269e+001_r_kind + 9.155271e-001_r_kind*tb(12)
 
 end subroutine TBA_FROM_TBE
@@ -697,7 +1216,7 @@ subroutine  epsp(t1,s,f,ep)
 
   return
 
-end subroutine
+end subroutine epsp
 
 subroutine epspp (t1,s,f,ep)
 !$$$  subprogram documentation block
@@ -760,5 +1279,6 @@ subroutine epspp (t1,s,f,ep)
 
   return
 
-end subroutine
+end subroutine epspp
 
+end module clw_mod

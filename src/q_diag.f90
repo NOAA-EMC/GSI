@@ -36,7 +36,6 @@ subroutine q_diag(mype)
   implicit none
 
 ! Declare local parameters
-! real(r_kind),parameter:: r1000=1000.0_r_kind
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype

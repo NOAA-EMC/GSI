@@ -91,7 +91,7 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
   
       use kinds, only: r_kind,i_kind   
 
-      use constants, only: izero,ione,grav,fv,rd_over_cp,zero,quarter,one,two,four,five,r1000
+      use constants, only: izero,ione,grav,fv,rd_over_cp,zero,quarter,one,two,four,five,r1000,r10,r100,r0_01
 
       IMPLICIT NONE
 
@@ -140,13 +140,10 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 
 ! local 
 
-      real(r_kind),parameter :: r100  = 100.0_r_kind
       real(r_kind),parameter :: r16   = 16.0_r_kind
-      real(r_kind),parameter :: r10   = 10.0_r_kind
       real(r_kind),parameter :: r1_1  = 1.1_r_kind
       real(r_kind),parameter :: r0_9  = 0.9_r_kind
       real(r_kind),parameter :: r0_2  = 0.2_r_kind
-      real(r_kind),parameter :: r0_01 = 0.01_r_kind
 
 !-----------------------------------------------------------------------------!
 
@@ -470,7 +467,7 @@ SUBROUTINE DA_TP_To_Qs( t, p, es, qs )
 !$$$ end documentation block
 
    use kinds, only: r_kind
-   use constants, only: eps,omeps,t0c
+   use constants, only: eps,omeps,t0c,r0_01
 
    IMPLICIT NONE
 
@@ -486,7 +483,6 @@ SUBROUTINE DA_TP_To_Qs( t, p, es, qs )
     
    REAL(r_kind)                          :: t_c              ! T in degreesC.
 
-   real(r_kind),parameter:: r0_01 = 0.01_r_kind
  
 !------------------------------------------------------------------------------
 !  [1.0] Initialise:
@@ -571,7 +567,7 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
 
 
       use kinds, only: r_kind,i_kind  
-      use constants, only: grav,fv,rd_over_cp,zero,quarter,half,one,two,four,five,r1000,izero
+      use constants, only: grav,fv,rd_over_cp,zero,quarter,half,one,two,four,five,r1000,izero,r10,r100,r0_01
 
       IMPLICIT NONE
 
@@ -634,14 +630,11 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
       REAL(r_kind), PARAMETER :: ka = 2.4E-5_r_kind
 
 ! local
-      real(r_kind),parameter :: r100  = 100.0_r_kind
       real(r_kind),parameter :: r16   = 16.0_r_kind
-      real(r_kind),parameter :: r10   = 10.0_r_kind
       real(r_kind),parameter :: r5_5  = 5.5_r_kind
       real(r_kind),parameter :: r1_1  = 1.1_r_kind
       real(r_kind),parameter :: r0_9  = 0.9_r_kind
       real(r_kind),parameter :: r0_75 = 0.75_r_kind
-      real(r_kind),parameter :: r0_01 = 0.01_r_kind
 
 !-----------------------------------------------------------------------------!
 

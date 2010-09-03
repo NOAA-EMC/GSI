@@ -102,7 +102,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use kinds, only: r_single,r_kind,r_double,i_kind
   use constants, only: zero,one_tenth,one,deg2rad,fv,t0c,half,&
        three,four,rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,&
-       r60inv
+       r60inv,r10,r100,r2000
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
        rlats,rlons,twodvar_regional,check_rotate_wind
@@ -138,16 +138,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),parameter:: r1_2 = 1.2_r_kind
   real(r_kind),parameter:: r3_33= three + one/three
   real(r_kind),parameter:: r6   = 6.0_r_kind
-  real(r_kind),parameter:: r10  = 10.0_r_kind
   real(r_kind),parameter:: r20  = 20.0_r_kind
   real(r_kind),parameter:: r50  = 50.0_r_kind
   real(r_kind),parameter:: r90  = 90.0_r_kind
-  real(r_kind),parameter:: r100 = 100.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
   real(r_kind),parameter:: r500 = 500.0_r_kind
   real(r_kind),parameter:: r999 = 999.0_r_kind
   real(r_kind),parameter:: r1200= 1200.0_r_kind
-  real(r_kind),parameter:: r2000= 2000.0_r_kind
   real(r_kind),parameter:: convert= 1.0e-6_r_kind
   real(r_kind),parameter:: emerr= 0.2_r_kind
   real(r_kind),parameter:: bmiss= 10.e10_r_kind

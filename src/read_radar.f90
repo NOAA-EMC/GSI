@@ -55,7 +55,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 !$$$  end documentation block
   use kinds, only: r_kind,r_single,r_double,i_kind,i_byte
   use constants, only: zero,half,one,deg2rad,rearth,rad2deg, &
-                       one_tenth,r1000,r60inv
+                       one_tenth,r1000,r60inv,r100,r400
   use qcmod, only: erradar_inflate,vadfile
   use obsmod, only: iadate
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
@@ -85,10 +85,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   real(r_kind),parameter:: r6 = 6.0_r_kind
   real(r_kind),parameter:: r8 = 8.0_r_kind
   real(r_kind),parameter:: r90 = 90.0_r_kind
-  real(r_kind),parameter:: r100 = 100.0_r_kind
   real(r_kind),parameter:: r200 = 200.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
-  real(r_kind),parameter:: r400 = 400.0_r_kind
   real(r_kind),parameter:: r50000 = 50000.0_r_kind
 
 ! Declare local variables

@@ -38,7 +38,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !$$$
   use kinds, only: r_kind,r_double,i_kind,r_single
   use constants, only: izero,ione,zero,one_tenth,quarter,half,one,deg2rad,&
-       three,rad2deg,r60inv
+       three,rad2deg,r60inv,r100
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
        tll2xy,txy2ll,rlats,rlons
   use convinfo, only: nconvtype,ctwind, &
@@ -57,7 +57,6 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 ! Declare local parameters
   real(r_double),parameter:: d250 = 250.0_r_double
   real(r_double),parameter:: d400 = 400.0_r_double
-  real(r_kind),parameter:: r100 = 100.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
 
   real(r_kind),parameter:: bmiss = 1.0E11_r_kind

@@ -1138,7 +1138,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !$$$
 
   use kinds, only: r_single,r_kind,i_kind
-  use constants, only: one_tenth,half,deg2rad,rad2deg
+  use constants, only: one_tenth,half,deg2rad,rad2deg,r100,r0_01
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
@@ -1146,8 +1146,6 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   implicit none
 
 ! integer(i_kind),parameter:: in_unit = 15
-  real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r100  = 100.0_r_kind
   real(r_kind),parameter:: rd_over_cp = 0.285725661955006982_r_kind
 
   logical     ,intent(inout) :: update_pint

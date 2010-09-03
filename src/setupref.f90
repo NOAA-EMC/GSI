@@ -115,7 +115,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,quarter
   use constants, only: zero,one,two,eccentricity,semi_major_axis,&
        grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,&
-       three,four,five,half
+       three,four,five,half,r0_01
   use jfunc, only: jiter,miter
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
@@ -137,7 +137,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   implicit none
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_01 = 0.01_r_kind
   real(r_kind),parameter:: r0_455 = 0.455_r_kind
   real(r_kind),parameter:: r2_5 = 2.5_r_kind
   real(r_kind),parameter:: ten = 10.0_r_kind

@@ -210,6 +210,7 @@ clean:
 	calctends_tl.F90 \
 	calctends_no_ad.F90 \
 	calctends_no_tl.F90 \
+        clw_mod.f90 \
         coinfo.f90 \
 	combine_radobs.f90 \
 	compact_diffs.f90 \
@@ -223,6 +224,7 @@ clean:
 	converr.f90 \
 	convinfo.f90 \
 	convthin.f90 \
+	crtm_interface.f90 \
         cvsection.f90 \
 	deter_subdomain.f90 \
 	dtast.f90 \
@@ -296,7 +298,6 @@ clean:
 	intrp2a.f90 \
 	intrp3co.f90 \
 	intrp3oz.f90 \
-	intrppx.f90 \
 	intrw.f90 \
 	intspd.f90 \
 	intsrw.f90 \
@@ -369,7 +370,6 @@ clean:
 	psichi2uvt_reg.f90 \
 	q_diag.f90 \
 	qcmod.f90 \
-	qcssmi.f90 \
         qnewton.f90 \
         qnewton3.f90 \
 	radinfo.f90 \
@@ -414,9 +414,6 @@ clean:
 	read_wrf_nmm_guess.F90 \
 	regional_io.f90 \
         reorg_metar_cloud.f90 \
-	ret_ssmis.f90 \
-	retrieval_amsre.f90 \
-	retrieval_mi.f90 \
 	rfdpar.f90 \
 	rsearch.F90 \
         rtlnmc_version3.f90 \

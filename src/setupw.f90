@@ -27,7 +27,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use guess_grids, only: ges_u,ges_v,tropprs,ges_ps,ges_z,sfcmod_mm5
   use guess_grids, only: ges_tv,ges_lnprsl,comp_fact10,pt_ll
   use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
-           three,rd,grav,four,five,huge_single,r1000,wgtlim
+           three,rd,grav,four,five,huge_single,r1000,wgtlim,r10,r400
   use constants, only: grav_ratio,flattening,deg2rad, &
        grav_equator,somigliana,semi_major_axis,eccentricity
   use jfunc, only: jiter,last,jiterstart,miter
@@ -125,12 +125,10 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Declare local parameters
   real(r_kind),parameter:: r6=6.0_r_kind
   real(r_kind),parameter:: r7=7.0_r_kind
-  real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r15=15.0_r_kind
   real(r_kind),parameter:: r20=20.0_r_kind
   real(r_kind),parameter:: r50=50.0_r_kind
   real(r_kind),parameter:: r200=200.0_r_kind
-  real(r_kind),parameter:: r400=400.0_r_kind
   real(r_kind),parameter:: r1e10=1.e10_r_kind
 
   character(len=*),parameter:: myname='setupw'
