@@ -39,7 +39,7 @@ module read_l2bufr_mod
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind,r_single
+  use kinds, only: r_kind,i_kind
   implicit none
 
 ! set default to private
@@ -103,6 +103,7 @@ contains
 !
 ! program history log:
 !   2008-04-21  safford -- add subprogram doc block, rm unused uses
+!   2010-08-30  treadon - changes for reproducibile results
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -116,119 +117,126 @@ contains
 !
 !$$$  end documentation block
 
-    use kinds, only: r_double
-    use constants, only: zero,half,one,two,rearth,deg2rad,rad2deg
-    use mpimod, only: mpi_comm_world,mpi_min,mpi_sum,mpi_real4,mpi_real8,ierror
+    use kinds, only: r_double,r_quad
+    use constants, only: zero,half,one,two,rearth,deg2rad,rad2deg,zero_quad,one_quad
+    use mpimod, only: mpi_comm_world,mpi_min,mpi_sum,mpi_real8,ierror,mpi_real16
     use mpimod, only: mpi_max,mpi_integer4
     use obsmod,only: iadate
+    use mpeu_util, only: IndexSet, IndexSort
     implicit none
 
     integer(i_kind),intent(in):: npe,mype
 
     integer(i_kind),parameter:: max_num_radars=150
     integer(i_kind),parameter:: n_gates_max=4000
-    real(r_kind),allocatable::bins(:,:,:,:,:)
-    real(r_kind),allocatable::bin0all(:,:,:,:,:)
-    real(r_kind) bins_work(7,max_num_radars)
+    real(r_kind),parameter:: four_thirds = 4.0_r_kind / 3.0_r_kind
+    real(r_kind),parameter:: r8     = 8.0_r_kind
+    real(r_kind),parameter:: r89_5  = 89.5_r_kind
+    real(r_kind),parameter:: r90    = 90.0_r_kind
+    real(r_kind),parameter:: r125   = 125.0_r_kind
+    real(r_kind),parameter:: r250   = 250.0_r_kind
+    real(r_kind),parameter:: r360   = 360.0_r_kind
+    real(r_kind),parameter:: r720   = 720.0_r_kind
+    real(r_kind),parameter:: r99999 = 99999._r_kind
+    real(r_kind),parameter:: rinv60 = 1.0_r_kind/60.0_r_kind
+    real(r_double),parameter:: r1e5_double = 1.0e5_r_double
+
+
+    integer(i_kind) nazbin,nrbin,nelbin
+    integer(i_kind) i,ibyte,idate,inbufr,iret,isubset,krad,levs,lundx,n_gates
+    integer(i_kind) k,ii,iii,j,jj,jjall,jjj,numzzzz,num_radars_0,iloc
+    integer(i_kind) iyref,imref,idref,ihref
+    integer(i_kind) iazbin,irbin,ielbin
+    integer(i_kind) nminref,nminthis
+    integer(i_kind) num_radars,ireadsb,ireadmg,irec,isub,next
+    integer(i_kind) nsuper,nsuperall
+    integer(i_kind) nthisrad,nthisbins
+    integer(i_kind) idups,idups0
+    integer(i_kind) nradials_in,nradials_fail_angmax,nradials_fail_time,nradials_fail_elb
+    integer(i_kind) nradials_in1,nradials_fail_angmax1,nradials_fail_time1,nradials_fail_elb1
+    integer(i_kind) nobs_in,nobs_badvr,nobs_badsr,nobs_lrbin,nobs_hrbin,nrange_max,irad
+    integer(i_kind) nobs_in1,nobs_badvr1,nobs_badsr1,nobs_lrbin1,nobs_hrbin1,nrange_max1
+    integer(i_kind) num_radars_max,num_radars_min
+    integer(i_kind):: histo_el
+    integer(i_kind) idate5(5)
+    integer(i_kind),allocatable,dimension(:) :: indx,icount
+    integer(i_kind),allocatable,dimension(:,:) :: ibins,ibins2
+
+    real(r_double) hdr(10),hdr2(12),rwnd(3,n_gates_max),rdisttest(n_gates_max)
+
+    real(r_kind) delaz,delel,delr,t
+    real(r_kind) ddiffmin,ddiffmin0,distfact,range
+    real(r_kind) stn_lat,stn_lon,stn_hgt,stn_az,stn_el
+    real(r_kind) timemax,timemin
+    real(r_kind) timemax1,timemin1
+    real(r_kind) this_stalat,this_stalon,this_stahgt
+    real(r_kind) rlon0,clat0,slat0,rlonglob,rlatglob,clat1,caz0,saz0,cdlon,sdlon,caz1,saz1
+    real(r_kind) this_stalatr,thisazimuthr,thistiltr
+    real(r_kind) thisrange,thisazimuth,thistilt,thisvr,thisvr2
+    real(r_kind) corrected_tilt
+    real(r_kind) thiserr,thistime,thislat,thislon,corrected_azimuth
+    real(r_kind) rad_per_meter,thishgt
+    real(r_kind) rlonloc,rlatloc
+    real(r_kind) a43,aactual,b,c,selev0,celev0,epsh,erad,h,ha
+    real(r_kind) celev,selev,gamma
+    real(r_kind) vrmax,vrmin,errmax,errmin
+    real(r_kind) vrmaxall,vrminall,errmaxall,errminall
+    real(r_kind) delazmmax,rdelaz,rdelr,rdelel
+    real(r_kind) delazmmaxall
+    real(r_kind) deltiltmaxall,deltiltmax
+    real(r_kind) deltiltminall,deltiltmin
+    real(r_kind) deldistmaxall,deldistmax
+    real(r_kind) deldistminall,deldistmin
+    real(r_kind),dimension(max_num_radars) :: stn_lat_table,stn_lon_table, &
+                 stn_hgt_table,master_lat_table,master_lon_table,master_hgt_table
+    real(r_kind),dimension(max_num_radars*npe) :: stn_lat_table_all,stn_lon_table_all, &
+                 stn_hgt_table_all
+
+    real(r_quad) thiscount
+    real(r_quad),dimension(6) :: binsx
+    real(r_quad),allocatable,dimension(:,:,:) :: bins,bins_work
 !            bins(1,...) radial distance
 !            bins(2,...) azimuth
 !            bins(3,...) elev angle
 !            bins(4,...) vr
 !            bins(5,...) vr**2
 !            bins(6,...) relative time
-!            bins(7,...) count
+!            ibins(...) count
 
-!       bins(  :,   :,    :,    :,   :)
-!            var  rbin azbin elbin rad#
-
-    integer(i_kind) nazbin,nrbin,nelbin
-    integer(i_kind) i,ibyte,idate,inbufr,iret,isubset,krad,levs,lundx,n_gates
-    integer(i_kind) k,ii,iii,j,jjj,numzzzz,num_radars_0
-    integer(i_kind) iyref,imref,idref,ihref
-    integer(i_kind) iazbin,irbin,ielbin
-    integer(i_kind) nminref,nminthis
-    integer(i_kind) num_radars,ireadsb,ireadmg,irec,isub,next
-    integer(i_kind) idate5(5)
-    real(r_double) hdr(14),rwnd(3,n_gates_max),rdisttest(n_gates_max)
-    character(8) chdr
-    equivalence (chdr,hdr(1))
-    character(8) subset
-    real(r_kind) delaz,delel,delr,t
-    real(r_kind) ddiffmin,ddiffmin0,distfact,range
-    integer(i_kind) idups,idups0
-    character(4) stn_id_table(max_num_radars)
-    character(4) stn_id_table_all(max_num_radars,0:npe-1)
-    character(4) stn_id
-    character(4*max_num_radars) cstn_id_table
-    equivalence (stn_id_table(1),cstn_id_table)
-    character(4) work_table(max_num_radars,0:npe-1)
-    character(4) master_stn_table(max_num_radars)
-    character(4*max_num_radars) cmaster_stn_table
-    equivalence(master_stn_table(1),cmaster_stn_table)
-    real(r_single) master_lat_table(max_num_radars)
-    real(r_single) master_lon_table(max_num_radars)
-    real(r_single) master_hgt_table(max_num_radars)
-    real(r_single) stn_lat,stn_lon,stn_hgt,stn_az,stn_el
-    real(r_single) stn_lat_table(max_num_radars),stn_lon_table(max_num_radars)
-    real(r_single) stn_hgt_table(max_num_radars)
-    real(r_single) stn_lat_table_all(max_num_radars,0:npe-1)
-    real(r_single) stn_lon_table_all(max_num_radars,0:npe-1)
-    real(r_single) stn_hgt_table_all(max_num_radars,0:npe-1)
-    integer(i_kind) krad_map(max_num_radars)
-    integer(i_kind),allocatable::histo_el(:)
-    real(r_kind) timemax,timemin
-    real(r_kind) timemax1,timemin1
-    integer(i_kind) nradials_in,nradials_fail_angmax,nradials_fail_time,nradials_fail_elb
-    integer(i_kind) nradials_in1,nradials_fail_angmax1,nradials_fail_time1,nradials_fail_elb1
-    integer(i_kind) nobs_in,nobs_badvr,nobs_badsr,nobs_lrbin,nobs_hrbin,nrange_max
-    integer(i_kind) nobs_in1,nobs_badvr1,nobs_badsr1,nobs_lrbin1,nobs_hrbin1,nrange_max1
-    integer(i_kind) num_radars_max,num_radars_min
-    integer(i_kind) loops_total
-    real(r_kind) this_stalat,this_stalon,this_stahgt
-    real(r_kind) rlon0,clat0,slat0,rlonglob,rlatglob,clat1,caz0,saz0,cdlon,sdlon,caz1,saz1
-    real(r_kind) this_stalatr,thisazimuthr,thistiltr
-
-    real(r_kind) thiscount,thisrange,thisazimuth,thistilt,thisvr,thisvr2
-    real(r_kind) corrected_tilt
-    real(r_kind) thiserr,thistime,thislat,thislon,corrected_azimuth
-    real(r_kind) rad_per_meter,thishgt
-
-    real(r_kind) rlonloc,rlatloc
-    real(r_single) a43,aactual,b,c,selev0,celev0,epsh,erad,h,ha
-    real(r_single) celev,selev,gamma
-    character(4) this_staid
-    integer(i_kind) nsuper,nsuperall
-    integer(i_kind) nthisbins
-    real(r_kind) vrmax,vrmin,errmax,errmin
-    real(r_kind) vrmaxall,vrminall,errmaxall,errminall
-    real(r_kind) delazmmax
-    real(r_kind) delazmmaxall
-    real(r_kind) deltiltmaxall,deltiltmax
-    real(r_kind) deltiltminall,deltiltmin
-    real(r_kind) deldistmaxall,deldistmax
-    real(r_kind) deldistminall,deldistmin
-    logical rite
+!       bins(  :,   :,   :)
+!            var  rbin*azbin*elbin rad#
+    character(8) chdr,chdr2,subset
     character(10) date
+    character(4),dimension(max_num_radars):: stn_id_table,master_stn_table
+    character(4) stn_id_table_all(max_num_radars*npe)
+    character(4) stn_id,this_staid
+    character(4*max_num_radars) cstn_id_table,cmaster_stn_table
+    equivalence(stn_id_table(1),cstn_id_table)
+    equivalence(master_stn_table(1),cmaster_stn_table)
+    equivalence (chdr,hdr(1))
+    equivalence (chdr2,hdr2(1))
+
+    logical rite
     
     rad_per_meter= one/rearth
     erad = rearth
-
-
-    nazbin=nint(360._r_kind/del_azimuth)
+    nazbin=nint(r360/del_azimuth)
     nrbin=nint(range_max/del_range)
     nelbin=nint(elev_angle_max/del_elev)
-    delaz=360._r_kind/nazbin
+    delaz=r360/nazbin
     delr=range_max/nrbin
     delel=elev_angle_max/nelbin
-    allocate(bins(7,nrbin,nazbin,nelbin,max_num_radars))
-    bins=zero
+    rdelaz=one/delaz
+    rdelr =one/delr
+    rdelel=one/delel
+
     num_radars=0
     do i=1,max_num_radars
        stn_id_table(i)='ZZZZ'
     end do
-    stn_lat_table=99999._r_single
-    stn_lon_table=99999._r_single
-    stn_hgt_table=99999._r_single
+    stn_lat_table=r99999
+    stn_lon_table=r99999
+    stn_hgt_table=r99999
 
     rite = .false.
     if (mype==0) rite=.true.
@@ -239,7 +247,6 @@ contains
     read(inbufr,iostat=iret)subset
     if(iret/=0) then
        if(rite) write(6,*)'RADAR_BUFR_READ_ALL:  problem opening level 2 bufr file "l2rwbufr"'
-       deallocate(bins)
        close(inbufr)                                       
        return
     end if
@@ -272,11 +279,13 @@ contains
 !    is 125, if = 1 then factor is 250.
 
     idups=0
+    nobs_in=0
     ddiffmin=huge(ddiffmin)
-    next=mype+1
+    next=0
     do while(ireadmg(inbufr,subset,idate)>=0)
-       call ufbcnt(inbufr,irec,isub)
-       if(irec/=next)cycle; next=next+npe
+       next=next+1
+       if(next == npe)next=zero
+       if(next /= mype)cycle
        read(subset,'(2x,i6)')isubset
        if(isubset>6033) then
           iret=6034
@@ -293,88 +302,15 @@ contains
                 end if
              end do
           end if
-       end do
-    end do
-    call mpi_barrier(mpi_comm_world,ierror)
-    call mpi_allreduce(ddiffmin,ddiffmin0,1,mpi_real8,mpi_min,mpi_comm_world,ierror)
-    call mpi_allreduce(idups,idups0,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
-    distfact=zero
-    if(nint(ddiffmin0)==1)     distfact=250._r_kind
-    if(nint(ddiffmin0)==2)     distfact=125._r_kind
-    if(distfact==zero) then
-       write(6,*)'RADAR_BUFR_READ_ALL:  problem with level 2 bufr file, ',&
-            'gate distance scale factor undetermined, going with 125'
-       distfact=125._r_kind
-    end if
-    if(rite) write(6,*)'RADAR_BUFR_READ_ALL:  ddiffmin,distfact,idups=',&
-         ddiffmin0,distfact,idups0
-
-    timemax=-huge(timemax)
-    timemin=huge(timemin)
-    nradials_in=0
-    nradials_fail_angmax=0
-    nradials_fail_time=0
-    nradials_fail_elb=0
-    nobs_in=0
-    nobs_badvr=0
-    nobs_badsr=0
-    nobs_lrbin=0
-    nobs_hrbin=0
-    nrange_max=0
-
-! reopen and reread the file for data this time
-
-    call closbf(inbufr)
-    open(inbufr,file='l2rwbufr',form='unformatted')
-    call openbf(inbufr,'IN',inbufr)
-
-    next=mype+1
-    do while(ireadmg(inbufr,subset,idate)>=0)
-       call ufbcnt(inbufr,irec,isub)
-       if(irec/=next)cycle; next=next+npe
-       read(subset,'(2x,i6)')isubset
-       if(isubset>6033) then
-          iret=6034
-          exit
-       end if
-       do while (ireadsb(inbufr)==0)
-          call ufbint(inbufr,hdr,14,1,levs, &
-               'SSTN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON HSMSL HSALG ANAZ ANEL QCRW')
-          nradials_in=nradials_in+1
-          if(hdr(13)>elev_angle_max) then
-             nradials_fail_angmax=nradials_fail_angmax+1
-             cycle
-          end if
-          idate5(1)=nint(hdr(2)) ; idate5(2)=nint(hdr(3)) ; idate5(3)=nint(hdr(4))
-          idate5(4)=nint(hdr(5)) ; idate5(5)=nint(hdr(6))
+          call ufbint(inbufr,hdr2,12,1,levs,'SSTN CLAT CLON HSMSL HSALG ANEL YEAR MNTH DAYS HOUR MINU SECO')
+          if(hdr2(6)>elev_angle_max) cycle
+          idate5(1)=nint(hdr2(7)) ; idate5(2)=nint(hdr2(8)) ; idate5(3)=nint(hdr2(9))
+          idate5(4)=nint(hdr2(10)) ; idate5(5)=nint(hdr2(11))
           call w3fs21(idate5,nminthis)
-          t=(nminthis+(hdr(7)/60._r_single)-nminref)/60._r_single
-          timemax=max(t,timemax)
-          timemin=min(t,timemin)
-          if(abs(t)>del_time) then
-             nradials_fail_time=nradials_fail_time+1
-             cycle
-          end if
-          call ufbint(inbufr,rwnd,3,n_gates_max,n_gates,'DIST125M DMVR DVSW')
+	  t=(real(nminthis-nminref,r_kind)+real(nint(hdr2(12)),r_kind)*rinv60)*rinv60
+          if(abs(t)>del_time) cycle
           nobs_in=nobs_in+n_gates
-          stn_az=90_r_single-hdr(12)
-          stn_el=hdr(13)
-          iazbin=stn_az/delaz
-          iazbin=mod(iazbin,nazbin)
-          if(iazbin<0) iazbin=iazbin+nazbin
-          iazbin=iazbin+1
-          if(iazbin<=0.or.iazbin>nazbin) then
-             write(6,*)'RADAR_BUFR_READ_ALL:  error in getting iazbin, program stops'
-             call stop2(99)
-          end if
-          ielbin=ceiling(stn_el/delel)
-          if(ielbin<1.or.ielbin>nelbin) then
-             nradials_fail_elb=nradials_fail_elb+1
-             cycle
-          end if
-          stn_id=chdr ; stn_lat=hdr(8)
-          stn_lon=hdr(9)
-          stn_hgt=hdr(10)+hdr(11)
+          stn_id=chdr2 
           ibyte=index(cstn_id_table,stn_id)
           if(ibyte==0) then
              num_radars=num_radars+1
@@ -383,65 +319,216 @@ contains
                      'bufr file--increase parameter max_num_radars'
                 call stop2(99)
              end if
-             krad=num_radars
-             stn_id_table(krad)=stn_id
-             stn_lon_table(krad)=stn_lon
-             stn_lat_table(krad)=stn_lat
-             stn_hgt_table(krad)=stn_hgt
-          else
-             krad=1+(ibyte-1)/4
+             stn_lat=hdr2(2)
+             stn_lon=hdr2(3)
+             stn_hgt=hdr2(4)+hdr2(5)
+             stn_id_table(num_radars)=stn_id
+             stn_lon_table(num_radars)=stn_lon
+             stn_lat_table(num_radars)=stn_lat
+             stn_hgt_table(num_radars)=stn_hgt
           end if
+       end do
+    end do
 
-          do i=1,n_gates
-             range=distfact*rwnd(1,i)
-             if(range>range_max) then
-                nrange_max=nrange_max+1
-                cycle
-             end if
-             if(rwnd(2,i)>1.e5_r_double) then
-                nobs_badvr=nobs_badvr+1
-                cycle
-             end if
-             if(rwnd(3,i)>1.e5_r_double) then
-                nobs_badsr=nobs_badsr+1
-                cycle
-             end if
-             irbin=ceiling(range/delr)
-             if(irbin<1) then
-                nobs_lrbin=nobs_lrbin+1
-                cycle
-             end if
-             if(irbin>nrbin) then
-                nobs_hrbin=nobs_hrbin+1
-                cycle
-             end if
-             bins(1,irbin,iazbin,ielbin,krad)=bins(1,irbin,iazbin,ielbin,krad)+range
-             bins(2,irbin,iazbin,ielbin,krad)=bins(2,irbin,iazbin,ielbin,krad)+stn_az
-             bins(3,irbin,iazbin,ielbin,krad)=bins(3,irbin,iazbin,ielbin,krad)+stn_el
-             bins(4,irbin,iazbin,ielbin,krad)=bins(4,irbin,iazbin,ielbin,krad)+rwnd(2,i)
-             bins(5,irbin,iazbin,ielbin,krad)=bins(5,irbin,iazbin,ielbin,krad)+rwnd(2,i)**2
-             bins(6,irbin,iazbin,ielbin,krad)=bins(6,irbin,iazbin,ielbin,krad)+t
-             bins(7,irbin,iazbin,ielbin,krad)=bins(7,irbin,iazbin,ielbin,krad)+one
-          end do
-             
-       end do          !  end do while
-    end do             !  loop over blocks
-    call closbf(inbufr)
-    call mpi_barrier(mpi_comm_world,ierror)
-    call mpi_allreduce(num_radars,num_radars_max,1,&
-         mpi_integer4,mpi_max,mpi_comm_world,ierror)
+    call mpi_allreduce(num_radars,num_radars_max,1,mpi_integer4,mpi_max,mpi_comm_world,ierror)
     if(num_radars_max<=0) then
        if(rite) write(6,*)'RADAR_BUFR_READ_ALL:  NO RADARS KEPT IN radar_bufr_read_all, ',&
             'continue without level 2 data'
        return
     end if
+    call mpi_reduce(num_radars,num_radars_min,1,mpi_integer4,mpi_min,0,mpi_comm_world,ierror)
+    if(rite) write(6,*)' min,max num_radars=',num_radars_min,num_radars_max
+
+!  Create master station list
+
+!  First gather all stn id and lat,lon,hgt lists
+    call mpi_allgather(stn_id_table,max_num_radars,mpi_integer4, &
+         stn_id_table_all,max_num_radars,mpi_integer4,mpi_comm_world,ierror)
+    call mpi_allgather(stn_lat_table,max_num_radars,mpi_real8, &
+         stn_lat_table_all,max_num_radars,mpi_real8,mpi_comm_world,ierror)
+    call mpi_allgather(stn_lon_table,max_num_radars,mpi_real8, &
+         stn_lon_table_all,max_num_radars,mpi_real8,mpi_comm_world,ierror)
+    call mpi_allgather(stn_hgt_table,max_num_radars,mpi_real8, &
+         stn_hgt_table_all,max_num_radars,mpi_real8,mpi_comm_world,ierror)
+
+!   Create unique master list of all radar names,lats,lons
+    jj=0
+    do j=1,max_num_radars*npe
+       if(stn_id_table_all(j) /= 'ZZZZ')then
+          jj=jj+1
+          stn_id_table_all(jj)=stn_id_table_all(j)
+          stn_lat_table_all(jj)=stn_lat_table_all(j)
+          stn_lon_table_all(jj)=stn_lon_table_all(j)
+          stn_hgt_table_all(jj)=stn_hgt_table_all(j)
+       end if
+    end do
+    jjall=jj
+    num_radars_0=0
+    jj=1
+    outer: do j=1,jjall
+        num_radars_0=num_radars_0+1
+        if(num_radars_0 > max_num_radars) then
+	  write(6,*)'RADAR_BUFR_READ_ALL:  stop processing level 2 radar ',&
+	     'bufr file--increase parameter max_num_radars'
+          call stop2(99)
+        end if
+        master_stn_table(num_radars_0)=stn_id_table_all(jj)
+        master_lat_table(num_radars_0)=stn_lat_table_all(jj)
+        master_lon_table(num_radars_0)=stn_lon_table_all(jj)
+        master_hgt_table(num_radars_0)=stn_hgt_table_all(jj)
+        numzzzz=0
+        do jjj=jj+1,jjall
+          if(stn_id_table_all(jjj) /= 'ZZZZ')then
+	     if(stn_id_table_all(jjj)==master_stn_table(num_radars_0)) then
+	        stn_id_table_all(jjj)='ZZZZ'
+	     else
+	        if(numzzzz == 0)numzzzz=jjj
+	     end if
+	  end if
+        end do
+        if(numzzzz==0) exit outer
+        jj=numzzzz
+    end do outer
+    allocate(indx(num_radars_0))
+    call indexset(indx)
+    call indexsort(indx,master_stn_table)
+
+    call mpi_allreduce(ddiffmin,ddiffmin0,1,mpi_real8,mpi_min,mpi_comm_world,ierror)
+    call mpi_allreduce(idups,idups0,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+    distfact=zero
+    if(nint(ddiffmin0)==1)     distfact=r250
+    if(nint(ddiffmin0)==2)     distfact=r125
+    if(distfact==zero) then
+       write(6,*)'RADAR_BUFR_READ_ALL:  problem with level 2 bufr file, ',&
+	    'gate distance scale factor undetermined, going with 125'
+       distfact=r125
+    end if
+
+    timemax=-huge(timemax)
+    timemin=huge(timemin)
+    nradials_in=0
+    nradials_fail_angmax=0
+    nradials_fail_time=0
+    nradials_fail_elb=0
+    nobs_badvr=0
+    nobs_badsr=0
+    nobs_lrbin=0
+    nobs_hrbin=0
+    nrange_max=0
+    nthisrad=nrbin*nazbin*nelbin
+    nthisbins=6*nthisrad
+
+! reopen and reread the file for data this time
+
+    call closbf(inbufr)
+    open(inbufr,file='l2rwbufr',form='unformatted')
+    call openbf(inbufr,'IN',inbufr)
+
+    allocate(bins(6,nthisrad,num_radars_0),ibins(nthisrad,num_radars_0))
+    bins=zero_quad
+    ibins=0
+
+    next=0
+    do while(ireadmg(inbufr,subset,idate)>=0)
+       next=next+1
+       if(next == npe)next=zero
+       if(next /= mype)cycle
+       read(subset,'(2x,i6)')isubset
+       if(isubset>6033) then
+	  iret=6034
+	  exit
+       end if
+       do while (ireadsb(inbufr)==0)
+	  call ufbint(inbufr,hdr,10,1,levs, &
+	       'SSTN YEAR MNTH DAYS HOUR MINU SECO ANAZ ANEL QCRW')
+	  nradials_in=nradials_in+1
+	  if(hdr(9)>elev_angle_max) then
+	     nradials_fail_angmax=nradials_fail_angmax+1
+	     cycle
+	  end if
+	  idate5(1)=nint(hdr(2)) ; idate5(2)=nint(hdr(3)) ; idate5(3)=nint(hdr(4))
+	  idate5(4)=nint(hdr(5)) ; idate5(5)=nint(hdr(6))
+	  call w3fs21(idate5,nminthis)
+	  t=(real(nminthis-nminref,r_kind)+real(nint(hdr(7)),r_kind)*rinv60)*rinv60
+	  timemax=max(t,timemax)
+	  timemin=min(t,timemin)
+	  if(abs(t)>del_time) then
+	     nradials_fail_time=nradials_fail_time+1
+	     cycle
+	  end if
+	  stn_az=r90-hdr(8)
+	  stn_el=hdr(9)
+	  iazbin=stn_az*rdelaz
+	  iazbin=mod(iazbin,nazbin)
+	  if(iazbin<0) iazbin=iazbin+nazbin
+	  iazbin=iazbin+1
+	  if(iazbin<=0.or.iazbin>nazbin) then
+	     write(6,*)'RADAR_BUFR_READ_ALL:  error in getting iazbin, program stops'
+	     call stop2(99)
+	  end if
+	  ielbin=ceiling(stn_el*rdelel)
+	  if(ielbin<1.or.ielbin>nelbin) then
+	     nradials_fail_elb=nradials_fail_elb+1
+	     cycle
+	  end if
+	  stn_id=chdr 
+	  ibyte=index(cmaster_stn_table,stn_id)
+	  if(ibyte==0) then
+	     write(6,*) ' index error in radar_bufr_read_all -- program stops -- ',ibyte,stn_id
+	     call stop2(99)
+	  else
+	     krad=1+(ibyte-1)/4
+	  end if
+
+	  call ufbint(inbufr,rwnd,3,n_gates_max,n_gates,'DIST125M DMVR DVSW')
+	  do i=1,n_gates
+	     range=distfact*rwnd(1,i)
+	     if(range>range_max) then
+		nrange_max=nrange_max+1
+		cycle
+	     end if
+	     if(rwnd(2,i)>r1e5_double) then
+		nobs_badvr=nobs_badvr+1
+		cycle
+	     end if
+	     if(rwnd(3,i)>r1e5_double) then
+		nobs_badsr=nobs_badsr+1
+		cycle
+	     end if
+	     irbin=ceiling(range*rdelr)
+	     if(irbin<1) then
+		nobs_lrbin=nobs_lrbin+1
+		cycle
+	     end if
+	     if(irbin>nrbin) then
+		nobs_hrbin=nobs_hrbin+1
+		cycle
+	     end if
+	     iloc=nrbin*(nazbin*(ielbin-1)+(iazbin-1))+irbin
+	     bins(1,iloc,krad)=bins(1,iloc,krad)+range
+	     bins(2,iloc,krad)=bins(2,iloc,krad)+stn_az
+	     bins(3,iloc,krad)=bins(3,iloc,krad)+stn_el
+	     bins(4,iloc,krad)=bins(4,iloc,krad)+rwnd(2,i)
+	     bins(5,iloc,krad)=bins(5,iloc,krad)+rwnd(2,i)**2
+	     bins(6,iloc,krad)=bins(6,iloc,krad)+t
+	     ibins(iloc,krad)=ibins(iloc,krad)+1
+	  end do
+	     
+       end do          !  end do while
+    end do             !  loop over blocks
+    call closbf(inbufr)
+
+    allocate(ibins2(nthisrad,num_radars_0))
+    call mpi_allreduce(ibins,ibins2,nthisrad*num_radars_0,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+    deallocate(ibins)
+
     call mpi_reduce(nradials_in,nradials_in1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
     call mpi_reduce(nradials_fail_angmax,nradials_fail_angmax1,1,&
-         mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
+	 mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
     call mpi_reduce(nradials_fail_time,nradials_fail_time1,1,&
-         mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
+	 mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
     call mpi_reduce(nradials_fail_elb,nradials_fail_elb1,1,&
-         mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
+	 mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
     call mpi_reduce(nobs_in,nobs_in1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
     call mpi_reduce(nobs_badvr,nobs_badvr1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
     call mpi_reduce(nobs_badsr,nobs_badsr1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
@@ -450,146 +537,24 @@ contains
     call mpi_reduce(nrange_max,nrange_max1,1,mpi_integer4,mpi_sum,0,mpi_comm_world,ierror)
     call mpi_reduce(timemax,timemax1,1,mpi_real8,mpi_max,0,mpi_comm_world,ierror)
     call mpi_reduce(timemin,timemin1,1,mpi_real8,mpi_min,0,mpi_comm_world,ierror)
-    
-!  Create master station list
 
-!  First gather all stn id and lat,lon,hgt lists
-    call mpi_allgather(stn_id_table,max_num_radars,mpi_integer4, &
-         stn_id_table_all,max_num_radars,mpi_integer4,mpi_comm_world,ierror)
-    call mpi_allgather(stn_lat_table,max_num_radars,mpi_real4, &
-         stn_lat_table_all,max_num_radars,mpi_real4,mpi_comm_world,ierror)
-    call mpi_allgather(stn_lon_table,max_num_radars,mpi_real4, &
-         stn_lon_table_all,max_num_radars,mpi_real4,mpi_comm_world,ierror)
-    call mpi_allgather(stn_hgt_table,max_num_radars,mpi_real4, &
-         stn_hgt_table_all,max_num_radars,mpi_real4,mpi_comm_world,ierror)
-
-!   Create unique master list of all radar names,lats,lons
-    do j=0,npe-1
-       do i=1,max_num_radars
-          work_table(i,j)=stn_id_table_all(i,j)
-       end do
-    end do
-    ii=0
-    loops_total=0
-    outer: do
-       do j=0,npe-1
-          do i=1,max_num_radars
-             if(work_table(i,j)/='ZZZZ') then
-                ii=ii+1
-                if(ii>max_num_radars) then
-                   write(6,*)'RADAR_BUFR_READ_ALL:  stop processing level 2 radar ',&
-                        'bufr file--increase parameter max_num_radars'
-                   call stop2(99)
-                end if
-                master_stn_table(ii)=work_table(i,j)
-                master_lat_table(ii)=stn_lat_table_all(i,j)
-                master_lon_table(ii)=stn_lon_table_all(i,j)
-                master_hgt_table(ii)=stn_hgt_table_all(i,j)
-                work_table(i,j)='ZZZZ'
-                numzzzz=0
-                do jjj=0,npe-1
-                   do iii=1,max_num_radars
-                      if(work_table(iii,jjj)==master_stn_table(ii)) work_table(iii,jjj)='ZZZZ'
-                      if(work_table(iii,jjj)=='ZZZZ') numzzzz=numzzzz+1
-                      loops_total=loops_total+1
-                   end do
-                end do
-                if(numzzzz==max_num_radars*npe) exit outer
-             end if
-          end do
-       end do
-    end do outer
-    num_radars_0=ii
-    write(6,*)'RADAR_BUFR_READ_ALL:  num_radars_0,loops_total = ',num_radars_0,loops_total
-    if(rite) then
-       do i=1,num_radars_0
-          write(6,'(" master list radar ",i3," stn id,lat,lon,hgt = ",a4,2f10.2,f8.1)') &
-               i,master_stn_table(i),master_lat_table(i),master_lon_table(i)
-       end do
-    end if
-
-!   Reorganize entries in bins based on master list
-    do krad=1,num_radars
-       ibyte=index(cmaster_stn_table,stn_id_table(krad))
-       if(ibyte==0) then
-          write(6,*)'RADAR_BUFR_READ_ALL:  impossible place to be, ',&
-               'problem with master radar table'
-          call stop2(99)
-       else
-          krad_map(krad)=1+(ibyte-1)/4
-       end if
-    end do
-    do ielbin=1,nelbin
-       do iazbin=1,nazbin
-          do irbin=1,nrbin
-             do krad=1,num_radars_0
-                bins_work(1,krad)=zero ; bins_work(2,krad)=zero ; bins_work(3,krad)=zero
-                bins_work(4,krad)=zero ; bins_work(5,krad)=zero ; bins_work(6,krad)=zero
-                bins_work(7,krad)=zero
-             end do
-             do krad=1,num_radars
-                bins_work(1,krad_map(krad))=bins(1,irbin,iazbin,ielbin,krad)
-                bins_work(2,krad_map(krad))=bins(2,irbin,iazbin,ielbin,krad)
-                bins_work(3,krad_map(krad))=bins(3,irbin,iazbin,ielbin,krad)
-                bins_work(4,krad_map(krad))=bins(4,irbin,iazbin,ielbin,krad)
-                bins_work(5,krad_map(krad))=bins(5,irbin,iazbin,ielbin,krad)
-                bins_work(6,krad_map(krad))=bins(6,irbin,iazbin,ielbin,krad)
-                bins_work(7,krad_map(krad))=bins(7,irbin,iazbin,ielbin,krad)
-             end do
-             do krad=1,num_radars_0
-                bins(1,irbin,iazbin,ielbin,krad)=bins_work(1,krad)
-                bins(2,irbin,iazbin,ielbin,krad)=bins_work(2,krad)
-                bins(3,irbin,iazbin,ielbin,krad)=bins_work(3,krad)
-                bins(4,irbin,iazbin,ielbin,krad)=bins_work(4,krad)
-                bins(5,irbin,iazbin,ielbin,krad)=bins_work(5,krad)
-                bins(6,irbin,iazbin,ielbin,krad)=bins_work(6,krad)
-                bins(7,irbin,iazbin,ielbin,krad)=bins_work(7,krad)
-             end do
-          end do
-       end do
-    end do
+    if(mype==0) then
     
-    call mpi_reduce(num_radars,num_radars_max,1,mpi_integer4,mpi_max,0,mpi_comm_world,ierror)
-    call mpi_reduce(num_radars,num_radars_min,1,mpi_integer4,mpi_min,0,mpi_comm_world,ierror)
-    if(mype==0) write(6,*)' min,max num_radars=',num_radars_min,num_radars_max
-    nthisbins=7*nrbin*nazbin*nelbin
-    if(rite) write(6,*)' nthisbins=',nthisbins
-    
-    if(mype==0) allocate(bin0all(7,nrbin,nazbin,nelbin,0:npe-1))
-    do krad=1,num_radars_0
-       call mpi_gather(bins(1,1,1,1,krad),nthisbins,mpi_real8, &
-            bin0all,nthisbins,mpi_real8,0,mpi_comm_world,ierror)
-       if(mype==0) then
-          do ielbin=1,nelbin
-             do iazbin=1,nazbin
-                do irbin=1,nrbin
-                   do i=1,7
-                      bins(i,irbin,iazbin,ielbin,krad)=bin0all(i,irbin,iazbin,ielbin,0)
-                   end do
-                end do
-             end do
+       allocate(icount(num_radars_0))
+       write(6,*)'RADAR_BUFR_READ_ALL:  num_radars_0 = ',num_radars_0
+       do irad=1,num_radars_0
+          krad=indx(irad)
+          icount(krad)=0
+          do i=1,nthisrad
+            if(ibins2(i,krad) >= minnum)icount(krad)=icount(krad)+1
           end do
-          if(npe>1) then
-             do k=1,npe-1
-                do ielbin=1,nelbin
-                   do iazbin=1,nazbin
-                      do irbin=1,nrbin
-                         do i=1,7
-                            bins(i,irbin,iazbin,ielbin,krad)= &
-                                 bins(i,irbin,iazbin,ielbin,krad)+ &
-                                 bin0all(i,irbin,iazbin,ielbin,k)
-                         end do
-                      end do
-                   end do
-                end do
-             end do
-          end if
-       end if
-    end do
-    if(mype==0) deallocate(bin0all)
-    
-!   Print out histogram of counts by ielbin to see where angles are
-    if(rite) then
+	  write(6,'(" master list radar ",i3," stn id,lat,lon,hgt,num = ",a4,2f10.2,f8.1,i10)') &
+	       irad,master_stn_table(krad),master_lat_table(krad),master_lon_table(krad), &
+               master_hgt_table(krad),icount(krad)
+       end do
+       write(6,*)'RADAR_BUFR_READ_ALL:  ddiffmin,distfact,idups=',ddiffmin0,distfact,idups0
+       write(6,*)' nthisrad=',nthisrad
+       write(6,*)' nthisbins=',nthisbins
        write(6,*)' timemin,max=',timemin1,timemax1
        write(6,*)' nradials_in=',nradials_in1
        write(6,*)' nradials_fail_angmax=',nradials_fail_angmax1
@@ -601,25 +566,22 @@ contains
        write(6,*)' nobs_lrbin=',nobs_lrbin1
        write(6,*)' nobs_hrbin=',nobs_hrbin1
        write(6,*)' nrange_max=',nrange_max1
-       allocate(histo_el(nelbin))
-       histo_el=0
-       do krad=1,num_radars_0
-          do ielbin=1,nelbin
-             do iazbin=1,nazbin
-                do irbin=1,nrbin
-                   histo_el(ielbin)=histo_el(ielbin)+bins(7,irbin,iazbin,ielbin,krad)
-                end do
-             end do
-          end do
-       end do
-       do ielbin=1,nelbin
-          write(6,'(" ielbin,histo_el=",i6,i20)')ielbin,histo_el(ielbin)
-       end do
-       deallocate(histo_el)
-    end if
 
-!   Create superobs and write out.
-    if(mype==0) then
+!    Print out histogram of counts by ielbin to see where angles are
+       do ielbin=1,nelbin
+          histo_el=0
+          do krad=1,num_radars_0
+	     do iazbin=1,nazbin
+		do irbin=1,nrbin
+		   iloc=nrbin*(nazbin*(ielbin-1)+(iazbin-1))+irbin
+		   histo_el=histo_el+ibins2(iloc,krad)
+		end do
+	     end do
+	  end do
+	  write(6,'(" ielbin,histo_el=",i6,i20)')ielbin,histo_el
+       end do
+
+!   Prepare to create superobs and write out.
        open(inbufr,file='radar_supobs_from_level2',form='unformatted',iostat=iret)
        rewind inbufr
        nsuperall=0
@@ -632,132 +594,152 @@ contains
        deldistmaxall=-huge(deldistmaxall)
        deltiltminall=huge(deltiltminall)
        deldistminall=huge(deldistminall)
-       do krad=1,num_radars_0
-          nsuper=0
-          vrmax=-huge(vrmax)
-          vrmin=huge(vrmin)
-          errmax=-huge(errmax)
-          errmin=huge(errmin)
-          delazmmax=-huge(delazmmax)
-          deltiltmax=-huge(deltiltmax)
-          deldistmax=-huge(deldistmax)
-          deltiltmin=huge(deltiltmin)
-          deldistmin=huge(deldistmin)
-          this_stalat=master_lat_table(krad)
-          if(abs(this_stalat)>89.5_r_single) cycle
-          this_stalon=master_lon_table(krad)
-          rlon0=deg2rad*this_stalon
-          this_stalatr=this_stalat*deg2rad
-          clat0=cos(this_stalatr) ; slat0=sin(this_stalatr)
-          this_staid=master_stn_table(krad)
-          this_stahgt=master_hgt_table(krad)
-          do ielbin=1,nelbin
-             do iazbin=1,nazbin
-                do irbin=1,nrbin
-                   thiscount=bins(7,irbin,iazbin,ielbin,krad)
-                   if(nint(thiscount)<minnum) cycle
-                   thisrange=  bins(1,irbin,iazbin,ielbin,krad)/thiscount
-                   thisazimuth=bins(2,irbin,iazbin,ielbin,krad)/thiscount
-                   thistilt=bins(3,irbin,iazbin,ielbin,krad)/thiscount
-                   thisvr=bins(4,irbin,iazbin,ielbin,krad)/thiscount
-                   vrmax=max(vrmax,thisvr)
-                   vrmin=min(vrmin,thisvr)
-                   thisvr2=bins(5,irbin,iazbin,ielbin,krad)/thiscount
-                   thiserr=sqrt(abs(thisvr2-thisvr**2))
-                   errmax=max(errmax,thiserr)
-                   errmin=min(errmin,thiserr)
-                   thistime=bins(6,irbin,iazbin,ielbin,krad)/thiscount
-                   
-!                  Keep away from poles, rather than properly deal with polar singularity
-                   if(abs(thislat)>89.5_r_single) cycle
+    end if
+    allocate(bins_work(6,nthisrad,npe))
+    do irad=1,num_radars_0
+       krad=indx(irad)
+       call mpi_gather(bins(1,1,krad),nthisbins,mpi_real16,bins_work,nthisbins, &
+                    mpi_real16,0,mpi_comm_world,ierror)
+       if(mype == 0)then
+    
+!   Create superobs and write out.
+	  nsuper=0
+	  vrmax=-huge(vrmax)
+	  vrmin=huge(vrmin)
+	  errmax=-huge(errmax)
+	  errmin=huge(errmin)
+	  delazmmax=-huge(delazmmax)
+	  deltiltmax=-huge(deltiltmax)
+	  deldistmax=-huge(deldistmax)
+	  deltiltmin=huge(deltiltmin)
+	  deldistmin=huge(deldistmin)
+	  this_stalat=master_lat_table(krad)
+	  if(abs(this_stalat)>r89_5) cycle
+	  this_stalon=master_lon_table(krad)
+	  rlon0=deg2rad*this_stalon
+	  this_stalatr=this_stalat*deg2rad
+	  clat0=cos(this_stalatr) ; slat0=sin(this_stalatr)
+	  this_staid=master_stn_table(krad)
+	  this_stahgt=master_hgt_table(krad)
+	  do iii=1,nthisrad
+	     if(ibins2(iii,krad) < minnum) cycle
 
-!                  Compute obs height here
-!                  Use 4/3rds rule to get elevation of radar beam
-!                  (if local temperature, moisture available, then vertical position 
-!                   might be estimated with greater accuracy by ray tracing )
-
-                   aactual=erad+this_stahgt
-                   a43=4*aactual/3
-                   thistiltr=thistilt*deg2rad
-                   selev0=sin(thistiltr)
-                   celev0=cos(thistiltr)
-                   b=thisrange*(thisrange+two*aactual*selev0)
-                   c=sqrt(aactual*aactual+b)
-                   ha=b/(aactual+c)
-                   epsh=(thisrange*thisrange-ha*ha)/(8._r_single*aactual)
-                   h=ha-epsh
-                   thishgt=this_stahgt+h
-                   
-!                  Get corrected tilt angle
-                   celev=celev0
-                   selev=selev0
-                   if(thisrange>=1) then
-                      celev=a43*celev0/(a43+h)
-                      selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
-                   end if
-                   corrected_tilt=atan2(selev,celev)*rad2deg
-                   deltiltmax=max(corrected_tilt-thistilt,deltiltmax)
-                   deltiltmin=min(corrected_tilt-thistilt,deltiltmin)
-                   gamma=half*thisrange*(celev0+celev)
-                   deldistmax=max(gamma-thisrange,deldistmax)
-                   deldistmin=min(gamma-thisrange,deldistmin)
-
-!                  Get earth lat lon of superob
-                   thisazimuthr=thisazimuth*deg2rad
-                   rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
-                   rlatloc=rad_per_meter*gamma*sin(thisazimuthr)
-                   call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
-                   thislat=rlatglob*rad2deg
-                   thislon=rlonglob*rad2deg
-
-!                  Get corrected azimuth
-                   clat1=cos(rlatglob)
-                   caz0=cos(thisazimuthr)
-                   saz0=sin(thisazimuthr)
-                   cdlon=cos(rlonglob-rlon0)
-                   sdlon=sin(rlonglob-rlon0)
-                   caz1=clat0*caz0/clat1
-                   saz1=saz0*cdlon-caz0*sdlon*slat0
-                   corrected_azimuth=atan2(saz1,caz1)*rad2deg
-                   delazmmax=max(min(abs(corrected_azimuth-thisazimuth-720._r_single),&
-                        abs(corrected_azimuth-thisazimuth-360._r_single),&
-                        abs(corrected_azimuth-thisazimuth     ),&
-                        abs(corrected_azimuth-thisazimuth+360._r_single),&
-                        abs(corrected_azimuth-thisazimuth+720._r_single)),delazmmax)
-
-                   write(inbufr) this_staid,this_stalat,this_stalon,this_stahgt, &
-                        thistime,thislat,thislon,thishgt,thisvr,corrected_azimuth,&
-                        thiserr,corrected_tilt
-                   nsuper=nsuper+1
-                end do
+	     thiscount=one_quad/real(ibins2(iii,krad),r_quad)
+             do i=1,6
+               binsx(i)=bins_work(i,iii,1)
              end do
+             do k=2,npe
+               do i=1,6
+	         binsx(i)=binsx(i)+bins_work(i,iii,k)
+               end do
+             end do
+             do i=1,6
+               binsx(i)=binsx(i)*thiscount
+             end do
+	     thisrange=  binsx(1)
+	     thisazimuth=binsx(2)
+	     thistilt=binsx(3)
+	     thisvr=binsx(4)
+	     vrmax=max(vrmax,thisvr)
+	     vrmin=min(vrmin,thisvr)
+	     thisvr2=binsx(5)
+	     thiserr=sqrt(abs(thisvr2-thisvr**2))
+	     errmax=max(errmax,thiserr)
+	     errmin=min(errmin,thiserr)
+	     thistime=binsx(6)
+
+!            Compute obs height here
+!            Use 4/3rds rule to get elevation of radar beam
+!            (if local temperature, moisture available, then vertical position 
+!             might be estimated with greater accuracy by ray tracing )
+
+	     aactual=erad+this_stahgt
+	     a43=four_thirds*aactual
+	     thistiltr=thistilt*deg2rad
+	     selev0=sin(thistiltr)
+	     celev0=cos(thistiltr)
+	     b=thisrange*(thisrange+two*aactual*selev0)
+	     c=sqrt(aactual*aactual+b)
+	     ha=b/(aactual+c)
+	     epsh=(thisrange*thisrange-ha*ha)/(r8*aactual)
+	     h=ha-epsh
+	     thishgt=this_stahgt+h
+	     
+!            Get corrected tilt angle
+	     celev=celev0
+	     selev=selev0
+	     if(thisrange>=one) then
+		celev=a43*celev0/(a43+h)
+		selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
+	     end if
+	     corrected_tilt=atan2(selev,celev)*rad2deg
+	     deltiltmax=max(corrected_tilt-thistilt,deltiltmax)
+	     deltiltmin=min(corrected_tilt-thistilt,deltiltmin)
+	     gamma=half*thisrange*(celev0+celev)
+	     deldistmax=max(gamma-thisrange,deldistmax)
+	     deldistmin=min(gamma-thisrange,deldistmin)
+
+!            Get earth lat lon of superob
+	     thisazimuthr=thisazimuth*deg2rad
+	     rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
+             rlatloc=rad_per_meter*gamma*sin(thisazimuthr)
+             call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
+             thislat=rlatglob*rad2deg
+             thislon=rlonglob*rad2deg
+
+!            Keep away from poles, rather than properly deal with polar singularity
+	     if(abs(thislat)>r89_5) cycle
+
+!            Get corrected azimuth
+             clat1=cos(rlatglob)
+             caz0=cos(thisazimuthr)
+             saz0=sin(thisazimuthr)
+             cdlon=cos(rlonglob-rlon0)
+             sdlon=sin(rlonglob-rlon0)
+             caz1=clat0*caz0/clat1
+             saz1=saz0*cdlon-caz0*sdlon*slat0
+             corrected_azimuth=atan2(saz1,caz1)*rad2deg
+             delazmmax=max(min(abs(corrected_azimuth-thisazimuth-r720),&
+                  abs(corrected_azimuth-thisazimuth-r360),&
+                  abs(corrected_azimuth-thisazimuth     ),&
+                  abs(corrected_azimuth-thisazimuth+r360),&
+                  abs(corrected_azimuth-thisazimuth+r720)),delazmmax)
+
+             write(inbufr) this_staid,this_stalat,this_stalon,this_stahgt, &
+                  thistime,thislat,thislon,thishgt,thisvr,corrected_azimuth,&
+                  thiserr,corrected_tilt
+             nsuper=nsuper+1
           end do
-          write(6,*)' for radar ',this_staid,' nsuper=',nsuper
-          write(6,*)'  vrmin,max=',vrmin,vrmax
-          write(6,*)' errmin,max=',errmin,errmax
-          write(6,*)' delazmmax=',delazmmax
-          write(6,*)' deltiltmin,max=',deltiltmin,deltiltmax
-          write(6,*)' deldistmin,max=',deldistmin,deldistmax
-          vrminall=min(vrminall,vrmin)
-          vrmaxall=max(vrmaxall,vrmax)
-          errminall=min(errminall,errmin)
-          errmaxall=max(errmaxall,errmax)
-          delazmmaxall=max(delazmmaxall,delazmmax)
-          deltiltmaxall=max(deltiltmaxall,deltiltmax)
-          deldistmaxall=max(deldistmaxall,deldistmax)
-          deltiltminall=min(deltiltminall,deltiltmin)
-          deldistminall=min(deldistminall,deldistmin)
-          nsuperall=nsuperall+nsuper
-       end do
-       close(inbufr)
+          if(nsuper > 0)then
+            write(6,*)' for radar ',this_staid,' nsuper=',nsuper
+            write(6,*)'  vrmin,max=',vrmin,vrmax
+            write(6,*)' errmin,max=',errmin,errmax
+            write(6,*)' delazmmax=',delazmmax
+            write(6,*)' deltiltmin,max=',deltiltmin,deltiltmax
+            write(6,*)' deldistmin,max=',deldistmin,deldistmax
+            vrminall=min(vrminall,vrmin)
+            vrmaxall=max(vrmaxall,vrmax)
+            errminall=min(errminall,errmin)
+            errmaxall=max(errmaxall,errmax)
+            delazmmaxall=max(delazmmaxall,delazmmax)
+            deltiltmaxall=max(deltiltmaxall,deltiltmax)
+            deldistmaxall=max(deldistmaxall,deldistmax)
+            deltiltminall=min(deltiltminall,deltiltmin)
+            deldistminall=min(deldistminall,deldistmin)
+            nsuperall=nsuperall+nsuper
+          end if
+       end if
+    end do
+    if(mype == 0)then
        write(6,*)' total number of superobs written=',nsuperall
        write(6,*)'  vrmin,maxall=',vrminall,vrmaxall
        write(6,*)' errmin,maxall=',errminall,errmaxall
        write(6,*)' delazmmaxall=',delazmmaxall
        write(6,*)' deltiltmin,maxall=',deltiltminall,deltiltmaxall
        write(6,*)' deldistmin,maxall=',deldistminall,deldistmaxall
+       close(inbufr)
     end if
-    deallocate(bins)
+    deallocate(bins_work,bins,ibins2)
     if(l2superob_only) then
        call mpi_finalize(ierror)
        stop
