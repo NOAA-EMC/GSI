@@ -51,7 +51,7 @@ module hybrid_ensemble_parameters
 !            the actual stored size is one 3D grid.
 !
 !   Conversion from x1,a to x is implemented by  subroutine ensemble_forward_model, 
-!                located in file hybrid_ensemble_isotropic_regional.f90
+!                located in file hybrid_ensemble_isotropic.f90
 !
 !
 !  A = diag(S,S,...,S) is a block diagonal matrix, and each S is a correlation matrix, applied
@@ -153,10 +153,11 @@ module hybrid_ensemble_parameters
 ! set default to private
   private
 ! set subroutines to public
-  public :: init_hybrid_ensemble_parameters
+  public :: init_hybrid_ensemble_parameters,create_hybens_localization_parameters,&
+       destroy_hybens_localization_parameters
 ! set passed variables to public
   public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,s_ens_h
-  public :: uv_hyb_ens,s_ens_v,beta1_inv,aniso_a_en
+  public :: uv_hyb_ens,s_ens_v,beta1_inv,aniso_a_en,s_ens_hv,s_ens_vv
   public :: grd_ens
   public :: grd_e1
   public :: grd_loc
@@ -176,6 +177,7 @@ module hybrid_ensemble_parameters
   type(sub2grid_info),save :: grd_ens,grd_loc,grd_anl,grd_e1,grd_a1
   type(spec_vars),save :: sp_ens,sp_loc
   type(egrid2agrid_parm),save :: p_e2a
+  real(r_kind),allocatable,dimension(:) :: s_ens_hv,s_ens_vv
 
 contains
 
@@ -221,5 +223,19 @@ subroutine init_hybrid_ensemble_parameters
   s_ens_v = 30._r_kind    ! grid units 
 
 end subroutine init_hybrid_ensemble_parameters
+
+subroutine create_hybens_localization_parameters
+  implicit none
+  
+  allocate( s_ens_hv(grd_ens%nsig),s_ens_vv(grd_ens%nsig) )
+  
+end subroutine create_hybens_localization_parameters
+
+subroutine destroy_hybens_localization_parameters
+  implicit none
+  
+  deallocate(s_ens_vv,s_ens_hv) 
+
+end subroutine destroy_hybens_localization_parameters
 
 end module hybrid_ensemble_parameters

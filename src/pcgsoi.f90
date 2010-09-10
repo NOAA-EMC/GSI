@@ -132,7 +132,7 @@ subroutine pcgsoi()
                                 mgram_schmidt,destroy_mgram_schmidt
   use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
-  use hybrid_ensemble_isotropic_regional, only: beta12mult
+  use hybrid_ensemble_isotropic, only: beta12mult
   use gsi_bundlemod, only : gsi_bundle
   use gsi_bundlemod, only : self_add,assignment(=)
   use gsi_bundlemod, only : gsi_bundleprint

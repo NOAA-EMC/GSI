@@ -331,7 +331,7 @@ subroutine read_obs(ndata,mype)
          setcomm
     use constants, only: one,zero
     use converr, only: converr_read
-    use guess_grids, only: ges_prsl,ntguessig,destroy_sfc_grids
+    use guess_grids, only: ges_prsl,ntguessig
     use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad
     use aeroinfo, only: nusis_aero,iuse_aero,jpch_aero,diag_aero
     use ozinfo, only: nusis_oz,iuse_oz,jpch_oz,diag_ozone

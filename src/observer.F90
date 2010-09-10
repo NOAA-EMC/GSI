@@ -366,7 +366,6 @@ _ENTRY_(Iam)
 !    isli2 and sno2 are used in intppx (called from setuprad) and setuppcp.
      use_sfc=.false.
      call getsfc(mype,use_sfc)
-     call destroy_sfc_grids
      call destroy_sfc
 
   endif

@@ -1,8 +1,8 @@
 !#define _DEBUG_
-module hybrid_ensemble_isotropic_regional
+module hybrid_ensemble_isotropic
 !$$$   module documentation block
 !                .      .    .                                       .
-! module:    hybrid_ensemble_isotropic_regional
+! module:    hybrid_ensemble_isotropic
 !   prgmmr: parrish          org: np22                date: 2009-09-28
 !
 ! abstract: contains routines for localization of the hybrid ensemble
@@ -23,7 +23,7 @@ module hybrid_ensemble_isotropic_regional
 !   2010-05-20  todling - renamed all cstate to bundle to avoid confusion; the
 !                         bundles here are not necessarily idendical to the control vector,
 !                         but rather what this module take the ensemble to be composed of
-!   2010-08-19  lueken  - add only to module use
+!   2010-07-29  kleist  - combine hybrid_ensemble_isotropic global/regional modules 
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
@@ -82,23 +82,31 @@ module hybrid_ensemble_isotropic_regional
   public :: ensemble_forward_model_ad
   public :: ensemble_forward_model_ad_dual_res
   public :: beta12mult
-! set passed variables to public
-  public :: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en
+  public :: init_sf_xy
+  public :: sf_xy
 
-  character(len=*),parameter::myname='hybrid_ensemble_isotropic_regional'
+! set passed variables to public
+  public :: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en,ps_bar
+
+  character(len=*),parameter::myname='hybrid_ensemble_isotropic'
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !      following variables are filter parameters for isotropic
 !       homogeneous localization of hybrid control variable a_en
 
-  real(r_kind),allocatable:: fmatz(:,:,:)
-  real(r_kind),allocatable:: fmat0z(:,:)
+  real(r_kind),allocatable:: fmatz(:,:,:,:)
+  real(r_kind),allocatable:: fmat0z(:,:,:)
   real(r_kind),allocatable:: fmatx(:,:,:,:)
   real(r_kind),allocatable:: fmat0x(:,:,:)
   real(r_kind),allocatable:: fmaty(:,:,:)
   real(r_kind),allocatable:: fmat0y(:,:)
-  real(r_kind),allocatable:: znorm_new(:)
+  real(r_kind),allocatable:: znorm_new(:,:)
   real(r_kind),allocatable:: xnorm_new(:,:)
   real(r_kind),allocatable:: ynorm_new(:)
+  real(r_kind),allocatable:: psbar(:)
+
+! Other local variables for horizontal/spectral localization
+  real(r_kind),allocatable,dimension(:,:)  :: spectral_filter
+  integer(i_kind),allocatable,dimension(:) :: k_index
 
 !    following is for storage of ensemble perturbations:
 
@@ -112,6 +120,7 @@ module hybrid_ensemble_isotropic_regional
 !   def sst_en              - array of skin temperature ensemble perturbations
 
   real(r_single),dimension(:,:),allocatable:: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en
+  real(r_single),dimension(:),allocatable:: ps_bar
 
 !    following is for special subdomain to slab variables used when internally generating ensemble members
 
@@ -172,56 +181,88 @@ subroutine init_rf_z(z_len)
 
   use gridmod, only: nsig,ak5,bk5
   use constants, only: half,one,rd_over_cp,zero
+  use hybrid_ensemble_parameters, only: grd_ens,s_ens_v
 
-  real(r_kind),intent(in   ) :: z_len
+  real(r_kind)   ,intent(in) :: z_len(grd_ens%nsig)
 
-  integer(i_kind) k,km,k0m,kp,k0p
+  integer(i_kind) k,km,kp,nxy,i
   real(r_kind) aspect(nsig),p_interface(nsig+1),lnp_layer(nsig)
-  real(r_kind) p_layer,dlnp,kap1,kapr
+  real(r_kind) p_layer,dlnp,kap1,kapr,d1,d2
 
     kap1=rd_over_cp+one
     kapr=one/rd_over_cp
+    nxy=grd_ens%latlon11
 
 !    use new factorization:
-  allocate(fmatz(2,nsig,2),fmat0z(nsig,2))
+  allocate(fmatz(2,nsig,2,nxy),fmat0z(nsig,2,nxy))
 
 !   for z_len < zero, use abs val z_len and assume localization scale is in units of ln(p)
-  if(z_len > zero) then
+   if(s_ens_v > zero) then
 
 !  z_len is in grid units
      do k=1,nsig
-        aspect(k)=z_len**2
+        aspect(k)=z_len(k)**2
+     end do
+
+     do i=1,nxy
+       call get_new_alpha_beta(aspect,nsig,fmatz(1,1,1,i),fmat0z(1,1,i))
      end do
 
   else
 
 !  abs(z_len) is in units of ln(p)
-
 !              put in approximate vertical scale which depends on ln(p)
-!             to do this with minimal change, use psfc=1000, and construct a pressure profile
-!                 from the vertical coordinate definition for the GFS model.
-     do k=1,nsig+1
-        p_interface(k)=ak5(k)+(bk5(k)*100._r_kind)
-     end do
-     do k=1,nsig
-        p_layer=((p_interface(k)**kap1-p_interface(k+1)**kap1)/&
-                           (kap1*(p_interface(k)-p_interface(k+1))))**kapr
-               if(mype==0) write(6,*)' k,p_layer=',k,p_layer
-        lnp_layer(k)=log(p_layer)
-     end do
-     do k=1,nsig
-        kp=min(k+1,nsig)
-        k0p=kp-1
-        km=max(k-1,1)
-        k0m=km+1
-        dlnp=half*((lnp_layer(k0p)-lnp_layer(kp))+(lnp_layer(km)-lnp_layer(k0m)))
-        aspect(k)=(z_len/dlnp)**2
-        if(mype == 0) write(6,'(" k, vertical localization in grid units for ln(p) scaling =",i4,f10.2)') &
-                                        k,sqrt(aspect(k))
+!              use ensemble mean ps (ps_bar) to construct pressure
+!              profiles using GFS sigma-p coordinate [ add mods to be able
+!              to use fully generalized coordinate later** ]
+!
+     do i=1,nxy
+       do k=1,nsig+1
+         p_interface(k)=ak5(k)+(bk5(k)*ps_bar(i))
+       end do
+       do k=1,nsig
+          p_layer=((p_interface(k)**kap1-p_interface(k+1)**kap1)/&
+                             (kap1*(p_interface(k)-p_interface(k+1))))**kapr
+          lnp_layer(k)=log(p_layer)
+       end do
+
+! Start with assuming no localization
+       do k=1,nsig
+         d1=float(nsig)**2. ; d2=float(nsig)**2.
+! Search downward from k for dlnp difference larger than specified parameter
+          if(k.gt.1) then
+            do km=k-1,1,-1
+               dlnp=abs(lnp_layer(km)-lnp_layer(k))
+               if (dlnp.ge.abs(z_len(k))) then
+                  d1=(float(km-k))**2.
+                  exit
+               end if
+             end do
+	  end if
+	
+! Search upward from k for dlnp difference larger than specified parameter
+	   if (k.lt.nsig) then
+             do kp=k+1,nsig,1
+                dlnp=abs(lnp_layer(k)-lnp_layer(kp))
+                if (dlnp.ge.abs(z_len(k))) then
+                  d2=(float(kp-k))**2.
+                  exit
+                end if
+
+             end do
+	   end if
+	
+! Set aspect (localization distance in grid units squared) based on minimum of up/down searches
+           aspect(k)=min(d1,d2)
+
+!!         if(mype == 0) write(400,'(" k, vertical localization in grid units for ln(p) scaling =",i4,f10.2,f10.2,f10.2)') &
+!!                                         k,sqrt(aspect(k))
+	end do
+
+     	call get_new_alpha_beta(aspect,nsig,fmatz(1,1,1,i),fmat0z(1,1,i))
      end do
 
   end if
-  call get_new_alpha_beta(aspect,nsig,fmatz,fmat0z)
 
 end subroutine init_rf_z
 
@@ -334,6 +375,7 @@ subroutine new_factorization_rf_z(f,iadvance,iback)
 ! program history log:
 !   2009-09-28  parrish  initial documentation
 !   2010-02-20  parrish  modifications for dual resolution
+!   2010-04-14  kleist   modifications for ln(ps) localization option
 !
 !   input argument list:
 !     f        - input field to be filtered
@@ -361,34 +403,34 @@ subroutine new_factorization_rf_z(f,iadvance,iback)
   if(iadvance == 1) then
      do k=1,nz
         do i=1,nxy
-           f(i,k)=znorm_new(k)*f(i,k)
+           f(i,k)=znorm_new(i,k)*f(i,k)
         end do
      end do
   end if
   do k=1,nz
-     do l=1,min(2,k-1)
+     do l=1,min(2_i_kind,k-1)
         do i=1,nxy
-           f(i,k)=f(i,k)-fmatz(l,k,iadvance)*f(i,k-l)
+           f(i,k)=f(i,k)-fmatz(l,k,iadvance,i)*f(i,k-l)
         end do
      end do
      do i=1,nxy
-        f(i,k)=fmat0z(k,iadvance)*f(i,k)
+        f(i,k)=fmat0z(k,iadvance,i)*f(i,k)
      end do
   end do
   do k=nz,1,-1
-     do l=1,min(2,nz-k)
+     do l=1,min(2_i_kind,nz-k)
         do i=1,nxy
-           f(i,k)=f(i,k)-fmatz(l,k+l,iback)*f(i,k+l)
+           f(i,k)=f(i,k)-fmatz(l,k+l,iback,i)*f(i,k+l)
         end do
      end do
      do i=1,nxy
-        f(i,k)=fmat0z(k,iback)*f(i,k)
+        f(i,k)=fmat0z(k,iback,i)*f(i,k)
      end do
   end do
-  if(iadvance == 2) then
+  if(iadvance == 2_i_kind) then
      do k=1,nz
         do i=1,nxy
-           f(i,k)=znorm_new(k)*f(i,k)
+           f(i,k)=znorm_new(i,k)*f(i,k)
         end do
      end do
   end if
@@ -504,6 +546,7 @@ subroutine new_factorization_rf_y(f,iadvance,iback,nlevs)
 !$$$ end documentation block
   use gridmod, only: nlon
   use hybrid_ensemble_parameters, only: grd_ens
+                      !                  use mpimod, only: mype
   implicit none
 
   integer(i_kind),intent(in   ) :: iadvance,iback,nlevs
@@ -556,6 +599,7 @@ subroutine normal_new_factorization_rf_z
 ! program history log:
 !   2009-09-28  parrish  initial documentation
 !   2010-02-20  parrish  modifications for dual resolution
+!   2010-04-14  kleist   modifications for ln(p) localization
 !
 !   input argument list:
 !
@@ -569,61 +613,49 @@ subroutine normal_new_factorization_rf_z
 
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: grd_ens
-  use constants, only: zero,one
+  use constants, only: izero,zero,one
   implicit none
 
-  integer(i_kind) k,kcount,lcount,iadvance,iback
-  real(r_kind) f(grd_ens%latlon11,grd_ens%nsig),diag(grd_ens%nsig)
+  integer(i_kind) k,iadvance,iback,nxy
+  real(r_kind) f(grd_ens%latlon11,grd_ens%nsig),diag(grd_ens%latlon11,grd_ens%nsig)
 
   if(allocated(znorm_new)) deallocate(znorm_new)
-  allocate(znorm_new(grd_ens%nsig))
+  allocate(znorm_new(grd_ens%latlon11,grd_ens%nsig))
+
+  nxy=grd_ens%latlon11
 
   znorm_new=one
-  kcount=0
-  lcount=0
-  do
-     f=zero
-     do k=1,min(grd_ens%latlon11,grd_ens%nsig)
-        kcount=kcount+1
-        f(k,kcount)=one
-        if(kcount == grd_ens%nsig) exit
-     end do
-     iadvance=1 ; iback=2
-     call new_factorization_rf_z(f,iadvance,iback)
-     iadvance=2 ; iback=1
-     call new_factorization_rf_z(f,iadvance,iback)
-     do k=1,min(grd_ens%latlon11,grd_ens%nsig)
-        lcount=lcount+1
-        diag(lcount)=sqrt(one/f(k,lcount))
-        if(lcount == grd_ens%nsig) exit
-     end do
-     if(lcount == grd_ens%nsig) exit
-  end do
+
+   do k=1,grd_ens%nsig
+      f=zero
+      f(:,k)=one
+
+      iadvance=1 ; iback=2_i_kind
+      call new_factorization_rf_z(f,iadvance,iback)
+      iadvance=2_i_kind ; iback=1
+      call new_factorization_rf_z(f,iadvance,iback)
+
+      diag(:,k)=sqrt(one/f(:,k))
+   end do
+
+   do k=1,grd_ens%nsig
+      znorm_new(:,k)=diag(:,k)
+   end do
+
+! Check result:
   do k=1,grd_ens%nsig
-     znorm_new(k)=diag(k)
-  end do
-!              check result:
-  kcount=0
-  lcount=0
-  do
      f=zero
-     do k=1,min(grd_ens%latlon11,grd_ens%nsig)
-        kcount=kcount+1
-        f(k,kcount)=one
-        if(kcount == grd_ens%nsig) exit
-     end do
-     iadvance=1 ; iback=2
+     f(:,k)=one
+
+     iadvance=1 ; iback=2_i_kind
      call new_factorization_rf_z(f,iadvance,iback)
-     iadvance=2 ; iback=1
+     iadvance=2_i_kind ; iback=1
      call new_factorization_rf_z(f,iadvance,iback)
-     do k=1,min(grd_ens%latlon11,grd_ens%nsig)
-        lcount=lcount+1
-        diag(lcount)=f(k,lcount)
-        if(lcount == grd_ens%nsig) exit
-     end do
-     if(lcount == grd_ens%nsig) exit
+
+     diag(:,k)=sqrt(one/f(:,k))
   end do
-  write(6,*)' in normal_new_factorization_rf_z, min,max(diag)=',minval(diag),maxval(diag)
+
+  write(6,*)'in normal_new_factorization_rf_z, min,max(diag)=',minval(diag),maxval(diag)
 
 end subroutine normal_new_factorization_rf_z
 
@@ -850,6 +882,7 @@ end subroutine normal_new_factorization_rf_y
               t_en(grd_ens%latlon1n,n_ens), rh_en(grd_ens%latlon1n,n_ens), &
              oz_en(grd_ens%latlon1n,n_ens), cw_en(grd_ens%latlon1n,n_ens), &
               p_en(grd_ens%latlon11,n_ens),sst_en(grd_ens%latlon11,n_ens))
+    allocate(ps_bar(grd_ens%latlon11) )
     if(debug) write(6,*)' in create_ensemble, grd_ens%latlon11,grd_ens%latlon1n,n_ens=', &
                                     grd_ens%latlon11,grd_ens%latlon1n,n_ens
     if(debug) write(6,*)' in create_ensemble, total bytes allocated=',4*(6*grd_ens%latlon1n+2*grd_ens%latlon11)*n_ens
@@ -996,6 +1029,9 @@ end subroutine normal_new_factorization_rf_y
                 sstbar(ii)  =sstbar(ii)+ sst(i,j)
              end do
           end do
+! Load ps_bar for use with vertical localization later
+       ps_bar(:) = pbar(:)*bar_norm
+
           call gsi_bundledestroy(bundle_ens,istatus)
           if(istatus/=0) then
              write(6,*)trim(myname_),': trouble destroying work ens bundle'
@@ -1332,7 +1368,7 @@ deallocate(zz)
     implicit none
 
     if(l_hyb_ens) then
-       deallocate(st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en)
+       deallocate(st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en,ps_bar)
     end if
 
   end subroutine destroy_ensemble
@@ -2141,7 +2177,7 @@ subroutine beta12mult(grady)
   use gsi_4dvar, only: nsubwin
   use hybrid_ensemble_parameters, only: beta1_inv,n_ens
   use constants, only:  one
-  use control_vectors, only: control_vector
+  use control_vectors
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use timermod, only: timer_ini,timer_fnl
   implicit none
@@ -2189,7 +2225,278 @@ subroutine beta12mult(grady)
   return
 end subroutine beta12mult
 
-end module hybrid_ensemble_isotropic_regional
+subroutine init_sf_xy(jcap_in)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_sf_xy
+!   prgmmr: parrish          org: np23                date: 2009-12-17
+!
+! abstract: initialize horizontal spectral localization sf_xy
+!
+! program history log:
+!   2009-12-17  parrish
+!   2010-06-29  parrish, modify so localization length can be different for each vertical level.
+!                 to do this, add new variable array s_ens_hv(nsig), which is read in if s_ens_h <=0.
+!                 Otherwise, s_ens_hv is set equal to s_ens_h.
+!
+!   input argument list:
+!     jcap_in - maximum spectral truncation allowed
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+
+  use kinds, only: r_kind,i_kind,r_single
+  use hybrid_ensemble_parameters,only: s_ens_hv,sp_loc,grd_ens,grd_loc
+  use general_specmod, only: general_init_spec_vars
+  use constants, only: izero,ione,zero,half,one,two,three,rearth,pi
+  use mpimod, only: mype
+  implicit none
+
+  integer(i_kind),intent(in   ) :: jcap_in
+
+  integer(i_kind) i,ii,j,k,l,n,nn,jcap
+  real(r_kind),allocatable::g(:),gsave(:),errmax(:)
+  real(r_kind) factor
+  real(r_kind) rkm(grd_ens%nlat),f(grd_ens%nlat,grd_ens%nlon),f0(grd_ens%nlat,grd_ens%nlon)
+  real(r_single) out1(grd_ens%nlon,grd_ens%nlat)
+  real(r_single),allocatable::pn0_npole(:)
+  real(r_kind) s_ens_h_min
+  real(r_single) s_ens_hv4(grd_ens%nsig)
+  real(r_kind) hmin,hmax
+  character(5) mapname
+  logical make_test_maps
+
+  make_test_maps=.false.
+
+!    make sure s_ens_hv is within allowable range  ( pi*rearth*.001/jcap_in <= s_ens_hv <= 5500 )
+
+  s_ens_h_min=pi*rearth*.001_r_kind/jcap_in
+  do k=1,grd_ens%nsig
+     if(s_ens_hv(k) <  s_ens_h_min) then
+        if(mype == izero) write(6,*)' s_ens_hv(',k,') = ',s_ens_hv(k),' km--too small, min value = ', &
+                                        s_ens_h_min,' km.'
+        if(mype == izero) write(6,*)' s_ens_hv(',k,') reset to min value'
+        s_ens_hv(k)=s_ens_h_min
+     else if(s_ens_hv(k) >  5500._r_kind) then
+        if(mype == izero) write(6,*)' s_ens_hv(',k,') = ',s_ens_hv(k),' km--too large, max value = 5500 km.'
+        if(mype == izero) write(6,*)' s_ens_hv(',k,') reset to max value'
+        s_ens_hv(k)=5500._r_kind
+     end if
+  end do
+
+
+  jcap=nint(1.2_r_kind*pi*rearth*.001_r_kind/minval(s_ens_hv))
+  jcap=min(jcap,jcap_in)
+
+!  set up spectral variables for jcap
+
+  call general_init_spec_vars(sp_loc,jcap,jcap,grd_ens%nlat,grd_ens%nlon)
+
+!    the following code is used to compute the desired spectrum to get a
+!     gaussian localization of desired length-scale.
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   how spectrum is obtained:
+!
+!     Correlation matrix:  C = Y*D*Ytrans
+!
+!       where Y is matrix of spherical harmonics, evaluated on gaussian grid, and D is a diagonal matrix
+!
+!     To obtain D, exploit fact that for D a function only of total wave-number n, then C is homogeneous
+!       and isotropic on the sphere.
+!
+!     So look at the special case of a test point centered on the north pole.  The correlation function
+!       is then only a function of latitude, call it c(phi), where c(pi/2) = 1.
+!
+!     Now we have C = P*D*Ptrans, where we have reduced the problem to 1 dimension, latitude, and in
+!       spectral space, total wave number n.  P is the zonal component only of Y.
+!
+!     Next, form the product
+!                             C*e1 =P*D*Ptrans*e1,
+!
+!            where e1 is a vector of all 0, except for 1 at the north pole.
+!
+!     Then have P*D*Ptrans*e1 = sum(n) p(n,j)*d(n)*p(n,1) = c(j,1)
+!
+!        where j=1 corresponds to north pole point in this formulation.
+!
+!     Now if we have available C(j,1), a gaussian of desired length-scale evaluated (note, doesn't have to
+!            be gaussian!) on the gaussian grid, then applying the inverse transform subroutine g2s0 to
+!     C yields the product
+!
+!             Chat(n) = d(n)*p(n,1)
+!
+!     So finally the desired spectrum is
+!
+!               d(n) = chat(n)/p(n,1)
+!
+!     To create the full spectral transform of the desired correlation, d(n) is copied to all non-zero
+!      zonal wave numbers on lines of constant total wave number n, multiplied by 1/2 to account for
+!      two degrees of freedom for non-zero zonal wave numbers.
+!
+!     Note that while creating this routine, a bug was discovered in s2g0 routine for evaluation of pole
+!       value.  There was a missing factor of 1/sqrt(2) apparently.
+!
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!                 create reference gaussian centered on north pole with desired length-scale.
+
+!     compute latitudes in km from north pole
+  rkm(grd_ens%nlat)=zero
+  rkm(1)=two*asin(one)*rearth*.001_r_kind
+  do i=1,(grd_ens%nlat-2_i_kind)/2
+     rkm(grd_ens%nlat-i)=(asin(one)-asin(sp_loc%slat(i)))*rearth*.001_r_kind
+     rkm(ione+i)=(asin(one)+asin(sp_loc%slat(i)))*rearth*.001_r_kind
+  end do
+  if(mype == izero) write(6,*)' in init_sf_xy, lat,max(dlat)=', &
+           rkm(ione+(grd_ens%nlat-2_i_kind)/2), &
+          -rkm(grd_ens%nlat-(grd_ens%nlat-2_i_kind)/2)+rkm(ione+(grd_ens%nlat-2_i_kind)/2),' km'
+
+  allocate(spectral_filter(sp_loc%nc,grd_ens%nsig))
+  allocate(g(sp_loc%nc),gsave(sp_loc%nc))
+  allocate(pn0_npole(0:sp_loc%jcap))
+  do k=1,grd_ens%nsig
+     do i=1,grd_ens%nlat
+        f0(i,1)=exp(-half*(rkm(i)/s_ens_hv(k))**2)
+     end do
+
+     do j=2,grd_ens%nlon
+        do i=1,grd_ens%nlat
+           f0(i,j)=f0(i,1)
+        end do
+     end do
+
+     call general_g2s0(grd_ens,sp_loc,g,f0)
+
+     call general_s2g0(grd_ens,sp_loc,g,f)
+
+!    adjust so value at np = 1
+     f=f/f(grd_ens%nlat,1)
+     call general_g2s0(grd_ens,sp_loc,g,f)
+     call general_s2g0(grd_ens,sp_loc,g,f)
+     if(mype == izero) write(6,*)' in init_sf_xy, jcap,s_ens_hv(',k,'), max diff(f0-f)=', &
+                                            sp_loc%jcap,s_ens_hv(k),maxval(abs(f0-f))
+
+!            correct spectrum by dividing by pn0_npole
+     gsave=g
+
+!    obtain pn0_npole
+     do n=0,sp_loc%jcap
+        g=zero
+        g(2*n+ione)=one
+        call general_s2g0(grd_ens,sp_loc,g,f)
+        pn0_npole(n)=f(grd_ens%nlat,1)
+     end do
+
+     g=zero
+     do n=0,sp_loc%jcap
+        g(2*n+ione)=gsave(2*n+ione)/pn0_npole(n)
+     end do
+
+!    obtain spectral_filter
+
+     ii=izero
+     do l=0,sp_loc%jcap
+        factor=one
+        if(l >  izero) factor=half
+        do n=l,sp_loc%jcap
+           nn=nn+2_i_kind
+           ii=ii+ione
+           spectral_filter(ii,k)=factor*g(2*n+ione)
+           ii=ii+ione
+           if(l == izero) then
+              spectral_filter(ii,k)=zero
+           else
+              spectral_filter(ii,k)=factor*g(2*n+ione)
+           end if
+        end do
+     end do
+  end do
+  deallocate(g,gsave,pn0_npole)
+
+!  assign array k_index for each processor, based on grd_loc%kbegin_loc,grd_loc%kend_loc
+
+  allocate(k_index(grd_loc%kbegin_loc:grd_loc%kend_alloc))
+  k_index=0
+  do k=grd_loc%kbegin_loc,grd_loc%kend_loc
+     k_index(k)=1+mod(k-1,grd_loc%nsig)
+     write(6,*) 'k_index(',k,')=',k_index(k)
+  end do
+
+  if(make_test_maps) then
+   do k=1,grd_ens%nsig
+      if(k>=grd_loc%kbegin_loc.and.k<=grd_loc%kend_loc) then
+         f=zero
+         f(grd_ens%nlat/2,grd_ens%nlon/2)=one
+         call sf_xy(f,k,k)
+         do j=1,grd_ens%nlon
+            do i=1,grd_ens%nlat
+               out1(j,i)=f(i,j)
+            end do
+         end do
+         write(mapname,'("out",i2.2)')1+mod(k-1,grd_ens%nsig)
+         call outgrads1(out1,grd_ens%nlon,grd_ens%nlat,mapname)
+      end if
+   end do
+  end if
+
+end subroutine init_sf_xy
+
+subroutine sf_xy(f,k_start,k_end)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    sf_xy       spectral isotropic localization for global domain
+!
+!   prgrmmr:  parrish        org: np22                              date: 2009-09-30
+!
+! abstract:  use spherical harmonic transform to do horizontal isotropic localization of hybrid
+!             ensemble control variable a_en.
+!
+! program history log:
+!   2009-10-16  parrish  initial documentation
+!   2010-03-11  parrish - adjust dimensions for f to allow for nlevs=0
+!
+!   input argument list:
+!     f        - input field to be filtered
+!     k_start  - starting horizontal slab index
+!     k_end    - ending horizontal slab index    (k_end can be less than k_start, meaning there is
+!                                                   no work on this processor)
+!                 NOTE: above args allow horizontal localization length to vary in vertical
+!
+!   output argument list:
+!     f        - filtered output
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind,i_kind
+  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc
+  implicit none
+
+  integer(i_kind),intent(in   ) :: k_start,k_end
+  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat*grd_ens%nlon,k_start:max(k_start,k_end))
+
+  real(r_kind) g(sp_loc%nc)
+  integer(i_kind) k
+
+  do k=k_start,k_end
+     call general_s2g0_ad(grd_ens,sp_loc,g,f(:,k))
+     g(:)=g(:)*spectral_filter(:,k_index(k))
+     call general_s2g0(grd_ens,sp_loc,g,f(:,k))
+  end do
+
+end subroutine sf_xy
+
+end module hybrid_ensemble_isotropic
 
 subroutine get_new_alpha_beta(aspect,ng,fmat_out,fmat0_out)
 !$$$  subprogram documentation block
@@ -2275,7 +2582,7 @@ subroutine bkerror_a_en(gradx,grady)
   use gsi_4dvar, only: nsubwin, lsqrtb
   use mpimod, only: mype ! _RT DEBUG
   use constants, only:  zero
-  use control_vectors, only: control_vector
+  use control_vectors
   use timermod, only: timer_ini,timer_fnl
   use hybrid_ensemble_parameters, only: n_ens
   use gsi_bundlemod,only: gsi_bundlegetpointer
@@ -2332,6 +2639,8 @@ subroutine bkgcov_a_en_new_factorization(a_en)
 !   2009-09-17  parrish
 !   2010-02-20  parrish, adapt for dual resolution
 !   2010-05-21  todling, update to use bundle
+!   2010-07-02  parrish, modify arguments to call sf_xy to allow for vertical variation
+!                 of horizontal localization length
 !
 !   input argument list:
 !     a_en     - control variable for ensemble contribution to background error
@@ -2349,9 +2658,8 @@ subroutine bkgcov_a_en_new_factorization(a_en)
   use constants, only: zero
   use gridmod, only: regional
   use hybrid_ensemble_parameters, only: n_ens,grd_loc
-  use hybrid_ensemble_isotropic_regional, only: &
-         new_factorization_rf_z,new_factorization_rf_x,new_factorization_rf_y
-  use hybrid_ensemble_isotropic_global, only: sf_xy
+  use hybrid_ensemble_isotropic, only: &
+         new_factorization_rf_z,new_factorization_rf_x,new_factorization_rf_y,sf_xy
   use general_sub2grid_mod, only: general_sub2grid_r_double,general_grid2sub_r_double
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -2410,7 +2718,7 @@ subroutine bkgcov_a_en_new_factorization(a_en)
      call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
      call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
   else
-     call sf_xy(hwork,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+     call sf_xy(hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
   end if
 
 ! Put back onto subdomains
@@ -2440,7 +2748,7 @@ end subroutine bkgcov_a_en_new_factorization
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
 
-subroutine hybrid_ensemble_setup
+subroutine hybens_grid_setup
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    hybrid_ensemble_setup  initialize everything for hybrid ensemble
@@ -2461,27 +2769,22 @@ subroutine hybrid_ensemble_setup
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-
-
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: aniso_a_en,generate_ens,n_ens,&
-                      beta1_inv,s_ens_h,s_ens_v,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
-                      grd_ens,grd_loc,grd_a1,grd_e1,grd_anl,sp_ens,p_e2a,dual_res,uv_hyb_ens
+                      s_ens_h,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
+                      grd_ens,grd_loc,grd_a1,grd_e1,grd_anl,sp_ens,p_e2a,&
+                      dual_res,uv_hyb_ens
   use gridmod,only: regional,nsig,nlon,nlat,rlats,rlons
-  use hybrid_ensemble_isotropic_regional, only: create_ensemble,load_ensemble, &
-         init_rf_x,init_rf_y,init_rf_z,&
-         normal_new_factorization_rf_z,normal_new_factorization_rf_x,normal_new_factorization_rf_y
   use general_sub2grid_mod, only: general_sub2grid_create_info
   use general_specmod, only: general_init_spec_vars
   use egrid2agrid_mod,only: g_create_egrid2agrid
   use mpimod, only: mype,ierror,npe
-  use hybrid_ensemble_isotropic_global, only: init_sf_xy
+  use constants, only: one,zero
 
   implicit none
 
-  real(r_kind) s_ens_h_gu_x,s_ens_h_gu_y
   integer(i_kind) inner_vars,num_fields
-  integer(i_kind) nord_e2a
+  integer(i_kind) nord_e2a,k
   logical,allocatable::vector(:)
 
              nord_e2a=4       !   soon, move this to hybrid_ensemble_parameters
@@ -2524,11 +2827,87 @@ subroutine hybrid_ensemble_setup
      call g_create_egrid2agrid(nlat,rlats,nlon,rlons,grd_ens%nlat,sp_ens%rlats,grd_ens%nlon,sp_ens%rlons, &
                                nord_e2a,p_e2a)
   end if
-    
 
-!     3.  set up localization filters
+  return
+end subroutine hybens_grid_setup
 
-  call init_rf_z(s_ens_v)
+subroutine hybens_localization_setup
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    hybens_localization_setup   setup for hybrid localization
+!   prgmmr: kleist          org: np22                date: 2010-07-30
+!
+! abstract: setup arrays used for control variable localization
+!
+! program history log:
+!   2010-07-30  kleist
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind
+  use hybrid_ensemble_parameters, only: grd_ens,s_ens_v,jcap_ens,s_ens_vv,&
+	 s_ens_h,s_ens_hv,create_hybens_localization_parameters
+  use gridmod,only: regional
+  use hybrid_ensemble_isotropic, only: init_rf_x,init_rf_y,init_rf_z,&
+         normal_new_factorization_rf_z,normal_new_factorization_rf_x,&
+         normal_new_factorization_rf_y,init_sf_xy
+  use constants, only: one,zero
+  use mpimod, only: mype
+  implicit none
+
+  character(len=40)  :: fname = 'hybens_locinfo'
+  integer(i_kind) k,msig,istat
+  integer(i_kind)    :: lunin = 47
+  logical            :: lexist
+  real(r_kind) s_ens_h_gu_x,s_ens_h_gu_y
+
+! Allocate
+  call create_hybens_localization_parameters
+
+! Set up localization parameters as function of level
+
+! if horizontal parameter is set <= 0, read in k-levels of localization parameters
+  if(s_ens_h <= zero) then
+
+!   Check the status of input file
+    inquire(file=trim(fname),exist=lexist)
+    if ( lexist ) then
+       open(lunin,file=trim(fname),form='formatted')
+       rewind(lunin)
+       read(lunin,100,iostat=istat) msig
+       if ( msig /= grd_ens%nsig ) then
+          write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** error in ',trim(fname)
+          write(6,*) 'HYBENS_LOCALIZATION_SETUP:  levels do not match,msig[read in],nsig[defined] = ',msig,grd_ens%nsig
+          close(lunin)
+          call stop2(123)
+       endif
+       do k=1,grd_ens%nsig
+         read(lunin,101) s_ens_hv(k),s_ens_vv(k)
+       end do
+       close(lunin)
+    else 
+      write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** INPUT FILE MISSING -- ',trim(fname)
+    end if 
+ 100 format(I4)
+ 101 format(F8.1,3x,F5.1)
+
+  else
+!          assign all levels to same value, s_ens_h  (ran with this on 20100702 and reproduced results from
+!                                                      rungsi62_hyb_dualres.sh)
+     s_ens_hv=s_ens_h
+     s_ens_vv=s_ens_v
+  end if
+
+! Set up localization filters
+
+  call init_rf_z(s_ens_vv)
   call normal_new_factorization_rf_z
 
   if(regional) then
@@ -2538,12 +2917,11 @@ subroutine hybrid_ensemble_setup
      call normal_new_factorization_rf_x
      call init_rf_y(s_ens_h_gu_y)
      call normal_new_factorization_rf_y
- 
   else
      call init_sf_xy(jcap_ens)
   end if
 
-end subroutine hybrid_ensemble_setup
+end subroutine hybens_localization_setup
 
 subroutine convert_km_to_grid_units(s_ens_h,s_ens_h_gu_x,s_ens_h_gu_y)
 !$$$  subprogram documentation block
