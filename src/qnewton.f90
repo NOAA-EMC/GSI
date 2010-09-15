@@ -29,7 +29,7 @@ use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero, one
 use mpimod, only: mype
 use control_vectors, only: control_vector,allocate_cv, &
-    deallocate_cv,dot_product
+    deallocate_cv,axpy,dot_product
 
 implicit none
 

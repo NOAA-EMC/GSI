@@ -2,10 +2,10 @@ module stpcalcmod
 
 !$$$ module documentation block
 !           .      .    .                                       .
-! module:   stpcalcmod    module for stpcalc and its tangent linear stpcalc_tl
+! module:   stpcalcmod    module for stpcalc 
 !  prgmmr:
 !
-! abstract: module for stpcalc and its tangent linear stpcalc_tl
+! abstract: module for stpcalc 
 !
 ! program history log:
 !   2005-05-21  Yanqiu zhu - wrap stpcalc and its tangent linear stpcalc_tl into one module
@@ -107,8 +107,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    
 !    Please note, however, that using the nonlinear qc routines makes the
 !    stp* and int* operators nonlinear.  Hence, the need to evaluate the
-!    step size operators twice for each observation type, give the current
-!    step size algorithm coded below. 
+!    step size operators each stepsize estimate for each observation type, 
+!    given the current step size algorithm coded below. 
 !
 !
 ! program history log:
@@ -162,6 +162,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   2009-06-02  derber - modify the calculation of the b term for the background to increase accuracy
 !   2010-06-01  treadon - accumulate pbcjo over nobs_bins 
 !   2010-08-19  lueken - add only to module use
+!   2010-09-14  derber - clean up quad precision
 !
 !   input argument list:
 !     stpinout - guess stepsize
@@ -195,7 +196,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use mpimod, only: mype
-  use constants, only: zero,one_tenth,half,one,zero_quad
+  use constants, only: zero,one_quad,zero_quad
   use gsi_4dvar, only: nobs_bins, ltlint
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
        l_foto,xhat_dt,dhat_dt,nvals_len
@@ -227,10 +228,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 
 ! Declare local parameters
-  integer(i_kind),parameter:: ipen = 5_i_kind+nobs_type
-  integer(i_kind),parameter:: istp_iter = 5_i_kind
-  integer(i_kind),parameter:: ipenlin = 3_i_kind
+  integer(i_kind),parameter:: ipen = 5+nobs_type
+  integer(i_kind),parameter:: istp_iter = 5
+  integer(i_kind),parameter:: ipenlin = 3
   integer(i_kind),parameter:: ioutpen = istp_iter*4
+  real(r_kind),parameter:: one_tenth_quad = 0.1_r_quad 
 
 ! Declare local variables
   integer(i_kind) i,j,mm1,ii,ibin,ipenloc,ier,istatus
@@ -316,36 +318,34 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 ! Penalty, b, c for dry pressure
   if (ljcpdry) call stpjcpdry(dval(1),sval(1),pstart(1,3),pstart(2,3),pstart(3,3))
 
-! iterate over number of stepsize iterations (istp_iter - currently set to 2)
+! iterate over number of stepsize iterations (istp_iter - currently set to a maximum of 5)
   stepsize: do ii=1,istp_iter
 
 !    Delta stepsize
-     dels=one_tenth ** ii
+     dels=one_tenth_quad ** ii
   
      sges(1)= stp(ii-1)
-     sges(2)=(one-dels)*stp(ii-1)
-     sges(3)=(one+dels)*stp(ii-1)
+     sges(2)=(one_quad-dels)*stp(ii-1)
+     sges(3)=(one_quad+dels)*stp(ii-1)
 
-     bcoef=0.25_r_quad/(dels*stp(ii-1))
-     ccoef=0.5_r_quad/(dels*dels*stp(ii-1)*stp(ii-1))
 
      if(ii == 1)then
 !       First stepsize iteration include current J calculation in position ipenloc
-        nstep=4_i_kind
+        nstep=4
         sges(4)=zero
-        ipenloc=4_i_kind
+        ipenloc=4
      else
 !       Later stepsize iteration include only stepsize and stepsize +/- dels
-        nstep=3_i_kind
+        nstep=3
      end if
 
 !    Calculate penalty values for linear terms
 
      do i=1,ipenlin
-        sges1=sges(1)
+        sges1=real(sges(1),r_quad)
         pbc(1,i)=pstart(1,i)-(2.0_r_quad*pstart(2,i)-pstart(3,i)*sges1)*sges1
         do j=2,nstep
-           sgesj=sges(j)
+           sgesj=real(sges(j),r_quad)
            pbc(j,i)=(-2.0_r_quad*pstart(2,i)+pstart(3,i)*(sgesj+sges1))*(sgesj-sges1)
         end do
      end do
@@ -391,6 +391,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      end do
 
 !    estimate and sum b and c
+     bcoef=0.25_r_quad/(dels*stp(ii-1))
+     ccoef=0.5_r_quad/(dels*dels*stp(ii-1)*stp(ii-1))
      bsum=zero_quad
      csum=zero_quad
      do i=1,ipen
@@ -428,7 +430,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)
      end if
 
-     stpinout=stp(ii)
 !    If change in penalty is very small end stepsize calculation
      if(abs(delpen/penalty) < 1.e-17_r_kind) then
         if(mype == 0)then
@@ -445,30 +446,28 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      end if
 
 !    Check for negative stepsize or cx <= 0. (probable error or large nonlinearity)
-     if(cx < 1.e-20_r_kind .or. stpinout <= zero) then
+     if(cx < 1.e-20_r_kind .or. stp(ii) <= zero_quad) then
         if(mype == 0) then
-          write(iout_iter,*) ' entering negative stepsize option',stpinout
+          write(iout_iter,*) ' entering negative stepsize option',stp(ii)
           write(iout_iter,101) (stpx(i),i=1,ipen)
           write(iout_iter,105) (bsum(i),i=1,ipen)
           write(iout_iter,110) (csum(i),i=1,ipen)
         end if
-        stpinout=outstp(1)
+        stp(ii)=outstp(1)
         outpensave=outpen(1)
         do i=1,nsteptot
            if(outpen(i) < outpensave)then
-              stpinout=outstp(i)
-              stp(ii)=stpinout
+              stp(ii)=outstp(i)
               outpensave=outpen(i)
            end if
         end do
 !       Try different (better?) stepsize
-        if(stpinout <= zero .and. ii /= istp_iter)then
+        if(stp(ii) <= zero_quad .and. ii /= istp_iter)then
            stp(ii)=max(outstp(1),1.0e-20_r_kind)
            do i=2,nsteptot
               if(outstp(i) < stp(ii) .and. outstp(i) > 1.0e-20_r_kind)stp(ii)=outstp(i)
            end do
-           stp(ii)=one_tenth*stp(ii)
-           stpinout=stp(ii)
+           stp(ii)=one_tenth_quad*stp(ii)
         end if
      end if
 
