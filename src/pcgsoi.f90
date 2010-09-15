@@ -150,13 +150,14 @@ subroutine pcgsoi()
   logical iout_6,restart,end_iter,llprt,llouter
   character(5) step(2)
   integer(i_kind) i,istep,iobs,ii,nprt
-  real(r_kind) stp,b,converge,gsave
+  real(r_kind) stp,b,converge
+  real(r_kind) gsave
   real(r_kind) gnormx,penx,penalty,pennorm
   real(r_quad) zjo
   real(r_kind),dimension(2):: gnorm
   real(r_kind) :: zgini,zfini,fjcost(4),zgend,zfend
   real(r_kind) :: fjcost_e
-  type(control_vector) :: xhat,gradx,grady,dirx,diry,ydiff
+  type(control_vector) :: xhat,gradx,grady,dirx,diry,ydiff,xdiff
   type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
   type(gsi_bundle) :: mval(nsubwin)
   type(predictors) :: sbias, rbias
@@ -184,8 +185,8 @@ subroutine pcgsoi()
   if (jiter==0 .and. (iguess==1 .or. iguess==2)) restart=.true.
   pennorm=10.e50_r_kind
   iout_6=.true.
-  stp=start_step
   if (iout_iter==6) iout_6=.false.
+  stp=start_step
   end_iter=.false.
   gsave=zero
   llouter=.false.
@@ -313,11 +314,13 @@ subroutine pcgsoi()
 
      if (lanlerr) then
         do i=1,nclen
-           ydiff%values(i)=gradx%values(i)
+           xdiff%values(i)=gradx%values(i)
+           ydiff%values(i)=grady%values(i)
         end do
      else
         do i=1,nclen
-           ydiff%values(i)=gradx%values(i)-ydiff%values(i)
+           xdiff%values(i)=gradx%values(i)-xdiff%values(i)
+           ydiff%values(i)=grady%values(i)-ydiff%values(i)
         end do
      end if
 
@@ -328,9 +331,12 @@ subroutine pcgsoi()
 !    Calculate new norm of gradients
      if (iter>0) gsave=gnorm(1)
      gnorm(1)=dot_product(gradx,grady,r_quad)
-     gnorm(2)=dot_product(ydiff,grady,r_quad)
+!    Two dot products in gnorm(2) should be same, but are slightly different due to round off
+!    so use average.
+     gnorm(2)=0.5_r_quad*(dot_product(xdiff,grady,r_quad)+dot_product(ydiff,gradx,r_quad))
      b=zero
      if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
+
      if (b<zero .or. b>five) then
         if (mype==0) then
            if (iout_6) write(6,105) gnorm(2),gsave,b
@@ -343,12 +349,14 @@ subroutine pcgsoi()
 !    Calculate new search direction
      if (.not. restart) then
         do i=1,nclen
-           ydiff%values(i)=gradx%values(i)
+           xdiff%values(i)=gradx%values(i)
+           ydiff%values(i)=grady%values(i)
            dirx%values(i)=-grady%values(i)+b*dirx%values(i)
            diry%values(i)=-gradx%values(i)+b*diry%values(i)
         end do
      else
 !    If previous solution available, transfer into local arrays.
+        xdiff=zero
         ydiff=zero
         call read_guess_solution(dirx,diry,mype)
         stp=one
@@ -645,6 +653,7 @@ implicit none
   call allocate_cv(dirx)
   call allocate_cv(diry)
   call allocate_cv(ydiff)
+  call allocate_cv(xdiff)
   do ii=1,nobs_bins
      call allocate_state(sval(ii))
      call allocate_state(rval(ii))
@@ -662,6 +671,7 @@ implicit none
   dirx=zero
   diry=zero
   ydiff=zero
+  xdiff=zero
   xhat=zero
 
   if(l_foto)then
@@ -704,6 +714,7 @@ implicit none
   call deallocate_cv(dirx)
   call deallocate_cv(diry)
   call deallocate_cv(ydiff)
+  call deallocate_cv(xdiff)
 
 ! Release bias-predictor memory
   call deallocate_preds(sbias)
