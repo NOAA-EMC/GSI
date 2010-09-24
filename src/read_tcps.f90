@@ -33,7 +33,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
   use convinfo, only: nconvtype,ictype,icuse
   use obsmod, only: ianldate
   use tcv_mod, only: get_storminfo,numstorms,stormlat,stormlon,stormpsmin,stormdattim,&
-       centerid,stormid,destroy_tcv_card
+       centerid,stormid,destroy_tcv_card,tcp_oberr
   use gsi_4dvar, only: time_4dvar
   implicit none
 
@@ -115,7 +115,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
      olat=stormlat(i)
      olon=stormlon(i)
      psob=stormpsmin(i)
-     oberr=0.75_r_kind
+     oberr=tcp_oberr
 
 ! Make sure the psob is reasonable
      if ( (psob<850._r_kind) .or. (psob>1025._r_kind) )then

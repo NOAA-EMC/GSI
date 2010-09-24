@@ -89,6 +89,7 @@
                             metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs
   use gsi_chemtracer_mod, only: gsi_chemtracer_init,gsi_chemtracer_final
   use gsi_4dcouplermod, only: gsi_4dcoupler_parallel_init
+  use tcv_mod, only: init_tcps_errvals,tcp_oberr,tcp_innmax,tcp_oedelt
   implicit none
 
   private
@@ -455,9 +456,12 @@
 !     c_varqc - constant number to control var. qc turnning on speed
 !     blacklst - logical for reading in raob blacklist (if set to true)
 !     use_poq7 - logical flag to accept (.true.) sbuv profile quality flag 7
+!     tcp_oberr  - observation error (without inflation) for tcps obs in mb
+!     tcp_innmax - parameter for tcps oberr inflation (max innovation for inflation) in mb
+!     tcp_oedelt - parameter for tcps oberr inflation (delta oberr over tcp_oberr) in mb
 
   namelist/obsqc/ repe_dw,dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
-       c_varqc,blacklst,use_poq7,hilbert_curve
+       c_varqc,blacklst,use_poq7,hilbert_curve,tcp_oberr,tcp_innmax,tcp_oedelt
 
 ! OBS_INPUT (controls input data):
 !      dfile(ndat)      - input observation file name
@@ -619,6 +623,7 @@
   call init_obsens
   call init_hybrid_ensemble_parameters
   call init_rapidrefresh_cldsurf
+  call init_tcps_errvals
   preserve_restart_date=.false.
 
 

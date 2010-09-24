@@ -16,6 +16,7 @@ module tcv_mod
 !   sub get_storminfo       - loads storm data structure from tc vitals info
 !   sub read_tcv_card       - read data structure from tc vitals ascii file
 !   sub destroy_tcv_card    - deallocate arrays containing storm information
+!   sub init_tcps_errvals   - initialize values for tcps ob error
 !
 ! Variable Definitions:
 !   def numstorms    - number of storms in tc vitals file
@@ -27,6 +28,9 @@ module tcv_mod
 !   def stormdattim  - storm dat/time 
 !   def centerid     - organization (center) id
 !   def stormid      - storm id with basin identifier
+!   def tcp_oberr    - lowest oberr for tcps data in mb (inflated as function of O-F)
+!   def tcp_innmax   - parameter for tcps oberr inflation (max O-F inflating error in mb)
+!   def tcp_oedelt   - parameter for tcps oberr inflation (range of oberror above tcp_oberr in mb)
 !
 ! attributes:
 !   language: f90
@@ -42,9 +46,11 @@ module tcv_mod
   public :: get_storminfo
   public :: read_tcv_card
   public :: destroy_tcv_card
+  public :: init_tcps_errvals
 ! set passed variables to public
   public :: stormpsmin,stormdattim,stormlon,numstorms,stormlat,centerid,stormid
   public :: tcvcard
+  public :: tcp_oberr,tcp_innmax,tcp_oedelt
 
   integer(i_kind) numstorms
   integer(i_kind),dimension(:),allocatable:: stormswitch
@@ -52,6 +58,7 @@ module tcv_mod
   character(len=4),dimension(:),allocatable:: centerid
   real(r_kind),dimension(:),allocatable:: stormlat,stormlon,stormpsmin
   integer(i_kind),dimension(:),allocatable:: stormdattim
+  real(r_kind) tcp_oberr,tcp_innmax,tcp_oedelt
 
   type:: tcvcard ! Define a new type for a TC Vitals card
      character*4    :: tcv_center      ! Hurricane Center Acronym
@@ -291,5 +298,32 @@ contains
     deallocate(stormdattim)
 
   end subroutine destroy_tcv_card
+
+  subroutine init_tcps_errvals
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_tcps_errvals       initialize parm values
+!
+!   prgmmr: kleist             org: np23                date: 2010-09-14
+!
+! abstract: Initialize parameter values for specification of tcps ob error
+!
+! program history log:
+!   2010-09-14  kleist
+!
+!   input argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    implicit none
+
+    tcp_oberr=0.75_r_kind
+    tcp_innmax=20.0_r_kind
+    tcp_oedelt=1.5_r_kind
+
+  end subroutine init_tcps_errvals
 
 end module tcv_mod
