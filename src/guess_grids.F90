@@ -74,6 +74,7 @@ module guess_grids
 !                       control variable igfsco2
 !   2010-04-22  todling - remove tracers,vtid,pdryini,xncld
 !   2010-05-19  todling - add chem init and destroy (revamp Hou's implementation)
+!   2010-08-31  cucurull - add logical use_compress
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -117,6 +118,7 @@ module guess_grids
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
   public :: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg
   public :: ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
+  public :: use_compress
 
   public :: ges_initialized
   public :: tnd_initialized
@@ -130,6 +132,8 @@ module guess_grids
 
   logical:: sfcmod_gfs = .false.    ! .true. = recompute 10m wind factor using gfs physics
   logical:: sfcmod_mm5 = .false.    ! .true. = recompute 10m wind factor using mm5 physics
+
+  logical:: use_compress = .false. ! true to turn on compressibility factor in geopotential heights
 
   logical, save :: ges_initialized = .false.
   logical, save :: tnd_initialized = .false.
@@ -459,7 +463,7 @@ contains
 
 ! !USES:
 
-    use constants,only: ione,zero,one
+    use constants,only: zero,one
     use gridmod, only: lat2,lon2,nsig
     use mpeu_util, only: die, tell
     implicit none
@@ -514,12 +518,12 @@ contains
 #endif /* HAVE_ESMF */
 
 !      Allocate and zero guess grids
-       allocate ( ges_prsi(lat2,lon2,nsig+ione,nfldsig),ges_prsl(lat2,lon2,nsig,nfldsig),&
-            ges_lnprsl(lat2,lon2,nsig,nfldsig),ges_lnprsi(lat2,lon2,nsig+ione,nfldsig),&
+       allocate ( ges_prsi(lat2,lon2,nsig+1,nfldsig),ges_prsl(lat2,lon2,nsig,nfldsig),&
+            ges_lnprsl(lat2,lon2,nsig,nfldsig),ges_lnprsi(lat2,lon2,nsig+1,nfldsig),&
             ges_tsen(lat2,lon2,nsig,nfldsig),&
             ges_teta(lat2,lon2,nsig,nfldsig),&
             geop_hgtl(lat2,lon2,nsig,nfldsig), &
-            geop_hgti(lat2,lon2,nsig+ione,nfldsig),ges_prslavg(nsig),&
+            geop_hgti(lat2,lon2,nsig+1,nfldsig),ges_prslavg(nsig),&
             tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prsi,..):  allocate error1, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
@@ -534,7 +538,7 @@ contains
             istatus,lat2,lon2,nsig,nfldsig
 #endif /* HAVE_ESMF */
        if(update_pint) then
-          allocate(ges_pint(lat2,lon2,nsig+ione,nfldsig),ges_pd(lat2,lon2,nfldsig),&
+          allocate(ges_pint(lat2,lon2,nsig+1,nfldsig),ges_pd(lat2,lon2,nfldsig),&
                stat=istatus)
           if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_pint,..):  allocate error2, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
@@ -601,7 +605,7 @@ contains
                 end do
              end do
           end do
-          do k=1,nsig+ione
+          do k=1,nsig+1
              do j=1,lon2
                 do i=1,lat2
                    ges_prsi(i,j,k,n)=zero
@@ -613,7 +617,7 @@ contains
        end do
        if(update_pint) then
           do n=1,nfldsig
-             do k=1,nsig+ione
+             do k=1,nsig+1
                 do j=1,lon2
                    do i=1,lat2
                       ges_pint(i,j,k,n)=zero
@@ -632,7 +636,7 @@ contains
     
 !   If tendencies option on, allocate/initialize _ten arrays to zero
     if (.not.tnd_initialized .and. tendsflag) then
-       allocate(ges_prs_ten(lat2,lon2,nsig+ione),ges_u_ten(lat2,lon2,nsig),&
+       allocate(ges_prs_ten(lat2,lon2,nsig+1),ges_u_ten(lat2,lon2,nsig),&
                 ges_v_ten(lat2,lon2,nsig),ges_tv_ten(lat2,lon2,nsig),&
                 ges_q_ten(lat2,lon2,nsig),ges_oz_ten(lat2,lon2,nsig),&
                 ges_cwmr_ten(lat2,lon2,nsig),stat=istatus)
@@ -654,7 +658,7 @@ contains
        end do
        do j=1,lon2
           do i=1,lat2
-             ges_prs_ten(i,j,nsig+ione)=zero
+             ges_prs_ten(i,j,nsig+1)=zero
           end do
        end do
     end if
@@ -1157,7 +1161,7 @@ contains
 
 ! !USES:
 
-    use constants,only: ione,zero,one,rd_over_cp,one_tenth,half
+    use constants,only: zero,one,rd_over_cp,one_tenth,half
     use gridmod, only: lat2,lon2,nsig,ak5,bk5,ck5,tref5,idvc5,&
          regional,wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,pt_ll,aeta2_ll,&
          aeta1_ll,eta2_ll,pdtop_ll,eta1_ll,twodvar_regional,idsl5
@@ -1199,7 +1203,7 @@ contains
     kapr=one/rd_over_cp
 
     do jj=1,nfldsig
-       do k=1,nsig+ione
+       do k=1,nsig+1
           do j=1,lon2
              do i=1,lat2
                 if(regional) then
@@ -1211,15 +1215,15 @@ contains
                    if (wrf_mass_regional .or. twodvar_regional) &
                       ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j,jj)-pt_ll) + pt_ll)
                 else
-                   if (idvc5==ione .or. idvc5==2) then
+                   if (idvc5==1 .or. idvc5==2) then
                       ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j,jj))
                    else if (idvc5==3) then
-                      if (k==ione) then
+                      if (k==1) then
                          ges_prsi(i,j,k,jj)=ges_ps(i,j,jj)
-                      else if (k==nsig+ione) then
+                      else if (k==nsig+1) then
                          ges_prsi(i,j,k,jj)=zero
                       else
-                         trk=(half*(ges_tv(i,j,k-ione,jj)+ges_tv(i,j,k,jj))/tref5(k))**kapr
+                         trk=(half*(ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj))/tref5(k))**kapr
                          ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j,jj))+(ck5(k)*trk)
                       end if
                    end if
@@ -1269,8 +1273,8 @@ contains
              do j=1,lon2
                 do i=1,lat2
                    do k=1,nsig
-                      ges_prsl(i,j,k,jj)=((ges_prsi(i,j,k,jj)**kap1-ges_prsi(i,j,k+ione,jj)**kap1)/&
-                           (kap1*(ges_prsi(i,j,k,jj)-ges_prsi(i,j,k+ione,jj))))**kapr
+                      ges_prsl(i,j,k,jj)=((ges_prsi(i,j,k,jj)**kap1-ges_prsi(i,j,k+1,jj)**kap1)/&
+                           (kap1*(ges_prsi(i,j,k,jj)-ges_prsi(i,j,k+1,jj))))**kapr
                       ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
                    end do
                 end do
@@ -1283,7 +1287,7 @@ contains
              do j=1,lon2
                 do i=1,lat2
                    do k=1,nsig
-                      ges_prsl(i,j,k,jj)=(ges_prsi(i,j,k,jj)+ges_prsi(i,j,k+ione,jj))*half
+                      ges_prsl(i,j,k,jj)=(ges_prsi(i,j,k,jj)+ges_prsi(i,j,k+1,jj))*half
                       ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
                    end do
                 end do
@@ -1325,9 +1329,11 @@ contains
 
 ! !USES:
 
-    use constants, only: ione, rd, grav, half
-    use gridmod, only: lat2, lon2, nsig, &
-         twodvar_regional
+    use constants, only: one,eps, rd, grav, half, t0c, fv
+    use constants, only: cpf_a0, cpf_a1, cpf_a2, cpf_b0, cpf_b1, cpf_c0, cpf_c1, cpf_d, cpf_e
+    use constants, only: psv_a, psv_b, psv_c, psv_d
+    use constants, only: ef_alpha, ef_beta, ef_gamma
+    use gridmod, only: lat2, lon2, nsig, twodvar_regional
 
     implicit none
 
@@ -1346,6 +1352,7 @@ contains
 !                         equation (done to be consistent with Lidia
 !                         Cucurull's GPS work)
 !   2005-05-24  pondeca - add regional surface analysis option
+!   2010-08-27  cucurull - add option to compute and use compressibility factors in geopot heights
 !
 ! !REMARKS:
 !   language: f90
@@ -1359,24 +1366,137 @@ contains
 
     integer(i_kind) i,j,k,jj
     real(r_kind) h,dz,rdog
-    real(r_kind),dimension(nsig+ione):: height
+    real(r_kind),dimension(nsig+1):: height
+    real(r_kind) cmpr, x_v, rl_hm, fact, pw, tmp_K, tmp_C, prs_sv, prs_a, ehn_fct, prs_v
+    real(r_kind),parameter:: thousand = 1000.0_r_kind
 
     if (twodvar_regional) return
 
-!   Compute geopotential height at midpoint of each layer
     rdog = rd/grav
+
+    if (use_compress) then
+
+!     Compute compressibility factor (Picard et al 2008) and geopotential heights at midpoint 
+!     of each layer
+
+      do jj=1,nfldsig
+         do j=1,lon2
+            do i=1,lat2
+               k  = 1
+               fact    = one + fv * ges_q(i,j,k,jj)
+               pw      = eps + ges_q(i,j,k,jj)*( one - eps )
+               tmp_K   = ges_tv(i,j,k,jj) / fact
+               tmp_C   = tmp_K - t0c
+               prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! Pvap sat, eq A1.1 (Pa)
+               prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k,jj)) + log(ges_prsl(i,j,k,jj))))     ! (Pa) 
+               ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
+               prs_v   = ges_q(i,j,k,jj) * prs_a / pw   ! vapor pressure (Pa)
+               rl_hm   = prs_v / prs_sv    ! relative humidity
+               x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
+
+               ! Compressibility factor (eq A1.4 from Picard et al 2008)
+               cmpr = one - (prs_a/tmp_K) * (cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
+                          + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
+                          + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
+                         
+               h  = rdog * ges_tv(i,j,k,jj)
+               dz = h * cmpr * log(ges_prsi(i,j,k,jj)/ges_prsl(i,j,k,jj))
+               height(k) = ges_z(i,j,jj) + dz   
+              
+               do k=2,nsig
+                   fact    = one + fv * half * (ges_q(i,j,k-1,jj)+ges_q(i,j,k,jj))
+                   pw      = eps + half * (ges_q(i,j,k-1,jj)+ges_q(i,j,k,jj)) * (one - eps)
+                   tmp_K   = half * (ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj)) / fact
+                   tmp_C   = tmp_K - t0c
+                   prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! eq A1.1 (Pa)
+                   prs_a   = thousand * exp(half*(log(ges_prsl(i,j,k-1,jj))+log(ges_prsl(i,j,k,jj))))   ! (Pa)
+                   ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
+                   prs_v   = half*(ges_q(i,j,k-1,jj)+ges_q(i,j,k,jj) ) * prs_a / pw   ! (Pa)
+                   rl_hm   = prs_v / prs_sv    ! relative humidity
+                   x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
+                   cmpr    = one - (prs_a/tmp_K) * ( cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
+                             + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
+                             + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
+                   h       = rdog * half * (ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj))
+                   dz      = h * cmpr * log(ges_prsl(i,j,k-1,jj)/ges_prsl(i,j,k,jj))
+                   height(k) = height(k-1) + dz
+               end do
+
+               do k=1,nsig
+                  geop_hgtl(i,j,k,jj)=height(k) - ges_z(i,j,jj)
+               end do
+             enddo
+          enddo
+      enddo
+
+!     Compute compressibility factor (Picard et al 2008) and geopotential heights at interface
+!     between layers
+
+      do jj=1,nfldsig
+         do j=1,lon2
+            do i=1,lat2
+               k=1
+               height(k) = ges_z(i,j,jj)
+
+               do k=2,nsig
+                  fact    = one + fv * ges_q(i,j,k-1,jj)
+                  pw      = eps + ges_q(i,j,k-1,jj)*(one - eps)
+                  tmp_K   = ges_tv(i,j,k-1,jj) / fact
+                  tmp_C   = tmp_K - t0c
+                  prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! eq A1.1 (Pa)
+                  prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k-1,jj))+log(ges_prsi(i,j,k,jj)))) 
+                  ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
+                  prs_v   = ges_q(i,j,k-1,jj) * prs_a / pw   ! vapor pressure (Pa)
+                  rl_hm   = prs_v / prs_sv    ! relative humidity
+                  x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
+                  cmpr    = one - (prs_a/tmp_K) * ( cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
+                           + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
+                           + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
+                  h       = rdog * ges_tv(i,j,k-1,jj)
+                  dz      = h * cmpr * log(ges_prsi(i,j,k-1,jj)/ges_prsi(i,j,k,jj))
+                  height(k) = height(k-1) + dz
+               enddo
+
+               k=nsig+1
+               fact    = one + fv* ges_q(i,j,k-1,jj)
+               pw      = eps + ges_q(i,j,k-1,jj)*(one - eps)
+               tmp_K   = ges_tv(i,j,k-1,jj) / fact
+               tmp_C   = tmp_K - t0c
+               prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! eq A1.1 (Pa)
+               prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k-1,jj))+log(ges_prsl(i,j,k-1,jj))))     ! (Pa)
+               ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
+               prs_v   = ges_q(i,j,k-1,jj) * prs_a / pw  
+               rl_hm   = prs_v / prs_sv    ! relative humidity
+               x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
+               cmpr    = one - (prs_a/tmp_K) * ( cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
+                         + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
+                         + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
+               h       = rdog * ges_tv(i,j,k-1,jj)
+               dz      = h * cmpr * log(ges_prsi(i,j,k-1,jj)/ges_prsl(i,j,k-1,jj))
+               height(k) = height(k-1) + dz
+
+               do k=1,nsig+1
+                  geop_hgti(i,j,k,jj)=height(k) - ges_z(i,j,jj)
+               end do
+            enddo
+          enddo
+      enddo
+
+    else
+
+!   Compute geopotential height at midpoint of each layer
     do jj=1,nfldsig
        do j=1,lon2
           do i=1,lat2
-             k  = ione
+             k  = 1
              h  = rdog * ges_tv(i,j,k,jj)
              dz = h * log(ges_prsi(i,j,k,jj)/ges_prsl(i,j,k,jj))
              height(k) = ges_z(i,j,jj) + dz
 
              do k=2,nsig
-                h  = rdog * half * (ges_tv(i,j,k-ione,jj)+ges_tv(i,j,k,jj))
-                dz = h * log(ges_prsl(i,j,k-ione,jj)/ges_prsl(i,j,k,jj))
-                height(k) = height(k-ione) + dz
+                h  = rdog * half * (ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj))
+                dz = h * log(ges_prsl(i,j,k-1,jj)/ges_prsl(i,j,k,jj))
+                height(k) = height(k-1) + dz
              end do
 
              do k=1,nsig
@@ -1390,26 +1510,28 @@ contains
     do jj=1,nfldsig
        do j=1,lon2
           do i=1,lat2
-             k=ione
+             k=1
              height(k) = ges_z(i,j,jj)
 
              do k=2,nsig
-                h  = rdog * ges_tv(i,j,k-ione,jj)
-                dz = h * log(ges_prsi(i,j,k-ione,jj)/ges_prsi(i,j,k,jj))
-                height(k) = height(k-ione) + dz
+                h  = rdog * ges_tv(i,j,k-1,jj)
+                dz = h * log(ges_prsi(i,j,k-1,jj)/ges_prsi(i,j,k,jj))
+                height(k) = height(k-1) + dz
              end do
 
-             k=nsig+ione
-             h = rdog * ges_tv(i,j,k-ione,jj)
-             dz = h * log(ges_prsi(i,j,k-ione,jj)/ges_prsl(i,j,k-ione,jj))
-             height(k) = height(k-ione) + dz
+             k=nsig+1
+             h = rdog * ges_tv(i,j,k-1,jj)
+             dz = h * log(ges_prsi(i,j,k-1,jj)/ges_prsl(i,j,k-1,jj))
+             height(k) = height(k-1) + dz
 
-             do k=1,nsig+ione
+             do k=1,nsig+1
                 geop_hgti(i,j,k,jj)=height(k) - ges_z(i,j,jj)
              end do
           end do
        end do
     end do
+
+    endif
 
     return
   end subroutine load_geop_hgt
@@ -1427,7 +1549,7 @@ contains
 
 ! !USES:
 
-    use constants, only: ione,half
+    use constants, only: half
     use gridmod, only: nsig,msig,nlayers
     use crtm_parameters, only: toa_pressure
 
@@ -1436,10 +1558,10 @@ contains
 ! !INPUT PARAMETERS:
     integer(i_kind),dimension(msig)     ,intent(  out) :: klevel
 
-    real(r_kind)   ,dimension(nsig+ione),intent(in   ) :: prsitmp
+    real(r_kind)   ,dimension(nsig+1),intent(in   ) :: prsitmp
     real(r_kind)   ,dimension(nsig)     ,intent(in   ) :: prsltmp
 
-    real(r_kind)   ,dimension(msig+ione),intent(  out) :: prsitmp_ext
+    real(r_kind)   ,dimension(msig+1),intent(  out) :: prsitmp_ext
     real(r_kind)   ,dimension(msig)     ,intent(  out) :: prsltmp_ext
 
 
@@ -1477,29 +1599,29 @@ contains
 !   Linear in pressure sub-divsions
     kk=0
     do k = 1,nsig
-       if (nlayers(k)<=ione) then
-          kk = kk + ione
+       if (nlayers(k)<=1) then
+          kk = kk + 1
           prsltmp_ext(kk) = prsltmp(k)
           prsitmp_ext(kk) = prsitmp(k)
           klevel(kk) = k
        else
           if (k/=nsig) then
-             dprs = (prsitmp(k+ione)-prsitmp(k))/nlayers(k)
+             dprs = (prsitmp(k+1)-prsitmp(k))/nlayers(k)
           else
              dprs = (toa_pressure-prsitmp(k))/nlayers(k)
           end if
-          prsitmp_ext(kk+ione) = prsitmp(k)
+          prsitmp_ext(kk+1) = prsitmp(k)
           do l=1,nlayers(k)
-             kk=kk + ione
-             prsitmp_ext(kk+ione) = prsitmp(k) + dprs*l
-             prsltmp_ext(kk) = half*(prsitmp_ext(kk+ione)+prsitmp_ext(kk))
+             kk=kk + 1
+             prsitmp_ext(kk+1) = prsitmp(k) + dprs*l
+             prsltmp_ext(kk) = half*(prsitmp_ext(kk+1)+prsitmp_ext(kk))
              klevel(kk) = k
           end do
        endif
     end do
 
 !   Set top of atmosphere pressure
-    prsitmp_ext(msig+ione) = toa_pressure
+    prsitmp_ext(msig+1) = toa_pressure
 
   end subroutine add_rtm_layers
 
@@ -1516,7 +1638,6 @@ contains
 
 ! !USES:
 
-    use constants, only: ione
     use gridmod, only: lat2,lon2
     implicit none
 
@@ -1544,10 +1665,10 @@ contains
     real(r_kind):: u10ges,v10ges,t2ges,q2ges
 
     nt=0
-    indx=ione
+    indx=1
     do i=1,nfldsfc
        if(abs(hrdifsfc(i)-hrdifsig(i))<0.001_r_kind) then
-          nt=nt+ione
+          nt=nt+1
           indx(nt) = i
        endif
     end do
@@ -1612,7 +1733,7 @@ contains
 
     use gridmod, only: nlat,nlon,&
          lon1,istart,jstart
-    use constants, only: ione,zero,one
+    use constants, only: zero,one
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -1651,14 +1772,14 @@ contains
 
     islimsk2=islimsk
     if(islimsk2 > 2)islimsk2=islimsk2-3
-    m1=mype+ione
+    m1=mype+1
 !   Set spatial interpolation indices and weights
     ix1=dlat
-    ix1=max(ione,min(ix1,nlat))
+    ix1=max(1,min(ix1,nlat))
     delx=dlat-ix1
     delx=max(zero,min(delx,one))
     ix=ix1-istart(m1)+2
-    ixp=ix+ione
+    ixp=ix+1
     if(ix1==nlat) then
        ixp=ix
     end if
@@ -1667,31 +1788,31 @@ contains
     iy1=dlon
     dely=dlon-iy1
     iy=iy1-jstart(m1)+2
-    if(iy<ione) then
+    if(iy<1) then
        iy1=iy1+nlon
        iy=iy1-jstart(m1)+2
     end if
-    if(iy>lon1+ione) then
+    if(iy>lon1+1) then
        iy1=iy1-nlon
        iy=iy1-jstart(m1)+2
     end if
-    iyp=iy+ione
+    iyp=iy+1
     dely1=one-dely
 
 
     w00=delx1*dely1; w10=delx*dely1; w01=delx1*dely; w11=delx*dely
 !   Get time interpolation factors for sigma files
     if(dtime > hrdifsig(1) .and. dtime < hrdifsig(nfldsig))then
-       do j=1,nfldsig-ione
-          if(dtime > hrdifsig(j) .and. dtime <= hrdifsig(j+ione))then
+       do j=1,nfldsig-1
+          if(dtime > hrdifsig(j) .and. dtime <= hrdifsig(j+1))then
              itsig=j
-             itsigp=j+ione
-             dtsig=((hrdifsig(j+ione)-dtime)/(hrdifsig(j+ione)-hrdifsig(j)))
+             itsigp=j+1
+             dtsig=((hrdifsig(j+1)-dtime)/(hrdifsig(j+1)-hrdifsig(j)))
           end if
        end do
     else if(dtime <=hrdifsig(1))then
-       itsig=ione
-       itsigp=ione
+       itsig=1
+       itsigp=1
        dtsig=one
     else
        itsig=nfldsig
@@ -1833,7 +1954,7 @@ contains
 !
 !$$$ end documentation block
 
-   use constants, only: ione,zero
+   use constants, only: zero
    use mpimod, only: ierror,mpi_rtype,mpi_sum,mpi_comm_world
    use gridmod, only: lon1,lat1,nsig
 
@@ -1846,7 +1967,7 @@ contains
 
 ! local variables
    integer(i_kind) :: i,j,k
-   real(r_kind),dimension(nsig+ione):: work_a,work_a1
+   real(r_kind),dimension(nsig+1):: work_a,work_a1
    real(r_kind),dimension(nsig):: amz ! global mean profile of a
    real(r_kind) :: rms
 
@@ -1857,21 +1978,21 @@ contains
 !  Calculate sums for a to estimate variance.
    work_a = zero
    do k = 1,nsig
-      do j = 2,lon1+ione
-         do i = 2,lat1+ione
+      do j = 2,lon1+1
+         do i = 2,lat1+1
             work_a(k) = work_a(k) + a(i,j,k)
          end do
       end do
    end do
-   work_a(nsig+ione)=float(lon1*lat1)
+   work_a(nsig+1)=float(lon1*lat1)
 
-   call mpi_allreduce(work_a,work_a1,nsig+ione,mpi_rtype,mpi_sum,&
+   call mpi_allreduce(work_a,work_a1,nsig+1,mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)
 
    amz=zero
    do k=1,nsig
-      if (work_a1(nsig+ione)>zero) amz(k)=work_a1(k)/work_a1(nsig+ione)
-      rms=sqrt(amz(k)**2/work_a1(nsig+ione))
+      if (work_a1(nsig+1)>zero) amz(k)=work_a1(k)/work_a1(nsig+1)
+      rms=sqrt(amz(k)**2/work_a1(nsig+1))
       if (mype==0) write(*,100) trim(name),k,amz(k),rms
    enddo
 100 format(a,': Level, Global mean, RMS = ',i3,1P2E16.8)
@@ -1904,7 +2025,7 @@ contains
 !
 !$$$ end documentation block
 
-   use constants, only: ione,zero
+   use constants, only: zero
    use mpimod, only: ierror,mpi_rtype,mpi_sum,mpi_comm_world
    use gridmod, only: lon1,lat1
 
@@ -1926,8 +2047,8 @@ contains
 
 !  Calculate sums for a to estimate variance.
    work_a = zero
-   do j = 2,lon1+ione
-      do i = 2,lat1+ione
+   do j = 2,lon1+1
+      do i = 2,lat1+1
          work_a(1) = work_a(1) + a(i,j)
       end do
    end do
@@ -1969,7 +2090,7 @@ contains
 !   machine:
 !
 !$$$ end documentation block
-   use constants, only: ione,zero
+   use constants, only: zero
    implicit none
 
    real(r_kind),dimension(:,:), intent(in   ) :: a      ! array var
@@ -1990,14 +2111,14 @@ contains
    do i=1,size(a,1)
       do j=1,size(a,2)
          if(a(i,j)/=amiss) then
-            cnt=cnt+ione
+            cnt=cnt+1
             avg=avg+a(i,j)
          endif
-         allcnt = allcnt+ione
+         allcnt = allcnt+1
       end do
    end do
-   avg=avg/max(ione,cnt)
-   rms=sqrt(avg*avg/max(ione,cnt))      
+   avg=avg/max(1,cnt)
+   rms=sqrt(avg*avg/max(1,cnt))      
 
    end subroutine pstats_
 

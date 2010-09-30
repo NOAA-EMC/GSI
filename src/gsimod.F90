@@ -68,10 +68,10 @@
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs
-  use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5
+  use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
-  use constants, only: izero,ione,zero,one,init_constants,init_constants_derived,three
+  use constants, only: izero,ione,zero,one,init_constants,gps_constants,init_constants_derived,three
   use fgrid2agrid_mod, only: nord_f2a,init_fgrid2agrid
   use smooth_polcarf, only: norsp,init_smooth_polcas
   use read_l2bufr_mod, only: minnum,del_azimuth,del_elev,del_range,del_time,&
@@ -172,6 +172,7 @@
 !  06-05-2010 Todling   remove as,tsfc_sdv,an_amp0 from bkgerr namelist (now in anavinfo table)
 !  08-10-2010 Wu        add nvege_type to gridopts namelist 
 !  08-24-2010 hcHuang   add diag_aero and init_aero for aerosol observations
+!  08-26-2010 Cucurull  add use_compress to setup namelist, add a call to gps_constants
 !                         
 !EOP
 !-------------------------------------------------------------------------
@@ -276,6 +277,7 @@
 !                        radiance diagnostic files
 !     lwrite_peakwt    - option to writ out the approximate pressure of the peak of the weighting function
 !                        for satellite data to the radiance diagnostic files
+!     use_compress - option to turn on the use of compressibility factors in geopotential heights
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -290,7 +292,7 @@
        npred_conv_max,&
        id_bias_ps,id_bias_t,id_bias_spd, &
        conv_bias_ps,conv_bias_t,conv_bias_spd, &
-       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,&
+       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,use_compress,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path, &
        berror_stats, &
@@ -898,6 +900,7 @@
 
 ! Initialize variables, create/initialize arrays
   call init_constants(regional)
+  call gps_constants(use_compress)
   call init_reg_glob_ll(mype,lendian_in)
   call init_grid_vars(jcap,npe,cvars3d,cvars2d,nrf_var,mype)
   call init_mpi_vars(nsig,mype,nsig1o,nnnn1o,nrf,nvars,nrf_3d,vlevs)
