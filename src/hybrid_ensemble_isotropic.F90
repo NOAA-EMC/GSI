@@ -971,11 +971,7 @@ end subroutine normal_new_factorization_rf_y
              call stop2(999)
           endif
 
-#ifdef _DEBUG_
-          call generate_one_ensemble_perturbation0(bundle_ens,seed)
-#else
           call generate_one_ensemble_perturbation(bundle_anl,bundle_ens,seed)
-#endif
 
           ! do some cleanning
           call gsi_bundledestroy(bundle_anl,istatus)
@@ -1060,8 +1056,9 @@ end subroutine normal_new_factorization_rf_y
       if (.not.regional) then
         call get_gefs_ensperts_dualres
       else
-        if (mype==0) write(6,*) 'READING OF ACTUAL ENSEMBLE PERTS NOT AVAILABLE FOR NON-GFS RUN, PROGRAM STOP!'
-        call stop2(999)
+        if (mype==0) write(6,*) 'READING OF ACTUAL ENSEMBLE PERTS FOR WRF ARW REGIONAL!'
+! APM addition
+        call get_wrf_mass_ensperts_netcdf
       end if
 
     end if
@@ -1194,39 +1191,6 @@ end subroutine normal_new_factorization_rf_y
 
 
   end subroutine generate_one_ensemble_perturbation
-
-  subroutine generate_one_ensemble_perturbation0(bundle,seed)  ! for debug only
-! RTodling: this is for debug only - something's not correct in ckgcov (not
-! possible that it works in the context above ...
-  use mpimod,only:mype
-  use constants,only:two,one
-  implicit none 
-  type(gsi_bundle),intent(inout):: bundle
-  real(r_kind)    ,intent(inout) :: seed(nval2f,nscl)
-  real(r_kind),allocatable,dimension(:)   :: zz
-  integer(i_kind) jj,ii,iseed
-  integer(i_kind),allocatable:: nseed(:)
-
-print*, 'Hack random pert'
-iseed=12345
-call random_seed(size=jj)
-allocate(nseed(jj))
-nseed(1:jj)=iseed
-! The following because we don't want all procs to get
-! exactly the same sequence (which would be repeated in
-! the then not so random vector) but it makes the test
-! not reproducible if the number of procs is changed.
-nseed(1)=iseed+mype
-call random_seed(put=nseed)
-deallocate(nseed)
-allocate(zz(bundle%ndim))
-call random_number(zz)
-do ii=1,bundle%ndim
-   bundle%values(ii) = two*zz(ii)-one
-enddo
-deallocate(zz)
-
-  end subroutine generate_one_ensemble_perturbation0
 
   subroutine fix_belt(z)
 !$$$  subprogram documentation block
@@ -2784,7 +2748,7 @@ subroutine hybens_grid_setup
   implicit none
 
   integer(i_kind) inner_vars,num_fields
-  integer(i_kind) nord_e2a,k
+  integer(i_kind) nord_e2a
   logical,allocatable::vector(:)
 
              nord_e2a=4       !   soon, move this to hybrid_ensemble_parameters
@@ -2792,9 +2756,13 @@ subroutine hybens_grid_setup
   if(aniso_a_en) then
      if(mype == 0) write(6,*)' anisotropic option not available yet for hybrid ensemble localization'
      if(mype >  -10) then
-        call mpi_finalize(ierror)
+        call stop2(999)
         stop
      end if
+  end if
+
+  if(nlon_ens<=0 .or. nlat_ens<=0) then
+     nlon_ens=nlon ; nlat_ens=nlat
   end if
 
   dual_res = (nlon /= nlon_ens .or. nlat /= nlat_ens)
@@ -2805,11 +2773,11 @@ subroutine hybens_grid_setup
   allocate(vector(num_fields))
   vector=.false.
   call general_sub2grid_create_info(grd_loc,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,regional,vector)
-  num_fields=6*nsig+2
+  num_fields=6*nsig+2     !??? need to fix this based on control vector info ???!
   deallocate(vector)
   allocate(vector(num_fields))
   vector=.false.
-  vector(1:2*nsig)=uv_hyb_ens     !  assume here that 1st two 3d variables are either u,v or psi,chi
+  vector(1:2*nsig)=uv_hyb_ens     !??? need to fix this based on control vector info ???!
   call general_sub2grid_create_info(grd_ens,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,regional,vector)
   call general_sub2grid_create_info(grd_anl,inner_vars,nlat,nlon,nsig,num_fields,regional,vector)
   deallocate(vector)
@@ -2819,13 +2787,19 @@ subroutine hybens_grid_setup
   call general_sub2grid_create_info(grd_e1,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,regional,vector)
   call general_sub2grid_create_info(grd_a1,inner_vars,nlat,nlon,nsig,num_fields,regional,vector)
   deallocate(vector)
-  if(jcap_ens /= 0) call general_init_spec_vars(sp_ens,jcap_ens,jcap_ens_test,grd_ens%nlat,grd_ens%nlon)
-  if(regional) then
-     write(6,*)' not ready for dual-res regional hybrid yet, program stops'
-     call mpi_finalize(ierror)
-  else
+
+!    setup dual-resolution feature, if needed
+
+  if(.not.regional) then
+     call general_init_spec_vars(sp_ens,jcap_ens,jcap_ens_test,grd_ens%nlat,grd_ens%nlon)
      call g_create_egrid2agrid(nlat,rlats,nlon,rlons,grd_ens%nlat,sp_ens%rlats,grd_ens%nlon,sp_ens%rlons, &
                                nord_e2a,p_e2a)
+  else
+     if(dual_res) then
+        write(6,*)' not ready for dual-res regional hybrid yet, program stops'
+        write(0,*)' not ready for dual-res regional hybrid yet, program stops'
+        call stop2(999)
+     end if
   end if
 
   return

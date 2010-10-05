@@ -51,6 +51,16 @@ module gridmod
 !                         vectosub, reload, and strip_periodic from mpimod to gridmod
 !   2010-07-19  lueken  - make required changes to use general_deter_subdomain
 !   2010-08-10  wu      - add number of types of vegetation for regional: nvege_type
+!   2010-09-08  parrish - introduce new more robust method for computing reference wind rotation angle
+!                           field, as represented on the analysis grid by cos_beta_ref and sin_beta_ref.
+!                           This corrects an error in the reference angle for analysis grids in the
+!                           tropics or southern hemisphere.
+!   2010-09-08  parrish - remove subroutine check_rotate_wind.  This was a debug routine introduced when
+!                           the reference wind rotation angle was stored as an angle, beta_ref.  This field
+!                           had a discontinuity at the date line (180E), which resulted in erroneous wind
+!                           rotation angles for a small number of winds whose rotation angle was interpolated
+!                           from beta_ref values across the discontinuity.  This was fixed by replacing the
+!                           beta_ref field with cos_beta_ref, sin_beta_ref.
 !
 !
 ! !AUTHOR: 
@@ -84,7 +94,6 @@ module gridmod
   public :: filluv_ns
   public :: get_ij
   public :: get_ijk
-  public :: check_rotate_wind
   public :: reorder
   public :: reorder2
   public :: strip_single
@@ -267,13 +276,9 @@ module gridmod
   real(r_kind) btilde_xinv,btilde_yinv
   integer(i_kind) nxtilde,nytilde
   real(r_kind),allocatable::xtilde0(:,:),ytilde0(:,:)
-  real(r_kind),allocatable::beta_ref(:,:),cos_beta_ref(:,:),sin_beta_ref(:,:)
+  real(r_kind),allocatable::cos_beta_ref(:,:),sin_beta_ref(:,:)
   integer(i_kind),allocatable::i0_tilde(:,:),j0_tilde(:,:)
   integer(i_byte),allocatable::ip_tilde(:,:),jp_tilde(:,:)
-!----------temporary variables to keep track of number of observations falling in beta_ref jump zone
-  real(r_kind):: count_beta_diff,count_beta_diff_gt_20
-  real(r_kind) beta_diff_max,beta_diff_min,beta_diff_rms
-  real(r_kind) beta_diff_max_gt_20
 
 ! Define structure to hold NCEP sigio/gfsio header information
   type:: ncepgfs_head
@@ -821,7 +826,7 @@ contains
 ! !USES:
 
     use constants, only: izero,ione,zero, one, three, deg2rad,pi,half, two,r0_01
-    use mod_nmmb_to_a, only: init_nmmb_to_a,nxa,nya,nmmb_h_to_a
+    use mod_nmmb_to_a, only: init_nmmb_to_a,nxa,nya,nmmb_h_to_a8
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -881,6 +886,7 @@ contains
     real(r_single),allocatable:: deta1(:),aeta1(:),eta1(:),deta2(:),aeta2(:),eta2(:)
     real(r_single) dlmd,dphd
     real(r_single),allocatable:: glat(:,:),glon(:,:)
+    real(r_kind),allocatable:: glat8(:,:),glon8(:,:)
     real(r_single),allocatable:: dx_nmm(:,:),dy_nmm(:,:)
     real(r_single),allocatable:: dx_mc(:,:),dy_mc(:,:)
 
@@ -892,11 +898,9 @@ contains
     real(r_kind),allocatable::glat_an(:,:),glon_an(:,:)
     real(r_kind),allocatable:: dx_an(:,:),dy_an(:,:)
     character(6) filename
-    integer(i_kind) ihr
+    integer(i_kind) ihr,i0,j0
     real(r_kind),allocatable::gxtemp(:,:),gytemp(:,:)
-    real(r_single),allocatable::gxtemp4(:,:),gytemp4(:,:)
     real(r_kind),allocatable::gxtemp_an(:,:),gytemp_an(:,:)
-    real(r_kind) rtemp
 
     if(.not.regional) then
 ! This is global run
@@ -1044,32 +1048,31 @@ contains
        if(filled_grid) then
           allocate(gxtemp(nlon_regional,nlat_regional))
           allocate(gytemp(nlon_regional,nlat_regional))
+          allocate(glon8(nlon_regional,nlat_regional))
+          allocate(glat8(nlon_regional,nlat_regional))
+          glon8=glon
+          glat8=glat
+          i0=nlon_regional/2
+          j0=nlat_regional/2
+          call ll2rpolar(glat8,glon8,nlon_regional*nlat_regional, &
+                         gxtemp,gytemp,glat8(i0,j0),glon8(i0,j0),zero)
           allocate(gxtemp_an(nlon,nlat))
           allocate(gytemp_an(nlon,nlat))
-          sign_pole=-one
-          pihalf=half*pi
-          if(maxval(glat)/deg2rad<zero) sign_pole=one
-          do j=1,nlat_regional
-             do i=1,nlon_regional
-                rtemp=pihalf+sign_pole*glat(i,j)
-                gxtemp(i,j)=rtemp*cos(one*glon(i,j))
-                gytemp(i,j)=rtemp*sin(one*glon(i,j))
-             end do
-          end do
           call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,gxtemp_an)
           call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,gytemp_an)
-          do j=1,nlat
-             do i=1,nlon
-                rtemp=sqrt(gxtemp_an(i,j)**2+gytemp_an(i,j)**2)
-                glat_an(i,j)=sign_pole*(rtemp-pihalf)
-                glon_an(i,j)=atan2(gytemp_an(i,j),gxtemp_an(i,j))
+          call rpolar2ll(gxtemp_an,gytemp_an,nlon*nlat, &
+                         region_lat,region_lon,glat8(i0,j0),glon8(i0,j0),zero)
+          do k=1,nlon
+             do i=1,nlat
+                glat_an(k,i)=region_lat(i,k)
+                glon_an(k,i)=region_lon(i,k)
              end do
           end do
           gxtemp=dx_nmm
           gytemp=dy_nmm
           call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,dx_an)
           call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,dy_an)
-          deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an)
+          deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an,glon8,glat8)
        end if
 
        do k=1,nlon
@@ -1331,41 +1334,38 @@ contains
        allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
        allocate(dx_an(nlat,nlon),dy_an(nlat,nlon))
  
-       allocate(gxtemp4(nlon_regional,nlat_regional))
-       allocate(gytemp4(nlon_regional,nlat_regional))
+       allocate(gxtemp(nlon_regional,nlat_regional))
+       allocate(gytemp(nlon_regional,nlat_regional))
        allocate(gxtemp_an(nlat,nlon))
        allocate(gytemp_an(nlat,nlon))
-       sign_pole=-one
-       pihalf=half*pi
-       if(maxval(glat)/deg2rad<zero) sign_pole=one
-       do j=1,nlat_regional
-          do i=1,nlon_regional
-             rtemp=pihalf+sign_pole*glat(i,j)
-             gxtemp4(i,j)=rtemp*cos(one*glon(i,j))
-             gytemp4(i,j)=rtemp*sin(one*glon(i,j))
+       allocate(glon8(nlon_regional,nlat_regional))
+       allocate(glat8(nlon_regional,nlat_regional))
+       glon8=glon
+       glat8=glat
+       i0=nlon_regional/2
+       j0=nlat_regional/2
+       call ll2rpolar(glat8,glon8,nlon_regional*nlat_regional, &
+                      gxtemp,gytemp,glat8(i0,j0),glon8(i0,j0),zero)
+       call nmmb_h_to_a8(gxtemp,gxtemp_an)
+       call nmmb_h_to_a8(gytemp,gytemp_an)
+       call rpolar2ll(gxtemp_an,gytemp_an,nlon*nlat, &
+                      region_lat,region_lon,glat8(i0,j0),glon8(i0,j0),zero)
+       do k=1,nlon
+          do i=1,nlat
+             glat_an(k,i)=region_lat(i,k)
+             glon_an(k,i)=region_lon(i,k)
           end do
        end do
-       call nmmb_h_to_a(gxtemp4,gxtemp_an)
-       call nmmb_h_to_a(gytemp4,gytemp_an)
-       do i=1,nlon
-          do j=1,nlat
-             rtemp=sqrt(gxtemp_an(j,i)**2+gytemp_an(j,i)**2)
-             glat_an(i,j)=sign_pole*(rtemp-pihalf)
-             glon_an(i,j)=atan2(gytemp_an(j,i),gxtemp_an(j,i))
-          end do
-       end do
-       gxtemp4=dx_nmm
-       gytemp4=dy_nmm
-       call nmmb_h_to_a(gxtemp4,dx_an)
-       call nmmb_h_to_a(gytemp4,dy_an)
+       gxtemp=dx_nmm
+       gytemp=dy_nmm
+       call nmmb_h_to_a8(gxtemp,dx_an)
+       call nmmb_h_to_a8(gytemp,dy_an)
        dx_an=grid_ratio_nmmb*dx_an
        dy_an=grid_ratio_nmmb*dy_an
-       deallocate(gxtemp4,gytemp4,gxtemp_an,gytemp_an)
+       deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an,glon8,glat8)
 
        do k=1,nlon
           do i=1,nlat
-             region_lat(i,k)=glat_an(k,i)
-             region_lon(i,k)=glon_an(k,i)
              region_dy(i,k)=dy_an(i,k)
              region_dx(i,k)=dx_an(i,k)
              region_dyi(i,k)=one/dy_an(i,k)
@@ -1497,12 +1497,18 @@ contains
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_general_transform
-!   prgmmr:
+!   prgmmr:  parrish
 !
-! abstract:
+! abstract:  set up constants to allow conversion between earth lat lon and analysis grid units.
+!     There is no need to specify details of the analysis grid projection.  All that is required
+!     is the earth latitude and longitude in radians of each analysis grid point.
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2010-09-08  parrish - replace computation of wind rotation reference angle cos_beta_ref,sin_beta_ref
+!                          with new, more accurate and robust version which works for any orientation
+!                          of the analysis grid on the sphere (only restriction for now is that
+!                          x-y coordinate of analysis grid is right handed).
 !
 !   input argument list:
 !    glons,glats - lons,lats of input grid points of dimesion nlon,nlat
@@ -1516,7 +1522,7 @@ contains
 !
 !$$$ end documentation block
 
-  use constants, only: izero,ione,zero,one,half,pi,deg2rad,two,r0_01
+  use constants, only: izero,ione,zero,one,half,pi
   implicit none
 
   real(r_kind)   ,intent(in   ) :: glats(nlon,nlat),glons(nlon,nlat)
@@ -1526,15 +1532,20 @@ contains
   real(r_kind) xbar_min,xbar_max,ybar_min,ybar_max
   real(r_kind) clon,slon,r_of_lat,xbar,ybar
   integer(i_kind) i,j,istart0,iend,iinc,itemp,ilast,jlast
-  real(r_kind) cosalpha,sinalpha,denom,epslon,r0,r1,x0,x1,x2,y0,y1,y2
-  integer(i_kind) ip
+  real(r_kind),allocatable:: clata(:,:),slata(:,:),clona(:,:),slona(:,:)
+  real(r_kind) clat0,slat0,clon0,slon0
+  real(r_kind) clat_m1,slat_m1,clon_m1,slon_m1
+  real(r_kind) clat_p1,slat_p1,clon_p1,slon_p1
+  real(r_kind) x,y,z,xt,yt,zt,xb,yb,zb
+  real(r_kind) rlonb_m1,clonb_m1,slonb_m1
+  real(r_kind) rlonb_p1,clonb_p1,slonb_p1
+  real(r_kind) crot,srot
 
   pihalf=half*pi
 
 !  define xtilde, ytilde grid, transform
 
 !      glons,glats are lons, lats of input grid points of dimension nlon,nlat
-  if(mype==izero) write(6,*)' at  1 in init_general_transform'
   call get_xytilde_domain(nlon,nlat,glons,glats,nxtilde,nytilde, &
                    xbar_min,xbar_max,ybar_min,ybar_max)
   allocate(i0_tilde(nxtilde,nytilde),j0_tilde(nxtilde,nytilde))
@@ -1581,52 +1592,104 @@ contains
      end do
   end do
 
-!  now compute beta_ref, used in alpha = beta_ref + sign_pole*earth_lon, and alpha is 
-!   angle between earth positive east and grid positive x.  This is needed
-!   for rotation of u,v from earth to grid coordinate.
-  allocate(beta_ref(nlon,nlat),cos_beta_ref(nlon,nlat),sin_beta_ref(nlon,nlat))
-  epslon=r0_01*deg2rad
+!   new, more accurate and robust computation of cos_beta_ref and sin_beta_ref which is independent
+!     of sign_pole and works for any orientation of grid on sphere (only restriction for now is that
+!     x-y coordinate of analysis grid is right handed).
+  allocate(clata(nlon,nlat),slata(nlon,nlat),clona(nlon,nlat),slona(nlon,nlat))
+  allocate(cos_beta_ref(nlon,nlat),sin_beta_ref(nlon,nlat))
   do j=1,nlat
-     do i=1,nlon-ione
-        ip=i+ione
-        r0=two*cos(glats(i,j ))/(one-sign_pole*sin(glats(i,j )))
-        x0=r0 *cos(glons(i,j ))
-        y0=r0 *sin(glons(i,j ))
-        r1=two*cos(glats(ip,j))/(one-sign_pole*sin(glats(ip,j)))
-        x1=r1 *cos(glons(ip,j))
-        y1=r1 *sin(glons(ip,j))
-        x2=r0 *cos(glons(i,j)+epslon)
-        y2=r0 *sin(glons(i,j)+epslon)
-        denom=one/sqrt(((x1-x0)**2+(y1-y0)**2)*((x2-x0)**2+(y2-y0)**2))
-        cosalpha=((x2-x0)*(x1-x0)+(y2-y0)*(y1-y0))*denom
-        sinalpha=((x2-x0)*(y1-y0)-(y2-y0)*(x1-x0))*denom
-        beta_ref(i,j)=atan2(sinalpha,cosalpha)-sign_pole*glons(i,j)
-        cos_beta_ref(i,j)=cos(beta_ref(i,j))
-        sin_beta_ref(i,j)=sin(beta_ref(i,j))
+     do i=1,nlon
+        clata(i,j)=cos(glats(i,j))
+        slata(i,j)=sin(glats(i,j))
+        clona(i,j)=cos(glons(i,j))
+        slona(i,j)=sin(glons(i,j))
      end do
-     i=nlon
-     ip=nlon-ione
-     r0=two*cos(glats(i,j ))/(one-sign_pole*sin(glats(i,j )))
-     x0=r0 *cos(glons(i,j ))
-     y0=r0 *sin(glons(i,j ))
-     r1=two*cos(glats(ip,j))/(one-sign_pole*sin(glats(ip,j)))
-     x1=r1 *cos(glons(ip,j))
-     y1=r1 *sin(glons(ip,j))
-     x2=r0 *cos(glons(i,j)-epslon)
-     y2=r0 *sin(glons(i,j)-epslon)
-     denom=one/sqrt(((x1-x0)**2+(y1-y0)**2)*((x2-x0)**2+(y2-y0)**2))
-     cosalpha=((x2-x0)*(x1-x0)+(y2-y0)*(y1-y0))*denom
-     sinalpha=((x2-x0)*(y1-y0)-(y2-y0)*(x1-x0))*denom
-     beta_ref(i,j)=atan2(sinalpha,cosalpha)-sign_pole*glons(i,j)
-     cos_beta_ref(i,j)=cos(beta_ref(i,j))
-     sin_beta_ref(i,j)=sin(beta_ref(i,j))
   end do
-  beta_diff_max=-rbig
-  beta_diff_max_gt_20=-rbig
-  beta_diff_min= rbig
-  beta_diff_rms=zero
-  count_beta_diff=zero
-  count_beta_diff_gt_20=zero
+  do j=1,nlat
+     do i=2,nlon-1
+
+!     do all interior lon points to 2nd order accuracy
+
+!   transform so pole is at rlat0,rlon0 and 0 meridian is tangent to earth latitude at rlat0,rlon0.
+
+        clat0=clata(i,j) ; slat0=slata(i,j) ; clon0=clona(i,j) ; slon0=slona(i,j)
+
+!    now obtain new coordinates for m1 and p1 points.
+
+        clat_m1=clata(i-1,j) ; slat_m1=slata(i-1,j) ; clon_m1=clona(i-1,j) ; slon_m1=slona(i-1,j)
+        clat_p1=clata(i+1,j) ; slat_p1=slata(i+1,j) ; clon_p1=clona(i+1,j) ; slon_p1=slona(i+1,j)
+
+        x=clat_m1*clon_m1 ; y=clat_m1*slon_m1 ; z=slat_m1
+        xt=x*clon0+y*slon0 ; yt=-x*slon0+y*clon0 ; zt=z
+        yb=zt*clat0-xt*slat0
+        xb=yt
+        zb=xt*clat0+zt*slat0
+
+        rlonb_m1=atan2(-yb,-xb)   !  the minus signs here are so line for m1 is directed same
+        clonb_m1=cos(rlonb_m1)
+        slonb_m1=sin(rlonb_m1)
+
+        x=clat_p1*clon_p1 ; y=clat_p1*slon_p1 ; z=slat_p1
+        xt=x*clon0+y*slon0 ; yt=-x*slon0+y*clon0 ; zt=z
+        yb=zt*clat0-xt*slat0
+        xb=yt
+        zb=xt*clat0+zt*slat0
+        rlonb_p1=atan2(yb,xb)
+        clonb_p1=cos(rlonb_p1)
+        slonb_p1=sin(rlonb_p1)
+        crot=half*(clonb_m1+clonb_p1)
+        srot=half*(slonb_m1+slonb_p1)
+        cos_beta_ref(i,j)=crot*clon0-srot*slon0
+        sin_beta_ref(i,j)=srot*clon0+crot*slon0
+     end do
+!               now do i=1 and i=nlon at 1st order accuracy
+     i=1
+
+!   transform so pole is at rlat0,rlon0 and 0 meridian is tangent to earth latitude at rlat0,rlon0.
+
+        clat0=clata(i,j) ; slat0=slata(i,j) ; clon0=clona(i,j) ; slon0=slona(i,j)
+!    now obtain new coordinates for m1 and p1 points.
+
+        clat_p1=clata(i+1,j) ; slat_p1=slata(i+1,j) ; clon_p1=clona(i+1,j) ; slon_p1=slona(i+1,j)
+
+        x=clat_p1*clon_p1 ; y=clat_p1*slon_p1 ; z=slat_p1
+        xt=x*clon0+y*slon0 ; yt=-x*slon0+y*clon0 ; zt=z
+        yb=zt*clat0-xt*slat0
+        xb=yt
+        zb=xt*clat0+zt*slat0
+        rlonb_p1=atan2(yb,xb)
+        clonb_p1=cos(rlonb_p1)
+        slonb_p1=sin(rlonb_p1)
+        crot=clonb_p1
+        srot=slonb_p1
+        cos_beta_ref(i,j)=crot*clon0-srot*slon0
+        sin_beta_ref(i,j)=srot*clon0+crot*slon0
+
+     i=nlon
+
+!   transform so pole is at rlat0,rlon0 and 0 meridian is tangent to earth latitude at rlat0,rlon0.
+
+        clat0=clata(i,j) ; slat0=slata(i,j) ; clon0=clona(i,j) ; slon0=slona(i,j)
+
+!    now obtain new coordinates for m1 and p1 points.
+
+        clat_m1=clata(i-1,j) ; slat_m1=slata(i-1,j) ; clon_m1=clona(i-1,j) ; slon_m1=slona(i-1,j)
+
+        x=clat_m1*clon_m1 ; y=clat_m1*slon_m1 ; z=slat_m1
+        xt=x*clon0+y*slon0 ; yt=-x*slon0+y*clon0 ; zt=z
+        yb=zt*clat0-xt*slat0
+        xb=yt
+        zb=xt*clat0+zt*slat0
+
+        rlonb_m1=atan2(-yb,-xb)   !  the minus signs here are so line for m1 is directed same
+        clonb_m1=cos(rlonb_m1)
+        slonb_m1=sin(rlonb_m1)
+
+        crot=clonb_m1
+        srot=slonb_m1
+        cos_beta_ref(i,j)=crot*clon0-srot*slon0
+        sin_beta_ref(i,j)=srot*clon0+crot*slon0
+  end do
 
 end subroutine init_general_transform
 
@@ -1988,6 +2051,7 @@ end subroutine init_general_transform
   if(rlats0min>-r37*deg2rad) sign_pole=-one   !  northern hemisphere xy domain
   if(rlats0max< r37*deg2rad) sign_pole= one   !  southern hemisphere xy domain
 
+
 !   get optimum rotation angle rlambda0
 
   areamin= huge(areamin)
@@ -2340,6 +2404,9 @@ end subroutine init_general_transform
 !   2003-09-30  parrish
 !   2004-05-13  kleist, documentation
 !   2004-07-15  todling, protex-compliant prologue
+!   2010-09-08  parrish, remove sign_pole variable--no longer needed, due to more accurate and
+!                 robust computation of reference wind rotation angle defined by
+!                 cos_beta_ref, sin_beta_ref.
 !
 ! !REMARKS:
 !   language: f90
@@ -2352,8 +2419,8 @@ end subroutine init_general_transform
 !-------------------------------------------------------------------------
 
   real(r_kind) beta,delx,delxp,dely,delyp
-  real(r_kind) beta_old,two_pi,sin_beta,cos_beta,thisdiff
-  integer(i_kind) ix,iy,k
+  real(r_kind) sin_beta,cos_beta
+  integer(i_kind) ix,iy
 
 !  interpolate departure from longitude part of angle between earth positive east and local positive x
 
@@ -2365,32 +2432,16 @@ end subroutine init_general_transform
   dely=y-iy
   delxp=one-delx
   delyp=one-dely
-  beta_old=    beta_ref(ix  ,iy     )*delxp*delyp+    beta_ref(ix+ione,iy     )*delx *delyp+ &
-               beta_ref(ix  ,iy+ione)*delxp*dely +    beta_ref(ix+ione,iy+ione)*delx *dely
   cos_beta=cos_beta_ref(ix  ,iy     )*delxp*delyp+cos_beta_ref(ix+ione,iy     )*delx *delyp+ &
            cos_beta_ref(ix  ,iy+ione)*delxp*dely +cos_beta_ref(ix+ione,iy+ione)*delx *dely
   sin_beta=sin_beta_ref(ix  ,iy     )*delxp*delyp+sin_beta_ref(ix+ione,iy     )*delx *delyp+ &
            sin_beta_ref(ix  ,iy+ione)*delxp*dely +sin_beta_ref(ix+ione,iy+ione)*delx *dely
   beta=atan2(sin_beta,cos_beta)
-  thisdiff=huge(thisdiff)
-  two_pi=two*pi
-  do k=-6,6
-     thisdiff=min(abs(beta-beta_old+k*two_pi),thisdiff)
-  end do
-  if(thisdiff*rad2deg>one_tenth) then
-     count_beta_diff_gt_20=count_beta_diff_gt_20 + one
-     beta_diff_max_gt_20=max(beta_diff_max_gt_20,thisdiff)
-  else
-     beta_diff_max=max(beta_diff_max,thisdiff)
-     beta_diff_min=min(beta_diff_min,thisdiff)
-     beta_diff_rms=beta_diff_rms+thisdiff**2
-     count_beta_diff=count_beta_diff+one
-  end if
 
 !  now rotate;
 
-  u= u0*cos(beta+rlon0*sign_pole)+v0*sin(beta+rlon0*sign_pole)
-  v=-u0*sin(beta+rlon0*sign_pole)+v0*cos(beta+rlon0*sign_pole)
+  u= u0*cos(beta-rlon0)+v0*sin(beta-rlon0)
+  v=-u0*sin(beta-rlon0)+v0*cos(beta-rlon0)
 
  end subroutine rotate_wind_ll2xy
 
@@ -2428,6 +2479,9 @@ end subroutine init_general_transform
 !   2004-05-13  kleist, documentation
 !   2004-07-15  todling, protex-compliant prologue
 !   2004-07-20  todling, fixed description
+!   2010-09-08  parrish, remove sign_pole variable--no longer needed, due to more accurate and
+!                 robust computation of reference wind rotation angle defined by
+!                 cos_beta_ref, sin_beta_ref.
 !
 ! !REMARKS:
 !   language: f90
@@ -2461,8 +2515,8 @@ end subroutine init_general_transform
 
 !  now rotate;
 
-  u0= u*cos(beta+rlon0*sign_pole)-v*sin(beta+rlon0*sign_pole)
-  v0= u*sin(beta+rlon0*sign_pole)+v*cos(beta+rlon0*sign_pole)
+  u0= u*cos(beta-rlon0)-v*sin(beta-rlon0)
+  v0= u*sin(beta-rlon0)+v*cos(beta-rlon0)
 
  end subroutine rotate_wind_xy2ll
 
@@ -2943,47 +2997,6 @@ end subroutine init_general_transform
    return
  end subroutine get_ijk
 
-
- subroutine check_rotate_wind(string)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    check_rotate_wind
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-04  lueken - added subprogram doc block
-!
-!   input argument list:
-!    string
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block 
-
-   use constants, only: zero,one,rad2deg
-   implicit none
-
-   character(len=*),intent(in   ) :: string
-
-   if(count_beta_diff>zero.or.count_beta_diff_gt_20>zero) then
-      beta_diff_rms=sqrt(beta_diff_rms/(max(one,count_beta_diff)))
-      write(6,*)'CHECK_ROTATE_WIND:  called from routine ',trim(string)
-      write(6,100) beta_diff_max*rad2deg, beta_diff_min*rad2deg, beta_diff_rms*rad2deg
-      write(6,110) count_beta_diff, count_beta_diff_gt_20
-      write(6,115) beta_diff_max_gt_20*rad2deg
-100   format('   beta_diff_mass,min,rms(deg)          = ',3(g18.12,2x))
-110   format('   count_beta_diff,count_beta_diff_gt_20= ',2(g18.12,2x))
-115   format('   beta_diff_max_gt_20(deg)             = ',g18.12)
-   end if
- end subroutine check_rotate_wind
-
-
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
@@ -3456,3 +3469,155 @@ end subroutine reload
   end subroutine strip_periodic
 
 end module gridmod
+
+  subroutine ll2rpolar(rlat,rlon,n,x_rpolar,y_rpolar,rlat0,rlon0,rotate3)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    ll2rpolar  convert earth lat-lon to rotated polar stereo
+!   prgmmr:
+!
+! abstract:  Convert earth latitude and longitude to polar stereographic coordinates where
+!               the reference pole is centered at earth coordinates rlat0,rlon0.
+!               The polar stereographic positive x axis is oriented counterclockwise to 
+!               earth direction south at rlat0,rlon0 by angle rotate3.  The transformed
+!               lat-lon coordinate which is the basis of the polar stereographic coordinate consists
+!               of a sequence of 3 rotations in 3-d x-y-z space with origin at center of earth, where
+!               the x-y plane intersects the equator with the positive x axis intersecting the 0 meridian.
+!               and the positive y axis the 90E meridian.  The positive z axis intersects the north pole.
+!               1st rotation: counterclockwise in x-y plane by amount rlon0.
+!               2nd rotation: counterclockwise in z-x plane by amount pi/2 - rlat0.
+!               3rd rotation: counterclockwise in x-y plane by amount rotate3.
+!
+! program history log:
+!   2010-09-09  parrish - initial documentation
+!
+!   input argument list:
+!    rlat,rlon:    input earth latitude and longitude coordinates in radians
+!    n:            number of points to compute transform coordinates
+!    rlat0,rlon0:  earth coordinates of north pole of new coordinate system
+!    rotate3:      angle counterclockwise from earth direction south at rlat0,rlon0 to positive x axis
+!                     of output coordinates
+!
+!   output argument list:
+!    x_rpolar,y_rpolar:  x and y polar stereographic coordinates of new coordinate with origin at
+!                           rlat0,rlon0.
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+   use kinds, only: r_kind,i_kind
+   use constants, only: zero,one,two
+
+   implicit none
+
+   integer(i_kind),intent(in)::n
+   real(r_kind),intent(in)::rlat(n),rlon(n)
+   real(r_kind),intent(in)::rlat0,rlon0,rotate3
+   real(r_kind),intent(out)::x_rpolar(n),y_rpolar(n)
+
+!  Declare local variables
+   integer(i_kind) i
+   real(r_kind) clat0,slat0,clon0,slon0
+   real(r_kind) clat(n),slat(n),clon(n),slon(n)
+   real(r_kind) x,y,z,xt,yt,zt,x2,y2,z2,rlat2,rlon2,epstest,r_polar
+
+   epstest=epsilon(epstest)
+   clat0=cos(rlat0) ; slat0=sin(rlat0)
+   clon0=cos(rlon0) ; slon0=sin(rlon0)
+   clat =cos(rlat ) ; slat =sin(rlat )
+   clon =cos(rlon ) ; slon =sin(rlon )
+
+   do i=1,n
+      x=clat(i)*clon(i) ; y=clat(i)*slon(i) ; z=slat(i)
+      xt=x*clon0+y*slon0 ; yt=-x*slon0+y*clon0 ; zt=z
+      z2=zt*slat0+xt*clat0 ; x2 = -zt*clat0 + xt*slat0 ; y2 = yt
+      z2=min(one,max(-one,z2))
+      rlat2=asin(z2)
+      if(sqrt(y2**2+x2**2) < epstest) then
+         rlon2=zero
+      else
+         rlon2=atan2(y2,x2)
+      end if
+      r_polar=cos(rlat2)/(one+sin(rlat2))
+      x_rpolar(i)=r_polar*cos(rlon2-rotate3)
+      y_rpolar(i)=r_polar*sin(rlon2-rotate3)
+
+   end do
+
+  end subroutine ll2rpolar
+
+  subroutine rpolar2ll(x_rpolar,y_rpolar,n,rlat,rlon,rlat0,rlon0,rotate3)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    rpolar2ll  inverse of ll2rpolar
+!   prgmmr:
+!
+! abstract:  Inverse transformation of subroutine ll2rpolar.
+!
+! program history log:
+!   2010-09-09  parrish - initial documentation
+!
+!   input argument list:
+!    x_rpolar,y_rpolar:  x and y polar stereographic coordinates of new coordinate with origin at
+!                           rlat0,rlon0.
+!    n:            number of points to compute transform coordinates
+!    rlat0,rlon0:  earth coordinates of north pole of new coordinate system
+!    rotate3:      angle counterclockwise from earth direction south at rlat0,rlon0 to positive x axis
+!                     of output coordinates
+!
+!   output argument list:
+!    rlat,rlon:    input earth latitude and longitude coordinates in radians
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+   use kinds, only: r_kind,i_kind
+   use constants, only: zero,one,two,quarter,pi
+
+   implicit none
+
+   integer(i_kind),intent(in)::n
+   real(r_kind),intent(in)::x_rpolar(n),y_rpolar(n)
+   real(r_kind),intent(in)::rlat0,rlon0,rotate3
+   real(r_kind),intent(out)::rlat(n),rlon(n)
+
+!  Declare local variables
+   integer(i_kind) i
+   real(r_kind) clat0,slat0,clon0,slon0
+   real(r_kind) x,y,z,xt,yt,zt,x2,y2,z2,rlat2,rlon2,epstest,r_polar,pi_quarter
+   real(r_kind) slat2,clat2,slon2,clon2
+
+   epstest=epsilon(epstest)
+   pi_quarter=quarter*pi
+   clat0=cos(rlat0) ; slat0=sin(rlat0)
+   clon0=cos(rlon0) ; slon0=sin(rlon0)
+
+   do i=1,n
+      r_polar=sqrt(x_rpolar(i)**2+y_rpolar(i)**2)
+      rlat2=two*(pi_quarter-atan(r_polar))
+      slat2=sin(rlat2) ; clat2=cos(rlat2)
+      if(r_polar < epstest) then
+         rlon2=rotate3
+      else
+         rlon2=atan2(y_rpolar(i),x_rpolar(i))+rotate3
+      end if
+      slon2=sin(rlon2) ; clon2=cos(rlon2)
+      x2=clat2*clon2 ; y2=clat2*slon2 ; z2=slat2
+      zt=slat0*z2-clat0*x2 ; xt=clat0*z2+slat0*x2 ; yt=y2
+      x=xt*clon0-yt*slon0 ; y=xt*slon0+yt*clon0 ; z=zt
+      z=min(one,max(-one,z))
+      rlat(i)=asin(z)
+      if(sqrt(x**2+y**2) < epstest) then
+         rlon(i)=zero
+      else
+         rlon(i)=atan2(y,x)
+      end if
+   end do
+
+  end subroutine rpolar2ll

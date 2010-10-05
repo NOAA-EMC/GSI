@@ -24,6 +24,12 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !   2006-02-24  derber  - modify to take advantage of convinfo module
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-04-17  safford - rm unused vars
+!   2010-09-08  parrish - remove subroutine check_rotate_wind.  This was a debug routine introduced when
+!                           the reference wind rotation angle was stored as an angle, beta_ref.  This field
+!                           had a discontinuity at the date line (180E), which resulted in erroneous wind
+!                           rotation angles for a small number of winds whose rotation angle was interpolated
+!                           from beta_ref values across the discontinuity.  This was fixed by replacing the
+!                           beta_ref field with cos_beta_ref, sin_beta_ref.
 !
 !   input argument list:
 !     nread    - counter for all data on this pe
@@ -76,7 +82,6 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   use kinds, only: r_kind,r_single,i_kind
   use constants, only: deg2rad,rad2deg,izero,ione,zero,one,r60inv
   use gridmod, only: regional,nlat,nlon,tll2xy,rotate_wind_ll2xy,rlats,rlons
-  use gridmod, only: check_rotate_wind
   use convinfo, only: nconvtype,ctwind, &
         ncmiter,ncgroup,ncnumgrp,icuse,ioctype
   use obsmod, only: iadate,offtime_data
@@ -284,9 +289,6 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 1010 continue
   close(lnbufr)
   deallocate(cdata_all)
-
-! Generate stats on regional wind rotation
-  if (regional) call check_rotate_wind('read_superwinds')
 
 ! End of routine
   return

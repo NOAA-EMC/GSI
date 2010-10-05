@@ -250,6 +250,7 @@ clean:
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
         get_gefs_ensperts_dualres.f90 \
+        get_wrf_mass_ensperts_netcdf.f90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
 	getsiga.f90 \

@@ -80,6 +80,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                         to the new module sfcobsqc
 !   2010-03-29  hu - add code to read cloud observation from METAR and NESDIS cloud products
 !   2010-05-15  kokron - safety measure: initialize cdata_all to zero
+!   2010-09-08  parrish - remove subroutine check_rotate_wind.  This was a debug routine introduced when
+!                           the reference wind rotation angle was stored as an angle, beta_ref.  This field
+!                           had a discontinuity at the date line (180E), which resulted in erroneous wind
+!                           rotation angles for a small number of winds whose rotation angle was interpolated
+!                           from beta_ref values across the discontinuity.  This was fixed by replacing the
+!                           beta_ref field with cos_beta_ref, sin_beta_ref.
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -105,7 +111,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        r60inv,r10,r100,r2000
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-       rlats,rlons,twodvar_regional,check_rotate_wind
+       rlats,rlons,twodvar_regional
   use convinfo, only: nconvtype,ctwind, &
        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
        ithin_conv,rmesh_conv,pmesh_conv, &
@@ -1340,11 +1346,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        'ntest,disterrmax=',ntest,disterrmax
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_PREPBUFR:  ',&
        'nvtest,vdisterrmax=',ntest,vdisterrmax
-
-
-! Generate stats on regional wind rotation
-  if (regional .and. uvob) call check_rotate_wind('read_prepbufr')
-
 
   if (ndata == 0) then 
 	call closbf(lunin)
