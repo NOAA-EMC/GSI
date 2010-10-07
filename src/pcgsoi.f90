@@ -86,6 +86,7 @@ subroutine pcgsoi()
 !                         control variable a_en
 !   2009-10-12  parrish - add beta12mult for scaling by hybrid blending parameters beta1inv, beta2inv
 !                           called only when l_hyb_ens=.true.
+!   2010-04-25  zhu     - add option newpc4pred for new preconditioning of predictors
 !   2010-05-05  derber - omp commands removed
 !   2010-05-13  todling - update interface to update_geswtend; update to gsi_bundle for state vector
 !                       - declare all use explicitly
@@ -115,6 +116,7 @@ subroutine pcgsoi()
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, lwrtinc, ladtest
   use gridmod, only: twodvar_regional
   use constants, only: zero,one,five,tiny_r_kind
+  use berror, only: newpc4pred
   use anberror, only: anisotropic
   use mpimod, only: mype
   use intallmod, only: intall
@@ -157,7 +159,7 @@ subroutine pcgsoi()
   real(r_kind),dimension(2):: gnorm
   real(r_kind) :: zgini,zfini,fjcost(4),zgend,zfend
   real(r_kind) :: fjcost_e
-  type(control_vector) :: xhat,gradx,grady,dirx,diry,ydiff,xdiff
+  type(control_vector) :: xhat,gradx,grady,gradw,dirx,diry,dirw,ydiff,xdiff,wdiff
   type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
   type(gsi_bundle) :: mval(nsubwin)
   type(predictors) :: sbias, rbias
@@ -312,15 +314,26 @@ subroutine pcgsoi()
 
      end if
 
+!    Change of preconditioner for predictors
+     if (newpc4pred) call precond(grady,gradw)
+
      if (lanlerr) then
         do i=1,nclen
            xdiff%values(i)=gradx%values(i)
-           ydiff%values(i)=grady%values(i)
+           if (.not. newpc4pred) then 
+              ydiff%values(i)=grady%values(i)
+           else
+              wdiff%values(i)=gradw%values(i)
+           end if
         end do
      else
         do i=1,nclen
            xdiff%values(i)=gradx%values(i)-xdiff%values(i)
-           ydiff%values(i)=grady%values(i)-ydiff%values(i)
+           if (.not. newpc4pred) then
+              ydiff%values(i)=grady%values(i)-ydiff%values(i)
+           else
+              wdiff%values(i)=gradw%values(i)-wdiff%values(i)
+           end if
         end do
      end if
 
@@ -330,10 +343,15 @@ subroutine pcgsoi()
 
 !    Calculate new norm of gradients
      if (iter>0) gsave=gnorm(1)
-     gnorm(1)=dot_product(gradx,grady,r_quad)
-!    Two dot products in gnorm(2) should be same, but are slightly different due to round off
-!    so use average.
-     gnorm(2)=0.5_r_quad*(dot_product(xdiff,grady,r_quad)+dot_product(ydiff,gradx,r_quad))
+     if (.not. newpc4pred) then
+        gnorm(1)=dot_product(gradx,grady,r_quad)
+!       Two dot products in gnorm(2) should be same, but are slightly different due to round off
+!       so use average.
+        gnorm(2)=0.5_r_quad*(dot_product(xdiff,grady,r_quad)+dot_product(ydiff,gradx,r_quad))
+     else
+        gnorm(1)=dot_product(gradx,gradw,r_quad)
+        gnorm(2)=0.5_r_quad*(dot_product(xdiff,gradw,r_quad)+dot_product(wdiff,gradx,r_quad))
+     end if
      b=zero
      if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
 
@@ -350,14 +368,25 @@ subroutine pcgsoi()
      if (.not. restart) then
         do i=1,nclen
            xdiff%values(i)=gradx%values(i)
-           ydiff%values(i)=grady%values(i)
-           dirx%values(i)=-grady%values(i)+b*dirx%values(i)
-           diry%values(i)=-gradx%values(i)+b*diry%values(i)
+           if (.not. newpc4pred) then
+              ydiff%values(i)=grady%values(i)
+              dirx%values(i)=-grady%values(i)+b*dirx%values(i)
+              diry%values(i)=-gradx%values(i)+b*diry%values(i)
+           else
+              wdiff%values(i)=gradw%values(i)
+              dirx%values(i)=-gradw%values(i)+b*dirx%values(i)
+              dirw%values(i)=-gradx%values(i)+b*dirw%values(i)
+           end if
         end do
+        if (newpc4pred) call precond(dirw,diry)
      else
 !    If previous solution available, transfer into local arrays.
         xdiff=zero
-        ydiff=zero
+        if (.not. newpc4pred) then 
+           ydiff=zero
+        else
+           wdiff=zero
+        end if
         call read_guess_solution(dirx,diry,mype)
         stp=one
      endif
@@ -633,6 +662,7 @@ subroutine init_
 !
 ! program history log:
 !   2008-12-01  Todling
+!   2010-04-25  zhu  - add gradw and dirw
 !
 !   input argument list:
 !
@@ -644,7 +674,8 @@ subroutine init_
 !
 !$$$ end documentation block
 
-implicit none
+  use berror, only: newpc4pred
+  implicit none
 
 ! Allocate local variables
   call allocate_cv(xhat)
@@ -674,6 +705,15 @@ implicit none
   xdiff=zero
   xhat=zero
 
+  if (newpc4pred) then
+     call allocate_cv(gradw)
+     call allocate_cv(dirw)
+     call allocate_cv(wdiff)
+     gradw=zero
+     dirw=zero
+     wdiff=zero
+  end if 
+
   if(l_foto)then
      call allocate_state(xhat_dt)
      xhat_dt=zero
@@ -702,7 +742,8 @@ subroutine clean_
 !
 !$$$ end documentation block
 
-implicit none
+  use berror, only: newpc4pred
+  implicit none
 
 ! Deallocate obs file
   if (.not.l4dvar) call destroyobs
@@ -715,6 +756,12 @@ implicit none
   call deallocate_cv(diry)
   call deallocate_cv(ydiff)
   call deallocate_cv(xdiff)
+ 
+  if (newpc4pred) then
+     call deallocate_cv(gradw)
+     call deallocate_cv(dirw)
+     call deallocate_cv(wdiff)
+  end if
 
 ! Release bias-predictor memory
   call deallocate_preds(sbias)

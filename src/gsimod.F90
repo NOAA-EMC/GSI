@@ -18,7 +18,7 @@
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,ndatmax,&
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
-     lread_obs_save,lread_obs_skip,lwrite_predterms,lwrite_peakwt
+     lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms,lwrite_peakwt
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
@@ -27,7 +27,8 @@
                        idmodel,clean_4dvar,lwrtinc,lanczosave,jsiga
   use obs_ferrscale, only: lferrscale
   use mpimod, only: npe,mpi_comm_world,ierror,init_mpi_vars,destroy_mpi_vars,mype
-  use radinfo, only: retrieval,diag_rad,npred,init_rad,init_rad_vars
+  use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,&
+                       use_edges,passive_bc
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
   use aeroinfo, only: diag_aero, init_aero
@@ -50,7 +51,7 @@
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,nrf_var
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
-     bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj
+     bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj,newpc4pred
   use anberror, only: anisotropic,ancovmdl,init_anberror,npass,ifilt_ord,triad4, &
      binom,normal,ngauss,rgauss,anhswgt,an_vs,&
      grid_ratio,grid_ratio_p,an_flen_u,an_flen_t,an_flen_z, &
@@ -71,7 +72,7 @@
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
-  use constants, only: izero,ione,zero,one,init_constants,gps_constants,init_constants_derived,three
+  use constants, only: zero,one,init_constants,gps_constants,init_constants_derived,three
   use fgrid2agrid_mod, only: nord_f2a,init_fgrid2agrid
   use smooth_polcarf, only: norsp,init_smooth_polcas
   use read_l2bufr_mod, only: minnum,del_azimuth,del_elev,del_range,del_time,&
@@ -166,13 +167,18 @@
 !                        avoid "use gridmod" in mpimod.F90, which causes compiler conflict, since
 !                        "use mpimod" appears in gridmod.f90.
 !  04-22-2010 Tangborn  add carbon monoxide settings
+!  04-25-2010 Zhu       Add option newpc4pred for new pre-conditioning of predictors
 !  05-05-2010 Todling   replace parallel_init w/ corresponding from gsi_4dcoupler
+!  05-06-2010 Zhu       Add option adp_anglebc for radiance variational angle bias correction;
+!                       npred was removed from setup namelist
+!  05-12-2010 Zhu       Add option passive_bc for radiance bias correction for monitored channels
 !  05-30-2010 Todling   reposition init of control and state vectors; add init_anasv; update chem
 !  06-04-2010 Todling   update interface to init_grid_vars
 !  06-05-2010 Todling   remove as,tsfc_sdv,an_amp0 from bkgerr namelist (now in anavinfo table)
 !  08-10-2010 Wu        add nvege_type to gridopts namelist 
 !  08-24-2010 hcHuang   add diag_aero and init_aero for aerosol observations
 !  08-26-2010 Cucurull  add use_compress to setup namelist, add a call to gps_constants
+!  09-02-2010 Zhu       Add option use_edges for the usage of radiance data on scan edges
 !                         
 !EOP
 !-------------------------------------------------------------------------
@@ -198,7 +204,6 @@
 !     bcoption - 0=ibc; 1=sbc
 !     diurnalbc- 1= diurnal bias; 0= persistent bias
 !     ndat     - number of observations datasets
-!     npred    - number of radiance biases predictors
 !     niter()  - number of inner interations for each outer iteration
 !     niter_no_qc() - number of inner interations without nonlinear qc for each outer iteration
 !     miter    - number of outer iterations
@@ -277,6 +282,11 @@
 !                        radiance diagnostic files
 !     lwrite_peakwt    - option to writ out the approximate pressure of the peak of the weighting function
 !                        for satellite data to the radiance diagnostic files
+!     adp_anglebc - option to perform variational angle bias correction
+!     angord      - order of polynomial for variational angle bias correction
+!     newpc4pred  - option for additional preconditioning for pred coeff.
+!     passive_bc  - option to turn on bias correction for passive (monitored) channels
+!     use_edges   - option to exclude radiance data on scan edges
 !     use_compress - option to turn on the use of compressibility factors in geopotential heights
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
@@ -284,7 +294,7 @@
 
   namelist/setup/gencode,factqmin,factqmax,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
-       ndat,npred,niter,niter_no_qc,miter,qoption,nhr_assimilation,&
+       ndat,niter,niter_no_qc,miter,qoption,nhr_assimilation,&
        min_offset, &
        iout_iter,npredp,retrieval,&
        diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess,write_diag,&
@@ -295,7 +305,7 @@
        stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,use_compress,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path, &
-       berror_stats, &
+       berror_stats,newpc4pred,adp_anglebc,angord,passive_bc,use_edges, &
        lobsdiagsave, &
        l4dvar,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        nwrvecs,ladtest,lgrtest,lobskeep,lsensrecompute,jsiga, &
@@ -585,7 +595,7 @@
 
   call mpi_comm_size(mpi_comm_world,npe,ierror)
   call mpi_comm_rank(mpi_comm_world,mype,ierror)
-  if (mype==izero) call w3tagb('GSI_ANL',1999,0232,0055,'NP23')
+  if (mype==0) call w3tagb('GSI_ANL',1999,0232,0055,'NP23')
 
 
 ! Initialize defaults of vars in modules
@@ -708,8 +718,8 @@
 
 
 ! Check that regional=.true. if jcstrong_option > 2
-  if(jcstrong_option>2_i_kind.and..not.regional) then
-     if(mype==izero) then
+  if(jcstrong_option>2.and..not.regional) then
+     if(mype==0) then
         write(6,*) ' jcstrong_option>2 not allowed except for regional=.true.'
         write(6,*) ' ERROR EXIT FROM GSI'
      end if
@@ -718,12 +728,12 @@
 
 
 !  jcstrong_option=4 currently requires that 2*nvmodes_keep <= npe
-  if(jcstrong_option==4_i_kind) then
+  if(jcstrong_option==4) then
      if(2*nvmodes_keep>npe) then
-        if(mype==izero) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
-        if(mype==izero) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
+        if(mype==0) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
+        if(mype==0) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
         nvmodes_keep=npe/2
-        if(mype==izero) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
+        if(mype==0) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
      end if
   end if
 
@@ -738,7 +748,7 @@
      endif
   end do
   writediag=.false.
-  do i=1,miter+ione
+  do i=1,miter+1
      if(write_diag(i))writediag=.true.
   end do
   if(.not. writediag)then
@@ -751,7 +761,7 @@
   end if
 
 
-  if (mype==izero .and. limit) &
+  if (mype==0 .and. limit) &
        write(6,*)'GSIMOD:  reset time window for one or ',&
        'more OBS_INPUT entries to ',time_window_max
 
@@ -759,7 +769,7 @@
 ! Force use of perturb_obs for oberror_tune
   if (oberror_tune ) then
      perturb_obs=.true.
-     if (mype==izero) write(6,*)'GSIMOD:  ***WARNING*** reset perturb_obs=',perturb_obs
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** reset perturb_obs=',perturb_obs
   endif
 
 
@@ -770,22 +780,22 @@
 ! Force use of external observation error table for regional runs
   if (regional .and. .not.oberrflg) then
      oberrflg=.true.
-     if (mype==izero) write(6,*)'GSIMOD:  ***WARNING*** reset oberrflg=',oberrflg
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** reset oberrflg=',oberrflg
   endif
 
 
 ! Set 10m wind factor logicals based on ifact10
-  if (ifact10==ione .or. ifact10==2_i_kind) then
-     if (ifact10==ione)     sfcmod_gfs = .true.
-     if (ifact10==2_i_kind) sfcmod_mm5 = .true.
+  if (ifact10==1 .or. ifact10==2) then
+     if (ifact10==1) sfcmod_gfs = .true.
+     if (ifact10==2) sfcmod_mm5 = .true.
   endif
 
 
 ! If strong constraint is turned off (jcstrong=.false.), 
 ! force other strong constraint variables to zero
-  if ((.not.jcstrong) .and. nstrong/=izero ) then
-     nstrong=izero
-     if (mype==izero) write(6,*)'GSIMOD:  reset nstrong=',nstrong,&
+  if ((.not.jcstrong) .and. nstrong/=0 ) then
+     nstrong=0
+     if (mype==0) write(6,*)'GSIMOD:  reset nstrong=',nstrong,&
           ' because jcstrong=',jcstrong
   endif
   if (.not.jcstrong) then
@@ -822,10 +832,10 @@
 ! NOTE: only applicable for global run when not using observer
   if (.not.tendsflag .and. .not.regional) then
      check_pcp: do i=1,ndat
-        if ( .not.tendsflag .and. index(dtype(i),'pcp') /=izero ) then
+        if ( .not.tendsflag .and. index(dtype(i),'pcp') /=0 ) then
            tendsflag = .true.
            switch_on_derivatives=.true.
-           if (mype==izero) write(6,*)'GSIMOD:  set tendsflag,switch_on_derivatives=',&
+           if (mype==0) write(6,*)'GSIMOD:  set tendsflag,switch_on_derivatives=',&
                 tendsflag,switch_on_derivatives,' for pcp data'
            exit check_pcp
         endif
@@ -834,7 +844,7 @@
 
 ! Ensure no conflict between flag lread_obs_save and lread_obs_skip
   if (lread_obs_save .and. lread_obs_skip) then
-     if (mype==izero) write(6,*)'GSIMOD:  ***ERROR*** lread_obs_save=',lread_obs_save,&
+     if (mype==0) write(6,*)'GSIMOD:  ***ERROR*** lread_obs_save=',lread_obs_save,&
           ' and lread_obs_skip=',lread_obs_skip,' can not both be TRUE'
      call stop2(329)
   endif
@@ -842,12 +852,12 @@
 
 ! Optionally read in namelist for single observation run
   if (oneobtest) then
-     miter=ione
-     ndat=ione
+     miter=1
+     ndat=1
      dfile(1)='prepqc'
      time_window(1)=three
      dplat='oneob'
-     dthin=ione
+     dthin=1
      dval=one
      dmesh=one
      factqmin=zero
@@ -866,7 +876,7 @@
   endif
 
 ! Write namelist output to standard out
-  if(mype==izero) then
+  if(mype==0) then
      write(6,200)
 200  format(' calling gsisub with following input parameters:',//)
      write(6,setup)
@@ -876,12 +886,12 @@
      write(6,jcopts)
      write(6,strongopts)
      write(6,obsqc)
-     ngroup=izero
+     ngroup=0
      do i=1,ndat
-        dthin(i) = max(dthin(i),izero)
+        dthin(i) = max(dthin(i),0)
         if(dthin(i) > ngroup)ngroup=dthin(i)
      end do
-     if(ngroup>izero)write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
+     if(ngroup>0)write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
      do i=1,ndat
         write(6,*)dfile(i),dtype(i),dplat(i),dsis(i),dval(i),dthin(i),dsfcalc(i),time_window(i)
      end do
@@ -905,6 +915,7 @@
   call init_grid_vars(jcap,npe,cvars3d,cvars2d,nrf_var,mype)
   call init_mpi_vars(nsig,mype,nsig1o,nnnn1o,nrf,nvars,nrf_3d,vlevs)
   call create_obsmod_vars
+  if (passive_bc) call create_passive_obsmod_vars
 
   
 ! Initialize values in radinfo
@@ -970,7 +981,7 @@
   call final_anasv
 
 ! Done with GSI.
-  if (mype==izero)  call w3tage('GSI_ANL')
+  if (mype==0)  call w3tage('GSI_ANL')
   
   call mpi_finalize(ierror)
  

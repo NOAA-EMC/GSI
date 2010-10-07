@@ -47,6 +47,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2009-12-28  gayno - add option to calculate surface characteristics using
 !                       method that accounts for the size/shape of the fov.
 !   2010-02-25  collard - changes to call to crtm_init for CRTM v2.0
+!   2010-09-02  zhu     - add use_edges option
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -83,12 +84,12 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                finalcheck,checkob,score_crit
-  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path
+  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,find_edges
   use crtm_planck_functions, only: crtm_planck_temperature
   use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
        tll2xy,txy2ll,rlats,rlons
-  use constants, only: izero,ione,zero,deg2rad,rad2deg,r60inv,one
+  use constants, only: zero,deg2rad,rad2deg,r60inv,one
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
 
@@ -96,9 +97,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Number of channels for sensors in BUFR
-  integer(i_kind),parameter :: nchanl = 616_i_kind        !--- 616 subset ch out of 8078 ch for AIRS
-  integer(i_kind),parameter :: n_totchan  = 616_i_kind
-  integer(i_kind),parameter :: maxinfo    =  33_i_kind
+  integer(i_kind),parameter :: nchanl = 616        !--- 616 subset ch out of 8078 ch for AIRS
+  integer(i_kind),parameter :: n_totchan  = 616
+  integer(i_kind),parameter :: maxinfo    =  33
 
 
 ! BUFR format for IASISPOT 
@@ -127,7 +128,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! BUFR file sequencial number
 !  character(len=512)  :: table_file
-  integer(i_kind)     :: lnbufr = 10_i_kind
+  integer(i_kind)     :: lnbufr = 10
 
 ! Variables for BUFR IO    
   real(r_double),dimension(5)  :: linele
@@ -170,6 +171,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   logical          :: outside,iuse,assim,valid
   logical          :: iasi
+  logical          :: data_on_edges
 
   integer(i_kind)  :: ifov, instr, iscn, ioff, ilat, ilon, sensorindex
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line
@@ -186,7 +188,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
-  integer(i_kind),parameter:: ichan=-999_i_kind  ! fov-based surface code is not channel specific for iasi 
+  integer(i_kind),parameter:: ichan=-999  ! fov-based surface code is not channel specific for iasi 
   real(r_kind),parameter:: expansion=one         ! exansion factor for fov-based surface code.
                                                  ! use one for ir sensors.
   real(r_kind),parameter:: R90    =  90._r_kind
@@ -197,17 +199,17 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Initialize variables
   disterrmax=zero
-  ntest=izero
+  ntest=0
   nreal  = maxinfo
-  ndata = izero
-  nodata = izero
+  ndata = 0
+  nodata = 0
   iasi=      obstype == 'iasi'
   r01=0.01_r_kind
   ten=10.0_r_kind
 
-  ilon=3_i_kind
-  ilat=4_i_kind
-  bad_line=-ione
+  ilon=3
+  ilat=4
+  bad_line=-1
 
 !  write(6,*)'READ_IASI: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
 !          mype, mype_root,mype_sub,mpi_comm_sub
@@ -216,7 +218,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   step_adjust = 0.625_r_kind
   senname = 'IASI'
   nchanlr = nchanl
-  if (isfcalc==ione)then
+  if (isfcalc==1)then
      rlndsea = zero
   else
      rlndsea(0) = zero                       
@@ -248,9 +250,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   endif
 
 !  find IASI sensorindex
-  sensorindex = izero
+  sensorindex = 0
   if ( channelinfo(1)%sensor_id == 'iasi616_metop-a' )then
-     sensorindex = ione
+     sensorindex = 1
   else
      write(6,*)'READ_IASI: sensorindex not set  NO IASI DATA USED'
      return
@@ -259,12 +261,12 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   do i=1,jpch_rad
      if(nusis(i)==sis)ioff=min(ioff,i)
   end do
-  ioff=ioff-ione
+  ioff=ioff-1
   if (mype_sub==mype_root)write(6,*)'READ_IASI:  iasi offset ',ioff
 
 ! Calculate parameters needed for FOV-based surface calculation.
-  if (isfcalc==ione)then
-     instr=18_i_kind
+  if (isfcalc==1)then
+     instr=18
      call instrument_init(instr, jsatid, expansion)
   endif
 
@@ -275,7 +277,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   assim=.false.
   search: do i=1,jpch_rad
-     if ((nusis(i)==sis) .and. (iuse_rad(i)>izero)) then
+     if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
         assim=.true.
         exit search
      endif
@@ -297,26 +299,26 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax))
 
 ! Big loop to read data file
-  next=izero
-  do while(ireadmg(lnbufr,subset,idate)>=izero)
+  next=0
+  do while(ireadmg(lnbufr,subset,idate)>=0)
      next=next+1
-     if(next == npe_sub)next=izero
+     if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
-     read_loop: do while (ireadsb(lnbufr)==izero)
+     read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Read IASI FOV information
-        call ufbint(lnbufr,linele,5_i_kind,ione,iret,'FOVN SLNM QGFQ MJFC SELV')
+        call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QGFQ MJFC SELV')
         if ( linele(3) /= zero) cycle read_loop  ! problem with profile (QGFQ)
 
         if ( bad_line == nint(linele(2))) then
 !        zenith angle/scan spot mismatch, reject entire line
            cycle read_loop
         else
-           bad_line = -ione
+           bad_line = -1
         endif
 
-        call ufbint(lnbufr,allspot,13_i_kind,ione,iret,allspotlist)
-        if(iret /= ione) cycle read_loop
+        call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
+        if(iret /= 1) cycle read_loop
 
 !    Check observing position
         dlat_earth = allspot(8)   ! latitude
@@ -348,7 +350,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
            if(diagnostic_reg) then
               call txy2ll(dlon,dlat,rlon00,rlat00)
-              ntest=ntest+ione
+              ntest=ntest+1
               disterr=acos(sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
                    (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00)))*rad2deg
               disterrmax=max(disterrmax,disterr)
@@ -362,8 +364,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,ione,rlats,nlat,ione)
-           call grdcrd(dlon,ione,rlons,nlon,ione)
+           call grdcrd(dlat,1,rlats,nlat,1)
+           call grdcrd(dlon,1,rlons,nlon,1)
         endif
 
 !    Check obs time
@@ -373,11 +375,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         idate5(4) = nint(allspot(5)) ! hour
         idate5(5) = nint(allspot(6)) ! minute
 
-        if( idate5(1) < 1900_i_kind .or. idate5(1) > 3000_i_kind .or. &
-            idate5(2) < ione        .or. idate5(2) >   12_i_kind .or. &
-            idate5(3) < ione        .or. idate5(3) >   31_i_kind .or. &
-            idate5(4) <izero        .or. idate5(4) >   24_i_kind .or. &
-            idate5(5) <izero        .or. idate5(5) >   60_i_kind )then
+        if( idate5(1) < 1900 .or. idate5(1) > 3000 .or. &
+            idate5(2) < 1    .or. idate5(2) >   12 .or. &
+            idate5(3) < 1    .or. idate5(3) >   31 .or. &
+            idate5(4) <0     .or. idate5(4) >   24 .or. &
+            idate5(5) <0     .or. idate5(5) >   60 )then
 
            write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
                 ' STRANGE OBS TIME (YMDHM):', idate5(1:5)
@@ -417,21 +419,27 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    of IASI scan allows us to remap 1-120 to 1-60.   Variable
 !    ifovn below contains the remapped IASI fov.  This value is
 !    passed on to and used in setuprad
-        ifovn = (ifov-ione)/2 + ione
+        ifovn = (ifov-1)/2 + 1
         iscn = nint(linele(2))               ! scan line
 
+!    Remove data on edges
+        if (.not. use_edges) then 
+           call find_edges(obstype,ifovn,data_on_edges)
+           if (data_on_edges) cycle read_loop
+        end if
+
 !    Check field of view (FOVN) and satellite zenith angle (SAZA)
-        if( ifov <= izero .or. ifov > 120_i_kind .or. sat_zenang > 90._r_kind ) then
+        if( ifov <= 0 .or. ifov > 120 .or. sat_zenang > 90._r_kind ) then
            write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
                 ' STRANGE OBS INFO(FOVN,SLNM,SAZA):', ifov, iscn, allspot(10)
            cycle read_loop
         endif
-        if ( ifov <= 60_i_kind ) sat_zenang = -sat_zenang
+        if ( ifov <= 60 ) sat_zenang = -sat_zenang
 
 !    Compare IASI satellite scan angle and zenith angle
         piece = -step_adjust
-        if ( mod(ifovn,2_i_kind) == ione) piece = step_adjust
-        lza = ((start + float((ifov-ione)/4)*step) + piece)*deg2rad
+        if ( mod(ifovn,2) == 1) piece = step_adjust
+        lza = ((start + float((ifov-1)/4)*step) + piece)*deg2rad
         sat_height_ratio = (earth_radius + linele(5))/earth_radius
         lzaest = asin(sat_height_ratio*sin(lza))*rad2deg
         if (abs(sat_zenang - lzaest) > one) then
@@ -442,7 +450,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         endif
 
 !   Clear Amount  (percent clear)
-        call ufbrep(lnbufr,cloud_frac,ione,6_i_kind,iret,'FCPH')
+        call ufbrep(lnbufr,cloud_frac,1,6,iret,'FCPH')
         clr_amt = cloud_frac(1)
 !       if ( clr_amt < zero .or. clr_amt > 100.0_r_kind ) clr_amt = zero
         clr_amt=max(clr_amt,zero)
@@ -467,7 +475,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                4 mixed 
 
 !    When using FOV-based surface code, must screen out obs with bad fov numbers.
-        if (isfcalc == ione) then
+        if (isfcalc == 1) then
            call fov_check(ifov,instr,valid)
            if (.not. valid) cycle read_loop
         endif
@@ -475,7 +483,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    When isfcalc is set to one, calculate surface fields using size/shape of fov.
 !    Otherwise, use bilinear interpolation.
 
-        if (isfcalc == ione) then
+        if (isfcalc == 1) then
            call deter_sfc_fov(fov_flag,ifov,instr,ichan,allspot(11),dlat_earth_deg, &
                               dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
                               sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
@@ -491,8 +499,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         call checkob(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
-        call ufbrep(lnbufr,cscale,3_i_kind,10_i_kind,iret,'STCH ENCH CHSF')
-        if(iret /= 10_i_kind) then
+        call ufbrep(lnbufr,cscale,3,10,iret,'STCH ENCH CHSF')
+        if(iret /= 10) then
            write(6,*) 'READ_IASI  read scale error ',iret
            cycle read_loop
         end if
@@ -503,20 +511,20 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! In our case (616 channels) there are 10 groups of cscale (dimension :: cscale(3,10))
 !  The units are W/m2..... you need to convert to mW/m2.... (subtract 5 from cscale(3)
         do i=1,10  ! convert exponent scale factor to int and change units
-           iexponent = -(nint(cscale(3,i)) - 5_i_kind)
+           iexponent = -(nint(cscale(3,i)) - 5)
            sscale(i)=ten**iexponent
         end do
 
 !    Read IASI channel number(CHNM) and radiance (SCRA)
 
-        call ufbint(lnbufr,allchan,2_i_kind,n_totchan,iret,'SCRA CHNM')
+        call ufbint(lnbufr,allchan,2,n_totchan,iret,'SCRA CHNM')
         if( iret /= n_totchan)then
            write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
                 iret, ' CH DATA IS READ INSTEAD OF ',n_totchan
            cycle read_loop
         endif
 
-        iskip = izero
+        iskip = 0
         jstart=1
         do i=1,n_totchan
 !     check that channel number is within reason
@@ -535,18 +543,18 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               call crtm_planck_temperature(sensorindex,i,radiance,temperature(i))
               if(temperature(i) < tbmin .or. temperature(i) > tbmax ) then
                  temperature(i) = min(tbmax,max(zero,temperature(i)))
-                 if(iuse_rad(ioff+i) >= izero)iskip = iskip + ione
-!                write(6,*)'READ_IASI:  skipped',i,temperature(i),allchan(2,1),allchan(2,i-ione)
+                 if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
+!                write(6,*)'READ_IASI:  skipped',i,temperature(i),allchan(2,1),allchan(2,i-1)
               endif
            else           ! error with channel number or radiance
 !             write(6,*)'READ_IASI:  iasi chan error',i,allchan(1,i), allchan(2,i)
               temperature(i) = min(tbmax,max(zero,temperature(i)))
-              if(iuse_rad(ioff+i) >= izero)iskip = iskip + ione
+              if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
            endif
         end do
 
-        if(iskip > izero)write(6,*) ' READ_IASI : iskip > 0 ',iskip
-!       if( iskip >= 10_i_kind )cycle read_loop 
+        if(iskip > 0)write(6,*) ' READ_IASI : iskip > 0 ',iskip
+!       if( iskip >= 10 )cycle read_loop 
 
         crit1=crit1 + 10.0_r_kind*float(iskip)
 
@@ -613,7 +621,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root.and.ndata>izero) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -621,7 +629,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      do n=1,ndata
         do i=1,nchanl
            if(data_all(i+nreal,n) > tbmin .and. &
-              data_all(i+nreal,n) < tbmax)nodata=nodata+ione
+              data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
         itt=nint(data_all(nreal,n))
         super_val(itt)=super_val(itt)+val_iasi
@@ -638,11 +646,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   call destroygrids    ! Deallocate satthin arrays
 
 ! Deallocate arrays and nullify pointers.
-  if(isfcalc == ione) then
+  if(isfcalc == 1) then
      call fov_cleanup
   endif
 
-  if(diagnostic_reg .and. ntest > izero .and. mype_sub==mype_root) &
+  if(diagnostic_reg .and. ntest > 0 .and. mype_sub==mype_root) &
        write(6,*)'READ_IASI:  mype,ntest,disterrmax=',&
        mype,ntest,disterrmax
   

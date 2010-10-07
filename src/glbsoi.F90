@@ -75,6 +75,10 @@ subroutine glbsoi(mype)
 !   2009-09-14  guo     - move compact_diff related statements to observer_init() in observer.F90
 !   2010-02-20  parrish - move hybrid_ensemble_setup to beginning of code and read
 !                          in ensemble perturbations where hybrid_ensemble_setup was previously located.
+!   2010-04-27  zhu     - add call to pcinfo. when newpc4pred=.true., pcinfo is called
+!                         to calculate additional preconditioner; add newpc4pred in
+!                         radinfo_write's interface
+!   2010-05-12  zhu     - add option passive_bc for radiance bias correction for monitored channels
 !
 !   input argument list:
 !     mype - mpi task id
@@ -99,7 +103,7 @@ subroutine glbsoi(mype)
   use anisofilter_glb, only: anprewgt
   use berror, only: create_berror_vars_reg,create_berror_vars,&
        set_predictors_var,destroy_berror_vars_reg,&
-       destroy_berror_vars,bkgv_flowdep
+       destroy_berror_vars,bkgv_flowdep,pcinfo,newpc4pred
   use balmod, only: create_balance_vars_reg,create_balance_vars, &
        destroy_balance_vars_reg,destroy_balance_vars,prebal,prebal_reg
   use compact_diffs, only: create_cdiff_coefs,inisph
@@ -115,7 +119,7 @@ subroutine glbsoi(mype)
   use gsi_4dvar, only: l4dvar, lsqrtb, lanczosave
   use pcgsoimod, only: pcgsoi
   use control_vectors, only: dot_product,read_cv,write_cv
-  use radinfo, only: radinfo_write
+  use radinfo, only: radinfo_write,passive_bc
   use pcpinfo, only: pcpinfo_write
   use converr, only: converr_destroy
   use zrnmi_mod, only: zrnmi_initialize
@@ -240,9 +244,17 @@ subroutine glbsoi(mype)
  
 !       Call inner minimization loop
         if (lsqrtb) then
+           if (newpc4pred) then
+              if (mype==0) write(6,*)'GLBSOI: newpc4pred is not available for lsqrtb'
+              call stop2(334)
+           end if
+
            if (mype==0) write(6,*)'GLBSOI: Using sqrt(B), jiter=',jiter
            call sqrtmin
         else
+!          Set up additional preconditioning information
+           if (newpc4pred) call pcinfo
+
 !          Standard run
            if (mype==0) write(6,*)'GLBSOI:  START pcgsoi jiter=',jiter
            call pcgsoi
@@ -278,7 +290,11 @@ subroutine glbsoi(mype)
   if (.not.l4dvar) then
      jiter=jiterlast+1
 !    If requested, write obs-anl information to output files
-     if (write_diag(jiter)) call setuprhsall(ndata,mype,.true.,.true.)
+     if (write_diag(jiter)) then 
+        call setuprhsall(ndata,mype,.true.,.true.)
+        if (.not. lsqrtb .and. newpc4pred) call pcinfo
+        if (passive_bc) call prad_bias
+     end if
 
 !    Write xhat- and yhat-save for use as a guess for the solution
      if (iguess==0 .or. iguess==1) call write_guess_solution(mype)
@@ -308,11 +324,11 @@ subroutine glbsoi(mype)
 ! Write updated bias correction coefficients
   if (.not.twodvar_regional) then
      if (l4dvar) then
-        if(mype == 0) call radinfo_write
+        if(mype == 0) call radinfo_write(newpc4pred)
         if(mype == npe-1) call pcpinfo_write
      else
         if (jiter==miter+1 ) then
-           if(mype == 0) call radinfo_write
+           if(mype == 0) call radinfo_write(newpc4pred)
            if(mype == npe-1) call pcpinfo_write
         endif
      endif

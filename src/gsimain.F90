@@ -506,6 +506,8 @@
 !          = 331 - trouble writing analysis errors
 !          = 332 - co2 file i/o error
 !          = 333 - mismatch between variable info file and background error fixed file
+!          = 334 - newpc4pred: not for use with lsqrtb
+!          = 335 - error reading radiance diagnostic file
 !
 !
 ! remarks: resolution, unit numbers and several constants are

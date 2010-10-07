@@ -73,6 +73,7 @@ module obsmod
 !   2010-02-10  jing     - merge in obs key set (idv,iob,ich) in obs types for unique
 !                          run-time identification (in sorting and searching).
 !   2010-03-24  tangborn - added carbon monoxide (co) observation type type 
+!   2010-05-12  zhu      - add create_passive_obsmod_vars and destroyobs_passive
 !   2010-05-26  treadon  - add tcpptr to public list 
 !   2010-06-14  huang    - add aerosol variable (*aero*)
 !   2010-07-10  todling  - turn aerosol heads/tails public
@@ -82,8 +83,10 @@ module obsmod
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
 !   sub init_directories    - create sub-directories for tasks specific i/o
 !   sub create_obsmod_vars  - allocate obs related variables
+!   sub create_passive_obsmod_vars  - allocate monitored radiance obs related variables
 !   sub init_obsmod_vars    - initialize obs related variables to actual values
 !   sub destroyobs          - deallocate obs linked lists
+!   sub destroyobs_passive  - deallocate monitored radiance obs linked lists
 !   sub destroy_obsmod_vars - deallocate obsmod arrays
 !   sub destroy_genstats_gps- deallocate linked list for gsp statistics
 !   sub inquire_obsdiags
@@ -149,6 +152,8 @@ module obsmod
 !   def aeroltail    - aerosol level data linked list tail
 !   def radhead      - radiance linked list head
 !   def radtail      - radiance linked list tail
+!   def radheadm     - radiance linked list head for monitored radiance data
+!   def radtailm     - radiance linked list tail for monitored radiance data
 !   def pcphead      - precipitation linked list head
 !   def pcptail      - precipitation linked list tail
 !   def laghead      - lagrangian data linked list head
@@ -230,8 +235,10 @@ module obsmod
   public :: init_obsmod_dflts
   public :: init_directories
   public :: create_obsmod_vars
+  public :: create_passive_obsmod_vars
   public :: init_obsmod_vars
   public :: destroyobs
+  public :: destroyobs_passive
   public :: destroy_obsmod_vars
   public :: ran01dom
   public :: destroy_genstats_gps
@@ -256,6 +263,7 @@ module obsmod
   public :: aero_ob_head,aero_ob_type,aerohead,aerotail,i_aero_ob_type
   public :: aerol_ob_head,aerol_ob_type,aerolhead,aeroltail,i_aerol_ob_type
   public :: radptr,radtail,radhead,lagtail,laghead,nloz_v8,nloz_v6,nlco,nobskeep,gps_alltail
+  public :: radptrm,radtailm,radheadm
   public :: grids_dim,rmiss_single,nchan_total,tcpptr,tcphead,tcptail,mype_sst,mype_gps
   public :: mype_uv,mype_dw,mype_rw,mype_srw,mype_q,mype_tcp,mype_lag,mype_ps,mype_t
   public :: mype_pw,iout_rw,iout_dw,iout_srw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
@@ -981,6 +989,9 @@ module obsmod
   type(rad_ob_head),dimension(:),pointer :: radhead
   type(rad_ob_head),dimension(:),pointer :: radtail
   type(rad_ob_type),pointer :: radptr => NULL()
+  type(rad_ob_head),dimension(:),pointer :: radheadm
+  type(rad_ob_head),dimension(:),pointer :: radtailm
+  type(rad_ob_type),pointer :: radptrm => NULL()
   type(lag_ob_head),dimension(:),pointer :: laghead
   type(lag_ob_head),dimension(:),pointer :: lagtail
   type(lag_ob_type),pointer :: lagptr => NULL()
@@ -1324,6 +1335,37 @@ contains
 
     return
   end subroutine create_obsmod_vars
+
+! ----------------------------------------------------------------------
+  subroutine create_passive_obsmod_vars
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    create_passive_obsmod_vars
+!     prgmmr:    zhu            org: np23           date: 2010-05-12
+!
+! abstract:  allocate arrays to hold observation related information
+!
+! program history log:
+!   2010-05-12 zhu
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$ end documentation block
+    use gsi_4dvar, only: nobs_bins
+    implicit none
+
+    ALLOCATE(radheadm(nobs_bins))
+    ALLOCATE(radtailm(nobs_bins))
+
+    return
+  end subroutine create_passive_obsmod_vars
+
 ! ----------------------------------------------------------------------
   subroutine init_obsmod_vars(mype)
 !$$$  subprogram documentation block
@@ -1710,6 +1752,53 @@ contains
     return
   end subroutine destroyobs_
   
+! ----------------------------------------------------------------------
+
+  subroutine destroyobs_passive
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroyobs_passive
+!     prgmmr:    zhu            org: np23           date: 2010-05-12
+!
+! abstract:  deallocate arrays that hold observation information for
+!            use in outer and inner loops
+!
+! program history log:
+!   2010-05-12  zhu
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$  end documentation block
+    use gsi_4dvar, only: nobs_bins
+
+    implicit none
+
+    integer(i_kind) :: ii,istatus
+
+    do ii=1,nobs_bins
+       radtailm(ii)%head => radheadm(ii)%head
+       do while (associated(radtailm(ii)%head))
+          radheadm(ii)%head => radtailm(ii)%head%llpoint
+          deallocate(radtailm(ii)%head%res,radtailm(ii)%head%err2, &
+                     radtailm(ii)%head%raterr2,radtailm(ii)%head%pred, &
+                     radtailm(ii)%head%icx,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS_PASSIVE:  deallocate error for rad arrays, istatus=',istatus
+          deallocate(radtailm(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS_PASSIVE:  deallocate error for rad, istatus=',istatus
+          radtailm(ii)%head => radheadm(ii)%head
+       end do
+    end do
+
+    return
+  end subroutine destroyobs_passive
+
+
   subroutine destroy_obsmod_vars
 !$$$  subprogram documentation block
 !                .      .    .                                       .

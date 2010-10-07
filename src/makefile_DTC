@@ -252,6 +252,8 @@ LIBsys          = $(MYLIBsys)
 	phil1.o \
 	plib8.o \
 	polcarf.o \
+	prad_bias.o \
+	precond.o \
 	precpd_ad.o \
 	prewgt.o \
 	prewgt_reg.o \
@@ -275,6 +277,7 @@ LIBsys          = $(MYLIBsys)
 	read_avhrr_navy.o \
 	read_bufrtovs.o \
 	read_co.o \
+	read_diag.o \
 	read_files.o \
         read_gfs_ozone_for_regional.o \
 	read_goesimg.o \
