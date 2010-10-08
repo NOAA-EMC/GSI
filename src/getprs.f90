@@ -45,8 +45,7 @@ subroutine getprs(ps,prs)
 ! Declare local parameter
   real(r_kind),parameter:: ten = 10.0_r_kind
 
-  kapr=one/rd_over_cp
-  prs=zero 
+! prs=zero 
   it=ntguessig
 
   if (regional) then
@@ -88,6 +87,7 @@ subroutine getprs(ps,prs)
            end do
         end do
      else
+        kapr=one/rd_over_cp
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2

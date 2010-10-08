@@ -8,6 +8,7 @@ subroutine smoothww(nx,ny,p,wl,nitr,mx)
 !
 ! program history log:
 !   2004-05-13  derber, document
+!   2010-10-08  derber - optimize and clean up
 !
 !   input argument list:
 !     nx   - first dimension of two dimensional array
@@ -27,28 +28,24 @@ subroutine smoothww(nx,ny,p,wl,nitr,mx)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,one
+  use constants, only: one,two
   implicit none
 
   integer(i_kind),intent(in   ) :: nx,ny,nitr,mx
   real(r_kind)   ,intent(in   ) :: wl
   real(r_kind)   ,intent(inout) :: p(nx,ny)
 
-  integer(i_kind) nx1,nx2,ny1,ny2,n,kx
-  integer(i_kind) ky,im,jm,jp,j,ip,i
+  integer(i_kind) nx1,nx2,ny1,ny2,n
+  integer(i_kind) im,jm,jp,j,ip,i
 
   real(r_kind) hwl,hwl2,hwlx
 
 ! Initialize local variables
   hwl=wl/nitr
-  hwl2=hwl/((hwl+one)+sqrt(hwl*2+one))
+  hwl2=hwl/((hwl+one)+sqrt(hwl*two+one))
   hwl=hwl*mx
-  hwlx=hwl/((hwl+one)+sqrt(hwl*2+one))
+  hwlx=hwl/((hwl+one)+sqrt(hwl*two+one))
   hwl=hwl2
-  nx1=2_i_kind
-  nx2=nx-ione
-  ny1=2_i_kind
-  ny2=ny-ione
 
 
 ! Big loop over number of smoother passes       
@@ -56,55 +53,54 @@ subroutine smoothww(nx,ny,p,wl,nitr,mx)
 
 
 !    Smooth in 2d over all y (second dimension)
-     kx=ione
+     ny1=1
      ny2=ny
-     ny1=ione
 
 !    Adjoint(?) of forward pass
-     nx1=max(ione,ione-kx)
-     nx2=min(nx,nx-kx)
-     do j=ny2,ny1,-1
-        do i=nx2,nx1,-1
+     nx1=1
+     nx2=nx-1
+     do j=ny1,ny2
+        do i=nx1,nx2
            p(i,j)=(one-hwlx)*p(i,j)
         enddo
      enddo
      do i=nx2,nx1,-1
-        ip=i+kx
-        do j=ny2,ny1,-1
+        ip=i+1
+        do j=ny1,ny2
            p(i,j)=p(i,j)+hwlx*p(ip,j)
         enddo
      enddo
 
 !    Adjoint(?) of backward pass
-     nx1=max(ione,kx+ione)
-     nx2=min(nx,kx+nx)
+     nx1=2
+     nx2=nx
      do j=ny1,ny2
         do i=nx1,nx2
            p(i,j)=(one-hwlx)*p(i,j)
         enddo
      enddo
      do i=nx1,nx2   
-        im=i-kx
+        im=i-1
         do j=ny1,ny2 
            p(i,j)=p(i,j)+hwlx*p(im,j)
         enddo
      enddo
 
 !    Backward pass
-     nx1=max(ione,ione-kx)
-     nx2=min(nx,nx-kx)
+     nx1=1
+     nx2=nx-1
      do i=nx2,nx1,-1
-        ip=i+kx
-        do j=ny2,ny1,-1
+        ip=i+1
+        do j=ny1,ny2
            p(i,j)=p(i,j)+hwlx*(p(ip,j)-p(i,j))
         enddo
      enddo
 
 !    Forward pass
-     nx1=max(ione,kx+ione)
-     nx2=min(nx,kx+nx)
+     nx1=2
+     nx2=nx
      do i=nx1,nx2
-        im=i-kx
+        im=i-1
         do j=ny1,ny2
            p(i,j)=p(i,j)+hwlx*(p(im,j)-p(i,j))
         enddo
@@ -112,55 +108,54 @@ subroutine smoothww(nx,ny,p,wl,nitr,mx)
 
 
 !    Smooth in 2d over all x (first dimension)
-     ky=ione
-     nx1=ione
+     nx1=1
      nx2=nx
 
 !    Adjoint(?) of forward pass
-     ny1=max(ione,ione-ky)
-     ny2=min(ny,ny-ky)
-     do j=ny2,ny1,-1
-        do i=nx2,nx1,-1
+     ny1=1
+     ny2=ny-1
+     do j=ny1,ny2
+        do i=nx1,nx2
            p(i,j)=(one-hwl)*p(i,j)
         enddo
      enddo
      do j=ny2,ny1,-1
-        jp=j+ky
-        do i=nx2,nx1,-1
+        jp=j+1
+        do i=nx1,nx2
            p(i,j)=p(i,j)+hwl*p(i,jp)
         enddo
      enddo
 
 !    Adjoint(?) of backward pass
-     ny1=max(ione,ky+ione)
-     ny2=min(ny,ky+ny)
+     ny1=2
+     ny2=1+ny
      do j=ny1,ny2
         do i=nx1,nx2
            p(i,j)=(one-hwl)*p(i,j)
         enddo
      enddo
      do j=ny1,ny2 
-        jm=j-ky
+        jm=j-1
         do i=nx1,nx2   
            p(i,j)=p(i,j)+hwl*p(i,jm)
         enddo
      enddo
 
 !    Backward pass
-     ny1=max(ione,ione-ky)
-     ny2=min(ny,ny-ky)
+     ny1=1
+     ny2=ny-1
      do j=ny2,ny1,-1
-        jp=j+ky
-        do i=nx2,nx1,-1
+        jp=j+1
+        do i=nx1,nx2
            p(i,j)=p(i,j)+hwl*(p(i,jp)-p(i,j))
         enddo
      enddo
 
 !    Forward pass
-     ny1=max(ione,ky+ione)
-     ny2=min(ny,ky+ny)
+     ny1=2
+     ny2=ny
      do j=ny1,ny2
-        jm=j-ky
+        jm=j-1
         do i=nx1,nx2
            p(i,j)=p(i,j)+hwl*(p(i,jm)-p(i,j))
         enddo

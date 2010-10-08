@@ -263,7 +263,7 @@ sfc_model.o : sfc_model.f90 constants.o kinds.o
 sfcobsqc.o : sfcobsqc.f90 constants.o kinds.o 
 simpin1.o : simpin1.f90 constants.o kinds.o 
 simpin1_init.o : simpin1_init.f90 constants.o kinds.o 
-smooth_polcarf.o : smooth_polcarf.f90 berror.o gridmod.o constants.o kinds.o 
+smooth_polcarf.o : smooth_polcarf.f90 berror.o constants.o gridmod.o kinds.o 
 smoothrf.o : smoothrf.f90 jfunc.o smooth_polcarf.o mpimod.o control_vectors.o berror.o constants.o gridmod.o kinds.o 
 smoothwwrf.o : smoothwwrf.f90 constants.o kinds.o 
 smoothzrf.o : smoothzrf.f90 berror.o balmod.o gridmod.o constants.o kinds.o 

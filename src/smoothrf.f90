@@ -20,6 +20,7 @@ subroutine smoothrf(work,nsc,nlevs)
 !                  nmix+nrmxb=nr no matter what number nlat is.   
 !   2010-05-05  derber create diag2tr - diag2nh -diag2sh routines to simplify smoothrf routines
 !   2010-05-22  todling - remove implicit ordering requirement in nvar_id
+!   2010-10-08  derber - optimize and clean up
 !
 !   input argument list:
 !     work     - horizontal fields to be smoothed
@@ -615,14 +616,15 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 ! Declare local variables
   integer(i_kind) ix,iy,i,j,im,n
 
-  real(r_kind),dimension(nx,ny):: p2,p1out,p1t
+  real(r_kind),dimension(nx,ny):: p2,p1t,p1in
   real(r_kind),dimension(ndeg,ny):: gax2,dex2
   real(r_kind),dimension(nx,ny,ndeg):: alx,aly
 
 ! Zero local arrays
   do iy=1,ny
      do ix=1,nx
-        p1out(ix,iy)=zero
+        p1in(ix,iy)=p1(ix,iy)
+        p1(ix,iy)=zero
      enddo
   enddo
 
@@ -658,7 +660,7 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 !   ---------------------------------------
 
 
-     call rfhx0(p1,p2,gax2,dex2,nx,ny,ndeg,alx,be)
+     call rfhx0(p1in,p2,gax2,dex2,nx,ny,ndeg,alx,be)
 
 
 !    IX < 0     |          |     IX > NX
@@ -703,7 +705,7 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 !           .   |     .    |   .           <-- IY < 0
 !  ---------------------------------------
 
-     call rfhx0(p2,p1out,gax2,dex2,nx,ny,ndeg,alx,be)
+     call rfhx0(p2,p1,gax2,dex2,nx,ny,ndeg,alx,be)
 
 !    IX < 0     |          |     IX > NX
 !   ---------------------------------------
@@ -714,12 +716,6 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 
 ! end loop over number of horizontal scales
   end do
-
-  do iy=1,ny
-     do ix=1,nx
-        p1(ix,iy)=p1out(ix,iy)
-     enddo
-  enddo
 
   return
 end subroutine rfxyyx
@@ -763,15 +759,13 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
   real(r_kind),dimension(nx,ny)     ,intent(in   ) :: p1
   real(r_kind),dimension(ndeg)      ,intent(in   ) :: be
   real(r_kind),dimension(nx,ny,ndeg),intent(in   ) :: alx
-  real(r_kind),dimension(nx,ny)     ,intent(  out) :: p2
+  real(r_kind),dimension(nx,ny)     ,intent(inout) :: p2
 
-  integer(i_kind) kmod2,ix,iy,kr,ki
+  integer(i_kind) ix,iy,kr,ki
 
   real(r_kind) gakr,gaki,dekr,deki,bekr,beki
 
-  kmod2=mod(ndeg,2_i_kind)
-
-  if (kmod2 == 1) then  
+  if (mod(ndeg,2) == 1) then  
 
 !    Advancing filter:
      do ix=1,nx
@@ -781,17 +775,15 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
         enddo
 
                            ! treat remaining complex roots:
-        do kr=kmod2+1,ndeg,2  ! <-- index of "real" components
+        do kr=2,ndeg,2  ! <-- index of "real" components
            ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do iy=1,ny
               gakr=gap(kr,iy)
               gaki=gap(ki,iy)
-              gap(kr,iy)=alx(ix,iy,kr)*gakr&
-                   -alx(ix,iy,ki)*gaki+bekr*p1(ix,iy)
-              gap(ki,iy)=alx(ix,iy,ki)*gakr&
-                   +alx(ix,iy,kr)*gaki+beki*p1(ix,iy)
+              gap(kr,iy)=alx(ix,iy,kr)*gakr-alx(ix,iy,ki)*gaki+bekr*p1(ix,iy)
+              gap(ki,iy)=alx(ix,iy,ki)*gakr+alx(ix,iy,kr)*gaki+beki*p1(ix,iy)
               p2(ix,iy)=p2(ix,iy)+gap(kr,iy)
            enddo
         enddo
@@ -805,7 +797,7 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
            dep(1,iy)=alx(ix,iy,1)*(dep(1,iy)+be(1)*p1(ix,iy))
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+1,ndeg,2   ! <-- index of "real" components
+        do kr=2,ndeg,2   ! <-- index of "real" components
            ki=kr+1      ! <-- index of "imag" components
            do iy=1,ny
               p2(ix,iy)=p2(ix,iy)+dep(kr,iy)
@@ -822,17 +814,15 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
 
         !       Advancing filter
         ! treat remaining complex roots:
-        do kr=kmod2+1,ndeg,2  ! <-- index of "real" components
+        do kr=1,ndeg,2  ! <-- index of "real" components
            ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
               gakr=gap(kr,iy)
               gaki=gap(ki,iy)
-              gap(kr,iy)=alx(ix,iy,kr)*gakr&
-                   -alx(ix,iy,ki)*gaki+bekr*p1(ix,iy)
-              gap(ki,iy)=alx(ix,iy,ki)*gakr&
-                   +alx(ix,iy,kr)*gaki+beki*p1(ix,iy)
+              gap(kr,iy)=alx(ix,iy,kr)*gakr-alx(ix,iy,ki)*gaki+bekr*p1(ix,iy)
+              gap(ki,iy)=alx(ix,iy,ki)*gakr+alx(ix,iy,kr)*gaki+beki*p1(ix,iy)
               p2(ix,iy)=p2(ix,iy)+gap(kr,iy)
               
            end do
@@ -894,19 +884,13 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
   real(r_kind),dimension(ndegy)      ,intent(in   ) :: be
   real(r_kind),dimension(nx,ny)      ,intent(  out) :: p2
 
-  integer(i_kind) kmod2,ix,iy,kr,ki,ly
+  integer(i_kind) ix,iy,kr,ki,ly
 
   real(r_kind),dimension(nx,ndegy):: gap,dep
   real(r_kind) gakr,gaki,dekr,deki
   real(r_kind) beki,bekr
 
-  kmod2=mod(ndegy,2_i_kind)
 
-  do iy=1,ny
-     do ix=1,nx
-        p2(ix,iy)=zero
-     enddo
-  enddo
   do ly=1,ndegy
      do ix=1,nx
         gap(ix,ly)=zero
@@ -914,27 +898,25 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
      enddo
   enddo
 
-  if (kmod2 == 1) then
+  if (mod(ndegy,2) == 1) then
 
 ! Advancing filter:
      do iy=1,ny
 !       treat the real root:
         do ix=1,nx
            gap(ix,1)=aly(ix,iy,1)*gap(ix,1)+be(1)*p1(ix,iy)
-           p2(ix,iy)=p2(ix,iy)+gap(ix,1)
+           p2(ix,iy)=gap(ix,1)
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+        do kr=2,ndegy,2  ! <-- index of "real" components
            ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
               gakr=gap(ix,kr)
               gaki=gap(ix,ki)
-              gap(ix,kr)=aly(ix,iy,kr)*gakr&
-                   -aly(ix,iy,ki)*gaki+bekr*p1(ix,iy)
-              gap(ix,ki)=aly(ix,iy,ki)*gakr&
-                   +aly(ix,iy,kr)*gaki+beki*p1(ix,iy)
+              gap(ix,kr)=aly(ix,iy,kr)*gakr-aly(ix,iy,ki)*gaki+bekr*p1(ix,iy)
+              gap(ix,ki)=aly(ix,iy,ki)*gakr+aly(ix,iy,kr)*gaki+beki*p1(ix,iy)
               p2(ix,iy)=p2(ix,iy)+gap(ix,kr)
            enddo
         enddo
@@ -948,7 +930,7 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
            dep(ix,1)=aly(ix,iy,1)*(dep(ix,1)+be(1)*p1(ix,iy))
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+        do kr=2,ndegy,2  ! <-- index of "real" components
            ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
@@ -966,18 +948,19 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
 
 !    Advancing filter:
      do iy=1,ny
+        do ix=1,nx
+           p2(ix,iy)=zero
+        enddo
         ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+        do kr=1,ndegy,2  ! <-- index of "real" components
            ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
               gakr=gap(ix,kr)
               gaki=gap(ix,ki)
-              gap(ix,kr)=aly(ix,iy,kr)*gakr&
-                   -aly(ix,iy,ki)*gaki+bekr*p1(ix,iy)
-              gap(ix,ki)=aly(ix,iy,ki)*gakr&
-                   +aly(ix,iy,kr)*gaki+beki*p1(ix,iy)
+              gap(ix,kr)=aly(ix,iy,kr)*gakr-aly(ix,iy,ki)*gaki+bekr*p1(ix,iy)
+              gap(ix,ki)=aly(ix,iy,ki)*gakr+aly(ix,iy,kr)*gaki+beki*p1(ix,iy)
               p2(ix,iy)=p2(ix,iy)+gap(ix,kr)
            enddo
         enddo
@@ -986,7 +969,7 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
 !    Backing filter:
      do iy=ny,1,-1
         ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+        do kr=1,ndegy,2  ! <-- index of "real" components
            ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
@@ -1048,7 +1031,7 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
   real(r_kind),dimension(nx,ny)      ,intent(  out) :: p2
   real(r_kind),dimension(ndegx,ny)   ,intent(  out) :: e02,en2
 
-  integer(i_kind) kmod2,ix,iy,lx,kr,ki,ly
+  integer(i_kind) ix,iy,lx,kr,ki,ly
 
   real(r_kind) al0kr,al0ki,gakr,gaki,dekr,deki,alnkr,alnki
   real(r_kind) al01,aln1,beki,bekr
@@ -1056,13 +1039,7 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
   real(r_kind),dimension(nx,ndegy):: gap,dep
   real(r_kind),dimension(ndegx,ndegy):: gae0,dee0,gaen,deen
 
-  kmod2=mod(ndegy,2_i_kind)
 
-  do iy=1,ny
-     do ix=1,nx
-        p2(ix,iy)=zero
-     enddo
-  enddo
   do iy=1,ny
      do lx=1,ndegx
         e02(lx,iy)=zero
@@ -1074,8 +1051,6 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
         gap(ix,ly)=zero
         dep(ix,ly)=zero
      enddo
-  enddo
-  do ly=1,ndegy
      do lx=1,ndegx
         gae0(lx,ly)=zero
         dee0(lx,ly)=zero
@@ -1084,14 +1059,14 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
      end do
   end do
 
-  if (kmod2 == 1) then
+  if (mod(ndegy,2) == 1) then
 
 ! Advancing filter:
      do iy=1,ny
 !       treat the real root:
         do ix=1,nx
            gap(ix,1)=aly(ix,iy,1)*gap(ix,1)+be(1)*p1(ix,iy)
-           p2(ix,iy)=p2(ix,iy)+gap(ix,1)
+           p2(ix,iy)=gap(ix,1)
         enddo
         al01=aly( 1,iy,1)
         aln1=aly(nx,iy,1)
@@ -1102,17 +1077,15 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
            en2(lx,iy)=en2(lx,iy)+gaen(lx,1)
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+        do kr=2,ndegy,2  ! <-- index of "real" components
            ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
               gakr=gap(ix,kr)
               gaki=gap(ix,ki)
-              gap(ix,kr)=aly(ix,iy,kr)*gakr&
-                   -aly(ix,iy,ki)*gaki+bekr*p1(ix,iy)
-              gap(ix,ki)=aly(ix,iy,ki)*gakr&
-                   +aly(ix,iy,kr)*gaki+beki*p1(ix,iy)
+              gap(ix,kr)=aly(ix,iy,kr)*gakr-aly(ix,iy,ki)*gaki+bekr*p1(ix,iy)
+              gap(ix,ki)=aly(ix,iy,ki)*gakr+aly(ix,iy,kr)*gaki+beki*p1(ix,iy)
               p2(ix,iy)=p2(ix,iy)+gap(ix,kr)
            enddo
            al0kr=aly( 1,iy,kr)
@@ -1150,7 +1123,7 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
            deen(lx,1)=aln1*deen(lx,1)
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+        do kr=2,ndegy,2  ! <-- index of "real" components
            ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
@@ -1166,14 +1139,14 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
            alnkr=aly(nx,iy,kr)
            alnki=aly(nx,iy,ki)
            do lx=1,ndegx
-              e02(lx,iy)=e02(lx,iy)+dee0(lx,kr)
               dekr=dee0(lx,kr)
               deki=dee0(lx,ki)
+              e02(lx,iy)=e02(lx,iy)+dekr
               dee0(lx,kr)=al0kr*dekr-al0ki*deki
               dee0(lx,ki)=al0ki*dekr+al0kr*deki
-              en2(lx,iy)=en2(lx,iy)+deen(lx,kr)
               dekr=deen(lx,kr)
               deki=deen(lx,ki)
+              en2(lx,iy)=en2(lx,iy)+dekr
               deen(lx,kr)=alnkr*dekr-alnki*deki
               deen(lx,ki)=alnki*dekr+alnkr*deki
            enddo
@@ -1184,18 +1157,19 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
 
 !    Advancing filter:
      do iy=1,ny
+        do ix=1,nx
+           p2(ix,iy)=zero
+        enddo
         ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+        do kr=1,ndegy,2  ! <-- index of "real" components
            ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
            do ix=1,nx
               gakr=gap(ix,kr)
               gaki=gap(ix,ki)
-              gap(ix,kr)=aly(ix,iy,kr)*gakr&
-                   -aly(ix,iy,ki)*gaki+bekr*p1(ix,iy)
-              gap(ix,ki)=aly(ix,iy,ki)*gakr&
-                   +aly(ix,iy,kr)*gaki+beki*p1(ix,iy)
+              gap(ix,kr)=aly(ix,iy,kr)*gakr-aly(ix,iy,ki)*gaki+bekr*p1(ix,iy)
+              gap(ix,ki)=aly(ix,iy,ki)*gakr+aly(ix,iy,kr)*gaki+beki*p1(ix,iy)
               p2(ix,iy)=p2(ix,iy)+gap(ix,kr)
            enddo
            al0kr=aly( 1,iy,kr)
@@ -1220,7 +1194,7 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
 !    Backing filter:
      do iy=ny,1,-1
         ! treat remaining complex roots:
-        do kr=kmod2+1,ndegy,2  ! <-- index of "real" components
+        do kr=1,ndegy,2  ! <-- index of "real" components
            ki=kr+1      ! <-- index of "imag" components
            bekr=be(kr)
            beki=be(ki)
@@ -1236,14 +1210,14 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
            alnkr=aly(nx,iy,kr)
            alnki=aly(nx,iy,ki)
            do lx=1,ndegx
-              e02(lx,iy)=e02(lx,iy)+dee0(lx,kr)
               dekr=dee0(lx,kr)
               deki=dee0(lx,ki)
+              e02(lx,iy)=e02(lx,iy)+dekr
               dee0(lx,kr)=al0kr*dekr-al0ki*deki
               dee0(lx,ki)=al0ki*dekr+al0kr*deki
-              en2(lx,iy)=en2(lx,iy)+deen(lx,kr)
               dekr=deen(lx,kr)
               deki=deen(lx,ki)
+              en2(lx,iy)=en2(lx,iy)+dekr
               deen(lx,kr)=alnkr*dekr-alnki*deki
               deen(lx,ki)=alnki*dekr+alnkr*deki
            enddo
