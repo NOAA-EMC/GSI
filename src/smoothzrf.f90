@@ -11,6 +11,7 @@ subroutine frfhvo(p1,iv)
 !   2005-01-22  parrish - make use of balmod and rename variables
 !   2005-07-14  wu - add max bound to l2
 !   2008-04-11  safford - rm unsed vars
+!   2010-10-08  derber - optimize and clean up
 !
 !   input argument list:
 !     p1       - input field to be smoothed (lat2,lon2,nsig)
@@ -32,7 +33,7 @@ subroutine frfhvo(p1,iv)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero,one
+  use constants, only: zero,one
   use gridmod, only: nsig,regional,lat2,lon2
   use balmod, only: rllat1,llmax
   use berror, only: alv,be,ndeg
@@ -46,16 +47,13 @@ subroutine frfhvo(p1,iv)
   integer(i_kind)                       ,intent(in   ) :: iv
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: p1
 
-  integer(i_kind) kmod2,j,i,k,kr,ki,i1,l,l2
-  real(r_kind) dl1,dl2,alvl,alvr,alvi,alvi1,alvr1
+  integer(i_kind) j,i,k,kr,ki,l,l2
+  real(r_kind) alvl,alvr,alvi
   real(r_kind) gaki,gakr,dekr,deki,bekr,beki
   real(r_kind),dimension(lat2,lon2,nsig):: p2
   real(r_kind),dimension(lat2,lon2,ndeg):: ga,de
-  real(r_kind) newr,  newi,  oldr,  oldi
-  real(r_kind) newr0, newi0, oldr0, oldi0
-  real(r_kind) newr1, newi1, oldr1, oldi1
+  real(r_kind),dimension(lat2,lon2):: dl1,dl2
 
-  kmod2=mod(ndeg,2_i_kind)
 
 ! Zero output array
   do k=1,nsig
@@ -78,47 +76,44 @@ subroutine frfhvo(p1,iv)
   end do
 
   if (regional)then
+     
+     do j=1,lon2
+        do k=1,lat2
+           l=int(rllat1(k,j))
+           l2=min0(l+1,llmax)
+           dl2(k,j)=rllat1(k,j)-float(l)
+           dl1(k,j)=one-dl2(k,j)
+        end do
+     end do
 ! Regional mode, odd degree
-     if (kmod2 == ione) then
+     if (mod(ndeg,2) == 1) then
 
 !       advancing filter:
         do i=1,nsig
            do j=1,lon2
               do k=1,lat2
                  l=int(rllat1(k,j))
-                 l2=min0(l+ione,llmax)
-                 dl2=rllat1(k,j)-float(l)
-                 dl1=one-dl2
-                 alvl=dl1*alv(l,1,i,iv)+dl2*alv(l2,1,i,iv)
+                 l2=min0(l+1,llmax)
+                 alvl=dl1(k,j)*alv(l,1,i,iv)+dl2(k,j)*alv(l2,1,i,iv)
                  ga(k,j,1)=alvl*ga(k,j,1)+be(1)*p2(k,j,i)
-              end do
-           enddo
-           do j=1,lon2
-              do k=1,lat2
-                 p1(k,j,i)=p1(k,j,i)+ga(k,j,1)
+                 p1(k,j,i)=ga(k,j,1)
               end do
            enddo
 !          treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
+           do kr=2,ndeg,2   ! <-- index of "real" components
+              ki=kr+1            ! <-- index of "imag" components
               bekr=be(kr)
               beki=be(ki)
               do j=1,lon2
                  do k=1,lat2
                     l=int(rllat1(k,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(k,j)-float(l)
-                    dl1=one-dl2
-                    alvr=dl1*alv(l,kr,i,iv)+dl2*alv(l2,kr,i,iv)
-                    alvi=dl1*alv(l,ki,i,iv)+dl2*alv(l2,ki,i,iv)
+                    l2=min0(l+1,llmax)
+                    alvr=dl1(k,j)*alv(l,kr,i,iv)+dl2(k,j)*alv(l2,kr,i,iv)
+                    alvi=dl1(k,j)*alv(l,ki,i,iv)+dl2(k,j)*alv(l2,ki,i,iv)
                     gakr=ga(k,j,kr)
                     gaki=ga(k,j,ki)
                     ga(k,j,kr)=alvr*gakr-alvi*gaki+bekr*p2(k,j,i)
                     ga(k,j,ki)=alvi*gakr+alvr*gaki+beki*p2(k,j,i)
-                 end do
-              enddo
-              do j=1,lon2
-                 do k=1,lat2
                     p1(k,j,i)=p1(k,j,i)+ga(k,j,kr)
                  end do
               enddo
@@ -130,36 +125,24 @@ subroutine frfhvo(p1,iv)
            do j=1,lon2
               do k=1,lat2
                  p1(k,j,i)=p1(k,j,i)+de(k,j,1)
-              end do
-           enddo
-           do j=1,lon2
-              do k=1,lat2
                  l=int(rllat1(k,j))
-                 l2=min0(l+ione,llmax)
-                 dl2=rllat1(k,j)-float(l)
-                 dl1=one-dl2
-                 alvl=dl1*alv(l,1,i,iv)+dl2*alv(l2,1,i,iv)
+                 l2=min0(l+1,llmax)
+                 alvl=dl1(k,j)*alv(l,1,i,iv)+dl2(k,j)*alv(l2,1,i,iv)
                  de(k,j,1)=alvl*(de(k,j,1)+be(1)*p2(k,j,i))
               end do
            enddo
 !          treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
+           do kr=2,ndeg,2   ! <-- index of "real" components
+              ki=kr+1            ! <-- index of "imag" components
               bekr=be(kr)
               beki=be(ki)
               do j=1,lon2
                  do k=1,lat2
                     p1(k,j,i)=p1(k,j,i)+de(k,j,kr)
-                 end do
-              enddo
-              do j=1,lon2
-                 do k=1,lat2
                     l=int(rllat1(k,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(k,j)-float(l)
-                    dl1=one-dl2
-                    alvr=dl1*alv(l,kr,i,iv)+dl2*alv(l2,kr,i,iv)
-                    alvi=dl1*alv(l,ki,i,iv)+dl2*alv(l2,ki,i,iv)
+                    l2=min0(l+1,llmax)
+                    alvr=dl1(k,j)*alv(l,kr,i,iv)+dl2(k,j)*alv(l2,kr,i,iv)
+                    alvi=dl1(k,j)*alv(l,ki,i,iv)+dl2(k,j)*alv(l2,ki,i,iv)
                     dekr=de(k,j,kr)+bekr*p2(k,j,i)
                     deki=de(k,j,ki)+beki*p2(k,j,i)
                     de(k,j,kr)=alvr*dekr-alvi*deki
@@ -173,143 +156,68 @@ subroutine frfhvo(p1,iv)
      else
 
         ! advancing filter:
-        do i=1,nsig-ione,2
-           i1=i+ione
+        do i=1,nsig
            !       treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
+           do kr=1,ndeg,2   ! <-- index of "real" components
+              ki=kr+1            ! <-- index of "imag" components
               bekr=be(kr)
               beki=be(ki)
               do j=1,lon2
                  do k=1,lat2
                     l=int(rllat1(k,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(k,j)-float(l)
-                    dl1=one-dl2
-                    alvr=dl1*alv(l,kr,i,iv)+dl2*alv(l2,kr,i,iv)
-                    alvi=dl1*alv(l,ki,i,iv)+dl2*alv(l2,ki,i,iv)
-                    alvr1=dl1*alv(l,kr,i1,iv)+dl2*alv(l2,kr,i1,iv)
-                    alvi1=dl1*alv(l,ki,i1,iv)+dl2*alv(l2,ki,i1,iv)
+                    l2=min0(l+1,llmax)
+                    alvr=dl1(k,j)*alv(l,kr,i,iv)+dl2(k,j)*alv(l2,kr,i,iv)
+                    alvi=dl1(k,j)*alv(l,ki,i,iv)+dl2(k,j)*alv(l2,ki,i,iv)
                     gakr=ga(k,j,kr)
                     gaki=ga(k,j,ki)
                     ga(k,j,kr)=alvr*gakr-alvi*gaki+bekr*p2(k,j,i)
                     ga(k,j,ki)=alvi*gakr+alvr*gaki+beki*p2(k,j,i)
                     p1(k,j,i)=p1(k,j,i)+ga(k,j,kr)
-                    gakr=ga(k,j,kr)
-                    gaki=ga(k,j,ki)
-                    ga(k,j,kr)=alvr1*gakr-alvi1*gaki+bekr*p2(k,j,i1)
-                    ga(k,j,ki)=alvi1*gakr+alvr1*gaki+beki*p2(k,j,i1)
-                    p1(k,j,i1)=p1(k,j,i1)+ga(k,j,kr)
                  end do
               enddo
            enddo
         enddo
-        if (mod(nsig,2_i_kind)==ione) then
-           i=nsig
-           !       treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
-              bekr=be(kr)
-              beki=be(ki)
-              do j=1,lon2
-                 do k=1,lat2
-                    l=int(rllat1(k,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(k,j)-float(l)
-                    dl1=one-dl2
-                    alvr=dl1*alv(l,kr,i,iv)+dl2*alv(l2,kr,i,iv)
-                    alvi=dl1*alv(l,ki,i,iv)+dl2*alv(l2,ki,i,iv)
- 
-                    gakr=ga(k,j,kr)
-                    gaki=ga(k,j,ki)
-                    ga(k,j,kr)=alvr*gakr-alvi*gaki+bekr*p2(k,j,i)
-                    ga(k,j,ki)=alvi*gakr+alvr*gaki+beki*p2(k,j,i)
-                    p1(k,j,i)=p1(k,j,i)+ga(k,j,kr)
-                 end do
-              enddo
-           enddo
-        endif
  
         !    backing filter:
-        do i=nsig,2,-2
-           i1=i-ione
+        do i=nsig,1,-1
            !       treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
+           do kr=1,ndeg,2   ! <-- index of "real" components
+              ki=kr+1            ! <-- index of "imag" components
               bekr=be(kr)
               beki=be(ki)
               do j=1,lon2
                  do k=1,lat2
-                    l=int(rllat1(k,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(k,j)-float(l)
-                    dl1=one-dl2
-                    alvr=dl1*alv(l,kr,i,iv)+dl2*alv(l2,kr,i,iv)
-                    alvi=dl1*alv(l,ki,i,iv)+dl2*alv(l2,ki,i,iv)
-                    alvr1=dl1*alv(l,kr,i1,iv)+dl2*alv(l2,kr,i1,iv)
-                    alvi1=dl1*alv(l,ki,i1,iv)+dl2*alv(l2,ki,i1,iv)
                     p1(k,j,i)=p1(k,j,i)+de(k,j,kr)
+                    l=int(rllat1(k,j))
+                    l2=min0(l+1,llmax)
+                    alvr=dl1(k,j)*alv(l,kr,i,iv)+dl2(k,j)*alv(l2,kr,i,iv)
+                    alvi=dl1(k,j)*alv(l,ki,i,iv)+dl2(k,j)*alv(l2,ki,i,iv)
                     dekr=de(k,j,kr)+bekr*p2(k,j,i)
                     deki=de(k,j,ki)+beki*p2(k,j,i)
                     de(k,j,kr)=alvr*dekr-alvi*deki
                     de(k,j,ki)=alvi*dekr+alvr*deki
- 
-                    p1(k,j,i1)=p1(k,j,i1)+de(k,j,kr)
-                    dekr=de(k,j,kr)+bekr*p2(k,j,i1)
-                    deki=de(k,j,ki)+beki*p2(k,j,i1)
-                    de(k,j,kr)=alvr1*dekr-alvi1*deki
-                    de(k,j,ki)=alvi1*dekr+alvr1*deki
                  end do
               enddo
            enddo
         enddo
-        if (mod(nsig,2_i_kind)==ione) then
-           i=ione
-           !       treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
-              bekr=be(kr)
-              beki=be(ki)
-              do j=1,lon2
-                 do k=1,lat2
-                    l=int(rllat1(k,j))
-                    l2=min0(l+ione,llmax)
-                    dl2=rllat1(k,j)-float(l)
-                    dl1=one-dl2
-                    alvr=dl1*alv(l,kr,i,iv)+dl2*alv(l2,kr,i,iv)
-                    alvi=dl1*alv(l,ki,i,iv)+dl2*alv(l2,ki,i,iv)
-  
-                    p1(k,j,i)=p1(k,j,i)+de(k,j,kr)
-                    dekr=de(k,j,kr)+bekr*p2(k,j,i)
-                    deki=de(k,j,ki)+beki*p2(k,j,i)
-                    de(k,j,kr)=alvr*dekr-alvi*deki
-                    de(k,j,ki)=alvi*dekr+alvr*deki
-                 end do
-              enddo
-           enddo
-        endif
      endif
 
 ! Global branch
   else
 !    Global mode, odd degree
-     if (kmod2 == ione) then
+     if (mod(ndeg,2) == 1) then
 
 !       advancing filter:
         do i=1,nsig
            do j=1,lon2
               do k=1,lat2
                  ga(k,j,1)=alv(k,1,i,iv)*ga(k,j,1)+be(1)*p2(k,j,i)
-              end do
-           enddo
-           do j=1,lon2
-              do k=1,lat2
-                 p1(k,j,i)=p1(k,j,i)+ga(k,j,1)
+                 p1(k,j,i)=ga(k,j,1)
               end do
            enddo
 !          treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
+           do kr=2,ndeg,2   ! <-- index of "real" components
+              ki=kr+1            ! <-- index of "imag" components
               bekr=be(kr)
               beki=be(ki)
               do j=1,lon2
@@ -318,10 +226,6 @@ subroutine frfhvo(p1,iv)
                     gaki=ga(k,j,ki)
                     ga(k,j,kr)=alv(k,kr,i,iv)*gakr-alv(k,ki,i,iv)*gaki+bekr*p2(k,j,i)
                     ga(k,j,ki)=alv(k,ki,i,iv)*gakr+alv(k,kr,i,iv)*gaki+beki*p2(k,j,i)
-                 end do
-              enddo
-              do j=1,lon2
-                 do k=1,lat2
                     p1(k,j,i)=p1(k,j,i)+ga(k,j,kr)
                  end do
               enddo
@@ -333,25 +237,17 @@ subroutine frfhvo(p1,iv)
            do j=1,lon2
               do k=1,lat2
                  p1(k,j,i)=p1(k,j,i)+de(k,j,1)
-              end do
-           enddo
-           do j=1,lon2
-              do k=1,lat2
-                de(k,j,1)=alv(k,1,i,iv)*(de(k,j,1)+be(1)*p2(k,j,i))
+                 de(k,j,1)=alv(k,1,i,iv)*(de(k,j,1)+be(1)*p2(k,j,i))
               end do
            enddo
 !          treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
+           do kr=2,ndeg,2   ! <-- index of "real" components
+              ki=kr+1            ! <-- index of "imag" components
               bekr=be(kr)
               beki=be(ki)
               do j=1,lon2
                  do k=1,lat2
                     p1(k,j,i)=p1(k,j,i)+de(k,j,kr)
-                 end do
-              enddo
-              do j=1,lon2
-                 do k=1,lat2
                     dekr=de(k,j,kr)+bekr*p2(k,j,i)
                     deki=de(k,j,ki)+beki*p2(k,j,i)
                     de(k,j,kr)=alv(k,kr,i,iv)*dekr-alv(k,ki,i,iv)*deki
@@ -365,119 +261,30 @@ subroutine frfhvo(p1,iv)
      else
 
         ! advancing filter:
-        do i=1,nsig-ione,2
-           i1=i+ione
+        do i=1,nsig
            !       treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
-              bekr=be(kr)
-              beki=be(ki)
-              do j=1,lon2
-                 do k=1,lat2-ione, 2
-                    oldr0=ga(k     ,j,kr)
-                    oldr1=ga(k+ione,j,kr)
-                    oldi0=ga(k     ,j,ki)
-                    oldi1=ga(k+ione,j,ki)
-                    newr0=alv(k     ,kr,i,iv)*oldr0-alv(k     ,ki,i,iv)*oldi0+bekr*p2(k     ,j,i)
-                    newr1=alv(k+ione,kr,i,iv)*oldr1-alv(k+ione,ki,i,iv)*oldi1+bekr*p2(k+ione,j,i)
-                    newi0=alv(k     ,ki,i,iv)*oldr0+alv(k     ,kr,i,iv)*oldi0+beki*p2(k     ,j,i)
-                    newi1=alv(k+ione,ki,i,iv)*oldr1+alv(k+ione,kr,i,iv)*oldi1+beki*p2(k+ione,j,i)
-                    p1(k     ,j,i)=p1(k     ,j,i)+newr0
-                    p1(k+ione,j,i)=p1(k+ione,j,i)+newr1
-
-                    ga(k     ,j,kr)=alv(k     ,kr,i1,iv)*newr0-alv(k     ,ki,i1,iv)*newi0+bekr*p2(k     ,j,i1)
-                    ga(k+ione,j,kr)=alv(k+ione,kr,i1,iv)*newr1-alv(k+ione,ki,i1,iv)*newi1+bekr*p2(k+ione,j,i1)
-                    ga(k     ,j,ki)=alv(k     ,ki,i1,iv)*newr0+alv(k     ,kr,i1,iv)*newi0+beki*p2(k     ,j,i1)
-                    ga(k+ione,j,ki)=alv(k+ione,ki,i1,iv)*newr1+alv(k+ione,kr,i1,iv)*newi1+beki*p2(k+ione,j,i1)
-                    p1(k     ,j,i1)=p1(k     ,j,i1)+ga(k     ,j,kr)
-                    p1(k+ione,j,i1)=p1(k+ione,j,i1)+ga(k+ione,j,kr)
-                 end do
-                 do k=k,lat2
-                    oldr=ga(k,j,kr)
-                    oldi=ga(k,j,ki)
-                    newr=alv(k,kr,i,iv)*oldr-alv(k,ki,i,iv)*oldi+bekr*p2(k,j,i)
-                    newi=alv(k,ki,i,iv)*oldr+alv(k,kr,i,iv)*oldi+beki*p2(k,j,i)
-                    p1(k,j,i)=p1(k,j,i)+newr
- 
-                    ga(k,j,kr)=alv(k,kr,i1,iv)*newr-alv(k,ki,i1,iv)*newi+bekr*p2(k,j,i1)
-                    ga(k,j,ki)=alv(k,ki,i1,iv)*newr+alv(k,kr,i1,iv)*newi+beki*p2(k,j,i1)
-                    p1(k,j,i1)=p1(k,j,i1)+ga(k,j,kr)
-                 end do
-              enddo
-           enddo
-        enddo
-        if (mod(nsig,2_i_kind)==ione) then
-           i=nsig
-           !       treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
+           do kr=1,ndeg,2   ! <-- index of "real" components
+              ki=kr+1            ! <-- index of "imag" components
               bekr=be(kr)
               beki=be(ki)
               do j=1,lon2
                  do k=1,lat2
                     gakr=ga(k,j,kr)
                     gaki=ga(k,j,ki)
+
                     ga(k,j,kr)=alv(k,kr,i,iv)*gakr-alv(k,ki,i,iv)*gaki+bekr*p2(k,j,i)
                     ga(k,j,ki)=alv(k,ki,i,iv)*gakr+alv(k,kr,i,iv)*gaki+beki*p2(k,j,i)
-                    p1(k,j,i)=p1(k,j,i)+ga(k,j,kr)
-                 end do
-              enddo
-           enddo
-        endif
-     
-        !    backing filter:
-        do i=nsig,2,-2
-           i1=i-ione
-           !       treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
-              bekr=be(kr)
-              beki=be(ki)
-              do j=1,lon2
-                 do k=1,lat2-ione, 2
-                    p1(k     ,j,i)=p1(k     ,j,i)+de(k     ,j,kr)
-                    p1(k+ione,j,i)=p1(k+ione,j,i)+de(k+ione,j,kr)
-                    oldr0=de(k     ,j,kr)+bekr*p2(k     ,j,i)
-                    oldr1=de(k+ione,j,kr)+bekr*p2(k+ione,j,i)
-                    oldi0=de(k     ,j,ki)+beki*p2(k     ,j,i)
-                    oldi1=de(k+ione,j,ki)+beki*p2(k+ione,j,i)
-                    newr0=alv(k     ,kr,i,iv)*oldr0-alv(k     ,ki,i,iv)*oldi0
-                    newr1=alv(k+ione,kr,i,iv)*oldr1-alv(k+ione,ki,i,iv)*oldi1
-                    newi0=alv(k     ,ki,i,iv)*oldr0+alv(k     ,kr,i,iv)*oldi0
-                    newi1=alv(k+ione,ki,i,iv)*oldr1+alv(k+ione,kr,i,iv)*oldi1
- 
-                    p1(k     ,j,i1)=p1(k     ,j,i1)+newr0
-                    p1(k+ione,j,i1)=p1(k+ione,j,i1)+newr1
-                    newr0=newr0+bekr*p2(k     ,j,i1)
-                    newr1=newr1+bekr*p2(k+ione,j,i1)
-                    newi0=newi0+beki*p2(k     ,j,i1)
-                    newi1=newi1+beki*p2(k+ione,j,i1)
-                    de(k     ,j,kr)=alv(k     ,kr,i1,iv)*newr0-alv(k     ,ki,i1,iv)*newi0
-                    de(k+ione,j,kr)=alv(k+ione,kr,i1,iv)*newr1-alv(k+ione,ki,i1,iv)*newi1
-                    de(k     ,j,ki)=alv(k     ,ki,i1,iv)*newr0+alv(k     ,kr,i1,iv)*newi0
-                    de(k+ione,j,ki)=alv(k+ione,ki,i1,iv)*newr1+alv(k+ione,kr,i1,iv)*newi1
-                 end do
-                 do k=k,lat2
-                    p1(k,j,i)=p1(k,j,i)+de(k,j,kr)
-                    oldr=de(k,j,kr)+bekr*p2(k,j,i)
-                    oldi=de(k,j,ki)+beki*p2(k,j,i)
-                    newr=alv(k,kr,i,iv)*oldr-alv(k,ki,i,iv)*oldi
-                    newi=alv(k,ki,i,iv)*oldr+alv(k,kr,i,iv)*oldi
- 
-                    p1(k,j,i1)=p1(k,j,i1)+newr
-                    newr=newr+bekr*p2(k,j,i1)
-                    newi=newi+beki*p2(k,j,i1)
-                    de(k,j,kr)=alv(k,kr,i1,iv)*newr-alv(k,ki,i1,iv)*newi
-                    de(k,j,ki)=alv(k,ki,i1,iv)*newr+alv(k,kr,i1,iv)*newi
+                    p1(k,j,i)= p1(k,j,i)+ga(k,j,kr)
                  end do
               enddo
            enddo
         enddo
-        if (mod(nsig,2_i_kind)==ione) then
-           i=ione
+     
+        !    backing filter:
+        do i=nsig,1,-1
            !       treat remaining complex roots:
-           do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-              ki=kr+ione            ! <-- index of "imag" components
+           do kr=1,ndeg,2   ! <-- index of "real" components
+              ki=kr+1            ! <-- index of "imag" components
               bekr=be(kr)
               beki=be(ki)
               do j=1,lon2
@@ -490,7 +297,7 @@ subroutine frfhvo(p1,iv)
                  end do
               enddo
            enddo
-        endif
+        enddo
      endif
   end if
   return
@@ -510,6 +317,7 @@ subroutine smoothzo(vx,samp,rate,iv,jx,dsv)
 !   2004-11-30  treadon - add longitude dimension to variance array dssv
 !   2010-03-01  zhu     - decide the location in alv and dsv based on anavinfo
 !                       - add dsv in the interface, rm dssv in berror
+!   2010-10-08  derber - optimize and clean up
 !
 !   input argument list:
 !     vx       - vertical smoothing scales
@@ -578,6 +386,7 @@ subroutine rfhvo(p1,nc,n,al)
 !
 ! program history log:
 !   2004-05-13  derber, document
+!   2010-10-08  derber - optimize and clean up
 !
 !   input argument list:
 !     p1       - input field to be smoothed (nc,n)
@@ -594,7 +403,7 @@ subroutine rfhvo(p1,nc,n,al)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   use berror, only: be,ndeg
   implicit none
  
@@ -602,12 +411,11 @@ subroutine rfhvo(p1,nc,n,al)
   real(r_kind),dimension(n,ndeg),intent(in   ) :: al
   real(r_kind),dimension(nc,n)  ,intent(inout) :: p1
  
-  integer(i_kind) i,j,kmod2,kr,ki
+  integer(i_kind) i,j,kr,ki
   real(r_kind) gaki,dekr,deki,gakr
   real(r_kind),dimension(nc,n):: p2
   real(r_kind),dimension(nc,ndeg):: ga,de
 
-  kmod2=mod(ndeg,2_i_kind)
 
 ! Zero local work arrays.
   do j=1,ndeg
@@ -624,25 +432,21 @@ subroutine rfhvo(p1,nc,n,al)
      end do
   end do
 
-  if (kmod2 == ione) then
+  if (mod(ndeg,2) == 1) then
 !    advancing filter:
      do i=1,n
         do j=1,nc
            ga(j,1)=al(i,1)*ga(j,1)+be(1)*p2(j,i)
-        enddo
-        do j=1,nc
            p1(j,i)=p1(j,i)+ga(j,1)
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-           ki=kr+ione            ! <-- index of "imag" components
+        do kr=2,ndeg,2   ! <-- index of "real" components
+           ki=kr+1            ! <-- index of "imag" components
            do j=1,nc
               gakr=ga(j,kr)
               gaki=ga(j,ki)
               ga(j,kr)=al(i,kr)*gakr-al(i,ki)*gaki+be(kr)*p2(j,i)
               ga(j,ki)=al(i,ki)*gakr+al(i,kr)*gaki+be(ki)*p2(j,i)
-           enddo
-           do j=1,nc
               p1(j,i)=p1(j,i)+ga(j,kr)
            enddo
         enddo
@@ -652,17 +456,13 @@ subroutine rfhvo(p1,nc,n,al)
      do i=n,1,-1
         do j=1,nc
            p1(j,i)=p1(j,i)+de(j,1)
-        enddo
-        do j=1,nc
            de(j,1)=al(i,1)*(de(j,1)+be(1)*p2(j,i))
         enddo
                            ! treat remaining complex roots:
-        do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-           ki=kr+ione            ! <-- index of "imag" components
+        do kr=2,ndeg,2   ! <-- index of "real" components
+           ki=kr+1            ! <-- index of "imag" components
            do j=1,nc
               p1(j,i)=p1(j,i)+de(j,kr)
-           enddo
-           do j=1,nc
               dekr=de(j,kr)+be(kr)*p2(j,i)
               deki=de(j,ki)+be(ki)*p2(j,i)
               de(j,kr)=al(i,kr)*dekr-al(i,ki)*deki
@@ -675,15 +475,13 @@ subroutine rfhvo(p1,nc,n,al)
 ! advancing filter:
      do i=1,n
                            ! treat remaining complex roots:
-        do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-           ki=kr+ione            ! <-- index of "imag" components
+        do kr=1,ndeg,2   ! <-- index of "real" components
+           ki=kr+1            ! <-- index of "imag" components
            do j=1,nc
               gakr=ga(j,kr)
               gaki=ga(j,ki)
               ga(j,kr)=al(i,kr)*gakr-al(i,ki)*gaki+be(kr)*p2(j,i)
               ga(j,ki)=al(i,ki)*gakr+al(i,kr)*gaki+be(ki)*p2(j,i)
-           enddo
-           do j=1,nc
               p1(j,i)=p1(j,i)+ga(j,kr)
            enddo
         enddo
@@ -692,12 +490,10 @@ subroutine rfhvo(p1,nc,n,al)
 ! backing filter:
      do i=n,1,-1
         ! treat remaining complex roots:
-        do kr=kmod2+ione,ndeg,2   ! <-- index of "real" components
-           ki=kr+ione            ! <-- index of "imag" components
+        do kr=1,ndeg,2   ! <-- index of "real" components
+           ki=kr+1            ! <-- index of "imag" components
            do j=1,nc
               p1(j,i)=p1(j,i)+de(j,kr)
-           enddo
-           do j=1,nc
               dekr=de(j,kr)+be(kr)*p2(j,i)
               deki=de(j,ki)+be(ki)*p2(j,i)
               de(j,kr)=al(i,kr)*dekr-al(i,ki)*deki

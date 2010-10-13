@@ -28,6 +28,7 @@ module berror
 !   2006-11-30  todling - add fpsproj to control full nsig projection onto ps
 !   2007-03-13  derber - add qvar3d array to allow qoption=2 to work similar to others
 !   2007-07-03  kleist - add variables for flow-dependent background error variances
+!   2010-04-25  zhu - add handling of option newpc4pred for new pre-conditioning of predictors
 !   2010-06-01  todling - revist as,tsfc_sdv to allow alloc depending on size of CVec
 !
 ! subroutines included:
@@ -72,6 +73,7 @@ module berror
 !   def bl        - blending coefficients for lat/lon boundaries
 !   def bl2       - blending coefficients lat/lon boundaries
 !   def varprd    - variance for predictors
+!   def vprecond  - additional preconditioner for radiance bc predictor coeffients
 !   def tsfc_sdv  - standard deviation for land (1) and ice (2) surface temperature
 !   def wmask     - not used, function of land-sea mask
 !   def table     - table of coeffients for smoothing
@@ -109,6 +111,7 @@ module berror
   private
 ! set subroutines to public
   public :: init_berror
+  public :: pcinfo
   public :: create_berror_vars
   public :: destroy_berror_vars
   public :: set_predictors_var
@@ -119,6 +122,7 @@ module berror
 ! set passed variables to public
   public :: qvar3d,nr,nf,varprd,fpsproj,bkgv_flowdep
   public :: ndx,ndy,ndx2,nmix,nymx,nfg,nfnf,norm,nxem
+  public :: newpc4pred,vprecond
   public :: dssvs,dssv,bkgv_write,bkgv_rewgtfct,hswgt
   public :: hzscl,bw,pert_berr_fct,pert_berr,ndeg,norh,vs
   public :: bl,bl2,be,slw2,slw1,slw,mr,inaxs,wtxrs,wtaxs,nx,ny
@@ -137,14 +141,14 @@ module berror
   real(r_kind),dimension(maxvars):: as
   real(r_kind),dimension(maxvars):: tsfc_sdv
 
-  real(r_kind),allocatable,dimension(:):: be,bl,bl2,varprd
+  real(r_kind),allocatable,dimension(:):: be,bl,bl2,varprd,vprecond
   real(r_kind),allocatable,dimension(:,:):: table,&
        slw,slw1,slw2
   real(r_kind),allocatable,dimension(:,:,:):: dssvs
   real(r_kind),allocatable,dimension(:,:,:):: wtaxs,wtxrs,qvar3d
   real(r_kind),allocatable,dimension(:,:,:,:):: alv,dssv
 
-  logical pert_berr,bkgv_flowdep,bkgv_write
+  logical pert_berr,bkgv_flowdep,bkgv_write,newpc4pred
   real(r_kind) pert_berr_fct,bkgv_rewgtfct
 
   logical,save :: fpsproj
@@ -164,6 +168,7 @@ contains
 !   2004-11-03  treadon - add default definition for horizontal scale weighting factors
 !   2005-06-06  wu - add logical fstat
 !   2006-11-30  todling - add logical fpsproj
+!   2010-04-25  zhu - add logical newpc4pred
 !
 !   input argument list:
 !
@@ -185,10 +190,10 @@ contains
     bkgv_write = .false.
     pert_berr_fct = zero
     bkgv_rewgtfct = zero
-    norh=2_i_kind
-    ndeg=4_i_kind
-    nta=50000_i_kind
-    nlath=48_i_kind
+    norh=2
+    ndeg=4
+    nta=50000
+    nlath=48
 
     bw=zero
 
@@ -206,6 +211,8 @@ contains
     do i=1,maxvars
        tsfc_sdv(i)=one
     end do
+
+    newpc4pred=.false.
 
   return
   end subroutine init_berror
@@ -225,6 +232,7 @@ contains
 !   2004-11-16  treadon - add longitude dimension to array dssv
 !   2008-10-24  zhu     - use nrf3,nvars & dssvs,remove dssvt
 !                       - change the order of dssv's dimensions
+!   2010-04-27  zhu     - add vprecond for new preconditioner of predictors
 !   2010-06-01  todling - aas/atsfc_sdv now alloc/ble and initialized here
 !
 !   input argument list:
@@ -238,13 +246,13 @@ contains
 !$$$
   use balmod, only: llmin,llmax
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
-  use jfunc, only: nrclen
-  use constants, only: izero,ione,zero,one
+  use jfunc, only: nrclen,nclen
+  use constants, only: zero,one
   implicit none
   
   integer(i_kind) i
 
-  llmin=ione
+  llmin=1
   llmax=nlat
 
 ! Grid constant to transform to 3 pieces
@@ -253,12 +261,12 @@ contains
   nx=nx/2*2
   ny=nlat*8/9
   ny=ny/2*2
-  if(mod(nlat,2)/=izero)ny=ny+ione
-  mr=izero
+  if(mod(nlat,2)/=0)ny=ny+1
+  mr=0
   nr=nlat/4
   nf=nr
   nlath=nlat/2
-  if(mod(nlat,2)/=izero) nlath=nlath+ione
+  if(mod(nlat,2)/=0) nlath=nlath+1
   ndx=(nx-nlon)/2
   ndy=(nlat-ny)/2
   ndx2=2*ndx
@@ -269,11 +277,11 @@ contains
   nfg=2*nf+1
   nfnf=nfg*nfg
 
-  allocate(wtaxs(0:norh*2-ione,nf,0:(nlon/8)-ione), &
-           wtxrs(0:norh*2-ione,0:(nlon/8)-ione,mr:nr), &
+  allocate(wtaxs(0:norh*2-1,nf,0:(nlon/8)-1), &
+           wtxrs(0:norh*2-1,0:(nlon/8)-1,mr:nr), &
            be(ndeg), &
            bl(nx-nlon), &
-           bl2(nr+ione+(ny-nlat)/2), &
+           bl2(nr+1+(ny-nlat)/2), &
            qvar3d(lat2,lon2,nsig))
   if(nc3d>0)then
      allocate(alv(lat2,ndeg,nsig,nc3d),&
@@ -284,15 +292,16 @@ contains
      dssvs = zero
   endif
   allocate(varprd(nrclen))
+  if (newpc4pred) allocate(vprecond(nclen))
   allocate(inaxs(nf,nlon/8), &
            inxrs(nlon/8,mr:nr) )
 
   allocate(slw(ny*nx,nnnn1o),&
-           slw1((2*nf+ione)*(2*nf+ione),nnnn1o),&
-           slw2((2*nf+ione)*(2*nf+ione),nnnn1o))
+           slw1((2*nf+1)*(2*nf+1),nnnn1o),&
+           slw2((2*nf+1)*(2*nf+1),nnnn1o))
   allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o),&
-           ii1(2*nf+ione,2*nf+ione,3,nnnn1o),jj1(2*nf+ione,2*nf+ione,3,nnnn1o),&
-           ii2(2*nf+ione,2*nf+ione,3,nnnn1o),jj2(2*nf+ione,2*nf+ione,3,nnnn1o))
+           ii1(2*nf+1,2*nf+1,3,nnnn1o),jj1(2*nf+1,2*nf+1,3,nnnn1o),&
+           ii2(2*nf+1,2*nf+1,3,nnnn1o),jj2(2*nf+1,2*nf+1,3,nnnn1o))
 
   return
  end subroutine create_berror_vars
@@ -332,6 +341,7 @@ contains
     if(allocated(alv))   deallocate(alv)
     if(allocated(dssv))  deallocate(dssv)
     if(allocated(dssvs)) deallocate(dssvs)
+    if (newpc4pred) deallocate(vprecond)
     deallocate(slw,slw1,slw2)
     deallocate(ii,jj,ii1,jj1,ii2,jj2)
     return
@@ -351,6 +361,8 @@ contains
 !   2004-07-28  treadon - remove subroutine calling list, pass through module
 !   2005-05-24  pondeca - take into consideration that nrclen=0 for 2dvar only
 !                         surface analysis option
+!   2010-04-30  zhu     - add handling of newpc4pred, set varprd based on diagonal
+!                         info of analysis error covariance
 !
 !   input argument list:
 !
@@ -361,20 +373,96 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only:  ione,one,one_tenth
+    use constants, only:  zero,one,two,one_tenth,r10
+    use radinfo, only: ostats,varA,jpch_rad,npred,inew_rad
+    use gridmod, only: twodvar_regional
     use jfunc, only: nrclen
     implicit none
 
-    integer(i_kind) i
+    integer(i_kind) i,j,ii
     real(r_kind) stndev
     
     stndev = one/one_tenth       ! 0.316 K background error
-    do i=1,max(ione,nrclen)
+    do i=1,max(1,nrclen)
        varprd(i)=stndev
     end do
+
+!   set variances for bias predictor coeff. based on diagonal info
+!   of previous analysis error variance
+    if (.not. twodvar_regional .and. newpc4pred) then
+       ii=0
+       do i=1,jpch_rad
+          do j=1,npred
+             ii=ii+1
+             if (inew_rad(i)) then
+                varprd(ii)=10000.0_r_kind
+             else
+                if (ostats(i)==zero) then 
+                   varA(j,i)=two*varA(j,i)+1.0e-6_r_kind
+                   varprd(ii)=varA(j,i)
+                else
+                   varprd(ii)=1.1_r_kind*varA(j,i)+1.0e-6_r_kind
+                end if
+                if (varprd(ii)>r10) varprd(ii)=r10
+             end if
+          end do
+       end do
+    end if
+
     return
   end subroutine set_predictors_var
 
+  subroutine pcinfo
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    pcinfo    Set up additional preconditioning information
+!   prgmmr: zhu           org: np20                date: 2009-11-29
+!
+! abstract: Set additional preconditioning based on the
+!           analysis error covariance from current analysis cycle
+!
+! program history log:
+!   2009-11-29   zhu
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use kinds, only: r_kind,i_kind
+    use radinfo, only: ostats,rstats,varA,jpch_rad,npred
+    use jfunc, only: nclen,nrclen
+    use constants, only:  one
+    implicit none
+
+!   Declare local variables
+    integer(i_kind) i,j,ii
+    integer(i_kind) nclen1
+    real(r_kind) lfact
+
+    nclen1=nclen-nrclen
+
+!   Set up L=inverse(B)*M for preconditioning purpose
+!   Only diagonal elememts are considered
+    vprecond=one
+
+!   set a coeff. factor for variances of control variables
+    lfact=one
+    vprecond(1:nclen1)=lfact
+
+!   for radiance bias predictor coeff.
+    ii=0
+    do i=1,jpch_rad
+       do j=1,npred
+          ii=ii+1
+          if (ostats(i)>=1.0_r_kind) then
+             vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
+             varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
+          end if
+       end do
+    end do
+
+  end subroutine pcinfo
 
   subroutine init_rftable(mype,rate,nnn,sli,sli1,sli2)
 !$$$  subprogram documentation block
@@ -409,13 +497,13 @@ contains
 !
 !$$$
     use gridmod, only:  regional
-    use constants, only: izero,ione,zero,one
+    use constants, only: zero,one
     implicit none
 
     integer(i_kind)                                               ,intent(in   ) :: nnn,mype
     real(r_kind),dimension(ndeg)                                  ,intent(in   ) :: rate
     real(r_kind),dimension(ny*nx,2,nnn)                           ,intent(in   ) :: sli
-    real(r_kind),optional,dimension((2*nf+ione)*(2*nf+ione),2,nnn),intent(in   ) :: sli1,sli2
+    real(r_kind),optional,dimension((2*nf+1)*(2*nf+1),2,nnn),intent(in   ) :: sli1,sli2
 
     real(r_kind),parameter:: tin = 0.2e-3_r_kind
 
@@ -484,8 +572,8 @@ contains
 
     ihwlb=hwlb/tin
     hwlb=ihwlb*tin
-!   tin=(hwle-hwlb)/float(nta-ione)
-    ntax=(hwle-hwlb)/tin+2_i_kind
+!   tin=(hwle-hwlb)/float(nta-1)
+    ntax=(hwle-hwlb)/tin+2
 !   write(6,*)'INIT_RFTABLE:  tin ',ntax,ihwlb,tin,hwlb,hwle
 
     allocate(iuse(ntax))
@@ -497,7 +585,7 @@ contains
           do i=1,nynx
              do j=1,3
                 iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli(i,n,k))))
-                iloc=max(iloc,ione)
+                iloc=max(iloc,1)
                 iuse(iloc)=.true.
              enddo
           enddo
@@ -506,10 +594,10 @@ contains
              do i=1,nfnf
                 do j=1,3
                    iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli1(i,n,k))))
-                   iloc=max(iloc,ione)
+                   iloc=max(iloc,1)
                    iuse(iloc)=.true.
                    iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli2(i,n,k))))
-                   iloc=max(iloc,ione)
+                   iloc=max(iloc,1)
                    iuse(iloc)=.true.
                 enddo
              enddo
@@ -517,14 +605,14 @@ contains
 
        enddo
     enddo
-    nta=izero
+    nta=0
     allocate(dsh(ntax),ipoint(ntax))
-    ipoint=izero
+    ipoint=0
     do i=1,ntax
        if(iuse(i))then
-          nta=nta+ione
+          nta=nta+1
           ipoint(i)=nta
-          dsh(nta)=one/(float(i-ione+ihwlb)*tin)
+          dsh(nta)=one/(float(i-1+ihwlb)*tin)
        end if
     end do
 !   write(6,*)'INIT_RFTABLE:  ntax,nta = ',ntax,nta
@@ -595,7 +683,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: ione,one
+    use constants, only: one
     implicit none
 
     integer(i_kind)                       ,intent(in   ) :: nydim,nxdim,ntax
@@ -612,9 +700,9 @@ contains
     wni2=one/tin
     do iy=1,nydim
        do ix=1,nxdim
-          iloc=min(ntax, max(ione, nint(one-ihwlb+wni2/(sli(ix,iy,1)*factor))))
+          iloc=min(ntax, max(1, nint(one-ihwlb+wni2/(sli(ix,iy,1)*factor))))
           iix(ix,iy)=ipoint(iloc)
-          iloc=min(ntax, max(ione, nint(one-ihwlb+wni2/(sli(ix,iy,2)*factor))))
+          iloc=min(ntax, max(1, nint(one-ihwlb+wni2/(sli(ix,iy,2)*factor))))
           jjx(ix,iy)=ipoint(iloc)
        enddo
     enddo
@@ -652,7 +740,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: ione,zero
+    use constants, only: zero
     use balmod, only: llmin,llmax
     use gridmod, only: nlat,nlon,nsig,nnnn1o,lat2,lon2
     use jfunc, only: nrclen
@@ -660,8 +748,8 @@ contains
     
     nx=nlon
     ny=nlat
-    mr=ione
-    nr=ione
+    mr=1
+    nr=1
     nf=nr
     
 !   Grid constant for background error
@@ -675,7 +763,7 @@ contains
        dssvs=zero
     endif
     
-    allocate(varprd(max(ione,nrclen) ) )     
+    allocate(varprd(max(1,nrclen) ) )     
 
     allocate(slw(ny*nx,nnnn1o) )
     allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o) )

@@ -15,6 +15,7 @@ module smooth_polcarf
 !
 ! program history log:
 !   2005-04-28  parrish
+!   2010-10-08  derber - optimize and clean up
 !
 ! subroutines included:
 !   sub init_smooth_polcas
@@ -124,10 +125,9 @@ contains
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-    use constants, only: izero
     implicit none
 
-    norsp=izero
+    norsp=0
 
   end subroutine init_smooth_polcas
 
@@ -179,7 +179,7 @@ contains
 !$$$ end documentation block
 
   use gridmod, only: nlon,nlat,rlats
-  use constants, only: izero,ione,zero,half,one,two,pi
+  use constants, only: zero,half,one,two,pi
   use berror, only: nf,nr
   implicit none
 
@@ -209,8 +209,8 @@ contains
 
 !  first define xgrid, ygrid, and various other things
 
-  nxgrid=2*nf+ione
-  nygrid=2*nf+ione
+  nxgrid=2*nf+1
+  nygrid=2*nf+1
   do i=-nf,nf
      xgrid(i)=df*i
      ygrid(i)=xgrid(i)
@@ -220,8 +220,8 @@ contains
   allocate(ixwtxys(0:norsp,nlon,0:nr),iywtxys(0:norsp,nlon,0:nr))
   allocate(nxwtxys(nlon,0:nr),nywtxys(nlon,0:nr))
   do j=1,nlon
-     clon(j)=cos((j-ione)*dlon)
-     slon(j)=sin((j-ione)*dlon)
+     clon(j)=cos((j-1)*dlon)
+     slon(j)=sin((j-1)*dlon)
   end do
   do i=0,nr
      do j=1,nlon
@@ -229,27 +229,27 @@ contains
         xin=rs(i)*clon(j)
         ieven1=nint(xin/df)
         iodd1=int(xin/df)
-        if(xin<zero) iodd1=iodd1-ione
-        nord_oddmax1=min(2*(iodd1+nf)+ione,2*(nf-iodd1-ione)+ione)
+        if(xin<zero) iodd1=iodd1-1
+        nord_oddmax1=min(2*(iodd1+nf)+1,2*(nf-iodd1-1)+1)
         nord_evenmax1=2*min(ieven1+nf,nf-ieven1)
         iord1=min(norsp,nord_oddmax1,nord_evenmax1)
-        if(iord1<=izero) then
-           nor1=izero ; wgt1(0)=one ; iwgt1(0)=min(nf,max(-nf,nint(xin/df)))
+        if(iord1<=0) then
+           nor1=0 ; wgt1(0)=one ; iwgt1(0)=min(nf,max(-nf,nint(xin/df)))
         end if
-        if(iord1>izero.and.mod(iord1,2_i_kind)==izero) then
+        if(iord1>0.and.mod(iord1,2)==0) then
            tin=half+(xin-xgrid(ieven1))/df
-           call bspline(tin,iord1+ione,wgt1)
+           call bspline(tin,iord1+1,wgt1)
            nor1=iord1
            do ii=-iord1/2,iord1/2
               iwgt1(ii+iord1/2)=ieven1+ii
            end do
         end if
-        if(iord1>izero.and.mod(iord1,2_i_kind)/=izero) then
+        if(iord1>0.and.mod(iord1,2)/=0) then
            tin=(xin-xgrid(iodd1))/df
-           call bspline(tin,iord1+ione,wgt1)
+           call bspline(tin,iord1+1,wgt1)
            nor1=iord1
-           do ii=-(iord1-ione)/2,ione+(iord1-ione)/2
-              iwgt1(ii+(iord1-ione)/2)=iodd1+ii
+           do ii=-(iord1-1)/2,1+(iord1-1)/2
+              iwgt1(ii+(iord1-1)/2)=iodd1+ii
            end do
         end if
 
@@ -257,27 +257,27 @@ contains
         yin=rs(i)*slon(j)
         ieven2=nint(yin/df)
         iodd2=int(yin/df)
-        if(yin<zero) iodd2=iodd2-ione
-        nord_oddmax2=min(2*(iodd2+nf)+ione,2*(nf-iodd2-ione)+ione)
+        if(yin<zero) iodd2=iodd2-1
+        nord_oddmax2=min(2*(iodd2+nf)+1,2*(nf-iodd2-1)+1)
         nord_evenmax2=2*min(ieven2+nf,nf-ieven2)
         iord2=min(norsp,nord_oddmax2,nord_evenmax2)
-        if(iord2<=izero) then
-           nor2=izero ; wgt2(0)=one ; iwgt2(0)=min(nf,max(-nf,nint(yin/df)))
+        if(iord2<=0) then
+           nor2=0 ; wgt2(0)=one ; iwgt2(0)=min(nf,max(-nf,nint(yin/df)))
         end if
-        if(iord2>izero.and.mod(iord2,2_i_kind)==izero) then
+        if(iord2>0.and.mod(iord2,2)==0) then
            tin=half+(yin-ygrid(ieven2))/df
-           call bspline(tin,iord2+ione,wgt2)
+           call bspline(tin,iord2+1,wgt2)
            nor2=iord2
            do ii=-iord2/2,iord2/2
               iwgt2(ii+iord2/2)=ieven2+ii
            end do
         end if
-        if(iord2>izero.and.mod(iord2,2_i_kind)/=izero) then
+        if(iord2>0.and.mod(iord2,2)/=0) then
            tin=(yin-ygrid(iodd2))/df
-           call bspline(tin,iord2+ione,wgt2)
+           call bspline(tin,iord2+1,wgt2)
            nor2=iord2
-           do ii=-(iord2-ione)/2,ione+(iord2-ione)/2
-              iwgt2(ii+(iord2-ione)/2)=iodd2+ii
+           do ii=-(iord2-1)/2,1+(iord2-1)/2
+              iwgt2(ii+(iord2-1)/2)=iodd2+ii
            end do
         end if
 !---------------------------now consolidate and get final weights, addresses for this point
@@ -323,21 +323,20 @@ contains
 !   machine:  ibm rs/6000 sp
 !$$$ end documentation block
 
-  use constants, only: ione,zero
+  use constants, only: zero
   use berror, only: nf,nr
   use gridmod, only: nlon
   implicit none
 
   real(r_kind),dimension(-nf:nf,-nf:nf) ,intent(in   ) :: fxy
-  real(r_kind),dimension(nlon+ione,0:nr),intent(  out) :: hlatlon
+  real(r_kind),dimension(nlon+1,0:nr),intent(  out) :: hlatlon
 
 ! Declare local arrays variables:
   integer(i_kind) i,ii,j,jj,jjj
   real(r_kind) sum,ywgt,xywgt
 
-!$omp parallel private (i,j,jj,ii,sum,ywgt,jjj,xywgt)
   do i=0,nr
-     hlatlon(nlon+ione,i)=zero
+     hlatlon(nlon+1,i)=zero
      do j=1,nlon
         sum=zero
         do jj=0,nywtxys(j,i)
@@ -351,7 +350,6 @@ contains
         hlatlon(j,i)=sum
      end do
   end do
-!$omp end parallel
   end subroutine smooth_polcas
 
   subroutine smooth_polcasa(fxy,hlatlon)
@@ -377,13 +375,13 @@ contains
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use constants, only: ione,zero
+  use constants, only: zero
   use berror, only: nf,nr
   use gridmod, only: nlon
   implicit none
 
   real(r_kind),dimension(-nf:nf,-nf:nf) ,intent(  out) :: fxy
-  real(r_kind),dimension(nlon+ione,0:nr),intent(in   ) :: hlatlon
+  real(r_kind),dimension(nlon+1,0:nr),intent(in   ) :: hlatlon
 
 ! Declare local arrays variables:
   integer(i_kind) i,ii,j,jj,jjj
@@ -428,13 +426,13 @@ subroutine smooth_caspol(fxy,hlatlon)
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use constants, only: ione,zero
+  use constants, only: zero
   use berror, only: nf,nr
   use gridmod, only: nlon
   implicit none
 
   real(r_kind),dimension(-nf:nf,-nf:nf) ,intent(  out) :: fxy
-  real(r_kind),dimension(nlon+ione,0:nr),intent(in   ) :: hlatlon
+  real(r_kind),dimension(nlon+1,0:nr),intent(in   ) :: hlatlon
 
 ! Declare local arrays variables:
   integer(i_kind) i,ii,j,jj,i0,j0
@@ -481,13 +479,13 @@ end subroutine smooth_caspol
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use constants, only: ione,zero
+  use constants, only: zero
   use berror, only: nf,nr
   use gridmod, only: nlon
   implicit none
 
   real(r_kind),dimension(-nf:nf,-nf:nf) ,intent(in   ) :: fxy
-  real(r_kind),dimension(nlon+ione,0:nr),intent(  out) :: hlatlon
+  real(r_kind),dimension(nlon+1,0:nr),intent(  out) :: hlatlon
 
 ! Declare local arrays variables:
   integer(i_kind) i,ii,j,jj,jjj
@@ -544,13 +542,13 @@ subroutine bspline(tin,k,wout)
 !
 !$$$ end documentation block
 
-  use constants, only: ione,zero,one
+  use constants, only: zero,one
   implicit none
 
   integer(i_kind),intent(in   ) :: k
   real(r_kind)   ,intent(in   ) :: tin
 
-  real(r_kind)   ,intent(  out) :: wout(0:k-ione)
+  real(r_kind)   ,intent(  out) :: wout(0:k-1)
 
   integer(i_kind) i,m
   real(r_kind) t,w(0:k),rmi(k)
@@ -558,18 +556,18 @@ subroutine bspline(tin,k,wout)
   do m=1,k
      rmi(m)=one/m
   end do
-  t=tin+k-ione
+  t=tin+k-1
   w=zero
-  w(k-ione)=one
-  if(k>ione) then
+  w(k-1)=one
+  if(k>1) then
      do m=2,k
-        do i=0,k-ione
-           w(i)=w(i)*(t-i)*rmi(m-ione) + w(i+ione)*(i+m-t)*rmi(m-ione)
+        do i=0,k-1
+           w(i)=w(i)*(t-i)*rmi(m-1) + w(i+1)*(i+m-t)*rmi(m-1)
         end do
      end do
   end if
 
-  do i=0,k-ione
+  do i=0,k-1
      wout(i)=w(i)
   end do
 

@@ -23,10 +23,13 @@ module constants
 !   2007-03-20  rancic   - add r3600
 !   2009-02-05  cucurull - modify refractive indexes for gpsro data
 !   2010-06-010 tangborn - add constants for CO assimilation
+!   2010-08-25  cucurull - add constants to compute compressibility factor
+!                        - add option to use Rueger/Bevis refractive index coeffs
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
 !   sub init_constants         - set regional/global constants
+!   sub gps_constants          - set Rueger/Bevis refractive index coefficients
 !
 ! Variable Definitions:
 !   see below
@@ -45,6 +48,7 @@ module constants
 ! set subroutines as public
   public :: init_constants_derived
   public :: init_constants
+  public :: gps_constants
 ! set passed variables to public
   public :: one,two,ione,half,zero,izero,deg2rad,pi,three,quarter,one_tenth
   public :: rad2deg,zero_quad,r3600,r1000,r60inv,five,four,rd_over_cp,grav
@@ -59,6 +63,9 @@ module constants
   public :: amsua_clw_d1,n_c,rd_over_g,zero_ilong
   public :: cocon,rcocon,r10,r100,sqrt_tiny_r_kind,r2000,r4000
   public :: r0_01,r0_02,r0_03,r0_04,r0_05,r400,r2400
+  public :: cpf_a0, cpf_a1, cpf_a2, cpf_b0, cpf_b1, cpf_c0, cpf_c1, cpf_d, cpf_e
+  public :: psv_a, psv_b, psv_c, psv_d
+  public :: ef_alpha, ef_beta, ef_gamma
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
@@ -69,7 +76,7 @@ module constants
   real(r_kind):: eccentricity_linear, cv, rv, rd_over_cp_mass, cliq, rd, cp_mass
   real(r_kind):: eccentricity, grav, rearth, r60inv
   real(r_kind):: cocon,rcocon,sqrt_tiny_r_kind
-
+  real(r_kind):: n_a, n_b, n_c
 
 ! Define constants common to global and regional applications
   real(r_kind),parameter::  rearth_equator= 6.37813662e6_r_kind  ! equatorial earth radius          (m)
@@ -121,11 +128,27 @@ module constants
   real(r_quad),parameter::  one_quad  = 1.0_r_quad
   real(r_quad),parameter::  two_quad  = 2.0_r_quad
 
+! Constants for compressibility factor (Davis et al 1992)
+  real(r_kind),parameter::  cpf_a0 =  1.58123e-6_r_kind ! K/Pa
+  real(r_kind),parameter::  cpf_a1 = -2.9331e-8_r_kind  ! 1/Pa
+  real(r_kind),parameter::  cpf_a2 =  1.1043e-10_r_kind ! 1/K 1/Pa
+  real(r_kind),parameter::  cpf_b0 =  5.707e-6_r_kind   ! K/Pa
+  real(r_kind),parameter::  cpf_b1 = -2.051e-8_r_kind   ! 1/Pa
+  real(r_kind),parameter::  cpf_c0 =  1.9898e-4_r_kind  ! K/Pa
+  real(r_kind),parameter::  cpf_c1 = -2.376e-6_r_kind   ! 1/Pa
+  real(r_kind),parameter::  cpf_d  =  1.83e-11_r_kind   ! K2/Pa2
+  real(r_kind),parameter::  cpf_e  = -0.765e-8_r_kind   ! K2/Pa2
 
-! Constants for gps refractivity (Bevis et al 1994)
-  real(r_kind),parameter::  n_a = 77.60_r_kind     ! K/mb
-  real(r_kind),parameter::  n_b = 3.739e+5_r_kind  ! K^2/mb
-  real(r_kind),parameter::  n_c = 70.4_r_kind      ! K/mb
+! Constants for vapor pressure at saturation
+  real(r_kind),parameter::  psv_a =  1.2378847e-5_r_kind       !  (1/K2)
+  real(r_kind),parameter::  psv_b = -1.9121316e-2_r_kind       !  (1/K)
+  real(r_kind),parameter::  psv_c = 33.93711047_r_kind         !
+  real(r_kind),parameter::  psv_d = -6.3431645e+3_r_kind       !  (K)
+
+! Constants for enhancement factor to calculating the mole fraction of water vapor
+  real(r_kind),parameter::  ef_alpha = 1.00062_r_kind           !
+  real(r_kind),parameter::  ef_beta  = 3.14e-8_r_kind           !  (1/Pa)
+  real(r_kind),parameter::  ef_gamma = 5.6e-7_r_kind            !  (1/K2)
 
 ! Parameters below from WGS-84 model software inside GPS receivers.
   real(r_kind),parameter::  semi_major_axis = 6378.1370e3_r_kind     !                     (m)
@@ -342,5 +365,51 @@ contains
 
     return
   end subroutine init_constants
+
+  subroutine gps_constants(use_compress)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    gps_constants     set Bevis or Rueger refractive index coeff
+!     prgmmr:    cucurull          org: np23           date: 2010-08-25
+!
+! abstract:  This routine sets constants for the refractivity equation. GSI uses Bevis 
+!            coefficients when the compressibility factors option is turned off 
+!            and uses Rueger coefficients otherwise.
+!
+! program history log:
+!   2010-08-25  cucurull
+!   2010-08-25  cucurull, documentation
+!
+!   input argument list:
+!     compress - if .true., set Rueger coefficients;
+!                otherwise (.false.), use Bevis coefficients
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    implicit none
+
+    logical,intent(in   ) :: use_compress
+
+!   Define refractive index coefficients here
+    if (use_compress) then
+
+       ! Constants for gpsro data (Rueger 2002)
+       n_a = 77.6890_r_kind   ! K/mb
+       n_b = 3.75463e+5_r_kind  ! K^2/mb
+       n_c = 71.2952_r_kind   ! K/mb
+    else
+       ! Constants for gpsro data (Bevis et al 1994)
+       n_a = 77.60_r_kind     ! K/mb
+       n_b = 3.739e+5_r_kind  ! K^2/mb
+       n_c = 70.4_r_kind      ! K/mb
+    endif
+
+    return
+  end subroutine gps_constants
 
 end module constants

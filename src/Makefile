@@ -250,6 +250,7 @@ clean:
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
         get_gefs_ensperts_dualres.f90 \
+        get_wrf_mass_ensperts_netcdf.f90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
 	getsiga.f90 \
@@ -360,6 +361,8 @@ clean:
 	phil1.f90 \
 	plib8.f90 \
 	polcarf.f90 \
+	prad_bias.f90 \
+	precond.f90 \
 	precpd_ad.f90 \
 	prewgt.f90 \
 	prewgt_reg.f90 \
@@ -382,6 +385,7 @@ clean:
 	read_avhrr_navy.f90 \
 	read_bufrtovs.f90 \
 	read_co.F90 \
+	read_diag.f90 \
 	read_files.f90 \
         read_gfs_ozone_for_regional.f90 \
 	read_goesimg.f90 \

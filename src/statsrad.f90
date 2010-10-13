@@ -75,10 +75,10 @@ subroutine statsrad(aivals,stats,ndata)
   nlgross_all=izero
   idisplay=.false.
   do is=1,ndat
-     obstype=dtype(is)
 
 !    If radiance observation type and has nonzero number of obs, generate output
      if(ditype(is) == 'rad' ) then 
+        obstype=dtype(is)
         iobs2 = nint(aivals(1,is))
         penalty_all=penalty_all+aivals(40,is)
         qcpenalty_all=qcpenalty_all+aivals(39,is)

@@ -35,6 +35,12 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 !   2008-04-17  safford - rm unused vars and uses
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2009-06-08  parrish - remove erroneous call to cosd, sind
+!   2010-09-08  parrish - remove subroutine check_rotate_wind.  This was a debug routine introduced when
+!                           the reference wind rotation angle was stored as an angle, beta_ref.  This field
+!                           had a discontinuity at the date line (180E), which resulted in erroneous wind
+!                           rotation angles for a small number of winds whose rotation angle was interpolated
+!                           from beta_ref values across the discontinuity.  This was fixed by replacing the
+!                           beta_ref field with cos_beta_ref, sin_beta_ref.
 !
 !   input argument list:
 !     infile   - file from which to read BUFR data
@@ -60,7 +66,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   use obsmod, only: iadate
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy
-  use gridmod, only: check_rotate_wind
   use convinfo, only: nconvtype,ctwind, &
        ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
   implicit none 
@@ -1131,12 +1136,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   deallocate(nobs_box)
   
 900 continue
-
-
-! Generate stats on regional wind rotation
-  if (regional) call check_rotate_wind('read_radar')
-
-! call stop2(500)
 
   return
 end subroutine read_radar

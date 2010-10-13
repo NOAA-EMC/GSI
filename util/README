@@ -33,6 +33,9 @@ Analysis_Utilities/GrADS:
              differences in analysis or forecast fields and differences of
              those differences.
 
-
+Radiance_bias_correction_Utilities:
+             Utilities for converting bias correction files to the new format, 
+             since the modified bias correction scheme requires changes to the 
+             satbias_in and satbias_angle files.
 
 

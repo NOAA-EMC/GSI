@@ -819,6 +819,7 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 !   2009-09-20  parrish - add hybrid ensemble control variable a_en contribution to dot product
 !   2010-05-17  todling - update to use bundle
 !   2010-06-02  parrish - add contribution from ensemble control variable to dot product
+!   2010-10-08  derber  - optimize and clean up
 !
 !   input argument list:
 !    xcv,ycv
@@ -834,8 +835,8 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 
   implicit none
   type(control_vector), intent(in   ) :: xcv, ycv
-  integer(i_kind) :: ii,m3d,m2d,i,j
-
+  integer(i_kind) :: ii,m3d,m2d,i,j,itot
+  real(r_quad),allocatable,dimension(:) :: partsum
 
   qdot_prod_sub=zero_quad
 
@@ -847,18 +848,28 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
   else
      do ii=1,nsubwin
         m3d=xcv%step(ii)%n3d
-        do i = 1,m3d
-           qdot_prod_sub = qdot_prod_sub + dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
-        enddo
         m2d=xcv%step(ii)%n2d
+        itot=m2d+m3d
+        if(l_hyb_ens)itot=itot+n_ens
+        allocate(partsum(itot))
+!$omp parallel do  schedule(dynamic,1) private(i)
+        do i = 1,m3d
+           partsum(i) = dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
+        enddo
+!$omp parallel do  schedule(dynamic,1) private(i)
         do i = 1,m2d
-           qdot_prod_sub = qdot_prod_sub + dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
+           partsum(m3d+i) = dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
         enddo
         if(l_hyb_ens) then
+!$omp parallel do  schedule(dynamic,1) private(i)
            do i = 1,n_ens
-              qdot_prod_sub = qdot_prod_sub + dplevs(xcv%aens(ii,i)%r3(1)%q,ycv%aens(ii,i)%r3(1)%q,ihalo=1)
+              partsum(m3d+m2d+i) = dplevs(xcv%aens(ii,i)%r3(1)%q,ycv%aens(ii,i)%r3(1)%q,ihalo=1)
            end do
         end if
+        do i=1,itot
+          qdot_prod_sub = qdot_prod_sub + partsum(i)
+        end do
+        deallocate(partsum)
      end do
   end if
 
@@ -886,6 +897,7 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 ! program history log:
 !   2009-09-20  parrish - initial documentation
 !   2010-05-17  todling - update to use bundle
+!   2010-10-08  derber - optimize and clean up
 !
 !   input argument list:
 !    xcv,ycv
@@ -908,6 +920,7 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 
   real(r_quad) :: zz(nsubwin)
   integer(i_kind) :: ii,i,nn,m3d,m2d,istatus
+  real(r_quad),allocatable,dimension(:) :: partsum
 
   prods(:)=zero_quad
   zz(:)=zero_quad
@@ -919,29 +932,43 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
      end do
   else
      if(trim(eb) == 'cost_b') then
-        do ii=1,nsubwin ! RTod: somebody could work in opt/zing this ...
+        do ii=1,nsubwin                                                         
            m3d=xcv%step(ii)%n3d
-           do i = 1,m3d
-              zz(ii) = zz(ii) + dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
-           enddo
            m2d=xcv%step(ii)%n2d
-           do i = 1,m2d
-              zz(ii) = zz(ii) + dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
+           allocate(partsum(m2d+m3d))
+!$omp parallel do  schedule(dynamic,1) private(i)
+           do i = 1,m3d
+              partsum(i)= dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
            enddo
+!$omp parallel do  schedule(dynamic,1) private(i)
+           do i = 1,m2d
+              partsum(m3d+i)= dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
+           enddo
+           do i = 1,m2d+m3d
+              zz(ii)=zz(ii) + partsum(i)
+           end do
+           deallocate(partsum)
         end do
      end if
      if(trim(eb) == 'cost_e') then
         do ii=1,nsubwin ! RTod: somebody could work in opt/zing this ...
+           allocate(partsum(n_ens))
+!$omp parallel do  schedule(dynamic,1) private(nn,m3d,m2d)
            do nn=1,n_ens
+              partsum(nn) = zero_quad
               m3d=xcv%aens(ii,nn)%n3d
               do i = 1,m3d
-                 zz(ii) = zz(ii) + dplevs(xcv%aens(ii,nn)%r3(i)%q,ycv%aens(ii,nn)%r3(i)%q,ihalo=1)
+                 partsum(nn)= partsum(nn) + dplevs(xcv%aens(ii,nn)%r3(i)%q,ycv%aens(ii,nn)%r3(i)%q,ihalo=1)
               enddo
               m2d=xcv%aens(ii,nn)%n2d
               do i = 1,m2d
-                 zz(ii) = zz(ii) + dplevs(xcv%aens(ii,nn)%r2(i)%q,ycv%aens(ii,nn)%r2(i)%q,ihalo=1)
+                 partsum(nn)= partsum(nn) + dplevs(xcv%aens(ii,nn)%r2(i)%q,ycv%aens(ii,nn)%r2(i)%q,ihalo=1)
               enddo
            enddo
+           do nn=1,n_ens
+             zz(ii)=zz(ii)+partsum(nn)
+           end do
+           deallocate(partsum)
         end do
      end if
   end if
@@ -1543,7 +1570,6 @@ real(r_quad) function qdot_product(x,y)
   end if
   zz=zero_quad
 
-! -- add omp reduction to get the correct qdot product
   do i=1,nx
      zz = zz + x(i)*y(i)
   enddo

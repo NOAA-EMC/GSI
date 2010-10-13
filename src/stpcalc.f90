@@ -232,7 +232,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   integer(i_kind),parameter:: istp_iter = 5
   integer(i_kind),parameter:: ipenlin = 3
   integer(i_kind),parameter:: ioutpen = istp_iter*4
-  real(r_kind),parameter:: one_tenth_quad = 0.1_r_quad 
+  real(r_quad),parameter:: one_tenth_quad = 0.1_r_quad 
 
 ! Declare local variables
   integer(i_kind) i,j,mm1,ii,ibin,ipenloc,ier,istatus

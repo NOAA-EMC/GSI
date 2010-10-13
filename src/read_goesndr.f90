@@ -42,6 +42,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
 !   2010-06-27  kokron  - added test for returned value of bmiss in hdr(15)
+!   2010-06-29  zhu     - add newpc4pred option
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -75,8 +76,9 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
              checkob,finalcheck,score_crit
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad 
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,izero,ione,zero,rad2deg, r60inv,two,tiny_r_kind
+  use constants, only: deg2rad,zero,rad2deg, r60inv,two,tiny_r_kind
   use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
+  use berror, only: newpc4pred
 
   implicit none
 
@@ -94,8 +96,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 
 ! Declare local parameters
-  integer(i_kind),parameter:: maxinfo=33_i_kind
-  integer(i_kind),parameter:: mfov=25_i_kind   ! maximum number of fovs (currently 5x5)
+  integer(i_kind),parameter:: maxinfo=33
+  integer(i_kind),parameter:: mfov=25   ! maximum number of fovs (currently 5x5)
 
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
@@ -143,18 +145,18 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !**************************************************************************
 
 ! Start routine here.  Set constants.  Initialize variables
-  lnbufr = 10_i_kind
+  lnbufr = 10
   disterrmax=zero
-  ntest  = izero
+  ntest  = 0
   nreal  = maxinfo
-  ich8   = 8_i_kind        !channel 8
-  ndata  = izero
-  nchanl = 18_i_kind
-  ifov = -999_i_kind
+  ich8   = 8        !channel 8
+  ndata  = 0
+  nchanl = 18
+  ifov = -999
   r01 = 0.01_r_kind
 
-  ilon=3_i_kind
-  ilat=4_i_kind
+  ilon=3
+  ilat=4
 
   rlndsea(0) = zero
   rlndsea(1) = 15._r_kind
@@ -187,23 +189,23 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
          jsatid == 'g12_prep' .or. jsatid == 'g13_prep'
 
   if(g5x5)then
-       if(jsatid=='g08_prep')lsatid=252_i_kind
-       if(jsatid=='g09_prep')lsatid=253_i_kind
-       if(jsatid=='g10_prep')lsatid=254_i_kind
-       if(jsatid=='g11_prep')lsatid=255_i_kind
-       if(jsatid=='g12_prep')lsatid=256_i_kind
-       if(jsatid=='g13_prep')lsatid=257_i_kind
+       if(jsatid=='g08_prep')lsatid=252
+       if(jsatid=='g09_prep')lsatid=253
+       if(jsatid=='g10_prep')lsatid=254
+       if(jsatid=='g11_prep')lsatid=255
+       if(jsatid=='g12_prep')lsatid=256
+       if(jsatid=='g13_prep')lsatid=257
    else
-       if(jsatid=='g08')lsatid=252_i_kind
-       if(jsatid=='g09')lsatid=253_i_kind
-       if(jsatid=='g10')lsatid=254_i_kind
-       if(jsatid=='g11')lsatid=255_i_kind
-       if(jsatid=='g12')lsatid=256_i_kind
-       if(jsatid=='g13')lsatid=257_i_kind
-       if(obstype == 'sndrd1')ldetect = ione
-       if(obstype == 'sndrd2')ldetect = 2_i_kind
-       if(obstype == 'sndrd3')ldetect = 3_i_kind
-       if(obstype == 'sndrd4')ldetect = 4_i_kind
+       if(jsatid=='g08')lsatid=252
+       if(jsatid=='g09')lsatid=253
+       if(jsatid=='g10')lsatid=254
+       if(jsatid=='g11')lsatid=255
+       if(jsatid=='g12')lsatid=256
+       if(jsatid=='g13')lsatid=257
+       if(obstype == 'sndrd1')ldetect = 1
+       if(obstype == 'sndrd2')ldetect = 2
+       if(obstype == 'sndrd3')ldetect = 3
+       if(obstype == 'sndrd4')ldetect = 4
   end if
 
 ! Set array index for surface-sensing channels
@@ -223,23 +225,23 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   allocate(data_all(nele,itxmax))
 
 ! Big loop to read data file
-  next=izero
-  read_subset: do while(ireadmg(lnbufr,subset,idate)>=izero)
+  next=0
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
 !    Time offset
-     if(next == izero)call time_4dvar(idate,toff)
-     next=next+ione
-     if(next == npe_sub)next=izero
+     if(next == 0)call time_4dvar(idate,toff)
+     next=next+1
+     if(next == npe_sub)next=0
      if(next/=mype_sub)cycle
-     read_loop: do while (ireadsb(lnbufr)==izero)
+     read_loop: do while (ireadsb(lnbufr)==0)
 
 !       Extract type, date, and location information
         if(g5x5)then
 !       Prepbufr file
-           call ufbint(lnbufr,hdr,11_i_kind,ione,iret,hdstr5)
+           call ufbint(lnbufr,hdr,11,1,iret,hdstr5)
            kx = hdr(8)
-           if(kx /= 164_i_kind .and. kx /= 165_i_kind .and. kx /= 174_i_kind .and. kx /= 175_i_kind)cycle read_loop
+           if(kx /= 164 .and. kx /= 165 .and. kx /= 174 .and. kx /= 175)cycle read_loop
 !          If not goes data over ocean , read next bufr record
-!          if(kx /= 174_i_kind .and. kx /= 175_i_kind)cycle read_loop
+!          if(kx /= 174 .and. kx /= 175)cycle read_loop
 
            ksatid=nint(hdr(7))
 !          if not proper satellite read next bufr record
@@ -247,13 +249,13 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 !          Extract number of averaged FOVS
            ifov = hdr(9) ! number of averaged FOVS 
-           if(ifov <= 3_i_kind) cycle read_loop
+           if(ifov <= 3) cycle read_loop
 !          Extract obs time difference. 
            tdiff=hdr(10)  ! relative obs time in hours
            t4dv=toff+tdiff
         else
 !          GOES 1x1 or 5x5 file
-           call ufbint(lnbufr,hdr,15_i_kind,ione,iret,hdstr)
+           call ufbint(lnbufr,hdr,15,1,iret,hdstr)
 
            ksatid=hdr(7)   !bufr satellite id
 !          if not proper satellite/detector read next bufr record
@@ -264,11 +266,11 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 !          test for case when hdr(15) comes back with bmiss signifying 1x1 data
            if (abs(dble(hdr(15))-bmiss)<tiny_r_kind) then
-              ifov = izero
+              ifov = 0
            else ! 5x5 data
               ifov = nint(hdr(15)) ! number of averaged FOVS
-              if(ifov < mfov .and. ifov > izero)then
-                 if(ifov <= 3_i_kind) cycle read_loop
+              if(ifov < mfov .and. ifov > 0)then
+                 if(ifov <= 3) cycle read_loop
               end if
            endif
 
@@ -316,8 +318,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         else
            dlon = dlon_earth 
            dlat = dlat_earth 
-           call grdcrd(dlat,ione,rlats,nlat,ione)
-           call grdcrd(dlon,ione,rlons,nlon,ione)
+           call grdcrd(dlat,1,rlats,nlat,1)
+           call grdcrd(dlon,1,rlons,nlon,1)
         endif
 
 
@@ -332,7 +334,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         nread=nread+nchanl
 
         crit1=0.01_r_kind+timedif
-        if(ifov < mfov .and. ifov > izero)then
+        if(ifov < mfov .and. ifov > 0)then
            crit1=crit1+two*float(mfov-ifov)
         end if
 
@@ -341,13 +343,13 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 !       Increment goes sounder data counter
 !       Extract brightness temperatures
-        call ufbint(lnbufr,grad,ione,18_i_kind,levs,rbstr)
+        call ufbint(lnbufr,grad,1,18,levs,rbstr)
 
-        iskip = izero
+        iskip = 0
         do l=1,nchanl
 
            if( grad(l) < tbmin .or. grad(l) > tbmax )then
-              iskip = iskip + ione
+              iskip = iskip + 1
               if(l == ich8)iskip = nchanl
            endif
         end do
@@ -371,7 +373,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 
 !       If not goes data over ocean , read next bufr record
-        if(isflg /= izero) cycle read_loop
+        if(isflg /= 0) cycle read_loop
 
         crit1 = crit1 + rlndsea(isflg)  
         call checkob(dist1,crit1,itx,iuse)
@@ -379,8 +381,13 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 !       Set data quality predictor
         iscan   = nint(hdr(3))+0.001_r_kind   ! "scan" position
-        ch8     = grad(ich8) -ang_rad(ichan8)*cbias(iscan,ichan8) -  &
+        if (newpc4pred) then
+           ch8     = grad(ich8) -ang_rad(ichan8)*cbias(iscan,ichan8) -  &
+                                 predx(1,ichan8)*air_rad(ichan8)
+        else
+           ch8     = grad(ich8) -ang_rad(ichan8)*cbias(iscan,ichan8) -  &
                                  r01*predx(1,ichan8)*air_rad(ichan8)
+        end if
         emiss=0.992_r_kind-0.013_r_kind*(hdr(3)/65._r_kind)**3.5_r_kind-0.026_r_kind*(hdr(3)/65._r_kind)**7.0_r_kind
         pred = abs(ch8-tsavg*emiss)
 
@@ -447,7 +454,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root.and.ndata>izero) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -455,7 +462,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
      do n=1,ndata
         do i=1,nchanl
            if(data_all(i+nreal,n) > tbmin .and. &
-              data_all(i+nreal,n) < tbmax)nodata=nodata+ione
+              data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
         itt=nint(data_all(nreal,n))
         super_val(itt)=super_val(itt)+val_goes
@@ -471,7 +478,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   deallocate(data_all) ! Deallocate data arrays
   call destroygrids    ! Deallocate satthin arrays
 
-  if(diagnostic_reg .and. ntest>izero .and. mype_sub==mype_root) &
+  if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
        write(6,*)'READ_GOESNDR:  mype,ntest,disterrmax=',&
        mype,ntest,disterrmax
 

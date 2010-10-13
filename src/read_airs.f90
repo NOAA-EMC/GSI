@@ -53,6 +53,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2009-12-20  gayno - method to calculate surface fields within FOV
 !                       based on its size/shape now calculates antenna 
 !                       power for some instruments. 
+!   2010-07-12  zhu   - include global offset in amsua bc for adp_anglebc option
+!   2010-09-02  zhu   - add use_edges option
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -88,10 +90,12 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                finalcheck,checkob,score_crit
-  use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad 
+  use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad, &
+               air_rad,predx,adp_anglebc,use_edges,find_edges 
+  use berror, only: newpc4pred
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
        tll2xy,txy2ll,rlats,rlons
-  use constants, only: izero,ione,zero,deg2rad,one,three,five,rad2deg,r60inv
+  use constants, only: zero,deg2rad,one,three,five,rad2deg,r60inv
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
 
@@ -99,11 +103,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Number of channels for sensors in BUFR
-  integer(i_kind),parameter :: n_airschan = 281_i_kind                           !--- 281 subset ch out of 2378 ch for AIRS
-  integer(i_kind),parameter :: n_amsuchan =  15_i_kind
-  integer(i_kind),parameter :: n_hsbchan  =   4_i_kind
-  integer(i_kind),parameter :: n_totchan  = n_amsuchan+n_airschan+n_hsbchan+ione
-  integer(i_kind),parameter :: maxinfo    =  33_i_kind
+  integer(i_kind),parameter :: n_airschan = 281                           !--- 281 subset ch out of 2378 ch for AIRS
+  integer(i_kind),parameter :: n_amsuchan =  15
+  integer(i_kind),parameter :: n_hsbchan  =   4
+  integer(i_kind),parameter :: n_totchan  = n_amsuchan+n_airschan+n_hsbchan+1
+  integer(i_kind),parameter :: maxinfo    =  33
 
 
 ! BUFR format for AQUASPOT 
@@ -134,8 +138,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! BUFR file sequencial number
   character(len=512)  :: table_file
-  integer(i_kind)     :: lnbufr = 10_i_kind
-  integer(i_kind)     :: lnbufrtab = 11_i_kind
+  integer(i_kind)     :: lnbufr = 10
+  integer(i_kind)     :: lnbufrtab = 11
   integer(i_kind)     :: irec,isub,next
 
 ! Variables for BUFR IO    
@@ -195,34 +199,35 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) ntest
 
   logical           :: airs, amsua, hsb, airstab
+  logical           :: data_on_edges
 
 
 ! Initialize variables
   disterrmax=zero
-  ntest=izero
+  ntest=0
   nreal  = maxinfo
-  ndata = izero
-  nodata = izero
+  ndata = 0
+  nodata = 0
   airs=      obstype == 'airs'
   amsua=     obstype == 'amsua'
   hsb=       obstype == 'hsb'
   r01=0.01_r_kind
 
-  ilon=3_i_kind
-  ilat=4_i_kind
+  ilon=3
+  ilat=4
 
   if(airs)then
-     ix=ione
+     ix=1
      step   = 1.1_r_kind
      start = -48.9_r_kind
      senname = 'AIRS'
      nchanl  = n_airschan
      nchanlr = n_airschan
-     ioff=newchn(sis,1)-ione
-     ioffset=izero
+     ioff=newchn(sis,1)-1
+     ioffset=0
      ichansst   = newchn(sis,914)
      ichsst     = ichansst-ioff+ioffset
-     if(isfcalc==ione)then
+     if(isfcalc==1)then
         rlndsea = zero
      else
         rlndsea(0) = zero                       
@@ -231,26 +236,26 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         rlndsea(3) = 10._r_kind
         rlndsea(4) = 30._r_kind
      endif
-     if(isfcalc==ione) then
-        instr=17_i_kind
-        ichan=-999_i_kind  ! not used for airs
+     if(isfcalc==1) then
+        instr=17
+        ichan=-999  ! not used for airs
         expansion=one ! use one for ir sensors
      endif
      if (mype_sub==mype_root) &
           write(6,*)'READ_AIRS:  airs offset ',ioff,ichansst,ichsst
   else if(amsua)then
-     ix=2_i_kind
+     ix=2
      step   = three + one/three
      start = -48._r_kind - one/three
 !    start  = -48.33_r_kind
      senname = 'AMSU'
      nchanl  = n_amsuchan
      nchanlr = n_amsuchan
-     ioff=newchn(sis,1)-ione
+     ioff=newchn(sis,1)-1
      ioffset=n_airschan
      ichansst   = newchn(sis,1)
-     ichsst     = ioffset +ione            !channel 1
-     if(isfcalc==ione)then
+     ichsst     = ioffset +1            !channel 1
+     if(isfcalc==1)then
         rlndsea = zero
      else
         rlndsea(0) = zero                       
@@ -259,23 +264,23 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         rlndsea(3) = 15._r_kind
         rlndsea(4) = 100._r_kind
      endif
-     if(isfcalc==ione) then
-        instr=11_i_kind
-        ichan=15_i_kind  ! for now pick a surface channel
+     if(isfcalc==1) then
+        instr=11
+        ichan=15  ! for now pick a surface channel
         expansion=2.9_r_kind ! use almost three for microwave
      endif
   else if(hsb)then
-     ix=3_i_kind
+     ix=3
      step   = 1.1_r_kind
      start  = -48.95_r_kind
      senname = 'HSB'
      nchanl  = n_hsbchan
-     nchanlr = n_hsbchan+ione
-     ioff=newchn(sis,1)-ione
+     nchanlr = n_hsbchan+1
+     ioff=newchn(sis,1)-1
      ioffset=iscbtseqn+n_amsuchan
      ichansst   = newchn(sis,4)
      ichsst     = ichansst-ioff+ioffset
-     if(isfcalc==ione)then
+     if(isfcalc==1)then
         rlndsea = zero
      else
         rlndsea(0) = zero                       
@@ -284,16 +289,16 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         rlndsea(3) = 15._r_kind
         rlndsea(4) = 100._r_kind
      endif
-     if(isfcalc==ione) then
-        instr=12_i_kind ! similar to amsu-b according to tom kleespies
-        ichan=-999_i_kind ! not used for hsb
+     if(isfcalc==1) then
+        instr=12 ! similar to amsu-b according to tom kleespies
+        ichan=-999 ! not used for hsb
         expansion=2.9_r_kind ! use almost three for microwave
      endif
   endif
 
 ! When calculating surface fields based on size/shape of fov, need
 ! to initialize several variables.
-  if (isfcalc == ione) then
+  if (isfcalc == 1) then
      call instrument_init(instr,jsatid,expansion)
   endif
 
@@ -306,7 +311,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   assim=.false.
   search: do i=1,jpch_rad
-     if ((nusis(i)==sis) .and. (iuse_rad(i)>izero)) then
+     if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
         assim=.true.
         exit search
      endif
@@ -337,18 +342,18 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax))
 
 ! Big loop to read data file
-  next=izero
-  do while(ireadmg(lnbufr,subset,idate)>=izero)
+  next=0
+  do while(ireadmg(lnbufr,subset,idate)>=0)
      next=next+1
-     if(next == npe_sub)next=izero
+     if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
-     read_loop: do while (ireadsb(lnbufr)==izero)
+     read_loop: do while (ireadsb(lnbufr)==0)
 
 !       Read AIRSSPOT , AMSUSPOT and HSBSPOT
 
-        call ufbrep(lnbufr,allspot,12_i_kind,3_i_kind,iret,allspotlist)
+        call ufbrep(lnbufr,allspot,12,3,iret,allspotlist)
 
-        if(iret /= 3_i_kind) cycle read_loop
+        if(iret /= 3) cycle read_loop
 
         dlat_earth = allspot(8,ix)
         dlon_earth = allspot(9,ix)
@@ -387,7 +392,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
            if(diagnostic_reg) then
               call txy2ll(dlon,dlat,rlon00,rlat00)
-              ntest=ntest+ione
+              ntest=ntest+1
               disterr=acos(sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
                    (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00)))*rad2deg
               disterrmax=max(disterrmax,disterr)
@@ -401,8 +406,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,ione,rlats,nlat,ione)
-           call grdcrd(dlon,ione,rlons,nlon,ione)
+           call grdcrd(dlat,1,rlats,nlat,1)
+           call grdcrd(dlon,1,rlons,nlon,1)
         endif
 
 !       Check obs time
@@ -412,11 +417,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         idate5(4) = nint(allspot(5,ix)) ! hour
         idate5(5) = nint(allspot(6,ix)) ! minute
 
-        if( idate5(1) < 1900_i_kind .or. idate5(1) > 3000_i_kind .or. &
-            idate5(2) < ione        .or. idate5(2) >   12_i_kind .or. &
-            idate5(3) < ione        .or. idate5(3) >   31_i_kind .or. &
-            idate5(4) <izero        .or. idate5(4) >   24_i_kind .or. &
-            idate5(5) <izero        .or. idate5(5) >   60_i_kind )then
+        if( idate5(1) < 1900 .or. idate5(1) > 3000 .or. &
+            idate5(2) < 1    .or. idate5(2) >   12 .or. &
+            idate5(3) < 1    .or. idate5(3) >   31 .or. &
+            idate5(4) <0     .or. idate5(4) >   24 .or. &
+            idate5(5) <0     .or. idate5(5) >   60 )then
 
             write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
                 ' STRANGE OBS TIME (YMDHM):', idate5(1:5)
@@ -449,13 +454,19 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Check observational info
         sat_zenang  = allspot(10,ix) 
         ifov = nint( allspot(12,ix) )
-        if( ifov <    izero .or. ifov > 100_i_kind .or. abs(sat_zenang) > 360._r_kind ) then
+        if( ifov < 0 .or. ifov > 100 .or. abs(sat_zenang) > 360._r_kind ) then
 
            write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
                 ' STRANGE OBS INFO(FOV,SAZA):', allspot(12,ix), allspot(10,ix)
            cycle read_loop
 
         endif
+
+!       Remove data on edges
+        if (.not. use_edges) then
+           call find_edges(obstype,ifov,data_on_edges)
+           if (data_on_edges) cycle read_loop
+        end if
 
 !      "Score" observation.  We use this information to identify "best" obs
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -470,7 +481,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       The fov of view number is used when calculating the surface fields
 !       based on the fov's size/shape.  if it is out-of-range, skip ob.
 
-        if (isfcalc == ione) then
+        if (isfcalc == 1) then
            call fov_check(ifov,instr,valid)
            if (.not. valid) cycle read_loop
         endif
@@ -478,7 +489,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       When isfcalc is one, calculate surface fields based on the fov's size/shape.
 !       Otherwise, use bilinear interpolation.
 
-        if (isfcalc == ione) then
+        if (isfcalc == 1) then
            call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg, &
                              dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
                              sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
@@ -496,7 +507,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !        Read AIRSCHAN or AMSUCHAN or HSBCHAN
 
-         call ufbrep(lnbufr,allchan,ione,n_totchan,iret,'TMBR')
+         call ufbrep(lnbufr,allchan,1,n_totchan,iret,'TMBR')
 
          if( iret /= n_totchan)then
             write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
@@ -506,21 +517,21 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 !        check for missing channels (if key channel reject)
-         iskip = izero
-         do l=ione+ioffset,nchanl+ioffset
+         iskip = 0
+         do l=1+ioffset,nchanl+ioffset
             ll=(l-ioffset)+ioff
-            lluse = iuse_rad(ll) >= izero
+            lluse = iuse_rad(ll) >= 0
             if( lluse .and. (allchan(l)<tbmin .or. allchan(l)>tbmax) ) then
-               iskip = iskip + ione
+               iskip = iskip + 1
                if(airs) then
                   if(l == ichsst) cycle read_loop
                else if(amsua)then
                   ll=l-ioffset
-                  if (ll == ione     .or. ll == 2_i_kind .or. ll == 3_i_kind .or. ll == 4_i_kind .or. &
-                      ll == 6_i_kind .or. ll == 15_i_kind)cycle read_loop
+                  if (ll == 1 .or. ll == 2 .or. ll == 3 .or. ll == 4 .or. &
+                      ll == 6 .or. ll == 15)cycle read_loop
                else
                   ll=l-ioffset
-                  if(ll == ione .or. ll == 2_i_kind)cycle read_loop
+                  if(ll == 1 .or. ll == 2)cycle read_loop
                end if
             endif
          end do
@@ -534,22 +545,29 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
          sat_aziang  = allspot(11,ix)  
 
 !        Read AQUASPOT
-         call ufbint(lnbufr,aquaspot,2_i_kind,ione,iret,'SOZA SOLAZI')
+         call ufbint(lnbufr,aquaspot,2,1,iret,'SOZA SOLAZI')
          sol_zenang = aquaspot(1)
 
 
          if(amsua)then
 
-             if(ifov <= 15_i_kind)sat_zenang = -sat_zenang
-             ch1    = allchan(ichsst     )-ang_rad(ichansst               )* &
-                                      (cbias(ifov,ichansst          )-cbias(15,ichansst          ))
-             ch2    = allchan(ichsst+ione)-ang_rad(ichansst+ione          )* &
-                                      (cbias(ifov,ichansst+ione     )-cbias(15,ichansst+ione     ))
-             ch3    = allchan(ichsst+2_i_kind)-ang_rad(ichansst+2_i_kind  )* &
-                                      (cbias(ifov,ichansst+2_i_kind )-cbias(15,ichansst+2_i_kind ))
-             ch15   = allchan(ichsst+14_i_kind)-ang_rad(ichansst+14_i_kind)* &
-                                      (cbias(ifov,ichansst+14_i_kind)-cbias(15,ichansst+14_i_kind))
-             if (isflg == izero .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
+             if(ifov <= 15)sat_zenang = -sat_zenang
+             if (adp_anglebc .and. newpc4pred) then
+                ch1 = allchan(ichsst)-ang_rad(ichansst)*cbias(ifov,ichansst) 
+                ch2 = allchan(ichsst+1)-ang_rad(ichansst+1)*cbias(ifov,ichansst+1) 
+                ch3 = allchan(ichsst+2)-ang_rad(ichansst+2)*cbias(ifov,ichansst+2) 
+                ch15= allchan(ichsst+14)-ang_rad(ichansst+14)*cbias(ifov,ichansst+14) 
+             else
+                ch1    = allchan(ichsst  )-ang_rad(ichansst    )* &
+                                      (cbias(ifov,ichansst   )-cbias(15,ichansst   ))
+                ch2    = allchan(ichsst+1)-ang_rad(ichansst+1  )* &
+                                      (cbias(ifov,ichansst+1 )-cbias(15,ichansst+1 ))
+                ch3    = allchan(ichsst+2)-ang_rad(ichansst+2  )* &
+                                      (cbias(ifov,ichansst+2 )-cbias(15,ichansst+2 ))
+                ch15   = allchan(ichsst+14)-ang_rad(ichansst+14)* &
+                                      (cbias(ifov,ichansst+14)-cbias(15,ichansst+14))
+             end if
+             if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
                 cosza = cos(sat_zenang)
                 d0  =8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
                 qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
@@ -571,18 +589,18 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
              chsst_all=zero  ! value weighted according to surface type
              if ( sfcpct(0) > zero ) then
 ! cloud checks over ocean
-                chsst = 8.28206_r_kind - 0.97957_r_kind * allchan(126_i_kind+ioffset) + 0.60529_r_kind * &  ! AIRS science team
-                   allchan(129_i_kind+ioffset) + 1.74444_r_kind * allchan(165_i_kind+ioffset) &                 ! SST calculation for
-                   - .40379_r_kind * allchan(166_i_kind+ioffset)                                                ! AIRS data
+                chsst = 8.28206_r_kind - 0.97957_r_kind * allchan(126+ioffset) + 0.60529_r_kind * &  ! AIRS science team
+                   allchan(129+ioffset) + 1.74444_r_kind * allchan(165+ioffset) &                    ! SST calculation for
+                   - .40379_r_kind * allchan(166+ioffset)                                            ! AIRS data
 ! 917 cm-1 minus 2500 cm-1 cloud test valid at night for land/ocean:
 ! beyond threshold, negative >> cirrus (ice), positive >> stratus (water)
 ! 917 cm-1 minus 2664 cm-1 cloud test valid at night for land/ocean:
 ! beyond threshold, negative >> cirrus ( ice), positive >> stratus (water)
 ! 2500 cm-1 minus 2664 cm-1 cloud test valid at night for land/ocean:
 ! sensitivity test li, Jun et al. (2000) JAM
-                ch8ch18 = abs(allchan(125_i_kind+ioffset) - allchan(263_i_kind+ioffset) - .10_r_kind)
-                ch8ch19 = abs(allchan(125_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .39_r_kind)
-                ch18ch19 = abs(allchan(263_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .49_r_kind)
+                ch8ch18 = abs(allchan(125+ioffset) - allchan(263+ioffset) - .10_r_kind)
+                ch8ch19 = abs(allchan(125+ioffset) - allchan(281+ioffset) + .39_r_kind)
+                ch18ch19 = abs(allchan(263+ioffset) - allchan(281+ioffset) + .49_r_kind)
                 if (sol_zenang > 89.0_r_kind .and. ch8ch18 < .75_r_kind .and. ch8ch19 < .55_r_kind .and. &
                     ch18ch19 < .50_r_kind .and. (chsst-tsavg) > -6.0_r_kind) then
                     chsst = tsavg
@@ -591,10 +609,10 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
              endif ! water
              if ( sfcpct(1) > zero ) then
 ! cloud checks over land
-                chsst = allchan(123_i_kind+ioffset)
-                ch8ch18 = abs(allchan(125_i_kind+ioffset) - allchan(263_i_kind+ioffset) - .39_r_kind)
-                ch8ch19 = abs(allchan(125_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .13_r_kind)
-                ch18ch19 = abs(allchan(263_i_kind+ioffset) - allchan(281_i_kind+ioffset) + .52_r_kind)
+                chsst = allchan(123+ioffset)
+                ch8ch18 = abs(allchan(125+ioffset) - allchan(263+ioffset) - .39_r_kind)
+                ch8ch19 = abs(allchan(125+ioffset) - allchan(281+ioffset) + .13_r_kind)
+                ch18ch19 = abs(allchan(263+ioffset) - allchan(281+ioffset) + .52_r_kind)
                 if (sol_zenang > 89.0_r_kind .and. ch8ch18 < .75_r_kind .and. ch8ch19 < .70_r_kind .and. &
                     ch18ch19 < .55_r_kind .and. (chsst-tsavg) > -10.0_r_kind) then
                     chsst = tsavg
@@ -611,27 +629,27 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! these tests should not be solar zenigh angle dependent.
 ! Holz and Ackerman 2006 AMS Sat Conf.
 
-                chsst = allchan(128_i_kind+ioffset)
-                ch8ch18 = allchan(119_i_kind+ioffset) - allchan(157_i_kind+ioffset)
-                ch8ch19 = allchan(129_i_kind+ioffset) - allchan(157_i_kind+ioffset)
+                chsst = allchan(128+ioffset)
+                ch8ch18 = allchan(119+ioffset) - allchan(157+ioffset)
+                ch8ch19 = allchan(129+ioffset) - allchan(157+ioffset)
                 if (ch8ch18 > -.05_r_kind .and. ch8ch18 < one .and. &
                     ch8ch19 > -.05_r_kind .and. ch8ch19 < one .and. &
                     chsst < 263.0_r_kind) then
                     chsst = tsavg
                 endif
-                if ( allchan(108_i_kind+ioffset) > allchan(107_i_kind+ioffset) .and. &
-                     allchan(115_i_kind+ioffset) > allchan(114_i_kind+ioffset) .and. &
-                     allchan(181_i_kind+ioffset) > allchan(180_i_kind+ioffset) .and. &
-                     allchan(194_i_kind+ioffset) > allchan(195_i_kind+ioffset)) then
-                   tmpinv = allchan(87_i_kind+ioffset)
-                   l = 88_i_kind+ioffset
-                   do k = 88_i_kind+ioffset,125_i_kind+ioffset
+                if ( allchan(108+ioffset) > allchan(107+ioffset) .and. &
+                     allchan(115+ioffset) > allchan(114+ioffset) .and. &
+                     allchan(181+ioffset) > allchan(180+ioffset) .and. &
+                     allchan(194+ioffset) > allchan(195+ioffset)) then
+                   tmpinv = allchan(87+ioffset)
+                   l = 88+ioffset
+                   do k = 88+ioffset,125+ioffset
                       if ( allchan(k) > tmpinv ) then
                            tmpinv = allchan(k)
                            l = k
                       endif
                    end do
-                   if ( tmpinv > allchan(125_i_kind+ioffset) + five) then
+                   if ( tmpinv > allchan(125+ioffset) + five) then
                       chsst = tsavg
                    endif
                 endif
@@ -641,7 +659,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
              chsstf = max(zero,chsstf)
              pred = 15._r_kind*chsstf
 
-             if(ifov <= 45_i_kind)sat_zenang = -sat_zenang
+             if(ifov <= 45)sat_zenang = -sat_zenang
 
          end if
 
@@ -655,9 +673,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
          if(.not. iuse)cycle read_loop
 
          sol_aziang = aquaspot(2)
-         lza = (start + float(ifov-ione)*step)*deg2rad
+         lza = (start + float(ifov-1)*step)*deg2rad
 
-         data_all(1,itx) = 49_i_kind              ! satellite ID (temp. 49)
+         data_all(1,itx) = 49                     ! satellite ID (temp. 49)
          data_all(2,itx) = t4dv                   ! time diff (obs-anal) (hrs)
          data_all(3,itx) = dlon                   ! grid relative longitude
          data_all(4,itx) = dlat                   ! grid relative latitude
@@ -708,7 +726,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root.and.ndata>izero) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -716,7 +734,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      do n=1,ndata
         do i=1,nchanl
            if(data_all(i+nreal,n) > tbmin .and. &
-                data_all(i+nreal,n) < tbmax)nodata=nodata+ione
+                data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
         itt=nint(data_all(nreal,n))
         super_val(itt)=super_val(itt)+val_airs
@@ -735,11 +753,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   call closbf(lnbufr)  ! Close bufr file
 
 ! deallocate arrays and nullify pointers.
-  if (isfcalc == ione) then
+  if (isfcalc == 1) then
     call fov_cleanup
   endif
 
-  if(diagnostic_reg .and. ntest > izero .and. mype_sub==mype_root) &
+  if(diagnostic_reg .and. ntest > 0 .and. mype_sub==mype_root) &
        write(6,*)'READ_AIRS:  mype,ntest,disterrmax=',&
        mype,ntest,disterrmax
 

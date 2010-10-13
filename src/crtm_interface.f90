@@ -77,8 +77,8 @@ public isfcr                ! = 28 index of surface roughness
 public iff10                ! = 29 index of ten meter wind factor
 public ilone                ! = 30 index of earth relative longitude (degrees)
 public ilate                ! = 31 index of earth relative latitude (degrees)
-public iclr_sky             ! = 7  index of clear sky amount (goes_img, severi)
-public isst_navy            ! = 7  index of navy sst retrieval (K) ( avhrr_navy
+public iclr_sky             ! = 7  index of clear sky amount (goes_img, seviri)
+public isst_navy            ! = 7  index of navy sst retrieval (K) (avhrr_navy)
 public idata_type           ! = 32 index of data type (151=day, 152=night, avhrr_navy)
 public iclavr               ! = 32 index of clavr cloud flag (avhrr)
 public isst_hires           ! = 33 index of interpolated hires sst
@@ -678,7 +678,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !  Load geometry structure
 
    panglr = data_s(iscan_ang)
-   if(obstype == 'goes_img' .or. obstype == 'severi')panglr = zero
+   if(obstype == 'goes_img' .or. obstype == 'seviri')panglr = zero
    geometryinfo(1)%sensor_zenith_angle = data_s(ilzen_ang)*rad2deg  ! local zenith angle
    geometryinfo(1)%source_zenith_angle = data_s(iszen_ang)          ! solar zenith angle
    geometryinfo(1)%sensor_azimuth_angle = data_s(ilazi_ang)         ! local zenith angle

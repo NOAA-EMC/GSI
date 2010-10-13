@@ -72,6 +72,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2009-12-08  guo     - fixed diag_conv output rewind while is not init_pass, with open(position='rewind')
 !   2010-04-09  cucurull - remove high_gps and high_gps_sub
 !   2010-04-01  tangborn - start adding call for carbon monoxide data. 
+!   2010-04-28      zhu - add ostats and rstats for additional precoditioner
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !
 !   input argument list:
@@ -91,7 +92,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use constants, only: zero,one,fv
+  use constants, only: zero,one,fv,zero_quad
   use guess_grids, only: load_prsges,load_geop_hgt
   use guess_grids, only: ges_tv,ges_q,ges_tsen
   use obsmod, only: nsat1,iadate,nobs_type,obscounts,&
@@ -99,7 +100,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
        dirname,write_diag,nprof_gps,ditype,obsdiags,lobserver,&
        destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated
   use obs_sensitivity, only: lobsensfc, lsensrecompute
-  use radinfo, only: mype_rad,diag_rad,jpch_rad,retrieval,fbias
+  use berror, only: newpc4pred
+  use radinfo, only: mype_rad,diag_rad,jpch_rad,retrieval,fbias,npred,ostats,rstats
   use pcpinfo, only: diag_pcp
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
@@ -113,6 +115,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use lag_fields, only: lag_presetup,lag_state_write,lag_state_read,lag_destroy_uv
   use state_vectors, only: svars2d
   use mpeu_util, only: getindex
+    use mpl_allreducemod, only: mpl_allreduce
 
   use m_rhs, only: rhs_alloc
   use m_rhs, only: rhs_dealloc
@@ -188,7 +191,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   real(r_kind),dimension(9,jpch_co):: stats_co1
   real(r_kind),dimension(npres_print,nconvtype,5,3):: bwork1
   real(r_kind),dimension(7*nsig+100,14):: awork1
-  
+
   if(.not.init_pass .and. .not.lobsdiag_allocated) call die('setuprhsall','multiple lobsdiag_allocated',lobsdiag_allocated)
 !******************************************************************************
 ! Initialize timer
@@ -326,6 +329,10 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         if(init_pass .and. mype == 0)write(7)idate
      end if
 
+     if (newpc4pred) then
+        ostats=zero
+        rstats=zero_quad
+     end if
 
 !    Loop over data types to process
      do is=1,ndat
@@ -456,6 +463,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 ! Get moisture diagnostics
 ! call q_diag(mype)
+
+! Collect information for preconditioning
+  if (newpc4pred) then
+     call mpl_allreduce(jpch_rad,ostats)
+     call mpl_allreduce(npred,jpch_rad,rstats)
+  end if
 
 ! Collect satellite and precip. statistics
   call mpi_reduce(aivals,aivals1,40*ndat,mpi_rtype,mpi_sum,mype_rad, &

@@ -49,6 +49,7 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2007-10-03  todling - add observer call
 !   2009-01-28  todling - update observer calling procedure 
 !   2009-08-19  guo     - #ifdef out destroy_gesfinfo() call for multi-pass observer.
+!   2010-04-30  zhu     - add newpc4pred in radinfo_read interface
 !   2010-04-22  tangborn - add carbon monoxide settings
 !   2010-05-13  huang   - add aeroinfo_read call
 !   2010-05-19  todling - move oneob test outside esmf ifdef
@@ -74,6 +75,7 @@ subroutine gsisub(mype,init_pass,last_pass)
        destroy_mapping,destroy_grid_vars
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional
   use mpimod, only: npe,mpi_comm_world,ierror
+  use berror, only: newpc4pred
   use radinfo, only: radinfo_read
   use pcpinfo, only: pcpinfo_read,create_pcp_random,&
        destroy_pcp_random
@@ -137,7 +139,7 @@ subroutine gsisub(mype,init_pass,last_pass)
 ! Read info files for assimilation of various obs
   if (init_pass) then
      if (.not.twodvar_regional) then
-        call radinfo_read
+        call radinfo_read(newpc4pred)
         call ozinfo_read
         call coinfo_read
         call pcpinfo_read

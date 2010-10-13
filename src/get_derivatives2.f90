@@ -91,18 +91,20 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 
 ! x derivative
   if(regional)then
-     do k=1,nnnvsbal
-        if(nvarbal_id(k) ==isf.and..not.uv_hyb_ens)then ! _RTod dangerously assume sf and vp 
-                                                        !       are sequentially arranged in hwork
-           do j=1,nlon
-              do i=1,nlat
-                 stx(i,j)=hwork(i,j,k)
-                 vpx(i,j)=hwork(i,j,k+1)
-              end do
-           end do
-           call psichi2uv_reg(stx,vpx,hwork(1,1,k),hwork(1,1,k+1))
-        end if
-     end do
+     if(.not. uv_hyb_ens)then
+       do k=1,nnnvsbal
+          if(nvarbal_id(k) ==isf)then ! _RTod dangerously assume sf and vp 
+                                      !       are sequentially arranged in hwork
+             do j=1,nlon
+                do i=1,nlat
+                   stx(i,j)=hwork(i,j,k)
+                   vpx(i,j)=hwork(i,j,k+1)
+                end do
+             end do
+             call psichi2uv_reg(stx,vpx,hwork(1,1,k),hwork(1,1,k+1))
+          end if
+       end do
+     end if
 !$omp parallel do private (k,vector)
      do k=1,nnnvsbal
         vector=.false.
@@ -112,12 +114,14 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
      end do
 !$omp end parallel do
   else
-     do k=1,nnnvsbal
-        if(nvarbal_id(k) == isf .and..not.uv_hyb_ens)then ! _RTod dangerously assume sf and vp 
-                                                          !       are sequentially arranged in hwork
-           call stvp2uv(hwork(1,1,k),hwork(1,1,k+1))
-        end if
-     end do
+     if(.not. uv_hyb_ens)then
+       do k=1,nnnvsbal
+          if(nvarbal_id(k) == isf)then ! _RTod dangerously assume sf and vp 
+                                                            !       are sequentially arranged in hwork
+             call stvp2uv(hwork(1,1,k),hwork(1,1,k+1))
+          end if
+       end do
+     end if
 !$omp parallel do private(k,vector)
      do k=1,nnnvsbal
         vector=.false.
@@ -219,34 +223,44 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   t_x=zero
   call sub2grid2(hwork,u,v,p3d_x,t_x,iflg)
   if(regional)then
-     do k=nnnvsbal,1,-1
+!$omp parallel do private(k,vector)
+     do k=1,nnnvsbal
         vector=.false.
         if(nvarbal_id(k)==isf .or. nvarbal_id(k)==ivp) vector=.true.
         call tdelx_reg(hwork_x(1,1,k),hwork(1,1,k),vector)
         call tdely_reg(hwork_y(1,1,k),hwork(1,1,k),vector)
-        if(nvarbal_id(k) == isf .and..not.uv_hyb_ens)then
-           do j=1,nlon
-              do i=1,nlat
-                 ux(i,j)=hwork(i,j,k)
-                 vx(i,j)=hwork(i,j,k+1)
-                 hwork(i,j,k)=zero
-                 hwork(i,j,k+1)=zero
-              end do
-           end do
-           call psichi2uvt_reg(ux,vx,hwork(1,1,k),hwork(1,1,k+1))
-
-        end if
      end do
+     if(.not. uv_hyb_ens)then
+       do k=1,nnnvsbal
+          if(nvarbal_id(k) == isf)then
+             do j=1,nlon
+                do i=1,nlat
+                   ux(i,j)=hwork(i,j,k)
+                   vx(i,j)=hwork(i,j,k+1)
+                   hwork(i,j,k)=zero
+                   hwork(i,j,k+1)=zero
+                end do
+             end do
+             call psichi2uvt_reg(ux,vx,hwork(1,1,k),hwork(1,1,k+1))
+
+          end if
+       end do
+     end if
   else
-     do k=nnnvsbal,1,-1
+!$omp parallel do private(k,vector)
+     do k=1,nnnvsbal
         vector=.false.
         if(nvarbal_id(k)==isf .or. nvarbal_id(k)==ivp) vector=.true.
         call tcompact_dlon(hwork(1,1,k),hwork_x(1,1,k),vector)
         call tcompact_dlat(hwork(1,1,k),hwork_y(1,1,k),vector)
-        if(nvarbal_id(k) == isf .and..not.uv_hyb_ens)then
-           call tstvp2uv(hwork(1,1,k),hwork(1,1,k+1))
-        end if
      end do
+     if(.not. uv_hyb_ens)then
+       do k=1,nnnvsbal
+          if(nvarbal_id(k) == isf)then
+             call tstvp2uv(hwork(1,1,k),hwork(1,1,k+1))
+          end if
+       end do
+     end if
   end if
 
 !     use t_x,etc since don't need to save contents
@@ -260,15 +274,16 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
            st(i,j,k)=st(i,j,k)+u_x(i,j,k)
            vp(i,j,k)=vp(i,j,k)+v_x(i,j,k)
            t(i,j,k)=t(i,j,k)+t_x(i,j,k)
+           p3d(i,j,k)=p3d(i,j,k)+p3d_x(i,j,k)
         end do
      end do
   end do
 !$omp end parallel do
-  do k=1,nsig+1
-     do j=1,lon2
-        do i=1,lat2
-           p3d(i,j,k)=p3d(i,j,k)+p3d_x(i,j,k)
-        end do
+!  Do extra field for pressure
+  k=nsig+1
+  do j=1,lon2
+     do i=1,lat2
+        p3d(i,j,k)=p3d(i,j,k)+p3d_x(i,j,k)
      end do
   end do
 

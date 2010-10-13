@@ -97,6 +97,9 @@
 !   2010-03-30  collard - Add CO2 interface (fixed value for now).
 !   2010-04-08  h.liu   -add SEVIRI assimilation 
 !   2010-04-16  hou/kistler add interface to module ncepgfs_ghg
+!   2010-04-29  zhu     - add option newpc4pred for new preconditioning for predictors
+!   2010-05-06  zhu     - add option adp_anglebc variational angle bias correction
+!   2010-05-13  zhu     - add option passive_bc for bias correction of passive channels
 !   2010-05-19  todling - revisit intrppx CO2 handle
 !   2010-06-10  todling - reduce pointer check by getting CO2 pointer at this level
 !                       - start adding hooks of aerosols influence on RTM
@@ -109,6 +112,8 @@
 !   2010-08-10  wu      - setup corresponding vegetation types (nmm_to_crtm) for IGBP in regional
 !                         parameter nvege_type: old=24, IGBP=20
 !   2010-08-17  derber  - move setup input and crtm call to crtm_interface (intrppx) to simplify routine
+!   2010-09-30  zhu     - re-order predterms and predbias
+!   2010-10-05  treadon - move ireal_radiag and ipchan_radiag to radinfo
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -135,12 +140,14 @@
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,i_kind
   use crtm_spccoeff, only: sc
+  use berror, only: newpc4pred
   use radinfo, only: nuchan,tlapmean,predx,cbias,ermax_rad,&
        npred,jpch_rad,varch,iuse_rad,nusis,fbias,retrieval,b_rad,pg_rad,&
-       air_rad,ang_rad
+       air_rad,ang_rad,adp_anglebc,angord,angle_cbias, &
+       passive_bc,ostats,rstats,ireal_radiag,ipchan_radiag
   use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &
-           dplat,dtbduv_on,radhead,radtail,&
+           dplat,dtbduv_on,radhead,radtail,radheadm,radtailm,&
            i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
            dirname,time_offset,lwrite_predterms,lwrite_peakwt
   use obsmod, only: rad_ob_type
@@ -177,8 +184,6 @@
   external:: stop2
 
 ! Declare local parameters
-  integer(i_kind),parameter:: ipchan=7
-  integer(i_kind),parameter:: ireal=26
   real(r_kind),parameter:: r1e10=1.0e10_r_kind
   character(len=*),parameter:: myname="setuprad"
 
@@ -186,7 +191,7 @@
   character(128) diag_rad_file
 
   integer(i_kind) iextra,jextra,error_status,istat
-  integer(i_kind) ich9,isli,icc,mm1,ixx
+  integer(i_kind) ich9,isli,icc,iccm,mm1,ixx
   integer(i_kind) m,mm,jc,j,k,i,kmax
   integer(i_kind) kk,n,nlev,kval,ibin,ioff,iii
   integer(i_kind) ii,jj,idiag
@@ -215,11 +220,11 @@
 
 ! Declare local arrays
 
-  real(r_single),dimension(ireal):: diagbuf
+  real(r_single),dimension(ireal_radiag):: diagbuf
   real(r_single),allocatable,dimension(:,:):: diagbufex
   real(r_single),allocatable,dimension(:,:):: diagbufchan
 
-  real(r_kind),dimension(npred+1,nchanl)::predterms,predbias
+  real(r_kind),dimension(npred+2,nchanl)::predterms,predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
@@ -244,7 +249,7 @@
   character(10) filex
   character(12) string
 
-  type(rad_ob_type),pointer:: my_head
+  type(rad_ob_type),pointer:: my_head,my_headm
   type(obs_diag),pointer:: my_diag
 
   n_alloc(:)=0
@@ -262,6 +267,7 @@
   sgagl = zero
   dtp_avh=zero
   icc   = 0
+  iccm  = 0
   ich9  = min(9,nchanl)
   do i=1,nchanl
      do j=1,npred
@@ -333,6 +339,7 @@
         tnoise(jc)=varch(j)
         if (iuse_rad(j)< -1 .or. (iuse_rad(j) == -1 .and.  &
               .not.rad_diagsave)) tnoise(jc)=r1e10
+        if (passive_bc .and. (jiter>miter) .and. (iuse_rad(j)==-1)) tnoise(jc)=varch(j)
         if (iuse_rad(j)>-1) l_may_be_passive=.true.
         if (tnoise(jc) < 1.e4_r_kind) toss = .false.
      end if
@@ -460,9 +467,9 @@
 !    Initialize/write parameters for satellite diagnostic file on
 !    first outer iteration.
      if (init_pass .and. mype==mype_diaghdr(is)) then
-        write(4) isis,dplat(is),obstype,jiter,nchanl,npred,ianldate,ireal,ipchan,iextra,jextra
+        write(4) isis,dplat(is),obstype,jiter,nchanl,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra
         write(6,*)'SETUPRAD:  write header record for ',&
-             isis,ireal,iextra,' to file ',trim(diag_rad_file),' ',ianldate
+             isis,ireal_radiag,iextra,' to file ',trim(diag_rad_file),' ',ianldate
         do i=1,nchanl
            n=ich(i)
            if( n < 1 )cycle
@@ -477,7 +484,7 @@
      endif
   endif
 
-  idiag=ipchan+npred+1
+  idiag=ipchan_radiag+npred+2
   if (lobsdiagsave) idiag=idiag+4*miter+1
   allocate(diagbufchan(idiag,nchanl))
   
@@ -609,9 +616,19 @@
 !*****
 
 !       Construct predictors for 1B radiance bias correction.
-           pred(1,i) = r0_01
-           pred(2,i) = one_tenth*(one/cosza-one)**2-.015_r_kind
-           if(ssmi .or. ssmis .or. amsre)pred(2,i)=zero
+           if (.not. newpc4pred) then
+              pred(1,i) = r0_01
+              pred(2,i) = one_tenth*(one/cosza-one)**2-.015_r_kind
+              if(ssmi .or. ssmis .or. amsre)pred(2,i)=zero
+           else
+              pred(1,i) = one
+              if (adp_anglebc) then
+                 pred(2,i) = zero
+              else
+                 pred(2,i) = (one/cosza-one)**2
+              end if
+           end if
+
            pred(3,i) = zero
            if (amsre) then
               pred(3,i) = clw
@@ -619,8 +636,24 @@
               pred(3,i) = clw*cosza*cosza
            end if
  
-!       Apply bias correction
            mm=ich(i)
+           if (adp_anglebc) then
+              if (goessndr .or. seviri) then
+                 pred(npred,i)=nadir*deg2rad
+              else
+                 pred(npred,i)=data_s(iscan_ang,n)
+              end if
+              do j=2,angord
+                 pred(npred-j+1,i)=pred(npred,i)**j
+              end do
+
+              cbias(nadir,mm)=zero
+              do j=1,angord
+                 cbias(nadir,mm)=cbias(nadir,mm)+predchan(npred-j+1,i)*pred(npred-j+1,i)
+              end do
+           end if
+
+!       Apply bias correction
  
            if (lwrite_peakwt) then
              ptau5derivmax = -9.9e31
@@ -643,30 +676,33 @@
              ptau5deriv(1,i) = ptau5deriv(2,i)
            end if
 
-           predbias(1,i) = cbias(nadir,mm)*ang_rad(mm)             !global_satangbias
            tlapchn(i)= (ptau5(2,i)-ptau5(1,i))*(tsavg5-tvp(2))
            do k=2,nsig-1
               tlapchn(i)=tlapchn(i)+&
                    (ptau5(k+1,i)-ptau5(k,i))*(tvp(k-1)-tvp(k+1))
            end do
-           tlapchn(i) = r0_01*tlapchn(i)
+           if (.not. newpc4pred) tlapchn(i) = r0_01*tlapchn(i)
            tlap = tlapchn(i)-tlapmean(mm)
            pred(4,i)=tlap*tlap
            pred(5,i)=tlap
-           do j=1,npred
+           do j=1,5
               pred(j,i)=pred(j,i)*air_rad(mm)
            end do
+           if (adp_anglebc) then
+              do j=6,npred
+                 pred(j,i)=pred(j,i)*ang_rad(mm)
+              end do
+           end if
  
-           predbias(2,i) = pred(5,i)*predchan(npred,i)                 !tlap
-           predbias(3,i) = pred(4,i)*predchan(npred-1,i)               !tlap*tlap
-           do j = 1,npred-2
-              predbias(j+3,i) = predchan(j,i)*pred(j,i)
+           do j = 1,npred
+              predbias(j,i) = predchan(j,i)*pred(j,i)
            end do
+           predbias(npred+1,i) = cbias(nadir,mm)*ang_rad(mm)      !global_satangbias
  
 !          Apply SST dependent bias correction with cubic spline
            if (retrieval) then
               call spline_cub(fbias(:,mm),tsavg5,ys_bias_sst)
-              predbias(6,i) = ys_bias_sst
+              predbias(npred+2,i) = ys_bias_sst
            endif
 
 !          tbc    = obs - guess after bias correction
@@ -675,13 +711,15 @@
            tbcnob(i)    = tb_obs(i) - tsim(i)  
            tbc(i)       = tbcnob(i)                     
  
-           do j=1,npred+1
+           do j=1,5
               tbc(i)=tbc(i) - predbias(j,i) !obs-ges with bias correction
            end do
+           tbc(i)=tbc(i) - predbias(npred+1,i)
+           tbc(i)=tbc(i) - predbias(npred+2,i)
  
            error0(i)     = tnoise(i)
-           if(tnoise(i) < 1.e4_r_kind .or. (iuse_rad(ich(i))==-1  &
-                .and. rad_diagsave))then
+           if(tnoise(i) < 1.e4_r_kind .or. (iuse_rad(ich(i))==-1 .and. rad_diagsave) &
+                  .or. (passive_bc .and. jiter>miter .and. iuse_rad(ich(i))==-1))then
               varinv(i)     = val_obs/tnoise(i)**2
               errf(i)       = tnoise(i)
            else
@@ -879,7 +917,8 @@
            kval=0
            do i=2,nlev
 !          do i=1,nlev
-              if (varinv(i)<tiny_r_kind .and. iuse_rad(ich(i))>=1) then
+              if (varinv(i)<tiny_r_kind .and. ((iuse_rad(ich(i))>=1) .or. &
+                  (passive_bc .and. jiter>miter .and. iuse_rad(j)==-1))) then
                  kval=max(i-1,kval)
                  if(amsub .or. hsb .or. mhs)kval=nlev
                  if(amsua .and. i <= 3)kval = zero
@@ -907,6 +946,7 @@
         endif
 
         icc = 0
+        iccm= 0
         do i = 1,nchanl
 
 !          Only process observations to be assimilated
@@ -947,12 +987,28 @@
                     aivals(39,is) = aivals(39,is) -two*(error0(i)**2)*varinv(i)*term
                     aivals(38,is) = aivals(38,is) +one
                     if(wgt < wgtlim) aivals(2,is)=aivals(2,is)+one
+
+!                   summation of observation number
+                    if (newpc4pred) then
+                       ostats(m)  = ostats(m) + one
+                    end if
                  end if
 
                  icc=icc+1
 
 !             End of use data block
               end if
+
+!             At the end of analysis, prepare for bias correction for monitored channels
+!             Only "good monitoring" obs are included in J_passive calculation.
+              if (passive_bc .and. (jiter>miter) .and. (iuse_rad(m)==-1)) then
+!                summation of observation number
+                 if (newpc4pred .and. luse(n)) then
+                    ostats(m)  = ostats(m) + one
+                 end if
+                 iccm=iccm+1
+              end if
+
 
 !          End of varinv>tiny_r_kind block
            endif
@@ -965,14 +1021,15 @@
 !    In principle, we want ALL obs in the diagnostics structure but for
 !    passive obs (monitoring), it is difficult to do if rad_diagsave
 !    is not on in the first outer loop. For now we use l_may_be_passive...
+!    Link observation to appropriate observation bin
+     if (nobs_bins>1) then
+        ibin = NINT( dtime/hr_obsbin ) + 1
+     else
+        ibin = 1
+     endif
+     IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+
      if (l_may_be_passive .and. .not. retrieval) then
-!       Link observation to appropriate observation bin
-        if (nobs_bins>1) then
-           ibin = NINT( dtime/hr_obsbin ) + 1
-        else
-           ibin = 1
-        endif
-        IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
         if(in_curbin) then
 !          Load data into output arrays
@@ -1042,6 +1099,15 @@
                        end if
 
                        my_head%ich(iii)=ii
+
+!                      compute hessian contribution from Jo bias correction terms
+                       if (newpc4pred .and. luse(n)) then
+                          do k=1,npred
+                             rstats(k,m)=rstats(k,m)+radtail(ibin)%head%pred(k,iii) &
+                                  *radtail(ibin)%head%pred(k,iii)*varinv(ii)
+                          end do
+                       end if  ! end of newpc4pred loop
+
                     end if
                  end do
                  radtail(ibin)%head%nchan  = iii         ! profile observation count
@@ -1139,6 +1205,69 @@
 !    End of l_may_be_passive block
      endif
 
+
+!    Load passive data into output arrays
+     if (passive_bc .and. (jiter>miter) .and. .not. retrieval) then
+        if(in_curbin) then
+           if(iccm > 0)then
+              if(.not. associated(radheadm(ibin)%head))then
+                 allocate(radheadm(ibin)%head,stat=istat)
+                 if(istat /= 0)write(6,*)' failure to write radheadm '
+                 radtailm(ibin)%head => radheadm(ibin)%head
+              else
+                 allocate(radtailm(ibin)%head%llpoint,stat=istat)
+                 if(istat /= 0)write(6,*)' failure to write radtailm%llpoint '
+                 radtailm(ibin)%head => radtailm(ibin)%head%llpoint
+              end if
+
+              my_headm => radtailm(ibin)%head
+              my_headm%idv = is
+              my_headm%iob = n
+
+              allocate(radtailm(ibin)%head%res(iccm),radtailm(ibin)%head%err2(iccm), &
+                       radtailm(ibin)%head%raterr2(iccm),radtailm(ibin)%head%pred(npred,iccm), &
+                       radtailm(ibin)%head%icx(iccm))
+
+              radtailm(ibin)%head%nchan  = iccm        ! profile observation count
+              radtailm(ibin)%head%time=dtime
+              radtailm(ibin)%head%luse=luse(n)
+              iii=0
+              do ii=1,nchanl
+                 m=ich(ii)
+                 if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)==-1) then
+
+                    iii=iii+1
+                    radtailm(ibin)%head%res(iii)=tbc(ii)                 ! obs-ges innovation
+                    radtailm(ibin)%head%err2(iii)=one/error0(ii)**2      ! 1/(obs error)**2  (original uninflated error)
+                    radtailm(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
+                    radtailm(ibin)%head%icx(iii)=m                       ! channel index
+                    do k=1,npred
+                       radtailm(ibin)%head%pred(k,iii)=pred(k,ii)
+                    end do
+
+                    my_headm%ich(iii)=ii
+
+!                   compute hessian contribution
+                    if (newpc4pred .and. luse(n)) then
+                       do k=1,npred
+                          rstats(k,m)=rstats(k,m)+radtailm(ibin)%head%pred(k,iii) &
+                               *radtailm(ibin)%head%pred(k,iii)*varinv(ii)
+                       end do
+                    end if  ! end of newpc4pred loop
+
+                 end if
+              end do
+
+              if (iii /= iccm) then
+                 write(6,*)'setuprad: error iii iccm',iii,iccm
+                 call stop2(279)
+              endif
+
+           end if ! <iccm>
+        endif ! (in_curbin)
+     end if   !    End of passive_bc block
+
+
      if(in_curbin) then
 !       Write diagnostics to output file.
         if (rad_diagsave .and. luse(n)) then
@@ -1218,20 +1347,18 @@
               diagbufchan(7,i)=tlapchn(i)      ! stability index
 
               if (lwrite_predterms) then
-                 predterms(1,i) = cbias(nadir,ich(i))
-                 tlap = tlapchn(i)-tlapmean(ich(i))
-                 predterms(2,i) = tlap
-                 predterms(3,i) = tlap*tlap
-                 do j = 1,npred-2
-                    predterms(j+3,i) = pred(j,i)
+                 predterms=zero
+                 do j = 1,npred
+                    predterms(j,i) = pred(j,i)
                  end do
+                 predterms(npred+1,i) = cbias(nadir,ich(i))
 
-                 do j=1,npred+1
-                    diagbufchan(ipchan+j,i)=predterms(j,i) ! Tb bias correction terms (K)
+                 do j=1,npred+2
+                    diagbufchan(ipchan_radiag+j,i)=predterms(j,i) ! Tb bias correction terms (K)
                  end do
               else   ! Default to write out predicted bias
-                 do j=1,npred+1
-                    diagbufchan(ipchan+j,i)=predbias(j,i) ! Tb bias correction terms (K)
+                 do j=1,npred+2
+                    diagbufchan(ipchan_radiag+j,i)=predbias(j,i) ! Tb bias correction terms (K)
                  end do
               end if
            end do
@@ -1248,7 +1375,7 @@
                        call stop2(281)
                     end if
  
-                    ioff=7+npred+1
+                    ioff=7+npred+2
                     do jj=1,miter
                        ioff=ioff+1
                        if (obsptr%muse(jj)) then
@@ -1273,7 +1400,7 @@
                     obsptr => obsptr%next
                  enddo
               else
-                 ioff=7+npred+1
+                 ioff=7+npred+2
                  diagbufchan(ioff+1:ioff+4*miter+1,1:nchanl) = zero
               endif
            endif
