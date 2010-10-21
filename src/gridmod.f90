@@ -61,6 +61,11 @@ module gridmod
 !                           rotation angles for a small number of winds whose rotation angle was interpolated
 !                           from beta_ref values across the discontinuity.  This was fixed by replacing the
 !                           beta_ref field with cos_beta_ref, sin_beta_ref.
+!   2010-10-19  parrish - correct bug in subroutine init_reg_glob_ll.  When running with
+!                           wrf_nmm_regional=.true. and filled_grid=.true., all obs get tossed.  This was
+!                           fixed by replacing region_lat and region_lon with glat_an, glon_an
+!                           at lines 1068-1069, "call rpolar2ll" and removing the following do loop which
+!                           copies region_lat, region_lon to glat_an, glon_an.
 !
 !
 ! !AUTHOR: 
@@ -1061,13 +1066,7 @@ contains
           call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,gxtemp_an)
           call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,gytemp_an)
           call rpolar2ll(gxtemp_an,gytemp_an,nlon*nlat, &
-                         region_lat,region_lon,glat8(i0,j0),glon8(i0,j0),zero)
-          do k=1,nlon
-             do i=1,nlat
-                glat_an(k,i)=region_lat(i,k)
-                glon_an(k,i)=region_lon(i,k)
-             end do
-          end do
+                         glat_an,glon_an,glat8(i0,j0),glon8(i0,j0),zero)
           gxtemp=dx_nmm
           gytemp=dy_nmm
           call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,dx_an)
