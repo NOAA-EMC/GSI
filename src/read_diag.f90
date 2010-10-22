@@ -12,6 +12,7 @@
 ! program history log:
 !   2005-07-22 treadon - add this doc block
 !   2010-10-05 treadon - refactor code to GSI standard
+!   2010-10-08 zhu     - use data_tmp to handle various npred values
 !
 ! contains
 !   read_radiag_header - read radiance diagnostic file header
@@ -39,7 +40,7 @@
 !   nchan = header_fix%nchan
 !   freq1 = header_chan(1)%freq
 !   do
-!     call read_radiag_data( ftin, header_fix, data_fix, data_chan, iflag )
+!     call read_radiag_data( ftin, header_fix, data_fix, data_chan, ipchan_radiag,iflag )
 !     if( iflag /= 0 )exit
 !     rlat = data_fix%lat
 !     rlat = data_fix%lon
@@ -233,7 +234,7 @@ subroutine read_radiag_header(ftin,npred,ireal_radiag,ipchan_radiag,header_fix,h
      
 end subroutine read_radiag_header
 
-subroutine read_radiag_data(ftin,header_fix,data_fix,data_chan,data_extra,iflag )
+subroutine read_radiag_data(ftin,header_fix,data_fix,data_chan,data_extra,ipchan_radiag,iflag )
 !                .      .    .                                       .
 ! subprogram:    read_radiag_dat                    read rad diag data
 !   prgmmr: tahara           org: np20                date: 2003-01-01
@@ -262,6 +263,7 @@ subroutine read_radiag_data(ftin,header_fix,data_fix,data_chan,data_extra,iflag 
 
 ! Declare passed arguments
   integer(i_kind),intent(in)             :: ftin
+  integer(i_kind),intent(in)             :: ipchan_radiag
   type(diag_header_fix_list ),intent(in) :: header_fix
   type(diag_data_fix_list)   ,intent(out):: data_fix
   type(diag_data_chan_list)  ,pointer    :: data_chan(:)
@@ -271,9 +273,10 @@ subroutine read_radiag_data(ftin,header_fix,data_fix,data_chan,data_extra,iflag 
 ! Declare local variables
   integer(i_kind),save :: nchan_last = -1
   integer(i_kind),save :: iextra_last = -1
-  integer(i_kind) :: ich
+  integer(i_kind) :: ich,in,idiag
+  real(r_single),dimension(:,:),allocatable :: data_tmp
 
-! Allocate arrays as neededn
+! Allocate arrays as needed
   if (header_fix%nchan /= nchan_last) then
      if (nchan_last > 0) deallocate(data_chan)
      allocate(data_chan( header_fix%nchan))
@@ -287,11 +290,30 @@ subroutine read_radiag_data(ftin,header_fix,data_fix,data_chan,data_extra,iflag 
   endif
 
 ! Read data record
+  idiag=ipchan_radiag+header_fix%npred+2
+  allocate(data_tmp(idiag,header_fix%nchan))
   if (header_fix%iextra == 0) then
-     read(ftin,IOSTAT=iflag) data_fix, data_chan
+     read(ftin,IOSTAT=iflag) data_fix, data_tmp
   else
-     read(ftin,IOSTAT=iflag) data_fix, data_chan, data_extra
+     read(ftin,IOSTAT=iflag) data_fix, data_tmp, data_extra
   endif
+
+  do ich=1,header_fix%nchan
+     data_chan(ich)%tbobs =data_tmp(1,ich)
+     data_chan(ich)%omgbc =data_tmp(2,ich)
+     data_chan(ich)%omgnbc=data_tmp(3,ich)
+     data_chan(ich)%errinv=data_tmp(4,ich)
+     data_chan(ich)%qcmark=data_tmp(5,ich)
+     data_chan(ich)%emiss =data_tmp(6,ich)
+     data_chan(ich)%tlap  =data_tmp(7,ich)
+     data_chan(ich)%bicons=data_tmp(8,ich)
+     data_chan(ich)%biang =data_tmp(9,ich)
+     data_chan(ich)%biclw =data_tmp(10,ich)
+     data_chan(ich)%bilap2=data_tmp(11,ich)
+     data_chan(ich)%bilap =data_tmp(12,ich)
+     data_chan(ich)%bifix =data_tmp(idiag-1,ich)
+  end do
+  deallocate(data_tmp)
     
 end subroutine read_radiag_data
 

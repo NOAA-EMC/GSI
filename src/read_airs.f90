@@ -55,6 +55,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                       power for some instruments. 
 !   2010-07-12  zhu   - include global offset in amsua bc for adp_anglebc option
 !   2010-09-02  zhu   - add use_edges option
+!   2010-10-12  zhu   - use radstep and radstart from radinfo
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -91,7 +92,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                finalcheck,checkob,score_crit
   use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad, &
-               air_rad,predx,adp_anglebc,use_edges,find_edges 
+               air_rad,predx,adp_anglebc,use_edges,find_edges, &
+               radstep,radstart 
   use berror, only: newpc4pred
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
        tll2xy,txy2ll,rlats,rlons
@@ -216,10 +218,16 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   ilon=3
   ilat=4
 
+  do i=1,jpch_rad
+     if (trim(nusis(i))==trim(sis)) then
+        step  = radstep(i)
+        start = radstart(i)
+        exit
+     endif
+  end do
+
   if(airs)then
      ix=1
-     step   = 1.1_r_kind
-     start = -48.9_r_kind
      senname = 'AIRS'
      nchanl  = n_airschan
      nchanlr = n_airschan
@@ -245,9 +253,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
           write(6,*)'READ_AIRS:  airs offset ',ioff,ichansst,ichsst
   else if(amsua)then
      ix=2
-     step   = three + one/three
-     start = -48._r_kind - one/three
-!    start  = -48.33_r_kind
      senname = 'AMSU'
      nchanl  = n_amsuchan
      nchanlr = n_amsuchan
@@ -271,8 +276,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      endif
   else if(hsb)then
      ix=3
-     step   = 1.1_r_kind
-     start  = -48.95_r_kind
      senname = 'HSB'
      nchanl  = n_hsbchan
      nchanlr = n_hsbchan+1
@@ -464,7 +467,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Remove data on edges
         if (.not. use_edges) then
-           call find_edges(obstype,ifov,data_on_edges)
+           call find_edges(sis,ifov,data_on_edges)
            if (data_on_edges) cycle read_loop
         end if
 

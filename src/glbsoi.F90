@@ -110,7 +110,7 @@ subroutine glbsoi(mype)
   use gridmod, only: nlat,nlon,nsig,rlats,regional,&
        twodvar_regional,wgtlats
   use guess_grids, only: nfldsig
-  use obsmod, only: write_diag,perturb_obs
+  use obsmod, only: write_diag,perturb_obs,ditype
   use turblmod, only: create_turblvars,destroy_turblvars
   use obs_sensitivity, only: lobsensfc, iobsconv, lsensrecompute, &
                              init_fc_sens, save_fc_sens
@@ -293,7 +293,7 @@ subroutine glbsoi(mype)
      if (write_diag(jiter)) then 
         call setuprhsall(ndata,mype,.true.,.true.)
         if (.not. lsqrtb .and. newpc4pred) call pcinfo
-        if (passive_bc) call prad_bias
+        if (any(ditype=='rad') .and. passive_bc) call prad_bias
      end if
 
 !    Write xhat- and yhat-save for use as a guess for the solution

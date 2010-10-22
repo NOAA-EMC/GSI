@@ -65,6 +65,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2010-06-29  zhu     - add newpc4pred option
 !   2010-07-12  zhu     - include global offset for amsua in bias correction for adp_anglebc option
 !   2010-09-02  zhu     - add use_edges option
+!   2010-10-12  zhu     - use radstep and radstart from radinfo
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -102,7 +103,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
            finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
-           use_edges,find_edges
+           use_edges,find_edges,radstart,radstep
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300
@@ -254,11 +255,16 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   if(jsatid == 'metop-b')kidsat=5
   if(jsatid == 'metop-c')kidsat=6
 
+  do i=1,jpch_rad
+     if (trim(nusis(i))==trim(sis)) then
+        step  = radstep(i)
+        start = radstart(i)
+        exit 
+     endif
+  end do 
 
   rato=1.1363987_r_kind
   if ( hirs ) then
-     step   = 1.80_r_kind
-     start  = -49.5_r_kind
      nchanl=19
 !   Set rlndsea for types we would prefer selecting
      if (isfcalc==1)then
@@ -299,8 +305,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      endif  ! isfcalc == 1
 
   else if ( msu ) then
-     step   = 9.474_r_kind
-     start  = -47.37_r_kind
      nchanl=4
      if (isfcalc==1) then
         instr=10
@@ -318,9 +322,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         rlndsea(4) = 100._r_kind
      endif
   else if ( amsua ) then
-     step   = three + one/three
-     start = -48._r_kind - one/three
-!    start  = -48.33_r_kind
      nchanl=15
      if (isfcalc==1) then
         instr=11
@@ -338,8 +339,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         rlndsea(4) = 100._r_kind
      endif
   else if ( amsub )  then
-     step   = 1.1_r_kind
-     start  = -48.95_r_kind
      nchanl=5
      if (isfcalc==1) then
         instr=12
@@ -356,8 +355,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
      endif
   else if ( mhs )  then
-     step   = 10.0_r_kind/9.0_r_kind
-     start  = -445.0_r_kind/9.0_r_kind
      nchanl=5
      if (isfcalc==1) then
         instr=13
@@ -374,8 +371,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
      endif
   else if ( ssu ) then
-     step  =  10.00_r_kind
-     start = -35.00_r_kind
      nchanl=3
      if (isfcalc==1) then
         instr=9
@@ -547,7 +542,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if (use_edges) then 
               if (msu .and. (ifov==1 .or. ifov==11)) cycle read_loop
            else
-              call find_edges(obstype,ifov,data_on_edges)
+              call find_edges(sis,ifov,data_on_edges)
               if (data_on_edges) cycle read_loop
            end if
 

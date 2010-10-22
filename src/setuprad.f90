@@ -918,7 +918,7 @@
            do i=2,nlev
 !          do i=1,nlev
               if (varinv(i)<tiny_r_kind .and. ((iuse_rad(ich(i))>=1) .or. &
-                  (passive_bc .and. jiter>miter .and. iuse_rad(j)==-1))) then
+                  (passive_bc .and. jiter>miter .and. iuse_rad(ich(i))==-1))) then
                  kval=max(i-1,kval)
                  if(amsub .or. hsb .or. mhs)kval=nlev
                  if(amsua .and. i <= 3)kval = zero
@@ -1245,8 +1245,6 @@
                        radtailm(ibin)%head%pred(k,iii)=pred(k,ii)
                     end do
 
-                    my_headm%ich(iii)=ii
-
 !                   compute hessian contribution
                     if (newpc4pred .and. luse(n)) then
                        do k=1,npred
@@ -1433,7 +1431,6 @@
   call destroy_crtm
 
 135 continue
-
 
 ! End of routine
   return
