@@ -28,7 +28,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_double
-  use gridmod, only: nlat,nlon,rlats,rlons
+  use gridmod, only: nlat,nlon,rlats,rlons,regional,tll2xy
   use constants, only: deg2rad,rad2deg,zero,one_tenth
   use convinfo, only: nconvtype,ictype,icuse
   use obsmod, only: ianldate
@@ -58,9 +58,9 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
   real(r_kind) ohr,olat,olon,psob,pob,oberr,usage,toff
 
   integer(i_kind) i,k,iret,lunin,nc
-  integer(i_kind) ilat,ilon,ikx,nreal,nchanl,nmrecs
+  integer(i_kind) ilat,ilon,ikx,nreal,nchanl,noutside,nmrecs
 
-  logical endfile
+  logical endfile, outside
 
   data lunin / 10 /
 
@@ -69,6 +69,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
   nmrecs=0
   nreal=maxdat
   nchanl=0
+  noutside=0
   ilon=2
   ilat=3
   endfile=.false.
@@ -126,11 +127,18 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
      if (olon < zero)  olon=olon+r360
      dlat_earth = olat * deg2rad
      dlon_earth = olon * deg2rad
- 
-     dlat = dlat_earth
-     dlon = dlon_earth
-     call grdcrd(dlat,1,rlats,nlat,1)
-     call grdcrd(dlon,1,rlons,nlon,1)
+     if(regional)then
+        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+        if (outside) then
+           noutside=noutside+1
+           cycle
+        endif
+     else 
+        dlat = dlat_earth
+        dlon = dlon_earth
+        call grdcrd(dlat,1,rlats,nlat,1)
+        call grdcrd(dlon,1,rlons,nlon,1)
+     end if
 
 ! Extract observation.
      ndata=min(ndata+1,maxobs)
@@ -156,6 +164,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
   end do
 
   write(6,*) 'READ_TCPS:  NUMBER OF OBS READ IN = ', ndata
+  write(6,*) 'READ_TCPS: # out of domain =', noutside
 
 ! Write observations to scratch file
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
