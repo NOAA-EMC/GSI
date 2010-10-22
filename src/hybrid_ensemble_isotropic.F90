@@ -655,7 +655,7 @@ subroutine normal_new_factorization_rf_z
      diag(:,k)=sqrt(one/f(:,k))
   end do
 
-  write(6,*)'in normal_new_factorization_rf_z, min,max(diag)=',minval(diag),maxval(diag)
+!!  write(6,*)'in normal_new_factorization_rf_z, min,max(diag)=',minval(diag),maxval(diag)
 
 end subroutine normal_new_factorization_rf_z
 
@@ -2390,7 +2390,7 @@ subroutine init_sf_xy(jcap_in)
   k_index=0
   do k=grd_loc%kbegin_loc,grd_loc%kend_loc
      k_index(k)=1+mod(k-1,grd_loc%nsig)
-     write(6,*) 'k_index(',k,')=',k_index(k)
+!!     write(6,*) 'k_index(',k,')=',k_index(k)
   end do
 
   if(make_test_maps) then

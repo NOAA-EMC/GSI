@@ -13,8 +13,8 @@ subroutine get_gefs_ensperts_dualres
 !   2010-01-05  kleist, initial documentation
 !   2010-02-17  parrish - make changes to allow dual resolution capability
 !   2010-03-24  derber - use generalized genqsat rather than specialized for this resolution
-!   2010-04-06  parrish - comment out call to ensemble_spread_dualres for now--there is a bug
-!                           and daryl has a newer version which is faster and uses less memory.
+!   2010-03-29  kleist  - make changes to allow for st/vp perturbations
+!   2010-04-14  kleist  - add ensemble mean ps array for use with vertical localizaion (lnp)
 !
 !   input argument list:
 !
@@ -27,11 +27,12 @@ subroutine get_gefs_ensperts_dualres
 !$$$ end documentation block
 
   use gridmod, only: idsl5
-  use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens
+  use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd
   use hybrid_ensemble_isotropic, only: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en,ps_bar
   use constants,only: zero,ione,izero,half,fv,rd_over_cp,one
   use mpimod, only: mpi_comm_world,ierror,mype
   use kinds, only: r_kind,i_kind
+  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens
   implicit none
 
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig+1) :: pri
@@ -62,7 +63,7 @@ subroutine get_gefs_ensperts_dualres
 ! *** NOTE ***
 ! For now, everything is assumed to be at the same resolution
     if (mype==0)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',filename
-    call general_read_gfsatm(grd_ens,sp_ens,filename,mype,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+    call general_read_gfsatm(grd_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
 
 ! Temporarily, try to use the u,v option (i.e. uv_hyb_ens)...eventually two
 ! options exist:
@@ -159,12 +160,12 @@ subroutine get_gefs_ensperts_dualres
   end do
 
 ! Copy pbar to module array.  ps_bar may be needed for vertical localization
-! in terms of scale heights/normalized p/p
+! in terms of scale heights/normalized p/p 
   ps_bar(:)=pbar(:)
 
   call mpi_barrier(mpi_comm_world,ierror)
 ! Before converting to perturbations, get ensemble spread
-! call ens_spread_dualres(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
+  if (write_ens_sprd) call ens_spread_dualres(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
 ! call mpi_barrier(mpi_comm_world,ierror)
 
 ! Convert ensemble members to perturbations
@@ -232,7 +233,6 @@ subroutine get_gefs_ensperts_dualres
       sst_en(i,n)=zero
     end do
   end do
-
 
   return
 end subroutine get_gefs_ensperts_dualres
@@ -359,7 +359,7 @@ subroutine ens_spread_dualres(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
 end subroutine ens_spread_dualres
 
 
-subroutine write_spread_dualres(a,b,c,d,e,f,g,mype)
+subroutine write_spread_dualres(a,b,c,d,e,f,g2in,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    write_spread_dualres   write ensemble spread for diagnostics
@@ -392,67 +392,89 @@ subroutine write_spread_dualres(a,b,c,d,e,f,g,mype)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_anl
+  use constants, only: zero
   implicit none
 
   integer(i_kind),intent(in):: mype
   character(255):: grdfile
 
   real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig),intent(in):: a,b,c,d,e,f
-  real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2),intent(in):: g
+  real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2),intent(in):: g2in
+  real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig,6):: g3in
 
-  real(r_kind),dimension(grd_anl%nlat,grd_anl%nlon,grd_anl%nsig):: ag,bg,cg,dg,eg,fg
-  real(r_kind),dimension(grd_anl%nlat,grd_anl%nlon):: gg
+  real(r_kind),dimension(grd_anl%nlat,grd_anl%nlon,grd_anl%nsig):: work8_3d
+  real(r_kind),dimension(grd_anl%nlat,grd_anl%nlon):: work8_2d
 
-  real(r_single),dimension(grd_anl%nlon,grd_anl%nlat,grd_anl%nsig):: a4,b4,c4,d4,e4,f4
-  real(r_single),dimension(grd_anl%nlon,grd_anl%nlat):: g4
+  real(r_single),dimension(grd_anl%nlon,grd_anl%nlat,grd_anl%nsig):: work4_3d
+  real(r_single),dimension(grd_anl%nlon,grd_anl%nlat):: work4_2d
 
-  integer(i_kind) ncfggg,iret,i,j,k
+  integer(i_kind) ncfggg,iret,i,j,k,n,mem2d,mem3d,num3d
 
-! gather stuff to processor 0
+! Initial memory used by 2d and 3d grids
+  mem2d = 4*grd_anl%nlat*grd_anl%nlon
+  mem3d = 4*grd_anl%nlat*grd_anl%nlon*grd_anl%nsig
+  num3d=6_i_kind
+
+! transfer 2d arrays to generic work aray
   do k=1,grd_anl%nsig
-    call gather_stuff2(a(1,1,k),ag(1,1,k),mype,0)
-    call gather_stuff2(b(1,1,k),bg(1,1,k),mype,0)
-    call gather_stuff2(c(1,1,k),cg(1,1,k),mype,0)
-    call gather_stuff2(d(1,1,k),dg(1,1,k),mype,0)
-    call gather_stuff2(e(1,1,k),eg(1,1,k),mype,0)
-    call gather_stuff2(f(1,1,k),fg(1,1,k),mype,0)
+    do j=1,grd_anl%lon2
+       do i=1,grd_anl%lat2
+         g3in(i,j,k,1)=a(i,j,k)
+         g3in(i,j,k,2)=b(i,j,k)
+         g3in(i,j,k,3)=c(i,j,k)
+         g3in(i,j,k,4)=d(i,j,k)
+         g3in(i,j,k,5)=e(i,j,k)
+         g3in(i,j,k,6)=f(i,j,k)
+       end do
+     end do
   end do
-  call gather_stuff2(g,gg,mype,0)
 
   if (mype==0) then
-    write(6,*) 'WRITE OUT NEW VARIANCES'
-! load single precision arrays
-    do k=1,grd_anl%nsig
-      do j=1,grd_anl%nlon
-        do i=1,grd_anl%nlat
-          a4(j,i,k)=ag(i,j,k)
-          b4(j,i,k)=bg(i,j,k)
-          c4(j,i,k)=cg(i,j,k)
-          d4(j,i,k)=dg(i,j,k)
-          e4(j,i,k)=eg(i,j,k)
-          f4(j,i,k)=fg(i,j,k)
-        end do
-      end do
-    end do
-    do j=1,grd_anl%nlon
-      do i=1,grd_anl%nlat
-        g4(j,i)=gg(i,j)
-      end do
-    end do
-
-! Create byte-addressable binary file for grads
     grdfile='ens_spread.grd'
     ncfggg=len_trim(grdfile)
     call baopenwt(22,grdfile(1:ncfggg),iret)
-    call wryte(22,4*grd_anl%nlat*grd_anl%nlon*grd_anl%nsig,a4)
-    call wryte(22,4*grd_anl%nlat*grd_anl%nlon*grd_anl%nsig,b4)
-    call wryte(22,4*grd_anl%nlat*grd_anl%nlon*grd_anl%nsig,c4)
-    call wryte(22,4*grd_anl%nlat*grd_anl%nlon*grd_anl%nsig,d4)
-    call wryte(22,4*grd_anl%nlat*grd_anl%nlon*grd_anl%nsig,e4)
-    call wryte(22,4*grd_anl%nlat*grd_anl%nlon*grd_anl%nsig,f4)
-    call wryte(22,4*grd_anl%nlat*grd_anl%nlon,g4)
-    call baclose(22,iret)
+    write(6,*)'WRITE_SPREAD_DUALRES:  open 22 to ',trim(grdfile),' with iret=',iret
+  endif
+
+! Process 3d arrays
+  do n=1,num3d
+    work8_3d=zero
+    do k=1,grd_anl%nsig
+      call gather_stuff2(g3in(1,1,k,n),work8_3d(1,1,k),mype,0)
+    end do
+    if (mype==0) then
+      do k=1,grd_anl%nsig
+        do j=1,grd_anl%nlon
+          do i=1,grd_anl%nlat
+            work4_3d(j,i,k) =work8_3d(i,j,k)
+          end do
+        end do
+      end do
+      call wryte(22,mem3d,work4_3d)
+      write(6,*)'WRITE_SPREAD_DUALRES FOR VARIABLE NUM ',n
+    endif
+  end do
+
+! Process 2d array
+  work8_2d=zero
+  call gather_stuff2(g2in,work8_2d,mype,0)
+  if (mype==0) then
+     do j=1,grd_anl%nlon
+        do i=1,grd_anl%nlat
+           work4_2d(j,i)=work8_2d(i,j)
+        end do
+     end do
+     call wryte(22,mem2d,work4_2d)
+     write(6,*)'WRITE_SPREAD_DUALRES FOR 2D FIELD '
+  endif
+
+
+! Close byte-addressable binary file for grads
+  if (mype==0) then
+     call baclose(22,iret)
+     write(6,*)'WRITE_SPREAD_DUALRES:  close 22 with iret=',iret
   end if
+
 
   return
 end subroutine write_spread_dualres

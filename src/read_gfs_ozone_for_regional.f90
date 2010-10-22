@@ -12,6 +12,9 @@ subroutine read_gfs_ozone_for_regional
 !   2010-03-19  parrish - correct for extrapolation error in subroutine intp_spl
 !   2010-03-19  parrish - correct diagnostic output of reg_ozmin, reg_ozmax
 !   2010-04-15  wu - set ges_oz to a small number if the gfs input negative
+!   2010-10-15  parrish - add uv_hyb_ens to arg list for call to general_read_gfsatm.
+!                          This was added to allow retrieval of u,v or psi,chi in
+!                           subroutine get_gefs_ensperts_dualres.f90.
 !
 !   input argument list:
 !
@@ -49,6 +52,7 @@ subroutine read_gfs_ozone_for_regional
   integer(i_kind) iret,i,j,k,k2,m,n,il,jl,mm1
   character(24) filename
   logical ice
+  logical uv_hyb_ens
   integer(sigio_intkind):: lunges = 11
   type(sigio_head):: sighead
   type(egrid2agrid_parm) :: p_g2r
@@ -74,6 +78,7 @@ subroutine read_gfs_ozone_for_regional
 !   need to inquire from file what is spectral truncation, then setup general spectral structure variable
 
   regional=.true.
+  uv_hyb_ens=.false.      !  can be true or false, since these fields are discarded anyway.
   filename='gfs_sigf03'
   open(lunges,file=trim(filename),form='unformatted')
   call sigio_srhead(lunges,sighead,iret)
@@ -206,7 +211,7 @@ subroutine read_gfs_ozone_for_regional
   allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
   allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
 
-  call general_read_gfsatm(grd_gfs,sp_gfs,filename,mype,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+  call general_read_gfsatm(grd_gfs,sp_gfs,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
   deallocate(vor,div,u,v,q,cwmr,z)
   do k=1,grd_gfs%nsig
      ozmin=minval(oz(:,:,k))
