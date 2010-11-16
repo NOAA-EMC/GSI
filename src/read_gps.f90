@@ -48,6 +48,9 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !   2010-05-26 cucurull - add QC flag for Metop/GRAS bending angle
 !                       - modify code to read nested delayed replication to get GRAS
 !                         ionospheric-compensated bending angles 
+!   2010-11-8 cucurull  - skip profile in gpsro bufr when satellite is not
+!                         listed in the convinfo file. Also, remove some QC dependencies
+!                         on the order of the satellites in the convinfo file
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -68,7 +71,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_double
-  use constants, only: izero,ione,deg2rad,zero,rad2deg,r60inv,r100
+  use constants, only: deg2rad,zero,rad2deg,r60inv,r100
   use obsmod, only: iadate,ref_obs
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use convinfo, only: nconvtype,ctwind,cermax, &
@@ -87,7 +90,6 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 ! Declare local parameters  
   integer(i_kind),parameter:: maxlevs=500
   integer(i_kind),parameter:: maxinfo=16
-  integer(i_kind),parameter:: said_unknown=401
   real(r_kind),parameter:: r10000=10000.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: r5000=5000.0_r_kind
@@ -112,8 +114,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   integer(i_kind) nreal,nchanl,ilat,ilon
   integer(i_kind),dimension(5):: idate5
   integer(i_kind)             :: ikx
-  integer(i_kind):: ngpsro_type,ikx_unknown,igpsro_type
-  integer(i_kind),parameter:: mxib=31_i_kind
+  integer(i_kind):: ngpsro_type,igpsro_type
+  integer(i_kind),parameter:: mxib=31
   integer(i_kind) ibit(mxib),nib
   logical lone
 
@@ -139,23 +141,23 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   
 !***********************************************************************************
 
-  maxobs=2e6_i_kind
+  maxobs=2e6
   nreal=maxinfo
-  nchanl=izero
+  nchanl=0
   ilon=2
   ilat=3
 
-  nmrecs=izero
-  notgood=izero
+  nmrecs=0
+  notgood=0
 
 ! Check convinfo file to see requesting to process gpsro data
-  ikx = izero
+  ikx = 0
   do i=1,nconvtype
-     if ( trim(obstype)==trim(ioctype(i))) ikx=ikx+ione
+     if ( trim(obstype)==trim(ioctype(i))) ikx=ikx+1
   end do
 
 ! If no data requested to be process, exit routine
-  if(ikx==izero)then
+  if(ikx==0)then
      write(6,*)'READ GPS:  CONVINFO DOES NOT INCLUDE ANY ',trim(obstype),' DATA'
      return
   end if
@@ -164,16 +166,14 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   ngpsro_type=ikx
   allocate(gpsro_ctype(ngpsro_type), gpsro_itype(ngpsro_type), &
        gpsro_ikx(ngpsro_type),nmrecs_id(ngpsro_type))
-  nmrecs_id=izero
-  ikx=izero
-  ikx_unknown=izero
+  nmrecs_id=0
+  ikx=0
   do i=1,nconvtype
      if ( trim(obstype)==trim(ioctype(i))) then
-        ikx=ikx+ione
+        ikx=ikx+1
         gpsro_ctype(ikx)=ioctype(i)
         gpsro_itype(ikx)=ictype(i)
         gpsro_ikx(ikx)  =i
-        if (ictype(i)==said_unknown) ikx_unknown=i
      endif
   end do
 
@@ -183,21 +183,21 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
-  if (iret/=izero) goto 1010
+  if (iret/=0) goto 1010
 
 ! Allocate work array to hold observations
   allocate(cdata_all(nreal,maxobs))
 
 ! Big loop over the bufr file
 
-  do while(ireadmg(lnbufr,subset,idate)==izero)
-     read_loop:  do while(ireadsb(lnbufr)==izero)
+  do while(ireadmg(lnbufr,subset,idate)==0)
+     read_loop:  do while(ireadsb(lnbufr)==0)
 
 ! Read/decode data in subset (profile)
 
 ! Extract header information
-        call ufbint(lnbufr,bfr1ahdr,n1ahdr,ione,iret,hdr1a)
-        call ufbint(lnbufr,qfro,ione,ione,iret,nemo)
+        call ufbint(lnbufr,bfr1ahdr,n1ahdr,1,iret,hdr1a)
+        call ufbint(lnbufr,qfro,1,1,iret,nemo)
 
 ! observation time in minutes
         idate5(1) = bfr1ahdr(1) ! year
@@ -213,7 +213,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
         call w3fs21(idate5,minobs)
 
 ! Locate satellite id in convinfo file
-        ikx = izero
+        ikx = 0
         find_loop: do i=1,ngpsro_type
            if ( (trim(obstype)==trim(gpsro_ctype(i))) .and. (said == gpsro_itype(i)) ) then
               ikx=gpsro_ikx(i)
@@ -221,7 +221,9 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               exit find_loop
            endif
         end do find_loop
-        if (ikx==izero) ikx=ikx_unknown
+        if (ikx==0) then 
+           cycle read_loop
+        endif
    
 ! check time window in subset
         t4dv=real((minobs-iwinbgn),r_kind)*r60inv
@@ -242,18 +244,18 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
         endif
  
 ! Check profile quality flags
-        if ( (said > gpsro_itype(5)).and.(said < gpsro_itype(12)) ) then  !Cosmic
+        if ( (said > 739).and.(said < 746) ) then  !Cosmic
            if(pcc==zero) then
-              write(6,*)'READ_GPS:  **WARNING** bad COSMIC SAID=',said,'PTID=',ptid,'profile',&
+              write(6,*)'READ_GPS:  bad profile said=',said,'ptid=',ptid,&
                   ' SKIP this report'
               cycle read_loop
            endif
         endif
 
-        if (said == gpsro_itype(2)) then ! Gras
+        if (said == 4) then ! Gras
            call upftbv(lnbufr,nemo,qfro,mxib,ibit,nib)
            lone = .false.
-             if(nib > izero) then
+             if(nib > 0) then
                do i=1,nib
                  if(ref_obs) then
                     if(ibit(i)== 6) then
@@ -270,7 +272,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
              endif 
 
            if(lone) then
-              write(6,*)'READ_GPS:  **WARNING** bad GRAS SAID=',said,'PTID=',ptid,'profile',&
+              write(6,*)'READ_GPS:  bad profile said=',said,'ptid=',ptid,&
                    ' SKIP this report'
               cycle read_loop
            endif
@@ -310,19 +312,19 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
         endif
 
 ! Increment report counters
-        nmrecs = nmrecs + ione      ! count reports in bufr file
-        nmrecs_id(igpsro_type) = nmrecs_id(igpsro_type) + ione
+        nmrecs = nmrecs + 1      ! count reports in bufr file
+        nmrecs_id(igpsro_type) = nmrecs_id(igpsro_type) + 1
 
 ! Set usage flag
         usage = zero
-        if(icuse(ikx) < izero)usage=r100
-        if(ncnumgrp(ikx) > izero )then                     ! cross validation on
-           if(mod(nmrecs,ncnumgrp(ikx))== ncgroup(ikx)-ione)usage=ncmiter(ikx)
+        if(icuse(ikx) < 0)usage=r100
+        if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
+           if(mod(nmrecs,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
         end if
 
 ! Loop over levs in profile
         do k=1, levs
-           nread=nread+ione  ! count observations
+           nread=nread+1  ! count observations
            rlat=data1b(1,k)  ! earth relative latitude (degrees)
            rlon=data1b(2,k)  ! earth relative longitude (degrees)
            height=data2a(1,k)
@@ -386,12 +388,12 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               else
                  dlat = dlat_earth
                  dlon = dlon_earth
-                 call grdcrd(dlat,ione,rlats,nlat,ione)
-                 call grdcrd(dlon,ione,rlons,nlon,ione)
+                 call grdcrd(dlat,1,rlats,nlat,1)
+                 call grdcrd(dlon,1,rlons,nlon,1)
               endif
 
-              ndata  = min(ndata +ione,maxobs)
-              nodata = min(nodata+ione,maxobs)
+              ndata  = min(ndata +1,maxobs)
+              nodata = min(nodata+1,maxobs)
  
        
               if (ref_obs) then
@@ -420,7 +422,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               cdata_all(16,ndata)= geoid           ! geoid undulation (m)
 
            else
-              notgood = notgood + ione
+              notgood = notgood + 1
            end if
 
 
@@ -442,7 +444,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   nprof_gps = nmrecs
   write(6,*)'READ_GPS:  # bad or missing data=', notgood
   do i=1,ngpsro_type
-     if (nmrecs_id(i)>izero) &
+     if (nmrecs_id(i)>0) &
           write(6,1020)'READ_GPS:  LEO_id,nprof_gps = ',gpsro_itype(i),nmrecs_id(i)
   end do
   write(6,1020)'READ_GPS:  ref_obs,nprof_gps= ',ref_obs,nprof_gps
