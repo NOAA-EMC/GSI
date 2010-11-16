@@ -1,4 +1,4 @@
-subroutine general_read_gfsatm(grd,sp,filename,mype,g_z,g_ps,g_vor,g_div,g_u,g_v,&
+subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,g_u,g_v,&
        g_tv,g_q,g_cwmr,g_oz,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -11,6 +11,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,g_z,g_ps,g_vor,g_div,g_u,g_v
 !
 ! program history log:
 !   2010-02-25  parrish
+!   2010-03-29  kleist     - modifications to allow for st/vp perturbations instead of u,v
 !
 !   input argument list:
 !     grd      - structure variable containing information about grid
@@ -19,6 +20,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,g_z,g_ps,g_vor,g_div,g_u,g_v
 !                    (initialized by general_init_spec_vars, located in general_specmod.f90)
 !     filename - input sigma file name
 !     mype     - mpi task id
+!     uvflag   - logical to use u,v (.true.) or st,vp (.false.) perturbations
 !
 !   output argument list:
 !     g_*      - guess fields
@@ -55,6 +57,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,g_z,g_ps,g_vor,g_div,g_u,g_v
     type(spec_vars)                       ,intent(in   ) :: sp
     character(24)                         ,intent(in   ) :: filename
     integer(i_kind)                       ,intent(in   ) :: mype
+    logical                               ,intent(in   ) :: uvflag
     integer(i_kind)                       ,intent(  out) :: iret_read
     real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(  out) :: g_z,g_ps
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig),intent(  out) :: g_u,g_v,&
@@ -344,10 +347,26 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,g_z,g_ps,g_vor,g_div,g_u,g_v
                    spec_vor(i)=zero
                 end if
              end do
-             call general_sptez_s(sp,spec_div,grid_div,ione)
-             call general_sptez_s(sp,spec_vor,grid_vor,ione)
-             call general_sptez_v(sp,spec_div,spec_vor,grid_u,grid_v,ione)
-
+             
+             if (uvflag) then
+               call general_sptez_s(sp,spec_div,grid_div,ione)
+               call general_sptez_s(sp,spec_vor,grid_vor,ione)
+               call general_sptez_v(sp,spec_div,spec_vor,grid_u,grid_v,ione)
+! if streamfunction/veloc potential:
+             else
+               do i=1,sp%ncd2
+                 spec_div(2*i-ione)=spec_div(2*i-ione)/(-sp%enn1(i))
+                 spec_div(2*i)=spec_div(2*i)/(-sp%enn1(i))
+                 spec_vor(2*i-ione)=spec_vor(2*i-ione)/(-sp%enn1(i))
+                 spec_vor(2*i)=spec_vor(2*i)/(-sp%enn1(i))
+               end do
+               spec_div(1)=zero
+               spec_vor(1)=zero
+               spec_div(2)=zero
+               spec_vor(2)=zero
+               call general_sptez_s(sp,spec_div,grid_v,ione)
+               call general_sptez_s(sp,spec_vor,grid_u,ione)
+             end if
 
 !         Convert grid u,v to div and vor
          !else
@@ -372,8 +391,12 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,g_z,g_ps,g_vor,g_div,g_u,g_v
           
           call general_fill_ns(grd,grid_div,work_div)
           call general_fill_ns(grd,grid_vor,work_vor)
-          call general_filluv_ns(grd,sp,grid_u,grid_v,work_u,work_v)
-          
+          if (uvflag) then
+             call general_filluv_ns(grd,sp,grid_u,grid_v,work_u,work_v)
+          else
+             call general_fill_ns(grd,grid_u,work_u)
+             call general_fill_ns(grd,grid_v,work_v)
+          end if
        endif
 
 !      Periodically exchange vor,div,u,v between all mpi tasks.

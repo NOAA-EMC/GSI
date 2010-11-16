@@ -104,6 +104,8 @@ module hybrid_ensemble_parameters
 !                             s_ens_v = 20 and s_ens_v = -0.44 are roughly comparable, and
 !                             connection of .44 is .44 = (sqrt(.15)/sqrt(2))*1.6, where 1.6 is the value used
 !                             by Jeff Whitaker for his distance in which the Gaspari-Cohn function 1st = 0.
+!   2010-10-13  parrish - add parameter write_ens_sprd to allow option of writing global ensemble spread
+!                             in byte addressable format for plotting with grads.
 !
 ! subroutines included:
 
@@ -167,11 +169,13 @@ module hybrid_ensemble_parameters
   public :: sp_loc
   public :: p_e2a
   public :: dual_res
+  public :: write_ens_sprd
 
   logical l_hyb_ens,uv_hyb_ens
   logical aniso_a_en
   logical generate_ens
   logical dual_res
+  logical write_ens_sprd
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
   real(r_kind) beta1_inv,s_ens_h,s_ens_v
   type(sub2grid_info),save :: grd_ens,grd_loc,grd_anl,grd_e1,grd_a1
@@ -209,6 +213,7 @@ subroutine init_hybrid_ensemble_parameters
   uv_hyb_ens=.false.
   aniso_a_en=.false.
   generate_ens=.true.
+  write_ens_sprd=.false.
   n_ens=izero
   nlat_ens=izero
   jcap_ens=izero

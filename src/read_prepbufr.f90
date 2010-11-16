@@ -86,6 +86,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                           rotation angles for a small number of winds whose rotation angle was interpolated
 !                           from beta_ref values across the discontinuity.  This was fixed by replacing the
 !                           beta_ref field with cos_beta_ref, sin_beta_ref.
+!   2010-10-19  wu - add code to limit regional use of MAP winds with P less than 400 mb
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -960,6 +961,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if(ncnumgrp(nc) > 0 )then                     ! cross validation on
               if(mod(ndata+1,ncnumgrp(nc))== ncgroup(nc)-1)usage=ncmiter(nc)
            end if
+
+! Flag regional MAP wind above 400mb for monitoring 
+           if(regional .and. kx==227 .and. obsdat(1,k)<400._r_kind ) usage=100._r_kind
 
 ! Get information from surface file necessary for conventional data here
            call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr)

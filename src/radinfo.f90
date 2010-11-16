@@ -27,6 +27,7 @@ module radinfo
 !   2010-05-12  zhu     - add option passive_bc for radiance bias correction for monitored channels
 !   2010-07-12  zhu     - add inew_rad
 !   2010-10-05  treadon - remove npred1 (not used), add ireal_radiag, ipchan_radiag
+!   2010-10-12  zhu     - combine scaninfo and edgeinfo into one file scaninfo
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -69,6 +70,7 @@ module radinfo
   public :: ostats,rstats,varA
   public :: adp_anglebc,angord,use_edges
   public :: passive_bc
+  public :: radstart,radstep
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
 
@@ -104,10 +106,8 @@ module radinfo
   real(r_kind),allocatable,dimension(:):: radstep     ! step of scan angle
   real(r_kind),allocatable,dimension(:):: radnstep    ! nstep of scan angle
 
-  integer(i_kind) edge_ninstr                         ! number of instruments with edge removal
-  character(10),allocatable,dimension(:):: etype      ! obstype of edge removal
-  integer(i_kind),allocatable,dimension(:):: edge1    ! cut-off of edge removal
-  integer(i_kind),allocatable,dimension(:):: edge2    ! cut-off of edge removal
+  integer(i_kind),allocatable,dimension(:):: radedge1    ! cut-off of edge removal
+  integer(i_kind),allocatable,dimension(:):: radedge2    ! cut-off of edge removal
 
   integer(i_kind),allocatable,dimension(:):: nuchan    ! satellite channel
   integer(i_kind),allocatable,dimension(:):: iuse_rad  ! use to turn off satellite radiance data
@@ -277,7 +277,7 @@ contains
 
 
     integer(i_kind) i,j,k,ich,lunin,lunout,nlines
-    integer(i_kind) ip,istat,n,ichan,mch,ij,nstep
+    integer(i_kind) ip,istat,n,ichan,mch,ij,nstep,edge1,edge2
     real(r_kind),dimension(npred):: predr
     real(r_kind) tlapm
     real(r_kind) ostatsx
@@ -419,77 +419,47 @@ contains
     end if   ! end newpc4pred
 
 
-!   Read in information of cutoff values for scan edges
-    if (.not. use_edges) then 
-       inquire(file='edgeinfo',exist=pcexist)
-       if (pcexist) then
-          open(lunin,file='edgeinfo',form='formatted')
-          j=0
-          nlines=0
-          reade1:  do
-             read(lunin,'(a1,a120)',iostat=istat) cflg,crecord
-             if (istat /= 0) exit
-             nlines=nlines+1
-             if (cflg == '!') cycle
-             j=j+1
-          end do reade1
-          if (istat>0) then
-             close(lunin)
-             write(6,*)'RADINFO_READ:  ***ERROR*** error reading edgeinfo, istat=',istat
-             write(6,*)'RADINFO_READ:  stop program execution'
-             call stop2(79)
-          endif
-          rewind(lunin)
-          edge_ninstr=j
+!   Read in start,step information and cutoff values for scan edges
+    allocate(radstart(jpch_rad),radstep(jpch_rad),radnstep(jpch_rad))
+    allocate(radedge1(jpch_rad),radedge2(jpch_rad))
+    radstart=zero
+    radstep =one
+    radnstep=90
+    radedge1=-1
+    radedge2=-1
 
-          if (edge_ninstr>0) allocate(etype(edge_ninstr),edge1(edge_ninstr),edge2(edge_ninstr))
+    inquire(file='scaninfo',exist=pcexist)
+    if (pcexist) then
+       open(lunin,file='scaninfo',form='formatted')
+       do
+          read(lunin,1000,IOSTAT=istat) cflg,satscan_sis,start,step,nstep,edge1,edge2
+          if (istat /= 0) exit
+          if (cflg == '!') cycle
 
-          j=0
-          do k=1,nlines
-             read(lunin,'(a1,a120)') cflg,crecord
-             if (cflg == '!') cycle
-             j=j+1
-             read(crecord,*) etype(j),edge1(j),edge2(j)
-          end do
-          close(lunin)
-       end if  ! pcexist
-    end if   ! end use_edges
-
-
-!   Read in start,step information
-    if (adp_anglebc) then
-       allocate(radstart(jpch_rad),radstep(jpch_rad),radnstep(jpch_rad))
-       radstart=zero
-       radstep =one
-       radnstep=90
-
-       inquire(file='scaninfo',exist=pcexist)
-       if (pcexist) then
-          open(lunin,file='scaninfo',form='formatted')
-          do
-             read(lunin,1000,IOSTAT=istat) cflg,satscan_sis,start,step,nstep
-             if (istat /= 0) exit
-             if (cflg == '!') cycle
-
-             do j =1,jpch_rad
-                if(trim(satscan_sis) == trim(nusis(j)))then
-                   radstart(j)=start
-                   radstep(j)=step
-                   radnstep(j)=nstep
-                end if
-             end do
-          end do
-1000      format(a1,a20,2f11.3,i10)
-          close(lunin)
-       else
           do j =1,jpch_rad
-             call satstep(nusis(j),start,step,nstep)
-             radstart(j)=start
-             radstep(j)=step
-             radnstep(j)=nstep
+             if(trim(satscan_sis) == trim(nusis(j)))then
+                radstart(j)=start
+                radstep(j)=step
+                radnstep(j)=nstep
+                radedge1(j)=edge1
+                radedge2(j)=edge2
+             end if
           end do
-       end if  ! if pcexist
-    end if  ! if adp_anglebc
+       end do
+1000   format(a1,a20,2f11.3,i10,2i6)
+       close(lunin)
+    else
+       if(mype == 0) write(6,*) '***WARNING file scaninfo not found, use default'
+
+       do j =1,jpch_rad
+          call satstep(nusis(j),start,step,nstep,edge1,edge2)
+          radstart(j)=start
+          radstep(j)=step
+          radnstep(j)=nstep
+          radedge1(j)=edge1
+          radedge2(j)=edge2
+       end do
+    end if  ! if pcexist
 
 
 !   Allocate arrays to receive angle dependent bias information.
@@ -735,8 +705,7 @@ contains
     deallocate (predx,cbias,tlapmean,nuchan,nusis,iuse_rad,air_rad,ang_rad, &
          ifactq,varch,inew_rad)
     if (newpc4pred) deallocate(ostats,rstats,varA)
-    if (adp_anglebc) deallocate (radstart,radstep,radnstep)
-    if (.not.use_edges .and. allocated(etype)) deallocate(etype,edge1,edge2)
+    deallocate (radstart,radstep,radnstep,radedge1,radedge2)
     return
   end subroutine radinfo_write
 
@@ -888,7 +857,7 @@ contains
    end subroutine angle_cbias
 
 
-   subroutine satstep(isis,start,step,nstep)
+   subroutine satstep(isis,start,step,nstep,edge1,edge2)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    satstep
@@ -914,53 +883,74 @@ contains
    implicit none
 
    character(len=20),intent(in) :: isis
-   integer(i_kind),intent(out)  :: nstep
+   integer(i_kind),intent(out)  :: nstep,edge1,edge2
    real(r_kind),intent(out)     :: start,step
 
    start=zero
    step =one
    nstep=90
+   edge1=-1
+   edge2=-1
 
    if (index(isis,'hirs')/=0) then
       step  = 1.80_r_kind
       start = -49.5_r_kind
       nstep = 56
+      edge1 = 7
+      edge2 = 50
    else if (index(isis,'msu')/=0) then
       if (index(isis,'amsua')/=0) then
          step  = three + one/three
-         start = -48. - one/three
+         start = -48._r_kind - one/three
          nstep = 30
+         edge1 = 4
+         edge2 = 27
       else if (index(isis,'amsub')/=0) then
          step  = 1.1_r_kind
          start = -48.95_r_kind
          nstep = 90
+         edge1 = 10
+         edge2 = 81
       else
          step  = 9.474_r_kind
          start = -47.37_r_kind
          nstep = 90
+         edge1 = 2
+         edge2 = 10
       end if
    else if (index(isis,'mhs')/=0) then
       step  = 10.0_r_kind/9.0_r_kind
       start = -445.0_r_kind/9.0_r_kind
       nstep = 90
+      edge1 = 10
+      edge2 = 81
    else if (index(isis,'ssu')/=0) then
       step  = 10.0_r_kind
       start = -35.00_r_kind
       nstep = 90
+      edge1 = 2
+      edge2 = 7
    else if (index(isis,'airs')/=0) then
       step  = 1.1_r_kind
       start = -48.9_r_kind
       nstep = 90
+      edge1 = 10
+      edge2 = 81
    else if (index(isis,'hsb')/=0) then
       step  = 1.1_r_kind
       start = -48.95_r_kind
       nstep = 90
+      edge1 = 10
+      edge2 = 81
    else if (index(isis,'iasi')/=0) then
       step  = 3.334_r_kind
       start = -48.33_r_kind
       nstep = 60
+      edge1 = 5
+      edge2 = 56
    end if
 
+   return
    end subroutine satstep
 
 
@@ -984,7 +974,7 @@ contains
 
 ! !USES:
 
-   use obsmod, only: ndat,dplat,dfile,dtype,dsis,ditype
+   use obsmod, only: ndat,dplat,dfile,dtype,dsis
    use mpimod, only:  npe,mype,mpi_comm_world,ierror
    use read_diag, only: read_radiag_header,read_radiag_data,diag_header_fix_list,&
         diag_header_chan_list,diag_data_fix_list,diag_data_chan_list,&
@@ -1136,7 +1126,7 @@ contains
       loopd:  do while (istatus == 0)
  
 !        Read a record.  If read flag, istatus does not equal zero, exit loopd
-         call read_radiag_data( lndiag, header_fix, data_fix, data_chan, data_extra, istatus )
+         call read_radiag_data( lndiag,header_fix,data_fix,data_chan,data_extra,ipchan_radiag,istatus )
          if( istatus /= 0 ) exit loopd
 
 !        Extract scan angle, lat, lon
@@ -1145,7 +1135,7 @@ contains
 
 !        Exclude data on edges
          if (.not. use_edges) then
-            call find_edges(obstype,ispot,data_on_edges)
+            call find_edges(satsens_id,ispot,data_on_edges)
             if (data_on_edges) cycle loopd
          end if
 
@@ -1290,7 +1280,7 @@ contains
    return
    end subroutine init_predx
 
-   subroutine find_edges(obstype,ispot,data_on_edges)
+   subroutine find_edges(sis,ispot,data_on_edges)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    find_edges
@@ -1310,45 +1300,24 @@ contains
 
    implicit none
 
-   character(10):: obstype
-   integer(i_kind):: ispot
-   logical data_on_edges
+   character(len=*),intent(in) :: sis
+   integer(i_kind),intent(in ) :: ispot
+   logical,intent(out) :: data_on_edges
 
    integer(i_kind):: i
    logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu,airs,hsb,iasi
  
    data_on_edges=.false.
 
-   if (allocated(etype) .and. edge_ninstr>0) then
-      do i=1,edge_ninstr
-         if (obstype==etype(i) .and. (ispot<edge1(i) .or. ispot>edge2(i))) &
-            data_on_edges=.true.
-      end do
-   else
-      hirs2 =    obstype == 'hirs2'
-      hirs3 =    obstype == 'hirs3'
-      hirs4 =    obstype == 'hirs4'
-      hirs =     hirs2 .or. hirs3 .or. hirs4
-      msu=       obstype == 'msu'
-      amsua=     obstype == 'amsua'
-      amsub=     obstype == 'amsub'
-      mhs  =     obstype == 'mhs'
-      ssu =      obstype == 'ssu'
-      airs=      obstype == 'airs'
-      hsb=       obstype == 'hsb'
-      iasi=      obstype == 'iasi'
+   do i=1,jpch_rad
+      if (radedge1(i)==-1 .or. radedge2(i)==-1) cycle
+      if (trim(sis)==trim(nusis(i)) .and. (ispot<radedge1(i) .or. ispot>radedge2(i))) then
+         data_on_edges=.true.
+         exit
+      end if
+   end do
 
-      if (msu .and. (ispot<2 .or. ispot>10)) data_on_edges=.true.
-      if (ssu .and. (ispot<2 .or. ispot>7)) data_on_edges=.true.
-      if (mhs .and. (ispot<10 .or. ispot>81)) data_on_edges=.true.
-      if (hirs .and. (ispot<7 .or. ispot>50)) data_on_edges=.true.
-      if (amsua .and. (ispot<4 .or. ispot>27)) data_on_edges=.true.
-      if (amsub .and. (ispot<10 .or. ispot>81)) data_on_edges=.true.
-      if (airs .and. (ispot<10 .or. ispot>81)) data_on_edges=.true.
-      if (hsb .and. (ispot<10 .or. ispot>81)) data_on_edges=.true.
-      if (iasi .and. (ispot<5 .or. ispot>56)) data_on_edges=.true.
-   end if
-
+   return
    end subroutine find_edges
  
 end module radinfo

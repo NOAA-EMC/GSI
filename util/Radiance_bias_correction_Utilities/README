@@ -40,4 +40,3 @@ turning on option passive_bc will not affect the results of GDAS
 4. When use_edges=.false., the radiance data on large scan positions 
 are removed. Default is .true.
 
-  *optional fix files: global_edgeinfo.txt (copy to edgeinfo in the script)

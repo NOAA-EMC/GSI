@@ -48,6 +48,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                       method that accounts for the size/shape of the fov.
 !   2010-02-25  collard - changes to call to crtm_init for CRTM v2.0
 !   2010-09-02  zhu     - add use_edges option
+!   2010-10-12  zhu     - use radstep and radstart from radinfo
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -84,7 +85,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                finalcheck,checkob,score_crit
-  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,find_edges
+  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges, &
+               find_edges,radstart,radstep
   use crtm_planck_functions, only: crtm_planck_temperature
   use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
@@ -213,8 +215,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !  write(6,*)'READ_IASI: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
 !          mype, mype_root,mype_sub,mpi_comm_sub
-  step   = 3.334_r_kind 
-  start = -48.33_r_kind 
+  do i=1,jpch_rad
+     if (trim(nusis(i))==trim(sis)) then
+        step  = radstep(i)
+        start = radstart(i)
+        exit
+     endif
+  end do
   step_adjust = 0.625_r_kind
   senname = 'IASI'
   nchanlr = nchanl
@@ -424,7 +431,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !    Remove data on edges
         if (.not. use_edges) then 
-           call find_edges(obstype,ifovn,data_on_edges)
+           call find_edges(sis,ifovn,data_on_edges)
            if (data_on_edges) cycle read_loop
         end if
 

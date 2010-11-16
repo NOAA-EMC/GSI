@@ -133,6 +133,8 @@
         end if
      end do
 
+     if (kpred==0) cycle
+
      allocate(AA(kpred,kpred),be(kpred))
      do i = 1,kpred
         ii=iorder(i)
