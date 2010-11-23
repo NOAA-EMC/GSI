@@ -120,7 +120,7 @@ subroutine gsisub(mype,init_pass,last_pass)
 
 ! Create analysis subdomains and initialize subdomain variables
   call create_mapping(npe)
-  call init_subdomain_vars
+  call init_subdomain_vars(mype)
 
 ! Set communicators between subdomain and global/horizontal slabs
   call init_commvars(mype)

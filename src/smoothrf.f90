@@ -83,14 +83,18 @@ subroutine smoothrf(work,nsc,nlevs)
         totwgt(j)=hswgt(j)*hzscl(j)*hzscl(j)
      end do
      
-     workout=zero
-     
 !$omp parallel do  schedule(dynamic,1) private(kk) &
 !$omp private(i,j,k,kkk,pall)
      do kk=1,3*nlevs
 
         k=(kk-1)/3+1
         kkk=mod(kk-1,3)+1
+
+        do j=1,nlon
+          do i=1,nlat
+            workout(i,j,kk)=zero
+          end do
+        end do
 
 !       Recursive filter applications
 
@@ -128,9 +132,9 @@ subroutine smoothrf(work,nsc,nlevs)
 
 !    Sum up three different patches  for each level
      do kk=1,nlevs
+       kkk=(kk-1)*3
        do j=1,nlon
          do i=1,nlat
-           kkk=(kk-1)*3
            work(i,j,kk)=workout(i,j,kkk+1) + workout(i,j,kkk+2) + &
                         workout(i,j,kkk+3)
          end do
@@ -617,7 +621,6 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
   integer(i_kind) ix,iy,i,j,im,n
 
   real(r_kind),dimension(nx,ny):: p2,p1t,p1in
-  real(r_kind),dimension(ndeg,ny):: gax2,dex2
   real(r_kind),dimension(nx,ny,ndeg):: alx,aly
 
 ! Zero local arrays
@@ -632,12 +635,6 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
  
   do n=1,nsc
 
-     do j=1,ny
-        do i=1,ndeg
-           gax2(i,j)=zero
-           dex2(i,j)=zero
-        end do
-     end do
      do iy=1,ny
         do ix=1,nx
            p2(ix,iy)=zero
@@ -652,34 +649,9 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
         enddo
      enddo
 
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!       .       |     .	   |  .            <-- IY > NY
-!       .       |    P1	   |  .
-!       .       |     .	   |  .            <-- IY < 0
-!   ---------------------------------------
-
-
-     call rfhx0(p1in,p2,gax2,dex2,nx,ny,ndeg,alx,be)
-
-
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!       .       |     .	   |  .            <-- IY > NY
-!       DEX2    |    P2	   | GAX2
-!       .       |     .	   |  .            <-- IY < 0
-!   ---------------------------------------
+     call rfhx0(p1in,p2,nx,ny,ndeg,alx,be)
 
      call rfhyt(p2,p1t,nx,ny,ndeg,aly,be)
-
-
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!       DEGAXY1 |   GAY1   |GAGAXY1        <-- IY > NY
-!         DEX1  |    P1	   | GAX1
-!       DEDEXY1 |   DEY1   |GADEXY1        <-- IY < 0
-!   ---------------------------------------
-
 
      do iy=1,ny
         do ix=1,nx
@@ -687,32 +659,9 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
         enddo
      enddo
 
+     call rfhy(p1t,p2,nx,ny,ndeg,aly,be)
 
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!       GADEXY1 |   DEY1   |DEDEXY1        <-- IY > NY
-!         GAX1  |    P1	   | DEX1
-!       GAGAXY1 |   GAY1   |DEGAXY1        <-- IY < 0
-!   ---------------------------------------
-
-     call rfhy(p1t,p2,dex2,gax2,nx,ny,ndeg,ndeg,aly,be)
-
-
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!           .   |     .    |   .           <-- IY > NY
-!         GAX2  |    P2	   | DEX2
-!           .   |     .    |   .           <-- IY < 0
-!  ---------------------------------------
-
-     call rfhx0(p2,p1,gax2,dex2,nx,ny,ndeg,alx,be)
-
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!           .   |     .	   |  .            <-- IY > NY
-!           .   |    P1	   |  .
-!           .   |     .	   |  .            <-- IY < 0
-!  ---------------------------------------
+     call rfhx0(p2,p1,nx,ny,ndeg,alx,be)
 
 ! end loop over number of horizontal scales
   end do
@@ -720,7 +669,7 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
   return
 end subroutine rfxyyx
 ! -----------------------------------------------------------------------------
-subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
+subroutine rfhx0(p1,p2,nx,ny,ndeg,alx,be)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -741,8 +690,6 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
 !     ndeg     - degree of smoothing   
 !     alx      - smoothing coefficients
 !     be       - smoothing coefficients
-!     gap      - boundary field (see rfxyyx) 
-!     dep      - boundary field (see rfxyyx) 
 !
 !   output argument list:
 !     p2       - field after smoothing
@@ -752,10 +699,10 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
+  use constants, only:  zero
   implicit none
 
   integer(i_kind)                   ,intent(in   ) :: nx,ny,ndeg
-  real(r_kind),dimension(ndeg,ny)   ,intent(inout) :: gap,dep
   real(r_kind),dimension(nx,ny)     ,intent(in   ) :: p1
   real(r_kind),dimension(ndeg)      ,intent(in   ) :: be
   real(r_kind),dimension(nx,ny,ndeg),intent(in   ) :: alx
@@ -764,6 +711,14 @@ subroutine rfhx0(p1,p2,gap,dep,nx,ny,ndeg,alx,be)
   integer(i_kind) ix,iy,kr,ki
 
   real(r_kind) gakr,gaki,dekr,deki,bekr,beki
+  real(r_kind),dimension(ndeg,ny)   :: gap,dep
+
+  do iy=1,ny
+    do ix=1,ndeg
+      gap(ix,iy)=zero
+      dep(ix,iy)=zero
+    end do
+  end do
 
   if (mod(ndeg,2) == 1) then  
 
@@ -986,7 +941,7 @@ subroutine rfhyt(p1,p2,nx,ny,ndegy,aly,be)
   return
 end subroutine rfhyt
 ! -----------------------------------------------------------------------------
-subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
+subroutine rfhy(p1,p2,nx,ny,ndegy,aly,be)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1005,15 +960,12 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
 !     p1       - field to be smoothed
 !     nx       - first dimension of p1
 !     ny       - second dimension of p1
-!     ndegx    - degree of smoothing x direction
 !     ndegy    - degree of smoothing y direction
 !     aly      - smoothing coefficients y direction
 !     be       - smoothing coefficients
 !
 !   output argument list:
 !     p2       - field after smoothing
-!     en2      - boundary field (see rfxyyx) 
-!     e02      - boundary field (see rfxyyx) 
 !
 ! attributes:
 !   language: f90
@@ -1024,39 +976,25 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
   use constants, only: zero
   implicit none
 
-  integer(i_kind)                    ,intent(in   ) :: nx,ny,ndegx,ndegy
+  integer(i_kind)                    ,intent(in   ) :: nx,ny,ndegy
   real(r_kind),dimension(nx,ny)      ,intent(in   ) :: p1
   real(r_kind),dimension(nx,ny,ndegy),intent(in   ) :: aly
   real(r_kind),dimension(ndegy)      ,intent(in   ) :: be
   real(r_kind),dimension(nx,ny)      ,intent(  out) :: p2
-  real(r_kind),dimension(ndegx,ny)   ,intent(  out) :: e02,en2
 
   integer(i_kind) ix,iy,lx,kr,ki,ly
 
-  real(r_kind) al0kr,al0ki,gakr,gaki,dekr,deki,alnkr,alnki
-  real(r_kind) al01,aln1,beki,bekr
+  real(r_kind) gakr,gaki,dekr,deki
+  real(r_kind) beki,bekr
 
   real(r_kind),dimension(nx,ndegy):: gap,dep
-  real(r_kind),dimension(ndegx,ndegy):: gae0,dee0,gaen,deen
 
 
-  do iy=1,ny
-     do lx=1,ndegx
-        e02(lx,iy)=zero
-        en2(lx,iy)=zero
-     enddo
-  enddo
   do ly=1,ndegy
      do ix=1,nx
         gap(ix,ly)=zero
         dep(ix,ly)=zero
      enddo
-     do lx=1,ndegx
-        gae0(lx,ly)=zero
-        dee0(lx,ly)=zero
-        gaen(lx,ly)=zero
-        deen(lx,ly)=zero
-     end do
   end do
 
   if (mod(ndegy,2) == 1) then
@@ -1067,14 +1005,6 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
         do ix=1,nx
            gap(ix,1)=aly(ix,iy,1)*gap(ix,1)+be(1)*p1(ix,iy)
            p2(ix,iy)=gap(ix,1)
-        enddo
-        al01=aly( 1,iy,1)
-        aln1=aly(nx,iy,1)
-        do lx=1,ndegx
-           gae0(lx,1)=al01*gae0(lx,1)
-           e02(lx,iy)=e02(lx,iy)+gae0(lx,1)
-           gaen(lx,1)=aln1*gaen(lx,1)
-           en2(lx,iy)=en2(lx,iy)+gaen(lx,1)
         enddo
                            ! treat remaining complex roots:
         do kr=2,ndegy,2  ! <-- index of "real" components
@@ -1088,22 +1018,6 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
               gap(ix,ki)=aly(ix,iy,ki)*gakr+aly(ix,iy,kr)*gaki+beki*p1(ix,iy)
               p2(ix,iy)=p2(ix,iy)+gap(ix,kr)
            enddo
-           al0kr=aly( 1,iy,kr)
-           al0ki=aly( 1,iy,ki)
-           alnkr=aly(nx,iy,kr)
-           alnki=aly(nx,iy,ki)
-           do lx=1,ndegx
-              gakr=gae0(lx,kr)
-              gaki=gae0(lx,ki)
-              gae0(lx,kr)=al0kr*gakr-al0ki*gaki
-              gae0(lx,ki)=al0ki*gakr+al0kr*gaki
-              e02(lx,iy)=e02(lx,iy)+gae0(lx,kr)
-              gakr=gaen(lx,kr)
-              gaki=gaen(lx,ki)
-              gaen(lx,kr)=alnkr*gakr-alnki*gaki
-              gaen(lx,ki)=alnki*gakr+alnkr*gaki
-              en2(lx,iy)=en2(lx,iy)+gaen(lx,kr)
-           enddo
         enddo
      enddo
 
@@ -1113,14 +1027,6 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
         do ix=1,nx
            p2(ix,iy)=p2(ix,iy)+dep(ix,1)
            dep(ix,1)=aly(ix,iy,1)*(dep(ix,1)+be(1)*p1(ix,iy))
-        enddo
-        al01=aly( 1,iy,1)
-        aln1=aly(nx,iy,1)
-        do lx=1,ndegx
-           e02(lx,iy)=e02(lx,iy)+dee0(lx,1)
-           dee0(lx,1)=al01*dee0(lx,1)
-           en2(lx,iy)=en2(lx,iy)+deen(lx,1)
-           deen(lx,1)=aln1*deen(lx,1)
         enddo
                            ! treat remaining complex roots:
         do kr=2,ndegy,2  ! <-- index of "real" components
@@ -1133,22 +1039,6 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
               deki=dep(ix,ki)+beki*p1(ix,iy)
               dep(ix,kr)=aly(ix,iy,kr)*dekr-aly(ix,iy,ki)*deki
               dep(ix,ki)=aly(ix,iy,ki)*dekr+aly(ix,iy,kr)*deki
-           enddo
-           al0kr=aly( 1,iy,kr)
-           al0ki=aly( 1,iy,ki)
-           alnkr=aly(nx,iy,kr)
-           alnki=aly(nx,iy,ki)
-           do lx=1,ndegx
-              dekr=dee0(lx,kr)
-              deki=dee0(lx,ki)
-              e02(lx,iy)=e02(lx,iy)+dekr
-              dee0(lx,kr)=al0kr*dekr-al0ki*deki
-              dee0(lx,ki)=al0ki*dekr+al0kr*deki
-              dekr=deen(lx,kr)
-              deki=deen(lx,ki)
-              en2(lx,iy)=en2(lx,iy)+dekr
-              deen(lx,kr)=alnkr*dekr-alnki*deki
-              deen(lx,ki)=alnki*dekr+alnkr*deki
            enddo
         enddo
      enddo
@@ -1172,22 +1062,6 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
               gap(ix,ki)=aly(ix,iy,ki)*gakr+aly(ix,iy,kr)*gaki+beki*p1(ix,iy)
               p2(ix,iy)=p2(ix,iy)+gap(ix,kr)
            enddo
-           al0kr=aly( 1,iy,kr)
-           al0ki=aly( 1,iy,ki)
-           alnkr=aly(nx,iy,kr)
-           alnki=aly(nx,iy,ki)
-           do lx=1,ndegx
-              gakr=gae0(lx,kr)
-              gaki=gae0(lx,ki)
-              gae0(lx,kr)=al0kr*gakr-al0ki*gaki
-              gae0(lx,ki)=al0ki*gakr+al0kr*gaki
-              e02(lx,iy)=e02(lx,iy)+gae0(lx,kr)
-              gakr=gaen(lx,kr)
-              gaki=gaen(lx,ki)
-              gaen(lx,kr)=alnkr*gakr-alnki*gaki
-              gaen(lx,ki)=alnki*gakr+alnkr*gaki
-              en2(lx,iy)=en2(lx,iy)+gaen(lx,kr)
-           enddo
         enddo
      enddo
      
@@ -1204,22 +1078,6 @@ subroutine rfhy(p1,p2,en2,e02,nx,ny,ndegx,ndegy,aly,be)
               deki=dep(ix,ki)+beki*p1(ix,iy)
               dep(ix,kr)=aly(ix,iy,kr)*dekr-aly(ix,iy,ki)*deki
               dep(ix,ki)=aly(ix,iy,ki)*dekr+aly(ix,iy,kr)*deki
-           enddo
-           al0kr=aly( 1,iy,kr)
-           al0ki=aly( 1,iy,ki)
-           alnkr=aly(nx,iy,kr)
-           alnki=aly(nx,iy,ki)
-           do lx=1,ndegx
-              dekr=dee0(lx,kr)
-              deki=dee0(lx,ki)
-              e02(lx,iy)=e02(lx,iy)+dekr
-              dee0(lx,kr)=al0kr*dekr-al0ki*deki
-              dee0(lx,ki)=al0ki*dekr+al0kr*deki
-              dekr=deen(lx,kr)
-              deki=deen(lx,ki)
-              en2(lx,iy)=en2(lx,iy)+dekr
-              deen(lx,kr)=alnkr*dekr-alnki*deki
-              deen(lx,ki)=alnki*dekr+alnkr*deki
            enddo
         enddo
      enddo
@@ -1387,9 +1245,9 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 
 !    Sum up three different patches  for each level
      do kk=1,nlevs
+       kkk=(kk-1)*3
        do j=1,nlon
          do i=1,nlat
-           kkk=(kk-1)*3
            work(i,j,kk)=workout(i,j,kkk+1) + workout(i,j,kkk+2) + &
                         workout(i,j,kkk+3)
          end do
@@ -1607,7 +1465,6 @@ subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
   integer(i_kind) ix,iy,i,j,im,n
 
   real(r_kind),dimension(nx,ny):: p2,p1t
-  real(r_kind),dimension(ndeg,ny):: gax2,dex2
   real(r_kind),dimension(nx,ny,ndeg):: alx,aly
 
 ! Zero local arrays
@@ -1636,32 +1493,9 @@ subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
         enddo
      enddo
 
+     call rfhy(p1t,p2,nx,ny,ndeg,aly,be)
 
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!       GADEXY1 |   DEY1   |DEDEXY1        <-- IY > NY
-!         GAX1	|    P1	   | DEX1
-!       GAGAXY1 |   GAY1   |DEGAXY1        <-- IY < 0
-!   ---------------------------------------
-
-     call rfhy(p1t,p2,dex2,gax2,nx,ny,ndeg,ndeg,aly,be)
-
-
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!           .   |     .    |   .           <-- IY > NY
-!         GAX2  |    P2	   | DEX2
-!           .   |     .    |   .           <-- IY < 0
-!   ---------------------------------------
-
-     call rfhx0(p2,p1,gax2,dex2,nx,ny,ndeg,alx,be)
-
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!           .   |     .	   |  .            <-- IY > NY
-!           .   |    P1	   |  .
-!           .   |     .	   |  .            <-- IY < 0
-!   ---------------------------------------
+     call rfhx0(p2,p1,nx,ny,ndeg,alx,be)
 
 ! end loop over number of horizontal scales
   end do
@@ -1717,19 +1551,12 @@ subroutine sqrt_rfxyyx_ad(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
   integer(i_kind) ix,iy,i,j,im,n
 
   real(r_kind),dimension(nx,ny):: p2,p1t
-  real(r_kind),dimension(ndeg,ny):: gax2,dex2
   real(r_kind),dimension(nx,ny,ndeg):: alx,aly
 
 ! Loop over number of scales
  
   do n=1,nsc
 
-     do j=1,ny
-        do i=1,ndeg
-           gax2(i,j)=zero
-           dex2(i,j)=zero
-        end do
-     end do
      do iy=1,ny
         do ix=1,nx
            p2(ix,iy)=zero
@@ -1744,33 +1571,9 @@ subroutine sqrt_rfxyyx_ad(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
         enddo
      enddo
 
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!           .   |     .	   |  .            <-- IY > NY
-!           .   |    P1	   |  .
-!           .   |     .	   |  .            <-- IY < 0
-!   ---------------------------------------
-
-
-     call rfhx0(p1,p2,gax2,dex2,nx,ny,ndeg,alx,be)
-
-
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!           .   |     .	   |  .            <-- IY > NY
-!	  DEX2  |    P2	   | GAX2
-!           .   |     .	   |  .            <-- IY < 0
-!   ---------------------------------------
+     call rfhx0(p1,p2,nx,ny,ndeg,alx,be)
 
      call rfhyt(p2,p1t,nx,ny,ndeg,aly,be)
-
-
-!    IX < 0     |          |     IX > NX
-!   ---------------------------------------
-!       DEGAXY1 |   GAY1   |GAGAXY1        <-- IY > NY
-!         DEX1  |    P1	   | GAX1
-!       DEDEXY1 |   DEY1   |GADEXY1        <-- IY < 0
-!   ---------------------------------------
 
 
      do iy=1,ny

@@ -177,7 +177,6 @@ subroutine compute_derived(mype,init_pass)
 
 ! now that we have derivs, get time tendencies if necessary
 	  if(init_pass) then
-           it=ntguessig
 
            call getprs(ges_ps(1,1,it),ges_3dp)
 
@@ -196,7 +195,8 @@ subroutine compute_derived(mype,init_pass)
 
 
               call strong_bal_correction(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,mype, &
-                                         ges_u,ges_v,ges_tv,ges_ps,.true.,fullfield,.false.)
+                                         ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it),&
+                                         ges_ps(1,1,it),.true.,fullfield,.false.)
            end if
           end if	! (init_pass)
         end if

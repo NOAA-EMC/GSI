@@ -163,7 +163,7 @@
                          l4dvar             ! when .t., will run 4d-var
 
    ! others...
-   use constants, only: pi, rearth, zero, one, half, izero
+   use constants, only: pi, rearth, zero, one, half
    use kinds,     only: r_kind,r_single,i_kind
    use obsmod,    only: iadate, ianldate, ndat, ndatmax, ndat_times
 
@@ -517,7 +517,7 @@
    call deter_subdomain(mype)
 
    ! initialize subdomain variables
-   call init_subdomain_vars
+   call init_subdomain_vars(mype)
     
    ! set comm variables used between tasks from vert colums in
    ! subdomains to horz slabs on the global domain
@@ -888,7 +888,7 @@
    do nn=1,nfldsfc
       do jj=1,lon2
          do ii=1,lat2
-            isli(ii,jj,nn)=izero
+            isli(ii,jj,nn)=0
             fact10(ii,jj,nn)=zero
             sfct(ii,jj,nn)=zero
             dsfct(ii,jj,nn)=zero

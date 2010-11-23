@@ -206,10 +206,10 @@ clean:
         calc_fov_conical.f90 \
         calc_fov_crosstrk.f90 \
 	calctends.f90 \
-	calctends_ad.F90 \
-	calctends_tl.F90 \
-	calctends_no_ad.F90 \
-	calctends_no_tl.F90 \
+	calctends_ad.f90 \
+	calctends_tl.f90 \
+	calctends_no_ad.f90 \
+	calctends_no_tl.f90 \
         clw_mod.f90 \
         coinfo.f90 \
 	combine_radobs.f90 \
@@ -260,7 +260,7 @@ clean:
         grtest.f90 \
 	grdcrd.f90 \
 	grid2sub.f90 \
-	gridmod.f90 \
+	gridmod.F90 \
 	gscond_ad.f90 \
         gsd_terrain_match_surfTobs.f90 \
         gsdcloudanalysis.F90 \
