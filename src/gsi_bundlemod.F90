@@ -1352,6 +1352,7 @@ CONTAINS
 !
 !  05May2010 Todling  Initial code.
 !  13May2010 Todling  Also return rank-N into rank-1
+!  11Nov2010 Treadon  Subtract 1 from upper array bound of Bundle%values
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1368,11 +1369,11 @@ CONTAINS
           case(2)
 !            pntr => rerank(Bundle%r2(ipnt)%q)
              nsz=size(Bundle%r2(ipnt)%q)
-             pntr => Bundle%values(ival:ival+nsz)
+             pntr => Bundle%values(ival:ival+nsz-1)
           case(3)
 !            pntr => rerank(Bundle%r3(ipnt)%q)
              nsz=size(Bundle%r3(ipnt)%q)
-             pntr => Bundle%values(ival:ival+nsz)
+             pntr => Bundle%values(ival:ival+nsz-1)
           case default
              istatus=1
           end select

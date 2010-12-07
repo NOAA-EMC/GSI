@@ -56,6 +56,7 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2010-05-29  todling - update interface to ozinfo_read,pcpinfo_read,&convinfo_read
 !   2010-06-05  todling - repositioned call to init_commvars
 !   2010-07-19  lueken  - remove call to deter_subdomain (general_deter_subdomain is also used)
+!   2010-11-08  treadon - remove create_mapping and init_subdomain_vars (now in init_grid_vars)
 !
 !   input argument list:
 !     mype - mpi task id
@@ -71,7 +72,7 @@ subroutine gsisub(mype,init_pass,last_pass)
   use obsmod, only: iadate,lobserver
   use observermod, only: observer_init,observer_run,observer_finalize
   use gridmod, only: twodvar_regional,regional,&
-       create_grid_vars,create_mapping,init_subdomain_vars,&
+       create_grid_vars,&
        destroy_mapping,destroy_grid_vars
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional
   use mpimod, only: npe,mpi_comm_world,ierror
@@ -117,10 +118,6 @@ subroutine gsisub(mype,init_pass,last_pass)
 
 ! Get date, grid, and other information from model guess files
   call gesinfo(mype)
-
-! Create analysis subdomains and initialize subdomain variables
-  call create_mapping(npe)
-  call init_subdomain_vars(mype)
 
 ! Set communicators between subdomain and global/horizontal slabs
   call init_commvars(mype)

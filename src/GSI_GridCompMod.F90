@@ -517,7 +517,7 @@
    call deter_subdomain(mype)
 
    ! initialize subdomain variables
-   call init_subdomain_vars(mype)
+   call init_subdomain_vars
     
    ! set comm variables used between tasks from vert colums in
    ! subdomains to horz slabs on the global domain

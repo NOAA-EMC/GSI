@@ -62,6 +62,7 @@ subroutine update_guess(sval,sbias)
 !   2010-04-30  wu - setup for regional ozone analysis
 !   2010-05-13  todling - update to use gsi_bundle
 !   2010-06-01  todling - skip upd when pointer not defined
+!   2010-11-02  ting - replace loop index k in nfldsfc loop with it (bug fix)
 !
 !   input argument list:
 !    sval
@@ -225,7 +226,7 @@ endif
   endif
 
   if(is_sst>0) then
-     do k=1,nfldsfc
+     do it=1,nfldsfc
         if (nobs_bins>1) then
            zt = hrdifsfc(it)
            ii = NINT(zt/hr_obsbin)+1
@@ -235,7 +236,7 @@ endif
         ij=0
         do j=1,lon2
            do i=1,lat2
-              dsfct(i,j,k)=dsfct(i,j,k)+sval(ii)%r2(is_sst)%q(i,j)
+              dsfct(i,j,it)=dsfct(i,j,it)+sval(ii)%r2(is_sst)%q(i,j)
            end do
         end do
      end do

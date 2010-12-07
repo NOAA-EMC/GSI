@@ -459,6 +459,7 @@ contains
 !   2005-06-01  treadon - add computation of msig
 !   2010-03-15  zhu - add nrf3 and nvars for generalized control variable
 !   2010-06-04  todling - revisit Zhu's general CV settings, and vector fields
+!   2010-11-08  treadon - call create_mapping; perform init_subdomain_vars initializations
 !
 !   input argument list:
 !
@@ -473,8 +474,9 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-    integer(i_kind) k,nlon_b,inner_vars,num_fields
-    integer(i_kind) n3d,n2d,nvars
+    integer(i_kind) i,k,nlon_b,inner_vars,num_fields
+    integer(i_kind) n3d,n2d,nvars,tid,nth
+    integer(i_kind) :: omp_get_max_threads
     integer(i_kind) ipsf,ipvp,jpsf,jpvp,isfb,isfe,ivpb,ivpe
     logical,allocatable,dimension(:):: vector
 
@@ -494,6 +496,10 @@ contains
     n3d  =size(cvars3d)
     n2d  =size(cvars2d)
     nvars=size(cvars)
+
+! Allocate and initialize variables for mapping between global
+! domain and subdomains
+    call create_mapping(npe)
 
 ! Initialize nsig1o to distribute levs/variables
 ! as evenly as possible over the tasks
@@ -578,9 +584,40 @@ contains
     lat2=grd_a%lat2 
     lon1=grd_a%lon1 
     lon2=grd_a%lon2 
-    ilat1=grd_a%ilat1 
-    jlon1=grd_a%jlon1 
+
+    latlon11 = lat2*lon2
+    latlon1n = latlon11*nsig
+    latlon1n1= latlon1n+latlon11
+
     periodic=grd_a%periodic
+
+    do i=1,npe
+       istart(i)    =grd_a%istart(i)
+       jstart(i)    =grd_a%jstart(i)
+       periodic_s(i)=grd_a%periodic_s(i)
+       ilat1(i)     =grd_a%ilat1(i)
+       jlon1(i)     =grd_a%jlon1(i)
+       ijn_s(i)     =grd_a%ijn_s(i)
+       irc_s(i)     =grd_a%irc_s(i)
+       ird_s(i)     =grd_a%ird_s(i)
+       displs_s(i)  =grd_a%displs_s(i)
+       ijn(i)       =grd_a%ijn(i)
+       displs_g(i)  =grd_a%displs_g(i)
+    end do
+
+#ifdef ibm_sp
+!#omp parallel private(nth,tid)
+    nth = omp_get_max_threads()
+!#omp end parallel
+    nthreads=nth
+    if(mype == 0)write(6,*) 'INIT_GRID_VARS:  number of threads ',nthreads
+#endif
+    allocate(jtstart(nthreads),jtstop(nthreads))
+    do tid=1,nthreads
+       call looplimits(tid-1, nthreads, 1, lon2, jtstart(tid), jtstop(tid))
+       if(mype == 0)write(6,*)'INIT_GRID_VARS:  for thread ',tid,  &
+            ' jtstart,jtstop = ',jtstart(tid),jtstop(tid)
+    end do
 
     return
 
@@ -595,7 +632,7 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine init_subdomain_vars(mype)
+  subroutine init_subdomain_vars
 
 ! !DESCRIPTION: initialize variables related to subdomains
 !
@@ -617,29 +654,11 @@ contains
 !-------------------------------------------------------------------------
     implicit none
 
-    integer(i_kind),intent(in)::mype
-    integer(i_kind) :: tid,nth
-    integer(i_kind) :: omp_get_max_threads
-
     lat2 = lat1+2
     lon2 = lon1+2
     latlon11 = lat2*lon2
     latlon1n = latlon11*nsig
     latlon1n1= latlon1n+latlon11
-
-#ifdef ibm_sp 
-!#omp parallel private(nth,tid) 
-    nth = omp_get_max_threads() 
-!#omp end parallel 
-    nthreads=nth 
-    if(mype == 0)write(6,*) 'number of threads ',nthreads 
-#endif 
-    allocate(jtstart(nthreads),jtstop(nthreads)) 
-    do tid=1,nthreads 
-      call looplimits(tid-1, nthreads, 1, lon2, jtstart(tid), jtstop(tid)) 
-      if(mype == 0)write(6,*) ' for thread ',tid,  & 
-         ' jtstart,jtstop = ',jtstart(tid),jtstop(tid) 
-    end do 
 
     return
   end subroutine init_subdomain_vars
@@ -747,6 +766,7 @@ contains
 !   2003-09-25  kleist
 !   2004-05-13  kleist, documentation
 !   2004-07-15  todling, protex-compliant prologue
+!   2010-11-08  treadon, move grd_a initialization to init_grid_vars
 !
 ! !REMARKS:
 !   language: f90
@@ -778,20 +798,6 @@ contains
        isc_g(i)     = 0
        isd_g(i)     = 0
        displs_g(i)  = 0
-    end do
-
-    do i=1,npe 
-       istart(i)    =grd_a%istart(i) 
-       jstart(i)    =grd_a%jstart(i) 
-       periodic_s(i)=grd_a%periodic_s(i) 
-       ilat1(i)     =grd_a%ilat1(i) 
-       jlon1(i)     =grd_a%jlon1(i) 
-       ijn_s(i)     =grd_a%ijn_s(i) 
-       irc_s(i)     =grd_a%irc_s(i) 
-       ird_s(i)     =grd_a%ird_s(i) 
-       displs_s(i)  =grd_a%displs_s(i) 
-       ijn(i)       =grd_a%ijn(i) 
-       displs_g(i)  =grd_a%displs_g(i) 
     end do
 
     return

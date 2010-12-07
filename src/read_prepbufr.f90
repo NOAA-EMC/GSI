@@ -87,6 +87,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                           from beta_ref values across the discontinuity.  This was fixed by replacing the
 !                           beta_ref field with cos_beta_ref, sin_beta_ref.
 !   2010-10-19  wu - add code to limit regional use of MAP winds with P less than 400 mb
+!   2010-11-18  treadon - add check for small POB (if POB<tiny_r_kind then POB=bmiss)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -654,6 +655,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            call ufbint(lunin,geoscld,4,1,levs,geoscldstr)
         endif
 
+!       Check for valid reported pressure (POB).  Set POB=bmiss if POB<tiny_r_kind
+        rstation_id=hdr(1)
+        do k=1,levs
+           if (obsdat(1,k)<tiny_r_kind) then
+              write(6,*)'READ_PREPBUFR:  ***WARNING*** invalid pressure pob=',&
+                   obsdat(1,k),' at k=',k,' for obstype=',obstype,' kx=',kx,&
+                   ' c_station_id=',c_station_id,' reset pob=',bmiss
+              obsdat(1,k)=bmiss
+           endif
+        end do
+
 !       If available, get obs errors from error table
         if(oberrflg)then
 
@@ -747,7 +759,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            end if
         end if
 
-        rstation_id=hdr(1)
         stnelev=hdr(6)
         ithin=ithin_conv(nc)
         ithinp = ithin > 0 .and. pflag /= 0
@@ -818,7 +829,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          if(convobs .and. pqm(k) >=lim_qm .and. qm/=15 .and. qm/=9 )cycle loop_k_levs
 !          if(qm >=lim_qm .and. qm /=15 .and. qm /=9)cycle loop_k_levs
            if(qm > 15 .or. qm < 0) cycle loop_k_levs
-
 
 !          If needed, extract drift information.   
            if(driftl)then
