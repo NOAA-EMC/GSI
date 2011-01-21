@@ -26,7 +26,7 @@ module radinfo
 !   2010-05-06  zhu     - add option adp_anglebc for variational radiance angle bias correction 
 !   2010-05-12  zhu     - add option passive_bc for radiance bias correction for monitored channels
 !   2010-07-12  zhu     - add inew_rad
-!   2010-10-05  treadon - remove npred1 (not used), add ireal_radiag, ipchan_radiag
+!   2010-10-05  treadon - remove npred1 (not used)
 !   2010-10-12  zhu     - combine scaninfo and edgeinfo into one file scaninfo
 !
 ! subroutines included:
@@ -66,7 +66,7 @@ module radinfo
   public :: jpch_rad,npred,b_rad,pg_rad,diag_rad,iuse_rad,nusis,inew_rad
   public :: crtm_coeffs_path,retrieval,predx,ang_rad,newchn,cbias
   public :: air_rad,nuchan,numt,varch,fbias,ermax_rad,tlapmean
-  public :: ifactq,mype_rad,ireal_radiag,ipchan_radiag
+  public :: ifactq,mype_rad
   public :: ostats,rstats,varA
   public :: adp_anglebc,angord,use_edges
   public :: passive_bc
@@ -82,8 +82,6 @@ module radinfo
 
   integer(i_kind) jpch_rad      ! number of channels*sat
   integer(i_kind) npred         ! number of radiance biases predictors
-  integer(i_kind) ireal_radiag  ! number of real entries per spot in radiance diagnostic file
-  integer(i_kind) ipchan_radiag ! number of entries per channel per spot in radiance diagnostic file
   integer(i_kind) mype_rad      ! task id for writing out radiance diagnostics
   integer(i_kind) angord        ! order of polynomial for angle bias correction
 
@@ -167,12 +165,10 @@ contains
     diag_rad = .true.     ! .true.=generate radiance diagnostic file
     mype_rad = 0          ! mpi task to collect and print radiance use information on/from
     npred=5               ! number of bias correction predictors
-    ireal_radiag = 26     ! number of real entries per spot in radiance diagnostic file
-    ipchan_radiag = 7     ! number of entries per channel per spot in radiance diagnostic file
 
     passive_bc = .false.  ! .true.=turn on bias correction for monitored channels
     adp_anglebc = .false. ! .true.=turn on angle bias correction
-    angord = 4            ! order of polynomial for angle bias correction
+    angord = 0            ! order of polynomial for angle bias correction
     use_edges = .true.    ! .true.=to use data on scan edges
   end subroutine init_rad
 
@@ -827,6 +823,7 @@ contains
 !
 ! program history log:
 !   2010-05-06  zhu
+!   2010-12-16  treadon - recode cbiasj to be consistent with setuprad
 !
 ! attributes:
 !   language: f90
@@ -836,26 +833,30 @@ contains
 
 ! !USES:
 
-   use constants, only: deg2rad
-   implicit none
-
-   character(len=20),intent(in):: isis
-   integer(i_kind),intent(in):: j
-   real(r_kind),dimension(90),intent(inout):: cbiasj
-
-   integer(i_kind) i
-   real(r_kind) rnad
-
-   do i=1,radnstep(j)
-      rnad=rnad_pos(isis,i,j)*deg2rad
-      if (angord==3) cbiasj(i)=predx(npred,j)*rnad+predx(npred-1,j)*rnad*rnad &
-                              +predx(npred-2,j)*rnad*rnad*rnad
-      if (angord==4) cbiasj(i)=predx(npred,j)*rnad+predx(npred-1,j)*rnad*rnad &
-                              +predx(npred-2,j)*rnad*rnad*rnad+predx(npred-3,j)*rnad*rnad*rnad*rnad
-   end do
-   return
+     use constants, only: zero,deg2rad
+     implicit none
+     
+     character(len=20),intent(in):: isis
+     integer(i_kind),intent(in):: j
+     real(r_kind),dimension(90),intent(inout):: cbiasj
+     
+     integer(i_kind) i,k
+     real(r_kind),dimension(npred):: pred
+     
+     pred=zero
+     do i=1,radnstep(j)
+        pred(npred)=rnad_pos(isis,i,j)*deg2rad
+        do k=2,angord
+           pred(npred-k+1)=pred(npred)**k
+        end do
+        cbiasj(i)=zero
+        do k=1,angord
+           cbiasj(i) = cbiasj(i)+ predx(npred-k+1,j)*pred(npred-k+1)
+        end do
+        
+     end do
+     return
    end subroutine angle_cbias
-
 
    subroutine satstep(isis,start,step,nstep,edge1,edge2)
 !$$$  subprogram documentation block
@@ -978,7 +979,7 @@ contains
    use mpimod, only:  npe,mype,mpi_comm_world,ierror
    use read_diag, only: read_radiag_header,read_radiag_data,diag_header_fix_list,&
         diag_header_chan_list,diag_data_fix_list,diag_data_chan_list,&
-        diag_data_extra_list
+        diag_data_extra_list,diag_data_name_list
    use constants, only: zero,one,deg2rad
    implicit none
 
@@ -999,7 +1000,6 @@ contains
 
    character(10):: obstype,platid
    character(20):: satsens,satsens_id
-   character(15):: string
    character(50):: fdiag_rad,dname,fname
 
    integer(i_kind):: ix,ii,iii,iich,ndatppe
@@ -1023,14 +1023,15 @@ contains
 !  Declare types used for reading satellite data
    type(diag_header_fix_list )         :: header_fix
    type(diag_header_chan_list),pointer :: header_chan(:)
+   type(diag_data_name_list)           :: data_name
    type(diag_data_fix_list   )         :: data_fix
    type(diag_data_chan_list  ),pointer :: data_chan(:)
-   type(diag_data_extra_list ),pointer :: data_extra(:)
+   type(diag_data_extra_list ),pointer :: data_extra(:,:)
 
 !************************************************************************
 !  Return if no new channels
    if (.not. any(inew_rad)) return
-   if (mype==0) write(6,*) 'Start init_predx' 
+   if (mype==0) write(6,*) 'INIT_PREDX:  enter routine'
 
    np=angord+1
 
@@ -1059,35 +1060,32 @@ contains
 
 !     See if diagnostic file exists
       inquire(file=fdiag_rad,exist=lexist)
-      string = ' skipping file '
-      if (lexist) string = ' processing '
-      write(6,*)' Task ',mype,string,trim(fdiag_rad),' with exist=',lexist
       if (.not.lexist) cycle loopf
 
 !     Open file and read header
       open(lndiag,file=fdiag_rad,form='unformatted',status='old',iostat=istatus)
       if (istatus/=0) then
-         write(6,*)' Task ',mype,' problem opening file ',trim(fdiag_rad),' iostat=',istatus
+         write(6,*)'INIT_PREDX:  Task ',mype,' problem opening file ',trim(fdiag_rad),' iostat=',istatus
          close(lndiag)
          cycle loopf
       endif
 
-      call read_radiag_header(lndiag,npred,ireal_radiag,ipchan_radiag,header_fix,header_chan,istatus)
+      call read_radiag_header(lndiag,npred,retrieval,header_fix,header_chan,data_name,istatus)
       if (istatus/=0) then
-         write(6,*)' Task ',mype,' problem reading file ',trim(fdiag_rad),' header, iostat=',istatus
+         write(6,*)'INIT_PREDX:  Task ',mype,' problem reading file ',trim(fdiag_rad),' header, iostat=',istatus
          close(lndiag)
          cycle loopf
       endif
 
 !     Process file
+      write(6,*)'INIT_PREDX:  Task ',mype,' processing ',trim(fdiag_rad)
       satsens = header_fix%isis
       n_chan = header_fix%nchan
 
 !     Check for consistency between specified and retrieved satellite id
       if (satsens /= satsens_id) then
-         write(6,*)'***ERROR*** inconsistent satellite ids'
-         write(6,*)'  fdiag_rad= ',trim(fdiag_rad)
-         write(6,*)'  satsens,satsens_id=',satsens,satsens_id
+         write(6,*)'INIT_PREDX:  ***ERROR*** inconsistent satellite ids ',&
+              ' fdiag_rad= ',trim(fdiag_rad),' satsens,satsens_id=',satsens,satsens_id
          ierror_code=99
          call mpi_abort(mpi_comm_world,ierror_code,ierror)
          stop 98
@@ -1126,7 +1124,7 @@ contains
       loopd:  do while (istatus == 0)
  
 !        Read a record.  If read flag, istatus does not equal zero, exit loopd
-         call read_radiag_data( lndiag,header_fix,data_fix,data_chan,data_extra,ipchan_radiag,istatus )
+         call read_radiag_data( lndiag,header_fix,retrieval,data_fix,data_chan,data_extra,istatus )
          if( istatus /= 0 ) exit loopd
 
 !        Extract scan angle, lat, lon
@@ -1203,7 +1201,10 @@ contains
       enddo loopd
 
       close(lndiag)
-      if (all(iobs<nthreshold)) cycle loopf
+      if (all(iobs<nthreshold)) then
+         deallocate(A,b,iobs,pred)
+         cycle loopf
+      endif
 
 
 !     Solve linear system
@@ -1241,7 +1242,7 @@ contains
 
 !  Wait for all mpi tasks to finish processing the
 !  satellite/sensors assigned to them.
-!  write(6,*)' Wait after satellite/sensor loop'
+!  write(6,*)'INIT_PREDX:  Wait after satellite/sensor loop'
    call mpi_barrier(mpi_comm_world,ierror)
 
 
@@ -1250,13 +1251,11 @@ contains
    do i=1,ndat
       fname = 'init_' // trim(dtype(i)) // '_' // trim(dplat(i))
       inquire(file=fname,exist=lexist)
-      string = ' skipping '
-      if (lexist) string = ' processing '
-      write(6,*) string,' update file i=',i,' with fname=',trim(fname),' ',lexist
 
 !     Process the scratch file
       if (lexist) then
 !        Read data from scratch file
+         write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
          open(lntemp,file=fname,form='formatted')
          done=.false.
          do while (.not.done)

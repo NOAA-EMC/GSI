@@ -113,7 +113,7 @@
 !                         parameter nvege_type: old=24, IGBP=20
 !   2010-08-17  derber  - move setup input and crtm call to crtm_interface (intrppx) to simplify routine
 !   2010-09-30  zhu     - re-order predterms and predbias
-!   2010-10-05  treadon - move ireal_radiag and ipchan_radiag to radinfo
+!   2010-12-16  treadon - move cbias update before calc_clw
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -143,8 +143,9 @@
   use berror, only: newpc4pred
   use radinfo, only: nuchan,tlapmean,predx,cbias,ermax_rad,&
        npred,jpch_rad,varch,iuse_rad,nusis,fbias,retrieval,b_rad,pg_rad,&
-       air_rad,ang_rad,adp_anglebc,angord,angle_cbias, &
-       passive_bc,ostats,rstats,ireal_radiag,ipchan_radiag
+       air_rad,ang_rad,adp_anglebc,angord,&
+       passive_bc,ostats,rstats
+  use read_diag, only: iversion_radiag,ireal_radiag,ipchan_radiag
   use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &
            dplat,dtbduv_on,radhead,radtail,radheadm,radtailm,&
@@ -451,6 +452,11 @@
      wavenumber(i)=sc(sensorindex)%wavenumber(i)
   end do
 
+! Allocate array to hold channel information for diagnostic file and/or lobsdiagsave option
+  idiag=ipchan_radiag+npred+2
+  if (lobsdiagsave) idiag=idiag+4*miter+1
+  allocate(diagbufchan(idiag,nchanl))
+
 ! If diagnostic file requested, open unit to file and write header.
   if (rad_diagsave) then
      filex=obstype
@@ -467,9 +473,10 @@
 !    Initialize/write parameters for satellite diagnostic file on
 !    first outer iteration.
      if (init_pass .and. mype==mype_diaghdr(is)) then
-        write(4) isis,dplat(is),obstype,jiter,nchanl,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra
+        write(4) isis,dplat(is),obstype,jiter,nchanl,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra,&
+             idiag,angord,iversion_radiag
         write(6,*)'SETUPRAD:  write header record for ',&
-             isis,ireal_radiag,iextra,' to file ',trim(diag_rad_file),' ',ianldate
+             isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,' to file ',trim(diag_rad_file),' ',ianldate
         do i=1,nchanl
            n=ich(i)
            if( n < 1 )cycle
@@ -483,11 +490,6 @@
         end do
      endif
   endif
-
-  idiag=ipchan_radiag+npred+2
-  if (lobsdiagsave) idiag=idiag+4*miter+1
-  allocate(diagbufchan(idiag,nchanl))
-  
 
 ! Load data array for current satellite
   read(lunin) data_s,luse
@@ -599,6 +601,26 @@
            tsavg5=tsavg5+dtsavg
         endif
 
+!       If using adaptive angle dependent bias correction, update the predicctors
+!       for this part of bias correction.  The AMSUA cloud liquid water algorithm
+!       uses total angle dependent bias correction for channels 1 and 2
+        if (adp_anglebc) then
+           do i=1,nchanl
+              mm=ich(i)
+              if (goessndr .or. seviri) then
+                 pred(npred,i)=nadir*deg2rad
+              else
+                 pred(npred,i)=data_s(iscan_ang,n)
+              end if
+              do j=2,angord
+                 pred(npred-j+1,i)=pred(npred,i)**j
+              end do
+              cbias(nadir,mm)=zero
+              do j=1,angord
+                 cbias(nadir,mm)=cbias(nadir,mm)+predchan(npred-j+1,i)*pred(npred-j+1,i)
+              end do
+           end do
+        end if
 
 !       Compute microwave cloud liquid water for bias correction and QC.
         clw=zero
@@ -611,6 +633,7 @@
 
         predbias=zero
         do i=1,nchanl
+           mm=ich(i)
 !*****
 !     COMPUTE AND APPLY BIAS CORRECTION TO SIMULATED VALUES
 !*****
@@ -634,23 +657,6 @@
               pred(3,i) = clw
            else
               pred(3,i) = clw*cosza*cosza
-           end if
- 
-           mm=ich(i)
-           if (adp_anglebc) then
-              if (goessndr .or. seviri) then
-                 pred(npred,i)=nadir*deg2rad
-              else
-                 pred(npred,i)=data_s(iscan_ang,n)
-              end if
-              do j=2,angord
-                 pred(npred-j+1,i)=pred(npred,i)**j
-              end do
-
-              cbias(nadir,mm)=zero
-              do j=1,angord
-                 cbias(nadir,mm)=cbias(nadir,mm)+predchan(npred-j+1,i)*pred(npred-j+1,i)
-              end do
            end if
 
 !       Apply bias correction

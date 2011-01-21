@@ -248,7 +248,7 @@ setuppcp.o : setuppcp.f90 m_dtime.o jfunc.o constants.o gsi_4dvar.o obsmod.o gue
 setupps.o : setupps.f90 m_dtime.o convinfo.o guess_grids.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
 setuppw.o : setuppw.f90 m_dtime.o convinfo.o qcmod.o jfunc.o constants.o gsi_4dvar.o obsmod.o gridmod.o guess_grids.o kinds.o mpeu_util.o 
 setupq.o : setupq.f90 m_dtime.o converr.o convinfo.o jfunc.o qcmod.o constants.o gridmod.o guess_grids.o oneobmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
-setuprad.o : setuprad.f90 qcmod.o clw_mod.o crtm_interface.o m_dtime.o sst_retrieval.o jfunc.o constants.o satthin.o gridmod.o gsi_4dvar.o obsmod.o guess_grids.o radinfo.o berror.o kinds.o mpeu_util.o 
+setuprad.o : setuprad.f90 qcmod.o clw_mod.o crtm_interface.o m_dtime.o sst_retrieval.o jfunc.o constants.o satthin.o gridmod.o gsi_4dvar.o obsmod.o guess_grids.o read_diag.o radinfo.o berror.o kinds.o mpeu_util.o 
 setupref.o : setupref.f90 m_gpsrhs.o m_dtime.o convinfo.o jfunc.o constants.o gridmod.o guess_grids.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
 setuprhsall.o : setuprhsall.f90 m_rhs.o mpl_allreduce.o mpeu_util.o state_vectors.o lag_fields.o timermod.o convinfo.o qcmod.o jfunc.o gsi_4dvar.o gridmod.o mpimod.o coinfo.o ozinfo.o pcpinfo.o radinfo.o berror.o obs_sensitivity.o obsmod.o guess_grids.o constants.o kinds.o 
 setuprw.o : setuprw.f90 m_dtime.o convinfo.o jfunc.o constants.o gridmod.o guess_grids.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
