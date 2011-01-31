@@ -13,6 +13,7 @@ subroutine getprs(ps,prs)
 !                       - remove gues_tv from argument list; clean up code
 !   2008-06-04  safford - rm unused uses
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!   2010-09-15  pagowski  - added cmaq
 !
 !   input argument list:
 !     ps       - surface pressure
@@ -30,7 +31,7 @@ subroutine getprs(ps,prs)
   use constants,only: zero,half,one_tenth,rd_over_cp,one
   use gridmod,only: nsig,lat2,lon2,ak5,bk5,ck5,tref5,idvc5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,&
-       regional,wrf_mass_regional,twodvar_regional
+       regional,wrf_mass_regional,cmaq_regional,twodvar_regional
   use guess_grids, only: ges_tv,ntguessig
   implicit none
 
@@ -49,7 +50,8 @@ subroutine getprs(ps,prs)
   it=ntguessig
 
   if (regional) then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.&
+          cmaq_regional) then
         do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
@@ -134,7 +136,8 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
   use kinds,only: r_kind,i_kind
   use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
-  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
+  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
+       cmaq_regional
   use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: compact_dlat,compact_dlon
   use control_vectors, only: nrf_var
@@ -152,7 +155,7 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
 
 
   if(regional)then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
         do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
@@ -222,7 +225,7 @@ subroutine getprs_tl(ps,t,prs)
   use kinds,only: r_kind,i_kind
   use constants,only: zero,one,rd_over_cp,half
   use gridmod,only: nsig,lat2,lon2,bk5,ck5,idvc5,tref5
-  use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,eta1_ll,regional,wrf_mass_regional,&
+  use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,eta1_ll,regional,wrf_mass_regional,cmaq_regional,&
        twodvar_regional
   use guess_grids, only: ges_tv,ntguessig
   implicit none
@@ -237,7 +240,8 @@ subroutine getprs_tl(ps,t,prs)
   integer(i_kind) i,j,k,k2,it
 
   if (regional) then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.&
+          cmaq_regional) then
         do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
@@ -324,7 +328,8 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
   use kinds,only: r_kind,i_kind
   use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
-  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
+  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
+       cmaq_regional
   use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: compact_dlat,compact_dlon
   use control_vectors, only: nrf_var
@@ -342,7 +347,7 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
 
 
   if(regional)then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
         do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
@@ -413,7 +418,7 @@ subroutine getprs_ad(ps,t,prs)
   
   use kinds,only: r_kind,i_kind
   use gridmod,only: nsig,lat2,lon2,bk5,ck5,tref5,idvc5
-  use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,regional,wrf_mass_regional,eta1_ll,&
+  use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,regional,wrf_mass_regional,cmaq_regional,eta1_ll,&
        twodvar_regional
   use guess_grids, only: ges_tv,ntguessig 
   use constants,only: zero,half,one,rd_over_cp
@@ -431,7 +436,8 @@ subroutine getprs_ad(ps,t,prs)
 
 
   if (regional) then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.&
+          cmaq_regional) then
         do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
@@ -529,7 +535,8 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
   use kinds,only: r_kind,i_kind
   use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
-  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
+  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
+       cmaq_regional
   use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
   use control_vectors, only: nrf_var
@@ -548,7 +555,7 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
 
 ! Adjoint of horizontal derivatives
   if (regional) then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
         do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2

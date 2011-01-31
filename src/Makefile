@@ -210,7 +210,9 @@ clean:
 	calctends_tl.f90 \
 	calctends_no_ad.f90 \
 	calctends_no_tl.f90 \
+	chemmod.f90 \
         clw_mod.f90 \
+	cmaq_routines.f90 \
         coinfo.f90 \
 	combine_radobs.f90 \
 	compact_diffs.f90 \
@@ -291,6 +293,7 @@ clean:
 	intlimq.f90 \
 	intoz.f90 \
 	intpcp.f90 \
+	intpm2_5.f90 \
 	intps.f90 \
 	intpw.f90 \
 	intq.f90 \
@@ -381,6 +384,7 @@ clean:
         read_aerosol.F90 \
 	read_airs.f90 \
 	read_amsre.f90 \
+	read_anowbufr.f90 \
 	read_avhrr.f90 \
 	read_avhrr_navy.f90 \
 	read_bufrtovs.f90 \
@@ -428,6 +432,7 @@ clean:
         setuplag.F90 \
 	setupoz.f90 \
 	setuppcp.f90 \
+	setuppm2_5.f90 \
 	setupps.f90 \
 	setuppw.f90 \
 	setupq.f90 \
@@ -470,6 +475,7 @@ clean:
 	stplimq.f90 \
 	stpoz.f90 \
 	stppcp.f90 \
+	stppm2_5.f90 \
 	stpps.f90 \
 	stppw.f90 \
 	stpq.f90 \

@@ -67,6 +67,8 @@ module gridmod
 !                           at lines 1068-1069, "call rpolar2ll" and removing the following do loop which
 !                           copies region_lat, region_lon to glat_an, glon_an.
 !   2010-11-03  derber  - added initialization of threading j loops for use in calctends
+!   2010-11-14 pagowski - added CMAQ
+
 !
 !
 ! !AUTHOR: 
@@ -112,7 +114,7 @@ module gridmod
   public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig
   public :: ncloud,nlat,nlon,ntracer,displs_s,displs_g,ltosj_s,ltosi_s
   public :: ltosj,ltosi,bk5,regional,latlon11,latlon1n,twodvar_regional
-  public :: netcdf,nems_nmmb_regional,wrf_mass_regional,wrf_nmm_regional
+  public :: netcdf,nems_nmmb_regional,wrf_mass_regional,wrf_nmm_regional,cmaq_regional
   public :: aeta2_ll,pdtop_ll,pt_ll,eta1_ll,eta2_ll,aeta1_ll,idsl5,ck5,ak5
   public :: tref5,idvc5,nlayers,msig,jstart,istart,region_lat,vlevs,nsig1o,rlats
   public :: region_dy,region_dx,region_lon,rlat_min_dd,rlat_max_dd,rlon_max_dd
@@ -137,6 +139,7 @@ module gridmod
   logical wrf_nmm_regional  !
   logical nems_nmmb_regional! .t. to run with NEMS NMMB model
   logical wrf_mass_regional !
+  logical cmaq_regional     ! .t. to run with cmaq
   logical twodvar_regional  ! .t. to run code in regional 2D-var mode
   logical use_gfs_ozone     ! .t. to use gfs ozone in regional analysis
   logical check_gfs_ozone_date ! .t. to date check gfs ozone against regional
@@ -357,6 +360,7 @@ contains
 !   2010-03-09  parrish - add initialization of check_gfs_ozone_date flag
 !   2010-03-15  parrish - add initialization of regional_ozone flag
 !   2010-08-10  wu      - add initialization of nvege_type          
+!   2010-10-14  pagowski- add CMAQ
 !
 ! !REMARKS:
 !   language: f90
@@ -389,6 +393,7 @@ contains
     periodic = .false.
     wrf_nmm_regional = .false.
     wrf_mass_regional = .false.
+    cmaq_regional=.false.
     nems_nmmb_regional = .false.
     twodvar_regional = .false. 
     use_gfs_ozone = .false.
@@ -718,6 +723,7 @@ contains
 !   2004-07-15  todling, protex-compliant prologue
 !   2005-03-03  treadon - add implicit none
 !   2009-12-20  gayno - add variable lpl_gfs
+!   2011-01-04  pagowski - deallocate regional grid arrays
 !
 ! !REMARKS:
 !   language: f90
@@ -735,6 +741,15 @@ contains
     if (allocated(cp5)) deallocate(cp5)
     if (allocated(dx_gfs)) deallocate(dx_gfs)
     if (allocated(lpl_gfs)) deallocate(lpl_gfs)
+    if (allocated(region_lat)) deallocate(region_lat)    
+    if (allocated(region_lon)) deallocate(region_lon)    
+    if (allocated(region_dx)) deallocate(region_dx)
+    if (allocated(region_dy)) deallocate(region_dy)
+    if (allocated(region_dxi)) deallocate(region_dxi)
+    if (allocated(region_dyi)) deallocate(region_dyi)    
+    if (allocated(coeffx)) deallocate(coeffx)
+    if (allocated(coeffy)) deallocate(coeffy)
+
     call general_destroy_spec_vars(sp_a)
     if (hires_b) call general_destroy_spec_vars(sp_b)
     return
@@ -929,7 +944,7 @@ contains
     real(r_kind),allocatable::glat_an(:,:),glon_an(:,:)
     real(r_kind),allocatable:: dx_an(:,:),dy_an(:,:)
     character(6) filename
-    integer(i_kind) ihr,i0,j0
+    integer(i_kind) ihr,i0,j0,nskip
     real(r_kind),allocatable::gxtemp(:,:),gytemp(:,:)
     real(r_kind),allocatable::gxtemp_an(:,:),gytemp_an(:,:)
 
@@ -1407,6 +1422,138 @@ contains
        deallocate(dx_nmm,dy_nmm,dx_an,dy_an)
 
     end if   ! end if nems nmmb section
+
+    if (cmaq_regional) then     ! begin cmaq core section
+
+       if(diagnostic_reg.and.mype==0) &
+            write(6,*)' in init_reg_glob_ll, initializing for cmaq regional run'
+
+! get regional constants
+    
+       ihr=-999
+  
+       do i=0,12
+          write(filename,'("sigf",i2.2)')i
+          inquire(file=filename,exist=fexist)
+          if(fexist) then!
+             ihr=i
+             exit
+          end if
+       end do
+    
+       if(ihr<0) then
+          write(6,*)' no input file available for regional cmaq analysis.  program stops'
+          call stop2(99)
+       end if
+
+       if(diagnostic_reg.and.mype==0) then    
+          write(6,*)' in read_cmaq_grid lendian_in=',lendian_in
+          write(6,*)' in read_cmaq_grid, lendian_in=',lendian_in
+       endif
+    
+       open(lendian_in,file=filename,form='unformatted')
+       rewind(lendian_in)
+       read(lendian_in) nskip
+       read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig,pt,pdtop   !1 to skip
+    
+       if(diagnostic_reg.and.mype==0) then
+          write(6,'(" in read_cmaq_grid, yr,mn,dy,h,m,s=",6i6)') &
+               regional_time
+          write(6,'(" in read_cmaq_grid, nlon_regional=",i6)') &
+               nlon_regional
+          write(6,'(" in read_cmaq_grid, nlat_regional=",i6)') &
+               nlat_regional
+          write(6,'(" in read_cmaq_grid, nsig=",i6)') nsig 
+       endif
+
+       allocate(aeta1(nsig),eta1(nsig+1))
+       allocate(aeta1_ll(nsig),eta1_ll(nsig+1))  
+       allocate(aeta2(nsig),eta2(nsig+1))
+       allocate(aeta2_ll(nsig),eta2_ll(nsig+1))  
+       allocate(glon(nlon_regional,nlat_regional),&
+          dx_mc(nlon_regional,nlat_regional))
+       allocate(glat(nlon_regional,nlat_regional),&
+          dy_mc(nlon_regional,nlat_regional))
+    
+       regional_fhr=zero !that is not available/nor seems currently necessary 
+     
+       read(lendian_in) aeta1,aeta2 ! 2 to skip
+       read(lendian_in) eta1,eta2  ! 3 to skip
+    
+       pt_ll=r0_01*pt                    !  check units--this converts to mb
+       pdtop_ll=r0_01*pdtop
+       
+       eta1_ll=eta1
+       aeta1_ll=aeta1
+       eta2_ll=eta2
+       aeta2_ll=aeta2
+
+!cmaq input arrays are dimensioned (nlat_regional,nlon_regional)
+    
+       read(lendian_in) glat  ! 4 to skip
+       read(lendian_in) dx_mc ! 5 to skip
+       read(lendian_in) glon  ! 6 to skip
+       read(lendian_in) dy_mc ! 7 to skip
+       close(lendian_in) 
+    
+       nlon=nlon_regional
+       nlat=nlat_regional
+     
+       rlon_min_ll=one
+       rlat_min_ll=one
+       rlon_max_ll=nlon
+       rlat_max_ll=nlat
+       rlat_min_dd=rlat_min_ll+r1_5
+       rlat_max_dd=rlat_max_ll-r1_5
+       rlon_min_dd=rlon_min_ll+r1_5
+       rlon_max_dd=rlon_max_ll-r1_5
+    
+       if(diagnostic_reg.and.mype==0) then
+          write(6,*)' in read_cmaq_grid, rlat_min_dd=',rlat_min_dd
+          write(6,*)' in read_cmaq_grid, rlat_max_dd=',rlat_max_dd
+          write(6,*)' in read_cmaq_grid, rlon_min_dd=',rlon_min_dd
+          write(6,*)' in read_cmaq_grid, rlon_max_dd=',rlon_max_dd
+          write(6,*)' in read_cmaq_grid, rlat_min_ll=',rlat_min_ll
+          write(6,*)' in read_cmaq_grid, rlat_max_ll=',rlat_max_ll
+          write(6,*)' in read_cmaq_grid, rlon_min_ll=',rlon_min_ll
+          write(6,*)' in read_cmaq_grid, rlon_max_ll=',rlon_max_ll
+          write(6,*)' in read_cmaq_grid, nlon,nlat=',nlon,nlat
+       end if
+    
+    
+!note different allocation for glat_an,glat_an
+!need to flip cmaq input glat,glon
+  
+
+       allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
+       allocate(region_dy(nlat,nlon),region_dx(nlat,nlon))
+       allocate(region_dyi(nlat,nlon),region_dxi(nlat,nlon))
+       allocate(coeffy(nlat,nlon),coeffx(nlat,nlon))
+       allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
+    
+       do k=1,nlon
+         do i=1,nlat
+            glat_an(k,i)=glat(k,i)*deg2rad
+            glon_an(k,i)=glon(k,i)*deg2rad
+            region_lat(i,k)=glat(k,i)*deg2rad
+            region_lon(i,k)=glon(k,i)*deg2rad
+            region_dx(i,k)=dx_mc(k,i)
+            region_dy(i,k)=dy_mc(k,i)
+            region_dxi(i,k)=one/dx_mc(k,i)
+            region_dyi(i,k)=one/dy_mc(k,i)
+            coeffx(i,k)=half/dx_mc(k,i)
+            coeffy(i,k)=half/dy_mc(k,i)
+         end do
+       end do
+
+
+       call init_general_transform(glat_an,glon_an,mype)
+
+       deallocate(aeta1,eta1,aeta2,eta2,glat,glon,glat_an,glon_an,dx_mc,dy_mc)
+
+    end if   ! end cmaq section
+
+
 
 !   Begin surface analysis section (regional 2D-var)
     if(twodvar_regional) then 

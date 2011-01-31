@@ -600,13 +600,14 @@ contains
     use radinfo, only: npred,jpch_rad
     use pcpinfo, only: npredp,npcptype
     use state_vectors, only: ns3d,ns2d,edges
+    use constants, only : max_varname_length
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors
     use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens
     implicit none
 
     integer(i_kind) ii,jj,nx,ny,mr,nr,nf,n,klevb,kleve,nedges
-    character(len=5) cvar
+    character(len=max_varname_length) cvar
 
     nedges=count(edges .eqv. .true.)
     nvals_levs=ns3d*nsig+ns2d+nedges

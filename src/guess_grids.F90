@@ -75,6 +75,7 @@ module guess_grids
 !   2010-04-22  todling - remove tracers,vtid,pdryini,xncld
 !   2010-05-19  todling - add chem init and destroy (revamp Hou's implementation)
 !   2010-08-31  cucurull - add logical use_compress
+!   2010-09-15  pagowski - add cmaq
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -1163,7 +1164,8 @@ contains
 
     use constants,only: zero,one,rd_over_cp,one_tenth,half
     use gridmod, only: lat2,lon2,nsig,ak5,bk5,ck5,tref5,idvc5,&
-         regional,wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,pt_ll,aeta2_ll,&
+         regional,wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,&
+         cmaq_regional,pt_ll,aeta2_ll,&
          aeta1_ll,eta2_ll,pdtop_ll,eta1_ll,twodvar_regional,idsl5
     implicit none
 
@@ -1207,11 +1209,13 @@ contains
           do j=1,lon2
              do i=1,lat2
                 if(regional) then
-                   if (wrf_nmm_regional.or.nems_nmmb_regional) &
+                   if (wrf_nmm_regional.or.nems_nmmb_regional.or.&
+                        cmaq_regional ) &
                       ges_prsi(i,j,k,jj)=one_tenth* &
                              (eta1_ll(k)*pdtop_ll + &
                               eta2_ll(k)*(ten*ges_ps(i,j,jj)-pdtop_ll-pt_ll) + &
                               pt_ll)
+
                    if (wrf_mass_regional .or. twodvar_regional) &
                       ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j,jj)-pt_ll) + pt_ll)
                 else
@@ -1235,7 +1239,7 @@ contains
     end do
 
     if(regional) then
-       if (wrf_nmm_regional.or.nems_nmmb_regional) then
+       if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
 ! load using aeta coefficients
           do jj=1,nfldsig
              do k=1,nsig
@@ -1246,6 +1250,7 @@ contains
                                    aeta2_ll(k)*(ten*ges_ps(i,j,jj)-pdtop_ll-pt_ll) + &
                                    pt_ll)
                       ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
+
                    end do
                 end do
              end do
@@ -1301,7 +1306,7 @@ contains
 ! surface pressure and pressure profile at the layer midpoints
     if (regional) then
        ges_psfcavg = r1013
-       if (wrf_nmm_regional.or.nems_nmmb_regional) then
+       if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
           do k=1,nsig
              ges_prslavg(k)=aeta1_ll(k)*pdtop_ll+aeta2_ll(k)*(r1013-pdtop_ll-pt_ll)+pt_ll
           end do

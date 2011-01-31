@@ -56,6 +56,8 @@ subroutine read_guess(iyear,month,mype)
 !   2010-03-15  parrish - add flag regional_ozone to turn on ozone in regional analysis
 !   2010-03-31  treadon - replace read_gfsatm with read_gfs
 !   2010-05-19  todling - pass year and month for read_gsf_chem; read_guess should never
+!   2010-09-17  pagowski - add cmaq
+
 !                         depend on obsmod - that's why idate not passed via common block
 !
 !   input argument list:
@@ -78,7 +80,7 @@ subroutine read_guess(iyear,month,mype)
   use gsi_io, only: read_bias
   use gridmod, only: lat2,lon2
   use gridmod, only: nsig
-  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,&
+  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,&
        twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone,regional_ozone
 
   use constants, only: izero,ione,zero,one,fv
@@ -122,6 +124,8 @@ subroutine read_guess(iyear,month,mype)
            call read_2d_guess(mype)
         else if (nems_nmmb_regional) then
            call read_nems_nmmb_guess(mype)
+        else if (cmaq_regional) then
+           call read_cmaq_guess(mype)
         end if
      
 

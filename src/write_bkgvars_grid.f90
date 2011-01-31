@@ -100,6 +100,7 @@ subroutine write_bkgvars2_grid
 ! program history log:
 !   2008-03-27  safford -- add subprogram doc block, rm unused vars and uses
 !   2010-06-18  todling -- generalized to show all variances; create ctl
+!   2010-10-20  pagowski - add cmaq
 !
 !   input argument list:
 !
@@ -115,7 +116,8 @@ subroutine write_bkgvars2_grid
   use constants, only: zero,r1000,one_tenth
   use gridmod, only: nlat,nlon,nsig,lat2,lon2
   use gridmod, only: ak5,bk5,ck5,tref5,idvc5,&
-         regional,wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,pt_ll,&
+         regional,wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,&
+         cmaq_regional,pt_ll,&
          eta2_ll,pdtop_ll,eta1_ll,twodvar_regional,idsl5
   use control_vectors, only: nc3d,nc2d,mvars
   use control_vectors, only: cvars3d,cvars2d,cvarsmd
@@ -150,7 +152,7 @@ subroutine write_bkgvars2_grid
 ! get some reference-like pressure levels
   do k=1,nsig+1
      if(regional) then
-        if (wrf_nmm_regional.or.nems_nmmb_regional) &
+        if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) &
            prs(k)=one_tenth* &
                   (eta1_ll(k)*pdtop_ll + &
                    eta2_ll(k)*(r1000-pdtop_ll-pt_ll) + &

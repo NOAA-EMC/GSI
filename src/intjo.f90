@@ -152,6 +152,7 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !   2010-03-24  zhu      - change the interfaces of intt,intrad,intpcp for generalizing control variable
 !   2010-05-13  todling  - harmonized interfaces to int* routines when it comes to state_vector (add only's)
 !   2010-06-13  todling  - add intco call
+!   2010-10-15  pagowski  - add intpm2_5 call
 !
 !   input argument list:
 !     ibin
@@ -204,6 +205,7 @@ use intdwmod, only: intdw
 use intpcpmod, only: intpcp
 use intozmod, only: intoz
 use intcomod, only: intco
+use intpm2_5mod, only: intpm2_5
 use intlagmod, only: intlag
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -263,6 +265,10 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 
 ! RHS for carbon monoxide
   call intco(yobs%co3l,rval,sval)
+
+! RHS for pm2_5
+  call intpm2_5(yobs%pm2_5,rval,sval)
+
 
 ! RHS for surface pressure observations
   call intps(yobs%ps,rval,sval)

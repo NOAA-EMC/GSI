@@ -557,6 +557,7 @@
 !      new regional model added:
 !
 !             nems_nmmb_regional = .true.  input is from NEMS NMMB model
+!             cmaq_regional = .true.  input is from CMAQ model
 !
 !     For a regional run, several additional namelist parameters must be specified:
 !

@@ -81,7 +81,7 @@ subroutine update_guess(sval,sbias)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use constants, only: zero,one,fv
+  use constants, only: zero,one,fv,max_varname_length
   use jfunc, only: iout_iter,biascor,tsensible
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone
@@ -109,7 +109,7 @@ subroutine update_guess(sval,sbias)
   type(predictors), intent(inout) :: sbias
 
 ! Declare local variables
-  character(len=10),allocatable,dimension(:) :: gases
+  character(max_varname_length),allocatable,dimension(:) :: gases
   integer(i_kind) i,j,k,it,ij,ii,ier,ic,id,ngases,istatus
   integer(i_kind) is_u,is_v,is_t,is_q,is_oz,is_cw,is_ps,is_sst,is_co,is_co2
   real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
@@ -135,7 +135,7 @@ subroutine update_guess(sval,sbias)
 call gsi_chemtracer_get('dim',ngases,istatus)
 if (ngases>0) then
     allocate(gases(ngases))
-    call gsi_chemtracer_get('list',gases,istatus)
+    call gsi_chemtracer_get('shortnames',gases,istatus)
 endif
 
 ! Initialize local arrays

@@ -12,6 +12,7 @@ module regional_io
 !   2005-05-24  pondeca - add 2dvar only surface analysis option
 !   2005-07-06  parrish - add variable update_pint
 !   2005-10-17  parrish - add ctph0,stph0,tlm0 
+!   2010-09-15  pagowski - add cmaq
 !   
 ! Subroutines Included:
 !   sub convert_regional_guess  - convert regional guess to internal format
@@ -25,7 +26,8 @@ module regional_io
 !
 !$$$ end documentation block
 
-  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional,&
+  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,&
+       nems_nmmb_regional,cmaq_regional,&
        twodvar_regional,netcdf
   use mpimod, only: mpi_comm_world,ierror
   implicit none
@@ -112,6 +114,14 @@ contains
        end if
        call mpi_barrier(mpi_comm_world,ierror)
 
+    elseif (cmaq_regional) then
+       if (mype==izero) then
+!cmaq binary is read in directly, only need to link file to sigf
+          call make_sigf
+       end if
+       
+       call mpi_barrier(mpi_comm_world,ierror)
+       
 !   Convert nems nmmb guess file to internal gsi format.
 
     elseif (nems_nmmb_regional) then
@@ -194,6 +204,10 @@ contains
           call wrwrfmassa_binary(mype)
        end if
     end if
+
+!write cmaq analysis
+
+    if (cmaq_regional) call write_cmaq(mype)
 
 !   Write nems nmmb analysis file.
 

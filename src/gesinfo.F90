@@ -18,6 +18,8 @@ subroutine gesinfo(mype)
 !   2009-01-28  todling - remove original GMAO interface
 !   2009-10-09  wu      - replace nhr_offset with min_offset since it's 1.5 hr for regional
 !   2010-03-31  treadon - move jcap_b to gridmod
+!   2010-09-09  pagowski - add cmaq
+
 !
 !   input argument list:
 !     mype - mpi task id
@@ -36,7 +38,7 @@ subroutine gesinfo(mype)
   use mpimod, only: npe
   use gridmod, only: idvc5,ak5,bk5,ck5,tref5,&
        regional,nsig,regional_fhr,regional_time,&
-       wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,&
+       wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,cmaq_regional,&
        ntracer,ncloud,ncep_sigio,nlat,nlon,idvm5,&
        ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5,jcap_b
   use sigio_module, only: sigio_head,sigio_srhead,sigio_sclose,&
@@ -385,6 +387,8 @@ subroutine gesinfo(mype)
         call read_wrf_mass_files(mype)
      else if(twodvar_regional) then
         call read_2d_files(mype)
+     else if(cmaq_regional) then
+        call read_cmaq_files(mype)
      end if
   else
      call read_files(mype)

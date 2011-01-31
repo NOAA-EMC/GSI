@@ -200,6 +200,8 @@ end subroutine read_bal
       use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
       use jfunc,only: varq,qoption
+      use chemmod, only : berror_chem
+      use constants, only: max_varname_length
 
       implicit none
 
@@ -215,6 +217,9 @@ end subroutine read_bal
 
       integer(i_kind)                    ,intent(in   ) :: mype  ! "my" processor ID
       integer(i_kind),optional           ,intent(in   ) :: unit ! an alternative unit
+
+
+
 
 ! !REVISION HISTORY:
 ! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
@@ -239,7 +244,9 @@ end subroutine read_bal
   integer(i_kind) :: nsigstat,nlatstat
   integer(i_kind) :: loc,nn,isig
   real(r_kind) :: corq2x
-  character*5 var
+  character*5 varshort
+  character(len=max_varname_length) :: var_chem,var
+
   logical,allocatable,dimension(:) :: found3d
   logical,allocatable,dimension(:) :: found2d
 
@@ -278,7 +285,14 @@ end subroutine read_bal
   found3d=.false.
   found2d=.false.
   read: do
-     read(inerr,iostat=istat) var, isig
+     if (berror_chem) then
+        read(inerr,iostat=istat) var_chem,isig
+        var=var_chem
+     else
+        read(inerr,iostat=istat) varshort, isig
+        var=varshort
+     endif
+
      if (istat/=0) exit
 
      allocate ( corzin(nlat,isig) )

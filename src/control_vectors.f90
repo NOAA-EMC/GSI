@@ -71,6 +71,7 @@ use file_utility, only : get_lun
 use mpl_allreducemod, only: mpl_allreduce
 use hybrid_ensemble_parameters, only: beta1_inv,l_hyb_ens
 use hybrid_ensemble_parameters, only: grd_ens
+use constants, only : max_varname_length
 
 use m_rerank, only : rerank
 use GSI_BundleMod, only : GSI_BundleCreate
@@ -147,12 +148,12 @@ integer(i_kind) nrf,nvars
 integer(i_kind) ntracer
 
 integer(i_kind) :: nc2d,nc3d,mvars
-character(len=8),allocatable,dimension(:) :: nrf_var  ! names of all variables
-character(len=8),allocatable,dimension(:) :: cvars2d  ! 2-d fields for static   CV
-character(len=8),allocatable,dimension(:) :: cvars3d  ! 3-d fields for static   CV
-character(len=8),allocatable,dimension(:) :: evars2d  ! 2-d fields for ensemble CV
-character(len=8),allocatable,dimension(:) :: evars3d  ! 3-d fields for ensemble CV
-character(len=8),allocatable,dimension(:) :: cvarsmd  ! motley variable names
+character(len=max_varname_length),allocatable,dimension(:) :: nrf_var  ! names of all variables
+character(len=max_varname_length),allocatable,dimension(:) :: cvars2d  ! 2-d fields for static   CV
+character(len=max_varname_length),allocatable,dimension(:) :: cvars3d  ! 3-d fields for static   CV
+character(len=max_varname_length),allocatable,dimension(:) :: evars2d  ! 2-d fields for ensemble CV
+character(len=max_varname_length),allocatable,dimension(:) :: evars3d  ! 3-d fields for ensemble CV
+character(len=max_varname_length),allocatable,dimension(:) :: cvarsmd  ! motley variable names
 real(r_kind)    ,allocatable,dimension(:) :: as3d
 real(r_kind)    ,allocatable,dimension(:) :: as2d
 real(r_kind)    ,allocatable,dimension(:) :: atsfc_sdv
@@ -418,7 +419,7 @@ subroutine allocate_cv(ycv)
   use hybrid_ensemble_parameters, only: grd_ens
   implicit none
   type(control_vector), intent(  out) :: ycv
-  character(len=5) cvar
+  character(len=max_varname_length) cvar
   integer(i_kind) :: ii,jj,n,nn,ngrid,ndim,ierror,n_step,n_aens
   integer(i_kind) :: mold2(2,2), mold3(2,2,2)
   character(len=256)::bname
@@ -849,7 +850,7 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
      do ii=1,nsubwin
         m3d=xcv%step(ii)%n3d
         m2d=xcv%step(ii)%n2d
-        itot=m2d+m3d
+        itot=max(m3d,0)+max(m2d,0)
         if(l_hyb_ens)itot=itot+n_ens
         allocate(partsum(itot))
 !$omp parallel do  schedule(dynamic,1) private(i)

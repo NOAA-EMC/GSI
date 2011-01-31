@@ -13,6 +13,7 @@ module convinfo
 !   2006-06-29  kistler  - ithin_conv,rmesh_conv moved added to convinfo file entry
 !   2007-11-03       su  - add pmesh_conv 
 !   2009-01-22  todling - add convinfo_initialized
+!   2010-09-10  pagowski - add pm2_5
 !
 ! Subroutines Included:
 !   sub init_convinfo    - initialize conventional obs related variables
@@ -27,6 +28,7 @@ module convinfo
 !   def nconvtype_ps   - number of input conventional type ps
 !   def nconvtype_t    - number of input conventional type t
 !   def nconvtype_spd  - number of input conventional type spd
+!   def nconvtype_pm2_5  - number of input conventional type pm2_5
 !   def ictype         - observation type
 !   def icsubtype      - observation subtype                           
 !   def icuse          - use flag                                        
@@ -44,7 +46,7 @@ module convinfo
 !   def pmesh_conv     - size of vertical thinning mesh 
 !
 !
-!   def predx_conv     - conv obs bias correction coefficients: t,uv,q,ps,spd,sst,pw
+!   def predx_conv     - conv obs bias correction coefficients: t,uv,q,ps,spd,sst,pw,pm2_5
 !                        count,max # of coefs
 !   def npred_conv_max - maximum number of conv ob bias correction coefs 
 !   def npred_conv     - conv ob bias coef count
@@ -70,10 +72,13 @@ module convinfo
 ! set passed variables as public
   public :: icsubtype,ioctype,nconvtype,ictype,diag_conv,icuse,conv_bias_spd,conv_bias_t,stndev_conv_ps
   public :: stndev_conv_spd,stndev_conv_t,id_bias_ps,npred_conv_max,id_bias_t,conv_bias_ps,id_bias_spd
+  public :: stndev_conv_pm2_5,conv_bias_pm2_5,id_bias_pm2_5,ihave_pm2_5
+
   public :: ncgroup,ncnumgrp,ncmiter,ctwind,cermax,pmesh_conv,rmesh_conv,ithin_conv,cvar_b,cvar_pg
   public :: cermin,cgross
 
   logical diag_conv
+  logical :: ihave_pm2_5
   integer(i_kind) nconvtype,mype_conv
   real(r_kind),allocatable,dimension(:)::ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
 										rmesh_conv,pmesh_conv,stndev_conv
@@ -83,10 +88,11 @@ module convinfo
 
   real(r_kind),allocatable,dimension(:,:) :: predx_conv
   integer(i_kind)  npred_conv_max
-  integer(i_kind)  nconvtype_ps,nconvtype_t,nconvtype_spd
-  integer(i_kind)  id_bias_ps,id_bias_t,id_bias_spd
+  integer(i_kind)  nconvtype_ps,nconvtype_t,nconvtype_spd,nconvtype_pm2_5
+  integer(i_kind)  id_bias_ps,id_bias_t,id_bias_spd,id_bias_pm2_5
   real(r_kind)     conv_bias_ps,conv_bias_t,conv_bias_spd, &
-			       stndev_conv_ps,stndev_conv_t,stndev_conv_spd
+       conv_bias_pm2_5,&
+       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,stndev_conv_pm2_5
 
 
   logical,save :: convinfo_initialized=.false.
@@ -125,17 +131,26 @@ contains
     nconvtype_ps  =0
     nconvtype_t   =0
     nconvtype_spd =0
+    nconvtype_pm2_5  =0
     stndev_conv_t =one
     stndev_conv_ps =one
     stndev_conv_spd =one
+    stndev_conv_pm2_5=one
 
     id_bias_ps = 0            ! prepbufr id to have conv_bias added for testing 
     id_bias_t  = 0            ! prepbufr id to have conv_bias added for testing 
     id_bias_spd= 120          ! prepbufr id to have conv_bias added for testing 
+
+    id_bias_pm2_5= 0 
+
     conv_bias_ps = zero       ! magnitude of ps bias(mb)
     conv_bias_t  = zero       ! magnitude of t  bias(deg K)
     conv_bias_spd= zero       ! magnitude of spd bias(m/sec)
-						  
+				
+    conv_bias_pm2_5= zero
+
+    call init_pm2_5
+		  
   end subroutine init_convinfo
 
   subroutine convinfo_read
@@ -283,6 +298,9 @@ contains
              case('spd')
                 nconvtype_spd=nconvtype_spd+1
                 stndev_conv(nc)=stndev_conv_spd
+             case('pm2_5')                
+                nconvtype_pm2_5=nconvtype_pm2_5+1
+                stndev_conv(nc)=stndev_conv_pm2_5
           end select
        endif
     enddo
@@ -427,6 +445,41 @@ contains
 
     return
   end subroutine convinfo_destroy
-  
+
+  subroutine init_pm2_5
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_pm2_5     initialize parameters for pm2_5 data
+!     prgmmr:    pagowski                      date: 2010-12-14
+!
+! abstract:  This routine sets default values for variables used in 
+!            the pm2_5 processing routines
+!
+! program history log:
+!   2010-10-06  pagowski - check chem-bundle for presence of pm2_5
+!   based on  coinfo.f90
+!   2010-05-29  todling - check chem-bundle for presence of CO
+ 
+
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    use mpimod, only: npe              ! contains the number of mpi tasks, variable "npe"
+    use gsi_chemtracer_mod, only: gsi_chemtracer_get
+    implicit none
+    integer(i_kind) :: ipm2_5,ier
+
+    call gsi_chemtracer_get ('var::pm2_5', ipm2_5, ier )
+    ihave_pm2_5=(ipm2_5 > 0)                  ! .t. when pm2_5 present in state-vector
+
+  end subroutine init_pm2_5
+
 end module convinfo
 

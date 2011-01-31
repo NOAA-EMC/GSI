@@ -39,7 +39,7 @@ module state_vectors
 !$$$
 
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: one,zero,zero_quad
+use constants, only: one,zero,zero_quad,max_varname_length
 use mpimod, only: mype
 use file_utility, only : get_lun
 use mpl_allreducemod, only: mpl_allreduce
@@ -90,9 +90,9 @@ logical :: llinit = .false.
 integer(i_kind) :: m_st_alloc, max_st_alloc, m_allocs, m_deallocs
 
 integer(i_kind) :: nvars,ns2d,ns3d
-character(len=5),allocatable,dimension(:) :: svars
-character(len=5),allocatable,dimension(:) :: svars3d
-character(len=5),allocatable,dimension(:) :: svars2d
+character(len=max_varname_length),allocatable,dimension(:) :: svars
+character(len=max_varname_length),allocatable,dimension(:) :: svars3d
+character(len=max_varname_length),allocatable,dimension(:) :: svars2d
 logical,allocatable,dimension(:)          :: edges
 
 

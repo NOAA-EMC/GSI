@@ -132,6 +132,8 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   2010-05-13  todling - harmonized all stp interfaces to use state vector; gsi_bundle use
 !   2010-06-14  todling - add stpco call 
 !   2010-07-10  todling - somebody reordered calls to stpw, stpq, and stpoz - any reason?
+!   2010-10-15  pagowski - add stppm2_5 call 
+
 !
 !   input argument list:
 !     yobs
@@ -167,6 +169,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
                   & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, i_co3l_ob_type, &
                   & i_gps_ob_type, i_rad_ob_type, i_pcp_ob_type,i_tcp_ob_type, &
+                  &i_pm2_5_ob_type, &
                     nobs_type
   use stptmod, only: stpt
   use stpwmod, only: stpw
@@ -185,6 +188,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
   use stppcpmod, only: stppcp
   use stpozmod, only: stpoz
   use stpcomod, only: stpco
+  use stppm2_5mod, only: stppm2_5
   use bias_predictors, only: predictors
   use gsi_bundlemod, only: gsi_bundle
   implicit none
@@ -224,6 +228,10 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !$omp section
 !   penalty, b, and c for ozone
     call stpco(yobs%co3l,dval,xval,pbcjo(1,i_co3l_ob_type),sges,nstep)
+
+!$omp section
+!   penalty, b, and c for ozone
+    call stppm2_5(yobs%pm2_5,dval,xval,pbcjo(1,i_pm2_5_ob_type),sges,nstep)
 
 !$omp section
 !   penalty, b, and c for wind lidar

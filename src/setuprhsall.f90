@@ -74,6 +74,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2010-04-01  tangborn - start adding call for carbon monoxide data. 
 !   2010-04-28      zhu - add ostats and rstats for additional precoditioner
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
+!   2010-10-14  pagowski - added pm2_5 conventional obs
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -405,10 +406,13 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !             Set up conventional lagrangian data
               else if(obstype=='lag') then 
                  call setuplag(lunin,mype,bwork,awork(1,i_lag),nele,nobs,is,conv_diagsave)
+              else if(obstype == 'pm2_5')then 
+                 call setuppm2_5(lunin,mype,nele,nobs,&
+                      isis,is)
+                 
+              end if
 
-           end if
-
-!          Set up ozone (sbuv/omi/mls) data
+!          set up ozone (sbuv/omi/mls) data
            else if(ditype(is) == 'ozone' .and. ihave_oz)then
               if (obstype == 'o3lev') then
                  call setupo3lv(lunin,mype,bwork,awork(1,i_o3),nele,nobs,&

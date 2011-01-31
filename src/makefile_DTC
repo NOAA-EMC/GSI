@@ -100,6 +100,9 @@ LIBsys          = $(MYLIBsys)
 	calctends_tl.o \
 	calctends_no_ad.o \
 	calctends_no_tl.o \
+        chemmod.o \
+        clw_mod.o \
+        cmaq_routines.o \
         coinfo.o \
 	combine_radobs.o \
 	compact_diffs.o \
@@ -179,6 +182,7 @@ LIBsys          = $(MYLIBsys)
 	intlimq.o \
 	intoz.o \
 	intpcp.o \
+        intpm2_5.o \
 	intps.o \
 	intpw.o \
 	intq.o \
@@ -273,6 +277,7 @@ LIBsys          = $(MYLIBsys)
         read_aerosol.o \
 	read_airs.o \
 	read_amsre.o \
+        read_anowbufr.o \
 	read_avhrr.o \
 	read_avhrr_navy.o \
 	read_bufrtovs.o \
@@ -323,6 +328,7 @@ LIBsys          = $(MYLIBsys)
         setuplag.o \
 	setupoz.o \
 	setuppcp.o \
+        setuppm2_5.o \
 	setupps.o \
 	setuppw.o \
 	setupq.o \
@@ -365,6 +371,7 @@ LIBsys          = $(MYLIBsys)
 	stplimq.o \
 	stpoz.o \
 	stppcp.o \
+        stppm2_5.o \
 	stpps.o \
 	stppw.o \
 	stpq.o \

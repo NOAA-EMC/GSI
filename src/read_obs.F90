@@ -107,6 +107,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 ! program history log:
 !   2009-??-??  derber   - originally placed inside inquire
 !   2009-01-05  todling  - move time/type-check out of inquire
+!   2010-09-13  pagowski - add anow bufr and one obs chem
 !
 !   input argument list:
 !    lexist    - file status
@@ -127,6 +128,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   use gsi_4dvar, only: iadatebgn,iadateend
   use obsmod, only: offtime_data
   use convinfo, only: nconvtype,ictype,ioctype,icuse
+  use chemmod, only : oneobtest_chem,oneob_type_chem
 
   implicit none
 
@@ -227,6 +229,32 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
            end do
           end do 
          end do fileloop
+    else if(trim(dtype) == 'pm2_5')then
+       if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
+          lexist=.true.
+       else
+          lexist = .false.
+          fileloopanow:do while(ireadmg(lnbufr,subset,idate2) >= 0)
+             do while(ireadsb(lnbufr)>=0)
+                call ufbint(lnbufr,rtype,1,1,iret,'TYP')
+                kx=nint(rtype)
+                do nc=1,nconvtype
+                   if(trim(ioctype(nc)) == trim(dtype) .and. &
+                        kx == ictype(nc) .and. icuse(nc) > minuse)then
+                      lexist = .true.
+                      exit fileloopanow
+                   end if
+                end do
+             end do
+          enddo fileloopanow
+       endif
+
+       if (lexist) then
+          write(6,*)'found pm2_5 in anow bufr'
+       else
+          write(6,*)'did not find pm2_5 in anow bufr'
+       endif
+           
        end if
       end if
 
@@ -337,6 +365,7 @@ subroutine read_obs(ndata,mype)
     use ozinfo, only: nusis_oz,iuse_oz,jpch_oz,diag_ozone
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv
+    use chemmod, only : oneobtest_chem,oneob_type_chem,oneobschem
 
     implicit none
 
@@ -452,7 +481,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'dw' .or. obstype == 'rw' .or. &
            obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
            obstype == 'rad_ref' .or. obstype=='lghtn' .or. &
-           obstype == 'larccld' )  then
+           obstype == 'larccld' .or. obstype == 'pm2_5')  then
           ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  &
                obstype == 'seviri'    .or.  &
@@ -783,6 +812,18 @@ subroutine read_obs(ndata,mype)
                 call read_superwinds(nread,npuse,nouse,infile,obstype,lunout, &
                      twind,sis)
                 string='READ_SUPRWNDS'
+
+             else if (obstype == 'pm2_5') then
+
+                if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
+                   call oneobschem(nread,npuse,nouse,gstime,&
+                        &infile,obstype,lunout,sis)
+                   string='ONEOBSCHEM'
+                else
+                   call read_anowbufr(nread,npuse,nouse,gstime,&
+                        &infile,obstype,lunout,twind,sis)
+                   string='READ_ANOWBUFR'
+                endif
              end if
 
           else if (ditype(i) == 'rad')then

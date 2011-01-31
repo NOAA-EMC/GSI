@@ -15,6 +15,7 @@ subroutine setupyobs()
 !   2009-08-11  lueken   - updated documentation
 !   2010-04-22  tangborn - updated reference to co
 !   2010-07-10  todling  - add aerosols pointer
+!   2010-10-15  pagowski  - add pm2_5 pointer
 !
 !   input argument list:
 !
@@ -29,7 +30,7 @@ use kinds, only: i_kind
 use obsmod, only: pshead, thead, whead, qhead, spdhead, srwhead, rwhead, &
                 & dwhead, ssthead, radhead, pcphead, pwhead, gpshead, &
                 & ozhead, o3lhead, tcphead, laghead, co3lhead, aerohead, &
-                & aerolhead, yobs
+                & aerolhead, pm2_5head, yobs
 use gsi_4dvar, only: nobs_bins
 implicit none
 
@@ -59,6 +60,7 @@ do ii=1,nobs_bins
    yobs(ii)%co3l=> co3lhead(ii)%head
    yobs(ii)%aero=> aerohead(ii)%head
    yobs(ii)%aerol=>aerolhead(ii)%head
+   yobs(ii)%pm2_5=>pm2_5head(ii)%head
 end do
 
 return

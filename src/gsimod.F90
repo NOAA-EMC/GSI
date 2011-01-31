@@ -36,7 +36,9 @@
   use convinfo, only: init_convinfo,npred_conv_max, &
                       id_bias_ps,id_bias_t,id_bias_spd, &
                       conv_bias_ps,conv_bias_t,conv_bias_spd, &
-                      stndev_conv_ps,stndev_conv_t,stndev_conv_spd,diag_conv
+                      stndev_conv_ps,stndev_conv_t,stndev_conv_spd,diag_conv,&
+                      stndev_conv_pm2_5,id_bias_pm2_5,conv_bias_pm2_5
+
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
      oneobtest,magoberr,maginnov,init_oneobmod,pctswitch
   use balmod, only: fstat
@@ -63,7 +65,7 @@
   use mod_vtrans, only: nvmodes_keep,init_vtrans
   use mod_strong, only: jcstrong,jcstrong_option,nstrong,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
-  use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,nems_nmmb_regional,&
+  use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
@@ -91,6 +93,12 @@
   use gsi_chemtracer_mod, only: gsi_chemtracer_init,gsi_chemtracer_final
   use gsi_4dcouplermod, only: gsi_4dcoupler_parallel_init
   use tcv_mod, only: init_tcps_errvals,tcp_oberr,tcp_innmax,tcp_oedelt
+  use chemmod, only : init_chem,berror_chem,oneobtest_chem,&
+       maginnov_chem,magoberr_chem,&
+       oneob_type_chem,oblat_chem,&
+       oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
+       in_fname,out_fname,incr_fname
+
   implicit none
 
   private
@@ -179,6 +187,7 @@
 !  08-24-2010 hcHuang   add diag_aero and init_aero for aerosol observations
 !  08-26-2010 Cucurull  add use_compress to setup namelist, add a call to gps_constants
 !  09-02-2010 Zhu       Add option use_edges for the usage of radiance data on scan edges
+!  11-17-2010 Pagowski  add chemical species and related namelist
 !                         
 !EOP
 !-------------------------------------------------------------------------
@@ -331,6 +340,7 @@
 !     regional          - logical for regional GSI run
 !     wrf_nmm_regional  - logical for input from WRF NMM
 !     wrf_mass_regional - logical for input from WRF MASS-CORE
+!     cmaq_regional     - logical for input from CMAQ
 !     nems_nmmb_regional- logical for input from NEMS NMMB
 !     nmmb_reference_grid= 'H', then analysis grid covers H grid domain
 !                                = 'V', then analysis grid covers V grid domain
@@ -345,7 +355,7 @@
 
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,hybrid,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
-       wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,&
+       wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
        nmmb_reference_grid,grid_ratio_nmmb
 
 ! BKGERR (background error related variables):
@@ -566,6 +576,11 @@
                                 metar_impact_radius,metar_impact_radius_lowCloud, &
                                 l_gsd_terrain_match_surfTobs
 
+  namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
+       oneob_type_chem,oblat_chem,&
+       oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
+       in_fname,out_fname,incr_fname
+
 !EOC
 
 !---------------------------------------------------------------------------
@@ -635,6 +650,7 @@
   call init_obsens
   call init_hybrid_ensemble_parameters
   call init_rapidrefresh_cldsurf
+  call init_chem
   call init_tcps_errvals
   preserve_restart_date=.false.
 
@@ -657,6 +673,7 @@
   read(5,lag_data)
   read(5,hybrid_ensemble)
   read(5,rapidrefresh_cldsurf)
+  read(5,chem)
 #else
   open(11,file='gsiparm.anl')
   read(11,setup,iostat=ios)
@@ -683,6 +700,8 @@
         if(ios/=0) call die(myname_,'read(hybrid_ensemble)',ios)
   read(11,rapidrefresh_cldsurf,iostat=ios)
         if(ios/=0) call die(myname_,'read(rapidrefresh_cldsurf)',ios)
+  read(11,chem,iostat=ios)
+        if(ios/=0) call die(myname_,'read(chem)',ios)
   close(11)
 #endif
 
@@ -714,8 +733,7 @@
 
 ! Set regional parameters
   if(filled_grid.and.half_grid) filled_grid=.false.
-  regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional
-
+  regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional .or. cmaq_regional
 
 ! Check that regional=.true. if jcstrong_option > 2
   if(jcstrong_option>2.and..not.regional) then
@@ -899,6 +917,7 @@
      write(6,lag_data)
      write(6,hybrid_ensemble)
      write(6,rapidrefresh_cldsurf)	
+     write(6,chem)
      if (oneobtest) write(6,singleob_test)
   endif
 

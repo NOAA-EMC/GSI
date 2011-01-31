@@ -25,6 +25,7 @@ module constants
 !   2010-06-010 tangborn - add constants for CO assimilation
 !   2010-08-25  cucurull - add constants to compute compressibility factor
 !                        - add option to use Rueger/Bevis refractive index coeffs
+!   2010-12-20 pagowski  - add max_varname_length=12
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
@@ -66,9 +67,11 @@ module constants
   public :: cpf_a0, cpf_a1, cpf_a2, cpf_b0, cpf_b1, cpf_c0, cpf_c1, cpf_d, cpf_e
   public :: psv_a, psv_b, psv_c, psv_d
   public :: ef_alpha, ef_beta, ef_gamma
+  public :: max_varname_length
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
+  integer(i_kind), parameter :: max_varname_length=12
   real(r_single):: tiny_single, huge_single
   real(r_kind):: xai, xa, xbi, xb, dldt, rozcon,ozcon,fv, tpwcon,eps, rd_over_g
   real(r_kind):: el2orc, g_over_rd, rd_over_cp, cpr, omeps, epsm1, factor2

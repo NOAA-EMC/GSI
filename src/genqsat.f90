@@ -23,6 +23,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 !   2008-06-04  safford - rm unused vars
 !   2010-03-23  derber - simplify and optimize
 !   2010-03-24  derber - generalize so that can be used for any lat,lon,nsig and any tsen and prsl (for hybrid)
+!   2010-12-17  pagowski - add cmaq
 !
 !   input argument list:
 !     tsen      - input sensibile temperature field (lat2,lon2,nsig)
@@ -51,7 +52,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
   use constants, only: ione,xai,tmix,xb,omeps,eps,xbi,one,zero,&
        xa,psat,ttp,half,one_tenth
   use jfunc, only:  qgues,dqdt,dqdrh,dqdp
-  use gridmod, only:  wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional,aeta2_ll,regional
+  use gridmod, only:  wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional,aeta2_ll,regional,cmaq_regional
   use guess_grids, only: tropprs,ges_prslavg,ges_psfcavg
   implicit none
 
@@ -117,7 +118,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
            endif
         end do
     end if
-    if (wrf_nmm_regional.or.nems_nmmb_regional) then
+    if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
         kpres = nsig
         do k=1,nsig
            if (aeta2_ll(k)==zero) then
@@ -174,7 +175,8 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
                   idpupdate=.false.
                   idtupdate=.false.
                 end if
-                if(wrf_nmm_regional .or. nems_nmmb_regional) then
+                if(wrf_nmm_regional .or. nems_nmmb_regional.or.&
+                     cmaq_regional) then
 !       Decouple T and p at different levels for nmm core
                   if(k >= kpres)idpupdate = .false.
                   if(k >= k150 )idtupdate = .false.
