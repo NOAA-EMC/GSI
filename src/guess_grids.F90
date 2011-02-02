@@ -76,6 +76,8 @@ module guess_grids
 !   2010-05-19  todling - add chem init and destroy (revamp Hou's implementation)
 !   2010-08-31  cucurull - add logical use_compress
 !   2010-09-15  pagowski - add cmaq
+!   2010-12-20  cucurull - add integer nsig_ext 
+!   2011-01-05  cucurull - add real gpstop
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -119,7 +121,7 @@ module guess_grids
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
   public :: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg
   public :: ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
-  public :: use_compress
+  public :: use_compress,nsig_ext,gpstop
 
   public :: ges_initialized
   public :: tnd_initialized
@@ -147,6 +149,7 @@ module guess_grids
   integer(i_kind), save:: ntguessfc_ref	! replace ntguessfc as the storage for its original value
 
   integer(i_kind):: ifact10 = 0     ! 0 = use 10m wind factor from guess
+  integer(i_kind):: nsig_ext = 13   ! use 13 layers above model top to compute the bending angle for gpsro
 
   ! number of guess sigma/surface times are set in GSI_gridComp.rc
 
@@ -177,7 +180,10 @@ module guess_grids
 
   real(r_kind),allocatable,dimension(:,:,:):: sno2  ! sno depth on subdomain
 
- 
+
+  real(r_kind):: gpstop=30.0_r_kind   ! maximum gpsro height used in km 
+                                      ! geometric height for ref, impact height for bnd
+
   real(r_kind):: ges_psfcavg                            ! average guess surface pressure 
   real(r_kind),allocatable,dimension(:):: ges_prslavg   ! average guess pressure profile
 

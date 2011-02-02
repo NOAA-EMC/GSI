@@ -35,6 +35,9 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !   2010-08-17 treadon  - convert high_gps from m to km one time only; break out regional
 !                         QC as separate if/then block (global will bypass); replace 
 !                         ratio_errors_reg with logical toss
+!   2010-10-25 cucurull - add quality control options for C/NOFS satellite
+!   2011-01-18 cucurull - increase the size of nreal and mreal by one element to 
+!                         add gps_dtype information
 !
 !   input argument list:
 !     toss_gps_sub  - array of qc'd profile heights
@@ -165,7 +168,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
         end do
      END DO
      if(icnt > 0)then
-        nreal =19
+        nreal =20
         if (lobsdiagsave) nreal=nreal+4*miter+1
         allocate(cdiag(icnt),sdiag(nreal,icnt))
      end if
@@ -249,7 +252,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !       zero (effectively tossing the obs).
  
         rhgt = gps_allptr%loc
-        mreal = 19_r_kind
+        mreal = 20
         if (rhgt<=toss_gps(kprof)) then
            if(ratio_errors*data_ier > tiny_r_kind) then ! obs was good
               if (luse) then
@@ -283,7 +286,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
         if(regional) then
            toss=.false.
            if(ratio_errors*data_ier > tiny_r_kind) then
-              if((satid==41).or.(satid==722).or.(satid==723).or.(satid==4)) then
+              if((satid==41).or.(satid==722).or.(satid==723).or.(satid==4).or.(satid==786)) then
                  if ((high_gps(kprof)) < ten)  toss=.true.
               else ! OL
                  if ((high_gps(kprof)) < five) toss=.true.

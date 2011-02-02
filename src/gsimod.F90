@@ -71,7 +71,7 @@
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs
-  use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress
+  use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
   use constants, only: zero,one,init_constants,gps_constants,init_constants_derived,three
@@ -188,6 +188,8 @@
 !  08-26-2010 Cucurull  add use_compress to setup namelist, add a call to gps_constants
 !  09-02-2010 Zhu       Add option use_edges for the usage of radiance data on scan edges
 !  11-17-2010 Pagowski  add chemical species and related namelist
+!  12-20-2010 Cucurull  add nsig_ext to setup namelist for the usage of gpsro bending angle
+!  01-05-2011 Cucurull  add gpstop to setup namelist for the usage of gpsro data assimilation
 !                         
 !EOP
 !-------------------------------------------------------------------------
@@ -297,6 +299,8 @@
 !     passive_bc  - option to turn on bias correction for passive (monitored) channels
 !     use_edges   - option to exclude radiance data on scan edges
 !     use_compress - option to turn on the use of compressibility factors in geopotential heights
+!     nsig_ext - number of layers above the model top which are necessary to compute the bending angle for gpsro
+!     gpstop - maximum height for gpsro data assimilation. Reject anything above this height. 
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -311,7 +315,7 @@
        npred_conv_max,&
        id_bias_ps,id_bias_t,id_bias_spd, &
        conv_bias_ps,conv_bias_t,conv_bias_spd, &
-       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,use_compress,&
+       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,use_compress,nsig_ext,gpstop,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path, &
        berror_stats,newpc4pred,adp_anglebc,angord,passive_bc,use_edges, &

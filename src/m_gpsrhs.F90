@@ -11,6 +11,7 @@ module m_gpsrhs
 ! program history log:
 !   2010-03-22  j guo   - added this document block
 !   2010-05-27  j guo   - derived from m_rhs.f90
+!   2011-01-04  l cucurull - add nsig_ext in gpsrhs_alloc
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -164,7 +165,7 @@ module m_gpsrhs
 
 contains
 
-subroutine gpsrhs_alloc(is,class,nobs,nsig,nreal,grids_dim)
+subroutine gpsrhs_alloc(is,class,nobs,nsig,nreal,grids_dim,nsig_ext)
   use constants, only: zero
   use obsmod   , only: ndat
   implicit none
@@ -174,6 +175,7 @@ subroutine gpsrhs_alloc(is,class,nobs,nsig,nreal,grids_dim)
   integer(i_kind),intent(in) :: nsig
   integer(i_kind),intent(in) :: nreal
   integer(i_kind),intent(in) :: grids_dim
+  integer(i_kind),intent(in) :: nsig_ext
 
   type(gpsrhs_buffer),pointer:: b
   character(len=*),parameter:: myname_=myname//'_alloc'
@@ -231,7 +233,7 @@ _ENTRY_(myname_)
     allocate(b%n_t(nsig,nobs))
     allocate(b%n_q(nsig,nobs))
     allocate(b%n_p(nsig,nobs))
-    allocate(b%nrefges(nsig+10,nobs))
+    allocate(b%nrefges(nsig+nsig_ext,nobs))
 
     b%n_t(:,:)=HUGE(b%n_t)
     b%n_q(:,:)=HUGE(b%n_q)
