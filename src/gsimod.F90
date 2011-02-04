@@ -70,7 +70,8 @@
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
-     nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs
+     nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
+     use_gfs_nemsio
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
@@ -187,6 +188,7 @@
 !  08-24-2010 hcHuang   add diag_aero and init_aero for aerosol observations
 !  08-26-2010 Cucurull  add use_compress to setup namelist, add a call to gps_constants
 !  09-02-2010 Zhu       Add option use_edges for the usage of radiance data on scan edges
+!  10-18-2010 hcHuang   Add option use_gfs_nemsio to read global model NEMS/GFS first guess
 !  11-17-2010 Pagowski  add chemical species and related namelist
 !  12-20-2010 Cucurull  add nsig_ext to setup namelist for the usage of gpsro bending angle
 !  01-05-2011 Cucurull  add gpstop to setup namelist for the usage of gpsro data assimilation
@@ -301,6 +303,7 @@
 !     use_compress - option to turn on the use of compressibility factors in geopotential heights
 !     nsig_ext - number of layers above the model top which are necessary to compute the bending angle for gpsro
 !     gpstop - maximum height for gpsro data assimilation. Reject anything above this height. 
+!     use_gfs_nemsio  - option to use nemsio to read global model NEMS/GFS first guess
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -326,7 +329,7 @@
        idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
-       lwrite_peakwt
+       lwrite_peakwt, use_gfs_nemsio
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution

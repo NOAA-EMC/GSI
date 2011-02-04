@@ -61,6 +61,7 @@ module gridmod
 !                           rotation angles for a small number of winds whose rotation angle was interpolated
 !                           from beta_ref values across the discontinuity.  This was fixed by replacing the
 !                           beta_ref field with cos_beta_ref, sin_beta_ref.
+!   2010-10-18  hcHuang - add flag use_gfs_nemsio to determine whether to use NEMSIO to read global first guess field
 !   2010-10-19  parrish - correct bug in subroutine init_reg_glob_ll.  When running with
 !                           wrf_nmm_regional=.true. and filled_grid=.true., all obs get tossed.  This was
 !                           fixed by replacing region_lat and region_lon with glat_an, glon_an
@@ -130,6 +131,7 @@ module gridmod
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
   public :: jcap,jcap_b,hires_b,sp_a,sp_b,grd_a,grd_b
   public :: jtstart,jtstop,nthreads
+  public :: use_gfs_nemsio
 
   logical regional          ! .t. for regional background/analysis
   logical diagnostic_reg    ! .t. to activate regional analysis diagnostics
@@ -151,6 +153,7 @@ module gridmod
   logical half_grid         !
   logical update_regsfc     !
   logical hires_b           ! .t. when jcap_b requires double FFT
+  logical use_gfs_nemsio    ! .t. for using NEMSIO to real global first guess
 
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
                                         ! ='V': use nmmb V grid as reference for analysis grid
@@ -361,6 +364,7 @@ contains
 !   2010-03-15  parrish - add initialization of regional_ozone flag
 !   2010-08-10  wu      - add initialization of nvege_type          
 !   2010-10-14  pagowski- add CMAQ
+!   2010-10-18  hcHuang - add flag use_gfs_nemsio to determine whether to use NEMSIO to read global first guess field
 !
 ! !REMARKS:
 !   language: f90
@@ -426,6 +430,8 @@ contains
     hires_b=.false.
     nvege_type=24
     nthreads = 1  ! initialize the number of threads
+
+    use_gfs_nemsio = .false.
 
     return
   end subroutine init_grid

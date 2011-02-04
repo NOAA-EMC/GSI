@@ -19,19 +19,45 @@ subroutine gesinfo(mype)
 !   2009-10-09  wu      - replace nhr_offset with min_offset since it's 1.5 hr for regional
 !   2010-03-31  treadon - move jcap_b to gridmod
 !   2010-09-09  pagowski - add cmaq
-
+!   2010-12-03  hcHuang - add use_gfs_nemsio if input files is in NEMSIO format
+!                         make use of nemsio_module to obtain header information including time
+!                         vertical corrdiates, ...etc.
 !
 !   input argument list:
 !     mype - mpi task id
 !
 !   comments:
+!     The difference of time Info between operational GFS IO (gfshead%, sfc_head%),
+!      analysis time (iadate), and NEMSIO (idate=)
+!
+!       gfshead & sfc_head            NEMSIO Header           Analysis time (obsmod)
+!       ===================   ============================  ==========================
+!         %idate(1)  Hour     idate(1)  Year                iadate(1)  Year
+!         %idate(2)  Month    idate(2)  Month               iadate(2)  Month
+!         %idate(3)  Day      idate(3)  Day                 iadate(3)  Day
+!         %idate(4)  Year     idate(4)  Hour                iadate(4)  Hour
+!                             idate(5)  Minute              iadate(5)  Minute
+!                             idate(6)  Scaled seconds
+!                             idate(7)  Seconds multiplier
+!
+!     The difference of header forecasting hour Info bewteen operational GFS IO
+!      (gfshead%, sfc_head%) and NEMSIO
+!
+!           gfshead & sfc_head                NEMSIO Header
+!       ==========================     ============================
+!       %fhour  FCST Hour (r_kind)     nfhour     FCST Hour (i_kind)
+!                                      nfminute   FCST Mins (i_kind)
+!                                      nfsecondn  FCST Secs (i_kind) numerator
+!                                      nfsecondd  FCST Secs (i_kind) denominator
+!
+!       %fhour = float(nfhour) + float(nfminute)/60. + float(nfsecondn)/float(nfsecondd)/3600.
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: i_kind,r_kind
+  use kinds, only: i_kind,r_kind,r_single
   use obsmod, only: iadate,ianldate,time_offset
   use gsi_4dvar, only: ibdate, iedate, iadatebgn, iadateend, iwinbgn,time_4dvar
   use gsi_4dvar, only: nhr_assimilation,min_offset
@@ -40,11 +66,13 @@ subroutine gesinfo(mype)
        regional,nsig,regional_fhr,regional_time,&
        wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,cmaq_regional,&
        ntracer,ncloud,ncep_sigio,nlat,nlon,idvm5,&
-       ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5,jcap_b
+       ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5,jcap_b, use_gfs_nemsio
   use sigio_module, only: sigio_head,sigio_srhead,sigio_sclose,&
        sigio_sropen
   use gfsio_module, only: gfsio_gfile,gfsio_open,gfsio_close,&
        gfsio_init,gfsio_finalize,gfsio_getfilehead
+  use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
+  use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
 
   use constants, only: zero,h300,r60
 
@@ -54,30 +82,32 @@ subroutine gesinfo(mype)
   integer(i_kind), intent(in   ) :: mype
 
 ! Declare local parameters
-  integer(i_kind),parameter:: lunges=11_i_kind
+  integer(i_kind),parameter:: lunges=11
   real(r_kind),parameter::  zero_001=0.001_r_kind
 
 ! Declare local variables
 
   logical fexist
   character(6) filename
-  character(8) filetype
+  character(8) filetype, mdlname
 
   integer(i_kind) iyr,ihourg,k
   integer(i_kind) mype_out,iret,iret2,intype
   integer(i_kind),dimension(4):: idate4
   integer(i_kind),dimension(8):: ida,jda
   integer(i_kind) :: nmin_an
+  integer(i_kind),dimension(7):: idate
+  integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
 
   real(r_kind) hourg
-  real(r_kind),dimension(5):: fha
+  real(r_kind),dimension(5) :: fha
+  real(r_single),allocatable,dimension(:,:,:) :: nems_vcoord
 
   type(sigio_head):: sighead
   type(gfsio_gfile) :: gfile
   type(ncepgfs_head):: gfshead
   type(ncepgfs_headv):: gfsheadv
-
-
+  type(nemsio_gfile) :: gfile2
 
 !---------------------------------------------------------------------
 ! Get guess date and vertical coordinate structure from atmospheric
@@ -108,115 +138,201 @@ subroutine gesinfo(mype)
 
 !    Determine NCEP atmospheric guess file format
      intype = 0
-     call sigio_sropen(lunges,filename,iret)
-     call sigio_srhead(lunges,sighead,iret2)
-     if (iret==0 .and. iret2==0) then
-        intype = 1
-     else
-        call gfsio_init(iret)
-        call gfsio_open(gfile,trim(filename),'read',iret)
-        call gfsio_getfilehead(gfile,iret=iret2,gtype=filetype)
-        if (iret==0 .and. iret2==0 .and. filetype=='GFSIOATM') intype = 2_i_kind
-     endif
-     if (intype==1) then
-        ncep_sigio=.true.
-     elseif (intype==2_i_kind) then
-        ncep_sigio=.false.
-     else
-        write(6,*)' GESINFO:  UNKNOWN FORMAT FOR NCEP ATM GUESS FILE ',filename
-        call stop2(99)
-        stop
-     endif
+     if ( .not. use_gfs_nemsio ) then
 
-     if (mype==mype_out) then
-        if (ncep_sigio) then
-           write(6,*)'GESINFO:  Read NCEP sigio format file, ',filename
+        call sigio_sropen(lunges,filename,iret)
+        call sigio_srhead(lunges,sighead,iret2)
+        if (iret==0 .and. iret2==0) then
+           intype = 1
         else
-           write(6,*)'GESINFO:  Read NCEP gfsio format file, ',filename
+           call gfsio_init(iret)
+           call gfsio_open(gfile,trim(filename),'read',iret)
+           call gfsio_getfilehead(gfile,iret=iret2,gtype=filetype)
+           if (iret==0 .and. iret2==0 .and. filetype=='GFSIOATM') intype = 2
         endif
-     endif
-           
-!    Extract information from NCEP atmospheric guess using sigio
-     if (ncep_sigio) then
-
-!       Fill structure with NCEP sigio header information
-        gfshead%fhour=sighead%fhour
-        gfshead%idate=sighead%idate
-        gfshead%latb=sighead%latb
-        gfshead%lonb=sighead%lonb
-        gfshead%levs=sighead%levs
-        gfshead%jcap=sighead%jcap
-        gfshead%ntrac=sighead%ntrac
-        gfshead%idvc=sighead%idvc
-        gfshead%idvm=sighead%idvm
-        gfshead%idsl=sighead%idsl
-        gfshead%ncldt=sighead%ncldt
-        gfshead%nvcoord=sighead%nvcoord
-
-        allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
-        gfsheadv%vcoord=sighead%vcoord
-
-        allocate(gfsheadv%cpi(gfshead%ntrac+1))
-        if (mod(gfshead%idvm/10,10_i_kind) == 3_i_kind) then
-           do k=1,gfshead%ntrac+1
-              gfsheadv%cpi(k)=sighead%cpi(k)
-           end do
+        if (intype==1) then
+           ncep_sigio=.true.
+        elseif (intype==2) then
+           ncep_sigio=.false.
         else
+           write(6,*)' GESINFO:  UNKNOWN FORMAT FOR NCEP ATM GUESS FILE ',filename
+           call stop2(99)
+           stop
+        endif
+
+        if (mype==mype_out) then
+           if (ncep_sigio) then
+              write(6,*)'GESINFO:  Read NCEP sigio format file, ',filename
+           else
+              write(6,*)'GESINFO:  Read NCEP gfsio format file, ',filename
+           endif
+        endif
+           
+!       Extract information from NCEP atmospheric guess using sigio
+        if (ncep_sigio) then
+
+!          Fill structure with NCEP sigio header information
+           gfshead%fhour=sighead%fhour
+           gfshead%idate=sighead%idate
+           gfshead%latb=sighead%latb
+           gfshead%lonb=sighead%lonb
+           gfshead%levs=sighead%levs
+           gfshead%jcap=sighead%jcap
+           gfshead%ntrac=sighead%ntrac
+           gfshead%idvc=sighead%idvc
+           gfshead%idvm=sighead%idvm
+           gfshead%idsl=sighead%idsl
+           gfshead%ncldt=sighead%ncldt
+           gfshead%nvcoord=sighead%nvcoord
+
+           allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
+           gfsheadv%vcoord=sighead%vcoord
+
+           allocate(gfsheadv%cpi(gfshead%ntrac+1))
+           if (mod(gfshead%idvm/10,10) == 3) then
+              do k=1,gfshead%ntrac+1
+                 gfsheadv%cpi(k)=sighead%cpi(k)
+              end do
+           else
+              do k=1,gfshead%ntrac+1
+                 gfsheadv%cpi(k)=zero
+              end do
+           endif
+
+           call sigio_sclose(lunges,iret)
+
+!          Check for consistency:  jcap, levs
+           if (gfshead%jcap/=jcap_b .or. gfshead%levs/=nsig) then
+              write(6,*)'GESINFO:  ***ERROR*** sigio (jcap_b,levs)=',&
+                 gfshead%jcap,gfshead%levs, ' do not equal ',&
+                 ' user (jcap_b,nsig)=',jcap_b,nsig
+              call stop2(85)
+           endif
+
+
+!       Extract information from NCEP atmospheric guess using gfsio
+        else
+           call gfsio_getfilehead(gfile,iret=iret,&
+                fhour=gfshead%fhour,&
+                idate=gfshead%idate,&
+                latb=gfshead%latb,&
+                lonb=gfshead%lonb,&
+                levs=gfshead%levs,&
+                jcap=gfshead%jcap,&
+                ntrac=gfshead%ntrac,&
+                idvc=gfshead%idvc,&
+                idvm=gfshead%idvm,&
+                idsl=gfshead%idsl,&
+                ncldt=gfshead%ncldt,&
+                nvcoord=gfshead%nvcoord)
+
+
+!          Extract horizontal and vertical coordinate structure
+           allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
+           call gfsio_getfilehead(gfile,iret=iret,vcoord=gfsheadv%vcoord)
+   
+           allocate(gfsheadv%cpi(gfshead%ntrac+1))
            do k=1,gfshead%ntrac+1
               gfsheadv%cpi(k)=zero
            end do
+
+           call gfsio_close(gfile,iret)
+           call gfsio_finalize()
+
+!          Check for consistency:  jcap, levs, latb,lonb
+           if ( gfshead%latb+2/=nlat .or. gfshead%lonb/=nlon .or. &
+              gfshead%levs/=nsig ) then
+              write(6,*)'GESINFO:  ***ERROR*** gfsio (latb+2,lonb,levs)=',&
+                 gfshead%latb+2,gfshead%lonb,gfshead%levs, ' do not equal ',&
+                 ' user (nlat,nlon,nsig)=',nlat,nlon,nsig
+              call stop2(85)
+           endif
+
         endif
 
-
-        call sigio_sclose(lunges,iret)
-
-!       Check for consistency:  jcap, levs
-        if (gfshead%jcap/=jcap_b .or. gfshead%levs/=nsig) then
-           write(6,*)'GESINFO:  ***ERROR*** sigio (jcap_b,levs)=',&
-                gfshead%jcap,gfshead%levs, ' do not equal ',&
-                ' user (jcap_b,nsig)=',jcap_b,nsig
-           call stop2(85)
-        endif
-
-
-!    Extract information from NCEP atmospheric guess using gfsio
+!    Extract information from NCEP atmospheric guess using NEMSIO
      else
-        call gfsio_getfilehead(gfile,iret=iret,&
-             fhour=gfshead%fhour,&
-             idate=gfshead%idate,&
-             latb=gfshead%latb,&
-             lonb=gfshead%lonb,&
-             levs=gfshead%levs,&
-             jcap=gfshead%jcap,&
-             ntrac=gfshead%ntrac,&
-             idvc=gfshead%idvc,&
-             idvm=gfshead%idvm,&
-             idsl=gfshead%idsl,&
-             ncldt=gfshead%ncldt,&
-             nvcoord=gfshead%nvcoord)
+        call nemsio_init(iret=iret2)
+        if ( iret2 /= 0 ) then
+           write(6,*)' GESINFO:  ***ERROR*** problem nemsio_init file = ',trim(filename),', Status = ',iret2
+           call stop2(99)
+        end if
+        call nemsio_open(gfile2,filename,'READ',iret=iret2)
+        if ( iret2 /= 0 ) then
+           write(6,*)' GESINFO:  ***ERROR*** problem opening file = ',trim(filename),', Status = ',iret2
+           call stop2(99)
+        end if
+        call nemsio_getfilehead(gfile2, idate=idate, gtype=filetype, modelname=mdlname, &
+           nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd,  &
+           dimx=gfshead%lonb, dimy=gfshead%latb,   dimz=gfshead%levs,   &
+           jcap=gfshead%jcap, ntrac=gfshead%ntrac, idvc=gfshead%idvc,   &
+           idvm=gfshead%idvm, idsl=gfshead%idsl,   ncldt=gfshead%ncldt, iret=iret2)
 
+        if ( iret2 /= 0 .or. TRIM(filetype) /= 'NEMSIO' ) then
+           write(6,*)' GESINFO:  UNKNOWN FORMAT FOR GFSATM file = ',trim(filename),' Status = ',iret2
+           write(6,*)' GESINFO:  reding filetype = ',trim(filetype),' modelname = ', trim(mdlname)
+           call stop2(99)
+           stop
+        else
+           if (mype==mype_out) then
+              write(6,*)'GESINFO:  Read NCEP nemsio format file, ',trim(filename), ' model name = ', trim(mdlname)
+           endif
+        endif
 
 !       Extract horizontal and vertical coordinate structure
+        call nemsio_getheadvar(gfile2,'nvcoord',gfshead%nvcoord,iret=iret2)
+!
+!       Present NEMSIO modules do not allow flexibility of 2nd and 3rd
+!       array dimension for nems_vcoord, for now, it is hardwired as (levs,3,2)
+!
+        if (allocated(nems_vcoord))     deallocate(nems_vcoord)
+        if (allocated(gfsheadv%vcoord)) deallocate(gfsheadv%vcoord)
+        allocate(nems_vcoord(gfshead%levs+1,3,2))
         allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
-        call gfsio_getfilehead(gfile,iret=iret,vcoord=gfsheadv%vcoord)
-
+        call nemsio_getfilehead(gfile2,iret=iret2,vcoord=nems_vcoord)
+        gfsheadv%vcoord(:,1:gfshead%nvcoord) = nems_vcoord(:,1:gfshead%nvcoord,1) 
+        if ( iret2 /= 0 ) then
+           write(6,*)' GESINFO:  ***ERROR*** problem reading header vcoord, Status = ',iret2
+           call stop2(99)
+           stop
+        endif
+        gfsheadv%vcoord(:,1:gfshead%nvcoord) = nems_vcoord(:,1:gfshead%nvcoord,1) 
+!
+!       Get cpi if needed, otherwise reset them to zero
+!
+        if (allocated(gfsheadv%cpi)) deallocate(gfsheadv%cpi)
         allocate(gfsheadv%cpi(gfshead%ntrac+1))
-        do k=1,gfshead%ntrac+1
-           gfsheadv%cpi(k)=zero
-        end do
-
-        call gfsio_close(gfile,iret)
-        call gfsio_finalize()
-
-!       Check for consistency:  jcap, levs, latb,lonb
-        if (gfshead%latb+2_i_kind/=nlat .or. gfshead%lonb/=nlon .or. &
-            gfshead%levs/=nsig ) then
-           write(6,*)'GESINFO:  ***ERROR*** gfsio (latb+2,lonb,levs)=',&
-                gfshead%latb+2_i_kind,gfshead%lonb,gfshead%levs, ' do not equal ',&
-                ' user (nlat,nlon,nsig)=',nlat,nlon,nsig
-           call stop2(85)
+        if ( mod(gfshead%idvm/10,10) == 3) then
+           call nemsio_getheadvar(gfile2,'cpi',gfsheadv%cpi,iret=iret2)
+           if ( iret2 /= 0 ) then
+              write(6,*)' READ_FILES: ****ERROR**** reading gfsheadv%cpi, iret = ', iret2
+              call stop2(99)
+           end if
+        else
+           gfsheadv%cpi=zero
         endif
 
+!       obtain gfs%head time info from readin nemsio header info (w/ different definition and variables)
+        gfshead%fhour = float(nfhour) + float(nfminute)/60. + float(nfsecondn)/float(nfsecondd)/3600.
+        gfshead%idate(1) = idate(4)  !hour
+        gfshead%idate(3) = idate(3)  !day
+        gfshead%idate(2) = idate(2)  !month
+        gfshead%idate(4) = idate(1)  !year
+
+        call nemsio_close(gfile2,iret=iret2)
+        if ( iret2 /= 0 ) then
+           write(6,*)'GESINFO:  problem closing file = ',trim(filename),', Status = ',iret2
+           call stop2(99)
+        end if
+
+!       Check for consistency:  levs, latb,lonb
+        if (gfshead%latb+2/=nlat .or. gfshead%lonb/=nlon .or. &
+            gfshead%levs/=nsig ) then
+           write(6,*)'GESINFO:  ***ERROR*** gfsio (latb+2,lonb,levs)=',&
+                gfshead%latb+2,gfshead%lonb,gfshead%levs, ' do not equal ',&
+                ' user (nlat,nlon,nsig)=',nlat,nlon,nsig
+           call stop2(99)
+        endif
      endif
 
 !    Extract header information
@@ -242,12 +358,12 @@ subroutine gesinfo(mype)
         do k=1,nsig+1
            bk5(k) = gfsheadv%vcoord(k,1)
         end do
-     elseif (gfshead%nvcoord == 2_i_kind) then
+     elseif (gfshead%nvcoord == 2) then
         do k = 1,nsig+1
            ak5(k) = gfsheadv%vcoord(k,1)*zero_001
            bk5(k) = gfsheadv%vcoord(k,2)
         end do
-     elseif (gfshead%nvcoord == 3_i_kind) then
+     elseif (gfshead%nvcoord == 3) then
         do k = 1,nsig+1
            ak5(k) = gfsheadv%vcoord(k,1)*zero_001
            bk5(k) = gfsheadv%vcoord(k,2)
@@ -265,8 +381,8 @@ subroutine gesinfo(mype)
 
 !    Load surface pressure and thermodynamic variable ids
      idvm5   = gfshead%idvm
-     idpsfc5 = mod ( gfshead%idvm,10_i_kind )
-     idthrm5 = mod ( gfshead%idvm/10,10_i_kind )
+     idpsfc5 = mod ( gfshead%idvm,10 )
+     idthrm5 = mod ( gfshead%idvm/10,10 )
 
 !    Load specific heat for tracers
      if (allocated(cp5)) deallocate(cp5)
@@ -315,11 +431,11 @@ subroutine gesinfo(mype)
 ! Compute analysis time from guess date and forecast length.
   iyr=idate4(4)
   ihourg=hourg
-  if(iyr>=0.and.iyr<=99_i_kind) then
-     if(iyr>51_i_kind) then
-        iyr=iyr+1900_i_kind
+  if(iyr>=0.and.iyr<=99) then
+     if(iyr>51) then
+        iyr=iyr+1900
      else
-        iyr=iyr+2000_i_kind
+        iyr=iyr+2000
      end if
   end if
   fha=zero; ida=0; jda=0
@@ -341,7 +457,7 @@ subroutine gesinfo(mype)
   ida(:)=0
   jda(:)=0
   fha(:)=zero
-  fha(2)=-float(int(min_offset/60_i_kind))
+  fha(2)=-float(int(min_offset/60))
   fha(3)=-(min_offset+fha(2)*r60)
   ida(1:3)=iadate(1:3)
   ida(5:6)=iadate(4:5)
@@ -372,7 +488,7 @@ subroutine gesinfo(mype)
 ! Get time offset
   call time_4dvar(ianldate,time_offset)
   if (regional)then
-     fha(2)=float(int(min_offset/60_i_kind))
+     fha(2)=float(int(min_offset/60))
      fha(3)=(min_offset-fha(2)*r60)
      time_offset=time_offset+fha(3)/r60
   endif
@@ -396,9 +512,14 @@ subroutine gesinfo(mype)
      
 
   if(mype==mype_out) then
-     write(6,*)'GESINFO:  Guess date is ',idate4,hourg
+     write(6,*)'GESINFO:  Guess    date is ',idate4,hourg
      write(6,*)'GESINFO:  Analysis date is ',iadate,ianldate,time_offset
   endif
+
+  if (allocated(nems_vcoord))     deallocate(nems_vcoord)
+  if (allocated(gfsheadv%vcoord)) deallocate(gfsheadv%vcoord)
+  if (allocated(gfsheadv%cpi))    deallocate(gfsheadv%cpi)
+  if (allocated(cp5)) deallocate(cp5)
 
   return
 end subroutine gesinfo

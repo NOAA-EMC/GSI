@@ -3387,6 +3387,7 @@
    subroutine SwapJI2r_(aij,aji)
 !-------------------------------------------------------------------------
 ! transpose IJ-ordered array to JI-ordered array
+! hchuang transpose JI-ordered array to IJ-ordered array
    implicit none
    real(4),dimension(:,:),intent(inout) :: aij
    real(r_kind), dimension(:,:),intent(in) :: aji
