@@ -338,7 +338,7 @@ SRCS =	$(wildcard \
 	mpl_bcast.f90 \
         ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \
-	nemsio_module.f90 \
+        ncepnems_io.f90 \
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
 	obs_ferrscale.F90 \

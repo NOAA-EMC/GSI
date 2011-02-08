@@ -58,7 +58,7 @@ subroutine read_files(mype)
 !                                      nfsecondn  FCST Secs (i_kind) numerator
 !                                      nfsecondd  FCST Secs (i_kind) denominator
 !
-!       %fhour = float(nfhour) + float(nfminute)/60. + float(nfsecondn)/float(nfsecondd)/3600.
+!       %fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
 
 ! attributes:
 !   language: f90
@@ -72,7 +72,7 @@ subroutine read_files(mype)
   use guess_grids, only: hrdifsig_all,hrdifsfc_all
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen, nhr_assimilation
   use gridmod, only: ncep_sigio,nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs, use_gfs_nemsio
-  use constants, only: zero,r60inv
+  use constants, only: zero,r60inv,r60,r3600
   use obsmod, only: iadate
   use sfcio_module, only: sfcio_head,sfcio_sropen,&
        sfcio_sclose,sfcio_srhead
@@ -178,7 +178,7 @@ subroutine read_files(mype)
               call nemsio_getfilehead(gfile2, nfhour=nfhour, nfminute=nfminute, &
                  nfsecondn=nfsecondn, nfsecondd=nfsecondd, idate=idate, iret=iret)
               call nemsio_close(gfile2,iret=iret)
-              hourg4 = float(nfhour) + float(nfminute)/60. + float(nfsecondn)/float(nfsecondd)/3600.
+              hourg4 = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
               idateg(1) = idate(4)  !hour
               idateg(2) = idate(2)  !month
               idateg(3) = idate(3)  !day
@@ -233,7 +233,7 @@ subroutine read_files(mype)
               call nemsio_getfilehead(gfile2, nfhour=nfhour, nfminute=nfminute,  &
                  nfsecondn=nfsecondn, nfsecondd=nfsecondd, idate=idate, &
                  dimx=sfc_head%lonb, dimy=sfc_head%latb, iret=iret)
-              hourg4   = float(nfhour) + float(nfminute)/60. + float(nfsecondn)/float(nfsecondd)/3600.
+              hourg4   = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
               idateg(1) = idate(4)  !hour
               idateg(2) = idate(2)  !month
               idateg(3) = idate(3)  !day

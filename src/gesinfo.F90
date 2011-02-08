@@ -50,7 +50,7 @@ subroutine gesinfo(mype)
 !                                      nfsecondn  FCST Secs (i_kind) numerator
 !                                      nfsecondd  FCST Secs (i_kind) denominator
 !
-!       %fhour = float(nfhour) + float(nfminute)/60. + float(nfsecondn)/float(nfsecondd)/3600.
+!       %fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
 !
 ! attributes:
 !   language: f90
@@ -74,7 +74,7 @@ subroutine gesinfo(mype)
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
 
-  use constants, only: zero,h300,r60
+  use constants, only: zero,h300,r60,r3600
 
   implicit none
 
@@ -313,7 +313,7 @@ subroutine gesinfo(mype)
         endif
 
 !       obtain gfs%head time info from readin nemsio header info (w/ different definition and variables)
-        gfshead%fhour = float(nfhour) + float(nfminute)/60. + float(nfsecondn)/float(nfsecondd)/3600.
+        gfshead%fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
         gfshead%idate(1) = idate(4)  !hour
         gfshead%idate(3) = idate(3)  !day
         gfshead%idate(2) = idate(2)  !month

@@ -36,6 +36,7 @@ LIBcrtm   = -L$(CORELIB) -lCRTM
 LIBtransf = -L$(CORELIB) -ltransf
 LIBhermes = -L$(CORELIB) -lhermes
 LIBgfsio  = -L$(CORELIB) -lgfsio
+LIBnemsio = -L$(CORELIB) -lnemsio
 
 # --------------------------
 # Default Baselibs Libraries
@@ -235,7 +236,7 @@ LIBsys          = $(MYLIBsys)
         mpl_bcast.o \
         ncepgfs_ghg.o \
         ncepgfs_io.o \
-        nemsio_module.o \
+	ncepnems_io.o \
 	nlmsas_ad.o \
 	normal_rh_to_q.o \
         obs_ferrscale.o \

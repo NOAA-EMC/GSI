@@ -374,8 +374,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is)
            my_diag => pm2_5tail(ibin)%head%diags
            if(my_head%idv /= my_diag%idv .or. &
                 my_head%iob /= my_diag%iob ) then
-              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) &
-                    =', (/is,i,ibin/))
+              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =',&
+                    (/is,i,ibin/))
               call perr(myname,'my_head%(idv,iob) =',&
                     (/my_head%idv,my_head%iob/))
               call perr(myname,'my_diag%(idv,iob) =',&

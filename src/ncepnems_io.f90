@@ -50,7 +50,7 @@ module ncepnems_io
 !                                      nfsecondn  FCST Secs (i_kind) numerator
 !                                      nfsecondd  FCST Secs (i_kind) denominator
 !
-!       %fhour = float(nfhour) + float(nfminute)/60. + float(nfsecondn)/float(nfsecondd)/3600.
+!       %fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
 !
 !   nframe     - nframe is the number of grids extend outward from the
 !                edge of modeling domain.
@@ -86,6 +86,7 @@ module ncepnems_io
 !
 !$$$ end documentation block
 
+  use constants, only: zero,one,fv,r60,r3600
   implicit none
 
   private
@@ -277,7 +278,6 @@ contains
          ntracer,reload
     use general_specmod, only: spec_vars
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
-    use constants, only: zero,one,fv
     use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
     use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
 
@@ -353,7 +353,7 @@ contains
        call stop2(101)
     end if
 
-    gfshead%fhour = float(nfhour) + float(nfminute)/60. + float(nfsecondn)/float(nfsecondd)/3600.
+    gfshead%fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
     gfshead%idate(1) = idate(4)  !hour
     gfshead%idate(2) = idate(2)  !month
     gfshead%idate(3) = idate(3)  !day
@@ -707,7 +707,7 @@ contains
        call stop2(102)
     end if
 
-    sfc_head%fhour = float(nfhour) + float(nfminute)/60. + float(nfsecondn)/float(nfsecondd)/3600.
+    sfc_head%fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
     sfc_head%idate(1) = idate(4)  !hour
     sfc_head%idate(2) = idate(2)  !month
     sfc_head%idate(3) = idate(3)  !day
