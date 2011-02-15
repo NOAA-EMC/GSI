@@ -156,7 +156,7 @@ mp_compact_diffs_support.o : mp_compact_diffs_support.f90 constants.o kinds.o
 mpeu_mpif.o : mpeu_mpif.F90 
 mpeu_util.o : mpeu_util.F90 mpeu_mpif.o kinds.o 
 mpimod.o : mpimod.F90 mpeu_mpif.o constants.o kinds.o 
-mpl_allreduce.o : mpl_allreduce.f90 mpimod.o kinds.o 
+mpl_allreduce.o : mpl_allreduce.F90 mpimod.o kinds.o 
 mpl_bcast.o : mpl_bcast.f90 mpimod.o constants.o kinds.o 
 ncepgfs_ghg.o : ncepgfs_ghg.f90 constants.o kinds.o 
 ncepgfs_io.o : ncepgfs_io.f90 obsmod.o constants.o general_specmod.o gsi_chemtracer_mod.o gsi_bundlemod.o ncepgfs_ghg.o mpimod.o guess_grids.o gridmod.o kinds.o 

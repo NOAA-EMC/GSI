@@ -2,7 +2,7 @@ SHELL=/bin/sh
 
 #==============================================================================
 #
-# GSI Makefile
+# DTC GSI Makefile
 #
 #==============================================================================
 
@@ -23,19 +23,16 @@ EXE_FILE = gsi.exe
 # Libraries
 # ---------
 ## LIBmpeu   = -L$(CORELIB) -lmpeu
-LIBmpeu   = 
-LIBbufr   = -L$(CORELIB) -lbufr
-LIBw3     = -L$(CORELIB) -lw3
-LIBsp     = -L$(CORELIB) -lsp
-LIBbacio  = 
-LIBrrcld  = -L$(CORELIB) -lgsdcloud
-LIBsfcio  = -L$(CORELIB) -lsfcio
-LIBsigio  = -L$(CORELIB) -lsigio
-## LIBcrtm   = -L$(CORELIB) -lcrtm_gfsgsi
-LIBcrtm   = -L$(CORELIB) -lCRTM
+LIBbufr   = -L$(CORELIB) -lbufr_i4r8
+LIBw3     = -L$(CORELIB) -lw3_i4r8
+LIBsp     = -L$(CORELIB) -lsp_i4r8
+LIBbacio  = -L$(CORELIB) -lbacio
+LIBsfcio  = -L$(CORELIB) -lsfcio_i4r4
+LIBsigio  = -L$(CORELIB) -lsigio_i4r4
+LIBcrtm   = -L$(CORELIB) -lcrtm
 LIBtransf = -L$(CORELIB) -ltransf
 LIBhermes = -L$(CORELIB) -lhermes
-LIBgfsio  = -L$(CORELIB) -lgfsio
+LIBgfsio  = -L$(CORELIB) -lgfsio_i4r4
 LIBnemsio = -L$(CORELIB) -lnemsio
 
 # --------------------------
@@ -117,6 +114,7 @@ LIBsys          = $(MYLIBsys)
 	converr.o \
 	convinfo.o \
 	convthin.o \
+        crtm_interface.o \
         cvsection.o \
 	deter_subdomain.o \
 	dtast.o \
@@ -145,6 +143,7 @@ LIBsys          = $(MYLIBsys)
 	get_semimp_mats.o \
 	getprs.o \
 	getsiga.o \
+        get_wrf_mass_ensperts_netcdf.o \
 	getuv.o \
 	getvvel.o \
 	glbsoi.o \
@@ -166,8 +165,7 @@ LIBsys          = $(MYLIBsys)
 	guess_grids.o \
 	half_nmm_grid2.o \
 	hilbert_curve.o \
-        hybrid_ensemble_isotropic_global.o \
-        hybrid_ensemble_isotropic_regional.o \
+        hybrid_ensemble_isotropic.o \
         hybrid_ensemble_parameters.o \
         inc2guess.o \
 	init_commvars.o \
@@ -191,7 +189,6 @@ LIBsys          = $(MYLIBsys)
 	intrp2a.o \
 	intrp3co.o \
 	intrp3oz.o \
-	intrppx.o \
 	intrw.o \
 	intspd.o \
 	intsrw.o \
@@ -222,7 +219,6 @@ LIBsys          = $(MYLIBsys)
         mpeu_mpif.o \
         mpeu_util.o \
         missing_routines.o \
-	mod_inmi.o \
         mod_nmmb_to_a.o \
 	mod_strong.o \
 	mod_vtrans.o \
@@ -268,7 +264,6 @@ LIBsys          = $(MYLIBsys)
 	psichi2uvt_reg.o \
 	q_diag.o \
 	qcmod.o \
-	qcssmi.o \
         qnewton.o \
         qnewton3.o \
 	radinfo.o \
@@ -315,9 +310,6 @@ LIBsys          = $(MYLIBsys)
 	read_wrf_nmm_guess.o \
 	regional_io.o \
         reorg_metar_cloud.o \
-	ret_ssmis.o \
-	retrieval_amsre.o \
-	retrieval_mi.o \
 	rfdpar.o \
 	rsearch.o \
         rtlnmc_version3.o \
@@ -420,7 +412,8 @@ LIBsys          = $(MYLIBsys)
 	wrwrfmassa.o \
 	wrwrfnmma.o \
         xhat_vordivmod.o \
-	zrnmi_mod.o
+	zrnmi_mod.o \
+        blockIO.o
 
 # ----
 
@@ -430,20 +423,16 @@ LIB =   libgsi.a
 # Call compiler and linker
 # ------------------------
 
-##all : $(LIB) $(EXE_FILE)
-all : $(LIB) gsi.exe
+all : $(LIB) $(EXE_FILE)
 
 
 $(LIB):	 $(OBJS)
 	echo $(OBJS)
 	$(AR) -ruv $(LIB) $(OBJS)
 
-#$(EXE_FILE) : $(OBJS) $(LIB) gsimain.o
-#	$(LD) $(LDFLAGS) -o $@ gsimain.o $(OBJS) $(LIBS)
-
-gsi.exe:  $(OBJS) $(LIB) gsimain.o
-	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBsp) $(LIBgfsio) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys) $(LIBrrcld)
-	cp gsi.exe $(COREBIN)
+$(EXE_FILE):  $(OBJS) $(LIB) gsimain.o
+	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBnemsio) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBsp) $(LIBgfsio) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys)
+	cp $(EXE_FILE) $(COREBIN)
 
 # DEPENDENCIES : only dependencies after this line (don't remove the word DEPENDENCIES)
 
@@ -453,11 +442,11 @@ include Makefile.dependency
 
 .F90.o:
 	$(SED_FTN) $*.F90 > $*.b
-	$(CPP) $(CPPFLAGS) $*.b  > $*.f90
+	$(CPP) $(CPP_FLAGS) $(CPP_F90FLAGS) $*.b  > $*.f90
 	$(RM) $*.b
-	$(F90) -c $(FFLAGS) $*.f90
+	$(F90) $(FFLAGS) -c $*.f90
 	$(RM) $*.f90
 
 clean:
-	rm -f *.o *.exe $(LIB)
+	$(RM) -f *.o *.exe $(LIB)
 

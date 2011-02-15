@@ -470,7 +470,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 ! Collect information for preconditioning
   if (newpc4pred) then
-     call mpl_allreduce(jpch_rad,ostats)
+     call mpl_allreduce(jpch_rad,rpvals=ostats)
      call mpl_allreduce(npred,jpch_rad,rstats)
   end if
 

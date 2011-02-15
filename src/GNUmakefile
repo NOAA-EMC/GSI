@@ -334,7 +334,7 @@ SRCS =	$(wildcard \
 	mp_compact_diffs_mod1.f90 \
 	mp_compact_diffs_support.f90 \
 	mpimod.F90 \
-	mpl_allreduce.f90 \
+	mpl_allreduce.F90 \
 	mpl_bcast.f90 \
         ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \

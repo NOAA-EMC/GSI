@@ -102,7 +102,7 @@
 
 
 ! Collect data from all processors
-  call mpl_allreduce(jpassive,iobs)
+  call mpl_allreduce(jpassive,rpvals=iobs)
 
   do n = 1,jpassive
      if (iobs(n)<nthreshold) cycle
@@ -118,7 +118,7 @@
      Atmp(:,:) = A(:,:,n)
      btmp(:)   = b(:,n)
      call mpl_allreduce(npred,npred,Atmp)
-     call mpl_allreduce(npred,btmp)
+     call mpl_allreduce(npred,qpvals=btmp)
 
 !    Solve linear system
      iorder=0
