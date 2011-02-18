@@ -8,8 +8,9 @@
 
 !   Declare local variables
     integer lunin,lunout,lunout_pc,ip,istat,n,ichan,ich
-    integer npred,i,ii,npred_new,angord
+    integer npred,i,ii,npred_new,angord,count_tlap
     real*8 tlapm
+    real*8 tsum
     real*8 ostats
     real*8,dimension(90)::cbiasx
     real*8 tlapmean(2000),chn(2000)
@@ -127,10 +128,18 @@
           if (istat /= 0) exit
           predr=0.0
           do i=1,ii
-             if (trim(isis)==trim(nsis(i)) .and. ichan==chn(i)) tlapm=tlapmean(i)
+             if (trim(isis)==trim(nsis(i)) .and. ichan==chn(i)) then
+                tlapm=tlapmean(i)
+                tsum=1000000.0
+                count_tlap = 999
+                if (abs(tlapm) < 1.0e-5) then 
+                   count_tlap = 0
+                   tsum=0.0
+                end if
+             end if
           end do
-          write(lunout,'(I5,1x,A20,1x,I5,e15.6/2(4x,10f12.6/))',iostat=istat) ich,isis,&
-                  ichan,tlapm,(predr(ip),ip=1,npred_new)
+          write(lunout,'(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))',iostat=istat) ich,isis,&
+                  ichan,tlapm,tsum,count_tlap,(predr(ip),ip=1,npred_new)
 
 
           ostats=0.0

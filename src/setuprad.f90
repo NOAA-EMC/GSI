@@ -195,7 +195,7 @@
   integer(i_kind) ich9,isli,icc,iccm,mm1,ixx
   integer(i_kind) m,mm,jc,j,k,i,kmax
   integer(i_kind) kk,n,nlev,kval,ibin,ioff,iii
-  integer(i_kind) ii,jj,idiag
+  integer(i_kind) ii,jj,idiag,inewpc
   integer(i_kind) nadir,kraintype,ierrret
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
@@ -473,8 +473,10 @@
 !    Initialize/write parameters for satellite diagnostic file on
 !    first outer iteration.
      if (init_pass .and. mype==mype_diaghdr(is)) then
+        inewpc=0
+        if (newpc4pred) inewpc=1
         write(4) isis,dplat(is),obstype,jiter,nchanl,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra,&
-             idiag,angord,iversion_radiag
+             idiag,angord,iversion_radiag,inewpc
         write(6,*)'SETUPRAD:  write header record for ',&
              isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,' to file ',trim(diag_rad_file),' ',ianldate
         do i=1,nchanl

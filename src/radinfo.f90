@@ -28,6 +28,7 @@ module radinfo
 !   2010-07-12  zhu     - add inew_rad
 !   2010-10-05  treadon - remove npred1 (not used)
 !   2010-10-12  zhu     - combine scaninfo and edgeinfo into one file scaninfo
+!   2011-01-04  zhu     - add tlapmean update for new/existing channels when adp_anglebc is turned on
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -73,6 +74,7 @@ module radinfo
   public :: radstart,radstep
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
+  integer(i_kind),parameter:: ntlapthresh = 100 ! threshhold value of cycles if tlapmean update is needed
 
   logical diag_rad    ! logical to turn off or on the diagnostic radiance file (true=on)
   logical retrieval   ! logical to turn off or on the SST retrieval with AVHRR data
@@ -90,6 +92,7 @@ module radinfo
   real(r_kind),allocatable,dimension(:):: b_rad       ! variational b value
   real(r_kind),allocatable,dimension(:):: pg_rad      ! variational pg value
   real(r_kind),allocatable,dimension(:):: tlapmean    ! mean lapse rate (fixed from input file)
+  real(r_kind),allocatable,dimension(:):: tsum_tlapmean  ! err sum of mean lapse rate 
   real(r_kind),allocatable,dimension(:):: ang_rad     ! 0 or 1 depending on iuse_rad (1 - use angle bias correction)
   real(r_kind),allocatable,dimension(:):: air_rad     ! 0 or 1 depending on iuse_rad (1 - use air mass bias correction)          
   real(r_kind),allocatable,dimension(:,:):: fbias     ! bias for AVHRR siumulated radiance
@@ -107,6 +110,8 @@ module radinfo
   integer(i_kind),allocatable,dimension(:):: radedge1    ! cut-off of edge removal
   integer(i_kind),allocatable,dimension(:):: radedge2    ! cut-off of edge removal
 
+  integer(i_kind),allocatable,dimension(:):: count_tlapmean ! the count of tlapmean update 
+
   integer(i_kind),allocatable,dimension(:):: nuchan    ! satellite channel
   integer(i_kind),allocatable,dimension(:):: iuse_rad  ! use to turn off satellite radiance data
 !                                                    = -2 do not use
@@ -118,7 +123,8 @@ module radinfo
 !                                                    =  4 use data with no bias correction
 
 
-  logical,allocatable,dimension(:):: inew_rad  ! use to indicate if it needs initialized for satellite radiance data
+  logical,allocatable,dimension(:):: inew_rad  ! indicator if it needs initialized for satellite radiance data
+  logical,allocatable,dimension(:):: update_tlapmean ! indicator if tlapmean update is needed
 
   integer(i_kind),allocatable,dimension(:):: ifactq    ! scaling parameter for d(Tb)/dq sensitivity
 
@@ -203,6 +209,16 @@ contains
 
     implicit none
 
+!   safeguard angord value for option adp_anglebc
+    if (adp_anglebc) then 
+       if (angord==0) then 
+          write(6,*)'INIT_RAD_VARS:  ***ERROR*** error value for angord, reset angord to be 4' 
+          angord=4
+       end if
+    else
+       if (angord/=0) angord=0
+    end if
+
     if (adp_anglebc) npred=npred+angord
     
     return
@@ -251,6 +267,7 @@ contains
 !   2008-04-23  safford - add standard doc block, rm unused vars and uses
 !   2010-04-29  zhu     - add analysis varaince info for radiance bias correction coefficients
 !   2010-05-06  zhu     - add option adp_anglebc for variational angle bias correction
+!   2011-01-04  zhu     - add tlapmean update for new channels when adp_anglebc is turned on
 !
 !   input argument list:
 !
@@ -273,9 +290,10 @@ contains
 
 
     integer(i_kind) i,j,k,ich,lunin,lunout,nlines
-    integer(i_kind) ip,istat,n,ichan,mch,ij,nstep,edge1,edge2
+    integer(i_kind) ip,istat,n,ichan,mch,ij,nstep,edge1,edge2,ntlapupdate
     real(r_kind),dimension(npred):: predr
     real(r_kind) tlapm
+    real(r_kind) tsum
     real(r_kind) ostatsx
     real(r_kind) start,step
     real(r_kind),dimension(90)::cbiasx
@@ -328,7 +346,7 @@ contains
          ang_rad(jpch_rad),air_rad(jpch_rad),inew_rad(jpch_rad))
     allocate(satsenlist(jpch_rad),nfound(jpch_rad))
     iuse_rad(0)=-999
-    inew_rad=.false.
+    inew_rad=.true.
     ifactq=0
     air_rad=one
     ang_rad=one
@@ -388,7 +406,7 @@ contains
                       varA(i,j)=varx(i)
                    end do
                    ostats(j)=ostatsx
-                   if (all(varx==zero) .and. ostatsx==zero .and. iuse_rad(j)>-2) inew_rad(j)=.true.
+                   if (any(varx/=zero) .and. iuse_rad(j)>-2) inew_rad(j)=.false.
                 end if
              end do
              if(.not. cfound .and. mype == 0) &
@@ -464,6 +482,12 @@ contains
     allocate(cbias(90,jpch_rad),tlapmean(jpch_rad))
     cbias=zero
     tlapmean=zero
+    if (adp_anglebc) then 
+       allocate(count_tlapmean(jpch_rad),update_tlapmean(jpch_rad),tsum_tlapmean(jpch_rad))
+       count_tlapmean=0
+       tsum_tlapmean=zero
+       update_tlapmean=.true.
+    end if
 
     if (.not. adp_anglebc) then
        open(lunin,file='satbias_angle',form='formatted')
@@ -522,8 +546,8 @@ contains
              read(lunin,'(I5,1x,A20,1x,I5,10f12.6)',iostat=istat) ich,isis,&
                   ichan,(predr(ip),ip=1,npred)
           else
-             read(lunin,'(I5,1x,A20,1x,I5,e15.6/2(4x,10f12.6/))',iostat=istat) ich,isis,&
-                  ichan,tlapm,(predr(ip),ip=1,npred)
+             read(lunin,'(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))',iostat=istat) ich,isis,&
+                  ichan,tlapm,tsum,ntlapupdate,(predr(ip),ip=1,npred)
           end if
           if (istat /= 0) exit
           cfound = .false.
@@ -534,7 +558,12 @@ contains
                 do i=1,npred
                    predx(i,j)=predr(i)
                 end do
-                if (adp_anglebc) tlapmean(j)=tlapm
+                if (adp_anglebc) then 
+                   tlapmean(j)=tlapm
+                   tsum_tlapmean(j)=tsum
+                   count_tlapmean(j)=ntlapupdate
+                   if (ntlapupdate > ntlapthresh) update_tlapmean(j)=.false.
+                end if
                 if (any(predr/=zero)) inew_rad(j)=.false.
              end if
           end do
@@ -563,9 +592,9 @@ contains
        endif
 
 
-!      Initialize predx if inew_rad and compute angle bias correction
+!      Initialize predx if inew_rad and compute angle bias correction and tlapmean
        if (adp_anglebc) then
-          if (any(inew_rad)) call init_predx
+          call init_predx(newpc4pred)
           do j=1,jpch_rad
              call angle_cbias(trim(nusis(j)),j,cbias(1,j))
           end do
@@ -690,8 +719,8 @@ contains
        end do
     else
        do jch=1,jpch_rad
-          write(lunout,'(I5,1x,a20,1x,i5,e15.6/2(4x,10f12.6/))') jch,nusis(jch),nuchan(jch),&
-               tlapmean(jch),(predx(ip,jch),ip=1,npred)
+          write(lunout,'(I5,1x,a20,1x,i5,2e15.6,1x,I5/2(4x,10f12.6/))') jch,nusis(jch),nuchan(jch),&
+               tlapmean(jch),tsum_tlapmean(jch),count_tlapmean(jch),(predx(ip,jch),ip=1,npred)
        end do
     end if
     close(lunout)
@@ -700,6 +729,7 @@ contains
 !   information from satinfo file.
     deallocate (predx,cbias,tlapmean,nuchan,nusis,iuse_rad,air_rad,ang_rad, &
          ifactq,varch,inew_rad)
+    if (adp_anglebc) deallocate(count_tlapmean,update_tlapmean,tsum_tlapmean)
     if (newpc4pred) deallocate(ostats,rstats,varA)
     deallocate (radstart,radstep,radnstep,radedge1,radedge2)
     return
@@ -955,7 +985,7 @@ contains
    end subroutine satstep
 
 
-   subroutine init_predx
+   subroutine init_predx(newpc4pred)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    init_predx
@@ -995,23 +1025,28 @@ contains
 
 
 !  Declare local variables
-   logical lexist,done   
+   logical lexist
    logical data_on_edges
+   logical update
+   logical newpc4pred
 
    character(10):: obstype,platid
    character(20):: satsens,satsens_id
    character(50):: fdiag_rad,dname,fname
 
    integer(i_kind):: ix,ii,iii,iich,ndatppe
-   integer(i_kind):: i,j,n_chan,k
+   integer(i_kind):: i,j,jj,n_chan,k
    integer(i_kind):: ierror_code
    integer(i_kind):: istatus,ispot,iuseqc
    integer(i_kind):: np,new_chan,nc
+   integer(i_kind):: counttmp
    integer(i_kind),dimension(maxchn):: ich
    integer(i_kind),dimension(maxchn):: io_chan
    integer(i_kind),dimension(maxdat):: ipoint
  
-   real(r_kind):: bias,scan,errinv
+   real(r_kind):: bias,scan,errinv,rnad
+   real(r_kind):: tlaptmp,tsumtmp,ratio,wgtlap
+   real(r_kind),allocatable,dimension(:):: tsum0,tsum,tlap0,tlap1,tlap2,tcnt
    real(r_kind),allocatable,dimension(:,:):: AA
    real(r_kind),allocatable,dimension(:):: be
    real(r_kind),allocatable,dimension(:):: iobs
@@ -1029,11 +1064,26 @@ contains
    type(diag_data_extra_list ),pointer :: data_extra(:,:)
 
 !************************************************************************
-!  Return if no new channels
-   if (.not. any(inew_rad)) return
+!  Return if no new channels AND update_tlapmean=.false.
+   if (.not. (any(inew_rad) .or. any(update_tlapmean))) return
    if (mype==0) write(6,*) 'INIT_PREDX:  enter routine'
 
    np=angord+1
+
+!  Allocate and initialize data arrays
+   if (any(update_tlapmean)) then
+      allocate(tsum0(jpch_rad),tsum(jpch_rad),tlap0(jpch_rad), &
+               tlap1(jpch_rad),tlap2(jpch_rad),tcnt(jpch_rad))
+      do j=1,jpch_rad
+         tsum(j)=zero
+         tsum0(j)=tsum_tlapmean(j)
+         tcnt(j)=zero
+         tlap1(j)=zero
+         tlap2(j)=zero
+         tlap0(j)=tlapmean(j)
+         if (.not. newpc4pred) tlap0(j)=100.0_r_kind*tlap0(j)  ! convert tlap to its original unit
+      end do
+   end if
 
 !  Assign each satellite/sensor to a mpi task
    ndatppe=0
@@ -1056,7 +1106,7 @@ contains
       satsens_id=dsis(iii)
 
 !     Create diagnostic filename
-      fdiag_rad = 'diag_' // trim(dtype(iii)) // '_' // trim(dplat(iii)) // '_ges'
+      fdiag_rad = 'diag_' // trim(dtype(iii)) // '_' // trim(dplat(iii))
 
 !     See if diagnostic file exists
       inquire(file=fdiag_rad,exist=lexist)
@@ -1093,30 +1143,34 @@ contains
 
 !     Extract satinfo relative index and get new_chan
       new_chan=0
+      update=.false.
       do j=1,n_chan
          io_chan(j) = real( header_chan(j)%iochan, 4 )
          if (inew_rad(io_chan(j))) then
             new_chan=new_chan+1
             ich(new_chan) = io_chan(j)
          end if
+         if (update_tlapmean(io_chan(j))) update=.true.
       end do
-      if (new_chan==0) then 
+      if (.not. update .and. new_chan==0) then 
          close(lndiag)
          cycle loopf
       end if
 
 !     Allocate arrays and initialize
-      allocate(A(np,np,new_chan),b(np,new_chan))
-      allocate(iobs(new_chan),pred(np))
-      do j=1,new_chan
-         iobs(j)=zero
-         do i=1,np
-            b(i,j)=zero
-            do k=1,np
-               A(i,k,j)=zero
+      if (new_chan/=0) then
+         allocate(A(np,np,new_chan),b(np,new_chan))
+         allocate(iobs(new_chan),pred(np))
+         do j=1,new_chan
+            iobs(j)=zero
+            do i=1,np
+               b(i,j)=zero
+               do k=1,np
+                  A(i,k,j)=zero
+               end do
             end do
          end do
-      end do
+      end if
 
 
 !     Loop to read diagnostic file
@@ -1140,9 +1194,12 @@ contains
 !        Channel loop
          nc=0
          loopc:  do j = 1, n_chan
+            jj=io_chan(j)
+            if (inew_rad(jj)) nc = nc+1
+            
 
-            if (.not. inew_rad(io_chan(j))) cycle loopc
-            nc = nc+1
+            if ((.not. inew_rad(jj)) .and.  &
+                (.not. update_tlapmean(jj))) cycle loopc
 
 !           Check for reasonable obs-ges and observed Tb.
 !           If the o-g difference is too large (> 200 K, very genereous!)
@@ -1159,7 +1216,7 @@ contains
 !           the observation did not pass quality control.  In this
 !           case, do not use this observation in computing the update
 !           to the angle dependent bias
-            if (iuse_rad(io_chan(j))>0 .and. data_chan(j)%errinv<1.e-6) cycle loopc
+            if (iuse_rad(jj)>0 .and. data_chan(j)%errinv<1.e-6) cycle loopc
 
 !           If iuseqc flag is <=0 (i.e., 0 or -1), ensure (o-g)<dtmax.
 !           If the user says to ingore the qc flag, check the the o-g
@@ -1167,74 +1224,125 @@ contains
 !           difference.  If the o-g lies outside this bound, do not use
 !           this observation in computing the update to the angle
 !           dependent bias.
-            if ( iuse_rad(io_chan(j))<=0 .and. abs(data_chan(j)%omgnbc)>dtmax ) then
+            if ( iuse_rad(jj)<=0 .and. abs(data_chan(j)%omgnbc)>dtmax ) then
                cycle loopc
             end if
 
-!           Define predictor
-            pred=zero
-            pred(1) = one
-            pred(2) = rnad_pos(satsens,ispot,io_chan(j))*deg2rad
-            pred(3) = pred(2)*pred(2)
-            pred(4) = pred(2)*pred(2)*pred(2)
-            if (angord==4) pred(5) = pred(2)*pred(2)*pred(2)*pred(2)
-
-!           Add values to running sums.
-            iobs(nc) = iobs(nc)+one
-            bias = data_chan(j)%omgnbc
             errinv=data_chan(j)%errinv
-            if (iuse_rad(io_chan(j))<=0) errinv=one
-            do i=1,np
-               b(i,nc) = b(i,nc)+bias*pred(i)*errinv**2
-!              b(i,nc) = b(i,nc)+bias*pred(i)
-            end do
-            do k=1,np
-               do i=1,np
-                  A(i,k,nc) = A(i,k,nc)+pred(i)*pred(k)*errinv**2
-!                 A(i,k,nc) = A(i,k,nc)+pred(i)*pred(k)
-               end do
-            end do
+            if (iuse_rad(jj)<=0) errinv=one
 
+            if (update_tlapmean(jj)) then
+               tlaptmp=data_chan(j)%tlap
+               if (header_fix%inewpc==0) tlaptmp=100.0_r_kind*tlaptmp
+               tlap1(jj)=tlap1(jj)+(tlaptmp-tlap0(jj))*errinv
+               tsum(jj) =tsum(jj)+errinv
+               tcnt(jj) =tcnt(jj)+one
+            end if
+
+            if (inew_rad(jj)) then
+
+!              Define predictor
+               pred=zero
+               pred(1) = one
+               rnad = rnad_pos(satsens,ispot,io_chan(j))*deg2rad
+               do i=1,angord
+                  pred(i+1) = rnad**i
+               end do
+
+!              Add values to running sums.
+               iobs(nc) = iobs(nc)+one
+               bias = data_chan(j)%omgnbc
+               do i=1,np
+                  b(i,nc) = b(i,nc)+bias*pred(i)*errinv**2
+               end do
+               do k=1,np
+                  do i=1,np
+                     A(i,k,nc) = A(i,k,nc)+pred(i)*pred(k)*errinv**2
+                  end do
+               end do
+            end if
+        
          enddo loopc ! channel loop
 
 !     End of loop over diagnostic file
       enddo loopd
 
       close(lndiag)
-      if (all(iobs<nthreshold)) then
-         deallocate(A,b,iobs,pred)
-         cycle loopf
-      endif
+
+!     Compute tlapmean
+      if (update) then
+         do j = 1,n_chan
+            jj=io_chan(j)
+!           wgtlap=one
+            if (update_tlapmean(jj)) then
+               if(tcnt(jj) >= nthreshold)  then
+                  tsum(jj)=tsum(jj)+tsum0(jj)
+!                 tlap2(jj) = tlap0(jj) + wgtlap*tlap1(jj)/tsum(jj)
+                  tlap2(jj) = tlap0(jj) + tlap1(jj)/tsum(jj)
+                  count_tlapmean(jj)=count_tlapmean(jj)+one
+               elseif (tcnt(jj)>0) then
+                  ratio = max(zero,min(tcnt(jj)/float(nthreshold),one))
+                  tsum(jj)=ratio*tsum(jj)+tsum0(jj)
+!                 tlap2(jj) = tlap0(jj) + ratio*wgtlap*tlap1(jj)/tsum(jj)
+                  tlap2(jj) = tlap0(jj) + ratio*tlap1(jj)/tsum(jj)
+                  count_tlapmean(jj)=count_tlapmean(jj)+one
+               else
+                  tsum(jj)=tsum0(jj)
+                  tlap2(jj) = tlap0(jj)
+                  count_tlapmean(jj)=count_tlapmean(jj)
+               endif
+               tsum_tlapmean(jj)=tsum(jj)
+               tlapmean(jj)=tlap2(jj)
+               if (.not. newpc4pred) tlapmean(jj)=0.01_r_kind*tlapmean(jj)
+            end if
+         end do
+
+!        Write updated tlapmean and sample size to scratch files
+         dname = 'update_' // trim(obstype) // '_' // trim(platid)
+         open(lntemp,file=dname,form='formatted')
+         do j=1,n_chan
+            jj=io_chan(j)
+            write(lntemp,220) jj,tlapmean(jj),tsum_tlapmean(jj),count_tlapmean(jj)
+220         format(I5,1x,2e15.6,1x,I5)
+         end do
+         close(lntemp)
+      end if
 
 
-!     Solve linear system
-      allocate(AA(np,np),be(np))
-      do i=1,new_chan
-         if (iobs(i)<nthreshold) cycle
-         AA(:,:)=A(:,:,i)
-         be(:)  =b(:,i)
-         call linmm(AA,be,np,1,np,np)
+      if (new_chan/=0) then
+         if (all(iobs<nthreshold)) then
+            deallocate(A,b,iobs,pred)
+            cycle loopf
+         endif
 
-         predx(1,ich(i))=be(1)
-         predx(npred,ich(i))=be(2)
-         predx(npred-1,ich(i))=be(3)
-         predx(npred-2,ich(i))=be(4)
-         if (angord==4) predx(npred-3,ich(i))=be(5)
-      end do ! end of new_chan
-      deallocate(AA,be)
+!        Solve linear system
+         allocate(AA(np,np),be(np))
+         do i=1,new_chan
+            if (iobs(i)<nthreshold) cycle
+            AA(:,:)=A(:,:,i)
+            be(:)  =b(:,i)
+            call linmm(AA,be,np,1,np,np)
 
-!     write initialized predx to scratch files
-      dname = 'init_' // trim(obstype) // '_' // trim(platid)
-      open(lntemp,file=dname,form='formatted')
-      do i=1,new_chan
-         if (iobs(i)<nthreshold) cycle
-         write(lntemp,210) ich(i),predx(1,ich(i)),(predx(npred-k+1,ich(i)),k=1,angord)
- 210     format(I5,1x,6e13.6/)
-      end do
-      close(lntemp)
+            predx(1,ich(i))=be(1)
+            do j=1,angord
+               predx(npred-j+1,ich(i))=be(j+1)
+            end do
+         end do ! end of new_chan
+         deallocate(AA,be)
 
-      deallocate(A,b)
-      deallocate(iobs,pred)
+!        write initialized predx to scratch files
+         dname = 'init_' // trim(obstype) // '_' // trim(platid)
+         open(lntemp,file=dname,form='formatted')
+         do i=1,new_chan
+            if (iobs(i)<nthreshold) cycle
+            write(lntemp,210) ich(i),predx(1,ich(i)),(predx(npred-k+1,ich(i)),k=1,angord)
+ 210        format(I5,1x,5e13.6)
+         end do
+         close(lntemp)
+
+         deallocate(A,b)
+         deallocate(iobs,pred)
+      end if
 
 !  End of loop over satellite/sensor types
    end do loopf
@@ -1247,33 +1355,54 @@ contains
 
 
 !  Combine the satellite/sensor specific predx together
-   allocate(predr(np))
-   do i=1,ndat
-      fname = 'init_' // trim(dtype(i)) // '_' // trim(dplat(i))
-      inquire(file=fname,exist=lexist)
+   if (any(inew_rad)) then
+      allocate(predr(np))
+      do i=1,ndat
+         fname = 'init_' // trim(dtype(i)) // '_' // trim(dplat(i))
+         inquire(file=fname,exist=lexist)
 
-!     Process the scratch file
-      if (lexist) then
-!        Read data from scratch file
-         write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
-         open(lntemp,file=fname,form='formatted')
-         done=.false.
-         do while (.not.done)
-            read(lntemp,210,end=160) iich,(predr(k),k=1,np)
-            predx(1,iich)=predr(1)
-            predx(npred,iich)=predr(2)
-            predx(npred-1,iich)=predr(3)
-            predx(npred-2,iich)=predr(4)
-            if (angord==4) predx(npred-3,iich)=predr(5)
-            goto 170
+!        Process the scratch file
+         if (lexist) then
+!           Read data from scratch file
+            write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
+            open(lntemp,file=fname,form='formatted')
+            do
+               read(lntemp,210,end=160) iich,(predr(k),k=1,np)
+               predx(1,iich)=predr(1)
+               do j=1,angord
+                  predx(npred-j+1,iich)=predr(j+1)
+               end do
+            end do
 160         continue
-            done=.true.
-170         continue
-         end do
-         close(lntemp)
-      end if  ! end of lexist
-   end do ! end of ndat
-   deallocate(predr)
+            close(lntemp)
+         end if  ! end of lexist
+      end do ! end of ndat
+      deallocate(predr)
+   end if
+
+   if (any(update_tlapmean)) then 
+      do i=1,ndat
+         fname = 'update_' // trim(dtype(i)) // '_' // trim(dplat(i))
+         inquire(file=fname,exist=lexist)
+
+!        Process the scratch file
+         if (lexist) then
+!           Read data from scratch file
+            write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
+            open(lntemp,file=fname,form='formatted')
+            do 
+               read(lntemp,220,end=260) jj,tlaptmp,tsumtmp,counttmp
+               tlapmean(jj)=tlaptmp
+               tsum_tlapmean(jj)=tsumtmp
+               count_tlapmean(jj)=counttmp
+            end do
+260         continue
+            close(lntemp)
+         end if  ! end of lexist
+      end do ! end of ndat
+
+      deallocate(tsum0,tsum,tlap0,tlap1,tlap2,tcnt)
+   end if
 
 !  End of program
    return

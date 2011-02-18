@@ -65,6 +65,7 @@ module read_diag
      integer(i_kind) :: idiag            ! first dimension of diag_data_chan
      integer(i_kind) :: angord           ! order of polynomial for adp_anglebc option
      integer(i_kind) :: iversion         ! radiance diagnostic file version number
+     integer(i_kind) :: inewpc           ! indicator of newpc4pred (1 on, 0 off)
   end type diag_header_fix_list
 
   type diag_data_name_list
@@ -209,13 +210,15 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
      header_fix%idiag   = ipchan+npred+1
      header_fix%angord  = 0
      header_fix%iversion= iversion_radiag-1
+     header_fix%inewpc  = 0
   endif
   write(6,*)'READ_RADIAG_HEADER:  isis=',header_fix%isis,&
        ' nchan=',header_fix%nchan,&
        ' npred=',header_fix%npred,&
        ' angord=',header_fix%angord,&
        ' idiag=',header_fix%idiag,&
-       ' iversion=',header_fix%iversion
+       ' iversion=',header_fix%iversion,&
+       ' inewpc=',header_fix%inewpc
 
   if (header_fix%npred  /= npred_radiag) &
        write(6,*) 'READ_RADIAG_HEADER:  **WARNING** header_fix%npred,npred=',&
