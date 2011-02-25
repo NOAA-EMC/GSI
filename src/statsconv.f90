@@ -256,9 +256,11 @@ subroutine statsconv(mype,&
         numgross=nint(awork(4,i_srw))
         numfailqc=nint(awork(21,i_srw))
         write(iout_srw,925) 'srw',numgross,numfailqc
-        tu=umplty/float(ntot)
-        tv=vmplty/float(ntot)
-        tuv=uvqcplty/float(ntot)
+        if(ntot > 0) then
+           tu=umplty/float(ntot)
+           tv=vmplty/float(ntot)
+           tuv=uvqcplty/float(ntot)
+        endif
         numlow      = nint(awork(2,i_srw))
         numhgh      = nint(awork(3,i_srw))
         write(iout_srw,900) 'srw',numhgh,numlow
@@ -326,8 +328,10 @@ subroutine statsconv(mype,&
         numlow        = nint(awork(2,i_gps))
         numhgh        = nint(awork(3,i_gps))
         write(iout_gps,900) 'gps',numhgh,numlow
-        tgps=gpsmplty/ntot
-        qctgps=gpsqcplty/ntot
+        if(ntot > 0) then
+           tgps=gpsmplty/ntot
+           qctgps=gpsqcplty/ntot
+        endif
      end if
 
      write(iout_gps,950) ctype,jiter,nread,nkeep,ntot
@@ -385,8 +389,10 @@ subroutine statsconv(mype,&
         numlow      = nint(awork(2,i_q))
         numhgh      = nint(awork(3,i_q))
         write(iout_q,900) 'q',numhgh,numlow
-        tq=qmplty/float(ntot)
-        qctq=qqcplty/float(ntot)
+        if(ntot > 0) then
+           tq=qmplty/float(ntot)
+           qctq=qqcplty/float(ntot)
+        end if
      end if
 
      write(iout_q,950) 'q',jiter,nread,nkeep,ntot
@@ -563,8 +569,10 @@ subroutine statsconv(mype,&
         numlow      = nint(awork(2,i_t))
         numhgh      = nint(awork(3,i_t))
         write(iout_t,900) 't',numhgh,numlow
-        tt=tmplty/ntot
-        qctt=tqcplty/ntot
+        if(ntot > 0) then
+           tt=tmplty/ntot
+           qctt=tqcplty/ntot
+        end if
      end if
 
      write(iout_t,950) 't',jiter,nread,nkeep,ntot
@@ -616,8 +624,10 @@ subroutine statsconv(mype,&
         end do
         numgross=nint(awork(4,i_dw))
         numfailqc=nint(awork(21,i_dw))
-        tdw=dwmplty/float(ntot)
-        qctdw=dwqcplty/float(ntot)
+        if(ntot > 0) then
+           tdw=dwmplty/float(ntot)
+           qctdw=dwqcplty/float(ntot)
+        end if
         write(iout_dw,925) 'dw',numgross,numfailqc
         numlow       = nint(awork(2,i_dw))
         numhgh       = nint(awork(3,i_dw))
@@ -672,8 +682,10 @@ subroutine statsconv(mype,&
            write(iout_rw,240) 'r',num(k),k,awork(6*nsig+k+100,i_rw), &
                                            awork(3*nsig+k+100,i_rw),rat,rat3
         end do
-        trw=rwmplty/float(ntot)
-        qctrw=rwqcplty/float(ntot)
+        if(ntot > 0) then
+           trw=rwmplty/float(ntot)
+           qctrw=rwqcplty/float(ntot)
+        end if
         write(iout_rw,925) 'rw',numgross,numfailqc
         numlow       = nint(awork(2,i_rw))
         numhgh       = nint(awork(3,i_rw))
@@ -770,8 +782,10 @@ subroutine statsconv(mype,&
        ! numlow      = nint(awork(2,i_t))
        ! numhgh      = nint(awork(3,i_t))
        ! write(iout_lag,900) 't',numhgh,numlow
-        tt=tmplty/ntot
-        qctt=tqcplty/ntot
+        if(ntot > 0) then
+           tt=tmplty/ntot
+           qctt=tqcplty/ntot
+        end if
      end if
 
      write(iout_lag,950) 'lag',jiter,nread,nkeep,ntot
