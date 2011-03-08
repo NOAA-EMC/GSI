@@ -317,7 +317,6 @@ LIBsys          = $(MYLIBsys)
         setupbend.o \
         setupco.o \
 	setupdw.o \
-        setupo3lv.o \
         setuplag.o \
 	setupoz.o \
 	setuppcp.o \

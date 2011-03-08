@@ -494,7 +494,8 @@ subroutine read_obs(ndata,mype)
                obstype == 'ssu' ) then
           ditype(i) = 'rad'
        else if (obstype == 'sbuv2' .or. obstype == 'omi' &
-           .or. obstype == 'gome'  .or. obstype == 'o3lev') then
+           .or. obstype == 'gome'  .or. obstype == 'o3lev' &
+           .or. obstype == 'mls' ) then
           ditype(i) = 'ozone'
        else if (obstype == 'mopitt') then
           ditype(i) = 'co'
@@ -528,22 +529,16 @@ subroutine read_obs(ndata,mype)
           end do
        else if(ditype(i) == 'ozone')then
           if(diag_ozone)minuse=-2
-          if (dtype(i) == 'o3lev') then
-             do j=1,nconvtype
-                if(trim(dtype(i)) == trim(ioctype(j)) .and. icuse(j) > minuse)nuse=.true.
-             end do
-          else
-             do j=1,jpch_oz
-                if(trim(dsis(i)) == trim(nusis_oz(j)) .and. iuse_oz(j) > minuse)nuse=.true.
-             end do
-          endif
+          do j=1,jpch_oz
+             if(trim(dsis(i)) == trim(nusis_oz(j)) .and. iuse_oz(j) > minuse)nuse=.true.
+          end do
        else if(ditype(i) == 'pcp')then
           if(diag_pcp)minuse=-2
           do j=1,npcptype
              if(trim(dsis(i)) == trim(nupcp(j)) .and. iusep(j) > minuse)nuse=.true.
           end do
        else if(ditype(i) == 'aero')then
-          if(diag_aero)minuse=-2_i_kind
+          if(diag_aero)minuse=-2
           do j=1,jpch_aero
              if(trim(dsis(i)) == trim(nusis_aero(j)) .and. iuse_aero(j) > minuse)nuse=.true.
           end do

@@ -427,7 +427,6 @@ SRCS =	$(wildcard \
 	setupbend.f90 \
 	setupco.f90 \
 	setupdw.f90 \
-	setupo3lv.f90 \
 	setuplag.F90 \
 	setupoz.f90 \
 	setuppcp.f90 \
