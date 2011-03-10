@@ -1002,7 +1002,10 @@ subroutine TBA_FROM_TBE(tbo,tvs,ths)
   parameter (nch = 6_i_kind)
 
   real(r_kind),intent(in   ) :: tbo(nch*2)
-  real(r_kind),intent(  out) :: tvs(nch),ths(nch)
+  real(r_kind),intent(  out) :: tvs(nch)
+! real(r_kind),intent(  out) :: tvs(nch),ths(nch)
+! Remove intent(out) for ths since currently not used
+  real(r_kind)               :: ths(nch)
 
   real(r_kind) tb(nch*2)
 

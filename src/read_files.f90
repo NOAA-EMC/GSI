@@ -115,7 +115,7 @@ subroutine read_files(mype)
   type(sfcio_head):: sfc_head
   type(sigio_head):: sigatm_head
   type(gfsio_gfile) :: gfile
-  type(nemsio_gfile) :: gfile2
+  type(nemsio_gfile) :: gfile_atm,gfile_sfc
 
 
 !-----------------------------------------------------------------------------
@@ -174,10 +174,10 @@ subroutine read_files(mype)
               endif
            else
               call nemsio_init(iret=iret)
-              call nemsio_open(gfile2,filename,'READ',iret=iret)
-              call nemsio_getfilehead(gfile2, nfhour=nfhour, nfminute=nfminute, &
+              call nemsio_open(gfile_atm,filename,'READ',iret=iret)
+              call nemsio_getfilehead(gfile_atm, nfhour=nfhour, nfminute=nfminute, &
                  nfsecondn=nfsecondn, nfsecondd=nfsecondd, idate=idate, iret=iret)
-              call nemsio_close(gfile2,iret=iret)
+              call nemsio_close(gfile_atm,iret=iret)
               hourg4 = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
               idateg(1) = idate(4)  !hour
               idateg(2) = idate(2)  !month
@@ -229,8 +229,8 @@ subroutine read_files(mype)
               write(6,*)' READ_FILES: in sfcio sfc_head%lpl = ', sfc_head%lpl
            else
               call nemsio_init(iret=iret)
-              call nemsio_open(gfile2,filename,'READ',iret=iret)
-              call nemsio_getfilehead(gfile2, nfhour=nfhour, nfminute=nfminute,  &
+              call nemsio_open(gfile_sfc,filename,'READ',iret=iret)
+              call nemsio_getfilehead(gfile_sfc, nfhour=nfhour, nfminute=nfminute,  &
                  nfsecondn=nfsecondn, nfsecondd=nfsecondd, idate=idate, &
                  dimx=sfc_head%lonb, dimy=sfc_head%latb, iret=iret)
               hourg4   = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
@@ -250,11 +250,13 @@ subroutine read_files(mype)
               end if
               if (allocated(sfc_head%lpl)) deallocate(sfc_head%lpl)
               allocate(sfc_head%lpl((sfc_head%latb+1)/2))
-              call nemsio_getheadvar(gfile2,'lpl',sfc_head%lpl,iret=iret)
+              call nemsio_getheadvar(gfile_sfc,'lpl',sfc_head%lpl,iret=iret)
               if ( iret /= 0 ) then
                 write(6,*)' READ_FILES: ****ERROR**** reading sfc_head%lpl, iret = ', iret
+                call nemsio_close(gfile_sfc,iret=iret)
                 call stop2(80)
               end if
+            call nemsio_close(gfile_sfc,iret=iret)
               lpl_dum=0
               lpl_dum(1:sfc_head%latb/2)=sfc_head%lpl
               deallocate(sfc_head%lpl)

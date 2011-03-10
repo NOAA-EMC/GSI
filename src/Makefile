@@ -103,7 +103,8 @@ LIBsys          =
 #------------
 # Include machine dependent compile & load options
 #------------
-include ./Makefile.conf
+  MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
 
 
 # -------------
@@ -172,7 +173,7 @@ clean:
 	@echo '==== CLEAN ==================================================='
 	- $(RM) $(EXE_FILE) *.o *.mod *.MOD *.lst *.a *.x
 	- $(RM) loadmap.txt log.make.$(EXE_FILE)
-	- $(MAKE) doclean
+	- $(MAKE) -f ${MAKE_FILE} doclean
 
 
 #-----------------------------------------------------------------------------
@@ -185,106 +186,106 @@ clean:
 
   SRCSF90C = \
 	abor1.f90 \
-        adjtest.f90 \
-        aeroinfo.f90 \
+	adjtest.f90 \
+	aeroinfo.f90 \
 	anberror.f90 \
 	anbkerror.f90 \
 	aniso_ens_util.f90 \
 	anisofilter.f90 \
 	anisofilter_glb.f90 \
-        antcorr_application.f90 \
+	antcorr_application.f90 \
 	antest_maps0.f90 \
 	antest_maps0_glb.f90 \
 	balmod.f90 \
 	berror.f90 \
-        bias_predictors.f90 \
+	bias_predictors.f90 \
 	bkerror.f90 \
 	bkgcov.f90 \
 	bkgvar.f90 \
 	bkgvar_rewgt.f90 \
 	blacklist.f90 \
-        calc_fov_conical.f90 \
-        calc_fov_crosstrk.f90 \
+	calc_fov_conical.f90 \
+	calc_fov_crosstrk.f90 \
 	calctends.f90 \
 	calctends_ad.f90 \
 	calctends_tl.f90 \
 	calctends_no_ad.f90 \
 	calctends_no_tl.f90 \
 	chemmod.f90 \
-        clw_mod.f90 \
+	clw_mod.f90 \
 	cmaq_routines.f90 \
-        coinfo.f90 \
+	coinfo.f90 \
 	combine_radobs.f90 \
 	compact_diffs.f90 \
 	compute_derived.f90 \
 	compute_fact10.f90 \
-        compute_qvar3d.f90 \
+	compute_qvar3d.f90 \
 	constants.f90 \
-        control2model.f90 \
-        control2state.f90 \
-        control_vectors.f90 \
+	control2model.f90 \
+	control2state.f90 \
+	control_vectors.f90 \
 	converr.f90 \
 	convinfo.f90 \
 	convthin.f90 \
 	crtm_interface.f90 \
-        cvsection.f90 \
+	cvsection.f90 \
 	deter_subdomain.f90 \
 	dtast.f90 \
 	egrid2agrid_mod.f90 \
-        enorm_state.F90 \
-        evaljgrad.f90 \
-        evaljcdfi.F90 \
-        evaljo.f90 \
-        evalqlim.f90 \
+	enorm_state.F90 \
+	evaljgrad.f90 \
+	evaljcdfi.F90 \
+	evaljo.f90 \
+	evalqlim.f90 \
 	fgrid2agrid_mod.f90 \
 	fill_mass_grid2.f90 \
 	fill_nmm_grid2.f90 \
 	fpvsx_ad.f90 \
-        general_read_gfsatm.f90 \
-        general_specmod.f90 \
-        general_spectral_transforms.f90 \
-        general_sub2grid_mod.f90 \
-        general_transform.f90 \
+	general_read_gfsatm.f90 \
+	general_specmod.f90 \
+	general_spectral_transforms.f90 \
+	general_sub2grid_mod.f90 \
+	general_transform.f90 \
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
 	gesinfo.F90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
-        get_gefs_ensperts_dualres.f90 \
-        get_wrf_mass_ensperts_netcdf.f90 \
+	get_gefs_ensperts_dualres.f90 \
+	get_wrf_mass_ensperts_netcdf.f90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
 	getsiga.f90 \
 	getuv.f90 \
 	getvvel.f90 \
 	glbsoi.F90 \
-        grtest.f90 \
+	grtest.f90 \
 	grdcrd.f90 \
 	grid2sub.f90 \
 	gridmod.F90 \
 	gscond_ad.f90 \
-        gsd_terrain_match_surfTobs.f90 \
-        gsdcloudanalysis.F90 \
+	gsd_terrain_match_surfTobs.f90 \
+	gsdcloudanalysis.F90 \
 	gsi_4dvar.f90 \
-        gsi_4dcouplermod.F90 \
-        gsi_bundlemod.F90 \
-        gsi_chemtracer_mod.F90 \
+	gsi_4dcouplermod.F90 \
+	gsi_bundlemod.F90 \
+	gsi_chemtracer_mod.F90 \
 	gsi_io.f90 \
-        gsi_nemsio_mod.f90 \
+	gsi_nemsio_mod.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
 	guess_grids.F90 \
 	half_nmm_grid2.f90 \
 	hilbert_curve.f90 \
-        hybrid_ensemble_isotropic.f90 \
-        hybrid_ensemble_parameters.f90 \
-        inc2guess.f90 \
+	hybrid_ensemble_isotropic.f90 \
+	hybrid_ensemble_parameters.f90 \
+	inc2guess.f90 \
 	init_commvars.f90 \
-        init_jcdfi.F90 \
-        int3dvar.f90 \
+	init_jcdfi.F90 \
+	int3dvar.f90 \
 	intall.f90 \
-        intco.f90 \
+	intco.f90 \
 	intdw.f90 \
 	intgps.f90 \
 	intjcpdry.f90 \
@@ -311,55 +312,52 @@ clean:
 	jcmod.f90 \
 	jfunc.f90 \
 	kinds.f90 \
-        lag_fields.f90 \
-        lag_interp.F90 \
-        lag_traj.F90 \
+	lag_fields.f90 \
+	lag_interp.F90 \
+	lag_traj.F90 \
 	lagmod.f90 \
-        lanczos.F90 \
-        looplimits.f90 \
+	lanczos.F90 \
+	looplimits.f90 \
 	m_berror_stats.F90 \
-        m_berror_stats_reg.f90 \
+	m_berror_stats_reg.f90 \
 	m_dgeevx.F90 \
 	m_dtime.F90	\
-        m_gpsrhs.F90 \
+	m_gpsrhs.F90 \
 	m_gsiBiases.F90 \
-        m_rerank.F90 \
+	m_rerank.F90 \
 	m_obdiag.F90	\
 	m_rhs.F90	\
-        m_stats.F90 \
-        m_tick.F90 \
-        mpeu_mpif.F90 \
-        mpeu_util.F90 \
-        mod_nmmb_to_a.f90 \
+	m_stats.F90 \
+	m_tick.F90 \
+	mpeu_mpif.F90 \
+	mpeu_util.F90 \
+	mod_nmmb_to_a.f90 \
 	mod_strong.f90 \
 	mod_vtrans.f90 \
-        model_ad.F90 \
-        model_tl.F90 \
-        model2control.f90 \
+	model_ad.F90 \
+	model_tl.F90 \
+	model2control.f90 \
 	mp_compact_diffs_mod1.f90 \
 	mp_compact_diffs_support.f90 \
 	mpimod.F90 \
-        mpl_allreduce.F90 \
-        mpl_bcast.f90 \
-        ncepgfs_ghg.f90 \
+	mpl_allreduce.F90 \
+	mpl_bcast.f90 \
+	ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \
 	ncepnems_io.f90 \
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
-        obs_ferrscale.F90 \
-	obs_para.f90 \
-        obs_sensitivity.f90 \
-        observer.F90 \
+	obs_ferrscale.F90 \
+	obs_sensitivity.F90 \
 	obsmod.F90 \
 	omegas_ad.f90 \
-	oneobmod.F90 \
 	ozinfo.f90 \
 	patch2grid_mod.f90 \
 	pcgsoi.f90 \
 	pcgsqrt.f90 \
 	pcp_k.f90 \
 	pcpinfo.f90 \
-        penal.f90 \
+	penal.f90 \
 	phil.f90 \
 	phil1.f90 \
 	plib8.f90 \
@@ -370,81 +368,33 @@ clean:
 	prewgt.f90 \
 	prewgt_reg.f90 \
 	projmethod_support.f90 \
-        prt_guess.f90 \
+	prt_guess.f90 \
 	psichi2uv_reg.f90 \
 	psichi2uvt_reg.f90 \
 	q_diag.f90 \
 	qcmod.f90 \
-        qnewton.f90 \
-        qnewton3.f90 \
+	qnewton.f90 \
+	qnewton3.f90 \
 	radinfo.f90 \
 	raflib.f90 \
-        rapidrefresh_cldsurf_mod.f90 \
+	rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
-        read_aerosol.F90 \
-	read_airs.f90 \
-	read_amsre.f90 \
-	read_anowbufr.f90 \
-	read_avhrr.f90 \
-	read_avhrr_navy.f90 \
-	read_bufrtovs.f90 \
 	read_co.F90 \
 	read_diag.f90 \
 	read_files.f90 \
-        read_gfs_ozone_for_regional.f90 \
-	read_goesimg.f90 \
-	read_goesndr.f90 \
-	read_gps.f90 \
+	read_gfs_ozone_for_regional.f90 \
 	read_guess.F90 \
-	read_iasi.f90 \
-	read_l2bufr_mod.f90 \
-        read_lag.F90 \
-	read_lidar.f90 \
-        read_Lightning.f90 \
-	read_modsbufr.f90 \
-        read_NASA_LaRC.f90 \
-	read_obs.F90 \
 	read_obsdiags.F90 \
-	read_ozone.F90 \
-	read_pcp.f90 \
-	read_prepbufr.f90 \
-	read_radar.f90 \
-        read_RadarRef_mosaic.f90 \
-	read_seviri.f90 \
-	read_ssmi.f90 \
-	read_ssmis.f90 \
-	read_superwinds.f90 \
-	read_tcps.f90 \
 	read_wrf_mass_files.f90 \
 	read_wrf_mass_guess.F90 \
 	read_wrf_nmm_files.f90 \
 	read_wrf_nmm_guess.F90 \
 	regional_io.f90 \
-        reorg_metar_cloud.f90 \
+	reorg_metar_cloud.f90 \
 	rfdpar.f90 \
 	rsearch.F90 \
-        rtlnmc_version3.f90 \
+	rtlnmc_version3.f90 \
 	satthin.F90 \
-        setupbend.f90 \
-        setupco.f90 \
-	setupdw.f90 \
-        setuplag.F90 \
-	setupoz.f90 \
-	setuppcp.f90 \
-	setuppm2_5.f90 \
-	setupps.f90 \
-	setuppw.f90 \
-	setupq.f90 \
-	setuprad.f90 \
-	setupref.f90 \
-	setuprhsall.f90 \
-	setuprw.f90 \
-	setupspd.f90 \
-	setupsrw.f90 \
-	setupsst.f90 \
-	setupt.f90 \
-	setuptcp.f90 \
-	setupw.f90 \
 	setupyobs.f90 \
 	sfc_model.f90 \
 	sfcobsqc.f90 \
@@ -454,10 +404,9 @@ clean:
 	smoothrf.f90 \
 	smoothwwrf.f90 \
 	smoothzrf.f90 \
-        sqrtmin.f90 \
-	sst_retrieval.f90 \
-        state2control.f90 \
-        state_vectors.f90 \
+	sqrtmin.f90 \
+	state2control.f90 \
+	state_vectors.f90 \
 	statsco.f90 \
 	statsconv.f90 \
 	statsoz.f90 \
@@ -493,12 +442,12 @@ clean:
 	sub2fslab_mod.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
-        stub_pertmod.F90 \
-        stub_timermod.F90 \
+	stub_pertmod.F90 \
+	stub_timermod.F90 \
 	tendsmod.f90 \
-        test_obsens.f90 \
-        tcv_mod.f90 \
-        timermod.F90 \
+	test_obsens.f90 \
+	tcv_mod.f90 \
+	timermod.F90 \
 	tintrp2a.f90 \
 	tintrp3.f90 \
 	tpause.f90 \
@@ -518,11 +467,65 @@ clean:
 	wrf_netcdf_interface.F90 \
 	write_all.F90 \
 	write_bkgvars_grid.f90 \
-        write_obsdiags.F90 \
+	write_obsdiags.F90 \
 	wrwrfmassa.F90 \
 	wrwrfnmma.F90 \
-        xhat_vordivmod.f90 \
+	xhat_vordivmod.f90 \
 	zrnmi_mod.f90
+
+  SRCSF90C_NOSWAP = \
+	obs_para.f90 \
+	observer.F90 \
+	oneobmod.F90 \
+	read_Lightning.f90 \
+	read_NASA_LaRC.f90 \
+	read_RadarRef_mosaic.f90 \
+	read_aerosol.F90 \
+	read_airs.f90 \
+	read_amsre.f90 \
+	read_anowbufr.f90 \
+	read_avhrr.f90 \
+	read_avhrr_navy.f90 \
+	read_bufrtovs.f90 \
+	read_goesimg.f90 \
+	read_goesndr.f90 \
+	read_gps.f90 \
+	read_lag.F90 \
+	read_iasi.f90 \
+	read_l2bufr_mod.f90 \
+	read_lidar.f90 \
+	read_modsbufr.f90 \
+	read_obs.F90 \
+	read_ozone.F90 \
+	read_pcp.f90 \
+	read_prepbufr.f90 \
+	read_radar.f90 \
+	read_seviri.f90 \
+	read_ssmi.f90 \
+	read_ssmis.f90 \
+	read_superwinds.f90 \
+	read_tcps.f90 \
+	setupbend.f90 \
+	setupco.f90 \
+	setupdw.f90 \
+	setuplag.F90 \
+	setupoz.f90 \
+	setuppcp.f90 \
+	setuppm2_5.f90 \
+	setupps.f90 \
+	setuppw.f90 \
+	setupq.f90 \
+	setuprad.f90 \
+	setupref.f90 \
+	setuprhsall.f90 \
+	setuprw.f90 \
+	setupspd.f90 \
+	setupsrw.f90 \
+	setupsst.f90 \
+	setupt.f90 \
+	setuptcp.f90 \
+	setupw.f90 \
+	sst_retrieval.f90
 
   GSIGC_SRCS = # GSI_GridCompMod.F90
 
@@ -539,8 +542,10 @@ clean:
 # ------------
 
   SRCSF90	= ${SRCSF90C:.F90=.f90}
+  SRCSF90_NOSWAP= ${SRCSF90C_NOSWAP:.F90=.f90}
 
   OBJS 		= ${SRCSF90:.f90=.o} ${SRCSF77:.f=.o} ${SRCSC:.c=.o}
+  OBJS_NOSWAP	= ${SRCSF90_NOSWAP:.f90=.o}
 
 
 # -----------------------
@@ -570,16 +575,21 @@ clean:
 	@echo '---> Compiling $<'
 	$(CC) $(CFLAGS) -c $<
 
+$(OBJS_NOSWAP) :
+	@echo '---> Special handling of Fortran "native" BUFR-OPEN $<'
+	$(CF) -c $(FFLAGS_NOSWAP) $<
+
 
 # ------------
 # Dependencies
 # ------------
-include Makefile.dependency
+  MAKE_DEPEND = Makefile.dependency
+include $(MAKE_DEPEND)
 
 # ----
 
-$(EXE_FILE) : $(OBJS) gsimain.o
-	$(LD) $(LDFLAGS) -o $@ gsimain.o $(OBJS) $(LIBS)
+$(EXE_FILE) :  $(OBJS) $(OBJS_NOSWAP) gsimain.o
+	$(LD) $(LDFLAGS) -o $@ gsimain.o $(OBJS) $(OBJS_NOSWAP) $(LIBS)
 
 
 # ------------------------
@@ -592,8 +602,9 @@ all :
 	@echo '==== COMPILE ================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
 		"FFLAGS=$(FFLAGS_N)" \
+		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP) gsimain.o
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -606,8 +617,9 @@ debug :
 	@echo '==== COMPILE ================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
 		"FFLAGS=$(FFLAGS_D)" \
+		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_D)" \
 		"CFLAGS=$(CFLAGS_D)" \
-		$(OBJS) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP) gsimain.o
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -619,12 +631,12 @@ check_mode :
 	  if [ '$(COMP_MODE)' != `head -n 1 $(LOG_FILE)` ]; then \
 	    echo ;\
 	    echo "### COMPILE MODE WAS CHANGED ###" ;\
-	    make clean ;\
+	    $(MAKE) -f $(MAKE_FILE) clean ;\
 	  fi ;\
 	else \
 	  echo ;\
 	  echo "### NO LOG FILE ###" ;\
-	  make clean ;\
+	  $(MAKE) -f $(MAKE_FILE) clean ;\
 	fi
 	@echo $(COMP_MODE) > $(LOG_FILE)
 
@@ -635,18 +647,18 @@ LIB =   libgsi.a
 
 lib: $(LIB)
 
-gsi.x:  $(OBJS) $(LIB) gsimain.o
+gsi.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB) gsimain.o
 	$(FC) $(LDFLAGS) -o gsi.x gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbfr) $(LIBsp) $(LIBtransf) $(LIBhermes) $(LIBmpeu) $(LIBgfio) $(LIBhdf) $(LIBmpi) $(LIBsys)
 
-ut_gsibundle.x:  $(OBJS) $(LIB) ut_gsibundle.o
+ut_gsibundle.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB) ut_gsibundle.o
 	$(FC) $(LDFLAGS) -o ut_gsibundle.x ut_gsibundle.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbfr) $(LIBsp) $(LIBtransf) $(LIBhermes) $(LIBmpeu) $(LIBgfio) $(LIBhdf) $(LIBmpi) $(LIBsys)
 
 prepbykx.x: prepbykx.o
 	$(FC) $(LDFLAGS) -o prepbykx.x prepbykx.o $(LIBbfr)
 
-$(LIB): $(OBJS)
+$(LIB): $(OBJS) $(OBJS_NOSWAP)
 	$(RM) $(LIB)
-	$(AR) $@ $(OBJS)
+	$(AR) $@ $(OBJS) $(OBJS_NOSWAP)
 
 export: libgsi.a gsi.x prepbykx.x
 	$(MKDIR)               $(COREBIN)
