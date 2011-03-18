@@ -1,4 +1,4 @@
-subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
+subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt,jstart,jstop)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -11,6 +11,7 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
 !
 ! program history log:
 !   2008-04-02  safford -- add subprogram doc block, rm unused uses
+!   2010-11-03  derber - added jstart and jstop for threading use
 !
 !   input argument list:
 !     zges     -
@@ -22,6 +23,8 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
 !     termv    - 
 !     termt    - 
 !     oges     - 
+!     jstart   - starting point of j loop
+!     jstop    - stopping point of j loop
 !
 !   output argument list:
 !     termu    - 
@@ -36,7 +39,7 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
 !$$$
 
   use kinds,only: r_kind,i_kind
-  use constants,only: izero,ione,zero,one,two,half,rd_over_g,rd_over_cp,grav
+  use constants,only: zero,one,two,half,rd_over_g,rd_over_cp,grav
   use gridmod,only: lat2,lon2,nsig,nsig_hlf
   use turblmod, only: use_pbl
   use turblmod, only: dudz,dvdz,dodz,ri,rf,zi,km,kh,sm,sh
@@ -53,15 +56,16 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
   real(r_kind),parameter:: r200 = 200.0_r_kind
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: zges
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: pges
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: uges,vges,tges
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(inout) :: termu,termv,termt,oges
+  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: zges
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: pges
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: uges,vges,tges
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: termu,termv,termt,oges
+  integer(i_kind)                         ,intent(in   ) :: jstart,jstop
 
 ! Declare local variables
   real(r_kind),dimension(nsig_hlf):: zl,kmaz,khaz
   real(r_kind),dimension(nsig_hlf):: tloc,uloc,vloc,oloc,zmix
-  real(r_kind),dimension(nsig_hlf+ione):: ploc
+  real(r_kind),dimension(nsig_hlf+1):: ploc
 
   real(r_kind) px,rdzik,rdzlk,kmrdz,khrdz,ssq,aux,l0
   integer(i_kind) i,j,k
@@ -69,15 +73,15 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
   if(.not. use_pbl)return
 
   do k=1,nsig_hlf
-     do j=1,lon2
+     do j=jstart,jstop
         do i=1,lat2
            oges(i,j,k)=tges(i,j,k)*(                  &
-               r200/( pges(i,j,k)+pges(i,j,k+ione) ))**rd_over_cp
+               r200/( pges(i,j,k)+pges(i,j,k+1) ))**rd_over_cp
         end do
      end do
   end do
 
-  do j=1,lon2
+  do j=jstart,jstop
      do i=1,lat2
         do k=1,nsig_hlf
            tloc(k)=tges(i,j,k)
@@ -86,13 +90,13 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
            ploc(k)=pges(i,j,k)
            oloc(k)=oges(i,j,k)
         end do
-        ploc(nsig_hlf+ione)=pges(i,j,nsig_hlf+ione)
+        ploc(nsig_hlf+1)=pges(i,j,nsig_hlf+1)
         zi(i,j,1) = zges(i,j)
         do k=1,nsig_hlf
-           zi(i,j,k+ione)=zi(i,j,k)-rd_over_g*two*tloc(k) &
-                    *(ploc(k+ione)-ploc(k))/(ploc(k+ione)+ploc(k))
-           zl(k)=half*(zi(i,j,k+ione)+zi(i,j,k))
-           rdzi(i,j,k)=one/(zi(i,j,k+ione)-zi(i,j,k))
+           zi(i,j,k+1)=zi(i,j,k)-rd_over_g*two*tloc(k) &
+                    *(ploc(k+1)-ploc(k))/(ploc(k+1)+ploc(k))
+           zl(k)=half*(zi(i,j,k+1)+zi(i,j,k))
+           rdzi(i,j,k)=one/(zi(i,j,k+1)-zi(i,j,k))
         end do
 
 !m      l0=l0my20 *0.1_r_kind   !  8 m
@@ -104,7 +108,7 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
         kar0my20(i,j)=karmy20/l0
 
         do k=2,nsig_hlf
-           rdzl(i,j,k)=one/(zl(k)-zl(k-ione))
+           rdzl(i,j,k)=one/(zl(k)-zl(k-1))
         end do
 
         do k=2,nsig_hlf
@@ -116,9 +120,9 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
            ssq=dudz(i,j,k)**2+dvdz(i,j,k)**2
            if(ssq < eps_m) ssq=eps_m
            lmix(i,j,k)=karmy20*zmix(k)/(one+kar0my20(i,j)*zmix(k))
-           ri(i,j,k)=two*grav*dodz(i,j,k)/((tloc(k)+tloc(k-ione))*ssq)
+           ri(i,j,k)=two*grav*dodz(i,j,k)/((tloc(k)+tloc(k-1))*ssq)
            if(ri(i,j,k) > ricmy20) then
-              ri_int(i,j,k)=ione
+              ri_int(i,j,k)=1
               ri(i,j,k)=ricmy20
               rf(i,j,k)=rfcmy20
               sh(i,j,k)=shcmy20
@@ -126,7 +130,7 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
               km(i,j,k)=zero
               kh(i,j,k)=zero
            else
-              ri_int(i,j,k)=izero
+              ri_int(i,j,k)=0
               rf(i,j,k)=a0my20*(ri(i,j,k)+b0my20-sqrt(ri(i,j,k)**2-c0my20*ri(i,j,k)+d0my20))
               sh(i,j,k)=f1my20*(f2my20-f3my20*rf(i,j,k))/(one-rf(i,j,k))
               sm(i,j,k)=f4my20*(f5my20-f6my20*rf(i,j,k))/(f7my20-f8my20*rf(i,j,k))*sh(i,j,k)
@@ -135,16 +139,16 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
               kh(i,j,k)=aux*sh(i,j,k) 
            end if
         end do
-        km(i,j,1)=zero; km(i,j,nsig_hlf+ione)=zero
-        kh(i,j,1)=zero; kh(i,j,nsig_hlf+ione)=zero
+        km(i,j,1)=zero; km(i,j,nsig_hlf+1)=zero
+        kh(i,j,1)=zero; kh(i,j,nsig_hlf+1)=zero
      end do
   end do
   
-  do j=1,lon2
+  do j=jstart,jstop
      do i=1,lat2
         do k=1,nsig_hlf
-           kmaz(k)=(km(i,j,k)+km(i,j,k+ione))*half
-           khaz(k)=(kh(i,j,k)+kh(i,j,k+ione))*half
+           kmaz(k)=(km(i,j,k)+km(i,j,k+1))*half
+           khaz(k)=(kh(i,j,k)+kh(i,j,k+1))*half
         end do
  
         dudtm(i,j,nsig_hlf)=zero
@@ -157,11 +161,11 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt)
            kmrdz=kmaz(k)*rdzik
            khrdz=khaz(k)*rdzik
            if(k < nsig_hlf)then
-              dudtm(i,j,k)=kmrdz*dudz(i,j,k+ione)
-              dvdtm(i,j,k)=kmrdz*dvdz(i,j,k+ione)
-              dtdtm(i,j,k)=khrdz*dodz(i,j,k+ione)*px
+              dudtm(i,j,k)=kmrdz*dudz(i,j,k+1)
+              dvdtm(i,j,k)=kmrdz*dvdz(i,j,k+1)
+              dtdtm(i,j,k)=khrdz*dodz(i,j,k+1)*px
            end if
-           if(k > ione)then
+           if(k > 1)then
               dudtm(i,j,k)=dudtm(i,j,k)-kmrdz*dudz(i,j,k)
               dvdtm(i,j,k)=dvdtm(i,j,k)-kmrdz*dvdz(i,j,k)
               dtdtm(i,j,k)=dtdtm(i,j,k)-khrdz*dodz(i,j,k)*px

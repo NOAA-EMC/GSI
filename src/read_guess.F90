@@ -56,7 +56,10 @@ subroutine read_guess(iyear,month,mype)
 !   2010-03-15  parrish - add flag regional_ozone to turn on ozone in regional analysis
 !   2010-03-31  treadon - replace read_gfsatm with read_gfs
 !   2010-05-19  todling - pass year and month for read_gsf_chem; read_guess should never
+!   2010-09-17  pagowski - add cmaq
+
 !                         depend on obsmod - that's why idate not passed via common block
+!   2010-10-18  hcHuang - add flag use_gfs_nemsio and link to read_nems and read_nems_chem
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -78,11 +81,13 @@ subroutine read_guess(iyear,month,mype)
   use gsi_io, only: read_bias
   use gridmod, only: lat2,lon2
   use gridmod, only: nsig
-  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,&
+  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,&
        twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone,regional_ozone
+  use gridmod, only: use_gfs_nemsio
 
-  use constants, only: izero,ione,zero,one,fv
+  use constants, only: zero,one,fv
   use ncepgfs_io, only: read_gfs,read_gfs_chem
+  use ncepnems_io, only: read_nems,read_nems_chem
 
   implicit none
 
@@ -122,6 +127,8 @@ subroutine read_guess(iyear,month,mype)
            call read_2d_guess(mype)
         else if (nems_nmmb_regional) then
            call read_nems_nmmb_guess(mype)
+        else if (cmaq_regional) then
+           call read_cmaq_guess(mype)
         end if
      
 
@@ -129,7 +136,7 @@ subroutine read_guess(iyear,month,mype)
      else
 
 !       If requested, read bias correction fields
-        iret_bias=izero
+        iret_bias=0
         if (biascor >= zero) then
            filename='biascor_in'
            call read_bias(filename,mype,nbc,work,bias_ps,bias_tskin,&
@@ -139,8 +146,14 @@ subroutine read_guess(iyear,month,mype)
         
 !       Read atmospheric fields
 #ifndef HAVE_ESMF
-        call read_gfs(mype)
-        call read_gfs_chem(iyear,month)
+        if ( use_gfs_nemsio ) then
+!!           WRITE(6,*)'WARNING :: you elect to read first guess field in NEMSIO format'
+           call read_nems(mype)
+           call read_nems_chem(iyear,month)
+        else
+           call read_gfs(mype)
+           call read_gfs_chem(iyear,month)
+        end if
 #endif
 
 !    End of non-GMAO global interfaces
@@ -148,7 +161,7 @@ subroutine read_guess(iyear,month,mype)
         
 ! If doing SBC, apply bias correction ...
 
-  if(biascor>=zero .and. iret_bias==izero .and. bcoption==ione ) call correct_bias()
+  if(biascor>=zero .and. iret_bias==0 .and. bcoption==1 ) call correct_bias()
 
 ! Get sensible temperature (after bias correction's been applied)
 

@@ -28,6 +28,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 !   2008-06-05  safford - rm unused var "nnn" and unused uses
 !   2009-08-20  parrish - replace curvfct with curvx, curvy.  this allows tendency computation to
 !                          work for any general orthogonal coordinate.
+!   2010-11-03  derber - moved threading calculations to gridmod and modified
 !
 ! usage:
 !   input argument list:
@@ -65,8 +66,8 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 !$$$
   use kinds,only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,istart,rlats,nlat,idvc5,bk5,&
-      eta2_ll,wrf_nmm_regional,nems_nmmb_regional,regional
-  use constants, only: ione,zero,half,two,rd,rcp
+      eta2_ll,wrf_nmm_regional,nems_nmmb_regional,regional,nthreads,jtstart,jtstop
+  use constants, only: zero,half,two,rd,rcp
   use tendsmod, only: what9,prsth9,r_prsum9,prdif9,r_prdif9,pr_xsum9,pr_xdif9,&
       pr_ysum9,pr_ydif9,curvx,curvy,coriolis
   use guess_grids, only: ntguessig,ges_u,&
@@ -76,14 +77,14 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(inout) :: u_t,v_t,u,v,t,q,oz,cw
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: t_t,q_t,oz_t,cw_t
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: p_t
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout) :: pri
-  integer(i_kind)                            ,intent(in   ) :: mype,nnn
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: u_t,v_t,u,v,t,q,oz,cw
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: t_t,q_t,oz_t,cw_t
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: p_t
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout) :: pri
+  integer(i_kind)                         ,intent(in   ) :: mype,nnn
 
 ! Declare local variables
-  real(r_kind),dimension(lat2,lon2,nsig+ione):: pri_x,pri_y,prsth,what
+  real(r_kind),dimension(lat2,lon2,nsig+1):: pri_x,pri_y,prsth,what
   real(r_kind),dimension(lat2,lon2,nsig):: prsum,prdif,pr_xsum,pr_xdif,pr_ysum,&
        pr_ydif
 
@@ -93,34 +94,28 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
   real(r_kind),dimension(lat2,lon2,nsig):: t_thor9
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
   real(r_kind) tmp,tmp2,tmp3,var,sumk,sumvk,sum2k,sum2vk
-  integer(i_kind) i,j,k,ix,it
-  integer(i_kind) :: jstart,jstop
-  integer(i_kind) :: nth,tid,omp_get_num_threads,omp_get_thread_num
+  integer(i_kind) i,j,k,ix,it,kk
 
   it=ntguessig
-  jstart=ione
-  jstop=lon2
 
-!$omp parallel private(nth,tid,i,j,k,jstart,jstop,tmp,tmp2,ix,&
+!  loop over threads
+!$omp parallel do schedule(dynamic,1) private(i,j,k,kk,tmp,tmp2,ix,&
 !$omp                  tmp3,sumk,sumvk,sum2k,sum2vk)
-#ifdef ibm_sp
-  nth = omp_get_num_threads()
-  tid = omp_get_thread_num()
-  call looplimits(tid, nth, ione, lon2, jstart, jstop)
-#endif
+  do kk=1,nthreads
 
-! zero arrays
-  do k=1,nsig+ione
-     do j=jstart,jstop
+!   zero arrays
+
+    do k=1,nsig+1
+      do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
            what(i,j,k)=zero
            prsth(i,j,k)=zero
-!          pri(i,j,k)=zero
+           pri(i,j,k)=zero
         end do
-     end do
-  end do
-  do k=1,nsig
-     do j=jstart,jstop
+      end do
+    end do
+    do k=1,nsig
+      do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
            prsum(i,j,k)=zero
            prdif(i,j,k)=zero
@@ -141,10 +136,10 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
            oz_x(i,j,k)=zero
            oz_y(i,j,k)=zero
         end do
-     end do
-  end do
-  do j=jstart,jstop
-     do i=1,lat2
+      end do
+    end do
+    do j=jtstart(kk),jtstop(kk)
+      do i=1,lat2
         sumkm1(i,j)=zero
         sumvkm1(i,j)=zero
         sum2km1(i,j)=zero
@@ -153,49 +148,51 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
         sst_y(i,j)=zero
         ps_x(i,j)=zero
         ps_y(i,j)=zero
-     end do
-  end do
+      end do
+    end do
 
-  do k=nsig,1,-1
-     do j=jstart,jstop
+    do k=nsig,1,-1
+      do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
            if(k < nsig) then
-              tmp2=half*what9(i,j,k+ione)*r_prdif9(i,j,k)
-              tmp = - q_t (i,j,k)*(ges_q   (i,j,k,it)-ges_q   (i,j,k+ione,it)) - &
-                      oz_t(i,j,k)*(ges_oz  (i,j,k,it)-ges_oz  (i,j,k+ione,it)) - &
-                      cw_t(i,j,k)*(ges_cwmr(i,j,k,it)-ges_cwmr(i,j,k+ione,it))
-              q (i,j,k) = q (i,j,k) - (q_t (i,j,k)*tmp2)
-              q (i,j,k+ione) = q (i,j,k+ione) + (q_t (i,j,k)*tmp2)
-              oz(i,j,k) = oz(i,j,k) - (oz_t(i,j,k)*tmp2)
-              oz(i,j,k+ione) = oz(i,j,k+ione) + (oz_t(i,j,k)*tmp2)
-              cw(i,j,k) = cw(i,j,k) - (cw_t(i,j,k)*tmp2)
-              cw(i,j,k+ione) = cw(i,j,k+ione) + (cw_t(i,j,k)*tmp2)
+              tmp2=half*what9(i,j,k+1)*r_prdif9(i,j,k)
+              tmp = - q_t (i,j,k)*(ges_q   (i,j,k,it)-ges_q   (i,j,k+1,it)) - &
+                      oz_t(i,j,k)*(ges_oz  (i,j,k,it)-ges_oz  (i,j,k+1,it)) - &
+                      cw_t(i,j,k)*(ges_cwmr(i,j,k,it)-ges_cwmr(i,j,k+1,it))
+              q (i,j,k  ) = q (i,j,k  ) - q_t (i,j,k)*tmp2
+              q (i,j,k+1) = q (i,j,k+1) + q_t (i,j,k)*tmp2
+              oz(i,j,k  ) = oz(i,j,k  ) - oz_t(i,j,k)*tmp2
+              oz(i,j,k+1) = oz(i,j,k+1) + oz_t(i,j,k)*tmp2
+              cw(i,j,k  ) = cw(i,j,k  ) - cw_t(i,j,k)*tmp2
+              cw(i,j,k+1) = cw(i,j,k+1) + cw_t(i,j,k)*tmp2
               prdif(i,j,k) = prdif(i,j,k)+(tmp2*r_prdif9(i,j,k))* &
-                  (((ges_q   (i,j,k,it)-ges_q   (i,j,k+ione,it))*q_t (i,j,k)) + &
-                   ((ges_oz  (i,j,k,it)-ges_oz  (i,j,k+ione,it))*oz_t(i,j,k)) + &
-                   ((ges_cwmr(i,j,k,it)-ges_cwmr(i,j,k+ione,it))*cw_t(i,j,k)) )
-              what(i,j,k+ione) = what(i,j,k+ione)+(half*tmp*r_prdif9(i,j,k))
+                  (((ges_q   (i,j,k,it)-ges_q   (i,j,k+1,it))*q_t (i,j,k)) + &
+                   ((ges_oz  (i,j,k,it)-ges_oz  (i,j,k+1,it))*oz_t(i,j,k)) + &
+                   ((ges_cwmr(i,j,k,it)-ges_cwmr(i,j,k+1,it))*cw_t(i,j,k)) )
+              what(i,j,k+1) = what(i,j,k+1)+(half*tmp*r_prdif9(i,j,k))
            end if
 
-           if(k > ione)then
+           if(k > 1)then
               tmp2=half*what9(i,j,k)*r_prdif9(i,j,k)
-              tmp= - q_t (i,j,k)*(ges_q   (i,j,k-ione,it)-ges_q   (i,j,k,it)) - &
-                     oz_t(i,j,k)*(ges_oz  (i,j,k-ione,it)-ges_oz  (i,j,k,it)) - &
-                     cw_t(i,j,k)*(ges_cwmr(i,j,k-ione,it)-ges_cwmr(i,j,k,it))
-              q (i,j,k-ione) = q (i,j,k-ione) - (q_t (i,j,k)*tmp2)
-              q (i,j,k) = q (i,j,k) + (q_t (i,j,k)*tmp2)
-              oz(i,j,k-ione) = oz(i,j,k-ione) - (oz_t(i,j,k)*tmp2)
-              oz(i,j,k) = oz(i,j,k) + (oz_t(i,j,k)*tmp2)
-              cw(i,j,k-ione) = cw(i,j,k-ione) - (cw_t(i,j,k)*tmp2)
-              cw(i,j,k) = cw(i,j,k) + (cw_t(i,j,k)*tmp2)
+              tmp= - q_t (i,j,k)*(ges_q   (i,j,k-1,it)-ges_q   (i,j,k,it)) - &
+                     oz_t(i,j,k)*(ges_oz  (i,j,k-1,it)-ges_oz  (i,j,k,it)) - &
+                     cw_t(i,j,k)*(ges_cwmr(i,j,k-1,it)-ges_cwmr(i,j,k,it))
+              q (i,j,k-1) = q (i,j,k-1) - q_t (i,j,k)*tmp2
+              q (i,j,k  ) = q (i,j,k  ) + q_t (i,j,k)*tmp2
+              oz(i,j,k-1) = oz(i,j,k-1) - oz_t(i,j,k)*tmp2
+              oz(i,j,k  ) = oz(i,j,k  ) + oz_t(i,j,k)*tmp2
+              cw(i,j,k-1) = cw(i,j,k-1) - cw_t(i,j,k)*tmp2
+              cw(i,j,k  ) = cw(i,j,k  ) + cw_t(i,j,k)*tmp2
 
               prdif(i,j,k) = prdif(i,j,k) + (tmp2*r_prdif9(i,j,k))* &
-                  (((ges_q   (i,j,k-ione,it)-ges_q   (i,j,k,it))*q_t (i,j,k)) + &
-                   ((ges_oz  (i,j,k-ione,it)-ges_oz  (i,j,k,it))*oz_t(i,j,k)) + &
-                   ((ges_cwmr(i,j,k-ione,it)-ges_cwmr(i,j,k,it))*cw_t(i,j,k)) )
+                  (((ges_q   (i,j,k-1,it)-ges_q   (i,j,k,it))*q_t (i,j,k)) + &
+                   ((ges_oz  (i,j,k-1,it)-ges_oz  (i,j,k,it))*oz_t(i,j,k)) + &
+                   ((ges_cwmr(i,j,k-1,it)-ges_cwmr(i,j,k,it))*cw_t(i,j,k)) )
               what(i,j,k) = what(i,j,k)+(half*tmp*r_prdif9(i,j,k))
            end if
-! adjoint of tracer advective terms
+
+!   adjoint of tracer advective terms
+
            u(i,j,k) = u(i,j,k) - q_t(i,j,k)*ges_qlon(i,j,k) -  &
               oz_t(i,j,k)*ges_ozlon(i,j,k) - cw_t(i,j,k)*ges_cwmr_lon(i,j,k)
            v(i,j,k) = v(i,j,k) - q_t(i,j,k)*ges_qlat(i,j,k) -  &
@@ -207,33 +204,34 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
            cw_x(i,j,k) = cw_x(i,j,k) - cw_t(i,j,k)*ges_u(i,j,k,it)
            cw_y(i,j,k) = cw_y(i,j,k) - cw_t(i,j,k)*ges_v(i,j,k,it)
         end do
-     end do
-  end do
+      end do
+    end do
 
-! 5) adjoint of sum 2d individual terms into 3d tendency arrays
-! because of sum arrays/dependencies, have to go from nsig --> 1
+!   adjoint of sum 2d individual terms into 3d tendency arrays
+!   because of sum arrays/dependencies, have to go from nsig --> 1
 
-  if(.not.wrf_nmm_regional.and..not.nems_nmmb_regional)then
-     do k=1,nsig
-        do j=jstart,jstop
+    if(.not.wrf_nmm_regional.and..not.nems_nmmb_regional)then
+      do k=1,nsig
+        do j=jtstart(kk),jtstop(kk)
            do i=1,lat2
-              ix=istart(mype+ione)+i-2_i_kind
-              if (ix == ione .or. ix == nlat) then
+              ix=istart(mype+1)+i-2
+              if (ix == 1 .or. ix == nlat) then
                  u_t(i,j,k)=zero ; v_t(i,j,k)=zero
               end if
            end do
         end do
-     end do                         
-  end if
+      end do                         
+    end if
 
-  call turbl_ad(ges_prsi(1,1,1,it),ges_tv  (1,1,1,it),ges_teta(1,1,1,it),&
-                u,v,pri,t,u_t,v_t,t_t,jstart,jstop)
+    call turbl_ad(ges_prsi(1,1,1,it),ges_tv  (1,1,1,it),ges_teta(1,1,1,it),&
+                u,v,pri,t,u_t,v_t,t_t,jtstart(kk),jtstop(kk))
 
-  do k=nsig,1,-1               
+    do k=nsig,1,-1               
 
 
-! vertical summation terms for u,v
-     do j=jstart,jstop
+!   vertical summation terms for u,v
+
+      do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
            sumk  =sumkm1  (i,j) - u_t   (i,j,k)
            sumvk =sumvkm1 (i,j) - v_t   (i,j,k)
@@ -246,6 +244,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
            sum2vkm1(i,j) = -rd*v_t(i,j,k)
 
 ! arrays tmp2 and tmp3 are from basic state variables
+
            tmp2=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
            tmp3=prdif9(i,j,k)*r_prsum9(i,j,k)
            t_y(i,j,k) = t_y(i,j,k) + sum2vk*tmp3
@@ -265,7 +264,9 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
            var=tmp2*sumvk*r_prsum9(i,j,k)
            prsum  (i,j,k) = prsum  (i,j,k) + tmp3*var*pr_ysum9(i,j,k)
            prdif  (i,j,k) = prdif  (i,j,k) - var*pr_ysum9(i,j,k)
+
 ! tmp is a reused variable
+
            tmp = sumvk*( pr_ydif9(i,j,k) - (pr_ysum9(i,j,k)*tmp3) )
            prsum(i,j,k) = prsum(i,j,k) - var* &
               ( pr_ydif9(i,j,k) - (pr_ysum9(i,j,k)*tmp3) )
@@ -284,56 +285,57 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 
            t(i,j,k) = t(i,j,k) + rd*tmp*r_prsum9(i,j,k)
         end do
-     end do
+      end do
 
 ! adjoint of vertical flux terms
-     do j=jstart,jstop
+
+      do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
            if(k < nsig) then
-              tmp2=half*what9(i,j,k+ione)*r_prdif9(i,j,k)
+              tmp2=half*what9(i,j,k+1)*r_prdif9(i,j,k)
 
-              tmp = -u_t(i,j,k)*(ges_u (i,j,k,it)-ges_u (i,j,k+ione,it)) - &
-                     v_t(i,j,k)*(ges_v (i,j,k,it)-ges_v (i,j,k+ione,it)) - &
-                     t_t(i,j,k)*(ges_tv(i,j,k,it)-ges_tv(i,j,k+ione,it))    
+              tmp = -u_t(i,j,k)*(ges_u (i,j,k,it)-ges_u (i,j,k+1,it)) - &
+                     v_t(i,j,k)*(ges_v (i,j,k,it)-ges_v (i,j,k+1,it)) - &
+                     t_t(i,j,k)*(ges_tv(i,j,k,it)-ges_tv(i,j,k+1,it))    
 
-              t(i,j,k) = t(i,j,k) - t_t(i,j,k)*tmp2
-              t(i,j,k+ione) = t(i,j,k+ione) + t_t(i,j,k)*tmp2
-              u(i,j,k) = u(i,j,k) - u_t(i,j,k)*tmp2
-              u(i,j,k+ione) = u(i,j,k+ione) + u_t(i,j,k)*tmp2
-              v(i,j,k) = v(i,j,k) - v_t(i,j,k)*tmp2
-              v(i,j,k+ione) = v(i,j,k+ione) + v_t(i,j,k)*tmp2
+              t(i,j,k  ) = t(i,j,k  ) - t_t(i,j,k)*tmp2
+              t(i,j,k+1) = t(i,j,k+1) + t_t(i,j,k)*tmp2
+              u(i,j,k  ) = u(i,j,k  ) - u_t(i,j,k)*tmp2
+              u(i,j,k+1) = u(i,j,k+1) + u_t(i,j,k)*tmp2
+              v(i,j,k  ) = v(i,j,k  ) - v_t(i,j,k)*tmp2
+              v(i,j,k+1) = v(i,j,k+1) + v_t(i,j,k)*tmp2
 
               prdif(i,j,k) = prdif(i,j,k) + (tmp2*r_prdif9(i,j,k))* &
-                ( ((ges_tv(i,j,k,it)-ges_tv(i,j,k+ione,it))*t_t(i,j,k)) + &
-                  ((ges_u (i,j,k,it)-ges_u (i,j,k+ione,it))*u_t(i,j,k)) + &
-                  ((ges_v (i,j,k,it)-ges_v (i,j,k+ione,it))*v_t(i,j,k)) )
+                ( ((ges_tv(i,j,k,it)-ges_tv(i,j,k+1,it))*t_t(i,j,k)) + &
+                  ((ges_u (i,j,k,it)-ges_u (i,j,k+1,it))*u_t(i,j,k)) + &
+                  ((ges_v (i,j,k,it)-ges_v (i,j,k+1,it))*v_t(i,j,k)) )
 
-              what(i,j,k+ione) = what(i,j,k+ione) + half*tmp*r_prdif9(i,j,k)
+              what(i,j,k+1) = what(i,j,k+1) + half*tmp*r_prdif9(i,j,k)
            end if
-           if(k > ione) then
+           if(k > 1) then
               tmp2=half*what9(i,j,k)*r_prdif9(i,j,k)
 
-              tmp = - u_t(i,j,k)*(ges_u (i,j,k-ione,it)-ges_u (i,j,k,it)) - &
-                      v_t(i,j,k)*(ges_v (i,j,k-ione,it)-ges_v (i,j,k,it)) - &
-                      t_t(i,j,k)*(ges_tv(i,j,k-ione,it)-ges_tv(i,j,k,it)) 
+              tmp = - u_t(i,j,k)*(ges_u (i,j,k-1,it)-ges_u (i,j,k,it)) - &
+                      v_t(i,j,k)*(ges_v (i,j,k-1,it)-ges_v (i,j,k,it)) - &
+                      t_t(i,j,k)*(ges_tv(i,j,k-1,it)-ges_tv(i,j,k,it)) 
  
-              t(i,j,k-ione) = t(i,j,k-ione) - t_t(i,j,k)*tmp2
-              t(i,j,k) = t(i,j,k) + t_t(i,j,k)*tmp2
-              u(i,j,k-ione) = u(i,j,k-ione) - u_t(i,j,k)*tmp2
-              u(i,j,k) = u(i,j,k) + u_t(i,j,k)*tmp2
-              v(i,j,k-ione) = v(i,j,k-ione) - v_t(i,j,k)*tmp2
-              v(i,j,k) = v(i,j,k) + v_t(i,j,k)*tmp2
+              t(i,j,k-1) = t(i,j,k-1) - t_t(i,j,k)*tmp2
+              t(i,j,k  ) = t(i,j,k  ) + t_t(i,j,k)*tmp2
+              u(i,j,k-1) = u(i,j,k-1) - u_t(i,j,k)*tmp2
+              u(i,j,k  ) = u(i,j,k  ) + u_t(i,j,k)*tmp2
+              v(i,j,k-1) = v(i,j,k-1) - v_t(i,j,k)*tmp2
+              v(i,j,k  ) = v(i,j,k  ) + v_t(i,j,k)*tmp2
  
               prdif(i,j,k) = prdif(i,j,k) + (tmp2*r_prdif9(i,j,k))* &
-                ( ((ges_tv(i,j,k-ione,it)-ges_tv(i,j,k,it))*t_t(i,j,k)) + &
-                  ((ges_u (i,j,k-ione,it)-ges_u (i,j,k,it))*u_t(i,j,k)) + &
-                  ((ges_v (i,j,k-ione,it)-ges_v (i,j,k,it))*v_t(i,j,k)) )
+                ( ((ges_tv(i,j,k-1,it)-ges_tv(i,j,k,it))*t_t(i,j,k)) + &
+                  ((ges_u (i,j,k-1,it)-ges_u (i,j,k,it))*u_t(i,j,k)) + &
+                  ((ges_v (i,j,k-1,it)-ges_v (i,j,k,it))*v_t(i,j,k)) )
 
               what(i,j,k) = what(i,j,k) + half*tmp*r_prdif9(i,j,k)
            end if
 
-! Now finish up with adjoint of the rest of the terms
-! tmp is now a basic state variable, whereas tmp2 is used in computation
+!       Now finish up with adjoint of the rest of the terms
+!       tmp is now a basic state variable, whereas tmp2 is used in computation
 
            tmp=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
 
@@ -352,7 +354,6 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
            t(i,j,k) = t(i,j,k) + rd*tmp2*r_prsum9(i,j,k)
 
 
-! load t_thor
 
            u(i,j,k) = u(i,j,k) - v_t(i,j,k)*(ges_v_lon(i,j,k) - two*curvy(i,j)* &
                ges_u(i,j,k,it) + coriolis(i,j))
@@ -369,25 +370,29 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
            u_y(i,j,k) = u_y(i,j,k) - u_t(i,j,k)*ges_v(i,j,k,it)
 
         end do  !end do i
-     end do    !end do j
-  end do      !end do k
+      end do    !end do j
+    end do      !end do k
 
-! 3) adjoint of calculating full three-dimensional dp/dt
-  do k=1,nsig+ione
-     do j=jstart,jstop
+!   adjoint of calculating full three-dimensional dp/dt
+
+    do k=1,nsig+1
+      do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
            prsth(i,j,k)=prsth(i,j,k) + p_t(i,j,k)
            what (i,j,k)=what (i,j,k) - p_t(i,j,k)
         end do
-     end do
-  end do
+      end do
+    end do
 
-! 2) adjoint of calculation of vertical velocity
-  if ( (.not.regional) .AND. (idvc5==3_i_kind)) then
-!    Basic state horizontal temperature tendency
-!    1.1) Get horizontal part of temperature tendency for vertical velocity term
-     do k=1,nsig
-        do j=jstart,jstop
+!   adjoint of calculation of vertical velocity
+    if ( (.not.regional) .AND. (idvc5==3)) then
+
+!     Basic state horizontal temperature tendency
+
+!     Get horizontal part of temperature tendency for vertical velocity term
+
+      do k=1,nsig
+        do j=jtstart(kk),jtstop(kk)
            do i=1,lat2
               tmp=-rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
               t_thor9(i,j,k)=-ges_u(i,j,k,it)*ges_tvlon(i,j,k) - &
@@ -397,35 +402,42 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
                    prsth9(i,j,k) + prsth9(i,j,k+1) )
            end do
         end do
-     end do
-     call getvvel_ad(t,t_t,t_thor9,prsth,prdif,what)
-  else
-     do k=2,nsig
-        do j=jstart,jstop
-           do i=1,lat2
-              if (wrf_nmm_regional.or.nems_nmmb_regional) then
+      end do
+      call getvvel_ad(t,t_t,t_thor9,prsth,prdif,what,jtstart(kk),jtstop(kk))
+    else
+      if (wrf_nmm_regional.or.nems_nmmb_regional) then
+        do k=2,nsig
+           do j=jtstart(kk),jtstop(kk)
+              do i=1,lat2
                  prsth(i,j,1) = prsth(i,j,1) - eta2_ll (k)*what(i,j,k)
                  prsth(i,j,k) = prsth(i,j,k) + what(i,j,k)
-              else
+              end do
+           end do
+        end do 
+      else
+        do k=2,nsig
+           do j=jtstart(kk),jtstop(kk)
+              do i=1,lat2
                  prsth(i,j,1) = prsth(i,j,1) - bk5     (k)*what(i,j,k)
                  prsth(i,j,k) = prsth(i,j,k) + what(i,j,k)
-              end if
+              end do
            end do
-        end do
-     end do 
-  end if
+        end do 
+      end if
+    end if
 
-! 1.1) Horizontal Part of temperature tendency, now that adjoint of
-!      vertical velocity is done
-  do k=1,nsig
-     do j=jstart,jstop
+!   Horizontal Part of temperature tendency, now that adjoint of
+!   vertical velocity is done
+
+    do k=1,nsig
+      do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
            tmp=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
 
            tmp2 = t_t(i,j,k)*rcp*( ges_u(i,j,k,it)* &
              pr_xsum9(i,j,k) + &
              ges_v(i,j,k,it)*pr_ysum9   (i,j,k) + &
-             prsth9  (i,j,k)+prsth9(i,j,k+ione) )
+             prsth9  (i,j,k)+prsth9(i,j,k+1) )
            prsum(i,j,k) = prsum(i,j,k) - tmp2*tmp*r_prsum9(i,j,k)
 
            var=t_t(i,j,k)*tmp*rcp
@@ -434,7 +446,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
            u(i,j,k) = u(i,j,k) + var*pr_xsum9(i,j,k)
            v(i,j,k) = v(i,j,k) + var*pr_ysum9(i,j,k)
            prsth(i,j,k)      = prsth(i,j,k)      + var
-           prsth(i,j,k+ione) = prsth(i,j,k+ione) + var
+           prsth(i,j,k+1) = prsth(i,j,k+1) + var
         
            t(i,j,k) = t(i,j,k) + rd*tmp2*r_prsum9(i,j,k)
  
@@ -443,12 +455,13 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
            v  (i,j,k) = v  (i,j,k) - t_t(i,j,k)*ges_tvlat(i,j,k)
            t_y(i,j,k) = t_y(i,j,k) - t_t(i,j,k)*ges_v (i,j,k,it)
         end do
-     end do
-  end do
+      end do
+    end do
 
-! 1) adjoint of horizontal portion of pressure tendency
-  do k=1,nsig
-     do j=jstart,jstop
+!   adjoint of horizontal portion of pressure tendency
+
+    do k=1,nsig
+      do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
            u      (i,j,k) = u      (i,j,k) - prsth(i,j,k)*pr_xdif9  (i,j,k)
            pr_xdif(i,j,k) = pr_xdif(i,j,k) - prsth(i,j,k)*ges_u  (i,j,k,it)
@@ -458,35 +471,37 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
            v_y    (i,j,k) = v_y    (i,j,k) - prsth(i,j,k)*(prdif9  (i,j,k))
            prdif  (i,j,k) = prdif  (i,j,k) - prsth(i,j,k)*(ges_u_lon(i,j,k) + &
                          ges_v_lat(i,j,k))
-           prsth(i,j,k+ione) = prsth(i,j,k+ione) + prsth(i,j,k)
+           prsth(i,j,k+1) = prsth(i,j,k+1) + prsth(i,j,k)
         end do
-     end do
-  end do
-!$omp end parallel
-  jstart=ione
-  jstop=lon2
+      end do
+    end do
 
-! adjoint of pressure preliminaries
-  do k=1,nsig+ione
-     do j=jstart,jstop
+!   adjoint of pressure preliminaries
+
+    do k=1,nsig+1
+      do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
            pri_x(i,j,k)=zero
            pri_y(i,j,k)=zero
         end do
-     end do
-  end do
-  do k=1,nsig
-     do j=jstart,jstop
+      end do
+    end do
+    do k=1,nsig
+      do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
-           pri  (i,j,k)=pri  (i,j,k) + (prsum  (i,j,k)+prdif  (i,j,k))
-           pri  (i,j,k+ione)=pri  (i,j,k+ione) + (prsum  (i,j,k)-prdif  (i,j,k))
-           pri_x(i,j,k)=pri_x(i,j,k) + (pr_xsum(i,j,k)+pr_xdif(i,j,k))
-           pri_x(i,j,k+ione)=pri_x(i,j,k+ione) + (pr_xsum(i,j,k)-pr_xdif(i,j,k))
-           pri_y(i,j,k)=pri_y(i,j,k) + (pr_ysum(i,j,k)+pr_ydif(i,j,k))
-           pri_y(i,j,k+ione)=pri_y(i,j,k+ione) + (pr_ysum(i,j,k)-pr_ydif(i,j,k))
+           pri  (i,j,k  )=pri  (i,j,k  ) + (prsum  (i,j,k)+prdif  (i,j,k))
+           pri  (i,j,k+1)=pri  (i,j,k+1) + (prsum  (i,j,k)-prdif  (i,j,k))
+           pri_x(i,j,k  )=pri_x(i,j,k  ) + (pr_xsum(i,j,k)+pr_xdif(i,j,k))
+           pri_x(i,j,k+1)=pri_x(i,j,k+1) + (pr_xsum(i,j,k)-pr_xdif(i,j,k))
+           pri_y(i,j,k  )=pri_y(i,j,k  ) + (pr_ysum(i,j,k)+pr_ydif(i,j,k))
+           pri_y(i,j,k+1)=pri_y(i,j,k+1) + (pr_ysum(i,j,k)-pr_ydif(i,j,k))
         end do
-     end do
+      end do
+    end do
+
   end do
+
+! end of loop over threads
 
   call getprs_horiz_ad(ps_x,ps_y,pri,pri_x,pri_y)
 

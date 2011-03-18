@@ -54,6 +54,7 @@ use gsi_bundlemod, only: gsi_bundledestroy
 use gsi_bundlemod, only: assignment(=)
 use gsi_chemtracer_mod, only: gsi_chemtracer_get
 use mpeu_util, only: getindex
+use constants, only : max_varname_length
 implicit none
   
 ! Declare passed variables  
@@ -63,7 +64,7 @@ type(predictors)    , intent(inout) :: bval
 
 ! Declare local variables  	
 character(len=*),parameter::myname='control2state'
-character(len=10),allocatable,dimension(:) :: gases
+character(len=max_varname_length),allocatable,dimension(:) :: gases
 integer(i_kind) :: i,j,k,ii,jj,im,jm,km,ic,id,ngases,istatus
 real(r_kind),dimension(:,:,:),allocatable:: u,v
 type(gsi_bundle):: wbundle ! work bundle
@@ -218,6 +219,7 @@ do jj=1,nsubwin
    call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
 
 !  Take care of chemistry
+
    do ic=1,ngases
       id=getindex(cvars3d,gases(ic))
       if (id>0) then

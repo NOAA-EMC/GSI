@@ -107,6 +107,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 ! program history log:
 !   2009-??-??  derber   - originally placed inside inquire
 !   2009-01-05  todling  - move time/type-check out of inquire
+!   2010-09-13  pagowski - add anow bufr and one obs chem
 !
 !   input argument list:
 !    lexist    - file status
@@ -127,6 +128,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   use gsi_4dvar, only: iadatebgn,iadateend
   use obsmod, only: offtime_data
   use convinfo, only: nconvtype,ictype,ioctype,icuse
+  use chemmod, only : oneobtest_chem,oneob_type_chem
 
   implicit none
 
@@ -227,6 +229,32 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
            end do
           end do 
          end do fileloop
+    else if(trim(dtype) == 'pm2_5')then
+       if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
+          lexist=.true.
+       else
+          lexist = .false.
+          fileloopanow:do while(ireadmg(lnbufr,subset,idate2) >= 0)
+             do while(ireadsb(lnbufr)>=0)
+                call ufbint(lnbufr,rtype,1,1,iret,'TYP')
+                kx=nint(rtype)
+                do nc=1,nconvtype
+                   if(trim(ioctype(nc)) == trim(dtype) .and. &
+                        kx == ictype(nc) .and. icuse(nc) > minuse)then
+                      lexist = .true.
+                      exit fileloopanow
+                   end if
+                end do
+             end do
+          enddo fileloopanow
+       endif
+
+       if (lexist) then
+          write(6,*)'found pm2_5 in anow bufr'
+       else
+          write(6,*)'did not find pm2_5 in anow bufr'
+       endif
+           
        end if
       end if
 
@@ -337,6 +365,7 @@ subroutine read_obs(ndata,mype)
     use ozinfo, only: nusis_oz,iuse_oz,jpch_oz,diag_ozone
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv
+    use chemmod, only : oneobtest_chem,oneob_type_chem,oneobschem
 
     implicit none
 
@@ -452,7 +481,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'dw' .or. obstype == 'rw' .or. &
            obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
            obstype == 'rad_ref' .or. obstype=='lghtn' .or. &
-           obstype == 'larccld' )  then
+           obstype == 'larccld' .or. obstype == 'pm2_5')  then
           ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  &
                obstype == 'seviri'    .or.  &
@@ -465,7 +494,8 @@ subroutine read_obs(ndata,mype)
                obstype == 'ssu' ) then
           ditype(i) = 'rad'
        else if (obstype == 'sbuv2' .or. obstype == 'omi' &
-           .or. obstype == 'gome'  .or. obstype == 'o3lev') then
+           .or. obstype == 'gome'  .or. obstype == 'o3lev' &
+           .or. obstype == 'mls' ) then
           ditype(i) = 'ozone'
        else if (obstype == 'mopitt') then
           ditype(i) = 'co'
@@ -499,22 +529,16 @@ subroutine read_obs(ndata,mype)
           end do
        else if(ditype(i) == 'ozone')then
           if(diag_ozone)minuse=-2
-          if (dtype(i) == 'o3lev') then
-             do j=1,nconvtype
-                if(trim(dtype(i)) == trim(ioctype(j)) .and. icuse(j) > minuse)nuse=.true.
-             end do
-          else
-             do j=1,jpch_oz
-                if(trim(dsis(i)) == trim(nusis_oz(j)) .and. iuse_oz(j) > minuse)nuse=.true.
-             end do
-          endif
+          do j=1,jpch_oz
+             if(trim(dsis(i)) == trim(nusis_oz(j)) .and. iuse_oz(j) > minuse)nuse=.true.
+          end do
        else if(ditype(i) == 'pcp')then
           if(diag_pcp)minuse=-2
           do j=1,npcptype
              if(trim(dsis(i)) == trim(nupcp(j)) .and. iusep(j) > minuse)nuse=.true.
           end do
        else if(ditype(i) == 'aero')then
-          if(diag_aero)minuse=-2_i_kind
+          if(diag_aero)minuse=-2
           do j=1,jpch_aero
              if(trim(dsis(i)) == trim(nusis_aero(j)) .and. iuse_aero(j) > minuse)nuse=.true.
           end do
@@ -585,7 +609,8 @@ subroutine read_obs(ndata,mype)
        return
     endif
     
-    npeextra=npe-mod(npetot,npe)
+    npeextra=0
+    if(mod(npetot,npe) > 0) npeextra=npe-mod(npetot,npe)
     if(npeextra > 0)then
        if(mype == 0)write(6,*) ' number of extra processors ',npeextra
        npe_sub3=npe_sub
@@ -783,6 +808,18 @@ subroutine read_obs(ndata,mype)
                 call read_superwinds(nread,npuse,nouse,infile,obstype,lunout, &
                      twind,sis)
                 string='READ_SUPRWNDS'
+
+             else if (obstype == 'pm2_5') then
+
+                if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
+                   call oneobschem(nread,npuse,nouse,gstime,&
+                        &infile,obstype,lunout,sis)
+                   string='ONEOBSCHEM'
+                else
+                   call read_anowbufr(nread,npuse,nouse,gstime,&
+                        &infile,obstype,lunout,twind,sis)
+                   string='READ_ANOWBUFR'
+                endif
              end if
 
           else if (ditype(i) == 'rad')then

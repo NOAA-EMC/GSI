@@ -309,10 +309,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         else
            sstime=real(nmind,r_kind) + real(bufrinit(2),r_kind)*r60inv
            tdiff=(sstime-gstime)*r60inv
-           if(abs(tdiff) > twind)  then 
-              write(6,*) 'READ_SSMIS(',obstype,'): time check fail: obstime=',iobsdate
-              cycle read_loop
-           end if
+           if(abs(tdiff) > twind) cycle read_loop
         endif
         
 !       Extract obs location, TBB, other information

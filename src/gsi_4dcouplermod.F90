@@ -153,7 +153,7 @@ interface GSI_4dCoupler_putpert
   end subroutine put_Npert_
 end interface
 
-interface GSI_4dCoupler_final_traj;  
+interface GSI_4dCoupler_final_traj 
   subroutine final_traj_ ()
   implicit none
   end subroutine final_traj_

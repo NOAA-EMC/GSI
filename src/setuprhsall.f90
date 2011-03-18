@@ -74,6 +74,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2010-04-01  tangborn - start adding call for carbon monoxide data. 
 !   2010-04-28      zhu - add ostats and rstats for additional precoditioner
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
+!   2010-10-14  pagowski - added pm2_5 conventional obs
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -148,7 +149,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupbend
   external:: setupdw
   external:: setuplag
-  external:: setupo3lv
   external:: setupoz
   external:: setuppcp
   external:: setupps
@@ -181,7 +181,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   integer(i_kind) lunin,nobs,nchanl,nreal,nele,&
        is,idate,i_dw,i_rw,i_srw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,&
-       i_t,i_pw,i_q,i_o3,i_co,iobs,nprt,ii,jj
+       i_t,i_pw,i_q,i_co,iobs,nprt,ii,jj
   integer(i_kind) ier
 
   real(r_quad):: zjo
@@ -222,10 +222,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   i_srw= 8
   i_gps= 9
   i_sst= 10
-  i_o3 = 11
-  i_tcp= 12
-  i_lag= 13
-  i_co = 14
+  i_tcp= 11
+  i_lag= 12
+  i_co = 13
 
 ! Reset observation pointers
   if(init_pass) call destroyobs
@@ -405,16 +404,19 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !             Set up conventional lagrangian data
               else if(obstype=='lag') then 
                  call setuplag(lunin,mype,bwork,awork(1,i_lag),nele,nobs,is,conv_diagsave)
+              else if(obstype == 'pm2_5')then 
+                 call setuppm2_5(lunin,mype,nele,nobs,&
+                      isis,is)
+                 
+              end if
 
-           end if
-
-!          Set up ozone (sbuv/omi/mls) data
+!          set up ozone (sbuv/omi/mls) data
            else if(ditype(is) == 'ozone' .and. ihave_oz)then
-              if (obstype == 'o3lev') then
-                 call setupo3lv(lunin,mype,bwork,awork(1,i_o3),nele,nobs,&
-                      isis,is,obstype,ozone_diagsave,init_pass,last_pass)
+              if (obstype == 'o3lev' .or. obstype == 'mls' ) then
+                 call setupozlev(lunin,mype,stats_oz,nchanl,nreal,nobs,&
+                      obstype,isis,is,ozone_diagsave,init_pass,last_pass)
               else
-                 call setupoz(lunin,mype,stats_oz,nchanl,nreal,nobs,&
+                 call setupozlay(lunin,mype,stats_oz,nchanl,nreal,nobs,&
                       obstype,isis,is,ozone_diagsave,init_pass,last_pass)
               end if
 
@@ -466,7 +468,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 ! Collect information for preconditioning
   if (newpc4pred) then
-     call mpl_allreduce(jpch_rad,ostats)
+     call mpl_allreduce(jpch_rad,rpvals=ostats)
      call mpl_allreduce(npred,jpch_rad,rstats)
   end if
 
@@ -506,7 +508,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         if(mype==mype_rad) call statspcp(aivals1,ndata)
 
 !       Compute and print statistics for ozone
-        if (mype==mype_oz .and. ihave_oz) call statsoz(stats_oz1,bwork1,awork1(1,i_o3),ndata)
+        if (mype==mype_oz .and. ihave_oz) call statsoz(stats_oz1,ndata)
 
 !       Compute and print statistics for carbon monoxide
 !????   if (mype==mype_co .and. ihave_co) call statsco(stats_co1,bwork1,awork1(1,i_co),ndata)

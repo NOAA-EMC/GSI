@@ -292,7 +292,10 @@ subroutine general_read_wrf_mass(filename,g_ps,g_vor,g_div,g_u,g_v,g_tv,g_rh,g_c
 !
 ! Declare passed variables
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out):: &
-                                                  g_vor,g_div,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz
+                                                  g_u,g_v,g_tv,g_rh,g_cwmr,g_oz
+!                                                 g_vor,g_div,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz
+!   Remove intent(out) for g_vor and g_div since currently not used
+    real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: g_vor,g_div
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
     character(24),intent(in):: filename
 !

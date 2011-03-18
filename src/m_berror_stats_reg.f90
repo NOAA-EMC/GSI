@@ -10,8 +10,9 @@
 
     module m_berror_stats_reg
       use kinds,only : i_kind,r_kind
-      use constants, only: zero,one
+      use constants, only: zero,one,max_varname_length
       use gridmod, only: nsig
+      use chemmod, only : berror_chem
 
       implicit none
 
@@ -265,6 +266,9 @@ end subroutine berror_read_bal_reg
 !       01Jun10 Todling These are now alloctable: corz,corp,hwll,hwllp,vz
 !       22Jun10 Treadon - move nrf3_loc and nrf2_loc allocate outside read loop
 !       23Jun10 Treadon - explicitly specify dimensions for hwll,hwllp,vz
+!       20Nov10 Pagowski - make var name longer for chemical berror and
+!                          related change in read
+!
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::berror_read_wgt_reg'
@@ -284,7 +288,8 @@ end subroutine berror_read_bal_reg
   real(r_single),dimension(msig,0:mlat+1,nrf):: vz_tmp
 
 
-  character*5 var
+  character*5 :: varshort
+  character(len=max_varname_length) :: var_chem,var
   logical,dimension(nrf):: nrf_err
 
   integer(i_kind) :: nrf3_oz,nrf3_q,nrf3_cw,nrf3_sf,nrf2_sst
@@ -294,6 +299,9 @@ end subroutine berror_read_bal_reg
   integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc
   real(r_kind) :: corq2x
   real(r_kind) :: factoz
+
+  real(r_kind), parameter :: corz_default=one,hwll_default=100000_r_kind,&
+                             vz_default=one
 
   allocate ( clat_avn(mlat) )
   allocate ( sigma_avn(1:msig) )
@@ -337,7 +345,15 @@ end subroutine berror_read_bal_reg
 ! Read amplitudes
   nrf_err=.false.
   read: do
-     read(inerr,iostat=istat) var, isig
+     if (berror_chem) then
+        read(inerr,iostat=istat) var_chem,isig
+        var=var_chem
+!chem variable names can be longer than 5 chars
+     else 
+        read(inerr,iostat=istat) varshort, isig
+        var=varshort
+     endif
+
      if (istat /= 0) exit
      allocate ( corz_avn(1:mlat,1:isig) )
      allocate ( hwll_avn(0:mlat+1,1:isig) )
@@ -432,6 +448,20 @@ end subroutine berror_read_bal_reg
               vz(k,i,n)=vz_tmp(m,i,n)*coef1(k)+vz_tmp(m1,i,n)*coef2(k)
            enddo
         enddo
+     else
+        do k=1,nsig
+           do i=1,mlat
+              corz(i,k,n)=corz_default
+           enddo
+
+           do i=0,mlat+1
+              hwll(i,k,n)=hwll_default
+              vz(k,i,n)=vz_default
+           enddo
+        enddo
+        if(mype==0) then
+           write(6,*)'Assigned default statistics to variable ',cvars(n)
+        endif
      end if
   enddo
 

@@ -27,6 +27,10 @@ Radiance_Utilities/IDL/Diag_Reader:
              Reads in radiance diag files directly into IDL structures.  Good
              for more detailed investigation of radiances on an ob-by-ob basis.
 
+Radiance_Utilities/diag2grads:
+             Reads radiance diag files for a given instrument and outputs a
+             GrADS binary data file and control file
+
 Analysis_Utilities/GrADS:
              Scripts for displaying analysis fields in GrADS.  Currently
              contains diffvarsloop.gs and diffvarsloop4.gs which display
@@ -37,5 +41,8 @@ Radiance_bias_correction_Utilities:
              Utilities for converting bias correction files to the new format, 
              since the modified bias correction scheme requires changes to the 
              satbias_in and satbias_angle files.
+
+global_angupdate:
+             Updates the angle dependent part of the radiance bias correction
 
 

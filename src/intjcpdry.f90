@@ -43,6 +43,7 @@ contains
 !   2010-05-13  todling - update to use gsi_bundle
 !   2010-05-25  derber - modify to minimize number of communications
 !   2010-08-18     hu  - added qpvals= to mpl_allreduce call
+!   2010-11-03  treadon - correct i,j loop limits for rq,rc update
 !
 !   input argument list:
 !     rq       - q search direction
@@ -136,8 +137,8 @@ contains
   end do
 ! Remove water to get incremental dry ps
   do k=1,nsig
-     do j=1,lon2
-        do i=1,lat2
+     do j=2,lon2-1
+        do i=2,lat2-1
            ii=istart(mm1)+i-2
            con = dmass(1)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))*wgtlats(ii)
            rq(i,j,k)=rq(i,j,k) - con

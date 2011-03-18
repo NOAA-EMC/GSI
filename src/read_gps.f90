@@ -51,6 +51,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !   2010-11-8 cucurull  - skip profile in gpsro bufr when satellite is not
 !                         listed in the convinfo file. Also, remove some QC dependencies
 !                         on the order of the satellites in the convinfo file
+!   2011-01-06 cucurull - replace obstype (gps_ref/gps_bnd) with sis (gps) due to replacing
+!                         gps_ref/gps_bnd with gps in convinfo files 
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -92,11 +94,6 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   integer(i_kind),parameter:: maxinfo=16
   real(r_kind),parameter:: r10000=10000.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
-  real(r_kind),parameter:: r5000=5000.0_r_kind
-  real(r_kind),parameter:: r25000=25000.0_r_kind
-  real(r_kind),parameter:: r31000=31000.0_r_kind
-  real(r_kind),parameter:: r7000=7000.0_r_kind
-
 
 ! Declare local variables
   logical good,outside
@@ -153,12 +150,12 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 ! Check convinfo file to see requesting to process gpsro data
   ikx = 0
   do i=1,nconvtype
-     if ( trim(obstype)==trim(ioctype(i))) ikx=ikx+1
+      if ( trim(sis)==trim(ioctype(i))) ikx=ikx+1
   end do
 
 ! If no data requested to be process, exit routine
   if(ikx==0)then
-     write(6,*)'READ GPS:  CONVINFO DOES NOT INCLUDE ANY ',trim(obstype),' DATA'
+     write(6,*)'READ GPS:  CONVINFO DOES NOT INCLUDE ANY ',trim(sis),' DATA'
      return
   end if
 
@@ -169,7 +166,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   nmrecs_id=0
   ikx=0
   do i=1,nconvtype
-     if ( trim(obstype)==trim(ioctype(i))) then
+      if ( trim(sis)==trim(ioctype(i))) then
         ikx=ikx+1
         gpsro_ctype(ikx)=ioctype(i)
         gpsro_itype(ikx)=ictype(i)
@@ -215,7 +212,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 ! Locate satellite id in convinfo file
         ikx = 0
         find_loop: do i=1,ngpsro_type
-           if ( (trim(obstype)==trim(gpsro_ctype(i))) .and. (said == gpsro_itype(i)) ) then
+            if ( (trim(sis)==trim(gpsro_ctype(i))) .and. (said == gpsro_itype(i)) ) then
               ikx=gpsro_ikx(i)
               igpsro_type = i
               exit find_loop

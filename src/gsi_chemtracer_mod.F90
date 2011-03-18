@@ -83,7 +83,7 @@ type(GSI_Bundle),pointer :: GSI_chem_bundle(:)   ! still a common for now
 !   03May2010 Treadon - add iostat error check to ibm_sp read(lu,chemtracers) in init_
 !   19May2010 Todling - porter Hou's igfsco2 flag from setup namelist to this namelist
 !   30May2010 Todling - remove namelist; revamp the way fields/info read in (i90-style)
-!   25Jun2010 Treadon - consistently intialize ivar; check/use length of desc (gsi_chemtracter_get)
+!   25Jun2010 Treadon - consistently intialize ivar; check/use length of desc (gsi_chemtracer_get)
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -370,34 +370,39 @@ end subroutine final_
   if(trim(desc)=='dim') then
      ivar = ntgases
      istatus=0
+     return
   endif
   if(trim(desc)=='aerosols') then
      ivar = naero
      istatus=0
+     return
   endif
   if(trim(desc)=='aerosols::3d') then
      ivar = n3daero
      istatus=0
+     return
   endif
   if(trim(desc)=='aerosols::2d') then
      ivar = n2daero
      istatus=0
+     return
   endif
+  ln=len_trim(desc)
   if(index(trim(desc),'i4crtm::')/=0) then
-     ln=len_trim(desc)
      work=desc(9:ln)
      if(allocated(tgases)) then
         id=getindex(tgases,trim(work))
         ivar=i4crtm(id)
-     else
-        ivar=0
+        istatus=0
      endif
-     istatus=0
+     return
   endif
-  if(desc(1:5)=='var::') then
-     if(allocated(tgases)) then
-        id=len_trim(desc)
-        if(id>=6) ivar=getindex(tgases,desc(6:id))
+  if(ln>=6) then
+     if (desc(1:5)=='var::') then
+        if(allocated(tgases)) then
+           ivar=getindex(tgases,desc(6:ln))
+           istatus=0
+        endif
      endif
   endif
   end subroutine get_int0d_

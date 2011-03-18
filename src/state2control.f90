@@ -47,10 +47,12 @@ use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 use gsi_bundlemod, only: gsi_bundlegetvar
-use gsi_bundlemod, only: gsi_bundleputvar
+use gsi_bundlemod, only: gsi_bundleputvar,gsi_bundleprint
 use gsi_bundlemod, only: gsi_bundledestroy
 use gsi_chemtracer_mod, only: gsi_chemtracer_get
 use mpeu_util, only: getindex
+use constants, only: max_varname_length
+
 implicit none
 
 ! Declare passed variables
@@ -60,7 +62,7 @@ type(control_vector), intent(inout) :: grad
 
 ! Declare local variables
 character(len=*),parameter::myname='state2control'
-character(len=10),allocatable,dimension(:) :: gases
+character(len=max_varname_length),allocatable,dimension(:) :: gases
 integer(i_kind) :: ii,jj,i,j,k,im,jm,km,ic,id,ngases,istatus
 real(r_kind),dimension(:,:,:),allocatable:: u,v
 type(gsi_bundle) :: wbundle ! work bundle
@@ -169,12 +171,12 @@ do jj=1,nsubwin
 !  Take care of chemistry
    do ic=1,ngases
       id=getindex(cvars3d,gases(ic))
-      if (ic>0) then
+      if (id>0) then
           call gsi_bundlegetpointer (rval(jj),gases(ic),rv_rank3,istatus)
           call gsi_bundleputvar     (wbundle, gases(ic),rv_rank3,istatus)
       endif
       id=getindex(cvars2d,gases(ic))
-      if (ic>0) then
+      if (id>0) then
           call gsi_bundlegetpointer (rval(jj),gases(ic),rv_rank2,istatus)
           call gsi_bundleputvar     (wbundle, gases(ic),rv_rank2,istatus)
       endif

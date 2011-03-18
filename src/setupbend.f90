@@ -64,6 +64,14 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !                         constants
 !   2010-08-11 lcucurull - replace tpdpres with tpdpres(nobs) to fix bug in TL code
 !   2010-08-18        hu - add tell to mpeu_util declaration
+!   2010-10-25 cucurull  - add quality control options for C/NOFS satellite
+!   2010-11-8  cucurull  - tune observational errors
+!   2010-12-12 cucurull  - generalize number of layers above model top to nsig_ext
+!   2011-01-05 cucurull  - add gpstop to reject anything above this value
+!   2011-01-07 cucurull  - reject observation if outside new integration grid and compute
+!                          the nsig_ext value the user needs to use
+!   2011-01-13 lueken    - corrected init_pass and last_pass indentation
+!   2011-01-18 cucurull - increase the size of mreal by one element to add gps_dtype information
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -90,6 +98,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,nfldsig,&
        ges_z,ges_tv,ges_q
+  use guess_grids, only: nsig_ext,gpstop
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
   use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,r0_01
@@ -128,8 +137,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   logical, intent(in):: last_pass	! flag the pass for the last background bin
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_8= 0.8_r_kind
-  real(r_kind),parameter:: r1_3 = 1.3_r_kind
   real(r_kind),parameter::  r240 = 240.0_r_kind
   real(r_kind),parameter:: six = 6.0_r_kind
   real(r_kind),parameter:: ten = 10.0_r_kind
@@ -138,10 +145,10 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   real(r_kind),parameter:: eleven = 11.0_r_kind
 !  real(r_kind),parameter:: ds=5000.0_r_kind
   real(r_kind),parameter:: ds=10000.0_r_kind
-  real(r_kind),parameter:: r15=15.0_r_kind
+  real(r_kind),parameter:: r12=12.0_r_kind
+  real(r_kind),parameter:: r18=18.0_r_kind
   real(r_kind),parameter:: r20=20.0_r_kind
-  real(r_kind),parameter:: r30=30.0_r_kind
-  real(r_kind),parameter:: r50=50.0_r_kind
+  real(r_kind),parameter:: r40=40.0_r_kind
   real(r_kind),parameter:: r1em3 = 1.0e-3_r_kind
   real(r_kind),parameter:: r1em6 = 1.0e-6_r_kind
   character(len=*),parameter :: myname='setupbend'
@@ -160,24 +167,25 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nsig):: dbenddn,dbenddxi
-  real(r_kind) pressure,hob_s,d_ref_rad,d_ref_rad_TL
+  real(r_kind) pressure,hob_s,d_ref_rad,d_ref_rad_TL,hob_s_top
   real(r_kind),dimension(4) :: w4,dw4,dw4_TL
   
   integer(i_kind) ier,ilon,ilat,ihgt,igps,itime,ikx,iuse, &
                   iprof,ipctc,iroc,isatid,iptid,ilate,ilone,ioff,igeoid
   integer(i_kind) i,j,k,kk,mreal,nreal,jj,ikxx,ibin
   integer(i_kind) mm1,nsig_up,ihob,istatus
-  integer(i_kind) kprof,istat,jprof,k1,k2
+  integer(i_kind) kprof,istat,jprof,k1,k2,nobs_out
   integer(i_kind),dimension(4) :: gps_ij
   integer(i_kind):: satellite_id,transmitter_id
 
-  real(r_kind),dimension(3,nsig+10) :: q_w,q_w_tl
+  real(r_kind),dimension(3,nsig+nsig_ext) :: q_w,q_w_tl
   real(r_kind),dimension(nsig) :: hges,irefges,zges
   real(r_kind),dimension(nsig+1) :: prsltmp
   real(r_kind),dimension(nsig,nsig)::dhdp,dndp,dxidp
   real(r_kind),dimension(nsig,nsig)::dhdt,dndt,dxidt,dndq,dxidq
-  real(r_kind),dimension(nsig+10) :: n_TL
-  real(r_kind),dimension(0:nsig+11) :: ref_rad,xi_TL
+  real(r_kind),dimension(nsig+nsig_ext) :: n_TL
+  real(r_kind),dimension(0:nsig+nsig_ext+1) :: ref_rad,xi_TL
+  real(r_kind),dimension(nsig+nsig_ext+20) :: ref_rad_out
   real(r_kind) :: dlat,dlate,dlon,rocprof,unprof,dtime,dpressure,trefges
   real(r_kind) :: dbetan,dbetaxi,rdog,elev,alt
   real(r_kind),dimension(nsig):: tges,qges
@@ -186,7 +194,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 
   logical,dimension(nobs):: luse
 
-  logical:: in_curbin, in_anybin, skipiobs
+  logical:: in_curbin, in_anybin, skipiobs,obs_check
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(gps_ob_type),pointer:: my_head
@@ -197,7 +205,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   read(lunin)data,luse
 
 
-  ier=1     ! index of obs error in data array (now 1/(original obs error))
+  ier=1        ! index of obs error in data array (now 1/(original obs error))
   ilon=2       ! index of grid relative obs location (x)
   ilat=3       ! index of grid relative obs location (y)
   ihgt=4       ! index of obs vertical coordinate in data array
@@ -215,50 +223,52 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   igeoid=16    ! index of geoid undulation (a value per profile, m) 
 
 ! Intialize variables
-  nsig_up=nsig+10 ! extend 10 levels above interface level nsig
+  nsig_up=nsig+nsig_ext ! extend nsig_ext levels above interface level nsig
   rsig=float(nsig)
   rdog=rd/grav
   rsig_up=float(nsig_up)
+  nobs_out=0
+  hob_s_top=one
   mm1=mype+1
 
 ! Allocate arrays for output to diagnostic file
-  mreal=19
+  mreal=20
   nreal=mreal
   if (lobsdiagsave) nreal=nreal+4*miter+1
 
-  if(init_pass) call gpsrhs_alloc(is,'bend',nobs,nsig,nreal,grids_dim)
+  if(init_pass) call gpsrhs_alloc(is,'bend',nobs,nsig,nreal,grids_dim,nsig_ext)
   call gpsrhs_aliases(is)
   if(nreal/=size(rdiagbuf,1)) then
-    call perr(myname,'unexpected dimension')
-    call perr(myname,'nreal =',nreal)
-    call perr(myname,'size(rdiagbuf,1) =',size(rdiagbuf,1))
-    call die(myname)
+     call perr(myname,'unexpected dimension')
+     call perr(myname,'nreal =',nreal)
+     call perr(myname,'size(rdiagbuf,1) =',size(rdiagbuf,1))
+     call die(myname)
   endif
 
-if(init_pass) then
-  	! initialize explicitly workspace variables,
-	! although they have been initialized during the
-	! buffer_alloc() call.
+  if(init_pass) then
+     ! initialize explicitly workspace variables,
+     ! although they have been initialized during the
+     ! buffer_alloc() call.
 
-  data_ier (:)=data(ier ,:)
-  data_ihgt(:)=data(ihgt,:)
-  data_igps(:)=data(igps,:)
-  muse(:)=.false.
+     data_ier (:)=data(ier ,:)
+     data_ihgt(:)=data(ihgt,:)
+     data_igps(:)=data(igps,:)
+     muse(:)=.false.
 
-  qcfail=.false.
-  qcfail_loc=zero;qcfail_gross=zero;qcfail_stats_1=zero;qcfail_stats_2=zero
-  qcfail_high=zero
-  toss_gps_sub=zero 
-  dbend_loc=zero
+     qcfail=.false.
+     qcfail_loc=zero;qcfail_gross=zero;qcfail_stats_1=zero;qcfail_stats_2=zero
+     qcfail_high=zero
+     toss_gps_sub=zero 
+     dbend_loc=zero
 
-else	! (init_pass)
+  else ! (init_pass)
 
-! Restore those arrays saved from the previous pass
+!    Restore those arrays saved from the previous pass
 
-  data(ier ,:)=data_ier (:)
-  data(ihgt,:)=data_ihgt(:)
-  data(igps,:)=data_igps(:)
-endif	! (init_pass)
+     data(ier ,:)=data_ier (:)
+     data(ihgt,:)=data_ihgt(:)
+     data(igps,:)=data_igps(:)
+  endif ! (init_pass)
 
 ! define new equally spaced grid s
   do j=0,grids_dim-1
@@ -267,9 +277,10 @@ endif	! (init_pass)
 
 ! A loop over all obs.
   call dtime_setup()
-loopoverobs1: &
+  loopoverobs1: &
   do i=1,nobs ! loop over obs 
      dtime=data(itime,i)
+     obs_check=.false. 
 
      call dtime_check(dtime, in_curbin, in_anybin)
      if(.not.in_anybin) cycle	! not interested, not even for ibin
@@ -357,25 +368,51 @@ loopoverobs1: &
            (k4/(tmean**2*pw))*fact*qmean*pressure
      end do
 
-!    Tune observation error to account for representativeness
-!    error. They will be tuned in a later version
+!    Modify error to account for representativeness error. 
 
      repe_gps=one
      alt=(tpdpres(i)-rocprof)*r1em3
-     if(alt > r30) then
-       repe_gps=0.2_r_kind
-     else
-        if(alt < eight)then
-           repe_gps=0.9_r_kind
+
+! UKMET-type processing
+
+     if((data(isatid,i)==41).or.(data(isatid,i)==722).or.&
+      (data(isatid,i)==723).or.(data(isatid,i)==4).or.(data(isatid,i)==42)) then
+                    
+        if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
+           if(alt>r12) then
+              repe_gps=0.19032_r_kind+0.287535_r_kind*alt-0.00260813_r_kind*alt**2
+           else
+              repe_gps=-3.20978_r_kind+1.26964_r_kind*alt-0.0622538_r_kind*alt**2 
+           endif
         else
-           repe_gps=half
+           if(alt>r18) then
+              repe_gps=-1.87788_r_kind+0.354718_r_kind*alt-0.00313189_r_kind*alt**2
+           else
+              repe_gps=-2.41024_r_kind+0.806594_r_kind*alt-0.027257_r_kind*alt**2
+           endif
         endif
-     end if
-     if (alt >= 25_r_kind) then ! penalize obs
-        repe_gps = (0.6_r_kind*alt-14_r_kind)*repe_gps
+     else 
+! CDAAC-type processing
+
+        if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
+           if(alt>r12) then
+              repe_gps=-0.685627_r_kind+0.377174_r_kind*alt-0.00421934_r_kind*alt**2
+           else
+              repe_gps=-3.27737_r_kind+1.20003_r_kind*alt-0.0558024_r_kind*alt**2
+           endif
+        else
+           if(alt>r18) then
+              repe_gps=-2.73867_r_kind+0.447663_r_kind*alt-0.00475603_r_kind*alt**2
+           else
+              repe_gps=-3.45303_r_kind+0.908216_r_kind*alt-0.0293331_r_kind*alt**2
+          endif
+        endif
      endif
 
-     ratio_errors(i) = data(ier,i)/abs(data(ier,i)*repe_gps)
+     repe_gps=exp(repe_gps) ! one/modified error in (rad-1*1E3)
+     repe_gps= r1em3*(one/abs(repe_gps)) ! modified error in rad
+     ratio_errors(i) = data(ier,i)/abs(repe_gps)
+  
      error(i)=one/data(ier,i) ! one/original error
      data(ier,i)=one/data(ier,i) ! one/original error
      error_adjst(i)= ratio_errors(i)* data(ier,i) !one/adjusted error
@@ -410,7 +447,7 @@ loopoverobs1: &
      rdiagbuf(:,i)         = zero
 
      rdiagbuf(1,i)         = ictype(ikx)       ! observation type
-!    rdiagbuf(2,i)         = one               ! uses gps_ref (one = use of bending angle)
+     rdiagbuf(20,i)        = one               ! uses gps_ref (one = use of bending angle)
      rdiagbuf(2,i)         = data(iprof,i)     ! profile identifier
      rdiagbuf(3,i)         = data(ilate,i)     ! lat in degrees
      rdiagbuf(4,i)         = data(ilone,i)     ! lon in degrees
@@ -436,7 +473,7 @@ loopoverobs1: &
 
 !       Extending atmosphere above interface level nsig
         d_ref_rad=ref_rad(nsig)-ref_rad(nsig-1)
-        do k=1,10
+        do k=1,nsig_ext
            ref_rad(nsig+k)=ref_rad(nsig)+ k*d_ref_rad ! extended x_i
            nrefges(nsig+k,i)=nrefges(nsig+k-1,i)**2/nrefges(nsig+k-2,i) ! exended N_i
         end do
@@ -479,10 +516,23 @@ loopoverobs1: &
               ddnj(j)=dot_product(dw4,nrefges(ihob-1:ihob+2,i))!derivative (dN/dx)_j
               ddnj(j)=max(zero,abs(ddnj(j)))
            else
-              write(6,*) 'GPS obs outside integration new grid','obs=',i
-              call stop2(92)
+              obs_check=.true.
+              if (obs_check) then ! only once per obs here
+                 nobs_out=nobs_out+1
+                 d_ref_rad=ref_rad(nsig)-ref_rad(nsig-1)
+                 do kk=1,20
+                    ref_rad_out(nsig_up+kk)=ref_rad(nsig_up)+ kk*d_ref_rad ! extended x_i
+                 end do
+                 do kk=1,nsig_up
+                    ref_rad_out(kk)=ref_rad(kk)
+                 enddo
+              endif
+              hob_s=ref_rad_s(j)
+              call grdcrd(hob_s,1,ref_rad_out,nsig_up+20,1)
+              hob_s_top=max(hob_s,hob_s_top) 
            endif !obs in new grid
         end do intloop
+        if (obs_check) goto 3000 ! reject observation 
 
 !       bending angle (radians)
         dbend=ds*ddnj(1)/ref_rad_s(1)
@@ -501,7 +551,7 @@ loopoverobs1: &
         data(igps,i)=data(igps,i)-dbend !innovation vector
         data(ihgt,i)=hob
 
-        if(alt <= r50) then ! go into qc checks
+        if(alt <= gpstop) then ! go into qc checks
 
 !          Gross error check
            obserror = one/max(ratio_errors(i)*data(ier,i),tiny_r_kind)
@@ -560,7 +610,7 @@ loopoverobs1: &
 
 
 !       Remove obs above 50 km  
-        if(alt > r50) then
+        if(alt > gpstop) then
            data(ier,i) = zero
            ratio_errors(i) = zero
            qcfail_high(i)=one
@@ -568,74 +618,81 @@ loopoverobs1: &
         endif
 
      end if ! obs inside the vertical grid
+
+3000 continue
   end do loopoverobs1 ! end of loop over observations
+
+  if (nobs_out>=1) then
+     write(6,*)'WARNING GPSRO:',nobs_out,'obs outside integration grid. Increase nsig_ext to',&
+     int(hob_s_top)-nsig+1
+  endif
 
 ! Loop over observation profiles. Compute penalty
 ! terms, and accumulate statistics.
-if(last_pass) then
-  do i=1,nobs
+  if(last_pass) then
+     do i=1,nobs
 
-     if(qcfail(i)) then
-        kprof = data(iprof,i)
-        do j=1,nobs
-           jprof = data(iprof,j)
-           if( kprof == jprof .and. .not. qcfail(j))then
-
+        if(qcfail(i)) then
+           kprof = data(iprof,i)
+           do j=1,nobs
+              jprof = data(iprof,j)
+              if( kprof == jprof .and. .not. qcfail(j))then
+ 
 !          Remove data below
-              if(r1em3*rdiagbuf(7,j) < r1em3*rdiagbuf(7,i))then
-                 if((rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.&
-                    (rdiagbuf(1,i)==723).or.(rdiagbuf(1,i)==4)) then
-                    if(r1em3*rdiagbuf(7,i)<= ten) then
-                       qcfail(j) = .true.
-                       qcfail_stats_2(j)=one
-                    endif
-                 else
-                    if(r1em3*rdiagbuf(7,i)< five) then
-                       qcfail(j) = .true.
-                       qcfail_stats_2(j)=one
+                 if(r1em3*rdiagbuf(7,j) < r1em3*rdiagbuf(7,i))then
+                    if((rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.&
+                       (rdiagbuf(1,i)==723).or.(rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786)) then
+                       if(r1em3*rdiagbuf(7,i)<= ten) then
+                          qcfail(j) = .true.
+                          qcfail_stats_2(j)=one
+                       endif
+                    else
+                       if(r1em3*rdiagbuf(7,i)< five) then
+                          qcfail(j) = .true.
+                          qcfail_stats_2(j)=one
+                       endif
                     endif
                  endif
+              end if
+           end do
+        endif
+     end do
+
+     do i=1,nobs
+
+        alt=r1em3*rdiagbuf(7,i) ! impact height in km
+        if(qcfail(i)) then
+           kprof = data(iprof,i)
+           data(ier,i) = zero
+           ratio_errors(i) = zero
+           muse(i) = .false.
+           if ( (rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.&
+                (rdiagbuf(1,i)==723).or.(rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786)) then
+              if(alt<=ten) then
+                 toss_gps_sub(kprof) = max(toss_gps_sub(kprof),data(ihgt,i))
               endif
-           end if
-        end do
-     endif
-  end do
-
-  do i=1,nobs
-
-     alt=r1em3*rdiagbuf(7,i) ! impact height in km
-     if(qcfail(i)) then
-        kprof = data(iprof,i)
-        data(ier,i) = zero
-        ratio_errors(i) = zero
-        muse(i) = .false.
-        if ( (rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.&
-             (rdiagbuf(1,i)==723).or.(rdiagbuf(1,i)==4) ) then
-           if(alt<=ten) then
-              toss_gps_sub(kprof) = max(toss_gps_sub(kprof),data(ihgt,i))
-           endif
-        else
-           if (alt < five) then
-              toss_gps_sub(kprof) = max(toss_gps_sub(kprof),data(ihgt,i))
-           end if
-        end if
-
-
-!       Counting obs tossed due to the stats qc check
-!       This calculation will be updated in genstats_gps due to toss_gps_sub
-
-        if (luse(i))then
-           if(data(ilate,i)> r20) then
-              awork(22) = awork(22)+one                !NH
-           else if(data(ilate,i)< -r20)then
-              awork(23) = awork(23)+one                !SH
            else
-              awork(24) = awork(24)+one                !TR
+              if (alt < five) then
+                 toss_gps_sub(kprof) = max(toss_gps_sub(kprof),data(ihgt,i))
+              end if
+           end if
+
+
+!          Counting obs tossed due to the stats qc check
+!          This calculation will be updated in genstats_gps due to toss_gps_sub
+ 
+           if (luse(i))then
+              if(data(ilate,i)> r20) then
+                 awork(22) = awork(22)+one                !NH
+              else if(data(ilate,i)< -r20)then
+                 awork(23) = awork(23)+one                !SH
+              else
+                 awork(24) = awork(24)+one                !TR
+              end if
            end if
         end if
-     end if
-  end do
-endif	! (last_pass)
+     end do
+  endif ! (last_pass)
 
 
 ! Loop to load arrays used in statistics output
@@ -647,49 +704,49 @@ endif	! (last_pass)
      call dtime_check(dtime,in_curbin,in_anybin)
      if(.not.in_anybin) cycle
 
-if(last_pass) then
-     if (ratio_errors(i)*data(ier,i) <= tiny_r_kind) muse(i) = .false.
-     ikx=nint(data(ikxx,i))
+     if(last_pass) then
+        if (ratio_errors(i)*data(ier,i) <= tiny_r_kind) muse(i) = .false.
+        ikx=nint(data(ikxx,i))
+
+ 
+        ! flags for observations that failed qc checks
+        ! zero = observation is good
+ 
+        if(qcfail_gross(i) == one)   rdiagbuf(10,i) = three
+        if(qcfail_stats_1(i) == one) rdiagbuf(10,i) = four
+        if(qcfail_stats_2(i) == one) rdiagbuf(10,i) = five !modified in genstats due to toss_gps_sub
+        if(qcfail_loc(i) == one)     rdiagbuf(10,i) = one
+        if(qcfail_high(i) == one)    rdiagbuf(10,i) = two
+
+        if(muse(i)) then                    ! modified in genstats_gps due to toss_gps_sub
+           rdiagbuf(12,i) = one             ! minimization usage flag (1=use, -1=not used)
+        else
+           rdiagbuf(12,i) = -one
+        endif
+
+        if (ratio_errors(i)*data(ier,i)>tiny_r_kind) then
+           err_final = ratio_errors(i)*data(ier,i)
+        else
+           err_final = tiny_r_kind
+        endif
+
+        errinv_input  = tiny_r_kind
+        errinv_adjst  = tiny_r_kind
+        errinv_final  = tiny_r_kind
 
 
-     ! flags for observations that failed qc checks
-     ! zero = observation is good
+        if (error(i)>tiny_r_kind)       errinv_input=error(i)
+        if (error_adjst(i)>tiny_r_kind) errinv_adjst=error_adjst(i)
+        if (err_final>tiny_r_kind)      errinv_final=err_final
 
-     if(qcfail_gross(i) == one)   rdiagbuf(10,i) = three
-     if(qcfail_stats_1(i) == one) rdiagbuf(10,i) = four
-     if(qcfail_stats_2(i) == one) rdiagbuf(10,i) = five !modified in genstats due to toss_gps_sub
-     if(qcfail_loc(i) == one)     rdiagbuf(10,i) = one
-     if(qcfail_high(i) == one)    rdiagbuf(10,i) = two
-
-     if(muse(i)) then                    ! modified in genstats_gps due to toss_gps_sub
-        rdiagbuf(12,i) = one             ! minimization usage flag (1=use, -1=not used)
-     else
-        rdiagbuf(12,i) = -one
-     endif
-
-     if (ratio_errors(i)*data(ier,i)>tiny_r_kind) then
-        err_final = ratio_errors(i)*data(ier,i)
-     else
-        err_final = tiny_r_kind
-     endif
-
-     errinv_input  = tiny_r_kind
-     errinv_adjst  = tiny_r_kind
-     errinv_final  = tiny_r_kind
-
-
-     if (error(i)>tiny_r_kind)       errinv_input=error(i)
-     if (error_adjst(i)>tiny_r_kind) errinv_adjst=error_adjst(i)
-     if (err_final>tiny_r_kind)      errinv_final=err_final
-
-     rdiagbuf(13,i) = zero ! nonlinear qc relative weight - will be defined in genstats_gps
-     rdiagbuf(14,i) = errinv_input ! original inverse gps obs error (rad**-1)
-     rdiagbuf(15,i) = errinv_adjst ! original + represent error inverse gps 
-                                   ! obs error (rad**-1)
-     rdiagbuf(16,i) = errinv_final ! final inverse observation error due to 
-                                   ! superob factor (rad**-1)
-                                   ! modified in genstats_gps
-endif	! (last_pass)
+        rdiagbuf(13,i) = zero ! nonlinear qc relative weight - will be defined in genstats_gps
+        rdiagbuf(14,i) = errinv_input ! original inverse gps obs error (rad**-1)
+        rdiagbuf(15,i) = errinv_adjst ! original + represent error inverse gps 
+                                      ! obs error (rad**-1)
+        rdiagbuf(16,i) = errinv_final ! final inverse observation error due to 
+                                      ! superob factor (rad**-1) and qc
+                                      ! modified in genstats_gps
+     endif ! (last_pass)
 
 !    Link observation to appropriate observation bin
      if (nobs_bins>1) then
@@ -746,237 +803,237 @@ endif	! (last_pass)
         end if
      endif
 
-if(last_pass) then
-     if (nobskeep>0) muse(i)=obsdiags(i_gps_ob_type,ibin)%tail%muse(nobskeep)
+     if(last_pass) then
+        if (nobskeep>0) muse(i)=obsdiags(i_gps_ob_type,ibin)%tail%muse(nobskeep)
 
-!    Save values needed for generate of statistics for all observations
-     if(.not. associated(gps_allhead(ibin)%head))then
-        allocate(gps_allhead(ibin)%head,stat=istat)
-        if(istat /= 0)write(6,*)' failure to write gps_allhead '
-        gps_alltail(ibin)%head => gps_allhead(ibin)%head
-     else
-        allocate(gps_alltail(ibin)%head%llpoint,stat=istat)
-        if(istat /= 0)write(6,*)' failure to write gps_alltail%llpoint '
-        gps_alltail(ibin)%head => gps_alltail(ibin)%head%llpoint
-     end if
-     gps_alltail(ibin)%head%idv=is
-     gps_alltail(ibin)%head%iob=i
+!       Save values needed for generate of statistics for all observations
+        if(.not. associated(gps_allhead(ibin)%head))then
+           allocate(gps_allhead(ibin)%head,stat=istat)
+           if(istat /= 0)write(6,*)' failure to write gps_allhead '
+           gps_alltail(ibin)%head => gps_allhead(ibin)%head
+        else
+           allocate(gps_alltail(ibin)%head%llpoint,stat=istat)
+           if(istat /= 0)write(6,*)' failure to write gps_alltail%llpoint '
+           gps_alltail(ibin)%head => gps_alltail(ibin)%head%llpoint
+        end if
+        gps_alltail(ibin)%head%idv=is
+        gps_alltail(ibin)%head%iob=i
 
-     allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istatus)
-     if (istatus/=0) write(6,*)'SETUPBEND:  allocate error for gps_alldiag, istatus=',istatus
+        allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istatus)
+        if (istatus/=0) write(6,*)'SETUPBEND:  allocate error for gps_alldiag, istatus=',istatus
 
-     gps_alltail(ibin)%head%ratio_err= ratio_errors(i)
-     gps_alltail(ibin)%head%obserr   = data(ier,i)
-     gps_alltail(ibin)%head%dataerr  = data(ier,i)*data(igps,i)
-     gps_alltail(ibin)%head%pg       = cvar_pg(ikx)
-     gps_alltail(ibin)%head%b        = cvar_b(ikx)
-     gps_alltail(ibin)%head%loc      = data(ihgt,i)
-     gps_alltail(ibin)%head%kprof    = data(iprof,i)
-     gps_alltail(ibin)%head%type     = data(ikxx,i)
-     gps_alltail(ibin)%head%luse     = luse(i) ! logical
-     gps_alltail(ibin)%head%muse     = muse(i) ! logical
-     gps_alltail(ibin)%head%cdiag    = cdiagbuf(i)
+        gps_alltail(ibin)%head%ratio_err= ratio_errors(i)
+        gps_alltail(ibin)%head%obserr   = data(ier,i)
+        gps_alltail(ibin)%head%dataerr  = data(ier,i)*data(igps,i)
+        gps_alltail(ibin)%head%pg       = cvar_pg(ikx)
+        gps_alltail(ibin)%head%b        = cvar_b(ikx)
+        gps_alltail(ibin)%head%loc      = data(ihgt,i)
+        gps_alltail(ibin)%head%kprof    = data(iprof,i)
+        gps_alltail(ibin)%head%type     = data(ikxx,i)
+        gps_alltail(ibin)%head%luse     = luse(i) ! logical
+        gps_alltail(ibin)%head%muse     = muse(i) ! logical
+        gps_alltail(ibin)%head%cdiag    = cdiagbuf(i)
 
-!    Fill obs diagnostics structure
-     obsdiags(i_gps_ob_type,ibin)%tail%luse=luse(i)
-     obsdiags(i_gps_ob_type,ibin)%tail%muse(jiter)=muse(i)
-     obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jiter)=data(igps,i)
-     obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=(data(ier,i)*ratio_errors(i))**2
+!       Fill obs diagnostics structure
+        obsdiags(i_gps_ob_type,ibin)%tail%luse=luse(i)
+        obsdiags(i_gps_ob_type,ibin)%tail%muse(jiter)=muse(i)
+        obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jiter)=data(igps,i)
+        obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=(data(ier,i)*ratio_errors(i))**2
 
-!    Load additional obs diagnostic structure
-     if (lobsdiagsave) then
-        ioff=mreal
-        do jj=1,miter
-           ioff=ioff+1
-           if (obsdiags(i_gps_ob_type,ibin)%tail%muse(jj)) then
-              rdiagbuf(ioff,i) = one
-           else
-              rdiagbuf(ioff,i) = -one
-           endif
-        enddo
-        do jj=1,miter+1
-           ioff=ioff+1
-           rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jj)
-        enddo
-        do jj=1,miter
-           ioff=ioff+1
-           rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%tldepart(jj)
-        enddo
-        do jj=1,miter
-           ioff=ioff+1
-           rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%obssen(jj)
-        enddo
-     endif
-
-     do j=1,nreal
-        gps_alltail(ibin)%head%rdiag(j)= rdiagbuf(j,i)
-     end do
+!       Load additional obs diagnostic structure
+        if (lobsdiagsave) then
+           ioff=mreal
+           do jj=1,miter
+              ioff=ioff+1
+              if (obsdiags(i_gps_ob_type,ibin)%tail%muse(jj)) then
+                 rdiagbuf(ioff,i) = one
+              else
+                 rdiagbuf(ioff,i) = -one
+              endif
+           enddo
+           do jj=1,miter+1
+              ioff=ioff+1
+              rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jj)
+           enddo
+           do jj=1,miter
+              ioff=ioff+1
+              rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%tldepart(jj)
+           enddo
+           do jj=1,miter
+              ioff=ioff+1
+              rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%obssen(jj)
+           enddo
+        endif
+ 
+        do j=1,nreal
+           gps_alltail(ibin)%head%rdiag(j)= rdiagbuf(j,i)
+        end do
 
 ! If obs is "acceptable", load array with obs info for use
 ! in inner loop minimization (int* and stp* routines)
 
-     if ( muse(i) ) then
+        if ( muse(i) ) then
 
-        if(.not. associated(gpshead(ibin)%head))then
-           allocate(gpshead(ibin)%head,stat=istat)
-           if(istat /= 0)write(6,*)' failure to write gpshead '
-           gpstail(ibin)%head => gpshead(ibin)%head
-        else
-           allocate(gpstail(ibin)%head%llpoint,stat=istat)
-           if(istat /= 0)write(6,*)' failure to write gpstail%llpoint '
-           gpstail(ibin)%head => gpstail(ibin)%head%llpoint
-        end if
-        m_alloc(ibin) = m_alloc(ibin)+1
-	gpstail(ibin)%head%idv=is
-	gpstail(ibin)%head%iob=i
+           if(.not. associated(gpshead(ibin)%head))then
+              allocate(gpshead(ibin)%head,stat=istat)
+              if(istat /= 0)write(6,*)' failure to write gpshead '
+              gpstail(ibin)%head => gpshead(ibin)%head
+           else
+              allocate(gpstail(ibin)%head%llpoint,stat=istat)
+              if(istat /= 0)write(6,*)' failure to write gpstail%llpoint '
+              gpstail(ibin)%head => gpstail(ibin)%head%llpoint
+           end if
+           m_alloc(ibin) = m_alloc(ibin)+1
+           gpstail(ibin)%head%idv=is
+           gpstail(ibin)%head%iob=i
 
-        allocate(gpstail(ibin)%head%jac_t(nsig),gpstail(ibin)%head%jac_q(nsig), &
-                 gpstail(ibin)%head%jac_p(nsig+1),gpstail(ibin)%head%ij(4,nsig),stat=istatus)
-        if (istatus/=0) write(6,*)'SETUPBEND:  allocate error for gps_point, istatus=',istatus
+           allocate(gpstail(ibin)%head%jac_t(nsig),gpstail(ibin)%head%jac_q(nsig), &
+                    gpstail(ibin)%head%jac_p(nsig+1),gpstail(ibin)%head%ij(4,nsig),stat=istatus)
+           if (istatus/=0) write(6,*)'SETUPBEND:  allocate error for gps_point, istatus=',istatus
 
-        gps_alltail(ibin)%head%mmpoint  => gpstail(ibin)%head
+           gps_alltail(ibin)%head%mmpoint  => gpstail(ibin)%head
  
-!       Inizialize some variables
-        dxidt=zero; dxidp=zero; dxidq=zero
-        dhdp=zero; dhdt=zero       
-        dndt=zero; dndq=zero; dndp=zero
+!          Inizialize some variables
+           dxidt=zero; dxidp=zero; dxidq=zero
+           dhdp=zero; dhdt=zero       
+           dndt=zero; dndq=zero; dndp=zero
 
-!       Set (i,j) indices of guess gridpoint that bound obs location
-        call get_ij(mm1,data(ilat,i),data(ilon,i),gps_ij,gpstail(ibin)%head%wij(1))
-
-        do k=1,nsig
-
-          gpstail(ibin)%head%ij(1,k)=gps_ij(1)+(k-1)*latlon11
-          gpstail(ibin)%head%ij(2,k)=gps_ij(2)+(k-1)*latlon11
-          gpstail(ibin)%head%ij(3,k)=gps_ij(3)+(k-1)*latlon11
-          gpstail(ibin)%head%ij(4,k)=gps_ij(4)+(k-1)*latlon11
-
-          if(k > 1) then
-            do j=2,k
-               dhdt(k,j-1)= rdog*(prsltmp_o(j-1,i)-prsltmp_o(j,i))
-               dhdp(k,j)= dhdp(k,j)-rdog*(tges_o(j-1,i)/exp(prsltmp_o(j,i)))
-               dhdp(k,j-1)=dhdp(k,j-1)+rdog*(tges_o(j-1,i)/exp(prsltmp_o(j-1,i)))
-            end do
-          end if
-          if(k == 1)then
-             dndt(k,k)=dndt(k,k)+n_t(k,i)
-             dndq(k,k)=dndq(k,k)+n_q(k,i)
-             dndp(k,k)=dndp(k,k)+n_p(k,i)
-          else
-             dndt(k,k)=dndt(k,k)+half*n_t(k,i)
-             dndt(k,k-1)=dndt(k,k-1)+half*n_t(k,i)
-             dndq(k,k)=dndq(k,k)+half*n_q(k,i)
-             dndq(k,k-1)=dndq(k,k-1)+half*n_q(k,i)
-             dndp(k,k)=n_p(k,i)
-          end if
-        end do
-
-        do k=1,nsig
-           irefges(k)=one+r1em6*nrefges(k,i)
-           ref_rad(k)=irefges(k)*rges(k,i)
-           do j=1,nsig
-              dxidt(k,j)=r1em6*rges(k,i)*dndt(k,j)+irefges(k)*gp2gm(k,i)*dhdt(k,j)
-              dxidq(k,j)=r1em6*rges(k,i)*dndq(k,j)
-              dxidp(k,j)=r1em6*rges(k,i)*dndp(k,j)+irefges(k)*gp2gm(k,i)*dhdp(k,j)
+!          Set (i,j) indices of guess gridpoint that bound obs location
+           call get_ij(mm1,data(ilat,i),data(ilon,i),gps_ij,gpstail(ibin)%head%wij(1))
+ 
+           do k=1,nsig
+ 
+              gpstail(ibin)%head%ij(1,k)=gps_ij(1)+(k-1)*latlon11
+              gpstail(ibin)%head%ij(2,k)=gps_ij(2)+(k-1)*latlon11
+              gpstail(ibin)%head%ij(3,k)=gps_ij(3)+(k-1)*latlon11
+              gpstail(ibin)%head%ij(4,k)=gps_ij(4)+(k-1)*latlon11
+ 
+              if(k > 1) then
+                 do j=2,k
+                    dhdt(k,j-1)= rdog*(prsltmp_o(j-1,i)-prsltmp_o(j,i))
+                    dhdp(k,j)= dhdp(k,j)-rdog*(tges_o(j-1,i)/exp(prsltmp_o(j,i)))
+                    dhdp(k,j-1)=dhdp(k,j-1)+rdog*(tges_o(j-1,i)/exp(prsltmp_o(j-1,i)))
+                 end do
+              end if
+              if(k == 1)then
+                 dndt(k,k)=dndt(k,k)+n_t(k,i)
+                 dndq(k,k)=dndq(k,k)+n_q(k,i)
+                 dndp(k,k)=dndp(k,k)+n_p(k,i)
+              else
+                 dndt(k,k)=dndt(k,k)+half*n_t(k,i)
+                 dndt(k,k-1)=dndt(k,k-1)+half*n_t(k,i)
+                 dndq(k,k)=dndq(k,k)+half*n_q(k,i)
+                 dndq(k,k-1)=dndq(k,k-1)+half*n_q(k,i)
+                 dndp(k,k)=n_p(k,i)
+              end if
            end do
-        end do
-        d_ref_rad=ref_rad(nsig)-ref_rad(nsig-1)
-        do k=1,10
-           ref_rad(nsig+k)=ref_rad(nsig) + k*d_ref_rad
-        end do
-        ref_rad(0)=ref_rad(3)
-        ref_rad(nsig_up+1)=ref_rad(nsig_up-2)
-        do kk=1,nsig
-           xi_TL=zero
-           xi_TL(kk)=one
-           n_TL=zero
-           n_TL(kk)=one
-           q_w=zero
-           q_w_TL=zero
-           d_ref_rad_TL=xi_TL(nsig)-xi_TL(nsig-1)
-           do k=1,10
-              xi_TL(nsig+k)=xi_TL(nsig)+ k*d_ref_rad_TL
-              n_TL(nsig+k)=(two*nrefges(nsig+k-1,i)*n_TL(nsig+k-1)/nrefges(nsig+k-2,i))-&
-                  (nrefges(nsig+k-1,i)**2/nrefges(nsig+k-2,i)**2)*n_TL(nsig+k-2)
 
+           do k=1,nsig
+              irefges(k)=one+r1em6*nrefges(k,i)
+              ref_rad(k)=irefges(k)*rges(k,i)
+              do j=1,nsig
+                 dxidt(k,j)=r1em6*rges(k,i)*dndt(k,j)+irefges(k)*gp2gm(k,i)*dhdt(k,j)
+                 dxidq(k,j)=r1em6*rges(k,i)*dndq(k,j)
+                 dxidp(k,j)=r1em6*rges(k,i)*dndp(k,j)+irefges(k)*gp2gm(k,i)*dhdp(k,j)
+              end do
            end do
-           xi_TL(0)=xi_TL(3)
-           xi_TL(nsig_up+1)=xi_TL(nsig_up-2)
-           do k=1,nsig_up
-              call setq_TL(q_w(:,k),q_w_TL(:,k),ref_rad(k-1:k+1),xi_TL(k-1:k+1),3)
-           enddo
-           intloop2: do j=1,grids_dim
-              ihob=dbend_loc(j,i)
+           d_ref_rad=ref_rad(nsig)-ref_rad(nsig-1)
+           do k=1,nsig_ext
+              ref_rad(nsig+k)=ref_rad(nsig) + k*d_ref_rad
+           end do
+           ref_rad(0)=ref_rad(3)
+           ref_rad(nsig_up+1)=ref_rad(nsig_up-2)
+           do kk=1,nsig
+              xi_TL=zero
+              xi_TL(kk)=one
+              n_TL=zero
+              n_TL(kk)=one
+              q_w=zero
+              q_w_TL=zero
+              d_ref_rad_TL=xi_TL(nsig)-xi_TL(nsig-1)
+              do k=1,nsig_ext
+                 xi_TL(nsig+k)=xi_TL(nsig)+ k*d_ref_rad_TL
+                 n_TL(nsig+k)=(two*nrefges(nsig+k-1,i)*n_TL(nsig+k-1)/nrefges(nsig+k-2,i))-&
+                     (nrefges(nsig+k-1,i)**2/nrefges(nsig+k-2,i)**2)*n_TL(nsig+k-2)
+
+              end do
+              xi_TL(0)=xi_TL(3)
+              xi_TL(nsig_up+1)=xi_TL(nsig_up-2)
+              do k=1,nsig_up
+                 call setq_TL(q_w(:,k),q_w_TL(:,k),ref_rad(k-1:k+1),xi_TL(k-1:k+1),3)
+              enddo
+              intloop2: do j=1,grids_dim
+                 ihob=dbend_loc(j,i)
 
 ! Compute refractivity and derivative at target points using Lagrange interpolators
-              call slagdw_TL(ref_rad(ihob-1:ihob+2),xi_TL(ihob-1:ihob+2),xj(j,i),&
-                         q_w(:,ihob),q_w_TL(:,ihob),&
-                         q_w(:,ihob+1),q_w_TL(:,ihob+1),&
-                         dw4,dw4_TL,4)
-              if(ihob==1) then
-                 dw4(4)=dw4(4)+dw4(1);dw4(1:3)=dw4(2:4);dw4(4)=zero
-                 dw4_TL(4)=dw4_TL(4)+dw4_TL(1);dw4_TL(1:3)=dw4_TL(2:4);dw4_TL(4)=zero
-                 ihob=ihob+1
-              endif
-              if(ihob==nsig_up-1) then
-                 dw4(1)=dw4(1)+dw4(4); dw4(2:4)=dw4(1:3);dw4(1)=zero
-                 dw4_TL(1)=dw4_TL(1)+dw4_TL(4); dw4_TL(2:4)=dw4_TL(1:3);dw4_TL(1)=zero
-                 ihob=ihob-1
-              endif
-              dbetaxi=(r1em6/xj(j,i))*dot_product(dw4_TL,nrefges(ihob-1:ihob+2,i))
-              dbetan =(r1em6/xj(j,i))*dot_product(dw4,n_TL(ihob-1:ihob+2))
-              if(j == 1)then
-                 dbenddxi(kk)=dbetaxi
-                 dbenddn(kk)=dbetan
-              else
-                 dbenddxi(kk)=dbenddxi(kk)+two*dbetaxi
-                 dbenddn(kk)=dbenddn(kk)+two*dbetan
-              end if
-           end do intloop2
-        end do
-        do k=1,nsig
-           dbenddxi(k)=-dbenddxi(k)*ds*tpdpres(i)
-           dbenddn(k)=-dbenddn(k)*ds*tpdpres(i)
-        end do
-        do k=1,nsig
-           gpstail(ibin)%head%jac_t(k)=zero
-           gpstail(ibin)%head%jac_q(k)=zero
-           gpstail(ibin)%head%jac_p(k)=zero
-           do j=1,nsig
-              gpstail(ibin)%head%jac_t(k)=gpstail(ibin)%head%jac_t(k)+dbenddxi(j)*dxidt(j,k)+ &
-                                                                      dbenddn(j) * dndt(j,k)
-              gpstail(ibin)%head%jac_q(k)=gpstail(ibin)%head%jac_q(k)+dbenddxi(j)*dxidq(j,k)+ &
-                                                                      dbenddn(j) * dndq(j,k)
-              gpstail(ibin)%head%jac_p(k)=gpstail(ibin)%head%jac_p(k)+dbenddxi(j)*dxidp(j,k)+ &
-                                                                      dbenddn(j) * dndp(j,k)
+                 call slagdw_TL(ref_rad(ihob-1:ihob+2),xi_TL(ihob-1:ihob+2),xj(j,i),&
+                            q_w(:,ihob),q_w_TL(:,ihob),&
+                            q_w(:,ihob+1),q_w_TL(:,ihob+1),&
+                            dw4,dw4_TL,4)
+                 if(ihob==1) then
+                    dw4(4)=dw4(4)+dw4(1);dw4(1:3)=dw4(2:4);dw4(4)=zero
+                    dw4_TL(4)=dw4_TL(4)+dw4_TL(1);dw4_TL(1:3)=dw4_TL(2:4);dw4_TL(4)=zero
+                    ihob=ihob+1
+                 endif
+                 if(ihob==nsig_up-1) then
+                    dw4(1)=dw4(1)+dw4(4); dw4(2:4)=dw4(1:3);dw4(1)=zero
+                    dw4_TL(1)=dw4_TL(1)+dw4_TL(4); dw4_TL(2:4)=dw4_TL(1:3);dw4_TL(1)=zero
+                    ihob=ihob-1
+                 endif
+                 dbetaxi=(r1em6/xj(j,i))*dot_product(dw4_TL,nrefges(ihob-1:ihob+2,i))
+                 dbetan =(r1em6/xj(j,i))*dot_product(dw4,n_TL(ihob-1:ihob+2))
+                 if(j == 1)then
+                    dbenddxi(kk)=dbetaxi
+                    dbenddn(kk)=dbetan
+                 else
+                    dbenddxi(kk)=dbenddxi(kk)+two*dbetaxi
+                    dbenddn(kk)=dbenddn(kk)+two*dbetan
+                 end if
+              end do intloop2
            end do
-        end do
+           do k=1,nsig
+              dbenddxi(k)=-dbenddxi(k)*ds*tpdpres(i)
+              dbenddn(k)=-dbenddn(k)*ds*tpdpres(i)
+           end do
+           do k=1,nsig
+              gpstail(ibin)%head%jac_t(k)=zero
+              gpstail(ibin)%head%jac_q(k)=zero
+              gpstail(ibin)%head%jac_p(k)=zero
+              do j=1,nsig
+                 gpstail(ibin)%head%jac_t(k)=gpstail(ibin)%head%jac_t(k)+dbenddxi(j)*dxidt(j,k)+ &
+                                                                         dbenddn(j) * dndt(j,k)
+                 gpstail(ibin)%head%jac_q(k)=gpstail(ibin)%head%jac_q(k)+dbenddxi(j)*dxidq(j,k)+ &
+                                                                         dbenddn(j) * dndq(j,k)
+                 gpstail(ibin)%head%jac_p(k)=gpstail(ibin)%head%jac_p(k)+dbenddxi(j)*dxidp(j,k)+ &
+                                                                         dbenddn(j) * dndp(j,k)
+              end do
+           end do
 
-        gpstail(ibin)%head%jac_p(nsig+1) = zero
-        gpstail(ibin)%head%raterr2= ratio_errors(i)**2     
-        gpstail(ibin)%head%res    = data(igps,i)
-        gpstail(ibin)%head%err2   = data(ier,i)**2
-        gpstail(ibin)%head%time   = data(itime,i)
-        gpstail(ibin)%head%b      = cvar_b(ikx)
-        gpstail(ibin)%head%pg     = cvar_pg(ikx)
-        gpstail(ibin)%head%luse   = luse(i)
+           gpstail(ibin)%head%jac_p(nsig+1) = zero
+           gpstail(ibin)%head%raterr2= ratio_errors(i)**2     
+           gpstail(ibin)%head%res    = data(igps,i)
+           gpstail(ibin)%head%err2   = data(ier,i)**2
+           gpstail(ibin)%head%time   = data(itime,i)
+           gpstail(ibin)%head%b      = cvar_b(ikx)
+           gpstail(ibin)%head%pg     = cvar_pg(ikx)
+           gpstail(ibin)%head%luse   = luse(i)
 
-        gpstail(ibin)%head%diags => obsdiags(i_gps_ob_type,ibin)%tail
+           gpstail(ibin)%head%diags => obsdiags(i_gps_ob_type,ibin)%tail
 
-	my_head => gpstail(ibin)%head
-	my_diag => gpstail(ibin)%head%diags
-        if(my_head%idv /= my_diag%idv .or. &
-	   my_head%iob /= my_diag%iob ) then
-	  call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-	  	(/is,i,ibin/))
-	  call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-	  call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-	  call die(myname)
-	endif
-     end if
+           my_head => gpstail(ibin)%head
+           my_diag => gpstail(ibin)%head%diags
+           if(my_head%idv /= my_diag%idv .or. &
+              my_head%iob /= my_diag%iob ) then
+              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                    (/is,i,ibin/))
+              call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+              call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+              call die(myname)
+           endif
+        end if
  
-endif	! (last_pass)
-  end do	! i=1,nobs
+     endif ! (last_pass)
+  end do ! i=1,nobs
 
   ! Save these arrays for later passes
   data_ier (:)=data(ier ,:)

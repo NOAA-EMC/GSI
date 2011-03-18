@@ -200,10 +200,13 @@ SRCS =	$(wildcard \
 	calc_fov_conical.f90 \
 	calc_fov_crosstrk.f90 \
 	calctends.f90 \
-	calctends_ad.F90 \
-	calctends_tl.F90 \
-	calctends_no_ad.F90 \
-	calctends_no_tl.F90 \
+	calctends_ad.f90 \
+	calctends_tl.f90 \
+	calctends_no_ad.f90 \
+	calctends_no_tl.f90 \
+        chemmod.f90 \
+        clw_mod.f90 \
+        cmaq_routines.f90 \
         coinfo.f90 \
 	combine_radobs.f90 \
 	compact_diffs.f90 \
@@ -253,7 +256,7 @@ SRCS =	$(wildcard \
 	grtest.f90 \
 	grdcrd.f90 \
 	grid2sub.f90 \
-	gridmod.f90 \
+	gridmod.F90 \
 	gscond_ad.f90 \
         gsd_terrain_match_surfTobs.f90 \
         gsdcloudanalysis.F90 \
@@ -283,6 +286,7 @@ SRCS =	$(wildcard \
 	intlimq.f90 \
 	intoz.f90 \
 	intpcp.f90 \
+        intpm2_5.f90 \
 	intps.f90 \
 	intpw.f90 \
 	intq.f90 \
@@ -330,11 +334,11 @@ SRCS =	$(wildcard \
 	mp_compact_diffs_mod1.f90 \
 	mp_compact_diffs_support.f90 \
 	mpimod.F90 \
-	mpl_allreduce.f90 \
+	mpl_allreduce.F90 \
 	mpl_bcast.f90 \
         ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \
-	nemsio_module.f90 \
+        ncepnems_io.f90 \
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
 	obs_ferrscale.F90 \
@@ -376,6 +380,7 @@ SRCS =	$(wildcard \
         read_aerosol.F90 \
 	read_airs.f90 \
 	read_amsre.f90 \
+        read_anowbufr.f90 \
 	read_avhrr.f90 \
 	read_avhrr_navy.f90 \
 	read_bufrtovs.f90 \
@@ -422,10 +427,10 @@ SRCS =	$(wildcard \
 	setupbend.f90 \
 	setupco.f90 \
 	setupdw.f90 \
-	setupo3lv.f90 \
 	setuplag.F90 \
 	setupoz.f90 \
 	setuppcp.f90 \
+        setuppm2_5.f90 \
 	setupps.f90 \
 	setuppw.f90 \
 	setupq.f90 \
@@ -468,6 +473,7 @@ SRCS =	$(wildcard \
 	stplimq.f90 \
 	stpoz.f90 \
 	stppcp.f90 \
+        stppm2_5.f90 \
 	stpps.f90 \
 	stppw.f90 \
 	stpq.f90 \

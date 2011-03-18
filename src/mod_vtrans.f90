@@ -494,6 +494,7 @@ contains
 !
 ! program history log:
 !   2006-05-04  kleist
+!   2010-12-17  pagowski - add cmaq
 !
 ! usage:
 !   input argument list:
@@ -506,7 +507,7 @@ contains
 !$$$ end documentation block
     use constants,only: zero,ten
     use gridmod,only: nsig,ak5,bk5,ck5
-    use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll
+    use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,cmaq_regional
     implicit none
 
 !   Declare passed variables
@@ -515,7 +516,7 @@ contains
 !   Declare local variables
     integer(i_kind) k
 
-    if(wrf_nmm_regional.or.nems_nmmb_regional) then
+    if(wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
        do k=1,nsig+1
           ahat(k)=eta1_ll(k)*pdtop_ll-eta2_ll(k)*(pdtop_ll+pt_ll)+pt_ll
           bhat(k)=eta2_ll(k)

@@ -730,6 +730,7 @@ contains
 !   2010-03-05  zhu - use nrf3 and nvars,remove dssvt
 !                   - change lat dimension of dssv and dssvs
 !                   - change the order of dssv's dimensions
+!   2010-10-22  zhu - allocate vprecond for new preconditioner of predictors
 !
 !   input argument list:
 !
@@ -743,7 +744,7 @@ contains
     use constants, only: zero
     use balmod, only: llmin,llmax
     use gridmod, only: nlat,nlon,nsig,nnnn1o,lat2,lon2
-    use jfunc, only: nrclen
+    use jfunc, only: nrclen,nclen
     implicit none
     
     nx=nlon
@@ -764,6 +765,7 @@ contains
     endif
     
     allocate(varprd(max(1,nrclen) ) )     
+    if (newpc4pred) allocate(vprecond(nclen))
 
     allocate(slw(ny*nx,nnnn1o) )
     allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o) )
@@ -785,6 +787,7 @@ contains
 !   2004-01-01  kleist
 !   2005-03-03  treadon - add implicit none
 !   2010-03-09  zhu     - remove dssvt
+!   2010-10-22  zhu - deallocate vprecond for new preconditioner of predictors
 !
 !   input argument list:
 !
@@ -805,6 +808,7 @@ contains
     deallocate(ii,jj)
     deallocate(slw)
     deallocate(varprd)
+    if (newpc4pred) deallocate(vprecond)
 
     return
   end subroutine destroy_berror_vars_reg

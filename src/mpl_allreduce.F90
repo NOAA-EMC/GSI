@@ -79,7 +79,7 @@ subroutine rmpl_allreduce(klen,rpvals)
 
 !    Gather contributions
      call mpi_allgather(rpvals,klen,mpi_rtype, &
-                      & zwork,klen,mpi_rtype, mpi_comm_world,ierror)
+                        zwork,klen,mpi_rtype, mpi_comm_world,ierror)
 
 !    Sum (note this is NOT reproducible across different numbers of processors)
      do ii=1,klen
@@ -132,13 +132,25 @@ subroutine qmpl_allreduce1d(klen,qpvals)
   integer(i_kind) :: ii,jj
   real(r_quad)    ::qpval2(klen,npe)
 
+#ifdef PGI
+  real(r_kind)    ::qpvalsr(klen)
+  real(r_kind)    ::qpval2r(klen,npe)
+#endif
+
 ! ----------------------------------------------------------
 
   if (npe>1 .and. klen>0) then
 
 !    Gather contributions
+#ifdef PGI
+     qpvalsr=qpvals
+     call mpi_allgather(qpvalsr,klen,mpi_rtype, &
+                        qpval2r,klen,mpi_rtype, mpi_comm_world,ierror)
+     qpval2=qpval2r
+#else
      call mpi_allgather(qpvals,klen,mpi_real16, &
-                      & qpval2,klen,mpi_real16, mpi_comm_world,ierror)
+                        qpval2,klen,mpi_real16, mpi_comm_world,ierror)
+#endif
 
 !    Reproducible sum (when truncated to real precision)
      do ii=1,klen
@@ -193,12 +205,23 @@ subroutine qmpl_allreduce2d(ilen,klen,pvals,pvnew)
 ! Declare local variables
   integer(i_kind) :: ii,kk,nn
   real(r_quad)    :: pval2(ilen,klen,npe)
+#ifdef PGI
+  real(r_kind)    :: pval2r(ilen,klen,npe)
+  real(r_kind)    :: pvalsr(ilen,klen)
+#endif
 
 ! ----------------------------------------------------------
 
 ! Gather contributions
+#ifdef PGI
+  pvalsr=pvals
+  call mpi_allgather(pvalsr,ilen*klen,mpi_rtype, &
+                     pval2r,ilen*klen,mpi_rtype, mpi_comm_world,ierror)
+  pval2=pval2r
+#else
   call mpi_allgather(pvals,ilen*klen,mpi_real16, &
-                   & pval2,ilen*klen,mpi_real16, mpi_comm_world,ierror)
+                     pval2,ilen*klen,mpi_real16, mpi_comm_world,ierror)
+#endif
   
     
   if (present(pvnew)) then
@@ -268,14 +291,26 @@ subroutine mpl_allgatherq(idim,jdim,zloc,zall)
   integer(i_kind),intent(in   ) :: idim,jdim
   real(r_quad)   ,intent(in   ) :: zloc(idim)
   real(r_quad)   ,intent(  out) :: zall(idim,jdim)
+#ifdef PGI
+  real(r_kind)    :: zlocr(idim)
+  real(r_kind)    :: zallr(idim,jdim)
+#endif
 
   if(jdim/=npe) then
      write(6,*)'state_vectors: troubled jdim/npe',jdim,npe
      call stop2(153)
   end if
 
+#ifdef PGI
+  zlocr=zloc
+  call mpi_allgather(zlocr,idim,mpi_rtype, &
+                     zallr,idim,mpi_rtype, mpi_comm_world,ierror)
+  zall=zallr
+#else
   call mpi_allgather(zloc,idim,mpi_real16, &
                      zall,idim,mpi_real16, mpi_comm_world,ierror)
+#endif
+
 
 
 end subroutine mpl_allgatherq

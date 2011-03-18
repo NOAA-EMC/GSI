@@ -1085,6 +1085,8 @@ subroutine wrwrfnmma_netcdf(mype)
   if(mype == 0) write(6,*)' at 6 in wrwrfnmma'
 
   allocate(tempa(itotsub),tempb(itotsub))
+  tempa=0.0_r_single
+  tempb=0.0_r_single
   if(mype == 0) read(lendian_in)temp1
   if(mype == 0) write(6,*)' at 6.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
   call strip_single(all_loc(1,1,i_pd),strp,1)

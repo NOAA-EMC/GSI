@@ -78,6 +78,7 @@ module obsmod
 !   2010-06-14  huang    - add aerosol variable (*aero*)
 !   2010-07-10  todling  - turn aerosol heads/tails public
 !   2010-08-18       hu  - add codiags to public declaration
+!   2010-10-15 pagowski  - add pm2_5 in-situ
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -150,6 +151,8 @@ module obsmod
 !   def aerotail     - aerosol profile linked list tail
 !   def aerolhead    - aerosol level data linked list head
 !   def aeroltail    - aerosol level data linked list tail
+!   def pm2_5head    - pm2_5 level data linked list head
+!   def pm2_5tail    - pm2_5 level data linked list tail
 !   def radhead      - radiance linked list head
 !   def radtail      - radiance linked list tail
 !   def radheadm     - radiance linked list head for monitored radiance data
@@ -262,6 +265,7 @@ module obsmod
   public :: pwhead,oztail,ozhead,o3ltail,o3lhead,co3ltail,co3lhead,pcptail,pcphead,gpstail,gpshead
   public :: aero_ob_head,aero_ob_type,aerohead,aerotail,i_aero_ob_type
   public :: aerol_ob_head,aerol_ob_type,aerolhead,aeroltail,i_aerol_ob_type
+  public :: pm2_5_ob_head,pm2_5_ob_type,i_pm2_5_ob_type,pm2_5head,pm2_5tail
   public :: radptr,radtail,radhead,lagtail,laghead,nloz_v8,nloz_v6,nlco,nobskeep,gps_alltail
   public :: radptrm,radtailm,radheadm
   public :: grids_dim,rmiss_single,nchan_total,tcpptr,tcphead,tcptail,mype_sst,mype_gps
@@ -305,8 +309,10 @@ module obsmod
   integer(i_kind),parameter:: i_co3l_ob_type= 18  ! co3l_ob_type
   integer(i_kind),parameter:: i_aero_ob_type =19  ! aero_ob_type
   integer(i_kind),parameter:: i_aerol_ob_type=20  ! aerol_ob_type
+  integer(i_kind),parameter:: i_pm2_5_ob_type=21  ! pm2_5_ob_type
+  
 
-  integer(i_kind),parameter:: nobs_type = 20      ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 21      ! number of observation types
 
 ! Structure for diagnostics
 
@@ -760,6 +766,35 @@ module obsmod
      type(aerol_ob_type),pointer :: head => NULL()
   end type aerol_ob_head
 
+  type pm2_5_ob_type
+! to avoid separate coding for pm2_5 profile e.g. from aircraft or 
+! soundings obs weights are coded as 
+! wij(8) even though for surface pm2_5 wij(4) would be sufficient.
+! also surface pm2_5 may be treated differently than now for vertical
+! interpolation
+
+     sequence
+     type(pm2_5_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  pm2_5 residual
+     real(r_kind)    :: err2          !  pm2_5 obs error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+!  to original obs error
+     real(r_kind)    :: time          !  observation time
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(8)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(8)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+     
+  end type pm2_5_ob_type
+  
+  type pm2_5_ob_head
+     integer(i_kind):: n_alloc=0
+     type(pm2_5_ob_type),pointer :: head => NULL()
+  end type pm2_5_ob_head
+  
   type gps_ob_type
      sequence
      type(gps_ob_type),pointer :: llpoint => NULL()
@@ -928,6 +963,8 @@ module obsmod
      type(co3l_ob_type),pointer  :: co3l  => NULL()
      type(aero_ob_type),pointer  :: aero  => NULL()
      type(aerol_ob_type),pointer :: aerol => NULL()
+     type(pm2_5_ob_type),pointer  :: pm2_5  => NULL()
+
   end type obs_handle
 
 ! Declare types
@@ -980,6 +1017,9 @@ module obsmod
   type(aerol_ob_head),dimension(:),pointer :: aerolhead
   type(aerol_ob_head),dimension(:),pointer :: aeroltail
   type(aerol_ob_type),pointer :: aerolptr => NULL()
+  type(pm2_5_ob_head),dimension(:),pointer :: pm2_5head
+  type(pm2_5_ob_head),dimension(:),pointer :: pm2_5tail
+  type(pm2_5_ob_type),pointer :: pm2_5ptr => NULL()
   type(gps_ob_head),dimension(:),pointer :: gpshead
   type(gps_ob_head),dimension(:),pointer :: gpstail
   type(gps_ob_type),pointer :: gpsptr => NULL()
@@ -1203,6 +1243,8 @@ contains
     cobstype( i_co3l_ob_type)="carbon monoxide     " ! co3l_ob_type
     cobstype( i_aero_ob_type)="modis aerosol aod   " ! aero_ob_type
     cobstype(i_aerol_ob_type)="level modis aero aod" ! aerol_ob_type
+    cobstype( i_pm2_5_ob_type)="in-situ pm2_5 obs  " ! pm2_5_ob_type
+
 
     hilbert_curve=.false.
 
@@ -1318,6 +1360,8 @@ contains
     ALLOCATE(aerotail (nobs_bins))
     ALLOCATE(aerolhead(nobs_bins))
     ALLOCATE(aeroltail(nobs_bins))
+    ALLOCATE(pm2_5head(nobs_bins))
+    ALLOCATE(pm2_5tail(nobs_bins))
     ALLOCATE(radhead(nobs_bins))
     ALLOCATE(radtail(nobs_bins))
     ALLOCATE(gpshead(nobs_bins))
@@ -1649,6 +1693,17 @@ contains
         aeroltail(ii)%head => aerolhead(ii)%head
       end do
     end do
+
+    do ii=1,nobs_bins
+       pm2_5tail(ii)%head => pm2_5head(ii)%head
+       do while (associated(pm2_5tail(ii)%head))
+          pm2_5head(ii)%head => pm2_5tail(ii)%head%llpoint
+          deallocate(pm2_5tail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pm2_5, istatus=',istatus
+          pm2_5tail(ii)%head => pm2_5head(ii)%head
+       end do
+    end do
+
 
     do ii=1,nobs_bins
        gpstail(ii)%head => gpshead(ii)%head

@@ -400,7 +400,7 @@ contains
     use kinds, only: r_single
     use gridmod, only:  nlat,nlon,lat2,lon2,lat1,lon1,jstart,&
        ltosi,ltosj,iglobal,itotsub,ijn,displs_g,regional,istart, &
-       rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip
+       rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip, use_gfs_nemsio
     use guess_grids, only: ntguessig,isli,sfct,sno,fact10,ges_z, &
        nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
        veg_frac,sfc_rough,ifilesfc,nfldsig,isli2,sno2
@@ -410,6 +410,7 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     use constants, only: zero,half,pi,two,one
     use ncepgfs_io, only: read_gfssfc,sfc_interpolate
+    use ncepnems_io, only: read_nemssfc
     use sfcio_module, only: sfcio_realfill
 
     implicit none
@@ -494,18 +495,32 @@ contains
           do it=1,nfldsfc
              write(filename,200)ifilesfc(it)
 200          format('sfcf',i2.2)
-             call read_gfssfc(filename,mype,&
-                fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
-                veg_type_full(1,1),veg_frac_full(1,1,it), &
-                soil_type_full(1,1),soil_temp_full(1,1,it),&
-                soil_moi_full(1,1,it),isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
+             if ( use_gfs_nemsio ) then
+                call read_nemssfc(filename,mype,&
+                   fact10_full(:,:,it),sst_full(:,:,it),sno_full(:,:,it), &
+                   veg_type_full,veg_frac_full(:,:,it), &
+                   soil_type_full,soil_temp_full(:,:,it),&
+                   soil_moi_full(:,:,it),isli_full,sfc_rough_full(:,:,it),zs_full_gfs)
+             else
+                call read_gfssfc(filename,mype,&
+                   fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
+                   veg_type_full(1,1),veg_frac_full(1,1,it), &
+                   soil_type_full(1,1),soil_temp_full(1,1,it),&
+                   soil_moi_full(1,1,it),isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
+             end if
           end do
        else
           do it=1,nfldsfc
              write(filename,200)ifilesfc(it)
-             call read_gfssfc(filename,mype,&
-                fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
-                dum,dum,dum,dum,dum,isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
+             if ( use_gfs_nemsio ) then
+                call read_nemssfc(filename,mype,&
+                   fact10_full(:,:,it),sst_full(:,:,it),sno_full(:,:,it), &
+                   dum,dum,dum,dum,dum,isli_full,sfc_rough_full(:,:,it),zs_full_gfs)
+             else
+                call read_gfssfc(filename,mype,&
+                   fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
+                   dum,dum,dum,dum,dum,isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
+             end if
           end do
           deallocate(dum)
        end if
