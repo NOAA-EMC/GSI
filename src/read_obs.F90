@@ -595,9 +595,15 @@ subroutine read_obs(ndata,mype)
 !   Distribute optimal number of reader tasks to all mpi tasks
     call mpi_allreduce(ntasks1,ntasks,ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror)
 
+!   Limit number of requested tasks per type to be <= total available tasks
     npemax=0
     npetot=0
     do i=1,ndat
+       if (ntasks(i)>npe) then
+          write(6,*)'read_obs:  ***WARNING*** i=',i,' dtype=',dtype(i),' dsis=',dsis(i),&
+               ' requested ntasks=',ntasks(i),' > npe=',npe,' reset ntasks=',npe
+          ntasks(i)=npe
+       endif
        npe_sub(i)=ntasks(i)
        npetot=npetot+npe_sub(i)
        npemax=max(npemax,npe_sub(i))
