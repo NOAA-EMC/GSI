@@ -256,7 +256,7 @@ subroutine read_files(mype)
                 call nemsio_close(gfile_sfc,iret=iret)
                 call stop2(80)
               end if
-            call nemsio_close(gfile_sfc,iret=iret)
+              call nemsio_close(gfile_sfc,iret=iret)
               lpl_dum=0
               lpl_dum(1:sfc_head%latb/2)=sfc_head%lpl
               deallocate(sfc_head%lpl)
