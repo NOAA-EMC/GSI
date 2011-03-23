@@ -13,6 +13,14 @@ module ncepnems_io
 !                       For Now, subroutine sfc_interpolate is kept in ncepgfs_io.f90.
 !                       When sigio and gfsio are both retired, i.e., remove ncepgfs_io.f90.
 !                       move this routines back to this module
+!   2011-03-03 hcHuang  Changes has been made to adopt to high resolution GSI run (T382 & T574)
+!                       both for CPU and memory issues.
+!                       Future development of nemsio need to consider a mapping routine be
+!                       inserted between read-in forecast field and GSI first guess field,
+!                       as well as GSI analysis field and write-out data field for forecast
+!                       model. Due to computation resource, GSI may not be able to run at
+!                       the same resolution as that of forecast model, e.g., run GSI at T382
+!                       w/ T574 forecast model output.
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
@@ -259,7 +267,12 @@ contains
 !
 ! program history log:
 !   2010-02-22 hcHuang  Initial version.  Based on sub read_gfsatm
-!
+!   2011-02-28 hcHuang  Re-arrange the read sequence to be same as model
+!                       write sequence.  Alsom allocate and deallocate
+!                       temporary working array immediatelt before and after
+!                       the processing and scattering first guess field to reduce
+!                       maximum resident memory size.  Page fault can happen
+!                       when running at high resolution GSI, e.g., T574.
 !   input argument list:
 !     mype     - mpi task id
 !
@@ -271,7 +284,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,r_single,i_kind
+    use kinds, only: r_kind,i_kind
     use gridmod, only: displs_s,irc_s,ijn_s,&
          ird_s,nsig,nlat,nlon,lat2,lon2,&
          itotsub,fill_ns,filluv_ns,ncepgfs_head,&
@@ -311,14 +324,14 @@ contains
     real(r_kind),allocatable,dimension(:) :: rwork1d
 !
     type:: nemsio_data
-       real(r_single),allocatable:: hs(:)     ! surface height, m
-       real(r_single),allocatable:: ps(:)     ! surface pressure, pa
-       real(r_single),allocatable:: t(:,:)    ! layer temperature, k
-       real(r_single),allocatable:: u(:,:)    ! layer zonal wind, m/s
-       real(r_single),allocatable:: v(:,:)    ! layer meridional wind, m/s
-       real(r_single),allocatable:: q(:,:)    ! tracers, layer specifi humidity
-       real(r_single),allocatable:: oz(:,:)   ! tracers, layer ozone, kg/kg
-       real(r_single),allocatable:: cw(:,:)   ! tracers, layer cloud liquid water, kg/kg
+       real(r_kind),allocatable:: hs(:)     ! surface height, m
+       real(r_kind),allocatable:: ps(:)     ! surface pressure, pa
+       real(r_kind),allocatable:: t(:,:)    ! layer temperature, k
+       real(r_kind),allocatable:: u(:,:)    ! layer zonal wind, m/s
+       real(r_kind),allocatable:: v(:,:)    ! layer meridional wind, m/s
+       real(r_kind),allocatable:: q(:,:)    ! tracers, layer specifi humidity
+       real(r_kind),allocatable:: oz(:,:)   ! tracers, layer ozone, kg/kg
+       real(r_kind),allocatable:: cw(:,:)   ! tracers, layer cloud liquid water, kg/kg
     end type nemsio_data
 
     type(nemsio_data)  :: gfsdata
@@ -376,26 +389,41 @@ contains
        call stop2(101)
     end if
     allocate(rwork1d(gfshead%latb*gfshead%lonb))
-    allocate(gfsdata%hs(gfshead%latb*gfshead%lonb))
-    allocate(gfsdata%ps(gfshead%latb*gfshead%lonb))
-    allocate(gfsdata%t(gfshead%latb*gfshead%lonb,gfshead%levs))
-    allocate(gfsdata%u(gfshead%latb*gfshead%lonb,gfshead%levs))
-    allocate(gfsdata%v(gfshead%latb*gfshead%lonb,gfshead%levs))
-    allocate(gfsdata%q(gfshead%latb*gfshead%lonb,gfshead%levs))
-    allocate(gfsdata%oz(gfshead%latb*gfshead%lonb,gfshead%levs))
-    allocate(gfsdata%cw(gfshead%latb*gfshead%lonb,gfshead%levs))
 !
+!   Load values into rows for south and north pole before scattering
+!
+!   Terrain:  scatter to all mpi tasks
+!
+    allocate(gfsdata%hs(gfshead%latb*gfshead%lonb))
     call nemsio_readrecv(gfile,'hgt', 'sfc',1,gfsdata%hs,iret=iret)
     iret_read=iret_read+iret
+!
+    if (mype==mype_hs) then
+       grid=reshape(gfsdata%hs,(/size(grid,1),size(grid,2)/))
+       call fill_ns(grid,work)
+    endif
+    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+       g_z,ijn_s(mm1),mpi_rtype,mype_hs,mpi_comm_world,ierror)
+    deallocate(gfsdata%hs)
 
+!   Surface pressure:  same procedure as terrain, but handled by task mype_ps
+!
+    allocate(gfsdata%ps(gfshead%latb*gfshead%lonb))
     call nemsio_readrecv(gfile,'pres','sfc',1,gfsdata%ps(:),iret=iret)
     iret_read=iret_read+iret
+!   
+    if (mype==mype_ps) then
+       rwork1d = r0_001*gfsdata%ps
+       grid=reshape(rwork1d,(/size(grid,1),size(grid,2)/)) ! convert Pa to cb
+       call fill_ns(grid,work)
+    endif
+    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+       g_ps,ijn_s(mm1),mpi_rtype,mype_ps,mpi_comm_world,ierror)
+    deallocate(gfsdata%ps)
 
-    do k=1,gfshead%levs
-       call nemsio_readrecv(gfile,'tmp','mid layer',k,gfsdata%t(:,k),iret=iret)
-       iret_read=iret_read+iret
-    end do
-
+!   Divergence and voriticity.  Compute u and v from div and vor
+    allocate(gfsdata%u(gfshead%latb*gfshead%lonb,gfshead%levs))
+    allocate(gfsdata%v(gfshead%latb*gfshead%lonb,gfshead%levs))
     do k=1,gfshead%levs
        call nemsio_readrecv(gfile,'ugrd','mid layer',k,gfsdata%u(:,k),iret=iret)
        iret_read=iret_read+iret
@@ -406,76 +434,6 @@ contains
        iret_read=iret_read+iret
     end do
 
-    do k=1,gfshead%levs
-       call nemsio_readrecv(gfile,'spfh','mid layer',k,gfsdata%q(:,k),iret=iret)
-       iret_read=iret_read+iret
-    end do
-
-    do k=1,gfshead%levs
-       call nemsio_readrecv(gfile,'o3mr','mid layer',k,gfsdata%oz(:,k),iret=iret)
-       iret_read=iret_read+iret
-    end do
-
-    do k=1,gfshead%levs
-       call nemsio_readrecv(gfile,'clwmr','mid layer',k,gfsdata%cw(:,k),iret=iret)
-       iret_read=iret_read+iret
-    end do
-    
-    if (iret_read /= 0) goto 1000
-    call nemsio_close(gfile,iret=iret)
-    if( iret /= 0 ) then
-       write(6,*)'READ_NEMSATM:  problem closing file ',trim(filename),', Status = ',iret
-       call stop2(101)
-    end if
-!
-!   Load values into rows for south and north pole before scattering
-!
-!   Terrain:  scatter to all mpi tasks
-!
-    if (mype==mype_hs) then
-       grid=reshape(gfsdata%hs,(/size(grid,1),size(grid,2)/))
-       call fill_ns(grid,work)
-    endif
-    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-       g_z,ijn_s(mm1),mpi_rtype,mype_hs,mpi_comm_world,ierror)
-
-!   Surface pressure:  same procedure as terrain, but handled by task mype_ps
-!   
-    if (mype==mype_ps) then
-       rwork1d = r0_001*gfsdata%ps
-       grid=reshape(rwork1d,(/size(grid,1),size(grid,2)/)) ! convert Pa to cb
-       call fill_ns(grid,work)
-    endif
-    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-       g_ps,ijn_s(mm1),mpi_rtype,mype_ps,mpi_comm_world,ierror)
-
-!   Thermodynamic variable:  communicate to all tasks
-!   For multilevel fields, each task handles a given level.  Periodic
-!   mpi_alltoallv calls communicate the grids to all mpi tasks.  
-!   Finally, the grids are loaded into guess arrays used later in the 
-!   code.
-
-    sub=zero
-    icount=0
-    icount_prev=1
-    do k=1,gfshead%levs
-       icount=icount+1
-       if (mype==mod(icount-1,npe)) then
-          rwork1d = gfsdata%t(:,k)*(one+fv*gfsdata%q(:,k))
-          grid=reshape(rwork1d,(/size(grid,1),size(grid,2)/))
-          call fill_ns(grid,work)
-       endif
-
-       if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
-          call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-             sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-             mpi_comm_world,ierror)
-          icount_prev=icount+1
-       endif
-    end do
-    call reload(sub,g_tv)
-
-!   Divergence and voriticity.  Compute u and v from div and vor
     sub_vor=zero
     sub_div=zero
     sub_u=zero
@@ -526,8 +484,49 @@ contains
     call reload(sub_div,g_div)
     call reload(sub_u,g_u)
     call reload(sub_v,g_v)
+    deallocate(gfsdata%u,gfsdata%v)
 
-!   Specific humidity
+!   Thermodynamic variable and Specific humidity:  communicate to all tasks
+!
+!   For multilevel fields, each task handles a given level.  Periodic
+!   mpi_alltoallv calls communicate the grids to all mpi tasks.  
+!   Finally, the grids are loaded into guess arrays used later in the 
+!   code.
+
+    allocate(gfsdata%t(gfshead%latb*gfshead%lonb,gfshead%levs))
+    allocate(gfsdata%q(gfshead%latb*gfshead%lonb,gfshead%levs))
+
+    do k=1,gfshead%levs
+       call nemsio_readrecv(gfile,'tmp','mid layer',k,gfsdata%t(:,k),iret=iret)
+       iret_read=iret_read+iret
+    end do
+
+    do k=1,gfshead%levs
+       call nemsio_readrecv(gfile,'spfh','mid layer',k,gfsdata%q(:,k),iret=iret)
+       iret_read=iret_read+iret
+    end do
+
+    sub=zero
+    icount=0
+    icount_prev=1
+    do k=1,gfshead%levs
+       icount=icount+1
+       if (mype==mod(icount-1,npe)) then
+          rwork1d = gfsdata%t(:,k)*(one+fv*gfsdata%q(:,k))
+          grid=reshape(rwork1d,(/size(grid,1),size(grid,2)/))
+          call fill_ns(grid,work)
+       endif
+
+       if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
+          call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
+             sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
+             mpi_comm_world,ierror)
+          icount_prev=icount+1
+       endif
+    end do
+    call reload(sub,g_tv)
+    deallocate(gfsdata%t)
+
     sub=zero
     icount=0
     icount_prev=1
@@ -545,8 +544,15 @@ contains
        endif
     end do
     call reload(sub,g_q)
+    deallocate(gfsdata%q)
 
 !   Ozone mixing ratio
+    allocate(gfsdata%oz(gfshead%latb*gfshead%lonb,gfshead%levs))
+    do k=1,gfshead%levs
+       call nemsio_readrecv(gfile,'o3mr','mid layer',k,gfsdata%oz(:,k),iret=iret)
+       iret_read=iret_read+iret
+    end do
+
     sub=zero
     icount=0
     icount_prev=1
@@ -564,8 +570,15 @@ contains
        endif
     end do
     call reload(sub,g_oz)
+    deallocate(gfsdata%oz)
     
 !   Cloud condensate mixing ratio.
+    allocate(gfsdata%cw(gfshead%latb*gfshead%lonb,gfshead%levs))
+    do k=1,gfshead%levs
+       call nemsio_readrecv(gfile,'clwmr','mid layer',k,gfsdata%cw(:,k),iret=iret)
+       iret_read=iret_read+iret
+    end do
+
     if (gfshead%ntrac>2 .or. gfshead%ncldt>=1) then
        sub=zero
        icount=0
@@ -587,11 +600,19 @@ contains
     else
        g_cwmr = zero
     endif
+    deallocate(gfsdata%cw)
+
+    call nemsio_close(gfile,iret=iret)
+    if( iret /= 0 ) then
+       write(6,*)'READ_NEMSATM:  problem closing file ',trim(filename),', Status = ',iret
+       call stop2(101)
+    end if
 
 ! Deallocate local array
 !
-    deallocate(gfsdata%hs,gfsdata%ps,gfsdata%t,gfsdata%u,gfsdata%v)
-    deallocate(gfsdata%q,gfsdata%oz,gfsdata%cw,rwork1d)
+    deallocate(rwork1d)
+
+    if (iret_read /= 0) goto 1000
 
 !   Print date/time stamp 
     if(mype==0) then
@@ -625,6 +646,8 @@ contains
 !
 ! program history log:
 !   2010-02-22  hcHuang  Initial version.  Based on read_gfssfc
+!   2011-02-14  hcHuang  Re-arrange the read sequence to be same as model
+!                        write sequence.  Also remove unused array.
 !
 !   input argument list:
 !     filename - name of surface guess file
@@ -721,6 +744,8 @@ contains
     endif
 !
 !   Load surface fields into local work array
+!   Follow NEMS/GFS sfcf read order
+!
     allocate(work(sfc_head%lonb,sfc_head%latb,nsfc),sfcges(sfc_head%latb+2,sfc_head%lonb,nsfc))
     allocate(rwork2d(size(work,1)*size(work,2),size(work,3)))
     work    = zero
@@ -730,44 +755,44 @@ contains
     call nemsio_readrecv(gfile, 'tmp', 'sfc', 1, rwork2d(:,1), iret=iret)
     iret_read = iret_read + iret
 
-!   smc
-    call nemsio_readrecv(gfile, 'smc', 'soil layer', 1, rwork2d(:,2), iret=iret)
-    iret_read = iret_read + iret
-
 !   sheleg
-    call nemsio_readrecv(gfile, 'weasd','sfc', 1, rwork2d(:,3), iret=iret)
-    iret_read = iret_read + iret
-
-!   stc
-    call nemsio_readrecv(gfile, 'stc',  'soil layer', 1, rwork2d(:,4), iret=iret)
-    iret_read = iret_read + iret
-
-!   slmsk
-    call nemsio_readrecv(gfile, 'land', 'sfc', 1, rwork2d(:,5), iret=iret)
-    iret_read = iret_read + iret
-
-!   vfrac
-    call nemsio_readrecv(gfile, 'veg',  'sfc', 1, rwork2d(:,6), iret=iret)
-    iret_read = iret_read + iret
-
-!   f10m
-    call nemsio_readrecv(gfile, 'f10m', '10 m above gnd', 1, rwork2d(:,7), iret=iret)
-    iret_read = iret_read + iret
-
-!   vtype
-    call nemsio_readrecv(gfile, 'vtype','sfc', 1, rwork2d(:,8), iret=iret)
-    iret_read = iret_read + iret
-
-!   stype
-    call nemsio_readrecv(gfile, 'sotyp','sfc', 1, rwork2d(:,9), iret=iret)
+    call nemsio_readrecv(gfile, 'weasd','sfc', 1, rwork2d(:,2), iret=iret)
     iret_read = iret_read + iret
 
 !   zorl
-    call nemsio_readrecv(gfile, 'sfcr', 'sfc', 1, rwork2d(:,10),iret=iret)
+    call nemsio_readrecv(gfile, 'sfcr', 'sfc', 1, rwork2d(:,3),iret=iret)
+    iret_read = iret_read + iret
+
+!   slmsk
+    call nemsio_readrecv(gfile, 'land', 'sfc', 1, rwork2d(:,4), iret=iret)
+    iret_read = iret_read + iret
+
+!   vfrac
+    call nemsio_readrecv(gfile, 'veg',  'sfc', 1, rwork2d(:,5), iret=iret)
+    iret_read = iret_read + iret
+
+!   f10m
+    call nemsio_readrecv(gfile, 'f10m', '10 m above gnd', 1, rwork2d(:,6), iret=iret)
+    iret_read = iret_read + iret
+
+!   vtype
+    call nemsio_readrecv(gfile, 'vtype','sfc', 1, rwork2d(:,7), iret=iret)
+    iret_read = iret_read + iret
+
+!   stype
+    call nemsio_readrecv(gfile, 'sotyp','sfc', 1, rwork2d(:,8), iret=iret)
     iret_read = iret_read + iret
 
 !   orog
-    call nemsio_readrecv(gfile, 'orog', 'sfc', 1, rwork2d(:,11),iret=iret)
+    call nemsio_readrecv(gfile, 'orog', 'sfc', 1, rwork2d(:,9),iret=iret)
+    iret_read = iret_read + iret
+
+!   smc
+    call nemsio_readrecv(gfile, 'smc', 'soil layer', 1, rwork2d(:,10), iret=iret)
+    iret_read = iret_read + iret
+
+!   stc
+    call nemsio_readrecv(gfile, 'stc',  'soil layer', 1, rwork2d(:,11), iret=iret)
     iret_read = iret_read + iret
 
     if (iret_read /= 0) goto 1000
@@ -807,16 +832,16 @@ contains
     do j=1, sfc_head%lonb
        do i=1,sfc_head%latb+2
           sfct(i,j)      = sfcges(i,j,1)
-          soil_moi(i,j)  = sfcges(i,j,2)
-          sno(i,j)       = sfcges(i,j,3)
-          soil_temp(i,j) = sfcges(i,j,4)
-          isli(i,j)      = nint(sfcges(i,j,5)+0.0000001_r_kind)
-          veg_frac(i,j)  = sfcges(i,j,6)
-          fact10(i,j)    = sfcges(i,j,7)
-          veg_type(i,j)  = sfcges(i,j,8)
-          soil_type(i,j) = sfcges(i,j,9)
-          sfc_rough(i,j) = sfcges(i,j,10)
-          terrain(i,j)   = sfcges(i,j,11)
+          sno(i,j)       = sfcges(i,j,2)
+          sfc_rough(i,j) = sfcges(i,j,3)
+          isli(i,j)      = nint(sfcges(i,j,4)+0.0000001_r_kind)
+          veg_frac(i,j)  = sfcges(i,j,5)
+          fact10(i,j)    = sfcges(i,j,6)
+          veg_type(i,j)  = sfcges(i,j,7)
+          soil_type(i,j) = sfcges(i,j,8)
+          terrain(i,j)   = sfcges(i,j,9)
+          soil_moi(i,j)  = sfcges(i,j,10)
+          soil_temp(i,j) = sfcges(i,j,11)
        end do
     end do
     deallocate(sfcges)
@@ -925,6 +950,8 @@ contains
 !
 ! program history log:
 !   2010-02-22  hcHuang  Initial version.  Based on write_gfsatm
+!   2011-02-14  hcHuang  Re-arrange the write sequence to be same as model
+!                        read/rite sequence.
 !
 !   input argument list:
 !     filename  - file to open and write to
@@ -952,7 +979,7 @@ contains
 !$$$ end documentation block
 
 ! !USES:
-    use kinds, only: r_kind,i_kind,r_single
+    use kinds, only: r_kind,i_kind
     
     use constants, only: zero_single,r1000,fv,one,zero
   
@@ -1024,25 +1051,8 @@ contains
     real(r_kind),dimension(nlon,nlat-2):: grid, grid2
     real(r_kind),allocatable,dimension(:) :: rwork1d
 
-
     type(nemsio_gfile) :: gfile,gfileo
     type(ncepgfs_head) :: gfshead
-
-    type:: nemsio_data
-       real(r_single),allocatable:: hs(:)     ! surface height, m
-       real(r_single),allocatable:: ps(:)     ! surface pressure, pa
-       real(r_single),allocatable:: p(:,:)    ! layer pressure, pa
-       real(r_single),allocatable:: dp(:,:)   ! layer pressure thickness, pa
-       real(r_single),allocatable:: t(:,:)    ! layer temperature, k
-       real(r_single),allocatable:: u(:,:)    ! layer zonal wind, m/s
-       real(r_single),allocatable:: v(:,:)    ! layer meridional wind, m/s
-       real(r_single),allocatable:: q(:,:)    ! tracers, layer specifi humidity
-       real(r_single),allocatable:: oz(:,:)   ! tracers, layer ozone, kg/kg
-       real(r_single),allocatable:: cw(:,:)   ! tracers, layer cloud liquid water, kg/kg
-    end type nemsio_data
-
-    type(nemsio_data)  :: gfsdata
-
 !*************************************************************************
 !   Initialize local variables
     iret_wrt = 0
@@ -1128,16 +1138,6 @@ contains
 
 !      Allocate structure arrays to hold data
        allocate(rwork1d(gfshead%latb*gfshead%lonb))
-       allocate(gfsdata%hs(gfshead%latb*gfshead%lonb))
-       allocate(gfsdata%ps(gfshead%latb*gfshead%lonb))
-       allocate(gfsdata%p(gfshead%latb*gfshead%lonb,gfshead%levs))
-       allocate(gfsdata%dp(gfshead%latb*gfshead%lonb,gfshead%levs))
-       allocate(gfsdata%t(gfshead%latb*gfshead%lonb,gfshead%levs))
-       allocate(gfsdata%u(gfshead%latb*gfshead%lonb,gfshead%levs))
-       allocate(gfsdata%v(gfshead%latb*gfshead%lonb,gfshead%levs))
-       allocate(gfsdata%q(gfshead%latb*gfshead%lonb,gfshead%levs))
-       allocate(gfsdata%oz(gfshead%latb*gfshead%lonb,gfshead%levs))
-       allocate(gfsdata%cw(gfshead%latb*gfshead%lonb,gfshead%levs))
 
        call nemsio_close(gfile,iret)
           
@@ -1172,59 +1172,6 @@ contains
        rwork1d = reshape(grid2,(/size(rwork1d)/))
        call nemsio_writerecv(gfileo,'pres','sfc',1,rwork1d,iret=iret)
        iret_wrt = iret_wrt + iret
-    endif
-
-!   Thermodynamic variable
-    do k=1,nsig
-       call mpi_gatherv(tvsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype == mype_out) then
-          call load_grid(work1,grid)
-          rwork1d = reshape(grid,(/size(rwork1d)/))
-          call nemsio_writerecv(gfileo,'tmp','mid layer',k,rwork1d,iret=iret)
-          iret_wrt = iret_wrt + iret
-       endif
-    end do
-!   Specific humidity
-    do k=1,nsig
-       call mpi_gatherv(qsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype == mype_out) then
-          call load_grid(work1,grid)
-          rwork1d = reshape(grid,(/size(rwork1d)/))
-          call nemsio_writerecv(gfileo,'spfh','mid layer',k,rwork1d,iret=iret)
-          iret_wrt = iret_wrt + iret
-       endif
-    end do
-
-!   Ozone
-    do k=1,nsig
-       call mpi_gatherv(ozsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype == mype_out) then
-          call load_grid(work1,grid)
-           rwork1d = reshape(grid,(/size(rwork1d)/))
-           call nemsio_writerecv(gfileo,'o3mr','mid layer',k,rwork1d,iret=iret)
-          iret_wrt = iret_wrt + iret
-       endif
-    end do
-       
-!   Cloud condensate mixing ratio
-    if (ntracer>2 .or. ncloud>=1) then
-       do k=1,nsig
-          call mpi_gatherv(cwsm(1,k),ijn(mm1),mpi_rtype,&
-               work1,ijn,displs_g,mpi_rtype,&
-               mype_out,mpi_comm_world,ierror)
-          if (mype == mype_out) then
-             call load_grid(work1,grid)
-             rwork1d = reshape(grid,(/size(rwork1d)/))
-             call nemsio_writerecv(gfileo,'clwmr','mid layer',k,rwork1d,iret=iret)
-             iret_wrt = iret_wrt + iret
-          endif
-       end do
     endif
 
 !   Pressure depth
@@ -1280,12 +1227,63 @@ contains
           iret_wrt = iret_wrt + iret
        endif
     end do
+
+!   Thermodynamic variable
+    do k=1,nsig
+       call mpi_gatherv(tvsm(1,k),ijn(mm1),mpi_rtype,&
+            work1,ijn,displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       if (mype == mype_out) then
+          call load_grid(work1,grid)
+          rwork1d = reshape(grid,(/size(rwork1d)/))
+          call nemsio_writerecv(gfileo,'tmp','mid layer',k,rwork1d,iret=iret)
+          iret_wrt = iret_wrt + iret
+       endif
+    end do
+!   Specific humidity
+    do k=1,nsig
+       call mpi_gatherv(qsm(1,k),ijn(mm1),mpi_rtype,&
+            work1,ijn,displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       if (mype == mype_out) then
+          call load_grid(work1,grid)
+          rwork1d = reshape(grid,(/size(rwork1d)/))
+          call nemsio_writerecv(gfileo,'spfh','mid layer',k,rwork1d,iret=iret)
+          iret_wrt = iret_wrt + iret
+       endif
+    end do
+
+!   Ozone
+    do k=1,nsig
+       call mpi_gatherv(ozsm(1,k),ijn(mm1),mpi_rtype,&
+            work1,ijn,displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       if (mype == mype_out) then
+          call load_grid(work1,grid)
+           rwork1d = reshape(grid,(/size(rwork1d)/))
+           call nemsio_writerecv(gfileo,'o3mr','mid layer',k,rwork1d,iret=iret)
+          iret_wrt = iret_wrt + iret
+       endif
+    end do
+       
+!   Cloud condensate mixing ratio
+    if (ntracer>2 .or. ncloud>=1) then
+       do k=1,nsig
+          call mpi_gatherv(cwsm(1,k),ijn(mm1),mpi_rtype,&
+               work1,ijn,displs_g,mpi_rtype,&
+               mype_out,mpi_comm_world,ierror)
+          if (mype == mype_out) then
+             call load_grid(work1,grid)
+             rwork1d = reshape(grid,(/size(rwork1d)/))
+             call nemsio_writerecv(gfileo,'clwmr','mid layer',k,rwork1d,iret=iret)
+             iret_wrt = iret_wrt + iret
+          endif
+       end do
+    endif
 !
 ! Deallocate local array
 !
     if (mype==mype_out) then
-       deallocate(gfsdata%hs,gfsdata%ps,gfsdata%t,gfsdata%u)
-       deallocate(gfsdata%p,gfsdata%dp,gfsdata%v,gfsdata%q)
        deallocate(rwork1d)
 !
        string='nemsio'
