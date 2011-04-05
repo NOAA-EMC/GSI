@@ -100,6 +100,8 @@ module obsmod
 !   def perturb_obs  - namelist logical to perturb (=true) observations
 !   def perturb_fact - namelist scaling factor for observation perturbations
 !   def write_diag   - namelist logical array to compute/write (=true) diag files
+!   def reduce_diag  - namelist logical to produce reduced radiance diagnostic files
+!   def use_limit    - parameter set equal to -1 if diag files produced or 0 if not diag files or reduce_diag
 !   def obs_setup    - prefix for files passing pe relative obs data to setup routines
 !   def dsfcalc      - specifies method to determine surface fields within a FOV
 !   def dfile        - input observation file names
@@ -247,7 +249,7 @@ module obsmod
   public :: destroy_genstats_gps
   public :: inquire_obsdiags
 ! set passed variables to public
-  public :: iout_pcp,iout_rad,iadate,write_diag,oberrflg,ndat,dthin,dmesh,l_do_adjoint
+  public :: iout_pcp,iout_rad,iadate,write_diag,reduce_diag,oberrflg,ndat,dthin,dmesh,l_do_adjoint
   public :: lsaveobsens,lag_ob_type,o3l_ob_type,oz_ob_type,co3l_ob_type,pcp_ob_type,dw_ob_type
   public :: sst_ob_type,srw_ob_type,spd_ob_type,rw_ob_type,gps_ob_type,gps_all_ob_type,tcp_ob_type
   public :: rad_ob_type,q_ob_type,pw_ob_type,ps_ob_type,w_ob_type,t_ob_type
@@ -281,7 +283,7 @@ module obsmod
   public :: lag_ob_head,srw_ob_head,pw_ob_head,oz_ob_head,rad_ob_head
   public :: tcp_ob_head,co3l_ob_head,odiags
   public :: mype_aero,iout_aero,nlaero
-  public :: codiags
+  public :: codiags,use_limit
 
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
@@ -1056,7 +1058,7 @@ module obsmod
   integer(i_kind) grids_dim,nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep
-  integer(i_kind) nlco  
+  integer(i_kind) nlco,use_limit  
   integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &
                   iout_oz,iout_ps,iout_pw,iout_rw
   integer(i_kind) iout_dw,iout_srw,iout_gps,iout_sst,iout_tcp,iout_lag
@@ -1083,6 +1085,7 @@ module obsmod
   logical blacklst,lobsdiagsave,lobsdiag_allocated,lobskeep,lsaveobsens
   logical lobserver,l_do_adjoint
   logical,dimension(0:50):: write_diag
+  logical reduce_diag
   logical offtime_data
   logical hilbert_curve
   logical lread_obs_save
@@ -1137,6 +1140,8 @@ contains
        write_diag(i)=.false.
     end do
     write_diag(1)=.true.
+    reduce_diag = .false.
+    use_limit = -1
     lobsdiagsave=.false.
     lobsdiag_allocated=.false.
     lobskeep=.false.

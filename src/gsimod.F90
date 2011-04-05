@@ -14,11 +14,12 @@
 
   use kinds, only: i_kind
   use obsmod, only: dmesh,dval,dthin,dtype,dfile,dplat,dsfcalc,ndat,&
-     init_obsmod_dflts,create_obsmod_vars,write_diag,oberrflg,&
+     init_obsmod_dflts,create_obsmod_vars,write_diag,reduce_diag,oberrflg,&
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,ndatmax,&
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
-     lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms,lwrite_peakwt
+     lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms, &
+     lwrite_peakwt,use_limit
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
@@ -313,7 +314,8 @@
        ndat,niter,niter_no_qc,miter,qoption,nhr_assimilation,&
        min_offset, &
        iout_iter,npredp,retrieval,&
-       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess,write_diag,&
+       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess, &
+       write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
        npred_conv_max,&
        id_bias_ps,id_bias_t,id_bias_spd, &
@@ -783,7 +785,9 @@
      diag_aero=.false.
      diag_co=.false.
      diag_pcp=.false.
+     use_limit = 0
   end if
+  if(reduce_diag) use_limit = 0
 
 
   if (mype==0 .and. limit) &
