@@ -933,7 +933,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               call map3grids(pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
                    plevs(k),crit1,ithin,ndata,iout,icntpnt,iiout,luse)
 
-              if (.not. luse) cycle loop_readsb
+              if (.not. luse) then
+                 if(k==levs) then
+                    cycle loop_readsb
+                 else
+                    cycle LOOP_K_LEVS
+                 endif
+              endif
               if(iiout > 0) isort(iiout)=0
               if(ndata >  ntmp)then
                 nodata=nodata+1

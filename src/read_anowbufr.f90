@@ -42,7 +42,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
        icuse,ioctype,ictype,cermin,cermax
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use chemmod, only : obs2model_anowbufr_pm2_5,&
-        iconc,ierror,ilat,ilon,itime,ielev,isite,iikx,ilate,ilone,&
+        iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,ilate,ilone,&
         elev_missing,site_scale,tunable_error
 
   implicit none
@@ -78,7 +78,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   integer(i_kind) idate,iret,k
   integer(i_kind) kx,ikx
   integer(i_kind) nmind
-  integer(i_kind) :: iy,im,id,ih,imin,site_char
+  integer(i_kind) :: iy,im,id,ih,imin,site_char,site_id
 !           (site_char=1,2,3,4: unknown,urban,suburban,rural)  
 
   integer(i_kind) :: ireadmg,ireadsb
@@ -99,7 +99,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 
   real(r_kind) :: conc,site_elev
   real(r_kind), dimension(nreal,maxobs):: cdata_all
-  character(len=9):: sid
+  character(len=8):: sid
   character(len=10) :: cdate
   
   data lunin / 10 /
@@ -139,7 +139,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 
      do while (ireadsb(lunin) == 0)
         call ufbint(lunin,indata,nfields,1,iret,headr)
-
+        read(sid,'(Z8)')site_id
         kx=indata(ntyp)
         nread = nread + 1
         conc=indata(ncopopm)
@@ -255,6 +255,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 
            cdata_all(ilon,ndata)   = dlon                    ! grid relative longitude 
            cdata_all(itime,ndata)  = obstime                 ! time of obs
+           cdata_all(iid,ndata)    = site_id                 ! site id 
            cdata_all(ielev,ndata)  = site_elev               ! elevation
            cdata_all(isite,ndata)  = site_char               ! site character
            cdata_all(iikx,ndata)   = ikx                     ! ordered number in convinfo table

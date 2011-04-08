@@ -177,17 +177,19 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
              end do  ! ic find the closest cloud station
 
              if (min_dist < 1.e9_r_kind) then
-                iout = iout + 1
-                if(iout > maxobs) then
-                  write(6,*)'reorg_metar_cloud:  ***Error*** ndata > maxobs '
-                  call stop2(50)
-                end if
-                do k=1,nreal
-                   cdata_all(k,iout) = cdata(k,ista_min)
-                enddo
-                cdata_all(2,iout) = float(i1)        ! grid index i
-                cdata_all(3,iout) = float(j1)        ! grid index j
-                cdata_all(nreal,iout)=sqrt(min_dist) ! distance from station
+                if (i1 > 1 .and. i1  < nlon .and. j1 > 1 .and. j1 < nlat) then
+                   iout = iout + 1
+                   if(iout > maxobs) then
+                      write(6,*)'reorg_metar_cloud:  ***Error*** ndata > maxobs '
+                      call stop2(50)
+                   end if
+                   do k=1,nreal
+                      cdata_all(k,iout) = cdata(k,ista_min)
+                   enddo
+                   cdata_all(2,iout) = float(i1)        ! grid index i
+                   cdata_all(3,iout) = float(j1)        ! grid index j
+                   cdata_all(nreal,iout)=sqrt(min_dist) ! distance from station
+                endif
              endif
            enddo   ! j1
          enddo   ! i1

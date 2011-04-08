@@ -619,7 +619,7 @@ subroutine write_cmaq(mype)
   do k=1,nsig
      do i=1,lon2
         do j=1,lat2
-           incr(j,i,k)=gsi_chem_bundle(it)%r3(ipnt)%q(j,i,k)
+           incr(j,i,k)=gsi_chem_bundle(it)%r3(ipnt)%q(j,i,k)-pm2_5_guess(j,i,k)
            ratio(j,i,k)=max(min(1.0_r_single+incr(j,i,k)/pm2_5_guess(j,i,k),10.0_r_single),&
                 tiny_single)
            all_loc(j,i,k)=ratio(j,i,k)
