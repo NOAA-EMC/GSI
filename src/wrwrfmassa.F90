@@ -718,7 +718,7 @@ subroutine wrwrfmassa_binary(mype)
      call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend2(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend2,kbegin,kend,mype,npe,im,jm+ione,lm,im+ione,jm+ione,i_v,i_v+lm-ione)
      this_offset=offset(i_v)+(jbegin(mype)-ione)*4*im*lm
-     this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+     this_length=(jend2(mype)-jbegin(mype)+ione)*im*lm
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
   end if

@@ -23,7 +23,7 @@ module chemmod
 
   public :: obs2model_anowbufr_pm2_5,cmaq_pm2_5,wrf_chem_pm2_5,&
         cmaq_o3,wrf_chem_o3
-  public :: iconc,ierror,ilat,ilon,itime,ielev,isite,iikx,ilate,ilone
+  public :: iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,ilate,ilone
 
   public :: elev_tolerance,elev_missing,pm2_5_teom_max
   public :: ngrid1d_cmaq,ngrid2d_cmaq,nmet2d_cmaq,nmet3d_cmaq,&
@@ -31,7 +31,7 @@ module chemmod
 
   public :: pm2_5_guess,init_pm2_5_guess
   public :: init_chem
-  public :: berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,oneob_type_chem
+  public :: berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,oneob_type_chem,conconeobs
   public :: oblat_chem,oblon_chem,obpres_chem,diag_incr,oneobschem
   public :: site_scale,nsites
   public :: tunable_error
@@ -41,7 +41,7 @@ module chemmod
   logical :: oneobtest_chem,diag_incr,berror_chem
   character(len=max_varname_length) :: oneob_type_chem
   integer(i_kind), parameter :: maxstr=256
-  real(r_kind) :: maginnov_chem,magoberr_chem,&
+  real(r_kind) :: maginnov_chem,magoberr_chem,conconeobs,&
         oblon_chem,oblat_chem,obpres_chem,elev_tolerance,tunable_error
   
   real(r_kind),parameter :: pm2_5_teom_max=200_r_kind !ug/m3
@@ -75,9 +75,10 @@ module chemmod
   integer(i_kind), parameter :: &
         iconc = 1,ierror= 2,&
         ilat  = 3,ilon  = 4,&
-        itime = 5,ielev = 6,&
-        isite = 7,iikx  = 8,&
-        ilate = 9,ilone =10
+        itime = 5,iid=6,&
+        ielev = 7,isite = 8,&
+        iikx  = 9,ilate = 10,&
+        ilone =11
   
 !parameters for erading cmaq input file
   integer(i_kind), parameter :: &
@@ -226,12 +227,13 @@ contains
     real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
     integer(i_kind) ntest
     
-    integer(i_kind) k,site_char
+    integer(i_kind) k,site_char,site_id
     real(r_kind) :: conc,site_elev
     real(r_kind), dimension(nreal,1):: cdata_all
     
     data lunin / 10 /
     
+    site_id=123456789
     site_char=1 ! set unknown site character
     site_elev=elev_missing ! set unknown site elevation
     
@@ -291,6 +293,7 @@ contains
     
     cdata_all(ilon,ndata)   = dlon                    ! grid relative longitude 
     cdata_all(itime,ndata)  = obstime                 ! time of obs
+    cdata_all(iid,ndata)    = site_id                 ! site id
     cdata_all(ielev,ndata)  = site_elev               ! elevation
     cdata_all(isite,ndata)  = site_char               ! site character
     cdata_all(iikx,ndata)   = ikx                     ! ordered number in convinfo table

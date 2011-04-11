@@ -1,4 +1,4 @@
-subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is)
+subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -42,14 +42,15 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is)
 ! !uses:
 
   use mpeu_util, only: die,perr
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_single
   
   use constants, only : zero,half,one,two,tiny_r_kind
   use constants, only : cg_term,wgtlim
-  
+  use constants, only: huge_single,r10
+
   use obsmod, only : pm2_5head,pm2_5tail,&
-       pm2_5_ob_type,i_pm2_5_ob_type
-  use obsmod, only : obsdiags,lobsdiag_allocated
+       pm2_5_ob_type,i_pm2_5_ob_type,time_offset
+  use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
   use obsmod, only : obs_diag
   use qcmod, only : dfact,dfact1
   
@@ -57,34 +58,35 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is)
   
   use gridmod, only : get_ij,get_ijk,nsig
   
-  use guess_grids, only : nfldsig,hrdifsig,ges_z
-  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use guess_grids, only : nfldsig,hrdifsig,ges_z,ges_ps
+  use gsi_bundlemod, only : gsi_bundlegetpointer,GSI_BundlePrint
   use gsi_chemtracer_mod, only : gsi_chem_bundle
   
   use convinfo, only: cgross,cvar_b,cvar_pg,&
-        ihave_pm2_5,icuse
+        ihave_pm2_5,icuse,ictype,icsubtype
   
   use jfunc, only : jiter,last,miter
   
   use m_dtime, only: dtime_setup, dtime_check
 
   use chemmod, only : &
-        iconc,ierror,ilat,ilon,itime,ielev,isite,iikx,&
-        elev_tolerance,elev_missing,pm2_5_teom_max
-  use chemmod, only : oneobtest_chem,maginnov_chem
+        iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,&
+        elev_tolerance,elev_missing,pm2_5_teom_max,ilate,ilone
+  use chemmod, only : oneobtest_chem,maginnov_chem,conconeobs
 
 
   implicit none
   
 ! !input parameters:
-  
+
+  character(len=3) :: cvar='pm2_5'
   integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
   integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
   integer(i_kind)                  , intent(in   ) :: nreal  ! number of pieces of non-co info (location, time, etc) per obs
-  integer(i_kind)                  , intent(inout   ) :: nobs   ! number of observations
+  integer(i_kind)                  , intent(inout) :: nobs   ! number of observations
   character(20)                    , intent(in   ) :: isis   ! sensor/instrument/satellite id
   integer(i_kind)                  , intent(in   ) :: is     
-
+  logical                          , intent(in   ) :: conv_diagsave   ! logical to save innovation dignostics
   
 ! a function of level
 !-------------------------------------------------------------------------
@@ -100,15 +102,23 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is)
   real(r_kind) :: pm2_5ges
   real(r_kind) :: ratio_errors,error
   real(r_kind) :: innov,innov_error2,rwgt,valqc,tfact,innov_error,elevges,&
-        elevdiff,conc,elevobs
-  
+        elevdiff,conc,elevobs,ps_ges,site_id
+  real(r_kind) errinv_input,errinv_adjst,errinv_final
+  real(r_kind) err_input,err_adjst,err_final
+
   real(r_kind) ,dimension(nreal,nobs):: data
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_pm2_5
   real(r_kind),pointer,dimension(:,:,:):: rank3
   
-  integer(i_kind) i,k,ier,ibin,ifld,l,istat,ikx
+  integer(i_kind) i,k,ier,ibin,ifld,l,istat,ikx,ii,jj,idia
   integer(i_kind) ikeep,nkeep
   integer(i_kind) mm1
+  integer(i_kind) :: nchar,nrealdiag
+
+
+  character(len=8) :: station_id
+  character(len=8),allocatable,dimension(:) :: cdiagbuf
+  real(r_single),allocatable,dimension(:,:) :: rdiagbuf
 
   real(r_kind),dimension(4):: tempwij
 
@@ -124,6 +134,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is)
   n_alloc(:)=0
   m_alloc(:)=0
 
+  nchar=1
+  nrealdiag=19
   mm1=mype+1
 
 !
@@ -165,7 +177,6 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is)
         if(data(ilat,k) == data(ilat,l) .and.  &
              data(ilon,k) == data(ilon,l) .and.  &
              data(ielev,k) == data(ielev,l) .and.  &
-             data(ielev,k) == data(ielev,l) .and.  &
              data(isite,k) == data(isite,l) .and.  &
              muse(k) .and. muse(l)) then
            tfact = min(one,abs(data(itime,k)-data(itime,l))/dfact1)
@@ -175,6 +186,16 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is)
      end do
   end do
   
+! if requested, save select data for output to diagnostic file
+  if(conv_diagsave)then
+     ii=0
+     if (lobsdiagsave) nrealdiag=nrealdiag+4*miter+1
+     allocate(cdiagbuf(nobs),rdiagbuf(nrealdiag,nobs))
+  end if
+  mm1=mype+1
+
+
+
   nkeep=0
   
   do i=1,nobs
@@ -274,7 +295,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is)
         conc=data(iconc,i)
         elevobs=data(ielev,i)
         ikx=nint(data(iikx,i))
-        
+        site_id=data(iid,i)
+
         call tintrp2a(ges_z,elevges,dlat,dlon,dtime,hrdifsig,&
              1,1,mype,nfldsig)
         
@@ -289,7 +311,17 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is)
         endif
         
         if (oneobtest_chem) then
-           innov = min(maginnov_chem,cgross(ikx))
+           call tintrp2a(ges_pm2_5,pm2_5ges,dlat,dlon,dtime,hrdifsig,&
+                1,1,mype,nfldsig)
+           if (jiter==1) then
+              innov = min(maginnov_chem,cgross(ikx))
+              conconeobs=pm2_5ges+innov
+              conc=conconeobs
+           else
+              conc=conconeobs
+              innov=conc - pm2_5ges
+           endif
+
         else
            call tintrp2a(ges_pm2_5,pm2_5ges,dlat,dlon,dtime,hrdifsig,&
                 1,1,mype,nfldsig)
@@ -384,18 +416,115 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is)
            endif
 
         endif
+        
+! save select output for diagnostic file
+        if (conv_diagsave) then
 
+           ii=ii+1
+
+           call tintrp2a(ges_ps,ps_ges,dlat,dlon,dtime,hrdifsig,&
+                1,1,mype,nfldsig)
+
+           ps_ges=ps_ges*r10 ! convert from cb to hpa
+
+           write(station_id,'(Z8)')nint(site_id)
+
+           cdiagbuf(ii)    = station_id         ! station id
+
+           rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
+
+           rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
+           
+           rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
+           rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
+           rdiagbuf(5,ii)  = data(ielev,i)    ! station elevation (meters)
+           rdiagbuf(6,ii)  = ps_ges              ! observation pressure (hpa)
+           rdiagbuf(7,ii)  = data(ielev,i)    ! observation height (meters)
+           rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
+           
+           rdiagbuf(9,ii)  = zero !data(iqc,i) !@mp1        ! input prepbufr qc or event mark
+           rdiagbuf(10,ii) = zero !data(iqt,i) !@mp2       ! setup qc or event mark (currently qtflg only)
+           rdiagbuf(11,ii) = one       ! read_prepbufr data usage flag
+           if(muse(i)) then
+              rdiagbuf(12,ii) = one            ! analysis usage flag (1=use, -1=not used)
+           else
+              rdiagbuf(12,ii) = -one
+           endif
+           
+           err_input = data(ierror,i)
+           err_adjst = data(ierror,i)
+
+           if (ratio_errors*error>tiny_r_kind) then
+              err_final = one/(ratio_errors*error)
+           else
+              err_final = huge_single
+           endif
+           
+           errinv_input = huge_single
+           errinv_adjst = huge_single
+           errinv_final = huge_single
+           if (err_input>tiny_r_kind) errinv_input=one/err_input
+           if (err_adjst>tiny_r_kind) errinv_adjst=one/err_adjst
+           if (err_final>tiny_r_kind) errinv_final=one/err_final
+           
+           rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
+           rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (k**-1)
+           rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (k**-1)
+           rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (k**-1)
+           
+           rdiagbuf(17,ii) = data(iconc,i)       ! temperature observation (k)
+           rdiagbuf(18,ii) = innov   ! obs-ges used in analysis (ugm^-3)
+           rdiagbuf(19,ii) = innov   ! obs-ges w/o bias correction (ugm^-3) (future slot)
+
+           if (lobsdiagsave) then
+              idia=nrealdiag
+              do jj=1,miter
+                 idia=idia+1
+                 if (obsdiags(i_pm2_5_ob_type,ibin)%tail%muse(jj)) then
+                    rdiagbuf(idia,ii) = one
+                 else
+                    rdiagbuf(idia,ii) = -one
+                 endif
+              enddo
+              
+              do jj=1,miter+1
+                 idia=idia+1
+                 rdiagbuf(idia,ii) = obsdiags(i_pm2_5_ob_type,ibin)%tail%nldepart(jj)
+              enddo
+
+              do jj=1,miter
+                 idia=idia+1
+                 rdiagbuf(idia,ii) = obsdiags(i_pm2_5_ob_type,ibin)%tail%tldepart(jj)
+              enddo
+
+              do jj=1,miter
+                 idia=idia+1
+                 rdiagbuf(idia,ii) = obsdiags(i_pm2_5_ob_type,ibin)%tail%obssen(jj)
+              enddo
+
+           endif
+
+        endif
+
+! end of loop over observations
      enddo
 
   else
-
-
-!will be similar except for get_ijk 
-!if not teom isis fill in 
-!should be used for other in-situ obs e.g. soundings/aircraft e.g.
-
+     
+     
+!!will be similar except for get_ijk 
+!!if not teom isis fill in 
+!!should be used for other in-situ obs e.g. soundings/aircraft e.g.
+     
   endif
 
+!! write information to diagnostic file
+  if(conv_diagsave) then
+     write(7)cvar,nchar,nrealdiag,ii,mype
+     write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+     deallocate(cdiagbuf,rdiagbuf)
+  end if
+!  
   return
 
 end subroutine setuppm2_5

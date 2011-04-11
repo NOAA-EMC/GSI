@@ -92,6 +92,7 @@ subroutine read_wrf_mass_binary_guess(mype)
 
 ! Declare local variables
   integer(i_kind) kt,kq,ku,kv
+  real(r_single) rad2deg_single
 
 ! MASS variable names stuck in here
   integer(i_kind) mfcst
@@ -142,7 +143,7 @@ subroutine read_wrf_mass_binary_guess(mype)
 
      num_doubtful_sfct=izero
 
-
+     rad2deg_single=45.0_r_single/atan(1.0_r_single)
 
      im=nlon_regional
      jm=nlat_regional
@@ -832,8 +833,8 @@ subroutine read_wrf_mass_binary_guess(mype)
 ! for cloud analysis
               if(l_cloud_analysis) then
                  soil_temp_cld(j,i,it)=soil_temp(j,i,it)
-                 ges_xlon(j,i,it)=all_loc(j,i,i_xlon)
-                 ges_xlat(j,i,it)=all_loc(j,i,i_xlat)
+                 ges_xlon(j,i,it)=all_loc(j,i,i_xlon)/rad2deg_single
+                 ges_xlat(j,i,it)=all_loc(j,i,i_xlat)/rad2deg_single
               endif
 
            end do
