@@ -513,7 +513,7 @@ subroutine read_obs(ndata,mype)
 !   type type of GPS data (if present)
        if (index(dtype(i),'gps_ref') /= 0) ref_obs = .true.
 
-!   Check info files to see if data is used.
+!   Check info files to see if data is read.
 
        nuse=.false.
        minuse=-1
