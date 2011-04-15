@@ -22,7 +22,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print,ptop,pbot,dfact,dfact1
   use oneobmod, only: oneobtest,oneob_type,magoberr,maginnov 
-  use gridmod, only: get_ijk,nsig,twodvar_regional,regional
+  use gridmod, only: get_ijk,nsig,twodvar_regional,regional,rotate_wind_xy2ll
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
   use guess_grids, only: ges_u,ges_v,tropprs,ges_ps,ges_z,sfcmod_mm5
   use guess_grids, only: ges_tv,ges_lnprsl,comp_fact10,pt_ll
@@ -112,6 +112,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2011-03-08  parrish - for regional=.true., convert wind components in rdiagbuf from grid relative
+!                           to earth relative, using subroutine rotate_wind_xy2ll.
 !
 ! REMARKS:
 !   language: f90
@@ -151,6 +153,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) sfcchk,prsln2,error,dtime,dlon,dlat,r0_001,rsig,thirty,rsigp
   real(r_kind) ratio_errors,goverrd,spdges,spdob,ten,psges,zsges
   real(r_kind) slat,sin2,termg,termr,termrg,pobl,uob,vob
+  real(r_kind) uob_reg,vob_reg,uob_e,vob_e,dlon_e,uges_e,vges_e,dudiff_e,dvdiff_e
   real(r_kind) dz,zob,z1,z2,p1,p2,dz21,dlnp21,spdb,dstn
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,skint,sfcr
@@ -882,6 +885,29 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(20,ii) = data(ivob,i)       ! v wind component observation (m/s)
         rdiagbuf(21,ii) = dvdiff             ! v obs-ges used in analysis (m/s)
         rdiagbuf(22,ii) = vob-vgesin         ! v obs-ges w/o bias correction (m/s) (future slot)
+
+!   if regional run, then generate earth relative equivalent of uob,vob, ugesin,vgesin, dudiff,dvdiff
+!       and add 6 more entries to rdiagbuf (reflected in value of mreal, which is increased from 23 to 
+!       29 for regional run).
+
+        if(regional) then
+
+!           replace positions 17-22 with earth relative wind component information
+
+           uob_reg=data(iuob,i)
+           vob_reg=data(ivob,i)
+           dlon_e=data(ilone,i)*deg2rad
+           call rotate_wind_xy2ll(uob_reg,vob_reg,uob_e,vob_e,dlon_e,dlon,dlat)
+           call rotate_wind_xy2ll(ugesin,vgesin,uges_e,vges_e,dlon_e,dlon,dlat)
+           call rotate_wind_xy2ll(dudiff,dvdiff,dudiff_e,dvdiff_e,dlon_e,dlon,dlat)
+           rdiagbuf(17,ii) = uob_e         ! earth relative u wind component observation (m/s)
+           rdiagbuf(18,ii) = dudiff_e      ! earth relative u obs-ges used in analysis (m/s)
+           rdiagbuf(19,ii) = uob_e-uges_e  ! earth relative u obs-ges w/o bias correction (m/s) (future slot)
+
+           rdiagbuf(20,ii) = vob_e         ! earth relative v wind component observation (m/s)
+           rdiagbuf(21,ii) = dvdiff_e      ! earth relative v obs-ges used in analysis (m/s)
+           rdiagbuf(22,ii) = vob_e-vges_e  ! earth relative v obs-ges w/o bias correction (m/s) (future slot)
+        end if
 
         rdiagbuf(23,ii) = factw              ! 10m wind reduction factor
 
