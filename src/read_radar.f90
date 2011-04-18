@@ -41,6 +41,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 !                           rotation angles for a small number of winds whose rotation angle was interpolated
 !                           from beta_ref values across the discontinuity.  This was fixed by replacing the
 !                           beta_ref field with cos_beta_ref, sin_beta_ref.
+!   2011-03-28 s.liu  -   add subtype to radial wind observation and limit the use
+!                           of level2.5 and level3 data in Conus domain for NMM and NMMB
 !
 !   input argument list:
 !     infile   - file from which to read BUFR data
@@ -60,12 +62,13 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 !
 !$$$  end documentation block
   use kinds, only: r_kind,r_single,r_double,i_kind,i_byte
-  use constants, only: zero,half,one,deg2rad,rearth,rad2deg, &
-                       one_tenth,r1000,r60inv,r100,r400
+  use constants, only: zero,half,one,two,three,deg2rad,rearth,rad2deg, &
+                       one_tenth,r10,r1000,r60inv,r100,r400
   use qcmod, only: erradar_inflate,vadfile
   use obsmod, only: iadate
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy
+  use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,cmaq_regional
   use convinfo, only: nconvtype,ctwind, &
        ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
   implicit none 
@@ -79,7 +82,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 
 ! Declare local parameters
   integer(i_kind),parameter:: maxlevs=1500
-  integer(i_kind),parameter:: maxdat=21
+  integer(i_kind),parameter:: maxdat=22
   integer(i_kind),parameter:: maxvad=500
 ! integer(i_kind),parameter:: maxvadbins=20
   integer(i_kind),parameter:: maxvadbins=15
@@ -427,7 +430,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
      nsuper2_in=nsuper2_in+1
 
      dlat_earth=this_stalat    !station lat (degrees)
-     dlon_earth=this_stalon    !station ûXlon (degrees)
+     dlon_earth=this_stalon    !station lon (degrees)
      if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
      if (dlon_earth<zero ) dlon_earth=dlon_earth+r360
      dlat_earth = dlat_earth * deg2rad
@@ -648,6 +651,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
         cdata(19)=dist               ! range from radar in km (used to estimate beam spread)
         cdata(20)=zsges              ! model elevation at radar site
         cdata(21)=thiserr
+        cdata(22)=two
 
 !       if(vadid(ivad)=='0303LWX') then
 !          dist2max=max(dist2max,dist)
@@ -769,6 +773,15 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
      dlon_earth=hdr(2)         !station lon (degrees)
      if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
      if (dlon_earth<zero ) dlon_earth=dlon_earth+r360
+
+     if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
+        if(loop==1) then 
+           if(dlon_earth>230.0_r_kind .and.  &
+              dlat_earth <54.0_r_kind)then
+              go to 50 
+           end if
+        end if
+     end if
      dlat_earth = dlat_earth * deg2rad
      dlon_earth = dlon_earth * deg2rad
      
@@ -945,6 +958,14 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
         iaaamin=min(iaaamin,iaaa)
         
         error = erradar_inflate*radar_obs(7,k)
+
+!    Increase error for lev2.5 and lev3
+       if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
+          if(dlon_earth*rad2deg>230.0_r_kind .and.  &
+             dlat_earth*rad2deg <54.0_r_kind)then
+             error = error+r10
+           end if
+        end if
         errmax=max(error,errmax)
         if(radar_obs(7,k)>zero) errmin=min(error,errmin)
         
@@ -1054,6 +1075,11 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
            cdata(19)=dist             ! range from radar in km (used to estimate beam spread)
            cdata(20)=zsges            ! model elevation at radar site
            cdata(21)=radar_obs(7,k)   ! original error from bufr file
+           if(loop==1) then
+              cdata(22)=2.5_r_kind
+           else
+              cdata(22)=three
+           end if
 
            do i=1,maxdat
               cdata_all(i,ndata)=cdata(i)

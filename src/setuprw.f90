@@ -44,6 +44,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-05-23  safford - rm unused vars and uses
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2011-03-28  s.liu     - add subtype to radial wind
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -130,7 +131,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) jsig,ikxx,nn,ibin,ioff
   integer(i_kind) ier,ilat,ilon,ihgt,irwob,ikx,itime,iuse
   integer(i_kind):: ielev,id,itilt,iazm,ilone,ilate,irange
-  integer(i_kind):: izsges,ier2,idomsfc,isfcr,iskint,iff10
+  integer(i_kind):: izsges,ier2,idomsfc,isfcr,iskint,iff10,iobs_type
   
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -180,6 +181,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   irange=19   ! index of range in km of obs from radar
   izsges=20   ! index of model (guess) elevation for radar associated with vad wind
   ier2=21     ! index of original-original obs error
+  iobs_type=22
 
   numequal=0
   numnotequal=0
@@ -598,7 +600,8 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(7,ii)  = data(ihgt,i)       ! observation height (meters)
         rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
-        rdiagbuf(9,ii)  = rmiss_single       ! input prepbufr qc or event mark
+!       rdiagbuf(9,ii)  = rmiss_single       ! input prepbufr qc or event mark
+        rdiagbuf(9,ii)  = data(iobs_type,i)  !    observation subtype 
         rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
         rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
         if(muse(i)) then
