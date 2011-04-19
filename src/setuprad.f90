@@ -438,20 +438,20 @@
 
 !  Find number of channels written to diag file
   if(reduce_diag)then
-    nchanl_diag=0
-    do i=1,nchanl
-      if(iuse_rad(ich(i)) >= 1)then
-        nchanl_diag=nchanl_diag+1
-        ich_diag(nchanl_diag)=i
-      end if
-    end do
-    if(mype == mype_diaghdr(is))write(6,*)'SETUPRAD:  reduced number of channels ',&
-         nchanl_diag,' of ',nchanl,' written to diag file '
+     nchanl_diag=0
+     do i=1,nchanl
+        if(iuse_rad(ich(i)) >= 1)then
+           nchanl_diag=nchanl_diag+1
+           ich_diag(nchanl_diag)=i
+        end if
+     end do
+     if(mype == mype_diaghdr(is))write(6,*)'SETUPRAD:  reduced number of channels ',&
+          nchanl_diag,' of ',nchanl,' written to diag file '
   else
-    nchanl_diag=nchanl
-    do i=1,nchanl_diag
-     ich_diag(i)=i
-    end do
+     nchanl_diag=nchanl
+     do i=1,nchanl_diag
+        ich_diag(i)=i
+     end do
   end if
 
 ! Set number of extra pieces of information to write to diagnostic file
@@ -460,12 +460,12 @@
   iextra=0
   jextra=0
   if (goes_img .or. lwrite_peakwt) then
-    jextra=nchanl_diag
-    iextra=1
+     jextra=nchanl_diag
+     iextra=1
   end if
 ! If both, iextra=2
   if (goes_img .and. lwrite_peakwt) then
-    iextra=2
+     iextra=2
   end if
 
   lextra = (iextra>0)
@@ -1344,18 +1344,18 @@
            endif
 
            if (lwrite_peakwt) then
-             do i=1,nchanl_diag
-               diagbufex(1,i)=weightmax(ich_diag(i))   ! press. at max of weighting fn (mb)
-             end do
-             if (goes_img) then
-               do i=1,nchanl_diag
-                  diagbufex(2,i)=tb_obs_sdv(ich_diag(i))
-               end do
-             end if
+              do i=1,nchanl_diag
+                 diagbufex(1,i)=weightmax(ich_diag(i))   ! press. at max of weighting fn (mb)
+              end do
+              if (goes_img) then
+                 do i=1,nchanl_diag
+                    diagbufex(2,i)=tb_obs_sdv(ich_diag(i))
+                 end do
+              end if
            else if (goes_img .and. .not.lwrite_peakwt) then
-             do i=1,nchanl_diag
-                diagbufex(1,i)=tb_obs_sdv(ich_diag(i))
-             end do
+              do i=1,nchanl_diag
+                 diagbufex(1,i)=tb_obs_sdv(ich_diag(i))
+              end do
            end if
 
            do i=1,nchanl_diag

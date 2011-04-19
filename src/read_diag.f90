@@ -217,17 +217,17 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
   endif
 
   if (loutall) then
-    write(6,*)'READ_RADIAG_HEADER:  isis=',header_fix%isis,&
-       ' nchan=',header_fix%nchan,&
-       ' npred=',header_fix%npred,&
-       ' angord=',header_fix%angord,&
-       ' idiag=',header_fix%idiag,&
-       ' iversion=',header_fix%iversion,&
-       ' inewpc=',header_fix%inewpc
-
-    if ( header_fix%iextra /= 0) &
-         write(6,*)'READ_RADIAG_HEADER:  extra diagnostic information available, ',&
-         'iextra=',header_fix%iextra
+     write(6,*)'READ_RADIAG_HEADER:  isis=',header_fix%isis,&
+          ' nchan=',header_fix%nchan,&
+          ' npred=',header_fix%npred,&
+          ' angord=',header_fix%angord,&
+          ' idiag=',header_fix%idiag,&
+          ' iversion=',header_fix%iversion,&
+          ' inewpc=',header_fix%inewpc
+     
+     if ( header_fix%iextra /= 0) &
+          write(6,*)'READ_RADIAG_HEADER:  extra diagnostic information available, ',&
+          'iextra=',header_fix%iextra
   end if
 
   if (header_fix%npred  /= npred_radiag) &

@@ -556,40 +556,40 @@ subroutine read_obs(ndata,mype)
        ii=ii+1
        if (ii>npem1) ii=0
        if(mype==ii)then
-         if(nuse)then
-            call gsi_inquire(lenbytes,lexist,dfile(i),mype)
-            call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
-
-            len4file=lenbytes/4
-            if (ditype(i) == 'rad'  .and.           &
-                    dplat(i) /= 'aqua' .and. dplat(i) /= 'metop-a' .and. &
-                   (obstype == 'amsua' .or.  obstype == 'amsub' .or.     &
-                    obstype == 'mhs' )) then
+          if(nuse)then
+             call gsi_inquire(lenbytes,lexist,dfile(i),mype)
+             call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
+             
+             len4file=lenbytes/4
+             if (ditype(i) == 'rad'  .and.           &
+                  dplat(i) /= 'aqua' .and. dplat(i) /= 'metop-a' .and. &
+                  (obstype == 'amsua' .or.  obstype == 'amsub' .or.     &
+                  obstype == 'mhs' )) then
 !                   obstype == 'mhs'   .or. hirs )) then
 
-               call gsi_inquire(lenbytes,lexistears,trim(dfile(i))//'ears',mype)
-               call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
+                call gsi_inquire(lenbytes,lexistears,trim(dfile(i))//'ears',mype)
+                call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
 
-               lexist=lexist .or. lexistears
-               len4file=len4file+lenbytes/4
-            end if
+                lexist=lexist .or. lexistears
+                len4file=len4file+lenbytes/4
+             end if
 !      Initialize number of reader tasks to 1.  For the time being
 !      only allow number of reader tasks >= 1 for select obstype.
 
-            if(lexist) then
-              ntasks1(i)=1
-              if(parallel_read(i)) then
+             if(lexist) then
+                ntasks1(i)=1
+                if(parallel_read(i)) then
 
 !  Allow up to 16 processors/file increase loop bounds to increase number of processors allowed
-                do j=1,4
-                   if(len4file < lenbuf)exit
-                   ntasks1(i)=2*ntasks1(i)
-                   len4file=len4file/2
-                end do
+                   do j=1,4
+                      if(len4file < lenbuf)exit
+                      ntasks1(i)=2*ntasks1(i)
+                      len4file=len4file/2
+                   end do
 !               if(ntasks1(i)*lenbuf < len4file) ntasks1(i)=ntasks1(i)+1
-              end if
-            end if
-         end if
+                end if
+             end if
+          end if
        end if
     end do
 
