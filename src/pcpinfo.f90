@@ -148,14 +148,15 @@ contains
 !$$$
     use mpimod, only: mype
     use constants, only: zero
-    use obsmod, only: iout_pcp
+    use obsmod, only: iout_pcp,use_limit
     implicit none
 
 ! Declare local varianbes
     logical lexist
     character(len=1):: cflg
     character(len=120) crecord
-    integer(i_kind) lunin,i,j,k,istat,nlines
+    integer(i_kind) lunin,i,j,k,istat,nlines,iusept
+    character(len=20) :: nupcpt
     real(r_kind),dimension(npredp):: predrp
 
     data lunin / 48 /
@@ -169,6 +170,8 @@ contains
        if (istat /= 0) exit
        nlines=nlines+1
        if (cflg == '!') cycle
+       read(crecord,*) nupcpt,iusept
+       if (iusept < use_limit) cycle
        j=j+1
     end do read1
     if (istat>0) then
@@ -197,6 +200,10 @@ contains
     do k=1,nlines
        read(lunin,100)  cflg,crecord
        if (cflg == '!') cycle
+       read(crecord,*) nupcpt,iusept
+       if (mype==mype_pcp .and. iusept < use_limit) write(iout_pcp, *) &
+                'line ignored due to use flag ',cflg,nupcpt,iusept
+       if (iusept < use_limit) cycle
        j=j+1
        read(crecord,*) nupcp(j),iusep(j),ibias(j),&
             varchp(j),gross_pcp(j),b_pcp(j),pg_pcp(j)

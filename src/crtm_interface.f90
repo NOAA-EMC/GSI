@@ -566,8 +566,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   m1=mype+1
 
 
-  dx  = data_s(ilat)                 ! grid relative longitude
-  dy  = data_s(ilon)                 ! grid relative latitude
+  dx  = data_s(ilat)                 ! grid relative latitude
+  dy  = data_s(ilon)                 ! grid relative longitude
 
 ! Set spatial interpolation indices and weights
   ix1=dx

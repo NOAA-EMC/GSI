@@ -13,6 +13,7 @@
 !   2005-07-22 treadon - add this doc block
 !   2010-10-05 treadon - refactor code to GSI standard
 !   2010-10-08 zhu     - use data_tmp to handle various npred values
+!   2011-02-22 kleist  - changes related to memory allocate/deallocate
 !
 ! contains
 !   read_radiag_header - read radiance diagnostic file header
@@ -43,8 +44,6 @@ module read_diag
   public :: iversion_radiag
   public :: ireal_radiag
   public :: ipchan_radiag
-
-
 
   integer(i_kind),parameter :: ireal_radiag  = 26   ! number of real entries per spot in radiance diagnostic file
   integer(i_kind),parameter :: ipchan_radiag = 7    ! number of entries per channel per spot in radiance diagnostic file
@@ -139,7 +138,7 @@ module read_diag
 
 contains
 
-subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan,data_name,iflag)
+subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan,data_name,iflag,lverbose)
 !                .      .    .                                       .
 ! subprogram:    read_diag_header                 read rad diag header
 !   prgmmr: tahara           org: np20                date: 2003-01-01
@@ -149,6 +148,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
 !
 ! program history log:
 !   2010-10-05 treadon - add this doc block
+!   2011-02-22 kleist  - changes related to memory allocation and standard output
 !
 ! input argument list:
 !   ftin          - unit number connected to diagnostic file 
@@ -160,6 +160,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
 !   header_chan   - channel information structure
 !   data_name     - diag file data names
 !   iflag         - error code
+!   lverbose      - optional flag to turn off default output to standard out 
 !
 ! attributes:
 !   language: f90
@@ -175,16 +176,18 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
   type(diag_header_chan_list),pointer    :: header_chan(:)
   type(diag_data_name_list)              :: data_name
   integer(i_kind),intent(out)            :: iflag
-    
+  logical,optional,intent(in)            :: lverbose    
 
 !  Declare local variables
   character(len=2):: string
   character(len=10):: satid,sentype
   character(len=20):: sensat
-  integer(i_kind),save :: nchan_last = -1
   integer(i_kind) :: i,ich
   integer(i_kind):: jiter,nchanl,npred,ianldate,ireal,ipchan,iextra,jextra
+  logical loutall
 
+  loutall=.true.
+  if(present(lverbose)) loutall=lverbose
 
 ! Read header (fixed_part).
   read(ftin,IOSTAT=iflag) header_fix
@@ -212,33 +215,32 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
      header_fix%iversion= iversion_radiag-1
      header_fix%inewpc  = 0
   endif
-  write(6,*)'READ_RADIAG_HEADER:  isis=',header_fix%isis,&
-       ' nchan=',header_fix%nchan,&
-       ' npred=',header_fix%npred,&
-       ' angord=',header_fix%angord,&
-       ' idiag=',header_fix%idiag,&
-       ' iversion=',header_fix%iversion,&
-       ' inewpc=',header_fix%inewpc
+
+  if (loutall) then
+     write(6,*)'READ_RADIAG_HEADER:  isis=',header_fix%isis,&
+          ' nchan=',header_fix%nchan,&
+          ' npred=',header_fix%npred,&
+          ' angord=',header_fix%angord,&
+          ' idiag=',header_fix%idiag,&
+          ' iversion=',header_fix%iversion,&
+          ' inewpc=',header_fix%inewpc
+     
+     if ( header_fix%iextra /= 0) &
+          write(6,*)'READ_RADIAG_HEADER:  extra diagnostic information available, ',&
+          'iextra=',header_fix%iextra
+  end if
 
   if (header_fix%npred  /= npred_radiag) &
        write(6,*) 'READ_RADIAG_HEADER:  **WARNING** header_fix%npred,npred=',&
        header_fix%npred,npred_radiag
   
-  if (header_fix%iextra /= 0) &
-       write(6,*)'READ_RADIAG_HEADER:  extra diagnostic information available, ',&
-       'iextra=',header_fix%iextra
-  
 ! Allocate and initialize as needed
-  if (header_fix%nchan /= nchan_last)then
-     if (nchan_last > 0) then
-        deallocate(header_chan)
-        deallocate(data_name%chn)
-     endif
-     nchan_last = header_fix%nchan
+     if (associated(header_chan)) deallocate(header_chan)
+     if (allocated(data_name%chn))  deallocate(data_name%chn)
 
      allocate(header_chan( header_fix%nchan))
-
      allocate(data_name%chn(header_fix%idiag))
+
      data_name%fix(1) ='lat       '
      data_name%fix(2) ='lon       '
      data_name%fix(3) ='zsges     '
@@ -295,7 +297,6 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
         data_name%chn(12+header_fix%angord+1)= 'bifix     '
         data_name%chn(12+header_fix%angord+2)= 'bisst     '
      endif
-  endif
 
 ! Read header (channel part)
   do ich=1, header_fix%nchan
@@ -318,6 +319,7 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
 !
 ! program history log:
 !   2010-10-05 treadon - add this doc block
+!   2011-02-22 kleist  - changes related to memory allocation
 !
 ! input argument list:
 !   ftin - unit number connected to diagnostic file
@@ -345,32 +347,22 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
   type(diag_data_extra_list) ,pointer    :: data_extra(:,:)
   integer(i_kind),intent(out)            :: iflag
     
-! Declare local variables
-  integer(i_kind),save :: nchan_last = -1
-  integer(i_kind),save :: iextra_last = -1
   integer(i_kind) :: ich,iang,ndiag
   real(r_single),dimension(:,:),allocatable :: data_tmp
 
 ! Allocate arrays as needed
-  if (header_fix%nchan /= nchan_last) then
-     if (nchan_last > 0) then
-        do ich=1,nchan_last
-           deallocate(data_chan(ich)%bifix)
-        end do
-        deallocate(data_chan)
-     endif
-     allocate(data_chan(header_fix%nchan))
-     do ich=1,header_fix%nchan
-        allocate(data_chan(ich)%bifix(header_fix%angord+1))
-     end do
-     nchan_last = header_fix%nchan
-  endif
+  if (associated(data_chan)) deallocate(data_chan)
+  allocate(data_chan(header_fix%nchan))
 
-  if (header_fix%iextra /= iextra_last) then
-     if (iextra_last > 0) deallocate(data_extra)
+  do ich=1,header_fix%nchan
+     if (allocated(data_chan(ich)%bifix)) deallocate(data_chan(ich)%bifix)
+     allocate(data_chan(ich)%bifix(header_fix%angord+1))
+  end do
+
+  if (header_fix%iextra > 0) then
+     if (associated(data_extra))   deallocate(data_extra)
      allocate(data_extra(header_fix%iextra,header_fix%jextra))
-     iextra_last = header_fix%iextra
-  endif
+  end if
 
 ! Allocate array to hold data record
   allocate(data_tmp(header_fix%idiag,header_fix%nchan))
@@ -418,8 +410,8 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
         do iang=1,header_fix%angord+1
            data_chan(ich)%bifix(iang)=data_tmp(12+iang,ich)
         end do
+        data_chan(ich)%bisst = data_tmp(12+header_fix%angord+2,ich)  
      end do
-     data_chan(ich)%bisst = data_tmp(12+header_fix%angord+2,ich)  
   endif
   deallocate(data_tmp)
     

@@ -352,7 +352,7 @@ subroutine read_obs(ndata,mype)
          ltosi,ltosj,displs_g,strip,reorder
     use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
            dtype,dval,dmesh,obsfile_all,ref_obs,nprof_gps,dsis,ditype,&
-           oberrflg,perturb_obs,lobserver,lread_obs_save,obs_input_common
+           oberrflg,perturb_obs,lobserver,lread_obs_save,obs_input_common,reduce_diag
     use gsi_4dvar, only: l4dvar
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
@@ -513,32 +513,32 @@ subroutine read_obs(ndata,mype)
 !   type type of GPS data (if present)
        if (index(dtype(i),'gps_ref') /= 0) ref_obs = .true.
 
-!   Check info files to see if data is used.
+!   Check info files to see if data is read.
 
        nuse=.false.
        minuse=-1
        if(ditype(i) == 'conv')then
-          if(diag_conv)minuse=-2
+          if(diag_conv .and. .not. reduce_diag)minuse=-2
           do j=1,nconvtype
              if(trim(dtype(i)) == trim(ioctype(j)) .and. icuse(j) > minuse)nuse=.true.
           end do
        else if(ditype(i) == 'rad')then
-          if(diag_rad)minuse=-2
+          if(diag_rad .and. .not. reduce_diag)minuse=-2
           do j=1,jpch_rad
              if(trim(dsis(i)) == trim(nusis(j)) .and. iuse_rad(j) > minuse)nuse=.true.
           end do
        else if(ditype(i) == 'ozone')then
-          if(diag_ozone)minuse=-2
+          if(diag_ozone .and. .not. reduce_diag)minuse=-2
           do j=1,jpch_oz
              if(trim(dsis(i)) == trim(nusis_oz(j)) .and. iuse_oz(j) > minuse)nuse=.true.
           end do
        else if(ditype(i) == 'pcp')then
-          if(diag_pcp)minuse=-2
+          if(diag_pcp .and. .not. reduce_diag)minuse=-2
           do j=1,npcptype
              if(trim(dsis(i)) == trim(nupcp(j)) .and. iusep(j) > minuse)nuse=.true.
           end do
        else if(ditype(i) == 'aero')then
-          if(diag_aero)minuse=-2
+          if(diag_aero .and. .not. reduce_diag)minuse=-2
           do j=1,jpch_aero
              if(trim(dsis(i)) == trim(nusis_aero(j)) .and. iuse_aero(j) > minuse)nuse=.true.
           end do
@@ -548,7 +548,7 @@ subroutine read_obs(ndata,mype)
 
        if(.not. nuse)then
           if(mype == 0)write(6,*) 'data type ',dsis(i), &
-                'not used in info file -- do not read file',dfile(i)
+                'not used in info file -- do not read file ',dfile(i)
        end if
 
 
@@ -556,36 +556,38 @@ subroutine read_obs(ndata,mype)
        ii=ii+1
        if (ii>npem1) ii=0
        if(mype==ii)then
-          call gsi_inquire(lenbytes,lexist,dfile(i),mype)
-          call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
-
-          len4file=lenbytes/4
-          if (ditype(i) == 'rad' .and. nuse .and.           &
-                    dplat(i) /= 'aqua' .and. dplat(i) /= 'metop-a' .and. &
-                   (obstype == 'amsua' .or.  obstype == 'amsub' .or.     &
-                    obstype == 'mhs' )) then
+          if(nuse)then
+             call gsi_inquire(lenbytes,lexist,dfile(i),mype)
+             call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
+             
+             len4file=lenbytes/4
+             if (ditype(i) == 'rad'  .and.           &
+                  dplat(i) /= 'aqua' .and. dplat(i) /= 'metop-a' .and. &
+                  (obstype == 'amsua' .or.  obstype == 'amsub' .or.     &
+                  obstype == 'mhs' )) then
 !                   obstype == 'mhs'   .or. hirs )) then
 
-             call gsi_inquire(lenbytes,lexistears,trim(dfile(i))//'ears',mype)
-             call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
+                call gsi_inquire(lenbytes,lexistears,trim(dfile(i))//'ears',mype)
+                call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
 
-             lexist=lexist .or. lexistears
-             len4file=len4file+lenbytes/4
-          end if
+                lexist=lexist .or. lexistears
+                len4file=len4file+lenbytes/4
+             end if
 !      Initialize number of reader tasks to 1.  For the time being
 !      only allow number of reader tasks >= 1 for select obstype.
 
-          if(lexist .and. nuse) then
-             ntasks1(i)=1
-             if(parallel_read(i)) then
+             if(lexist) then
+                ntasks1(i)=1
+                if(parallel_read(i)) then
 
 !  Allow up to 16 processors/file increase loop bounds to increase number of processors allowed
-                do j=1,4
-                   if(len4file < lenbuf)exit
-                   ntasks1(i)=2*ntasks1(i)
-                   len4file=len4file/2
-                end do
+                   do j=1,4
+                      if(len4file < lenbuf)exit
+                      ntasks1(i)=2*ntasks1(i)
+                      len4file=len4file/2
+                   end do
 !               if(ntasks1(i)*lenbuf < len4file) ntasks1(i)=ntasks1(i)+1
+                end if
              end if
           end if
        end if
@@ -595,9 +597,15 @@ subroutine read_obs(ndata,mype)
 !   Distribute optimal number of reader tasks to all mpi tasks
     call mpi_allreduce(ntasks1,ntasks,ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror)
 
+!   Limit number of requested tasks per type to be <= total available tasks
     npemax=0
     npetot=0
     do i=1,ndat
+       if (ntasks(i)>npe) then
+          write(6,*)'read_obs:  ***WARNING*** i=',i,' dtype=',dtype(i),' dsis=',dsis(i),&
+               ' requested ntasks=',ntasks(i),' > npe=',npe,' reset ntasks=',npe
+          ntasks(i)=npe
+       endif
        npe_sub(i)=ntasks(i)
        npetot=npetot+npe_sub(i)
        npemax=max(npemax,npe_sub(i))

@@ -59,6 +59,7 @@ module convinfo
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero,one
+  use obsmod, only: use_limit
   implicit none
 
 ! set default as private
@@ -189,6 +190,7 @@ contains
     character(len=120) crecord
     integer(i_kind) lunin,i,n,nc,ier,istat
     integer(i_kind) iunit,iob,isub,np,nlines
+    integer(i_kind) ictypet,icsubtypet,icuset
 
     lunin = 47
     open(lunin,file='convinfo',form='formatted')
@@ -196,11 +198,13 @@ contains
     nconvtype=0
     nlines=0
     read1: do
-       read(lunin,1030,iostat=istat)cflg,iotype
+       read(lunin,1030,iostat=istat)cflg,iotype,crecord
 1030   format(a1,a7,2x,a120)
        if (istat /= 0) exit
        nlines=nlines+1
        if(cflg == '!')cycle
+       read(crecord,*)ictypet,icsubtypet,icuset
+       if (icuset < use_limit) cycle
        nconvtype=nconvtype+1
     enddo read1
     if (istat>0) then
@@ -256,6 +260,10 @@ contains
     do i=1,nlines
        read(lunin,1030)cflg,iotype,crecord
        if(cflg == '!')cycle
+       read(crecord,*)ictypet,icsubtypet,icuset
+       if (mype==0 .and. icuset < use_limit) write(6, *) &
+                'line ignored in convinfo due to use flag ',cflg,iotype,ictypet,icsubtypet,icuset
+       if(icuset < use_limit)cycle
        nc=nc+1
        ioctype(nc)=iotype
            !otype   type isub iuse twindow numgrp ngroup nmiter gross ermax ermin var_b var_pg ithin rmesh pmesh npred

@@ -39,7 +39,7 @@ control2model.o : control2model.f90 mpeu_util.o gsi_chemtracer_mod.o gsi_bundlem
 control2state.o : control2state.f90 constants.o mpeu_util.o gsi_chemtracer_mod.o gsi_bundlemod.o hybrid_ensemble_isotropic.o balmod.o hybrid_ensemble_parameters.o jfunc.o gridmod.o gsi_4dvar.o bias_predictors.o control_vectors.o kinds.o 
 control_vectors.o : control_vectors.f90 m_stats.o mpeu_util.o gsi_bundlemod.o m_rerank.o hybrid_ensemble_parameters.o mpl_allreduce.o gsi_4dvar.o constants.o mpimod.o kinds.o 
 converr.o : converr.f90 obsmod.o constants.o kinds.o 
-convinfo.o : convinfo.f90 gsi_chemtracer_mod.o mpimod.o constants.o kinds.o 
+convinfo.o : convinfo.f90 gsi_chemtracer_mod.o mpimod.o obsmod.o constants.o kinds.o 
 convthin.o : convthin.f90 satthin.o constants.o kinds.o 
 crtm_interface.o : crtm_interface.f90 obsmod.o ncepgfs_ghg.o guess_grids.o mpimod.o constants.o radinfo.o gsi_chemtracer_mod.o gsi_bundlemod.o gridmod.o kinds.o 
 cvsection.o : cvsection.f90 control_vectors.o jfunc.o gridmod.o mpimod.o kinds.o 

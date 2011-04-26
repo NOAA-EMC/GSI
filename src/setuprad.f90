@@ -150,7 +150,7 @@
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &
            dplat,dtbduv_on,radhead,radtail,radheadm,radtailm,&
            i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
-           dirname,time_offset,lwrite_predterms,lwrite_peakwt
+           dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use obsmod, only: rad_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -195,8 +195,8 @@
   integer(i_kind) ich9,isli,icc,iccm,mm1,ixx
   integer(i_kind) m,mm,jc,j,k,i,kmax
   integer(i_kind) kk,n,nlev,kval,ibin,ioff,iii
-  integer(i_kind) ii,jj,idiag,inewpc
-  integer(i_kind) nadir,kraintype,ierrret
+  integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
+  integer(i_kind) nadir,kraintype,ierrret,ichanl_diag
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
   real(r_kind) term,tlap,tb_obsbc1
@@ -241,7 +241,7 @@
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
 
-  integer(i_kind),dimension(nchanl):: ich,id_qc
+  integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
 
@@ -410,22 +410,6 @@
 !    iclr_sky      =  7 ! index of clear sky amount
 ! endif
 
-! Set number of extra pieces of information to write to diagnostic file
-! For most satellite sensors there is no extra information.  However, 
-! for GOES Imager data we write additional information.
-  iextra=0
-  jextra=0
-  if (goes_img .or. lwrite_peakwt) then
-    jextra=nchanl
-    iextra=1
-  end if
-! If both, iextra=2
-  if (goes_img .and. lwrite_peakwt) then
-    iextra=2
-  end if
-
-  lextra = (iextra>0)
-
 
 ! Special setup for SST retrieval (output)
   if (retrieval.and.init_pass) call setup_sst_retrieval(obstype,dplat(is),mype)
@@ -452,13 +436,48 @@
      wavenumber(i)=sc(sensorindex)%wavenumber(i)
   end do
 
+!  Find number of channels written to diag file
+  if(reduce_diag)then
+     nchanl_diag=0
+     do i=1,nchanl
+        if(iuse_rad(ich(i)) >= 1)then
+           nchanl_diag=nchanl_diag+1
+           ich_diag(nchanl_diag)=i
+        end if
+     end do
+     if(mype == mype_diaghdr(is))write(6,*)'SETUPRAD:  reduced number of channels ',&
+          nchanl_diag,' of ',nchanl,' written to diag file '
+  else
+     nchanl_diag=nchanl
+     do i=1,nchanl_diag
+        ich_diag(i)=i
+     end do
+  end if
+
+! Set number of extra pieces of information to write to diagnostic file
+! For most satellite sensors there is no extra information.  However, 
+! for GOES Imager data we write additional information.
+  iextra=0
+  jextra=0
+  if (goes_img .or. lwrite_peakwt) then
+     jextra=nchanl_diag
+     iextra=1
+  end if
+! If both, iextra=2
+  if (goes_img .and. lwrite_peakwt) then
+     iextra=2
+  end if
+
+  lextra = (iextra>0)
+
+
 ! Allocate array to hold channel information for diagnostic file and/or lobsdiagsave option
   idiag=ipchan_radiag+npred+2
   if (lobsdiagsave) idiag=idiag+4*miter+1
-  allocate(diagbufchan(idiag,nchanl))
+  allocate(diagbufchan(idiag,nchanl_diag))
 
 ! If diagnostic file requested, open unit to file and write header.
-  if (rad_diagsave) then
+  if (rad_diagsave .and. nchanl_diag > 0) then
      filex=obstype
      write(string,1976) jiter
 1976 format('_',i2.2)
@@ -475,13 +494,13 @@
      if (init_pass .and. mype==mype_diaghdr(is)) then
         inewpc=0
         if (newpc4pred) inewpc=1
-        write(4) isis,dplat(is),obstype,jiter,nchanl,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra,&
+        write(4) isis,dplat(is),obstype,jiter,nchanl_diag,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra,&
              idiag,angord,iversion_radiag,inewpc
         write(6,*)'SETUPRAD:  write header record for ',&
              isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,' to file ',trim(diag_rad_file),' ',ianldate
         do i=1,nchanl
            n=ich(i)
-           if( n < 1 )cycle
+           if( n < 1  .or. (reduce_diag .and. iuse_rad(n) < 1))cycle
            varch4=varch(n)
            tlap4=tlapmean(n)
            freq4=sc(sensorindex)%frequency(i)
@@ -1276,7 +1295,7 @@
 
      if(in_curbin) then
 !       Write diagnostics to output file.
-        if (rad_diagsave .and. luse(n)) then
+        if (rad_diagsave .and. luse(n) .and. nchanl_diag > 0) then
            diagbuf(1)  = cenlat                         ! observation latitude (degrees)
            diagbuf(2)  = cenlon                         ! observation longitude (degrees)
            diagbuf(3)  = zsges                          ! model (guess) elevation at observation location
@@ -1325,53 +1344,53 @@
            endif
 
            if (lwrite_peakwt) then
-             do i=1,nchanl
-               diagbufex(1,i)=weightmax(i)   ! press. at max of weighting fn (mb)
-             end do
-             if (goes_img) then
-               do i=1,nchanl
-                  diagbufex(2,i)=tb_obs_sdv(i)
-               end do
-             end if
+              do i=1,nchanl_diag
+                 diagbufex(1,i)=weightmax(ich_diag(i))   ! press. at max of weighting fn (mb)
+              end do
+              if (goes_img) then
+                 do i=1,nchanl_diag
+                    diagbufex(2,i)=tb_obs_sdv(ich_diag(i))
+                 end do
+              end if
            else if (goes_img .and. .not.lwrite_peakwt) then
-             do i=1,nchanl
-                diagbufex(1,i)=tb_obs_sdv(i)
-             end do
+              do i=1,nchanl_diag
+                 diagbufex(1,i)=tb_obs_sdv(ich_diag(i))
+              end do
            end if
 
-           do i=1,nchanl
-              diagbufchan(1,i)=tb_obs(i)       ! observed brightness temperature (K)
-              diagbufchan(2,i)=tbc(i)          ! observed - simulated Tb with bias corrrection (K)
-              diagbufchan(3,i)=tbcnob(i)       ! observed - simulated Tb with no bias correction (K)
-              errinv = sqrt(varinv(i))
+           do i=1,nchanl_diag
+              diagbufchan(1,i)=tb_obs(ich_diag(i))       ! observed brightness temperature (K)
+              diagbufchan(2,i)=tbc(ich_diag(i))          ! observed - simulated Tb with bias corrrection (K)
+              diagbufchan(3,i)=tbcnob(ich_diag(i))       ! observed - simulated Tb with no bias correction (K)
+              errinv = sqrt(varinv(ich_diag(i)))
               diagbufchan(4,i)=errinv          ! inverse observation error
               useflag=one
               if (iuse_rad(ich(i)) < 1) useflag=-one
-              diagbufchan(5,i)= id_qc(i)*useflag! quality control mark or event indicator
+              diagbufchan(5,i)= id_qc(ich_diag(i))*useflag! quality control mark or event indicator
 
-              diagbufchan(6,i)=emissivity(i)   ! surface emissivity
-              diagbufchan(7,i)=tlapchn(i)      ! stability index
+              diagbufchan(6,i)=emissivity(ich_diag(i))   ! surface emissivity
+              diagbufchan(7,i)=tlapchn(ich_diag(i))      ! stability index
 
               if (lwrite_predterms) then
                  predterms=zero
                  do j = 1,npred
-                    predterms(j,i) = pred(j,i)
+                    predterms(j,i) = pred(j,ich_diag(i))
                  end do
-                 predterms(npred+1,i) = cbias(nadir,ich(i))
+                 predterms(npred+1,i) = cbias(nadir,ich(ich_diag(i)))
 
                  do j=1,npred+2
-                    diagbufchan(ipchan_radiag+j,i)=predterms(j,i) ! Tb bias correction terms (K)
+                    diagbufchan(ipchan_radiag+j,i)=predterms(j,ich_diag(i)) ! Tb bias correction terms (K)
                  end do
               else   ! Default to write out predicted bias
                  do j=1,npred+2
-                    diagbufchan(ipchan_radiag+j,i)=predbias(j,i) ! Tb bias correction terms (K)
+                    diagbufchan(ipchan_radiag+j,i)=predbias(j,ich_diag(i)) ! Tb bias correction terms (K)
                  end do
               end if
            end do
 
            if (lobsdiagsave) then
               if (l_may_be_passive) then
-                 do ii=1,nchanl
+                 do ii=1,nchanl_diag
                     if (.not.associated(obsptr)) then
                        write(6,*)'setuprad: error obsptr'
                        call stop2(280)
@@ -1385,9 +1404,9 @@
                     do jj=1,miter
                        ioff=ioff+1
                        if (obsptr%muse(jj)) then
-                          diagbufchan(ioff,ii) = one
+                          diagbufchan(ioff,ich_diag(i)) = one
                        else
-                          diagbufchan(ioff,ii) = -one
+                          diagbufchan(ioff,ich_diag(i)) = -one
                        endif
                     enddo
                     do jj=1,miter+1
@@ -1407,7 +1426,7 @@
                  enddo
               else
                  ioff=7+npred+2
-                 diagbufchan(ioff+1:ioff+4*miter+1,1:nchanl) = zero
+                 diagbufchan(ioff+1:ioff+4*miter+1,1:nchanl_diag) = zero
               endif
            endif
 
@@ -1433,7 +1452,7 @@
   if (rad_diagsave) then
      call dtime_show(myname,'diagsave:rad',i_rad_ob_type)
      close(4)
-     if (lextra) deallocate(diagbufex)
+     if (lextra .and. allocated(diagbufex)) deallocate(diagbufex)
   endif
 
   call destroy_crtm
