@@ -57,7 +57,7 @@ module egrid2agrid_mod
 !
 !$$$ end documentation block
 
-   use kinds, only: r_kind,i_kind
+   use kinds, only: r_kind,i_kind,r_double
 
    implicit none
 
@@ -785,7 +785,7 @@ module egrid2agrid_mod
 
    end subroutine g_create_egrid2agrid
 
-   subroutine g_egrid2agrid(p,e,a,vector)
+   subroutine g_egrid2agrid(p,e,a,kb,ke,vector)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    g_egrid2agrid   interpolate full global ensemble to analysis grid
@@ -802,6 +802,8 @@ module egrid2agrid_mod
 !     e              - ensemble grid on full global domain
 !     vector         - if true, then interpolating a vector component, so
 !                        need to multiply interpolating weights by p%vector
+!     kb             - starting level
+!     ke             - ending level
 !
 !   output argument list:
 !     a              - analysis grid on full global domain
@@ -815,26 +817,32 @@ module egrid2agrid_mod
       implicit none
 
       type(egrid2agrid_parm),intent(in   ) :: p
-      real(r_kind)          ,intent(in   ) :: e(p%nlate,p%nlone)
-      logical               ,intent(in   ) :: vector
-      real(r_kind)          ,intent(  out) :: a(p%nlata,p%nlona)
+      real(r_double)          ,intent(in   ) :: e(p%nlate,p%nlone,kb:ke)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
+      logical               ,intent(in   ) :: vector(kb:ke)
+      real(r_double)          ,intent(  out) :: a(p%nlata,p%nlona,kb:ke)
 
-      integer(i_kind) i,j,j1,jr,k
+      integer(i_kind) i,j,j1,jr,k,kk
       real(r_kind) e_ex(p%nlate_ex),w_ex(p%nlata,p%nlone_ex)
       real(r_kind) w1,w(p%nlata,p%nlone),factor
 
       if(p%identity) then
-         do j=1,p%nlone
-            do i=1,p%nlate
-               a(i,j)=e(i,j)
+         do kk=kb,ke
+           do j=1,p%nlone
+              do i=1,p%nlate
+                 a(i,j,kk)=e(i,j,kk)
+              end do
             end do
          end do
       else
 
 !           construct e_ex from input array e
 
+!$omp parallel do  schedule(dynamic,1) private(kk,j,i,k,jr,j1) &
+!$omp private(e_ex,w_ex,w1,w,factor)
+        do kk=kb,ke
          factor=one
-         if(vector) factor=-one
+         if(vector(kk)) factor=-one
          do j=1,p%nlone
             do i=1,p%nlata
                w(i,j)=zero
@@ -844,11 +852,11 @@ module egrid2agrid_mod
             jr=j+p%nlone_half
             if(jr > p%nlone) jr=jr-p%nlone
             do i=1,p%nlate
-               e_ex(p%nextend+i)=e(i,j)
+               e_ex(p%nextend+i)=e(i,j,kk)
             end do
             do i=1,p%nextend
-               e_ex(p%nextend+1-i)=factor*e(i+1,jr)
-               e_ex(p%nlate+p%nextend+i)=factor*e(p%nlate-i,jr)
+               e_ex(p%nextend+1-i)=factor*e(i+1,jr,kk)
+               e_ex(p%nlate+p%nextend+i)=factor*e(p%nlate-i,jr,kk)
             end do
             do i=1,p%nlata
                do k=1,p%e2a_lat%nwin(i)
@@ -858,7 +866,7 @@ module egrid2agrid_mod
          end do
          do j=1,p%nlona
             do i=1,p%nlata
-               a(i,j)=zero
+               a(i,j,kk)=zero
             end do
          end do
 
@@ -880,15 +888,16 @@ module egrid2agrid_mod
                j1=p%e2a_lon%iwin(k,j)
                w1=p%e2a_lon%win(k,j)
                do i=1,p%nlata
-                  a(i,j)=a(i,j)+w1*w_ex(i,j1)
+                  a(i,j,kk)=a(i,j,kk)+w1*w_ex(i,j1)
                end do
             end do
          end do
+        end do
       end if
 
    end subroutine g_egrid2agrid
 
-   subroutine g_agrid2egrid(p,a,e,vector)
+   subroutine g_agrid2egrid(p,a,e,kb,ke,vector)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    g_agrid2egrid   smoothing inverse of g_egrid2agrid
@@ -904,6 +913,8 @@ module egrid2agrid_mod
 !     a              - analysis grid on full global domain
 !     vector         - if true, then interpolating a vector component, so
 !                        need to multiply interpolating weights by p%vector
+!     kb             - starting level
+!     ke             - ending level
 !
 !   output argument list:
 !     e              - ensemble grid on full global domain
@@ -917,31 +928,37 @@ module egrid2agrid_mod
       implicit none
 
       type(egrid2agrid_parm),intent(in   ) :: p
-      real(r_kind)          ,intent(  out) :: e(p%nlate,p%nlone)
-      logical               ,intent(in   ) :: vector
-      real(r_kind)          ,intent(in   ) :: a(p%nlata,p%nlona)
+      real(r_double)          ,intent(  out) :: e(p%nlate,p%nlone,kb:ke)
+      logical               ,intent(in   ) :: vector(kb:ke)
+      real(r_double)          ,intent(in   ) :: a(p%nlata,p%nlona,kb:ke)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
 
-      integer(i_kind) i,j,j1,jr,k
+      integer(i_kind) i,j,j1,jr,k,kk
       real(r_kind) e_ex(p%nlate_ex),w_ex(p%nlata,p%nlone_ex)
       real(r_kind) w1,w(p%nlata,p%nlone),factor
 
       if(p%identity) then
-         do j=1,p%nlone
-            do i=1,p%nlate
-               e(i,j)=a(i,j)
-            end do
+         do kk=kb,ke
+           do j=1,p%nlone
+              do i=1,p%nlate
+                 e(i,j,kk)=a(i,j,kk)
+              end do
+           end do
          end do
       else
 
+!$omp parallel do  schedule(dynamic,1) private(kk,j,i,k,jr,j1) &
+!$omp private(e_ex,w_ex,w1,w,factor)
+        do kk=kb,ke
          factor=one
-         if(vector) factor=-one
+         if(vector(kk)) factor=-one
          w_ex=zero
          do j=1,p%nlone_ex
             do k=1,p%e2a_lon%ntwin(j)
                j1=p%e2a_lon%itwin(k,j)
                w1=p%e2a_lon%swin(k,j)
                do i=1,p%nlata
-                  w_ex(i,j)=w_ex(i,j)+w1*a(i,j1)
+                  w_ex(i,j)=w_ex(i,j)+w1*a(i,j1,kk)
                end do
             end do
          end do
@@ -965,15 +982,16 @@ module egrid2agrid_mod
                end do
             end do
             do i=1,p%nlate
-               e(i,j)=e_ex(p%nextend+i)
+               e(i,j,kk)=e_ex(p%nextend+i)
             end do
          end do
+        end do
 
       end if
 
    end subroutine g_agrid2egrid
 
-   subroutine g_egrid2agrid_ad(p,e,a,vector)
+   subroutine g_egrid2agrid_ad(p,e,a,kb,ke,vector)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    g_egrid2agrid_ad   adjoint of g_egrid2agrid
@@ -989,6 +1007,8 @@ module egrid2agrid_mod
 !     a              - analysis grid on full global domain
 !     vector         - if true, then interpolating a vector component, so
 !                        need to multiply interpolating weights by p%vector
+!     kb             - starting level
+!     ke             - ending level
 !
 !   output argument list:
 !     e              - ensemble grid on full global domain
@@ -1002,29 +1022,35 @@ module egrid2agrid_mod
       implicit none
 
       type(egrid2agrid_parm),intent(in   ) :: p
-      real(r_kind)          ,intent(  out) :: e(p%nlate,p%nlone)
-      logical               ,intent(in   ) :: vector
-      real(r_kind)          ,intent(in   ) :: a(p%nlata,p%nlona)
+      real(r_double)          ,intent(  out) :: e(p%nlate,p%nlone,kb:ke)
+      logical               ,intent(in   ) :: vector(kb:ke)
+      real(r_double)          ,intent(in   ) :: a(p%nlata,p%nlona,kb:ke)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
 
-      integer(i_kind) i,j,j1,jr,k
+      integer(i_kind) i,j,j1,jr,k,kk
       real(r_kind) e_ex(p%nlate_ex),w_ex(p%nlata,p%nlone_ex)
       real(r_kind) w1,w(p%nlata,p%nlone),factor
 
       if(p%identity) then
-         do j=1,p%nlone
-            do i=1,p%nlate
-               e(i,j)=a(i,j)
+         do kk=kb,ke
+            do j=1,p%nlone
+               do i=1,p%nlate
+                  e(i,j,kk)=a(i,j,kk)
+               end do
             end do
          end do
       else
 
+!$omp parallel do  schedule(dynamic,1) private(kk,j,i,k,jr,j1) &
+!$omp private(e_ex,w_ex,w1,w,factor)
+        do kk=kb,ke
          w_ex=zero
          do j=1,p%nlona
             do k=1,p%e2a_lon%nwin(j)
                j1=p%e2a_lon%iwin(k,j)
                w1=p%e2a_lon%win(k,j)
                do i=1,p%nlata
-                  w_ex(i,j1)=w_ex(i,j1)+w1*a(i,j)
+                  w_ex(i,j1)=w_ex(i,j1)+w1*a(i,j,kk)
                end do
             end do
          end do
@@ -1047,9 +1073,13 @@ module egrid2agrid_mod
 !        adjoint of construct e_ex from input array e
 
          factor=one
-         if(vector) factor=-one
+         if(vector(kk)) factor=-one
 
-         e=zero
+         do j=1,p%nlone
+           do i=1,p%nlate
+             e(i,j,kk)=zero
+           end do
+         end do
          do j=1,p%nlone
             e_ex=zero
             jr=j+p%nlone_half
@@ -1060,13 +1090,14 @@ module egrid2agrid_mod
                end do
             end do
             do i=1,p%nextend
-               e(i+1,jr)=e(i+1,jr)+factor*e_ex(p%nextend+1-i)
-               e(p%nlate-i,jr)=e(p%nlate-i,jr)+factor*e_ex(p%nlate+p%nextend+i)
+               e(i+1,jr,kk)=e(i+1,jr,kk)+factor*e_ex(p%nextend+1-i)
+               e(p%nlate-i,jr,kk)=e(p%nlate-i,jr,kk)+factor*e_ex(p%nlate+p%nextend+i)
             end do
             do i=1,p%nlate
-               e(i,j)=e(i,j)+e_ex(p%nextend+i)
+               e(i,j,kk)=e(i,j,kk)+e_ex(p%nextend+i)
             end do
          end do
+        end do
 
       end if
 

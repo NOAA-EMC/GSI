@@ -67,8 +67,8 @@ subroutine sub2grid(workin,cstate,sst,slndt,sicet,iflg)
   real(r_kind),pointer::rank3(:,:,:)
 
 ! Initialize variables
-  xhatsm=zero
-  workin=zero
+! xhatsm=zero
+! workin=zero
 
   allocate(nsubnhalo(nrf+mvars))
 
@@ -160,11 +160,11 @@ subroutine sub2grid(workin,cstate,sst,slndt,sicet,iflg)
 
 
 ! zero out work arrays
-  do k=1,nsig1o
-     do j=1,itotsub
-        work1(j,k)=zero
-     end do
-  end do
+! do k=1,nsig1o
+!    do j=1,itotsub
+!       work1(j,k)=zero
+!    end do
+! end do
 ! send subdomain vector to global slabs
   call mpi_alltoallv(xhatsm(1),iscnt_g,isdsp_g,&
        mpi_rtype,work1(1,1),ircnt_g,irdsp_g,mpi_rtype,&
@@ -235,30 +235,32 @@ subroutine sub2grid2(workin,st,vp,pri,t,iflg)
 
 ! strip off boundary points and load vector for communication
   if (iflg==1) then
-     do k=1,nsig
-        ioff=ku_gs(k)*lat1*lon1+1
-        call strip(st (1,1,k),xhatsm(ioff),1)
-        ioff=kv_gs(k)*lat1*lon1+1
-        call strip(vp (1,1,k),xhatsm(ioff),1)
-        ioff=kt_gs(k)*lat1*lon1+1
-        call strip(t  (1,1,k),xhatsm(ioff),1)
-     end do
+!$omp parallel do  schedule(dynamic,1) private(k,ioff)
      do k=1,nsig+1
-        ioff=kp_gs(k)*lat1*lon1+1
-        call strip(pri(1,1,k),xhatsm(ioff),1)
+       if(k <=nsig)then
+         ioff=ku_gs(k)*lat1*lon1+1
+         call strip(st (1,1,k),xhatsm(ioff),1)
+         ioff=kv_gs(k)*lat1*lon1+1
+         call strip(vp (1,1,k),xhatsm(ioff),1)
+         ioff=kt_gs(k)*lat1*lon1+1
+         call strip(t  (1,1,k),xhatsm(ioff),1)
+       end if
+       ioff=kp_gs(k)*lat1*lon1+1
+       call strip(pri(1,1,k),xhatsm(ioff),1)
      end do
   elseif (iflg==2) then
-     do k=1,nsig
-        ioff=ku_gs(k)*lat1*lon1+1
-        call strip_periodic(st (1,1,k),xhatsm(ioff),1)
-        ioff=kv_gs(k)*lat1*lon1+1
-        call strip_periodic(vp (1,1,k),xhatsm(ioff),1)
-        ioff=kt_gs(k)*lat1*lon1+1
-        call strip_periodic(t  (1,1,k),xhatsm(ioff),1)
-     end do
+!$omp parallel do  schedule(dynamic,1) private(k,ioff)
      do k=1,nsig+1
-        ioff=kp_gs(k)*lat1*lon1+1
-        call strip_periodic(pri(1,1,k),xhatsm(ioff),1)
+       if(k <=nsig)then
+         ioff=ku_gs(k)*lat1*lon1+1
+         call strip_periodic(st (1,1,k),xhatsm(ioff),1)
+         ioff=kv_gs(k)*lat1*lon1+1
+         call strip_periodic(vp (1,1,k),xhatsm(ioff),1)
+         ioff=kt_gs(k)*lat1*lon1+1
+         call strip_periodic(t  (1,1,k),xhatsm(ioff),1)
+       end if
+       ioff=kp_gs(k)*lat1*lon1+1
+       call strip_periodic(pri(1,1,k),xhatsm(ioff),1)
      end do
   else
      write(6,*)'SUB2GRID:  ***ERROR*** iflg=',iflg,' is an illegal value'
@@ -267,14 +269,14 @@ subroutine sub2grid2(workin,st,vp,pri,t,iflg)
 
 
 ! zero out work arrays
-  do k=1,nlevsbal
-     do j=1,itotsub
-        work1(j,k)=zero
-     end do
-  end do
+! do k=1,nlevsbal
+!    do j=1,itotsub
+!       work1(j,k)=zero
+!    end do
+! end do
 ! send subdomain vector to global slabs
   call mpi_alltoallv(xhatsm(1),iscbal_g,isdbal_g,&
-       mpi_rtype,work1(1,1),ircbal_g,irdbal_g,mpi_rtype,&
+       mpi_rtype,work1,ircbal_g,irdbal_g,mpi_rtype,&
        mpi_comm_world,ierror)
 
 ! reorder work1 array post communication

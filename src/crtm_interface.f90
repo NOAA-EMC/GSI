@@ -597,8 +597,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   w00=delx1*dely1; w10=delx*dely1; w01=delx1*dely; w11=delx*dely
 
-
-
 ! Get time interpolation factors for sigma files
   if(obstime > hrdifsig(1) .and. obstime < hrdifsig(nfldsig))then
      do j=1,nfldsig-1
@@ -639,11 +637,12 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   end if
   dtsfcp=one-dtsfc
 
-!$omp parallel sections private(k,i)
 
+!$omp parallel do  schedule(dynamic,1) private(k) &
+!$omp private(ii,igfsco2)
+  do k=1,nsig+1
+    if(k <= nsig)then
 ! Space-time interpolation of temperature (h) and q fields from sigma files
-!$omp section 
-  do k=1,nsig
      h(k)  =(ges_tsen(ix ,iy ,k,itsig )*w00+ &
              ges_tsen(ixp,iy ,k,itsig )*w10+ &
              ges_tsen(ix ,iyp,k,itsig )*w01+ &
@@ -671,8 +670,97 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      c3(k)=one/(one-q(k))
      c4(k)=fv*h(k)*c2(k)
      c5(k)=r1000*c3(k)*c3(k)
-   end do
 
+! Space-time interpolation of ozone(poz), co2 and aerosol fields from sigma files
+
+     poz(k)=((ges_oz(ix ,iy ,k,itsig )*w00+ &
+              ges_oz(ixp,iy ,k,itsig )*w10+ &
+              ges_oz(ix ,iyp,k,itsig )*w01+ &
+              ges_oz(ixp,iyp,k,itsig )*w11)*dtsig + &
+             (ges_oz(ix ,iy ,k,itsigp)*w00+ &
+              ges_oz(ixp,iy ,k,itsigp)*w10+ &
+              ges_oz(ix ,iyp,k,itsigp)*w01+ &
+              ges_oz(ixp,iyp,k,itsigp)*w11)*dtsigp)*constoz
+
+!  Ensure ozone is greater than ozsmall
+
+     poz(k)=max(ozsmall,poz(k))
+
+!    Get information for how to use CO2 and interpolate CO2
+
+     co2(k) = co2vmr_def
+     igfsco2=0
+     if(ico2>0) then
+        call gsi_chemtracer_get ( 'i4crtm::co2', igfsco2, ier )
+        if(igfsco2/=0)then
+           if(size(gsi_chem_bundle)==1) then
+              co2(k) =(gsi_chem_bundle(1)%r3(ico2)%q(ix ,iy ,k)*w00+ &
+                       gsi_chem_bundle(1)%r3(ico2)%q(ixp,iy ,k)*w10+ &
+                       gsi_chem_bundle(1)%r3(ico2)%q(ix ,iyp,k)*w01+ &
+                       gsi_chem_bundle(1)%r3(ico2)%q(ixp,iyp,k)*w11)
+           else
+              co2(k) =(gsi_chem_bundle(itsig )%r3(ico2)%q(ix ,iy ,k)*w00+ &
+                       gsi_chem_bundle(itsig )%r3(ico2)%q(ixp,iy ,k)*w10+ &
+                       gsi_chem_bundle(itsig )%r3(ico2)%q(ix ,iyp,k)*w01+ &
+                       gsi_chem_bundle(itsig )%r3(ico2)%q(ixp,iyp,k)*w11)*dtsig + &
+                      (gsi_chem_bundle(itsigp)%r3(ico2)%q(ix ,iy ,k)*w00+ &
+                       gsi_chem_bundle(itsigp)%r3(ico2)%q(ixp,iy ,k)*w10+ &
+                       gsi_chem_bundle(itsigp)%r3(ico2)%q(ix ,iyp,k)*w01+ &
+                       gsi_chem_bundle(itsigp)%r3(ico2)%q(ixp,iyp,k)*w11)*dtsigp
+           endif
+        endif
+     endif
+
+!  Interpolate aerosols
+
+     if(n_aerosols>0)then
+        if(size(gsi_chem_bundle)==1) then
+           do ii=1,n_aerosols
+              aero(k,ii) =(gsi_chem_bundle(1)%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
+                           gsi_chem_bundle(1)%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
+                           gsi_chem_bundle(1)%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
+                           gsi_chem_bundle(1)%r3(iaero(ii))%q(ixp,iyp,k)*w11)
+           enddo
+        else
+           do ii=1,n_aerosols
+              aero(k,ii) =(gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
+                           gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
+                           gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
+                           gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ixp,iyp,k)*w11)*dtsig + &
+                          (gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
+                           gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
+                           gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
+                           gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ixp,iyp,k)*w11)*dtsigp
+           enddo
+        endif
+     endif
+
+! Interpolate layer pressure to observation point
+
+
+     prsl(k)=(ges_prsl(ix ,iy ,k,itsig )*w00+ &
+              ges_prsl(ixp,iy ,k,itsig )*w10+ &
+              ges_prsl(ix ,iyp,k,itsig )*w01+ &
+              ges_prsl(ixp,iyp,k,itsig )*w11)*dtsig + &
+             (ges_prsl(ix ,iy ,k,itsigp)*w00+ &
+              ges_prsl(ixp,iy ,k,itsigp)*w10+ &
+              ges_prsl(ix ,iyp,k,itsigp)*w01+ &
+              ges_prsl(ixp,iyp,k,itsigp)*w11)*dtsigp
+
+    end if
+! Interpolate level pressure to observation point
+
+    prsi(k)=(ges_prsi(ix ,iy ,k,itsig )*w00+ &
+             ges_prsi(ixp,iy ,k,itsig )*w10+ &
+             ges_prsi(ix ,iyp,k,itsig )*w01+ &
+             ges_prsi(ixp,iyp,k,itsig )*w11)*dtsig + &
+            (ges_prsi(ix ,iy ,k,itsigp)*w00+ &
+             ges_prsi(ixp,iy ,k,itsigp)*w10+ &
+             ges_prsi(ix ,iyp,k,itsigp)*w01+ &
+             ges_prsi(ixp,iyp,k,itsigp)*w11)*dtsigp
+  end do
+
+!$omp parallel sections private(i)
 !$omp section
 
 !  Load geometry structure
@@ -736,106 +824,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         endif
 
 
-!$omp section 
-! Space-time interpolation of ozone(poz), co2 and aerosol fields from sigma files
-  do k=1,nsig
-     poz(k)=((ges_oz(ix ,iy ,k,itsig )*w00+ &
-              ges_oz(ixp,iy ,k,itsig )*w10+ &
-              ges_oz(ix ,iyp,k,itsig )*w01+ &
-              ges_oz(ixp,iyp,k,itsig )*w11)*dtsig + &
-             (ges_oz(ix ,iy ,k,itsigp)*w00+ &
-              ges_oz(ixp,iy ,k,itsigp)*w10+ &
-              ges_oz(ix ,iyp,k,itsigp)*w01+ &
-              ges_oz(ixp,iyp,k,itsigp)*w11)*dtsigp)*constoz
-
-!  Ensure ozone is greater than ozsmall
-
-     poz(k)=max(ozsmall,poz(k))
-
-!    Get information for how to use CO2 and interpolate CO2
-
-     co2(k) = co2vmr_def
-     igfsco2=0
-     if(ico2>0) then
-        call gsi_chemtracer_get ( 'i4crtm::co2', igfsco2, ier )
-        if(igfsco2/=0)then
-           if(size(gsi_chem_bundle)==1) then
-              co2(k) =(gsi_chem_bundle(1)%r3(ico2)%q(ix ,iy ,k)*w00+ &
-                       gsi_chem_bundle(1)%r3(ico2)%q(ixp,iy ,k)*w10+ &
-                       gsi_chem_bundle(1)%r3(ico2)%q(ix ,iyp,k)*w01+ &
-                       gsi_chem_bundle(1)%r3(ico2)%q(ixp,iyp,k)*w11)
-           else
-              co2(k) =(gsi_chem_bundle(itsig )%r3(ico2)%q(ix ,iy ,k)*w00+ &
-                       gsi_chem_bundle(itsig )%r3(ico2)%q(ixp,iy ,k)*w10+ &
-                       gsi_chem_bundle(itsig )%r3(ico2)%q(ix ,iyp,k)*w01+ &
-                       gsi_chem_bundle(itsig )%r3(ico2)%q(ixp,iyp,k)*w11)*dtsig + &
-                      (gsi_chem_bundle(itsigp)%r3(ico2)%q(ix ,iy ,k)*w00+ &
-                       gsi_chem_bundle(itsigp)%r3(ico2)%q(ixp,iy ,k)*w10+ &
-                       gsi_chem_bundle(itsigp)%r3(ico2)%q(ix ,iyp,k)*w01+ &
-                       gsi_chem_bundle(itsigp)%r3(ico2)%q(ixp,iyp,k)*w11)*dtsigp
-           endif
-        endif
-     endif
-
-!  Interpolate aerosols
-
-     if(n_aerosols>0)then
-        if(size(gsi_chem_bundle)==1) then
-           do ii=1,n_aerosols
-              aero(k,ii) =(gsi_chem_bundle(1)%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
-                           gsi_chem_bundle(1)%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
-                           gsi_chem_bundle(1)%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
-                           gsi_chem_bundle(1)%r3(iaero(ii))%q(ixp,iyp,k)*w11)
-           enddo
-        else
-           do ii=1,n_aerosols
-              aero(k,ii) =(gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
-                           gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
-                           gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
-                           gsi_chem_bundle(itsig )%r3(iaero(ii))%q(ixp,iyp,k)*w11)*dtsig + &
-                          (gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
-                           gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
-                           gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
-                           gsi_chem_bundle(itsigp)%r3(iaero(ii))%q(ixp,iyp,k)*w11)*dtsigp
-           enddo
-        endif
-     endif
-
-
-  end do
-
-!$omp section 
-
 ! Find tropopause height at observation
 
   trop5= one_tenth*(tropprs(ix,iy )*w00+tropprs(ixp,iy )*w10+ &
                     tropprs(ix,iyp)*w01+tropprs(ixp,iyp)*w11)
-
-! Interpolate layer pressure to observation point
-
-  do k=1,nsig
-     prsl(k)=(ges_prsl(ix ,iy ,k,itsig )*w00+ &
-              ges_prsl(ixp,iy ,k,itsig )*w10+ &
-              ges_prsl(ix ,iyp,k,itsig )*w01+ &
-              ges_prsl(ixp,iyp,k,itsig )*w11)*dtsig + &
-             (ges_prsl(ix ,iy ,k,itsigp)*w00+ &
-              ges_prsl(ixp,iy ,k,itsigp)*w10+ &
-              ges_prsl(ix ,iyp,k,itsigp)*w01+ &
-              ges_prsl(ixp,iyp,k,itsigp)*w11)*dtsigp
-  end do
-
-! Interpolate level pressure to observation point
-
-  do k=1,nsig+1
-     prsi(k)=(ges_prsi(ix ,iy ,k,itsig )*w00+ &
-              ges_prsi(ixp,iy ,k,itsig )*w10+ &
-              ges_prsi(ix ,iyp,k,itsig )*w01+ &
-              ges_prsi(ixp,iyp,k,itsig )*w11)*dtsig + &
-             (ges_prsi(ix ,iy ,k,itsigp)*w00+ &
-              ges_prsi(ixp,iy ,k,itsigp)*w10+ &
-              ges_prsi(ix ,iyp,k,itsigp)*w01+ &
-              ges_prsi(ixp,iyp,k,itsigp)*w11)*dtsigp
-  end do
 
 ! Add additional crtm levels/layers to profile       
 
@@ -975,8 +967,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      itype = min(max(0,itype),13)
      surface(1)%land_type = gfs_to_crtm(itype)
   end if
- 
-
 
   surface(1)%wind_speed           = sfc_speed
   surface(1)%wind_direction       = rad2deg*atan2(-uu5,-vv5)
@@ -999,9 +989,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   surface(1)%soil_temperature      = data_s(istp)
   surface(1)%snow_depth            = data_s(isn)
 
-
 !$omp section 
-
 ! Load surface sensor data structure
 
   do i=1,nchanl
@@ -1024,6 +1012,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !$omp end parallel sections
 
 
+!$omp parallel do  schedule(dynamic,1) private(k,kk,kk2,kgkg_gm2,ii)
   do k = 1,msig
 
 ! Load profiles into extended RTM model layers

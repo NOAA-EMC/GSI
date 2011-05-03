@@ -31,7 +31,7 @@ subroutine getuv(u,v,st,vp,iflg)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero
+  use constants, only: zero
   use gridmod, only: regional,lat2,nsig,iglobal,lon1,itotsub,lon2,lat1, &
         nlat,nlon,latlon11,ltosj_s,ltosi_s,ltosi,ltosj,&
         strip,reorder,reorder2,vectosub
@@ -57,29 +57,31 @@ subroutine getuv(u,v,st,vp,iflg)
   real(r_kind),dimension(lat2,lon2)::ux,vx
 
 
-  if(iflg == izero)then
+  if(iflg == 0)then
+!$omp parallel do  schedule(dynamic,1) private(k,ioff)
      do k=1,nsig
-        ioff=lu_gs(k)*lat1*lon1+ione
-        call strip(st(1,1,k),uvsm(ioff),ione)
-        ioff=lv_gs(k)*lat1*lon1+ione
-        call strip(vp(1,1,k),uvsm(ioff),ione)
+        ioff=lu_gs(k)*lat1*lon1+1
+        call strip(st(1,1,k),uvsm(ioff),1)
+        ioff=lv_gs(k)*lat1*lon1+1
+        call strip(vp(1,1,k),uvsm(ioff),1)
      end do
   else
+!$omp parallel do  schedule(dynamic,1) private(k,ioff)
      do k=1,nsig
-        ioff=lu_gs(k)*lat1*lon1+ione
-        call strip(u(1,1,k),uvsm(ioff),ione)
-        ioff=lv_gs(k)*lat1*lon1+ione
-        call strip(v(1,1,k),uvsm(ioff),ione)
+        ioff=lu_gs(k)*lat1*lon1+1
+        call strip(u(1,1,k),uvsm(ioff),1)
+        ioff=lv_gs(k)*lat1*lon1+1
+        call strip(v(1,1,k),uvsm(ioff),1)
      end do
   end if
    
 
 ! zero out work arrays
-  do k=1,nlevsuv
-     do j=1,itotsub
-        work1(j,k)=zero
-     end do
-  end do
+! do k=1,nlevsuv
+!    do j=1,itotsub
+!       work1(j,k)=zero
+!    end do
+! end do
 
 !  subdomain vector to global slabs
   call mpi_alltoallv(uvsm(1),iscvec_g,isdvec_g,&
@@ -93,12 +95,12 @@ subroutine getuv(u,v,st,vp,iflg)
         do l=1,iglobal
            ni1=ltosi(l); ni2=ltosj(l)
            stx(ni1,ni2)=work1(l,k)
-           vpx(ni1,ni2)=work1(l,k+ione)
+           vpx(ni1,ni2)=work1(l,k+1)
         end do
-        if(iflg == izero)then
-           call psichi2uv_reg(stx,vpx,workin(1,1,k),workin(1,1,k+ione))
+        if(iflg == 0)then
+           call psichi2uv_reg(stx,vpx,workin(1,1,k),workin(1,1,k+1))
         else
-           call psichi2uvt_reg(stx,vpx,workin(1,1,k),workin(1,1,k+ione))
+           call psichi2uvt_reg(stx,vpx,workin(1,1,k),workin(1,1,k+1))
         end if
      end do
   else
@@ -106,17 +108,18 @@ subroutine getuv(u,v,st,vp,iflg)
         do l=1,iglobal
            ni1=ltosi(l); ni2=ltosj(l)
            workin(ni1,ni2,k)=work1(l,k)
-           workin(ni1,ni2,k+ione)=work1(l,k+ione)
+           workin(ni1,ni2,k+1)=work1(l,k+1)
         end do
-        if(iflg == izero)then
-           call stvp2uv(workin(1,1,k),workin(1,1,k+ione))
+        if(iflg == 0)then
+           call stvp2uv(workin(1,1,k),workin(1,1,k+1))
         else
-           call tstvp2uv(workin(1,1,k),workin(1,1,k+ione))
+           call tstvp2uv(workin(1,1,k),workin(1,1,k+1))
         end if
      end do
   end if
 
 ! Transfer input array to local work array
+!$omp parallel do  schedule(dynamic,1) private(k,l,ni1,ni2)
   do k=1,nnnvsuv
      do l=1,itotsub
         ni1=ltosi_s(l); ni2=ltosj_s(l)
@@ -132,18 +135,20 @@ subroutine getuv(u,v,st,vp,iflg)
        mpi_rtype,uvsm(1),ircvec_s,irdvec_s,&
        mpi_rtype,mpi_comm_world,ierror)
 
-  if(iflg == izero)then
+  if(iflg == 0)then
+!$omp parallel do  schedule(dynamic,1) private(k,ioff)
      do k=1,nsig
-        ioff=lu_gs(k)*latlon11+ione
+        ioff=lu_gs(k)*latlon11+1
         call vectosub(uvsm(ioff),latlon11,u(1,1,k))
-        ioff=lv_gs(k)*latlon11+ione
+        ioff=lv_gs(k)*latlon11+1
         call vectosub(uvsm(ioff),latlon11,v(1,1,k))
      end do
   else
+!$omp parallel do  schedule(dynamic,1) private(k,ioff,j,i,ux,vx)
      do k=1,nsig
-        ioff=lu_gs(k)*latlon11+ione
+        ioff=lu_gs(k)*latlon11+1
         call vectosub(uvsm(ioff),latlon11,ux)
-        ioff=lv_gs(k)*latlon11+ione
+        ioff=lv_gs(k)*latlon11+1
         call vectosub(uvsm(ioff),latlon11,vx)
         do j=1,lon2
            do i=1,lat2

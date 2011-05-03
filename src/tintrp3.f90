@@ -34,7 +34,7 @@ subroutine tintrp3(f,g,dx,dy,dz,obstime,gridtime,n,mype,nflds)
 !$$$ 
   use kinds, only: r_kind,i_kind
   use gridmod, only: jstart,istart,lon1,nlon,lon2,lat2,nlat,nsig
-  use constants, only: ione,zero,one
+  use constants, only: zero,one
   implicit none
 
 ! Declare passed variables
@@ -50,42 +50,42 @@ subroutine tintrp3(f,g,dx,dy,dz,obstime,gridtime,n,mype,nflds)
   real(r_kind) delx,delyp,delxp,delt,deltp
   real(r_kind) dely,delz,delzp
 
-  m1=mype+ione
-  do i=ione,n
+  m1=mype+1
+  do i=1,n
      ix1=int(dx(i))
      iy1=int(dy(i))
      iz=int(dz(i))
-     ix1=max(ione,min(ix1,nlat)); iz=max(ione,min(iz,nsig))  
+     ix1=max(1,min(ix1,nlat)); iz=max(1,min(iz,nsig))  
      delx=dx(i)-float(ix1)
      dely=dy(i)-float(iy1)
      delz=dz(i)-float(iz)
      delx=max(zero,min(delx,one)); delz=max(zero,min(delz,one))
      ix=ix1-istart(m1)+2_i_kind
      iy=iy1-jstart(m1)+2_i_kind
-     if(iy<ione) then
+     if(iy<1) then
         iy1=iy1+nlon
         iy=iy1-jstart(m1)+2_i_kind
      end if
-     if(iy>lon1+ione) then
+     if(iy>lon1+1) then
         iy1=iy1-nlon
         iy=iy1-jstart(m1)+2_i_kind
      end if
-     ixp=ix+ione; iyp=iy+ione
-     izp=min(iz+ione,nsig)
+     ixp=ix+1; iyp=iy+1
+     izp=min(iz+1,nsig)
      if(ix1==nlat) then
         ixp=ix
      end if
      if(obstime(i) > gridtime(1) .and. obstime(i) < gridtime(nflds))then
-        do j=1,nflds-ione
-           if(obstime(i) > gridtime(j) .and. obstime(i) <= gridtime(j+ione))then
+        do j=1,nflds-1
+           if(obstime(i) > gridtime(j) .and. obstime(i) <= gridtime(j+1))then
               itime=j
-              itimep=j+ione
-              delt=((gridtime(j+ione)-obstime(i))/(gridtime(j+ione)-gridtime(j)))
+              itimep=j+1
+              delt=((gridtime(j+1)-obstime(i))/(gridtime(j+1)-gridtime(j)))
            end if
         end do
      else if(obstime(i) <=gridtime(1))then
-        itime=ione
-        itimep=ione
+        itime=1
+        itimep=1
         delt=one
      else
         itime=nflds

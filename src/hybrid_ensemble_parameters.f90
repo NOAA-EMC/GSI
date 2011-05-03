@@ -206,7 +206,7 @@ subroutine init_hybrid_ensemble_parameters
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use constants, only: izero,one
+  use constants, only: one
   implicit none
 
   l_hyb_ens=.false.
@@ -214,11 +214,11 @@ subroutine init_hybrid_ensemble_parameters
   aniso_a_en=.false.
   generate_ens=.true.
   write_ens_sprd=.false.
-  n_ens=izero
-  nlat_ens=izero
-  jcap_ens=izero
-  jcap_ens_test=izero
-  nlon_ens=izero
+  n_ens=0
+  nlat_ens=0
+  jcap_ens=0
+  jcap_ens_test=0
+  nlon_ens=0
   beta1_inv=one
   s_ens_h = 2828._r_kind     !  km (this was optimal value in 
                              !   Wang, X.,D. M. Barker, C. Snyder, and T. M. Hamill, 2008: A hybrid
