@@ -36,7 +36,7 @@ subroutine general_g2s0(grd,sp,spectral_out,grid_in)
   real(r_kind)   ,intent(  out) :: spectral_out(sp%nc)
   real(r_kind)   ,intent(in   ) :: grid_in(grd%nlat,grd%nlon)
 
-  real(r_kind) work(grd%nlon,grd%nlat-2),spec_work(sp%nc)
+  real(r_kind) work(grd%nlon,grd%nlat-2)
   integer(i_kind) i,j,jj
 
 !  Transfer contents of input grid to local work array
@@ -47,10 +47,9 @@ subroutine general_g2s0(grd,sp,spectral_out,grid_in)
         work(i,jj)=grid_in(j,i)
      end do
   end do
-  call general_sptez_s(sp,spec_work,work,-1)
+  call general_sptez_s(sp,spectral_out,work,-1)
 
   do i=1,sp%nc
-     spectral_out(i)=spec_work(i)
      if(sp%factsml(i))spectral_out(i)=zero
   end do
  

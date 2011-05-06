@@ -484,6 +484,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
      call spdz2uv(sp_b%iromb,sp_b%jcap,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
           waved,wavez, &
           w(1,1),w(1,2),wtop(1,1),wtop(1,2))
+!$omp parallel do private(j,i,ii,jj,ijn,ijs,g)
      do j=sp_a%jb,sp_a%je
         call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
