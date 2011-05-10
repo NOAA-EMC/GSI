@@ -88,7 +88,8 @@
   use lag_traj,only   : lag_stepduration
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
-                         beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters
+                         beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
+                         readin_localization
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs
@@ -572,8 +573,9 @@
 !     s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
 !     s_ens_v             - vertical localization scale (grid units for now)
 !                              s_ens_h, s_ens_v, and beta1_inv are tunable parameters.
+!     readin_localization - flag to read (.true.)external localization information file
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
-                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v
+                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):

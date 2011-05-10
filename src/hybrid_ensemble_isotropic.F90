@@ -2263,7 +2263,7 @@ subroutine init_sf_xy(jcap_in)
 ! program history log:
 !   2009-12-17  parrish
 !   2010-06-29  parrish, modify so localization length can be different for each vertical level.
-!                 to do this, add new variable array s_ens_hv(nsig), which is read in if s_ens_h <=0.
+!                 to do this, add new variable array s_ens_hv(nsig), which is read in if readin_localization=.true.
 !                 Otherwise, s_ens_hv is set equal to s_ens_h.
 !
 !   input argument list:
@@ -2880,7 +2880,8 @@ subroutine hybens_localization_setup
 !$$$
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: grd_ens,s_ens_v,jcap_ens,s_ens_vv,&
-	 s_ens_h,s_ens_hv,create_hybens_localization_parameters
+	 s_ens_h,s_ens_hv,create_hybens_localization_parameters,&
+         readin_localization
   use gridmod,only: regional
   use hybrid_ensemble_isotropic, only: init_rf_x,init_rf_y,init_rf_z,&
          normal_new_factorization_rf_z,normal_new_factorization_rf_x,&
@@ -2901,7 +2902,7 @@ subroutine hybens_localization_setup
 ! Set up localization parameters as function of level
 
 ! if horizontal parameter is set <= 0, read in k-levels of localization parameters
-  if(s_ens_h <= zero) then
+  if (readin_localization) then
 
 !   Check the status of input file
     inquire(file=trim(fname),exist=lexist)
