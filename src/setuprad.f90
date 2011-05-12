@@ -340,7 +340,7 @@
         tnoise(jc)=varch(j)
         if (iuse_rad(j)< -1 .or. (iuse_rad(j) == -1 .and.  &
               .not.rad_diagsave)) tnoise(jc)=r1e10
-        if (passive_bc .and. (jiter>miter) .and. (iuse_rad(j)==-1)) tnoise(jc)=varch(j)
+        if (passive_bc .and. (iuse_rad(j)==-1)) tnoise(jc)=varch(j)
         if (iuse_rad(j)>-1) l_may_be_passive=.true.
         if (tnoise(jc) < 1.e4_r_kind) toss = .false.
      end if
@@ -628,7 +628,7 @@
         if (adp_anglebc) then
            do i=1,nchanl
               mm=ich(i)
-              if (goessndr .or. seviri) then
+              if (goessndr .or. goes_img .or. seviri) then
                  pred(npred,i)=nadir*deg2rad
               else
                  pred(npred,i)=data_s(iscan_ang,n)
@@ -746,7 +746,7 @@
  
            error0(i)     = tnoise(i)
            if(tnoise(i) < 1.e4_r_kind .or. (iuse_rad(ich(i))==-1 .and. rad_diagsave) &
-                  .or. (passive_bc .and. jiter>miter .and. iuse_rad(ich(i))==-1))then
+                  .or. (passive_bc .and. iuse_rad(ich(i))==-1))then
               varinv(i)     = val_obs/tnoise(i)**2
               errf(i)       = tnoise(i)
            else
@@ -778,11 +778,14 @@
 
            do i=1,nchanl
               m=ich(i)
-              if (iuse_rad(m)<0 .or. varinv(i) < tiny_r_kind) then
+              if (varinv(i) < tiny_r_kind) then
                  varinv_use(i) = zero
               else
-!             QC based on presence/absence of cloud
-                 varinv_use(i) = varinv(i)
+                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. iuse_rad(m)==-1)) then
+                    varinv_use(i) = varinv(i)
+                 else
+                    varinv_use(i) = zero
+                 end if
               end if
            end do
            call qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse(n),goessndr, &
@@ -945,7 +948,7 @@
            do i=2,nlev
 !          do i=1,nlev
               if (varinv(i)<tiny_r_kind .and. ((iuse_rad(ich(i))>=1) .or. &
-                  (passive_bc .and. jiter>miter .and. iuse_rad(ich(i))==-1))) then
+                  (passive_bc .and. iuse_rad(ich(i))==-1))) then
                  kval=max(i-1,kval)
                  if(amsub .or. hsb .or. mhs)kval=nlev
                  if(amsua .and. i <= 3)kval = zero
@@ -1029,8 +1032,9 @@
 !             At the end of analysis, prepare for bias correction for monitored channels
 !             Only "good monitoring" obs are included in J_passive calculation.
               if (passive_bc .and. (jiter>miter) .and. (iuse_rad(m)==-1)) then
-!                summation of observation number
-                 if (newpc4pred .and. luse(n)) then
+!                summation of observation number,
+!                skip ostats accumulation for channels without coef. initialization 
+                 if (newpc4pred .and. luse(n) .and. any(predx(:,m)/=zero)) then
                     ostats(m)  = ostats(m) + one
                  end if
                  iccm=iccm+1
@@ -1272,8 +1276,9 @@
                        radtailm(ibin)%head%pred(k,iii)=pred(k,ii)
                     end do
 
-!                   compute hessian contribution
-                    if (newpc4pred .and. luse(n)) then
+!                   compute hessian contribution,
+!                   skip rstats accumulation for channels without coef. initialization
+                    if (newpc4pred .and. luse(n) .and. any(predx(:,m)/=zero)) then
                        do k=1,npred
                           rstats(k,m)=rstats(k,m)+radtailm(ibin)%head%pred(k,iii) &
                                *radtailm(ibin)%head%pred(k,iii)*varinv(ii)

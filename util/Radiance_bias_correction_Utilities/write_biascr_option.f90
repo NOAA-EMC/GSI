@@ -96,6 +96,9 @@
 
     if (newpc4pred .and. adp_anglebc) then
        npred_new=npred+angord
+       tlapm=0.0
+       tsum=0.0
+       count_tlap = 0
        open(lunin,file='satbias_angle',form='formatted')
        open(lunout,file='satbias_angle.new',form='formatted')
        ii=0

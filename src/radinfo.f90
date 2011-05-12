@@ -1017,18 +1017,19 @@ contains
    integer(i_kind),parameter:: lndiag = 21
    integer(i_kind),parameter:: lntemp = 51
 
-   integer(i_kind),parameter:: nthreshold = 200
+   integer(i_kind),parameter:: nthreshold = 100
    integer(i_kind),parameter:: maxchn = 3000
    integer(i_kind),parameter:: maxdat = 100
-
-   real(r_kind),parameter:: dtmax = 6.0
-
 
 !  Declare local variables
    logical lexist
    logical data_on_edges
    logical update
    logical newpc4pred
+   logical mean_only
+   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig
+   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
+   logical avhrr,avhrr_navy,goessndr,goes_img,seviri
 
    character(10):: obstype,platid
    character(20):: satsens,satsens_id
@@ -1067,8 +1068,6 @@ contains
 !  Return if no new channels AND update_tlapmean=.false.
    if (.not. (any(inew_rad) .or. any(update_tlapmean))) return
    if (mype==0) write(6,*) 'INIT_PREDX:  enter routine'
-
-   np=angord+1
 
 !  Allocate and initialize data arrays
    if (any(update_tlapmean)) then
@@ -1157,7 +1156,33 @@ contains
          cycle loopf
       end if
 
+      goessndr   = obstype == 'sndr'  .or. obstype == 'sndrd1' .or.  &
+                   obstype == 'sndrd2'.or. obstype == 'sndrd3' .or.  &
+                   obstype == 'sndrd4'
+      goes_img   = obstype == 'goes_img'
+      avhrr      = obstype == 'avhrr'
+      avhrr_navy = obstype == 'avhrr_navy'
+      ssmi       = obstype == 'ssmi'
+      amsre_low  = obstype == 'amsre_low'
+      amsre_mid  = obstype == 'amsre_mid'
+      amsre_hig  = obstype == 'amsre_hig'
+      amsre      = amsre_low .or. amsre_mid .or. amsre_hig
+      ssmis      = obstype == 'ssmis'
+      ssmis_las  = obstype == 'ssmis_las'
+      ssmis_uas  = obstype == 'ssmis_uas'
+      ssmis_img  = obstype == 'ssmis_img'
+      ssmis_env  = obstype == 'ssmis_env'
+      ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis
+      seviri     = obstype == 'seviri'
+      mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
+                .or. avhrr .or. avhrr_navy
+
 !     Allocate arrays and initialize
+      if (mean_only) then 
+         np=1
+      else
+         np=angord+1
+      end if
       if (new_chan/=0) then
          allocate(A(np,np,new_chan),b(np,new_chan))
          allocate(iobs(new_chan),pred(np))
@@ -1218,18 +1243,8 @@ contains
 !           to the angle dependent bias
             if (iuse_rad(jj)>0 .and. data_chan(j)%errinv<1.e-6) cycle loopc
 
-!           If iuseqc flag is <=0 (i.e., 0 or -1), ensure (o-g)<dtmax.
-!           If the user says to ingore the qc flag, check the the o-g
-!           difference falls within the user specify maximum allowable
-!           difference.  If the o-g lies outside this bound, do not use
-!           this observation in computing the update to the angle
-!           dependent bias.
-            if ( iuse_rad(jj)<=0 .and. abs(data_chan(j)%omgnbc)>dtmax ) then
-               cycle loopc
-            end if
-
             errinv=data_chan(j)%errinv
-            if (iuse_rad(jj)<=0) errinv=one
+            if (iuse_rad(jj)<=0) errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
 
             if (update_tlapmean(jj)) then
                tlaptmp=data_chan(j)%tlap
@@ -1244,10 +1259,12 @@ contains
 !              Define predictor
                pred=zero
                pred(1) = one
-               rnad = rnad_pos(satsens,ispot,io_chan(j))*deg2rad
-               do i=1,angord
-                  pred(i+1) = rnad**i
-               end do
+               if (.not. mean_only) then
+                  rnad = rnad_pos(satsens,ispot,io_chan(j))*deg2rad
+                  do i=1,angord
+                     pred(i+1) = rnad**i
+                  end do
+               end if
 
 !              Add values to running sums.
                iobs(nc) = iobs(nc)+one
@@ -1324,9 +1341,11 @@ contains
             call linmm(AA,be,np,1,np,np)
 
             predx(1,ich(i))=be(1)
-            do j=1,angord
-               predx(npred-j+1,ich(i))=be(j+1)
-            end do
+            if (.not. mean_only) then
+               do j=1,angord
+                  predx(npred-j+1,ich(i))=be(j+1)
+               end do
+            end if
          end do ! end of new_chan
          deallocate(AA,be)
 
@@ -1356,7 +1375,7 @@ contains
 
 !  Combine the satellite/sensor specific predx together
    if (any(inew_rad)) then
-      allocate(predr(np))
+      allocate(predr(angord+1))
       do i=1,ndat
          fname = 'init_' // trim(dtype(i)) // '_' // trim(dplat(i))
          inquire(file=fname,exist=lexist)
@@ -1367,7 +1386,7 @@ contains
             write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
             open(lntemp,file=fname,form='formatted')
             do
-               read(lntemp,210,end=160) iich,(predr(k),k=1,np)
+               read(lntemp,210,end=160) iich,(predr(k),k=1,angord+1)
                predx(1,iich)=predr(1)
                do j=1,angord
                   predx(npred-j+1,iich)=predr(j+1)
