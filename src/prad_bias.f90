@@ -17,7 +17,7 @@
 
   use kinds, only: r_kind,i_kind,r_quad
   use mpimod, only: mype
-  use radinfo, only: npred,jpch_rad,iuse_rad,predx
+  use radinfo, only: npred,jpch_rad,iuse_rad,predx,inew_rad
   use gsi_4dvar, only: nobs_bins
   use obsmod, only: radheadm,radptrm,destroyobs_passive
   use berror, only: varprd
@@ -26,7 +26,7 @@
   use constants, only : zero,one,zero_quad
   implicit none
 
-  integer(i_kind),parameter :: nthreshold=200
+  integer(i_kind),parameter :: nthreshold=100
   integer(i_kind) i,n,j,ii,jj,jpassive,ibin,ic,mp,mm,kpred
   integer(i_kind),dimension(jpch_rad) :: icp
   integer(i_kind),dimension(npred)    :: iorder
@@ -79,6 +79,8 @@
 !          begin channel specific calculations
            do n=1,radptrm%nchan
               ic=radptrm%icx(n)
+              if (inew_rad(ic) .and. all(predx(:,ic)==zero)) cycle 
+
               mp=icp(ic)
               iobs(mp)=iobs(mp)+one
 
