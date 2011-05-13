@@ -31,7 +31,7 @@ cmaq_routines.o : cmaq_routines.f90 chemmod.o gsi_chemtracer_mod.o gsi_bundlemod
 coinfo.o : coinfo.f90 obsmod.o gsi_chemtracer_mod.o mpimod.o kinds.o 
 combine_radobs.o : combine_radobs.f90 mpimod.o constants.o kinds.o 
 compact_diffs.o : compact_diffs.f90 constants.o gridmod.o mpeu_util.o kinds.o 
-compute_derived.o : compute_derived.f90 mpeu_util.o anisofilter_glb.o anisofilter.o anberror.o sub2fslab_mod.o constants.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o obsmod.o mod_strong.o balmod.o berror.o gridmod.o guess_grids.o mpimod.o control_vectors.o jfunc.o kinds.o 
+compute_derived.o : compute_derived.f90 mpeu_util.o anisofilter_glb.o anisofilter.o anberror.o sub2fslab_mod.o constants.o obsmod.o mod_strong.o balmod.o berror.o gridmod.o guess_grids.o mpimod.o control_vectors.o jfunc.o kinds.o 
 compute_fact10.o : compute_fact10.f90 constants.o kinds.o 
 compute_qvar3d.o : compute_qvar3d.f90 mpeu_util.o guess_grids.o constants.o gridmod.o control_vectors.o jfunc.o berror.o kinds.o 
 constants.o : constants.f90 kinds.o 
@@ -58,7 +58,7 @@ fpvsx_ad.o : fpvsx_ad.f90 constants.o kinds.o
 general_read_gfsatm.o : general_read_gfsatm.f90 ncepgfs_io.o constants.o mpimod.o general_specmod.o general_sub2grid_mod.o gridmod.o kinds.o 
 general_specmod.o : general_specmod.f90 constants.o kinds.o 
 general_spectral_transforms.o : general_spectral_transforms.f90 guess_grids.o constants.o kinds.o general_sub2grid_mod.o general_specmod.o 
-general_sub2grid_mod.o : general_sub2grid_mod.f90 egrid2agrid_mod.o mpimod.o constants.o kinds.o 
+general_sub2grid_mod.o : general_sub2grid_mod.f90 egrid2agrid_mod.o constants.o mpimod.o kinds.o 
 general_transform.o : general_transform.f90 general_specmod.o constants.o kinds.o 
 gengrid_vars.o : gengrid_vars.f90 constants.o gridmod.o kinds.o 
 genqsat.o : genqsat.f90 guess_grids.o gridmod.o jfunc.o constants.o kinds.o 
