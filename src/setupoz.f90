@@ -328,7 +328,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         call intrp3oz(ges_oz,ozges,dlat,dlon,ozp,dtime,&
              1,nlevs,mype)
 
-        if(ozone_diagsave)then
+        if(ozone_diagsave .and. luse(i))then
            ii=ii+1
            idiagbuf(1,ii)=mype                  ! mpi task number
            diagbuf(1,ii) = data(ilate,i)        ! lat (degree)
@@ -408,7 +408,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
               stats_oz(7,j) = stats_oz(7,j) + one
 
 !          Optionally save data for diagnostics
-           if (ozone_diagsave) then
+           if (ozone_diagsave .and. luse(i)) then
               rdiagbuf(1,k,ii) = ozobs
               rdiagbuf(2,k,ii) = ozone_inv(k)           ! obs-ges
               rdiagbuf(3,k,ii) = varinv3(k)*rat_err2    ! inverse (obs error )**2
@@ -940,7 +940,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      sfcchk=log(psges)
      call grdcrd(sfcchk,1,prsltmp,nsig,-1)
 
-     if(ozone_diagsave)then
+     if(ozone_diagsave .and. luse(i))then
         ii=ii+1
         idiagbuf(1,ii)=mype                  ! mpi task number
         diagbuf(1,ii) = data(ilate,i)        ! lat (degree)
@@ -1102,7 +1102,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      endif
 
 !    Optionally save data for diagnostics
-     if (ozone_diagsave) then
+     if (ozone_diagsave .and. luse(i)) then
         rdiagbuf(1,1,ii) = ozlv                ! obs
         rdiagbuf(2,1,ii) = ozone_inv           ! obs-ges
         rdiagbuf(3,1,ii) = varinv3*rat_err2    ! inverse (obs error )**2
