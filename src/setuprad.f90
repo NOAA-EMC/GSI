@@ -1371,7 +1371,7 @@
               errinv = sqrt(varinv(ich_diag(i)))
               diagbufchan(4,i)=errinv          ! inverse observation error
               useflag=one
-              if (iuse_rad(ich_diag(i)) < 1) useflag=-one
+              if (iuse_rad(ich(ich_diag(i))) < 1) useflag=-one
               diagbufchan(5,i)= id_qc(ich_diag(i))*useflag! quality control mark or event indicator
 
               diagbufchan(6,i)=emissivity(ich_diag(i))   ! surface emissivity
