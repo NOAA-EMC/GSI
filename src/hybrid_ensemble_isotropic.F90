@@ -2200,7 +2200,7 @@ subroutine beta12mult(grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use gsi_4dvar, only: nsubwin
-  use hybrid_ensemble_parameters, only: beta1_inv,n_ens
+  use hybrid_ensemble_parameters, only: beta1_inv,n_ens,oz_univ_static
   use constants, only:  one
   use control_vectors
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -2230,10 +2230,24 @@ subroutine beta12mult(grady)
   do ii=1,nsubwin
 
 !    multiply by beta1_inv first:
+     if (.not.oz_univ_static) then
+
 !$omp parallel do schedule(dynamic,1) private(jj)
-     do jj=1,ne3d
-        grady%step(ii)%r3(ipc(jj))%q =beta1_inv*grady%step(ii)%r3(ipc(jj))%q
-     enddo
+     	do jj=1,ne3d
+           grady%step(ii)%r3(ipc(jj))%q =beta1_inv*grady%step(ii)%r3(ipc(jj))%q
+        enddo
+     else
+! Skip ozone (slot 5)
+
+!$omp parallel do schedule(dynamic,1) private(jj)
+     	do jj=1,4
+	  grady%step(ii)%r3(ipc(jj))%q =beta1_inv*grady%step(ii)%r3(ipc(jj))%q
+	end do
+        do jj=6,ne3d
+	   grady%step(ii)%r3(ipc(jj))%q =beta1_inv*grady%step(ii)%r3(ipc(jj))%q
+	end do
+     end if
+
 ! Default to static B estimate for SST
 !    grady%step(ii)%r2(ipc(8))%q=beta1_inv*grady%step(ii)%r2(ipc(8))%q ! <---- sst
      grady%step(ii)%r2(ipc(7))%q=beta1_inv*grady%step(ii)%r2(ipc(7))%q

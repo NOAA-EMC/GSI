@@ -27,7 +27,7 @@ subroutine get_gefs_ensperts_dualres
 !$$$ end documentation block
 
   use gridmod, only: idsl5
-  use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd
+  use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static
   use hybrid_ensemble_isotropic, only: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en,ps_bar
   use constants,only: zero,half,fv,rd_over_cp,one
   use mpimod, only: mpi_comm_world,ierror,mype,npe
@@ -174,12 +174,23 @@ subroutine get_gefs_ensperts_dualres
       vp_en(i,n)=(vp_en(i,n)-vpbar(i))*sig_norm
       t_en(i,n) =( t_en(i,n)- tbar(i))*sig_norm
       rh_en(i,n)=(rh_en(i,n)-rhbar(i))*sig_norm
-      oz_en(i,n)=(oz_en(i,n)-ozbar(i))*sig_norm
       cw_en(i,n)=(cw_en(i,n)-cwbar(i))*sig_norm
     end do
+
+! If request, zero out ozone perturbations for hybrid
+    if (.not. oz_univ_static) then
+       do i=1,grd_ens%latlon1n
+          oz_en(i,n)=(oz_en(i,n)-ozbar(i))*sig_norm  
+       end do
+    else
+       do i=1,grd_ens%latlon1n
+          oz_en(i,n)=zero
+       end do
+    end if
+
     do i=1,grd_ens%latlon11
       p_en(i,n)=(p_en(i,n)- pbar(i))*sig_norm
-! dtk: temporarily ignore sst perturbations in hybrid
+! Ignore sst perturbations in hybrid
       sst_en(i,n)=zero
     end do
   end do

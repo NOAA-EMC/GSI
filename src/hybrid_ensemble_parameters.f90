@@ -88,6 +88,8 @@ module hybrid_ensemble_parameters
 !                   (this is useful for regional application, where there is ambiguity in how to
 !                      define psi,chi from u,v)
 !      readin_localization:  if .true., then read in localization information from external file
+!      oz_univ_static:  if .true., ozone perturbations are zeroed out to make the ozone analysis
+!                       univariate, and defaults back to static B (no ensemble component)
 !=====================================================================================================
 !
 !
@@ -160,7 +162,8 @@ module hybrid_ensemble_parameters
   public :: init_hybrid_ensemble_parameters,create_hybens_localization_parameters,&
        destroy_hybens_localization_parameters
 ! set passed variables to public
-  public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,s_ens_h
+  public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,&
+       s_ens_h,oz_univ_static
   public :: uv_hyb_ens,s_ens_v,beta1_inv,aniso_a_en,s_ens_hv,s_ens_vv
   public :: readin_localization
   public :: grd_ens
@@ -174,7 +177,7 @@ module hybrid_ensemble_parameters
   public :: dual_res
   public :: write_ens_sprd
 
-  logical l_hyb_ens,uv_hyb_ens
+  logical l_hyb_ens,uv_hyb_ens,oz_univ_static
   logical aniso_a_en
   logical generate_ens
   logical dual_res
@@ -215,6 +218,7 @@ subroutine init_hybrid_ensemble_parameters
 
   l_hyb_ens=.false.
   uv_hyb_ens=.false.
+  oz_univ_static=.false.
   aniso_a_en=.false.
   generate_ens=.true.
   write_ens_sprd=.false.

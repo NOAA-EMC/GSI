@@ -87,7 +87,7 @@
   use lag_interp,only : lag_accur
   use lag_traj,only   : lag_stepduration
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
-                         n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
+                         n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,oz_univ_static,&
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,init_rapidrefresh_cldsurf, &
@@ -558,6 +558,7 @@
 !     l_hyb_ens     - if true, then turn on hybrid ensemble option
 !     uv_hyb_ens    - if true, then ensemble perturbation wind variables are u,v,
 !                       otherwise, ensemble perturbation wind variables are stream, pot. functions.
+!     oz_univ_static- if true, decouple ozone from other variables and defaults to static B (ozone only)
 !     aniso_a_en - if true, then use anisotropic localization of hybrid ensemble control variable a_en.
 !     generate_ens - if true, then generate internal ensemble based on existing background error
 !     n_ens        - number of ensemble members.
@@ -575,7 +576,7 @@
 !                              s_ens_h, s_ens_v, and beta1_inv are tunable parameters.
 !     readin_localization - flag to read (.true.)external localization information file
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
-                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization
+                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,oz_univ_static
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
