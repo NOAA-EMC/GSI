@@ -411,7 +411,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
            if (ozone_diagsave .and. luse(i)) then
               rdiagbuf(1,k,ii) = ozobs
               rdiagbuf(2,k,ii) = ozone_inv(k)           ! obs-ges
-              rdiagbuf(3,k,ii) = varinv3(k)*rat_err2    ! inverse (obs error )**2
+              errorinv = sqrt(varinv3(k)*rat_err2)
+              rdiagbuf(3,k,ii) = errorinv               ! inverse observation error
               if (obstype == 'gome' .or. obstype == 'omi' ) then
                  rdiagbuf(4,k,ii) = data(isolz,i)       ! solar zenith angle
                  rdiagbuf(5,k,ii) = data(ifovn,i)       ! field of view number
@@ -1105,7 +1106,8 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      if (ozone_diagsave .and. luse(i)) then
         rdiagbuf(1,1,ii) = ozlv                ! obs
         rdiagbuf(2,1,ii) = ozone_inv           ! obs-ges
-        rdiagbuf(3,1,ii) = varinv3*rat_err2    ! inverse (obs error )**2
+        errorinv = sqrt(varinv3*rat_err2)
+        rdiagbuf(3,1,ii) = errorinv            ! inverse observation error
         rdiagbuf(4,1,ii) = data(isolz,i)       ! solar zenith angle
         rdiagbuf(5,1,ii) = rmiss               ! fovn
         rdiagbuf(6,1,ii) = obserror               ! ozone mixing ratio precision
