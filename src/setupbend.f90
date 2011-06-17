@@ -72,6 +72,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !                          the nsig_ext value the user needs to use
 !   2011-01-13 lueken    - corrected init_pass and last_pass indentation
 !   2011-01-18 cucurull - increase the size of mreal by one element to add gps_dtype information
+!   2011-06-17 treadon  - remove call tell at end of routine
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -1040,8 +1041,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   data_ihgt(:)=data(ihgt,:)
   data_igps(:)=data(igps,:)
 
-  call tell(myname,'counts of obs total  =',n_alloc)
-  call tell(myname,'counts of obs in use =',m_alloc)
   call dtime_show(myname,'diagsave:bend',i_gps_ob_type)
   call gpsrhs_unaliases(is)
   if(last_pass) call gpsrhs_dealloc(is)
