@@ -95,7 +95,7 @@
                             metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs
   use gsi_chemtracer_mod, only: gsi_chemtracer_init,gsi_chemtracer_final
   use gsi_4dcouplermod, only: gsi_4dcoupler_parallel_init
-  use tcv_mod, only: init_tcps_errvals,tcp_oberr,tcp_innmax,tcp_oedelt
+  use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
   use chemmod, only : init_chem,berror_chem,oneobtest_chem,&
        maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
@@ -488,12 +488,13 @@
 !     c_varqc - constant number to control var. qc turnning on speed
 !     blacklst - logical for reading in raob blacklist (if set to true)
 !     use_poq7 - logical flag to accept (.true.) sbuv profile quality flag 7
-!     tcp_oberr  - observation error (without inflation) for tcps obs in mb
-!     tcp_innmax - parameter for tcps oberr inflation (max innovation for inflation) in mb
-!     tcp_oedelt - parameter for tcps oberr inflation (delta oberr over tcp_oberr) in mb
+!     tcp_refps  - reference pressure for tcps oberr calculation (mb)
+!     tcp_width  - parameter for tcps oberr inflation (width, mb)
+!     tcp_ermin  - parameter for tcps oberr inflation (minimum oberr, mb)
+!     tcp_ermax  - parameter for tcps oberr inflation (maximum oberr, mb)
 
   namelist/obsqc/ repe_dw,dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
-       c_varqc,blacklst,use_poq7,hilbert_curve,tcp_oberr,tcp_innmax,tcp_oedelt
+       c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
 
 ! OBS_INPUT (controls input data):
 !      dfile(ndat)      - input observation file name
