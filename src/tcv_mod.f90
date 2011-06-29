@@ -324,8 +324,8 @@ contains
 !   note:  all values in mb
     tcp_refps=1000.0_r_kind
     tcp_width=50.0_r_kind
-    tcp_ermin=1.0_r_kind  
-    tcp_ermax=3.5_r_kind
+    tcp_ermin=0.75_r_kind  
+    tcp_ermax=5.0_r_kind
 
   end subroutine init_tcps_errvals
 
