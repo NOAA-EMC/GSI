@@ -533,7 +533,13 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
               hob_s_top=max(hob_s,hob_s_top) 
            endif !obs in new grid
         end do intloop
-        if (obs_check) goto 3000 ! reject observation 
+
+        if (obs_check) then      ! reject observation
+           data(ier,i) = zero
+           ratio_errors(i) = zero
+           muse(i)=.false.
+           goto 3000
+        endif
 
 !       bending angle (radians)
         dbend=ds*ddnj(1)/ref_rad_s(1)
