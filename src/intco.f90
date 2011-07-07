@@ -37,7 +37,7 @@ end interface
 
 contains
 
-subroutine intco_(co3lhead,rval,sval)
+subroutine intco_(colvkhead,rval,sval)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -54,7 +54,7 @@ subroutine intco_(co3lhead,rval,sval)
 !   2010-06-02  tangborn - made version for carbon monoxide
 !
 !   input argument list:
-!     co3lhead  - level carbon monoxide obs type pointer to obs structure for MOPITT
+!     colvkhead  - level carbon monoxide obs type pointer to obs structure for MOPITT
 !     sco     - carbon monoxide increment in grid space
 !
 !   output argument list:
@@ -66,20 +66,20 @@ subroutine intco_(co3lhead,rval,sval)
 !
 !$$$
 !--------
-  use obsmod, only: co3l_ob_type
+  use obsmod, only: colvk_ob_type
   use gsi_bundlemod, only: gsi_bundle
   implicit none
 
 ! Declare passed variables
-  type(co3l_ob_type),pointer,intent(in   ) :: co3lhead
+  type(colvk_ob_type),pointer,intent(in   ) :: colvkhead
   type(gsi_bundle),intent(in   ) :: sval
   type(gsi_bundle),intent(inout) :: rval
 
-  call intcolev_(co3lhead,rval,sval)
+  call intcolev_(colvkhead,rval,sval)
 
 end subroutine intco_
 
-subroutine intcolev_(co3lhead,rval,sval)
+subroutine intcolev_(colvkhead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intco       apply nonlin qc obs operator for carbon monoxide
@@ -94,7 +94,7 @@ subroutine intcolev_(co3lhead,rval,sval)
 !   2010-06-07  tangborn - carbon monoxide based on ozone code
 !
 !   input argument list:
-!     co3lhead  - level carbon monoxide obs type pointer to obs structure
+!     colvkhead  - level carbon monoxide obs type pointer to obs structure
 !     sco     - carbon monoxide increment in grid space
 !
 !   output argument list:
@@ -107,7 +107,7 @@ subroutine intcolev_(co3lhead,rval,sval)
 !$$$
 !--------
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: co3l_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: colvk_ob_type,lsaveobsens,l_do_adjoint
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: jiter,xhat_dt,dhat_dt
   use constants, only: one,zero,r3600,zero_quad
@@ -116,7 +116,7 @@ subroutine intcolev_(co3lhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(co3l_ob_type),pointer,intent(in   ) :: co3lhead
+  type(colvk_ob_type),pointer,intent(in   ) :: colvkhead
   type(gsi_bundle)          ,intent(in   ) :: sval
   type(gsi_bundle)          ,intent(inout) :: rval
 
@@ -134,7 +134,8 @@ subroutine intcolev_(co3lhead,rval,sval)
   real(r_kind),allocatable,dimension(:,:) :: rco
   real(r_kind),allocatable,dimension(:)   :: coak
   real(r_kind),allocatable,dimension(:)   :: vali
-  type(co3l_ob_type), pointer :: co3lptr
+  real(r_kind),allocatable,dimension(:)   :: val_ret
+  type(colvk_ob_type), pointer :: colvkptr
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -159,40 +160,38 @@ subroutine intcolev_(co3lhead,rval,sval)
 ! MOPITT CARBON MONOXIDE: LAYER CO 
 !
 ! Loop over carbon monoxide observations.
-  co3lptr => co3lhead
-  do while (associated(co3lptr))
+  colvkptr => colvkhead
+  do while (associated(colvkptr))
 
 !    Set location
-     j1=co3lptr%ij(1)
-     j2=co3lptr%ij(2)
-     j3=co3lptr%ij(3)
-     j4=co3lptr%ij(4)
+     j1=colvkptr%ij(1)
+     j2=colvkptr%ij(2)
+     j3=colvkptr%ij(3)
+     j4=colvkptr%ij(4)
 
 
 !    Accumulate contribution from layer observations
 !    This repeats the algorithm inside intrp3co
 !    with several of the terms already calculated 
 
-     if ( co3lptr%nlco >= 1 ) then
 
-        allocate(vali(co3lptr%nlco))
-        allocate(coak(co3lptr%nlco))
+        allocate(vali(colvkptr%nlco))
+        allocate(coak(colvkptr%nlco))
+        allocate(val_ret(colvkptr%nlco))
 
-        do k=1,co3lptr%nlco
-           val1= zero_quad
-           pob = co3lptr%prs(k)
+        do k=1,colvkptr%nlco   ! loop over MOPITT ave. ker. contribution levels 
+           pob = colvkptr%prs(k)
            k1=int(pob)
            k2=min(k1+1,nsig)
-           w1=co3lptr%wij(1,k)
-           w2=co3lptr%wij(2,k)
-           w3=co3lptr%wij(3,k)
-           w4=co3lptr%wij(4,k)
-           w5=co3lptr%wij(5,k)
-           w6=co3lptr%wij(6,k)
-           w7=co3lptr%wij(7,k)
-           w8=co3lptr%wij(8,k)
-           val1=val1 +  &
-                   w1* sco(j1,k1)+ &
+           w1=colvkptr%wij(1,k)
+           w2=colvkptr%wij(2,k)
+           w3=colvkptr%wij(3,k)
+           w4=colvkptr%wij(4,k)
+           w5=colvkptr%wij(5,k)
+           w6=colvkptr%wij(6,k)
+           w7=colvkptr%wij(7,k)
+           w8=colvkptr%wij(8,k)
+           val1=   w1* sco(j1,k1)+ &
                    w2* sco(j2,k1)+ &
                    w3* sco(j3,k1)+ &
                    w4* sco(j4,k1)+ &
@@ -203,55 +202,58 @@ subroutine intcolev_(co3lhead,rval,sval)
            vali(k)=val1
         enddo
 
-!       Averaging kernel and a priori 
-!       Will need to revisit this linearization. This is 
-!       a simplified linearization assuming very small perturbations 
+!       Averaging kernel  
 
-        do k=1,co3lptr%nlco
+        do k=1,colvkptr%nlco   ! loop over MOPITT retrieval levels
            val1=zero_quad
-           do j=1,co3lptr%nlco
-              val1=val1+co3lptr%ak(k,j)*vali(j)
+           do j=1,colvkptr%nlco  ! loop over MOPITT ak levels 
+              val1=val1+colvkptr%ak(k,j)*vali(j)
            enddo 
 
            if (lsaveobsens) then
-              co3lptr%diags(k)%ptr%obssen(jiter)=val1*co3lptr%err2(k)*co3lptr%raterr2(k)
+              colvkptr%diags(k)%ptr%obssen(jiter)=val1*colvkptr%err2(k)*colvkptr%raterr2(k)
            else
-              if (co3lptr%luse) co3lptr%diags(k)%ptr%tldepart(jiter)=val1
+              if (colvkptr%luse) colvkptr%diags(k)%ptr%tldepart(jiter)=val1
            endif
 
            if (l_do_adjoint) then
               if (lsaveobsens) then
-                 valx = co3lptr%diags(k)%ptr%obssen(jiter)
+                 valx = colvkptr%diags(k)%ptr%obssen(jiter)
 
               else
-                 val1=val1-co3lptr%res(k)
+                 val1=val1-colvkptr%res(k)
 
-                 valx= val1*co3lptr%err2(k) 
-                 valx= valx*co3lptr%raterr2(k)
+                 valx=val1*colvkptr%err2(k) 
+                 valx=valx*colvkptr%raterr2(k)
               endif
+              val_ret(k)=valx  
+           endif 
+        enddo ! k
 
-!  Averaging kernel First 
-!  For small perturbations, ignore log terms in MOPITT Averaging Kernel (AVT)
+!  Averaging kernel First - spread values to ak contribution levels 
 
-              do kk=co3lptr%nlco,1,-1 
-                 coak(kk)=zero
-                 do j=1,co3lptr%nlco
-                    coak(kk)=coak(kk)+co3lptr%ak(kk,j)*valx
+        if(l_do_adjoint)then 
+              do k=1,colvkptr%nlco  !loop over ak levels 
+                 coak(k)=zero_quad
+                 do j=1,colvkptr%nlco  !loop over profile levels  
+                    coak(k)=coak(k)+colvkptr%ak(j,k)*val_ret(j) ! Contribution to kth ak level from jth retrieval level
                  enddo
               enddo 
 
-              do kk=co3lptr%nlco,1,-1
-                 pob = co3lptr%prs(kk)
+! Adjoint of interpolation - spreads each ave. kernel level to interpolant gridpoints  
+
+              do kk=colvkptr%nlco,1,-1    !loop over averaging kernel levels 
+                 pob = colvkptr%prs(kk)
                  k1=int(pob)
                  k2=min(k1+1,nsig)
-                 w1=co3lptr%wij(1,kk)
-                 w2=co3lptr%wij(2,kk)
-                 w3=co3lptr%wij(3,kk)
-                 w4=co3lptr%wij(4,kk)
-                 w5=co3lptr%wij(5,kk)
-                 w6=co3lptr%wij(6,kk)
-                 w7=co3lptr%wij(7,kk) 
-                 w8=co3lptr%wij(8,kk) 
+                 w1=colvkptr%wij(1,kk)
+                 w2=colvkptr%wij(2,kk)
+                 w3=colvkptr%wij(3,kk)
+                 w4=colvkptr%wij(4,kk)
+                 w5=colvkptr%wij(5,kk)
+                 w6=colvkptr%wij(6,kk)
+                 w7=colvkptr%wij(7,kk) 
+                 w8=colvkptr%wij(8,kk) 
                  rco(j1,k1)  =  rco(j1,k1) + coak(kk)*w1
                  rco(j2,k1)  =  rco(j2,k1) + coak(kk)*w2
                  rco(j3,k1)  =  rco(j3,k1) + coak(kk)*w3
@@ -260,59 +262,13 @@ subroutine intcolev_(co3lhead,rval,sval)
                  rco(j2,k2)  =  rco(j2,k2) + coak(kk)*w6
                  rco(j3,k2)  =  rco(j3,k2) + coak(kk)*w7
                  rco(j4,k2)  =  rco(j4,k2) + coak(kk)*w8
-              enddo
+              enddo  ! kk
 
-           endif
-        end do
 
-        deallocate(coak,vali)
-     end if   ! (co3lptr%nlco >= 1)
+        deallocate(coak,vali,val_ret)
 
-!    Add contribution from total column observation
-!     k=co3lptr%nlco+1
-!     val1= zero_quad
-!     do kk=nsig,1,-1
-!        w1=co3lptr%wij(1,kk)
-!        w2=co3lptr%wij(2,kk)
-!        w3=co3lptr%wij(3,kk)
-!        w4=co3lptr%wij(4,kk)
-!        val1=val1 + &
-!             w1* sco(j1,kk)+ &
-!             w2* sco(j2,kk)+ &
-!             w3* sco(j3,kk)+ &
-!             w4* sco(j4,kk)
-!     enddo
-!
-!     if (lsaveobsens) then
-!        co3lptr%diags(k)%ptr%obssen(jiter)=val1*co3lptr%err2(k)*co3lptr%raterr2(k)
-!     else
-!        if (co3lptr%luse) co3lptr%diags(k)%ptr%tldepart(jiter)=val1
-!     endif
-!
-!     if (l_do_adjoint) then
-!        if (lsaveobsens) then
-!           valx = co3lptr%diags(k)%ptr%obssen(jiter)
-!
-!        else
-!           val1=val1-co3lptr%res(k)
-!
-!           valx     = val1*co3lptr%err2(k)
-!           valx     = valx*co3lptr%raterr2(k)
-!        endif
-!
-!        do kk=nsig,1,-1
-!           w1=co3lptr%wij(1,kk)
-!           w2=co3lptr%wij(2,kk)
-!           w3=co3lptr%wij(3,kk)
-!           w4=co3lptr%wij(4,kk)
-!           rco(j1,kk)  = rco(j1,kk) + valx*w1
-!           rco(j2,kk)  = rco(j2,kk) + valx*w2
-!           rco(j3,kk)  = rco(j3,kk) + valx*w3
-!           rco(j4,kk)  = rco(j4,kk) + valx*w4
-!        enddo
-!     endif
-
-     co3lptr => co3lptr%llpoint
+        endif ! l_do_adjoint
+        colvkptr => colvkptr%llpoint
 
 ! End loop over observations
   enddo

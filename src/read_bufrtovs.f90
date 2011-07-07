@@ -66,6 +66,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2010-07-12  zhu     - include global offset for amsua in bias correction for adp_anglebc option
 !   2010-09-02  zhu     - add use_edges option
 !   2010-10-12  zhu     - use radstep and radstart from radinfo
+!   2011-04-07  todling - newpc4pred now in radinfo
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
+!                         (2) get zob, tz_tr (call skindepth and cal_tztr)
+!                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
+!                         (4) add more elements (nstinfo) in data array
+!   2011-05-05  todling - merge in Min-Jeong update for cloudy-radiance work
+!   2011-05-20  mccarty - updated to read ATMS data
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -101,9 +108,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
-           finalcheck,map2tgrid,score_crit
+      finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
-           use_edges,find_edges,radstart,radstep
+      use_edges,find_edges,radstart,radstep,newpc4pred
+  use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300
@@ -112,8 +120,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use crtm_module, only: crtm_destroy,crtm_init,success,crtm_channelinfo_type
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
-  use berror, only: newpc4pred
   use antcorr_application
+  use gsi_metguess_mod, only: gsi_metguess_get
   implicit none
 
 ! Declare passed variables
@@ -141,7 +149,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),parameter:: tbmax=550.0_r_kind
 
 ! Declare local variables
-  logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu
+  logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu,atms
   logical outside,iuse,assim,valid
   logical data_on_edges
 
@@ -152,26 +160,30 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ireadsb,ireadmg,irec,isub,next
   integer(i_kind) i,j,k,ifov,ntest,llll
   integer(i_kind) iret,idate,nchanl,n,idomsfc
-  integer(i_kind) ich1,ich2,ich8,ich15,kidsat,instrument
-  integer(i_kind) nmind,itx,nele,itt,ninstruments
-  integer(i_kind) iskip,ichan2,ichan1,ichan15
+  integer(i_kind) ich1,ich2,ich8,ich15,ich16,ich17
+  integer(i_kind) kidsat,instrument
+  integer(i_kind) nmind,itx,nreal,nele,itt,ninstruments
+  integer(i_kind) iskip,ichan2,ichan1,ichan15,ichan16,ichan17
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind) instr,ichan
-  integer(i_kind):: error_status
+  integer(i_kind) instr,ichan,icw4crtm
+  integer(i_kind):: error_status,ier
   character(len=20),dimension(1):: sensorlist
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
 
   real(r_kind) cosza,sfcr
-  real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,qval
+  real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,ch16,ch17,qval
   real(r_kind) ch1flg
   real(r_kind) expansion
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind) pred, pred_water, pred_not_water
+  real(r_kind) pred_tchan,pred_qchan              ! wm - added for testing of AA/AB pred
+                                                  !      to atms
   real(r_kind) rsat,dlat,panglr,dlon,rato,sstime,tdiff,t4dv
   real(r_kind) dlon_earth_deg,dlat_earth_deg,sat_aziang
   real(r_kind) dlon_earth,dlat_earth,r01
@@ -198,7 +210,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   ilon=3
   ilat=4
-  
+
+  if(nst_gsi>0) then
+     call skindepth(obstype,zob)
+  endif
+
+! Determine whether CW used in CRTM
+  call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
@@ -208,12 +226,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   hirs2 =    obstype == 'hirs2'
   hirs3 =    obstype == 'hirs3'
   hirs4 =    obstype == 'hirs4'
-  hirs =     hirs2 .or. hirs3 .or. hirs4
-  msu=       obstype == 'msu'
-  amsua=     obstype == 'amsua'
-  amsub=     obstype == 'amsub'
-  mhs  =     obstype == 'mhs'
-  ssu =      obstype == 'ssu'
+  hirs  =    hirs2 .or. hirs3 .or. hirs4
+  msu   =    obstype == 'msu'
+  amsua =    obstype == 'amsua'
+  amsub =    obstype == 'amsub'
+  mhs   =    obstype == 'mhs'
+  ssu   =    obstype == 'ssu'
+  atms  =    obstype == 'atms'
 
 !  instrument specific variables
   d1 =  0.754_r_kind
@@ -226,6 +245,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   ich6   = 6   !6
   ich8   = 8   !8
   ich15  = 15  !15
+  ich16  = 16  !16
+  ich17  = 17  !17
 ! Set array index for surface-sensing channels
   ichan1  = newchn(sis,ich1)
   ichan2  = newchn(sis,ich2)
@@ -234,6 +255,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      ichan8  = newchn(sis,ich8)
   endif
   if (amsua) ichan15 = newchn(sis,ich15)
+  if (atms)  ichan16 = newchn(sis,ich16)
+  if (atms)  ichan17 = newchn(sis,ich17)
 
   if(jsatid == 'n05')kidsat=705
   if(jsatid == 'n06')kidsat=706
@@ -254,6 +277,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   if(jsatid == 'metop-a')kidsat=4
   if(jsatid == 'metop-b')kidsat=5
   if(jsatid == 'metop-c')kidsat=6
+  if(jsatid == 'npp')kidsat=224
 
   do i=1,jpch_rad
      if (trim(nusis(i))==trim(sis)) then
@@ -387,6 +411,23 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         rlndsea(3) = 15._r_kind
         rlndsea(4) = 30._r_kind
      endif
+  else if ( atms ) then
+     nchanl=22
+     if (isfcalc==1) then
+        instr=14                    ! This section isn't really updated.
+        ichan=15                    ! pick a surface sens. channel
+        expansion=2.9_r_kind        ! use almost three for microwave sensors.
+     endif
+!   Set rlndsea for types we would prefer selecting
+     if (isfcalc==1) then
+        rlndsea = zero
+     else
+        rlndsea(0) = zero
+        rlndsea(1) = 15._r_kind
+        rlndsea(2) = 10._r_kind
+        rlndsea(3) = 15._r_kind
+        rlndsea(4) = 100._r_kind
+     endif
   end if
 
 ! Initialize variables for use by FOV-based surface code.
@@ -410,7 +451,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 
 ! Allocate arrays to hold all data for given satellite
-  nele=maxinfo+nchanl
+  nreal = maxinfo + nstinfo
+  nele  = nreal   + nchanl
   allocate(data_all(nele,itxmax),data1b8(nchanl))
 
 
@@ -420,60 +462,62 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !    Set bufr subset names based on type of data to read
 
-!  Open unit to satellite bufr file
-  infile2=infile
-  if(llll == 2)then
-     infile2=trim(infile)//'ears'
-     if(amsua .and. kidsat >= 200 .and. kidsat <= 207)go to 500
-  end if
-
-!  Reopen unit to satellite bufr file
-  call closbf(lnbufr)
-  open(lnbufr,file=infile2,form='unformatted',status = 'old',err = 500)
-  call openbf(lnbufr,'IN',lnbufr)
-
-  if(llll == 2)then
-     allocate(data1b8x(nchanl))
-     sensorlist(1)=sis
-     if( crtm_coeffs_path /= "" ) then
-        if(mype_sub==mype_root) write(6,*)'READ_BUFRTOVS: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
-        error_status = crtm_init(sensorlist,channelinfo,&
-          Process_ID=mype_sub,Output_Process_ID=mype_root, &
-          Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE., &
-          File_Path = crtm_coeffs_path )
-     else
-        error_status = crtm_init(sensorlist,channelinfo,&
-          Process_ID=mype_sub,Output_Process_ID=mype_root,&
-          Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE.)
-     endif
-     if (error_status /= success) then
-        write(6,*)'READ_BUFRTOVS:  ***ERROR*** crtm_init error_status=',error_status,&
-             '   TERMINATE PROGRAM EXECUTION'
-        call stop2(71)
-     endif
-     ninstruments = size(sc)
-     instrument_loop: do n=1,ninstruments
-        if(sis == sc(n)%sensor_id)then
-           instrument=n
-           exit instrument_loop
-        end if
-     end do instrument_loop
-     if(instrument == 0)then
-        write(6,*)' failure to find instrument in read_bufrtovs ',sis
+!    Open unit to satellite bufr file
+     infile2=infile
+     if(llll == 2)then
+        infile2=trim(infile)//'ears'
+        if(amsua .and. kidsat >= 200 .and. kidsat <= 207)go to 500
      end if
-  end if
+
+!    Reopen unit to satellite bufr file
+     call closbf(lnbufr)
+     open(lnbufr,file=infile2,form='unformatted',status = 'old',err = 500)
+
+     call openbf(lnbufr,'IN',lnbufr)
+
+     if(llll == 2)then
+        allocate(data1b8x(nchanl))
+        sensorlist(1)=sis
+        if( crtm_coeffs_path /= "" ) then
+           if(mype_sub==mype_root) write(6,*)'READ_BUFRTOVS: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
+           error_status = crtm_init(sensorlist,channelinfo,&
+              Process_ID=mype_sub,Output_Process_ID=mype_root, &
+              Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE., &
+              File_Path = crtm_coeffs_path )
+           else
+              error_status = crtm_init(sensorlist,channelinfo,&
+                 Process_ID=mype_sub,Output_Process_ID=mype_root,&
+                 Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE.)
+           endif
+           if (error_status /= success) then
+              write(6,*)'READ_BUFRTOVS:  ***ERROR*** crtm_init error_status=',error_status,&
+                 '   TERMINATE PROGRAM EXECUTION'
+           call stop2(71)
+        endif
+        ninstruments = size(sc)
+        instrument_loop: do n=1,ninstruments
+           if(sis == sc(n)%sensor_id)then
+              instrument=n
+              exit instrument_loop
+           end if
+        end do instrument_loop
+        if(instrument == 0)then
+           write(6,*)' failure to find instrument in read_bufrtovs ',sis
+        end if
+     end if
 
    
-!  Loop to read bufr file
-  next=0
-  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
-     next=next+1
-     if(next == npe_sub)next=0
-     if(next/=mype_sub)cycle
-     read_loop: do while (ireadsb(lnbufr)==0)
+!    Loop to read bufr file
+     next=0
+     read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
+        next=next+1
+        if(next == npe_sub)next=0
+        if(next/=mype_sub)cycle
+        read_loop: do while (ireadsb(lnbufr)==0)
 
 !          Read header record.  (llll=1 is normal feed, 2=EARS data)
            hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HOLS'
+           if (atms) hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HMSL'
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
 !          Extract satellite id.  If not the one we want, read next record
@@ -590,11 +634,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !                Remove profiles where key channels are bad  
                  if(( msu  .and.  j == ich1) .or.                                 &
-                      (amsua .and. (j == ich1 .or. j == ich2 .or. j == ich3 .or.    &
-                      j == ich4 .or. j==ich6 .or. j == ich15 )) .or. &
-                      (hirs  .and. (j == ich8 )) .or.                               &
-                      (amsub .and.  j == ich1) .or.                                 &
-                      (mhs   .and.  (j == ich1 .or. j == ich2))) iskip = iskip+nchanl
+                    (amsua .and. (j == ich1 .or. j == ich2 .or. j == ich3 .or.    &
+                                  j == ich4 .or. j == ich6 .or. j == ich15 )) .or.&
+                    (hirs  .and. (j == ich8 )) .or.                               &
+                    (amsub .and.  j == ich1) .or.                                 &
+                    (mhs   .and. (j == ich1 .or. j == ich2)) .or.                 &
+                    (atms  .and. (j == ich1 .or. j == ich2 .or. j == ich16        &
+                             .or. j == ich17))                   ) iskip = iskip+nchanl
               endif
            end do
            if (iskip >= nchanl) cycle read_loop
@@ -625,11 +671,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
            if (isfcalc == 1) then
               call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
-                                 dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
-                                 sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
+                 dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
+                 sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
            else
               call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg, &
-                     idomsfc,sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+                 idomsfc,sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
            endif
 
 
@@ -642,7 +688,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !          Account for assymetry due to satellite build error
            if(hirs .and. ((jsatid == 'n16') .or. (jsatid == 'n17'))) &
-                  ifovmod=ifovmod+1
+              ifovmod=ifovmod+1
 
            panglr=(start+float(ifovmod-1)*step)*deg2rad
            lzaest = asin(rato*sin(panglr))
@@ -653,13 +699,14 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               if((amsua .and. ifovmod <= 15) .or.        &
                  (amsub .and. ifovmod <= 45) .or.        &
                  (mhs   .and. ifovmod <= 45) .or.        &
-                 (hirs  .and. ifovmod <= 28)) lza=-lza
+                 (hirs  .and. ifovmod <= 28) .or.        &
+                 (atms  .and. ifovmod <= 48) )   lza=-lza
            end if
 
 !  Check for errors in satellite zenith angles 
            if(abs(lzaest-lza)*rad2deg > one) then
               write(6,*)' READ_BUFRTOVS WARNING uncertainty in lza ', &
-                      lza*rad2deg,lzaest*rad2deg,sis,ifovmod,start,step
+                 lza*rad2deg,lzaest*rad2deg,sis,ifovmod,start,step
               cycle read_loop
            end if
 
@@ -672,10 +719,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if (msu) then
               if (newpc4pred) then
                  ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
-                          predx(1,ichan1)*air_rad(ichan1)
+                       predx(1,ichan1)*air_rad(ichan1)
               else
                  ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
-                          r01*predx(1,ichan1)*air_rad(ichan1)
+                       r01*predx(1,ichan1)*air_rad(ichan1)
               end if
               ch1flg = tsavg-ch1
               if(isflg == 0)then
@@ -686,10 +733,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            else if (hirs) then
               if (newpc4pred) then
                  ch8 = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
-                          predx(1,ichan8)*air_rad(ichan8)
+                       predx(1,ichan8)*air_rad(ichan8)
               else
                  ch8 = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
-                          r01*predx(1,ichan8)*air_rad(ichan8)
+                       r01*predx(1,ichan8)*air_rad(ichan8)
               end if
               ch8flg = tsavg-ch8
               pred   = 10.0_r_kind*max(zero,ch8flg)
@@ -707,7 +754,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
                  cosza = cos(lza)
                  d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-                 qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                 if (icw4crtm>10) then
+                    qval  = zero
+                 else
+                    qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                 endif
                  pred  = max(zero,qval)*100.0_r_kind
               else
                  if (adp_anglebc .and. newpc4pred) then
@@ -724,7 +775,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                     df2  = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
                     tt   = 168._r_kind-0.49_r_kind*ch15
                     if(ch1 > 261._r_kind .or. ch1 >= tt .or. & 
-                         (ch15 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
+                      (ch15 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
                        pred = 100._r_kind
                     end if
                  end if
@@ -750,7 +801,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                  cosza = cos(lza)
                  if(ch2 < h300)then 
                     pred_water = (0.13_r_kind*(ch1+33.58_r_kind*log(h300-ch2)- &
-                         341.17_r_kind))*five
+                       341.17_r_kind))*five
                  else
                     pred_water = 100._r_kind
                  end if
@@ -758,12 +809,100 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               pred_not_water = 42.72_r_kind + 0.85_r_kind*ch1-ch2
               pred = (sfcpct(0)*pred_water) + ((one-sfcpct(0))*pred_not_water)
               pred = max(zero,pred)
+
+           else if (atms) then
+! AMSU-A-Type calculations
+!   Remove angle dependent pattern (not mean)
+              if (adp_anglebc .and. newpc4pred) then
+                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)
+                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)
+              else
+                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
+                       air_rad(ichan1)*cbias(15,ichan1)
+                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
+                       air_rad(ichan2)*cbias(15,ichan2)   
+              end if
+              if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
+                 cosza = cos(lza)
+                 d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
+                 if (icw4crtm>0) then
+                    qval  = zero 
+                 else
+                    qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                 endif
+                 pred  = max(zero,qval)*100.0_r_kind
+              else
+                 if (adp_anglebc .and. newpc4pred) then
+                    ch3 = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)
+                    ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)
+                 else
+                    ch3  = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)+ &
+                           air_rad(ichan3)*cbias(15,ichan3)   
+                    ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)+ &
+                           air_rad(ichan16)*cbias(15,ichan16)
+                 end if
+                 pred = abs(ch1-ch16)
+                 if(ch1-ch16 >= three) then
+                    df2  = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
+                    tt   = 168._r_kind-0.49_r_kind*ch16
+                    if(ch1 > 261._r_kind .or. ch1 >= tt .or. &
+                      (ch16 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
+                       pred = 100._r_kind
+                    end if
+                 end if
+              endif
+              pred_tchan=pred
+!AMSU-B Type Calculations
+              if (newpc4pred) then
+                 ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)- &
+                       predx(1,ichan16)*air_rad(ichan16)
+                 ch17 = data1b8(ich17)-ang_rad(ichan17)*cbias(ifov,ichan17)- &
+                       predx(1,ichan17)*air_rad(ichan17)
+              else
+                 ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)- &
+                       r01*predx(1,ichan16)*air_rad(ichan16)
+                 ch17 = data1b8(ich17)-ang_rad(ichan17)*cbias(ifov,ichan17)- &
+                       r01*predx(1,ichan17)*air_rad(ichan17)
+              end if
+              pred_water = zero
+              if(sfcpct(0) > zero)then
+                 cosza = cos(lza)
+                 if(ch17 < h300)then
+                    pred_water = (0.13_r_kind*(ch16+33.58_r_kind*log(h300-ch17)- &
+                       341.17_r_kind))*five
+                 else
+                    pred_water = 100._r_kind
+                 end if
+              end if
+              pred_not_water = 42.72_r_kind + 0.85_r_kind*ch16-ch17
+              pred = (sfcpct(0)*pred_water) + ((one-sfcpct(0))*pred_not_water)
+              pred = max(zero,pred)
+              pred_qchan=pred           
+              pred = pred_tchan          ! For the time being, use AMSU-A-styled scoring
+                                         !  This should be investigated further. It is
+                                         !  probably not proper to use a straight combination
+                                         !  of pred_qchan & pred_tchan w/o some sort of 
+                                         !  smarter logic
+!              write(423,*)pred_tchan,pred_qchan
            endif
            
 !          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
            crit1 = crit1+pred 
            call finalcheck(dist1,crit1,itx,iuse)
+
            if(.not. iuse)cycle read_loop
+
+!          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+           if(nst_gsi>0) then
+              tref  = ts(0)
+              dtw   = zero
+              dtc   = zero
+              tz_tr = one
+              if(sfcpct(0)>zero) then
+                 call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              endif
+           endif
+
 
 !          Load selected observation into data array
               
@@ -772,10 +911,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            data_all(3 ,itx)= dlon                      ! grid relative longitude
            data_all(4 ,itx)= dlat                      ! grid relative latitude
            data_all(5 ,itx)= lza                       ! local zenith angle
-           data_all(6 ,itx)= bfr2bhdr(3)              ! local azimuth angle
+           data_all(6 ,itx)= bfr2bhdr(3)               ! local azimuth angle
            data_all(7 ,itx)= panglr                    ! look angle
            data_all(8 ,itx)= ifov                      ! scan position
-           data_all(9 ,itx)= bfr2bhdr(2)              ! solar zenith angle
+           data_all(9 ,itx)= bfr2bhdr(2)               ! solar zenith angle
            data_all(10,itx)= bfr2bhdr(4)               ! solar azimuth angle
            data_all(11,itx) = sfcpct(0)                ! sea percentage of
            data_all(12,itx) = sfcpct(1)                ! land percentage
@@ -802,8 +941,15 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            data_all(32,itx)= val_tovs
            data_all(33,itx)= itt
 
+           if(nst_gsi>0) then
+              data_all(maxinfo+1,itx) = tref            ! foundation temperature
+              data_all(maxinfo+2,itx) = dtw             ! dt_warm at zob
+              data_all(maxinfo+3,itx) = dtc             ! dt_cool at zob
+              data_all(maxinfo+4,itx) = tz_tr           ! d(Tz)/d(Tr)
+           endif
+
            do i=1,nchanl
-              data_all(i+maxinfo,itx)=data1b8(i)
+              data_all(i+nreal,itx)=data1b8(i)
            end do
 
 
@@ -829,14 +975,14 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !  end of llll loop
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit)
 
 ! 
   if(mype_sub==mype_root)then
      do n=1,ndata
         do i=1,nchanl
-           if(data_all(i+maxinfo,n) > tbmin .and. &
-              data_all(i+maxinfo,n) < tbmax)nodata=nodata+1
+           if(data_all(i+nreal,n) > tbmin .and. &
+              data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
         itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_tovs
@@ -844,7 +990,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      end do
 
 !    Write final set of "best" observations to output file
-     write(lunout) obstype,sis,maxinfo,nchanl,ilat,ilon
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   end if
 
@@ -858,7 +1004,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   if (isfcalc == 1) call fov_cleanup
 
   if(diagnostic_reg.and.ntest>0) write(6,*)'READ_BUFRTOVS:  ',&
-       'mype,ntest,disterrmax=',mype,ntest,disterrmax
+     'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
 ! End of routine
   return
@@ -912,8 +1058,8 @@ subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
 !$$$
      use kinds, only: r_kind,i_kind
      use satthin, only: sno_full,isli_full,sst_full,soil_moi_full, &
-           soil_temp_full,soil_type_full,veg_frac_full,veg_type_full, &
-           fact10_full,zs_full,sfc_rough_full
+         soil_temp_full,soil_type_full,veg_frac_full,veg_type_full, &
+         fact10_full,zs_full,sfc_rough_full
      use constants, only: zero,one,one_tenth
      use gridmod, only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
      use guess_grids, only: nfldsfc,hrdifsfc

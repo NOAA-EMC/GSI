@@ -29,6 +29,7 @@ module radinfo
 !   2010-10-05  treadon - remove npred1 (not used)
 !   2010-10-12  zhu     - combine scaninfo and edgeinfo into one file scaninfo
 !   2011-01-04  zhu     - add tlapmean update for new/existing channels when adp_anglebc is turned on
+!   2011-04-02  li      - add index nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave for NSST and QC_tzr
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -59,6 +60,7 @@ module radinfo
 ! set subroutines to public
   public :: init_rad
   public :: init_rad_vars
+  public :: final_rad_vars
   public :: radinfo_read
   public :: radinfo_write
   public :: angle_cbias
@@ -72,15 +74,26 @@ module radinfo
   public :: adp_anglebc,angord,use_edges
   public :: passive_bc
   public :: radstart,radstep
+  public :: newpc4pred
+  public :: radjacnames,radjacindxs,nsigradjac
+  public :: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
   integer(i_kind),parameter:: ntlapthresh = 100 ! threshhold value of cycles if tlapmean update is needed
 
   logical diag_rad    ! logical to turn off or on the diagnostic radiance file (true=on)
   logical retrieval   ! logical to turn off or on the SST retrieval with AVHRR data
+  logical tzr_bufrsave! logical to turn off or on the bufr file output for Tz retrieval (true=on)
+
   logical adp_anglebc ! logical to turn off or on the variational radiance angle bias correction
   logical passive_bc  ! logical to turn off or on radiance bias correction for monitored channels
   logical use_edges   ! logical to use data on scan edges (.true.=to use)
+
+  integer(i_kind) nst_gsi   ! indicator of Tr Analysis
+  integer(i_kind) nst_tzr   ! indicator of Tz retrieval QC tzr
+  integer(i_kind) nstinfo   ! number of nst variables
+  integer(i_kind) fac_dtl   ! indicator of DTL
+  integer(i_kind) fac_tsl   ! indicator of TSL
 
   integer(i_kind) jpch_rad      ! number of channels*sat
   integer(i_kind) npred         ! number of radiance biases predictors
@@ -131,6 +144,11 @@ module radinfo
   character(len=20),allocatable,dimension(:):: nusis   ! sensor/instrument/satellite indicator
   character(len=256),save:: crtm_coeffs_path = "./" ! path of CRTM_Coeffs files
 
+  integer(i_kind) :: nsigradjac
+  character(len=20),allocatable,dimension(:):: radjacnames
+  integer(i_kind),  allocatable,dimension(:):: radjacindxs
+
+  logical,save :: newpc4pred ! controls preconditioning due to sat-bias correction term 
 
 contains
 
@@ -149,10 +167,11 @@ contains
 !   1995-07-06  derber
 !   2004-06-22  treadon - update documentation
 !   2004-07-15  todling - protex-compliant prologue
-!   2008-04-23  safford -- add standard subprogram doc block
+!   2008-04-23  safford - add standard subprogram doc block
 !   2010-05-06  zhu     - add adp_anglebc and angord
 !   2010-05-12  zhu     - add passive_bc
 !   2010-09-02  zhu     - add use_edges
+!   2010-04-25  zhu     - add logical newpc4pred (todling move here)
 !
 !   input argument list:
 !
@@ -171,6 +190,16 @@ contains
     diag_rad = .true.     ! .true.=generate radiance diagnostic file
     mype_rad = 0          ! mpi task to collect and print radiance use information on/from
     npred=5               ! number of bias correction predictors
+
+    nst_gsi   = 0          ! 0 = no nst info at all in gsi
+                           ! 1 = read nst info but not applied
+                           ! 2 = read nst info, applied to Tb simulation but no Tr analysis
+                           ! 3 = read nst info, applied to Tb simulation and do Tr Analysis
+    nst_tzr   = 0          ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
+    nstinfo   = 0          ! number of nst fields used in Tr analysis
+    fac_dtl   = 0          ! indicator to apply DTL model
+    fac_tsl   = 0          ! indicator to apply TSL model
+    tzr_bufrsave = .false. ! .true.=generate bufr file for Tz retrieval
 
     passive_bc = .false.  ! .true.=turn on bias correction for monitored channels
     adp_anglebc = .false. ! .true.=turn on angle bias correction
@@ -196,6 +225,7 @@ contains
 !   2004-07-15  todling - protex-compliant prologue
 !   2008-04-23  safford -- add standard subprogram doc block
 !   2010-05-06  zhu     - add option adp_anglebc
+!   2011-05-16  todling - generalized fields in rad-Jacobian
 !
 !   input argument list:
 !
@@ -207,7 +237,16 @@ contains
 !
 !$$$ end documentation block
 
+    use mpimod, only: mype
+    use gsi_metguess_mod, only: gsi_metguess_get
     implicit none
+
+    integer(i_kind) ns,ii,jj,mxlvs,isum,nvarjac,n_clouds,ndummy,ndim,ier
+    integer(i_kind),allocatable,dimension(:)::aux,all_levels
+    character(len=20),allocatable,dimension(:)::clouds_names
+
+!   the following vars are wired-in until MetGuess handles all guess fiedls
+    character(len=3),parameter :: wirednames(6) = (/ 'tv ','q  ','oz ', 'u  ', 'v  ', 'sst' /)
 
 !   safeguard angord value for option adp_anglebc
     if (adp_anglebc) then 
@@ -221,11 +260,100 @@ contains
 
     if (adp_anglebc) npred=npred+angord
     
+!   inquire about variables in guess
+    call gsi_metguess_get ( 'dim', ndim, ier )
+    allocate(all_levels(ndim))
+    call gsi_metguess_get ( 'guesses_level', all_levels, ier )
+    mxlvs = maxval(all_levels)
+    deallocate(all_levels)
+
+!   inquire number of clouds to participate in CRTM calculations
+    call gsi_metguess_get ( 'clouds_4crtm::3d', n_clouds, ier )
+    if (n_clouds>0) then
+        allocate(clouds_names(n_clouds))
+        call gsi_metguess_get ( 'clouds_4crtm::3d', clouds_names, ier )
+    else ! _RT the following is a hack
+        allocate(clouds_names(0))
+    endif
+
+    nvarjac=size(wirednames)+n_clouds
+    allocate(radjacnames(nvarjac))
+    allocate(radjacindxs(nvarjac))
+    allocate(aux(nvarjac))
+
+!   Fill in wired-in fields for now
+    do ii=1,size(wirednames)
+       radjacnames(ii) = trim(wirednames(ii))
+       if(trim(wirednames(ii))=='u'.or.trim(wirednames(ii))=='v'.or.trim(wirednames(ii))=='sst') then
+          radjacindxs(ii) = 1
+        else
+          radjacindxs(ii) = mxlvs   ! _RT this is a hack
+        endif
+    enddo
+    jj=0
+    do ii=size(wirednames)+1,nvarjac
+       jj=jj+1
+       radjacnames(ii) = trim(clouds_names(jj))
+       radjacindxs(ii) = mxlvs
+    enddo
+
+!   Determine initial pointer location for each var in the Jacobian
+    if(size(radjacnames)>0) then
+       nsigradjac = sum(radjacindxs)
+       isum=0
+       do ii=2,nvarjac
+          isum=isum+radjacindxs(ii-1)
+          aux(ii) = isum
+       enddo
+       aux(1) = 0
+       radjacindxs=aux
+    endif
+    deallocate(aux)
+    deallocate(clouds_names)
+
+    if(mype==0) then
+      print*, 'Vars in Rad-Jacobian (dims)'
+      print*, '--------------------------'
+      do ii=1,nvarjac
+         print*, radjacnames(ii), radjacindxs(ii)
+      end do
+    endif
+
     return
   end subroutine init_rad_vars
 
+  subroutine final_rad_vars
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    final_rad_vars
+!
+!   prgrmmr:     todling     org: np23                date: 2011-05-16
+!
+! abstract:  This routine finalizes this package
+!
+! program history log:
+!   2011-05-16  todling
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
+!
+!$$$ end documentation block
 
-  subroutine radinfo_read(newpc4pred)
+    implicit none
+
+    deallocate(radjacindxs)
+    deallocate(radjacnames)
+
+    return
+  end subroutine final_rad_vars
+
+
+  subroutine radinfo_read
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    radinfo_read
@@ -268,6 +396,7 @@ contains
 !   2010-04-29  zhu     - add analysis varaince info for radiance bias correction coefficients
 !   2010-05-06  zhu     - add option adp_anglebc for variational angle bias correction
 !   2011-01-04  zhu     - add tlapmean update for new channels when adp_anglebc is turned on
+!   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
 !
 !   input argument list:
 !
@@ -306,7 +435,7 @@ contains
     real(r_kind),dimension(numt):: fbiasx     ! contains SST dependent bias  for SST retrieval
     logical,allocatable,dimension(:):: nfound
     logical cfound
-    logical newpc4pred,pcexist
+    logical pcexist
 
     data lunin / 49 /
     data lunout / 51 /
@@ -594,7 +723,7 @@ contains
 
 !      Initialize predx if inew_rad and compute angle bias correction and tlapmean
        if (adp_anglebc) then
-          call init_predx(newpc4pred)
+          call init_predx
           do j=1,jpch_rad
              call angle_cbias(trim(nusis(j)),j,cbias(1,j))
           end do
@@ -657,7 +786,7 @@ contains
   end subroutine radinfo_read
 
 
-  subroutine radinfo_write(newpc4pred)
+  subroutine radinfo_write
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    radinfo_write
@@ -675,6 +804,7 @@ contains
 !   2008-04-23  safford - add standard subprogram doc block
 !   2010-04-29  zhu     - add analysis varaince info for radiance bias correction coefficients
 !   2010-05-06  zhu     - add option adp_anglebc
+!   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
 !
 !   input argument list:
 !
@@ -692,7 +822,6 @@ contains
 
     integer(i_kind) lunout,jch,ip,i
     real(r_kind),dimension(npred):: varx
-    logical newpc4pred
     data lunout / 51 /
 
 !   Open unit to output file.  Write analysis varaince info.  Close unit.
@@ -942,6 +1071,12 @@ contains
          nstep = 90
          edge1 = 10
          edge2 = 81
+      else if (index(isis,'atms')/=0) then
+         step  = 1.11_r_kind
+         start = -52.725_r_kind
+         nstep = 96
+         edge1 = 10
+         edge2 = 87
       else
          step  = 9.474_r_kind
          start = -47.37_r_kind
@@ -985,7 +1120,7 @@ contains
    end subroutine satstep
 
 
-   subroutine init_predx(newpc4pred)
+   subroutine init_predx
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    init_predx
@@ -996,6 +1131,7 @@ contains
 !
 ! program history log:
 !   2010-07-13  zhu  - modified from global_angupdate
+!   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
 !
 ! attributes:
 !   language: f90
@@ -1025,7 +1161,6 @@ contains
    logical lexist
    logical data_on_edges
    logical update
-   logical newpc4pred
    logical mean_only
    logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig
    logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img

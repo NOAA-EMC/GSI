@@ -17,6 +17,7 @@ module state_vectors
 !   2010-05-13  todling  - udpate to use gsi_bundle (now the state_vector)
 !                        - declare all private (explicit public)
 !                        - remove following:  assignment, sum(s)
+!   2011-05-20  guo      - add a rank-1 interface of dot_product()
 !
 ! subroutines included:
 !   sub setup_state_vectors
@@ -103,6 +104,7 @@ END INTERFACE
 
 INTERFACE DOT_PRODUCT
 MODULE PROCEDURE dot_prod_st
+MODULE PROCEDURE dot_prod_st_r1
 END INTERFACE
 
 INTERFACE SET_RANDOM
@@ -537,6 +539,7 @@ real(r_quad) function dot_prod_st(xst,yst,which)
 ! program history log:
 !   2009-08-12  lueken - added subprogram doc block
 !   2010-05-13  todling - update to use gsi_bundle
+!   2011-04-28  guo     - bug fix: .not.which was doing (x,x) instead of (x,y)
 !
 !   input argument list:
 !    xst,yst
@@ -564,11 +567,11 @@ real(r_quad) function dot_prod_st(xst,yst,which)
      ii=0
      do i = 1,ns3d
         ii=ii+1
-        zz(ii)= dplevs(xst%r3(i)%q,xst%r3(i)%q,ihalo=1)
+        zz(ii)= dplevs(xst%r3(i)%q,yst%r3(i)%q,ihalo=1)
      enddo
      do i = 1,ns2d
         ii=ii+1
-        zz(ii)= dplevs(xst%r2(i)%q,xst%r2(i)%q,ihalo=1)
+        zz(ii)= dplevs(xst%r2(i)%q,yst%r2(i)%q,ihalo=1)
      enddo
 
   else
@@ -610,6 +613,28 @@ real(r_quad) function dot_prod_st(xst,yst,which)
   deallocate(zz)
   return
 end function dot_prod_st
+function dot_prod_st_r1(xst,yst,which) result(dotprod_)
+  use mpeu_util, only: perr,die
+  implicit none
+  type(gsi_bundle), dimension(:), intent(in) :: xst, yst
+  character(len=*), optional    , intent(in) :: which  ! variable component name
+  real(r_quad):: dotprod_
+
+  integer(i_kind):: i
+  character(len=*),parameter::myname_=myname//'*dot_prod_st_r1'
+
+  dotprod_=0._r_quad
+  if(size(xst)/=size(yst)) then
+    call perr(myname_,'size(xst)/=size(yst))')
+    call perr(myname_,'size(xst) =',size(xst))
+    call perr(myname_,'size(yst) =',size(yst))
+    call die(myname_)
+  endif
+
+  do i=1,size(xst)
+    dotprod_=dotprod_+dot_prod_st(xst(i),yst(i),which=which)
+  enddo
+end function dot_prod_st_r1
 ! ----------------------------------------------------------------------
 subroutine set_random_st ( xst )
 !$$$  subprogram documentation block

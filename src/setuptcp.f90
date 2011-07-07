@@ -10,6 +10,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-02-02  kleist
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2010-05-25  kleist  - output tc_ps observations to conv diag file
+!   2010-11-24  todling - add component to write obs sensitiviy to diag file
 !
 !   input argument list:
 !
@@ -24,7 +25,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,i_kind,r_single,r_double
   use obsmod, only: tcptail,tcphead,obsdiags,i_tcp_ob_type, &
              nobskeep,lobsdiag_allocated,oberror_tune,perturb_obs, &
-             time_offset,rmiss_single
+             time_offset,rmiss_single,lobsdiagsave
   use obsmod, only: tcp_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -76,8 +77,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nsig)::prsltmp
 
-  integer(i_kind) i
-  integer(i_kind) mm1
+  integer(i_kind) i,jj
+  integer(i_kind) mm1,idia
   integer(i_kind) ikxx,nn,istat,iuse,ibin,iptrb,id
   integer(i_kind) ier,ilon,ilat,ipres,itime,ikx,ilate,ilone
 
@@ -127,6 +128,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   if(conv_diagsave)then
      nchar=1
      nreal=19
+     if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
      ii=0
   end if
@@ -447,6 +449,30 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(17,ii) = pob                ! surface pressure observation (hPa)
         rdiagbuf(18,ii) = pob-pges           ! obs-ges used in analysis (coverted to hPa)
         rdiagbuf(19,ii) = pob-pgesorig       ! obs-ges w/o adjustment to guess surface pressure (hPa)
+
+        if (lobsdiagsave) then
+           idia=19
+           do jj=1,miter
+              idia=idia+1
+              if (obsdiags(i_tcp_ob_type,ibin)%tail%muse(jj)) then
+                 rdiagbuf(idia,ii) = one
+              else
+                 rdiagbuf(idia,ii) = -one
+              endif
+           enddo
+           do jj=1,miter+1
+              idia=idia+1
+              rdiagbuf(idia,ii) = obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(jj)
+           enddo
+           do jj=1,miter
+              idia=idia+1
+              rdiagbuf(idia,ii) = obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(jj)
+           enddo
+           do jj=1,miter
+              idia=idia+1
+              rdiagbuf(idia,ii) = obsdiags(i_tcp_ob_type,ibin)%tail%obssen(jj)
+           enddo
+        endif
 
     end if ! conv_diagsave .true. and luse .true.
 

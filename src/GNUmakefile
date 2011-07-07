@@ -28,6 +28,8 @@ endif
 
 THIS = $(shell basename `pwd`)
 LIB  = lib$(THIS).a
+LIBgsi_util  = libGSI_Util.a
+LIBgsi_solver  = libGSI_Solver.a
 BIN  = prepbykx.x
 
 test:
@@ -72,12 +74,14 @@ ifeq ("$(MAPL_MOD)", "")
    INC_ESMF   =
    INC_GEOS   =
    GSIGC_SRCS =
-   BIN       += gsi.x
+   SRCSX      = crtm_cloud.F90 stub_set_crtm_cloud.F90
+   BIN       += #gsi.x
    LIB_GMAO   =
 else
    HAVE_ESMF = -DHAVE_ESMF
-   INC_GEOS  = $(INC_MAPL_BASE) $(INC_GEOS_SHARED) $(INC_MPEU)
+   INC_GEOS  = $(INC_MAPL_BASE) $(INC_TRANSF) $(INC_GEOS_SHARED) $(INC_MPEU)
    GSIGC_SRCS = GSI_GridCompMod.F90
+   SRCSX      = 
    LIB_GMAO =  $(LIB_GFIO) $(LIB_MPEU)
 endif
 
@@ -89,12 +93,15 @@ INC_FVGCM =
 LIB_FVGCM =
 
 RSRC =	gmao_airs_bufr.tbl		\
+        gmao_global_aeroinfo.txt        \
         gmao_global_anavinfo.txt        \
 	gmao_global_blacklist.txt	\
+	gmao_global_coinfo.txt		\
 	gmao_global_convinfo.txt	\
 	gmao_global_ozinfo.txt		\
 	gmao_global_pcpinfo.txt		\
 	gmao_global_satinfo.txt		\
+        gmao_global_scaninfo.txt        \
 	gsi_fdda_1.rc.tmpl 		\
 	gsi_fdda_2.rc.tmpl 		\
 	gsi_fgat_1.rc.tmpl 		\
@@ -111,7 +118,9 @@ local_esma_install local_install:
 
 install_lib: $(ESMALIB) $(LIB)
 	@ echo "-- $@: $(LIB) --> $(ESMALIB)/ --"
-	$(CP) $(LIB)     $(ESMALIB)/
+	$(CP) $(LIBgsi_util)   $(ESMALIB)/
+	$(CP) $(LIBgsi_solver) $(ESMALIB)/
+	$(CP) $(LIB)           $(ESMALIB)/
 
 install_inc: $(ESMAINC)/$(THIS)
 	@ echo "-- $@: *.mod --> $(ESMAINC)/ --"
@@ -173,62 +182,22 @@ show_fflags:
 	@echo "USER_FFLAGS     = $(USER_FFLAGS)"
 	@echo "_D              = $(_D)"
 
-#                  --------------------
-#                  User Defined Targets
-#                  --------------------
 
-SRCS =	$(wildcard \
-	abor1.f90 \
-	adjtest.f90 \
-        aeroinfo.f90 \
-	anberror.f90 \
-	anbkerror.f90 \
+#                  ----------------------------------------
+#                  Define What Participates in GSI Util Lib
+#                  ----------------------------------------
+#                  Requirement: things depending on gridmod
+#                               and below gridmod level with
+#                               some reaon (obviously)
+
+SRCS_UTIL =	$(wildcard \
 	aniso_ens_util.f90 \
-	anisofilter.f90 \
-	anisofilter_glb.f90 \
 	antcorr_application.f90 \
-	antest_maps0.f90 \
-	antest_maps0_glb.f90 \
-	balmod.f90 \
-	berror.f90 \
-	bias_predictors.f90 \
-	bkerror.f90 \
-	bkgcov.f90 \
-	bkgvar.f90 \
-	bkgvar_rewgt.f90 \
-	blacklist.f90 \
-	calc_fov_conical.f90 \
-	calc_fov_crosstrk.f90 \
-	calctends.f90 \
-	calctends_ad.f90 \
-	calctends_tl.f90 \
-	calctends_no_ad.f90 \
-	calctends_no_tl.f90 \
-        chemmod.f90 \
-        clw_mod.f90 \
-        cmaq_routines.f90 \
-        coinfo.f90 \
-	combine_radobs.f90 \
 	compact_diffs.f90 \
-	compute_derived.f90 \
 	compute_fact10.f90 \
-        compute_qvar3d.f90 \
 	constants.f90 \
-	control2model.f90 \
-	control2state.f90 \
-	control_vectors.f90 \
-	converr.f90 \
-	convinfo.f90 \
-	convthin.f90 \
-	cvsection.f90 \
-	deter_subdomain.f90 \
-	dtast.f90 \
+        control_vectors.f90 \
 	egrid2agrid_mod.f90 \
-        enorm_state.F90 \
-        evaljgrad.f90 \
-        evaljcdfi.F90 \
-        evaljo.f90 \
-        evalqlim.f90 \
 	fgrid2agrid_mod.f90 \
 	fill_mass_grid2.f90 \
 	fill_nmm_grid2.f90 \
@@ -239,41 +208,156 @@ SRCS =	$(wildcard \
         general_sub2grid_mod.f90 \
         general_transform.f90 \
 	gengrid_vars.f90 \
-	genqsat.f90 \
-	genstats_gps.f90 \
-	gesinfo.F90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
         get_gefs_ensperts_dualres.f90 \
+        get_wrf_mass_ensperts_netcdf.F90 \
 	get_semimp_mats.f90 \
-	getprs.f90 \
-        getsiga.F90 \
 	getuv.f90 \
-	getvvel.f90 \
         gsi_bundlemod.F90 \
-        gsi_chemtracer_mod.F90 \
-	glbsoi.F90 \
-	grtest.f90 \
+        gsi_chemguess_mod.F90 \
+        gsi_metguess_mod.F90 \
 	grdcrd.f90 \
 	grid2sub.f90 \
 	gridmod.F90 \
 	gscond_ad.f90 \
-        gsd_terrain_match_surfTobs.f90 \
-        gsdcloudanalysis.F90 \
-	gsi_4dvar.f90 \
         gsi_4dcouplermod.F90 \
 	gsi_io.f90 \
 	gsi_nemsio_mod.f90 \
+	half_nmm_grid2.f90 \
+	hilbert_curve.f90 \
+	hybrid_ensemble_isotropic.F90 \
+	hybrid_ensemble_parameters.f90 \
+	init_commvars.f90 \
+        insitu_info.f90 \
+	kinds.f90 \
+        looplimits.f90 \
+	m_dgeevx.F90 \
+	m_rerank.F90 \
+	m_stats.F90 \
+	m_tick.F90 \
+	mpeu_mpif.F90 \
+	mpeu_util.F90 \
+	missing_routines.f90 \
+	mod_nmmb_to_a.f90 \
+	mod_strong.f90 \
+	mp_compact_diffs_mod1.f90 \
+	mp_compact_diffs_support.f90 \
+	mpimod.F90 \
+	mpl_allreduce.F90 \
+	mpl_bcast.f90 \
+        ncepgfs_ghg.f90 \
+	ncepnems_io.f90 \
+	nstio_module.f90 \
+	nlmsas_ad.f90 \
+	omegas_ad.f90 \
+	phil.f90 \
+	phil1.f90 \
+	plib8.f90 \
+	polcarf.f90 \
+	prad_bias.f90 \
+	precond.f90 \
+	precpd_ad.f90 \
+	psichi2uv_reg.f90 \
+	psichi2uvt_reg.f90 \
+	raflib.f90 \
+        rapidrefresh_cldsurf_mod.f90 \
+	rdgrbsst.f90 \
+	rfdpar.f90 \
+	rsearch.F90 \
+	rtlnmc_version3.f90 \
+	sfc_model.f90 \
+	simpin1.f90 \
+	simpin1_init.f90 \
+	smoothwwrf.f90 \
+	state_vectors.f90 \
+        stop1.f90 \
+        stub_set_crtm_aerosol.F90 \
+        stub_pertmod.F90 \
+        stub_timermod.F90 \
+	sub2grid.f90 \
+	tendsmod.f90 \
+	timermod.F90 \
+	tintrp2a.f90 \
+	tintrp3.f90 \
+	turbl.f90 \
+	turbl_ad.f90 \
+	turbl_tl.f90 \
+	turblmod.f90 \
+	unfill_mass_grid2.f90 \
+	unfill_nmm_grid2.f90 \
+	unhalf_nmm_grid2.f90 \
+	wind_fft.f90 \
+	blockIO.c ${SRCSX} )
+
+#                  --------------------
+#                  User Defined Targets
+#                  --------------------
+
+SRCS_SOLVER =	$(wildcard \
+	adjtest.f90 \
+        aeroinfo.f90 \
+	anberror.f90 \
+	anbkerror.f90 \
+	anisofilter.f90 \
+	anisofilter_glb.f90 \
+	antest_maps0.f90 \
+	antest_maps0_glb.f90 \
+	balmod.f90 \
+	berror.f90 \
+	bias_predictors.f90 \
+	bkerror.f90 \
+	bkgcov.f90 \
+	bkgvar.f90 \
+	bkgvar_rewgt.f90 \
+        bicg.f90 \
+        bicglanczos.F90 \
+	blacklist.f90 \
+	cal_tztr.f90 \
+	calc_fov_conical.f90 \
+	calc_fov_crosstrk.f90 \
+	calctends.f90 \
+	calctends_ad.f90 \
+	calctends_tl.f90 \
+	calctends_no_ad.f90 \
+	calctends_no_tl.f90 \
+	chemmod.f90 \
+        clw_mod.f90 \
+	cmaq_routines.f90 \
+        co_mop_ak.f90 \
+        coinfo.f90 \
+	combine_radobs.f90 \
+	compute_derived.f90 \
+        compute_qvar3d.f90 \
+	control2model.f90 \
+	control2state.f90 \
+	converr.f90 \
+	convinfo.f90 \
+	convthin.f90 \
+        crtm_interface.f90 \
+	cvsection.f90 \
+	dtast.f90 \
+	deter_nst.f90 \
+        enorm_state.F90 \
+        evaljgrad.f90 \
+        evaljcdfi.F90 \
+        evaljo.f90 \
+        evalqlim.f90 \
+	genqsat.f90 \
+	genstats_gps.f90 \
+	gesinfo.F90 \
+	getprs.f90 \
+        getsiga.f90 \
+	getvvel.f90 \
+	glbsoi.F90 \
+	grtest.f90 \
+        gsd_terrain_match_surfTobs.f90 \
+        gsdcloudanalysis.F90 \
+	gsi_4dvar.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
 	guess_grids.F90 \
-	half_nmm_grid2.f90 \
-	hilbert_curve.f90 \
-	hybrid_ensemble_isotropic_global.f90 \
-	hybrid_ensemble_isotropic_regional.F90 \
-	hybrid_ensemble_parameters.f90 \
 	inc2guess.f90 \
-	init_commvars.f90 \
 	init_jcdfi.F90 \
 	int3dvar.f90 \
 	intall.f90 \
@@ -286,15 +370,13 @@ SRCS =	$(wildcard \
 	intlimq.f90 \
 	intoz.f90 \
 	intpcp.f90 \
-        intpm2_5.f90 \
+	intpm2_5.f90 \
 	intps.f90 \
 	intpw.f90 \
 	intq.f90 \
 	intrad.f90 \
 	intrp2a.f90 \
-	intrp3co.f90 \
 	intrp3oz.f90 \
-	intrppx.f90 \
 	intrw.f90 \
 	intspd.f90 \
 	intsrw.f90 \
@@ -304,49 +386,30 @@ SRCS =	$(wildcard \
 	intw.f90 \
 	jcmod.f90 \
 	jfunc.f90 \
-	kinds.f90 \
-	lag_fields.F90 \
+        jgrad.f90 \
+	lag_fields.f90 \
 	lag_interp.F90 \
 	lag_traj.F90 \
 	lagmod.f90 \
         lanczos.F90 \
-        looplimits.f90 \
 	m_berror_stats.F90 \
         m_berror_stats_reg.f90 \
-	m_dgeevx.F90 \
 	m_gsiBiases.F90 \
-	m_rerank.F90 \
-	m_stats.F90 \
-	m_tick.F90 \
-	mpeu_mpif.F90 \
-	mpeu_util.F90 \
-	missing_routines.f90 \
 	m_dtime.F90 \
 	m_gpsrhs.F90 \
 	m_obdiag.F90 \
 	m_rhs.F90 \
-	mod_nmmb_to_a.f90 \
-	mod_strong.f90 \
 	mod_vtrans.f90 \
 	model_ad.F90 \
 	model_tl.F90 \
 	model2control.f90 \
-	mp_compact_diffs_mod1.f90 \
-	mp_compact_diffs_support.f90 \
-	mpimod.F90 \
-	mpl_allreduce.F90 \
-	mpl_bcast.f90 \
-        ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \
-        ncepnems_io.f90 \
-	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
 	obs_ferrscale.F90 \
 	obs_para.f90 \
-	obs_sensitivity.F90 \
+	obs_sensitivity.f90 \
 	observer.F90 \
 	obsmod.F90 \
-	omegas_ad.f90 \
 	oneobmod.F90 \
 	ozinfo.f90 \
 	patch2grid_mod.f90 \
@@ -355,32 +418,19 @@ SRCS =	$(wildcard \
 	pcp_k.f90 \
 	pcpinfo.f90 \
 	penal.f90 \
-	phil.f90 \
-	phil1.f90 \
-	plib8.f90 \
-	polcarf.f90 \
-	prad_bias.f90 \
-	precond.f90 \
-	precpd_ad.f90 \
 	prewgt.f90 \
 	prewgt_reg.f90 \
 	projmethod_support.f90 \
 	prt_guess.f90 \
-	psichi2uv_reg.f90 \
-	psichi2uvt_reg.f90 \
 	q_diag.f90 \
 	qcmod.f90 \
-	qcssmi.f90 \
 	qnewton.f90 \
-	qnewton3.F90 \
+	qnewton3.f90 \
 	radinfo.f90 \
-	raflib.f90 \
-        rapidrefresh_cldsurf_mod.f90 \
-	rdgrbsst.f90 \
         read_aerosol.F90 \
 	read_airs.f90 \
 	read_amsre.f90 \
-        read_anowbufr.f90 \
+	read_anowbufr.f90 \
 	read_avhrr.f90 \
 	read_avhrr_navy.f90 \
 	read_bufrtovs.f90 \
@@ -393,6 +443,7 @@ SRCS =	$(wildcard \
 	read_gps.f90 \
 	read_guess.F90 \
 	read_iasi.f90 \
+        read_cris.f90 \
 	read_l2bufr_mod.f90 \
 	read_lag.F90 \
 	read_lidar.f90 \
@@ -417,12 +468,6 @@ SRCS =	$(wildcard \
 	read_wrf_nmm_guess.F90 \
 	regional_io.f90 \
         reorg_metar_cloud.f90 \
-	ret_ssmis.f90 \
-	retrieval_amsre.f90 \
-	retrieval_mi.f90 \
-	rfdpar.f90 \
-	rsearch.F90 \
-	rtlnmc_version3.f90 \
 	satthin.F90 \
 	setupbend.f90 \
 	setupco.f90 \
@@ -445,24 +490,19 @@ SRCS =	$(wildcard \
 	setuptcp.f90 \
 	setupw.f90 \
 	setupyobs.f90 \
-	sfc_model.f90 \
 	sfcobsqc.f90 \
-	simpin1.f90 \
-	simpin1_init.f90 \
+	skindepth.f90 \
 	smooth_polcarf.f90 \
 	smoothrf.f90 \
-	smoothwwrf.f90 \
 	smoothzrf.f90 \
         sqrtmin.f90 \
 	sst_retrieval.f90 \
 	state2control.f90 \
-	state_vectors.f90 \
 	statsco.f90 \
 	statsconv.f90 \
 	statsoz.f90 \
 	statspcp.f90 \
 	statsrad.f90 \
-	stop1.f90 \
 	stp3dvar.f90 \
 	stpcalc.f90 \
 	stpco.f90 \
@@ -473,7 +513,7 @@ SRCS =	$(wildcard \
 	stplimq.f90 \
 	stpoz.f90 \
 	stppcp.f90 \
-        stppm2_5.f90 \
+	stppm2_5.f90 \
 	stpps.f90 \
 	stppw.f90 \
 	stpq.f90 \
@@ -489,31 +529,17 @@ SRCS =	$(wildcard \
 	strong_baldiag_inc.f90 \
 	strong_fast_global_mod.f90 \
 	strong_slow_global_mod.f90 \
-        stub_pertmod.F90 \
-        stub_timermod.F90 \
 	sub2fslab_mod.f90 \
-	sub2grid.f90 \
 	support_2dvar.f90 \
-	tendsmod.f90 \
-	test_obsens.F90 \
+	test_obsens.f90 \
 	tcv_mod.f90 \
-	timermod.F90 \
-	tintrp2a.f90 \
-	tintrp3.f90 \
 	tpause.f90 \
 	tpause_t.F90 \
-	turbl.f90 \
-	turbl_ad.f90 \
-	turbl_tl.f90 \
-	turblmod.f90 \
 	tv_to_tsen.f90 \
-	unfill_mass_grid2.f90 \
-	unfill_nmm_grid2.f90 \
-	unhalf_nmm_grid2.f90 \
 	update_guess.f90 \
 	update_geswtend.f90 \
-	wind_fft.f90 \
 	wrf_binary_interface.F90 \
+	wrf_mass_guess_mod.F90 \
 	wrf_netcdf_interface.F90 \
 	write_all.F90 \
 	write_bkgvars_grid.f90 \
@@ -521,13 +547,15 @@ SRCS =	$(wildcard \
 	wrwrfmassa.F90 \
 	wrwrfnmma.F90 \
 	xhat_vordivmod.f90 \
-	zrnmi_mod.f90 \
-	blockIO.c bacio.v1.4.c $(GSIGC_SRCS) )
+	zrnmi_mod.f90 )
 
 
+SRCS = $(SRCS_UTIL) $(SRCS_SOLVER) $(GSIGC_SRCS)
 ALLSRCS = $(SRCS) gsimain.F90 prepbykx.f
 
-OBJS := $(addsuffix .o, $(basename $(SRCS)))
+OBJS_UTIL   := $(addsuffix .o, $(basename $(SRCS_UTIL)))
+OBJS_SOLVER := $(addsuffix .o, $(basename $(SRCS_SOLVER)))
+OBJS_GC     := $(addsuffix .o, $(basename $(GSIGC_SRCS)))
 DEPS := $(addsuffix .d, $(basename $(ALLSRCS)))
 
 _D = -D_GMAO_FVGSI_ -D_IGNORE_GRIDVERIFY_ $(GEOS_PERT)
@@ -542,16 +570,18 @@ FPE        =
 
 THIS_SP    = NCEP_sp_r8i4
 THIS_W3    = NCEP_w3_r8i4
-THIS_BACIO = # NCEP_bacio_r4i4
+THIS_BACIO = NCEP_bacio_r4i4
 THIS_BUFR  = NCEP_bufr_r8i4
 THIS_GFSIO = NCEP_gfsio
+THIS_NEMSIO= NCEP_nemsio
 LIB_GFSIO  = $(ESMADIR)/$(ARCH)/lib/lib$(THIS_GFSIO).a   # move to proper place
 INC_GFSIO  = $(ESMADIR)/$(ARCH)/include/$(THIS_GFSIO)   # move to proper place
 INC_BACIO  = # $(ESMADIR)/$(ARCH)/include/$(THIS_BACIO)   # move to proper place
 
 MOD_DIRS = . $(INC_ESMF) $(INC_CRTM)              \
-	     $(INC_SIGIO) $(INC_GFSIO) $(INC_BACIO) \
+	     $(INC_SIGIO) $(INC_GFSIO) $(INC_BACIO) $(INC_NEMSIO) \
 	     $(INC_SFCIO) $(INC_GEOS) $(INC_MPI)
+USER_FINCS = $(foreach dir,$(MOD_DIRS), $(I)$(dir))
 USER_FDEFS = $(_D) $(HAVE_ESMF)
 USER_FFLAGS = -CB $(BIG_ENDIAN) $(BYTERECLEN)
 USER_FFLAGS = $(BYTERECLEN)
@@ -562,24 +592,34 @@ USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir))
 
 vpath % $(MOD_DIRS)
 
-$(LIB) lib : $(OBJS)
+$(LIBgsi_util) : $(OBJS_UTIL)
+	$(RM) $(LIBgsi_util)
+	$(AR) $(AR_FLAGS) $(LIBgsi_util) $(OBJS_UTIL)
+
+$(LIBgsi_solver) : $(OBJS_SOLVER)
+	$(RM) $(LIBgsi_solver)
+	$(AR) $(AR_FLAGS) $(LIBgsi_solver) $(OBJS_SOLVER)
+
+$(LIB) lib : $(LIBgsi_util) $(LIBgsi_solver) $(OBJS_GC)
 	$(RM) $(LIB)
-	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
+	$(AR) $(AR_FLAGS) $(LIB) $(OBJS_GC)
 
 %.x : $(LIB) %.o 
 	$(LD) $(LDFLAGS) -o $@ $*.o $(LIB) $(LIB_SYS)
 
-gsi.x:  $(OBJS) $(LIB) gsimain.o
-	$(FC) $(LDFLAGS) -o gsi.x gsimain.o $(LIB) $(LIB_CRTM)              \
-	     $(LIB_SFCIO)  $(LIB_BUFR) $(LIB_GFSIO) $(LIB_SIGIO) \
-	     $(LIB_SP) $(LIB_W3) $(LIB_GMAO) \
-	     $(LIB_SDF) $(LIB_MPI) $(LIB_SCI) $(LIB_SYS)
+gsi.x:  $(LIBgsi_util)  $(LIBgsi_solver) gsimain.o
+	$(FC) $(LDFLAGS) -o gsi.x gsimain.o $(LIBgsi_solver) $(LIBgsi_util) $(LIB_CRTM)  \
+	     $(LIB_SFCIO)  $(LIB_BUFR) $(LIB_NEMSIO) $(LIB_BACIO) $(LIB_GFSIO) $(LIB_SIGIO) \
+	     $(LIB_SP) $(LIB_W3) \
+	     $(LIB_MPI) $(LIB_SCI) $(LIB_SYS)
 
 ut_gsibundle.x:  $(OBJS) $(LIB) ut_gsibundle.o
-	$(FC) $(LDFLAGS) -o ut_gsibundle.x ut_gsibundle.o $(LIB) $(LIB_CRTM)              \
-	     $(LIB_SFCIO)  $(LIB_BUFR) $(LIB_GFSIO) $(LIB_SIGIO) \
-	     $(LIB_SP) $(LIB_W3) $(LIB_GMAO) \
-	     $(LIB_SDF) $(LIB_MPI) $(LIB_SCI) $(LIB_SYS)
+	$(FC) $(LDFLAGS) -o ut_gsibundle.x ut_gsibundle.o $(LIBgsi_util) \
+	     $(LIB_MPI) $(LIB_SCI) $(LIB_SYS)
+
+fFLAGSx = $(patsubst -convert big_endian,,$(fFLAGS))
+prepbykx.o : prepbykx.f
+	$(ESMA_TIMER) $(FC) -c $(fFLAGSx) $<
 
 prepbykx.x: prepbykx.o
 	$(LD) $(LDFLAGS) -o prepbykx.x prepbykx.o $(LIB_BUFR)
@@ -587,16 +627,6 @@ prepbykx.x: prepbykx.o
 blockIO.o : blockIO.c
 	@echo '---> Special handling of C code $<'
 	$(CC) $(USER_CFLAGS) -c $<
-
-bacio.v1.4.o : bacio.v1.4.c
-	@echo '---> Special handling of C code $<'
-	$(CC) -DLINUX -c $<
-
-	# Bypass .c.d: rule, which won't produce bacio.v1.4.d, but only useless bacio.d
-bacio.v1.4.d : bacio.v1.4.c
-	@echo "Building dependency file" $@
-	@echo "$@ : $<" >$@
-	@echo "`basename $@ .d`.o : $<" >>$@
 
 blockIO.d : blockIO.c
 	@ touch $@
@@ -606,9 +636,11 @@ blockIO.d : blockIO.c
 
 OBJS_OPENBUFR	= read_airs.o		\
 		  read_amsre.o		\
+		  read_anowbufr.o       \
 		  read_avhrr.o		\
 		  read_avhrr_navy.o	\
 		  read_bufrtovs.o	\
+		  read_cris.o		\
 		  read_goesimg.o	\
 		  read_goesndr.o	\
 		  read_gps.o		\
@@ -654,7 +686,9 @@ FFLAGS_OPENBIG = $(BIG_ENDIAN) $(f90FLAGS)
 #                     Documentation
 #                  --------------------
 
-PDF_DOCS = GSI_BundleUserGuide.pdf
+#PDF_DOCS = GSI_BundleUserGuide.pdf GSI_ChemGuess_Mod.pdf
+PDF_DOCS = GSI_ChemGuess_Mod.pdf GSI_MetGuess_Mod.pdf
+PDF_DOCS = GSI_MetGuess_Mod.pdf
 
 esma_doc doc: $(PDF_DOCS)
 
@@ -664,6 +698,12 @@ GSI_BundleUserGuide.tex: $(UG_SRCS)
 	$(PROTEX) -g ut_gsibundle.F90 > ut_gsibundle.tex
 	$(PROTEX) -g -b -f $(UG_SRCS) > GSI_BundleUserGuide___.tex
 	$(CAT) ut_gsibundle.tex GSI_BundleUserGuide___.tex > GSI_BundleUserGuide.tex
+
+GSI_ChemGuess_Mod.tex: gsi_chemguess_mod.F90
+	$(PROTEX) -g gsi_chemguess_mod.F90  > GSI_ChemGuess_Mod.tex
+
+GSI_MetGuess_Mod.tex: gsi_metguess_mod.F90
+	$(PROTEX) -g gsi_metguess_mod.F90  > GSI_MetGuess_Mod.tex
 
 # Hack to prevent remaking dep files during cleaning
 # --------------------------------------------------

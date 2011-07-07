@@ -17,6 +17,8 @@ subroutine inc2guess(sval)
 !   2010-05-13  todling - update to use gsi_bundle
 !   2010-06-01  todling - only upd when pointer defined
 !   2010-06-15  todling - generalize handling of chemistry
+!   2010-05-01  todling - add support for generalized guess (use met-guess)
+!                       - cwmr now in met-guess
 !
 !   input argument list:
 !     sval     - analysis increment in grid space
@@ -33,7 +35,7 @@ subroutine inc2guess(sval)
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
   use gridmod, only: lat2,lon2,nsig
-  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
+  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
        ges_oz,ges_u,ges_v,nfldsig,hrdifsig,&
        nfldsfc,sfct
   use state_vectors, only: svars3d,svars2d
@@ -41,9 +43,10 @@ subroutine inc2guess(sval)
   use xhat_vordivmod, only: xhat_vor,xhat_div
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use gsi_bundlemod, only: gsi_bundleputvar
-  use gsi_chemtracer_mod, only: gsi_chem_bundle
-  use gsi_chemtracer_mod, only: gsi_chemtracer_get
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_metguess_mod, only: gsi_metguess_get
+  use gsi_chemguess_mod, only: gsi_chemguess_bundle
+  use gsi_chemguess_mod, only: gsi_chemguess_get
   use mpeu_util, only: getindex
 
   implicit none
@@ -53,10 +56,10 @@ subroutine inc2guess(sval)
 
 ! Declare local variables
   character(len=10),allocatable,dimension(:) :: gases
-  integer(i_kind) i,j,k,it,ii,ier,ic,id,ngases,istatus
+  character(len=10),allocatable,dimension(:) :: guess
+  integer(i_kind) i,j,k,it,ii,ic,id,ngases,nguess,istatus
   integer(i_kind) i_u,i_v,i_t,i_q,i_oz,i_cw,i_ps,i_sst
-  real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
-  real(r_kind),pointer,dimension(:,:)   :: sv_rank2
+  integer(i_kind) ipinc,ipges
   real(r_kind) :: zt
 
 ! Get pointers (enough to get for 1st instance)
@@ -69,11 +72,18 @@ subroutine inc2guess(sval)
   call gsi_bundlegetpointer(sval(1),'ps', i_ps, istatus)
   call gsi_bundlegetpointer(sval(1),'sst',i_sst,istatus)
 
-! Inquire about chemistry
-call gsi_chemtracer_get('dim',ngases,istatus)
+! Inquire about guess fields
+call gsi_metguess_get('dim',nguess,istatus)
+if (nguess>0) then  
+    allocate(guess(nguess))
+    call gsi_metguess_get('gsinames',guess,istatus)
+endif
+
+! Inquire about chemistry fields
+call gsi_chemguess_get('dim',ngases,istatus)
 if (ngases>0) then  
     allocate(gases(ngases))
-    call gsi_chemtracer_get('list',gases,istatus)
+    call gsi_chemguess_get('gsinames',gases,istatus)
 endif
 
 !*******************************************************************************
@@ -89,9 +99,8 @@ endif
      call copyfld_(ges_u,   i_u)
      call copyfld_(ges_v,   i_v)
      call copyfld_(ges_tv,  i_t)
-     call copyfld_(ges_q,   i_q)
+     call copyfld2_(ges_q,   i_q)
      call copyfld_(ges_oz,  i_oz)
-     call copyfld_(ges_cwmr,i_cw)
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
@@ -107,16 +116,36 @@ endif
            end do
         end do
      end if
+
+!    Update met-guess
+     do ic=1,nguess
+        id=getindex(svars3d,guess(ic))
+        if (id>0) then
+           call gsi_bundlegetpointer (sval(ii),               guess(ic),ipinc,istatus)
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ipges,istatus)
+           gsi_metguess_bundle(it)%r3(ipges)%q = sval(ii)%r3(ipinc)%q 
+        endif
+        id=getindex(svars2d,guess(ic))
+        if (id>0) then
+           call gsi_bundlegetpointer (sval(ii),               guess(ic),ipinc,istatus)
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ipges,istatus)
+           gsi_metguess_bundle(it)%r2(ipges)%q = sval(ii)%r2(ipinc)%q 
+        endif
+     enddo
+
+!    Update trace gases
      do ic=1,ngases
         id=getindex(svars3d,gases(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(it),           gases(ic),sv_rank3,istatus)
-           call gsi_bundleputvar     (gsi_chem_bundle(it),gases(ic),sv_rank3,istatus)
+           call gsi_bundlegetpointer (sval(ii),                gases(ic),ipinc,istatus)
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ipges,istatus)
+           gsi_chemguess_bundle(it)%r3(ipges)%q = sval(ii)%r3(ipinc)%q 
         endif
         id=getindex(svars2d,gases(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(it),           gases(ic),sv_rank2,istatus)
-           call gsi_bundleputvar     (gsi_chem_bundle(it),gases(ic),sv_rank2,istatus)
+           call gsi_bundlegetpointer (sval(ii),                gases(ic),ipinc,istatus)
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ipges,istatus)
+           gsi_chemguess_bundle(it)%r2(ipges)%q = sval(ii)%r2(ipinc)%q 
         endif
      enddo
   end do
@@ -150,4 +179,18 @@ endif
         end do
      end do
   end subroutine copyfld_
+  subroutine copyfld2_(fld,ipnt)
+  real(r_kind) :: fld(:,:,:,:)
+  real(r_kind) :: ana
+  integer(i_kind) :: ipnt
+  if(ipnt<0) return
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              ana = max(fld(i,j,k,it)+ sval(ii)%r3(ipnt)%q(i,j,k),1.e-10_r_kind)
+              fld(i,j,k,it) = ana - fld(i,j,k,it)
+           end do
+        end do
+     end do
+  end subroutine copyfld2_
 end subroutine inc2guess

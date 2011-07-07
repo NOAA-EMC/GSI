@@ -75,6 +75,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2010-04-28      zhu - add ostats and rstats for additional precoditioner
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !   2010-10-14  pagowski - added pm2_5 conventional obs
+!   2011-04-07  todling - newpc4pred now in radinfo
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -101,7 +102,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
        dirname,write_diag,nprof_gps,ditype,obsdiags,lobserver,&
        destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated
   use obs_sensitivity, only: lobsensfc, lsensrecompute
-  use berror, only: newpc4pred
+  use radinfo, only: newpc4pred
   use radinfo, only: mype_rad,diag_rad,jpch_rad,retrieval,fbias,npred,ostats,rstats
   use pcpinfo, only: diag_pcp
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz

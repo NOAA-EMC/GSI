@@ -11,6 +11,7 @@ module mpeu_util
 ! program history log:
 !   2010-03-17  j guo   - added this document block
 !   2010-05-30  todling - add some real dirty mimic of i90's table read 
+!   2010-87-19  todling - remove reference to abor1
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -39,8 +40,7 @@ module mpeu_util
 
 #define USE_MPI
 #ifdef USE_MPI
-!#define USE_MPI_ABORT
-#define USE_GSI_ABOR1
+#define USE_MPI_ABORT
 #endif
 
 #define INCLUDE_MPOUT
@@ -860,18 +860,13 @@ subroutine dropdead_()
   character(len=05):: czone
 
   call date_and_time(date=cdate,time=ctime,zone=czone)
-  call mprint(stdout,'dropdead',ctime//'('//czone//') '//cdate)
-  call mprint(stderr,'dropdead',ctime//'('//czone//') '//cdate)
+  call mprint(stdout,'dropdead','at '//cdate//':'//ctime//'(z'//czone//'00)')
+  call mprint(stderr,'dropdead','at '//cdate//':'//ctime//'(z'//czone//'00)')
 
 #ifdef USE_MPI_ABORT
   call mpi_abort(mpi_comm_world,myer,ier)
 #else
-  ! this is a GSI_GridComp::abort()
-# ifdef USE_GSI_ABOR1
-    call abor1(myname//"::dropdead_()")
-# else
-    call exit(myer)
-# endif
+  call exit(myer)
 #endif
 end subroutine dropdead_
 

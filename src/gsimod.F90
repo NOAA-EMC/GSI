@@ -23,13 +23,14 @@
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
-                       l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,&
-                       lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,lgrtest,&
-                       idmodel,clean_4dvar,lwrtinc,lanczosave,jsiga
+                       l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,iorthomax,&
+                       lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,lgrtest,&
+                       idmodel,clean_4dvar,iwrtinc,lanczosave,jsiga,ltcost
   use obs_ferrscale, only: lferrscale
   use mpimod, only: npe,mpi_comm_world,ierror,init_mpi_vars,destroy_mpi_vars,mype
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,&
-                       use_edges,passive_bc
+                       use_edges,passive_bc,newpc4pred,final_rad_vars
+  use radinfo, only: nst_gsi,nstinfo,nst_tzr,fac_dtl,fac_tsl,tzr_bufrsave
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
   use aeroinfo, only: diag_aero, init_aero
@@ -46,7 +47,7 @@
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,&
       erradar_inflate,use_poq7,&
-      repe_dw,init_qcvars,vadfile,noiqc,c_varqc
+      repe_dw,init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
@@ -54,14 +55,14 @@
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,nrf_var
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
-     bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj,newpc4pred
+     bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj
   use anberror, only: anisotropic,ancovmdl,init_anberror,npass,ifilt_ord,triad4, &
      binom,normal,ngauss,rgauss,anhswgt,an_vs,&
      grid_ratio,grid_ratio_p,an_flen_u,an_flen_t,an_flen_z, &
      rtma_subdomain_option,nsmooth,nsmooth_shapiro,&
      pf2aP1,pf2aP2,pf2aP3,afact0,covmap,lreadnorm
   use compact_diffs, only: noq,init_compact_diffs
-  use jcmod, only: init_jcvars,ljcdfi,alphajc,ljcpdry,bamp_jcpdry
+  use jcmod, only: init_jcvars,ljcdfi,alphajc,ljcpdry,bamp_jcpdry,eps_eer
   use tendsmod, only: ctph0,stph0,tlm0
   use mod_vtrans, only: nvmodes_keep,init_vtrans
   use mod_strong, only: jcstrong,jcstrong_option,nstrong,&
@@ -89,11 +90,11 @@
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,init_rapidrefresh_cldsurf, &
+  use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs
-  use gsi_chemtracer_mod, only: gsi_chemtracer_init,gsi_chemtracer_final
-  use gsi_4dcouplermod, only: gsi_4dcoupler_parallel_init
+  use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
+  use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_oberr,tcp_innmax,tcp_oedelt
   use chemmod, only : init_chem,berror_chem,oneobtest_chem,&
        maginnov_chem,magoberr_chem,&
@@ -188,12 +189,22 @@
 !  08-10-2010 Wu        add nvege_type to gridopts namelist 
 !  08-24-2010 hcHuang   add diag_aero and init_aero for aerosol observations
 !  08-26-2010 Cucurull  add use_compress to setup namelist, add a call to gps_constants
+!  09-06-2010 Todling   add Errico-Ehrendorfer parameter for E-norm used in DFI
+!  09-03-2010 Todling   add opt to output true J-cost from within Lanczos (beware: expensive)
+!  10-05-2010 Todling   add lbicg option
 !  09-02-2010 Zhu       Add option use_edges for the usage of radiance data on scan edges
 !  10-18-2010 hcHuang   Add option use_gfs_nemsio to read global model NEMS/GFS first guess
 !  11-17-2010 Pagowski  add chemical species and related namelist
 !  12-20-2010 Cucurull  add nsig_ext to setup namelist for the usage of gpsro bending angle
 !  01-05-2011 Cucurull  add gpstop to setup namelist for the usage of gpsro data assimilation
-!                         
+!  04-08-2011 Li        (1) add integer variable nst_gsi and nstinfo for the use of oceanic first guess
+!                       (2) add integer variable fac_dtl & fac_tsl to control the use of NST model
+!                       (3) add integer variable nst_tzr to control the Tzr QC
+!                       (4) add integer tzr_bufrsave to control if save Tz retrieval or not
+!  04-07-2011 todling   move newpc4pred to radinfo
+!  04-19-2011 El Akkraoui add iorthomax to control numb of vecs in orthogonalization for CG opts
+!  05-21-2011 todling   add call to setservice
+!
 !EOP
 !-------------------------------------------------------------------------
 
@@ -228,12 +239,22 @@
 !     l4dvar           - turn 4D-Var on/off (default=off=3D-Var)
 !     jsiga            - calculate approximate analysis errors from lanczos for jiter=jsiga
 !     idmodel          - uses identity model when running 4D-Var (test purposes)
-!     lwrtinc          - when .t., writes out increments instead of analysis
+!     iwrtinc          - when >0, writes out increments from iwrtinc-index slot
 !     nhr_obsbin       - length of observation bins
 !     nhr_subwin       - length of weak constraint 4d-Var sub-window intervals
 !     iout_iter- output file number for iteration information
 !     npredp   - number of predictors for precipitation bias correction
 !     retrieval- logical to turn off or on the SST physical retrieval
+!     nst_gsi  - indicator to control the Tr Analysis mode: 0 = no nst info ingsi at all;
+!                                                           1 = input nst info, but used for monitoring only
+!                                                           2 = input nst info, and used in CRTM simulation, but no Tr analysis
+!                                                           3 = input nst info, and used in CRTM simulation and Tr analysis is on
+!     nst_tzr  - indicator to control the Tzr_QC mode: 0 = no Tz retrieval;
+!                                                      1 = Do Tz retrieval and applied to QC
+!     nstinfo  - number of nst variables
+!     fac_dtl  - index to apply diurnal thermocline layer  or not: 0 = no; 1 = yes.
+!     fac_tsl  - index to apply thermal skin layer or not: 0 = no; 1 = yes.
+!     tzr_bufrsave - logical to turn off or on the bufr Tz retrieval file true=on
 !     diag_rad - logical to turn off or on the diagnostic radiance file true=on
 !     diag_conv-logical to turn off or on the diagnostic conventional file (true=on)
 !     diag_ozone - logical to turn off or on the diagnostic ozone file (true=on)
@@ -241,6 +262,7 @@
 !     diag_co - logical to turn off or on the diagnostic carbon monoxide file (true=on)
 !     write_diag - logical to write out diagnostic files on outer iteration
 !     lobsdiagsave - write out additional observation diagnostics
+!     ltlint       - linearize inner loop
 !     lobskeep     - keep obs from first outer loop for subsequent OL
 !     lobsensfc    - compute forecast sensitivity to observations
 !     lobsensjb    - compute Jb sensitivity to observations
@@ -249,10 +271,12 @@
 !     llancdone    - use to tell adjoint that Lanczos vecs have been pre-computed
 !     lsensrecompute - does adjoint by recomputing forward solution
 !     lobsensmin   - use minimisation to compute obs sensitivity
+!     lbicg        - use B-precond w/ bi-conjugate gradient for minimization
 !     iobsconv     - compute convergence test in observation space
 !                     =1 at final point, =2 at every iteration
 !     lobserver    - when .t., calculate departure vectors only
 !     lanczosave   - save lanczos vectors for forecast sensitivity computation
+!     ltcost       - calculate true cost when using Lanczos (this is very expensive)
 !     lferrscale   - apply H'R^{-1}H to a forecast error vector read on the fly
 !     iguess   - flag for guess solution (currently not working)
 !                iguess = -1  do not use guess file
@@ -314,6 +338,7 @@
        ndat,niter,niter_no_qc,miter,qoption,nhr_assimilation,&
        min_offset, &
        iout_iter,npredp,retrieval,&
+       nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave,&
        diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess, &
        write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
@@ -325,10 +350,10 @@
        crtm_coeffs_path, &
        berror_stats,newpc4pred,adp_anglebc,angord,passive_bc,use_edges, &
        lobsdiagsave, &
-       l4dvar,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
-       nwrvecs,ladtest,lgrtest,lobskeep,lsensrecompute,jsiga, &
+       l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
+       nwrvecs,iorthomax,ladtest,lgrtest,lobskeep,lsensrecompute,jsiga,ltcost, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
-       idmodel,lwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
+       idmodel,iwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt, use_gfs_nemsio
@@ -443,9 +468,10 @@
 !     alphajc     - parameter for digital filter
 !     ljpdry      - when .t. uses dry pressure constraint on increment
 !     bamp_jcpdry - parameter for pdry_jc
+!     eps_eer     - Errico-Ehrendofer parameter for q-term in energy norm
 !
 
-  namelist/jcopts/ljcdfi,alphajc,switch_on_derivatives,tendsflag,ljcpdry,bamp_jcpdry
+  namelist/jcopts/ljcdfi,alphajc,switch_on_derivatives,tendsflag,ljcpdry,bamp_jcpdry,eps_eer
 
 ! STRONGOPTS (strong dynamic constraint)
 !     jcstrong - if .true., strong contraint on
@@ -490,9 +516,10 @@
 !     tcp_oberr  - observation error (without inflation) for tcps obs in mb
 !     tcp_innmax - parameter for tcps oberr inflation (max innovation for inflation) in mb
 !     tcp_oedelt - parameter for tcps oberr inflation (delta oberr over tcp_oberr) in mb
+!     qc_noirjaco3 - controls whether to use O3 Jac from IR instruments
 
   namelist/obsqc/ repe_dw,dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
-       c_varqc,blacklst,use_poq7,hilbert_curve,tcp_oberr,tcp_innmax,tcp_oedelt
+       c_varqc,blacklst,use_poq7,hilbert_curve,tcp_oberr,tcp_innmax,tcp_oedelt,qc_noirjaco3
 
 ! OBS_INPUT (controls input data):
 !      dfile(ndat)      - input observation file name
@@ -577,11 +604,10 @@
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
-!      l_cloud_analysis     -   if .true., turn cloud analysis on
 !      dfi_radar_latent_heat_time_period     -   DFI forward integration window in minutes
 !      metar_impact_radius  - metar low cloud observation impact radius in grid number
 !      l_gsd_terrain_match_surfTobs - if .true., GSD terrain match for surface temperature observation
-  namelist/rapidrefresh_cldsurf/l_cloud_analysis,dfi_radar_latent_heat_time_period, &
+  namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowCloud, &
                                 l_gsd_terrain_match_surfTobs
 
@@ -611,9 +637,11 @@
 ! Begin gsi code
 !
   use mpeu_util,only: die
+  use gsi_4dcouplermod, only: gsi_4dcoupler_parallel_init
+  use gsi_4dcouplermod, only: gsi_4dcoupler_setservices
   implicit none
   character(len=*),parameter :: myname_='gsimod.gsimain_initialize'
-  integer:: ios
+  integer:: ier,ios
 
   call gsi_4dcoupler_parallel_init
 
@@ -626,9 +654,10 @@
   call init_4dvar
 
 ! Read in user specification of state and control variables
+  call gsi_metguess_init
+  call gsi_chemguess_init
   call init_anasv
   call init_anacv
-  call gsi_chemtracer_init
 
   call init_constants_derived
   call init_oneobmod
@@ -717,7 +746,10 @@
 
 ! 4D-Var setup
   call setup_4dvar(miter,mype)
-  if (.not. l4dvar) then
+  if (l4dvar) then
+     if(reduce_diag) &
+     call die(myname_,'Options l4dvar and reduce_diag not allowed together',99)
+  else 
      ljcdfi=.false.
   endif
   if (l4dvar.and.lsensrecompute) then
@@ -735,6 +767,11 @@
      write(6,*)'gsimod: analysis error estimate requires congrad',jsiga,lcongrad
      call stop2(137)
   endif
+
+#ifndef HAVE_ESMF
+  call gsi_4dcoupler_setservices(rc=ier)
+         if(ier/=0) call die(myname_,'gsi_4dcoupler_setServices(), rc =',ier)
+#endif /* HAVE_ESMF */
 
 
 ! Check user input for consistency among parameters for given setups.
@@ -788,7 +825,6 @@
      use_limit = 0
   end if
   if(reduce_diag) use_limit = 0
-
 
   if (mype==0 .and. limit) &
        write(6,*)'GSIMOD:  reset time window for one or ',&
@@ -1003,12 +1039,14 @@
 
   implicit none
 ! Deallocate arrays
+  call final_rad_vars
   call clean_4dvar
   call destroy_obsmod_vars
   call destroy_mpi_vars
-  call gsi_chemtracer_final
   call final_anacv
   call final_anasv
+  call gsi_chemguess_final
+  call gsi_metguess_final
 
 ! Done with GSI.
   if (mype==0)  call w3tage('GSI_ANL')

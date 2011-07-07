@@ -166,7 +166,7 @@ contains
     return
   end subroutine make3grids
 
-  subroutine map3grids(pflag,pcoord,nlevp,dlat_earth,dlon_earth,pob,crit1,ithin,iobs,&
+  subroutine map3grids(flg,pflag,pcoord,nlevp,dlat_earth,dlon_earth,pob,crit1,ithin,iobs,&
             iobsout,iin,iiout,iuse)
 
 !$$$  subprogram documentation block
@@ -215,7 +215,7 @@ contains
     implicit none
     
     logical                      ,intent(  out) :: iuse
-    integer(i_kind)              ,intent(in   ) :: ithin,nlevp,pflag,iin
+    integer(i_kind)              ,intent(in   ) :: ithin,nlevp,pflag,flg,iin
     integer(i_kind)              ,intent(inout) :: iobs
     integer(i_kind)              ,intent(  out) :: iobsout,iiout
     real(r_kind)                 ,intent(in   ) :: dlat_earth,dlon_earth,crit1,pob
@@ -246,7 +246,7 @@ contains
     dlon1=dlon_earth
     pob1=pob
 
-    call grdcrd(pob1,1,pcoord,nlevp,-1)
+    call grdcrd(pob1,1,pcoord,nlevp,flg)
     ip=int(pob1)
     dp=pob1-ip
     ip=max(1,min(ip,nlevp))

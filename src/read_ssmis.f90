@@ -42,6 +42,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2009-01-09  gayno   - new option to calculate surface fields within FOV
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
+!                         (2) get zob, tz_tr (call skindepth and cal_tztr)
+!                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
+!                         (4) add more elements (nstinfo) in data array
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -74,10 +78,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
              checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,jpch_rad,nusis
+  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
        tll2xy,txy2ll
-  use constants, only: deg2rad,rad2deg,izero,ione,zero,half,one,two,four,r60inv
+  use constants, only: deg2rad,rad2deg,zero,half,one,two,four,r60inv
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_conical, only: instrument_init
   
@@ -133,6 +137,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) disterr,disterrmax,dlon00,dlat00
   real(r_kind) :: fovn
@@ -160,15 +165,18 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Initialize variables
   lnbufr = 15_i_kind
   disterrmax=zero
-  ntest  = izero
-  nreal  = maxinfo
+  ntest  = 0
+
   nchanl = maxchanl
-  ndata  = izero
-  nodata = izero
-  nread  = izero
-  nfov_bad = izero
+  ndata  = 0
+  nodata = 0
+  nread  = 0
+  nfov_bad = 0
   ilon=3_i_kind
   ilat=4_i_kind
+  if (nst_gsi > 0 ) then
+    call skindepth(obstype,zob)
+  endif
   r07 = 0.7_r_kind * deg2rad
 
 ! If all channels of a given sensor are set to monitor or not
@@ -178,7 +186,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   assim=.false.
   search: do i=1,jpch_rad
-     if ((nusis(i)==sis) .and. (iuse_rad(i)>izero)) then
+     if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
         assim=.true.
         exit search
      endif
@@ -207,7 +215,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      incangl = 53.0_r_kind
   else if(ssmis_img) then
      nscan  = mxscen_img
-     ifovoff = izero
+     ifovoff = 0
      incangl = 53.0_r_kind
 ! env:90
   else if(ssmis_env) then
@@ -239,15 +247,16 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Write header record to scratch file.  Also allocate array
 ! to hold all data for given satellite
-  nele=nreal+nchanl
+  nreal  = maxinfo + nstinfo
+  nele   = nreal   + nchanl
   allocate(data_all(nele,itxmax))
 
-  if (isfcalc == ione) then
+  if (isfcalc == 1) then
      if (trim(jsatid) == 'f16') instr=26_i_kind
      if (trim(jsatid) == 'f17') instr=27_i_kind
 ! right now, all ssmis data is mapped to a common fov -
 ! that of the las channels.
-     ichan = ione
+     ichan = 1
      expansion = 2.9_r_kind
      sat_aziang = 90.0_r_kind  ! 'fill' value; need to get this from file
      call instrument_init(instr, jsatid, expansion)
@@ -255,15 +264,15 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Big loop to read data file
-  next=izero
-  read_subset: do while(ireadmg(lnbufr,subset,idate)>=izero)
-     next=next+ione
-     if(next == npe_sub)next=izero
+  next=0
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
+     next=next+1
+     if(next == npe_sub)next=0
      if(next/=mype_sub) cycle
-     read_loop: do while(ireadsb(lnbufr)==izero)
+     read_loop: do while(ireadsb(lnbufr)==0)
 
 !       BUFR read 1/3
-        call ufbint(lnbufr,bufrinit,7_i_kind,ione,nlv, &
+        call ufbint(lnbufr,bufrinit,7_i_kind,1,nlv, &
              "SAID SECO SLNM FOVN RSURF RAINF ORBN" )
 
 !       Extract satellite id.  If not the one we want, read next record
@@ -278,7 +287,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         if(ifov>nscan) then
 !           write(6,*) 'READ_SSMIS(',obstype,'): unreliable FOV number fovn=',fovn, &
 !                ' ifov=',ifov
-           nfov_bad = nfov_bad+ione
+           nfov_bad = nfov_bad+1
            cycle read_loop
         end if
 
@@ -287,10 +296,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       SSMIS imager has 180 scan positions.  Select every other position.
 !        if(ssmis_img) then
-!           if (mod(ifov,2_i_kind)/=izero) then
+!           if (mod(ifov,2_i_kind)/=0) then
 !              cycle read_loop
 !           else
-!              ifov = min(max(ione,nint(float(ifov)/two + half)),90_i_kind)
+!              ifov = min(max(1,nint(float(ifov)/two + half)),90_i_kind)
 !           endif
 !        endif
 
@@ -317,7 +326,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       BUFR read 3/3
         call ufbrep(lnbufr,bufrloc,  2_i_kind,29_i_kind,      nlv,"CLAT CLON" )
         call ufbrep(lnbufr,bufrtbb,  2_i_kind,maxchanl,       nlv,"CHNM TMBR" )
-!       call ufbrep(lnbufr,bufrinfo, ione,3_i_kind,           nlv,"SELV" )
+!       call ufbrep(lnbufr,bufrinfo, 1,3_i_kind,           nlv,"SELV" )
 !       call ufbrep(lnbufr,bufrlleaa,2_i_kind,28_i_kind,      nlv,"RAIA BEARAZ" )
         
 !       Regional case
@@ -336,7 +345,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
            if(diagnostic_reg) then
               call txy2ll(dlon,dlat,dlon00,dlat00)
-              ntest=ntest+ione
+              ntest=ntest+1
               disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
                    (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
               disterrmax=max(disterrmax,disterr)
@@ -349,22 +358,22 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         else
            dlat=dlat_earth
            dlon=dlon_earth
-           call grdcrd(dlat,ione,rlats,nlat,ione)
-           call grdcrd(dlon,ione,rlons,nlon,ione)
+           call grdcrd(dlat,1,rlats,nlat,1)
+           call grdcrd(dlon,1,rlons,nlon,1)
         endif
 
 !       Transfer observed brightness temperature to work array.  
 !       If any temperature exceeds limits, reset observation 
 !       to "bad" value
-        iskip=izero
+        iskip=0
         do jc=1,maxchanl
            bch=int( bufrtbb(1,jc)+MILLI ) !ch index from bufr
            if(bch/=jc) cycle read_loop
            tbob(jc) = bufrtbb(2,jc)
            if(tbob(jc)<tbmin .or. tbob(jc)>tbmax) then
-              iskip = iskip + ione
+              iskip = iskip + 1
            else
-              nread=nread+ione
+              nread=nread+1
            end if
         end do
         
@@ -395,7 +404,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                 (1) - land percentage
 !                 (2) - sea ice percentage
 !                 (3) - snow percentage
-        if (isfcalc==ione) then
+        if (isfcalc==1) then
 
            call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
                               dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
@@ -421,7 +430,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         endif ! isfcalc==1
 
 
-
         crit1 = crit1 + rlndsea(isflg)
         call checkob(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
@@ -434,6 +442,19 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         call finalcheck(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
+
+!
+!       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!
+        if ( nst_gsi > 0 ) then
+          tref  = ts(0)
+          dtw   = zero
+          dtc   = zero
+          tz_tr = one
+          if ( sfcpct(0) > zero ) then
+            call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+          endif
+        endif
 
         data_all( 1,itx)= rsat                 ! satellite id
         data_all( 2,itx)= t4dv                 ! time diff between obs and anal (min)
@@ -466,9 +487,16 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         data_all(29,itx)= ff10                 ! ten meter wind factor
         data_all(30,itx)= dlon_earth_deg       ! earth relative longitude (degrees)
         data_all(31,itx)= dlat_earth_deg       ! earth relative latitude (degrees)
+        data_all(maxinfo-1,itx)=val_ssmis
+        data_all(maxinfo,itx)=itt
 
-        data_all(nreal-ione,itx)=val_ssmis
-        data_all(nreal,itx)=itt
+        if ( nst_gsi > 0 ) then
+          data_all(maxinfo+1,itx) = tref         ! foundation temperature
+          data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
+          data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
+          data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+        endif
+
         do jc=1,maxchanl
            data_all(nreal+jc,itx) = tbob(jc)
         end do
@@ -486,7 +514,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root.and.ndata>izero) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -494,9 +522,9 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      do n=1,ndata
         do i=1,nchanl
            if(data_all(i+nreal,n) > tbmin .and. &
-              data_all(i+nreal,n) < tbmax)nodata=nodata+ione
+              data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(nreal,n))
+        itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_ssmis
 
      end do
@@ -514,10 +542,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 1000 continue
   call destroygrids
     
-  if(diagnostic_reg .and. ntest>izero .and. mype_sub==mype_root) &
+  if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
        write(6,*)'READ_SSMIS:  mype,ntest,disterrmax=',&
        mype,ntest,disterrmax
-  if (nfov_bad>izero) &
+  if (nfov_bad>0) &
        write(6,*)'READ_SSMIS(',obstype,'):  found ',nfov_bad,' questionable fov'
   
 ! End of routine

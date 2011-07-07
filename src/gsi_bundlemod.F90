@@ -9,8 +9,8 @@ module GSI_BundleMod
    
 ! !USES:
 
-   use kinds, only: i_kind, r_kind,r_quad
-   use constants, only: zero,zero_quad
+   use kinds, only: i_kind, r_kind,r_single,r_quad
+   use constants, only: zero,zero_single,zero_quad
    use m_rerank, only: rerank
 
    implicit none
@@ -19,9 +19,9 @@ module GSI_BundleMod
 !
 ! !PUBLIC MEMBER FUNCTIONS:
 !
-   public GSI_1D
-   public GSI_2D
-   public GSI_3D
+!  public GSI_1D
+!  public GSI_2D
+!  public GSI_3D
    public GSI_Bundle           ! Bundle
    public GSI_BundleCreate     ! Create a Bundle
    public GSI_BundleDPlevs     ! dot product w/ possible "halo"
@@ -65,22 +65,32 @@ module GSI_BundleMod
           module procedure print_
    end interface
    interface GSI_BundleGetVar        ! get fiedl(s) from bundle
-          module procedure getvar1d_ !   rank-1 field
-          module procedure getvar2d_ !   rank-2 field
-          module procedure getvar3d_ !   rank-3 field
+          module procedure getvar1dr4_ !   real*4 rank-1 field
+          module procedure getvar1dr8_ !   real*8 rank-1 field
+          module procedure getvar2dr4_ !   real*8 real*4 rank-2 field
+          module procedure getvar2dr8_ !   real*8 rank-2 field
+          module procedure getvar3dr4_ !   real*4 rank-3 field
+          module procedure getvar3dr8_ !   real*8 rank-3 field
    end interface
-   interface GSI_BundlePutVar        ! put field(s) in bundle ...
-          module procedure putvar0d_ !  assign field to constant
-          module procedure putvar1d_ !  write to rank-1 content
-          module procedure putvar2d_ !  write to rank-2 content
-          module procedure putvar3d_ !  write to rank-3 content
+   interface GSI_BundlePutVar          ! put field(s) in bundle ...
+          module procedure putvar0dr4_ !  assign field to real*4 constant
+          module procedure putvar0dr8_ !  assign field to real*8 constant
+          module procedure putvar1dr4_ !  write to real*4 rank-1 content
+          module procedure putvar1dr8_ !  write to real*8 rank-1 content
+          module procedure putvar2dr4_ !  write to real*4 rank-2 content
+          module procedure putvar2dr8_ !  write to real*8 rank-2 content
+          module procedure putvar3dr4_ !  write to real*4 rank-3 content
+          module procedure putvar3dr8_ !  write to real*8 rank-3 content
    end interface
    interface GSI_BundleGetPointer    ! get pointer to field(s) in bundle
           module procedure get1_     !   single-field 
           module procedure get2_     !   many-field
-          module procedure get31_    !   rank-1 explict pointer
-          module procedure get32_    !   rank-2 explict pointer
-          module procedure get33_    !   rank-3 explict pointer
+          module procedure get31r4_  !   real*4 rank-1 explict pointer (real*4)
+          module procedure get31r8_  !   real*8 rank-1 explict pointer (real*8)
+          module procedure get32r4_  !   real*4 rank-2 explict pointer (real*8)
+          module procedure get32r8_  !   real*8 rank-2 explict pointer (real*4)
+          module procedure get33r4_  !   real*4 rank-3 explict pointer (real*4)
+          module procedure get33r8_  !   real*8 rank-3 explict pointer (real*8)
    end interface
    interface GSI_BundleUnSet         ! nullify pointers in bundle
           module procedure unset_
@@ -90,22 +100,33 @@ module GSI_BundleMod
    end interface
    interface assignment (=)
           module procedure copy_
-          module procedure assign_const_
+          module procedure assignR4_const_
+          module procedure assignR8_const_
    end interface
 
    interface self_add  ! What we really want here is ASSIGNMENT (+=)
-          module procedure self_add_st, self_add_scal
+          module procedure self_add_st
+          module procedure self_add_R4scal
+          module procedure self_add_R8scal
+   end interface
+   interface self_mul  ! What we really want here is ASSIGNMENT (+=)
+          module procedure self_mulR4_
+          module procedure self_mulR8_
    end interface
    interface gsi_bundlehadamard
           module procedure hadamard_upd_
    end interface
    interface gsi_bundledplevs  ! needs to be generalized to operate on bundle
-          module procedure dplevs2d_
-          module procedure dplevs3d_
+          module procedure dplevs2dr4_
+          module procedure dplevs2dr8_
+          module procedure dplevs3dr4_
+          module procedure dplevs3dr8_
    end interface
    interface gsi_bundlesum  ! needs to be generalized to operate on bundle
-          module procedure sum2d_
-          module procedure sum3d_
+          module procedure sum2dR4_
+          module procedure sum2dR8_
+          module procedure sum3dR4_
+          module procedure sum3dR8_
    end interface
 
 
@@ -131,22 +152,31 @@ module GSI_BundleMod
       character(len=MAXSTR) :: shortname          ! name, e.g., 'ps'
       character(len=MAXSTR) :: longname           ! longname, e.g., 'Surface Pressure'
       character(len=MAXSTR) :: units              ! units, e.g. 'hPa'
-      real(r_kind), pointer :: q(:) => null()     ! rank-1 field
+      integer :: myKind = r_kind                  ! default real*8
+      real(r_single), pointer :: qr4(:) => null()  ! rank-1 real*4 field
+      real(r_kind),   pointer :: qr8(:) => null()  ! rank-1 real*8 field
+      real(r_kind),   pointer :: q  (:) => null()  ! rank-1 pointer to real*8 field
    end type GSI_1D
 
    type GSI_2D
       character(len=MAXSTR) :: shortname
       character(len=MAXSTR) :: longname
       character(len=MAXSTR) :: units
-      real(r_kind), pointer :: q(:,:) => null()   ! rank-2 field
+      integer :: myKind = r_kind                     ! default real*8
+      real(r_single), pointer :: qr4(:,:) => null()   ! rank-2 real*4 field
+      real(r_kind),   pointer :: qr8(:,:) => null()   ! rank-2 real*8 field
+      real(r_kind),   pointer :: q  (:,:) => null()   ! rank-2 pointer to real*8 field
    end type GSI_2D
 
    type GSI_3D
       character(len=MAXSTR) :: shortname
       character(len=MAXSTR) :: longname
       character(len=MAXSTR) :: units
-      logical               :: edge               ! edge field: 3rd dim is km+1
-      real(r_kind), pointer :: q(:,:,:) => null() ! rank-3 field
+      logical               :: edge                  ! edge field: 3rd dim is km+1
+      integer :: myKind = r_kind                     ! default real*8
+      real(r_single), pointer :: qr4(:,:,:) => null() ! rank-3 real*4 field
+      real(r_kind),   pointer :: qr8(:,:,:) => null() ! rank-3 real*8 field
+      real(r_kind),   pointer :: q  (:,:,:) => null() ! rank-3 pointer to real*8 field
    end type GSI_3D
 
 ! !PUBLIC TYPES:
@@ -162,6 +192,7 @@ module GSI_BundleMod
       integer(i_kind) :: n3d=-1     ! number of 3-d variables
       integer(i_kind) :: NumVars=-1 ! total number of variables (n1d+n2d+n3d)
       integer(i_kind) :: ndim=-1    ! size of pointer values
+      integer(i_kind) :: AllKinds=-1! overall bundle kind (see Remark 9)
       type(GSI_Grid)  :: grid 
       type(GSI_1D),    pointer :: r1(:) => null()
       type(GSI_2D),    pointer :: r2(:) => null()
@@ -169,7 +200,9 @@ module GSI_BundleMod
       integer(i_kind), pointer :: ival1(:)  => null()
       integer(i_kind), pointer :: ival2(:)  => null()
       integer(i_kind), pointer :: ival3(:)  => null()
-      real(r_kind),    pointer :: values(:) => null()
+      real(r_single),  pointer :: valuesr4(:) => null()
+!     real(r_kind),    pointer :: valuesr8(:) => null()
+      real(r_kind),    pointer :: values  (:) => null()
    end type GSI_Bundle
 
    interface init_     ! internal procedure only - not to become public
@@ -196,7 +229,7 @@ module GSI_BundleMod
 !  gathering various fields needed to define the guess.
 !
 !  A first example of the use of GSI\_Bundle is used in the module 
-!  gsi\_chemtracer\_mod.F90 that allows adding an arbitrary number of 
+!  gsi\_chemguess\_mod.F90 that allows adding an arbitrary number of 
 !  chemical constituents and species into GSI  --- with a note that 
 !  only CO and CO2 are currently known by the internal GSI guess module.
 !
@@ -215,9 +248,11 @@ module GSI_BundleMod
 !  22Apr2010 Todling - initial code, based on discussion w/ Arlindo da Silva 
 !                      and his f90/ESMF's SimpleBundle.
 !  18Aug2010      Hu - declared GSI_1D, GSI_2D, and GSI_3D as public.
+!  28Apr2011 Todling - complete overload to support REAL*4 and REAL*8
 !
 ! !SEE ALSO:  
-!           gsi_chemtracer_mod.F90
+!           gsi_metguess_mod.F90
+!           gsi_chemguess_mod.F90
 !
 ! !REMARKS: 
 !
@@ -263,12 +298,19 @@ module GSI_BundleMod
 !     this module should have its own error codes and not depend on the
 !     GSI error codes.
 !
+!  9. In principle the bundle should be able to handle mix-kind variables,
+!     however, because of the need to link the fields in the bundle to
+!     a long array-like entity (values), it turns out that all fields
+!     in a given bundle must be created with the same kind, therefore 
+!     the existence of AllKinds.
+!
 !EOP
 !-------------------------------------------------------------------------
 !noBOC
 
    character(len=*), parameter :: myname='GSI_BundleMod'
    logical, parameter :: VERBOSE_=.true.
+   integer, parameter :: bundle_kind_def = r_kind ! default kind
 
 CONTAINS
 
@@ -280,7 +322,7 @@ CONTAINS
 !
 ! !INTERFACE:
 
- subroutine init1d_(flds,nd,names,istatus,longnames,units)
+ subroutine init1d_(flds,nd,names,istatus,longnames,units,thisKind)
 
 ! !INPUT PARAMETERS:
 
@@ -288,6 +330,7 @@ CONTAINS
  character(len=*),intent(in):: names(nd)
  character(len=*),OPTIONAL,intent(in):: longnames(nd)
  character(len=*),OPTIONAL,intent(in):: units(nd)
+ integer(i_kind), OPTIONAL,intent(in):: thisKind
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -309,8 +352,9 @@ CONTAINS
 !noBOC
  
  integer(i_kind) i
- 
+
  do i=1,nd
+    flds(i)%myKind = thisKind
     flds(i)%shortname = trim(names(i))
     if (present(longnames)) then
         flds(i)%longname  = trim(longnames(i))
@@ -331,6 +375,7 @@ CONTAINS
  integer(i_kind) i
     
  do i=1,nd
+    flds(i)%myKind    = -1
     flds(i)%shortname = ""
     flds(i)%longname  = ""
     flds(i)%units     = ""
@@ -339,17 +384,19 @@ CONTAINS
 
  end subroutine clean1d_
 !............................................................................................
- subroutine init2d_(flds,nd,names,istatus,longnames,units)
+ subroutine init2d_(flds,nd,names,istatus,longnames,units,thisKind)
  integer(i_kind), intent(in) :: nd
  type(GSI_2D),    intent(inout):: flds(nd)
  character(len=*),intent(in):: names(nd)
  integer(i_kind), intent(out):: istatus
  character(len=*),OPTIONAL,intent(in):: longnames(nd)
  character(len=*),OPTIONAL,intent(in):: units(nd)
+ integer(i_kind), OPTIONAL,intent(in):: thisKind
  
  integer(i_kind) i
    
  do i=1,nd
+    flds(i)%myKind = thisKind
     flds(i)%shortname = trim(names(i))
     if (present(longnames)) then
         flds(i)%longname  = trim(longnames(i))
@@ -370,6 +417,7 @@ CONTAINS
  integer(i_kind) i
     
  do i=1,nd
+    flds(i)%myKind    = -1
     flds(i)%shortname = ""
     flds(i)%longname  = ""
     flds(i)%units     = ""
@@ -378,17 +426,19 @@ CONTAINS
 
  end subroutine clean2d_
 !............................................................................................
- subroutine init3d_(flds,nd,names,istatus,longnames,units)
+ subroutine init3d_(flds,nd,names,istatus,longnames,units,thisKind)
  integer(i_kind), intent(in) :: nd
  type(GSI_3D),    intent(inout):: flds(nd)
  character(len=*),intent(in):: names(nd)
  integer(i_kind), intent(out):: istatus
  character(len=*),OPTIONAL,intent(in):: longnames(nd)
  character(len=*),OPTIONAL,intent(in):: units(nd)
+ integer(i_kind), OPTIONAL,intent(in):: thisKind
  
  integer(i_kind) i
     
  do i=1,nd
+    flds(i)%myKind = thisKind
     flds(i)%shortname = trim(names(i))
     if (present(longnames)) then
         flds(i)%longname  = trim(longnames(i))
@@ -409,6 +459,7 @@ CONTAINS
  integer(i_kind) i
     
  do i=1,nd
+    flds(i)%myKind    = -1
     flds(i)%shortname = ""
     flds(i)%longname  = ""
     flds(i)%units     = ""
@@ -433,7 +484,16 @@ CONTAINS
     fld2(i2(i))%shortname = fld1(i1(i))%shortname
     fld2(i2(i))%longname  = fld1(i1(i))%longname
     fld2(i2(i))%units     = fld1(i1(i))%units
-    fld2(i2(i))%q         = fld1(i1(i))%q
+    fld2(i2(i))%myKind= fld1(i1(i))%myKind
+    if (fld1(i1(i))%myKind == r_single ) then
+        fld2(i2(i))%qr4   = fld1(i1(i))%qr4
+    else if ( fld1(i1(i))%myKind == r_kind ) then
+        fld2(i2(i))%q     = fld1(i1(i))%q
+        fld2(i2(i))%qr8   =>fld2(i2(i))%q
+    else
+        istatus=1
+        return 
+    endif
  enddo
  end subroutine copy_item1d_
  subroutine copy_item2d_ (i1,i2,fld1,fld2,istatus)
@@ -451,7 +511,16 @@ CONTAINS
     fld2(i2(i))%shortname = fld1(i1(i))%shortname
     fld2(i2(i))%longname  = fld1(i1(i))%longname
     fld2(i2(i))%units     = fld1(i1(i))%units
-    fld2(i2(i))%q         = fld1(i1(i))%q
+    fld2(i2(i))%myKind= fld1(i1(i))%myKind
+    if (fld1(i1(i))%myKind == r_single ) then
+        fld2(i2(i))%qr4   = fld1(i1(i))%qr4
+    else if ( fld1(i1(i))%myKind == r_kind ) then
+        fld2(i2(i))%q     = fld1(i1(i))%q
+        fld2(i2(i))%qr8   =>fld2(i2(i))%q
+    else
+        istatus=1
+        return 
+    endif
  enddo
  end subroutine copy_item2d_
  subroutine copy_item3d_ (i1,i2,fld1,fld2,istatus)
@@ -469,7 +538,16 @@ CONTAINS
     fld2(i2(i))%shortname = fld1(i1(i))%shortname
     fld2(i2(i))%longname  = fld1(i1(i))%longname
     fld2(i2(i))%units     = fld1(i1(i))%units
-    fld2(i2(i))%q         = fld1(i1(i))%q
+    fld2(i2(i))%myKind= fld1(i1(i))%myKind
+    if (fld1(i1(i))%myKind == r_single ) then
+        fld2(i2(i))%qr4   = fld1(i1(i))%qr4
+    else if ( fld1(i1(i))%myKind == r_kind ) then
+        fld2(i2(i))%q     = fld1(i1(i))%q
+        fld2(i2(i))%qr8   =>fld2(i2(i))%q
+    else
+        istatus=1
+        return 
+    endif
  enddo
  end subroutine copy_item3d_
 !noEOC
@@ -482,7 +560,7 @@ CONTAINS
 !
 
  subroutine set0_ ( Bundle, grid, name, istatus, &
-                    names1d, names2d, names3d, edges )
+                    names1d, names2d, names3d, edges, bundle_kind )
 
 ! !INPUT PARAMETERS:
 
@@ -494,6 +572,7 @@ CONTAINS
     logical,         OPTIONAL,intent(in) :: edges(:)   ! array of size(names3d)
                                                        ! indicating which are
                                                        ! edge(.t.) fields
+    integer,         OPTIONAL,intent(in) :: bundle_kind! overall bundle kind
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -543,6 +622,11 @@ CONTAINS
     ndim2d=ndim1d*jm
     ndim3d=ndim2d*km
     ndim3de=ndim2d*(km+1)
+    if ( present(bundle_kind)) then
+       Bundle%AllKinds = bundle_kind
+    else
+       Bundle%AllKinds = bundle_kind_def
+    endif
 
 !   First count vector size for ...
 !   1-d arrays ...
@@ -552,7 +636,7 @@ CONTAINS
         if (nd>0) then
             n1d=nd
             allocate(Bundle%r1(n1d), stat=istatus) 
-            call init_ (Bundle%r1(:),n1d,names1d,istatus)
+            call init_ (Bundle%r1(:),n1d,names1d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
                write(6,*) myname_, ':trouble allocating bundle(init1), ', istatus
                call stop2(999)
@@ -566,7 +650,7 @@ CONTAINS
         if (nd>0) then
             n2d=nd
             allocate(Bundle%r2(n2d), stat=istatus) 
-            call init_ (Bundle%r2(:),n2d,names2d,istatus)
+            call init_ (Bundle%r2(:),n2d,names2d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
                write(6,*) myname_, ':trouble allocating bundle(init2), ', istatus
                call stop2(999)
@@ -580,7 +664,7 @@ CONTAINS
         if (nd>0) then
             n3d=nd
             allocate(Bundle%r3(n3d), stat=istatus) 
-            call init_ (Bundle%r3(:),n3d,names3d,istatus)
+            call init_ (Bundle%r3(:),n3d,names3d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
                write(6,*) myname_, ':trouble allocating bundle(init3), ', istatus
                call stop2(999)
@@ -619,21 +703,48 @@ CONTAINS
               km1=km1+1
               ndim3d1=ndim3de
            endif
-           Bundle%r3(i)%q => rerank(Bundle%values(ii+1:ii+ndim3d1),mold3,(/im,jm,km1/))
+           if (Bundle%r3(i)%myKind == r_single) then
+               Bundle%r3(i)%qr4 => rerank(Bundle%valuesr4(ii+1:ii+ndim3d1),mold3,(/im,jm,km1/))
+           else if (Bundle%r3(i)%myKind == r_kind) then
+               Bundle%r3(i)%q   => rerank(Bundle%values  (ii+1:ii+ndim3d1),mold3,(/im,jm,km1/))
+               Bundle%r3(i)%qr8 => Bundle%r3(i)%q
+           else
+               istatus = 999
+               write(6,*) myname_, ':trouble assigining bundle r3, ', istatus
+               call stop2(999)
+           endif
            Bundle%ival3(i) =  ii+1
            ii=ii+ndim3d1
         enddo
     endif
     if (n2d>0) then
         do i = 1, n2d
-           Bundle%r2(i)%q => rerank(Bundle%values(ii+1:ii+ndim2d),mold2,(/im,jm/))
+           if (Bundle%r2(i)%myKind == r_single) then
+               Bundle%r2(i)%qr4 => rerank(Bundle%valuesr4(ii+1:ii+ndim2d),mold2,(/im,jm/))
+           else if (Bundle%r2(i)%myKind == r_kind) then
+               Bundle%r2(i)%q   => rerank(Bundle%values  (ii+1:ii+ndim2d),mold2,(/im,jm/))
+               Bundle%r2(i)%qr8 => Bundle%r2(i)%q
+           else
+               istatus = 999
+               write(6,*) myname_, ':trouble assigining bundle r2, ', istatus
+               call stop2(999)
+           endif
            Bundle%ival2(i) =  ii+1
            ii=ii+ndim2d
         enddo
     endif
     if (n1d>0) then
         do i = 1, n1d
-           Bundle%r1(i)%q => Bundle%values(ii+1:ii+ndim1d)
+           if (Bundle%r1(i)%myKind == r_single) then
+               Bundle%r1(i)%qr4 => Bundle%valuesr4(ii+1:ii+ndim1d)
+           else if (Bundle%r1(i)%myKind == r_kind) then
+               Bundle%r1(i)%q   => Bundle%values  (ii+1:ii+ndim1d)
+               Bundle%r1(i)%qr8 => Bundle%r1(i)%q
+           else
+               istatus = 999
+               write(6,*) myname_, ':trouble assigining bundle r1, ', istatus
+               call stop2(999)
+           endif
            Bundle%ival1(i) =  ii+1
            ii=ii+ndim1d
         enddo
@@ -661,13 +772,14 @@ CONTAINS
 ! !INTERFACE:
 !
  subroutine set1_ ( Bundle, im, name, istatus, &
-                    names1d )
+                    names1d, bundle_kind )
 
 ! !INPUT PARAMETERS:
 
     integer(i_kind), intent(in) :: im    ! first  dimension of grid
     character(len=*),intent(in) :: name  ! define name of this bundle
     character(len=*),OPTIONAL,intent(in) :: names1d(:) ! 1-d variable names
+    integer,         OPTIONAL,intent(in) :: bundle_kind! overall bundle kind
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -703,6 +815,11 @@ CONTAINS
 ! ... need grid create for more general grids
     Bundle%grid%im=im
     ndim1d=im
+    if ( present(bundle_kind)) then
+       Bundle%AllKinds = bundle_kind
+    else
+       Bundle%AllKinds = bundle_kind_def
+    endif
 
 !   First count vector size for ...
 !   1-d arrays ...
@@ -712,7 +829,7 @@ CONTAINS
         if (nd>0) then
             n1d=nd
             allocate(Bundle%r1(n1d), stat=istatus) 
-            call init_ (Bundle%r1(:),n1d,names1d,istatus)
+            call init_ (Bundle%r1(:),n1d,names1d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
                write(6,*) myname_, ':trouble allocating bundle(init1), ', istatus
                call stop2(999)
@@ -731,7 +848,16 @@ CONTAINS
     ii=0
     if (n1d>0) then
         do i = 1, n1d
-           Bundle%r1(i)%q => Bundle%values(ii+1:ii+ndim1d)
+           if (Bundle%r1(i)%myKind == r_single) then
+               Bundle%r1(i)%qr4 => Bundle%valuesr4(ii+1:ii+ndim1d)
+           else if (Bundle%r3(i)%myKind == r_kind) then
+               Bundle%r1(i)%q   => Bundle%values  (ii+1:ii+ndim1d)
+               Bundle%r1(i)%qr8 => Bundle%r1(i)%q
+           else
+               istatus = 999
+               write(6,*) myname_, ':trouble assigining bundle r1, ', istatus
+               call stop2(999)
+           endif
            Bundle%ival1(i) =  ii+1
            ii=ii+ndim1d
         enddo
@@ -757,7 +883,7 @@ CONTAINS
 ! !INTERFACE:
 !
  subroutine create1_ ( Bundle, grid, name, istatus, &
-                       names1d, names2d, names3d, edges )
+                       names1d, names2d, names3d, edges, bundle_kind )
 
     implicit none
 
@@ -770,11 +896,12 @@ CONTAINS
     character(len=*),OPTIONAL,intent(in) :: names3d(:) ! 3-d variable names
     logical,         OPTIONAL,intent(in) :: edges(:)   ! arrays of size(names3d)
                                                        ! indicating whose edge(.t.)
+    integer,         OPTIONAL,intent(in) :: bundle_kind! overall bundle kind
 
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-    type(GSI_Bundle) :: Bundle         ! The Bundle
+    type(GSI_Bundle),intent(inout) :: Bundle         ! The Bundle
 
 ! !OUTPUT PARAMETERS:
 
@@ -819,6 +946,11 @@ CONTAINS
     ndim2d=ndim1d*jm
     ndim3d=ndim2d*km
     ndim3de=ndim2d*(km+1)
+    if (present(bundle_kind)) then
+        Bundle%AllKinds = bundle_kind
+    else
+        Bundle%AllKinds = bundle_kind_def
+    endif
 
 !   First count vector size for ...
 !   1-d arrays ...
@@ -875,9 +1007,17 @@ CONTAINS
             endif
         endif
     endif
-    
+
 !   Now allocate long vector
-    allocate(Bundle%values(ntotal),stat=istatus)
+    if (Bundle%AllKinds == r_single) then
+        allocate(Bundle%valuesR4(ntotal),stat=istatus)
+        Bundle%valuesR4=zero_single
+    else if (Bundle%AllKinds == r_kind) then
+        allocate(Bundle%values  (ntotal),stat=istatus)
+        Bundle%values=zero
+    else
+        istatus = 999
+    endif
     if(istatus/=0) then
        write(6,*) myname_, ':trouble allocating bundle values, ', istatus
        call stop2(999)
@@ -899,23 +1039,48 @@ CONTAINS
               km1=km1+1
               ndim3d1=ndim3de
            endif
-!          Bundle%r3(i)%q(1:im,1:jm,1:km) => Bundle%values(ii+1:ii+ndim3d)
-           Bundle%r3(i)%q => rerank(Bundle%values(ii+1:ii+ndim3d1),mold3,(/im,jm,km1/))
+           if (Bundle%r3(i)%myKind == r_single) then
+               Bundle%r3(i)%qr4 => rerank(Bundle%valuesr4(ii+1:ii+ndim3d1),mold3,(/im,jm,km1/))
+           else if (Bundle%r3(i)%myKind == r_kind) then
+               Bundle%r3(i)%q   => rerank(Bundle%values  (ii+1:ii+ndim3d1),mold3,(/im,jm,km1/))
+               Bundle%r3(i)%qr8 => Bundle%r3(i)%q
+           else
+               istatus = 999
+               write(6,*) myname_, ':trouble assigining bundle r3, ', istatus
+               call stop2(999)
+           endif
            Bundle%ival3(i) =  ii+1
            ii=ii+ndim3d1
         enddo
     endif
     if (n2d>0) then
         do i = 1, n2d
-!          Bundle%r2(i)%q => Bundle%values(ii+1:ii+ndim2d)
-           Bundle%r2(i)%q => rerank(Bundle%values(ii+1:ii+ndim2d),mold2,(/im,jm/))
+           if (Bundle%r2(i)%myKind == r_single) then
+               Bundle%r2(i)%qr4 => rerank(Bundle%valuesr4(ii+1:ii+ndim2d),mold2,(/im,jm/))
+           else if (Bundle%r2(i)%myKind == r_kind) then
+               Bundle%r2(i)%q   => rerank(Bundle%values  (ii+1:ii+ndim2d),mold2,(/im,jm/))
+               Bundle%r2(i)%qr8 => Bundle%r2(i)%q
+           else
+               istatus = 999
+               write(6,*) myname_, ':trouble assigining bundle r2, ', istatus
+               call stop2(999)
+           endif
            Bundle%ival2(i) =  ii+1
            ii=ii+ndim2d
         enddo
     endif
     if (n1d>0) then
         do i = 1, n1d
-           Bundle%r1(i)%q => Bundle%values(ii+1:ii+ndim1d)
+           if (Bundle%r1(i)%myKind == r_single) then
+               Bundle%r1(i)%qr4 => Bundle%valuesr4(ii+1:ii+ndim1d)
+           else if (Bundle%r1(i)%myKind == r_kind) then
+               Bundle%r1(i)%q   => Bundle%values  (ii+1:ii+ndim1d)
+               Bundle%r1(i)%qr8 => Bundle%r1(i)%q
+           else
+               istatus = 999
+               write(6,*) myname_, ':trouble assigining bundle r1, ', istatus
+               call stop2(999)
+           endif
            Bundle%ival1(i) =  ii+1
            ii=ii+ndim1d
         enddo
@@ -930,7 +1095,7 @@ CONTAINS
 
     if (present(names3d)) then
         if (n3d>0) then
-            call init_ (Bundle%r3(:),n3d,names3d,istatus)
+            call init_ (Bundle%r3(:),n3d,names3d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
                write(6,*) myname_, ':trouble allocating bundle(init3), ', istatus
                call stop2(999)
@@ -939,7 +1104,7 @@ CONTAINS
     endif
     if (present(names2d)) then
         if (n2d>0) then
-            call init_ (Bundle%r2(:),n2d,names2d,istatus)
+            call init_ (Bundle%r2(:),n2d,names2d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
                write(6,*) myname_, ':trouble allocating bundle(init2), ', istatus
                call stop2(999)
@@ -948,7 +1113,7 @@ CONTAINS
     endif
     if (present(names1d)) then
         if (n1d>0) then
-            call init_ (Bundle%r1(:),n1d,names1d,istatus)
+            call init_ (Bundle%r1(:),n1d,names1d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
                write(6,*) myname_, ':trouble allocating bundle(init1), ', istatus
                call stop2(999)
@@ -1006,7 +1171,7 @@ CONTAINS
 !noBOC
 
     character(len=*),parameter::myname_=myname//'*create2_'
-    integer(i_kind) ::  i,k,n1d,n2d,n3d
+    integer(i_kind) ::  i,k,n1d,n2d,n3d,this_bundle_kind
     character(len=MAXSTR),allocatable::names1d(:),names2d(:),names3d(:)
     logical,allocatable::edges(:)
 
@@ -1030,10 +1195,11 @@ CONTAINS
        names3d(k)=trim(Bundle%r3(k)%shortname)
        edges(k)=Bundle%r3(k)%edge
     enddo
+    this_bundle_kind = Bundle%AllKinds
 
     call create1_ ( NewBundle, Bundle%grid, trim(name), istatus, &
                     names1d=names1d,names2d=names2d,names3d=names3d, &
-                    edges=edges )
+                    edges=edges, bundle_kind=this_bundle_kind )
 
     deallocate(edges)
     deallocate(names3d)
@@ -1081,7 +1247,7 @@ CONTAINS
 !noBOC
 
     character(len=*),parameter::myname_=myname//'*create3_'
-    integer(i_kind) ::  i,k,n1d,n2d,n3d,im,jm,km
+    integer(i_kind) ::  i,k,n1d,n2d,n3d,im,jm,km,this_bundle_kind
     character(len=MAXSTR),allocatable::names1d(:),names2d(:),names3d(:)
     logical,allocatable::edges(:)
     type(GSI_Grid) :: grid
@@ -1135,10 +1301,16 @@ CONTAINS
        names3d(i)=trim(Bundle2%r3(k)%shortname)
        edges  (i)=Bundle2%r3(k)%edge
     enddo
+    if (Bundle1%AllKinds/=Bundle2%AllKinds) then
+        print*, 'bundles have diff Kinds: ', Bundle1%AllKinds,Bundle2%AllKinds
+        write(6,*) myname_, ': not possible to merge bundles, aborting ...'
+        call stop2(999)
+    endif
+    this_bundle_kind = Bundle1%AllKinds
 
     call create1_ ( MergeBundle, grid, name, istatus, &
                     names1d=names1d, names2d=names2d, names3d=names3d, &
-                    edges=edges )
+                    edges=edges, bundle_kind=this_bundle_kind )
 
     if ( redundant_(MergeBundle) ) then
         print*, MergeBundle%n1d
@@ -1330,10 +1502,10 @@ CONTAINS
 !............................................................................................
 !BOP
 !
-! !IROUTINE:  Get31_ ---  Get pointer to rank-1 field
+! !IROUTINE:  Get31r8_ ---  Get pointer to rank-1 field
 !
 ! !INTERFACE:
-  subroutine get31_ ( Bundle, fldname, pntr, istatus )
+  subroutine get31r8_ ( Bundle, fldname, pntr, istatus )
     
 ! !INPUT PARAMETERS:
 
@@ -1365,15 +1537,15 @@ CONTAINS
     if (istatus==0) then
         select case (irank)
           case(1)
-             pntr => Bundle%r1(ipnt)%q
+             pntr => Bundle%r1(ipnt)%qr8
           case(2)
-!            pntr => rerank(Bundle%r2(ipnt)%q)
-             nsz=size(Bundle%r2(ipnt)%q)
-             pntr => Bundle%values(ival:ival+nsz-1)
+!            pntr => rerank(Bundle%r2(ipnt)%qr8)
+             nsz=size(Bundle%r2(ipnt)%qr8)
+             pntr => Bundle%values  (ival:ival+nsz-1)
           case(3)
-!            pntr => rerank(Bundle%r3(ipnt)%q)
-             nsz=size(Bundle%r3(ipnt)%q)
-             pntr => Bundle%values(ival:ival+nsz-1)
+!            pntr => rerank(Bundle%r3(ipnt)%qr8)
+             nsz=size(Bundle%r3(ipnt)%qr8)
+             pntr => Bundle%values  (ival:ival+nsz-1)
           case default
              istatus=1
           end select
@@ -1381,15 +1553,69 @@ CONTAINS
         istatus=1
     endif
 
-  end subroutine get31_
+  end subroutine get31r8_
+!noEOC
+!............................................................................................
+!BOP
+!
+! !IROUTINE:  Get31r4_ ---  Get pointer to rank-1 field
+!
+! !INTERFACE:
+  subroutine get31r4_ ( Bundle, fldname, pntr, istatus )
+    
+! !INPUT PARAMETERS:
+
+    type(GSI_Bundle),target,intent(in) :: Bundle   ! the Bundle
+    character(len=*),intent(in) :: fldname  ! name of field
+
+! !OUTPUT PARAMETERS:
+
+    real(r_single),pointer,intent(out) :: pntr(:)  ! actual pointer to individual field
+    integer(i_kind),       intent(out) :: istatus  ! status error code
+
+! !DESCRIPTION: Retrieve pointer to specific rank-1 field.
+!
+!
+! !REVISION HISTORY:
+!
+!  05May2010 Todling  Initial code.
+!  13May2010 Todling  Also return rank-N into rank-1
+!  11Nov2010 Treadon  Subtract 1 from upper array bound of Bundle%values
+!
+!EOP
+!-------------------------------------------------------------------------
+!noBOC
+    
+    integer(i_kind) :: i,irank,ipnt,ival,nsz
+
+    istatus=0
+    call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank, ival=ival )
+    if (istatus==0) then
+        select case (irank)
+          case(1)
+             pntr => Bundle%r1(ipnt)%qr4
+          case(2)
+             nsz=size(Bundle%r2(ipnt)%qr4)
+             pntr => Bundle%valuesr4(ival:ival+nsz-1)
+          case(3)
+             nsz=size(Bundle%r3(ipnt)%qr4)
+             pntr => Bundle%valuesr4(ival:ival+nsz-1)
+          case default
+             istatus=1
+          end select
+    else 
+        istatus=1
+    endif
+
+  end subroutine get31r4_
 !noEOC
 !BOP
 !
-! !IROUTINE:  Get32_ ---  Get pointer to rank-2 field
+! !IROUTINE:  Get32r8_ ---  Get pointer to rank-2 field
 !
 !
 ! !INTERFACE:
-  subroutine get32_ ( Bundle, fldname, pntr, istatus )
+  subroutine get32r8_ ( Bundle, fldname, pntr, istatus )
     
 ! !INPUT PARAMETERS:
 
@@ -1417,19 +1643,60 @@ CONTAINS
     istatus=0
     call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
     if (istatus==0.and.irank==2) then
-        pntr => Bundle%r2(ipnt)%q
+        pntr => Bundle%r2(ipnt)%qr8
     else
         istatus=1
     endif
 
-  end subroutine get32_
+  end subroutine get32r8_
 !noEOC
 !BOP
 !
-! !IROUTINE:  Get33_ ---  Get pointer to rank-3 field
+! !IROUTINE:  Get32r4_ ---  Get pointer to rank-2 field
+!
 !
 ! !INTERFACE:
-  subroutine get33_ ( Bundle, fldname, pntr, istatus )
+  subroutine get32r4_ ( Bundle, fldname, pntr, istatus )
+    
+! !INPUT PARAMETERS:
+
+    type(GSI_Bundle),intent(in) :: Bundle   ! the Bundle
+    character(len=*),intent(in) :: fldname  ! name of field
+
+! !OUTPUT PARAMETERS:
+
+    real(r_single),pointer,intent(out) :: pntr(:,:)  ! actual pointer to individual field
+    integer(i_kind),intent(out) :: istatus  ! status error code
+
+! !DESCRIPTION: Retrieve pointer to specific rank-2 field.
+!
+!
+! !REVISION HISTORY:
+!
+!  05May2010 Todling  Initial code.
+!
+!EOP
+!-------------------------------------------------------------------------
+!noBOC
+    
+    integer(i_kind) :: i,irank,ipnt
+
+    istatus=0
+    call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
+    if (istatus==0.and.irank==2) then
+        pntr => Bundle%r2(ipnt)%qr4
+    else
+        istatus=1
+    endif
+
+  end subroutine get32r4_
+!noEOC
+!BOP
+!
+! !IROUTINE:  Get33r8_ ---  Get pointer to rank-3 field
+!
+! !INTERFACE:
+  subroutine get33r8_ ( Bundle, fldname, pntr, istatus )
     
 ! !INPUT PARAMETERS:
 
@@ -1457,21 +1724,61 @@ CONTAINS
     istatus=0
     call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
     if (istatus==0.and.irank==3) then
-        pntr => Bundle%r3(ipnt)%q
+        pntr => Bundle%r3(ipnt)%qr8
     else
         istatus=1
     endif
 
-  end subroutine get33_
+  end subroutine get33r8_
+!noEOC
+!BOP
+!
+! !IROUTINE:  Get33r4_ ---  Get pointer to rank-3 field
+!
+! !INTERFACE:
+  subroutine get33r4_ ( Bundle, fldname, pntr, istatus )
+    
+! !INPUT PARAMETERS:
+
+    type(GSI_Bundle),intent(in) :: Bundle   ! the Bundle
+    character(len=*),intent(in) :: fldname  ! name of field
+
+! !OUTPUT PARAMETERS:
+
+    real(r_single),pointer,intent(out) :: pntr(:,:,:)  ! actual pointer to individual field
+    integer(i_kind),intent(out) :: istatus  ! status error code
+
+! !DESCRIPTION: Retrieve pointer to specific rank-3 field.
+!
+!
+! !REVISION HISTORY:
+!
+!  05May2010 Todling  Initial code.
+!
+!EOP
+!-------------------------------------------------------------------------
+!noBOC
+    
+    integer(i_kind) :: i,irank,ipnt
+
+    istatus=0
+    call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
+    if (istatus==0.and.irank==3) then
+        pntr => Bundle%r3(ipnt)%qr4
+    else
+        istatus=1
+    endif
+
+  end subroutine get33r4_
 !noEOC
 !............................................................................................
 !BOP
 !
-! !IROUTINE:  PutVar0_ ---  Set request field to a constant value
+! !IROUTINE:  PutVar0r8_ ---  Set request field to a constant value
 !
 ! !INTERFACE:
 
-  subroutine putvar0d_ ( Bundle, fldname, cnst, istatus )
+  subroutine putvar0dr8_ ( Bundle, fldname, cnst, istatus )
     
 ! !INPUT PARAMETERS:
 
@@ -1507,25 +1814,79 @@ CONTAINS
 
 !   retrieve variable
     if( irank==1 ) then
-        Bundle%r1(ipnt)%q = cnst
+        Bundle%r1(ipnt)%qr8 = cnst
     endif
     if( irank==2 ) then
-        Bundle%r2(ipnt)%q = cnst
+        Bundle%r2(ipnt)%qr8 = cnst
     endif
     if( irank==3 ) then
-        Bundle%r3(ipnt)%q = cnst
+        Bundle%r3(ipnt)%qr8 = cnst
     endif
 
-  end subroutine putvar0d_
+  end subroutine putvar0dr8_
 !noEOC
 !............................................................................................
 !BOP
 !
-! !IROUTINE:  PutVar1d_ ---  Set request field to given input field values; 1d to Nd
+! !IROUTINE:  PutVar0r4_ ---  Set request field to a constant value
 !
 ! !INTERFACE:
 
-  subroutine putvar1d_ ( Bundle, fldname, fld, istatus )
+  subroutine putvar0dr4_ ( Bundle, fldname, cnst, istatus )
+    
+! !INPUT PARAMETERS:
+
+    character(len=*),intent(in) :: fldname          ! name of field
+    real(r_single),    intent(in) :: cnst             ! constant value
+
+! !INPUT/OUTPUT PARAMETERS:
+
+    type(GSI_Bundle),intent(inout) :: Bundle  ! the Bundle
+
+! !OUTPUT PARAMETERS:
+
+    integer(i_kind),intent(out) :: istatus          ! status error code
+
+! !DESCRIPTION: Set user-specified field in bundle to a constant value. 
+!
+!
+! !REVISION HISTORY:
+!
+!  05May2010 Todling  Initial code.
+!
+!EOP
+!-------------------------------------------------------------------------
+!noBOC
+    
+    integer(i_kind) :: n,irank,ipnt,im,jm,km
+
+    istatus=0
+
+!   get pointer to desired variable
+    call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
+    if(istatus/=0) return
+
+!   retrieve variable
+    if( irank==1 ) then
+        Bundle%r1(ipnt)%qr4 = cnst
+    endif
+    if( irank==2 ) then
+        Bundle%r2(ipnt)%qr4 = cnst
+    endif
+    if( irank==3 ) then
+        Bundle%r3(ipnt)%qr4 = cnst
+    endif
+
+  end subroutine putvar0dr4_
+!noEOC
+!............................................................................................
+!BOP
+!
+! !IROUTINE:  PutVar1dr8_ ---  Set request field to given input field values; 1d to Nd
+!
+! !INTERFACE:
+
+  subroutine putvar1dr8_ ( Bundle, fldname, fld, istatus )
 
 
 ! !INPUT PARAMETERS:
@@ -1570,24 +1931,87 @@ CONTAINS
 
 !   retrieve variable
     if( irank==1 ) then
-        Bundle%r1(ipnt)%q = fld
+        Bundle%r1(ipnt)%qr8 = fld
     endif
     if( irank==2 ) then
-        Bundle%r2(ipnt)%q = reshape(fld,(/im,jm/))
+        Bundle%r2(ipnt)%qr8 = reshape(fld,(/im,jm/))
     endif
     if( irank==3 ) then
-        Bundle%r3(ipnt)%q = reshape(fld,(/im,jm,km/))
+        Bundle%r3(ipnt)%qr8 = reshape(fld,(/im,jm,km/))
     endif
 
-  end subroutine putvar1d_
+  end subroutine putvar1dr8_
 !noEOC
 !............................................................................................
 !BOP
 !
-! !IROUTINE:  PutVar2d_ ---  Set request field to given input field values; 2d to 2d
+! !IROUTINE:  PutVar1dr4_ ---  Set request field to given input field values; 1d to Nd
 !
 ! !INTERFACE:
-  subroutine putvar2d_ ( Bundle, fldname, fld, istatus )
+
+  subroutine putvar1dr4_ ( Bundle, fldname, fld, istatus )
+
+
+! !INPUT PARAMETERS:
+
+    character(len=*),intent(in) :: fldname          ! field name
+    real(r_single),  intent(in) :: fld(:)           ! input field values
+
+! !INPUT/OUTPUT PARAMETERS:
+
+    type(GSI_Bundle),intent(inout) :: Bundle  ! the Bundle
+
+! !OUTPUT PARAMETERS:
+
+    integer(i_kind),intent(out) :: istatus          ! status error code
+     
+! !DESCRIPTION: Set user-specified field in bundle the given input field. 
+!               rank-1 input to rank-N output.
+!
+!
+! !REMARKS: 
+!   1. This routine also allows overwritting a 2d-/3d-array in bundle
+!      with user-specified field.
+!
+! !REVISION HISTORY:
+!
+!  05May2010 Todling  Initial code.
+!
+!EOP
+!-------------------------------------------------------------------------
+!noBOC
+    integer(i_kind) :: n,irank,ipnt,im,jm,km
+
+    istatus=0
+
+!   get pointer to desired variable
+    call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank )
+    if(istatus/=0) return
+
+    im=Bundle%grid%im
+    jm=Bundle%grid%jm
+    km=Bundle%grid%km
+
+!   retrieve variable
+    if( irank==1 ) then
+        Bundle%r1(ipnt)%qr4 = fld
+    endif
+    if( irank==2 ) then
+        Bundle%r2(ipnt)%qr4 = reshape(fld,(/im,jm/))
+    endif
+    if( irank==3 ) then
+        Bundle%r3(ipnt)%qr4 = reshape(fld,(/im,jm,km/))
+    endif
+
+  end subroutine putvar1dr4_
+!noEOC
+!............................................................................................
+!BOP
+!
+! !IROUTINE:  PutVar2dr8_ ---  Set request field to given input field values; 2d to 2d
+!
+! !INTERFACE:
+  subroutine putvar2dr8_ ( Bundle, fldname, fld, istatus )
     
 ! !INPUT PARAMETERS:
     character(len=*),intent(in) :: fldname
@@ -1621,11 +2045,55 @@ CONTAINS
 
 !   retrieve variable
     if( irank==2 ) then
-        Bundle%r2(ipnt)%q = fld
+        Bundle%r2(ipnt)%qr8 = fld
     endif
 
-  end subroutine putvar2d_
-  subroutine putvar3d_ ( Bundle, fldname, fld, istatus )
+  end subroutine putvar2dr8_
+!............................................................................................
+!BOP
+!
+! !IROUTINE:  PutVar2dr4_ ---  Set request field to given input field values; 2d to 2d
+!
+! !INTERFACE:
+  subroutine putvar2dr4_ ( Bundle, fldname, fld, istatus )
+    
+! !INPUT PARAMETERS:
+    character(len=*),intent(in) :: fldname
+    real(r_single),  intent(in) :: fld(:,:)
+
+! !INPUT/OUTPUT PARAMETERS:
+    type(GSI_Bundle),intent(inout) :: Bundle
+
+! !OUTPUT PARAMETERS:
+    integer(i_kind),intent(out) :: istatus
+
+! !DESCRIPTION: Set user-specified field in bundle the given input field. 
+!               2d-input to 2d output.
+!
+!
+! !REVISION HISTORY:
+!
+!  05May2010 Todling  Initial code.
+!
+!EOP
+!-------------------------------------------------------------------------
+!noBOC
+    
+    integer(i_kind) :: n,irank,ipnt,im,jm,km
+
+    istatus=0
+
+!   get pointer to desired variable
+    call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
+    if(istatus/=0) return
+
+!   retrieve variable
+    if( irank==2 ) then
+        Bundle%r2(ipnt)%qr4 = fld
+    endif
+
+  end subroutine putvar2dr4_
+  subroutine putvar3dr8_ ( Bundle, fldname, fld, istatus )
 ! This routine also allows putting a 1d-array into a 2d-/3d-array
     
     type(GSI_Bundle),intent(inout) :: Bundle
@@ -1643,19 +2111,41 @@ CONTAINS
 
 !   retrieve variable
     if( irank==3 ) then
-        Bundle%r3(ipnt)%q = fld
+        Bundle%r3(ipnt)%qr8 = fld
     endif
 
-  end subroutine putvar3d_
+  end subroutine putvar3dr8_
+  subroutine putvar3dr4_ ( Bundle, fldname, fld, istatus )
+! This routine also allows putting a 1d-array into a 2d-/3d-array
+    
+    type(GSI_Bundle),intent(inout) :: Bundle
+    character(len=*),intent(in) :: fldname
+    real(r_single),  intent(in) :: fld(:,:,:)
+    integer(i_kind),intent(out) :: istatus
+    
+    integer(i_kind) :: n,irank,ipnt
+
+    istatus=0
+
+!   get pointer to desired variable
+    call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
+    if(istatus/=0) return
+
+!   retrieve variable
+    if( irank==3 ) then
+        Bundle%r3(ipnt)%qr4 = fld
+    endif
+
+  end subroutine putvar3dr4_
 !noEOC
 !............................................................................................
 !BOP
 !
-! !IROUTINE:  GetVar2d_ ---  Retrieve request field from bundle; Nd to 1d
+! !IROUTINE:  GetVar1dr8_ ---  Retrieve request field from bundle; Nd to 1d
 !
 ! !INTERFACE:
 
-  subroutine getvar1d_ ( Bundle, fldname, fld, istatus )
+  subroutine getvar1dr8_ ( Bundle, fldname, fld, istatus )
     
 ! !INPUT PARAMETERS:
 
@@ -1695,19 +2185,78 @@ CONTAINS
 !   retrieve variable
     select case (irank)
       case(1)
-        fld = Bundle%r1(ipnt)%q
+        fld = Bundle%r1(ipnt)%qr8
       case(2)
-        n=size(Bundle%r2(ipnt)%q)
-        fld = reshape(Bundle%r2(ipnt)%q,(/n/))
+        n=size(Bundle%r2(ipnt)%qr8)
+        fld = reshape(Bundle%r2(ipnt)%qr8,(/n/))
       case(3)
-        n=size(Bundle%r3(ipnt)%q)
-        fld = reshape(Bundle%r3(ipnt)%q,(/n/))
+        n=size(Bundle%r3(ipnt)%qr8)
+        fld = reshape(Bundle%r3(ipnt)%qr8,(/n/))
       case default
         istatus=1
     end select
 
-  end subroutine getvar1d_
-  subroutine getvar2d_ ( Bundle, fldname, fld, istatus )
+  end subroutine getvar1dr8_
+!............................................................................................
+!BOP
+!
+! !IROUTINE:  GetVar1dr4_ ---  Retrieve request field from bundle; Nd to 1d
+!
+! !INTERFACE:
+
+  subroutine getvar1dr4_ ( Bundle, fldname, fld, istatus )
+    
+! !INPUT PARAMETERS:
+
+    type(GSI_Bundle),intent(in) :: Bundle   ! the Bundle
+    character(len=*),intent(in) :: fldname        ! request field name
+
+! !INPUT/OUTPUT PARAMETERS:
+    real(r_single),  intent(inout) :: fld(:)      ! request field values
+
+! !OUTPUT PARAMETERS:
+    integer(i_kind),intent(out) :: istatus        ! status error code
+
+! !DESCRIPTION: Retrieve request field from bundle and return as 1d-array.
+!               Nd-input to 1d output.
+!
+!
+! !REMARKS: 
+!   1. This routine also allows retrieving a 2d-/3d-array in bundle
+!      into the 1d output array.
+!
+! !REVISION HISTORY:
+!
+!  05May2010 Todling  Initial code.
+!
+!EOP
+!-------------------------------------------------------------------------
+!noBOC
+    
+    integer(i_kind) :: n,irank,ipnt
+
+    istatus=0
+
+!   get pointer to desired variable
+    call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
+    if(istatus/=0) return
+
+!   retrieve variable
+    select case (irank)
+      case(1)
+        fld = Bundle%r1(ipnt)%qr4
+      case(2)
+        n=size(Bundle%r2(ipnt)%qr4)
+        fld = reshape(Bundle%r2(ipnt)%qr4,(/n/))
+      case(3)
+        n=size(Bundle%r3(ipnt)%qr4)
+        fld = reshape(Bundle%r3(ipnt)%qr4,(/n/))
+      case default
+        istatus=1
+    end select
+
+  end subroutine getvar1dr4_
+  subroutine getvar2dr8_ ( Bundle, fldname, fld, istatus )
     
     type(GSI_Bundle),intent(in) :: Bundle
     character(len=*),intent(in) :: fldname
@@ -1723,10 +2272,29 @@ CONTAINS
     if(istatus/=0) return
 
 !   retrieve variable
-    fld = Bundle%r2(ipnt)%q
+    fld = Bundle%r2(ipnt)%qr8
 
-  end subroutine getvar2d_
-  subroutine getvar3d_ ( Bundle, fldname, fld, istatus )
+  end subroutine getvar2dr8_
+  subroutine getvar2dr4_ ( Bundle, fldname, fld, istatus )
+    
+    type(GSI_Bundle),intent(in) :: Bundle
+    character(len=*),intent(in) :: fldname
+    real(r_single),  intent(inout) :: fld(:,:)
+    integer(i_kind),intent(out) :: istatus
+    
+    integer(i_kind) :: irank,ipnt
+
+    istatus=0
+
+!   get pointer to desired variable
+    call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
+    if(istatus/=0) return
+
+!   retrieve variable
+    fld = Bundle%r2(ipnt)%qr4
+
+  end subroutine getvar2dr4_
+  subroutine getvar3dr8_ ( Bundle, fldname, fld, istatus )
     
     type(GSI_Bundle),intent(in) :: Bundle
     character(len=*),intent(in) :: fldname
@@ -1742,9 +2310,28 @@ CONTAINS
     if(istatus/=0) return
 
 !   retrieve variable
-    fld = Bundle%r3(ipnt)%q
+    fld = Bundle%r3(ipnt)%qr8
 
-  end subroutine getvar3d_
+  end subroutine getvar3dr8_
+  subroutine getvar3dr4_ ( Bundle, fldname, fld, istatus )
+    
+    type(GSI_Bundle),intent(in) :: Bundle
+    character(len=*),intent(in) :: fldname
+    real(r_single),  intent(inout) :: fld(:,:,:)
+    integer(i_kind),intent(out) :: istatus
+   
+    integer(i_kind) :: irank,ipnt
+
+    istatus=0
+
+!   get pointer to desired variable
+    call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank )
+    if(istatus/=0) return
+
+!   retrieve variable
+    fld = Bundle%r3(ipnt)%qr4
+
+  end subroutine getvar3dr4_
 !noEOC
 !............................................................................................
 !BOP
@@ -2007,6 +2594,10 @@ CONTAINS
                                               bundi%n3d,bundo%n3d
      call stop2(999)
   end if
+  if (bundi%AllKinds<0 .or. bundo%AllKinds<0 ) then
+     write(6,*)trim(myname_),': error bundle precision ',bundi%AllKinds,bundo%AllKinds
+     call stop2(999)
+  endif
 
   if(bundi%n1d>0) then
      bundo%r1%shortname=bundi%r1%shortname
@@ -2024,11 +2615,19 @@ CONTAINS
      bundo%r3%units    =bundi%r3%units
   endif
 
+  if (bundo%AllKinds==r_single) then
 !$omp parallel do
-  do ii=1,bundo%ndim
-     bundo%values(ii)=bundi%values(ii)
-  enddo
+     do ii=1,bundo%ndim
+        bundo%valuesr4(ii)=bundi%valuesr4(ii)
+     enddo
 !$omp end parallel do
+  else if (bundo%AllKinds==r_kind) then
+!$omp parallel do
+     do ii=1,bundo%ndim
+        bundo%values  (ii)=bundi%values  (ii)
+     enddo
+!$omp end parallel do
+  endif
 
   do ii=1,bundo%n1d
      bundo%ival1(ii)=bundi%ival1(ii)
@@ -2046,11 +2645,11 @@ CONTAINS
 !............................................................................................
 !BOP
 !
-! !IROUTINE: Assign_Const_ --- Assign values of bundle to a give constant
+! !IROUTINE: AssignR8_Const_ --- Assign values of bundle to a give constant
 !
 ! !INTERFACE:
 
-  subroutine assign_const_(Bundo,cnst)
+  subroutine assignR8_const_(Bundo,cnst)
 
 ! !USES:
 
@@ -2076,17 +2675,72 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
 
-  character(len=*),parameter::myname_='assign_const_'
+  character(len=*),parameter::myname_='assignR8_const_'
   integer(i_kind) :: ii,istatus
+
+  if (bundo%AllKinds<0 ) then
+     write(6,*)trim(myname_),': error bundle precision ',bundo%AllKinds
+     call stop2(999)
+  endif
 
 !$omp parallel do
   do ii=1,bundo%ndim
-     bundo%values(ii)=cnst
+     bundo%values  (ii)=cnst
   enddo
 !$omp end parallel do
 
   return
-  end subroutine assign_const_
+  end subroutine assignR8_const_
+!noEOC
+!............................................................................................
+!BOP
+!
+! !IROUTINE: AssignR4_Const_ --- Assign values of bundle to a give constant
+!
+! !INTERFACE:
+
+  subroutine assignR4_const_(Bundo,cnst)
+
+! !USES:
+
+  implicit none
+
+! !INPUT PARAMETERS:
+
+  real(r_single),     intent(in   ) :: cnst
+
+! !INPUT/OUTPUT PARAMETERS:
+
+  type(GSI_Bundle), intent(inout) :: bundo
+
+! !DESCRIPTION: Assign values of bundle to a constant
+!
+!
+! !REVISION HISTORY:
+!
+!       2007 Tremolet Initial code.
+!  27Apr2010 Todling  Adapted from control-vector.
+!
+!EOP
+!-------------------------------------------------------------------------
+!noBOC
+
+  character(len=*),parameter::myname_='assignR4_const_'
+  integer(i_kind) :: ii,istatus
+
+  if (bundo%AllKinds<0 ) then
+     write(6,*)trim(myname_),': error bundle precision ',bundo%AllKinds
+     call stop2(999)
+  endif
+
+!$omp parallel do
+  do ii=1,bundo%ndim
+     bundo%valuesr4(ii)=cnst
+  enddo
+!$omp end parallel do
+
+  return
+  end subroutine assignR4_const_
 !noEOC
 subroutine hadamard_upd_(zst,yst,xst)
 !$$$  subprogram documentation block
@@ -2117,16 +2771,68 @@ subroutine hadamard_upd_(zst,yst,xst)
   type(gsi_bundle), intent(inout) :: zst
   type(gsi_bundle), intent(in   ) :: yst
   type(gsi_bundle), intent(in   ) :: xst
+  character(len=*),parameter::myname_='hadamard_upd_st_'
   integer(i_kind) :: ii
 
   if(yst%ndim/=xst%ndim.or.yst%ndim/=zst%ndim) then
-     write(6,*)'hadamard_upd_st: error length'
+     write(6,*)trim(myname_), ': error length'
      call stop2(313)
   endif
 
-  DO ii=1,zst%ndim
-     zst%values(ii)=zst%values(ii) + xst%values(ii)*yst%values(ii)
-  ENDDO
+  if (zst%AllKinds<0.or.xst%AllKinds<0.or.yst%AllKinds<0 ) then
+     write(6,*)trim(myname_),': error bundle precision ',zst%AllKinds,xst%AllKinds,yst%AllKinds
+     call stop2(999)
+  endif
+
+  if(zst%AllKinds==r_single .and. &
+     xst%AllKinds==r_single .and. &
+     yst%AllKinds==r_single ) then
+     DO ii=1,zst%ndim
+        zst%valuesR4(ii)=zst%valuesR4(ii) + xst%valuesR4(ii)*yst%valuesR4(ii)
+     ENDDO
+  endif
+  if(zst%AllKinds==r_kind .and. &
+     xst%AllKinds==r_kind .and. &
+     yst%AllKinds==r_kind ) then
+     DO ii=1,zst%ndim
+        zst%values  (ii)=zst%values  (ii) + xst%values  (ii)*yst%values  (ii)
+     ENDDO
+  endif
+  if(zst%AllKinds==r_single .and. &
+     xst%AllKinds==r_kind   .and. &
+     yst%AllKinds==r_kind ) then
+     DO ii=1,zst%ndim
+        zst%valuesR4(ii)=zst%valuesR4(ii) + xst%values  (ii)*yst%values  (ii)
+     ENDDO
+  endif
+  if(zst%AllKinds==r_kind   .and. &
+     xst%AllKinds==r_single .and. &
+     yst%AllKinds==r_kind ) then
+     DO ii=1,zst%ndim
+        zst%values  (ii)=zst%values  (ii) + xst%valuesR4(ii)*yst%values  (ii)
+     ENDDO
+  endif
+  if(zst%AllKinds==r_kind .and. &
+     xst%AllKinds==r_kind .and. &
+     yst%AllKinds==r_single ) then
+     DO ii=1,zst%ndim
+        zst%values  (ii)=zst%values  (ii) + xst%values  (ii)*yst%valuesR4(ii)
+     ENDDO
+  endif
+  if(zst%AllKinds==r_single .and. &
+     xst%AllKinds==r_single .and. &
+     yst%AllKinds==r_kind ) then
+     DO ii=1,zst%ndim
+        zst%valuesR4(ii)=zst%valuesR4(ii) + xst%valuesR4(ii)*yst%values  (ii)
+     ENDDO
+  endif
+  if(zst%AllKinds==r_single .and. &
+     xst%AllKinds==r_kind   .and. &
+     yst%AllKinds==r_single ) then
+     DO ii=1,zst%ndim
+        zst%valuesR4(ii)=zst%valuesR4(ii) + xst%values  (ii)*yst%valuesR4(ii)
+     ENDDO
+  endif
 
   return
 end subroutine hadamard_upd_
@@ -2158,21 +2864,47 @@ subroutine self_add_st(yst,xst)
   implicit none
   type(gsi_bundle), intent(inout) :: yst
   type(gsi_bundle), intent(in   ) :: xst
+  character(len=*),parameter::myname_='self_add_st'
   integer(i_kind) :: ii
 
   if(yst%ndim/=xst%ndim) then
-     write(6,*)'self_add_st: error length'
+     write(6,*)trim(myname_),': error length'
      call stop2(313)
   endif
+  if (xst%AllKinds<0.or.yst%AllKinds<0 ) then
+     write(6,*)trim(myname_),': error bundle precision ',xst%AllKinds,yst%AllKinds
+     call stop2(999)
+  endif
 
-  DO ii=1,yst%ndim
-     yst%values(ii)=yst%values(ii)+xst%values(ii)
-  ENDDO
+  if(yst%AllKinds==r_single .and. &
+     xst%AllKinds==r_single ) then
+     DO ii=1,yst%ndim
+        yst%valuesR4(ii)=yst%valuesR4(ii)+xst%valuesR4(ii)
+     ENDDO
+  endif
+  if(yst%AllKinds==r_kind .and. &
+     xst%AllKinds==r_kind ) then
+     DO ii=1,yst%ndim
+        yst%values  (ii)=yst%values  (ii)+xst%values  (ii)
+     ENDDO
+  endif
+  if(yst%AllKinds==r_single .and. &
+     xst%AllKinds==r_kind ) then
+     DO ii=1,yst%ndim
+        yst%valuesR4(ii)=yst%valuesR4(ii)+xst%values  (ii)
+     ENDDO
+  endif
+  if(yst%AllKinds==r_kind .and. &
+     xst%AllKinds==r_single ) then
+     DO ii=1,yst%ndim
+        yst%values  (ii)=yst%values  (ii)+xst%valuesR4(ii)
+     ENDDO
+  endif
 
   return
 end subroutine self_add_st
 ! ----------------------------------------------------------------------
-subroutine self_add_scal(yst,pa,xst)
+subroutine self_add_R8scal(yst,pa,xst)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    self_add_scal
@@ -2201,37 +2933,169 @@ subroutine self_add_scal(yst,pa,xst)
   type(gsi_bundle), intent(inout) :: yst
   real(r_kind),     intent(in   ) :: pa
   type(gsi_bundle), intent(in   ) :: xst
+  character(len=*),parameter::myname_='self_add_R8scal_'
   integer(i_kind) :: ii
 
   if(yst%ndim/=xst%ndim) then
-     write(6,*)'self_add_scal: error length'
+     write(6,*)trim(myname_),': error length'
      call stop2(313)
   endif
+  if (xst%AllKinds<0.or.yst%AllKinds<0 ) then
+     write(6,*)trim(myname_),': error bundle precision ',xst%AllKinds,yst%AllKinds
+     call stop2(999)
+  endif
 
-  DO ii=1,yst%ndim
-     yst%values(ii)=yst%values(ii)+pa*xst%values(ii)
-  ENDDO
+  if(yst%AllKinds==r_single .and. &
+     xst%AllKinds==r_single ) then
+     DO ii=1,yst%ndim
+        yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%valuesR4(ii)
+     ENDDO
+  endif
+  if(yst%AllKinds==r_kind   .and. &
+     xst%AllKinds==r_single ) then
+     DO ii=1,yst%ndim
+        yst%values  (ii)=yst%values  (ii)+pa*xst%valuesR4(ii)
+     ENDDO
+  endif
+  if(yst%AllKinds==r_single  .and. &
+     xst%AllKinds==r_kind   ) then
+     DO ii=1,yst%ndim
+        yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%values  (ii)
+     ENDDO
+  endif
+  if(yst%AllKinds==r_kind .and. &
+     xst%AllKinds==r_kind ) then
+     DO ii=1,yst%ndim
+        yst%values  (ii)=yst%values  (ii)+pa*xst%values  (ii)
+     ENDDO
+  endif
 
   return
-end subroutine self_add_scal
+end subroutine self_add_R8scal
 ! ----------------------------------------------------------------------
-subroutine self_mul(yst,pa)
+subroutine self_add_R4scal(yst,pa,xst)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    self_add_scal
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
 !   2009-08-12  lueken - added subprogram doc block
+!   2010-05-15  todling - update to use gsi_bundle
+!
+!   input argument list:
+!    yst
+!    pa
+!    xst
+!
+!   output argument list:
+!    yst
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
+  type(gsi_bundle), intent(inout) :: yst
+  real(r_single),   intent(in   ) :: pa
+  type(gsi_bundle), intent(in   ) :: xst
+  character(len=*),parameter::myname_='self_add_R4scal_'
+  integer(i_kind) :: ii
+
+  if(yst%ndim/=xst%ndim) then
+     write(6,*)trim(myname_),': error length'
+     call stop2(313)
+  endif
+  if (xst%AllKinds<0.or.yst%AllKinds<0 ) then
+     write(6,*)trim(myname_),': error bundle precision ',xst%AllKinds,yst%AllKinds
+     call stop2(999)
+  endif
+
+  if(yst%AllKinds==r_single .and. &
+     xst%AllKinds==r_single ) then
+     DO ii=1,yst%ndim
+        yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%valuesR4(ii)
+     ENDDO
+  endif
+  if(yst%AllKinds==r_kind   .and. &
+     xst%AllKinds==r_single ) then
+     DO ii=1,yst%ndim
+        yst%values  (ii)=yst%values  (ii)+pa*xst%valuesR4(ii)
+     ENDDO
+  endif
+  if(yst%AllKinds==r_single  .and. &
+     xst%AllKinds==r_kind   ) then
+     DO ii=1,yst%ndim
+        yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%values  (ii)
+     ENDDO
+  endif
+  if(yst%AllKinds==r_kind .and. &
+     xst%AllKinds==r_kind ) then
+     DO ii=1,yst%ndim
+        yst%values  (ii)=yst%values  (ii)+pa*xst%values  (ii)
+     ENDDO
+  endif
+
+  return
+end subroutine self_add_R4scal
+! ----------------------------------------------------------------------
+subroutine self_mulR8_(yst,pa)
 !   2010-05-15  todling - update to use gsi_bundle
   implicit none
   type(gsi_bundle), intent(inout) :: yst
   real(r_kind),     intent(in   ) :: pa
+  character(len=*),parameter::myname_='self_mulR8_'
   integer(i_kind) :: ii
 
-  DO ii=1,yst%ndim
-     yst%values(ii)=pa*yst%values(ii)
-  ENDDO
+  if (yst%AllKinds<0 ) then
+     write(6,*)trim(myname_),': error bundle precision ',yst%AllKinds
+     call stop2(999)
+  endif
+
+  if (yst%AllKinds==r_kind) then
+     DO ii=1,yst%ndim
+        yst%values  (ii)=pa*yst%values  (ii)
+     ENDDO
+  endif
+  if (yst%AllKinds==r_single) then
+     DO ii=1,yst%ndim
+        yst%valuesR4(ii)=pa*yst%valuesR4(ii)
+     ENDDO
+  endif
 
   return
-end subroutine self_mul
+end subroutine self_mulR8_
+subroutine self_mulR4_(yst,pa)
+!   2010-05-15  todling - update to use gsi_bundle
+  implicit none
+  type(gsi_bundle), intent(inout) :: yst
+  real(r_single),     intent(in   ) :: pa
+  character(len=*),parameter::myname_='self_mulR4_'
+  integer(i_kind) :: ii
 
-real(r_quad) function dplevs2d_(dx,dy,ihalo)
-!   2009-08-04  lueken - added subprogram doc block
+  if (yst%AllKinds<0 ) then
+     write(6,*)trim(myname_),': error bundle precision ',yst%AllKinds
+     call stop2(999)
+  endif
+
+  if (yst%AllKinds==r_kind) then
+     DO ii=1,yst%ndim
+        yst%values  (ii)=pa*yst%values  (ii)
+     ENDDO
+  endif
+  if (yst%AllKinds==r_single) then
+     DO ii=1,yst%ndim
+        yst%valuesR4(ii)=pa*yst%valuesR4(ii)
+     ENDDO
+  endif
+
+  return
+end subroutine self_mulR4_
+
+real(r_quad) function dplevs2dr8_(dx,dy,ihalo)
 
   implicit none
   real(r_kind)   ,intent(in) :: dx(:,:),dy(:,:)
@@ -2253,12 +3117,37 @@ real(r_quad) function dplevs2d_(dx,dy,ihalo)
         dplevs=dplevs+dx(ii,jj)*dy(ii,jj)
      end do
   end do
-  dplevs2d_=dplevs
+  dplevs2dr8_=dplevs
 
 return
-end function dplevs2d_
-real(r_quad) function dplevs3d_(dx,dy,ihalo)
-!   2009-08-04  lueken - added subprogram doc block
+end function dplevs2dr8_
+real(r_kind) function dplevs2dr4_(dx,dy,ihalo)
+
+  implicit none
+  real(r_single) ,intent(in) :: dx(:,:),dy(:,:)
+  integer(i_kind),optional,intent(in) :: ihalo
+
+  real(r_kind) dplevs
+  integer(i_kind) :: im,jm,km,ii,jj,kk,ihalo_
+
+  im=size(dx,1)
+  jm=size(dx,2)
+  ihalo_=0
+  if(present(ihalo)) then
+     ihalo_=ihalo
+  endif
+
+  dplevs=zero_quad
+  do jj=1+ihalo_,jm-ihalo_
+     do ii=1+ihalo_,im-ihalo_
+        dplevs=dplevs+dx(ii,jj)*dy(ii,jj)
+     end do
+  end do
+  dplevs2dr4_=dplevs
+
+return
+end function dplevs2dr4_
+real(r_quad) function dplevs3dr8_(dx,dy,ihalo)
 
   implicit none
   real(r_kind)   ,intent(in) :: dx(:,:,:),dy(:,:,:)
@@ -2283,13 +3172,41 @@ real(r_quad) function dplevs3d_(dx,dy,ihalo)
         end do
      end do
   end do
-  dplevs3d_=dplevs
+  dplevs3dr8_=dplevs
 
 return
-end function dplevs3d_
+end function dplevs3dr8_
+real(r_kind) function dplevs3dr4_(dx,dy,ihalo)
 
-real(r_kind) function sum2d_(field,ihalo)
-!   2009-08-12  lueken - added subprogram doc block
+  implicit none
+  real(r_single) ,intent(in) :: dx(:,:,:),dy(:,:,:)
+  integer(i_kind),optional,intent(in) :: ihalo
+
+  real(r_kind) dplevs
+  integer(i_kind) :: im,jm,km,ii,jj,kk,ihalo_
+
+  im=size(dx,1)
+  jm=size(dx,2)
+  km=size(dx,3)
+  ihalo_=0
+  if(present(ihalo)) then
+     ihalo_=ihalo
+  endif
+
+  dplevs=zero_quad
+  do kk=1,km
+     do jj=1+ihalo_,jm-ihalo_
+        do ii=1+ihalo_,im-ihalo_
+           dplevs=dplevs+dx(ii,jj,kk)*dy(ii,jj,kk)
+        end do
+     end do
+  end do
+  dplevs3dr4_=dplevs
+
+return
+end function dplevs3dr4_
+
+real(r_kind) function sum2dR8_(field,ihalo)
   implicit none
   real(r_kind),dimension(:,:),intent(in) :: field
   integer(i_kind),optional   ,intent(in) :: ihalo
@@ -2311,11 +3228,36 @@ real(r_kind) function sum2d_(field,ihalo)
         sum_mask=sum_mask+field(i,j)
      end do
   end do
-  sum2d_=sum_mask
+  sum2dR8_=sum_mask
   return
-end function sum2d_
-real(r_kind) function sum3d_(field,ihalo)
-!   2009-08-12  lueken - added subprogram doc block
+end function sum2dR8_
+real(r_single) function sum2dR4_(field,ihalo)
+  implicit none
+  real(r_single),dimension(:,:),intent(in) :: field
+  integer(i_kind),optional     ,intent(in) :: ihalo
+
+! local variables
+  real(r_kind) :: sum_mask
+  integer(i_kind) :: im,jm,i,j,ihalo_
+ 
+  im=size(field,1)
+  jm=size(field,2)
+  ihalo_=0
+  if(present(ihalo)) then
+     ihalo_=ihalo
+  endif
+
+  sum_mask=zero
+  do j=1+ihalo_,jm-ihalo_
+     do i=1+ihalo_,im-ihalo_
+        sum_mask=sum_mask+field(i,j)
+     end do
+  end do
+  sum2dR4_=sum_mask
+  return
+end function sum2dR4_
+
+real(r_kind) function sum3dR8_(field,ihalo)
   implicit none
   real(r_kind),dimension(:,:,:),intent(in) :: field
   integer(i_kind),optional     ,intent(in) :: ihalo
@@ -2340,9 +3282,37 @@ real(r_kind) function sum3d_(field,ihalo)
         end do
      end do
   end do
-  sum3d_=sum_mask
+  sum3dR8_=sum_mask
   return
-end function sum3d_
+end function sum3dR8_
+real(r_single) function sum3dR4_(field,ihalo)
+  implicit none
+  real(r_single),dimension(:,:,:),intent(in) :: field
+  integer(i_kind),optional       ,intent(in) :: ihalo
+
+! local variables
+  real(r_kind) :: sum_mask
+  integer(i_kind) :: im,jm,km,i,j,k,ihalo_
+ 
+  im=size(field,1)
+  jm=size(field,2)
+  km=size(field,3)
+  ihalo_=0
+  if(present(ihalo)) then
+     ihalo_=ihalo
+  endif
+
+  sum_mask=zero
+  do k=1,km
+     do j=1+ihalo_,jm-ihalo_
+        do i=1+ihalo_,im-ihalo_
+           sum_mask=sum_mask+field(i,j,k)
+        end do
+     end do
+  end do
+  sum3dR4_=sum_mask
+  return
+end function sum3dR4_
 !............................................................................................
 !BOP
 !
@@ -2376,7 +3346,12 @@ end function sum3d_
        call clean_(Bundle%r1,n1d,is)
        istatus=istatus+is
        do i = 1, n1d
-          nullify(Bundle%r1(i)%q)
+          if (Bundle%r1(i)%myKind==r_single) then
+              nullify(Bundle%r1(i)%qr4)
+          else if (Bundle%r1(i)%myKind==r_kind) then
+              nullify(Bundle%r1(i)%qr8)
+              nullify(Bundle%r1(i)%q  )
+          endif
        enddo
        deallocate(Bundle%r1,stat=is)
        istatus=istatus+is
@@ -2387,7 +3362,12 @@ end function sum3d_
        call clean_(Bundle%r2,n2d,is)
        istatus=istatus+is
        do i = 1, n2d
-          nullify(Bundle%r2(i)%q)
+          if (Bundle%r2(i)%myKind==r_single) then
+              nullify(Bundle%r2(i)%qr4)
+          else if (Bundle%r2(i)%myKind==r_kind) then
+              nullify(Bundle%r2(i)%qr8)
+              nullify(Bundle%r2(i)%q  )
+          endif
        enddo
        deallocate(Bundle%r2,stat=is)
        istatus=istatus+is
@@ -2398,7 +3378,12 @@ end function sum3d_
        call clean_(Bundle%r3,n3d,is)
        istatus=istatus+is
        do i = 1, n3d
-          nullify(Bundle%r3(i)%q)
+          if (Bundle%r3(i)%myKind==r_single) then
+              nullify(Bundle%r3(i)%qr4)
+          else if (Bundle%r3(i)%myKind==r_kind) then
+              nullify(Bundle%r3(i)%qr8)
+              nullify(Bundle%r3(i)%q  )
+          endif
        enddo
        deallocate(Bundle%r3,stat=is)
        istatus=istatus+is
@@ -2468,7 +3453,12 @@ end function sum3d_
        call clean_(Bundle%r1,n1d,istatus)
        is=istatus+is
        do i = 1, n1d
-          nullify(Bundle%r1(i)%q)
+          if (Bundle%r1(i)%myKind==r_single) then
+              nullify(Bundle%r1(i)%qr4)
+          else if (Bundle%r1(i)%myKind==r_kind) then
+              nullify(Bundle%r1(i)%qr8)
+              nullify(Bundle%r1(i)%q  )
+          endif
        enddo
        deallocate(Bundle%r1,stat=istatus)
     endif
@@ -2477,7 +3467,12 @@ end function sum3d_
        call clean_(Bundle%r2,n2d,istatus)
        is=istatus+is
        do i = 1, n2d
-          nullify(Bundle%r2(i)%q)
+          if (Bundle%r2(i)%myKind==r_single) then
+              nullify(Bundle%r2(i)%qr4)
+          else if (Bundle%r2(i)%myKind==r_kind) then
+              nullify(Bundle%r2(i)%qr8)
+              nullify(Bundle%r2(i)%q  )
+          endif
        enddo
        deallocate(Bundle%r2,stat=istatus)
     endif
@@ -2486,7 +3481,12 @@ end function sum3d_
        call clean_(Bundle%r3,n3d,istatus)
        is=istatus+is
        do i = 1, n3d
-          nullify(Bundle%r3(i)%q)
+          if (Bundle%r3(i)%myKind==r_single) then
+              nullify(Bundle%r3(i)%qr4)
+          else if (Bundle%r3(i)%myKind==r_kind) then
+              nullify(Bundle%r3(i)%qr8)
+              nullify(Bundle%r3(i)%q  )
+          endif
        enddo
        deallocate(Bundle%r3,stat=istatus)
     endif
@@ -2533,22 +3533,45 @@ end function sum3d_
 !-------------------------------------------------------------------------
 !noBOC
     integer(i_kind) :: i 
+    character(len=*),parameter::myname_='print_'
+    if (Bundle%AllKinds<0 ) then
+       write(6,*) myname_, ':trouble with bundle precision bundle ', Bundle%AllKinds
+       call stop2(999)
+    endif
     print *
     print *, 'Bundle: ', trim(Bundle%name)
     do i = 1, Bundle%n1d
-       write(*,'(a20,2x,1p,e11.4,2x,e11.4)') '  [1d] '//Bundle%r1(i)%shortname, &
-                       minval(Bundle%r1(i)%q), &
-                       maxval(Bundle%r1(i)%q)
+       if (Bundle%r1(i)%myKind==r_single) then
+           write(*,'(a20,2x,1p,e11.4,2x,e11.4)') '  [1d] '//Bundle%r1(i)%shortname, &
+                       minval(Bundle%r1(i)%qr4), &
+                       maxval(Bundle%r1(i)%qr4)
+       else if (Bundle%r1(i)%myKind==r_kind) then
+           write(*,'(a20,2x,1p,e11.4,2x,e11.4)') '  [1d] '//Bundle%r1(i)%shortname, &
+                       minval(Bundle%r1(i)%qr8), &
+                       maxval(Bundle%r1(i)%qr8)
+       endif
     end do
     do i = 1, Bundle%n2d
-       write(*,'(a20,2x,1p,e11.4,2x,e11.4)') '  [2d] '//Bundle%r2(i)%shortname, &
-                       minval(Bundle%r2(i)%q), &
-                       maxval(Bundle%r2(i)%q)
+       if (Bundle%r2(i)%myKind==r_single) then
+           write(*,'(a20,2x,1p,e11.4,2x,e11.4)') '  [2d] '//Bundle%r2(i)%shortname, &
+                       minval(Bundle%r2(i)%qr4), &
+                       maxval(Bundle%r2(i)%qr4)
+       else if (Bundle%r2(i)%myKind==r_kind) then
+           write(*,'(a20,2x,1p,e11.4,2x,e11.4)') '  [2d] '//Bundle%r2(i)%shortname, &
+                       minval(Bundle%r2(i)%qr8), &
+                       maxval(Bundle%r2(i)%qr8)
+       endif
     end do
     do i = 1, Bundle%n3d
-       write(*,'(a20,2x,1p,e11.4,2x,e11.4)') '  [3d] '//Bundle%r3(i)%shortname, &
-                       minval(Bundle%r3(i)%q), &
-                       maxval(Bundle%r3(i)%q)
+       if (Bundle%r3(i)%myKind==r_single) then
+           write(*,'(a20,2x,1p,e11.4,2x,e11.4)') '  [3d] '//Bundle%r3(i)%shortname, &
+                       minval(Bundle%r3(i)%qr4), &
+                       maxval(Bundle%r3(i)%qr4)
+       else if (Bundle%r3(i)%myKind==r_kind) then
+           write(*,'(a20,2x,1p,e11.4,2x,e11.4)') '  [3d] '//Bundle%r3(i)%shortname, &
+                       minval(Bundle%r3(i)%qr8), &
+                       maxval(Bundle%r3(i)%qr8)
+       endif
     end do
                              
   end subroutine print_

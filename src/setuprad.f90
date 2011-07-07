@@ -114,6 +114,13 @@
 !   2010-08-17  derber  - move setup input and crtm call to crtm_interface (intrppx) to simplify routine
 !   2010-09-30  zhu     - re-order predterms and predbias
 !   2010-12-16  treadon - move cbias update before calc_clw
+!   2011-02-17  todling - add knob to turn off O3 Jacobian from IR instruments (per Emily Liu's work)
+!   2011-03-13  li      - (1) associate nst_gsi and nstinfo (use radinfo) to handle nst fields
+!                       - (2) modify to save nst analysis related diagnostic variables
+!   2011-04-07  todling - newpc4pred now in radinfo
+!   2011-05-04  todling - partially merge in Min-Jeong Kim's cloud clear assimilation changes (connect to Metguess)
+!   2011-05-16  todling - generalize handling of jacobian matrix entries
+!   2011-05-20  mccarty - updated for ATMS
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -137,39 +144,41 @@
 !
 !$$$
 
-  use mpeu_util, only: die,perr
+  use mpeu_util, only: die,perr,getindex
   use kinds, only: r_kind,r_single,i_kind
   use crtm_spccoeff, only: sc
-  use berror, only: newpc4pred
   use radinfo, only: nuchan,tlapmean,predx,cbias,ermax_rad,&
-       npred,jpch_rad,varch,iuse_rad,nusis,fbias,retrieval,b_rad,pg_rad,&
-       air_rad,ang_rad,adp_anglebc,angord,&
-       passive_bc,ostats,rstats
+      npred,jpch_rad,varch,iuse_rad,nusis,fbias,retrieval,b_rad,pg_rad,&
+      air_rad,ang_rad,adp_anglebc,angord,&
+      passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac,&
+      nst_gsi,nstinfo,nst_tzr
   use read_diag, only: iversion_radiag,ireal_radiag,ipchan_radiag
   use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &
-           dplat,dtbduv_on,radhead,radtail,radheadm,radtailm,&
-           i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
-           dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
+      dplat,dtbduv_on,radhead,radtail,radheadm,radtailm,&
+      i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+      dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use obsmod, only: rad_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use gridmod, only: nsig,nsig2,nsig3p1,regional,nsig3p2,nsig3p3,get_ij
+  use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
-  use constants, only: half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
-       two,three,cg_term,wgtlim,r100,r10,r0_01
+  use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
+      two,three,cg_term,wgtlim,r100,r10,r0_01
   use jfunc, only: jiter,miter
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
-       finish_sst_retrieval,spline_cub
+      finish_sst_retrieval,spline_cub
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use crtm_interface, only: init_crtm,call_crtm,destroy_crtm,sensorindex,surface, &
       isatid,itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
       ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,its_sea,its_lnd,its_ice,its_sno,itsavg, &
       ivty,ivfr,isty,istp,ism,isn,izz,idomsfc,isfcr,iff10,ilone,ilate, &
-      isst_hires,isst_navy,idata_type,iclr_sky,iclavr
-  use clw_mod, only: calc_clw
-  use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs
-  use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc
+      isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr
+  use clw_mod, only: calc_clw, ret_amsua 
+  use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
+  use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3
+  use qcmod, only: setup_tzr_qc
+  use gsi_metguess_mod, only: gsi_metguess_get
   implicit none
 
 ! Declare passed variables
@@ -193,29 +202,30 @@
 
   integer(i_kind) iextra,jextra,error_status,istat
   integer(i_kind) ich9,isli,icc,iccm,mm1,ixx
-  integer(i_kind) m,mm,jc,j,k,i,kmax
+  integer(i_kind) m,mm,jc,j,k,i,kmax,icw4crtm,ier
   integer(i_kind) kk,n,nlev,kval,ibin,ioff,iii
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
   integer(i_kind) nadir,kraintype,ierrret,ichanl_diag
+  integer(i_kind) ioz,ius,ivs
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
   real(r_kind) term,tlap,tb_obsbc1
   real(r_kind) drad,dradnob,varrad,error,errinv,useflag
   real(r_kind) cg_rad,wgross,wnotgross,wgt,arg,exp_arg
-  real(r_kind) tsavg5,trop5,pangs,cld,cldp
+  real(r_kind) tzbgr,tsavg5,trop5,pangs,cld,cldp
   real(r_kind) cenlon,cenlat,slats,slons,zsges,zasat,dtime
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
-  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl
+  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl, clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
   real(r_kind) dtsavg,r90,coscon,sincon
 
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
-  logical avhrr,avhrr_navy,lextra,ssu,iasi,seviri
+  logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
   logical sea,mixed,land,ice,snow,toss,l_may_be_passive
-  logical microwave
+  logical microwave, microwave_low
   logical no85GHz
   logical in_curbin, in_anybin
 
@@ -229,17 +239,19 @@
   real(r_kind),dimension(npred,nchanl):: pred,predchan
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
-  real(r_kind),dimension(nchanl):: tnoise
+  real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
   real(r_kind),dimension(nchanl):: emissivity,ts,emissivity_k
   real(r_kind),dimension(nchanl):: tsim,wavenumber
   real(r_kind),dimension(nsig,nchanl):: wmix,temp,ptau5
-  real(r_kind),dimension(nsig3p3,nchanl):: jacobian
+  real(r_kind),dimension(nsigradjac,nchanl):: jacobian
   real(r_kind),dimension(nreal+nchanl,nobs)::data_s
   real(r_kind),dimension(nsig):: qvp,tvp
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
+  real(r_kind) :: clw_guess,clw_guess_retrieval
+  real(r_kind) :: dtw,dtc,tz_tr
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -306,17 +318,23 @@
   ssmis_img  = obstype == 'ssmis_img'
   ssmis_env  = obstype == 'ssmis_env'
   iasi       = obstype == 'iasi'
+  cris       = obstype == 'cris'
   seviri     = obstype == 'seviri'
+  atms       = obstype == 'atms'
 
   ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis 
 
   microwave=amsua .or. amsub  .or. mhs .or. msu .or. hsb .or. &
-        ssmi .or. ssmis .or. amsre
+            ssmi  .or. ssmis  .or. amsre .or. atms
 
-!
+  microwave_low =amsua  .or.  msu .or. ssmi .or. ssmis .or. amsre
+
+! Determine whether or not cloud-condensate is present in MetGuess
+  call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
 
 ! Initialize channel related information
   tnoise = r1e10
+  tnoise_cld = r1e10
   l_may_be_passive = .false.
   toss = .true.
   jc=0
@@ -325,7 +343,7 @@
         jc=jc+1
         if(jc > nchanl)then
            write(6,*)'SETUPRAD:  ***ERROR*** in channel numbers, jc,nchanl=',jc,nchanl,&
-                '  ***STOP IN SETUPRAD***'
+              '  ***STOP IN SETUPRAD***'
            call stop2(71)
         end if
 
@@ -333,13 +351,13 @@
 
         ich(jc)=j
         do i=1,npred
-          predchan(i,jc)=predx(i,j)
+           predchan(i,jc)=predx(i,j)
         end do
 !
 !       Set error instrument channels
         tnoise(jc)=varch(j)
         if (iuse_rad(j)< -1 .or. (iuse_rad(j) == -1 .and.  &
-              .not.rad_diagsave)) tnoise(jc)=r1e10
+           .not.rad_diagsave)) tnoise(jc)=r1e10
         if (passive_bc .and. (iuse_rad(j)==-1)) tnoise(jc)=varch(j)
         if (iuse_rad(j)>-1) l_may_be_passive=.true.
         if (tnoise(jc) < 1.e4_r_kind) toss = .false.
@@ -347,7 +365,7 @@
   end do
   if ( mype == 0 .and. .not.l_may_be_passive) write(6,*)mype,'setuprad: passive obs',is,isis
   if(nchanl > jc) write(6,*)'SETUPRAD:  channel number reduced for ', &
-       obstype,nchanl,' --> ',jc
+     obstype,nchanl,' --> ',jc
   if(jc == 0) then
      if(mype == 0) write(6,*)'SETUPRAD: No channels found for ', obstype,isis
      if(nobs > 0)read(lunin)
@@ -355,7 +373,7 @@
   end if
   if (toss) then
      if(mype == 0)write(6,*)'SETUPRAD: all obs var > 1e4.  do not use ',&
-          'data from satellite is=',isis
+        'data from satellite is=',isis
      if(nobs >0)read(lunin)                    
      goto 135
   endif
@@ -363,38 +381,54 @@
 ! Initialize radiative transfer and pointers to values in data_s
   call init_crtm(init_pass,mype_diaghdr(is),mype,nchanl,isis,obstype)
 
+! Get indexes of variables in jacobian to handle exceptions down below
+  ioz =getindex(radjacnames,'oz')
+  if(ioz>0) then
+     ioz=radjacindxs(ioz)
+  endif
+  ius =getindex(radjacnames,'u')
+  ivs =getindex(radjacnames,'v')
+  if(ius>0.and.ivs>0) then
+     ius=radjacindxs(ius)
+     ivs=radjacindxs(ivs)
+  endif
+
 !  These variables are initialized in init_crtm
-! isatid    = 1  ! index of satellite id
-! itime     = 2  ! index of analysis relative obs time 
-! ilon      = 3  ! index of grid relative obs location (x)
-! ilat      = 4  ! index of grid relative obs location (y)
-! ilzen_ang = 5  ! index of local (satellite) zenith angle (radians)
-! ilazi_ang = 6  ! index of local (satellite) azimuth angle (radians)
-! iscan_ang = 7  ! index of scan (look) angle (radians)
-! iscan_pos = 8  ! index of integer scan position 
-! iszen_ang = 9  ! index of solar zenith angle (degrees)
-! isazi_ang = 10 ! index of solar azimuth angle (degrees)
-! ifrac_sea = 11 ! index of ocean percentage
-! ifrac_lnd = 12 ! index of land percentage
-! ifrac_ice = 13 ! index of ice percentage
-! ifrac_sno = 14 ! index of snow percentage
-! its_sea   = 15 ! index of ocean temperature
-! its_lnd   = 16 ! index of land temperature
-! its_ice   = 17 ! index of ice temperature
-! its_sno   = 18 ! index of snow temperature
-! itsavg    = 19 ! index of average temperature
-! ivty      = 20 ! index of vegetation type
-! ivfr      = 21 ! index of vegetation fraction
-! isty      = 22 ! index of soil type
-! istp      = 23 ! index of soil temperature
-! ism       = 24 ! index of soil moisture
-! isn       = 25 ! index of snow depth
-! izz       = 26 ! index of surface height
-! idomsfc   = 27 ! index of dominate surface type
-! isfcr     = 28 ! index of surface roughness
-! iff10     = 29 ! index of ten meter wind factor
-! ilone     = 30 ! index of earth relative longitude (degrees)
-! ilate     = 31 ! index of earth relative latitude (degrees)
+! isatid    = 1     ! index of satellite id
+! itime     = 2     ! index of analysis relative obs time 
+! ilon      = 3     ! index of grid relative obs location (x)
+! ilat      = 4     ! index of grid relative obs location (y)
+! ilzen_ang = 5     ! index of local (satellite) zenith angle (radians)
+! ilazi_ang = 6     ! index of local (satellite) azimuth angle (radians)
+! iscan_ang = 7     ! index of scan (look) angle (radians)
+! iscan_pos = 8     ! index of integer scan position 
+! iszen_ang = 9     ! index of solar zenith angle (degrees)
+! isazi_ang = 10    ! index of solar azimuth angle (degrees)
+! ifrac_sea = 11    ! index of ocean percentage
+! ifrac_lnd = 12    ! index of land percentage
+! ifrac_ice = 13    ! index of ice percentage
+! ifrac_sno = 14    ! index of snow percentage
+! its_sea   = 15    ! index of ocean temperature
+! its_lnd   = 16    ! index of land temperature
+! its_ice   = 17    ! index of ice temperature
+! its_sno   = 18    ! index of snow temperature
+! itsavg    = 19    ! index of average temperature
+! ivty      = 20    ! index of vegetation type
+! ivfr      = 21    ! index of vegetation fraction
+! isty      = 22    ! index of soil type
+! istp      = 23    ! index of soil temperature
+! ism       = 24    ! index of soil moisture
+! isn       = 25    ! index of snow depth
+! izz       = 26    ! index of surface height
+! idomsfc   = 27    ! index of dominate surface type
+! isfcr     = 28    ! index of surface roughness
+! iff10     = 29    ! index of ten meter wind factor
+! ilone     = 30    ! index of earth relative longitude (degrees)
+! ilate     = 31    ! index of earth relative latitude (degrees)
+! itref     = 34/36 ! index of foundation temperature: Tr
+! idtw      = 35/37 ! index of diurnal warming: d(Tw) at depth zob
+! idtc      = 36/38 ! index of sub-layer cooling: d(Tc) at depth zob
+! itz_tr    = 37/39 ! index of d(Tz)/d(Tr)
 
 ! Initialize sensor specific array pointers
 ! if (goes_img) then
@@ -414,6 +448,8 @@
 ! Special setup for SST retrieval (output)
   if (retrieval.and.init_pass) call setup_sst_retrieval(obstype,dplat(is),mype)
 
+! Special setup for Tz retrieval
+   if (nst_tzr>0) call setup_tzr_qc(obstype)
 
 ! If SSM/I, check for non-use of 85GHz channel, for QC workaround
 ! set no85GHz true if any 85GHz is not used, and other freq channel is used
@@ -446,7 +482,7 @@
         end if
      end do
      if(mype == mype_diaghdr(is))write(6,*)'SETUPRAD:  reduced number of channels ',&
-          nchanl_diag,' of ',nchanl,' written to diag file '
+        nchanl_diag,' of ',nchanl,' written to diag file '
   else
      nchanl_diag=nchanl
      do i=1,nchanl_diag
@@ -495,9 +531,9 @@
         inewpc=0
         if (newpc4pred) inewpc=1
         write(4) isis,dplat(is),obstype,jiter,nchanl_diag,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra,&
-             idiag,angord,iversion_radiag,inewpc
+           idiag,angord,iversion_radiag,inewpc
         write(6,*)'SETUPRAD:  write header record for ',&
-             isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,' to file ',trim(diag_rad_file),' ',ianldate
+           isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,' to file ',trim(diag_rad_file),' ',ianldate
         do i=1,nchanl
            n=ich(i)
            if( n < 1  .or. (reduce_diag .and. iuse_rad(n) < 1))cycle
@@ -507,7 +543,7 @@
            pol4=sc(sensorindex)%polarization(i)
            wave4=wavenumber(i)
            write(4)freq4,pol4,wave4,varch4,tlap4,iuse_rad(n),&
-                nuchan(n),ich(i)
+              nuchan(n),ich(i)
         end do
      endif
   endif
@@ -556,14 +592,6 @@
 
         if(seviri .and. abs(data_s(iszen_ang,n)) > 180.0_r_kind) data_s(iszen_ang,n)=r100
  
-!  If retrieval reset skin temperatures to hires SST value
-        if (retrieval) then
-           data_s(its_sea,n)=data_s(isst_hires,n)
-           data_s(its_ice,n)=data_s(isst_hires,n)
-           data_s(its_lnd,n)=data_s(isst_hires,n)
-           data_s(its_sno,n)=data_s(isst_hires,n)
-        endif
-
  
 !  Set land/sea, snow, ice percentages and flags (no time interpolation)
 
@@ -584,12 +612,31 @@
               aivals(3,is) = aivals(3,is) + one
            end if
         end if
+!  Define observation errors for AMSU-A
+        if(amsua .and. sea .and. cenlat > -60.0_r_kind .and. icw4crtm>10) then
+           tnoise_cld(1)  = 9.1_r_kind    !clr sky = 2.5
+           tnoise_cld(2)  = 13.5_r_kind   ! 2.0
+           tnoise_cld(3)  = 7.1_r_kind    !2.0
+           tnoise_cld(4)  = 1.3_r_kind    !0.55
+           tnoise_cld(5)  = 0.55_r_kind   !0.3
+           tnoise_cld(6)  = 0.23_r_kind   !0.23
+           tnoise_cld(7)  = 0.195_r_kind  !0.23
+           tnoise_cld(8)  = 0.232_r_kind  !0.25
+           tnoise_cld(9)  = 0.235_r_kind  !0.25
+           tnoise_cld(10) = 0.237_r_kind  !0.35
+           tnoise_cld(11) = 0.27_r_kind   !0.4
+           tnoise_cld(12) = 0.385_r_kind  !0.55
+           tnoise_cld(13) = 0.52_r_kind   !0.8
+           tnoise_cld(14) = 1.4_r_kind    !3.0
+           tnoise_cld(15) = 10.0_r_kind   !2.5
+        endif
+
 
 !       Set relative weight value
         val_obs=one
-        ixx=nint(data_s(nreal,n))
+        ixx=nint(data_s(nreal-nstinfo,n))
         if (ixx > 0 .and. super_val1(ixx) >= one) then
-           val_obs=data_s(nreal-1,n)/super_val1(ixx)
+           val_obs=data_s(nreal-nstinfo-1,n)/super_val1(ixx)
         endif
 
 !       Load channel data into work array.
@@ -600,10 +647,10 @@
 
 !       Interpolate model fields to observation location, call crtm and create jacobians
         call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
-               tvp,qvp,prsltmp,prsitmp, &
-               trop5,dtsavg,sfc_speed, &
-               tsim,emissivity,ptau5,ts,emissivity_k, &
-               temp,jacobian,error_status)
+             tvp,qvp,clw_guess,prsltmp,prsitmp, &
+             trop5,tzbgr,dtsavg,sfc_speed, &
+             tsim,emissivity,ptau5,ts,emissivity_k, &
+             temp,wmix,jacobian,error_status)
 
 ! If the CRTM returns an error flag, do not assimilate any channels for this ob 
 ! and set the QC flag to ifail_crtm_qc.
@@ -616,6 +663,19 @@
 
 !  For SST retrieval, use interpolated NCEP SST analysis
         if (retrieval) then
+           if( avhrr_navy )then
+             dtp_avh = data_s(idata_type,n)
+             sstcu=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
+             sstnv=data_s(isst_navy,n)
+           elseif ( avhrr) then
+             if ( pangs <= 89.0_r_kind) then              ! day time
+                dtp_avh = 151.0_r_kind
+             else
+                dtp_avh = 152.0_r_kind
+             endif
+             sstcu=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
+             sstnv=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
+           endif
            tsavg5 = data_s(isst_hires,n)
         else
            tsavg5=data_s(itsavg,n)
@@ -645,13 +705,21 @@
 
 !       Compute microwave cloud liquid water for bias correction and QC.
         clw=zero
+        clwp_amsua=zero
+        clw_guess_retrieval=zero
+        tpwc_amsua=zero
+        tpwc_guess_retrieval=zero
         ierrret=0
         tpwc=zero
         kraintype=0
-        if(microwave .and. sea) &
-            call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre, &
-                    tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
-
+        if(microwave .and. sea) then 
+           call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
+                tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
+           if(amsua .and. cenlat > -60.0_r_kind .and. icw4crtm>10) &
+              call ret_amsua(tb_obs, nchanl, tsavg5, zasat, clwp_amsua)
+           if(amsua .and. cenlat > -60.0_r_kind .and. icw4crtm>10) &
+              call ret_amsua(tsim, nchanl, tsavg5, zasat, clw_guess_retrieval)
+        endif
         predbias=zero
         do i=1,nchanl
            mm=ich(i)
@@ -679,34 +747,35 @@
            else
               pred(3,i) = clw*cosza*cosza
            end if
-
+           if(amsua .and. sea .and. cenlat > -60.0_r_kind .and. icw4crtm>10) pred(3,i ) = zero
+ 
 !       Apply bias correction
  
            if (lwrite_peakwt) then
-             ptau5derivmax = -9.9e31
+              ptau5derivmax = -9.9e31_r_kind
 ! maximum of weighting function is level at which transmittance
 ! (ptau5) is changing the fastest.  This is used for the level
 ! assignment (needed for vertical localization).
-             weightmax(i) = 0.
-             kmax = 0
-             do k=2,nsig
-                ptau5deriv(k,i) = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
-                (log(prsltmp(k-1))-log(prsltmp(k))) )
-                if (ptau5deriv(k,i) .gt. ptau5derivmax) then
-                   ptau5derivmax = ptau5deriv(k,i)
-                   kmax = k
-                   weightmax(i) = r10*prsitmp(k) ! cb to mb.
-                end if
-             enddo
+              weightmax(i) = zero
+              kmax = 0
+              do k=2,nsig
+                 ptau5deriv(k,i) = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
+                    (log(prsltmp(k-1))-log(prsltmp(k))) )
+                 if (ptau5deriv(k,i) > ptau5derivmax) then
+                    ptau5derivmax = ptau5deriv(k,i)
+                    kmax = k
+                    weightmax(i) = r10*prsitmp(k) ! cb to mb.
+                 end if
+              enddo
 ! normalize weighting function
-             ptau5deriv(:,i) = ptau5deriv(:,i)/ptau5deriv(kmax,i)
-             ptau5deriv(1,i) = ptau5deriv(2,i)
+              ptau5deriv(:,i) = ptau5deriv(:,i)/ptau5deriv(kmax,i)
+              ptau5deriv(1,i) = ptau5deriv(2,i)
            end if
 
            tlapchn(i)= (ptau5(2,i)-ptau5(1,i))*(tsavg5-tvp(2))
            do k=2,nsig-1
               tlapchn(i)=tlapchn(i)+&
-                   (ptau5(k+1,i)-ptau5(k,i))*(tvp(k-1)-tvp(k+1))
+                 (ptau5(k+1,i)-ptau5(k,i))*(tvp(k-1)-tvp(k+1))
            end do
            if (.not. newpc4pred) tlapchn(i) = r0_01*tlapchn(i)
            tlap = tlapchn(i)-tlapmean(mm)
@@ -745,15 +814,36 @@
            tbc(i)=tbc(i) - predbias(npred+2,i)
  
            error0(i)     = tnoise(i)
+
+!Kim ----------------------------------------
+           if(amsua .and. sea .and. cenlat > -60.0_r_kind .and. icw4crtm>10)  then
+              if(half*(clwp_amsua+clw_guess_retrieval) < 0.05_r_kind) then
+                 error0(i) = tnoise(i)
+              else if(half*(clwp_amsua+clw_guess_retrieval) >= 0.05_r_kind .and. &
+                      half*(clwp_amsua+clw_guess_retrieval) < quarter) then
+                 error0(i) = tnoise(i) + &
+                    (half*(clwp_amsua+clw_guess_retrieval)-0.05_r_kind) &
+                   *(tnoise_cld(i)-tnoise(i))/(quarter-0.05_r_kind)
+              else if (half*(clwp_amsua+clw_guess_retrieval) >= quarter .and.    &
+                       half*(clwp_amsua+clw_guess_retrieval) < half) then
+                 error0(i) = tnoise_cld(i) + &
+                    (half*(clwp_amsua+clw_guess_retrieval) - quarter) &
+                   *(tnoise(i)-tnoise_cld(i))/(half-quarter)
+              else
+                 error0(i) = tnoise(i)
+              endif
+           endif
+!Kim ----------------------------------------
            if(tnoise(i) < 1.e4_r_kind .or. (iuse_rad(ich(i))==-1 .and. rad_diagsave) &
                   .or. (passive_bc .and. iuse_rad(ich(i))==-1))then
-              varinv(i)     = val_obs/tnoise(i)**2
-              errf(i)       = tnoise(i)
+              varinv(i)     = val_obs/error0(i)**2
+              errf(i)       = error0(i)
            else
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_satinfo_qc
+              if(id_qc(i) == igood_qc) id_qc(i)=ifail_satinfo_qc
               varinv(i)     = zero
               errf(i)       = zero
            endif
+
 !       End of loop over channels         
         end do
 
@@ -765,7 +855,7 @@
 !  ---------- IR -------------------
 !       QC HIRS/2, GOES, HIRS/3 and AIRS sounder data
 !
-        ObsQCs: if (hirs .or. goessndr .or. airs .or. iasi) then
+        ObsQCs: if (hirs .or. goessndr .or. airs .or. iasi .or. cris) then
 
            frac_sea=data_s(ifrac_sea,n)
 
@@ -782,15 +872,15 @@
                  varinv_use(i) = zero
               else
                  if ((iuse_rad(m)>=0) .or. (passive_bc .and. iuse_rad(m)==-1)) then
-                    varinv_use(i) = varinv(i)
+                 varinv_use(i) = varinv(i)
                  else
                     varinv_use(i) = zero
                  end if
               end if
            end do
-           call qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse(n),goessndr, &
-              zsges,cenlat,frac_sea,pangs,trop5,zasat,tsavg5,tbc,tb_obs,tnoise,  &
-              wavenumber,ptau5,prsltmp,tvp,temp,emissivity_k,ts,                 &
+           call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr, &
+              zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,  &
+              wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                 &
               id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
 
 
@@ -798,7 +888,7 @@
 !       QC MSU data
         else if (msu) then
 
-           call qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse(n), &
+           call qc_msu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
               zsges,cenlat,tbc,ptau5,emissivity_k,ts,id_qc,aivals,errf,varinv)
 
 !  ---------- AMSU-A -------------------
@@ -806,16 +896,17 @@
         else if (amsua) then
 
            tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
-           call qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),   &
-            zsges,cenlat,tb_obsbc1,tsavg5,cosza,clw,tbc,ptau5,emissivity_k,ts,      &
-            pred,predchan,id_qc,aivals,errf,varinv,tpwc)
+           call qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse(n),   &
+              zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
+              pred,predchan,id_qc,aivals,errf,varinv,tpwc,clwp_amsua,clw_guess_retrieval)
+
 
 !  If cloud impacted channels not used turn off predictor
 
            do i=1,nchanl
-             if ( (i <= 5 .or. i == 15) .and. (varinv(i)<1.e-9_r_kind) ) then
-                  pred(3,i) = zero
-             end if
+              if ( (i <= 5 .or. i == 15) .and. (varinv(i)<1.e-9_r_kind) ) then
+                 pred(3,i) = zero
+              end if
            end do
 
 !  ---------- AMSU-B -------------------
@@ -823,10 +914,19 @@
 
         else if (amsub .or. hsb .or. mhs) then
 
-           call qc_mhs(nchanl,is,ndat,nsig,sea,land,ice,snow,mhs,amsub,luse(n),   &
-               zsges,tbc,tb_obs,ptau5,emissivity_k,ts,      &
-               id_qc,aivals,errf,varinv,clw,tpwc)
+           call qc_mhs(nchanl,ndat,nsig,ich,is,sea,land,ice,snow,mhs,amsub,luse(n),   &
+              zsges,tbc,tb_obs,ptau5,emissivity_k,ts,      &
+              id_qc,aivals,errf,varinv,clw,tpwc)
 
+!  ---------- ATMS -------------------
+!       QC ATMS data
+
+        else if (atms) then
+
+           tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
+           call qc_atms(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse(n),    &
+              zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
+              pred,predchan,id_qc,aivals,errf,varinv,tpwc,clwp_amsua,clw_guess_retrieval)
 
 !  ---------- GOES imager --------------
 !       GOES imager Q C
@@ -838,8 +938,8 @@
            do i = 1,nchanl
               tb_obs_sdv(i) = data_s(i+29,n)
            end do
-           call qc_goesimg(nchanl,is,ndat,dplat(is),sea,land,ice,snow,luse(n), &
-              zsges,cld,tb_obs,tb_obs_sdv,emissivity_k,ts,id_qc,aivals,errf,varinv)
+           call qc_goesimg(nchanl,is,ndat,nsig,ich,dplat(is),sea,land,ice,snow,luse(n), &
+              zsges,cld,tzbgr,tb_obs,tb_obs_sdv,tbc,tnoise,temp,wmix,emissivity_k,ts,id_qc,aivals,errf,varinv)
            
 
 !  ---------- SEVIRI  -------------------
@@ -849,8 +949,8 @@
 
            cld = 100-data_s(iclr_sky,n)
 
-           call qc_seviri(nchanl,is,ndat,sea,land,ice,snow,luse(n), &
-              zsges,tbc,emissivity_k,ts,id_qc,aivals,errf,varinv)
+           call qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
+              zsges,tzbgr,tbc,tnoise,temp,wmix,emissivity_k,ts,id_qc,aivals,errf,varinv)
 !
 
 !  ---------- AVRHRR --------------
@@ -858,23 +958,33 @@
 
         else if (avhrr_navy .or. avhrr) then
 
-!       Extract Navy and NCEP SST
-           if( avhrr_navy )then
-              dtp_avh = data_s(idata_type,n)
-              sstnv=data_s(isst_navy,n)
-              sstcu=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
-           elseif ( avhrr) then
-              if ( pangs <= 89.0_r_kind) then              ! day time
-                 dtp_avh = 151.0_r_kind
-              else
-                 dtp_avh = 152.0_r_kind
-              endif
-              sstcu=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
-              sstnv=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
-           endif
+           frac_sea=data_s(ifrac_sea,n)
 
-           call qc_avhrr(nchanl,is,ndat,sea,land,ice,snow,luse(n), &
-              dtp_avh,tb_obs,id_qc,aivals,errf,varinv)
+!  NOTE:  The qc in qc_avhrr uses the inverse squared obs error.
+!     If a particular channel is not being assimilated
+!     (iuse_rad==-1), we should not use this channel
+!     in the qc.  The loop below loads array varinv_use
+!     such that this condition is satisfied.  Array
+!     varinv_use is then used in the qc calculations.
+
+           do i=1,nchanl
+              m=ich(i)
+              if (varinv(i) < tiny_r_kind) then
+                 varinv_use(i) = zero
+              else
+                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. iuse_rad(m)==-1)) then
+                 varinv_use(i) = varinv(i)
+                 else
+                    varinv_use(i) = zero
+                 end if
+              end if
+           end do
+
+           call qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),   &
+              zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
+              wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts, &
+              id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
+
 
 !  ---------- SSM/I , SSMIS, AMSRE  -------------------
 !       SSM/I, SSMIS, & AMSRE Q C
@@ -886,21 +996,21 @@
               sun_zenith=data_s(iszen_ang,n)*deg2rad
               sun_azimuth=(r90-data_s(isazi_ang,n))*deg2rad
               sgagl =  acos(coscon * cos( bearaz ) * cos( sun_zenith ) * cos( sun_azimuth ) + &
-                coscon * sin( bearaz ) * cos( sun_zenith ) * sin( sun_azimuth ) +  &
-                sincon *  sin( sun_zenith )) * rad2deg
+                       coscon * sin( bearaz ) * cos( sun_zenith ) * sin( sun_azimuth ) +  &
+                       sincon *  sin( sun_zenith )) * rad2deg
            end if
-           call qc_ssmi(nchanl, &
-                zsges,luse(n),sea,ice,snow,mixed, &
-                ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl, &
-                tbc,tbcnob,tsim,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
-                varinv,errf,aivals(1,is),id_qc)
+           call qc_ssmi(nchanl,nsig,ich, &
+              zsges,luse(n),sea,ice,snow,mixed, &
+              temp,wmix,ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl,tzbgr, &
+              tbc,tbcnob,tsim,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
+              varinv,errf,aivals(1,is),id_qc)
 
 !  ---------- SSU  -------------------
 !       SSU Q C
 
         elseif (ssu) then
 
-           call qc_ssu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse(n), &
+           call qc_ssu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
               zsges,cenlat,tbc,ptau5,emissivity_k,ts,id_qc,aivals,errf,varinv)
             
         end if ObsQCs
@@ -912,30 +1022,23 @@
            if (varinv(i) > tiny_r_kind ) then
               m=ich(i)
 
-              if (avhrr .or. avhrr_navy ) then
-                 errf(i) = min(2.2_r_kind*errf(i),ermax_rad(m))
-                 if ( tbc(i) < -errf(i) .or. tbc(i) > 2.4_r_kind*errf(i) ) then
-                    if(id_qc(i) == igood_qc)id_qc(i)=ifail_gross_qc
-                    varinv(i) = zero
-                    if(luse(n))stats(2,m) = stats(2,m) + one
-                    if(luse(n))aivals(7,is) = aivals(7,is) + one
-                 endif
-
-              else
-
+              if(amsua .and. sea .and. cenlat > -60.0_r_kind .and.  icw4crtm>10) then
+                 errf(i) = three*errf(i)
+              else 
                  errf(i) = min(three*errf(i),ermax_rad(m))
-                 if (abs(tbc(i)) > errf(i)) then
-!                   If mean obs-ges difference around observations
-!                   location is too large and difference at the 
-!                   observation location is similarly large, then
-!                   toss the observation.
-                    if(id_qc(i) == igood_qc)id_qc(i)=ifail_gross_qc
-                    varinv(i) = zero
-                    if(luse(n))stats(2,m) = stats(2,m) + one
-                    if(luse(n))aivals(7,is) = aivals(7,is) + one
-                 end if
-
               endif
+
+              if (abs(tbc(i)) > errf(i)) then
+!                If mean obs-ges difference around observations
+!                location is too large and difference at the 
+!                observation location is similarly large, then
+!                toss the observation.
+                 if(id_qc(i) == igood_qc)id_qc(i)=ifail_gross_qc
+                 varinv(i) = zero
+                 if(luse(n))stats(2,m) = stats(2,m) + one
+                 if(luse(n))aivals(7,is) = aivals(7,is) + one
+              end if
+
            end if
         end do
 
@@ -970,8 +1073,8 @@
         if(retrieval) then
            if(avhrr_navy .or. avhrr) then
               call avhrr_sst_retrieval(dplat(is),nchanl,tnoise,&
-                   varinv,tsavg5,sstnv,sstph,temp,wmix,ts,tbc,cenlat,cenlon,zasat,&
-                   dtime,dtp_avh,pangs,tbcnob,tb_obs,dta,dqa,luse(n))
+                 varinv,tsavg5,sstnv,sstph,temp,wmix,ts,tbc,cenlat,cenlon,zasat,&
+                 dtime,dtp_avh,pangs,tbcnob,tb_obs,dta,dqa,luse(n))
            endif
         endif
 
@@ -1064,85 +1167,90 @@
 
         if(in_curbin) then
 !          Load data into output arrays
-              if(icc > 0)then
-                 nchan_total=nchan_total+icc
+           if(icc > 0)then
+              nchan_total=nchan_total+icc
  
-                 if(.not. associated(radhead(ibin)%head))then
-                    allocate(radhead(ibin)%head,stat=istat)
-                    if(istat /= 0)write(6,*)' failure to write radhead '
-                    radtail(ibin)%head => radhead(ibin)%head
-                 else
-                    allocate(radtail(ibin)%head%llpoint,stat=istat)
-                    if(istat /= 0)write(6,*)' failure to write radtail%llpoint '
-                    radtail(ibin)%head => radtail(ibin)%head%llpoint
-                 end if
+              if(.not. associated(radhead(ibin)%head))then
+                 allocate(radhead(ibin)%head,stat=istat)
+                 if(istat /= 0)write(6,*)' failure to write radhead '
+                 radtail(ibin)%head => radhead(ibin)%head
+              else
+                 allocate(radtail(ibin)%head%llpoint,stat=istat)
+                 if(istat /= 0)write(6,*)' failure to write radtail%llpoint '
+                 radtail(ibin)%head => radtail(ibin)%head%llpoint
+              end if
 
-                 m_alloc(ibin) = m_alloc(ibin) +1
-                 my_head => radtail(ibin)%head
-                 my_head%idv = is
-                 my_head%iob = n
+              m_alloc(ibin) = m_alloc(ibin) +1
+              my_head => radtail(ibin)%head
+              my_head%idv = is
+              my_head%iob = n
 
-                 allocate(radtail(ibin)%head%res(icc),radtail(ibin)%head%err2(icc), &
-                          radtail(ibin)%head%diags(icc),&
-                          radtail(ibin)%head%raterr2(icc),radtail(ibin)%head%pred(npred,icc), &
-                          radtail(ibin)%head%dtb_dvar(nsig3p3,icc), &
-                          radtail(ibin)%head%ich(icc),&
-                          radtail(ibin)%head%icx(icc))
+              allocate(radtail(ibin)%head%res(icc),radtail(ibin)%head%err2(icc), &
+                       radtail(ibin)%head%diags(icc),&
+                       radtail(ibin)%head%raterr2(icc),radtail(ibin)%head%pred(npred,icc), &
+                       radtail(ibin)%head%dtb_dvar(nsigradjac,icc), &
+                       radtail(ibin)%head%ich(icc),&
+                       radtail(ibin)%head%icx(icc))
 
-                 call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(1),radtail(ibin)%head%wij(1))
-                 radtail(ibin)%head%time=dtime
-                 radtail(ibin)%head%luse=luse(n)
-                 radtail(ibin)%head%ich(:)=-1
-                 iii=0
-                 do ii=1,nchanl
-                    m=ich(ii)
-                    if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
+              call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(1),radtail(ibin)%head%wij(1))
+              radtail(ibin)%head%time=dtime
+              radtail(ibin)%head%luse=luse(n)
+              radtail(ibin)%head%ich(:)=-1
+              iii=0
+              do ii=1,nchanl
+                 m=ich(ii)
+                 if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
 
-                       iii=iii+1
+                    iii=iii+1
 
-                       radtail(ibin)%head%res(iii)= tbc(ii)                    ! obs-ges innovation
-                       radtail(ibin)%head%err2(iii)= one/error0(ii)**2         ! 1/(obs error)**2  (original uninflated error)
-                       radtail(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
-                       radtail(ibin)%head%icx(iii)= m                         ! channel index
+                    radtail(ibin)%head%res(iii)= tbc(ii)                    ! obs-ges innovation
+                    radtail(ibin)%head%err2(iii)= one/error0(ii)**2         ! 1/(obs error)**2  (original uninflated error)
+                    radtail(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
+                    radtail(ibin)%head%icx(iii)= m                         ! channel index
 
-                       do k=1,npred
-                          radtail(ibin)%head%pred(k,iii)=pred(k,ii)
-                       end do
+                    do k=1,npred
+                       radtail(ibin)%head%pred(k,iii)=pred(k,ii)
+                    end do
 
-                       do k=1,nsig3p3
-                          radtail(ibin)%head%dtb_dvar(k,iii)=jacobian(k,ii)
-                       end do
+                    do k=1,nsigradjac
+                       radtail(ibin)%head%dtb_dvar(k,iii)=jacobian(k,ii)
+                    end do
 
-!                      Load jacobian for ozone (dTb/doz).  For hirs and goes channel 9
-!                      (ozone channel) we do not let the observations change the ozone.
-!                      There currently is no ozone analysis when running in the NCEP 
-!                      regional mode, therefore set ozone jacobian to 0.0
-                       if (regional .or. ((hirs .or. goessndr).and.(varinv(ich9) < tiny_r_kind))) then
+!                   Load jacobian for ozone (dTb/doz).  For hirs and goes channel 9
+!                   (ozone channel) we do not let the observations change the ozone.
+!                   There currently is no ozone analysis when running in the NCEP 
+!                   regional mode, therefore set ozone jacobian to 0.0
+                    if (ioz>=0) then
+                       if (regional .or. qc_noirjaco3 .or. & 
+                          ((hirs .or. goessndr).and.(varinv(ich9) < tiny_r_kind))) then
                           do k = 1,nsig
-                             radtail(ibin)%head%dtb_dvar(nsig2+k,iii) = zero
+                             radtail(ibin)%head%dtb_dvar(ioz+k,iii) = zero
                           end do
                        endif
+                    endif
 
-!                      Load Jacobian for wind speed (dTb/du, dTb/dv)
+!                   Load Jacobian for wind speed (dTb/du, dTb/dv)
+                    if(ius>=0.and.ivs>=0) then
                        if( .not. dtbduv_on .or. .not. microwave) then
-                          radtail(ibin)%head%dtb_dvar(nsig3p1,iii) = zero
-                          radtail(ibin)%head%dtb_dvar(nsig3p2,iii) = zero
-                       end if
-
-                       my_head%ich(iii)=ii
-
-!                      compute hessian contribution from Jo bias correction terms
-                       if (newpc4pred .and. luse(n)) then
-                          do k=1,npred
-                             rstats(k,m)=rstats(k,m)+radtail(ibin)%head%pred(k,iii) &
-                                  *radtail(ibin)%head%pred(k,iii)*varinv(ii)
-                          end do
-                       end if  ! end of newpc4pred loop
-
+                          radtail(ibin)%head%dtb_dvar(ius+1,iii) = zero
+                          radtail(ibin)%head%dtb_dvar(ivs+1,iii) = zero
+                       endif
                     end if
-                 end do
-                 radtail(ibin)%head%nchan  = iii         ! profile observation count
-              end if
+
+                    my_head%ich(iii)=ii
+
+!                   compute hessian contribution from Jo bias correction terms
+                    if (newpc4pred .and. luse(n)) then
+                       do k=1,npred
+                          rstats(k,m)=rstats(k,m)+radtail(ibin)%head%pred(k,iii) &
+                               *radtail(ibin)%head%pred(k,iii)*varinv(ii)
+                       end do
+                    end if  ! end of newpc4pred loop
+
+                 end if
+              end do
+              radtail(ibin)%head%nchan  = iii         ! profile observation count
+           end if
         endif ! (in_curbin)
 
 !       Link obs to diagnostics structure
@@ -1204,26 +1312,26 @@
 !             Load data into output arrays
               m=ich(ii)
               if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
-                    iii=iii+1
-                    radtail(ibin)%head%diags(iii)%ptr => obsdiags(i_rad_ob_type,ibin)%tail
-                    obsdiags(i_rad_ob_type,ibin)%tail%muse(jiter) = .true.
+                 iii=iii+1
+                 radtail(ibin)%head%diags(iii)%ptr => obsdiags(i_rad_ob_type,ibin)%tail
+                 obsdiags(i_rad_ob_type,ibin)%tail%muse(jiter) = .true.
  
-	     	     ! verify the pointer to obsdiags
+                 ! verify the pointer to obsdiags
 
-	            my_head => radtail(ibin)%head
-	            my_diag => radtail(ibin)%head%diags(iii)%ptr
+                 my_head => radtail(ibin)%head
+                 my_diag => radtail(ibin)%head%diags(iii)%ptr
 
-                    if(my_head%idv      /= my_diag%idv .or. &
-                       my_head%iob      /= my_diag%iob .or. &
-                       my_head%ich(iii) /= my_diag%ich ) then
-                       call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
-                             (/is,i,ii,ibin/))
-                       call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,my_head%ich(iii)/))
-                       call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-                       call die(myname)
-                    endif
-
+                 if(my_head%idv      /= my_diag%idv .or. &
+                    my_head%iob      /= my_diag%iob .or. &
+                    my_head%ich(iii) /= my_diag%ich ) then
+                    call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
+                          (/is,i,ii,ibin/))
+                    call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,my_head%ich(iii)/))
+                    call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+                    call die(myname)
                  endif
+
+              endif
            endif ! (in_curbin)
         enddo
         if(in_curbin) then
@@ -1281,7 +1389,7 @@
                     if (newpc4pred .and. luse(n) .and. any(predx(:,m)/=zero)) then
                        do k=1,npred
                           rstats(k,m)=rstats(k,m)+radtailm(ibin)%head%pred(k,iii) &
-                               *radtailm(ibin)%head%pred(k,iii)*varinv(ii)
+                             *radtailm(ibin)%head%pred(k,iii)*varinv(ii)
                        end do
                     end if  ! end of newpc4pred loop
 
@@ -1335,18 +1443,43 @@
               diagbuf(20) = dqa                               ! d(qa) corresponding to sstph
               diagbuf(21) = dtp_avh                           ! data type             
            endif
-           diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
-           diagbuf(23) = surface(1)%snow_depth             ! snow depth
-           diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
+           if(amsua .and. sea .and. icw4crtm>10) then
+             diagbuf(22) = tpwc_amsua
+           else
+             diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
+           endif
+
+           if(amsua .and. sea .and. icw4crtm>10) then
+              diagbuf(23) = (clw_guess_retrieval+clwp_amsua)*half 
+           else
+              diagbuf(23) = surface(1)%snow_depth             ! snow depth
+           endif
+
+           if(amsua .and. sea .and. icw4crtm>10) then
+             diagbuf(24) = clw_guess_retrieval
+           else
+             diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
+           endif
  
 !          Note:  The following quantities are not computed for all sensors
            if (.not.microwave) then
               diagbuf(25)  = cld                        ! cloud fraction (%)
               diagbuf(26)  = cldp                       ! cloud top pressure (hPa)
            else
-              diagbuf(25)  = clw                        ! cloud liquid water (kg/m**2)
-              diagbuf(26)  = tpwc                       ! total column precip. water (km/m**2)
+              if(amsua .and. sea .and. cenlat > -60.0_r_kind .and. icw4crtm>10) then
+                 diagbuf(25)  = clwp_amsua                 ! cloud liquid water (kg/m**2)
+                 diagbuf(26)  = clw_guess                  ! total column precip. water (km/m**2)
+              else
+                 diagbuf(25)  = clw                        ! cloud liquid water (kg/m**2)
+                 diagbuf(26)  = tpwc                       ! total column precip. water (km/m**2)
+              endif
            endif
+
+!          For NST
+           diagbuf(27) = data_s(itref,n)
+           diagbuf(28) = data_s(idtw,n)
+           diagbuf(29) = data_s(idtc,n)
+           diagbuf(30) = data_s(itz_tr,n)
 
            if (lwrite_peakwt) then
               do i=1,nchanl_diag
@@ -1368,13 +1501,18 @@
               diagbufchan(2,i)=tbc(ich_diag(i))          ! observed - simulated Tb with bias corrrection (K)
               diagbufchan(3,i)=tbcnob(ich_diag(i))       ! observed - simulated Tb with no bias correction (K)
               errinv = sqrt(varinv(ich_diag(i)))
-              diagbufchan(4,i)=errinv          ! inverse observation error
+              diagbufchan(4,i)=errinv                    ! inverse observation error
               useflag=one
               if (iuse_rad(ich(i)) < 1) useflag=-one
-              diagbufchan(5,i)= id_qc(ich_diag(i))*useflag! quality control mark or event indicator
+              diagbufchan(5,i)= id_qc(ich_diag(i))*useflag            ! quality control mark or event indicator
 
-              diagbufchan(6,i)=emissivity(ich_diag(i))   ! surface emissivity
-              diagbufchan(7,i)=tlapchn(ich_diag(i))      ! stability index
+              if (amsua .and. sea .and. icw4crtm>10) then
+                 diagbufchan(6,i)=error0(ich_diag(i))
+              else
+                 diagbufchan(6,i)=emissivity(ich_diag(i))             ! surface emissivity
+              endif
+              diagbufchan(7,i)=tlapchn(ich_diag(i))                   ! stability index
+              diagbufchan(8,i)=ts(ich_diag(i))                        ! d(Tb)/d(Ts)
 
               if (lwrite_predterms) then
                  predterms=zero
@@ -1405,32 +1543,32 @@
                        call stop2(281)
                     end if
  
-                    ioff=7+npred+2
+                    ioff=ipchan_radiag+npred+2
                     do jj=1,miter
                        ioff=ioff+1
                        if (obsptr%muse(jj)) then
-                          diagbufchan(ioff,ich_diag(i)) = one
+                          diagbufchan(ioff,ich_diag(ii)) = one
                        else
-                          diagbufchan(ioff,ich_diag(i)) = -one
+                          diagbufchan(ioff,ich_diag(ii)) = -one
                        endif
                     enddo
                     do jj=1,miter+1
                        ioff=ioff+1
-                       diagbufchan(ioff,ii) = obsptr%nldepart(jj)
+                       diagbufchan(ioff,ich_diag(ii)) = obsptr%nldepart(jj)
                     enddo
                     do jj=1,miter
                        ioff=ioff+1
-                       diagbufchan(ioff,ii) = obsptr%tldepart(jj)
+                       diagbufchan(ioff,ich_diag(ii)) = obsptr%tldepart(jj)
                     enddo
                     do jj=1,miter
                        ioff=ioff+1
-                       diagbufchan(ioff,ii) = obsptr%obssen(jj)
+                       diagbufchan(ioff,ich_diag(ii)) = obsptr%obssen(jj)
                     enddo
 
                     obsptr => obsptr%next
                  enddo
               else
-                 ioff=7+npred+2
+                 ioff=ipchan_radiag+npred+2
                  diagbufchan(ioff+1:ioff+4*miter+1,1:nchanl_diag) = zero
               endif
            endif

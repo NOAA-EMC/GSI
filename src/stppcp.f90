@@ -63,6 +63,7 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 !                       - add handlings of cw case; add pointer_state
 !   2010-05-13 todling   - update to use gsi_bundle
 !                        - on-the-spot handling of non-essential vars
+!   2010-09-25 todling   - fix linearization
 !
 !   input argument list:
 !     pcphead
@@ -117,7 +118,7 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   real(r_kind) dcwm,dcwm0
   real(r_kind) pcp_gest,pcp_ges0,pcp_ges,obsges,termges,termgtl,obsgtl
   real(r_kind),dimension(max(1,nstep)):: pen
-  real(r_kind) cg_pcp,wgross,wnotgross
+  real(r_kind) cg_pcp,wgross,wnotgross,pentl,pencur
   type(pcp_ob_type), pointer :: pcpptr
   real(r_kind),pointer,dimension(:):: rt,st,rq,sq,ru,su,rv,sv,rcwm,scwm
   real(r_kind),pointer,dimension(:):: xhat_dt_tsen,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_cw
@@ -240,23 +241,34 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
               j4=j4+latlon11
 
            end do
-           do kk=1,nstep
-              pcp_ges = pcp_ges0 + sges(kk)*pcp_gest
+
+           if (ltlint) then
+              pcp_ges = pcp_ges0
 !             Logrithmic formulation.  Ensure pcp_ges > zero
               pcp_ges = max(pcp_ges,zero)
               termges = log(one+pcp_ges)
               obsges= pcpptr%obs - termges
-              pen(kk) = pcpptr%err2*obsges*obsges
-              if(ltlint)then
+              pencur = pcpptr%err2*obsges*obsges
+              do kk=1,nstep
                  if (pcp_ges>tinym1_obs) then
                     termgtl = pcp_gest/(one+pcp_ges)
                  else
                     termgtl = zero
                  endif
                  obsgtl= - termgtl
-                 pen(kk) =   pen(kk)+pcpptr%err2*obsges*obsgtl
-              end if
-           enddo
+                 pentl   = two*pcpptr%err2*obsges*obsgtl
+                 pen(kk) = pencur+sges(kk)*pentl
+              enddo
+           else
+              do kk=1,nstep
+                 pcp_ges = pcp_ges0 + sges(kk)*pcp_gest
+!                Logrithmic formulation.  Ensure pcp_ges > zero
+                 pcp_ges = max(pcp_ges,zero)
+                 termges = log(one+pcp_ges)
+                 obsges= pcpptr%obs - termges
+                 pen(kk) = pcpptr%err2*obsges*obsges
+              enddo
+           end if
 
         else
            pen(1)=pcpptr%err2*pcp_ges0*pcp_ges0

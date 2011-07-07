@@ -36,9 +36,10 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2006-08-28      su - fix a bug in variational qc
 !   2007-03-19  tremolet - binning of observations
 !   2007-06-05  tremolet - add observation diagnostics structure
-!   2007-08-28      su - modify the gross check error 
+!   2007-08-28      su  - modify the gross check error 
 !   2008-05-21  safford - rm unused vars and uses
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2011-04-02  li      - set up Tr analysis and modify to save nst analysis related diagnostic variables
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -73,6 +74,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use qcmod, only: dfact,dfact1,npres_print
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
+  use radinfo, only: nst_gsi,nstinfo
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
 
@@ -91,7 +93,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   
   real(r_double) rstation_id
 
-  real(r_kind) sstges,dlat,dlon,ddiff,dtime,error
+  real(r_kind) sstges,dlat,dlon,ddiff,dtime,error,dsfct_obx
   real(r_kind) scale,val2,ratio,ressw2,ress,residual
   real(r_kind) obserrlm,obserror,val,valqc
   real(r_kind) term,halfpi,rwgt
@@ -103,13 +105,14 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nele,nobs):: data
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
+  real(r_kind) :: tz_tr,zob,tref,dtw,dtc
 
   integer(i_kind) ier,ilon,ilat,isst,id,itime,ikx,imaxerr,iqc
-  integer(i_kind) ier2,iuse,idepth,iotype,ilate,ilone,istnelv
+  integer(i_kind) ier2,iuse,izob,itref,idtw,idtc,itz_tr,iotype,ilate,ilone,istnelv
   integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,isli,ibin,ioff,jj
   integer(i_kind) l,ix,iy,ix1,iy1,ixp,iyp,mm1
-  integer(i_kind) istat
-  integer(i_kind) idomsfc,iskint,iff10,isfcr
+  integer(i_kind) istat,id_qc
+  integer(i_kind) idomsfc,itz,iff10,isfcr
   
   logical,dimension(nobs):: luse,muse
 
@@ -121,6 +124,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(sst_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+  integer, parameter:: maxinfo = 20
   character(len=*),parameter:: myname='setupsst'
 
 
@@ -141,18 +145,22 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   itime=6     ! index of observation time in data array
   ikxx=7      ! index of ob type
   imaxerr=8   ! index of sst max error
-  idepth=9    ! index of flag indicating depth of observation
+  izob=9      ! index of flag indicating depth of observation
   iotype=10   ! index of measurement type
   iqc=11      ! index of qulaity mark
   ier2=12     ! index of original-original obs error ratio
   iuse=13     ! index of use parameter
   idomsfc=14  ! index of dominant surface type
-  iskint=15   ! index of surface skin temperature
+  itz=15      ! index of temperature at depth z (Tz)
   iff10=16    ! index of 10 meter wind factor
   isfcr=17    ! index of surface roughness
   ilone=18    ! index of longitude (degrees)
   ilate=19    ! index of latitude (degrees)
   istnelv=20  ! index of station elevation (m)
+  itref=21    ! index of Tr
+  idtw=22     ! index of dtw
+  idtc=23     ! index of dtc
+  itz_tr=24   ! index of tz_tr
 
 
   do i=1,nobs
@@ -180,7 +188,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   if(conv_diagsave)then
      ii=0
      nchar=1
-     nreal=20
+     nreal=maxinfo+nstinfo
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
@@ -191,9 +199,16 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   call dtime_setup()
   do i=1,nobs
+    id_qc = 0
     dtime=data(itime,i)
     call dtime_check(dtime, in_curbin, in_anybin)
     if(.not.in_anybin) cycle
+
+    zob   = data(izob,i)
+    tref  = data(itref,i)
+    dtw   = data(idtw,i)
+    dtc   = data(idtc,i)
+    tz_tr = data(itz_tr,i)
 
 if(in_curbin) then
      dlat=data(ilat,i)
@@ -262,9 +277,8 @@ endif
 if(.not.in_curbin) cycle
 
 ! Interpolate to get sst at obs location/time
-     call intrp2a(dsfct,sstges,dlat,dlon,1,1,mype)
-
-     sstges = sstges+data(iskint,i)
+     call intrp2a(dsfct,dsfct_obx,dlat,dlon,1,1,mype)
+     sstges = max(data(itz,i)+dsfct_obx, 271.0_r_kind)
 ! Adjust observation error
      ratio_errors=error/data(ier,i)
      error=one/error
@@ -307,6 +321,7 @@ if(.not.in_curbin) cycle
         if (luse(i)) awork(6) = awork(6)+one
         error = zero
         ratio_errors=zero
+        if( id_qc == 0 ) id_qc = 1
      else
         ratio_errors=ratio_errors/sqrt(dup(i))
      end if
@@ -390,6 +405,8 @@ if(.not.in_curbin) cycle
         ssttail(ibin)%head%err2    = error**2
         ssttail(ibin)%head%raterr2 = ratio_errors**2    
         ssttail(ibin)%head%time    = dtime
+        ssttail(ibin)%head%zob     = zob
+        ssttail(ibin)%head%tz_tr   = tz_tr
         ssttail(ibin)%head%b       = cvar_b(ikx)
         ssttail(ibin)%head%pg      = cvar_pg(ikx)
         ssttail(ibin)%head%luse    = luse(i)
@@ -421,11 +438,11 @@ if(.not.in_curbin) cycle
         rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
         rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
         rdiagbuf(6,ii)  = rmiss_single       ! observation pressure (hPa)
-        rdiagbuf(7,ii)  = data(idepth,i)     ! observation height (meters)
+        rdiagbuf(7,ii)  = data(izob,i)       ! observation depth (meters)
         rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
-        rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
+        rdiagbuf(10,ii) = id_qc              ! setup qc or event mark
         rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
         if(muse(i)) then
            rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
@@ -459,8 +476,15 @@ if(.not.in_curbin) cycle
  
         rdiagbuf(20,ii) = data(iotype,i)     ! type of measurement
 
+        if ( nst_gsi > 0 ) then
+          rdiagbuf(21,ii) = data(itref,i)    ! Tr
+          rdiagbuf(22,ii) = data(idtw,i)     ! dt_warm at zob
+          rdiagbuf(23,ii) = data(idtc,i)     ! dt_cool at zob
+          rdiagbuf(24,ii) = data(itz_tr,i)   ! d(tz)/d(Tr) at zob
+        endif
+
         if (lobsdiagsave) then
-           ioff=20
+           ioff=nreal-(4*miter+1)
            do jj=1,miter 
               ioff=ioff+1 
               if (obsdiags(i_sst_ob_type,ibin)%tail%muse(jj)) then

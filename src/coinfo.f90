@@ -92,14 +92,14 @@ contains
 !
 !$$$
     use mpimod, only: npe              ! contains the number of mpi tasks, variable "npe"
-    use gsi_chemtracer_mod, only: gsi_chemtracer_get
+    use gsi_chemguess_mod, only: gsi_chemguess_get
     implicit none
     integer(i_kind) :: ico,ier
 
     jpch_co = 0                        ! number of enteries read from coinfo 
     diag_co = .false.                  ! default is to generate co diagnostic file
     mype_co = max(0,npe-6)             ! mpi task to write co summary report
-    call gsi_chemtracer_get ('var::co', ico, ier )
+    call gsi_chemguess_get ('var::co', ico, ier )
     ihave_co=(ico>0)                  ! .t. when CO present in state-vector
 
   end subroutine init_co

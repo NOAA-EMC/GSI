@@ -35,7 +35,7 @@ subroutine fpvsx_ad( t, es, t_ad, es_ad, adjoint )
 ! all entries are defined explicitly
 !==============================================
   use kinds, only: r_kind
-  use constants, only: zero, one, tmix, xai, xbi, xa, xb, ttp, psatk
+  use constants, only: zero, one, tmix, xai, xbi, xa, xb, ttp, psatk, init_constants
   implicit none
 
 !==============================================
@@ -67,6 +67,8 @@ subroutine fpvsx_ad( t, es, t_ad, es_ad, adjoint )
 !----------------------------------------------
 ! FUNCTION AND TAPE COMPUTATIONS
 !----------------------------------------------
+call init_constants(.false.)
+
   tr = ttp/t
   if (t >= ttp) then
      es = psatk*tr**xa*exp(xb*(one-tr))
@@ -85,26 +87,61 @@ subroutine fpvsx_ad( t, es, t_ad, es_ad, adjoint )
 !----------------------------------------------
   if (t >= ttp) then
      tr_ad = tr_ad+es_ad*((-(psatk*tr**xa*xb*exp(xb*(one-tr))))+psatk*xa* &
-          tr**(xa-one)*exp(xb*(one-tr)))
+             tr**(xa-one)*exp(xb*(one-tr)))
      es_ad = zero
   else if (t < tmix) then
      tr_ad = tr_ad+es_ad*((-(psatk*tr**xai*xbi*exp(xbi*(one-tr))))+psatk* &
-          xai*tr**(xai-one)*exp(xbi*(one-tr)))
+             xai*tr**(xai-one)*exp(xbi*(one-tr)))
      es_ad = zero
   else
      tr_ad = tr_ad+es_ad*((-(w*psatk*tr**xa*xb*exp(xb*(one-tr))))+w* &
-          psatk*xa*tr**(xa-one)*exp(xb*(one-tr))-(one-w)*psatk*tr**xai*xbi* &
-          exp(xbi*(one-tr))+(one-w)*psatk*xai*tr**(xai-one)*exp(xbi*(one-tr)))
-     w_ad = w_ad+es_ad*(psatk*tr**xa*exp(xb*(one-tr))-psatk*tr**xai* &
-          exp(xbi*(one-tr)))
+             psatk*xa*tr**(xa-one)*exp(xb*(one-tr))-(one-w)*psatk*tr**xai*xbi* &
+             exp(xbi*(one-tr))+(one-w)*psatk*xai*tr**(xai-one)*exp(xbi*(one-tr)))
+     w_ad  = w_ad+es_ad*(psatk*tr**xa*exp(xb*(one-tr))-psatk*tr**xai* &
+             exp(xbi*(one-tr)))
      es_ad = zero
-     t_ad = t_ad+w_ad/(ttp-tmix)
-     w_ad = zero
+     t_ad  = t_ad+w_ad/(ttp-tmix)
+     w_ad  = zero
   endif
-  t_ad = t_ad-tr_ad*(ttp/(t*t))
+  t_ad  = t_ad-tr_ad*(ttp/(t*t))
   tr_ad = zero
   
   return
 end subroutine fpvsx_ad
 
+
+
+
+subroutine fpvsx_TL(T,dES_dT)
+
+use kinds, only: r_single, r_kind, i_kind
+use constants, only: zero, one, tmix, xai, xbi, xa, xb, ttp, psatk, init_constants
+
+IMPLICIT NONE
+
+REAL(r_kind) :: T, ES
+REAL(r_kind) :: TR,W, DTR_DT, dES_DT, DW_DT
+
+call init_constants(.false.)
+TR = TTP/T
+DTR_DT = -TTP /(T*T)
+
+
+IF(T >= TTP) THEN
+   dES_dT = (PSATK*XA*TR**(XA-ONE)*EXP(XB*(ONE-TR))+PSATK*TR**XA*(-XB)*EXP(XB*(ONE-TR)))*dTR_dT
+ELSE IF (T < TMIX) THEN
+   dES_dT = (PSATK*XAI*TR**(XAI-ONE)*EXP(XBI*(ONE-TR))+PSATK*TR**XAI*(-XBI)*EXP(XBI*(ONE-TR)))*dTR_dT
+ELSE
+   W      = (T - TMIX)/(TTP - TMIX)
+   dW_DT  = ONE/(TTP - TMIX)
+   dES_DT = PSATK*TR**XA *EXP(XB*(ONE-TR))*dW_DT + W*PSATK*XA*TR**(XA-ONE)*EXP(XB*(ONE-TR))*dTR_dT &
+          + W*PSATK*TR**XA * EXP(XB*(ONE-TR))*(-XB)*dTR_dT  &
+          + (ONE-W)*PSATK*XAI*TR**(XAI-ONE)*EXP(XBI*(ONE-TR))*dTR_dT &
+          + (ONE-W)*PSATK*TR**XAI *(-XBI)*EXP(XBI*(ONE-TR))*dTR_dT &
+          - PSATK*TR**XAI*EXP(XBI*(ONE-TR))*dW_dT
+END IF
+
+
+RETURN
+END subroutine fpvsx_TL
 

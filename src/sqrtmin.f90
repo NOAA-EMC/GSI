@@ -27,7 +27,7 @@ subroutine sqrtmin()
 
 use kinds, only: r_kind,i_kind,r_quad
 use gsi_4dvar, only: l4dvar, lsqrtb, lcongrad, lbfgsmin, ltlint, &
-                     ladtest, lgrtest, lanczosave, jsiga, nwrvecs
+                     ladtest, lgrtest, lanczosave, jsiga, nwrvecs, ltcost
 use jfunc, only: jiter,miter,niter,xhatsave,jiterstart
 use qcmod, only: nlnqc_iter
 use constants, only: zero
@@ -114,7 +114,7 @@ elseif (lcongrad) then
       call stop2(308)
    end if
    call setup_congrad(mype,nprt,jiter,jiterstart,itermax,nwrvecs, &
-                      l4dvar,lanczosave)
+                      l4dvar,lanczosave,ltcost)
    lsavev=(.not.lobsensfc)
    if(jsiga<miter) lsavev=lsavev.and.(jiter<miter)
 

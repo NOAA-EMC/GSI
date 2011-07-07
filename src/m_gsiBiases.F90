@@ -105,6 +105,7 @@ module m_gsiBiases
 
   logical,save:: initialized_=.false.
 
+  character(len=*),parameter::myname='m_gsiBiases'
 contains
 
 subroutine init_()
@@ -728,8 +729,11 @@ subroutine correct_()
   use gridmod, only: lat2,lon2,nsig,latlon1n
   use guess_grids, only: nfldsig,ntguessig
   use guess_grids, only: ges_ps,ges_u,ges_v,ges_vor,ges_div,&
-                         ges_tv,ges_q,ges_oz,ges_cwmr,sfct
+                         ges_tv,ges_q,ges_oz,sfct
   use constants, only: tiny_r_kind
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
 
   implicit none
 
@@ -740,6 +744,7 @@ subroutine correct_()
 ! !REVISION HISTORY:
 !
 !   2006-12-04  todling - initial code
+!   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !
 ! !TO DO:
 !
@@ -760,6 +765,10 @@ subroutine correct_()
 !-------------------------------------------------------------------------
 ! local variables
 
+  character(len=*),parameter::myname_=myname//'correct_'
+
+  real(r_kind),pointer,dimension(:,:,:)  :: ges_cwmr_it
+
   real(r_kind),allocatable,dimension(:,:)  :: b_ps
   real(r_kind),allocatable,dimension(:,:)  :: b_tskin
   real(r_kind),allocatable,dimension(:,:,:):: b_vor
@@ -772,7 +781,7 @@ subroutine correct_()
   real(r_kind),allocatable,dimension(:,:,:):: b_v
 
   integer(i_kind),allocatable,dimension(:) :: hours
-  integer(i_kind) :: i,j,k,it
+  integer(i_kind) :: i,j,k,it,istatus
 
 ! Get memory for bias-related arrays
 
@@ -783,6 +792,11 @@ subroutine correct_()
            b_tv(lat2,lon2,nsig),b_u(lat2,lon2,nsig),b_v(lat2,lon2,nsig))
 
   do it=1,nfldsig
+
+!    Get pointer to could water mixing ratio
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
+     if (istatus/=0) call die(trim(myname_),'cannot get pointer to cwmr, istatus =',istatus)
+
      call comp2d_(b_ps   ,bias_ps   ,hours(it))
      call comp2d_(b_tskin,bias_tskin,hours(it))
      call comp3d_(b_u    ,bias_u    ,hours(it))
@@ -808,7 +822,7 @@ subroutine correct_()
               ges_v(i,j,k,it)   =                 ges_v(i,j,k,it)    + b_v(i,j,k)
               ges_vor(i,j,k,it) =                 ges_vor(i,j,k,it)  + b_vor(i,j,k)
               ges_div(i,j,k,it) =                 ges_div(i,j,k,it)  + b_div(i,j,k)
-              ges_cwmr(i,j,k,it)=                 ges_cwmr(i,j,k,it) + b_cwmr(i,j,k)
+              ges_cwmr_it(i,j,k)=                 ges_cwmr_it(i,j,k) + b_cwmr(i,j,k)
               ges_q(i,j,k,it)   = max(tiny_r_kind,ges_q(i,j,k,it)    + b_q(i,j,k))
               ges_oz(i,j,k,it)  = max(tiny_r_kind,ges_oz(i,j,k,it)   + b_oz(i,j,k))
               ges_tv(i,j,k,it)  = max(tiny_r_kind,ges_tv(i,j,k,it)   + b_tv(i,j,k))

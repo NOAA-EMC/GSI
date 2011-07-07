@@ -24,7 +24,7 @@ subroutine init_jcdfi
 
 use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nobs_bins, hr_obsbin
-use constants, only: izero, ione, zero, one, two, pi,r3600
+use constants, only: zero, one, two, pi,r3600
 use mpimod, only: mype
 use jcmod, only: wgtdfi
 
@@ -39,9 +39,9 @@ integer(i_kind) :: nstdfi,jj,jn
 
 tauc   = 6.0_r_kind*r3600
 rtdfi  = hr_obsbin *r3600
-nstdfi = (nobs_bins-ione)/2
+nstdfi = (nobs_bins-1)/2
 
-if (mype==izero) then
+if (mype==0) then
    write(6,*)'Setup weights for Dolph-Chebyshev window digital filter'
    write(6,*)'Number of DFI timesteps: ',2*nstdfi
    write(6,*)'DFI timestep: ',rtdfi
@@ -73,10 +73,10 @@ DO jn=0,nstdfi
    DO jj=1,nstdfi
       zh = zh + zr*zp(jj)*cos(real(2*jj,r_kind)*zx(jn))
    ENDDO
-   wgtdfi(nstdfi+ione+jn) = zh/zl
+   wgtdfi(nstdfi+1+jn) = zh/zl
 ENDDO
 DO jn=1,nstdfi
-   wgtdfi(nstdfi+ione-jn) = wgtdfi(nstdfi+ione+jn)
+   wgtdfi(nstdfi+1-jn) = wgtdfi(nstdfi+1+jn)
 ENDDO
 
 ! Combining with simple filter
@@ -84,20 +84,20 @@ zt=two*pi*rtdfi/tauc
 zs=zero
 DO jn=-nstdfi,nstdfi
    zn = real(jn,r_kind)
-   if (jn==izero) then
+   if (jn==0) then
       zh = zt/pi
    else
       zh = sin(zn*zt)/(zn*pi)
    endif
-   wgtdfi(nstdfi+ione+jn) = wgtdfi(nstdfi+ione+jn)*zh
-   zs = zs + wgtdfi(nstdfi+ione+jn)
+   wgtdfi(nstdfi+1+jn) = wgtdfi(nstdfi+1+jn)*zh
+   zs = zs + wgtdfi(nstdfi+1+jn)
 ENDDO
 DO jn=-nstdfi,nstdfi
-   wgtdfi(nstdfi+ione+jn) = wgtdfi(nstdfi+ione+jn)/zs
+   wgtdfi(nstdfi+1+jn) = wgtdfi(nstdfi+1+jn)/zs
 ENDDO
 
 ! Checking...
-if (mype==izero) write(6,*)'init_jcdfi: wgtdfi=',wgtdfi
+if (mype==0) write(6,*)'init_jcdfi: wgtdfi=',wgtdfi
 
 zs=zero
 DO jj=1,nobs_bins
@@ -121,6 +121,7 @@ real(r_kind) function fcheby(px,kn)
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2010-09-05  todling - bug fix: replace loop index jj to ii
 !
 !   input argument list:
 !    kn
@@ -138,18 +139,19 @@ implicit none
 integer(i_kind), intent(in   ) :: kn
 real(r_kind)   , intent(in   ) :: px
 
+integer(i_kind) :: ii
 real(r_kind) :: z0,z1,z2
 
 jn=ABS(kn)
 z0=one
 z1=px
 
-if (jn==izero) then
+if (jn==0) then
    fcheby=z0
-elseif (jn==ione) then
+elseif (jn==1) then
    fcheby=z1
 else
-   do jj=2,jn
+   do ii=2,jn
       z2=two*px*z1-z0
       z0=z1
       z1=z2

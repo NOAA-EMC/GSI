@@ -93,6 +93,7 @@ LIBsys          = $(MYLIBsys)
 	blacklist.o \
         calc_fov_conical.o \
         calc_fov_crosstrk.o \
+        cal_tztr.o \
 	calctends.o \
 	calctends_ad.o \
 	calctends_tl.o \
@@ -114,9 +115,10 @@ LIBsys          = $(MYLIBsys)
 	converr.o \
 	convinfo.o \
 	convthin.o \
+        crtm_cloud.o \
         crtm_interface.o \
         cvsection.o \
-	deter_subdomain.o \
+        deter_nst.o \
 	dtast.o \
 	egrid2agrid_mod.o \
         enorm_state.o \
@@ -157,7 +159,8 @@ LIBsys          = $(MYLIBsys)
 	gsi_4dvar.o \
         gsi_4dcouplermod.o \
         gsi_bundlemod.o \
-        gsi_chemtracer_mod.o \
+        gsi_chemguess_mod.o \
+        gsi_metguess_mod.o \
 	gsi_io.o \
         gsi_nemsio_mod.o \
 	gsimod.o \
@@ -170,6 +173,7 @@ LIBsys          = $(MYLIBsys)
         inc2guess.o \
 	init_commvars.o \
         init_jcdfi.o \
+	insitu_info.o \
         int3dvar.o \
 	intall.o \
         intco.o \
@@ -235,6 +239,7 @@ LIBsys          = $(MYLIBsys)
 	ncepnems_io.o \
 	nlmsas_ad.o \
 	normal_rh_to_q.o \
+        nstio_module.o \
         obs_ferrscale.o \
 	obs_para.o \
         obs_sensitivity.o \
@@ -277,6 +282,7 @@ LIBsys          = $(MYLIBsys)
 	read_avhrr.o \
 	read_avhrr_navy.o \
 	read_bufrtovs.o \
+	read_cris.o \
 	read_co.o \
 	read_diag.o \
 	read_files.o \
@@ -339,6 +345,7 @@ LIBsys          = $(MYLIBsys)
 	sfcobsqc.o \
 	simpin1.o \
 	simpin1_init.o \
+        skindepth.o \
 	smooth_polcarf.o \
 	smoothrf.o \
 	smoothwwrf.o \
@@ -382,6 +389,8 @@ LIBsys          = $(MYLIBsys)
 	sub2fslab_mod.o \
 	sub2grid.o \
 	support_2dvar.o \
+        stub_set_crtm_aerosol.o \
+        stub_set_crtm_cloud.o \
         stub_pertmod.o \
         stub_timermod.o \
 	tendsmod.o \
@@ -404,6 +413,7 @@ LIBsys          = $(MYLIBsys)
 	update_geswtend.o \
 	wind_fft.o \
 	wrf_binary_interface.o \
+	wrf_mass_guess_mod.o \
 	wrf_netcdf_interface.o \
 	write_all.o \
 	write_bkgvars_grid.o \

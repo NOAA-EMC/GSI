@@ -87,7 +87,7 @@ contains
     oblat=zero
     oblon=zero
     obpres=r1000
-    obdattim=2000010100_i_kind
+    obdattim=2000010100
     obhourset=zero
     pctswitch=.false.
 
@@ -149,10 +149,10 @@ contains
     yob=oblat
     dhr=obhourset
     idate=iadate(1)*1000000+iadate(2)*10000+iadate(3)*100+iadate(4)
-    write(6,*)idate
+    write(6,*)'OneObMake: ', idate
     pob=obpres
 ! set default values for this routine
-    ludx=22_i_kind
+    ludx=22
     nobs=ione
     nlev=ione
     subset='ADPUPA'
@@ -214,10 +214,10 @@ contains
           err(3,k)=toe(k,n)
        enddo
        call openmb(lendian_in,subset,idate)
-       call ufbint(lendian_in,hdr,10_i_kind,ione,iret,hdrstr)
-       call ufbint(lendian_in,obs,10_i_kind,nlev,iret,obsstr)
-       call ufbint(lendian_in,qms,10_i_kind,nlev,iret,qmsstr)
-       call ufbint(lendian_in,err,10_i_kind,nlev,iret,errstr)
+       call ufbint(lendian_in,hdr,10,ione,iret,hdrstr)
+       call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
+       call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
+       call ufbint(lendian_in,err,10,nlev,iret,errstr)
        call writsb(lendian_in)
        hdr(1)=transfer(sid(n),hdr(1))
        hdr(2)=xob(n)
@@ -238,10 +238,10 @@ contains
           err(4,k)=woe(k,n)
        enddo
        call openmb(lendian_in,subset,idate)
-       call ufbint(lendian_in,hdr,10_i_kind,ione,iret,hdrstr)
-       call ufbint(lendian_in,obs,10_i_kind,nlev,iret,obsstr)
-       call ufbint(lendian_in,qms,10_i_kind,nlev,iret,qmsstr)
-       call ufbint(lendian_in,err,10_i_kind,nlev,iret,errstr)
+       call ufbint(lendian_in,hdr,10,ione,iret,hdrstr)
+       call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
+       call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
+       call ufbint(lendian_in,err,10,nlev,iret,errstr)
        call writsb(lendian_in)
     enddo
     call closbf(lendian_in)
@@ -279,7 +279,7 @@ contains
 
 2   format(i5,4i3,f6.2,i7,i5,f10.4,f11.4,e16.7,i7,i5,g16.7,g15.7,f6.3)
 
-    lumk = 22_i_kind
+    lumk = 22
     ilev = ione               ! ilev > 24 is passive
     isnd = ione
     ppmv = one                ! dummy value 
@@ -288,11 +288,11 @@ contains
 
     rlnc = zero
     rlnc(2) = obhourset
-    ildat(1) = obdattim  / 1000000                   ! year
-    ildat(2) = mod(obdattim,1000000_i_kind)/10000    ! month
-    ildat(3) = mod(obdattim,10000_i_kind)/100        ! day
+    ildat(1) = obdattim  / 1000000            ! year
+    ildat(2) = mod(obdattim,1000000)/10000    ! month
+    ildat(3) = mod(obdattim,10000)/100        ! day
     ildat(4) = izero
-    ildat(5) = mod(obdattim,100_i_kind)              ! hour
+    ildat(5) = mod(obdattim,100)              ! hour
 
     ildat(6:8) = izero                               ! (no minute/sec in obdattim)
 

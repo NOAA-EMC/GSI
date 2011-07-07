@@ -185,7 +185,6 @@ clean:
 # ------------
 
   SRCSF90C = \
-	abor1.f90 \
 	adjtest.f90 \
 	aeroinfo.f90 \
 	anberror.f90 \
@@ -199,11 +198,14 @@ clean:
 	balmod.f90 \
 	berror.f90 \
 	bias_predictors.f90 \
+        bicg.f90 \
+        bicglanczos.F90 \
 	bkerror.f90 \
 	bkgcov.f90 \
 	bkgvar.f90 \
 	bkgvar_rewgt.f90 \
 	blacklist.f90 \
+	cal_tztr.f90 \
 	calc_fov_conical.f90 \
 	calc_fov_crosstrk.f90 \
 	calctends.f90 \
@@ -214,6 +216,7 @@ clean:
 	chemmod.f90 \
 	clw_mod.f90 \
 	cmaq_routines.f90 \
+        co_mop_ak.f90 \
 	coinfo.f90 \
 	combine_radobs.f90 \
 	compact_diffs.f90 \
@@ -227,10 +230,11 @@ clean:
 	converr.f90 \
 	convinfo.f90 \
 	convthin.f90 \
+	crtm_cloud.F90 \
 	crtm_interface.f90 \
 	cvsection.f90 \
-	deter_subdomain.f90 \
 	dtast.f90 \
+	deter_nst.f90 \
 	egrid2agrid_mod.f90 \
 	enorm_state.F90 \
 	evaljgrad.f90 \
@@ -253,7 +257,7 @@ clean:
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
 	get_gefs_ensperts_dualres.f90 \
-	get_wrf_mass_ensperts_netcdf.f90 \
+	get_wrf_mass_ensperts_netcdf.F90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
 	getsiga.f90 \
@@ -270,8 +274,9 @@ clean:
 	gsi_4dvar.f90 \
 	gsi_4dcouplermod.F90 \
 	gsi_bundlemod.F90 \
-	gsi_chemtracer_mod.F90 \
+	gsi_chemguess_mod.F90 \
 	gsi_io.f90 \
+        gsi_metguess_mod.F90 \
 	gsi_nemsio_mod.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
@@ -283,6 +288,7 @@ clean:
 	inc2guess.f90 \
 	init_commvars.f90 \
 	init_jcdfi.F90 \
+	insitu_info.f90 \
 	int3dvar.f90 \
 	intall.f90 \
 	intco.f90 \
@@ -300,7 +306,6 @@ clean:
 	intq.f90 \
 	intrad.f90 \
 	intrp2a.f90 \
-	intrp3co.f90 \
 	intrp3oz.f90 \
 	intrw.f90 \
 	intspd.f90 \
@@ -311,6 +316,7 @@ clean:
 	intw.f90 \
 	jcmod.f90 \
 	jfunc.f90 \
+        jgrad.f90 \
 	kinds.f90 \
 	lag_fields.f90 \
 	lag_interp.F90 \
@@ -347,6 +353,7 @@ clean:
 	ncepnems_io.f90 \
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
+	nstio_module.f90 \
 	obs_ferrscale.F90 \
 	obs_sensitivity.F90 \
 	obsmod.F90 \
@@ -396,6 +403,7 @@ clean:
 	rtlnmc_version3.f90 \
 	satthin.F90 \
 	setupyobs.f90 \
+	skindepth.f90 \
 	sfc_model.f90 \
 	sfcobsqc.f90 \
 	simpin1.f90 \
@@ -442,6 +450,8 @@ clean:
 	sub2fslab_mod.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
+        stub_set_crtm_aerosol.F90 \
+        stub_set_crtm_cloud.F90 \
 	stub_pertmod.F90 \
 	stub_timermod.F90 \
 	tendsmod.f90 \
@@ -463,6 +473,7 @@ clean:
 	update_guess.f90 \
 	update_geswtend.f90 \
 	wind_fft.f90 \
+	wrf_mass_guess_mod.F90 \
 	wrf_binary_interface.F90 \
 	wrf_netcdf_interface.F90 \
 	write_all.F90 \
@@ -487,6 +498,8 @@ clean:
 	read_avhrr.f90 \
 	read_avhrr_navy.f90 \
 	read_bufrtovs.f90 \
+	read_co.f90 \
+        read_cris.f90 \
 	read_goesimg.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
@@ -527,7 +540,7 @@ clean:
 	setupw.f90 \
 	sst_retrieval.f90
 
-  GSIGC_SRCS = # GSI_GridCompMod.F90
+  GSIGC_SRCS =
 
   SRCSF77 =
 

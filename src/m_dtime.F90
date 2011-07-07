@@ -82,10 +82,10 @@ subroutine dtime_setup()
   implicit none
   character(len=*),parameter :: myname_=myname//'::setup'
 
-  nm=0_i_kind; am=0._r_kind
-  nl=0_i_kind; al=0._r_kind
-  nr=0_i_kind; ar=0._r_kind
-  nt=0_i_kind; at=0._r_kind
+  nm=0; am=0._r_kind
+  nl=0; al=0._r_kind
+  nr=0; ar=0._r_kind
+  nt=0; at=0._r_kind
 end subroutine dtime_setup
 
 subroutine dtime_check(dtime, in_curbin,in_anybin)
@@ -125,7 +125,7 @@ subroutine dtime_check(dtime, in_curbin,in_anybin)
   character(len=*),parameter :: myname_=myname//'::check'
 
   	! for simple bookkeeping
-  nt=nt+1_i_kind
+  nt=nt+1
   at=at+(dtime-at)/nt
 
   in_curbin = (dtime>hrdifsig(1) .and. dtime<=hrdifsig(nfldsig))
@@ -144,20 +144,20 @@ subroutine dtime_check(dtime, in_curbin,in_anybin)
 #endif
 
   if(in_curbin) then
-    nm=nm+1_i_kind
+    nm=nm+1
     am=am+(dtime-am)/nm
     return
   endif
   if(in_anybin) return
 
   if(dtime <= hrdifsig_all(1)) then
-    nl=nl+1_i_kind
+    nl=nl+1
     al=al+(dtime-al)/nl
     return
   endif
 
   if(dtime > hrdifsig_all(nfldsig_all)) then
-    nr=nr+1_i_kind
+    nr=nr+1
     ar=ar+(dtime-ar)/nr
     return
   endif

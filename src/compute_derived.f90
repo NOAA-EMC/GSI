@@ -52,6 +52,8 @@ subroutine compute_derived(mype,init_pass)
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !   2010-06-01  todling - remove nrf3 pointer
 !   2010-06-05  todling - an_amp0 coming from control_vectors
+!   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
+!   2011-05-22  rancic/todling - add traj-init call here (but it is undesirable to be here)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -73,7 +75,7 @@ subroutine compute_derived(mype,init_pass)
   use control_vectors, only: an_amp0
   use mpimod, only: levs_id
   use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,&
-       ges_tv,ges_q,ges_oz,ges_cwmr,ges_tsen,sfct,&
+       ges_tv,ges_q,ges_oz,ges_tsen,sfct,&
        tropprs,ges_prsl,ntguessig,&
        nfldsig,&
        ges_teta,fact_tv, &
@@ -91,9 +93,13 @@ subroutine compute_derived(mype,init_pass)
   use berror, only: hswgt
   use balmod, only: rllat1,llmax
   use mod_strong, only: jcstrong,baldiag_full
-  use obsmod, only: write_diag,lobserver
+  use obsmod, only: write_diag
+  use gsi_4dvar, only: l4dvar
   use hybrid_ensemble_parameters, only: l_hyb_ens,generate_ens
   use hybrid_ensemble_isotropic, only: rescale_ensemble_rh_perturbations
+
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
 
   use constants, only: zero,one,one_tenth,half,fv
 
@@ -106,6 +112,8 @@ subroutine compute_derived(mype,init_pass)
   use anisofilter_glb, only: rh2f, rh3f, ensamp0f, ensamp2f, ensamp3f, &
                              p0ilatf, p2ilatf, p3ilatf, p2ilatfm, p3ilatfm, get_stat_factk
 
+  use gsi_4dvar, only: idmodel
+  use gsi_4dcouplermod, only: gsi_4dcoupler_init_traj
   use constants, only: zero,one,one_tenth,half,fv
   use mpeu_util, only: getindex
   use mpeu_util, only: die, tell
@@ -118,12 +126,13 @@ subroutine compute_derived(mype,init_pass)
 
 ! Declare local variables
   logical ice,fullfield
-  integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2,iderivative,nrf3_q
+  integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2,iderivative,nrf3_q,istatus
   
   real(r_kind) d,dl1,dl2,psfc015,dn1,dn2
   real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
   real(r_kind),dimension(lat2,lon2,nsig):: rhgues
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
 
 ! for anisotropic mode
   integer(i_kind):: k1,ivar,kvar,igauss,iq_loc
@@ -146,6 +155,15 @@ subroutine compute_derived(mype,init_pass)
         end do
      end do
   end do
+
+! RTodling: The following call is in a completely undesirable place
+! -----------------------------------------------------------------
+! Initialize atmospheric AD and TL model trajectory
+  if(l4dvar.and.jiter==jiterstart) then
+    call gsi_4dcoupler_init_traj(idmodel,rc=istatus)
+       if(istatus/=0) call die('compute_derived','gsi_4dcoupler_init_traj(), rc =',istatus)
+  endif
+
 !-----------------------------------------------------------------------------------
 ! Compute derivatives for .not. twodvar_regional case
   if (.not. twodvar_regional)then
@@ -161,9 +179,14 @@ subroutine compute_derived(mype,init_pass)
 
         
         it=ntguessig
+
+!       Get pointer to could water mixing ratio
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
+        if (istatus/=0) call die('compute_derived','cannot get pointer to cwmr, istatus =',istatus)
+
         call get_derivatives(ges_u(1,1,1,it),ges_v(1,1,1,it), &
              ges_tv(1,1,1,it),ges_ps,ges_q(1,1,1,it),&
-             ges_oz(1,1,1,it),sfct(1,1,it),ges_cwmr(1,1,1,it), &
+             ges_oz(1,1,1,it),sfct(1,1,it),ges_cwmr_it, &
              ges_u_lon,ges_v_lon,ges_tvlon,ges_ps_lon,ges_qlon,&
              ges_ozlon,sfct_lon,ges_cwmr_lon, &
              ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,&
@@ -181,7 +204,7 @@ subroutine compute_derived(mype,init_pass)
            call getprs(ges_ps(1,1,it),ges_3dp)
 
            call calctends(ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it), &
-              ges_q(1,1,1,it),ges_oz(1,1,1,it),ges_cwmr(1,1,1,it),&
+              ges_q(1,1,1,it),ges_oz(1,1,1,it),ges_cwmr_it,&
               ges_teta(1,1,1,it),ges_z(1,1,it), &
               ges_u_lon,ges_u_lat,ges_v_lon,&
               ges_v_lat,ges_tvlon,ges_tvlat,ges_ps_lon(1,1,it), &

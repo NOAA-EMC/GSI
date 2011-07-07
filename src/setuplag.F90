@@ -9,6 +9,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !
 ! program history log:
 !   2009-03-12  lmeunier
+!   2010-07-14  todling - use die to abort
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -71,9 +72,6 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),parameter:: iv_debug = 1
 
   character(len=*),parameter:: myname='setuplag'
-
-! Declare external calls for code analysis
-  external:: abor1
 
 ! Declare local variables
   real(r_double):: rstation_id
@@ -184,11 +182,11 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (.not.lobsdiag_allocated) then
            if (.not.associated(obsdiags(i_lag_ob_type,ibin)%head)) then
               allocate(obsdiags(i_lag_ob_type,ibin)%head,stat=istat)
-              if (istat/=0) call abor1('setuplag: failure to allocate obsdiags')
+              if (istat/=0) call die('setuplag: failure to allocate obsdiags')
               obsdiags(i_lag_ob_type,ibin)%tail => obsdiags(i_lag_ob_type,ibin)%head
            else
               allocate(obsdiags(i_lag_ob_type,ibin)%tail%next,stat=istat)
-              if (istat/=0) call abor1('setuplag: failure to allocate obsdiags')
+              if (istat/=0) call die('setuplag: failure to allocate obsdiags')
               obsdiags(i_lag_ob_type,ibin)%tail => obsdiags(i_lag_ob_type,ibin)%tail%next
            end if
            allocate(obsdiags(i_lag_ob_type,ibin)%tail%muse(miter+1))
@@ -215,7 +213,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            else
               obsdiags(i_lag_ob_type,ibin)%tail => obsdiags(i_lag_ob_type,ibin)%tail%next
            end if
-           if (obsdiags(i_lag_ob_type,ibin)%tail%indxglb/=i) call abor1('setuplag: index error')
+           if (obsdiags(i_lag_ob_type,ibin)%tail%indxglb/=i) call die('setuplag: index error')
         endif
         if (jj==1) obsptr => obsdiags(i_lag_ob_type,ibin)%tail
      end do
@@ -248,7 +246,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               end if
            end do
         else
-           call abor1('setuplag: Inapropriate velocity guess fields')
+           call die('setuplag: Inapropriate velocity guess fields')
         end if
  
         hsteptime = (dtime - (ibin-1)*hr_obsbin)* r3600
@@ -269,7 +267,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               end if
            end do
         else
-           call abor1('setuplag: Inapropriate velocity guess fields')
+           call die('setuplag: Inapropriate velocity guess fields')
         end if
  
         hsteptime = (dtime - hrdifsig(fieldindex))* r3600

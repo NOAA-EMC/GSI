@@ -20,6 +20,7 @@ module general_specmod
 !                           resolutions.  any number of resolutions can be now contained in
 !                           type(spec_vars) variables passed in through init_spec_vars.  also
 !                           remove init_spec, since not really necessary.
+!   2011-05-01  rancic  - add parameters jcap_trunc, nc_trunc
 !
 ! subroutines included:
 !   sub general_init_spec_vars
@@ -68,6 +69,8 @@ module general_specmod
 
      integer(i_kind) jcap
      integer(i_kind) nc
+     integer(i_kind) jcap_trunc
+     integer(i_kind) nc_trunc
      integer(i_kind) ncd2
      integer(i_kind) iromb
      integer(i_kind) idrt
@@ -160,6 +163,8 @@ contains
 !   Set constants used in transforms for analysis grid
     sp%jcap=jcap
     sp%nc=(jcap+ione)*(jcap+2_i_kind)
+    sp%jcap_trunc=jcap
+    sp%nc_trunc=(sp%jcap_trunc+ione)*(sp%jcap_trunc+2_i_kind)
     sp%ncd2=sp%nc/2
     sp%iromb=izero
     sp%idrt=4_i_kind

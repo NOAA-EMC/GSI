@@ -40,7 +40,7 @@ subroutine write_all(increment,mype)
 
 ! !INPUT PARAMETERS:
 
-  logical        , intent(in   ) :: increment  ! when .t., write out w/ increment filenames
+  integer(i_kind), intent(in   ) :: increment  ! when >0 write out w/ increment
   integer(i_kind), intent(in   ) :: mype       ! task number
 
 ! !OUTPUT PARAMETERS:

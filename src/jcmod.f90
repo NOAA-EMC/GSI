@@ -40,10 +40,10 @@ module jcmod
 ! set subroutines to public
   public :: init_jcvars
 ! set passed variables to public
-  public :: ljcdfi,alphajc,wgtdfi,bamp_jcpdry,ljcpdry
+  public :: ljcdfi,alphajc,wgtdfi,bamp_jcpdry,ljcpdry,eps_eer
 
   logical ljcdfi,ljcpdry
-  real(r_kind) alphajc,bamp_jcpdry
+  real(r_kind) alphajc,bamp_jcpdry,eps_eer
   real(r_kind),allocatable :: wgtdfi(:)
 
 contains
@@ -60,6 +60,7 @@ contains
 !   2005-07-01  kleist
 !   2005-09-29  kleist, expanded for new terms
 !   2006-04-06  kleist, include both formulations
+!   2010-09-06  todling, add Errico-Ehrendorfer parameter for E-norm
 !
 !   input argument list:
 !
@@ -70,7 +71,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-    use constants, only: zero
+    use constants, only: zero,one
     implicit none
 
 ! load defaults for non-allocatable arrays
@@ -78,6 +79,7 @@ contains
     ljcpdry=.false.
     alphajc=10.0_r_kind
     bamp_jcpdry=zero
+    eps_eer=-one  ! default: don't use q-term in norm
 
     return
   end subroutine init_jcvars

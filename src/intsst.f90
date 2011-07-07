@@ -54,6 +54,7 @@ subroutine intsst(ssthead,rval,sval)
 !   2007-07-09  tremolet - observation sensitivity
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
+!   2011-04-01  li       - modify to include Tr analysis
 !
 !   input argument list:
 !     ssthead
@@ -73,6 +74,7 @@ subroutine intsst(ssthead,rval,sval)
   use obsmod, only: sst_ob_type, lsaveobsens, l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
+  use radinfo, only: nst_gsi
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -89,6 +91,7 @@ subroutine intsst(ssthead,rval,sval)
 ! real(r_kind) penalty
   real(r_kind) w1,w2,w3,w4
   real(r_kind) val
+  real(r_kind) tval,tdir
   real(r_kind) cg_sst,p0,grad,wnotgross,wgross,pg_sst
   real(r_kind),pointer,dimension(:) :: ssst
   real(r_kind),pointer,dimension(:) :: rsst
@@ -115,6 +118,14 @@ subroutine intsst(ssthead,rval,sval)
 !    Forward model
      val=w1*ssst(j1)+w2*ssst(j2)&
         +w3*ssst(j3)+w4*ssst(j4)
+
+     if ( nst_gsi > 2 ) then
+       tdir = w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)         ! Forward
+       val  = tdir*sstptr%tz_tr                                       ! Include contributions from Tz jacobian
+     else
+       val = w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)          ! Forward
+     endif
+
 
      if (lsaveobsens) then
         sstptr%diags%obssen(jiter) = val*sstptr%raterr2*sstptr%err2
@@ -143,12 +154,21 @@ subroutine intsst(ssthead,rval,sval)
            grad = val*sstptr%raterr2*sstptr%err2
         endif
 
-!       Adjoint
-        rsst(j1)=rsst(j1)+w1*grad
-        rsst(j2)=rsst(j2)+w2*grad
-        rsst(j3)=rsst(j3)+w3*grad
-        rsst(j4)=rsst(j4)+w4*grad
-     endif
+!      Adjoint
+       if ( nst_gsi > 2 ) then
+         tval = sstptr%tz_tr*grad                     ! Extract contributions from surface jacobian
+         rsst(j1)=rsst(j1)+w1*tval                    ! Distribute adjoint contributions over surrounding grid points
+         rsst(j2)=rsst(j2)+w2*tval
+         rsst(j3)=rsst(j3)+w3*tval
+         rsst(j4)=rsst(j4)+w4*tval
+       else
+         rsst(j1)=rsst(j1)+w1*grad
+         rsst(j2)=rsst(j2)+w2*grad
+         rsst(j3)=rsst(j3)+w3*grad
+         rsst(j4)=rsst(j4)+w4*grad
+       endif
+
+     endif                           ! if (l_do_adjoint) then
 
      sstptr => sstptr%llpoint
 

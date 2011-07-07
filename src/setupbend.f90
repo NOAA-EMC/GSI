@@ -90,23 +90,23 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   use mpeu_util, only: die,perr,tell
   use kinds, only: r_kind,i_kind
   use obsmod, only: gpshead,nprof_gps,grids_dim,gpstail,lobsdiag_allocated,&
-       gps_allhead,gps_alltail,i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,&
-       time_offset
+      gps_allhead,gps_alltail,i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,&
+      time_offset
   use obsmod, only: gps_ob_type
   use obsmod, only: obs_diag
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,nfldsig,&
-       ges_z,ges_tv,ges_q
+      ges_z,ges_tv,ges_q
   use guess_grids, only: nsig_ext,gpstop
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
   use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,r0_01
   use constants, only: zero,half,one,two,eccentricity,semi_major_axis,&
-       grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,three,four,five
+      grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,three,four,five
   use lagmod, only: setq, setq_TL
   use lagmod, only: slagdw, slagdw_TL
-  use jfunc, only: jiter,miter
+  use jfunc, only: jiter,last,miter
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
 
@@ -872,7 +872,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 ! If obs is "acceptable", load array with obs info for use
 ! in inner loop minimization (int* and stp* routines)
 
-        if ( muse(i) ) then
+        if (.not. last .and. muse(i) ) then
 
            if(.not. associated(gpshead(ibin)%head))then
               allocate(gpshead(ibin)%head,stat=istat)

@@ -141,6 +141,7 @@ module general_sub2grid_mod
 !   2010-03-02  parrish - add regional flag to input.  if regional=.true., 
 !                           then periodic, periodic_s=.false. always.  this corrects a bug
 !                           in existing code.  (never a problem, except when npe=1).
+!   2011-04-07  todling - call general_deter_subdomain
 !
 !   input argument list:
 !     s          - structure variable, waiting for all necessary information for
@@ -207,7 +208,7 @@ module general_sub2grid_mod
       end if
 
 !      first determine subdomains
-      call general_deter_subdomain_nolayout(s%npe,s%mype,s%nlat,s%nlon,regional, &
+      call general_deter_subdomain(s%npe,s%mype,s%nlat,s%nlon,regional, &
             s%periodic,s%periodic_s,s%lon1,s%lon2,s%lat1,s%lat2,s%ilat1,s%istart,s%jlon1,s%jstart)
       s%latlon11=s%lat2*s%lon2
       s%latlon1n=s%latlon11*s%nsig
@@ -355,6 +356,256 @@ module general_sub2grid_mod
       s%lallocated=.true.
 
    end subroutine general_sub2grid_create_info
+
+   subroutine general_deter_subdomain(npe,mype,nlat,nlon,regional, &
+                    periodic,periodic_s,lon1,lon2,lat1,lat2,ilat1,istart,jlon1,jstart)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    deter_subdomain          perform domain decomposition
+!   prgmmr: da silva       org: np20                date: 2006-06-28
+!
+! abstract: The nxPE and nyPE defines the layout, that is, nxPE is the number of
+!           processors used to decompose the longitudinal dimensional, while nyPE 
+!           the number of processors used to decompose the latitudinal dimension.
+!           By construction, nPE = nxPE * nyPE. If a layout is not specified in
+!           the namelist, it defaults to nxPE=nyPE=-1 and we revert back to
+!           NCEP's original decomposition.
+!
+! program history log:
+!   2006-06-28  da Silva - added option to perform an ESMF-like
+!                          domain decomposition based on a layout.
+!                          If no layout is defined in mpimod then
+!                          it reverts back to NCEP's original algorithm.
+!   2011-04-07 todling   - embed in this package; update argument list
+!
+!   input argument list:
+!     mype      - mpi task number
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: i_kind
+  use mpimod, only: nxPE, nyPE
+  use mpeu_util, only: die
+  implicit none
+
+! Declare passed variables
+  integer(i_kind),intent(in   ) :: npe,mype,nlat,nlon
+  logical        ,intent(in   ) :: regional
+  logical        ,intent(  out) :: periodic,periodic_s(npe)
+  integer(i_kind),intent(  out) :: lon1,lon2,lat1,lat2
+  integer(i_kind),intent(  out) :: ilat1(npe),istart(npe),jlon1(npe),jstart(npe)
+
+  character(len=*), parameter :: myname_='general_deter_subdomain'
+
+! If a layout is provided, use it for the domain decomposition
+! ------------------------------------------------------------
+  if ( nxPE > 0 .AND. nyPE > 0 ) then
+
+     if( npe/=nxpe*nype ) then
+         call die(myname_,'NPE inconsistent from  NxPE NyPE ',npe)
+     endif
+     call general_deter_subdomain_withLayout(npe,nxPE,nyPE,mype,nlat,nlon,regional, &
+                    periodic,periodic_s,lon1,lon2,lat1,lat2,ilat1,istart,jlon1,jstart)
+
+! Otherwise, use NCEP original algorithm
+! --------------------------------------
+  else
+
+     call general_deter_subdomain_nolayout(npe,mype,nlat,nlon,regional, &
+                    periodic,periodic_s,lon1,lon2,lat1,lat2,ilat1,istart,jlon1,jstart)
+
+  endif
+
+  end subroutine general_deter_subdomain
+
+!-------------------------------------------------------------------------
+!BOP
+
+  subroutine general_deter_subdomain_withLayout(npe,nxpe,nype,mype,nlat,nlon,regional, &
+                    periodic,periodic_s,lon1,lon2,lat1,lat2,ilat1,istart,jlon1,jstart)
+
+! !USES:
+
+  use kinds, only: i_kind
+
+  implicit none
+
+! !INPUT PARAMETERS:
+
+  integer(i_kind),intent(in   ) :: mype,nxpe,nype
+  integer(i_kind),intent(in   ) :: npe,nlat,nlon
+  logical        ,intent(in   ) :: regional
+  logical        ,intent(  out) :: periodic,periodic_s(npe)  ! ??
+  integer(i_kind),intent(  out) :: lon1,lon2,lat1,lat2
+  integer(i_kind),intent(  out) :: ilat1(npe),istart(npe),jlon1(npe),jstart(npe)
+
+
+! !OUTPUT PARAMETERS:
+
+  ! all the variables in "use gridmod" are defined here
+
+! !DESCRIPTION: determine GSI subdomains using a layout
+!
+! !REVISION HISTORY:
+!
+!   2006-06-27  cruz
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR:
+!    cruz           org: gmao                date: 2006-06-27
+!
+! !REVISION HISTORY:
+!   2011-04-07 todling  embed in this package; update argument list
+!
+!EOP
+!-------------------------------------------------------------------------
+
+! Declare local variables
+
+  integer(i_kind) i,j,k,iinum,jjnum,iistart,jjstart
+  integer(i_kind) lsetx,lsety,nxseg,nyseg
+  integer(i_kind),allocatable,dimension(:) :: imxy, jmxy
+  integer(i_kind) im,jm,mm1,ierr
+
+! start
+
+  periodic=.false.
+  periodic_s=.false.
+  im=nlon; jm=nlat
+  allocate(imxy(0:nxpe-1),jmxy(0:nype-1), stat=ierr)
+  if(ierr /= 0) then
+     write(6,*)' DETER_SUBDOMAIN: ALLOCATE ERROR.'
+     call stop2(30)
+  end if
+ 
+  call GET_LOCAL_DIMS_ ( im,imxy,nxpe )
+  call GET_LOCAL_DIMS_ ( jm,jmxy,nype )
+
+! compute subdomain boundaries  (axis indices)
+
+  k=0
+  iinum=imxy(0)
+  jjnum=jmxy(0)
+  nxseg=2
+  nyseg=2
+  istart=1
+  jstart=1
+  iistart=1
+  jjstart=1
+  lsetx=npe/nype
+  lsety=npe/nype
+  do j=0,nype-1
+     do i=0,nxpe-1
+        k=k+1
+        if(i>0) then
+           if(imxy(i)<imxy(i-1)) iinum = imxy(i)
+        end if
+        if(j>0) then
+           if(jmxy(j)<jmxy(j-1)) jjnum = jmxy(j)
+        end if
+        ilat1(k)=jjnum
+        jlon1(k)=iinum
+            if (jlon1(k)==nlon.and..not.regional) then  ! _RT I have not idea if
+                                                        !     this is correct
+               periodic=.true.
+               periodic_s(k)=.true.
+            endif
+        if(k>1) then
+           if(nxseg<=lsetx) then
+              jstart(k)=iistart+jlon1(k)
+              iistart=jstart(k)
+              nxseg=nxseg+1
+           else
+              jstart(k)=1
+              iistart=1
+              nxseg=2
+           end if
+           if(nyseg<=lsety) then
+              istart(k)=jjstart
+              nyseg=nyseg+1
+           else
+              if(ilat1(k)<ilat1(k-1)) then
+                 istart(k)=jjstart+ilat1(k)+1
+              else
+                 istart(k)=jjstart+ilat1(k)
+              end if
+              jjstart=istart(k)
+              nyseg=2
+           end if
+        end if
+        if(mype == 0) &
+             write(6,100) k,istart(k),jstart(k),ilat1(k),jlon1(k)
+     end do
+  end do
+
+100 format('DETER_SUBDOMAIN:  task,istart,jstart,ilat1,jlon1=',5(i6,1x))
+  
+        
+! Set number of latitude and longitude for given subdomain
+  mm1=mype+1
+  lat1=ilat1(mm1)
+  lon1=jlon1(mm1)
+  lat2=lat1+2
+  lon2=lon1+2
+
+  deallocate(imxy,jmxy, stat=ierr)
+  if(ierr /= 0) then
+     write(6,*)' DETER_SUBDOMAIN: DEALLOCATE ERROR.'
+     call stop2(30)
+  end if 
+
+
+  return
+
+  end subroutine general_deter_subdomain_withLayout
+
+  subroutine GET_LOCAL_DIMS_ ( dim_world,dim,NDEs )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    GET_LOCAL_DIMS
+!   prgmmr:                  org                      date:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    dim_world
+!    NDEs
+!    dim
+!
+!   output argument list:
+!    dim
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+   implicit   none
+
+   integer(i_kind),intent(in   ) :: dim_world, NDEs
+   integer(i_kind),intent(inout) :: dim(0:NDEs-1)
+
+   integer(i_kind)    n,im,rm
+
+   im = dim_world/NDEs
+   rm = dim_world-NDEs*im
+   do n=0,NDEs-1
+      dim(n) = im
+      if( n<=rm-1 ) dim(n) = im+1
+   enddo
+   end subroutine GET_LOCAL_DIMS_
 
    subroutine general_deter_subdomain_nolayout(npe,mype,nlat,nlon,regional, &
                     periodic,periodic_s,lon1,lon2,lat1,lat2,ilat1,istart,jlon1,jstart)

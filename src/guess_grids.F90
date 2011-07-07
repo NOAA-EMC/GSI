@@ -23,11 +23,16 @@ module guess_grids
   use gridmod, only: pt_ll
   use regional_io, only: update_pint
 
+  ! meteorological guess (beyond standard ones)
+  use gsi_metguess_mod, only: gsi_metguess_create_grids
+  use gsi_metguess_mod, only: gsi_metguess_destroy_grids
+  use gsi_metguess_mod, only: gsi_metguess_get
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+
   ! chem trace gases
-  use gsi_chemtracer_mod, only: gsi_chemtracer_create_grids
-  use gsi_chemtracer_mod, only: gsi_chemtracer_destroy_grids
-  use gsi_chemtracer_mod, only: gsi_chemtracer_get
-  use gsi_chemtracer_mod, only: gsi_chem_bundle
+  use gsi_chemguess_mod, only: gsi_chemguess_create_grids
+  use gsi_chemguess_mod, only: gsi_chemguess_destroy_grids
+  use gsi_chemguess_mod, only: gsi_chemguess_get
 
   implicit none
 
@@ -78,6 +83,9 @@ module guess_grids
 !   2010-09-15  pagowski - add cmaq
 !   2010-12-20  cucurull - add integer nsig_ext 
 !   2011-01-05  cucurull - add real gpstop
+!   2011-03-13  li      - add for nst FCST file
+!   2011-04-29  todling  - some of cloud fields move to wrf_guess_mod; some to met_guess
+!   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -89,14 +97,12 @@ module guess_grids
   private
 ! set subroutines to public
   public :: create_sfc_grids
-  public :: create_cld_grids
   public :: create_ges_grids
   public :: destroy_ges_grids
 #ifdef TO_BE_REMOVED
   public :: destroy_sfct
 #endif
   public :: destroy_sfc_grids
-  public :: destroy_cld_grids
   public :: create_gesfinfo
   public :: destroy_gesfinfo
   public :: load_prsges
@@ -106,21 +112,21 @@ module guess_grids
   public :: comp_fact10
   public :: guess_grids_print
   public :: guess_grids_stats
+  public :: create_metguess_grids
+  public :: destroy_metguess_grids
   public :: create_chemges_grids
   public :: destroy_chemges_grids
 ! set passed variables to public
   public :: ntguessig,ges_ps,ges_tv,ges_prsi,ges_oz,ges_psfcavg,ges_prslavg
   public :: isli2,ges_prsl,ges_z,ges_q,ges_v,ges_u,nfldsig,ges_vor,ges_div
-  public :: ges_ozlat,ges_ozlon,ges_qlat,ges_cwmr,ges_teta,ges_cwmr_lat
+  public :: ges_ozlat,ges_ozlon,ges_qlat,ges_teta,ges_cwmr_lat
   public :: ges_cwmr_lon,ges_v_lon,ges_u_lat,ges_u_lon,ges_v_lat,ges_qlon
   public :: ges_tvlon,ges_tvlat,ges_prs_ten,ges_tv_ten,ges_v_ten,ges_cwmr_ten
   public :: ges_oz_ten,ges_q_ten,fact_tv,tropprs,sfct,ges_u_ten,ges_ps_lat
-  public :: ges_ps_lon,ntguessfc,dsfct,ifilesig,veg_frac,soil_type,veg_type
-  public :: sno2,ifilesfc,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
-  public :: nfldsfc,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc
+  public :: ges_ps_lon,ntguessfc,ntguesnst,dsfct,ifilesig,veg_frac,soil_type,veg_type
+  public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
+  public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
-  public :: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg
-  public :: ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
   public :: use_compress,nsig_ext,gpstop
 
   public :: ges_initialized
@@ -129,9 +135,11 @@ module guess_grids
 
   public :: nfldsig_all,nfldsig_now,hrdifsig_all
   public :: nfldsfc_all,nfldsfc_now,hrdifsfc_all
+  public :: nfldnst_all,nfldnst_now,hrdifnst_all
   public :: extrap_intime
   public :: ntguessig_ref
   public :: ntguessfc_ref
+  public :: ntguesnst_ref
 
   logical:: sfcmod_gfs = .false.    ! .true. = recompute 10m wind factor using gfs physics
   logical:: sfcmod_mm5 = .false.    ! .true. = recompute 10m wind factor using mm5 physics
@@ -144,9 +152,11 @@ module guess_grids
 
   integer(i_kind) ntguessig         ! location of actual guess time for sigma fields
   integer(i_kind) ntguessfc         ! location of actual guess time for sfc fields
+  integer(i_kind) ntguesnst         ! location of actual guess time for nst FCST fields
 
   integer(i_kind), save:: ntguessig_ref	! replace ntguessig as the storage for its original value
   integer(i_kind), save:: ntguessfc_ref	! replace ntguessfc as the storage for its original value
+  integer(i_kind), save:: ntguesnst_ref ! replace ntguesnst as the storage for its original value
 
   integer(i_kind):: ifact10 = 0     ! 0 = use 10m wind factor from guess
   integer(i_kind):: nsig_ext = 13   ! use 13 layers above model top to compute the bending angle for gpsro
@@ -155,24 +165,30 @@ module guess_grids
 
   real(r_kind), allocatable, dimension(:), save:: hrdifsig_all  ! a list of all times
   real(r_kind), allocatable, dimension(:), save:: hrdifsfc_all  ! a list of all times
+  real(r_kind), allocatable, dimension(:), save:: hrdifnst_all  ! a list of all times
 
   integer(i_kind), save:: nfldsig_all	! expected total count of time slots
   integer(i_kind), save:: nfldsfc_all
+  integer(i_kind), save:: nfldnst_all
 
   integer(i_kind), save:: nfldsig	! actual count of in-cache time slots
   integer(i_kind), save:: nfldsfc
+  integer(i_kind), save:: nfldnst       ! actual count of in-cache time slots for NST file
 
   integer(i_kind), save:: nfldsig_now	! current count of filled time slots
   integer(i_kind), save:: nfldsfc_now
+  integer(i_kind), save:: nfldnst_now
 
   logical, save:: extrap_intime		! compute o-f interpolate within the time ranges of guess_grids,
   					! or also extrapolate outside the time ranges.
 
   real(r_kind), allocatable, dimension(:):: hrdifsig  ! times for cached sigma guess_grid
   real(r_kind), allocatable, dimension(:):: hrdifsfc  ! times for cached surface guess_grid
+  real(r_kind), allocatable, dimension(:):: hrdifnst  ! times for cached nst guess_grid
 
   integer(i_kind),allocatable, dimension(:)::ifilesfc  ! array used to open the correct surface guess files
   integer(i_kind),allocatable, dimension(:)::ifilesig  ! array used to open the correct sigma guess files
+  integer(i_kind),allocatable, dimension(:)::ifilenst  ! array used to open the correct nst guess files
 
   integer(i_kind),allocatable,dimension(:,:,:):: isli    ! snow/land/ice mask
   integer(i_kind),allocatable,dimension(:,:,:):: isli_g  ! isli on horiz/global grid
@@ -222,7 +238,6 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_v_lon ! meridional wind/lon
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_vor   ! vorticity
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_div   ! divergence
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_cwmr  ! cloud condensate mixing ratio 
   real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_lat  ! cloud condensate mixing ratio/lat
   real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_lon  ! cloud condensate mixing ratio/lon
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_q     ! specific humidity
@@ -247,20 +262,7 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_oz_ten   ! ozone tendency
   real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_ten ! cloud water tendency
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qc    ! cloud water
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qi    ! cloud ice
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qr    ! rain
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qs    ! snow
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qg    ! graupel
 
-  real(r_kind),allocatable,dimension(:,:,:):: ges_xlon    ! longitude
-  real(r_kind),allocatable,dimension(:,:,:):: ges_xlat    ! latitude
-  real(r_kind),allocatable,dimension(:,:,:):: soil_temp_cld    ! soil temperature
-  real(i_kind),allocatable,dimension(:,:,:):: isli_cld    !
-! for radar temperature tendency
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_tten    ! radar temperature tendency
-
- 
   interface guess_grids_print
      module procedure print1r8_
      module procedure print2r8_
@@ -387,77 +389,6 @@ contains
   end subroutine create_sfc_grids
 
 !-------------------------------------------------------------------------
-!    NOAA/GSD, GSI        !
-!-------------------------------------------------------------------------
-!BOP
-!
-! IROUTINE:  create_cld_grids --- Alloc grid for guess of cloud
-!
-! INTERFACE:
-!
-  subroutine create_cld_grids
-
-! USES:
-
-    use constants,only: zero
-    use gridmod, only: lat2,lon2,nsig
-    implicit none
-
-! INPUT PARAMETERS:
-
-! OUTPUT PARAMETERS:
-
-! DESCRIPTION: allocate grids to hold guess cloud fields
-!
-! REVISION HISTORY:
-!   2007-08-16  Ming Hu, original code
-!   2008-09-26  Ming Hu, add ges_tten
-!
-!EOP
-!-------------------------------------------------------------------------
-
-    integer(i_kind) i,j,k,n,istatus
-
-!   Allocate and zero guess grids
-    allocate (ges_qc(lat2,lon2,nsig,nfldsig),&
-         ges_qi(lat2,lon2,nsig,nfldsig),ges_qr(lat2,lon2,nsig,nfldsig),&
-         ges_qs(lat2,lon2,nsig,nfldsig),ges_qg(lat2,lon2,nsig,nfldsig),&
-         ges_xlon(lat2,lon2,nfldsig),ges_xlat(lat2,lon2,nfldsig),&
-         soil_temp_cld(lat2,lon2,nfldsig),isli_cld(lat2,lon2,nfldsig),&
-         ges_tten(lat2,lon2,nsig,nfldsig), &
-         stat=istatus)
-    if (istatus/=0) write(6,*)'CREATE_CLD_GRIDS:  allocate error1, istatus=',&
-         istatus,lat2,lon2,nsig,nfldsig
-
-!  Default for cloud 
-    do n=1,nfldsig
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                ges_qc(i,j,k,n)=zero
-                ges_qi(i,j,k,n)=zero
-                ges_qr(i,j,k,n)=zero
-                ges_qs(i,j,k,n)=zero
-                ges_qg(i,j,k,n)=zero
-                ges_tten(i,j,k,n)=-20.0_r_kind
-             end do
-          end do
-       end do
-       ges_tten(:,:,nsig,n)=-10.0_r_kind
-       do j=1,lon2
-          do i=1,lat2
-             ges_xlon(i,j,n)=zero
-             ges_xlat(i,j,n)=zero
-             soil_temp_cld(i,j,n)=zero
-             isli_cld(i,j,n)=zero
-          end do
-       end do
-    enddo
-
-    return
-  end subroutine create_cld_grids
-
-!-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
 !BOP
@@ -510,7 +441,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-    integer(i_kind) i,j,k,n,istatus
+    integer(i_kind) i,j,k,n,ivar,istatus
     if(ges_grids_allocated_) call die('create_ges_grids','already allocated')
     ges_grids_allocated_=.true.
 
@@ -519,8 +450,10 @@ contains
 #ifndef HAVE_ESMF
     nfldsig_all=nfldsig
     nfldsfc_all=nfldsfc
+    nfldnst_all=nfldnst
     nfldsig_now=0	! _now variables are not used if not for ESMF
     nfldsfc_now=0
+    nfldnst_now=0
     extrap_intime=.true.
 #endif /* HAVE_ESMF */
 
@@ -532,22 +465,22 @@ contains
             geop_hgtl(lat2,lon2,nsig,nfldsig), &
             geop_hgti(lat2,lon2,nsig+1,nfldsig),ges_prslavg(nsig),&
             tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),stat=istatus)
-       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prsi,..):  allocate error1, istatus=',&
+       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prsi,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
 #ifndef HAVE_ESMF
        allocate (ges_z(lat2,lon2,nfldsig),ges_ps(lat2,lon2,nfldsig),&
             ges_u(lat2,lon2,nsig,nfldsig),ges_v(lat2,lon2,nsig,nfldsig),&
             ges_vor(lat2,lon2,nsig,nfldsig),ges_div(lat2,lon2,nsig,nfldsig),&
-            ges_cwmr(lat2,lon2,nsig,nfldsig),ges_q(lat2,lon2,nsig,nfldsig),&
+            ges_q(lat2,lon2,nsig,nfldsig),&
             ges_oz(lat2,lon2,nsig,nfldsig),ges_tv(lat2,lon2,nsig,nfldsig),&
             stat=istatus)
-       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_z,..):  allocate error1, istatus=',&
+       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_z,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
 #endif /* HAVE_ESMF */
        if(update_pint) then
           allocate(ges_pint(lat2,lon2,nsig+1,nfldsig),ges_pd(lat2,lon2,nfldsig),&
                stat=istatus)
-          if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_pint,..):  allocate error2, istatus=',&
+          if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_pint,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
        endif
 
@@ -590,7 +523,6 @@ contains
                    ges_v(i,j,k,n)=zero
                    ges_vor(i,j,k,n)=zero
                    ges_div(i,j,k,n)=zero
-                   ges_cwmr(i,j,k,n)=zero
                    ges_q(i,j,k,n)=zero
                    ges_oz(i,j,k,n)=zero
                    ges_tv(i,j,k,n)=zero
@@ -646,8 +578,8 @@ contains
        allocate(ges_prs_ten(lat2,lon2,nsig+1),ges_u_ten(lat2,lon2,nsig),&
                 ges_v_ten(lat2,lon2,nsig),ges_tv_ten(lat2,lon2,nsig),&
                 ges_q_ten(lat2,lon2,nsig),ges_oz_ten(lat2,lon2,nsig),&
-                ges_cwmr_ten(lat2,lon2,nsig),stat=istatus)
-       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prs_ten,..):  allocate error3, istatus=',&
+                stat=istatus)
+       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prs_ten,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig
        tnd_initialized = .true.
        do k=1,nsig
@@ -657,12 +589,26 @@ contains
                 ges_v_ten(i,j,k)=zero
                 ges_tv_ten(i,j,k)=zero
                 ges_q_ten(i,j,k)=zero
-                ges_cwmr_ten(i,j,k)=zero
                 ges_oz_ten(i,j,k)=zero
                 ges_prs_ten(i,j,k)=zero
              end do
           end do
        end do
+!      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
+       call gsi_metguess_get ( 'var::cw', ivar, istatus )
+       if (ivar>0) then
+           allocate(ges_cwmr_ten(lat2,lon2,nsig),stat=istatus)
+           if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_cwmr_ten):  allocate error, istatus=',&
+                istatus,lat2,lon2,nsig
+            do k=1,nsig
+               do j=1,lon2
+                  do i=1,lat2
+                     ges_cwmr_ten(i,j,k)=zero
+                  end do
+               end do
+            end do
+       endif
+
        do j=1,lon2
           do i=1,lat2
              ges_prs_ten(i,j,nsig+1)=zero
@@ -674,13 +620,12 @@ contains
     if (.not.drv_initialized .and. switch_on_derivatives) then
        allocate(ges_u_lat(lat2,lon2,nsig),ges_u_lon(lat2,lon2,nsig),&
             ges_v_lat(lat2,lon2,nsig),ges_v_lon(lat2,lon2,nsig),&
-            ges_cwmr_lat(lat2,lon2,nsig),ges_cwmr_lon(lat2,lon2,nsig),&
             ges_ozlat(lat2,lon2,nsig),ges_ozlon(lat2,lon2,nsig),&
             ges_ps_lat(lat2,lon2,nfldsig),ges_ps_lon(lat2,lon2,nfldsig),&
             ges_tvlat(lat2,lon2,nsig),ges_tvlon(lat2,lon2,nsig),&
             ges_qlat(lat2,lon2,nsig),ges_qlon(lat2,lon2,nsig),&
             stat=istatus)
-       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_u_lat,..):  allocate error4, istatus=',&
+       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_u_lat,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
        drv_initialized = .true.
        do k=1,nsig
@@ -690,8 +635,6 @@ contains
                 ges_u_lon(i,j,k)=zero
                 ges_v_lat(i,j,k)=zero
                 ges_v_lon(i,j,k)=zero
-                ges_cwmr_lat(i,j,k)=zero
-                ges_cwmr_lon(i,j,k)=zero
                 ges_ozlat(i,j,k)=zero
                 ges_ozlon(i,j,k)=zero
                 ges_tvlat(i,j,k)=zero
@@ -701,6 +644,22 @@ contains
              end do
           end do
        end do
+!      Get pointer to could water mixing ratio, and alloc directional derivatives if cwmr present in guess
+       call gsi_metguess_get ( 'var::cw', ivar, istatus )
+       if (ivar>0) then
+           allocate(ges_cwmr_lat(lat2,lon2,nsig),ges_cwmr_lon(lat2,lon2,nsig),&
+            stat=istatus)
+            if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_cwmr_lat,..):  allocate error, istatus=',&
+                istatus,lat2,lon2,nsig,nfldsig
+            do k=1,nsig
+               do j=1,lon2
+                  do i=1,lat2
+                     ges_cwmr_lat(i,j,k)=zero
+                     ges_cwmr_lon(i,j,k)=zero
+                  end do
+               end do
+            end do
+       endif
        do n=1,nfldsig
           do j=1,lon2
              do i=1,lat2
@@ -713,6 +672,105 @@ contains
 
     return
   end subroutine create_ges_grids
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: create_metguess_grids --- initialize extra meterological guess
+!
+! !INTERFACE:
+!
+  subroutine create_metguess_grids(istatus)
+
+! !USES:
+  use gridmod, only: lat2,lon2,nsig
+  implicit none
+
+! !OUTPUT PARAMETERS:
+
+  integer(i_kind), intent(out) :: istatus
+
+! !DESCRIPTION: initialize extra meteorological background fields beyond 
+!               the standard ones - wired-in this module.
+!
+! !REVISION HISTORY:
+!   2011-04-29  todling
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; Linux Cluster
+!
+! !AUTHOR: 
+!   todling         org: w/nmc20     date: 2011-04-29
+!
+!EOP
+!-------------------------------------------------------------------------
+   character(len=*),parameter::myname_='create_metguess_grids'
+   integer(i_kind) :: nmguess                   ! number of meteorol. fields (namelist)
+   character(len=256),allocatable:: mguess(:)   ! names of meterol. fields
+
+   istatus=0
+  
+!  When proper connection to ESMF is complete,
+!  the following will not be needed here
+!  ------------------------------------------
+   call gsi_metguess_get('dim',nmguess,istatus)
+   if(istatus/=0) then
+      write(6,*) myname_, ': trouble getting number of met-guess fields'
+      return
+   endif
+   if(nmguess==0) return
+   if (nmguess>0) then
+       allocate (mguess(nmguess))
+       call gsi_metguess_get('gsinames',mguess,istatus)
+       if(istatus/=0) then
+          write(6,*) myname_, ': trouble getting name of met-guess fields'
+          return
+       endif
+
+!      Allocate memory for guess files for trace gases
+!      ------------------------------------------------
+       call gsi_metguess_create_grids(lat2,lon2,nsig,nfldsig,istatus)
+       if(istatus/=0) then
+          write(6,*) myname_, ': trouble allocating mem for extra met-guess'
+          return
+       endif
+   endif
+
+  end subroutine create_metguess_grids
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: destroy_metguess_grids --- destroy extra meterological background
+!
+! !INTERFACE:
+!
+  subroutine destroy_metguess_grids(istatus)
+! !USES:
+  implicit none
+! !OUTPUT PARAMETERS:
+  integer(i_kind),intent(out)::istatus
+! !DESCRIPTION: destroy extra meterological background
+!
+! !REVISION HISTORY:
+!   2011-04-29  todling
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; Linux Cluster
+!
+! !AUTHOR: 
+!   todling         org: w/nmc20     date: 2011-04-29
+!
+!EOP
+  istatus=0
+  call gsi_metguess_destroy_grids(istatus)
+  end subroutine destroy_metguess_grids
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
@@ -756,7 +814,7 @@ contains
 !  When proper connection to ESMF is complete,
 !  the following will not be needed here
 !  ------------------------------------------
-   call gsi_chemtracer_get('dim',ntgases,istatus)
+   call gsi_chemguess_get('dim',ntgases,istatus)
    if(istatus/=0) then
       write(6,*) myname_, ': trouble getting number of chem/gases'
       return
@@ -764,7 +822,7 @@ contains
    if(ntgases==0) return
    if (ntgases>0) then
        allocate (tgases(ntgases))
-       call gsi_chemtracer_get('shortnames',tgases,istatus)
+       call gsi_chemguess_get('gsinames',tgases,istatus)
        if(istatus/=0) then
           write(6,*) myname_, ': trouble getting name of chem/gases'
           return
@@ -772,7 +830,7 @@ contains
 
 !      Allocate memory for guess files for trace gases
 !      ------------------------------------------------
-       call gsi_chemtracer_create_grids(lat2,lon2,nsig,nfldsig,istatus)
+       call gsi_chemguess_create_grids(lat2,lon2,nsig,nfldsig,istatus)
        if(istatus/=0) then
           write(6,*) myname_, ': trouble allocating mem for chem/gases'
           return
@@ -809,7 +867,7 @@ contains
 !
 !EOP
   istatus=0
-  call gsi_chemtracer_destroy_grids(istatus)
+  call gsi_chemguess_destroy_grids(istatus)
   end subroutine destroy_chemges_grids
 
 !-------------------------------------------------------------------------
@@ -856,43 +914,60 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-    integer(i_kind):: istatus
+    integer(i_kind):: ivar,istatus
 
     deallocate(ges_prsi,ges_prsl,ges_lnprsl,ges_lnprsi,&
          ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_prslavg,&
          tropprs,fact_tv,stat=istatus)
     if (istatus/=0) &
-         write(6,*)'DESTROY_GES_GRIDS(ges_prsi,..):  deallocate error1, istatus=',&
+         write(6,*)'DESTROY_GES_GRIDS(ges_prsi,..):  deallocate error, istatus=',&
          istatus
 #ifndef HAVE_ESMF
     deallocate(ges_z,ges_ps,&
-         ges_u,ges_v,ges_vor,ges_div,ges_cwmr,ges_q,&
+         ges_u,ges_v,ges_vor,ges_div,ges_q,&
          ges_oz,ges_tv,&
          stat=istatus)
     if (istatus/=0) &
-         write(6,*)'DESTROY_GES_GRIDS(ges_z,..):  deallocate error1, istatus=',&
+         write(6,*)'DESTROY_GES_GRIDS(ges_z,..):  deallocate error, istatus=',&
          istatus
 #endif /* HAVE_ESMF */
     if(update_pint) then
        deallocate(ges_pint,ges_pd,stat=istatus)
        if (istatus/=0) &
-            write(6,*)'DESTROY_GES_GRIDS(ges_pint,..):  deallocate error2, istatus=',&
+            write(6,*)'DESTROY_GES_GRIDS(ges_pint,..):  deallocate error, istatus=',&
             istatus
     endif
     if (drv_initialized .and.switch_on_derivatives) then
-       deallocate(ges_u_lat,ges_u_lon,ges_v_lat,ges_v_lon,ges_cwmr_lat,&
-            ges_cwmr_lon,ges_ozlat,ges_ozlon,&
+!      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
+       call gsi_metguess_get ( 'var::cw', ivar, istatus )
+       if (ivar>0) then
+           deallocate(ges_cwmr_lat,ges_cwmr_lon,&
+            stat=istatus)
+            if (istatus/=0) &
+                 write(6,*)'DESTROY_GES_GRIDS(ges_cwmr_lat,..):  deallocate error, istatus=',&
+                 istatus
+       endif
+       deallocate(ges_u_lat,ges_u_lon,ges_v_lat,ges_v_lon,&
+            ges_ozlat,ges_ozlon,&
             ges_ps_lat,ges_ps_lon,ges_tvlat,ges_tvlon,&
             ges_qlat,ges_qlon,stat=istatus)
        if (istatus/=0) &
-            write(6,*)'DESTROY_GES_GRIDS(ges_u_lat,..):  deallocate error3, istatus=',&
+            write(6,*)'DESTROY_GES_GRIDS(ges_u_lat,..):  deallocate error, istatus=',&
             istatus
     endif
     if (tnd_initialized .and. tendsflag) then
+!      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
+       call gsi_metguess_get ( 'var::cw', ivar, istatus )
+       if (ivar>0) then
+           deallocate(ges_cwmr_ten,stat=istatus)
+           if (istatus/=0) &
+                write(6,*)'DESTROY_GES_GRIDS(ges_cwmr_ten,..):  deallocate error, istatus=',&
+                istatus
+       endif
        deallocate(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
-            ges_oz_ten,ges_cwmr_ten,stat=istatus)
+            ges_oz_ten,stat=istatus)
        if (istatus/=0) &
-            write(6,*)'DESTROY_GES_GRIDS(ges_u_ten,..):  deallocate error4, istatus=',&
+            write(6,*)'DESTROY_GES_GRIDS(ges_u_ten,..):  deallocate error, istatus=',&
             istatus
     endif
     return
@@ -1007,49 +1082,6 @@ contains
   end subroutine destroy_sfc_grids
 
 !-------------------------------------------------------------------------
-!    NOAA/GSD, GSI        !
-!-------------------------------------------------------------------------
-!BOP
-!
-! IROUTINE:  destroy_cld_grids --- Dealloc grid for guess of cloud
-!
-! INTERFACE:
-!
-  subroutine destroy_cld_grids
-
-! USES:
-    implicit none
-! INPUT PARAMETERS:
-! OUTPUT PARAMETERS:
-
-! DESCRIPTION: Dealloc grids that hold guess cloud fields
-!
-! REVISION HISTORY:
-!   2007-08-16  Ming Hu, original code
-!   2008-09-26  Ming Hu, add ges_tten
-!
-! REMARKS:
-!   language: f90
-!   machine:  ijet
-!
-! !AUTHOR:
-!   Ming Hu          org: w/gsd     date: 2007-08-16
-!
-!EOP
-!-------------------------------------------------------------------------
-
-    integer(i_kind) istatus
-
-    deallocate (ges_qc, ges_qi,ges_qr,ges_qs,ges_qg,ges_xlon,ges_xlat,&
-                soil_temp_cld,isli_cld,ges_tten,stat=istatus)
-    if (istatus/=0) &
-         write(6,*)'DESTROY_CLD_GRIDS:  deallocate error1, istatus=',&
-         istatus
-
-    return
-  end subroutine destroy_cld_grids
-
-!-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
 !BOP
@@ -1087,12 +1119,16 @@ contains
 #ifndef HAVE_ESMF
     nfldsig_all=nfldsig
     nfldsfc_all=nfldsfc
+    nfldnst_all=nfldnst
     nfldsig_now=0	! _now variables are not used if not for ESMF
     nfldsfc_now=0
+    nfldnst_now=0
     extrap_intime=.true.
     allocate(hrdifsfc(nfldsfc),ifilesfc(nfldsfc), &
+             hrdifnst(nfldnst),ifilenst(nfldnst), &
              hrdifsig(nfldsig),ifilesig(nfldsig), &
 	     hrdifsfc_all(nfldsfc_all), &
+             hrdifnst_all(nfldnst_all), &
 	     hrdifsig_all(nfldsig_all), &
 	     stat=istatus)
     if (istatus/=0) &
@@ -1139,15 +1175,17 @@ contains
     gesfinfo_created_=.false.
 
 #ifndef HAVE_ESMF
-    deallocate(hrdifsfc,ifilesfc,hrdifsig,ifilesig, &
-    	hrdifsfc_all,hrdifsig_all,stat=istatus)
+    deallocate(hrdifsfc,ifilesfc,hrdifnst,ifilenst,hrdifsig,ifilesig, &
+    	hrdifsfc_all,hrdifnst_all,hrdifsig_all,stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GESFINFO:  deallocate error, istatus=',&
          istatus
 
     nfldsfc_all=0
+    nfldnst_all=0
     nfldsig_all=0
     nfldsfc    =0
+    nfldnst    =0
     nfldsig    =0
 #endif /* HAVE_ESMF */
 

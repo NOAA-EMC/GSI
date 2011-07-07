@@ -4,7 +4,7 @@ module grdtest
 ! module:   grdtest
 !  prgmmr: todling
 !
-! abstract: Routines and data to perform graident test
+! abstract: Routines and data to perform gradient test
 !
 ! program history log:
 !   2009-01-18 todling

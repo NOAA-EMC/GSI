@@ -13,7 +13,9 @@ module obs_sensitivity
 !   2009-08-07 lueken   - updated documentation
 !   2010-04-30 tangborn - add pointer to carbon monoxide
 !   2010-05-27 todling  - remove all user-specific TL-related references
+!   2010-07-16 todling  - add reference to aero and aerol
 !   2010-08-19 lueken   - add only to module use;no machine code, so use .f90
+!   2011-03-29 todling  - add reference to pm2_5
 !
 ! Subroutines Included:
 !   init_fc_sens  - Initialize computations
@@ -29,14 +31,15 @@ module obs_sensitivity
 ! ------------------------------------------------------------------------------
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero, zero_quad, two
-use gsi_4dvar, only: nobs_bins, l4dvar, idmodel, nsubwin
+use gsi_4dvar, only: nobs_bins, l4dvar, nsubwin
 use jfunc, only: jiter, miter, niter, iter
 use obsmod, only: cobstype, nobs_type, obsdiags, obsptr, obscounts, &
-                & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
-                & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
-                & i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
-                & i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
-                & i_lag_ob_type, i_co3l_ob_type
+                  i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
+                  i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
+                  i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
+                  i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
+                  i_lag_ob_type, i_colvk_ob_type, i_aero_ob_type, i_aerol_ob_type, &
+                  i_pm2_5_ob_type
 use mpimod, only: mype
 use control_vectors, only: control_vector,allocate_cv,read_cv,deallocate_cv, &
     dot_product,assignment(=)
@@ -63,7 +66,7 @@ integer(i_kind) :: iobsconv
 ! ------------------------------------------------------------------------------
 type(control_vector) :: fcsens
 real(r_kind), allocatable :: sensincr(:,:,:)
-character(len=4) :: cobtype(nobs_type)
+character(len=5) :: cobtype(nobs_type)
 ! ------------------------------------------------------------------------------
 contains
 ! ------------------------------------------------------------------------------
@@ -204,24 +207,28 @@ endif
 888 format(A,3(1X,ES24.18))
 
 ! Define short name for obs types
-cobtype( i_ps_ob_type)="spr "
-cobtype(  i_t_ob_type)="tem "
-cobtype(  i_w_ob_type)="uv  "
-cobtype(  i_q_ob_type)="hum "
-cobtype(i_spd_ob_type)="spd "
-cobtype(i_srw_ob_type)="srw "
-cobtype( i_rw_ob_type)="rw  "
-cobtype( i_dw_ob_type)="dw  "
-cobtype(i_sst_ob_type)="sst "
-cobtype( i_pw_ob_type)="pw  "
-cobtype(i_pcp_ob_type)="pcp "
-cobtype( i_oz_ob_type)="oz  "
-cobtype(i_co3l_ob_type)="co3l"
-cobtype(i_o3l_ob_type)="o3l "
-cobtype(i_gps_ob_type)="gps "
-cobtype(i_rad_ob_type)="rad "
-cobtype(i_tcp_ob_type)="tcp "
-cobtype(i_lag_ob_type)="lag "
+cobtype( i_ps_ob_type)   ="spr  "
+cobtype(  i_t_ob_type)   ="tem  "
+cobtype(  i_w_ob_type)   ="uv   "
+cobtype(  i_q_ob_type)   ="hum  "
+cobtype(i_spd_ob_type)   ="spd  "
+cobtype(i_srw_ob_type)   ="srw  "
+cobtype( i_rw_ob_type)   ="rw   "
+cobtype( i_dw_ob_type)   ="dw   "
+cobtype(i_sst_ob_type)   ="sst  "
+cobtype( i_pw_ob_type)   ="pw   "
+cobtype(i_pcp_ob_type)   ="pcp  "
+cobtype( i_oz_ob_type)   ="oz   "
+cobtype(i_o3l_ob_type)   ="o3l  "
+cobtype(i_gps_ob_type)   ="gps  "
+cobtype(i_rad_ob_type)   ="rad  "
+cobtype(i_tcp_ob_type)   ="tcp  "
+cobtype(i_lag_ob_type)   ="lag  "
+cobtype(i_colvk_ob_type) ="colvk"
+cobtype(i_aero_ob_type)  ="aero "
+cobtype(i_aerol_ob_type) ="aerol"
+cobtype(i_pm2_5_ob_type) ="pm2_5"
+
 
 return
 end subroutine init_fc_sens

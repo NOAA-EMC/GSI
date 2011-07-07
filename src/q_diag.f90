@@ -14,6 +14,7 @@ subroutine q_diag(mype)
 !   2008-04-23  safford - comment out unused local parameter
 !   2009-04-21  derber  - fix ierror error
 !   2010-04-01  treadon - move strip to gridmod
+!   2011-05-01  todling - cwmr no longer in guess_grids; use metguess
 !
 !   input argument list:
 !    mype       - mpi task id
@@ -26,12 +27,15 @@ subroutine q_diag(mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use guess_grids, only: ges_q,ntguessig,ges_cwmr,ges_ps,ges_prsi
+  use guess_grids, only: ges_q,ntguessig,ges_ps,ges_prsi
   use jfunc, only: qsatg,iout_iter
   use mpimod, only: mpi_rtype,mpi_comm_world,mpi_sum,ierror
-  use constants,only: izero,ione,zero,two,one,half
+  use constants,only: zero,two,one,half
   use gridmod, only: lat2,lon2,nsig,nlat,nlon,lat1,lon1,iglobal,&
        displs_g,ijn,wgtlats,itotsub,load_grid,strip
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
 
   implicit none
 
@@ -41,24 +45,29 @@ subroutine q_diag(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
-  integer(i_kind):: it,i,j,jj,k,mype_out,mm1
+  integer(i_kind):: it,i,j,jj,k,mype_out,mm1,istatus
   real(r_kind):: qrms_neg,qrms_sat,rhrms_neg,rhrms_sat
   real(r_kind):: globps,globpw,fmeanps,fmeanpw,pdryini,rlon
   real(r_kind),dimension(2,3):: qrms,qrms0
   real(r_kind),dimension(lat2,lon2):: pw
   real(r_kind),dimension(lat1*lon1):: psm,pwm
   real(r_kind),dimension(max(iglobal,itotsub)):: work_ps,work_pw
-  real(r_kind),dimension(nlon,nlat-2_i_kind):: grid_ps,grid_pw
+  real(r_kind),dimension(nlon,nlat-2):: grid_ps,grid_pw
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
 
   it=ntguessig
-  mype_out=izero
-  mm1=mype+ione
+  mype_out=0
+  mm1=mype+1
+
+! get pointer to cloud water condensate
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
+  if (istatus/=0) call die('q_diag','cannot get pointer to cwmr, istatus =',istatus)
 
   qrms=zero
   pw  =zero
   do k=1,nsig
-     do j=2,lon2-ione
-        do i=2,lat2-ione
+     do j=2,lon2-1
+        do i=2,lat2-1
            if (ges_q(i,j,k,it) < zero) then
               qrms(1,1)=qrms(1,1) + ges_q(i,j,k,it)**two
               qrms(1,2)=qrms(1,2) + (ges_q(i,j,k,it)/qsatg(i,j,k))**two
@@ -69,15 +78,15 @@ subroutine q_diag(mype)
               qrms(2,3)=qrms(2,3) + one
            end if
            pw(i,j)=pw(i,j)+(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))* &
-                (ges_q(i,j,k,it)+ges_cwmr(i,j,k,it))
+                (ges_q(i,j,k,it)+ges_cwmr_it(i,j,k))
         end do
      end do
   end do
 
-  call strip(ges_ps(1,1,it),psm,ione)
-  call strip(pw,pwm,ione)
+  call strip(ges_ps(1,1,it),psm,1)
+  call strip(pw,pwm,1)
 
-  call mpi_reduce(qrms,qrms0,6_i_kind,mpi_rtype,mpi_sum,mype_out,mpi_comm_world,ierror)
+  call mpi_reduce(qrms,qrms0,6,mpi_rtype,mpi_sum,mype_out,mpi_comm_world,ierror)
 
   call mpi_gatherv(psm,ijn(mm1),mpi_rtype,work_ps,ijn,displs_g,mpi_rtype,&
        mype_out,mpi_comm_world,ierror)
@@ -106,8 +115,8 @@ subroutine q_diag(mype)
      globps=zero
      globpw=zero
      rlon=one/float(nlon)
-     do jj=2,nlat-ione
-        j=jj-ione
+     do jj=2,nlat-1
+        j=jj-1
         fmeanps=zero
         fmeanpw=zero
         do i=1,nlon

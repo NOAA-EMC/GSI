@@ -44,11 +44,16 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2008-11-28  todling - measure time from beginning of assimilation window
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2009-09-01  li      - add to handle nst fields
 !   2009-12-28  gayno - add option to calculate surface characteristics using
 !                       method that accounts for the size/shape of the fov.
 !   2010-02-25  collard - changes to call to crtm_init for CRTM v2.0
 !   2010-09-02  zhu     - add use_edges option
 !   2010-10-12  zhu     - use radstep and radstart from radinfo
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars 
+!                         (2) get zob, tz_tr (call skindepth and cal_tztr)
+!                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
+!                         (4) add more elements (nstinfo) in data array
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -85,7 +90,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                finalcheck,checkob,score_crit
-  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges, &
+  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,nst_gsi,nstinfo,fac_dtl,fac_tsl, &
                find_edges,radstart,radstep
   use crtm_planck_functions, only: crtm_planck_temperature
   use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success
@@ -163,6 +168,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     :: sat_zenang
   real(r_kind)     :: radiance
   real(r_kind)     :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr
+  real(r_kind)     :: zob,tref,dtw,dtc,tz_tr
   real(r_kind),dimension(0:4) :: rlndsea
   real(r_kind),dimension(0:3) :: sfcpct
   real(r_kind),dimension(0:3) :: ts
@@ -202,7 +208,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Initialize variables
   disterrmax=zero
   ntest=0
-  nreal  = maxinfo
+  nreal  = maxinfo + nstinfo
+  nele   = nreal   + nchanl
+
   ndata = 0
   nodata = 0
   iasi=      obstype == 'iasi'
@@ -212,6 +220,10 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   ilon=3
   ilat=4
   bad_line=-1
+
+  if (nst_gsi > 0 ) then
+    call skindepth(obstype,zob)
+  endif
 
 !  write(6,*)'READ_IASI: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
 !          mype, mype_root,mype_sub,mpi_comm_sub
@@ -570,6 +582,19 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         call finalcheck(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
+!
+!       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!
+        if ( nst_gsi > 0 ) then
+          tref  = ts(0)
+          dtw   = zero
+          dtc   = zero
+          tz_tr = one
+          if ( sfcpct(0) > zero ) then
+            call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+          endif
+        endif
+
         data_all(1,itx) = 4                      ! satellite ID (temp. 49)
         data_all(2,itx) = t4dv                   ! time diff (obs-anal) (hrs)
         data_all(3,itx) = dlon                   ! grid relative longitude
@@ -605,6 +630,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         data_all(32,itx)= val_iasi
         data_all(33,itx)= itt
 
+        if ( nst_gsi > 0 ) then
+          data_all(maxinfo+1,itx) = tref         ! foundation temperature
+          data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
+          data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
+          data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+        endif
+
         do l=1,nchanl
            data_all(l+nreal,itx) = temperature(l)   ! brightness temerature
         end do
@@ -638,7 +670,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(nreal,n))
+        itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_iasi
      end do
 

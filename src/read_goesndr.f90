@@ -41,8 +41,14 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !   2008-04-21  safford - rm unused vars
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2009-09-01  li      - add to handle nst fields
 !   2010-06-27  kokron  - added test for returned value of bmiss in hdr(15)
 !   2010-06-29  zhu     - add newpc4pred option
+!   2011-04-07  todling - newpc4pred now in radinfo
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
+!                         (2) get zob, tz_tr (call skindepth and cal_tztr)
+!                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
+!                         (4) add more elements (nstinfo) in data array
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -74,11 +80,11 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
              checkob,finalcheck,score_crit
-  use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad 
+  use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad,&
+              newpc4pred,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,zero,rad2deg, r60inv,two,tiny_r_kind
+  use constants, only: deg2rad,zero,rad2deg, r60inv,one,two,tiny_r_kind
   use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
-  use berror, only: newpc4pred
 
   implicit none
 
@@ -134,6 +140,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind),allocatable,dimension(:,:):: data_all
 
@@ -148,7 +155,6 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   lnbufr = 10
   disterrmax=zero
   ntest  = 0
-  nreal  = maxinfo
   ich8   = 8        !channel 8
   ndata  = 0
   nchanl = 18
@@ -157,6 +163,10 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
   ilon=3
   ilat=4
+
+  if (nst_gsi > 0 ) then
+    call skindepth(obstype,zob)
+  endif
 
   rlndsea(0) = zero
   rlndsea(1) = 15._r_kind
@@ -221,7 +231,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   call time_4dvar(idate,toff)
 
 ! Allocate arrays to hold data
-  nele=nreal+nchanl
+  nreal  = maxinfo + nstinfo
+  nele   = nreal   + nchanl
   allocate(data_all(nele,itxmax))
 
 ! Big loop to read data file
@@ -397,6 +408,19 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         call finalcheck(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
+!
+!       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!
+        if ( nst_gsi > 0 ) then
+          tref  = ts(0)
+          dtw   = zero
+          dtc   = zero
+          tz_tr = one
+          if ( sfcpct(0) > zero ) then
+            call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+          endif
+        endif
+
 !       Transfer observation location and other data to local arrays
 
         data_all(1,itx) = ksatid                       ! satellite id
@@ -435,6 +459,13 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         data_all(32,itx)= val_goes
         data_all(33,itx)= itt
 
+        if ( nst_gsi > 0 ) then
+          data_all(maxinfo+1,itx) = tref         ! foundation temperature
+          data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
+          data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
+          data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+        endif
+
         do k=1,nchanl
            data_all(k+nreal,itx)=grad(k)
         end do
@@ -464,7 +495,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(nreal,n))
+        itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_goes
 
      end do

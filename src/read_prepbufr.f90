@@ -80,6 +80,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                         to the new module sfcobsqc
 !   2010-03-29  hu - add code to read cloud observation from METAR and NESDIS cloud products
 !   2010-05-15  kokron - safety measure: initialize cdata_all to zero
+!   2010-08-23  tong - modify map3grids, so that it can be used for height level
 !   2010-09-08  parrish - remove subroutine check_rotate_wind.  This was a debug routine introduced when
 !                           the reference wind rotation angle was stored as an angle, beta_ref.  This field
 !                           had a discontinuity at the date line (180E), which resulted in erroneous wind
@@ -930,7 +931,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  end do
               endif
 
-              call map3grids(pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
+              call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
                    plevs(k),crit1,ithin,ndata,iout,icntpnt,iiout,luse)
 
               if (.not. luse) then

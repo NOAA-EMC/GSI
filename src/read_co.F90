@@ -25,7 +25,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !     rmesh    - thinning mesh size (km)
 !
 !   output argument list:
-!     nread    - number of  co observations read
+!     nread    - number of co observations read
 !     ndata    - number of co profiles retained for further processing
 !     nodata   - number of co observations retained for further processing
 
@@ -33,7 +33,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use satthin, only: makegrids,map2tgrid,destroygrids, &
                finalcheck,itxmax
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: izero,ione,deg2rad,zero,rad2deg,one_tenth,r60inv,two
+  use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv,two
   use obsmod, only: iadate,nlco
   use convinfo, only: nconvtype, &
         icuse,ictype,ioctype
@@ -116,13 +116,13 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   maxobs=1e6_i_kind
   ilon=3_i_kind
   ilat=4_i_kind
-  ipoq7=izero
+  ipoq7=0
   nreal=nlco*nlco+8_i_kind+nlco
 
   if (obstype == 'mopitt' )then 
 
 !    Set dependent variables and allocate arrays
-!     nchanl=nlco+ione
+!     nchanl=nlco+1
      nchanl=nlco
      ncodat=nreal
      allocate (coout(ncodat+nchanl,maxobs))
@@ -133,28 +133,27 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! Read in observations from ascii file 
 
-     
-
 ! Opening file for reading
   open(lunin,file=infile,form='formatted',iostat=iferror)
-  lerror = (iferror/=izero)
+  lerror = (iferror/=0)
+
+110 continue
 
 ! Read the first line of the data file
   if (.not.lerror) then 
      read(lunin,fmt=*,iostat=iferror) &
        inum,iyear,imonth,iday,ihour,imin,rlat,rlon,rpress,rsza
+     if(iferror/=0) go to 150
      do i=1,nlco 
        read(lunin,fmt=*,iostat=iferror) (aker(i,j),j=1,nlco)
      enddo 
-       read(lunin,fmt=*,iostat=iferror) (apco(j),j=1,nlco)
-       read(lunin,fmt=*,iostat=iferror) (pco(j),j=1,nlco)
+     read(lunin,fmt=*,iostat=iferror) (apco(j),j=1,nlco)
+     read(lunin,fmt=*,iostat=iferror) (pco(j),j=1,nlco)
        
-     lerror=(iferror>izero)
-     leof  =(iferror<izero)
+!    lerror=(iferror>0)
+     leof  =(iferror<0)
      lmax  =.false.
   end if
-
-   
 
 
      hdrco(2)=rlat
@@ -168,13 +167,21 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    Convert observation location to radians
      slats0= hdrco(2)
      slons0= hdrco(3)
+     if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) go to 110
      if(slons0< zero) slons0=slons0+r360
      if(slons0>=r360) slons0=slons0-r360
      dlat_earth = slats0 * deg2rad
      dlon_earth = slons0 * deg2rad
 
-
-
+     if(regional)then
+        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+        if(outside) go to 110
+     else
+        dlat = dlat_earth
+        dlon = dlon_earth
+        call grdcrd(dlat,1,rlats,nlat,1)
+        call grdcrd(dlon,1,rlons,nlon,1)
+     endif
 
 !    Convert observation time to relative time
      idate5(1) = hdrco(4)  !year
@@ -194,7 +201,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !     end do
      
 !    Write co record to output file
-     ndata=min(ndata+ione,maxobs)
+     ndata=min(ndata+1,maxobs)
      ndata=1 
      nodata=nlco
      
@@ -218,14 +225,8 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
        coout(k+8_i_kind+nlco*nlco+nlco,ndata)=pco(k)
      end do
 
-
-
-     
-
 !    Loop back to read next profile
-!     goto 110
-
-
+     goto 110
 
   endif
 

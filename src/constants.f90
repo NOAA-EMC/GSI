@@ -22,10 +22,10 @@ module constants
 !   2006-07-28  derber   - add r1000
 !   2007-03-20  rancic   - add r3600
 !   2009-02-05  cucurull - modify refractive indexes for gpsro data
-!   2010-06-010 tangborn - add constants for CO assimilation
 !   2010-08-25  cucurull - add constants to compute compressibility factor
 !                        - add option to use Rueger/Bevis refractive index coeffs
 !   2010-12-20 pagowski  - add max_varname_length=12
+!   2010-04-01 li        - add maximum diurnal thermocline thickness
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
@@ -62,12 +62,13 @@ module constants
   public :: somigliana,grav_equator,grav_ratio,flattening,semi_major_axis
   public :: n_b,n_a,eccentricity,huge_single,constoz,g_over_rd,amsua_clw_d2
   public :: amsua_clw_d1,n_c,rd_over_g,zero_ilong
-  public :: cocon,rcocon,r10,r100,sqrt_tiny_r_kind,r2000,r4000
+  public :: r10,r100,sqrt_tiny_r_kind,r2000,r4000
   public :: r0_01,r0_02,r0_03,r0_04,r0_05,r400,r2400
   public :: cpf_a0, cpf_a1, cpf_a2, cpf_b0, cpf_b1, cpf_c0, cpf_c1, cpf_d, cpf_e
   public :: psv_a, psv_b, psv_c, psv_d
   public :: ef_alpha, ef_beta, ef_gamma
   public :: max_varname_length
+  public :: z_w_max
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
@@ -78,7 +79,7 @@ module constants
   real(r_kind):: factor1, huge_r_kind, tiny_r_kind, deg2rad, pi, rad2deg, cg_term
   real(r_kind):: eccentricity_linear, cv, rv, rd_over_cp_mass, cliq, rd, cp_mass
   real(r_kind):: eccentricity, grav, rearth, r60inv
-  real(r_kind):: cocon,rcocon,sqrt_tiny_r_kind
+  real(r_kind):: sqrt_tiny_r_kind
   real(r_kind):: n_a, n_b, n_c
 
 ! Define constants common to global and regional applications
@@ -126,6 +127,9 @@ module constants
   real(r_kind),parameter::  r2400     = 2400.0_r_kind
   real(r_kind),parameter::  r4000     = 4000.0_r_kind
   real(r_kind),parameter::  r3600     = 3600.0_r_kind
+
+! maximum diurnal thermocline thickness
+  real(r_kind),parameter:: z_w_max   = 30.0_r_kind
 
   real(r_quad),parameter::  zero_quad = 0.0_r_quad
   real(r_quad),parameter::  one_quad  = 1.0_r_quad
@@ -340,10 +344,6 @@ contains
 !   Constants related to ozone assimilation
     ozcon = grav*21.4e-9_r_kind
     rozcon= one/ozcon
-
-!   Constants related to co assimilation 
-    cocon = 1.0e+9_r_kind
-    rcocon = one/cocon 
 
 !   Constant used in vertical integral for precipitable water
     tpwcon = 100.0_r_kind/grav

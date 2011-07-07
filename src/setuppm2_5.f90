@@ -60,7 +60,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   
   use guess_grids, only : nfldsig,hrdifsig,ges_z,ges_ps
   use gsi_bundlemod, only : gsi_bundlegetpointer,GSI_BundlePrint
-  use gsi_chemtracer_mod, only : gsi_chem_bundle
+  use gsi_chemguess_mod, only : gsi_chemguess_bundle
   
   use convinfo, only: cgross,cvar_b,cvar_pg,&
         ihave_pm2_5,icuse,ictype,icsubtype
@@ -147,18 +147,23 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
      return
   endif
 
-  if (size(gsi_chem_bundle)==nfldsig) then
-     call gsi_bundlegetpointer(gsi_chem_bundle(1),'pm2_5',rank3,ier)
-     allocate(ges_pm2_5(size(rank3,1),size(rank3,2),size(rank3,3),&
-           nfldsig))
-     ges_pm2_5(:,:,:,1)=rank3
-     do ifld=2,nfldsig
-        call gsi_bundlegetpointer(gsi_chem_bundle(ifld),'pm2_5',rank3,ier)
-        ges_pm2_5(:,:,:,ifld)=rank3
-    enddo
+  if (size(gsi_chemguess_bundle)==nfldsig) then
+     call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'pm2_5',rank3,ier)
+     if (ier==0) then
+         allocate(ges_pm2_5(size(rank3,1),size(rank3,2),size(rank3,3),&
+               nfldsig))
+         ges_pm2_5(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),'pm2_5',rank3,ier)
+            ges_pm2_5(:,:,:,ifld)=rank3
+        enddo
+     else
+         write(6,*) 'setuppm2_5: PM2_5 not found in chem bundle, ier= ',ier
+         call stop2(999)
+     endif
   else
-     write(6,*) 'setuppm2_5: inconsistent vector sizes (nfldsig,size(chem_bundle) ',&
-          nfldsig,size(gsi_chem_bundle)
+     write(6,*) 'setuppm2_5: inconsistent vector sizes (nfldsig,size(chemguess_bundle) ',&
+          nfldsig,size(gsi_chemguess_bundle)
      call stop2(420)
   endif
 

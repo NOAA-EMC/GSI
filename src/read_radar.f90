@@ -1,6 +1,7 @@
 !  SUBSET=NC006001 -- level 3 superobs
 !  SUBSET=NC006002 -- level 2.5 superobs
-subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
+!  SUBSET=NC006070 -- RADIAL WIND FROM P3 RADAR
+subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,rmesh,hgtl_full)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_radar                    read radar radial winds
@@ -35,6 +36,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 !   2008-04-17  safford - rm unused vars and uses
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2009-06-08  parrish - remove erroneous call to cosd, sind
+!   2009-05-08  tong    - add reading NOAA P3 tail Dopple  radar data
 !   2010-09-08  parrish - remove subroutine check_rotate_wind.  This was a debug routine introduced when
 !                           the reference wind rotation angle was stored as an angle, beta_ref.  This field
 !                           had a discontinuity at the date line (180E), which resulted in erroneous wind
@@ -49,6 +51,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 !     lunout   - unit to which to write data for further processing
 !     obstype  - observation type to process
 !     twind    - input group time window (hours)
+!     hgtl_full- 3d geopotential height on full domain grid
 !
 !   output argument list:
 !     nread    - number of doppler lidar wind observations read
@@ -62,15 +65,19 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 !
 !$$$  end documentation block
   use kinds, only: r_kind,r_single,r_double,i_kind,i_byte
-  use constants, only: zero,half,one,two,three,deg2rad,rearth,rad2deg, &
-                       one_tenth,r10,r1000,r60inv,r100,r400
+  use constants, only: zero,zero_single,half,one,two,three,deg2rad,rearth,rad2deg, &
+                       one_tenth,r10,r1000,r60inv,r100,r400,grav_equator, &
+                       eccentricity,somigliana,grav_ratio,grav, &
+                       semi_major_axis,flattening,two
   use qcmod, only: erradar_inflate,vadfile
   use obsmod, only: iadate
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
-  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy
+  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,cmaq_regional
   use convinfo, only: nconvtype,ctwind, &
        ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
+  use guess_grids, only: hrdifsig,geop_hgtl,nfldsig,ges_prslavg
+  use convthin, only: make3grids,map3grids,del3grids,use_all
   implicit none 
   
 ! Declare passed variables
@@ -79,6 +86,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   real(r_kind)    ,intent(in   ) :: twind
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
+  real(r_kind),dimension(nlat,nlon,nsig),intent(in):: hgtl_full
 
 ! Declare local parameters
   integer(i_kind),parameter:: maxlevs=1500
@@ -96,18 +104,23 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   real(r_kind),parameter:: r200 = 200.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: r50000 = 50000.0_r_kind
+  real(r_kind),parameter:: r60 = 60.0_r_kind
+  real(r_kind),parameter:: r75 = 75.0_r_kind
+  real(r_kind),parameter:: r92 = 92.6e03_r_kind
+  real(r_kind),parameter:: r89_5  = 89.5_r_kind
+  real(r_kind),parameter:: four_thirds = 4.0_r_kind / 3.0_r_kind
 
 ! Declare local variables
-  logical good,outside,good0,lexist1,lexist2
+  logical good,outside,good0,lexist1,lexist2,lexist3
   
   character(10) date
-  character(50) hdrstr,datstr
-  character(8) subset,subset_check(2)
+  character(80) hdrstr(2),datstr(2)
+  character(8) subset,subset_check(3)
   character(30) outmessage
   
-  integer(i_kind) lnbufr,i,k,maxobs
-  integer(i_kind) nmrecs,ibadazm,ibadwnd,ibaddist,ibadheight,ibadvad,kthin
-  integer(i_kind) iyr,imo,idy,ihr,imn
+  integer(i_kind) lnbufr,i,j,k,maxobs,icntpnt,iiout
+  integer(i_kind) nmrecs,ibadazm,ibadtilt,ibadrange,ibadwnd,ibaddist,ibadheight,ibadvad,kthin
+  integer(i_kind) iyr,imo,idy,ihr,imn,isc,ithin
   integer(i_kind) ibadstaheight,ibaderror,notgood,idate,iheightbelowsta,ibadfit
   integer(i_kind) notgood0
   integer(i_kind) novadmatch,ioutofvadrange
@@ -116,7 +129,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) ivad,ivadz,nvad,idomsfc
   
-  real(r_kind) timeb,usage,ff10,sfcr,skint,t4dv,t4dvo,toff
+  real(r_kind) timeb,rmesh,usage,ff10,sfcr,skint,t4dv,t4dvo,toff
   real(r_kind) eradkm,dlat_earth,dlon_earth
   real(r_kind) dlat,dlon,staheight,tiltangle,clon,slon,clat,slat
   real(r_kind) timeo,clonh,slonh,clath,slath,cdist,dist
@@ -128,7 +141,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   
   real(r_double) rstation_id
-  real(r_double),dimension(10):: hdr
+  real(r_double),dimension(12):: hdr
   character(8) cstaid
   character(4) this_staid
   equivalence (this_staid,cstaid)
@@ -164,10 +177,43 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
 ! real(r_kind) dist2min,dist2max
 ! real(r_kind) dist2_5min,dist2_5max
   real(r_kind) vad_leash
+
+! following variables are use for tdr rw data
+  real(r_double),dimension(4,maxlevs):: tdr_obs
+  integer(i_kind) :: ii,jjj,nmissing,nirrr,noutside,ntimeout,nsubzero,iimax
+  integer(i_kind) ntdrvr_in,ntdrvr_kept,ntdrvr_thin1,ntdrvr_thin2
+  integer(i_kind) maxout,maxdata
+  integer(i_kind) kk,klon1,klat1,klonp1,klatp1
+  integer(i_kind),allocatable,dimension(:):: isort
+
+  real(r_single) elevmax,elevmin
+  real(r_single) thisrange,thisazimuth,thistilt
+  real(r_single), dimension(maxlevs) :: dopbin, z, elev, elat8, elon8, glob_azimuth8
+
+  real(r_single) rad_per_meter
+    real(r_kind) rlon0,this_stalatr,thisazimuthr,thistiltr
+    real(r_kind) rlonloc,rlatloc
+    real(r_kind) clat0,slat0,rlonglob,rlatglob,clat1,caz0,saz0,cdlon,sdlon,caz1,saz1
+    real(r_single) a43,aactual,b,c,selev0,celev0,epsh,erad,h,ha
+    real(r_single) celev,selev,gamma
+
+  real(r_kind) sin2,termg,termr,termrg,zobs
+  real(r_kind) xmesh,zmesh
+  real(r_kind),dimension(nsig):: zges,hges
+  real(r_kind) dx,dy,dx1,dy1,w00,w10,w01,w11
+  logical luse
+  integer(i_kind) ntmp,iout
+  integer(i_kind):: zflag
+  integer(i_kind) nlevz         ! vertical level for thinning
+  real(r_kind) crit1,timedif
+  real(r_kind),allocatable,dimension(:):: zl_thin
+  real(r_kind),parameter:: r16000 = 16000.0_r_kind
   
   data lnbufr/10/
-  data hdrstr / 'CLAT CLON SELV ANEL YEAR MNTH DAYS HOUR MINU MGPT' /
-  data datstr / 'STDM SUPLAT SUPLON HEIT RWND RWAZ RSTD' /
+  data hdrstr(1) / 'CLAT CLON SELV ANEL YEAR MNTH DAYS HOUR MINU MGPT' /
+  data hdrstr(2) / 'PTID YEAR MNTH DAYS HOUR MINU SECO CLAT CLON HSMSL ANAZ ANEL' /
+  data datstr(1) / 'STDM SUPLAT SUPLON HEIT RWND RWAZ RSTD' /
+  data datstr(2) / 'DIST HREF DMVR DVSW' /
   
 !***********************************************************************************
 
@@ -176,6 +222,19 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   inquire(file=infile,exist=lexist2)
   if (.not.lexist1 .and. .not.lexist2) goto 900
 
+  eradkm=rearth*0.001_r_kind
+  maxobs=2e6
+
+  allocate(cdata_all(maxdat,maxobs),isort(maxobs))
+
+  isort = 0
+  cdata_all=zero
+
+  if (infile == 'tldplrbufr') goto 65
+
+  ithin=-9
+  rmesh=-99.999_r_kind
+  use_all=.true.
 
 ! Initialize variables
 ! vad_leash=.1_r_kind
@@ -193,7 +252,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   iaaamin=huge(iaaamin)
 
 
-  eradkm=rearth*0.001_r_kind
   kx0=22500
   maxobs=2e6
   nreal=maxdat
@@ -202,8 +260,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   ilat=3
 
   nmrecs=0
-
-  allocate(cdata_all(maxdat,maxobs))
 
   errzmax=zero
   nvad=0
@@ -215,7 +271,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   vadcount=zero
   vadqmmax=-huge(vadqmmax)
   vadqmmin=huge(vadqmmin)
-
 
 ! First read in all vad winds so can use vad wind quality marks to decide 
 ! which radar data to keep
@@ -425,7 +480,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
   do
      read(lnbufr,iostat=iret)this_staid,this_stalat,this_stalon,this_stahgt, &
           thistime,thislat,thislon,thishgt,thisvr,corrected_azimuth,thiserr,corrected_tilt
-     !    write(6,*)'in read_radar.f90 iret::',iret
      if(iret/=0) exit
      nsuper2_in=nsuper2_in+1
 
@@ -764,7 +818,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
      
 
 !    Read header.  Extract station infomration
-     call ufbint(lnbufr,hdr,10,1,levs,hdrstr)
+     call ufbint(lnbufr,hdr,10,1,levs,hdrstr(1))
 
  !   rstation_id=hdr(1)        !station id
      write(cstaid,'(2i4)')idint(hdr(1)),idint(hdr(2))
@@ -874,7 +928,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
      endif
 
 !    Go through the data levels
-     call ufbint(lnbufr,radar_obs,7,maxlevs,levs,datstr)
+     call ufbint(lnbufr,radar_obs,7,maxlevs,levs,datstr(1))
      if(levs>maxlevs) then
         write(6,*)'READ_RADAR:  ***ERROR*** increase read_radar bufr size since ',&
              'number of levs=',levs,' > maxlevs=',maxlevs
@@ -1154,12 +1208,538 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis)
      end do
   end do
 
+  deallocate(nobs_box)
+
+65 continue
+
+
+  rad_per_meter= one/rearth
+  erad = rearth
+  thiserr=5.0_r_kind
+
+  timemax=-huge(timemax)
+  timemin=huge(timemin)
+  errmax=-huge(errmax)
+  errmin=huge(errmin)
+  elevmax=-huge(elevmax)
+  elevmin=huge(elevmin)
+
+  loop=3
+
+  nirrr=0
+  noutside=0
+  ntimeout=0
+  nsubzero=0
+  ibadazm=0
+  ibadwnd=0
+  ibaddist=0
+  ibadtilt=0
+  ibadrange=0
+  ibadheight=0
+  ibadstaheight=0
+  notgood=0
+  notgood0=0
+  nread=0
+  ntdrvr_in=0
+  ntdrvr_kept=0
+  ntdrvr_thin1=0
+  ntdrvr_thin2=0
+  maxout=0
+  maxdata=0
+  nmissing=0
+  subset_check(3)='NC006070'
+  icntpnt=0
+
+  xscale=100._r_kind
+  xscalei=one/xscale
+  max_rrr=nint(100000.0_r_kind*xscalei)
+  jjj=0
+  iimax=0
+
+  zmesh=500._r_kind
+  zflag=0
+  if (ithin > 0) then
+    write(6,*)'READ_RADAR: ithin,rmesh :',ithin,rmesh
+    use_all=.false.
+    if(zflag == 0)then
+      nlevz=nsig
+    else
+      nlevz=r16000/zmesh
+    endif
+    xmesh=rmesh
+    call make3grids(xmesh,nlevz)
+
+    allocate(zl_thin(nlevz))
+    if (zflag == 1) then
+      do k=1,nlevz
+        zl_thin(k)=k*zmesh
+      enddo
+    endif
+    write(6,*)'READ_RADAR: xmesh, zflag, nlevz =', xmesh, zflag, nlevz
+  endif
+
+  if(loop == 3) outmessage='tail Doppler radar obs:'
+
+! Open, then read bufr data
+  open(lnbufr,file=infile,form='unformatted')
+!  open( 32, file = "/u/wx21mt/bufrtab.006")
+!  call openbf(lnbufr,'IN',32)
+  call openbf(lnbufr,'IN',lnbufr)
+  call datelen(10)
+  call readmg(lnbufr,subset,idate,iret)
+  if(iret/=0) then
+    write(6,*)'READ_RADAR: problem reading tail Doppler radar bufr file abrobsbufr'
+    call closbf(lnbufr)
+    go to 1100
+  end if
+
+! Time offset
+  call time_4dvar(idate,toff)
+
+  write(date,'( i10)') idate
+  read (date,'(i4,3i2)') iy,im,idd,ihh
+  write(6,*)'READ_RADAR: bufr file date is ',iy,im,idd,ihh
+
+  idate5(1) = iy    ! year
+  idate5(2) = im    ! month
+  idate5(3) = idd   ! day
+  idate5(4) = ihh   ! hour
+  idate5(5) = 0     ! minute
+  call w3fs21(idate5,mincy)
+
+  nmrecs=0
+!    Big loop over bufr file
+
+70   call readsb(lnbufr,iret)
+80   continue
+  if(iret/=0) then
+    call readmg(lnbufr,subset,idate,iret)
+    if(iret/=0) go to 1100
+    go to 70
+  end if
+  if(subset/=subset_check(loop)) then
+    iret=99
+    go to 80
+  end if
+  nmrecs = nmrecs+1
+
+!    Read header.  Extract station infomration
+  call ufbint(lnbufr,hdr,12,1,levs,hdrstr(2))
+
+! rstation_id=hdr(1)
+  if(hdr(1) == zero)then
+    cstaid='NOAA    '
+  else if(hdr(1) == one)then
+    cstaid='FRENCH  '
+  else if(hdr(1)== two)then
+    cstaid='G-IV    '
+  else
+    print *,'Antenna Number is not correct'
+    go to 900
+  endif
   
+  iyr = hdr(2)
+  imo = hdr(3)
+  idy = hdr(4)
+  ihr = hdr(5)
+  imn = hdr(6)
+  isc = hdr(7)
+
+  idate5(1) = iyr
+  idate5(2) = imo
+  idate5(3) = idy
+  idate5(4) = ihr
+  idate5(5) = imn
+  ikx=0
+  do i=1,nconvtype
+     if(trim(ioctype(i)) == trim(obstype))ikx = i
+  end do
+  if(ikx == 0) go to 70
+  call w3fs21(idate5,minobs)
+
+  t4dv=real(minobs-iwinbgn,r_kind)*r60inv
+  if (l4dvar) then
+     if (t4dv<zero .OR. t4dv>winlen) goto 70
+     timeo=t4dv
+  else
+     timeo = real(minobs-mincy,r_kind)*r60inv
+     if (abs(timeo)>twind) goto 70
+  endif
+
+  timemax=max(timemax,timeo)
+  timemin=min(timemin,timeo)
+
+  this_stalat=hdr(8)
+  this_stalon=hdr(9)
+  rlon0=deg2rad*this_stalon
+  this_stalatr=this_stalat*deg2rad
+  clat0=cos(this_stalatr) ; slat0=sin(this_stalatr)
+  this_stahgt=hdr(10)
+  thisazimuth=hdr(11)
+  thistilt=hdr(12)
+  elevmax=max(elevmax,thistilt)
+  elevmin=min(elevmin,thistilt)
+
+  if(abs(thistilt)>r75)then
+     ibadtilt=ibadtilt+1; goto 70
+  endif
+
+  staheight=this_stahgt
+  if(staheight<-r1000.or.staheight>r50000) then
+     ibadstaheight=ibadstaheight+1; goto 70
+  end if
+
+!    Go through the data levels
+  call ufbint(lnbufr,tdr_obs,4,maxlevs,levs,datstr(2))
+  if(levs>maxlevs) then
+     write(6,*)'READ_RADAR:  ***ERROR*** increase read_radar bufr size since ',&
+          'number of levs=',levs,' > maxlevs=',maxlevs
+     call stop2(84)
+  endif
+! use local coordinate centered on this_stalat,this_stalon. note that global and local
+! azimuth angle are the same at the origin (this_stalat,this_stalon)
+! and azimuth angle is fixed in local coordinate along entire radial line.
+! we convert back to global azimuth angle at each point along line
+! at end of computation.  that way we avoid worrying about where poles are.
+
+  aactual=erad+this_stahgt
+  thistiltr=thistilt*deg2rad
+  selev0=sin(thistiltr) ; celev0=cos(thistiltr)
+  a43=four_thirds*aactual
+  ii=0
+  do k=1,levs
+    nread=nread+1
+!   Select data every 6 km along each beam
+    if(MOD(INT(tdr_obs(1,k)-tdr_obs(1,1)),6000) < 100)then
+      if(tdr_obs(3,k) >= 800.) nmissing=nmissing+1     !xx
+      if(tdr_obs(3,k) < 800.) then
+        ii=ii+1
+        dopbin(ii)=tdr_obs(3,k)
+        thisrange=tdr_obs(1,k)
+! use 4/3rds rule to get elevation of radar beam
+! (if local temperature available, then vertical position can be
+! estimated with greater accuracy)
+        b=thisrange*(thisrange+two*aactual*selev0)
+        c=sqrt(aactual*aactual+b)
+        ha=b/(aactual+c)
+        epsh=(thisrange*thisrange-ha*ha)/(r8*aactual)
+        h=ha-epsh
+        z(ii)=this_stahgt+h
+        if(z(ii) < zero_single)then ! don't use observation if it is likely to be below sealevel
+           nsubzero=nsubzero+1
+           ii=ii-1
+        else
+
+! get elevation angle at obs location
+           celev=celev0
+           selev=selev0
+           if(thisrange>=one) then
+              celev=a43*celev0/(a43+h)
+              selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
+           end if
+           elev(ii)=rad2deg*atan2(selev,celev)
+           gamma=half*thisrange*(celev0+celev)
+
+!       Get earth lat lon at obs location
+           thisazimuthr=thisazimuth*deg2rad
+           rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
+           rlatloc=rad_per_meter*gamma*sin(thisazimuthr)
+           call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
+           thislat=rlatglob*rad2deg
+           thislon=rlonglob*rad2deg
+! Keep away from poles
+           if(abs(thislat)>r89_5)then
+              ii=ii-1
+           else
+             elat8(ii)=thislat
+             elon8(ii)=thislon
+!            Get corrected azimuth
+             clat1=cos(rlatglob)
+             caz0=cos(thisazimuthr)
+             saz0=sin(thisazimuthr)
+             cdlon=cos(rlonglob-rlon0)
+             sdlon=sin(rlonglob-rlon0)
+             caz1=clat0*caz0/clat1
+             saz1=saz0*cdlon-caz0*sdlon*slat0
+             glob_azimuth8(ii)=atan2(saz1,caz1)*rad2deg
+           end if
+        end if
+      end if
+    else
+      ntdrvr_thin1=ntdrvr_thin1+1
+    endif
+  end do
+
+! Further process tail Doppler radar Vr data
+  iimax=max(iimax,ii)  
+
+  if( ii > 0 )then
+    dlat_earth=this_stalat    !station lat (degrees)
+    dlon_earth=this_stalon    !station lon (degrees)
+    if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
+    if (dlon_earth<zero ) dlon_earth=dlon_earth+r360
+    dlat_earth = dlat_earth * deg2rad
+    dlon_earth = dlon_earth * deg2rad
+
+    clon=cos(dlon_earth)
+    slon=sin(dlon_earth)
+    clat=cos(dlat_earth)
+    slat=sin(dlat_earth)
+
+    do i=1,ii
+      ntdrvr_in=ntdrvr_in+1
+      tiltangle=elev(i)*deg2rad
+
+!     Get observation (lon,lat).  Compute distance from radar.
+      dlat_earth=elat8(i)
+      dlon_earth=elon8(i)
+      if(dlon_earth>=r360) dlon_earth=dlon_earth-r360
+      if(dlon_earth<zero ) dlon_earth=dlon_earth+r360
+      dlat_earth = dlat_earth*deg2rad
+      dlon_earth = dlon_earth*deg2rad
+
+      if(regional) then
+        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+        if (outside) then
+          noutside=noutside+1
+          cycle
+        endif
+      else
+        dlat = dlat_earth
+        dlon = dlon_earth
+        call grdcrd(dlat,1,rlats,nlat,1)
+        call grdcrd(dlon,1,rlons,nlon,1)
+      endif
+      clonh=cos(dlon_earth)
+      slonh=sin(dlon_earth)
+      clath=cos(dlat_earth)
+      slath=sin(dlat_earth)
+      cdist=slat*slath+clat*clath*(slon*slonh+clon*clonh)
+      cdist=max(-one,min(cdist,one))
+      dist=eradkm*acos(cdist)
+      irrr=nint(dist*1000*xscalei)
+      if(irrr<=0 .or. irrr>max_rrr)then
+        nirrr=nirrr+1
+        cycle
+      endif
+
+!     Extract radial wind data
+      height= z(i)
+      rwnd  = dopbin(i)
+      azm_earth = glob_azimuth8(i)
+      if(regional) then
+        cosazm_earth=cos(azm_earth*deg2rad)
+        sinazm_earth=sin(azm_earth*deg2rad)
+        call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
+        azm=atan2(sinazm,cosazm)*rad2deg
+      else
+        azm=azm_earth
+      end if
+      iaaa=azm/(r360/(r8*irrr))
+      iaaa=mod(iaaa,8*irrr)
+      if(iaaa<0) iaaa=iaaa+8*irrr
+      iaaa=iaaa+1
+      iaaamax=max(iaaamax,iaaa)
+      iaaamin=min(iaaamin,iaaa)
+      error = erradar_inflate*thiserr
+      errmax=max(error,errmax)
+      if(thiserr>zero) errmin=min(error,errmin)
+
+!     Perform limited qc based on azimuth angle, elevation angle, radial wind
+!     speed, range, distance from radar site
+
+      good0=.true.
+      if(abs(azm)>r400) then
+        ibadazm=ibadazm+1; good0=.false.
+      end if
+      if(abs(rwnd)>r200) then
+        ibadwnd=ibadwnd+1; good0=.false.
+      end if
+      if(thisrange>r92) then
+        ibadrange=ibadrange+1; good0=.false.
+      end if
+      if(dist>r400) then
+        ibaddist=ibaddist+1; good0=.false.
+      end if
+      if(height<-r1000.or.height>r50000) then
+         ibadheight=ibadheight+1; good0=.false.
+      end if
+      good=.true.
+      if(.not.good0) then
+        notgood0=notgood0+1
+        cycle
+      end if
+!     if data is good, load into output array
+
+      if(good) then
+        ntdrvr_kept=ntdrvr_kept+1
+!####################       Data thinning       ###################
+
+        icntpnt=icntpnt+1
+
+        if(ithin > 0)then
+          if(zflag == 0)then
+            klon1= int(dlon);  klat1= int(dlat)
+            dx   = dlon-klon1; dy   = dlat-klat1
+            dx1  = one-dx;     dy1  = one-dy
+            w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
+
+            klat1=min(max(1,klat1),nlat); klon1=min(max(0,klon1),nlon)
+            if (klon1==0) klon1=nlon
+            klatp1=min(nlat,klat1+1); klonp1=klon1+1
+            if (klonp1==nlon+1) klonp1=1
+            do kk=1,nsig
+              hges(kk)=w00*hgtl_full(klat1 ,klon1 ,kk) +  &
+                       w10*hgtl_full(klatp1,klon1 ,kk) + &
+                       w01*hgtl_full(klat1 ,klonp1,kk) + &
+                       w11*hgtl_full(klatp1,klonp1,kk)
+            end do
+            sin2  = sin(dlat_earth)*sin(dlat_earth)
+            termg = grav_equator * &
+                 ((one+somigliana*sin2)/sqrt(one-eccentricity*eccentricity*sin2))
+            termr = semi_major_axis /(one + flattening + grav_ratio -  &
+                 two*flattening*sin2)
+            termrg = (termg/grav)*termr
+            do k=1,nsig
+              zges(k) = (termr*hges(k)) / (termrg-hges(k))
+              zl_thin(k)=zges(k)
+            end do
+          endif
+
+          zobs = height
+
+          ntmp=ndata  ! counting moved to map3gridS
+          if (l4dvar) then
+             timedif = zero
+          else
+             timedif=abs(t4dv-toff)
+          endif
+          crit1 = timedif/r6+half
+
+          call map3grids(1,zflag,zl_thin,nlevz,dlat_earth,dlon_earth,&
+                zobs,crit1,ithin,ndata,iout,icntpnt,iiout,luse)
+          maxout=max(maxout,iout)
+          maxdata=max(maxdata,ndata)
+
+          if (.not. luse) then
+             ntdrvr_thin2=ntdrvr_thin2+1
+             cycle
+          endif
+          if(iiout > 0) isort(iiout)=0
+          if (ndata > ntmp) then
+            nodata=nodata+1
+          endif
+          isort(icntpnt)=iout
+
+        else
+          ndata =ndata+1
+          nodata=nodata+1
+          iout=ndata
+          isort(icntpnt)=iout
+        endif
+
+        if(ndata > maxobs) then
+           write(6,*)'READ_PREPBUFR:  ***WARNING*** ndata > maxobs for ',obstype
+           ndata = maxobs
+        end if
+
+!       Set usage variable
+        usage = zero
+
+        if(icuse(ikx) < 0)usage=r100
+        if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
+           if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
+        end if
+
+        call deter_zsfc_model(dlat,dlon,zsges)
+
+! Get information from surface file necessary for conventional data here
+        call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
+
+
+        cdata(1) = error             ! wind obs error (m/s)
+        cdata(2) = dlon              ! grid relative longitude
+        cdata(3) = dlat              ! grid relative latitude
+        cdata(4) = height            ! obs absolute height (m)
+        cdata(5) = rwnd              ! wind obs (m/s)
+        cdata(6) = azm*deg2rad       ! azimuth angle (radians)
+        cdata(7) = t4dv              ! obs time (hour)
+        cdata(8) = ikx               ! type
+        cdata(9) = tiltangle         ! tilt angle (radians)
+        cdata(10)= staheight         ! station elevation (m)
+        cdata(11)= rstation_id       ! station id
+        cdata(12)= usage             ! usage parameter
+        cdata(13)= idomsfc           ! dominate surface type
+        cdata(14)= skint             ! skin temperature
+        cdata(15)= ff10              ! 10 meter wind factor
+        cdata(16)= sfcr              ! surface roughness
+        cdata(17)=dlon_earth*rad2deg ! earth relative longitude (degrees)
+        cdata(18)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+        cdata(19)=dist               ! range from radar in km (used to estimate beam spread)
+        cdata(20)=zsges              ! model elevation at radar site
+        cdata(21)=thiserr
+        cdata(22)=hdr(1)+three+one   ! tail Doppler radar
+        do j=1,maxdat
+           cdata_all(j,iout)=cdata(j)
+        end do
+        jjj=jjj+1
+      else
+        notgood = notgood + 1
+      end if  ! if(good)
+
+    end do
+
+  endif ! if(ii .gt. 0)
+
+! End of bufr read loop
+
+69 continue
+
+  go to 70
+
+! Normal exit
+1100 continue
+  call closbf(lnbufr)
+
+
+! Close unit to bufr file
+  close(lnbufr)
+
+  if (.not. use_all) then
+     deallocate(zl_thin) 
+     call del3grids
+  endif
+
+  write(6,*)'READ_RADAR:  ',trim(outmessage),' reached eof on tail Doppler radar file.'
+
+  write(6,*)'READ_RADAR: nmrecs,nread,nmissing=', nmrecs, nread, nmissing
+  write(6,*)'READ_RADAR: nsubzero=', nsubzero
+  write(6,*)'READ_RADAR: maxout, maxdata=', maxout, maxdata
+  write(6,*)'READ_RADAR: ntdrvr_in,ntdrvr_kept=',ntdrvr_in,ntdrvr_kept
+  write(6,*)'READ_RADAR: ntdrvr_thin1,ntdrvr_thin2=',ntdrvr_thin1,ntdrvr_thin2
+  write(6,*)'READ_RADAR: data retained for further processing =', jjj
+  write(6,*)'READ_RADAR: # out of domain =', noutside
+  write(6,*)'READ_RADAR: # out of time window =', ntimeout
+  write(6,*)'READ_RADAR: # out of range =', nirrr
+  write(6,*)'READ_RADAR: # bad azimuths=',ibadazm
+  write(6,*)'READ_RADAR: # bad tilt=',ibadtilt
+  write(6,*)'READ_RADAR: # bad winds   =',ibadwnd
+  write(6,*)'READ_RADAR: # bad dists   =',ibaddist
+  write(6,*)'READ_RADAR: # bad ranges   =',ibadrange
+  write(6,*)'READ_RADAR: # bad stahgts =',ibadstaheight
+  write(6,*)'READ_RADAR: # bad obshgts =',ibadheight
+  write(6,*)'READ_RADAR: # notgood0    =',notgood0
+  write(6,*)'READ_RADAR: # notgood     =',notgood
+  write(6,*)'READ_RADAR: timemin,max   =',timemin,timemax
+  write(6,*)'READ_RADAR: elevmin,max   =',elevmin,elevmax
+  write(6,*)'READ_RADAR: dlatmin,max,dlonmin,max=',dlatmin,dlatmax,dlonmin,dlonmax
+  write(6,*)'READ_RADAR: iaaamin,max,8*max_rrr  =',iaaamin,iaaamax,8*max_rrr
+  write(6,*)'READ_RADAR: iimax =',iimax
+
 ! Write observation to scratch file
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,maxdat),i=1,ndata)
   deallocate(cdata_all)
-  deallocate(nobs_box)
   
 900 continue
 

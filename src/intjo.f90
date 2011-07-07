@@ -264,11 +264,10 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
   call intoz(yobs%oz,yobs%o3l,rval,sval)
 
 ! RHS for carbon monoxide
-  call intco(yobs%co3l,rval,sval)
+  call intco(yobs%colvk,rval,sval)
 
 ! RHS for pm2_5
   call intpm2_5(yobs%pm2_5,rval,sval)
-
 
 ! RHS for surface pressure observations
   call intps(yobs%ps,rval,sval)

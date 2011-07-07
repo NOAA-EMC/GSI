@@ -480,11 +480,11 @@ contains
 !
 !$$$
     use mpimod, only: npe              ! contains the number of mpi tasks, variable "npe"
-    use gsi_chemtracer_mod, only: gsi_chemtracer_get
+    use gsi_chemguess_mod, only: gsi_chemguess_get
     implicit none
     integer(i_kind) :: ipm2_5,ier
 
-    call gsi_chemtracer_get ('var::pm2_5', ipm2_5, ier )
+    call gsi_chemguess_get ('var::pm2_5', ipm2_5, ier )
     ihave_pm2_5=(ipm2_5 > 0)                  ! .t. when pm2_5 present in state-vector
 
   end subroutine init_pm2_5

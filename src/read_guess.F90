@@ -57,7 +57,6 @@ subroutine read_guess(iyear,month,mype)
 !   2010-03-31  treadon - replace read_gfsatm with read_gfs
 !   2010-05-19  todling - pass year and month for read_gsf_chem; read_guess should never
 !   2010-09-17  pagowski - add cmaq
-
 !                         depend on obsmod - that's why idate not passed via common block
 !   2010-10-18  hcHuang - add flag use_gfs_nemsio and link to read_nems and read_nems_chem
 !

@@ -36,7 +36,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use gridmod, only: get_ij
 
   use guess_grids, only: geop_hgtl,hrdifsig,nfldsig,ges_ps,ges_ps_lon,ges_ps_lat
-  use guess_grids, only: ges_prsl,ges_prsi,ges_div,ges_cwmr,ges_tsen,ges_u,ges_v
+  use guess_grids, only: ges_prsl,ges_prsi,ges_div,ges_tsen,ges_u,ges_v
   use guess_grids, only: ges_q,ges_tv_ten,ges_q_ten,ges_prs_ten,isli2
   use guess_grids, only: tnd_initialized
   use guess_grids, only: drv_initialized
@@ -47,6 +47,9 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use obsmod, only: pcp_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
+
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   
   use constants, only: rd,cp,pi,zero,quarter,r60, &
        half,one,two,three,tiny_r_kind,one_tenth,cg_term,r1000,wgtlim,fv,r3600,r10
@@ -136,6 +139,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 !			  vericiation index of obsdiag.
 !   2009-12-08  guo     - cleaned diag output rewind with open(position='rewind')
 !			- fixed a bug in diag header output while is not init_pass.
+!   2011-05-01  todling - add metguess-bundle; cwmr no longer in guess-grids
 !
 !
 ! !REMARKS:  This routine is NOT correctly set up if running
@@ -186,7 +190,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   integer(i_kind),dimension(4):: jgrd
   integer(i_kind),dimension(iint):: idiagbuf
   integer(i_kind) kbcon,jmin,ktcon,kuo,kbcon4,jmin4,ktcon4
-  integer(i_kind) ksatid,isflg
+  integer(i_kind) ksatid,isflg,istatus
 
 
   real(r_kind) avg,sdv,rterm1,rterm2,rterm
@@ -222,6 +226,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
        t_ges,q_ges,u_ges,v_ges,div_ges,cwm_ges,zges,z0,&
        prsl0,del0,sl0,tsen_ten0,q_ten0,p_ten0
   real(r_kind),dimension(nsig+1):: prsi0
+  real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_im,ges_cwmr_ip
 
   real(r_kind),parameter::  zero_7  = 0.7_r_kind
   real(r_kind),parameter::  r1em6   = 0.000001_r_kind
@@ -581,6 +586,12 @@ endif
      end if
      deltp=one-delt
 
+!    Get pointer to could water mixing ratio
+     call gsi_bundlegetpointer (gsi_metguess_bundle(itim), 'cw',ges_cwmr_im,istatus)
+     if (istatus/=0) call die('setuppcp','cannot get pointer to cwmr(itim), istatus =',istatus)
+     call gsi_bundlegetpointer (gsi_metguess_bundle(itimp),'cw',ges_cwmr_ip,istatus)
+     if (istatus/=0) call die('setuppcp','cannot get pointer to cwmr(itimp), istatus =',istatus)
+
 !    Set and save spatial interpolation indices and weights.
      call get_ij(mm1,slats,slons,jgrd,wgrd,ixx,iyy)
      ixp=ixx+1
@@ -626,7 +637,7 @@ endif
            u0(k)    = delt *ges_u(i,j,k,itim)     + deltp*ges_u(i,j,k,itimp)
            v0(k)    = delt *ges_v(i,j,k,itim)     + deltp*ges_v(i,j,k,itimp)
            div0(k)  = delt *ges_div(i,j,k,itim)   + deltp*ges_div(i,j,k,itimp)
-           cwm0(k)  = delt *ges_cwmr(i,j,k,itim)  + deltp*ges_cwmr(i,j,k,itimp)
+           cwm0(k)  = delt *ges_cwmr_im(i,j,k)    + deltp*ges_cwmr_ip(i,j,k)
            z0(k)    = delt *geop_hgtl(i,j,k,itim) + deltp*geop_hgtl(i,j,k,itimp)
            prsl0(k) = delt *ges_prsl(i,j,k,itim)  + deltp*ges_prsl(i,j,k,itimp)
            prsi0(k) = delt *ges_prsi(i,j,k,itim)  + deltp*ges_prsi(i,j,k,itimp)

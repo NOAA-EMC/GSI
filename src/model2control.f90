@@ -16,6 +16,7 @@ subroutine model2control(rval,bval,grad)
 !   2010-05-31  todling  - better consistency checks; add co/co2
 !                        - ready to bypass analysis of (any) meteorological fields
 !   2010-06-15  todling  - generalized handling of chemistry
+!   2011-05-15  auligne/todling - generalized cloud handling
 !
 !   input argument list:
 !     rval - State variable
@@ -38,7 +39,8 @@ use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 use gsi_bundlemod, only: gsi_bundleputvar
 use gsi_bundlemod, only: gsi_bundledestroy
-use gsi_chemtracer_mod, only: gsi_chemtracer_get
+use gsi_chemguess_mod, only: gsi_chemguess_get
+use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
 implicit none
 
@@ -50,8 +52,9 @@ type(control_vector),intent(inout) :: grad
 ! Declare local variables
 character(len=*),parameter::myname='model2control'
 character(len=10),allocatable,dimension(:) :: gases
+character(len=10),allocatable,dimension(:) :: clouds
 real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
-integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,istatus
+integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus
 real(r_kind) :: gradz(nval_lenz)
 type(gsi_bundle) :: wbundle
 
@@ -67,7 +70,7 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &
                                'tv  ', 'ps  ' /)
 
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
-real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_p3d,rv_q,rv_tsen,rv_tv,rv_oz,rv_cw
+real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_p3d,rv_q,rv_tsen,rv_tv,rv_oz
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 real(r_kind),pointer,dimension(:,:)   :: rv_rank2
 
@@ -80,11 +83,18 @@ if (.not.lsqrtb) then
    call stop2(146)
 end if
 
+! Inquire about clouds-variables
+call gsi_metguess_get('clouds::3d',nclouds,istatus)
+if (nclouds>0) then
+    allocate(clouds(nclouds))
+    call gsi_metguess_get('clouds::3d',clouds,istatus)
+endif
+
 ! Inquire about chemistry
-call gsi_chemtracer_get('dim',ngases,istatus)
+call gsi_chemguess_get('dim',ngases,istatus)
 if (ngases>0) then
     allocate(gases(ngases))
-    call gsi_chemtracer_get('shortnames',gases,istatus)
+    call gsi_chemguess_get('gsinames',gases,istatus)
 endif
 
 ! Since each internal vector of xhat has the same structure, pointers are
@@ -118,7 +128,6 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (rval(jj),'tsen',rv_tsen,istatus)
    call gsi_bundlegetpointer (rval(jj),'q'   ,rv_q ,  istatus)
    call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)
-   call gsi_bundlegetpointer (rval(jj),'cw'  ,rv_cw , istatus)
    call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
 
 !  Convert RHS calculations for u,v to st/vp for application of
@@ -158,10 +167,18 @@ do jj=1,nsubwin
    call gsi_bundleputvar ( wbundle, 'q' , workrh, istatus )
    call gsi_bundleputvar ( wbundle, 'ps', rv_ps,  istatus )
    call gsi_bundleputvar ( wbundle, 'oz', rv_oz,  istatus )
-   call gsi_bundleputvar ( wbundle, 'cw', rv_cw,  istatus )
    call gsi_bundleputvar ( wbundle, 'sst',rv_sst, istatus )
 
-!  Take care of chemistry
+!  Since cloud-vars map one-to-one, take care of them together
+   do ic=1,nclouds
+      id=getindex(cvars3d,clouds(ic))
+      if (id>0) then
+         call gsi_bundlegetpointer (rval(jj),clouds(ic),rv_rank3,istatus)
+         call gsi_bundleputvar     (wbundle, clouds(ic),rv_rank3,istatus)
+      endif
+   enddo
+
+!  Same one-to-one map for chemistry-vars; take care of them together
    do ic=1,ngases
       id=getindex(cvars3d,gases(ic))
       if (id>0) then
