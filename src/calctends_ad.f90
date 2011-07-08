@@ -29,6 +29,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 !   2009-08-20  parrish - replace curvfct with curvx, curvy.  this allows tendency computation to
 !                          work for any general orthogonal coordinate.
 !   2010-11-03  derber - moved threading calculations to gridmod and modified
+!   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !
 ! usage:
 !   input argument list:
@@ -72,8 +73,11 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
       pr_ysum9,pr_ydif9,curvx,curvy,coriolis
   use guess_grids, only: ntguessig,ges_u,&
       ges_u_lon,ges_u_lat,ges_v,ges_v_lon,ges_v_lat,ges_tv,ges_tvlat,ges_tvlon,&
-      ges_q,ges_qlon,ges_qlat,ges_oz,ges_ozlon,ges_ozlat,ges_cwmr,ges_cwmr_lon,&
+      ges_q,ges_qlon,ges_qlat,ges_oz,ges_ozlon,ges_ozlat,ges_cwmr_lon,&
       ges_cwmr_lat,ges_teta,ges_prsi
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
@@ -94,9 +98,15 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
   real(r_kind),dimension(lat2,lon2,nsig):: t_thor9
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
   real(r_kind) tmp,tmp2,tmp3,var,sumk,sumvk,sum2k,sum2vk
-  integer(i_kind) i,j,k,ix,it,kk
+  real(r_kind),pointer,dimension(:,:,:) :: ges_cwmr_it
+  integer(i_kind) i,j,k,ix,it,kk,istatus
 
   it=ntguessig
+
+! Get pointer to could water mixing ratio
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
+  if (istatus/=0) call die('setuppcp','cannot get pointer to cwmr, istatus =',istatus)
+
 
 !  loop over threads
 !$omp parallel do schedule(dynamic,1) private(i,j,k,kk,tmp,tmp2,ix,&
@@ -158,7 +168,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
               tmp2=half*what9(i,j,k+1)*r_prdif9(i,j,k)
               tmp = - q_t (i,j,k)*(ges_q   (i,j,k,it)-ges_q   (i,j,k+1,it)) - &
                       oz_t(i,j,k)*(ges_oz  (i,j,k,it)-ges_oz  (i,j,k+1,it)) - &
-                      cw_t(i,j,k)*(ges_cwmr(i,j,k,it)-ges_cwmr(i,j,k+1,it))
+                      cw_t(i,j,k)*(ges_cwmr_it(i,j,k)-ges_cwmr_it(i,j,k+1))
               q (i,j,k  ) = q (i,j,k  ) - q_t (i,j,k)*tmp2
               q (i,j,k+1) = q (i,j,k+1) + q_t (i,j,k)*tmp2
               oz(i,j,k  ) = oz(i,j,k  ) - oz_t(i,j,k)*tmp2
@@ -168,7 +178,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
               prdif(i,j,k) = prdif(i,j,k)+(tmp2*r_prdif9(i,j,k))* &
                   (((ges_q   (i,j,k,it)-ges_q   (i,j,k+1,it))*q_t (i,j,k)) + &
                    ((ges_oz  (i,j,k,it)-ges_oz  (i,j,k+1,it))*oz_t(i,j,k)) + &
-                   ((ges_cwmr(i,j,k,it)-ges_cwmr(i,j,k+1,it))*cw_t(i,j,k)) )
+                   ((ges_cwmr_it(i,j,k)-ges_cwmr_it(i,j,k+1))*cw_t(i,j,k)) )
               what(i,j,k+1) = what(i,j,k+1)+(half*tmp*r_prdif9(i,j,k))
            end if
 
@@ -176,7 +186,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
               tmp2=half*what9(i,j,k)*r_prdif9(i,j,k)
               tmp= - q_t (i,j,k)*(ges_q   (i,j,k-1,it)-ges_q   (i,j,k,it)) - &
                      oz_t(i,j,k)*(ges_oz  (i,j,k-1,it)-ges_oz  (i,j,k,it)) - &
-                     cw_t(i,j,k)*(ges_cwmr(i,j,k-1,it)-ges_cwmr(i,j,k,it))
+                     cw_t(i,j,k)*(ges_cwmr_it(i,j,k-1)-ges_cwmr_it(i,j,k))
               q (i,j,k-1) = q (i,j,k-1) - q_t (i,j,k)*tmp2
               q (i,j,k  ) = q (i,j,k  ) + q_t (i,j,k)*tmp2
               oz(i,j,k-1) = oz(i,j,k-1) - oz_t(i,j,k)*tmp2
@@ -187,7 +197,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
               prdif(i,j,k) = prdif(i,j,k) + (tmp2*r_prdif9(i,j,k))* &
                   (((ges_q   (i,j,k-1,it)-ges_q   (i,j,k,it))*q_t (i,j,k)) + &
                    ((ges_oz  (i,j,k-1,it)-ges_oz  (i,j,k,it))*oz_t(i,j,k)) + &
-                   ((ges_cwmr(i,j,k-1,it)-ges_cwmr(i,j,k,it))*cw_t(i,j,k)) )
+                   ((ges_cwmr_it(i,j,k-1)-ges_cwmr_it(i,j,k))*cw_t(i,j,k)) )
               what(i,j,k) = what(i,j,k)+(half*tmp*r_prdif9(i,j,k))
            end if
 

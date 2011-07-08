@@ -28,6 +28,7 @@ subroutine wrwrfmassa_binary(mype)
 !   2008-03-31  safford - rm unused uses
 !   2008-12-05  todling - adjustment for dsfct time dimension addition
 !   2010-06-24  hu     - add code to write cloud/hydrometeor analysis fields to "wrf_inout"
+!   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
 !
 !   input argument list:
 !     mype     - pe number
@@ -46,13 +47,16 @@ subroutine wrwrfmassa_binary(mype)
   use guess_grids, only: ges_ps,ges_q, ges_u,ges_v,&
        dsfct,&
        ntguessfc,ntguessig,ifilesig,ges_tsen
-  use guess_grids, only: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg,ges_tten
+  use wrf_mass_guess_mod, only: ges_tten
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
        nsig,eta1_ll,pt_ll,itotsub,iglobal,update_regsfc,&
        aeta1_ll
   use constants, only: izero,ione,one,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use gsi_io, only: lendian_in
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use wrf_mass_guess_mod, only: destroy_cld_grids
+  use gsi_bundlemod, only: GSI_BundleGetPointer
+  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
 
   implicit none
 
@@ -100,8 +104,14 @@ subroutine wrwrfmassa_binary(mype)
   real(r_kind) deltasigma
   integer(i_kind) ip1,jp1
   character(1) chdrbuf(2048)
-  integer(i_kind) iadd
+  integer(i_kind) iadd,ier,istatus
   character(132) memoryorder
+
+  real(r_kind), pointer :: ges_qc(:,:,:)
+  real(r_kind), pointer :: ges_qi(:,:,:)
+  real(r_kind), pointer :: ges_qr(:,:,:)
+  real(r_kind), pointer :: ges_qs(:,:,:)
+  real(r_kind), pointer :: ges_qg(:,:,:)
 
 !   1.  get offsets etc only for records to be updated
 
@@ -409,6 +419,17 @@ subroutine wrwrfmassa_binary(mype)
   q_integral=one
 ! for hydrometeors
   if(l_cloud_analysis) then
+!    get pointer to relevant instance of cloud-related backgroud
+     ier=0
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+     if (ier/=0) then
+         write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
+         call stop2(999)
+     endif
      kqc=i_qc-ione
      kqi=i_qi-ione
      kqr=i_qr-ione
@@ -454,11 +475,11 @@ subroutine wrwrfmassa_binary(mype)
 
 ! for hydrometeors
            if(l_cloud_analysis) then
-              all_loc(j,i,kqc)=ges_qc(jp1,ip1,k,it)
-              all_loc(j,i,kqi)=ges_qi(jp1,ip1,k,it)
-              all_loc(j,i,kqr)=ges_qr(jp1,ip1,k,it)
-              all_loc(j,i,kqs)=ges_qs(jp1,ip1,k,it)
-              all_loc(j,i,kqg)=ges_qg(jp1,ip1,k,it)
+              all_loc(j,i,kqc)=ges_qc(jp1,ip1,k)
+              all_loc(j,i,kqi)=ges_qi(jp1,ip1,k)
+              all_loc(j,i,kqr)=ges_qr(jp1,ip1,k)
+              all_loc(j,i,kqs)=ges_qs(jp1,ip1,k)
+              all_loc(j,i,kqg)=ges_qg(jp1,ip1,k)
               all_loc(j,i,ktt)=ges_tten(jp1,ip1,k,it)
            endif
 
@@ -815,6 +836,7 @@ subroutine wrwrfmassa_binary(mype)
   deallocate(itemp1)
   deallocate(temp1u)
   deallocate(temp1v)
+  call destroy_cld_grids
   call mpi_file_close(mfcst,ierror)
 
 end subroutine wrwrfmassa_binary
@@ -1249,6 +1271,7 @@ subroutine wrwrfmassa_netcdf(mype)
 !   2008-12-05  todling - adjustment for dsfct time dimension addition
 !   2010-03-29  hu     - add code to gether cloud/hydrometeor fields and write out
 !   2010-04-01  treadon - move strip_single to gridmod
+!   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
 !
 !   input argument list:
 !     mype     - pe number
@@ -1264,7 +1287,7 @@ subroutine wrwrfmassa_netcdf(mype)
   use kinds, only: r_kind,r_single,i_kind
   use guess_grids, only: ntguessfc,ntguessig,ifilesig,dsfct,ges_ps,&
        ges_q,ges_u,ges_v,ges_tsen
-  use guess_grids, only: ges_qc,ges_qi,ges_qr,ges_qs,ges_qg,ges_tten
+  use wrf_mass_guess_mod, only: ges_tten
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: pt_ll,eta1_ll,lat2,iglobal,itotsub,update_regsfc,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,&
@@ -1272,6 +1295,8 @@ subroutine wrwrfmassa_netcdf(mype)
   use constants, only: izero,ione,one,zero_single,rd_over_cp_mass,one_tenth,r10,r100
   use gsi_io, only: lendian_in, lendian_out
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use gsi_bundlemod, only: GSI_BundleGetPointer
+  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   implicit none
 
 ! Declare passed variables
@@ -1291,6 +1316,7 @@ subroutine wrwrfmassa_netcdf(mype)
   integer(i_kind) i_sst,i_skt
   integer(i_kind) num_mass_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
+  integer(i_kind) ier,istatus
   real(r_kind) psfc_this,psfc_this_dry
   real(r_kind),dimension(lat2,lon2):: q_integral
   real(r_kind) deltasigma
@@ -1299,6 +1325,12 @@ subroutine wrwrfmassa_netcdf(mype)
   real(r_single) aeta10(nsig),eta10(nsig+1)
   real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
   real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
+
+  real(r_kind), pointer :: ges_qc(:,:,:)
+  real(r_kind), pointer :: ges_qi(:,:,:)
+  real(r_kind), pointer :: ges_qr(:,:,:)
+  real(r_kind), pointer :: ges_qs(:,:,:)
+  real(r_kind), pointer :: ges_qg(:,:,:)
 
   im=nlon_regional
   jm=nlat_regional
@@ -1341,6 +1373,19 @@ subroutine wrwrfmassa_netcdf(mype)
 
 ! Convert analysis variables to MASS variables
   it=ntguessig
+
+! get pointer to relevant instance of cloud-related backgroud
+  ier=0
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+  if (ier/=0) then
+      write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
+      if (l_cloud_analysis) call stop2(999)
+  endif
+
   
 ! Create all_loc from ges_*
   if(mype == izero) write(6,*)' at 3 in wrwrfmassa'
@@ -1389,11 +1434,11 @@ subroutine wrwrfmassa_netcdf(mype)
            	
 ! for hydrometeors      
            if(l_cloud_analysis) then
-              all_loc(j,i,kqc)=ges_qc(j,i,k,it)
-              all_loc(j,i,kqi)=ges_qi(j,i,k,it)
-              all_loc(j,i,kqr)=ges_qr(j,i,k,it)
-              all_loc(j,i,kqs)=ges_qs(j,i,k,it)
-              all_loc(j,i,kqg)=ges_qg(j,i,k,it)
+              all_loc(j,i,kqc)=ges_qc(j,i,k)
+              all_loc(j,i,kqi)=ges_qi(j,i,k)
+              all_loc(j,i,kqr)=ges_qr(j,i,k)
+              all_loc(j,i,kqs)=ges_qs(j,i,k)
+              all_loc(j,i,kqg)=ges_qg(j,i,k)
               all_loc(j,i,ktt)=ges_tten(j,i,k,it)
            endif
 

@@ -14,6 +14,10 @@ module gsi_4dvar
 !                         set default 1.5 hr for regional not for 4dvar but for FGAT
 !   2010-03-16 todling  - add knob to calculate analysis error from lanczos
 !   2010-05-27 todling  - add gsi_4dcoupler; remove dependence on GMAO's geos pertmod
+!   2010-10-05 todling  - add bi-cg option
+!   2011-03-14 guo      - Moved gsi_4dcoupler calls out of this module, to split
+!			  gsi_4dcoupler_init_traj() from gsimain_initialize(),
+!			  and gsi_4dcoupler_final_traj() from gsimain_finalize(),
 !
 ! Subroutines Included:
 !   sub init_4dvar    -
@@ -25,6 +29,7 @@ module gsi_4dvar
 !
 !   l4dvar            - 4D-Var on/off
 !   lsqrtb            - Use sqrt(B) preconditioning
+!   lbicg             - Use B preconditioning with bi-conjugate gradient
 !   lcongrad          - Use conjugate gradient/Lanczos minimizer
 !   lbfgsmin          - Use L-BFGS minimizer
 !   ltlint            - Use TL inner loop (ie TL intall)
@@ -32,6 +37,7 @@ module gsi_4dvar
 !   jsiga             - Calculate approximate analysis errors for iteration jiter=jsiga
 !   nwrvecs           - Number of precond vectors (Lanczos) or pairs of vectors (QN)
 !                       being saved
+!   iorthomax         - max number of vectors used for orthogonalization of various CG options
 !
 !   ibdate            - Date and time at start of 4dvar window
 !   iadatebgn         - Date and time at start of 4dvar window
@@ -49,10 +55,11 @@ module gsi_4dvar
 !   nhr_subwin        - Length of 4dvar sub-windows (weak constraint)
 !   nsubwin           - Number of time-points in 4D control variable
 !   winsub            - Length of 4dvar sub-windows (weak constraint)
+!   iwrtinc           - When >0, writes out increment from iwrtinc-index slot
 !
 !   ladtest           - Run adjoint test
 !   lgrtest           - Run gradient test
-!   lwrtinc           - When .t., writes out increment instead of analysis
+!   ltcost            - When .t., calc true cost within Lanczos (expensive)
 !
 !   idmodel           - Run w/ identity GCM TLM and ADM; test mode
 !
@@ -65,8 +72,6 @@ module gsi_4dvar
 ! --------------------------------------------------------------------
   use kinds, only: r_kind,i_kind
   use constants, only: one
-  use gsi_4dcouplermod, only: gsi_4dcoupler_init_traj
-  use gsi_4dcouplermod, only: gsi_4dcoupler_final_traj
 ! --------------------------------------------------------------------
 
   implicit none
@@ -79,29 +84,32 @@ module gsi_4dvar
   public :: time_4dvar
   public :: clean_4dvar
 ! set passed variables to public
-  public :: iadatebgn,l4dvar,nobs_bins,nhr_assimilation,lsqrtb,nsubwin
-  public :: hr_obsbin,ltlint,idmodel,lwrtinc,winsub,winlen,iwinbgn
+  public :: iadatebgn,l4dvar,nobs_bins,nhr_assimilation,lsqrtb,lbicg,nsubwin
+  public :: hr_obsbin,ltlint,idmodel,iwrtinc,winsub,winlen,iwinbgn
   public :: min_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
   public :: ladtest,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
-  public :: jsiga
+  public :: jsiga,ltcost,iorthomax
 
   logical         :: l4dvar
   logical         :: lsqrtb
+  logical         :: lbicg
   logical         :: lcongrad
   logical         :: lbfgsmin
   logical         :: ltlint
   logical         :: ladtest
   logical         :: lgrtest
   logical         :: idmodel
-  logical         :: lwrtinc
   logical         :: lanczosave
+  logical         :: ltcost
 
+  integer(i_kind) :: iwrtinc
   integer(i_kind) :: iadatebgn, iadateend
   integer(i_kind) :: ibdate(5), iedate(5)
   integer(i_kind) :: nhr_obsbin, nobs_bins
   integer(i_kind) :: nhr_subwin, nsubwin
   integer(i_kind) :: nhr_assimilation,min_offset
   integer(i_kind) :: nwrvecs
+  integer(i_kind) :: iorthomax
   integer(i_kind) :: jsiga
   real(r_kind) :: iwinbgn, winlen, winoff, winsub, hr_obsbin
 
@@ -135,9 +143,11 @@ implicit none
 
 l4dvar = .false.
 lsqrtb = .false.
+lbicg = .false.
 lcongrad = .false.
 lbfgsmin = .false.
 ltlint = .false.
+ltcost = .false.
 
 nhr_assimilation=6
 min_offset=180
@@ -151,11 +161,12 @@ nhr_subwin=-1
 nhr_obsbin=-1
 ladtest=.false.
 lgrtest=.false.
-idmodel= .false.
-lwrtinc= .false.
+idmodel= .true.
 lanczosave = .false.
+iwrtinc=-1
 nwrvecs=-1
 jsiga  =-1
+iorthomax=0
 
 end subroutine init_4dvar
 ! --------------------------------------------------------------------
@@ -170,7 +181,7 @@ subroutine setup_4dvar(miter,mype)
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
 !   2010-05-27  todling - provide general interface to initialization of
-!                         tangent linead and adjoint model trajectory
+!                         tangent linear and adjoint model trajectory
 !
 !   input argument list:
 !    mype     - mpi task id
@@ -205,11 +216,6 @@ else
    end if
 end if
 
-! Initialize atmospheric AD and TL model trajectory
-if (l4dvar) then
-   call gsi_4dcoupler_init_traj(idmodel)
-endif
-
 ! Setup observation bins
 IF (hr_obsbin<winlen) THEN
    ibin = NINT(winlen/hr_obsbin)
@@ -241,19 +247,19 @@ ENDIF
 
 if (nwrvecs<0) then
    if (lbfgsmin) nwrvecs=10
-   if (lcongrad) nwrvecs=20
+   if (lcongrad .or. lbicg) nwrvecs=20
 endif
 
 !! Consistency check: presently, can only write inc when miter=1
-!if (lwrtinc) then
+!if (iwrtinc) then
 !   if (miter>1) then
-!      write(6,*) 'SETUP_4DVAR: Not able to write increment when miter>1, lwrtinc,miter=',lwrtinc,miter
+!      write(6,*) 'SETUP_4DVAR: Not able to write increment when miter>1, iwrtinc,miter=',iwrtinc,miter
 !      write(6,*)'SETUP_4DVAR: Unable to fullfil request for increment output'
 !      call stop2(134)
 !   endif
 !endif
-if (lwrtinc .neqv. l4dvar) then
-   write(6,*)'SETUP_4DVAR: lwrtinc l4dvar inconsistent',lwrtinc,l4dvar
+if (iwrtinc>0 .neqv. l4dvar) then
+   write(6,*)'SETUP_4DVAR: iwrtinc l4dvar inconsistent',iwrtinc,l4dvar
    call stop2(135)
 end if
 
@@ -266,14 +272,17 @@ if (mype==0) then
    write(6,*)'SETUP_4DVAR: nobs_bins=',nobs_bins
    write(6,*)'SETUP_4DVAR: nsubwin,nhr_subwin=',nsubwin,nhr_subwin
    write(6,*)'SETUP_4DVAR: lsqrtb=',lsqrtb
+   write(6,*)'SETUP_4DVAR: lbicg=',lbicg
    write(6,*)'SETUP_4DVAR: lcongrad=',lcongrad
    write(6,*)'SETUP_4DVAR: lbfgsmin=',lbfgsmin
    write(6,*)'SETUP_4DVAR: ltlint=',ltlint
    write(6,*)'SETUP_4DVAR: ladtest,lgrtest=',ladtest,lgrtest
-   write(6,*)'SETUP_4DVAR: lwrtinc=',lwrtinc
+   write(6,*)'SETUP_4DVAR: iwrtinc=',iwrtinc
    write(6,*)'SETUP_4DVAR: lanczosave=',lanczosave
+   write(6,*)'SETUP_4DVAR: ltcost=',ltcost
    write(6,*)'SETUP_4DVAR: jsiga=',jsiga
    write(6,*)'SETUP_4DVAR: nwrvecs=',nwrvecs
+   write(6,*)'SETUP_4DVAR: iorthomax=',iorthomax
 endif
 
 end subroutine setup_4dvar
@@ -342,7 +351,7 @@ subroutine clean_4dvar()
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
 !   2010-05-27  todling - provide general interface to initialization of
-!                         tangent linead and adjoint model trajectory
+!                         tangent linear and adjoint model trajectory
 !
 !   input argument list:
 !
@@ -355,10 +364,7 @@ subroutine clean_4dvar()
 !$$$ end documentation block
 
 implicit none
-! Finalize atmospheric AD and TL model trajectory
-if (l4dvar) then
-   call gsi_4dcoupler_final_traj
-endif
+! no-op left
 end subroutine clean_4dvar
 ! --------------------------------------------------------------------
 end module gsi_4dvar

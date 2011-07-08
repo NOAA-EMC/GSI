@@ -91,6 +91,9 @@ subroutine pcgsoi()
 !   2010-05-13  todling - update interface to update_geswtend; update to gsi_bundle for state vector
 !                       - declare all use explicitly
 !   2010-05-28  Hu      - add call for cloud analysis driver : gsdcloudanalysis
+!   2010-09-24  todling - must turn off variational qc when ltlint=.t.
+!   2011-04-07  todling - newpc4pred now in radinfo
+!   2011-04-25  EL Akkraoui - add option for re-orthogonalization.
 !
 ! input argument list:
 !
@@ -113,10 +116,11 @@ subroutine pcgsoi()
        nclen,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution, &
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg,lgschmidt
-  use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, lwrtinc, ladtest
+  use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
+                       ltlint, iorthomax
   use gridmod, only: twodvar_regional
   use constants, only: zero,one,five,tiny_r_kind
-  use berror, only: newpc4pred
+  use radinfo, only: newpc4pred
   use anberror, only: anisotropic
   use mpimod, only: mype
   use intallmod, only: intall
@@ -133,7 +137,6 @@ subroutine pcgsoi()
   use projmethod_support, only: init_mgram_schmidt, &
                                 mgram_schmidt,destroy_mgram_schmidt
   use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   use hybrid_ensemble_isotropic, only: beta12mult
   use gsi_bundlemod, only : gsi_bundle
   use gsi_bundlemod, only : self_add,assignment(=)
@@ -165,7 +168,10 @@ subroutine pcgsoi()
   type(predictors) :: sbias, rbias
   logical:: lanlerr
   
-
+  type(control_vector), allocatable, dimension(:) :: cglwork
+  type(control_vector), allocatable, dimension(:) :: cglworkhat
+  integer      :: iortho
+  real(r_quad) :: zdla
 !    note that xhatt,dirxt,xhatp,dirxp are added to carry corrected grid fields
 !      of t and p from implicit normal mode initialization (strong constraint option)
 !     inmi generates a linear correction to t,u,v,p.  already have xhatuv which can
@@ -192,6 +198,19 @@ subroutine pcgsoi()
   end_iter=.false.
   gsave=zero
   llouter=.false.
+  
+  if(iorthomax>0) then 
+     allocate(cglwork(iorthomax+1))
+     DO ii=1,iorthomax+1
+        CALL allocate_cv(cglwork(ii))
+        cglwork(ii)=zero
+     ENDDO
+     allocate(cglworkhat(iorthomax+1))
+     DO ii=1,iorthomax+1
+        CALL allocate_cv(cglworkhat(ii))
+        cglworkhat(ii)=zero
+     END DO
+  end if
 
 ! Convergence criterion needs to be relaxed a bit for anisotropic mode,
 ! because the anisotropic recursive filter, for reasons of computational
@@ -208,6 +227,7 @@ subroutine pcgsoi()
   lanlerr=.false.
   if ( twodvar_regional .and. jiter==1 ) lanlerr=.true.
   if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
+  if ( ltlint ) nlnqc_iter=.false.
 
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
@@ -295,6 +315,19 @@ subroutine pcgsoi()
         call bkerror(gradx,grady)
      end if
 
+!    first re-orthonormalization
+     if(iorthomax>0) then 
+        iortho=min(iorthomax,iter) 
+        if(iter .ne. 0) then 
+           do ii=iortho,1,-1
+              zdla = DOT_PRODUCT(gradx,cglworkhat(ii))
+              do i=1,nclen
+                 gradx%values(i) = gradx%values(i) - zdla*cglwork(ii)%values(i)
+              end do
+           end do
+        end if
+     end if
+
 !    If hybrid ensemble run, then multiply ensemble control variable a_en 
 !                                    by its localization correlation
      if(l_hyb_ens) then
@@ -312,6 +345,24 @@ subroutine pcgsoi()
 
         call beta12mult(grady)
 
+     end if
+
+!    second re-orthonormalization
+     if(iorthomax>0) then
+        if(iter .ne. 0) then 
+           do ii=iortho,1,-1
+              zdla = DOT_PRODUCT(grady,cglwork(ii))
+              do i=1,nclen
+                 grady%values(i) = grady%values(i) - zdla*cglworkhat(ii)%values(i)
+              end do
+           end do
+        end if
+!       save gradients
+        zdla = sqrt(dot_product(gradx,grady,r_quad))
+        do i=1,nclen
+           cglwork(iter+1)%values(i)=gradx%values(i)/zdla
+           cglworkhat(iter+1)%values(i)=grady%values(i)/zdla
+        end do
      end if
 
 !    Change of preconditioner for predictors
@@ -493,7 +544,16 @@ subroutine pcgsoi()
      pennorm=penx
 
   end do inner_iteration
-
+  if(iorthomax>0) then 
+     do ii=1,iorthomax+1
+        call deallocate_cv(cglwork(ii))
+     enddo
+     deallocate(cglwork)
+     do ii=1,iorthomax+1
+        call deallocate_cv(cglworkhat(ii))
+     enddo
+     deallocate(cglworkhat)
+  end if
   if (lanlerr .and. lgschmidt) call destroy_mgram_schmidt
 
 ! Calculate adjusted observation error factor
@@ -623,7 +683,7 @@ subroutine pcgsoi()
   if(l_foto) call update_geswtend(xhat_dt)
 
 ! cloud analysis  after iteration
-  if(jiter == miter .and. l_cloud_analysis) then
+  if(jiter == miter) then
      call gsdcloudanalysis(mype)
   endif
 
@@ -632,9 +692,9 @@ subroutine pcgsoi()
   call prt_guess('analysis')
 
 ! Overwrite guess with increment (4d-var only, for now)
-  if (lwrtinc) then
+  if (iwrtinc>0) then
      call inc2guess(sval)
-     call write_all(lwrtinc,mype)
+     call write_all(iwrtinc,mype)
      call prt_guess('increment')
   endif
 
@@ -674,7 +734,6 @@ subroutine init_
 !
 !$$$ end documentation block
 
-  use berror, only: newpc4pred
   implicit none
 
 ! Allocate local variables
@@ -742,7 +801,6 @@ subroutine clean_
 !
 !$$$ end documentation block
 
-  use berror, only: newpc4pred
   implicit none
 
 ! Deallocate obs file

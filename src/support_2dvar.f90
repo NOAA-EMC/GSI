@@ -463,6 +463,7 @@ subroutine read_2d_guess(mype)
 !   2006-07-30  kleist - make change to ges_ps from ln(ps)
 !   2006-07-28  derber  - include sensible temperature
 !   2008-04-02  safford - rm unused vars and uses
+!   2011-05-01  todling - introduce met-guess (cwmr no longer in guess-grids)
 !
 !   input argument list:
 !     mype     - pe number
@@ -476,13 +477,15 @@ subroutine read_2d_guess(mype)
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use mpimod, only: mpi_sum,mpi_integer,mpi_real4,mpi_comm_world,npe,ierror
-  use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_cwmr,ges_vor,&
+  use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_vor,&
        ges_div,ges_u,ges_v,ges_tvlat,ges_tvlon,ges_qlat,ges_qlon,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
        nsig,ijn_s,displs_s,itotsub
   use constants, only: zero,one,grav,fv,zero_single,one_tenth
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
@@ -513,7 +516,8 @@ subroutine read_2d_guess(mype)
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) isli_this
   real(r_kind) psfc_this,sm_this,xice_this
-  integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
+  real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_it
+  integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all,icwmr
 
 
 !  RESTART FILE input grid dimensions in module gridmod
@@ -762,7 +766,6 @@ subroutine read_2d_guess(mype)
 
 !    Zero out fields not used
      ges_div=zero
-     ges_cwmr=zero
      ges_tvlat=zero
      ges_tvlon=zero
      ges_qlat=zero
@@ -771,6 +774,10 @@ subroutine read_2d_guess(mype)
 
 !    Transfer surface fields
      do it=1,nfldsig
+
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,icwmr)
+        if(icwmr==0) ges_cwmr_it=zero
+
         i_0=(it-1)*num_2d_fields
         do i=1,lon1+2
            do j=1,lat1+2

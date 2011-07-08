@@ -34,7 +34,7 @@ module m_berror_stats
 ! !INTERFACE:
 
       use kinds,only : i_kind
-      use constants, only: izero,ione,one
+      use constants, only: one
       use control_vectors,only: cvars2d,cvars3d
       use mpeu_util,only: getindex
 
@@ -69,8 +69,8 @@ module m_berror_stats
   	! Reconfigurable parameters, vai NAMELISt/setup/
   character(len=256),save :: berror_stats = "berror_stats"	! filename
 
-  integer(i_kind),parameter :: default_unit_ = 22_i_kind
-  integer(i_kind),parameter :: ERRCODE=2_i_kind
+  integer(i_kind),parameter :: default_unit_ = 22
+  integer(i_kind),parameter :: ERRCODE=2
 contains
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
@@ -161,7 +161,7 @@ end subroutine get_dims
     rewind inerr
     read(inerr) nsigstat,nlatstat
 
-    if(mype==izero) then
+    if(mype==0) then
       if (nsig/=nsigstat .or. nlat/=nlatstat) then
          write(6,*) myname_,'(PREBAL):  ***ERROR*** resolution of ', &
            '"',trim(berror_stats),'"', &
@@ -200,8 +200,6 @@ end subroutine read_bal
       use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
       use jfunc,only: varq,qoption
-      use chemmod, only : berror_chem
-      use constants, only: max_varname_length
 
       implicit none
 
@@ -217,9 +215,6 @@ end subroutine read_bal
 
       integer(i_kind)                    ,intent(in   ) :: mype  ! "my" processor ID
       integer(i_kind),optional           ,intent(in   ) :: unit ! an alternative unit
-
-
-
 
 ! !REVISION HISTORY:
 ! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
@@ -240,13 +235,11 @@ end subroutine read_bal
   real(r_single),dimension(nlat,nsig) :: wgvin,bvin
  
   integer(i_kind) :: i,n,k
-  integer(i_kind) :: inerr,istat
+  integer(i_kind) :: inerr,istat,ier
   integer(i_kind) :: nsigstat,nlatstat
   integer(i_kind) :: loc,nn,isig
   real(r_kind) :: corq2x
-  character*5 varshort
-  character(len=max_varname_length) :: var_chem,var
-
+  character*5 var
   logical,allocatable,dimension(:) :: found3d
   logical,allocatable,dimension(:) :: found2d
 
@@ -265,7 +258,7 @@ end subroutine read_bal
 
   rewind inerr
   read(inerr)nsigstat,nlatstat
-  if(mype==izero) then
+  if(mype==0) then
      if(nsigstat/=nsig .or. nlatstat/=nlat) then
         write(6,*)'PREBAL: **ERROR** resolution of berror_stats incompatiable with GSI'
         write(6,*)'PREBAL:  berror nsigstat,nlatstat=', nsigstat,nlatstat, &
@@ -285,14 +278,7 @@ end subroutine read_bal
   found3d=.false.
   found2d=.false.
   read: do
-     if (berror_chem) then
-        read(inerr,iostat=istat) var_chem,isig
-        var=var_chem
-     else
-        read(inerr,iostat=istat) varshort, isig
-        var=varshort
-     endif
-
+     read(inerr,iostat=istat) var, isig
      if (istat/=0) exit
 
      allocate ( corzin(nlat,isig) )
@@ -365,7 +351,12 @@ end subroutine read_bal
   do n=1,size(cvars3d)
      if(.not.found3d(n)) then
         if(n>0) then
-           call setcoroz_(corz(:,:,n),mype)
+           if(cvars3d(n)=='oz') then
+              call setcoroz_(corz(:,:,n),mype)
+           else
+              call setcorchem_(cvars3d(n),corz(:,:,n),ier)
+              if(ier/=0) cycle ! if this happens, code will crash later
+           endif
            call sethwlloz_(hwll(:,:,n),mype)
            call setvscalesoz_(vz(:,:,n))
         endif
@@ -417,7 +408,7 @@ end subroutine read_wgt
 
 !! -- workspace and working variables
 
-    real(r_kind),dimension(nsig+ione,npe) :: work_oz,work_oz1
+    real(r_kind),dimension(nsig+1,npe) :: work_oz,work_oz1
     real(r_kind),dimension(nsig) :: ozmz
     real(r_kind) :: asum,bsum
 
@@ -426,7 +417,7 @@ end subroutine read_wgt
     integer(i_kind) :: ierror
 
 !! -- synity check
-    if(mype==izero) then
+    if(mype==0) then
        write(6,*) myname_,'(PREWGT): mype = ',mype
     endif
 
@@ -444,21 +435,21 @@ end subroutine read_wgt
 
 ! Calculate global means for ozone
 ! Calculate sums for ozone to estimate variance.
-  mm1=mype+ione
+  mm1=mype+1
   work_oz = zero
   do k = 1,nsig
-     do j = 2,lon1+ione
-        do i = 2,lat1+ione
+     do j = 2,lon1+1
+        do i = 2,lat1+1
            work_oz(k,mm1) = work_oz(k,mm1) + ges_oz(i,j,k,ntguessig)* &
-                rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+ione,ntguessig))
+                rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
         end do
      end do
   end do
-  work_oz(nsig+ione,mm1)=float(lon1*lat1)
+  work_oz(nsig+1,mm1)=float(lon1*lat1)
 
-  call mpi_allreduce(work_oz,work_oz1,(nsig+ione)*npe,mpi_rtype,mpi_sum,&
+  call mpi_allreduce(work_oz,work_oz1,(nsig+1)*npe,mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)
-  if(ierror/=izero) then
+  if(ierror/=0) then
      write(6,*) myname_,'(PREWGT): MPI_allreduce() error on PE ',mype
      call stop2(ierror)
   endif
@@ -469,7 +460,7 @@ end subroutine read_wgt
 
   bsum=zero
   do n=1,npe
-     bsum=bsum+work_oz1(nsig+ione,n)
+     bsum=bsum+work_oz1(nsig+1,n)
   end do
   do k=1,nsig
      ozmz(k)=zero
@@ -523,14 +514,14 @@ end subroutine setcoroz_
   real(r_kind) :: fact
   real(r_kind) :: s2u
     
-  if(mype==izero) then
+  if(mype==0) then
      write(6,*) myname_,'(PREWGT): mype = ',mype
   endif
 
   s2u=(two*pi*rearth_equator)/nlon
   do k=1,nnnn1o
      k1=levs_id(k)
-     if(k1>izero) then
+     if(k1>0) then
      write(6,*) myname_,'(PREWGT): mype = ',mype, k1
         if(k1<=nsig*3/4)then
         !  fact=1./hwl
@@ -544,7 +535,7 @@ end subroutine setcoroz_
   enddo
 
 
-  if(mype==izero) then
+  if(mype==0) then
      write(6,*) myname_,'(PREWGT): mype = ',mype, 'finish sethwlloz_'
   endif
 
@@ -579,4 +570,138 @@ end subroutine sethwlloz_
   vscalesoz(:,:)=eight_tenths
 
 end subroutine setvscalesoz_
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
+!BOP -------------------------------------------------------------------
+!
+! !IROUTINE: setcorchem_ - a modeled corr.coeffs. of chemistry
+!
+! !DESCRIPTION:
+!
+! !INTERFACE:
+
+    subroutine setcorchem_(cname,corchem,rc)
+      use kinds,    only: r_single,r_kind
+      use mpimod,   only: mype
+      use constants,only: zero,one
+      use mpimod,   only: npe,mpi_rtype,mpi_sum,mpi_comm_world
+
+      use gridmod,  only: nlat,nsig
+      use gridmod,  only: lon1,lat1
+
+      use guess_grids,only: ntguessig
+      use guess_grids,only: ges_prsi ! interface pressures (kPa)
+
+      use gsi_chemguess_mod, only: gsi_chemguess_bundle
+      use gsi_bundlemod,     only: gsi_bundlegetpointer
+
+      implicit none
+
+      character(len=*)                   ,intent(in   ) :: cname   ! constituent name
+      real(r_single),dimension(nlat,nsig),intent(  out) :: corchem ! constituent correlations
+      integer(i_kind)                    ,intent(  out) :: rc      ! return error code
+
+! !REVISION HISTORY:
+!    15Jul20010 - Todling - created from Guo's OZ routine
+!
+!EOP ___________________________________________________________________
+
+  character(len=*),parameter :: myname_=myname//'::setcorchem_'
+  real(r_kind),parameter:: r25 = one/25.0_r_kind
+
+!! -- workspace and working variables
+
+    real(r_kind),dimension(nsig+1,npe) :: work_chem,work_chem1
+    real(r_kind),dimension(nsig) :: chemz
+    real(r_kind) :: asum,bsum
+
+    integer(i_kind) :: mlat,msig
+    integer(i_kind) :: i,j,k,n,iptr,mm1
+    integer(i_kind) :: ierror
+
+    rc=0
+
+!! -- synity check
+    if(mype==0) then
+       write(6,*) myname_,'(PREWGT): mype = ',mype
+    endif
+
+!   Get information for how to use CO2
+    iptr=-1
+    if(size(gsi_chemguess_bundle)>0) then ! check to see if bundle's allocated
+       call gsi_bundlegetpointer(gsi_chemguess_bundle(1),cname,iptr,ierror)
+       if(ierror/=0)then
+          rc=-2  ! field not found
+          return 
+       endif
+    else
+       rc=-1     ! chem not allocated
+       return
+    endif
+
+    mlat=size(corchem,1)
+    msig=size(corchem,2)
+    if(mlat/=nlat .or. msig/=nsig) then
+       write(6,*) myname_,'(PREWGT): shape mismatching on PE ',mype
+       write(6,*) myname_,'(PREWGT): shape(corchem',trim(cname),') = ',shape(corchem)
+       write(6,*) myname_,'(PREWGT): while expecting nlat = ',nlat
+       write(6,*) myname_,'(PREWGT): while expecting nsig = ',nsig
+       call stop2(ERRCODE)
+    endif
+
+! -- The first part is taken from read_guess().
+
+!   Calculate global means for constituent
+!   Calculate sums for constituent to estimate variance.
+    mm1=mype+1
+    work_chem = zero
+    do k = 1,nsig
+       do j = 2,lon1+1
+          do i = 2,lat1+1
+             work_chem(k,mm1) = work_chem(k,mm1) + gsi_chemguess_bundle(ntguessig)%r3(iptr)%q(i,j,k)* &
+                         (ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
+!_RT not sure yet how to handle scaling factor (rozcon) in general
+!_RT              rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
+          end do
+       end do
+    end do
+    work_chem(nsig+1,mm1)=float(lon1*lat1)
+  
+    call mpi_allreduce(work_chem,work_chem1,(nsig+1)*npe,mpi_rtype,mpi_sum,&
+         mpi_comm_world,ierror)
+    if(ierror/=0) then
+       write(6,*) myname_,'(PREWGT): MPI_allreduce() error on PE ',mype
+       call stop2(ierror)
+    endif
+
+!   -- All it does above, through mm1 plus mpi_allreduce() to work_chem1[],
+!   seems no more than a mpi_allgatherv() to me.  The "reduce" part is
+!   actually done below ...
+
+    bsum=zero
+    do n=1,npe
+       bsum=bsum+work_chem1(nsig+1,n)
+    end do
+    do k=1,nsig
+       chemz(k)=zero
+       asum=zero
+       do n=1,npe
+          asum=asum+work_chem1(k,n)
+       end do
+       if (bsum>zero) chemz(k)=asum/bsum
+    enddo
+
+! -- now this part is taken from prewgt().
+
+!   load variances onto subdomains
+    do k=1,nsig
+       corchem(:,k) = max(chemz(k),0.0002_r_kind)*r25
+    enddo
+
+    if (mype==0) then
+       write(6,*) myname_, ': Defined general B cov for: ', trim(cname)
+    endif
+
+end subroutine setcorchem_
 end module m_berror_stats

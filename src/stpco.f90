@@ -28,8 +28,8 @@ PUBLIC stpco
 
 contains
 
-!subroutine stpco(cohead,co3lhead,rval,sval,out,sges,nstep)
-subroutine stpco(co3lhead,rval,sval,out,sges,nstep)
+!subroutine stpco(cohead,colvkhead,rval,sval,out,sges,nstep)
+subroutine stpco(colvkhead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpco       call components to calculate contrib. to
@@ -45,7 +45,7 @@ subroutine stpco(co3lhead,rval,sval,out,sges,nstep)
 !
 !   input argument list:
 !     cohead
-!     co3lhead
+!     colvkhead
 !     rval - search direction for carbon monoxine
 !     sval - input carbon monoxine correction field
 !     sges - step size estimates (nstep)
@@ -60,8 +60,8 @@ subroutine stpco(co3lhead,rval,sval,out,sges,nstep)
 !
 !$$$  
   use kinds, only: r_kind,r_quad,i_kind
-! use obsmod, only: co_ob_type,co3l_ob_type
-  use obsmod, only: co3l_ob_type
+! use obsmod, only: co_ob_type,colvk_ob_type
+  use obsmod, only: colvk_ob_type
   use gridmod, only: latlon1n
   use constants, only: zero_quad
   use gsi_bundlemod, only: gsi_bundle
@@ -69,8 +69,8 @@ subroutine stpco(co3lhead,rval,sval,out,sges,nstep)
 
 ! Declare passed variables
 
-! type(  co_ob_type),pointer          ,intent(in   ) :: cohead
-  type(co3l_ob_type),pointer          ,intent(in   ) :: co3lhead
+! type(   co_ob_type),pointer          ,intent(in   ) :: cohead
+  type(colvk_ob_type),pointer          ,intent(in   ) :: colvkhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   type(gsi_bundle)                    ,intent(in   ) :: sval
   type(gsi_bundle)                    ,intent(in   ) :: rval
@@ -80,7 +80,7 @@ subroutine stpco(co3lhead,rval,sval,out,sges,nstep)
   out=zero_quad
 
 ! call stpcolay_(  cohead,rval,sval,out,sges,nstep)
-! call stpcolev_(co3lhead,rval,sval,out,sges,nstep)
+! call stpcolev_(colvkhead,rval,sval,out,sges,nstep)
 
   return
 

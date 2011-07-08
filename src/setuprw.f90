@@ -43,6 +43,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2006-08-28      su - fix a bug in variational qc
 !   2008-05-23  safford - rm unused vars and uses
 !   2008-12-03  todling - changed handle of tail%time
+!   2009-02-17  tong - modifed to use airborne radar data
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2011-03-28  s.liu     - add subtype to radial wind
 !
@@ -75,7 +76,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gridmod, only: nsig,get_ijk
   use constants, only: flattening,semi_major_axis,grav_ratio,zero,grav,wgtlim,&
        half,one,two,grav_equator,eccentricity,somigliana,rad2deg,deg2rad
-  use constants, only: tiny_r_kind,cg_term,huge_single,r2000
+  use constants, only: tiny_r_kind,cg_term,huge_single,r2000,three
   use jfunc, only: jiter,last,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
@@ -139,7 +140,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical,dimension(nobs):: luse,muse
 
   equivalence(rstation_id,station_id)
-  real(r_kind) addelev,wrange,beamdepth,elevtop,elevbot
+  real(r_kind) addelev,wrange,beamdepth,elevtop,elevbot,beamwidth
   integer(i_kind) kbeambot,kbeamtop,kbeamdiffmax,kbeamdiffmin
   real(r_kind) uminmin,umaxmax
   integer(i_kind) numequal,numnotequal,kminmin,kmaxmax,istat
@@ -331,8 +332,13 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    the code below resets the 10m wind factor to 1.0 i.e., no
 !    reduction in wind speed due to surface friction).
      if (dpres<ten) then
-        dz = ten-dpres
-        factw = factw + (factw-zero)/dz
+        if(data(iobs_type,i) <= three)then
+          dz = ten-dpres
+          factw = factw + (factw-zero)/dz
+        else
+          term = max(dpres,zero)/ten
+          factw = term*factw
+        endif
      else
         factw=one
      endif
@@ -351,6 +357,13 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      dz     = zges(k2)-zges(k1)
      dlnp   = prsltmp(k2)-prsltmp(k1)
      pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+
+     if(data(iobs_type,i) > three .and. k1 == k2)then
+       dz     = zges(k1)-zsges 
+       dlnp   = prsltmp(k1)-log(psges) 
+       pobl   = log(psges) + (dlnp/dz)*(zob-zsges)
+     endif
+
      presw  = ten*exp(pobl)
 
 !    Determine location in terms of grid units for midpoint of
@@ -360,7 +373,11 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    Check to see if observation is below midpoint of first
 !    above surface layer.  If so, set rlow to that difference
-     rlow=max(sfcchk-dpres,zero)
+     if(data(iobs_type,i) > three)then
+       rlow=max(1-dpres,zero)
+     else
+       rlow=max(sfcchk-dpres,zero)
+     endif
 
 !    Check to see if observation is above midpoint of layer
 !    at the top of the model.  If so, set rhgh to that difference.
@@ -377,26 +394,36 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    Increase error for observations over high topography
      factelv=one
-     if (data(ielev,i) > r2000) then
-        factelv=(r2000/data(ielev,i))**2
-        if(luse(i))awork(5) = awork(5) + one
+     if (data(iobs_type,i) <= three) then
+        if (data(ielev,i) > r2000) then
+           factelv=(r2000/data(ielev,i))**2
+           if(luse(i))awork(5) = awork(5) + one
+        endif
      endif
 
 !    Increase error if model and observation topography too different
      factdif=one
-     if (abs(zsges-data(ielev,i)) > r200) then
-        factdif= (r200/(abs(zsges-data(ielev,i))))**2
-        if(luse(i))awork(6) = awork(6) + one
+     if (data(iobs_type,i) <= three) then
+        if (abs(zsges-data(ielev,i)) > r200) then
+           factdif= (r200/(abs(zsges-data(ielev,i))))**2
+           if(luse(i))awork(6) = awork(6) + one
+        endif
      endif
      
 !    Obtain estimated beam spread in vertical
-     addelev=max(half*abs(zsges-data(ielev,i)),ten*wrange)
+     if (data(iobs_type,i) <= three) then
+         addelev=max(half*abs(zsges-data(ielev,i)),ten*wrange)
+     else
+         addelev=17.4*wrange   ! TDR radar beam width is 1.9 to 2.0 degree
+     endif
      beamdepth=two*addelev
      elevtop=zob+addelev     !  this is based on 100ft/Nm = 16.5m/km beam spread
      elevbot=zob-addelev     !  for .95 deg beam angle (multiplied by 1.2 to allow
                              !  for propagation uncertainty)
                              !  also, a minimum uncertainty based on difference between
                              !  model surface elevation and actual radar elevation
+                             ! for TDR radars, beam width is 1.9 for NOAA Parabolic 
+                             ! and 2.0 degree for French dual-plate  
 
      call grdcrd(elevtop,1,zges,nsig,1)
      call grdcrd(elevbot,1,zges,nsig,1)
@@ -406,7 +433,6 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      kbeambot=max(1,min(kbeambot,nsig))
      kbeamdiffmax=max(kbeamtop-kbeambot,kbeamdiffmax)
      kbeamdiffmin=min(kbeamtop-kbeambot,kbeamdiffmin)
-     
 
      ratio_errors = factdif*factelv*error/(abs(data(ier,i) + 1.0e6_r_kind*rhgh +  &
           r8*rlow))
@@ -665,7 +691,6 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      end if
   end do
-
 
 ! Write information to diagnostic file
   if(conv_diagsave)then

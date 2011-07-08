@@ -17,6 +17,7 @@ module observermod
 !   2009-09-14  guo     - moved compact_diff related statements from
 !			  glbsoi here.
 !   2010-05-19  todling - revist initialization/finalization of chem
+!   2011-04-29  todling - add metguess initialization/finalization
 !
 !   input argument list:
 !     mype - mpi task id
@@ -58,10 +59,9 @@ module observermod
   use zrnmi_mod, only: zrnmi_initialize
   use tendsmod, only: create_tendvars,destroy_tendvars
   use turblmod, only: create_turblvars,destroy_turblvars
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
-  use guess_grids, only: create_cld_grids,destroy_cld_grids
 
   use guess_grids, only: create_chemges_grids, destroy_chemges_grids
+  use guess_grids, only: create_metguess_grids, destroy_metguess_grids
 
   implicit none
 
@@ -116,7 +116,6 @@ subroutine guess_init_
 !   2007-10-03  todling - created this file from slipt of glbsoi
 !   2009-01-28  todling - split observer into init/set/run/finalize
 !   2009-03-10  meunier - read in the original position of balloons
-!   2010-03-29  hu - If l_cloud_analysis is true, allocate arrays for hydrometeors
 !   2010-04-20  todling - add call to create tracer grid
 !   2010-05-19  todling - update interface to read_guess
 !   2010-06-25  treadon - pass mlat into create_jfunc
@@ -156,9 +155,8 @@ subroutine guess_init_
   call create_bias_grids()
   call create_sfc_grids()
 
-! If l_cloud_analysis is true, allocate arrays for hydrometeors
-  if(l_cloud_analysis) call create_cld_grids
 #ifndef HAVE_ESMF
+  call create_metguess_grids(ierr)
   call create_chemges_grids(ierr)
 #endif /*/ HAVE_ESMF */
 
@@ -178,7 +176,9 @@ subroutine guess_init_
 
 ! Intialize lagrangian data assimilation and read in initial position of balloons
   if(l4dvar) then
+#ifdef _LAG_MODEL_
     call lag_guessini()
+#endif /* _LAG_MODEL_ */
   endif
  
 ! Read output from previous min.
@@ -565,7 +565,6 @@ subroutine guess_final_
 !   1990-10-06  parrish
 !   2007-10-03  todling - created this file from slipt of glbsoi
 !   2009-01-28  todling - split observer into init/set/run/finalize
-!   2010-03-29  hu - If l_cloud_analysis is true, deallocate arrays for hydrometeors
 !   2010-04-20  todling - add call to destroy tracer grid
 !
 !   input argument list:
@@ -592,9 +591,9 @@ subroutine guess_final_
  
 ! Deallocate remaining arrays
 #ifndef HAVE_ESMF
+  call destroy_metguess_grids(ierr)
   call destroy_chemges_grids(ierr)
 #endif /* HAVE_ESMF */
-  if(l_cloud_analysis) call destroy_cld_grids
   call destroy_sfc_grids()
   call destroy_ges_grids(switch_on_derivatives,tendsflag)
   call destroy_bias_grids()

@@ -13,6 +13,7 @@
 !   sub calc_clw        - calculates cloud liquid water (clw) for microwave channels over ocean (public)
 !   sub retrieval_mi    - calculates clw for ssmi
 !   sub ret_ssmis       - calculates clw for ssmis
+!   sub ret_amsua       - calculates clw for amsua 
 !   sub retrieval_amsre - calculates clw for amsre
 !   sub rcwps_alg       - makes retrieval for AMSR-E observation
 !   sub tbe_from_tbo    - perform corrections for scattering effect in amsr-e obs
@@ -33,12 +34,12 @@ implicit none
 ! set default to private
   private
 ! set routines used externally to public
-  public :: calc_clw
+  public :: calc_clw, ret_amsua
 
 contains
 
 
- subroutine calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre, &   
+ subroutine calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &   
           tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -50,6 +51,7 @@ contains
 !
 ! program history log:
 !   2010-08-19  derber
+!   2011-05-20  mccarty - added placeholder for ATMS
 !
 !  input argument list:
 !     nadir     - scan position
@@ -62,6 +64,7 @@ contains
 !     ssmi      - flag for ssmi  data
 !     ssmis     - flag for ssmis data
 !     amsre     - flag for amsre data
+!     atms      - flag for atms data
 !     tsavg5    - Surface temperature value
 !     sfc_speed - surface wind speed (10m)
 !     zasat     - satellite zenith angle
@@ -84,7 +87,7 @@ contains
   integer(i_kind)                   ,intent(in   ) :: nadir,nchanl
   real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs,tsim
   integer(i_kind),dimension(nchanl) ,intent(in   ) :: ich
-  logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua
+  logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua,atms
   real(r_kind)                      ,intent(in   ) :: tsavg5,sfc_speed,zasat
   real(r_kind)                      ,intent(  out) :: clw,tpwc
   integer(i_kind)                   ,intent(  out) :: kraintype,ierrret
@@ -100,33 +103,38 @@ contains
 
   if (amsua) then
  
-    if(tsavg5>t0c)then
-       tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))
-       tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))
-       if (tbcx1 <=r284 .and. tbcx2<=r284 .and. tb_obs(1) > zero &
+     if(tsavg5>t0c)then
+        tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))
+        tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))
+        if (tbcx1 <=r284 .and. tbcx2<=r284 .and. tb_obs(1) > zero &
             .and. tb_obs(2) > zero) &
-          clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
-              amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
-    end if
+           clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
+               amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
+     end if
      
- else if(ssmi) then
+  else if(ssmi) then
 
-    call retrieval_mi(tb_obs(1),nchanl,no85GHz, &
-         tpwc,clw,kraintype,ierrret ) 
+     call retrieval_mi(tb_obs(1),nchanl,no85GHz, &
+          tpwc,clw,kraintype,ierrret ) 
 
- else if (ssmis) then
+  else if (ssmis) then
 
-    call ret_ssmis( tb_obs(1),nchanl,tpwc, clw, ierrret)
+     call ret_ssmis( tb_obs(1),nchanl,tpwc, clw, ierrret)
 
- else if (amsre) then
+  else if (amsre) then
 
-    call retrieval_amsre(tb_obs(1),zasat,           &
-         sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret ) 
+     call retrieval_amsre(tb_obs(1),zasat,           &
+          sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret ) 
 
- endif
- clw = max(zero,clw)
+  else if (atms) then
 
- return
+     ! placeholder for ATMS CLW Retrieval
+     clw = zero
+
+  endif
+  clw = max(zero,clw)
+
+  return
  end subroutine calc_clw
 
   subroutine retrieval_mi(tb,nchanl,no85GHz,   &
@@ -188,7 +196,7 @@ contains
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: ione,two,zero,izero,r10,r100
+  use constants, only: two,zero,r10,r100
 
   implicit none
     
@@ -217,8 +225,8 @@ contains
 
   tpwc   = rmis;  clw = rmis ;  si85 = rmis
   clw19  = zero;  clw37  = zero
-  ierr = izero
-  kraintype  = izero
+  ierr = 0
+  kraintype  = 0
 
   tb19v = tb(1); tb19h = tb(2); tb22v = tb(3)
   tb37v = tb(4); tb37h = tb(5); tb85v = tb(6); tb85h = tb(7)
@@ -230,12 +238,12 @@ contains
 ! bad channels, skip this obs. 
   if ( no85GHz ) then                ! if no 85GHz, only check ch 1-5
      if ( any(tb(1:5)  < 70.0_r_kind) .or. any(tb(1:5) > 320.0_r_kind ) ) then
-        ierr = ione
+        ierr = 1
         return
      endif
   else
      if ( any(tb < 70.0_r_kind) .or. any(tb > 320.0_r_kind ) ) then
-        ierr = ione
+        ierr = 1
         return
      end if
   endif
@@ -248,11 +256,11 @@ contains
 
   if ( no85GHz ) then                ! if no 85GHz, just check 22,37 GHz
      if (tbpol(1) < -two .or. tbpol(2) < -two) then
-        ierr = 2_i_kind
+        ierr = 2
      endif
      
   else if ( any(tbpol < -two ) ) then 
-     ierr = 2_i_kind
+     ierr = 2
      return
   end if
  
@@ -272,7 +280,7 @@ contains
           2.439_r_kind*tb22v - 0.00504_r_kind*tb22v*tb22v - tb85v
 
      if (si85 >= r10) then
-        kraintype=2_i_kind
+        kraintype=2
      end if
 
   endif
@@ -281,7 +289,7 @@ contains
 !   Observations contaminated by emission-based rain are tossed by 
 !    later clw-QC
 
-  if(kraintype==izero) then 
+  if(kraintype==0) then 
 
 !  =======   TPW over ocean (when no rain)  ====================
 !   Generate total precipitable water (tpw) using Sec 3.1 algorithm.
@@ -323,9 +331,9 @@ contains
 !
 !          CLW using 85h as primary channel
               if(tpwc < 30.0_r_kind)then
-                clw85 = -0.44_r_kind*( log(r290-tb85h) + & 
-                         1.11_r_kind - 1.26_r_kind*clw2term   )
-                if (clw85>zero ) clw = clw85
+                 clw85 = -0.44_r_kind*( log(r290-tb85h) + & 
+                          1.11_r_kind - 1.26_r_kind*clw2term   )
+                 if (clw85>zero ) clw = clw85
               end if
            end if
         end if
@@ -415,7 +423,7 @@ subroutine ret_ssmis(tb,nchanl,tpwc,clw,ierr)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: izero,ione,zero,one
+  use constants, only: zero,one
   
   implicit none
 
@@ -434,7 +442,7 @@ subroutine ret_ssmis(tb,nchanl,tpwc,clw,ierr)
   real(r_kind),dimension(7):: ap,bp,cp,dp,cp0,dp0,tbx,tby,tax,tay
   real(r_kind):: alg1,alg2,alg3
 
-  ierr = izero
+  ierr = 0
   clw = rmis
 
 ! Coefficients to remap SSMIS ssmi-like channels to SSMI TB
@@ -569,7 +577,7 @@ subroutine retrieval_amsre(tb,degre,  &
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: izero,ione,zero
+  use constants, only: zero
 
   implicit none
   
@@ -590,15 +598,15 @@ subroutine retrieval_amsre(tb,degre,  &
   real(r_kind) :: si85
 
 ! Initialize variable
-  nchanl1 = 12_i_kind   ! Total AMSR-E channel number=12
-  ierr = izero; kraintype=izero
+  nchanl1 = 12   ! Total AMSR-E channel number=12
+  ierr = 0; kraintype=0
   rwp =zero;cwp=zero;vr=zero;vc=zero
 
 ! Gross error check on all channels.  If there are any
 ! bad channels, skip this obs.
 
   if ( any(tb < 50.0_r_kind) .or. any(tb > 400.0_r_kind ) ) then
-     ierr = ione
+     ierr = 1
      return
   end if
 
@@ -613,7 +621,7 @@ subroutine retrieval_amsre(tb,degre,  &
 
 !  =======   TPW over ocean (when no rain)  ====================
 
-  if(kraintype==izero) then
+  if(kraintype==0) then
      tpwc = max(zero,tpwc)
 
 !  =======   CLW over ocean (when no rain)  ====================
@@ -710,12 +718,12 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: deg2rad,izero,ione,zero,half,one,two,five
+  use constants, only: deg2rad,zero,half,one,two,five
 
   implicit none
 
   integer(i_kind) nch
-  parameter(nch=6_i_kind)
+  parameter(nch=6)
 
   real(r_kind),intent(in   ) :: tbo(nch*2)
   real(r_kind),intent(in   ) :: wind,theta,sst
@@ -767,10 +775,10 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
      tauo(ich) = ko2_coe(ich,1) +  ko2_coe(ich,2)*sst + ko2_coe(ich,3)*sst*sst
      kl(ich)   = kl_coe(ich,1)  +  kl_coe(ich,2)*tl   + kl_coe(ich,3)*tl*tl
      frequency = freq(ich)
-!    polar_status = izero
+!    polar_status = 0
 !    call emis_water(angle,frequency,sst,wind,polar_status, emissivity)
 !    eh(ich) = emissivity
-     polar_status = ione
+     polar_status = 1
      call emis_water(angle,frequency,sst,wind,polar_status, emissivity)
      ev(ich) = emissivity
      tvmin(ich) = sst*( one - dexp(-tauo(ich)/umu)*dexp(-tauo(ich)/umu)*(one-ev(ich)) )
@@ -862,11 +870,11 @@ subroutine TBE_FROM_TBO(tbo,tb)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: ione,three
+  use constants, only: three
   implicit none
 
   integer(i_kind) nch
-  parameter (nch = 6_i_kind)
+  parameter (nch = 6)
 
   real(r_kind),intent(in   ) :: tbo(nch*2)
   real(r_kind),intent(  out) :: tb(nch*2)
@@ -933,7 +941,7 @@ subroutine TBE_FROM_TBO(tbo,tb)
   do i = 1, 10
      tbe(i) = coe_tbs(i,1)
      do j=1,10
-        tbe(i) = tbe(i) + coe_tbs(i,j+ione)*tb(j)
+        tbe(i) = tbe(i) + coe_tbs(i,j+1)*tb(j)
      enddo
      tbe(10) = tbe(10) + 0.4_r_kind*(tbe(10)-tb(10))
   enddo
@@ -999,7 +1007,7 @@ subroutine TBA_FROM_TBE(tbo,tvs,ths)
   implicit none
 
   integer(i_kind) nch
-  parameter (nch = 6_i_kind)
+  parameter (nch = 6)
 
   real(r_kind),intent(in   ) :: tbo(nch*2)
   real(r_kind),intent(  out) :: tvs(nch)
@@ -1084,7 +1092,7 @@ subroutine emis_water(angle,frequency,sst,wind,polar_status,emissivity)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: ione,zero,one,four
+  use constants, only: zero,one,four
   implicit none
 
   real(r_kind)   ,intent(in   ) :: angle, wind
@@ -1154,7 +1162,7 @@ subroutine emis_water(angle,frequency,sst,wind,polar_status,emissivity)
   if(eh<zero) eh=zero
   if(ev>one) ev=one
   if(ev<zero) ev=zero
-  if (polar_status == ione) then
+  if (polar_status == 1) then
      emissivity = ev
   else
      emissivity = eh
@@ -1283,5 +1291,74 @@ subroutine epspp (t1,s,f,ep)
   return
 
 end subroutine epspp
+
+subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  ret_amsua 
+!
+!  prgmmr: Min-Jeong Kim        org: JCSDA
+!
+! abstract: calculates cloud liquid water path
+!       References:
+!       Grody et al. (2001) : Determination of precipitable water and cloud liquid water
+!                       over oceans from the NOAA 15 advanced microwave sounding unit.
+!
+! program history log:
+!      2010-10-23  kim : Cloud liquid water path retrieval to compare with first guess
+!                        in all sky condition  (using observed tbs instead of o-g tbs)  
+!      2011-05-03  todling - add r_kind to constants
+!
+!  input argument list:
+!     tb_obs    - observed brightness temperatures
+!     ich       - channel number array
+!     nchanl    - number of channels    
+!     tsavg5    - Surface temperature value
+!     zasat     - satellite zenith angle
+!
+!   output argument list:
+!     clwp_amsua       - amsu-a retrieved cloud liquid water path
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+!
+  use kinds, only: r_kind, i_kind
+  use constants, only: one, t0c, zero
+  implicit none
+
+
+  integer(i_kind)                   ,intent(in   ) :: nchanl
+  real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs
+  real(r_kind)                      ,intent(in   ) :: tsavg5,zasat
+  real(r_kind)                      ,intent(  out) :: clwp_amsua
+  real(r_kind)                    ::  tpwc_amsua
+  real(r_kind),parameter:: r285=285.0_r_kind
+
+! Declare local variables 
+  real(r_kind) :: d0, d1, d2, c0, c1, c2
+
+  c0 = 247.92_r_kind - (69.235_r_kind-44.177_r_kind*cos(zasat))*cos(zasat)
+  c1 = -116.27_r_kind
+  c2 = 73.409_r_kind
+
+  d0 = 8.240_r_kind - (2.622_r_kind - 1.846_r_kind*cos(zasat))*cos(zasat) 
+  d1 = 0.754_r_kind
+  d2 = -2.265_r_kind
+   
+  if(tsavg5>t0c)then
+     if (tb_obs(1) > zero .and. tb_obs(2) > zero) &
+!     clwp_amsua= cos(zasat)*(d0 + d1*log(tsavg5-tb_obs(1)) + d2*log(tsavg5-tb_obs(2)))
+
+     clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2)))
+     if(clwp_amsua < zero) clwp_amsua = zero
+
+     tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
+     if(tpwc_amsua < zero) tpwc_amsua = zero
+  end if
+     
+end subroutine ret_amsua
 
 end module clw_mod

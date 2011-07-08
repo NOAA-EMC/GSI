@@ -43,12 +43,17 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !   2008-05-28  safford - rm unused vars
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2009-09-01  li      - add to handle nst fields and read/use data over water only
 !   2009-12-20  gayno - add option to calculate surface fields based on
 !                       the size/shape of field of view.
 !   2010-01-28  derber - move calculation of sun glint angle to setuprad
 !   2010-02-25  collard - move where nread is calculated to before thinning
 !                         step (more consistent with other obs).
 !   2010-03-22  collard - ensure solar azimuth is in the range 0-360 degrees.
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
+!                         (2) get zob, tz_tr (call skindepth and cal_tztr)
+!                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
+!                         (4) add more elements (nstinfo) in data array
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -82,10 +87,10 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
               checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,nusis,jpch_rad
+  use radinfo, only: iuse_rad,nusis,jpch_rad,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
        tll2xy
-  use constants, only: deg2rad,rad2deg,izero,ione,zero,three,r60inv
+  use constants, only: deg2rad,rad2deg,zero,one,three,r60inv
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_conical, only: instrument_init
 
@@ -148,6 +153,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   character(len=7),parameter:: fov_flag="conical"
   character(len=3) :: fov_satid
@@ -209,26 +215,31 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 ! Initialize variables
   ilon = 3_i_kind
   ilat = 4_i_kind
-  m = izero
+
+  if (nst_gsi > 0 ) then
+    call skindepth(obstype,zob)
+  endif
+
+  m = 0
   do mon=1,12 
     mday(mon) = m 
     m = m + mlen(mon) 
   end do 
   disterrmax=zero
-  ntest = izero
-  nreal = maxinfo
-  ndata = izero
-  nodata = izero
+  ntest = 0
+  nreal = maxinfo+nstinfo
+  ndata = 0
+  nodata = 0
   amsre_low=     obstype == 'amsre_low'
   amsre_mid=     obstype == 'amsre_mid'
   amsre_hig=     obstype == 'amsre_hig'
-  orbit = -ione
-  old_orbit=-ione
-  iorbit = izero
+  orbit = -1
+  old_orbit=-1
+  iorbit = 0
   sstime = zero
   if(amsre_low)then
      kchanl=4_i_kind
-     kchamsre(1:4)=(/ione,2_i_kind,3_i_kind,4_i_kind/)
+     kchamsre(1:4)=(/1,2_i_kind,3_i_kind,4_i_kind/)
   else if(amsre_mid) then
      kchanl=6_i_kind
      kchamsre(1:6)=(/5_i_kind,6_i_kind,7_i_kind,8_i_kind,9_i_kind,10_i_kind/)
@@ -257,7 +268,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
   assim=.false.
   search: do i=1,jpch_rad
-     if ((nusis(i)==sis) .and. (iuse_rad(i)>izero)) then
+     if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
         assim=.true.
         exit search
      endif
@@ -268,7 +279,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 ! the fov size/shape is similar to ssmi/s.  so call
 ! fov code using f16 specs.
 
-  if(isfcalc==ione)then
+  if(isfcalc==1)then
      instr=26_i_kind
      fov_satid='f16'
      idum = -999_i_kind  ! dummy variable for fov number. not used for conical instr.
@@ -299,21 +310,21 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   allocate(data_all(nele,itxmax))
 
 ! Big loop to read data file
-  next=izero
-  do while(ireadmg(lnbufr,subset,idate)>=izero)
-     next=next+ione
-     if(next == npe_sub)next=izero
+  next=0
+  do while(ireadmg(lnbufr,subset,idate)>=0)
+     next=next+1
+     if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Retrieve bufr 1/4 :get aquaspot (said,orbn,soza)
-        call ufbint(lnbufr,aquaspot_d,3_i_kind,ione,iret,'SAID ORBN SOZA')
+        call ufbint(lnbufr,aquaspot_d,3_i_kind,1,iret,'SAID ORBN SOZA')
 
         said = nint(aquaspot_d(1))
         if(said /= AQUA_SAID)  cycle read_loop
 
 !       Retrieve bufr 2/4 :get amsrspot (siid,ymdhs,lat,lon)
-        call ufbrep(lnbufr,amsrspot_d,N_AMSRSPOT_LIST,ione,iret, &
+        call ufbrep(lnbufr,amsrspot_d,N_AMSRSPOT_LIST,1,iret, &
             'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ FOVN')
 
         siid = nint(amsrspot_d(1)) 
@@ -326,10 +337,10 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         idate5(4) = amsrspot_d(05)! hour
         idate5(5) = amsrspot_d(06)! min
         if( idate5(1) < 1900_i_kind .or. idate5(1) > 3000_i_kind .or. &
-            idate5(2) < ione        .or. idate5(2) >   12_i_kind .or. &
-            idate5(3) < ione        .or. idate5(3) >   31_i_kind .or. &
-            idate5(4) <izero        .or. idate5(4) >   24_i_kind .or. &
-            idate5(5) <izero        .or. idate5(5) >   60_i_kind )then
+            idate5(2) < 1        .or. idate5(2) >   12_i_kind .or. &
+            idate5(3) < 1        .or. idate5(3) >   31_i_kind .or. &
+            idate5(4) < 0        .or. idate5(4) >   24_i_kind .or. &
+            idate5(5) < 0        .or. idate5(5) >   60_i_kind )then
             write(6,*)'READ_AMSRE:  ### ERROR IN READING BUFR DATA:', &
               ' STRANGE OBS TIME (YMDHM):', idate5(1:5)
             cycle read_loop
@@ -397,8 +408,8 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         else
            dlat=dlat_earth
            dlon=dlon_earth
-           call grdcrd(dlat,ione,rlats,nlat,ione)
-           call grdcrd(dlon,ione,rlons,nlon,ione)
+           call grdcrd(dlat,1,rlats,nlat,1)
+           call grdcrd(dlon,1,rlons,nlon,1)
         endif
 
 !    Sum number of read obs before thinning step.  Note that this number will contain
@@ -423,7 +434,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !       When isfcalc is one, calculate surface fields based on size/shape of fov.
 !       Otherwise, use bilinear interpolation.
 
-        if (isfcalc==ione)then
+        if (isfcalc==1)then
            call deter_sfc_fov(fov_flag,idum,instr,ichan,amsrspot_d(11),dlat_earth_deg,&
                               dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
                               sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
@@ -433,6 +444,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
            if (amsre_low) then
               call deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
            endif
+           if(isflg/=0) cycle read_loop                            ! use data over water only
         endif
 
         crit1 = crit1 +rlndsea(isflg)
@@ -443,7 +455,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         call ufbrep(lnbufr,amsrchan_d,N_AMSRCHAN_LIST,12_i_kind,iret,'CHNM LOGRCW ACQF TMBR')
 
 !       Retrieve bufr 4/4 : get amsrfovn (fovn)
-        call ufbrep(lnbufr,amsrdice_tmbr,ione,20_i_kind,iret,'TMBR')
+        call ufbrep(lnbufr,amsrdice_tmbr,1,20_i_kind,iret,'TMBR')
 
         tbob_org(1)=amsrchan_d(4,2)
         tbob_org(2)=amsrchan_d(4,1)
@@ -460,17 +472,17 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
 !       Set obs information
 
-        iskip = izero
+        iskip = 0
         do l=1,nchanl
            if(tbob_org(l)<tbmin .or. tbob_org(l)>tbmax)then
-              iskip = iskip + ione
+              iskip = iskip + 1
            end if
         end do
-        kskip = izero
+        kskip = 0
         do l=1,kchanl
            kch=kchamsre(l)
            if(tbob_org(kch)<tbmin .or. tbob_org(kch)>tbmax)then
-              kskip = kskip + ione
+              kskip = kskip + 1
            endif
         end do
         if(kskip == kchanl .or. iskip == nchanl) cycle read_loop
@@ -498,8 +510,8 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
 !  -------- Retreive Sun glint angle -----------
         doy = mday( int(idate5(2)) ) + int(idate5(3))
-        if ((mod( int(idate5(1)),4_i_kind)==izero).and.( int(idate5(2)) > 2_i_kind))  then 
-           doy = doy + ione
+        if ((mod( int(idate5(1)),4_i_kind)==0).and.( int(idate5(2)) > 2_i_kind))  then 
+           doy = doy + 1
         end if 
 
         ifov = nint(fovn)
@@ -519,6 +531,18 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !          saz = amsrspot(10,1)*deg2rad   ! satellite zenith angle (rad) 
 !             ==> not use this value but fixed values(55.0 deg)   10/12/04
 !             because BUFR saza value looks strange (raging -3 to 25),
+!
+!       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!
+        if ( nst_gsi > 0 ) then
+          tref  = ts(0)
+          dtw   = zero
+          dtc   = zero
+          tz_tr = one
+          if ( sfcpct(0) > zero ) then
+            call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+          endif
+        endif
 
         data_all(1,itx) = 49_i_kind               ! satellite ID
         data_all(2,itx) = t4dv                    ! time diff (obs - anal) (hours)
@@ -528,7 +552,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         data_all(6,itx) = amsrspot_d(11)          ! satellite azimuth angle
         data_all(7,itx) = zero                    ! look angle (rad)
 !       data_all(8,itx) = ifov                    ! fov number    1-196
-        data_all(8,itx) = ifov/3 + ione           ! fov number/3  1-65 !kozo
+        data_all(8,itx) = ifov/3 + 1              ! fov number/3  1-65 !kozo
         data_all(9,itx) = sun_zenith              ! solar zenith angle (deg)
         data_all(10,itx)= sun_azimuth             ! solar azimuth angle (deg)
         data_all(11,itx) = sfcpct(0)              ! sea percentage of
@@ -556,6 +580,13 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         data_all(32,itx)= val_amsre
         data_all(33,itx)= itt
 
+        if ( nst_gsi > 0 ) then
+          data_all(maxinfo+1,itx) = tref                ! foundation temperature
+          data_all(maxinfo+2,itx) = dtw                 ! dt_warm at zob
+          data_all(maxinfo+3,itx) = dtc                 ! dt_cool at zob
+          data_all(maxinfo+4,itx) = tz_tr               ! d(Tz)/d(Tr)
+        endif
+
         do l=1,nchanl
            data_all(l+nreal,itx) = tbob_org(l)
         end do
@@ -574,7 +605,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root.and.ndata>izero) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -582,9 +613,9 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
      do n=1,ndata
         do i=1,nchanl
            if(data_all(i+nreal,n) > tbmin .and. &
-                data_all(i+nreal,n) < tbmax)nodata=nodata+ione
+                data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(nreal,n))
+        itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_amsre
 
      end do
@@ -598,7 +629,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   deallocate(data_all) ! Deallocate data arrays
   call destroygrids    ! Deallocate satthin arrays
 
-  if(diagnostic_reg.and.ntest>izero .and. mype_sub==mype_root) &
+  if(diagnostic_reg.and.ntest>0 .and. mype_sub==mype_root) &
        write(6,*)'READ_AMSRE:  ',&
        'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
@@ -680,7 +711,7 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
 !$$$
 !
   use kinds, only: r_single,r_kind,i_kind
-  use constants, only: deg2rad,rad2deg,ione,one,r60inv,zero
+  use constants, only: deg2rad,rad2deg,one,r60inv,zero
 
   implicit none
 
@@ -732,7 +763,7 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
   tt= mod(real((int(day)+time/24._r_kind-one)),365.25_r_single) + one  ! fractional day number
                                                     ! with 12am 1jan = 1.
   do di = 1, 73
-     if ((tt >= nday(di)) .and. (tt <= nday(di+ione))) exit
+     if ((tt >= nday(di)) .and. (tt <= nday(di+1))) exit
   end do
 
 !============== Perform a least squares regression on doy**3 ==============
@@ -747,14 +778,14 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
   end if
   if (di == 2_i_kind) then
      y(1) = eqt(73)
-     y(2:5) = eqt(di-ione:di+2_i_kind)
+     y(2:5) = eqt(di-1:di+2_i_kind)
      y2(1) = dec(73)
-     y2(2:5) = dec(di-ione:di+2_i_kind)
+     y2(2:5) = dec(di-1:di+2_i_kind)
 
      x(2,1) = nday(73)**3
-     x(2,2:5) = (365._r_kind+nday(di-ione:di+2_i_kind))**3
+     x(2,2:5) = (365._r_kind+nday(di-1:di+2_i_kind))**3
   end if
-  if (di == ione) then
+  if (di == 1) then
      y(1:2) = eqt(72:73)
      y(3:5) = eqt(di:di+2_i_kind)
      y2(1:2) = dec(72:73)
@@ -764,12 +795,12 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
      x(2,3:5) = (365._r_kind+nday(di:di+2_i_kind))**3
   end if
   if (di == 73_i_kind) then
-     y(1:4) = eqt(di-2_i_kind:di+ione)
+     y(1:4) = eqt(di-2_i_kind:di+1)
      y(5) = eqt(2)
-     y2(1:4) = dec(di-2_i_kind:di+ione)
+     y2(1:4) = dec(di-2_i_kind:di+1)
      y2(5) = dec(2)
 
-     x(2,1:4) = nday(di-2_i_kind:di+ione)**3
+     x(2,1:4) = nday(di-2_i_kind:di+1)**3
      x(2,5) = (365._r_kind+nday(2))**3
   end if
   if (di == 74_i_kind) then
@@ -886,7 +917,7 @@ subroutine deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
 !$$$
    use kinds, only: r_kind,i_kind
    use satthin, only: sno_full,isli_full
-   use constants, only: izero,ione,zero,one
+   use constants, only: zero,one
    use gridmod, only: regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
    use guess_grids, only: ntguessfc
    implicit none
@@ -925,8 +956,8 @@ subroutine deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
      else
         dlat=dlat_earth
         dlon=dlon_earth
-        call grdcrd(dlat,ione,rlats_sfc,nlat_sfc,ione)
-        call grdcrd(dlon,ione,rlons_sfc,nlon_sfc,ione)
+        call grdcrd(dlat,1,rlats_sfc,nlat_sfc,1)
+        call grdcrd(dlon,1,rlons_sfc,nlon_sfc,1)
      end if
 
      klon1=int(dlon); klat1=int(dlat)
@@ -934,67 +965,67 @@ subroutine deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
      dx1 =one-dx;    dy1 =one-dy
      w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
 
-     klat1=min(max(ione,klat1),nlat_sfc); klon1=min(max(izero,klon1),nlon_sfc)
-     if(klon1==izero) klon1=nlon_sfc
-     klatp1=min(nlat_sfc,klat1+ione); klonp1=klon1+ione
-     if(klonp1==nlon_sfc+ione) klonp1=ione
-     klonp2 = klonp1+ione
-     if(klonp2==nlon_sfc+ione) klonp2=ione
-     klon2=klon1-ione
-     if(klon2==izero)klon2=nlon_sfc
-     klat2=max(ione,klat1-ione)
-     klatp2=min(nlat_sfc,klatp1+ione)
+     klat1=min(max(1,klat1),nlat_sfc); klon1=min(max(0,klon1),nlon_sfc)
+     if(klon1==0) klon1=nlon_sfc
+     klatp1=min(nlat_sfc,klat1+1); klonp1=klon1+1
+     if(klonp1==nlon_sfc+1) klonp1=1
+     klonp2 = klonp1+1
+     if(klonp2==nlon_sfc+1) klonp2=1
+     klon2=klon1-1
+     if(klon2==0)klon2=nlon_sfc
+     klat2=max(1,klat1-1)
+     klatp2=min(nlat_sfc,klatp1+1)
     
 !    Set surface type flag.  Begin by assuming obs over ice-free water
 
      sfcpct = zero
 
      jsli = isli_full(klat1 ,klon1 )
-     if(sno_full(klat1 ,klon1 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klat1 ,klon1 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp1,klon1 )
-     if(sno_full(klatp1 ,klon1 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klatp1 ,klon1 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klat1 ,klonp1)
-     if(sno_full(klat1 ,klonp1 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klat1 ,klonp1 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp1,klonp1)
-     if(sno_full(klatp1 ,klonp1 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klatp1 ,klonp1 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp2,klon1)
-     if(sno_full(klatp2 ,klon1 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klatp2 ,klon1 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp2,klonp1)
-     if(sno_full(klatp2 ,klonp1 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klatp2 ,klonp1 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp1,klon2)
-     if(sno_full(klatp1 ,klon2 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klatp1 ,klon2 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp1,klonp2)
-     if(sno_full(klatp1 ,klonp2 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klatp1 ,klonp2 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klat1,klon2)
-     if(sno_full(klat1 ,klon2 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klat1 ,klon2 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klat1,klonp2)
-     if(sno_full(klat1 ,klonp2 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klat1 ,klonp2 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klat2,klon1)
-     if(sno_full(klat2 ,klon1 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klat2 ,klon1 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klat2,klonp1)
-     if(sno_full(klat2 ,klonp1 ,it) > one .and. jsli == ione)jsli=3_i_kind
+     if(sno_full(klat2 ,klonp1 ,it) > one .and. jsli == 1)jsli=3_i_kind
      sfcpct(jsli)=sfcpct(jsli)+one
 
      sfcpct=sfcpct/12.0_r_kind
@@ -1002,11 +1033,11 @@ subroutine deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
 !     sfcpct(3)=min(sfcpct(3),sfcpct(1))
 !     sfcpct(1)=max(zero,sfcpct(1)-sfcpct(3))
 
-     isflg = izero
+     isflg = 0
      if(sfcpct(0) > 0.99_r_kind)then
-        isflg = izero
+        isflg = 0
      else if(sfcpct(1) > 0.99_r_kind)then
-        isflg = ione
+        isflg = 1
      else if(sfcpct(2) > 0.99_r_kind)then
         isflg = 2_i_kind
      else if(sfcpct(3) > 0.99_r_kind)then

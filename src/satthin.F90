@@ -31,14 +31,19 @@ module satthin
 !   2009-08-19  guo     - added assertions of ntguessig and ntguessfc.
 !   2009-09-14  guo     - added an experimenting description of the usecase.
 !			- added an an array size assertion on istart_val(:).
+!   2011-04-01  li      - add getnst to read nst fields, add destroy_nst
+!   2011-05-26  todling - add create_nst
 !
 ! Subroutines Included:
 !   sub makegvals      - set up for superob weighting
 !   sub makegrids      - set up thinning grids
 !   sub getsfc         - create full horizontal fields of surface arrays
+!   sub getnst         - create full horizontal fields of nst arrays
 !   sub map2tgrid      - map observation to location on thinning grid
 !   sub destroygrids   - deallocate thinning grid arrays
 !   sub destroy_sfc    - deallocate full horizontal surface arrays
+!   sub create_nst     - allocate full horizontal nst arrays
+!   sub destroy_nst    - deallocate full horizontal nst arrays
 !   sub indexx         - sort array into ascending order
 !
 ! Usecase destription:
@@ -74,6 +79,15 @@ module satthin
 !   def zs_full        - model terrain elevation
 !   def score_crit     - "best" quality obs score in thinning grid box
 !   def use_all        - parameter for turning satellite thinning algorithm off
+!   def tref_full      - sea reference temperature
+!   def dt_cool_full   - sea cooling amount across sub-layer
+!   def z_c_full       - sub-layer thickness
+!   def dt_warm_full   - sea diurnal warming amount
+!   def z_w_full       - diurnal warming layer thickness
+!   def c_0_full       - coefficient 1 to calculate d(Tz)/d(Tr)
+!   def c_d_full       - coefficient 2 to calculate d(Tz)/d(Tr)
+!   def w_0_full       - coefficient 3 to calculate d(Tz)/d(Tr)
+!   def w_d_full       - coefficient 4 to calculate d(Tz)/d(Tr)
 !
 ! attributes:
 !   language: f90
@@ -91,15 +105,20 @@ module satthin
   public :: makegvals
   public :: makegrids
   public :: getsfc
+  public :: getnst
   public :: map2tgrid
   public :: destroygrids
   public :: destroy_sfc
+  public :: create_nst
+  public :: destroy_nst
   public :: indexx
 ! set passed variables to public
   public :: rlat_min,rlon_min,dlat_grid,dlon_grid,superp,super_val1,super_val
   public :: veg_type_full,soil_type_full,sfc_rough_full,sno_full,sst_full
   public :: fact10_full,isli_full,soil_moi_full,veg_frac_full,soil_temp_full
   public :: checkob,score_crit,itxmax,finalcheck,zs_full_gfs,zs_full
+  public :: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full
+  public :: c_0_full,c_d_full,w_0_full,w_d_full
 
   integer(i_kind) mlat,superp,maxthin,itxmax
   integer(i_kind),dimension(0:51):: istart_val
@@ -116,6 +135,8 @@ module satthin
   real(r_kind),allocatable,dimension(:,:,:):: veg_frac_full,soil_temp_full
   real(r_kind),allocatable,dimension(:,:,:):: soil_moi_full,sfc_rough_full
   real(r_kind),allocatable,dimension(:,:,:):: sst_full,sno_full,fact10_full
+  real(r_kind),allocatable,dimension(:,:,:):: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full
+  real(r_kind),allocatable,dimension(:,:,:):: c_0_full,c_d_full,w_0_full,w_d_full
 
   logical use_all
 
@@ -430,7 +451,7 @@ contains
     real(r_kind),allocatable,dimension(:)::wlatx,slatx
     real(r_kind) :: dlon, missing
     real(r_kind),allocatable,dimension(:,:)::dum
-    real(r_single),allocatable,dimension(:,:)::dummy
+    real(r_kind),allocatable,dimension(:,:)::dummy
     integer(i_kind) mm1,i,j,k,it,il,jl,jmax,idrt
     character(24) filename
 
@@ -801,6 +822,57 @@ contains
 
   end subroutine getsfc
 
+  subroutine getnst(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    getnst
+!     prgmmr:    xu li     org: np23                date: 2008-04-16
+!
+! abstract:  This routine read full horizontal nst fields for use in
+!            reading of observations.
+!
+! program history log:
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    use kinds, only: r_kind,i_kind
+    use gridmod, only: nlat,nlon,nlat_sfc,nlon_sfc
+    use guess_grids, only: ntguesnst,nfldnst,ifilenst
+    use ncepgfs_io, only: read_gfsnst
+
+    implicit none
+
+    integer(i_kind) mype,it
+
+    character(24) filename
+
+    if( ntguesnst < 1 .or. ntguesnst > nfldnst ) then
+        call perr('satthin.getnst','ntguesnst = ',ntguesnst)
+	call die('satthin.getnst')
+    endif
+
+    if(mype == 0)write(6,*)'GETNST:  enter with nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
+	' and nlat,nlon=',nlat,nlon
+
+    do it=1,nfldnst
+      write(filename,200)ifilenst(it)
+200   format('nstf',i2.2)
+      call read_gfsnst(filename,mype,&
+           tref_full(1,1,it),dt_cool_full(1,1,it),z_c_full(1,1,it), &
+           dt_warm_full(1,1,it), z_w_full(1,1,it), &
+           c_0_full(1,1,it),c_d_full(1,1,it),w_0_full(1,1,it),w_d_full(1,1,it))
+
+    end do
+
+  end subroutine getnst
+
   subroutine map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1060,6 +1132,76 @@ contains
 
     return
   end subroutine destroy_sfc
+
+  subroutine create_nst
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    create_nst
+!     prgmmr:    todling   org: np23                date: 2011-05-26
+!
+! abstract:  Allocate nst-related variables
+!
+! program history log:
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    use gridmod, only: nlat_sfc,nlon_sfc
+    use guess_grids, only: nfldnst
+    implicit none
+
+    if(.not.allocated(w_d_full))     allocate(w_d_full    (nlat_sfc,nlon_sfc,nfldnst))
+    if(.not.allocated(w_0_full))     allocate(w_0_full    (nlat_sfc,nlon_sfc,nfldnst))
+    if(.not.allocated(c_d_full))     allocate(c_d_full    (nlat_sfc,nlon_sfc,nfldnst))
+    if(.not.allocated(c_0_full))     allocate(c_0_full    (nlat_sfc,nlon_sfc,nfldnst))
+    if(.not.allocated(z_w_full))     allocate(z_w_full    (nlat_sfc,nlon_sfc,nfldnst))
+    if(.not.allocated(dt_warm_full)) allocate(dt_warm_full(nlat_sfc,nlon_sfc,nfldnst))
+    if(.not.allocated(z_c_full))     allocate(z_c_full    (nlat_sfc,nlon_sfc,nfldnst))
+    if(.not.allocated(dt_cool_full)) allocate(dt_cool_full(nlat_sfc,nlon_sfc,nfldnst))
+    if(.not.allocated(tref_full))    allocate(tref_full   (nlat_sfc,nlon_sfc,nfldnst))
+
+    return
+  end subroutine create_nst
+
+  subroutine destroy_nst
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroy_nst
+!     prgmmr:    xu li     org: np23                date: 2009-08-31
+!
+! abstract:  This deallocate nst arrays
+!
+! program history log:
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    implicit none
+
+    if(allocated(tref_full))    deallocate(tref_full)
+    if(allocated(dt_cool_full)) deallocate(dt_cool_full)
+    if(allocated(z_c_full))     deallocate(z_c_full)
+    if(allocated(dt_warm_full)) deallocate(dt_warm_full)
+    if(allocated(z_w_full))     deallocate(z_w_full)
+    if(allocated(c_0_full))     deallocate(c_0_full)
+    if(allocated(c_d_full))     deallocate(c_d_full)
+    if(allocated(w_0_full))     deallocate(w_0_full)
+    if(allocated(w_d_full))     deallocate(w_d_full)
+
+    return
+  end subroutine destroy_nst
 
   subroutine indexx(n,arr,indx)
 !$$$  subprogram documentation block

@@ -184,6 +184,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
       if(jsatid == 'n17')kidsat=208
       if(jsatid == 'n18')kidsat=209
       if(jsatid == 'n19')kidsat=223
+      if(jsatid == 'npp')kidsat=224
       if(jsatid == 'f08')kidsat=241
       if(jsatid == 'f10')kidsat=243
       if(jsatid == 'f11')kidsat=244
@@ -333,6 +334,10 @@ subroutine read_obs(ndata,mype)
 !   2010-04-05  huang   - add aero and modis for reading modis aod from satellite
 !                         currently read BUFR file only
 !   2010-04-22  tangborn - read for carbon monoxide
+!   2010-08-23  tong    - add calcuation of hgtl_full used in read_radar.f90
+!   2011-04-02  li       - add nst_gsi, getnst and destroy_nst
+!   2011-05-20  mccarty  - add cris/atms handling
+!   2011-05-26  todling  - add call to create_nst
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -354,13 +359,14 @@ subroutine read_obs(ndata,mype)
            dtype,dval,dmesh,obsfile_all,ref_obs,nprof_gps,dsis,ditype,&
            oberrflg,perturb_obs,lobserver,lread_obs_save,obs_input_common,reduce_diag
     use gsi_4dvar, only: l4dvar
-    use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
+    use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc,getnst,create_nst,destroy_nst
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
          setcomm
     use constants, only: one,zero
     use converr, only: converr_read
-    use guess_grids, only: ges_prsl,ntguessig
-    use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad
+    use guess_grids, only: ges_prsl,geop_hgtl,ntguessig
+    use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad,nst_gsi
+    use insitu_info, only: mbuoy_info,read_ship_info
     use aeroinfo, only: nusis_aero,iuse_aero,jpch_aero,diag_aero
     use ozinfo, only: nusis_oz,iuse_oz,jpch_oz,diag_ozone
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
@@ -377,7 +383,7 @@ subroutine read_obs(ndata,mype)
     integer(i_llong),parameter:: lenbuf=8388608_i_llong  ! lenbuf=8*1024*1024
 
 !   Declare local variables
-    logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full
+    logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full,use_hgtl_full
     logical :: use_sfc,nuse
     logical,dimension(ndat):: belong,parallel_read
     logical :: modis
@@ -402,9 +408,9 @@ subroutine read_obs(ndata,mype)
     integer(i_kind),allocatable,dimension(:):: nrnd
 
     real(r_kind) gstime,val_dat,rmesh,twind,rseed
-    real(r_kind),dimension(lat1*lon1):: prslsm
+    real(r_kind),dimension(lat1*lon1):: prslsm,hgtlsm
     real(r_kind),dimension(max(iglobal,itotsub)):: work1
-    real(r_kind),allocatable,dimension(:,:,:):: prsl_full
+    real(r_kind),allocatable,dimension(:,:,:):: prsl_full,hgtl_full
 
     data lunout / 81 /
     data lunsave  / 82 /
@@ -468,8 +474,9 @@ subroutine read_obs(ndata,mype)
        if(obstype == 'amsub' .and. dthin(i) > 0)parallel_read(i)= .true.
        if(obstype == 'hsb' .and. dthin(i) > 0)parallel_read(i)= .true.
        if(obstype == 'iasi' .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'cris' .and. dthin(i) > 0)parallel_read(i)= .true.
        if(obstype == 'amsua' .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'iasi' .and. dthin(i) > 0)parallel_read(i)= .true.
+       if(obstype == 'atms' .and. dthin(i) > 0)parallel_read(i)= .true.
        if(obstype == 'mhs' .and. dthin(i) > 0)parallel_read(i)= .true.
        if(obstype == 'goes_img' .and. dthin(i) > 0)parallel_read(i)= .true.
        if(obstype == 'ssu' .and. dthin(i) > 0)parallel_read(i)= .true.
@@ -489,9 +496,10 @@ subroutine read_obs(ndata,mype)
                obstype == 'msu'       .or. obstype == 'iasi'      .or.  &
                obstype == 'amsub'     .or. obstype == 'mhs'       .or.  &
                obstype == 'hsb'       .or. obstype == 'goes_img'  .or.  &
-               avhrr .or.  &
+               avhrr .or.                                               &
                amsre  .or. ssmis      .or. obstype == 'ssmi'      .or.  &
-               obstype == 'ssu' ) then
+               obstype == 'ssu'       .or. obstype == 'atms'      .or.  &
+               obstype == 'cris'                                    ) then
           ditype(i) = 'rad'
        else if (obstype == 'sbuv2' .or. obstype == 'omi' &
            .or. obstype == 'gome'  .or. obstype == 'o3lev' &
@@ -698,12 +706,16 @@ subroutine read_obs(ndata,mype)
 
 
     use_prsl_full=.false.
+    use_hgtl_full=.false.
     use_sfc=.false.
     do i=1,ndat
        if(belong(i) .and. ditype(i) =='conv')then
           obstype=dtype(i)                  
           if(obstype /= 'dw' .and. obstype /= 'rw' .and. obstype /= 'srw')then
              use_prsl_full=.true.
+          end if
+          if(obstype == 'rw')then
+             use_hgtl_full=.true.
           end if
        else if(belong(i) .and. (ditype(i) == 'rad' .or. ditype(i)=='pcp'))then
           use_sfc=.true.
@@ -724,9 +736,36 @@ subroutine read_obs(ndata,mype)
           end do
        end if
     end do
+!   Get guess 3d geopotential height on full grid
+    if(use_hgtl_full)allocate(hgtl_full(nlat,nlon,nsig))    
+    do k=1,nsig
+       call strip(geop_hgtl(1,1,k,ntguessig),hgtlsm,1)
+       call mpi_allgatherv(hgtlsm,ijn(mype+1),mpi_rtype,&
+            work1,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
+       if(use_hgtl_full)then
+          call reorder(work1,1,1)
+          do ii=1,iglobal
+             i=ltosi(ii)
+             j=ltosj(ii)
+             hgtl_full(i,j,k)=work1(ii)
+          end do
+        end if
+    end do
 !   Create full horizontal surface fields from local fields in guess_grids
     call getsfc(mype,use_sfc)
     if(use_sfc) call prt_guessfc2('sfcges2')
+
+!   Create full horizontal nst fields from local fields in guess_grids/read it from nst file
+    if (nst_gsi > 0) then
+      call create_nst
+      call getnst(mype)
+
+!     Create moored buoy station ID
+      call mbuoy_info(mype)
+
+!     Create ships info(ID, Depth & Instrument)
+      call read_ship_info(mype)
+    endif
 
 !   Loop over data files.  Each data file is read by a sub-communicator
     do ii=1,mmdat
@@ -766,7 +805,7 @@ subroutine read_obs(ndata,mype)
 !            Process conventional SST (modsbufr, at this moment) data
              elseif ( obstype == 'sst' ) then
                 if ( platid == 'mods') then
-                   call read_modsbufr(nread,npuse,nouse,gstime,infile,obstype, &
+                   call read_modsbufr(mype,nread,npuse,nouse,gstime,infile,obstype, &
                         lunout,twind,sis)
                    string='READ_MODSBUFR'
                 else
@@ -792,7 +831,8 @@ subroutine read_obs(ndata,mype)
 
 !            Process radar winds
              else if (obstype == 'rw') then
-                call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis)
+                call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis,&
+                                ithin,rmesh,hgtl_full)
                 string='READ_RADAR'
 
 !            Process lagrangian data
@@ -838,7 +878,7 @@ subroutine read_obs(ndata,mype)
                   obstype == 'amsub' .or. obstype == 'msu'   .or.  &
                   obstype == 'mhs'   .or. obstype == 'hirs4' .or.  &
                   obstype == 'hirs3' .or. obstype == 'hirs2' .or.  &
-                  obstype == 'ssu')) then
+                  obstype == 'ssu'   .or. obstype == 'atms'  )) then
                 llb=1
                 lll=1
                 if((obstype == 'amsua' .or. obstype == 'amsub' .or. obstype == 'mhs') .and. &
@@ -862,6 +902,13 @@ subroutine read_obs(ndata,mype)
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                 string='READ_IASI'
+
+!            Process cris data
+             else if(obstype == 'cris')then
+                call read_cris(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
+                string='READ_CRIS'
 
 !            Process GOES sounder data
 !            Process raw or prepbufr files (1x1 or 5x5)
@@ -979,10 +1026,12 @@ subroutine read_obs(ndata,mype)
 
     end do
     if(use_prsl_full)deallocate(prsl_full)
+    if(use_hgtl_full)deallocate(hgtl_full)
 
 !   Deallocate arrays containing full horizontal surface fields
     call destroy_sfc
-
+!   Deallocate arrays containing full horizontal nst fields
+    call destroy_nst
 !   Sum and distribute number of obs read and used for each input ob group
     call mpi_allreduce(ndata1,ndata,ndat*3,mpi_integer,mpi_sum,mpi_comm_world,&
        ierror)

@@ -13,6 +13,7 @@ module stpsstmod
 !   2008-12-02  Todling - remove stpsst_tl
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
+!   2011-04-03  li      - modify for Tr analysis
 !
 ! subroutines included:
 !   sub stpsst
@@ -76,6 +77,7 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
+  use radinfo, only: nst_gsi
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
@@ -96,6 +98,7 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
   real(r_kind) pg_sst
   real(r_kind),pointer,dimension(:) :: ssst
   real(r_kind),pointer,dimension(:) :: rsst
+  real(r_kind) tdir,rdir
   type(sst_ob_type), pointer :: sstptr
 
   out=zero_quad
@@ -120,8 +123,15 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
            w3=sstptr%wij(3)
            w4=sstptr%wij(4)
 
-           val =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
-           val2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)-sstptr%res
+           if ( nst_gsi > 2 ) then
+             tdir = w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
+             rdir = w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
+             val  = sstptr%tz_tr*rdir
+             val2 = sstptr%tz_tr*tdir - sstptr%res
+           else
+             val =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
+             val2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)-sstptr%res
+           endif
 
            do kk=1,nstep
               sst=val2+sges(kk)*val

@@ -16,6 +16,7 @@ module anberror
 !   2008-12-10  zhu  - use nvars from jfunc,add changes for generalized control variables
 !   2010-05-06  zhu  - add vprecond for newpc4pred
 !   2010-06-05  todling - an_amp no longer has wired-in order of variables in CV
+!   2011-04-07  todling - newpc4pred now in radinfo
 !
 ! subroutines included:
 !   sub init_anberror             - initialize extra anisotropic background error
@@ -267,7 +268,8 @@ contains
 
     use fgrid2agrid_mod, only: create_fgrid2agrid
     use jfunc, only: nrclen,nclen
-    use berror, only: varprd,vprecond,newpc4pred,bnf=>nf,bnr=>nr
+    use berror, only: varprd,vprecond,bnf=>nf,bnr=>nr
+    use radinfo, only:newpc4pred
     use gridmod, only: nlat,nlon
     implicit none
 
@@ -370,7 +372,8 @@ contains
 !
 !$$$
     use fgrid2agrid_mod, only: destroy_fgrid2agrid
-    use berror, only: vprecond,newpc4pred 
+    use berror, only: vprecond
+    use radinfo, only: newpc4pred
     implicit none
 
     deallocate(an_amp)
@@ -396,6 +399,7 @@ contains
 !   2005-02-08  parrish
 !   2005-05-24  pondeca - take into consideration that nrclen=0 for 2dvar only
 !                         surface analysis option!
+!
 !   input argument list:
 !     mype     - mpi task id
 !
@@ -408,7 +412,8 @@ contains
 !$$$
     use fgrid2agrid_mod, only: create_fgrid2agrid
     use jfunc, only: nrclen,nclen
-    use berror, only: varprd,vprecond,newpc4pred
+    use berror, only: varprd,vprecond
+    use radinfo, only: newpc4pred
     use gridmod, only: nlat,nlon,istart,jstart
     implicit none
 
@@ -620,7 +625,8 @@ contains
 !$$$ end documentation block
 
     use fgrid2agrid_mod, only: destroy_fgrid2agrid
-    use berror, only: vprecond,newpc4pred
+    use berror, only: vprecond
+    use radinfo, only: newpc4pred
     implicit none
 
     integer(i_kind) k

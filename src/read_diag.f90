@@ -14,6 +14,8 @@
 !   2010-10-05 treadon - refactor code to GSI standard
 !   2010-10-08 zhu     - use data_tmp to handle various npred values
 !   2011-02-22 kleist  - changes related to memory allocate/deallocate
+!   2011-04-08 li      - add tref, dtw, dtc to diag_data_fix_list, add tb_tz to diag_data_chan_list
+!                      - correspondingly, change ireal_radiag (26 -> 30) and ipchan_radiag (7 -> 8)
 !
 ! contains
 !   read_radiag_header - read radiance diagnostic file header
@@ -42,11 +44,13 @@ module read_diag
   public :: read_radiag_header
   public :: read_radiag_data
   public :: iversion_radiag
+  public :: iversion_radiag_1
+  public :: iversion_radiag_2
   public :: ireal_radiag
   public :: ipchan_radiag
 
-  integer(i_kind),parameter :: ireal_radiag  = 26   ! number of real entries per spot in radiance diagnostic file
-  integer(i_kind),parameter :: ipchan_radiag = 7    ! number of entries per channel per spot in radiance diagnostic file
+  integer(i_kind),parameter :: ireal_radiag  = 30   ! number of real entries per spot in radiance diagnostic file
+  integer(i_kind),parameter :: ipchan_radiag = 8    ! number of entries per channel per spot in radiance diagnostic file
 
 ! Declare structures for radiance diagnostic file information
   type diag_header_fix_list
@@ -110,6 +114,10 @@ module read_diag
      real(r_single) :: sfc_wndspd        ! surface wind speed
      real(r_single) :: qcdiag1           ! ir=cloud fraction, mw=cloud liquid water
      real(r_single) :: qcdiag2           ! ir=cloud top pressure, mw=total column water
+     real(r_single) :: tref              ! reference temperature (Tr) in NSST
+     real(r_single) :: dtw               ! dt_warm at zob
+     real(r_single) :: dtc               ! dt_cool at zob
+     real(r_single) :: tz_tr             ! d(Tz)/d(Tr)
   end type diag_data_fix_list
 
   type diag_data_chan_list
@@ -120,6 +128,7 @@ module read_diag
      real(r_single) :: qcmark             ! quality control mark
      real(r_single) :: emiss              ! surface emissivity
      real(r_single) :: tlap               ! temperature lapse rate
+     real(r_single) :: tb_tz              ! d(Tb)/d(Tz)
      real(r_single) :: bicons             ! constant bias correction term
      real(r_single) :: biang              ! scan angle bias correction term
      real(r_single) :: biclw              ! CLW bias correction term
@@ -133,7 +142,10 @@ module read_diag
      real(r_single) :: extra              ! extra information
   end type diag_data_extra_list
 
-  integer(i_kind),parameter:: iversion_radiag = 11104
+  integer(i_kind),parameter:: iversion_radiag   = 13784   ! Current version
+  integer(i_kind),parameter:: iversion_radiag_1 = 11104   ! Version when bias-correction entries were modified 
+  integer(i_kind),parameter:: iversion_radiag_2 = 13784   ! Version when NSST entries were added 
+
   real(r_single),parameter::  rmiss_radiag    = -9.9e11_r_single
 
 contains
@@ -212,7 +224,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
      header_fix%jextra  = jextra
      header_fix%idiag   = ipchan+npred+1
      header_fix%angord  = 0
-     header_fix%iversion= iversion_radiag-1
+     header_fix%iversion= 0
      header_fix%inewpc  = 0
   endif
 
@@ -267,6 +279,10 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
      data_name%fix(24)='wndspd    '
      data_name%fix(25)='qc1       '
      data_name%fix(26)='qc2       '
+     data_name%fix(27)='tref      '
+     data_name%fix(28)='dtw       '
+     data_name%fix(29)='dtc       '
+     data_name%fix(30)='tz_tr     '
 
      data_name%chn(1)='obs       '
      data_name%chn(2)='omgbc     '
@@ -275,8 +291,9 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
      data_name%chn(5)='qcmark    '
      data_name%chn(6)='emiss     '
      data_name%chn(7)='tlap      '
+     data_name%chn(8)='tb_tz     '
 
-     if (header_fix%iversion<iversion_radiag) then
+     if (header_fix%iversion < iversion_radiag_1) then
         data_name%chn( 8)= 'bifix     '
         data_name%chn( 9)= 'bilap     '
         data_name%chn(10)= 'bilap2    '
@@ -284,7 +301,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
         data_name%chn(12)= 'biang     '
         data_name%chn(13)= 'biclw     '
         if (retrieval) data_name%chn(13)= 'bisst     '
-     else
+     elseif ( header_fix%iversion < iversion_radiag_2 .and. header_fix%iversion > iversion_radiag_1 ) then
         data_name%chn( 8)= 'bicons    '
         data_name%chn( 9)= 'biang     '
         data_name%chn(10)= 'biclw     '
@@ -296,6 +313,18 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
         end do
         data_name%chn(12+header_fix%angord+1)= 'bifix     '
         data_name%chn(12+header_fix%angord+2)= 'bisst     '
+     else
+        data_name%chn( 9)= 'bicons    '
+        data_name%chn(10)= 'biang     '
+        data_name%chn(11)= 'biclw     '
+        data_name%chn(12)= 'bilap2    '
+        data_name%chn(13)= 'bilap     '
+        do i=1,header_fix%angord
+           write(string,'(i2.2)') header_fix%angord-i+1
+           data_name%chn(13+i)= 'bifix' // string
+        end do
+        data_name%chn(13+header_fix%angord+1)= 'bifix     '
+        data_name%chn(13+header_fix%angord+2)= 'bisst     '
      endif
 
 ! Read header (channel part)
@@ -383,8 +412,9 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
      data_chan(ich)%qcmark=data_tmp(5,ich)
      data_chan(ich)%emiss =data_tmp(6,ich)
      data_chan(ich)%tlap  =data_tmp(7,ich)
+     data_chan(ich)%tb_tz =data_tmp(8,ich)
   end do
-  if (header_fix%iversion<iversion_radiag) then
+  if (header_fix%iversion < iversion_radiag_1) then
      do ich=1,header_fix%nchan
         data_chan(ich)%bifix(1)=data_tmp(8,ich)
         data_chan(ich)%bilap   =data_tmp(9,ich)
@@ -398,7 +428,7 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
            data_chan(ich)%bisst   =data_tmp(13,ich) 
         endif
      end do
-  else
+  elseif ( header_fix%iversion < iversion_radiag_2 .and. header_fix%iversion > iversion_radiag_1 ) then
      do ich=1,header_fix%nchan
         data_chan(ich)%bicons=data_tmp(8,ich)
         data_chan(ich)%biang =data_tmp(9,ich)
@@ -412,6 +442,20 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
         end do
         data_chan(ich)%bisst = data_tmp(12+header_fix%angord+2,ich)  
      end do
+  else
+     do ich=1,header_fix%nchan
+        data_chan(ich)%bicons=data_tmp(9,ich)
+        data_chan(ich)%biang =data_tmp(10,ich)
+        data_chan(ich)%biclw =data_tmp(11,ich)
+        data_chan(ich)%bilap2=data_tmp(12,ich)
+        data_chan(ich)%bilap =data_tmp(13,ich)
+     end do
+     do ich=1,header_fix%nchan
+        do iang=1,header_fix%angord+1
+           data_chan(ich)%bifix(iang)=data_tmp(13+iang,ich)
+        end do
+     end do
+     data_chan(ich)%bisst = data_tmp(13+header_fix%angord+2,ich)  
   endif
   deallocate(data_tmp)
     

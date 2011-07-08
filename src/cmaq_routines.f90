@@ -211,7 +211,7 @@ subroutine read_cmaq_guess(mype)
   use gsi_io, only: lendian_in
   
   use gsi_bundlemod, only : gsi_bundlegetpointer
-  use gsi_chemtracer_mod, only: gsi_chem_bundle
+  use gsi_chemguess_mod, only: gsi_chemguess_bundle
   use constants, only : max_varname_length
   use chemmod, only : nmet2d_cmaq,nmet3d_cmaq,&
        naero_cmaq,pm2_5_guess,init_pm2_5_guess
@@ -439,7 +439,7 @@ subroutine read_cmaq_guess(mype)
 
      cvar='pm2_5'
 
-     call gsi_bundlegetpointer (gsi_chem_bundle(it), &
+     call gsi_bundlegetpointer (gsi_chemguess_bundle(it), &
           cvar, ipnt, status,irank)
      
      if(irank/=3) then 
@@ -451,7 +451,7 @@ subroutine read_cmaq_guess(mype)
      do k=1,nsig
         do i=1,lon2
            do j=1,lat2
-              gsi_chem_bundle(it)%r3(ipnt)%q(j,i,k)=pm2_5_guess(j,i,k)
+              gsi_chemguess_bundle(it)%r3(ipnt)%q(j,i,k)=pm2_5_guess(j,i,k)
            enddo
         enddo
      enddo
@@ -536,7 +536,7 @@ subroutine write_cmaq(mype)
   use chemmod, only : ngrid2d_cmaq,nmet2d_cmaq,nmet3d_cmaq,&
        naero_cmaq,aeronames_cmaq,pm2_5_guess,diag_incr,maxstr,out_fname,&
        incr_fname
-  use gsi_chemtracer_mod, only: gsi_chem_bundle
+  use gsi_chemguess_mod, only: gsi_chemguess_bundle
   use gsi_bundlemod, only : gsi_bundlegetpointer
 
   implicit none
@@ -607,7 +607,7 @@ subroutine write_cmaq(mype)
 
   cvar='pm2_5'
 
-  call gsi_bundlegetpointer (gsi_chem_bundle(it), &
+  call gsi_bundlegetpointer (gsi_chemguess_bundle(it), &
        cvar, ipnt, status,irank)
 
   if(irank/=3) then
@@ -619,7 +619,7 @@ subroutine write_cmaq(mype)
   do k=1,nsig
      do i=1,lon2
         do j=1,lat2
-           incr(j,i,k)=gsi_chem_bundle(it)%r3(ipnt)%q(j,i,k)-pm2_5_guess(j,i,k)
+           incr(j,i,k)=gsi_chemguess_bundle(it)%r3(ipnt)%q(j,i,k)-pm2_5_guess(j,i,k)
            ratio(j,i,k)=max(min(1.0_r_single+incr(j,i,k)/pm2_5_guess(j,i,k),10.0_r_single),&
                 tiny_single)
            all_loc(j,i,k)=ratio(j,i,k)

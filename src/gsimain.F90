@@ -10,7 +10,12 @@
    program gsi
 
    use gsimod, only: gsimain_initialize,gsimain_run,gsimain_finalize
+   use gsi_4dvar, only: l4dvar,idmodel
+   use gsi_4dcouplermod, only: gsi_4dcoupler_init_traj
+   use gsi_4dcouplermod, only: gsi_4dcoupler_final_traj
    use timermod, only: timer_pri
+   use kinds, only: i_kind
+   use mpeu_util, only: die
    implicit none
 
 !$$$  main program documentation block
@@ -116,6 +121,9 @@
 !   2010-03-18  treadon - add comment for return code 330
 !   2010-04-26  kistler - add comment for return code 331
 !   2010-05-27  todling - error codes 127-130 no longer apply (slots emptied)
+!   2011-03-14  guo     - Moved gsi_4dcoupler calls into here, to split
+!			  gsi_4dcoupler_init_traj() from gsimain_initialize(),
+!			  and gsi_4dcoupler_final_traj() from gsimain_finalize(),
 !
 ! usage:
 !   input files:
@@ -306,7 +314,7 @@
 !          = 132 - gsi_4dvar: Error in observation binning
 !          = 133 - gsi_4dvar: Error in sub-windows definition
 !          = 134 - setup_4dvar: unable to fullfil request for increment output
-!          = 135 - setup_4dvar: lwrtinc l4dvar inconsistent
+!          = 135 - setup_4dvar: iwrtinc l4dvar inconsistent
 !          = 136 - time_4dvar: minutes should be 0
 !          = 137 - gsimod: adjoint computation requires contrad
 !          = 138 - setup_congrad: kamxit>maxiter
@@ -588,9 +596,24 @@
 !
 !==================================================================================================
 
+   integer(i_kind):: ier
+   character(len=*),parameter:: myname='gsimain'
+
    call gsimain_initialize
 
+! Initialize atmospheric AD and TL model trajectory
+!  if(l4dvar) then
+!    call gsi_4dcoupler_init_traj(idmodel,rc=ier)
+!    	if(ier/=0) call die(myname,'gsi_4dcoupler_init_traj(), rc =',ier)
+!  endif
+
    call gsimain_run(init_pass=.true.,last_pass=.true.)
+
+! Finalize atmospheric AD and TL model trajectory
+   if(l4dvar) then
+     call gsi_4dcoupler_final_traj(rc=ier)
+     	if(ier/=0) call die(myname,'gsi_4dcoupler_final_traj(), rc =',ier)
+   endif
 
    call gsimain_finalize
 

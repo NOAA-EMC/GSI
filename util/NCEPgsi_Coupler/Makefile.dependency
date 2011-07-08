@@ -1,0 +1,58 @@
+calctends_model_ad.d : calctends_model_ad.f90
+calctends_model_ad.o : calctends_model_ad.f90 constants.mod tends4pertmod.mod gridmod.mod nonlinmod.mod tendsmod.mod kinds.mod
+calctends_model.d : calctends_model.f90
+calctends_model.o : calctends_model.f90 constants.mod tends4pertmod.mod gridmod.mod tendsmod.mod kinds.mod
+calctends_model_tl.d : calctends_model_tl.f90
+calctends_model_tl.o : calctends_model_tl.f90 constants.mod tends4pertmod.mod gridmod.mod nonlinmod.mod tendsmod.mod kinds.mod
+cplr_pertmod.d : cplr_pertmod.F90
+cplr_pertmod.o : cplr_pertmod.F90 tends4pertmod.mod mpimod.mod ncep_pertmod.mod kinds.mod mpeu_util.mod constants.mod gsi_bundlemod.mod obsmod.mod nonlinmod.mod
+dynamics_adams_bashforth.d : dynamics_adams_bashforth.f90
+dynamics_adams_bashforth.mod : dynamics_adams_bashforth.o
+dynamics_adams_bashforth.o : dynamics_adams_bashforth.f90 constants.mod tends4pertmod.mod gridmod.mod kinds.mod
+funtend.d : funtend.f90
+funtend.o : funtend.f90 constants.mod tends4pertmod.mod gridmod.mod kinds.mod
+getphi.d : getphi.f90
+getphi.o : getphi.f90 constants.mod tends4pertmod.mod gridmod.mod nonlinmod.mod tendsmod.mod kinds.mod
+getprs_bck.d : getprs_bck.f90
+getprs_bck.o : getprs_bck.f90 constants.mod gridmod.mod compact_diffs.mod nonlinmod.mod mpimod.mod kinds.mod
+gsi_model_ad.d : gsi_model_ad.f90
+gsi_model_ad.o : gsi_model_ad.f90 constants.mod dynamics_adams_bashforth.mod tends4pertmod.mod gridmod.mod mpimod.mod kinds.mod
+gsi_model_adjtest.d : gsi_model_adjtest.f90
+gsi_model_adjtest.o : gsi_model_adjtest.f90 constants.mod dynamics_adams_bashforth.mod tends4pertmod.mod gridmod.mod mpimod.mod kinds.mod
+gsi_model_tl.d : gsi_model_tl.f90
+gsi_model_tl.o : gsi_model_tl.f90 constants.mod dynamics_adams_bashforth.mod tends4pertmod.mod gridmod.mod mpimod.mod kinds.mod
+gsi_model_tlmtest.d : gsi_model_tlmtest.f90
+gsi_model_tlmtest.o : gsi_model_tlmtest.f90 constants.mod dynamics_adams_bashforth.mod tends4pertmod.mod gridmod.mod mpimod.mod kinds.mod
+hdiff.d : hdiff.f90
+hdiff.o : hdiff.f90 constants.mod tends4pertmod.mod gridmod.mod kinds.mod
+mp_compact_diffs_mod2.d : mp_compact_diffs_mod2.f90
+mp_compact_diffs_mod2.mod : mp_compact_diffs_mod2.o
+mp_compact_diffs_mod2.o : mp_compact_diffs_mod2.f90 constants.mod gridmod.mod compact_diffs.mod mpimod.mod kinds.mod
+ncep_pertmod.d : ncep_pertmod.f90
+ncep_pertmod.mod : ncep_pertmod.o
+ncep_pertmod.o : ncep_pertmod.f90 mpeu_util.mod gsi_4dvar.mod tends4pertmod.mod gsi_bundlemod.mod mpimod.mod kinds.mod guess_grids.mod
+nonlinmod.d : nonlinmod.f90
+nonlinmod.mod : nonlinmod.o
+nonlinmod.o : nonlinmod.f90 gsi_4dvar.mod dynamics_adams_bashforth.mod gridmod.mod tends4pertmod.mod pblmod.mod mpimod.mod gsi_metguess_mod.mod kinds.mod guess_grids.mod mpeu_util.mod constants.mod gsi_bundlemod.mod mp_compact_diffs_mod2.mod
+pbl_ad.d : pbl_ad.f90
+pbl_ad.o : pbl_ad.f90 constants.mod tends4pertmod.mod gridmod.mod pblmod.mod kinds.mod
+pbl.d : pbl.f90
+pbl.o : pbl.f90 constants.mod tends4pertmod.mod gridmod.mod pblmod.mod kinds.mod guess_grids.mod
+pblmod.d : pblmod.f90
+pblmod.mod : pblmod.o
+pblmod.o : pblmod.f90 constants.mod gridmod.mod kinds.mod
+pbl_tl.d : pbl_tl.f90
+pbl_tl.o : pbl_tl.f90 constants.mod tends4pertmod.mod gridmod.mod pblmod.mod kinds.mod
+read_nonlinear.d : read_nonlinear.f90
+read_nonlinear.o : read_nonlinear.f90 constants.mod tends4pertmod.mod gridmod.mod pblmod.mod nonlinmod.mod kinds.mod
+sfcdrag.d : sfcdrag.f90
+sfcdrag.o : sfcdrag.f90 constants.mod gridmod.mod pblmod.mod kinds.mod guess_grids.mod
+smooth_tends.d : smooth_tends.f90
+smooth_tends.o : smooth_tends.f90 constants.mod gridmod.mod general_specmod.mod mpimod.mod kinds.mod
+tends4pertmod.d : tends4pertmod.f90
+tends4pertmod.mod : tends4pertmod.o
+tends4pertmod.o : tends4pertmod.f90 gsi_4dvar.mod gsi_bundlemod.mod gridmod.mod kinds.mod
+write_bkgvars_grid_mod.d : write_bkgvars_grid_mod.f90
+write_bkgvars_grid_mod.o : write_bkgvars_grid_mod.f90 constants.mod gridmod.mod kinds.mod
+write_nonlinear.d : write_nonlinear.f90
+write_nonlinear.o : write_nonlinear.f90 tends4pertmod.mod gridmod.mod pblmod.mod jfunc.mod tendsmod.mod kinds.mod

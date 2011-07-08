@@ -27,7 +27,7 @@ subroutine evaljo(pjo,kobs,kprt,louter)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: nobs_type,cobstype,obsdiags,obsptr,obscounts
   use gsi_4dvar, only: nobs_bins
-  use constants, only: izero,ione,zero_quad
+  use constants, only: zero_quad
   use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_integer,mype
   use jfunc, only: jiter
   use mpl_allreducemod, only: mpl_allreduce
@@ -52,13 +52,13 @@ subroutine evaljo(pjo,kobs,kprt,louter)
 ! ----------------------------------------------------------
 
 zprods(:)=zero_quad
-iobsgrp(:,:)=izero
-iobsglb(:,:)=izero
+iobsgrp(:,:)=0
+iobsglb(:,:)=0
 
-ij=izero
+ij=0
 do ii=1,nobs_bins
    do jj=1,nobs_type
-      ij=ij+ione
+      ij=ij+1
 
       obsptr => obsdiags(jj,ii)%head
       do while (associated(obsptr))
@@ -69,7 +69,7 @@ do ii=1,nobs_bins
                zdep=obsptr%tldepart(jiter)-obsptr%nldepart(jiter)
             endif
             zprods(ij) = zprods(ij) + obsptr%wgtjo * zdep * zdep
-            iobsgrp(jj,ii)=iobsgrp(jj,ii)+ione
+            iobsgrp(jj,ii)=iobsgrp(jj,ii)+1
          endif
          obsptr => obsptr%next
       enddo
@@ -87,23 +87,23 @@ call mpi_allreduce(iobsgrp,iobsglb,ilen, &
 
 ! Gather Jo contributions
 
-ij=izero
+ij=0
 do ii=1,nobs_bins
    do jj=1,nobs_type
-      ij=ij+ione
+      ij=ij+1
       zjo2(jj,ii)=zprods(ij)
    enddo
 enddo
 
 zjo1=zero_quad
-iobs=izero
+iobs=0
 DO ii=1,nobs_bins
    zjo1(:)=zjo1(:)+zjo2(:,ii)
    iobs(:)=iobs(:)+iobsglb(:,ii)
 ENDDO
 
 zjo=zero_quad
-kobs=izero
+kobs=0
 DO ii=1,nobs_type
    zjo=zjo+zjo1(ii)
    kobs=kobs+iobs(ii)
@@ -112,18 +112,18 @@ ENDDO
 pjo=zjo
 
 ! Prints
-IF (kprt>=2_i_kind.and.mype==izero) THEN
+IF (kprt>=2_i_kind.and.mype==0) THEN
    if (louter) then
       write(6,*)'Begin Jo table outer loop'
    else
       write(6,*)'Begin Jo table inner loop'
    endif
 
-   IF (kprt>=3_i_kind.and.nobs_bins>ione) THEN
+   IF (kprt>=3_i_kind.and.nobs_bins>1) THEN
       write(6,400)'Observation Type','Bin','Nobs','Jo','Jo/n'
       DO ii=1,nobs_type
          DO jj=1,nobs_bins
-            IF (iobsglb(ii,jj)>izero) THEN
+            IF (iobsglb(ii,jj)>0) THEN
                zz=zjo2(ii,jj)/iobsglb(ii,jj)
                write(6,100)cobstype(ii),jj,iobsglb(ii,jj),real(zjo2(ii,jj),r_kind),real(zz,r_kind)
             ENDIF
@@ -133,13 +133,13 @@ IF (kprt>=2_i_kind.and.mype==izero) THEN
 
    write(6,400)'Observation Type',' ','Nobs','Jo','Jo/n'
    DO ii=1,nobs_type
-      IF (iobs(ii)>izero) THEN
+      IF (iobs(ii)>0) THEN
          zz=zjo1(ii)/iobs(ii)
          write(6,200)cobstype(ii),iobs(ii),real(zjo1(ii),r_kind),real(zz,r_kind)
       ENDIF
    ENDDO
 
-   IF (kobs>izero) THEN
+   IF (kobs>0) THEN
       zz=zjo/kobs
    ELSE
       zz=-999.999_r_quad

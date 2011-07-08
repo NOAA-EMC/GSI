@@ -134,6 +134,7 @@ module ncepnems_io
      module procedure write_sfc_
   end interface
 
+  character(len=*),parameter::myname='ncepnems_io'
 
 contains
 
@@ -149,6 +150,7 @@ contains
 ! program history log:
 !   2010-03-31  hcHuang - create routine based on read_gfs
 !   2010-10-19  hcHuang - remove spectral part for gridded NEMS/GFS
+!   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !
 !   input argument list:
 !     mype              - mpi task id
@@ -161,26 +163,36 @@ contains
 !
 !$$$ end documentation block
 
-    use kinds, only: i_kind
+    use kinds, only: i_kind,r_kind
     use gridmod, only: sp_a
     use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
-         ges_u,ges_v,ges_tv,ges_q,ges_cwmr,ges_oz,&
+         ges_u,ges_v,ges_tv,ges_q,ges_oz,&
          ifilesig,nfldsig
+    use gsi_metguess_mod, only: gsi_metguess_bundle
+    use gsi_bundlemod, only: gsi_bundlegetpointer
+    use mpeu_util, only: die
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
+    character(len=*),parameter::myname_=myname//'*read_'
     character(24) filename
     integer(i_kind):: it,iret
+    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
 
     do it=1,nfldsig
+
+!      Get pointer to could water mixing ratio
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret)
+       if (iret/=0) call die(trim(myname_),'cannot get pointer to cwmr, iret =',iret)
+
        write(filename,100) ifilesig(it)
        call read_atm_ (filename,mype,sp_a,&
             ges_z(1,1,it),ges_ps(1,1,it),&
             ges_vor(1,1,1,it),ges_div(1,1,1,it),&
             ges_u(1,1,1,it),ges_v(1,1,1,it),&
             ges_tv(1,1,1,it),ges_q(1,1,1,it),&
-            ges_cwmr(1,1,1,it),ges_oz(1,1,1,it), iret)
+            ges_cwmr_it,ges_oz(1,1,1,it), iret)
     end do
 100 format('sigf',i2.2)
   end subroutine read_
@@ -192,7 +204,7 @@ contains
 !
 !   prgrmmr: todling
 !
-! abstract: fills chem_bundle with GFS chemistry. 
+! abstract: fills chemguess_bundle with GFS chemistry. 
 !
 ! remarks:
 !    1. Right now, only CO2 is done and even this is treated
@@ -220,8 +232,8 @@ contains
     use ncepgfs_ghg, only: read_gfsco2
     use guess_grids, only: ges_prsi,nfldsig,ntguessig
     use gsi_bundlemod, only: gsi_bundlegetpointer
-    use gsi_chemtracer_mod, only: gsi_chem_bundle
-    use gsi_chemtracer_mod, only: gsi_chemtracer_get
+    use gsi_chemguess_mod, only: gsi_chemguess_bundle
+    use gsi_chemguess_mod, only: gsi_chemguess_get
 
     implicit none
 
@@ -233,8 +245,8 @@ contains
     integer(i_kind) :: igfsco2, i, j, k, n, ico2, iret
     real(r_kind),dimension(lat2):: xlats
 
-    if(.not.associated(gsi_chem_bundle)) return
-    call gsi_bundlegetpointer(gsi_chem_bundle(1),'co2',ico2,iret)
+    if(.not.associated(gsi_chemguess_bundle)) return
+    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',ico2,iret)
     if(iret /= 0) return
 
 !   Get subdomain latitude array
@@ -245,12 +257,12 @@ contains
     enddo
 
 !   Read in CO2
-    call gsi_chemtracer_get ( 'i4crtm::co2', igfsco2, iret )
+    call gsi_chemguess_get ( 'i4crtm::co2', igfsco2, iret )
     call read_gfsco2 ( iyear,month,igfsco2,xlats,ges_prsi(:,:,:,ntguessig),&
-                       lat2,lon2,nsig,mype, gsi_chem_bundle(1)%r3(ico2)%q )
+                       lat2,lon2,nsig,mype, gsi_chemguess_bundle(1)%r3(ico2)%q )
 
     do n = 2, ntguessig
-       gsi_chem_bundle(n)%r3(ico2)%q = gsi_chem_bundle(1)%r3(ico2)%q
+       gsi_chemguess_bundle(n)%r3(ico2)%q = gsi_chemguess_bundle(1)%r3(ico2)%q
     enddo
 
   end subroutine read_chem_
@@ -880,9 +892,10 @@ contains
 !
 ! program history log:
 !   2010-02-22  hcHuang  Initial version.  Based on write_gfs
+!   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !
 !   input argument list:
-!     increment          - when .t. will name files as increment files
+!     increment          - when >0 will write increment from increment-index slot
 !     mype               - mpi task id
 !     mype_atm,mype_sfc  -
 !
@@ -894,37 +907,47 @@ contains
 !
 !$$$ end documentation block
 
-    use kinds, only: i_kind
+    use kinds, only: i_kind,r_kind
     use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
-         ges_tv,ges_q,ges_oz,ges_cwmr,ges_prsl,&
+         ges_tv,ges_q,ges_oz,ges_prsl,&
          ges_u,ges_v,ges_prsi,dsfct 
     use guess_grids, only: ntguessig,ntguessfc
+    use gsi_metguess_mod, only: gsi_metguess_bundle
+    use gsi_bundlemod, only: gsi_bundlegetpointer
+    use mpeu_util, only: die
 
     implicit none
 
-    logical        ,intent(in   ) :: increment
+    integer(i_kind),intent(in   ) :: increment
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
+
+    character(len=*),parameter::myname_=myname//'*write_'
     character(len=24)             :: filename
-    integer(i_kind)               :: iret
+    integer(i_kind)               :: itoutsig, iret
+    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
 
 !   Write atmospheric analysis file
-    if (increment) then
-       filename='nemsinc'
-       if(mype==0) write(6,'(a)') 'WRITE_NEMS: sorry, I do not know how to write increments yet'
-       return
+    if (increment>0) then
+       filename='siginc'
+       itoutsig=increment
     else
        filename='siganl'
+       itoutsig=ntguessig
     endif
+!   Get pointer to could water mixing ratio
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'cw',ges_cwmr_it,iret)
+    if (iret/=0) call die(trim(myname_),'cannot get pointer to cwmr, iret =',iret)
+
     call write_atm_ (filename,mype,mype_atm,&
-         ges_z(1,1,ntguessig),ges_ps(1,1,ntguessig),&
-         ges_vor(1,1,1,ntguessig),ges_div(1,1,1,ntguessig),&
-         ges_tv(1,1,1,ntguessig),ges_q(1,1,1,ntguessig),&
-         ges_oz(1,1,1,ntguessig),ges_cwmr(1,1,1,ntguessig),&
-         ges_prsl(1,1,1,ntguessig),ges_u(1,1,1,ntguessig),&
-         ges_v(1,1,1,ntguessig),ges_prsi(1,1,1,ntguessig),iret)
+         ges_z(1,1,itoutsig),ges_ps(1,1,itoutsig),&
+         ges_vor(1,1,1,itoutsig),ges_div(1,1,1,itoutsig),&
+         ges_tv(1,1,1,itoutsig),ges_q(1,1,1,itoutsig),&
+         ges_oz(1,1,1,itoutsig),ges_cwmr_it,&
+         ges_prsl(1,1,1,itoutsig),ges_u(1,1,1,itoutsig),&
+         ges_v(1,1,1,itoutsig),ges_prsi(1,1,1,itoutsig),iret)
 
 !   Write surface analysis file
-    if (increment) then
+    if (increment>0) then
        filename='sfcinc.gsi'
     else
        filename='sfcanl.gsi'
@@ -1328,6 +1351,7 @@ contains
 !
 ! program history log:
 !   2010-02-22  hcHuang  Initial version.  Based on write_gfssfc
+!   2011-04-01  li       change type of buffer2, grid2 from single to r_kind
 !
 !   input argument list:
 !     filename  - file to open and write to
@@ -1403,8 +1427,8 @@ contains
     real(r_kind),dimension(lat1,lon1):: sfcsub
     real(r_kind),dimension(nlon,nlat):: grid
     real(r_kind),dimension(max(iglobal,itotsub)):: sfcall
-    real(r_single),allocatable,dimension(:,:) :: buffer2, grid2
-    real(r_kind),  allocatable,dimension(:)   :: rwork1d
+    real(r_kind),allocatable,dimension(:,:) :: buffer2, grid2
+    real(r_kind),allocatable,dimension(:)   :: rwork1d
 
     type(nemsio_gfile) :: gfile, gfileo
     type(sfcio_head)   :: sfc_head

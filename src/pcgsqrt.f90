@@ -13,6 +13,8 @@ subroutine pcgsqrt(xhat,costf,gradx,itermax,nprt)
 !   2009-01-14  todling  - zero-obs fix
 !   2009-01-18  todling  - carry summations in quad precision
 !   2010-08-19  lueken   - add only to module use
+!   2010-10-01  el akkraoui - add orthogonalization using first few iterates
+!   2011-03-02  todling   - revisit memory release: first-in, last-out
 !
 !   input argument lits:
 !    xhat,gradx
@@ -31,6 +33,7 @@ subroutine pcgsqrt(xhat,costf,gradx,itermax,nprt)
 
 use kinds, only: r_kind,i_kind,r_quad
 use jfunc, only: iter,jiter
+use gsi_4dvar, only: iorthomax
 use constants, only: zero,zero_quad,tiny_r_kind
 use mpimod, only: mype
 use control_vectors, only: control_vector,allocate_cv, &
@@ -46,10 +49,11 @@ integer(i_kind)     , intent(in   ) :: itermax,nprt
 
 ! Declare local variables
 character(len=*), parameter :: myname='pcgsqrt'
-type(control_vector) :: dirx,xtry,grtry,grad0,gradf
-real(r_quad) :: beta,alpha,zg0,zgk,zgnew,zfk,dkqk
-integer(i_kind) :: ii
-logical lsavinc
+type(control_vector)        :: dirx,xtry,grtry,grad0,gradf
+type(control_vector), allocatable, dimension(:) :: cglwork
+real(r_quad)                :: beta,alpha,zg0,zgk,zgnew,zfk,dkqk,zdla
+integer(i_kind)             :: ii,jj,iortho
+logical                     :: lsavinc
 
 !**********************************************************************
 call timer_ini('pcgsqrt')
@@ -66,10 +70,24 @@ dirx=zero
 beta=zero_quad
 lsavinc=.false.
 
+if(iorthomax>0) then 
+   allocate(cglwork(iorthomax+1))
+   do ii=1,iorthomax+1
+      call allocate_cv(cglwork(ii))
+      cglwork(ii)=zero
+   enddo
+end if 
+
 ! Save initial cost function and gradient
 grad0=gradx
 zg0=dot_product(grad0,grad0,r_quad)
 zgk=zg0
+
+if(iorthomax>0) then
+  do ii=1,dirx%lencv
+     cglwork(1)%values(ii)=gradx%values(ii)/sqrt(zg0)
+  end do
+end if
 
 ! Perform inner iteration
 inner_iteration: do iter=1,itermax
@@ -104,7 +122,25 @@ inner_iteration: do iter=1,itermax
       gradx%values(ii)=gradx%values(ii)+alpha*grtry%values(ii)
    end do
 
+!  Orthogonormalize against previous gradient 
+   if(iorthomax>0) then 
+      iortho=min(iter,iorthomax)
+      do jj=iortho,1,-1
+        zdla = dot_product(gradx,cglwork(jj))
+        do ii=1,gradx%lencv
+           gradx%values(ii) = gradx%values(ii) - zdla*cglwork(jj)%values(ii)
+        enddo
+     enddo
+   end if 
+
+!  Save gradients for orthonormalization
    zgnew=dot_product(gradx,gradx,r_quad)
+   if(iorthomax>0 .and. iter <= iortho) then 
+      do ii=1,xhat%lencv
+         cglwork(iter+1)%values(ii) = gradx%values(ii)/sqrt(zgnew)
+      enddo   
+   end if
+!
    beta=zero_quad
    if(abs(zgk)>tiny_r_kind) beta=zgnew/zgk
    zgk=zgnew
@@ -126,11 +162,17 @@ end do inner_iteration
 costf=zfk
 
 ! Release memory
-call deallocate_cv(dirx)
-call deallocate_cv(xtry)
-call deallocate_cv(grtry)
-call deallocate_cv(grad0)
+if(iorthomax>0) then 
+  do ii=iorthomax+1,1,-1
+     call deallocate_cv(cglwork(ii))
+  enddo
+  deallocate(cglwork)
+end if 
 if (nprt>=1) call deallocate_cv(gradf)
+call deallocate_cv(grad0)
+call deallocate_cv(grtry)
+call deallocate_cv(xtry)
+call deallocate_cv(dirx)
 
 999 format(2A,2(1X,I3),3(1X,ES24.18))
 

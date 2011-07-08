@@ -59,6 +59,7 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
 !   2009-01-19  todling - re-implement Tremolet's linearization for q1fy10
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-05-13  todling  - update to use gsi_bundle
+!   2010-09-25  todling  - fix linearlization
 !
 !   input argument list:
 !     spdhead
@@ -99,9 +100,9 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
   integer(i_kind) i,j1,j2,j3,j4,kk,ier,istatus
   real(r_kind) w1,w2,w3,w4,time_spd
   real(r_kind) valu,valv,ucur,vcur,spdnl,spdtl,uu,vv,spd
-  real(r_kind),dimension(max(1,nstep)):: pen,pentl
+  real(r_kind),dimension(max(1,nstep)):: pen
   real(r_kind) cg_spd,pencur,wgross,wnotgross
-  real(r_kind) pg_spd
+  real(r_kind) pg_spd,pentl
   real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
   real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
   real(r_kind),pointer,dimension(:) :: su,sv
@@ -165,24 +166,30 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
                   (w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
                    w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))*time_spd
            endif
-           do kk=1,nstep
-              uu=ucur+sges(kk)*valu
-              vv=vcur+sges(kk)*valv
-              spd=sqrt(uu*uu+vv*vv)-spdptr%res
-              pen(kk)=spd*spd*spdptr%err2
-              if(ltlint)then
-                 spdnl=sqrt(uu*uu+vv*vv)
-                 spdtl=uu*valu+vv*valv
+           if (ltlint) then
+              spd=sqrt(ucur*ucur+vcur*vcur)-spdptr%res
+              pencur=spd*spd*spdptr%err2
+              do kk=1,nstep
+                 spdnl=sqrt(ucur*ucur+vcur*vcur)
+                 spdtl=ucur*valu+vcur*valv
                  if (spdnl>tiny_r_kind*100._r_kind) then
                     spdtl=spdtl/spdnl
                  else
                     spdtl=zero
                  endif
-                 pen(kk)=pen(kk)+two*spdtl*spd*spdptr%err2
-              end if
-           end do
+                 pentl  =two*spdtl*spd*spdptr%err2
+                 pen(kk)=pencur+sges(kk)*pentl
+              end do
+           else
+              do kk=1,nstep
+                 uu=ucur+sges(kk)*valu
+                 vv=vcur+sges(kk)*valv
+                 spd=sqrt(uu*uu+vv*vv)-spdptr%res
+                 pen(kk)=spd*spd*spdptr%err2
+              end do
+           end if
         else
-           pen(kk)=spdptr%res*spdptr%res*spdptr%err2
+           pen(1)=spdptr%res*spdptr%res*spdptr%err2
         end if
 
 !  Modify penalty term if nonlinear QC

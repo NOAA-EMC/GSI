@@ -62,6 +62,7 @@ contains
 ! program history log:
 !   2008-06-03  Hu        initial build for cloud analysis
 !   2010-03-29  Hu        change names to init_rapidrefresh_cldsurf
+!   2011--5-04  Todling   inquire MetGuess for presence of hyrometeors & set default
 !
 !   input argument list:
 !
@@ -72,16 +73,32 @@ contains
 !   machine:  liunx cluster (Wjet)
 !
 !$$$
+    use kinds, only: i_kind 
+    use gsi_metguess_mod, only: gsi_metguess_get
     implicit none
+    integer(i_kind) ivar,i,ier
+    logical have_hmeteor(5)
+    character(len=2),parameter :: hydrometeors(5) = (/ 'qi', &
+                                                       'ql', &
+                                                       'qr', &
+                                                       'qs', &
+                                                       'qg'  &
+                                                       /)
 
 !   Set logical flag
-    l_cloud_analysis = .false.                        ! .true. = turn on GSD cloud analysis
     dfi_radar_latent_heat_time_period = 30.0_r_kind   ! in minutes
     metar_impact_radius = 10.0_r_kind                 ! in grid
     metar_impact_radius_lowCloud = 4.0_r_kind         ! in grid
     l_gsd_terrain_match_surfTobs = .false.            ! .true. = turn on GSD terrain 
                                                       !          match for  surface
                                                       !          temperature observation
+
+!   Figure out if hydrometeors are available in guess, if so, do cloud adjustment as default
+    do i=1,size(hydrometeors)
+       call gsi_metguess_get ('var::'//trim(hydrometeors(i)),ivar,ier)
+       have_hmeteor(i) = (ivar>0)
+    enddo
+    l_cloud_analysis = all(have_hmeteor)
 
     return
   end subroutine init_rapidrefresh_cldsurf

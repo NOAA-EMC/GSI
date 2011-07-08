@@ -79,6 +79,8 @@ subroutine glbsoi(mype)
 !                         to calculate additional preconditioner; add newpc4pred in
 !                         radinfo_write's interface
 !   2010-05-12  zhu     - add option passive_bc for radiance bias correction for monitored channels
+!   2010-10-01  el akkraoui/todling - add Bi-CG as optional minimization scheme
+!   2011-04-07  todling - newpc4pred now in radinfo
 !
 !   input argument list:
 !     mype - mpi task id
@@ -103,7 +105,7 @@ subroutine glbsoi(mype)
   use anisofilter_glb, only: anprewgt
   use berror, only: create_berror_vars_reg,create_berror_vars,&
        set_predictors_var,destroy_berror_vars_reg,&
-       destroy_berror_vars,bkgv_flowdep,pcinfo,newpc4pred
+       destroy_berror_vars,bkgv_flowdep,pcinfo
   use balmod, only: create_balance_vars_reg,create_balance_vars, &
        destroy_balance_vars_reg,destroy_balance_vars,prebal,prebal_reg
   use compact_diffs, only: create_cdiff_coefs,inisph
@@ -116,10 +118,10 @@ subroutine glbsoi(mype)
                              init_fc_sens, save_fc_sens
   use smooth_polcarf, only: norsp,destroy_smooth_polcas
   use jcmod, only: ljcdfi
-  use gsi_4dvar, only: l4dvar, lsqrtb, lanczosave
+  use gsi_4dvar, only: l4dvar, lsqrtb, lbicg, lanczosave
   use pcgsoimod, only: pcgsoi
   use control_vectors, only: dot_product,read_cv,write_cv
-  use radinfo, only: radinfo_write,passive_bc
+  use radinfo, only: radinfo_write,passive_bc,newpc4pred
   use pcpinfo, only: pcpinfo_write
   use converr, only: converr_destroy
   use zrnmi_mod, only: zrnmi_initialize
@@ -136,7 +138,7 @@ subroutine glbsoi(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
-  logical slow_pole_in
+  logical slow_pole_in,laltmin
 
   integer(i_kind) nlev_mp,jiterlast
   real(r_kind) :: zgg
@@ -152,6 +154,9 @@ subroutine glbsoi(mype)
   if(l_hyb_ens) then
      call hybens_grid_setup
   end if
+
+! Check for alternative minimizations
+  laltmin = lsqrtb.or.lbicg
 
 ! Initialize observer
   call observer_init
@@ -243,14 +248,19 @@ subroutine glbsoi(mype)
         if (lobsensfc.or.iobsconv>0) call init_fc_sens
  
 !       Call inner minimization loop
-        if (lsqrtb) then
+        if (laltmin) then
            if (newpc4pred) then
               if (mype==0) write(6,*)'GLBSOI: newpc4pred is not available for lsqrtb'
               call stop2(334)
            end if
-
-           if (mype==0) write(6,*)'GLBSOI: Using sqrt(B), jiter=',jiter
-           call sqrtmin
+           if (lsqrtb) then
+              if (mype==0) write(6,*)'GLBSOI: Using sqrt(B), jiter=',jiter
+              call sqrtmin
+           endif
+           if (lbicg) then
+              if (mype==0) write(6,*)'GLBSOI: Using bicg, jiter=',jiter
+              call bicg
+           endif
         else
 !          Set up additional preconditioning information
            if (newpc4pred) call pcinfo
@@ -324,11 +334,11 @@ subroutine glbsoi(mype)
 ! Write updated bias correction coefficients
   if (.not.twodvar_regional) then
      if (l4dvar) then
-        if(mype == 0) call radinfo_write(newpc4pred)
+        if(mype == 0) call radinfo_write
         if(mype == npe-1) call pcpinfo_write
      else
         if (jiter==miter+1 ) then
-           if(mype == 0) call radinfo_write(newpc4pred)
+           if(mype == 0) call radinfo_write
            if(mype == npe-1) call pcpinfo_write
         endif
      endif

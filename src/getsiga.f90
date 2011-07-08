@@ -25,7 +25,7 @@ subroutine getsiga ()
 use kinds, only: i_kind, r_kind
 use mpimod, only: mype
 use constants, only: zero,one
-use gsi_4dvar, only: nsubwin,ibdate,lsqrtb,idmodel,l4dvar
+use gsi_4dvar, only: nsubwin,ibdate,lsqrtb,l4dvar,jsiga
 use jfunc, only: jiter,miter
 use lanczos, only : congrad_siga
 use state_vectors, only: allocate_state,deallocate_state
@@ -40,7 +40,7 @@ integer(i_kind)      :: nvecs
 integer(i_kind)      :: ier
 
 ! consistency checks
-if (jiter/=miter-1) return
+if (jiter/=jsiga) return
 if (.not.lsqrtb) then
    write(6,*)'getsiga: must set lsqrt=.t. to get analysis errors'
    call stop2(331)
@@ -49,7 +49,7 @@ end if
 nymd = 10000*ibdate(1)+ibdate(2)*100+ibdate(3)
 nhms = 10000*ibdate(4)
 if(mype==0) write(6,'(a,i8.8,2x,i6.6)')'getsiga: starting to calculate analysis errors at ',&
-             nymd, nhms; flush(6)
+             nymd, nhms
 
 ! allocate memory for working arrays
 call allocate_state(siga)
@@ -71,3 +71,78 @@ call deallocate_state(siga)
 
 return
 end subroutine getsiga
+
+subroutine view_cv (xhat)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    view_cv
+!   prgmmr: todling
+!
+! abstract:  this allow writing CV to file for visualization
+!
+! program history log:
+!   2011-02-23  todling  - initial code
+!                          (not sure we'll keep this here)
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+use kinds, only: i_kind, r_kind
+use mpimod, only: mype
+use constants, only: zero,one
+use gsi_4dvar, only: nsubwin,ibdate,lsqrtb,l4dvar,jsiga
+use jfunc, only: jiter,miter
+use lanczos, only : congrad_siga
+use state_vectors, only: allocate_state,deallocate_state
+use gsi_4dcouplermod, only: gsi_4dcoupler_putpert
+use gsi_bundlemod, only: gsi_bundle
+use control_vectors, only: control_vector
+use state_vectors, only: allocate_state,deallocate_state
+use bias_predictors, only: predictors,allocate_preds,deallocate_preds
+implicit none
+type(control_vector)     :: xhat
+! declare local variables
+integer(i_kind)      :: nymd                      ! date as in YYYYMMDD
+integer(i_kind)      :: nhms                      ! time as in HHMMSS
+integer(i_kind)      :: nvecs
+integer(i_kind)      :: ii,ier
+type(gsi_bundle) :: mval(nsubwin)
+type(predictors) :: sbias
+
+! consistency checks
+if (.not.lsqrtb) then
+   write(6,*)'view_cv: must set lsqrt=.t. to get analysis errors'
+   call stop2(331)
+end if
+
+nymd = 10000*ibdate(1)+ibdate(2)*100+ibdate(3)
+nhms = 10000*ibdate(4)
+if(mype==0) write(6,'(a,i8.8,2x,i6.6)')'getsiga: starting to calculate analysis errors at ',&
+             nymd, nhms
+
+! Allocate local variables
+do ii=1,nsubwin
+   call allocate_state(mval(ii))
+end do
+call allocate_preds(sbias)
+
+call control2model(xhat,mval,sbias)
+
+! write out analysis errors
+call gsi_4dcoupler_putpert (mval(1),nymd,nhms,'tlm','cvinc')
+
+! Allocate local variables
+call deallocate_preds(sbias)
+do ii=1,nsubwin
+   call deallocate_state(mval(ii))
+end do
+
+return
+end subroutine view_cv

@@ -40,6 +40,7 @@
 !   2006-05-25  treadon - replace obstype "pcp_ssm/i" with "pcp_ssmi"
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-04-18  safford - rm unused vars
+!   2011-04-01  li      - update argument list to deter_sfc
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -60,7 +61,7 @@
 !$$$  end documentation block
   use kinds, only: r_kind,r_double,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: izero,ione,zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600,r100
+  use constants, only: zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600,r100
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
 
   implicit none
@@ -116,7 +117,7 @@
 !**************************************************************************
 ! Initialize variables
   maxobs=1e6_i_kind
-  nchanl = izero
+  nchanl = 0
   pcp_ssmi=  obstype == 'pcp_ssmi'
   pcp_tmi=   obstype == 'pcp_tmi'
   pcp_amsu=  obstype == 'pcp_amsu'
@@ -146,9 +147,9 @@
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
-  if (iret/=izero) goto 110
+  if (iret/=0) goto 110
 
-  iy=izero; im=izero; idd=izero; ihh=izero
+  iy=0; im=0; idd=0; ihh=0
          
 ! Write header record to pcp obs output file
   ilon=3_i_kind
@@ -160,15 +161,15 @@
 
 ! Big loop over bufr file	
 10 call readsb(lnbufr,iret)
-  if(iret/=izero) then
+  if(iret/=0) then
      call readmg(lnbufr,subset,jdate,iret)
-     if(iret/=izero) go to 100
+     if(iret/=0) go to 100
      go to 10
   end if
 
   
 ! Extract satellite id and observation date/time
-  call ufbint(lnbufr,hdr7,7_i_kind,ione,iret,strhdr7)
+  call ufbint(lnbufr,hdr7,7_i_kind,1,iret,strhdr7)
 
   iyr = hdr7(2)
   imo = hdr7(3)
@@ -200,7 +201,7 @@
 ! Extract observation location and value(s)
   if (pcp_ssmi) then
 
-     call ufbint(lnbufr,pcpdat,4_i_kind,ione,iret,strsmi4)
+     call ufbint(lnbufr,pcpdat,4_i_kind,1,iret,strsmi4)
      itype = nint(pcpdat(3))
      scnt  = pcpdat(4)
      if (itype/=66_i_kind) goto 10
@@ -220,7 +221,7 @@
           (abs(spcp-bmiss)<tiny_r_kind) ) goto 10
 
   elseif (pcp_tmi) then
-     call ufbint(lnbufr,pcpdat,7_i_kind,ione,iret,strtmi7)
+     call ufbint(lnbufr,pcpdat,7_i_kind,1,iret,strtmi7)
      spcp=bmiss; scnv=bmiss
      spcp = pcpdat(3)  ! total rain
      scnv = pcpdat(4)  ! convective rain
@@ -234,12 +235,12 @@
           (abs(spcp-bmiss)<tiny_r_kind) ) goto 10
 
   elseif (pcp_amsu) then
-     call ufbint(lnbufr,pcpdat,5_i_kind,ione,iret,stramb5)
+     call ufbint(lnbufr,pcpdat,5_i_kind,1,iret,stramb5)
      spcp   = pcpdat(3)*r3600   ! convert to mm/hr
      lndsea = nint(pcpdat(4))   ! water=0, land=1, coast=2
      itype  = nint(pcpdat(5))   ! water=0, land=1, coast=-1
 
-     if (lndsea==2_i_kind .or. itype==-ione) goto 10  ! skip coastal points
+     if (lndsea==2_i_kind .or. itype==-1) goto 10  ! skip coastal points
 
 !    Check for negative, very large, or missing pcp.
 !    If any case is found, skip this observation.
@@ -274,15 +275,15 @@
   else
      dlat = dlat_earth
      dlon = dlon_earth
-     call grdcrd(dlat,ione,rlats,nlat,ione)
-     call grdcrd(dlon,ione,rlons,nlon,ione)
+     call grdcrd(dlat,1,rlats,nlat,1)
+     call grdcrd(dlon,1,rlons,nlon,1)
   endif
 
 !
 ! Do we want to keep this observation?
-  nread = nread + ione
-  ndata = min(ndata + ione,maxobs)
-  nodata = nodata + ione
+  nread = nread + 1
+  ndata = min(ndata + 1,maxobs)
+  nodata = nodata + 1
 !
 
 !     isflg    - surface flag
@@ -297,8 +298,8 @@
 !                 (2) - sea ice percentage
 !                 (3) - snow percentage
 
-  call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct,ts,tsavg, &
-             vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+  call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
+             ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
 ! Load output array
 

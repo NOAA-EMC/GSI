@@ -30,6 +30,7 @@ module berror
 !   2007-07-03  kleist - add variables for flow-dependent background error variances
 !   2010-04-25  zhu - add handling of option newpc4pred for new pre-conditioning of predictors
 !   2010-06-01  todling - revist as,tsfc_sdv to allow alloc depending on size of CVec
+!   2011-04-07  todling - move newpc4pred to radinfo
 !
 ! subroutines included:
 !   sub init_berror         - initialize background error related variables
@@ -122,7 +123,7 @@ module berror
 ! set passed variables to public
   public :: qvar3d,nr,nf,varprd,fpsproj,bkgv_flowdep
   public :: ndx,ndy,ndx2,nmix,nymx,nfg,nfnf,norm,nxem
-  public :: newpc4pred,vprecond
+  public :: vprecond
   public :: dssvs,dssv,bkgv_write,bkgv_rewgtfct,hswgt
   public :: hzscl,bw,pert_berr_fct,pert_berr,ndeg,norh,vs
   public :: bl,bl2,be,slw2,slw1,slw,mr,inaxs,wtxrs,wtaxs,nx,ny
@@ -148,7 +149,7 @@ module berror
   real(r_kind),allocatable,dimension(:,:,:):: wtaxs,wtxrs,qvar3d
   real(r_kind),allocatable,dimension(:,:,:,:):: alv,dssv
 
-  logical pert_berr,bkgv_flowdep,bkgv_write,newpc4pred
+  logical pert_berr,bkgv_flowdep,bkgv_write
   real(r_kind) pert_berr_fct,bkgv_rewgtfct
 
   logical,save :: fpsproj
@@ -168,7 +169,6 @@ contains
 !   2004-11-03  treadon - add default definition for horizontal scale weighting factors
 !   2005-06-06  wu - add logical fstat
 !   2006-11-30  todling - add logical fpsproj
-!   2010-04-25  zhu - add logical newpc4pred
 !
 !   input argument list:
 !
@@ -212,8 +212,6 @@ contains
        tsfc_sdv(i)=one
     end do
 
-    newpc4pred=.false.
-
   return
   end subroutine init_berror
 
@@ -248,6 +246,7 @@ contains
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
   use jfunc, only: nrclen,nclen
   use constants, only: zero,one
+  use radinfo, only: newpc4pred
   implicit none
   
   integer(i_kind) i
@@ -330,6 +329,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+    use radinfo, only: newpc4pred
     implicit none
     if(allocated(table)) deallocate(table)
     deallocate(wtaxs)
@@ -374,7 +374,7 @@ contains
 !
 !$$$
     use constants, only:  zero,one,two,one_tenth,r10
-    use radinfo, only: ostats,varA,jpch_rad,npred,inew_rad
+    use radinfo, only: ostats,varA,jpch_rad,npred,inew_rad,newpc4pred
     use gridmod, only: twodvar_regional
     use jfunc, only: nrclen
     implicit none
@@ -745,6 +745,7 @@ contains
     use balmod, only: llmin,llmax
     use gridmod, only: nlat,nlon,nsig,nnnn1o,lat2,lon2
     use jfunc, only: nrclen,nclen
+    use radinfo, only: newpc4pred
     implicit none
     
     nx=nlon
@@ -798,6 +799,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+    use radinfo, only: newpc4pred
     implicit none
 
     deallocate(be,qvar3d)

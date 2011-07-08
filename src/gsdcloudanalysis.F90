@@ -13,6 +13,8 @@ SUBROUTINE  gsdcloudanalysis(mype)
 ! PROGRAM HISTORY LOG:
 !    2008-12-20  Hu  Add NCO document block
 !    2010-04-30  Hu  Clean the code to meet GSI standard
+!    2011-05-29  Todling - extra cloud-guess from MetGuess-Bundle (see Remark 1)
+!                          some fields now from wrf_mass_guess_mod
 !
 !
 !   input argument list:
@@ -26,6 +28,10 @@ SUBROUTINE  gsdcloudanalysis(mype)
 !   OUTPUT FILES:
 !
 ! REMARKS:
+!  1. Notice that now the fields point to the instance of the GUESS at ntguessig
+!     no longer wired to 1 (as originally) - however, make sure when running RUC
+!     ntguessig is set correctly (see questions around definition of itsig)
+!  2. Notice that some WRF-variable and grid specific is now defined in wrf_guess_mod
 !
 ! ATTRIBUTES:
 !   LANGUAGE: FORTRAN 90 
@@ -42,12 +48,14 @@ SUBROUTINE  gsdcloudanalysis(mype)
   use gridmod, only: regional,wrf_mass_regional,regional_time
   use gridmod, only: nsig,lat2,lon2,istart,jstart
   use obsmod,  only: obs_setup,nsat1,ndat,dtype
-  use guess_grids, only: ges_q,ges_qc,ges_qi,ges_qr,ges_qs,ges_qg
-  use guess_grids, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat
-  use guess_grids, only: ges_z,ges_ps,ges_tv,ges_tten
+  use guess_grids, only: ntguessig,ntguessfc
+  use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten
+  use guess_grids, only: ges_q,ges_z,ges_ps,ges_tv
   use rapidrefresh_cldsurf_mod, only: dfi_radar_latent_heat_time_period,  &
                                       metar_impact_radius,                &
                                       metar_impact_radius_lowCloud
+  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
 
   implicit none
 
@@ -154,12 +162,18 @@ SUBROUTINE  gsdcloudanalysis(mype)
   INTEGER(i_kind) :: istat_Surface,istat_NESDIS,istat_radar    ! 1 has observation
   INTEGER(i_kind) :: istat_NASALaRC,istat_lightning            ! 0 no observation
 !
+  REAL(r_kind), pointer :: ges_ql(:,:,:)  ! cloud water
+  REAL(r_kind), pointer :: ges_qi(:,:,:)  ! could ice
+  REAL(r_kind), pointer :: ges_qr(:,:,:)  ! rain
+  REAL(r_kind), pointer :: ges_qs(:,:,:)  ! snow
+  REAL(r_kind), pointer :: ges_qg(:,:,:)  ! graupel
+!
 !  misc.
 !
-  INTEGER(i_kind) :: i,j,k
+  INTEGER(i_kind) :: i,j,k,itsig,itsfc
   REAL(r_kind)    :: qrlimit
   character(10)   :: obstype
-  integer(i_kind) :: lunin, is
+  integer(i_kind) :: lunin, is, ier, istatus
   integer(i_kind) :: nreal,nchanl,ilat1s,ilon1s
   character(20)   :: isis
 
@@ -168,6 +182,17 @@ SUBROUTINE  gsdcloudanalysis(mype)
   real(r_kind)    :: dfi_lhtp
 !
 !
+  itsig=1 ! _RT shouldn't this be ntguessig?
+  itsfc=1 ! _RT shouldn't this be ntguessig?
+!
+  ier=0
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'ql',ges_ql,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qi',ges_qi,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qr',ges_qr,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qs',ges_qs,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qg',ges_qg,istatus);ier=ier+istatus
+  if(ier/=0) return ! no guess, nothing to do
+
   if(mype==0) then
      write(6,*) '========================================'
      write(6,*) 'gsdcloudanalysis: Start generalized cloud analysis '
@@ -375,20 +400,20 @@ SUBROUTINE  gsdcloudanalysis(mype)
 !          
   do j=1,lat2                
      do i=1,lon2
-        zh(i,j)     =ges_z(j,i,1)               !  terrain in meter
-        ps_bk(i,j)  =ges_ps(j,i,1)*10.0_r_single!  surace pressure in mb
-        xland(i,j)  =isli_cld(j,i,1)            !  0=water, 1=land, 2=ice
-        soiltbk(i,j)=soil_temp_cld(j,i,1)       !  soil temperature
-        xlon(i,j)   =ges_xlon(j,i,1)*rad2deg    !  longitude back to degree
-        xlat(i,j)   =ges_xlat(j,i,1)*rad2deg    !  latitude  back to degree
+        zh(i,j)     =ges_z(j,i,itsfc)               !  terrain in meter
+        ps_bk(i,j)  =ges_ps(j,i,itsfc)*10.0_r_single!  surace pressure in mb
+        xland(i,j)  =isli_cld(j,i,itsfc)            !  0=water, 1=land, 2=ice
+        soiltbk(i,j)=soil_temp_cld(j,i,itsfc)       !  soil temperature
+        xlon(i,j)   =ges_xlon(j,i,itsfc)*rad2deg    !  longitude back to degree
+        xlat(i,j)   =ges_xlat(j,i,itsfc)*rad2deg    !  latitude  back to degree
      ENDDO
   ENDDO
 
   do k=1,nsig
      do j=1,lat2
         do i=1,lon2
-           q_bk(i,j,k)=ges_q(j,i,k,1)                           ! specific humidity
-           t_bk(i,j,k)=ges_tv(j,i,k,1)/                                  &
+           q_bk(i,j,k)=ges_q(j,i,k,itsig)                           ! specific humidity
+           t_bk(i,j,k)=ges_tv(j,i,k,itsig)/                                  &
                      (1.0_r_single+0.61_r_single*q_bk(i,j,k))   ! virtual temp to temp
         ENDDO
      ENDDO
@@ -517,10 +542,10 @@ SUBROUTINE  gsdcloudanalysis(mype)
   dfi_lhtp=dfi_radar_latent_heat_time_period
   if (istat_NESDIS==1) then
      call radar_ref2tten(mype,istat_radar,istat_lightning,lon2,lat2,nsig,ref_mos_3d, &
-                       cld_cover_3d,p_bk,t_bk,ges_tten(:,:,:,1),dfi_lhtp,sat_ctp)
+                       cld_cover_3d,p_bk,t_bk,ges_tten(:,:,:,itsig),dfi_lhtp,sat_ctp)
   else
      call radar_ref2tten_nosat(mype,istat_radar,istat_lightning,lon2,lat2,nsig,      &
-                       ref_mos_3d,cld_cover_3d,p_bk,t_bk,ges_tten(:,:,:,1),dfi_lhtp)
+                       ref_mos_3d,cld_cover_3d,p_bk,t_bk,ges_tten(:,:,:,itsig),dfi_lhtp)
   endif
 
 !
@@ -535,21 +560,22 @@ SUBROUTINE  gsdcloudanalysis(mype)
 !
 !  the final analysis of cloud 
 !
+
   DO k=1,nsig
      DO j=2,lat2-1
         DO i=2,lon2-1
-           sumq(i,j,k)= ges_qc(j,i,k,1) + ges_qi(j,i,k,1)
+           sumq(i,j,k)= ges_ql(j,i,k) + ges_qi(j,i,k)
            if( cld_cover_3d(i,j,k) > -0.001_r_kind ) then 
               if( cld_cover_3d(i,j,k) > 0.6_r_kind ) then 
-                 cldwater_3d(i,j,k) = max(0.001_r_kind*cldwater_3d(i,j,k),ges_qc(j,i,k,1))
-                 cldice_3d(i,j,k)   = max(0.001_r_kind*cldice_3d(i,j,k),ges_qi(j,i,k,1))
+                 cldwater_3d(i,j,k) = max(0.001_r_kind*cldwater_3d(i,j,k),ges_ql(j,i,k))
+                 cldice_3d(i,j,k)   = max(0.001_r_kind*cldice_3d(i,j,k),ges_qi(j,i,k))
               else   ! clean  cloud
                  cldwater_3d(i,j,k) = zero
                  cldice_3d(i,j,k) = zero
               endif
            else   ! unknown, using background values
-              cldwater_3d(i,j,k) = ges_qc(j,i,k,1)
-              cldice_3d(i,j,k) = ges_qi(j,i,k,1)
+              cldwater_3d(i,j,k) = ges_ql(j,i,k)
+              cldice_3d(i,j,k) = ges_qi(j,i,k)
            endif
         END DO
      END DO
@@ -557,15 +583,16 @@ SUBROUTINE  gsdcloudanalysis(mype)
 !
 !  the final analysis of precipitation
 !
+
   qrlimit=15.0_r_kind
   DO k=1,nsig
      DO j=2,lat2-1
         DO i=2,lon2-1
            snowtemp=snow_3d(i,j,k) 
            raintemp=rain_3d(i,j,k) 
-           rain_3d(i,j,k) = ges_qr(j,i,k,1)
-           snow_3d(i,j,k) = ges_qs(j,i,k,1)
-           graupel_3d(i,j,k) = ges_qg(j,i,k,1)
+           rain_3d(i,j,k) = ges_qr(j,i,k)
+           snow_3d(i,j,k) = ges_qs(j,i,k)
+           graupel_3d(i,j,k) = ges_qg(j,i,k)
            if(ref_mos_3d(i,j,k) > zero ) then
               snow_3d(i,j,k) = 0.001_r_kind*MIN(max(snowtemp,zero),qrlimit)
               rain_3d(i,j,k) = 0.001_r_kind*MIN(max(raintemp,zero),qrlimit)
@@ -574,9 +601,9 @@ SUBROUTINE  gsdcloudanalysis(mype)
               snow_3d(i,j,k) = zero
               graupel_3d(i,j,k) = zero
            else
-              rain_3d(i,j,k) = ges_qr(j,i,k,1)
-              snow_3d(i,j,k) = ges_qs(j,i,k,1)
-              graupel_3d(i,j,k) = ges_qg(j,i,k,1)
+              rain_3d(i,j,k) = ges_qr(j,i,k)
+              snow_3d(i,j,k) = ges_qs(j,i,k)
+              graupel_3d(i,j,k) = ges_qg(j,i,k)
            endif
         END DO
      END DO
@@ -612,13 +639,13 @@ SUBROUTINE  gsdcloudanalysis(mype)
   do k=1,nsig
      do j=1,lat2
         do i=1,lon2
-           ges_q(j,i,k,1)=q_bk(i,j,k)/(1+q_bk(i,j,k))   ! Here q is mixing ratio kg/kg, 
+           ges_q(j,i,k,itsig)=q_bk(i,j,k)/(1+q_bk(i,j,k))   ! Here q is mixing ratio kg/kg, 
                                                         ! need to convert to specific humidity
-           ges_qr(j,i,k,1)=rain_3d(i,j,k)
-           ges_qs(j,i,k,1)=snow_3d(i,j,k)
-           ges_qg(j,i,k,1)=graupel_3d(i,j,k)
-           ges_qc(j,i,k,1)=cldwater_3d(i,j,k)
-           ges_qi(j,i,k,1)=cldice_3d(i,j,k)
+           ges_qr(j,i,k)=rain_3d(i,j,k)
+           ges_qs(j,i,k)=snow_3d(i,j,k)
+           ges_qg(j,i,k)=graupel_3d(i,j,k)
+           ges_ql(j,i,k)=cldwater_3d(i,j,k)
+           ges_qi(j,i,k)=cldice_3d(i,j,k)
         ENDDO
      ENDDO
   ENDDO

@@ -15,6 +15,7 @@ module m_obdiag
 !   2010-03-17  j guo   - added this document block
 !   2010-04-27  tangborn - added carbon monoxide
 !   2010-05-26  treadon - add tcp_verify to ob_verify interface
+!   2011-05-18  todling - add aero, aerol, and pm2_5
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -61,24 +62,27 @@ module m_obdiag
 !	call obdiag_cleanSearcher(obsdiags)
 
   interface ob_verify; module procedure &
-     ps_verify_, &
-      t_verify_, &
-      w_verify_, &
-      q_verify_, &
-    spd_verify_, &
-    srw_verify_, &
-     rw_verify_, &
-     dw_verify_, &
-    sst_verify_, &
-     pw_verify_, &
-     oz_verify_, &
-    o3l_verify_, &
-    gps_verify_, &
-    pcp_verify_, &
-    rad_verify_, &
-    tcp_verify_, & 
-    lag_verify_, & 
-    co_verify_; end interface
+     ps_verify_, &  ! 1
+      t_verify_, &  ! 2
+      w_verify_, &  ! 3
+      q_verify_, &  ! 4
+    spd_verify_, &  ! 5
+    srw_verify_, &  ! 6
+     rw_verify_, &  ! 7
+     dw_verify_, &  ! 8
+    sst_verify_, &  ! 9
+     pw_verify_, &  ! 10
+    pcp_verify_, &  ! 11
+     oz_verify_, &  ! 12
+    o3l_verify_, &  ! 13
+    gps_verify_, &  ! 14
+    rad_verify_, &  ! 15
+    tcp_verify_, &  ! 16
+    lag_verify_, &  ! 17
+  colvk_verify_, &  ! 18
+   aero_verify_, &  ! 19
+  aerol_verify_, &  ! 20
+  pm2_5_verify_; end interface
 
 !!! usage:
 !!!
@@ -1490,22 +1494,22 @@ _EXIT_(myname_)
   call timer_fnl(ob_verify_name)
 _EXIT_(myname_)
 end function oz_verify_
-function co_verify_(hd,count,perr) result(good)
-  use obsmod,only: co3l_ob_head
-  use obsmod,only: co3l_ob_type
+function colvk_verify_(hd,count,perr) result(good)
+  use obsmod,only: colvk_ob_head
+  use obsmod,only: colvk_ob_type
   use obsmod,only: obs_diag
   use mpeu_util, only: iperr => perr
   use timermod, only: timer_ini,timer_fnl
   implicit none
   logical:: good
-  type(co3l_ob_head),intent(in) :: hd
+  type(colvk_ob_head),intent(in) :: hd
   integer(i_kind),optional,intent(in) :: count
   logical,optional,intent(in) :: perr
 
   character(len=*),parameter :: myname_=myname//'.co_verify_'
 
   logical:: perr_
-  type(co3l_ob_type),pointer:: my_node
+  type(colvk_ob_type),pointer:: my_node
   type(obs_diag),pointer:: my_diag
   integer(i_kind):: k,n,nlco
 _ENTRY_(myname_)
@@ -1585,7 +1589,7 @@ _EXIT_(myname_)
   endif
   call timer_fnl(ob_verify_name)
 _EXIT_(myname_)
-end function co_verify_
+end function colvk_verify_
 
 
 function rad_verify_(hd,count,perr) result(good)
@@ -1684,5 +1688,258 @@ _EXIT_(myname_)
   call timer_fnl(ob_verify_name)
 _EXIT_(myname_)
 end function rad_verify_
+
+function aero_verify_(hd,count,perr) result(good)
+  use obsmod,only: aero_ob_head
+  use obsmod,only: aero_ob_type
+  use obsmod,only: obs_diag
+  use mpeu_util, only: iperr => perr
+  use timermod, only: timer_ini,timer_fnl
+  implicit none
+  logical:: good
+  type(aero_ob_head),intent(in) :: hd
+  integer(i_kind),optional,intent(in) :: count
+  logical,optional,intent(in) :: perr
+
+  character(len=*),parameter :: myname_=myname//'.aero_verify_'
+
+  logical:: perr_
+  type(aero_ob_type),pointer:: my_node
+  type(obs_diag),pointer:: my_diag
+  integer(i_kind):: k,n,nlaero
+_ENTRY_(myname_)
+  good = .true.
+  if(SKIP_VERIFY_) then
+_EXIT_(myname_)
+    return
+  endif
+  call timer_ini(ob_verify_name)
+
+  perr_=.false.
+  if(present(perr)) perr_=perr
+
+  my_node => hd%head	! top
+  n=0
+  do while(associated(my_node))
+    n=n+1
+
+    if(good) then
+      		! check #0
+      good = associated(my_node%diags)
+      if(.not.good .and. perr_) then
+	call iperr(myname_,'unassociated node%diags, @count =',n)
+	call iperr(myname_,'node%(idv,iob,nlaero) =',(/my_node%idv,my_node%iob,my_node%nlaero/))
+      endif
+
+      		! check #0.1
+      if(good) then
+        good = my_node%nlaero+1 == size(my_node%diags)
+        if(.not.good .and. perr_) then
+	  call iperr(myname_,'mismatching [%nlaero,size(%diags)], @count =',n)
+	  call iperr(myname_,'node%(idv,iob,nlaero,size(%diags)) =', &
+	              (/my_node%idv,my_node%iob,my_node%nlaero,size(my_node%diags)/))
+        endif
+      endif
+
+      if(good) then
+        do k=1,my_node%nlaero+1
+          my_diag => my_node%diags(k)%ptr
+
+      		! check #1
+          good = associated(my_diag)
+      	  if(.not.good .and. perr_) then
+	    call iperr(myname_,'unassociated node%diags(k)%ptr, @(count,k) =',(/n,k/))
+	    call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
+	  endif
+
+      		! check #2
+          good = my_node%idv == my_diag%idv .and. &
+    	         my_node%iob == my_diag%iob .and. &
+	                 k   == my_diag%ich
+          if(.not.good .and. perr_) then
+	    call iperr(myname_,'mismatching keys, @(count,k) =',(/n,k/))
+	    call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
+	    call iperr(myname_,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          endif
+	enddo
+      endif
+      
+      if(.not.(good.or.present(count))) then
+        call iperr(myname_,'test failed, @count =',n)
+        call timer_fnl(ob_verify_name)
+_EXIT_(myname_)
+        return
+      endif 
+    endif
+
+    my_node => my_node%llpoint	! next
+  enddo
+
+  		! check #3, is done when some other test is already failed.
+  if(present(count)) then
+    if(n/=count) then
+      good=.false.
+      if(perr_) call iperr(myname_,'mismatching count, (expected,actual) =',(/count,n/))
+    endif
+  endif
+  call timer_fnl(ob_verify_name)
+_EXIT_(myname_)
+end function aero_verify_
+
+function aerol_verify_(hd,count,perr) result(good)
+  use obsmod,only: aerol_ob_head
+  use obsmod,only: aerol_ob_type
+  use obsmod,only: obs_diag
+  use mpeu_util, only: iperr => perr
+  use timermod, only: timer_ini,timer_fnl
+  implicit none
+  logical:: good
+  type(aerol_ob_head),intent(in) :: hd
+  integer(i_kind),optional,intent(in) :: count
+  logical,optional,intent(in) :: perr
+
+  character(len=*),parameter :: myname_=myname//'.aerol_verify_'
+
+  logical:: perr_
+  type(aerol_ob_type),pointer:: my_node
+  type(obs_diag),pointer:: my_diag
+  integer(i_kind):: n
+_ENTRY_(myname_)
+  good = .true.
+  if(SKIP_VERIFY_) then
+_EXIT_(myname_)
+    return
+  endif
+  call timer_ini(ob_verify_name)
+
+  perr_=.false.
+  if(present(perr)) perr_=perr
+
+  my_node => hd%head	! top
+  n=0
+  do while(associated(my_node))
+    n=n+1
+
+    if(good) then
+      		! check #1
+      my_diag => my_node%diags
+      good = associated(my_diag)
+      	if(.not.good .and. perr_) then
+	  call iperr(myname_,'unassociated %diags, @count =',n)
+	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+	endif
+
+      		! check #2
+      if(good) then
+        good = my_node%idv == my_diag%idv .and. &
+    	       my_node%iob == my_diag%iob .and. &
+	                 1 == my_diag%ich
+        if(.not.good .and. perr_) then
+	  call iperr(myname_,'mismatching keys, @count =',n)
+	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+        endif
+      endif
+    endif
+
+    if(.not.(good.or.present(count))) then
+      call iperr(myname_,'test failed, @count =',n)
+      call timer_fnl(ob_verify_name)
+_EXIT_(myname_)
+      return
+    endif
+
+    my_node => my_node%llpoint	! i.e. %next
+
+  enddo
+
+  		! check #3
+  if(present(count)) then
+    if(n/=count) then
+      good = .false.
+      if(perr_) call iperr(myname_,'mismatching count, (expected,actual) =',(/count,n/))
+    endif
+  endif
+  call timer_fnl(ob_verify_name)
+_EXIT_(myname_)
+end function aerol_verify_
+
+function pm2_5_verify_(hd,count,perr) result(good)
+  use obsmod,only: pm2_5_ob_head
+  use obsmod,only: pm2_5_ob_type
+  use obsmod,only: obs_diag
+  use mpeu_util, only: iperr => perr
+  use timermod, only: timer_ini,timer_fnl
+  implicit none
+  logical:: good
+  type(pm2_5_ob_head),intent(in) :: hd
+  integer(i_kind),optional,intent(in) :: count
+  logical,optional,intent(in) :: perr
+
+  character(len=*),parameter :: myname_=myname//'.pm2_5_verify_'
+
+  logical:: perr_
+  type(pm2_5_ob_type),pointer:: my_node
+  type(obs_diag),pointer:: my_diag
+  integer(i_kind):: n
+_ENTRY_(myname_)
+  good = .true.
+  if(SKIP_VERIFY_) then
+_EXIT_(myname_)
+    return
+  endif
+  call timer_ini(ob_verify_name)
+
+  perr_=.false.
+  if(present(perr)) perr_=perr
+
+  my_node => hd%head	! top
+  n=0
+  do while(associated(my_node))
+    n=n+1
+
+    if(good) then
+      		! check #1
+      my_diag => my_node%diags
+      good = associated(my_diag)
+      	if(.not.good .and. perr_) then
+	  call iperr(myname_,'unassociated %diags, @count =',n)
+	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+	endif
+
+      		! check #2
+      if(good) then
+        good = my_node%idv == my_diag%idv .and. &
+    	       my_node%iob == my_diag%iob .and. &
+	                 1 == my_diag%ich
+        if(.not.good .and. perr_) then
+	  call iperr(myname_,'mismatching keys, @count =',n)
+	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+        endif
+      endif
+    endif
+
+    if(.not.(good.or.present(count))) then
+      call iperr(myname_,'test failed, @count =',n)
+      call timer_fnl(ob_verify_name)
+_EXIT_(myname_)
+      return
+    endif
+
+    my_node => my_node%llpoint	! i.e. %next
+
+  enddo
+
+  		! check #3
+  if(present(count)) then
+    if(n/=count) then
+      good = .false.
+      if(perr_) call iperr(myname_,'mismatching count, (expected,actual) =',(/count,n/))
+    endif
+  endif
+  call timer_fnl(ob_verify_name)
+_EXIT_(myname_)
+end function pm2_5_verify_
 
 end module m_obdiag

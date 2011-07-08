@@ -62,7 +62,10 @@ subroutine update_guess(sval,sbias)
 !   2010-04-30  wu - setup for regional ozone analysis
 !   2010-05-13  todling - update to use gsi_bundle
 !   2010-06-01  todling - skip upd when pointer not defined
+!   2010-06-02  todling - bug in upd of chem
 !   2010-11-02  ting - replace loop index k in nfldsfc loop with it (bug fix)
+!   2010-05-01  todling - add support for generalized guess (use met-guess)
+!                       - cwmr now in met-guess
 !
 !   input argument list:
 !    sval
@@ -85,7 +88,7 @@ subroutine update_guess(sval,sbias)
   use jfunc, only: iout_iter,biascor,tsensible
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone
-  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
+  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,nfldsig,hrdifsig,hrdifsfc,&
        nfldsfc,dsfct
   use state_vectors, only: svars3d,svars2d
@@ -97,9 +100,11 @@ subroutine update_guess(sval,sbias)
   use bias_predictors, only: predictors
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use gsi_bundlemod, only: gsi_bundleputvar
-  use gsi_chemtracer_mod, only: gsi_chem_bundle
-  use gsi_chemtracer_mod, only: gsi_chemtracer_get
+  use gsi_bundlemod, only: gsi_bundlegetvar
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_metguess_mod, only: gsi_metguess_get
+  use gsi_chemguess_mod, only: gsi_chemguess_bundle
+  use gsi_chemguess_mod, only: gsi_chemguess_get
   use mpeu_util, only: getindex
 
   implicit none
@@ -110,10 +115,11 @@ subroutine update_guess(sval,sbias)
 
 ! Declare local variables
   character(max_varname_length),allocatable,dimension(:) :: gases
-  integer(i_kind) i,j,k,it,ij,ii,ier,ic,id,ngases,istatus
-  integer(i_kind) is_u,is_v,is_t,is_q,is_oz,is_cw,is_ps,is_sst,is_co,is_co2
-  real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
-  real(r_kind),pointer,dimension(:,:)   :: sv_rank2
+  character(max_varname_length),allocatable,dimension(:) :: guess
+  character(max_varname_length),allocatable,dimension(:) :: cloud
+  integer(i_kind) i,j,k,it,ij,ii,ic,id,ngases,nguess,istatus
+  integer(i_kind) is_u,is_v,is_t,is_q,is_oz,is_cw,is_ps,is_sst
+  integer(i_kind) ipinc,ipges,icloud,ncloud
   real(r_kind) :: zt
 
 !*******************************************************************************
@@ -131,11 +137,25 @@ subroutine update_guess(sval,sbias)
   call gsi_bundlegetpointer(sval(1),'ps', is_ps, istatus)
   call gsi_bundlegetpointer(sval(1),'sst',is_sst,istatus)
 
-! Inquire about chemistry
-call gsi_chemtracer_get('dim',ngases,istatus)
+! Inquire about guess fields
+call gsi_metguess_get('dim',nguess,istatus)
+if (nguess>0) then
+   allocate(guess(nguess))
+   call gsi_metguess_get('gsinames',guess,istatus)
+endif
+
+! Inquire about clouds
+call gsi_metguess_get('clouds::3d',ncloud,istatus)
+if (ncloud>0) then
+   allocate(cloud(ncloud))
+   call gsi_metguess_get('clouds::3d',cloud,istatus)
+endif
+
+! Inquire about chemistry fields
+call gsi_chemguess_get('dim',ngases,istatus)
 if (ngases>0) then
-    allocate(gases(ngases))
-    call gsi_chemtracer_get('shortnames',gases,istatus)
+   allocate(gases(ngases))
+   call gsi_chemguess_get('gsinames',gases,istatus)
 endif
 
 ! Initialize local arrays
@@ -192,7 +212,6 @@ endif
 
 !             Note:  Below variables only used in NCEP GFS model
               if(is_oz>0) ges_oz(i,j,k,it)   =                 ges_oz(i,j,k,it)   + sval(ii)%r3(is_oz)%q(i,j,k)
-              if(is_cw>0) ges_cwmr(i,j,k,it) =                 ges_cwmr(i,j,k,it) + sval(ii)%r3(is_cw)%q(i,j,k)
                           ges_div(i,j,k,it)  =                 ges_div(i,j,k,it)  + xhat_div(i,j,k,ii)
                           ges_vor(i,j,k,it)  =                 ges_vor(i,j,k,it)  + xhat_vor(i,j,k,ii)
            end do
@@ -206,23 +225,47 @@ endif
            end do
         end do
      endif
+
+!    Update extra met-guess fields
+     do ic=1,nguess
+        id=getindex(svars3d,guess(ic))
+        if (id>0) then
+           call gsi_bundlegetpointer (sval(ii),               guess(ic),ipinc,istatus)
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ipges,istatus)
+           gsi_metguess_bundle(it)%r3(ipges)%q = gsi_metguess_bundle(it)%r3(ipges)%q + sval(ii)%r3(ipinc)%q
+           icloud=getindex(cloud,guess(ic))
+           if(icloud>0) then
+              gsi_metguess_bundle(it)%r3(ipges)%q = max(gsi_metguess_bundle(it)%r3(ipges)%q,1.e-10_r_kind)
+           endif
+        endif
+        id=getindex(svars2d,guess(ic))
+        if (id>0) then
+           call gsi_bundlegetpointer (sval(ii),               guess(ic),ipinc,istatus)
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ipges,istatus)
+           gsi_metguess_bundle(it)%r2(ipges)%q = gsi_metguess_bundle(it)%r2(ipges)%q + sval(ii)%r2(ipinc)%q
+        endif
+     enddo
+
+!    Update trace gases
      do ic=1,ngases
         id=getindex(svars3d,gases(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(it),           gases(ic),sv_rank3,istatus)
-           call gsi_bundleputvar     (gsi_chem_bundle(it),gases(ic),sv_rank3,istatus)
+           call gsi_bundlegetpointer (sval(ii),                gases(ic),ipinc,istatus)
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ipges,istatus)
+           gsi_chemguess_bundle(it)%r3(ipges)%q = gsi_chemguess_bundle(it)%r3(ipges)%q + sval(ii)%r3(ipinc)%q
         endif
         id=getindex(svars2d,gases(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(it),           gases(ic),sv_rank2,istatus)
-           call gsi_bundleputvar     (gsi_chem_bundle(it),gases(ic),sv_rank2,istatus)
+           call gsi_bundlegetpointer (sval(ii),                gases(ic),ipinc,istatus)
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ipges,istatus)
+           gsi_chemguess_bundle(it)%r2(ipges)%q = gsi_chemguess_bundle(it)%r2(ipges)%q + sval(ii)%r2(ipinc)%q
         endif
      enddo
 
   end do
 
   if(ngases>0)then
-    deallocate(gases)
+     deallocate(gases)
   endif
 
   if(is_sst>0) then

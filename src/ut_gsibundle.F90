@@ -23,6 +23,7 @@ main prologue of GSI\_Bundle itself.
 #endif
 !BOI
 
+#define _BUNDLE_R4_
 !-----------------------------------------------------------------------
 !BOP
 !
@@ -65,6 +66,8 @@ implicit none
 ! !REVISION HISTORY:
 !
 !  23Apr2010  Todling  Initial code.
+!  28Apr2011  Todling  Add code to test REAL*4 support (please read
+!                      comments in routine Ensemble()
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -131,7 +134,7 @@ call GSI_BundlePutVar ( GSI_bundle_mix, 'ps' , one, ierr )
 ! ------
 ! TEST 1: merge two bundles
 ! ------
-!call merger ( GSI_bundle_mix )
+! call merger ( GSI_bundle_mix )
 
 ! ------
 ! TEST 2: create a multiple bundle
@@ -146,7 +149,7 @@ call GSI_BundlePutVar ( GSI_bundle_mix, 'ps' , one, ierr )
 ! ------
 ! TEST 4: test creating a bundle w/ "mix-grids" as in control vector
 ! ----
- call ensemble ( )
+  call ensemble ( )
 
 ! ------
 ! TEST 3: print original bundle to show that none of the above changed it
@@ -487,6 +490,7 @@ call GSI_GridCreate (grid, lat2, lon2, nlev)
 !------------------------------------
 call GSI_BundleCreate ( GSI_bundle_new, grid, 'New 3d Bundle', ierr, &
                                     names3d=names3d, edges=edges )
+     call GSI_BundlePrint ( GSI_bundle_new )
      call GSI_BundleGetPointer ( GSI_bundle_new, 'vt', ipnt, ierr ) 
      call random_number(GSI_bundle_new%r3(ipnt)%q)
      print*, 'this is the new bundle w/ 3d fields'
@@ -525,12 +529,30 @@ call GSI_BundleDestroy ( GSI_bundle_new, ierr )
 end subroutine edge
 !EOC
 
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  mimic_int_routines --- mimic GSI int routines
+!
+! !INTERFACE:
+!
 subroutine mimic_int_routines(Bundle)
 use m_rerank, only: rerank
 use kinds, only: i_kind,r_kind
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
+! !USES:
 implicit none
+!
+! !DESCRIPTION: Mimic GSI int routines.
+!
+! !REVISION HISTORY:
+!
+!  12Oct2010 Todling - Add prologue for PROTEX consistency
+!
+!EOP
+!-------------------------------------------------------------------------
+!BOC
 type(gsi_bundle),target,intent(inout) :: bundle
 real(r_kind),pointer,dimension(:,:,:)::pe
 real(r_kind),pointer,dimension(:)::r1pe
@@ -548,20 +570,27 @@ integer(i_kind) ipe,ierr,ival,nsz
 end subroutine mimic_int_routines
 
 module control_test
-use kinds, only : r_kind
+use kinds, only : r_single,r_kind
 use gsi_bundlemod, only : GSI_Grid
 use gsi_bundlemod, only : GSI_Bundle
 implicit none
 private
 public control
 type control
-  real(r_kind),pointer :: values(:) => null() 
+#ifdef _BUNDLE_R4_
+  integer :: mykind = r_single
+  real(r_single),pointer :: values(:) => null()
+#else /* _BUNDLE_R4_ */
+  integer :: mykind = r_kind
+  real(r_kind),  pointer :: values(:) => null()
+#endif /* _BUNDLE_R4_ */
   type(GSI_Grid)   :: grid_main
   type(GSI_Bundle),pointer :: main(:)
   type(GSI_Grid)   :: grid_ensb
   type(GSI_Bundle),pointer :: ensemble(:,:)
 end type control
 end module control_test
+!EOC
 
 !-------------------------------------------------------------------------
 !BOP
@@ -574,7 +603,7 @@ subroutine Ensemble ( )
 
 ! !USES:
 
-use kinds, only: i_kind,r_kind
+use kinds, only: i_kind,r_single,r_kind
 use gsi_bundlemod, only : GSI_BundleCreate
 use gsi_bundlemod, only : GSI_BundleSet
 use gsi_bundlemod, only : GSI_BundleGetPointer
@@ -608,10 +637,21 @@ implicit none
 ! !REVISION HISTORY:
 !
 !  22Apr2010 Todling - Initial code
+!  28Apr2011 Todling - Now using ensemble as r_single
+!
+! !REMARKS:
+!
+! 1) Notice the cpp directive _BUNDLE_R4_ controls whether to use 
+!    and REAL*4 or REAL*8 bundle in this example. The cpp directive 
+!    is here only for the purposes of this program: GSI should not
+!    need it; this is simply due to how I define the control vector
+!    in this example (as a combined entity).
 !
 !EOP
 !-------------------------------------------------------------------------
 !BOC
+
+character(len=*), parameter :: myname='ensemble'
 
 ! These define the regular control vector
 integer(i_kind), parameter :: n3d = 4
@@ -666,29 +706,46 @@ allocate(cv%ensemble(nsubwin,n_ens))
 
 ! regular part of the control vector ...
 ii=0
-cv%main(1)%values => cv%values(ii+1:ii+nval_reg)
+#ifdef _BUNDLE_R4_
+cv%main(1)%valuesR4 => cv%values(ii+1:ii+nval_reg)
+#else /* _BUNDLE_R4_ */
+cv%main(1)%values   => cv%values(ii+1:ii+nval_reg)
+#endif /* _BUNDLE_R4_ */
 call GSI_GridCreate ( cv%grid_main, lat2, lon2, nlev )
 call GSI_BundleSet  ( cv%main(1), cv%grid_main, 'Regular Part of Control Vector', ierr, &
-                                  names2d=names2d,names3d=names3d )
+                                  names2d=names2d,names3d=names3d, bundle_kind=cv%mykind )
+if(ierr<0) then
+   print*, trim(myname), ': error, cannot define regular part of CV '
+   call exit(7) 
+endif
 
 ! ensemble part of the control vector ...
 call GSI_GridCreate ( cv%grid_ensb, lat2_ens, lon2_ens, nlev_ens )
 ii=ii+nval_reg
 do nn=1,n_ens
-   cv%ensemble(1,nn)%values => cv%values(ii+1:ii+nval_ens)
+#ifdef _BUNDLE_R4_
+   cv%ensemble(1,nn)%valuesR4 => cv%values(ii+1:ii+nval_ens)
+#else /* _BUNDLE_R4_ */
+   cv%ensemble(1,nn)%values   => cv%values(ii+1:ii+nval_ens)
+#endif /* _BUNDLE_R4_ */
    write(bname,'(a,i3.3)') 'Ensemble Part of Control Vector Member-',nn
    call GSI_BundleSet  ( cv%ensemble(1,nn), cv%grid_ensb, trim(bname), ierr, &
-                                            names2d=names2d_ens,names3d=names3d_ens )
+                                            names2d=names2d_ens,names3d=names3d_ens, &
+                                            bundle_kind=cv%mykind )
+   if(ierr<0) then
+      print*, trim(myname), ': error, cannot member ', nn
+      call exit(7) 
+   endif
    ii=ii+nval_ens
 enddo
 ! Fill in ensemble-sf w/ something
 call mimic_gsi ( cv%ensemble(1,:), n_ens)
 
 ! Echo control contents
-call GSI_BundlePrint ( cv%main(1) )
-do nn=1,n_ens
-   call GSI_BundlePrint ( cv%ensemble(1,nn) )
-enddo
+!call GSI_BundlePrint ( cv%main(1) )
+!do nn=1,n_ens
+!   call GSI_BundlePrint ( cv%ensemble(1,nn) )
+!enddo
 
 !-------------------
 ! destroy all bundle
@@ -702,18 +759,58 @@ deallocate(cv%main)
 deallocate(cv%values)
 
 end subroutine ensemble
-!EOC
 subroutine mimic_gsi ( bundle, n )
-use kinds, only: i_kind,r_kind
+use kinds, only: i_kind,r_kind,r_single
 use gsi_bundlemod, only: GSI_Bundle
 use gsi_bundlemod, only: GSI_BundleGetPointer
+use gsi_bundlemod, only: GSI_BundlePrint
 implicit none
 integer(i_kind),intent(in) :: n
 type(gsi_bundle) :: bundle(n)
-integer(i_kind) ierr
-real(r_kind),pointer,dimension(:,:,:)::ptr
-call GSI_BundleGetPointer ( bundle(1), 'sf', ptr, ierr ) 
-call random_number(ptr)
-call GSI_BundleGetPointer ( bundle(2), 'vp', ptr, ierr ) 
-call random_number(ptr)
+character(len=*), parameter :: myname='mimic_gsi'
+integer(i_kind) nn,ierr
+real(r_single),pointer,dimension(:,:,:)::ptr4
+real(r_kind),pointer,dimension(:,:,:)::ptr8
+if(bundle(1)%AllKinds==r_kind) then
+  call GSI_BundleGetPointer ( bundle(1), 'sf', ptr8, ierr ) 
+  if(ierr/=0) then
+     print*, trim(myname), ': error, cannot find pointer to sf'
+     call exit(7)
+  endif
+  call random_number(ptr8)
+else if(bundle(1)%AllKinds==r_single) then
+  call GSI_BundleGetPointer ( bundle(1), 'sf', ptr4, ierr ) 
+  if(ierr/=0) then
+     print*, trim(myname), ': error, cannot find pointer to sf'
+     call exit(7)
+  endif
+  call random_number(ptr4)
+else
+  print*, trim(myname), ': error, undef kind for bundle'
+  call exit(9)
+endif
+if (n>1) then
+   if(bundle(2)%AllKinds==r_kind) then
+      call GSI_BundleGetPointer ( bundle(2), 'vp', ptr8, ierr ) 
+      call random_number(ptr8)
+      if(ierr/=0) then
+         print*, trim(myname), ': error, cannot find pointer to vp'
+         call exit(7)
+      endif
+   else if(bundle(2)%AllKinds==r_single) then
+      call GSI_BundleGetPointer ( bundle(2), 'vp', ptr4, ierr ) 
+      if(ierr/=0) then
+         print*, trim(myname), ': error, cannot find pointer to vp'
+         call exit(7)
+      endif
+      call random_number(ptr4)
+   else
+      print*, trim(myname), ': error, undef kind for bundle'
+      call exit(9)
+   endif
+endif
+do nn=1,n
+   call GSI_BundlePrint ( bundle(nn) )
+enddo
 end subroutine mimic_gsi
+!EOC

@@ -25,19 +25,27 @@ module qcmod
 !   2006-08-07  treadon - remove nlnqc_oz (not used)
 !   2007-04-16       su - add c_varqc for determining the spped to turn on var. qc
 !   2008-06-03  treadon - add use_poq7
+!   2011-04-03  li      - (1) Add setup_tzr_qc, tz_retrieval for Tz retrieval.  Add QC with Tzr to some QC subroutines
+!                       - (2) Introduce nst_tzr to control QC with Tz retrieval
+!                       - (3) Modify QC subroutines by adding a few dummy variables for Tz retrieval
+!   2011-02-17  todling - add parameter to control O3 Jacobian from IR instruments
+!   2011-05-20  mccarty - add qc_atms routine
 !
 ! subroutines included:
 !   sub init_qcvars
 !   sub errormod
+!   sub setup_tzr_qc    - set up QC with Tz retrieval
+!   sub tz_retrieval    - Apply Tz retrieval
 !   sub qc_ssmi         - qc ssmi data
 !   sub qc_seviri       - qc seviri data
 !   sub qc_ssu          - qc ssu data
 !   sub qc_avhrr        - qc avhrr data
 !   sub qc_goesimg      - qc goesimg data
 !   sub qc_msu          - qc msu data
-!   sub qc_irsnd        - qc ir sounder data (hirs,goesndr,iasi,airs)
+!   sub qc_irsnd        - qc ir sounder data (hirs,goesndr,iasi,airs,cris)
 !   sub qc_amsua        - qc amsua data
 !   sub qc_mhs          - qc msu, amsub and hsb data
+!   sub qc_atms         - qc atms data
 !
 ! remarks: variable definitions below
 !   def dfact           - factor for duplicate obs at same location for conv. data
@@ -67,7 +75,9 @@ module qcmod
   use kinds, only: i_kind,r_kind
   use constants, only: zero,quarter,half,one,two,three,four,five,tiny_r_kind,rd,grav
   use constants, only: r0_01,r0_02,r0_03,r0_04,r0_05,r10,r60,r100,h300,r400,r1000,r2000,r2400,r4000
-  use constants, only: deg2rad,rad2deg,t0c
+  use constants, only: deg2rad,rad2deg,t0c,one_tenth
+  use obsmod, only: rmiss_single
+  use radinfo, only: iuse_rad,nst_tzr
   implicit none
 
 ! set default to private
@@ -75,15 +85,18 @@ module qcmod
 ! set subroutines to public
   public :: init_qcvars
   public :: errormod
+  public :: setup_tzr_qc
   public :: qc_ssmi
   public :: qc_seviri
   public :: qc_ssu
-  public :: qc_avhrr 
   public :: qc_goesimg
   public :: qc_msu
   public :: qc_irsnd
+  public :: qc_avhrr
   public :: qc_amsua
   public :: qc_mhs
+  public :: qc_atms
+  public :: qc_noirjaco3
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,repe_dw
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
@@ -93,12 +106,17 @@ module qcmod
   logical nlnqc_iter
   logical noiqc
   logical use_poq7
+  logical qc_noirjaco3
 
   character(10):: vadfile
   integer(i_kind) npres_print
   real(r_kind) dfact,dfact1,repe_dw,erradar_inflate,c_varqc
   real(r_kind) varqc_iter
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
+
+! Declare variables for QC with Tz retrieval
+  real(r_kind), private :: e_ts,e_ta,e_qa
+  real(r_kind), private :: tzchk
 
 !  Definition of id_qc flags
 !  Good Observations (0)
@@ -123,6 +141,8 @@ module qcmod
   integer(i_kind),parameter:: ifail_emiss_qc=8
 !  Reject due to observations being out of range in qc routine
   integer(i_kind),parameter:: ifail_range_qc=9
+!  Reject because of too large surface temperature physical retrieval in qc routine
+  integer(i_kind),parameter:: ifail_tzr_qc=10
 
 !  Failures specific to qc routine start at 50 and the numbers overlap
 !  QC_SSMI failures 
@@ -208,7 +228,7 @@ contains
 !$$$
     implicit none
 
-    npres_print = 12_i_kind
+    npres_print = 12
     allocate(ptop(npres_print),pbot(npres_print),ptopq(npres_print), &
              pbotq(npres_print),ptopo3(npres_print),pboto3(npres_print))
     
@@ -267,8 +287,50 @@ contains
 
     use_poq7 = .false.
 
+    qc_noirjaco3 = .false.  ! when .f., use O3 Jac from IR instruments
+
     return
   end subroutine init_qcvars
+
+  subroutine setup_tzr_qc(obstype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    setup_tzr_qc       set up parameters for QC with Tz retrieval
+!   prgmmr: xu li            org: np23                date: 2010-06-01
+!
+! abstract: set up tz retrieval
+!
+!   input argument list:
+!     obstype - type of tb observation
+!
+!   output argument list:
+!
+!$$$ end documentation block
+
+    implicit none
+
+! Define parameters
+
+    character(10), intent(in) :: obstype
+
+!   Assign error parameters for background (Ts, Ta, Qa)
+!
+    e_ts = half; e_ta = one; e_qa = 0.85_r_kind
+
+    tzchk = 10.0_r_kind
+    if ( obstype == 'amsre_low' .or. obstype == 'amsre_mid' .or. obstype == 'amsre_hig'  ) then
+      tzchk = 0.50_r_kind
+    elseif ( obstype == 'amsua' .or. obstype == 'ssmis' .or. obstype == 'ssmi' ) then
+      tzchk = 0.12_r_kind
+    elseif (  obstype == 'avhrr' .or. obstype == 'avhrr_navy' ) then 
+      tzchk = 0.85_r_kind
+    elseif (  obstype == 'hirs2' .or. obstype == 'hirs3' .or. obstype == 'hirs4' .or. & 
+              obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. obstype == 'sndrd3' .or. obstype == 'sndrd4' .or.  &
+              obstype == 'goes_img' .or. obstype == 'airs' .or. obstype == 'iasi' .or. obstype == 'cris' .or. obstype == 'seviri' ) then
+      tzchk = 0.85_r_kind
+    endif
+
+  end subroutine setup_tzr_qc
 
   subroutine errormod(pq,vq,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
 !$$$  subprogram documentation block
@@ -353,8 +415,8 @@ contains
        l=k
 
 ! The check (l>=2) ensures that plevs(l-1) is defined
-       if (l>=2_i_kind) then
-          dwprof: do while (abs(plevs(l-one)-plevs(k)) < vmag .and. l >= 2_i_kind) 
+       if (l>=2) then
+          dwprof: do while (abs(plevs(l-one)-plevs(k)) < vmag .and. l >= 2) 
              l=l-1
              if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
                 pdiffd=abs(plevs(l)-plevs(k))
@@ -373,11 +435,152 @@ contains
     end if
 
     return
-  end subroutine errormod
-subroutine qc_ssmi(nchanl,   &
+end subroutine errormod
+
+subroutine tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,tschk,iud,iall,dtz,ts_ave) 
+
+!subprogram:    tz_retrieval  compute tz retrieval with radiances
+!   prgmmr: Xu Li          org: w/nmc2     date: 06-01-2010
+!
+! abstract:  perform tz retrieval based on input radiative transfer info
+!            save bufr output when necessary
+!
+! program history log:
+!
+!   input argument list:
+!     nsig         - number of model layers
+!     nchanl       - number of channels for instruments
+!     ich          - channel number
+!     irday        - index for the use of shorter IR channel: 0 = no; 1 = yes
+!     temp         - d(brightness temperature)/d(temperature)
+!     wmix         - d(brightness temperature)/d(mixing ratio)
+!     tnoise       - error of observed radiance
+!     varinv       - inverse error squared
+!     ts           - d(brightness temperature)/d(tz)
+!     tbc          - bias corrected (observed - simulated brightness temperatures)
+!     tzbgr        - tz used in Radiative transfer and first guess for Tz retrieval
+!     tschk        - threshold of d(Tb)/d(Ts) for channels selection in SST/Tz retrieval
+!     iud          - data usage indicator
+!     iall         - Tz retrieval done for all pixels or not: 0 = no; 1 = yes
+!
+!   output argument list:
+!     dtz          - retrieved Tz increment
+!     ts_ave       - avergae of ts for used channels in Tz retrieval
+
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+    use constants, only: ttp
+
+    implicit none
+
+!   Declare passed variables
+    integer(i_kind), intent(in) :: nsig
+    integer(i_kind), intent(in) :: nchanl
+    integer(i_kind), dimension(nchanl), intent(in) :: ich,irday
+    real(r_kind),dimension(nsig,nchanl), intent(in) :: wmix,temp
+    real(r_kind),dimension(nchanl), intent(in) :: tnoise,varinv,ts,tbc
+    real(r_kind),intent(in) :: tzbgr,tschk
+    integer(i_kind), intent(in) :: iud,iall
+    real(r_kind), intent(out) :: dtz,ts_ave
+
+!   Declare local variables
+    real(r_kind) :: ws,wa,wq
+    integer(i_kind) :: icount,i,j,k
+    real(r_kind), dimension(nchanl) :: tb_ta,tb_qa
+    real(r_kind), dimension(nchanl) :: w_rad
+    real(r_kind) :: delt,delt1,delt2,delt3,c1x,c2x,c3x
+    real(r_kind) :: a11,a12,a13,a23,a22,a33
+    real(r_kind) :: varrad
+    real(r_kind) :: vchk
+
+    vchk = tiny_r_kind - real(iall)
+!**********************************
+! Get tb_ta & tb_qa for selected channels
+!**********************************
+    do i = 1, nchanl
+      if ( iuse_rad(ich(i)) >= iud .and. varinv(i) > vchk .and. irday(i) == 1 .and. ts(i) >= tschk ) then
+        tb_ta(i) = temp(1,i)
+        tb_qa(i) = wmix(1,i)
+        do k = 2, nsig
+           tb_ta(i) = tb_ta(i) + temp(k,i)
+           tb_qa(i) = tb_qa(i) + wmix(k,i)
+        enddo
+      endif
+    enddo
+
+    ws = one/e_ts**2
+    wa = one/e_ta**2
+    wq = one/(e_qa*(max((tzbgr-ttp)*0.03_r_kind,zero)+one_tenth))**2
+
+    ts_ave = zero
+
+    a11 = ws                                      ! 1./tserr**2
+    a22 = wa                                      ! 1./taerr**2
+    a33 = wq                                      ! 1./qaerr**2
+
+    a12 = zero; a13 = zero; a23 = zero
+    c1x = zero; c2x = zero; c3x = zero
+    delt1 = zero; delt = one; icount = 0
+
+!   delt2 = zero; delt3 = zero
+
+    do i=1,nchanl
+!     Get coefficients for linear equations
+      if ( iuse_rad(ich(i)) >= iud .and. varinv(i) > vchk .and. irday(i) == 1 .and. ts(i) >= tschk  ) then
+        icount = icount+1
+        ts_ave = ts_ave + ts(i)
+        w_rad(i) = (one/tnoise(i))**2
+        a11 = a11 + w_rad(i)*ts(i)**2
+        a12 = a12 + w_rad(i)*ts(i)*tb_ta(i)
+        a13 = a13 + w_rad(i)*ts(i)*tb_qa(i)
+        a22 = a22 + w_rad(i)*tb_ta(i)**2
+        a23 = a23 + w_rad(i)*tb_ta(i)*tb_qa(i)
+        a33 = a33 + w_rad(i)*tb_qa(i)**2
+
+        varrad=w_rad(i)*tbc(i)
+        c1x = c1x + varrad*ts(i)
+        c2x = c2x + varrad*tb_ta(i)
+        c3x = c3x + varrad*tb_qa(i)
+      end if             !  if ( iuse_rad(ich(i)) >= iud ...
+    end do               ! do i=1,nchanl
+
+!    Solve linear equations with three unknowns (dtz, dta, dqa)
+!    Only dtz is solved since other two are not useful here
+     if ( icount >= 1 ) then
+
+        delt  =  a11*(a22*a33-a23*a23) +  &
+                 a12*(a13*a23-a12*a33) +  &
+                 a13*(a12*a23-a13*a22)
+
+        delt1 =  c1x*(a22*a33-a23*a23) + &
+                 c2x*(a13*a23-a12*a33) + &
+                 c3x*(a12*a23-a13*a22)
+
+!       delt2 =  c1x*(a13*a23-a12*a33) + &
+!                c2x*(a11*a33-a13*a13) + &
+!                c3x*(a12*a13-a11*a23)
+
+!       delt3 =  c1x*(a12*a23-a13*a22) + &
+!                c2x*(a13*a12-a11*a23) + &
+!                c3x*(a11*a22-a12*a12)
+
+        dtz = delt1/delt
+
+!       dta = delt2/delt
+!       dqa = delt3/delt
+
+        ts_ave = ts_ave/real(icount)
+      end if                 ! if ( icount >= 1 )
+
+end subroutine tz_retrieval
+
+subroutine qc_ssmi(nchanl,nsig,ich,  &
      sfchgt,luse,sea,ice,snow,mixed, &
-     ts,pems,ierrret,kraintype,tpwc,clw,sgagl,    &
-     tbc,tbcnob,tb_ges,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
+     temp,wmix,ts,pems,ierrret,kraintype,tpwc,clw,sgagl,tzbgr,   &
+     tbc,tbcnob,tb_ges,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
      varinv,errf,aivals,id_qc )
 
 !$$$ subprogram documentation block
@@ -413,22 +616,26 @@ subroutine qc_ssmi(nchanl,   &
 !
 ! input argument list:
 !     nchanl  - number of channels per obs
+!     ich     - channel number
 !     sfchgt  - surface height (not use now)
 !     luse    - logical use flag
 !     sea     - logical, sea flag
 !     ice     - logical, ice flag
 !     snow    - logical, snow flag
 !     mixed   - logical, mixed zone flag
-!     ts      - skin temperature
+!     wmix         - d(brightness temperature)/d(mixing ratio)
+!     ts      - d(Tb)/d(Tz)
 !     pems    - surface emissivity
 !     ierrret - result flag of retrieval_mi
 !     kraintype - [0]no rain, [others]rain ; see retrieval_mi
 !     clw     - retrieve clw [kg/m2]
 !     sgagl   - sun glint angle [degrees]
+!     tzbgr   - water temperature (Tz) of FOV
 !     tpwc    - retrieve tpw [kg/m2]
 !     tbc     - Obs - Back TBB with bias correction
 !     tbcnob  - Obs - Back TBB without bias correction
 !     tb_ges  - simulated TBB
+!     tnoise  - error of observed radiance
 !     ssmi    - logical true if ssmi is processed 
 !     ssmis    - logical true if ssmis is processed 
 !     amsre_low   - logical true if amsre_low is processed 
@@ -471,27 +678,33 @@ subroutine qc_ssmi(nchanl,   &
 
 
 ! Declare passed variables
+  integer(i_kind)                  ,intent(in   ) :: nsig
   integer(i_kind)                  ,intent(in   ) :: nchanl
+  integer(i_kind),dimension(nchanl),intent(in   ) :: ich
   integer(i_kind)                  ,intent(in   ) :: kraintype,ierrret
   integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
 
   logical                          ,intent(in   ) :: sea,snow,ice,mixed,luse
   logical                          ,intent(in   ) :: ssmi,amsre_low,amsre_mid,amsre_hig,ssmis
 
-  real(r_kind)                     ,intent(in   ) :: sfchgt,tpwc,clw,sgagl
-  real(r_kind)   ,dimension(nchanl),intent(in   ) :: ts,pems
+  real(r_kind)                     ,intent(in   ) :: sfchgt,tpwc,clw,sgagl,tzbgr
+  real(r_kind)   ,dimension(nchanl),intent(in   ) :: ts,pems,tnoise
   real(r_kind)   ,dimension(nchanl),intent(in   ) :: tbc,tbcnob,tb_ges
+  real(r_kind),dimension(nsig,nchanl),intent(in ) :: temp,wmix
 
   real(r_kind)   ,dimension(nchanl),intent(inout) :: varinv,errf
   real(r_kind)   ,dimension(40)    ,intent(inout) :: aivals
 
 ! Declare local variables
+  integer(i_kind), dimension(nchanl) :: irday
   integer(i_kind) :: l,i
   real(r_kind) :: efact,vfact,dtempf,fact,dtbf,term
   real(r_kind),dimension(nchanl) :: demisf_mi,clwcutofx 
   real(r_kind) :: pred9,pred10,pred11
+  real(r_kind) :: dtz,ts_ave,xindx,tzchks
 
 !------------------------------------------------------------------
+  irday = 1
 
 ! Set cloud qc criteria  (kg/m2) :  reject when clw>clwcutofx
   if(ssmi) then
@@ -510,18 +723,18 @@ subroutine qc_ssmi(nchanl,   &
      if(amsre_hig) varinv(1:10)=zero
   else if(ssmis) then
      clwcutofx(1:nchanl) =  &  !kg/m2  reject when clw>clwcutofx
-            (/ 0.10_r_kind, 0.20_r_kind, &
-               0.60_r_kind, 2.00_r_kind, &
-               2.00_r_kind, 2.00_r_kind, &
-               2.00_r_kind, 0.10_r_kind, &
-               0.10_r_kind, 0.10_r_kind, &
-               0.10_r_kind, 0.20_r_kind, &
-               0.20_r_kind, 0.20_r_kind, &
-               0.20_r_kind, 0.20_r_kind, &
-               0.10_r_kind, 0.10_r_kind, &
-               10.0_r_kind,10.0_r_kind, &
-               10.0_r_kind,10.0_r_kind, &
-               10.0_r_kind,10.0_r_kind  /)
+        (/ 0.10_r_kind, 0.20_r_kind, &
+           0.60_r_kind, 2.00_r_kind, &
+           2.00_r_kind, 2.00_r_kind, &
+           2.00_r_kind, 0.10_r_kind, &
+           0.10_r_kind, 0.10_r_kind, &
+           0.10_r_kind, 0.20_r_kind, &
+           0.20_r_kind, 0.20_r_kind, &
+           0.20_r_kind, 0.20_r_kind, &
+           0.10_r_kind, 0.10_r_kind, &
+           10.0_r_kind,10.0_r_kind, &
+           10.0_r_kind,10.0_r_kind, &
+           10.0_r_kind,10.0_r_kind  /)
   end if
   dtempf = half
   demisf_mi(1:nchanl) = 0.01_r_kind
@@ -538,13 +751,13 @@ subroutine qc_ssmi(nchanl,   &
      if( ierrret > 0  .or. kraintype /= 0 .or. tpwc<zero ) then 
         efact=zero; vfact=zero
         if(luse) then
-          aivals(8) = aivals(8) + one
+           aivals(8) = aivals(8) + one
            
-          do i=1,nchanl
-             if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_qc
-             if( id_qc(i)== igood_qc .and. ierrret > 0)   id_qc(i)=ifail_ierrret_qc
-             if( id_qc(i)== igood_qc .and. tpwc< zero )   id_qc(i)=ifail_tpwc_qc
-          end do 
+           do i=1,nchanl
+              if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_qc
+              if( id_qc(i)== igood_qc .and. ierrret > 0)   id_qc(i)=ifail_ierrret_qc
+              if( id_qc(i)== igood_qc .and. tpwc< zero )   id_qc(i)=ifail_tpwc_qc
+           end do 
         end if
      else if (ssmis) then  ! in case of ssmis bad data or cloud-contaminated data
         do i = 1,24
@@ -626,14 +839,14 @@ subroutine qc_ssmi(nchanl,   &
      else 
        !Use dtbc at 52.8 GHz to detect cloud-affected data
         if (abs(tbc(2)) >= 1.5_r_kind) then  ! the data at cloud-affected channels are not used
-            do i =1,2
+           do i =1,2
               varinv(i)  = zero
               if(id_qc(i)== igood_qc ) id_qc(i)=ifail_ch2_qc
-            end do
-            do i =12,16
+           end do
+           do i =12,16
               varinv(i)  = zero
               if(id_qc(i)== igood_qc ) id_qc(i)=ifail_ch2_qc
-            end do
+           end do
         endif
        !General qc criteria for all channels
         do i = 1,24
@@ -645,12 +858,12 @@ subroutine qc_ssmi(nchanl,   &
 
         if(mixed) then
            do i=1,3
-             varinv(i)=zero
-             if(id_qc(i)== igood_qc) id_qc(i)=ifail_surface_qc
+              varinv(i)=zero
+              if(id_qc(i)== igood_qc) id_qc(i)=ifail_surface_qc
            end do
            do i=8,18
-             varinv(i)=zero
-             if(id_qc(i)== igood_qc) id_qc(i)=ifail_surface_qc
+              varinv(i)=zero
+              if(id_qc(i)== igood_qc) id_qc(i)=ifail_surface_qc
            end do
         end if
 
@@ -675,19 +888,42 @@ subroutine qc_ssmi(nchanl,   &
      pred10 =272.280341_r_kind - 0.413688_r_kind*tb_ges(17) + 0.361549_r_kind*tb_ges(8)
      pred11 =278.824902_r_kind - 0.400882_r_kind*tb_ges(17) + 0.270510_r_kind*tb_ges(8)
      if(pred9  - tbcnob(9)  - tb_ges(9)  > two) then
-       varinv(9) =zero
-       if(id_qc(9)== igood_qc) id_qc(9)=ifail_scatt_qc
+        varinv(9) =zero
+        if(id_qc(9)== igood_qc) id_qc(9)=ifail_scatt_qc
      end if
      if(pred10 - tbcnob(10) - tb_ges(10) > two) then
-       varinv(10)=zero
-       if(id_qc(10)== igood_qc) id_qc(10)=ifail_scatt_qc
+        varinv(10)=zero
+        if(id_qc(10)== igood_qc) id_qc(10)=ifail_scatt_qc
      end if
      if(pred11 - tbcnob(11) - tb_ges(11) > two) then
-       varinv(11)=zero
-       if(id_qc(11)== igood_qc) id_qc(11)=ifail_scatt_qc
+        varinv(11)=zero
+        if(id_qc(11)== igood_qc) id_qc(11)=ifail_scatt_qc
      end if
   end if
+!
+!    Apply Tz retrieval
+!
+     dtz = rmiss_single
+     if ( nst_tzr > 0 .and. luse .and. sea ) then
+        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,0.20_r_kind,1,0,dtz,ts_ave) 
+     endif
+!
+!    Apply QC with Tz retrieval
+!
+     if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
+       do i = 1, nchanl
+         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > 0.01_r_kind ) then
+           xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
+           tzchks = tzchk*(half)**xindx
 
+           if ( abs(dtz) > tzchks ) then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
+              aivals(13) = aivals(13) + one
+           endif
+         endif
+       enddo
+     endif
 
 ! Generate q.c. bounds and modified variances.
   do l=1,nchanl
@@ -709,40 +945,41 @@ subroutine qc_ssmi(nchanl,   &
 
   return
 end subroutine qc_ssmi
-subroutine qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,goessndr,   &
-     zsges,cenlat,frac_sea,pangs,trop5,zasat,tsavg5,tbc,tb_obs,tnoise,     &
-     wavenumber,ptau5,prsltmp,tvp,temp,emissivity_k,ts,                    &
+subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
+     zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
+     wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
      id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
 
 !$$$ subprogram documentation block
 !               .      .    .
-! subprogram:  qc_irsnd    QC for ir sounder data(hirs,goessndr,airs,iasi)
+! subprogram:  qc_irsnd    QC for ir sounder data(hirs,goessndr,airs,iasi,cris)
 !
 !   prgmmr: derber           org: np23            date: 2010-08-20
 !
 ! abstract: set quality control criteria for ir sounder data (hirs, 
-!          goessndr, airs, iasi)
+!          goessndr, airs, iasi, cris)
 !
 ! program history log:
 !     2010-08-10  derber transfered from setuprad
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
+!     ich          - channel number
 !     is           - integer counter for number of observation types to process
-!     ndat         - total number of observations types to process
-!     nsig         - number of model levels
 !     sea          - logical, sea flag
 !     land         - logical, land flag
 !     ice          - logical, ice flag
 !     snow         - logical, snow flag
 !     luse         - logical use flag
 !     goessndr     - logical flag - if goessndr data - true
+!     avhrr        - logical flag - if avhrr data - true
 !     zsges        - elevation of guess
 !     cenlat       - latitude of observation
 !     frac_sea     - fraction of grid box covered with water
 !     pangs        - solar zenith angle
 !     trop5        - tropopause pressure
 !     zasat        - satellite zenith angle
+!     tzbgr        - Tz over water
 !     tsavg5       - surface skin temperature
 !     tbc          - simulated - observed BT with bias correction
 !     tb_obs       - observed Brightness temperatures
@@ -752,6 +989,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,goessndr,   &
 !     prsltmp      - array of layer pressures in vertical (surface to toa)
 !     tvp          - array of temperatures in vertical (surface to toa)
 !     temp         - temperature sensitivity array
+!     wmix         - moisture sensitivity array
 !     emissivity_k - surface emissivity sensitivity
 !     ts           - skin temperature sensitivity
 !     id_qc        - qc index - see qcmod definition
@@ -781,15 +1019,16 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,goessndr,   &
 ! Declare passed variables
 
   logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr
-  integer(i_kind),                    intent(in   ) :: nchanl,is,ndat,nsig
+  integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
+  integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
   real(r_kind),                       intent(in   ) :: zsges,cenlat,frac_sea,pangs,trop5
-  real(r_kind),                       intent(in   ) :: tsavg5,zasat
+  real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat
   real(r_kind),                       intent(  out) :: cld,cldp
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
   real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,ts,wavenumber,tb_obs
   real(r_kind),dimension(nchanl),     intent(in   ) :: tnoise
-  real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp
+  real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp,wmix
   real(r_kind),dimension(nsig),       intent(in   ) :: prsltmp,tvp
   real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv,varinv_use
 
@@ -802,10 +1041,13 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,goessndr,   &
   real(r_kind) :: sum,sum2,sum3,cloudp,tmp,dts,delta
   real(r_kind),dimension(nchanl) :: dtb
   integer(i_kind) :: i,k,kk,lcloud
+  integer(i_kind), dimension(nchanl) :: irday
+  real(r_kind) :: dtz,ts_ave,xindx,tzchks
 
 
 ! Reduce weight given to obs for shortwave ir if
 ! solar zenith angle tiny_r_kind
+  irday = 1
   if (pangs <= 89.0_r_kind .and. frac_sea > zero) then
 !    QC2 in statsrad
      if(luse)aivals(9,is) = aivals(9,is) + one
@@ -815,9 +1057,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,goessndr,   &
               varinv(i)=zero
               varinv_use(i)=zero
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_2400_qc
+              irday(i) = 0
            else
               tmp=one-(wavenumber(i)-r2000)*ptau5(1,i)&
-                   *max(zero,cos(pangs*deg2rad))*oneover400
+                 *max(zero,cos(pangs*deg2rad))*oneover400
               varinv(i)=tmp*varinv(i)
               varinv_use(i)=tmp*varinv_use(i)
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_2000_qc
@@ -866,8 +1109,8 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,goessndr,   &
   sum3=zero
   do i=1,nchanl
      if (tb_obs(i) > r1000 .or. tb_obs(i) <= zero) then
-         varinv(i)=zero
-         varinv_use(i)=zero
+        varinv(i)=zero
+        varinv_use(i)=zero
      end if
      varinv(i) = varinv(i)*(one-(one-sfchgtfact)*ptau5(1,i))
      varinv_use(i) = varinv_use(i)*(one-(one-sfchgtfact)*ptau5(1,i))
@@ -891,12 +1134,12 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,goessndr,   &
         sum2=zero
         do i=1,nchanl
            if(varinv_use(i) > tiny_r_kind)then
-             dtb(i)=(tvp(k)-tsavg5)*ts(i)
-             do kk=1,k-1
-                dtb(i)=dtb(i)+(tvp(k)-tvp(kk))*temp(kk,i)
-             end do
-             sum=sum+tbc(i)*dtb(i)*varinv_use(i)
-             sum2=sum2+dtb(i)*dtb(i)*varinv_use(i)
+              dtb(i)=(tvp(k)-tsavg5)*ts(i)
+              do kk=1,k-1
+                 dtb(i)=dtb(i)+(tvp(k)-tvp(kk))*temp(kk,i)
+              end do
+              sum=sum+tbc(i)*dtb(i)*varinv_use(i)
+              sum2=sum2+dtb(i)*dtb(i)*varinv_use(i)
            end if
         end do
         if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
@@ -904,8 +1147,8 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,goessndr,   &
         sum=zero
         do i=1,nchanl
            if(varinv_use(i) > tiny_r_kind)then
-             tmp=tbc(i)-cloudp*dtb(i)
-             sum=sum+tmp*tmp*varinv_use(i)
+              tmp=tbc(i)-cloudp*dtb(i)
+              sum=sum+tmp*tmp*varinv_use(i)
            end if
         end do
         if(sum < sum3)then
@@ -924,6 +1167,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,goessndr,   &
 !       If more than 2% of the transmittance comes from the cloud layer,
 !          reject the channel (0.02 is a tunable parameter)
 
+        delta = 0.02_r_kind
         if ( ptau5(lcloud,i) > 0.02_r_kind) then
 !          QC4 in statsrad
            if(luse)aivals(11,is)   = aivals(11,is) + one
@@ -955,12 +1199,37 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,goessndr,   &
            if(abs(dts*ts(i)) > delta)then
 !             QC3 in statsrad
               if(luse .and. varinv(i) > zero) &
-                   aivals(10,is)   = aivals(10,is) + one
+                 aivals(10,is)   = aivals(10,is) + one
               varinv(i) = zero
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
            end if
         end do
      end if
+  endif
+
+!
+! Apply Tz retrieval
+!
+  dtz = rmiss_single
+  if ( nst_tzr > 0 .and. luse .and. sea ) then
+     call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,0.20_r_kind,1,0,dtz,ts_ave) 
+  endif
+!
+! Apply QC with Tz retrieval
+!
+  if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
+    do i = 1, nchanl
+      if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > 0.01_r_kind ) then
+        xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
+        tzchks = tzchk*(half)**xindx
+
+        if ( abs(dtz) > tzchks ) then
+           varinv(i) = zero
+           if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
+           aivals(13,is) = aivals(13,is) + one
+        endif
+      endif
+    enddo
   endif
 
   cenlatx=abs(cenlat)*r0_04     
@@ -984,9 +1253,300 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,goessndr,   &
   return
 
 end subroutine qc_irsnd
-subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
-     zsges,cenlat,tb_obsbc1,tsavg5,cosza,clw,tbc,ptau5,emissivity_k,ts,      &
-     pred,predchan,id_qc,aivals,errf,varinv,factch4)
+
+subroutine qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
+     zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
+     wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts, &
+     id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
+
+!$$$ subprogram documentation block
+!               .      .    .
+! subprogram:  qc_avhrr    QC for avhrr
+!
+!   prgmmr: li           org: np23            date: 2011-04-08
+!
+! abstract: set quality control criteria for avhrr
+!
+! program history log:
+!     2011-04-08  li modified from qc_irsnd
+!
+! input argument list:
+!     nchanl       - number of channels per obs
+!     ich          - channel number
+!     is           - integer counter for number of observation types to process
+!     sea          - logical, sea flag
+!     land         - logical, land flag
+!     ice          - logical, ice flag
+!     snow         - logical, snow flag
+!     luse         - logical use flag
+!     zsges        - elevation of guess
+!     cenlat       - latitude of observation
+!     frac_sea     - fraction of grid box covered with water
+!     pangs        - solar zenith angle
+!     trop5        - tropopause pressure
+!     zasat        - satellite zenith angle
+!     tzbgr        - Tz over water
+!     tsavg5       - surface skin temperature
+!     tbc          - simulated - observed BT with bias correction
+!     tb_obs       - observed Brightness temperatures
+!     tnoise       - channel noise array
+!     wavenumber   - array of channel wavenumbers
+!     ptau5        - transmittances as a function of level and channel
+!     prsltmp      - array of layer pressures in vertical (surface to toa)
+!     tvp          - array of temperatures in vertical (surface to toa)
+!     temp         - temperature sensitivity array
+!     wmix         - moisture sensitivity array
+!     emissivity_k - surface emissivity sensitivity
+!     ts           - skin temperature sensitivity
+!     id_qc        - qc index - see qcmod definition
+!     aivals       - array holding sums for various statistics as a function of obs type
+!     errf         - criteria of gross error
+!     varinv       - observation weight (modified obs var error inverse)
+!     varinv_use   - observation weight used(modified obs var error inverse)
+!
+! output argument list:
+!     id_qc        - qc index - see qcmod definition
+!     aivals       - array holding sums for various statistics as a function of obs type
+!     errf         - criteria of gross error
+!     varinv       - observation weight (modified obs var error inverse)
+!     varinv_use   - observation weight used(modified obs var error inverse)
+!     cld          - cloud fraction
+!     cldp         - cloud pressure
+!
+! attributes:
+!     language: f90
+!     machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+  implicit none
+
+! Declare passed variables
+
+  character(len=20),                  intent(in   ) :: isis
+  logical,                            intent(in   ) :: sea,land,ice,snow,luse
+  integer(i_kind),                    intent(in   ) :: ndat,nsig,nchanl,is
+  integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
+  integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
+  real(r_kind),                       intent(in   ) :: zsges,cenlat,frac_sea,pangs,trop5
+  real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat
+  real(r_kind),                       intent(  out) :: cld,cldp
+  real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
+  real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,ts,wavenumber,tb_obs
+  real(r_kind),dimension(nchanl),     intent(in   ) :: tnoise
+  real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp,wmix
+  real(r_kind),dimension(nsig),       intent(in   ) :: prsltmp,tvp
+  real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv,varinv_use
+
+! Declare local parameters
+
+  real(r_kind),parameter:: oneover400=1.0_r_kind/400.0_r_kind
+
+
+  real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact,sfchgtfact
+  real(r_kind) :: sum1,sum2,sum3,cloudp,tmp,dts,delta
+  real(r_kind),dimension(nchanl,nsig) :: dtb
+  integer(i_kind) :: i,k,kk,lcloud
+  integer(i_kind), dimension(nchanl) :: irday
+  real(r_kind) :: dtz,ts_ave,xindx,tzchks
+
+
+  irday = 1
+
+! Reduce weight given to obs for shortwave ir if
+! solar zenith angle tiny_r_kind
+  if (pangs <= 89.0_r_kind .and. frac_sea > zero) then
+!    QC2 in statsrad
+     if(luse)aivals(9,is) = aivals(9,is) + one
+     do i=1,nchanl
+        if(wavenumber(i) > r2000)then
+           if(wavenumber(i) > r2400)then
+              varinv(i)=zero
+              varinv_use(i)=zero
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_2400_qc
+              irday(i) = 0
+           else
+              tmp=one-(wavenumber(i)-r2000)*ptau5(1,i)&
+                   *max(zero,cos(pangs*deg2rad))*oneover400
+              varinv(i)=tmp*varinv(i)
+              varinv_use(i)=tmp*varinv_use(i)
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_2000_qc
+           end if
+        end if
+     end do
+  endif
+
+  if(sea)then
+     demisf = r0_01
+     dtempf = half
+  else if(land)then
+     demisf = r0_02
+     dtempf = two
+  else if(ice)then
+     demisf = r0_03
+     dtempf = four
+  else if(snow)then
+     demisf = r0_02
+     dtempf = two
+  else
+     demisf = r0_03
+     dtempf = four
+  end if
+
+! Reduce weight for obs over higher topography
+  sfchgtfact=one
+  if (zsges > r2000) then
+!    QC1 in statsrad
+     if(luse)aivals(8,is) = aivals(8,is) + one
+     sfchgtfact    = (r2000/zsges)**4
+  endif
+
+! Generate q.c. bounds and modified variances for height change and ptau5
+  sum3=zero
+  do i=1,nchanl
+     if (tb_obs(i) > r1000 .or. tb_obs(i) <= zero) then
+         varinv(i)=zero
+         varinv_use(i)=zero
+     end if
+     varinv(i) = varinv(i)*(one-(one-sfchgtfact)*ptau5(1,i))
+     varinv_use(i) = varinv_use(i)*(one-(one-sfchgtfact)*ptau5(1,i))
+
+!    Modify error based on transmittance at top of model
+     varinv(i)=varinv(i)*ptau5(nsig,i)
+     varinv_use(i)=varinv_use(i)*ptau5(nsig,i)
+     errf(i)=errf(i)*ptau5(nsig,i)
+
+!    QC based on presence/absence of cloud
+     sum3=sum3+tbc(i)*tbc(i)*varinv_use(i)
+  end do
+  sum3=0.75_r_kind*sum3
+  lcloud=0
+  cld=zero
+  cldp=r10*prsltmp(1)
+
+  do k=1,nsig
+     if(prsltmp(k) > trop5)then
+        sum1=zero
+        sum2=zero
+        do i=1,nchanl
+           if(varinv_use(i) > tiny_r_kind)then
+             dtb(i,k)=(tvp(k)-tsavg5)*ts(i)
+             do kk=1,k-1
+                dtb(i,k)=dtb(i,k)+(tvp(k)-tvp(kk))*temp(kk,i)
+             end do
+             sum1=sum1+tbc(i)*dtb(i,k)*varinv_use(i)
+             sum2=sum2+dtb(i,k)*dtb(i,k)*varinv_use(i)
+           end if
+        end do
+        if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
+        cloudp=min(max(sum1/sum2,zero),one)
+        sum1=zero
+        do i=1,nchanl
+           if(varinv_use(i) > tiny_r_kind)then
+             tmp=tbc(i)-cloudp*dtb(i,k)
+             sum1=sum1+tmp*tmp*varinv_use(i)
+           end if
+        end do
+        if(sum1 < sum3)then
+           sum3=sum1
+           lcloud=k
+           cld=cloudp
+           cldp=r10*prsltmp(k)
+        end if
+     end if
+
+  end do
+
+  do i=1,nchanl
+       cld_qc: do k=1,lcloud
+        if(abs(cld*dtb(i,k)) > 0.75_r_kind)then
+!          QC4 in statsrad
+           if(luse)aivals(11,is)   = aivals(11,is) + one
+           varinv(i) = zero
+           varinv_use(i) = zero
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
+           exit cld_qc
+        end if
+     end do cld_qc
+  end do
+
+! If no clouds check surface temperature/emissivity
+
+  sum1=zero
+  sum2=zero
+  do i=1,nchanl
+     sum1=sum1+tbc(i)*ts(i)*varinv_use(i)
+     sum2=sum2+ts(i)*ts(i)*varinv_use(i)
+  end do
+  if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
+  dts=abs(sum1/sum2)
+  if(abs(dts) > one)then
+     if(.not. sea)then
+        dts=min(dtempf,dts)
+     else
+        dts=min(three,dts)
+     end if
+     do i=1,nchanl
+        if(abs(dts*ts(i)) > 0.75_r_kind)then
+!          QC3 in statsrad
+           if(luse .and. varinv(i) > zero) &
+           aivals(10,is)   = aivals(10,is) + one
+           varinv(i) = zero
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
+       end if
+     end do
+  end if
+
+!
+! Apply Tz retrieval
+!
+  dtz = rmiss_single
+  if ( nst_tzr > 0 .and. luse .and. sea ) then
+     call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,0.20_r_kind,1,0,dtz,ts_ave) 
+  endif
+!
+! Apply QC with Tz retrieval
+!
+  if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
+    do i = 1, nchanl
+      if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > 0.01_r_kind ) then
+        xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
+        tzchks = tzchk*(half)**xindx
+
+        if ( abs(dtz) > tzchks ) then
+           varinv(i) = zero
+           if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
+           aivals(13,is) = aivals(13,is) + one
+        endif
+      endif
+    enddo
+  endif
+
+  cenlatx=abs(cenlat)*r0_04     
+  if (cenlatx < one) then
+     if(luse)aivals(6,is) = aivals(6,is) + one
+     efact   = half*(cenlatx+one)
+  else
+     efact = one
+  endif
+
+! Generate q.c. bounds and modified variances.
+  do i=1,nchanl
+     if(varinv(i) > tiny_r_kind)then
+        errf(i)=efact*errf(i)
+        dtbf = demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
+        term = dtbf*dtbf
+        if(term > tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+     end if
+  end do
+
+  return
+end subroutine qc_avhrr
+
+subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse,   &
+     zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
+     pred,predchan,id_qc,aivals,errf,varinv,factch4,clwp_amsua,clw_guess_retrieval)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -994,10 +1554,514 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !
 !   prgmmr: derber           org: np23            date: 2010-08-20
 !
-! abstract: set quality control criteria for seviri data               
+! abstract: set quality control criteria for AMSU-A data               
+!
+! program history log:
+!     2010-08-10  derber - transfered from setuprad
+!     2011-05-04  todling - partially merge Min-Jeong Kim's cloud radiance work
+!     2011-05-20  mccarty - generalized routine so that it could be more readily 
+!                           applied to atms
+!
+! input argument list:
+!     nchanl       - number of channels per obs
+!     ich          - channel number
+!     is           - integer counter for number of observation types to process
+!     npred        - number of predictors
+!     sea          - logical, sea flag
+!     land         - logical, land flag
+!     ice          - logical, ice flag
+!     snow         - logical, snow flag
+!     mixed        - logical, mixed flag
+!     luse         - logical use flag
+!     zsges        - elevation of guess
+!     tb_obsbc1    - bias corrected ob for channel 1
+!     tzbgr        - Tz water temperature for FOV
+!     tsavg5       - weighted averaged surface temperature for FOV
+!     cosza        - cosine of the satellite zenith angle
+!     clw          - cloud liquid water estimate
+!     tbc          - simulated - observed BT with bias correction
+!     tnoise       - error of observed radiance
+!     ptau5        - transmittances as a function of level and channel
+!     temp         - temperature sensitivity array
+!     wmix         - moisture sensitivity array
+!     emissivity_k - surface emissivity sensitivity
+!     ts           - skin temperature sensitivity
+!     pred         - bias correction predictors
+!     predchan     - bias correction coefficients
+!     id_qc        - qc index - see qcmod definition
+!     aivals       - array holding sums for various statistics as a function of obs type
+!     errf         - criteria of gross error
+!     varinv       - observation weight (modified obs var error inverse)
+!
+! output argument list:
+!     id_qc        - qc index - see qcmod definition
+!     aivals       - array holding sums for various statistics as a function of obs type
+!     errf         - criteria of gross error
+!     varinv       - observation weight (modified obs var error inverse)
+!     factch4      - quality control factor for channel 4
+!
+! attributes:
+!     language: f90
+!     machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+  use gsi_metguess_mod, only: gsi_metguess_get
+  implicit none
+
+! Declare passed variables
+
+  logical,                             intent(in   ) :: sea,land,ice,snow,mixed,luse
+  integer(i_kind),                     intent(in   ) :: ndat,nsig,npred,nchanl,is
+  integer(i_kind),dimension(nchanl),   intent(in   ) :: ich
+  integer(i_kind),dimension(nchanl),   intent(inout) :: id_qc
+  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1,tzbgr,tsavg5
+  real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua, clw_guess_retrieval
+  real(r_kind),                        intent(inout) :: factch4
+  real(r_kind),dimension(40,ndat),     intent(inout) :: aivals
+  real(r_kind),dimension(nchanl),      intent(in   ) :: tbc,tnoise,emissivity_k,ts
+  real(r_kind),dimension(nsig,nchanl), intent(in   ) :: ptau5,temp,wmix
+  real(r_kind),dimension(npred,nchanl),intent(in   ) :: pred,predchan
+  real(r_kind),dimension(nchanl),      intent(inout) :: errf,varinv
+
+! Declare local parameters
+
+
+  real(r_kind),parameter:: w1f6=1.0_r_kind/10.0_r_kind
+  real(r_kind),parameter:: w2f6=1.0_r_kind/0.8_r_kind
+  real(r_kind),parameter:: w1f4=1.0_r_kind/0.3_r_kind
+  real(r_kind),parameter:: w2f4=1.0_r_kind/1.8_r_kind
+
+  real(r_kind)    :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact
+  real(r_kind)    :: efactmc,vfactmc,dtde1,dtde2,dtde3,dsval,clwx
+  real(r_kind)    :: factch6,de1,de2,de3
+  integer(i_kind) :: i,n,icw4crtm,ier
+
+  integer(i_kind) :: ich238, ich314, ich503, ich528, ich536 ! set chan indices
+  integer(i_kind) :: ich544, ich549, ich890                 ! for amsua/atms
+  logical         :: latms
+
+  if (nchanl == 16_i_kind) then
+      latms  = .true.    ! If there are 16 channels passed along, it's atms
+      ich238 =  1
+      ich314 =  2
+      ich503 =  3
+      ich528 =  5
+      ich536 =  6
+      ich544 =  7
+      ich549 =  8
+      ich890 = 16
+  else
+      latms = .false.   ! If \= 16 channels (should be 15), it's amsua  
+      ich238 =  1
+      ich314 =  2
+      ich503 =  3
+      ich528 =  4
+      ich536 =  5
+      ich544 =  6
+      ich549 =  7
+      ich890 = 15
+  endif
+
+  if(sea)then
+     demisf = r0_01
+     dtempf = half
+  else if(land)then
+     demisf = r0_02
+     dtempf = two
+  else if(ice)then
+     demisf = 0.015_r_kind  !decrease due to more accurate emiss model AMSU-A+B
+     dtempf = one           !decrease due to more accurate emiss model AMSU-A+B
+  else if(snow)then
+     demisf = r0_02 !decrease due to more accurate emiss model AMSU-A+B
+     dtempf = two   !decrease due to more accurate emiss model AMSU-A+B
+  else
+     demisf = 0.20_r_kind
+     dtempf = 4.5_r_kind
+  end if
+
+! Determine whether or not CW fed into CRTM
+  call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
+
+! Reduce qc bounds in tropics
+  cenlatx=abs(cenlat)*r0_04     
+  if (cenlatx < one) then
+     if(luse)aivals(6,is) = aivals(6,is) + one
+     efact   = cenlatx*quarter+0.75_r_kind
+  else
+     efact   = one
+  endif
+
+  efactmc = one
+  vfactmc = one
+! sval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*tb_obsbc1)*tb_obsbc1 +  &
+!      0.454_r_kind*tb_obsbc2-tb_obsbc15
+  dsval=0.80_r_kind
+  if(sea)then
+     dsval=((2.41_r_kind-0.0098_r_kind*tb_obsbc1)*tbc(ich238) + &
+            0.454_r_kind*tbc(ich314)-tbc(ich890))*w1f6
+     dsval=max(zero,dsval)
+  end if
+
+  if(sea .and. tsavg5 > t0c)then
+     clwx=cosza*clw*w1f4
+  else
+     clwx=0.6_r_kind
+  end if
+! QC6 in statsrad
+  if(clwx >= one .and. luse)aivals(13,is) = aivals(13,is) + one
+  factch4=clwx**2+(tbc(ich528)*w2f4)**2
+! factch6x=((sval-five)/r10)**2+(tbc(6)/0.8_r_kind)**2
+! QC7 in statsrad
+  if(dsval >= one .and. luse)aivals(14,is) = aivals(14,is) + one
+  factch6=dsval**2+(tbc(ich544)*w2f6)**2
+
+
+  if (icw4crtm>10) then
+
+! Kim-------------------------------------------
+     if(factch6 >= one .and. .not.sea )then   !Kim 
+        efactmc=zero
+        vfactmc=zero
+        errf(ich544)=zero
+        varinv(ich544)=zero
+        do i=1,ich544
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+        end do
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+!       QC3 in statsrad
+        if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
+
+     else if(factch4 > half .and. .not.sea )then   !Kim
+        efactmc=zero
+        vfactmc=zero
+        do i=1,ich536
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+        end do
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
+!       QC1 in statsrad
+        if(luse) aivals(8,is) = aivals(8,is) + one
+     else if(factch6 >= one .and. sea .and. cenlat <= -60.0_r_kind) then
+        efactmc=zero
+        vfactmc=zero
+        errf(ich544)=zero
+        varinv(ich544)=zero
+        do i=1,ich544
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+        end do
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+!       QC3 in statsrad
+        if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
+
+     else if(factch4 > half .and. sea .and. cenlat <= -60.0_r_kind )then   !Kim
+        efactmc=zero
+        vfactmc=zero
+        errf(ich544)=zero
+        varinv(ich544)=zero
+        do i=1,ich544
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+        end do
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+!       QC3 in statsrad
+        if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
+     end if
+
+     if(sea .and. cenlat > -60.0_r_kind .and. (clwp_amsua > half .or. clw_guess_retrieval > half))  then
+        efactmc = zero
+        vfactmc=zero
+        do i=1,ich536
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+           varinv(i) = zero
+        end do
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
+        varinv(ich890) = zero
+     endif
+! Kim-------------------------------------------
+
+  else  ! <icw4crtm>
+
+     if(factch6 >= one)then
+        efactmc=zero
+        vfactmc=zero
+        errf(ich544)=zero
+        varinv(ich544)=zero
+        do i=1,ich544
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+        end do
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+!       QC3 in statsrad
+        if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
+
+     else if(factch4 > half)then
+        efactmc=zero
+        vfactmc=zero
+        do i=1,ich536
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+        end do
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
+!       QC1 in statsrad
+        if(luse) aivals(8,is) = aivals(8,is) + one
+     else if(factch6 >= one .and. sea .and. cenlat .le. -60.0_r_kind) then
+        efactmc=zero
+        vfactmc=zero
+        errf(ich544)=zero
+        varinv(ich544)=zero
+        do i=1,ich544
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+        end do
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+!       QC3 in statsrad
+        if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
+ 
+     else if(sea)then
+!       QC based on ratio of obs-ges increment versus the sensitivity of
+!       the simulated brightness temperature to the surface emissivity
+!       Y2K hurricane season runs by QingFu Liu found the hurricane
+!       forecast tracks to be degraded without this QC.
+!       (Is this still true?)
+
+        dtde1 = emissivity_k(ich238)
+        de1   = zero
+        if (dtde1 /= zero) de1=abs(tbc(ich238))/dtde1
+        dtde2 = emissivity_k(ich314)
+        de2   = zero
+        if (dtde2 /= zero) de2=abs(tbc(ich314))/dtde2
+        dtde3 = emissivity_k(ich503)
+        de3   = zero
+        if (dtde3 /= zero) de3=abs(tbc(ich503))/dtde3
+ 
+        if (de2 > r0_03 .or. de3 > r0_05 .or. de1 > r0_05) then
+!          QC2 in statsrad
+           if(luse)aivals(9,is) = aivals(9,is) + one
+           efactmc=zero
+           vfactmc=zero
+           do i=1,ich536
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_emiss_qc
+           end do
+           if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_emiss_qc
+        end if
+     end if
+
+  endif ! <icw4crtm>
+
+! Reduce q.c. bounds over higher topography
+  if (zsges > r2000) then
+!    QC4 in statsrad
+     if(luse)aivals(11,is) = aivals(11,is) + one
+     fact                  = r2000/zsges
+     efactmc               = fact*efactmc
+     errf(ich544)          = fact*errf(ich544)
+     vfactmc               = fact*vfactmc
+     varinv(ich544)        = fact*varinv(ich544)
+     if (zsges > r4000) then
+!       QC5 in statsrad
+        if(luse)aivals(12,is) = aivals(12,is) + one
+        fact                  = r4000/zsges
+        errf(ich549)          = fact*errf(ich549)
+        varinv(ich549)         = fact*varinv(ich549)
+     end if
+  end if
+
+! Generate q.c. bounds and modified variances.
+  do i=1,nchanl
+
+!    Modify error based on transmittance at top of model
+     varinv(i)=varinv(i)*ptau5(nsig,i)
+     errf(i)=errf(i)*ptau5(nsig,i)
+
+     if(varinv(i) > tiny_r_kind)then
+        dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
+        term=dtbf*dtbf
+        if(i <= ich528 .or. i == ich890)then
+
+!          Adjust observation error based on magnitude of liquid
+!          water correction.  0.2 is empirical factor
+           term=term+0.2_r_kind*(predchan(3,i)*pred(3,i))**2
+
+           errf(i)   = efactmc*errf(i)
+           varinv(i) = vfactmc*varinv(i)
+        end if
+        errf(i)   = efact*errf(i)
+        if (term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+     end if
+
+  end do
+
+  return
+
+end subroutine qc_amsua
+subroutine qc_mhs(nchanl,ndat,nsig,ich,is,sea,land,ice,snow,mhs,amsub,luse,   &
+     zsges,tbc,tb_obs,ptau5,emissivity_k,ts,      &
+     id_qc,aivals,errf,varinv,dsi,fact1)
+
+!$$$ subprogram documentation block
+!               .      .    .
+! subprogram:  qc_mhs    QC for amsub,mhs and hsb data
+!
+!   prgmmr: derber           org: np23            date: 2010-08-20
+!
+! abstract: set quality control criteria for amsub, mhs and hsb data   
 !
 ! program history log:
 !     2010-08-10  derber transfered from setuprad
+!
+! input argument list:
+!     nchanl       - number of channels per obs
+!     ich          - channel number
+!     is           - integer counter for number of observation types to process
+!     sea          - logical, sea flag
+!     land         - logical, land flag
+!     ice          - logical, ice flag
+!     snow         - logical, snow flag
+!     mhs          - logical, mhs flag - true if mhs data
+!     amsub        - logical, amsub flag - true if amsub data
+!     luse         - logical use flag
+!     zsges        - elevation of guess
+!     tbc          - simulated - observed BT with bias correction
+!     tb_obs       - observed BT 
+!     ptau5        - transmittances as a function of level and channel
+!     emissivity_k - surface emissivity sensitivity
+!     ts           - skin temperature sensitivity
+!     id_qc        - qc index - see qcmod definition
+!     aivals       - array holding sums for various statistics as a function of obs type
+!     errf         - criteria of gross error
+!     varinv       - observation weight (modified obs var error inverse)
+!
+! output argument list:
+!     id_qc        - qc index - see qcmod definition
+!     aivals       - array holding sums for various statistics as a function of obs type
+!     errf         - criteria of gross error
+!     varinv       - observation weight (modified obs var error inverse)
+!     dsi          - scattering index quality control factor
+!     fact1        - fact1 quality control parameter
+!
+! attributes:
+!     language: f90
+!     machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+  implicit none
+
+! Declare passed variables
+
+  logical,                            intent(in   ) :: sea,land,ice,snow,mhs,amsub,luse
+  integer(i_kind),                    intent(in   ) :: ndat,nsig,nchanl,is
+  integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
+  integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
+  real(r_kind),                       intent(in   ) :: zsges
+  real(r_kind),                       intent(inout) :: dsi,fact1
+  real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
+  real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,tb_obs,emissivity_k,ts
+  real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5
+  real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv
+
+! Declare local parameters
+
+  real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,fact
+  integer(i_kind) :: i,n
+
+  efact = one
+  vfact = one
+  if(sea)then
+     demisf = 0.015_r_kind
+     dtempf = half
+  else if(land)then
+     demisf = r0_03
+     dtempf = two
+  else if(ice)then
+     demisf = r0_02  !decrease due to more accurate emiss model AMSU-A+B
+     dtempf = one    !decrease due to more accurate emiss model AMSU-A+B
+  else if(snow)then
+     demisf = r0_02  !decrease due to more accurate emiss model AMSU-A+B
+     dtempf = two    !decrease due to more accurate emiss model AMSU-A+B
+  else
+     demisf = quarter
+     dtempf = five
+  end if
+!   For now increase for mhs since emissivity model not as good
+  if(mhs .and. .not. sea) then
+     demisf = three*demisf
+     dtempf = three*dtempf
+  end if
+  if(sea .or. ice .or. snow)then
+     dsi=9.0_r_kind
+     if(tb_obs(2) < h300)then
+        dsi=0.13_r_kind*(tbc(1)-33.58_r_kind*tbc(2)/(h300-tb_obs(2)))
+!       QC3 in statsrad
+        if(luse .and. dsi >= one)aivals(10,is) = aivals(10,is) + one
+     end if
+!    si=42.72_r_kind+0.85_r_kind*tbc(1)-tbc(2)
+  else
+     dsi=0.85_r_kind*tbc(1)-tbc(2)
+!    si=42.72_r_kind+0.85_r_kind*tb_obs(1)-tb_obs(2)
+!    QC4 in statsrad
+     if(luse .and. dsi >= one)aivals(11,is) = aivals(11,is) + one
+  end if
+  dsi=max(zero,dsi)
+  fact1=((tbc(1)-7.5_r_kind*dsi)/r10)**2+(dsi)**2
+
+  if(fact1 > one)then
+     vfact=zero
+!    QC1 in statsrad
+     if(luse)aivals(8,is) = aivals(8,is) + one
+     do i=1,nchanl
+        if(id_qc(i) == igood_qc)id_qc(i)=ifail_fact1_qc
+     end do
+  else
+     if (amsub .or. mhs) then  ! wv sounding channels
+        do i=3,nchanl
+           if (abs(tbc(i)) >= two) then
+              varinv(i) = zero
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_gross_routine_qc
+           end if
+        end do
+     end if
+     efact = (one-fact1*fact1)*efact
+     vfact = (one-fact1*fact1)*vfact
+!    Reduce q.c. bounds over higher topography
+     if (zsges > r2000) then
+!       QC2 in statsrad
+        if(luse)aivals(9,is) = aivals(9,is) + one
+        fact = r2000/zsges
+        efact = fact*efact
+        vfact = fact*vfact
+     end if
+  end if
+
+! Generate q.c. bounds and modified variances.
+  do i=1,nchanl
+!    Modify error based on transmittance at top of model
+     varinv(i)=vfact*varinv(i)*ptau5(nsig,i)
+     errf(i)=efact*errf(i)*ptau5(nsig,i)
+     if(varinv(i)>tiny_r_kind)then
+        dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
+        term=dtbf*dtbf
+        if(term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+     end if
+  end do
+
+
+  return
+
+end subroutine qc_mhs
+subroutine qc_atms(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse,   &
+                 zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts, &
+                 pred,predchan,id_qc,aivals,errf,varinv,factch4,clwp_amsua,clw_guess_retrieval)
+
+!$$$ subprogram documentation block
+!               .      .    .
+! subprogram:  qc_atms      QC for atms data
+!
+!   prgmmr: mccarty           org: gmao            date: 2011-05-17
+!
+! abstract: set quality control criteria for ATMS data            
+!
+! program history log:
+!     2011-05-17  mccarty - added as QC algorithm for ATMS data
+!     2011-05-26  todling - update argumenent list and call within
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1047,335 +2111,31 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 
   logical,                             intent(in   ) :: sea,land,ice,snow,mixed,luse
   integer(i_kind),                     intent(in   ) :: nchanl,is,ndat,nsig,npred
+  integer(i_kind),dimension(nchanl),   intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),   intent(inout) :: id_qc
-  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1,tsavg5
-  real(r_kind),                        intent(in   ) :: cosza,clw
+  real(r_kind),   dimension(nsig,nchanl),intent(in)  :: wmix,temp
+  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1,tsavg5,tzbgr
+  real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua, clw_guess_retrieval
   real(r_kind),                        intent(inout) :: factch4
   real(r_kind),dimension(40,ndat),     intent(inout) :: aivals
-  real(r_kind),dimension(nchanl),      intent(in   ) :: tbc,emissivity_k,ts
+  real(r_kind),dimension(nchanl),      intent(in   ) :: tbc,tnoise,emissivity_k,ts
   real(r_kind),dimension(nsig,nchanl), intent(in   ) :: ptau5
   real(r_kind),dimension(npred,nchanl),intent(in   ) :: pred,predchan
   real(r_kind),dimension(nchanl),      intent(inout) :: errf,varinv
 
-! Declare local parameters
+! Declare local variable
+  integer(i_kind),parameter                          :: nchanl_tchan = 16
+  integer(i_kind),parameter                          :: nchanl_qchan = 7
 
-
-  real(r_kind),parameter:: w1f6=1.0_r_kind/10.0_r_kind
-  real(r_kind),parameter:: w2f6=1.0_r_kind/0.8_r_kind
-  real(r_kind),parameter:: w1f4=1.0_r_kind/0.3_r_kind
-  real(r_kind),parameter:: w2f4=1.0_r_kind/1.8_r_kind
-
-  real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact
-  real(r_kind) :: efactmc,vfactmc,dtde1,dtde2,dtde3,dsval,clwx
-  real(r_kind) :: factch6,de1,de2,de3
-  integer(i_kind) :: i,n
-
-
-  if(sea)then
-     demisf = r0_01
-     dtempf = half
-  else if(land)then
-     demisf = r0_02
-     dtempf = two
-  else if(ice)then
-     demisf = 0.015_r_kind  !decrease due to more accurate emiss model AMSU-A+B
-     dtempf = one           !decrease due to more accurate emiss model AMSU-A+B
-  else if(snow)then
-     demisf = r0_02 !decrease due to more accurate emiss model AMSU-A+B
-     dtempf = two   !decrease due to more accurate emiss model AMSU-A+B
-  else
-     demisf = 0.20_r_kind
-     dtempf = 4.5_r_kind
-  end if
-
-! Reduce qc bounds in tropics
-  cenlatx=abs(cenlat)*r0_04     
-  if (cenlatx < one) then
-     if(luse)aivals(6,is) = aivals(6,is) + one
-     efact   = cenlatx*quarter+0.75_r_kind
-  else
-     efact   = one
-  endif
-
-  efactmc = one
-  vfactmc = one
-! sval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*tb_obsbc1)*tb_obsbc1 +  &
-!      0.454_r_kind*tb_obsbc2-tb_obsbc15
-  dsval=0.80_r_kind
-  if(sea)then
-     dsval=((2.41_r_kind-0.0098_r_kind*tb_obsbc1)*tbc(1) + &
-          0.454_r_kind*tbc(2)-tbc(15))*w1f6
-     dsval=max(zero,dsval)
-  end if
-
-  if(sea .and. tsavg5 > t0c)then
-     clwx=cosza*clw*w1f4
-  else
-     clwx=0.6_r_kind
-  end if
-! QC6 in statsrad
-  if(clwx >= one .and. luse)aivals(13,is) = aivals(13,is) + one
-  factch4=clwx**2+(tbc(4)*w2f4)**2
-! factch6x=((sval-five)/r10)**2+(tbc(6)/0.8_r_kind)**2
-! QC7 in statsrad
-  if(dsval >= one .and. luse)aivals(14,is) = aivals(14,is) + one
-  factch6=dsval**2+(tbc(6)*w2f6)**2
-
-
-  if(factch6 >= one)then
-     efactmc=zero
-     vfactmc=zero
-     errf(6)=zero
-     varinv(6)=zero
-     do i=1,6
-        if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
-     end do
-     if(id_qc(15) == igood_qc)id_qc(15)=ifail_factch6_qc
-!    QC3 in statsrad
-     if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
-
-  else if(factch4 > half)then
-     efactmc=zero
-     vfactmc=zero
-     do i=1,5
-        if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
-     end do
-     if(id_qc(15) == igood_qc)id_qc(15)=ifail_factch4_qc
-!    QC1 in statsrad
-     if(luse) aivals(8,is) = aivals(8,is) + one
-
-  else if(sea)then
-!    QC based on ratio of obs-ges increment versus the sensitivity of
-!    the simulated brightness temperature to the surface emissivity
-!    Y2K hurricane season runs by QingFu Liu found the hurricane
-!    forecast tracks to be degraded without this QC.
-!    (Is this still true?)
-
-     dtde1 = emissivity_k(1)
-     de1   = zero
-     if (dtde1 /= zero) de1=abs(tbc(1))/dtde1
-     dtde2 = emissivity_k(2)
-     de2   = zero
-     if (dtde2 /= zero) de2=abs(tbc(2))/dtde2
-     dtde3 = emissivity_k(3)
-     de3   = zero
-     if (dtde3 /= zero) de3=abs(tbc(3))/dtde3
-
-     if (de2 > r0_03 .or. de3 > r0_05 .or. de1 > r0_05) then
-!       QC2 in statsrad
-        if(luse)aivals(9,is) = aivals(9,is) + one
-        efactmc=zero
-        vfactmc=zero
-        do i=1,5
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_emiss_qc
-        end do
-        if(id_qc(15) == igood_qc)id_qc(15)=ifail_emiss_qc
-     end if
-  end if
-
-! Reduce q.c. bounds over higher topography
-  if (zsges > r2000) then
-!    QC4 in statsrad
-     if(luse)aivals(11,is) = aivals(11,is) + one
-     fact    = r2000/zsges
-     efactmc = fact*efactmc
-     errf(6) = fact*errf(6)
-     vfactmc = fact*vfactmc
-     varinv(6)  = fact*varinv(6)
-     if (zsges > r4000) then
-!       QC5 in statsrad
-        if(luse)aivals(12,is) = aivals(12,is) + one
-        fact   = r4000/zsges
-        errf(7)= fact*errf(7)
-        varinv(7)= fact*varinv(7)
-     end if
-  end if
-
-! Generate q.c. bounds and modified variances.
-  do i=1,nchanl
-
-!    Modify error based on transmittance at top of model
-     varinv(i)=varinv(i)*ptau5(nsig,i)
-     errf(i)=errf(i)*ptau5(nsig,i)
-
-     if(varinv(i) > tiny_r_kind)then
-        dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
-        term=dtbf*dtbf
-        if(i <= 4 .or. i == 15)then
-
-!          Adjust observation error based on magnitude of liquid
-!          water correction.  0.2 is empirical factor
-           term=term+0.2_r_kind*(predchan(3,i)*pred(3,i))**2
-
-           errf(i)   = efactmc*errf(i)
-           varinv(i) = vfactmc*varinv(i)
-        end if
-        errf(i)   = efact*errf(i)
-        if (term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
-     end if
-
-  end do
+! For now, just pass the first 16 channels to qc_amsua
+  call qc_amsua (nchanl_tchan,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse,   &
+                 zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts, &
+                 pred,predchan,id_qc,aivals,errf,varinv,factch4,clwp_amsua,clw_guess_retrieval)
 
   return
 
-end subroutine qc_amsua
-subroutine qc_mhs(nchanl,is,ndat,nsig,sea,land,ice,snow,mhs,amsub,luse,   &
-     zsges,tbc,tb_obs,ptau5,emissivity_k,ts,      &
-     id_qc,aivals,errf,varinv,dsi,fact1)
-
-!$$$ subprogram documentation block
-!               .      .    .
-! subprogram:  qc_mhs    QC for amsub,mhs and hsb data
-!
-!   prgmmr: derber           org: np23            date: 2010-08-20
-!
-! abstract: set quality control criteria for amsub, mhs and hsb data   
-!
-! program history log:
-!     2010-08-10  derber transfered from setuprad
-!
-! input argument list:
-!     nchanl       - number of channels per obs
-!     is           - integer counter for number of observation types to process
-!     ndat         - total number of observations types to process
-!     nsig         - number of model levels
-!     sea          - logical, sea flag
-!     land         - logical, land flag
-!     ice          - logical, ice flag
-!     snow         - logical, snow flag
-!     mhs          - logical, mhs flag - true if mhs data
-!     amsub        - logical, amsub flag - true if amsub data
-!     luse         - logical use flag
-!     zsges        - elevation of guess
-!     tbc          - simulated - observed BT with bias correction
-!     tb_obs       - observed BT 
-!     ptau5        - transmittances as a function of level and channel
-!     emissivity_k - surface emissivity sensitivity
-!     ts           - skin temperature sensitivity
-!     id_qc        - qc index - see qcmod definition
-!     aivals       - array holding sums for various statistics as a function of obs type
-!     errf         - criteria of gross error
-!     varinv       - observation weight (modified obs var error inverse)
-!
-! output argument list:
-!     id_qc        - qc index - see qcmod definition
-!     aivals       - array holding sums for various statistics as a function of obs type
-!     errf         - criteria of gross error
-!     varinv       - observation weight (modified obs var error inverse)
-!     dsi          - scattering index quality control factor
-!     fact1        - fact1 quality control parameter
-!
-! attributes:
-!     language: f90
-!     machine:  ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-  use kinds, only: r_kind, i_kind
-  implicit none
-
-! Declare passed variables
-
-  logical,                            intent(in   ) :: sea,land,ice,snow,mhs,amsub,luse
-  integer(i_kind),                    intent(in   ) :: nchanl,is,ndat,nsig
-  integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
-  real(r_kind),                       intent(in   ) :: zsges
-  real(r_kind),                       intent(inout) :: dsi,fact1
-  real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
-  real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,tb_obs,emissivity_k,ts
-  real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5
-  real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv
-
-! Declare local parameters
-
-  real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,fact
-  integer(i_kind) :: i,n
-
-  efact = one
-  vfact = one
-  if(sea)then
-     demisf = 0.015_r_kind
-     dtempf = half
-  else if(land)then
-     demisf = r0_03
-     dtempf = two
-  else if(ice)then
-     demisf = r0_02  !decrease due to more accurate emiss model AMSU-A+B
-     dtempf = one    !decrease due to more accurate emiss model AMSU-A+B
-  else if(snow)then
-     demisf = r0_02  !decrease due to more accurate emiss model AMSU-A+B
-     dtempf = two    !decrease due to more accurate emiss model AMSU-A+B
-  else
-     demisf = quarter
-     dtempf = five
- end if
-!   For now increase for mhs since emissivity model not as good
-  if(mhs .and. .not. sea) then
-     demisf = three*demisf
-     dtempf = three*dtempf
-  end if
-  if(sea .or. ice .or. snow)then
-     dsi=9.0_r_kind
-     if(tb_obs(2) < h300)then
-        dsi=0.13_r_kind*(tbc(1)-33.58_r_kind*tbc(2)/(h300-tb_obs(2)))
-!       QC3 in statsrad
-        if(luse .and. dsi >= one)aivals(10,is) = aivals(10,is) + one
-     end if
-!    si=42.72_r_kind+0.85_r_kind*tbc(1)-tbc(2)
-  else
-     dsi=0.85_r_kind*tbc(1)-tbc(2)
-!    si=42.72_r_kind+0.85_r_kind*tb_obs(1)-tb_obs(2)
-!    QC4 in statsrad
-     if(luse .and. dsi >= one)aivals(11,is) = aivals(11,is) + one
-  end if
-  dsi=max(zero,dsi)
-  fact1=((tbc(1)-7.5_r_kind*dsi)/r10)**2+(dsi)**2
-
-  if(fact1 > one)then
-     vfact=zero
-!    QC1 in statsrad
-     if(luse)aivals(8,is) = aivals(8,is) + one
-     do i=1,nchanl
-        if(id_qc(i) == igood_qc)id_qc(i)=ifail_fact1_qc
-     end do
-  else
-     if (amsub .or. mhs) then  ! wv sounding channels
-       do i=3,nchanl
-          if (abs(tbc(i)) >= two) then
-             varinv(i) = zero
-             if(id_qc(i) == igood_qc)id_qc(i)=ifail_gross_routine_qc
-          end if
-       end do
-     end if
-     efact = (one-fact1*fact1)*efact
-     vfact = (one-fact1*fact1)*vfact
-!    Reduce q.c. bounds over higher topography
-     if (zsges > r2000) then
-!       QC2 in statsrad
-        if(luse)aivals(9,is) = aivals(9,is) + one
-        fact = r2000/zsges
-        efact = fact*efact
-        vfact = fact*vfact
-     end if
-  end if
-
-! Generate q.c. bounds and modified variances.
-  do i=1,nchanl
-!     Modify error based on transmittance at top of model
-         varinv(i)=vfact*varinv(i)*ptau5(nsig,i)
-         errf(i)=efact*errf(i)*ptau5(nsig,i)
-         if(varinv(i)>tiny_r_kind)then
-            dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
-            term=dtbf*dtbf
-            if(term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
-         end if
-  end do
-
-
-  return
-
-end subroutine qc_mhs
-subroutine qc_ssu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
+end subroutine qc_atms
+subroutine qc_ssu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
      zsges,cenlat,tb_obs,ptau5,emissivity_k,ts,      &
      id_qc,aivals,errf,varinv)
 
@@ -1392,9 +2152,8 @@ subroutine qc_ssu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
+!     ich          - channel number
 !     is           - integer counter for number of observation types to process
-!     ndat         - total number of observations types to process
-!     nsig         - number of model levels                         
 !     sea          - logical, sea flag
 !     land         - logical, land flag
 !     ice          - logical, ice flag
@@ -1429,7 +2188,8 @@ subroutine qc_ssu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
 ! Declare passed variables
 
   logical,                            intent(in   ) :: sea,land,ice,snow,luse
-  integer(i_kind),                    intent(in   ) :: nchanl,is,ndat,nsig
+  integer(i_kind),                    intent(in   ) :: ndat,nsig,nchanl,is
+  integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
   real(r_kind),                       intent(in   ) :: zsges,cenlat
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
@@ -1502,7 +2262,7 @@ subroutine qc_ssu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
   return
 
 end subroutine qc_ssu
-subroutine qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
+subroutine qc_msu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
      zsges,cenlat,tbc,ptau5,emissivity_k,ts,      &
      id_qc,aivals,errf,varinv)
 
@@ -1519,9 +2279,8 @@ subroutine qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
+!     ich          - channel number
 !     is           - integer counter for number of observation types to process
-!     ndat         - total number of observations types to process
-!     nsig         - number of model levels
 !     sea          - logical, sea flag
 !     land         - logical, land flag
 !     ice          - logical, ice flag
@@ -1555,7 +2314,8 @@ subroutine qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
 ! Declare passed variables
 
   logical,                            intent(in   ) :: sea,land,ice,snow,luse
-  integer(i_kind),                    intent(in   ) :: nchanl,is,ndat,nsig
+  integer(i_kind),                    intent(in   ) :: nchanl,ndat,nsig,is
+  integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
   real(r_kind),                       intent(in   ) :: zsges,cenlat
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
@@ -1636,8 +2396,8 @@ subroutine qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
   return
 
 end subroutine qc_msu
-subroutine qc_seviri(nchanl,is,ndat,sea,land,ice,snow,luse,   &
-     zsges,tbc,emissivity_k,ts,      &
+subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
+     zsges,tzbgr,tbc,tnoise,temp,wmix,emissivity_k,ts,      &
      id_qc,aivals,errf,varinv)
 
 !$$$ subprogram documentation block
@@ -1653,15 +2413,19 @@ subroutine qc_seviri(nchanl,is,ndat,sea,land,ice,snow,luse,   &
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
+!     ich          - channel number
 !     is           - integer counter for number of observation types to process
-!     ndat         - total number of observations types to process
 !     sea          - logical, sea flag
 !     land         - logical, land flag
 !     ice          - logical, ice flag
 !     snow         - logical, snow flag
 !     luse         - logical use flag
 !     zsges        - elevation of guess
+!     tzbgr        - water temperature of FOV
 !     tbc          - simulated - observed BT with bias correction
+!     tnoise       - error of observed radiance
+!     temp         - temperature sensitivity array
+!     wmix         - moisture sensitivity array
 !     emissivity_k - surface emissivity sensitivity
 !     ts           - skin temperature sensitivity
 !     id_qc        - qc index - see qcmod definition
@@ -1687,18 +2451,24 @@ subroutine qc_seviri(nchanl,is,ndat,sea,land,ice,snow,luse,   &
 ! Declare passed variables
 
   logical,                          intent(in   ) :: sea,land,ice,snow,luse
-  integer(i_kind),                  intent(in   ) :: nchanl,is,ndat
+  integer(i_kind),                  intent(in   ) :: nchanl,ndat,nsig,is
+  integer(i_kind),dimension(nchanl),intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
   real(r_kind),                     intent(in   ) :: zsges
+  real(r_kind),                     intent(in   ) :: tzbgr
   real(r_kind),dimension(40,ndat),  intent(inout) :: aivals
-  real(r_kind),dimension(nchanl),   intent(in   ) :: tbc,emissivity_k,ts
+  real(r_kind),dimension(nchanl),   intent(in   ) :: tbc,tnoise,emissivity_k,ts
+  real(r_kind),dimension(nsig,nchanl),intent(in ) :: temp,wmix
   real(r_kind),dimension(nchanl),   intent(inout) :: errf,varinv
 
 ! Declare local parameters
 
+  integer(i_kind), dimension(nchanl) :: irday
   real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term
   integer(i_kind) :: i
+  real(r_kind) :: dtz,ts_ave,xindx,tzchks
 
+  irday = 1
   if(sea)then
      demisf = r0_01
      dtempf = half
@@ -1755,6 +2525,34 @@ subroutine qc_seviri(nchanl,is,ndat,sea,land,ice,snow,luse,   &
         if(luse)aivals(8,is)= aivals(8,is) + one  !hliu check
      end if
 
+  end do
+
+!
+!    Apply Tz retrieval
+!
+     dtz = rmiss_single
+     if ( nst_tzr > 0 .and. luse .and. sea ) then
+        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,0.20_r_kind,1,0,dtz,ts_ave) 
+     endif
+!
+!    Apply QC with Tz retrieval
+!
+     if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
+       do i = 1, nchanl
+         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > 0.01_r_kind ) then
+           xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
+           tzchks = tzchk*(half)**xindx
+
+           if ( abs(dtz) > tzchks ) then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
+              aivals(13,is) = aivals(13,is) + one
+           endif
+         endif
+       enddo
+     endif
+
+   do i = 1, nchanl
 !    modified variances.
      errf(i)   = efact*errf(i)
      varinv(i) = vfact*varinv(i)
@@ -1773,99 +2571,8 @@ subroutine qc_seviri(nchanl,is,ndat,sea,land,ice,snow,luse,   &
   return
 
 end subroutine qc_seviri
-subroutine qc_avhrr(nchanl,is,ndat,sea,land,ice,snow,luse,   &
-     dtp_avh,tb_obs,id_qc,aivals,errf,varinv)
-
-!$$$ subprogram documentation block
-!               .      .    .
-! subprogram:  qc_avhrr     QC for avhrr  data
-!
-!   prgmmr: Xu Li            org: np23            date: 2010-08-20
-!
-! abstract: set quality control criteria for avhrr  data               
-!
-! program history log:
-!     2010-08-10  derber transfered from setuprad
-!
-! input argument list:
-!     nchanl       - number of channels per obs
-!     is           - integer counter for number of observation types to process
-!     ndat         - total number of observations types to process
-!     sea          - logical, sea flag
-!     land         - logical, land flag
-!     ice          - logical, ice flag
-!     snow         - logical, snow flag
-!     luse         - logical use flag
-!     dtp_avh      - ob type - set to 152.0 if day time
-!     tb_obs       - observed BT 
-!     id_qc        - qc index - see qcmod definition
-!     aivals       - array holding sums for various statistics as a function of obs type
-!     errf         - criteria of gross error
-!     varinv       - observation weight (modified obs var error inverse)
-!
-! output argument list:
-!     id_qc        - qc index - see qcmod definition
-!     aivals       - array holding sums for various statistics as a function of obs type
-!     errf         - criteria of gross error
-!     varinv       - observation weight (modified obs var error inverse)
-!
-! attributes:
-!     language: f90
-!     machine:  ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-  use kinds, only: r_kind, i_kind
-  implicit none
-
-! Declare passed variables
-
-  logical,                          intent(in   ) :: sea,land,ice,snow,luse
-  integer(i_kind),                  intent(in   ) :: nchanl,is,ndat
-  integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
-  real(r_kind),                     intent(in   ) :: dtp_avh
-  real(r_kind),dimension(40,ndat),  intent(inout) :: aivals
-  real(r_kind),dimension(nchanl),   intent(in   ) :: tb_obs
-  real(r_kind),dimension(nchanl),   intent(inout) :: errf,varinv
-
-! Declare local parameters
-
-  real(r_kind) :: fact,efact
-  integer(i_kind) :: i
-
-  if(tb_obs(2) > zero .and. tb_obs(2) < 400.0_r_kind)then
-     fact=one
-     if (.not. sea)then
-        fact    = zero
-!       QC1 in statsrad
-        if(luse) aivals(12,is)= aivals(12,is) + one
-        do i=1,nchanl
-          if(id_qc(i) == igood_qc ) id_qc(i)=ifail_surface_qc                       
-        end do
-     end if
-  else
-     fact = zero
-     do i=1,nchanl
-       if(id_qc(i) == igood_qc ) id_qc(i)=ifail_range_qc                    
-     end do
-  end if
-
-! Generate q.c. bounds and modified variances.
-  do i=1,nchanl
-     varinv(i) = fact*varinv(i)
-!    Reject day time AVHRR Ch-3A observation
-     if ( i == 1 .and. dtp_avh /= 152.0_r_kind ) then          ! day time
-        varinv(i) = zero
-!       QC3 in statsrad
-        if(luse)aivals(10,is)= aivals(10,is) + one
-     endif
-  end do
-
-  return
-
-end subroutine qc_avhrr
-subroutine qc_goesimg(nchanl,is,ndat,dplat,sea,land,ice,snow,luse,   &
-     zsges,cld,tb_obs,tb_obs_sdv,emissivity_k,ts,      &
+subroutine qc_goesimg(nchanl,is,ndat,nsig,ich,dplat,sea,land,ice,snow,luse,   &
+     zsges,cld,tzbgr,tb_obs,tb_obs_sdv,tbc,tnoise,temp,wmix,emissivity_k,ts,      &
      id_qc,aivals,errf,varinv)
 
 !$$$ subprogram documentation block
@@ -1881,8 +2588,8 @@ subroutine qc_goesimg(nchanl,is,ndat,dplat,sea,land,ice,snow,luse,   &
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
+!     ich          - channel number
 !     is           - integer counter for number of observation types to process
-!     ndat         - total number of observations types to process
 !     dplat        - satellite identifier
 !     sea          - logical, sea flag
 !     land         - logical, land flag
@@ -1891,8 +2598,13 @@ subroutine qc_goesimg(nchanl,is,ndat,dplat,sea,land,ice,snow,luse,   &
 !     luse         - logical use flag
 !     zsges        - elevation of guess
 !     cld          - cloud percentage within averaging box
+!     tzbgr        - surface temperature of FOV
 !     tb_obs       - observed BT within averaging box
 !     tb_obs_sdv   - observed BT standard deviation within averaging box
+!     tbc          - bias corrected (observed - simulated brightness temperatures)
+!     tnoise       - error of observed radiance
+!     temp         - temperature sensitivity array
+!     wmix         - moisture sensitivity array
 !     emissivity_k - surface emissivity sensitivity
 !     ts           - skin temperature sensitivity
 !     id_qc        - qc index - see qcmod definition
@@ -1918,11 +2630,13 @@ subroutine qc_goesimg(nchanl,is,ndat,dplat,sea,land,ice,snow,luse,   &
 ! Declare passed variables
 
   logical,                          intent(in   ) :: sea,land,ice,snow,luse
-  integer(i_kind),                  intent(in   ) :: nchanl,is,ndat
+  integer(i_kind),                  intent(in   ) :: nchanl,ndat,nsig,is
+  integer(i_kind),dimension(nchanl),intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
-  real(r_kind),                     intent(in   ) :: zsges,cld
+  real(r_kind),                     intent(in   ) :: zsges,cld,tzbgr
   real(r_kind),dimension(40,ndat),  intent(inout) :: aivals
-  real(r_kind),dimension(nchanl),   intent(in   ) :: tb_obs,tb_obs_sdv,emissivity_k,ts
+  real(r_kind),dimension(nsig,nchanl),intent(in ) :: temp,wmix
+  real(r_kind),dimension(nchanl),   intent(in   ) :: tb_obs,tb_obs_sdv,tbc,tnoise,emissivity_k,ts
   real(r_kind),dimension(nchanl),   intent(inout) :: errf,varinv
   character(10),                    intent(in   ) :: dplat
 
@@ -1944,6 +2658,10 @@ subroutine qc_goesimg(nchanl,is,ndat,dplat,sea,land,ice,snow,luse,   &
   real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,fact2,fact3,fact4,fact5
   real(r_kind) :: fact
   integer(i_kind) :: i
+  integer(i_kind), dimension(nchanl) :: irday
+  real(r_kind) :: dtz,ts_ave,xindx,tzchks
+
+  irday = 1
 
 
   if(tb_obs(1) > zero .and. tb_obs(2) > zero .and. tb_obs(3) > zero .and. &
@@ -1959,31 +2677,31 @@ subroutine qc_goesimg(nchanl,is,ndat,dplat,sea,land,ice,snow,luse,   &
         dtempf = half
      else if(land)then
         do i=1,4
-          if(i /= 2)then
-            varinv(i)=zero
-            if(id_qc(i) == igood_qc ) id_qc(i)=ifail_surface_qc                    
-          end if
+           if(i /= 2)then
+              varinv(i)=zero
+              if(id_qc(i) == igood_qc ) id_qc(i)=ifail_surface_qc                    
+           end if
         end do
         demisf = r0_01
         dtempf = two
      else if(ice)then
         do i=1,4
-          varinv(i)=zero
-          if(id_qc(i) == igood_qc ) id_qc(i)=ifail_surface_qc                    
+           varinv(i)=zero
+           if(id_qc(i) == igood_qc ) id_qc(i)=ifail_surface_qc                    
         end do
         demisf = r0_02
         dtempf = three
      else if(snow)then
         do i=1,4
-          varinv(i)=zero
-          if(id_qc(i) == igood_qc ) id_qc(i)=ifail_surface_qc                    
+           varinv(i)=zero
+           if(id_qc(i) == igood_qc ) id_qc(i)=ifail_surface_qc                    
         end do
         demisf = r0_02
         dtempf = three
      else
         do i=1,4
-          varinv(i)=zero
-          if(id_qc(i) == igood_qc ) id_qc(i)=ifail_surface_qc                    
+           varinv(i)=zero
+           if(id_qc(i) == igood_qc ) id_qc(i)=ifail_surface_qc                    
         end do
         demisf = r0_02
         dtempf = five
@@ -1992,15 +2710,15 @@ subroutine qc_goesimg(nchanl,is,ndat,dplat,sea,land,ice,snow,luse,   &
 !    Filter out data according to clear sky fraction
      if(dplat == 'g10' .and. cld <r40 ) then
         do i=1,4
-          varinv(i)=zero
-          if(id_qc(i) == igood_qc ) id_qc(i)=ifail_cloud_qc                    
+           varinv(i)=zero
+           if(id_qc(i) == igood_qc ) id_qc(i)=ifail_cloud_qc                    
         end do
 !       QC7 in statsrad
         if(luse)aivals(14,is)= aivals(14,is) + one
      else if(dplat == 'g12' .and. cld <r70 ) then
         do i=1,4
-          varinv(i)=zero
-          if(id_qc(i) == igood_qc ) id_qc(i)=ifail_cloud_qc                    
+           varinv(i)=zero
+           if(id_qc(i) == igood_qc ) id_qc(i)=ifail_cloud_qc                    
         end do
 !       QC7 in statsrad
         if(luse)aivals(14,is)= aivals(14,is) + one
@@ -2047,6 +2765,31 @@ subroutine qc_goesimg(nchanl,is,ndat,dplat,sea,land,ice,snow,luse,   &
   else
      vfact=zero
   end if
+!
+!    Apply Tz retrieval
+!
+     dtz = rmiss_single
+     if ( nst_tzr > 0 .and. luse .and. sea ) then
+        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,0.20_r_kind,1,0,dtz,ts_ave) 
+     endif
+!
+!    Apply QC with Tz retrieval
+!
+     if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
+       do i = 1, nchanl
+         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > 0.01_r_kind ) then
+           xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
+           tzchks = tzchk*(half)**xindx
+
+           if ( abs(dtz) > tzchks ) then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
+              aivals(13,is) = aivals(13,is) + one
+           endif
+         endif
+       enddo
+     endif
+
 ! Generate q.c. bounds and modified variances.
   do i=1,nchanl
      varinv(i) = vfact*varinv(i)

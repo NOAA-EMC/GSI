@@ -14,7 +14,8 @@ subroutine write_obsdiags(cdfile)
 !   2009-01-08  todling - remove reference to ozohead
 !   2009-01-27  todling - add gps write
 !   2010-05-26  treadon - add write_tcphead
-!   2010-06-03  todling - add write_co3lhead
+!   2010-06-03  todling - add write_colvkhead
+!   2011-05-18  todling - aero, aerol, and pm2_5
 !
 !   input argument list:
 !     cdfile - filename to write data
@@ -30,7 +31,8 @@ use obsmod, only: i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
                   i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
-                  i_lag_ob_type, i_co3l_ob_type
+                  i_lag_ob_type, i_colvk_ob_type, i_aero_ob_type, i_aerol_ob_type, &
+                  i_pm2_5_ob_type
 use gsi_4dvar, only: nobs_bins,l4dvar
 use mpimod, only: mype
 use jfunc, only: jiter, miter, last
@@ -126,7 +128,10 @@ _TRACE_(myname,'looping through obshead pointers')
       if(jj==i_rad_ob_type) call write_radhead_ ()
       if(jj==i_tcp_ob_type) call write_tcphead_ ()
       if(jj==i_lag_ob_type) call write_laghead_ ()
-      if(jj==i_co3l_ob_type)  call write_co3lhead_  ()
+      if(jj==i_colvk_ob_type)  call write_colvkhead_  ()
+      if(jj==i_aero_ob_type)   call write_aerohead_  ()
+      if(jj==i_aerol_ob_type)  call write_aerolhead_ ()
+      if(jj==i_pm2_5_ob_type)  call write_pm2_5head_  ()
 !tmp
     endif
 
@@ -666,6 +671,7 @@ subroutine write_ssthead_ ()
 !
 ! program history log:
 !   2007-10-03  todling
+!   2011-05-26  todling - add zob and tz_tr following Li's changes to obsmod
 !
 !   input argument list:
 !
@@ -710,7 +716,7 @@ _ENTRY_(myname_)
        write(iunit) sstptr%idv,  sstptr%iob
        write(iunit) sstptr%res,  sstptr%err2,sstptr%raterr2,&
                     sstptr%time, sstptr%b,   sstptr%pg, &
-                    sstptr%luse, sstptr%wij, sstptr%ij 
+                    sstptr%luse, sstptr%wij, sstptr%ij, sstptr%zob, sstptr%tz_tr 
        sstptr => sstptr%llpoint
     enddo
 
@@ -1038,13 +1044,13 @@ subroutine write_radhead_ ()
 !
 ! program history log:
 !   2007-10-03  todling
+!   2011-05-16  todling - generalized jacobian
 !
 !   input argument list:
 !
 !$$$
     use obsmod, only: radhead, radptr
-    use radinfo, only: npred
-    use gridmod, only: nsig3p3
+    use radinfo, only: npred,nsigradjac
     use m_obdiag, only: ob_verify
     implicit none 
     integer(i_kind) mobs
@@ -1073,13 +1079,13 @@ _ENTRY_(myname_)
     call tell(myname_,'   mobs =',mobs)
     call tell(myname_,'     jj =',jj)
     call tell(myname_,'  npred =',npred)
-    call tell(myname_,'nsig3p3 =',nsig3p3)
+    call tell(myname_,'nsigradjac =',nsigradjac)
 #endif
       passed = ob_verify(radhead(ii),count=mobs,perr=.true.)
       	if(.not.passed) then
 	  call die(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
 	endif
-    write(iunit)mobs,jj,npred,nsig3p3
+    write(iunit)mobs,jj,npred,nsigradjac
     icount(jj,ii) = mobs
 #ifdef VERBOSE
     if(all_sorted) then
@@ -1250,7 +1256,7 @@ _ENTRY_(myname_)
 _EXIT_(myname_)
 end subroutine write_laghead_
 
-subroutine write_co3lhead_ ()
+subroutine write_colvkhead_ ()
 !$$$  subprogram documentation block
 !
 ! abstract: Write obs-specific data structure to file.
@@ -1262,16 +1268,16 @@ subroutine write_co3lhead_ ()
 !   input argument list:
 !
 !$$$
-    use obsmod, only: co3lhead, coptr
+    use obsmod, only: colvkhead, coptr
     use m_obdiag, only: ob_verify
     implicit none 
     integer(i_kind) mobs
     logical:: all_sorted,passed
     integer(i_kind):: idv,iob,k,nlco
-    character(len=*),parameter:: myname_=myname//'.write_co3lhead_'
+    character(len=*),parameter:: myname_=myname//'.write_colvkhead_'
 _ENTRY_(myname_)
 
-    coptr   => co3lhead(ii)%head
+    coptr   => colvkhead(ii)%head
     mobs=0
     idv=-huge(idv); iob=-huge(iob)
     all_sorted=.true.
@@ -1283,7 +1289,7 @@ _ENTRY_(myname_)
       coptr => coptr%llpoint
       mobs=mobs+1
     enddo
-      passed = ob_verify(co3lhead(ii),count=mobs,perr=.true.)
+      passed = ob_verify(colvkhead(ii),count=mobs,perr=.true.)
       	if(.not.passed) then
 	  call die(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
 	endif
@@ -1291,13 +1297,13 @@ _ENTRY_(myname_)
     icount(jj,ii) = mobs
 #ifdef VERBOSE
     if(all_sorted) then
-      call tell(myname_,'co3lhead is sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+      call tell(myname_,'colvkhead is sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
     else
-      call tell(myname_,'co3lhead is NOT sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+      call tell(myname_,'colvkhead is NOT sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
     endif
 #endif
     if(mobs==0) return
-    coptr   => co3lhead(ii)%head
+    coptr   => colvkhead(ii)%head
     do while (associated(coptr))
        nlco = coptr%nlco
        write(iunit) coptr%nlco
@@ -1324,6 +1330,196 @@ _ENTRY_(myname_)
     enddo
 
 _EXIT_(myname_)
-end subroutine write_co3lhead_
+end subroutine write_colvkhead_
+
+subroutine write_aerohead_ ()
+!$$$  subprogram documentation block
+!
+! abstract: Write obs-specific data structure to file.
+!
+! program history log:
+!   2011-05-18  todling
+!
+!   input argument list:
+!
+!$$$
+    use obsmod, only: aerohead, aeroptr
+    use m_obdiag, only: ob_verify
+    implicit none 
+    integer(i_kind) mobs
+    logical:: all_sorted,passed
+    integer(i_kind):: idv,iob,k,nlaero
+    character(len=*),parameter:: myname_=myname//'.write_aerohead_'
+_ENTRY_(myname_)
+
+    aeroptr   => aerohead(ii)%head
+    mobs=0
+    idv=-huge(idv); iob=-huge(iob)
+    all_sorted=.true.
+    do while (associated(aeroptr))
+      if(all_sorted) then
+        all_sorted = isinorder_( (/idv,iob/), (/aeroptr%idv,aeroptr%iob/) )
+	idv=aeroptr%idv; iob=aeroptr%iob
+      endif
+      aeroptr => aeroptr%llpoint
+      mobs=mobs+1
+    enddo
+      passed = ob_verify(aerohead(ii),count=mobs,perr=.true.)
+      	if(.not.passed) then
+	  call die(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
+	endif
+    write(iunit)mobs,jj
+    icount(jj,ii) = mobs
+#ifdef VERBOSE
+    if(all_sorted) then
+      call tell(myname_,'aerohead is sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+    else
+      call tell(myname_,'aerohead is NOT sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+    endif
+#endif
+    if(mobs==0) return
+    aeroptr   => aerohead(ii)%head
+    do while (associated(aeroptr))
+       nlaero = aeroptr%nlaero
+       write(iunit) aeroptr%nlaero
+       write(iunit) aeroptr%idv,aeroptr%iob
+       	if ( aeroptr%nlaero+1 /= size(aeroptr%diags)) then
+	  call perr(myname_,'mismatching [%nlaero,size(%diags)]')
+	  call perr(myname_,'%(idv,iob,nlaero,size(%diags)) =', &
+	    (/aeroptr%idv,aeroptr%iob,aeroptr%nlaero,size(aeroptr%diags)/))
+	  call die(myname_)
+	endif
+       	if ( any( (/(k,k=1,nlaero+1)/) /=	&
+		  (/(aeroptr%diags(k)%ptr%ich,k=1,nlaero+1)/) ) ) then
+	  call perr(myname_,'mismatching [%ich,%diags%ptr%ich]')
+	  call perr(myname_,'%(idv,iob,nlaero,size(%diags)) =', &
+	    (/aeroptr%idv,aeroptr%iob,aeroptr%nlaero,size(aeroptr%diags)/))
+	  call perr(myname_,'%ich(:) =',(/(k,k=1,nlaero+1)/))
+	  call perr(myname_,'%diag(:)%ich =',(/(aeroptr%diags(k)%ptr%ich,k=1,nlaero+1)/))
+	  call die(myname_)
+	endif
+       write(iunit) aeroptr%res,  aeroptr%err2,aeroptr%raterr2, aeroptr%time, & 
+                    aeroptr%luse, aeroptr%wij, aeroptr%ij, aeroptr%prs , aeroptr%ipos
+       aeroptr => aeroptr%llpoint
+    enddo
+
+_EXIT_(myname_)
+end subroutine write_aerohead_
+
+subroutine write_aerolhead_ ()
+!$$$  subprogram documentation block
+!
+! abstract: Write obs-specific data structure to file.
+!
+! program history log:
+!   2011-05-18  todling
+!
+!   input argument list:
+!
+!$$$
+    use obsmod, only: aerolhead, aerolptr
+    use m_obdiag, only: ob_verify
+    implicit none 
+    integer(i_kind) mobs
+    logical:: all_sorted,passed
+    integer(i_kind):: idv,iob
+    character(len=*),parameter:: myname_=myname//'.write_aerolhead_'
+_ENTRY_(myname_)
+
+    aerolptr   => aerolhead(ii)%head
+    mobs=0
+    idv=-huge(idv); iob=-huge(iob)
+    all_sorted=.true.
+    do while (associated(aerolptr))
+      if(all_sorted) then
+        all_sorted = isinorder_( (/idv,iob/), (/aerolptr%idv,aerolptr%iob/) )
+	idv=aerolptr%idv; iob=aerolptr%iob
+      endif
+      aerolptr => aerolptr%llpoint
+      mobs=mobs+1
+    enddo
+      passed = ob_verify(aerolhead(ii),count=mobs,perr=.true.)
+      	if(.not.passed) then
+	  call die(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
+	endif
+    write(iunit)mobs,jj
+    icount(jj,ii) = mobs
+#ifdef VERBOSE
+    if(all_sorted) then
+      call tell(myname_,'aerolhead is sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+    else
+      call tell(myname_,'aerolhead is NOT sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+    endif
+#endif
+    if(mobs==0) return
+    aerolptr   => aerolhead(ii)%head
+    do while (associated(aerolptr))
+       write(iunit) aerolptr%idv,  aerolptr%iob
+       write(iunit) aerolptr%res,  aerolptr%err2,aerolptr%raterr2,&
+                    aerolptr%time, aerolptr%b,   aerolptr%pg, &
+                    aerolptr%luse, aerolptr%wij, aerolptr%ij 
+       aerolptr => aerolptr%llpoint
+    enddo
+
+_EXIT_(myname_)
+end subroutine write_aerolhead_
+
+subroutine write_pm2_5head_ ()
+!$$$  subprogram documentation block
+!
+! abstract: Write obs-specific data structure to file.
+!
+! program history log:
+!   2011-05-18  todling
+!
+!   input argument list:
+!
+!$$$
+    use obsmod, only: pm2_5head, pm2_5ptr
+    use m_obdiag, only: ob_verify
+    implicit none 
+    integer(i_kind) mobs
+    logical:: all_sorted,passed
+    integer(i_kind):: idv,iob
+    character(len=*),parameter:: myname_=myname//'.write_pm2_5head_'
+_ENTRY_(myname_)
+
+    pm2_5ptr   => pm2_5head(ii)%head
+    mobs=0
+    idv=-huge(idv); iob=-huge(iob)
+    all_sorted=.true.
+    do while (associated(pm2_5ptr))
+      if(all_sorted) then
+        all_sorted = isinorder_( (/idv,iob/), (/pm2_5ptr%idv,pm2_5ptr%iob/) )
+	idv=pm2_5ptr%idv; iob=pm2_5ptr%iob
+      endif
+      pm2_5ptr => pm2_5ptr%llpoint
+      mobs=mobs+1
+    enddo
+      passed = ob_verify(pm2_5head(ii),count=mobs,perr=.true.)
+      	if(.not.passed) then
+	  call die(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
+	endif
+    write(iunit)mobs,jj
+    icount(jj,ii) = mobs
+#ifdef VERBOSE
+    if(all_sorted) then
+      call tell(myname_,'pm2_5head is sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+    else
+      call tell(myname_,'pm2_5head is NOT sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+    endif
+#endif
+    if(mobs==0) return
+    pm2_5ptr   => pm2_5head(ii)%head
+    do while (associated(pm2_5ptr))
+       write(iunit) pm2_5ptr%idv,  pm2_5ptr%iob
+       write(iunit) pm2_5ptr%res,  pm2_5ptr%err2,pm2_5ptr%raterr2,&
+                    pm2_5ptr%time, pm2_5ptr%b,   pm2_5ptr%pg, &
+                    pm2_5ptr%luse, pm2_5ptr%wij, pm2_5ptr%ij 
+       pm2_5ptr => pm2_5ptr%llpoint
+    enddo
+
+_EXIT_(myname_)
+end subroutine write_pm2_5head_
 
 end subroutine write_obsdiags

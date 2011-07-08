@@ -17,6 +17,10 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 !
 ! program history log:
 !   2009-08-10  hliu
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
+!                         (2) get zob, tz_tr (call skindepth and cal_tztr)
+!                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
+!                         (4) add more elements (nstinfo) in data array
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -45,9 +49,9 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
             checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
-  use constants, only: deg2rad,izero,ione,zero,rad2deg,r60inv
+  use constants, only: deg2rad,zero,one,rad2deg,r60inv
   use obsmod, only: offtime_data
-  use radinfo, only: iuse_rad,jpch_rad,nusis
+  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
   implicit none
 
@@ -81,7 +85,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
   integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,isub,next
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon,nhdr,nchn,ncld,nbrst,jj
-  integer(i_kind) ireadmg,ireadsb,iret,nele,itt
+  integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
   integer(i_kind) idate5(5)
 
@@ -98,6 +102,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   real(r_kind),allocatable,dimension(:):: hdr                        !  seviri imager header
   real(r_kind),allocatable,dimension(:,:):: datasev1,datasev2        !  seviri imager data
   real(r_kind) rclrsky
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind) disterr,disterrmax,dlon00,dlat00
   integer(i_kind) ntest
@@ -107,11 +112,15 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 ! Initialize variables
   lnbufr = 10_i_kind
   disterrmax=zero
-  ntest=izero
+  ntest=0
   dg2ew = r360*deg2rad
 
   ilon=3_i_kind
   ilat=4_i_kind
+
+  if (nst_gsi > 0 ) then
+    call skindepth(obstype,zob)
+  endif
 
 ! HLIU: NEED TO confirm
   rlndsea(0) = zero
@@ -120,9 +129,9 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   rlndsea(3) = 15._r_kind
   rlndsea(4) = 30._r_kind
 
-  nread=izero
-  ndata=izero
-  nodata=izero
+  nread=0
+  ndata=0
+  nodata=0
   nchanl=8_i_kind              ! the channel number
 
   ilath=8_i_kind               ! the position of latitude in the header
@@ -139,7 +148,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
   assim=.false.
   search: do i=1,jpch_rad
-     if ((trim(nusis(i))==trim(sis)) .and. (iuse_rad(i)>izero)) then
+     if ((trim(nusis(i))==trim(sis)) .and. (iuse_rad(i)>0)) then
         assim=.true.
         exit search
      endif
@@ -157,7 +166,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   call readmg(lnbufr,subset,idate,iret)
 
 ! Check the data set
-  if( iret/=izero) then
+  if( iret/=0) then
      write(6,*) 'READ_SEVIRI: SKIP PROCESSING OF SEVIRI FILE'
      write(6,*) 'infile=', lnbufr, infile
      go to 900
@@ -189,8 +198,8 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
      ncld=2_i_kind
      nbrst=nchn*6                ! channel dependent: all, clear, cloudy, low, middle and high clouds
   endif
-  allocate(datasev1(ione,ncld))     ! not channel dependent
-  allocate(datasev2(ione,nbrst))    ! channel dependent: all, clear, cloudy, low, middle and high clouds
+  allocate(datasev1(1,ncld))     ! not channel dependent
+  allocate(datasev2(1,nbrst))    ! channel dependent: all, clear, cloudy, low, middle and high clouds
   allocate(hdr(nhdr))
 
 
@@ -210,10 +219,11 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   ENDIF
 
 ! Allocate arrays to hold all data for given satellite
-  nele=maxinfo+nchanl
+  nreal = maxinfo + nstinfo
+  nele  = nreal   + nchanl
   allocate(data_all(nele,itxmax))
 
-  next=izero
+  next=0
 
 !  Reopen unit to bufr file
   call closbf(lnbufr)
@@ -221,22 +231,22 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   call openbf(lnbufr,'IN',lnbufr)
 
 ! Big loop over bufr file
-  do while (ireadmg(lnbufr,subset,idate) >= izero)
-     next=next+ione
-     if(next == npe_sub)next=izero     
+  do while (ireadmg(lnbufr,subset,idate) >= 0)
+     next=next+1
+     if(next == npe_sub)next=0     
      if(next /= mype_sub)cycle
 
-     read_loop: do while (ireadsb(lnbufr) == izero)
+     read_loop: do while (ireadsb(lnbufr) == 0)
 
 !       Read through each record
-        call ufbint(lnbufr,hdr,nhdr,ione,iret,hdrsevi)
+        call ufbint(lnbufr,hdr,nhdr,1,iret,hdrsevi)
         if(jsatid == 'm08') kidsat = 55_i_kind
         if(jsatid == 'm09') kidsat = 56_i_kind
         if(jsatid == 'm10') kidsat = 57_i_kind
         if(hdr(1) /= kidsat) cycle read_loop
 
-        call ufbrep(lnbufr,datasev1,ione,ncld,iret,'NCLDMNT')
-        call ufbrep(lnbufr,datasev2,ione,nbrst,iret,'TMBRST')
+        call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
+        call ufbrep(lnbufr,datasev2,1,nbrst,iret,'TMBRST')
 
         nread=nread+nchanl
  
@@ -256,7 +266,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 !       Compare relative obs time with window.  If obs 
 !       falls outside of window, don't use this obs
-        idate5(1) = hdr(2)     !year
+        idate5(1) = hdr(2)     ! year
         idate5(2) = hdr(3)     ! month
         idate5(3) = hdr(4)     ! day
         idate5(4) = hdr(5)     ! hours
@@ -287,7 +297,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
            if(diagnostic_reg) then
               call txy2ll(dlon,dlat,dlon00,dlat00)
-              ntest=ntest+ione
+              ntest=ntest+1
               disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
                    (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
               disterrmax=max(disterrmax,disterr)
@@ -301,8 +311,8 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         else
            dlon=dlon_earth
            dlat=dlat_earth
-           call grdcrd(dlat,ione,rlats,nlat,ione)
-           call grdcrd(dlon,ione,rlons,nlon,ione)
+           call grdcrd(dlat,1,rlats,nlat,1)
+           call grdcrd(dlon,1,rlons,nlon,1)
         endif
 
         if (l4dvar) then
@@ -347,6 +357,19 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   
         iscan = nint(hdr(ilzah))+1.001_r_kind ! integer scan position HLIU check this
  
+!
+!       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!
+        if ( nst_gsi > 0 ) then
+          tref  = ts(0)
+          dtw   = zero
+          dtc   = zero
+          tz_tr = one
+          if ( sfcpct(0) > zero ) then
+            call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+          endif
+        endif
+
 !       Transfer information to work array
         data_all( 1,itx) = hdr(1)                     ! satellite id
         data_all( 2,itx) = t4dv                       ! analysis relative time
@@ -383,12 +406,19 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         data_all(32,itx) = val_sev
         data_all(33,itx) = itt
 
+        if ( nst_gsi > 0 ) then
+          data_all(maxinfo+1,itx) = tref         ! foundation temperature
+          data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
+          data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
+          data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+        endif
+
         do k=1,nchanl
            if (clrsky) then
-              data_all(k+maxinfo,itx)=datasev2(1,k+3)     ! for chn 4,5,6,7,8,9,10,11
+              data_all(k+nreal,itx)=datasev2(1,k+3)     ! for chn 4,5,6,7,8,9,10,11
            else if (allsky) then
               jj=(k+2)*6+1
-              data_all(k+maxinfo,itx)=datasev2(1,jj)     ! all-sky radiance for chn 4,5,6,7,8,9,10,11
+              data_all(k+nreal,itx)=datasev2(1,jj)      ! all-sky radiance for chn 4,5,6,7,8,9,10,11
            end if
         end do
 
@@ -408,15 +438,15 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
   do n=1,ndata
     do k=1,nchanl
-        if(data_all(k+maxinfo,n) > tbmin .and. &
-           data_all(k+maxinfo,n) < tbmax)nodata=nodata+ione
+        if(data_all(k+nreal,n) > tbmin .and. &
+           data_all(k+nreal,n) < tbmax)nodata=nodata+1
     end do
     itt=nint(data_all(maxinfo,n))
     super_val(itt)=super_val(itt)+val_sev
   end do
 
 ! Write retained data to local file
- write(lunout) obstype,sis,maxinfo,nchanl,ilat,ilon
+ write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
  write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
 
   endif
@@ -435,7 +465,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
           '   nread=',i10, &
           '   rmesh=',f7.3,'   ndata=',i10)
 
- if(diagnostic_reg.and.ntest>izero) write(6,*)'READ_SEVIRI:  ',&
+ if(diagnostic_reg.and.ntest>0) write(6,*)'READ_SEVIRI:  ',&
       'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
 ! End of routine

@@ -25,7 +25,8 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 !     lunin          - unit from which to read observations
 !     mype           - mpi task id
 !     nlevs          - number of levels (layer amounts + total column) per obs   
-!                     for CO, this should just be number of layers (AVT)
+!                     for MOPITT CO, this should just be number of averaging 
+!                      kernel levels, which is the same as the number of obs levels. (AVT)
 !     nreal          - number of pieces of non-co info (location, time, etc) per obs
 !     nobs           - number of observations
 !     isis           - sensor/instrument/satellite id
@@ -48,14 +49,14 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,i_kind
 
-  use constants, only : zero,half,one,two,tiny_r_kind,r10
-  use constants, only : cocon,cg_term,wgtlim,h300   ! AVT need to find value for co
+  use constants, only : zero,half,one,two,tiny_r_kind
+  use constants, only : cg_term,wgtlim,h300   ! AVT need to find value for co
                                                      ! use the ozone values for the moment
 
-  use obsmod, only : co3lhead,co3ltail,i_co3l_ob_type,dplat,nobskeep
+  use obsmod, only : colvkhead,colvktail,i_colvk_ob_type,dplat,nobskeep
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
-  use obsmod, only : co3l_ob_type
+  use obsmod, only : colvk_ob_type
   use obsmod, only : obs_diag
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -64,7 +65,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 
   use guess_grids, only : nfldsig,ges_prsi,ntguessig,hrdifsig
   use gsi_bundlemod, only : gsi_bundlegetpointer
-  use gsi_chemtracer_mod, only : gsi_chem_bundle,gsi_chemtracer_get
+  use gsi_chemguess_mod, only : gsi_chemguess_bundle
 
   use coinfo, only : jpch_co,error_co,pob_co,gross_co,nusis_co,ihave_co
   use coinfo, only : iuse_co,b_co,pg_co
@@ -98,6 +99,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 ! Declare local parameters  
   integer(i_kind),parameter:: iint=1
   integer(i_kind),parameter:: ireal=3
+  real(r_kind),parameter:: r10=10.0_r_kind
   character(len=*),parameter:: myname="setupco"
 
 ! Declare local variables  
@@ -106,7 +108,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   real(r_kind) coobs,omg,rat_err2,dlat,dtime,dlon
   real(r_kind) cg_co,wgross,wnotgross,wgt,arg,exp_arg,term
   real(r_kind) psi,errorinv
-  real(r_kind),dimension(nlevs):: coges,varinv3,co_inv
+  real(r_kind),dimension(nlevs):: coges,coakl,varinv3,co_inv
   real(r_kind),dimension(nlevs):: ratio_errors,error
 !  real(r_kind),dimension(nlevs-1):: ozp
   real(r_kind),dimension(nlevs):: cop  ! nlevs=10 for MOPITT (AVT)
@@ -145,7 +147,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
-  type(co3l_ob_type),pointer:: my_head
+  type(colvk_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
   n_alloc(:)=0
@@ -158,17 +160,22 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 ! Get pointer to CO guess state, if not present return 
   if(.not.ihave_co) return
 
-  if(size(gsi_chem_bundle)==nfldsig) then
-     call gsi_bundlegetpointer(gsi_chem_bundle(1),'co',rank3,ier)
-     allocate(ges_co(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
-     ges_co(:,:,:,1)=rank3
-     do ifld=2,nfldsig
-        call gsi_bundlegetpointer(gsi_chem_bundle(ifld),'co',rank3,ier)
-        ges_co(:,:,:,ifld)=rank3
-     enddo
+  if(size(gsi_chemguess_bundle)==nfldsig) then
+     call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co',rank3,ier)
+     if (ier==0) then
+         allocate(ges_co(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_co(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),'co',rank3,ier)
+            ges_co(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) 'setupco: CO not found in chem bundle, ier= ',ier
+         call stop2(999)
+     endif
   else
-     write(6,*) 'setupco: inconsistent vector sizes (nfldsig,size(chem_bundle) ',&
-                 nfldsig,size(gsi_chem_bundle)
+     write(6,*) 'setupco: inconsistent vector sizes (nfldsig,size(chemguess_bundle) ',&
+                 nfldsig,size(gsi_chemguess_bundle)
      call stop2(999)
   endif
 ! Initialize arrays
@@ -324,15 +331,13 @@ if(in_curbin) then
            else
               cop(nz) = prsitmp(1)
            end if
-           if(debug) print*,'cop=',cop(nz),'nz=',nz 
            call grdcrd(cop(nz),1,prsitmp,nsig+1,-1)
-           if(debug) print*,'cop=',cop(nz),'nz=',nz 
         enddo
 ! make any obs above surface pressure passive AVT (may need to revisit this)
         do nz=1,nlevs-1 
            if (cop(nz).eq.cop(nz+1))then 
-               varinv3(k)=zero
-               ratio_errors(k)=zero
+               varinv3(nz)=zero
+               ratio_errors(nz)=zero
                rat_err2 = zero
            endif 
         enddo 
@@ -345,14 +350,19 @@ if(in_curbin) then
       enddo 
       do k=1,nlev 
         do j=1,nlev 
-          avk(k,j)=data(k+8+nlevs,i)
+          avk(k,j)=data(j+(k-1)*nlevs+8+nlevs,i)
         enddo 
       enddo 
 
-!  interpolation output is called coges
+!  interpolation output at ave ker levels is called coakl
 
-     call intrp3co(ges_co,coges,dlat,dlon,cop,dtime,&
-          1,nlevs,coap,avk,mype)
+     call tintrp3(ges_co,coakl,dlat,dlon,cop,dtime, &
+        hrdifsig,nlevs,mype,nfldsig) 
+
+!  application of averaging kernel for mopitt co 
+
+     call co_mop_ak(coakl,coges,nlevs,avk,coap)
+        
 
      if(co_diagsave)then
         ii=ii+1
@@ -365,15 +375,15 @@ if(in_curbin) then
 !    Interpolate interface pressure to obs location
 !    Calculate innovations, perform gross checks, and accumualte
 !    numbers for statistics
-
+     
      do k=1,nlev
         j=ipos(k)
         ioff=nreal+k
 
 !       Compute innovation and load obs error into local array
         coobs = data(ioff,i)
-        co_inv(k) = coobs-coges(k)    ! Will change this to co later (AVT)
-        error(k)     = tnoise(k)
+        co_inv(k) = coobs-coges(k)
+        error(k)  = tnoise(k)
         
 
 !       Set inverse obs error squared and ratio_errors
@@ -471,40 +481,40 @@ if(in_curbin) then
 !       Process obs have at least one piece of information that passed qc checks
         if (.not. last .and. ikeep==1) then
 
-           if(.not. associated(co3lhead(ibin)%head))then
-              allocate(co3lhead(ibin)%head,stat=istat)
-              if(istat /= 0)write(6,*)' failure to write co3lhead '
-              co3ltail(ibin)%head => co3lhead(ibin)%head
+           if(.not. associated(colvkhead(ibin)%head))then
+              allocate(colvkhead(ibin)%head,stat=istat)
+              if(istat /= 0)write(6,*)' failure to write colvkhead '
+              colvktail(ibin)%head => colvkhead(ibin)%head
            else
-              allocate(co3ltail(ibin)%head%llpoint,stat=istat)
-              if(istat /= 0)write(6,*)' failure to write co3ltail%llpoint '
-              co3ltail(ibin)%head => co3ltail(ibin)%head%llpoint
+              allocate(colvktail(ibin)%head%llpoint,stat=istat)
+              if(istat /= 0)write(6,*)' failure to write colvktail%llpoint '
+              colvktail(ibin)%head => colvktail(ibin)%head%llpoint
            end if
 
 	   m_alloc(ibin) = m_alloc(ibin) +1
-	   my_head => co3ltail(ibin)%head
+	   my_head => colvktail(ibin)%head
 	   my_head%idv = is
 	   my_head%iob = i
 
            nlevp=max(nlev-1,1)
-           allocate(co3ltail(ibin)%head%res(nlev),co3ltail(ibin)%head%diags(nlev),&
-                    co3ltail(ibin)%head%err2(nlev),co3ltail(ibin)%head%raterr2(nlev),&
-                    co3ltail(ibin)%head%prs(nlevp), &
-                    co3ltail(ibin)%head%wij(8,nsig), &
-                    co3ltail(ibin)%head%ipos(nlev), & 
-                    co3ltail(ibin)%head%ak(nlev,nlev), &
-                    co3ltail(ibin)%head%ap(nlev), &
-                    co3ltail(ibin)%head%wkk1(nlev), &
-                    co3ltail(ibin)%head%wkk2(nlev), stat=istatus)
+           allocate(colvktail(ibin)%head%res(nlev),colvktail(ibin)%head%diags(nlev),&
+                    colvktail(ibin)%head%err2(nlev),colvktail(ibin)%head%raterr2(nlev),&
+                    colvktail(ibin)%head%prs(nlevp), &
+                    colvktail(ibin)%head%wij(8,nsig), &
+                    colvktail(ibin)%head%ipos(nlev), & 
+                    colvktail(ibin)%head%ak(nlev,nlev), &
+                    colvktail(ibin)%head%ap(nlev), &
+                    colvktail(ibin)%head%wkk1(nlev), &
+                    colvktail(ibin)%head%wkk2(nlev), stat=istatus)
                     
            if (istatus/=0) write(6,*)'SETUPCO:  allocate error for co_point, istatus=',istatus
 
 !          Set number of levels for this obs
 !           oztail(ibin)%head%nloz = nlev-1  ! NOTE: for OMI/GOME, nloz=0
-           co3ltail(ibin)%head%nlco = nlev !  AVT: for MOPITT CO, nlev=10. No single level data
+           colvktail(ibin)%head%nlco = nlev !  AVT: for MOPITT CO, nlev=10. No single level data
 
 !          Set (i,j) indices of guess gridpoint that bound obs location
-           call get_ij(mm1,dlat,dlon,co3ltail(ibin)%head%ij(1),tempwij(1))
+           call get_ij(mm1,dlat,dlon,colvktail(ibin)%head%ij(1),tempwij(1))
 
            call tintrp2a(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
                 1,nsig+1,mype,nfldsig)
@@ -515,33 +525,33 @@ if(in_curbin) then
               k2=k1+1 
               wk1=one-(cop(k)-real(k1))/(real(k2)-real(k1))
               wk2=    (cop(k)-real(k1))/(real(k2)-real(k1)) 
-              co3ltail(ibin)%head%wij(1,k)=tempwij(1)*cocon*wk1
-              co3ltail(ibin)%head%wij(2,k)=tempwij(2)*cocon*wk1
-              co3ltail(ibin)%head%wij(3,k)=tempwij(3)*cocon*wk1
-              co3ltail(ibin)%head%wij(4,k)=tempwij(4)*cocon*wk1
-              co3ltail(ibin)%head%wij(5,k)=tempwij(1)*cocon*wk2
-              co3ltail(ibin)%head%wij(6,k)=tempwij(2)*cocon*wk2
-              co3ltail(ibin)%head%wij(7,k)=tempwij(3)*cocon*wk2
-              co3ltail(ibin)%head%wij(8,k)=tempwij(4)*cocon*wk2
+              colvktail(ibin)%head%wij(1,k)=tempwij(1)*wk1
+              colvktail(ibin)%head%wij(2,k)=tempwij(2)*wk1
+              colvktail(ibin)%head%wij(3,k)=tempwij(3)*wk1
+              colvktail(ibin)%head%wij(4,k)=tempwij(4)*wk1
+              colvktail(ibin)%head%wij(5,k)=tempwij(1)*wk2
+              colvktail(ibin)%head%wij(6,k)=tempwij(2)*wk2
+              colvktail(ibin)%head%wij(7,k)=tempwij(3)*wk2
+              colvktail(ibin)%head%wij(8,k)=tempwij(4)*wk2
               do j=1,nlevs
-                 co3ltail(ibin)%head%ak(k,j)=avk(k,j)
+                 colvktail(ibin)%head%ak(k,j)=avk(k,j)
               enddo 
-              co3ltail(ibin)%head%ap(k)=coap(k)
+              colvktail(ibin)%head%ap(k)=coap(k)
            end do
 
 !          Increment data counter and save information used in
 !          inner loop minimization (int* and stp* routines)
 
-           co3ltail(ibin)%head%luse=luse(i)
-           co3ltail(ibin)%head%time=dtime
+           colvktail(ibin)%head%luse=luse(i)
+           colvktail(ibin)%head%time=dtime
 
            if (obstype == 'mopitt' ) then
 !              do k=1,nlevs-1
               do k=1,nlevs   ! AVT should just be nlevs for mopitt.
-                 co3ltail(ibin)%head%prs(k) = cop(k)
+                 colvktail(ibin)%head%prs(k) = cop(k)
               enddo
            else
-              co3ltail(ibin)%head%prs(1) = zero   ! any value is OK, never used
+              colvktail(ibin)%head%prs(1) = zero   ! any value is OK, never used
            endif
 
         endif ! < .not.last >
@@ -550,68 +560,68 @@ endif	! (in_curbin)
 !       Link obs to diagnostics structure
         do k=1,nlevs
            if (.not.lobsdiag_allocated) then
-              if (.not.associated(obsdiags(i_co3l_ob_type,ibin)%head)) then
-                 allocate(obsdiags(i_co3l_ob_type,ibin)%head,stat=istat)
+              if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%head)) then
+                 allocate(obsdiags(i_colvk_ob_type,ibin)%head,stat=istat)
                  if (istat/=0) then
                     write(6,*)'setupco: failure to allocate obsdiags',istat
                     call stop2(260)
                  end if
-                 obsdiags(i_co3l_ob_type,ibin)%tail => obsdiags(i_co3l_ob_type,ibin)%head
+                 obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%head
               else
-                 allocate(obsdiags(i_co3l_ob_type,ibin)%tail%next,stat=istat)
+                 allocate(obsdiags(i_colvk_ob_type,ibin)%tail%next,stat=istat)
                  if (istat/=0) then
                     write(6,*)'setupco: failure to allocate obsdiags',istat
                     call stop2(261)
                  end if
-                 obsdiags(i_co3l_ob_type,ibin)%tail => obsdiags(i_co3l_ob_type,ibin)%tail%next
+                 obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%tail%next
               end if
 
-              allocate(obsdiags(i_co3l_ob_type,ibin)%tail%muse(miter+1))
-              allocate(obsdiags(i_co3l_ob_type,ibin)%tail%nldepart(miter+1))
-              allocate(obsdiags(i_co3l_ob_type,ibin)%tail%tldepart(miter))
-              allocate(obsdiags(i_co3l_ob_type,ibin)%tail%obssen(miter))
-              obsdiags(i_co3l_ob_type,ibin)%tail%indxglb=i
-              obsdiags(i_co3l_ob_type,ibin)%tail%nchnperobs=-99999
-              obsdiags(i_co3l_ob_type,ibin)%tail%luse=.false.
-              obsdiags(i_co3l_ob_type,ibin)%tail%muse(:)=.false.
+              allocate(obsdiags(i_colvk_ob_type,ibin)%tail%muse(miter+1))
+              allocate(obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(miter+1))
+              allocate(obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(miter))
+              allocate(obsdiags(i_colvk_ob_type,ibin)%tail%obssen(miter))
+              obsdiags(i_colvk_ob_type,ibin)%tail%indxglb=i
+              obsdiags(i_colvk_ob_type,ibin)%tail%nchnperobs=-99999
+              obsdiags(i_colvk_ob_type,ibin)%tail%luse=.false.
+              obsdiags(i_colvk_ob_type,ibin)%tail%muse(:)=.false.
 
-              obsdiags(i_co3l_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-              obsdiags(i_co3l_ob_type,ibin)%tail%tldepart(:)=zero
-              obsdiags(i_co3l_ob_type,ibin)%tail%wgtjo=-huge(zero)
-              obsdiags(i_co3l_ob_type,ibin)%tail%obssen(:)=zero
+              obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+              obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(:)=zero
+              obsdiags(i_colvk_ob_type,ibin)%tail%wgtjo=-huge(zero)
+              obsdiags(i_colvk_ob_type,ibin)%tail%obssen(:)=zero
 
 	      n_alloc(ibin) = n_alloc(ibin) +1
-	      my_diag => obsdiags(i_co3l_ob_type,ibin)%tail
+	      my_diag => obsdiags(i_colvk_ob_type,ibin)%tail
 	      my_diag%idv = is
 	      my_diag%iob = i
 	      my_diag%ich = k
            else
-              if (.not.associated(obsdiags(i_co3l_ob_type,ibin)%tail)) then
-                 obsdiags(i_co3l_ob_type,ibin)%tail => obsdiags(i_co3l_ob_type,ibin)%head
+              if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%tail)) then
+                 obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%head
               else
-                 obsdiags(i_co3l_ob_type,ibin)%tail => obsdiags(i_co3l_ob_type,ibin)%tail%next
+                 obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%tail%next
               end if
-              if (obsdiags(i_co3l_ob_type,ibin)%tail%indxglb/=i) then
+              if (obsdiags(i_colvk_ob_type,ibin)%tail%indxglb/=i) then
                  write(6,*)'setupco: index error'
                  call stop2(262)
               end if
            endif
 
 if(in_curbin) then
-           obsdiags(i_co3l_ob_type,ibin)%tail%luse=luse(i)
-           obsdiags(i_co3l_ob_type,ibin)%tail%muse(jiter)= (ikeep==1)
-           obsdiags(i_co3l_ob_type,ibin)%tail%nldepart(jiter)=co_inv(k)
-           obsdiags(i_co3l_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
+           obsdiags(i_colvk_ob_type,ibin)%tail%luse=luse(i)
+           obsdiags(i_colvk_ob_type,ibin)%tail%muse(jiter)= (ikeep==1)
+           obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(jiter)=co_inv(k)
+           obsdiags(i_colvk_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
  
            if (.not. last .and. ikeep==1) then
-              co3ltail(ibin)%head%ipos(k)    = ipos(k)
-              co3ltail(ibin)%head%res(k)     = co_inv(k)
-              co3ltail(ibin)%head%err2(k)    = varinv3(k)
-              co3ltail(ibin)%head%raterr2(k) = ratio_errors(k)**2
-              co3ltail(ibin)%head%diags(k)%ptr => obsdiags(i_co3l_ob_type,ibin)%tail
+              colvktail(ibin)%head%ipos(k)    = ipos(k)
+              colvktail(ibin)%head%res(k)     = co_inv(k)
+              colvktail(ibin)%head%err2(k)    = varinv3(k)
+              colvktail(ibin)%head%raterr2(k) = ratio_errors(k)**2
+              colvktail(ibin)%head%diags(k)%ptr => obsdiags(i_colvk_ob_type,ibin)%tail
 
-	      my_head => co3ltail(ibin)%head
-	      my_diag => co3ltail(ibin)%head%diags(k)%ptr
+	      my_head => colvktail(ibin)%head
+	      my_diag => colvktail(ibin)%head%diags(k)%ptr
               if(my_head%idv /= my_diag%idv .or. &
 	         my_head%iob /= my_diag%iob .or. &
 	                   k /= my_diag%ich ) then
@@ -627,7 +637,7 @@ if(in_curbin) then
               idia=3
               do jj=1,miter
                  idia=idia+1
-                 if (obsdiags(i_co3l_ob_type,ibin)%tail%muse(jj)) then
+                 if (obsdiags(i_colvk_ob_type,ibin)%tail%muse(jj)) then
                     rdiagbuf(idia,k,ii) = one
                  else
                     rdiagbuf(idia,k,ii) = -one
@@ -635,15 +645,15 @@ if(in_curbin) then
               enddo
               do jj=1,miter+1
                  idia=idia+1
-                 rdiagbuf(idia,k,ii) = obsdiags(i_co3l_ob_type,ibin)%tail%nldepart(jj)
+                 rdiagbuf(idia,k,ii) = obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(jj)
               enddo
               do jj=1,miter
                  idia=idia+1
-                 rdiagbuf(idia,k,ii) = obsdiags(i_co3l_ob_type,ibin)%tail%tldepart(jj)
+                 rdiagbuf(idia,k,ii) = obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(jj)
               enddo
               do jj=1,miter
                  idia=idia+1
-                 rdiagbuf(idia,k,ii) = obsdiags(i_co3l_ob_type,ibin)%tail%obssen(jj)
+                 rdiagbuf(idia,k,ii) = obsdiags(i_colvk_ob_type,ibin)%tail%obssen(jj)
               enddo
            endif
 endif	! (in_curbin)
@@ -695,7 +705,7 @@ endif	! (in_curbin)
 
 ! clean up
   deallocate(ges_co)
-  call dtime_show('setupco','diagsave:co',i_co3l_ob_type)
+  call dtime_show('setupco','diagsave:co',i_colvk_ob_type)
   if(co_diagsave) deallocate(rdiagbuf)
 
 ! End of routine

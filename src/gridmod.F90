@@ -25,7 +25,6 @@ module gridmod
 !   2004-07-15  todling, protex-compliant prologue
 !   2004-12-23  treadon - add routines get_ij and get_ijk
 !   2005-01-20  okamoto - add nsig5p1
-!   2005-03-04  derber  - add nsig3p3,nsig3p2
 !   2005-03-07  dee     - add gmao_intfc option for gmao interface
 !   2005-05-24  pondeca - regional surface component added
 !   2005-06-01  treadon - add variables msig and array nlayers
@@ -69,7 +68,7 @@ module gridmod
 !                           copies region_lat, region_lon to glat_an, glon_an.
 !   2010-11-03  derber  - added initialization of threading j loops for use in calctends
 !   2010-11-14 pagowski - added CMAQ
-
+!   2011-04-07 todling  - create/destroy_mapping no longer public; add final_grid_vars
 !
 !
 ! !AUTHOR: 
@@ -86,8 +85,6 @@ module gridmod
   public :: init_subdomain_vars
   public :: create_grid_vars
   public :: destroy_grid_vars
-  public :: create_mapping
-  public :: destroy_mapping
   public :: init_reg_glob_ll
   public :: init_general_transform
   public :: tll2xy
@@ -121,13 +118,13 @@ module gridmod
   public :: region_dy,region_dx,region_lon,rlat_min_dd,rlat_max_dd,rlon_max_dd
   public :: rlon_min_dd,coslon,sinlon,rlons,ird_s,irc_s,periodic,idthrm5
   public :: cp5,idvm5,ncep_sigio,ncepgfs_head,idpsfc5,nlon_sfc,nlat_sfc
-  public :: rlons_sfc,rlats_sfc,jlon1,ilat1,periodic_s,latlon1n1,nsig3p2
-  public :: nsig3p3,nsig2,nsig3p1,wgtlats,corlats,rbs2,ncepgfs_headv,regional_time
+  public :: rlons_sfc,rlats_sfc,jlon1,ilat1,periodic_s,latlon1n1
+  public :: nsig2,wgtlats,corlats,rbs2,ncepgfs_headv,regional_time
   public :: regional_fhr,region_dyi,coeffx,region_dxi,coeffy,nsig_hlf
   public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
   public :: diagnostic_reg,nmmb_reference_grid,hybrid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
-  public :: nsig4,nsig3
+  public :: nsig3,nsig4
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
   public :: jcap,jcap_b,hires_b,sp_a,sp_b,grd_a,grd_b
   public :: jtstart,jtstop,nthreads
@@ -189,9 +186,6 @@ module gridmod
 !                                        2: average
   integer(i_kind) nsig2             ! 2 times number of levels
   integer(i_kind) nsig3             ! 3 times number of levels
-  integer(i_kind) nsig3p1           ! 3 times number of levels plus 1
-  integer(i_kind) nsig3p2           ! 3 times number of levels plus 2
-  integer(i_kind) nsig3p3           ! 3 times number of levels plus 3
   integer(i_kind) nsig4             ! 4 times number of levels
   integer(i_kind) nsig5             ! 5 times number of levels
   integer(i_kind) nsig5p1           ! 5 times number of levels plus 1
@@ -495,9 +489,6 @@ contains
     ns1=2*nsig+1
     nsig2=2*nsig
     nsig3=3*nsig
-    nsig3p1=3*nsig+1
-    nsig3p2=3*nsig+2
-    nsig3p3=3*nsig+3
     nsig4=4*nsig
     nsig5=5*nsig
     nsig5p1=5*nsig+1
@@ -639,6 +630,50 @@ contains
 !-------------------------------------------------------------------------
 !BOP
 !
+! !IROUTINE: final_grid_vars --- Finalize grid related variables
+!
+! !INTERFACE:
+!
+  subroutine final_grid_vars
+
+! !USES:
+
+    implicit none
+
+! !INPUT PARAMETERS:
+
+! !DESCRIPTION: finalize grid related variables
+!
+! !REVISION HISTORY:
+!   2011-04-07  todling - create for consistency with init_grid_vars
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
+!
+! !AUTHOR:
+!   todling           org: np20                date: 2003-09-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    call destroy_mapping
+
+    deallocate(jtstart,jtstop)
+
+    return
+
+  end subroutine final_grid_vars
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
 ! !IROUTINE:  init_subdomain_vars --- Initialize variables related to subdomains
 !
 ! !INTERFACE:
@@ -742,6 +777,8 @@ contains
 !-------------------------------------------------------------------------
     implicit none
 
+    call final_grid_vars
+
     deallocate(rlats,rlons,corlats,coslon,sinlon,wgtlats,rbs2)
     deallocate(ak5,bk5,ck5,tref5)
     if (allocated(cp5)) deallocate(cp5)
@@ -843,6 +880,7 @@ contains
 !   2004-07-15  todling, protex-compliant prologue
 !   2005-03-03  treadon - add implicit none
 !   2007-02-20  todling - somehow dealloc for irc_s,ird_s got lost
+!   2011-04-07  todling - move dealloc of jtstart,jtstop to final_grid_vars
 !
 ! !REMARKS:
 !   language: f90
@@ -858,7 +896,7 @@ contains
     deallocate(ltosi,ltosj,ltosi_s,ltosj_s)
     deallocate(periodic_s,jstart,istart,ilat1,jlon1,&
        ijn_s,irc_s,ird_s,displs_s,&
-       ijn,isc_g,isd_g,displs_g,jtstart,jtstop)
+       ijn,isc_g,isd_g,displs_g)
 
     return
   end subroutine destroy_mapping

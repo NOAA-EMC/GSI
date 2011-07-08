@@ -15,6 +15,7 @@
 !   2008-12-02  todling - separated this routine from update_guess
 !   2010-04-01  treadon - move strip,reorder,reorder2 to gridmod
 !   2010-05-13  todling - udpate to use gsi_bundle; interface via state vector
+!   2011-05-01  todling - udpate to use gsi_metguess_bundle: cwmr taken from it now
 !
 !   input argument list:
 !     xut,xvt,xtt,xqt,xozt,xcwt,xpt - tendencies
@@ -35,10 +36,11 @@
   use jfunc, only: l_foto
   use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,&
        regional,strip,reorder,reorder2
-  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
+  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,&
        nfldsig,hrdifsig
   use compact_diffs, only: uv2vordiv
+  use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
@@ -48,7 +50,7 @@
   type(gsi_bundle),intent(in   ) :: xhat_dt
 
 ! Declare local variables
-  integer(i_kind) i,j,k,it,ier,istatus
+  integer(i_kind) i,j,k,it,ipges,ier,istatus
   real(r_kind),dimension(lat1,lon1,nsig):: usm,vsm
   real(r_kind),dimension(lat2,lon2,nsig):: dvor_t,ddiv_t
   real(r_kind),dimension(itotsub,nuvlevs):: work1,work2
@@ -167,7 +169,6 @@
 !             Note:  Below variables only used in NCEP GFS model
 
               ges_oz(i,j,k,it)   = ges_oz(i,j,k,it) + xozt(i,j,k)*tcon
-              ges_cwmr(i,j,k,it) = ges_cwmr(i,j,k,it)+ xcwt(i,j,k)*tcon
               ges_div(i,j,k,it)  = ges_div(i,j,k,it) + ddiv_t(i,j,k)*tcon
               ges_vor(i,j,k,it)  = ges_vor(i,j,k,it) + dvor_t(i,j,k)*tcon
            end do
@@ -178,6 +179,12 @@
            ges_ps(i,j,it) = ges_ps(i,j,it) + xpt(i,j)*tcon
         end do
      end do
+
+!    update cw (used to be array in guess_grids
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ipges,istatus)
+     if(istatus==0) &
+     gsi_metguess_bundle(it)%r3(ipges)%q = gsi_metguess_bundle(it)%r3(ipges)%q + xcwt(i,j,k)*tcon
+
   end do
 
   return

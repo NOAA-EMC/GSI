@@ -50,12 +50,18 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         based on its size/shape
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2009-09-01  li      - add to handle nst fields
 !   2009-12-20  gayno - method to calculate surface fields within FOV
 !                       based on its size/shape now calculates antenna 
 !                       power for some instruments. 
 !   2010-07-12  zhu   - include global offset in amsua bc for adp_anglebc option
 !   2010-09-02  zhu   - add use_edges option
 !   2010-10-12  zhu   - use radstep and radstart from radinfo
+!   2011-04-07  todling - newpc4pred now in radinfo
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
+!                         (2) get zob, tz_tr (call skindepth and cal_tztr)
+!                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
+!                         (4) add more elements (nstinfo) in data array
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -91,10 +97,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                finalcheck,checkob,score_crit
-  use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad, &
+  use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad,nst_gsi,nstinfo,fac_dtl,fac_tsl, &
                air_rad,predx,adp_anglebc,use_edges,find_edges, &
-               radstep,radstart 
-  use berror, only: newpc4pred
+               radstep,radstart,newpc4pred
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
        tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,one,three,five,rad2deg,r60inv
@@ -175,6 +180,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     :: sat_zenang, sol_zenang, sat_aziang, sol_aziang
   real(r_kind)     :: ch8ch18, ch8ch19, ch18ch19, tmpinv
   real(r_kind)     :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+  real(r_kind)     :: zob,tref,dtw,dtc,tz_tr
   real(r_kind),dimension(0:4) :: rlndsea
   real(r_kind),dimension(0:3) :: sfcpct
   real(r_kind),dimension(0:3) :: ts
@@ -207,7 +213,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Initialize variables
   disterrmax=zero
   ntest=0
-  nreal  = maxinfo
+  nreal  = maxinfo+nstinfo
   ndata = 0
   nodata = 0
   airs=      obstype == 'airs'
@@ -217,6 +223,10 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   ilon=3
   ilat=4
+
+  if (nst_gsi > 0 ) then
+    call skindepth(obstype,zob)
+  endif
 
   do i=1,jpch_rad
      if (trim(nusis(i))==trim(sis)) then
@@ -677,6 +687,18 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
          sol_aziang = aquaspot(2)
          lza = (start + float(ifov-1)*step)*deg2rad
+!
+!        interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!
+         if ( nst_gsi > 0 ) then
+           tref  = ts(0)
+           dtw   = zero
+           dtc   = zero
+           tz_tr = one
+           if ( sfcpct(0) > zero ) then
+             call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+           endif
+         endif
 
          data_all(1,itx) = 49                     ! satellite ID (temp. 49)
          data_all(2,itx) = t4dv                   ! time diff (obs-anal) (hrs)
@@ -692,7 +714,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
          data_all(12,itx) = sfcpct(1)             ! land percentage
          data_all(13,itx) = sfcpct(2)             ! sea ice percentage
          data_all(14,itx) = sfcpct(3)             ! snow percentage
-         data_all(15,itx)= ts(0)                  ! ocean skin temperature
+         data_all(15,itx)= ts(0)                  ! ocean temperature at zob
          data_all(16,itx)= ts(1)                  ! land skin temperature
          data_all(17,itx)= ts(2)                  ! ice skin temperature
          data_all(18,itx)= ts(3)                  ! snow skin temperature
@@ -712,6 +734,14 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
          data_all(32,itx)= val_airs
          data_all(33,itx)= itt
+
+         if ( nst_gsi > 0 ) then
+           data_all(maxinfo+1,itx) = tref         ! foundation temperature
+           data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
+           data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
+           data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+         endif
+
          do l=1,nchanl
             data_all(l+nreal,itx) = allchan(l+ioffset)   ! brightness temerature
          end do
@@ -739,7 +769,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
                 data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(nreal,n))
+        itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_airs
      end do
 

@@ -23,6 +23,7 @@ subroutine state2control(rval,bval,grad)
 !   2010-05-31  todling  - better consistency checks; add co/co2
 !                        - ready to bypass analysis of (any) meteorological fields
 !   2010-06-15  todling  - generalized handling of chemistry
+!   2011-05-15  auligne/todling - generalized cloud handling
 !
 !   input argument list:
 !     rval - State variable
@@ -47,9 +48,10 @@ use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 use gsi_bundlemod, only: gsi_bundlegetvar
-use gsi_bundlemod, only: gsi_bundleputvar,gsi_bundleprint
+use gsi_bundlemod, only: gsi_bundleputvar
 use gsi_bundlemod, only: gsi_bundledestroy
-use gsi_chemtracer_mod, only: gsi_chemtracer_get
+use gsi_chemguess_mod, only: gsi_chemguess_get
+use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
 use constants, only: max_varname_length
 
@@ -63,7 +65,8 @@ type(control_vector), intent(inout) :: grad
 ! Declare local variables
 character(len=*),parameter::myname='state2control'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
-integer(i_kind) :: ii,jj,i,j,k,im,jm,km,ic,id,ngases,istatus
+character(len=max_varname_length),allocatable,dimension(:) :: clouds
+integer(i_kind) :: ii,jj,i,j,k,im,jm,km,ic,id,ngases,nclouds,istatus
 real(r_kind),dimension(:,:,:),allocatable:: u,v
 type(gsi_bundle) :: wbundle ! work bundle
 
@@ -74,7 +77,7 @@ integer(i_kind), parameter :: ncvars = 5
 integer(i_kind) :: icps(ncvars)
 character(len=3), parameter :: mycvars(ncvars) = (/  &
                                'sf ', 'vp ', 'ps ', 't  ', 'q  '/)
-logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_oz,lc_cw,lc_sst
+logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh
 real(r_kind),pointer,dimension(:,:)   :: cv_ps
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_t,cv_rh
 
@@ -85,7 +88,7 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
                                'u   ', 'v   ', 'p3d ', 'q   ', 'tsen' /)
 logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
-real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_p3d,rv_q,rv_tsen,rv_tv,rv_oz,rv_cw
+real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_p3d,rv_q,rv_tsen,rv_tv,rv_oz
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 real(r_kind),pointer,dimension(:,:)   :: rv_rank2
 
@@ -104,10 +107,17 @@ jm=grad%step(1)%grid%jm
 km=grad%step(1)%grid%km
 
 ! Inquire about chemistry
-call gsi_chemtracer_get('dim',ngases,istatus)
+call gsi_metguess_get('clouds::3d',nclouds,istatus)
+if (nclouds>0) then
+    allocate(clouds(nclouds))
+    call gsi_metguess_get('clouds::3d',clouds,istatus)
+endif
+
+! Inquire about chemistry
+call gsi_chemguess_get('dim',ngases,istatus)
 if (ngases>0) then
     allocate(gases(ngases))
-    call gsi_chemtracer_get('shortnames',gases,istatus)
+    call gsi_chemguess_get('gsinames',gases,istatus)
 endif
 
 ! Since each internal vector [step(jj)] of grad has the same structure, pointers are
@@ -155,7 +165,6 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (rval(jj),'tsen',rv_tsen,istatus)
    call gsi_bundlegetpointer (rval(jj),'q'   ,rv_q ,  istatus)
    call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)
-   call gsi_bundlegetpointer (rval(jj),'cw'  ,rv_cw , istatus)
    call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
 
 !  Adjoint of control to initial state
@@ -165,10 +174,18 @@ do jj=1,nsubwin
    call gsi_bundleputvar ( wbundle, 'q' ,  zero,   istatus )
    call gsi_bundleputvar ( wbundle, 'ps',  rv_ps,  istatus )
    call gsi_bundleputvar ( wbundle, 'oz',  rv_oz,  istatus )
-   call gsi_bundleputvar ( wbundle, 'cw',  rv_cw,  istatus )
    call gsi_bundleputvar ( wbundle, 'sst', rv_sst, istatus )
 
-!  Take care of chemistry
+!  Since cloud-vars map one-to-one, take care of them together
+   do ic=1,nclouds
+      id=getindex(cvars3d,clouds(ic))
+      if (id>0) then
+          call gsi_bundlegetpointer (rval(jj),clouds(ic),rv_rank3,istatus)
+          call gsi_bundleputvar     (wbundle, clouds(ic),rv_rank3,istatus)
+      endif
+   enddo
+
+!  Same one-to-one map for chemistry-vars; take care of them together
    do ic=1,ngases
       id=getindex(cvars3d,gases(ic))
       if (id>0) then
