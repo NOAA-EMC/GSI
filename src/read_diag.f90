@@ -454,8 +454,8 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
         do iang=1,header_fix%angord+1
            data_chan(ich)%bifix(iang)=data_tmp(13+iang,ich)
         end do
+        data_chan(ich)%bisst = data_tmp(13+header_fix%angord+2,ich)  
      end do
-     data_chan(ich)%bisst = data_tmp(13+header_fix%angord+2,ich)  
   endif
   deallocate(data_tmp)
     
