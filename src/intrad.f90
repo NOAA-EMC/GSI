@@ -281,6 +281,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_kind),dimension(nsigradjac):: tval,tdir
   real(r_kind) cg_rad,p0,wnotgross,wgross,time_rad
   type(rad_ob_type), pointer :: radptr
+  logical luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
+          luseqr,luseqs,lusesst
 
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
   real(r_kind),pointer,dimension(:) :: sst
@@ -289,52 +291,104 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_cw,xhat_dt_oz,xhat_dt_u,xhat_dt_v
   real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_cw,dhat_dt_oz,dhat_dt_u,dhat_dt_v
 
+!  If no rad observations return
+  if(.not.associated(radhead)) return
 ! Set required parameters
   call set_(sval)
   if(lgoback) return
 
-! Retrieve pointers; return when not found (except in case of non-essentials)
-  call gsi_bundlegetpointer(sval,'u',  su, istatus)
-  call gsi_bundlegetpointer(sval,'v',  sv, istatus)
-  call gsi_bundlegetpointer(sval,'tv' ,st, istatus)
-  call gsi_bundlegetpointer(sval,'q',  sq, istatus)
-  call gsi_bundlegetpointer(sval,'cw' ,scw,istatus)
-  call gsi_bundlegetpointer(sval,'oz' ,soz,istatus)
-  call gsi_bundlegetpointer(sval,'sst',sst,istatus)
-  call gsi_bundlegetpointer(sval,'qg' ,sqg,istatus)
-  call gsi_bundlegetpointer(sval,'qh' ,sqh,istatus)
-  call gsi_bundlegetpointer(sval,'qi' ,sqi,istatus)
-  call gsi_bundlegetpointer(sval,'ql' ,sql,istatus)
-  call gsi_bundlegetpointer(sval,'qr' ,sqr,istatus)
-  call gsi_bundlegetpointer(sval,'qs' ,sqs,istatus)
+  luseu=ius>=0
+  lusev=ivs>=0
+  luset=itv>=0
+  luseq=iqv>=0
+  luseoz=ioz>=0
+  lusecw=icw>=0
+  luseql=iql>=0
+  luseqi=iqi>=0
+  luseqh=iqh>=0
+  luseqg=iqg>=0
+  luseqr=iqr>=0
+  luseqs=iqs>=0
+  lusesst=isst>=0
 
-  call gsi_bundlegetpointer(rval,'u',  ru, istatus)
-  call gsi_bundlegetpointer(rval,'v',  rv, istatus)
-  call gsi_bundlegetpointer(rval,'tv' ,rt, istatus)
-  call gsi_bundlegetpointer(rval,'q',  rq, istatus)
-  call gsi_bundlegetpointer(rval,'cw' ,rcw,istatus)
-  call gsi_bundlegetpointer(rval,'oz' ,roz,istatus)
-  call gsi_bundlegetpointer(rval,'sst',rst,istatus)
-  call gsi_bundlegetpointer(rval,'qg' ,rqg,istatus)
-  call gsi_bundlegetpointer(rval,'qh' ,rqh,istatus)
-  call gsi_bundlegetpointer(rval,'qi' ,rqi,istatus)
-  call gsi_bundlegetpointer(rval,'ql' ,rql,istatus)
-  call gsi_bundlegetpointer(rval,'qr' ,rqr,istatus)
-  call gsi_bundlegetpointer(rval,'qs' ,rqs,istatus)
+! Retrieve pointers; return when not found (except in case of non-essentials)
+  ier=0
+  if(luseu)then
+    call gsi_bundlegetpointer(sval,'u',  su, istatus)
+    call gsi_bundlegetpointer(rval,'u',  ru, istatus)
+  end if
+  if(lusev)then
+    call gsi_bundlegetpointer(sval,'v',  sv, istatus)
+    call gsi_bundlegetpointer(rval,'v',  rv, istatus)
+  end if
+  if(luset)then
+    call gsi_bundlegetpointer(sval,'tv' ,st, istatus)
+    call gsi_bundlegetpointer(rval,'tv' ,rt, istatus)
+  end if
+  if(luseq)then
+    call gsi_bundlegetpointer(sval,'q',  sq, istatus)
+    call gsi_bundlegetpointer(rval,'q',  rq, istatus)
+  end if
+  if(lusecw)then
+    call gsi_bundlegetpointer(sval,'cw' ,scw,istatus)
+    call gsi_bundlegetpointer(rval,'cw' ,rcw,istatus)
+  end if
+  if(luseoz)then
+    call gsi_bundlegetpointer(sval,'oz' ,soz,istatus)
+    call gsi_bundlegetpointer(rval,'oz' ,roz,istatus)
+  end if
+  if(lusesst)then
+    call gsi_bundlegetpointer(sval,'sst',sst,istatus)
+    call gsi_bundlegetpointer(rval,'sst',rst,istatus)
+  end if
+  if(luseqg)then
+    call gsi_bundlegetpointer(sval,'qg' ,sqg,istatus)
+    call gsi_bundlegetpointer(rval,'qg' ,rqg,istatus)
+  end if
+  if(luseqh)then
+    call gsi_bundlegetpointer(sval,'qh' ,sqh,istatus)
+    call gsi_bundlegetpointer(rval,'qh' ,rqh,istatus)
+  end if
+  if(luseqi)then
+    call gsi_bundlegetpointer(sval,'qi' ,sqi,istatus)
+    call gsi_bundlegetpointer(rval,'qi' ,rqi,istatus)
+  end if
+  if(luseql)then
+    call gsi_bundlegetpointer(sval,'ql' ,sql,istatus)
+    call gsi_bundlegetpointer(rval,'ql' ,rql,istatus)
+  end if
+  if(luseqr)then
+    call gsi_bundlegetpointer(sval,'qr' ,sqr,istatus)
+    call gsi_bundlegetpointer(rval,'qr' ,rqr,istatus)
+  end if
+  if(luseqs)then
+    call gsi_bundlegetpointer(sval,'qs' ,sqs,istatus)
+    call gsi_bundlegetpointer(rval,'qs' ,rqs,istatus)
+  end if
 
   if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'u',  xhat_dt_u, istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'v',  xhat_dt_v, istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'tv' ,xhat_dt_t, istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'q',  xhat_dt_q, istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'oz' ,xhat_dt_oz,istatus);ioz=istatus+ioz
-     if(ier/=0)return
+     ier=0
+     if(luseu)then
+       call gsi_bundlegetpointer(xhat_dt,'u',  xhat_dt_u, istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(dhat_dt,'u',  dhat_dt_u, istatus);ier=istatus+ier
+     end if
+     if(lusev)then
+       call gsi_bundlegetpointer(xhat_dt,'v',  xhat_dt_v, istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(dhat_dt,'v',  dhat_dt_v, istatus);ier=istatus+ier
+     end if
+     if(luset)then
+       call gsi_bundlegetpointer(xhat_dt,'tv' ,xhat_dt_t, istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(dhat_dt,'tv' ,dhat_dt_t, istatus);ier=istatus+ier
+     end if
+     if(luseq)then
+       call gsi_bundlegetpointer(xhat_dt,'q',  xhat_dt_q, istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(dhat_dt,'q',  dhat_dt_q, istatus);ier=istatus+ier
+     end if
+     if(luseoz)then
+       call gsi_bundlegetpointer(xhat_dt,'oz' ,xhat_dt_oz,istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(dhat_dt,'oz' ,dhat_dt_oz,istatus);ier=istatus+ier
+     end if
 
-     call gsi_bundlegetpointer(dhat_dt,'u',  dhat_dt_u, istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'v',  dhat_dt_v, istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'tv' ,dhat_dt_t, istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'q',  dhat_dt_q, istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'oz' ,dhat_dt_oz,istatus);ioz=istatus+ioz
      if(ier/=0)return
   endif
 
@@ -371,57 +425,57 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         i2 = i2n(k)
         i3 = i3n(k)
         i4 = i4n(k)
-        if(itv>=0)then
+        if(luset)then
            tdir(itv+k)=  w1*  st(i1)+w2*  st(i2)+ &
                          w3*  st(i3)+w4*  st(i4)
         endif
-        if(iqv>=0)then
+        if(luseq)then
            tdir(iqv+k)= w1*  sq(i1)+w2*  sq(i2)+ &
                         w3*  sq(i3)+w4*  sq(i4)
         endif
-        if(ioz>=0)then
+        if(luseoz)then
           tdir(ioz+k)=w1* soz(i1)+w2* soz(i2)+ &
                       w3* soz(i3)+w4* soz(i4)
         end if
-        if(icw>=0)then
+        if(lusecw)then
            tdir(icw+k)=w1* scw(i1)+w2* scw(i2)+ &
                        w3* scw(i3)+w4* scw(i4)
         end if
-        if(iql>=0)then
+        if(luseql)then
            tdir(iql+k)=w1* sql(i1)+w2* sql(i2)+ &
                        w3* sql(i3)+w4* sql(i4)
         end if
-        if(iqi>=0)then
+        if(luseqi)then
            tdir(iqi+k)=w1* sqi(i1)+w2* sqi(i2)+ &
                        w3* sqi(i3)+w4* sqi(i4)
         end if
-        if(iqh>=0)then
+        if(luseqh)then
            tdir(iqh+k)=w1* sqh(i1)+w2* sqh(i2)+ &
                        w3* sqh(i3)+w4* sqh(i4)
         end if
-        if(iqg>=0)then
+        if(luseqg)then
            tdir(iqg+k)=w1* sqg(i1)+w2* sqg(i2)+ &
                        w3* sqg(i3)+w4* sqg(i4)
         end if
-        if(iqr>=0)then
+        if(luseqr)then
            tdir(iqr+k)=w1* sqr(i1)+w2* sqr(i2)+ &
                        w3* sqr(i3)+w4* sqr(i4)
         end if
-        if(iqs>=0)then
+        if(luseqs)then
            tdir(iqs+k)=w1* sqs(i1)+w2* sqs(i2)+ &
                        w3* sqs(i3)+w4* sqs(i4)
         end if
      end do
 
-     if(ius>=0)then
+     if(luseu)then
         tdir(ius+1)=   w1* su(j1) +w2* su(j2)+ &
                        w3* su(j3) +w4* su(j4)
      endif
-     if(ivs>=0)then
+     if(lusev)then
         tdir(ivs+1)=   w1* sv(j1) +w2* sv(j2)+ &
                        w3* sv(j3) +w4* sv(j4)
      endif
-     if(isst>=0)then
+     if(lusesst)then
         tdir(isst+1)=w1*sst(j1) +w2*sst(j2)+ &
                      w3*sst(j3) +w4*sst(j4)
      end if
@@ -434,101 +488,33 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            i2 = i2n(k)
            i3 = i3n(k)
            i4 = i4n(k)
-           if(itv>=0)then 
+           if(luset)then 
               tdir(itv+k)= tdir(itv+k)+&
                            (w1* xhat_dt_t(i1)+w2*xhat_dt_t(i2)+ &
                             w3* xhat_dt_t(i3)+w4*xhat_dt_t(i4))*time_rad
            endif
-           if(iqv>=0)then 
+           if(luseq)then 
               tdir(iqv+k)= tdir(iqv+k)+&
                            (w1* xhat_dt_q(i1)+w2*xhat_dt_q(i2)+ &
                             w3* xhat_dt_q(i3)+w4*xhat_dt_q(i4))*time_rad
            endif
-           if(ioz>=0)then 
+           if(luseoz)then 
               tdir(ioz+k)= tdir(ioz+k)+&
                           (w1*xhat_dt_oz(i1)+w2*xhat_dt_oz(i2)+ &
                            w3*xhat_dt_oz(i3)+w4*xhat_dt_oz(i4))*time_rad
            endif
         end do
-        if(ius>=0)then 
+        if(luseu)then 
            tdir(ius+1)=   tdir(ius+1)+&
                           (w1*xhat_dt_u(j1) +w2*xhat_dt_u(j2)+ &
                            w3*xhat_dt_u(j3) +w4*xhat_dt_u(j4))*time_rad
         endif
-        if(ivs>=0)then 
+        if(lusev)then 
            tdir(ivs+1)=   tdir(ivs+1)+&
                           (w1*xhat_dt_v(j1) +w2*xhat_dt_v(j2)+ &
                            w3*xhat_dt_v(j3) +w4*xhat_dt_v(j4))*time_rad
         endif
  
-     endif
-
-!  The following omp directive is for ARW NetCDF runs only!
-     if(wrf_mass_regional)then
-        if(netcdf)then
-!$omp parallel do
-!  begin channel specific calculations
-     do nn=1,radptr%nchan
-        ic=radptr%icx(nn)
-        ix=(ic-1)*npred
-
-!       include observation increment and lapse rate contributions to bias correction
-        val=zero
-
-!       Include contributions from atmospheric jacobian
-        do k=1,nsigradjac
-           val=val+tdir(k)*radptr%dtb_dvar(k,nn)
-        end do
-
-!       Include contributions from remaining bias correction terms
-        do n=1,npred
-           val=val+spred(ix+n)*radptr%pred(n,nn)
-        end do
-
-        if (lsaveobsens) then
-           radptr%diags(nn)%ptr%obssen(jiter) = val*radptr%err2(nn)*radptr%raterr2(nn)
-        else
-           if (radptr%luse) radptr%diags(nn)%ptr%tldepart(jiter) = val
-        endif
-
-        if (l_do_adjoint) then
-           if (lsaveobsens) then
-              val=radptr%diags(nn)%ptr%obssen(jiter)
- 
-           else
-              val=val-radptr%res(nn)
-
-!             Multiply by variance.
-              if (nlnqc_iter .and. pg_rad(ic) > tiny_r_kind .and. &
-                                   b_rad(ic)  > tiny_r_kind) then
-                 cg_rad=cg_term/b_rad(ic)
-                 wnotgross= one-pg_rad(ic)*varqc_iter
-                 wgross = varqc_iter*pg_rad(ic)*cg_rad/wnotgross
-                 p0   = wgross/(wgross+exp(-half*radptr%err2(nn)*val*val))
-                 val = val*(one-p0)
-              endif
-
-              val = val*radptr%err2(nn)*radptr%raterr2(nn)
-           endif
-
-!          Begin adjoint
-
-!          Extract contributions from atmospheric jacobian
-           do k=1,nsigradjac
-              tval(k)=tval(k)+radptr%dtb_dvar(k,nn)*val
-           end do
- 
-!          Extract contributions from bias correction terms
-!          use compensated summation
-           if(radptr%luse)then
-              do n=1,npred
-                 rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val
-              end do
-           end if
-        endif
-     end do
-!$omp end parallel do
-        endif
      endif
 
 !  For all other configurations
@@ -595,34 +581,20 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
      if (l_do_adjoint) then
 !    Distribute adjoint contributions over surrounding grid points
-        if(ius>=0) then
+        if(luseu) then
            ru(j1)=ru(j1)+w1*tval(ius+1)
            ru(j2)=ru(j2)+w2*tval(ius+1)
            ru(j3)=ru(j3)+w3*tval(ius+1)
            ru(j4)=ru(j4)+w4*tval(ius+1)
         endif
-        if(ivs>=0) then
+        if(lusev) then
            rv(j1)=rv(j1)+w1*tval(ivs+1)
            rv(j2)=rv(j2)+w2*tval(ivs+1)
            rv(j3)=rv(j3)+w3*tval(ivs+1)
            rv(j4)=rv(j4)+w4*tval(ivs+1)
         endif
-        if (l_foto) then
-           if(ius>=0) then
-              dhat_dt_u(j1)=dhat_dt_u(j1)+w1*tval(ius+1)*time_rad
-              dhat_dt_u(j2)=dhat_dt_u(j2)+w2*tval(ius+1)*time_rad
-              dhat_dt_u(j3)=dhat_dt_u(j3)+w3*tval(ius+1)*time_rad
-              dhat_dt_u(j4)=dhat_dt_u(j4)+w4*tval(ius+1)*time_rad
-           endif
-           if(ivs>=0) then
-              dhat_dt_v(j1)=dhat_dt_v(j1)+w1*tval(ivs+1)*time_rad
-              dhat_dt_v(j2)=dhat_dt_v(j2)+w2*tval(ivs+1)*time_rad
-              dhat_dt_v(j3)=dhat_dt_v(j3)+w3*tval(ivs+1)*time_rad
-              dhat_dt_v(j4)=dhat_dt_v(j4)+w4*tval(ivs+1)*time_rad
-           endif
-        endif
 
-        if (isst>=0) then
+        if (lusesst) then
            rst(j1)=rst(j1)+w1*tval(isst+1)
            rst(j2)=rst(j2)+w2*tval(isst+1)
            rst(j3)=rst(j3)+w3*tval(isst+1)
@@ -635,101 +607,119 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            i3 = i3n(k)
            i4 = i4n(k)
 
-           if(itv>=0)then
+           if(luset)then
               mm=itv+k
               rt(i1)=rt(i1)+w1*tval(mm)
               rt(i2)=rt(i2)+w2*tval(mm)
               rt(i3)=rt(i3)+w3*tval(mm)
               rt(i4)=rt(i4)+w4*tval(mm)
            endif
-           if(iqv>=0)then
+           if(luseq)then
               mm=iqv+k
               rq(i1)=rq(i1)+w1*tval(mm)
               rq(i2)=rq(i2)+w2*tval(mm)
               rq(i3)=rq(i3)+w3*tval(mm)
               rq(i4)=rq(i4)+w4*tval(mm)
            endif
-           if(ioz>=0)then
+           if(luseoz)then
               mm=ioz+k
               roz(i1)=roz(i1)+w1*tval(mm)
               roz(i2)=roz(i2)+w2*tval(mm)
               roz(i3)=roz(i3)+w3*tval(mm)
               roz(i4)=roz(i4)+w4*tval(mm)
            end if
-           if(icw>=0)then
+           if(lusecw)then
               mm=icw+k
               rcw(i1)=rcw(i1)+w1*tval(mm)
               rcw(i2)=rcw(i2)+w2*tval(mm)
               rcw(i3)=rcw(i3)+w3*tval(mm)
               rcw(i4)=rcw(i4)+w4*tval(mm)
            end if
-           if(iqg>=0)then
+           if(luseqg)then
               mm=iqg+k
               rqg(i1)=rqg(i1)+w1*tval(mm)
               rqg(i2)=rqg(i2)+w2*tval(mm)
               rqg(i3)=rqg(i3)+w3*tval(mm)
               rqg(i4)=rqg(i4)+w4*tval(mm)
            end if
-           if(iqh>=0)then
+           if(luseqh)then
               mm=iqh+k
               rqh(i1)=rqh(i1)+w1*tval(mm)
               rqh(i2)=rqh(i2)+w2*tval(mm)
               rqh(i3)=rqh(i3)+w3*tval(mm)
               rqh(i4)=rqh(i4)+w4*tval(mm)
            end if
-           if(iqi>=0)then
+           if(luseqi)then
               mm=iqi+k
               rqi(i1)=rqi(i1)+w1*tval(mm)
               rqi(i2)=rqi(i2)+w2*tval(mm)
               rqi(i3)=rqi(i3)+w3*tval(mm)
               rqi(i4)=rqi(i4)+w4*tval(mm)
            end if
-           if(iql>=0)then
+           if(luseql)then
               mm=iql+k
               rql(i1)=rql(i1)+w1*tval(mm)
               rql(i2)=rql(i2)+w2*tval(mm)
               rql(i3)=rql(i3)+w3*tval(mm)
               rql(i4)=rql(i4)+w4*tval(mm)
            end if
-           if(iqr>=0)then
+           if(luseqr)then
               mm=iqr+k
               rqr(i1)=rqr(i1)+w1*tval(mm)
               rqr(i2)=rqr(i2)+w2*tval(mm)
               rqr(i3)=rqr(i3)+w3*tval(mm)
               rqr(i4)=rqr(i4)+w4*tval(mm)
            end if
-           if(iqs>=0)then
+           if(luseqs)then
               mm=iqs+k
               rqs(i1)=rqs(i1)+w1*tval(mm)
               rqs(i2)=rqs(i2)+w2*tval(mm)
               rqs(i3)=rqs(i3)+w3*tval(mm)
               rqs(i4)=rqs(i4)+w4*tval(mm)
            end if
-           if (l_foto) then
-              if(itv>=0)then
+        end do
+        if (l_foto) then
+           if(luseu) then
+              dhat_dt_u(j1)=dhat_dt_u(j1)+w1*tval(ius+1)*time_rad
+              dhat_dt_u(j2)=dhat_dt_u(j2)+w2*tval(ius+1)*time_rad
+              dhat_dt_u(j3)=dhat_dt_u(j3)+w3*tval(ius+1)*time_rad
+              dhat_dt_u(j4)=dhat_dt_u(j4)+w4*tval(ius+1)*time_rad
+           endif
+           if(lusev) then
+              dhat_dt_v(j1)=dhat_dt_v(j1)+w1*tval(ivs+1)*time_rad
+              dhat_dt_v(j2)=dhat_dt_v(j2)+w2*tval(ivs+1)*time_rad
+              dhat_dt_v(j3)=dhat_dt_v(j3)+w3*tval(ivs+1)*time_rad
+              dhat_dt_v(j4)=dhat_dt_v(j4)+w4*tval(ivs+1)*time_rad
+           endif
+           do k=1,nsig
+              i1 = i1n(k)
+              i2 = i2n(k)
+              i3 = i3n(k)
+              i4 = i4n(k)
+              if(luset)then
                  mm=itv+k
                  dhat_dt_t(i1)=dhat_dt_t(i1)+w1*tval(mm)*time_rad
                  dhat_dt_t(i2)=dhat_dt_t(i2)+w2*tval(mm)*time_rad
                  dhat_dt_t(i3)=dhat_dt_t(i3)+w3*tval(mm)*time_rad
                  dhat_dt_t(i4)=dhat_dt_t(i4)+w4*tval(mm)*time_rad
               endif
-              if(iqv>=0)then
+              if(luseq)then
                  mm=iqv+k
                  dhat_dt_q(i1)=dhat_dt_q(i1)+w1*tval(mm)*time_rad
                  dhat_dt_q(i2)=dhat_dt_q(i2)+w2*tval(mm)*time_rad
                  dhat_dt_q(i3)=dhat_dt_q(i3)+w3*tval(mm)*time_rad
                  dhat_dt_q(i4)=dhat_dt_q(i4)+w4*tval(mm)*time_rad
               endif
-              if(ioz>=0)then
+              if(luseoz)then
                  mm=ioz+k
                  dhat_dt_oz(i1)=dhat_dt_oz(i1)+w1*tval(mm)*time_rad
                  dhat_dt_oz(i2)=dhat_dt_oz(i2)+w2*tval(mm)*time_rad
                  dhat_dt_oz(i3)=dhat_dt_oz(i3)+w3*tval(mm)*time_rad
                  dhat_dt_oz(i4)=dhat_dt_oz(i4)+w4*tval(mm)*time_rad
               end if
-           endif
+           end do
+        endif
 
-        end do
      endif ! < l_do_adjoint >
 
      radptr => radptr%llpoint

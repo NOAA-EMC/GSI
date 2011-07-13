@@ -103,6 +103,8 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
 
   out=zero_quad
 
+!  If no ps data return
+  if(.not. associated(pshead))return
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

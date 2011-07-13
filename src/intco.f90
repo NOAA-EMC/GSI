@@ -137,6 +137,8 @@ subroutine intcolev_(colvkhead,rval,sval)
   real(r_kind),allocatable,dimension(:)   :: val_ret
   type(colvk_ob_type), pointer :: colvkptr
 
+!  If no co observations return
+  if(.not. associated(colvkhead))return
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0 

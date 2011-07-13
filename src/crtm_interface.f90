@@ -42,7 +42,7 @@ use crtm_atmosphere_define, only:crtm_atmosphere_associated, &
     crtm_atmosphere_destroy,crtm_atmosphere_zero
 use crtm_rtsolution_define, only: crtm_rtsolution_type, crtm_rtsolution_create, &
     crtm_rtsolution_destroy, crtm_rtsolution_associated
-use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional,wrf_mass_regional,netcdf
+use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional,wrf_mass_regional,netcdf,use_gfs_ozone
 use mpeu_util, only: die
 
 implicit none
@@ -210,29 +210,35 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   character(len=20),dimension(1):: sensorlist
   integer(i_kind) icf4crtm,icw4crtm,indx,iii,icloud4crtm
 
+  isst=-1
+  ivs=-1
+  ius=-1
+  ioz=-1
+  iqv=-1
+  itv=-1
 ! Get indexes of variables composing the jacobian
-  itv =getindex(radjacnames,'tv')
-  if(itv>0) itv=radjacindxs(itv)
-  iqv =getindex(radjacnames,'q' )
-  if(iqv>0) iqv=radjacindxs(iqv)
-  ioz =getindex(radjacnames,'oz')
-  if(ioz>0) ioz=radjacindxs(ioz)
-  ius =getindex(radjacnames,'u')
-  if(ius>0) ius=radjacindxs(ius)
-  ivs =getindex(radjacnames,'v')
-  if(ivs>0) ivs=radjacindxs(ivs)
-  isst=getindex(radjacnames,'sst')
-  if(isst>0) isst=radjacindxs(isst)
+  indx =getindex(radjacnames,'tv')
+  if(indx>0) itv=radjacindxs(indx)
+  indx =getindex(radjacnames,'q' )
+  if(indx>0) iqv=radjacindxs(indx)
+  indx =getindex(radjacnames,'oz')
+  if(indx>0) ioz=radjacindxs(indx)
+  indx =getindex(radjacnames,'u')
+  if(indx>0) ius=radjacindxs(indx)
+  indx =getindex(radjacnames,'v')
+  if(indx>0) ivs=radjacindxs(indx)
+  indx=getindex(radjacnames,'sst')
+  if(indx>0) isst=radjacindxs(indx)
 
   call gsi_metguess_get ( 'clouds::3d', n_clouds, ier )
-  allocate(cloud_names(n_clouds))
+  allocate(cloud_names(max(n_clouds,1)))
   call gsi_metguess_get ('clouds::3d',cloud_names,ier)
   n_clouds_jac=0
   do ii=1,n_clouds
      indx=getindex(radjacnames,trim(cloud_names(ii)))
      if(indx>0) n_clouds_jac=n_clouds_jac+1
   end do
-  allocate(icw(n_clouds_jac))
+  allocate(icw(max(n_clouds_jac,1)))
   icw=-1
   n_clouds_jac=0
   do ii=1,n_clouds
@@ -827,6 +833,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      dtsfc=one
   end if
   dtsfcp=one-dtsfc
+  jacobian=zero
 
 !$omp parallel sections private(k,i)
 
@@ -970,7 +977,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               ges_oz(ix ,iyp,k,itsigp)*w01+ &
               ges_oz(ixp,iyp,k,itsigp)*w11)*dtsigp)*constoz
 
-!  Ensure ozone is greater than ozsmall
+!    Ensure ozone is greater than ozsmall
 
      poz(k)=max(ozsmall,poz(k))
 
@@ -1271,7 +1278,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   surface(1)%snow_depth            = data_s(isn)
 
   sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind 
-  icmask = sea .and. data_s(ilate)>-60.0_r_kind
+  icmask = sea .and. data_s(ilate)>-60.0_r_kind .and. n_clouds > 0
 
 ! assign tzbgr for Tz retrieval when necessary
   tzbgr = surface(1)%water_temperature
@@ -1394,8 +1401,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   secant_term = one/cos(data_s(ilzen_ang))
 
+!   Zero jacobian and transmittance arrays
+  temp   = zero
+  wmix   = zero
+  omix   = zero
+  ptau5  = zero
+  if(n_clouds > 0)cwj    = zero
+
 !$omp parallel do  schedule(dynamic,1) private(i) &
-!$omp private(total_od,k,kk,m,term)
+!$omp private(total_od,k,kk,m,term,ii)
 
   do i=1,nchanl
 
@@ -1434,14 +1448,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         vwind_k(i)    = zero
      endif
 
-!   Zero jacobian and transmittance arrays
-     do k=1,nsig
-        temp(k,i)   = zero
-        wmix(k,i)   = zero
-        omix(k,i)   = zero
-        ptau5(k,i)  = zero
-     end do
-     if(n_clouds>0) cwj(:,i,:) = zero
 
      total_od = zero
 
@@ -1464,13 +1470,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         ptau5(kk,i) = exp(-min(limit_exp,total_od*secant_term))
      end do
 
-!  First, initialize the jacobian array to zero -- for ARW NetCDF only!
-     if(wrf_mass_regional)then
-        if(netcdf)then
-           jacobian = zero
-        endif
-     end if
-
 !  Load jacobian array
      m=ich(i)
      do k=1,nsig
@@ -1491,7 +1490,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
             endif
         endif
         if (ioz>=0) then
+!         if(.not. regional .or. use_gfs_ozone)then
             jacobian(ioz+k,i)=omix(k,i)*constoz       ! ozone sensitivity
+!         end if
         endif
         if (n_clouds>0) then
            if(icmask) then
@@ -1526,8 +1527,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
          jacobian(isst+1,i)=ts(i)              ! surface skin temperature sensitivity
      endif
   end do
-
-
+  
   return
   end subroutine call_crtm
 

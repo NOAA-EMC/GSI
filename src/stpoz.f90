@@ -84,8 +84,8 @@ subroutine stpoz(ozhead,o3lhead,rval,sval,out,sges,nstep)
 
   out=zero_quad
 
-  call stpozlay_(ozhead, rval,sval,out,sges,nstep)
-  call stpozlev_(o3lhead,rval,sval,out,sges,nstep)
+  if(associated(ozhead))call stpozlay_(ozhead, rval,sval,out,sges,nstep)
+  if(associated(o3lhead))call stpozlev_(o3lhead,rval,sval,out,sges,nstep)
 
   return
 

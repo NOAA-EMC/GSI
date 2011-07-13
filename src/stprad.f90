@@ -267,6 +267,9 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   integer(i_kind),dimension(nsig) :: j1n,j2n,j3n,j4n
   real(r_kind),dimension(max(1,nstep)) :: term,rad
   type(rad_ob_type), pointer :: radptr
+  logical luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
+          luseqr,luseqs,lusesst
+
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
   real(r_kind),pointer,dimension(:) :: rst,sst
@@ -274,6 +277,9 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_cw,dhat_dt_oz,dhat_dt_u,dhat_dt_v
 
   out=zero_quad
+
+!  If no rad data return
+  if(.not. associated(radhead))return
 
 ! Set internal parameters
   call set_(xval)
@@ -323,6 +329,20 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
      call gsi_bundlegetpointer(dhat_dt,'oz' ,dhat_dt_oz,istatus);ioz=istatus+ioz
      if(ier/=0)return
   endif
+  luseu=ius>=0
+  lusev=ivs>=0
+  luset=itv>=0
+  luseq=iqv>=0
+  luseoz=ioz>=0
+  lusecw=icw>=0
+  luseql=iql>=0
+  luseqi=iqi>=0
+  luseqh=iqh>=0
+  luseqg=iqg>=0
+  luseqr=iqr>=0
+  luseqs=iqs>=0
+  lusesst=isst>=0
+
 
   tdir=zero
   rdir=zero
@@ -339,11 +359,11 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            w2=radptr%wij(2)
            w3=radptr%wij(3)
            w4=radptr%wij(4)
-           if(ius>=0)then
+           if(luseu)then
               tdir(ius+1)=w1* su(j1) + w2* su(j2) + w3* su(j3) + w4* su(j4)
               rdir(ius+1)=w1* ru(j1) + w2* ru(j2) + w3* ru(j3) + w4* ru(j4)
            endif
-           if(ivs>=0)then
+           if(lusev)then
               tdir(ivs+1)=w1* sv(j1) + w2* sv(j2) + w3* sv(j3) + w4* sv(j4)
               rdir(ivs+1)=w1* rv(j1) + w2* rv(j2) + w3* rv(j3) + w4* rv(j4)
            endif
@@ -353,7 +373,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            end if
            if(l_foto)then
               time_rad=radptr%time*r3600
-              if(ius>=0)then
+              if(luseu)then
                  tdir(ius+1)=tdir(ius+1)+ &
                     (w1*xhat_dt_u(j1) + w2*xhat_dt_u(j2) + &
                      w3*xhat_dt_u(j3) + w4*xhat_dt_u(j4))*time_rad
@@ -361,7 +381,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
                     (w1*dhat_dt_u(j1) + w2*dhat_dt_u(j2) + &
                      w3*dhat_dt_u(j3) + w4*dhat_dt_u(j4))*time_rad
               endif
-              if(ivs>=0)then
+              if(lusev)then
                  tdir(ivs+1)=tdir(ivs+1)+ &
                     (w1*xhat_dt_v(j1) + w2*xhat_dt_v(j2) + &
                      w3*xhat_dt_v(j3) + w4*xhat_dt_v(j4))*time_rad
@@ -388,68 +408,48 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
               j4 = j4n(n)
   
 !             Input state vector
-              if(itv>=0)then
-                 tdir(itv+n)=w1* st(j1) +w2* st(j2) + w3* st(j3) +w4*  st(j4)
-              endif
-              if(iqv>=0)then
-                 tdir(iqv+n)=w1* sq(j1) +w2* sq(j2) + w3* sq(j3) +w4*  sq(j4)
-              endif
-              if (ioz>=0) then
-                 tdir(ioz+n)=w1*soz(j1)+w2*soz(j2)+ w3*soz(j3)+w4*soz(j4)
-              end if
-              if (icw>=0) then
-                 tdir(icw+n)=w1*scw(j1)+w2*scw(j2)+ w3*scw(j3)+w4*scw(j4)
-              end if
-              if (iqg>=0) then
-                 tdir(iqg+n)=w1*sqg(j1)+w2*sqg(j2)+ w3*sqg(j3)+w4*sqg(j4)
-              end if
-              if (iqh>=0) then
-                 tdir(iqh+n)=w1*sqh(j1)+w2*sqh(j2)+ w3*sqh(j3)+w4*sqh(j4)
-              end if
-              if (iqi>=0) then
-                 tdir(iqi+n)=w1*sqi(j1)+w2*sqi(j2)+ w3*sqi(j3)+w4*sqi(j4)
-              end if
-              if (iql>=0) then
-                 tdir(iql+n)=w1*sql(j1)+w2*sql(j2)+ w3*sql(j3)+w4*sql(j4)
-              end if
-              if (iqr>=0) then
-                 tdir(iqr+n)=w1*sqr(j1)+w2*sqr(j2)+ w3*sqr(j3)+w4*sqr(j4)
-              end if
-              if (iqs>=0) then
-                 tdir(iqs+n)=w1*sqs(j1)+w2*sqs(j2)+ w3*sqs(j3)+w4*sqs(j4)
-              end if
-
 !             Input search direction vector
-              if(itv>=0)then
+              if(luset)then
+                 tdir(itv+n)=w1* st(j1) +w2* st(j2) + w3* st(j3) +w4*  st(j4)
                  rdir(itv+n)=w1* rt(j1) +w2* rt(j2) + w3* rt(j3) +w4*  rt(j4)
               endif
-              if(iqv>=0)then
+              if(luseq)then
+                 tdir(iqv+n)=w1* sq(j1) +w2* sq(j2) + w3* sq(j3) +w4*  sq(j4)
                  rdir(iqv+n)=w1* rq(j1) +w2* rq(j2) + w3* rq(j3) +w4*  rq(j4)
               endif
-              if (ioz>=0) then
+              if (luseoz) then
+                 tdir(ioz+n)=w1*soz(j1)+w2*soz(j2)+ w3*soz(j3)+w4*soz(j4)
                  rdir(ioz+n)=w1*roz(j1)+w2*roz(j2)+ w3*roz(j3)+w4*roz(j4)
               end if
-              if (icw>=0) then
+              if (lusecw) then
+                 tdir(icw+n)=w1*scw(j1)+w2*scw(j2)+ w3*scw(j3)+w4*scw(j4)
                  rdir(icw+n)=w1*rcw(j1)+w2*rcw(j2)+ w3*rcw(j3)+w4*rcw(j4)
               end if
-              if (iqg>=0) then
+              if (luseqg) then
+                 tdir(iqg+n)=w1*sqg(j1)+w2*sqg(j2)+ w3*sqg(j3)+w4*sqg(j4)
                  rdir(iqg+n)=w1*rqg(j1)+w2*rqg(j2)+ w3*rqg(j3)+w4*rqg(j4)
               end if
-              if (iqh>=0) then
+              if (luseqh) then
+                 tdir(iqh+n)=w1*sqh(j1)+w2*sqh(j2)+ w3*sqh(j3)+w4*sqh(j4)
                  rdir(iqh+n)=w1*rqh(j1)+w2*rqh(j2)+ w3*rqh(j3)+w4*rqh(j4)
               end if
-              if (iqi>=0) then
+              if (luseqi) then
+                 tdir(iqi+n)=w1*sqi(j1)+w2*sqi(j2)+ w3*sqi(j3)+w4*sqi(j4)
                  rdir(iqi+n)=w1*rqi(j1)+w2*rqi(j2)+ w3*rqi(j3)+w4*rqi(j4)
               end if
-              if (iql>=0) then
+              if (luseql) then
+                 tdir(iql+n)=w1*sql(j1)+w2*sql(j2)+ w3*sql(j3)+w4*sql(j4)
                  rdir(iql+n)=w1*rql(j1)+w2*rql(j2)+ w3*rql(j3)+w4*rql(j4)
               end if
-              if (iqr>=0) then
+              if (luseqr) then
+                 tdir(iqr+n)=w1*sqr(j1)+w2*sqr(j2)+ w3*sqr(j3)+w4*sqr(j4)
                  rdir(iqr+n)=w1*rqr(j1)+w2*rqr(j2)+ w3*rqr(j3)+w4*rqr(j4)
               end if
-              if (iqs>=0) then
+              if (luseqs) then
+                 tdir(iqs+n)=w1*sqs(j1)+w2*sqs(j2)+ w3*sqs(j3)+w4*sqs(j4)
                  rdir(iqs+n)=w1*rqs(j1)+w2*rqs(j2)+ w3*rqs(j3)+w4*rqs(j4)
               end if
+
 
            end do
            if(l_foto)then
@@ -460,38 +460,32 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
                  j4 = j4n(n)
 
 !                Input state vector
-                 if(itv>=0)then
+!                Input search direction vector
+                 if(luset)then
                     tdir(itv+n)=  tdir(itv+n)+                      &
                        (w1*xhat_dt_t(j1) +w2*xhat_dt_t(j2) +        &
                         w3*xhat_dt_t(j3) +w4*xhat_dt_t(j4))*time_rad
-                 endif
-                 if(iqv>=0)then
-                    tdir(iqv+n)= tdir(iqv+n)+                       &
-                       (w1*xhat_dt_q(j1) +w2*xhat_dt_q(j2) +        &
-                        w3*xhat_dt_q(j3) +w4*xhat_dt_q(j4))*time_rad
-                 endif
-                 if (ioz>=0) then
-                    tdir(ioz+n)=tdir(ioz+n)+                        &
-                       (w1*xhat_dt_oz(j1)+w2*xhat_dt_oz(j2)+        &
-                        w3*xhat_dt_oz(j3)+w4*xhat_dt_oz(j4))*time_rad
-                 end if
- 
-!                Input search direction vector
-                 if(itv>=0)then
                     rdir(itv+n)=  rdir(itv+n)+                      &
                        (w1*dhat_dt_t(j1) +w2*dhat_dt_t(j2) +        &
                         w3*dhat_dt_t(j3) +w4*dhat_dt_t(j4))*time_rad
                  endif
-                 if(iqv>=0)then
+                 if(luseq)then
+                    tdir(iqv+n)= tdir(iqv+n)+                       &
+                       (w1*xhat_dt_q(j1) +w2*xhat_dt_q(j2) +        &
+                        w3*xhat_dt_q(j3) +w4*xhat_dt_q(j4))*time_rad
                     rdir(iqv+n)= rdir(iqv+n)+                       &
                        (w1*dhat_dt_q(j1) +w2*dhat_dt_q(j2) +        &
                         w3*dhat_dt_q(j3) +w4*dhat_dt_q(j4))*time_rad
                  endif
-                 if (ioz>=0) then
+                 if (luseoz) then
+                    tdir(ioz+n)=tdir(ioz+n)+                        &
+                       (w1*xhat_dt_oz(j1)+w2*xhat_dt_oz(j2)+        &
+                        w3*xhat_dt_oz(j3)+w4*xhat_dt_oz(j4))*time_rad
                     rdir(ioz+n)=rdir(ioz+n)+                        &
                        (w1*dhat_dt_oz(j1)+w2*dhat_dt_oz(j2)+        &
                         w3*dhat_dt_oz(j3)+w4*dhat_dt_oz(j4))*time_rad
                  end if
+ 
 
               end do
            end if

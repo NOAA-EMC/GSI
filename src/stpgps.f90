@@ -125,6 +125,9 @@ subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
 ! Initialize penalty, b1, and b3 to zero
   out=zero_quad
 
+!  If no gps data return
+  if(.not. associated(gpshead))return
+
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

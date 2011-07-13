@@ -108,6 +108,9 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
 
   out=zero_quad
 
+!  If no w data return
+  if(.not. associated(whead))return
+
   ier=0
   call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier

@@ -872,7 +872,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 ! If obs is "acceptable", load array with obs info for use
 ! in inner loop minimization (int* and stp* routines)
 
-        if (.not. last .and. muse(i) ) then
+        if (muse(i)) then
 
            if(.not. associated(gpshead(ibin)%head))then
               allocate(gpshead(ibin)%head,stat=istat)

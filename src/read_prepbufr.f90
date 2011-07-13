@@ -89,6 +89,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                           beta_ref field with cos_beta_ref, sin_beta_ref.
 !   2010-10-19  wu - add code to limit regional use of MAP winds with P less than 400 mb
 !   2010-11-18  treadon - add check for small POB (if POB<tiny_r_kind then POB=bmiss)
+!   2011-07-13  wu     - not use mesonet Psfc when 8th character of sid is "x"
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -177,6 +178,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(8) prvstr,sprvstr     
   character(8) c_prvstg,c_sprvstg 
   character(8) c_station_id
+  character(1) sidchr(8)
   character(8) stnid
 
   integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
@@ -244,6 +246,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   equivalence(r_prvstg(1,1),c_prvstg) 
   equivalence(r_sprvstg(1,1),c_sprvstg) 
   equivalence(rstation_id,c_station_id)
+  equivalence(rstation_id,sidchr)
 
 !  data statements
   data hdstr  /'SID XOB YOB DHR TYP ELV SAID T29'/
@@ -963,6 +966,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !          Set usage variable              
            usage = zero
+
+
            if(icuse(nc) <= 0)usage=100._r_kind
            if(qm == 15 .or. qm == 12 .or. qm == 9)usage=100._r_kind
            if(qm >=lim_qm )usage=101._r_kind
@@ -980,7 +985,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            end if
 
 ! Flag regional MAP wind above 400mb for monitoring 
-           if(regional .and. kx==227 .and. obsdat(1,k)<400._r_kind ) usage=100._r_kind
+           if(regional .and. kx==227 .and. obsdat(1,k)<400._r_kind ) usage=r100
+
+! don't use MESONET psfc obs if  8th character of station id is "x")
+           if( kx==188 .and. psob .and. sidchr(8)=='x' ) usage=r100
 
 ! Get information from surface file necessary for conventional data here
            call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr)

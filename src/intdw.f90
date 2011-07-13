@@ -106,6 +106,8 @@ subroutine intdw_(dwhead,rval,sval)
   real(r_kind),pointer,dimension(:) :: ru,rv
   type(dw_ob_type), pointer :: dwptr
 
+!  If no dw observations return
+  if(.not. associated(dwhead))return
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

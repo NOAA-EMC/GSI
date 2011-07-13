@@ -74,7 +74,7 @@ subroutine read_wrf_mass_binary_guess(mype)
        mpi_offset_kind,mpi_info_null,mpi_mode_rdonly,mpi_status_size
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ifilesig,ges_tsen
+       isli,nfldsig,ifilesig,ges_tsen,sfc_rough
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,eta1_ll,pt_ll,itotsub,aeta1_ll
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
@@ -91,6 +91,7 @@ subroutine read_wrf_mass_binary_guess(mype)
 
 ! Declare local parameters
 
+  real(r_kind),parameter:: rough_default=0.05_r_kind
 
 ! Declare local variables
   integer(i_kind) kt,kq,ku,kv
@@ -205,15 +206,16 @@ subroutine read_wrf_mass_binary_guess(mype)
 ! for cloud analysis
         if(l_cloud_analysis) then
 
-! get pointer to relevant instance of cloud-related backgroud
+! get pointer to relevant instance of cloud-related background
            ier=0
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
-           if (ier/=0) then
+           if (ier/=0 .and. mype == 0) then
                write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
+           l_cloud_analysis=.false.
            endif
 
            i=0
@@ -907,6 +909,7 @@ subroutine read_wrf_mass_binary_guess(mype)
                       'doubtful skint replaced with 1st sigma level t, j,i,mype,sfct=',&
                       j,i,mype,sfct(j,i,it)
               end if
+              sfc_rough(j,i,it)=rough_default
               if(l_cloud_analysis) then
                  isli_cld(j,i,it)=isli(j,i,it)
               endif
@@ -995,7 +998,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   use mpimod, only: mpi_sum,mpi_integer,mpi_real4,mpi_comm_world,npe,ierror
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ifilesig,ges_tsen
+       isli,nfldsig,ifilesig,ges_tsen,sfc_rough
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,r10,r100
@@ -1011,6 +1014,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
+  real(r_kind),parameter:: rough_default=0.05_r_kind
 
 ! Declare local variables
   integer(i_kind) kt,kq,ku,kv
@@ -1380,6 +1384,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
               sno(j,i,it)=all_loc(j,i,i_0+i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_0+i_smois)
               soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
+              sfc_rough(j,i,it)=rough_default
 ! for cloud analysis
               if(l_cloud_analysis) then
                  soil_temp_cld(j,i,it)=soil_temp(j,i,it)

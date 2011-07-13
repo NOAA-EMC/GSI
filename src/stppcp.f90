@@ -127,6 +127,9 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 ! Initialize penalty, b1, and b3 to zero  
   out=zero_quad
 
+!  If no  pcp data return
+  if(.not. associated(pcphead))return
+
 ! Retrieve pointers
   ier=0; icw=0
   call gsi_bundlegetpointer(xval,'u',    su,istatus);ier=istatus+ier

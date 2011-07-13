@@ -104,6 +104,8 @@ contains
     real(r_kind),pointer,dimension(:) :: rpm2_5
     type(pm2_5_ob_type), pointer :: pm2_5ptr
     
+!   If no pm2_5 obs return
+    if(.not. associated(pm2_5head))return
 ! retrieve pointers
 ! simply return if any pointer not found
     ier=0

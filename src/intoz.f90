@@ -76,8 +76,9 @@ subroutine intoz_(ozhead,o3lhead,rval,sval)
   type(gsi_bundle),intent(in   ) :: sval
   type(gsi_bundle),intent(inout) :: rval
 
-  call intozlay_( ozhead,rval,sval)
-  call intozlev_(o3lhead,rval,sval)
+!  If obs exist call int routines
+  if(associated(ozhead))call intozlay_( ozhead,rval,sval)
+  if(associated(o3lhead))call intozlev_(o3lhead,rval,sval)
 
 end subroutine intoz_
 

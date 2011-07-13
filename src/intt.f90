@@ -139,6 +139,9 @@ subroutine intt_(thead,rval,sval)
   real(r_kind) us_prime0,vs_prime0
   type(t_ob_type), pointer :: tptr
 
+!  If no t data return
+  if(.not. associated(thead))return
+
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0; isst=0

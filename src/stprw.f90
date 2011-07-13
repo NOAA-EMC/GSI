@@ -106,6 +106,9 @@ subroutine stprw(rwhead,rval,sval,out,sges,nstep)
 
   out=zero_quad
 
+!  If no rw data return
+  if(.not. associated(rwhead))return
+
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

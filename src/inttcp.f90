@@ -86,6 +86,9 @@ subroutine inttcp_(tcphead,rval,sval)
   real(r_kind),pointer,dimension(:) :: rp
   type(tcp_ob_type), pointer :: tcpptr
 
+!  If no tcp data return
+  if(.not. associated(tcphead))return
+
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

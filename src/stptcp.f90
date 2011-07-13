@@ -88,6 +88,9 @@ subroutine stptcp(tcphead,rval,sval,out,sges,nstep)
 
   out=zero_quad
 
+!  If no tcp data return
+  if(.not. associated(tcphead))return
+
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

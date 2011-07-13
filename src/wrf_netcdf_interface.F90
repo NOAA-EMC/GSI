@@ -79,6 +79,8 @@ subroutine convert_netcdf_mass
   data iunit / 15_i_kind /
   
   wrf_real=104_i_kind
+  end_index=0
+  start_index=0
   
 
 !   transfer code from diffwrf for converting netcdf wrf nmm restart file
@@ -961,6 +963,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   integer(i_kind) wrf_real
   data iunit / 15_i_kind /
   wrf_real=104_i_kind
+  end_index1=0
 
 
 !   transfer code from diffwrf for converting netcdf wrf nmm restart file
@@ -1597,6 +1600,7 @@ subroutine update_netcdf_mass
   integer(i_kind) wrf_real
   data iunit / 15_i_kind /
   wrf_real=104_i_kind
+  end_index1=0
 
 
 !   transfer code from diffwrf for converting netcdf wrf nmm restart file
@@ -2090,6 +2094,8 @@ subroutine update_netcdf_nmm
   integer(i_kind) wrf_real
   data iunit / 15_i_kind /
   wrf_real=104_i_kind
+  start_index=0
+  end_index1=0
 
 
 !   transfer code from diffwrf for converting netcdf wrf nmm restart file

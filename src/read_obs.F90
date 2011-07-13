@@ -1018,7 +1018,7 @@ subroutine read_obs(ndata,mype)
                   rmesh,isfcalc,nouse,npe_sub(i)
 8000         format(a13,': file=',a10,&
                   ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
-                  ' ithin=',i2, ' rmesh=',f7.3,' isfcalc=',i2,&
+                  ' ithin=',i2, ' rmesh=',f10.6,' isfcalc=',i2,&
                   ' ndata=',i10,' ntask=',i3)
 
           endif
