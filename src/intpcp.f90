@@ -130,6 +130,8 @@ subroutine intpcp_(pcphead,rval,sval)
   real(r_kind),pointer,dimension(:):: xhat_dt_tsen,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_cw
   real(r_kind),pointer,dimension(:):: dhat_dt_tsen,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_cw
   
+!  If no pcp obs return
+  if(.not. associated(pcphead))return
 ! Retrieve pointers
   ier=0
   call gsi_bundlegetpointer(sval,'u',    su,istatus);ier=istatus+ier

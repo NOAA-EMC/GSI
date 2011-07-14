@@ -79,8 +79,8 @@ subroutine stpco(colvkhead,rval,sval,out,sges,nstep)
 
   out=zero_quad
 
-! call stpcolay_(  cohead,rval,sval,out,sges,nstep)
-! call stpcolev_(colvkhead,rval,sval,out,sges,nstep)
+! if(associated(cohead))call stpcolay_(  cohead,rval,sval,out,sges,nstep)
+! if(associated(colvkhead))call stpcolev_(colvkhead,rval,sval,out,sges,nstep)
 
   return
 

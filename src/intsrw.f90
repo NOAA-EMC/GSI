@@ -104,6 +104,9 @@ subroutine intsrw_(srwhead,rval,sval)
   real(r_kind),pointer,dimension(:) :: ru,rv
   type(srw_ob_type), pointer :: srwptr
 
+!  If not srw data return
+  if(.not. associated(srwhead))return
+
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

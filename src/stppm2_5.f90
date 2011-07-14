@@ -100,6 +100,9 @@ contains
     type(pm2_5_ob_type), pointer :: pm2_5ptr
     
     out=zero_quad
+
+!   If no pm2_5 data return
+    if(.not. associated(pm2_5head))return
     
     ier=0
     call gsi_bundlegetpointer(sval,'pm2_5',spm2_5,istatus);ier=ier+istatus

@@ -105,6 +105,8 @@ subroutine intq_(qhead,rval,sval)
   real(r_kind),pointer,dimension(:) :: rq
   type(q_ob_type), pointer :: qptr
 
+!  If no q data return
+  if(.not. associated(qhead))return
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

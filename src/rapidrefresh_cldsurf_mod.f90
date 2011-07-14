@@ -94,11 +94,15 @@ contains
                                                       !          temperature observation
 
 !   Figure out if hydrometeors are available in guess, if so, do cloud adjustment as default
-    do i=1,size(hydrometeors)
-       call gsi_metguess_get ('var::'//trim(hydrometeors(i)),ivar,ier)
-       have_hmeteor(i) = (ivar>0)
-    enddo
-    l_cloud_analysis = all(have_hmeteor)
+    if(size(hydrometeors) == 0)then
+       l_cloud_analysis = .false.
+    else
+      do i=1,size(hydrometeors)
+         call gsi_metguess_get ('var::'//trim(hydrometeors(i)),ivar,ier)
+         have_hmeteor(i) = (ivar>0)
+      enddo
+      l_cloud_analysis = all(have_hmeteor)
+    end if
 
     return
   end subroutine init_rapidrefresh_cldsurf

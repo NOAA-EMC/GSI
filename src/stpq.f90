@@ -103,6 +103,9 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 
   out=zero_quad
 
+!  If no q data return
+  if(.not. associated(qhead))return
+
   ier=0
   call gsi_bundlegetpointer(sval,'q',sq,istatus);ier=ier+istatus
   call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=ier+istatus

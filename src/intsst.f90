@@ -97,6 +97,9 @@ subroutine intsst(ssthead,rval,sval)
   real(r_kind),pointer,dimension(:) :: rsst
   type(sst_ob_type), pointer :: sstptr
 
+!  If no sst data return
+  if(.not. associated(ssthead))return
+
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

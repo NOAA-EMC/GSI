@@ -205,10 +205,12 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     if(.not.in_anybin) cycle
 
     zob   = data(izob,i)
-    tref  = data(itref,i)
-    dtw   = data(idtw,i)
-    dtc   = data(idtc,i)
-    tz_tr = data(itz_tr,i)
+    if(nst_gsi > 0)then
+      tref  = data(itref,i)
+      dtw   = data(idtw,i)
+      dtc   = data(idtc,i)
+      tz_tr = data(itz_tr,i)
+    end if
 
 if(in_curbin) then
      dlat=data(ilat,i)

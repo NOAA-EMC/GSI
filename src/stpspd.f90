@@ -110,8 +110,11 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
   type(spd_ob_type), pointer :: spdptr
 
   out=zero_quad
-  time_spd=zero
 
+!  If no spd data return
+  if(.not. associated(spdhead))return
+
+  time_spd=zero
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

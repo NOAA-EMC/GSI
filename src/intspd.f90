@@ -111,6 +111,9 @@ subroutine intspd_(spdhead,rval,sval)
   real(r_kind),pointer,dimension(:) :: ru,rv
   type(spd_ob_type), pointer :: spdptr
 
+!  If no spd data return
+  if(.not. associated(spdhead))return
+
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

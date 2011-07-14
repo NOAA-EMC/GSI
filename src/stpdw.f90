@@ -105,6 +105,9 @@ subroutine stpdw(dwhead,rval,sval,out,sges,nstep)
 
   out=zero_quad
 
+!  If no dw data return
+  if(.not. associated(dwhead))return
+
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

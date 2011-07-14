@@ -682,39 +682,26 @@ end subroutine final_
   character(len=*),parameter::myname_=myname//'*get_int0d_'
   character(len=MAXSTR):: work
   integer(i_kind) ii,id,ln
-  logical labfound
-  labfound=.false.
   istatus=1
   ivar=0
   if(trim(desc)=='dim') then
-     labfound=.true.
      ivar = ntgases
      istatus=0
-  endif
-  if(trim(desc)=='aerosols') then
-     labfound=.true.
+  else if(trim(desc)=='aerosols') then
      ivar = naero
      istatus=0
-  endif
-  if(trim(desc)=='aerosols::3d') then
-     labfound=.true.
+  else if(trim(desc)=='aerosols::3d') then
      ivar = n3daero
      istatus=0
-  endif
-  if(trim(desc)=='aerosols::2d') then
-     labfound=.true.
+  else if(trim(desc)=='aerosols::2d') then
      ivar = n2daero
      istatus=0
-  endif
-  if(trim(desc)=='aerosols_4crtm::3d') then
-     labfound=.true.
+  else if(trim(desc)=='aerosols_4crtm::3d') then
      do ii=1,ng3d
         if (i4crtm3d(ii)==12) ivar=ivar+1
      enddo
      istatus=0
-  endif
-  if(index(trim(desc),'i4crtm::')/=0) then
-     labfound=.true.
+  else if(index(trim(desc),'i4crtm::')/=0) then
      ln=len_trim(desc)
      work=desc(9:ln)
      if(allocated(tgases)) then
@@ -724,18 +711,16 @@ end subroutine final_
         ivar=0
      endif
      istatus=0
-  endif
-  if(desc(1:5)=='var::') then
-     labfound=.true.
+  else if(desc(1:5)=='var::') then
      if(allocated(tgases)) then
         id=len_trim(desc)
         if(id>=6) ivar=getindex(tgases,desc(6:id))
      endif
      istatus=0
-  endif
-  if (.not.labfound) then
+  else
      call die(myname_,'label unavailable :'//trim(desc),99)
   endif
+  return
   end subroutine get_int0d_
 !EOC
 

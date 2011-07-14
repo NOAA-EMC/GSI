@@ -110,6 +110,9 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
 
   out=zero_quad
 
+!  If no pw data return
+  if(.not. associated(pwhead))return
+
 ! Retrieve pointers
   ier=0
   call gsi_bundlegetpointer(sval,'q',sq, istatus);ier=istatus+ier

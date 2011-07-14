@@ -106,6 +106,9 @@ subroutine intw_(whead,rval,sval)
   real(r_kind),pointer,dimension(:) :: ru,rv
   type(w_ob_type), pointer :: wptr
 
+!  If no w data return
+  if(.not. associated(whead))return
+
 ! Retrieve pointers from xhat_dt and dhat_dt
   ier=0
   call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier

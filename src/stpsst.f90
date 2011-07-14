@@ -103,6 +103,9 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
 
   out=zero_quad
 
+!  If no sst data return
+  if(.not. associated(ssthead))return
+
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

@@ -130,6 +130,9 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
 
   out=zero_quad
 
+!  If no t data return
+  if(.not. associated(thead))return
+
 ! Retrieve pointers
   ier=0; isst=0
   call gsi_bundlegetpointer(xval,'u',   su, istatus);ier=istatus+ier

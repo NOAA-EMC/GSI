@@ -110,6 +110,8 @@ subroutine intpw_(pwhead,rval,sval)
   real(r_kind),pointer,dimension(:) :: rq
   type(pw_ob_type), pointer :: pwptr
 
+!  If no pw data return
+  if(.not. associated(pwhead))return
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

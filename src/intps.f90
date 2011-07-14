@@ -105,6 +105,8 @@ subroutine intps_(pshead,rval,sval)
   real(r_kind),pointer,dimension(:) :: rp
   type(ps_ob_type), pointer :: psptr
 
+!  If no ps data return
+  if(.not. associated(pshead))return
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

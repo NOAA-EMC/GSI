@@ -118,6 +118,8 @@ subroutine intgps_(gpshead,rval,sval)
   real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_p3d
   type(gps_ob_type), pointer :: gpsptr
 
+!  If no gps obs return
+  if(.not. associated(gpshead))return
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0

@@ -138,25 +138,25 @@ subroutine update_guess(sval,sbias)
   call gsi_bundlegetpointer(sval(1),'sst',is_sst,istatus)
 
 ! Inquire about guess fields
-call gsi_metguess_get('dim',nguess,istatus)
-if (nguess>0) then
-   allocate(guess(nguess))
-   call gsi_metguess_get('gsinames',guess,istatus)
-endif
+  call gsi_metguess_get('dim',nguess,istatus)
+  if (nguess>0) then
+     allocate(guess(nguess))
+     call gsi_metguess_get('gsinames',guess,istatus)
+  endif
 
 ! Inquire about clouds
-call gsi_metguess_get('clouds::3d',ncloud,istatus)
-if (ncloud>0) then
-   allocate(cloud(ncloud))
-   call gsi_metguess_get('clouds::3d',cloud,istatus)
-endif
+  call gsi_metguess_get('clouds::3d',ncloud,istatus)
+  if (ncloud>0) then
+     allocate(cloud(ncloud))
+     call gsi_metguess_get('clouds::3d',cloud,istatus)
+  endif
 
 ! Inquire about chemistry fields
-call gsi_chemguess_get('dim',ngases,istatus)
-if (ngases>0) then
-   allocate(gases(ngases))
-   call gsi_chemguess_get('gsinames',gases,istatus)
-endif
+  call gsi_chemguess_get('dim',ngases,istatus)
+  if (ngases>0) then
+     allocate(gases(ngases))
+     call gsi_chemguess_get('gsinames',gases,istatus)
+  endif
 
 ! Initialize local arrays
   if (regional) then
@@ -197,27 +197,28 @@ endif
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              if(is_u>0) ges_u(i,j,k,it)    =                 ges_u(i,j,k,it)    + sval(ii)%r3(is_u)%q(i,j,k)
-              if(is_v>0) ges_v(i,j,k,it)    =                 ges_v(i,j,k,it)    + sval(ii)%r3(is_v)%q(i,j,k)
-              if(is_q>0) ges_q(i,j,k,it)    =             max(ges_q(i,j,k,it)    + sval(ii)%r3(is_q)%q(i,j,k),1.e-10_r_kind) 
-              if (.not.twodvar_regional .or. .not.tsensible) then
-                 if(is_t >0) ges_tv(i,j,k,it)   =              ges_tv(i,j,k,it)   + sval(ii)%r3(is_t)%q(i,j,k)
+              if(is_u>0) ges_u(i,j,k,it) =     ges_u(i,j,k,it)    + sval(ii)%r3(is_u)%q(i,j,k)
+              if(is_v>0) ges_v(i,j,k,it) =     ges_v(i,j,k,it)    + sval(ii)%r3(is_v)%q(i,j,k)
+              if(is_q>0) ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + sval(ii)%r3(is_q)%q(i,j,k),1.e-10_r_kind) 
+              if(is_t > 0)then
+                 if (.not.twodvar_regional .or. .not.tsensible) then
+                    ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)   + sval(ii)%r3(is_t)%q(i,j,k)
 !  produce sensible temperature
-                 if(is_t >0) ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*ges_q(i,j,k,it))
-              else
-                 if(is_t >0) ges_tsen(i,j,k,it) =              ges_tsen(i,j,k,it) + sval(ii)%r3(is_t)%q(i,j,k)
+                    ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*ges_q(i,j,k,it))
+                 else
+                    ges_tsen(i,j,k,it) = ges_tsen(i,j,k,it) + sval(ii)%r3(is_t)%q(i,j,k)
 !  produce virtual temperature
-                 if(is_t >0) ges_tv(i,j,k,it)   = ges_tsen(i,j,k,it)*(one+fv*ges_q(i,j,k,it))
+                    ges_tv(i,j,k,it)   = ges_tsen(i,j,k,it)*(one+fv*ges_q(i,j,k,it))
+                 endif
               endif
 
 !             Note:  Below variables only used in NCEP GFS model
-              if(is_oz>0) ges_oz(i,j,k,it)   =                 ges_oz(i,j,k,it)   + sval(ii)%r3(is_oz)%q(i,j,k)
-                          ges_div(i,j,k,it)  =                 ges_div(i,j,k,it)  + xhat_div(i,j,k,ii)
-                          ges_vor(i,j,k,it)  =                 ges_vor(i,j,k,it)  + xhat_vor(i,j,k,ii)
+              if(is_oz>0) ges_oz(i,j,k,it)  = ges_oz(i,j,k,it)   + sval(ii)%r3(is_oz)%q(i,j,k)
+                          ges_div(i,j,k,it) = ges_div(i,j,k,it)  + xhat_div(i,j,k,ii)
+                          ges_vor(i,j,k,it) = ges_vor(i,j,k,it)  + xhat_vor(i,j,k,ii)
            end do
         end do
      end do
-     ij=0
      if(is_ps>0) then
         do j=1,lon2
            do i=1,lat2
