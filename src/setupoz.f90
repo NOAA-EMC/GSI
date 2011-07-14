@@ -231,7 +231,6 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
              .not.ozone_diagsave)) then
            tnoise(jc)=1.e10_r_kind
            gross(jc) =1.e10_r_kind
-           pobs(jc)  = zero
         endif
         if (iouse(jc)>-1) l_may_be_passive=.true.
         if (tnoise(jc)<1.e4_r_kind) itoss=0
