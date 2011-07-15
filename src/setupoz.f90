@@ -163,7 +163,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   integer(i_kind) isolz,ifovn,itoqf
   integer(i_kind) mm1,itime,ilat,ilon,ilate,ilone,itoq,ipoq
   integer(i_kind),dimension(iint,nobs):: idiagbuf
-  integer(i_kind),dimension(nlevs):: ipos,iouse
+  integer(i_kind),dimension(nlevs):: ipos,iouse,ikeepk
 
   real(r_kind),dimension(4):: tempwij
   integer(i_kind) nlevp
@@ -429,10 +429,11 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         end do
 !       Check all information for obs.  If there is at least one piece of
 !       information that passed quality control, use this observation.
-        ikeep=0
+        ikeepk=0
         do k=1,nlevs
-           if ((ratio_errors(k)**2)*varinv3(k)>1.e-10_r_kind) ikeep=1
+           if ((ratio_errors(k)**2)*varinv3(k)>1.e-10_r_kind) ikeepk(k)=1
         end do
+        ikeep=maxval(ikeepk)
      endif ! (in_curbin)
 
 !    In principle, we want ALL obs in the diagnostics structure but for
@@ -558,7 +559,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
            if(in_curbin) then
               obsdiags(i_oz_ob_type,ibin)%tail%luse=luse(i)
-              obsdiags(i_oz_ob_type,ibin)%tail%muse(jiter)= (ikeep==1)
+              obsdiags(i_oz_ob_type,ibin)%tail%muse(jiter)= (ikeepk(k)==1)
               obsdiags(i_oz_ob_type,ibin)%tail%nldepart(jiter)=ozone_inv(k)
               obsdiags(i_oz_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
  
