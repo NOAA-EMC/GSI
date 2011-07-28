@@ -709,7 +709,7 @@ subroutine general_read_wrf_mass(filename,g_ps,g_vor,g_div,g_u,g_v,g_tv,g_rh,g_c
 !    if(mype==0) then
 !       call comp_prt_3d(tv_wrk_fill_3d,gg_tv,nx,ny,nz)
 !    endif
-    call general_reload(grd_ens,tv_wrk_fill_3d,g_tv)
+    call general_reload(grd_ens,tv_wrk_fill_3d,g_tv,1)
 !
 ! U and V
     allocate(u_wrk_fill_2d(grd_ens%itotsub))
@@ -739,8 +739,8 @@ subroutine general_read_wrf_mass(filename,g_ps,g_vor,g_div,g_u,g_v,g_tv,g_rh,g_c
        endif
     enddo
 
-    call general_reload(grd_ens,u_wrk_fill_3d,g_u)
-    call general_reload(grd_ens,v_wrk_fill_3d,g_v)
+    call general_reload(grd_ens,u_wrk_fill_3d,g_u,1)
+    call general_reload(grd_ens,v_wrk_fill_3d,g_v,1)
 
 !    print *, 'AFTER RELOAD'
 !    j=grd_ens%lat2/2
@@ -771,7 +771,7 @@ subroutine general_read_wrf_mass(filename,g_ps,g_vor,g_div,g_u,g_v,g_tv,g_rh,g_c
           icount_prev=icount+1   
        endif
     enddo
-    call general_reload(grd_ens,rh_wrk_fill_3d,g_rh)
+    call general_reload(grd_ens,rh_wrk_fill_3d,g_rh,1)
 !
 ! CWMR
     allocate(cwmr_wrk_fill_2d(grd_ens%itotsub))
@@ -792,7 +792,7 @@ subroutine general_read_wrf_mass(filename,g_ps,g_vor,g_div,g_u,g_v,g_tv,g_rh,g_c
           icount_prev=icount+1   
        endif
     enddo
-    call general_reload(grd_ens,cwmr_wrk_fill_3d,g_cwmr)
+    call general_reload(grd_ens,cwmr_wrk_fill_3d,g_cwmr,1)
 !
 ! OZ
     allocate(oz_wrk_fill_2d(grd_ens%itotsub))
@@ -813,7 +813,7 @@ subroutine general_read_wrf_mass(filename,g_ps,g_vor,g_div,g_u,g_v,g_tv,g_rh,g_c
           icount_prev=icount+1   
        endif
     enddo
-    call general_reload(grd_ens,oz_wrk_fill_3d,g_oz)
+    call general_reload(grd_ens,oz_wrk_fill_3d,g_oz,1)
     print *, 'end of wrf read'
 #endif /* WRF */
 

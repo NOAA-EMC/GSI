@@ -201,7 +201,7 @@ qcmod.o : qcmod.f90 constants.o radinfo.o obsmod.o gsi_metguess_mod.o kinds.o
 q_diag.o : q_diag.f90 gridmod.o mpimod.o gsi_metguess_mod.o kinds.o guess_grids.o mpeu_util.o constants.o gsi_bundlemod.o jfunc.o
 qnewton3.o : qnewton3.f90 constants.o control_vectors.o timermod.o qcmod.o jfunc.o mpimod.o kinds.o
 qnewton.o : qnewton.f90 constants.o control_vectors.o qcmod.o jfunc.o mpimod.o kinds.o
-radinfo.o : radinfo.f90 constants.o obsmod.o mpimod.o read_diag.o gsi_metguess_mod.o kinds.o
+radinfo.o : radinfo.f90 constants.o obsmod.o mpimod.o read_diag.o gridmod.o gsi_metguess_mod.o kinds.o
 raflib.o : raflib.f90 plib8.o constants.o mpimod.o kinds.o
 rapidrefresh_cldsurf_mod.o : rapidrefresh_cldsurf_mod.f90 gsi_metguess_mod.o kinds.o
 rdgrbsst.o : rdgrbsst.f90 constants.o kinds.o
@@ -235,6 +235,7 @@ read_pcp.o : read_pcp.f90 gsi_4dvar.o constants.o gridmod.o kinds.o
 read_prepbufr.o : read_prepbufr.f90 gsi_4dvar.o convinfo.o gridmod.o sfcobsqc.o converr.o kinds.o constants.o obsmod.o qcmod.o jfunc.o blacklist.o convthin.o
 read_radar.o : read_radar.f90 gsi_4dvar.o convinfo.o gridmod.o satthin.o kinds.o guess_grids.o constants.o obsmod.o qcmod.o convthin.o
 read_RadarRef_mosaic.o : read_RadarRef_mosaic.f90 gsi_4dvar.o constants.o convinfo.o kinds.o
+read_satwnd.o : read_satwnd.f90 gsi_4dvar.o convinfo.o obsmod.o converr.o constants.o convthin.o qcmod.o gridmod.o kinds.o
 read_seviri.o : read_seviri.f90 gsi_4dvar.o constants.o gridmod.o radinfo.o obsmod.o satthin.o kinds.o
 read_ssmi.o : read_ssmi.f90 gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o
 read_ssmis.o : read_ssmis.f90 gsi_4dvar.o constants.o gridmod.o calc_fov_conical.o radinfo.o satthin.o kinds.o

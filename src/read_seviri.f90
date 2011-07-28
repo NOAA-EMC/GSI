@@ -69,7 +69,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   integer(i_kind),intent(in) :: mpi_comm_sub
 
 ! Declare local parameters
-  integer(i_kind),parameter:: maxinfo=33_i_kind
+  integer(i_kind),parameter:: maxinfo=33
   real(r_kind),parameter:: r70=70.0_r_kind
   real(r_kind),parameter:: r65=65.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
@@ -107,16 +107,17 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   real(r_kind) disterr,disterrmax,dlon00,dlat00
   integer(i_kind) ntest
 
+  logical :: allchnmiss
 
 !**************************************************************************
 ! Initialize variables
-  lnbufr = 10_i_kind
+  lnbufr = 10
   disterrmax=zero
   ntest=0
   dg2ew = r360*deg2rad
 
-  ilon=3_i_kind
-  ilat=4_i_kind
+  ilon=3
+  ilat=4
 
   if (nst_gsi > 0 ) then
     call skindepth(obstype,zob)
@@ -132,12 +133,12 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   nread=0
   ndata=0
   nodata=0
-  nchanl=8_i_kind              ! the channel number
+  nchanl=8                     ! the channel number
 
-  ilath=8_i_kind               ! the position of latitude in the header
-  ilonh=9_i_kind               ! the position of longitude in the header
-  ilzah=10_i_kind              ! satellite zenith angle
-  iszah=11_i_kind              ! solar zenith angle
+  ilath=8                      ! the position of latitude in the header
+  ilonh=9                      ! the position of longitude in the header
+  ilzah=10                     ! satellite zenith angle
+  iszah=11                     ! solar zenith angle
   subcsr='NC021043'            ! sub message
   subasr='NC021042'            ! sub message
 
@@ -187,15 +188,15 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 ! Set BUFR string based on seviri data set
   if (clrsky) then
      hdrsevi='SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA SOZA'
-     nhdr=11_i_kind
-     nchn=12_i_kind
+     nhdr=11
+     nchn=12
      ncld=nchn
      nbrst=nchn
   else if (allsky) then
      hdrsevi='SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH'
-     nhdr=9_i_kind
-     nchn=11_i_kind
-     ncld=2_i_kind
+     nhdr=9
+     nchn=11
+     ncld=2
      nbrst=nchn*6                ! channel dependent: all, clear, cloudy, low, middle and high clouds
   endif
   allocate(datasev1(1,ncld))     ! not channel dependent
@@ -240,13 +241,23 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 !       Read through each record
         call ufbint(lnbufr,hdr,nhdr,1,iret,hdrsevi)
-        if(jsatid == 'm08') kidsat = 55_i_kind
-        if(jsatid == 'm09') kidsat = 56_i_kind
-        if(jsatid == 'm10') kidsat = 57_i_kind
+        if(jsatid == 'm08') kidsat = 55
+        if(jsatid == 'm09') kidsat = 56
+        if(jsatid == 'm10') kidsat = 57
         if(hdr(1) /= kidsat) cycle read_loop
 
         call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
         call ufbrep(lnbufr,datasev2,1,nbrst,iret,'TMBRST')
+
+        allchnmiss=.true.
+        do n=4,11
+           if(datasev2(1,n)<500.)  then
+              allchnmiss=.false.
+           end if
+        end do
+        if(allchnmiss) then
+           cycle read_loop
+        end if
 
         nread=nread+nchanl
  

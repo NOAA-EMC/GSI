@@ -341,6 +341,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         if(nobs > 0)then
 
            read(lunin,iostat=ier) obstype,isis,nreal,nchanl
+           if(mype ==0) then
+              write(6,*) 'SETUPALL:,obstype,isis,nreal,nchanl=',obstype,isis,nreal,nchanl,nobs
+           endif
            if(ier/=0) call die('setuprhsall','read(), iostat =',ier)
            nele=nreal+nchanl
 
@@ -350,6 +353,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
               call setuprad(lunin,&
                  mype,aivals,stats,nchanl,nreal,nobs,&
                  obstype,isis,is,rad_diagsave,init_pass,last_pass)
+
 
 !          Set up for precipitation data
            else if(ditype(is) == 'pcp')then
@@ -362,21 +366,26 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
               if(obstype=='t')then
                  call setupt(lunin,mype,bwork,awork(1,i_t),nele,nobs,is,conv_diagsave)
 
+
 !             Set up uv wind data
               else if(obstype=='uv')then
                  call setupw(lunin,mype,bwork,awork(1,i_uv),nele,nobs,is,conv_diagsave)
+
 
 !             Set up wind speed data
               else if(obstype=='spd')then
                  call setupspd(lunin,mype,bwork,awork(1,i_uv),nele,nobs,is,conv_diagsave)
 
+
 !             Set up surface pressure data
               else if(obstype=='ps')then
                  call setupps(lunin,mype,bwork,awork(1,i_ps),nele,nobs,is,conv_diagsave)
  
+
 !             Set up tc-mslp data
               else if(obstype=='tcp')then
                  call setuptcp(lunin,mype,bwork,awork(1,i_tcp),nele,nobs,is,conv_diagsave)
+
 
 !             Set up moisture data
               else if(obstype=='q') then

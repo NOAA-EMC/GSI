@@ -50,6 +50,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-05-23  safford - rm unused vars and uses
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2011-05-06  Su      - modify the observation gross check error 
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -78,7 +79,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gridmod, only: nsig,get_ij
   use constants, only: zero,one_tenth,one,half,pi,g_over_rd, &
              huge_r_kind,tiny_r_kind,two,cg_term,huge_single, &
-             r1000,wgtlim,tiny_single,r10
+             r1000,wgtlim,tiny_single,r10,three
   use jfunc, only: jiter,last,jiterstart,miter
   use qcmod, only: dfact,dfact1,npres_print
   use guess_grids, only: hrdifsig,ges_lnprsl,ges_tv,ges_ps,nfldsig,ges_z,ntguessig
@@ -97,6 +98,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Declare local parameters
   character(len=*),parameter:: myname='setupps'
+  real(r_kind),parameter:: r0_7=0.7_r_kind
 
 ! Declare external calls for code analysis
   external:: intrp2a
@@ -115,7 +117,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) r0_005,r0_2,r2_5,tmin,tmax,half_tlapse
   real(r_kind) ratio_errors,error,dhgt,ddiff,dtemp
   real(r_kind) val2,ress,ressw2,val,valqc
-  real(r_kind) cg_ps,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2
+  real(r_kind) cg_ps,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2,qcgross
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nele,nobs):: data
@@ -381,6 +383,14 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
      residual = abs(r10*ddiff)
      ratio    = residual/obserrlm
+
+! modify gross check limit for quality mark=3
+     if(data(iqc,i) == three ) then
+        qcgross=r0_7*cgross(ikx)
+     else
+        qcgross=cgross(ikx)
+     endif
+
      if (ratio > cgross(ikx) .or. ratio_errors < tiny_r_kind) then
         if (luse(i)) awork(6) = awork(6)+one
         error = zero

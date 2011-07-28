@@ -239,6 +239,7 @@ contains
 
     use mpimod, only: mype
     use gsi_metguess_mod, only: gsi_metguess_get
+    use gridmod, only: nsig
     implicit none
 
     integer(i_kind) ns,ii,jj,mxlvs,isum,nvarjac,n_clouds,ndummy,ndim,ier
@@ -267,6 +268,12 @@ contains
     mxlvs = maxval(all_levels)
     deallocate(all_levels)
 
+!   Test to ensure that mxlvs == nsig
+    if (mxlvs/=nsig)then
+       if(mype==0) write(6,*) 'INIT_RAD_VARS:  ***WARNING*** mxlvs from the anavinfo file',mxlvs, &
+                      'is different from that of the guess',nsig,'.  Resetting maxlvs to match NSIG from guess.'
+       mxlvs=nsig
+    endif
 !   inquire number of clouds to participate in CRTM calculations
     call gsi_metguess_get ( 'clouds_4crtm::3d', n_clouds, ier )
     if (n_clouds>0) then
